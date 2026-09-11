@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from collections import defaultdict, deque
 import math
 import re
 from typing import Mapping, Sequence
@@ -56,6 +57,8 @@ class Line:
     source_type_code: str
     length_m: float
     overhead: bool
+    txt_length_m: float | None = None
+    length_source: str = 'txt'  # 'txt' | 'georef'
 
     @property
     def length_km(self) -> float:
@@ -198,6 +201,13 @@ def _edit_distance(a: str, b: str) -> int:
     return prev[-1]
 
 
+def _code_number(code: str) -> int | None:
+    matches = re.findall(r'\d+', code)
+    if not matches:
+        return None
+    return int(matches[-1])
+
+
 def suggest_catalog_code(raw_code: str, catalog_codes: Sequence[str]) -> str | None:
     """Pick a unique nearest ID from the loaded BD_Equipo catalog, or None if ambiguous/absent."""
     if raw_code in catalog_codes:
@@ -212,11 +222,26 @@ def suggest_catalog_code(raw_code: str, catalog_codes: Sequence[str]) -> str | N
         return None
     # Prefer longer shared prefix, then smaller edit distance.
     scored.sort(key=lambda item: (-item[0], item[1], item[2]))
-    best_prefix, best_edit, best_code = scored[0]
+    best_prefix, best_edit, _ = scored[0]
     ties = [c for p, e, c in scored if p == best_prefix and e == best_edit]
-    if len(ties) != 1:
+    if len(ties) == 1:
+        return ties[0]
+    # Break remaining ties with numeric closeness (AA05001D -> AA05002D, not DEFAULT).
+    raw_num = _code_number(raw_code)
+    if raw_num is None:
         return None
-    return best_code
+    ranked: list[tuple[int, str]] = []
+    for code in ties:
+        num = _code_number(code)
+        if num is None:
+            continue
+        ranked.append((abs(num - raw_num), code))
+    if not ranked:
+        return None
+    ranked.sort(key=lambda item: (item[0], item[1]))
+    best_delta = ranked[0][0]
+    nearest = [code for delta, code in ranked if delta == best_delta]
+    return nearest[0] if len(nearest) == 1 else None
 
 
 def _pick_type(
@@ -341,6 +366,242 @@ def _assign_load_display_names(loads: list[Load]) -> list[Load]:
     return renamed
 
 
+def _reachable_from_source(source_node: str, lines: list[Line]) -> set[str]:
+    adj: dict[str, set[str]] = defaultdict(set)
+    for line in lines:
+        adj[line.from_node].add(line.to_node)
+        adj[line.to_node].add(line.from_node)
+    seen = {source_node}
+    queue: deque[str] = deque([source_node])
+    while queue:
+        node = queue.popleft()
+        for neighbor in adj[node]:
+            if neighbor not in seen:
+                seen.add(neighbor)
+                queue.append(neighbor)
+    return seen
+
+
+def _intermediate_seq(value: str | None) -> tuple[int, str]:
+    try:
+        return int(value or '0'), value or ''
+    except ValueError:
+        return 10**9, value or ''
+
+
+def _polyline_length_m(points: Sequence[tuple[float, float]]) -> float:
+    total = 0.0
+    for (x0, y0), (x1, y1) in zip(points, points[1:]):
+        total += math.hypot(x1 - x0, y1 - y0)
+    return total
+
+
+def _section_projected_path(
+    dataset: CymdistDataset,
+    section_id: str,
+    from_node: str,
+    to_node: str,
+    nodes: Mapping[str, Node],
+    *,
+    intermediate_by_section: Mapping[str, Sequence[Mapping[str, str]]] | None = None,
+) -> list[tuple[float, float]] | None:
+    """Projected (CoordX, CoordY) polyline: FromNode → intermediate → ToNode.
+
+    Returns None when either electrical end lacks finite georeferenced coordinates.
+    """
+    start = nodes.get(from_node)
+    end = nodes.get(to_node)
+    if start is None or end is None:
+        return None
+    if start.x is None or start.y is None or end.x is None or end.y is None:
+        return None
+    path: list[tuple[float, float]] = [(start.x, start.y)]
+    if intermediate_by_section is None:
+        rows = [row for row in dataset.intermediate_nodes if row.get('SectionID', '') == section_id]
+    else:
+        rows = list(intermediate_by_section.get(section_id, ()))
+    for row in sorted(rows, key=lambda r: _intermediate_seq(r.get('SeqNumber'))):
+        x = _float(row.get('CoordX'), float('nan'))
+        y = _float(row.get('CoordY'), float('nan'))
+        if not (math.isfinite(x) and math.isfinite(y)):
+            continue
+        path.append((x, y))
+    path.append((end.x, end.y))
+    return path
+
+
+def apply_georeferenced_lengths(model: FeederModel, dataset: CymdistDataset) -> FeederModel:
+    """Replace LINE CONFIGURATION lengths with polyline meters from georeferenced nodes.
+
+    Uses NODE.CoordX/Y (projected CRS, typically metres) plus INTERMEDIATE NODES when
+    present. Sections without coordinates keep the TXT length.
+    """
+    intermediate_by_section: dict[str, list[dict[str, str]]] = defaultdict(list)
+    selected = set(model.section_by_id)
+    for row in dataset.intermediate_nodes:
+        sid = row.get('SectionID', '')
+        if sid in selected:
+            intermediate_by_section[sid].append(row)
+
+    new_lines: list[Line] = []
+    updated = 0
+    kept_txt = 0
+    for line in model.lines:
+        txt_m = line.txt_length_m if line.txt_length_m is not None else line.length_m
+        path = _section_projected_path(
+            dataset,
+            line.section_id,
+            line.from_node,
+            line.to_node,
+            model.nodes,
+            intermediate_by_section=intermediate_by_section,
+        )
+        if path is None:
+            new_lines.append(Line(
+                **{**line.__dict__, 'txt_length_m': txt_m, 'length_source': 'txt'},
+            ))
+            kept_txt += 1
+            continue
+        geo_m = _polyline_length_m(path)
+        if not math.isfinite(geo_m) or geo_m < 0:
+            new_lines.append(Line(
+                **{**line.__dict__, 'txt_length_m': txt_m, 'length_source': 'txt'},
+            ))
+            kept_txt += 1
+            continue
+        new_lines.append(Line(
+            section_id=line.section_id,
+            from_node=line.from_node,
+            to_node=line.to_node,
+            phase=line.phase,
+            type_key=line.type_key,
+            source_type_code=line.source_type_code,
+            length_m=geo_m,
+            overhead=line.overhead,
+            txt_length_m=txt_m,
+            length_source='georef',
+        ))
+        updated += 1
+
+    model.lines = new_lines
+    model.section_by_id = {line.section_id: line for line in new_lines}
+    if updated:
+        model.warnings.append(
+            f'Longitudes de {updated} tramo(s) MT actualizadas desde nodos georreferenciados '
+            f'(FromNode/ToNode + intermedios); {kept_txt} conservaron Length del TXT.'
+        )
+    return model
+
+
+def prove_mt_connections(model: FeederModel, dataset: CymdistDataset) -> dict:
+    """Prove each MT section ends on georeferenced From/To nodes and each SED matches TXT Location."""
+    errors: list[str] = []
+    line_ok = 0
+    sed_ok = 0
+    georef_lengths = 0
+
+    for line in model.lines:
+        sec = dataset.sections.get(line.section_id)
+        if sec is None:
+            errors.append(f'{line.section_id}: SECTION ausente en RED')
+            continue
+        txt_from = sec.get('FromNodeID', '')
+        txt_to = sec.get('ToNodeID', '')
+        if line.from_node != txt_from or line.to_node != txt_to:
+            errors.append(
+                f'{line.section_id}: From/To del modelo ({line.from_node}->{line.to_node}) '
+                f'no coinciden con TXT ({txt_from}->{txt_to})'
+            )
+            continue
+        start = model.nodes.get(line.from_node)
+        end = model.nodes.get(line.to_node)
+        if start is None or end is None:
+            errors.append(f'{line.section_id}: nodos From/To no están en el modelo')
+            continue
+        if start.x is None or start.y is None:
+            errors.append(f'{line.section_id}: FromNode {line.from_node} sin CoordX/CoordY georreferenciadas')
+            continue
+        if end.x is None or end.y is None:
+            errors.append(f'{line.section_id}: ToNode {line.to_node} sin CoordX/CoordY georreferenciadas')
+            continue
+        line_ok += 1
+        if line.length_source == 'georef':
+            georef_lengths += 1
+
+    loads_by_key = {(load.section_id, load.device_number): load for load in model.loads}
+    for sed in model.seds:
+        placement = dataset.load_placements.get(sed.load_key)
+        if placement is None:
+            errors.append(f'SED {sed.code}: falta LOADS.Location para {sed.load_key}')
+            continue
+        line = model.section_by_id.get(sed.section_id)
+        if line is None:
+            errors.append(f'SED {sed.code}: tramo {sed.section_id} no está en el alimentador')
+            continue
+        location = placement.get('Location', '')
+        expected = _load_node(location, line, strict=False)
+        if expected is None:
+            errors.append(
+                f'SED {sed.code}: LOADS.Location={location!r} inválida en {sed.section_id} '
+                f'(debe ser 0=FromNode o 1=ToNode)'
+            )
+            continue
+        if sed.node_id != expected:
+            errors.append(
+                f'SED {sed.code}: conectada a {sed.node_id} pero TXT Location={location} '
+                f'exige {expected} (sección {sed.section_id})'
+            )
+            continue
+        load = loads_by_key.get(sed.load_key)
+        if load is not None and load.node_id != sed.node_id:
+            errors.append(
+                f'SED {sed.code}: carga {sed.device_number} en nodo {load.node_id} '
+                f'difiere del nodo SED {sed.node_id}'
+            )
+            continue
+        node = model.nodes.get(sed.node_id)
+        if node is None or node.x is None or node.y is None:
+            errors.append(f'SED {sed.code}: nodo {sed.node_id} sin georreferencia CoordX/CoordY')
+            continue
+        sed_ok += 1
+
+    return {
+        'ok': not errors,
+        'errors': errors,
+        'lines_checked': line_ok,
+        'lines_total': len(model.lines),
+        'seds_checked': sed_ok,
+        'seds_total': len(model.seds),
+        'lines_with_georef_length': georef_lengths,
+        'errors_total': len(errors),
+    }
+
+
+def _topology_island_warning(name: str, source_node: str, lines: list[Line], loads: list[Load], seds: list[Sed]) -> str | None:
+    """Warn when RED sections under this feeder are not reachable from SOURCE."""
+    if not lines:
+        return None
+    reachable = _reachable_from_source(source_node, lines)
+    island_lines = [line for line in lines if line.from_node not in reachable or line.to_node not in reachable]
+    if not island_lines:
+        return None
+    island_nodes = {
+        node
+        for line in island_lines
+        for node in (line.from_node, line.to_node)
+        if node not in reachable
+    }
+    island_loads = sum(1 for load in loads if load.node_id not in reachable)
+    island_seds = sum(1 for sed in seds if sed.node_id not in reachable)
+    sample = ', '.join(sorted(line.section_id for line in island_lines)[:8])
+    more = '' if len(island_lines) <= 8 else f' (+{len(island_lines) - 8} más)'
+    return (
+        f'{name}: {len(island_lines)} tramo(s), {len(island_nodes)} nodo(s), '
+        f'{island_loads} carga(s) y {island_seds} SED desconectados del SOURCE '
+        f'({source_node}). Revise SECTION/FromNode/ToNode en el RED. Ejemplos: {sample}{more}'
+    )
+
+
 def build_feeder_model(
     dataset: CymdistDataset,
     selector: str,
@@ -400,13 +661,19 @@ def build_feeder_model(
             source_type_code=raw_code,
             length_m=length_m,
             overhead=overhead,
+            txt_length_m=length_m,
+            length_source='txt',
         )
         lines.append(line)
         used_types[typ.key] = typ
         used_nodes.update((from_node, to_node))
 
     if not lines:
-        raise ModelBuildError(f'{name}: no sections could be modelled')
+        raise ModelBuildError(
+            f'{name}: el RED no tiene filas SECTION para este alimentador '
+            f'(solo cabecera FEEDER=/SOURCE en {network_id}). '
+            'No hay tramos, cargas ni SED que convertir; revise el export IGEA.'
+        )
 
     section_by_id = {line.section_id: line for line in lines}
     loads: list[Load] = []
@@ -531,7 +798,11 @@ def build_feeder_model(
     if any(d.eq_state != 0 for d in devices):
         warnings.append('One or more switching devices have EqState != 0; EqState is preserved in the model but DGS StaSwitch has no equivalent field in this profile.')
 
-    return FeederModel(
+    island_warning = _topology_island_warning(name, source_node, lines, loads, seds)
+    if island_warning:
+        warnings.append(island_warning)
+
+    model = FeederModel(
         name=name,
         network_id=network_id,
         nominal_kv=nominal_kv,
@@ -547,3 +818,27 @@ def build_feeder_model(
         section_by_id=section_by_id,
         seds=seds,
     )
+
+    # Electrical lengths follow the georeferenced polyline (From + intermediates + To).
+    apply_georeferenced_lengths(model, dataset)
+
+    proof = prove_mt_connections(model, dataset)
+    if proof['errors']:
+        detail = '; '.join(proof['errors'][:12])
+        more = '' if len(proof['errors']) <= 12 else f' (+{len(proof["errors"]) - 12} más)'
+        message = (
+            f'{name}: prueba de conexión MT/SED falló '
+            f'({proof["errors_total"]} error(es)): {detail}{more}'
+        )
+        if strict:
+            raise ModelBuildError(message)
+        model.warnings.append(message)
+    else:
+        model.warnings.append(
+            f'Prueba OK: {proof["lines_checked"]}/{proof["lines_total"]} tramos MT '
+            f'conectados a From/To georreferenciados; '
+            f'{proof["seds_checked"]}/{proof["seds_total"]} SED en el nodo TXT; '
+            f'{proof["lines_with_georef_length"]} longitudes actualizadas por georreferencia.'
+        )
+
+    return model

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import json
+import shutil
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 
 from .dataset import CymdistDataset
 from .dgs import write_dgs
+from .export_tables import write_dgs_tsv, write_dgs_xlsx
 from .geography import (
     build_geography,
     validate_geography,
@@ -14,6 +16,7 @@ from .geography import (
 )
 from .model import ModelBuildError, build_feeder_model
 from .naming import feeder_short_name, sort_key_feeder
+from .preview import write_preview_geojson, write_preview_html
 from .validate import validate_dgs, write_validation_reports
 
 ProgressCallback = Callable[[str, int, int], None]
@@ -71,11 +74,17 @@ def convert_selection(
     include_geography: bool = True,
     source_crs: str = 'EPSG:32718',
     target_crs: str = 'EPSG:4326',
+    export_xlsx: bool = False,
+    export_tsv: bool = False,
+    write_preview: bool = False,
+    preview_backend: str = 'auto',
     on_progress: ProgressCallback | None = None,
 ) -> dict:
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     aliases = dict(aliases or {})
+    if write_preview and not include_geography:
+        raise ValueError('write_preview=True requiere include_geography=True')
     networks = _selection(dataset, selectors, all_feeders)
 
     items: list[dict] = []
@@ -90,7 +99,26 @@ def convert_selection(
         txt_path = out_dir / f'{feeder}_validation.txt'
         geo_path = out_dir / f'{feeder}_geography.json'
         geo_validation_path = out_dir / f'{feeder}_geography_validation.txt'
+        xlsx_path = out_dir / f'{feeder}.xlsx'
+        tsv_dir = out_dir / f'{feeder}_dgs_tables'
+        preview_html_path = out_dir / f'{feeder}_preview.html'
+        preview_geojson_path = out_dir / f'{feeder}_preview.geojson'
         written: list[Path] = []
+        # Stub FEEDER=/SOURCE blocks with zero SECTION rows cannot become a full DGS.
+        # Mark as skipped (not failed) so convert-all keeps converting real feeders.
+        if not dataset.feeders.get(network_id):
+            items.append({
+                'feeder': feeder,
+                'network_id': network_id,
+                'status': 'skipped',
+                'error': (
+                    f'{feeder}: sin filas SECTION en RED (cabecera FEEDER=/SOURCE vacía). '
+                    'No hay tramos/cargas/SED en el export; se omite para no generar un DGS vacío.'
+                ),
+                'aliases': {},
+                'unresolved_line_types': [],
+            })
+            continue
         try:
             model = build_feeder_model(dataset, network_id, aliases=aliases, strict=strict)
             geography = None
@@ -105,8 +133,25 @@ def convert_selection(
                 write_geography_validation(geography_report, geo_validation_path)
                 written.append(geo_validation_path)
 
+            if write_preview:
+                assert geography is not None
+                write_preview_html(
+                    model, geography, preview_html_path, backend=preview_backend,
+                )
+                written.append(preview_html_path)
+                write_preview_geojson(model, geography, preview_geojson_path)
+                written.append(preview_geojson_path)
+
             write_dgs(model, dgs_path, schema_profile=schema_profile, geography=geography)
             written.append(dgs_path)
+
+            if export_xlsx:
+                write_dgs_xlsx(dgs_path, xlsx_path)
+                written.append(xlsx_path)
+            if export_tsv:
+                write_dgs_tsv(dgs_path, tsv_dir)
+                written.append(tsv_dir)
+
             report = validate_dgs(model, dgs_path, schema_profile=schema_profile, geography=geography)
             write_validation_reports(report, json_path, txt_path)
             written.extend([json_path, txt_path])
@@ -133,6 +178,13 @@ def convert_selection(
                     'lines_pct': geography_report['line_coverage_pct'],
                     'intermediate_points': geography_report['intermediate_points'],
                 }
+            if write_preview:
+                item['preview_html'] = str(preview_html_path)
+                item['preview_geojson'] = str(preview_geojson_path)
+            if export_xlsx:
+                item['xlsx'] = str(xlsx_path)
+            if export_tsv:
+                item['tsv_dir'] = str(tsv_dir)
             if not ok:
                 item['error'] = '; '.join(
                     report['schema_errors'] + report['structural_errors'] + report['connection_errors'] +
@@ -142,7 +194,9 @@ def convert_selection(
             # Only remove artifacts created in this attempt — never wipe a prior successful export.
             for path in written:
                 try:
-                    if path.exists():
+                    if path.is_dir():
+                        shutil.rmtree(path)
+                    elif path.exists():
                         path.unlink()
                 except OSError:
                     pass
@@ -157,17 +211,23 @@ def convert_selection(
         items.append(item)
 
     ok_count = sum(item['status'] == 'ok' for item in items)
+    skipped_count = sum(item['status'] == 'skipped' for item in items)
+    failed_count = sum(item['status'] == 'failed' for item in items)
     manifest = {
         'schema_profile': schema_profile,
         'strict': strict,
         'include_geography': include_geography,
+        'export_xlsx': export_xlsx,
+        'export_tsv': export_tsv,
+        'write_preview': write_preview,
         'source_crs': source_crs if include_geography else None,
         'target_crs': target_crs if include_geography else None,
         'runtime_reference_dependency': False,
         'summary': {
             'requested': len(items),
             'ok': ok_count,
-            'failed': len(items) - ok_count,
+            'skipped': skipped_count,
+            'failed': failed_count,
         },
         'feeders': items,
     }

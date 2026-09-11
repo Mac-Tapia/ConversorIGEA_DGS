@@ -17,8 +17,9 @@ Este skill aplica solo a este repo. El “frontend” es la GUI Tkinter (`src/ig
 1. **Tres TXT obligatorios:** RED, CARGA, BD_Equipo (catálogo TXT, no SQL).
 2. **Flujo:** elegir archivos → listar alimentadores → seleccionar → Convertir a DGS.
 3. **Geografía:** por defecto ON; si falta `pyproj`, mensaje accionable o permitir desactivar GPS.
-4. **Modo estricto:** checkbox ON por defecto (alineado con el motor).
-5. **Feedback:** estado + registro (log); nunca dejar la UI congelada en cargas/conversiones largas.
+4. **Vista previa / Excel / TSV:** checkboxes opcionales; preview exige geografía ON; Excel exige `[xlsx]`.
+5. **Modo estricto:** checkbox ON por defecto (alineado con el motor).
+6. **Feedback:** estado + registro (log); nunca dejar la UI congelada en cargas/conversiones largas.
 
 ## Checklist producción (GUI)
 

@@ -27,7 +27,14 @@ def test_writer_has_precise_cubicles_and_load_terminal(sample_model, tmp_path):
     tables = _parse(out)
     assert len(tables['ElmLne']['rows']) == len(sample_model.lines)
     assert len(tables['ElmLod']['rows']) == len(sample_model.loads)
-    assert len(tables['StaCubic']['rows']) == 2 * len(sample_model.lines) + len(sample_model.loads) + 1
+    # Per SED: Tr2 (2 cubicles) + ElmCoup (2 cubicles) = 4.
+    expected_cubics = (
+        2 * len(sample_model.lines)
+        + len(sample_model.loads)
+        + 1  # source
+        + 4 * len(sample_model.seds)
+    )
+    assert len(tables['StaCubic']['rows']) == expected_cubics
 
     line = sample_model.lines[0]
     line_fid = manifest.line_fids[line.section_id]
@@ -37,11 +44,20 @@ def test_writer_has_precise_cubicles_and_load_terminal(sample_model, tmp_path):
         (manifest.node_fids[line.to_node], '1'),
     }
 
+    nested = {sed.load_key for sed in sample_model.seds}
     if sample_model.loads:
         load = sample_model.loads[0]
         load_fid = manifest.load_fids[(load.section_id, load.device_number)]
         load_cubic = next(r for r in tables['StaCubic']['rows_dict'] if r['obj_id'] == load_fid)
-        assert load_cubic['fold_id'] == manifest.node_fids[load.node_id]
+        if (load.section_id, load.device_number) in nested:
+            # SED load hangs on internal BT bus (uknom < 1), not the feeder node.
+            bt = next(
+                r for r in tables['ElmTerm']['rows_dict']
+                if r['FID'] == load_cubic['fold_id']
+            )
+            assert float(bt['uknom']) < 1.0
+        else:
+            assert load_cubic['fold_id'] == manifest.node_fids[load.node_id]
 
 
 def test_switches_are_children_of_the_correct_section_terminal_cubic(sample_model, tmp_path):

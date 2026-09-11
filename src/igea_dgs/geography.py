@@ -239,6 +239,11 @@ def validate_geography(model: FeederModel, geo: GeographyManifest) -> dict:
             errors.append(f'{line.section_id}: geographic path does not start at FromNode')
         if gline.path[-1] != geo.nodes[line.to_node]:
             errors.append(f'{line.section_id}: geographic path does not end at ToNode')
+        if gline.from_node != line.from_node or gline.to_node != line.to_node:
+            errors.append(
+                f'{line.section_id}: GeoLine From/To ({gline.from_node}->{gline.to_node}) '
+                f'differs from model ({line.from_node}->{line.to_node})'
+            )
 
     node_cov = 100.0 * len(geo.nodes) / len(model.nodes) if model.nodes else 0.0
     line_cov = 100.0 * len(geo.lines) / len(model.lines) if model.lines else 0.0
