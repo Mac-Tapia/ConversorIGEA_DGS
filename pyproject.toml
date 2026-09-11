@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "igea-dgs"
+version = "2.1.0"
+description = "Conversor universal IGEA/CYMDIST TXT → DIgSILENT PowerFactory DGS"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+geo = ["pyproj>=3.6"]
+xlsx = ["pandas>=2.0", "openpyxl>=3.1"]
+preview = ["geopandas>=0.14", "leafmap>=0.30", "pyproj>=3.6"]
+all = [
+    "pyproj>=3.6",
+    "pandas>=2.0",
+    "openpyxl>=3.1",
+    "geopandas>=0.14",
+    "leafmap>=0.30",
+]
+dev = ["pytest>=8.0", "pyproj>=3.6"]
+
+[project.scripts]
+igea-dgs = "igea_dgs.cli:main"
+igea-dgs-gui = "igea_dgs.gui:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+igea_dgs = ["schemas/*.json"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
