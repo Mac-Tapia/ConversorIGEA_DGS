@@ -19,6 +19,8 @@ Este skill aplica solo a este repo. El “backend” es el motor Python + CLI, n
 | `schema.py` + `schemas/*.json` | Perfil DGS versionado (solo tablas/campos) |
 | `model.py` | Modelo aislado por alimentador |
 | `dgs.py` | Escritura determinista `.dgs` |
+| `export_tables.py` | Export Excel multi-hoja / TSV por tabla (desde `.dgs`) |
+| `preview.py` | Mapa interactivo leafmap/Leaflet + GeoJSON (opengeos) |
 | `validate.py` | Validación estricta post-escritura |
 | `geography.py` | GPS + diagrama (opcional; requiere `pyproj`) |
 | `batch.py` | Multi-feeder + `batch_manifest.json` |
@@ -68,6 +70,8 @@ for label, path in (...):
 - Paquete: `igea-dgs` (`pyproject.toml`), scripts `igea-dgs` / `igea-dgs-gui`
 - Extra `dev`: pytest
 - Runtime geo: `pyproj` (documentar; idealmente extra `[geo]` si se hace opcional en deps base)
+- Extra `[xlsx]`: pandas + openpyxl para Excel multi-hoja
+- Extra `[preview]`: geopandas + leafmap (HTML Leaflet CDN funciona sin el extra)
 - Usuarios finales: instalar sin `[dev]` (`pip install -e .`)
 
 ## Anti-patrones

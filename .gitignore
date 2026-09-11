@@ -48,3 +48,9 @@ desktop.ini
 
 # Generated conversion dumps
 output/
+
+# Large IGEA sample TXT (keep local; do not publish utility dumps)
+referencia/RED_*.txt
+referencia/CARGA_*.txt
+referencia/BD_Equipo*.txt
+

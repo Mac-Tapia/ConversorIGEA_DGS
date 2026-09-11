@@ -12,3 +12,8 @@
 
 # Runtime — georreferenciación GPS / diagrama
 pyproj>=3.6
+
+# Opcional — descomentar según necesidad:
+# Excel multi-hoja:  pip install "igea-dgs[xlsx]"
+# Preview leafmap:   pip install "igea-dgs[preview]"
+# Todo:              pip install "igea-dgs[all]"

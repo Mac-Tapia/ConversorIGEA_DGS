@@ -24,12 +24,13 @@ from tkinter import (
 from tkinter.scrolledtext import ScrolledText
 
 from .dataset import CymdistDataset
+from .inventory import build_dataset_inventory, format_inventory_report, write_inventory
 from .naming import feeder_short_name, sort_key_feeder
 from . import __version__
 
 
 CRS_PRESETS = (
-    'EPSG:32718',  # UTM 18S (ejemplo costa Perú)
+    'EPSG:32718',  # UTM 18S (Ica / costa Perú — default NA205)
     'EPSG:32717',  # UTM 17S
     'EPSG:32719',  # UTM 19S
     'EPSG:32716',  # UTM 16S
@@ -50,6 +51,37 @@ DEFAULT_STATUS = 'Seleccione los tres TXT y pulse «Cargar / listar alimentadore
 def _default_aliases_path() -> str:
     path = Path(__file__).resolve().parents[2] / 'config' / 'line_type_aliases.json'
     return str(path) if path.is_file() else ''
+
+
+def _project_root() -> Path:
+    return Path(__file__).resolve().parents[2]
+
+
+def _referencia_dir() -> Path:
+    return _project_root() / 'referencia'
+
+
+def _first_existing(directory: Path, patterns: tuple[str, ...]) -> Path | None:
+    if not directory.is_dir():
+        return None
+    for pattern in patterns:
+        matches = sorted(directory.glob(pattern))
+        if matches:
+            return matches[0]
+    return None
+
+
+def _default_referencia_inputs() -> tuple[str, str, str]:
+    """Prefill GUI with model TXT from referencia/ when present."""
+    ref = _referencia_dir()
+    red = _first_existing(ref, ('RED_*.txt', 'RED*.txt'))
+    loads = _first_existing(ref, ('CARGA_*.txt', 'CARGA*.txt'))
+    equip = _first_existing(ref, ('BD_Equipo*.txt',))
+    return (
+        str(red) if red else '',
+        str(loads) if loads else '',
+        str(equip) if equip else '',
+    )
 
 
 def _default_out_dir() -> str:
@@ -76,18 +108,32 @@ class ConverterApp:
         self.equipment = StringVar()
         self.out_dir = StringVar(value=_default_out_dir())
         self.aliases = StringVar(value=_default_aliases_path())
-        self.source_crs = StringVar(value='EPSG:32718')
+        self.source_crs = StringVar(value='EPSG:32718')  # UTM 18S — costa Perú / Ica
         self.target_crs = StringVar(value='EPSG:4326')
         self.include_geography = BooleanVar(value=True)
         self.strict = BooleanVar(value=True)
+        self.export_xlsx = BooleanVar(value=False)
+        self.export_tsv = BooleanVar(value=False)
+        self.write_preview = BooleanVar(value=False)
         self.convert_all = BooleanVar(value=False)
         self._dataset: CymdistDataset | None = None
+        self._inventory: dict | None = None
         self._busy = False
         self._action_buttons: list[ttk.Button] = []
 
         self._build()
         self._discard_legacy_state()
         self._reset_session(full=True, announce=False)
+        red0, loads0, equip0 = _default_referencia_inputs()
+        if red0:
+            self.red.set(red0)
+        if loads0:
+            self.loads.set(loads0)
+        if equip0:
+            self.equipment.set(equip0)
+        if red0 or loads0 or equip0:
+            self._refresh_input_status()
+            self._append_log('TXT modelo precargados desde carpeta referencia/.')
         self.root.protocol('WM_DELETE_WINDOW', self._on_close)
 
     def _build(self) -> None:
@@ -133,6 +179,16 @@ class ConverterApp:
             command=self._toggle_all,
         ).pack(side=LEFT)
 
+        extras = ttk.Frame(opts)
+        extras.pack(fill=X, pady=2)
+        ttk.Checkbutton(
+            extras,
+            text='Vista previa mapa HTML (leafmap/Leaflet)',
+            variable=self.write_preview,
+        ).pack(side=LEFT)
+        ttk.Checkbutton(extras, text='Exportar Excel (.xlsx)', variable=self.export_xlsx).pack(side=LEFT, padx=16)
+        ttk.Checkbutton(extras, text='Exportar TSV por tabla', variable=self.export_tsv).pack(side=LEFT)
+
         feeders = ttk.LabelFrame(frm, text='Paso 2–3 — Alimentadores (uno, varios o todos)', padding=10)
         feeders.pack(fill=BOTH, expand=True, **pad)
         btns = ttk.Frame(feeders)
@@ -161,7 +217,7 @@ class ConverterApp:
         scroll.pack(side=RIGHT, fill=Y)
         self.feeder_list = ttk.Treeview(
             list_frm,
-            columns=('name', 'network', 'kv', 'sections'),
+            columns=('name', 'network', 'kv', 'sections', 'loads', 'switches', 'status'),
             show='headings',
             selectmode='extended',
             yscrollcommand=scroll.set,
@@ -171,11 +227,17 @@ class ConverterApp:
         self.feeder_list.heading('name', text='Alimentador')
         self.feeder_list.heading('network', text='NetworkID')
         self.feeder_list.heading('kv', text='kV')
-        self.feeder_list.heading('sections', text='Secciones')
-        self.feeder_list.column('name', width=100, anchor=W)
-        self.feeder_list.column('network', width=280, anchor=W)
-        self.feeder_list.column('kv', width=80, anchor=W)
-        self.feeder_list.column('sections', width=90, anchor=W)
+        self.feeder_list.heading('sections', text='Tramos')
+        self.feeder_list.heading('loads', text='Cargas')
+        self.feeder_list.heading('switches', text='SW')
+        self.feeder_list.heading('status', text='Estado')
+        self.feeder_list.column('name', width=80, anchor=W)
+        self.feeder_list.column('network', width=210, anchor=W)
+        self.feeder_list.column('kv', width=55, anchor=W)
+        self.feeder_list.column('sections', width=65, anchor=W)
+        self.feeder_list.column('loads', width=65, anchor=W)
+        self.feeder_list.column('switches', width=50, anchor=W)
+        self.feeder_list.column('status', width=90, anchor=W)
         self.feeder_list.pack(side=LEFT, fill=BOTH, expand=True)
         self.feeder_list.bind('<<TreeviewSelect>>', self._on_feeder_select)
         self.feeder_list.bind('<Double-1>', self._on_feeder_double_click)
@@ -372,6 +434,7 @@ class ConverterApp:
         full=False: limpia solo runtime (lista, log, progreso) al volver a cargar.
         """
         self._dataset = None
+        self._inventory = None
         self._busy = False
         self._clear_feeder_list()
         self._clear_log()
@@ -390,6 +453,9 @@ class ConverterApp:
             self.target_crs.set('EPSG:4326')
             self.include_geography.set(True)
             self.strict.set(True)
+            self.export_xlsx.set(False)
+            self.export_tsv.set(False)
+            self.write_preview.set(False)
             self._discard_legacy_state()
 
         for btn in self._action_buttons:
@@ -436,15 +502,16 @@ class ConverterApp:
         red = self.red.get().strip()
         loads = self.loads.get().strip()
         equipment = self.equipment.get().strip()
+        out_dir = Path(self.out_dir.get().strip() or _default_out_dir())
 
         # Nueva carga = ejecución limpia (sin restos de la anterior)
         self._reset_session(full=False, announce=False)
 
         self._set_busy(True)
-        self.status.set('Leyendo TXT… espere, por favor.')
+        self.status.set('Analizando TXT en profundidad… espere.')
         self.progress.configure(mode='indeterminate')
         self.progress.start(12)
-        self._append_log('--- Carga de alimentadores (sesión limpia) ---')
+        self._append_log('--- Carga e inventario de alimentadores ---')
         self._append_log(f'RED: {Path(red).name}')
         self._append_log(f'CARGA: {Path(loads).name}')
         self._append_log(f'BD_Equipo: {Path(equipment).name}')
@@ -452,53 +519,92 @@ class ConverterApp:
         def worker() -> None:
             try:
                 dataset = CymdistDataset.from_files(red, loads, equipment)
-                self.root.after(0, lambda: self._on_load_done(True, dataset, None))
+                inventory = build_dataset_inventory(dataset)
+                inv_path = write_inventory(inventory, out_dir / 'dataset_inventory.json')
+                report = format_inventory_report(inventory)
+                self.root.after(
+                    0,
+                    lambda: self._on_load_done(True, dataset, inventory, report, str(inv_path), None),
+                )
             except Exception as exc:
-                self.root.after(0, lambda: self._on_load_done(False, None, str(exc)))
+                err = str(exc)
+                self.root.after(
+                    0,
+                    lambda: self._on_load_done(False, None, None, None, None, err),
+                )
 
         threading.Thread(target=worker, daemon=True).start()
 
-    def _on_load_done(self, ok: bool, dataset: CymdistDataset | None, error: str | None) -> None:
+    def _on_load_done(
+        self,
+        ok: bool,
+        dataset: CymdistDataset | None,
+        inventory: dict | None,
+        report: str | None,
+        inv_path: str | None,
+        error: str | None,
+    ) -> None:
         self.progress.stop()
         self.progress.configure(mode='determinate', value=0)
         self._set_busy(False)
-        if not ok or dataset is None:
+        if not ok or dataset is None or inventory is None:
             messagebox.showerror('Error al leer TXT', error or 'Error desconocido')
             self._append_log(f'ERROR lectura: {error}')
             self.status.set('Error al cargar TXT')
             return
 
         self._dataset = dataset
+        self._inventory = inventory
         self._clear_feeder_list()
 
-        feeders = sorted(dataset.feeder_ids(), key=sort_key_feeder)
-        for network_id in feeders:
-            name = feeder_short_name(network_id)
-            source = dataset.sources.get(network_id, {})
-            sections = len(dataset.feeders[network_id])
+        for row in inventory['feeders']:
+            status = 'Convertible' if row['convertible'] else 'Stub (0 tramos)'
             self.feeder_list.insert(
                 '',
                 END,
-                iid=network_id,
-                values=(name, network_id, source.get('DesiredVoltage', ''), sections),
+                iid=row['network_id'],
+                values=(
+                    row['feeder'],
+                    row['network_id'],
+                    row['nominal_kv'],
+                    row['sections'],
+                    row['loads'],
+                    row['switches'],
+                    status,
+                ),
             )
-        msg = f'Carga terminada: {len(feeders)} alimentadores listos.'
+
+        totals = inventory['totals']
+        conv = inventory['conversion']
+        integ = inventory['integrity']
+        msg = (
+            f"Inventario: {totals['feeders']} alimentadores · "
+            f"{conv['expected_dgs_files']} DGS esperados · "
+            f"{totals['sections']} tramos · {totals['customer_loads']} cargas"
+        )
         self.status.set(msg)
-        self._append_log(msg)
-        if self.convert_all.get():
-            next_step = (
-                f'Se leyeron {len(feeders)} alimentadores.\n\n'
-                'Tiene activo «Convertir TODOS».\n'
-                'Pulse «Convertir a DGS (seleccionados)» para generar todos.'
-            )
+        if report:
+            self._append_log(report)
+        if inv_path:
+            self._append_log(f'Inventario JSON: {inv_path}')
+
+        short = (
+            f"Análisis completo de los 3 TXT.\n\n"
+            f"Alimentadores leídos: {totals['feeders']}\n"
+            f"Convertibles (con tramos): {totals['convertible_feeders']}\n"
+            f"Stub sin SECTION: {totals['stub_feeders']}\n"
+            f"Tramos / cargas / SW: {totals['sections']} / "
+            f"{totals['customer_loads']} / {totals['switches']}\n\n"
+            f"Conversión de este proyecto:\n"
+            f"→ {conv['expected_dgs_files']} archivos .dgs independientes\n"
+            f"(uno por alimentador convertible).\n\n"
+            f"Integridad: {integ['errors']} errores, {integ['warnings']} avisos\n"
+            f"Detalle en el Registro y en dataset_inventory.json"
+        )
+        if integ['errors']:
+            messagebox.showwarning('Inventario con errores de integridad', short)
         else:
-            next_step = (
-                f'Se leyeron {len(feeders)} alimentadores.\n\n'
-                'Seleccione uno (clic), varios (Ctrl+clic) o todos,\n'
-                'o marque «Convertir TODOS», y luego pulse\n'
-                '«Convertir a DGS (seleccionados)».'
-            )
-        messagebox.showinfo('Archivos cargados', next_step)
+            messagebox.showinfo('Inventario TXT listo', short)
 
     def _select_all_feeders(self) -> None:
         if self.convert_all.get():
@@ -567,6 +673,25 @@ class ConverterApp:
                 )
                 return
 
+        if self.write_preview.get() and not self.include_geography.get():
+            messagebox.showerror(
+                'Vista previa',
+                'La vista previa del mapa requiere georreferenciación activa.',
+            )
+            return
+
+        if self.export_xlsx.get():
+            try:
+                import pandas  # noqa: F401
+                import openpyxl  # noqa: F401
+            except ImportError:
+                messagebox.showerror(
+                    'Falta pandas/openpyxl',
+                    'Para Excel instale:\n  pip install "igea-dgs[xlsx]"\n'
+                    'O desactive «Exportar Excel».',
+                )
+                return
+
         out_dir = self.out_dir.get().strip()
         try:
             Path(out_dir).mkdir(parents=True, exist_ok=True)
@@ -590,6 +715,10 @@ class ConverterApp:
             include_geography=self.include_geography.get(),
             source_crs=self.source_crs.get().strip() or 'EPSG:32718',
             target_crs=self.target_crs.get().strip() or 'EPSG:4326',
+            export_xlsx=self.export_xlsx.get(),
+            export_tsv=self.export_tsv.get(),
+            write_preview=self.write_preview.get(),
+            preview_backend='auto',
         )
         dataset = self._dataset
 
@@ -615,13 +744,30 @@ class ConverterApp:
                 lines = [
                     f"Solicitados: {summary['requested']}",
                     f"OK: {summary['ok']}",
+                    f"Omitidos: {summary.get('skipped', 0)}",
                     f"Fallidos: {summary['failed']}",
                     f"Manifiesto: {Path(out_dir) / 'batch_manifest.json'}",
                 ]
                 for item in manifest.get('feeders', []):
                     feeder = item.get('feeder') or item.get('network_id', '?')
-                    if item.get('status') == 'ok':
-                        lines.append(f"  OK {feeder} → {item.get('dgs', '')}")
+                    status = item.get('status')
+                    if status == 'ok':
+                        counts = item.get('counts') or {}
+                        extra = []
+                        if item.get('preview_html'):
+                            extra.append('preview')
+                        if item.get('xlsx'):
+                            extra.append('xlsx')
+                        if item.get('tsv_dir'):
+                            extra.append('tsv')
+                        suffix = f" [{', '.join(extra)}]" if extra else ''
+                        lines.append(
+                            f"  OK {feeder} → líneas={counts.get('source_lines', '?')} "
+                            f"cargas={counts.get('source_loads', '?')} "
+                            f"SED={counts.get('source_seds', counts.get('dgs_seds', '?'))}{suffix}"
+                        )
+                    elif status == 'skipped':
+                        lines.append(f"  OMITIDO {feeder}: {item.get('error') or 'sin topología'}")
                     else:
                         err = item.get('error') or 'error'
                         lines.append(f"  FAIL {feeder}: {err}")
@@ -638,14 +784,18 @@ class ConverterApp:
         self._append_log('--- Fin de conversión ---')
         if summary is not None:
             failed = summary.get('failed', 0)
+            skipped = summary.get('skipped', 0)
             ok_n = summary.get('ok', 0)
             requested = summary.get('requested', 0)
-            self.status.set(f'Conversión terminada — OK: {ok_n}  Fallidos: {failed}')
+            self.status.set(
+                f'Conversión terminada — OK: {ok_n}  Omitidos: {skipped}  Fallidos: {failed}'
+            )
             self.progress.configure(value=self.progress['maximum'] or 1)
             short = (
                 f'Conversión finalizada.\n\n'
                 f'Solicitados: {requested}\n'
                 f'OK: {ok_n}\n'
+                f'Omitidos: {skipped}\n'
                 f'Fallidos: {failed}\n\n'
                 f'Salida: {out_dir}\n'
                 f'Manifiesto: batch_manifest.json\n\n'

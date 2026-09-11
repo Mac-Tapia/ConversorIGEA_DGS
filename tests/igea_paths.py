@@ -56,6 +56,7 @@ def search_roots() -> list[Path]:
         [
             Path('/mnt/data'),
             Path(r'\\mnt\data'),
+            PROJECT_ROOT / 'referencia',
             PROJECT_ROOT / 'data',
             PROJECT_ROOT / 'fixtures',
         ]

@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 import math
 
-from .model import FeederModel, Sed
+from .model import FeederModel, Line, Sed
 from .schema import DgsSchema, load_schema
 from .geography import GeographyManifest, GeoPoint
 
@@ -79,33 +79,125 @@ def _node_degrees(model: FeederModel) -> dict[str, int]:
     return dict(degrees)
 
 
-def visible_pointterm_nodes(model: FeederModel) -> set[str]:
-    """Black PointTerm symbols only for topology-relevant buses.
+def _line_neighbors(model: FeederModel) -> dict[str, list[tuple[str, Line]]]:
+    """node_id → [(neighbor_id, Line), ...]"""
+    neighbors: dict[str, list[tuple[str, Line]]] = defaultdict(list)
+    for line in model.lines:
+        neighbors[line.from_node].append((line.to_node, line))
+        neighbors[line.to_node].append((line.from_node, line))
+    return neighbors
 
-    Rules (independent of any utility's feeder size or naming):
-    - feeder head / source node
-    - real branch nodes (degree >= 3)
-    - open stubs (degree 1) without a load
-    - maneuver devices only when not a plain degree-2 through node
-    Hidden (still in ElmTerm electrical model):
-    - degree-2 chain nodes (including through switches)
-    - terminals whose only role is hosting a load/equipment symbol
+
+def diagram_anchor_node(model: FeederModel, node_id: str, *, max_stub_m: float = 1.0) -> str:
+    """Snap micro service-stub tips to the upstream network bus for graphics.
+
+    CYMDIST often models a ~0.3 m section from a primary SED node to a tip
+    terminal where the load hangs. Electrically the load stays on the tip;
+    graphically anchoring at the primary keeps SED/load symbols on the feeder.
     """
-    degrees = _node_degrees(model)
-    load_nodes = {load.node_id for load in model.loads}
-    device_nodes = {device.node_id for device in model.devices}
-    visible = {model.source_node}
-    for node_id, degree in degrees.items():
-        if degree >= 3:
-            visible.add(node_id)
-            continue
-        if degree == 1 and node_id not in load_nodes:
-            visible.add(node_id)
-            continue
-        # Degree-2 through-nodes stay hidden even if a switch sits on the cubicle.
-        if degree != 2 and node_id in device_nodes:
-            visible.add(node_id)
+    neighbors = _line_neighbors(model).get(node_id, ())
+    if len(neighbors) != 1:
+        return node_id
+    other_id, line = neighbors[0]
+    if line.length_m <= max_stub_m:
+        return other_id
+    return node_id
+
+
+def is_micro_service_stub_line(model: FeederModel, line: Line, *, max_stub_m: float = 1.0) -> bool:
+    """True for ≤1 m tip sections that only hang a load/SED off the primary bus.
+
+    These stay in ElmLne/StaCubic (electrical) but must not get IntGrf d_lin:
+    at NA205 scale (~2 u/m) they render as dust and look like loose fragments.
+    NA205 itself almost never draws such micro stubs (median span ~50 m).
+    """
+    if line.length_m > max_stub_m:
+        return False
+    if diagram_anchor_node(model, line.from_node, max_stub_m=max_stub_m) == line.to_node:
+        return True
+    if diagram_anchor_node(model, line.to_node, max_stub_m=max_stub_m) == line.from_node:
+        return True
+    return False
+
+
+def diagram_line_sections(model: FeederModel, *, max_stub_m: float = 1.0) -> set[str]:
+    """SectionIDs that receive IntGrf d_lin (excludes micro service stubs)."""
+    return {
+        line.section_id
+        for line in model.lines
+        if not is_micro_service_stub_line(model, line, max_stub_m=max_stub_m)
+    }
+
+
+def visible_pointterm_nodes(model: FeederModel) -> set[str]:
+    """Black PointTerm symbols so drawn lines are not floating fragments.
+
+    Rules (aligned with NA205 density — most line ends sit on a PointTerm):
+    - every endpoint of a *drawn* ElmLne (``diagram_line_sections``)
+    - feeder head / source node
+    - graphic anchors of loads/SEDs (upstream bus when tip is a ≤1 m stub)
+    Hidden (still in ElmTerm electrical model):
+    - micro service-stub tips (≤1 m) whose ``d_lin`` is omitted — never added,
+      because anchors resolve to the primary bus
+    """
+    drawn = diagram_line_sections(model)
+    visible: set[str] = {model.source_node}
+    for line in model.lines:
+        if line.section_id in drawn:
+            visible.add(line.from_node)
+            visible.add(line.to_node)
+    for load in model.loads:
+        visible.add(diagram_anchor_node(model, load.node_id))
+    for sed in model.seds:
+        visible.add(diagram_anchor_node(model, sed.node_id))
     return visible
+
+
+@dataclass(frozen=True)
+class DiagramSymbolLayout:
+    """NA205 diagram-unit radii/offsets (same visual weight as reference)."""
+
+    load_radius: float
+    sed_radius: float
+    source_offset: float
+    sed_size: float
+    median_segment: float
+
+
+# Reference IntGrf conventions (Ica / Nazca geographic export NA205):
+# PointTerm / d_lin / d_load / d_net → rSizeX=rSizeY=1
+# SecSubProd (SED triangle) → rSizeX=rSizeY=5
+NA205_SYMBOL_SIZE = 1.0
+NA205_SED_SIZE = 5.0
+# Offsets in diagram units at NA205 geographic scale (~2.08 u/m).
+NA205_LOAD_RADIUS = 40.0
+NA205_SED_RADIUS = 20.0
+NA205_SOURCE_OFFSET = 40.0
+# Inside ElmSubstat (double-click triangle): LV bus like NA205 SE_*_2.
+NA205_SED_LV_KV = 0.22
+
+
+def _diagram_symbol_layout(
+    geography: GeographyManifest,
+    model: FeederModel,
+    map_point,
+    *,
+    min_segment_m: float = 1.0,
+) -> DiagramSymbolLayout:
+    """Return NA205 symbol sizes/offsets (not density-adaptive).
+
+    Geographic placement still follows GPS via ``map_point``; only the graphic
+    footprint of loads/SEDs/source matches the reference DGS so DigSilent
+    schematic and map views keep the same element scale as NA205.
+    """
+    _ = (geography, model, map_point, min_segment_m)
+    return DiagramSymbolLayout(
+        load_radius=NA205_LOAD_RADIUS,
+        sed_radius=NA205_SED_RADIUS,
+        source_offset=NA205_SOURCE_OFFSET,
+        sed_size=NA205_SED_SIZE,
+        median_segment=NA205_LOAD_RADIUS,
+    )
 
 
 def _geo_to_meters(point: GeoPoint, origin_lat: float, origin_lon: float) -> tuple[float, float]:
@@ -117,56 +209,37 @@ def _geo_to_meters(point: GeoPoint, origin_lat: float, origin_lon: float) -> tup
     return x, y
 
 
-def _median(values: list[float]) -> float:
-    if not values:
-        return 0.0
-    ordered = sorted(values)
-    mid = len(ordered) // 2
-    if len(ordered) % 2:
-        return ordered[mid]
-    return 0.5 * (ordered[mid - 1] + ordered[mid])
+# Calibrated from referencia NA205 (Ica / Nazca GPS ≈ -14.9°, -75.0°):
+# IntGrf extent ≈ 54623 over ≈ 26283 m GPS span → ~2.08 diagram units per meter.
+# Same scale keeps schematic + DigSilent Geographic Diagram element sizes aligned
+# with NA205; GPSlat/GPSlon on ElmTerm/ElmSubstat place points on the PF map.
+NA205_DIAGRAM_UNITS_PER_METER = 2.08
+NA205_MAX_DIAGRAM_EXTENT = 55000.0
 
 
 def _adaptive_scale(
     meter_xy: dict[str, tuple[float, float]],
     visible_ids: set[str],
     *,
-    target_spacing: float = 120.0,
+    units_per_meter: float = NA205_DIAGRAM_UNITS_PER_METER,
+    max_extent: float = NA205_MAX_DIAGRAM_EXTENT,
 ) -> float:
-    """Uniform scale from visible-node density (diagram units per meter)."""
-    ids = [node_id for node_id in visible_ids if node_id in meter_xy]
+    """Uniform geographic scale matching NA205 (Ica zone) sheet footprint.
+
+    Uses the same diagram-units-per-meter as NA205. If a feeder's meter span
+    would exceed the NA205 canvas, shrink uniformly so the full network fits.
+    """
+    ids = list(meter_xy)
     if len(ids) < 2:
-        ids = list(meter_xy)
+        ids = [node_id for node_id in visible_ids if node_id in meter_xy]
     if len(ids) < 2:
-        return 1.0
+        return units_per_meter
 
-    # Median nearest-neighbour distance among visible (or all) nodes.
-    nearest: list[float] = []
-    sample = ids if len(ids) <= 800 else ids[:: max(1, len(ids) // 800)]
-    for i, node_id in enumerate(sample):
-        x0, y0 = meter_xy[node_id]
-        best = float('inf')
-        for j, other_id in enumerate(sample):
-            if i == j:
-                continue
-            x1, y1 = meter_xy[other_id]
-            dist = math.hypot(x1 - x0, y1 - y0)
-            if dist < best:
-                best = dist
-        if math.isfinite(best) and best > 1e-6:
-            nearest.append(best)
-
-    median_nn = _median(nearest)
-    if median_nn <= 1e-9:
-        # Fallback: fit span into a readable canvas while keeping aspect ratio.
-        xs = [meter_xy[i][0] for i in ids]
-        ys = [meter_xy[i][1] for i in ids]
-        span = max(max(xs) - min(xs), max(ys) - min(ys), 1.0)
-        return 20000.0 / span
-
-    scale = target_spacing / median_nn
-    # Keep short GIS segments from collapsing without exploding huge feeders.
-    return min(max(scale, 0.05), 50.0)
+    xs = [meter_xy[i][0] for i in ids]
+    ys = [meter_xy[i][1] for i in ids]
+    span_m = max(max(xs) - min(xs), max(ys) - min(ys), 1e-9)
+    scale_fit = max_extent / span_m
+    return min(units_per_meter, scale_fit)
 
 
 def _diagram_mapper(
@@ -239,6 +312,11 @@ def _sed_stype(sed: Sed) -> str:
     return ''
 
 
+def _tr2_strn_mva(design_kva: float) -> float:
+    """Transformer rated power in MVA (NA205 TypTr2.strn)."""
+    return max(float(design_kva), 1.0) / 1000.0
+
+
 def write_dgs(
     model: FeederModel,
     path: Path | str,
@@ -261,6 +339,21 @@ def write_dgs(
     load_fids = {key: reg.new() for key in load_keys}
     sed_keys = sorted((sed.section_id, sed.device_number) for sed in model.seds)
     sed_fids = {key: reg.new() for key in sed_keys}
+    # NA205 triangle interior: MT bus + BT bus + Tr2 + coupler to feeder node.
+    sed_mt_fids = {key: reg.new() for key in sed_keys}
+    sed_bt_fids = {key: reg.new() for key in sed_keys}
+    sed_tr_fids = {key: reg.new() for key in sed_keys}
+    sed_coup_fids = {key: reg.new() for key in sed_keys}
+    # One TypTr2 per distinct (strn, utrn_h, utrn_l).
+    tr2_type_keys: dict[tuple[float, float, float], str] = {}
+    for sed in model.seds:
+        key = (
+            round(_tr2_strn_mva(sed.design_kva), 9),
+            round(model.nominal_kv, 9),
+            NA205_SED_LV_KV,
+        )
+        if key not in tr2_type_keys:
+            tr2_type_keys[key] = reg.new()
     source_fid = reg.new()
 
     rows: dict[str, list[str]] = {name: [] for name in schema.tables}
@@ -288,6 +381,7 @@ def write_dgs(
         ))
 
     v_phase = model.nominal_kv / math.sqrt(3.0)
+    lv_phase = NA205_SED_LV_KV / math.sqrt(3.0)
     for node_id in sorted(model.nodes):
         gp = geography.nodes[node_id] if geography is not None else None
         rows['ElmTerm'].append(_make_row(
@@ -295,6 +389,30 @@ def write_dgs(
             fold_id=network_fid, typ_id='', systype=0, iUsage=1,
             uknom=model.nominal_kv, unknom=v_phase, iminus=0, outserv=0,
             GPSlat=gp.lat if gp is not None else '', GPSlon=gp.lon if gp is not None else '', vtarget=1,
+        ))
+
+    # Internal SED buses (folder children of ElmSubstat) — required for PF double-click SLD.
+    for key in sed_keys:
+        sed = seds_by_key[key]
+        gp = geography.nodes.get(sed.node_id) if geography is not None else None
+        sub_fid = sed_fids[key]
+        rows['ElmTerm'].append(_make_row(
+            schema, 'ElmTerm', FID=sed_mt_fids[key], OP='C',
+            loc_name=_loc_name(sed.loc_name), fold_id=sub_fid, typ_id='',
+            systype=0, iUsage=0, uknom=model.nominal_kv, unknom=v_phase,
+            iminus=0, outserv=0,
+            GPSlat=gp.lat if gp is not None else '',
+            GPSlon=gp.lon if gp is not None else '',
+            vtarget=1,
+        ))
+        rows['ElmTerm'].append(_make_row(
+            schema, 'ElmTerm', FID=sed_bt_fids[key], OP='C',
+            loc_name=_loc_name(f'{sed.loc_name}_BT'), fold_id=sub_fid, typ_id='',
+            systype=0, iUsage=0, uknom=NA205_SED_LV_KV, unknom=lv_phase,
+            iminus=0, outserv=0,
+            GPSlat=gp.lat if gp is not None else '',
+            GPSlon=gp.lon if gp is not None else '',
+            vtarget=1,
         ))
 
     for key in sorted(model.line_types):
@@ -310,6 +428,19 @@ def write_dgs(
             frnom=60, mlei=_material(typ.code), bline=0, bline0=0,
         ))
 
+    for (strn, utrn_h, utrn_l), fid in sorted(tr2_type_keys.items()):
+        # Defaults calibrated to NA205 TypTr2 band (uk≈3–4 %, Dyn5).
+        pcutr = max(strn * 10.0, 0.1)  # kW copper; modest vs rated MVA
+        rows['TypTr2'].append(_make_row(
+            schema, 'TypTr2', FID=fid, OP='C',
+            loc_name=_loc_name(f'TR_{format(strn * 1000.0, ".12g")}kVA'),
+            nt2ph=3, strn=strn, frnom=60, utrn_h=utrn_h, utrn_l=utrn_l,
+            uktr=4.0, pcutr=pcutr, uk0tr=4.0, ur0tr=0,
+            tr2cn_h='D', tr2cn_l='YN', nt2ag=5, curmg=0, pfe=max(strn * 1.5, 0.05),
+            zx0hl_n=100, itapch=0, tap_side=0, dutap=0, phitr=0,
+            nntap0=0, ntpmn=0, ntpmx=0, manuf='',
+        ))
+
     for line in sorted(model.lines, key=lambda x: x.section_id):
         rows['ElmLne'].append(_make_row(
             schema, 'ElmLne', FID=line_fids[line.section_id], OP='C',
@@ -318,14 +449,34 @@ def write_dgs(
             GPScoords='', nlnum=1, inAir=1 if line.overhead else 0,
         ))
 
+    for key in sed_keys:
+        sed = seds_by_key[key]
+        strn = _tr2_strn_mva(sed.design_kva)
+        typ_key = (round(strn, 9), round(model.nominal_kv, 9), NA205_SED_LV_KV)
+        rows['ElmTr2'].append(_make_row(
+            schema, 'ElmTr2', FID=sed_tr_fids[key], OP='C',
+            loc_name=_loc_name(f'TR_{sed.loc_name}'), fold_id=sed_fids[key],
+            typ_id=tr2_type_keys[typ_key], ntnum=1, outserv=0, nntap=0,
+            i_auto=0, ntrcn=0, usetp=1, usp_low=0.99, usp_up=1.01, t2ldc=0,
+        ))
+        rows['ElmCoup'].append(_make_row(
+            schema, 'ElmCoup', FID=sed_coup_fids[key], OP='C',
+            loc_name=_loc_name(f'SW_{sed.loc_name}'), fold_id=sed_fids[key],
+            typ_id='', on_off=1, aUsage='cbk', nphase=3, nneutral=0,
+        ))
+
     loads_by_key = {(x.section_id, x.device_number): x for x in model.loads}
+    # NA205 pattern: SED loads live *inside* ElmSubstat (module in the triangle),
+    # not as sibling network objects with their own d_load symbol.
+    nested_load_keys = {sed.load_key for sed in model.seds}
     for key in load_keys:
         load = loads_by_key[key]
         apparent = math.hypot(load.p_mw, load.q_mvar)
         name = load.display_name or load.customer_number or load.device_number or load.section_id
+        fold = sed_fids[key] if key in nested_load_keys else network_fid
         rows['ElmLod'].append(_make_row(
             schema, 'ElmLod', FID=load_fids[key], OP='C', loc_name=_loc_name(name),
-            fold_id=network_fid, typ_id='', mode_inp='PC', slini=apparent,
+            fold_id=fold, typ_id='', mode_inp='PC', slini=apparent,
             plini=load.p_mw, qlini=load.q_mvar, coslini=load.pf,
             pf_recap=0, scale0=1, i_scale=1, outserv=0, classif='',
         ))
@@ -355,10 +506,41 @@ def write_dgs(
         load = loads_by_key[key]
         cubic_fid = reg.new()
         load_cubic_fids[key] = cubic_fid
+        # Nested SED load hangs on internal BT bus (NA205 SE_*_2), not feeder node.
+        fold_term = sed_bt_fids[key] if key in nested_load_keys else node_fids[load.node_id]
         rows['StaCubic'].append(_make_row(
             schema, 'StaCubic', FID=cubic_fid, OP='C',
-            loc_name=_loc_name(f'Cub_{load.device_number}'), fold_id=node_fids[load.node_id],
+            loc_name=_loc_name(f'Cub_{load.device_number}'), fold_id=fold_term,
             obj_bus=0, obj_id=load_fids[key], it2p1=0, it2p2=1, it2p3=2,
+        ))
+
+    for key in sed_keys:
+        # Transformer HV=MT (bus0), LV=BT (bus1)
+        rows['StaCubic'].append(_make_row(
+            schema, 'StaCubic', FID=reg.new(), OP='C',
+            loc_name=_loc_name(f'Cub1_TR_{seds_by_key[key].loc_name}'),
+            fold_id=sed_mt_fids[key], obj_bus=0, obj_id=sed_tr_fids[key],
+            it2p1=0, it2p2=1, it2p3=2,
+        ))
+        rows['StaCubic'].append(_make_row(
+            schema, 'StaCubic', FID=reg.new(), OP='C',
+            loc_name=_loc_name(f'Cub2_TR_{seds_by_key[key].loc_name}'),
+            fold_id=sed_bt_fids[key], obj_bus=1, obj_id=sed_tr_fids[key],
+            it2p1=0, it2p2=1, it2p3=2,
+        ))
+        # Coupler: feeder TXT node ↔ internal MT bus
+        sed = seds_by_key[key]
+        rows['StaCubic'].append(_make_row(
+            schema, 'StaCubic', FID=reg.new(), OP='C',
+            loc_name=_loc_name(f'Cub1_SW_{sed.loc_name}'),
+            fold_id=node_fids[sed.node_id], obj_bus=0, obj_id=sed_coup_fids[key],
+            it2p1=0, it2p2=1, it2p3=2,
+        ))
+        rows['StaCubic'].append(_make_row(
+            schema, 'StaCubic', FID=reg.new(), OP='C',
+            loc_name=_loc_name(f'Cub2_SW_{sed.loc_name}'),
+            fold_id=sed_mt_fids[key], obj_bus=1, obj_id=sed_coup_fids[key],
+            it2p1=0, it2p2=1, it2p3=2,
         ))
 
     source_cubic_fid = reg.new()
@@ -385,6 +567,7 @@ def write_dgs(
         visible_nodes = visible_pointterm_nodes(model)
         map_point, _scale = _diagram_mapper(geography, visible_nodes)
         node_xy = {node_id: map_point(point) for node_id, point in geography.nodes.items()}
+        layout = _diagram_symbol_layout(geography, model, map_point)
 
         # Visible PointTerm only (electrical ElmTerm always exist).
         for node_id in sorted(visible_nodes):
@@ -396,10 +579,15 @@ def write_dgs(
                 schema, 'IntGrf', FID=fid, OP='C', loc_name=_loc_name(f'G_{node_id}'),
                 fold_id=diagram_fid, iCol=1, iVis=1, iLevel=1,
                 rCenterX=x, rCenterY=y, sSymNam='PointTerm', pDataObj=node_fids[node_id],
-                iRot=0, rSizeX=1, rSizeY=1,
+                iRot=0, rSizeX=NA205_SYMBOL_SIZE, rSizeY=NA205_SYMBOL_SIZE,
             ))
 
+        # Skip micro service-stub d_lin (≤1 m tip→primary). Electrical ElmLne remains;
+        # SED/load symbols already snap to the primary via diagram_anchor_node.
+        drawn_line_sections = diagram_line_sections(model)
         for line in sorted(model.lines, key=lambda x: x.section_id):
+            if line.section_id not in drawn_line_sections:
+                continue
             gline = geography.lines[line.section_id]
             xy_path = [map_point(point) for point in gline.path]
             if len(xy_path) == 2:
@@ -415,11 +603,16 @@ def write_dgs(
                 schema, 'IntGrf', FID=fid, OP='C', loc_name=_loc_name(f'G_{line.section_id}'),
                 fold_id=diagram_fid, iCol=1, iVis=1, iLevel=1,
                 rCenterX=center[0], rCenterY=center[1], sSymNam='d_lin', pDataObj=line_fids[line.section_id],
-                iRot=irot, rSizeX=1, rSizeY=1,
+                iRot=irot, rSizeX=NA205_SYMBOL_SIZE, rSizeY=NA205_SYMBOL_SIZE,
             ))
             mid = len(augmented) // 2
+            # NA205 pattern: connector starts at symbol center and ends exactly on the bus.
             left = list(reversed(augmented[:mid + 1]))
-            right = augmented[mid:]
+            right = list(augmented[mid:])
+            left[0] = center
+            left[-1] = node_xy[line.from_node]
+            right[0] = center
+            right[-1] = node_xy[line.to_node]
             for con_nr, con_points in ((0, left), (1, right)):
                 con_fid = reg.new()
                 rows['IntGrfcon'].append(_make_row(
@@ -428,13 +621,16 @@ def write_dgs(
                     fold_id=fid, iDatConNr=con_nr, **_connector_values(con_points),
                 ))
 
-        # Loads: radial offsets around a shared terminal.
-        loads_by_node: dict[str, list[tuple[str, str]]] = defaultdict(list)
-        for key in load_keys:
-            loads_by_node[loads_by_key[key].node_id].append(key)
-        for node_id, keys in loads_by_node.items():
-            node_x, node_y = node_xy[node_id]
-            offsets = _radial_offsets(len(keys), radius=55.0)
+        # Free loads only (no SED): d_load on the sheet. SED-backed loads are
+        # modules inside SecSubProd — matching NA205, they get no IntGrf.
+        free_load_keys = [key for key in load_keys if key not in nested_load_keys]
+        loads_by_anchor: dict[str, list[tuple[str, str]]] = defaultdict(list)
+        for key in free_load_keys:
+            load = loads_by_key[key]
+            loads_by_anchor[diagram_anchor_node(model, load.node_id)].append(key)
+        for anchor_id, keys in loads_by_anchor.items():
+            node_x, node_y = node_xy[anchor_id]
+            offsets = _radial_offsets(len(keys), radius=layout.load_radius)
             for key, (dx, dy) in zip(keys, offsets):
                 load = loads_by_key[key]
                 x, y = node_x + dx, node_y + dy
@@ -444,7 +640,7 @@ def write_dgs(
                     fold_id=diagram_fid, iCol=1, iVis=1, iLevel=1,
                     rCenterX=x, rCenterY=y, sSymNam='d_load', pDataObj=load_fids[key],
                     iRot=int(round(math.degrees(math.atan2(dy, dx)))) % 360,
-                    rSizeX=1, rSizeY=1,
+                    rSizeX=NA205_SYMBOL_SIZE, rSizeY=NA205_SYMBOL_SIZE,
                 ))
                 con_fid = reg.new()
                 rows['IntGrfcon'].append(_make_row(
@@ -453,14 +649,16 @@ def write_dgs(
                     iDatConNr=0, **_connector_values([(x, y), (node_x, node_y)]),
                 ))
 
-        # SEDs identifiable from TXT → SecSubProd (do not invent otherwise).
-        seds_by_node: dict[str, list[tuple[str, str]]] = defaultdict(list)
+        # SEDs → SecSubProd triangle (no IntGrfcon; nested ElmLod is the module).
+        seds_by_anchor: dict[str, list[tuple[str, str]]] = defaultdict(list)
         for key in sed_keys:
-            seds_by_node[seds_by_key[key].node_id].append(key)
-        for node_id, keys in seds_by_node.items():
-            node_x, node_y = node_xy[node_id]
-            # Place SED symbols on a smaller ring so they sit near the bus/load.
-            offsets = _radial_offsets(len(keys), radius=28.0)
+            sed = seds_by_key[key]
+            seds_by_anchor[diagram_anchor_node(model, sed.node_id)].append(key)
+        for anchor_id, keys in seds_by_anchor.items():
+            node_x, node_y = node_xy[anchor_id]
+            # Single SED sits on the bus; several share a small ring.
+            radius = 0.0 if len(keys) == 1 else layout.sed_radius
+            offsets = _radial_offsets(len(keys), radius=radius) if radius else [(0.0, 0.0)] * len(keys)
             for key, (dx, dy) in zip(keys, offsets):
                 sed = seds_by_key[key]
                 x, y = node_x + dx, node_y + dy
@@ -469,17 +667,17 @@ def write_dgs(
                     schema, 'IntGrf', FID=fid, OP='C', loc_name=_loc_name(f'gnoT {sed.loc_name}'),
                     fold_id=diagram_fid, iCol=1, iVis=1, iLevel=1,
                     rCenterX=x, rCenterY=y, sSymNam='SecSubProd', pDataObj=sed_fids[key],
-                    iRot=0, rSizeX=5, rSizeY=5,
+                    iRot=0, rSizeX=layout.sed_size, rSizeY=layout.sed_size,
                 ))
 
         src_x, src_y = node_xy[model.source_node]
-        sx, sy = src_x - 80.0, src_y + 80.0
+        sx, sy = src_x - layout.source_offset, src_y + layout.source_offset
         src_graph_fid = reg.new(); graphic_fids['source'] = src_graph_fid
         rows['IntGrf'].append(_make_row(
             schema, 'IntGrf', FID=src_graph_fid, OP='C', loc_name=_loc_name(f'G_Source_{model.name}'),
             fold_id=diagram_fid, iCol=1, iVis=1, iLevel=1,
             rCenterX=sx, rCenterY=sy, sSymNam='d_net', pDataObj=source_fid,
-            iRot=0, rSizeX=1, rSizeY=1,
+            iRot=0, rSizeX=NA205_SYMBOL_SIZE, rSizeY=NA205_SYMBOL_SIZE,
         ))
         src_con_fid = reg.new()
         rows['IntGrfcon'].append(_make_row(
@@ -501,7 +699,7 @@ def write_dgs(
     output = list(preamble)
     used_tables = {'General', 'ElmNet', 'ElmTerm', 'TypLne', 'ElmLne', 'ElmLod', 'ElmXnet', 'StaCubic', 'StaSwitch'}
     if sed_keys:
-        used_tables.add('ElmSubstat')
+        used_tables |= {'ElmSubstat', 'ElmTr2', 'TypTr2', 'ElmCoup'}
     if geography is not None:
         used_tables |= {'IntGrf', 'IntGrfcon', 'IntGrfnet'}
     for table in schema.table_order:

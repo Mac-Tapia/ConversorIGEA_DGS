@@ -6,6 +6,7 @@ from pathlib import Path
 
 from .batch import convert_selection, load_aliases
 from .dataset import CymdistDataset
+from .inventory import build_dataset_inventory, format_inventory_report, write_inventory
 from .naming import feeder_short_name, sort_key_feeder
 
 
@@ -19,8 +20,12 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description='Universal IGEA/CYMDIST TXT to DIgSILENT DGS converter')
     sub = parser.add_subparsers(dest='command', required=True)
 
-    list_p = sub.add_parser('list', help='List feeders available in the TXT dataset')
+    list_p = sub.add_parser('list', help='List feeders and print deep TXT inventory')
     _common(list_p)
+    list_p.add_argument(
+        '--inventory-json',
+        help='Optional path to write dataset_inventory.json',
+    )
 
     conv = sub.add_parser('convert', help='Convert one, several, or all feeders')
     _common(conv)
@@ -34,6 +39,15 @@ def _parser() -> argparse.ArgumentParser:
     conv.add_argument('--target-crs', default='EPSG:4326', help='Target geographic CRS for GPSlat/GPSlon')
     conv.add_argument('--no-geography', action='store_true', help='Disable GPS/diagram generation')
     conv.add_argument('--non-strict', action='store_true', help='Omit unsupported topology/load/switch rows instead of failing; line types always auto-resolve')
+    conv.add_argument('--export-xlsx', action='store_true', help='Also write multi-sheet Excel (.xlsx) from DGS tables (needs igea-dgs[xlsx])')
+    conv.add_argument('--export-tsv', action='store_true', help='Also write one TSV per DGS table under {feeder}_dgs_tables/')
+    conv.add_argument('--preview', action='store_true', help='Write interactive map HTML (+ GeoJSON) before DGS (requires geography)')
+    conv.add_argument(
+        '--preview-backend',
+        default='auto',
+        choices=('auto', 'leafmap', 'leaflet'),
+        help='Map renderer: leafmap (@opengeos) or Leaflet CDN fallback',
+    )
 
     sub.add_parser('gui', help='Open the graphical interface for selecting TXT inputs and converting')
     return parser
@@ -64,11 +78,12 @@ def main(argv=None) -> int:
         raise SystemExit(f'Error al leer TXT: {exc}') from exc
 
     if args.command == 'list':
-        for network_id in sorted(dataset.feeder_ids(), key=sort_key_feeder):
-            name = feeder_short_name(network_id)
-            source = dataset.sources.get(network_id, {})
-            print(f'{name}\t{network_id}\t{source.get("DesiredVoltage", "")} kV\t{len(dataset.feeders[network_id])} sections')
-        return 0
+        inventory = build_dataset_inventory(dataset)
+        print(format_inventory_report(inventory))
+        if args.inventory_json:
+            path = write_inventory(inventory, args.inventory_json)
+            print(f'Inventory JSON: {path}')
+        return 0 if inventory['integrity']['errors'] == 0 else 2
 
     selectors = list(args.feeder) + list(args.network)
     if args.all and selectors:
@@ -81,11 +96,23 @@ def main(argv=None) -> int:
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         raise SystemExit(f'Error en aliases: {exc}') from exc
 
+    if args.preview and args.no_geography:
+        raise SystemExit('--preview requiere geografía; no combine con --no-geography')
+
     def _progress(network_id: str, index: int, total: int) -> None:
         feeder = feeder_short_name(network_id)
         print(f'[{index}/{total}] {feeder}…', flush=True)
 
     try:
+        # Persist inventory alongside conversion outputs for auditability.
+        inventory = build_dataset_inventory(dataset)
+        write_inventory(inventory, Path(args.out_dir) / 'dataset_inventory.json')
+        print(format_inventory_report(inventory))
+        print(
+            f"Conversión planificada: {inventory['conversion']['expected_dgs_files']} "
+            f"DGS de {inventory['totals']['feeders']} alimentadores leídos.",
+            flush=True,
+        )
         manifest = convert_selection(
             dataset,
             selectors if not args.all else None,
@@ -97,6 +124,10 @@ def main(argv=None) -> int:
             include_geography=not args.no_geography,
             source_crs=args.source_crs,
             target_crs=args.target_crs,
+            export_xlsx=args.export_xlsx,
+            export_tsv=args.export_tsv,
+            write_preview=args.preview,
+            preview_backend=args.preview_backend,
             on_progress=_progress,
         )
     except (OSError, ValueError, ImportError) as exc:
@@ -104,6 +135,7 @@ def main(argv=None) -> int:
 
     print(f"Requested: {manifest['summary']['requested']}")
     print(f"OK: {manifest['summary']['ok']}")
+    print(f"Skipped: {manifest['summary'].get('skipped', 0)}")
     print(f"Failed: {manifest['summary']['failed']}")
     print(f"Manifest: {Path(args.out_dir) / 'batch_manifest.json'}")
     return 0 if manifest['summary']['failed'] == 0 else 2
