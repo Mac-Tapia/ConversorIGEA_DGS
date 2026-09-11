@@ -15,7 +15,8 @@ def _transformer(source_crs: str, target_crs: str):
     except ImportError as exc:  # pragma: no cover - depends on local install
         raise ImportError(
             'pyproj es obligatorio para georreferenciación. '
-            'Instale con: pip install pyproj  (o desactive geografía con --no-geography / la GUI).'
+            'Instale con: pip install -r requirements.txt  '
+            '(o desactive geografía con --no-geography / la GUI).'
         ) from exc
     return Transformer.from_crs(source_crs, target_crs, always_xy=True)
 

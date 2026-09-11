@@ -3,13 +3,15 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 import math
 import re
-from typing import Mapping
+from typing import Mapping, Sequence
 
 from .dataset import CymdistDataset
+from .naming import feeder_short_name
 
-# Operational SED / transformer codes embedded in IGEA customer/device IDs
-# (e.g. CUST_2010_1042900_SE40699-2, DEV_..._M40699).
-_SED_CODE_RE = re.compile(r'(?:^|_)((?:SE|M)\d[\w-]*)\s*$', re.IGNORECASE)
+# Optional equipment/substation suffix in customer/device IDs (utility-specific
+# coding). Matches a trailing token like SE40699, M40699, TR12, SUB-01 — not
+# limited to one company's SE_/M_ convention.
+_EQUIP_SUFFIX_RE = re.compile(r'(?:^|[_/\-])(([A-Za-z]{1,8})\d[\w-]*)\s*$')
 
 
 class ModelBuildError(ValueError):
@@ -168,22 +170,97 @@ def _catalog(dataset: CymdistDataset) -> tuple[dict[str, LineType], dict[str, li
     return by_key, by_code
 
 
+def _shared_prefix_len(a: str, b: str) -> int:
+    n = 0
+    for left, right in zip(a, b):
+        if left != right:
+            break
+        n += 1
+    return n
+
+
+def _edit_distance(a: str, b: str) -> int:
+    if a == b:
+        return 0
+    if not a:
+        return len(b)
+    if not b:
+        return len(a)
+    prev = list(range(len(b) + 1))
+    for i, ca in enumerate(a, start=1):
+        cur = [i]
+        for j, cb in enumerate(b, start=1):
+            ins = cur[j - 1] + 1
+            delete = prev[j] + 1
+            sub = prev[j - 1] + (ca != cb)
+            cur.append(min(ins, delete, sub))
+        prev = cur
+    return prev[-1]
+
+
+def suggest_catalog_code(raw_code: str, catalog_codes: Sequence[str]) -> str | None:
+    """Pick a unique nearest ID from the loaded BD_Equipo catalog, or None if ambiguous/absent."""
+    if raw_code in catalog_codes:
+        return raw_code
+    scored: list[tuple[int, int, str]] = []
+    for code in catalog_codes:
+        prefix = _shared_prefix_len(raw_code, code)
+        if prefix < 4:
+            continue
+        scored.append((prefix, _edit_distance(raw_code, code), code))
+    if not scored:
+        return None
+    # Prefer longer shared prefix, then smaller edit distance.
+    scored.sort(key=lambda item: (-item[0], item[1], item[2]))
+    best_prefix, best_edit, best_code = scored[0]
+    ties = [c for p, e, c in scored if p == best_prefix and e == best_edit]
+    if len(ties) != 1:
+        return None
+    return best_code
+
+
+def _pick_type(
+    code: str,
+    overhead: bool,
+    by_code: dict[str, list[LineType]],
+) -> LineType | None:
+    candidates = by_code.get(code, [])
+    if not candidates:
+        return None
+    if len(candidates) == 1:
+        return candidates[0]
+    desired_table = 'LINE' if overhead else 'CONCENTRIC NEUTRAL CABLE'
+    for candidate in candidates:
+        if candidate.source_table == desired_table:
+            return candidate
+    return None
+
+
 def _resolve_type(
     raw_code: str,
     overhead: bool,
     by_code: dict[str, list[LineType]],
     aliases: Mapping[str, str],
 ) -> tuple[LineType | None, str | None]:
+    """Resolve a LineCableID using explicit aliases, exact catalog ID, nearest catalog ID, then DEFAULT.
+
+    Never leaves a section without a type when BD_Equipo contains DEFAULT (or a near match).
+    Auto-aliases and DEFAULT fallbacks are returned via the second tuple element for audit.
+    """
     requested = aliases.get(raw_code, raw_code)
-    candidates = by_code.get(requested, [])
-    if not candidates:
-        return None, aliases.get(raw_code)
-    if len(candidates) == 1:
-        return candidates[0], aliases.get(raw_code)
-    desired_table = 'LINE' if overhead else 'CONCENTRIC NEUTRAL CABLE'
-    for candidate in candidates:
-        if candidate.source_table == desired_table:
-            return candidate, aliases.get(raw_code)
+    typ = _pick_type(requested, overhead, by_code)
+    if typ is not None:
+        return typ, aliases.get(raw_code)
+
+    auto = suggest_catalog_code(raw_code, list(by_code))
+    if auto is not None and auto != raw_code:
+        typ = _pick_type(auto, overhead, by_code)
+        if typ is not None:
+            return typ, auto
+
+    default_typ = _pick_type('DEFAULT', overhead, by_code)
+    if default_typ is not None:
+        return default_typ, 'DEFAULT'
     return None, aliases.get(raw_code)
 
 
@@ -222,25 +299,25 @@ def _device_side(location: str, section_id: str, strict: bool) -> int | None:
 
 
 def extract_sed_code(*candidates: str) -> str:
-    """Return the operational SED code when it is present in TXT identifiers."""
+    """Return an optional equipment/substation code embedded in TXT identifiers.
+
+    This is a best-effort heuristic for any utility coding. If nothing matches,
+    loads keep their original customer/device names — conversion never depends
+    on a specific company denomination.
+    """
     for raw in candidates:
         text = (raw or '').strip()
         if not text:
             continue
-        match = _SED_CODE_RE.search(text)
+        match = _EQUIP_SUFFIX_RE.search(text)
         if match:
             return match.group(1)
     return ''
 
 
 def sed_loc_name(code: str) -> str:
-    """NA205-style short name: SE_M50144, or SE40699 when the code already starts with SE."""
-    code = (code or '').strip()
-    if not code:
-        return ''
-    if code.upper().startswith('SE'):
-        return code[:40]
-    return f'SE_{code}'[:40]
+    """Short display name for an optional equipment/substation code."""
+    return (code or '').strip()[:40]
 
 
 def _assign_load_display_names(loads: list[Load]) -> list[Load]:
@@ -273,7 +350,7 @@ def build_feeder_model(
 ) -> FeederModel:
     aliases = dict(aliases or {})
     network_id = dataset.resolve_feeder(selector)
-    name = network_id.rsplit('_', 1)[-1]
+    name = feeder_short_name(network_id)
     source = dataset.sources.get(network_id)
     if source is None:
         raise ModelBuildError(f'{network_id}: source not found')
@@ -304,10 +381,13 @@ def build_feeder_model(
         raw_code = cfg.get('LineCableID') or 'DEFAULT'
         typ, alias_target = _resolve_type(raw_code, overhead, by_code, aliases)
         if typ is None:
-            unresolved.add(raw_code)
-            continue
+            raise ModelBuildError(
+                f'{network_id}: cannot resolve LineCableID {raw_code!r} and BD_Equipo has no usable DEFAULT'
+            )
         if alias_target is not None:
             applied_aliases[raw_code] = alias_target
+            if alias_target == 'DEFAULT' and raw_code != 'DEFAULT':
+                unresolved.add(raw_code)
         length_m = _float(cfg.get('Length'), float('nan'))
         if not math.isfinite(length_m) or length_m < 0:
             raise ModelBuildError(f'{network_id}: invalid length on {section_id}: {cfg.get("Length")!r}')
@@ -325,8 +405,8 @@ def build_feeder_model(
         used_types[typ.key] = typ
         used_nodes.update((from_node, to_node))
 
-    if unresolved and strict:
-        raise UnresolvedLineTypesError(name, unresolved)
+    if not lines:
+        raise ModelBuildError(f'{name}: no sections could be modelled')
 
     section_by_id = {line.section_id: line for line in lines}
     loads: list[Load] = []
@@ -432,8 +512,22 @@ def build_feeder_model(
         )
 
     warnings: list[str] = []
-    if unresolved:
-        warnings.append('Unresolved line types omitted in non-strict mode: ' + ', '.join(sorted(unresolved)))
+    auto_aliased = {
+        src: dst
+        for src, dst in applied_aliases.items()
+        if src != dst and dst != 'DEFAULT' and src not in aliases
+    }
+    defaulted = sorted(code for code in unresolved if applied_aliases.get(code) == 'DEFAULT')
+    if auto_aliased:
+        detail = ', '.join(f'{src}->{dst}' for src, dst in sorted(auto_aliased.items()))
+        warnings.append(
+            'Line types missing from BD_Equipo were auto-mapped to the nearest catalog ID: ' + detail
+        )
+    if defaulted:
+        warnings.append(
+            'Line types without a unique BD_Equipo match used media DEFAULT (sections kept): '
+            + ', '.join(defaulted)
+        )
     if any(d.eq_state != 0 for d in devices):
         warnings.append('One or more switching devices have EqState != 0; EqState is preserved in the model but DGS StaSwitch has no equivalent field in this profile.')
 

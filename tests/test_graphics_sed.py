@@ -15,12 +15,13 @@ from igea_dgs.model import (
 )
 
 
-def test_extract_sed_code_from_igea_identifiers():
+def test_extract_equipment_suffix_from_identifiers():
     assert extract_sed_code('CUST_2010_1042900_SE40699-2') == 'SE40699-2'
     assert extract_sed_code('CUST_2010_1042901_M40699') == 'M40699'
     assert extract_sed_code('DEV_2010_327899_SE40699') == 'SE40699'
+    assert extract_sed_code('LOAD_TR12') == 'TR12'
     assert extract_sed_code('no-code-here') == ''
-    assert sed_loc_name('M40699') == 'SE_M40699'
+    assert sed_loc_name('M40699') == 'M40699'
     assert sed_loc_name('SE40699') == 'SE40699'
 
 

@@ -163,13 +163,30 @@ class CymdistDataset:
         return frozenset(self.feeders[network_id])
 
     def resolve_feeder(self, selector: str) -> str:
+        from .naming import feeder_short_name, feeder_tokens
+
         normalized = selector.strip().lower()
+        if not normalized:
+            raise KeyError('Empty feeder selector')
         direct = {network.lower(): network for network in self.feeders}
         if normalized in direct:
             return direct[normalized]
-        matches = [network for network in self.feeders if network.rsplit('_', 1)[-1].lower() == normalized]
-        if len(matches) == 1:
-            return matches[0]
-        if not matches:
-            raise KeyError(f'Feeder not found: {selector}')
-        raise KeyError(f'Ambiguous feeder selector {selector}: {matches}')
+        # Last-token short name (works for NET_…_IN111, ALIM-12, Feeder.A1, …)
+        short_matches = [
+            network for network in self.feeders
+            if feeder_short_name(network).lower() == normalized
+        ]
+        if len(short_matches) == 1:
+            return short_matches[0]
+        if len(short_matches) > 1:
+            raise KeyError(f'Ambiguous feeder selector {selector}: {short_matches}')
+        # Unique token match anywhere in the NetworkID
+        token_matches = [
+            network for network in self.feeders
+            if normalized in {token.lower() for token in feeder_tokens(network)}
+        ]
+        if len(token_matches) == 1:
+            return token_matches[0]
+        if len(token_matches) > 1:
+            raise KeyError(f'Ambiguous feeder selector {selector}: {token_matches}')
+        raise KeyError(f'Feeder not found: {selector}')

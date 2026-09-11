@@ -1,42 +1,38 @@
-from pathlib import Path
-
-RED = Path('/mnt/data/RED_030826(1).txt')
-LOAD = Path('/mnt/data/CARGA_030826(1).txt')
-EQUIP = Path('/mnt/data/BD_Equipo_V261124 (1)(1).txt')
+from igea_dgs.dataset import CymdistDataset
 
 
-def test_dataset_parses_all_source_tables_once():
-    from igea_dgs.dataset import CymdistDataset
-
-    ds = CymdistDataset.from_files(RED, LOAD, EQUIP)
-    assert len(ds.feeder_ids()) == 96
-    assert len(ds.sources) == 96
-    assert len(ds.sections) == 38657
-    assert len(ds.line_configurations) == 38657
-    assert len(ds.nodes) == 38681
-    assert len(ds.load_placements) == 7287
-    assert len(ds.customer_loads) == 7287
-    assert len(ds.switch_settings) == 17
-    assert len(ds.sectionalizer_settings) == 15196
-    assert len(ds.intermediate_nodes) == 37283
+def test_dataset_parses_all_source_tables_once(igea_paths):
+    red, loads, equip = igea_paths
+    ds = CymdistDataset.from_files(red, loads, equip)
+    n_feeders = len(ds.feeder_ids())
+    assert n_feeders >= 1
+    assert len(ds.sources) == n_feeders
+    assert len(ds.sections) >= 1
+    assert len(ds.line_configurations) == len(ds.sections)
+    assert len(ds.nodes) >= 1
+    assert len(ds.sections) == len(ds.section_owner)
+    # Loads / switches / intermediate nodes are optional per export
+    assert len(ds.customer_loads) == len(ds.load_placements)
 
 
-def test_dataset_resolves_short_name_network_id_and_joins_load_location():
-    from igea_dgs.dataset import CymdistDataset
+def test_dataset_resolves_short_name_network_id_and_joins_load_location(ds, sample_feeder):
+    from igea_dgs.naming import feeder_short_name
 
-    ds = CymdistDataset.from_files(RED, LOAD, EQUIP)
-    assert ds.resolve_feeder('IN111') == 'NET_2030_142_IN111'
-    assert ds.resolve_feeder('net_2030_142_in111') == 'NET_2030_142_IN111'
-    assert ds.resolve_feeder('TA121') == 'NET_2030_166_TA121'
-    first = next(r for r in ds.customer_loads.values() if r['SectionID'] in ds.feeder_section_ids('NET_2030_142_IN111'))
+    network_id = ds.resolve_feeder(sample_feeder)
+    assert feeder_short_name(network_id) == sample_feeder
+    assert ds.resolve_feeder(network_id.lower()) == network_id
+    assert ds.resolve_feeder(sample_feeder.lower()) == network_id
+
+    section_ids = ds.feeder_section_ids(network_id)
+    loads_on_feeder = [r for r in ds.customer_loads.values() if r['SectionID'] in section_ids]
+    if not loads_on_feeder:
+        return
+    first = loads_on_feeder[0]
     placement = ds.load_placements[(first['SectionID'], first['DeviceNumber'])]
-    assert placement['Location'] == '1'
-    assert placement['LoadType'] == 'SPOT'
+    assert placement['Location'] in {'0', '1'}
+    assert placement.get('LoadType', '') != ''
 
 
-def test_every_section_has_unique_owner_and_configuration():
-    from igea_dgs.dataset import CymdistDataset
-
-    ds = CymdistDataset.from_files(RED, LOAD, EQUIP)
-    assert len(ds.section_owner) == 38657
-    assert set(ds.section_owner) == set(ds.line_configurations)
+def test_every_section_has_unique_owner_and_configuration(ds):
+    assert len(ds.sections) == len(ds.section_owner) == len(ds.line_configurations)
+    assert set(ds.sections) == set(ds.section_owner) == set(ds.line_configurations)

@@ -1,1 +1,4 @@
-{}
+{
+  "_comment": "Optional sample only. Replace with YOUR BD_Equipo equivalences. Keys starting with _ are ignored.",
+  "CODIGO_AUSENTE_EN_CATALOGO": "CODIGO_EXISTENTE_EN_BD_EQUIPO"
+}
