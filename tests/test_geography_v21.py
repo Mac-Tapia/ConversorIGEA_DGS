@@ -26,7 +26,7 @@ def test_line_geometry_starts_and_ends_at_electrical_nodes(ds, sample_model):
 
 def test_dgs_writer_includes_geographic_graphic_layer(ds, sample_model, tmp_path):
     from igea_dgs.geography import build_geography
-    from igea_dgs.dgs import diagram_line_sections, write_dgs
+    from igea_dgs.dgs import diagram_line_rail_counts, write_dgs
     from igea_dgs.validate import parse_dgs
 
     geo = build_geography(ds, sample_model, source_crs='EPSG:32718')
@@ -36,7 +36,7 @@ def test_dgs_writer_includes_geographic_graphic_layer(ds, sample_model, tmp_path
 
     nested_keys = {sed.load_key for sed in sample_model.seds}
     free_loads = [load for load in sample_model.loads if (load.section_id, load.device_number) not in nested_keys]
-    drawn_lines = diagram_line_sections(sample_model)
+    _oh, _ug, d_lin_graphics = diagram_line_rail_counts(sample_model)
 
     assert len(tables['IntGrfnet']['rows']) == 1
     pointterms = [r for r in tables['IntGrf']['rows_dict'] if r.get('sSymNam') == 'PointTerm']
@@ -44,12 +44,12 @@ def test_dgs_writer_includes_geographic_graphic_layer(ds, sample_model, tmp_path
     assert len(pointterms) <= len(sample_model.nodes)
     assert len(tables['IntGrf']['rows']) == (
         len(manifest.visible_pointterm_nodes)
-        + len(drawn_lines)
+        + d_lin_graphics
         + len(free_loads)
         + len(sample_model.seds)
         + 1
     )
-    assert len(tables['IntGrfcon']['rows']) == 2 * len(drawn_lines) + len(free_loads) + 1
+    assert len(tables['IntGrfcon']['rows']) == 2 * d_lin_graphics + len(free_loads) + 1
     symbols = {r.get('sSymNam') for r in tables['IntGrf']['rows_dict']}
     assert 'd_lin' in symbols
     assert 'd_net' in symbols

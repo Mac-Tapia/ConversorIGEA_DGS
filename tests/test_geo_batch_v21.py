@@ -6,14 +6,14 @@ from igea_dgs.model import build_feeder_model
 
 def test_batch_writes_geography_and_integrated_validation(ds, sample_feeder, tmp_path):
     from igea_dgs.batch import convert_selection
-    from igea_dgs.dgs import diagram_line_sections
+    from igea_dgs.dgs import diagram_line_rail_counts
 
     model = build_feeder_model(ds, sample_feeder)
     nested_keys = {sed.load_key for sed in model.seds}
     free_loads = sum(
         1 for load in model.loads if (load.section_id, load.device_number) not in nested_keys
     )
-    drawn_lines = len(diagram_line_sections(model))
+    _oh, _ug, d_lin_graphics = diagram_line_rail_counts(model)
     manifest = convert_selection(ds, [sample_feeder], tmp_path, source_crs='EPSG:32718', include_geography=True)
     assert manifest['summary'] == {'requested': 1, 'ok': 1, 'skipped': 0, 'failed': 0}
     item = manifest['feeders'][0]
@@ -26,8 +26,9 @@ def test_batch_writes_geography_and_integrated_validation(ds, sample_feeder, tmp
     assert report['counts']['dgs_graphics'] > 0
     # Free loads keep d_load+IntGrfcon; SED loads are modules inside SecSubProd.
     # Micro service stubs stay electrical-only (no d_lin dust).
+    # One d_lin (+ 2 IntGrfcon) per drawn ElmLne — including underground.
     assert report['counts']['dgs_graphic_connections'] == (
-        2 * drawn_lines + free_loads + 1
+        2 * d_lin_graphics + free_loads + 1
     )
     assert report['counts']['dgs_pointterms'] <= len(model.nodes)
     assert report['counts']['dgs_lines'] == len(model.lines)

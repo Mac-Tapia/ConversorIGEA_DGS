@@ -51,6 +51,112 @@ def test_line_irot_follows_geometry():
     assert _line_irot([(0.0, 0.0), (-10.0, 0.0)]) == 180
 
 
+def test_ug_parallel_rail_paths_taper_to_shared_endpoints():
+    from igea_dgs.dgs import ug_parallel_rail_paths
+
+    center = [(0.0, 0.0), (10.0, 0.0), (20.0, 0.0)]
+    left, right = ug_parallel_rail_paths(center, offset=2.0)
+    assert left[0] == (0.0, 0.0) and left[-1] == (20.0, 0.0)
+    assert right[0] == (0.0, 0.0) and right[-1] == (20.0, 0.0)
+    assert left[1][1] > 0
+    assert right[1][1] < 0
+    assert abs(left[1][1] - right[1][1]) == pytest.approx(4.0)
+
+
+def test_underground_span_single_d_lin_and_inair(tmp_path: Path):
+    """Overhead=0 → one IntGrf d_lin + inAir=0 (no ghost dual rails)."""
+    nodes = {
+        'A': Node('A', 0, 0),
+        'B': Node('B', 1, 0),
+        'C': Node('C', 2, 0),
+    }
+    lt_oh = LineType('LINE:OH', 'OH', 'LINE', 0.1, 0.1, 0.1, 0.1, 0, 0, 100)
+    lt_ug = LineType('CABLE:UG', 'UG', 'CONCENTRIC NEUTRAL CABLE', 0.1, 0.1, 0.1, 0.1, 0, 0, 100)
+    lines = [
+        Line('OH1', 'A', 'B', 'ABC', 'LINE:OH', 'OH', 50.0, True),
+        Line('UG1', 'B', 'C', 'ABC', 'CABLE:UG', 'UG', 80.0, False),
+    ]
+    model = FeederModel(
+        name='UGTOY',
+        network_id='NET_UG',
+        nominal_kv=13.8,
+        source_node='A',
+        nodes=nodes,
+        lines=lines,
+        loads=[],
+        devices=[],
+        line_types={'LINE:OH': lt_oh, 'CABLE:UG': lt_ug},
+        seds=[],
+    )
+    geo_nodes = {
+        'A': GeoPoint(lat=-14.0, lon=-75.0, x=0.0, y=0.0),
+        'B': GeoPoint(lat=-14.001, lon=-75.0, x=50.0, y=0.0),
+        'C': GeoPoint(lat=-14.002, lon=-75.0, x=130.0, y=0.0),
+    }
+    geo = GeographyManifest(
+        feeder=model.name,
+        network_id=model.network_id,
+        source_node=model.source_node,
+        source_crs='EPSG:4326',
+        target_crs='EPSG:4326',
+        nodes=geo_nodes,
+        lines={
+            'OH1': GeoLine('OH1', 'A', 'B', (geo_nodes['A'], geo_nodes['B'])),
+            'UG1': GeoLine('UG1', 'B', 'C', (geo_nodes['B'], geo_nodes['C'])),
+        },
+        source_xy_bounds=(0.0, 0.0, 130.0, 0.0),
+        target_bounds=(-14.002, -75.0, -14.0, -75.0),
+        intermediate_point_count=0,
+        intermediate_section_count=0,
+    )
+    out = tmp_path / 'ug_single.dgs'
+    write_dgs(model, out, geography=geo)
+    tables = parse_dgs(out)
+    line_rows = {r['loc_name']: r for r in tables['ElmLne']['rows_dict']}
+    assert line_rows['UG1']['inAir'] == '0'
+    assert line_rows['OH1']['inAir'] == '1'
+    ug_fid = line_rows['UG1']['FID']
+    oh_fid = line_rows['OH1']['FID']
+    ug_grf = [r for r in tables['IntGrf']['rows_dict'] if r.get('pDataObj') == ug_fid]
+    oh_grf = [r for r in tables['IntGrf']['rows_dict'] if r.get('pDataObj') == oh_fid]
+    assert len(ug_grf) == 1
+    assert len(oh_grf) == 1
+    assert len(tables['ElmFeeder']['rows_dict']) == 1
+    assert tables['ElmFeeder']['rows_dict'][0]['loc_name'] == 'UGTOY'
+    report = validate_dgs(model, out, geography=geo)
+    assert report['errors_total'] == 0, report
+
+
+def test_parallel_circuit_offsets_two_abc_same_span():
+    from igea_dgs.dgs import parallel_circuit_graphic_offsets
+
+    nodes = {
+        'A': Node('A', 0, 0),
+        'B': Node('B', 1, 0),
+    }
+    lt = LineType('LINE:T', 'T', 'LINE', 0.1, 0.1, 0.1, 0.1, 0, 0, 100)
+    lines = [
+        Line('C1', 'A', 'B', 'ABC', 'LINE:T', 'T', 10.0, True),
+        Line('C2', 'A', 'B', 'ABC', 'LINE:T', 'T', 10.0, True),
+    ]
+    model = FeederModel(
+        name='DBL',
+        network_id='NET_DBL',
+        nominal_kv=13.8,
+        source_node='A',
+        nodes=nodes,
+        lines=lines,
+        loads=[],
+        devices=[],
+        line_types={'LINE:T': lt},
+        seds=[],
+    )
+    offsets = parallel_circuit_graphic_offsets(model, offset_du=4.0)
+    assert set(offsets) == {'C1', 'C2'}
+    assert offsets['C1'] == pytest.approx(-2.0)
+    assert offsets['C2'] == pytest.approx(2.0)
+
+
 def test_adaptive_scale_matches_na205_units_per_meter():
     # Compact feeder → NA205 geographic scale, not density blow-up.
     meter_xy = {

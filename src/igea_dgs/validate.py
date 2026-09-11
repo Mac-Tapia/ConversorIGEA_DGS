@@ -420,6 +420,13 @@ def validate_dgs(
             for sid in drawn_sections
             if _loc(sid) in line_by_name
         }
+        line_by_section = {line.section_id: line for line in model.lines}
+        ug_diagram_fids = {
+            line_by_name[_loc(sid)].get('FID', '')
+            for sid in drawn_sections
+            if _loc(sid) in line_by_name and not line_by_section[sid].overhead
+        }
+        oh_diagram_fids = diagram_line_fids - ug_diagram_fids
         hidden_stub_line_fids = line_fids - diagram_line_fids
         electrical_graphic_objects = visible_term_fids | diagram_line_fids | free_load_fids | source_fids | sed_fids
         graphics_by_object: dict[str, list[dict[str, str]]] = defaultdict(list)
@@ -432,8 +439,10 @@ def validate_dgs(
             if r.get('pDataObj','') not in electrical_graphic_objects:
                 graphic_errors.append(f'IntGrf {r.get("FID")} references missing electrical object {r.get("pDataObj")}')
             graphics_by_object[r.get('pDataObj','')].append(r)
+        # One d_lin per drawn ElmLne (NA205). Underground style is ElmLne.inAir=0.
+        expected_line_graphics = len(diagram_line_fids)
         expected_graphics = (
-            len(visible_term_fids) + len(diagram_line_fids) + len(free_load_fids)
+            len(visible_term_fids) + expected_line_graphics + len(free_load_fids)
             + len(source_fids) + len(sed_fids)
         )
         if len(graphic_rows) != expected_graphics:
@@ -442,9 +451,16 @@ def validate_dgs(
             graphic_errors.append(
                 f'PointTerm count {symbol_counts.get("PointTerm", 0)} != visible nodes {len(visible_term_fids)}'
             )
+        if symbol_counts.get('d_lin', 0) != expected_line_graphics:
+            graphic_errors.append(
+                f'd_lin count {symbol_counts.get("d_lin", 0)} != expected {expected_line_graphics} '
+                f'(OH={len(oh_diagram_fids)} UG={len(ug_diagram_fids)})'
+            )
         for fid in diagram_line_fids | free_load_fids | source_fids | sed_fids | visible_term_fids:
             if len(graphics_by_object.get(fid, [])) != 1:
-                graphic_errors.append(f'Electrical object {fid} has {len(graphics_by_object.get(fid, []))} graphic objects, expected 1')
+                graphic_errors.append(
+                    f'Electrical object {fid} has {len(graphics_by_object.get(fid, []))} graphic objects, expected 1'
+                )
         for fid in hidden_stub_line_fids:
             if graphics_by_object.get(fid):
                 graphic_errors.append(
@@ -489,6 +505,28 @@ def validate_dgs(
                 graphic_errors.append(f'ElmTerm graphic for {fid} unexpectedly owns IntGrfcon rows')
             if gr and gr[0].get('sSymNam') != 'PointTerm':
                 graphic_errors.append(f'Visible ElmTerm graphic for {fid} must use sSymNam=PointTerm')
+
+        # Electrical: underground sections must keep inAir=0 (DigSilent cable look).
+        for r in line_rows:
+            name = r.get('loc_name', '')
+            line = next((ln for ln in model.lines if _loc(ln.section_id) == name), None)
+            if line is None:
+                continue
+            expected_in_air = '1' if line.overhead else '0'
+            if str(r.get('inAir', '')) != expected_in_air:
+                graphic_errors.append(
+                    f'ElmLne {name} inAir={r.get("inAir")!r}, expected {expected_in_air} '
+                    f'({"OH" if line.overhead else "UG"})'
+                )
+
+    # ElmFeeder required always (DigSilent feeder colouring / Define Feeder).
+    feeder_rows = tables.get('ElmFeeder', {}).get('rows_dict', [])
+    if len(feeder_rows) != 1:
+        structural_errors.append(f'ElmFeeder rows={len(feeder_rows)}, expected 1')
+    elif feeder_rows[0].get('obj_id', '') not in cubic_fids:
+        structural_errors.append(
+            f'ElmFeeder {feeder_rows[0].get("FID")} obj_id is not a StaCubic'
+        )
 
     return _report(model, tables, schema, schema_errors, structural_errors, connection_errors,
                    geographic_errors, graphic_errors, geography=geography, dgs_length=dgs_length)

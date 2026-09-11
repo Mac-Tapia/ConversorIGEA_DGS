@@ -210,6 +210,7 @@ def layers_to_geojson(layers: PreviewLayers) -> dict[str, Any]:
                         f'Unom: {line.uknom_kv:g} kV<br>'
                         f'Longitud: {line.length_km:.6g} km ({line.length_m:.3g} m)<br>'
                         f'TypLne: {line.type_code}<br>'
+                        f'{"Aéreo" if line.overhead else "Subterráneo (inAir=0)"}<br>'
                         f'r1/x1: {line.r1_ohm_km:g} / {line.x1_ohm_km:g} Ω/km<br>'
                         f'In: {line.ampacity_a:g} A'
                     ),
@@ -314,7 +315,12 @@ def _write_leaflet_html(layers: PreviewLayers, path: Path) -> Path:
     const layer = L.geoJSON(data, {{
       style: function (feature) {{
         if (feature.geometry.type === 'LineString') {{
-          return {{ color: '#1d4ed8', weight: 3, opacity: 0.85 }};
+          const ug = feature.properties.inAir === false || feature.properties.inAir === 0;
+          return {{
+            color: ug ? '#0f172a' : '#1d4ed8',
+            weight: ug ? 2 : 3,
+            opacity: 0.9
+          }};
         }}
         return {{}};
       }},

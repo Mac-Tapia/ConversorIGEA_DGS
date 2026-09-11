@@ -129,6 +129,54 @@ def diagram_line_sections(model: FeederModel, *, max_stub_m: float = 1.0) -> set
     }
 
 
+def diagram_line_rail_counts(
+    model: FeederModel,
+    *,
+    max_stub_m: float = 1.0,
+) -> tuple[int, int, int]:
+    """Return ``(overhead_drawn, underground_drawn, d_lin_graphics)``.
+
+    One IntGrf ``d_lin`` per drawn ElmLne (NA205 pattern). Underground look in
+    DigSilent comes from ``ElmLne.inAir=0``, not duplicate graphics.
+    """
+    drawn = diagram_line_sections(model, max_stub_m=max_stub_m)
+    oh = ug = 0
+    for line in model.lines:
+        if line.section_id not in drawn:
+            continue
+        if line.overhead:
+            oh += 1
+        else:
+            ug += 1
+    return oh, ug, oh + ug
+
+
+def parallel_circuit_graphic_offsets(
+    model: FeederModel,
+    *,
+    offset_du: float = 4.0,
+) -> dict[str, float]:
+    """Signed diagram offset for true parallel circuits (same From↔To).
+
+    CYMDIST encodes doble circuito as two SECTION rows sharing endpoints.
+    Both ElmLne are kept electrically; graphics are offset so DigSilent shows
+    two distinct ternaries instead of overlapping ghosts.
+    """
+    groups: dict[tuple[str, str], list[str]] = defaultdict(list)
+    for line in model.lines:
+        key = tuple(sorted((line.from_node, line.to_node)))
+        groups[key].append(line.section_id)
+    offsets: dict[str, float] = {}
+    for sids in groups.values():
+        if len(sids) < 2:
+            continue
+        ordered = sorted(sids)
+        n = len(ordered)
+        for i, sid in enumerate(ordered):
+            offsets[sid] = (i - (n - 1) / 2.0) * offset_du
+    return offsets
+
+
 def visible_pointterm_nodes(model: FeederModel) -> set[str]:
     """Black PointTerm symbols so drawn lines are not floating fragments.
 
@@ -175,6 +223,10 @@ NA205_SED_RADIUS = 20.0
 NA205_SOURCE_OFFSET = 40.0
 # Inside ElmSubstat (double-click triangle): LV bus like NA205 SE_*_2.
 NA205_SED_LV_KV = 0.22
+# DigSilent feeder colour (NA205 uses 10/11); one ElmFeeder per converted network.
+NA205_FEEDER_ICOLOR = 11
+# Offset between true parallel circuits sharing the same From↔To endpoints.
+PARALLEL_CIRCUIT_OFFSET_DU = 4.0
 
 
 def _diagram_symbol_layout(
@@ -283,6 +335,49 @@ def _reduce_points(points: list[tuple[float, float]], maximum: int = 4) -> list[
         return points
     indexes = [round(i * (len(points) - 1) / (maximum - 1)) for i in range(maximum)]
     return [points[i] for i in indexes]
+
+
+def _offset_polyline(
+    points: list[tuple[float, float]],
+    distance: float,
+) -> list[tuple[float, float]]:
+    """Offset a polyline by ``distance`` along the left-hand normal."""
+    if len(points) < 2 or distance == 0.0:
+        return list(points)
+    out: list[tuple[float, float]] = []
+    last = len(points) - 1
+    for i, (x, y) in enumerate(points):
+        if i == 0:
+            dx = points[1][0] - x
+            dy = points[1][1] - y
+        elif i == last:
+            dx = x - points[i - 1][0]
+            dy = y - points[i - 1][1]
+        else:
+            dx = points[i + 1][0] - points[i - 1][0]
+            dy = points[i + 1][1] - points[i - 1][1]
+        length = math.hypot(dx, dy) or 1.0
+        nx, ny = -dy / length, dx / length
+        out.append((x + nx * distance, y + ny * distance))
+    return out
+
+
+def ug_parallel_rail_paths(
+    center: list[tuple[float, float]],
+    *,
+    offset: float,
+) -> tuple[list[tuple[float, float]], list[tuple[float, float]]]:
+    """Two parallel paths offset from ``center``, tapered to the same endpoints."""
+    if len(center) < 2:
+        return list(center), list(center)
+    start, end = center[0], center[-1]
+    left = _offset_polyline(center, offset)
+    right = _offset_polyline(center, -offset)
+    left[0] = start
+    left[-1] = end
+    right[0] = start
+    right[-1] = end
+    return left, right
 
 
 def _connector_values(points: list[tuple[float, float]]) -> dict[str, object]:
@@ -550,6 +645,23 @@ def write_dgs(
         it2p1=0, it2p2=1, it2p3=2,
     ))
 
+    # DigSilent ElmFeeder (NA205): colour/feeder tool anchored on a root StaCubic.
+    # Prefer the first outgoing line cubicle at the SOURCE bus; else ElmXnet cubic.
+    feeder_cubic_fid = source_cubic_fid
+    for line in sorted(model.lines, key=lambda x: x.section_id):
+        if line.from_node == model.source_node:
+            feeder_cubic_fid = line_cubic_fids[(line.section_id, 0)]
+            break
+        if line.to_node == model.source_node:
+            feeder_cubic_fid = line_cubic_fids[(line.section_id, 1)]
+            break
+    rows['ElmFeeder'].append(_make_row(
+        schema, 'ElmFeeder', FID=reg.new(), OP='C',
+        loc_name=_loc_name(model.name),
+        obj_id=feeder_cubic_fid,
+        iorient=0, i_scale=0, Sset=0, icolor=NA205_FEEDER_ICOLOR, outserv=0,
+    ))
+
     switch_fids: dict[tuple[str, str, str], str] = {}
     for device in sorted(model.devices, key=lambda d: (d.section_id, d.terminal_side, d.kind, d.eq_number, d.eq_id)):
         fid = reg.new()
@@ -584,29 +696,50 @@ def write_dgs(
 
         # Skip micro service-stub d_lin (≤1 m tip→primary). Electrical ElmLne remains;
         # SED/load symbols already snap to the primary via diagram_anchor_node.
+        # One d_lin per ElmLne (NA205). Underground style = inAir=0 in DigSilent.
+        # True doble circuito (2 SECTION same From↔To) → slight perpendicular offset.
         drawn_line_sections = diagram_line_sections(model)
+        circuit_offsets = parallel_circuit_graphic_offsets(
+            model, offset_du=PARALLEL_CIRCUIT_OFFSET_DU,
+        )
+
         for line in sorted(model.lines, key=lambda x: x.section_id):
             if line.section_id not in drawn_line_sections:
                 continue
             gline = geography.lines[line.section_id]
             xy_path = [map_point(point) for point in gline.path]
+            if line.from_node in node_xy:
+                xy_path[0] = node_xy[line.from_node]
+            if line.to_node in node_xy:
+                xy_path[-1] = node_xy[line.to_node]
+            rail_offset = circuit_offsets.get(line.section_id, 0.0)
+            if rail_offset:
+                left, right = ug_parallel_rail_paths(xy_path, offset=abs(rail_offset))
+                xy_path = left if rail_offset > 0 else right
+                # Keep terminals on the shared buses so both circuits meet at PointTerms.
+                xy_path[0] = node_xy[line.from_node]
+                xy_path[-1] = node_xy[line.to_node]
+            if len(xy_path) < 2:
+                continue
             if len(xy_path) == 2:
                 center = ((xy_path[0][0] + xy_path[1][0]) / 2, (xy_path[0][1] + xy_path[1][1]) / 2)
                 augmented = [xy_path[0], center, xy_path[1]]
             else:
-                augmented = xy_path
+                augmented = list(xy_path)
                 mid = len(augmented) // 2
                 center = augmented[mid]
-            fid = reg.new(); graphic_fids[f'line:{line.section_id}'] = fid
+            fid = reg.new()
+            graphic_fids[f'line:{line.section_id}'] = fid
             irot = _line_irot(augmented)
             rows['IntGrf'].append(_make_row(
-                schema, 'IntGrf', FID=fid, OP='C', loc_name=_loc_name(f'G_{line.section_id}'),
+                schema, 'IntGrf', FID=fid, OP='C',
+                loc_name=_loc_name(f'G_{line.section_id}'),
                 fold_id=diagram_fid, iCol=1, iVis=1, iLevel=1,
-                rCenterX=center[0], rCenterY=center[1], sSymNam='d_lin', pDataObj=line_fids[line.section_id],
+                rCenterX=center[0], rCenterY=center[1], sSymNam='d_lin',
+                pDataObj=line_fids[line.section_id],
                 iRot=irot, rSizeX=NA205_SYMBOL_SIZE, rSizeY=NA205_SYMBOL_SIZE,
             ))
             mid = len(augmented) // 2
-            # NA205 pattern: connector starts at symbol center and ends exactly on the bus.
             left = list(reversed(augmented[:mid + 1]))
             right = list(augmented[mid:])
             left[0] = center
@@ -697,7 +830,10 @@ def write_dgs(
         '',
     ]
     output = list(preamble)
-    used_tables = {'General', 'ElmNet', 'ElmTerm', 'TypLne', 'ElmLne', 'ElmLod', 'ElmXnet', 'StaCubic', 'StaSwitch'}
+    used_tables = {
+        'General', 'ElmNet', 'ElmTerm', 'TypLne', 'ElmLne', 'ElmLod', 'ElmXnet',
+        'StaCubic', 'StaSwitch', 'ElmFeeder',
+    }
     if sed_keys:
         used_tables |= {'ElmSubstat', 'ElmTr2', 'TypTr2', 'ElmCoup'}
     if geography is not None:
