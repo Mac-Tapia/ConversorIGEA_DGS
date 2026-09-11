@@ -1,38 +1,62 @@
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Mapping, Sequence
 import json
+from collections.abc import Callable, Mapping, Sequence
+from pathlib import Path
 
 from .dataset import CymdistDataset
 from .dgs import write_dgs
-from .geography import build_geography, validate_geography, write_geography_manifest, write_geography_validation
-from .model import build_feeder_model, ModelBuildError
+from .geography import (
+    build_geography,
+    validate_geography,
+    write_geography_manifest,
+    write_geography_validation,
+)
+from .model import ModelBuildError, build_feeder_model
+from .naming import feeder_short_name, sort_key_feeder
 from .validate import validate_dgs, write_validation_reports
+
+ProgressCallback = Callable[[str, int, int], None]
 
 
 def load_aliases(path: Path | str | None) -> dict[str, str]:
     if path is None:
         return {}
-    data = json.loads(Path(path).read_text(encoding='utf-8'))
+    alias_path = Path(path)
+    if not alias_path.is_file():
+        raise FileNotFoundError(f'Alias file not found: {alias_path}')
+    data = json.loads(alias_path.read_text(encoding='utf-8'))
     if not isinstance(data, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in data.items()):
         raise ValueError('Alias file must be a JSON object of string -> string mappings')
-    return {k.strip(): v.strip() for k, v in data.items() if k.strip() and v.strip()}
+    return {
+        k.strip(): v.strip()
+        for k, v in data.items()
+        if k.strip() and v.strip() and not k.strip().startswith('_')
+    }
 
 
 def _selection(dataset: CymdistDataset, selectors: Sequence[str] | None, all_feeders: bool) -> list[str]:
     if all_feeders:
-        return sorted(dataset.feeder_ids(), key=lambda x: x.rsplit('_', 1)[-1])
-    if not selectors:
+        networks = sorted(dataset.feeder_ids(), key=sort_key_feeder)
+    elif not selectors:
         raise ValueError('At least one feeder selector is required unless all_feeders=True')
-    result: list[str] = []
-    seen: set[str] = set()
-    for selector in selectors:
-        network = dataset.resolve_feeder(selector)
-        if network not in seen:
-            seen.add(network)
-            result.append(network)
-    return result
+    else:
+        networks = []
+        seen: set[str] = set()
+        for selector in selectors:
+            network = dataset.resolve_feeder(selector)
+            if network not in seen:
+                seen.add(network)
+                networks.append(network)
+
+    short_names = [feeder_short_name(n) for n in networks]
+    duplicates = sorted({name for name in short_names if short_names.count(name) > 1})
+    if duplicates:
+        raise ValueError(
+            'Nombres cortos de alimentador duplicados en la selección '
+            f'(colisión de salida .dgs): {", ".join(duplicates)}'
+        )
+    return networks
 
 
 def convert_selection(
@@ -47,20 +71,26 @@ def convert_selection(
     include_geography: bool = True,
     source_crs: str = 'EPSG:32718',
     target_crs: str = 'EPSG:4326',
+    on_progress: ProgressCallback | None = None,
 ) -> dict:
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     aliases = dict(aliases or {})
     networks = _selection(dataset, selectors, all_feeders)
-    items: list[dict] = []
 
-    for network_id in networks:
-        feeder = network_id.rsplit('_', 1)[-1]
+    items: list[dict] = []
+    total = len(networks)
+
+    for index, network_id in enumerate(networks, start=1):
+        if on_progress is not None:
+            on_progress(network_id, index, total)
+        feeder = feeder_short_name(network_id)
         dgs_path = out_dir / f'{feeder}.dgs'
         json_path = out_dir / f'{feeder}_validation.json'
         txt_path = out_dir / f'{feeder}_validation.txt'
         geo_path = out_dir / f'{feeder}_geography.json'
         geo_validation_path = out_dir / f'{feeder}_geography_validation.txt'
+        written: list[Path] = []
         try:
             model = build_feeder_model(dataset, network_id, aliases=aliases, strict=strict)
             geography = None
@@ -71,11 +101,15 @@ def convert_selection(
                 if geography_report['errors_total']:
                     raise ModelBuildError(f'{network_id}: geographic validation failed: {geography_report["errors"]}')
                 write_geography_manifest(geography, geo_path, model=model)
+                written.append(geo_path)
                 write_geography_validation(geography_report, geo_validation_path)
+                written.append(geo_validation_path)
 
             write_dgs(model, dgs_path, schema_profile=schema_profile, geography=geography)
+            written.append(dgs_path)
             report = validate_dgs(model, dgs_path, schema_profile=schema_profile, geography=geography)
             write_validation_reports(report, json_path, txt_path)
+            written.extend([json_path, txt_path])
             ok = report['errors_total'] == 0
             item = {
                 'feeder': feeder,
@@ -104,10 +138,14 @@ def convert_selection(
                     report['schema_errors'] + report['structural_errors'] + report['connection_errors'] +
                     report.get('geographic_errors', []) + report.get('graphic_errors', [])
                 )
-        except (ModelBuildError, KeyError, ValueError) as exc:
-            for path in (dgs_path, json_path, txt_path, geo_path, geo_validation_path):
-                if path.exists():
-                    path.unlink()
+        except (ModelBuildError, KeyError, ValueError, OSError, ImportError) as exc:
+            # Only remove artifacts created in this attempt — never wipe a prior successful export.
+            for path in written:
+                try:
+                    if path.exists():
+                        path.unlink()
+                except OSError:
+                    pass
             item = {
                 'feeder': feeder,
                 'network_id': network_id,

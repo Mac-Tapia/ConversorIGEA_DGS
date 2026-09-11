@@ -82,15 +82,14 @@ def _node_degrees(model: FeederModel) -> dict[str, int]:
 def visible_pointterm_nodes(model: FeederModel) -> set[str]:
     """Black PointTerm symbols only for topology-relevant buses.
 
-    Rules (aligned with NA205 density ~350–400 on IN111-scale feeders):
+    Rules (independent of any utility's feeder size or naming):
     - feeder head / source node
     - real branch nodes (degree >= 3)
     - open stubs (degree 1) without a load
     - maneuver devices only when not a plain degree-2 through node
-      ("nodos relevantes de maniobra", not every mid-span switch)
     Hidden (still in ElmTerm electrical model):
     - degree-2 chain nodes (including through switches)
-    - terminals whose only role is hosting a load/SED (show d_load / SecSubProd)
+    - terminals whose only role is hosting a load/equipment symbol
     """
     degrees = _node_degrees(model)
     load_nodes = {load.node_id for load in model.loads}
@@ -429,7 +428,7 @@ def write_dgs(
                     fold_id=fid, iDatConNr=con_nr, **_connector_values(con_points),
                 ))
 
-        # Loads: radial around shared node (NA205 d_load).
+        # Loads: radial offsets around a shared terminal.
         loads_by_node: dict[str, list[tuple[str, str]]] = defaultdict(list)
         for key in load_keys:
             loads_by_node[loads_by_key[key].node_id].append(key)

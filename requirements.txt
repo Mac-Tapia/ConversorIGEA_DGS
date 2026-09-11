@@ -1,5 +1,14 @@
-# Runtime (obligatorio para georreferenciación GPS)
-pyproj>=3.6
+# Conversor IGEA-DGS — producción (otra máquina local)
+#
+#   python -m venv .venv
+#   .venv\Scripts\activate
+#   python -m pip install -r requirements.txt
+#
+# Para tests/desarrollo: pip install -r requirements-dev.txt
+# Python >= 3.10. En Linux la GUI suele necesitar el paquete python3-tk.
 
-# Development / tests
-pytest>=8.0
+# Paquete del proyecto (src/igea_dgs + schemas/*.json)
+-e .
+
+# Runtime — georreferenciación GPS / diagrama
+pyproj>=3.6
