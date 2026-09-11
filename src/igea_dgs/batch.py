@@ -1,0 +1,137 @@
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Mapping, Sequence
+import json
+
+from .dataset import CymdistDataset
+from .dgs import write_dgs
+from .geography import build_geography, validate_geography, write_geography_manifest, write_geography_validation
+from .model import build_feeder_model, ModelBuildError
+from .validate import validate_dgs, write_validation_reports
+
+
+def load_aliases(path: Path | str | None) -> dict[str, str]:
+    if path is None:
+        return {}
+    data = json.loads(Path(path).read_text(encoding='utf-8'))
+    if not isinstance(data, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in data.items()):
+        raise ValueError('Alias file must be a JSON object of string -> string mappings')
+    return {k.strip(): v.strip() for k, v in data.items() if k.strip() and v.strip()}
+
+
+def _selection(dataset: CymdistDataset, selectors: Sequence[str] | None, all_feeders: bool) -> list[str]:
+    if all_feeders:
+        return sorted(dataset.feeder_ids(), key=lambda x: x.rsplit('_', 1)[-1])
+    if not selectors:
+        raise ValueError('At least one feeder selector is required unless all_feeders=True')
+    result: list[str] = []
+    seen: set[str] = set()
+    for selector in selectors:
+        network = dataset.resolve_feeder(selector)
+        if network not in seen:
+            seen.add(network)
+            result.append(network)
+    return result
+
+
+def convert_selection(
+    dataset: CymdistDataset,
+    selectors: Sequence[str] | None,
+    out_dir: Path | str,
+    *,
+    all_feeders: bool = False,
+    aliases: Mapping[str, str] | None = None,
+    strict: bool = True,
+    schema_profile: str = 'pf21_dgs_1_8_4',
+    include_geography: bool = True,
+    source_crs: str = 'EPSG:32718',
+    target_crs: str = 'EPSG:4326',
+) -> dict:
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    aliases = dict(aliases or {})
+    networks = _selection(dataset, selectors, all_feeders)
+    items: list[dict] = []
+
+    for network_id in networks:
+        feeder = network_id.rsplit('_', 1)[-1]
+        dgs_path = out_dir / f'{feeder}.dgs'
+        json_path = out_dir / f'{feeder}_validation.json'
+        txt_path = out_dir / f'{feeder}_validation.txt'
+        geo_path = out_dir / f'{feeder}_geography.json'
+        geo_validation_path = out_dir / f'{feeder}_geography_validation.txt'
+        try:
+            model = build_feeder_model(dataset, network_id, aliases=aliases, strict=strict)
+            geography = None
+            geography_report = None
+            if include_geography:
+                geography = build_geography(dataset, model, source_crs=source_crs, target_crs=target_crs)
+                geography_report = validate_geography(model, geography)
+                if geography_report['errors_total']:
+                    raise ModelBuildError(f'{network_id}: geographic validation failed: {geography_report["errors"]}')
+                write_geography_manifest(geography, geo_path, model=model)
+                write_geography_validation(geography_report, geo_validation_path)
+
+            write_dgs(model, dgs_path, schema_profile=schema_profile, geography=geography)
+            report = validate_dgs(model, dgs_path, schema_profile=schema_profile, geography=geography)
+            write_validation_reports(report, json_path, txt_path)
+            ok = report['errors_total'] == 0
+            item = {
+                'feeder': feeder,
+                'network_id': network_id,
+                'status': 'ok' if ok else 'failed',
+                'dgs': str(dgs_path),
+                'validation_json': str(json_path),
+                'validation_txt': str(txt_path),
+                'errors_total': report['errors_total'],
+                'aliases': dict(model.line_type_aliases),
+                'unresolved_line_types': sorted(model.unresolved_line_types),
+                'counts': report['counts'],
+                'source_crs': source_crs if include_geography else None,
+                'target_crs': target_crs if include_geography else None,
+            }
+            if include_geography:
+                item['geography'] = str(geo_path)
+                item['geography_validation'] = str(geo_validation_path)
+                item['geography_coverage'] = {
+                    'nodes_pct': geography_report['node_coverage_pct'],
+                    'lines_pct': geography_report['line_coverage_pct'],
+                    'intermediate_points': geography_report['intermediate_points'],
+                }
+            if not ok:
+                item['error'] = '; '.join(
+                    report['schema_errors'] + report['structural_errors'] + report['connection_errors'] +
+                    report.get('geographic_errors', []) + report.get('graphic_errors', [])
+                )
+        except (ModelBuildError, KeyError, ValueError) as exc:
+            for path in (dgs_path, json_path, txt_path, geo_path, geo_validation_path):
+                if path.exists():
+                    path.unlink()
+            item = {
+                'feeder': feeder,
+                'network_id': network_id,
+                'status': 'failed',
+                'error': str(exc),
+                'aliases': {},
+                'unresolved_line_types': sorted(getattr(exc, 'types', [])),
+            }
+        items.append(item)
+
+    ok_count = sum(item['status'] == 'ok' for item in items)
+    manifest = {
+        'schema_profile': schema_profile,
+        'strict': strict,
+        'include_geography': include_geography,
+        'source_crs': source_crs if include_geography else None,
+        'target_crs': target_crs if include_geography else None,
+        'runtime_reference_dependency': False,
+        'summary': {
+            'requested': len(items),
+            'ok': ok_count,
+            'failed': len(items) - ok_count,
+        },
+        'feeders': items,
+    }
+    (out_dir / 'batch_manifest.json').write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+    return manifest

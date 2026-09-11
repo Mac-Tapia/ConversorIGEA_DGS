@@ -1,0 +1,5 @@
+# Runtime (obligatorio para georreferenciación GPS)
+pyproj>=3.6
+
+# Development / tests
+pytest>=8.0
