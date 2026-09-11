@@ -1,0 +1,19 @@
+# Conversor IGEA-DGS — producción (otra máquina local)
+#
+#   python -m venv .venv
+#   .venv\Scripts\activate
+#   python -m pip install -r requirements.txt
+#
+# Para tests/desarrollo: pip install -r requirements-dev.txt
+# Python >= 3.10. En Linux la GUI suele necesitar el paquete python3-tk.
+
+# Paquete del proyecto (src/igea_dgs + schemas/*.json)
+-e .
+
+# Runtime — georreferenciación GPS / diagrama
+pyproj>=3.6
+
+# Opcional — descomentar según necesidad:
+# Excel multi-hoja:  pip install "igea-dgs[xlsx]"
+# Preview leafmap:   pip install "igea-dgs[preview]"
+# Todo:              pip install "igea-dgs[all]"
