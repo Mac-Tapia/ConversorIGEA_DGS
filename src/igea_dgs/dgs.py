@@ -11,6 +11,29 @@ from .geography import GeographyManifest, GeoPoint
 
 
 @dataclass(frozen=True)
+class DiagramSheet:
+    """Bounding box of the DigSilent IntGrf sheet (diagram units)."""
+
+    scale: float
+    xmin: float
+    ymin: float
+    xmax: float
+    ymax: float
+
+    @property
+    def width(self) -> float:
+        return self.xmax - self.xmin
+
+    @property
+    def height(self) -> float:
+        return self.ymax - self.ymin
+
+    @property
+    def span(self) -> float:
+        return max(self.width, self.height)
+
+
+@dataclass(frozen=True)
 class DgsManifest:
     network_fid: str
     type_fids: dict[str, str]
@@ -25,6 +48,7 @@ class DgsManifest:
     graphic_fids: dict[str, str] = field(default_factory=dict)
     sed_fids: dict[tuple[str, str], str] = field(default_factory=dict)
     visible_pointterm_nodes: tuple[str, ...] = ()
+    diagram_sheet: DiagramSheet | None = None
 
 
 class FidRegistry:
@@ -267,37 +291,56 @@ def _geo_to_meters(point: GeoPoint, origin_lat: float, origin_lon: float) -> tup
 # with NA205; GPSlat/GPSlon on ElmTerm/ElmSubstat place points on the PF map.
 NA205_DIAGRAM_UNITS_PER_METER = 2.08
 NA205_MAX_DIAGRAM_EXTENT = 55000.0
+# Margin so edge symbols (loads/SED/source) and parallel-circuit offsets stay on-sheet.
+DIAGRAM_SHEET_MARGIN_DU = max(
+    NA205_LOAD_RADIUS,
+    NA205_SED_RADIUS,
+    NA205_SOURCE_OFFSET,
+) + PARALLEL_CIRCUIT_OFFSET_DU + NA205_SYMBOL_SIZE
+
+
+def _meter_span(points: list[tuple[float, float]]) -> float:
+    if len(points) < 2:
+        return 0.0
+    xs = [p[0] for p in points]
+    ys = [p[1] for p in points]
+    return max(max(xs) - min(xs), max(ys) - min(ys), 0.0)
 
 
 def _adaptive_scale(
     meter_xy: dict[str, tuple[float, float]],
     visible_ids: set[str],
     *,
+    extra_points: list[tuple[float, float]] | None = None,
+    margin_du: float = DIAGRAM_SHEET_MARGIN_DU,
     units_per_meter: float = NA205_DIAGRAM_UNITS_PER_METER,
     max_extent: float = NA205_MAX_DIAGRAM_EXTENT,
 ) -> float:
-    """Uniform geographic scale matching NA205 (Ica zone) sheet footprint.
+    """Uniform geographic scale matching NA205 sheet footprint.
 
-    Uses the same diagram-units-per-meter as NA205. If a feeder's meter span
-    would exceed the NA205 canvas, shrink uniformly so the full network fits.
+    Preserves TXT topology proportions (isotropic scale). Includes intermediate
+    GIS vertices and a symbol margin so DigSilent's grid/sheet covers the whole
+    feeder map — not only electrical buses.
     """
-    ids = list(meter_xy)
-    if len(ids) < 2:
-        ids = [node_id for node_id in visible_ids if node_id in meter_xy]
-    if len(ids) < 2:
+    points: list[tuple[float, float]] = list(meter_xy.values())
+    if extra_points:
+        points.extend(extra_points)
+    if len(points) < 2:
+        points = [meter_xy[i] for i in visible_ids if i in meter_xy]
+    if len(points) < 2:
         return units_per_meter
 
-    xs = [meter_xy[i][0] for i in ids]
-    ys = [meter_xy[i][1] for i in ids]
-    span_m = max(max(xs) - min(xs), max(ys) - min(ys), 1e-9)
-    scale_fit = max_extent / span_m
+    span_m = max(_meter_span(points), 1e-9)
+    # Reserve margin on both sides of the longest axis.
+    usable = max(max_extent - 2.0 * margin_du, max_extent * 0.5)
+    scale_fit = usable / span_m
     return min(units_per_meter, scale_fit)
 
 
-def _diagram_mapper(
+def _geography_meter_frame(
     geography: GeographyManifest,
-    visible_ids: set[str],
-):
+) -> tuple[float, float, dict[str, tuple[float, float]], list[tuple[float, float]]]:
+    """Local equirectangular meters from WGS84 — same aspect as TXT projected coords."""
     lats = [p.lat for p in geography.nodes.values()]
     lons = [p.lon for p in geography.nodes.values()]
     origin_lat = sum(lats) / len(lats)
@@ -306,13 +349,49 @@ def _diagram_mapper(
         node_id: _geo_to_meters(point, origin_lat, origin_lon)
         for node_id, point in geography.nodes.items()
     }
-    scale = _adaptive_scale(meter_xy, visible_ids)
+    extras: list[tuple[float, float]] = []
+    for gline in geography.lines.values():
+        for point in gline.path:
+            extras.append(_geo_to_meters(point, origin_lat, origin_lon))
+    return origin_lat, origin_lon, meter_xy, extras
+
+
+def _diagram_mapper(
+    geography: GeographyManifest,
+    visible_ids: set[str],
+    *,
+    margin_du: float = DIAGRAM_SHEET_MARGIN_DU,
+):
+    """Return (map_point, DiagramSheet) with scale covering the full network map."""
+    origin_lat, origin_lon, meter_xy, extras = _geography_meter_frame(geography)
+    scale = _adaptive_scale(
+        meter_xy,
+        visible_ids,
+        extra_points=extras,
+        margin_du=margin_du,
+    )
 
     def map_point(point: GeoPoint) -> tuple[float, float]:
         x_m, y_m = _geo_to_meters(point, origin_lat, origin_lon)
         return x_m * scale, y_m * scale
 
-    return map_point, scale
+    sheet_points = [map_point(p) for p in geography.nodes.values()]
+    for gline in geography.lines.values():
+        sheet_points.extend(map_point(p) for p in gline.path)
+    if not sheet_points:
+        sheet = DiagramSheet(scale=scale, xmin=0.0, ymin=0.0, xmax=0.0, ymax=0.0)
+        return map_point, sheet
+
+    xs = [p[0] for p in sheet_points]
+    ys = [p[1] for p in sheet_points]
+    sheet = DiagramSheet(
+        scale=scale,
+        xmin=min(xs) - margin_du,
+        ymin=min(ys) - margin_du,
+        xmax=max(xs) + margin_du,
+        ymax=max(ys) + margin_du,
+    )
+    return map_point, sheet
 
 
 def _line_irot(path: list[tuple[float, float]]) -> int:
@@ -675,9 +754,10 @@ def write_dgs(
 
     graphic_fids: dict[str, str] = {}
     visible_nodes: set[str] = set()
+    diagram_sheet: DiagramSheet | None = None
     if geography is not None:
         visible_nodes = visible_pointterm_nodes(model)
-        map_point, _scale = _diagram_mapper(geography, visible_nodes)
+        map_point, diagram_sheet = _diagram_mapper(geography, visible_nodes)
         node_xy = {node_id: map_point(point) for node_id, point in geography.nodes.items()}
         layout = _diagram_symbol_layout(geography, model, map_point)
 
@@ -860,4 +940,5 @@ def write_dgs(
         graphic_fids=graphic_fids,
         sed_fids=sed_fids,
         visible_pointterm_nodes=tuple(sorted(visible_nodes)),
+        diagram_sheet=diagram_sheet,
     )

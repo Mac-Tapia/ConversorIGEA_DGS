@@ -519,6 +519,42 @@ def validate_dgs(
                     f'({"OH" if line.overhead else "UG"})'
                 )
 
+        # DigSilent sheet/grid must cover the full network map (no clipped edges).
+        from .dgs import NA205_MAX_DIAGRAM_EXTENT
+
+        sheet_xs: list[float] = []
+        sheet_ys: list[float] = []
+        for r in graphic_rows:
+            x = _finite_float(r.get('rCenterX'))
+            y = _finite_float(r.get('rCenterY'))
+            if x is not None and y is not None:
+                sheet_xs.append(x)
+                sheet_ys.append(y)
+        for r in con_rows:
+            try:
+                n = int(float(r.get('rX:SIZEROW') or 0))
+            except ValueError:
+                n = 0
+            for i in range(max(n, 0)):
+                x = _finite_float(r.get(f'rX:{i}'))
+                y = _finite_float(r.get(f'rY:{i}'))
+                if x is not None and y is not None:
+                    sheet_xs.append(x)
+                    sheet_ys.append(y)
+        if len(sheet_xs) < 2:
+            graphic_errors.append('Diagram sheet has fewer than 2 graphic coordinates')
+        else:
+            span_x = max(sheet_xs) - min(sheet_xs)
+            span_y = max(sheet_ys) - min(sheet_ys)
+            span = max(span_x, span_y)
+            if span > NA205_MAX_DIAGRAM_EXTENT * 1.02:
+                graphic_errors.append(
+                    f'Diagram sheet span {span:.3f} exceeds DigSilent canvas '
+                    f'{NA205_MAX_DIAGRAM_EXTENT} (network/map not fully covered)'
+                )
+            if span < 1e-6:
+                graphic_errors.append('Diagram sheet collapsed to a point; topology scale is invalid')
+
     # ElmFeeder required always (DigSilent feeder colouring / Define Feeder).
     feeder_rows = tables.get('ElmFeeder', {}).get('rows_dict', [])
     if len(feeder_rows) != 1:
