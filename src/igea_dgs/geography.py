@@ -170,6 +170,7 @@ def _point_dict(point: GeoPoint) -> dict[str, float]:
 
 
 def geography_to_dict(geo: GeographyManifest, model: FeederModel | None = None) -> dict:
+    sed_n = len(model.seds) if model is not None else 0
     expected = {
         'nodes': len(geo.nodes),
         'lines': len(geo.lines),
@@ -177,6 +178,12 @@ def geography_to_dict(geo: GeographyManifest, model: FeederModel | None = None) 
         'switches': len(model.devices) if model is not None else 0,
         'sources': 1,
         'intermediate_points': geo.intermediate_point_count,
+        # SED distribution transformers (ElmTr2 inside ElmSubstat).
+        'transformers': sed_n,
+        'substations_sed': sed_n,
+        # No CAPACITOR/REGULATOR SETTING rows in current RED exports → 0 in DGS.
+        'capacitors': 0,
+        'regulators': 0,
     }
     return {
         'format': 'igea-dgs-geography-v1',
@@ -189,6 +196,11 @@ def geography_to_dict(geo: GeographyManifest, model: FeederModel | None = None) 
         'source_xy_bounds': list(geo.source_xy_bounds),
         'target_bounds': list(geo.target_bounds),
         'intermediate_sections': geo.intermediate_section_count,
+        'equipment_scope_note': (
+            'Transformers = SED ElmTr2 from CARGA. Capacitors/regulators require '
+            'CAPACITOR SETTING / REGULATOR SETTING in RED (absent in typical IGEA export); '
+            'BD_Equipo catalog alone is not placed on the network.'
+        ),
         'nodes': {node_id: _point_dict(point) for node_id, point in geo.nodes.items()},
         'lines': {
             sid: {

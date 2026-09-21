@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+import subprocess
+import sys
 import threading
 import traceback
 from pathlib import Path
@@ -42,10 +44,36 @@ CRS_PRESETS = (
 
 STEPS_HINT = (
     'Flujo: 1) Elija los tres TXT  ·  2) Cargar / listar  ·  '
-    '3) Seleccione uno, varios o todos  ·  4) Convertir a DGS.'
+    '3) Seleccione uno, varios o todos  ·  4) Convertir a DGS  ·  '
+    '5) Cargar DGS en DigSILENT + flujo (+ estudios).'
 )
 
 DEFAULT_STATUS = 'Seleccione los tres TXT y pulse «Cargar / listar alimentadores».'
+
+# Default DigSilent PowerFactory Python API folder (override with PF_PYTHON).
+_DEFAULT_PF_PYTHON = Path(r'C:\Program Files\DIgSILENT\PowerFactory 2024\Python\3.12')
+
+
+def _pf_python_dir() -> Path | None:
+    env = os.environ.get('PF_PYTHON', '').strip()
+    if env:
+        path = Path(env)
+        return path if path.is_dir() else None
+    if _DEFAULT_PF_PYTHON.is_dir():
+        return _DEFAULT_PF_PYTHON
+    # Try sibling version folders under DigSilent install root.
+    root = Path(r'C:\Program Files\DIgSILENT')
+    if root.is_dir():
+        for candidate in sorted(root.glob('PowerFactory */Python/3.*'), reverse=True):
+            if candidate.is_dir() and (candidate / 'powerfactory.pyd').is_file():
+                return candidate
+            if candidate.is_dir():
+                return candidate
+    return None
+
+
+def _powerfactory_acceptance_script() -> Path:
+    return _project_root() / 'tools' / 'powerfactory_acceptance.py'
 
 
 def _default_aliases_path() -> str:
@@ -189,7 +217,7 @@ class ConverterApp:
         ttk.Checkbutton(extras, text='Exportar Excel (.xlsx)', variable=self.export_xlsx).pack(side=LEFT, padx=16)
         ttk.Checkbutton(extras, text='Exportar TSV por tabla', variable=self.export_tsv).pack(side=LEFT)
 
-        feeders = ttk.LabelFrame(frm, text='Paso 2–3 — Alimentadores (uno, varios o todos)', padding=10)
+        feeders = ttk.LabelFrame(frm, text='Paso 2–4 — Alimentadores y conversión a DGS', padding=10)
         feeders.pack(fill=BOTH, expand=True, **pad)
         btns = ttk.Frame(feeders)
         btns.pack(fill=X)
@@ -201,15 +229,54 @@ class ConverterApp:
         self.clear_btn.pack(side=LEFT)
         self._action_buttons.extend([self.load_btn, self.select_all_btn, self.clear_btn])
 
+        # Paso 4 — botones de conversión siempre visibles (arriba de la lista)
+        convert_btns = ttk.Frame(feeders)
+        convert_btns.pack(fill=X, pady=(8, 0))
+        self.convert_one_btn = ttk.Button(
+            convert_btns,
+            text='Convertir 1 (individual)',
+            command=self._start_convert_one,
+        )
+        self.convert_one_btn.pack(side=LEFT, padx=(0, 6), ipady=3)
+        self.convert_selected_btn = ttk.Button(
+            convert_btns,
+            text='Convertir seleccionados → DGS',
+            command=self._start_convert_selected,
+        )
+        self.convert_selected_btn.pack(side=LEFT, padx=(0, 6), ipady=3)
+        self.convert_all_btn = ttk.Button(
+            convert_btns,
+            text='Convertir TODOS → DGS',
+            command=self._start_convert_all,
+        )
+        self.convert_all_btn.pack(side=LEFT, padx=(0, 6), ipady=3)
+        self.open_out_btn = ttk.Button(convert_btns, text='Abrir carpeta de salida', command=self._open_out)
+        self.open_out_btn.pack(side=LEFT)
+        self.pf_flow_btn = ttk.Button(
+            convert_btns,
+            text='Cargar DGS en DigSILENT + flujo',
+            command=self._start_powerfactory_flow,
+        )
+        self.pf_flow_btn.pack(side=LEFT, padx=(12, 0), ipady=3)
+        self._action_buttons.extend([
+            self.convert_one_btn,
+            self.convert_selected_btn,
+            self.convert_all_btn,
+            self.open_out_btn,
+            self.pf_flow_btn,
+        ])
+
+        self.status = StringVar(value=DEFAULT_STATUS)
+        ttk.Label(feeders, textvariable=self.status, foreground='#335').pack(anchor=W, pady=(6, 0))
         ttk.Label(
             feeders,
             text=(
                 'Selección: clic = uno · Ctrl+clic = varios · Mayús+clic = rango · '
-                '«Seleccionar todos» = todos de la lista · o marque «Convertir TODOS».'
+                '«Seleccionar todos» = marcar filas. Luego use los botones de conversión.'
             ),
             foreground='#444',
             wraplength=860,
-        ).pack(anchor=W, pady=(4, 0))
+        ).pack(anchor=W, pady=(2, 0))
 
         list_frm = ttk.Frame(feeders)
         list_frm.pack(fill=BOTH, expand=True, pady=6)
@@ -221,7 +288,7 @@ class ConverterApp:
             show='headings',
             selectmode='extended',
             yscrollcommand=scroll.set,
-            height=10,
+            height=8,
         )
         scroll.config(command=self.feeder_list.yview)
         self.feeder_list.heading('name', text='Alimentador')
@@ -241,32 +308,7 @@ class ConverterApp:
         self.feeder_list.pack(side=LEFT, fill=BOTH, expand=True)
         self.feeder_list.bind('<<TreeviewSelect>>', self._on_feeder_select)
         self.feeder_list.bind('<Double-1>', self._on_feeder_double_click)
-
-        # Paso 4 — acción principal: convertir el/los alimentador(es) seleccionado(s)
-        convert_frm = ttk.LabelFrame(frm, text='Paso 4 — Conversión a DGS', padding=10)
-        convert_frm.pack(fill=X, **pad)
-        actions = ttk.Frame(convert_frm)
-        actions.pack(fill=X)
-        self.convert_btn = ttk.Button(
-            actions,
-            text='Convertir a DGS (seleccionados)',
-            command=self._start_convert,
-        )
-        self.convert_btn.pack(side=LEFT, padx=(0, 8), ipady=4)
-        self.open_out_btn = ttk.Button(actions, text='Abrir carpeta de salida', command=self._open_out)
-        self.open_out_btn.pack(side=LEFT)
-        self._action_buttons.extend([self.convert_btn, self.open_out_btn])
-        self.status = StringVar(value=DEFAULT_STATUS)
-        ttk.Label(actions, textvariable=self.status).pack(side=LEFT, padx=12)
-        ttk.Label(
-            convert_frm,
-            text=(
-                'Convierte el alimentador seleccionado, varios a la vez, o todos '
-                'si marcó «Convertir TODOS». Doble clic en una fila también inicia la conversión.'
-            ),
-            foreground='#444',
-            wraplength=860,
-        ).pack(anchor=W, pady=(6, 0))
+        self._refresh_convert_buttons()
 
         progress_frm = ttk.Frame(frm)
         progress_frm.pack(fill=X, **pad)
@@ -275,7 +317,7 @@ class ConverterApp:
 
         log_frm = ttk.LabelFrame(frm, text='Registro', padding=6)
         log_frm.pack(fill=BOTH, expand=True, **pad)
-        self.log = ScrolledText(log_frm, height=10, wrap='word', state='disabled')
+        self.log = ScrolledText(log_frm, height=8, wrap='word', state='disabled')
         self.log.pack(fill=BOTH, expand=True)
 
         note = (
@@ -370,7 +412,7 @@ class ConverterApp:
             self.feeder_list.selection_remove(*self.feeder_list.selection())
             n = len(self.feeder_list.get_children())
             msg = (
-                f'Modo TODOS activo: se convertirán los {n} alimentadores cargados.'
+                f'Modo TODOS activo: pulse «Convertir TODOS → DGS» ({n} alimentadores).'
                 if n
                 else 'Modo TODOS activo: cargue alimentadores y luego convierta.'
             )
@@ -379,26 +421,90 @@ class ConverterApp:
         else:
             self.status.set('Modo selección: elija uno o varios alimentadores en la lista.')
             self._append_log('Modo selección manual (uno o varios).')
+        self._refresh_convert_buttons()
+
+    def _refresh_convert_buttons(self) -> None:
+        """Actualiza etiquetas/estado de los botones de conversión según la selección."""
+        n = len(self.feeder_list.selection())
+        total = len(self.feeder_list.get_children())
+        if hasattr(self, 'convert_one_btn'):
+            if n == 1:
+                name = self.feeder_list.item(self.feeder_list.selection()[0], 'values')[0]
+                self.convert_one_btn.configure(text=f'Convertir 1 → DGS ({name})')
+            else:
+                self.convert_one_btn.configure(text='Convertir 1 (individual)')
+        if hasattr(self, 'convert_selected_btn'):
+            if n >= 2:
+                self.convert_selected_btn.configure(text=f'Convertir {n} seleccionados → DGS')
+            elif n == 1:
+                self.convert_selected_btn.configure(text='Convertir seleccionados → DGS (1)')
+            else:
+                self.convert_selected_btn.configure(text='Convertir seleccionados → DGS')
+        if hasattr(self, 'convert_all_btn'):
+            if total:
+                self.convert_all_btn.configure(text=f'Convertir TODOS → DGS ({total})')
+            else:
+                self.convert_all_btn.configure(text='Convertir TODOS → DGS')
 
     def _on_feeder_select(self, _event=None) -> None:
         if self.convert_all.get() or self._busy:
             return
         n = len(self.feeder_list.selection())
         if n == 0:
-            self.status.set('Sin selección — elija alimentadores o active «Convertir TODOS».')
+            self.status.set('Sin selección — elija 1 o varios, o pulse «Convertir TODOS».')
         elif n == 1:
             name = self.feeder_list.item(self.feeder_list.selection()[0], 'values')[0]
-            self.status.set(f'Seleccionado 1 alimentador: {name} — pulse Convertir a DGS')
+            self.status.set(f'Seleccionado 1: {name} — pulse «Convertir 1» o «Convertir seleccionados».')
         else:
-            self.status.set(f'Seleccionados {n} alimentadores — pulse Convertir a DGS')
+            self.status.set(f'Seleccionados {n} — pulse «Convertir {n} seleccionados → DGS».')
+        self._refresh_convert_buttons()
 
     def _on_feeder_double_click(self, _event=None) -> None:
-        """Doble clic en una fila: convierte ese alimentador (o la selección actual)."""
+        """Doble clic en una fila: convierte ese alimentador (individual)."""
         if self._busy or self.convert_all.get():
             return
         if not self.feeder_list.selection():
             return
-        self._start_convert()
+        self._start_convert_one()
+
+    def _start_convert_one(self) -> None:
+        """Convierte exactamente el alimentador seleccionado (debe ser 1)."""
+        selected = list(self.feeder_list.selection())
+        if len(selected) != 1:
+            messagebox.showwarning(
+                'Selección individual',
+                'Seleccione exactamente UN alimentador en la lista\n'
+                '(clic simple) y pulse «Convertir 1».\n\n'
+                'Para varios use «Convertir seleccionados».',
+            )
+            return
+        self.convert_all.set(False)
+        self.feeder_list.configure(selectmode='extended')
+        self._start_convert(force_all=False)
+
+    def _start_convert_selected(self) -> None:
+        """Convierte todos los alimentadores actualmente seleccionados (1, 2, 3, 4…)."""
+        selected = list(self.feeder_list.selection())
+        if not selected:
+            messagebox.showwarning(
+                'Sin selección',
+                'Seleccione uno o varios alimentadores (Ctrl+clic / Mayús+clic)\n'
+                'o use «Seleccionar todos», luego pulse este botón.',
+            )
+            return
+        self.convert_all.set(False)
+        self.feeder_list.configure(selectmode='extended')
+        self._start_convert(force_all=False)
+
+    def _start_convert_all(self) -> None:
+        """Convierte todos los alimentadores cargados en la lista."""
+        if not self.feeder_list.get_children():
+            messagebox.showwarning('Sin datos', 'Primero pulse «Cargar / listar alimentadores».')
+            return
+        self.convert_all.set(True)
+        self.feeder_list.configure(selectmode='none')
+        self.feeder_list.selection_remove(*self.feeder_list.selection())
+        self._start_convert(force_all=True)
 
     def _clear_log(self) -> None:
         self.log.configure(state='normal')
@@ -605,26 +711,30 @@ class ConverterApp:
             messagebox.showwarning('Inventario con errores de integridad', short)
         else:
             messagebox.showinfo('Inventario TXT listo', short)
+        self._refresh_convert_buttons()
 
     def _select_all_feeders(self) -> None:
         if self.convert_all.get():
-            messagebox.showinfo(
-                'Modo todos',
-                'Ya está activo «Convertir TODOS». No hace falta seleccionar filas.',
-            )
-            return
+            self.convert_all.set(False)
+            self.feeder_list.configure(selectmode='extended')
         children = self.feeder_list.get_children()
         if not children:
             messagebox.showwarning('Sin datos', 'Primero pulse «Cargar / listar alimentadores».')
             return
         self.feeder_list.selection_set(children)
-        self.status.set(f'Seleccionados todos: {len(children)} alimentadores.')
+        self.status.set(
+            f'Seleccionados {len(children)} — pulse «Convertir {len(children)} seleccionados → DGS».'
+        )
         self._append_log(f'Selección manual de todos: {len(children)}.')
+        self._refresh_convert_buttons()
 
     def _clear_feeders(self) -> None:
         self.feeder_list.selection_remove(*self.feeder_list.selection())
-        if not self.convert_all.get():
-            self.status.set('Selección limpiada.')
+        if self.convert_all.get():
+            self.convert_all.set(False)
+            self.feeder_list.configure(selectmode='extended')
+        self.status.set('Selección limpiada.')
+        self._refresh_convert_buttons()
 
     def _open_out(self) -> None:
         path = Path(self.out_dir.get().strip())
@@ -634,7 +744,189 @@ class ConverterApp:
         except Exception as exc:
             messagebox.showinfo('Carpeta', f'{path}\n({exc})')
 
-    def _start_convert(self) -> None:
+    def _selected_feeder_names(self) -> list[str]:
+        return [self.feeder_list.item(i, 'values')[0] for i in self.feeder_list.selection()]
+
+    def _start_powerfactory_flow(self) -> None:
+        """Import selected feeder DGS into DigSilent, ensure scenario, run LDF with corrections."""
+        if self._busy:
+            return
+        selected = self._selected_feeder_names()
+        if not selected:
+            messagebox.showwarning(
+                'Selección',
+                'Seleccione al menos un alimentador convertido (clic / Ctrl+clic)\n'
+                'y pulse «Cargar DGS en DigSILENT + flujo».',
+            )
+            return
+
+        out_dir = Path(self.out_dir.get().strip())
+        jobs: list[tuple[str, Path, Path | None]] = []
+        missing: list[str] = []
+        for feeder in selected:
+            dgs = out_dir / f'{feeder}.dgs'
+            if not dgs.is_file():
+                missing.append(feeder)
+                continue
+            geo = out_dir / f'{feeder}_geography.json'
+            jobs.append((feeder, dgs, geo if geo.is_file() else None))
+
+        if missing:
+            messagebox.showwarning(
+                'DGS no encontrado',
+                'Primero convierta a DGS. Faltan archivos:\n'
+                + '\n'.join(f'  • {f}.dgs' for f in missing[:12])
+                + ('\n  …' if len(missing) > 12 else ''),
+            )
+            if not jobs:
+                return
+
+        script = _powerfactory_acceptance_script()
+        if not script.is_file():
+            messagebox.showerror(
+                'Script no encontrado',
+                f'No está tools/powerfactory_acceptance.py:\n{script}',
+            )
+            return
+
+        pf_dir = _pf_python_dir()
+        if not messagebox.askyesno(
+            'DigSILENT PowerFactory',
+            f'Se importarán {len(jobs)} DGS en PowerFactory,\n'
+            'se activará el proyecto, se creará/activará un escenario de operación,\n'
+            'se ejecutará el flujo de potencia (ComLdf, con correcciones si no converge)\n'
+            'y la suite de estudios (corto circuito ComShc si la licencia lo permite).\n\n'
+            'Requisitos: PowerFactory instalado y preferiblemente abierto.\n'
+            f'API Python: {pf_dir or "(no detectada — use PF_PYTHON)"}\n\n'
+            '¿Continuar?',
+        ):
+            return
+
+        self._set_busy(True)
+        self.status.set('DigSILENT: importando / estudios… no cierre la ventana.')
+        self.progress.configure(mode='determinate', value=0, maximum=max(len(jobs), 1))
+        self._append_log('--- Inicio DigSILENT: import + escenario + flujo + estudios ---')
+        if pf_dir:
+            self._append_log(f'PF_PYTHON={pf_dir}')
+        else:
+            self._append_log(
+                'AVISO: no se encontró carpeta PowerFactory/Python. '
+                'Defina PF_PYTHON o añada el API a PYTHONPATH.'
+            )
+
+        def worker() -> None:
+            results: list[str] = []
+            ok_n = 0
+            fail_n = 0
+            env = os.environ.copy()
+            if pf_dir is not None:
+                env['PYTHONPATH'] = str(pf_dir) + os.pathsep + env.get('PYTHONPATH', '')
+                env['PF_PYTHON'] = str(pf_dir)
+
+            for index, (feeder, dgs, geo) in enumerate(jobs, start=1):
+
+                def update_status(i=index, name=feeder, total=len(jobs)) -> None:
+                    self.progress.configure(maximum=total, value=i - 1)
+                    self.status.set(f'DigSILENT {i}/{total}: {name}')
+                    self._append_log(f'[{i}/{total}] Import + flujo + estudios {name}…')
+
+                self.root.after(0, update_status)
+
+                cmd = [
+                    sys.executable,
+                    str(script),
+                    '--import-dgs',
+                    str(dgs),
+                    '--ensure-scenario',
+                    '--run-load-flow',
+                    '--fix-until-converge',
+                    '--run-studies',
+                ]
+                if geo is not None:
+                    cmd.extend(['--manifest', str(geo)])
+                out_json = out_dir / f'{feeder}_powerfactory_acceptance.json'
+                out_txt = out_dir / f'{feeder}_powerfactory_acceptance.txt'
+                cmd.extend(['--output-json', str(out_json), '--output-txt', str(out_txt)])
+
+                try:
+                    proc = subprocess.run(
+                        cmd,
+                        capture_output=True,
+                        text=True,
+                        env=env,
+                        cwd=str(_project_root()),
+                        check=False,
+                    )
+                    stdout = (proc.stdout or '').strip()
+                    stderr = (proc.stderr or '').strip()
+                    if stdout:
+                        self.root.after(0, lambda t=stdout: self._append_log(t))
+                    if stderr:
+                        self.root.after(0, lambda t=stderr: self._append_log(t))
+                    if proc.returncode == 0:
+                        ok_n += 1
+                        results.append(f'OK {feeder} → convergencia / aceptación')
+                    elif proc.returncode == 3:
+                        fail_n += 1
+                        results.append(
+                            f'FAIL {feeder}: API PowerFactory no disponible '
+                            '(abra PF o configure PF_PYTHON / PYTHONPATH)'
+                        )
+                    else:
+                        fail_n += 1
+                        # Prefer last meaningful line from stderr/stdout.
+                        detail = ''
+                        for block in (stderr, stdout):
+                            for line in reversed(block.splitlines()):
+                                if line.strip():
+                                    detail = line.strip()
+                                    break
+                            if detail:
+                                break
+                        results.append(f'FAIL {feeder}: {detail or f"exit {proc.returncode}"}')
+                except Exception as exc:
+                    fail_n += 1
+                    results.append(f'FAIL {feeder}: {exc}')
+
+            summary = {
+                'ok': ok_n,
+                'failed': fail_n,
+                'requested': len(jobs),
+                'lines': results,
+                'out_dir': str(out_dir),
+            }
+            self.root.after(0, lambda: self._on_powerfactory_done(summary))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _on_powerfactory_done(self, summary: dict) -> None:
+        self._set_busy(False)
+        ok_n = summary.get('ok', 0)
+        fail_n = summary.get('failed', 0)
+        requested = summary.get('requested', 0)
+        for line in summary.get('lines') or []:
+            self._append_log(f'  {line}')
+        self._append_log('--- Fin DigSILENT ---')
+        self.progress.configure(value=self.progress['maximum'] or 1)
+        self.status.set(f'DigSILENT terminado — OK: {ok_n}  Fallidos: {fail_n}')
+        short = (
+            f'DigSILENT: import + escenario + flujo + estudios.\n\n'
+            f'Solicitados: {requested}\n'
+            f'OK: {ok_n}\n'
+            f'Fallidos: {fail_n}\n\n'
+            f'Los .dgs del convertidor quedan en la carpeta de salida:\n'
+            f'{summary.get("out_dir")}\n'
+            f'(si ComExport funciona: *_pf_converged.dgs)\n\n'
+            f'Reportes: *_powerfactory_acceptance.json/.txt\n'
+            f'en {summary.get("out_dir")}\n\n'
+            'Detalle (diagnóstico / correcciones / ComShc / persistencia) en el Registro.'
+        )
+        if fail_n:
+            messagebox.showwarning('DigSILENT terminado (con fallos)', short)
+        else:
+            messagebox.showinfo('DigSILENT terminado', short)
+
+    def _start_convert(self, *, force_all: bool | None = None) -> None:
         if self._busy:
             return
         if not self._require_inputs():
@@ -643,13 +935,13 @@ class ConverterApp:
             messagebox.showinfo('Carga pendiente', 'Primero pulse «Cargar / listar alimentadores».')
             return
 
-        all_feeders = self.convert_all.get()
+        all_feeders = self.convert_all.get() if force_all is None else force_all
         selected = list(self.feeder_list.selection())
         if not all_feeders and not selected:
             messagebox.showwarning(
                 'Selección',
                 'Seleccione al menos un alimentador (clic / Ctrl+clic),\n'
-                'use «Seleccionar todos», o active «Convertir TODOS».',
+                'use «Seleccionar todos», o pulse «Convertir TODOS → DGS».',
             )
             return
 

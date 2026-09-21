@@ -169,13 +169,32 @@ def test_adaptive_scale_matches_na205_units_per_meter():
 
 
 def test_adaptive_scale_shrinks_oversized_feeders_to_na205_sheet():
-    # Span 100 km would exceed NA205 canvas at 2.08 u/m → fit to max extent.
+    # Span 100 km would exceed NA205 canvas at 2.08 u/m → fit with symbol margin.
+    from igea_dgs.dgs import DIAGRAM_SHEET_MARGIN_DU
+
     meter_xy = {
         'A': (0.0, 0.0),
         'B': (100_000.0, 0.0),
     }
     scale = _adaptive_scale(meter_xy, set(meter_xy))
-    assert scale == pytest.approx(NA205_MAX_DIAGRAM_EXTENT / 100_000.0)
+    usable = NA205_MAX_DIAGRAM_EXTENT - 2.0 * DIAGRAM_SHEET_MARGIN_DU
+    assert scale == pytest.approx(usable / 100_000.0)
+    assert scale < NA205_DIAGRAM_UNITS_PER_METER
+
+
+def test_adaptive_scale_includes_intermediate_vertices():
+    """Intermediate GIS vertices outside the bus bbox must shrink the sheet."""
+    from igea_dgs.dgs import DIAGRAM_SHEET_MARGIN_DU
+
+    meter_xy = {
+        'A': (0.0, 0.0),
+        'B': (100.0, 0.0),
+    }
+    # Far intermediate vertex would overflow NA205 sheet at full scale.
+    extras = [(80_000.0, 0.0)]
+    scale = _adaptive_scale(meter_xy, set(meter_xy), extra_points=extras)
+    usable = NA205_MAX_DIAGRAM_EXTENT - 2.0 * DIAGRAM_SHEET_MARGIN_DU
+    assert scale == pytest.approx(usable / 80_000.0)
     assert scale < NA205_DIAGRAM_UNITS_PER_METER
 
 

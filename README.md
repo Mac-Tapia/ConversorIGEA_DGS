@@ -19,6 +19,7 @@ En la ventana (flujo didáctico):
 2. Pulse **Cargar / listar alimentadores** — diálogo al terminar con el número de alimentadores.
 3. Seleccione **uno**, **varios** (Ctrl/Mayús+clic) o **todos** (checkbox / botón).
 4. Pulse **Convertir a DGS** — progreso N/M, diálogo al terminar y opción de abrir la carpeta.
+5. (Opcional) Seleccione alimentadores ya convertidos y pulse **Cargar DGS en DigSILENT + flujo** — importa el `.dgs`, crea/activa escenario de operación, ejecuta flujo de potencia (ComLdf, con correcciones DigSILENT si no converge) y la suite de estudios (corto circuito ComShc si la licencia lo permite).
 
 Sin `pyproj` puede listar alimentadores y convertir **desactivando georreferenciación**. Con GPS/diagrama debe estar instalado vía `requirements.txt`.
 
@@ -52,6 +53,7 @@ Entradas de consola: `igea-dgs` y `igea-dgs-gui`. `run_gui.bat` instala solo `re
 2. Pulse **Cargar / listar alimentadores** — avisa al terminar con el conteo.
 3. Convierta **uno** (clic), **varios** (Ctrl+clic / Mayús+clic / Seleccionar todos) o **todos** (checkbox).
 4. Al terminar la conversión muestra resumen OK/fallidos y ofrece abrir la carpeta de salida.
+5. **Cargar DGS en DigSILENT + flujo** importa el DGS seleccionado, asegura escenario de operación, corre flujo (ComLdf + correcciones) y la suite de estudios (`--run-studies`: ComLdf + ComShc).
 
 ## Principio de arquitectura
 
@@ -181,7 +183,7 @@ pytest -q
 
 También: `IGEA_RED`, `IGEA_LOADS`, `IGEA_EQUIPMENT` (rutas a cada archivo). Si faltan, las pruebas de integración hacen **skip** claro (no `FileNotFoundError`).
 
-Aceptación en PowerFactory: `docs/POWERFACTORY_ACCEPTANCE.md` y `tools/powerfactory_acceptance.py`.
+Aceptación en PowerFactory (API: import DGS + crear/activar escenario + flujo de carga con correcciones): `docs/POWERFACTORY_ACCEPTANCE.md` y `tools/powerfactory_acceptance.py` / `tools/run_powerfactory_gate.bat`. En la GUI: **Cargar DGS en DigSILENT + flujo**.
 
 ## Resultado de ejemplo (IN111)
 
