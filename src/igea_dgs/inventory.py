@@ -16,6 +16,9 @@ def build_dataset_inventory(dataset: CymdistDataset) -> dict[str, Any]:
     Returns a JSON-serializable report: totals, per-feeder stats, integrity issues,
     and how many independent DGS files this batch can produce.
     """
+    from .quality.inventory import build_strict_inventory
+
+    strict_inventory = build_strict_inventory(dataset)
     load_by_owner: Counter[str] = Counter()
     loads_orphan = 0
     for section_id, _device in dataset.customer_loads:
@@ -125,7 +128,7 @@ def build_dataset_inventory(dataset: CymdistDataset) -> dict[str, Any]:
     issues: list[dict[str, Any]] = []
     if stubs:
         issues.append({
-            'severity': 'warning',
+            'severity': 'error',
             'code': 'empty_section_blocks',
             'message': (
                 f'{len(stubs)} alimentador(es) con FEEDER=/SOURCE pero 0 filas SECTION: '
@@ -191,7 +194,7 @@ def build_dataset_inventory(dataset: CymdistDataset) -> dict[str, Any]:
             'code': 'line_types_missing_from_bd_equipo',
             'message': (
                 f'{len(missing_in_catalog)} LineCableID usados en RED no están en BD_Equipo '
-                '(se resolverán por alias / vecino de catálogo / DEFAULT)'
+                '(la conversión se detendrá hasta disponer de una coincidencia exacta)'
             ),
             'codes': missing_in_catalog[:50],
             'count': len(missing_in_catalog),
@@ -202,6 +205,19 @@ def build_dataset_inventory(dataset: CymdistDataset) -> dict[str, Any]:
 
     return {
         'format': 'igea-dgs-dataset-inventory-v1',
+        'strict_coverage': {
+            'percent': strict_inventory.coverage_percent,
+            'blocked': strict_inventory.gate.blocked,
+            'sections': {
+                name: {
+                    'status': item.status,
+                    'count': item.count,
+                    'adapter': item.adapter,
+                }
+                for name, item in strict_inventory.coverage.items()
+            },
+            'diagnostics': [item.to_dict() for item in strict_inventory.gate.diagnostics],
+        },
         'inputs': {
             'red': str(dataset.red_path),
             'loads': str(dataset.loads_path),

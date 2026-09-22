@@ -8,6 +8,7 @@ from .batch import convert_selection, load_aliases
 from .dataset import CymdistDataset
 from .inventory import build_dataset_inventory, format_inventory_report, write_inventory
 from .naming import feeder_short_name, sort_key_feeder
+from .quality.inventory import build_strict_inventory
 
 
 def _common(parser: argparse.ArgumentParser) -> None:
@@ -26,6 +27,13 @@ def _parser() -> argparse.ArgumentParser:
         '--inventory-json',
         help='Optional path to write dataset_inventory.json',
     )
+
+    inspect_p = sub.add_parser('inspect', help='Inspect TXT coverage without writing DGS')
+    _common(inspect_p)
+    inspect_p.add_argument('--inventory-json', help='Optional strict inventory JSON path')
+
+    validate_p = sub.add_parser('validate-input', help='Run blocking G1-G2 input checks')
+    _common(validate_p)
 
     conv = sub.add_parser('convert', help='Convert one, several, or all feeders')
     _common(conv)
@@ -76,6 +84,28 @@ def main(argv=None) -> int:
         raise
     except (OSError, ValueError, KeyError) as exc:
         raise SystemExit(f'Error al leer TXT: {exc}') from exc
+
+    if args.command in {'inspect', 'validate-input'}:
+        strict_inventory = build_strict_inventory(dataset)
+        report = {
+            'coverage_percent': strict_inventory.coverage_percent,
+            'blocked': strict_inventory.gate.blocked,
+            'coverage': {
+                name: {
+                    'status': item.status,
+                    'count': item.count,
+                    'adapter': item.adapter,
+                }
+                for name, item in strict_inventory.coverage.items()
+            },
+            'metrics': dict(strict_inventory.metrics),
+            'diagnostics': [item.to_dict() for item in strict_inventory.gate.diagnostics],
+        }
+        rendered = json.dumps(report, indent=2, ensure_ascii=False)
+        print(rendered)
+        if args.command == 'inspect' and args.inventory_json:
+            Path(args.inventory_json).write_text(rendered + '\n', encoding='utf-8')
+        return 2 if strict_inventory.gate.blocked else 0
 
     if args.command == 'list':
         inventory = build_dataset_inventory(dataset)

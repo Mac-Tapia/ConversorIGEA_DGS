@@ -1,0 +1,18 @@
+{
+  "HEADNODES": {"status": "supported", "key": ["NodeID"], "adapter": "headnodes"},
+  "NODE": {"status": "supported", "key": ["NodeID"], "adapter": "nodes"},
+  "SOURCE": {"status": "supported", "key": ["NetworkID"], "adapter": "sources"},
+  "SECTION": {"status": "supported", "key": ["SectionID"], "adapter": "sections"},
+  "LINE CONFIGURATION": {"status": "supported", "key": ["SectionID"], "adapter": "line_configurations"},
+  "SWITCH SETTING": {"status": "supported", "key": ["SectionID", "DeviceNumber"], "adapter": "switch_settings"},
+  "SECTIONALIZER SETTING": {"status": "supported", "key": ["SectionID", "DeviceNumber"], "adapter": "sectionalizer_settings"},
+  "INTERMEDIATE NODES": {"status": "supported", "key": ["SectionID", "SeqNumber"], "adapter": "intermediate_nodes"},
+  "LOADS": {"status": "supported", "key": ["SectionID", "DeviceNumber"], "adapter": "load_placements"},
+  "CUSTOMER LOADS": {"status": "supported", "key": ["SectionID", "DeviceNumber"], "adapter": "customer_loads"},
+  "LINE": {"status": "catalog_only", "key": ["ID"], "adapter": "line_catalog"},
+  "CONCENTRIC NEUTRAL CABLE": {"status": "catalog_only", "key": ["ID"], "adapter": "line_catalog"},
+  "TRANSFORMER": {"status": "catalog_only", "key": ["ID"], "adapter": "transformer_catalog"},
+  "SWITCH": {"status": "catalog_only", "key": ["ID"], "adapter": "switch_catalog"},
+  "FUSE": {"status": "catalog_only", "key": ["ID"], "adapter": "fuse_catalog"},
+  "SECTIONALIZER": {"status": "catalog_only", "key": ["ID"], "adapter": "sectionalizer_catalog"}
+}
