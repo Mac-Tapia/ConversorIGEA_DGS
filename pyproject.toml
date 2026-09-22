@@ -7,21 +7,33 @@ name = "igea-dgs"
 version = "2.1.0"
 description = "Conversor universal IGEA/CYMDIST TXT → DIgSILENT PowerFactory DGS"
 readme = "README.md"
-requires-python = ">=3.10"
-dependencies = []
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "platformdirs>=4.2,<5",
+    "pydantic>=2.8,<3",
+]
 
 [project.optional-dependencies]
-geo = ["pyproj>=3.6"]
-xlsx = ["pandas>=2.0", "openpyxl>=3.1"]
-preview = ["geopandas>=0.14", "leafmap>=0.30", "pyproj>=3.6"]
+geo = ["pyproj>=3.6,<4"]
+xlsx = ["pandas>=2.2,<3", "openpyxl>=3.1,<4"]
+preview = ["geopandas>=1.0,<2", "leafmap>=0.38,<1", "pyproj>=3.6,<4", "shapely>=2.0,<3"]
 all = [
-    "pyproj>=3.6",
-    "pandas>=2.0",
-    "openpyxl>=3.1",
-    "geopandas>=0.14",
-    "leafmap>=0.30",
+    "pyproj>=3.6,<4",
+    "pandas>=2.2,<3",
+    "openpyxl>=3.1,<4",
+    "geopandas>=1.0,<2",
+    "leafmap>=0.38,<1",
+    "shapely>=2.0,<3",
 ]
-dev = ["pytest>=8.0", "pyproj>=3.6"]
+dev = [
+    "bandit>=1.7,<2",
+    "hypothesis>=6.112,<7",
+    "mypy>=1.11,<2",
+    "pip-audit>=2.7,<3",
+    "pytest>=8,<10",
+    "pytest-cov>=5,<8",
+    "ruff>=0.8,<1",
+]
 
 [project.scripts]
 igea-dgs = "igea_dgs.cli:main"

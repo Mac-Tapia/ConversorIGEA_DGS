@@ -1,0 +1,5 @@
+# Integración local con DIgSILENT PowerFactory 2024
+-r requirements.txt
+
+# powerfactory.pyd es provisto por PowerFactory 2024/Python/3.12.
+# No existe una dependencia PyPI autorizada para esta API propietaria.
