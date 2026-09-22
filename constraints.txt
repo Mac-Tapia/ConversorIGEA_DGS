@@ -1,6 +1,8 @@
 # Resolucion exacta validada en Windows x64, CPython 3.12, 2026-09-21.
 # Regenerar de forma controlada tras revisar actualizaciones y ejecutar scripts/verify.ps1.
 annotated-types==0.8.0
+annotated-doc==0.0.5
+anyio==4.15.1
 anywidget==0.11.0
 asttokens==3.0.2
 attrs==26.1.0
@@ -28,6 +30,7 @@ executing==2.2.1
 filelock==4.0.1
 folium==0.20.0
 fonttools==4.65.0
+fastapi==0.141.1
 gdown==6.4.0
 geojson==3.3.0
 geopandas==1.1.4
@@ -40,6 +43,10 @@ ipyleaflet==0.20.0
 ipython==9.17.1
 ipython_pygments_lexers==1.1.1
 ipytree==0.2.2
+h11==0.16.0
+httpcore==1.0.9
+httptools==0.8.0
+httpx==0.28.1
 ipyvue==3.0.0
 ipyvuetify==3.0.0
 ipywidgets==8.1.9
@@ -114,6 +121,8 @@ pystac-ext-timestamps==1.1.1
 pystac-ext-version==1.2.1
 pystac-ext-view==1.0.1
 pystac-ext-xarray-assets==1.0.1
+python-dotenv==1.2.3
+python-multipart==0.0.32
 pytest==9.1.1
 pytest-cov==7.1.0
 python-box==7.4.1
@@ -132,6 +141,7 @@ sortedcontainers==2.4.0
 soupsieve==2.9.2
 stack-data==0.6.3
 stevedore==5.9.1
+starlette==1.6.0
 tomli==2.4.1
 tomli_w==1.2.0
 tqdm==4.70.1
@@ -141,6 +151,9 @@ typing-inspection==0.4.4
 typing_extensions==4.16.0
 tzdata==2026.4
 urllib3==2.8.0
+uvicorn==0.53.0
+watchfiles==1.3.0
+websockets==17.1
 wcwidth==0.8.4
 whitebox==2.3.6
 whiteboxgui==2.3.0

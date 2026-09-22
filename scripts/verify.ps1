@@ -31,6 +31,15 @@ try {
 
     & $Python -m pip check
     if ($LASTEXITCODE) { throw "pip check falló con código $LASTEXITCODE" }
+
+    & npm --prefix web run lint
+    if ($LASTEXITCODE) { throw "ESLint falló con código $LASTEXITCODE" }
+    & npm --prefix web run typecheck
+    if ($LASTEXITCODE) { throw "TypeScript falló con código $LASTEXITCODE" }
+    & npm --prefix web test -- --run
+    if ($LASTEXITCODE) { throw "Vitest falló con código $LASTEXITCODE" }
+    & npm --prefix web run build
+    if ($LASTEXITCODE) { throw "Vite build falló con código $LASTEXITCODE" }
 }
 finally {
     Pop-Location

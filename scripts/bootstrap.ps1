@@ -31,7 +31,13 @@ if ($PinnedLines) {
 }
 & $Python -m pip install --disable-pip-version-check -r $Requirements @ConstraintArgs
 
-& $Python -c "import geopandas, hypothesis, leafmap, mypy, openpyxl, pandas, platformdirs, pydantic, pyproj, pytest, shapely"
+& $Python -c "import fastapi, geopandas, hypothesis, httpx, leafmap, mypy, openpyxl, pandas, platformdirs, pydantic, pyproj, pytest, shapely, uvicorn"
+
+if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
+    throw 'Se requiere Node.js con npm para construir la interfaz React.'
+}
+& npm --prefix (Join-Path $ProjectRoot 'web') ci
+if ($LASTEXITCODE) { throw "npm ci falló con código $LASTEXITCODE" }
 
 if (-not $SkipPowerFactoryCheck -and -not (Test-Path -LiteralPath $PowerFactoryModule -PathType Leaf)) {
     throw "No se encontró la API PowerFactory 2024/Python 3.12 en: $PowerFactoryModule"

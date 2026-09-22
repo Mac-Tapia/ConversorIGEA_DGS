@@ -51,6 +51,11 @@ desktop.ini
 # Generated conversion dumps
 output/
 
+# Frontend dependencies and build artifacts
+web/node_modules/
+web/dist/
+web/*.tsbuildinfo
+
 # Large IGEA sample TXT (keep local; do not publish utility dumps)
 referencia/RED_*.txt
 referencia/CARGA_*.txt

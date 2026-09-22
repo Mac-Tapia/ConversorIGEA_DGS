@@ -1,0 +1,14 @@
+:root { font-family: Inter, system-ui, sans-serif; color: #102a43; background: #edf2f7; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+button { font: inherit; }
+.cockpit { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
+.sidebar { background: #102a43; color: white; padding: 24px 18px; }
+.sidebar nav { display: grid; gap: 8px; margin-top: 28px; }
+.sidebar button { border: 0; border-radius: 8px; padding: 12px; text-align: left; color: white; background: transparent; }
+.sidebar button:first-child { background: #1f4b70; }
+main { padding: 24px; }
+header { display: flex; align-items: center; justify-content: space-between; }
+.badge { border-radius: 999px; padding: 6px 12px; background: #dcfce7; color: #166534; }
+.welcome { margin-top: 18px; padding: 28px; border-radius: 12px; background: white; box-shadow: 0 8px 30px #102a4312; }
+@media (max-width: 760px) { .cockpit { grid-template-columns: 1fr; } .sidebar nav { grid-template-columns: repeat(2, 1fr); } }
