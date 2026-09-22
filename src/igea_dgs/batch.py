@@ -15,6 +15,7 @@ from .geography import (
     write_geography_validation,
 )
 from .model import ModelBuildError, build_feeder_model
+from .domain.lengths import LengthPolicy, apply_length_policy
 from .naming import feeder_short_name, sort_key_feeder
 from .preview import write_preview_geojson, write_preview_html
 from .validate import validate_dgs, write_validation_reports
@@ -74,6 +75,7 @@ def convert_selection(
     include_geography: bool = True,
     source_crs: str = 'EPSG:32718',
     target_crs: str = 'EPSG:4326',
+    length_policy: LengthPolicy | str = LengthPolicy.TXT_AUTHORITATIVE,
     export_xlsx: bool = False,
     export_tsv: bool = False,
     write_preview: bool = False,
@@ -121,6 +123,7 @@ def convert_selection(
             continue
         try:
             model = build_feeder_model(dataset, network_id, aliases=aliases, strict=strict)
+            model = apply_length_policy(model, dataset, source_crs, LengthPolicy(length_policy))
             geography = None
             geography_report = None
             if include_geography:

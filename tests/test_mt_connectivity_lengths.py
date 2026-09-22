@@ -68,14 +68,14 @@ def _write_mini_feeder(tmp_path, *, length_txt: float = 999.0, location: str = '
     return CymdistDataset.from_files(red, loads, equip)
 
 
-def test_georef_length_replaces_txt_length(tmp_path):
+def test_model_preserves_txt_length_until_policy_is_applied(tmp_path):
     ds = _write_mini_feeder(tmp_path, length_txt=999.0)
     model = build_feeder_model(ds, 'NA999')
     main = model.section_by_id['SEC_MAIN']
-    assert main.length_source == 'georef'
+    assert main.length_source == 'txt'
     assert main.txt_length_m == 999.0
-    assert math.isclose(main.length_m, 50.0, abs_tol=1e-9)
-    assert math.isclose(main.length_km, 0.05, abs_tol=1e-12)
+    assert math.isclose(main.length_m, 999.0, abs_tol=1e-9)
+    assert math.isclose(main.length_km, 0.999, abs_tol=1e-12)
 
 
 def test_prove_mt_connections_from_to_and_sed(tmp_path):
@@ -158,4 +158,4 @@ def test_dgs_sed_gps_matches_txt_node(tmp_path):
     report = validate_dgs(model, out, geography=geo)
     assert report['connection_errors'] == []
     assert report['geographic_errors'] == []
-    assert report['length_km']['georef_lines'] == len(model.lines)
+    assert report['length_km']['georef_lines'] == 0

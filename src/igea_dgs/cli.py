@@ -45,6 +45,12 @@ def _parser() -> argparse.ArgumentParser:
     conv.add_argument('--schema-profile', default='pf21_dgs_1_8_4')
     conv.add_argument('--source-crs', default='EPSG:32718', help='CRS of CoordX/CoordY in the loaded TXT (any EPSG; example EPSG:32718)')
     conv.add_argument('--target-crs', default='EPSG:4326', help='Target geographic CRS for GPSlat/GPSlon')
+    conv.add_argument(
+        '--length-policy',
+        default='txt_authoritative',
+        choices=('txt_authoritative', 'geodesic_validated', 'projected_validated'),
+        help='Explicit electrical length policy; TXT remains authoritative by default',
+    )
     conv.add_argument('--no-geography', action='store_true', help='Disable GPS/diagram generation')
     conv.add_argument('--non-strict', action='store_true', help='Omit unsupported topology/load/switch rows instead of failing; line types always auto-resolve')
     conv.add_argument('--export-xlsx', action='store_true', help='Also write multi-sheet Excel (.xlsx) from DGS tables (needs igea-dgs[xlsx])')
@@ -154,6 +160,7 @@ def main(argv=None) -> int:
             include_geography=not args.no_geography,
             source_crs=args.source_crs,
             target_crs=args.target_crs,
+            length_policy=args.length_policy,
             export_xlsx=args.export_xlsx,
             export_tsv=args.export_tsv,
             write_preview=args.preview,

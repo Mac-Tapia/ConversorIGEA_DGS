@@ -790,9 +790,6 @@ def build_feeder_model(
         seds=seds,
     )
 
-    # Electrical lengths follow the georeferenced polyline (From + intermediates + To).
-    apply_georeferenced_lengths(model, dataset)
-
     proof = prove_mt_connections(model, dataset)
     if proof['errors']:
         detail = '; '.join(proof['errors'][:12])
@@ -809,7 +806,7 @@ def build_feeder_model(
             f'Prueba OK: {proof["lines_checked"]}/{proof["lines_total"]} tramos MT '
             f'conectados a From/To georreferenciados; '
             f'{proof["seds_checked"]}/{proof["seds_total"]} SED en el nodo TXT; '
-            f'{proof["lines_with_georef_length"]} longitudes actualizadas por georreferencia.'
+            'longitudes TXT conservadas hasta aplicar una política dimensional explícita.'
         )
 
     return model
