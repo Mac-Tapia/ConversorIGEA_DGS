@@ -36,6 +36,7 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 .cache/
+.superpowers/brainstorm/
 
 # IDE / editor
 .vscode/
