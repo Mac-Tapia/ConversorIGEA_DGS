@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["status", "reviewer", "source_hashes", "kpis", "tolerances"],
+  "properties": {
+    "status": {"enum": ["synthetic", "independently_reviewed"]},
+    "reviewer": {"type": "string", "minLength": 1},
+    "source_hashes": {"type": "object", "additionalProperties": {"type": "string", "pattern": "^[a-f0-9]{64}$"}},
+    "kpis": {"type": "object"},
+    "tolerances": {"type": "object", "additionalProperties": {"type": "string"}}
+  },
+  "additionalProperties": false
+}

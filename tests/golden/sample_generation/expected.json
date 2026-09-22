@@ -1,0 +1,7 @@
+{
+  "status": "synthetic",
+  "reviewer": "fixture-author",
+  "source_hashes": {"synthetic.txt": "2222222222222222222222222222222222222222222222222222222222222222"},
+  "kpis": {"bus_voltage_pu": {"N1": "1.0"}, "source_p_mw": {"PV1": "-2.0"}, "source_q_mvar": {"PV1": "0.0"}, "losses_mw": "0.01", "in_service": {"PV1": true}},
+  "tolerances": {"bus_voltage_pu": "0.005", "source_p_mw": "0.001", "source_q_mvar": "0.001", "losses_mw": "0.001"}
+}
