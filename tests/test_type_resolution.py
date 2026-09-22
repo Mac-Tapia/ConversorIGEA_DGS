@@ -19,19 +19,23 @@ def test_suggest_catalog_code_unique_nearest():
     assert suggest_catalog_code('AA05001D', ['AA05002D', 'AA05003D', 'DEFAULT']) == 'AA05002D'
 
 
-def test_resolve_uses_explicit_alias_then_auto_then_default():
+def test_resolve_uses_only_exact_catalog_id():
     by_code = {
         'TYPE03A': [_lt('TYPE03A')],
         'DEFAULT': [_lt('DEFAULT'), _lt('DEFAULT', 'CONCENTRIC NEUTRAL CABLE')],
     }
     typ, alias = _resolve_type('TYPE01A', True, by_code, {'TYPE01A': 'TYPE03A'})
+    assert typ is None
+    assert alias is None
+
+    typ, alias = _resolve_type('TYPE03A', True, by_code, {})
     assert typ is not None and typ.code == 'TYPE03A'
-    assert alias == 'TYPE03A'
+    assert alias is None
 
     typ, alias = _resolve_type('TYPE01A', True, by_code, {})
-    assert typ is not None and typ.code == 'TYPE03A'
-    assert alias == 'TYPE03A'
+    assert typ is None
+    assert alias is None
 
     typ, alias = _resolve_type('MISSING99', True, by_code, {})
-    assert typ is not None and typ.code == 'DEFAULT'
-    assert alias == 'DEFAULT'
+    assert typ is None
+    assert alias is None

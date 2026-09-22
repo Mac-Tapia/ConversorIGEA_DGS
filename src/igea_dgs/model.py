@@ -267,26 +267,11 @@ def _resolve_type(
     by_code: dict[str, list[LineType]],
     aliases: Mapping[str, str],
 ) -> tuple[LineType | None, str | None]:
-    """Resolve a LineCableID using explicit aliases, exact catalog ID, nearest catalog ID, then DEFAULT.
-
-    Never leaves a section without a type when BD_Equipo contains DEFAULT (or a near match).
-    Auto-aliases and DEFAULT fallbacks are returned via the second tuple element for audit.
-    """
-    requested = aliases.get(raw_code, raw_code)
-    typ = _pick_type(requested, overhead, by_code)
-    if typ is not None:
-        return typ, aliases.get(raw_code)
-
-    auto = suggest_catalog_code(raw_code, list(by_code))
-    if auto is not None and auto != raw_code:
-        typ = _pick_type(auto, overhead, by_code)
-        if typ is not None:
-            return typ, auto
-
-    default_typ = _pick_type('DEFAULT', overhead, by_code)
-    if default_typ is not None:
-        return default_typ, 'DEFAULT'
-    return None, aliases.get(raw_code)
+    """Resolve only an exact catalog ID; aliases are diagnostic-only legacy input."""
+    del aliases
+    if raw_code == 'DEFAULT':
+        return None, None
+    return _pick_type(raw_code, overhead, by_code), None
 
 
 def _calc_p_q(row: Mapping[str, str]) -> tuple[float, float, float]:
@@ -639,11 +624,13 @@ def build_feeder_model(
         if from_node not in dataset.nodes or to_node not in dataset.nodes:
             raise ModelBuildError(f'{network_id}: {section_id} references missing node')
         overhead = cfg.get('Overhead', '1') == '1'
-        raw_code = cfg.get('LineCableID') or 'DEFAULT'
+        raw_code = (cfg.get('LineCableID') or '').strip()
+        if not raw_code:
+            raise ModelBuildError(f'{network_id}: missing LineCableID on {section_id}')
         typ, alias_target = _resolve_type(raw_code, overhead, by_code, aliases)
         if typ is None:
             raise ModelBuildError(
-                f'{network_id}: cannot resolve LineCableID {raw_code!r} and BD_Equipo has no usable DEFAULT'
+                f'{network_id}: exact LineCableID {raw_code!r} not found for the declared medium'
             )
         if alias_target is not None:
             applied_aliases[raw_code] = alias_target
@@ -779,22 +766,6 @@ def build_feeder_model(
         )
 
     warnings: list[str] = []
-    auto_aliased = {
-        src: dst
-        for src, dst in applied_aliases.items()
-        if src != dst and dst != 'DEFAULT' and src not in aliases
-    }
-    defaulted = sorted(code for code in unresolved if applied_aliases.get(code) == 'DEFAULT')
-    if auto_aliased:
-        detail = ', '.join(f'{src}->{dst}' for src, dst in sorted(auto_aliased.items()))
-        warnings.append(
-            'Line types missing from BD_Equipo were auto-mapped to the nearest catalog ID: ' + detail
-        )
-    if defaulted:
-        warnings.append(
-            'Line types without a unique BD_Equipo match used media DEFAULT (sections kept): '
-            + ', '.join(defaulted)
-        )
     if any(d.eq_state != 0 for d in devices):
         warnings.append('One or more switching devices have EqState != 0; EqState is preserved in the model but DGS StaSwitch has no equivalent field in this profile.')
 
