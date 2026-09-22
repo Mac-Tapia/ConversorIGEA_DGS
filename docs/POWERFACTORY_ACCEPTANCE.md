@@ -2,6 +2,12 @@
 
 This is the final acceptance gate for a feeder produced by the converter. Static tests prove DGS structure, source-data preservation, topology, GPS coverage and graphical references; **PowerFactory API** proves import, study/scenario activation, connectivity, scaled location, load-flow convergence, and (optionally) a short study suite.
 
+## Política G5/G6: caso original inmutable
+
+La aceptación robustecida inspecciona los objetos efectivos de PowerFactory y los compara de forma independiente con el modelo estricto: identidad, conteos, nodos extremos, fases, circuitos/ternas, conductores, estado, longitud y sección, con tolerancia numérica explícita. Un flujo divergente en el caso original se reporta sin aplicar correcciones. Toda prueba correctiva debe ejecutarse en una copia distinta denominada `{alimentador}__diagnostic__{run_id}` y conservar su diff.
+
+Antes de ejecutar `ComShc` se requieren impedancias de secuencia positiva y cero y potencia de cortocircuito de la fuente. La ausencia de esos datos bloquea con `SOURCE_SHORT_CIRCUIT_DATA_MISSING`; la falta del módulo/licencia se reporta separadamente como `POWERFACTORY_SHORT_CIRCUIT_LICENCE_UNAVAILABLE`. Ninguno de ambos estados se presenta como un estudio aprobado.
+
 ## DigSILENT Help sources (this machine)
 
 Installed under `C:\Program Files\DIgSILENT\PowerFactory 2024\`:
