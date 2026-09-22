@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Mapping, Sequence
 
 from .validate import parse_dgs
+from .reporting.sanitize import neutralize_spreadsheet_formula
 
 
 class ExportError(ValueError):
@@ -69,7 +70,7 @@ def write_dgs_tsv(
             )
             writer.writeheader()
             for row in rows:
-                writer.writerow({k: row.get(k, '') for k in fields})
+                writer.writerow({k: neutralize_spreadsheet_formula(row.get(k, '')) for k in fields})
         written += 1
 
     if written == 0:
@@ -107,7 +108,10 @@ def write_dgs_xlsx(
             if rows is None:
                 continue
             fields = _ordered_fields(rows)
-            frame = pd.DataFrame([{k: row.get(k, '') for k in fields} for row in rows], columns=fields)
+            frame = pd.DataFrame(
+                [{k: neutralize_spreadsheet_formula(row.get(k, '')) for k in fields} for row in rows],
+                columns=fields,
+            )
             # Excel sheet name limit 31 chars; DGS class names fit.
             sheet = name[:31]
             frame.to_excel(writer, sheet_name=sheet, index=False)

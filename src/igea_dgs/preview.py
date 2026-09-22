@@ -18,6 +18,7 @@ from typing import Any
 
 from .geography import GeographyManifest
 from .model import FeederModel, LineType
+from .reporting.sanitize import escape_html_text, safe_script_json
 
 
 class PreviewError(ValueError):
@@ -172,7 +173,7 @@ def layers_to_geojson(layers: PreviewLayers) -> dict[str, Any]:
                     'is_source': node.is_source,
                     'degree': node.degree,
                     'popup': (
-                        f'<b>ElmTerm</b> {node.node_id}<br>'
+                        f'<b>ElmTerm</b> {escape_html_text(node.node_id)}<br>'
                         f'Unom: {node.uknom_kv:g} kV<br>'
                         f'Fuente: {"sí" if node.is_source else "no"}<br>'
                         f'Grado: {node.degree}'
@@ -205,11 +206,11 @@ def layers_to_geojson(layers: PreviewLayers) -> dict[str, Any]:
                     'uknom_kv': line.uknom_kv,
                     'inAir': line.overhead,
                     'popup': (
-                        f'<b>ElmLne</b> {line.section_id}<br>'
-                        f'bus1→bus2: {line.from_node} → {line.to_node}<br>'
+                        f'<b>ElmLne</b> {escape_html_text(line.section_id)}<br>'
+                        f'bus1→bus2: {escape_html_text(line.from_node)} → {escape_html_text(line.to_node)}<br>'
                         f'Unom: {line.uknom_kv:g} kV<br>'
                         f'Longitud: {line.length_km:.6g} km ({line.length_m:.3g} m)<br>'
-                        f'TypLne: {line.type_code}<br>'
+                        f'TypLne: {escape_html_text(line.type_code)}<br>'
                         f'{"Aéreo" if line.overhead else "Subterráneo (inAir=0)"}<br>'
                         f'r1/x1: {line.r1_ohm_km:g} / {line.x1_ohm_km:g} Ω/km<br>'
                         f'In: {line.ampacity_a:g} A'
@@ -282,8 +283,9 @@ def _write_leaflet_html(layers: PreviewLayers, path: Path) -> Path:
     """HTML autónomo con Leaflet CDN (sin leafmap)."""
     geojson = layers_to_geojson(layers)
     lat, lon = layers.center
-    payload = json.dumps(geojson, ensure_ascii=False)
-    title = f'Preview DGS — {layers.feeder}'
+    payload = safe_script_json(geojson)
+    safe_feeder = escape_html_text(layers.feeder)
+    title = f'Preview DGS — {safe_feeder}'
     html = f"""<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -302,7 +304,7 @@ def _write_leaflet_html(layers: PreviewLayers, path: Path) -> Path:
   </style>
 </head>
 <body>
-  <div class="info"><b>{layers.feeder}</b> · {layers.nominal_kv:g} kV ·
+  <div class="info"><b>{safe_feeder}</b> · {layers.nominal_kv:g} kV ·
     nodos={len(layers.nodes)} · tramos={len(layers.lines)} · CRS {layers.target_crs}</div>
   <div id="map"></div>
   <script>
