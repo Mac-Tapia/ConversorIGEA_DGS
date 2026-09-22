@@ -19,7 +19,19 @@ En la ventana (flujo didáctico):
 2. Pulse **Cargar / listar alimentadores** — diálogo al terminar con el número de alimentadores.
 3. Seleccione **uno**, **varios** (Ctrl/Mayús+clic) o **todos** (checkbox / botón).
 4. Pulse **Convertir a DGS** — progreso N/M, diálogo al terminar y opción de abrir la carpeta.
-5. (Opcional) Seleccione alimentadores ya convertidos y pulse **Cargar DGS en DigSILENT + flujo** — importa el `.dgs`, crea/activa escenario de operación, ejecuta flujo de potencia (ComLdf, con correcciones DigSILENT si no converge) y la suite de estudios (corto circuito ComShc si la licencia lo permite).
+5. (Opcional) Seleccione alimentadores recién convertidos y pulse **Cargar DGS en DigSILENT + flujo**. El caso original se estudia sin correcciones; cualquier ensayo correctivo pertenece a una copia diagnóstica identificada. ComShc solo se ejecuta con datos de fuente completos.
+
+## Flujo estricto y aceptación
+
+La ruta autorizada es `TXT → modelo estricto → DGS nuevo → API PowerFactory`. No se reconstruye el modelo desde un DGS histórico. La conversión se detiene ante campos faltantes, mappings ambiguos o ausencia de ficha técnica; no inventa parámetros físicos. TRAFOMIX y su carga relacionada se excluyen mediante relaciones explícitas, manteniendo SED y cargas válidas.
+
+Los comandos registrados son `inspect`, `validate-input`, `convert`, `import-pf`, `validate-pf`, `study`, `run` y `catalog`; admiten salida JSON en la interfaz estricta. Para una corrida reproducible use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\acceptance.ps1 -InputDir <TXT> -OutputDir output\acceptance_<run_id>
+```
+
+Consulte `docs/OPERATIONS_RUNBOOK.md`, `docs/DATA_DICTIONARY.md` y `docs/EQUIPMENT_CATALOG.md`. Los casos dorados incluidos son sintéticos; la aceptación real requiere TXT, hashes y expectativas independientes aprobadas.
 
 Sin `pyproj` puede listar alimentadores y convertir **desactivando georreferenciación**. Con GPS/diagrama debe estar instalado vía `requirements.txt`.
 
@@ -53,7 +65,7 @@ Entradas de consola: `igea-dgs` y `igea-dgs-gui`. `run_gui.bat` instala solo `re
 2. Pulse **Cargar / listar alimentadores** — avisa al terminar con el conteo.
 3. Convierta **uno** (clic), **varios** (Ctrl+clic / Mayús+clic / Seleccionar todos) o **todos** (checkbox).
 4. Al terminar la conversión muestra resumen OK/fallidos y ofrece abrir la carpeta de salida.
-5. **Cargar DGS en DigSILENT + flujo** importa el DGS seleccionado, asegura escenario de operación, corre flujo (ComLdf + correcciones) y la suite de estudios (`--run-studies`: ComLdf + ComShc).
+5. **Cargar DGS en DigSILENT + flujo** importa el DGS recién generado. El caso original permanece inmutable; las correcciones, si se autorizan para diagnóstico, se aíslan en una copia distinta.
 
 ## Principio de arquitectura
 

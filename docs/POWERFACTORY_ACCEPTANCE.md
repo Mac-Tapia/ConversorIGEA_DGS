@@ -150,3 +150,7 @@ python tools\powerfactory_acceptance.py --manifest IN111_geography.json --requir
 ## Boundary
 
 `*_geography.json` keeps full intermediate GIS paths. ASCII DGS places terminal GPS + IntGrf graphics; full polylines stay in the sidecar until a verified `ElmLne.GPScoords` encoding is available.
+
+## Estado de aceptación local
+
+Al 2026-09-22 la carpeta `referencia` de este checkout no contiene el conjunto RED/CARGA/BD_Equipo, solo un DGS histórico. La aceptación real queda bloqueada en G1 y no se declara importación, idempotencia, convergencia ni cortocircuito reales. Esto evita validar un modelo distinto del que debe construirse desde TXT. Cuando estén los tres TXT coherentes, use un directorio `output/acceptance_<run_id>` nuevo y adjunte hashes, proyecto/caso/escenario, conteos antes/después, exclusiones TRAFOMIX, resultados G5 y convergencia del caso original.
