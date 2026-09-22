@@ -21,6 +21,13 @@ def _dataset(value_type="2"):
                 "NumberOfCircuits": "2",
                 "ConductorsPerPhase": "3",
                 "CrossSection": "150",
+                "R1": "0.206",
+                "R0": "0.62",
+                "X1": "0.38",
+                "X0": "1.1",
+                "B1": "3.4",
+                "B0": "1.2",
+                "Amps": "410",
             }
         },
         customer_loads={

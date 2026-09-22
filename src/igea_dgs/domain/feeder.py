@@ -73,6 +73,13 @@ def build_strict_feeder_model(dataset: Any, feeder_id: str) -> StrictFeederModel
             circuits=CircuitMultiplicity(int(cfg["NumberOfCircuits"])),
             conductors_per_phase=int(cfg["ConductorsPerPhase"]),
             cross_section_mm2=_decimal(cfg.get("CrossSection"), "CrossSection"),
+            r1_ohm_km=_decimal(cfg.get("R1"), "R1"),
+            r0_ohm_km=_decimal(cfg.get("R0"), "R0"),
+            x1_ohm_km=_decimal(cfg.get("X1"), "X1"),
+            x0_ohm_km=_decimal(cfg.get("X0"), "X0"),
+            b1_us_km=_decimal(cfg.get("B1"), "B1"),
+            b0_us_km=_decimal(cfg.get("B0"), "B0"),
+            ampacity_a=_decimal(cfg.get("Amps"), "Amps"),
         )
         line_type = OverheadLine if cfg.get("Overhead") == "1" else UndergroundCable
         lines.append(line_type(**common))

@@ -10,6 +10,13 @@ from .schema import DgsSchema, load_schema
 from .geography import GeographyManifest, GeoPoint
 
 
+def write_strict_dgs(feeder, path: Path | str) -> Path:
+    """Write the strict typed model through the decision-free DGS writer."""
+    from .dgsio import build_dgs_document, write_dgs_document
+
+    return write_dgs_document(build_dgs_document(feeder), Path(path))
+
+
 @dataclass(frozen=True)
 class DiagramSheet:
     """Bounding box of the DigSilent IntGrf sheet (diagram units)."""

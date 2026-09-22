@@ -32,6 +32,13 @@ class OverheadLine:
     circuits: CircuitMultiplicity
     conductors_per_phase: int
     cross_section_mm2: Decimal
+    r1_ohm_km: Decimal
+    r0_ohm_km: Decimal
+    x1_ohm_km: Decimal
+    x0_ohm_km: Decimal
+    b1_us_km: Decimal
+    b0_us_km: Decimal
+    ampacity_a: Decimal
 
 
 @dataclass(frozen=True, slots=True)
