@@ -9,6 +9,7 @@ from .dataset import CymdistDataset
 from .inventory import build_dataset_inventory, format_inventory_report, write_inventory
 from .naming import feeder_short_name, sort_key_feeder
 from .quality.inventory import build_strict_inventory
+from .services.pipeline import PipelineService
 
 
 def _common(parser: argparse.ArgumentParser) -> None:
@@ -31,9 +32,11 @@ def _parser() -> argparse.ArgumentParser:
     inspect_p = sub.add_parser('inspect', help='Inspect TXT coverage without writing DGS')
     _common(inspect_p)
     inspect_p.add_argument('--inventory-json', help='Optional strict inventory JSON path')
+    inspect_p.add_argument('--json', action='store_true')
 
     validate_p = sub.add_parser('validate-input', help='Run blocking G1-G2 input checks')
     _common(validate_p)
+    validate_p.add_argument('--json', action='store_true')
 
     conv = sub.add_parser('convert', help='Convert one, several, or all feeders')
     _common(conv)
@@ -56,12 +59,23 @@ def _parser() -> argparse.ArgumentParser:
     conv.add_argument('--export-xlsx', action='store_true', help='Also write multi-sheet Excel (.xlsx) from DGS tables (needs igea-dgs[xlsx])')
     conv.add_argument('--export-tsv', action='store_true', help='Also write one TSV per DGS table under {feeder}_dgs_tables/')
     conv.add_argument('--preview', action='store_true', help='Write interactive map HTML (+ GeoJSON) before DGS (requires geography)')
+    conv.add_argument('--json', action='store_true')
     conv.add_argument(
         '--preview-backend',
         default='auto',
         choices=('auto', 'leafmap', 'leaflet'),
         help='Map renderer: leafmap (@opengeos) or Leaflet CDN fallback',
     )
+
+    for command, help_text in (
+        ('import-pf', 'Import validated DGS through the PowerFactory API'),
+        ('validate-pf', 'Validate the effective PowerFactory model'),
+        ('study', 'Run guarded PowerFactory studies'),
+        ('run', 'Run all strict gates in order'),
+        ('catalog', 'Inspect exact approved equipment catalog mappings'),
+    ):
+        command_p = sub.add_parser(command, help=help_text)
+        command_p.add_argument('--json', action='store_true')
 
     sub.add_parser('gui', help='Open the graphical interface for selecting TXT inputs and converting')
     return parser
@@ -76,12 +90,27 @@ def _require_input_files(red: str, loads: str, equipment: str) -> None:
         raise SystemExit('Archivos de entrada no encontrados:\n  - ' + '\n  - '.join(missing))
 
 
-def main(argv=None) -> int:
+def main(argv=None, *, service: PipelineService | None = None) -> int:
     args = _parser().parse_args(argv)
 
     if args.command == 'gui':
         from .gui import main as gui_main
         return gui_main()
+
+    service_commands = {
+        'inspect': 'inspect', 'validate-input': 'validate_input', 'convert': 'convert',
+        'import-pf': 'import_pf', 'validate-pf': 'validate_pf', 'study': 'study',
+        'run': 'run', 'catalog': 'catalog',
+    }
+    if service is not None:
+        outcome = getattr(service, service_commands[args.command])(vars(args))
+        print(json.dumps(outcome.to_dict(), indent=2, ensure_ascii=False))
+        return outcome.exit_code
+    if args.command in {'import-pf', 'validate-pf', 'study', 'run', 'catalog'}:
+        print(json.dumps({'stage': args.command, 'unavailable': True, 'exit_code': 3,
+                          'diagnostics': ['PIPELINE_RUNTIME_NOT_CONFIGURED']},
+                         indent=2, ensure_ascii=False))
+        return 3
 
     try:
         _require_input_files(args.red, args.loads, args.equipment)

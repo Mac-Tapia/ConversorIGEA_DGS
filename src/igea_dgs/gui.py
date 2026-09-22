@@ -28,6 +28,22 @@ from tkinter.scrolledtext import ScrolledText
 from .dataset import CymdistDataset
 from .inventory import build_dataset_inventory, format_inventory_report, write_inventory
 from .naming import feeder_short_name, sort_key_feeder
+from .services.pipeline import PipelineSummary
+
+
+class PipelinePresenter:
+    """Renderiza el estado de puertas sin contener lógica eléctrica."""
+
+    def render(self, summary: PipelineSummary) -> str:
+        excluded = ", ".join(item.source_key for item in summary.exclusions) or "ninguno"
+        provenance = ", ".join(summary.provenance) or "no declarada"
+        return (
+            f"Puerta actual: {summary.gate}\n"
+            f"TRAFOMIX excluidos: {excluded}\n"
+            f"Procedencia: {provenance}\n"
+            f"original: {summary.original_case}\n"
+            f"diagnóstico: {summary.diagnostic_case}"
+        )
 from . import __version__
 
 
