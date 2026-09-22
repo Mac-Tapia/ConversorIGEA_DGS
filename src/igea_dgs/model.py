@@ -8,6 +8,7 @@ from typing import Mapping, Sequence
 
 from .dataset import CymdistDataset
 from .naming import feeder_short_name
+from .rules.trafomix import apply_trafomix_rule
 
 # Optional equipment/substation suffix in customer/device IDs (utility-specific
 # coding). Matches a trailing token like SE40699, M40699, TR12, SUB-01 — not
@@ -663,8 +664,12 @@ def build_feeder_model(
         )
 
     section_by_id = {line.section_id: line for line in lines}
+    trafomix_result = apply_trafomix_rule(dataset)
+    trafomix_result.gate.raise_if_blocked()
     loads: list[Load] = []
     for key, row in dataset.customer_loads.items():
+        if key in trafomix_result.excluded_keys:
+            continue
         section_id, device_number = key
         if dataset.section_owner.get(section_id) != network_id:
             continue
