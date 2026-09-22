@@ -7,8 +7,20 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from igea_dgs.projects import InputResolutionError, ProjectNotFoundError, ProjectStore
+from igea_dgs.revisions import (
+    OperationValidationError,
+    RevisionConflictError,
+    RevisionNotFoundError,
+    RevisionStore,
+)
 
-from .routes import NativeDialogPort, TkNativeDialog, dialogs_router, projects_router
+from .routes import (
+    NativeDialogPort,
+    TkNativeDialog,
+    dialogs_router,
+    projects_router,
+    revisions_router,
+)
 
 
 def create_app(
@@ -22,6 +34,7 @@ def create_app(
     app.state.project_root = root
     app.state.session_token = session_token
     app.state.project_store = ProjectStore(root / ".igea" / "custody.sqlite3")
+    app.state.revision_store = RevisionStore(root)
     app.state.native_dialog = native_dialog or TkNativeDialog()
 
     @app.middleware("http")
@@ -57,7 +70,29 @@ def create_app(
             content={"code": "PROJECT_NOT_FOUND", "message": str(exc)},
         )
 
+    @app.exception_handler(RevisionNotFoundError)
+    def revision_not_found(_request: Request, exc: RevisionNotFoundError) -> JSONResponse:
+        return JSONResponse(
+            status_code=404,
+            content={"code": "REVISION_NOT_FOUND", "message": str(exc)},
+        )
+
+    @app.exception_handler(RevisionConflictError)
+    def revision_conflict(_request: Request, exc: RevisionConflictError) -> JSONResponse:
+        return JSONResponse(
+            status_code=409,
+            content={"code": "REVISION_VERSION_CONFLICT", "message": str(exc)},
+        )
+
+    @app.exception_handler(OperationValidationError)
+    def operation_invalid(_request: Request, exc: OperationValidationError) -> JSONResponse:
+        return JSONResponse(
+            status_code=422,
+            content={"code": str(exc), "message": "Operación de revisión inválida"},
+        )
+
     app.include_router(projects_router)
     app.include_router(dialogs_router)
+    app.include_router(revisions_router)
 
     return app

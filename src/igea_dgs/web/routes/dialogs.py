@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import ctypes
 import threading
+from collections.abc import Callable
 from pathlib import Path
 from queue import Queue
-from collections.abc import Callable
 from typing import Protocol
 
 from fastapi import APIRouter, Request, Response
