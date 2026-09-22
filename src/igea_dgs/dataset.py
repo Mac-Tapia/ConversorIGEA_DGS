@@ -4,6 +4,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from collections import defaultdict
 import csv
+from hashlib import sha256
+
+from .ingestion import LOADS_CONTRACT, RED_CONTRACT, parse_igea_file
+from .quality.diagnostics import Diagnostic
 
 
 def _split(line: str) -> list[str]:
@@ -57,12 +61,20 @@ class CymdistDataset:
     load_placements: dict[tuple[str, str], dict[str, str]]
     customer_loads: dict[tuple[str, str], dict[str, str]]
     equipment_tables: dict[str, tuple[dict[str, str], ...]]
+    diagnostics: tuple[Diagnostic, ...]
+    parsed_sections: dict[str, tuple[str, ...]]
+    input_hashes: dict[str, str]
 
     @classmethod
     def from_files(cls, red: Path | str, loads: Path | str, equipment: Path | str) -> 'CymdistDataset':
         red_path = Path(red)
         loads_path = Path(loads)
         equipment_path = Path(equipment)
+
+        parsed_red = parse_igea_file(red_path, RED_CONTRACT)
+        parsed_loads = parse_igea_file(loads_path, LOADS_CONTRACT)
+        # La fachada conserva compatibilidad y expone G1; el servicio de conversion
+        # es quien aplica raise_if_blocked() antes de producir cualquier artefacto.
 
         headnodes: dict[str, str] = {}
         nodes: dict[str, dict[str, str]] = {}
@@ -154,6 +166,17 @@ class CymdistDataset:
             load_placements=load_placements,
             customer_loads=customer_loads,
             equipment_tables=equipment_tables,
+            diagnostics=parsed_red.gate.diagnostics + parsed_loads.gate.diagnostics,
+            parsed_sections={
+                "red": parsed_red.parsed_sections,
+                "loads": parsed_loads.parsed_sections,
+                "equipment": tuple(equipment_tables),
+            },
+            input_hashes={
+                "red": parsed_red.sha256,
+                "loads": parsed_loads.sha256,
+                "equipment": sha256(equipment_path.read_bytes()).hexdigest(),
+            },
         )
 
     def feeder_ids(self) -> tuple[str, ...]:
