@@ -65,6 +65,20 @@ DEFAULT_STATUS = 'Elija la entrada y pulse «Cargar / listar alimentadores».'
 _DEFAULT_PF_PYTHON = Path(r'C:\Program Files\DIgSILENT\PowerFactory 2024\Python\3.12')
 
 
+def _version_key(path: Path) -> tuple[int, ...]:
+    """Ordena carpetas de versión por número, no por texto.
+
+    ``sorted(..., reverse=True)`` sobre los nombres elegía «3.9» antes que «3.12»,
+    porque '9' > '1' carácter a carácter. En una instalación con 3.8, 3.9, 3.10, 3.11
+    y 3.12 eso seleccionaba la carpeta equivocada y la API fallaba con «DLL load
+    failed», que no dice nada sobre la causa real.
+    """
+    partes = []
+    for trozo in path.name.strip().split('.'):
+        partes.append(int(trozo) if trozo.isdigit() else -1)
+    return tuple(partes)
+
+
 def _pf_python_dir() -> Path | None:
     env = os.environ.get('PF_PYTHON', '').strip()
     if env:
@@ -75,9 +89,13 @@ def _pf_python_dir() -> Path | None:
     # Try sibling version folders under DigSilent install root.
     root = Path(r'C:\Program Files\DIgSILENT')
     if root.is_dir():
-        for candidate in sorted(root.glob('PowerFactory */Python/3.*'), reverse=True):
+        candidates = sorted(root.glob('PowerFactory */Python/3.*'),
+                            key=_version_key, reverse=True)
+        # Primero el que trae la extensión; solo si ninguno la tiene se acepta otro.
+        for candidate in candidates:
             if candidate.is_dir() and (candidate / 'powerfactory.pyd').is_file():
                 return candidate
+        for candidate in candidates:
             if candidate.is_dir():
                 return candidate
     return None
