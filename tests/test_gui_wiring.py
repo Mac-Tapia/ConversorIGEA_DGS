@@ -478,3 +478,99 @@ def test_la_rueda_no_se_apropia_del_desplazamiento_de_las_listas():
     cuerpo = source.split('def _contenedor_desplazable')[1].split('\n    def ')[0]
     assert "bind('<Enter>'" in cuerpo and "bind('<Leave>'" in cuerpo
     assert 'unbind_all' in cuerpo
+
+
+# ---------------------------------------------------------------------------
+# El Registro tiene que poder crecer
+# ---------------------------------------------------------------------------
+#
+# Al meter todo el formulario en un Canvas desplazable, el Registro se quedó con su
+# altura mínima y no había forma de agrandarlo: dentro de un Canvas, «expand=True» no
+# hace nada, porque el marco interior se ajusta a su contenido en lugar de a la ventana.
+# El Registro es donde sale TODO —el inventario, los avisos del catálogo, la salida de
+# los guiones de sistema—, así que dejarlo en ocho líneas fijas lo vuelve inservible.
+#
+# Va en el panel inferior, fuera del lienzo, con el separador arrastrable.
+
+
+def test_el_registro_esta_fuera_del_area_desplazable(app_tk):
+    """Si vuelve a caer dentro del lienzo, deja de poder crecer."""
+    from tkinter import Canvas
+
+    padres = []
+    w = app_tk.log
+    while w is not None and w is not app_tk.root:
+        padres.append(w)
+        w = w.master
+    assert not any(isinstance(x, Canvas) for x in padres), (
+        'el Registro está dentro del Canvas: no podrá agrandarse'
+    )
+
+
+def test_hay_un_panel_divisible_con_dos_zonas(app_tk):
+    from tkinter import ttk
+
+    assert isinstance(app_tk._panel, ttk.PanedWindow)
+    assert len(app_tk._panel.panes()) == 2, 'formulario arriba, Registro abajo'
+
+
+def _con_ventana_visible(app, ancho=960, alto=800):
+    """Muestra la ventana para poder medirla, y la vuelve a ocultar.
+
+    Tk no calcula geometría de una ventana retirada: todo mide 1 px. Y el tamaño del
+    Registro es justo lo que hay que comprobar aquí, así que no vale sustituirlo por
+    una propiedad estructural.
+    """
+    raiz = app.root
+    raiz.deiconify()
+    raiz.geometry(f'{ancho}x{alto}')
+    raiz.update()
+    raiz.update_idletasks()
+    return raiz
+
+
+def test_el_registro_crece_al_mover_el_separador(app_tk):
+    """La prueba que de verdad importa: que se pueda desplegar."""
+    raiz = _con_ventana_visible(app_tk)
+    try:
+        app_tk._panel.sashpos(0, 650)
+        raiz.update_idletasks()
+        pequeno = app_tk.log.winfo_height()
+
+        app_tk._panel.sashpos(0, 350)
+        raiz.update_idletasks()
+        grande = app_tk.log.winfo_height()
+
+        assert grande > pequeno * 1.5, (
+            f'el Registro pasa de {pequeno} a {grande} px: no está creciendo'
+        )
+    finally:
+        raiz.withdraw()
+
+
+def test_el_registro_arranca_con_altura_util(app_tk):
+    raiz = _con_ventana_visible(app_tk)
+    try:
+        alto = app_tk.log.winfo_height()
+        assert alto > 120, f'{alto} px: con ocho líneas escasas el inventario no se lee'
+    finally:
+        raiz.withdraw()
+
+
+def test_el_titulo_dice_como_agrandarlo(app_tk):
+    """Un separador arrastrable no se ve; hay que decirlo.
+
+    Se busca el LabelFrame subiendo por los padres: ScrolledText se envuelve a sí
+    mismo, así que su `master` directo es un Frame interno suyo, no el marco con título.
+    """
+    from tkinter import ttk
+
+    w = app_tk.log
+    titulo = ''
+    while w is not None:
+        if isinstance(w, ttk.LabelFrame):
+            titulo = str(w.cget('text'))
+            break
+        w = w.master
+    assert titulo, 'el Registro debe estar dentro de un marco con título'
+    assert 'separador' in titulo.lower()

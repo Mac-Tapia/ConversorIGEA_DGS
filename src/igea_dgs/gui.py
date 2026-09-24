@@ -443,8 +443,17 @@ class ConverterApp:
         el puntero está encima, para no robarle el desplazamiento a la lista de
         alimentadores ni al Registro, que tienen el suyo.
         """
-        contenedor = ttk.Frame(self.root)
-        contenedor.pack(fill=BOTH, expand=True)
+        # Panel divisible: el formulario arriba y el Registro abajo, con el separador
+        # arrastrable. El Registro NO puede ir dentro del área desplazable: dentro de un
+        # Canvas, `expand=True` no hace nada —el marco interior se ajusta a su
+        # contenido—, así que la caja de texto se quedaba con su altura mínima y no
+        # había forma de agrandarla. Fuera del lienzo recupera su comportamiento y
+        # además se puede repartir el espacio a gusto.
+        self._panel = ttk.PanedWindow(self.root, orient='vertical')
+        self._panel.pack(fill=BOTH, expand=True)
+
+        contenedor = ttk.Frame(self._panel)
+        self._panel.add(contenedor, weight=4)
 
         lienzo = Canvas(contenedor, highlightthickness=0)
         barra = ttk.Scrollbar(contenedor, orient='vertical', command=lienzo.yview)
@@ -782,16 +791,22 @@ class ConverterApp:
         self.progress = ttk.Progressbar(progress_frm, mode='determinate')
         self.progress.pack(fill=X)
 
-        log_frm = ttk.LabelFrame(frm, text='Registro', padding=6)
-        log_frm.pack(fill=BOTH, expand=True, **pad)
-        self.log = ScrolledText(log_frm, height=8, wrap='word', state='disabled')
+        # El Registro va en el panel inferior, fuera del área desplazable, para que
+        # pueda crecer y para poder repartir el espacio arrastrando el separador.
+        abajo = ttk.Frame(self._panel)
+        self._panel.add(abajo, weight=1)
+        log_frm = ttk.LabelFrame(
+            abajo, text='Registro  (arrastre el separador de arriba para agrandarlo)',
+            padding=6)
+        log_frm.pack(fill=BOTH, expand=True, padx=10, pady=(4, 2))
+        self.log = ScrolledText(log_frm, height=8, wrap='none', state='disabled')
         self.log.pack(fill=BOTH, expand=True)
 
         note = (
             'Nota: BD_Equipo es el catálogo TXT de equipos CYMDIST (no una base SQL). '
             'Los tres archivos deben ser la exportación IGEA/CYMDIST del mismo lote.'
         )
-        ttk.Label(frm, text=note, foreground='#444').pack(anchor=W, padx=10)
+        ttk.Label(abajo, text=note, foreground='#444').pack(anchor=W, padx=10, pady=(0, 4))
 
     def _file_row(self, parent, label, var, command, directory: bool = False) -> None:
         row = ttk.Frame(parent)
