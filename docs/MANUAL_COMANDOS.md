@@ -482,6 +482,86 @@ for %%F in ("%SALIDA%\*.dgs") do (
 
 ---
 
+## 7.bis Catálogo de parámetros eléctricos (carpeta `input/`)
+
+El catálogo de equipos que viene en el TXT es lo único que fija la impedancia de cada
+tramo, y nadie lo contrasta con la ficha del conductor que de verdad está colgado.
+Cuando una fila está mal, el error se propaga en silencio a todos los tramos de ese
+tipo, en todos los alimentadores.
+
+### Generarlo
+
+Desde la interfaz: **«Parámetros → Generar catálogo y auditar»**. Sin selección analiza
+todos los alimentadores; con alimentadores marcados, solo esos.
+
+Desde la línea de órdenes:
+
+```bat
+.venv\Scripts\python.exe toolsuild_input_catalog.py --red R.txt --cargas C.txt --equipos E.txt
+.venv\Scripts\python.exe toolsuild_input_catalog.py --mdb BaseDatos.mdb
+```
+
+Sale `input\catalogo_parametros.xlsx` con siete hojas:
+
+| Hoja | Qué lleva |
+|---|---|
+| `conductores_aereos` | Cada tipo aéreo en uso: R, X, B, ampacidad del modelo frente a los de ficha, con tramos y km |
+| `cables_subterraneos` | Lo mismo para los cables |
+| `transformadores_sed` | Una fila por potencia de SED: uk, Pk, Po, io, tomas, y los máximos reglamentarios |
+| `condensadores` | Formato para bancos de condensadores (vacía si la red no tiene) |
+| `reguladores` | Formato para reguladores de tensión |
+| `parametros_por_elemento` | **Qué ficha hay que pedir para cada dato y qué estudio se estropea sin ella** |
+| `hallazgos` | Las diferencias encontradas, con su cuenta hecha y su fuente |
+
+### Completarlo y aplicarlo
+
+1. Ponga el valor de la ficha de su proveedor en `R1_ficha_ohm_km` o `ampacidad_ficha_A`.
+2. Escriba `ficha` en la columna `estado` de esa fila.
+3. Interfaz → **«Aplicar catálogo corregido»**, con UN alimentador seleccionado.
+4. Vuelva a convertir para que el DGS salga con esos valores.
+
+Una fila que siga marcada `por_confirmar` **no corrige nada**, aunque tenga un número
+escrito. Es deliberado: impide que un valor provisional entre en el modelo como si
+viniera de fabricante. El TXT de origen nunca se toca.
+
+### Cómo leer la columna `estado`
+
+| Estado | Significa |
+|---|---|
+| `ficha` | Leído de una ficha de fabricante o de una norma, con la referencia puesta |
+| `derivado` | Calculado a partir de un dato de ficha con una fórmula explícita |
+| `referencia` | Valor típico de norma; sirve para detectar disparates, no para dar por buena una cifra |
+| `por_confirmar` | Sin fuente pública fiable. La casilla es para que la llene el ingeniero |
+
+---
+
+## 7.ter Crear SED nuevas desde la interfaz
+
+Los botones 3, 4 y 5 de la fila «SED nuevas»:
+
+* **3) Descargar plantilla de creación** — una fila por SED. Basta con `SED`, `CoordX`,
+  `CoordY` y `kVA_instalado`. Trae además una hoja `nodos_validos` con los nodos del
+  alimentador.
+* **4) Cargar fichero y crear** — lee la plantilla, resuelve cada punto y aplica.
+* **5) Crear una SED…** — el mismo camino con un formulario, para una sola.
+
+Qué hace con las coordenadas: busca el **nodo más cercano**, usa esa distancia como
+longitud de la derivación y elige el **conductor aéreo** por ampacidad con margen y
+caída de tensión. En PowerFactory crea el nodo con su GPS, el tramo con su `TypLne`, la
+`ElmSubstat` con sus barras MT y BT, el `TypTr2`/`ElmTr2`, el `ElmCoup` y el `ElmLod`.
+
+Un punto a más de 2 km del nodo más cercano se rechaza: casi siempre es un error de
+coordenadas o un CRS equivocado, no una derivación real.
+
+**Sobre la elección automática de sección.** Medido con datos reales a 22,9 kV, una SED
+de 15 a 630 kVA toma entre 0,4 y 16 A, y el conductor más pequeño de un catálogo real
+ya es de 112 A. Ni la ampacidad ni la caída de tensión discriminan en ese rango: sale
+siempre el menor. El campo `binding` del informe lo dice (`minimo`, `ampacidad`,
+`caida` o `impuesto`). Lo que decide en la práctica es la normalización de la empresa,
+y para eso está la columna `conductor`.
+
+---
+
 ## 8. Referencia rápida
 
 ```bat
@@ -497,6 +577,9 @@ rem Listar
 rem Convertir uno / todos
 .venv\Scripts\python.exe -m igea_dgs.cli convert --red R.txt --loads C.txt --equipment E.txt --feeder IN111 --source-crs EPSG:32718 --out-dir output\prod
 .venv\Scripts\python.exe -m igea_dgs.cli convert --red R.txt --loads C.txt --equipment E.txt --all --source-crs EPSG:32718 --out-dir output\prod
+
+rem Catalogo de parametros electricos -> input\catalogo_parametros.xlsx
+.venv\Scripts\python.exe tools\build_input_catalog.py --red R.txt --cargas C.txt --equipos E.txt
 
 rem Importar en DigSILENT
 .venv\Scripts\python.exe tools\powerfactory_acceptance.py --import-dgs output\prod\IN111.dgs --manifest output\prod\IN111_geography.json --ensure-scenario --run-load-flow --fix-until-converge --run-studies

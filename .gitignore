@@ -63,3 +63,9 @@ referencia/*.xls
 referencia/*.csv
 referencia/*.mdb
 referencia/audit_ternas_*.json
+
+# Catálogo de parámetros generado: se deriva del export real y lleva los códigos de
+# conductor y el kilometraje de la distribuidora. Se regenera cuando haga falta con
+# tools/build_input_catalog.py, así que no se versiona.
+input/*.xlsx
+input/*.csv

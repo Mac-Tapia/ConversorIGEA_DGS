@@ -17,6 +17,7 @@ from tkinter import (
     RIGHT,
     StringVar,
     Tk,
+    Toplevel,
     W,
     X,
     Y,
@@ -190,6 +191,99 @@ def _legacy_state_path() -> Path:
     if base:
         return Path(base) / 'igea-dgs' / 'gui_state.json'
     return Path.home() / '.igea-dgs' / 'gui_state.json'
+
+
+class _NewSedDialog:
+    """Formulario modal para una sola SED nueva.
+
+    Solo recoge y convierte texto. **No valida nada**: las reglas viven en
+    ``loads_create.single_new_load``, que es el mismo camino que recorre la plantilla.
+    Si este formulario comprobase por su cuenta, acabaría divergiendo del fichero y
+    habría dos definiciones de «fila válida», que es como aparecen los datos que pasan
+    por un lado y no por el otro.
+    """
+
+    CAMPOS = (
+        ('sed_code', 'Código de la SED *', '', 'Por ejemplo SE31045.'),
+        ('installed_kva', 'Potencia del transformador (kVA) *', '',
+         'La de placa, no la carga.'),
+        ('coord_x', 'Coordenada Este (X)', '',
+         'En el mismo sistema que el export. Se conecta al nodo más cercano.'),
+        ('coord_y', 'Coordenada Norte (Y)', '', ''),
+        ('node_id', 'Nodo de conexión', '',
+         'Solo si quiere imponerlo; en blanco se deduce del punto.'),
+        ('kw', 'Carga activa (kW)', '', 'Deje en blanco si da kVA y FP.'),
+        ('kvar', 'Carga reactiva (kvar)', '', ''),
+        ('kva', 'Carga aparente (kVA)', '', ''),
+        ('fp', 'Factor de potencia', '0.95', ''),
+        ('conductor', 'Conductor impuesto', '',
+         'En blanco se elige por ampacidad y caída de tensión.'),
+    )
+
+    NUMERICOS = ('installed_kva', 'coord_x', 'coord_y', 'kw', 'kvar', 'kva', 'fp')
+
+    def __init__(self, parent: Tk, feeder: str) -> None:
+        self.result: dict | None = None
+        self.win = Toplevel(parent)
+        self.win.title(f'Crear una SED en {feeder}')
+        self.win.transient(parent)
+        self.win.resizable(False, False)
+
+        marco = ttk.Frame(self.win, padding=12)
+        marco.pack(fill=BOTH, expand=True)
+        ttk.Label(
+            marco,
+            text=('Los campos con * son obligatorios. Indique las coordenadas del punto '
+                  'o bien el nodo de conexión.'),
+            wraplength=520, foreground='#444',
+        ).grid(row=0, column=0, columnspan=2, sticky=W, pady=(0, 8))
+
+        self.vars: dict[str, StringVar] = {}
+        for fila, (clave, etiqueta, inicial, ayuda) in enumerate(self.CAMPOS, start=1):
+            ttk.Label(marco, text=etiqueta).grid(row=fila, column=0, sticky=W, pady=2)
+            var = StringVar(value=inicial)
+            self.vars[clave] = var
+            ttk.Entry(marco, textvariable=var, width=26).grid(
+                row=fila, column=1, sticky=W, padx=(8, 0), pady=2)
+            if ayuda:
+                ttk.Label(marco, text=ayuda, foreground='#666', wraplength=300).grid(
+                    row=fila, column=2, sticky=W, padx=(8, 0))
+
+        botones = ttk.Frame(marco)
+        botones.grid(row=len(self.CAMPOS) + 1, column=0, columnspan=3,
+                     sticky='e', pady=(12, 0))
+        ttk.Button(botones, text='Cancelar', command=self.win.destroy).pack(side=RIGHT)
+        ttk.Button(botones, text='Crear', command=self._aceptar).pack(
+            side=RIGHT, padx=(0, 8))
+
+        self.win.bind('<Return>', lambda _e: self._aceptar())
+        self.win.bind('<Escape>', lambda _e: self.win.destroy())
+        self.win.grab_set()
+        parent.wait_window(self.win)
+
+    def _aceptar(self) -> None:
+        datos: dict = {}
+        malos: list[str] = []
+        for clave, etiqueta, _inicial, _ayuda in self.CAMPOS:
+            crudo = self.vars[clave].get().strip()
+            if clave not in self.NUMERICOS:
+                datos[clave] = crudo
+                continue
+            if not crudo:
+                datos[clave] = None if clave in ('coord_x', 'coord_y', 'kw', 'kvar',
+                                                 'kva', 'fp') else 0.0
+                continue
+            try:
+                datos[clave] = float(crudo.replace(',', '.'))
+            except ValueError:
+                malos.append(f'«{etiqueta.rstrip(" *")}»: {crudo!r} no es un número.')
+        if malos:
+            messagebox.showerror('Dato no numérico', '\n'.join(malos), parent=self.win)
+            return
+        if datos.get('installed_kva') is None:
+            datos['installed_kva'] = 0.0
+        self.result = datos
+        self.win.destroy()
 
 
 class ConverterApp:
@@ -401,6 +495,58 @@ class ConverterApp:
             foreground='#555',
         ).pack(side=LEFT, padx=(8, 0))
         self._action_buttons.extend([self.template_btn, self.apply_loads_btn])
+
+        # Creación de SED nuevas. Es el mismo problema con una fila o con N, así que
+        # el formulario y la plantilla van juntos y comparten validación.
+        create_row = ttk.Frame(feeders)
+        create_row.pack(fill=X, pady=(4, 0))
+        ttk.Label(create_row, text='SED nuevas:  ').pack(side=LEFT)
+        self.create_template_btn = ttk.Button(
+            create_row, text='3) Descargar plantilla de creación',
+            command=self._download_create_template,
+        )
+        self.create_template_btn.pack(side=LEFT, padx=(8, 0), ipady=2)
+        self.create_apply_btn = ttk.Button(
+            create_row, text='4) Cargar fichero y crear',
+            command=self._apply_create_template,
+        )
+        self.create_apply_btn.pack(side=LEFT, padx=(8, 0), ipady=2)
+        self.create_one_btn = ttk.Button(
+            create_row, text='5) Crear una SED…', command=self._create_single_load,
+        )
+        self.create_one_btn.pack(side=LEFT, padx=(8, 0), ipady=2)
+        self._action_buttons.extend([
+            self.create_template_btn, self.create_apply_btn, self.create_one_btn,
+        ])
+        ttk.Label(
+            feeders,
+            text=(
+                'Las SED nuevas se sitúan por coordenadas: el punto se conecta al nodo '
+                'más cercano con una derivación aérea, y la sección se elige por '
+                'ampacidad y caída de tensión.'
+            ),
+            foreground='#555', wraplength=860,
+        ).pack(anchor=W, pady=(2, 0))
+
+        # Catálogo de parámetros eléctricos (carpeta input/).
+        cat_row = ttk.Frame(feeders)
+        cat_row.pack(fill=X, pady=(6, 0))
+        ttk.Label(cat_row, text='Parámetros:  ').pack(side=LEFT)
+        self.catalog_build_btn = ttk.Button(
+            cat_row, text='Generar catálogo y auditar',
+            command=self._build_catalog,
+        )
+        self.catalog_build_btn.pack(side=LEFT, padx=(8, 0), ipady=2)
+        self.catalog_apply_btn = ttk.Button(
+            cat_row, text='Aplicar catálogo corregido',
+            command=self._apply_catalog,
+        )
+        self.catalog_apply_btn.pack(side=LEFT, padx=(8, 0), ipady=2)
+        ttk.Label(
+            cat_row, text='(compara el modelo con las fichas de fabricante)',
+            foreground='#555',
+        ).pack(side=LEFT, padx=(8, 0))
+        self._action_buttons.extend([self.catalog_build_btn, self.catalog_apply_btn])
 
         self.status = StringVar(value=DEFAULT_STATUS)
         ttk.Label(feeders, textvariable=self.status, foreground='#335').pack(anchor=W, pady=(6, 0))
@@ -1494,8 +1640,20 @@ class ConverterApp:
         self._append_log(f'Plan escrito: {plan_path}')
         self._run_load_update(model.name, plan_path, out_dir)
 
-    def _run_load_update(self, feeder: str, plan_path: Path, out_dir: Path) -> None:
-        """Aplica el plan en PowerFactory, en proceso aparte y con su intérprete."""
+    def _run_load_update(
+        self, feeder: str, plan_path: Path, out_dir: Path, *,
+        script_name: str = 'apply_sed_loads.py',
+        report_suffix: str = 'cargas_aplicadas',
+        busy_text: str = 'Actualizando cargas en DigSILENT…',
+        ok_text: str = 'Cargas actualizadas',
+    ) -> None:
+        """Aplica el plan en PowerFactory, en proceso aparte y con su intérprete.
+
+        Lo comparten la actualización masiva y la creación de SED: cambia el script y
+        el nombre del informe, pero el problema es el mismo —la API de PowerFactory se
+        enlaza a una versión concreta de CPython, así que hay que salir a otro
+        intérprete— y no conviene tener dos copias de esa lógica.
+        """
         pf_dir = _pf_python_dir()
         pf_python, why = _python_for_pf(pf_dir)
         if pf_python is None:
@@ -1506,19 +1664,19 @@ class ConverterApp:
                 'Instale esa versión o defina IGEA_PF_INTERPRETER.',
             )
             return
-        script = _project_root() / 'tools' / 'apply_sed_loads.py'
+        script = _project_root() / 'tools' / script_name
         if not script.is_file():
             messagebox.showerror('Script ausente', f'No se encuentra {script}')
             return
 
         self._cancel = threading.Event()
         self._set_busy(True)
-        self.status.set('Actualizando cargas en DigSILENT…')
+        self.status.set(busy_text)
         self.progress.configure(mode='indeterminate')
         self.progress.start(12)
         self._append_log(f'Intérprete PowerFactory: {pf_python}  [{why}]')
 
-        report_json = out_dir / f'{feeder}_cargas_aplicadas.json'
+        report_json = out_dir / f'{feeder}_{report_suffix}.json'
         env = os.environ.copy()
         if pf_dir is not None:
             env['PYTHONPATH'] = str(pf_dir) + os.pathsep + env.get('PYTHONPATH', '')
@@ -1539,24 +1697,26 @@ class ConverterApp:
                 )
                 salida = ((proc.stdout or '') + '\n' + (proc.stderr or '')).strip()
                 self.root.after(0, lambda t=salida: self._append_log(t))
-                self.root.after(0, lambda rc=proc.returncode: self._on_loads_done(rc, report_json))
+                self.root.after(0, lambda rc=proc.returncode:
+                                self._on_loads_done(rc, report_json, ok_text))
             except Exception:
                 tb = traceback.format_exc()
                 self.root.after(0, lambda: self._append_log(tb))
-                self.root.after(0, lambda: self._on_loads_done(-1, report_json))
+                self.root.after(0, lambda: self._on_loads_done(-1, report_json, ok_text))
 
         self._worker = threading.Thread(target=worker, daemon=True)
         self._worker.start()
 
-    def _on_loads_done(self, returncode: int, report_json: Path) -> None:
+    def _on_loads_done(self, returncode: int, report_json: Path,
+                       ok_text: str = 'Cargas actualizadas') -> None:
         self.progress.stop()
         self.progress.configure(mode='determinate', value=0)
         self._set_busy(False)
         if returncode == 0:
-            self.status.set('Cargas actualizadas en DigSILENT.')
+            self.status.set(f'{ok_text} en DigSILENT.')
             messagebox.showinfo(
-                'Cargas actualizadas',
-                f'Actualización aplicada.\n\nInforme: {report_json.name}\n'
+                ok_text,
+                f'Aplicado sobre el proyecto.\n\nInforme: {report_json.name}\n'
                 'Detalle en el Registro.',
             )
             return
@@ -1573,6 +1733,266 @@ class ConverterApp:
             f'El proceso devolvió el código {returncode}. Puede haber SED no encontradas '
             'o ambiguas en el proyecto.\n\nRevise el Registro y el informe.',
         )
+
+    # ------------------------------------------------------------------
+    # Creación de SED nuevas
+    # ------------------------------------------------------------------
+
+    def _download_create_template(self) -> None:
+        model = self._single_selected_model()
+        if model is None:
+            return
+        path = filedialog.asksaveasfilename(
+            title='Guardar plantilla de creación de SED',
+            initialfile=f'{model.name}_sed_nuevas.xlsx',
+            defaultextension='.xlsx',
+            filetypes=[('Excel', '*.xlsx'), ('CSV', '*.csv')],
+        )
+        if not path:
+            return
+        from .loads import LoadTemplateError
+        from .loads_create import write_create_template
+
+        try:
+            out = write_create_template(
+                [], path, feeder=model.name, node_choices=sorted(model.nodes),
+            )
+        except LoadTemplateError as exc:
+            messagebox.showerror('Plantilla', str(exc))
+            return
+        self._append_log(f'Plantilla de creación: {out}  ({len(model.nodes)} nodos)')
+        messagebox.showinfo(
+            'Plantilla generada',
+            f'{out.name}\n\nRellene una fila por SED nueva.\n\n'
+            'Basta con SED, CoordX, CoordY y kVA_instalado: el nodo de conexión y el '
+            'conductor se deducen del punto. Si prefiere fijarlos, use las columnas '
+            '«nodo_conexion» y «conductor».\n\n'
+            'La hoja «nodos_validos» lista los nodos del alimentador.',
+        )
+
+    def _apply_create_template(self) -> None:
+        model = self._single_selected_model()
+        if model is None:
+            return
+        path = filedialog.askopenfilename(
+            title='Plantilla de creación rellenada',
+            filetypes=[('Excel o CSV', '*.xlsx;*.csv'), ('Todos', '*.*')],
+        )
+        if not path:
+            return
+        from .loads import LoadTemplateError
+        from .loads_create import build_create_plan, read_create_workbook
+
+        try:
+            hojas = read_create_workbook(path)
+        except LoadTemplateError as exc:
+            messagebox.showerror('Plantilla', str(exc))
+            return
+        filas = [r for rows, _ in hojas.values() for r in rows]
+        errores = [e for _, errs in hojas.values() for e in errs]
+        plan = build_create_plan(model, filas, errores)
+        self._finish_create(model, plan)
+
+    def _create_single_load(self) -> None:
+        """Formulario para una sola SED. Comparte validación con la plantilla."""
+        model = self._single_selected_model()
+        if model is None:
+            return
+        datos = _NewSedDialog(self.root, model.name).result
+        if datos is None:
+            return
+        from .loads_create import build_create_plan, single_new_load
+
+        filas, errores = single_new_load(feeder=model.name, **datos)
+        plan = build_create_plan(model, filas, errores)
+        self._finish_create(model, plan)
+
+    def _finish_create(self, model, plan) -> None:
+        """Enseña el plan de creación, pide confirmación y lo aplica."""
+        self._append_log('--- Plan de creación de SED ---')
+        self._append_log(plan.report())
+
+        if plan.row_errors:
+            messagebox.showerror(
+                'Datos con errores',
+                f'{len(plan.row_errors)} fila(s) con error. No se crea nada.\n\n'
+                f'{plan.row_errors[0]}\n\nDetalle completo en el Registro.',
+            )
+            return
+        if not plan.create:
+            texto = 'No hay ninguna SED nueva que crear.'
+            if plan.already_exists:
+                texto += (f'\n\n{len(plan.already_exists)} ya existen en {model.name}; '
+                          'esas se actualizan con los botones 1 y 2.')
+            messagebox.showinfo('Sin SED que crear', texto)
+            return
+
+        detalle = '\n'.join(
+            f'  · {i.load.sed_code}: {i.load.installed_kva:g} kVA → nodo {i.node_id} '
+            f'a {i.distance_m:,.0f} m, conductor {i.conductor.code} '
+            f'(ΔV {i.conductor.voltage_drop_pct:.2f} %)'
+            for i in plan.create[:12]
+        )
+        mas = '' if len(plan.create) <= 12 else f'\n  … y {len(plan.create) - 12} más'
+        if not messagebox.askyesno(
+            'Crear SED en DigSILENT',
+            f'Alimentador: {model.name}\nSED nuevas: {len(plan.create)}\n\n'
+            f'{detalle}{mas}\n\n'
+            'Se creará en PowerFactory el nodo, la derivación aérea, la subestación, '
+            'el transformador y la carga.\n¿Continuar?',
+        ):
+            return
+
+        from .loads_create import create_plan_to_payload
+
+        out_dir = Path(self.out_dir.get().strip() or _default_out_dir())
+        out_dir.mkdir(parents=True, exist_ok=True)
+        plan_path = out_dir / f'{model.name}_plan_sed_nuevas.json'
+        plan_path.write_text(
+            json.dumps(
+                create_plan_to_payload(
+                    plan, nominal_kv=model.nominal_kv,
+                    source_crs=self.source_crs.get().strip(),
+                ),
+                indent=2, ensure_ascii=False,
+            ) + '\n',
+            encoding='utf-8',
+        )
+        self._append_log(f'Plan escrito: {plan_path}')
+        self._run_load_update(
+            model.name, plan_path, out_dir,
+            script_name='create_sed_loads.py',
+            report_suffix='sed_creadas',
+            busy_text='Creando SED en DigSILENT…',
+            ok_text='SED creadas',
+        )
+
+    # ------------------------------------------------------------------
+    # Catálogo de parámetros eléctricos
+    # ------------------------------------------------------------------
+
+    def _catalog_models(self) -> list:
+        """Modelos de los alimentadores marcados, o de todos si no hay selección."""
+        if self._dataset is None:
+            messagebox.showinfo('Carga pendiente',
+                                'Primero pulse «Cargar / listar alimentadores».')
+            return []
+        from .model import build_feeder_model
+
+        elegidos = set(self._selected_feeder_names())
+        modelos = []
+        fallidos = 0
+        for net in self._dataset.feeder_ids():
+            try:
+                m = build_feeder_model(self._dataset, net, strict=False,
+                                       include_geography=False)
+            except Exception:
+                fallidos += 1
+                continue
+            if not elegidos or m.name in elegidos:
+                modelos.append(m)
+        if fallidos:
+            self._append_log(
+                f'{fallidos} alimentador(es) no se pudieron construir y quedan fuera '
+                'del catálogo.'
+            )
+        if not modelos:
+            messagebox.showwarning('Sin alimentadores',
+                                   'No se pudo construir ningún alimentador.')
+        return modelos
+
+    def _build_catalog(self) -> None:
+        modelos = self._catalog_models()
+        if not modelos:
+            return
+        from .catalog import CatalogError, auditar, escribir_catalogo, input_dir
+
+        self.status.set('Auditando parámetros contra las fichas…')
+        self.root.update_idletasks()
+        try:
+            aud = auditar(modelos)
+            destino = escribir_catalogo(
+                aud, base=_project_root(), nominal_kv=modelos[0].nominal_kv,
+            )
+        except CatalogError as exc:
+            self.status.set(DEFAULT_STATUS)
+            messagebox.showerror('Catálogo', str(exc))
+            return
+
+        self._append_log('--- Auditoría de parámetros eléctricos ---')
+        self._append_log(aud.resumen())
+        for h in aud.hallazgos:
+            self._append_log('  ' + h.linea())
+        self._append_log(f'Catálogo: {destino}')
+        self.status.set(f'Catálogo generado: {len(aud.graves)} hallazgos graves.')
+
+        messagebox.showinfo(
+            'Catálogo de parámetros',
+            f'{destino}\n\n{aud.resumen()}\n\n'
+            'La hoja «hallazgos» lista las diferencias entre el modelo y la ficha, y '
+            '«parametros_por_elemento» dice qué ficha hace falta para cada dato.\n\n'
+            'Complete las columnas en blanco, marque la fila como «ficha» y vuelva a '
+            'cargarla con «Aplicar catálogo corregido».',
+        )
+        try:
+            os.startfile(input_dir(_project_root()))  # type: ignore[attr-defined]
+        except Exception:  # noqa: BLE001 - abrir la carpeta es una comodidad, no el trabajo
+            pass
+
+    def _apply_catalog(self) -> None:
+        model = self._single_selected_model()
+        if model is None:
+            return
+        from .catalog import (
+            CATALOG_FILENAME, CatalogError, aplicar_correcciones, input_dir,
+            leer_catalogo,
+        )
+
+        por_defecto = input_dir(_project_root()) / CATALOG_FILENAME
+        path = filedialog.askopenfilename(
+            title='Catálogo de parámetros corregido',
+            initialdir=str(por_defecto.parent),
+            initialfile=por_defecto.name if por_defecto.exists() else '',
+            filetypes=[('Excel', '*.xlsx'), ('Todos', '*.*')],
+        )
+        if not path:
+            return
+        try:
+            correcciones = leer_catalogo(path)
+        except CatalogError as exc:
+            messagebox.showerror('Catálogo', str(exc))
+            return
+        if not correcciones:
+            messagebox.showinfo(
+                'Sin correcciones',
+                'El catálogo no trae ninguna fila marcada como «ficha» o «derivado» '
+                'con un valor que aplicar.\n\n'
+                'Escriba el valor de la ficha en «R1_ficha_ohm_km» o '
+                '«ampacidad_ficha_A» y ponga «ficha» en la columna «estado».',
+            )
+            return
+
+        cambios = aplicar_correcciones(model, correcciones)
+        if not cambios:
+            messagebox.showinfo(
+                'Sin cambios',
+                f'Las {len(correcciones)} filas del catálogo ya coinciden con '
+                f'{model.name}. No hay nada que corregir.',
+            )
+            return
+        self._append_log(f'--- Catálogo aplicado a {model.name} ---')
+        for c in cambios:
+            self._append_log('  ' + c)
+        messagebox.showinfo(
+            'Catálogo aplicado',
+            f'{len(cambios)} parámetro(s) corregidos en el modelo de {model.name}:\n\n'
+            + '\n'.join(cambios[:12])
+            + ('' if len(cambios) <= 12 else f'\n… y {len(cambios) - 12} más')
+            + '\n\nVuelva a convertir el alimentador para que el DGS salga con estos '
+              'valores. El TXT de origen no se toca.',
+        )
+        self.status.set(f'{len(cambios)} parámetros corregidos desde el catálogo.'
+                        ' Reconvierta para aplicarlos al DGS.')
 
     def _on_close(self) -> None:
         # Cerrar durante un lote mataba el hilo daemon a mitad de escritura y dejaba
