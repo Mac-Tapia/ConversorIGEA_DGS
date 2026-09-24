@@ -93,6 +93,18 @@ class Load:
     phase: str
     sed_code: str = ''
     display_name: str = ''
+    customers: int = 0
+    """Suministros que dependen de esta carga (NumberOfCustomer del CARGA).
+
+    Es el denominador de SAIFI y SAIDI: los índices de la NTCSE se ponderan por
+    cliente, no por carga. Sin este número, el análisis de fiabilidad de PowerFactory
+    devuelve índices que no son los que la norma define.
+    """
+    customer_type: str = ''
+    """Tipo de suministro (CustomerType). Va a ElmLod.classif y sirve para agrupar
+    resultados por tipo de cliente, que es como el VAD los pide."""
+    year: int = 0
+    """Año de alta del suministro. Único apoyo del export para la proyección."""
 
 
 @dataclass(frozen=True)
@@ -146,6 +158,50 @@ class FeederModel:
     # 22,9 kV— y hay una fuente por alimentador en lugar de una sola. Va en un campo
     # aparte para que un modelo de un alimentador siga siendo idéntico a lo que era.
     combined: object | None = None
+
+
+#: Código de fase de CYMDIST → letras. **No es una máscara de bits**: el 7 no es
+#: «1|2|4», es el séptimo valor de una enumeración. Tratarlo como máscara da ABC para
+#: el 7 por casualidad y disparates para el 4, el 5 y el 6.
+#:
+#: Vive aquí, y no en el lector de Access, porque las dos vías de entrada —el TXT y la
+#: base— traen el mismo código y deben decodificarlo igual. Tenerlo en un solo sitio es
+#: lo que evita que una de las dos se desvíe sin que nadie lo note.
+PHASE_CODES = {1: 'A', 2: 'B', 3: 'C', 4: 'AB', 5: 'AC', 6: 'BC', 7: 'ABC'}
+
+#: Orden de fases de PowerFactory: r, s, t ≙ A, B, C.
+FASES_PF = ('A', 'B', 'C')
+
+
+def decode_phase(code) -> str:
+    """Código de fase de CYMDIST → las letras que usa el resto del motor.
+
+    Acepta ya el resultado decodificado ('ABC') para que dé igual si el dato viene del
+    TXT en crudo o de una capa que ya lo tradujo.
+    """
+    if isinstance(code, str):
+        limpio = code.strip().upper()
+        if limpio in set(PHASE_CODES.values()):
+            return limpio
+    try:
+        return PHASE_CODES.get(int(code), '')
+    except (TypeError, ValueError):
+        return ''
+
+
+def split_by_phase(total: float, phase: str) -> tuple[float, float, float]:
+    """Reparte una potencia entre las fases (r, s, t) que la carga de verdad ocupa.
+
+    Una carga monofásica escrita como trifásica equilibrada reparte su corriente entre
+    tres conductores en lugar de uno: subestima la caída de tensión de ese ramal y borra
+    el desequilibrio, que es justo uno de los parámetros que el TdR del VAD manda
+    evaluar. Con fase desconocida se reparte entre las tres, que es lo que se venía
+    haciendo para todo.
+    """
+    letras = decode_phase(phase) or 'ABC'
+    activas = [f for f in FASES_PF if f in letras] or list(FASES_PF)
+    por_fase = total / len(activas)
+    return tuple(por_fase if f in activas else 0.0 for f in FASES_PF)  # type: ignore[return-value]
 
 
 def _float(value: str | None, default: float = 0.0) -> float:
@@ -885,6 +941,9 @@ def build_feeder_model(
             phase=row.get('Phase', ''),
             sed_code=sed_code,
             display_name=display[:40],
+            customers=_int(row.get('NumberOfCustomer')),
+            customer_type=(row.get('CustomerType') or '').strip()[:20],
+            year=_int(row.get('Year')),
         ))
 
     loads = _assign_load_display_names(loads)

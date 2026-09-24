@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 import math
 
-from .model import FeederModel, Line, Sed
+from .model import FeederModel, Line, Sed, decode_phase, split_by_phase
 from .schema import DgsSchema, load_schema
 from .geography import GeographyManifest, GeoPoint
 
@@ -793,11 +793,31 @@ def write_dgs(
         apparent = math.hypot(load.p_mw, load.q_mvar)
         name = load.display_name or load.customer_number or load.device_number or load.section_id
         fold = sed_fids[key] if key in nested_load_keys else network_fid
+        # Fases reales de la carga. Escribir una monofásica como trifásica equilibrada
+        # reparte su corriente entre tres conductores en lugar de uno: subestima la
+        # caída de tensión de ese ramal y borra el desequilibrio, que el TdR del VAD
+        # manda evaluar. i_sym=0 le dice a PowerFactory que use plinir/plinis/plinit.
+        letras = decode_phase(load.phase) or 'ABC'
+        pr, ps, pt = split_by_phase(load.p_mw, load.phase)
+        qr, qs, qt = split_by_phase(load.q_mvar, load.phase)
         rows['ElmLod'].append(_make_row(
             schema, 'ElmLod', FID=load_fids[key], OP='C', loc_name=_loc_name(name),
             fold_id=fold, typ_id='', mode_inp='PC', slini=apparent,
             plini=load.p_mw, qlini=load.q_mvar, coslini=load.pf,
-            pf_recap=0, scale0=1, i_scale=1, outserv=fuera(load.node_id), classif='',
+            pf_recap=0, scale0=1, i_scale=1, outserv=fuera(load.node_id),
+            classif=_loc_name(load.customer_type)[:20],
+            # Denominador de SAIFI y SAIDI: los índices de la NTCSE se ponderan por
+            # cliente. Sin esto el análisis de fiabilidad calcula otra cosa.
+            #
+            # Se escribe SOLO si hay dato. PowerFactory exige NrCust > 0 y rechaza el
+            # cero con «Condition for Variable NrCust violated»: mandar cero producía
+            # 545 errores de importación en un solo alimentador y, peor, PowerFactory
+            # se quedaba con su valor por defecto de 1 sin que el recuento lo dijera.
+            # En blanco se aplica ese mismo defecto, pero sin ensuciar el registro.
+            NrCust=load.customers if load.customers > 0 else '',
+            i_sym=1 if letras == 'ABC' else 0,
+            plinir=pr, plinis=ps, plinit=pt,
+            qlinir=qr, qlinis=qs, qlinit=qt,
         ))
 
     # Una red unida tiene una fuente por alimentador: cada uno viene de su propia barra

@@ -68,15 +68,9 @@ _SWITCH_LOCATION = {1: 'S', 2: 'L'}      # el TXT usa 'S'=lado fuente, 'L'=lado 
 # escribe 'ABC'. No es una máscara de bits (3 es 'C', no 'A+B'), sino una enumeración
 # de las siete combinaciones posibles. Comprobado tramo a tramo contra un export real:
 # 0 discrepancias en 38.657 tramos.
-PHASE_CODES = {1: 'A', 2: 'B', 3: 'C', 4: 'AB', 5: 'AC', 6: 'BC', 7: 'ABC'}
-
-
-def _phase(code: Any) -> str:
-    """Código de fase de CYMDIST → las letras que usa el resto del motor."""
-    try:
-        return PHASE_CODES.get(int(code), '')
-    except (TypeError, ValueError):
-        return ''
+# La decodificación vive en model.py: el TXT y esta base traen el mismo código y deben
+# traducirlo igual. Se reexporta el nombre para no romper a quien ya lo importaba de aquí.
+from .model import PHASE_CODES, decode_phase as _phase  # noqa: F401
 
 
 class AccessReadError(RuntimeError):

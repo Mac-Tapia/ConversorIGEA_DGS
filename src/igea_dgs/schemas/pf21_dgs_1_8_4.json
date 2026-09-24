@@ -10,7 +10,7 @@
     "ElmFeeder": "$$ElmFeeder;FID(a:40);OP(a:1);loc_name(a:40);obj_id(p);iorient(i);i_scale(i);Sset(r);icolor(i);outserv(i)",
     "ElmGenstat": "$$ElmGenstat;FID(a:40);OP(a:1);loc_name(a:40);fold_id(p);outserv(i);sgn(r);cosn(r);cCategory(a);av_mode(a);mode_inp(a:3);pgini(r);qgini(r);sgini(r);cosgini(r);pf_recap(i);phtech(i);ngnum(i);ip_ctrl(i);usetp(r);phiini(r);Kpf(r);scale0(r)",
     "ElmLne": "$$ElmLne;FID(a:40);OP(a:1);loc_name(a:40);fold_id(p);typ_id(p);dline(r);fline(r);GPScoords:MATRIX;nlnum(i);inAir(i)",
-    "ElmLod": "$$ElmLod;FID(a:40);OP(a:1);loc_name(a:40);fold_id(p);typ_id(p);mode_inp(a:3);slini(r);plini(r);qlini(r);coslini(r);pf_recap(i);scale0(r);i_scale(i);outserv(i);classif(a:20)",
+    "ElmLod": "$$ElmLod;FID(a:40);OP(a:1);loc_name(a:40);fold_id(p);typ_id(p);mode_inp(a:3);slini(r);plini(r);qlini(r);coslini(r);pf_recap(i);scale0(r);i_scale(i);outserv(i);classif(a:20);NrCust(i);i_sym(i);plinir(r);plinis(r);plinit(r);qlinir(r);qlinis(r);qlinit(r)",
     "ElmNet": "$$ElmNet;FID(a:40);OP(a:1);loc_name(a:40);fold_id(p);frnom(r);pDiagram(p)",
     "ElmShnt": "$$ElmShnt;FID(a:40);OP(a:1);loc_name(a:40);fold_id(p);systp(i);ctech(i);shtype(i);ushnm(r);mode_inp(a:3);qcapn(r);ncapx(i);ncapa(i);outserv(i);qrean(r);qtotn(r);tandc(r);fres(r);greaf0(r);grea(r);bcap(r);xrea(r);rrea(r);gparac(r);iswitch(i);imldc(a:2);usetp_mx(r);usetp_mn(r);qsetp_mx(r);qsetp_mn(r);iQorient(i);ilcph(i)",
     "ElmSubstat": "$$ElmSubstat;FID(a:40);OP(a:1);loc_name(a:40);fold_id(p);sShort(a:6);sType(a:80);GPSlat(r);GPSlon(r)",
