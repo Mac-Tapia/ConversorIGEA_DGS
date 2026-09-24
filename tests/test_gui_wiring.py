@@ -165,6 +165,9 @@ MODULOS_DE_CARGAS = (
     ('create_one_btn', '_create_single_load'),
     ('catalog_build_btn', '_build_catalog'),
     ('catalog_apply_btn', '_apply_catalog'),
+    ('grid_btn', '_build_system_grid'),
+    ('anio0_btn', '_run_base_scenario'),
+    ('datos_btn', '_missing_data'),
 )
 
 
@@ -253,3 +256,45 @@ def test_el_apply_catalog_no_reimplementa_la_correccion():
     assert 'aplicar_correcciones' in cuerpo
     for prohibido in ('aaac_r20_ohm_km', 'replace(', 'r1_ohm_km ='):
         assert prohibido not in cuerpo, f'la GUI no debe calcular {prohibido}'
+
+
+# ---------------------------------------------------------------------------
+# Sistema completo: los 96 alimentadores en una sola red
+# ---------------------------------------------------------------------------
+
+def test_los_botones_de_sistema_llaman_a_los_guiones_correctos():
+    """Cada botón debe lanzar SU guion; cruzarlos daría un resultado plausible y falso."""
+    source = _gui_source()
+    grid = source.split('def _build_system_grid')[1].split('\n    def ')[0]
+    assert "'build_system_grid.py'" in grid
+
+    anio0 = source.split('def _run_base_scenario')[1].split('\n    def ')[0]
+    assert "'base_scenario.py'" in anio0
+    assert "'--solo-datos'" not in anio0, 'el año 0 completo NO es solo el informe de datos'
+
+    datos = source.split('def _missing_data')[1].split('\n    def ')[0]
+    assert "'--solo-datos'" in datos, 'este botón no debe tocar DigSILENT'
+
+
+def test_los_guiones_que_lanza_la_interfaz_existen():
+    raiz = GUI_SOURCE.resolve().parents[2]
+    for guion in ('build_system_grid.py', 'base_scenario.py', 'apply_sed_loads.py',
+                  'create_sed_loads.py', 'run_one_study.py'):
+        assert (raiz / 'tools' / guion).is_file(), guion
+
+
+def test_la_entrada_se_lee_de_los_mismos_campos_que_la_conversion():
+    """Si la interfaz tuviera una segunda idea de dónde están los ficheros, divergirían."""
+    source = _gui_source()
+    cuerpo = source.split('def _entradas_para_guion')[1].split('\n    def ')[0]
+    for campo in ('self.input_mode', 'self.mdb', 'self.red', 'self.loads',
+                  'self.equipment'):
+        assert campo in cuerpo, campo
+
+
+def test_las_operaciones_largas_van_en_subproceso_y_no_bloquean_la_ventana():
+    source = _gui_source()
+    cuerpo = source.split('def _lanzar_guion')[1].split('\n    def ')[0]
+    assert 'threading.Thread' in cuerpo
+    assert 'subprocess.run' in cuerpo
+    assert 'self._set_busy(True)' in cuerpo

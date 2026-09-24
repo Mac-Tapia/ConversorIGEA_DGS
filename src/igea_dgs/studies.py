@@ -122,10 +122,12 @@ _TASAS_FALLA = Entrada(
 )
 
 _CLIENTES = Entrada(
-    'Número de clientes por SED', PARCIAL,
-    'NumberOfCustomer está en [CUSTOMER LOADS] del CARGA y el conversor no lo lee.',
-    'SAIFI y SAIDI se ponderan por cliente. Sin el denominador no son los índices de '
-    'la NTCSE, son otra cosa.',
+    'Número de clientes por SED', DISPONIBLE,
+    'NumberOfCustomer de [CUSTOMER LOADS]: 294.137 suministros en el export. El '
+    'conversor ya lo lee y lo escribe en ElmLod.NrCust.',
+    'Nada: el dato llega. SAIFI y SAIDI se ponderan por cliente, y el denominador '
+    'está puesto. Las cargas sin el dato quedan con el valor por defecto de '
+    'PowerFactory, que exige NrCust > 0 y rechaza el cero.',
 )
 
 _TIEMPOS_MANIOBRA = Entrada(
@@ -136,9 +138,12 @@ _TIEMPOS_MANIOBRA = Entrada(
 
 _ENERGIA = Entrada(
     'Energía anual por suministro (kWh)', PARCIAL,
-    'KWH está en [CUSTOMER LOADS] y el conversor lo lee, pero no lo escribe al DGS.',
-    'Sin energía no hay factor de carga ni factor de pérdidas: las pérdidas anuales '
-    'habría que estimarlas con un factor típico en lugar de medirlas.',
+    'KWH de [CUSTOMER LOADS]: 80.480.042 kWh en el export, y el conversor lo lee. NO '
+    'se escribe al DGS porque ElmLod no tiene ningún atributo de energía anual —'
+    'comprobado en datascheme.db de PowerFactory 2024, sus 105 atributos—, y no se '
+    'fuerza en un campo que signifique otra cosa.',
+    'El dato está en el modelo; lo que falta es usarlo para el factor de carga y el '
+    'factor de pérdidas, que es para lo que el PIDE lo necesita.',
 )
 
 _PERFILES = Entrada(
@@ -196,9 +201,10 @@ _ESPECTROS = Entrada(
 
 _FASES = Entrada(
     'Reparto real de cargas por fase', DISPONIBLE,
-    'El campo Phase de [CUSTOMER LOADS] y de [SECTION] trae la fase de cada elemento.',
-    'Nada: el dato está. Falta que el conversor lo escriba, porque hoy ElmLod no lleva '
-    'la fase (defecto C-04 del diagnóstico).',
+    'El campo Phase de [CUSTOMER LOADS] y de [SECTION], que el conversor decodifica y '
+    'escribe en plinir/plinis/plinit y qlinir/qlinis/qlinit de ElmLod.',
+    'Nada: el dato llega. Queda por ajustar la tecnología de fase del ElmLod (phtech) '
+    'para que el flujo desequilibrado use las potencias por fase en lugar de la total.',
 )
 
 
@@ -407,12 +413,13 @@ def auditar_datos(dataset: Any, modelos: Iterable[Any] = ()) -> AuditoriaDatos:
         pct = con_energia / aud.cargas_totales * 100.0
         aud.hallazgos.append(
             f'Energía por suministro (KWH): {con_energia:,} de {aud.cargas_totales:,} '
-            f'cargas ({pct:.0f} %), {energia:,.0f} kWh. El conversor la lee y NO la '
-            f'escribe al DGS; es la base del factor de carga y de la proyección.'
+            f'cargas ({pct:.0f} %), {energia:,.0f} kWh. El conversor la lee; no se '
+            f'escribe al DGS porque ElmLod no tiene atributo de energía anual. Es la '
+            f'base del factor de carga y de la proyección.'
         )
         aud.hallazgos.append(
-            f'Número de clientes: {clientes:,} en {con_clientes:,} cargas. El conversor '
-            f'NO lee este campo, y es el denominador de SAIFI y SAIDI.'
+            f'Número de clientes: {clientes:,} en {con_clientes:,} cargas. Llegan a '
+            f'ElmLod.NrCust, que es el denominador de SAIFI y SAIDI.'
         )
 
     tablas = getattr(dataset, 'equipment_tables', None) or {}
