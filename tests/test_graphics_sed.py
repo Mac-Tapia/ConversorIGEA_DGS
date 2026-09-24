@@ -168,34 +168,65 @@ def test_adaptive_scale_matches_na205_units_per_meter():
     assert scale == NA205_DIAGRAM_UNITS_PER_METER
 
 
-def test_adaptive_scale_shrinks_oversized_feeders_to_na205_sheet():
-    # Span 100 km would exceed NA205 canvas at 2.08 u/m → fit with symbol margin.
-    from igea_dgs.dgs import DIAGRAM_SHEET_MARGIN_DU
+def test_una_red_grande_conserva_la_escala_y_agranda_la_hoja():
+    """Lo contrario de lo que se hacía antes, y el motivo del cambio.
 
+    La hoja de NA205 medía 55.000 unidades y se tomó como si fuera el lienzo máximo de
+    DigSILENT. No lo es: es el tamaño que medía ese diagrama. Usarlo como tope obligaba
+    a encoger la escala, y como los símbolos se miden en unidades de diagrama y no en
+    metros, encoger la escala los agranda sobre el terreno.
+
+    Medido en la red unida de los 96 alimentadores: 320 km de extensión, escala
+    aplastada de 2,08 a 0,171 u/m, y cada triángulo de SED pasando de cubrir 2,4 m a
+    cubrir 29,2. Con 7.282 SED el mapa quedaba ilegible. Y de paso el validador
+    rechazaba 7 alimentadores que por sí solos pasan de 26 km.
+    """
     meter_xy = {
         'A': (0.0, 0.0),
         'B': (100_000.0, 0.0),
     }
-    scale = _adaptive_scale(meter_xy, set(meter_xy))
-    usable = NA205_MAX_DIAGRAM_EXTENT - 2.0 * DIAGRAM_SHEET_MARGIN_DU
-    assert scale == pytest.approx(usable / 100_000.0)
-    assert scale < NA205_DIAGRAM_UNITS_PER_METER
+    assert _adaptive_scale(meter_xy, set(meter_xy)) == NA205_DIAGRAM_UNITS_PER_METER
 
 
-def test_adaptive_scale_includes_intermediate_vertices():
-    """Intermediate GIS vertices outside the bus bbox must shrink the sheet."""
-    from igea_dgs.dgs import DIAGRAM_SHEET_MARGIN_DU
+def test_solo_se_encoge_ante_coordenadas_imposibles():
+    """El tope que queda es una red de seguridad, no un criterio de dibujo.
 
-    meter_xy = {
-        'A': (0.0, 0.0),
-        'B': (100.0, 0.0),
-    }
-    # Far intermediate vertex would overflow NA205 sheet at full scale.
-    extras = [(80_000.0, 0.0)]
-    scale = _adaptive_scale(meter_xy, set(meter_xy), extra_points=extras)
-    usable = NA205_MAX_DIAGRAM_EXTENT - 2.0 * DIAGRAM_SHEET_MARGIN_DU
-    assert scale == pytest.approx(usable / 80_000.0)
-    assert scale < NA205_DIAGRAM_UNITS_PER_METER
+    Una extensión de miles de kilómetros en una red de distribución significa
+    coordenadas corruptas —un CRS equivocado multiplica las distancias—, y ahí sí
+    conviene encoger para que el diagrama salga y se vea que algo va mal.
+    """
+    from igea_dgs.dgs import MAX_DIAGRAM_EXTENT_ABSOLUTO
+
+    meter_xy = {'A': (0.0, 0.0), 'B': (5_000_000.0, 0.0)}
+    escala = _adaptive_scale(meter_xy, set(meter_xy))
+    assert escala < NA205_DIAGRAM_UNITS_PER_METER
+    assert 5_000_000.0 * escala <= MAX_DIAGRAM_EXTENT_ABSOLUTO * 1.02
+
+
+def test_los_vertices_intermedios_cuentan_para_la_hoja():
+    """Un vértice del GIS fuera del rectángulo de las barras también hay que dibujarlo.
+
+    La hoja se calcula sobre la traza completa, no solo sobre las barras eléctricas: si
+    un tramo da un rodeo de 80 km, ese rodeo tiene que caber. Lo que se comprueba aquí
+    es que los puntos intermedios entran en el cálculo; ya no que encojan la escala,
+    porque ahora lo que crece es la hoja.
+    """
+    from igea_dgs.dgs import DIAGRAM_SHEET_MARGIN_DU, MAX_DIAGRAM_EXTENT_ABSOLUTO
+
+    meter_xy = {'A': (0.0, 0.0), 'B': (100.0, 0.0)}
+    lejano = 80_000.0
+    escala = _adaptive_scale(meter_xy, set(meter_xy), extra_points=[(lejano, 0.0)])
+    # A escala de referencia la hoja cabe de sobra, así que no se encoge nada.
+    assert escala == NA205_DIAGRAM_UNITS_PER_METER
+    assert lejano * escala + 2.0 * DIAGRAM_SHEET_MARGIN_DU <= MAX_DIAGRAM_EXTENT_ABSOLUTO
+
+    # Con un tope pequeño se ve que el vértice lejano SÍ entra en el cálculo: sin él,
+    # la extensión sería de 100 m y no haría falta encoger.
+    apretado = _adaptive_scale(
+        meter_xy, set(meter_xy), extra_points=[(lejano, 0.0)], max_extent=55_000.0)
+    assert apretado < NA205_DIAGRAM_UNITS_PER_METER
+    sin_vertice = _adaptive_scale(meter_xy, set(meter_xy), max_extent=55_000.0)
+    assert sin_vertice == NA205_DIAGRAM_UNITS_PER_METER
 
 
 def test_radial_offsets_spread_shared_node_loads():

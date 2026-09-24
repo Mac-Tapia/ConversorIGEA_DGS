@@ -50,6 +50,7 @@ from igea_dgs.combine import build_combined  # noqa: E402
 from igea_dgs.dgs import write_dgs  # noqa: E402
 from igea_dgs.studies import (  # noqa: E402
     ESTUDIOS,
+    PESADO,
     auditar_datos,
     datos_que_faltan,
     entradas_por_nombre,
@@ -142,173 +143,76 @@ def informe_de_datos(dataset) -> dict:
 # PowerFactory
 # --------------------------------------------------------------------------------
 
-def _conectar():
-    pf = Path(r'C:\Program Files\DIgSILENT\PowerFactory 2024\Python\3.12')
-    if sys.version_info[:2] != (3, 12):
-        raise RuntimeError(
-            f'Intérprete {sys.version_info.major}.{sys.version_info.minor}; la API pide '
-            '3.12. Use .venv\\Scripts\\python.exe, que es el entorno del proyecto.')
-    sys.path.insert(0, str(pf))
-    import powerfactory  # type: ignore
-
-    app = powerfactory.GetApplication()
-    if app is None:
-        raise RuntimeError('PowerFactory no respondió. ¿Abierto en otra sesión?')
-    return app
+GUION_TRABAJADOR = Path(__file__).resolve().parent / 'run_one_study.py'
 
 
-def preparar_caso_base(app, nombre_proyecto: str) -> dict:
-    """Crea el caso de estudio y el escenario de operación del año 0.
+def _trabajador(argumentos: list[str], *, limite_s: float) -> dict:
+    """Lanza el trabajador de PowerFactory y devuelve su JSON.
 
-    PowerFactory organiza un plan multianual con **Study Cases** y **Operation
-    Scenarios** (manual cap. 12 y 15): el caso fija qué se calcula y el escenario fija
-    el estado de la red —cargas, maniobras, tomas— de ese año. Dejar el año 0 con su
-    caso y su escenario propios es lo que permite que el año 4 sea una copia con otra
-    demanda en lugar de otro proyecto entero.
+    El orquestador **no toca la API**. PowerFactory solo admite un proceso con el motor
+    a la vez: mientras este mantenía la conexión para importar, cada estudio lanzado
+    como hijo recibía «PowerFactory no respondió» y el informe salía entero en blanco.
     """
-    proyecto = app.GetActiveProject()
-    casos = proyecto.GetContents('*.IntCase', 1)
-    caso = next((c for c in casos if c.loc_name == CASO_BASE), None)
-    if caso is None and casos:
-        caso = casos[0]
-        caso.loc_name = CASO_BASE
-    if caso is not None:
-        caso.Activate()
+    import subprocess
 
-    escenario = None
+    orden = [sys.executable, str(GUION_TRABAJADOR)] + argumentos
     try:
-        carpeta = app.GetProjectFolder('scen')
-        if carpeta is not None:
-            existentes = carpeta.GetContents(f'{ESCENARIO_BASE}.IntScenario')
-            escenario = existentes[0] if existentes else carpeta.CreateObject(
-                'IntScenario', ESCENARIO_BASE)
-            if escenario is not None:
-                escenario.Activate()
-    except Exception as exc:  # noqa: BLE001 - la API varía entre versiones
-        print(f'  aviso: no se pudo crear el escenario de operación ({exc})')
+        proc = subprocess.run(
+            orden, capture_output=True, text=True, timeout=limite_s, check=False,
+            encoding='utf-8', errors='replace',
+        )
+    except subprocess.TimeoutExpired:
+        return {'ok': False, 'agotado': True,
+                'motivo': f'superó el límite de {limite_s:.0f} s'}
+    lineas = [x for x in (proc.stdout or '').strip().splitlines() if x.startswith('{')]
+    if not lineas:
+        detalle = ((proc.stderr or '') + (proc.stdout or '')).strip()[-200:]
+        return {'ok': False, 'motivo': f'sin respuesta del trabajador: {detalle}'}
+    try:
+        return json.loads(lineas[-1])
+    except json.JSONDecodeError as exc:
+        return {'ok': False, 'motivo': f'salida ilegible: {exc}'}
 
-    return {
-        'caso': caso.loc_name if caso is not None else None,
-        'escenario': escenario.loc_name if escenario is not None else None,
-    }
 
+def ejecutar_estudios(
+    proyecto: str, *, incluir_pesados: bool, limite_s: float, saltar: set[str],
+) -> list[dict]:
+    """Ejecuta cada módulo en su propio proceso, con presupuesto de tiempo.
 
-def medir_estado_base(app, *, muestra: int = 6000) -> dict:
-    """Las cifras que definen si el año 0 es utilizable.
+    ``Execute()`` es bloqueante y no se puede interrumpir desde el mismo hilo. Aislarlo
+    es lo que permite ponerle límite: si el análisis de contingencias sobre 53.000
+    barras no termina, cuesta ese estudio y no el informe entero. Antes, un cuelgue de
+    más de una hora se llevó por delante todo lo que faltaba.
 
-    Se muestrea. Cada ``GetAttribute`` es una llamada a la API y cuesta del orden de
-    diez milisegundos: recorrer las 53.000 barras y los 38.000 tramos son más de
-    130.000 llamadas y unos veinte minutos, para responder a una pregunta que una
-    muestra de seis mil contesta con holgura. Lo que no se muestrea es lo que tiene que
-    ser exacto —el recuento de elementos y las pérdidas totales, que PowerFactory ya
-    agrega por su cuenta—.
+    Que un estudio agote el presupuesto **es un resultado**, no un fallo del programa:
+    un cálculo que no cabe en un tiempo razonable no sirve para un ciclo de
+    planificación, y el informe lo dice con el número delante.
     """
-    import random
-
-    barras = app.GetCalcRelevantObjects('ElmTerm')
-    lineas = app.GetCalcRelevantObjects('ElmLne')
-    cargas = app.GetCalcRelevantObjects('ElmLod')
-
-    rnd = random.Random(0)
-    m_barras = rnd.sample(barras, min(muestra, len(barras)))
-    m_lineas = rnd.sample(lineas, min(muestra, len(lineas)))
-
-    tensiones, sin_resultado = [], 0
-    for b in m_barras:
-        if not b.HasResults():
-            sin_resultado += 1
-            continue
-        u = b.GetAttribute('m:u')
-        if u is None:
-            sin_resultado += 1
-        else:
-            tensiones.append(u)
-
-    carga_pct = []
-    for ln in m_lineas:
-        if not ln.HasResults():
-            continue
-        try:
-            v = ln.GetAttribute('c:loading')
-            if v is not None:
-                carga_pct.append(v)
-        except Exception:  # noqa: BLE001
-            pass
-
-    # Pérdidas totales: las agrega la propia red, sin recorrer tramo a tramo.
-    perdidas_kw = 0.0
-    for red in app.GetCalcRelevantObjects('ElmNet'):
-        for atributo in ('c:LossP', 'c:losses'):
-            try:
-                v = red.GetAttribute(atributo)
-                if v:
-                    perdidas_kw += v * (1000.0 if atributo == 'c:LossP' else 1.0)
-                    break
-            except Exception:  # noqa: BLE001
-                continue
-
-    p_total = 0.0
-    for c in cargas:
-        try:
-            if not c.GetAttribute('outserv'):
-                p_total += (c.GetAttribute('plini') or 0.0)
-        except Exception:  # noqa: BLE001
-            pass
-
-    tensiones.sort()
-    n = len(tensiones)
-    escala = len(barras) / len(m_barras) if m_barras else 1.0
-    return {
-        'barras': len(barras),
-        'barras_muestreadas': len(m_barras),
-        'barras_sin_resultado_muestra': sin_resultado,
-        'tension_min': tensiones[0] if n else None,
-        'tension_p5': tensiones[n // 20] if n else None,
-        'tension_mediana': tensiones[n // 2] if n else None,
-        'tension_max': tensiones[-1] if n else None,
-        'pct_bajo_095': (sum(1 for u in tensiones if u < LIMITE_TENSION_MIN) / n * 100.0) if n else None,
-        'pct_bajo_094': (sum(1 for u in tensiones if u < LIMITE_TENSION_RURAL) / n * 100.0) if n else None,
-        'pct_sobre_105': (sum(1 for u in tensiones if u > LIMITE_TENSION_MAX) / n * 100.0) if n else None,
-        'barras_bajo_095_estimadas': round(sum(1 for u in tensiones if u < LIMITE_TENSION_MIN) * escala),
-        'tramos': len(lineas),
-        'tramos_muestreados': len(m_lineas),
-        'pct_sobre_80': (sum(1 for x in carga_pct if x > LIMITE_CARGABILIDAD) / len(carga_pct) * 100.0) if carga_pct else None,
-        'cargabilidad_max_muestra': max(carga_pct) if carga_pct else None,
-        'perdidas_kw': perdidas_kw,
-        'demanda_mw': p_total,
-        'perdidas_pct': (perdidas_kw / 1000.0 / p_total * 100.0) if p_total else None,
-    }
-
-
-def ejecutar_estudios(app, *, saltar: set[str]) -> list[dict]:
-    """Ejecuta cada módulo y anota si corrió y si el resultado es defendible."""
-    resultados = []
+    resultados: list[dict] = []
     for estudio in ESTUDIOS:
         if estudio.clave in saltar:
             continue
         fila = {
-            'clave': estudio.clave,
-            'nombre': estudio.nombre,
-            'clase_pf': estudio.clase_pf,
-            'capitulo': estudio.capitulo,
-            'defendible': estudio.defendible,
+            'clave': estudio.clave, 'nombre': estudio.nombre,
+            'clase_pf': estudio.clase_pf, 'capitulo': estudio.capitulo,
+            'coste': estudio.coste, 'defendible': estudio.defendible,
             'le_falta': [e.nombre for e in estudio.bloqueantes],
         }
-        try:
-            orden = app.GetFromStudyCase(estudio.clase_pf)
-            if orden is None or orden.GetClassName() != estudio.clase_pf:
-                fila.update(ejecutado=False, motivo='la clase no existe en esta versión')
-                resultados.append(fila)
-                continue
-            if estudio.clave == 'flujo_desequilibrado':
-                orden.SetAttribute('iopt_net', 1)
-            t0 = time.perf_counter()
-            rc = orden.Execute()
-            fila.update(ejecutado=True, rc=rc, segundos=round(time.perf_counter() - t0, 2))
-            if estudio.clave == 'flujo_desequilibrado':
-                orden.SetAttribute('iopt_net', 0)
-        except Exception as exc:  # noqa: BLE001
-            fila.update(ejecutado=False, motivo=str(exc)[:160])
+        if estudio.coste == PESADO and not incluir_pesados:
+            fila.update(ejecutado=False, motivo='pesado; use --pesados')
+            resultados.append(fila)
+            continue
+
+        argumentos = ['--project', proyecto, '--clase', estudio.clase_pf]
+        if estudio.clave == 'flujo_desequilibrado':
+            argumentos.append('--desequilibrado')
+        presupuesto = limite_s if estudio.coste == PESADO else max(limite_s, 180.0)
+        datos = _trabajador(argumentos, limite_s=presupuesto)
+        fila.update(
+            ejecutado=bool(datos.get('ok')),
+            **{k: v for k, v in datos.items()
+               if k in ('rc', 'segundos', 'errores', 'motivo', 'agotado')},
+        )
         resultados.append(fila)
     return resultados
 
@@ -329,6 +233,13 @@ def main(argv: list[str] | None = None) -> int:
                    help='Solo auditar el export y listar lo que falta. No usa PowerFactory.')
     p.add_argument('--sin-estudios', action='store_true',
                    help='Construir y hacer converger, sin ejecutar los demás módulos.')
+    p.add_argument('--pesados', action='store_true',
+                   help='Incluir los estudios que resuelven la red muchas veces '
+                        '(N-1, fiabilidad, optimizaciones). Pueden tardar mucho.')
+    p.add_argument('--limite-importacion', type=float, default=1800.0,
+                   help='Presupuesto para importar y hacer converger el año 0.')
+    p.add_argument('--limite-segundos', type=float, default=300.0,
+                   help='Presupuesto por estudio. Al agotarse se pasa al siguiente.')
     args = p.parse_args(argv)
 
     if not args.mdb and not (args.red and args.cargas and args.equipos):
@@ -364,26 +275,22 @@ def main(argv: list[str] | None = None) -> int:
     write_dgs(modelo, dgs, geography=geografia)
     print(f'\nDGS: {dgs}  ({dgs.stat().st_size / 1e6:.1f} MB)')
 
-    try:
-        app = _conectar()
-    except RuntimeError as exc:
-        print(str(exc), file=sys.stderr)
+    print(f'\nImportando y haciendo converger como «{args.nombre}»…')
+    datos = _trabajador(
+        ['--project', args.nombre, '--importar', str(dgs.resolve()),
+         '--caso', CASO_BASE, '--escenario', ESCENARIO_BASE],
+        limite_s=args.limite_importacion,
+    )
+    if not datos.get('ok'):
+        print(f'No se pudo preparar el año 0: {datos.get("motivo")}', file=sys.stderr)
         return 3
-
-    from powerfactory_acceptance import import_dgs_file, run_load_flow_until_converged
-
-    print(f'\nImportando como «{args.nombre}»…')
-    import_dgs_file(app, dgs.resolve(), project_name=args.nombre)
-    caso = preparar_caso_base(app, args.nombre)
-    print(f'Caso de estudio: {caso["caso"]}   escenario: {caso["escenario"]}')
-
-    print('\nFlujo de potencia del año 0…')
-    flujo = run_load_flow_until_converged(app)
-    if not flujo.get('pass'):
+    if not datos.get('converge'):
         print('El año 0 NO converge. No se ejecutan los demás estudios.', file=sys.stderr)
         return 5
+    caso = {'caso': datos.get('caso'), 'escenario': datos.get('escenario')}
+    estado = datos['estado']
+    print(f'Caso de estudio: {caso["caso"]}   escenario: {caso["escenario"]}')
 
-    estado = medir_estado_base(app)
     print()
     print('=' * 78)
     print('ESTADO DEL AÑO 0')
@@ -406,6 +313,8 @@ def main(argv: list[str] | None = None) -> int:
     if estado['perdidas_pct'] is not None:
         print(f'  Pérdidas en líneas MT   : {estado["perdidas_kw"]:,.1f} kW  '
               f'({estado["perdidas_pct"]:.2f} % de la demanda)')
+    print(f'  Clientes en el modelo   : {estado.get("clientes_en_el_modelo", 0):,}  '
+          f'(denominador de SAIFI y SAIDI)')
 
     estudios = []
     if not args.sin_estudios:
@@ -413,16 +322,25 @@ def main(argv: list[str] | None = None) -> int:
         print('=' * 78)
         print('ESTUDIOS DEL MÓDULO DE DIGSILENT')
         print('=' * 78)
-        estudios = ejecutar_estudios(app, saltar={'flujo'})
+        print(f'Cada estudio corre en su propio proceso, con {args.limite_segundos:.0f} s '
+              f'de presupuesto.')
+        if not args.pesados:
+            print('Los que resuelven la red muchas veces quedan fuera; use --pesados.')
+        print()
+        estudios = ejecutar_estudios(
+            args.nombre, incluir_pesados=args.pesados,
+            limite_s=args.limite_segundos, saltar={'flujo'})
         for f in estudios:
-            if not f.get('ejecutado'):
-                marca, detalle = 'NO CORRE ', f.get('motivo', '')
+            if f.get('agotado'):
+                marca, detalle = 'SIN TIEMPO', f.get('motivo', '')
+            elif not f.get('ejecutado'):
+                marca, detalle = 'NO CORRE  ', f.get('motivo', '')
             elif f.get('rc') != 0:
-                marca, detalle = 'rc!=0    ', f'código {f.get("rc")}'
+                marca, detalle = 'rc!=0     ', f'código {f.get("rc")}, {f.get("segundos")} s'
             elif f['defendible']:
-                marca, detalle = 'OK       ', f'{f.get("segundos")} s'
+                marca, detalle = 'OK        ', f'{f.get("segundos")} s'
             else:
-                marca, detalle = 'SIN DATOS', 'corre, pero el resultado no significa nada'
+                marca, detalle = 'SIN DATOS ', f'{f.get("segundos")} s — corre, pero el resultado no significa nada'
             print(f'  [{marca}] {f["nombre"]:40s} {detalle}')
             if f['le_falta'] and f.get('ejecutado'):
                 print(f'             le falta: {", ".join(f["le_falta"])}')
