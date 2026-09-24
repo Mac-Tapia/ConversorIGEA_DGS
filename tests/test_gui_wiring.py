@@ -49,6 +49,30 @@ def _engine_kwargs(source: str) -> dict[str, str]:
     return dict(re.findall(r'(\w+)=self\.(\w+)\.get\(\)', block))
 
 
+@pytest.fixture(scope='module')
+def app_tk():
+    """Una sola ventana para todo el módulo.
+
+    Tk no lleva bien crear y destruir muchas raíces en un mismo proceso: a partir de
+    la tercera o cuarta falla con «tk wasn't installed properly» y la prueba se omite.
+    Una prueba que a veces no corre no protege de nada, así que se construye la ventana
+    una vez. Cada prueba que toque un campo lo fija antes de mirarlo, de modo que
+    compartir la instancia no las hace depender del orden.
+    """
+    tkinter = pytest.importorskip('tkinter')
+    try:
+        root = tkinter.Tk()
+    except tkinter.TclError as exc:
+        pytest.skip(f'Tk no disponible: {exc}')
+    from igea_dgs.gui import ConverterApp
+
+    root.withdraw()
+    app = ConverterApp(root)
+    root.update_idletasks()
+    yield app
+    root.destroy()
+
+
 def test_every_gui_field_is_wired_to_the_engine():
     source = _gui_source()
     fields = _declared_fields(source)
@@ -106,48 +130,40 @@ def test_source_crs_presets_are_all_projected_in_metres():
         assert_metre_source_crs(crs)  # lanza ValueError si no está en metros
 
 
-def test_gui_builds_with_expected_controls():
-    tkinter = pytest.importorskip('tkinter')
-    try:
-        root = tkinter.Tk()
-    except tkinter.TclError as exc:  # sin display (CI headless)
-        pytest.skip(f'Tk no disponible: {exc}')
+def test_gui_builds_with_expected_controls(app_tk):
+    """Usa la ventana compartida a propósito.
 
-    from igea_dgs.gui import ConverterApp
+    Antes creaba su propia raíz de Tk y la destruía. Tk no admite crear otra después en
+    el mismo proceso —falla con «tk wasn't installed properly»—, así que todas las
+    pruebas que vinieran detrás se omitían. Once de golpe, en silencio.
+    """
+    from tkinter import ttk
 
-    try:
-        root.withdraw()
-        app = ConverterApp(root)
-        root.update_idletasks()
+    app = app_tk
+    assert app.include_geography.get() is True, 'georreferenciación ON por defecto'
+    assert app.strict.get() is True, 'modo estricto ON por defecto'
+    assert app.source_crs.get(), 'debe haber un CRS de origen por defecto'
+    assert app._action_buttons, 'debe registrar botones para deshabilitar durante _busy'
 
-        assert app.include_geography.get() is True, 'georreferenciación ON por defecto'
-        assert app.strict.get() is True, 'modo estricto ON por defecto'
-        assert app.source_crs.get(), 'debe haber un CRS de origen por defecto'
-        assert app._action_buttons, 'debe registrar botones para deshabilitar durante _busy'
+    # _set_busy no debe lanzar y debe alternar el estado de los botones.
+    app._set_busy(True)
+    assert all(str(b.cget('state')) == 'disabled' for b in app._action_buttons)
+    app._set_busy(False)
+    assert all(str(b.cget('state')) == 'normal' for b in app._action_buttons)
 
-        # _set_busy no debe lanzar y debe alternar el estado de los botones.
-        app._set_busy(True)
-        assert all(str(b.cget('state')) == 'disabled' for b in app._action_buttons)
-        app._set_busy(False)
-        assert all(str(b.cget('state')) == 'normal' for b in app._action_buttons)
+    # El CRS de origen sigue siendo editable: cualquier EPSG métrico es válido, no solo
+    # los presets. Las unidades las verifica el motor.
+    def walk(widget, acc):
+        for child in widget.winfo_children():
+            acc.append(child)
+            walk(child, acc)
+        return acc
 
-        # El CRS de origen sigue siendo editable: cualquier EPSG métrico es válido,
-        # no solo los presets. Las unidades las verifica el motor.
-        from tkinter import ttk
-
-        def walk(widget, acc):
-            for child in widget.winfo_children():
-                acc.append(child)
-                walk(child, acc)
-            return acc
-
-        combos = [w for w in walk(root, []) if isinstance(w, ttk.Combobox)]
-        assert combos, 'debe existir el desplegable de CRS'
-        assert str(combos[0].cget('state')) != 'readonly', (
-            'el CRS de origen debe poder escribirse a mano (universalidad)'
-        )
-    finally:
-        root.destroy()
+    combos = [w for w in walk(app.root, []) if isinstance(w, ttk.Combobox)]
+    assert combos, 'debe existir el desplegable de CRS'
+    assert str(combos[0].cget('state')) != 'readonly', (
+        'el CRS de origen debe poder escribirse a mano (universalidad)'
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -324,22 +340,6 @@ def _escribir_txt(tmp_path, nombre, tablas):
     return ruta
 
 
-@pytest.fixture
-def app_tk():
-    tkinter = pytest.importorskip('tkinter')
-    try:
-        root = tkinter.Tk()
-    except tkinter.TclError as exc:
-        pytest.skip(f'Tk no disponible: {exc}')
-    from igea_dgs.gui import ConverterApp
-
-    root.withdraw()
-    app = ConverterApp(root)
-    root.update_idletasks()
-    yield app
-    root.destroy()
-
-
 @pytest.mark.parametrize('metodo,campo,tablas', [
     ('_browse_red', 'red', ['NODE', 'SECTION', 'SOURCE']),
     ('_browse_loads', 'loads', ['CUSTOMER LOADS']),
@@ -403,3 +403,78 @@ def test_las_constantes_de_tipo_estan_importadas_en_la_interfaz():
         assert hasattr(gui_mod, nombre), (
             f'gui.py usa {nombre} en los selectores de fichero pero no lo importa'
         )
+
+
+# ---------------------------------------------------------------------------
+# La ventana tiene que caber en la pantalla
+# ---------------------------------------------------------------------------
+#
+# El formulario creció hasta pasar de 1.200 píxeles de alto: entrada, salida, lista de
+# alimentadores, cuatro módulos de cargas, catálogo y sistema. En un portátil normal la
+# lista de alimentadores y el botón «Cancelar» quedaban fuera de la pantalla, y lo que
+# no se ve no existe: el operador no puede saber que hay más abajo.
+
+
+def test_el_contenido_es_mas_alto_que_una_pantalla_de_portatil(app_tk):
+    """Si algún día deja de serlo, la barra sobra; mientras tanto, hace falta."""
+    lienzo = app_tk._lienzo
+    lienzo.master.update_idletasks()
+    region = lienzo.bbox('all')
+    assert region is not None
+    alto = region[3] - region[1]
+    assert alto > 768, (
+        f'el formulario mide {alto} px; si cabe en una pantalla de portátil, '
+        'revise si la barra de desplazamiento sigue teniendo sentido'
+    )
+
+
+def test_hay_barra_de_desplazamiento_vertical(app_tk):
+    from tkinter import ttk
+
+    lienzo = app_tk._lienzo
+    barras = [w for w in lienzo.master.winfo_children()
+              if isinstance(w, ttk.Scrollbar) and str(w.cget('orient')) == 'vertical']
+    assert barras, 'sin barra vertical, lo que no cabe queda inalcanzable'
+
+
+def test_todo_el_contenido_queda_alcanzable(app_tk):
+    """La región de desplazamiento debe cubrir el formulario entero, no una parte."""
+    lienzo = app_tk._lienzo
+    lienzo.master.update_idletasks()
+    region = lienzo.bbox('all')
+    declarada = [float(x) for x in str(lienzo.cget('scrollregion')).split()]
+    assert declarada, 'el lienzo no declara región de desplazamiento'
+    assert declarada[3] >= region[3] - 1, (
+        'la región declarada se queda corta: parte del formulario no se alcanza'
+    )
+
+
+def test_el_minimo_de_ventana_cabe_en_un_portatil(app_tk):
+    ancho, alto = app_tk.root.minsize()
+    assert alto <= 600, f'un mínimo de {alto} px no cabe en una pantalla de 768'
+    assert ancho <= 800
+
+
+def test_la_ventana_no_arranca_mas_alta_que_la_pantalla(app_tk):
+    raiz = app_tk.root
+    raiz.update_idletasks()
+    alto_ventana = int(raiz.geometry().split('x')[1].split('+')[0])
+    assert alto_ventana <= raiz.winfo_screenheight(), (
+        'la ventana arranca más alta que la pantalla: parte queda fuera desde el inicio'
+    )
+
+
+def test_el_marco_interior_se_ensancha_con_la_ventana():
+    """Sin esto el contenido queda encajado a la izquierda con la ventana ancha."""
+    source = _gui_source()
+    cuerpo = source.split('def _contenedor_desplazable')[1].split('\n    def ')[0]
+    assert 'itemconfigure' in cuerpo
+    assert "width=evento.width" in cuerpo
+
+
+def test_la_rueda_no_se_apropia_del_desplazamiento_de_las_listas():
+    """La lista de alimentadores y el Registro tienen su propia barra."""
+    source = _gui_source()
+    cuerpo = source.split('def _contenedor_desplazable')[1].split('\n    def ')[0]
+    assert "bind('<Enter>'" in cuerpo and "bind('<Leave>'" in cuerpo
+    assert 'unbind_all' in cuerpo
