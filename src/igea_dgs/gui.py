@@ -30,6 +30,9 @@ from tkinter.scrolledtext import ScrolledText
 
 from .batch import STAGE_PREFIX
 from .dataset import CymdistDataset
+# Los tres papeles que puede tener un TXT del export. Se reconocen por el contenido del
+# fichero, no por su nombre (ver igea_dgs.identify).
+from .identify import CARGA, EQUIPOS, RED
 from .inventory import build_dataset_inventory, format_inventory_report, write_inventory
 from .naming import feeder_short_name, sort_key_feeder
 from . import __version__
