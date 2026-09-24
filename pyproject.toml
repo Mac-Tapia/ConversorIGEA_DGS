@@ -7,7 +7,18 @@ name = "igea-dgs"
 version = "2.1.0"
 description = "Conversor universal IGEA/CYMDIST TXT → DIgSILENT PowerFactory DGS"
 readme = "README.md"
-requires-python = ">=3.10"
+# Python 3.12 exacto, y el límite superior es tan importante como el inferior.
+#
+# «powerfactory.pyd» de PowerFactory 2024 es una extensión binaria compilada contra
+# CPython 3.12: no carga en 3.11 ni en 3.13, y falla con «DLL load failed», que no dice
+# nada de la causa. Un «>=3.12» abierto deja instalar 3.14 y rompe la integración con
+# PowerFactory, que es la razón de ser del proyecto; este repositorio tenía justamente
+# un entorno en 3.14 que no podía hablar con DIgSILENT.
+#
+# Fijarlo aquí tiene una consecuencia que compensa el encorsetamiento: con el entorno
+# en 3.12, el conversor importa «powerfactory» en su propio proceso y deja de hacer
+# falta saltar a otro intérprete para cada llamada a la API.
+requires-python = ">=3.12,<3.13"
 dependencies = []
 
 [project.optional-dependencies]

@@ -1,5 +1,11 @@
 # Desarrollo y pruebas — incluye todo lo de producción.
 #
+# El entorno de este proyecto es Python 3.12, ni más ni menos: es la versión contra la
+# que está compilado powerfactory.pyd de PowerFactory 2024. Con 3.12 el conversor habla
+# con DIgSILENT desde su propio proceso; con cualquier otra, no habla.
+#
+#   py -3.12 -m venv .venv
+#   .venv\Scriptsctivate
 #   python -m pip install -r requirements-dev.txt
 #
 # Para ejecutar la suite completa con datos reales hacen falta además las tres

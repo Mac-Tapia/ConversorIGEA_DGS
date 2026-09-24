@@ -13,8 +13,19 @@ en **PowerShell** o **CMD** de Windows. El entorno virtual es `.venv`.
 
 ## 0. Preparar el entorno (una sola vez por máquina)
 
+### El entorno es Python 3.12. Ni más, ni menos.
+
+`powerfactory.pyd`, la API de PowerFactory 2024, es una extensión binaria compilada
+contra **CPython 3.12**. No carga en 3.11 ni en 3.13, y cuando falla lo hace con
+`DLL load failed while importing powerfactory`, un mensaje que no menciona la versión de
+Python y manda a buscar un problema de DLL que no existe.
+
+Por eso `pyproject.toml` declara `requires-python = ">=3.12,<3.13"`: **el tope superior
+es parte de la restricción**, no una formalidad. Un `>=3.12` abierto deja instalar 3.14 y
+rompe la integración con DIgSILENT, que es la razón de ser del proyecto.
+
 ```bat
-> python -m venv .venv
+> py -3.12 -m venv .venv
 > .venv\Scripts\activate
 > python -m pip install -r requirements.txt
 ```
@@ -31,6 +42,21 @@ Comprobar que quedó bien instalado:
 > .venv\Scripts\python.exe -c "import igea_dgs, pyproj; print(igea_dgs.__version__)"
 2.1.0
 ```
+
+Y, lo que de verdad importa, que el entorno puede hablar con DIgSILENT **en su propio
+proceso**:
+
+```bat
+> .venv\Scripts\python.exe -c "import sys; sys.path.insert(0, r'C:\Program Files\DIgSILENT\PowerFactory 2024\Python\3.12'); import powerfactory; print('API disponible')"
+API disponible
+```
+
+Si eso funciona, el conversor no necesita saltar a otro intérprete para cada llamada a
+la API, y desaparece toda una familia de fallos.
+
+Las pruebas de `tests/test_python_version.py` lo verifican y fallan si el entorno se
+desvía: la versión del intérprete, el tope de `pyproject.toml`, el `.python-version`, y
+que el `.venv` de la raíz —si existe— sea el correcto y no uno olvidado.
 
 Si aparece `ModuleNotFoundError: pyproj`, faltan las dependencias de georreferenciación:
 repita `pip install -r requirements.txt`, o convierta con `--no-geography`.
