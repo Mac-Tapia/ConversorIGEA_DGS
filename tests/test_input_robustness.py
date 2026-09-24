@@ -35,10 +35,20 @@ class TestUnusableInputFailsLoudly:
     """Nada de «completado con 0 convertidos»."""
 
     def test_empty_red_is_rejected(self, export, tmp_path):
+        """Un RED vacío se rechaza, y el mensaje nombra el fichero.
+
+        Se comprueba el comportamiento, no la redacción: ahora falla antes, al
+        reconocer que el fichero no declara ninguna tabla de export, en lugar de
+        llegar a contar filas. Cualquiera de las dos respuestas es correcta mientras
+        sea ruidosa y diga de qué fichero habla.
+        """
         red, carga, equipo = export
         red.write_text('', encoding='utf-8')
-        with pytest.raises(ValueError, match='no contiene filas'):
+        with pytest.raises(ValueError) as excinfo:
             _load(export)
+        mensaje = str(excinfo.value)
+        assert red.name in mensaje
+        assert 'no contiene filas' in mensaje or 'no parece un export' in mensaje
 
     def test_truncated_red_is_rejected(self, export, tmp_path):
         red, carga, equipo = export
@@ -63,8 +73,24 @@ class TestUnusableInputFailsLoudly:
     def test_wrong_file_passed_as_red_is_rejected(self, export):
         """Pasar el CARGA donde va el RED debe decirlo, no dar un lote vacío."""
         red, carga, equipo = export
-        with pytest.raises(ValueError, match='no contiene filas'):
+        with pytest.raises(ValueError) as excinfo:
             CymdistDataset.from_files(carga, carga, equipo)
+        mensaje = str(excinfo.value)
+        assert carga.name in mensaje
+        # Ahora se reconoce por contenido, así que el mensaje puede decir QUÉ es el
+        # fichero además de qué le falta. Las dos formas sirven.
+        assert 'no contiene filas' in mensaje or 'CARGA' in mensaje
+
+    def test_el_catalogo_en_la_casilla_de_carga_tambien_se_rechaza(self, export):
+        """La confusión que antes NO fallaba.
+
+        Daba un dataset con 0 cargas y la conversión seguía: un DGS que converge, se
+        importa en DigSILENT y da un flujo perfecto de una red que no alimenta a nadie.
+        """
+        red, carga, equipo = export
+        with pytest.raises(ValueError) as excinfo:
+            CymdistDataset.from_files(red, equipo, carga)
+        assert equipo.name in str(excinfo.value)
 
 
 class TestErrorsCarryTheirLocation:
