@@ -1,3 +1,17 @@
-# Desarrollo y pruebas (incluye producción)
+# Desarrollo y pruebas — incluye todo lo de producción.
+#
+#   python -m pip install -r requirements-dev.txt
+#
+# Para ejecutar la suite completa con datos reales hacen falta además las tres
+# variables de entorno de los TXT (y opcionalmente la base Access):
+#
+#   set IGEA_RED=referencia\RED_...txt
+#   set IGEA_LOADS=referencia\CARGA_...txt
+#   set IGEA_EQUIPMENT=referencia\BD_Equipo_...txt
+#   set IGEA_MDB=D:\ruta\BaseDatos.mdb          (opcional, alternativa 2)
+#
+# Sin ellas las pruebas de integración hacen skip y solo corren las sintéticas.
+
 -r requirements.txt
+
 pytest>=8.0

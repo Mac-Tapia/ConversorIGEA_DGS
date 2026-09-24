@@ -5,7 +5,7 @@ from pathlib import Path
 import json
 import math
 
-from .model import FeederModel
+from .model import FeederModel, Line
 from .schema import load_schema
 from .geography import GeographyManifest
 
@@ -279,16 +279,14 @@ def validate_dgs(
                 connection_errors.append(f'{load.device_number}: free load must fold under ElmNet')
 
     tr2_by_fold = {r.get('fold_id', ''): r for r in tr2_rows}
+    load_by_key = {(item.section_id, item.device_number): item for item in model.loads}
     for sed in model.seds:
         drow = sed_by_name.get(_loc(sed.loc_name))
         if drow is None:
             connection_errors.append(f'{sed.code}: no matching ElmSubstat by loc_name')
             continue
         sub_fid = drow.get('FID', '')
-        load = next(
-            (item for item in model.loads if (item.section_id, item.device_number) == sed.load_key),
-            None,
-        )
+        load = load_by_key.get(sed.load_key)
         if load is None:
             connection_errors.append(f'{sed.code}: missing nested load for SED electrical connection')
             continue
@@ -396,36 +394,49 @@ def validate_dgs(
         if net_rows and net_rows[0].get('pDiagram','') != diagram_fid:
             graphic_errors.append('ElmNet.pDiagram does not reference the generated IntGrfnet')
 
-        from .dgs import diagram_anchor_node, diagram_line_sections, visible_pointterm_nodes
+        from .dgs import (
+            _line_neighbors,
+            diagram_anchor_node,
+            diagram_line_sections,
+            visible_pointterm_nodes,
+        )
 
-        visible_nodes = visible_pointterm_nodes(model)
+        # One adjacency index and one drawn-section set for the whole graphic check.
+        neighbors = _line_neighbors(model)
+        drawn_sections = diagram_line_sections(model, neighbors=neighbors)
+        visible_nodes = visible_pointterm_nodes(model, neighbors=neighbors, drawn=drawn_sections)
         for load in model.loads:
-            visible_nodes.add(diagram_anchor_node(model, load.node_id))
+            visible_nodes.add(diagram_anchor_node(model, load.node_id, neighbors=neighbors))
         for sed in model.seds:
-            visible_nodes.add(diagram_anchor_node(model, sed.node_id))
+            visible_nodes.add(diagram_anchor_node(model, sed.node_id, neighbors=neighbors))
+        # Hoisted out of the comprehension below: nesting it there rebuilt the whole
+        # set once per ElmTerm row (≈4.6M _loc calls on a 2k-section feeder).
+        visible_node_locs = {_loc(n) for n in visible_nodes}
         visible_term_fids = {
-            r.get('FID', '') for r in term_rows if r.get('loc_name', '') in {_loc(n) for n in visible_nodes}
+            r.get('FID', '') for r in term_rows if r.get('loc_name', '') in visible_node_locs
         }
-        nested_load_fids = {
-            load_by_name[_loc(load.display_name or load.customer_number or load.device_number or load.section_id)].get('FID', '')
-            for load in model.loads
-            if (load.section_id, load.device_number) in nested_load_keys
-            and _loc(load.display_name or load.customer_number or load.device_number or load.section_id) in load_by_name
-        }
+        nested_load_fids = set()
+        for load in model.loads:
+            if (load.section_id, load.device_number) not in nested_load_keys:
+                continue
+            name = _loc(load.display_name or load.customer_number or load.device_number or load.section_id)
+            row = load_by_name.get(name)
+            if row is not None:
+                nested_load_fids.add(row.get('FID', ''))
         free_load_fids = load_fids - nested_load_fids
-        drawn_sections = diagram_line_sections(model)
+        # drawn_sections was already computed above with the shared index.
         line_by_name = {r.get('loc_name', ''): r for r in line_rows}
-        diagram_line_fids = {
-            line_by_name[_loc(sid)].get('FID', '')
-            for sid in drawn_sections
-            if _loc(sid) in line_by_name
-        }
         line_by_section = {line.section_id: line for line in model.lines}
-        ug_diagram_fids = {
-            line_by_name[_loc(sid)].get('FID', '')
-            for sid in drawn_sections
-            if _loc(sid) in line_by_name and not line_by_section[sid].overhead
-        }
+        diagram_line_fids = set()
+        ug_diagram_fids = set()
+        for sid in drawn_sections:
+            row = line_by_name.get(_loc(sid))
+            if row is None:
+                continue
+            fid = row.get('FID', '')
+            diagram_line_fids.add(fid)
+            if not line_by_section[sid].overhead:
+                ug_diagram_fids.add(fid)
         oh_diagram_fids = diagram_line_fids - ug_diagram_fids
         hidden_stub_line_fids = line_fids - diagram_line_fids
         electrical_graphic_objects = visible_term_fids | diagram_line_fids | free_load_fids | source_fids | sed_fids
@@ -507,9 +518,14 @@ def validate_dgs(
                 graphic_errors.append(f'Visible ElmTerm graphic for {fid} must use sSymNam=PointTerm')
 
         # Electrical: underground sections must keep inAir=0 (DigSilent cable look).
+        # First match wins, matching the previous next() scan: _loc truncates to 40
+        # chars, so two long SectionIDs can collide on the same key.
+        line_by_loc: dict[str, Line] = {}
+        for ln in model.lines:
+            line_by_loc.setdefault(_loc(ln.section_id), ln)
         for r in line_rows:
             name = r.get('loc_name', '')
-            line = next((ln for ln in model.lines if _loc(ln.section_id) == name), None)
+            line = line_by_loc.get(name)
             if line is None:
                 continue
             expected_in_air = '1' if line.overhead else '0'

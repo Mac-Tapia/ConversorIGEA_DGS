@@ -19,6 +19,19 @@ class ModelBuildError(ValueError):
     pass
 
 
+class IslandWithLoadsError(ModelBuildError):
+    """Hay carga eléctricamente inalcanzable desde el SOURCE.
+
+    Lleva la isla estructurada en ``islands`` para que el lote y la interfaz puedan
+    mostrar qué tramos y cargas están afectados sin volver a analizar la topología.
+    """
+
+    def __init__(self, feeder: str, islands: dict, message: str):
+        self.feeder = feeder
+        self.islands = islands
+        super().__init__(message)
+
+
 class UnresolvedLineTypesError(ModelBuildError):
     def __init__(self, feeder: str, types: set[str]):
         self.feeder = feeder
@@ -126,6 +139,8 @@ class FeederModel:
     warnings: list[str] = field(default_factory=list)
     section_by_id: dict[str, Line] = field(default_factory=dict)
     seds: list[Sed] = field(default_factory=list)
+    # Elementos sin camino al SOURCE (ver find_topology_islands). Vacío = red conexa.
+    islands: dict = field(default_factory=dict)
 
 
 def _float(value: str | None, default: float = 0.0) -> float:
@@ -493,12 +508,102 @@ def apply_georeferenced_lengths(model: FeederModel, dataset: CymdistDataset) -> 
     return model
 
 
-def prove_mt_connections(model: FeederModel, dataset: CymdistDataset) -> dict:
-    """Prove each MT section ends on georeferenced From/To nodes and each SED matches TXT Location."""
+def _median(values: Sequence[float]) -> float:
+    ordered = sorted(values)
+    n = len(ordered)
+    if n == 0:
+        return float('nan')
+    mid = n // 2
+    return ordered[mid] if n % 2 else (ordered[mid - 1] + ordered[mid]) / 2.0
+
+
+def check_length_scale_agreement(
+    model: FeederModel,
+    *,
+    warn_band: tuple[float, float] = (0.8, 1.25),
+    error_band: tuple[float, float] = (0.1, 10.0),
+) -> dict:
+    """Compare georeferenced lengths against the TXT ``Length`` of the same sections.
+
+    An independent scale oracle. ``assert_metre_source_crs`` checks what the CRS
+    *declares*; this checks what the coordinates actually *are*. They catch
+    different faults: coordinates supplied in centimetres, or a TXT ``Length`` in
+    feet, pass the CRS check and fail here.
+
+    A legitimate export can differ by some percent (sag, slack, as-built vs
+    as-drawn), so only an order-of-magnitude divergence is treated as an error —
+    that can only be a unit or projection mistake, never physical.
+    """
+    # Degenerate stubs whose two endpoints share the same coordinates measure 0 m by
+    # geometry; their TXT Length is the only information available, so comparing them
+    # would only add a meaningless 0.0 ratio.
+    ratios = [
+        line.length_m / line.txt_length_m
+        for line in model.lines
+        if line.length_source == 'georef'
+        and line.txt_length_m is not None
+        and line.txt_length_m > 0
+        and math.isfinite(line.length_m)
+        and line.length_m > 0
+    ]
+    compared = len(ratios)
+    if not compared:
+        return {
+            'compared': 0, 'median_ratio': None, 'mad': None,
+            'outside_warn_band': 0, 'ok': True, 'error': None, 'warning': None,
+        }
+
+    median_ratio = _median(ratios)
+    mad = _median([abs(r - median_ratio) for r in ratios])
+    outside = sum(1 for r in ratios if not (warn_band[0] <= r <= warn_band[1]))
+
+    detail = (
+        f'{compared} tramo(s) comparados: razón georreferencia/TXT mediana '
+        f'{median_ratio:.4g} (MAD {mad:.3g}); {outside} fuera de '
+        f'[{warn_band[0]:g}, {warn_band[1]:g}]'
+    )
+    error = None
+    warning = None
+    if not (error_band[0] <= median_ratio <= error_band[1]):
+        error = (
+            f'Escala de coordenadas incoherente con las longitudes del TXT. {detail}. '
+            'Una discrepancia de este orden solo puede venir de unidades o proyección '
+            'equivocadas (p. ej. CoordX/CoordY en grados o centímetros, o Length en '
+            'otra unidad), no de holgura física. Revise --source-crs y las unidades '
+            'del export antes de usar el modelo.'
+        )
+    elif outside:
+        warning = f'Longitudes georreferenciadas y del TXT no coinciden en todos los tramos. {detail}.'
+
+    return {
+        'compared': compared,
+        'median_ratio': median_ratio,
+        'mad': mad,
+        'outside_warn_band': outside,
+        'ok': error is None,
+        'error': error,
+        'warning': warning,
+    }
+
+
+def prove_mt_connections(
+    model: FeederModel,
+    dataset: CymdistDataset,
+    *,
+    require_coordinates: bool = True,
+) -> dict:
+    """Prove each MT section matches TXT From/To and each SED matches TXT Location.
+
+    Topology is always proven. ``require_coordinates`` controls only the
+    georeferencing part: with geography disabled an export without CoordX/CoordY
+    must still convert, so missing coordinates are counted instead of failing.
+    """
     errors: list[str] = []
     line_ok = 0
     sed_ok = 0
     georef_lengths = 0
+    lines_without_coords = 0
+    seds_without_coords = 0
 
     for line in model.lines:
         sec = dataset.sections.get(line.section_id)
@@ -519,10 +624,16 @@ def prove_mt_connections(model: FeederModel, dataset: CymdistDataset) -> dict:
             errors.append(f'{line.section_id}: nodos From/To no están en el modelo')
             continue
         if start.x is None or start.y is None:
-            errors.append(f'{line.section_id}: FromNode {line.from_node} sin CoordX/CoordY georreferenciadas')
+            if require_coordinates:
+                errors.append(f'{line.section_id}: FromNode {line.from_node} sin CoordX/CoordY georreferenciadas')
+                continue
+            lines_without_coords += 1
             continue
         if end.x is None or end.y is None:
-            errors.append(f'{line.section_id}: ToNode {line.to_node} sin CoordX/CoordY georreferenciadas')
+            if require_coordinates:
+                errors.append(f'{line.section_id}: ToNode {line.to_node} sin CoordX/CoordY georreferenciadas')
+                continue
+            lines_without_coords += 1
             continue
         line_ok += 1
         if line.length_source == 'georef':
@@ -561,7 +672,10 @@ def prove_mt_connections(model: FeederModel, dataset: CymdistDataset) -> dict:
             continue
         node = model.nodes.get(sed.node_id)
         if node is None or node.x is None or node.y is None:
-            errors.append(f'SED {sed.code}: nodo {sed.node_id} sin georreferencia CoordX/CoordY')
+            if require_coordinates:
+                errors.append(f'SED {sed.code}: nodo {sed.node_id} sin georreferencia CoordX/CoordY')
+                continue
+            seds_without_coords += 1
             continue
         sed_ok += 1
 
@@ -573,33 +687,72 @@ def prove_mt_connections(model: FeederModel, dataset: CymdistDataset) -> dict:
         'seds_checked': sed_ok,
         'seds_total': len(model.seds),
         'lines_with_georef_length': georef_lengths,
+        'lines_without_coords': lines_without_coords,
+        'seds_without_coords': seds_without_coords,
+        'coordinates_required': require_coordinates,
         'errors_total': len(errors),
     }
 
 
-def _topology_island_warning(name: str, source_node: str, lines: list[Line], loads: list[Load], seds: list[Sed]) -> str | None:
-    """Warn when RED sections under this feeder are not reachable from SOURCE."""
+def find_topology_islands(
+    source_node: str,
+    lines: list[Line],
+    loads: list[Load],
+    seds: list[Sed],
+) -> dict:
+    """Elementos del alimentador sin ningún camino eléctrico hasta el SOURCE.
+
+    Devuelve la isla de forma **estructurada**, no como texto: quien decide la política
+    necesita saber si la isla arrastra cargas. Una isla vacía suele ser ruido del GIS
+    (un fragmento dibujado y nunca conectado); una isla **con cargas** es un error de
+    modelo, porque esas cargas no pueden recibir energía y PowerFactory las presenta a
+    0,0 p.u. como si fuese un resultado válido.
+    """
     if not lines:
-        return None
+        return {'sections': [], 'nodes': [], 'loads': [], 'seds': [], 'has_loads': False}
     reachable = _reachable_from_source(source_node, lines)
-    island_lines = [line for line in lines if line.from_node not in reachable or line.to_node not in reachable]
+    island_lines = [
+        line for line in lines
+        if line.from_node not in reachable or line.to_node not in reachable
+    ]
     if not island_lines:
-        return None
-    island_nodes = {
+        return {'sections': [], 'nodes': [], 'loads': [], 'seds': [], 'has_loads': False}
+    island_nodes = sorted({
         node
         for line in island_lines
         for node in (line.from_node, line.to_node)
         if node not in reachable
+    })
+    island_loads = sorted(load.device_number for load in loads if load.node_id not in reachable)
+    island_seds = sorted(sed.code for sed in seds if sed.node_id not in reachable)
+    return {
+        'sections': sorted(line.section_id for line in island_lines),
+        'nodes': island_nodes,
+        'loads': island_loads,
+        'seds': island_seds,
+        'has_loads': bool(island_loads or island_seds),
     }
-    island_loads = sum(1 for load in loads if load.node_id not in reachable)
-    island_seds = sum(1 for sed in seds if sed.node_id not in reachable)
-    sample = ', '.join(sorted(line.section_id for line in island_lines)[:8])
-    more = '' if len(island_lines) <= 8 else f' (+{len(island_lines) - 8} más)'
-    return (
-        f'{name}: {len(island_lines)} tramo(s), {len(island_nodes)} nodo(s), '
-        f'{island_loads} carga(s) y {island_seds} SED desconectados del SOURCE '
-        f'({source_node}). Revise SECTION/FromNode/ToNode en el RED. Ejemplos: {sample}{more}'
+
+
+def describe_islands(name: str, source_node: str, islands: dict) -> str:
+    """Mensaje legible de una isla, para aviso o para error."""
+    sections = islands['sections']
+    sample = ', '.join(sections[:8])
+    more = '' if len(sections) <= 8 else f' (+{len(sections) - 8} más)'
+    detalle = (
+        f'{name}: {len(sections)} tramo(s), {len(islands["nodes"])} nodo(s), '
+        f'{len(islands["loads"])} carga(s) y {len(islands["seds"])} SED desconectados '
+        f'del SOURCE ({source_node}). Revise SECTION/FromNode/ToNode en el RED. '
+        f'Ejemplos: {sample}{more}'
     )
+    if islands['has_loads']:
+        return (
+            detalle + ' Esas cargas no pueden recibir energía: PowerFactory las '
+            'importará en servicio y su flujo devolverá 0,0 p.u. como si fuese un '
+            'resultado válido. Corrija la topología del RED, o convierta con '
+            '--non-strict aceptando que el modelo tiene carga no alimentable.'
+        )
+    return detalle + ' La isla no arrastra cargas ni SED; se convierte igualmente.'
 
 
 def build_feeder_model(
@@ -608,7 +761,16 @@ def build_feeder_model(
     *,
     aliases: Mapping[str, str] | None = None,
     strict: bool = True,
+    include_geography: bool = True,
 ) -> FeederModel:
+    """Build one feeder's isolated electrical model.
+
+    ``include_geography`` mirrors the converter flag. With geography enabled every
+    node must carry CoordX/CoordY, as before. With it disabled the export may lack
+    coordinates entirely and still convert: sections that *do* have them keep using
+    the georeferenced polyline length, so a complete export produces exactly the
+    same model either way.
+    """
     aliases = dict(aliases or {})
     network_id = dataset.resolve_feeder(selector)
     name = feeder_short_name(network_id)
@@ -668,11 +830,16 @@ def build_feeder_model(
         used_types[typ.key] = typ
         used_nodes.update((from_node, to_node))
 
-    if not lines:
+    # Un alimentador sin filas SECTION no es un error del export: es una cabecera
+    # real (SOURCE + headnode + nodo georreferenciado) cuya red MT todavía no está
+    # modelada. Se convierte igual, dibujando lo único que existe — el nodo de
+    # cabecera — en vez de omitirlo. No se inventa ningún elemento.
+    source_only = not lines
+    if source_only and source_node not in dataset.nodes:
         raise ModelBuildError(
-            f'{name}: el RED no tiene filas SECTION para este alimentador '
-            f'(solo cabecera FEEDER=/SOURCE en {network_id}). '
-            'No hay tramos, cargas ni SED que convertir; revise el export IGEA.'
+            f'{name}: el RED no tiene filas SECTION y el nodo de cabecera '
+            f'{source_node!r} tampoco está en la tabla NODE. No hay nada que convertir '
+            f'para {network_id}; revise el export IGEA.'
         )
 
     section_by_id = {line.section_id: line for line in lines}
@@ -798,9 +965,23 @@ def build_feeder_model(
     if any(d.eq_state != 0 for d in devices):
         warnings.append('One or more switching devices have EqState != 0; EqState is preserved in the model but DGS StaSwitch has no equivalent field in this profile.')
 
-    island_warning = _topology_island_warning(name, source_node, lines, loads, seds)
-    if island_warning:
-        warnings.append(island_warning)
+    if source_only:
+        warnings.append(
+            f'{name}: el RED solo trae la cabecera (SOURCE + nodo {source_node}) sin '
+            f'filas SECTION en {network_id}. Se genera un DGS con la barra de cabecera '
+            'y su red externa —lo único que el export contiene— sin tramos, cargas ni '
+            'SED. NO es un alimentador modelado: no lo use para flujo ni estudios.'
+        )
+
+    # Política de islas: una isla vacía es ruido del GIS y solo se avisa; una isla
+    # **con cargas** bloquea en modo estricto, porque esas cargas no pueden recibir
+    # energía y nadie aguas abajo lo detecta (ver describe_islands).
+    islands = find_topology_islands(source_node, lines, loads, seds)
+    if islands['sections']:
+        message = describe_islands(name, source_node, islands)
+        if islands['has_loads'] and strict:
+            raise IslandWithLoadsError(name, islands, message)
+        warnings.append(message)
 
     model = FeederModel(
         name=name,
@@ -817,12 +998,24 @@ def build_feeder_model(
         warnings=warnings,
         section_by_id=section_by_id,
         seds=seds,
+        islands=islands,
     )
 
-    # Electrical lengths follow the georeferenced polyline (From + intermediates + To).
+    # Electrical lengths follow the georeferenced polyline (From + intermediates + To)
+    # wherever coordinates exist; sections without them keep the TXT Length.
     apply_georeferenced_lengths(model, dataset)
 
-    proof = prove_mt_connections(model, dataset)
+    # Independent scale oracle: the coordinates must agree with the TXT lengths.
+    # A wrong unit or projection shows up here even when the CRS declares metres.
+    scale = check_length_scale_agreement(model)
+    if scale['error']:
+        if strict:
+            raise ModelBuildError(f'{name}: {scale["error"]}')
+        model.warnings.append(f'{name}: {scale["error"]}')
+    elif scale['warning']:
+        model.warnings.append(f'{name}: {scale["warning"]}')
+
+    proof = prove_mt_connections(model, dataset, require_coordinates=include_geography)
     if proof['errors']:
         detail = '; '.join(proof['errors'][:12])
         more = '' if len(proof['errors']) <= 12 else f' (+{len(proof["errors"]) - 12} más)'
@@ -834,11 +1027,20 @@ def build_feeder_model(
             raise ModelBuildError(message)
         model.warnings.append(message)
     else:
-        model.warnings.append(
+        summary = (
             f'Prueba OK: {proof["lines_checked"]}/{proof["lines_total"]} tramos MT '
             f'conectados a From/To georreferenciados; '
             f'{proof["seds_checked"]}/{proof["seds_total"]} SED en el nodo TXT; '
             f'{proof["lines_with_georef_length"]} longitudes actualizadas por georreferencia.'
         )
+        if proof['lines_without_coords'] or proof['seds_without_coords']:
+            summary += (
+                f' Sin georreferencia (geografía desactivada): '
+                f'{proof["lines_without_coords"]} tramo(s) y '
+                f'{proof["seds_without_coords"]} SED conservan la longitud del TXT.'
+            )
+        if scale['compared']:
+            summary += f' Escala georreferencia/TXT: mediana {scale["median_ratio"]:.4g}.'
+        model.warnings.append(summary)
 
     return model

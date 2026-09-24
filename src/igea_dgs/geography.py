@@ -9,6 +9,40 @@ from .dataset import CymdistDataset
 from .model import FeederModel
 
 
+def assert_metre_source_crs(source_crs: str) -> None:
+    """Reject a source CRS whose axes are not in metres.
+
+    Electrical lengths are measured as euclidean distance over raw CoordX/CoordY
+    and stored as metres (``model.apply_georeferenced_lengths``). A CRS in degrees
+    or feet therefore scales every length silently — with EPSG:4326 by a factor of
+    ~1e5 — and no validation catches it, because the validator compares the DGS
+    against the very model that produced it.
+
+    See docs/DIAGNOSTICO_BACKEND_FRONTEND_2026-09-22.md (C-01).
+    """
+    try:
+        from pyproj import CRS
+    except ImportError:  # pragma: no cover - geography path already requires pyproj
+        return
+    try:
+        crs = CRS.from_user_input(source_crs)
+    except Exception as exc:
+        raise ValueError(f'CRS de origen no reconocido: {source_crs!r} ({exc})') from exc
+    axis = crs.axis_info[0] if crs.axis_info else None
+    if axis is None:
+        raise ValueError(f'CRS de origen sin información de ejes: {source_crs!r}')
+    factor = getattr(axis, 'unit_conversion_factor', None)
+    if crs.is_geographic or factor is None or abs(factor - 1.0) > 1e-9:
+        unit = getattr(axis, 'unit_name', 'desconocida')
+        raise ValueError(
+            f'CRS de origen {source_crs!r} usa unidades {unit!r}, no metros. '
+            'Las longitudes de línea se miden en las unidades del CRS y se escriben '
+            'como metros, de modo que este CRS produciría un modelo eléctrico '
+            'silenciosamente falso. Indique el CRS proyectado en metros de su export '
+            '(por ejemplo un UTM regional), o convierta con --no-geography.'
+        )
+
+
 def _transformer(source_crs: str, target_crs: str):
     try:
         from pyproj import Transformer

@@ -11,9 +11,31 @@ from .naming import feeder_short_name, sort_key_feeder
 
 
 def _common(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument('--red', required=True, help='IGEA/CYMDIST RED TXT export')
-    parser.add_argument('--loads', required=True, help='IGEA/CYMDIST CARGA TXT export')
-    parser.add_argument('--equipment', required=True, help='IGEA/CYMDIST BD_Equipo TXT export')
+    """Las dos alternativas de entrada: tres TXT, o una base Access de CYMDIST."""
+    src = parser.add_argument_group(
+        'entrada (elija UNA alternativa)',
+        'Alternativa 1 — ficheros TXT: --red --loads --equipment (no requiere CYMDIST '
+        'ni driver). Alternativa 2 — base de datos Access de CYMDIST: --mdb '
+        '(requiere Windows, el driver Microsoft Access y igea-dgs[access]).',
+    )
+    src.add_argument('--red', help='Alternativa 1: export TXT RED de IGEA/CYMDIST')
+    src.add_argument('--loads', help='Alternativa 1: export TXT CARGA de IGEA/CYMDIST')
+    src.add_argument('--equipment', help='Alternativa 1: export TXT BD_Equipo de IGEA/CYMDIST')
+    src.add_argument('--mdb', help='Alternativa 2: base de datos de red CYMDIST (.mdb)')
+    src.add_argument(
+        '--equipment-mdb',
+        help='Alternativa 2: base con el catálogo de equipos, si no está en --mdb',
+    )
+    src.add_argument(
+        '--load-year', type=int,
+        help='Alternativa 2: año del escenario de carga (por defecto, el más reciente '
+             'de cada dispositivo, como hace el export TXT)',
+    )
+    src.add_argument(
+        '--study',
+        help='Opcional: estudio o proyecto CYMDIST (.zxst/.xst). Limita la conversión a '
+             'los alimentadores que el estudio incluye',
+    )
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -62,13 +84,52 @@ def _require_input_files(red: str, loads: str, equipment: str) -> None:
         raise SystemExit('Archivos de entrada no encontrados:\n  - ' + '\n  - '.join(missing))
 
 
-def main(argv=None) -> int:
-    args = _parser().parse_args(argv)
+def load_dataset(args) -> CymdistDataset:
+    """Resuelve la entrada elegida y devuelve el dataset, igual por las dos vías."""
+    txt_given = any((args.red, args.loads, args.equipment))
+    mdb_given = bool(args.mdb)
 
-    if args.command == 'gui':
-        from .gui import main as gui_main
-        return gui_main()
+    if txt_given and mdb_given:
+        raise SystemExit(
+            'Elija UNA alternativa de entrada: los tres TXT (--red --loads --equipment) '
+            'o la base Access (--mdb), no ambas.'
+        )
+    if not txt_given and not mdb_given:
+        raise SystemExit(
+            'Falta la entrada. Alternativa 1: --red --loads --equipment. '
+            'Alternativa 2: --mdb  (opcionalmente --equipment-mdb, --load-year, --study).'
+        )
 
+    networks = None
+    if args.study:
+        from .study import StudyReadError, describe
+
+        try:
+            info = describe(args.study)
+        except StudyReadError as exc:
+            raise SystemExit(f'Error en el estudio: {exc}') from exc
+        networks = info['networks']
+        print(f"Estudio «{info['study_name']}»: {info['network_count']} alimentadores.")
+
+    if mdb_given:
+        from .access import AccessReadError, read_access_dataset
+
+        try:
+            dataset = read_access_dataset(
+                args.mdb,
+                equipment_db=args.equipment_mdb,
+                load_year=args.load_year,
+                networks=networks,
+            )
+        except AccessReadError as exc:
+            raise SystemExit(f'Error al leer la base Access: {exc}') from exc
+        print(f'Entrada: base de datos CYMDIST {Path(args.mdb).name}')
+        return dataset
+
+    if not (args.red and args.loads and args.equipment):
+        raise SystemExit(
+            'La entrada por TXT necesita los tres ficheros: --red, --loads y --equipment.'
+        )
     try:
         _require_input_files(args.red, args.loads, args.equipment)
         dataset = CymdistDataset.from_files(args.red, args.loads, args.equipment)
@@ -76,6 +137,28 @@ def main(argv=None) -> int:
         raise
     except (OSError, ValueError, KeyError) as exc:
         raise SystemExit(f'Error al leer TXT: {exc}') from exc
+    print(f'Entrada: TXT {Path(args.red).name} / {Path(args.loads).name} / {Path(args.equipment).name}')
+    if networks is not None and hasattr(args, 'network'):
+        # Con TXT el estudio no filtra la lectura, porque el TXT ya viene completo;
+        # se aplica como selección de alimentadores.
+        wanted = set(networks)
+        inside = [n for n in dataset.feeder_ids() if n in wanted]
+        outside = len(dataset.feeder_ids()) - len(inside)
+        if outside:
+            print(f'Estudio: se omitirán {outside} alimentadores fuera del estudio.')
+        args.network = list(args.network) + inside
+        args.all = False
+    return dataset
+
+
+def main(argv=None) -> int:
+    args = _parser().parse_args(argv)
+
+    if args.command == 'gui':
+        from .gui import main as gui_main
+        return gui_main()
+
+    dataset = load_dataset(args)
 
     if args.command == 'list':
         inventory = build_dataset_inventory(dataset)

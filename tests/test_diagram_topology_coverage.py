@@ -29,11 +29,26 @@ def _aliases():
 
 
 def _convertible_feeders(ds):
-    return [
-        feeder_short_name(nid)
-        for nid in ds.feeder_ids()
-        if ds.feeders.get(nid)
-    ]
+    """Alimentadores con topología y sin isla con cargas.
+
+    Una isla con cargas bloquea en modo estricto (política deliberada), y estas
+    pruebas son de fidelidad de diagrama, no de esa política.
+    """
+    from igea_dgs.model import find_topology_islands
+
+    result = []
+    for nid in ds.feeder_ids():
+        if not ds.feeders.get(nid):
+            continue
+        try:
+            model = build_feeder_model(ds, feeder_short_name(nid), strict=False)
+        except Exception:
+            continue
+        islands = find_topology_islands(model.source_node, model.lines, model.loads, model.seds)
+        if islands['has_loads']:
+            continue
+        result.append(feeder_short_name(nid))
+    return result
 
 
 def _txt_xy(model):
