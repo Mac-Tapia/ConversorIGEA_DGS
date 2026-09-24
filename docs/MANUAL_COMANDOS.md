@@ -513,16 +513,81 @@ Sale `input\catalogo_parametros.xlsx` con siete hojas:
 | `parametros_por_elemento` | **Qué ficha hay que pedir para cada dato y qué estudio se estropea sin ella** |
 | `hallazgos` | Las diferencias encontradas, con su cuenta hecha y su fuente |
 
+### El flujo de corrección
+
+```
+TXT / MDB  ──►  modelo  ──►  [catálogo de fichas]  ──►  modelo corregido  ──►  DGS
+                  │                                          │
+          identidad intacta                        características al día
+```
+
+**Lo que se conserva, siempre**: el código del tipo, el material y la sección. Si el
+export dice que el tramo va con `AA12003D` —un AAAC de 120 mm²—, sigue yendo con
+`AA12003D`. Igual con `NK12003D`, cable de cobre de 120 mm². Eso es el inventario de lo
+que está instalado y la herramienta no opina sobre él.
+
+**Lo que se actualiza**: resistencia, reactancia, susceptancia y ampacidad, cuando la
+ficha del fabricante para esa misma designación dice otra cosa.
+
+**Por qué en ese sentido**: cuando `AA01003D` declara 10 mm² pero lleva la resistencia
+de un conductor de 31 mm², o la sección está mal o el número está mal. La designación
+viene del inventario de activos; la impedancia es un campo calculado del catálogo de
+CYMDIST, que es justo donde aparecen las filas copiadas. Se conserva la designación y
+se corrige el número.
+
 ### Completarlo y aplicarlo
 
-1. Ponga el valor de la ficha de su proveedor en `R1_ficha_ohm_km` o `ampacidad_ficha_A`.
+1. Ponga el valor de la ficha de su proveedor en la columna `*_ficha_*` que toque
+   (`R1_ficha_ohm_km`, `X1_ficha_ohm_km`, `B1_ficha_uS_km`, `ampacidad_ficha_A`…).
 2. Escriba `ficha` en la columna `estado` de esa fila.
-3. Interfaz → **«Aplicar catálogo corregido»**, con UN alimentador seleccionado.
-4. Vuelva a convertir para que el DGS salga con esos valores.
+3. Aplíquelo, por cualquiera de estas tres vías:
 
-Una fila que siga marcada `por_confirmar` **no corrige nada**, aunque tenga un número
-escrito. Es deliberado: impide que un valor provisional entre en el modelo como si
-viniera de fabricante. El TXT de origen nunca se toca.
+```bat
+rem Ver qué cambiaría, sin escribir nada
+.venv\Scripts\python.exe toolspply_catalog_to_model.py --red R.txt --cargas C.txt --equipos E.txt
+
+rem Convertir a DGS con las características corregidas
+.venv\Scripts\python.exe toolspply_catalog_to_model.py --red R.txt --cargas C.txt --equipos E.txt ^
+    --out-dir output\corregido --escribir-dgs --informe-json output\cambios.json
+
+rem O directamente en la conversión normal
+.venv\Scripts\python.exe -m igea_dgs.cli convert --red R.txt --loads C.txt --equipment E.txt ^
+    --all --catalogo --source-crs EPSG:32718 --out-dir output\prod
+```
+
+Desde la interfaz: **«Aplicar catálogo corregido»**, con UN alimentador seleccionado.
+
+El manifiesto del lote registra en `catalog_applied` y `catalog_changes` qué se corrigió
+en cada alimentador: un DGS con impedancias distintas a las del TXT tiene que decir de
+dónde salieron.
+
+### Dos salvaguardas que conviene conocer
+
+**Una fila `por_confirmar` no corrige nada**, aunque tenga un número escrito. Impide que
+un valor provisional entre en el modelo como si viniera de fabricante. El TXT de origen
+nunca se toca.
+
+**La homopolar copiada sigue a la directa.** El catálogo CYMDIST guarda R0 y X0 como
+copia exacta de R1 y X1. Si se corrigiera solo la directa, saldría R0 < R1, que con
+retorno por tierra es imposible. Mientras no haya valor de ficha para la homopolar, la
+copia se arrastra y el informe lo declara en la fuente del cambio.
+
+### Lo que cambia en el export real
+
+Con el catálogo generado sin teclear nada, sobre los 96 alimentadores:
+
+| Tipo | Modelo | Ficha | Variación | Red afectada |
+|---|---|---|---|---|
+| `AA03502D` | 1,0891 | 0,9651 Ω/km | −11,4 % | 272,4 km |
+| `AA02502D` | 1,0891 | 1,35104 Ω/km | +24,1 % | 218,1 km |
+| `AA05002D` | 0,5834 | 0,6755 Ω/km | +15,8 % | 185,0 km |
+| `AA01603D` | 1,0891 | 2,111 Ω/km | +93,8 % | 23,1 km |
+| `AA01003D` | 1,0891 | 3,37759 Ω/km | +210,1 % | 4,0 km |
+
+Trece características en trece tipos, 1.039,8 km de red, 56 alimentadores. **No son
+cosméticos**: las pérdidas y la caída de tensión de esos tramos cambian en la misma
+proporción, así que el script no aplica nada sin enseñarlo antes y marca aparte todo
+cambio de más del 25 %.
 
 ### Cómo leer la columna `estado`
 

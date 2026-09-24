@@ -306,6 +306,9 @@ class TestLecturaYCorreccion:
         modelo = _modelo({'LINE:AA01603D': _tipo('AA01603D', 1.0891)})
         cambios = aplicar_correcciones(modelo, correcciones)
         assert len(cambios) == 1
+        assert cambios[0].atributo_pf == 'rline'
+        assert cambios[0].antes == pytest.approx(1.0891)
+        assert cambios[0].despues == pytest.approx(2.111)
         assert modelo.line_types['LINE:AA01603D'].r1_ohm_km == pytest.approx(2.111)
 
     def test_una_fila_por_confirmar_no_corrige_aunque_tenga_numero(self, tmp_path):
@@ -324,7 +327,7 @@ class TestLecturaYCorreccion:
             'LINE:AA03503D': _tipo('AA03503D', 0.9651),
         })
         aplicar_correcciones(modelo, {
-            'AA01603D': CorreccionConductor('AA01603D', r1_ohm_km=2.111),
+            'AA01603D': CorreccionConductor('AA01603D', {'r1_ohm_km': 2.111}),
         })
         assert modelo.line_types['LINE:AA03503D'].r1_ohm_km == pytest.approx(0.9651)
 
@@ -339,8 +342,8 @@ class TestLecturaYCorreccion:
         modelo = _modelo({'LINE:AA01603D': _tipo('AA01603D', 1.0891)})
         assert [h for h in auditar([modelo]).graves if h.atributo == 'rline']
         aplicar_correcciones(modelo, {
-            'AA01603D': CorreccionConductor('AA01603D',
-                                            r1_ohm_km=aaac_r20_ohm_km(16.0)),
+            'AA01603D': CorreccionConductor(
+                'AA01603D', {'r1_ohm_km': aaac_r20_ohm_km(16.0)}),
         })
         assert [h for h in auditar([modelo]).graves if h.atributo == 'rline'] == []
 
@@ -389,3 +392,242 @@ class TestCatalogoReal:
             assert h.fuente.strip(), f'{h.codigo}.{h.atributo} sin fuente'
             assert h.mensaje.strip()
             assert h.severidad in ('grave', 'aviso', 'dato')
+
+
+class TestIdentidadDelElemento:
+    """El TXT/MDB manda en QUÉ es cada elemento; el catálogo, en CÓMO es.
+
+    Es la regla del flujo: un AAAC de 120 mm² del export sigue siendo un AAAC de
+    120 mm² después de corregir, aunque su resistencia cambie. Lo contrario —deducir
+    la sección de la impedancia y reetiquetar el conductor— reescribiría el
+    inventario de activos a partir de un campo calculado.
+    """
+
+    def _corregido(self, codigo: str, r1_modelo: float, r1_ficha: float):
+        modelo = _modelo({f'LINE:{codigo}': _tipo(codigo, r1_modelo)})
+        cambios = aplicar_correcciones(modelo, {
+            codigo: CorreccionConductor(codigo, {'r1_ohm_km': r1_ficha}),
+        })
+        return modelo, cambios
+
+    def test_el_codigo_no_cambia(self):
+        modelo, _ = self._corregido('AA01003D', 1.0891, aaac_r20_ohm_km(10.0))
+        assert modelo.line_types['LINE:AA01003D'].code == 'AA01003D'
+
+    def test_la_clave_del_tipo_no_cambia(self):
+        """Si cambiase, los tramos apuntarían a un tipo que ya no existe."""
+        modelo, _ = self._corregido('AA01003D', 1.0891, aaac_r20_ohm_km(10.0))
+        assert set(modelo.line_types) == {'LINE:AA01003D'}
+        for linea in modelo.lines:
+            assert linea.type_key in modelo.line_types
+
+    def test_los_tramos_siguen_usando_el_mismo_tipo(self):
+        modelo, _ = self._corregido('AA01003D', 1.0891, aaac_r20_ohm_km(10.0))
+        assert [x.source_type_code for x in modelo.lines] == ['AA01003D']
+
+    def test_la_seccion_declarada_manda_sobre_la_impedancia(self):
+        """AA01003D lleva la resistencia de un conductor de ~31 mm²: gana el código."""
+        _m, cambios = self._corregido('AA01003D', 1.0891, aaac_r20_ohm_km(10.0))
+        assert cambios[0].despues == pytest.approx(aaac_r20_ohm_km(10.0))
+        assert cambios[0].despues > cambios[0].antes * 3, 'se triplica, como debe'
+
+    def test_no_se_toca_la_longitud_ni_la_topologia(self):
+        modelo, _ = self._corregido('AA01003D', 1.0891, aaac_r20_ohm_km(10.0))
+        linea = modelo.lines[0]
+        assert linea.from_node == 'N1' and linea.to_node == 'N2'
+        assert linea.length_km == pytest.approx(1.0)
+
+    def test_un_tipo_sin_fila_en_el_catalogo_queda_como_estaba(self):
+        modelo = _modelo({'LINE:CU01603D': _tipo('CU01603D', 1.3488)})
+        assert aplicar_correcciones(modelo, {}) == []
+        assert modelo.line_types['LINE:CU01603D'].r1_ohm_km == pytest.approx(1.3488)
+
+
+class TestTodasLasCaracteristicas:
+    def test_se_corrigen_las_cuatro_impedancias_y_la_ampacidad(self):
+        modelo = _modelo({'LINE:AA03503D': _tipo(
+            'AA03503D', 1.0, x1=0.5, r0=1.0, x0=0.5, b1=1.5, amps=100.0)})
+        aplicar_correcciones(modelo, {'AA03503D': CorreccionConductor('AA03503D', {
+            'r1_ohm_km': 0.9651, 'x1_ohm_km': 0.48, 'r0_ohm_km': 2.4,
+            'x0_ohm_km': 1.6, 'b1_source': 3.7, 'ampacity_a': 160.0,
+        })})
+        t = modelo.line_types['LINE:AA03503D']
+        assert t.r1_ohm_km == pytest.approx(0.9651)
+        assert t.x1_ohm_km == pytest.approx(0.48)
+        assert t.r0_ohm_km == pytest.approx(2.4)
+        assert t.x0_ohm_km == pytest.approx(1.6)
+        assert t.b1_source == pytest.approx(3.7)
+        assert t.ampacity_a == pytest.approx(160.0)
+
+    def test_cada_caracteristica_da_su_propio_cambio(self):
+        modelo = _modelo({'LINE:AA03503D': _tipo('AA03503D', 1.0, x1=0.5)})
+        cambios = aplicar_correcciones(modelo, {'AA03503D': CorreccionConductor(
+            'AA03503D', {'r1_ohm_km': 0.9651, 'x1_ohm_km': 0.48})})
+        assert {c.atributo_pf for c in cambios} == {'rline', 'xline'}
+
+    def test_el_mapa_de_caracteristicas_apunta_a_campos_que_existen(self):
+        """Añadir una característica es añadir una línea al mapa: que no mienta."""
+        from igea_dgs.catalog import CARACTERISTICAS, COLUMNAS_CONDUCTOR
+
+        tipo = _tipo('AA03503D', 1.0)
+        for columna, (atributo, pf, unidad) in CARACTERISTICAS.items():
+            assert columna in COLUMNAS_CONDUCTOR, columna
+            assert hasattr(tipo, atributo), atributo
+            assert pf and unidad
+
+    def test_una_diferencia_de_redondeo_no_cuenta_como_correccion(self):
+        """1,3511 → 1,3510 es cuántos decimales se escribieron, no el conductor."""
+        modelo = _modelo({'LINE:AA02503D': _tipo('AA02503D', 1.3511)})
+        assert aplicar_correcciones(modelo, {
+            'AA02503D': CorreccionConductor('AA02503D', {'r1_ohm_km': 1.3510}),
+        }) == []
+
+
+class TestCambioInforma:
+    def test_lleva_los_tramos_y_km_que_toca(self):
+        modelo = _modelo({'LINE:AA01003D': _tipo('AA01003D', 1.0891)}, km=7.0)
+        cambios = aplicar_correcciones(modelo, {
+            'AA01003D': CorreccionConductor('AA01003D', {'r1_ohm_km': 3.3776}),
+        })
+        assert cambios[0].tramos == 1
+        assert cambios[0].km == pytest.approx(7.0)
+
+    def test_la_variacion_porcentual_es_correcta(self):
+        modelo = _modelo({'LINE:AA01003D': _tipo('AA01003D', 1.0)})
+        cambios = aplicar_correcciones(modelo, {
+            'AA01003D': CorreccionConductor('AA01003D', {'r1_ohm_km': 2.0}),
+        })
+        assert cambios[0].variacion_pct == pytest.approx(100.0)
+        assert '+100.0 %' in cambios[0].linea()
+
+    def test_conserva_la_fuente_para_que_el_cambio_sea_rastreable(self):
+        modelo = _modelo({'LINE:AA01003D': _tipo('AA01003D', 1.0)})
+        cambios = aplicar_correcciones(modelo, {
+            'AA01003D': CorreccionConductor(
+                'AA01003D', {'r1_ohm_km': 3.3776}, fuente='Ficha EPSAC COD-07'),
+        })
+        assert 'EPSAC' in cambios[0].fuente
+
+
+class TestSalvaguardas:
+    def test_referencia_no_se_aplica_por_defecto(self, tmp_path):
+        """Un valor típico de norma no es la ficha del equipo instalado."""
+        openpyxl = pytest.importorskip('openpyxl')
+        tipos = {'LINE:AA01603D': _tipo('AA01603D', 1.0891)}
+        destino = escribir_catalogo(auditar([_modelo(tipos)]), base=tmp_path)
+        wb = openpyxl.load_workbook(destino)
+        ws = wb['conductores_aereos']
+        cab = [c.value for c in ws[1]]
+        ws.cell(row=2, column=cab.index('R1_ficha_ohm_km') + 1, value=2.111)
+        ws.cell(row=2, column=cab.index('estado') + 1, value='referencia')
+        wb.save(destino)
+
+        assert leer_catalogo(destino) == {}
+        assert leer_catalogo(destino, incluir_referencia=True) != {}
+
+    def test_el_catalogo_generado_corrige_los_aaac_sin_teclear_nada(self, tmp_path):
+        """El flujo por defecto: generar y aplicar ya arregla lo que tiene fuente."""
+        pytest.importorskip('openpyxl')
+        tipos = {'LINE:AA01003D': _tipo('AA01003D', 1.0891)}
+        modelo = _modelo(tipos)
+        destino = escribir_catalogo(auditar([modelo]), base=tmp_path)
+        cambios = aplicar_correcciones(modelo, leer_catalogo(destino))
+        assert len(cambios) == 1
+        assert modelo.line_types['LINE:AA01003D'].r1_ohm_km == pytest.approx(
+            aaac_r20_ohm_km(10.0), rel=1e-4)
+
+    def test_el_cobre_sin_ficha_no_se_toca_al_generar_y_aplicar(self, tmp_path):
+        """Sin fuente pública fiable, la casilla queda vacía y nada cambia."""
+        pytest.importorskip('openpyxl')
+        tipos = {'LINE:CU01603D': _tipo('CU01603D', 1.3488)}
+        modelo = _modelo(tipos)
+        destino = escribir_catalogo(auditar([modelo]), base=tmp_path)
+        assert aplicar_correcciones(modelo, leer_catalogo(destino)) == []
+        assert modelo.line_types['LINE:CU01603D'].r1_ohm_km == pytest.approx(1.3488)
+
+
+class TestCoherenciaHomopolar:
+    """Corregir a medias puede dejar el modelo peor que como estaba.
+
+    El catálogo CYMDIST guarda la homopolar como copia exacta de la directa. Si se
+    corrige R1 y se deja R0, sale R0 < R1, que con retorno por tierra es imposible.
+    Un valor imposible desconcierta más que uno consistente y erróneo, así que
+    mientras no haya ficha de homopolar la copia se arrastra.
+    """
+
+    def test_la_homopolar_copiada_sigue_a_la_directa(self):
+        modelo = _modelo({'LINE:AA05002D': _tipo(
+            'AA05002D', 0.5834, x1=0.4152, r0=0.5834, x0=0.4152)})
+        aplicar_correcciones(modelo, {
+            'AA05002D': CorreccionConductor('AA05002D', {'r1_ohm_km': 0.6755}),
+        })
+        t = modelo.line_types['LINE:AA05002D']
+        assert t.r1_ohm_km == pytest.approx(0.6755)
+        assert t.r0_ohm_km == pytest.approx(0.6755), 'R0 < R1 sería imposible'
+
+    def test_nunca_queda_la_homopolar_por_debajo_de_la_directa(self):
+        modelo = _modelo({'LINE:AA01003D': _tipo(
+            'AA01003D', 1.0891, r0=1.0891, x1=0.44, x0=0.44)})
+        aplicar_correcciones(modelo, {
+            'AA01003D': CorreccionConductor('AA01003D', {'r1_ohm_km': 3.3776}),
+        })
+        t = modelo.line_types['LINE:AA01003D']
+        assert t.r0_ohm_km >= t.r1_ohm_km
+        assert t.x0_ohm_km >= t.x1_ohm_km
+
+    def test_el_arrastre_se_declara_en_la_fuente(self):
+        """No se cuela un valor sin decir de dónde salió."""
+        modelo = _modelo({'LINE:AA05002D': _tipo('AA05002D', 0.5834, r0=0.5834)})
+        cambios = aplicar_correcciones(modelo, {
+            'AA05002D': CorreccionConductor(
+                'AA05002D', {'r1_ohm_km': 0.6755}, fuente='Ficha EPSAC'),
+        })
+        arrastrado = next(c for c in cambios if c.atributo_pf == 'rline0')
+        assert 'arrastrado' in arrastrado.fuente
+        assert 'copia' in arrastrado.fuente
+
+    def test_una_homopolar_que_no_era_copia_no_se_toca(self):
+        """Si el catálogo trae homopolar propia, es un dato y se respeta."""
+        modelo = _modelo({'LINE:AA05002D': _tipo(
+            'AA05002D', 0.5834, r0=1.5)})
+        aplicar_correcciones(modelo, {
+            'AA05002D': CorreccionConductor('AA05002D', {'r1_ohm_km': 0.6755}),
+        })
+        assert modelo.line_types['LINE:AA05002D'].r0_ohm_km == pytest.approx(1.5)
+
+    def test_una_ficha_de_homopolar_manda_sobre_el_arrastre(self):
+        modelo = _modelo({'LINE:AA05002D': _tipo('AA05002D', 0.5834, r0=0.5834)})
+        aplicar_correcciones(modelo, {
+            'AA05002D': CorreccionConductor(
+                'AA05002D', {'r1_ohm_km': 0.6755, 'r0_ohm_km': 1.9}),
+        })
+        assert modelo.line_types['LINE:AA05002D'].r0_ohm_km == pytest.approx(1.9)
+
+
+class TestFlujoDeConversion:
+    """Las correcciones entran por el camino normal de conversión, no por otro."""
+
+    def test_convert_selection_acepta_las_correcciones(self):
+        import inspect
+
+        from igea_dgs.batch import convert_selection
+
+        assert 'catalog_corrections' in inspect.signature(convert_selection).parameters
+
+    def test_el_manifiesto_registra_lo_que_se_corrigio(self):
+        """Un DGS con impedancias distintas al TXT debe decir de dónde salieron."""
+        import pathlib
+
+        fuente = pathlib.Path(
+            __file__).resolve().parents[1] / 'src' / 'igea_dgs' / 'batch.py'
+        texto = fuente.read_text(encoding='utf-8')
+        assert "'catalog_applied'" in texto
+        assert "'catalog_changes'" in texto
+
+    def test_la_correccion_ocurre_antes_de_escribir_el_dgs(self):
+        import pathlib
+
+        fuente = pathlib.Path(
+            __file__).resolve().parents[1] / 'src' / 'igea_dgs' / 'batch.py'
+        texto = fuente.read_text(encoding='utf-8')
+        assert texto.index('aplicar_correcciones') < texto.index('write_dgs(model')

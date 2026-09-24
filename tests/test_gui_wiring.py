@@ -220,3 +220,36 @@ def test_los_botones_se_deshabilitan_mientras_trabaja(_boton, _manejador):
     assert f'self.{_boton}' in registrados, (
         f'{_boton} no se deshabilita durante una operación larga'
     )
+
+
+def test_la_gui_trata_los_cambios_como_objetos_y_no_como_texto():
+    """`aplicar_correcciones` devuelve objetos Cambio, no cadenas.
+
+    Esta prueba existe porque el cambio de tipo de retorno pasó desapercibido: la GUI
+    siguió haciendo `'\\n'.join(cambios)`, que revienta con objetos, y ninguna prueba
+    lo tocaba porque la rama solo se recorre con una pantalla delante.
+    """
+    source = _gui_source()
+    cuerpo = source.split('def _apply_catalog')[1].split('\n    def ')[0]
+    assert 'c.linea() for c in cambios' in cuerpo, (
+        'la GUI debe formatear cada Cambio con .linea()'
+    )
+    assert "'\\n'.join(cambios" not in cuerpo, (
+        'unir objetos Cambio como si fueran cadenas lanza TypeError'
+    )
+
+
+def test_la_gui_avisa_de_los_cambios_grandes():
+    """Un cambio de más del 25 % mueve el resultado del estudio: hay que decirlo."""
+    source = _gui_source()
+    cuerpo = source.split('def _apply_catalog')[1].split('\n    def ')[0]
+    assert 'variacion_pct' in cuerpo
+    assert '25.0' in cuerpo
+
+
+def test_el_apply_catalog_no_reimplementa_la_correccion():
+    source = _gui_source()
+    cuerpo = source.split('def _apply_catalog')[1].split('\n    def ')[0]
+    assert 'aplicar_correcciones' in cuerpo
+    for prohibido in ('aaac_r20_ohm_km', 'replace(', 'r1_ohm_km ='):
+        assert prohibido not in cuerpo, f'la GUI no debe calcular {prohibido}'
