@@ -84,10 +84,18 @@ def _material(code: str) -> str:
     return ''
 
 
-def _type_name(key: str, code: str) -> str:
-    if code != 'DEFAULT':
-        return code
-    return 'DEFAULT_OH' if key.startswith('LINE:') else 'DEFAULT_UG'
+def _type_name(key: str, code: str, kv: float | None = None) -> str:
+    """Nombre del TypLne. En una red unida lleva la tensión, y no es cosmético.
+
+    ``TypLne`` guarda la tensión nominal en ``uline``, así que el mismo conductor a
+    10 kV y a 22,9 kV son dos tipos distintos en PowerFactory. Sin el sufijo, los dos
+    saldrían con el mismo ``loc_name`` y quedarían indistinguibles en el proyecto.
+    """
+    base = code if code != 'DEFAULT' else (
+        'DEFAULT_OH' if key.startswith('LINE:') else 'DEFAULT_UG')
+    if kv is None:
+        return base
+    return f'{base}_{kv:g}kV'.replace('.', '_')
 
 
 def _make_row(schema: DgsSchema, table: str, **values) -> str:
@@ -534,6 +542,63 @@ def _tr2_strn_mva(design_kva: float) -> float:
     return max(float(design_kva), 1.0) / 1000.0
 
 
+#: Tensión de cortocircuito que se escribe en TypTr2 mientras no haya ficha.
+NA205_TR2_UK_PCT = 4.0
+
+
+def _tr2_losses_kw(design_kva: float, *, uk_pct: float = NA205_TR2_UK_PCT) -> tuple[float, float]:
+    """Pérdidas ``(cobre, hierro)`` en kW, coherentes con la potencia y con ``uk``.
+
+    Hay una restricción física que PowerFactory comprueba y que es fácil violar por
+    accidente: la parte resistiva de la impedancia no puede superar la impedancia
+    total. En porcentaje, ``uR% = Pcu / Sn · 100`` debe ser menor que ``uk%``.
+
+    La versión anterior calculaba ``Pcu = max(Sn·10, 0.1) kW`` con un suelo fijo de
+    0,1 kW. Ese suelo, combinado con el suelo de 1 kVA de :func:`_tr2_strn_mva`, daba
+    para una SED de potencia declarada 0 un ``uR%`` del 10 % frente a un ``uk%`` del
+    4 %: impedancia imposible. **Y PowerFactory no la descarta sola: rechaza el cálculo
+    entero.** Una SED así entre 7.282 dejaba sin flujo de potencia a toda la red, con
+    el mensaje «Real part of the positive-sequence impedance too high».
+
+    Ahora las pérdidas salen de los máximos del Reglamento (UE) 548/2014 interpolados
+    por potencia —los mismos que usa el catálogo de :mod:`igea_dgs.catalog_data`—, y
+    fuera del rango tabulado se recurre al 1 % de la potencia nominal. En ambos casos
+    se recorta al 40 % de ``uk%``, que deja el margen que el propio PowerFactory exige
+    sin inventar un valor con pinta de medido.
+
+    Sigue sin ser la ficha del transformador instalado, y el catálogo lo dice: estas
+    cifras son un tope reglamentario, no un protocolo de ensayo.
+    """
+    from .catalog_data import TRAFO_PERDIDAS_UE, trafo_interpola
+
+    kva = max(float(design_kva), 1.0)
+    pcu = trafo_interpola(kva, TRAFO_PERDIDAS_UE, 2)   # Pk nivel 2, en W
+    pfe = trafo_interpola(kva, TRAFO_PERDIDAS_UE, 3)   # Po nivel 2, en W
+    pcu_kw = (pcu / 1000.0) if pcu is not None else kva * 0.01
+    pfe_kw = (pfe / 1000.0) if pfe is not None else kva * 0.0015
+
+    # uR% = Pcu[kW] / Sn[kVA] · 100  <  uk%. Se deja al 40 % del límite.
+    tope_kw = uk_pct * 0.40 * kva / 100.0
+    return min(pcu_kw, tope_kw), min(pfe_kw, tope_kw)
+
+
+def _tr2_curmg_pct(design_kva: float, pfe_kw: float) -> float:
+    """Corriente de vacío en %, nunca por debajo de la que exigen las pérdidas.
+
+    PowerFactory comprueba que la corriente de vacío no sea menor que su componente
+    activa: ``i0% >= Pfe / Sn · 100``. Escribir ``curmg = 0`` con ``pfe > 0`` provoca
+    un aviso por transformador —«No Load Current is smaller than No Load Losses»— y
+    PowerFactory la recalcula por su cuenta. Se toma el valor típico de norma y se
+    garantiza el mínimo físico.
+    """
+    from .catalog_data import TRAFO_IO_TIPICO, trafo_interpola
+
+    kva = max(float(design_kva), 1.0)
+    tipico = trafo_interpola(kva, TRAFO_IO_TIPICO)
+    minimo = pfe_kw / kva * 100.0
+    return max(tipico if tipico is not None else 2.0, minimo * 1.05)
+
+
 def write_dgs(
     model: FeederModel,
     path: Path | str,
@@ -545,6 +610,25 @@ def write_dgs(
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     reg = FidRegistry()
+
+    # En una red unida conviven 10 kV y 22,9 kV, así que la tensión es del nodo, no del
+    # modelo. `combined` solo está relleno cuando se han unido varios alimentadores
+    # (ver igea_dgs.combine); con uno solo, todo esto devuelve model.nominal_kv y el
+    # resultado es idéntico al de siempre.
+    combinado = getattr(model, 'combined', None)
+    node_kv: dict[str, float] = getattr(combinado, 'node_kv', {}) if combinado else {}
+    type_kv: dict[str, float] = getattr(combinado, 'type_kv', {}) if combinado else {}
+
+    def kv_de(node_id: str) -> float:
+        return node_kv.get(node_id, model.nominal_kv)
+
+    # Nodos sin camino a ninguna fuente. Se escriben fuera de servicio para que el
+    # flujo converja, pero siguen en el modelo y se siguen dibujando (ver
+    # igea_dgs.combine.CombinedInfo.de_energised).
+    sin_alimentar: set[str] = getattr(combinado, 'de_energised', set()) if combinado else set()
+
+    def fuera(node_id: str) -> int:
+        return 1 if node_id in sin_alimentar else 0
 
     general_fid = reg.new()
     network_fid = reg.new()
@@ -564,9 +648,12 @@ def write_dgs(
     # One TypTr2 per distinct (strn, utrn_h, utrn_l).
     tr2_type_keys: dict[tuple[float, float, float], str] = {}
     for sed in model.seds:
+        # La tensión de alta es la del nodo al que cuelga la SED. En una red unida hay
+        # SED a 10 kV y a 22,9 kV, y darles todas la tensión del modelo pondría un
+        # transformador de 22,9/0,22 kV colgando de una barra de 10 kV.
         key = (
             round(_tr2_strn_mva(sed.design_kva), 9),
-            round(model.nominal_kv, 9),
+            round(kv_de(sed.node_id), 9),
             NA205_SED_LV_KV,
         )
         if key not in tr2_type_keys:
@@ -597,14 +684,14 @@ def write_dgs(
             GPSlon=gp.lon if gp is not None else '',
         ))
 
-    v_phase = model.nominal_kv / math.sqrt(3.0)
     lv_phase = NA205_SED_LV_KV / math.sqrt(3.0)
     for node_id in sorted(model.nodes):
         gp = geography.nodes[node_id] if geography is not None else None
+        kv = kv_de(node_id)
         rows['ElmTerm'].append(_make_row(
             schema, 'ElmTerm', FID=node_fids[node_id], OP='C', loc_name=_loc_name(node_id),
             fold_id=network_fid, typ_id='', systype=0, iUsage=1,
-            uknom=model.nominal_kv, unknom=v_phase, iminus=0, outserv=0,
+            uknom=kv, unknom=kv / math.sqrt(3.0), iminus=0, outserv=fuera(node_id),
             GPSlat=gp.lat if gp is not None else '', GPSlon=gp.lon if gp is not None else '', vtarget=1,
         ))
 
@@ -616,8 +703,11 @@ def write_dgs(
         rows['ElmTerm'].append(_make_row(
             schema, 'ElmTerm', FID=sed_mt_fids[key], OP='C',
             loc_name=_loc_name(sed.loc_name), fold_id=sub_fid, typ_id='',
-            systype=0, iUsage=0, uknom=model.nominal_kv, unknom=v_phase,
-            iminus=0, outserv=0,
+            # La barra MT de la SED está a la tensión de su nodo del alimentador, que
+            # en una red unida no tiene por qué ser la del modelo.
+            systype=0, iUsage=0, uknom=kv_de(sed.node_id),
+            unknom=kv_de(sed.node_id) / math.sqrt(3.0),
+            iminus=0, outserv=fuera(sed.node_id),
             GPSlat=gp.lat if gp is not None else '',
             GPSlon=gp.lon if gp is not None else '',
             vtarget=1,
@@ -626,7 +716,7 @@ def write_dgs(
             schema, 'ElmTerm', FID=sed_bt_fids[key], OP='C',
             loc_name=_loc_name(f'{sed.loc_name}_BT'), fold_id=sub_fid, typ_id='',
             systype=0, iUsage=0, uknom=NA205_SED_LV_KV, unknom=lv_phase,
-            iminus=0, outserv=0,
+            iminus=0, outserv=fuera(sed.node_id),
             GPSlat=gp.lat if gp is not None else '',
             GPSlon=gp.lon if gp is not None else '',
             vtarget=1,
@@ -637,7 +727,8 @@ def write_dgs(
         rated_ka = typ.ampacity_a / 1000.0 if typ.ampacity_a else 0.0
         rows['TypLne'].append(_make_row(
             schema, 'TypLne', FID=type_fids[key], OP='C',
-            loc_name=_loc_name(_type_name(key, typ.code)), uline=model.nominal_kv,
+            loc_name=_loc_name(_type_name(key, typ.code, type_kv.get(key))),
+            uline=type_kv.get(key, model.nominal_kv),
             sline=rated_ka, InomAir=rated_ka, cohl_=1 if typ.source_table == 'LINE' else 0,
             rline=typ.r1_ohm_km, xline=typ.x1_ohm_km,
             rline0=typ.r0_ohm_km, xline0=typ.x0_ohm_km,
@@ -651,14 +742,20 @@ def write_dgs(
         ))
 
     for (strn, utrn_h, utrn_l), fid in sorted(tr2_type_keys.items()):
-        # Defaults calibrated to NA205 TypTr2 band (uk≈3–4 %, Dyn5).
-        pcutr = max(strn * 10.0, 0.1)  # kW copper; modest vs rated MVA
+        # Pérdidas del Reglamento (UE) 548/2014 y recortadas para que uR% < uk%.
+        # El suelo fijo anterior violaba esa condición en una SED de 0 kVA y
+        # PowerFactory rechazaba el cálculo de TODA la red (ver _tr2_losses_kw).
+        pcutr, pfe_kw = _tr2_losses_kw(strn * 1000.0, uk_pct=NA205_TR2_UK_PCT)
+        # Corriente de vacío coherente con las pérdidas en hierro: si curmg queda en
+        # cero pero pfe no, PowerFactory avisa por cada transformador —909 avisos en
+        # trece alimentadores— y la recalcula sola. Vale más darle un valor de norma.
+        curmg = _tr2_curmg_pct(strn * 1000.0, pfe_kw)
         rows['TypTr2'].append(_make_row(
             schema, 'TypTr2', FID=fid, OP='C',
             loc_name=_loc_name(f'TR_{format(strn * 1000.0, ".12g")}kVA'),
             nt2ph=3, strn=strn, frnom=60, utrn_h=utrn_h, utrn_l=utrn_l,
-            uktr=4.0, pcutr=pcutr, uk0tr=4.0, ur0tr=0,
-            tr2cn_h='D', tr2cn_l='YN', nt2ag=5, curmg=0, pfe=max(strn * 1.5, 0.05),
+            uktr=NA205_TR2_UK_PCT, pcutr=pcutr, uk0tr=NA205_TR2_UK_PCT, ur0tr=0,
+            tr2cn_h='D', tr2cn_l='YN', nt2ag=5, curmg=curmg, pfe=pfe_kw,
             zx0hl_n=100, itapch=0, tap_side=0, dutap=0, phitr=0,
             nntap0=0, ntpmn=0, ntpmx=0, manuf='',
         ))
@@ -674,11 +771,11 @@ def write_dgs(
     for key in sed_keys:
         sed = seds_by_key[key]
         strn = _tr2_strn_mva(sed.design_kva)
-        typ_key = (round(strn, 9), round(model.nominal_kv, 9), NA205_SED_LV_KV)
+        typ_key = (round(strn, 9), round(kv_de(sed.node_id), 9), NA205_SED_LV_KV)
         rows['ElmTr2'].append(_make_row(
             schema, 'ElmTr2', FID=sed_tr_fids[key], OP='C',
             loc_name=_loc_name(f'TR_{sed.loc_name}'), fold_id=sed_fids[key],
-            typ_id=tr2_type_keys[typ_key], ntnum=1, outserv=0, nntap=0,
+            typ_id=tr2_type_keys[typ_key], ntnum=1, outserv=fuera(sed.node_id), nntap=0,
             i_auto=0, ntrcn=0, usetp=1, usp_low=0.99, usp_up=1.01, t2ldc=0,
         ))
         rows['ElmCoup'].append(_make_row(
@@ -700,15 +797,25 @@ def write_dgs(
             schema, 'ElmLod', FID=load_fids[key], OP='C', loc_name=_loc_name(name),
             fold_id=fold, typ_id='', mode_inp='PC', slini=apparent,
             plini=load.p_mw, qlini=load.q_mvar, coslini=load.pf,
-            pf_recap=0, scale0=1, i_scale=1, outserv=0, classif='',
+            pf_recap=0, scale0=1, i_scale=1, outserv=fuera(load.node_id), classif='',
         ))
 
-    rows['ElmXnet'].append(_make_row(
-        schema, 'ElmXnet', FID=source_fid, OP='C', loc_name=_loc_name(f'External Grid {model.name}'),
-        fold_id=network_fid, snss='', rntxn='', z2tz1='', snssmin='', rntxnmin='', z2tz1min='',
-        chr_name='', bustp='SL', pgini=0, qgini=0, phiini=0, usetp=1,
-        outserv=0, Kpf=0, K=0,
-    ))
+    # Una red unida tiene una fuente por alimentador: cada uno viene de su propia barra
+    # de subestación. Un modelo de un alimentador tiene una sola, y el bucle recorre esa.
+    fuentes = [(model.name, model.source_node, source_fid)]
+    if combinado is not None and getattr(combinado, 'feeders', None):
+        fuentes = [
+            (ref.name, ref.source_node, source_fid if i == 0 else reg.new())
+            for i, ref in enumerate(combinado.feeders)
+        ]
+    for nombre_fuente, _nodo_fuente, fid_fuente in fuentes:
+        rows['ElmXnet'].append(_make_row(
+            schema, 'ElmXnet', FID=fid_fuente, OP='C',
+            loc_name=_loc_name(f'External Grid {nombre_fuente}'),
+            fold_id=network_fid, snss='', rntxn='', z2tz1='', snssmin='', rntxnmin='', z2tz1min='',
+            chr_name='', bustp='SL', pgini=0, qgini=0, phiini=0, usetp=1,
+            outserv=0, Kpf=0, K=0,
+        ))
 
     line_cubic_fids: dict[tuple[str, int], str] = {}
     for line in sorted(model.lines, key=lambda x: x.section_id):
@@ -765,29 +872,36 @@ def write_dgs(
             it2p1=0, it2p2=1, it2p3=2,
         ))
 
-    source_cubic_fid = reg.new()
-    rows['StaCubic'].append(_make_row(
-        schema, 'StaCubic', FID=source_cubic_fid, OP='C', loc_name=_loc_name(f'Cub_Source_{model.name}'),
-        fold_id=node_fids[model.source_node], obj_bus=0, obj_id=source_fid,
-        it2p1=0, it2p2=1, it2p3=2,
-    ))
-
-    # DigSilent ElmFeeder (NA205): colour/feeder tool anchored on a root StaCubic.
-    # Prefer the first outgoing line cubicle at the SOURCE bus; else ElmXnet cubic.
-    feeder_cubic_fid = source_cubic_fid
-    for line in sorted(model.lines, key=lambda x: x.section_id):
-        if line.from_node == model.source_node:
-            feeder_cubic_fid = line_cubic_fids[(line.section_id, 0)]
-            break
-        if line.to_node == model.source_node:
-            feeder_cubic_fid = line_cubic_fids[(line.section_id, 1)]
-            break
-    rows['ElmFeeder'].append(_make_row(
-        schema, 'ElmFeeder', FID=reg.new(), OP='C',
-        loc_name=_loc_name(model.name),
-        obj_id=feeder_cubic_fid,
-        iorient=0, i_scale=0, Sset=0, icolor=NA205_FEEDER_ICOLOR, outserv=0,
-    ))
+    # Un ElmFeeder por alimentador: es lo que da a PowerFactory la herramienta de
+    # coloreado y de recorrido por alimentador. En una red unida son 96, y es
+    # precisamente lo que permite seguir distinguiéndolos dentro de la misma grid.
+    lineas_ordenadas = sorted(model.lines, key=lambda x: x.section_id)
+    for nombre_fuente, nodo_fuente, fid_fuente in fuentes:
+        if nodo_fuente not in node_fids:
+            continue
+        source_cubic_fid = reg.new()
+        rows['StaCubic'].append(_make_row(
+            schema, 'StaCubic', FID=source_cubic_fid, OP='C',
+            loc_name=_loc_name(f'Cub_Source_{nombre_fuente}'),
+            fold_id=node_fids[nodo_fuente], obj_bus=0, obj_id=fid_fuente,
+            it2p1=0, it2p2=1, it2p3=2,
+        ))
+        # DigSilent ElmFeeder (NA205): colour/feeder tool anchored on a root StaCubic.
+        # Prefer the first outgoing line cubicle at the SOURCE bus; else ElmXnet cubic.
+        feeder_cubic_fid = source_cubic_fid
+        for line in lineas_ordenadas:
+            if line.from_node == nodo_fuente:
+                feeder_cubic_fid = line_cubic_fids[(line.section_id, 0)]
+                break
+            if line.to_node == nodo_fuente:
+                feeder_cubic_fid = line_cubic_fids[(line.section_id, 1)]
+                break
+        rows['ElmFeeder'].append(_make_row(
+            schema, 'ElmFeeder', FID=reg.new(), OP='C',
+            loc_name=_loc_name(nombre_fuente),
+            obj_id=feeder_cubic_fid,
+            iorient=0, i_scale=0, Sset=0, icolor=NA205_FEEDER_ICOLOR, outserv=0,
+        ))
 
     switch_fids: dict[tuple[str, str, str], str] = {}
     for device in sorted(model.devices, key=lambda d: (d.section_id, d.terminal_side, d.kind, d.eq_number, d.eq_id)):

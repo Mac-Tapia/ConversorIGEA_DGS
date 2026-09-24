@@ -141,6 +141,11 @@ class FeederModel:
     seds: list[Sed] = field(default_factory=list)
     # Elementos sin camino al SOURCE (ver find_topology_islands). Vacío = red conexa.
     islands: dict = field(default_factory=dict)
+    # Relleno solo cuando el modelo es la unión de varios alimentadores en una sola
+    # red (ver igea_dgs.combine). Entonces la tensión ya no es única —conviven 10 kV y
+    # 22,9 kV— y hay una fuente por alimentador en lugar de una sola. Va en un campo
+    # aparte para que un modelo de un alimentador siga siendo idéntico a lo que era.
+    combined: object | None = None
 
 
 def _float(value: str | None, default: float = 0.0) -> float:
