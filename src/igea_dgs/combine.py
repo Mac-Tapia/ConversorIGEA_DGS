@@ -354,7 +354,10 @@ def combine_models(
     # nodo. Con tres o más se encadenan (n-1 interruptores), que es lo que mantiene la
     # radialidad: cerrar uno solo basta para transferir carga entre dos.
     ties: list[TiePoint] = []
-    for original in sorted(enlazados):
+    # Los nodos con conflicto de tensión quedan FUERA: un interruptor entre una barra
+    # de 10 kV y otra de 22,9 kV no es un enlace, es una conexión que nadie debe poder
+    # cerrar. Se quedan separados y sin nada que los una, como ya se avisó.
+    for original in sorted(enlazados - conflictivos):
         presentes = sorted({
             (f, resolver(original, round(float(m.nominal_kv), 6), f))
             for m in modelos for f in [m.name] if original in m.nodes

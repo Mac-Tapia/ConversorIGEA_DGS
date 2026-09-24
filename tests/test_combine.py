@@ -452,3 +452,30 @@ class TestEnlacesEnElExportReal:
                 f'{ref.name} alcanza por líneas a {sorted(otras - {ref.name})}: '
                 'el enlace no quedó abierto'
             )
+
+
+class TestConflictoDeTensionNoSeEnlaza:
+    """Un interruptor entre 10 kV y 22,9 kV no es un enlace: es un error esperando."""
+
+    def test_no_se_crea_interruptor_entre_tensiones_distintas(self):
+        a = _alimentador('A', 10.0, ['A1', 'CHOQUE'])
+        b = _alimentador('B', 22.9, ['B1', 'CHOQUE'])
+        modelo, informe = combine_models([a, b])
+        assert informe.voltage_conflicts == 1
+        assert informe.tie_switches == 0, (
+            'los nodos con conflicto de tensión quedan separados y sin unir'
+        )
+
+    def test_ningun_enlace_une_tensiones_distintas(self):
+        """Invariante que debe cumplirse siempre, no solo en el caso simple."""
+        modelos = [
+            _alimentador('A', 10.0, ['A1', 'CHOQUE', 'X']),
+            _alimentador('B', 22.9, ['B1', 'CHOQUE']),
+            _alimentador('C', 10.0, ['C1', 'X']),
+        ]
+        modelo, informe = combine_models(modelos)
+        info = modelo.combined
+        for enlace in info.ties:
+            assert info.node_kv[enlace.node_a] == info.node_kv[enlace.node_b], enlace
+        # El enlace legítimo A–C a 10 kV sí debe existir.
+        assert informe.tie_switches == 1
