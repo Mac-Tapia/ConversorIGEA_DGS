@@ -187,15 +187,37 @@ def build_dataset_inventory(dataset: CymdistDataset) -> dict[str, Any]:
             'feeders': [feeder_short_name(n) for n in sources_without_feeder],
         })
     if missing_in_catalog:
+        # La gravedad depende de CUÁNTO falta, no de que falte algo.
+        #
+        # Que falten dos o tres códigos es rutina y el resolvedor por vecino los cubre
+        # bien. Que falte casi todo es otra cosa: en una entrega real llegó un
+        # Equipos.txt con 9 tipos frente a los 43 que usaba la red —otra convención de
+        # nombres—, y los 38.879 tramos, los 4.194,6 km, el 100 % de la red, acabaron
+        # con la impedancia de DEFAULT. Y no fallaba: producía un modelo que converge
+        # en PowerFactory y da un flujo impecable con todas las impedancias
+        # equivocadas. Salía como un aviso más, entre otros dos.
+        usados = len(line_codes) if line_codes else len(missing_in_catalog)
+        cobertura = 1.0 - (len(missing_in_catalog) / usados) if usados else 1.0
+        grave = cobertura < 0.5
         issues.append({
-            'severity': 'warning',
+            'severity': 'error' if grave else 'warning',
             'code': 'line_types_missing_from_bd_equipo',
             'message': (
-                f'{len(missing_in_catalog)} LineCableID usados en RED no están en BD_Equipo '
-                '(se resolverán por alias / vecino de catálogo / DEFAULT)'
+                f'{len(missing_in_catalog)} de {usados} LineCableID usados en RED no '
+                f'están en BD_Equipo: solo el {cobertura * 100:.0f} % de los tipos '
+                f'tiene catálogo.'
+                + (
+                    ' El catálogo cargado NO corresponde con esta red. Convertir así '
+                    'daría un modelo que converge pero con las impedancias de DEFAULT '
+                    'en casi toda la red, y nada en el resultado lo delataría. '
+                    'Complete el catálogo con el de otra entrega (--equipment-extra).'
+                    if grave else
+                    ' Se resolverán por alias / vecino de catálogo / DEFAULT.'
+                )
             ),
             'codes': missing_in_catalog[:50],
             'count': len(missing_in_catalog),
+            'coverage': round(cobertura, 4),
         })
 
     error_issues = sum(1 for i in issues if i['severity'] == 'error')
