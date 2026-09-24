@@ -12,6 +12,7 @@ import traceback
 from pathlib import Path
 from tkinter import (
     BooleanVar,
+    Canvas,
     END,
     LEFT,
     RIGHT,
@@ -311,8 +312,12 @@ class ConverterApp:
     def __init__(self, root: Tk) -> None:
         self.root = root
         self.root.title(f'Conversor IGEA/CYMDIST → DGS  v{__version__}')
-        self.root.minsize(780, 640)
-        self.root.geometry('920x720')
+        # La ventana ya no tiene que caber entera: hay barra de desplazamiento. El
+        # mínimo baja para que funcione en un portátil de 768 px de alto, y el tamaño
+        # inicial se ajusta a la pantalla en lugar de fijar uno que puede no caber.
+        self.root.minsize(780, 480)
+        alto = min(900, max(560, self.root.winfo_screenheight() - 120))
+        self.root.geometry(f'960x{alto}')
 
         # Dos alternativas de entrada: 'txt' (tres ficheros) o 'mdb' (base Access).
         self.input_mode = StringVar(value='txt')
@@ -354,10 +359,63 @@ class ConverterApp:
             self._append_log('TXT modelo precargados desde carpeta referencia/.')
         self.root.protocol('WM_DELETE_WINDOW', self._on_close)
 
+    def _contenedor_desplazable(self) -> 'ttk.Frame':
+        """Marco con barra de desplazamiento vertical, para que la ventana quepa.
+
+        La ventana creció hasta pasar de 1.300 píxeles de alto: con la lista de
+        alimentadores, los cuatro módulos de cargas, el catálogo y el sistema, en un
+        portátil normal quedaban fuera de la pantalla la lista de alimentadores y el
+        botón «Cancelar». Y lo que no se ve no existe: el operador no puede saber que
+        hay más abajo.
+
+        Se envuelve todo en un ``Canvas`` porque Tk no desplaza un ``Frame`` por sí
+        solo. El marco interior se ensancha con la ventana —si no, el contenido
+        quedaría encajado a la izquierda— y la rueda del ratón se atiende solo mientras
+        el puntero está encima, para no robarle el desplazamiento a la lista de
+        alimentadores ni al Registro, que tienen el suyo.
+        """
+        contenedor = ttk.Frame(self.root)
+        contenedor.pack(fill=BOTH, expand=True)
+
+        lienzo = Canvas(contenedor, highlightthickness=0)
+        barra = ttk.Scrollbar(contenedor, orient='vertical', command=lienzo.yview)
+        interior = ttk.Frame(lienzo, padding=12)
+
+        ventana = lienzo.create_window((0, 0), window=interior, anchor='nw')
+        lienzo.configure(yscrollcommand=barra.set)
+        lienzo.pack(side=LEFT, fill=BOTH, expand=True)
+        barra.pack(side=RIGHT, fill=Y)
+
+        def _al_cambiar_contenido(_evento=None) -> None:
+            lienzo.configure(scrollregion=lienzo.bbox('all'))
+
+        def _al_cambiar_ventana(evento) -> None:
+            lienzo.itemconfigure(ventana, width=evento.width)
+
+        interior.bind('<Configure>', _al_cambiar_contenido)
+        lienzo.bind('<Configure>', _al_cambiar_ventana)
+
+        def _rueda(evento) -> None:
+            # Si todo cabe, no hay nada que desplazar y moverlo despistaría.
+            region = lienzo.bbox('all')
+            if not region or region[3] - region[1] <= lienzo.winfo_height():
+                return
+            lienzo.yview_scroll(-1 if evento.delta > 0 else 1, 'units')
+
+        def _entrar(_e=None) -> None:
+            lienzo.bind_all('<MouseWheel>', _rueda)
+
+        def _salir(_e=None) -> None:
+            lienzo.unbind_all('<MouseWheel>')
+
+        lienzo.bind('<Enter>', _entrar)
+        lienzo.bind('<Leave>', _salir)
+        self._lienzo = lienzo
+        return interior
+
     def _build(self) -> None:
         pad = {'padx': 10, 'pady': 4}
-        frm = ttk.Frame(self.root, padding=12)
-        frm.pack(fill=BOTH, expand=True)
+        frm = self._contenedor_desplazable()
 
         ttk.Label(frm, text=STEPS_HINT, wraplength=860).pack(anchor=W, padx=10, pady=(0, 6))
 
