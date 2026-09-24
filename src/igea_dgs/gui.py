@@ -347,17 +347,86 @@ class ConverterApp:
         self._build()
         self._discard_legacy_state()
         self._reset_session(full=True, announce=False)
-        red0, loads0, equip0 = _default_referencia_inputs()
-        if red0:
-            self.red.set(red0)
-        if loads0:
-            self.loads.set(loads0)
-        if equip0:
-            self.equipment.set(equip0)
-        if red0 or loads0 or equip0:
-            self._refresh_input_status()
-            self._append_log('TXT modelo precargados desde carpeta referencia/.')
+        if not self._restaurar_ajustes():
+            # Solo se recurre a los TXT de ejemplo cuando no hay nada recordado: si el
+            # operador ya trabajó con una entrega, esa manda sobre los de referencia/.
+            red0, loads0, equip0 = _default_referencia_inputs()
+            if red0:
+                self.red.set(red0)
+            if loads0:
+                self.loads.set(loads0)
+            if equip0:
+                self.equipment.set(equip0)
+            if red0 or loads0 or equip0:
+                self._refresh_input_status()
+                self._append_log('TXT modelo precargados desde carpeta referencia/.')
         self.root.protocol('WM_DELETE_WINDOW', self._on_close)
+
+    # ------------------------------------------------------------------
+    # Memoria entre sesiones
+    # ------------------------------------------------------------------
+
+    def _campos_persistentes(self) -> dict:
+        """Lo que se recuerda entre sesiones. Ver igea_dgs.settings."""
+        from . import settings
+
+        valores: dict = {}
+        for campo in settings.CAMPOS_RUTA + settings.CAMPOS_CARPETA + settings.CAMPOS_TEXTO:
+            var = getattr(self, campo, None)
+            if var is not None:
+                valores[campo] = var.get()
+        for campo in settings.CAMPOS_BOOL:
+            var = getattr(self, campo, None)
+            if var is not None:
+                valores[campo] = bool(var.get())
+        return valores
+
+    def _guardar_ajustes(self) -> None:
+        """Guarda la selección actual. Silencioso: no debe estorbar el trabajo."""
+        from . import settings
+
+        try:
+            settings.guardar(self._campos_persistentes())
+        except Exception:  # noqa: BLE001 - recordar es una comodidad, no el trabajo
+            pass
+
+    def _restaurar_ajustes(self) -> bool:
+        """Recupera lo de la última sesión. Devuelve si había algo que recuperar.
+
+        Una ruta que ya no existe no se restaura —lo filtra ``settings.cargar``— pero
+        sí se dice, porque que desaparezca un fichero es normal cuando se mueve la
+        carpeta de la entrega, y el operador debe enterarse por un mensaje y no porque
+        el campo aparezca vacío sin explicación.
+        """
+        from . import settings
+
+        guardado = settings.cargar()
+        perdidas = settings.olvidadas(settings.leer_crudo())
+        if not guardado and not perdidas:
+            return False
+
+        for campo, valor in guardado.items():
+            var = getattr(self, campo, None)
+            if var is None:
+                continue
+            try:
+                var.set(valor)
+            except Exception:  # noqa: BLE001
+                continue
+
+        if perdidas:
+            self._append_log(
+                'Estos ficheros de la sesión anterior ya no están y se dejan vacíos:\n'
+                + '\n'.join(f'  · {p}' for p in perdidas)
+            )
+        recuperados = [c for c in settings.CAMPOS_RUTA if c in guardado]
+        if recuperados:
+            self._append_log(
+                f'Recuperada la selección de la última sesión ({len(recuperados)} '
+                f'fichero(s)). Elija otros con «Examinar…» y se recordarán esos.'
+            )
+        self._refresh_input_status()
+        return bool(guardado)
 
     def _contenedor_desplazable(self) -> 'ttk.Frame':
         """Marco con barra de desplazamiento vertical, para que la ventana quepa.
@@ -836,6 +905,7 @@ class ConverterApp:
             if not self._confirmar_tipo(path, RED):
                 return
             self.red.set(path)
+            self._guardar_ajustes()
             self._invalidate_loaded_data()
             self._refresh_input_status(just_set=path)
 
@@ -848,6 +918,7 @@ class ConverterApp:
             if not self._confirmar_tipo(path, CARGA):
                 return
             self.loads.set(path)
+            self._guardar_ajustes()
             self._invalidate_loaded_data()
             self._refresh_input_status(just_set=path)
 
@@ -860,6 +931,7 @@ class ConverterApp:
             if not self._confirmar_tipo(path, EQUIPOS):
                 return
             self.equipment.set(path)
+            self._guardar_ajustes()
             self._invalidate_loaded_data()
             self._refresh_input_status(just_set=path)
 
@@ -870,6 +942,7 @@ class ConverterApp:
         )
         if path:
             self.mdb.set(path)
+            self._guardar_ajustes()
             self._invalidate_loaded_data()
             self._refresh_input_status(just_set=path)
 
@@ -880,6 +953,7 @@ class ConverterApp:
         )
         if path:
             self.equipment_mdb.set(path)
+            self._guardar_ajustes()
             self._invalidate_loaded_data()
             self._refresh_input_status(just_set=path)
 
@@ -890,6 +964,7 @@ class ConverterApp:
         )
         if path:
             self.study.set(path)
+            self._guardar_ajustes()
             self._invalidate_loaded_data()
             self._refresh_input_status(just_set=path)
 
@@ -897,6 +972,7 @@ class ConverterApp:
         path = filedialog.askdirectory(title='Carpeta de salida DGS')
         if path:
             self.out_dir.set(path)
+            self._guardar_ajustes()
             self._append_log(f'Carpeta de salida: {path}')
             self.status.set(f'Salida: {path}')
 
@@ -907,6 +983,7 @@ class ConverterApp:
         )
         if path:
             self.aliases.set(path)
+            self._guardar_ajustes()
             self._append_log(f'Aliases: {Path(path).name}')
 
     def _toggle_all(self) -> None:
@@ -2317,6 +2394,9 @@ class ConverterApp:
                         ' Reconvierta para aplicarlas al DGS.')
 
     def _on_close(self) -> None:
+        # Lo que se cambió sin pasar por un selector —el CRS, las casillas— se
+        # guarda aquí. Los ficheros ya se guardaron al elegirlos.
+        self._guardar_ajustes()
         # Cerrar durante un lote mataba el hilo daemon a mitad de escritura y dejaba
         # ficheros truncados indistinguibles de válidos. Ahora se cancela, se espera a
         # que el motor cierre el alimentador en curso y solo entonces se destruye.
