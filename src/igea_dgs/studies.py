@@ -55,6 +55,15 @@ class Entrada:
         return self.estado in (AUSENTE, POR_DEFECTO)
 
 
+#: Cuánto cuesta un estudio sobre una red del tamaño del sistema completo.
+LIGERO = 'ligero'
+"""Un puñado de segundos: una resolución o un recorrido de la red."""
+
+PESADO = 'pesado'
+"""Resuelve la red muchas veces: N-1 lanza un flujo por contingencia, la fiabilidad
+enumera fallos, y las optimizaciones iteran. Sobre 53.000 barras puede irse a horas."""
+
+
 @dataclass(frozen=True)
 class Estudio:
     """Un módulo de PowerFactory con lo que aporta al PIDE y lo que necesita."""
@@ -65,6 +74,8 @@ class Estudio:
     capitulo: int
     aporta_al_pide: str
     entradas: tuple[Entrada, ...] = ()
+    coste: str = LIGERO
+    """Si es ``PESADO``, el orquestador lo aísla y le pone límite de tiempo."""
 
     @property
     def bloqueantes(self) -> tuple[Entrada, ...]:
@@ -215,16 +226,22 @@ ESTUDIOS: tuple[Estudio, ...] = (
         'contingencias', 'ComSimoutage', 'Contingencias N-1', 26,
         'Qué alimentador puede respaldar a otro. Solo tiene sentido en la red unida.',
         (_TOPOLOGIA,),
+
+        coste=PESADO,
     ),
     Estudio(
         'fiabilidad', 'ComRel3', 'Fiabilidad (SAIDI, SAIFI, ENS)', 45,
         'Los índices de la NTCSE y la ENS a 1 US$/kWh del régimen de incentivos.',
         (_TOPOLOGIA, _TASAS_FALLA, _CLIENTES, _TIEMPOS_MANIOBRA),
+
+        coste=PESADO,
     ),
     Estudio(
         'cuasi_dinamica', 'ComStatsim', 'Simulación cuasi-dinámica', 27,
         'Factor de pérdidas real en lugar de un valor típico.',
         (_TOPOLOGIA, _PERFILES, _ENERGIA),
+
+        coste=PESADO,
     ),
     Estudio(
         'troncal', 'ComBbone', 'Cálculo de troncal', 41,
@@ -235,36 +252,50 @@ ESTUDIOS: tuple[Estudio, ...] = (
         'punto_apertura', 'ComTieopt', 'Punto de apertura óptimo', 41,
         'Reconfiguración: dónde conviene abrir para minimizar pérdidas.',
         (_TOPOLOGIA,),
+
+        coste=PESADO,
     ),
     Estudio(
         'condensadores', 'ComCapo', 'Colocación óptima de condensadores', 41,
         'Los niveles de compensación que pide el Anexo 6.',
         (_TOPOLOGIA, _PRECIOS, _COSTE_ENERGIA),
+
+        coste=PESADO,
     ),
     Estudio(
         'balance_fases', 'ComBalance', 'Balance de fases', 41,
         'El desequilibrio de carga que el TdR nombra entre los parámetros de diseño.',
         (_TOPOLOGIA, _FASES),
+
+        coste=PESADO,
     ),
     Estudio(
         'perfil_tension', 'ComVoltplan', 'Optimización del perfil de tensión', 41,
         'Cumplimiento del límite de caída de tensión (6 % en zona rural).',
         (_TOPOLOGIA,),
+
+        coste=PESADO,
     ),
     Estudio(
         'flujo_optimo', 'ComOpf', 'Flujo óptimo de potencia', 38,
         'Optimización con restricciones de red.',
         (_TOPOLOGIA, _COSTE_ENERGIA),
+
+        coste=PESADO,
     ),
     Estudio(
         'economico', 'ComTececo', 'Evaluación técnico-económica', 43,
         'VAN de la estrategia de expansión, con depreciación y valor residual.',
         (_TOPOLOGIA, _PRECIOS, _COSTE_ENERGIA, _ETAPAS, _PROYECCION),
+
+        coste=PESADO,
     ),
     Estudio(
         'comparacion', 'ComTececocmp', 'Comparación de alternativas', 43,
         'El núcleo del PIDE: justificar la alternativa elegida frente a las demás.',
         (_TOPOLOGIA, _PRECIOS, _COSTE_ENERGIA, _ETAPAS, _PROYECCION),
+
+        coste=PESADO,
     ),
     Estudio(
         'protecciones', 'ComProtgraphic', 'Coordinación de protecciones', 32,
@@ -277,6 +308,14 @@ ESTUDIOS: tuple[Estudio, ...] = (
         (_TOPOLOGIA, _ESPECTROS),
     ),
 )
+
+
+def estudios_ligeros() -> tuple[Estudio, ...]:
+    return tuple(e for e in ESTUDIOS if e.coste == LIGERO)
+
+
+def estudios_pesados() -> tuple[Estudio, ...]:
+    return tuple(e for e in ESTUDIOS if e.coste == PESADO)
 
 
 def estudios_ejecutables() -> tuple[Estudio, ...]:
