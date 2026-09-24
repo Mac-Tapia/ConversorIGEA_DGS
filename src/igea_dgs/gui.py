@@ -324,6 +324,7 @@ class ConverterApp:
         self.red = StringVar()
         self.loads = StringVar()
         self.equipment = StringVar()
+        self.equipment_extra = StringVar()
         self.mdb = StringVar()
         self.equipment_mdb = StringVar()
         self.study = StringVar()
@@ -522,6 +523,12 @@ class ConverterApp:
                        self.loads, self._browse_loads)
         self._file_row(self.txt_frame, 'EQUIPOS — catálogo de conductores y cables',
                        self.equipment, self._browse_equipment)
+        # Cuando la entrega trae un catálogo incompleto —pasó: 9 tipos frente a los
+        # 43 que usaba la red— sin esto el 100 % de los tramos toma la impedancia
+        # de DEFAULT y el modelo converge igual, sin que nada lo delate.
+        self._file_row(self.txt_frame,
+                       'EQUIPOS complementario (opcional, si el anterior no cubre)',
+                       self.equipment_extra, self._browse_equipment_extra)
 
         self.mdb_frame = ttk.Frame(files)
         self._file_row(self.mdb_frame, 'Base de red (.mdb)', self.mdb, self._browse_mdb)
@@ -867,9 +874,31 @@ class ConverterApp:
                 equipment_db=self.equipment_mdb.get().strip() or None,
                 networks=networks,
             )
-        return CymdistDataset.from_files(
+        dataset = CymdistDataset.from_files(
             self.red.get().strip(), self.loads.get().strip(), self.equipment.get().strip(),
         )
+        # Catálogo incompleto: se completa si se indicó otro, y en todo caso se dice
+        # cuánta red quedaría con la impedancia de DEFAULT. Un catálogo que no
+        # corresponde con la red produce un modelo que converge igual, así que si no se
+        # avisa aquí no se avisa en ninguna parte.
+        from .catalog_merge import completar, diagnosticar
+
+        extra = self.equipment_extra.get().strip()
+        informe = (completar(dataset, [extra]) if extra else diagnosticar(dataset))
+        if extra or informe.cobertura_final < 1.0:
+            self._append_log('--- Catálogo de conductores ---')
+            self._append_log(informe.texto())
+        if informe.cobertura_final < 0.5:
+            messagebox.showwarning(
+                'El catálogo no cubre esta red',
+                f'Solo el {informe.cobertura_final * 100:.0f} % de los tipos de línea '
+                f'que usa la red está en el catálogo cargado.\n\n'
+                'El resto tomará la impedancia de DEFAULT: el modelo convertirá y '
+                'convergerá igual, pero las pérdidas y las caídas de tensión no '
+                'significarán nada, y nada en el resultado lo delatará.\n\n'
+                'Indique en «EQUIPOS complementario» el BD_Equipo de otra entrega.',
+            )
+        return dataset
 
     def _refresh_input_status(self, *, announce: bool = True, just_set: str | None = None) -> None:
         ready, missing = self._input_paths_ready()
@@ -933,6 +962,24 @@ class ConverterApp:
             if not self._confirmar_tipo(path, CARGA):
                 return
             self.loads.set(path)
+            self._guardar_ajustes()
+            self._invalidate_loaded_data()
+            self._refresh_input_status(just_set=path)
+
+    def _browse_equipment_extra(self) -> None:
+        """Catálogo de otra entrega, para rellenar los códigos que falten.
+
+        No se comprueba con _confirmar_tipo por la misma razón que el principal, pero
+        sí se avisa si no parece un catálogo: es el error fácil de cometer aquí.
+        """
+        path = filedialog.askopenfilename(
+            title='BD_Equipo de otra entrega, para completar el catálogo',
+            filetypes=[('TXT IGEA/CYMDIST', '*.txt'), ('Todos', '*.*')],
+        )
+        if path:
+            if not self._confirmar_tipo(path, EQUIPOS):
+                return
+            self.equipment_extra.set(path)
             self._guardar_ajustes()
             self._invalidate_loaded_data()
             self._refresh_input_status(just_set=path)

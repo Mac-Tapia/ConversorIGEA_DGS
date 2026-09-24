@@ -34,6 +34,7 @@ from pathlib import Path
 #: Campos que son rutas. Se restauran **solo si siguen existiendo**.
 CAMPOS_RUTA = (
     'red', 'loads', 'equipment',      # alternativa 1: los tres TXT
+    'equipment_extra',                # catálogo de otra entrega, para completar
     'mdb', 'equipment_mdb', 'study',  # alternativa 2: base Access y estudio
     'aliases',
 )

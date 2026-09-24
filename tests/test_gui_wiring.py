@@ -25,6 +25,10 @@ GUI_SOURCE = Path(__file__).resolve().parents[1] / 'src' / 'igea_dgs' / 'gui.py'
 INDIRECT_FIELDS = {
     # Alternativa 1 de entrada → CymdistDataset.from_files, vía _load_input_dataset
     'red', 'loads', 'equipment',
+    # Catálogo de otra entrega, para completar el que llegue incompleto. También va
+    # por _load_input_dataset: no es un parámetro del motor, modifica el dataset antes
+    # de que el motor lo vea (ver igea_dgs.catalog_merge).
+    'equipment_extra',
     # Alternativa 2 de entrada → access.read_access_dataset, vía _load_input_dataset
     'input_mode', 'mdb', 'equipment_mdb',
     'study',                      # → study.study_networks, vía _load_input_dataset

@@ -21,6 +21,11 @@ def _common(parser: argparse.ArgumentParser) -> None:
     src.add_argument('--red', help='Alternativa 1: export TXT RED de IGEA/CYMDIST')
     src.add_argument('--loads', help='Alternativa 1: export TXT CARGA de IGEA/CYMDIST')
     src.add_argument('--equipment', help='Alternativa 1: export TXT BD_Equipo de IGEA/CYMDIST')
+    src.add_argument(
+        '--equipment-extra', action='append', default=[], metavar='TXT',
+        help=('Completar el catálogo con otro BD_Equipo cuando el de la entrega '
+              'llega incompleto. Solo rellena los códigos que faltan; lo cargado '
+              'nunca se sobrescribe. Repetible.'))
     src.add_argument('--mdb', help='Alternativa 2: base de datos de red CYMDIST (.mdb)')
     src.add_argument(
         '--equipment-mdb',
@@ -143,6 +148,25 @@ def load_dataset(args) -> CymdistDataset:
     except (OSError, ValueError, KeyError) as exc:
         raise SystemExit(f'Error al leer TXT: {exc}') from exc
     print(f'Entrada: TXT {Path(args.red).name} / {Path(args.loads).name} / {Path(args.equipment).name}')
+
+    # Catálogo incompleto: se completa con otras entregas si se indicaron, y en
+    # cualquier caso se dice cuánta red se quedaría con la impedancia de DEFAULT. Un
+    # catálogo que no corresponde con la red no rompe nada visible —el modelo converge
+    # igual—, así que si no se avisa aquí no se avisa en ninguna parte.
+    from .catalog_merge import completar, diagnosticar
+
+    extra = list(getattr(args, 'equipment_extra', ()) or ())
+    if extra:
+        informe_cat = completar(dataset, extra)
+        print(informe_cat.texto())
+    else:
+        informe_cat = diagnosticar(dataset)
+        if informe_cat.cobertura_final < 0.5:
+            print(
+                f'AVISO: solo el {informe_cat.cobertura_final * 100:.0f} % de los tipos '
+                f'de línea tiene catálogo. El resto tomará la impedancia de DEFAULT. '
+                f'Use --equipment-extra con el BD_Equipo de otra entrega.'
+            )
     if networks is not None and hasattr(args, 'network'):
         # Con TXT el estudio no filtra la lectura, porque el TXT ya viene completo;
         # se aplica como selección de alimentadores.
