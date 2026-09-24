@@ -642,7 +642,12 @@ def write_dgs(
             rline=typ.r1_ohm_km, xline=typ.x1_ohm_km,
             rline0=typ.r0_ohm_km, xline0=typ.x0_ohm_km,
             Ithr=0, tmax=80, rtemp=75, systp=0, nlnph=3, nneutral=0,
-            frnom=60, mlei=_material(typ.code), bline=0, bline0=0,
+            frnom=60, mlei=_material(typ.code),
+            # El catálogo CYMDIST trae la susceptancia en µS/km, que es la unidad de
+            # TypLne.bline. Escribirla como cero descartaba un dato correcto y dejaba
+            # sin corriente capacitiva a los cables, donde vale ~95 µS/km frente a los
+            # ~3,7 µS/km de una línea aérea.
+            bline=typ.b1_source, bline0=typ.b0_source,
         ))
 
     for (strn, utrn_h, utrn_l), fid in sorted(tr2_type_keys.items()):

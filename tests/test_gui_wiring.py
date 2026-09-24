@@ -148,3 +148,75 @@ def test_gui_builds_with_expected_controls():
         )
     finally:
         root.destroy()
+
+
+# ---------------------------------------------------------------------------
+# Módulos de cargas: los cuatro que pidió el usuario deben tener botón y destino
+# ---------------------------------------------------------------------------
+
+#: (botón, manejador) de cada módulo. Un botón sin manejador es una interfaz que
+#: promete algo que no hace, y es exactamente lo que pasó con la creación de SED:
+#: el motor estaba escrito y solo se llegaba a él por línea de órdenes.
+MODULOS_DE_CARGAS = (
+    ('template_btn', '_download_load_template'),
+    ('apply_loads_btn', '_apply_load_template'),
+    ('create_template_btn', '_download_create_template'),
+    ('create_apply_btn', '_apply_create_template'),
+    ('create_one_btn', '_create_single_load'),
+    ('catalog_build_btn', '_build_catalog'),
+    ('catalog_apply_btn', '_apply_catalog'),
+)
+
+
+@pytest.mark.parametrize('_boton,manejador', MODULOS_DE_CARGAS)
+def test_cada_boton_tiene_su_manejador(_boton, manejador):
+    from igea_dgs.gui import ConverterApp
+
+    assert callable(getattr(ConverterApp, manejador, None)), (
+        f'{manejador} no existe: el botón no lleva a ninguna parte'
+    )
+
+
+def test_los_manejadores_llegan_al_motor_de_creacion():
+    """Los botones de creación deben usar loads_create, no reimplementar sus reglas."""
+    source = _gui_source()
+    cuerpo = source.split('def _download_create_template')[1]
+    for simbolo in ('write_create_template', 'read_create_workbook',
+                    'build_create_plan', 'single_new_load', 'create_plan_to_payload'):
+        assert simbolo in cuerpo, f'la GUI no usa {simbolo}'
+
+
+def test_la_creacion_lanza_el_script_de_creacion_y_no_el_de_actualizacion():
+    source = _gui_source()
+    cuerpo = source.split('def _finish_create')[1].split('def ')[0]
+    assert "script_name='create_sed_loads.py'" in cuerpo
+
+
+def test_el_formulario_de_una_sed_no_valida_por_su_cuenta():
+    """Si el formulario validase aparte, divergiría de la plantilla."""
+    source = _gui_source()
+    clase = source.split('class _NewSedDialog')[1].split('\nclass ')[0]
+    # Se mira el código, no la explicación: el docstring sí nombra a quien valida.
+    codigo = clase.split('"""', 2)[-1]
+    # Solo convierte texto a número; las reglas de negocio no viven aquí.
+    for prohibido in ('single_new_load', 'find_nearest_node', 'select_conductor',
+                      'build_create_plan'):
+        assert prohibido not in codigo, f'el diálogo no debe decidir {prohibido}'
+
+
+def test_el_catalogo_se_aplica_al_modelo_y_no_al_txt():
+    source = _gui_source()
+    cuerpo = source.split('def _apply_catalog')[1].split('\n    def ')[0]
+    assert 'aplicar_correcciones' in cuerpo
+    assert 'El TXT de origen no se toca' in cuerpo
+
+
+@pytest.mark.parametrize('_boton,_manejador', MODULOS_DE_CARGAS)
+def test_los_botones_se_deshabilitan_mientras_trabaja(_boton, _manejador):
+    """Todo botón de acción debe registrarse en _action_buttons."""
+    source = _gui_source()
+    bloque = source.split('_action_buttons.extend')
+    registrados = ' '.join(bloque[1:])
+    assert f'self.{_boton}' in registrados, (
+        f'{_boton} no se deshabilita durante una operación larga'
+    )
