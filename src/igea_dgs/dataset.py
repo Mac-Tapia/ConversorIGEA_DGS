@@ -64,6 +64,28 @@ class CymdistDataset:
         loads_path = Path(loads)
         equipment_path = Path(equipment)
 
+        # Cada fichero se comprueba por su CONTENIDO, no por su nombre. Los TXT que
+        # entrega la distribuidora no siguen ninguna convención —el nombre lo pone
+        # quien exporta y cambia de una entrega a otra—, así que el nombre no protege
+        # de nada. Sin esto, poner el catálogo de equipos en la casilla de cargas
+        # producía un dataset con 0 cargas y la conversión seguía adelante: un DGS que
+        # converge, se importa y da un flujo perfecto de una red que no alimenta a
+        # nadie. La peor clase de error es el que no falla.
+        from .identify import CARGA, EQUIPOS, RED, comprobar_ranura
+
+        problemas = [
+            m for m in (
+                comprobar_ranura(red_path, RED),
+                comprobar_ranura(loads_path, CARGA),
+                comprobar_ranura(equipment_path, EQUIPOS),
+            ) if m
+        ]
+        if problemas:
+            raise ValueError(
+                'Los ficheros de entrada no corresponden con su casilla:\n\n'
+                + '\n\n'.join(problemas)
+            )
+
         headnodes: dict[str, str] = {}
         nodes: dict[str, dict[str, str]] = {}
         sources: dict[str, dict[str, str]] = {}

@@ -374,9 +374,15 @@ class ConverterApp:
 
         self.txt_frame = ttk.Frame(files)
         self.txt_frame.pack(fill=X)
-        self._file_row(self.txt_frame, 'RED_*.txt', self.red, self._browse_red)
-        self._file_row(self.txt_frame, 'CARGA_*.txt', self.loads, self._browse_loads)
-        self._file_row(self.txt_frame, 'BD_Equipo_*.txt (catálogo de equipos)', self.equipment, self._browse_equipment)
+        # Se describe el CONTENIDO, no un nombre: los TXT de la distribuidora no
+        # siguen ninguna convención y el nombre cambia de una entrega a otra. Lo
+        # que se comprueba al elegirlos son las tablas que traen dentro.
+        self._file_row(self.txt_frame, 'RED — topología (nodos, tramos, fuentes)',
+                       self.red, self._browse_red)
+        self._file_row(self.txt_frame, 'CARGA — demanda por cliente',
+                       self.loads, self._browse_loads)
+        self._file_row(self.txt_frame, 'EQUIPOS — catálogo de conductores y cables',
+                       self.equipment, self._browse_equipment)
 
         self.mdb_frame = ttk.Frame(files)
         self._file_row(self.mdb_frame, 'Base de red (.mdb)', self.mdb, self._browse_mdb)
@@ -738,32 +744,60 @@ class ConverterApp:
             if announce and just_set:
                 self.status.set(f'Archivo cargado. Aún faltan: {", ".join(missing)}.')
 
+    def _confirmar_tipo(self, path: str, esperado: str) -> bool:
+        """Avisa si el fichero elegido no es lo que esa casilla espera.
+
+        El nombre del fichero no dice nada: los TXT de la distribuidora no siguen
+        ninguna convención y cambian de una entrega a otra. Lo único que distingue un
+        RED de un CARGA o de un catálogo son las tablas que declara dentro, así que se
+        miran al elegirlo y no al convertir, cuando ya se perdió tiempo.
+
+        Se avisa pero se deja continuar: si mañana el export trae una tabla nueva, más
+        vale que el operador pueda seguir que bloquearle el trabajo por una heurística.
+        """
+        from .identify import comprobar_ranura
+
+        problema = comprobar_ranura(path, esperado)
+        if not problema:
+            return True
+        return messagebox.askyesno(
+            'El fichero no encaja con la casilla',
+            problema + '\n\n¿Usarlo de todos modos?',
+            icon='warning',
+        )
+
     def _browse_red(self) -> None:
         path = filedialog.askopenfilename(
-            title='Seleccionar RED_*.txt',
+            title='Seleccionar el TXT de RED — topología',
             filetypes=[('TXT IGEA/CYMDIST', '*.txt'), ('Todos', '*.*')],
         )
         if path:
+            if not self._confirmar_tipo(path, RED):
+                return
             self.red.set(path)
             self._invalidate_loaded_data()
             self._refresh_input_status(just_set=path)
 
     def _browse_loads(self) -> None:
         path = filedialog.askopenfilename(
-            title='Seleccionar CARGA_*.txt',
+            title='Seleccionar el TXT de CARGA — demanda',
             filetypes=[('TXT IGEA/CYMDIST', '*.txt'), ('Todos', '*.*')],
         )
         if path:
+            if not self._confirmar_tipo(path, CARGA):
+                return
             self.loads.set(path)
             self._invalidate_loaded_data()
             self._refresh_input_status(just_set=path)
 
     def _browse_equipment(self) -> None:
         path = filedialog.askopenfilename(
-            title='Seleccionar BD_Equipo_*.txt',
+            title='Seleccionar el TXT de EQUIPOS — catálogo',
             filetypes=[('TXT IGEA/CYMDIST', '*.txt'), ('Todos', '*.*')],
         )
         if path:
+            if not self._confirmar_tipo(path, EQUIPOS):
+                return
             self.equipment.set(path)
             self._invalidate_loaded_data()
             self._refresh_input_status(just_set=path)
