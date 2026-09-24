@@ -56,6 +56,36 @@ class FeederRef:
     nominal_kv: float
 
 
+@dataclass(frozen=True)
+class TiePoint:
+    """Un enlace entre dos alimentadores, modelado como interruptor normalmente abierto.
+
+    Es como opera de verdad una red de distribución: los alimentadores son radiales y
+    se enlazan entre sí con interruptores **normalmente abiertos**, que solo se cierran
+    para transferir carga o para reponer servicio. Fusionar los dos nodos en uno, que
+    era el primer planteamiento, equivale a dejar todos esos enlaces cerrados: convierte
+    la red en mallada, rompe la radialidad y hace que cada alimentador deje de poder
+    estudiarse por separado.
+
+    Modelado así, cada alimentador sigue siendo su propia área radial —converge igual
+    que su DGS individual— y el enlace queda explícito y cerrable. Es además lo que
+    necesita ``ComTieopt`` (Tie Open Point Optimisation, manual §41.6): sin puntos de
+    apertura declarados no hay nada que optimizar.
+    """
+
+    original_node: str
+    """Identificador que los dos alimentadores compartían en el export."""
+    node_a: str
+    node_b: str
+    feeder_a: str
+    feeder_b: str
+    nominal_kv: float
+
+    @property
+    def name(self) -> str:
+        return f'TIE_{self.feeder_a}_{self.feeder_b}_{self.original_node}'[:40]
+
+
 @dataclass
 class CombinedInfo:
     """Lo que solo tiene sentido cuando el modelo es la unión de varios alimentadores.
@@ -77,6 +107,9 @@ class CombinedInfo:
 
     tie_nodes: dict[str, list[str]] = field(default_factory=dict)
     """Nodo compartido → alimentadores que lo comparten. Los puntos de enlace."""
+
+    ties: list[TiePoint] = field(default_factory=list)
+    """Enlaces entre alimentadores, cada uno con su interruptor normalmente abierto."""
 
     voltage_conflicts: list[str] = field(default_factory=list)
     """Identificadores que aparecían a más de una tensión y hubo que separar."""
@@ -114,6 +147,7 @@ class CombineReport:
     line_types_in: int = 0
     line_types_out: int = 0
     tie_nodes: int = 0
+    tie_switches: int = 0
     voltage_conflicts: int = 0
     voltages: dict[float, int] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
@@ -126,16 +160,22 @@ class CombineReport:
 
     @property
     def merged_nodes(self) -> int:
-        """Cuántos nodos dejaron de estar duplicados al unir."""
+        """Cuántos nodos dejaron de estar duplicados al unir.
+
+        Con los enlaces abiertos no se fusiona ninguno a propósito, así que esto vale
+        cero: cada alimentador conserva su nodo y entre ellos va el interruptor.
+        """
         return self.nodes_in - self.nodes_out
 
     def text(self) -> str:
         tensiones = ', '.join(f'{kv:g} kV ({n})' for kv, n in sorted(self.voltages.items()))
         lineas = [
             f'Alimentadores unidos : {self.feeders}  [{tensiones}]',
-            f'Nodos                : {self.nodes_in:,} por separado → {self.nodes_out:,} unidos '
-            f'({self.merged_nodes:,} eran el mismo nodo)',
-            f'Puntos de enlace     : {self.tie_nodes}  ← lo que la unión hace visible',
+            f'Nodos                : {self.nodes_in:,} por separado → {self.nodes_out:,} en la red '
+            + (f'({self.merged_nodes:,} fusionados)' if self.merged_nodes
+               else '(sin fusionar: los enlaces van con interruptor)'),
+            f'Puntos de enlace     : {self.tie_nodes}  →  {self.tie_switches} interruptor(es) '
+            f'NORMALMENTE ABIERTO(S) entre alimentadores',
             f'Tramos               : {self.lines:,}',
             f'Cargas               : {self.loads:,}',
             f'SED                  : {self.seds:,}',
@@ -195,7 +235,7 @@ def unsupplied_nodes(model: FeederModel, sources: Iterable[str]) -> set[str]:
 
 def combine_models(
     models: Iterable[FeederModel], *, name: str = 'SISTEMA',
-    de_energise_islands: bool = True,
+    de_energise_islands: bool = True, tie_mode: str = 'open',
 ) -> tuple[FeederModel, CombineReport]:
     """Une los modelos en uno solo. Devuelve el modelo unido y el informe.
 
@@ -226,10 +266,24 @@ def combine_models(
             f'Revise si es un error del export o una transformación MT/MT no modelada.'
         )
 
-    def resolver(node_id: str, kv: float) -> str:
+    # Nodos que más de un alimentador declara. Con `tie_mode='open'` cada alimentador
+    # conserva el suyo y entre ellos va un interruptor abierto; fusionarlos dejaría
+    # todos los enlaces cerrados y la red dejaría de ser radial.
+    alimentadores_por_nodo: dict[str, list[str]] = defaultdict(list)
+    for m in modelos:
+        for node_id in m.nodes:
+            alimentadores_por_nodo[node_id].append(m.name)
+    enlazados = (
+        {n for n, fs in alimentadores_por_nodo.items() if len(set(fs)) > 1}
+        if tie_mode == 'open' else set()
+    )
+
+    def resolver(node_id: str, kv: float, feeder: str = '') -> str:
         """Identificador del nodo en la red unida."""
         if node_id in conflictivos:
             return f'{node_id}__{_kv_suffix(kv)}'
+        if node_id in enlazados and feeder:
+            return f'{node_id}@{feeder}'
         return node_id
 
     # --- Paso 2: nodos, tipos y elementos -------------------------------------
@@ -250,7 +304,7 @@ def combine_models(
         informe.nodes_in += len(m.nodes)
 
         for node_id, node in m.nodes.items():
-            clave = resolver(node_id, kv)
+            clave = resolver(node_id, kv, m.name)
             feeder_of_node[clave].append(m.name)
             previo = nodes.get(clave)
             if previo is None:
@@ -271,33 +325,53 @@ def combine_models(
         for line in m.lines:
             lines.append(replace(
                 line,
-                from_node=resolver(line.from_node, kv),
-                to_node=resolver(line.to_node, kv),
+                from_node=resolver(line.from_node, kv, m.name),
+                to_node=resolver(line.to_node, kv, m.name),
                 type_key=type_key_for(line.type_key, kv),
             ))
 
         for load in m.loads:
-            loads.append(replace(load, node_id=resolver(load.node_id, kv)))
+            loads.append(replace(load, node_id=resolver(load.node_id, kv, m.name)))
 
         for sed in m.seds:
-            seds.append(replace(sed, node_id=resolver(sed.node_id, kv)))
+            seds.append(replace(sed, node_id=resolver(sed.node_id, kv, m.name)))
 
         for dev in m.devices:
             campos = {}
             for atributo in ('from_node', 'to_node', 'node_id'):
                 valor = getattr(dev, atributo, None)
                 if isinstance(valor, str) and valor:
-                    campos[atributo] = resolver(valor, kv)
+                    campos[atributo] = resolver(valor, kv, m.name)
             devices.append(replace(dev, **campos) if campos else dev)
 
         feeders.append(FeederRef(
             name=m.name, network_id=m.network_id,
-            source_node=resolver(m.source_node, kv), nominal_kv=kv,
+            source_node=resolver(m.source_node, kv, m.name), nominal_kv=kv,
         ))
         informe.warnings.extend(f'{m.name}: {w}' for w in m.warnings)
 
-    # Los puntos de enlace: nodos que más de un alimentador comparte de verdad.
-    tie_nodes = {n: sorted(set(f)) for n, f in feeder_of_node.items() if len(set(f)) > 1}
+    # Un interruptor NORMALMENTE ABIERTO por cada par de alimentadores que comparten
+    # nodo. Con tres o más se encadenan (n-1 interruptores), que es lo que mantiene la
+    # radialidad: cerrar uno solo basta para transferir carga entre dos.
+    ties: list[TiePoint] = []
+    for original in sorted(enlazados):
+        presentes = sorted({
+            (f, resolver(original, round(float(m.nominal_kv), 6), f))
+            for m in modelos for f in [m.name] if original in m.nodes
+        })
+        for (fa, na), (fb, nb) in zip(presentes, presentes[1:]):
+            if na in nodes and nb in nodes:
+                ties.append(TiePoint(
+                    original_node=original, node_a=na, node_b=nb,
+                    feeder_a=fa, feeder_b=fb, nominal_kv=node_kv.get(na, 0.0),
+                ))
+
+    # Los puntos de enlace se cuentan sobre el identificador ORIGINAL del export: con
+    # `tie_mode='open'` los nodos ya llevan el sufijo del alimentador, así que buscarlos
+    # entre los nombres resueltos no encontraría ninguno.
+    tie_nodes = {
+        n: sorted(set(fs)) for n, fs in alimentadores_por_nodo.items() if len(set(fs)) > 1
+    }
 
     informe.nodes_out = len(nodes)
     informe.lines = len(lines)
@@ -306,6 +380,7 @@ def combine_models(
     informe.line_types_in = len(codigos_tipo)
     informe.line_types_out = len(line_types)
     informe.tie_nodes = len(tie_nodes)
+    informe.tie_switches = len(ties)
 
     # La tensión del modelo unido es la que más alimentadores usan. Solo actúa como
     # respaldo: cada nodo y cada tipo llevan la suya en CombinedInfo.
@@ -366,6 +441,7 @@ def combine_models(
             voltage_conflicts=sorted(conflictivos),
             feeder_of_node={n: sorted(set(f)) for n, f in feeder_of_node.items()},
             de_energised=sin_alimentar,
+            ties=ties,
         ),
     )
     return combinado, informe

@@ -89,12 +89,11 @@ class TestNoSeFusionanTensiones:
         assert 'cortocircuito' in aviso
         assert '10 kV' in aviso and '22.9 kV' in aviso
 
-    def test_un_nodo_compartido_a_la_MISMA_tension_si_se_fusiona(self):
+    def test_un_nodo_compartido_a_la_MISMA_tension_es_un_enlace(self):
         """Ese es el punto de enlace, y es justo lo que la unión aporta."""
         a = _alimentador('A', 10.0, ['N1', 'ENLACE'])
         b = _alimentador('B', 10.0, ['N9', 'ENLACE'])
         modelo, informe = combine_models([a, b])
-        assert 'ENLACE' in modelo.nodes
         assert informe.tie_nodes == 1
         assert modelo.combined.tie_nodes['ENLACE'] == ['A', 'B']
 
@@ -205,10 +204,11 @@ class TestIdentidadDeCadaAlimentador:
         assert informe.lines == sum(len(m.lines) for m in modelos)
 
     def test_un_nodo_sin_coordenadas_toma_las_del_otro_alimentador(self):
+        """Solo aplica cuando los nodos se fusionan de verdad."""
         a = _alimentador('A', 10.0, ['N1', 'ENLACE'])
         b = _alimentador('B', 10.0, ['M1', 'ENLACE'])
         a.nodes['ENLACE'] = Node('ENLACE', None, None)
-        modelo, _ = combine_models([a, b])
+        modelo, _ = combine_models([a, b], tie_mode='merge')
         assert modelo.nodes['ENLACE'].x is not None
 
 
@@ -322,3 +322,133 @@ class TestExportReal:
         vivas = [c for c in modelo.loads if c.node_id not in apagados]
         sin_camino = unsupplied_nodes(modelo, (f.source_node for f in modelo.combined.feeders))
         assert not [c for c in vivas if c.node_id in sin_camino]
+
+
+class TestEnlacesNormalmenteAbiertos:
+    """La red real es radial y los alimentadores se enlazan con interruptores abiertos.
+
+    Fusionar los nodos compartidos dejaba todos esos enlaces cerrados: la red pasaba a
+    ser mallada, se perdía la radialidad y cada alimentador dejaba de poder estudiarse
+    por separado. Además, sin puntos de apertura declarados no hay nada que optimizar
+    para ``ComTieopt`` (manual §41.6).
+    """
+
+    def _par(self):
+        return (_alimentador('A', 10.0, ['A1', 'ENLACE']),
+                _alimentador('B', 10.0, ['B1', 'ENLACE']))
+
+    def test_cada_alimentador_conserva_su_propio_nodo(self):
+        modelo, _ = combine_models(self._par())
+        assert 'ENLACE@A' in modelo.nodes
+        assert 'ENLACE@B' in modelo.nodes
+        assert 'ENLACE' not in modelo.nodes
+
+    def test_se_crea_un_interruptor_de_enlace(self):
+        modelo, informe = combine_models(self._par())
+        assert informe.tie_switches == 1
+        enlace = modelo.combined.ties[0]
+        assert {enlace.feeder_a, enlace.feeder_b} == {'A', 'B'}
+        assert enlace.original_node == 'ENLACE'
+
+    def test_el_nombre_dice_que_es_un_enlace_y_entre_quienes(self):
+        modelo, _ = combine_models(self._par())
+        nombre = modelo.combined.ties[0].name
+        assert nombre.startswith('TIE_')
+        assert 'A' in nombre and 'B' in nombre
+        assert len(nombre) <= 40, 'loc_name de PowerFactory se trunca en 40'
+
+    def test_la_radialidad_se_conserva(self):
+        """Con el enlace abierto, cada alimentador sigue siendo un árbol."""
+        modelo, _ = combine_models(self._par())
+        # Un árbol con N nodos tiene N-1 aristas; dos árboles, N-2.
+        assert len(modelo.lines) == len(modelo.nodes) - 2
+
+    def test_tres_alimentadores_en_un_nodo_dan_dos_interruptores(self):
+        """Encadenados: cerrar uno basta para transferir entre dos."""
+        modelos = [_alimentador(f'F{i}', 10.0, [f'{i}a', 'ENLACE']) for i in range(3)]
+        _modelo, informe = combine_models(modelos)
+        assert informe.tie_switches == 2
+
+    def test_en_modo_merge_no_hay_interruptores(self):
+        modelo, informe = combine_models(self._par(), tie_mode='merge')
+        assert informe.tie_switches == 0
+        assert 'ENLACE' in modelo.nodes
+
+    def test_el_dgs_escribe_el_interruptor_ABIERTO(self, tmp_path):
+        from igea_dgs.dgs import write_dgs
+
+        modelo, _ = combine_models(self._par())
+        destino = tmp_path / 'enlaces.dgs'
+        write_dgs(modelo, destino)
+        texto = destino.read_text(encoding='latin-1')
+
+        cab, filas = [], []
+        actual = None
+        for linea in texto.splitlines():
+            if linea.startswith('$$'):
+                actual = linea[2:].split(';')[0]
+                if actual == 'ElmCoup':
+                    cab = [c.strip() for c in linea.split(';')][1:]
+            elif actual == 'ElmCoup' and linea.strip():
+                filas.append([c.strip() for c in linea.split(';')])
+
+        tie = [f for f in filas if f[cab.index('loc_name(a:40)')].startswith('TIE_')]
+        assert len(tie) == 1, f'debe haber un ElmCoup de enlace: {filas}'
+        assert tie[0][cab.index('on_off(i)')] == '0', 'el enlace debe salir ABIERTO'
+
+    def test_el_interruptor_tiene_un_cubiculo_a_cada_lado(self, tmp_path):
+        from igea_dgs.dgs import write_dgs
+
+        modelo, _ = combine_models(self._par())
+        destino = tmp_path / 'enlaces.dgs'
+        write_dgs(modelo, destino)
+        texto = destino.read_text(encoding='latin-1')
+        cubs = [l for l in texto.splitlines() if 'Cub1_TIE_' in l or 'Cub2_TIE_' in l]
+        assert len(cubs) == 2, cubs
+
+
+class TestEnlacesEnElExportReal:
+    def test_los_enlaces_reales_salen_abiertos(self, ds):
+        from igea_dgs.combine import build_combined
+
+        modelo, informe = build_combined(ds, include_geography=False)
+        if not informe.tie_switches:
+            pytest.skip('el export cargado no tiene enlaces entre alimentadores')
+        # Cada enlace une nodos de dos alimentadores distintos, y ambos existen.
+        for enlace in modelo.combined.ties:
+            assert enlace.feeder_a != enlace.feeder_b
+            assert enlace.node_a in modelo.nodes
+            assert enlace.node_b in modelo.nodes
+            assert enlace.node_a != enlace.node_b
+
+    def test_ningun_alimentador_queda_conectado_a_otro(self, ds):
+        """La prueba que importa: con los enlaces abiertos, cada uno es su propia isla.
+
+        Es lo que hace que un alimentador converja dentro de la red unida igual que
+        converge en su DGS individual.
+        """
+        import collections
+
+        from igea_dgs.combine import build_combined
+
+        modelo, _ = build_combined(ds, include_geography=False)
+        info = modelo.combined
+        ady = collections.defaultdict(list)
+        for linea in modelo.lines:
+            ady[linea.from_node].append(linea.to_node)
+            ady[linea.to_node].append(linea.from_node)
+
+        for ref in info.feeders:
+            vistos = {ref.source_node}
+            pila = [ref.source_node]
+            while pila:
+                n = pila.pop()
+                for v in ady.get(n, ()):
+                    if v not in vistos:
+                        vistos.add(v)
+                        pila.append(v)
+            otras = {f for n in vistos for f in info.feeder_of_node.get(n, ())}
+            assert otras <= {ref.name}, (
+                f'{ref.name} alcanza por líneas a {sorted(otras - {ref.name})}: '
+                'el enlace no quedó abierto'
+            )
