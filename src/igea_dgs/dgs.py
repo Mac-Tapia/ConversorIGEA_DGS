@@ -872,6 +872,27 @@ def write_dgs(
             it2p1=0, it2p2=1, it2p3=2,
         ))
 
+    # Enlaces entre alimentadores: un ElmCoup NORMALMENTE ABIERTO por cada uno, con su
+    # cubículo a cada lado. Abierto (on_off=0) es como opera la red de verdad —los
+    # alimentadores son radiales y el enlace solo se cierra para transferir carga— y es
+    # lo que necesita ComTieopt (manual §41.6) para tener algo que optimizar.
+    for enlace in (getattr(combinado, 'ties', ()) if combinado else ()):
+        if enlace.node_a not in node_fids or enlace.node_b not in node_fids:
+            continue
+        coup_fid = reg.new()
+        rows['ElmCoup'].append(_make_row(
+            schema, 'ElmCoup', FID=coup_fid, OP='C',
+            loc_name=_loc_name(enlace.name), fold_id=network_fid, typ_id='',
+            on_off=0, aUsage='swt', nphase=3, nneutral=0,
+        ))
+        for lado, nodo in ((0, enlace.node_a), (1, enlace.node_b)):
+            rows['StaCubic'].append(_make_row(
+                schema, 'StaCubic', FID=reg.new(), OP='C',
+                loc_name=_loc_name(f'Cub{lado + 1}_{enlace.name}'),
+                fold_id=node_fids[nodo], obj_bus=lado, obj_id=coup_fid,
+                it2p1=0, it2p2=1, it2p3=2,
+            ))
+
     # Un ElmFeeder por alimentador: es lo que da a PowerFactory la herramienta de
     # coloreado y de recorrido por alimentador. En una red unida son 96, y es
     # precisamente lo que permite seguir distinguiéndolos dentro de la misma grid.
@@ -1082,6 +1103,11 @@ def write_dgs(
     }
     if sed_keys:
         used_tables |= {'ElmSubstat', 'ElmTr2', 'TypTr2', 'ElmCoup'}
+    if rows['ElmCoup']:
+        # Los enlaces entre alimentadores también son ElmCoup, y pueden existir en una
+        # red sin ninguna SED. Atar la tabla solo a las SED los dejaba fuera del
+        # fichero sin ningún aviso: las filas se construían y no se escribían.
+        used_tables.add('ElmCoup')
     if geography is not None:
         used_tables |= {'IntGrf', 'IntGrfcon', 'IntGrfnet'}
     for table in schema.table_order:

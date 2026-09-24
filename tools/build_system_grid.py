@@ -103,10 +103,17 @@ def _importar_en_powerfactory(dgs: Path, nombre: str, *, run_ldf: bool) -> int:
 
     print()
     print('Flujo de potencia…')
-    ldf = app.GetFromStudyCase('ComLdf')
-    rc = ldf.Execute()
-    if rc != 0:
-        print(f'El flujo NO convergió (rc={rc}).', file=sys.stderr)
+    # Se usa el mismo flujo que la puerta de aceptación, con sus opciones documentadas
+    # (arranque plano iopt_fl=1 y adaptación automática del modelo iopt_lev=1, manual
+    # §24.3.1 y §24.6.5). Sin ellas una red grande se estanca en el primer Newton
+    # aunque el modelo esté bien: es un problema de punto de arranque, no de capacidad.
+    from powerfactory_acceptance import run_load_flow_until_converged  # type: ignore
+
+    resultado = run_load_flow_until_converged(app)
+    if not resultado.get('pass'):
+        print('El flujo NO convergió ni con las opciones relajadas.', file=sys.stderr)
+        for cuestion in (resultado.get('attempts') or [])[-1:]:
+            print(f'  {cuestion}', file=sys.stderr)
         return 5
     tensiones = [b.GetAttribute('m:u') for b in barras
                  if b.HasResults() and b.GetAttribute('m:u') is not None]
