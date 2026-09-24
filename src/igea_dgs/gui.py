@@ -1981,18 +1981,32 @@ class ConverterApp:
             )
             return
         self._append_log(f'--- Catálogo aplicado a {model.name} ---')
+        self._append_log(
+            '  La identidad de cada elemento se conserva: el código, el material y la '
+            'sección salen del export. Solo cambian sus características.'
+        )
         for c in cambios:
-            self._append_log('  ' + c)
+            self._append_log('  ' + c.linea())
+        # Un cambio grande no es cosmético: las pérdidas y la caída de tensión de esos
+        # tramos se mueven en la misma proporción, y quien lo aplica debe saberlo antes
+        # de que el estudio dé otro resultado.
+        fuertes = [c for c in cambios
+                   if c.variacion_pct is not None and abs(c.variacion_pct) >= 25.0]
+        aviso = ''
+        if fuertes:
+            aviso = (f'\n\n{len(fuertes)} cambio(s) de más del 25 %. Las pérdidas y la '
+                     'caída de tensión de esos tramos cambian en la misma proporción.')
         messagebox.showinfo(
             'Catálogo aplicado',
-            f'{len(cambios)} parámetro(s) corregidos en el modelo de {model.name}:\n\n'
-            + '\n'.join(cambios[:12])
+            f'{len(cambios)} característica(s) corregidas en {model.name}:\n\n'
+            + '\n'.join(c.linea() for c in cambios[:12])
             + ('' if len(cambios) <= 12 else f'\n… y {len(cambios) - 12} más')
+            + aviso
             + '\n\nVuelva a convertir el alimentador para que el DGS salga con estos '
               'valores. El TXT de origen no se toca.',
         )
-        self.status.set(f'{len(cambios)} parámetros corregidos desde el catálogo.'
-                        ' Reconvierta para aplicarlos al DGS.')
+        self.status.set(f'{len(cambios)} características corregidas desde el catálogo.'
+                        ' Reconvierta para aplicarlas al DGS.')
 
     def _on_close(self) -> None:
         # Cerrar durante un lote mataba el hilo daemon a mitad de escritura y dejaba

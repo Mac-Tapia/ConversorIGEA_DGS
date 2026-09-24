@@ -420,14 +420,36 @@ def auditar(models: Iterable[Any]) -> Auditoria:
 # Escritura de la tabla de entrada
 # --------------------------------------------------------------------------------
 
+#: Columnas de las hojas de conductor y de cable.
+#:
+#: El par ``*_modelo_*`` / ``*_ficha_*`` es lo que hace legible la tabla: a la
+#: izquierda lo que hoy tiene el modelo, a la derecha lo que dice la ficha. La
+#: identidad del elemento —``codigo``, ``material``, ``seccion_mm2``— sale del TXT o
+#: de la base Access y **no se toca**: un AAAC de 120 mm² sigue siendo un AAAC de
+#: 120 mm². Lo que se corrige son sus características.
 COLUMNAS_CONDUCTOR = (
     'codigo', 'material', 'seccion_mm2', 'tramos', 'km', 'alimentadores',
     'R1_modelo_ohm_km', 'R1_ficha_ohm_km', 'desviacion_pct',
-    'X1_modelo_ohm_km', 'R0_modelo_ohm_km', 'X0_modelo_ohm_km',
-    'B1_modelo_uS_km', 'ampacidad_modelo_A', 'ampacidad_ficha_A',
+    'X1_modelo_ohm_km', 'X1_ficha_ohm_km',
+    'R0_modelo_ohm_km', 'R0_ficha_ohm_km',
+    'X0_modelo_ohm_km', 'X0_ficha_ohm_km',
+    'B1_modelo_uS_km', 'B1_ficha_uS_km',
+    'ampacidad_modelo_A', 'ampacidad_ficha_A',
     'diametro_mm', 'hilos', 'Ithr_kA_1s', 'temp_servicio_C',
     'estado', 'fuente', 'observaciones',
 )
+
+#: ``columna de ficha -> atributo de LineType``. Es la única definición del enlace
+#: entre la tabla y el modelo: añadir una característica corregible es añadir aquí
+#: una línea, y el lector, el aplicador y el informe la recogen solos.
+CARACTERISTICAS = {
+    'R1_ficha_ohm_km': ('r1_ohm_km', 'rline', 'Ω/km'),
+    'X1_ficha_ohm_km': ('x1_ohm_km', 'xline', 'Ω/km'),
+    'R0_ficha_ohm_km': ('r0_ohm_km', 'rline0', 'Ω/km'),
+    'X0_ficha_ohm_km': ('x0_ohm_km', 'xline0', 'Ω/km'),
+    'B1_ficha_uS_km': ('b1_source', 'bline', 'µS/km'),
+    'ampacidad_ficha_A': ('ampacity_a', 'sline', 'A'),
+}
 
 COLUMNAS_TRAFO = (
     'kVA', 'unidades_en_modelo', 'tension_AT_kV', 'tension_BT_kV', 'grupo_conexion',
@@ -460,6 +482,14 @@ COLUMNAS_HALLAZGO = (
 
 
 def _hoja_conductores(aud: Auditoria, aereos: bool) -> list[list[Any]]:
+    """Una fila por tipo en uso: identidad del TXT/MDB, valores del modelo y de ficha.
+
+    La columna ``R1_ficha_ohm_km`` se precarga cuando hay fuente para hacerlo, de modo
+    que el flujo por defecto ya corrige sin que nadie teclee nada. Las demás columnas
+    ``*_ficha_*`` salen vacías a propósito: no hay fuente pública que las respalde y
+    una casilla en blanco con su fuente anotada es más útil que un número inventado en
+    una tabla que va a alimentar decisiones de inversión.
+    """
     filas: list[list[Any]] = []
     for uso in sorted(aud.usos.values(), key=lambda u: -u.km):
         if es_aereo(uso.tipo) != aereos:
@@ -468,31 +498,42 @@ def _hoja_conductores(aud: Auditoria, aereos: bool) -> list[list[Any]]:
         seccion = seccion_de_codigo(codigo)
         tipo = uso.tipo
         r1 = float(tipo.r1_ohm_km)
-        ficha = ''
-        desv = ''
+        r1_ficha: float | str = ''
+        desv: float | str = ''
         estado = 'por_confirmar'
         fuente = 'Pendiente: ficha del proveedor'
+        observaciones = ''
         if codigo.upper().startswith('AA') and seccion:
             esperado = aaac_r20_ohm_km(seccion)
-            ficha = round(esperado, 4)
+            r1_ficha = round(esperado, 6)
             if r1 > 0:
                 desv = round((r1 - esperado) / esperado * 100.0, 1)
             estado = 'ficha' if seccion in AAAC_FICHA else 'derivado'
             fuente = AAAC_FUENTE
-        diametro = hilos = ''
+            if seccion not in AAAC_FICHA:
+                fuente += ' — sección derivada con ρ20/S · k'
+        elif codigo.upper() != 'DEFAULT' and seccion:
+            observaciones = (
+                f'Identidad conservada del export: {material_de_codigo(codigo)} de '
+                f'{seccion:g} mm². Para corregir sus características, escriba el valor '
+                f'de la ficha de su proveedor y ponga «ficha» en «estado».'
+            )
+        diametro: float | str = ''
+        hilos: int | str = ''
         if seccion in AAAC_FICHA:
-            diametro = AAAC_FICHA[seccion]['diam_ext_mm']
-            hilos = AAAC_FICHA[seccion]['hilos']
+            diametro = float(AAAC_FICHA[seccion]['diam_ext_mm'])
+            hilos = int(AAAC_FICHA[seccion]['hilos'])
         filas.append([
             codigo, material_de_codigo(codigo), seccion or '',
             uso.tramos, round(uso.km, 3), len(uso.alimentadores),
-            round(r1, 6), ficha, desv,
-            round(float(tipo.x1_ohm_km), 6), round(float(tipo.r0_ohm_km), 6),
-            round(float(tipo.x0_ohm_km), 6),
-            round(float(getattr(tipo, 'b1_source', 0.0) or 0.0), 6),
+            round(r1, 6), r1_ficha, desv,
+            round(float(tipo.x1_ohm_km), 6), '',
+            round(float(tipo.r0_ohm_km), 6), '',
+            round(float(tipo.x0_ohm_km), 6), '',
+            round(float(getattr(tipo, 'b1_source', 0.0) or 0.0), 6), '',
             round(float(tipo.ampacity_a), 1), '',
             diametro, hilos, '', '',
-            estado, fuente, '',
+            estado, fuente, observaciones,
         ])
     return filas
 
@@ -615,21 +656,56 @@ def escribir_catalogo(
 
 @dataclass(frozen=True)
 class CorreccionConductor:
-    """Una fila del catálogo con valores que deben sustituir a los del modelo."""
+    """Los valores de ficha de un tipo, listos para sustituir a los del modelo.
+
+    ``valores`` va indexado por el **atributo de** :class:`~igea_dgs.model.LineType`,
+    no por el nombre de la columna: así el aplicador no vuelve a saber nada del
+    formato de la hoja.
+    """
 
     codigo: str
-    r1_ohm_km: float | None = None
-    x1_ohm_km: float | None = None
-    r0_ohm_km: float | None = None
-    x0_ohm_km: float | None = None
-    b1_us_km: float | None = None
-    ampacity_a: float | None = None
+    valores: dict[str, float] = field(default_factory=dict)
     fuente: str = ''
+    estado: str = ''
 
     def aplica(self) -> bool:
-        return any(v is not None for v in (
-            self.r1_ohm_km, self.x1_ohm_km, self.r0_ohm_km,
-            self.x0_ohm_km, self.b1_us_km, self.ampacity_a))
+        return bool(self.valores)
+
+    # Accesos cómodos para el caso corriente, que es la resistencia directa.
+    @property
+    def r1_ohm_km(self) -> float | None:
+        return self.valores.get('r1_ohm_km')
+
+    @property
+    def ampacity_a(self) -> float | None:
+        return self.valores.get('ampacity_a')
+
+
+@dataclass(frozen=True)
+class Cambio:
+    """Un parámetro que cambia, con lo que costó y a cuánta red afecta."""
+
+    codigo: str
+    atributo_pf: str
+    unidad: str
+    antes: float
+    despues: float
+    tramos: int = 0
+    km: float = 0.0
+    fuente: str = ''
+
+    @property
+    def variacion_pct(self) -> float | None:
+        if self.antes == 0.0:
+            return None
+        return (self.despues - self.antes) / self.antes * 100.0
+
+    def linea(self) -> str:
+        v = self.variacion_pct
+        cola = f' ({v:+.1f} %)' if v is not None else ''
+        uso = f' — {self.tramos:,} tramos, {self.km:,.1f} km' if self.tramos else ''
+        return (f'{self.codigo}.{self.atributo_pf}: {self.antes:g} → '
+                f'{self.despues:g} {self.unidad}{cola}{uso}')
 
 
 def _num(valor: Any) -> float | None:
@@ -642,14 +718,28 @@ def _num(valor: Any) -> float | None:
     return n if n > 0 else None
 
 
-def leer_catalogo(path: Path | str) -> dict[str, CorreccionConductor]:
+ESTADOS_QUE_CORRIGEN = ('ficha', 'derivado')
+"""Los únicos estados que autorizan a tocar el modelo sin que nadie lo pida."""
+
+
+def leer_catalogo(
+    path: Path | str, *, incluir_referencia: bool = False,
+) -> dict[str, CorreccionConductor]:
     """Lee las columnas ``*_ficha_*`` del catálogo y devuelve las correcciones.
 
     Solo se toman las filas cuyo ``estado`` es ``ficha`` o ``derivado``: una fila que
     sigue marcada ``por_confirmar`` no corrige nada, por mucho que tenga un número
     escrito. Es la salvaguarda que impide que un valor provisional entre en el modelo
     como si fuera de fabricante.
+
+    ``incluir_referencia`` admite además las filas ``referencia`` —valores típicos de
+    norma, no de la ficha del equipo instalado—. Existe porque a veces se quiere ver
+    el efecto de un valor plausible antes de pedir la ficha, pero es una decisión
+    consciente de quien ejecuta, nunca lo que pasa por defecto.
     """
+    estados_validos = set(ESTADOS_QUE_CORRIGEN)
+    if incluir_referencia:
+        estados_validos.add('referencia')
     try:
         from openpyxl import load_workbook
     except ImportError as exc:  # pragma: no cover
@@ -680,46 +770,114 @@ def leer_catalogo(path: Path | str) -> dict[str, CorreccionConductor]:
             if not codigo:
                 continue
             estado = str(celda(fila, 'estado') or '').strip().lower()
-            if estado not in ('ficha', 'derivado'):
+            if estado not in estados_validos:
                 continue
+            valores = {}
+            for columna, (atributo, _pf, _unidad) in CARACTERISTICAS.items():
+                valor = _num(celda(fila, columna))
+                if valor is not None:
+                    valores[atributo] = valor
             corr = CorreccionConductor(
-                codigo=str(codigo).strip(),
-                r1_ohm_km=_num(celda(fila, 'R1_ficha_ohm_km')),
-                ampacity_a=_num(celda(fila, 'ampacidad_ficha_A')),
-                fuente=str(celda(fila, 'fuente') or '').strip(),
+                codigo=str(codigo).strip(), valores=valores,
+                fuente=str(celda(fila, 'fuente') or '').strip(), estado=estado,
             )
             if corr.aplica():
                 correcciones[corr.codigo] = corr
     return correcciones
 
 
-def aplicar_correcciones(model: Any, correcciones: dict[str, CorreccionConductor]) -> list[str]:
-    """Sustituye en el modelo los parámetros corregidos. Devuelve lo que cambió.
+#: Por debajo de esto no hay corrección que valga.
+#:
+#: Una resistencia de ficha viene con cuatro cifras significativas, así que una
+#: diferencia del 0,1 % no dice nada sobre el conductor: dice cuántos decimales se
+#: escribieron. Sin este margen, la hoja se llenaría de «correcciones» de 1,3511 a
+#: 1,3510 que solo sirven para enterrar las de verdad.
+TOLERANCIA_CAMBIO_REL = 1e-3
 
-    Trabaja sobre el modelo en memoria, antes de escribir el DGS, así que el fichero
-    que llega a PowerFactory ya sale con los valores de ficha. No se toca el TXT de
-    origen: el catálogo de la empresa se corrige en la empresa, no aquí.
+
+def aplicar_correcciones(
+    model: Any, correcciones: dict[str, CorreccionConductor],
+) -> list[Cambio]:
+    """Actualiza las características del modelo conservando la identidad del elemento.
+
+    El flujo que implementa:
+
+    1. El TXT o la base Access dan **qué elemento es** —``AA12003D`` es un AAAC de
+       120 mm², ``NK12003D`` un cable de cobre de 120 mm²—. Eso es el inventario de
+       lo que está físicamente instalado y **se mantiene intacto**: ni el código, ni
+       el material, ni la sección, ni qué tramo usa qué tipo.
+    2. El catálogo da, para esa misma designación, lo que dice la ficha del
+       fabricante.
+    3. Donde las características no concuerdan, mandan las de la ficha.
+
+    La asimetría es deliberada y es lo que pidió el usuario: la designación viene del
+    inventario de activos, mientras que la impedancia es un campo calculado del
+    catálogo de CYMDIST, que es justo donde aparecen las filas copiadas. Ante una
+    discrepancia se conserva la designación y se corrige el número.
+
+    Conviene saber lo que eso implica. Si ``AA01003D`` es de verdad un conductor de
+    10 mm², corregir su resistencia de 1,0891 a 3,3776 Ω/km la **triplica**, y con
+    ella las pérdidas y la caída de tensión de esos tramos. El cambio es correcto,
+    pero no es cosmético: por eso cada :class:`Cambio` lleva cuántos tramos y cuántos
+    kilómetros toca, y el script no aplica nada sin enseñarlo antes.
+
+    Trabaja sobre el modelo en memoria, antes de escribir el DGS. El TXT de origen no
+    se toca: el catálogo de la empresa se corrige en la empresa, no aquí.
     """
     from dataclasses import replace
 
-    cambios: list[str] = []
+    # Cuánto pesa cada tipo, para que el informe diga a qué red afecta el cambio.
+    peso: dict[str, tuple[int, float]] = {}
+    for line in model.lines:
+        tipo = model.line_types.get(line.type_key)
+        if tipo is None:
+            continue
+        n, km = peso.get(tipo.code, (0, 0.0))
+        peso[tipo.code] = (n + 1, km + line.length_km)
+
+    cambios: list[Cambio] = []
     for clave, tipo in list(model.line_types.items()):
         corr = correcciones.get(tipo.code)
         if corr is None:
             continue
+        valores = dict(corr.valores)
+
+        # La homopolar del catálogo CYMDIST es, en todos los tipos, copia exacta de la
+        # directa. Si se corrige R1 y se deja R0 quieto, el resultado es R0 < R1, que
+        # con retorno por tierra no puede darse: sería peor que el defecto de partida,
+        # porque un valor imposible desconcierta más que uno consistente y erróneo.
+        # Mientras no haya valor de ficha para la homopolar, la copia se mantiene.
+        for directa, homopolar, etiqueta in (
+            ('r1_ohm_km', 'r0_ohm_km', 'rline0'),
+            ('x1_ohm_km', 'x0_ohm_km', 'xline0'),
+        ):
+            nuevo_directo = valores.get(directa)
+            if nuevo_directo is None or homopolar in valores:
+                continue
+            if math.isclose(float(getattr(tipo, homopolar, 0.0) or 0.0),
+                            float(getattr(tipo, directa, 0.0) or 0.0),
+                            rel_tol=TOLERANCIA_CAMBIO_REL):
+                valores[homopolar] = nuevo_directo
+
         nuevo = tipo
-        if corr.r1_ohm_km is not None and not math.isclose(
-                corr.r1_ohm_km, tipo.r1_ohm_km, rel_tol=1e-9):
-            cambios.append(
-                f'{tipo.code}.rline: {tipo.r1_ohm_km:g} → {corr.r1_ohm_km:g} Ω/km'
-            )
-            nuevo = replace(nuevo, r1_ohm_km=corr.r1_ohm_km)
-        if corr.ampacity_a is not None and not math.isclose(
-                corr.ampacity_a, tipo.ampacity_a, rel_tol=1e-9):
-            cambios.append(
-                f'{tipo.code}.sline: {tipo.ampacity_a:g} → {corr.ampacity_a:g} A'
-            )
-            nuevo = replace(nuevo, ampacity_a=corr.ampacity_a)
+        for atributo, pf, unidad in CARACTERISTICAS.values():
+            valor = valores.get(atributo)
+            if valor is None:
+                continue
+            actual = float(getattr(tipo, atributo, 0.0) or 0.0)
+            if math.isclose(valor, actual, rel_tol=TOLERANCIA_CAMBIO_REL):
+                continue
+            tramos, km = peso.get(tipo.code, (0, 0.0))
+            fuente = corr.fuente
+            if atributo not in corr.valores:
+                fuente = (f'{corr.fuente} (arrastrado desde la secuencia directa: el '
+                          f'catálogo tenía la homopolar como copia y no hay valor de '
+                          f'ficha para ella)')
+            cambios.append(Cambio(
+                tipo.code, pf, unidad, actual, valor, tramos, km, fuente,
+            ))
+            nuevo = replace(nuevo, **{atributo: valor})
         if nuevo is not tipo:
             model.line_types[clave] = nuevo
+    cambios.sort(key=lambda c: (-c.km, c.codigo, c.atributo_pf))
     return cambios

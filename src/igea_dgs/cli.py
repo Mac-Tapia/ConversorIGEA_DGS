@@ -56,6 +56,11 @@ def _parser() -> argparse.ArgumentParser:
     conv.add_argument('--all', action='store_true', help='Convert every feeder independently')
     conv.add_argument('--out-dir', required=True)
     conv.add_argument('--aliases', help='Optional JSON string->string line-type aliases (applied before catalog auto-map)')
+    conv.add_argument(
+        '--catalogo', nargs='?', const='', metavar='XLSX',
+        help=('Corregir las características eléctricas con el catálogo de fichas antes '
+              'de escribir el DGS. Sin valor usa input/catalogo_parametros.xlsx. La '
+              'identidad de cada elemento (código, material, sección) se conserva.'))
     conv.add_argument('--schema-profile', default='pf21_dgs_1_8_4')
     conv.add_argument('--source-crs', default='EPSG:32718', help='CRS of CoordX/CoordY in the loaded TXT (any EPSG; example EPSG:32718)')
     conv.add_argument('--target-crs', default='EPSG:4326', help='Target geographic CRS for GPSlat/GPSlon')
@@ -196,6 +201,19 @@ def main(argv=None) -> int:
             f"DGS de {inventory['totals']['feeders']} alimentadores leídos.",
             flush=True,
         )
+        correcciones_catalogo = None
+        if args.catalogo is not None:
+            from .catalog import CATALOG_FILENAME, CatalogError, input_dir, leer_catalogo
+
+            ruta = Path(args.catalogo) if args.catalogo else (
+                input_dir('.') / CATALOG_FILENAME)
+            try:
+                correcciones_catalogo = leer_catalogo(ruta)
+            except CatalogError as exc:
+                raise SystemExit(f'Catálogo: {exc}') from exc
+            print(f'Catálogo: {ruta} — {len(correcciones_catalogo)} tipo(s) con valor '
+                  f'de ficha aplicable.', flush=True)
+
         manifest = convert_selection(
             dataset,
             selectors if not args.all else None,
@@ -212,6 +230,7 @@ def main(argv=None) -> int:
             write_preview=args.preview,
             preview_backend=args.preview_backend,
             on_progress=_progress,
+            catalog_corrections=correcciones_catalogo,
         )
     except (OSError, ValueError, ImportError) as exc:
         raise SystemExit(f'Error de conversión: {exc}') from exc

@@ -7,6 +7,7 @@ import shutil
 import threading
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
+from typing import Any
 from pathlib import Path
 
 from .dataset import CymdistDataset
@@ -134,12 +135,21 @@ def convert_selection(
     preview_backend: str = 'auto',
     on_progress: ProgressCallback | None = None,
     cancel: threading.Event | None = None,
+    catalog_corrections: Mapping[str, Any] | None = None,
 ) -> dict:
     """Convierte la selección y devuelve el manifiesto del lote.
 
     ``cancel`` permite abortar entre alimentadores: los ya publicados se conservan,
     el que estuviera en curso se descarta entero (nunca a medias) y el manifiesto se
     escribe igualmente con ``status='cancelled'``.
+
+    ``catalog_corrections`` son los valores de ficha de :mod:`igea_dgs.catalog`. Se
+    aplican **entre** construir el modelo y escribir el DGS, que es el único punto
+    donde tienen sentido: el TXT ya dijo qué elemento es cada tramo y el DGS todavía
+    no se ha escrito. Van aquí, y no en un guion aparte, para que la corrección
+    ocurra en el mismo camino que la conversión normal —con su georreferenciación,
+    su validación y su publicación atómica— en lugar de en una copia paralela que
+    tarde o temprano se desviaría.
     """
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -153,6 +163,9 @@ def convert_selection(
     # Avisos de ingestión: un CARGA vacío convertía sin una sola carga y el lote
     # salía «ok». Ahora queda registrado en el manifiesto y visible para la GUI.
     input_warnings: list[str] = []
+    # Qué características cambió el catálogo, por alimentador. Va al manifiesto: un
+    # DGS con impedancias distintas a las del TXT debe decir de dónde salieron.
+    catalog_changes: dict[str, list[str]] = {}
     if not dataset.customer_loads:
         input_warnings.append(
             f'{Path(dataset.loads_path).name}: 0 filas en [CUSTOMER LOADS]. Los DGS '
@@ -213,6 +226,12 @@ def convert_selection(
                     dataset, network_id, aliases=aliases, strict=strict,
                     include_geography=include_geography,
                 )
+                if catalog_corrections:
+                    from .catalog import aplicar_correcciones
+
+                    cambios = aplicar_correcciones(model, dict(catalog_corrections))
+                    if cambios:
+                        catalog_changes[feeder] = [c.linea() for c in cambios]
                 geography = None
                 geography_report = None
                 if include_geography:
@@ -334,6 +353,11 @@ def convert_selection(
             'target_crs': target_crs if include_geography else None,
             'runtime_reference_dependency': False,
             'disambiguated_output_names': disambiguated,
+            # Un DGS con impedancias distintas a las del TXT tiene que decir de dónde
+            # salieron, o dentro de seis meses nadie sabrá por qué el resultado del
+            # estudio cambió.
+            'catalog_applied': bool(catalog_corrections),
+            'catalog_changes': catalog_changes,
             # Resumen de lo leído: hace visible de un vistazo un CARGA vacío o un
             # export sin maniobras, que antes producían un lote «ok» sin esos
             # elementos y sin ningún aviso.
