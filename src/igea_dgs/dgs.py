@@ -103,32 +103,58 @@ def _node_degrees(model: FeederModel) -> dict[str, int]:
     return dict(degrees)
 
 
-def _line_neighbors(model: FeederModel) -> dict[str, list[tuple[str, Line]]]:
-    """node_id → [(neighbor_id, Line), ...]"""
-    neighbors: dict[str, list[tuple[str, Line]]] = defaultdict(list)
+# node_id → [(neighbor_id, Line), ...]. Built once per model and threaded through
+# the diagram helpers below. Rebuilding it per lookup turns every diagram pass
+# into O(lines²) — see tests/test_performance_budget.py.
+LineNeighborIndex = dict[str, list[tuple[str, Line]]]
+
+
+def _line_neighbors(model: FeederModel) -> LineNeighborIndex:
+    """Build the node adjacency index.
+
+    Callers must build this **once** per model and pass it down via the
+    ``neighbors`` keyword. Never call this inside a loop over lines.
+    """
+    neighbors: LineNeighborIndex = defaultdict(list)
     for line in model.lines:
         neighbors[line.from_node].append((line.to_node, line))
         neighbors[line.to_node].append((line.from_node, line))
     return neighbors
 
 
-def diagram_anchor_node(model: FeederModel, node_id: str, *, max_stub_m: float = 1.0) -> str:
+def diagram_anchor_node(
+    model: FeederModel,
+    node_id: str,
+    *,
+    max_stub_m: float = 1.0,
+    neighbors: LineNeighborIndex | None = None,
+) -> str:
     """Snap micro service-stub tips to the upstream network bus for graphics.
 
     CYMDIST often models a ~0.3 m section from a primary SED node to a tip
     terminal where the load hangs. Electrically the load stays on the tip;
     graphically anchoring at the primary keeps SED/load symbols on the feeder.
+
+    Pass ``neighbors`` when calling repeatedly; omitting it rebuilds the whole
+    adjacency index for a single lookup.
     """
-    neighbors = _line_neighbors(model).get(node_id, ())
-    if len(neighbors) != 1:
+    index = _line_neighbors(model) if neighbors is None else neighbors
+    adjacent = index.get(node_id, ())
+    if len(adjacent) != 1:
         return node_id
-    other_id, line = neighbors[0]
+    other_id, line = adjacent[0]
     if line.length_m <= max_stub_m:
         return other_id
     return node_id
 
 
-def is_micro_service_stub_line(model: FeederModel, line: Line, *, max_stub_m: float = 1.0) -> bool:
+def is_micro_service_stub_line(
+    model: FeederModel,
+    line: Line,
+    *,
+    max_stub_m: float = 1.0,
+    neighbors: LineNeighborIndex | None = None,
+) -> bool:
     """True for ≤1 m tip sections that only hang a load/SED off the primary bus.
 
     These stay in ElmLne/StaCubic (electrical) but must not get IntGrf d_lin:
@@ -137,19 +163,26 @@ def is_micro_service_stub_line(model: FeederModel, line: Line, *, max_stub_m: fl
     """
     if line.length_m > max_stub_m:
         return False
-    if diagram_anchor_node(model, line.from_node, max_stub_m=max_stub_m) == line.to_node:
+    index = _line_neighbors(model) if neighbors is None else neighbors
+    if diagram_anchor_node(model, line.from_node, max_stub_m=max_stub_m, neighbors=index) == line.to_node:
         return True
-    if diagram_anchor_node(model, line.to_node, max_stub_m=max_stub_m) == line.from_node:
+    if diagram_anchor_node(model, line.to_node, max_stub_m=max_stub_m, neighbors=index) == line.from_node:
         return True
     return False
 
 
-def diagram_line_sections(model: FeederModel, *, max_stub_m: float = 1.0) -> set[str]:
+def diagram_line_sections(
+    model: FeederModel,
+    *,
+    max_stub_m: float = 1.0,
+    neighbors: LineNeighborIndex | None = None,
+) -> set[str]:
     """SectionIDs that receive IntGrf d_lin (excludes micro service stubs)."""
+    index = _line_neighbors(model) if neighbors is None else neighbors
     return {
         line.section_id
         for line in model.lines
-        if not is_micro_service_stub_line(model, line, max_stub_m=max_stub_m)
+        if not is_micro_service_stub_line(model, line, max_stub_m=max_stub_m, neighbors=index)
     }
 
 
@@ -157,13 +190,16 @@ def diagram_line_rail_counts(
     model: FeederModel,
     *,
     max_stub_m: float = 1.0,
+    neighbors: LineNeighborIndex | None = None,
+    drawn: set[str] | None = None,
 ) -> tuple[int, int, int]:
     """Return ``(overhead_drawn, underground_drawn, d_lin_graphics)``.
 
     One IntGrf ``d_lin`` per drawn ElmLne (NA205 pattern). Underground look in
     DigSilent comes from ``ElmLne.inAir=0``, not duplicate graphics.
     """
-    drawn = diagram_line_sections(model, max_stub_m=max_stub_m)
+    if drawn is None:
+        drawn = diagram_line_sections(model, max_stub_m=max_stub_m, neighbors=neighbors)
     oh = ug = 0
     for line in model.lines:
         if line.section_id not in drawn:
@@ -201,7 +237,12 @@ def parallel_circuit_graphic_offsets(
     return offsets
 
 
-def visible_pointterm_nodes(model: FeederModel) -> set[str]:
+def visible_pointterm_nodes(
+    model: FeederModel,
+    *,
+    neighbors: LineNeighborIndex | None = None,
+    drawn: set[str] | None = None,
+) -> set[str]:
     """Black PointTerm symbols so drawn lines are not floating fragments.
 
     Rules (aligned with NA205 density — most line ends sit on a PointTerm):
@@ -212,16 +253,18 @@ def visible_pointterm_nodes(model: FeederModel) -> set[str]:
     - micro service-stub tips (≤1 m) whose ``d_lin`` is omitted — never added,
       because anchors resolve to the primary bus
     """
-    drawn = diagram_line_sections(model)
+    index = _line_neighbors(model) if neighbors is None else neighbors
+    if drawn is None:
+        drawn = diagram_line_sections(model, neighbors=index)
     visible: set[str] = {model.source_node}
     for line in model.lines:
         if line.section_id in drawn:
             visible.add(line.from_node)
             visible.add(line.to_node)
     for load in model.loads:
-        visible.add(diagram_anchor_node(model, load.node_id))
+        visible.add(diagram_anchor_node(model, load.node_id, neighbors=index))
     for sed in model.seds:
-        visible.add(diagram_anchor_node(model, sed.node_id))
+        visible.add(diagram_anchor_node(model, sed.node_id, neighbors=index))
     return visible
 
 
@@ -756,7 +799,11 @@ def write_dgs(
     visible_nodes: set[str] = set()
     diagram_sheet: DiagramSheet | None = None
     if geography is not None:
-        visible_nodes = visible_pointterm_nodes(model)
+        # Build the adjacency index and the drawn-section set once for the whole
+        # graphic layer; every helper below reuses them.
+        neighbors = _line_neighbors(model)
+        drawn_line_sections = diagram_line_sections(model, neighbors=neighbors)
+        visible_nodes = visible_pointterm_nodes(model, neighbors=neighbors, drawn=drawn_line_sections)
         map_point, diagram_sheet = _diagram_mapper(geography, visible_nodes)
         node_xy = {node_id: map_point(point) for node_id, point in geography.nodes.items()}
         layout = _diagram_symbol_layout(geography, model, map_point)
@@ -778,7 +825,7 @@ def write_dgs(
         # SED/load symbols already snap to the primary via diagram_anchor_node.
         # One d_lin per ElmLne (NA205). Underground style = inAir=0 in DigSilent.
         # True doble circuito (2 SECTION same From↔To) → slight perpendicular offset.
-        drawn_line_sections = diagram_line_sections(model)
+        # drawn_line_sections was already computed above with the shared index.
         circuit_offsets = parallel_circuit_graphic_offsets(
             model, offset_du=PARALLEL_CIRCUIT_OFFSET_DU,
         )
@@ -840,7 +887,7 @@ def write_dgs(
         loads_by_anchor: dict[str, list[tuple[str, str]]] = defaultdict(list)
         for key in free_load_keys:
             load = loads_by_key[key]
-            loads_by_anchor[diagram_anchor_node(model, load.node_id)].append(key)
+            loads_by_anchor[diagram_anchor_node(model, load.node_id, neighbors=neighbors)].append(key)
         for anchor_id, keys in loads_by_anchor.items():
             node_x, node_y = node_xy[anchor_id]
             offsets = _radial_offsets(len(keys), radius=layout.load_radius)
@@ -866,7 +913,7 @@ def write_dgs(
         seds_by_anchor: dict[str, list[tuple[str, str]]] = defaultdict(list)
         for key in sed_keys:
             sed = seds_by_key[key]
-            seds_by_anchor[diagram_anchor_node(model, sed.node_id)].append(key)
+            seds_by_anchor[diagram_anchor_node(model, sed.node_id, neighbors=neighbors)].append(key)
         for anchor_id, keys in seds_by_anchor.items():
             node_x, node_y = node_xy[anchor_id]
             # Single SED sits on the bus; several share a small ring.

@@ -55,3 +55,11 @@ referencia/RED_*.txt
 referencia/CARGA_*.txt
 referencia/BD_Equipo*.txt
 
+
+# Datos reales de la empresa distribuidora: quedan locales, no se publican.
+# La plantilla de cargas y las auditorías llevan códigos de SED y de tramo reales.
+referencia/*.xlsx
+referencia/*.xls
+referencia/*.csv
+referencia/*.mdb
+referencia/audit_ternas_*.json

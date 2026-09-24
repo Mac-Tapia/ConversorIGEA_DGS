@@ -1,19 +1,38 @@
-# Conversor IGEA-DGS — producción (otra máquina local)
+# Conversor IGEA/CYMDIST → DGS — dependencias de producción
 #
 #   python -m venv .venv
 #   .venv\Scripts\activate
 #   python -m pip install -r requirements.txt
 #
-# Para tests/desarrollo: pip install -r requirements-dev.txt
-# Python >= 3.10. En Linux la GUI suele necesitar el paquete python3-tk.
+# Instala TODO lo que la interfaz necesita para funcionar completa: las dos
+# alternativas de entrada (TXT y base Access), la georreferenciación, las plantillas
+# Excel de cargas y la validación independiente del modelo.
+#
+# Para pruebas y desarrollo:  pip install -r requirements-dev.txt
+# Python >= 3.10. En Linux la GUI suele necesitar el paquete del sistema python3-tk.
+#
+# Nota sobre PowerFactory: su API (powerfactory.pyd) NO se instala con pip. Viene con
+# DIgSILENT y está atada a una versión concreta de CPython (PF 2024 → 3.12). El
+# conversor la usa desde un proceso aparte; ver docs/MANUAL_COMANDOS.md §5.
 
 # Paquete del proyecto (src/igea_dgs + schemas/*.json)
 -e .
 
-# Runtime — georreferenciación GPS / diagrama
+# Georreferenciación: GPS en terminales y diagrama IntGrf.
+# Sin esto solo se puede convertir con --no-geography.
 pyproj>=3.6
 
-# Opcional — descomentar según necesidad:
-# Excel multi-hoja:  pip install "igea-dgs[xlsx]"
-# Preview leafmap:   pip install "igea-dgs[preview]"
-# Todo:              pip install "igea-dgs[all]"
+# Alternativa 2 de entrada: base de datos Access de CYMDIST (.mdb).
+# Solo Windows, y requiere además el driver «Microsoft Access Driver (*.mdb, *.accdb)»
+# de 64 bits, que se instala aparte con Microsoft Access Database Engine.
+pyodbc>=5.0 ; sys_platform == "win32"
+
+# Plantillas de cargas de SED en Excel (una hoja por alimentador) y export .xlsx.
+openpyxl>=3.1
+
+# Tablas de las exportaciones analíticas.
+pandas>=2.0
+
+# Validación independiente del modelo: flujo de potencia y detección de islas con un
+# motor distinto de PowerFactory, sin licencia y en segundos. Ver docs del diagnóstico.
+pandapower>=3.0

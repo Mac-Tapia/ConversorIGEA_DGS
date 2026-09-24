@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import os
+import shutil
 import subprocess
 import sys
 import threading
@@ -25,12 +27,21 @@ from tkinter import (
 )
 from tkinter.scrolledtext import ScrolledText
 
+from .batch import STAGE_PREFIX
 from .dataset import CymdistDataset
 from .inventory import build_dataset_inventory, format_inventory_report, write_inventory
 from .naming import feeder_short_name, sort_key_feeder
 from . import __version__
 
 
+# CRS de ORIGEN: solo sistemas proyectados con unidades en metros.
+#
+# Las longitudes eléctricas se miden con distancia euclidiana sobre CoordX/CoordY
+# y se interpretan como metros. Un CRS geográfico (grados) como EPSG:4326 produce
+# longitudes ~1e5 veces menores sin que ninguna validación lo detecte, porque el
+# validador compara el DGS contra el mismo modelo que lo generó. El motor lo
+# rechaza en geography.assert_metre_source_crs; esta lista no debe reintroducirlo.
+# Ver docs/DIAGNOSTICO_BACKEND_FRONTEND_2026-09-22.md (C-01).
 CRS_PRESETS = (
     'EPSG:32718',  # UTM 18S (Ica / costa Perú — default NA205)
     'EPSG:32717',  # UTM 17S
@@ -39,16 +50,15 @@ CRS_PRESETS = (
     'EPSG:32618',  # UTM 18N
     'EPSG:31983',  # SIRGAS 2000 / UTM 23S (ejemplo Brasil)
     'EPSG:5343',   # POSGAR 2007 / Argentina 3
-    'EPSG:4326',   # WGS84 lon/lat (si CoordX/Y ya son geográficas)
 )
 
 STEPS_HINT = (
-    'Flujo: 1) Elija los tres TXT  ·  2) Cargar / listar  ·  '
+    'Flujo: 1) Elija la entrada (tres TXT o base .mdb)  ·  2) Cargar / listar  ·  '
     '3) Seleccione uno, varios o todos  ·  4) Convertir a DGS  ·  '
     '5) Cargar DGS en DigSILENT + flujo (+ estudios).'
 )
 
-DEFAULT_STATUS = 'Seleccione los tres TXT y pulse «Cargar / listar alimentadores».'
+DEFAULT_STATUS = 'Elija la entrada y pulse «Cargar / listar alimentadores».'
 
 # Default DigSilent PowerFactory Python API folder (override with PF_PYTHON).
 _DEFAULT_PF_PYTHON = Path(r'C:\Program Files\DIgSILENT\PowerFactory 2024\Python\3.12')
@@ -74,6 +84,64 @@ def _pf_python_dir() -> Path | None:
 
 def _powerfactory_acceptance_script() -> Path:
     return _project_root() / 'tools' / 'powerfactory_acceptance.py'
+
+
+def _pf_api_version(pf_dir: Path | None) -> str | None:
+    """Versión de Python que exige la API de PowerFactory ('3.12' en PF 2024)."""
+    if pf_dir is None:
+        return None
+    parts = pf_dir.name.strip().split('.')
+    if len(parts) == 2 and all(p.isdigit() for p in parts):
+        return pf_dir.name.strip()
+    return None
+
+
+def _python_for_pf(pf_dir: Path | None) -> tuple[Path | None, str]:
+    """Intérprete capaz de cargar ``powerfactory.pyd``, y por qué se eligió.
+
+    ``powerfactory.pyd`` es una extensión binaria compilada contra una versión
+    concreta de CPython: solo carga en esa versión (PowerFactory 2024 llega a 3.12).
+    Lanzar el script de aceptación con ``sys.executable`` falla con «DLL load failed»
+    en cuanto el entorno del conversor usa un Python más nuevo, por ejemplo 3.14.
+
+    Prioridad: el intérprete actual si ya coincide, ``IGEA_PF_INTERPRETER``,
+    el lanzador ``py -X.Y``, y por último rutas de instalación habituales.
+    """
+    wanted = _pf_api_version(pf_dir)
+    current = f'{sys.version_info.major}.{sys.version_info.minor}'
+    if wanted is None or wanted == current:
+        return Path(sys.executable), f'interprete actual ({current})'
+
+    override = os.environ.get('IGEA_PF_INTERPRETER', '').strip()
+    if override and Path(override).is_file():
+        return Path(override), f'IGEA_PF_INTERPRETER ({override})'
+
+    launcher = shutil.which('py')
+    if launcher:
+        try:
+            probe = subprocess.run(
+                [launcher, f'-{wanted}', '-c', 'import sys; print(sys.executable)'],
+                capture_output=True, text=True, timeout=20, check=False,
+            )
+            candidate = Path((probe.stdout or '').strip())
+            if probe.returncode == 0 and candidate.is_file():
+                return candidate, f'py -{wanted}'
+        except (OSError, subprocess.SubprocessError):
+            pass
+
+    major, minor = wanted.split('.')
+    local = os.environ.get('LOCALAPPDATA', '')
+    candidates = [
+        Path(rf'C:\Python{major}{minor}\python.exe'),
+        Path(rf'C:\Program Files\Python{major}{minor}\python.exe'),
+    ]
+    if local:
+        candidates.insert(0, Path(local) / 'Programs' / 'Python' / f'Python{major}{minor}' / 'python.exe')
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate, f'instalacion local {wanted}'
+
+    return None, f'no se encontro Python {wanted}'
 
 
 def _default_aliases_path() -> str:
@@ -131,9 +199,14 @@ class ConverterApp:
         self.root.minsize(780, 640)
         self.root.geometry('920x720')
 
+        # Dos alternativas de entrada: 'txt' (tres ficheros) o 'mdb' (base Access).
+        self.input_mode = StringVar(value='txt')
         self.red = StringVar()
         self.loads = StringVar()
         self.equipment = StringVar()
+        self.mdb = StringVar()
+        self.equipment_mdb = StringVar()
+        self.study = StringVar()
         self.out_dir = StringVar(value=_default_out_dir())
         self.aliases = StringVar(value=_default_aliases_path())
         self.source_crs = StringVar(value='EPSG:32718')  # UTM 18S — costa Perú / Ica
@@ -148,6 +221,8 @@ class ConverterApp:
         self._inventory: dict | None = None
         self._busy = False
         self._action_buttons: list[ttk.Button] = []
+        self._cancel: threading.Event | None = None
+        self._worker: threading.Thread | None = None
 
         self._build()
         self._discard_legacy_state()
@@ -171,11 +246,40 @@ class ConverterApp:
 
         ttk.Label(frm, text=STEPS_HINT, wraplength=860).pack(anchor=W, padx=10, pady=(0, 6))
 
-        files = ttk.LabelFrame(frm, text='Paso 1 — Archivos de entrada (TXT IGEA/CYMDIST)', padding=10)
+        files = ttk.LabelFrame(frm, text='Paso 1 — Entrada de datos (elija una alternativa)', padding=10)
         files.pack(fill=X, **pad)
-        self._file_row(files, 'RED_*.txt', self.red, self._browse_red)
-        self._file_row(files, 'CARGA_*.txt', self.loads, self._browse_loads)
-        self._file_row(files, 'BD_Equipo_*.txt (catálogo de equipos)', self.equipment, self._browse_equipment)
+
+        mode = ttk.Frame(files)
+        mode.pack(fill=X, pady=(0, 6))
+        ttk.Radiobutton(
+            mode, text='Alternativa 1 — Tres ficheros TXT exportados de IGEA/CYMDIST',
+            variable=self.input_mode, value='txt', command=self._on_input_mode_change,
+        ).pack(anchor=W)
+        ttk.Radiobutton(
+            mode, text='Alternativa 2 — Base de datos Access de CYMDIST (.mdb)',
+            variable=self.input_mode, value='mdb', command=self._on_input_mode_change,
+        ).pack(anchor=W)
+
+        self.txt_frame = ttk.Frame(files)
+        self.txt_frame.pack(fill=X)
+        self._file_row(self.txt_frame, 'RED_*.txt', self.red, self._browse_red)
+        self._file_row(self.txt_frame, 'CARGA_*.txt', self.loads, self._browse_loads)
+        self._file_row(self.txt_frame, 'BD_Equipo_*.txt (catálogo de equipos)', self.equipment, self._browse_equipment)
+
+        self.mdb_frame = ttk.Frame(files)
+        self._file_row(self.mdb_frame, 'Base de red (.mdb)', self.mdb, self._browse_mdb)
+        self._file_row(self.mdb_frame, 'Base de equipos (.mdb, si está aparte)', self.equipment_mdb, self._browse_equipment_mdb)
+        self._file_row(self.mdb_frame, 'Estudio o proyecto (.zxst, opcional)', self.study, self._browse_study)
+        ttk.Label(
+            self.mdb_frame,
+            text=(
+                'Requiere Windows con el driver «Microsoft Access Driver» y pyodbc '
+                '(pip install "igea-dgs[access]"). El estudio, si se indica, limita la '
+                'conversión a sus alimentadores.'
+            ),
+            foreground='#555', wraplength=840,
+        ).pack(anchor=W, pady=(2, 0))
+
         self.files_ready = StringVar(value='Faltan archivos por seleccionar.')
         ttk.Label(files, textvariable=self.files_ready, foreground='#335').pack(anchor=W, pady=(6, 0))
 
@@ -187,12 +291,19 @@ class ConverterApp:
         crs = ttk.Frame(opts)
         crs.pack(fill=X, pady=4)
         ttk.Label(crs, text='CRS origen (el de su empresa/región):').pack(side=LEFT)
+        # Editable a propósito: cualquier EPSG proyectado en metros vale, no solo los
+        # presets. Las unidades las verifica el motor antes de convertir
+        # (geography.assert_metre_source_crs), no este widget.
         ttk.Combobox(crs, textvariable=self.source_crs, values=CRS_PRESETS, width=16).pack(side=LEFT, padx=6)
         ttk.Label(crs, text='CRS destino GPS:').pack(side=LEFT, padx=(12, 0))
         ttk.Combobox(crs, textvariable=self.target_crs, values=('EPSG:4326',), width=16).pack(side=LEFT, padx=6)
         ttk.Label(
             opts,
-            text='Escriba cualquier código EPSG si no está en la lista. No está limitado a una empresa o zona.',
+            text=(
+                'Escriba cualquier código EPSG si no está en la lista. No está limitado a una '
+                'empresa o zona. Debe ser un CRS proyectado en metros: uno en grados '
+                '(p. ej. EPSG:4326) falsearía las longitudes y se rechaza al convertir.'
+            ),
             foreground='#555',
         ).pack(anchor=W, pady=(2, 0))
 
@@ -258,6 +369,12 @@ class ConverterApp:
             command=self._start_powerfactory_flow,
         )
         self.pf_flow_btn.pack(side=LEFT, padx=(12, 0), ipady=3)
+        # Cancelar es el único botón que se habilita *durante* el trabajo: por eso no
+        # entra en _action_buttons, que se deshabilitan al ocupar la interfaz.
+        self.cancel_btn = ttk.Button(
+            convert_btns, text='Cancelar', command=self._request_cancel, state='disabled',
+        )
+        self.cancel_btn.pack(side=LEFT, padx=(12, 0), ipady=3)
         self._action_buttons.extend([
             self.convert_one_btn,
             self.convert_selected_btn,
@@ -265,6 +382,25 @@ class ConverterApp:
             self.open_out_btn,
             self.pf_flow_btn,
         ])
+
+        # Actualización masiva de cargas de SED por plantilla Excel/CSV.
+        loads_row = ttk.Frame(feeders)
+        loads_row.pack(fill=X, pady=(8, 0))
+        ttk.Label(loads_row, text='Cargas de SED:').pack(side=LEFT)
+        self.template_btn = ttk.Button(
+            loads_row, text='1) Descargar plantilla', command=self._download_load_template,
+        )
+        self.template_btn.pack(side=LEFT, padx=(8, 0), ipady=2)
+        self.apply_loads_btn = ttk.Button(
+            loads_row, text='2) Cargar fichero y actualizar', command=self._apply_load_template,
+        )
+        self.apply_loads_btn.pack(side=LEFT, padx=(8, 0), ipady=2)
+        ttk.Label(
+            loads_row,
+            text='(seleccione UN alimentador ya convertido)',
+            foreground='#555',
+        ).pack(side=LEFT, padx=(8, 0))
+        self._action_buttons.extend([self.template_btn, self.apply_loads_btn])
 
         self.status = StringVar(value=DEFAULT_STATUS)
         ttk.Label(feeders, textvariable=self.status, foreground='#335').pack(anchor=W, pady=(6, 0))
@@ -333,8 +469,32 @@ class ConverterApp:
         ttk.Entry(row, textvariable=var).pack(side=LEFT, fill=X, expand=True, padx=6)
         ttk.Button(row, text='Examinar…', command=command).pack(side=LEFT)
 
+    def _on_input_mode_change(self) -> None:
+        """Muestra solo el panel de la alternativa elegida."""
+        if self.input_mode.get() == 'mdb':
+            self.txt_frame.pack_forget()
+            self.mdb_frame.pack(fill=X)
+        else:
+            self.mdb_frame.pack_forget()
+            self.txt_frame.pack(fill=X)
+        self._invalidate_loaded_data()
+        self._refresh_input_status(announce=False)
+
     def _input_paths_ready(self) -> tuple[bool, list[str]]:
         missing: list[str] = []
+        if self.input_mode.get() == 'mdb':
+            # El estudio y la base de equipos son opcionales; la base de red no.
+            for label, var in (('Base de red (.mdb)', self.mdb),):
+                if not var.get().strip() or not Path(var.get().strip()).is_file():
+                    missing.append(label)
+            for label, var in (
+                ('Base de equipos', self.equipment_mdb),
+                ('Estudio', self.study),
+            ):
+                value = var.get().strip()
+                if value and not Path(value).is_file():
+                    missing.append(f'{label} (ruta no válida)')
+            return (not missing, missing)
         for label, var in (
             ('RED', self.red),
             ('CARGA', self.loads),
@@ -345,13 +505,37 @@ class ConverterApp:
                 missing.append(label)
         return (not missing, missing)
 
+    def _load_input_dataset(self) -> CymdistDataset:
+        """Lee la entrada elegida. Ambas vías devuelven el mismo tipo de dataset."""
+        if self.input_mode.get() == 'mdb':
+            from .access import read_access_dataset
+
+            networks = None
+            study = self.study.get().strip()
+            if study:
+                from .study import study_networks
+
+                networks = study_networks(study)
+            return read_access_dataset(
+                self.mdb.get().strip(),
+                equipment_db=self.equipment_mdb.get().strip() or None,
+                networks=networks,
+            )
+        return CymdistDataset.from_files(
+            self.red.get().strip(), self.loads.get().strip(), self.equipment.get().strip(),
+        )
+
     def _refresh_input_status(self, *, announce: bool = True, just_set: str | None = None) -> None:
         ready, missing = self._input_paths_ready()
         if just_set:
             name = Path(just_set).name
             self._append_log(f'Archivo asignado: {name}')
         if ready:
-            self.files_ready.set('Los tres TXT están listos. Pulse «Cargar / listar alimentadores».')
+            self.files_ready.set(
+                'Base de datos lista. Pulse «Cargar / listar alimentadores».'
+                if self.input_mode.get() == 'mdb'
+                else 'Los tres TXT están listos. Pulse «Cargar / listar alimentadores».'
+            )
             if announce:
                 self.status.set('TXT listos — pulse «Cargar / listar alimentadores».')
         else:
@@ -386,6 +570,36 @@ class ConverterApp:
         )
         if path:
             self.equipment.set(path)
+            self._invalidate_loaded_data()
+            self._refresh_input_status(just_set=path)
+
+    def _browse_mdb(self) -> None:
+        path = filedialog.askopenfilename(
+            title='Seleccionar base de red CYMDIST (.mdb)',
+            filetypes=[('Base de datos Access', '*.mdb;*.accdb'), ('Todos', '*.*')],
+        )
+        if path:
+            self.mdb.set(path)
+            self._invalidate_loaded_data()
+            self._refresh_input_status(just_set=path)
+
+    def _browse_equipment_mdb(self) -> None:
+        path = filedialog.askopenfilename(
+            title='Seleccionar base de equipos CYMDIST (.mdb)',
+            filetypes=[('Base de datos Access', '*.mdb;*.accdb'), ('Todos', '*.*')],
+        )
+        if path:
+            self.equipment_mdb.set(path)
+            self._invalidate_loaded_data()
+            self._refresh_input_status(just_set=path)
+
+    def _browse_study(self) -> None:
+        path = filedialog.askopenfilename(
+            title='Seleccionar estudio o proyecto CYMDIST (opcional)',
+            filetypes=[('Estudio CYMDIST', '*.zxst;*.xst'), ('Todos', '*.*')],
+        )
+        if path:
+            self.study.set(path)
             self._invalidate_loaded_data()
             self._refresh_input_status(just_set=path)
 
@@ -582,8 +796,22 @@ class ConverterApp:
         state = 'disabled' if busy else 'normal'
         for btn in self._action_buttons:
             btn.configure(state=state)
+        # Cancelar va al revés: solo tiene sentido mientras algo está corriendo.
+        self.cancel_btn.configure(state='normal' if busy else 'disabled')
         if not busy:
             self.progress.configure(value=0)
+
+    def _request_cancel(self) -> None:
+        """Señala la cancelación; el motor termina el alimentador en curso y para."""
+        if not self._busy or self._cancel is None:
+            return
+        self._cancel.set()
+        self.cancel_btn.configure(state='disabled')
+        self.status.set('Cancelando… se conserva lo ya convertido.')
+        self._append_log(
+            'Cancelación solicitada: el alimentador en curso se descarta entero, '
+            'nunca a medias, y los ya convertidos se conservan.'
+        )
 
     def _require_inputs(self) -> bool:
         ready, missing = self._input_paths_ready()
@@ -605,26 +833,34 @@ class ConverterApp:
         if not self._require_inputs():
             return
 
-        red = self.red.get().strip()
-        loads = self.loads.get().strip()
-        equipment = self.equipment.get().strip()
         out_dir = Path(self.out_dir.get().strip() or _default_out_dir())
+        from_mdb = self.input_mode.get() == 'mdb'
 
         # Nueva carga = ejecución limpia (sin restos de la anterior)
         self._reset_session(full=False, announce=False)
 
         self._set_busy(True)
-        self.status.set('Analizando TXT en profundidad… espere.')
+        self.status.set(
+            'Leyendo base de datos CYMDIST… espere.' if from_mdb
+            else 'Analizando TXT en profundidad… espere.'
+        )
         self.progress.configure(mode='indeterminate')
         self.progress.start(12)
         self._append_log('--- Carga e inventario de alimentadores ---')
-        self._append_log(f'RED: {Path(red).name}')
-        self._append_log(f'CARGA: {Path(loads).name}')
-        self._append_log(f'BD_Equipo: {Path(equipment).name}')
+        if from_mdb:
+            self._append_log(f'Base de red: {Path(self.mdb.get().strip()).name}')
+            if self.equipment_mdb.get().strip():
+                self._append_log(f'Base de equipos: {Path(self.equipment_mdb.get().strip()).name}')
+            if self.study.get().strip():
+                self._append_log(f'Estudio: {Path(self.study.get().strip()).name}')
+        else:
+            self._append_log(f'RED: {Path(self.red.get().strip()).name}')
+            self._append_log(f'CARGA: {Path(self.loads.get().strip()).name}')
+            self._append_log(f'BD_Equipo: {Path(self.equipment.get().strip()).name}')
 
         def worker() -> None:
             try:
-                dataset = CymdistDataset.from_files(red, loads, equipment)
+                dataset = self._load_input_dataset()
                 inventory = build_dataset_inventory(dataset)
                 inv_path = write_inventory(inventory, out_dir / 'dataset_inventory.json')
                 report = format_inventory_report(inventory)
@@ -790,6 +1026,21 @@ class ConverterApp:
             return
 
         pf_dir = _pf_python_dir()
+        pf_python, pf_python_why = _python_for_pf(pf_dir)
+        if pf_python is None:
+            wanted = _pf_api_version(pf_dir)
+            running = f'{sys.version_info.major}.{sys.version_info.minor}'
+            messagebox.showerror(
+                'Python incompatible con la API de PowerFactory',
+                f'La API de PowerFactory es para Python {wanted}, pero el conversor corre '
+                f'sobre Python {running}. powerfactory.pyd es una extensión binaria: solo '
+                f'carga en su versión exacta.'
+                '\n\n'
+                f'Instale Python {wanted}, o indique el intérprete en la variable de '
+                'entorno IGEA_PF_INTERPRETER.',
+            )
+            self._append_log(f'DigSILENT no disponible: {pf_python_why}')
+            return
         if not messagebox.askyesno(
             'DigSILENT PowerFactory',
             f'Se importarán {len(jobs)} DGS en PowerFactory,\n'
@@ -797,7 +1048,8 @@ class ConverterApp:
             'se ejecutará el flujo de potencia (ComLdf, con correcciones si no converge)\n'
             'y la suite de estudios (corto circuito ComShc si la licencia lo permite).\n\n'
             'Requisitos: PowerFactory instalado y preferiblemente abierto.\n'
-            f'API Python: {pf_dir or "(no detectada — use PF_PYTHON)"}\n\n'
+            f'API Python: {pf_dir or "(no detectada — use PF_PYTHON)"}\n'
+            f'Intérprete: {pf_python}  [{pf_python_why}]\n\n'
             '¿Continuar?',
         ):
             return
@@ -808,6 +1060,7 @@ class ConverterApp:
         self._append_log('--- Inicio DigSILENT: import + escenario + flujo + estudios ---')
         if pf_dir:
             self._append_log(f'PF_PYTHON={pf_dir}')
+            self._append_log(f'Intérprete para la API: {pf_python}  [{pf_python_why}]')
         else:
             self._append_log(
                 'AVISO: no se encontró carpeta PowerFactory/Python. '
@@ -833,7 +1086,9 @@ class ConverterApp:
                 self.root.after(0, update_status)
 
                 cmd = [
-                    sys.executable,
+                    # No sys.executable: el venv puede correr un Python que la API
+                    # binaria de PowerFactory no soporta (ver _python_for_pf).
+                    str(pf_python),
                     str(script),
                     '--import-dgs',
                     str(dgs),
@@ -1014,8 +1269,9 @@ class ConverterApp:
         )
         dataset = self._dataset
 
+        self._cancel = threading.Event()
         self._set_busy(True)
-        self.status.set('Convirtiendo… no cierre la ventana.')
+        self.status.set('Convirtiendo… puede cancelar en cualquier momento.')
         self.progress.configure(mode='determinate', value=0, maximum=100)
         self._append_log('--- Inicio de conversión ---')
 
@@ -1031,7 +1287,10 @@ class ConverterApp:
 
         def worker() -> None:
             try:
-                manifest = convert_selection(dataset, selectors, out_dir, on_progress=on_progress, **kwargs)
+                manifest = convert_selection(
+                    dataset, selectors, out_dir,
+                    on_progress=on_progress, cancel=self._cancel, **kwargs,
+                )
                 summary = manifest['summary']
                 lines = [
                     f"Solicitados: {summary['requested']}",
@@ -1068,7 +1327,8 @@ class ConverterApp:
                 tb = traceback.format_exc()
                 self.root.after(0, lambda: self._on_convert_done(False, tb, None, out_dir))
 
-        threading.Thread(target=worker, daemon=True).start()
+        self._worker = threading.Thread(target=worker, daemon=True)
+        self._worker.start()
 
     def _on_convert_done(self, ok: bool, detail: str, summary: dict | None, out_dir: str) -> None:
         self._set_busy(False)
@@ -1104,10 +1364,251 @@ class ConverterApp:
             first_line = detail.strip().splitlines()[-1] if detail.strip() else 'Error desconocido'
             messagebox.showerror('Error', f'{first_line}\n\nDetalle en el Registro.')
 
+    # ---------------------------------------------- cargas de SED por plantilla
+
+    def _single_selected_model(self):
+        """Modelo del único alimentador seleccionado, o None con aviso al operador."""
+        if self._dataset is None:
+            messagebox.showinfo('Carga pendiente', 'Primero pulse «Cargar / listar alimentadores».')
+            return None
+        names = self._selected_feeder_names()
+        if len(names) != 1:
+            messagebox.showwarning(
+                'Seleccione un alimentador',
+                'Las cargas se actualizan por alimentador.\n\n'
+                'Seleccione exactamente UNO en la lista.',
+            )
+            return None
+        from .model import build_feeder_model
+
+        try:
+            return build_feeder_model(
+                self._dataset, names[0], strict=False,
+                include_geography=self.include_geography.get(),
+            )
+        except Exception as exc:
+            self._append_log(traceback.format_exc())
+            messagebox.showerror('Modelo', f'No se pudo construir {names[0]}:\n{exc}')
+            return None
+
+    def _download_load_template(self) -> None:
+        model = self._single_selected_model()
+        if model is None:
+            return
+        if not model.seds:
+            messagebox.showinfo(
+                'Sin SED',
+                f'{model.name} no tiene SED en el export, así que no hay cargas que '
+                'actualizar por plantilla.',
+            )
+            return
+        path = filedialog.asksaveasfilename(
+            title='Guardar plantilla de cargas',
+            initialfile=f'{model.name}_cargas.xlsx',
+            defaultextension='.xlsx',
+            filetypes=[('Excel', '*.xlsx'), ('CSV', '*.csv')],
+        )
+        if not path:
+            return
+        from .loads import LoadTemplateError, model_sed_loads, write_template
+
+        try:
+            out = write_template(model_sed_loads(model), path)
+        except LoadTemplateError as exc:
+            messagebox.showerror('Plantilla', str(exc))
+            return
+        self._append_log(f'Plantilla de cargas: {out}  ({len(model.seds)} SED)')
+        messagebox.showinfo(
+            'Plantilla generada',
+            f'{out.name}\n\n{len(model.seds)} SED de {model.name}.\n\n'
+            'Rellene las columnas «_nuevo» (kW y kvar) y vuelva a cargar el fichero '
+            'con el botón 2.',
+        )
+
+    def _apply_load_template(self) -> None:
+        model = self._single_selected_model()
+        if model is None:
+            return
+        path = filedialog.askopenfilename(
+            title='Plantilla de cargas rellenada',
+            filetypes=[('Excel o CSV', '*.xlsx;*.csv'), ('Todos', '*.*')],
+        )
+        if not path:
+            return
+        from .loads import LoadTemplateError, build_plan, plan_to_payload, read_template
+
+        try:
+            plan = build_plan(model, read_template(path))
+        except LoadTemplateError as exc:
+            messagebox.showerror('Plantilla', str(exc))
+            return
+
+        self._append_log('--- Plan de actualización de cargas ---')
+        self._append_log(plan.report())
+
+        if plan.row_errors:
+            messagebox.showerror(
+                'Plantilla con errores',
+                f'{len(plan.row_errors)} fila(s) con error. No se aplica ningún cambio.\n\n'
+                f'{plan.row_errors[0]}\n\nDetalle completo en el Registro.',
+            )
+            return
+        if not plan.has_changes:
+            messagebox.showinfo('Sin cambios', 'La plantilla no contiene SED del modelo que actualizar.')
+            return
+
+        if plan.unknown:
+            # SED del fichero que no existen en el modelo: no se inventan aquí.
+            faltan = ', '.join(r.sed_code for r in plan.unknown[:10])
+            more = '' if len(plan.unknown) <= 10 else f' (+{len(plan.unknown) - 10} más)'
+            if not messagebox.askyesno(
+                'SED que no están en el modelo',
+                f'{len(plan.unknown)} SED del fichero no existen en {model.name}:\n\n'
+                f'{faltan}{more}\n\n'
+                'Crear una SED nueva necesita datos que la plantilla no trae (nodo de '
+                'conexión, tramo, kVA del transformador). Eso corresponde al módulo de '
+                'creación de cargas.\n\n'
+                f'¿Continuar actualizando solo las {len(plan.updates)} SED existentes?',
+            ):
+                return
+
+        resumen = (
+            f'Alimentador: {model.name}\n'
+            f'SED a actualizar: {len(plan.updates)}\n'
+            f'SED omitidas: {len(plan.skipped)}\n'
+            f'SED sin mencionar (quedan igual): {len(plan.untouched)}\n'
+            f'SED no existentes en el modelo: {len(plan.unknown)}\n\n'
+            'Se escribirá el plan y se aplicará sobre el proyecto de PowerFactory.\n'
+            '¿Continuar?'
+        )
+        if not messagebox.askyesno('Actualizar cargas en DigSILENT', resumen):
+            return
+
+        out_dir = Path(self.out_dir.get().strip() or _default_out_dir())
+        out_dir.mkdir(parents=True, exist_ok=True)
+        plan_path = out_dir / f'{model.name}_plan_cargas.json'
+        plan_path.write_text(
+            json.dumps(plan_to_payload(plan), indent=2, ensure_ascii=False) + '\n',
+            encoding='utf-8',
+        )
+        self._append_log(f'Plan escrito: {plan_path}')
+        self._run_load_update(model.name, plan_path, out_dir)
+
+    def _run_load_update(self, feeder: str, plan_path: Path, out_dir: Path) -> None:
+        """Aplica el plan en PowerFactory, en proceso aparte y con su intérprete."""
+        pf_dir = _pf_python_dir()
+        pf_python, why = _python_for_pf(pf_dir)
+        if pf_python is None:
+            messagebox.showerror(
+                'Python incompatible con la API de PowerFactory',
+                f'La API es para Python {_pf_api_version(pf_dir)} y el conversor corre '
+                f'sobre {sys.version_info.major}.{sys.version_info.minor}. '
+                'Instale esa versión o defina IGEA_PF_INTERPRETER.',
+            )
+            return
+        script = _project_root() / 'tools' / 'apply_sed_loads.py'
+        if not script.is_file():
+            messagebox.showerror('Script ausente', f'No se encuentra {script}')
+            return
+
+        self._cancel = threading.Event()
+        self._set_busy(True)
+        self.status.set('Actualizando cargas en DigSILENT…')
+        self.progress.configure(mode='indeterminate')
+        self.progress.start(12)
+        self._append_log(f'Intérprete PowerFactory: {pf_python}  [{why}]')
+
+        report_json = out_dir / f'{feeder}_cargas_aplicadas.json'
+        env = os.environ.copy()
+        if pf_dir is not None:
+            env['PYTHONPATH'] = str(pf_dir) + os.pathsep + env.get('PYTHONPATH', '')
+            env['PF_PYTHON'] = str(pf_dir)
+        cmd = [
+            str(pf_python), str(script),
+            '--plan', str(plan_path),
+            '--project', feeder,
+            '--run-load-flow',
+            '--output-json', str(report_json),
+        ]
+
+        def worker() -> None:
+            try:
+                proc = subprocess.run(
+                    cmd, capture_output=True, text=True, env=env,
+                    cwd=str(_project_root()), check=False,
+                )
+                salida = ((proc.stdout or '') + '\n' + (proc.stderr or '')).strip()
+                self.root.after(0, lambda t=salida: self._append_log(t))
+                self.root.after(0, lambda rc=proc.returncode: self._on_loads_done(rc, report_json))
+            except Exception:
+                tb = traceback.format_exc()
+                self.root.after(0, lambda: self._append_log(tb))
+                self.root.after(0, lambda: self._on_loads_done(-1, report_json))
+
+        self._worker = threading.Thread(target=worker, daemon=True)
+        self._worker.start()
+
+    def _on_loads_done(self, returncode: int, report_json: Path) -> None:
+        self.progress.stop()
+        self.progress.configure(mode='determinate', value=0)
+        self._set_busy(False)
+        if returncode == 0:
+            self.status.set('Cargas actualizadas en DigSILENT.')
+            messagebox.showinfo(
+                'Cargas actualizadas',
+                f'Actualización aplicada.\n\nInforme: {report_json.name}\n'
+                'Detalle en el Registro.',
+            )
+            return
+        if returncode == 3:
+            self.status.set('DigSILENT no disponible.')
+            messagebox.showerror(
+                'DigSILENT no disponible',
+                'No se pudo conectar con PowerFactory. Ábralo y reintente.',
+            )
+            return
+        self.status.set('La actualización terminó con avisos o fallos.')
+        messagebox.showwarning(
+            'Actualización incompleta',
+            f'El proceso devolvió el código {returncode}. Puede haber SED no encontradas '
+            'o ambiguas en el proyecto.\n\nRevise el Registro y el informe.',
+        )
+
     def _on_close(self) -> None:
-        # Al cerrar: sesión a cero; nada de la ejecución queda para la próxima apertura.
+        # Cerrar durante un lote mataba el hilo daemon a mitad de escritura y dejaba
+        # ficheros truncados indistinguibles de válidos. Ahora se cancela, se espera a
+        # que el motor cierre el alimentador en curso y solo entonces se destruye.
+        if self._busy:
+            if not messagebox.askyesno(
+                'Conversión en curso',
+                '¿Cancelar la conversión en curso y salir? Se conservará todo lo ya '
+                'convertido; el alimentador en curso se descartará entero, nunca a medias.',
+            ):
+                return
+            if self._cancel is not None:
+                self._cancel.set()
+            self.status.set('Cancelando antes de salir…')
+            self.root.update_idletasks()
+            self._wait_for_worker()
         self._reset_session(full=True, announce=False)
         self.root.destroy()
+
+    def _wait_for_worker(self, timeout_s: float = 30.0) -> bool:
+        """Espera a que el hilo termine el alimentador en curso y lo publique."""
+        worker = self._worker
+        if worker is None or not worker.is_alive():
+            return True
+        worker.join(timeout=timeout_s)
+        if worker.is_alive():
+            messagebox.showwarning(
+                'Cierre forzado',
+                f'La conversión no respondió en {timeout_s:.0f} s. Al salir ahora, el '
+                'alimentador en curso puede quedar incompleto en su carpeta temporal '
+                f'«{STAGE_PREFIX}…», que puede borrar a mano. Los ya convertidos están '
+                'completos.',
+            )
+            return False
+        return True
 
 
 def main() -> int:

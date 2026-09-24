@@ -15,7 +15,10 @@ def test_batch_writes_geography_and_integrated_validation(ds, sample_feeder, tmp
     )
     _oh, _ug, d_lin_graphics = diagram_line_rail_counts(model)
     manifest = convert_selection(ds, [sample_feeder], tmp_path, source_crs='EPSG:32718', include_geography=True)
-    assert manifest['summary'] == {'requested': 1, 'ok': 1, 'skipped': 0, 'failed': 0}
+    assert manifest['summary'] == {
+        'status': 'completed', 'selected': 1, 'requested': 1,
+        'ok': 1, 'skipped': 0, 'failed': 0, 'not_processed': 0,
+    }
     item = manifest['feeders'][0]
     assert Path(item['geography']).exists()
     assert Path(item['geography_validation']).exists()

@@ -79,7 +79,7 @@ class CymdistDataset:
         columns: list[str] | None = None
         active_feeder: str | None = None
         with red_path.open('r', encoding='utf-8', errors='replace', newline='') as fh:
-            for raw in fh:
+            for lineno, raw in enumerate(fh, start=1):
                 line = raw.strip()
                 if not line:
                     continue
@@ -109,12 +109,19 @@ class CymdistDataset:
                 elif section == 'LINE CONFIGURATION':
                     sid = row['SectionID']
                     if sid in line_configurations:
-                        raise ValueError(f'Duplicate LINE CONFIGURATION SectionID: {sid}')
+                        raise ValueError(
+                            f'{red_path.name}:{lineno}: SectionID duplicado en LINE '
+                            f'CONFIGURATION: {sid!r}. Cada tramo debe aparecer una sola vez.'
+                        )
                     line_configurations[sid] = row
                 elif section == 'SECTION' and active_feeder:
                     sid = row['SectionID']
                     if sid in sections:
-                        raise ValueError(f'Duplicate SECTION SectionID: {sid}')
+                        raise ValueError(
+                            f'{red_path.name}:{lineno}: SectionID duplicado en SECTION: '
+                            f'{sid!r} (ya declarado en el alimentador '
+                            f'{section_owner[sid]!r}). Cada tramo debe aparecer una sola vez.'
+                        )
                     sections[sid] = row
                     section_owner[sid] = active_feeder
                     feeder_rows[active_feeder].append(sid)
@@ -136,6 +143,28 @@ class CymdistDataset:
         }
         equipment_tables_raw = _parse_simple(equipment_path)
         equipment_tables = {name: tuple(rows) for name, rows in equipment_tables_raw.items()}
+
+        # Un RED vacío, truncado o con otro formato producía un dataset sin
+        # alimentadores, y el lote terminaba «completado» con 0 convertidos y sin un
+        # solo error: el operador veía éxito y no tenía salida. Fallar aquí, nombrando
+        # lo que falta, es lo único honesto.
+        # Solo se exige lo que ningún export válido puede omitir. [SECTION] y
+        # [LINE CONFIGURATION] pueden venir vacías legítimamente: es el caso de un
+        # export cuyos alimentadores son todos cabecera sin red MT modelada.
+        missing = [name for name, found in (('NODE', nodes), ('SOURCE', sources)) if not found]
+        if missing:
+            raise ValueError(
+                f'{red_path.name}: el RED no contiene filas en '
+                + ' ni '.join(f'[{name}]' for name in missing)
+                + '. Ningún export IGEA/CYMDIST válido puede omitirlas. Revise que el '
+                'fichero esté completo y que sea el RED (no CARGA ni BD_Equipo).'
+            )
+        if not feeder_rows:
+            raise ValueError(
+                f'{red_path.name}: no se encontró ninguna cabecera FEEDER= en [SECTION]. '
+                'Sin alimentadores no hay nada que convertir; el fichero puede estar '
+                'truncado o no ser un export IGEA/CYMDIST.'
+            )
 
         return cls(
             red_path=red_path,

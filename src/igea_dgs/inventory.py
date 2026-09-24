@@ -128,8 +128,9 @@ def build_dataset_inventory(dataset: CymdistDataset) -> dict[str, Any]:
             'severity': 'warning',
             'code': 'empty_section_blocks',
             'message': (
-                f'{len(stubs)} alimentador(es) con FEEDER=/SOURCE pero 0 filas SECTION: '
-                + ', '.join(stubs)
+                f'{len(stubs)} alimentador(es) con FEEDER=/SOURCE pero 0 filas SECTION '
+                f'(se convierten dibujando solo su barra de cabecera; no son redes '
+                f'modeladas): ' + ', '.join(stubs)
             ),
             'feeders': stubs,
         })
@@ -229,12 +230,14 @@ def build_dataset_inventory(dataset: CymdistDataset) -> dict[str, Any]:
             'catalog_line_cable_ids': len(catalog_ids),
         },
         'conversion': {
-            'expected_dgs_files': len(convertible),
-            'skipped_stub_feeders': stubs,
+            'expected_dgs_files': len(convertible) + len(stubs),
+            'full_topology_feeders': convertible,
+            'source_only_feeders': stubs,
             'convertible_feeders': convertible,
             'model': (
-                'Un DGS independiente por alimentador convertible '
-                '(tramos + cargas + SED + maniobras + geografía opcional).'
+                'Un DGS independiente por alimentador (tramos + cargas + SED + '
+                'maniobras + geografía opcional). Los alimentadores sin filas SECTION '
+                'generan un DGS con su barra de cabecera únicamente.'
             ),
         },
         'equipment_tables': equipment_counts,
@@ -264,8 +267,8 @@ def format_inventory_report(inventory: dict[str, Any]) -> str:
         '',
         '--- Totales leídos ---',
         f"Alimentadores (FEEDER=):     {t['feeders']}",
-        f"  Convertibles (con tramos): {t['convertible_feeders']}",
-        f"  Stub (0 SECTION):          {t['stub_feeders']}",
+        f"  Con topología MT:          {t['convertible_feeders']}",
+        f"  Solo cabecera (0 SECTION): {t['stub_feeders']}",
         f"SOURCE:                      {t['sources']}",
         f"Nodos:                       {t['nodes']}",
         f"Tramos (SECTION):            {t['sections']}",
@@ -282,10 +285,10 @@ def format_inventory_report(inventory: dict[str, Any]) -> str:
         f"Archivos .dgs a generar:     {c['expected_dgs_files']}",
         c['model'],
     ]
-    if c['skipped_stub_feeders']:
+    if c['source_only_feeders']:
         lines.append(
-            'Omitidos (sin topología en RED): '
-            + ', '.join(c['skipped_stub_feeders'])
+            'Solo cabecera (se dibuja la barra de cabecera, sin tramos ni cargas; '
+            'NO usar para flujo ni estudios): ' + ', '.join(c['source_only_feeders'])
         )
     lines.append('')
     lines.append('--- Integridad ---')
@@ -305,7 +308,7 @@ def format_inventory_report(inventory: dict[str, Any]) -> str:
         f"{'Nombre':<10} {'kV':>6} {'Tramos':>7} {'Cargas':>7} {'SW':>5} {'Estado':<12}"
     )
     for row in inventory['feeders']:
-        status = 'convertible' if row['convertible'] else 'STUB'
+        status = 'convertible' if row['convertible'] else 'solo-cabecera'
         lines.append(
             f"{row['feeder']:<10} {str(row['nominal_kv']):>6} {row['sections']:>7} "
             f"{row['loads']:>7} {row['switches']:>5} {status:<12}"

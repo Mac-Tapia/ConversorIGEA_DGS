@@ -6,7 +6,10 @@ from igea_dgs.batch import convert_selection, load_aliases
 
 def test_convert_one_feeder(ds, sample_feeder, tmp_path):
     manifest = convert_selection(ds, [sample_feeder], tmp_path)
-    assert manifest['summary'] == {'requested': 1, 'ok': 1, 'skipped': 0, 'failed': 0}
+    assert manifest['summary'] == {
+        'status': 'completed', 'selected': 1, 'requested': 1,
+        'ok': 1, 'skipped': 0, 'failed': 0, 'not_processed': 0,
+    }
     item = manifest['feeders'][0]
     assert item['feeder'] == sample_feeder
     assert item['status'] == 'ok'
@@ -23,20 +26,28 @@ def test_convert_multiple_feeders(ds, sample_feeder, second_feeder, tmp_path):
 
 
 def test_all_mode_converts_every_feeder_without_blocking(ds, tmp_path):
+    """Todos los alimentadores del export se convierten: ninguno se omite.
+
+    Una cabecera FEEDER=/SOURCE sin filas SECTION ya no se salta; se dibuja su barra
+    de cabecera, que es lo único que el export contiene, y el manifiesto la marca
+    como ``topology='source_only'`` para no confundirla con una red modelada.
+    """
     n_feeders = len(ds.feeder_ids())
     assert n_feeders >= 1
-    empty = {nid for nid in ds.feeder_ids() if not ds.feeders[nid]}
-    manifest = convert_selection(ds, None, tmp_path, all_feeders=True)
+    header_only = {nid for nid in ds.feeder_ids() if not ds.feeders[nid]}
+    # strict=False: lo que se prueba es que ninguno se OMITE y que todos producen un
+    # DGS. Una isla con cargas bloquea en modo estricto por política deliberada
+    # (ver tests/test_topology_islands.py), y eso se comprueba aparte.
+    manifest = convert_selection(ds, None, tmp_path, all_feeders=True, strict=False)
     assert manifest['summary']['requested'] == n_feeders
-    assert manifest['summary']['ok'] == n_feeders - len(empty)
-    assert manifest['summary']['skipped'] == len(empty)
+    assert manifest['summary']['ok'] == n_feeders
+    assert manifest['summary']['skipped'] == 0
     assert manifest['summary']['failed'] == 0
     for item in manifest['feeders']:
-        if item['network_id'] in empty:
-            assert item['status'] == 'skipped'
-            continue
         assert item['status'] == 'ok'
         assert (tmp_path / f"{item['feeder']}.dgs").exists()
+        expected = 'source_only' if item['network_id'] in header_only else 'full'
+        assert item['topology'] == expected
 
 
 def test_external_alias_file_is_recorded(ds, sample_feeder, tmp_path):

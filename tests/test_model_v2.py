@@ -47,21 +47,31 @@ def test_switching_location_s_connects_to_section_from_side(sample_model):
 
 
 def test_missing_catalog_types_do_not_block_any_feeder(ds, feeder_shorts):
-    """Every feeder with SECTION rows must build; missing IDs auto-map or use DEFAULT."""
+    """Every feeder with SECTION rows must build; missing IDs auto-map or use DEFAULT.
+
+    Se construye con ``strict=False`` a propósito: lo que aquí se prueba es que un
+    LineCableID ausente del catálogo no bloquea. Una isla con cargas sí bloquea en modo
+    estricto, y es una política distinta (ver test_topology_islands.py).
+    """
     for name in feeder_shorts:
         network_id = ds.resolve_feeder(name)
         if not ds.feeder_section_ids(network_id):
             continue
-        model = build_feeder_model(ds, name)
+        model = build_feeder_model(ds, name, strict=False)
         assert model.name == name
         assert model.source_node
         assert len(model.lines) == len(ds.feeder_section_ids(model.network_id))
 
 
-def test_source_only_feeder_is_rejected_with_clear_error(tmp_path):
-    """FEEDER=/SOURCE without SECTION rows cannot produce a full DGS (e.g. CA103 stubs)."""
+def test_source_only_feeder_is_drawn_instead_of_rejected(tmp_path):
+    """FEEDER=/SOURCE sin filas SECTION es una cabecera real, no un export roto.
+
+    Antes se rechazaba con ModelBuildError y el lote lo marcaba «skipped». Ahora se
+    convierte dibujando lo único que el export contiene —la barra de cabecera con su
+    georreferencia— sin inventar tramos, cargas ni SED, y avisando de forma
+    inequívoca de que no es un alimentador modelado.
+    """
     from igea_dgs.dataset import CymdistDataset
-    from igea_dgs.model import ModelBuildError
 
     red = tmp_path / 'RED.txt'
     loads = tmp_path / 'CARGA.txt'
@@ -87,9 +97,14 @@ def test_source_only_feeder_is_rejected_with_clear_error(tmp_path):
     equip.write_text('[LINE]\nFORMAT_LINE=LineID\nDEFAULT\n', encoding='utf-8')
 
     ds = CymdistDataset.from_files(red, loads, equip)
-    try:
-        build_feeder_model(ds, 'CA103')
-        raise AssertionError('expected ModelBuildError for empty SECTION block')
-    except ModelBuildError as exc:
-        assert 'no tiene filas SECTION' in str(exc)
-        assert 'CA103' in str(exc)
+    model = build_feeder_model(ds, 'CA103')
+
+    # Se dibuja la cabecera — y nada más.
+    assert model.name == 'CA103'
+    assert model.source_node == 'N1'
+    assert set(model.nodes) == {'N1'}
+    assert model.lines == [] and model.loads == [] and model.seds == []
+    # …y queda constancia de que no es una red modelada.
+    warnings = ' '.join(model.warnings)
+    assert 'solo trae la cabecera' in warnings
+    assert 'NO es un alimentador modelado' in warnings
