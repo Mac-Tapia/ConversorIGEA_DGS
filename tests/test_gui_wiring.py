@@ -298,3 +298,108 @@ def test_las_operaciones_largas_van_en_subproceso_y_no_bloquean_la_ventana():
     assert 'threading.Thread' in cuerpo
     assert 'subprocess.run' in cuerpo
     assert 'self._set_busy(True)' in cuerpo
+
+
+# ---------------------------------------------------------------------------
+# Los selectores de fichero, EJECUTADOS
+# ---------------------------------------------------------------------------
+#
+# Las pruebas de arriba leen el código fuente y comprueban que las piezas están
+# conectadas. No pueden cazar un NameError, porque el nombre está escrito y parece
+# correcto: solo falla al ejecutarse. Pasó exactamente eso — los selectores usaban RED,
+# CARGA y EQUIPOS sin que estuvieran importados en gui.py, Tk se tragaba la excepción
+# del callback y el campo simplemente no se rellenaba. Desde fuera parecía que la
+# ventana ignoraba el fichero elegido.
+#
+# Por eso estas llaman a los manejadores de verdad, con el diálogo de fichero
+# sustituido.
+
+
+def _escribir_txt(tmp_path, nombre, tablas):
+    contenido = ['[GENERAL]', 'DATE=01/01/2026', '']
+    for t in tablas:
+        contenido += [f'[{t}]', f'FORMAT_{t.replace(" ", "")}=ID,A,B', 'X,1,2', '']
+    ruta = tmp_path / nombre
+    ruta.write_text('\n'.join(contenido), encoding='utf-8')
+    return ruta
+
+
+@pytest.fixture
+def app_tk():
+    tkinter = pytest.importorskip('tkinter')
+    try:
+        root = tkinter.Tk()
+    except tkinter.TclError as exc:
+        pytest.skip(f'Tk no disponible: {exc}')
+    from igea_dgs.gui import ConverterApp
+
+    root.withdraw()
+    app = ConverterApp(root)
+    root.update_idletasks()
+    yield app
+    root.destroy()
+
+
+@pytest.mark.parametrize('metodo,campo,tablas', [
+    ('_browse_red', 'red', ['NODE', 'SECTION', 'SOURCE']),
+    ('_browse_loads', 'loads', ['CUSTOMER LOADS']),
+    ('_browse_equipment', 'equipment', ['CONDUCTOR', 'LINE']),
+])
+def test_elegir_un_fichero_correcto_rellena_su_campo(
+    app_tk, tmp_path, monkeypatch, metodo, campo, tablas,
+):
+    """Con el fichero que toca, el campo se rellena sin preguntar nada."""
+    from igea_dgs import gui as gui_mod
+
+    ruta = _escribir_txt(tmp_path, 'nombre_cualquiera.txt', tablas)
+    monkeypatch.setattr(gui_mod.filedialog, 'askopenfilename', lambda **k: str(ruta))
+    getattr(app_tk, metodo)()
+    assert getattr(app_tk, campo).get() == str(ruta)
+
+
+def test_un_fichero_de_otro_tipo_pregunta_antes_de_aceptarlo(
+    app_tk, tmp_path, monkeypatch,
+):
+    """Si se acepta el aviso, el fichero entra igual: el operador manda."""
+    from igea_dgs import gui as gui_mod
+
+    catalogo = _escribir_txt(tmp_path, 'equipos.txt', ['CONDUCTOR', 'LINE'])
+    monkeypatch.setattr(gui_mod.filedialog, 'askopenfilename', lambda **k: str(catalogo))
+    preguntas = []
+    monkeypatch.setattr(
+        gui_mod.messagebox, 'askyesno',
+        lambda titulo, mensaje, **k: preguntas.append(mensaje) or True)
+    app_tk._browse_loads()
+    assert preguntas, 'debe avisar de que el fichero no encaja con la casilla'
+    assert 'BD_Equipo' in preguntas[0]
+    assert app_tk.loads.get() == str(catalogo)
+
+
+def test_si_se_rechaza_el_aviso_el_campo_no_cambia(app_tk, tmp_path, monkeypatch):
+    from igea_dgs import gui as gui_mod
+
+    app_tk.loads.set('valor previo')
+    catalogo = _escribir_txt(tmp_path, 'equipos.txt', ['CONDUCTOR'])
+    monkeypatch.setattr(gui_mod.filedialog, 'askopenfilename', lambda **k: str(catalogo))
+    monkeypatch.setattr(gui_mod.messagebox, 'askyesno', lambda *a, **k: False)
+    app_tk._browse_loads()
+    assert app_tk.loads.get() == 'valor previo'
+
+
+def test_cancelar_el_dialogo_no_toca_el_campo(app_tk, monkeypatch):
+    from igea_dgs import gui as gui_mod
+
+    app_tk.red.set('lo de antes')
+    monkeypatch.setattr(gui_mod.filedialog, 'askopenfilename', lambda **k: '')
+    app_tk._browse_red()
+    assert app_tk.red.get() == 'lo de antes'
+
+
+def test_las_constantes_de_tipo_estan_importadas_en_la_interfaz():
+    """El fallo concreto: se usaban sin importar y saltaba NameError al examinar."""
+    from igea_dgs import gui as gui_mod
+
+    for nombre in ('RED', 'CARGA', 'EQUIPOS'):
+        assert hasattr(gui_mod, nombre), (
+            f'gui.py usa {nombre} en los selectores de fichero pero no lo importa'
+        )
