@@ -653,6 +653,94 @@ y para eso está la columna `conductor`.
 
 ---
 
+## 9. La red completa y el año 0 del PIDE
+
+Todo lo de esta sección se puede lanzar desde la interfaz, fila **«Sistema»**, o desde
+el terminal. La interfaz solo llama a estos mismos guiones, así que dan lo mismo.
+
+### Por qué una sola grid
+
+Hasta la versión anterior cada alimentador iba a su propio DGS y a su propio proyecto:
+96 redes que no se ven entre sí. Con eso no se puede ni formular la pregunta de si un
+alimentador puede respaldar a otro, ni dónde conviene el punto de apertura, porque el
+respaldo y la reconfiguración ocurren **entre** alimentadores. En el export real hay 40
+nodos compartidos —los puntos de enlace de la media tensión— que ningún modelo por
+separado contiene.
+
+La red unida conserva de cada alimentador **su tensión** (conviven 10 kV y 22,9 kV) y
+**su fuente**, tomada del `SOURCE` de su TXT. Los enlaces entre alimentadores quedan
+como **interruptores normalmente abiertos**, que es como opera la red: cada alimentador
+sigue siendo su propia área radial y el enlace queda explícito y cerrable.
+
+```bat
+rem Solo el DGS de la red unida
+.venv\Scripts\python.exe tools\build_system_grid.py --red R.txt --cargas C.txt --equipos E.txt
+
+rem DGS, importación en DigSILENT y flujo de potencia
+.venv\Scripts\python.exe tools\build_system_grid.py --red R.txt --cargas C.txt --equipos E.txt ^
+    --importar --run-load-flow
+```
+
+### El escenario base (año 0)
+
+Es la foto de la red tal como está, y el punto contra el que se mide todo lo demás: sin
+un año 0 defendible, los años 4, 8, 12, 16 y 20 no miden nada.
+
+```bat
+rem Construye, importa, crea el caso ANIO_0_BASE, converge y ejecuta los estudios
+.venv\Scripts\python.exe tools\base_scenario.py --red R.txt --cargas C.txt --equipos E.txt ^
+    --nombre PIDE_ANIO_0
+
+rem Solo la lista de datos que faltan. NO toca DigSILENT y tarda segundos.
+.venv\Scripts\python.exe tools\base_scenario.py --red R.txt --cargas C.txt --equipos E.txt --solo-datos
+
+rem Incluir los estudios que resuelven la red muchas veces, con 600 s cada uno
+.venv\Scripts\python.exe tools\base_scenario.py ... --pesados --limite-segundos 600
+```
+
+### «Se ejecuta» no es «es defendible»
+
+Es la distinción que ordena el informe, y conviene entenderla antes de leerlo.
+`ComRel3` corre sin problema con todas las tasas de falla a cero y devuelve
+SAIDI = SAIFI = ENS = 0. **No falla: miente.** Un número limpio y sin sentido en un
+expediente que va a Osinergmin es peor que un error, porque nadie lo cuestiona.
+
+Por eso cada estudio sale marcado de una de estas formas:
+
+| Marca | Significa |
+|---|---|
+| `OK` | Se ejecutó y sus entradas son reales |
+| `SIN DATOS` | Se ejecutó, pero le falta un dato y el resultado no significa nada |
+| `SIN TIEMPO` | Agotó su presupuesto. Es un resultado: no cabe en un ciclo de planificación |
+| `NO CORRE` | Es pesado y no se pidió `--pesados`, o la clase no existe en esta versión |
+
+Con el export actual, **8 de 16 estudios** dan un resultado defendible. La lista de lo
+que falta sale ordenada por cuántos estudios desbloquea cada dato; encabezan los
+precios unitarios, que la empresa ya tiene en su VNR.
+
+### Cada estudio en su propio proceso
+
+`Execute()` de la API es bloqueante y no se puede interrumpir desde el mismo hilo. Un
+análisis de contingencias sobre 53.000 barras puede irse a horas, y una ejecución así
+se quedó colgada más de una hora llevándose por delante todo lo que faltaba. Ahora cada
+estudio corre aislado con `--limite-segundos`: un cuelgue cuesta ese estudio y no el
+informe.
+
+Esto tiene una consecuencia que conviene recordar: **PowerFactory solo admite un
+proceso con el motor a la vez**. Si aparece «PowerFactory no respondió», casi siempre
+es que otro guion lo tiene tomado. Para liberarlo:
+
+```powershell
+Get-CimInstance Win32_Process -Filter "Name='python.exe'" |
+  Where-Object { $_.CommandLine -like '*run_one_study*' } | Stop-Process -Force
+```
+
+Y **no envuelva estos comandos en un `timeout` del intérprete de órdenes**: si corta el
+proceso mientras habla con PowerFactory, el motor queda tomado un rato. Los guiones ya
+traen sus propios límites.
+
+---
+
 ## 8. Referencia rápida
 
 ```bat
@@ -668,6 +756,11 @@ rem Listar
 rem Convertir uno / todos
 .venv\Scripts\python.exe -m igea_dgs.cli convert --red R.txt --loads C.txt --equipment E.txt --feeder IN111 --source-crs EPSG:32718 --out-dir output\prod
 .venv\Scripts\python.exe -m igea_dgs.cli convert --red R.txt --loads C.txt --equipment E.txt --all --source-crs EPSG:32718 --out-dir output\prod
+
+rem Red unida y ano 0 del PIDE
+.venv\Scripts\python.exe tools\build_system_grid.py --red R.txt --cargas C.txt --equipos E.txt --importar --run-load-flow
+.venv\Scripts\python.exe tools\base_scenario.py --red R.txt --cargas C.txt --equipos E.txt --nombre PIDE_ANIO_0
+.venv\Scripts\python.exe tools\base_scenario.py --red R.txt --cargas C.txt --equipos E.txt --solo-datos
 
 rem Catalogo de parametros electricos -> input\catalogo_parametros.xlsx
 .venv\Scripts\python.exe tools\build_input_catalog.py --red R.txt --cargas C.txt --equipos E.txt

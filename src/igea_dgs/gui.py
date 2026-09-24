@@ -566,6 +566,37 @@ class ConverterApp:
         ).pack(side=LEFT, padx=(8, 0))
         self._action_buttons.extend([self.catalog_build_btn, self.catalog_apply_btn])
 
+        # Sistema completo: los 96 alimentadores en UNA sola red. Es lo que hace
+        # posible preguntar si un alimentador puede respaldar a otro o dónde conviene
+        # abrir, porque el respaldo y la reconfiguración ocurren ENTRE alimentadores.
+        sistema_row = ttk.Frame(feeders)
+        sistema_row.pack(fill=X, pady=(6, 0))
+        ttk.Label(sistema_row, text='Sistema:     ').pack(side=LEFT)
+        self.grid_btn = ttk.Button(
+            sistema_row, text='Convertir TODO a una sola grid',
+            command=self._build_system_grid,
+        )
+        self.grid_btn.pack(side=LEFT, padx=(8, 0), ipady=2)
+        self.anio0_btn = ttk.Button(
+            sistema_row, text='Escenario base año 0 + diagnóstico',
+            command=self._run_base_scenario,
+        )
+        self.anio0_btn.pack(side=LEFT, padx=(8, 0), ipady=2)
+        self.datos_btn = ttk.Button(
+            sistema_row, text='¿Qué datos faltan?', command=self._missing_data,
+        )
+        self.datos_btn.pack(side=LEFT, padx=(8, 0), ipady=2)
+        self._action_buttons.extend([self.grid_btn, self.anio0_btn, self.datos_btn])
+        ttk.Label(
+            feeders,
+            text=(
+                'La red unida conserva la tensión y la fuente de cada alimentador, y '
+                'pone los enlaces entre ellos como interruptores normalmente abiertos. '
+                '«¿Qué datos faltan?» no toca DigSILENT y tarda segundos.'
+            ),
+            foreground='#555', wraplength=860,
+        ).pack(anchor=W, pady=(2, 0))
+
         self.status = StringVar(value=DEFAULT_STATUS)
         ttk.Label(feeders, textvariable=self.status, foreground='#335').pack(anchor=W, pady=(6, 0))
         ttk.Label(
@@ -1883,6 +1914,170 @@ class ConverterApp:
             report_suffix='sed_creadas',
             busy_text='Creando SED en DigSILENT…',
             ok_text='SED creadas',
+        )
+
+    # ------------------------------------------------------------------
+    # Sistema completo: los 96 alimentadores en una sola red
+    # ------------------------------------------------------------------
+
+    def _entradas_para_guion(self) -> list[str] | None:
+        """Los argumentos de entrada que espera cualquiera de los guiones.
+
+        Se leen de los mismos campos que usa la conversión, así que la interfaz no
+        tiene una segunda idea de dónde están los ficheros.
+        """
+        if self.input_mode.get() == 'mdb':
+            mdb = self.mdb.get().strip()
+            if not mdb or not Path(mdb).is_file():
+                messagebox.showwarning(
+                    'Falta la base de datos',
+                    'Elija el fichero .mdb de CYMDIST en el Paso 1.')
+                return None
+            argumentos = ['--mdb', mdb]
+            equipo = self.equipment_mdb.get().strip()
+            if equipo:
+                argumentos += ['--equipment-mdb', equipo]
+            return argumentos
+
+        rutas = {'--red': self.red.get().strip(),
+                 '--cargas': self.loads.get().strip(),
+                 '--equipos': self.equipment.get().strip()}
+        faltan = [k for k, v in rutas.items() if not v or not Path(v).is_file()]
+        if faltan:
+            messagebox.showwarning(
+                'Faltan ficheros de entrada',
+                'Elija los tres TXT en el Paso 1 antes de convertir el sistema.\n\n'
+                f'Sin indicar: {", ".join(faltan)}')
+            return None
+        argumentos = []
+        for clave, valor in rutas.items():
+            argumentos += [clave, valor]
+        return argumentos
+
+    def _lanzar_guion(
+        self, guion: str, argumentos: list[str], *, titulo: str, al_terminar=None,
+    ) -> None:
+        """Ejecuta un guion de tools/ en segundo plano, volcando su salida al Registro.
+
+        Va por subproceso, no en el propio hilo, por dos razones que ya costaron
+        tiempo: PowerFactory solo admite un proceso con el motor a la vez, y la
+        interfaz tiene que seguir respondiendo mientras una red de 53.000 barras se
+        importa.
+        """
+        script = _project_root() / 'tools' / guion
+        if not script.is_file():
+            messagebox.showerror('Guion ausente', f'No se encuentra {script}')
+            return
+
+        self._cancel = threading.Event()
+        self._set_busy(True)
+        self.status.set(f'{titulo}…')
+        self.progress.configure(mode='indeterminate')
+        self.progress.start(12)
+        self._append_log(f'--- {titulo} ---')
+
+        orden = [sys.executable, str(script)] + argumentos
+        self._append_log(' '.join(orden))
+
+        def worker() -> None:
+            try:
+                proc = subprocess.run(
+                    orden, capture_output=True, text=True, check=False,
+                    cwd=str(_project_root()), encoding='utf-8', errors='replace',
+                )
+                salida = ((proc.stdout or '') + '\n' + (proc.stderr or '')).strip()
+                self.root.after(0, lambda t=salida: self._append_log(t))
+                self.root.after(
+                    0, lambda rc=proc.returncode: self._guion_terminado(rc, titulo, al_terminar))
+            except Exception:
+                tb = traceback.format_exc()
+                self.root.after(0, lambda: self._append_log(tb))
+                self.root.after(0, lambda: self._guion_terminado(-1, titulo, al_terminar))
+
+        self._worker = threading.Thread(target=worker, daemon=True)
+        self._worker.start()
+
+    def _guion_terminado(self, returncode: int, titulo: str, al_terminar) -> None:
+        self.progress.stop()
+        self.progress.configure(mode='determinate', value=0)
+        self._set_busy(False)
+        if returncode == 0:
+            self.status.set(f'{titulo}: terminado.')
+            if al_terminar:
+                al_terminar()
+            else:
+                messagebox.showinfo(titulo, 'Terminado. El detalle está en el Registro.')
+            return
+        self.status.set(f'{titulo}: terminó con código {returncode}.')
+        messagebox.showwarning(
+            titulo,
+            f'El proceso devolvió el código {returncode}.\n\n'
+            'Las causas más frecuentes son que PowerFactory no esté abierto, o que '
+            'otro proceso tenga tomado su motor: solo admite uno a la vez.\n\n'
+            'El detalle está en el Registro.')
+
+    def _build_system_grid(self) -> None:
+        argumentos = self._entradas_para_guion()
+        if argumentos is None:
+            return
+        if not messagebox.askyesno(
+            'Convertir todo a una sola grid',
+            'Se unirán TODOS los alimentadores en una sola red y se importará en '
+            'DigSILENT.\n\n'
+            'Cada alimentador conserva su tensión y su fuente, y los enlaces entre '
+            'ellos quedan como interruptores normalmente abiertos.\n\n'
+            'Sobre el export completo son unos 30 MB y varios minutos. ¿Continuar?',
+        ):
+            return
+        salida = Path(self.out_dir.get().strip() or _default_out_dir()) / 'sistema'
+        self._lanzar_guion(
+            'build_system_grid.py',
+            argumentos + ['--nombre', 'SISTEMA',
+                          '--out', str(salida / 'SISTEMA.dgs'),
+                          '--source-crs', self.source_crs.get().strip() or 'EPSG:32718',
+                          '--importar', '--run-load-flow'],
+            titulo='Red unida en una sola grid',
+        )
+
+    def _run_base_scenario(self) -> None:
+        argumentos = self._entradas_para_guion()
+        if argumentos is None:
+            return
+        if not messagebox.askyesno(
+            'Escenario base del año 0',
+            'Se construirá la red unida, se importará en DigSILENT creando el caso '
+            'ANIO_0_BASE con su escenario de operación, se hará converger el flujo y '
+            'se ejecutarán los estudios.\n\n'
+            'Los estudios que resuelven la red muchas veces —contingencias N-1, '
+            'fiabilidad, optimizaciones— quedan fuera: sobre 53.000 barras pueden '
+            'tardar horas.\n\n'
+            'Es la operación más larga de la interfaz. ¿Continuar?',
+        ):
+            return
+        salida = Path(self.out_dir.get().strip() or _default_out_dir()) / 'anio0'
+        self._lanzar_guion(
+            'base_scenario.py',
+            argumentos + ['--nombre', 'PIDE_ANIO_0', '--out-dir', str(salida),
+                          '--source-crs', self.source_crs.get().strip() or 'EPSG:32718'],
+            titulo='Escenario base año 0',
+        )
+
+    def _missing_data(self) -> None:
+        """Qué estudios se pueden sustentar hoy y qué dato falta para los demás."""
+        argumentos = self._entradas_para_guion()
+        if argumentos is None:
+            return
+        salida = Path(self.out_dir.get().strip() or _default_out_dir()) / 'anio0'
+        self._lanzar_guion(
+            'base_scenario.py',
+            argumentos + ['--solo-datos', '--out-dir', str(salida)],
+            titulo='Datos que faltan para el año 0',
+            al_terminar=lambda: messagebox.showinfo(
+                'Datos que faltan',
+                'El informe está en el Registro y en anio0/datos_faltantes.json.\n\n'
+                'Los estudios marcados «SIN DATOS» se ejecutan igual pero su resultado '
+                'no significa nada: es el caso de la fiabilidad con las tasas de falla '
+                'a cero, que devuelve SAIDI = 0 sin fallar.'),
         )
 
     # ------------------------------------------------------------------
