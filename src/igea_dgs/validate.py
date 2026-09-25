@@ -124,8 +124,10 @@ def validate_dgs(
         structural_errors.append(f'ElmLne count {len(line_rows)} != source lines {len(model.lines)}')
     if len(load_rows) != len(model.loads):
         structural_errors.append(f'ElmLod count {len(load_rows)} != source loads {len(model.loads)}')
-    if len(source_rows) != 1:
-        structural_errors.append(f'ElmXnet count {len(source_rows)} != expected 1')
+    # Una fuente por alimentador: una sola, salvo en una red unida (combine).
+    fuentes_esperadas = len(getattr(getattr(model, 'combined', None), 'feeders', None) or ()) or 1
+    if len(source_rows) != fuentes_esperadas:
+        structural_errors.append(f'ElmXnet count {len(source_rows)} != expected {fuentes_esperadas}')
     if len(switch_rows) != len(model.devices):
         structural_errors.append(f'StaSwitch count {len(switch_rows)} != source devices {len(model.devices)}')
 
@@ -136,8 +138,15 @@ def validate_dgs(
     coup_rows = tables.get('ElmCoup', {}).get('rows_dict', [])
     if len(tr2_rows) != len(model.seds):
         structural_errors.append(f'ElmTr2 count {len(tr2_rows)} != source SEDs {len(model.seds)}')
-    if len(coup_rows) != len(model.seds):
-        structural_errors.append(f'ElmCoup count {len(coup_rows)} != source SEDs {len(model.seds)}')
+    # ElmCoup: uno por SED (dentro de ella), más los que van en la red —enlaces entre
+    # alimentadores y seccionadores de tramos puente fundidos (igea_dgs.puentes)—.
+    combinado = getattr(model, 'combined', None)
+    n_red_coups = len(getattr(model, 'couplers', ()) or ()) + len(
+        getattr(combinado, 'ties', ()) or ())
+    if len(coup_rows) != len(model.seds) + n_red_coups:
+        structural_errors.append(
+            f'ElmCoup count {len(coup_rows)} != source SEDs {len(model.seds)} '
+            f'+ network switches {n_red_coups}')
 
     term_fids = {r.get('FID','') for r in term_rows}
     type_fids = {r.get('FID','') for r in type_rows}
@@ -159,9 +168,13 @@ def validate_dgs(
     for r in tr2_rows:
         if r.get('fold_id', '') not in sed_fids:
             connection_errors.append(f'ElmTr2 {r.get("FID")} must fold under ElmSubstat')
+    red_coups = [r for r in coup_rows if r.get('fold_id', '') in network_fids]
     for r in coup_rows:
-        if r.get('fold_id', '') not in sed_fids:
-            connection_errors.append(f'ElmCoup {r.get("FID")} must fold under ElmSubstat')
+        if r.get('fold_id', '') not in sed_fids | network_fids:
+            connection_errors.append(f'ElmCoup {r.get("FID")} must fold under ElmSubstat or ElmNet')
+    if len(red_coups) != n_red_coups:
+        connection_errors.append(
+            f'{len(red_coups)} ElmCoup under ElmNet, expected {n_red_coups} network switches')
 
     # NA205: SED-backed loads fold under ElmSubstat; free loads stay under ElmNet.
     allowed_load_folds = network_fids | sed_fids
@@ -439,7 +452,15 @@ def validate_dgs(
                 ug_diagram_fids.add(fid)
         oh_diagram_fids = diagram_line_fids - ug_diagram_fids
         hidden_stub_line_fids = line_fids - diagram_line_fids
-        electrical_graphic_objects = visible_term_fids | diagram_line_fids | free_load_fids | source_fids | sed_fids
+        # Interruptores de la red —seccionadores de puentes fundidos y enlaces entre
+        # alimentadores—: cada uno con su d_couple y dos conectores.
+        coupler_fids = {
+            r.get('FID', '') for r in coup_rows if r.get('fold_id', '') in network_fids
+        }
+        electrical_graphic_objects = (
+            visible_term_fids | diagram_line_fids | free_load_fids | source_fids | sed_fids
+            | coupler_fids
+        )
         graphics_by_object: dict[str, list[dict[str, str]]] = defaultdict(list)
         graphic_fids = {r.get('FID','') for r in graphic_rows}
         symbol_counts: Counter[str] = Counter()
@@ -454,7 +475,7 @@ def validate_dgs(
         expected_line_graphics = len(diagram_line_fids)
         expected_graphics = (
             len(visible_term_fids) + expected_line_graphics + len(free_load_fids)
-            + len(source_fids) + len(sed_fids)
+            + len(source_fids) + len(sed_fids) + len(coupler_fids)
         )
         if len(graphic_rows) != expected_graphics:
             graphic_errors.append(f'IntGrf count {len(graphic_rows)} != expected {expected_graphics}')
@@ -467,7 +488,7 @@ def validate_dgs(
                 f'd_lin count {symbol_counts.get("d_lin", 0)} != expected {expected_line_graphics} '
                 f'(OH={len(oh_diagram_fids)} UG={len(ug_diagram_fids)})'
             )
-        for fid in diagram_line_fids | free_load_fids | source_fids | sed_fids | visible_term_fids:
+        for fid in diagram_line_fids | free_load_fids | source_fids | sed_fids | visible_term_fids | coupler_fids:
             if len(graphics_by_object.get(fid, [])) != 1:
                 graphic_errors.append(
                     f'Electrical object {fid} has {len(graphics_by_object.get(fid, []))} graphic objects, expected 1'
@@ -496,6 +517,12 @@ def validate_dgs(
                 graphic_errors.append(f'ElmLne graphic for {fid} does not have exactly two IntGrfcon rows')
             if gr and gr[0].get('sSymNam') != 'd_lin':
                 graphic_errors.append(f'ElmLne graphic for {fid} must use sSymNam=d_lin')
+        for fid in coupler_fids:
+            gr = graphics_by_object.get(fid, [])
+            if gr and gr[0].get('sSymNam') != 'd_couple':
+                graphic_errors.append(f'ElmCoup graphic for {fid} must use sSymNam=d_couple')
+            if gr and len(connectors_by_graphic.get(gr[0].get('FID', ''), [])) != 2:
+                graphic_errors.append(f'ElmCoup graphic for {fid} does not have exactly two IntGrfcon rows')
         for fid in free_load_fids | source_fids:
             gr = graphics_by_object.get(fid, [])
             if gr and len(connectors_by_graphic.get(gr[0].get('FID',''), [])) != 1:
@@ -576,15 +603,32 @@ def validate_dgs(
                 )
             if span < 1e-6:
                 graphic_errors.append('Diagram sheet collapsed to a point; topology scale is invalid')
+            # Hoja normalizada: todo el dibujo dentro de ella, en cualquiera de sus dos
+            # orientaciones. PowerFactory dimensiona la hoja con este recuadro.
+            formato = getattr(model, 'diagram_sheet', None)
+            if formato:
+                from .dgs import formato_hoja
+
+                ancho, alto = formato_hoja(formato)
+                cabe = any(
+                    min(sheet_xs) >= -1e-6 and min(sheet_ys) >= -1e-6
+                    and max(sheet_xs) <= w + 1e-6 and max(sheet_ys) <= h + 1e-6
+                    for w, h in ((ancho, alto), (alto, ancho))
+                )
+                if not cabe:
+                    graphic_errors.append(
+                        f'El diagrama no cabe en la hoja {formato} ({ancho:g}×{alto:g} mm): '
+                        f'x {min(sheet_xs):.1f}…{max(sheet_xs):.1f}, '
+                        f'y {min(sheet_ys):.1f}…{max(sheet_ys):.1f}'
+                    )
 
     # ElmFeeder required always (DigSilent feeder colouring / Define Feeder).
     feeder_rows = tables.get('ElmFeeder', {}).get('rows_dict', [])
-    if len(feeder_rows) != 1:
-        structural_errors.append(f'ElmFeeder rows={len(feeder_rows)}, expected 1')
-    elif feeder_rows[0].get('obj_id', '') not in cubic_fids:
-        structural_errors.append(
-            f'ElmFeeder {feeder_rows[0].get("FID")} obj_id is not a StaCubic'
-        )
+    if len(feeder_rows) != fuentes_esperadas:
+        structural_errors.append(f'ElmFeeder rows={len(feeder_rows)}, expected {fuentes_esperadas}')
+    for fila in feeder_rows:
+        if fila.get('obj_id', '') not in cubic_fids:
+            structural_errors.append(f'ElmFeeder {fila.get("FID")} obj_id is not a StaCubic')
 
     return _report(model, tables, schema, schema_errors, structural_errors, connection_errors,
                    geographic_errors, graphic_errors, geography=geography, dgs_length=dgs_length)

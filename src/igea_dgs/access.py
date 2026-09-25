@@ -175,6 +175,7 @@ def read_access_dataset(
     equipment_db: Path | str | None = None,
     load_year: int | None = None,
     networks: list[str] | None = None,
+    equipment_tables: dict[str, tuple[dict[str, str], ...]] | None = None,
 ) -> CymdistDataset:
     """Lee una base CYMDIST y devuelve el mismo ``CymdistDataset`` que el lector TXT.
 
@@ -187,6 +188,10 @@ def read_access_dataset(
 
     ``networks`` limita la lectura a los ``NetworkId`` indicados, por ejemplo los de un
     estudio (ver :func:`igea_dgs.study.study_networks`).
+
+    ``equipment_tables`` da el catálogo ya construido, con los nombres de campo del
+    BD_Equipo, para bases que traen la red y ninguna tabla ``CYMEQ*`` (por ejemplo
+    desde el Excel de catálogo: :func:`igea_dgs.catalog.tablas_equipo_desde_catalogo`).
     """
     net_path = Path(network_db)
     eq_path = Path(equipment_db) if equipment_db else net_path
@@ -352,13 +357,29 @@ def read_access_dataset(
     finally:
         cn.close()
 
-    equipment_tables = _read_equipment(eq_path)
+    if equipment_tables is None:
+        equipment_tables = _read_equipment(eq_path)
 
     if not nodes or not sources:
         raise AccessReadError(
             f'{net_path.name}: la base no contiene nodos o fuentes. '
             'Compruebe que es una base de red CYMDIST y no otra cosa.'
         )
+    if not any(equipment_tables.get(name) for name in ('LINE', 'CONCENTRIC NEUTRAL CABLE')):
+        # Regla del proyecto: una base con la red y sin tablas CYMEQ* toma los
+        # parámetros del catálogo Excel del proyecto (igea_dgs.reglas), conservando la
+        # identidad —código, material, sección, aéreo o subterráneo— de la base.
+        from .reglas import catalogo_del_proyecto
+
+        catalogo = catalogo_del_proyecto()
+        if catalogo is not None:
+            from .catalog import tablas_equipo_desde_catalogo
+
+            usados = {(lc['LineCableID'], lc['Overhead'] == '1')
+                      for lc in line_configurations.values() if lc.get('LineCableID')}
+            equipment_tables = dict(
+                tablas_equipo_desde_catalogo(catalogo, codigos_en_red=usados).tablas)
+            eq_path = catalogo
     if not any(equipment_tables.get(name) for name in ('LINE', 'CONCENTRIC NEUTRAL CABLE')):
         raise AccessReadError(
             f'{eq_path.name}: no contiene catálogo de equipos '

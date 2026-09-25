@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import cached_property
 from pathlib import Path
 from collections import defaultdict
 import csv
@@ -262,6 +263,49 @@ class CymdistDataset:
             customer_loads=customer_loads,
             equipment_tables=equipment_tables,
         )
+
+    # ------------------------------------------------------------------ índices
+    # Se construyen una vez, la primera vez que se piden, y valen para todo el lote.
+    # Antes cada alimentador recorría CUSTOMER LOADS, las maniobras y los INTERMEDIATE
+    # NODES *enteros* para quedarse con lo suyo: O(alimentadores × filas). Con pocos
+    # alimentadores no se notaba; con 200 de tamaño medio, cada uno costaba casi cuatro
+    # veces más que con 50 y el lote crecía de forma cuadrática. Agrupados aquí, el
+    # coste de un alimentador depende solo de su propio tamaño.
+    #
+    # Conservan el orden de lectura dentro de cada grupo: el DGS debe salir idéntico
+    # al que salía recorriendo las tablas completas (regla de determinismo).
+
+    @cached_property
+    def customer_loads_by_feeder(self) -> dict[str, tuple[tuple[tuple[str, str], dict[str, str]], ...]]:
+        """NetworkID → ((SectionID, DeviceNumber), fila) de CUSTOMER LOADS."""
+        grouped: dict[str, list] = defaultdict(list)
+        for key, row in self.customer_loads.items():
+            owner = self.section_owner.get(key[0])
+            if owner is not None:
+                grouped[owner].append((key, row))
+        return {owner: tuple(rows) for owner, rows in grouped.items()}
+
+    @cached_property
+    def switching_by_feeder(self) -> dict[str, tuple[tuple[str, dict[str, str]], ...]]:
+        """NetworkID → (``'SWITCH'`` | ``'SECTIONALIZER'``, fila), interruptores primero."""
+        grouped: dict[str, list] = defaultdict(list)
+        for kind, rows in (
+            ('SWITCH', self.switch_settings),
+            ('SECTIONALIZER', self.sectionalizer_settings),
+        ):
+            for row in rows:
+                owner = self.section_owner.get(row.get('SectionID', ''))
+                if owner is not None:
+                    grouped[owner].append((kind, row))
+        return {owner: tuple(rows) for owner, rows in grouped.items()}
+
+    @cached_property
+    def intermediate_by_section(self) -> dict[str, tuple[dict[str, str], ...]]:
+        """SectionID → filas de INTERMEDIATE NODES en orden de lectura (sin ordenar por SeqNumber)."""
+        grouped: dict[str, list[dict[str, str]]] = defaultdict(list)
+        for row in self.intermediate_nodes:
+            grouped[row.get('SectionID', '')].append(row)
+        return {sid: tuple(rows) for sid, rows in grouped.items()}
 
     def feeder_ids(self) -> tuple[str, ...]:
         return tuple(self.feeders.keys())

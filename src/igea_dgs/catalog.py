@@ -881,3 +881,140 @@ def aplicar_correcciones(
             model.line_types[clave] = nuevo
     cambios.sort(key=lambda c: (-c.km, c.codigo, c.atributo_pf))
     return cambios
+
+
+# --------------------------------------------------------------------------------
+# El catálogo como fuente de equipos
+# --------------------------------------------------------------------------------
+
+#: Hoja del catálogo → tabla de equipos que entiende el modelo (la del BD_Equipo).
+HOJA_A_TABLA = {
+    'conductores_aereos': 'LINE',
+    'cables_subterraneos': 'CONCENTRIC NEUTRAL CABLE',
+}
+
+#: Columna del catálogo → campo de la fila de equipos (``model._line_type_from_row``).
+COLUMNA_MODELO_A_CAMPO = {
+    'R1_modelo_ohm_km': 'R1',
+    'X1_modelo_ohm_km': 'X1',
+    'R0_modelo_ohm_km': 'R0',
+    'X0_modelo_ohm_km': 'X0',
+    'B1_modelo_uS_km': 'B1',
+    'ampacidad_modelo_A': 'Amps',
+}
+
+
+@dataclass
+class EquiposDesdeCatalogo:
+    tablas: dict[str, tuple[dict[str, str], ...]]
+    leidos: dict[str, int] = field(default_factory=dict)
+    completados: dict[str, str] = field(default_factory=dict)
+    """Código que faltaba → código del catálogo del que se tomaron sus valores."""
+    sin_resolver: list[str] = field(default_factory=list)
+
+    def texto(self) -> str:
+        partes = [f'{t}: {n} tipos' for t, n in self.leidos.items()]
+        if self.completados:
+            partes.append('completados por sección y material: ' + ', '.join(
+                f'{a}←{b}' for a, b in sorted(self.completados.items())))
+        if self.sin_resolver:
+            partes.append('SIN RESOLVER: ' + ', '.join(self.sin_resolver))
+        return 'Equipos desde el catálogo — ' + '; '.join(partes)
+
+
+def tablas_equipo_desde_catalogo(
+    path: Path | str, *, codigos_en_red: Iterable[tuple[str, bool]] = (),
+) -> EquiposDesdeCatalogo:
+    """Construye el catálogo de equipos del modelo a partir de ``catalogo_parametros``.
+
+    Para bases CYMDIST que traen la red pero **no** sus tablas de equipos (las
+    ``CYMEQ*`` vacías). Cada fila del catálogo da un tipo con sus valores ``*_modelo_*``:
+    la identidad —código, material, sección, aéreo o subterráneo— es la de la base. Las
+    correcciones de ficha no se mezclan aquí: se aplican después con
+    :func:`aplicar_correcciones`, como en cualquier otra conversión.
+
+    ``codigos_en_red`` son los pares ``(código, aéreo)`` que usa la red. Si alguno no
+    está en el catálogo se completa con el tipo **del mismo material y la misma
+    sección** —el número de fases del código no cambia los parámetros por km del
+    conductor—, y se informa. Si tampoco hay ese, queda en ``sin_resolver``: no se
+    inventa un conductor.
+    """
+    try:
+        from openpyxl import load_workbook
+    except ImportError as exc:  # pragma: no cover
+        raise CatalogError('openpyxl es necesario para leer el catálogo.') from exc
+    ruta = Path(path)
+    if not ruta.exists():
+        raise CatalogError(f'No existe el catálogo: {ruta}')
+    wb = load_workbook(ruta, data_only=True, read_only=True)
+
+    tablas: dict[str, list[dict[str, str]]] = {t: [] for t in HOJA_A_TABLA.values()}
+    for hoja, tabla in HOJA_A_TABLA.items():
+        if hoja not in wb.sheetnames:
+            continue
+        filas = list(wb[hoja].iter_rows(values_only=True))
+        if not filas:
+            continue
+        cab = {str(c).strip(): i for i, c in enumerate(filas[0]) if c}
+        for fila in filas[1:]:
+            codigo = str(fila[cab['codigo']] or '').strip() if 'codigo' in cab else ''
+            if not codigo:
+                continue
+            fila_eq = {'ID': codigo, 'B0': '0'}
+            for columna, campo in COLUMNA_MODELO_A_CAMPO.items():
+                i = cab.get(columna)
+                valor = _num(fila[i]) if i is not None and i < len(fila) else None
+                fila_eq[campo] = '' if valor is None else repr(float(valor))
+            tablas[tabla].append(fila_eq)
+
+    informe = EquiposDesdeCatalogo(tablas={})
+    for codigo, aereo in sorted(set(codigos_en_red)):
+        tabla = 'LINE' if aereo else 'CONCENTRIC NEUTRAL CABLE'
+        if codigo.upper() == 'DEFAULT' or any(f['ID'] == codigo for f in tablas[tabla]):
+            continue
+        seccion, material = seccion_de_codigo(codigo), codigo[:2].upper()
+        parecidos = [f for f in tablas[tabla]
+                     if f['ID'][:2].upper() == material and seccion
+                     and seccion_de_codigo(f['ID']) == seccion]
+        if not parecidos:
+            informe.sin_resolver.append(codigo)
+            continue
+        # Entre los de igual material y sección, el trifásico de la misma variante.
+        parecidos.sort(key=lambda f: (f['ID'][-1:] != codigo[-1:], f['ID'][6:7] != '3', f['ID']))
+        origen = parecidos[0]
+        tablas[tabla].append({**origen, 'ID': codigo})
+        informe.completados[codigo] = origen['ID']
+
+    informe.tablas = {t: tuple(filas) for t, filas in tablas.items()}
+    informe.leidos = {t: len(filas) for t, filas in tablas.items()}
+    return informe
+
+
+def leer_trafos(path: Path | str) -> dict[float, dict[str, float]]:
+    """Transformadores de SED del catálogo: ``{kVA: {uk_pct, Pk_W, Po_W, io_pct}}``.
+
+    Solo entran las potencias con ``uk_pct``, ``Pk_W`` y ``Po_W`` escritos; las que
+    el catálogo deja en blanco (fuera de la tabla del Reglamento) no se inventan y el
+    escritor del DGS recurre a su cálculo por defecto para ellas.
+    """
+    try:
+        from openpyxl import load_workbook
+    except ImportError as exc:  # pragma: no cover
+        raise CatalogError('openpyxl es necesario para leer el catálogo.') from exc
+    wb = load_workbook(Path(path), data_only=True, read_only=True)
+    if 'transformadores_sed' not in wb.sheetnames:
+        return {}
+    filas = list(wb['transformadores_sed'].iter_rows(values_only=True))
+    if not filas:
+        return {}
+    cab = {str(c).strip(): i for i, c in enumerate(filas[0]) if c}
+    salida: dict[float, dict[str, float]] = {}
+    for fila in filas[1:]:
+        def num(col: str) -> float | None:
+            i = cab.get(col)
+            return _num(fila[i]) if i is not None and i < len(fila) else None
+        kva, uk, pk, po = num('kVA'), num('uk_pct'), num('Pk_W'), num('Po_W')
+        if kva and uk and pk and po:
+            salida[round(kva, 3)] = {'uk_pct': uk, 'Pk_W': pk, 'Po_W': po,
+                                     'io_pct': num('io_pct') or 0.0}
+    return salida

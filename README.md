@@ -4,28 +4,98 @@ Conversor modular para transformar los archivos TXT `RED`, `CARGA` y `BD_Equipo`
 
 **Universal por diseño:** no está limitado a una empresa, a un número fijo de alimentadores ni a códigos como IN111/TA121. Cualquier export CYMDIST/IGEA con otras denominaciones de NetworkID, tipos de línea o CRS regionales se puede cargar; los nombres y conteos salen de los TXT, no de listas fijas en el código.
 
-## Interfaz gráfica (recomendada)
+## Interfaz web (recomendada)
 
 Doble clic en `run_gui.bat`, o:
 
 ```bash
 set PYTHONPATH=src
-python -m igea_dgs.gui
+python -m igea_dgs.web          # o: igea-dgs-web  /  igea-dgs web
 ```
 
-En la ventana (flujo didáctico):
+Abre el navegador en `http://127.0.0.1:8765/`. Es una API **FastAPI** que sirve un
+front **React + TypeScript** (`frontend/`) y usa el mismo motor `igea_dgs`, sin
+reescribirlo.
 
-1. Elija los tres TXT: **RED**, **CARGA** y **BD_Equipo** — la GUI avisa cuando están listos.
-2. Pulse **Cargar / listar alimentadores** — diálogo al terminar con el número de alimentadores.
-3. Seleccione **uno**, **varios** (Ctrl/Mayús+clic) o **todos** (checkbox / botón).
-4. Pulse **Convertir a DGS** — progreso N/M, diálogo al terminar y opción de abrir la carpeta.
-5. (Opcional) Seleccione alimentadores ya convertidos y pulse **Cargar DGS en DigSILENT + flujo** — importa el `.dgs`, crea/activa escenario de operación, ejecuta flujo de potencia (ComLdf, con correcciones DigSILENT si no converge) y la suite de estudios (corto circuito ComShc si la licencia lo permite).
+1. **Entrada**: suelte los tres TXT juntos y cada uno va a su casilla por las tablas
+   que trae dentro, no por el nombre. También se pueden subir de uno en uno, o indicar
+   una ruta de este equipo (útil para la base `.mdb`, que pesa cientos de MB).
+2. **Cargar / listar alimentadores**: inventario, integridad y cobertura del catálogo
+   de conductores. Si el catálogo no cubre la red, lo avisa antes de convertir.
+3. **Seleccione** con las casillas (Mayús+clic = rango), filtre y ordene.
+4. **Convertir** uno, varios o todos: progreso en vivo, cancelable; lo ya convertido
+   se conserva. La tabla recuerda qué alimentadores tienen su DGS entre lotes.
+5. **Resultados**: descarga por fichero o en `.zip`, y el mapa de vista previa dentro
+   de la página.
+6. **Cargar en DigSILENT + flujo**, **Cargas de SED**, **SED nuevas**, **Catálogo de
+   parámetros** y **Sistema completo** (red unida, escenario año 0, datos que faltan):
+   lo mismo que la GUI de escritorio, con el plan a la vista antes de aplicarlo.
 
-Sin `pyproj` puede listar alimentadores y convertir **desactivando georreferenciación**. Con GPS/diagrama debe estar instalado vía `requirements.txt`.
+El Registro llega por WebSocket línea a línea, también la salida de los guiones de
+PowerFactory mientras corren. Cada navegador trabaja en su **espacio de trabajo**
+(`output/web/<id>/`), que se reabre al volver.
+
+**Primera vez**: `run_gui.bat` compila el front si falta `frontend/dist`. Para eso
+hace falta Node.js 20+ **solo una vez**; después, no.
+
+**Desarrollo del front** (recarga en caliente):
+
+```bash
+python -m igea_dgs.web --no-browser     # API en :8765
+cd frontend && npm install && npm run dev   # front en :5173, reenvía /api a :8765
+```
+
+**Seguridad**: por defecto escucha solo en `127.0.0.1`. Con `--host 0.0.0.0` se expone
+en la red y se desactivan las rutas locales del servidor (solo subida de ficheros);
+no hay autenticación todavía, así que no lo exponga fuera de una red de confianza.
+
+### Colas de trabajo
+
+Hay dos carriles, cada uno en serie: **motor** (leer, convertir, auditar) y
+**PowerFactory** (import, flujo, cargas, red unida). PowerFactory admite un solo
+proceso con el motor a la vez; serializarlo evita el fallo que eso produce, y separar
+los carriles permite seguir convirtiendo mientras DigSILENT importa la red unida.
+
+### Interfaz de escritorio (heredada)
+
+La GUI Tkinter sigue disponible con `run_gui_escritorio.bat` o
+`python -m igea_dgs.gui`. Sus funciones están todas en la web; se retirará cuando la
+web se haya usado en producción.
+
+## Reglas del proyecto (se aplican a toda conversión)
+
+Cada entrada —los tres TXT o la base Access `.mdb`— y cada vía —interfaz web, CLI,
+GUI de escritorio, red unida— convierte con las mismas reglas (`src/igea_dgs/reglas.py`):
+
+| Regla | Qué hace |
+|---|---|
+| Hoja **A0** | La red entera cabe en una hoja A0 de PowerFactory con escala isótropa; los símbolos se miden en la cuadrícula de la hoja. PowerFactory crea la hoja A0 al importar. |
+| Coordenadas | Los nodos sin `CoordX/CoordY` se colocan por el grafo (interpolación por longitud de tramo); se marcan como inferidos y no cambian longitudes eléctricas. |
+| Puentes `DEFAULT` | Los tramos `DEFAULT` de ≤ 10 m que CYMDIST crea para colgar un seccionador o una carga se funden: el seccionador pasa a `ElmCoup`, la SED queda en su barra. Un `DEFAULT` más largo es una línea real y se conserva. |
+| Trafomix | La medición de MT registrada como SED `M…` no se modela (no es un transformador de distribución). |
+| SED sobrecargadas | Una SED con más carga que kVA toma el menor tamaño normalizado que la cubre; queda listada en el manifiesto. |
+| Catálogo | `input/catalogo_parametros.xlsx` completa los conductores que falten (mismo material y sección), da los transformadores de SED y sus filas `ficha`/`derivado` corrigen los valores. Una base sin tablas `CYMEQ*` toma de él todos los parámetros. |
+| Completitud | Cada DGS se audita contra la entrada: tramos, cargas, kW, kvar y maniobras. Si algo se pierde, el alimentador no es «ok». |
+
+**Uno, varios o todos**, cada uno en su DGS, o **varios en un solo DGS** (red unida:
+cada alimentador con su fuente, enlaces como interruptores abiertos):
+
+```bash
+igea-dgs convert --mdb 260924.mdb --feeder NA203 --feeder NA205 --unir NA203_NA205 --out-dir out
+igea-dgs convert --red R.txt --loads C.txt --equipment E.txt --all --out-dir out   # hoja A0 por defecto
+```
+
+En la web: «Unir en un solo DGS…» con los alimentadores seleccionados. `--literal`
+(CLI) convierte sin reglas, solo para comparar con la entrada.
+
+**Cargas de SED en bloque (Excel o CSV)**: descargue la plantilla del alimentador,
+escriba los valores nuevos en `Kw` y `Kvar` (o en `(kVA)` y `FP`; `accion = omitir` salta la fila), súbala, revise el plan y aplíquelo. Se aplica sobre el
+proyecto de PowerFactory que creó «Cargar en DigSILENT» (el del alimentador o el del DGS
+unido que lo contiene); por eso hay que cargarlo antes.
 
 ## Instalación (otra máquina local)
 
-**Producción / GUI** (paquete + `pyproj`):
+**Producción / interfaz web** (paquete + `pyproj` + FastAPI):
 
 ```bash
 python -m venv .venv
@@ -45,15 +115,7 @@ Alternativa con extras de `pyproject.toml`:
 - Solo producción (con geografía): `pip install -e ".[geo]"`.
 - Desarrollo + tests: `pip install -e ".[geo,dev]"`.
 
-Entradas de consola: `igea-dgs` y `igea-dgs-gui`. `run_gui.bat` instala solo `requirements.txt` (sin pytest) si faltan dependencias.
-
-### Interfaz gráfica (pruebas y producción)
-
-1. Elija RED, CARGA y BD_Equipo — la GUI avisa cuando los tres están listos.
-2. Pulse **Cargar / listar alimentadores** — avisa al terminar con el conteo.
-3. Convierta **uno** (clic), **varios** (Ctrl+clic / Mayús+clic / Seleccionar todos) o **todos** (checkbox).
-4. Al terminar la conversión muestra resumen OK/fallidos y ofrece abrir la carpeta de salida.
-5. **Cargar DGS en DigSILENT + flujo** importa el DGS seleccionado, asegura escenario de operación, corre flujo (ComLdf + correcciones) y la suite de estudios (`--run-studies`: ComLdf + ComShc).
+Entradas de consola: `igea-dgs`, `igea-dgs-web` (interfaz web) e `igea-dgs-gui` (escritorio). `run_gui.bat` instala solo `requirements.txt` (sin pytest) si faltan dependencias.
 
 ## Principio de arquitectura
 
@@ -70,8 +132,9 @@ La fuente de verdad para cada conversión es:
 | Ítem | Estado |
 | ---- | ------ |
 | Motor de conversión (dataset → model → DGS → validate) | Listo |
-| CLI `list` / `convert` / `gui` | Listo |
-| Interfaz gráfica de archivos | Listo (`gui.py` + `run_gui.bat`) |
+| CLI `list` / `convert` / `gui` / `web` | Listo |
+| Interfaz web (FastAPI + React) | Listo (`src/igea_dgs/web/` + `frontend/` + `run_gui.bat`) |
+| Interfaz de escritorio Tkinter | Heredada (`gui.py` + `run_gui_escritorio.bat`) |
 | Empaquetado `pyproject.toml` | Listo |
 | Dependencia `pyproj` (GPS) | En `requirements.txt` (+ extra `[geo]`) — opcional si convierte sin geografía |
 | TXT de entrada en el repo | No incluidos — hay que suministrarlos |

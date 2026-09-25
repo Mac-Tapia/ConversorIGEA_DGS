@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Mapping
 import math
 
 from .model import FeederModel, Line, Sed, decode_phase, split_by_phase
@@ -19,6 +20,9 @@ class DiagramSheet:
     ymin: float
     xmax: float
     ymax: float
+    formato: str = ''
+    """Formato normalizado (``A0``…) cuando la red se encaja en una hoja; '' si no."""
+    orientacion: str = ''
 
     @property
     def width(self) -> float:
@@ -49,6 +53,8 @@ class DgsManifest:
     sed_fids: dict[tuple[str, str], str] = field(default_factory=dict)
     visible_pointterm_nodes: tuple[str, ...] = ()
     diagram_sheet: DiagramSheet | None = None
+    diagram_grid_mm: float = 0.0
+    """Paso de cuadrícula elegido para la hoja (0 en la escala NA205)."""
 
 
 class FidRegistry:
@@ -130,11 +136,23 @@ def _line_neighbors(model: FeederModel) -> LineNeighborIndex:
     return neighbors
 
 
+def _umbral_tramo_oculto(model: FeederModel, max_stub_m: float | None) -> float:
+    """Longitud hasta la que un tramo punta no se dibuja; la decide el modelo.
+
+    Vale 1 m por defecto (``FeederModel.diagram_max_stub_m``). Un modelo que debe
+    dibujar todos sus tramos —sin omitir ningún elemento— lo pone a 0. Vive en el
+    modelo para que el escritor y el validador no puedan discrepar.
+    """
+    if max_stub_m is not None:
+        return max_stub_m
+    return float(getattr(model, 'diagram_max_stub_m', 1.0))
+
+
 def diagram_anchor_node(
     model: FeederModel,
     node_id: str,
     *,
-    max_stub_m: float = 1.0,
+    max_stub_m: float | None = None,
     neighbors: LineNeighborIndex | None = None,
 ) -> str:
     """Snap micro service-stub tips to the upstream network bus for graphics.
@@ -146,6 +164,7 @@ def diagram_anchor_node(
     Pass ``neighbors`` when calling repeatedly; omitting it rebuilds the whole
     adjacency index for a single lookup.
     """
+    max_stub_m = _umbral_tramo_oculto(model, max_stub_m)
     index = _line_neighbors(model) if neighbors is None else neighbors
     adjacent = index.get(node_id, ())
     if len(adjacent) != 1:
@@ -160,7 +179,7 @@ def is_micro_service_stub_line(
     model: FeederModel,
     line: Line,
     *,
-    max_stub_m: float = 1.0,
+    max_stub_m: float | None = None,
     neighbors: LineNeighborIndex | None = None,
 ) -> bool:
     """True for ≤1 m tip sections that only hang a load/SED off the primary bus.
@@ -169,6 +188,7 @@ def is_micro_service_stub_line(
     at NA205 scale (~2 u/m) they render as dust and look like loose fragments.
     NA205 itself almost never draws such micro stubs (median span ~50 m).
     """
+    max_stub_m = _umbral_tramo_oculto(model, max_stub_m)
     if line.length_m > max_stub_m:
         return False
     index = _line_neighbors(model) if neighbors is None else neighbors
@@ -182,7 +202,7 @@ def is_micro_service_stub_line(
 def diagram_line_sections(
     model: FeederModel,
     *,
-    max_stub_m: float = 1.0,
+    max_stub_m: float | None = None,
     neighbors: LineNeighborIndex | None = None,
 ) -> set[str]:
     """SectionIDs that receive IntGrf d_lin (excludes micro service stubs)."""
@@ -197,7 +217,7 @@ def diagram_line_sections(
 def diagram_line_rail_counts(
     model: FeederModel,
     *,
-    max_stub_m: float = 1.0,
+    max_stub_m: float | None = None,
     neighbors: LineNeighborIndex | None = None,
     drawn: set[str] | None = None,
 ) -> tuple[int, int, int]:
@@ -273,18 +293,45 @@ def visible_pointterm_nodes(
         visible.add(diagram_anchor_node(model, load.node_id, neighbors=index))
     for sed in model.seds:
         visible.add(diagram_anchor_node(model, sed.node_id, neighbors=index))
+    # Red unida: la cabecera de CADA alimentador lleva su fuente dibujada.
+    combinado = getattr(model, 'combined', None)
+    for ref in (getattr(combinado, 'feeders', None) or ()):
+        visible.add(ref.source_node)
+    # Interruptores sin tramo: sin sus dos PointTerm el símbolo quedaría conectado a
+    # la nada en el diagrama.
+    for acoplador in getattr(model, 'couplers', ()):
+        visible.add(acoplador.node_a)
+        visible.add(acoplador.node_b)
+    for enlace in (getattr(combinado, 'ties', None) or ()):
+        visible.add(enlace.node_a)
+        visible.add(enlace.node_b)
     return visible
 
 
 @dataclass(frozen=True)
 class DiagramSymbolLayout:
-    """NA205 diagram-unit radii/offsets (same visual weight as reference)."""
+    """Radios, desplazamientos y tamaños de símbolo en unidades de diagrama.
+
+    En la escala NA205 son los de la referencia. En una hoja normalizada salen de la
+    cuadrícula (ver :func:`_diagram_symbol_layout`).
+    """
 
     load_radius: float
     sed_radius: float
     source_offset: float
     sed_size: float
     median_segment: float
+    parallel_offset: float = 4.0
+    grid: float = 0.0
+    """Paso de la cuadrícula de la hoja (mm); 0 en la escala NA205."""
+    symbol_mm: float = 0.0
+    """Tamaño objetivo de un símbolo sobre la hoja (mm); 0 en la escala NA205."""
+    sizes: tuple[tuple[str, float], ...] = ()
+
+    def tam(self, simbolo: str) -> float:
+        """``rSizeX``/``rSizeY`` del símbolo: multiplicador de su tamaño propio en PF."""
+        return dict(self.sizes).get(
+            simbolo, NA205_SED_SIZE if simbolo == 'SecSubProd' else NA205_SYMBOL_SIZE)
 
 
 # Reference IntGrf conventions (Ica / Nazca geographic export NA205):
@@ -304,12 +351,64 @@ NA205_FEEDER_ICOLOR = 11
 PARALLEL_CIRCUIT_OFFSET_DU = 4.0
 
 
+#: Formatos de hoja de PowerFactory 2024 (Sys\Lib, ``SetFormat``), en mm, apaisados.
+FORMATOS_HOJA: dict[str, tuple[float, float]] = {
+    'A0': (1188.0, 840.0), 'A1': (840.0, 594.0), 'A2': (594.0, 420.0),
+    'A3': (420.0, 297.0), 'A4': (297.0, 210.0),
+}
+
+#: Tamaño propio de cada símbolo en la biblioteca de PowerFactory 2024: el mayor lado
+#: de ``IntSym.rBoundSzX/Y``, leído de Sys\Lib\Grf. ``rSizeX`` lo multiplica.
+TAMANO_PROPIO_SIMBOLO: dict[str, float] = {
+    'PointTerm': 1.3125, 'd_couple': 4.375, 'd_load': 6.5625, 'd_net': 6.5625,
+    'SecSubProd': 8.0, 'd_lin': 8.75,
+}
+
+#: Pasos de cuadrícula normalizados (mm), de menor a mayor.
+CUADRICULAS_MM = (0.05, 0.1, 0.2, 0.25, 0.5, 1.0, 2.0, 5.0)
+
+#: Tamaño relativo de cada símbolo respecto al símbolo tipo de la hoja.
+PROPORCION_SIMBOLO = {
+    'PointTerm': 0.5, 'd_couple': 1.0, 'd_load': 1.0, 'd_net': 1.5,
+    'SecSubProd': 1.2, 'd_lin': 0.6,
+}
+
+
+def formato_hoja(nombre: str) -> tuple[float, float]:
+    clave = (nombre or '').strip().upper()
+    if clave not in FORMATOS_HOJA:
+        raise ValueError(f'Formato de hoja desconocido: {nombre!r}. '
+                         f'Use uno de {", ".join(FORMATOS_HOJA)}.')
+    return FORMATOS_HOJA[clave]
+
+
+def _cuadricula_y_simbolo(segmentos_mm: list[float], lado_menor_mm: float) -> tuple[float, float]:
+    """Paso de cuadrícula y tamaño del símbolo tipo, ambos en mm de la hoja.
+
+    El símbolo se mide contra la red dibujada: la mitad del tramo mediano, para que
+    dos símbolos seguidos no se toquen. Se acota entre 0,4 mm (legible al imprimir) y
+    el 0,8 % del lado menor de la hoja (no tapar la red). La cuadrícula es el mayor paso
+    normalizado que cabe cuatro veces en el símbolo, y el símbolo se redondea a un
+    múltiplo de ella: así todo encaja en la rejilla de PowerFactory.
+    """
+    validos = sorted(x for x in segmentos_mm if x > 0)
+    mediana = validos[len(validos) // 2] if validos else 5.0
+    simbolo = min(max(0.5 * mediana, 0.4), 0.008 * lado_menor_mm)
+    grid = CUADRICULAS_MM[0]
+    for paso in CUADRICULAS_MM:
+        if paso <= simbolo / 4.0:
+            grid = paso
+    simbolo = max(2 * grid, round(simbolo / grid) * grid)
+    return grid, simbolo
+
+
 def _diagram_symbol_layout(
     geography: GeographyManifest,
     model: FeederModel,
     map_point,
     *,
     min_segment_m: float = 1.0,
+    sheet: 'DiagramSheet | None' = None,
 ) -> DiagramSymbolLayout:
     """Return NA205 symbol sizes/offsets (not density-adaptive).
 
@@ -317,6 +416,25 @@ def _diagram_symbol_layout(
     footprint of loads/SEDs/source matches the reference DGS so DigSilent
     schematic and map views keep the same element scale as NA205.
     """
+    if sheet is not None and sheet.formato:
+        # Hoja normalizada: los símbolos se miden en la cuadrícula de la hoja.
+        segmentos = [ln.length_m * sheet.scale for ln in model.lines if ln.length_m > 0]
+        grid, simbolo = _cuadricula_y_simbolo(segmentos, min(sheet.width, sheet.height))
+        tamanos = tuple(
+            (nombre, round(PROPORCION_SIMBOLO[nombre] * simbolo / propio, 6))
+            for nombre, propio in sorted(TAMANO_PROPIO_SIMBOLO.items())
+        )
+        return DiagramSymbolLayout(
+            load_radius=1.5 * simbolo,
+            sed_radius=1.0 * simbolo,
+            source_offset=2.0 * simbolo,
+            sed_size=dict(tamanos)['SecSubProd'],
+            median_segment=simbolo,
+            parallel_offset=0.5 * simbolo,
+            grid=grid,
+            symbol_mm=simbolo,
+            sizes=tamanos,
+        )
     _ = (geography, model, map_point, min_segment_m)
     return DiagramSymbolLayout(
         load_radius=NA205_LOAD_RADIUS,
@@ -432,13 +550,52 @@ def _geography_meter_frame(
     return origin_lat, origin_lon, meter_xy, extras
 
 
+def _diagram_mapper_hoja(geography: GeographyManifest, formato: str):
+    """Red entera dentro de una hoja normalizada, con escala isótropa y centrada.
+
+    Las coordenadas son milímetros de la hoja, con el origen en su esquina inferior
+    izquierda: PowerFactory dimensiona la hoja importada con el recuadro de los
+    gráficos, así que si todo cae en [0, ancho]×[0, alto] la hoja es la pedida y no una
+    a medida de metros de ancho. La orientación se elige por la forma de la red.
+    """
+    ancho, alto = formato_hoja(formato)
+    origin_lat, origin_lon, meter_xy, extras = _geography_meter_frame(geography)
+    puntos = list(meter_xy.values()) + extras
+    xmin = min(p[0] for p in puntos)
+    xmax = max(p[0] for p in puntos)
+    ymin = min(p[1] for p in puntos)
+    ymax = max(p[1] for p in puntos)
+    span_x = max(xmax - xmin, 1.0)
+    span_y = max(ymax - ymin, 1.0)
+    orientacion = 'horizontal'
+    if span_y > span_x:
+        ancho, alto = alto, ancho
+        orientacion = 'vertical'
+    # Margen: 4 % del lado menor, holgura para los símbolos de borde (fuente, cargas).
+    margen = max(0.04 * min(ancho, alto), 5.0)
+    escala = min((ancho - 2 * margen) / span_x, (alto - 2 * margen) / span_y)
+    ox = (ancho - span_x * escala) / 2.0 - xmin * escala
+    oy = (alto - span_y * escala) / 2.0 - ymin * escala
+
+    def map_point(point: GeoPoint) -> tuple[float, float]:
+        x_m, y_m = _geo_to_meters(point, origin_lat, origin_lon)
+        return x_m * escala + ox, y_m * escala + oy
+
+    sheet = DiagramSheet(scale=escala, xmin=0.0, ymin=0.0, xmax=ancho, ymax=alto,
+                         formato=formato.strip().upper(), orientacion=orientacion)
+    return map_point, sheet
+
+
 def _diagram_mapper(
     geography: GeographyManifest,
     visible_ids: set[str],
     *,
     margin_du: float = DIAGRAM_SHEET_MARGIN_DU,
+    formato: str | None = None,
 ):
     """Return (map_point, DiagramSheet) with scale covering the full network map."""
+    if formato:
+        return _diagram_mapper_hoja(geography, formato)
     origin_lat, origin_lon, meter_xy, extras = _geography_meter_frame(geography)
     scale = _adaptive_scale(
         meter_xy,
@@ -630,7 +787,15 @@ def write_dgs(
     *,
     schema_profile: str = 'pf21_dgs_1_8_4',
     geography: GeographyManifest | None = None,
+    trafos: Mapping[float, Mapping[str, float]] | None = None,
 ) -> DgsManifest:
+    """Escribe el DGS del modelo.
+
+    ``trafos`` son los datos de catálogo de los transformadores de SED por potencia
+    en kVA —``uk_pct``, ``Pk_W``, ``Po_W`` y opcionalmente ``io_pct``— (ver
+    :func:`igea_dgs.catalog.leer_trafos`). Una potencia que el catálogo trae completa
+    usa esos valores; las demás, los máximos del Reglamento (:func:`_tr2_losses_kw`).
+    """
     schema = load_schema(schema_profile)
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -770,16 +935,28 @@ def write_dgs(
         # Pérdidas del Reglamento (UE) 548/2014 y recortadas para que uR% < uk%.
         # El suelo fijo anterior violaba esa condición en una SED de 0 kVA y
         # PowerFactory rechazaba el cálculo de TODA la red (ver _tr2_losses_kw).
-        pcutr, pfe_kw = _tr2_losses_kw(strn * 1000.0, uk_pct=NA205_TR2_UK_PCT)
-        # Corriente de vacío coherente con las pérdidas en hierro: si curmg queda en
-        # cero pero pfe no, PowerFactory avisa por cada transformador —909 avisos en
-        # trece alimentadores— y la recalcula sola. Vale más darle un valor de norma.
-        curmg = _tr2_curmg_pct(strn * 1000.0, pfe_kw)
+        kva = strn * 1000.0
+        uk = NA205_TR2_UK_PCT
+        ficha = (trafos or {}).get(round(kva, 3))
+        if ficha and all(ficha.get(k) for k in ('uk_pct', 'Pk_W', 'Po_W')):
+            # Datos del catálogo. Se respetan salvo que violen uR% < uk%, que
+            # PowerFactory rechaza para la red ENTERA; entonces se recorta y se sabe.
+            uk = float(ficha['uk_pct'])
+            pcutr = min(float(ficha['Pk_W']) / 1000.0, uk * 0.95 * kva / 100.0)
+            pfe_kw = float(ficha['Po_W']) / 1000.0
+            io = float(ficha.get('io_pct') or 0.0)
+            curmg = max(io, pfe_kw / kva * 100.0 * 1.05) if io else _tr2_curmg_pct(kva, pfe_kw)
+        else:
+            pcutr, pfe_kw = _tr2_losses_kw(kva, uk_pct=uk)
+            # Corriente de vacío coherente con las pérdidas en hierro: si curmg queda
+            # en cero pero pfe no, PowerFactory avisa por cada transformador —909
+            # avisos en trece alimentadores— y la recalcula sola.
+            curmg = _tr2_curmg_pct(kva, pfe_kw)
         rows['TypTr2'].append(_make_row(
             schema, 'TypTr2', FID=fid, OP='C',
             loc_name=_loc_name(f'TR_{format(strn * 1000.0, ".12g")}kVA'),
             nt2ph=3, strn=strn, frnom=60, utrn_h=utrn_h, utrn_l=utrn_l,
-            uktr=NA205_TR2_UK_PCT, pcutr=pcutr, uk0tr=NA205_TR2_UK_PCT, ur0tr=0,
+            uktr=uk, pcutr=pcutr, uk0tr=uk, ur0tr=0,
             tr2cn_h='D', tr2cn_l='YN', nt2ag=5, curmg=curmg, pfe=pfe_kw,
             zx0hl_n=100, itapch=0, tap_side=0, dutap=0, phitr=0,
             nntap0=0, ntpmn=0, ntpmx=0, manuf='',
@@ -921,10 +1098,12 @@ def write_dgs(
     # cubículo a cada lado. Abierto (on_off=0) es como opera la red de verdad —los
     # alimentadores son radiales y el enlace solo se cierra para transferir carga— y es
     # lo que necesita ComTieopt (manual §41.6) para tener algo que optimizar.
+    tie_rows: list[tuple[object, str]] = []
     for enlace in (getattr(combinado, 'ties', ()) if combinado else ()):
         if enlace.node_a not in node_fids or enlace.node_b not in node_fids:
             continue
         coup_fid = reg.new()
+        tie_rows.append((enlace, coup_fid))
         rows['ElmCoup'].append(_make_row(
             schema, 'ElmCoup', FID=coup_fid, OP='C',
             loc_name=_loc_name(enlace.name), fold_id=network_fid, typ_id='',
@@ -934,6 +1113,29 @@ def write_dgs(
             rows['StaCubic'].append(_make_row(
                 schema, 'StaCubic', FID=reg.new(), OP='C',
                 loc_name=_loc_name(f'Cub{lado + 1}_{enlace.name}'),
+                fold_id=node_fids[nodo], obj_bus=lado, obj_id=coup_fid,
+                it2p1=0, it2p2=1, it2p3=2,
+            ))
+
+    # Interruptores sin tramo: los seccionadores de los tramos puente fundidos (ver
+    # igea_dgs.puentes). Uno por dispositivo de la base, con su estado normal, entre
+    # las dos barras que unía el puente. Van en la red, no en una SED.
+    coupler_rows: list[tuple[object, str]] = []
+    for acoplador in sorted(getattr(model, 'couplers', ()),
+                            key=lambda c: (c.section_id, c.node_a, c.name)):
+        if acoplador.node_a not in node_fids or acoplador.node_b not in node_fids:
+            continue
+        coup_fid = reg.new()
+        coupler_rows.append((acoplador, coup_fid))
+        rows['ElmCoup'].append(_make_row(
+            schema, 'ElmCoup', FID=coup_fid, OP='C',
+            loc_name=_loc_name(acoplador.name), fold_id=network_fid, typ_id='',
+            on_off=int(acoplador.on_off), aUsage='swt', nphase=3, nneutral=0,
+        ))
+        for lado, nodo in ((0, acoplador.node_a), (1, acoplador.node_b)):
+            rows['StaCubic'].append(_make_row(
+                schema, 'StaCubic', FID=reg.new(), OP='C',
+                loc_name=_loc_name(f'Cub{lado + 1}_{acoplador.name}'),
                 fold_id=node_fids[nodo], obj_bus=lado, obj_id=coup_fid,
                 it2p1=0, it2p2=1, it2p3=2,
             ))
@@ -989,9 +1191,10 @@ def write_dgs(
         neighbors = _line_neighbors(model)
         drawn_line_sections = diagram_line_sections(model, neighbors=neighbors)
         visible_nodes = visible_pointterm_nodes(model, neighbors=neighbors, drawn=drawn_line_sections)
-        map_point, diagram_sheet = _diagram_mapper(geography, visible_nodes)
+        formato = getattr(model, 'diagram_sheet', None)
+        map_point, diagram_sheet = _diagram_mapper(geography, visible_nodes, formato=formato)
         node_xy = {node_id: map_point(point) for node_id, point in geography.nodes.items()}
-        layout = _diagram_symbol_layout(geography, model, map_point)
+        layout = _diagram_symbol_layout(geography, model, map_point, sheet=diagram_sheet)
 
         # Visible PointTerm only (electrical ElmTerm always exist).
         for node_id in sorted(visible_nodes):
@@ -1003,7 +1206,7 @@ def write_dgs(
                 schema, 'IntGrf', FID=fid, OP='C', loc_name=_loc_name(f'G_{node_id}'),
                 fold_id=diagram_fid, iCol=1, iVis=1, iLevel=1,
                 rCenterX=x, rCenterY=y, sSymNam='PointTerm', pDataObj=node_fids[node_id],
-                iRot=0, rSizeX=NA205_SYMBOL_SIZE, rSizeY=NA205_SYMBOL_SIZE,
+                iRot=0, rSizeX=layout.tam('PointTerm'), rSizeY=layout.tam('PointTerm'),
             ))
 
         # Skip micro service-stub d_lin (≤1 m tip→primary). Electrical ElmLne remains;
@@ -1012,7 +1215,7 @@ def write_dgs(
         # True doble circuito (2 SECTION same From↔To) → slight perpendicular offset.
         # drawn_line_sections was already computed above with the shared index.
         circuit_offsets = parallel_circuit_graphic_offsets(
-            model, offset_du=PARALLEL_CIRCUIT_OFFSET_DU,
+            model, offset_du=layout.parallel_offset,
         )
 
         for line in sorted(model.lines, key=lambda x: x.section_id):
@@ -1049,7 +1252,7 @@ def write_dgs(
                 fold_id=diagram_fid, iCol=1, iVis=1, iLevel=1,
                 rCenterX=center[0], rCenterY=center[1], sSymNam='d_lin',
                 pDataObj=line_fids[line.section_id],
-                iRot=irot, rSizeX=NA205_SYMBOL_SIZE, rSizeY=NA205_SYMBOL_SIZE,
+                iRot=irot, rSizeX=layout.tam('d_lin'), rSizeY=layout.tam('d_lin'),
             ))
             mid = len(augmented) // 2
             left = list(reversed(augmented[:mid + 1]))
@@ -1064,6 +1267,56 @@ def write_dgs(
                     schema, 'IntGrfcon', FID=con_fid, OP='C',
                     loc_name=_loc_name(f'GCO_{con_nr + 1}_{line.section_id}'),
                     fold_id=fid, iDatConNr=con_nr, **_connector_values(con_points),
+                ))
+
+        # Interruptores sin tramo: símbolo d_couple entre sus dos barras, a escala real.
+        for acoplador, coup_fid in coupler_rows:
+            a = node_xy.get(acoplador.node_a)
+            b = node_xy.get(acoplador.node_b)
+            if a is None or b is None:
+                continue
+            center = ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)
+            fid = reg.new()
+            graphic_fids[f'coupler:{acoplador.section_id}:{acoplador.name}'] = fid
+            rows['IntGrf'].append(_make_row(
+                schema, 'IntGrf', FID=fid, OP='C',
+                loc_name=_loc_name(f'G_{acoplador.name}'),
+                fold_id=diagram_fid, iCol=1, iVis=1, iLevel=1,
+                rCenterX=center[0], rCenterY=center[1], sSymNam='d_couple',
+                pDataObj=coup_fid, iRot=_line_irot([a, center, b]),
+                rSizeX=layout.tam('d_couple'), rSizeY=layout.tam('d_couple'),
+            ))
+            for con_nr, extremo in ((0, a), (1, b)):
+                rows['IntGrfcon'].append(_make_row(
+                    schema, 'IntGrfcon', FID=reg.new(), OP='C',
+                    loc_name=_loc_name(f'GCO_{con_nr + 1}_{acoplador.name}'),
+                    fold_id=fid, iDatConNr=con_nr,
+                    **_connector_values([center, extremo]),
+                ))
+
+        # Enlaces entre alimentadores: sus dos barras son copias del mismo nodo de la
+        # base, en el mismo punto. El símbolo se aparta un poco para que se vea.
+        for enlace, coup_fid in tie_rows:
+            a = node_xy.get(enlace.node_a)
+            b = node_xy.get(enlace.node_b)
+            if a is None or b is None:
+                continue
+            center = (a[0] + layout.source_offset / 2, a[1] + layout.source_offset / 2)
+            fid = reg.new()
+            graphic_fids[f'tie:{enlace.name}'] = fid
+            rows['IntGrf'].append(_make_row(
+                schema, 'IntGrf', FID=fid, OP='C', loc_name=_loc_name(f'G_{enlace.name}'),
+                fold_id=diagram_fid, iCol=1, iVis=1, iLevel=1,
+                rCenterX=center[0], rCenterY=center[1], sSymNam='d_couple',
+                pDataObj=coup_fid, iRot=0,
+                rSizeX=layout.tam('d_couple'), rSizeY=layout.tam('d_couple'),
+            ))
+            for con_nr, extremo in ((0, a), (1, b)):
+                rows['IntGrfcon'].append(_make_row(
+                    schema, 'IntGrfcon', FID=reg.new(), OP='C',
+                    loc_name=_loc_name(f'GCO_{con_nr + 1}_{enlace.name}'),
+                    fold_id=fid, iDatConNr=con_nr,
+                    **_connector_values([center, extremo]),
                 ))
 
         # Free loads only (no SED): d_load on the sheet. SED-backed loads are
@@ -1085,7 +1338,7 @@ def write_dgs(
                     fold_id=diagram_fid, iCol=1, iVis=1, iLevel=1,
                     rCenterX=x, rCenterY=y, sSymNam='d_load', pDataObj=load_fids[key],
                     iRot=int(round(math.degrees(math.atan2(dy, dx)))) % 360,
-                    rSizeX=NA205_SYMBOL_SIZE, rSizeY=NA205_SYMBOL_SIZE,
+                    rSizeX=layout.tam('d_load'), rSizeY=layout.tam('d_load'),
                 ))
                 con_fid = reg.new()
                 rows['IntGrfcon'].append(_make_row(
@@ -1115,20 +1368,25 @@ def write_dgs(
                     iRot=0, rSizeX=layout.sed_size, rSizeY=layout.sed_size,
                 ))
 
-        src_x, src_y = node_xy[model.source_node]
-        sx, sy = src_x - layout.source_offset, src_y + layout.source_offset
-        src_graph_fid = reg.new(); graphic_fids['source'] = src_graph_fid
-        rows['IntGrf'].append(_make_row(
-            schema, 'IntGrf', FID=src_graph_fid, OP='C', loc_name=_loc_name(f'G_Source_{model.name}'),
-            fold_id=diagram_fid, iCol=1, iVis=1, iLevel=1,
-            rCenterX=sx, rCenterY=sy, sSymNam='d_net', pDataObj=source_fid,
-            iRot=0, rSizeX=NA205_SYMBOL_SIZE, rSizeY=NA205_SYMBOL_SIZE,
-        ))
-        src_con_fid = reg.new()
-        rows['IntGrfcon'].append(_make_row(
-            schema, 'IntGrfcon', FID=src_con_fid, OP='C', loc_name=_loc_name(f'GCO_Source_{model.name}'),
-            fold_id=src_graph_fid, iDatConNr=0, **_connector_values([(sx, sy), (src_x, src_y)]),
-        ))
+        # Una red externa dibujada por fuente: en una red unida, una por alimentador.
+        for indice, (nombre_fuente, nodo_fuente, fid_fuente) in enumerate(fuentes):
+            if nodo_fuente not in node_xy:
+                continue
+            src_x, src_y = node_xy[nodo_fuente]
+            sx, sy = src_x - layout.source_offset, src_y + layout.source_offset
+            src_graph_fid = reg.new()
+            graphic_fids['source' if indice == 0 else f'source:{nombre_fuente}'] = src_graph_fid
+            rows['IntGrf'].append(_make_row(
+                schema, 'IntGrf', FID=src_graph_fid, OP='C', loc_name=_loc_name(f'G_Source_{nombre_fuente}'),
+                fold_id=diagram_fid, iCol=1, iVis=1, iLevel=1,
+                rCenterX=sx, rCenterY=sy, sSymNam='d_net', pDataObj=fid_fuente,
+                iRot=0, rSizeX=layout.tam('d_net'), rSizeY=layout.tam('d_net'),
+            ))
+            src_con_fid = reg.new()
+            rows['IntGrfcon'].append(_make_row(
+                schema, 'IntGrfcon', FID=src_con_fid, OP='C', loc_name=_loc_name(f'GCO_Source_{nombre_fuente}'),
+                fold_id=src_graph_fid, iDatConNr=0, **_connector_values([(sx, sy), (src_x, src_y)]),
+            ))
 
     preamble = [
         '*' * 80,
@@ -1178,4 +1436,5 @@ def write_dgs(
         sed_fids=sed_fids,
         visible_pointterm_nodes=tuple(sorted(visible_nodes)),
         diagram_sheet=diagram_sheet,
+        diagram_grid_mm=layout.grid if geography is not None else 0.0,
     )

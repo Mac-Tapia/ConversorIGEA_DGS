@@ -300,8 +300,9 @@ Por cada alimentador, en `--out-dir`:
 
 ### 4.7 Cancelar
 
-En la ventana: botón **Cancelar**, habilitado mientras convierte. Conserva lo ya
-convertido y descarta entero el alimentador en curso.
+En la ventana: botón **Cancelar**, habilitado mientras convierte. No empieza ningún
+alimentador más; el que está en marcha (o los que están en marcha, con `--workers`)
+termina y se conserva junto con lo ya convertido. Ningún DGS queda a medias.
 
 En consola: `Ctrl+C`. El manifiesto se escribe igualmente con lo procesado hasta ese
 momento.

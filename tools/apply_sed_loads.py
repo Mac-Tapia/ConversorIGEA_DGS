@@ -26,6 +26,53 @@ import sys
 from pathlib import Path
 
 
+def _escribir_carga(obj, row: dict) -> None:
+    """Escribe solo las ENTRADAS del modo de la carga (``mode_inp``).
+
+    En PowerFactory, de P, Q, S y cos φ solo dos son datos; los otros se derivan. El
+    DGS escribe las cargas en modo ``PC`` (P y cos φ). Asignar además Q y S, como antes,
+    hacía que PowerFactory recalculara P desde la S anterior y el cambio se perdía en
+    silencio.
+    """
+    import math
+
+    p = float(row['plini_mw'])
+    q = float(row['qlini_mvar'])
+    s = float(row.get('slini_mva') or math.hypot(p, q))
+    cos = float(row.get('coslini') or (p / s if s else 1.0))
+    if int(getattr(obj, 'i_sym', 0) or 0) == 1:
+        # Carga desequilibrada (así la escribe el DGS): los datos son P y Q POR FASE y
+        # el total es derivado. Se escala cada fase conservando su reparto; si la carga
+        # valía cero, se reparte a partes iguales entre las tres.
+        fases = ('r', 's', 't')
+        p_old = [float(getattr(obj, f'plini{f}', 0.0) or 0.0) for f in fases]
+        q_old = [float(getattr(obj, f'qlini{f}', 0.0) or 0.0) for f in fases]
+        sp, sq = sum(p_old), sum(q_old)
+        p_new = [x * p / sp for x in p_old] if sp else [p / 3.0] * 3
+        if sq:
+            q_new = [x * q / sq for x in q_old]
+        else:
+            q_new = [q * (x / p) if p else q / 3.0 for x in p_new]
+        for f, pv, qv in zip(fases, p_new, q_new):
+            setattr(obj, f'plini{f}', pv)
+            setattr(obj, f'qlini{f}', qv)
+        return
+    modo = str(getattr(obj, 'mode_inp', '') or 'PC').upper()
+    if modo == 'PQ':
+        obj.plini, obj.qlini = p, q
+    elif modo == 'SC':
+        obj.slini, obj.coslini = s, cos
+    elif modo == 'SP':
+        obj.slini, obj.plini = s, p
+    elif modo == 'QC':
+        obj.qlini, obj.coslini = q, cos
+    else:                                   # 'PC' y cualquier otro: P y cos φ
+        obj.plini, obj.coslini = p, cos
+    # El signo de Q (inductiva/capacitiva) cuando el modo usa cos φ.
+    if modo in ('PC', 'SC', 'QC') and hasattr(obj, 'pf_recap'):
+        obj.pf_recap = 1 if q < 0 else 0
+
+
 def _parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description='Actualiza cargas de SED en PowerFactory')
     p.add_argument('--plan', required=True, help='JSON del plan (igea_dgs.loads.plan_to_payload)')
@@ -64,7 +111,10 @@ def main(argv=None) -> int:
     user = app.GetCurrentUser()
     proyectos = list(user.GetContents('*.IntPrj'))
     if args.project:
-        proyectos = [p for p in proyectos if args.project in p.loc_name]
+        # Nombre exacto primero: con varios proyectos importados del mismo alimentador,
+        # el fragmento elegía el último en orden alfabético, no el que se importó.
+        exactos = [p for p in proyectos if p.loc_name == args.project]
+        proyectos = exactos or [p for p in proyectos if args.project in p.loc_name]
     if not proyectos:
         print(f'ERROR: no se encontró proyecto que contenga {args.project!r}.')
         return 2
@@ -99,16 +149,14 @@ def main(argv=None) -> int:
             aplicados.append({'sed_code': code, 'antes': antes, 'despues': None, 'dry_run': True})
             continue
         try:
-            obj.plini = float(row['plini_mw'])
-            obj.qlini = float(row['qlini_mvar'])
-            if row.get('coslini'):
-                obj.coslini = float(row['coslini'])
-            if row.get('slini_mva') is not None:
-                obj.slini = float(row['slini_mva'])
-            aplicados.append({
-                'sed_code': code, 'antes': antes,
-                'despues': {'plini': obj.plini, 'qlini': obj.qlini, 'coslini': obj.coslini},
-            })
+            _escribir_carga(obj, row)
+            despues = {'plini': obj.plini, 'qlini': obj.qlini, 'coslini': obj.coslini}
+            # Se relee: una asignación que PowerFactory recalcula no es un cambio.
+            if abs(float(despues['plini']) - float(row['plini_mw'])) > 1e-6 + 1e-4 * abs(float(row['plini_mw'])):
+                fallos.append(f"{code}: PowerFactory conserva P={despues['plini']:.6f} MW "
+                              f"(pedido {float(row['plini_mw']):.6f})")
+                continue
+            aplicados.append({'sed_code': code, 'antes': antes, 'despues': despues})
         except Exception as exc:
             fallos.append(f'{code}: {exc}')
 

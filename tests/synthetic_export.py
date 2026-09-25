@@ -16,6 +16,7 @@ las pruebas ejerciten también el descarte de columnas sobrantes.
 from __future__ import annotations
 
 import math
+import random
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -105,6 +106,46 @@ class ExportSpec:
     #: export de referencia; ``'completo'`` la del export largo de CYMDIST. El
     #: conversor debe dar el mismo modelo con las dos.
     layout: str = 'reducido'
+    #: Sin semilla, todos los alimentadores tienen el tamaño de arriba. Con semilla,
+    #: cada uno recibe el suyo, sorteado de forma log-uniforme entre 1 y el doble del
+    #: valor dado: unos pocos grandes y muchos pequeños, como en una red real. Los
+    #: campos ``*_per_feeder`` pasan a ser el tamaño *típico*, no el de todos.
+    seed: int | None = None
+
+    def feeder_size(self, index: int) -> 'FeederSize':
+        """Tamaño del alimentador ``index`` (1..feeders). Reproducible para una semilla."""
+        return self._sizes()[index - 1]
+
+    def _sizes(self) -> tuple['FeederSize', ...]:
+        cached = _SIZES_CACHE.get(self)
+        if cached is not None:
+            return cached
+        if self.seed is None:
+            sizes = tuple(
+                FeederSize(self.sections_per_feeder, self.loads_per_feeder,
+                           self.switches_per_feeder, self.intermediate_per_section)
+                for _ in range(self.feeders)
+            )
+        else:
+            rng = random.Random(self.seed)
+
+            def draw(typical: int, minimum: int = 1) -> int:
+                if typical <= 0:
+                    return 0
+                high = max(minimum, 2 * typical)
+                return max(minimum, int(round(math.exp(rng.uniform(math.log(minimum), math.log(high))))))
+
+            sizes = tuple(
+                FeederSize(
+                    sections=draw(self.sections_per_feeder),
+                    loads=draw(self.loads_per_feeder),
+                    switches=draw(self.switches_per_feeder),
+                    intermediate_per_section=rng.randint(0, 2 * self.intermediate_per_section),
+                )
+                for _ in range(self.feeders)
+            )
+        _SIZES_CACHE[self] = sizes
+        return sizes
 
     def network_id(self, index: int) -> str:
         code = f'AL{index:02d}'
@@ -126,7 +167,22 @@ class ExportSpec:
 
     @property
     def total_sections(self) -> int:
-        return self.feeders * self.sections_per_feeder
+        return sum(size.sections for size in self._sizes())
+
+    @property
+    def total_loads(self) -> int:
+        return sum(min(size.loads, size.sections) for size in self._sizes())
+
+
+@dataclass(frozen=True)
+class FeederSize:
+    sections: int
+    loads: int
+    switches: int
+    intermediate_per_section: int
+
+
+_SIZES_CACHE: dict[ExportSpec, tuple[FeederSize, ...]] = {}
 
 
 def write_export(spec: ExportSpec, out_dir: Path) -> tuple[Path, Path, Path]:
@@ -176,7 +232,8 @@ def write_export(spec: ExportSpec, out_dir: Path) -> tuple[Path, Path, Path]:
             section_blocks.append('\n'.join(block))
             continue
 
-        for s in range(spec.sections_per_feeder):
+        size = spec.feeder_size(f)
+        for s in range(size.sections):
             a, b = f'N{f}_{s}', f'N{f}_{s + 1}'
             x = base_x + (s + 1) * spec.spacing_m
             nodes.append(_pad([b, f'{x:.3f}', f'{spec.origin_y:.3f}'], FMT_NODE))
@@ -195,14 +252,14 @@ def write_export(spec: ExportSpec, out_dir: Path) -> tuple[Path, Path, Path]:
                 lineconf.append(_pad(
                     [sid, 'DEFAULT', f'{spec.spacing_m}', '1' if aerea else '0'],
                     FMT_LINECONF))
-            for k in range(spec.intermediate_per_section):
+            for k in range(size.intermediate_per_section):
                 # Punto intermedio sobre el segmento, para no alterar su longitud.
-                frac = (k + 1) / (spec.intermediate_per_section + 1)
+                frac = (k + 1) / (size.intermediate_per_section + 1)
                 px = base_x + s * spec.spacing_m + frac * spec.spacing_m
                 intermediate.append(_pad([sid, str(k + 1), f'{px:.3f}', f'{spec.origin_y:.3f}'], FMT_INTERMEDIATE))
         stub_sections: list[str] = []
 
-        for i in range(min(spec.loads_per_feeder, spec.sections_per_feeder)):
+        for i in range(min(size.loads, size.sections)):
             sid = f'SEC_{f}_{i}'
             dev = f'DEV_{f}_{i}_SE{f}{i:03d}'
             if completo:
@@ -236,7 +293,7 @@ def write_export(spec: ExportSpec, out_dir: Path) -> tuple[Path, Path, Path]:
                 row[cols.index(key)] = val
             customer_loads.append(','.join(row))
 
-        for i in range(min(spec.switches_per_feeder, spec.sections_per_feeder)):
+        for i in range(min(size.switches, size.sections)):
             sid = f'SEC_{f}_{i}'
             switches.append(_pad([sid, f'EQ_{f}_{i}', f'SW_{f}_{i}', 'ABC', 'S', '1', '0', '0'], FMT_SWITCH))
 
