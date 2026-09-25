@@ -7,6 +7,8 @@ import re
 from typing import Mapping, Sequence
 
 from .dataset import CymdistDataset
+from .dataset import (TABLAS_TIPOS_AEREO, TABLAS_TIPOS_LINEA,
+                       TABLAS_TIPOS_SUBTERRANEO)
 from .naming import feeder_short_name
 
 # Optional equipment/substation suffix in customer/device IDs (utility-specific
@@ -218,9 +220,35 @@ def _int(value: str | None, default: int = 0) -> int:
         return default
 
 
+def _tension_de_fuente(source: Mapping[str, str]) -> float:
+    """Tensión nominal de la fuente en kV entre fases, de donde la traiga el export.
+
+    Los dos exports de CYMDIST que se han visto la dan de forma distinta:
+
+    * el reducido, en ``DesiredVoltage``, ya entre fases (``10.0``);
+    * el completo, en ``OperatingVoltageA/B/C``, **entre fase y neutro**
+      (``5.773503``, que es 10/√3).
+
+    Sin esto, el export completo abortaba con «invalid SOURCE.DesiredVoltage=None» en
+    los 96 alimentadores. Tomar el valor fase-neutro sin multiplicar sería peor que
+    fallar: el modelo se construiría entero a 5,77 kV y convergería.
+    """
+    entre_fases = _float(source.get('DesiredVoltage'), float('nan'))
+    if math.isfinite(entre_fases) and entre_fases > 0:
+        return entre_fases
+    fase_neutro = [
+        v for v in (
+            _float(source.get(f'OperatingVoltage{f}'), float('nan')) for f in 'ABC')
+        if math.isfinite(v) and v > 0
+    ]
+    if fase_neutro:
+        return max(fase_neutro) * math.sqrt(3.0)
+    return float('nan')
+
+
 def _line_type_from_row(table: str, row: Mapping[str, str]) -> LineType:
     code = row.get('ID', '')
-    prefix = 'CABLE' if table == 'CONCENTRIC NEUTRAL CABLE' else 'LINE'
+    prefix = 'CABLE' if table in TABLAS_TIPOS_SUBTERRANEO else 'LINE'
     return LineType(
         key=f'{prefix}:{code}',
         code=code,
@@ -238,7 +266,7 @@ def _line_type_from_row(table: str, row: Mapping[str, str]) -> LineType:
 def _catalog(dataset: CymdistDataset) -> tuple[dict[str, LineType], dict[str, list[LineType]]]:
     by_key: dict[str, LineType] = {}
     by_code: dict[str, list[LineType]] = {}
-    for table in ('LINE', 'CONCENTRIC NEUTRAL CABLE'):
+    for table in TABLAS_TIPOS_LINEA:
         for row in dataset.equipment_tables.get(table, ()):
             code = row.get('ID', '')
             if not code:
@@ -330,10 +358,11 @@ def _pick_type(
         return None
     if len(candidates) == 1:
         return candidates[0]
-    desired_table = 'LINE' if overhead else 'CONCENTRIC NEUTRAL CABLE'
-    for candidate in candidates:
-        if candidate.source_table == desired_table:
-            return candidate
+    deseadas = TABLAS_TIPOS_AEREO if overhead else TABLAS_TIPOS_SUBTERRANEO
+    for tabla in deseadas:
+        for candidate in candidates:
+            if candidate.source_table == tabla:
+                return candidate
     return None
 
 
@@ -379,10 +408,33 @@ def _calc_p_q(row: Mapping[str, str]) -> tuple[float, float, float]:
     return value1 / 1000.0, 0.0, abs(value2) if 0 < abs(value2) <= 1 else 0.0
 
 
+#: Hasta qué longitud de tramo se acepta una carga declarada en el punto medio
+#: (``Location='2'``) colgándola del nudo final. PowerFactory no tiene nudo a mitad de
+#: línea, así que la alternativa sería partir el tramo y cambiar la topología.
+#:
+#: El umbral no es arbitrario. En el export completo de la distribuidora las 7.287
+#: cargas con ``Location='2'`` están **todas** sobre derivaciones virtuales de 0,300 m
+#: —mínimo y máximo coinciden—, de modo que el punto medio dista 0,15 m del extremo:
+#: unos 6·10⁻⁵ Ω en cable de 120 mm². A 10 m sigue siendo 2·10⁻³ Ω, despreciable. Por
+#: encima de eso el atajo dejaría de ser inocuo y es mejor fallar que falsear.
+LARGO_MAXIMO_CARGA_CENTRAL_M = 10.0
+
+
 def _load_node(location: str, line: Line, strict: bool) -> str | None:
     if location == '0':
         return line.from_node
     if location == '1':
+        return line.to_node
+    if location == '2':
+        # Punto medio del tramo. Ver LARGO_MAXIMO_CARGA_CENTRAL_M.
+        if line.length_km * 1000.0 <= LARGO_MAXIMO_CARGA_CENTRAL_M:
+            return line.to_node
+        if strict:
+            raise ModelBuildError(
+                f'{line.section_id}: la carga está declarada en el punto medio '
+                f'(LOADS.Location=2) de un tramo de {line.length_km * 1000:.1f} m. '
+                f'Por encima de {LARGO_MAXIMO_CARGA_CENTRAL_M:.0f} m colgarla de un '
+                f'extremo falsearía la caída de tensión; habría que partir el tramo.')
         return line.to_node
     if strict:
         raise ModelBuildError(f'{line.section_id}: unsupported LOADS.Location={location!r}')
@@ -841,9 +893,13 @@ def build_feeder_model(
     source_node = source.get('NodeID', '')
     if not source_node:
         raise ModelBuildError(f'{network_id}: SOURCE.NodeID is empty')
-    nominal_kv = _float(source.get('DesiredVoltage'), float('nan'))
+    nominal_kv = _tension_de_fuente(source)
     if not math.isfinite(nominal_kv) or nominal_kv <= 0:
-        raise ModelBuildError(f'{network_id}: invalid SOURCE.DesiredVoltage={source.get("DesiredVoltage")!r}')
+        raise ModelBuildError(
+            f'{network_id}: la fuente no declara una tensión utilizable. '
+            f'Se buscó DesiredVoltage y OperatingVoltageA/B/C, y se encontró '
+            f'DesiredVoltage={source.get("DesiredVoltage")!r}, '
+            f'OperatingVoltageA={source.get("OperatingVoltageA")!r}.')
 
     _, by_code = _catalog(dataset)
     lines: list[Line] = []

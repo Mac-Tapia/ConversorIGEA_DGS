@@ -6,7 +6,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from .dataset import CymdistDataset
+from .dataset import TABLAS_TIPOS_LINEA,  CymdistDataset
 from .naming import feeder_short_name, sort_key_feeder
 
 
@@ -82,7 +82,7 @@ def build_dataset_inventory(dataset: CymdistDataset) -> dict[str, Any]:
     }
     catalog_ids: set[str] = set()
     for table_name, rows in dataset.equipment_tables.items():
-        if table_name not in {'LINE', 'CONCENTRIC NEUTRAL CABLE'}:
+        if table_name not in TABLAS_TIPOS_LINEA:
             continue
         for row in rows:
             code = (row.get('ID') or '').strip()
