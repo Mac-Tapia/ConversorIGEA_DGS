@@ -36,3 +36,10 @@ pandas>=2.0
 # Validación independiente del modelo: flujo de potencia y detección de islas con un
 # motor distinto de PowerFactory, sin licencia y en segundos. Ver docs del diagnóstico.
 pandapower>=3.0
+
+# Interfaz web (la interfaz principal): API FastAPI + front React compilado.
+# El front se compila una vez con Node (cd frontend && npm install && npm run build);
+# el resultado, frontend/dist, lo sirve esta misma API.
+fastapi>=0.115
+uvicorn[standard]>=0.30
+python-multipart>=0.0.9

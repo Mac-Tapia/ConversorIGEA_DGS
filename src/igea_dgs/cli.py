@@ -80,8 +80,30 @@ def _parser() -> argparse.ArgumentParser:
         choices=('auto', 'leafmap', 'leaflet'),
         help='Map renderer: leafmap (@opengeos) or Leaflet CDN fallback',
     )
+    conv.add_argument(
+        '--hoja', default='A0', choices=('A0', 'A1', 'A2', 'A3', 'A4'),
+        help='Hoja del diagrama en PowerFactory (reglas del proyecto: A0).',
+    )
+    conv.add_argument(
+        '--unir', metavar='NOMBRE',
+        help='Unir los alimentadores elegidos en UN solo DGS con este nombre (red unida).',
+    )
+    conv.add_argument(
+        '--literal', action='store_true',
+        help='Convertir sin las reglas del proyecto (sin fundir puentes, con trafomix, '
+             'sin redimensionar SED, escala NA205). Solo para comparar con la entrada.',
+    )
+    conv.add_argument(
+        '--workers', type=int, default=1,
+        help='Procesos en paralelo: 1 en serie (por defecto), N hasta N, 0 automático. '
+             'El resultado es idéntico; cada proceso guarda una copia del dataset en memoria.',
+    )
 
-    sub.add_parser('gui', help='Open the graphical interface for selecting TXT inputs and converting')
+    sub.add_parser('gui', help='Open the desktop (Tkinter) interface')
+    web = sub.add_parser('web', help='Start the web interface (FastAPI + React) and open the browser')
+    web.add_argument('--host', default='127.0.0.1')
+    web.add_argument('--port', type=int, default=8765)
+    web.add_argument('--no-browser', action='store_true')
     return parser
 
 
@@ -186,6 +208,12 @@ def main(argv=None) -> int:
     if args.command == 'gui':
         from .gui import main as gui_main
         return gui_main()
+    if args.command == 'web':
+        from .web.__main__ import main as web_main
+        argv_web = ['--host', args.host, '--port', str(args.port)]
+        if args.no_browser:
+            argv_web.append('--no-browser')
+        return web_main(argv_web)
 
     dataset = load_dataset(args)
 
@@ -225,6 +253,14 @@ def main(argv=None) -> int:
             f"DGS de {inventory['totals']['feeders']} alimentadores leídos.",
             flush=True,
         )
+        # Reglas del proyecto (igea_dgs.reglas): siempre, salvo --literal. El catálogo
+        # del proyecto completa conductores, da los transformadores y sus fichas.
+        from dataclasses import replace as _replace
+
+        from .reglas import REGLAS_PROYECTO, SIN_REGLAS, catalogo_del_proyecto
+
+        reglas = SIN_REGLAS if args.literal else _replace(REGLAS_PROYECTO, hoja=args.hoja)
+        catalogo = None if args.literal else catalogo_del_proyecto()
         correcciones_catalogo = None
         if args.catalogo is not None:
             from .catalog import CATALOG_FILENAME, CatalogError, input_dir, leer_catalogo
@@ -237,6 +273,30 @@ def main(argv=None) -> int:
                 raise SystemExit(f'Catálogo: {exc}') from exc
             print(f'Catálogo: {ruta} — {len(correcciones_catalogo)} tipo(s) con valor '
                   f'de ficha aplicable.', flush=True)
+            catalogo = ruta if not args.literal else None
+
+        if args.unir:
+            from .batch import convert_group
+
+            if args.all:
+                selectors = [feeder_short_name(n) for n in dataset.feeder_ids() if dataset.feeders.get(n)]
+            if len(selectors) < 2:
+                raise SystemExit('--unir necesita al menos dos alimentadores (--feeder … --feeder …).')
+            grupo = convert_group(
+                dataset, selectors, args.out_dir, name=args.unir, aliases=aliases,
+                strict=not args.non_strict, schema_profile=args.schema_profile,
+                source_crs=args.source_crs, target_crs=args.target_crs,
+                catalog_corrections=correcciones_catalogo, reglas=reglas, catalogo=catalogo,
+                on_progress=_progress,
+            )
+            comp = grupo.get('completitud') or {}
+            print(f"Red unida {grupo['name']}: {grupo['status']} — "
+                  f"{grupo.get('errors_total')} errores de validación, completitud "
+                  f"{'OK' if not comp.get('fallos') else comp['fallos']}")
+            if grupo.get('error'):
+                print(f"  {grupo['error']}")
+            print(f"Manifest: {Path(args.out_dir) / (grupo['name'] + '_manifest.json')}")
+            return 0 if grupo['status'] == 'ok' else 2
 
         manifest = convert_selection(
             dataset,
@@ -255,6 +315,9 @@ def main(argv=None) -> int:
             preview_backend=args.preview_backend,
             on_progress=_progress,
             catalog_corrections=correcciones_catalogo,
+            workers=args.workers,
+            reglas=reglas,
+            catalogo=catalogo,
         )
     except (OSError, ValueError, ImportError) as exc:
         raise SystemExit(f'Error de conversión: {exc}') from exc

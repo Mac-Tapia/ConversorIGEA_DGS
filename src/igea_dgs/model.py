@@ -60,6 +60,9 @@ class Node:
     node_id: str
     x: float | None
     y: float | None
+    # Posición deducida del grafo (igea_dgs.coordenadas), no leída del TXT. Sirve para
+    # dibujar; no para medir: un tramo con un extremo inferido conserva su Length.
+    coord_inferida: bool = False
 
 
 @dataclass(frozen=True)
@@ -137,6 +140,27 @@ class SwitchingDevice:
     eq_state: int
 
 
+@dataclass(frozen=True)
+class Coupler:
+    """Interruptor entre dos barras, sin tramo de línea que lo sostenga (``ElmCoup``).
+
+    Nace de un tramo «puente» de CYMDIST —un ``DEFAULT`` de 2 m que solo existe para
+    colgar un seccionador— cuando ese tramo se funde (ver :mod:`igea_dgs.puentes`). El
+    seccionador no se pierde: pasa a ser un elemento propio entre las dos barras, que
+    es como PowerFactory modela una maniobra sin línea.
+    """
+
+    name: str
+    node_a: str
+    node_b: str
+    on_off: int
+    kind: str
+    eq_id: str
+    eq_number: str
+    section_id: str
+    phase: str
+
+
 @dataclass
 class FeederModel:
     name: str
@@ -160,6 +184,15 @@ class FeederModel:
     # 22,9 kV— y hay una fuente por alimentador en lugar de una sola. Va en un campo
     # aparte para que un modelo de un alimentador siga siendo idéntico a lo que era.
     combined: object | None = None
+    # Interruptores entre barras sin tramo propio (ver Coupler). Vacío salvo que se
+    # hayan fundido los tramos puente.
+    couplers: list[Coupler] = field(default_factory=list)
+    # Tramos punta hasta esta longitud no se dibujan (quedan en el modelo eléctrico):
+    # a escala real son polvo. Negativo = dibujar todos (ver dgs.diagram_line_sections).
+    diagram_max_stub_m: float = 1.0
+    # Hoja normalizada (``A0``…) en la que encajar el diagrama. None = escala NA205
+    # (2,08 u/m, hoja a la medida de la red). Ver dgs._diagram_mapper_hoja.
+    diagram_sheet: str | None = None
 
 
 #: Código de fase de CYMDIST → letras. **No es una máscara de bits**: el 7 no es
@@ -398,6 +431,12 @@ def _calc_p_q(row: Mapping[str, str]) -> tuple[float, float, float]:
     value_type = row.get('ValueType', '')
     value1 = _float(row.get('Value1'))
     value2 = _float(row.get('Value2'))
+    # CYMDIST guarda el factor de potencia EN PORCENTAJE (97.0), tanto en la base como
+    # en el export TXT. Solo se aceptaba en por unidad, así que un 97 no pasaba el
+    # filtro y todas las cargas salían con Q = 0: el flujo daba tensiones optimistas y
+    # pérdidas reactivas nulas sin ningún aviso.
+    if value_type == '2' and 1 < abs(value2) <= 100:
+        value2 = value2 / 100.0
     if value_type == '2' and 0 < abs(value2) <= 1:
         p_mw = value1 / 1000.0
         pf = min(max(abs(value2), 1e-12), 1.0)
@@ -543,9 +582,12 @@ def _section_projected_path(
         return None
     if start.x is None or start.y is None or end.x is None or end.y is None:
         return None
+    if start.coord_inferida or end.coord_inferida:
+        # Una posición deducida del grafo no mide nada: vale la longitud del TXT.
+        return None
     path: list[tuple[float, float]] = [(start.x, start.y)]
     if intermediate_by_section is None:
-        rows = [row for row in dataset.intermediate_nodes if row.get('SectionID', '') == section_id]
+        rows = list(dataset.intermediate_by_section.get(section_id, ()))
     else:
         rows = list(intermediate_by_section.get(section_id, ()))
     for row in sorted(rows, key=lambda r: _intermediate_seq(r.get('SeqNumber'))):
@@ -564,12 +606,7 @@ def apply_georeferenced_lengths(model: FeederModel, dataset: CymdistDataset) -> 
     Uses NODE.CoordX/Y (projected CRS, typically metres) plus INTERMEDIATE NODES when
     present. Sections without coordinates keep the TXT length.
     """
-    intermediate_by_section: dict[str, list[dict[str, str]]] = defaultdict(list)
-    selected = set(model.section_by_id)
-    for row in dataset.intermediate_nodes:
-        sid = row.get('SectionID', '')
-        if sid in selected:
-            intermediate_by_section[sid].append(row)
+    intermediate_by_section = dataset.intermediate_by_section
 
     new_lines: list[Line] = []
     updated = 0
@@ -961,10 +998,8 @@ def build_feeder_model(
 
     section_by_id = {line.section_id: line for line in lines}
     loads: list[Load] = []
-    for key, row in dataset.customer_loads.items():
+    for key, row in dataset.customer_loads_by_feeder.get(network_id, ()):
         section_id, device_number = key
-        if dataset.section_owner.get(section_id) != network_id:
-            continue
         line = section_by_id.get(section_id)
         if line is None:
             if strict:
@@ -1019,40 +1054,34 @@ def build_feeder_model(
         ))
 
     devices: list[SwitchingDevice] = []
-    for kind, rows in (
-        ('SWITCH', dataset.switch_settings),
-        ('SECTIONALIZER', dataset.sectionalizer_settings),
-    ):
-        for row in rows:
-            section_id = row.get('SectionID', '')
-            if dataset.section_owner.get(section_id) != network_id:
-                continue
-            line = section_by_id.get(section_id)
-            if line is None:
-                if strict:
-                    raise ModelBuildError(f'{network_id}: {kind} is on unresolved section {section_id}')
-                continue
-            location = row.get('Location', '')
-            side = _device_side(location, section_id, strict)
-            if side is None:
-                continue
-            node_id = line.from_node if side == 0 else line.to_node
-            status = _int(row.get('Status'), 1)
-            if status not in (0, 1):
-                raise ModelBuildError(f'{section_id}: invalid switching Status={row.get("Status")!r}')
-            devices.append(SwitchingDevice(
-                kind=kind,
-                section_id=section_id,
-                location=location.upper(),
-                terminal_side=side,
-                node_id=node_id,
-                eq_id=row.get('EqID', ''),
-                eq_number=row.get('EqNumber', ''),
-                phase=row.get('EqPhase', ''),
-                on_off=status,
-                locked=_int(row.get('Locked'), 0),
-                eq_state=_int(row.get('EqState'), 0),
-            ))
+    for kind, row in dataset.switching_by_feeder.get(network_id, ()):
+        section_id = row.get('SectionID', '')
+        line = section_by_id.get(section_id)
+        if line is None:
+            if strict:
+                raise ModelBuildError(f'{network_id}: {kind} is on unresolved section {section_id}')
+            continue
+        location = row.get('Location', '')
+        side = _device_side(location, section_id, strict)
+        if side is None:
+            continue
+        node_id = line.from_node if side == 0 else line.to_node
+        status = _int(row.get('Status'), 1)
+        if status not in (0, 1):
+            raise ModelBuildError(f'{section_id}: invalid switching Status={row.get("Status")!r}')
+        devices.append(SwitchingDevice(
+            kind=kind,
+            section_id=section_id,
+            location=location.upper(),
+            terminal_side=side,
+            node_id=node_id,
+            eq_id=row.get('EqID', ''),
+            eq_number=row.get('EqNumber', ''),
+            phase=row.get('EqPhase', ''),
+            on_off=status,
+            locked=_int(row.get('Locked'), 0),
+            eq_state=_int(row.get('EqState'), 0),
+        ))
 
     nodes: dict[str, Node] = {}
     for node_id in sorted(used_nodes):
@@ -1063,6 +1092,7 @@ def build_feeder_model(
             node_id=node_id,
             x=x if math.isfinite(x) else None,
             y=y if math.isfinite(y) else None,
+            coord_inferida=raw.get('CoordOrigen') == 'grafo',
         )
 
     warnings: list[str] = []

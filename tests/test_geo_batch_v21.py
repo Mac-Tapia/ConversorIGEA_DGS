@@ -14,7 +14,11 @@ def test_batch_writes_geography_and_integrated_validation(ds, sample_feeder, tmp
         1 for load in model.loads if (load.section_id, load.device_number) not in nested_keys
     )
     _oh, _ug, d_lin_graphics = diagram_line_rail_counts(model)
-    manifest = convert_selection(ds, [sample_feeder], tmp_path, source_crs='EPSG:32718', include_geography=True)
+    # La fórmula de conectores de abajo es la de la escala NA205, sin reglas.
+    from igea_dgs.reglas import SIN_REGLAS
+
+    manifest = convert_selection(ds, [sample_feeder], tmp_path, source_crs='EPSG:32718',
+                                 include_geography=True, reglas=SIN_REGLAS)
     assert manifest['summary'] == {
         'status': 'completed', 'selected': 1, 'requested': 1,
         'ok': 1, 'skipped': 0, 'failed': 0, 'not_processed': 0,

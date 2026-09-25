@@ -221,6 +221,12 @@ def unsupplied_nodes(model: FeederModel, sources: Iterable[str]) -> set[str]:
     for line in model.lines:
         adyacencia[line.from_node].append(line.to_node)
         adyacencia[line.to_node].append(line.from_node)
+    # Los interruptores sin tramo (puentes fundidos) también unen barras. Igual que con
+    # las líneas, cuenta la topología y no el estado: un seccionador abierto no deja
+    # la red de aguas abajo «sin camino», la deja sin servicio por maniobra.
+    for acoplador in getattr(model, 'couplers', ()):
+        adyacencia[acoplador.node_a].append(acoplador.node_b)
+        adyacencia[acoplador.node_b].append(acoplador.node_a)
 
     alcanzables = {s for s in sources if s in model.nodes}
     pila = list(alcanzables)
@@ -295,6 +301,7 @@ def combine_models(
     lines: list[Line] = []
     loads: list[Load] = []
     devices: list = []
+    couplers: list = []
     seds: list[Sed] = []
     feeders: list[FeederRef] = []
     codigos_tipo: set[str] = set()
@@ -343,6 +350,13 @@ def combine_models(
                 if isinstance(valor, str) and valor:
                     campos[atributo] = resolver(valor, kv, m.name)
             devices.append(replace(dev, **campos) if campos else dev)
+
+        for acoplador in getattr(m, 'couplers', ()):
+            couplers.append(replace(
+                acoplador,
+                node_a=resolver(acoplador.node_a, kv, m.name),
+                node_b=resolver(acoplador.node_b, kv, m.name),
+            ))
 
         feeders.append(FeederRef(
             name=m.name, network_id=m.network_id,
@@ -397,7 +411,7 @@ def combine_models(
         provisional = FeederModel(
             name=name, network_id=name, nominal_kv=1.0, source_node='',
             nodes=nodes, lines=lines, loads=loads, devices=devices,
-            line_types=line_types, seds=seds,
+            line_types=line_types, seds=seds, couplers=couplers,
         )
         sin_alimentar = unsupplied_nodes(provisional, (f.source_node for f in feeders))
         if sin_alimentar:
@@ -434,6 +448,7 @@ def combine_models(
         devices=devices,
         line_types=line_types,
         seds=seds,
+        couplers=couplers,
         warnings=informe.warnings,
         section_by_id={ln.section_id: ln for ln in lines},
         combined=CombinedInfo(
@@ -447,6 +462,12 @@ def combine_models(
             ties=ties,
         ),
     )
+    # Si algún alimentador pide dibujar todos sus tramos, la red unida también.
+    combinado.diagram_max_stub_m = min(
+        float(getattr(m, 'diagram_max_stub_m', 1.0)) for m in modelos)
+    # La hoja pedida por el primer alimentador que pida una.
+    combinado.diagram_sheet = next(
+        (m.diagram_sheet for m in modelos if getattr(m, 'diagram_sheet', None)), None)
     return combinado, informe
 
 

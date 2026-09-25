@@ -146,12 +146,11 @@ def build_geography(
         nodes[node_id] = GeoPoint(lat=lat, lon=lon, x=x, y=y)
         xs.append(x); ys.append(y); lons.append(lon); lats.append(lat)
 
-    intermediate_by_section: dict[str, list[dict[str, str]]] = {}
-    selected_sections = set(model.section_by_id)
-    for row in dataset.intermediate_nodes:
-        sid = row.get('SectionID', '')
-        if sid in selected_sections:
-            intermediate_by_section.setdefault(sid, []).append(row)
+    # Índice del dataset, construido una vez para todo el lote (ver CymdistDataset).
+    intermediate_by_section = {
+        sid: rows for sid in model.section_by_id
+        if (rows := dataset.intermediate_by_section.get(sid))
+    }
 
     lines: dict[str, GeoLine] = {}
     intermediate_point_count = 0
@@ -205,12 +204,15 @@ def _point_dict(point: GeoPoint) -> dict[str, float]:
 
 def geography_to_dict(geo: GeographyManifest, model: FeederModel | None = None) -> dict:
     sed_n = len(model.seds) if model is not None else 0
+    # Una fuente por alimentador: en una red unida (combine) hay tantas como alimentadores.
+    combinado = getattr(model, 'combined', None) if model is not None else None
+    fuentes = len(getattr(combinado, 'feeders', None) or ()) or 1
     expected = {
         'nodes': len(geo.nodes),
         'lines': len(geo.lines),
         'loads': len(model.loads) if model is not None else 0,
         'switches': len(model.devices) if model is not None else 0,
-        'sources': 1,
+        'sources': fuentes,
         'intermediate_points': geo.intermediate_point_count,
         # SED distribution transformers (ElmTr2 inside ElmSubstat).
         'transformers': sed_n,

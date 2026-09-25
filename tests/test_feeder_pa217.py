@@ -145,6 +145,15 @@ class TestPa217IsTheSameNetworkFromBothInputs:
                 ds.resolve_feeder(FEEDER)
             except KeyError:
                 pytest.skip(f'{FEEDER} no está en las dos entradas')
+        # Solo tiene sentido comparar tramo a tramo la MISMA exportación. CYMDIST renumera
+        # nodos entre entregas: con TXT y base de fechas distintas, esto daba 10 fallos
+        # que no eran del lector. El criterio mira los ID de NODE y SECTION, no los
+        # extremos de cada tramo, así que un fallo real de mapeo sigue detectándose.
+        from igea_dgs.huella import comparar
+
+        huella = comparar(txt_dataset, mdb_dataset)
+        if not huella.misma_foto:
+            pytest.skip(huella.motivo())
         return txt_dataset, mdb_dataset
 
     def test_same_network_id_and_sections(self, both):
@@ -202,6 +211,15 @@ class TestPa217ConductorRecovery:
                 ds.resolve_feeder(FEEDER)
             except KeyError:
                 pytest.skip(f'{FEEDER} no está en las dos entradas')
+        # Solo tiene sentido comparar tramo a tramo la MISMA exportación. CYMDIST renumera
+        # nodos entre entregas: con TXT y base de fechas distintas, esto daba 10 fallos
+        # que no eran del lector. El criterio mira los ID de NODE y SECTION, no los
+        # extremos de cada tramo, así que un fallo real de mapeo sigue detectándose.
+        from igea_dgs.huella import comparar
+
+        huella = comparar(txt_dataset, mdb_dataset)
+        if not huella.misma_foto:
+            pytest.skip(huella.motivo())
         return txt_dataset, mdb_dataset
 
     def test_access_has_fewer_default_sections(self, both):

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 from importlib.resources import files
 import json
 from pathlib import Path
@@ -23,8 +24,13 @@ class DgsSchema:
             raise KeyError(f'DGS table not defined in profile {self.profile}: {table}') from exc
 
     def fields(self, table: str) -> list[str]:
-        header = self.header(table)
-        return [part.split('(')[0].replace(':MATRIX', '') for part in header[2:].split(';')[1:]]
+        # Se llama una vez por fila escrita: cientos de miles en un lote grande.
+        return list(_fields_of(self.header(table)))
+
+
+@lru_cache(maxsize=None)
+def _fields_of(header: str) -> tuple[str, ...]:
+    return tuple(part.split('(')[0].replace(':MATRIX', '') for part in header[2:].split(';')[1:])
 
 
 def load_schema(profile: str = 'pf21_dgs_1_8_4') -> DgsSchema:

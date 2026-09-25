@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 import subprocess
 import sys
 import threading
@@ -36,6 +35,9 @@ from .dataset import CymdistDataset
 from .identify import CARGA, EQUIPOS, RED
 from .inventory import build_dataset_inventory, format_inventory_report, write_inventory
 from .naming import feeder_short_name, sort_key_feeder
+from .powerfactory_env import (
+    DEFAULT_PF_PYTHON, pf_api_version, pf_python_dir, python_for_pf, version_key,
+)
 from . import __version__
 
 
@@ -65,106 +67,16 @@ STEPS_HINT = (
 
 DEFAULT_STATUS = 'Elija la entrada y pulse «Cargar / listar alimentadores».'
 
-# Default DigSilent PowerFactory Python API folder (override with PF_PYTHON).
-_DEFAULT_PF_PYTHON = Path(r'C:\Program Files\DIgSILENT\PowerFactory 2024\Python\3.12')
-
-
-def _version_key(path: Path) -> tuple[int, ...]:
-    """Ordena carpetas de versión por número, no por texto.
-
-    ``sorted(..., reverse=True)`` sobre los nombres elegía «3.9» antes que «3.12»,
-    porque '9' > '1' carácter a carácter. En una instalación con 3.8, 3.9, 3.10, 3.11
-    y 3.12 eso seleccionaba la carpeta equivocada y la API fallaba con «DLL load
-    failed», que no dice nada sobre la causa real.
-    """
-    partes = []
-    for trozo in path.name.strip().split('.'):
-        partes.append(int(trozo) if trozo.isdigit() else -1)
-    return tuple(partes)
-
-
-def _pf_python_dir() -> Path | None:
-    env = os.environ.get('PF_PYTHON', '').strip()
-    if env:
-        path = Path(env)
-        return path if path.is_dir() else None
-    if _DEFAULT_PF_PYTHON.is_dir():
-        return _DEFAULT_PF_PYTHON
-    # Try sibling version folders under DigSilent install root.
-    root = Path(r'C:\Program Files\DIgSILENT')
-    if root.is_dir():
-        candidates = sorted(root.glob('PowerFactory */Python/3.*'),
-                            key=_version_key, reverse=True)
-        # Primero el que trae la extensión; solo si ninguno la tiene se acepta otro.
-        for candidate in candidates:
-            if candidate.is_dir() and (candidate / 'powerfactory.pyd').is_file():
-                return candidate
-        for candidate in candidates:
-            if candidate.is_dir():
-                return candidate
-    return None
+# Detección de PowerFactory: compartida con la interfaz web (powerfactory_env).
+_DEFAULT_PF_PYTHON = DEFAULT_PF_PYTHON
+_version_key = version_key
+_pf_python_dir = pf_python_dir
+_pf_api_version = pf_api_version
+_python_for_pf = python_for_pf
 
 
 def _powerfactory_acceptance_script() -> Path:
     return _project_root() / 'tools' / 'powerfactory_acceptance.py'
-
-
-def _pf_api_version(pf_dir: Path | None) -> str | None:
-    """Versión de Python que exige la API de PowerFactory ('3.12' en PF 2024)."""
-    if pf_dir is None:
-        return None
-    parts = pf_dir.name.strip().split('.')
-    if len(parts) == 2 and all(p.isdigit() for p in parts):
-        return pf_dir.name.strip()
-    return None
-
-
-def _python_for_pf(pf_dir: Path | None) -> tuple[Path | None, str]:
-    """Intérprete capaz de cargar ``powerfactory.pyd``, y por qué se eligió.
-
-    ``powerfactory.pyd`` es una extensión binaria compilada contra una versión
-    concreta de CPython: solo carga en esa versión (PowerFactory 2024 llega a 3.12).
-    Lanzar el script de aceptación con ``sys.executable`` falla con «DLL load failed»
-    en cuanto el entorno del conversor usa un Python más nuevo, por ejemplo 3.14.
-
-    Prioridad: el intérprete actual si ya coincide, ``IGEA_PF_INTERPRETER``,
-    el lanzador ``py -X.Y``, y por último rutas de instalación habituales.
-    """
-    wanted = _pf_api_version(pf_dir)
-    current = f'{sys.version_info.major}.{sys.version_info.minor}'
-    if wanted is None or wanted == current:
-        return Path(sys.executable), f'interprete actual ({current})'
-
-    override = os.environ.get('IGEA_PF_INTERPRETER', '').strip()
-    if override and Path(override).is_file():
-        return Path(override), f'IGEA_PF_INTERPRETER ({override})'
-
-    launcher = shutil.which('py')
-    if launcher:
-        try:
-            probe = subprocess.run(
-                [launcher, f'-{wanted}', '-c', 'import sys; print(sys.executable)'],
-                capture_output=True, text=True, timeout=20, check=False,
-            )
-            candidate = Path((probe.stdout or '').strip())
-            if probe.returncode == 0 and candidate.is_file():
-                return candidate, f'py -{wanted}'
-        except (OSError, subprocess.SubprocessError):
-            pass
-
-    major, minor = wanted.split('.')
-    local = os.environ.get('LOCALAPPDATA', '')
-    candidates = [
-        Path(rf'C:\Python{major}{minor}\python.exe'),
-        Path(rf'C:\Program Files\Python{major}{minor}\python.exe'),
-    ]
-    if local:
-        candidates.insert(0, Path(local) / 'Programs' / 'Python' / f'Python{major}{minor}' / 'python.exe')
-    for candidate in candidates:
-        if candidate.is_file():
-            return candidate, f'instalacion local {wanted}'
-
-    return None, f'no se encontro Python {wanted}'
 
 
 def _default_aliases_path() -> str:
@@ -1238,8 +1150,8 @@ class ConverterApp:
         self.cancel_btn.configure(state='disabled')
         self.status.set('Cancelando… se conserva lo ya convertido.')
         self._append_log(
-            'Cancelación solicitada: el alimentador en curso se descarta entero, '
-            'nunca a medias, y los ya convertidos se conservan.'
+            'Cancelación solicitada: el alimentador en curso termina y se conserva, '
+            'no se empieza ninguno más, y los ya convertidos se conservan.'
         )
 
     def _require_inputs(self) -> bool:
@@ -1696,6 +1608,10 @@ class ConverterApp:
             write_preview=self.write_preview.get(),
             preview_backend='auto',
         )
+        # Reglas del proyecto (igea_dgs.reglas) con su catálogo: las mismas que la web.
+        from .reglas import catalogo_del_proyecto
+
+        kwargs['catalogo'] = catalogo_del_proyecto()
         dataset = self._dataset
 
         self._cancel = threading.Event()
@@ -1809,12 +1725,23 @@ class ConverterApp:
             )
             return None
         from .model import build_feeder_model
+        from .reglas import REGLAS_PROYECTO, aplicar_reglas, catalogo_del_proyecto, preparar_dataset
 
         try:
-            return build_feeder_model(
+            catalogo = catalogo_del_proyecto()
+            preparar_dataset(self._dataset, catalogo=catalogo)
+            modelo = build_feeder_model(
                 self._dataset, names[0], strict=False,
                 include_geography=self.include_geography.get(),
             )
+            correcciones = None
+            if catalogo is not None:
+                from .catalog import leer_catalogo
+
+                correcciones = leer_catalogo(catalogo)
+            # El mismo modelo que el DGS: sin trafomix, puentes fundidos, SED ajustadas.
+            aplicar_reglas(modelo, REGLAS_PROYECTO, correcciones=correcciones)
+            return modelo
         except Exception as exc:
             self._append_log(traceback.format_exc())
             messagebox.showerror('Modelo', f'No se pudo construir {names[0]}:\n{exc}')
@@ -1850,7 +1777,7 @@ class ConverterApp:
         messagebox.showinfo(
             'Plantilla generada',
             f'{out.name}\n\n{len(model.seds)} SED de {model.name}.\n\n'
-            'Rellene las columnas «_nuevo» (kW y kvar) y vuelva a cargar el fichero '
+            'Escriba los valores nuevos en «Kw» y «Kvar» (o en «(kVA)» y «FP»); «accion» = omitir salta la fila. Vuelva a cargar el fichero '
             'con el botón 2.',
         )
 
@@ -1864,10 +1791,20 @@ class ConverterApp:
         )
         if not path:
             return
-        from .loads import LoadTemplateError, build_plan, plan_to_payload, read_template
+        from .loads import LoadTemplateError, build_plan, plan_to_payload, read_workbook
 
         try:
-            plan = build_plan(model, read_template(path))
+            # read_template no existía: el botón fallaba siempre. El libro trae una hoja
+            # por alimentador; si solo trae una (o es un CSV), vale esa.
+            hojas = read_workbook(path)
+            hoja = hojas.get(model.name)
+            if hoja is None and len(hojas) == 1:
+                hoja = next(iter(hojas.values()))
+            if hoja is None:
+                raise LoadTemplateError(
+                    f'El fichero no trae una hoja para {model.name}. '
+                    f'Hojas: {", ".join(hojas) or "ninguna"}.')
+            plan = build_plan(model, hoja)
         except LoadTemplateError as exc:
             messagebox.showerror('Plantilla', str(exc))
             return
@@ -2466,7 +2403,8 @@ class ConverterApp:
             if not messagebox.askyesno(
                 'Conversión en curso',
                 '¿Cancelar la conversión en curso y salir? Se conservará todo lo ya '
-                'convertido; el alimentador en curso se descartará entero, nunca a medias.',
+                'convertido; el alimentador en curso termina o, si no da tiempo, se '
+                'descarta entero. Nunca queda a medias.',
             ):
                 return
             if self._cancel is not None:

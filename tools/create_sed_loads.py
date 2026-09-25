@@ -55,7 +55,9 @@ def _activate(app, fragment: str | None):
     user = app.GetCurrentUser()
     projects = list(user.GetContents('*.IntPrj'))
     if fragment:
-        projects = [p for p in projects if fragment in p.loc_name]
+        # Nombre exacto primero; el fragmento solo si no hay coincidencia exacta.
+        exactos = [p for p in projects if p.loc_name == fragment]
+        projects = exactos or [p for p in projects if fragment in p.loc_name]
     if not projects:
         raise SystemExit(f'ERROR: no se encontró proyecto que contenga {fragment!r}.')
     project = sorted(projects, key=lambda p: p.loc_name)[-1]

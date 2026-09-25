@@ -630,4 +630,8 @@ class TestFlujoDeConversion:
         fuente = pathlib.Path(
             __file__).resolve().parents[1] / 'src' / 'igea_dgs' / 'batch.py'
         texto = fuente.read_text(encoding='utf-8')
-        assert texto.index('aplicar_correcciones') < texto.index('write_dgs(model')
+        # Las correcciones van dentro de las reglas del proyecto (reglas.aplicar_reglas),
+        # que se aplican entre construir el modelo y escribir el DGS.
+        assert texto.index('aplicar_reglas(model') < texto.index('write_dgs(model')
+        reglas = (fuente.parent / 'reglas.py').read_text(encoding='utf-8')
+        assert 'aplicar_correcciones(model' in reglas
