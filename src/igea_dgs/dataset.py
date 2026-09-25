@@ -6,6 +6,16 @@ from collections import defaultdict
 import csv
 
 
+#: Tablas del BD_Equipo que definen tipos de línea, por familia. Están aquí y no en
+#: model.py porque las consultan también el inventario, el completado de catálogo y la
+#: auditoría de estudios, y cuando cada una llevaba su propia lista se desincronizaron:
+#: el catálogo del export completo trae los cables en [CABLE], no en [CONCENTRIC NEUTRAL
+#: CABLE], y los 8.729 tramos subterráneos caían a DEFAULT sin que nada lo dijera.
+TABLAS_TIPOS_AEREO: tuple[str, ...] = ('LINE',)
+TABLAS_TIPOS_SUBTERRANEO: tuple[str, ...] = ('CONCENTRIC NEUTRAL CABLE', 'CABLE')
+TABLAS_TIPOS_LINEA: tuple[str, ...] = TABLAS_TIPOS_AEREO + TABLAS_TIPOS_SUBTERRANEO
+
+
 def _split(line: str) -> list[str]:
     return next(csv.reader([line], skipinitialspace=False))
 
@@ -90,6 +100,9 @@ class CymdistDataset:
         nodes: dict[str, dict[str, str]] = {}
         sources: dict[str, dict[str, str]] = {}
         line_configurations: dict[str, dict[str, str]] = {}
+        #: Lo leído de [OVERHEADLINE SETTING] / [UNDERGROUNDLINE SETTING], aparte para
+        #: que una tabla [LINE CONFIGURATION] explícita siga mandando si vienen ambas.
+        line_settings: dict[str, dict[str, str]] = {}
         sections: dict[str, dict[str, str]] = {}
         section_owner: dict[str, str] = {}
         feeder_rows: dict[str, list[str]] = defaultdict(list)
@@ -99,6 +112,13 @@ class CymdistDataset:
 
         section: str | None = None
         columns: list[str] | None = None
+        # El FORMAT de cada tabla se recuerda por tabla. Hace falta porque los dos
+        # exports de CYMDIST que se han visto lo colocan al revés: uno declara
+        # FORMAT_SECTION *antes* del primer FEEDER= y no lo repite; el otro lo declara
+        # después de cada FEEDER=. Con una sola variable, el primero perdía las columnas
+        # al llegar el FEEDER= y descartaba en silencio los 38.753 tramos, dejando
+        # alimentadores vacíos sin un solo error.
+        columns_by_section: dict[str, list[str]] = {}
         active_feeder: str | None = None
         with red_path.open('r', encoding='utf-8', errors='replace', newline='') as fh:
             for lineno, raw in enumerate(fh, start=1):
@@ -114,10 +134,18 @@ class CymdistDataset:
                     values = [x.strip() for x in _split(line.split('=', 1)[1])]
                     active_feeder = values[0]
                     feeder_rows.setdefault(active_feeder, [])
-                    columns = None
+                    # FORMAT_FEEDER describe esta línea, no las de tramo: se vuelve al
+                    # formato de la tabla, si ya se había declarado.
+                    columns = columns_by_section.get(section or '')
                     continue
                 if line.startswith('FORMAT_') and '=' in line:
-                    columns = [x.strip() for x in _split(line.split('=', 1)[1])]
+                    etiqueta, _, resto = line.partition('=')
+                    columns = [x.strip() for x in _split(resto)]
+                    # FORMAT_FEEDER es la excepción: describe las cabeceras FEEDER=, no
+                    # las filas de la tabla, así que no debe quedar como formato de
+                    # [SECTION].
+                    if section and etiqueta.strip().upper() != 'FORMAT_FEEDER':
+                        columns_by_section[section] = columns
                     continue
                 if columns is None:
                     continue
@@ -147,12 +175,40 @@ class CymdistDataset:
                     sections[sid] = row
                     section_owner[sid] = active_feeder
                     feeder_rows[active_feeder].append(sid)
+                elif section in ('OVERHEADLINE SETTING', 'UNDERGROUNDLINE SETTING'):
+                    # La otra forma de decir lo mismo. El export reducido lleva una
+                    # tabla [LINE CONFIGURATION] con el conductor de cada tramo; el
+                    # export completo la parte en aérea y subterránea, con muchas más
+                    # columnas. Se normalizan a la misma forma que ya usa el resto del
+                    # programa —y que la vía Access produce desde CYMOVERHEADLINE y
+                    # CYMUNDERGROUNDLINE—, así que nada más abajo tiene que enterarse.
+                    sid = row.get('SectionID', '')
+                    if not sid:
+                        continue
+                    ajuste = {
+                        'SectionID': sid,
+                        'LineCableID': row.get('LineCableID', ''),
+                        'Length': row.get('Length', ''),
+                        'Overhead': '1' if section.startswith('OVERHEAD') else '0',
+                    }
+                    previo = line_settings.get(sid)
+                    if previo is not None and previo['LineCableID'] != ajuste['LineCableID']:
+                        raise ValueError(
+                            f'{red_path.name}:{lineno}: el tramo {sid!r} tiene dos '
+                            f'conductores distintos ({previo["LineCableID"]!r} y '
+                            f'{ajuste["LineCableID"]!r}). Cada tramo debe declararse una '
+                            f'sola vez.'
+                        )
+                    line_settings[sid] = ajuste
                 elif section == 'SWITCH SETTING':
                     switch_settings.append(row)
                 elif section == 'SECTIONALIZER SETTING':
                     sectionalizer_settings.append(row)
                 elif section == 'INTERMEDIATE NODES':
                     intermediate_nodes.append(row)
+
+        for sid, ajuste in line_settings.items():
+            line_configurations.setdefault(sid, ajuste)
 
         load_tables = _parse_simple(loads_path)
         load_placements = {

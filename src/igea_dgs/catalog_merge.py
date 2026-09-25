@@ -24,13 +24,15 @@ Con el catálogo anterior de la misma empresa, la cobertura pasó del 0 % al 99,
 
 from __future__ import annotations
 
+from .dataset import TABLAS_TIPOS_LINEA
+
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable
 
 #: Tablas del BD_Equipo que aportan tipos de línea. Son las que importan para la
 #: impedancia; el resto del catálogo (protecciones, filtros) no se usa todavía.
-TABLAS_DE_TIPOS = ('LINE', 'CONCENTRIC NEUTRAL CABLE')
+TABLAS_DE_TIPOS = TABLAS_TIPOS_LINEA
 
 #: Tablas que también conviene completar cuando faltan, aunque no cambien la impedancia.
 TABLAS_COMPLEMENTARIAS = ('CONDUCTOR', 'SPACING TABLE FOR LINE', 'SUBSTATION',

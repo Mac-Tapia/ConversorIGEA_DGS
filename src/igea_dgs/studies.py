@@ -21,6 +21,8 @@ PowerFactory. La ejecución vive en ``tools/base_scenario.py``.
 
 from __future__ import annotations
 
+from .dataset import TABLAS_TIPOS_LINEA
+
 from dataclasses import dataclass, field
 from typing import Any, Iterable
 
@@ -425,7 +427,7 @@ def auditar_datos(dataset: Any, modelos: Iterable[Any] = ()) -> AuditoriaDatos:
     tablas = getattr(dataset, 'equipment_tables', None) or {}
     no_cero = 0
     revisadas = 0
-    for nombre in ('LINE', 'CONCENTRIC NEUTRAL CABLE', 'SWITCH', 'BREAKER', 'FUSE',
+    for nombre in (*TABLAS_TIPOS_LINEA, 'SWITCH', 'BREAKER', 'FUSE',
                    'RECLOSER', 'SECTIONALIZER'):
         for fila in (tablas.get(nombre) or {}).values() if hasattr(
                 tablas.get(nombre) or {}, 'values') else (tablas.get(nombre) or []):
