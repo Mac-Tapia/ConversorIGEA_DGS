@@ -7,6 +7,8 @@ disposiciones de export (ver ``tests/synthetic_export.py``).
 from __future__ import annotations
 
 import time
+import json
+import sys
 from pathlib import Path
 
 import pytest
@@ -66,6 +68,92 @@ def _loaded(client, export, *, geography: bool = False) -> str:
     state = _wait(client, job)
     assert state['status'] == 'done', state
     return wid
+
+
+def test_dgs_jobs_require_matching_feeder_metadata_and_keep_group_identity(tmp_path):
+    from igea_dgs.web.services import dgs_jobs
+    from igea_dgs.web.workspace import Workspace
+
+    ws = Workspace('12345678', tmp_path)
+    ws.out_dir.mkdir(parents=True)
+    (ws.out_dir / 'NA203_NA205.dgs').write_text('DGS', encoding='utf-8')
+    (ws.out_dir / 'NA203_NA205_geography.json').write_text('{}', encoding='utf-8')
+    group_metadata = ws.out_dir / 'NA203_NA205_feeder_metadata.json'
+    group_metadata.write_text('{}', encoding='utf-8')
+    (ws.out_dir / 'NA203_feeder_metadata.json').write_text('{}', encoding='utf-8')
+
+    jobs, missing = dgs_jobs(ws, ['NA203_NA205'])
+
+    assert missing == []
+    assert jobs == [(
+        'NA203_NA205',
+        ws.out_dir / 'NA203_NA205.dgs',
+        ws.out_dir / 'NA203_NA205_geography.json',
+        group_metadata,
+    )]
+
+    group_metadata.unlink()
+    jobs, missing = dgs_jobs(ws, ['NA203_NA205'])
+    assert jobs == []
+    assert 'reconvierta' in missing[0].lower()
+
+
+def test_powerfactory_flow_passes_metadata_logs_counts_and_persists_summary(tmp_path, monkeypatch):
+    from igea_dgs.web import services
+    from igea_dgs.web.workspace import Workspace
+
+    ws = Workspace('12345678', tmp_path)
+    ws.out_dir.mkdir(parents=True)
+    dgs = ws.out_dir / 'NA203.dgs'
+    metadata = ws.out_dir / 'NA203_feeder_metadata.json'
+    dgs.write_text('DGS', encoding='utf-8')
+    metadata.write_text('{}', encoding='utf-8')
+    ws.conversions['NETWORK_NA203'] = {'feeder': 'NA203', 'status': 'ok', 'dgs': str(dgs)}
+
+    class FakeContext:
+        def __init__(self):
+            self.logs = []
+            self.commands = []
+
+        def log(self, message):
+            self.logs.append(message)
+
+        def check_cancel(self):
+            return None
+
+        def progress(self, *_args):
+            return None
+
+        def run_process(self, command, **_kwargs):
+            self.commands.append(command)
+            output = Path(command[command.index('--output-json') + 1])
+            output.write_text(json.dumps({
+                'import': {'project_name': 'PF_NA203'},
+                'feeder_metadata': {'assignment': {
+                    'ok': True,
+                    'expected': 5,
+                    'assigned': 5,
+                    'counts_by_class': {'ElmLod': 3, 'ElmXnet': 1, 'ElmSym': 1},
+                    'counts_by_feeder': {'NA203': 5},
+                    'unresolved': [],
+                    'ambiguous': [],
+                }},
+            }), encoding='utf-8')
+            return 0
+
+    ctx = FakeContext()
+    monkeypatch.setattr(services, '_require_pf', lambda: (tmp_path, Path(sys.executable)))
+    monkeypatch.setattr(services, 'powerfactory_status', lambda: {'interpreter_reason': 'test'})
+
+    result = services.powerfactory_flow(ws, ctx, ['NA203'])
+
+    command = ctx.commands[0]
+    assert command[command.index('--feeder-metadata') + 1] == str(metadata)
+    assert any('Alimentador: asignado 3/3 cargas, 2/2 fuentes' in line for line in ctx.logs)
+    assert result['feeder_acceptance']['NA203']['loads'] == {'assigned': 3, 'expected': 3}
+    stored = ws.conversions['NETWORK_NA203']
+    assert stored['feeder_metadata'] == metadata.name
+    assert stored['feeder_acceptance']['sources'] == {'assigned': 2, 'expected': 2}
 
 
 def test_health_expone_capacidades_y_presets_sin_crs_en_grados(client):

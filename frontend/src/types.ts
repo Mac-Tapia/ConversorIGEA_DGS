@@ -27,6 +27,17 @@ export interface GroupDgs {
   hoja: { formato: string; orientacion: string; escala_1_a: number; cuadricula_mm: number } | null;
   ties: number | null;
   completitud: { fallos: string[] } | null;
+  feeder_metadata?: string | null;
+  feeder_acceptance?: FeederAcceptance | null;
+}
+
+export interface FeederAcceptance {
+  ok: boolean;
+  loads: { assigned: number; expected: number };
+  sources: { assigned: number; expected: number };
+  counts_by_feeder: Record<string, number>;
+  unresolved: number;
+  ambiguous: number;
 }
 
 export interface SlotSpec {
@@ -138,6 +149,8 @@ export interface Conversion {
   counts: Record<string, number> | null;
   converted_at: number | null;
   output_name: string | null;
+  feeder_metadata?: string | null;
+  feeder_acceptance?: FeederAcceptance | null;
 }
 
 export interface FeederRow {
