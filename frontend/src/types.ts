@@ -13,8 +13,8 @@ export interface Options {
   export_tsv: boolean;
   /** Procesos en paralelo: 0 automático, 1 en serie. */
   workers: number;
-  /** Hoja del diagrama en PowerFactory (reglas del proyecto: A0). */
-  hoja: 'A0' | 'A1' | 'A2' | 'A3' | 'A4';
+  /** AUTO conserva la escala geográfica; A0–A4 son formatos de impresión. */
+  hoja: 'AUTO' | 'A0' | 'A1' | 'A2' | 'A3' | 'A4';
 }
 
 /** DGS de red unida: varios alimentadores en un solo fichero. */

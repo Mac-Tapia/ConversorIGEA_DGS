@@ -82,7 +82,7 @@ class OptionsIn(BaseModel):
     export_xlsx: bool | None = None
     export_tsv: bool | None = None
     workers: int | None = Field(None, ge=0, le=MAX_WORKERS)
-    hoja: Literal['A0', 'A1', 'A2', 'A3', 'A4'] | None = None
+    hoja: Literal['AUTO', 'A0', 'A1', 'A2', 'A3', 'A4'] | None = None
 
 
 class ServerPathIn(BaseModel):

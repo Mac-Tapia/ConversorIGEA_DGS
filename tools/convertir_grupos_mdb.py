@@ -90,7 +90,7 @@ def _mdb_inventario(dataset, nets: list[str]) -> dict:
 
 
 def construir_grupo(dataset, nombre: str, nets: list[str], *, correcciones, crs: str,
-                    out_dir: Path, trafos: dict | None = None, hoja: str | None = 'A0') -> dict:
+                    out_dir: Path, trafos: dict | None = None, hoja: str | None = None) -> dict:
     modelos, por_alimentador = [], {}
     for net in nets:
         m = build_feeder_model(dataset, net, strict=True, include_geography=True)
@@ -308,7 +308,7 @@ def main(argv: list[str] | None = None) -> int:
 
     from igea_dgs.batch import convert_group
     from igea_dgs.dgs import formato_hoja
-    from igea_dgs.reglas import REGLAS_PROYECTO, catalogo_del_proyecto
+    from igea_dgs.reglas import REGLAS_PROYECTO, catalogo_del_proyecto, normalizar_hoja
     from dataclasses import replace
 
     p = argparse.ArgumentParser(description=__doc__,
@@ -321,12 +321,13 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument('--out-dir', default=str(RAIZ / 'output' / 'grupos'))
     p.add_argument('--source-crs', default='EPSG:32718')
     p.add_argument('--importar', action='store_true')
-    p.add_argument('--hoja', default='A0', help='Hoja del diagrama: A0 … A4 (defecto A0).')
+    p.add_argument('--hoja', default='AUTO', choices=('AUTO', 'A0', 'A1', 'A2', 'A3', 'A4'),
+                   help='Lienzo AUTO a escala real (defecto), o hoja A0 … A4.')
     args = p.parse_args(argv)
 
     assert_metre_source_crs(args.source_crs)
     catalogo = Path(args.catalogo) if args.catalogo else catalogo_del_proyecto()
-    reglas = replace(REGLAS_PROYECTO, hoja=args.hoja)
+    reglas = replace(REGLAS_PROYECTO, hoja=normalizar_hoja(args.hoja))
     grupos = {}
     for g in args.grupo:
         nombre, _, lista = g.partition('=')
@@ -366,15 +367,21 @@ def main(argv: list[str] | None = None) -> int:
         fallo |= man['status'] != 'ok'
         if args.importar and man['status'] == 'ok':
             hoja = man['hoja']
-            ancho, alto = formato_hoja(hoja['formato'])
-            if hoja['orientacion'] == 'vertical':
-                ancho, alto = alto, ancho
-            hoja_ns = SimpleNamespace(formato=hoja['formato'], orientacion=hoja['orientacion'],
-                                      width=ancho, height=alto)
+            hoja_ns = None
+            grid_mm = 0.0
+            if hoja:
+                ancho, alto = formato_hoja(hoja['formato'])
+                if hoja['orientacion'] == 'vertical':
+                    ancho, alto = alto, ancho
+                hoja_ns = SimpleNamespace(
+                    formato=hoja['formato'], orientacion=hoja['orientacion'],
+                    width=ancho, height=alto,
+                )
+                grid_mm = hoja['cuadricula_mm']
             en_dgs = {c: len(t.get('rows_dict', [])) for c, t in parse_dgs(man['dgs']).items()}
             print('  importando en PowerFactory…')
             pf = importar(Path(man['dgs']).resolve(), f'{nombre}_{time.strftime("%H%M%S")}',
-                          en_dgs, hoja=hoja_ns, grid_mm=hoja['cuadricula_mm'])
+                          en_dgs, hoja=hoja_ns, grid_mm=grid_mm)
             grupo['powerfactory'] = pf
             ok = (pf['flujo']['pass'] and not pf['diferencias_con_dgs']
                   and not pf['graficos_fuera_de_hoja']
