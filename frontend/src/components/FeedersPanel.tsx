@@ -252,8 +252,8 @@ export function FeedersPanel() {
           </div>
 
           <p className="alert alert-info small">
-            Reglas del proyecto en cada conversión: hoja {ws.options.hoja ?? 'A0'} con símbolos según la
-            cuadrícula · coordenadas que falten completadas por el grafo · puentes DEFAULT fundidos (sus
+            Reglas del proyecto en cada conversión: {ws.options.hoja === 'AUTO' ? 'lienzo adaptativo a escala real' : `hoja ${ws.options.hoja}`} ·
+            coordenadas que falten completadas por el grafo · puentes DEFAULT fundidos (sus
             seccionadores quedan como interruptor) · trafomix (SED «M…») excluidos · SED con más carga que
             kVA redimensionadas y listadas · catálogo del proyecto · auditoría de completitud contra la entrada.
           </p>

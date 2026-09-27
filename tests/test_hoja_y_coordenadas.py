@@ -135,6 +135,27 @@ def _coordenadas(tablas):
     return pts
 
 
+def test_el_modo_adaptativo_conserva_la_escala_de_referencia(tmp_path):
+    from igea_dgs.dgs import NA205_DIAGRAM_UNITS_PER_METER, write_dgs
+    from igea_dgs.geography import build_geography
+    from igea_dgs.model import build_feeder_model
+
+    escalas = []
+    anchos = []
+    for nombre, secciones in (('corta', 6), ('larga', 60)):
+        ds = _dataset(tmp_path / nombre, secciones=secciones)
+        model = build_feeder_model(
+            ds, ds.feeder_ids()[0], strict=False, include_geography=True,
+        )
+        geography = build_geography(ds, model)
+        manifest = write_dgs(model, tmp_path / f'{nombre}.dgs', geography=geography)
+        escalas.append(manifest.diagram_sheet.scale)
+        anchos.append(manifest.diagram_sheet.width)
+
+    assert escalas == pytest.approx([NA205_DIAGRAM_UNITS_PER_METER] * 2)
+    assert anchos[1] > anchos[0]
+
+
 @pytest.mark.parametrize('formato', ['A0', 'A3', 'A4'])
 def test_todo_el_dibujo_cabe_en_la_hoja(tmp_path, formato):
     from igea_dgs.dgs import FORMATOS_HOJA
