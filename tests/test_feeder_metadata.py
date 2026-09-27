@@ -10,6 +10,7 @@ from igea_dgs.feeder_metadata import (
     FeederAssignment,
     read_feeder_metadata,
     validate_assignments,
+    write_name_feeder_mapping_csv,
     write_feeder_metadata,
 )
 from igea_dgs.model import FeederModel, Line, LineType, Load, Node, Sed
@@ -40,19 +41,24 @@ def _model(feeder: str, prefix: str) -> FeederModel:
     )
 
 
-def test_dgs_manifest_maps_each_load_and_source_to_its_original_feeder(tmp_path):
-    model, _ = combine_models([_model('NA203', 'A'), _model('NA205', 'B')], name='NA203_NA205')
-    manifest = write_dgs(model, tmp_path / 'NA203_NA205.dgs')
+def test_dgs_manifest_maps_any_number_of_feeders_in_one_grid(tmp_path):
+    model, _ = combine_models([
+        _model('NA203', 'A'), _model('NA205', 'B'), _model('NC207', 'C'),
+    ], name='SISTEMA_UNIDO')
+    manifest = write_dgs(model, tmp_path / 'SISTEMA_UNIDO.dgs')
 
     loads = [r for r in manifest.feeder_assignments if r.class_name == 'ElmLod']
     sources = [r for r in manifest.feeder_assignments if r.class_name == 'ElmXnet']
     assert {(r.feeder, r.network_id) for r in loads} == {
         ('NA203', 'NET_2026_229_NA203'), ('NA205', 'NET_2026_229_NA205'),
+        ('NC207', 'NET_2026_229_NC207'),
     }
-    assert {r.feeder for r in sources} == {'NA203', 'NA205'}
-    assert len(loads) == 2 and len(sources) == 2
+    assert {r.feeder for r in sources} == {'NA203', 'NA205', 'NC207'}
+    assert len(loads) == 3 and len(sources) == 3
     assert {r.loc_name for r in loads} == {'CARGA_DUPLICADA'}
-    assert {r.terminal for r in loads} == {'SE_NA203_BT', 'SE_NA205_BT'}
+    assert {r.terminal for r in loads} == {
+        'SE_NA203_BT', 'SE_NA205_BT', 'SE_NC207_BT',
+    }
 
 
 def test_metadata_is_bound_to_the_exact_dgs_hash(tmp_path):
@@ -97,3 +103,24 @@ def test_written_json_declares_all_supported_powerfactory_classes(tmp_path):
     raw = json.loads(path.read_text(encoding='utf-8'))
     assert raw['target_classes'] == ['ElmLod', 'ElmSym', 'ElmXnet']
     assert raw['schema_version'] == 1
+
+
+def test_name_feeder_mapping_csv_supports_any_number_of_feeders(tmp_path):
+    records = [
+        FeederAssignment('ElmLod', '30', 'LOAD-C', 'NC300', 'NET_C', 'TC', 'SC'),
+        FeederAssignment('ElmXnet', '10', 'SOURCE-A', 'NA100', 'NET_A', 'TA', ''),
+        FeederAssignment('ElmSym', '20', 'GEN-B', 'NB200', 'NET_B', 'TB', ''),
+        FeederAssignment('ElmLod', '11', 'LOAD-A', 'NA100', 'NET_A', 'TLA', 'SLA'),
+    ]
+
+    output = write_name_feeder_mapping_csv(
+        records, tmp_path / 'SISTEMA_name_alimentador.csv',
+    )
+
+    assert output.read_text(encoding='utf-8-sig').splitlines() == [
+        'Name,Alimentador,Clase,NetworkID,Terminal,Substation',
+        'LOAD-A,NA100,ElmLod,NET_A,TLA,SLA',
+        'SOURCE-A,NA100,ElmXnet,NET_A,TA,',
+        'GEN-B,NB200,ElmSym,NET_B,TB,',
+        'LOAD-C,NC300,ElmLod,NET_C,TC,SC',
+    ]

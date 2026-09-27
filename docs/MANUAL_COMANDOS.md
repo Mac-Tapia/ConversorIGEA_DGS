@@ -283,6 +283,7 @@ Por cada alimentador, en `--out-dir`:
 | `{alimentador}_validation.json` / `.txt` | Informe de validación estricta |
 | `{alimentador}_geography.json` | Coordenadas WGS84 (con georreferenciación) |
 | `{alimentador}_feeder_metadata.json` | Asignación auditable de cada carga/fuente a su alimentador; incluye SHA-256 del DGS |
+| `{alimentador}_name_alimentador.csv` | Tabla legible `Name → Alimentador` para cargas, generadores y fuentes; admite cualquier número de alimentadores en un solo Grid/DGS |
 | `{alimentador}_geography_validation.txt` | Cobertura GPS |
 | `batch_manifest.json` | Resumen del lote: qué se convirtió y con qué opciones |
 | `dataset_inventory.json` | Inventario del export |
@@ -417,6 +418,7 @@ representación, relee las asignaciones y revierte lo ya escrito ante el primer 
 3. Si no aparece, use **Flexible Data → selección de variables → Data Extension → Alimentador** y arrastre la columna después de `Grid`. Esta es la vista garantizada por la documentación de DIgSILENT.
 4. Repita en **Synchronous Machine** y **External Grid**.
 5. Filtre por `NA203`/`NA205` y confronte los conteos del informe. Una fila `SE50033` en `General Load` es el `ElmLod` alojado dentro de la SED `ElmSubstat`; no sustituye el transformador `ElmTr2`.
+6. Para una auditoría directa, abra `{nombre}_name_alimentador.csv`: sus columnas `Name` y `Alimentador` contienen la misma relación que debe verse en Network Model Manager. En conversiones de más de dos alimentadores aparecerán todos, sin una lista fija en el código.
 
 Para una base Access cuya red y catálogo CYMEQ estén separados, la herramienta de
 grupos admite ambas rutas:

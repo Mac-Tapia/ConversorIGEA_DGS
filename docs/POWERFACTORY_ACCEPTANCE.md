@@ -62,14 +62,15 @@ Exit codes: `0` PASS, `2` FAIL, `3` PF API unavailable.
 
 ## Columna `Alimentador` en Network Model Manager
 
-La compuerta anterior crea automáticamente una sola Data Extension llamada internamente `alimentador`, descrita como `Alimentador` y accesible por API como `p:alimentador`. No la cree manualmente antes de ejecutar la compuerta.
+La compuerta anterior crea automáticamente una sola Data Extension llamada internamente `alimentador`, descrita como `Alimentador` y accesible por API como `p:alimentador`. No la cree manualmente antes de ejecutar la compuerta. `Grid` representa el contenedor común; no debe interpretarse como el alimentador individual cuando el DGS une varias redes.
 
 1. Abra **Network Model Manager → Generators, Loads, and Sources → General Load**.
 2. Intente primero la pestaña **Basic Data**. Abra la selección de columnas y agregue **Alimentador** inmediatamente después de **Grid**.
 3. Si `Basic Data` no ofrece el atributo, abra **Flexible Data**, entre a la selección de variables y elija **Data Extension → Alimentador**. Arrastre su encabezado para dejarlo después de **Grid**.
 4. Repita la selección en **Synchronous Machine** y **External Grid**. `ElmSym` puede quedar sin filas en NA203–NA205, pero la columna debe existir.
-5. Filtre u ordene por `Alimentador` y verifique que las cargas muestran únicamente `NA203` o `NA205` según su SED/terminal; no use la columna `Grid` (`NA203_NA205`) como sustituto.
-6. Guarde evidencia visible de al menos una carga `NA203`, una carga `NA205` y las dos fuentes externas. Los conteos deben coincidir con `NA203_NA205_feeder_metadata.json` y con la sección `feeder_metadata.assignment` del informe PowerFactory.
+5. Filtre u ordene por `Alimentador` y verifique que cada carga muestra su alimentador según su terminal/SED; no use `Grid` (`NA203_NA205`, por ejemplo) como sustituto.
+6. Compare las columnas `Name` y `Alimentador` con `<nombre>_name_alimentador.csv`. La relación admite cualquier cantidad de alimentadores dentro del mismo Grid/DGS, no solo NA203 y NA205.
+7. Guarde evidencia visible de al menos una carga por alimentador y sus fuentes externas. Los conteos deben coincidir con `<nombre>_feeder_metadata.json` y con la sección `feeder_metadata.assignment` del informe PowerFactory.
 
 La disponibilidad garantizada por DIgSILENT es en **Flexible Data**; la presencia en **Basic Data** se comprueba en vivo porque depende de la configuración de vista. El procedimiento se apoya en la documentación oficial de [Data Extensions por Python](https://www.digsilent.de/en/faq-reader-powerfactory/how-can-i-create-data-extensions-via-python.html) y en la guía oficial de [integración GIS](https://www.digsilent.de/en/paper-reader-pf-en/gis-integration.html). La decisión de conservar topología y trazabilidad explícita también está alineada con literatura académica citada en la especificación de diseño: una [tesis de maestría sobre visualización de redes](https://repositorio.comillas.edu/jspui/handle/11531/99738), una [tesis doctoral sobre modelos de distribución](https://uknowledge.uky.edu/ece_etds/134/) y el artículo indexado sobre [layout automático de diagramas unifilares](https://doi.org/10.1016/j.epsr.2003.12.005).
 

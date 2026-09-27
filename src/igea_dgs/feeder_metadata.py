@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+import csv
 import hashlib
 import json
 from pathlib import Path
@@ -84,6 +85,39 @@ def write_feeder_metadata(
     }
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+    return output
+
+
+def write_name_feeder_mapping_csv(
+    records: Sequence[FeederAssignment], output_path: Path | str,
+) -> Path:
+    """Publica la relación humana ``Name -> Alimentador`` del DGS unido.
+
+    ``Grid`` identifica el contenedor común de PowerFactory y, por diseño, tiene
+    el mismo valor para todos sus objetos. Este fichero conserva la pertenencia
+    individual de cargas, generadores y fuentes para cualquier cantidad de
+    alimentadores dentro de ese único Grid/DGS.
+    """
+
+    records = tuple(records)
+    validate_assignments(records)
+    output = Path(output_path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    ordered = sorted(
+        records,
+        key=lambda record: (
+            record.feeder.casefold(), record.class_name, record.loc_name.casefold(),
+            record.terminal.casefold(), record.dgs_fid,
+        ),
+    )
+    with output.open('w', encoding='utf-8-sig', newline='') as stream:
+        writer = csv.writer(stream, lineterminator='\n')
+        writer.writerow(('Name', 'Alimentador', 'Clase', 'NetworkID', 'Terminal', 'Substation'))
+        for record in ordered:
+            writer.writerow((
+                record.loc_name, record.feeder, record.class_name, record.network_id,
+                record.terminal, record.substation,
+            ))
     return output
 
 

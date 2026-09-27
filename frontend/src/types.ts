@@ -28,6 +28,7 @@ export interface GroupDgs {
   ties: number | null;
   completitud: { fallos: string[] } | null;
   feeder_metadata?: string | null;
+  name_feeder_mapping?: string | null;
   feeder_acceptance?: FeederAcceptance | null;
 }
 
@@ -150,6 +151,7 @@ export interface Conversion {
   converted_at: number | null;
   output_name: string | null;
   feeder_metadata?: string | null;
+  name_feeder_mapping?: string | null;
   feeder_acceptance?: FeederAcceptance | null;
 }
 
