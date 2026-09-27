@@ -13,6 +13,7 @@ build/
 # Virtual environments
 .venv/
 .worktrees/
+.superpowers/
 venv/
 env/
 ENV/
