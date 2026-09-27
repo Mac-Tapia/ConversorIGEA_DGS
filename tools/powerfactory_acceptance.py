@@ -53,6 +53,18 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+# Keep the standalone tool bound to the checkout that contains it. This also
+# avoids importing an older editable install when the gate runs from a worktree.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
+
+from igea_dgs.feeder_metadata import read_feeder_metadata
+from igea_dgs.powerfactory_metadata import (
+    TARGET_CLASSES,
+    apply_feeder_assignment_plan,
+    ensure_alimentador_data_extensions,
+    resolve_feeder_assignments,
+)
+
 
 # ---------------------------------------------------------------------------
 # Attribute / object helpers
@@ -232,6 +244,65 @@ def import_dgs_file(
         'errors': errors,
         'ok': not errors,
     }
+
+
+def resolve_feeder_metadata_path(
+    dgs_path: Path | str,
+    explicit_path: Path | str | None = None,
+) -> Path | None:
+    """Resuelve metadata explícita o el archivo hermano convencional."""
+
+    dgs = Path(dgs_path)
+    if explicit_path is not None:
+        explicit = Path(explicit_path)
+        if not explicit.is_file():
+            raise FileNotFoundError(f'metadata de alimentadores no encontrada: {explicit}')
+        return explicit
+    sibling = dgs.with_name(f'{dgs.stem}_feeder_metadata.json')
+    return sibling if sibling.is_file() else None
+
+
+def _collect_feeder_objects(app: Any) -> list[Any]:
+    objects: list[Any] = []
+    for class_name in TARGET_CLASSES:
+        objects.extend(_calc_objects(app, f'*.{class_name}'))
+    return objects
+
+
+def _configure_feeder_metadata(
+    app: Any,
+    dgs_path: Path,
+    metadata_path: Path,
+    *,
+    expected_project_name: str,
+) -> dict[str, Any]:
+    """Valida proyecto, crea la extensión y aplica el lote de alimentadores."""
+
+    active_project = app.GetActiveProject()
+    if active_project is None or _name(active_project) != expected_project_name:
+        actual = _name(active_project) if active_project is not None else '<ninguno>'
+        raise RuntimeError(
+            'El proyecto activo no coincide con el proyecto importado: '
+            f'esperado={expected_project_name!r}, activo={actual!r}'
+        )
+    extension = ensure_alimentador_data_extensions(active_project)
+    if extension['errors']:
+        return {
+            'path': str(metadata_path.resolve()),
+            'dgs_sha256': None,
+            'extension': extension,
+            'assignment': None,
+        }
+    metadata = read_feeder_metadata(metadata_path, expected_dgs=dgs_path)
+    plan = resolve_feeder_assignments(metadata.assignments, _collect_feeder_objects(app))
+    assignment = apply_feeder_assignment_plan(plan)
+    report = {
+        'path': str(metadata_path.resolve()),
+        'dgs_sha256': metadata.dgs_sha256,
+        'extension': extension,
+        'assignment': assignment,
+    }
+    return report
 
 
 # ---------------------------------------------------------------------------
@@ -1388,6 +1459,7 @@ def run_import_activate_flow(
     dgs_path: Path,
     *,
     project_name: str | None = None,
+    feeder_metadata_path: Path | str | None = None,
     ensure_scenario: bool = True,
     run_load_flow_flag: bool = True,
     fix_until_converge: bool = True,
@@ -1412,6 +1484,7 @@ def run_import_activate_flow(
         'scenario_ensure': None,
         'load_flow_loop': None,
         'study_suite': None,
+        'feeder_metadata': None,
         'dgs_persist': None,
         'errors': [],
         'warnings': [],
@@ -1428,6 +1501,47 @@ def run_import_activate_flow(
         report['errors'].extend(import_info.get('errors') or [])
         return report
 
+    active_project = app.GetActiveProject()
+    imported_project_name = str(import_info.get('project_name') or '')
+    if active_project is None or _name(active_project) != imported_project_name:
+        actual = _name(active_project) if active_project is not None else '<ninguno>'
+        report['errors'].append(
+            'El proyecto activo no coincide con el proyecto importado: '
+            f'esperado={imported_project_name!r}, activo={actual!r}'
+        )
+        return report
+
+    try:
+        metadata_path = resolve_feeder_metadata_path(dgs_path, feeder_metadata_path)
+        if metadata_path is not None:
+            report['feeder_metadata'] = _configure_feeder_metadata(
+                app,
+                Path(dgs_path),
+                metadata_path,
+                expected_project_name=imported_project_name,
+            )
+            extension = report['feeder_metadata']['extension']
+            assignment = report['feeder_metadata']['assignment']
+            if extension['errors']:
+                report['errors'].append(
+                    f'No se pudo crear Data Extension Alimentador: {extension["errors"]}'
+                )
+                return report
+            if not assignment or not assignment['ok']:
+                assignment = assignment or {}
+                report['errors'].append(
+                    'No se pudo asignar Alimentador sin ambigüedad: '
+                    f'no_resueltos={len(assignment.get("unresolved") or [])}, '
+                    f'ambiguos={len(assignment.get("ambiguous") or [])}, '
+                    f'errores={assignment.get("errors") or []}'
+                )
+                return report
+    except Exception as exc:
+        report['errors'].append(f'Metadata de alimentadores falló: {exc}')
+        return report
+
+    # EndDataExtensionModification can deactivate the study case. Activate it
+    # only after the extension transaction has been closed.
     study_info = activate_base_study_and_scenario(app)
     report['study_scenario'] = study_info
     report['warnings'].extend(study_info.get('warnings') or [])
@@ -1913,6 +2027,19 @@ def _write_reports(report: dict, json_path: Path, txt_path: Path) -> None:
         lines += ['', 'STUDY / SCENARIO', json.dumps(report['study_scenario'], ensure_ascii=False, indent=2)]
     if report.get('scenario_ensure'):
         lines += ['', 'SCENARIO ENSURE', json.dumps(report['scenario_ensure'], ensure_ascii=False, indent=2)]
+    if report.get('feeder_metadata'):
+        feeder_info = report['feeder_metadata']
+        assignment = feeder_info.get('assignment') or {}
+        lines += [
+            '',
+            'ALIMENTADOR METADATA',
+            f"  path={feeder_info.get('path')}",
+            f"  ok={assignment.get('ok')} assigned={assignment.get('assigned')}",
+            f"  by_class={assignment.get('counts_by_class')}",
+            f"  by_feeder={assignment.get('counts_by_feeder')}",
+            f"  unresolved={len(assignment.get('unresolved') or [])}",
+            f"  ambiguous={len(assignment.get('ambiguous') or [])}",
+        ]
     if report.get('load_flow_loop'):
         loop = report['load_flow_loop']
         lines += [
@@ -1981,6 +2108,13 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument(
         '--import-dgs',
         help='Path to .dgs — imports via ComImport into a new PF project before checks',
+    )
+    p.add_argument(
+        '--feeder-metadata',
+        help=(
+            'Metadata <FEEDER>_feeder_metadata.json; if omitted, discovers the '
+            'sibling file next to --import-dgs'
+        ),
     )
     p.add_argument('--project-name', help='Optional PF project name for ComImport')
     p.add_argument(
@@ -2089,6 +2223,17 @@ def main(argv=None) -> int:
         print(f'ERROR: manifest not found: {manifest_path}', file=sys.stderr)
         return 1
 
+    feeder_metadata_path = None
+    if args.import_dgs:
+        try:
+            feeder_metadata_path = resolve_feeder_metadata_path(
+                Path(args.import_dgs),
+                Path(args.feeder_metadata) if args.feeder_metadata else None,
+            )
+        except FileNotFoundError as exc:
+            print(f'ERROR: {exc}', file=sys.stderr)
+            return 1
+
     try:
         app = connect_powerfactory(
             start_engine=not args.no_start_engine,
@@ -2107,13 +2252,19 @@ def main(argv=None) -> int:
     want_export_converged = bool(args.export_converged_dgs) and not args.no_export_converged_dgs
     persist_dir = Path(args.persist_dir) if args.persist_dir else None
 
-    if args.import_dgs and (manifest_path is None or args.fix_until_converge or run_studies):
+    if args.import_dgs and (
+        manifest_path is None
+        or args.fix_until_converge
+        or run_studies
+        or feeder_metadata_path is not None
+    ):
         # GUI / one-shot path: import → scenario → LDF (+ optional study suite).
         try:
             flow_only_report = run_import_activate_flow(
                 app,
                 Path(args.import_dgs),
                 project_name=args.project_name,
+                feeder_metadata_path=feeder_metadata_path,
                 ensure_scenario=ensure_scenario,
                 run_load_flow_flag=want_flow and not run_studies,
                 fix_until_converge=bool(args.fix_until_converge),
@@ -2182,6 +2333,7 @@ def main(argv=None) -> int:
                     },
                     'load_flow_loop': flow_only_report.get('load_flow_loop'),
                     'study_suite': flow_only_report.get('study_suite'),
+                    'feeder_metadata': flow_only_report.get('feeder_metadata'),
                     'import': import_info,
                     'study_scenario': study_info,
                     'scenario_ensure': scenario_ensure,
@@ -2350,6 +2502,7 @@ def main(argv=None) -> int:
             },
             'load_flow_loop': (flow_only_report or {}).get('load_flow_loop'),
             'study_suite': (flow_only_report or {}).get('study_suite'),
+            'feeder_metadata': (flow_only_report or {}).get('feeder_metadata'),
             'import': import_info,
             'study_scenario': study_info,
             'scenario_ensure': scenario_ensure,
@@ -2413,16 +2566,17 @@ def main(argv=None) -> int:
         report['load_flow_loop'] = loop
         report['study_suite'] = flow_only_report.get('study_suite')
         report['load_flow'] = {
-            'requested': True,
+            'requested': want_flow,
             'pass': bool(loop and loop.get('pass')),
             'return_code': (loop or {}).get('final_load_flow', {}).get('return_code'),
             'ldf_valid': (loop or {}).get('final_load_flow', {}).get('ldf_valid'),
             'converged_after_intent': (loop or {}).get('converged_after_intent'),
             'attempts': len((loop or {}).get('attempts') or []),
         }
-        report['convergence_pass'] = bool(loop and loop.get('pass'))
-        if not report['convergence_pass']:
+        report['convergence_pass'] = bool(loop and loop.get('pass')) if want_flow else None
+        if want_flow and not report['convergence_pass']:
             report['errors'].append('Load flow did not converge after correction intents')
+        report['feeder_metadata'] = flow_only_report.get('feeder_metadata')
         for err in flow_only_report.get('errors') or []:
             if err not in report['errors']:
                 report['errors'].append(err)
