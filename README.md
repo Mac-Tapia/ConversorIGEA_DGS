@@ -81,7 +81,7 @@ GUI de escritorio, red unida— convierte con las mismas reglas (`src/igea_dgs/r
 cada alimentador con su fuente, enlaces como interruptores abiertos):
 
 ```bash
-igea-dgs convert --mdb 260924.mdb --feeder NA203 --feeder NA205 --unir NA203_NA205 --out-dir out
+igea-dgs convert --mdb 260924.mdb --feeder CA101 --feeder PE104 --unir CA101_PE104 --out-dir out --workers 0 --export-electrical
 igea-dgs convert --red R.txt --loads C.txt --equipment E.txt --all --out-dir out   # lienzo AUTO por defecto
 ```
 
@@ -98,6 +98,22 @@ las identidades antes de escribir y revierte el lote si falla una fila.
 El CSV expone directamente `Name → Alimentador` para revisar, filtrar o cruzar todas
 las cargas, generadores y fuentes de una Grid unida. No está limitado a dos
 alimentadores.
+
+Con `--export-electrical`, una red unida publica además
+`{nombre}_electrical_tables/` (CSV con `redes`, `nodos`, `tramos`, `tipos_linea`,
+`cargas`, `sed`, `maniobras`, `fuentes`, `resumen` y `auditoria`),
+`{nombre}_dgs_tables/` (todas las tablas realmente escritas al DGS) y un manifiesto
+con conteos y SHA-256. Cada fila conserva los campos fuente `Fuente_*` y, en columnas
+separadas, los valores eléctricos normalizados. `--workers 0` selecciona procesos
+automáticamente; la combinación y la publicación continúan ordenadas y deterministas.
+
+Esta separación por alimentador sigue el enfoque de descomposición de dominio para
+sistemas eléctricos de gran escala descrito en la
+[tesis doctoral de la Université de Liège](https://orbi.uliege.be/handle/2268/183353)
+y la paralelización multinúcleo documentada en el artículo indexado
+[Parallel computing of power flow for complex distribution network with DGs](https://doi.org/10.3233/JIFS-169350).
+El proceso no comparte estado mutable entre alimentadores: cada proceso construye su
+modelo y el coordinador realiza una sola unión/publicación atómica.
 
 En **Network Model Manager → Generators, Loads, and Sources**, muestre la columna
 **Alimentador** después de **Grid**. Intente `Basic Data`; si esa vista no ofrece Data
