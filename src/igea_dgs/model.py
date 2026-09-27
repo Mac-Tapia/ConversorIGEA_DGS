@@ -110,6 +110,10 @@ class Load:
     resultados por tipo de cliente, que es como el VAD los pide."""
     year: int = 0
     """Año de alta del suministro. Único apoyo del export para la proyección."""
+    feeder: str = ''
+    """Denominación corta del alimentador de origen, antes de cualquier unión."""
+    network_id: str = ''
+    """NetworkID íntegro de IGEA/CYMDIST que prueba la procedencia."""
 
 
 @dataclass(frozen=True)
@@ -123,6 +127,8 @@ class Sed:
     section_id: str
     device_number: str
     load_key: tuple[str, str]
+    feeder: str = ''
+    network_id: str = ''
 
 
 @dataclass(frozen=True)
@@ -138,6 +144,8 @@ class SwitchingDevice:
     on_off: int
     locked: int
     eq_state: int
+    feeder: str = ''
+    network_id: str = ''
 
 
 @dataclass(frozen=True)
@@ -159,6 +167,8 @@ class Coupler:
     eq_number: str
     section_id: str
     phase: str
+    feeder: str = ''
+    network_id: str = ''
 
 
 @dataclass
@@ -1035,6 +1045,8 @@ def build_feeder_model(
             customers=_int(row.get('NumberOfCustomer')),
             customer_type=(row.get('CustomerType') or '').strip()[:20],
             year=_int(row.get('Year')),
+            feeder=name,
+            network_id=network_id,
         ))
 
     loads = _assign_load_display_names(loads)
@@ -1051,6 +1063,8 @@ def build_feeder_model(
             section_id=load.section_id,
             device_number=load.device_number,
             load_key=(load.section_id, load.device_number),
+            feeder=name,
+            network_id=network_id,
         ))
 
     devices: list[SwitchingDevice] = []
@@ -1081,6 +1095,8 @@ def build_feeder_model(
             on_off=status,
             locked=_int(row.get('Locked'), 0),
             eq_state=_int(row.get('EqState'), 0),
+            feeder=name,
+            network_id=network_id,
         ))
 
     nodes: dict[str, Node] = {}

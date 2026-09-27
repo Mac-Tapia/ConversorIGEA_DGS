@@ -14,6 +14,16 @@ def test_build_sample_feeder_without_any_reference_dgs(ds, sample_feeder):
     assert len(model.lines) == len(section_ids)
 
 
+def test_built_elements_keep_their_source_network_and_feeder(ds, sample_feeder):
+    model = build_feeder_model(ds, sample_feeder, strict=False)
+    expected_network = ds.resolve_feeder(sample_feeder)
+    expected_feeder = model.name
+
+    for element in [*model.loads, *model.seds, *model.devices]:
+        assert element.feeder == expected_feeder
+        assert element.network_id == expected_network
+
+
 def test_default_line_type_is_media_specific(sample_model):
     defaults = {line.type_key for line in sample_model.lines if line.source_type_code == 'DEFAULT'}
     assert defaults <= {'LINE:DEFAULT', 'CABLE:DEFAULT'}

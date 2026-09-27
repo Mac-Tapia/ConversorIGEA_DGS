@@ -35,10 +35,13 @@ def _modelo(nombre='F1', prefijo='') -> FeederModel:
     tipo = LineType('LINE:AA05003D', 'AA05003D', 'LINE', 0.6755, 0.6755, 0.47, 1.4, 3.1, 0, 195)
     defecto = LineType('LINE:DEFAULT', 'DEFAULT', 'LINE', 0.4, 0.4, 0.4, 1.4, 0, 0, 400)
     carga = Load(n('P2'), n('D1'), 'C1', '1', n('D'), 0.05, 0.01, 0.98, 100, 0, 'ABC',
-                 sed_code='SE1')
-    sed = Sed('SE1', 'SE1', n('D'), 100.0, n('P2'), n('D1'), (n('P2'), n('D1')))
-    secc = SwitchingDevice('sectionalizer', n('P1'), 'S', 0, n('A'), 'SF01', n('SW1'),
-                           'ABC', 1, 0, 0)
+                 sed_code='SE1', feeder=nombre, network_id=f'NET_{nombre}')
+    sed = Sed('SE1', 'SE1', n('D'), 100.0, n('P2'), n('D1'), (n('P2'), n('D1')),
+              feeder=nombre, network_id=f'NET_{nombre}')
+    secc = SwitchingDevice(
+        'sectionalizer', n('P1'), 'S', 0, n('A'), 'SF01', n('SW1'),
+        'ABC', 1, 0, 0, feeder=nombre, network_id=f'NET_{nombre}',
+    )
     m = FeederModel(
         name=nombre, network_id=f'NET_{nombre}', nominal_kv=10.0, source_node=n('S'),
         nodes=nodos, lines=lineas, loads=[carga], devices=[secc],
@@ -62,6 +65,7 @@ def test_el_seccionador_pasa_a_interruptor_entre_sus_dos_barras():
     assert m.devices == []
     [c] = m.couplers
     assert (c.node_a, c.node_b, c.on_off, c.eq_number) == ('A', 'B', 1, 'SW1')
+    assert (c.feeder, c.network_id) == ('F1', 'NET_F1')
 
 
 def test_la_sed_y_su_carga_quedan_en_la_barra_fundida():
@@ -69,6 +73,8 @@ def test_la_sed_y_su_carga_quedan_en_la_barra_fundida():
     informe = fundir_puentes(m)
     assert 'D' not in m.nodes and 'E' not in m.nodes
     assert m.loads[0].node_id == 'C' and m.seds[0].node_id == 'C'
+    assert (m.loads[0].feeder, m.seds[0].feeder) == ('F1', 'F1')
+    assert (m.loads[0].network_id, m.seds[0].network_id) == ('NET_F1', 'NET_F1')
     assert informe.cargas_reubicadas == 1 and informe.seds_reubicadas == 1
     # El tramo que colgaba del puente puro sigue conectado, ahora desde C.
     l3 = next(ln for ln in m.lines if ln.section_id == 'L3')
