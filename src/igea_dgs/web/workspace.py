@@ -264,6 +264,33 @@ class Workspace:
                     self.conversions[key] = {**item, 'converted_at': time.time()}
             self.save()
 
+    def record_feeder_acceptance(
+        self,
+        name: str,
+        *,
+        metadata_file: str,
+        summary: dict[str, Any],
+    ) -> None:
+        """Persiste el resultado de la columna Alimentador en grupo o conversión."""
+
+        with self.lock:
+            if name in self.groups:
+                target = self.groups[name]
+            else:
+                target = next(
+                    (
+                        item for item in self.conversions.values()
+                        if item.get('feeder') == name
+                        or Path(str(item.get('dgs') or '')).stem == name
+                        or item.get('output_name') == name
+                    ),
+                    None,
+                )
+            if target is not None:
+                target['feeder_metadata'] = metadata_file
+                target['feeder_acceptance'] = summary
+            self.save()
+
     # -------------------------------------------------------------- vista pública
     def public(self) -> dict:
         inv = self.inventory or {}

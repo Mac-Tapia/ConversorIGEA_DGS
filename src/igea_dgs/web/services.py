@@ -374,15 +374,24 @@ def convert(ws: Workspace, ctx: JobContext, feeders: list[str] | None, all_feede
 # ---------------------------------------------------------------------------
 
 
-def dgs_jobs(ws: Workspace, feeders: list[str]) -> tuple[list[tuple[str, Path, Path | None]], list[str]]:
+def dgs_jobs(
+    ws: Workspace,
+    feeders: list[str],
+) -> tuple[list[tuple[str, Path, Path | None, Path]], list[str]]:
     jobs, missing = [], []
     for feeder in feeders:
         dgs = ws.out_dir / f'{feeder}.dgs'
         if not dgs.is_file():
-            missing.append(feeder)
+            missing.append(f'{feeder}: falta {feeder}.dgs')
             continue
         geo = ws.out_dir / f'{feeder}_geography.json'
-        jobs.append((feeder, dgs, geo if geo.is_file() else None))
+        metadata = ws.out_dir / f'{feeder}_feeder_metadata.json'
+        if not metadata.is_file():
+            missing.append(
+                f'{feeder}: falta {metadata.name}; reconvierta el DGS para generar la metadata'
+            )
+            continue
+        jobs.append((feeder, dgs, geo if geo.is_file() else None, metadata))
     return jobs, missing
 
 
@@ -391,8 +400,7 @@ def check_powerfactory_flow(ws: Workspace, feeders: list[str]) -> None:
         raise UserError('Seleccione al menos un alimentador ya convertido.')
     jobs, missing = dgs_jobs(ws, feeders)
     if not jobs:
-        raise UserError('Primero convierta a DGS. Faltan: '
-                        + ', '.join(f'{f}.dgs' for f in missing[:12]))
+        raise UserError('No hay una conversión lista para PowerFactory. ' + '; '.join(missing[:12]))
     _script('powerfactory_acceptance.py')
     _require_pf()
 
@@ -403,11 +411,12 @@ def powerfactory_flow(ws: Workspace, ctx: JobContext, feeders: list[str]) -> dic
     jobs, missing = dgs_jobs(ws, feeders)
     ctx.log('--- Inicio DigSILENT: import + escenario + flujo ---')
     ctx.log(f'Intérprete para la API: {interpreter}  [{powerfactory_status()["interpreter_reason"]}]')
-    for feeder in missing:
-        ctx.log(f'  (sin DGS, se omite) {feeder}')
+    for reason in missing:
+        ctx.log(f'  (se omite) {reason}')
     env = pf_subprocess_env(pf_dir)
     lines, ok_n, fail_n = [], 0, 0
-    for index, (feeder, dgs, geo) in enumerate(jobs, start=1):
+    feeder_acceptance: dict[str, dict[str, Any]] = {}
+    for index, (feeder, dgs, geo, metadata) in enumerate(jobs, start=1):
         ctx.check_cancel()
         ctx.progress(index - 1, len(jobs), feeder)
         ctx.log(f'[{index}/{len(jobs)}] Import + escenario + flujo {feeder}…')
@@ -416,13 +425,28 @@ def powerfactory_flow(ws: Workspace, ctx: JobContext, feeders: list[str]) -> dic
         # cada clic) y sin --fix-until-converge, que ante un flujo que no converge
         # modifica el modelo (escala cargas) sin pedirlo. Los estudios se lanzan aparte.
         cmd = [str(interpreter), str(script), '--import-dgs', str(dgs),
+               '--feeder-metadata', str(metadata),
                '--ensure-scenario', '--run-load-flow']
         if geo is not None:
             cmd += ['--manifest', str(geo)]
         cmd += ['--output-json', str(ws.out_dir / f'{feeder}_powerfactory_acceptance.json'),
                 '--output-txt', str(ws.out_dir / f'{feeder}_powerfactory_acceptance.txt')]
         rc = ctx.run_process(cmd, env=env, cwd=str(project_root()))
-        proyecto = _proyecto_importado(ws.out_dir / f'{feeder}_powerfactory_acceptance.json')
+        acceptance_path = ws.out_dir / f'{feeder}_powerfactory_acceptance.json'
+        proyecto = _proyecto_importado(acceptance_path)
+        summary = _resumen_alimentador(acceptance_path)
+        if summary is not None:
+            feeder_acceptance[feeder] = summary
+            ws.record_feeder_acceptance(
+                feeder,
+                metadata_file=metadata.name,
+                summary=summary,
+            )
+            ctx.log(
+                '  Alimentador: asignado '
+                f'{summary["loads"]["assigned"]}/{summary["loads"]["expected"]} cargas, '
+                f'{summary["sources"]["assigned"]}/{summary["sources"]["expected"]} fuentes'
+            )
         if proyecto:
             with ws.lock:
                 ws.pf_projects[feeder] = proyecto
@@ -442,7 +466,8 @@ def powerfactory_flow(ws: Workspace, ctx: JobContext, feeders: list[str]) -> dic
         ctx.log('  ' + line)
     ctx.log('--- Fin DigSILENT ---')
     return {'ok': ok_n, 'failed': fail_n, 'requested': len(jobs),
-            'missing_dgs': missing, 'lines': lines}
+            'missing_dgs': missing, 'lines': lines,
+            'feeder_acceptance': feeder_acceptance}
 
 
 # ---------------------------------------------------------------------------
@@ -553,7 +578,8 @@ def convert_group(ws: Workspace, ctx: JobContext, feeders: list[str], nombre: st
         ctx.log(f"FAIL {nombre}: {man.get('error')}")
     with ws.lock:
         ws.groups[nombre] = {k: man.get(k) for k in (
-            'name', 'feeders', 'status', 'error', 'dgs', 'hoja', 'ties', 'completitud')}
+            'name', 'feeders', 'status', 'error', 'dgs', 'feeder_metadata',
+            'hoja', 'ties', 'completitud')}
         ws.save()
     return {'group': nombre, 'status': man['status'], 'error': man.get('error'),
             'dgs': f'{nombre}.dgs' if man['status'] == 'ok' else None,
@@ -700,6 +726,30 @@ def _proyecto_importado(informe: Path) -> str | None:
     except (OSError, ValueError):
         return None
     return ((datos.get('import') or {}).get('project_name')) or None
+
+
+def _resumen_alimentador(informe: Path) -> dict[str, Any] | None:
+    """Extrae el resultado serializable de ``p:alimentador`` del informe PF."""
+
+    try:
+        datos = json.loads(informe.read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return None
+    assignment = ((datos.get('feeder_metadata') or {}).get('assignment') or {})
+    if not assignment:
+        return None
+    counts = assignment.get('counts_by_class') or {}
+    loads = int(counts.get('ElmLod') or 0)
+    sources = int(counts.get('ElmXnet') or 0) + int(counts.get('ElmSym') or 0)
+    ok = bool(assignment.get('ok'))
+    return {
+        'ok': ok,
+        'loads': {'assigned': loads if ok else 0, 'expected': loads},
+        'sources': {'assigned': sources if ok else 0, 'expected': sources},
+        'counts_by_feeder': dict(assignment.get('counts_by_feeder') or {}),
+        'unresolved': len(assignment.get('unresolved') or []),
+        'ambiguous': len(assignment.get('ambiguous') or []),
+    }
 
 
 def proyecto_pf_de(ws: Workspace, feeder: str) -> str | None:
