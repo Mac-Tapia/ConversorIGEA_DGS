@@ -149,7 +149,9 @@ def create_app(data_root: Path | None = None) -> FastAPI:
 
     @app.exception_handler(UserError)
     async def _user_error(_request: Request, exc: UserError):
-        return JSONResponse(status_code=400, content={'detail': str(exc)})
+        return JSONResponse(status_code=400, content={
+            'detail': str(exc), 'code': exc.code, 'context': exc.context,
+        })
 
     def ws_or_404(wid: str) -> Workspace:
         ws = store.get(wid)
@@ -236,10 +238,19 @@ def create_app(data_root: Path | None = None) -> FastAPI:
             raise HTTPException(404, f'Casilla desconocida: {slot}')
         return spec
 
-    def _assign(ws: Workspace, slot: str, path: Path, origin: str) -> dict:
+    def _assign(
+        ws: Workspace,
+        slot: str,
+        path: Path,
+        origin: str,
+        *,
+        original_name: str | None = None,
+    ) -> dict:
         spec = SLOTS[slot]
         warning = comprobar_ranura(path, spec['tipo']) if spec['tipo'] else ''
-        meta = ws.set_input(slot, path, origin=origin, warning=warning)
+        meta = ws.set_input(
+            slot, path, origin=origin, warning=warning, original_name=original_name,
+        )
         ws.events.append('log', {'text': f'Archivo asignado a {slot}: {path.name}'
                                  + (f'  (AVISO: {warning.splitlines()[0]})' if warning else '')})
         return {'slot': slot, **meta, 'workspace': ws.public()}
@@ -256,7 +267,10 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         _check_slot(slot)
         target = ws.upload_target(slot, file.filename or slot)
         _save_upload(target, file)
-        return _assign(ws, slot, target, 'upload')
+        return _assign(
+            ws, slot, target, 'upload',
+            original_name=Path(file.filename or slot).name,
+        )
 
     @app.post('/api/workspaces/{wid}/inputs/{slot}/path')
     def server_path_input(wid: str, slot: str, body: ServerPathIn) -> dict:
@@ -267,7 +281,7 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         path = Path(body.path.strip().strip('"'))
         if not path.is_file():
             raise HTTPException(400, f'No existe el fichero: {path}')
-        return _assign(ws, slot, path, 'server')
+        return _assign(ws, slot, path, 'server', original_name=path.name)
 
     @app.delete('/api/workspaces/{wid}/inputs/{slot}')
     def delete_input(wid: str, slot: str) -> dict:
@@ -295,14 +309,22 @@ def create_app(data_root: Path | None = None) -> FastAPI:
             ident = identificar(tmp)
             slot = slot_of.get(ident.tipo)
             if slot is None or slot in taken:
-                unassigned.append({'name': tmp.name, 'reason': (
-                    'tipo repetido' if slot else 'no declara tablas conocidas de IGEA/CYMDIST')})
+                ambiguous = slot is not None
+                unassigned.append({
+                    'name': tmp.name,
+                    'reason': (
+                        'tipo repetido' if ambiguous
+                        else 'no declara tablas conocidas de IGEA/CYMDIST'
+                    ),
+                    'code': 'INPUT_FILE_AMBIGUOUS' if ambiguous else 'INPUT_FILE_UNKNOWN',
+                    'context': {'slot': slot} if ambiguous else {},
+                })
                 tmp.unlink(missing_ok=True)
                 continue
             taken.add(slot)
             target = ws.upload_target(slot, tmp.name)
             tmp.replace(target)
-            _assign(ws, slot, target, 'upload')
+            _assign(ws, slot, target, 'upload', original_name=tmp.name)
             assigned.append({'slot': slot, 'name': target.name})
         shutil.rmtree(staging, ignore_errors=True)
         if assigned:

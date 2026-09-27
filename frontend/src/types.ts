@@ -55,9 +55,17 @@ export interface SlotSpec {
 export interface InputMeta {
   path: string;
   name: string;
+  original_name: string;
   size: number;
+  mtime_ns: number;
+  sha256: string;
   origin: 'upload' | 'server';
   warning: string;
+  stale: boolean;
+  custody_error: string;
+  current_size?: number | null;
+  current_mtime_ns?: number | null;
+  current_sha256?: string | null;
   set_at: number;
 }
 

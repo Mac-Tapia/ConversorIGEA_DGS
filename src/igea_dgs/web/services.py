@@ -37,6 +37,17 @@ from .workspace import Workspace
 class UserError(ValueError):
     """Error del operador (falta un fichero, selección vacía…). Se muestra tal cual."""
 
+    def __init__(
+        self,
+        message: str,
+        *,
+        code: str = 'USER_ERROR',
+        context: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.code = code
+        self.context = dict(context or {})
+
 
 # ---------------------------------------------------------------------------
 # Capacidades del entorno
@@ -127,7 +138,11 @@ def check_ready(ws: Workspace) -> None:
 
 def require_loaded(ws: Workspace) -> None:
     if ws.dataset is None:
-        raise UserError('Primero cargue y liste los alimentadores (paso 2).')
+        raise UserError(
+            'Primero cargue y liste los alimentadores (paso 2).',
+            code='WORKSPACE_NOT_LOADED',
+            context={'workspace_id': ws.id},
+        )
 
 
 def _read_dataset(ws: Workspace, ctx: JobContext):

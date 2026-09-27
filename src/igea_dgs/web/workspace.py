@@ -30,6 +30,7 @@ from typing import Any
 
 from ..identify import CARGA, EQUIPOS, RED
 from ..powerfactory_env import project_root
+from .custody import fingerprint, verify_fingerprint
 from .jobs import EventLog
 
 #: Casillas de entrada. ``grupo`` decide con qué alternativa se usa cada una y
@@ -171,6 +172,7 @@ class Workspace:
                 ws.conversions = json.loads(conv.read_text(encoding='utf-8'))
             except (OSError, ValueError):
                 ws.conversions = {}
+        ws.revalidate_inputs()
         return ws
 
     # -------------------------------------------------------------- entradas
@@ -183,13 +185,25 @@ class Workspace:
         self.plans.clear()
         self.load_inventory_cache.clear()
 
-    def set_input(self, slot: str, path: Path, *, origin: str, warning: str = '') -> dict:
+    def set_input(
+        self,
+        slot: str,
+        path: Path,
+        *,
+        origin: str,
+        warning: str = '',
+        original_name: str | None = None,
+    ) -> dict:
+        custody = fingerprint(path)
         meta = {
             'path': str(path),
             'name': path.name,
-            'size': path.stat().st_size,
+            'original_name': original_name or path.name,
+            **custody.public(),
             'origin': origin,
             'warning': warning,
+            'stale': False,
+            'custody_error': '',
             'set_at': time.time(),
         }
         with self.lock:
@@ -226,13 +240,55 @@ class Workspace:
         return folder / safe_filename(filename)
 
     def input_path(self, slot: str) -> str:
+        self.revalidate_inputs()
         meta = self.inputs.get(slot)
-        return meta['path'] if meta else ''
+        return meta['path'] if meta and not meta.get('stale') else ''
+
+    def revalidate_inputs(self) -> bool:
+        """Detecta entradas cambiadas y descarta todo estado derivado de ellas."""
+        metadata_changed = False
+        stale_found = False
+        for meta in self.inputs.values():
+            verification = verify_fingerprint(Path(meta.get('path', '')), meta)
+            if verification.matches and verification.current is not None:
+                current = verification.current.public()
+                if any(meta.get(key) != value for key, value in current.items()):
+                    meta.update(current)
+                    metadata_changed = True
+                if meta.get('stale') or meta.get('custody_error'):
+                    meta['stale'] = False
+                    meta['custody_error'] = ''
+                    for key in ('current_size', 'current_mtime_ns', 'current_sha256'):
+                        meta.pop(key, None)
+                    metadata_changed = True
+                continue
+            stale_found = True
+            current = verification.current
+            new_values = {
+                'stale': True,
+                'custody_error': verification.reason,
+                'current_size': current.size if current else None,
+                'current_mtime_ns': current.mtime_ns if current else None,
+                'current_sha256': current.sha256 if current else None,
+            }
+            if any(meta.get(key) != value for key, value in new_values.items()):
+                meta.update(new_values)
+                metadata_changed = True
+        if stale_found and (
+            self.dataset is not None or self.inventory is not None or self.load_inventory_cache
+        ):
+            self.invalidate()
+            metadata_changed = True
+        if metadata_changed and self.root.exists():
+            self.save()
+        return not stale_found
 
     def missing_inputs(self) -> list[str]:
+        self.revalidate_inputs()
         mode = self.options.get('input_mode', 'txt')
         return [SLOTS[s]['etiqueta'] for s, spec in SLOTS.items()
-                if spec['grupo'] == mode and spec['obligatorio'] and not self.input_path(s)]
+                if spec['grupo'] == mode and spec['obligatorio']
+                and (s not in self.inputs or self.inputs[s].get('stale'))]
 
     # -------------------------------------------------------------- catálogo
     def catalog_corrections(self) -> dict | None:
@@ -295,6 +351,7 @@ class Workspace:
 
     # -------------------------------------------------------------- vista pública
     def public(self) -> dict:
+        self.revalidate_inputs()
         inv = self.inventory or {}
         return {
             'id': self.id,
