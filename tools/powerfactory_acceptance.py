@@ -314,6 +314,8 @@ def _configure_feeder_metadata(
 # These helpers guarantee the convert folder always holds the DGS used/validated.
 
 _FEEDER_SIDECAR_NAMES = (
+    '{feeder}_feeder_metadata.json',
+    '{feeder}_name_alimentador.csv',
     '{feeder}_geography.json',
     '{feeder}_geography_validation.txt',
     '{feeder}_validation.json',

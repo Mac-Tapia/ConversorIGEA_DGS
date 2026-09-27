@@ -579,6 +579,7 @@ def convert_group(ws: Workspace, ctx: JobContext, feeders: list[str], nombre: st
     with ws.lock:
         ws.groups[nombre] = {k: man.get(k) for k in (
             'name', 'feeders', 'status', 'error', 'dgs', 'feeder_metadata',
+            'name_feeder_mapping',
             'hoja', 'ties', 'completitud')}
         ws.save()
     return {'group': nombre, 'status': man['status'], 'error': man.get('error'),

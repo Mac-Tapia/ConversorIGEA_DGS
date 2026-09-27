@@ -48,6 +48,11 @@ function GroupsList() {
               <td className="small">{g.hoja ? `${g.hoja.formato} ${g.hoja.orientacion} 1:${g.hoja.escala_1_a.toLocaleString('es-PE')}` : '—'}</td>
               <td className="row-actions">
                 {g.dgs && <a className="link" href={api.fileUrl(ws.id, `${g.name}.dgs`, true)}>Descargar</a>}
+                {g.name_feeder_mapping && (
+                  <a className="link" href={api.fileUrl(ws.id, `${g.name}_name_alimentador.csv`, true)}>
+                    Name → Alimentador
+                  </a>
+                )}
                 {g.dgs && (
                   <button className="link" disabled={Boolean(active.powerfactory)} onClick={async () => {
                     if (await confirm('DigSILENT PowerFactory', <p>Se importará <b>{g.name}.dgs</b> en PowerFactory y se correrá el flujo.</p>)) {
