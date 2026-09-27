@@ -9,6 +9,7 @@ import math
 from .model import FeederModel, Line, Sed, decode_phase, split_by_phase
 from .schema import DgsSchema, load_schema
 from .geography import GeographyManifest, GeoPoint
+from .feeder_metadata import FeederAssignment
 
 
 @dataclass(frozen=True)
@@ -55,6 +56,7 @@ class DgsManifest:
     diagram_sheet: DiagramSheet | None = None
     diagram_grid_mm: float = 0.0
     """Paso de cuadrícula elegido para la hoja (0 en la escala NA205)."""
+    feeder_assignments: tuple[FeederAssignment, ...] = ()
 
 
 class FidRegistry:
@@ -851,6 +853,7 @@ def write_dgs(
     source_fid = reg.new()
 
     rows: dict[str, list[str]] = {name: [] for name in schema.tables}
+    feeder_assignments: list[FeederAssignment] = []
     rows['General'].append(_make_row(schema, 'General', FID=general_fid, Descr='Version', Val=schema.general_version))
     rows['ElmNet'].append(_make_row(
         schema, 'ElmNet', FID=network_fid, OP='C', loc_name=_loc_name(model.name),
@@ -995,6 +998,9 @@ def write_dgs(
         apparent = math.hypot(load.p_mw, load.q_mvar)
         name = load.display_name or load.customer_number or load.device_number or load.section_id
         fold = sed_fids[key] if key in nested_load_keys else network_fid
+        sed = seds_by_key.get(key)
+        terminal_name = f'{sed.loc_name}_BT' if sed is not None else load.node_id
+        substation_name = sed.loc_name if sed is not None else ''
         # Fases reales de la carga. Escribir una monofásica como trifásica equilibrada
         # reparte su corriente entre tres conductores en lugar de uno: subestima la
         # caída de tensión de ese ramal y borra el desequilibrio, que el TdR del VAD
@@ -1021,22 +1027,37 @@ def write_dgs(
             plinir=pr, plinis=ps, plinit=pt,
             qlinir=qr, qlinis=qs, qlinit=qt,
         ))
+        feeder_assignments.append(FeederAssignment(
+            class_name='ElmLod', dgs_fid=load_fids[key], loc_name=_loc_name(name),
+            feeder=load.feeder or model.name,
+            network_id=load.network_id or model.network_id,
+            terminal=_loc_name(terminal_name), substation=_loc_name(substation_name),
+            section_id=load.section_id, node_id=load.node_id,
+        ))
 
     # Una red unida tiene una fuente por alimentador: cada uno viene de su propia barra
     # de subestación. Un modelo de un alimentador tiene una sola, y el bucle recorre esa.
     fuentes = [(model.name, model.source_node, source_fid)]
+    network_id_fuente = {model.name: model.network_id}
     if combinado is not None and getattr(combinado, 'feeders', None):
         fuentes = [
             (ref.name, ref.source_node, source_fid if i == 0 else reg.new())
             for i, ref in enumerate(combinado.feeders)
         ]
+        network_id_fuente = {ref.name: ref.network_id for ref in combinado.feeders}
     for nombre_fuente, _nodo_fuente, fid_fuente in fuentes:
+        loc_name_fuente = _loc_name(f'External Grid {nombre_fuente}')
         rows['ElmXnet'].append(_make_row(
             schema, 'ElmXnet', FID=fid_fuente, OP='C',
-            loc_name=_loc_name(f'External Grid {nombre_fuente}'),
+            loc_name=loc_name_fuente,
             fold_id=network_fid, snss='', rntxn='', z2tz1='', snssmin='', rntxnmin='', z2tz1min='',
             chr_name='', bustp='SL', pgini=0, qgini=0, phiini=0, usetp=1,
             outserv=0, Kpf=0, K=0,
+        ))
+        feeder_assignments.append(FeederAssignment(
+            class_name='ElmXnet', dgs_fid=fid_fuente, loc_name=loc_name_fuente,
+            feeder=nombre_fuente, network_id=network_id_fuente[nombre_fuente],
+            terminal=_loc_name(_nodo_fuente), substation='', node_id=_nodo_fuente,
         ))
 
     line_cubic_fids: dict[tuple[str, int], str] = {}
@@ -1437,4 +1458,5 @@ def write_dgs(
         visible_pointterm_nodes=tuple(sorted(visible_nodes)),
         diagram_sheet=diagram_sheet,
         diagram_grid_mm=layout.grid if geography is not None else 0.0,
+        feeder_assignments=tuple(feeder_assignments),
     )

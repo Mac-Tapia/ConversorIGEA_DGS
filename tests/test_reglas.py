@@ -78,6 +78,12 @@ def test_varios_alimentadores_en_un_solo_dgs(ds, tmp_path):
     tablas = parse_dgs(man['dgs'])
     assert len(tablas['ElmXnet']['rows_dict']) == len(nombres), 'una fuente por alimentador'
     assert man['hoja'] is None
+    metadata_path = tmp_path / 'g' / 'GRUPO_1_feeder_metadata.json'
+    assert man['feeder_metadata'] == str(metadata_path)
+    metadata = json.loads(metadata_path.read_text(encoding='utf-8'))
+    assert sum(r['class_name'] == 'ElmLod' for r in metadata['assignments']) == len(
+        tablas['ElmLod']['rows_dict'])
+    assert sum(r['class_name'] == 'ElmXnet' for r in metadata['assignments']) == len(nombres)
     guardado = json.loads((tmp_path / 'g' / 'GRUPO_1_manifest.json').read_text(encoding='utf-8'))
     assert guardado['status'] == 'ok'
 
