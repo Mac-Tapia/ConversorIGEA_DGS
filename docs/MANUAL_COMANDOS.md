@@ -256,6 +256,7 @@ opcionales.
 | Vista previa | `--preview` | Mapa HTML + GeoJSON. Exige georreferenciación |
 | CRS origen | `--source-crs EPSG:XXXXX` | El de **su** export |
 | Aliases de tipos | `--aliases ruta.json` | Equivalencias de códigos de conductor |
+| Lienzo / hoja | `--hoja AUTO` (defecto) o `A0`–`A4` | `AUTO` conserva 2,08 unidades/metro y dimensiona el lienzo con la red; A0–A4 son formatos explícitos de impresión |
 
 ### 4.4 El CRS de origen: el punto que más caro sale equivocar
 
@@ -281,6 +282,7 @@ Por cada alimentador, en `--out-dir`:
 | `{alimentador}.dgs` | El modelo para PowerFactory |
 | `{alimentador}_validation.json` / `.txt` | Informe de validación estricta |
 | `{alimentador}_geography.json` | Coordenadas WGS84 (con georreferenciación) |
+| `{alimentador}_feeder_metadata.json` | Asignación auditable de cada carga/fuente a su alimentador; incluye SHA-256 del DGS |
 | `{alimentador}_geography_validation.txt` | Cobertura GPS |
 | `batch_manifest.json` | Resumen del lote: qué se convirtió y con qué opciones |
 | `dataset_inventory.json` | Inventario del export |
@@ -379,6 +381,7 @@ Es exactamente éste, un alimentador por llamada:
 > .venv\Scripts\python.exe tools\powerfactory_acceptance.py ^
     --import-dgs output\produccion\IN111.dgs ^
     --manifest output\produccion\IN111_geography.json ^
+    --feeder-metadata output\produccion\IN111_feeder_metadata.json ^
     --ensure-scenario ^
     --run-load-flow ^
     --fix-until-converge ^
@@ -393,12 +396,37 @@ Qué hace cada opción:
 | --- | --- |
 | `--import-dgs` | Importa el `.dgs` en PowerFactory (ComImport) |
 | `--manifest` | Sidecar de geografía, para verificar GPS y diagrama |
+| `--feeder-metadata` | Sidecar enlazado por SHA-256; crea/verifica `p:alimentador` y asigna cargas/fuentes sin ambigüedad |
 | `--ensure-scenario` | Crea y activa un escenario de operación |
 | `--run-load-flow` | Ejecuta el flujo de potencia (ComLdf) y exige convergencia |
 | `--fix-until-converge` | Aplica correcciones si no converge a la primera |
 | `--run-studies` | Suite de estudios (incluye cortocircuito ComShc si la licencia lo permite) |
 | `--require-diagram` | Exige `ElmNet.pDiagram` + `IntGrf` |
 | `--output-json` / `--output-txt` | Informes de aceptación |
+
+La metadata explícita es obligatoria si se proporciona la bandera; si se omite, la
+herramienta descubre el hermano `{stem}_feeder_metadata.json`. Antes de modificar Data
+Extensions comprueba que el proyecto activo sea exactamente el recién importado.
+PowerFactory 2024 expone `AddString` como `STRING_VEC`; la compuerta maneja esa
+representación, relee las asignaciones y revierte lo ya escrito ante el primer fallo.
+
+### 5.2.1 Ver la columna `Alimentador`
+
+1. Abra **Network Model Manager → Generators, Loads, and Sources → General Load**.
+2. En `Basic Data`, agregue **Alimentador** después de **Grid** si está disponible.
+3. Si no aparece, use **Flexible Data → selección de variables → Data Extension → Alimentador** y arrastre la columna después de `Grid`. Esta es la vista garantizada por la documentación de DIgSILENT.
+4. Repita en **Synchronous Machine** y **External Grid**.
+5. Filtre por `NA203`/`NA205` y confronte los conteos del informe. Una fila `SE50033` en `General Load` es el `ElmLod` alojado dentro de la SED `ElmSubstat`; no sustituye el transformador `ElmTr2`.
+
+Para una base Access cuya red y catálogo CYMEQ estén separados, la herramienta de
+grupos admite ambas rutas:
+
+```bat
+> .venv\Scripts\python.exe tools\convertir_grupos_mdb.py ^
+    --mdb red.mdb --equipment-db equipos.mdb ^
+    --catalogo input\catalogo_parametros.xlsx ^
+    --grupo NA203_NA205=NA203,NA205 --hoja AUTO --out-dir output\grupo
+```
 
 ### 5.3 Atajo con el `.bat`
 
