@@ -26,6 +26,7 @@ set PATH=C:\Program Files\DIgSILENT\PowerFactory 2024;%PATH%
 python tools\powerfactory_acceptance.py ^
   --import-dgs output\gui\AL104.dgs ^
   --manifest output\gui\AL104_geography.json ^
+  --feeder-metadata output\gui\AL104_feeder_metadata.json ^
   --require-diagram ^
   --run-load-flow ^
   --fix-until-converge ^
@@ -42,13 +43,14 @@ What this does:
 
 1. Connects to PF (`GetApplication` / `GetApplicationExt`)
 2. Imports the `.dgs` via **ComImport** into a new project (same pattern as DigSilent `ApiExample.cpp`)
-3. Activates **Study Case base**; if no **IntScenario** exists, **creates** `Operation Scenario` and activates it (`--ensure-scenario`, default on) — User Manual §12 study/scenario pattern
-4. Runs **ComLdf**; with `--fix-until-converge`, on failure diagnoses and applies DigSILENT-aligned correction intents until convergence (or intents exhausted)
-5. With `--run-studies`, runs the **study suite** (default: `load_flow` + `short_circuit` / ComShc)
-6. **Persists DGS into the convert out_dir** (same folder as GUI/CLI individual convert — parent of `--import-dgs`, or `--persist-dir`):
+3. Verifies that the active project is exactly the newly imported project, creates the project Data Extension `p:alimentador` for `ElmLod`, `ElmSym` and `ElmXnet`, and assigns every row from the SHA-256-bound metadata. Missing or ambiguous identities block the complete batch; a write failure rolls it back.
+4. Reactivates **Study Case base** after closing the Data Extension transaction; if no **IntScenario** exists, **creates** `Operation Scenario` and activates it (`--ensure-scenario`, default on) — User Manual §12 study/scenario pattern
+5. Runs **ComLdf**; with `--fix-until-converge`, on failure diagnoses and applies DigSILENT-aligned correction intents until convergence (or intents exhausted)
+6. With `--run-studies`, runs the **study suite** (default: `load_flow` + `short_circuit` / ComShc)
+7. **Persists DGS into the convert out_dir** (same folder as GUI/CLI individual convert — parent of `--import-dgs`, or `--persist-dir`):
    - Always ensures `{feeder}.dgs` (+ known sidecars if present) remain there (idempotent copy when the import path differed)
    - After LDF convergence, best-effort **ComExport** to `{feeder}_pf_converged.dgs` in that same folder (ApiExample `ExportDgsFile`); if export fails, the converter `{feeder}.dgs` stays and a warning is recorded
-7. Validates (when `--manifest` is provided):
+8. Validates (when `--manifest` is provided):
    - element counts (nodes, lines, loads, switches, sources)
    - **transformers** (`ElmTr2` SED), substations, capacitors (`ElmShnt`), regulators (`ElmVoltreg`)
    - line/load **connectivity** (cubicles → terminals)
@@ -57,6 +59,33 @@ What this does:
    - **ComLdf** convergence (`IsLdfValid`)
 
 Exit codes: `0` PASS, `2` FAIL, `3` PF API unavailable.
+
+## Columna `Alimentador` en Network Model Manager
+
+La compuerta anterior crea automáticamente una sola Data Extension llamada internamente `alimentador`, descrita como `Alimentador` y accesible por API como `p:alimentador`. No la cree manualmente antes de ejecutar la compuerta.
+
+1. Abra **Network Model Manager → Generators, Loads, and Sources → General Load**.
+2. Intente primero la pestaña **Basic Data**. Abra la selección de columnas y agregue **Alimentador** inmediatamente después de **Grid**.
+3. Si `Basic Data` no ofrece el atributo, abra **Flexible Data**, entre a la selección de variables y elija **Data Extension → Alimentador**. Arrastre su encabezado para dejarlo después de **Grid**.
+4. Repita la selección en **Synchronous Machine** y **External Grid**. `ElmSym` puede quedar sin filas en NA203–NA205, pero la columna debe existir.
+5. Filtre u ordene por `Alimentador` y verifique que las cargas muestran únicamente `NA203` o `NA205` según su SED/terminal; no use la columna `Grid` (`NA203_NA205`) como sustituto.
+6. Guarde evidencia visible de al menos una carga `NA203`, una carga `NA205` y las dos fuentes externas. Los conteos deben coincidir con `NA203_NA205_feeder_metadata.json` y con la sección `feeder_metadata.assignment` del informe PowerFactory.
+
+La disponibilidad garantizada por DIgSILENT es en **Flexible Data**; la presencia en **Basic Data** se comprueba en vivo porque depende de la configuración de vista. El procedimiento se apoya en la documentación oficial de [Data Extensions por Python](https://www.digsilent.de/en/faq-reader-powerfactory/how-can-i-create-data-extensions-via-python.html) y en la guía oficial de [integración GIS](https://www.digsilent.de/en/paper-reader-pf-en/gis-integration.html). La decisión de conservar topología y trazabilidad explícita también está alineada con literatura académica citada en la especificación de diseño: una [tesis de maestría sobre visualización de redes](https://repositorio.comillas.edu/jspui/handle/11531/99738), una [tesis doctoral sobre modelos de distribución](https://uknowledge.uky.edu/ece_etds/134/) y el artículo indexado sobre [layout automático de diagramas unifilares](https://doi.org/10.1016/j.epsr.2003.12.005).
+
+## Verificación reproducible NA203–NA205 antes de PowerFactory
+
+```bat
+python tools\verify_na203_na205.py ^
+  --dgs output\acceptance_20260927\NA203_NA205.dgs ^
+  --manifest output\acceptance_20260927\NA203_NA205_manifest.json ^
+  --feeder-metadata output\acceptance_20260927\NA203_NA205_feeder_metadata.json ^
+  --validation output\acceptance_20260927\NA203_NA205_validation.json ^
+  --output-json output\acceptance_20260927\NA203_NA205_artifact_acceptance.json ^
+  --output-txt output\acceptance_20260927\NA203_NA205_artifact_acceptance.txt
+```
+
+El código `0` exige dos fuentes, correspondencia total de cargas/fuentes con metadata, 92 Trafomix excluidos y ninguno `M…` modelado como SED, topología interna completa de SED, reconciliación de maniobras, cero errores de validación y lienzo adaptativo cercano a 2,08 unidades/metro. El código `2` deja igualmente ambos diagnósticos. La prueba marcada `real_na203_na205` se omite si no se proporciona la carpeta real; ese `skip` significa **no ejecutado**, nunca aceptación.
 
 ### Convert out_dir alignment
 
@@ -140,6 +169,7 @@ python tools\powerfactory_acceptance.py --manifest IN111_geography.json --requir
 - `load_flow_loop` (attempts, diagnosis, solutions when `--fix-until-converge`)
 - `study_suite` (per-study results when `--run-studies`)
 - `dgs_persist` (convert out_dir path, copy/export actions, optional `converged_dgs`)
+- `feeder_metadata` (Data Extensions, asignaciones, conteos por clase/alimentador, no resueltos y ambiguos)
 
 ## Boundary
 
