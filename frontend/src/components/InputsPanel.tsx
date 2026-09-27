@@ -58,7 +58,7 @@ function Slot({ slot }: { slot: string }) {
   };
 
   return (
-    <div className={`slot ${meta ? 'slot-set' : ''} ${spec.obligatorio && !meta ? 'slot-required' : ''}`}>
+    <div className={`slot ${meta ? 'slot-set' : ''} ${meta?.stale ? 'slot-required' : ''} ${spec.obligatorio && !meta ? 'slot-required' : ''}`}>
       <div className="slot-head">
         <span className="slot-label">{spec.etiqueta}{spec.obligatorio && <span className="req" title="Obligatorio">*</span>}</span>
         {meta && (
@@ -72,7 +72,9 @@ function Slot({ slot }: { slot: string }) {
         <div className="slot-file">
           <span className="slot-name" title={meta.path}>{meta.name}</span>
           <span className="muted">{fmtBytes(meta.size)} · {meta.origin === 'server' ? 'ruta local' : 'subido'}</span>
+          {meta.stale && <Pill tone="error" title={meta.custody_error}>cambió</Pill>}
           {meta.warning && <Pill tone="warn" title={meta.warning}>no encaja</Pill>}
+          {!meta.stale && meta.sha256 && <span className="muted small mono" title={meta.sha256}>SHA-256 {meta.sha256.slice(0, 12)}…</span>}
         </div>
       ) : pathMode ? (
         <div className="slot-path">

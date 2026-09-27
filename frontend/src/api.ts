@@ -75,7 +75,7 @@ export const api = {
     files.forEach((f) => fd.append('files', f, f.name));
     return request<{
       assigned: { slot: string; name: string }[];
-      unassigned: { name: string; reason: string }[];
+      unassigned: { name: string; reason: string; code: string; context: Record<string, string> }[];
       workspace: WorkspaceState;
     }>(`${ws(id)}/inputs-auto`, { method: 'POST', body: fd });
   },
