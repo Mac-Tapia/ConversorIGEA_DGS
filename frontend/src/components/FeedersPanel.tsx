@@ -1,10 +1,16 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { api, fmtNum } from '../api';
 import { useApp } from '../context';
-import type { FeederRow } from '../types';
+import type { FeederAcceptance, FeederRow } from '../types';
 import { Pill, Stat, useConfirm } from './ui';
 
 type SortKey = 'feeder' | 'network_id' | 'nominal_kv' | 'sections' | 'loads' | 'switches' | 'status';
+
+function assignmentText(value?: FeederAcceptance | null): string | null {
+  if (!value) return null;
+  return `Alimentador: asignado ${value.loads.assigned}/${value.loads.expected} cargas, `
+    + `${value.sources.assigned}/${value.sources.expected} fuentes`;
+}
 
 function statusOf(r: FeederRow): { rank: number; node: ReactNode } {
   const c = r.conversion;
@@ -34,7 +40,11 @@ function GroupsList() {
               <td className="small">{g.feeders.join(', ')}</td>
               <td>{g.status === 'ok'
                 ? <Pill tone={g.completitud?.fallos?.length ? 'warn' : 'ok'}>completo</Pill>
-                : <Pill tone="error" title={g.error ?? ''}>falló</Pill>}</td>
+                : <Pill tone="error" title={g.error ?? ''}>falló</Pill>}
+                {assignmentText(g.feeder_acceptance) && (
+                  <div className="small muted">{assignmentText(g.feeder_acceptance)}</div>
+                )}
+              </td>
               <td className="small">{g.hoja ? `${g.hoja.formato} ${g.hoja.orientacion} 1:${g.hoja.escala_1_a.toLocaleString('es-PE')}` : '—'}</td>
               <td className="row-actions">
                 {g.dgs && <a className="link" href={api.fileUrl(ws.id, `${g.name}.dgs`, true)}>Descargar</a>}
@@ -243,7 +253,11 @@ export function FeedersPanel() {
                     <td className="num">{fmtNum(r.sections)}</td>
                     <td className="num">{fmtNum(r.loads)}</td>
                     <td className="num">{fmtNum(r.switches)}</td>
-                    <td>{statusOf(r).node}</td>
+                    <td>{statusOf(r).node}
+                      {assignmentText(r.conversion?.feeder_acceptance) && (
+                        <div className="small muted">{assignmentText(r.conversion?.feeder_acceptance)}</div>
+                      )}
+                    </td>
                   </tr>
                 ))}
                 {rows.length === 0 && <tr><td colSpan={8} className="empty">Ningún alimentador coincide con el filtro.</td></tr>}
