@@ -88,6 +88,21 @@ igea-dgs convert --red R.txt --loads C.txt --equipment E.txt --all --out-dir out
 En la web: «Unir en un solo DGS…» con los alimentadores seleccionados. `--literal`
 (CLI) convierte sin reglas, solo para comparar con la entrada.
 
+Cada conversión correcta publica junto al DGS
+`{nombre}_feeder_metadata.json`. Este archivo está enlazado al DGS por SHA-256 y
+asigna cada `ElmLod`, `ElmSym` y `ElmXnet` a su denominación real (`NA203`, `NA205`,
+etc.) mediante clase + nombre + terminal + subestación. Al cargar el DGS, la compuerta
+de PowerFactory crea automáticamente la Data Extension `p:alimentador`, valida todas
+las identidades antes de escribir y revierte el lote si falla una fila.
+
+En **Network Model Manager → Generators, Loads, and Sources**, muestre la columna
+**Alimentador** después de **Grid**. Intente `Basic Data`; si esa vista no ofrece Data
+Extensions, use `Flexible Data → Data Extension → Alimentador`. En `General Load`, una
+fila como `SE50033` es una carga `ElmLod` alojada dentro de la SED; la SED física sigue
+modelada por `ElmSubstat`/`ElmTr2`. Repita la columna en `Synchronous Machine` y
+`External Grid`. El procedimiento verificable está en
+[`docs/POWERFACTORY_ACCEPTANCE.md`](docs/POWERFACTORY_ACCEPTANCE.md).
+
 **Cargas de SED en bloque (Excel o CSV)**: descargue la plantilla del alimentador,
 escriba los valores nuevos en `Kw` y `Kvar` (o en `(kVA)` y `FP`; `accion = omitir` salta la fila), súbala, revise el plan y aplíquelo. Se aplica sobre el
 proyecto de PowerFactory que creó «Cargar en DigSILENT» (el del alimentador o el del DGS
@@ -246,7 +261,7 @@ pytest -q
 
 También: `IGEA_RED`, `IGEA_LOADS`, `IGEA_EQUIPMENT` (rutas a cada archivo). Si faltan, las pruebas de integración hacen **skip** claro (no `FileNotFoundError`).
 
-Aceptación en PowerFactory (API: import DGS + crear/activar escenario + flujo de carga con correcciones): `docs/POWERFACTORY_ACCEPTANCE.md` y `tools/powerfactory_acceptance.py` / `tools/run_powerfactory_gate.bat`. En la GUI: **Cargar DGS en DigSILENT + flujo**.
+Aceptación en PowerFactory (API: import DGS + crear `p:alimentador` + asignar cargas/fuentes + crear/activar escenario + flujo de carga): `docs/POWERFACTORY_ACCEPTANCE.md` y `tools/powerfactory_acceptance.py` / `tools/run_powerfactory_gate.bat`. En la GUI: **Cargar DGS en DigSILENT + flujo**.
 
 ## Resultado de ejemplo (IN111)
 
