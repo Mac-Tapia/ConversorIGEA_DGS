@@ -324,6 +324,34 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         ws = ws_or_404(wid)
         return {'loaded': ws.dataset is not None, 'feeders': services.feeder_rows(ws)}
 
+    @app.get('/api/workspaces/{wid}/electrical-inventory')
+    def electrical_inventory(
+        wid: str,
+        feeder: str | None = None,
+        status: str | None = None,
+        search: str | None = None,
+        offset: int = Query(default=0, ge=0),
+        limit: int = Query(default=100, ge=1, le=500),
+    ) -> dict:
+        return services.electrical_inventory(
+            ws_or_404(wid), feeder=feeder, status=status, search=search,
+            offset=offset, limit=limit,
+        )
+
+    @app.get('/api/workspaces/{wid}/electrical-inventory.{fmt}')
+    def electrical_inventory_export(
+        wid: str,
+        fmt: Literal['csv', 'json'],
+        feeder: str | None = None,
+        status: str | None = None,
+        search: str | None = None,
+    ) -> FileResponse:
+        path = services.export_electrical_inventory(
+            ws_or_404(wid), fmt=fmt, feeder=feeder, status=status, search=search,
+        )
+        media = 'text/csv' if fmt == 'csv' else 'application/json'
+        return FileResponse(path, filename=f'inventario_cargas.{fmt}', media_type=media)
+
     @app.post('/api/workspaces/{wid}/convert', status_code=202)
     def convert(wid: str, body: SelectionIn) -> dict:
         ws = ws_or_404(wid)

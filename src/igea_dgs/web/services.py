@@ -17,8 +17,11 @@ Dos defectos de la GUI de escritorio se corrigen aquí en lugar de copiarse:
 
 from __future__ import annotations
 
+import csv
+import hashlib
 import json
 import sys
+import tempfile
 import uuid
 from pathlib import Path
 from typing import Any
@@ -524,7 +527,7 @@ def load_inventory_rows(
     requested = feeders or [feeder_short_name(net) for net in ws.dataset.feeder_ids()]
     networks = tuple(ws.dataset.resolve_feeder(feeder) for feeder in requested)
     names = tuple(feeder_short_name(network) for network in networks)
-    effective_grid = grid_name or (names[0] if len(names) == 1 else '_'.join(names))
+    effective_grid = grid_name or (names[0] if len(names) == 1 else None)
     catalog_signature: tuple[str, int] | None = None
     if ws.catalog_file:
         catalog_path = Path(ws.catalog_file)
@@ -541,6 +544,96 @@ def load_inventory_rows(
     with ws.lock:
         ws.load_inventory_cache[key] = rows
     return rows
+
+
+def electrical_inventory(
+    ws: Workspace,
+    *,
+    feeder: str | None,
+    status: str | None,
+    search: str | None,
+    offset: int,
+    limit: int,
+) -> dict[str, Any]:
+    from ..load_inventory import query_load_inventory
+
+    rows = load_inventory_rows(ws, [feeder] if feeder else None)
+    page = query_load_inventory(
+        rows, feeder=feeder, status=status, search=search,
+        offset=offset, limit=limit,
+    )
+    return {
+        'total': page.total,
+        'offset': page.offset,
+        'limit': page.limit,
+        'filters': {'feeder': feeder, 'status': status, 'search': search},
+        'rows': [row.public() for row in page.rows],
+    }
+
+
+def _all_filtered_inventory_rows(
+    ws: Workspace,
+    *,
+    feeder: str | None,
+    status: str | None,
+    search: str | None,
+) -> list[dict[str, Any]]:
+    from ..load_inventory import query_load_inventory
+
+    rows = load_inventory_rows(ws, [feeder] if feeder else None)
+    result: list[dict[str, Any]] = []
+    offset = 0
+    while True:
+        page = query_load_inventory(
+            rows, feeder=feeder, status=status, search=search,
+            offset=offset, limit=500,
+        )
+        result.extend(row.public() for row in page.rows)
+        offset += len(page.rows)
+        if offset >= page.total or not page.rows:
+            return result
+
+
+def export_electrical_inventory(
+    ws: Workspace,
+    *,
+    fmt: str,
+    feeder: str | None,
+    status: str | None,
+    search: str | None,
+) -> Path:
+    if fmt not in {'csv', 'json'}:
+        raise UserError('El inventario solo se exporta como csv o json.')
+    filters = {'feeder': feeder, 'status': status, 'search': search}
+    rows = _all_filtered_inventory_rows(ws, **filters)
+    signature = hashlib.sha256(
+        json.dumps(filters, sort_keys=True, ensure_ascii=False).encode('utf-8')
+    ).hexdigest()[:12]
+    folder = ws.out_dir / 'inventario'
+    folder.mkdir(parents=True, exist_ok=True)
+    target = folder / f'cargas_{signature}.{fmt}'
+    with tempfile.NamedTemporaryFile(
+        mode='w', encoding='utf-8-sig' if fmt == 'csv' else 'utf-8',
+        newline='', suffix=f'.{fmt}.tmp', dir=folder, delete=False,
+    ) as stream:
+        temporary = Path(stream.name)
+        if fmt == 'json':
+            json.dump({'filters': filters, 'rows': rows}, stream, ensure_ascii=False, indent=2)
+        else:
+            fields = list(rows[0]) if rows else [
+                'name', 'class_name', 'grid', 'alimentador', 'network_id', 'sed',
+                'terminal_substation', 'terminal', 'status', 'diagnostic',
+            ]
+            writer = csv.DictWriter(stream, fieldnames=fields, lineterminator='\n')
+            writer.writeheader()
+            for row in rows:
+                serializable = dict(row)
+                serializable['provenance'] = json.dumps(
+                    row.get('provenance') or {}, ensure_ascii=False, sort_keys=True,
+                )
+                writer.writerow(serializable)
+    temporary.replace(target)
+    return target
 
 
 # ---------------------------------------------------------------------------
