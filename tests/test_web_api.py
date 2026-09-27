@@ -6,6 +6,8 @@ disposiciones de export (ver ``tests/synthetic_export.py``).
 
 from __future__ import annotations
 
+import csv
+import io
 import time
 import json
 import sys
@@ -68,6 +70,95 @@ def _loaded(client, export, *, geography: bool = False) -> str:
     state = _wait(client, job)
     assert state['status'] == 'done', state
     return wid
+
+
+def test_electrical_inventory_requires_loaded_workspace(client):
+    wid = _workspace(client)
+
+    response = client.get(f'/api/workspaces/{wid}/electrical-inventory')
+
+    assert response.status_code == 400
+    assert 'Primero cargue' in response.json()['detail']
+
+
+def test_electrical_inventory_filters_feeder_status_and_search(client, export):
+    wid = _loaded(client, export)
+    all_rows = client.get(f'/api/workspaces/{wid}/electrical-inventory').json()
+    row = all_rows['rows'][0]
+
+    response = client.get(
+        f'/api/workspaces/{wid}/electrical-inventory',
+        params={'feeder': row['alimentador'], 'status': row['status'], 'search': row['name']},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert set(body) == {'total', 'offset', 'limit', 'filters', 'rows'}
+    assert body['total'] >= 1
+    assert body['filters'] == {
+        'feeder': row['alimentador'], 'status': row['status'], 'search': row['name'],
+    }
+    assert all(item['alimentador'] == row['alimentador'] for item in body['rows'])
+    required = {
+        'name', 'class_name', 'grid', 'alimentador', 'network_id', 'sed',
+        'terminal_substation', 'terminal', 'kw', 'kvar', 'kva', 'power_factor',
+        'voltage_mt_kv', 'voltage_bt_kv', 'transformer_kva', 'uk_pct',
+        'copper_losses_kw', 'core_losses_kw', 'vector_group', 'status',
+        'diagnostic', 'provenance',
+    }
+    assert required <= set(body['rows'][0])
+
+
+def test_electrical_inventory_paginates_deterministically(client, export):
+    wid = _loaded(client, export)
+
+    first = client.get(
+        f'/api/workspaces/{wid}/electrical-inventory', params={'offset': 0, 'limit': 1},
+    ).json()
+    second = client.get(
+        f'/api/workspaces/{wid}/electrical-inventory', params={'offset': 1, 'limit': 1},
+    ).json()
+    repeated = client.get(
+        f'/api/workspaces/{wid}/electrical-inventory', params={'offset': 0, 'limit': 1},
+    ).json()
+
+    assert first['total'] > 1
+    assert len(first['rows']) == len(second['rows']) == 1
+    assert first['rows'] != second['rows']
+    assert first == repeated
+
+
+@pytest.mark.parametrize('params', ({'offset': -1}, {'limit': 0}, {'limit': 501}))
+def test_electrical_inventory_rejects_invalid_bounds(client, params):
+    wid = _workspace(client)
+
+    response = client.get(f'/api/workspaces/{wid}/electrical-inventory', params=params)
+
+    assert response.status_code == 422
+
+
+def test_electrical_inventory_csv_and_json_match_screen_rows(client, export):
+    wid = _loaded(client, export)
+    page = client.get(
+        f'/api/workspaces/{wid}/electrical-inventory', params={'limit': 2},
+    ).json()
+    feeder = page['rows'][0]['alimentador']
+    screen = client.get(
+        f'/api/workspaces/{wid}/electrical-inventory',
+        params={'feeder': feeder, 'limit': 500},
+    ).json()['rows']
+
+    json_rows = client.get(
+        f'/api/workspaces/{wid}/electrical-inventory.json', params={'feeder': feeder},
+    ).json()['rows']
+    csv_response = client.get(
+        f'/api/workspaces/{wid}/electrical-inventory.csv', params={'feeder': feeder},
+    )
+    csv_rows = list(csv.DictReader(io.StringIO(csv_response.content.decode('utf-8-sig'))))
+
+    assert json_rows == screen
+    assert [row['name'] for row in csv_rows] == [row['name'] for row in screen]
+    assert {row['alimentador'] for row in csv_rows} == {feeder}
 
 
 def test_dgs_jobs_require_matching_feeder_metadata_and_keep_group_identity(tmp_path):
