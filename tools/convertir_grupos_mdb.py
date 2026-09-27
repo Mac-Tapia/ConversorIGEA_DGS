@@ -314,6 +314,11 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument('--mdb', required=True)
+    p.add_argument(
+        '--equipment-db',
+        default=None,
+        help='MDB complementaria con CYMEQOVERHEADLINE/CYMEQCABLE cuando --mdb no las contiene.',
+    )
     p.add_argument('--catalogo', default=None,
                    help='Excel de parámetros. Por defecto el del proyecto (input/).')
     p.add_argument('--grupo', action='append', required=True,
@@ -338,9 +343,10 @@ def main(argv: list[str] | None = None) -> int:
     print(f'Leyendo {Path(args.mdb).name}…  (catálogo: {catalogo})')
     # La misma lectura que la interfaz: si la base no trae CYMEQ*, el catálogo del
     # proyecto entra por la regla del lector Access.
-    dataset = read_access_dataset(args.mdb)
+    dataset = read_access_dataset(args.mdb, equipment_db=args.equipment_db)
 
-    resumen = {'mdb': str(args.mdb), 'catalogo': str(catalogo), 'reglas': reglas.__dict__,
+    resumen = {'mdb': str(args.mdb), 'equipment_db': str(args.equipment_db) if args.equipment_db else None,
+               'catalogo': str(catalogo), 'reglas': reglas.__dict__,
                'grupos': {}}
     fallo = False
     for nombre, feeders in grupos.items():
