@@ -39,7 +39,7 @@ from .workspace import (
     BOOL_OPTIONS, DEFAULT_OPTIONS, MAX_WORKERS, SLOTS, Workspace, WorkspaceStore,
 )
 
-# Mismos presets que la GUI de escritorio. Solo CRS proyectados en metros: uno en
+# Presets de la interfaz. Solo CRS proyectados en metros: uno en
 # grados (EPSG:4326) falsea las longitudes ~1e5 veces sin que nada lo detecte (C-01).
 CRS_PRESETS = (
     {'code': 'EPSG:32718', 'label': 'UTM 18S (Ica / costa Perú)'},

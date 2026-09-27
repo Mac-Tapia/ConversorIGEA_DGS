@@ -63,14 +63,15 @@ repita `pip install -r requirements.txt`, o convierta con `--no-geography`.
 
 ---
 
-## 1. Abrir la interfaz gráfica
+## 1. Abrir la interfaz web
 
 | En la ventana | Comando |
 | --- | --- |
-| Doble clic en `run_gui.bat` | `> .venv\Scripts\python.exe -m igea_dgs.gui` |
+| Doble clic en `run_web.bat` | `> .venv\Scripts\python.exe -m igea_dgs.web` |
 
-`run_gui.bat` prefiere el `.venv`, instala las dependencias de producción si faltan y
-abre la ventana. El comando directo no instala nada: asume el entorno ya preparado.
+`run_web.bat` prefiere el `.venv`, instala las dependencias de producción si faltan,
+compila React cuando sea necesario y abre el navegador. El comando directo no instala
+nada: asume el entorno ya preparado.
 
 ---
 
@@ -801,7 +802,7 @@ traen sus propios límites.
 
 ```bat
 rem Interfaz
-.venv\Scripts\python.exe -m igea_dgs.gui
+.venv\Scripts\python.exe -m igea_dgs.web
 
 rem Pruebas
 .venv\Scripts\python.exe -m pytest -q

@@ -24,9 +24,9 @@ set PYTHONPATH=C:\Program Files\DIgSILENT\PowerFactory 2024\Python\3.12
 set PATH=C:\Program Files\DIgSILENT\PowerFactory 2024;%PATH%
 
 python tools\powerfactory_acceptance.py ^
-  --import-dgs output\gui\AL104.dgs ^
-  --manifest output\gui\AL104_geography.json ^
-  --feeder-metadata output\gui\AL104_feeder_metadata.json ^
+  --import-dgs output\web\AL104.dgs ^
+  --manifest output\web\AL104_geography.json ^
+  --feeder-metadata output\web\AL104_feeder_metadata.json ^
   --require-diagram ^
   --run-load-flow ^
   --fix-until-converge ^
@@ -47,7 +47,7 @@ What this does:
 4. Reactivates **Study Case base** after closing the Data Extension transaction; if no **IntScenario** exists, **creates** `Operation Scenario` and activates it (`--ensure-scenario`, default on) — User Manual §12 study/scenario pattern
 5. Runs **ComLdf**; with `--fix-until-converge`, on failure diagnoses and applies DigSILENT-aligned correction intents until convergence (or intents exhausted)
 6. With `--run-studies`, runs the **study suite** (default: `load_flow` + `short_circuit` / ComShc)
-7. **Persists DGS into the convert out_dir** (same folder as GUI/CLI individual convert — parent of `--import-dgs`, or `--persist-dir`):
+7. **Persists DGS into the convert out_dir** (same folder as web/CLI individual convert — parent of `--import-dgs`, or `--persist-dir`):
    - Always ensures `{feeder}.dgs` (+ known sidecars if present) remain there (idempotent copy when the import path differed)
    - After LDF convergence, best-effort **ComExport** to `{feeder}_pf_converged.dgs` in that same folder (ApiExample `ExportDgsFile`); if export fails, the converter `{feeder}.dgs` stays and a warning is recorded
 8. Validates (when `--manifest` is provided):
@@ -92,7 +92,7 @@ El código `0` exige dos fuentes, correspondencia total de cargas/fuentes con me
 
 | Path | Who writes it |
 |------|----------------|
-| GUI **Carpeta de salida** (default `output/gui`) | `convert_selection` → `{feeder}.dgs`, sidecars, `batch_manifest.json` |
+| Web workspace (`output/web/<id>/output`) | `convert_selection` → `{feeder}.dgs`, sidecars, `batch_manifest.json` |
 | CLI `--out-dir` | Same via `convert_selection` |
 | Production batch `output/production_all` | Same when converting with that `--out-dir` |
 | PF gate | Imports from that folder; then **persists** `{feeder}.dgs` there again and optionally `{feeder}_pf_converged.dgs` |
@@ -132,9 +132,9 @@ Override the list: `--studies load_flow,short_circuit`.
 
 Short-circuit defaults (applied only when attributes exist): prefer IEC 60909 (`iopt_iec=1`), all busbars (`iopt_allbus=2`), max currents (`iopt_max=1`), 3-phase fault flags. If the short-circuit licence is missing, Execute typically fails — the report marks `available=false` / warnings without inventing results.
 
-### GUI
+### Interfaz web
 
-In the desktop UI, select converted feeder(s) and press **«Cargar DGS en DigSILENT + flujo»**. The GUI launches this script as a subprocess with `--run-load-flow --fix-until-converge --run-studies` and `PF_PYTHON` / `PYTHONPATH` set when DigSilent’s Python folder is found.
+In the web UI, select converted feeder(s) and press **«Cargar DGS en DigSILENT + flujo»**. FastAPI launches this script as a subprocess with `--run-load-flow --fix-until-converge --run-studies` and `PF_PYTHON` / `PYTHONPATH` set when DigSilent’s Python folder is found.
 
 ## Equipment scope (important)
 

@@ -16,6 +16,7 @@ pulsa convertir. Estas pruebas fijan las dos reglas que lo evitan:
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -125,31 +126,41 @@ class TestLoQueNoSeGuarda:
         assert raiz not in settings.ruta_ajustes().parents
 
 
-class TestEnLaInterfaz:
-    def test_la_ventana_guarda_al_elegir_un_fichero(self):
-        from pathlib import Path
+class TestEnLaInterfazWeb:
+    def test_el_espacio_guarda_al_elegir_un_fichero(self, tmp_path):
+        from igea_dgs.web.workspace import Workspace
 
-        fuente = (Path(__file__).resolve().parents[1]
-                  / 'src' / 'igea_dgs' / 'gui.py').read_text(encoding='utf-8')
-        for metodo in ('_browse_red', '_browse_loads', '_browse_equipment'):
-            cuerpo = fuente.split('def ' + metodo)[1].split('\n    def ')[0]
-            assert '_guardar_ajustes()' in cuerpo, metodo
+        red = Path(_txt(tmp_path, 'red_web.txt'))
+        root = tmp_path / 'workspace'
+        workspace = Workspace(id='abcdef12', root=root)
+        workspace.set_input('red', red, origin='server')
 
-    def test_lo_recordado_manda_sobre_los_txt_de_ejemplo(self):
-        """Si ya se trabajó con una entrega, esa gana a los de referencia/."""
-        from pathlib import Path
+        reloaded = Workspace.load(root)
+        assert reloaded.inputs['red']['path'] == str(red)
 
-        fuente = (Path(__file__).resolve().parents[1]
-                  / 'src' / 'igea_dgs' / 'gui.py').read_text(encoding='utf-8')
-        assert 'if not self._restaurar_ajustes():' in fuente
-        i = fuente.index('if not self._restaurar_ajustes():')
-        j = fuente.index('_default_referencia_inputs()', i)
-        assert j > i, 'el relleno de ejemplo debe ir DENTRO del caso «no había nada»'
+    def test_la_seleccion_mas_reciente_manda(self, tmp_path):
+        from igea_dgs.web.workspace import Workspace
 
-    def test_la_ventana_guarda_tambien_al_cerrar(self):
-        from pathlib import Path
+        vieja = Path(_txt(tmp_path, 'red_vieja.txt'))
+        nueva = Path(_txt(tmp_path, 'red_nueva.txt'))
+        root = tmp_path / 'workspace'
+        workspace = Workspace(id='abcdef12', root=root)
+        workspace.set_input('red', vieja, origin='server')
+        workspace.set_input('red', nueva, origin='server')
 
-        fuente = (Path(__file__).resolve().parents[1]
-                  / 'src' / 'igea_dgs' / 'gui.py').read_text(encoding='utf-8')
-        cuerpo = fuente.split('def _on_close')[1].split('\n    def ')[0]
-        assert '_guardar_ajustes()' in cuerpo
+        assert Workspace.load(root).inputs['red']['path'] == str(nueva)
+
+    def test_opciones_y_entradas_sobreviven_al_reinicio(self, tmp_path):
+        from igea_dgs.web.workspace import WorkspaceStore
+
+        store = WorkspaceStore(tmp_path / 'web')
+        workspace = store.create()
+        red = Path(_txt(tmp_path, 'red_reinicio.txt'))
+        workspace.set_input('red', red, origin='server')
+        workspace.options['source_crs'] = 'EPSG:32717'
+        workspace.save()
+
+        reloaded = WorkspaceStore(store.root).get(workspace.id)
+        assert reloaded is not None
+        assert reloaded.inputs['red']['path'] == str(red)
+        assert reloaded.options['source_crs'] == 'EPSG:32717'

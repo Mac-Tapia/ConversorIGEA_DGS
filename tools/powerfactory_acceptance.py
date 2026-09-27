@@ -18,7 +18,7 @@ Checks:
     (aligned with User Manual ch. 24.6 + ComLdf attrs from PF Help)
   - Optional study suite (``--run-studies``): ComLdf + ComShc (+ registry)
   - After import / LDF: persist ``{feeder}.dgs`` (+ known sidecars) into the
-    same convert ``out_dir`` used by GUI/CLI individual convert; optionally
+    same convert ``out_dir`` used by web/CLI individual convert; optionally
     ComExport a ``{feeder}_pf_converged.dgs`` round-trip when LDF passes
 
 DigSILENT Help sources used (PF 2024 install)::
@@ -308,7 +308,7 @@ def _configure_feeder_metadata(
 # ---------------------------------------------------------------------------
 # Persist DGS into convert out_dir (+ optional ComExport after LDF)
 # ---------------------------------------------------------------------------
-# Individual convert (GUI ``out_dir`` / CLI ``--out-dir`` / ``convert_selection``)
+# Individual convert (web workspace / CLI ``--out-dir`` / ``convert_selection``)
 # writes ``{feeder}.dgs`` and sidecars there. The PF gate imports from that path
 # into a *new* PF project; corrections stay in-memory unless we export.
 # These helpers guarantee the convert folder always holds the DGS used/validated.
@@ -2177,7 +2177,7 @@ def _parser() -> argparse.ArgumentParser:
         '--persist-dir',
         help=(
             'Convert out_dir where {feeder}.dgs must remain after the gate '
-            '(default: parent of --import-dgs, same as GUI/CLI individual convert)'
+            '(default: parent of --import-dgs, same as web/CLI individual convert)'
         ),
     )
     p.add_argument(

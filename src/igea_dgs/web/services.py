@@ -1,11 +1,10 @@
 """Las acciones de la interfaz, sin interfaz.
 
-Cada función de aquí es lo que hacía un botón de la GUI de escritorio, pero sin Tk y
-sin diálogos: recibe el espacio de trabajo y un :class:`JobContext`, escribe en el
+Cada función recibe el espacio de trabajo y un :class:`JobContext`, escribe en el
 Registro y devuelve un resultado serializable. Las rutas de la API solo validan,
 encolan y responden.
 
-Dos defectos de la GUI de escritorio se corrigen aquí en lugar de copiarse:
+Dos defectos de la implementación anterior se corrigen aquí:
 
 * «Cargar fichero y actualizar» llamaba a ``loads.read_template``, que no existe; el
   botón fallaba siempre. Aquí se usa ``loads.read_workbook``.

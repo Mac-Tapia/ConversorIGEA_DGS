@@ -104,7 +104,6 @@ def _parser() -> argparse.ArgumentParser:
              'y todas las tablas DGS en CSV/TSV.',
     )
 
-    sub.add_parser('gui', help='Open the desktop (Tkinter) interface')
     web = sub.add_parser('web', help='Start the web interface (FastAPI + React) and open the browser')
     web.add_argument('--host', default='127.0.0.1')
     web.add_argument('--port', type=int, default=8765)
@@ -210,9 +209,6 @@ def load_dataset(args) -> CymdistDataset:
 def main(argv=None) -> int:
     args = _parser().parse_args(argv)
 
-    if args.command == 'gui':
-        from .gui import main as gui_main
-        return gui_main()
     if args.command == 'web':
         from .web.__main__ import main as web_main
         argv_web = ['--host', args.host, '--port', str(args.port)]

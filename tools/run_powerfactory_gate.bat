@@ -8,7 +8,7 @@ if exist "%PF_PYTHON%\powerfactory.pyd" set "PYTHONPATH=%PF_PYTHON%;%PYTHONPATH%
 
 if "%~1"=="" (
   echo Uso:
-  echo   tools\run_powerfactory_gate.bat output\gui\AL104.dgs output\gui\AL104_geography.json
+  echo   tools\run_powerfactory_gate.bat output\web\AL104.dgs output\web\AL104_geography.json
   echo.
   echo Requiere PowerFactory instalado/licenciado. Preferible tener PF abierto.
   exit /b 1
