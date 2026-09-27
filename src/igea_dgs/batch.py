@@ -15,6 +15,7 @@ from pathlib import Path
 from .dataset import CymdistDataset
 from .dgs import write_dgs
 from .export_tables import write_dgs_tsv, write_dgs_xlsx
+from .feeder_metadata import write_feeder_metadata
 from .geography import (
     assert_metre_source_crs,
     build_geography,
@@ -163,6 +164,7 @@ def _convert_feeder(
     tsv_dir = stage / f'{feeder}_dgs_tables'
     preview_html_path = stage / f'{feeder}_preview.html'
     preview_geojson_path = stage / f'{feeder}_preview.geojson'
+    feeder_metadata_path = stage / f'{feeder}_feeder_metadata.json'
     # Un FEEDER=/SOURCE sin filas SECTION ya no se omite: se convierte dibujando
     # la barra de cabecera, que es lo único que el export contiene. El manifiesto
     # lo marca como 'source_only' para que no se confunda con un alimentador
@@ -196,6 +198,8 @@ def _convert_feeder(
 
         manifiesto_dgs = write_dgs(model, dgs_path, schema_profile=opts.schema_profile,
                                    geography=geography, trafos=opts.trafos)
+        write_feeder_metadata(
+            manifiesto_dgs.feeder_assignments, dgs_path, feeder_metadata_path)
 
         if opts.export_xlsx:
             write_dgs_xlsx(dgs_path, xlsx_path)
@@ -226,6 +230,7 @@ def _convert_feeder(
         tsv_dir = out_dir / tsv_dir.name
         preview_html_path = out_dir / preview_html_path.name
         preview_geojson_path = out_dir / preview_geojson_path.name
+        feeder_metadata_path = out_dir / feeder_metadata_path.name
 
         item = {
             'feeder': feeder,
@@ -234,6 +239,7 @@ def _convert_feeder(
             'status': 'ok' if ok else 'failed',
             'dgs': str(dgs_path) if ok else None,
             'dgs_published': ok,
+            'feeder_metadata': str(feeder_metadata_path) if ok else None,
             'validation_json': str(json_path),
             'validation_txt': str(txt_path),
             'errors_total': report['errors_total'],
@@ -639,8 +645,10 @@ def convert_group(
         _clear_stage(stage)
         stage.mkdir(parents=True, exist_ok=True)
         dgs_path = stage / f'{nombre}.dgs'
+        feeder_metadata_path = stage / f'{nombre}_feeder_metadata.json'
         man = write_dgs(combinado, dgs_path, schema_profile=schema_profile,
                         geography=geography, trafos=trafos)
+        write_feeder_metadata(man.feeder_assignments, dgs_path, feeder_metadata_path)
         report = validate_dgs(combinado, dgs_path, schema_profile=schema_profile, geography=geography)
         write_validation_reports(report, stage / f'{nombre}_validation.json',
                                  stage / f'{nombre}_validation.txt')
@@ -656,6 +664,7 @@ def convert_group(
         manifest.update({
             'status': 'ok' if ok else 'failed',
             'dgs': str(out_dir / f'{nombre}.dgs') if ok else None,
+            'feeder_metadata': (str(out_dir / feeder_metadata_path.name) if ok else None),
             'errors_total': report['errors_total'],
             'counts': report['counts'],
             'union': informe_union.text(),

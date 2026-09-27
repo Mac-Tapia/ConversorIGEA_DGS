@@ -154,7 +154,9 @@ class TestAtomicPublication:
         assert manifest['summary']['ok'] == 1
         assert manifest['summary']['failed'] == 1
         assert (out / 'NA999.dgs').is_file()      # el bueno sí se publica
+        assert (out / 'NA999_feeder_metadata.json').is_file()
         assert not (out / 'NB888.dgs').exists()   # el roto no deja nada
+        assert not (out / 'NB888_feeder_metadata.json').exists()
         assert _stages(out) == []
 
     def test_failed_rerun_keeps_the_previous_good_dgs(self, tmp_path):
