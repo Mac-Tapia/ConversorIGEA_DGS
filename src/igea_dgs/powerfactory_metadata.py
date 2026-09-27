@@ -216,13 +216,19 @@ def apply_feeder_assignment_plan(
     touched: list[tuple[Any, Any]] = []
     try:
         for item, (obj, old_value) in zip(plan.resolved, previous, strict=True):
-            if old_value == item.record.feeder:
+            # PowerFactory 2024 exposes values created with AddString as
+            # STRING_VEC (``[]`` / ``['NA203']``), despite the scalar-looking
+            # AddString signature in the official example.
+            encoded_value: Any = (
+                [item.record.feeder] if isinstance(old_value, list) else item.record.feeder
+            )
+            if old_value == encoded_value:
                 report['unchanged'] += 1
                 continue
-            _strict_set_attribute(obj, attribute, item.record.feeder)
+            _strict_set_attribute(obj, attribute, encoded_value)
             touched.append((obj, old_value))
             actual = _pf_attribute(obj, attribute)
-            if actual != item.record.feeder:
+            if actual != encoded_value:
                 raise RuntimeError(
                     f'lectura posterior distinta para {item.record.loc_name!r}: {actual!r}'
                 )

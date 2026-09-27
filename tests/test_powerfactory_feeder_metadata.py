@@ -104,10 +104,11 @@ class FakePfObject:
         substation: str = '',
         *,
         fail_write: bool = False,
+        vector_string: bool = False,
     ):
         self.class_name = class_name
         self.loc_name = loc_name
-        self.values = {'p:alimentador': ''}
+        self.values = {'p:alimentador': [] if vector_string else ''}
         self.fail_write = fail_write
         self.parent = _Container('ElmSubstat', substation) if substation else _Container('ElmNet', 'RED')
         term_parent = self.parent if substation else _Container('ElmNet', 'RED')
@@ -200,7 +201,7 @@ def test_resolution_distinguishes_equal_names_by_terminal_and_assigns_each_feede
     plan = resolve_feeder_assignments(records, [na203, na205])
     report = apply_feeder_assignment_plan(plan)
 
-    assert report['ok'] is True
+    assert report['ok'] is True, report
     assert report['assigned'] == 2
     assert report['counts_by_feeder'] == {'NA203': 1, 'NA205': 1}
     assert na203.values['p:alimentador'] == 'NA203'
@@ -238,3 +239,21 @@ def test_failed_write_rolls_back_every_object_already_touched():
     assert first.values['p:alimentador'] == 'ORIGINAL'
     assert second.values['p:alimentador'] == ''
     assert 'write rejected' in report['errors'][0]
+
+
+def test_powerfactory_string_vector_is_written_as_one_item_list():
+    source = FakePfObject(
+        'ElmXnet', 'External Grid NA203', 'SRC-203', vector_string=True,
+    )
+    record = _assignment(
+        class_name='ElmXnet', loc_name='External Grid NA203', terminal='SRC-203',
+        substation='',
+    )
+
+    report = apply_feeder_assignment_plan(
+        resolve_feeder_assignments([record], [source])
+    )
+
+    assert not report['errors'], report['errors']
+    assert report['ok'] is True, report
+    assert source.values['p:alimentador'] == ['NA203']
