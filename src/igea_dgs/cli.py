@@ -98,6 +98,11 @@ def _parser() -> argparse.ArgumentParser:
         help='Procesos en paralelo: 1 en serie (por defecto), N hasta N, 0 automático. '
              'El resultado es idéntico; cada proceso guarda una copia del dataset en memoria.',
     )
+    conv.add_argument(
+        '--export-electrical', action='store_true',
+        help='En una red --unir, exportar inventario eléctrico fuente/normalizado completo '
+             'y todas las tablas DGS en CSV/TSV.',
+    )
 
     sub.add_parser('gui', help='Open the desktop (Tkinter) interface')
     web = sub.add_parser('web', help='Start the web interface (FastAPI + React) and open the browser')
@@ -288,7 +293,8 @@ def main(argv=None) -> int:
                 strict=not args.non_strict, schema_profile=args.schema_profile,
                 source_crs=args.source_crs, target_crs=args.target_crs,
                 catalog_corrections=correcciones_catalogo, reglas=reglas, catalogo=catalogo,
-                on_progress=_progress,
+                on_progress=_progress, workers=args.workers,
+                export_electrical=args.export_electrical,
             )
             comp = grupo.get('completitud') or {}
             print(f"Red unida {grupo['name']}: {grupo['status']} — "

@@ -53,6 +53,19 @@ function GroupsList() {
                     Name → Alimentador
                   </a>
                 )}
+                {g.electrical_export_manifest && (
+                  <>
+                    <a className="link" href={api.fileUrl(ws.id, `${g.name}_electrical_export_manifest.json`, true)}>
+                      Inventario eléctrico
+                    </a>
+                    <a className="link" href={api.fileUrl(ws.id, `${g.name}_electrical_tables/cargas.csv`, true)}>
+                      Cargas CSV
+                    </a>
+                    <a className="link" href={api.fileUrl(ws.id, `${g.name}_electrical_tables/sed.csv`, true)}>
+                      SED CSV
+                    </a>
+                  </>
+                )}
                 {g.dgs && (
                   <button className="link" disabled={Boolean(active.powerfactory)} onClick={async () => {
                     if (await confirm('DigSILENT PowerFactory', <p>Se importará <b>{g.name}.dgs</b> en PowerFactory y se correrá el flujo.</p>)) {
