@@ -21,7 +21,7 @@ Sobre cada **modelo** (por alimentador):
    (:mod:`igea_dgs.sed_potencia`).
 4. Correcciones de ficha del catálogo (filas ``ficha``/``derivado``), conservando código,
    sección y tipo.
-5. Diagrama en hoja **A0**, símbolos según la cuadrícula, todos los tramos dibujados.
+5. Diagrama a escala geográfica, con lienzo adaptativo, todos los tramos dibujados.
 
 Y sobre el **resultado**: auditoría de completitud contra la entrada
 (:func:`auditar_completitud`). Un alimentador que pierde un elemento no es «ok».
@@ -43,7 +43,7 @@ MARCADOR_DEFAULT = {'ID': 'DEFAULT', 'R1': '0.4', 'R0': '0.4', 'X1': '0.4', 'X0'
 
 @dataclass(frozen=True)
 class Reglas:
-    hoja: str | None = 'A0'
+    hoja: str | None = None
     fundir_puentes: bool = True
     excluir_trafomix: bool = True
     redimensionar_sed: bool = True
@@ -55,6 +55,12 @@ REGLAS_PROYECTO = Reglas()
 #: Conversión literal de la entrada, sin ninguna regla (pruebas de fidelidad).
 SIN_REGLAS = Reglas(hoja=None, fundir_puentes=False, excluir_trafomix=False,
                     redimensionar_sed=False, dibujar_todo=False)
+
+
+def normalizar_hoja(value: str | None) -> str | None:
+    """Convierte la opción pública AUTO/vacía en el lienzo adaptativo interno."""
+    normalizada = (value or '').strip().upper()
+    return None if normalizada in ('', 'AUTO') else normalizada
 
 
 def catalogo_del_proyecto() -> Path | None:
@@ -154,8 +160,7 @@ def aplicar_reglas(model, reglas: Reglas = REGLAS_PROYECTO, *,
         from .sed_potencia import redimensionar_sobrecargadas
 
         informe['sed_redimensionadas'] = [r.linea() for r in redimensionar_sobrecargadas(model)]
-    if reglas.hoja:
-        model.diagram_sheet = reglas.hoja
+    model.diagram_sheet = normalizar_hoja(reglas.hoja)
     if reglas.dibujar_todo:
         model.diagram_max_stub_m = -1.0
     return informe

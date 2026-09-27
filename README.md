@@ -69,7 +69,7 @@ GUI de escritorio, red unida— convierte con las mismas reglas (`src/igea_dgs/r
 
 | Regla | Qué hace |
 |---|---|
-| Hoja **A0** | La red entera cabe en una hoja A0 de PowerFactory con escala isótropa; los símbolos se miden en la cuadrícula de la hoja. PowerFactory crea la hoja A0 al importar. |
+| Lienzo **AUTO** | Conserva la escala geográfica de referencia y hace crecer el lienzo con la extensión de la red. A0–A4 quedan como formatos explícitos de impresión. |
 | Coordenadas | Los nodos sin `CoordX/CoordY` se colocan por el grafo (interpolación por longitud de tramo); se marcan como inferidos y no cambian longitudes eléctricas. |
 | Puentes `DEFAULT` | Los tramos `DEFAULT` de ≤ 10 m que CYMDIST crea para colgar un seccionador o una carga se funden: el seccionador pasa a `ElmCoup`, la SED queda en su barra. Un `DEFAULT` más largo es una línea real y se conserva. |
 | Trafomix | La medición de MT registrada como SED `M…` no se modela (no es un transformador de distribución). |
@@ -82,7 +82,7 @@ cada alimentador con su fuente, enlaces como interruptores abiertos):
 
 ```bash
 igea-dgs convert --mdb 260924.mdb --feeder NA203 --feeder NA205 --unir NA203_NA205 --out-dir out
-igea-dgs convert --red R.txt --loads C.txt --equipment E.txt --all --out-dir out   # hoja A0 por defecto
+igea-dgs convert --red R.txt --loads C.txt --equipment E.txt --all --out-dir out   # lienzo AUTO por defecto
 ```
 
 En la web: «Unir en un solo DGS…» con los alimentadores seleccionados. `--literal`

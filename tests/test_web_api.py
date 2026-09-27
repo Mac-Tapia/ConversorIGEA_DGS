@@ -205,6 +205,7 @@ def test_procesos_en_paralelo_se_eligen_y_se_validan(client):
     health = client.get('/api/health').json()
     assert health['parallel']['auto'] >= 1 and health['parallel']['cpus'] >= 1
     assert health['default_options']['workers'] == 0, 'automático por defecto'
+    assert health['default_options']['hoja'] == 'AUTO', 'escala real adaptativa por defecto'
 
     wid = _workspace(client)
     r = client.put(f'/api/workspaces/{wid}/options', json={'workers': 2})
@@ -212,6 +213,13 @@ def test_procesos_en_paralelo_se_eligen_y_se_validan(client):
     for fuera_de_rango in (-1, 999):
         r = client.put(f'/api/workspaces/{wid}/options', json={'workers': fuera_de_rango})
         assert r.status_code == 422, fuera_de_rango
+
+
+def test_la_hoja_auto_es_una_opcion_web_valida(client):
+    wid = _workspace(client)
+    r = client.put(f'/api/workspaces/{wid}/options', json={'hoja': 'AUTO'})
+    assert r.status_code == 200
+    assert r.json()['options']['hoja'] == 'AUTO'
 
 
 def test_convertir_en_paralelo_da_lo_mismo_que_en_serie(client, tmp_path):

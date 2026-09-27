@@ -66,8 +66,8 @@ DEFAULT_OPTIONS: dict[str, Any] = {
     'export_tsv': False,
     # Procesos para convertir alimentadores a la vez: 0 automático, 1 en serie.
     'workers': 0,
-    # Hoja del diagrama en PowerFactory (reglas del proyecto: A0).
-    'hoja': 'A0',
+    # AUTO conserva 2,08 unidades/metro y hace crecer el lienzo con la red.
+    'hoja': 'AUTO',
 }
 
 TEXT_OPTIONS = ('input_mode', 'source_crs', 'target_crs', 'hoja')

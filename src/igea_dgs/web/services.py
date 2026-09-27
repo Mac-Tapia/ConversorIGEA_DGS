@@ -451,12 +451,12 @@ def powerfactory_flow(ws: Workspace, ctx: JobContext, feeders: list[str]) -> dic
 
 
 def reglas_de(ws: Workspace):
-    """Reglas del proyecto con la hoja elegida en el espacio (A0 por defecto)."""
+    """Reglas del proyecto con lienzo adaptativo o la hoja explícita elegida."""
     from dataclasses import replace
 
-    from ..reglas import REGLAS_PROYECTO
+    from ..reglas import REGLAS_PROYECTO, normalizar_hoja
 
-    return replace(REGLAS_PROYECTO, hoja=ws.options.get('hoja') or 'A0')
+    return replace(REGLAS_PROYECTO, hoja=normalizar_hoja(ws.options.get('hoja')))
 
 
 def build_model(ws: Workspace, feeder: str, *, geography: bool | None = None):
@@ -544,8 +544,10 @@ def convert_group(ws: Workspace, ctx: JobContext, feeders: list[str], nombre: st
                 'quedan en el DGS fuera de servicio.')
     if man['status'] == 'ok':
         hoja = man.get('hoja') or {}
+        formato = (f"hoja {hoja.get('formato')} {hoja.get('orientacion')}"
+                   if hoja else 'lienzo adaptativo 2,08 u/m')
         ctx.log(f"OK {nombre}.dgs — {man['counts'].get('dgs_lines', '?')} líneas; "
-                f"hoja {hoja.get('formato')} {hoja.get('orientacion')}; "
+                f"{formato}; "
                 f"completitud: {'OK' if not man['completitud']['fallos'] else man['completitud']['fallos']}")
     else:
         ctx.log(f"FAIL {nombre}: {man.get('error')}")

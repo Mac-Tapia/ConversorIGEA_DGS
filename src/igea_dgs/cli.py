@@ -81,8 +81,8 @@ def _parser() -> argparse.ArgumentParser:
         help='Map renderer: leafmap (@opengeos) or Leaflet CDN fallback',
     )
     conv.add_argument(
-        '--hoja', default='A0', choices=('A0', 'A1', 'A2', 'A3', 'A4'),
-        help='Hoja del diagrama en PowerFactory (reglas del proyecto: A0).',
+        '--hoja', default='AUTO', choices=('AUTO', 'A0', 'A1', 'A2', 'A3', 'A4'),
+        help='Lienzo AUTO a escala real (defecto), o hoja de impresión A0…A4.',
     )
     conv.add_argument(
         '--unir', metavar='NOMBRE',
@@ -257,9 +257,10 @@ def main(argv=None) -> int:
         # del proyecto completa conductores, da los transformadores y sus fichas.
         from dataclasses import replace as _replace
 
-        from .reglas import REGLAS_PROYECTO, SIN_REGLAS, catalogo_del_proyecto
+        from .reglas import REGLAS_PROYECTO, SIN_REGLAS, catalogo_del_proyecto, normalizar_hoja
 
-        reglas = SIN_REGLAS if args.literal else _replace(REGLAS_PROYECTO, hoja=args.hoja)
+        reglas = (SIN_REGLAS if args.literal else
+                  _replace(REGLAS_PROYECTO, hoja=normalizar_hoja(args.hoja)))
         catalogo = None if args.literal else catalogo_del_proyecto()
         correcciones_catalogo = None
         if args.catalogo is not None:

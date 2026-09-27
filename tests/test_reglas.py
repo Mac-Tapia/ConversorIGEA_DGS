@@ -1,6 +1,6 @@
 """Reglas del proyecto: se aplican siempre, en cualquier vía, y no pierden nada.
 
-Ver ``igea_dgs.reglas``: hoja A0, coordenadas por el grafo, puentes fundidos,
+Ver ``igea_dgs.reglas``: lienzo adaptativo, coordenadas por el grafo, puentes fundidos,
 trafomix excluidos, SED redimensionadas, catálogo del proyecto y auditoría de
 completitud. Estas pruebas usan el export sintético, en sus dos disposiciones.
 """
@@ -8,6 +8,7 @@ completitud. Estas pruebas usan el export sintético, en sus dos disposiciones.
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 
 import pytest
 
@@ -27,12 +28,24 @@ def ds(tmp_path, request):
 
 
 def test_las_reglas_del_proyecto_son_el_defecto(ds, tmp_path):
+    assert REGLAS_PROYECTO.hoja is None
     m = convert_selection(ds, None, tmp_path / 'o', all_feeders=True, source_crs='EPSG:32718')
     assert m['reglas'] == REGLAS_PROYECTO.__dict__
     for item in m['feeders']:
         assert item['status'] == 'ok', item.get('error')
-        assert item['hoja']['formato'] == 'A0'
+        assert 'hoja' not in item
         assert item['completitud']['fallos'] == []
+
+
+def test_una_hoja_a0_sigue_disponible_si_se_solicita(ds, tmp_path):
+    reglas = replace(REGLAS_PROYECTO, hoja='A0')
+    m = convert_selection(
+        ds, None, tmp_path / 'a0', all_feeders=True,
+        source_crs='EPSG:32718', reglas=reglas,
+    )
+    for item in m['feeders']:
+        assert item['status'] == 'ok', item.get('error')
+        assert item['hoja']['formato'] == 'A0'
 
 
 def test_un_default_largo_es_linea_real_y_no_se_funde(ds, tmp_path):
@@ -64,7 +77,7 @@ def test_varios_alimentadores_en_un_solo_dgs(ds, tmp_path):
     assert man['completitud']['fallos'] == []
     tablas = parse_dgs(man['dgs'])
     assert len(tablas['ElmXnet']['rows_dict']) == len(nombres), 'una fuente por alimentador'
-    assert man['hoja']['formato'] == 'A0'
+    assert man['hoja'] is None
     guardado = json.loads((tmp_path / 'g' / 'GRUPO_1_manifest.json').read_text(encoding='utf-8'))
     assert guardado['status'] == 'ok'
 
@@ -115,7 +128,7 @@ def test_web_une_en_un_dgs_y_exige_proyecto_para_aplicar_cargas(tmp_path, monkey
         assert j['result']['status'] == 'ok', j['result']
         estado = c.get(f'/api/workspaces/{wid}').json()
         assert [g['name'] for g in estado['groups']] == ['RED']
-        assert estado['options']['hoja'] == 'A0'
+        assert estado['options']['hoja'] == 'AUTO'
 
         ws = c.app.state.store.get(wid)
         assert services.proyecto_pf_de(ws, nombres[0]) is None
