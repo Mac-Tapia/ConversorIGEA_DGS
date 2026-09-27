@@ -51,9 +51,11 @@ def _alimentador(
     if con_carga:
         loads.append(Load(f'{nombre}_SECL', 'D1', 'C', '1', con_carga, 0.05, 0.01,
                           0.95, 50.0, 0.0, 'ABC', sed_code=f'SE_{nombre}',
-                          display_name=f'SE_{nombre}'))
+                          display_name=f'SE_{nombre}', feeder=nombre,
+                          network_id=f'NET_{nombre}'))
         seds.append(Sed(f'SE_{nombre}', f'SE_{nombre}', con_carga, 100.0,
-                        f'{nombre}_SECL', 'D1', (f'{nombre}_SECL', 'D1')))
+                        f'{nombre}_SECL', 'D1', (f'{nombre}_SECL', 'D1'),
+                        feeder=nombre, network_id=f'NET_{nombre}'))
     return FeederModel(
         name=nombre, network_id=f'NET_{nombre}', nominal_kv=kv,
         source_node=fuente or nodos[0], nodes=nodes, lines=lines, loads=loads,
@@ -176,6 +178,16 @@ class TestTiposPorTension:
 
 
 class TestIdentidadDeCadaAlimentador:
+    def test_cargas_y_sed_conservan_el_propietario_al_unirse(self):
+        modelos = [
+            _alimentador('NA203', 22.9, ['A1', 'A2'], con_carga='A2'),
+            _alimentador('NA205', 22.9, ['B1', 'B2'], con_carga='B2'),
+        ]
+        modelo, _ = combine_models(modelos, name='NA203_NA205')
+        assert {load.feeder for load in modelo.loads} == {'NA203', 'NA205'}
+        assert {load.network_id for load in modelo.loads} == {'NET_NA203', 'NET_NA205'}
+        assert {sed.feeder for sed in modelo.seds} == {'NA203', 'NA205'}
+
     def test_hay_una_fuente_por_alimentador(self):
         modelos = [_alimentador(f'F{i}', 10.0, [f'{i}a', f'{i}b']) for i in range(5)]
         modelo, _ = combine_models(modelos)
