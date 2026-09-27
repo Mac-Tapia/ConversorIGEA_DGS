@@ -34,6 +34,42 @@ ProgressCallback = Callable[[str, int, int], None]
 STAGE_PREFIX = '.igea-stage-'
 
 
+@dataclass(frozen=True)
+class _GroupBuildOptions:
+    aliases: Mapping[str, str]
+    strict: bool
+    reglas: Reglas
+    catalog_corrections: Mapping[str, Any] | None
+
+
+_GROUP_WORKER_STATE: tuple[CymdistDataset, _GroupBuildOptions] | None = None
+
+
+def _init_group_worker(dataset: CymdistDataset, opts: _GroupBuildOptions) -> None:
+    global _GROUP_WORKER_STATE
+    _GROUP_WORKER_STATE = (dataset, opts)
+
+
+def _build_group_feeder(
+    dataset: CymdistDataset, network_id: str, opts: _GroupBuildOptions,
+) -> tuple[Any, dict[str, Any]]:
+    model = build_feeder_model(
+        dataset, network_id, aliases=dict(opts.aliases), strict=opts.strict,
+        include_geography=True,
+    )
+    report = aplicar_reglas(
+        model, opts.reglas, correcciones=opts.catalog_corrections,
+    )
+    return model, report
+
+
+def _build_group_feeder_worker(network_id: str) -> tuple[Any, dict[str, Any]]:
+    if _GROUP_WORKER_STATE is None:  # pragma: no cover - process bootstrap guard
+        raise RuntimeError('worker de grupo no inicializado')
+    dataset, opts = _GROUP_WORKER_STATE
+    return _build_group_feeder(dataset, network_id, opts)
+
+
 class BatchCancelled(Exception):
     """El operador canceló el lote; los alimentadores ya publicados se conservan."""
 
@@ -600,6 +636,8 @@ def convert_group(
     catalogo: Path | str | None = None,
     on_progress: ProgressCallback | None = None,
     cancel: threading.Event | None = None,
+    workers: int | None = None,
+    export_electrical: bool = False,
 ) -> dict:
     """Une los alimentadores elegidos en una sola red y escribe **un** DGS.
 
@@ -607,7 +645,10 @@ def convert_group(
     unidos por un interruptor normalmente abierto (:mod:`igea_dgs.combine`). Se aplican
     las mismas reglas que a un alimentador suelto, se valida, se audita la completitud
     del grupo contra la entrada y se publica de forma atómica. Escribe
-    ``<name>_manifest.json`` pase lo que pase.
+    ``<name>_manifest.json`` pase lo que pase. ``workers`` prepara en procesos
+    independientes los modelos de cada alimentador; la combinación y publicación
+    siguen siendo únicas y deterministas. ``export_electrical`` agrega las tablas
+    completas fuente/normalizadas y todas las tablas DGS.
     """
     from .combine import combine_models
 
@@ -628,23 +669,64 @@ def convert_group(
     manifest: dict[str, Any] = {
         'name': nombre, 'feeders': list(selectors), 'network_ids': [],
         'reglas': reglas.__dict__, 'entrada': informe_entrada.texto(), 'status': 'failed',
+        'workers': 1, 'electrical_tables': None,
+        'electrical_export_manifest': None, 'dgs_tables': None,
     }
     try:
         # Dentro del try: un nombre que no existe también deja manifiesto.
         networks = _selection(dataset, selectors, False)
         manifest['feeders'] = [feeder_short_name(n) for n in networks]
         manifest['network_ids'] = networks
-        modelos, informes = [], {}
-        for index, net in enumerate(networks, start=1):
-            if cancel is not None and cancel.is_set():
-                manifest['status'] = 'cancelled'
-                return manifest
-            if on_progress is not None:
-                on_progress(net, index, len(networks))
-            m = build_feeder_model(dataset, net, aliases=dict(aliases or {}), strict=strict,
-                                   include_geography=True)
-            informes[m.name] = aplicar_reglas(m, reglas, correcciones=catalog_corrections)
-            modelos.append(m)
+        n_workers = resolve_workers(workers, len(networks))
+        manifest['workers'] = n_workers
+        build_opts = _GroupBuildOptions(
+            aliases=dict(aliases or {}), strict=strict, reglas=reglas,
+            catalog_corrections=(
+                dict(catalog_corrections) if catalog_corrections else None
+            ),
+        )
+        built: dict[str, tuple[Any, dict[str, Any]]] = {}
+        if n_workers == 1:
+            for index, net in enumerate(networks, start=1):
+                if cancel is not None and cancel.is_set():
+                    manifest['status'] = 'cancelled'
+                    return manifest
+                if on_progress is not None:
+                    on_progress(net, index, len(networks))
+                built[net] = _build_group_feeder(dataset, net, build_opts)
+        else:
+            completed = 0
+            with ProcessPoolExecutor(
+                max_workers=n_workers,
+                initializer=_init_group_worker,
+                initargs=(dataset, build_opts),
+            ) as pool:
+                pending = {
+                    pool.submit(_build_group_feeder_worker, net): net
+                    for net in networks
+                }
+                cancelled = False
+                while pending:
+                    finished, _ = wait(
+                        pending, timeout=0.2, return_when=FIRST_COMPLETED,
+                    )
+                    for future in finished:
+                        net = pending.pop(future)
+                        if future.cancelled():
+                            continue
+                        built[net] = future.result()
+                        completed += 1
+                        if on_progress is not None:
+                            on_progress(net, completed, len(networks))
+                    if not cancelled and cancel is not None and cancel.is_set():
+                        cancelled = True
+                        for future in pending:
+                            future.cancel()
+                if cancelled:
+                    manifest['status'] = 'cancelled'
+                    return manifest
+        modelos = [built[net][0] for net in networks]
+        informes = {built[net][0].name: built[net][1] for net in networks}
         combinado, informe_union = combine_models(modelos, name=nombre)
         geography = build_geography(dataset, combinado, source_crs=source_crs, target_crs=target_crs)
         _clear_stage(stage)
@@ -660,6 +742,17 @@ def convert_group(
         write_validation_reports(report, stage / f'{nombre}_validation.json',
                                  stage / f'{nombre}_validation.txt')
         write_geography_manifest(geography, stage / f'{nombre}_geography.json', model=combinado)
+        electrical_tables_path = stage / f'{nombre}_electrical_tables'
+        electrical_manifest_path = stage / f'{nombre}_electrical_export_manifest.json'
+        dgs_tables_path = stage / f'{nombre}_dgs_tables'
+        if export_electrical:
+            from .electrical_export import write_electrical_export
+
+            write_electrical_export(
+                dataset, networks, modelos, dgs_path,
+                electrical_tables_path, electrical_manifest_path,
+            )
+            write_dgs_tsv(dgs_path, dgs_tables_path)
         completitud = auditar_completitud(dataset, networks, combinado, parse_dgs(dgs_path),
                                           informes.values())
         ok = report['errors_total'] == 0 and not completitud['fallos']
@@ -674,6 +767,18 @@ def convert_group(
             'feeder_metadata': (str(out_dir / feeder_metadata_path.name) if ok else None),
             'name_feeder_mapping': (
                 str(out_dir / name_feeder_mapping_path.name) if ok else None
+            ),
+            'electrical_tables': (
+                str(out_dir / electrical_tables_path.name)
+                if ok and export_electrical else None
+            ),
+            'electrical_export_manifest': (
+                str(out_dir / electrical_manifest_path.name)
+                if ok and export_electrical else None
+            ),
+            'dgs_tables': (
+                str(out_dir / dgs_tables_path.name)
+                if ok and export_electrical else None
             ),
             'errors_total': report['errors_total'],
             'counts': report['counts'],

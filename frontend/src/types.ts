@@ -29,6 +29,10 @@ export interface GroupDgs {
   completitud: { fallos: string[] } | null;
   feeder_metadata?: string | null;
   name_feeder_mapping?: string | null;
+  workers?: number;
+  electrical_tables?: string | null;
+  electrical_export_manifest?: string | null;
+  dgs_tables?: string | null;
   feeder_acceptance?: FeederAcceptance | null;
 }
 

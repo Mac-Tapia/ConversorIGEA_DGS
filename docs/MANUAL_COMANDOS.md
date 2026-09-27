@@ -257,6 +257,8 @@ opcionales.
 | CRS origen | `--source-crs EPSG:XXXXX` | El de **su** export |
 | Aliases de tipos | `--aliases ruta.json` | Equivalencias de códigos de conductor |
 | Lienzo / hoja | `--hoja AUTO` (defecto) o `A0`–`A4` | `AUTO` conserva 2,08 unidades/metro y dimensiona el lienzo con la red; A0–A4 son formatos explícitos de impresión |
+| Procesos | `--workers 0`, `1` o `N` | `0` elige automáticamente; en una red unida cada alimentador se prepara en un proceso aislado y la unión final es determinista |
+| Inventario eléctrico de red unida | `--export-electrical` | CSV fuente/normalizado completo, manifiesto de conciliación y TSV de todas las tablas DGS |
 
 ### 4.4 El CRS de origen: el punto que más caro sale equivocar
 
@@ -427,8 +429,31 @@ grupos admite ambas rutas:
 > .venv\Scripts\python.exe tools\convertir_grupos_mdb.py ^
     --mdb red.mdb --equipment-db equipos.mdb ^
     --catalogo input\catalogo_parametros.xlsx ^
-    --grupo NA203_NA205=NA203,NA205 --hoja AUTO --out-dir output\grupo
+    --grupo CA101_PE104=CA101,PE104 --hoja AUTO --workers 2 ^
+    --out-dir output\CA101_PE104
 ```
+
+La herramienta MDB genera por defecto el inventario eléctrico completo. Solo omítalo
+de forma explícita con `--no-electrical-export`. El paquete contiene:
+
+- `CA101_PE104_electrical_tables/*.csv`: redes, todos los nodos y tramos fuente,
+  tipos de línea, cargas, todas las SED modeladas con datos de transformador,
+  maniobras y fuentes;
+- `CA101_PE104_dgs_tables/*.tsv`: cada tabla importable que quedó en el DGS;
+- `CA101_PE104_electrical_export_manifest.json`: cantidad de filas, SHA-256 y
+  conciliación entre entrada y exportación;
+- `CA101_PE104_name_alimentador.csv`: relación `Name → Alimentador` para identificar
+  si cada carga está en CA101, PE104 o cualquier alimentador adicional del grupo.
+
+El paralelismo se limita a la preparación independiente de alimentadores. Este diseño
+se apoya en el pipeline modular y escalable de la
+[tesis de maestría sobre diagramas unifilares desde GIS](https://repositorio.comillas.edu/jspui/handle/11531/99737),
+la descomposición de dominio de sistemas eléctricos de gran escala de la
+[tesis doctoral de la Université de Liège](https://orbi.uliege.be/handle/2268/183353)
+y el artículo indexado
+[Parallel computing of power flow for complex distribution network with DGs](https://doi.org/10.3233/JIFS-169350).
+La escritura final permanece serial y atómica para conservar reproducibilidad y evitar
+artefactos parciales.
 
 ### 5.3 Atajo con el `.bat`
 

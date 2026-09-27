@@ -328,6 +328,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument('--importar', action='store_true')
     p.add_argument('--hoja', default='AUTO', choices=('AUTO', 'A0', 'A1', 'A2', 'A3', 'A4'),
                    help='Lienzo AUTO a escala real (defecto), o hoja A0 … A4.')
+    p.add_argument('--workers', type=int, default=0,
+                   help='Procesos por alimentador: 0 automático, 1 serie, N paralelo.')
+    p.add_argument('--no-electrical-export', action='store_true',
+                   help='No generar el inventario eléctrico CSV ni las tablas DGS TSV.')
     args = p.parse_args(argv)
 
     assert_metre_source_crs(args.source_crs)
@@ -347,12 +351,16 @@ def main(argv: list[str] | None = None) -> int:
 
     resumen = {'mdb': str(args.mdb), 'equipment_db': str(args.equipment_db) if args.equipment_db else None,
                'catalogo': str(catalogo), 'reglas': reglas.__dict__,
+               'workers_requested': args.workers,
+               'electrical_export': not args.no_electrical_export,
                'grupos': {}}
     fallo = False
     for nombre, feeders in grupos.items():
         print(f'\n=== {nombre}: {", ".join(feeders)} ===')
         man = convert_group(dataset, feeders, out_dir, name=nombre, strict=True,
-                            source_crs=args.source_crs, reglas=reglas, catalogo=catalogo)
+                            source_crs=args.source_crs, reglas=reglas, catalogo=catalogo,
+                            workers=args.workers,
+                            export_electrical=not args.no_electrical_export)
         print(f"  {man.get('entrada', '')}")
         for alim, inf in (man.get('reglas_por_alimentador') or {}).items():
             print(f"  {alim}: puentes {(inf.get('puentes') or {}).get('tramos', 0)}, "
@@ -369,7 +377,8 @@ def main(argv: list[str] | None = None) -> int:
         grupo = {k: man.get(k) for k in (
             'feeders', 'network_ids', 'status', 'error', 'dgs', 'errors_total', 'counts',
             'union', 'ties', 'de_energised_nodes', 'completitud', 'hoja',
-            'reglas_por_alimentador', 'entrada')}
+            'reglas_por_alimentador', 'entrada', 'workers', 'electrical_tables',
+            'electrical_export_manifest', 'dgs_tables')}
         fallo |= man['status'] != 'ok'
         if args.importar and man['status'] == 'ok':
             hoja = man['hoja']

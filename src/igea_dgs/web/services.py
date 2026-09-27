@@ -538,11 +538,16 @@ def convert_group(ws: Workspace, ctx: JobContext, feeders: list[str], nombre: st
 
     opts = ws.options
     ctx.log(f'--- Red unida {nombre}: {", ".join(feeders)} ---')
+    from ..batch import resolve_workers
+
+    workers = int(opts.get('workers') or 0)
+    n_workers = resolve_workers(workers, len(feeders))
+    ctx.log(f'Preparación con {n_workers} proceso(s); exportación eléctrica completa habilitada.')
 
     def on_progress(network_id: str, index: int, total: int) -> None:
         name = feeder_short_name(network_id)
         ctx.progress(index, total, name)
-        ctx.log(f'[{index}/{total}] {name}…')
+        ctx.log(f'[{index}/{total}] {name} listo' if n_workers > 1 else f'[{index}/{total}] {name}…')
 
     man = convertir_grupo(
         ws.dataset, feeders, ws.out_dir, name=nombre,
@@ -552,7 +557,8 @@ def convert_group(ws: Workspace, ctx: JobContext, feeders: list[str], nombre: st
         target_crs=opts['target_crs'] or 'EPSG:4326',
         catalog_corrections=ws.catalog_corrections() or None,
         reglas=reglas_de(ws), catalogo=catalogo_del_proyecto(),
-        on_progress=on_progress, cancel=ctx.cancel,
+        on_progress=on_progress, cancel=ctx.cancel, workers=workers,
+        export_electrical=True,
     )
     ctx.log(man.get('entrada') or '')
     if man.get('union'):
@@ -579,13 +585,18 @@ def convert_group(ws: Workspace, ctx: JobContext, feeders: list[str], nombre: st
     with ws.lock:
         ws.groups[nombre] = {k: man.get(k) for k in (
             'name', 'feeders', 'status', 'error', 'dgs', 'feeder_metadata',
-            'name_feeder_mapping',
+            'name_feeder_mapping', 'workers', 'electrical_tables',
+            'electrical_export_manifest', 'dgs_tables',
             'hoja', 'ties', 'completitud')}
         ws.save()
     return {'group': nombre, 'status': man['status'], 'error': man.get('error'),
             'dgs': f'{nombre}.dgs' if man['status'] == 'ok' else None,
             'feeders': feeders, 'completitud': man.get('completitud'),
-            'hoja': man.get('hoja'), 'manifest': f'{nombre}_manifest.json'}
+            'hoja': man.get('hoja'), 'manifest': f'{nombre}_manifest.json',
+            'workers': man.get('workers', 1),
+            'electrical_tables': man.get('electrical_tables'),
+            'electrical_export_manifest': man.get('electrical_export_manifest'),
+            'dgs_tables': man.get('dgs_tables')}
 
 
 def load_template(ws: Workspace, feeder: str, fmt: str) -> Path:

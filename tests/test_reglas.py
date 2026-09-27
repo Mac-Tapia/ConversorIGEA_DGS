@@ -143,6 +143,13 @@ def test_web_une_en_un_dgs_y_exige_proyecto_para_aplicar_cargas(tmp_path, monkey
         assert estado['groups'][0]['name_feeder_mapping'].endswith(
             'RED_name_alimentador.csv'
         )
+        assert estado['groups'][0]['workers'] == min(3, __import__('os').cpu_count() or 1, 4)
+        assert estado['groups'][0]['electrical_tables'].endswith(
+            'RED_electrical_tables'
+        )
+        assert estado['groups'][0]['electrical_export_manifest'].endswith(
+            'RED_electrical_export_manifest.json'
+        )
         assert estado['options']['hoja'] == 'AUTO'
 
         ws = c.app.state.store.get(wid)
