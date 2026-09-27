@@ -90,10 +90,10 @@ def test_la_api_de_powerfactory_es_alcanzable_desde_este_interprete():
 
 def test_la_eleccion_de_carpeta_ordena_por_numero_y_no_por_texto():
     """«3.9» ordena después de «3.12» como texto; ese fallo elegía la carpeta mala."""
-    from igea_dgs.gui import _version_key
+    from igea_dgs.powerfactory_env import version_key
 
     carpetas = [Path(n) for n in ('3.8', '3.9', '3.10', '3.11', '3.12')]
-    mayor = max(carpetas, key=_version_key)
+    mayor = max(carpetas, key=version_key)
     assert mayor.name == '3.12', (
         f'la carpeta elegida sería {mayor.name}; ordenar como texto da «3.9»'
     )

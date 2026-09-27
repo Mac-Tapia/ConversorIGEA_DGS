@@ -1,4 +1,4 @@
-"""La API web recorre el mismo camino que la GUI de escritorio, con el mismo motor.
+"""La API web recorre el camino completo del operador con el motor real.
 
 Se usa el export sintético: no depende de los TXT reales y ejercita las dos
 disposiciones de export (ver ``tests/synthetic_export.py``).

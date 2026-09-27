@@ -6,7 +6,7 @@ Conversor modular para transformar los archivos TXT `RED`, `CARGA` y `BD_Equipo`
 
 ## Interfaz web (recomendada)
 
-Doble clic en `run_gui.bat`, o:
+Doble clic en `run_web.bat`, o:
 
 ```bash
 set PYTHONPATH=src
@@ -29,13 +29,13 @@ reescribirlo.
    de la página.
 6. **Cargar en DigSILENT + flujo**, **Cargas de SED**, **SED nuevas**, **Catálogo de
    parámetros** y **Sistema completo** (red unida, escenario año 0, datos que faltan):
-   lo mismo que la GUI de escritorio, con el plan a la vista antes de aplicarlo.
+   con el plan a la vista antes de aplicarlo.
 
 El Registro llega por WebSocket línea a línea, también la salida de los guiones de
 PowerFactory mientras corren. Cada navegador trabaja en su **espacio de trabajo**
 (`output/web/<id>/`), que se reabre al volver.
 
-**Primera vez**: `run_gui.bat` compila el front si falta `frontend/dist`. Para eso
+**Primera vez**: `run_web.bat` compila el front si falta `frontend/dist`. Para eso
 hace falta Node.js 20+ **solo una vez**; después, no.
 
 **Desarrollo del front** (recarga en caliente):
@@ -56,16 +56,10 @@ Hay dos carriles, cada uno en serie: **motor** (leer, convertir, auditar) y
 proceso con el motor a la vez; serializarlo evita el fallo que eso produce, y separar
 los carriles permite seguir convirtiendo mientras DigSILENT importa la red unida.
 
-### Interfaz de escritorio (heredada)
-
-La GUI Tkinter sigue disponible con `run_gui_escritorio.bat` o
-`python -m igea_dgs.gui`. Sus funciones están todas en la web; se retirará cuando la
-web se haya usado en producción.
-
 ## Reglas del proyecto (se aplican a toda conversión)
 
-Cada entrada —los tres TXT o la base Access `.mdb`— y cada vía —interfaz web, CLI,
-GUI de escritorio, red unida— convierte con las mismas reglas (`src/igea_dgs/reglas.py`):
+Cada entrada —los tres TXT o la base Access `.mdb`— y cada vía —interfaz web, CLI o
+red unida— convierte con las mismas reglas (`src/igea_dgs/reglas.py`):
 
 | Regla | Qué hace |
 |---|---|
@@ -150,11 +144,11 @@ python -m pip install -r requirements-dev.txt
 
 Alternativa con extras de `pyproject.toml`:
 
-- Sin GPS/diagrama: `pip install -e .` y use `--no-geography` / desactive georreferenciación en la GUI.
+- Sin GPS/diagrama: `pip install -e .` y use `--no-geography` / desactive georreferenciación en la web.
 - Solo producción (con geografía): `pip install -e ".[geo]"`.
 - Desarrollo + tests: `pip install -e ".[geo,dev]"`.
 
-Entradas de consola: `igea-dgs`, `igea-dgs-web` (interfaz web) e `igea-dgs-gui` (escritorio). `run_gui.bat` instala solo `requirements.txt` (sin pytest) si faltan dependencias.
+Entradas de consola: `igea-dgs` y `igea-dgs-web` (interfaz web). `run_web.bat` instala solo `requirements.txt` (sin pytest) si faltan dependencias.
 
 ## Principio de arquitectura
 
@@ -171,9 +165,8 @@ La fuente de verdad para cada conversión es:
 | Ítem | Estado |
 | ---- | ------ |
 | Motor de conversión (dataset → model → DGS → validate) | Listo |
-| CLI `list` / `convert` / `gui` / `web` | Listo |
-| Interfaz web (FastAPI + React) | Listo (`src/igea_dgs/web/` + `frontend/` + `run_gui.bat`) |
-| Interfaz de escritorio Tkinter | Heredada (`gui.py` + `run_gui_escritorio.bat`) |
+| CLI `list` / `convert` / `web` | Listo |
+| Interfaz web (FastAPI + React) | Listo (`src/igea_dgs/web/` + `frontend/` + `run_web.bat`) |
 | Empaquetado `pyproject.toml` | Listo |
 | Dependencia `pyproj` (GPS) | En `requirements.txt` (+ extra `[geo]`) — opcional si convierte sin geografía |
 | TXT de entrada en el repo | No incluidos — hay que suministrarlos |
@@ -245,7 +238,7 @@ PYTHONPATH=src python -m igea_dgs.cli convert \
 
 Todos los alimentadores presentes en los TXT cargados deben poder convertirse. Si un `LineCableID` no está en `BD_Equipo`:
 
-1. Se aplica un alias JSON explícito (`--aliases` / GUI), si existe.
+1. Se aplica un alias JSON explícito (`--aliases` / web), si existe.
 2. Si no, se elige automáticamente el ID **más cercano y único** del catálogo cargado.
 3. Si no hay coincidencia única, se usa el `DEFAULT` del medio (aéreo/cable) **sin omitir la sección** ni bloquear el alimentador.
 
@@ -285,7 +278,7 @@ pytest -q
 
 También: `IGEA_RED`, `IGEA_LOADS`, `IGEA_EQUIPMENT` (rutas a cada archivo). Si faltan, las pruebas de integración hacen **skip** claro (no `FileNotFoundError`).
 
-Aceptación en PowerFactory (API: import DGS + crear `p:alimentador` + asignar cargas/fuentes + crear/activar escenario + flujo de carga): `docs/POWERFACTORY_ACCEPTANCE.md` y `tools/powerfactory_acceptance.py` / `tools/run_powerfactory_gate.bat`. En la GUI: **Cargar DGS en DigSILENT + flujo**.
+Aceptación en PowerFactory (API: import DGS + crear `p:alimentador` + asignar cargas/fuentes + crear/activar escenario + flujo de carga): `docs/POWERFACTORY_ACCEPTANCE.md` y `tools/powerfactory_acceptance.py` / `tools/run_powerfactory_gate.bat`. En la web: **Cargar DGS en DigSILENT + flujo**.
 
 ## Resultado de ejemplo (IN111)
 

@@ -30,7 +30,7 @@ function readLogHeight(): number {
   }
 }
 
-/** Resumen de un trabajo terminado, en el mismo tono que los diálogos de la GUI de escritorio. */
+/** Resumen de un trabajo terminado para el operador. */
 function JobSummary({ job, onClose }: { job: Job; onClose: () => void }) {
   const r = job.result;
   let body: ReactNode = <p>Terminado. El detalle está en el Registro.</p>;
@@ -95,7 +95,7 @@ export default function App() {
   const drag = useRef<{ y: number; h: number } | null>(null);
 
   const onFinished = useCallback((job: Job) => {
-    // Los trabajos cortos no merecen un diálogo; los largos sí, como en la GUI.
+    // Los trabajos cortos no merecen un diálogo; los largos sí.
     if (['load', 'convert', 'powerfactory', 'plan', 'system', 'catalog'].includes(job.kind) || job.status === 'failed') {
       setSummary(job);
     }

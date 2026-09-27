@@ -9,7 +9,7 @@
 # Excel de cargas y la validación independiente del modelo.
 #
 # Para pruebas y desarrollo:  pip install -r requirements-dev.txt
-# Python >= 3.10. En Linux la GUI suele necesitar el paquete del sistema python3-tk.
+# Python 3.12 exacto para la API de PowerFactory 2024.
 #
 # Nota sobre PowerFactory: su API (powerfactory.pyd) NO se instala con pip. Viene con
 # DIgSILENT y está atada a una versión concreta de CPython (PF 2024 → 3.12). El

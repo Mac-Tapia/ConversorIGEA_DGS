@@ -150,8 +150,8 @@ class JobContext:
     ) -> int:
         """Ejecuta un guion volcando su salida al Registro **línea a línea**.
 
-        La GUI de escritorio esperaba a que terminara y lo volcaba todo de golpe: en un
-        escenario base de media hora, el operador no veía nada hasta el final. Aquí
+        La implementación anterior esperaba al final para volcar toda la salida: en un
+        escenario base de media hora, el operador no veía nada. Aquí
         cada línea llega al navegador en cuanto el guion la escribe.
 
         Al cancelar se termina el proceso. Para PowerFactory eso es seguro: los

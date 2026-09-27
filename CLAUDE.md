@@ -7,7 +7,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
 
 - Python **3.12 exacto**, en `.venv` (`.venv/Scripts/python.exe`). La API de PowerFactory 2024 solo carga en 3.12.
 - Instalación: `pip install -r requirements-dev.txt`. La web necesita compilar el front una vez: `cd frontend && npm install && npm run build`.
-- Web: `run_gui.bat` o `igea-dgs-web`. CLI: `igea-dgs convert --red ... --loads ... --equipment ... --all --out-dir out --workers 0`.
+- Web: `run_web.bat` o `igea-dgs-web`. CLI: `igea-dgs convert --red ... --loads ... --equipment ... --all --out-dir out --workers 0`.
 
 ## Skills del proyecto
 

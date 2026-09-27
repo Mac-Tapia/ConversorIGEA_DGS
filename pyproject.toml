@@ -47,7 +47,6 @@ dev = ["pytest>=8.0", "pyproj>=3.6", "httpx>=0.27"]
 
 [project.scripts]
 igea-dgs = "igea_dgs.cli:main"
-igea-dgs-gui = "igea_dgs.gui:main"
 igea-dgs-web = "igea_dgs.web.__main__:main"
 
 [tool.setuptools.packages.find]

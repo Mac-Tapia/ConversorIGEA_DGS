@@ -1,7 +1,7 @@
 """Espacio de trabajo: las entradas, las opciones y la salida de una sesión web.
 
-Hace lo que en la GUI de escritorio hacían los campos de la ventana más
-``settings.py``, con una diferencia de fondo: **cada espacio tiene su carpeta**. Dos
+Reúne entradas y opciones de la interfaz, con una diferencia de fondo: **cada espacio
+tiene su carpeta**. Dos
 personas con el navegador abierto no comparten ni entradas ni salida, y un espacio
 se puede reabrir al día siguiente con lo que se eligió.
 
