@@ -15,7 +15,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 
-from igea_dgs.feeder_metadata import read_feeder_metadata
+from igea_dgs.feeder_metadata import read_feeder_metadata, sha256_file
 from igea_dgs.validate import parse_dgs
 
 
@@ -69,7 +69,11 @@ def _diagram_metrics(tables: dict[str, Any]) -> dict[str, Any]:
         if not term:
             continue
         lat, lon = _number(term.get('GPSlat')), _number(term.get('GPSlon'))
-        if lat is not None and lon is not None and -90 <= lat <= 90 and -180 <= lon <= 180:
+        if (
+            lat is not None and lon is not None
+            and (lat != 0.0 or lon != 0.0)
+            and -90 <= lat <= 90 and -180 <= lon <= 180
+        ):
             points.append((x, y, lat, lon))
 
     selected = points
@@ -105,6 +109,7 @@ def verify_artifacts(
     manifest: Path | str,
     feeder_metadata: Path | str,
     validation: Path | str,
+    reference_dgs: Path | str | None = None,
     expected_feeders: tuple[str, ...] = DEFAULT_FEEDERS,
     expected_trafomix: int = DEFAULT_TRAFOMIX,
 ) -> dict[str, Any]:
@@ -145,6 +150,9 @@ def verify_artifacts(
 
     dgs_counts = {name: len(_rows(tables, name)) for name in ('ElmLod', 'ElmSym', 'ElmXnet')}
     assignment_counts = Counter(record.class_name for record in metadata.assignments)
+    assignment_distribution = Counter(
+        (record.feeder, record.class_name) for record in metadata.assignments
+    )
     assignment_feeders = sorted({record.feeder for record in metadata.assignments})
     metadata_checks = {
         name: {
@@ -155,6 +163,13 @@ def verify_artifacts(
         for name in dgs_counts
     }
     metadata_checks['feeders'] = assignment_feeders
+    metadata_checks['distribution_by_feeder'] = {
+        feeder: {
+            class_name: assignment_distribution[(feeder, class_name)]
+            for class_name in ('ElmLod', 'ElmSym', 'ElmXnet')
+        }
+        for feeder in sorted(expected_feeders)
+    }
     checks['metadata'] = metadata_checks
     for class_name in dgs_counts:
         if dgs_counts[class_name] != assignment_counts[class_name]:
@@ -236,6 +251,30 @@ def verify_artifacts(
     if group.get('status') != 'ok':
         errors.append(f'El manifiesto de grupo no está OK: {group.get("status")!r}')
 
+    if reference_dgs is not None:
+        reference_tables = parse_dgs(reference_dgs)
+        compared_classes = ('ElmLod', 'ElmSubstat', 'ElmTr2', 'ElmCoup', 'StaSwitch', 'ElmXnet')
+        current_counts = {name: len(_rows(tables, name)) for name in compared_classes}
+        reference_counts = {name: len(_rows(reference_tables, name)) for name in compared_classes}
+        reference_diagram = _diagram_metrics(reference_tables)
+        checks['reference_comparison'] = {
+            'reference_path': str(Path(reference_dgs).resolve()),
+            'reference_sha256': sha256_file(reference_dgs),
+            'byte_identical_required': False,
+            'counts': {
+                name: {
+                    'current': current_counts[name],
+                    'reference': reference_counts[name],
+                    'difference': current_counts[name] - reference_counts[name],
+                }
+                for name in compared_classes
+            },
+            'diagram': {
+                'current': diagram,
+                'reference': reference_diagram,
+            },
+        }
+
     return {'ok': not errors, 'paths': paths, 'checks': checks, 'errors': errors}
 
 
@@ -273,6 +312,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument('--manifest', required=True)
     parser.add_argument('--feeder-metadata', required=True)
     parser.add_argument('--validation', required=True)
+    parser.add_argument('--reference', help='DGS de referencia para comparación cuantitativa no bloqueante')
     parser.add_argument('--output-json', required=True)
     parser.add_argument('--output-txt', required=True)
     return parser
@@ -285,6 +325,7 @@ def main(argv: list[str] | None = None) -> int:
         manifest=args.manifest,
         feeder_metadata=args.feeder_metadata,
         validation=args.validation,
+        reference_dgs=args.reference,
         output_json=args.output_json,
         output_txt=args.output_txt,
     )
