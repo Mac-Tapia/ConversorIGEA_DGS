@@ -89,11 +89,15 @@ En la web: «Unir en un solo DGS…» con los alimentadores seleccionados. `--li
 (CLI) convierte sin reglas, solo para comparar con la entrada.
 
 Cada conversión correcta publica junto al DGS
-`{nombre}_feeder_metadata.json`. Este archivo está enlazado al DGS por SHA-256 y
+`{nombre}_feeder_metadata.json` y `{nombre}_name_alimentador.csv`. El JSON está
+enlazado al DGS por SHA-256 y
 asigna cada `ElmLod`, `ElmSym` y `ElmXnet` a su denominación real (`NA203`, `NA205`,
 etc.) mediante clase + nombre + terminal + subestación. Al cargar el DGS, la compuerta
 de PowerFactory crea automáticamente la Data Extension `p:alimentador`, valida todas
 las identidades antes de escribir y revierte el lote si falla una fila.
+El CSV expone directamente `Name → Alimentador` para revisar, filtrar o cruzar todas
+las cargas, generadores y fuentes de una Grid unida. No está limitado a dos
+alimentadores.
 
 En **Network Model Manager → Generators, Loads, and Sources**, muestre la columna
 **Alimentador** después de **Grid**. Intente `Basic Data`; si esa vista no ofrece Data
@@ -102,6 +106,10 @@ fila como `SE50033` es una carga `ElmLod` alojada dentro de la SED; la SED físi
 modelada por `ElmSubstat`/`ElmTr2`. Repita la columna en `Synchronous Machine` y
 `External Grid`. El procedimiento verificable está en
 [`docs/POWERFACTORY_ACCEPTANCE.md`](docs/POWERFACTORY_ACCEPTANCE.md).
+
+La columna estándar `Grid` identifica el contenedor DGS común, por lo que todas las
+filas pueden mostrar `NA203_NA205` u otro nombre compuesto. La pertenencia individual
+se consulta exclusivamente en `Alimentador`: `SE50033 → NA203`, por ejemplo.
 
 **Cargas de SED en bloque (Excel o CSV)**: descargue la plantilla del alimentador,
 escriba los valores nuevos en `Kw` y `Kvar` (o en `(kVA)` y `FP`; `accion = omitir` salta la fila), súbala, revise el plan y aplíquelo. Se aplica sobre el

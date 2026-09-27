@@ -80,6 +80,12 @@ def test_varios_alimentadores_en_un_solo_dgs(ds, tmp_path):
     assert man['hoja'] is None
     metadata_path = tmp_path / 'g' / 'GRUPO_1_feeder_metadata.json'
     assert man['feeder_metadata'] == str(metadata_path)
+    mapping_path = tmp_path / 'g' / 'GRUPO_1_name_alimentador.csv'
+    assert man['name_feeder_mapping'] == str(mapping_path)
+    assert mapping_path.is_file()
+    assert mapping_path.read_text(encoding='utf-8-sig').splitlines()[0] == (
+        'Name,Alimentador,Clase,NetworkID,Terminal,Substation'
+    )
     metadata = json.loads(metadata_path.read_text(encoding='utf-8'))
     assert sum(r['class_name'] == 'ElmLod' for r in metadata['assignments']) == len(
         tablas['ElmLod']['rows_dict'])
@@ -134,6 +140,9 @@ def test_web_une_en_un_dgs_y_exige_proyecto_para_aplicar_cargas(tmp_path, monkey
         assert j['result']['status'] == 'ok', j['result']
         estado = c.get(f'/api/workspaces/{wid}').json()
         assert [g['name'] for g in estado['groups']] == ['RED']
+        assert estado['groups'][0]['name_feeder_mapping'].endswith(
+            'RED_name_alimentador.csv'
+        )
         assert estado['options']['hoja'] == 'AUTO'
 
         ws = c.app.state.store.get(wid)
