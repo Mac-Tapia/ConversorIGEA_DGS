@@ -74,6 +74,23 @@ La compuerta anterior crea automáticamente una sola Data Extension llamada inte
 
 La disponibilidad garantizada por DIgSILENT es en **Flexible Data**; la presencia en **Basic Data** se comprueba en vivo porque depende de la configuración de vista. El procedimiento se apoya en la documentación oficial de [Data Extensions por Python](https://www.digsilent.de/en/faq-reader-powerfactory/how-can-i-create-data-extensions-via-python.html) y en la guía oficial de [integración GIS](https://www.digsilent.de/en/paper-reader-pf-en/gis-integration.html). La decisión de conservar topología y trazabilidad explícita también está alineada con literatura académica citada en la especificación de diseño: una [tesis de maestría sobre visualización de redes](https://repositorio.comillas.edu/jspui/handle/11531/99738), una [tesis doctoral sobre modelos de distribución](https://uknowledge.uky.edu/ece_etds/134/) y el artículo indexado sobre [layout automático de diagramas unifilares](https://doi.org/10.1016/j.epsr.2003.12.005).
 
+## Verificación conjunta NA203, NA205, PE104 y CA101
+
+El verificador general descubre una tripleta TXT por contenido o una única base MDB,
+regenera cada alimentador disponible y publica evidencia JSON/Markdown:
+
+```bat
+python tools\verify_reference_feeders.py ^
+  --reference-root referencia ^
+  --output output\validation ^
+  --feeders NA203 NA205 PE104 CA101
+```
+
+Agregue `--powerfactory` únicamente cuando PowerFactory esté disponible y quiera
+ejecutar importación, asignación de `p:alimentador` y flujo. Los estados son estrictos:
+`PASS`, `FAIL`, `SKIP_MISSING_INPUT` y `NOT_RUN_POWERFACTORY`. Un dato fuente ausente o
+una ejecución propietaria no realizada nunca se presenta como aceptación.
+
 ## Verificación reproducible NA203–NA205 antes de PowerFactory
 
 ```bat

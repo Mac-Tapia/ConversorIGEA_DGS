@@ -1,8 +1,7 @@
 """Dónde está la API de PowerFactory y qué intérprete puede cargarla.
 
-Vivía en ``gui.py``. Se saca aquí porque ahora la usan dos interfaces —la web y la de
-escritorio— y ninguna de las dos debe importar la otra: la API web no puede arrastrar
-Tk, y la lógica no puede existir en dos copias que acaben divergiendo.
+La detección vive en un módulo independiente para que la usen la web, la aceptación y
+los comandos sin duplicar rutas ni decisiones de versión.
 """
 
 from __future__ import annotations

@@ -2,7 +2,7 @@
 
 Son las decisiones tomadas con la distribuidora al convertir sus entregas reales. Viven
 aquí, en un solo sitio, y las aplican todas las vías —lote (``batch``), red unida en un
-DGS (``batch.convert_group``), interfaz web, CLI, GUI heredada y los módulos de cargas—
+DGS (``batch.convert_group``), interfaz web, CLI y los módulos de cargas—
 para que un alimentador salga igual lo convierta quien lo convierta.
 
 Sobre el **dataset** (una vez por entrada):

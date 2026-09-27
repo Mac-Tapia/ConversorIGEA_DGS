@@ -450,8 +450,8 @@ def convert_selection(
     ``reglas`` son las del proyecto (:mod:`igea_dgs.reglas`) salvo que se pida otra
     cosa. ``catalogo`` es el Excel de parámetros: completa los códigos de conductor que
     falten, da los transformadores de SED y, si no se pasan ``catalog_corrections``,
-    sus filas de ficha corrigen los conductores. Las entradas (web, CLI, GUI) pasan el
-    del proyecto.
+    sus filas de ficha corrigen los conductores. Las entradas web y CLI pasan el del
+    proyecto.
 
     ``cancel`` se comprueba **entre** alimentadores: no se empieza ninguno más, el que
     está en marcha termina y se publica entero (en paralelo, todos los que estén en
