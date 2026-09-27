@@ -1,6 +1,6 @@
 import type {
   CreatePlan, EventItem, FeederRow, Health, Job, LoadPlan, Options, OutputFile,
-  PowerFactoryStatus, WorkspaceState,
+  LoadInventoryFilters, LoadInventoryPage, PowerFactoryStatus, WorkspaceState,
 } from './types';
 
 export class ApiError extends Error {
@@ -43,6 +43,17 @@ function form(file: File, field = 'file'): RequestInit {
 const ws = (id: string) => `/api/workspaces/${encodeURIComponent(id)}`;
 const enc = encodeURIComponent;
 
+function inventoryQuery(filters: LoadInventoryFilters, offset?: number, limit?: number): string {
+  const params = new URLSearchParams();
+  if (filters.feeder) params.set('feeder', filters.feeder);
+  if (filters.status) params.set('status', filters.status);
+  if (filters.search) params.set('search', filters.search);
+  if (offset != null) params.set('offset', String(offset));
+  if (limit != null) params.set('limit', String(limit));
+  const value = params.toString();
+  return value ? `?${value}` : '';
+}
+
 export const api = {
   health: () => request<Health>('/api/health'),
   powerfactory: (refresh = false) =>
@@ -71,6 +82,10 @@ export const api = {
 
   load: (id: string) => request<Job>(`${ws(id)}/load`, { method: 'POST' }),
   feeders: (id: string) => request<{ loaded: boolean; feeders: FeederRow[] }>(`${ws(id)}/feeders`),
+  electricalInventory: (id: string, filters: LoadInventoryFilters, offset = 0, limit = 100) =>
+    request<LoadInventoryPage>(`${ws(id)}/electrical-inventory${inventoryQuery(filters, offset, limit)}`),
+  electricalInventoryExportUrl: (id: string, format: 'csv' | 'json', filters: LoadInventoryFilters) =>
+    `${ws(id)}/electrical-inventory.${format}${inventoryQuery(filters)}`,
   convert: (id: string, feeders: string[], all: boolean) =>
     request<Job>(`${ws(id)}/convert`, json('POST', { feeders, all })),
   convertGroup: (id: string, feeders: string[], nombre: string) =>

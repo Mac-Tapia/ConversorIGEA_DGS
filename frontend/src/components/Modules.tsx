@@ -2,6 +2,7 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { api, download, fmtBytes, fmtNum } from '../api';
 import { useApp } from '../context';
 import type { CreatePlan, LoadPlan } from '../types';
+import { LoadInventoryTable } from './LoadInventoryTable';
 import { FileDrop, Modal, Pill, useConfirm, useToast } from './ui';
 
 // ------------------------------------------------------------------ utilidades
@@ -101,7 +102,7 @@ export function ResultsTab() {
 // ------------------------------------------------------------------ cargas de SED
 
 export function LoadsTab() {
-  const { ws, run, startJob, active } = useApp();
+  const { ws, run, startJob, active, selected, feeders } = useApp();
   const { feeder, hint } = useSingle();
   const [plan, setPlan] = useState<LoadPlan | null>(null);
   const confirm = useConfirm();
@@ -123,6 +124,11 @@ export function LoadsTab() {
 
   return (
     <div className="module">
+      <LoadInventoryTable
+        workspaceId={ws.id}
+        selectedFeeders={selected}
+        feeders={feeders.map((row) => row.feeder)}
+      />
       <p className="muted">Actualización masiva de la carga (kW, kvar) de las SED de un alimentador, sobre su proyecto de
         PowerFactory. Una sola fila con error bloquea todo: una actualización a medias es peor que ninguna.</p>
       {!feeder ? <p className="empty">{hint}</p> : (

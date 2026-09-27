@@ -170,6 +170,49 @@ export interface FeederRow {
   conversion: Conversion | null;
 }
 
+export type LoadInventoryStatus = 'OK' | 'NO_IDENTIFICADO' | 'AMBIGUO' | 'DESCONECTADO';
+
+export interface LoadInventoryRow {
+  name: string;
+  class_name: string;
+  grid: string;
+  alimentador: string;
+  network_id: string;
+  sed: string;
+  section_id: string;
+  device_number: string;
+  terminal_substation: string;
+  terminal: string;
+  kw: number;
+  kvar: number;
+  kva: number;
+  power_factor: number;
+  voltage_mt_kv: number;
+  voltage_bt_kv: number | null;
+  transformer_kva: number | null;
+  uk_pct: number | null;
+  copper_losses_kw: number | null;
+  core_losses_kw: number | null;
+  vector_group: string;
+  status: LoadInventoryStatus;
+  diagnostic: string;
+  provenance: Record<string, string>;
+}
+
+export interface LoadInventoryFilters {
+  feeder?: string;
+  status?: LoadInventoryStatus;
+  search?: string;
+}
+
+export interface LoadInventoryPage {
+  total: number;
+  offset: number;
+  limit: number;
+  filters: { feeder: string | null; status: string | null; search: string | null };
+  rows: LoadInventoryRow[];
+}
+
 export interface EventItem {
   seq: number;
   ts: number;

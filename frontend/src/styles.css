@@ -355,3 +355,18 @@ details summary { cursor: pointer; color: var(--primary); margin-top: 8px; }
   .ws-id { margin-left: 0; }
   .search { min-width: 0; flex: 1 1 100%; }
 }
+
+/* ----------------------------------------------------- inventario de cargas */
+.inventory-panel { margin-bottom: 18px; padding-bottom: 18px; border-bottom: 1px solid var(--border); }
+.module-heading { display: flex; align-items: flex-start; gap: 16px; justify-content: space-between; }
+.module-heading h3 { margin: 0 0 4px; }
+.inventory-filters { display: grid; grid-template-columns: minmax(150px, .7fr) minmax(190px, .8fr) minmax(220px, 1.5fr); gap: 10px; margin: 12px 0; }
+.inventory-filters label { display: grid; gap: 4px; color: var(--muted); font-size: 12px; }
+.inventory-filters select, .inventory-filters input { min-width: 0; }
+.inventory-table-wrap { max-height: 420px; }
+.inventory-pagination { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+
+@media (max-width: 900px) {
+  .inventory-filters { grid-template-columns: 1fr; }
+  .module-heading { align-items: stretch; flex-direction: column; }
+}
