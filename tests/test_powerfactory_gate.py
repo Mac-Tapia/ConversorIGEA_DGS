@@ -75,11 +75,157 @@ def test_powerfactory_gate_help_exits_zero():
     )
     assert proc.returncode == 0
     assert '--import-dgs' in proc.stdout
+    assert '--feeder-metadata' in proc.stdout
     assert '--run-load-flow' in proc.stdout
     assert '--ensure-scenario' in proc.stdout
     assert '--fix-until-converge' in proc.stdout
     assert '--run-studies' in proc.stdout
     assert '--list-studies' in proc.stdout
+
+
+def test_feeder_metadata_path_is_discovered_next_to_dgs(tmp_path):
+    mod = _load_pf_mod()
+    dgs = tmp_path / 'NA203_NA205.dgs'
+    dgs.write_text('DGS', encoding='utf-8')
+    sibling = tmp_path / 'NA203_NA205_feeder_metadata.json'
+    sibling.write_text('{}', encoding='utf-8')
+
+    assert mod.resolve_feeder_metadata_path(dgs) == sibling
+    explicit = tmp_path / 'explicit.json'
+    explicit.write_text('{}', encoding='utf-8')
+    assert mod.resolve_feeder_metadata_path(dgs, explicit) == explicit
+    with pytest.raises(FileNotFoundError, match='metadata'):
+        mod.resolve_feeder_metadata_path(dgs, tmp_path / 'missing.json')
+
+
+class _PfContainer:
+    def __init__(self, class_name, loc_name, parent=None):
+        self.class_name = class_name
+        self.loc_name = loc_name
+        self.parent = parent
+
+    def GetClassName(self):
+        return self.class_name
+
+    def GetAttribute(self, name):
+        return getattr(self, name, None)
+
+    def GetParent(self):
+        return self.parent
+
+
+class _PfObject(_PfContainer):
+    def __init__(self, class_name, loc_name, terminal):
+        super().__init__(class_name, loc_name, _PfContainer('ElmNet', 'RED'))
+        term = _PfContainer('ElmTerm', terminal, self.parent)
+        self.bus1 = SimpleNamespace(cterm=term)
+        self.values = {'p:alimentador': ''}
+
+    def GetAttribute(self, name):
+        if name in self.values:
+            return self.values[name]
+        return super().GetAttribute(name)
+
+    def SetAttribute(self, name, value):
+        self.values[name] = value
+        return 0
+
+
+class _PfExtensionSettings:
+    def __init__(self):
+        self.configurations = {}
+
+    def GetConfiguration(self, class_name, description):
+        return self.configurations.get((class_name, description))
+
+    def AddConfiguration(self, class_name, description):
+        config = SimpleNamespace(AddString=lambda *_args: 0)
+        self.configurations[(class_name, description)] = config
+        return config
+
+
+class _PfProject(_PfContainer):
+    def __init__(self, name):
+        super().__init__('IntPrj', name)
+        self.settings = _PfExtensionSettings()
+        self.begin_calls = 0
+        self.end_calls = 0
+
+    def BeginDataExtensionModification(self):
+        self.begin_calls += 1
+        return self.settings
+
+    def EndDataExtensionModification(self):
+        self.end_calls += 1
+
+
+def test_import_flow_verifies_project_creates_extension_and_assigns_metadata(tmp_path, monkeypatch):
+    from igea_dgs.feeder_metadata import FeederAssignment, write_feeder_metadata
+
+    mod = _load_pf_mod()
+    dgs = tmp_path / 'NA203_NA205.dgs'
+    dgs.write_text('DGS', encoding='utf-8')
+    metadata = tmp_path / 'NA203_NA205_feeder_metadata.json'
+    write_feeder_metadata(
+        [FeederAssignment('ElmXnet', '1', 'External Grid NA203', 'NA203',
+                          'NETWORK_NA203', 'SRC-203', '')],
+        dgs,
+        metadata,
+    )
+    project = _PfProject('ImportedProject')
+    source = _PfObject('ElmXnet', 'External Grid NA203', 'SRC-203')
+    app = SimpleNamespace(
+        GetActiveProject=lambda: project,
+        GetCalcRelevantObjects=lambda pattern: [source] if 'ElmXnet' in pattern else [],
+    )
+    events = []
+    monkeypatch.setattr(
+        mod,
+        'import_dgs_file',
+        lambda *_args, **_kwargs: {'ok': True, 'project_name': 'ImportedProject', 'errors': []},
+    )
+    monkeypatch.setattr(
+        mod,
+        'activate_base_study_and_scenario',
+        lambda _app: events.append('activate') or {
+            'scenario_activated': True, 'warnings': [], 'errors': []
+        },
+    )
+
+    report = mod.run_import_activate_flow(
+        app,
+        dgs,
+        feeder_metadata_path=metadata,
+        run_load_flow_flag=False,
+        persist_dgs=False,
+    )
+
+    assert report['ok'] is True
+    assert report['feeder_metadata']['assignment']['counts_by_feeder'] == {'NA203': 1}
+    assert source.values['p:alimentador'] == 'NA203'
+    assert project.begin_calls == 1 and project.end_calls == 1
+    assert events == ['activate']
+
+
+def test_import_flow_rejects_active_project_different_from_import(tmp_path, monkeypatch):
+    mod = _load_pf_mod()
+    dgs = tmp_path / 'NA203.dgs'
+    dgs.write_text('DGS', encoding='utf-8')
+    project = _PfProject('WrongProject')
+    app = SimpleNamespace(GetActiveProject=lambda: project)
+    monkeypatch.setattr(
+        mod,
+        'import_dgs_file',
+        lambda *_args, **_kwargs: {'ok': True, 'project_name': 'ImportedProject', 'errors': []},
+    )
+
+    report = mod.run_import_activate_flow(
+        app, dgs, run_load_flow_flag=False, persist_dgs=False,
+    )
+
+    assert report['ok'] is False
+    assert any('proyecto activo' in error for error in report['errors'])
+    assert project.begin_calls == 0
 
 
 def test_list_studies_exits_zero_without_pf():
