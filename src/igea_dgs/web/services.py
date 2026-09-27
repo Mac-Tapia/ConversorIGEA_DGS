@@ -511,6 +511,38 @@ def build_model(ws: Workspace, feeder: str, *, geography: bool | None = None):
     return modelo
 
 
+def load_inventory_rows(
+    ws: Workspace,
+    feeders: list[str] | None = None,
+    *,
+    grid_name: str | None = None,
+):
+    """Devuelve el inventario vigente sin reconstruir un alimentador dos veces."""
+    require_loaded(ws)
+    from ..load_inventory import rows_from_models
+
+    requested = feeders or [feeder_short_name(net) for net in ws.dataset.feeder_ids()]
+    networks = tuple(ws.dataset.resolve_feeder(feeder) for feeder in requested)
+    names = tuple(feeder_short_name(network) for network in networks)
+    effective_grid = grid_name or (names[0] if len(names) == 1 else '_'.join(names))
+    catalog_signature: tuple[str, int] | None = None
+    if ws.catalog_file:
+        catalog_path = Path(ws.catalog_file)
+        if catalog_path.is_file():
+            catalog_signature = (str(catalog_path), catalog_path.stat().st_mtime_ns)
+    key = (id(ws.dataset), networks, effective_grid, catalog_signature)
+    with ws.lock:
+        cached = ws.load_inventory_cache.get(key)
+    if cached is not None:
+        return cached
+
+    models = [build_model(ws, network, geography=False) for network in networks]
+    rows = rows_from_models(models, grid_name=effective_grid)
+    with ws.lock:
+        ws.load_inventory_cache[key] = rows
+    return rows
+
+
 # ---------------------------------------------------------------------------
 # Varios alimentadores en un solo DGS
 # ---------------------------------------------------------------------------

@@ -115,6 +115,7 @@ class Workspace:
     events: EventLog = field(default_factory=EventLog)
     lock: threading.RLock = field(default_factory=threading.RLock)
     _corrections_cache: tuple[float, Any] | None = None
+    load_inventory_cache: dict[tuple[Any, ...], tuple[Any, ...]] = field(default_factory=dict)
 
     # -------------------------------------------------------------- carpetas
     @property
@@ -180,6 +181,7 @@ class Workspace:
         self.catalog_report = None
         self.loaded_at = None
         self.plans.clear()
+        self.load_inventory_cache.clear()
 
     def set_input(self, slot: str, path: Path, *, origin: str, warning: str = '') -> dict:
         meta = {
