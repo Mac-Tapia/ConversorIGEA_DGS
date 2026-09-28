@@ -130,7 +130,7 @@ describe('LoadInventoryTable', () => {
     const context = {
       ws: { id: 'abcdef12', loaded: true },
       selected: ['NA203'],
-      feeders: [],
+      feeders: [{ feeder: 'NA203', convertible: true }],
       active: {},
       pf: null,
       run: async <T,>(fn: () => Promise<T>) => fn(),
@@ -140,7 +140,7 @@ describe('LoadInventoryTable', () => {
     render(<Ctx.Provider value={context}><LoadsTab /></Ctx.Provider>);
 
     expect(await screen.findByRole('heading', { name: 'Inventario de cargas' })).toBeVisible();
-    expect(screen.getByRole('heading', { name: '1 · Descargar plantilla de NA203' })).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Excel' })).toBeEnabled();
+    expect(screen.getByRole('heading', { name: '1 · Descargar plantilla consolidada' })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Descargar Excel' })).toHaveAttribute('href', expect.stringContaining('feeder=NA203'));
   });
 });

@@ -1,6 +1,7 @@
 import type {
   CreatePlan, EventItem, FeederRow, Health, Job, LoadPlan, Options, OutputFile,
-  LoadInventoryFilters, LoadInventoryPage, PowerFactoryStatus, WorkspaceState,
+  LoadBatchPlan, LoadBatchRowsPage, LoadInventoryFilters, LoadInventoryPage,
+  PowerFactoryStatus, WorkspaceState,
 } from './types';
 
 export class ApiError extends Error {
@@ -108,6 +109,30 @@ export const api = {
     `${ws(id)}/feeders/${enc(feeder)}/load-template?format=${format}`,
   loadPlan: (id: string, feeder: string, file: File) =>
     request<LoadPlan>(`${ws(id)}/feeders/${enc(feeder)}/load-plan`, form(file)),
+  loadBatchTemplateUrl: (id: string, feeders: string[], format: 'xlsx' | 'csv') => {
+    const query = new URLSearchParams();
+    feeders.forEach((feeder) => query.append('feeder', feeder));
+    query.set('format', format);
+    return `${ws(id)}/load-template?${query.toString()}`;
+  },
+  loadBatchPlan: (id: string, feeders: string[], file: File) => {
+    const fd = new FormData();
+    feeders.forEach((feeder) => fd.append('feeder', feeder));
+    fd.append('file', file, file.name);
+    return request<LoadBatchPlan>(`${ws(id)}/load-batch-plan`, { method: 'POST', body: fd });
+  },
+  loadBatchRows: (
+    id: string, token: string, offset = 0, limit = 100, feeder = '', status = '',
+  ) => {
+    const query = new URLSearchParams({ offset: String(offset), limit: String(limit) });
+    if (feeder) query.set('feeder', feeder);
+    if (status) query.set('status', status);
+    return request<LoadBatchRowsPage>(`${ws(id)}/load-batch-plans/${enc(token)}/rows?${query}`);
+  },
+  dryRunLoadBatch: (id: string, token: string) =>
+    request<Job>(`${ws(id)}/load-batch-plans/${enc(token)}/dry-run`, { method: 'POST' }),
+  applyLoadBatch: (id: string, token: string) =>
+    request<Job>(`${ws(id)}/load-batch-plans/${enc(token)}/apply`, { method: 'POST' }),
   createTemplateUrl: (id: string, feeder: string, format: 'xlsx' | 'csv') =>
     `${ws(id)}/feeders/${enc(feeder)}/create-template?format=${format}`,
   createPlan: (id: string, feeder: string, file: File) =>
