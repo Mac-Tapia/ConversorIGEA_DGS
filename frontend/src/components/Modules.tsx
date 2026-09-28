@@ -1,8 +1,9 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { api, download, fmtBytes, fmtNum } from '../api';
 import { useApp } from '../context';
-import type { CreatePlan, LoadPlan } from '../types';
+import type { CreatePlan } from '../types';
 import { LoadInventoryTable } from './LoadInventoryTable';
+import { LoadBatchPanel } from './LoadBatchPanel';
 import { FileDrop, Modal, Pill, useConfirm, useToast } from './ui';
 
 // ------------------------------------------------------------------ utilidades
@@ -102,25 +103,7 @@ export function ResultsTab() {
 // ------------------------------------------------------------------ cargas de SED
 
 export function LoadsTab() {
-  const { ws, run, startJob, active, selected, feeders } = useApp();
-  const { feeder, hint } = useSingle();
-  const [plan, setPlan] = useState<LoadPlan | null>(null);
-  const confirm = useConfirm();
-
-  const apply = async () => {
-    if (!plan) return;
-    if (plan.unknown.length) {
-      const ok = await confirm('SED que no están en el modelo', <>
-        <p>{plan.unknown.length} SED del fichero no existen en {plan.feeder}: {plan.unknown.slice(0, 10).join(', ')}
-          {plan.unknown.length > 10 ? '…' : ''}</p>
-        <p>Crear una SED nueva necesita datos que esta plantilla no trae; use el módulo «SED nuevas».
-          ¿Actualizar solo las {plan.updates.length} existentes?</p>
-      </>);
-      if (!ok) return;
-    }
-    const job = await startJob(() => api.applyPlan(ws.id, plan.token));
-    if (job) setPlan(null);
-  };
+  const { ws, selected, feeders } = useApp();
 
   return (
     <div className="module">
@@ -129,59 +112,8 @@ export function LoadsTab() {
         selectedFeeders={selected}
         feeders={feeders.map((row) => row.feeder)}
       />
-      <p className="muted">Actualización masiva de la carga (kW, kvar) de las SED de un alimentador, sobre su proyecto de
-        PowerFactory. Una sola fila con error bloquea todo: una actualización a medias es peor que ninguna.</p>
-      {!feeder ? <p className="empty">{hint}</p> : (
-        <div className="steps">
-          <div className="step-box">
-            <h3>1 · Descargar plantilla de {feeder}</h3>
-            <div className="row">
-              <button className="btn" onClick={() => run(() => download(api.loadTemplateUrl(ws.id, feeder, 'xlsx')))}>Excel</button>
-              <button className="btn btn-ghost" onClick={() => run(() => download(api.loadTemplateUrl(ws.id, feeder, 'csv')))}>CSV</button>
-            </div>
-            <small className="muted">Escriba los valores nuevos en «Kw» y «Kvar» (o en «(kVA)» y «FP»). «accion» = omitir salta la fila.</small>
-          </div>
-          <div className="step-box">
-            <h3>2 · Subir la plantilla rellenada</h3>
-            <FileDrop compact accept=".xlsx,.csv" onFiles={async ([f]) => {
-              const p = await run(() => api.loadPlan(ws.id, feeder, f));
-              if (p) setPlan(p);
-            }}><span>Soltar .xlsx / .csv o <u>elegir</u></span></FileDrop>
-          </div>
-        </div>
-      )}
+      <LoadBatchPanel />
       <PfWarning />
-      {plan && (
-        <Modal wide title={`Plan de actualización de cargas — ${plan.feeder}`} onClose={() => setPlan(null)} actions={<>
-          <button className="btn" onClick={() => setPlan(null)}>Cerrar</button>
-          <button className="btn btn-pf" disabled={!plan.applicable || Boolean(active.powerfactory)} onClick={apply}>
-            Aplicar en DigSILENT ({plan.updates.length} SED)
-          </button>
-        </>}>
-          <div className="stats">
-            {Object.entries(plan.summary).filter(([k]) => k !== 'feeder' && k !== 'applicable').map(([k, v]) => (
-              <div className="stat" key={k}><span className="stat-value">{String(v)}</span><span className="stat-label">{k.replace('_', ' ')}</span></div>
-            ))}
-          </div>
-          {plan.row_errors.length > 0 && (
-            <div className="alert alert-error"><strong>{plan.row_errors.length} fila(s) con error — no se aplica nada.</strong>
-              <ul>{plan.row_errors.slice(0, 20).map((e) => <li key={e}>{e}</li>)}</ul></div>
-          )}
-          {plan.updates.length > 0 && (
-            <div className="table-wrap table-short">
-              <table className="table">
-                <thead><tr><th>SED</th><th className="num">kW antes</th><th className="num">kW después</th><th className="num">kvar antes</th><th className="num">kvar después</th></tr></thead>
-                <tbody>{plan.updates.map((u) => (
-                  <tr key={u.sed}><td className="strong">{u.sed}</td><td className="num">{fmtNum(u.kw_before, 1)}</td>
-                    <td className="num">{fmtNum(u.kw_after, 1)}</td><td className="num">{fmtNum(u.kvar_before, 1)}</td>
-                    <td className="num">{fmtNum(u.kvar_after, 1)}</td></tr>
-                ))}</tbody>
-              </table>
-            </div>
-          )}
-          <details><summary>Informe completo</summary><pre className="report">{plan.report}</pre></details>
-        </Modal>
-      )}
     </div>
   );
 }

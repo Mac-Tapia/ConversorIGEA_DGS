@@ -248,6 +248,48 @@ export interface LoadPlan {
   applicable: boolean;
 }
 
+export type LoadBatchRowStatus = 'actualizar' | 'desconocida' | 'sin_datos' | 'omitida';
+
+export interface LoadBatchPlan {
+  token: string;
+  kind: 'cargas_lote';
+  plan_file: string;
+  plan_sha256: string;
+  batch_id: string;
+  feeders: string[];
+  summary_by_feeder: Record<string, Record<string, number | boolean | string>>;
+  ignored_sheets: string[];
+  blocked_feeders: Record<string, string[]>;
+  row_errors: string[];
+  applicable: boolean;
+}
+
+export interface LoadBatchRow {
+  feeder: string;
+  network_id: string;
+  sed_code: string;
+  status: LoadBatchRowStatus;
+  plini_mw?: number;
+  qlini_mvar?: number;
+  coslini?: number;
+  previous?: { plini_mw: number; qlini_mvar: number };
+}
+
+export interface LoadBatchRowsPage {
+  total: number;
+  offset: number;
+  limit: number;
+  filters: { feeder: string | null; status: string | null };
+  rows: LoadBatchRow[];
+}
+
+export interface LoadBatchResult {
+  status: 'PASS' | 'PARTIAL' | 'ROLLED_BACK' | 'FAILED' | 'CRITICAL';
+  run_id: string;
+  report: string;
+  artifacts: Record<string, string>;
+}
+
 export interface CreatePlan {
   token: string;
   kind: 'sed_nuevas';

@@ -370,3 +370,16 @@ details summary { cursor: pointer; color: var(--primary); margin-top: 8px; }
   .inventory-filters { grid-template-columns: 1fr; }
   .module-heading { align-items: stretch; flex-direction: column; }
 }
+
+/* ----------------------------------------------------- lote de cargas */
+.load-batch { display: grid; gap: 12px; }
+.feeder-checks { display: flex; flex-wrap: wrap; gap: 7px; }
+.check-card {
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px;
+  border: 1px solid var(--border); border-radius: 7px; background: var(--surface-2);
+}
+.check-card:has(input:checked) { border-color: var(--primary); background: var(--primary-soft); }
+.batch-plan { display: grid; gap: 10px; border-top: 1px solid var(--border); padding-top: 14px; }
+.batch-actions { padding-top: 4px; }
+.artifact-links { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; font-size: 13px; }
+.btn.disabled { opacity: .5; pointer-events: none; }
