@@ -97,13 +97,13 @@ class TestPowerDerivation:
         # El módulo debe reconstruir el kVA de partida.
         assert math.hypot(row.kw, row.kvar) == pytest.approx(0.3633217774, rel=1e-9)
 
-    def test_explicit_kw_kvar_win_over_kva_fp(self):
-        sheet = read_sheet(list(SHEET_COLUMNS), [['SE1001', '100', '30', '999', '0.5']], 'AL01')
+    def test_explicit_kw_kvar_without_redundant_pair_are_used(self):
+        sheet = read_sheet(list(SHEET_COLUMNS), [['SE1001', '100', '30', '', '']], 'AL01')
         row = sheet.rows[0]
         assert row.derived is False
         assert row.kw == pytest.approx(100.0)
         assert row.kvar == pytest.approx(30.0)
-        assert row.kva == pytest.approx(math.hypot(100.0, 30.0)), 'kVA se recalcula, no se cree el 999'
+        assert row.kva == pytest.approx(math.hypot(100.0, 30.0))
 
     def test_only_kw_given_leaves_q_at_zero(self):
         sheet = read_sheet(list(SHEET_COLUMNS), [['SE1001', '80', '', '', '']], 'AL01')
@@ -122,6 +122,27 @@ class TestPowerDerivation:
         sheet = read_sheet(list(SHEET_COLUMNS), [['SE1001', '', '', '1,5', '0,9']], 'AL01')
         assert sheet.errors == []
         assert sheet.rows[0].kw == pytest.approx(1.35)
+
+    def test_inconsistent_pq_and_kva_fp_blocks_row(self):
+        sheet = read_sheet(
+            list(SHEET_COLUMNS),
+            [['SE1001', '80', '60', '130', '0.8']],
+            'AL01',
+        )
+
+        assert sheet.rows == []
+        assert any('incoherentes' in error and '1 %' in error for error in sheet.errors)
+
+    def test_consistent_redundant_power_is_accepted(self):
+        sheet = read_sheet(
+            list(SHEET_COLUMNS),
+            [['SE1001', '80', '60', '100.5', '0.8']],
+            'AL01',
+        )
+
+        assert sheet.errors == []
+        assert sheet.rows[0].kw == pytest.approx(80.0)
+        assert sheet.rows[0].kvar == pytest.approx(60.0)
 
 
 class TestRowValidation:
@@ -258,6 +279,22 @@ class TestWorkbookReading:
         with pytest.raises(LoadTemplateError, match='ninguna hoja con datos'):
             read_workbook(path)
 
+    def test_uncached_xlsx_formula_is_blocking(self, tmp_path):
+        from openpyxl import Workbook
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = 'AL01'
+        ws.append(list(SHEET_COLUMNS))
+        ws.append(['SE1001', '=40+2', '', '', ''])
+        path = tmp_path / 'formula_sin_cache.xlsx'
+        wb.save(path)
+
+        sheet = read_workbook(path)['AL01']
+
+        assert sheet.rows == []
+        assert any('fórmula' in error and 'resultado calculado' in error for error in sheet.errors)
+
 
 class TestPlanDiff:
     def _sheet(self, rows, feeder='AL01'):
@@ -295,6 +332,49 @@ class TestPlanDiff:
         assert plan.row_errors
         assert plan.is_applicable is False
 
+    def test_four_zero_values_are_no_data_and_leave_existing_load_untouched(self):
+        model = _model(1)
+        sheet = read_sheet(
+            list(SHEET_COLUMNS) + ['accion'],
+            [['SE1001', '0', '0', '0', '0', 'actualizar']],
+            'AL01',
+        )
+
+        plan = build_plan(model, sheet)
+
+        assert plan.updates == []
+        assert plan.no_data == ['SE1001']
+        assert plan.untouched == []
+
+    def test_four_blank_values_are_no_data(self):
+        model = _model(1)
+        sheet = read_sheet(
+            list(SHEET_COLUMNS) + ['accion'],
+            [['SE1001', '', '', '', '', '']],
+            'AL01',
+        )
+
+        plan = build_plan(model, sheet)
+
+        assert plan.updates == []
+        assert plan.no_data == ['SE1001']
+
+    def test_put_zero_is_an_explicit_update(self):
+        model = _model(1)
+        sheet = read_sheet(
+            list(SHEET_COLUMNS) + ['accion'],
+            [['SE1001', '0', '0', '0', '0', 'poner_cero']],
+            'AL01',
+        )
+
+        plan = build_plan(model, sheet)
+        payload = plan_to_payload(plan)
+
+        assert plan.row_errors == []
+        assert len(plan.updates) == 1
+        assert payload['updates'][0]['plini_mw'] == 0.0
+        assert payload['updates'][0]['qlini_mvar'] == 0.0
+
     def test_summary_counts_every_category(self):
         model = _model(4)
         sheet = read_sheet(
@@ -309,7 +389,7 @@ class TestPlanDiff:
         )
         plan = build_plan(model, sheet)
         assert plan.summary() == {
-            'feeder': 'AL01', 'updates': 2, 'unknown': 1, 'untouched': 1,
+            'feeder': 'AL01', 'updates': 1, 'unknown': 1, 'untouched': 1,
             'skipped': 1, 'no_data': 1, 'row_errors': 0, 'applicable': True,
         }
 
