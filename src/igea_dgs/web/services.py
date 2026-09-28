@@ -911,7 +911,7 @@ def create_load_batch_plan(ws: Workspace, feeders: list[str], upload: Path) -> d
             }
             for feeder, context in contexts.items()
         },
-        'applicable': any(
+        'applicable': bool(plan.feeders) and all(
             item.is_applicable and feeder not in plan.blocked_feeders
             for feeder, item in plan.feeders.items()
         ),
@@ -1008,6 +1008,99 @@ def check_load_batch_plan(ws: Workspace, token: str) -> dict:
         raise UserError('El plan masivo está obsoleto o no se puede leer.') from exc
 
 
+def validate_load_batch_execution(
+    ws: Workspace, token: str, *, require_dry_run: bool,
+) -> tuple[dict, dict]:
+    payload = check_load_batch_plan(ws, token)
+    stored = ws.plans[token]
+    if not stored.get('applicable'):
+        raise UserError('El plan masivo no es aplicable: corrija sus errores o datos vacíos.')
+    missing_projects = [
+        item['feeder'] for item in payload.get('feeders') or []
+        if not item.get('project_name')
+    ]
+    if missing_projects:
+        raise UserError(
+            'Cargue primero en DigSILENT estos alimentadores: '
+            + ', '.join(missing_projects) + '.'
+        )
+    if require_dry_run:
+        approval = stored.get('dry_run') or {}
+        if (
+            approval.get('status') != 'PASS'
+            or approval.get('plan_sha256') != stored.get('plan_sha256')
+        ):
+            raise UserError(
+                'Debe ejecutar y aprobar el dry-run de este mismo plan antes de aplicar.'
+            )
+    _require_pf()
+    return stored, payload
+
+
+def _execute_load_batch(ws: Workspace, ctx: JobContext, token: str, *, dry_run: bool) -> dict:
+    from ..load_audit import write_load_batch_artifacts
+
+    stored, payload = validate_load_batch_execution(
+        ws, token, require_dry_run=not dry_run,
+    )
+    ctx.check_cancel()
+    pf_dir, interpreter = _require_pf()
+    run_id = uuid.uuid4().hex
+    runs_root = ws.out_dir / 'cargas'
+    runs_root.mkdir(parents=True, exist_ok=True)
+    run_dir = runs_root / run_id
+    engine_report = runs_root / f'.{run_id}.engine.json'
+    cancel_file = runs_root / f'.{run_id}.cancel'
+    mode = '--dry-run' if dry_run else '--apply'
+    rc = ctx.run_process(
+        [str(interpreter), str(_script('apply_sed_load_batch.py')), '--plan', stored['path'],
+         mode, '--output-json', str(engine_report), '--cancel-file', str(cancel_file)],
+        env=pf_subprocess_env(pf_dir), cwd=str(project_root()), cancel_file=str(cancel_file),
+    )
+    try:
+        result = json.loads(engine_report.read_text(encoding='utf-8'))
+    except (OSError, ValueError) as exc:
+        raise UserError('PowerFactory no produjo un informe válido del lote de cargas.') from exc
+    finally:
+        engine_report.unlink(missing_ok=True)
+        cancel_file.unlink(missing_ok=True)
+    artifact_names = write_load_batch_artifacts(run_dir, payload, result)
+    artifacts = {
+        name: str((run_dir / filename).relative_to(ws.out_dir))
+        for name, filename in artifact_names.items()
+    }
+    ctx.check_cancel()
+    if rc != 0 or result.get('status') != 'PASS':
+        raise UserError(
+            f"El {'dry-run' if dry_run else 'apply'} falló en PowerFactory (rc={rc})."
+        )
+    if dry_run:
+        stored['dry_run'] = {
+            'status': 'PASS',
+            'plan_sha256': stored['plan_sha256'],
+            'run_id': run_id,
+            'report': str(run_dir / 'result.json'),
+        }
+    else:
+        stored['last_apply'] = {
+            'status': 'PASS', 'run_id': run_id, 'report': str(run_dir / 'result.json'),
+        }
+    return {
+        **result,
+        'run_id': run_id,
+        'report': artifacts['result.json'],
+        'artifacts': artifacts,
+    }
+
+
+def dry_run_load_batch(ws: Workspace, ctx: JobContext, token: str) -> dict:
+    return _execute_load_batch(ws, ctx, token, dry_run=True)
+
+
+def apply_load_batch(ws: Workspace, ctx: JobContext, token: str) -> dict:
+    return _execute_load_batch(ws, ctx, token, dry_run=False)
+
+
 def _store_plan(ws: Workspace, kind: str, feeder: str, payload: dict, extra: dict) -> dict:
     token = uuid.uuid4().hex[:12]
     ws.plans_dir.mkdir(parents=True, exist_ok=True)
@@ -1018,35 +1111,29 @@ def _store_plan(ws: Workspace, kind: str, feeder: str, payload: dict, extra: dic
 
 
 def load_update_plan(ws: Workspace, feeder: str, upload: Path) -> dict:
-    from ..loads import LoadTemplateError, build_plan, plan_to_payload, read_workbook
-
-    model = build_model(ws, feeder)
-    try:
-        sheets = read_workbook(upload)
-    except LoadTemplateError as exc:
-        raise UserError(str(exc)) from exc
-    # Una hoja por alimentador en .xlsx; en .csv puede venir todo en una sola clave.
-    sheet = sheets.get(model.name) or sheets.get(feeder)
-    if sheet is None and len(sheets) == 1:
-        sheet = next(iter(sheets.values()))
-    if sheet is None:
-        raise UserError(f'El fichero no trae una hoja para {model.name}. '
-                        f'Hojas encontradas: {", ".join(sheets) or "ninguna"}.')
-    plan = build_plan(model, sheet)
-    summary = plan.summary()
-    info = {
+    result = create_load_batch_plan(ws, [feeder], upload)
+    stored = ws.plans[result['token']]
+    payload = json.loads(Path(stored['path']).read_text(encoding='utf-8'))
+    item = payload['feeders'][0]
+    summary = result['summary_by_feeder'][item['feeder']]
+    return {
+        **result,
+        'feeder': item['feeder'],
         'summary': summary,
-        'report': plan.report(),
-        'row_errors': list(plan.row_errors),
-        'unknown': [r.sed_code for r in plan.unknown],
+        'report': f"Plan de cargas {item['feeder']}: {summary['updates']} actualización(es).",
+        'row_errors': item.get('row_errors') or [],
+        'unknown': [row['sed_code'] for row in item.get('unknown') or []],
         'updates': [
-            {'sed': new.sed_code, 'kw_before': old.kw, 'kvar_before': old.kvar,
-             'kw_after': new.kw, 'kvar_after': new.kvar}
-            for old, new in plan.updates[:500]
+            {
+                'sed': row['sed_code'],
+                'kw_before': 1000.0 * row['previous']['plini_mw'],
+                'kvar_before': 1000.0 * row['previous']['qlini_mvar'],
+                'kw_after': 1000.0 * row['plini_mw'],
+                'kvar_after': 1000.0 * row['qlini_mvar'],
+            }
+            for row in (item.get('updates') or [])[:500]
         ],
-        'applicable': plan.is_applicable,
     }
-    return _store_plan(ws, 'cargas', model.name, plan_to_payload(plan), info)
 
 
 def create_template(ws: Workspace, feeder: str, fmt: str) -> Path:

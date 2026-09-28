@@ -147,6 +147,7 @@ class JobContext:
 
     def run_process(
         self, cmd: list[str], *, env: dict[str, str] | None = None, cwd: str | None = None,
+        cancel_file: str | None = None,
     ) -> int:
         """Ejecuta un guion volcando su salida al Registro **línea a línea**.
 
@@ -178,15 +179,23 @@ class JobContext:
 
         reader = threading.Thread(target=pump, daemon=True)
         reader.start()
+        cooperative_cancel_sent = False
         while proc.poll() is None:
             if self.job.cancel.is_set():
-                proc.terminate()
-                try:
-                    proc.wait(timeout=10)
-                except subprocess.TimeoutExpired:
-                    proc.kill()
-                reader.join(timeout=5)
-                raise JobCancelled()
+                if cancel_file:
+                    if not cooperative_cancel_sent:
+                        from pathlib import Path
+
+                        Path(cancel_file).write_text('cancel\n', encoding='utf-8')
+                        cooperative_cancel_sent = True
+                else:
+                    proc.terminate()
+                    try:
+                        proc.wait(timeout=10)
+                    except subprocess.TimeoutExpired:
+                        proc.kill()
+                    reader.join(timeout=5)
+                    raise JobCancelled()
             time.sleep(0.2)
         reader.join(timeout=5)
         return proc.returncode
