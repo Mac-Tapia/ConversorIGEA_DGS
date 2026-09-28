@@ -35,6 +35,7 @@ de ``tools/apply_sed_loads.py``, en un proceso aparte con el Python que exige la
 from __future__ import annotations
 
 import csv
+import itertools
 import math
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -60,9 +61,11 @@ COLUMN_ALIASES = {
 
 ACTION_UPDATE = 'actualizar'
 ACTION_SKIP = 'omitir'
-VALID_ACTIONS = (ACTION_UPDATE, ACTION_SKIP, '')
+ACTION_ZERO = 'poner_cero'
+VALID_ACTIONS = (ACTION_UPDATE, ACTION_SKIP, ACTION_ZERO, '')
 
 SUPPORTED_SUFFIXES = ('.xlsx', '.csv')
+_UNCACHED_FORMULA = '__IGEADGS_UNCACHED_FORMULA__'
 
 
 class LoadTemplateError(ValueError):
@@ -101,6 +104,7 @@ class SedLoad:
     section_id: str = ''
     device_number: str = ''
     node_id: str = ''
+    action: str = ACTION_UPDATE
     derived: bool = False          # Kw/Kvar calculados desde (kVA) y FP
     no_data: bool = False          # ni Kw/Kvar ni kVA/FP utilizables
 
@@ -209,12 +213,13 @@ def model_sed_loads(model) -> list[SedLoad]:
         load = by_key.get(sed.load_key)
         kw = (load.p_mw * 1000.0) if load else 0.0
         kvar = (load.q_mvar * 1000.0) if load else 0.0
+        kva = math.hypot(kw, kvar)
         rows.append(SedLoad(
             sed_code=sed.code,
             feeder=model.name,
             kw=kw, kvar=kvar,
-            kva=math.hypot(kw, kvar),
-            fp=load.pf if load else 0.0,
+            kva=kva,
+            fp=(kw / kva) if kva else 0.0,
             installed_kva=sed.design_kva,
             section_id=sed.section_id,
             device_number=sed.device_number,
@@ -343,6 +348,37 @@ def _resolve_power(
     return 0.0, 0.0, s, factor, False, True
 
 
+def validate_power_consistency(
+    kw: float | None,
+    kvar: float | None,
+    kva: float | None,
+    fp: float | None,
+    *,
+    tolerance_pct: float = 1.0,
+) -> str | None:
+    """Describe una contradicción entre P/Q y kVA/FP, o devuelve ``None``."""
+    if kw is None and kvar is None:
+        return None
+    if kva is None or fp is None or kva == 0.0:
+        return None
+    p_explicit = kw or 0.0
+    q_explicit = kvar or 0.0
+    p_derived = kva * fp
+    q_derived = kva * math.sqrt(max(1.0 - fp * fp, 0.0))
+    tolerance = tolerance_pct / 100.0
+
+    def outside(left: float, right: float) -> bool:
+        scale = max(abs(left), abs(right), 1e-12)
+        return abs(left - right) > tolerance * scale
+
+    if outside(p_explicit, p_derived) or outside(q_explicit, q_derived):
+        return (
+            f'P/Q y kVA/FP incoherentes por más de {tolerance_pct:g} % '
+            f'(P/Q={p_explicit:g}/{q_explicit:g}, kVA/FP={kva:g}/{fp:g})'
+        )
+    return None
+
+
 def read_sheet(header: Sequence[Any], data: Sequence[Sequence[Any]], feeder: str) -> SheetRead:
     """Lee una hoja ya materializada. Separada para poder probarla sin ficheros."""
     result = SheetRead(feeder=feeder)
@@ -381,6 +417,13 @@ def read_sheet(header: Sequence[Any], data: Sequence[Sequence[Any]], feeder: str
         numbers = {}
         bad = False
         for name in ('Kw', 'Kvar', '(kVA)', 'FP', 'kVA_instalado'):
+            if cell.get(name) == _UNCACHED_FORMULA:
+                result.errors.append(
+                    f'hoja {feeder}, fila {row_no}: {name} contiene una fórmula '
+                    'sin resultado calculado guardado'
+                )
+                bad = True
+                break
             value = _number(cell.get(name))
             if value is not None and math.isnan(value):
                 result.errors.append(
@@ -407,21 +450,37 @@ def read_sheet(header: Sequence[Any], data: Sequence[Sequence[Any]], feeder: str
         if bad:
             continue
 
+        consistency_error = validate_power_consistency(
+            numbers['Kw'], numbers['Kvar'], numbers['(kVA)'], fp,
+        )
+        if consistency_error:
+            result.errors.append(f'hoja {feeder}, fila {row_no}: {consistency_error}')
+            continue
+
         kw, kvar, kva, factor, derived, no_data = _resolve_power(
             numbers['Kw'], numbers['Kvar'], numbers['(kVA)'], fp,
         )
-        if no_data:
+        if no_data and action != ACTION_ZERO:
             result.no_data.append(code)
+        if action == ACTION_ZERO:
+            kw = kvar = kva = 0.0
+            factor = 0.0
+            no_data = False
         result.rows.append(SedLoad(
             sed_code=code, feeder=feeder,
             kw=kw, kvar=kvar, kva=kva, fp=factor,
             installed_kva=numbers['kVA_instalado'] or 0.0,
+            action=action or ACTION_UPDATE,
             derived=derived, no_data=no_data,
         ))
     return result
 
 
-def read_workbook(path: Path | str) -> dict[str, SheetRead]:
+def read_workbook(
+    path: Path | str,
+    *,
+    reject_uncached_formulas: bool = True,
+) -> dict[str, SheetRead]:
     """Lee el libro completo: ``{alimentador: SheetRead}``.
 
     En ``.xlsx`` el alimentador es el **nombre de la hoja**; en ``.csv``, la columna
@@ -471,19 +530,43 @@ def read_workbook(path: Path | str) -> dict[str, SheetRead]:
         ) from exc
 
     wb = load_workbook(src, data_only=True, read_only=True)
+    wb_formulas = (
+        load_workbook(src, data_only=False, read_only=True)
+        if reject_uncached_formulas else None
+    )
     out: dict[str, SheetRead] = {}
     try:
         for name in wb.sheetnames:
             ws = wb[name]
             it = ws.iter_rows(values_only=True)
+            formula_it = (
+                wb_formulas[name].iter_rows(values_only=True)
+                if wb_formulas is not None and name in wb_formulas.sheetnames else None
+            )
             try:
                 header = list(next(it))
+                if formula_it is not None:
+                    next(formula_it)
             except StopIteration:
                 continue                          # hoja vacía: se ignora en silencio
-            body = [
-                list(values) for values in it
-                if values and any(v is not None and str(v).strip() for v in values)
-            ]
+            mapping = canonical_columns(header)
+            power_columns = {
+                index for index, column in mapping.items()
+                if column in {'Kw', 'Kvar', '(kVA)', 'FP', 'kVA_instalado'}
+            }
+            formula_rows = formula_it if formula_it is not None else itertools.repeat(())
+            body = []
+            for values, formulas in zip(it, formula_rows):
+                row = list(values)
+                for index in power_columns:
+                    formula = formulas[index] if index < len(formulas) else None
+                    cached = row[index] if index < len(row) else None
+                    if isinstance(formula, str) and formula.startswith('=') and cached is None:
+                        while len(row) <= index:
+                            row.append(None)
+                        row[index] = _UNCACHED_FORMULA
+                if row and any(v is not None and str(v).strip() for v in row):
+                    body.append(row)
             if not body:
                 continue                          # hoja de solo cabecera
             try:
@@ -493,6 +576,8 @@ def read_workbook(path: Path | str) -> dict[str, SheetRead]:
                 out[name] = SheetRead(feeder=name, errors=[str(exc)])
     finally:
         wb.close()
+        if wb_formulas is not None:
+            wb_formulas.close()
     if not out:
         raise LoadTemplateError(
             f'{src.name}: ninguna hoja con datos. Se esperaba una hoja por alimentador '
@@ -514,6 +599,8 @@ def build_plan(model, read: SheetRead) -> LoadUpdatePlan:
     mentioned: set[str] = set(plan.skipped)
     for row in read.rows:
         mentioned.add(row.sed_code)
+        if row.no_data:
+            continue
         existing = current.get(row.sed_code)
         if existing is None:
             plan.unknown.append(row)
@@ -528,6 +615,7 @@ def build_plan(model, read: SheetRead) -> LoadUpdatePlan:
             section_id=existing.section_id,
             device_number=existing.device_number,
             node_id=existing.node_id,
+            action=row.action,
             derived=row.derived,
             no_data=row.no_data,
         )))
