@@ -98,6 +98,64 @@ def test_feeder_metadata_path_is_discovered_next_to_dgs(tmp_path):
         mod.resolve_feeder_metadata_path(dgs, tmp_path / 'missing.json')
 
 
+def test_import_dgs_reuses_existing_project_without_creating_another(tmp_path):
+    mod = _load_pf_mod()
+    dgs = tmp_path / 'AL209.dgs'
+    dgs.write_text('DGS', encoding='utf-8')
+
+    class FakeProject:
+        loc_name = 'IGEA_DGS_WORKSPACE'
+
+        def GetFullName(self):
+            return r'\User.IntUser\IGEA_DGS_WORKSPACE.IntPrj'
+
+        def Activate(self):
+            app.active = self
+            return 0
+
+    class FakeImport:
+        def __init__(self):
+            self.values = None
+
+        def SetAttributes(self, values):
+            self.values = values
+
+        def Execute(self):
+            return 0
+
+        def Delete(self):
+            return 0
+
+    project = FakeProject()
+    network_data = SimpleNamespace(loc_name='Network Data')
+    command = FakeImport()
+    transfer_attributes = []
+    user = SimpleNamespace(
+        GetContents=lambda pattern, *_args: [project] if pattern == '*.IntPrj' else [],
+        CreateObject=lambda class_name, _name: command if class_name == 'ComImport' else None,
+    )
+    app = SimpleNamespace(
+        active=None,
+        GetCurrentUser=lambda: user,
+        GetActiveProject=lambda: app.active,
+        GetProjectFolder=lambda name: network_data if name == 'netdat' else None,
+        DefineTransferAttributes=lambda _class, attrs: transfer_attributes.append(attrs),
+        ActivateProject=lambda name: project.Activate() if name == project.loc_name else 1,
+    )
+
+    result = mod.import_dgs_file(
+        app, dgs, project_name='IGEA_DGS_WORKSPACE', reuse_project=True,
+    )
+
+    assert command.values[0] == 1
+    assert command.values[1] is project
+    assert command.values[2] is network_data
+    assert transfer_attributes == ['iopt_prj,pAddPrj,targpath,dgsFormat,fFile']
+    assert result['target_name'] == r'\User.IntUser\IGEA_DGS_WORKSPACE.IntPrj'
+    assert result['mode'] == 'existing'
+    assert result['project_name'] == 'IGEA_DGS_WORKSPACE'
+
+
 class _PfContainer:
     def __init__(self, class_name, loc_name, parent=None):
         self.class_name = class_name
@@ -528,3 +586,80 @@ def test_powerfactory_help_mentions_persist_flags():
     assert '--persist-dir' in proc.stdout
     assert '--no-persist-dgs' in proc.stdout
     assert '--no-export-converged-dgs' in proc.stdout
+
+
+def test_batch_file_connects_once_and_processes_feeders_in_order(tmp_path, monkeypatch, capsys):
+    mod = _load_pf_mod()
+    jobs = []
+    for feeder in ('AL209', 'IN111'):
+        dgs = tmp_path / f'{feeder}.dgs'
+        metadata = tmp_path / f'{feeder}_feeder_metadata.json'
+        dgs.write_text('DGS', encoding='utf-8')
+        metadata.write_text('{}', encoding='utf-8')
+        jobs.append({
+            'feeder': feeder,
+            'import_dgs': str(dgs),
+            'feeder_metadata': str(metadata),
+            'output_json': str(tmp_path / f'{feeder}_powerfactory_acceptance.json'),
+            'output_txt': str(tmp_path / f'{feeder}_powerfactory_acceptance.txt'),
+        })
+    batch = tmp_path / 'powerfactory_batch.json'
+    batch.write_text(json.dumps({
+        'project_name': 'IGEA_DGS_CONVERTER',
+        'jobs': jobs,
+    }), encoding='utf-8')
+
+    app = SimpleNamespace()
+    connections = []
+    processed = []
+
+    def fake_connect(**_kwargs):
+        connections.append('connected')
+        return app
+
+    def fake_flow(received_app, dgs_path, **kwargs):
+        processed.append((Path(dgs_path).stem, received_app, kwargs['project_name']))
+        feeder = Path(dgs_path).stem
+        return {
+            'ok': True,
+            'import': {'project_name': 'IGEA_DGS_CONVERTER'},
+            'study_scenario': {'active_study_case': 'base', 'active_scenario': 'base'},
+            'scenario_ensure': None,
+            'load_flow_loop': {
+                'pass': True,
+                'attempts': [],
+                'final_load_flow': {'return_code': 0, 'ldf_valid': True},
+                'converged_after_intent': None,
+            },
+            'study_suite': None,
+            'feeder_metadata': {'assignment': {
+                'ok': True,
+                'counts_by_class': {'ElmLod': 1},
+                'counts_by_feeder': {feeder: 1},
+                'unresolved': [],
+                'ambiguous': [],
+            }},
+            'dgs_persist': {'ok': True, 'warnings': [], 'errors': []},
+            'errors': [],
+            'warnings': [],
+        }
+
+    monkeypatch.setattr(mod, 'connect_powerfactory', fake_connect)
+    monkeypatch.setattr(mod, 'run_import_activate_flow', fake_flow)
+    ticks = iter((100.0, 101.0, 106.0, 107.0, 117.0, 118.0))
+    monkeypatch.setattr(mod.time, 'monotonic', lambda: next(ticks))
+
+    rc = mod.main(['--batch-file', str(batch)])
+    stdout = capsys.readouterr().out
+
+    assert rc == 0
+    assert connections == ['connected']
+    assert [(name, project) for name, _app, project in processed] == [
+        ('AL209', 'IGEA_DGS_CONVERTER'),
+        ('IN111', 'IGEA_DGS_CONVERTER'),
+    ]
+    assert all(received_app is app for _name, received_app, _project in processed)
+    assert all(Path(job['output_json']).is_file() for job in jobs)
+    assert 'feeder=AL209 rc=0 elapsed_s=5.0' in stdout
+    assert 'feeder=IN111 rc=0 elapsed_s=10.0' in stdout
+    assert 'BATCH_END ok=2 failed=0 requested=2 elapsed_s=18.0' in stdout

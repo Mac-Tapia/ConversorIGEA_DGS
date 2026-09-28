@@ -79,7 +79,7 @@ class TestPa217ConvertsFromBothInputs:
         assert Path(item['dgs']).is_file()
 
     def test_element_counts_match_the_source(self, dataset_for, tmp_path):
-        """Lo que sale en el DGS es lo que la entrada contiene, no una aproximación."""
+        """Cada SECTION se reconcilia como línea o puente según las reglas activas."""
         source, ds = dataset_for
         network_id = ds.resolve_feeder(FEEDER)
         sections = len(ds.feeders[network_id])
@@ -87,8 +87,14 @@ class TestPa217ConvertsFromBothInputs:
 
         _manifest, item = _convert(ds, tmp_path / source)
         tables = parse_dgs(item['dgs'])
-        assert len(tables['ElmLne']['rows']) == sections
-        assert len(tables['ElmLod']['rows']) == loads
+        completeness = item['completitud']
+        bridges = item['reglas']['puentes']['tramos']
+        trafomix = item['reglas']['trafomix']['excluidos']
+        assert completeness['fallos'] == []
+        assert completeness['entrada']['tramos'] == sections
+        assert len(tables['ElmLne']['rows']) + bridges == sections
+        assert completeness['entrada']['cargas'] == loads
+        assert len(tables['ElmLod']['rows']) + trafomix == loads
         # Una SED y un transformador por carga con código de equipo.
         assert len(tables['ElmSubstat']['rows']) == len(tables['ElmTr2']['rows'])
         assert len(tables['ElmXnet']['rows']) == 1

@@ -178,13 +178,67 @@ def _discover_inputs(root: Path) -> dict[str, Any]:
             'mdb_candidates': [str(p) for p in mdbs]}
 
 
+def _discover_explicit_inputs(
+    *,
+    red: Path | str | None = None,
+    loads: Path | str | None = None,
+    equipment: Path | str | None = None,
+    mdb: Path | str | None = None,
+    equipment_mdb: Path | str | None = None,
+) -> dict[str, Any]:
+    """Construye una entrada inequívoca sin depender del nombre o la carpeta."""
+
+    txt_values = {RED: red, CARGA: loads, EQUIPOS: equipment}
+    if any(value is not None for value in txt_values.values()):
+        paths = {name: str(Path(value)) for name, value in txt_values.items() if value is not None}
+        missing = [name for name, value in txt_values.items()
+                   if value is None or not Path(value).is_file()]
+        if missing:
+            labels = {RED: 'RED', CARGA: 'CARGA', EQUIPOS: 'EQUIPOS'}
+            return {
+                'kind': 'txt', 'status': SKIP_MISSING_INPUT,
+                'detail': 'Faltan entradas TXT reales: ' + ', '.join(labels[name] for name in missing),
+                'paths': paths,
+            }
+        return {
+            'kind': 'txt', 'status': PASS,
+            'detail': 'Tripleta TXT indicada explícitamente.', 'paths': paths,
+        }
+
+    if mdb is not None or equipment_mdb is not None:
+        paths = {}
+        if mdb is not None:
+            paths['mdb'] = str(Path(mdb))
+        if equipment_mdb is not None:
+            paths['equipment_mdb'] = str(Path(equipment_mdb))
+        missing = []
+        if mdb is None or not Path(mdb).is_file():
+            missing.append('base de red MDB')
+        if equipment_mdb is None or not Path(equipment_mdb).is_file():
+            missing.append('catálogo de equipos MDB')
+        if missing:
+            return {
+                'kind': 'mdb', 'status': SKIP_MISSING_INPUT,
+                'detail': 'Falta ' + ' y '.join(missing) + '.', 'paths': paths,
+            }
+        return {
+            'kind': 'mdb', 'status': PASS,
+            'detail': 'Par MDB de red y catálogo indicado explícitamente.', 'paths': paths,
+        }
+
+    return {
+        'kind': None, 'status': SKIP_MISSING_INPUT,
+        'detail': 'No se indicaron entradas TXT ni MDB.', 'paths': {},
+    }
+
+
 def _load_dataset(discovery: dict[str, Any]):
     paths = discovery['paths']
     if discovery['kind'] == 'txt':
         return CymdistDataset.from_files(paths[RED], paths[CARGA], paths[EQUIPOS])
     if discovery['kind'] == 'mdb':
         from igea_dgs.access import read_access_dataset
-        return read_access_dataset(paths['mdb'])
+        return read_access_dataset(paths['mdb'], equipment_db=paths.get('equipment_mdb'))
     raise ValueError(discovery['detail'])
 
 
@@ -266,17 +320,23 @@ def verify_reference_feeders(
     feeders: Iterable[str] = DEFAULT_FEEDERS,
     *,
     powerfactory: bool = False,
+    discovery: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     reference_root, output = Path(reference_root), Path(output)
     output.mkdir(parents=True, exist_ok=True)
     feeders = tuple(dict.fromkeys(str(name).strip() for name in feeders if str(name).strip()))
-    discovery = _discover_inputs(reference_root)
+    discovery = discovery or _discover_inputs(reference_root)
     report: dict[str, Any] = {
         'schema_version': 1,
         'generated_at': datetime.now(timezone.utc).isoformat(),
         'reference_root': str(reference_root.resolve()),
         'output': str(output.resolve()),
         'input': discovery,
+        'input_artifacts': [
+            {'path': str(Path(path).resolve()), 'sha256': sha256_file(Path(path))}
+            for path in discovery.get('paths', {}).values()
+            if isinstance(path, str) and Path(path).is_file()
+        ],
         'reference_artifacts': [
             {'path': str(path.resolve()), 'sha256': sha256_file(path)}
             for path in sorted(reference_root.glob('*.dgs'))
@@ -338,6 +398,56 @@ def verify_reference_feeders(
     return report
 
 
+def verify_input_alternatives(
+    output: Path | str,
+    feeders: Iterable[str] = DEFAULT_FEEDERS,
+    *,
+    txt: dict[str, Any],
+    mdb: dict[str, Any],
+    powerfactory: bool = False,
+) -> dict[str, Any]:
+    """Ejecuta y conserva por separado las dos rutas reales soportadas."""
+
+    output = Path(output)
+    output.mkdir(parents=True, exist_ok=True)
+    feeders = tuple(feeders)
+    modes = {
+        'txt': verify_reference_feeders(
+            PROJECT_ROOT, output / 'txt', feeders,
+            powerfactory=powerfactory, discovery=txt,
+        ),
+        'mdb': verify_reference_feeders(
+            PROJECT_ROOT, output / 'mdb', feeders,
+            powerfactory=powerfactory, discovery=mdb,
+        ),
+    }
+    statuses = {mode: result['status'] for mode, result in modes.items()}
+    status = FAIL if FAIL in statuses.values() else (
+        SKIP_MISSING_INPUT if SKIP_MISSING_INPUT in statuses.values() else PASS
+    )
+    report = {
+        'schema_version': 2,
+        'generated_at': datetime.now(timezone.utc).isoformat(),
+        'status': status,
+        'output': str(output.resolve()),
+        'mode_statuses': statuses,
+        'modes': modes,
+    }
+    (output / 'input_alternatives_validation.json').write_text(
+        json.dumps(report, indent=2, ensure_ascii=False, default=str) + '\n', encoding='utf-8',
+    )
+    lines = [
+        '# Validación real de alternativas TXT y MDB', '',
+        f'Estado global: **{status}**', '',
+        '| Ruta | Estado | Informe detallado |', '|---|---|---|',
+    ]
+    for mode, mode_status in statuses.items():
+        lines.append(f'| {mode.upper()} | {mode_status} | `{mode}/reference_feeders_validation.md` |')
+    lines += ['', 'Cada ruta se evalúa contra su propia instantánea de origen; no se exige igualdad de conteos entre TXT y MDB.', '']
+    (output / 'input_alternatives_validation.md').write_text('\n'.join(lines), encoding='utf-8')
+    return report
+
+
 def _write_reports(report: dict[str, Any], output: Path) -> None:
     json_path = output / 'reference_feeders_validation.json'
     md_path = output / 'reference_feeders_validation.md'
@@ -368,17 +478,35 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument('--reference-root', type=Path, default=PROJECT_ROOT / 'referencia')
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--feeders', nargs='+', default=list(DEFAULT_FEEDERS))
+    parser.add_argument('--red', type=Path)
+    parser.add_argument('--loads', type=Path)
+    parser.add_argument('--equipment', type=Path)
+    parser.add_argument('--mdb', type=Path)
+    parser.add_argument('--equipment-mdb', type=Path)
     parser.add_argument('--powerfactory', action='store_true')
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
-    report = verify_reference_feeders(
-        args.reference_root, args.output, args.feeders, powerfactory=args.powerfactory,
-    )
+    txt_requested = any((args.red, args.loads, args.equipment))
+    mdb_requested = any((args.mdb, args.equipment_mdb))
+    txt = _discover_explicit_inputs(red=args.red, loads=args.loads, equipment=args.equipment)
+    mdb = _discover_explicit_inputs(mdb=args.mdb, equipment_mdb=args.equipment_mdb)
+    if txt_requested and mdb_requested:
+        report = verify_input_alternatives(
+            args.output, args.feeders, txt=txt, mdb=mdb, powerfactory=args.powerfactory,
+        )
+    else:
+        discovery = txt if txt_requested else (mdb if mdb_requested else None)
+        report = verify_reference_feeders(
+            args.reference_root, args.output, args.feeders,
+            powerfactory=args.powerfactory, discovery=discovery,
+        )
     print(f"Reference validation: {report['status']}")
-    print(args.output / 'reference_feeders_validation.json')
+    filename = ('input_alternatives_validation.json'
+                if txt_requested and mdb_requested else 'reference_feeders_validation.json')
+    print(args.output / filename)
     return 2 if report['status'] == FAIL else 0
 
 
