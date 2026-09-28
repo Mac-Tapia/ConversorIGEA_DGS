@@ -91,8 +91,14 @@ class TestSl143ConvertsFromBothInputs:
 
         _manifest, item = _convert(ds, tmp_path / source)
         tables = parse_dgs(item['dgs'])
-        assert len(tables['ElmLne']['rows']) == sections
-        assert len(tables['ElmLod']['rows']) == loads
+        completeness = item['completitud']
+        bridges = item['reglas']['puentes']['tramos']
+        trafomix = item['reglas']['trafomix']['excluidos']
+        assert completeness['fallos'] == []
+        assert completeness['entrada']['tramos'] == sections
+        assert len(tables['ElmLne']['rows']) + bridges == sections
+        assert completeness['entrada']['cargas'] == loads
+        assert len(tables['ElmLod']['rows']) + trafomix == loads
         assert len(tables['ElmXnet']['rows']) == 1
 
     def test_nominal_voltage_is_10_kv(self, dataset_for):

@@ -181,8 +181,9 @@ def import_dgs_file(
     dgs_path: Path,
     *,
     project_name: str | None = None,
+    reuse_project: bool = False,
 ) -> dict[str, Any]:
-    """Import ASCII DGS via ComImport into a new project (DigSilent API Example)."""
+    """Importa DGS en un proyecto nuevo o en uno existente indicado explícitamente."""
     dgs_path = Path(dgs_path).resolve()
     if not dgs_path.is_file():
         raise FileNotFoundError(f'DGS no encontrado: {dgs_path}')
@@ -193,27 +194,73 @@ def import_dgs_file(
 
     stamp = datetime.now().strftime('%Y%m%d-%H%M%S')
     prj = project_name or f'{stamp}_IGEA_{dgs_path.stem}'
+    projects = {_name(item): item for item in _contents(user, '*.IntPrj')}
+    existing = projects.get(prj) if reuse_project else None
+    mode = 'existing' if existing is not None else 'new'
+    if reuse_project and project_name is None:
+        raise ValueError('reuse_project requiere project_name explícito')
+    if existing is not None:
+        try:
+            rc_activate = existing.Activate()
+        except Exception:
+            rc_activate = app.ActivateProject(prj)
+        active = app.GetActiveProject()
+        if rc_activate not in (None, 0) and (active is None or _name(active) != prj):
+            raise RuntimeError(f'No se pudo activar el proyecto reutilizable {prj!r}: {rc_activate}')
+    target_name = prj
+    target_folder = None
+    if existing is not None:
+        try:
+            target_name = str(existing.GetFullName())
+        except Exception:
+            target_name = prj
+        try:
+            target_folder = app.GetProjectFolder('netdat')
+        except Exception:
+            target_folder = None
+        if target_folder is None:
+            raise RuntimeError(
+                f'El proyecto reutilizable {prj!r} no expone su carpeta Network Data'
+            )
 
     com = user.CreateObject('ComImport', f'DGSImport_{stamp}')
     if com is None:
         raise RuntimeError('No se pudo crear ComImport')
 
-    # Official transfer order from ApiExample.cpp:
-    # iopt_prj=0 (new project), targname, dgsFormat, fFile
+    # Orden oficial de ApiExample.cpp para un proyecto nuevo. En PowerFactory
+    # 2024 el selector de proyecto existente no es ``targname`` (STRING), sino
+    # ``pAddPrj`` (OBJECT). La inspección de atributos de ComImport confirma:
+    # iopt_prj=0 + targname crea; iopt_prj=1 + pAddPrj reutiliza.
+    import_mode = 1 if existing is not None else 0
     errors: list[str] = []
     try:
-        app.DefineTransferAttributes('ComImport', 'iopt_prj,targname,dgsFormat,fFile')
-        try:
-            com.SetAttributes([0, prj, 'DGS File', str(dgs_path)])
-        except Exception:
-            # Fallback attribute-by-attribute (PF version differences).
-            for name, value in (
-                ('iopt_prj', 0),
-                ('targname', prj),
+        if existing is not None:
+            transfer_names = 'iopt_prj,pAddPrj,targpath,dgsFormat,fFile'
+            transfer_values = [
+                import_mode, existing, target_folder, 'DGS File', str(dgs_path),
+            ]
+            fallback_values = (
+                ('iopt_prj', import_mode),
+                ('pAddPrj', existing),
+                ('targpath', target_folder),
                 ('dgsFormat', 'DGS File'),
                 ('fFile', str(dgs_path)),
-                ('fName', str(dgs_path)),
-            ):
+            )
+        else:
+            transfer_names = 'iopt_prj,targname,dgsFormat,fFile'
+            transfer_values = [import_mode, target_name, 'DGS File', str(dgs_path)]
+            fallback_values = (
+                ('iopt_prj', import_mode),
+                ('targname', target_name),
+                ('dgsFormat', 'DGS File'),
+                ('fFile', str(dgs_path)),
+            )
+        app.DefineTransferAttributes('ComImport', transfer_names)
+        try:
+            com.SetAttributes(transfer_values)
+        except Exception:
+            # Fallback attribute-by-attribute (PF version differences).
+            for name, value in fallback_values:
                 if not _set_attr(com, name, value):
                     errors.append(f'No se pudo asignar ComImport.{name}')
         rc = int(com.Execute())
@@ -240,6 +287,10 @@ def import_dgs_file(
 
     return {
         'project_name': prj,
+        'target_name': target_name,
+        'target_folder': _name(target_folder) if target_folder is not None else None,
+        'mode': mode,
+        'reused': mode == 'existing',
         'dgs': str(dgs_path),
         'errors': errors,
         'ok': not errors,
@@ -1461,6 +1512,7 @@ def run_import_activate_flow(
     dgs_path: Path,
     *,
     project_name: str | None = None,
+    reuse_project: bool = False,
     feeder_metadata_path: Path | str | None = None,
     ensure_scenario: bool = True,
     run_load_flow_flag: bool = True,
@@ -1493,7 +1545,9 @@ def run_import_activate_flow(
     }
 
     try:
-        import_info = import_dgs_file(app, Path(dgs_path), project_name=project_name)
+        import_info = import_dgs_file(
+            app, Path(dgs_path), project_name=project_name, reuse_project=reuse_project,
+        )
     except Exception as exc:
         report['errors'].append(f'DGS import failed: {exc}')
         return report
@@ -2104,6 +2158,13 @@ def _parser() -> argparse.ArgumentParser:
         description='Import DGS into DigSilent PowerFactory and validate connectivity/convergence/GPS'
     )
     p.add_argument(
+        '--batch-file',
+        help=(
+            'JSON con una lista jobs para procesar varios alimentadores en una sola '
+            'sesión de PowerFactory; cada job genera su propio informe.'
+        ),
+    )
+    p.add_argument(
         '--manifest',
         help='Generated <FEEDER>_geography.json (optional if --import-dgs alone for import+LDF)',
     )
@@ -2119,6 +2180,10 @@ def _parser() -> argparse.ArgumentParser:
         ),
     )
     p.add_argument('--project-name', help='Optional PF project name for ComImport')
+    p.add_argument(
+        '--reuse-project', action='store_true',
+        help='Reuse --project-name when it already exists; create it only on the first import.',
+    )
     p.add_argument(
         '--activate-base',
         action='store_true',
@@ -2204,11 +2269,107 @@ def _parser() -> argparse.ArgumentParser:
     return p
 
 
-def main(argv=None) -> int:
+def _batch_job_argv(job: dict[str, Any], project_name: str) -> list[str]:
+    required = ('feeder', 'import_dgs', 'feeder_metadata', 'output_json', 'output_txt')
+    missing = [name for name in required if not str(job.get(name) or '').strip()]
+    if missing:
+        raise ValueError(
+            f'job de lote incompleto ({job.get("feeder") or "sin alimentador"}): '
+            f'faltan {", ".join(missing)}'
+        )
+    selected_project = str(job.get('project_name') or project_name).strip()
+    if not selected_project:
+        raise ValueError(f'job {job["feeder"]}: project_name vacío')
+    argv = [
+        '--import-dgs', str(job['import_dgs']),
+        '--feeder-metadata', str(job['feeder_metadata']),
+        '--project-name', selected_project,
+        '--ensure-scenario',
+        '--run-load-flow',
+        '--output-json', str(job['output_json']),
+        '--output-txt', str(job['output_txt']),
+    ]
+    if bool(job.get('reuse_project', True)):
+        argv.append('--reuse-project')
+    if job.get('manifest'):
+        argv += ['--manifest', str(job['manifest'])]
+    return argv
+
+
+def run_batch_file(batch_path: Path | str, *, app: Any) -> int:
+    """Ejecuta todos los alimentadores secuencialmente reutilizando ``app``.
+
+    El aislamiento sigue siendo por informe y por ElmNet, pero se elimina el
+    reinicio del motor/API entre alimentadores. Un fallo no impide auditar los
+    siguientes trabajos del lote.
+    """
+    path = Path(batch_path).resolve()
+    try:
+        payload = json.loads(path.read_text(encoding='utf-8'))
+    except (OSError, ValueError) as exc:
+        print(f'ERROR: lote PowerFactory inválido {path}: {exc}', file=sys.stderr)
+        return 1
+    if not isinstance(payload, dict):
+        print('ERROR: el lote PowerFactory debe ser un objeto JSON', file=sys.stderr)
+        return 1
+    project_name = str(payload.get('project_name') or '').strip()
+    jobs = payload.get('jobs')
+    if not project_name:
+        print('ERROR: el lote PowerFactory no define project_name', file=sys.stderr)
+        return 1
+    if not isinstance(jobs, list) or not jobs:
+        print('ERROR: el lote PowerFactory no contiene jobs', file=sys.stderr)
+        return 1
+
+    failed = 0
+    batch_started = time.monotonic()
+    print(f'BATCH session=1 project_base={project_name} feeders={len(jobs)}')
+    for index, raw_job in enumerate(jobs, start=1):
+        if not isinstance(raw_job, dict):
+            print(f'BATCH_RESULT {index}/{len(jobs)} feeder=? rc=1 error=job inválido')
+            failed += 1
+            continue
+        feeder = str(raw_job.get('feeder') or '?')
+        print(f'BATCH_START {index}/{len(jobs)} feeder={feeder}')
+        job_started = time.monotonic()
+        try:
+            job_argv = _batch_job_argv(raw_job, project_name)
+            rc = main(job_argv, app=app)
+        except (OSError, ValueError) as exc:
+            print(f'ERROR: {feeder}: {exc}', file=sys.stderr)
+            rc = 1
+        elapsed_s = time.monotonic() - job_started
+        print(
+            f'BATCH_RESULT {index}/{len(jobs)} feeder={feeder} rc={rc} '
+            f'elapsed_s={elapsed_s:.1f}'
+        )
+        if rc != 0:
+            failed += 1
+    batch_elapsed_s = time.monotonic() - batch_started
+    print(
+        f'BATCH_END ok={len(jobs) - failed} failed={failed} requested={len(jobs)} '
+        f'elapsed_s={batch_elapsed_s:.1f}'
+    )
+    return 0 if failed == 0 else 2
+
+
+def main(argv=None, *, app: Any | None = None) -> int:
     args = _parser().parse_args(argv)
     if args.list_studies:
         print(json.dumps(list_study_suite(), indent=2, ensure_ascii=False))
         return 0
+
+    if args.batch_file:
+        if app is None:
+            try:
+                app = connect_powerfactory(
+                    start_engine=not args.no_start_engine,
+                    command_line=args.pf_args,
+                )
+            except (ImportError, RuntimeError) as exc:
+                print(f'ERROR: {exc}', file=sys.stderr)
+                return 3
+        return run_batch_file(args.batch_file, app=app)
 
     ensure_scenario = args.ensure_scenario and not args.no_ensure_scenario
     manifest_path = Path(args.manifest) if args.manifest else None
@@ -2236,14 +2397,15 @@ def main(argv=None) -> int:
             print(f'ERROR: {exc}', file=sys.stderr)
             return 1
 
-    try:
-        app = connect_powerfactory(
-            start_engine=not args.no_start_engine,
-            command_line=args.pf_args,
-        )
-    except (ImportError, RuntimeError) as exc:
-        print(f'ERROR: {exc}', file=sys.stderr)
-        return 3
+    if app is None:
+        try:
+            app = connect_powerfactory(
+                start_engine=not args.no_start_engine,
+                command_line=args.pf_args,
+            )
+        except (ImportError, RuntimeError) as exc:
+            print(f'ERROR: {exc}', file=sys.stderr)
+            return 3
 
     import_info = None
     study_info = None
@@ -2266,6 +2428,7 @@ def main(argv=None) -> int:
                 app,
                 Path(args.import_dgs),
                 project_name=args.project_name,
+                reuse_project=bool(args.reuse_project),
                 feeder_metadata_path=feeder_metadata_path,
                 ensure_scenario=ensure_scenario,
                 run_load_flow_flag=want_flow and not run_studies,
@@ -2366,6 +2529,7 @@ def main(argv=None) -> int:
                 app,
                 Path(args.import_dgs),
                 project_name=args.project_name,
+                reuse_project=bool(args.reuse_project),
             )
             time.sleep(0.5)
             if not import_info['ok']:

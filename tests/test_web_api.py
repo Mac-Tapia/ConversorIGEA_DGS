@@ -217,8 +217,11 @@ def test_powerfactory_flow_passes_metadata_logs_counts_and_persists_summary(tmp_
 
         def run_process(self, command, **_kwargs):
             self.commands.append(command)
-            output = Path(command[command.index('--output-json') + 1])
+            batch_path = Path(command[command.index('--batch-file') + 1])
+            job = json.loads(batch_path.read_text(encoding='utf-8'))['jobs'][0]
+            output = Path(job['output_json'])
             output.write_text(json.dumps({
+                'powerfactory_runtime_pass': True,
                 'import': {'project_name': 'PF_NA203'},
                 'feeder_metadata': {'assignment': {
                     'ok': True,
@@ -239,12 +242,87 @@ def test_powerfactory_flow_passes_metadata_logs_counts_and_persists_summary(tmp_
     result = services.powerfactory_flow(ws, ctx, ['NA203'])
 
     command = ctx.commands[0]
-    assert command[command.index('--feeder-metadata') + 1] == str(metadata)
+    batch_path = Path(command[command.index('--batch-file') + 1])
+    batch = json.loads(batch_path.read_text(encoding='utf-8'))
+    assert batch['project_name'] == 'IGEA_DGS_CONVERTER'
+    assert batch['jobs'][0]['feeder_metadata'] == str(metadata)
     assert any('Alimentador: asignado 3/3 cargas, 2/2 fuentes' in line for line in ctx.logs)
     assert result['feeder_acceptance']['NA203']['loads'] == {'assigned': 3, 'expected': 3}
     stored = ws.conversions['NETWORK_NA203']
     assert stored['feeder_metadata'] == metadata.name
     assert stored['feeder_acceptance']['sources'] == {'assigned': 2, 'expected': 2}
+
+
+def test_powerfactory_flow_uses_one_batch_process_for_multiple_feeders(tmp_path, monkeypatch):
+    """Evita reabrir el motor de PowerFactory por cada alimentador del lote."""
+    from igea_dgs.web import services
+    from igea_dgs.web.workspace import Workspace
+
+    ws = Workspace('12345678', tmp_path)
+    ws.out_dir.mkdir(parents=True)
+    feeders = ['NA203', 'NA205']
+    for feeder in feeders:
+        dgs = ws.out_dir / f'{feeder}.dgs'
+        metadata = ws.out_dir / f'{feeder}_feeder_metadata.json'
+        dgs.write_text('DGS', encoding='utf-8')
+        metadata.write_text('{}', encoding='utf-8')
+        ws.conversions[f'NETWORK_{feeder}'] = {
+            'feeder': feeder,
+            'status': 'ok',
+            'dgs': str(dgs),
+        }
+
+    class FakeContext:
+        def __init__(self):
+            self.logs = []
+            self.commands = []
+
+        def log(self, message):
+            self.logs.append(message)
+
+        def check_cancel(self):
+            return None
+
+        def progress(self, *_args):
+            return None
+
+        def run_process(self, command, **_kwargs):
+            self.commands.append(command)
+            batch_path = Path(command[command.index('--batch-file') + 1])
+            batch = json.loads(batch_path.read_text(encoding='utf-8'))
+            assert [job['feeder'] for job in batch['jobs']] == feeders
+            assert [job['project_name'] for job in batch['jobs']] == [
+                'IGEA_DGS_CONVERTER_NA203',
+                'IGEA_DGS_CONVERTER_NA205',
+            ]
+            assert all(job['reuse_project'] is True for job in batch['jobs'])
+            for job in batch['jobs']:
+                Path(job['output_json']).write_text(json.dumps({
+                    'powerfactory_runtime_pass': True,
+                    'import': {'project_name': 'IGEA_DGS_CONVERTER'},
+                    'feeder_metadata': {'assignment': {
+                        'ok': True,
+                        'expected': 2,
+                        'assigned': 2,
+                        'counts_by_class': {'ElmLod': 1, 'ElmXnet': 1},
+                        'counts_by_feeder': {job['feeder']: 2},
+                        'unresolved': [],
+                        'ambiguous': [],
+                    }},
+                }), encoding='utf-8')
+            return 0
+
+    ctx = FakeContext()
+    monkeypatch.setattr(services, '_require_pf', lambda: (tmp_path, Path(sys.executable)))
+    monkeypatch.setattr(services, 'powerfactory_status', lambda: {'interpreter_reason': 'test'})
+
+    result = services.powerfactory_flow(ws, ctx, feeders)
+
+    assert len(ctx.commands) == 1
+    assert '--batch-file' in ctx.commands[0]
+    assert result['ok'] == 2
+    assert result['failed'] == 0
+    assert set(result['feeder_acceptance']) == set(feeders)
 
 
 def test_health_expone_capacidades_y_presets_sin_crs_en_grados(client):

@@ -101,3 +101,47 @@ def test_reference_verifier_executes_all_non_proprietary_gates_when_input_exists
     )} == {'PASS'}
     assert gates['powerfactory']['status'] == 'NOT_RUN_POWERFACTORY'
     assert report['status'] == 'PASS'
+
+
+def test_reference_verifier_accepts_explicit_txt_paths(tmp_path):
+    verifier = _load_verifier()
+    reference = tmp_path / 'reference'
+    write_export(ExportSpec(feeders=1, layout='completo'), reference)
+    discovery = verifier._discover_explicit_inputs(
+        red=next(reference.glob('RED*.txt')),
+        loads=next(reference.glob('CARGA*.txt')),
+        equipment=next(reference.glob('BD_Equipo*.txt')),
+    )
+
+    assert discovery['kind'] == 'txt'
+    assert discovery['status'] == 'PASS'
+    assert set(discovery['paths']) == {verifier.RED, verifier.CARGA, verifier.EQUIPOS}
+
+
+def test_reference_verifier_requires_network_and_equipment_mdb(tmp_path):
+    verifier = _load_verifier()
+    discovery = verifier._discover_explicit_inputs(mdb=tmp_path / 'network.mdb')
+
+    assert discovery['kind'] == 'mdb'
+    assert discovery['status'] == 'SKIP_MISSING_INPUT'
+    assert 'catálogo' in discovery['detail']
+
+
+def test_reference_verifier_combines_txt_and_mdb_reports(monkeypatch, tmp_path):
+    verifier = _load_verifier()
+    calls = []
+
+    def fake_verify(reference_root, output, feeders, *, powerfactory=False, discovery=None):
+        calls.append((Path(output).name, discovery['kind']))
+        return {'status': 'PASS', 'feeders': {name: {} for name in feeders}}
+
+    monkeypatch.setattr(verifier, 'verify_reference_feeders', fake_verify)
+    report = verifier.verify_input_alternatives(
+        tmp_path / 'out', ('NA203', 'NA205'),
+        txt={'kind': 'txt', 'status': 'PASS', 'detail': 'ok', 'paths': {}},
+        mdb={'kind': 'mdb', 'status': 'PASS', 'detail': 'ok', 'paths': {}},
+    )
+
+    assert calls == [('txt', 'txt'), ('mdb', 'mdb')]
+    assert set(report['modes']) == {'txt', 'mdb'}
+    assert report['status'] == 'PASS'

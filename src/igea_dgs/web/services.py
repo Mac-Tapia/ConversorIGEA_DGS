@@ -19,6 +19,7 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
+import os
 import sys
 import tempfile
 import uuid
@@ -29,6 +30,8 @@ from ..naming import feeder_short_name
 from ..powerfactory_env import (
     pf_api_version, pf_python_dir, pf_subprocess_env, project_root, python_for_pf, tools_dir,
 )
+
+PF_WORK_PROJECT = os.environ.get('IGEA_PF_WORK_PROJECT', 'IGEA_DGS_CONVERTER').strip() or 'IGEA_DGS_CONVERTER'
 from .jobs import JobContext
 from .workspace import Workspace
 
@@ -433,22 +436,45 @@ def powerfactory_flow(ws: Workspace, ctx: JobContext, feeders: list[str]) -> dic
     env = pf_subprocess_env(pf_dir)
     lines, ok_n, fail_n = [], 0, 0
     feeder_acceptance: dict[str, dict[str, Any]] = {}
-    for index, (feeder, dgs, geo, metadata) in enumerate(jobs, start=1):
+    batch_jobs: list[dict[str, Any]] = []
+    for feeder, dgs, geo, metadata in jobs:
+        safe_feeder = ''.join(
+            char if char.isalnum() or char == '_' else '_' for char in feeder
+        ).strip('_') or 'ALIMENTADOR'
+        item = {
+            'feeder': feeder,
+            'import_dgs': str(dgs),
+            'feeder_metadata': str(metadata),
+            'project_name': f'{PF_WORK_PROJECT}_{safe_feeder}',
+            # Crea el proyecto la primera vez y actualiza el mismo proyecto
+            # dedicado en ejecuciones posteriores; nunca mezcla alimentadores.
+            'reuse_project': True,
+            'output_json': str(ws.out_dir / f'{feeder}_powerfactory_acceptance.json'),
+            'output_txt': str(ws.out_dir / f'{feeder}_powerfactory_acceptance.txt'),
+        }
+        if geo is not None:
+            item['manifest'] = str(geo)
+        batch_jobs.append(item)
+    batch_path = ws.out_dir / 'powerfactory_batch.json'
+    batch_path.write_text(json.dumps({
+        'schema': 'igea-powerfactory-batch-v1',
+        'project_name': PF_WORK_PROJECT,
+        'jobs': batch_jobs,
+    }, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+
+    for index, (feeder, _dgs, _geo, _metadata) in enumerate(jobs, start=1):
         ctx.check_cancel()
         ctx.progress(index - 1, len(jobs), feeder)
-        ctx.log(f'[{index}/{len(jobs)}] Import + escenario + flujo {feeder}…')
-        # Importar, activar escenario y correr el flujo: segundos. Sin --run-studies
-        # (el cortocircuito de una red unida tardaba más de 20 min y 7 GB de RAM en
-        # cada clic) y sin --fix-until-converge, que ante un flujo que no converge
-        # modifica el modelo (escala cargas) sin pedirlo. Los estudios se lanzan aparte.
-        cmd = [str(interpreter), str(script), '--import-dgs', str(dgs),
-               '--feeder-metadata', str(metadata),
-               '--ensure-scenario', '--run-load-flow']
-        if geo is not None:
-            cmd += ['--manifest', str(geo)]
-        cmd += ['--output-json', str(ws.out_dir / f'{feeder}_powerfactory_acceptance.json'),
-                '--output-txt', str(ws.out_dir / f'{feeder}_powerfactory_acceptance.txt')]
-        rc = ctx.run_process(cmd, env=env, cwd=str(project_root()))
+        ctx.log(f'[{index}/{len(jobs)}] En cola: {feeder}')
+
+    ctx.log(
+        f'Una sesión PowerFactory procesará {len(jobs)} alimentador(es) secuencialmente; '
+        'cada uno conserva importación, activación, flujo e informe propios.'
+    )
+    cmd = [str(interpreter), str(script), '--batch-file', str(batch_path)]
+    batch_rc = ctx.run_process(cmd, env=env, cwd=str(project_root()))
+
+    for feeder, _dgs, _geo, metadata in jobs:
         acceptance_path = ws.out_dir / f'{feeder}_powerfactory_acceptance.json'
         proyecto = _proyecto_importado(acceptance_path)
         summary = _resumen_alimentador(acceptance_path)
@@ -469,15 +495,24 @@ def powerfactory_flow(ws: Workspace, ctx: JobContext, feeders: list[str]) -> dic
                 ws.pf_projects[feeder] = proyecto
                 ws.save()
             ctx.log(f'  proyecto de PowerFactory: {proyecto}')
-        if rc == 0:
+        runtime_pass = False
+        try:
+            runtime_pass = bool(
+                json.loads(acceptance_path.read_text(encoding='utf-8')).get(
+                    'powerfactory_runtime_pass'
+                )
+            )
+        except (OSError, ValueError):
+            runtime_pass = False
+        if runtime_pass:
             ok_n += 1
             lines.append(f'OK {feeder} → convergencia / aceptación')
-        elif rc == 3:
+        elif batch_rc == 3:
             fail_n += 1
             lines.append(f'FAIL {feeder}: API PowerFactory no disponible (abra PF o configure PF_PYTHON)')
         else:
             fail_n += 1
-            lines.append(f'FAIL {feeder}: código {rc}')
+            lines.append(f'FAIL {feeder}: aceptación o convergencia no superada')
     ctx.progress(len(jobs), len(jobs), '')
     for line in lines:
         ctx.log('  ' + line)
