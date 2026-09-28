@@ -60,6 +60,38 @@ What this does:
 
 Exit codes: `0` PASS, `2` FAIL, `3` PF API unavailable.
 
+## Aceptación real de actualización masiva de cargas
+
+La prueba de cargas solo admite proyectos desechables cuyo nombre empiece por
+`IGEA_DGS_CONVERTER_`. Nunca debe ejecutarse sobre el proyecto operativo. Desde la
+interfaz, convierta e importe primero `AL209` desde `260924.mdb` e `IN111` desde la
+tripleta `260927_Red/Carga/Equipo.txt`, dejando los proyectos dedicados
+`IGEA_DGS_CONVERTER_AL209` e `IGEA_DGS_CONVERTER_IN111`.
+
+El arnés captura todas las entradas de cada `ElmLod`, aplica un cambio de 0,1 %,
+relee P/Q/FP y fases, exige `ComLdf` convergente, restaura el snapshot y vuelve a
+exigir convergencia. `restore_originals=False` se rechaza deliberadamente.
+
+```powershell
+$env:IGEA_RUN_REAL_PF='1'
+D:\converter\ConversorIGEA_DGS\.venv\Scripts\python.exe -m pytest `
+  tests\test_load_batch_real_powerfactory.py -v -s `
+  --basetemp=.pytest_tmp\load_real_pf
+```
+
+También puede ejecutar un plan firmado ya preparado:
+
+```powershell
+python tools\load_batch_acceptance.py `
+  --plan output\web\<workspace>\planes\cargas_lote_<token>.json `
+  --output-json output\load_batch_acceptance.json
+```
+
+Un resultado válido requiere `status=PASS`, una sola sesión API para el lote,
+`status=PASS` en la aplicación de cada alimentador, `restored=true` y
+`return_code=0`/`ldf_valid=true` después de cada restauración. El informe conserva el
+SHA-256 del plan; un skip de pytest significa **no ejecutado**, nunca aceptación.
+
 ## Columna `Alimentador` en Network Model Manager
 
 La compuerta anterior crea automáticamente una sola Data Extension llamada internamente `alimentador`, descrita como `Alimentador` y accesible por API como `p:alimentador`. No la cree manualmente antes de ejecutar la compuerta. `Grid` representa el contenedor común; no debe interpretarse como el alimentador individual cuando el DGS une varias redes.
