@@ -105,6 +105,37 @@ Los informes auditables son:
 - `output/real_single_project/txt/IN111_powerfactory_acceptance_batch.json`;
 - `output/real_single_project/txt/IN111_powerfactory_acceptance_batch.txt`.
 
+### Actualización masiva real de cargas — 2026-09-28
+
+También se probó el flujo nuevo de Excel/CSV sobre los mismos proyectos dedicados. El
+plan se reconstruyó directamente desde `260924.mdb` para AL209 y desde
+`260927_Red/Carga/Equipo.txt` para IN111. Se actualizó temporalmente una carga real por
+alimentador (`SE20731` y `SE40071`) en +0,1 %, se releyeron P/Q/FP, se exigió
+convergencia y finalmente se restauró el snapshot original con una segunda
+convergencia.
+
+| Alimentador | Fuente | Proyecto | Aplicación | Restauración | ComLdf final |
+|---|---|---|---|---|---|
+| AL209 | MDB | `IGEA_DGS_CONVERTER_AL209` | PASS | exacta | `return_code=0`, `ldf_valid=true` |
+| IN111 | TXT | `IGEA_DGS_CONVERTER_IN111` | PASS | exacta | `return_code=0`, `ldf_valid=true` |
+
+Resultado ejecutado: `3 passed in 32.11s` en
+`tests/test_load_batch_real_powerfactory.py`. Los dos alimentadores compartieron una
+sola sesión API. La prueba detectó además que PowerFactory 2024 representa la Data
+Extension `p:alimentador` como `STRING_VEC`; el motor acepta el valor unitario
+`['AL209']`/`['IN111']`, pero sigue rechazando vectores vacíos o ambiguos.
+
+La ruta React implementa el mismo contrato: plantilla consolidada, carga Excel/CSV,
+vista previa filtrable, dry-run obligatorio, aplicación asíncrona serializada en el
+carril PowerFactory y enlaces a los siete artefactos de auditoría. La regla de cuatro
+ceros incluye `kW`, `kvar`, `kVA` y `FP`: significa **sin datos**; solo
+`accion=poner_cero` escribe una carga nula.
+
+Después de la regresión completa se repitió la compuerta real: `3 passed in 41.97s`.
+La regresión dio `643 passed, 127 skipped` en Python; React dio `7 passed`, typecheck y
+build correctos, y Playwright `2 passed, 2 skipped` (las dos pruebas de entradas reales
+son opt-in). Ruff quedó `NOT RUN` porque el entorno no tiene instalado ese módulo.
+
 El lote real duró aproximadamente 58 minutos: unos 24 minutos hasta completar AL209
 (incluido el arranque inicial) y unos 34 minutos adicionales para IN111. El cuello de
 botella medido es `ComImport`, no la conversión TXT/MDB→DGS. La mejora elimina el
