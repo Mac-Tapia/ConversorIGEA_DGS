@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from fastapi import (
-    BackgroundTasks, FastAPI, File, HTTPException, Query, Request, UploadFile, WebSocket,
+    BackgroundTasks, FastAPI, File, Form, HTTPException, Query, Request, UploadFile, WebSocket,
     WebSocketDisconnect,
 )
 from fastapi.middleware.cors import CORSMiddleware
@@ -515,6 +515,43 @@ def create_app(data_root: Path | None = None) -> FastAPI:
     @app.get('/api/workspaces/{wid}/feeders/{feeder}/load-template')
     def load_template(wid: str, feeder: str, format: Literal['xlsx', 'csv'] = 'xlsx') -> FileResponse:
         return _template_response(services.load_template(ws_or_404(wid), feeder, format))
+
+    @app.get('/api/workspaces/{wid}/load-template')
+    def load_batch_template(
+        wid: str,
+        feeder: list[str] = Query(...),
+        format: Literal['xlsx', 'csv'] = 'xlsx',
+    ) -> FileResponse:
+        return _template_response(
+            services.load_batch_template(ws_or_404(wid), feeder, format)
+        )
+
+    @app.post('/api/workspaces/{wid}/load-batch-plan')
+    def load_batch_plan(
+        wid: str,
+        feeder: list[str] = Form(...),
+        file: UploadFile = File(...),
+    ) -> dict:
+        ws = ws_or_404(wid)
+        tmp = _upload_tmp(ws, file, 'cargas_lote.xlsx')
+        try:
+            return services.create_load_batch_plan(ws, feeder, tmp)
+        finally:
+            tmp.unlink(missing_ok=True)
+
+    @app.get('/api/workspaces/{wid}/load-batch-plans/{token}/rows')
+    def load_batch_plan_rows(
+        wid: str,
+        token: str,
+        feeder: str | None = Query(default=None),
+        status: str | None = Query(default=None),
+        offset: int = Query(default=0, ge=0),
+        limit: int = Query(default=100, ge=1, le=500),
+    ) -> dict:
+        return services.load_batch_rows(
+            ws_or_404(wid), token, feeder=feeder, status=status,
+            offset=offset, limit=limit,
+        )
 
     @app.post('/api/workspaces/{wid}/feeders/{feeder}/load-plan')
     def load_plan(wid: str, feeder: str, file: UploadFile = File(...)) -> dict:
