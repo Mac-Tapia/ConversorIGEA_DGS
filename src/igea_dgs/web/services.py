@@ -787,6 +787,227 @@ def load_template(ws: Workspace, feeder: str, fmt: str) -> Path:
         raise UserError(str(exc)) from exc
 
 
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open('rb') as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b''):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _conversion_for_feeder(ws: Workspace, feeder: str) -> dict[str, Any]:
+    return next(
+        (
+            item for item in ws.conversions.values()
+            if item.get('feeder') == feeder or item.get('network_id') == feeder
+        ),
+        {},
+    )
+
+
+def _output_path(ws: Workspace, value: Any) -> Path | None:
+    if not value:
+        return None
+    path = Path(str(value))
+    if not path.is_absolute():
+        path = ws.out_dir / path
+    return path if path.is_file() else None
+
+
+def _load_batch_contexts(ws: Workspace, feeders: list[str]):
+    from ..load_batch import FeederLoadContext
+
+    if not feeders:
+        raise UserError('Seleccione al menos un alimentador.')
+    contexts = {}
+    for requested in feeders:
+        model = build_model(ws, requested)
+        feeder = model.name
+        if feeder in contexts:
+            raise UserError(f'Alimentador repetido: {feeder}.')
+        conversion = _conversion_for_feeder(ws, feeder)
+        dgs = _output_path(ws, conversion.get('dgs'))
+        metadata = _output_path(ws, conversion.get('feeder_metadata'))
+        revision_seed = {
+            'inputs': {
+                slot: meta.get('sha256') for slot, meta in sorted(ws.inputs.items())
+            },
+            'options': ws.options,
+            'network_id': model.network_id,
+        }
+        revision = hashlib.sha256(
+            json.dumps(revision_seed, sort_keys=True, ensure_ascii=False).encode('utf-8')
+        ).hexdigest()
+        contexts[feeder] = FeederLoadContext(
+            feeder=feeder,
+            network_id=model.network_id,
+            model=model,
+            project_name=proyecto_pf_de(ws, feeder) or '',
+            dgs_sha256=_sha256_file(dgs) if dgs else '',
+            metadata_sha256=_sha256_file(metadata) if metadata else '',
+            revision=revision,
+        )
+    return contexts
+
+
+def load_batch_template(ws: Workspace, feeders: list[str], fmt: str) -> Path:
+    from ..load_batch import write_bulk_template
+    from ..loads import LoadTemplateError
+
+    contexts = _load_batch_contexts(ws, feeders)
+    signature = hashlib.sha256(
+        '\n'.join(sorted(contexts)).encode('utf-8')
+    ).hexdigest()[:12]
+    out = ws.out_dir / 'plantillas' / f'cargas_lote_{signature}.{fmt}'
+    out.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        return write_bulk_template(contexts, out)
+    except LoadTemplateError as exc:
+        raise UserError(str(exc)) from exc
+
+
+def create_load_batch_plan(ws: Workspace, feeders: list[str], upload: Path) -> dict:
+    from ..load_batch import build_bulk_update_plan, bulk_plan_to_payload
+    from ..loads import LoadTemplateError, read_workbook
+
+    contexts = _load_batch_contexts(ws, feeders)
+    try:
+        sheets = read_workbook(upload)
+    except LoadTemplateError as exc:
+        raise UserError(str(exc)) from exc
+    selected = set(contexts)
+    sheet_names = {str(name).strip().upper() for name in sheets}
+    if upload.suffix.lower() == '.csv' and len(selected) > 1 and not selected <= sheet_names:
+        raise UserError(
+            'Un CSV con varios modelos debe incluir la columna Alimentador en cada fila.'
+        )
+    plan = build_bulk_update_plan(
+        contexts,
+        sheets,
+        input_sha256=_sha256_file(upload),
+    )
+    payload = bulk_plan_to_payload(plan)
+    token = uuid.uuid4().hex[:12]
+    ws.plans_dir.mkdir(parents=True, exist_ok=True)
+    path = ws.plans_dir / f'cargas_lote_{token}.json'
+    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+    summary_by_feeder = {
+        feeder: feeder_plan.summary() for feeder, feeder_plan in plan.feeders.items()
+    }
+    plan_hash = _sha256_file(path)
+    ws.plans[token] = {
+        'kind': 'cargas_lote',
+        'feeders': sorted(contexts),
+        'path': str(path),
+        'plan_sha256': plan_hash,
+        'input_sha256': plan.input_sha256,
+        'contexts': {
+            feeder: {
+                'network_id': context.network_id,
+                'project_name': context.project_name,
+                'dgs_sha256': context.dgs_sha256,
+                'metadata_sha256': context.metadata_sha256,
+                'revision': context.revision,
+            }
+            for feeder, context in contexts.items()
+        },
+        'applicable': any(
+            item.is_applicable and feeder not in plan.blocked_feeders
+            for feeder, item in plan.feeders.items()
+        ),
+    }
+    return {
+        'token': token,
+        'kind': 'cargas_lote',
+        'plan_file': path.name,
+        'plan_sha256': plan_hash,
+        'batch_id': plan.batch_id,
+        'feeders': sorted(contexts),
+        'summary_by_feeder': summary_by_feeder,
+        'ignored_sheets': plan.ignored_sheets,
+        'blocked_feeders': plan.blocked_feeders,
+        'row_errors': plan.row_errors,
+        'applicable': ws.plans[token]['applicable'],
+    }
+
+
+def load_batch_rows(
+    ws: Workspace,
+    token: str,
+    *,
+    feeder: str | None,
+    status: str | None,
+    offset: int,
+    limit: int,
+) -> dict:
+    payload = check_load_batch_plan(ws, token)
+    rows = []
+    for item in payload.get('feeders') or []:
+        name = item['feeder']
+        if feeder and name != feeder:
+            continue
+        for update in item.get('updates') or []:
+            rows.append({**update, 'status': 'actualizar'})
+        for unknown in item.get('unknown') or []:
+            rows.append({**unknown, 'status': 'desconocida'})
+        for sed_code in item.get('no_data') or []:
+            rows.append({
+                'feeder': name, 'network_id': item['network_id'],
+                'sed_code': sed_code, 'status': 'sin_datos',
+            })
+        for sed_code in item.get('skipped') or []:
+            rows.append({
+                'feeder': name, 'network_id': item['network_id'],
+                'sed_code': sed_code, 'status': 'omitida',
+            })
+    rows.sort(key=lambda row: (row['feeder'], row.get('sed_code', ''), row['status']))
+    if status:
+        rows = [row for row in rows if row['status'] == status]
+    total = len(rows)
+    return {
+        'total': total,
+        'offset': offset,
+        'limit': limit,
+        'filters': {'feeder': feeder, 'status': status},
+        'rows': rows[offset:offset + limit],
+    }
+
+
+def check_load_batch_plan(ws: Workspace, token: str) -> dict:
+    """Revalida toda la cadena de custodia antes de mostrar o ejecutar un lote."""
+    stored = ws.plans.get(token)
+    if not stored or stored.get('kind') != 'cargas_lote':
+        raise UserError('El plan masivo no existe o ya no está vigente.')
+
+    path = Path(stored.get('path', ''))
+    if not path.is_file() or _sha256_file(path) != stored.get('plan_sha256'):
+        raise UserError('El plan masivo está obsoleto o fue modificado; vuelva a generarlo.')
+    if not ws.revalidate_inputs():
+        raise UserError('El plan masivo está obsoleto porque cambiaron las entradas.')
+
+    try:
+        current = _load_batch_contexts(ws, list(stored.get('feeders') or []))
+    except UserError as exc:
+        raise UserError(
+            'El plan masivo está obsoleto porque cambió el modelo de entrada.'
+        ) from exc
+    expected_contexts = stored.get('contexts') or {}
+    fields = ('network_id', 'project_name', 'dgs_sha256', 'metadata_sha256', 'revision')
+    for feeder, context in current.items():
+        expected = expected_contexts.get(feeder)
+        actual = {field: getattr(context, field) for field in fields}
+        if expected is None or any(expected.get(field) != actual[field] for field in fields):
+            raise UserError(
+                f'El plan masivo está obsoleto para {feeder}: cambió el DGS, '
+                'la revisión o el proyecto de PowerFactory.'
+            )
+
+    try:
+        return json.loads(path.read_text(encoding='utf-8'))
+    except (OSError, ValueError) as exc:
+        raise UserError('El plan masivo está obsoleto o no se puede leer.') from exc
+
+
 def _store_plan(ws: Workspace, kind: str, feeder: str, payload: dict, extra: dict) -> dict:
     token = uuid.uuid4().hex[:12]
     ws.plans_dir.mkdir(parents=True, exist_ok=True)
