@@ -493,6 +493,41 @@ rem 2) Solo si el anterior falla, con correcciones, y como resultado aparte
     --fix-until-converge --output-json output\produccion\IN111_corregido.json
 ```
 
+### 5.6 Actualizar cargas en bloque desde la interfaz
+
+1. Importe primero cada DGS con **Cargar en DigSILENT + flujo**. La actualización no
+   crea ni sustituye proyectos: activa exactamente el proyecto asociado a cada DGS.
+2. Abra **Cargas de SED**, marque uno o varios alimentadores y descargue Excel o CSV.
+   El Excel usa una hoja por alimentador; en CSV, `Alimentador` es obligatorio cuando
+   el lote contiene más de uno.
+3. Complete `kW`/`kvar` o `kVA`/`FP`. La clave eléctrica es
+   `Alimentador + NetworkID + SED`, no solo el nombre visible de la carga.
+4. Suba el archivo y revise las filas `actualizar`, `sin_datos`, `omitida` y
+   `desconocida`. Un error o una SED desconocida bloquea la aplicación.
+5. Ejecute **dry-run**. Solo un `PASS` del mismo plan y de las mismas revisiones DGS
+   habilita **Aplicar en DigSILENT**.
+6. Aplique y descargue los siete artefactos de auditoría mostrados por la interfaz.
+
+Reglas de cero:
+
+- `kW=kvar=kVA=FP=0`, o los cuatro campos vacíos, significa **sin datos** y conserva
+  la carga existente.
+- `accion=omitir` conserva la fila aunque contenga números.
+- únicamente `accion=poner_cero` escribe P=Q=0 de forma deliberada.
+- `accion=actualizar` exige datos suficientes y coherentes; si se proporcionan ambas
+  representaciones, P/Q y kVA/FP deben coincidir dentro de la tolerancia del 1 %.
+
+La ejecución usa un solo carril PowerFactory y una transacción independiente por
+alimentador. Antes de escribir valida proyecto, `NetworkID`, columna `Alimentador` y
+SED exacta. Después relee P, Q, FP y fases, y exige `ComLdf` convergente. Ante un fallo
+restaura todas las cargas ya tocadas de ese alimentador; `CRITICAL` significa que la
+restauración o el flujo posterior también falló y requiere inspección inmediata.
+
+Los artefactos quedan en un directorio nuevo del workspace: `input_manifest.json`,
+`plan.json`, `preview.csv`, `result.json`, `result.csv`, `rollback.json` y
+`logs.jsonl`. Si cambia la entrada, el DGS, sus metadatos o la revisión del proyecto,
+el plan y su aprobación dry-run caducan y deben regenerarse.
+
 ---
 
 ## 6. Cadena completa en un solo guion

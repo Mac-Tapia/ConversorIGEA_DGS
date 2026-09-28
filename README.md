@@ -121,10 +121,18 @@ La columna estándar `Grid` identifica el contenedor DGS común, por lo que toda
 filas pueden mostrar `NA203_NA205` u otro nombre compuesto. La pertenencia individual
 se consulta exclusivamente en `Alimentador`: `SE50033 → NA203`, por ejemplo.
 
-**Cargas de SED en bloque (Excel o CSV)**: descargue la plantilla del alimentador,
-escriba los valores nuevos en `Kw` y `Kvar` (o en `(kVA)` y `FP`; `accion = omitir` salta la fila), súbala, revise el plan y aplíquelo. Se aplica sobre el
-proyecto de PowerFactory que creó «Cargar en DigSILENT» (el del alimentador o el del DGS
-unido que lo contiene); por eso hay que cargarlo antes.
+**Cargas de SED en bloque (Excel o CSV)**: en «Cargas de SED» seleccione uno o varios
+alimentadores, descargue la plantilla consolidada, escriba `kW`/`kvar` o `kVA`/`FP`,
+súbala y revise el plan por `Alimentador + NetworkID + SED`. `accion=omitir` no toca la
+fila; cuatro ceros (`kW=kvar=kVA=FP=0`) o cuatro celdas vacías significan **sin datos**
+y tampoco escriben. Solo `accion=poner_cero` ordena escribir P=Q=0.
+
+La interfaz exige primero un **dry-run PASS** del mismo plan. Después habilita «Aplicar
+en DigSILENT», procesa cada alimentador de forma atómica, relee P/Q/FP (y fases si la
+carga es desequilibrada), ejecuta `ComLdf` y revierte ese alimentador ante cualquier
+error. Cada ejecución deja manifiesto, plan, vista previa, resultados CSV/JSON,
+rollback y log JSONL bajo el workspace. El DGS debe haberse importado antes mediante
+«Cargar en DigSILENT + flujo».
 
 ## Instalación (otra máquina local)
 
