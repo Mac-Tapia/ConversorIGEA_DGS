@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import io
+import json
+import sys
 import time
 from pathlib import Path
 
@@ -14,6 +16,8 @@ from openpyxl import load_workbook  # noqa: E402
 
 from synthetic_export import ExportSpec, write_export  # noqa: E402
 from igea_dgs.web.app import create_app  # noqa: E402
+from igea_dgs.web import services  # noqa: E402
+from igea_dgs.web.jobs import Job, JobCancelled, JobContext  # noqa: E402
 
 
 @pytest.fixture()
@@ -74,6 +78,42 @@ def _create_plan(client: TestClient, wid: str, feeders: list[str]) -> dict:
     )
     assert response.status_code == 200, response.text
     return response.json()
+
+
+def _create_pf_plan(client: TestClient, wid: str, feeders: list[str]) -> dict:
+    ws = client.app.state.store.get(wid)
+    for feeder in feeders:
+        ws.pf_projects[feeder] = f'PF_{feeder}'
+    return _create_plan(client, wid, feeders)
+
+
+def _fake_pf(monkeypatch, tmp_path: Path) -> list[list[str]]:
+    commands = []
+    monkeypatch.setattr(services, '_require_pf', lambda: (tmp_path, Path(sys.executable)))
+
+    def run_process(self, cmd, **_kwargs):
+        commands.append(cmd)
+        output = Path(cmd[cmd.index('--output-json') + 1])
+        plan = json.loads(Path(cmd[cmd.index('--plan') + 1]).read_text(encoding='utf-8'))
+        dry_run = '--dry-run' in cmd
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json.dumps({
+            'batch_id': plan['batch_id'],
+            'dry_run': dry_run,
+            'status': 'PASS',
+            'feeders': [
+                {
+                    'feeder': item['feeder'], 'status': 'PASS',
+                    'written': 0 if dry_run else len(item.get('updates') or []),
+                    'errors': [], 'details': [],
+                }
+                for item in plan['feeders']
+            ],
+        }), encoding='utf-8')
+        return 0
+
+    monkeypatch.setattr(JobContext, 'run_process', run_process)
+    return commands
 
 
 def test_bulk_template_contains_all_selected_feeders(client, tmp_path):
@@ -176,3 +216,131 @@ def test_project_mapping_change_invalidates_batch_plan(client, tmp_path):
 
     assert response.status_code == 400
     assert 'obsoleto' in response.json()['detail'].lower()
+
+
+def test_apply_requires_successful_dry_run(client, tmp_path):
+    wid, feeders = _loaded(client, tmp_path)
+    plan = _create_pf_plan(client, wid, feeders)
+
+    response = client.post(
+        f"/api/workspaces/{wid}/load-batch-plans/{plan['token']}/apply"
+    )
+
+    assert response.status_code == 400
+    assert 'dry-run' in response.json()['detail'].lower()
+
+
+def test_dry_run_uses_powerfactory_lane(client, tmp_path, monkeypatch):
+    commands = _fake_pf(monkeypatch, tmp_path)
+    wid, feeders = _loaded(client, tmp_path)
+    plan = _create_pf_plan(client, wid, feeders)
+
+    response = client.post(
+        f"/api/workspaces/{wid}/load-batch-plans/{plan['token']}/dry-run"
+    )
+
+    assert response.status_code == 202, response.text
+    assert response.json()['lane'] == 'powerfactory'
+    state = _wait(client, response.json())
+    assert state['status'] == 'done', state
+    assert '--dry-run' in commands[0]
+
+
+def test_changed_plan_after_dry_run_is_rejected(client, tmp_path, monkeypatch):
+    _fake_pf(monkeypatch, tmp_path)
+    wid, feeders = _loaded(client, tmp_path)
+    plan = _create_pf_plan(client, wid, feeders)
+    dry = client.post(
+        f"/api/workspaces/{wid}/load-batch-plans/{plan['token']}/dry-run"
+    ).json()
+    assert _wait(client, dry)['status'] == 'done'
+    ws = client.app.state.store.get(wid)
+    path = Path(ws.plans[plan['token']]['path'])
+    path.write_text(path.read_text(encoding='utf-8') + '\n', encoding='utf-8')
+
+    response = client.post(
+        f"/api/workspaces/{wid}/load-batch-plans/{plan['token']}/apply"
+    )
+
+    assert response.status_code == 400
+    assert 'obsoleto' in response.json()['detail'].lower()
+
+
+def test_single_feeder_apply_uses_batch_engine(client, tmp_path, monkeypatch):
+    commands = _fake_pf(monkeypatch, tmp_path)
+    wid, feeders = _loaded(client, tmp_path)
+    feeder = feeders[0]
+    ws = client.app.state.store.get(wid)
+    ws.pf_projects[feeder] = f'PF_{feeder}'
+    template = client.get(
+        f'/api/workspaces/{wid}/feeders/{feeder}/load-template',
+        params={'format': 'csv'},
+    )
+    plan = client.post(
+        f'/api/workspaces/{wid}/feeders/{feeder}/load-plan',
+        files={'file': (f'{feeder}.csv', template.content)},
+    ).json()
+    dry = client.post(
+        f"/api/workspaces/{wid}/load-batch-plans/{plan['token']}/dry-run"
+    )
+    assert _wait(client, dry.json())['status'] == 'done'
+
+    apply = client.post(f"/api/workspaces/{wid}/plans/{plan['token']}/apply")
+    assert _wait(client, apply.json())['status'] == 'done'
+
+    assert all('apply_sed_load_batch.py' in ' '.join(cmd) for cmd in commands)
+
+
+def test_audit_contains_before_requested_verified_and_status(client, tmp_path, monkeypatch):
+    _fake_pf(monkeypatch, tmp_path)
+    wid, feeders = _loaded(client, tmp_path)
+    plan = _create_pf_plan(client, wid, feeders)
+    job = client.post(
+        f"/api/workspaces/{wid}/load-batch-plans/{plan['token']}/dry-run"
+    ).json()
+
+    state = _wait(client, job)
+
+    assert state['status'] == 'done', state
+    artifacts = state['result']['artifacts']
+    assert set(artifacts) == {
+        'input_manifest.json', 'plan.json', 'preview.csv', 'result.json',
+        'result.csv', 'rollback.json', 'logs.jsonl',
+    }
+    ws = client.app.state.store.get(wid)
+    result_csv = (ws.out_dir / artifacts['result.csv']).read_text(encoding='utf-8-sig')
+    header = result_csv.splitlines()[0]
+    assert {'p_before_mw', 'p_requested_mw', 'p_verified_mw', 'status'} <= set(
+        header.split(';')
+    )
+
+
+def test_each_run_uses_a_new_directory(client, tmp_path, monkeypatch):
+    _fake_pf(monkeypatch, tmp_path)
+    wid, feeders = _loaded(client, tmp_path)
+    plan = _create_pf_plan(client, wid, feeders)
+
+    results = []
+    for _ in range(2):
+        job = client.post(
+            f"/api/workspaces/{wid}/load-batch-plans/{plan['token']}/dry-run"
+        ).json()
+        results.append(_wait(client, job)['result'])
+
+    assert results[0]['run_id'] != results[1]['run_id']
+    assert Path(results[0]['report']).parent != Path(results[1]['report']).parent
+
+
+def test_cancel_before_write_is_clean(client, tmp_path, monkeypatch):
+    _fake_pf(monkeypatch, tmp_path)
+    wid, feeders = _loaded(client, tmp_path)
+    plan = _create_pf_plan(client, wid, feeders)
+    ws = client.app.state.store.get(wid)
+    job = Job('test', 'test', wid, 'powerfactory', lambda _ctx: None)
+    job.cancel.set()
+    ctx = JobContext(job, lambda *_args: None)
+
+    with pytest.raises(JobCancelled):
+        services.dry_run_load_batch(ws, ctx, plan['token'])
+
+    assert not (ws.out_dir / 'cargas').exists()

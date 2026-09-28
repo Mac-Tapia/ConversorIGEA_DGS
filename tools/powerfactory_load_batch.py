@@ -7,7 +7,7 @@ la lógica de identidad, escritura, verificación y rollback sin la API propieta
 from __future__ import annotations
 
 import math
-from typing import Any
+from typing import Any, Callable
 
 
 PHASES = ('r', 's', 't')
@@ -225,7 +225,33 @@ def _balanced_pq(obj: Any) -> tuple[float, float]:
     return p, recap * abs(p) * math.tan(math.acos(cos))
 
 
-def apply_feeder_transaction(app: Any, feeder_plan: dict, *, dry_run: bool) -> dict:
+def _verified_values(obj: Any) -> dict[str, Any]:
+    if int(_get(obj, 'i_sym', 0) or 0) == 1:
+        phases = {
+            attr: float(_get(obj, attr, 0.0) or 0.0)
+            for prefix in ('plini', 'qlini') for attr in (f'{prefix}r', f'{prefix}s', f'{prefix}t')
+        }
+        p = sum(phases[f'plini{phase}'] for phase in PHASES)
+        q = sum(phases[f'qlini{phase}'] for phase in PHASES)
+    else:
+        p, q = _balanced_pq(obj)
+        phases = {}
+    pf = abs(p) / math.hypot(p, q) if p or q else 1.0
+    return {'plini_mw': p, 'qlini_mvar': q, 'coslini': pf, 'phases': phases}
+
+
+class TransactionCancelled(RuntimeError):
+    pass
+
+
+def apply_feeder_transaction(
+    app: Any,
+    feeder_plan: dict,
+    *,
+    dry_run: bool,
+    cancel_requested: Callable[[], bool] | None = None,
+) -> dict:
+    cancelled = cancel_requested or (lambda: False)
     resolved = resolve_feeder_loads(
         app, str(feeder_plan.get('project_name') or ''), feeder_plan,
     )
@@ -236,8 +262,30 @@ def apply_feeder_transaction(app: Any, feeder_plan: dict, *, dry_run: bool) -> d
             'written': 0,
             'errors': resolved['errors'],
             'dry_run': bool(dry_run),
+            'details': [],
+        }
+    if cancelled():
+        return {
+            'feeder': feeder_plan.get('feeder'), 'status': 'ROLLED_BACK',
+            'written': 0, 'errors': ['Cancelado antes de escribir.'],
+            'rollback_errors': [], 'dry_run': bool(dry_run), 'details': [],
         }
     if dry_run:
+        details = [
+            {
+                'sed_code': code,
+                'before': snapshot_load(obj),
+                'requested': rows,
+                'verified': None,
+                'status': 'VALIDATED',
+                'reason': '',
+            }
+            for code, obj in sorted(resolved['objects'].items())
+            for rows in [next(
+                row for row in feeder_plan.get('updates') or []
+                if str(row.get('sed_code') or '').strip() == code
+            )]
+        ]
         return {
             'feeder': feeder_plan.get('feeder'),
             'status': 'PASS',
@@ -245,6 +293,7 @@ def apply_feeder_transaction(app: Any, feeder_plan: dict, *, dry_run: bool) -> d
             'matched': len(resolved['objects']),
             'errors': [],
             'dry_run': True,
+            'details': details,
         }
 
     objects = resolved['objects']
@@ -255,13 +304,26 @@ def apply_feeder_transaction(app: Any, feeder_plan: dict, *, dry_run: bool) -> d
     snapshots = {code: snapshot_load(obj) for code, obj in objects.items()}
     written = 0
     errors: list[str] = []
+    details: list[dict[str, Any]] = []
     load_flow = None
     try:
         for code in sorted(objects):
+            if cancelled():
+                raise TransactionCancelled('Cancelación solicitada; iniciando rollback.')
             write_load(objects[code], rows[code])
             written += 1
             verification = verify_load(objects[code], rows[code])
             errors.extend(f'{code}: {error}' for error in verification)
+            details.append({
+                'sed_code': code,
+                'before': snapshots[code],
+                'requested': rows[code],
+                'verified': _verified_values(objects[code]),
+                'status': 'FAILED' if verification else 'VERIFIED',
+                'reason': '; '.join(verification),
+            })
+            if cancelled():
+                raise TransactionCancelled('Cancelación solicitada; iniciando rollback.')
         if errors:
             raise RuntimeError('La relectura no coincide con los valores solicitados.')
         load_flow = _run_load_flow(app)
@@ -290,6 +352,18 @@ def apply_feeder_transaction(app: Any, feeder_plan: dict, *, dry_run: bool) -> d
         rollback_flow = _run_load_flow(app)
         if not rollback_flow['converged']:
             rollback_errors.append('ComLdf no converge después del rollback.')
+        detailed = {item['sed_code']: item for item in details}
+        for code, obj in sorted(objects.items()):
+            item = detailed.setdefault(code, {
+                'sed_code': code,
+                'before': snapshots[code],
+                'requested': rows[code],
+                'verified': None,
+                'reason': '',
+            })
+            item['status'] = 'CRITICAL' if rollback_errors else 'ROLLED_BACK'
+            item['rollback_verified'] = snapshot_load(obj) == snapshots[code]
+        details = list(detailed.values())
         return {
             'feeder': feeder_plan.get('feeder'),
             'status': 'CRITICAL' if rollback_errors else 'ROLLED_BACK',
@@ -299,6 +373,7 @@ def apply_feeder_transaction(app: Any, feeder_plan: dict, *, dry_run: bool) -> d
             'load_flow': load_flow,
             'rollback_load_flow': rollback_flow,
             'dry_run': False,
+            'details': details,
         }
 
     return {
@@ -309,6 +384,7 @@ def apply_feeder_transaction(app: Any, feeder_plan: dict, *, dry_run: bool) -> d
         'rollback_errors': [],
         'load_flow': load_flow,
         'dry_run': False,
+        'details': details,
     }
 
 

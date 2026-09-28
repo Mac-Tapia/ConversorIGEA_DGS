@@ -553,6 +553,24 @@ def create_app(data_root: Path | None = None) -> FastAPI:
             offset=offset, limit=limit,
         )
 
+    @app.post('/api/workspaces/{wid}/load-batch-plans/{token}/dry-run', status_code=202)
+    def dry_run_load_batch(wid: str, token: str) -> dict:
+        ws = ws_or_404(wid)
+        services.validate_load_batch_execution(ws, token, require_dry_run=False)
+        return submit(
+            ws, 'load-batch-dry-run', 'Simular actualización masiva de cargas',
+            lambda ctx: services.dry_run_load_batch(ws, ctx, token), lane='powerfactory',
+        )
+
+    @app.post('/api/workspaces/{wid}/load-batch-plans/{token}/apply', status_code=202)
+    def apply_load_batch(wid: str, token: str) -> dict:
+        ws = ws_or_404(wid)
+        services.validate_load_batch_execution(ws, token, require_dry_run=True)
+        return submit(
+            ws, 'load-batch-apply', 'Aplicar actualización masiva de cargas',
+            lambda ctx: services.apply_load_batch(ws, ctx, token), lane='powerfactory',
+        )
+
     @app.post('/api/workspaces/{wid}/feeders/{feeder}/load-plan')
     def load_plan(wid: str, feeder: str, file: UploadFile = File(...)) -> dict:
         ws = ws_or_404(wid)
@@ -582,6 +600,13 @@ def create_app(data_root: Path | None = None) -> FastAPI:
     @app.post('/api/workspaces/{wid}/plans/{token}/apply', status_code=202)
     def apply_plan(wid: str, token: str) -> dict:
         ws = ws_or_404(wid)
+        stored = ws.plans.get(token)
+        if stored and stored.get('kind') == 'cargas_lote':
+            services.validate_load_batch_execution(ws, token, require_dry_run=True)
+            return submit(
+                ws, 'load-batch-apply', 'Aplicar actualización masiva de cargas',
+                lambda ctx: services.apply_load_batch(ws, ctx, token), lane='powerfactory',
+            )
         plan = services.check_plan(ws, token)
         title = ('Actualizar cargas' if plan['kind'] == 'cargas' else 'Crear SED') + f" en {plan['feeder']}"
         return submit(ws, 'plan', title, lambda ctx: services.apply_plan(ws, ctx, token),

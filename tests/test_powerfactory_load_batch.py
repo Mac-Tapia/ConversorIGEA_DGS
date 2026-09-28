@@ -301,3 +301,33 @@ def test_dry_run_never_writes():
     assert result['written'] == 0
     assert obj._writes == writes
     assert pf_batch.snapshot_load(obj) == before
+
+
+def test_cancel_before_write_is_clean():
+    obj = load('SED01', 'F1')
+    before = pf_batch.snapshot_load(obj)
+
+    result = pf_batch.apply_feeder_transaction(
+        FakeApp([obj]), feeder_plan('SED01'), dry_run=False,
+        cancel_requested=lambda: True,
+    )
+
+    assert result['status'] == 'ROLLED_BACK'
+    assert result['written'] == 0
+    assert pf_batch.snapshot_load(obj) == before
+
+
+def test_cancel_during_feeder_requests_rollback():
+    first = load('SED01', 'F1')
+    second = load('SED02', 'F1')
+    before = [pf_batch.snapshot_load(obj) for obj in (first, second)]
+    checks = iter([False, False, True])
+
+    result = pf_batch.apply_feeder_transaction(
+        FakeApp([first, second]), feeder_plan('SED01', 'SED02'), dry_run=False,
+        cancel_requested=lambda: next(checks, True),
+    )
+
+    assert result['status'] == 'ROLLED_BACK'
+    assert result['written'] == 1
+    assert [pf_batch.snapshot_load(obj) for obj in (first, second)] == before
