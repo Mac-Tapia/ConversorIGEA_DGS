@@ -35,6 +35,22 @@ def _set(obj: Any, name: str, value: Any) -> None:
         setattr(obj, name, value)
 
 
+def _text_value(value: Any) -> str:
+    """Normaliza STRING/STRING_VEC de Data Extensions de PowerFactory 2024."""
+    if isinstance(value, (list, tuple)):
+        values = [str(item).strip() for item in value if str(item).strip()]
+        return values[0] if len(values) == 1 else ''
+    return str(value or '').strip()
+
+
+def _active_project_is(app: Any, expected: Any, expected_name: str) -> bool:
+    try:
+        active = app.GetActiveProject()
+    except Exception:
+        return False
+    return active is expected or _text_value(_get(active, 'loc_name', '')) == expected_name
+
+
 def snapshot_load(obj: Any) -> dict[str, Any]:
     """Captura todas las entradas capaces de cambiar, incluidas las fases."""
     return {name: _get(obj, name) for name in SNAPSHOT_ATTRS}
@@ -76,7 +92,7 @@ def resolve_feeder_loads(app: Any, project_name: str, feeder_plan: dict) -> dict
         rc = project.Activate()
     except Exception as exc:
         return {'project': project, 'objects': {}, 'errors': [f'No se pudo activar: {exc}']}
-    if rc not in (None, 0):
+    if rc not in (None, 0) and not _active_project_is(app, project, project_name):
         errors.append(f'No se pudo activar el proyecto {project_name!r}: rc={rc}.')
     try:
         if not app.GetActiveStudyCase():
@@ -97,7 +113,7 @@ def resolve_feeder_loads(app: Any, project_name: str, feeder_plan: dict) -> dict
     feeder = str(feeder_plan.get('feeder') or '').strip()
     by_code: dict[str, list[Any]] = {}
     for obj in app.GetCalcRelevantObjects('*.ElmLod'):
-        if str(_get(obj, 'p:alimentador', '') or '').strip() != feeder:
+        if _text_value(_get(obj, 'p:alimentador', '')) != feeder:
             continue
         code = str(_get(obj, 'loc_name', '') or '').strip()
         by_code.setdefault(code, []).append(obj)
@@ -403,3 +419,6 @@ def _run_load_flow(app: Any) -> dict[str, Any]:
             'error': str(exc),
         }
     return {'return_code': rc, 'ldf_valid': valid, 'converged': rc == 0 and valid}
+
+
+run_load_flow = _run_load_flow

@@ -46,13 +46,14 @@ class FakeObject:
 
 
 class FakeProject(FakeObject):
-    def __init__(self, app, name: str, network_id: str):
+    def __init__(self, app, name: str, network_id: str, activate_rc: int = 0):
         super().__init__(name, **{'p:network_id': network_id})
         self._app = app
+        self._activate_rc = activate_rc
 
     def Activate(self):
         self._app.active_project = self
-        return 0
+        return self._activate_rc
 
 
 class FakeUser:
@@ -76,16 +77,22 @@ class FakeLdf:
 
 
 class FakeApp:
-    def __init__(self, loads, *, project='PROYECTO', network_id='NETWORK_F1', ldf_codes=None):
+    def __init__(
+        self, loads, *, project='PROYECTO', network_id='NETWORK_F1', ldf_codes=None,
+        activate_rc=0,
+    ):
         self.loads = loads
         self.active_project = None
         self.ldf_valid = True
-        self.project = FakeProject(self, project, network_id)
+        self.project = FakeProject(self, project, network_id, activate_rc)
         self.user = FakeUser([self.project])
         self.ldf = FakeLdf(self, ldf_codes)
 
     def GetCurrentUser(self):
         return self.user
+
+    def GetActiveProject(self):
+        return self.active_project
 
     def GetCalcRelevantObjects(self, pattern):
         return self.loads if pattern == '*.ElmLod' else []
@@ -140,6 +147,26 @@ def test_same_loc_name_in_other_feeder_is_not_selected():
 
     assert resolved['errors'] == []
     assert resolved['objects']['SED01'] is wanted
+
+
+def test_powerfactory_vector_feeder_attribute_is_normalized():
+    wanted = load('SED01', ['F1'])
+    app = FakeApp([wanted])
+
+    resolved = pf_batch.resolve_feeder_loads(app, 'PROYECTO', feeder_plan('SED01'))
+
+    assert resolved['errors'] == []
+    assert resolved['objects']['SED01'] is wanted
+
+
+def test_activation_rc_one_is_accepted_only_when_expected_project_is_active():
+    wanted = load('SED01', 'F1')
+    app = FakeApp([wanted], activate_rc=1)
+
+    resolved = pf_batch.resolve_feeder_loads(app, 'PROYECTO', feeder_plan('SED01'))
+
+    assert resolved['errors'] == []
+    assert resolved['project'] is app.GetActiveProject()
 
 
 def test_duplicate_in_same_feeder_is_ambiguous():

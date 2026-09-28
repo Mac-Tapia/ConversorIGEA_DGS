@@ -61,4 +61,5 @@ testpaths = ["tests"]
 markers = [
     "real_na203_na205: requiere artefactos reales regenerados; un skip no equivale a aceptación",
     "real_reference_inputs: requiere los TXT y MDB reales; un skip no equivale a aceptación",
+    "real_load_batch: modifica y restaura cargas en proyectos PowerFactory dedicados",
 ]
