@@ -25,6 +25,12 @@ import json
 import sys
 from pathlib import Path
 
+try:
+    from powerfactory_load_batch import write_load
+except ModuleNotFoundError:  # carga mediante importlib desde la raíz del repositorio
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from powerfactory_load_batch import write_load
+
 
 def _escribir_carga(obj, row: dict) -> None:
     """Escribe solo las ENTRADAS del modo de la carga (``mode_inp``).
@@ -34,43 +40,7 @@ def _escribir_carga(obj, row: dict) -> None:
     hacía que PowerFactory recalculara P desde la S anterior y el cambio se perdía en
     silencio.
     """
-    import math
-
-    p = float(row['plini_mw'])
-    q = float(row['qlini_mvar'])
-    s = float(row.get('slini_mva') or math.hypot(p, q))
-    cos = float(row.get('coslini') or (p / s if s else 1.0))
-    if int(getattr(obj, 'i_sym', 0) or 0) == 1:
-        # Carga desequilibrada (así la escribe el DGS): los datos son P y Q POR FASE y
-        # el total es derivado. Se escala cada fase conservando su reparto; si la carga
-        # valía cero, se reparte a partes iguales entre las tres.
-        fases = ('r', 's', 't')
-        p_old = [float(getattr(obj, f'plini{f}', 0.0) or 0.0) for f in fases]
-        q_old = [float(getattr(obj, f'qlini{f}', 0.0) or 0.0) for f in fases]
-        sp, sq = sum(p_old), sum(q_old)
-        p_new = [x * p / sp for x in p_old] if sp else [p / 3.0] * 3
-        if sq:
-            q_new = [x * q / sq for x in q_old]
-        else:
-            q_new = [q * (x / p) if p else q / 3.0 for x in p_new]
-        for f, pv, qv in zip(fases, p_new, q_new):
-            setattr(obj, f'plini{f}', pv)
-            setattr(obj, f'qlini{f}', qv)
-        return
-    modo = str(getattr(obj, 'mode_inp', '') or 'PC').upper()
-    if modo == 'PQ':
-        obj.plini, obj.qlini = p, q
-    elif modo == 'SC':
-        obj.slini, obj.coslini = s, cos
-    elif modo == 'SP':
-        obj.slini, obj.plini = s, p
-    elif modo == 'QC':
-        obj.qlini, obj.coslini = q, cos
-    else:                                   # 'PC' y cualquier otro: P y cos φ
-        obj.plini, obj.coslini = p, cos
-    # El signo de Q (inductiva/capacitiva) cuando el modo usa cos φ.
-    if modo in ('PC', 'SC', 'QC') and hasattr(obj, 'pf_recap'):
-        obj.pf_recap = 1 if q < 0 else 0
+    write_load(obj, row)
 
 
 def _parser() -> argparse.ArgumentParser:
