@@ -8,7 +8,6 @@ import pytest
 
 from igea_dgs.dgs import (
     NA205_DIAGRAM_UNITS_PER_METER,
-    NA205_MAX_DIAGRAM_EXTENT,
     NA205_SED_LV_KV,
     NA205_SED_SIZE,
     NA205_SYMBOL_SIZE,
@@ -188,19 +187,11 @@ def test_una_red_grande_conserva_la_escala_y_agranda_la_hoja():
     assert _adaptive_scale(meter_xy, set(meter_xy)) == NA205_DIAGRAM_UNITS_PER_METER
 
 
-def test_solo_se_encoge_ante_coordenadas_imposibles():
-    """El tope que queda es una red de seguridad, no un criterio de dibujo.
-
-    Una extensión de miles de kilómetros en una red de distribución significa
-    coordenadas corruptas —un CRS equivocado multiplica las distancias—, y ahí sí
-    conviene encoger para que el diagrama salga y se vea que algo va mal.
-    """
-    from igea_dgs.dgs import MAX_DIAGRAM_EXTENT_ABSOLUTO
-
+def test_la_escala_real_no_depende_del_tamano_de_la_red():
     meter_xy = {'A': (0.0, 0.0), 'B': (5_000_000.0, 0.0)}
     escala = _adaptive_scale(meter_xy, set(meter_xy))
-    assert escala < NA205_DIAGRAM_UNITS_PER_METER
-    assert 5_000_000.0 * escala <= MAX_DIAGRAM_EXTENT_ABSOLUTO * 1.02
+    assert escala == NA205_DIAGRAM_UNITS_PER_METER
+    assert 5_000_000.0 * escala > 10_000_000.0
 
 
 def test_los_vertices_intermedios_cuentan_para_la_hoja():
@@ -211,22 +202,14 @@ def test_los_vertices_intermedios_cuentan_para_la_hoja():
     es que los puntos intermedios entran en el cálculo; ya no que encojan la escala,
     porque ahora lo que crece es la hoja.
     """
-    from igea_dgs.dgs import DIAGRAM_SHEET_MARGIN_DU, MAX_DIAGRAM_EXTENT_ABSOLUTO
+    from igea_dgs.dgs import DIAGRAM_SHEET_MARGIN_DU
 
     meter_xy = {'A': (0.0, 0.0), 'B': (100.0, 0.0)}
     lejano = 80_000.0
     escala = _adaptive_scale(meter_xy, set(meter_xy), extra_points=[(lejano, 0.0)])
     # A escala de referencia la hoja cabe de sobra, así que no se encoge nada.
     assert escala == NA205_DIAGRAM_UNITS_PER_METER
-    assert lejano * escala + 2.0 * DIAGRAM_SHEET_MARGIN_DU <= MAX_DIAGRAM_EXTENT_ABSOLUTO
-
-    # Con un tope pequeño se ve que el vértice lejano SÍ entra en el cálculo: sin él,
-    # la extensión sería de 100 m y no haría falta encoger.
-    apretado = _adaptive_scale(
-        meter_xy, set(meter_xy), extra_points=[(lejano, 0.0)], max_extent=55_000.0)
-    assert apretado < NA205_DIAGRAM_UNITS_PER_METER
-    sin_vertice = _adaptive_scale(meter_xy, set(meter_xy), max_extent=55_000.0)
-    assert sin_vertice == NA205_DIAGRAM_UNITS_PER_METER
+    assert lejano * escala + 2.0 * DIAGRAM_SHEET_MARGIN_DU > 55_000.0
 
 
 def test_radial_offsets_spread_shared_node_loads():

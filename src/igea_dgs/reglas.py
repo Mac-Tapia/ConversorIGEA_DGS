@@ -21,7 +21,8 @@ Sobre cada **modelo** (por alimentador):
    (:mod:`igea_dgs.sed_potencia`).
 4. Correcciones de ficha del catálogo (filas ``ficha``/``derivado``), conservando código,
    sección y tipo.
-5. Diagrama en hoja **A0**, símbolos según la cuadrícula, todos los tramos dibujados.
+5. Diagrama en hoja a medida, a escala geográfica real, con símbolos de tamaño NA205.
+    A0–A4 solo se usan si el operador selecciona explícitamente un formato fijo.
 
 Y sobre el **resultado**: auditoría de completitud contra la entrada
 (:func:`auditar_completitud`). Un alimentador que pierde un elemento no es «ok».
@@ -43,7 +44,7 @@ MARCADOR_DEFAULT = {'ID': 'DEFAULT', 'R1': '0.4', 'R0': '0.4', 'X1': '0.4', 'X0'
 
 @dataclass(frozen=True)
 class Reglas:
-    hoja: str | None = 'A0'
+    hoja: str | None = None
     fundir_puentes: bool = True
     excluir_trafomix: bool = True
     redimensionar_sed: bool = True

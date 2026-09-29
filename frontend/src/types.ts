@@ -13,17 +13,20 @@ export interface Options {
   export_tsv: boolean;
   /** Procesos en paralelo: 0 automático, 1 en serie. */
   workers: number;
-  /** Hoja del diagrama en PowerFactory (reglas del proyecto: A0). */
-  hoja: 'A0' | 'A1' | 'A2' | 'A3' | 'A4';
+  /** Formato fijo opcional. null ajusta el lienzo a la red a escala real. */
+  hoja: 'A0' | 'A1' | 'A2' | 'A3' | 'A4' | null;
 }
 
 /** DGS de red unida: varios alimentadores en un solo fichero. */
 export interface GroupDgs {
   name: string;
   feeders: string[];
+  requested_feeders?: string[];
   status: 'ok' | 'failed' | 'cancelled';
   error: string | null;
   dgs: string | null;
+  feeder_metadata?: string | null;
+  converted_at?: number | null;
   hoja: { formato: string; orientacion: string; escala_1_a: number; cuadricula_mm: number } | null;
   ties: number | null;
   completitud: { fallos: string[] } | null;

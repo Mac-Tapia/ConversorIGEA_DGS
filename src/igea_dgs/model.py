@@ -110,6 +110,8 @@ class Load:
     resultados por tipo de cliente, que es como el VAD los pide."""
     year: int = 0
     """Año de alta del suministro. Único apoyo del export para la proyección."""
+    feeder: str = ''
+    network_id: str = ''
 
 
 @dataclass(frozen=True)
@@ -123,6 +125,8 @@ class Sed:
     section_id: str
     device_number: str
     load_key: tuple[str, str]
+    feeder: str = ''
+    network_id: str = ''
 
 
 @dataclass(frozen=True)
@@ -138,6 +142,8 @@ class SwitchingDevice:
     on_off: int
     locked: int
     eq_state: int
+    feeder: str = ''
+    network_id: str = ''
 
 
 @dataclass(frozen=True)
@@ -159,6 +165,8 @@ class Coupler:
     eq_number: str
     section_id: str
     phase: str
+    feeder: str = ''
+    network_id: str = ''
 
 
 @dataclass
@@ -190,9 +198,12 @@ class FeederModel:
     # Tramos punta hasta esta longitud no se dibujan (quedan en el modelo eléctrico):
     # a escala real son polvo. Negativo = dibujar todos (ver dgs.diagram_line_sections).
     diagram_max_stub_m: float = 1.0
-    # Hoja normalizada (``A0``…) en la que encajar el diagrama. None = escala NA205
-    # (2,08 u/m, hoja a la medida de la red). Ver dgs._diagram_mapper_hoja.
+    # Hoja normalizada (``A0``…) opcional. None conserva 2,08 u/m y ajusta el lienzo
+    # a la red. Ver dgs._diagram_mapper_hoja.
     diagram_sheet: str | None = None
+    # Alias explícitos de nodos duplicados por el export; se usan también en la prueba
+    # From/To para no ocultar qué identidad del RED se normalizó.
+    node_aliases: dict[str, str] = field(default_factory=dict)
 
 
 #: Código de fase de CYMDIST → letras. **No es una máscara de bits**: el 7 no es
@@ -425,6 +436,25 @@ def _resolve_type(
     if default_typ is not None:
         return default_typ, 'DEFAULT'
     return None, aliases.get(raw_code)
+
+
+def unresolved_line_type_codes(
+    dataset: CymdistDataset,
+    aliases: Mapping[str, str] | None = None,
+) -> set[str]:
+    """Devuelve los códigos usados que el conversor resolvería a DEFAULT."""
+    aliases = dict(aliases or {})
+    _, by_code = _catalog(dataset)
+    unresolved: set[str] = set()
+    for config in dataset.line_configurations.values():
+        raw_code = (config.get('LineCableID') or 'DEFAULT').strip() or 'DEFAULT'
+        if raw_code == 'DEFAULT':
+            continue
+        overhead = config.get('Overhead', '1') == '1'
+        line_type, target = _resolve_type(raw_code, overhead, by_code, aliases)
+        if line_type is None or target == 'DEFAULT':
+            unresolved.add(raw_code)
+    return unresolved
 
 
 def _calc_p_q(row: Mapping[str, str]) -> tuple[float, float, float]:
@@ -762,10 +792,13 @@ def prove_mt_connections(
             continue
         txt_from = sec.get('FromNodeID', '')
         txt_to = sec.get('ToNodeID', '')
-        if line.from_node != txt_from or line.to_node != txt_to:
+        expected_from = model.node_aliases.get(txt_from, txt_from)
+        expected_to = model.node_aliases.get(txt_to, txt_to)
+        if line.from_node != expected_from or line.to_node != expected_to:
             errors.append(
                 f'{line.section_id}: From/To del modelo ({line.from_node}->{line.to_node}) '
-                f'no coinciden con TXT ({txt_from}->{txt_to})'
+                f'no coinciden con TXT normalizado ({expected_from}->{expected_to}; '
+                f'original {txt_from}->{txt_to})'
             )
             continue
         start = model.nodes.get(line.from_node)
@@ -905,6 +938,92 @@ def describe_islands(name: str, source_node: str, islands: dict) -> str:
     return detalle + ' La isla no arrastra cargas ni SED; se convierte igualmente.'
 
 
+COINCIDENT_NODE_TOLERANCE_M = 0.01
+"""Diferencia máxima de coordenadas para reconocer IDs duplicados del mismo punto."""
+
+
+def _short_default_node_aliases(
+    dataset: CymdistDataset,
+    network_id: str,
+    source_node: str,
+) -> dict[str, str]:
+    """Repara solo el endpoint aislado de un puente corto con coordenada duplicada."""
+    from .puentes import CODIGOS_PUENTE, LARGO_MAXIMO_PUENTE_M
+
+    degree: dict[str, int] = defaultdict(int)
+    adjacency: dict[str, list[str]] = defaultdict(list)
+    short_defaults: set[str] = set()
+    for section_id in dataset.feeders.get(network_id, ()):
+        section = dataset.sections.get(section_id, {})
+        a, b = section.get('FromNodeID', ''), section.get('ToNodeID', '')
+        if not a or not b or a == b:
+            continue
+        degree[a] += 1
+        degree[b] += 1
+        adjacency[a].append(b)
+        adjacency[b].append(a)
+        config = dataset.line_configurations.get(section_id, {})
+        code = (config.get('LineCableID') or '').strip().upper()
+        try:
+            length = float(config.get('Length') or '')
+        except (TypeError, ValueError):
+            continue
+        if code in {item.upper() for item in CODIGOS_PUENTE} and 0 <= length <= LARGO_MAXIMO_PUENTE_M:
+            short_defaults.add(section_id)
+
+    reachable = {source_node}
+    pending = deque([source_node])
+    while pending:
+        current = pending.popleft()
+        for neighbor in adjacency.get(current, ()):
+            if neighbor not in reachable:
+                reachable.add(neighbor)
+                pending.append(neighbor)
+
+    tolerance = COINCIDENT_NODE_TOLERANCE_M
+    cells: dict[tuple[int, int], list[str]] = defaultdict(list)
+
+    def coordinates(node_id: str) -> tuple[float, float] | None:
+        row = dataset.nodes.get(node_id)
+        if not row:
+            return None
+        try:
+            x, y = float(row.get('CoordX')), float(row.get('CoordY'))
+        except (TypeError, ValueError):
+            return None
+        return (x, y) if math.isfinite(x) and math.isfinite(y) else None
+
+    for node_id in degree:
+        point = coordinates(node_id)
+        if point is not None:
+            cells[(math.floor(point[0] / tolerance), math.floor(point[1] / tolerance))].append(node_id)
+
+    aliases: dict[str, str] = {}
+    for section_id in sorted(short_defaults):
+        section = dataset.sections[section_id]
+        for node_id in (section.get('FromNodeID', ''), section.get('ToNodeID', '')):
+            if not node_id or degree[node_id] != 1 or node_id in reachable:
+                continue
+            point = coordinates(node_id)
+            if point is None:
+                continue
+            cell_x, cell_y = math.floor(point[0] / tolerance), math.floor(point[1] / tolerance)
+            candidates: set[str] = set()
+            for dx in (-1, 0, 1):
+                for dy in (-1, 0, 1):
+                    for other in cells.get((cell_x + dx, cell_y + dy), ()):
+                        if other == node_id or other not in reachable:
+                            continue
+                        other_point = coordinates(other)
+                        if other_point is not None and math.hypot(
+                            point[0] - other_point[0], point[1] - other_point[1],
+                        ) <= tolerance:
+                            candidates.add(other)
+            if len(candidates) == 1:
+                aliases[node_id] = next(iter(candidates))
+    return aliases
+
+
 def build_feeder_model(
     dataset: CymdistDataset,
     selector: str,
@@ -930,6 +1049,8 @@ def build_feeder_model(
     source_node = source.get('NodeID', '')
     if not source_node:
         raise ModelBuildError(f'{network_id}: SOURCE.NodeID is empty')
+    node_aliases = _short_default_node_aliases(dataset, network_id, source_node)
+    source_node = node_aliases.get(source_node, source_node)
     nominal_kv = _tension_de_fuente(source)
     if not math.isfinite(nominal_kv) or nominal_kv <= 0:
         raise ModelBuildError(
@@ -954,6 +1075,8 @@ def build_feeder_model(
         to_node = sec.get('ToNodeID', '')
         if from_node not in dataset.nodes or to_node not in dataset.nodes:
             raise ModelBuildError(f'{network_id}: {section_id} references missing node')
+        from_node = node_aliases.get(from_node, from_node)
+        to_node = node_aliases.get(to_node, to_node)
         overhead = cfg.get('Overhead', '1') == '1'
         raw_code = cfg.get('LineCableID') or 'DEFAULT'
         typ, alias_target = _resolve_type(raw_code, overhead, by_code, aliases)
@@ -1035,6 +1158,8 @@ def build_feeder_model(
             customers=_int(row.get('NumberOfCustomer')),
             customer_type=(row.get('CustomerType') or '').strip()[:20],
             year=_int(row.get('Year')),
+            feeder=name,
+            network_id=network_id,
         ))
 
     loads = _assign_load_display_names(loads)
@@ -1051,6 +1176,8 @@ def build_feeder_model(
             section_id=load.section_id,
             device_number=load.device_number,
             load_key=(load.section_id, load.device_number),
+            feeder=load.feeder,
+            network_id=load.network_id,
         ))
 
     devices: list[SwitchingDevice] = []
@@ -1081,6 +1208,8 @@ def build_feeder_model(
             on_off=status,
             locked=_int(row.get('Locked'), 0),
             eq_state=_int(row.get('EqState'), 0),
+            feeder=name,
+            network_id=network_id,
         ))
 
     nodes: dict[str, Node] = {}
@@ -1096,6 +1225,11 @@ def build_feeder_model(
         )
 
     warnings: list[str] = []
+    if node_aliases:
+        warnings.append(
+            f'{name}: {len(node_aliases)} extremo(s) DEFAULT corto(s) conectado(s) a su '
+            'nodo eléctrico coincidente por coordenadas (tolerancia 1 cm).'
+        )
     auto_aliased = {
         src: dst
         for src, dst in applied_aliases.items()
@@ -1149,6 +1283,7 @@ def build_feeder_model(
         section_by_id=section_by_id,
         seds=seds,
         islands=islands,
+        node_aliases=node_aliases,
     )
 
     # Electrical lengths follow the georeferenced polyline (From + intermediates + To)

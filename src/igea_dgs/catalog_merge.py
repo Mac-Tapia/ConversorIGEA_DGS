@@ -48,6 +48,7 @@ class InformeCatalogo:
     anadidos: dict[str, list[str]] = field(default_factory=dict)
     """Fichero de origen → códigos que aportó."""
     sin_resolver: set[str] = field(default_factory=set)
+    resueltos_por_alias: set[str] = field(default_factory=set)
 
     @property
     def cobertura_inicial(self) -> float:
@@ -74,6 +75,9 @@ class InformeCatalogo:
         ]
         for origen, codigos in self.anadidos.items():
             lineas.append(f'Completados desde {Path(origen).name}: {len(codigos)}')
+        if self.resueltos_por_alias:
+            lineas.append(
+                f'Resueltos por alias/vecino: {len(self.resueltos_por_alias)}')
         lineas.append(
             f'Cobertura final               : {self.cobertura_final * 100:.0f} %')
         if self.sin_resolver:
@@ -135,6 +139,7 @@ def _leer_equipos(ruta: Path) -> dict[str, list[dict[str, str]]]:
 
 def completar(
     dataset: Any, fuentes: Iterable[Path | str], *, incluir_complementarias: bool = True,
+    aliases: dict[str, str] | None = None,
 ) -> InformeCatalogo:
     """Rellena los huecos del catálogo con otros ficheros de equipos.
 
@@ -184,15 +189,28 @@ def completar(
             informe.anadidos[str(ruta)] = sorted(aportados)
             faltan -= set(aportados)
 
-    informe.sin_resolver = set(faltan)
+    from .model import unresolved_line_type_codes
+
+    informe.sin_resolver = unresolved_line_type_codes(dataset, aliases)
+    catalogo_final = codigos_en_catalogo(dataset)
+    informe.resueltos_por_alias = (
+        informe.codigos_en_red - catalogo_final - informe.sin_resolver
+    )
     return informe
 
 
-def diagnosticar(dataset: Any) -> InformeCatalogo:
+def diagnosticar(
+    dataset: Any, aliases: dict[str, str] | None = None,
+) -> InformeCatalogo:
     """Cobertura del catálogo sin tocar nada. Para avisar antes de convertir."""
+    from .model import unresolved_line_type_codes
+
     informe = InformeCatalogo(
         codigos_en_red=codigos_usados(dataset),
         codigos_en_catalogo=codigos_en_catalogo(dataset),
     )
-    informe.sin_resolver = informe.codigos_en_red - informe.codigos_en_catalogo
+    informe.sin_resolver = unresolved_line_type_codes(dataset, aliases)
+    informe.resueltos_por_alias = (
+        informe.codigos_en_red - informe.codigos_en_catalogo - informe.sin_resolver
+    )
     return informe

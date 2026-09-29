@@ -1,7 +1,40 @@
 from pathlib import Path
 import json
+from types import SimpleNamespace
 
-from igea_dgs.batch import convert_selection, load_aliases
+from igea_dgs.batch import convert_selection, expand_connected_feeders, load_aliases
+
+
+def test_expand_connected_selection_follows_shared_nodes_at_same_voltage():
+    network_ids = {
+        name: f'NET_2030_131_{name}'
+        for name in ('AL101', 'CN101', 'CN102', 'AL201', 'AL202')
+    }
+    dataset = SimpleNamespace(
+        feeders={
+            network_ids['AL101']: ('S1',),
+            network_ids['CN101']: ('S2',),
+            network_ids['CN102']: ('S3',),
+            network_ids['AL201']: ('S4',),
+            network_ids['AL202']: ('S5',),
+        },
+        sources={
+            network_ids[name]: {'DesiredVoltage': '22.9' if name == 'AL201' else '10'}
+            for name in network_ids
+        },
+        sections={
+            'S1': {'FromNodeID': 'N0', 'ToNodeID': 'N1'},
+            'S2': {'FromNodeID': 'N1', 'ToNodeID': 'N2'},
+            'S3': {'FromNodeID': 'N2', 'ToNodeID': 'N3'},
+            'S4': {'FromNodeID': 'N3', 'ToNodeID': 'N4'},
+            'S5': {'FromNodeID': 'OTHER', 'ToNodeID': 'END'},
+        },
+        resolve_feeder=lambda name: network_ids[name],
+    )
+
+    expanded = expand_connected_feeders(dataset, ['AL101'])
+
+    assert expanded == [network_ids[name] for name in ('AL101', 'CN101', 'CN102')]
 
 
 def test_convert_one_feeder(ds, sample_feeder, tmp_path):
@@ -48,6 +81,9 @@ def test_all_mode_converts_every_feeder_without_blocking(ds, tmp_path):
         assert (tmp_path / f"{item['feeder']}.dgs").exists()
         expected = 'source_only' if item['network_id'] in header_only else 'full'
         assert item['topology'] == expected
+        if expected == 'full':
+            assert item['counts']['source_lines'] == item['counts']['dgs_lines']
+            assert item['completitud']['fallos'] == []
 
 
 def test_external_alias_file_is_recorded(ds, sample_feeder, tmp_path):

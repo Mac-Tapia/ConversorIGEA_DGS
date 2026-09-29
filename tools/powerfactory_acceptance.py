@@ -180,7 +180,12 @@ def import_dgs_file(
         raise RuntimeError('GetCurrentUser() falló — sesión PF no válida')
 
     stamp = datetime.now().strftime('%Y%m%d-%H%M%S')
-    prj = project_name or f'{stamp}_IGEA_{dgs_path.stem}'
+    if project_name:
+        if len(project_name) > 40:
+            raise ValueError('El nombre de proyecto PowerFactory no puede superar 40 caracteres.')
+        prj = project_name
+    else:
+        prj = _generated_project_name(stamp, dgs_path.stem)
 
     com = user.CreateObject('ComImport', f'DGSImport_{stamp}')
     if com is None:
@@ -218,11 +223,22 @@ def import_dgs_file(
 
     # Activate imported project if not already active.
     active = app.GetActiveProject()
+    activation_warnings: list[str] = []
     if active is None or _name(active) != prj:
         try:
             rc_act = int(app.ActivateProject(prj))
             if rc_act != 0:
-                errors.append(f'ActivateProject({prj!r}) returned {rc_act}')
+                active_after = app.GetActiveProject()
+                if active_after is not None and _name(active_after) == prj:
+                    activation_warnings.append(
+                        f'ActivateProject({prj!r}) returned {rc_act}, but the imported '
+                        'project is active; continuing after state verification.'
+                    )
+                else:
+                    errors.append(
+                        f'ActivateProject({prj!r}) returned {rc_act}; active project is '
+                        f'{_name(active_after) if active_after is not None else None!r}'
+                    )
         except Exception as exc:
             errors.append(f'ActivateProject failed: {exc}')
 
@@ -230,8 +246,21 @@ def import_dgs_file(
         'project_name': prj,
         'dgs': str(dgs_path),
         'errors': errors,
+        'warnings': activation_warnings,
         'ok': not errors,
     }
+
+
+def _generated_project_name(stamp: str, dgs_stem: str) -> str:
+    """PowerFactory loc_name está limitado a 40 caracteres."""
+    import hashlib
+
+    candidate = f'{stamp}_IGEA_{dgs_stem}'
+    if len(candidate) <= 40:
+        return candidate
+    digest = hashlib.sha256(dgs_stem.encode('utf-8')).hexdigest()[:8]
+    tail = dgs_stem[-8:]
+    return f'{stamp}_IGEA_{digest}_{tail}'[:40]
 
 
 # ---------------------------------------------------------------------------
@@ -1388,6 +1417,7 @@ def run_import_activate_flow(
     dgs_path: Path,
     *,
     project_name: str | None = None,
+    feeder_metadata_path: Path | str | None = None,
     ensure_scenario: bool = True,
     run_load_flow_flag: bool = True,
     fix_until_converge: bool = True,
@@ -1410,6 +1440,7 @@ def run_import_activate_flow(
         'import': None,
         'study_scenario': None,
         'scenario_ensure': None,
+        'feeder_metadata': None,
         'load_flow_loop': None,
         'study_suite': None,
         'dgs_persist': None,
@@ -1443,6 +1474,20 @@ def run_import_activate_flow(
             study_info['scenario'] = scen_info.get('scenario')
             study_info['scenario_activated'] = True
             study_info['active_scenario'] = scen_info.get('active_scenario')
+
+    try:
+        metadata = apply_imported_feeder_metadata_and_restore(
+            app, import_info, dgs_path, feeder_metadata_path,
+            restore_study=True, ensure_scenario=ensure_scenario,
+        )
+        report['feeder_metadata'] = metadata
+        if metadata.get('warning'):
+            report['warnings'].append(metadata['warning'])
+        if metadata.get('study_restore', {}).get('errors'):
+            report['errors'].extend(metadata['study_restore']['errors'])
+    except Exception as exc:
+        report['feeder_metadata'] = {'status': 'failed', 'error': str(exc)}
+        report['errors'].append(f'Feeder metadata assignment failed: {exc}')
 
     if run_studies:
         suite = run_study_suite(
@@ -1503,6 +1548,28 @@ def run_import_activate_flow(
 
     report['ok'] = not report['errors']
     return report
+
+
+def apply_imported_feeder_metadata_and_restore(
+    app: Any,
+    import_info: dict[str, Any],
+    dgs_path: Path | str,
+    metadata_path: Path | str | None,
+    *,
+    restore_study: bool,
+    ensure_scenario: bool,
+) -> dict[str, Any]:
+    from igea_dgs.powerfactory_metadata import apply_imported_feeder_metadata
+
+    result = apply_imported_feeder_metadata(
+        app, import_info, str(dgs_path), str(metadata_path) if metadata_path else None,
+    )
+    if result.get('status') == 'assigned' and restore_study:
+        restored = activate_base_study_and_scenario(app)
+        if ensure_scenario and not restored.get('scenario_activated'):
+            restored['scenario_ensure'] = ensure_operation_scenario(app)
+        result['study_restore'] = restored
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -1983,6 +2050,7 @@ def _parser() -> argparse.ArgumentParser:
         help='Path to .dgs — imports via ComImport into a new PF project before checks',
     )
     p.add_argument('--project-name', help='Optional PF project name for ComImport')
+    p.add_argument('--feeder-metadata', help='Sidecar de procedencia por alimentador ligado al DGS')
     p.add_argument(
         '--activate-base',
         action='store_true',
@@ -2103,6 +2171,7 @@ def main(argv=None) -> int:
     scenario_ensure = None
     flow_only_report = None
     dgs_persist_report = None
+    feeder_metadata_report = None
     want_persist = not args.no_persist_dgs
     want_export_converged = bool(args.export_converged_dgs) and not args.no_export_converged_dgs
     persist_dir = Path(args.persist_dir) if args.persist_dir else None
@@ -2114,6 +2183,7 @@ def main(argv=None) -> int:
                 app,
                 Path(args.import_dgs),
                 project_name=args.project_name,
+                feeder_metadata_path=args.feeder_metadata,
                 ensure_scenario=ensure_scenario,
                 run_load_flow_flag=want_flow and not run_studies,
                 fix_until_converge=bool(args.fix_until_converge),
@@ -2127,6 +2197,7 @@ def main(argv=None) -> int:
             import_info = flow_only_report.get('import')
             study_info = flow_only_report.get('study_scenario')
             scenario_ensure = flow_only_report.get('scenario_ensure')
+            feeder_metadata_report = flow_only_report.get('feeder_metadata')
             dgs_persist_report = flow_only_report.get('dgs_persist')
             if import_info:
                 print(f"Imported DGS into project: {import_info.get('project_name')}")
@@ -2141,6 +2212,8 @@ def main(argv=None) -> int:
                     f"name={scenario_ensure.get('scenario')!r} "
                     f"activated={scenario_ensure.get('activated')}"
                 )
+            if feeder_metadata_report:
+                print('Feeder metadata:', feeder_metadata_report)
             loop = flow_only_report.get('load_flow_loop') or {}
             print(f"Load flow converge: {loop.get('pass')} after={loop.get('converged_after_intent')!r}")
             for att in loop.get('attempts') or []:
@@ -2185,6 +2258,8 @@ def main(argv=None) -> int:
                     'import': import_info,
                     'study_scenario': study_info,
                     'scenario_ensure': scenario_ensure,
+                    'feeder_metadata': feeder_metadata_report,
+                    'feeder_metadata': feeder_metadata_report,
                     'dgs_persist': dgs_persist_report,
                     'errors': list(flow_only_report.get('errors') or []),
                     'warnings': list(flow_only_report.get('warnings') or []),
@@ -2240,6 +2315,20 @@ def main(argv=None) -> int:
                     f"Scenario ensure: created={scenario_ensure.get('created')} "
                     f"name={scenario_ensure.get('scenario')!r}"
                 )
+        try:
+            feeder_metadata_report = apply_imported_feeder_metadata_and_restore(
+                app, import_info, Path(args.import_dgs),
+                Path(args.feeder_metadata) if args.feeder_metadata else None,
+                restore_study=bool(args.activate_base and not args.no_activate_base),
+                ensure_scenario=ensure_scenario,
+            )
+            if feeder_metadata_report.get('status') == 'assigned':
+                print('Feeder metadata assigned:', feeder_metadata_report.get('by_feeder'))
+            elif feeder_metadata_report.get('warning'):
+                print('WARN feeder metadata:', feeder_metadata_report['warning'])
+        except Exception as exc:
+            feeder_metadata_report = {'status': 'failed', 'error': str(exc)}
+            print(f'ERROR feeder metadata: {exc}', file=sys.stderr)
         if run_studies:
             suite = run_study_suite(
                 app,
@@ -2353,6 +2442,7 @@ def main(argv=None) -> int:
             'import': import_info,
             'study_scenario': study_info,
             'scenario_ensure': scenario_ensure,
+            'feeder_metadata': feeder_metadata_report,
             'dgs_persist': dgs_persist_report,
             'errors': list((flow_only_report or {}).get('errors') or []),
             'warnings': list((flow_only_report or {}).get('warnings') or []),
@@ -2400,6 +2490,12 @@ def main(argv=None) -> int:
     )
     if import_info is not None:
         report['import'] = import_info
+    if feeder_metadata_report is not None:
+        report['feeder_metadata'] = feeder_metadata_report
+        if feeder_metadata_report.get('status') == 'failed':
+            report['errors'].append(
+                f"Feeder metadata assignment failed: {feeder_metadata_report.get('error')}"
+            )
     if study_info is not None:
         report['study_scenario'] = study_info
         for err in study_info.get('errors') or []:

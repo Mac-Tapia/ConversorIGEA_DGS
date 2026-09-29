@@ -18,6 +18,7 @@ Las tres reglas que estas pruebas fijan, por orden de gravedad si se rompen:
 from __future__ import annotations
 
 import pytest
+from dataclasses import replace
 
 from igea_dgs.combine import (
     CombinedInfo,
@@ -194,6 +195,21 @@ class TestIdentidadDeCadaAlimentador:
         modelo, _ = combine_models([a, b])
         for ref in modelo.combined.feeders:
             assert ref.source_node in modelo.nodes, ref.name
+
+    def test_cada_carga_y_sed_conserva_el_alimentador_origen(self):
+        a = _alimentador('A', 10.0, ['A1', 'A2'], con_carga='A2')
+        b = _alimentador('B', 10.0, ['B1', 'B2'], con_carga='B2')
+        for model in (a, b):
+            model.loads = [replace(load, feeder=model.name, network_id=model.network_id)
+                           for load in model.loads]
+            model.seds = [replace(sed, feeder=model.name, network_id=model.network_id)
+                          for sed in model.seds]
+
+        combined, _ = combine_models([a, b])
+
+        assert {load.feeder for load in combined.loads} == {'A', 'B'}
+        assert {sed.feeder for sed in combined.seds} == {'A', 'B'}
+        assert {load.network_id for load in combined.loads} == {'NET_A', 'NET_B'}
 
     def test_no_se_pierde_ni_se_duplica_ningun_tramo(self):
         modelos = [_alimentador(f'F{i}', 10.0, [f'{i}a', f'{i}b', f'{i}c'])

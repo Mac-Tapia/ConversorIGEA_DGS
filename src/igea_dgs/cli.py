@@ -81,8 +81,8 @@ def _parser() -> argparse.ArgumentParser:
         help='Map renderer: leafmap (@opengeos) or Leaflet CDN fallback',
     )
     conv.add_argument(
-        '--hoja', default='A0', choices=('A0', 'A1', 'A2', 'A3', 'A4'),
-        help='Hoja del diagrama en PowerFactory (reglas del proyecto: A0).',
+        '--hoja', default=None, choices=('A0', 'A1', 'A2', 'A3', 'A4'),
+        help='Formato fijo de hoja PowerFactory. Por defecto se ajusta a la red a escala real.',
     )
     conv.add_argument(
         '--unir', metavar='NOMBRE',

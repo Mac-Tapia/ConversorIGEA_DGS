@@ -10,7 +10,10 @@ from .dataset import TABLAS_TIPOS_LINEA,  CymdistDataset
 from .naming import feeder_short_name, sort_key_feeder
 
 
-def build_dataset_inventory(dataset: CymdistDataset) -> dict[str, Any]:
+def build_dataset_inventory(
+    dataset: CymdistDataset,
+    aliases: dict[str, str] | None = None,
+) -> dict[str, Any]:
     """Analyze RED/CARGA/BD_Equipo contents in depth for conversion planning.
 
     Returns a JSON-serializable report: totals, per-feeder stats, integrity issues,
@@ -88,9 +91,9 @@ def build_dataset_inventory(dataset: CymdistDataset) -> dict[str, Any]:
             code = (row.get('ID') or '').strip()
             if code:
                 catalog_ids.add(code)
-    missing_in_catalog = sorted(
-        code for code in line_codes if code not in catalog_ids and code != 'DEFAULT'
-    )
+    from .model import unresolved_line_type_codes
+
+    missing_in_catalog = sorted(unresolved_line_type_codes(dataset, aliases))
 
     feeder_rows: list[dict[str, Any]] = []
     convertible: list[str] = []

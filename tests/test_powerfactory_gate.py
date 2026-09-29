@@ -62,6 +62,60 @@ def test_powerfactory_acceptance_module_imports():
     assert 'short_circuit' in mod.STUDY_REGISTRY
 
 
+def test_generated_project_name_fits_powerfactory_limit():
+    mod = _load_pf_mod()
+    long_name = 'AL104_AL105_AL106_AL107_AL108_AL209_CA101_CA104_ETC'
+    result = mod._generated_project_name('20260929-055603', long_name)
+    assert len(result) <= 40
+    assert result.startswith('20260929-055603_IGEA_')
+    assert result.endswith(long_name[-8:])
+
+
+def test_import_dgs_accepts_nonzero_activate_when_project_is_active(tmp_path):
+    mod = _load_pf_mod()
+    dgs = tmp_path / 'AL104_AL105_AL106_AL107_ETC.dgs'
+    dgs.write_text('DGS', encoding='ascii')
+    created = {}
+
+    class FakeCom:
+        def SetAttributes(self, values):
+            created['transfer'] = values
+
+        def Execute(self):
+            return 0
+
+        def Delete(self):
+            return None
+
+    class FakeUser:
+        def CreateObject(self, *_args):
+            return FakeCom()
+
+    class FakeApp:
+        active = None
+
+        def GetCurrentUser(self):
+            return FakeUser()
+
+        def DefineTransferAttributes(self, *_args):
+            return None
+
+        def GetActiveProject(self):
+            return self.active
+
+        def ActivateProject(self, _name):
+            self.active = SimpleNamespace(loc_name=_name)
+            return 1
+
+    result = mod.import_dgs_file(FakeApp(), dgs)
+    requested_project = created['transfer'][1]
+
+    assert len(requested_project) <= 40
+    assert result['ok'] is True
+    assert result['errors'] == []
+    assert any('project is active' in warning for warning in result['warnings'])
+
+
 def test_powerfactory_gate_help_exits_zero():
     import subprocess
     import sys
@@ -75,11 +129,44 @@ def test_powerfactory_gate_help_exits_zero():
     )
     assert proc.returncode == 0
     assert '--import-dgs' in proc.stdout
+    assert '--feeder-metadata' in proc.stdout
     assert '--run-load-flow' in proc.stdout
     assert '--ensure-scenario' in proc.stdout
     assert '--fix-until-converge' in proc.stdout
     assert '--run-studies' in proc.stdout
     assert '--list-studies' in proc.stdout
+
+
+def test_import_only_report_includes_feeder_metadata(monkeypatch, tmp_path):
+    mod = _load_pf_mod()
+    metadata = {
+        'status': 'assigned',
+        'written': 3,
+        'by_feeder': {'AL101': {'ElmLod': 1, 'ElmSubstat': 1, 'ElmXnet': 1}},
+    }
+    reports = []
+    monkeypatch.setattr(mod, 'connect_powerfactory', lambda **_kwargs: object())
+    monkeypatch.setattr(mod, 'run_import_activate_flow', lambda *_args, **_kwargs: {
+        'ok': True,
+        'import': {'project_name': 'PF_AL101'},
+        'study_scenario': {},
+        'scenario_ensure': {},
+        'feeder_metadata': metadata,
+        'load_flow_loop': {'pass': True, 'final_load_flow': {'pass': True}},
+        'errors': [],
+        'warnings': [],
+        'dgs_persist': {'ok': True},
+    })
+    monkeypatch.setattr(mod, '_write_reports', lambda report, *_paths: reports.append(report))
+
+    result = mod.main([
+        '--import-dgs', str(tmp_path / 'AL101.dgs'),
+        '--feeder-metadata', str(tmp_path / 'AL101_feeder_metadata.json'),
+        '--run-load-flow',
+    ])
+
+    assert result == 0
+    assert reports[0]['feeder_metadata'] == metadata
 
 
 def test_list_studies_exits_zero_without_pf():

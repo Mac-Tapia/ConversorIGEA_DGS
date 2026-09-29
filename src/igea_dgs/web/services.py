@@ -127,7 +127,11 @@ def require_loaded(ws: Workspace) -> None:
         raise UserError('Primero cargue y liste los alimentadores (paso 2).')
 
 
-def _read_dataset(ws: Workspace, ctx: JobContext):
+def _read_dataset(
+    ws: Workspace,
+    ctx: JobContext,
+    aliases: dict[str, str] | None = None,
+):
     if ws.options.get('input_mode') == 'mdb':
         from ..access import read_access_dataset
 
@@ -154,7 +158,10 @@ def _read_dataset(ws: Workspace, ctx: JobContext):
     # corresponde con la red produce un modelo que converge igual, así que si no se
     # avisa aquí no se avisa en ninguna parte.
     extra = ws.input_path('equipment_extra')
-    informe = completar(dataset, [extra]) if extra else diagnosticar(dataset)
+    informe = (
+        completar(dataset, [extra], aliases=aliases)
+        if extra else diagnosticar(dataset, aliases=aliases)
+    )
     report = {
         'initial_coverage': informe.cobertura_inicial,
         'final_coverage': informe.cobertura_final,
@@ -172,23 +179,25 @@ def _read_dataset(ws: Workspace, ctx: JobContext):
 
 def load_dataset(ws: Workspace, ctx: JobContext) -> dict:
     from ..inventory import build_dataset_inventory, format_inventory_report, write_inventory
+    from ..batch import load_aliases
 
     ctx.log('--- Carga e inventario de alimentadores ---')
     mode = ws.options.get('input_mode')
-    slots = ('mdb', 'equipment_mdb', 'study') if mode == 'mdb' else (
-        'red', 'loads', 'equipment', 'equipment_extra')
+    slots = ('mdb', 'equipment_mdb', 'study', 'aliases') if mode == 'mdb' else (
+        'red', 'loads', 'equipment', 'equipment_extra', 'aliases')
     for slot in slots:
         if ws.input_path(slot):
             ctx.log(f'{slot}: {Path(ws.input_path(slot)).name}')
 
-    dataset, catalog_report = _read_dataset(ws, ctx)
+    aliases = load_aliases(ws.input_path('aliases') or None)
+    dataset, catalog_report = _read_dataset(ws, ctx, aliases=aliases)
     ctx.check_cancel()
     # Reglas de entrada del proyecto: coordenadas por el grafo y catálogo Excel.
     from ..reglas import catalogo_del_proyecto, preparar_dataset
 
     entrada = preparar_dataset(dataset, catalogo=catalogo_del_proyecto())
     ctx.log(entrada.texto())
-    inventory = build_dataset_inventory(dataset)
+    inventory = build_dataset_inventory(dataset, aliases=aliases)
     ws.out_dir.mkdir(parents=True, exist_ok=True)
     inv_path = write_inventory(inventory, ws.out_dir / 'dataset_inventory.json')
     ctx.log(format_inventory_report(inventory))
@@ -374,9 +383,61 @@ def convert(ws: Workspace, ctx: JobContext, feeders: list[str] | None, all_feede
 # ---------------------------------------------------------------------------
 
 
+def powerfactory_targets(ws: Workspace, feeders: list[str]) -> list[str]:
+    """Usa un DGS unido vigente cuando coincide con toda la selección."""
+    if len(feeders) < 2:
+        return list(feeders)
+
+    selected = set(feeders)
+    latest_conversion = max(
+        (float(item.get('converted_at') or 0)
+         for item in ws.conversions.values()
+         if item.get('feeder') in selected),
+        default=0.0,
+    )
+    candidates: list[tuple[float, str]] = []
+    for name, group in ws.groups.items():
+        members = list(group.get('feeders') or [])
+        requested_members = list(group.get('requested_feeders') or members)
+        converted_at = group.get('converted_at')
+        group_path = ws.out_dir / f'{name}.dgs'
+        selection_matches = (
+            set(members) == selected and len(members) == len(selected)
+        ) or (
+            set(requested_members) == selected and len(requested_members) == len(selected)
+        )
+        if group.get('status') != 'ok' or not selection_matches or not group_path.is_file():
+            continue
+        latest_member_conversion = max(
+            (float(item.get('converted_at') or 0)
+             for item in ws.conversions.values()
+             if item.get('feeder') in set(members)),
+            default=0.0,
+        )
+        if converted_at is not None:
+            if float(converted_at) < max(latest_conversion, latest_member_conversion):
+                continue
+            group_time = float(converted_at)
+        else:
+            group_mtime = group_path.stat().st_mtime_ns
+            individual_mtimes = [
+                (ws.out_dir / f'{feeder}.dgs').stat().st_mtime_ns
+                for feeder in members
+                if (ws.out_dir / f'{feeder}.dgs').is_file()
+            ]
+            if individual_mtimes and group_mtime < max(individual_mtimes):
+                continue
+            group_time = group_path.stat().st_mtime
+        candidates.append((group_time, name))
+
+    if candidates:
+        return [max(candidates)[1]]
+    return list(feeders)
+
+
 def dgs_jobs(ws: Workspace, feeders: list[str]) -> tuple[list[tuple[str, Path, Path | None]], list[str]]:
     jobs, missing = [], []
-    for feeder in feeders:
+    for feeder in powerfactory_targets(ws, feeders):
         dgs = ws.out_dir / f'{feeder}.dgs'
         if not dgs.is_file():
             missing.append(feeder)
@@ -393,15 +454,99 @@ def check_powerfactory_flow(ws: Workspace, feeders: list[str]) -> None:
     if not jobs:
         raise UserError('Primero convierta a DGS. Faltan: '
                         + ', '.join(f'{f}.dgs' for f in missing[:12]))
+    missing_metadata = [
+        dgs.name for _feeder, dgs, _geo in jobs
+        if not dgs.with_name(f'{dgs.stem}_feeder_metadata.json').is_file()
+    ]
+    if missing_metadata:
+        raise UserError(
+            'Falta la trazabilidad por alimentador de '
+            + ', '.join(missing_metadata[:8])
+            + '. Vuelva a convertir esos alimentadores para generar el manifiesto.'
+        )
     _script('powerfactory_acceptance.py')
     _require_pf()
 
 
+def pandapower_preflight(
+    ws: Workspace,
+    targets: list[str],
+    ctx: JobContext,
+) -> dict[str, Any]:
+    """Informa de conectividad con pandapower sin omitir DGS de la importación."""
+    from ..batch import load_aliases
+    from ..oraculo import disponible, validar
+
+    if not disponible():
+        return {
+            'disponible': False,
+            'avisos': ['pandapower no está instalado; se continúa con el import DGS.'],
+            'feeders': [],
+        }
+
+    members: list[str] = []
+    for target in targets:
+        group = ws.groups.get(target)
+        names = group.get('feeders', []) if group else [target]
+        for name in names:
+            if name not in members:
+                members.append(name)
+
+    from ..catalog import leer_catalogo
+    from ..model import build_feeder_model
+    from ..reglas import aplicar_reglas, catalogo_del_proyecto
+
+    corrections = ws.catalog_corrections()
+    catalog = catalogo_del_proyecto()
+    if not corrections and catalog:
+        corrections = leer_catalogo(catalog)
+    aliases = load_aliases(ws.input_path('aliases') or None)
+    reports: list[dict[str, Any]] = []
+    warnings: list[str] = []
+    for index, feeder in enumerate(members, start=1):
+        ctx.check_cancel()
+        ctx.progress(index - 1, len(members), f'pandapower: {feeder}')
+        try:
+            model = build_feeder_model(
+                ws.dataset, feeder, aliases=aliases,
+                strict=bool(ws.options.get('strict', True)),
+            )
+            aplicar_reglas(model, reglas_de(ws), correcciones=corrections)
+            report = validar(model)
+        except Exception as exc:  # noqa: BLE001 - el oráculo nunca debe omitir un DGS
+            warnings.append(f'{feeder}: no se pudo completar preflight pandapower: {exc}')
+            ctx.log(f'  AVISO pandapower {feeder}: {warnings[-1]} Se continúa con el import.')
+            continue
+        data = report.as_dict()
+        data['feeder'] = feeder
+        reports.append(data)
+        ctx.log(f"  pandapower {feeder}: {report.resumen()}; "
+                f'barras sin alimentar={report.barras_sin_alimentar}')
+        if not report.disponible or not report.convergio or report.barras_sin_alimentar:
+            warnings.append(
+                f'{feeder}: {report.barras_sin_alimentar} barra(s) sin alimentar; '
+                f'{report.resumen()}. Se continúa con el import DGS completo.')
+        errors = [h.linea() for h in report.errores]
+        warnings.extend(errors)
+    return {
+        'disponible': True,
+        'import_continued': True,
+        'feeders': reports,
+        'avisos': warnings,
+    }
+
+
 def powerfactory_flow(ws: Workspace, ctx: JobContext, feeders: list[str]) -> dict:
-    pf_dir, interpreter = _require_pf()
     script = _script('powerfactory_acceptance.py')
     jobs, missing = dgs_jobs(ws, feeders)
     ctx.log('--- Inicio DigSILENT: import + escenario + flujo ---')
+    ctx.log('--- Preflight pandapower: conectividad, islas y convergencia ---')
+    preflight = pandapower_preflight(ws, [name for name, _dgs, _geo in jobs], ctx)
+    for aviso in preflight.get('avisos') or []:
+        ctx.log(f'  AVISO pandapower: {aviso}')
+    ctx.log('Preflight informativo terminado; se importará completo cada DGS solicitado.')
+
+    pf_dir, interpreter = _require_pf()
     ctx.log(f'Intérprete para la API: {interpreter}  [{powerfactory_status()["interpreter_reason"]}]')
     for feeder in missing:
         ctx.log(f'  (sin DGS, se omite) {feeder}')
@@ -417,12 +562,25 @@ def powerfactory_flow(ws: Workspace, ctx: JobContext, feeders: list[str]) -> dic
         # modifica el modelo (escala cargas) sin pedirlo. Los estudios se lanzan aparte.
         cmd = [str(interpreter), str(script), '--import-dgs', str(dgs),
                '--ensure-scenario', '--run-load-flow']
+        metadata_path = dgs.with_name(f'{dgs.stem}_feeder_metadata.json')
+        cmd += ['--feeder-metadata', str(metadata_path)]
         if geo is not None:
             cmd += ['--manifest', str(geo)]
         cmd += ['--output-json', str(ws.out_dir / f'{feeder}_powerfactory_acceptance.json'),
                 '--output-txt', str(ws.out_dir / f'{feeder}_powerfactory_acceptance.txt')]
         rc = ctx.run_process(cmd, env=env, cwd=str(project_root()))
-        proyecto = _proyecto_importado(ws.out_dir / f'{feeder}_powerfactory_acceptance.json')
+        acceptance_path = ws.out_dir / f'{feeder}_powerfactory_acceptance.json'
+        try:
+            acceptance = json.loads(acceptance_path.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            acceptance = {}
+        metadata = acceptance.get('feeder_metadata') or {}
+        if metadata.get('status') == 'assigned':
+            ctx.log(f"  Columna Alimentador: {metadata.get('written', 0)} objeto(s) — "
+                    f"{metadata.get('by_feeder', {})}")
+        elif metadata.get('status') == 'failed':
+            ctx.log(f"  ERROR columna Alimentador: {metadata.get('error')}")
+        proyecto = _proyecto_importado(acceptance_path)
         if proyecto:
             with ws.lock:
                 ws.pf_projects[feeder] = proyecto
@@ -442,7 +600,7 @@ def powerfactory_flow(ws: Workspace, ctx: JobContext, feeders: list[str]) -> dic
         ctx.log('  ' + line)
     ctx.log('--- Fin DigSILENT ---')
     return {'ok': ok_n, 'failed': fail_n, 'requested': len(jobs),
-            'missing_dgs': missing, 'lines': lines}
+            'missing_dgs': missing, 'lines': lines, 'preflight': preflight}
 
 
 # ---------------------------------------------------------------------------
@@ -451,12 +609,12 @@ def powerfactory_flow(ws: Workspace, ctx: JobContext, feeders: list[str]) -> dic
 
 
 def reglas_de(ws: Workspace):
-    """Reglas del proyecto con la hoja elegida en el espacio (A0 por defecto)."""
+    """Reglas del proyecto con la hoja elegida; por defecto se ajusta a la red."""
     from dataclasses import replace
 
     from ..reglas import REGLAS_PROYECTO
 
-    return replace(REGLAS_PROYECTO, hoja=ws.options.get('hoja') or 'A0')
+    return replace(REGLAS_PROYECTO, hoja=ws.options.get('hoja'))
 
 
 def build_model(ws: Workspace, feeder: str, *, geography: bool | None = None):
@@ -497,7 +655,9 @@ def group_selection(ws: Workspace, feeders: list[str], all_feeders: bool) -> lis
         feeders = [r['feeder'] for r in ws.inventory['feeders'] if r.get('convertible')]
     if len(feeders) < 2:
         raise UserError('Para unir en un solo DGS seleccione al menos dos alimentadores.')
-    return list(feeders)
+    from ..batch import expand_connected_feeders
+
+    return [feeder_short_name(n) for n in expand_connected_feeders(ws.dataset, feeders)]
 
 
 def group_name(nombre: str, feeders: list[str]) -> str:
@@ -506,13 +666,26 @@ def group_name(nombre: str, feeders: list[str]) -> str:
     return limpio or 'GRUPO'
 
 
-def convert_group(ws: Workspace, ctx: JobContext, feeders: list[str], nombre: str) -> dict:
+def convert_group(
+    ws: Workspace,
+    ctx: JobContext,
+    feeders: list[str],
+    nombre: str,
+    *,
+    requested_feeders: list[str] | None = None,
+) -> dict:
+    import time
+
     from ..batch import convert_group as convertir_grupo
     from ..batch import load_aliases
     from ..reglas import catalogo_del_proyecto
 
     opts = ws.options
     ctx.log(f'--- Red unida {nombre}: {", ".join(feeders)} ---')
+    añadidos = sorted(set(feeders) - set(requested_feeders or feeders))
+    if añadidos:
+        ctx.log('Alimentadores añadidos por continuidad de red y tensión: '
+                + ', '.join(añadidos))
 
     def on_progress(network_id: str, index: int, total: int) -> None:
         name = feeder_short_name(network_id)
@@ -551,10 +724,14 @@ def convert_group(ws: Workspace, ctx: JobContext, feeders: list[str], nombre: st
         ctx.log(f"FAIL {nombre}: {man.get('error')}")
     with ws.lock:
         ws.groups[nombre] = {k: man.get(k) for k in (
-            'name', 'feeders', 'status', 'error', 'dgs', 'hoja', 'ties', 'completitud')}
+            'name', 'feeders', 'status', 'error', 'dgs', 'feeder_metadata',
+            'hoja', 'ties', 'completitud')}
+        ws.groups[nombre]['requested_feeders'] = list(requested_feeders or feeders)
+        ws.groups[nombre]['converted_at'] = time.time() if man['status'] == 'ok' else None
         ws.save()
     return {'group': nombre, 'status': man['status'], 'error': man.get('error'),
             'dgs': f'{nombre}.dgs' if man['status'] == 'ok' else None,
+            'feeder_metadata': f'{nombre}_feeder_metadata.json' if man['status'] == 'ok' else None,
             'feeders': feeders, 'completitud': man.get('completitud'),
             'hoja': man.get('hoja'), 'manifest': f'{nombre}_manifest.json'}
 

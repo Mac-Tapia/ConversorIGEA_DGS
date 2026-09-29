@@ -90,7 +90,7 @@ def _mdb_inventario(dataset, nets: list[str]) -> dict:
 
 
 def construir_grupo(dataset, nombre: str, nets: list[str], *, correcciones, crs: str,
-                    out_dir: Path, trafos: dict | None = None, hoja: str | None = 'A0') -> dict:
+                    out_dir: Path, trafos: dict | None = None, hoja: str | None = None) -> dict:
     modelos, por_alimentador = [], {}
     for net in nets:
         m = build_feeder_model(dataset, net, strict=True, include_geography=True)

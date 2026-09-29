@@ -14,6 +14,14 @@ def test_build_sample_feeder_without_any_reference_dgs(ds, sample_feeder):
     assert len(model.lines) == len(section_ids)
 
 
+def test_loads_and_seds_keep_their_source_feeder(sample_model):
+    assert sample_model.loads
+    assert all(load.feeder == sample_model.name for load in sample_model.loads)
+    assert all(load.network_id == sample_model.network_id for load in sample_model.loads)
+    assert all(sed.feeder == sample_model.name for sed in sample_model.seds)
+    assert all(sed.network_id == sample_model.network_id for sed in sample_model.seds)
+
+
 def test_default_line_type_is_media_specific(sample_model):
     defaults = {line.type_key for line in sample_model.lines if line.source_type_code == 'DEFAULT'}
     assert defaults <= {'LINE:DEFAULT', 'CABLE:DEFAULT'}

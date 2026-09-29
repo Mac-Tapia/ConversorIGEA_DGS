@@ -38,7 +38,8 @@ es heredada; la principal es la web (`src/igea_dgs/web/` + `frontend/`).
 
 Toda conversión pasa por `reglas.py`: `preparar_dataset` (coordenadas por el grafo,
 catálogo del proyecto) y `aplicar_reglas` (puentes `DEFAULT` ≤ 10 m fundidos, trafomix
-`M…` excluidos, SED sobrecargadas redimensionadas, hoja A0, todo dibujado) y
+`M…` excluidos, SED sobrecargadas redimensionadas, hoja a medida a escala real por
+defecto, formatos A0–A4 solo explícitos, todo dibujado) y
 `auditar_completitud` (un alimentador que pierde elementos no es «ok»). Las usan
 `convert_selection`, `convert_group`, la web, el CLI y la GUI. Si añade una vía nueva,
 llame a estas funciones; no copie la lógica. `SIN_REGLAS` solo para pruebas de fidelidad

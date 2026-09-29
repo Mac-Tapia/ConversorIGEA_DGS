@@ -69,6 +69,20 @@ Exit codes: `0` PASS, `2` FAIL, `3` PF API unavailable.
 
 Flags: `--persist-dir DIR`, `--no-persist-dgs`, `--no-export-converged-dgs`.
 
+### Propiedad por alimentador en una Grid unida
+
+Las conversiones nuevas publican `{feeder}_feeder_metadata.json`, ligado al DGS por
+SHA-256. El gate crea/verifica la Data Extension `p:alimentador` y asigna el nombre
+original a cada `ElmLod`, `ElmSubstat` y `ElmXnet`; el informe JSON incluye
+`feeder_metadata.by_feeder` y debe indicar `status: assigned`. La asignación se hace
+por FID más clase, nombre, terminal y SED, no por el nombre de la Grid.
+
+Para ver el dato como columna en Network Model Manager, abra **Flexible Data** para
+la clase (por ejemplo General Load), seleccione `Data Extension → Alimentador` en el
+selector de variables y añádala junto a **Grid**. La propiedad ya está poblada aunque
+la vista **Basic Data** no muestre columnas personalizadas. Repita para `ElmSubstat`
+y `ElmXnet` si quiere inspeccionar SED y fuentes.
+
 ### Correction intents (`--fix-until-converge`)
 
 Applied in the live PF project. The converter `{feeder}.dgs` on disk is always kept in the convert folder; in-memory corrections (outserv / load scale) are only written back if ComExport succeeds as `{feeder}_pf_converged.dgs`. Order and options follow **User Manual §24.6** and ComLdf attribute labels from Help localisation:

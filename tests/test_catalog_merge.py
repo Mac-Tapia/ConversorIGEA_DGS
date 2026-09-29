@@ -72,6 +72,18 @@ class TestDiagnostico:
         cm.diagnosticar(ds)
         assert len(ds.equipment_tables['LINE']) == antes
 
+    def test_alias_explicito_cuenta_como_resuelto(self):
+        ds = _DatasetFalso(['AUSENTE'], [('EXISTENTE', 1.0)])
+        informe = cm.diagnosticar(ds, aliases={'AUSENTE': 'EXISTENTE'})
+        assert informe.cobertura_final == pytest.approx(1.0)
+        assert informe.resueltos_por_alias == {'AUSENTE'}
+
+    def test_vecino_unico_cuenta_como_resuelto(self):
+        ds = _DatasetFalso(['AA05001D'], [('AA05002D', 1.0)])
+        informe = cm.diagnosticar(ds)
+        assert informe.cobertura_final == pytest.approx(1.0)
+        assert informe.resueltos_por_alias == {'AA05001D'}
+
     def test_una_red_sin_tipos_no_divide_por_cero(self):
         ds = _DatasetFalso([], [])
         assert cm.diagnosticar(ds).cobertura_final == pytest.approx(1.0)
@@ -145,7 +157,7 @@ class TestElInformeSeEntiende:
 class TestElInventarioLoEscala:
     """Que falten dos códigos es rutina; que falte casi todo es otra cosa."""
 
-    def _inventario(self, usados, en_catalogo, tmp_path):
+    def _inventario(self, usados, en_catalogo, tmp_path, aliases=None):
         from igea_dgs.inventory import build_dataset_inventory
 
         ds = _DatasetFalso(usados, en_catalogo)
@@ -167,7 +179,7 @@ class TestElInventarioLoEscala:
         ds.feeder_ids = lambda: []
         ds.feeder_section_ids = lambda _n: []
         ds.resolve_feeder = lambda _n: None
-        return build_dataset_inventory(ds)
+        return build_dataset_inventory(ds, aliases=aliases)
 
     def test_faltar_casi_todo_es_ERROR(self, tmp_path):
         inv = self._inventario(['A', 'B', 'C', 'D'], [('A', 1.0)], tmp_path)
@@ -183,6 +195,16 @@ class TestElInventarioLoEscala:
                      if i['code'] == 'line_types_missing_from_bd_equipo')
         assert fallo['severity'] == 'warning'
         assert fallo['coverage'] == pytest.approx(0.75)
+
+    def test_alias_explicito_no_genera_incidencia(self, tmp_path):
+        inv = self._inventario(
+            ['AUSENTE'], [('EXISTENTE', 1.0)], tmp_path,
+            aliases={'AUSENTE': 'EXISTENTE'},
+        )
+        assert not any(
+            issue['code'] == 'line_types_missing_from_bd_equipo'
+            for issue in inv['integrity']['issues']
+        )
 
 
 class TestEntregaReal:
