@@ -563,8 +563,6 @@ def validate_dgs(
                 )
 
         # DigSilent sheet/grid must cover the full network map (no clipped edges).
-        from .dgs import MAX_DIAGRAM_EXTENT_ABSOLUTO
-
         sheet_xs: list[float] = []
         sheet_ys: list[float] = []
         for r in graphic_rows:
@@ -590,17 +588,6 @@ def validate_dgs(
             span_x = max(sheet_xs) - min(sheet_xs)
             span_y = max(sheet_ys) - min(sheet_ys)
             span = max(span_x, span_y)
-            # 55.000 unidades NO es un límite de DigSILENT: es el tamaño que medía
-            # la hoja del NA205 de referencia. Tratarlo como tope rechazaba 7
-            # alimentadores reales que por sí solos pasan de 26 km —CHI201 mide
-            # 117— y, en la red unida, aplastaba la escala hasta volver el mapa
-            # ilegible. El tope real es la red de seguridad contra coordenadas
-            # corruptas, no la huella de un alimentador concreto.
-            if span > MAX_DIAGRAM_EXTENT_ABSOLUTO * 1.02:
-                graphic_errors.append(
-                    f'Diagram sheet span {span:.3f} exceeds DigSilent canvas '
-                    f'{MAX_DIAGRAM_EXTENT_ABSOLUTO} (network/map not fully covered)'
-                )
             if span < 1e-6:
                 graphic_errors.append('Diagram sheet collapsed to a point; topology scale is invalid')
             # Hoja normalizada: todo el dibujo dentro de ella, en cualquiera de sus dos

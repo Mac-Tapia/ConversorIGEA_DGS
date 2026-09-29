@@ -52,13 +52,13 @@ export function OptionsPanel() {
         </label>
         <label className="field">
           <span>Hoja del diagrama en PowerFactory</span>
-          <select value={o.hoja ?? 'A0'} disabled={locked}
-            onChange={(e) => save({ hoja: e.target.value as typeof o.hoja })}>
-            {['A0', 'A1', 'A2', 'A3', 'A4'].map((h) => <option key={h} value={h}>{h}{h === 'A0' ? ' (regla del proyecto)' : ''}</option>)}
+          <select value={o.hoja ?? 'AUTO'} disabled={locked}
+            onChange={(e) => save({ hoja: e.target.value === 'AUTO' ? null : e.target.value as typeof o.hoja })}>
+            <option value="AUTO">Ajustada a la red (escala real)</option>
+            {['A0', 'A1', 'A2', 'A3', 'A4'].map((h) => <option key={h} value={h}>{h}</option>)}
           </select>
           <small className="muted">
-            La red entera cabe en la hoja con la misma escala en X e Y; los símbolos se miden en
-            la cuadrícula de la hoja.
+            La opción automática mantiene la escala geográfica y ajusta el lienzo al tamaño de la red.
           </small>
         </label>
         <label className="field">

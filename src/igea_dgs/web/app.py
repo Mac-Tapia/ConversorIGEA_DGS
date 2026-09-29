@@ -205,7 +205,11 @@ def create_app(data_root: Path | None = None) -> FastAPI:
     @app.put('/api/workspaces/{wid}/options')
     def put_options(wid: str, body: OptionsIn) -> dict:
         ws = ws_or_404(wid)
-        changes = body.model_dump(exclude_none=True)
+        changes = {
+            key: value
+            for key, value in body.model_dump(exclude_unset=True).items()
+            if value is not None or key == 'hoja'
+        }
         for key in ('source_crs', 'target_crs'):
             if key in changes:
                 changes[key] = changes[key].strip()
@@ -335,8 +339,10 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         if body.unir:
             feeders = services.group_selection(ws, body.feeders, body.all)
             nombre = services.group_name(body.nombre, feeders)
+            requested = feeders if body.all else body.feeders
             return submit(ws, 'convert_group', f'Unir {len(feeders)} alimentadores en {nombre}.dgs',
-                          lambda ctx: services.convert_group(ws, ctx, feeders, nombre))
+                          lambda ctx: services.convert_group(
+                              ws, ctx, feeders, nombre, requested_feeders=requested))
         n = len(ws.inventory['feeders']) if body.all and ws.inventory else len(body.feeders)
         title = f'Convertir {"TODOS" if body.all else ""} {n} alimentador(es) a DGS'.replace('  ', ' ')
         return submit(ws, 'convert', title,
@@ -443,9 +449,10 @@ def create_app(data_root: Path | None = None) -> FastAPI:
     @app.post('/api/workspaces/{wid}/powerfactory/flow', status_code=202)
     def pf_flow(wid: str, body: FeedersIn) -> dict:
         ws = ws_or_404(wid)
-        services.check_powerfactory_flow(ws, body.feeders)
-        return submit(ws, 'powerfactory', f'DigSILENT: import + flujo ({len(body.feeders)})',
-                      lambda ctx: services.powerfactory_flow(ws, ctx, body.feeders),
+        targets = services.powerfactory_targets(ws, body.feeders)
+        services.check_powerfactory_flow(ws, targets)
+        return submit(ws, 'powerfactory', f'DigSILENT: import + flujo ({len(targets)})',
+                      lambda ctx: services.powerfactory_flow(ws, ctx, targets),
                       lane='powerfactory')
 
     # ------------------------------------------------------------ cargas de SED

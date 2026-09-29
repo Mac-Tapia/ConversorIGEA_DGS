@@ -96,6 +96,59 @@ def _selection(dataset: CymdistDataset, selectors: Sequence[str] | None, all_fee
     return networks
 
 
+def expand_connected_feeders(
+    dataset: CymdistDataset,
+    selectors: Sequence[str],
+) -> list[str]:
+    """Incluye la componente de alimentadores que comparten nodos a igual tensión."""
+    from collections import defaultdict, deque
+    import math
+
+    from .model import _tension_de_fuente
+
+    selected = _selection(dataset, selectors, False)
+    voltage_by_network: dict[str, float] = {}
+    networks_by_node_voltage: dict[tuple[str, float], set[str]] = defaultdict(set)
+    for network_id, section_ids in dataset.feeders.items():
+        source = dataset.sources.get(network_id)
+        if source is None:
+            continue
+        voltage = _tension_de_fuente(source)
+        if not math.isfinite(voltage) or voltage <= 0:
+            continue
+        voltage = round(voltage, 6)
+        voltage_by_network[network_id] = voltage
+        for section_id in section_ids:
+            section = dataset.sections.get(section_id)
+            if section is None:
+                continue
+            for node_id in (section.get('FromNodeID'), section.get('ToNodeID')):
+                if node_id:
+                    networks_by_node_voltage[(node_id, voltage)].add(network_id)
+
+    expanded = set(selected)
+    pending = deque(selected)
+    while pending:
+        network_id = pending.popleft()
+        feeder_voltage = voltage_by_network.get(network_id)
+        if feeder_voltage is None:
+            continue
+        neighbors: set[str] = set()
+        for section_id in dataset.feeders.get(network_id, ()):
+            section = dataset.sections.get(section_id)
+            if section is None:
+                continue
+            for node_id in (section.get('FromNodeID'), section.get('ToNodeID')):
+                if node_id:
+                    neighbors.update(networks_by_node_voltage[(node_id, feeder_voltage)])
+        for neighbor in sorted(neighbors - expanded, key=sort_key_feeder):
+            expanded.add(neighbor)
+            pending.append(neighbor)
+
+    additions = sorted(expanded - set(selected), key=sort_key_feeder)
+    return [*selected, *additions]
+
+
 def output_names(networks: Sequence[str]) -> dict[str, str]:
     """NetworkID → nombre de fichero, único dentro de la selección.
 
@@ -155,6 +208,7 @@ def _convert_feeder(
     _clear_stage(stage)
     stage.mkdir(parents=True, exist_ok=True)
     dgs_path = stage / f'{feeder}.dgs'
+    metadata_path = stage / f'{feeder}_feeder_metadata.json'
     json_path = stage / f'{feeder}_validation.json'
     txt_path = stage / f'{feeder}_validation.txt'
     geo_path = stage / f'{feeder}_geography.json'
@@ -174,7 +228,7 @@ def _convert_feeder(
             include_geography=opts.include_geography,
         )
         # Reglas del proyecto (igea_dgs.reglas): catálogo de ficha, puentes, trafomix,
-        # SED sobrecargadas y hoja A0. El mismo camino en serie y en paralelo.
+        # SED sobrecargadas y diagrama a escala real. El mismo camino en serie y en paralelo.
         informe_reglas = aplicar_reglas(model, opts.reglas, correcciones=opts.catalog_corrections)
         changes = list(informe_reglas.get('catalogo', []))
         geography = None
@@ -196,6 +250,11 @@ def _convert_feeder(
 
         manifiesto_dgs = write_dgs(model, dgs_path, schema_profile=opts.schema_profile,
                                    geography=geography, trafos=opts.trafos)
+        from .feeder_metadata import assignments_from_model, write_feeder_metadata
+
+        write_feeder_metadata(
+            assignments_from_model(model, manifiesto_dgs), dgs_path, metadata_path,
+        )
 
         if opts.export_xlsx:
             write_dgs_xlsx(dgs_path, xlsx_path)
@@ -218,6 +277,7 @@ def _convert_feeder(
             _publish(stage, out_dir, only={json_path.name, txt_path.name})
         _clear_stage(stage)
         dgs_path = out_dir / dgs_path.name
+        metadata_path = out_dir / metadata_path.name
         json_path = out_dir / json_path.name
         txt_path = out_dir / txt_path.name
         geo_path = out_dir / geo_path.name
@@ -234,6 +294,7 @@ def _convert_feeder(
             'status': 'ok' if ok else 'failed',
             'dgs': str(dgs_path) if ok else None,
             'dgs_published': ok,
+            'feeder_metadata': str(metadata_path) if ok else None,
             'validation_json': str(json_path),
             'validation_txt': str(txt_path),
             'errors_total': report['errors_total'],
@@ -620,7 +681,7 @@ def convert_group(
     }
     try:
         # Dentro del try: un nombre que no existe también deja manifiesto.
-        networks = _selection(dataset, selectors, False)
+        networks = expand_connected_feeders(dataset, selectors)
         manifest['feeders'] = [feeder_short_name(n) for n in networks]
         manifest['network_ids'] = networks
         modelos, informes = [], {}
@@ -639,8 +700,14 @@ def convert_group(
         _clear_stage(stage)
         stage.mkdir(parents=True, exist_ok=True)
         dgs_path = stage / f'{nombre}.dgs'
+        metadata_path = stage / f'{nombre}_feeder_metadata.json'
         man = write_dgs(combinado, dgs_path, schema_profile=schema_profile,
                         geography=geography, trafos=trafos)
+        from .feeder_metadata import assignments_from_model, write_feeder_metadata
+
+        write_feeder_metadata(
+            assignments_from_model(combinado, man), dgs_path, metadata_path,
+        )
         report = validate_dgs(combinado, dgs_path, schema_profile=schema_profile, geography=geography)
         write_validation_reports(report, stage / f'{nombre}_validation.json',
                                  stage / f'{nombre}_validation.txt')
@@ -656,6 +723,7 @@ def convert_group(
         manifest.update({
             'status': 'ok' if ok else 'failed',
             'dgs': str(out_dir / f'{nombre}.dgs') if ok else None,
+            'feeder_metadata': (str(out_dir / metadata_path.name) if ok else None),
             'errors_total': report['errors_total'],
             'counts': report['counts'],
             'union': informe_union.text(),

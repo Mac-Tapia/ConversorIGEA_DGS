@@ -156,6 +156,7 @@ def fundir_puentes(model: FeederModel, *, codigos=CODIGOS_PUENTE) -> InformePuen
                 node_a=extremos[i], node_b=extremos[i + 1],
                 on_off=dev.on_off, kind=dev.kind, eq_id=dev.eq_id,
                 eq_number=dev.eq_number, section_id=ln.section_id, phase=ln.phase,
+                feeder=dev.feeder, network_id=dev.network_id,
             ))
     informe.interruptores = len(acopladores)
 

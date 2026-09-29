@@ -48,6 +48,7 @@ class DgsManifest:
     source_cubic_fid: str
     line_cubic_fids: dict[tuple[str, int], str]
     switch_fids: dict[tuple[str, str, str], str]
+    source_fids: dict[str, str] = field(default_factory=dict)
     diagram_fid: str = ''
     graphic_fids: dict[str, str] = field(default_factory=dict)
     sed_fids: dict[tuple[str, str], str] = field(default_factory=dict)
@@ -459,25 +460,8 @@ def _geo_to_meters(point: GeoPoint, origin_lat: float, origin_lon: float) -> tup
 # Same scale keeps schematic + DigSilent Geographic Diagram element sizes aligned
 # with NA205; GPSlat/GPSlon on ElmTerm/ElmSubstat place points on the PF map.
 NA205_DIAGRAM_UNITS_PER_METER = 2.08
-NA205_MAX_DIAGRAM_EXTENT = 55000.0
-"""Huella de la hoja de NA205. Es una referencia histórica, **no un tope**.
-
-Tratarla como tope es lo que arruinaba el diagrama de la red unida. Con la hoja fija en
-55.000 unidades y una red de 320 km —16,7 veces NA205—, la escala se aplastaba de 2,08
-a 0,171 u/m. Los símbolos, que se miden en unidades de diagrama y no en metros, pasaban
-a cubrir 29,2 m de terreno en vez de 2,4: doce veces más grandes. Con 7.282 triángulos
-de SED sobre la ciudad, el resultado era una mancha en la que no se distinguía la red.
-
-La escala de 2,08 u/m es lo que hay que conservar, porque es lo que hace que un símbolo
-mida lo mismo sobre el terreno esté solo su alimentador o esté el sistema entero. Lo que
-tiene que crecer es la hoja.
-"""
-
-#: Tope absoluto de la hoja, como red de seguridad y no como criterio de dibujo.
-#: A 2,08 u/m son unos 960 km de extensión: más que cualquier concesión de distribución.
-#: Pasarse de ahí casi siempre significa coordenadas corruptas —un CRS equivocado
-#: multiplica las distancias— y entonces sí conviene encoger y que se note.
-MAX_DIAGRAM_EXTENT_ABSOLUTO = 2_000_000.0
+# Escala geográfica calibrada con NA205; el lienzo se dimensiona con la red y nunca
+# reduce esta escala por el tamaño total del dibujo.
 # Margin so edge symbols (loads/SED/source) and parallel-circuit offsets stay on-sheet.
 DIAGRAM_SHEET_MARGIN_DU = max(
     NA205_LOAD_RADIUS,
@@ -499,36 +483,11 @@ def _adaptive_scale(
     visible_ids: set[str],
     *,
     extra_points: list[tuple[float, float]] | None = None,
-    margin_du: float = DIAGRAM_SHEET_MARGIN_DU,
     units_per_meter: float = NA205_DIAGRAM_UNITS_PER_METER,
-    max_extent: float = MAX_DIAGRAM_EXTENT_ABSOLUTO,
 ) -> float:
-    """Escala geográfica uniforme: la hoja crece con la red, la escala se mantiene.
-
-    Preserva las proporciones de la topología del TXT (escala isótropa) e incluye los
-    vértices intermedios del GIS y un margen para los símbolos, de modo que la hoja de
-    DigSILENT cubra todo el mapa y no solo las barras eléctricas.
-
-    Lo que **no** hace, y antes sí: encoger la escala para que la red quepa en una hoja
-    de tamaño fijo. Los símbolos se miden en unidades de diagrama, no en metros, así
-    que encoger la escala los agranda sobre el terreno. Con los 96 alimentadores
-    —320 km— la escala caía a 0,171 u/m y cada triángulo de SED pasaba a cubrir 29 m en
-    lugar de 2,4; multiplicado por 7.282 SED, el mapa se volvía ilegible.
-
-    Solo se reduce al chocar con ``max_extent``, que es una red de seguridad contra
-    coordenadas corruptas, no un criterio de dibujo.
-    """
-    points: list[tuple[float, float]] = list(meter_xy.values())
-    if extra_points:
-        points.extend(extra_points)
-    if len(points) < 2:
-        points = [meter_xy[i] for i in visible_ids if i in meter_xy]
-    if len(points) < 2:
-        return units_per_meter
-
-    span_m = max(_meter_span(points), 1e-9)
-    usable = max(max_extent - 2.0 * margin_du, max_extent * 0.5)
-    return min(units_per_meter, usable / span_m)
+    """Mantiene la escala real de referencia; el tamaño de hoja no interviene."""
+    _ = (meter_xy, visible_ids, extra_points)
+    return units_per_meter
 
 
 def _geography_meter_frame(
@@ -601,7 +560,6 @@ def _diagram_mapper(
         meter_xy,
         visible_ids,
         extra_points=extras,
-        margin_du=margin_du,
     )
 
     def map_point(point: GeoPoint) -> tuple[float, float]:
@@ -1030,6 +988,7 @@ def write_dgs(
             (ref.name, ref.source_node, source_fid if i == 0 else reg.new())
             for i, ref in enumerate(combinado.feeders)
         ]
+    source_fids = {nombre: fid for nombre, _node, fid in fuentes}
     for nombre_fuente, _nodo_fuente, fid_fuente in fuentes:
         rows['ElmXnet'].append(_make_row(
             schema, 'ElmXnet', FID=fid_fuente, OP='C',
@@ -1431,6 +1390,7 @@ def write_dgs(
         source_cubic_fid=source_cubic_fid,
         line_cubic_fids=line_cubic_fids,
         switch_fids=switch_fids,
+        source_fids=source_fids,
         diagram_fid=diagram_fid,
         graphic_fids=graphic_fids,
         sed_fids=sed_fids,

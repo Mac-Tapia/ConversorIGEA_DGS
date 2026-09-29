@@ -1,6 +1,6 @@
 """Reglas del proyecto: se aplican siempre, en cualquier vía, y no pierden nada.
 
-Ver ``igea_dgs.reglas``: hoja A0, coordenadas por el grafo, puentes fundidos,
+Ver ``igea_dgs.reglas``: hoja dinámica a escala real, coordenadas por el grafo, puentes fundidos,
 trafomix excluidos, SED redimensionadas, catálogo del proyecto y auditoría de
 completitud. Estas pruebas usan el export sintético, en sus dos disposiciones.
 """
@@ -31,7 +31,7 @@ def test_las_reglas_del_proyecto_son_el_defecto(ds, tmp_path):
     assert m['reglas'] == REGLAS_PROYECTO.__dict__
     for item in m['feeders']:
         assert item['status'] == 'ok', item.get('error')
-        assert item['hoja']['formato'] == 'A0'
+        assert 'hoja' not in item
         assert item['completitud']['fallos'] == []
 
 
@@ -64,7 +64,7 @@ def test_varios_alimentadores_en_un_solo_dgs(ds, tmp_path):
     assert man['completitud']['fallos'] == []
     tablas = parse_dgs(man['dgs'])
     assert len(tablas['ElmXnet']['rows_dict']) == len(nombres), 'una fuente por alimentador'
-    assert man['hoja']['formato'] == 'A0'
+    assert man['hoja'] is None
     guardado = json.loads((tmp_path / 'g' / 'GRUPO_1_manifest.json').read_text(encoding='utf-8'))
     assert guardado['status'] == 'ok'
 
@@ -115,7 +115,10 @@ def test_web_une_en_un_dgs_y_exige_proyecto_para_aplicar_cargas(tmp_path, monkey
         assert j['result']['status'] == 'ok', j['result']
         estado = c.get(f'/api/workspaces/{wid}').json()
         assert [g['name'] for g in estado['groups']] == ['RED']
-        assert estado['options']['hoja'] == 'A0'
+        assert estado['groups'][0]['converted_at'] is not None
+        assert estado['groups'][0]['requested_feeders'] == nombres
+        assert estado['groups'][0]['feeder_metadata'].endswith('RED_feeder_metadata.json')
+        assert estado['options']['hoja'] is None
 
         ws = c.app.state.store.get(wid)
         assert services.proyecto_pf_de(ws, nombres[0]) is None

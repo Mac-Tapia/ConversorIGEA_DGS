@@ -68,11 +68,135 @@ def _loaded(client, export, *, geography: bool = False) -> str:
     return wid
 
 
+def test_powerfactory_usa_un_dgs_unido_para_la_seleccion_exacta(tmp_path):
+    import os
+
+    from igea_dgs.web.services import dgs_jobs
+    from igea_dgs.web.workspace import Workspace
+
+    ws = Workspace(id='w', root=tmp_path)
+    ws.out_dir.mkdir(parents=True)
+    for name in ('AL101', 'AL102', 'RED_UNIDA'):
+        (ws.out_dir / f'{name}.dgs').write_text('DGS', encoding='ascii')
+    ws.groups['RED_UNIDA'] = {
+        'name': 'RED_UNIDA', 'feeders': ['AL101', 'AL102'], 'status': 'ok',
+        'converted_at': 20.0,
+    }
+    ws.conversions = {
+        'NET_AL101': {'feeder': 'AL101', 'converted_at': 10.0},
+        'NET_AL102': {'feeder': 'AL102', 'converted_at': 11.0},
+    }
+
+    jobs, missing = dgs_jobs(ws, ['AL101', 'AL102'])
+    assert [job[0] for job in jobs] == ['RED_UNIDA']
+    assert missing == []
+
+    ws.groups['RED_UNIDA'] = {
+        'name': 'RED_UNIDA', 'feeders': ['AL101', 'AL102', 'AL103'],
+        'requested_feeders': ['AL101', 'AL102'], 'status': 'ok',
+        'converted_at': 20.0,
+    }
+    (ws.out_dir / 'AL103.dgs').write_text('DGS', encoding='ascii')
+    jobs, missing = dgs_jobs(ws, ['AL101', 'AL102'])
+    assert [job[0] for job in jobs] == ['RED_UNIDA']
+    assert missing == []
+
+    ws.conversions['NET_AL103'] = {'feeder': 'AL103', 'converted_at': 21.0}
+    jobs, missing = dgs_jobs(ws, ['AL101', 'AL102'])
+    assert [job[0] for job in jobs] == ['AL101', 'AL102']
+    assert missing == []
+
+    ws.conversions['NET_AL102']['converted_at'] = 21.0
+    jobs, missing = dgs_jobs(ws, ['AL101', 'AL102'])
+    assert [job[0] for job in jobs] == ['AL101', 'AL102']
+    assert missing == []
+
+    ws.groups['RED_UNIDA'] = {
+        'name': 'RED_UNIDA', 'feeders': ['AL101', 'AL102'], 'status': 'ok',
+    }
+    os.utime(ws.out_dir / 'AL101.dgs', ns=(10_000, 10_000))
+    os.utime(ws.out_dir / 'AL102.dgs', ns=(11_000, 11_000))
+    os.utime(ws.out_dir / 'RED_UNIDA.dgs', ns=(20_000, 20_000))
+    jobs, missing = dgs_jobs(ws, ['AL101', 'AL102'])
+    assert [job[0] for job in jobs] == ['RED_UNIDA']
+    assert missing == []
+
+    os.utime(ws.out_dir / 'AL102.dgs', ns=(21_000, 21_000))
+    jobs, missing = dgs_jobs(ws, ['AL101', 'AL102'])
+    assert [job[0] for job in jobs] == ['AL101', 'AL102']
+    assert missing == []
+
+
+def test_powerfactory_importa_dgs_aunque_pandapower_avise_isla(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    from igea_dgs.web import services
+    from igea_dgs.web.workspace import Workspace
+
+    ws = Workspace(id='w', root=tmp_path)
+    dgs = ws.out_dir / 'RED.dgs'
+    dgs.parent.mkdir(parents=True)
+    dgs.write_text('DGS', encoding='ascii')
+    dgs.with_name('RED_feeder_metadata.json').write_text('{}', encoding='utf-8')
+    monkeypatch.setattr(services, 'dgs_jobs', lambda _ws, _feeders: ([('RED', dgs, None)], []))
+    monkeypatch.setattr(services, '_script', lambda _name: tmp_path / 'script.py')
+    monkeypatch.setattr(services, '_require_pf', lambda: (tmp_path, tmp_path / 'python.exe'))
+    monkeypatch.setattr(services, 'pf_subprocess_env', lambda _pf_dir: {})
+    monkeypatch.setattr(services, 'project_root', lambda: tmp_path)
+    monkeypatch.setattr(services, 'powerfactory_status', lambda: {'interpreter_reason': 'test'})
+    monkeypatch.setattr(services, 'pandapower_preflight', lambda *_args: {
+        'disponible': True,
+        'import_continued': True,
+        'avisos': ['PE104: 2 barras sin alimentar. Se continúa con el import DGS completo.'],
+        'feeders': [{'feeder': 'PE104', 'barras_sin_alimentar': 2}],
+    })
+    logs: list[str] = []
+    commands: list[list[str]] = []
+    ctx = SimpleNamespace(
+        log=logs.append,
+        progress=lambda *_args: None,
+        check_cancel=lambda: None,
+        run_process=lambda command, **_kwargs: commands.append(command) or 0,
+    )
+
+    result = services.powerfactory_flow(ws, ctx, ['RED'])
+
+    assert result['ok'] == 1
+    assert result['preflight']['feeders'][0]['barras_sin_alimentar'] == 2
+    assert len(commands) == 1
+    assert commands[0][commands[0].index('--import-dgs') + 1] == str(dgs)
+    assert commands[0][commands[0].index('--feeder-metadata') + 1] == str(
+        dgs.with_name('RED_feeder_metadata.json'))
+    assert 'Se continúa con el import DGS completo.' in '\n'.join(logs)
+
+
+def test_check_powerfactory_exige_metadata_para_no_dejar_columna_vacia(tmp_path, monkeypatch):
+    from igea_dgs.web import services
+    from igea_dgs.web.workspace import Workspace
+
+    ws = Workspace(id='w', root=tmp_path)
+    ws.out_dir.mkdir(parents=True)
+    (ws.out_dir / 'RED.dgs').write_text('DGS', encoding='ascii')
+    monkeypatch.setattr(services, '_script', lambda _name: tmp_path / 'script.py')
+    monkeypatch.setattr(services, '_require_pf', lambda: (tmp_path, tmp_path / 'python.exe'))
+
+    with pytest.raises(services.UserError, match='Falta la trazabilidad por alimentador'):
+        services.check_powerfactory_flow(ws, ['RED'])
+
+
 def test_health_expone_capacidades_y_presets_sin_crs_en_grados(client):
     body = client.get('/api/health').json()
     assert {'geography', 'xlsx', 'access'} <= set(body['capabilities'])
     codes = [p['code'] for p in body['crs_presets']]
     assert 'EPSG:4326' not in codes, 'un CRS en grados falsea las longitudes (C-01)'
+
+
+def test_hoja_null_activa_lienzo_dinamico(client):
+    wid = _workspace(client)
+    fijo = client.put(f'/api/workspaces/{wid}/options', json={'hoja': 'A0'})
+    assert fijo.json()['options']['hoja'] == 'A0'
+    automatico = client.put(f'/api/workspaces/{wid}/options', json={'hoja': None})
+    assert automatico.json()['options']['hoja'] is None
 
 
 def test_flujo_completo_subir_cargar_convertir_descargar(client, export):

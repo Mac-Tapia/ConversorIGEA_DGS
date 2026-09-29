@@ -103,6 +103,49 @@ class TestIslandDetection:
         assert islands['loads'] == ['DEV_SE1001']
         assert islands['seds'] == ['SE1001']
 
+    def test_short_default_stub_joins_unique_coincident_energized_node(self, tmp_path):
+        ds = _write_feeder(tmp_path / 'src', island_has_load=True)
+        anchor = ds.nodes['N2']
+        ds.nodes['N9']['CoordX'] = anchor['CoordX']
+        ds.nodes['N9']['CoordY'] = anchor['CoordY']
+        ds.nodes['N10']['CoordX'] = str(float(anchor['CoordX']) + 0.3)
+        ds.nodes['N10']['CoordY'] = anchor['CoordY']
+        ds.line_configurations['SEC_ISLA'].update(
+            {'LineCableID': 'DEFAULT', 'Length': '0.3', 'Overhead': '0'})
+
+        model = build_feeder_model(ds, 'NA999', strict=True)
+
+        assert model.node_aliases['N9'] == 'N2'
+        assert model.islands['sections'] == []
+        repaired = next(line for line in model.lines if line.section_id == 'SEC_ISLA')
+        assert repaired.from_node == 'N2'
+        assert model.loads[0].node_id == 'N10'
+
+    def test_coincident_stub_endpoint_is_not_merged_when_candidates_are_ambiguous(self, tmp_path):
+        ds = _write_feeder(tmp_path / 'src', island_has_load=True)
+        anchor = ds.nodes['N2']
+        ds.nodes['N9']['CoordX'] = anchor['CoordX']
+        ds.nodes['N9']['CoordY'] = anchor['CoordY']
+        ds.nodes['N10']['CoordX'] = str(float(anchor['CoordX']) + 0.3)
+        ds.nodes['N10']['CoordY'] = anchor['CoordY']
+        ds.nodes['N11'] = {'NodeID': 'N11', 'CoordX': anchor['CoordX'],
+                           'CoordY': anchor['CoordY']}
+        ds.sections['SEC_ALT'] = {
+            'SectionID': 'SEC_ALT', 'FromNodeID': 'N1', 'ToNodeID': 'N11', 'Phase': 'ABC',
+        }
+        ds.section_owner['SEC_ALT'] = NETWORK
+        ds.feeders[NETWORK] = (*ds.feeders[NETWORK], 'SEC_ALT')
+        ds.line_configurations['SEC_ALT'] = {
+            'SectionID': 'SEC_ALT', 'LineCableID': 'DEFAULT', 'Length': '50', 'Overhead': '1',
+        }
+        ds.line_configurations['SEC_ISLA'].update(
+            {'LineCableID': 'DEFAULT', 'Length': '0.3', 'Overhead': '0'})
+
+        model = build_feeder_model(ds, 'NA999', strict=False)
+
+        assert 'N9' not in model.node_aliases
+        assert model.islands['sections'] == ['SEC_ISLA']
+
 
 class TestEmptyIslandOnlyWarns:
     def test_conversion_succeeds_in_strict_mode(self, tmp_path):

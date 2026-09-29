@@ -35,7 +35,7 @@ function GroupsList() {
               <td>{g.status === 'ok'
                 ? <Pill tone={g.completitud?.fallos?.length ? 'warn' : 'ok'}>completo</Pill>
                 : <Pill tone="error" title={g.error ?? ''}>falló</Pill>}</td>
-              <td className="small">{g.hoja ? `${g.hoja.formato} ${g.hoja.orientacion} 1:${g.hoja.escala_1_a.toLocaleString('es-PE')}` : '—'}</td>
+              <td className="small">{g.hoja ? `${g.hoja.formato} ${g.hoja.orientacion} 1:${g.hoja.escala_1_a.toLocaleString('es-PE')}` : 'A medida'}</td>
               <td className="row-actions">
                 {g.dgs && <a className="link" href={api.fileUrl(ws.id, `${g.name}.dgs`, true)}>Descargar</a>}
                 {g.dgs && (
@@ -126,19 +126,41 @@ export function FeedersPanel() {
     const sugerido = selected.slice(0, 4).join('_') + (selected.length > 4 ? '_ETC' : '');
     const nombre = window.prompt(
       `Unir ${selected.length} alimentadores en UN solo DGS.\n\nCada uno conserva su tensión y su fuente; `
-      + 'los nodos compartidos quedan unidos por un interruptor abierto.\n\nNombre del DGS:', sugerido);
+      + 'los nodos compartidos quedan unidos por un interruptor abierto. También se incluirán los alimentadores '
+      + 'conectados a la selección por nodos compartidos a la misma tensión, para no cortar ramales.\n\nNombre del DGS:',
+      sugerido);
     if (nombre === null) return;
     await startJob(() => api.convertGroup(ws.id, selected, nombre.trim() || sugerido));
   };
 
   const pfFlow = async () => {
-    const withDgs = selected.filter((n) => feeders.find((r) => r.feeder === n)?.conversion?.status === 'ok');
+    const joinedGroups = (ws.groups ?? [])
+      .filter((group) => {
+        if (group.status !== 'ok' || !group.dgs
+          || !(group.requested_feeders ?? group.feeders).every((name) => selected.includes(name))
+          || (group.requested_feeders ?? group.feeders).length !== selected.length) return false;
+        if (group.converted_at == null) return true;
+        return group.feeders.every((name) => {
+          const convertedAt = feeders.find((row) => row.feeder === name)?.conversion?.converted_at;
+          return convertedAt == null || convertedAt <= group.converted_at!;
+        });
+      })
+      .sort((a, b) => (a.converted_at ?? 0) - (b.converted_at ?? 0));
+    const joinedGroup = joinedGroups[joinedGroups.length - 1];
+    const withDgs = joinedGroup
+      ? [joinedGroup.name]
+      : selected.filter((n) => feeders.find((r) => r.feeder === n)?.conversion?.status === 'ok');
     const ok = await confirm('DigSILENT PowerFactory', <>
-      <p>Se importarán <b>{withDgs.length}</b> DGS en PowerFactory: se activará el proyecto, se creará o activará
-        un escenario de operación, se ejecutará el flujo de potencia (ComLdf, con correcciones si no converge) y la
-        suite de estudios (corto circuito ComShc si la licencia lo permite).</p>
-      {withDgs.length < selected.length && (
-        <p className="alert alert-warn">{selected.length - withDgs.length} seleccionado(s) aún no tienen DGS y se omitirán.</p>
+      {joinedGroup
+        ? <p>La selección coincide con la red unida <b>{joinedGroup.name}.dgs</b>. Se comprobará que siga vigente;
+          si es así, se importará ese único DGS. Si quedó desactualizado, se usarán los DGS individuales disponibles.</p>
+        : <p>Se importarán <b>{withDgs.length}</b> DGS individuales en PowerFactory.</p>}
+      <p>Se activará el proyecto, se creará o activará un escenario de operación y se ejecutará el flujo de potencia
+        (ComLdf, con correcciones si no converge) y la suite de estudios (corto circuito ComShc si la licencia lo permite).</p>
+      <p className="muted">Antes del import, pandapower informará sobre conexión, islas y convergencia. Sus avisos no omiten ni bloquean
+        la importación de los DGS.</p>
+      {!joinedGroup && withDgs.length < selected.length && (
+        <p className="alert alert-warn">{selected.length - withDgs.length} seleccionado(s) no tienen DGS y se omitirán.</p>
       )}
       <p className="muted">Requisito: PowerFactory instalado y, preferiblemente, abierto en el servidor.</p>
     </>);
@@ -251,12 +273,6 @@ export function FeedersPanel() {
             </table>
           </div>
 
-          <p className="alert alert-info small">
-            Reglas del proyecto en cada conversión: hoja {ws.options.hoja ?? 'A0'} con símbolos según la
-            cuadrícula · coordenadas que falten completadas por el grafo · puentes DEFAULT fundidos (sus
-            seccionadores quedan como interruptor) · trafomix (SED «M…») excluidos · SED con más carga que
-            kVA redimensionadas y listadas · catálogo del proyecto · auditoría de completitud contra la entrada.
-          </p>
           <GroupsList />
           <div className="actions">
             <button className="btn btn-primary" disabled={engineBusy || selected.length === 0}
