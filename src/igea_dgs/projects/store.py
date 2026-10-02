@@ -115,3 +115,29 @@ class ProjectStore:
                 ((project_id, f.kind, f.path, f.sha256, f.size_bytes) for f in files),
             )
         return manifest
+
+    def get_manifest(self, project_id: str) -> InputManifest:
+        self.get(project_id)
+        with self._connect() as connection:
+            row = connection.execute(
+                """SELECT output_dir, crs, registered_at FROM input_manifests
+                   WHERE project_id = ?""",
+                (project_id,),
+            ).fetchone()
+            file_rows = connection.execute(
+                """SELECT kind, path, sha256, size_bytes FROM input_files
+                   WHERE project_id = ? ORDER BY kind""",
+                (project_id,),
+            ).fetchall()
+        if row is None or len(file_rows) != 3:
+            raise ValueError("INPUT_MANIFEST_NOT_FOUND")
+        return InputManifest(
+            project_id,
+            tuple(
+                InputFile(item["kind"], item["path"], item["sha256"], item["size_bytes"])
+                for item in file_rows
+            ),
+            row["output_dir"],
+            row["crs"],
+            row["registered_at"],
+        )

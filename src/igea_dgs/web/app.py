@@ -13,12 +13,14 @@ from igea_dgs.revisions import (
     RevisionNotFoundError,
     RevisionStore,
 )
+from igea_dgs.services.project_pipeline import ProjectPipeline
 
 from .routes import (
     NativeDialogPort,
     TkNativeDialog,
     dialogs_router,
     projects_router,
+    pipeline_router,
     revisions_router,
 )
 
@@ -35,6 +37,9 @@ def create_app(
     app.state.session_token = session_token
     app.state.project_store = ProjectStore(root / ".igea" / "custody.sqlite3")
     app.state.revision_store = RevisionStore(root)
+    app.state.project_pipeline = ProjectPipeline(
+        app.state.project_store, app.state.revision_store
+    )
     app.state.native_dialog = native_dialog or TkNativeDialog()
 
     @app.middleware("http")
@@ -94,5 +99,6 @@ def create_app(
     app.include_router(projects_router)
     app.include_router(dialogs_router)
     app.include_router(revisions_router)
+    app.include_router(pipeline_router)
 
     return app
