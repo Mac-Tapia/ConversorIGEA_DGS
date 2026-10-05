@@ -127,70 +127,29 @@ def require_loaded(ws: Workspace) -> None:
         raise UserError('Primero cargue y liste los alimentadores (paso 2).')
 
 
-def _read_dataset(
-    ws: Workspace,
-    ctx: JobContext,
-    aliases: dict[str, str] | None = None,
-):
-    if ws.options.get('input_mode') == 'mdb':
-        from ..access import read_access_dataset
-
-        networks = None
-        study = ws.input_path('study')
-        if study:
-            from ..study import study_networks
-
-            networks = study_networks(study)
-        return read_access_dataset(
-            ws.input_path('mdb'),
-            equipment_db=ws.input_path('equipment_mdb') or None,
-            networks=networks,
-        ), None
-
-    from ..catalog_merge import completar, diagnosticar
-    from ..dataset import CymdistDataset
-
-    dataset = CymdistDataset.from_files(
-        ws.input_path('red'), ws.input_path('loads'), ws.input_path('equipment'),
-    )
-    # Catálogo incompleto: se completa si se indicó otro, y en todo caso se dice
-    # cuánta red quedaría con la impedancia de DEFAULT. Un catálogo que no
-    # corresponde con la red produce un modelo que converge igual, así que si no se
-    # avisa aquí no se avisa en ninguna parte.
-    extra = ws.input_path('equipment_extra')
-    informe = (
-        completar(dataset, [extra], aliases=aliases)
-        if extra else diagnosticar(dataset, aliases=aliases)
-    )
-    report = {
-        'initial_coverage': informe.cobertura_inicial,
-        'final_coverage': informe.cobertura_final,
-        'types_in_network': len(informe.codigos_en_red),
-        'added': {Path(k).name: v for k, v in informe.anadidos.items()},
-        'unresolved': sorted(informe.sin_resolver),
-        'text': informe.texto(),
-        'critical': informe.cobertura_final < 0.5,
-    }
-    if extra or informe.cobertura_final < 1.0:
-        ctx.log('--- Catálogo de conductores ---')
-        ctx.log(informe.texto())
-    return dataset, report
-
-
 def load_dataset(ws: Workspace, ctx: JobContext) -> dict:
     from ..inventory import build_dataset_inventory, format_inventory_report, write_inventory
     from ..batch import load_aliases
+    from .source_runs import create_source_run
+    from .sources import adapter_for
 
     ctx.log('--- Carga e inventario de alimentadores ---')
-    mode = ws.options.get('input_mode')
+    snapshot = create_source_run(ws)
+    mode = snapshot.mode
     slots = ('mdb', 'equipment_mdb', 'study', 'aliases') if mode == 'mdb' else (
         'red', 'loads', 'equipment', 'equipment_extra', 'aliases')
     for slot in slots:
         if ws.input_path(slot):
             ctx.log(f'{slot}: {Path(ws.input_path(slot)).name}')
 
-    aliases = load_aliases(ws.input_path('aliases') or None)
-    dataset, catalog_report = _read_dataset(ws, ctx, aliases=aliases)
+    aliases = load_aliases(snapshot.path_for('aliases') or None)
+    loaded = adapter_for(mode).load(snapshot, aliases=aliases)
+    dataset, catalog_report = loaded.dataset, loaded.catalog_report
+    if catalog_report and (
+        snapshot.path_for('equipment_extra') or catalog_report.get('final_coverage', 1.0) < 1.0
+    ):
+        ctx.log('--- Catálogo de conductores ---')
+        ctx.log(catalog_report.get('text') or '')
     ctx.check_cancel()
     # Reglas de entrada del proyecto: coordenadas por el grafo y catálogo Excel.
     from ..reglas import catalogo_del_proyecto, preparar_dataset
@@ -198,6 +157,7 @@ def load_dataset(ws: Workspace, ctx: JobContext) -> dict:
     entrada = preparar_dataset(dataset, catalogo=catalogo_del_proyecto())
     ctx.log(entrada.texto())
     inventory = build_dataset_inventory(dataset, aliases=aliases)
+    inventory['provenance'] = dict(loaded.provenance)
     ws.out_dir.mkdir(parents=True, exist_ok=True)
     inv_path = write_inventory(inventory, ws.out_dir / 'dataset_inventory.json')
     ctx.log(format_inventory_report(inventory))
@@ -207,6 +167,9 @@ def load_dataset(ws: Workspace, ctx: JobContext) -> dict:
 
     with ws.lock:
         ws.dataset = dataset
+        ws.loaded_run_id = snapshot.run_id
+        ws.loaded_source_mode = snapshot.mode
+        ws.loaded_source_fingerprint = snapshot.fingerprint
         ws.inventory = inventory
         ws.catalog_report = catalog_report
         ws.loaded_at = time.time()
@@ -216,7 +179,24 @@ def load_dataset(ws: Workspace, ctx: JobContext) -> dict:
         'conversion': inventory['conversion'],
         'integrity': inventory['integrity'],
         'catalog_report': catalog_report,
+        **loaded.provenance,
     }
+
+
+def require_active_source_run(ws: Workspace):
+    """Impide usar un dataset o artefacto que pertenezca a otra ejecución."""
+    snapshot = ws.active_run()
+    if (
+        snapshot is None
+        or ws.loaded_run_id != snapshot.run_id
+        or ws.loaded_source_mode != snapshot.mode
+        or ws.loaded_source_fingerprint != snapshot.fingerprint
+    ):
+        raise UserError(
+            'SOURCE_RUN_MISMATCH: las entradas cambiaron desde la carga. '
+            'Pulse «Cargar / listar alimentadores» para crear una ejecución nueva.'
+        )
+    return snapshot
 
 
 def feeder_rows(ws: Workspace) -> list[dict]:
@@ -226,6 +206,8 @@ def feeder_rows(ws: Workspace) -> list[dict]:
     rows = []
     for row in ws.inventory['feeders']:
         conv = ws.conversions.get(row['network_id']) or {}
+        if conv.get('source_run_id') != ws.active_run_id:
+            conv = {}
         dgs = conv.get('dgs')
         rows.append({
             **row,
@@ -263,6 +245,36 @@ def _rel(ws: Workspace, path: str | None) -> str | None:
 # ---------------------------------------------------------------------------
 
 
+def _write_json_atomic(path: Path, payload: dict) -> None:
+    temporary = path.with_name(path.name + '.tmp')
+    temporary.write_text(
+        json.dumps(payload, indent=2, ensure_ascii=False) + '\n', encoding='utf-8',
+    )
+    temporary.replace(path)
+
+
+def _stamp_source_manifest(ws: Workspace, manifest: dict, snapshot) -> None:
+    """Liga el manifiesto y la metadata DGS a la ejecución que los produjo."""
+    source = {
+        'source_run_id': snapshot.run_id,
+        'source_mode': snapshot.mode,
+        'source_fingerprint': snapshot.fingerprint,
+    }
+    manifest.update(source)
+    for item in manifest.get('feeders') or []:
+        item.update(source)
+        metadata_path = item.get('feeder_metadata')
+        if not metadata_path:
+            continue
+        path = Path(metadata_path)
+        if not path.is_file():
+            continue
+        metadata = json.loads(path.read_text(encoding='utf-8'))
+        metadata.update(source)
+        _write_json_atomic(path, metadata)
+    _write_json_atomic(ws.out_dir / 'batch_manifest.json', manifest)
+
+
 def check_convert_options(ws: Workspace) -> None:
     """Lo que la GUI comprobaba con diálogos antes de lanzar el lote."""
     opts = ws.options
@@ -286,8 +298,9 @@ def check_convert_options(ws: Workspace) -> None:
 def convert(ws: Workspace, ctx: JobContext, feeders: list[str] | None, all_feeders: bool) -> dict:
     from ..batch import convert_selection, load_aliases
 
+    snapshot = require_active_source_run(ws)
     opts = ws.options
-    aliases = load_aliases(ws.input_path('aliases') or None)
+    aliases = load_aliases(snapshot.path_for('aliases') or None)
     corrections = ws.catalog_corrections()
     if all_feeders:
         ctx.log(f"Alcance: todos ({len(ws.inventory['feeders']) if ws.inventory else '?'})")
@@ -337,6 +350,7 @@ def convert(ws: Workspace, ctx: JobContext, feeders: list[str] | None, all_feede
         reglas=reglas_de(ws),
         catalogo=catalogo_del_proyecto(),
     )
+    _stamp_source_manifest(ws, manifest, snapshot)
     ws.record_conversions(manifest)
 
     summary = manifest['summary']
@@ -680,6 +694,7 @@ def convert_group(
     from ..batch import load_aliases
     from ..reglas import catalogo_del_proyecto
 
+    snapshot = require_active_source_run(ws)
     opts = ws.options
     ctx.log(f'--- Red unida {nombre}: {", ".join(feeders)} ---')
     añadidos = sorted(set(feeders) - set(requested_feeders or feeders))
@@ -694,7 +709,7 @@ def convert_group(
 
     man = convertir_grupo(
         ws.dataset, feeders, ws.out_dir, name=nombre,
-        aliases=load_aliases(ws.input_path('aliases') or None),
+        aliases=load_aliases(snapshot.path_for('aliases') or None),
         strict=bool(opts['strict']),
         source_crs=opts['source_crs'] or 'EPSG:32718',
         target_crs=opts['target_crs'] or 'EPSG:4326',
@@ -702,6 +717,18 @@ def convert_group(
         reglas=reglas_de(ws), catalogo=catalogo_del_proyecto(),
         on_progress=on_progress, cancel=ctx.cancel,
     )
+    source = {
+        'source_run_id': snapshot.run_id,
+        'source_mode': snapshot.mode,
+        'source_fingerprint': snapshot.fingerprint,
+    }
+    man.update(source)
+    metadata_path = man.get('feeder_metadata')
+    if metadata_path and Path(metadata_path).is_file():
+        metadata = json.loads(Path(metadata_path).read_text(encoding='utf-8'))
+        metadata.update(source)
+        _write_json_atomic(Path(metadata_path), metadata)
+    _write_json_atomic(ws.out_dir / f'{nombre}_manifest.json', man)
     ctx.log(man.get('entrada') or '')
     if man.get('union'):
         ctx.log(man['union'])
@@ -725,7 +752,8 @@ def convert_group(
     with ws.lock:
         ws.groups[nombre] = {k: man.get(k) for k in (
             'name', 'feeders', 'status', 'error', 'dgs', 'feeder_metadata',
-            'hoja', 'ties', 'completitud')}
+            'hoja', 'ties', 'completitud', 'source_run_id', 'source_mode',
+            'source_fingerprint')}
         ws.groups[nombre]['requested_feeders'] = list(requested_feeders or feeders)
         ws.groups[nombre]['converted_at'] = time.time() if man['status'] == 'ok' else None
         ws.save()
