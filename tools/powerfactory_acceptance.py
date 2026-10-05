@@ -70,6 +70,8 @@ def verify_source_contract(
     source_run_id: str | None,
     source_mode: str | None,
     source_fingerprint: str | None,
+    reconstruction_report_path: Path | None = None,
+    reconstruction_report_sha256: str | None = None,
 ) -> dict[str, Any]:
     """Verifica la procedencia antes de conectar o escribir en PowerFactory."""
     expected = (source_run_id, source_mode, source_fingerprint)
@@ -91,7 +93,7 @@ def verify_source_contract(
     digest = _sha256_file(dgs_path)
     if payload.get('dgs_file') != dgs_path.name or payload.get('dgs_sha256') != digest:
         raise ValueError('el DGS no coincide con nombre/SHA-256 del feeder metadata')
-    return {
+    evidence = {
         'status': 'VERIFIED_BEFORE_MUTATION',
         'source_run_id': source_run_id,
         'source_mode': source_mode,
@@ -99,13 +101,32 @@ def verify_source_contract(
         'dgs_sha256': digest,
         'metadata_file': metadata_path.name,
     }
+    reconstruction = payload.get('reconstruction')
+    if reconstruction is not None or reconstruction_report_path is not None:
+        if reconstruction_report_path is None:
+            raise ValueError('el DGS reconstruido requiere --reconstruction-report')
+        from igea_dgs.powerfactory_metadata import verify_reconstruction_contract
+
+        evidence['reconstruction'] = verify_reconstruction_contract(
+            payload,
+            reconstruction_report_path,
+            expected_hash=reconstruction_report_sha256,
+        )
+    return evidence
 
 
 def attach_source_evidence(report: dict[str, Any], evidence: dict[str, Any]) -> None:
+    from igea_dgs.powerfactory_metadata import (
+        classify_convergence,
+        load_intervention_from_attempts,
+    )
+
     report['source_verification'] = evidence
     report['source_run_id'] = evidence.get('source_run_id')
     report['source_mode'] = evidence.get('source_mode')
     report['source_fingerprint'] = evidence.get('source_fingerprint')
+    if evidence.get('reconstruction'):
+        report['reconstruction_verification'] = evidence['reconstruction']
     metadata = report.get('feeder_metadata') or {}
     loop = report.get('load_flow_loop') or {}
     final_load_flow = loop.get('final_load_flow') or {}
@@ -120,6 +141,8 @@ def attach_source_evidence(report: dict[str, Any], evidence: dict[str, Any]) -> 
         'attempted': False,
         'reason': 'DGS importado en proyecto nuevo; no se muta un proyecto preexistente.',
     }
+    report['load_intervention'] = load_intervention_from_attempts(loop.get('attempts') or [])
+    report['convergence_classification'] = classify_convergence(report)
 
 
 # ---------------------------------------------------------------------------
@@ -1075,6 +1098,7 @@ def apply_correction_intent(
         'ok': False,
         'solution': '',
         'actions': [],
+        'changes': [],
         'errors': [],
         'help_refs': [],
     }
@@ -1100,6 +1124,10 @@ def apply_correction_intent(
         for src in _sources(app):
             if _is_out_of_service(src) and _set_outserv(src, 0):
                 changed.append(_name(src))
+                applied['changes'].append({
+                    'object': _name(src), 'class': _classname(src), 'field': 'outserv',
+                    'before': 1, 'after': 0,
+                })
         applied['ok'] = True
         applied['solution'] = (
             'Poner fuentes de tensión (ElmXnet/ElmVac) en servicio (outserv=0).'
@@ -1113,8 +1141,13 @@ def apply_correction_intent(
         changed = []
         for ld in _loads(app):
             if _name(ld) in floating_names or not _load_has_terminal(ld):
+                before = _attr(ld, 'outserv', 0)
                 if _set_outserv(ld, 1):
                     changed.append(_name(ld))
+                    applied['changes'].append({
+                        'object': _name(ld), 'class': _classname(ld), 'field': 'outserv',
+                        'before': before, 'after': 1,
+                    })
         applied['ok'] = True
         applied['solution'] = (
             'Sacar de servicio cargas sin conexión a terminal (áreas no alimentadas §24.6.3).'
@@ -1129,8 +1162,21 @@ def apply_correction_intent(
         for ld in _loads(app):
             if _is_out_of_service(ld):
                 continue
+            before = {
+                name: _attr(ld, name, None)
+                for name in ('plini', 'qlini', 'plinir', 'plinis', 'plinit',
+                             'qlinir', 'qlinis', 'qlinit')
+                if _attr(ld, name, None) is not None
+            }
             if _scale_load_powers(ld, factor, originals):
                 changed += 1
+                for name, value in before.items():
+                    after = _attr(ld, name, None)
+                    if after != value:
+                        applied['changes'].append({
+                            'object': _name(ld), 'class': _classname(ld), 'field': name,
+                            'before': value, 'after': after,
+                        })
         applied['ok'] = True
         applied['solution'] = (
             f'Escalar potencias de cargas activas al {int(factor * 100)}% del valor original '
@@ -1151,11 +1197,20 @@ def apply_correction_intent(
             if _is_out_of_service(ld):
                 continue
             if not _load_has_terminal(ld):
+                before = _attr(ld, 'outserv', 0)
                 if _set_outserv(ld, 1):
                     changed.append(_name(ld))
+                    applied['changes'].append({
+                        'object': _name(ld), 'class': _classname(ld), 'field': 'outserv',
+                        'before': before, 'after': 1,
+                    })
         for src in _sources(app):
             if _is_out_of_service(src) and _set_outserv(src, 0):
                 changed.append(f'source:{_name(src)}')
+                applied['changes'].append({
+                    'object': _name(src), 'class': _classname(src), 'field': 'outserv',
+                    'before': 1, 'after': 0,
+                })
         applied['ok'] = True
         applied['solution'] = (
             'Sacar de servicio elementos claramente desconectados; asegurar fuente en servicio '
@@ -2128,6 +2183,8 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument('--source-run-id', help='Ejecución fuente que debe declarar el sidecar')
     p.add_argument('--source-mode', choices=('txt', 'mdb', 'vnr'), help='Modo de la ejecución fuente')
     p.add_argument('--source-fingerprint', help='SHA-256 de identidad de la ejecución fuente')
+    p.add_argument('--reconstruction-report', help='Informe ligado al DGS reconstruido')
+    p.add_argument('--reconstruction-report-sha256', help='SHA-256 canónico esperado del informe')
     p.add_argument(
         '--activate-base',
         action='store_true',
@@ -2241,6 +2298,10 @@ def main(argv=None) -> int:
             source_run_id=args.source_run_id,
             source_mode=args.source_mode,
             source_fingerprint=args.source_fingerprint,
+            reconstruction_report_path=(
+                Path(args.reconstruction_report) if args.reconstruction_report else None
+            ),
+            reconstruction_report_sha256=args.reconstruction_report_sha256,
         )
     except (OSError, ValueError, KeyError, TypeError) as exc:
         print(f'ERROR: POWERFACTORY_SOURCE_RUN_MISMATCH: {exc}', file=sys.stderr)

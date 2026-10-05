@@ -563,6 +563,7 @@ def dgs_jobs(ws: Workspace, feeders: list[str]) -> tuple[list[tuple[str, Path, P
 def check_powerfactory_source_run(ws: Workspace, feeders: list[str]) -> dict[str, Any]:
     """Liga cada DGS y sidecar al run activo antes de cualquier mutación en PF."""
     from ..feeder_metadata import read_feeder_metadata
+    from ..powerfactory_metadata import verify_reconstruction_contract
 
     snapshot = require_active_source_run(ws)
     jobs, missing = dgs_jobs(ws, feeders)
@@ -591,11 +592,35 @@ def check_powerfactory_source_run(ws: Workspace, feeders: list[str]) -> dict[str
                 f'POWERFACTORY_SOURCE_RUN_MISMATCH: {feeder} pertenece a '
                 f'{actual[0] or "una ejecución sin identidad"}, no a {snapshot.run_id}.'
             )
+        reconstruction_verification = None
+        reconstruction = metadata.get('reconstruction')
+        if reconstruction is not None:
+            report_path = ws.out_dir / str(reconstruction.get('report') or '')
+            try:
+                reconstruction_verification = verify_reconstruction_contract(
+                    metadata,
+                    report_path,
+                    expected_hash=ws.reconstruction_report_hash,
+                )
+            except (OSError, ValueError, KeyError, TypeError) as exc:
+                raise UserError(
+                    f'POWERFACTORY_RECONSTRUCTION_MISMATCH: {feeder}: {exc}'
+                ) from exc
+            if (
+                ws.reconstruction_run_id != snapshot.run_id
+                or ws.reconstruction_report_hash
+                != reconstruction_verification['report_sha256']
+            ):
+                raise UserError(
+                    f'POWERFACTORY_RECONSTRUCTION_MISMATCH: {feeder} no pertenece '
+                    'a la reconstrucción activa.'
+                )
         evidence.append({
             'target': feeder,
             'dgs': dgs.name,
             'dgs_sha256': metadata['dgs_sha256'],
             'metadata': metadata_path.name,
+            'reconstruction': reconstruction_verification,
         })
     return {
         'source_run_id': snapshot.run_id,
@@ -731,6 +756,16 @@ def powerfactory_flow(ws: Workspace, ctx: JobContext, feeders: list[str]) -> dic
                 '--source-mode', source_evidence['source_mode'],
                 '--source-fingerprint', source_evidence['source_fingerprint'],
             ]
+            target_evidence = next(
+                item for item in source_evidence['targets'] if item['target'] == feeder
+            )
+            reconstruction = target_evidence.get('reconstruction')
+            if reconstruction:
+                cmd += [
+                    '--reconstruction-report',
+                    str(ws.out_dir / reconstruction['report']),
+                    '--reconstruction-report-sha256', reconstruction['report_sha256'],
+                ]
         if geo is not None:
             cmd += ['--manifest', str(geo)]
         cmd += ['--output-json', str(ws.out_dir / f'{feeder}_powerfactory_acceptance.json'),

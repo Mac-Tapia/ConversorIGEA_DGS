@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any, Iterable
+from pathlib import Path
+from typing import Any
 
 ATTRIBUTE = 'p:alimentador'
 CONFIGURATION = 'Trazabilidad IGEA'
@@ -36,6 +38,138 @@ class PowerFactoryMetadataWriteError(PowerFactoryMetadataError):
     def __init__(self, message: str, rollback: dict[str, Any]) -> None:
         super().__init__(message)
         self.rollback = rollback
+
+
+_LOAD_INTERVENTION_INTENTS = frozenset({
+    'disconnect_floating_loads',
+    'scale_loads_50',
+    'scale_loads_75',
+    'scale_loads_100',
+    'island_out_of_service',
+})
+
+
+def reconstruction_report_sha256(payload: dict[str, Any]) -> str:
+    """Return the canonical identity used when a reconstruction is published."""
+
+    canonical = dict(payload)
+    canonical.pop('report_sha256', None)
+    encoded = json.dumps(
+        canonical, ensure_ascii=False, sort_keys=True, separators=(',', ':'), default=str,
+    ).encode('utf-8')
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def verify_reconstruction_contract(
+    feeder_metadata: dict[str, Any],
+    report_path: str | Path,
+    *,
+    expected_hash: str | None = None,
+) -> dict[str, Any]:
+    """Verify report, sidecar and source run before PowerFactory mutation."""
+
+    reconstruction = feeder_metadata.get('reconstruction')
+    if not isinstance(reconstruction, dict):
+        raise TypeError('el feeder metadata no declara reconstrucción')
+    path = Path(report_path)
+    if not path.is_file():
+        raise ValueError(f'informe de reconstrucción no encontrado: {path}')
+    payload = json.loads(path.read_text(encoding='utf-8'))
+    actual_hash = reconstruction_report_sha256(payload)
+    declared_hash = str(payload.get('report_sha256') or '')
+    sidecar_hash = str(reconstruction.get('report_sha256') or '')
+    required_hash = str(expected_hash or sidecar_hash)
+    if not required_hash or actual_hash != required_hash:
+        raise ValueError('SHA-256 del informe de reconstrucción no coincide')
+    if declared_hash != actual_hash or sidecar_hash != actual_hash:
+        raise ValueError('SHA-256 declarado por informe/sidecar no coincide')
+    if reconstruction.get('report') and reconstruction['report'] != path.name:
+        raise ValueError('nombre del informe de reconstrucción no coincide con el sidecar')
+    report_run = payload.get('source_run_id')
+    sidecar_run = feeder_metadata.get('source_run_id')
+    if report_run and sidecar_run and report_run != sidecar_run:
+        raise ValueError('ejecución fuente del informe de reconstrucción no coincide')
+
+    counts = payload.get('counts') or {}
+    repairs = len(payload.get('decisions') or [])
+    declared_repairs = int(reconstruction.get('repairs', repairs))
+    catalog_matches = int(counts.get('catalog_match', 0))
+    assumptions = int(counts.get('engineering_assumption', 0))
+    if declared_repairs != repairs:
+        raise ValueError('cantidad de reparaciones del sidecar no coincide con el informe')
+    if int(reconstruction.get('catalog_matches', catalog_matches)) != catalog_matches:
+        raise ValueError('cantidad de coincidencias de catálogo no coincide')
+    if int(reconstruction.get('assumptions', assumptions)) != assumptions:
+        raise ValueError('cantidad de supuestos de ingeniería no coincide')
+    return {
+        'status': 'VERIFIED_BEFORE_MUTATION',
+        'report': path.name,
+        'report_sha256': actual_hash,
+        'repairs': repairs,
+        'catalog_matches': catalog_matches,
+        'assumptions': assumptions,
+        'selection': list(payload.get('selection') or reconstruction.get('selection') or []),
+    }
+
+
+def load_intervention_from_attempts(attempts: Iterable[dict[str, Any]]) -> dict[str, Any]:
+    """Summarize correction attempts that change or shed load."""
+
+    intents: list[str] = []
+    changes: list[dict[str, Any]] = []
+    for attempt in attempts:
+        intent = str(attempt.get('intent') or '')
+        correction = attempt.get('correction') or {}
+        if intent not in _LOAD_INTERVENTION_INTENTS:
+            continue
+        if intent not in intents:
+            intents.append(intent)
+        for change in correction.get('changes') or []:
+            changes.append(dict(change))
+    return {
+        'attempted': bool(intents),
+        'intents': intents,
+        'changes': changes,
+    }
+
+
+def classify_convergence(report: dict[str, Any]) -> str:
+    """Classify convergence without promoting stale or operator-modified models."""
+
+    source = report.get('source_verification') or {}
+    if source.get('status') != 'VERIFIED_BEFORE_MUTATION':
+        return 'REJECTED_STALE_EVIDENCE'
+
+    loop = report.get('load_flow_loop') or {}
+    final = loop.get('final_load_flow') or {}
+    if not loop.get('pass') or not final.get('ldf_valid'):
+        return 'NOT_CONVERGED'
+
+    reread = report.get('effective_reread') or {}
+    rollback = report.get('rollback') or {}
+    safe_rollback = {'NOT_REQUIRED', 'NOT_REQUIRED_ISOLATED_PROJECT', 'RESTORED'}
+    if (
+        not reread.get('feeder_metadata')
+        or not reread.get('comldf_executed')
+        or not reread.get('comldf_valid')
+        or rollback.get('status') not in safe_rollback
+    ):
+        return 'NEEDS_OPERATOR_REVIEW'
+
+    intervention = report.get('load_intervention') or load_intervention_from_attempts(
+        loop.get('attempts') or []
+    )
+    if intervention.get('attempted'):
+        return 'NEEDS_OPERATOR_REVIEW'
+
+    reconstruction = report.get('reconstruction_verification') or {}
+    if reconstruction and reconstruction.get('status') != 'VERIFIED_BEFORE_MUTATION':
+        return 'REJECTED_STALE_EVIDENCE'
+    if int(reconstruction.get('assumptions', 0)):
+        return 'CONVERGED_WITH_ASSUMPTIONS'
+    if int(reconstruction.get('repairs', 0)) or int(reconstruction.get('catalog_matches', 0)):
+        return 'CONVERGED_RECONSTRUCTED'
+    return 'CONVERGED_ORIGINAL'
 
 
 def assignment_plan_sha256(plan: Iterable[PlannedAssignment]) -> str:
