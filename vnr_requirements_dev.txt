@@ -1,0 +1,6 @@
+# vnr_etl — desarrollo y pruebas (incluye todo lo de vnr_requirements.txt).
+
+-r vnr_requirements.txt
+-r vnr_requirements_optional.txt
+
+pytest>=8.0

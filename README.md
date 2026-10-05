@@ -127,7 +127,7 @@ genérica y la real se ejecutan con `python tools/accept_load_batch.py --help`; 
 ```bash
 python -m venv .venv
 .venv\Scripts\activate
-python -m pip install -r requirements.txt
+python -m pip install -r requirements.txt  # incluye TXT, MDB y VNR-GIS
 ```
 
 **Desarrollo + tests:**

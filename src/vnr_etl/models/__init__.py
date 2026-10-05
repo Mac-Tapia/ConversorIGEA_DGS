@@ -1,0 +1,22 @@
+"""Modelo canónico del VNRGIS."""
+from .canonical import (  # noqa: F401
+    CanonicalModel,
+    Capacitor,
+    Company,
+    ConductorType,
+    EquipmentType,
+    Feeder,
+    Lineage,
+    Load,
+    Node,
+    Period,
+    Regulator,
+    Section,
+    Source,
+    Structure,
+    Switch,
+    System,
+    Transformer,
+    ValidationIssue,
+    iter_named_collections,
+)

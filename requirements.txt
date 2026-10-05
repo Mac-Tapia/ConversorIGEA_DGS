@@ -18,6 +18,11 @@
 # Paquete del proyecto (src/igea_dgs + schemas/*.json)
 -e .
 
+# Tercera alternativa de entrada: paquete oficial VNR-GIS. Mantener esta lista en
+# un archivo propio permite instalar solo el adaptador en integraciones externas,
+# pero la interfaz principal la incluye para que sus tres modos estén operativos.
+-r vnr_requirements.txt
+
 # Georreferenciación: GPS en terminales y diagrama IntGrf.
 # Sin esto solo se puede convertir con --no-geography.
 pyproj>=3.6

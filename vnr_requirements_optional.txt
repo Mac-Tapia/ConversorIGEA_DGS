@@ -1,0 +1,15 @@
+# vnr_etl — dependencias opcionales (capacidades gated por driver).
+# Cada una desbloquea UN adaptador; su ausencia no rompe el resto del módulo.
+
+# Bases de datos empresariales (sección E2):
+psycopg2-binary>=2.9          # PostgreSQL / PostGIS
+oracledb>=2.0                 # Oracle / Oracle Spatial
+SQLAlchemy>=2.0               # abstracción de bases
+pyodbc>=5.0                   # SQL Server / Access / ODBC (ya en el proyecto)
+
+# Recuperación opcional por PDF/OpenCV (sección 13; requiere Poppler en el sistema):
+opencv-python>=4.8
+pdf2image>=1.17
+
+# Archivos RAR (extracción segura):
+rarfile>=4.1
