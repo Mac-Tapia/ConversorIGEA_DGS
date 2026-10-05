@@ -6,18 +6,25 @@ Formato nativo — el de ``referencia/PA217.xlsx``, que es el que usa la empresa
   (``PA217``, ``IN111``, ``PA219``…). Un solo libro cubre varios alimentadores.
 - Columnas: ``SED`` · ``Kw`` · ``Kvar`` · ``(kVA)`` · ``FP``.
 
-``Kw`` y ``Kvar`` pueden venir vacías: en el fichero real lo están, y en su lugar hay
-``(kVA)`` y ``FP``. Cuando eso ocurre **se derivan**, que es lo que el operador espera:
+Las cargas llegan medidas de tres formas, y cada fila trae **un par**, el que tenga:
 
-    Kw   = kVA · FP
-    Kvar = kVA · √(1 − FP²)
+    Kw y Kvar   → se usan tal cual
+    Kw y FP     → Kvar = Kw · √(1 − FP²) / FP
+    (kVA) y FP  → Kw = kVA · FP,  Kvar = kVA · √(1 − FP²)
 
-Comprobado contra el fichero real: kVA 0,3633 con FP 0,936183 da Kw 0,3401 y
-Kvar 0,1277, cuyo módulo devuelve exactamente 0,3633.
+El fichero real trae el tercer caso: ``Kw``/``Kvar`` vacías. Comprobado contra él: kVA
+0,3633 con FP 0,936183 da Kw 0,3401 y Kvar 0,1277, cuyo módulo devuelve exactamente
+0,3633.
 
-Si se rellenan ``Kw``/``Kvar`` a mano, esos mandan y no se deriva nada. Si no hay ni
-una cosa ni la otra (``FP = 0`` y ``kVA = 0``, que en el fichero real son 58 filas), la
-carga queda en cero y se registra como fila sin datos, no como error.
+Si la fila trae más de un par, tienen que coincidir: si no, es un error de fila. Antes
+mandaba ``Kw``/``Kvar`` en silencio, y la plantilla venía con ``Kw``/``Kvar`` ya
+rellenas con la carga actual: quien escribía solo ``(kVA)`` y ``FP`` veía que su dato
+se ignoraba y la SED seguía igual. Por eso la plantilla deja vacías las columnas de
+entrada y muestra la carga actual aparte, en ``Kw_actual``/``Kvar_actual``/``FP_actual``.
+
+Una fila sin ningún valor no cambia la SED (la plantilla trae todas, y se rellenan solo
+las que llegan). Una fila con ``FP = 0`` y ``kVA = 0`` escritos, que en el fichero real
+son 58, deja la carga en cero y se registra como fila sin datos, no como error.
 
 Tres situaciones, que no son el mismo problema:
 
@@ -36,14 +43,24 @@ from __future__ import annotations
 
 import csv
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Sequence
 
 # Columnas del formato nativo, en su orden y con su grafía exacta.
 SHEET_COLUMNS = ('SED', 'Kw', 'Kvar', '(kVA)', 'FP')
 # Columnas extra que añade la plantilla generada: informativas, no obligatorias.
-EXTRA_COLUMNS = ('kVA_instalado', 'accion', 'observaciones')
+# La carga actual va en columnas propias, no en Kw/Kvar: si fuera en las de entrada,
+# mandaría sobre el (kVA)/FP que escribe el operador.
+EXTRA_COLUMNS = (
+    'kVA_instalado', 'Kw_actual', 'Kvar_actual', 'FP_actual', 'accion', 'observaciones',
+)
+ENTRY_COLUMNS = ('Kw', 'Kvar', '(kVA)', 'FP')
+
+# Margen para dar por iguales dos pares de la misma fila: el redondeo de una hoja a
+# dos decimales (FP 0,92 por 0,9196) no es una contradicción.
+CONFLICT_REL_TOL = 0.01
+CONFLICT_FP_TOL = 0.01
 
 # Nombres tolerados para cada columna. La cabecera se normaliza (minúsculas, sin
 # espacios ni paréntesis) antes de buscar aquí, así que un fichero con «P (kW)» o
@@ -54,6 +71,7 @@ COLUMN_ALIASES = {
     'kvar': 'Kvar', 'qkvar': 'Kvar', 'q': 'Kvar', 'q_kvar': 'Kvar', 'reactiva': 'Kvar',
     'kva': '(kVA)', 'skva': '(kVA)', 's': '(kVA)', 's_kva': '(kVA)', 'aparente': '(kVA)',
     'fp': 'FP', 'pf': 'FP', 'cos': 'FP', 'cosphi': 'FP', 'factordepotencia': 'FP',
+    'cosfi': 'FP', 'cosφ': 'FP', 'cosϕ': 'FP', 'fdp': 'FP',
     'kvainstalado': 'kVA_instalado', 'kvainst': 'kVA_instalado',
     'accion': 'accion', 'observaciones': 'observaciones', 'obs': 'observaciones',
 }
@@ -183,7 +201,7 @@ class LoadUpdatePlan:
         if self.updates:
             derivadas = sum(1 for _a, n in self.updates if n.derived)
             if derivadas:
-                lines += ['', f'{derivadas} carga(s) derivadas de (kVA) y FP porque Kw/Kvar venían vacías.']
+                lines += ['', f'{derivadas} carga(s) calculadas desde Kw y FP, o desde (kVA) y FP.']
             lines += ['', 'Cambios mayores (primeros 10 por variación de P):']
             ordenados = sorted(self.updates, key=lambda p: abs(p[1].kw - p[0].kw), reverse=True)
             for actual, nueva in ordenados[:10]:
@@ -251,15 +269,14 @@ def write_template(
     columns = list(SHEET_COLUMNS) + (list(EXTRA_COLUMNS) if include_extras else [])
 
     def record(row: SedLoad) -> list[Any]:
-        base = [
-            row.sed_code,
-            round(row.kw, 6),
-            round(row.kvar, 6),
-            round(row.kva, 6),
-            round(row.fp, 6),
-        ]
+        # Las de entrada van vacías: el operador rellena el par que tenga.
+        base: list[Any] = [row.sed_code, None, None, None, None]
         if include_extras:
-            base += [round(row.installed_kva, 3), ACTION_UPDATE, '']
+            base += [
+                round(row.installed_kva, 3),
+                round(row.kw, 6), round(row.kvar, 6), round(row.fp, 6),
+                ACTION_UPDATE, '',
+            ]
         return base
 
     if suffix == '.csv':
@@ -296,7 +313,7 @@ def write_template(
         for col, name in enumerate(columns, start=1):
             cell = ws.cell(row=1, column=col)
             cell.font = negrita
-            cell.fill = verde if name in ('Kw', 'Kvar', '(kVA)', 'FP') else gris
+            cell.fill = verde if name in ENTRY_COLUMNS else gris
             ws.column_dimensions[cell.column_letter].width = max(len(str(name)) + 3, 13)
         for row in rows:
             ws.append(record(row))
@@ -325,9 +342,14 @@ def _resolve_power(
 ) -> tuple[float, float, float, float, bool, bool]:
     """Devuelve ``(kw, kvar, kva, fp, derivado, sin_datos)``.
 
-    Prioridad: si vienen Kw/Kvar, mandan. Si no, se derivan de (kVA) y FP, que es el
-    caso del fichero real. Sin ninguno de los dos, la carga queda en cero.
+    Pares, por orden: Kw y Kvar tal cual; Kw y FP; (kVA) y FP, que es el caso del
+    fichero real. Si la fila trae más de un par, ``_power_conflict`` comprueba que
+    coincidan. Sin ningún par, la carga queda en cero.
     """
+    if kw is not None and kvar is None and fp is not None and 0 < fp <= 1:
+        # Kw con cos φ: lo que da un medidor que no registra reactiva.
+        q = kw * math.sqrt(max(1.0 - fp * fp, 0.0)) / fp
+        return kw, q, math.hypot(kw, q), fp, True, kw == 0.0
     if kw is not None or kvar is not None:
         p = kw or 0.0
         q = kvar or 0.0
@@ -341,6 +363,24 @@ def _resolve_power(
         q = s * math.sqrt(max(1.0 - factor * factor, 0.0))
         return p, q, s, factor, True, False
     return 0.0, 0.0, s, factor, False, True
+
+
+def _power_conflict(
+    kva: float | None, fp: float | None, p: float, q: float,
+) -> str | None:
+    """Si la fila trae (kVA)/FP que no cuadran con la carga resuelta, dice en qué.
+
+    Kw y Kvar ya están en ``p``/``q`` cuando vienen, así que basta mirar las otras dos.
+    Un 0 en (kVA) o FP es «sin dato» en el fichero real, no un valor que comparar.
+    """
+    s = math.hypot(p, q)
+    if s == 0.0:
+        return None
+    if kva and abs(s - kva) > CONFLICT_REL_TOL * max(s, kva):
+        return f'(kVA)={kva:g} no coincide con Kw/Kvar, que dan {s:.4g} kVA'
+    if fp and abs(p / s - fp) > CONFLICT_FP_TOL:
+        return f'FP={fp:g} no coincide con Kw/Kvar, que dan FP {p / s:.4f}'
+    return None
 
 
 def read_sheet(header: Sequence[Any], data: Sequence[Sequence[Any]], feeder: str) -> SheetRead:
@@ -407,9 +447,20 @@ def read_sheet(header: Sequence[Any], data: Sequence[Sequence[Any]], feeder: str
         if bad:
             continue
 
+        if all(numbers[name] is None for name in ENTRY_COLUMNS):
+            # La plantilla trae todas las SED: la que se deja en blanco no se toca.
+            # Ponerla en cero sería borrar la carga de todo lo que no se midió.
+            continue
         kw, kvar, kva, factor, derived, no_data = _resolve_power(
             numbers['Kw'], numbers['Kvar'], numbers['(kVA)'], fp,
         )
+        conflict = _power_conflict(numbers['(kVA)'], fp, kw, kvar)
+        if conflict:
+            result.errors.append(
+                f'hoja {feeder}, fila {row_no}: {code}: {conflict}. '
+                'Deje un solo par: Kw y Kvar, Kw y FP, o (kVA) y FP.'
+            )
+            continue
         if no_data:
             result.no_data.append(code)
         result.rows.append(SedLoad(
@@ -499,6 +550,61 @@ def read_workbook(path: Path | str) -> dict[str, SheetRead]:
             'con columnas SED, Kw, Kvar, (kVA) y FP.'
         )
     return out
+
+
+# ------------------------------------------------------------------ varios alimentadores
+
+def split_by_feeder(
+    libro: dict[str, SheetRead], sed_feeder: dict[str, str], feeders: Sequence[str],
+) -> tuple[dict[str, SheetRead], list[str]]:
+    """Reparte un libro con varios alimentadores: cada SED, al alimentador que la tiene.
+
+    La hoja no basta: el operador junta en una hoja SED de varios alimentadores, o
+    pega una en la hoja equivocada, y entonces la SED «no existe» en ese alimentador
+    aunque sí exista en el de al lado. Por eso manda ``sed_feeder`` (código → alimentador,
+    sacado de los modelos elegidos); la hoja solo decide cuando la SED no está en
+    ninguno, y entonces sale como desconocida en el alimentador de su hoja.
+
+    Devuelve ``({alimentador: SheetRead}, errores_sin_alimentador)``. Los errores de
+    una hoja que no es ningún alimentador elegido no se pueden asignar y van aparte.
+    """
+    elegidos = list(feeders)
+    out = {f: SheetRead(feeder=f) for f in elegidos}
+    sueltos: list[str] = []
+
+    def destino(code: str, hoja: str) -> str | None:
+        return sed_feeder.get(code) or (hoja if hoja in out else None)
+
+    for hoja, read in libro.items():
+        if read.errors:
+            if hoja in out:
+                out[hoja].errors.extend(read.errors)
+            else:
+                sueltos.extend(read.errors)
+        for row in read.rows:
+            f = destino(row.sed_code, hoja)
+            if f is None:
+                sueltos.append(
+                    f'hoja {hoja}: {row.sed_code} no está en ningún alimentador elegido '
+                    f'({", ".join(elegidos)}) y la hoja no es uno de ellos.'
+                )
+                continue
+            out[f].rows.append(replace(row, feeder=f))
+            if row.no_data:
+                out[f].no_data.append(row.sed_code)
+        for code in read.skipped:
+            f = destino(code, hoja)
+            if f is not None:
+                out[f].skipped.append(code)
+    # La misma SED en dos hojas acaba en el mismo alimentador: sería aplicarla dos
+    # veces con valores quizá distintos.
+    for f, read in out.items():
+        vistos: set[str] = set()
+        for row in read.rows:
+            if row.sed_code in vistos:
+                read.errors.append(f'{f}: SED {row.sed_code} aparece en más de una hoja')
+            vistos.add(row.sed_code)
+    return out, sueltos
 
 
 # ------------------------------------------------------------------ plan

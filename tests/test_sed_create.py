@@ -213,6 +213,30 @@ class TestCreateTemplate:
         assert header == list(CREATE_COLUMNS)
         assert 'CoordX' in header and 'CoordY' in header and 'conductor' in header
 
+    def test_prefilled_load_keeps_only_its_own_pair(self, tmp_path):
+        """Precargada desde (kVA)/FP, se puede corregir el kVA sin chocar con un Kw viejo."""
+        from openpyxl import load_workbook
+
+        from igea_dgs.loads import SedLoad, read_sheet, SHEET_COLUMNS
+
+        desde_kva = read_sheet(list(SHEET_COLUMNS), [['SE_KVA', '', '', '50', '0.92']], 'AL01').rows[0]
+        desde_kw = SedLoad('SE_KW', 'AL01', kw=28.0, kvar=9.5, kva=math.hypot(28, 9.5), fp=0.947)
+        path = write_create_template([desde_kva, desde_kw], tmp_path / 'crear.xlsx', feeder='AL01')
+        wb = load_workbook(path)
+        ws = wb.active
+        filas = {r[0]: dict(zip(CREATE_COLUMNS, r)) for r in ws.iter_rows(min_row=2, values_only=True)}
+        assert filas['SE_KVA']['Kw'] is None and filas['SE_KVA']['(kVA)'] == pytest.approx(50.0)
+        assert filas['SE_KW']['(kVA)'] is None and filas['SE_KW']['Kw'] == pytest.approx(28.0)
+
+        ws['B2'], ws['C2'], ws['G2'] = 500130, 8500040, 160      # SE_KVA: punto y trafo
+        ws['J2'] = 80                                              # corrige el kVA
+        ws['B3'], ws['C3'], ws['G3'] = 500150, 8500040, 100
+        wb.save(path)
+        values = list(load_workbook(path, read_only=True).active.iter_rows(values_only=True))
+        rows, errors = read_create_sheet(list(values[0]), [list(v) for v in values[1:]], 'AL01')
+        assert errors == []
+        assert rows[0].kw == pytest.approx(80 * 0.92)
+
     def test_node_help_sheet_is_added(self, tmp_path):
         from openpyxl import load_workbook
 
