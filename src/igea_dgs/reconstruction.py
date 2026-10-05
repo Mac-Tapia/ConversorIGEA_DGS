@@ -39,12 +39,15 @@ class ReconstructionPolicy:
     allow_engineering_assumptions: bool = True
     minimum_catalog_confidence: float = 0.75
     topology_snap_tolerance: float = 1.0
+    provisional_nominal_voltage_kv: float = 10.0
 
     def __post_init__(self) -> None:
         if not 0 <= self.minimum_catalog_confidence <= 1:
             raise ValueError('minimum_catalog_confidence must be between 0 and 1')
         if self.topology_snap_tolerance < 0:
             raise ValueError('topology_snap_tolerance cannot be negative')
+        if self.provisional_nominal_voltage_kv <= 0:
+            raise ValueError('provisional_nominal_voltage_kv must be positive')
 
 
 @dataclass(frozen=True)
@@ -156,11 +159,15 @@ class ReconstructionResult:
         )
         return self.report.record_change(decision)
 
-    def resolve_equipment(self, catalogs: Iterable[Any]) -> dict[str, Any]:
+    def resolve_equipment(
+        self,
+        catalogs: Iterable[Any],
+        network_ids: Iterable[str] | None = None,
+    ) -> dict[str, Any]:
         """Apply the universal resolver to this derived dataset."""
         from .catalog_resolution import resolve_dataset_equipment
 
-        return resolve_dataset_equipment(self, catalogs)
+        return resolve_dataset_equipment(self, catalogs, network_ids)
 
 
 def _copy_dataset(dataset: CymdistDataset) -> CymdistDataset:

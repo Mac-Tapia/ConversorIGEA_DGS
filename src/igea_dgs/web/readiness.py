@@ -14,7 +14,10 @@ from ..dataset import TABLAS_TIPOS_LINEA
 from ..naming import feeder_short_name
 
 
-READY_STATES = frozenset({'CONVERSION_READY', 'DGS_READY', 'POWERFACTORY_VERIFIED'})
+READY_STATES = frozenset({
+    'CONVERSION_READY', 'READY_ORIGINAL', 'READY_RECONSTRUCTED',
+    'CONVERTED_WITH_ASSUMPTIONS', 'DGS_READY', 'POWERFACTORY_VERIFIED',
+})
 
 
 @dataclass(frozen=True)
