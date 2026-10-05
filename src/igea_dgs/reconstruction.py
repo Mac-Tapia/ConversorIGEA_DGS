@@ -38,10 +38,13 @@ class ReconstructionPolicy:
     allow_catalog_matches: bool = True
     allow_engineering_assumptions: bool = True
     minimum_catalog_confidence: float = 0.75
+    topology_snap_tolerance: float = 1.0
 
     def __post_init__(self) -> None:
         if not 0 <= self.minimum_catalog_confidence <= 1:
             raise ValueError('minimum_catalog_confidence must be between 0 and 1')
+        if self.topology_snap_tolerance < 0:
+            raise ValueError('topology_snap_tolerance cannot be negative')
 
 
 @dataclass(frozen=True)
