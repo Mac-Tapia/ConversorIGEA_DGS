@@ -27,6 +27,79 @@ export interface SourceScope {
   ambiguous: boolean;
 }
 
+export type FeederReadiness =
+  | 'INVENTORY_ONLY'
+  | 'CONVERSION_READY'
+  | 'READY_ORIGINAL'
+  | 'READY_RECONSTRUCTED'
+  | 'CONVERTED_WITH_ASSUMPTIONS'
+  | 'NEEDS_OPERATOR_REVIEW'
+  | 'DGS_READY'
+  | 'POWERFACTORY_VERIFIED';
+
+export interface ReconstructionEvidence {
+  report: string;
+  report_sha256: string;
+  repairs: number;
+  catalog_matches: number;
+  assumptions: number;
+  selection: string[];
+}
+
+export interface ReconstructionFeeder {
+  feeder: string;
+  network_id: string;
+  readiness: FeederReadiness;
+  blocking_codes: string[];
+  source_quality: string;
+  repair_count: number;
+  assumption_count: number;
+  catalog_sources: string[];
+  convergence_state: string | null;
+}
+
+export interface ReconstructionResponse {
+  source_run_id: string;
+  source_fingerprint: string;
+  source_sha256: Record<string, string>;
+  feeders: ReconstructionFeeder[];
+  repairs: number;
+  catalog_matches: number;
+  assumptions: number;
+  report: string;
+  report_sha256: string;
+}
+
+export interface DiagnosisResponse {
+  source_run_id: string;
+  source_mode: InputMode;
+  source_fingerprint: string;
+  feeders: ReconstructionFeeder[];
+}
+
+export interface ReconstructionDecision {
+  entity_type: string;
+  entity_id: string;
+  field: string;
+  original_value: unknown;
+  applied_value: unknown;
+  level: 'catalog_match' | 'engineering_assumption';
+  rule: string;
+  reason: string;
+  confidence: number;
+  candidates: string[];
+  provenance: Record<string, unknown>;
+}
+
+export interface ReconstructionReport {
+  version: number;
+  report_sha256: string;
+  source_sha256: Record<string, string>;
+  decisions: ReconstructionDecision[];
+  counts: Record<string, number>;
+  feeders: ReconstructionFeeder[];
+}
+
 /** DGS de red unida: varios alimentadores en un solo fichero. */
 export interface GroupDgs {
   name: string;
@@ -97,6 +170,12 @@ export interface WorkspaceState {
   catalog_report: CatalogReport | null;
   catalog_applied: boolean;
   catalog_file: string | null;
+  reconstruction: {
+    run_id: string;
+    selection: string[];
+    report: string;
+    report_sha256: string;
+  } | null;
   converted: number;
   groups?: GroupDgs[];
   last_seq: number;
@@ -167,8 +246,13 @@ export interface FeederRow {
   loads: number;
   switches: number;
   convertible: boolean;
-  readiness: 'INVENTORY_ONLY' | 'CONVERSION_READY' | 'DGS_READY' | 'POWERFACTORY_VERIFIED';
+  readiness: FeederReadiness;
   blocking_codes: string[];
+  source_quality: string | null;
+  repair_count: number;
+  assumption_count: number;
+  catalog_sources: string[];
+  convergence_state: string | null;
   source_run_id: string | null;
   source_mode: InputMode | null;
   source_fingerprint: string | null;

@@ -3,10 +3,19 @@ import { api, fmtNum } from '../api';
 import { useApp } from '../context';
 import type { FeederRow } from '../types';
 import { Pill, Stat, useConfirm } from './ui';
+import { ReconstructionPanel } from './ReconstructionPanel';
 
 type SortKey = 'feeder' | 'network_id' | 'nominal_kv' | 'sections' | 'loads' | 'switches' | 'status';
 
 function statusOf(r: FeederRow): { rank: number; node: ReactNode } {
+  if (r.readiness === 'NEEDS_OPERATOR_REVIEW') return { rank: 0, node: <Pill tone="error">Revisión requerida</Pill> };
+  if (r.readiness === 'CONVERTED_WITH_ASSUMPTIONS') return { rank: 2, node: <Pill tone="warn">DGS con supuestos</Pill> };
+  if (r.readiness === 'READY_RECONSTRUCTED') {
+    return r.assumption_count
+      ? { rank: 2, node: <Pill tone="warn">Reconstruido con supuestos</Pill> }
+      : { rank: 3, node: <Pill tone="info">Reconstruido con catálogo</Pill> };
+  }
+  if (r.readiness === 'READY_ORIGINAL') return { rank: 3, node: <Pill tone="ok">Original listo</Pill> };
   const c = r.conversion;
   if (c?.status === 'ok') {
     const extra = c.errors_total ? ` · ${c.errors_total} err.` : '';
@@ -21,8 +30,6 @@ function statusOf(r: FeederRow): { rank: number; node: ReactNode } {
   if (r.readiness === 'DGS_READY') return { rank: 3, node: <Pill tone="ok">DGS listo</Pill> };
   return { rank: 2, node: <Pill tone="info">Listo para convertir</Pill> };
 }
-
-const canConvert = (row: FeederRow) => row.readiness !== 'INVENTORY_ONLY';
 
 function GroupsList() {
   const { ws, run, startJob, active } = useApp();
@@ -177,10 +184,11 @@ export function FeedersPanel() {
   const cat = ws.catalog_report;
   const converted = feeders.filter((r) => r.conversion?.status === 'ok').length;
   const selectedRows = selected.map((name) => feeders.find((row) => row.feeder === name)).filter(Boolean) as FeederRow[];
-  const selectionReady = selectedRows.length === selected.length && selectedRows.every(canConvert);
-  const allReady = feeders.length > 0 && feeders.every(canConvert);
+  const selectionReady = selectedRows.length === selected.length
+    && selectedRows.every((row) => row.source_run_id === ws.active_run_id);
+  const allReady = feeders.length > 0 && feeders.every((row) => row.source_run_id === ws.active_run_id);
   const pfReady = selectedRows.length === selected.length && selectedRows.every((row) => row.conversion?.status === 'ok');
-  const blocked = feeders.filter((row) => !canConvert(row));
+  const blocked = feeders.filter((row) => ['INVENTORY_ONLY', 'NEEDS_OPERATOR_REVIEW'].includes(row.readiness));
 
   return (
     <section className="card card-grow">
@@ -227,9 +235,9 @@ export function FeedersPanel() {
                 {Math.round(cat.final_coverage * 100)} % de los {cat.types_in_network} tipos de línea.
               </strong>
               <p>
-                El resto tomará la impedancia de DEFAULT: el modelo convertirá y convergerá igual, pero las pérdidas y
-                caídas de tensión no significarán nada, y nada en el resultado lo delatará. Indique en «EQUIPOS
-                complementario» el catálogo de otra entrega.
+                El diagnóstico mantendrá los códigos originales y buscará evidencia exacta en la entrada, el catálogo
+                complementario y las fichas disponibles. Si aún faltan parámetros, la reconstrucción los marcará como
+                supuestos provisionales antes de convertir; no se ocultarán bajo un tipo DEFAULT.
               </p>
               {cat.unresolved.length > 0 && (
                 <p className="muted small">Sin catálogo: {cat.unresolved.slice(0, 12).join(', ')}{cat.unresolved.length > 12 ? '…' : ''}</p>
@@ -240,8 +248,10 @@ export function FeedersPanel() {
             <p className="alert alert-info">Catálogo corregido activo (<b>{ws.catalog_file}</b>): toda conversión lo aplica.</p>
           )}
           {blocked.length > 0 && (
-            <p className="alert alert-warn"><b>{blocked.length} alimentador(es) solo en inventario.</b> Siguen visibles, pero no pueden formar parte de una conversión hasta resolver: {Array.from(new Set(blocked.flatMap((row) => row.blocking_codes))).join(', ')}.</p>
+            <p className="alert alert-warn"><b>{blocked.length} alimentador(es) tienen datos incompletos.</b> Siguen seleccionables y se reconstruirán de forma auditable antes de convertir: {Array.from(new Set(blocked.flatMap((row) => row.blocking_codes))).join(', ')}.</p>
           )}
+
+          <ReconstructionPanel />
 
           <div className="toolbar">
             <input className="search" type="search" placeholder="Filtrar por nombre o NetworkID…" value={filter}

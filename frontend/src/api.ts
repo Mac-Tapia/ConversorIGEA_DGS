@@ -1,6 +1,6 @@
 import type {
-  CreatePlan, EventItem, FeederRow, Health, Job, LoadPlan, Options, OutputFile,
-  PowerFactoryStatus, WorkspaceState,
+  CreatePlan, DiagnosisResponse, EventItem, FeederRow, Health, Job, LoadPlan,
+  Options, OutputFile, PowerFactoryStatus, ReconstructionReport, ReconstructionResponse, WorkspaceState,
 } from './types';
 
 export class ApiError extends Error {
@@ -83,6 +83,12 @@ export const api = {
 
   load: (id: string) => request<Job>(`${ws(id)}/load`, { method: 'POST' }),
   feeders: (id: string) => request<{ loaded: boolean; feeders: FeederRow[] }>(`${ws(id)}/feeders`),
+  diagnose: (id: string, feeders: string[], all: boolean) =>
+    request<DiagnosisResponse>(`${ws(id)}/diagnose`, json('POST', { feeders, all })),
+  reconstruct: (id: string, feeders: string[], all: boolean) =>
+    request<ReconstructionResponse>(`${ws(id)}/reconstruct`, json('POST', { feeders, all })),
+  reconstructionReport: (id: string) =>
+    request<ReconstructionReport>(`${ws(id)}/files/reconstruction_report.json`),
   convert: (id: string, feeders: string[], all: boolean) =>
     request<Job>(`${ws(id)}/convert`, json('POST', { feeders, all })),
   convertGroup: (id: string, feeders: string[], nombre: string) =>
