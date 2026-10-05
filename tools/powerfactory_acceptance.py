@@ -44,6 +44,7 @@ Example::
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import shutil
@@ -52,6 +53,73 @@ import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open('rb') as source:
+        for block in iter(lambda: source.read(1024 * 1024), b''):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def verify_source_contract(
+    dgs_path: Path | None,
+    metadata_path: Path | None,
+    *,
+    source_run_id: str | None,
+    source_mode: str | None,
+    source_fingerprint: str | None,
+) -> dict[str, Any]:
+    """Verifica la procedencia antes de conectar o escribir en PowerFactory."""
+    expected = (source_run_id, source_mode, source_fingerprint)
+    if not any(expected):
+        return {'status': 'NOT_REQUESTED'}
+    if not all(expected):
+        raise ValueError('source-run-id, source-mode y source-fingerprint son inseparables')
+    if dgs_path is None or metadata_path is None or not metadata_path.is_file():
+        raise ValueError('la verificación de procedencia requiere DGS y feeder metadata')
+    payload = json.loads(metadata_path.read_text(encoding='utf-8'))
+    actual = (
+        payload.get('source_run_id'), payload.get('source_mode'),
+        payload.get('source_fingerprint'),
+    )
+    if actual != expected:
+        raise ValueError(
+            f'procedencia del sidecar {actual!r} no coincide con la solicitada {expected!r}'
+        )
+    digest = _sha256_file(dgs_path)
+    if payload.get('dgs_file') != dgs_path.name or payload.get('dgs_sha256') != digest:
+        raise ValueError('el DGS no coincide con nombre/SHA-256 del feeder metadata')
+    return {
+        'status': 'VERIFIED_BEFORE_MUTATION',
+        'source_run_id': source_run_id,
+        'source_mode': source_mode,
+        'source_fingerprint': source_fingerprint,
+        'dgs_sha256': digest,
+        'metadata_file': metadata_path.name,
+    }
+
+
+def attach_source_evidence(report: dict[str, Any], evidence: dict[str, Any]) -> None:
+    report['source_verification'] = evidence
+    report['source_run_id'] = evidence.get('source_run_id')
+    report['source_mode'] = evidence.get('source_mode')
+    report['source_fingerprint'] = evidence.get('source_fingerprint')
+    metadata = report.get('feeder_metadata') or {}
+    loop = report.get('load_flow_loop') or {}
+    final_load_flow = loop.get('final_load_flow') or {}
+    report['effective_reread'] = {
+        'feeder_metadata': bool(metadata.get('reread_verified')),
+        'feeder_objects': metadata.get('reread_count', 0),
+        'comldf_executed': bool((report.get('load_flow') or {}).get('requested')),
+        'comldf_valid': final_load_flow.get('ldf_valid', (report.get('load_flow') or {}).get('ldf_valid')),
+    }
+    report['rollback'] = metadata.get('rollback') or {
+        'status': 'NOT_REQUIRED_ISOLATED_PROJECT',
+        'attempted': False,
+        'reason': 'DGS importado en proyecto nuevo; no se muta un proyecto preexistente.',
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -1486,7 +1554,13 @@ def run_import_activate_flow(
         if metadata.get('study_restore', {}).get('errors'):
             report['errors'].extend(metadata['study_restore']['errors'])
     except Exception as exc:
-        report['feeder_metadata'] = {'status': 'failed', 'error': str(exc)}
+        report['feeder_metadata'] = {
+            'status': 'failed',
+            'error': str(exc),
+            'rollback': getattr(exc, 'rollback', {
+                'status': 'NOT_AVAILABLE', 'attempted': False, 'restored': 0,
+            }),
+        }
         report['errors'].append(f'Feeder metadata assignment failed: {exc}')
 
     if run_studies:
@@ -2051,6 +2125,9 @@ def _parser() -> argparse.ArgumentParser:
     )
     p.add_argument('--project-name', help='Optional PF project name for ComImport')
     p.add_argument('--feeder-metadata', help='Sidecar de procedencia por alimentador ligado al DGS')
+    p.add_argument('--source-run-id', help='Ejecución fuente que debe declarar el sidecar')
+    p.add_argument('--source-mode', choices=('txt', 'mdb', 'vnr'), help='Modo de la ejecución fuente')
+    p.add_argument('--source-fingerprint', help='SHA-256 de identidad de la ejecución fuente')
     p.add_argument(
         '--activate-base',
         action='store_true',
@@ -2156,6 +2233,18 @@ def main(argv=None) -> int:
     if manifest_path is not None and not manifest_path.is_file():
         print(f'ERROR: manifest not found: {manifest_path}', file=sys.stderr)
         return 1
+
+    try:
+        source_evidence = verify_source_contract(
+            Path(args.import_dgs) if args.import_dgs else None,
+            Path(args.feeder_metadata) if args.feeder_metadata else None,
+            source_run_id=args.source_run_id,
+            source_mode=args.source_mode,
+            source_fingerprint=args.source_fingerprint,
+        )
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        print(f'ERROR: POWERFACTORY_SOURCE_RUN_MISMATCH: {exc}', file=sys.stderr)
+        return 4
 
     try:
         app = connect_powerfactory(
@@ -2276,6 +2365,7 @@ def main(argv=None) -> int:
                 txt_path = Path(args.output_txt) if args.output_txt else dgs_path.with_name(
                     f'{feeder}_powerfactory_acceptance.txt'
                 )
+                attach_source_evidence(report, source_evidence)
                 _write_reports(report, json_path, txt_path)
                 return 2
         except Exception as exc:
@@ -2327,7 +2417,13 @@ def main(argv=None) -> int:
             elif feeder_metadata_report.get('warning'):
                 print('WARN feeder metadata:', feeder_metadata_report['warning'])
         except Exception as exc:
-            feeder_metadata_report = {'status': 'failed', 'error': str(exc)}
+            feeder_metadata_report = {
+                'status': 'failed',
+                'error': str(exc),
+                'rollback': getattr(exc, 'rollback', {
+                    'status': 'NOT_AVAILABLE', 'attempted': False, 'restored': 0,
+                }),
+            }
             print(f'ERROR feeder metadata: {exc}', file=sys.stderr)
         if run_studies:
             suite = run_study_suite(
@@ -2462,6 +2558,7 @@ def main(argv=None) -> int:
         txt_path = Path(args.output_txt) if args.output_txt else dgs_path.with_name(
             f'{feeder}_powerfactory_acceptance.txt'
         )
+        attach_source_evidence(report, source_evidence)
         _write_reports(report, json_path, txt_path)
         print(f"PowerFactory runtime PASS: {report['powerfactory_runtime_pass']}")
         print(f"Convergence PASS: {report.get('convergence_pass')}")
@@ -2543,6 +2640,7 @@ def main(argv=None) -> int:
     txt_path = Path(args.output_txt) if args.output_txt else manifest_path.with_name(
         f'{feeder}_powerfactory_acceptance.txt'
     )
+    attach_source_evidence(report, source_evidence)
     _write_reports(report, json_path, txt_path)
 
     print(f"PowerFactory runtime PASS: {report['powerfactory_runtime_pass']}")

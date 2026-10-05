@@ -502,6 +502,51 @@ def dgs_jobs(ws: Workspace, feeders: list[str]) -> tuple[list[tuple[str, Path, P
     return jobs, missing
 
 
+def check_powerfactory_source_run(ws: Workspace, feeders: list[str]) -> dict[str, Any]:
+    """Liga cada DGS y sidecar al run activo antes de cualquier mutación en PF."""
+    from ..feeder_metadata import read_feeder_metadata
+
+    snapshot = require_active_source_run(ws)
+    jobs, missing = dgs_jobs(ws, feeders)
+    if missing:
+        raise UserError('Primero convierta a DGS. Faltan: '
+                        + ', '.join(f'{name}.dgs' for name in missing[:12]))
+    evidence: list[dict[str, Any]] = []
+    for feeder, dgs, _geo in jobs:
+        metadata_path = dgs.with_name(f'{dgs.stem}_feeder_metadata.json')
+        if not metadata_path.is_file():
+            raise UserError(f'POWERFACTORY_SOURCE_RUN_MISMATCH: {feeder} no tiene sidecar.')
+        try:
+            metadata = read_feeder_metadata(metadata_path, expected_dgs=dgs)
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            raise UserError(
+                f'POWERFACTORY_SOURCE_RUN_MISMATCH: {feeder}: {exc}'
+            ) from exc
+        actual = (
+            metadata.get('source_run_id'),
+            metadata.get('source_mode'),
+            metadata.get('source_fingerprint'),
+        )
+        expected = (snapshot.run_id, snapshot.mode, snapshot.fingerprint)
+        if actual != expected:
+            raise UserError(
+                f'POWERFACTORY_SOURCE_RUN_MISMATCH: {feeder} pertenece a '
+                f'{actual[0] or "una ejecución sin identidad"}, no a {snapshot.run_id}.'
+            )
+        evidence.append({
+            'target': feeder,
+            'dgs': dgs.name,
+            'dgs_sha256': metadata['dgs_sha256'],
+            'metadata': metadata_path.name,
+        })
+    return {
+        'source_run_id': snapshot.run_id,
+        'source_mode': snapshot.mode,
+        'source_fingerprint': snapshot.fingerprint,
+        'targets': evidence,
+    }
+
+
 def check_powerfactory_flow(ws: Workspace, feeders: list[str]) -> None:
     if not feeders:
         raise UserError('Seleccione al menos un alimentador ya convertido.')
@@ -519,6 +564,8 @@ def check_powerfactory_flow(ws: Workspace, feeders: list[str]) -> None:
             + ', '.join(missing_metadata[:8])
             + '. Vuelva a convertir esos alimentadores para generar el manifiesto.'
         )
+    if ws.active_run_id:
+        check_powerfactory_source_run(ws, feeders)
     _script('powerfactory_acceptance.py')
     _require_pf()
 
@@ -594,6 +641,7 @@ def pandapower_preflight(
 def powerfactory_flow(ws: Workspace, ctx: JobContext, feeders: list[str]) -> dict:
     script = _script('powerfactory_acceptance.py')
     jobs, missing = dgs_jobs(ws, feeders)
+    source_evidence = check_powerfactory_source_run(ws, feeders) if ws.active_run_id else None
     ctx.log('--- Inicio DigSILENT: import + escenario + flujo ---')
     ctx.log('--- Preflight pandapower: conectividad, islas y convergencia ---')
     preflight = pandapower_preflight(ws, [name for name, _dgs, _geo in jobs], ctx)
@@ -619,6 +667,12 @@ def powerfactory_flow(ws: Workspace, ctx: JobContext, feeders: list[str]) -> dic
                '--ensure-scenario', '--run-load-flow']
         metadata_path = dgs.with_name(f'{dgs.stem}_feeder_metadata.json')
         cmd += ['--feeder-metadata', str(metadata_path)]
+        if source_evidence is not None:
+            cmd += [
+                '--source-run-id', source_evidence['source_run_id'],
+                '--source-mode', source_evidence['source_mode'],
+                '--source-fingerprint', source_evidence['source_fingerprint'],
+            ]
         if geo is not None:
             cmd += ['--manifest', str(geo)]
         cmd += ['--output-json', str(ws.out_dir / f'{feeder}_powerfactory_acceptance.json'),
@@ -655,7 +709,8 @@ def powerfactory_flow(ws: Workspace, ctx: JobContext, feeders: list[str]) -> dic
         ctx.log('  ' + line)
     ctx.log('--- Fin DigSILENT ---')
     return {'ok': ok_n, 'failed': fail_n, 'requested': len(jobs),
-            'missing_dgs': missing, 'lines': lines, 'preflight': preflight}
+            'missing_dgs': missing, 'lines': lines, 'preflight': preflight,
+            'source': source_evidence}
 
 
 # ---------------------------------------------------------------------------
