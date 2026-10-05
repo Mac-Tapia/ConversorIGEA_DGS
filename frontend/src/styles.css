@@ -273,6 +273,13 @@ small.alert { display: block; margin: 4px 0 0; }
   border-radius: 6px; padding: 10px; max-height: 280px; overflow: auto; white-space: pre;
 }
 details summary { cursor: pointer; color: var(--primary); margin-top: 8px; }
+.source-banner {
+  display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin: 0 0 12px;
+  padding: 9px 12px; border: 1px solid var(--border); border-left: 4px solid var(--primary);
+  border-radius: 7px; background: var(--primary-soft); font-size: 12.5px;
+}
+.vnr-discovery { margin: 10px 0; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }
+.vnr-publication { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 9px 0; border-top: 1px solid var(--border); }
 
 /* ---------------------------------------------------------------- trabajos */
 .jobbar { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; position: sticky; top: -16px; z-index: 5; }

@@ -299,6 +299,10 @@ class Workspace:
     # -------------------------------------------------------------- vista pública
     def public(self) -> dict:
         inv = self.inventory or {}
+        manifest_url = (
+            f'/api/workspaces/{self.id}/runs/{self.active_run_id}/manifest'
+            if self.active_run_id else None
+        )
         return {
             'id': self.id,
             'created_at': self.created_at,
@@ -311,6 +315,7 @@ class Workspace:
             'loaded_run_id': self.loaded_run_id,
             'source_mode': self.loaded_source_mode,
             'source_fingerprint': self.loaded_source_fingerprint,
+            'source_manifest_url': manifest_url,
             'totals': inv.get('totals'),
             'conversion': inv.get('conversion'),
             'integrity': inv.get('integrity'),

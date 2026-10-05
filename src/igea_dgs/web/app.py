@@ -179,6 +179,7 @@ def create_app(data_root: Path | None = None) -> FastAPI:
             'default_options': DEFAULT_OPTIONS,
             'server_paths': _server_paths_allowed(),
             'parallel': services.parallel_info(),
+            'source_modes': ['txt', 'mdb', 'vnr'],
         }
 
     @app.get('/api/powerfactory')
@@ -240,6 +241,62 @@ def create_app(data_root: Path | None = None) -> FastAPI:
     def get_workspace(wid: str) -> dict:
         ws = ws_or_404(wid)
         return {**ws.public(), 'jobs': [j.public() for j in jobs.list(wid)[-20:]]}
+
+    @app.get('/api/workspaces/{wid}/runs')
+    def source_runs(wid: str) -> list[dict]:
+        """Historial inmutable de fuentes, limitado al espacio solicitado."""
+        from .source_runs import load_source_run, valid_run_id
+
+        ws = ws_or_404(wid)
+        root = ws.root / 'runs'
+        rows: list[dict] = []
+        for folder in root.iterdir() if root.is_dir() else ():
+            if not folder.is_dir() or not valid_run_id(folder.name):
+                continue
+            try:
+                snapshot = load_source_run(ws, folder.name)
+            except (OSError, ValueError, KeyError, TypeError):
+                continue
+            rows.append({
+                'run_id': snapshot.run_id,
+                'mode': snapshot.mode,
+                'created_at': snapshot.created_at,
+                'fingerprint': snapshot.fingerprint,
+                'files': len(snapshot.files),
+                'active': snapshot.run_id == ws.active_run_id,
+                'manifest_url': f'/api/workspaces/{wid}/runs/{snapshot.run_id}/manifest',
+            })
+        return sorted(rows, key=lambda row: (row['created_at'], row['run_id']), reverse=True)
+
+    @app.get('/api/workspaces/{wid}/runs/{run_id}/manifest')
+    def source_manifest(wid: str, run_id: str) -> dict:
+        """Manifiesto público sin revelar rutas originales del servidor."""
+        from .source_runs import load_source_run, valid_run_id
+
+        ws = ws_or_404(wid)
+        if not valid_run_id(run_id):
+            raise HTTPException(404, 'Ejecución no encontrada.')
+        try:
+            snapshot = load_source_run(ws, run_id)
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            raise HTTPException(404, 'Ejecución no encontrada.') from exc
+        return {
+            'version': 1,
+            'run_id': snapshot.run_id,
+            'mode': snapshot.mode,
+            'created_at': snapshot.created_at,
+            'fingerprint': snapshot.fingerprint,
+            'files': [
+                {
+                    'slot': item.slot,
+                    'name': item.name,
+                    'size': item.size,
+                    'sha256': item.sha256,
+                    'origin': item.origin,
+                }
+                for item in sorted(snapshot.files.values(), key=lambda item: item.slot)
+            ],
+        }
 
     @app.delete('/api/workspaces/{wid}', status_code=204)
     def delete_workspace(wid: str) -> None:
