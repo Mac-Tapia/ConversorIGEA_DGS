@@ -785,6 +785,15 @@ def ensure_operation_scenario(
     except Exception as exc:
         info['errors'].append(f'Scenario.Activate failed: {exc}')
 
+    if info['created'] and info['activated']:
+        # Un escenario se define al guardarlo (manual PF 2024, 15.2) y no se guarda
+        # solo (15.3.2): creado y activado sin Save quedaba vacío, y al reabrir el
+        # proyecto activarlo no cargaba ningún dato de operación.
+        try:
+            scenario.Save()
+        except Exception as exc:
+            info['warnings'].append(f'Scenario.Save failed: {exc}')
+
     active_scen = app.GetActiveScenario()
     info['active_scenario'] = _name(active_scen) if active_scen else None
     return info

@@ -62,6 +62,58 @@ def test_powerfactory_acceptance_module_imports():
     assert 'short_circuit' in mod.STUDY_REGISTRY
 
 
+def test_new_operation_scenario_is_saved_but_existing_one_is_not():
+    mod = _load_pf_mod()
+
+    class Scenario:
+        loc_name = 'Operation Scenario'
+
+        def __init__(self):
+            self.saves = 0
+
+        def Activate(self):
+            return 0
+
+        def Save(self):
+            self.saves += 1
+
+    created = Scenario()
+
+    class Folder:
+        def __init__(self, existing=None):
+            self.existing = existing
+
+        def GetContents(self, *_args):
+            return [self.existing] if self.existing else []
+
+        def CreateObject(self, *_args):
+            return created
+
+    class App:
+        def __init__(self, folder):
+            self.folder = folder
+
+        def GetProjectFolder(self, *_args):
+            return self.folder
+
+        def GetActiveProject(self):
+            return SimpleNamespace()
+
+        def GetActiveScenario(self):
+            return self.folder.existing or created
+
+    result = mod.ensure_operation_scenario(App(Folder()), name='Operation Scenario')
+    assert result['created'] is True
+    assert result['activated'] is True
+    assert created.saves == 1
+
+    existing = Scenario()
+    result = mod.ensure_operation_scenario(App(Folder(existing)), name='Operation Scenario')
+    assert result['created'] is False
+    assert result['activated'] is True
+    assert existing.saves == 0
+
+
 def test_generated_project_name_fits_powerfactory_limit():
     mod = _load_pf_mod()
     long_name = 'AL104_AL105_AL106_AL107_AL108_AL209_CA101_CA104_ETC'

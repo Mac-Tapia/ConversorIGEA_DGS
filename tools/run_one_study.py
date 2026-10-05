@@ -79,6 +79,10 @@ def _importar_y_medir(args) -> int:
                     'IntScenario', args.escenario)
                 if escenario is not None:
                     escenario.Activate()
+                    if not previos:
+                        # Nuevo: se define al guardarlo (manual PF 2024, 15.2); sin
+                        # Save quedaba vacío para la próxima vez que se abriera.
+                        escenario.Save()
         except Exception:  # noqa: BLE001 - la API varia entre versiones
             pass
         salida['caso'] = caso.loc_name if caso is not None else None
