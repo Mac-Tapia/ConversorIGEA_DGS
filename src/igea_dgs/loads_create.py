@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import csv
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -32,6 +32,7 @@ from .loads import (
     SedLoad,
     _normalise,
     _number,
+    _power_conflict,
     _resolve_power,
     canonical_columns,
 )
@@ -96,6 +97,59 @@ def find_nearest_node(model, x: float, y: float) -> tuple[str, float]:
             'así que no se puede buscar el más cercano. Convierta con georreferenciación.'
         )
     return best_node, math.sqrt(best_d2)
+
+
+def split_create_by_feeder(
+    libro: dict[str, tuple[list[NewSedLoad], list[str]]], models: dict[str, Any],
+) -> tuple[dict[str, tuple[list[NewSedLoad], list[str]]], list[str]]:
+    """Reparte un libro de SED nuevas entre los alimentadores elegidos.
+
+    Por fila, en este orden: la **hoja**, si se llama como un alimentador elegido; el
+    **nodo de conexión**, si es de uno de ellos; y si no, las **coordenadas**: el
+    alimentador con el nodo más cercano. Así un Excel con todas las SED nuevas en una
+    sola hoja sirve igual que uno con una hoja por alimentador.
+
+    Devuelve ``({alimentador: (filas, errores)}, errores_sin_alimentador)``.
+    """
+    out: dict[str, tuple[list[NewSedLoad], list[str]]] = {f: ([], []) for f in models}
+    sueltos: list[str] = []
+    for hoja, (rows, errors) in libro.items():
+        (out[hoja][1] if hoja in out else sueltos).extend(errors)
+        for row in rows:
+            destino = hoja if hoja in out else None
+            if destino is None and row.node_id:
+                destino = next((f for f, m in models.items() if row.node_id in m.nodes), None)
+            if destino is None and row.coord_x is not None and row.coord_y is not None:
+                cercanos = []
+                for f, m in models.items():
+                    try:
+                        cercanos.append((find_nearest_node(m, row.coord_x, row.coord_y)[1], f))
+                    except LoadTemplateError:
+                        continue          # alimentador sin coordenadas: no compite
+                cercanos.sort()
+                if len(cercanos) > 1 and math.isclose(
+                    cercanos[0][0], cercanos[1][0], rel_tol=1e-9, abs_tol=1e-6,
+                ):
+                    empatados = [
+                        feeder for distance, feeder in cercanos
+                        if math.isclose(
+                            distance, cercanos[0][0], rel_tol=1e-9, abs_tol=1e-6,
+                        )
+                    ]
+                    sueltos.append(
+                        f'hoja {hoja}: {row.sed_code} tiene asignación ambigua por '
+                        f'coordenadas entre {", ".join(empatados)}.'
+                    )
+                    continue
+                destino = cercanos[0][1] if cercanos else None
+            if destino is None:
+                sueltos.append(
+                    f'hoja {hoja}: {row.sed_code} no se puede asignar a ningún alimentador '
+                    'elegido (ni por la hoja, ni por el nodo, ni por las coordenadas).'
+                )
+                continue
+            out[destino][0].append(replace(row, feeder=destino))
+    return out, sueltos
 
 
 def _voltage_drop_pct(
@@ -353,6 +407,12 @@ def write_create_template(
     out.parent.mkdir(parents=True, exist_ok=True)
 
     def record(row) -> list[Any]:
+        # Solo el par del que salió la carga. Con los cuatro escritos, quien cambiaba
+        # (kVA) y FP chocaba con el Kw/Kvar viejo de la misma fila.
+        if getattr(row, 'derived', False):
+            par = ['', '', round(row.kva, 6), round(row.fp, 6)]
+        else:
+            par = [round(row.kw, 6), round(row.kvar, 6), '', '']
         return [
             row.sed_code,
             getattr(row, 'coord_x', None) if getattr(row, 'coord_x', None) is not None else '',
@@ -361,10 +421,7 @@ def write_create_template(
             getattr(row, 'section_id', '') or '',
             getattr(row, 'location', '1') or '1',
             round(row.installed_kva, 3) if row.installed_kva else '',
-            round(row.kw, 6),
-            round(row.kvar, 6),
-            round(row.kva, 6),
-            round(row.fp, 6),
+            *par,
             getattr(row, 'conductor', '') or '',
             '',
         ]
@@ -503,6 +560,13 @@ def read_create_sheet(
         kw, kvar, kva, factor, derived, _no_data = _resolve_power(
             numbers.get('Kw'), numbers.get('Kvar'), numbers.get('(kVA)'), fp,
         )
+        conflict = _power_conflict(numbers.get('(kVA)'), fp, kw, kvar)
+        if conflict:
+            errors.append(
+                f'hoja {feeder}, fila {row_no}: {code}: {conflict}. '
+                'Deje un solo par: Kw y Kvar, Kw y FP, o (kVA) y FP.'
+            )
+            continue
         rows.append(NewSedLoad(
             sed_code=code, node_id=node,
             section_id=('' if cell.get('tramo') is None else str(cell['tramo'])).strip(),
