@@ -1,13 +1,50 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api, fmtBytes } from '../api';
 import { useApp } from '../context';
-import type { InputMode } from '../types';
+import type { InputMode, VnrPublications } from '../types';
 import { FileDrop, Pill, useConfirm, useToast } from './ui';
 
 const ACCEPT: Record<string, string> = {
   red: '.txt', loads: '.txt', equipment: '.txt', equipment_extra: '.txt',
   mdb: '.mdb,.accdb', equipment_mdb: '.mdb,.accdb', study: '.zxst,.xst', aliases: '.json',
+  vnr_package: '.zip,.rar,.7z,.gpkg,.gdb,.geojson',
 };
+
+function VnrDiscovery() {
+  const { ws, setWs, run, active } = useApp();
+  const [catalog, setCatalog] = useState<VnrPublications | null>(null);
+
+  const discover = async (refresh: boolean) => {
+    const result = await run(() => api.vnrPublications(refresh));
+    if (result) setCatalog(result);
+  };
+  useEffect(() => { void discover(false); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const packages = catalog?.publications.filter((item) => item.convertible) ?? [];
+  return (
+    <div className="vnr-discovery">
+      <div className="row">
+        <strong>Paquete oficial VNR-GIS</strong>
+        <button className="btn btn-sm" disabled={Boolean(active.engine)} onClick={() => discover(true)}>
+          Buscar publicación oficial
+        </button>
+      </div>
+      {catalog?.status === 'BLOCKED_MISSING_OFFICIAL_PACKAGE' && (
+        <p className="alert alert-warn">No se encontró un paquete oficial de datos convertible. Los PDF regulatorios no se usan como red. Suba abajo el paquete completo verificado.</p>
+      )}
+      {packages.map((item) => (
+        <div className="vnr-publication" key={item.publication_id}>
+          <div><b>{item.title}</b><br /><span className="muted small">{item.company} · {item.period_label} · evidencia {item.evidence_sha256.slice(0, 12)}…</span></div>
+          <button className="btn btn-sm" disabled={Boolean(active.engine)} onClick={async () => {
+            const response = await run(() => api.vnrDownload(ws.id, item.publication_id));
+            if (response) setWs(response.workspace);
+          }}>Descargar y custodiar</button>
+        </div>
+      ))}
+      <p className="muted small">También puede subir o indicar la ruta de un ZIP/RAR/7z/GPKG/GeoJSON completo. La carga se valida antes de crear la ejecución.</p>
+    </div>
+  );
+}
 
 function Slot({ slot }: { slot: string }) {
   const { ws, setWs, health, run, active } = useApp();
@@ -127,6 +164,8 @@ export function InputsPanel() {
             disabled={Boolean(active.engine)} onClick={() => setMode('txt')}>Tres TXT de IGEA/CYMDIST</button>
           <button role="radio" aria-checked={mode === 'mdb'} className={mode === 'mdb' ? 'on' : ''}
             disabled={Boolean(active.engine)} onClick={() => setMode('mdb')}>Base Access (.mdb)</button>
+          <button role="radio" aria-checked={mode === 'vnr'} className={mode === 'vnr' ? 'on' : ''}
+            disabled={Boolean(active.engine)} onClick={() => setMode('vnr')}>VNR-GIS</button>
         </div>
       </header>
 
@@ -141,15 +180,16 @@ export function InputsPanel() {
       {mode === 'mdb' && !health.capabilities.access && (
         <p className="alert alert-warn">Falta <code>pyodbc</code> o el driver «Microsoft Access Driver» de 64 bits en el servidor.</p>
       )}
+      {mode === 'vnr' && <VnrDiscovery />}
 
       <div className="slots">
         {slots.map((s) => <Slot key={s} slot={s} />)}
-        <Slot slot="aliases" />
+        {mode !== 'vnr' && <Slot slot="aliases" />}
       </div>
 
       <p className={`status-line ${ready ? 'ok' : ''}`}>
         {ready
-          ? (mode === 'mdb' ? 'Base de datos lista.' : 'Los tres TXT están listos.') + ' Pulse «Cargar / listar alimentadores».'
+          ? (mode === 'mdb' ? 'Base de datos lista.' : mode === 'vnr' ? 'Paquete VNR-GIS listo.' : 'Los tres TXT están listos.') + ' Pulse «Cargar / listar alimentadores».'
           : `Pendientes: ${ws.missing_inputs.join(', ')}.`}
       </p>
     </section>

@@ -52,6 +52,7 @@ export const api = {
   workspace: (id: string) => request<WorkspaceState>(ws(id)),
   setOptions: (id: string, opts: Partial<Options>) =>
     request<WorkspaceState>(`${ws(id)}/options`, json('PUT', opts)),
+  sourceRuns: (id: string) => request<import('./types').SourceRun[]>(`${ws(id)}/runs`),
 
   uploadInput: (id: string, slot: string, file: File) =>
     request<{ warning: string; workspace: WorkspaceState }>(`${ws(id)}/inputs/${slot}`, form(file)),
@@ -68,6 +69,12 @@ export const api = {
       workspace: WorkspaceState;
     }>(`${ws(id)}/inputs-auto`, { method: 'POST', body: fd });
   },
+  vnrPublications: (refresh = false) =>
+    request<import('./types').VnrPublications>(`/api/vnr/publications${refresh ? '?refresh=true' : ''}`),
+  vnrDownload: (id: string, publicationId: string) =>
+    request<{ workspace: WorkspaceState; manifest: Record<string, unknown> }>(
+      `${ws(id)}/vnr/download`, json('POST', { publication_id: publicationId }),
+    ),
 
   load: (id: string) => request<Job>(`${ws(id)}/load`, { method: 'POST' }),
   feeders: (id: string) => request<{ loaded: boolean; feeders: FeederRow[] }>(`${ws(id)}/feeders`),

@@ -14,9 +14,15 @@ function statusOf(r: FeederRow): { rank: number; node: ReactNode } {
   }
   if (c?.status === 'failed') return { rank: 1, node: <Pill tone="error" title={c.error ?? ''}>Falló</Pill> };
   if (c?.status === 'skipped') return { rank: 0, node: <Pill tone="muted" title={c.error ?? ''}>Omitido</Pill> };
-  if (!r.convertible) return { rank: 0, node: <Pill tone="muted">Stub (0 tramos)</Pill> };
-  return { rank: 2, node: <Pill tone="info">Convertible</Pill> };
+  if (r.readiness === 'INVENTORY_ONLY') {
+    return { rank: 0, node: <Pill tone="warn" title={r.blocking_codes.join(', ')}>Solo inventario</Pill> };
+  }
+  if (r.readiness === 'POWERFACTORY_VERIFIED') return { rank: 4, node: <Pill tone="ok">PF verificado</Pill> };
+  if (r.readiness === 'DGS_READY') return { rank: 3, node: <Pill tone="ok">DGS listo</Pill> };
+  return { rank: 2, node: <Pill tone="info">Listo para convertir</Pill> };
 }
+
+const canConvert = (row: FeederRow) => row.readiness !== 'INVENTORY_ONLY';
 
 function GroupsList() {
   const { ws, run, startJob, active } = useApp();
@@ -170,6 +176,11 @@ export function FeedersPanel() {
   const t = ws.totals;
   const cat = ws.catalog_report;
   const converted = feeders.filter((r) => r.conversion?.status === 'ok').length;
+  const selectedRows = selected.map((name) => feeders.find((row) => row.feeder === name)).filter(Boolean) as FeederRow[];
+  const selectionReady = selectedRows.length === selected.length && selectedRows.every(canConvert);
+  const allReady = feeders.length > 0 && feeders.every(canConvert);
+  const pfReady = selectedRows.length === selected.length && selectedRows.every((row) => row.conversion?.status === 'ok');
+  const blocked = feeders.filter((row) => !canConvert(row));
 
   return (
     <section className="card card-grow">
@@ -190,6 +201,12 @@ export function FeedersPanel() {
 
       {ws.loaded && t && (
         <>
+          <div className="source-banner">
+            <span><b>Fuente activa:</b> {(ws.source_mode ?? '—').toUpperCase()}</span>
+            <span className="mono">run {ws.loaded_run_id ?? '—'}</span>
+            <span className="mono">SHA {ws.source_fingerprint?.slice(0, 12) ?? '—'}…</span>
+            {ws.source_manifest_url && <a className="link" href={ws.source_manifest_url} target="_blank" rel="noreferrer">Ver manifiesto</a>}
+          </div>
           <div className="stats">
             <Stat label="alimentadores" value={fmtNum(t.feeders)} />
             <Stat label="convertibles" value={fmtNum(t.convertible_feeders)} />
@@ -221,6 +238,9 @@ export function FeedersPanel() {
           )}
           {ws.catalog_applied && (
             <p className="alert alert-info">Catálogo corregido activo (<b>{ws.catalog_file}</b>): toda conversión lo aplica.</p>
+          )}
+          {blocked.length > 0 && (
+            <p className="alert alert-warn"><b>{blocked.length} alimentador(es) solo en inventario.</b> Siguen visibles, pero no pueden formar parte de una conversión hasta resolver: {Array.from(new Set(blocked.flatMap((row) => row.blocking_codes))).join(', ')}.</p>
           )}
 
           <div className="toolbar">
@@ -275,14 +295,14 @@ export function FeedersPanel() {
 
           <GroupsList />
           <div className="actions">
-            <button className="btn btn-primary" disabled={engineBusy || selected.length === 0}
+            <button className="btn btn-primary" disabled={engineBusy || selected.length === 0 || !selectionReady}
               onClick={() => convert(selected, false)}>
               {selected.length === 1 ? `Convertir ${selected[0]} → DGS` : `Convertir ${selected.length || ''} seleccionados → DGS`}
             </button>
-            <button className="btn" disabled={engineBusy || feeders.length === 0} onClick={() => convert([], true)}>
+            <button className="btn" disabled={engineBusy || !allReady} onClick={() => convert([], true)}>
               Convertir TODOS ({feeders.length})
             </button>
-            <button className="btn" disabled={engineBusy || selected.length < 2} onClick={unir}
+            <button className="btn" disabled={engineBusy || selected.length < 2 || !selectionReady} onClick={unir}
               title="Los alimentadores seleccionados en un solo DGS (red unida)">
               Unir {selected.length >= 2 ? selected.length : ''} en un solo DGS…
             </button>
@@ -292,7 +312,7 @@ export function FeedersPanel() {
               Descargar {selected.length ? 'selección' : 'todo'} (.zip)
             </a>
             <span className="spacer" />
-            <button className="btn btn-pf" disabled={pfBusy || selected.length === 0} onClick={() => run(pfFlow)}
+            <button className="btn btn-pf" disabled={pfBusy || selected.length === 0 || !pfReady} onClick={() => run(pfFlow)}
               title="Import del DGS + escenario + flujo de potencia + estudios">
               Cargar en DigSILENT + flujo
             </button>

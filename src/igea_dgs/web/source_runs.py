@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import shutil
 import time
 import uuid
@@ -28,6 +29,12 @@ MODE_SLOTS: dict[SourceMode, tuple[str, ...]] = {
     'vnr': ('vnr_package',),
 }
 COMMON_SLOTS = ('aliases',)
+_RUN_ID_RE = re.compile(r'^\d{8}T\d{6}-[a-f0-9]{12}$')
+
+
+def valid_run_id(run_id: str) -> bool:
+    """Solo acepta el identificador generado, nunca componentes de ruta."""
+    return bool(_RUN_ID_RE.fullmatch(run_id or ''))
 
 
 @dataclass(frozen=True)
@@ -185,6 +192,8 @@ def create_source_run(ws: Workspace) -> SourceSnapshot:
 
 
 def load_source_run(ws: Workspace, run_id: str) -> SourceSnapshot:
+    if not valid_run_id(run_id):
+        raise ValueError(f'Identificador de ejecución inválido: {run_id!r}.')
     run_root = ws.root / 'runs' / run_id
     manifest_path = run_root / 'source_manifest.json'
     payload = json.loads(manifest_path.read_text(encoding='utf-8'))

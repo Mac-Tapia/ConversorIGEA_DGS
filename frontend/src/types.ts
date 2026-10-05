@@ -1,6 +1,6 @@
 // Tipos de la API (src/igea_dgs/web). Se mantienen a mano: son pocos y cambian poco.
 
-export type InputMode = 'txt' | 'mdb';
+export type InputMode = 'txt' | 'mdb' | 'vnr';
 
 export interface Options {
   input_mode: InputMode;
@@ -33,7 +33,7 @@ export interface GroupDgs {
 }
 
 export interface SlotSpec {
-  grupo: 'txt' | 'mdb' | 'comun';
+  grupo: 'txt' | 'mdb' | 'vnr' | 'comun';
   tipo: string | null;
   etiqueta: string;
   obligatorio: boolean;
@@ -76,6 +76,11 @@ export interface WorkspaceState {
   missing_inputs: string[];
   loaded: boolean;
   loaded_at: number | null;
+  active_run_id: string | null;
+  loaded_run_id: string | null;
+  source_mode: InputMode | null;
+  source_fingerprint: string | null;
+  source_manifest_url: string | null;
   totals: Totals | null;
   conversion: { expected_dgs_files: number } | null;
   integrity: { errors: number; warnings: number } | null;
@@ -98,6 +103,7 @@ export interface Health {
   server_paths: boolean;
   /** Núcleos del servidor y cuántos procesos usa el modo automático. */
   parallel: { cpus: number; auto: number };
+  source_modes: InputMode[];
 }
 
 export interface PowerFactoryStatus {
@@ -151,7 +157,41 @@ export interface FeederRow {
   loads: number;
   switches: number;
   convertible: boolean;
+  readiness: 'INVENTORY_ONLY' | 'CONVERSION_READY' | 'DGS_READY' | 'POWERFACTORY_VERIFIED';
+  blocking_codes: string[];
+  source_run_id: string | null;
+  source_mode: InputMode | null;
+  source_fingerprint: string | null;
   conversion: Conversion | null;
+}
+
+export interface VnrPublication {
+  publication_id: string;
+  title: string;
+  company: string;
+  period_label: string;
+  file_name: string;
+  published_at?: string | null;
+  download_url: string;
+  convertible: boolean;
+  status: 'OFFICIAL_DATA_PACKAGE' | 'REGULATORY_DOCUMENT_ONLY';
+  evidence_sha256: string;
+}
+
+export interface VnrPublications {
+  status: 'OFFICIAL_PACKAGE_AVAILABLE' | 'BLOCKED_MISSING_OFFICIAL_PACKAGE';
+  publications: VnrPublication[];
+  refresh: unknown;
+}
+
+export interface SourceRun {
+  run_id: string;
+  mode: InputMode;
+  created_at: number;
+  fingerprint: string;
+  files: number;
+  active: boolean;
+  manifest_url: string;
 }
 
 export interface EventItem {
