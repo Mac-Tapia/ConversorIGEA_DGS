@@ -30,6 +30,7 @@ secrets.json
 
 # Testing / coverage
 .pytest_cache/
+.pytest_tmp/
 .coverage
 htmlcov/
 .tox/
@@ -49,6 +50,10 @@ desktop.ini
 
 # Generated conversion dumps
 output/
+
+# Local execution evidence and simulator acceptance reports. These may contain
+# utility identifiers and machine-specific paths; publish only curated summaries.
+AUDIT/
 
 # Large IGEA sample TXT (keep local; do not publish utility dumps)
 referencia/RED_*.txt
