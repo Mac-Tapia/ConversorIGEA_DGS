@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass
 from typing import Any, Iterable
 
@@ -26,6 +28,32 @@ class PlannedAssignment:
 
 class PowerFactoryMetadataError(RuntimeError):
     """La trazabilidad no se pudo resolver o escribir de forma completa."""
+
+
+class PowerFactoryMetadataWriteError(PowerFactoryMetadataError):
+    """Fallo de escritura con evidencia explícita del rollback ejecutado."""
+
+    def __init__(self, message: str, rollback: dict[str, Any]) -> None:
+        super().__init__(message)
+        self.rollback = rollback
+
+
+def assignment_plan_sha256(plan: Iterable[PlannedAssignment]) -> str:
+    """Identidad estable del plan resuelto antes de modificar PowerFactory."""
+    rows = []
+    for item in plan:
+        record = item.record
+        rows.append({
+            'class_name': record.class_name,
+            'dgs_fid': record.dgs_fid,
+            'loc_name': record.loc_name,
+            'feeder': record.feeder,
+            'network_id': record.network_id,
+            'terminal': record.terminal,
+            'substation': record.substation,
+        })
+    encoded = json.dumps(rows, sort_keys=True, separators=(',', ':')).encode('utf-8')
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def _attribute(obj: Any, name: str, default: Any = None) -> Any:
@@ -220,8 +248,14 @@ def apply_feeder_assignment_plan(
     plan: Iterable[PlannedAssignment],
     *,
     attribute: str = ATTRIBUTE,
+    expected_plan_sha256: str | None = None,
 ) -> dict[str, Any]:
     plan = list(plan)
+    plan_sha256 = assignment_plan_sha256(plan)
+    if expected_plan_sha256 is not None and plan_sha256 != expected_plan_sha256:
+        raise PowerFactoryMetadataError(
+            'El plan resuelto cambió entre preflight y aplicación; no se escribió nada.'
+        )
     previous = [(item.obj, _custom_attribute_value(item.obj, attribute)) for item in plan]
     written: list[tuple[Any, Any]] = []
     counts: dict[str, dict[str, int]] = {}
@@ -245,14 +279,33 @@ def apply_feeder_assignment_plan(
                 )
             bucket = counts.setdefault(item.record.feeder, {})
             bucket[item.record.class_name] = bucket.get(item.record.class_name, 0) + 1
-    except Exception:
+    except Exception as exc:
+        rollback_failures: list[str] = []
+        restored = 0
         for obj, old_value in reversed(written):
             try:
                 obj.SetAttribute(attribute, _list_user_value(old_value))
-            except Exception:
-                pass
-        raise
-    return {'written': len(written), 'by_feeder': counts, 'attribute': attribute}
+                restored += 1
+            except Exception as rollback_exc:
+                rollback_failures.append(str(rollback_exc))
+        rollback = {
+            'status': 'RESTORED' if not rollback_failures else 'PARTIAL',
+            'attempted': bool(written),
+            'restored': restored,
+            'failed': rollback_failures,
+        }
+        raise PowerFactoryMetadataWriteError(str(exc), rollback) from exc
+    return {
+        'written': len(written),
+        'by_feeder': counts,
+        'attribute': attribute,
+        'dry_run_plan_sha256': plan_sha256,
+        'applied_plan_sha256': plan_sha256,
+        'plan_identity_match': True,
+        'reread_verified': True,
+        'reread_count': len(written),
+        'rollback': {'status': 'NOT_REQUIRED', 'attempted': False, 'restored': 0, 'failed': []},
+    }
 
 
 def populate_feeder_metadata(app: Any, records: Iterable[Any]) -> dict[str, Any]:
@@ -262,9 +315,10 @@ def populate_feeder_metadata(app: Any, records: Iterable[Any]) -> dict[str, Any]
     for class_name in classes:
         objects.extend(list(app.GetCalcRelevantObjects(f'*.{class_name}') or []))
     plan = resolve_feeder_assignments(records, objects)
+    plan_sha256 = assignment_plan_sha256(plan)
     project = app.GetActiveProject()
     extension = ensure_alimentador_data_extensions(project)
-    assignment = apply_feeder_assignment_plan(plan)
+    assignment = apply_feeder_assignment_plan(plan, expected_plan_sha256=plan_sha256)
     return {'extensions': extension, **assignment}
 
 
