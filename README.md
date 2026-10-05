@@ -4,6 +4,18 @@ Conversor modular para transformar los archivos TXT `RED`, `CARGA` y `BD_Equipo`
 
 **Universal por diseño:** no está limitado a una empresa, a un número fijo de alimentadores ni a códigos como IN111/TA121. Cualquier export CYMDIST/IGEA con otras denominaciones de NetworkID, tipos de línea o CRS regionales se puede cargar; los nombres y conteos salen de los TXT, no de listas fijas en el código.
 
+### Tres fuentes aisladas y aceptación auditable
+
+La interfaz admite **tres TXT**, **MDB/Access** y **VNR-GIS**. Cada carga crea una
+ejecución inmutable propia; nunca completa una modalidad con archivos de otra. La
+tabla permite seleccionar uno, varios o todos los alimentadores y bloquea el lote
+completo si alguno carece de fuente, topología o catálogo exacto.
+
+Para ejecutar y documentar el flujo independiente hasta DGS/PowerFactory use
+`python tools/accept_three_sources.py --help`. El procedimiento, los niveles de
+evidencia y las referencias científicas están en
+[`docs/runbooks/three-source-production-acceptance.md`](docs/runbooks/three-source-production-acceptance.md).
+
 ## Interfaz web (recomendada)
 
 Doble clic en `run_gui.bat`, o:
