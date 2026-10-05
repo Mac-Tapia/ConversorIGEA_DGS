@@ -186,6 +186,11 @@ def load_dataset(ws: Workspace, ctx: JobContext) -> dict:
         ws.inventory = inventory
         ws.feeder_readiness = readiness
         ws.catalog_report = catalog_report
+        ws.reconstructed_dataset = None
+        ws.reconstruction_report = None
+        ws.reconstruction_report_hash = None
+        ws.reconstruction_run_id = None
+        ws.reconstruction_selection = ()
         ws.loaded_at = time.time()
         ws.plans.clear()
     return {
@@ -227,11 +232,22 @@ def feeder_rows(ws: Workspace) -> list[dict]:
             'status': 'INVENTORY_ONLY',
             'blocking_codes': ['READINESS_NOT_ASSESSED'],
         }
-        state = 'DGS_READY' if conv.get('status') == 'ok' else readiness['status']
+        reconstruction = conv.get('reconstruction') or {}
+        if conv.get('status') == 'ok' and reconstruction.get('assumptions'):
+            state = 'CONVERTED_WITH_ASSUMPTIONS'
+        elif conv.get('status') == 'ok':
+            state = 'DGS_READY'
+        else:
+            state = readiness['status']
         rows.append({
             **row,
             'readiness': state,
             'blocking_codes': list(readiness.get('blocking_codes') or []),
+            'source_quality': readiness.get('source_quality'),
+            'repair_count': readiness.get('repair_count', 0),
+            'assumption_count': readiness.get('assumption_count', 0),
+            'catalog_sources': list(readiness.get('catalog_sources') or []),
+            'convergence_state': readiness.get('convergence_state'),
             'source_run_id': ws.loaded_run_id,
             'source_mode': ws.loaded_source_mode,
             'source_fingerprint': ws.loaded_source_fingerprint,
@@ -277,7 +293,12 @@ def _write_json_atomic(path: Path, payload: dict) -> None:
     temporary.replace(path)
 
 
-def _stamp_source_manifest(ws: Workspace, manifest: dict, snapshot) -> None:
+def _stamp_source_manifest(
+    ws: Workspace,
+    manifest: dict,
+    snapshot,
+    reconstruction: dict[str, Any] | None = None,
+) -> None:
     """Liga el manifiesto y la metadata DGS a la ejecución que los produjo."""
     source = {
         'source_run_id': snapshot.run_id,
@@ -285,8 +306,12 @@ def _stamp_source_manifest(ws: Workspace, manifest: dict, snapshot) -> None:
         'source_fingerprint': snapshot.fingerprint,
     }
     manifest.update(source)
+    if reconstruction is not None:
+        manifest['reconstruction'] = reconstruction
     for item in manifest.get('feeders') or []:
         item.update(source)
+        if reconstruction is not None:
+            item['reconstruction'] = reconstruction
         metadata_path = item.get('feeder_metadata')
         if not metadata_path:
             continue
@@ -295,6 +320,8 @@ def _stamp_source_manifest(ws: Workspace, manifest: dict, snapshot) -> None:
             continue
         metadata = json.loads(path.read_text(encoding='utf-8'))
         metadata.update(source)
+        if reconstruction is not None:
+            metadata['reconstruction'] = reconstruction
         _write_json_atomic(path, metadata)
     _write_json_atomic(ws.out_dir / 'batch_manifest.json', manifest)
 
@@ -341,9 +368,33 @@ def check_selection_readiness(
 
 def convert(ws: Workspace, ctx: JobContext, feeders: list[str] | None, all_feeders: bool) -> dict:
     from ..batch import convert_selection, load_aliases
+    from .reconstruction_service import (
+        matching_reconstruction,
+        reconstruct_selection,
+        reconstruction_evidence,
+        resolve_selection,
+    )
 
     snapshot = require_active_source_run(ws)
-    selected = check_selection_readiness(ws, feeders, all_feeders)
+    selected, network_ids = resolve_selection(ws, feeders, all_feeders=all_feeders)
+    ready_without_reconstruction = all(
+        (ws.feeder_readiness.get(network_id) or {}).get('status')
+        in {'CONVERSION_READY', 'READY_ORIGINAL'}
+        for network_id in network_ids
+    )
+    if not ready_without_reconstruction:
+        from ..dataset import CymdistDataset
+
+        # Keep the preflight fail-closed for adapter/test doubles that did not
+        # provide a canonical dataset. Real TXT/MDB/VNR loads always do.
+        if not isinstance(ws.dataset, CymdistDataset):
+            check_selection_readiness(ws, feeders, all_feeders)
+    if not ready_without_reconstruction and not matching_reconstruction(ws, network_ids):
+        ctx.log('La selección tiene datos incompletos: se crea una reconstrucción auditable.')
+        reconstruct_selection(ws, selected, all_feeders=False)
+    use_reconstruction = matching_reconstruction(ws, network_ids)
+    dataset = ws.reconstructed_dataset if use_reconstruction else ws.dataset
+    reconstruction = reconstruction_evidence(ws) if use_reconstruction else None
     opts = ws.options
     aliases = load_aliases(snapshot.path_for('aliases') or None)
     corrections = ws.catalog_corrections()
@@ -374,7 +425,7 @@ def convert(ws: Workspace, ctx: JobContext, feeders: list[str] | None, all_feede
     from ..reglas import catalogo_del_proyecto
 
     manifest = convert_selection(
-        ws.dataset, None if all_feeders else feeders, ws.out_dir,
+        dataset, None if all_feeders else selected, ws.out_dir,
         all_feeders=all_feeders,
         aliases=aliases,
         strict=bool(opts['strict']),
@@ -393,9 +444,11 @@ def convert(ws: Workspace, ctx: JobContext, feeders: list[str] | None, all_feede
         # dentro de un lote, los alimentadores se reparten entre procesos.
         workers=workers,
         reglas=reglas_de(ws),
-        catalogo=catalogo_del_proyecto(),
+        # El dataset reconstruido ya contiene filas exactas y no puede volver a la
+        # resolución difusa/DEFAULT del camino literal.
+        catalogo=None if use_reconstruction else catalogo_del_proyecto(),
     )
-    _stamp_source_manifest(ws, manifest, snapshot)
+    _stamp_source_manifest(ws, manifest, snapshot, reconstruction)
     ws.record_conversions(manifest)
 
     summary = manifest['summary']
@@ -434,6 +487,7 @@ def convert(ws: Workspace, ctx: JobContext, feeders: list[str] | None, all_feede
         'input_warnings': manifest.get('input_warnings') or [],
         'manifest': 'batch_manifest.json',
         'workers': manifest.get('workers', 1),
+        'reconstruction': reconstruction,
     }
 
 
@@ -742,9 +796,10 @@ def build_model(ws: Workspace, feeder: str, *, geography: bool | None = None):
     from ..model import build_feeder_model
     from ..reglas import aplicar_reglas, catalogo_del_proyecto
 
+    dataset = _dataset_for_feeder(ws, feeder)
     try:
         modelo = build_feeder_model(
-            ws.dataset, feeder, strict=False,
+            dataset, feeder, strict=False,
             include_geography=ws.options['include_geography'] if geography is None else geography,
         )
     except Exception as exc:  # noqa: BLE001 - se informa al operador
@@ -758,6 +813,21 @@ def build_model(ws: Workspace, feeder: str, *, geography: bool | None = None):
     return modelo
 
 
+def _dataset_for_feeder(ws: Workspace, feeder: str):
+    """Use derived data only when it belongs to this active run and feeder."""
+    if (
+        ws.reconstructed_dataset is not None
+        and ws.reconstruction_run_id == ws.loaded_run_id == ws.active_run_id
+    ):
+        try:
+            network_id = ws.reconstructed_dataset.resolve_feeder(feeder)
+        except KeyError:
+            network_id = feeder
+        if network_id in ws.reconstruction_selection:
+            return ws.reconstructed_dataset
+    return ws.dataset
+
+
 # ---------------------------------------------------------------------------
 # Varios alimentadores en un solo DGS
 # ---------------------------------------------------------------------------
@@ -765,13 +835,16 @@ def build_model(ws: Workspace, feeder: str, *, geography: bool | None = None):
 
 def group_selection(ws: Workspace, feeders: list[str], all_feeders: bool) -> list[str]:
     require_loaded(ws)
-    feeders = check_selection_readiness(ws, feeders, all_feeders)
+    from .reconstruction_service import resolve_selection
+
+    feeders, _network_ids = resolve_selection(ws, feeders, all_feeders=all_feeders)
     if len(feeders) < 2:
         raise UserError('Para unir en un solo DGS seleccione al menos dos alimentadores.')
     from ..batch import expand_connected_feeders
 
-    expanded = [feeder_short_name(n) for n in expand_connected_feeders(ws.dataset, feeders)]
-    return check_selection_readiness(ws, expanded, False)
+    expanded = list(expand_connected_feeders(ws.dataset, feeders))
+    expanded_names, _expanded_ids = resolve_selection(ws, expanded, all_feeders=False)
+    return expanded_names
 
 
 def group_name(nombre: str, feeders: list[str]) -> str:
@@ -793,9 +866,26 @@ def convert_group(
     from ..batch import convert_group as convertir_grupo
     from ..batch import load_aliases
     from ..reglas import catalogo_del_proyecto
+    from .reconstruction_service import (
+        matching_reconstruction,
+        reconstruct_selection,
+        reconstruction_evidence,
+        resolve_selection,
+    )
 
     snapshot = require_active_source_run(ws)
-    check_selection_readiness(ws, feeders, False)
+    selected, network_ids = resolve_selection(ws, feeders, all_feeders=False)
+    ready_without_reconstruction = all(
+        (ws.feeder_readiness.get(network_id) or {}).get('status')
+        in {'CONVERSION_READY', 'READY_ORIGINAL'}
+        for network_id in network_ids
+    )
+    if not ready_without_reconstruction and not matching_reconstruction(ws, network_ids):
+        ctx.log('La red unida contiene datos incompletos: se reconstruye el lote completo.')
+        reconstruct_selection(ws, selected, all_feeders=False)
+    use_reconstruction = matching_reconstruction(ws, network_ids)
+    dataset = ws.reconstructed_dataset if use_reconstruction else ws.dataset
+    reconstruction = reconstruction_evidence(ws) if use_reconstruction else None
     opts = ws.options
     ctx.log(f'--- Red unida {nombre}: {", ".join(feeders)} ---')
     añadidos = sorted(set(feeders) - set(requested_feeders or feeders))
@@ -809,13 +899,14 @@ def convert_group(
         ctx.log(f'[{index}/{total}] {name}…')
 
     man = convertir_grupo(
-        ws.dataset, feeders, ws.out_dir, name=nombre,
+        dataset, selected, ws.out_dir, name=nombre,
         aliases=load_aliases(snapshot.path_for('aliases') or None),
         strict=bool(opts['strict']),
         source_crs=opts['source_crs'] or 'EPSG:32718',
         target_crs=opts['target_crs'] or 'EPSG:4326',
         catalog_corrections=ws.catalog_corrections() or None,
-        reglas=reglas_de(ws), catalogo=catalogo_del_proyecto(),
+        reglas=reglas_de(ws),
+        catalogo=None if use_reconstruction else catalogo_del_proyecto(),
         on_progress=on_progress, cancel=ctx.cancel,
     )
     source = {
@@ -824,10 +915,14 @@ def convert_group(
         'source_fingerprint': snapshot.fingerprint,
     }
     man.update(source)
+    if reconstruction is not None:
+        man['reconstruction'] = reconstruction
     metadata_path = man.get('feeder_metadata')
     if metadata_path and Path(metadata_path).is_file():
         metadata = json.loads(Path(metadata_path).read_text(encoding='utf-8'))
         metadata.update(source)
+        if reconstruction is not None:
+            metadata['reconstruction'] = reconstruction
         _write_json_atomic(Path(metadata_path), metadata)
     _write_json_atomic(ws.out_dir / f'{nombre}_manifest.json', man)
     ctx.log(man.get('entrada') or '')
@@ -854,7 +949,7 @@ def convert_group(
         ws.groups[nombre] = {k: man.get(k) for k in (
             'name', 'feeders', 'status', 'error', 'dgs', 'feeder_metadata',
             'hoja', 'ties', 'completitud', 'source_run_id', 'source_mode',
-            'source_fingerprint')}
+            'source_fingerprint', 'reconstruction')}
         ws.groups[nombre]['requested_feeders'] = list(requested_feeders or feeders)
         ws.groups[nombre]['converted_at'] = time.time() if man['status'] == 'ok' else None
         ws.save()
@@ -862,7 +957,8 @@ def convert_group(
             'dgs': f'{nombre}.dgs' if man['status'] == 'ok' else None,
             'feeder_metadata': f'{nombre}_feeder_metadata.json' if man['status'] == 'ok' else None,
             'feeders': feeders, 'completitud': man.get('completitud'),
-            'hoja': man.get('hoja'), 'manifest': f'{nombre}_manifest.json'}
+            'hoja': man.get('hoja'), 'manifest': f'{nombre}_manifest.json',
+            'reconstruction': reconstruction}
 
 
 def load_template(ws: Workspace, feeder: str, fmt: str) -> Path:

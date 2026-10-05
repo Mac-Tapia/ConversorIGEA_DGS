@@ -162,11 +162,13 @@ def resolve_equipment(
 def resolve_dataset_equipment(
     result: ReconstructionResult,
     catalogs: Iterable[CatalogSource],
+    network_ids: Iterable[str] | None = None,
 ) -> dict[str, ResolvedParameters]:
     """Materialize exact rows for unresolved codes in the derived dataset."""
 
     dataset = result.dataset
     external = tuple(catalogs)
+    selected = set(network_ids) if network_ids is not None else None
     source_catalog = _catalog_from_dataset(dataset)
     all_catalogs = (source_catalog, *external) if source_catalog.rows else external
     resolved: dict[str, ResolvedParameters] = {}
@@ -175,6 +177,8 @@ def resolve_dataset_equipment(
         for table, rows in dataset.equipment_tables.items()
     }
     for section_id in sorted(dataset.line_configurations):
+        if selected is not None and dataset.section_owner.get(section_id) not in selected:
+            continue
         config = dataset.line_configurations[section_id]
         overhead = str(config.get('Overhead', '1')).strip() not in {'0', 'false', 'False'}
         table = 'LINE' if overhead else 'CONCENTRIC NEUTRAL CABLE'

@@ -122,6 +122,11 @@ class Workspace:
     inventory: dict | None = None
     feeder_readiness: dict[str, dict[str, Any]] = field(default_factory=dict)
     catalog_report: dict | None = None
+    reconstructed_dataset: Any = None
+    reconstruction_report: dict | None = None
+    reconstruction_report_hash: str | None = None
+    reconstruction_run_id: str | None = None
+    reconstruction_selection: tuple[str, ...] = ()
     loaded_at: float | None = None
     plans: dict[str, dict[str, Any]] = field(default_factory=dict)
     events: EventLog = field(default_factory=EventLog)
@@ -200,6 +205,11 @@ class Workspace:
         self.inventory = None
         self.feeder_readiness.clear()
         self.catalog_report = None
+        self.reconstructed_dataset = None
+        self.reconstruction_report = None
+        self.reconstruction_report_hash = None
+        self.reconstruction_run_id = None
+        self.reconstruction_selection = ()
         self.loaded_at = None
         self.plans.clear()
         self.active_run_id = None
@@ -327,6 +337,12 @@ class Workspace:
             'catalog_report': self.catalog_report,
             'catalog_applied': bool(self.catalog_file),
             'catalog_file': Path(self.catalog_file).name if self.catalog_file else None,
+            'reconstruction': {
+                'run_id': self.reconstruction_run_id,
+                'selection': list(self.reconstruction_selection),
+                'report': 'reconstruction_report.json',
+                'report_sha256': self.reconstruction_report_hash,
+            } if self.reconstruction_report_hash else None,
             'converted': sum(1 for c in self.conversions.values() if c.get('status') == 'ok'),
             'groups': [
                 group for group in self.groups.values()

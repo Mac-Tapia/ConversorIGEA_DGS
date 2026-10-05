@@ -29,11 +29,19 @@ _COORDINATE_KEYS = {
 }
 
 
-def repair_missing_nodes(result: ReconstructionResult) -> ReconstructionResult:
+def repair_missing_nodes(
+    result: ReconstructionResult,
+    network_ids: Iterable[str] | None = None,
+) -> ReconstructionResult:
     """Create only terminals that are explicitly referenced by source sections."""
 
     dataset = result.dataset
-    for section_id in sorted(dataset.sections):
+    selected = set(network_ids) if network_ids is not None else None
+    section_ids = (
+        section_id for section_id in dataset.sections
+        if selected is None or dataset.section_owner.get(section_id) in selected
+    )
+    for section_id in sorted(section_ids):
         section = dataset.sections[section_id]
         for side in ('From', 'To'):
             field = f'{side}NodeID'
@@ -71,16 +79,22 @@ def repair_missing_nodes(result: ReconstructionResult) -> ReconstructionResult:
     return result
 
 
-def repair_discontinuities(result: ReconstructionResult) -> ReconstructionResult:
+def repair_discontinuities(
+    result: ReconstructionResult,
+    network_ids: Iterable[str] | None = None,
+) -> ReconstructionResult:
     """Reconnect coordinate-coincident islands without crossing scope or voltage."""
 
-    repair_missing_nodes(result)
+    selected = set(network_ids) if network_ids is not None else None
+    repair_missing_nodes(result, selected)
     dataset = result.dataset
     tolerance = result.policy.topology_snap_tolerance
     if tolerance <= 0:
         return result
 
     for network_id in sorted(dataset.feeders):
+        if selected is not None and network_id not in selected:
+            continue
         section_ids = tuple(dataset.feeders[network_id])
         source_node = _source_node(dataset, network_id)
         if not source_node:

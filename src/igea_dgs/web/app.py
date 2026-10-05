@@ -532,6 +532,20 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         ws = ws_or_404(wid)
         return {'loaded': ws.dataset is not None, 'feeders': services.feeder_rows(ws)}
 
+    @app.post('/api/workspaces/{wid}/diagnose')
+    def diagnose(wid: str, body: SelectionIn) -> dict:
+        from .reconstruction_service import diagnose_selection
+
+        ws = ws_or_404(wid)
+        return diagnose_selection(ws, body.feeders, all_feeders=body.all)
+
+    @app.post('/api/workspaces/{wid}/reconstruct')
+    def reconstruct(wid: str, body: SelectionIn) -> dict:
+        from .reconstruction_service import reconstruct_selection
+
+        ws = ws_or_404(wid)
+        return reconstruct_selection(ws, body.feeders, all_feeders=body.all)
+
     @app.post('/api/workspaces/{wid}/convert', status_code=202)
     def convert(wid: str, body: SelectionIn) -> dict:
         ws = ws_or_404(wid)
@@ -547,7 +561,6 @@ def create_app(data_root: Path | None = None) -> FastAPI:
             return submit(ws, 'convert_group', f'Unir {len(feeders)} alimentadores en {nombre}.dgs',
                           lambda ctx: services.convert_group(
                               ws, ctx, feeders, nombre, requested_feeders=requested))
-        services.check_selection_readiness(ws, body.feeders, body.all)
         n = len(ws.inventory['feeders']) if body.all and ws.inventory else len(body.feeders)
         title = f'Convertir {"TODOS" if body.all else ""} {n} alimentador(es) a DGS'.replace('  ', ' ')
         return submit(ws, 'convert', title,
