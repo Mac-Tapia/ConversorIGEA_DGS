@@ -58,6 +58,43 @@ def test_exact_active_source_run_is_accepted(tmp_path):
     assert evidence['targets'][0]['dgs_sha256']
 
 
+def test_reconstructed_dgs_requires_the_active_untampered_report(tmp_path):
+    from igea_dgs.powerfactory_metadata import reconstruction_report_sha256
+    from igea_dgs.web.services import UserError, check_powerfactory_source_run
+
+    ws = _ws(tmp_path)
+    report = {
+        'source_run_id': 'run-active',
+        'selection': ['IN111'],
+        'decisions': [{'level': 'catalog_match'}],
+        'counts': {'catalog_match': 1},
+    }
+    digest = reconstruction_report_sha256(report)
+    report['report_sha256'] = digest
+    report_path = ws.out_dir / 'reconstruction_report.json'
+    report_path.write_text(json.dumps(report), encoding='utf-8')
+    metadata_path = ws.out_dir / 'IN111_feeder_metadata.json'
+    metadata = json.loads(metadata_path.read_text(encoding='utf-8'))
+    metadata['reconstruction'] = {
+        'report': report_path.name,
+        'report_sha256': digest,
+        'repairs': 1,
+        'catalog_matches': 1,
+        'assumptions': 0,
+    }
+    metadata_path.write_text(json.dumps(metadata), encoding='utf-8')
+    ws.reconstruction_run_id = 'run-active'
+    ws.reconstruction_report_hash = digest
+
+    evidence = check_powerfactory_source_run(ws, ['IN111'])
+    assert evidence['targets'][0]['reconstruction']['report_sha256'] == digest
+
+    report['decisions'][0]['level'] = 'engineering_assumption'
+    report_path.write_text(json.dumps(report), encoding='utf-8')
+    with pytest.raises(UserError, match='POWERFACTORY_RECONSTRUCTION_MISMATCH'):
+        check_powerfactory_source_run(ws, ['IN111'])
+
+
 def test_acceptance_source_contract_runs_before_powerfactory_connect(tmp_path, monkeypatch):
     import importlib.util
     from pathlib import Path
