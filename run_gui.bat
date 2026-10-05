@@ -10,10 +10,13 @@ if exist ".venv\Scripts\python.exe" set "PY=.venv\Scripts\python.exe"
 if not defined PY set "PY=python"
 
 set PYTHONPATH=src
-"%PY%" -c "import igea_dgs, pyproj, fastapi, uvicorn, multipart" 1>nul 2>nul
+"%PY%" -m igea_dgs.web.runtime 1>nul 2>nul
 if errorlevel 1 (
-  echo Instalando dependencias de produccion desde requirements.txt...
+  echo Instalando dependencias de produccion para TXT, MDB y VNR-GIS...
   "%PY%" -m pip install -r "%~dp0requirements.txt" --disable-pip-version-check
+  if errorlevel 1 goto :dependency_error
+  "%PY%" -m igea_dgs.web.runtime
+  if errorlevel 1 goto :dependency_error
 )
 
 rem El front se compila una vez. Hace falta Node.js solo para esto; despues, no.
@@ -41,3 +44,12 @@ if errorlevel 1 (
   pause
 )
 endlocal
+exit /b 0
+
+:dependency_error
+echo.
+echo No se pudo preparar el entorno completo TXT, MDB y VNR-GIS.
+echo Revise la salida anterior y AUDIT\web_runtime si existe.
+pause
+endlocal
+exit /b 1
