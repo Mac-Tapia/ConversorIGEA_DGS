@@ -1,0 +1,51 @@
+# Configuración de ejemplo para vnr_etl (módulo adicional IGEA-DGS).
+# Los valores por defecto están en src/vnr_etl/config.py; este YAML solo
+# sobrescribe lo que se indica. El CRS de origen NUNCA se copia de aquí:
+# debe salir de los metadatos de la fuente.
+
+project:
+  mode: audit
+  strict: true
+
+gis:
+  source_crs: null      # lo aporta la fuente (p. ej. EPSG:32718 o EPSG:4326)
+  working_crs: null     # CRS proyectado para medir/snapping
+  snap_tolerance_m: 0.50
+  equipment_snap_tolerance_m: 1.00
+
+validation:
+  allow_islands: false
+  allow_self_loops: false
+  require_source: true
+  require_catalog_mapping: true
+
+qa:
+  length_warn_pct: 2.0
+  length_error_pct: 10.0
+
+exports:
+  cymdist_enabled: true
+  dgs_enabled: true
+  output_dir: output
+
+templates:
+  cymdist: null        # ruta al contrato CYMDIST verificado (obligatorio para exportar)
+  dgs: config/vnr_dgs_profile.json  # contrato DGS verificado por SHA-256
+
+discovery:
+  enabled: true
+  official_only: true
+  allowed_hosts:
+    - osinergmin.gob.pe
+    - www.osinergmin.gob.pe
+    - www2.osinergmin.gob.pe
+    - gisem.osinergmin.gob.pe
+
+download:
+  cache_dir: data/vnr_downloads
+  temp_dir: data/tmp
+  retries: 3
+  max_file_size_mb: 4096
+  sha256: true
+  verify_archive: true
+  auto_extract: false

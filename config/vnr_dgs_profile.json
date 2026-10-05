@@ -1,0 +1,35 @@
+{
+  "simulator": "DIgSILENT PowerFactory",
+  "version": "2024 / DGS compatibility 1.8.4",
+  "workflow": "Importación DGS mediante el perfil versionado pf21_dgs_1_8_4",
+  "sample_path": "../referencia/NA205.dgs",
+  "sample_hash": "1545b0f6fe32ca5ce91c6cae7218741c3fac7ce19cedf87168b68ea70325056f",
+  "encoding": "utf-8",
+  "delimiter": ";",
+  "object_mapping": {
+    "schema_profile": "pf21_dgs_1_8_4"
+  },
+  "required_fields": [
+    "source_publication_id",
+    "source_company",
+    "source_period",
+    "source_url",
+    "source_sha256",
+    "retrieved_at",
+    "schema_fingerprint",
+    "source_fingerprint",
+    "canonical_model_version"
+  ],
+  "units": {
+    "length": "km",
+    "voltage": "kV",
+    "active_power": "MW",
+    "reactive_power": "MVAr"
+  },
+  "validation_rules": {
+    "roundtrip_required": true,
+    "unique_fid_required": true,
+    "powerfactory_import_required_for_production": true,
+    "load_flow_required_for_production": true
+  }
+}
