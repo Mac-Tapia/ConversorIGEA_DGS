@@ -126,6 +126,18 @@ def preparar_dataset(dataset, *, catalogo: Path | str | None = None) -> InformeE
     return informe
 
 
+def preparar_dataset_reconstruido(result, *, catalogos=()) -> tuple[InformeEntrada, dict]:
+    """Prepare only the derived copy and materialize explicit equipment evidence.
+
+    The literal conversion path above remains available for regression.  The
+    reconstructed path avoids implicit nearest-code/DEFAULT resolution because
+    every missing code receives an exact row under its original identifier.
+    """
+    informe = preparar_dataset(result.dataset, catalogo=None)
+    resoluciones = result.resolve_equipment(catalogos)
+    return informe, resoluciones
+
+
 # ---------------------------------------------------------------------------
 # Modelo
 # ---------------------------------------------------------------------------
