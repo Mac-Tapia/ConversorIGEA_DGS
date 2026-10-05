@@ -12,6 +12,7 @@ entera queda en un solo proceso y un solo puerto.
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import shutil
 import tempfile
@@ -21,7 +22,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from fastapi import (
-    BackgroundTasks, FastAPI, File, HTTPException, Query, Request, UploadFile, WebSocket,
+    BackgroundTasks, FastAPI, File, Form, HTTPException, Query, Request, UploadFile, WebSocket,
     WebSocketDisconnect,
 )
 from fastapi.middleware.cors import CORSMiddleware
@@ -159,6 +160,12 @@ def create_app(data_root: Path | None = None) -> FastAPI:
     @app.exception_handler(UserError)
     async def _user_error(_request: Request, exc: UserError):
         return JSONResponse(status_code=400, content={'detail': str(exc)})
+
+    from .load_batch import LoadBatchPlanStale
+
+    @app.exception_handler(LoadBatchPlanStale)
+    async def _load_batch_stale(_request: Request, exc: LoadBatchPlanStale):
+        return JSONResponse(status_code=409, content={'detail': str(exc)})
 
     def ws_or_404(wid: str) -> Workspace:
         ws = store.get(wid)
@@ -723,6 +730,61 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         plan = services.check_plan(ws, token)
         title = ('Actualizar cargas' if plan['kind'] == 'cargas' else 'Crear SED') + f" en {plan['feeder']}"
         return submit(ws, 'plan', title, lambda ctx: services.apply_plan(ws, ctx, token),
+                      lane='powerfactory')
+
+    # ------------------------------------------------------------ lote en PowerFactory
+    @app.post('/api/workspaces/{wid}/powerfactory/projects', status_code=202)
+    def pf_projects(wid: str) -> dict:
+        ws = ws_or_404(wid)
+        return submit(ws, 'pf_projects', 'Leer proyectos de DigSILENT',
+                      lambda ctx: services.pf_projects(ws, ctx), lane='powerfactory')
+
+    @app.post('/api/workspaces/{wid}/lote/plan')
+    def lote_plan(
+        wid: str,
+        project: str = Form(...),
+        feeders: list[str] = Form(...),
+        update_file: UploadFile | None = File(None),
+        create_file: UploadFile | None = File(None),
+        economia: str | None = Form(None),
+    ) -> dict:
+        ws = ws_or_404(wid)
+        try:
+            eco = json.loads(economia) if economia else None
+        except ValueError as exc:
+            raise HTTPException(422, f'economia no es JSON válido: {exc}') from exc
+        if eco is not None and not isinstance(eco, dict):
+            raise HTTPException(422, 'economia debe ser un objeto JSON.')
+        tmps: list[Path] = []
+        try:
+            upd = cre = None
+            if update_file:
+                upd = _upload_tmp(ws, update_file, 'cargas.xlsx')
+                tmps.append(upd)
+            if create_file:
+                cre = _upload_tmp(ws, create_file, 'sed_nuevas.xlsx')
+                tmps.append(cre)
+            return services.lote_plan(ws, project, feeders, upd, cre, eco)
+        finally:
+            for p in tmps:
+                p.unlink(missing_ok=True)
+
+    @app.post('/api/workspaces/{wid}/lote/{token}/apply', status_code=202)
+    def lote_apply(wid: str, token: str) -> dict:
+        from .load_batch import require_current_load_batch_plan
+
+        ws = ws_or_404(wid)
+        plan = ws.plans.get(token)
+        if plan is None or plan.get('kind') != 'lote':
+            raise HTTPException(404, 'El plan ya no existe: vuelva a prepararlo.')
+        typed_plan = require_current_load_batch_plan(ws, token)
+        if not typed_plan.applicable:
+            raise UserError('El plan no es aplicable: tiene filas con error o no cambia nada.')
+        title = (
+            f"Cargas en DigSILENT · {typed_plan.project} "
+            f"({len(typed_plan.feeders)} alim.)"
+        )
+        return submit(ws, 'lote', title, lambda ctx: services.apply_lote(ws, ctx, token),
                       lane='powerfactory')
 
     # ------------------------------------------------------------ catálogo

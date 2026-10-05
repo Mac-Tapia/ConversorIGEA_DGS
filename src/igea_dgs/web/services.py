@@ -1178,6 +1178,214 @@ def apply_plan(ws: Workspace, ctx: JobContext, token: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Cargas en varios alimentadores de un proyecto de PowerFactory
+# ---------------------------------------------------------------------------
+
+
+def pf_projects(ws: Workspace, ctx: JobContext) -> dict:
+    """Proyectos que hay en PowerFactory y los alimentadores de cada uno."""
+    pf_dir, interpreter = _require_pf()
+    out = ws.out_dir / 'pf_proyectos.json'
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.unlink(missing_ok=True)
+    rc = ctx.run_process(
+        [str(interpreter), str(_script('pf_proyectos.py')), '--output-json', str(out)],
+        env=pf_subprocess_env(pf_dir), cwd=str(project_root()),
+    )
+    if rc == 3:
+        raise UserError('No se pudo conectar con PowerFactory. Ábralo y reintente.')
+    if rc != 0 or not out.is_file():
+        raise UserError(f'No se pudieron leer los proyectos de PowerFactory (código {rc}).')
+    result = json.loads(out.read_text(encoding='utf-8'))
+    with ws.lock:
+        ws.pf_inventory = result
+        ws.save()
+    return result
+
+
+def _economia_del_lote(economia: dict | None):
+    """``{'costos': {...}, 'tec': {...}}`` → (CostosUnitarios, ParametrosTec) validados."""
+    from ..economia import CostosUnitarios, EconomiaError, ParametrosTec
+
+    if not economia:
+        return None, None
+    try:
+        costos = CostosUnitarios(**(economia.get('costos') or {}))
+        costos.validar()
+        tec = ParametrosTec(**economia['tec']) if economia.get('tec') else None
+        if tec is not None:
+            tec.validar()
+    except (TypeError, KeyError) as exc:
+        raise UserError(f'Datos económicos incompletos o con campos desconocidos: {exc}') from exc
+    except EconomiaError as exc:
+        raise UserError(str(exc)) from exc
+    return costos, tec
+
+
+def lote_plan(
+    ws: Workspace, project: str, feeders: list[str],
+    update_file: Path | None, create_file: Path | None,
+    economia: dict | None = None,
+) -> dict:
+    """Prepara el lote: un Excel (o dos) con varios alimentadores → un plan por alimentador.
+
+    Cada fila se asigna al alimentador al que pertenece (``loads.split_by_feeder`` y
+    ``loads_create.split_create_by_feeder``), no al que diga la hoja. El orden de
+    ``feeders`` es el orden en que se aplicarán en PowerFactory.
+    """
+    from datetime import datetime
+
+    from ..loads import (
+        LoadTemplateError, build_plan, plan_to_payload, read_workbook, split_by_feeder,
+    )
+    from ..loads_create import (
+        build_create_plan, create_plan_to_payload, read_create_workbook,
+        split_create_by_feeder,
+    )
+
+    from ..economia import datos_etapa
+
+    require_loaded(ws)
+    if not project.strip():
+        raise UserError('Elija el proyecto de PowerFactory.')
+    costos, tec = _economia_del_lote(economia)
+    if tec is not None and create_file is None:
+        raise UserError('La evaluación técnico-económica valora las SED nuevas: '
+                        'suba también el Excel de SED nuevas.')
+    elegidos = list(dict.fromkeys(f.strip() for f in feeders if f.strip()))
+    if not elegidos:
+        raise UserError('Elija al menos un alimentador.')
+    if update_file is None and create_file is None:
+        raise UserError('Suba el Excel de actualización de cargas, el de SED nuevas o los dos.')
+    disponibles = {feeder_short_name(n) for n in ws.dataset.feeder_ids()}
+    faltan = [f for f in elegidos if f not in disponibles]
+    if faltan:
+        raise UserError(
+            f'{", ".join(faltan)} no está en las entradas cargadas en este espacio. Para '
+            'preparar el plan hace falta su red: cargue el TXT o la base que lo contiene.')
+    models = {f: build_model(ws, f) for f in elegidos}
+
+    actualizaciones: dict[str, Any] = {}
+    sueltos: list[str] = []
+    if update_file is not None:
+        try:
+            libro = read_workbook(update_file)
+        except LoadTemplateError as exc:
+            raise UserError(str(exc)) from exc
+        sed_feeder = {sed.code: f for f, m in models.items() for sed in m.seds}
+        por_feeder, sin = split_by_feeder(libro, sed_feeder, elegidos)
+        sueltos += sin
+        for f, read in por_feeder.items():
+            if read.rows or read.errors or read.skipped:
+                actualizaciones[f] = build_plan(models[f], read)
+
+    creaciones: dict[str, Any] = {}
+    if create_file is not None:
+        try:
+            libro_c = read_create_workbook(create_file)
+        except LoadTemplateError as exc:
+            raise UserError(str(exc)) from exc
+        por_feeder_c, sin = split_create_by_feeder(libro_c, models)
+        sueltos += sin
+        for f, (rows, errors) in por_feeder_c.items():
+            if rows or errors:
+                creaciones[f] = build_create_plan(models[f], rows, errors)
+
+    filas, entradas, errores = [], [], list(sueltos)
+    for f in elegidos:
+        upd, cre = actualizaciones.get(f), creaciones.get(f)
+        if upd is None and cre is None:
+            continue
+        errores += [f'{f}: {e}' for e in (upd.row_errors if upd else [])]
+        errores += [f'{f}: {e}' for e in (cre.row_errors if cre else [])]
+        filas.append({
+            'feeder': f,
+            'updates': len(upd.updates) if upd else 0,
+            'unknown': [r.sed_code for r in upd.unknown] if upd else [],
+            'create': len(cre.create) if cre else 0,
+            'already_exists': list(cre.already_exists) if cre else [],
+            'errors': len(upd.row_errors if upd else []) + len(cre.row_errors if cre else []),
+        })
+        crear = create_plan_to_payload(
+            cre, nominal_kv=models[f].nominal_kv, source_crs=ws.options['source_crs'],
+        ) if cre and cre.create else None
+        if crear is not None and costos is not None:
+            # Precio de la etapa: lo que la evaluación técnico-económica pondrá en el VAN.
+            crear['economia'] = datos_etapa(crear['create'], costos)
+            filas[-1]['inversion_kusd'] = crear['economia']['InvCosts']
+        entradas.append({
+            'feeder': f,
+            'update': plan_to_payload(upd) if upd and upd.updates else None,
+            'create': crear,
+        })
+    sin_cambios = [f for f in elegidos if f not in {r['feeder'] for r in filas}]
+    con_algo = any(e['update'] or e['create'] for e in entradas)
+    lote = {
+        'project': project.strip(),
+        'stamp': datetime.now().strftime('%Y%m%d_%H%M'),
+        'run_load_flow': True,
+        'feeders': entradas,
+        # La orden se lanza una vez, al final: la estrategia son todas las variaciones
+        # del lote juntas, no una por alimentador.
+        'tec': None if tec is None else {'parametros': tec.to_dict(), 'comtececo': tec.a_comtececo()},
+    }
+    info = {
+        'project': lote['project'],
+        'tec': lote['tec']['parametros'] if lote['tec'] else None,
+        'order': [r['feeder'] for r in filas],
+        'feeders_summary': filas,
+        'without_changes': sin_cambios,
+        'row_errors': errores,
+        'applicable': con_algo and not errores,
+    }
+    from .load_batch import create_load_batch_plan
+
+    result = create_load_batch_plan(
+        ws,
+        project.strip(),
+        elegidos,
+        update_file,
+        create_file,
+        economia,
+        payload=lote,
+        feeders_summary=filas,
+        row_errors=errores,
+    )
+    # Preserve the established API fields while the typed plan owns custody/versioning.
+    result.update({
+        'tec': info['tec'],
+        'without_changes': info['without_changes'],
+    })
+    return result
+
+
+def apply_lote(ws: Workspace, ctx: JobContext, token: str) -> dict:
+    from .load_batch import require_current_load_batch_plan
+
+    typed_plan = require_current_load_batch_plan(ws, token)
+    if not typed_plan.applicable:
+        raise UserError('El plan no es aplicable: tiene filas con error o no cambia nada.')
+    plan = ws.plans[token]
+    pf_dir, interpreter = _require_pf()
+    report = ws.out_dir / f"lote_cargas_{Path(plan['path']).stem}.json"
+    ctx.log(
+        f"Proyecto de PowerFactory: {typed_plan.project}  ·  "
+        f"orden: {', '.join(typed_plan.feeders)}"
+    )
+    rc = ctx.run_process(
+        [str(interpreter), str(_script('aplicar_lote_cargas.py')), '--lote', plan['path'],
+         '--output-json', str(report)],
+        env=pf_subprocess_env(pf_dir), cwd=str(project_root()),
+    )
+    if rc == 3:
+        ctx.log('No se pudo conectar con PowerFactory. Ábralo y reintente.')
+    elif rc != 0:
+        ctx.log(f'El proceso devolvió el código {rc}: revise en el informe los alimentadores con fallos.')
+    return {'returncode': rc, 'report': report.name if report.is_file() else None,
+            'project': typed_plan.project, 'order': list(typed_plan.feeders)}
+
+
+# ---------------------------------------------------------------------------
 # Catálogo de parámetros eléctricos
 # ---------------------------------------------------------------------------
 
