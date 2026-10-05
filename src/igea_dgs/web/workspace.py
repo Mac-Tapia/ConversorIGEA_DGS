@@ -112,6 +112,9 @@ class Workspace:
     # Proyecto de PowerFactory creado al importar cada DGS (por nombre del DGS). Las
     # actualizaciones de cargas y las SED nuevas se aplican sobre ese proyecto.
     pf_projects: dict[str, str] = field(default_factory=dict)
+    # Último inventario leído directamente de PowerFactory; su identidad invalida
+    # planes de carga revisados si el proyecto cambia antes de aplicar.
+    pf_inventory: dict[str, Any] = field(default_factory=dict)
     # Ejecución inmutable que respalda el dataset en memoria y sus salidas.
     active_run_id: str | None = None
     # --- solo en memoria
@@ -159,6 +162,7 @@ class Workspace:
             'catalog_file': self.catalog_file,
             'groups': self.groups,
             'pf_projects': self.pf_projects,
+            'pf_inventory': self.pf_inventory,
             'active_run_id': self.active_run_id,
         }
         self.root.mkdir(parents=True, exist_ok=True)
@@ -184,6 +188,7 @@ class Workspace:
         ws.catalog_file = catalog if catalog and Path(catalog).is_file() else None
         ws.groups = dict(data.get('groups') or {})
         ws.pf_projects = dict(data.get('pf_projects') or {})
+        ws.pf_inventory = dict(data.get('pf_inventory') or {})
         run_id = data.get('active_run_id')
         if run_id and (root / 'runs' / str(run_id) / 'source_manifest.json').is_file():
             ws.active_run_id = str(run_id)

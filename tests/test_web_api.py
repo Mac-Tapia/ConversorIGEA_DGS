@@ -355,3 +355,108 @@ def test_convertir_en_paralelo_da_lo_mismo_que_en_serie(client, tmp_path):
             for n in nombres
         }
     assert resultados[1] == resultados[2]
+
+
+def test_lote_de_cargas_reparte_un_excel_entre_alimentadores(client, export):
+    """Un solo Excel con SED de dos alimentadores → un plan por alimentador, en el orden elegido."""
+    openpyxl = pytest.importorskip('openpyxl')
+    import csv
+    import io
+
+    wid = _loaded(client, export)
+    nombres = [r['feeder'] for r in client.get(f'/api/workspaces/{wid}/feeders').json()['feeders']]
+    seds = {}
+    for name in nombres:
+        r = client.get(f'/api/workspaces/{wid}/feeders/{name}/load-template', params={'format': 'csv'})
+        if r.status_code == 200:
+            filas = list(csv.reader(io.StringIO(r.content.decode('utf-8-sig')), delimiter=';'))
+            if len(filas) > 1:
+                seds[name] = filas[1][1]                # primera SED (col 0 = feeder)
+    if len(seds) < 2:
+        pytest.skip('el export sintético no trae dos alimentadores con SED')
+    a, b = list(seds)[:2]
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'TODAS'                                  # no es ningún alimentador
+    ws.append(['SED', 'Kw', 'Kvar', '(kVA)', 'FP'])
+    ws.append([seds[a], 12, 4, None, None])
+    ws.append([seds[b], None, None, 50, 0.9])
+    buf = io.BytesIO()
+    wb.save(buf)
+
+    r = client.post(f'/api/workspaces/{wid}/lote/plan',
+                    data={'project': 'PROYECTO_PF', 'feeders': [b, a]},
+                    files={'update_file': ('cargas.xlsx', buf.getvalue())})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body['kind'] == 'lote' and body['project'] == 'PROYECTO_PF'
+    assert body['order'] == [b, a], 'el orden es el de la selección'
+    assert {f['feeder']: f['updates'] for f in body['feeders_summary']} == {a: 1, b: 1}
+    assert body['row_errors'] == [] and body['applicable'] is True
+
+
+def test_lote_sin_ficheros_o_sin_alimentadores_es_error_de_usuario(client, export):
+    wid = _loaded(client, export)
+    name = client.get(f'/api/workspaces/{wid}/feeders').json()['feeders'][0]['feeder']
+    r = client.post(f'/api/workspaces/{wid}/lote/plan', data={'project': 'P', 'feeders': [name]})
+    assert r.status_code == 400 and 'Excel' in r.json()['detail']
+    r = client.post(f'/api/workspaces/{wid}/lote/plan', data={'project': 'P', 'feeders': ['NO_EXISTE']},
+                    files={'update_file': ('c.csv', b'SED;Kw\n')})
+    assert r.status_code == 400 and 'NO_EXISTE' in r.json()['detail']
+
+
+def test_aplicar_un_lote_que_no_existe_es_404(client, export):
+    wid = _loaded(client, export)
+    assert client.post(f'/api/workspaces/{wid}/lote/abc/apply').status_code == 404
+
+
+def test_lote_con_evaluacion_tecnico_economica_valora_la_etapa(client, export):
+    """Con costes, cada alimentador con SED nuevas lleva la inversión de su etapa."""
+    openpyxl = pytest.importorskip('openpyxl')
+    import io
+    import json as _json
+
+    wid = _loaded(client, export, geography=True)
+    name = client.get(f'/api/workspaces/{wid}/feeders').json()['feeders'][0]['feeder']
+    plantilla = client.get(f'/api/workspaces/{wid}/feeders/{name}/create-template', params={'format': 'xlsx'})
+    if plantilla.status_code != 200:
+        pytest.skip(plantilla.json()['detail'])
+    nodos = openpyxl.load_workbook(io.BytesIO(plantilla.content))['nodos_validos']
+    nodo = nodos['A2'].value
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = name
+    ws.append(['SED', 'nodo_conexion', 'kVA_instalado', '(kVA)', 'FP'])
+    ws.append(['SE_NUEVA_1', nodo, 100, 40, 0.9])
+    buf = io.BytesIO()
+    wb.save(buf)
+    economia = {
+        'costos': {'sed_fijo_usd': 1000, 'trafo_usd_por_kva': 50, 'linea_usd_por_km': 0},
+        'tec': {'inicio': 2026, 'fin': 2046, 'interes_pct': 12, 'perdidas_usd_kwh': 0.1},
+    }
+    r = client.post(f'/api/workspaces/{wid}/lote/plan',
+                    data={'project': 'P', 'feeders': [name], 'economia': _json.dumps(economia)},
+                    files={'create_file': ('nuevas.xlsx', buf.getvalue())})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body['tec']['inicio'] == 2026
+    fila = body['feeders_summary'][0]
+    assert fila['create'] == 1
+    assert fila['inversion_kusd'] == pytest.approx(6.0)        # 1000 + 50·100 US$
+
+
+def test_lote_economia_invalida_es_error_de_usuario(client, export):
+    import json as _json
+
+    wid = _loaded(client, export)
+    name = client.get(f'/api/workspaces/{wid}/feeders').json()['feeders'][0]['feeder']
+    malo = {'costos': {'trafo_usd_por_kva': 10}, 'tec': {'inicio': 2030, 'fin': 2020}}
+    r = client.post(f'/api/workspaces/{wid}/lote/plan',
+                    data={'project': 'P', 'feeders': [name], 'economia': _json.dumps(malo)},
+                    files={'create_file': ('n.csv', b'SED;CoordX;CoordY;kVA_instalado\n')})
+    assert r.status_code == 400 and 'anterior al de inicio' in r.json()['detail']
+    r = client.post(f'/api/workspaces/{wid}/lote/plan',
+                    data={'project': 'P', 'feeders': [name], 'economia': '{no es json'},
+                    files={'create_file': ('n.csv', b'SED\n')})
+    assert r.status_code == 422
