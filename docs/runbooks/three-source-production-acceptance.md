@@ -30,6 +30,9 @@ Valverde et al. (<https://doi.org/10.1049/iet-gtd.2016.1560>).
 python tools\accept_three_sources.py `
   --audit-dir AUDIT\three_source_YYYYMMDD_HHMMSS `
   --feeder IN111 `
+  --company "EMPRESA_EJEMPLO" `
+  --period 2026 `
+  --source-crs EPSG:32718 `
   --mdb "ruta\260924.mdb" `
   --txt-red "ruta\260927_Red.txt" `
   --txt-loads "ruta\260927_Carga.txt" `
@@ -41,6 +44,13 @@ python tools\accept_three_sources.py `
 Omita `--powerfactory` para validar hasta DGS. Omita `--vnr-package` cuando no exista:
 el resumen lo marcará bloqueado sin reutilizar el MDB o los TXT.
 
+`--feeder` se puede repetir para uno o varios alimentadores; `--all-feeders` procesa
+todo el inventario. La reconstrucción está activa por defecto. Sus controles son
+`--minimum-catalog-confidence`, `--topology-snap-tolerance`,
+`--provisional-nominal-voltage-kv`, `--no-catalog-matches` y
+`--no-engineering-assumptions`. `--no-reconstruct` existe solo para comparar el
+flujo estricto anterior y deja bloqueado cualquier alimentador incompleto.
+
 ## Lectura de resultados
 
 `acceptance_summary.json` registra por modo:
@@ -49,7 +59,15 @@ el resumen lo marcará bloqueado sin reutilizar el MDB o los TXT.
 - `source_run_id` y fingerprint exclusivos;
 - cantidad de alimentadores y selección exacta;
 - DGS generados y sus SHA-256;
+- hashes de originales antes/después y `originals_unchanged=true`;
+- informe de reconstrucción, selección, decisiones, coincidencias de catálogo,
+  supuestos y SHA-256 canónico;
 - nivel de evidencia PowerFactory, proyecto, relectura efectiva, `ComLdf` y rollback.
+
+Las clases finales son `CONVERGED_ORIGINAL`, `CONVERGED_RECONSTRUCTED`,
+`CONVERGED_WITH_ASSUMPTIONS`, `NEEDS_OPERATOR_REVIEW`, `NOT_CONVERGED` y
+`REJECTED_STALE_EVIDENCE`. Reducir, escalar o desconectar carga siempre produce
+`NEEDS_OPERATOR_REVIEW`, aunque `ComLdf` converja.
 
 Estados de éxito: `DGS_READY` o `POWERFACTORY_VERIFIED`. Estados como
 `SKIP_MISSING_INPUT`, `SKIP_FEEDER_NOT_PRESENT`, `BLOCKED_FEEDER_NOT_READY` y
@@ -63,3 +81,33 @@ Estados de éxito: `DGS_READY` o `POWERFACTORY_VERIFIED`. Estados como
 4. Para PowerFactory, exija `VERIFIED_BEFORE_MUTATION`, relectura del atributo
    `p:alimentador`, `ComLdf` válido y estado explícito de rollback.
 5. Conserve toda la carpeta `AUDIT/three_source_*`; no copie resultados entre modos.
+
+## Matriz de cumplimiento del diseño (secciones 2–14)
+
+| Sección | Evidencia verificable |
+|---|---|
+| 2. Invariantes | `test_three_source_acceptance.py`: runs separados; `validate_summary`: slots y hashes sin mezcla. |
+| 3. Arquitectura | Adaptadores TXT/MDB/VNR → dataset canónico → copia reconstruida → DGS; manifiestos por workspace. |
+| 4. Empresa/periodo | Campos web y argumentos `--company`/`--period`; prueba genérica `UTILITY_X`. |
+| 5. Topología | `test_reconstruction_topology.py` y aceptación genérica con nodos ausentes. |
+| 6. Equipos/catálogos | `test_catalog_resolution.py`; jerarquía original/fabricante/global/supuesto con procedencia. |
+| 7. SED/cargas | Suites `test_sed_loads.py` y `test_sed_create.py`; el lote de cargas se acepta por separado. |
+| 8. Convergencia | `test_reconstruction_powerfactory.py`; relectura, `ComLdf`, intervenciones y rollback. |
+| 9. Estados | Contrato UI/servicio: original, reconstruido, supuesto y revisión. |
+| 10. Web | `test_web_reconstruction_ui_contract.py` y build Vite de producción. |
+| 11. Carga masiva | Plan de lotes; no se acredita hasta completar sus pruebas y aceptación real. |
+| 12. API | Diagnóstico/reconstrucción y sidecars ligados a `source_run_id` y hash. |
+| 13. Pruebas | Suite, build y aceptación controlada distinguen fake, DGS y PowerFactory real. |
+| 14. Producción | Cero fallos, originales intactos y evidencia real por fuente; una fuente ausente queda bloqueada. |
+
+## Base científica y límites
+
+La reconstrucción no convierte un dato supuesto en original. La trazabilidad de
+intercambio de modelos se apoya en la tesis doctoral de McMorran; la construcción
+GIS/flujo en la tesis de maestría de Özdamar; y la integración GIS-simulador en
+Valverde et al. Para redes con datos incompletos se conserva explícitamente la
+incertidumbre, coherente con la tesis doctoral sobre datos limitados de Strathclyde
+(<https://stax.strath.ac.uk/concern/theses/1r66j1947>) y con los métodos indexados
+de estimación conjunta de topología/parámetros
+(<https://ieeexplore.ieee.org/document/9781319/>). Ninguna de esas fuentes justifica
+inventar un paquete VNR-GIS oficial inexistente: ese caso permanece bloqueado.
