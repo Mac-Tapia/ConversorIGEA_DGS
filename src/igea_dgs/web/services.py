@@ -143,7 +143,11 @@ def load_dataset(ws: Workspace, ctx: JobContext) -> dict:
             ctx.log(f'{slot}: {Path(ws.input_path(slot)).name}')
 
     aliases = load_aliases(snapshot.path_for('aliases') or None)
-    loaded = adapter_for(mode).load(snapshot, aliases=aliases)
+    loaded = adapter_for(
+        mode,
+        company=ws.options.get('source_company'),
+        period=ws.options.get('source_period'),
+    ).load(snapshot, aliases=aliases)
     dataset, catalog_report = loaded.dataset, loaded.catalog_report
     if catalog_report and (
         snapshot.path_for('equipment_extra') or catalog_report.get('final_coverage', 1.0) < 1.0

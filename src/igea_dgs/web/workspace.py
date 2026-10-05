@@ -61,6 +61,8 @@ SLOTS: dict[str, dict[str, Any]] = {
 
 DEFAULT_OPTIONS: dict[str, Any] = {
     'input_mode': 'txt',
+    'source_company': None,
+    'source_period': None,
     'source_crs': 'EPSG:32718',
     'target_crs': 'EPSG:4326',
     'include_geography': True,
@@ -74,7 +76,7 @@ DEFAULT_OPTIONS: dict[str, Any] = {
     'hoja': None,
 }
 
-TEXT_OPTIONS = ('input_mode', 'source_crs', 'target_crs', 'hoja')
+TEXT_OPTIONS = ('input_mode', 'source_company', 'source_period', 'source_crs', 'target_crs', 'hoja')
 BOOL_OPTIONS = ('include_geography', 'strict', 'write_preview', 'export_xlsx', 'export_tsv')
 #: Tope del selector de procesos. Más allá no se gana (ver batch.AUTO_WORKERS_MAX) y
 #: cada proceso guarda una copia del dataset en memoria.
@@ -225,6 +227,9 @@ class Workspace:
         with self.lock:
             old = self.inputs.get(slot)
             self.inputs[slot] = meta
+            if slot == 'vnr_package':
+                self.options['source_company'] = None
+                self.options['source_period'] = None
             self.invalidate()
             self._drop_upload(old, keep=path)
             self.save()

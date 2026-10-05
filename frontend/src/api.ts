@@ -53,6 +53,11 @@ export const api = {
   setOptions: (id: string, opts: Partial<Options>) =>
     request<WorkspaceState>(`${ws(id)}/options`, json('PUT', opts)),
   sourceRuns: (id: string) => request<import('./types').SourceRun[]>(`${ws(id)}/runs`),
+  sourceScope: (id: string) => request<import('./types').SourceScope>(`${ws(id)}/source-scope`),
+  setSourceScope: (id: string, company: string | null, period: string | null) =>
+    request<import('./types').SourceScope>(
+      `${ws(id)}/source-scope`, json('PUT', { company, period }),
+    ),
 
   uploadInput: (id: string, slot: string, file: File) =>
     request<{ warning: string; workspace: WorkspaceState }>(`${ws(id)}/inputs/${slot}`, form(file)),

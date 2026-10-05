@@ -93,6 +93,11 @@ class VnrDownloadIn(BaseModel):
     publication_id: str
 
 
+class SourceScopeIn(BaseModel):
+    company: str | None = None
+    period: str | None = None
+
+
 class SelectionIn(BaseModel):
     feeders: list[str] = Field(default_factory=list)
     all: bool = False
@@ -335,6 +340,46 @@ def create_app(data_root: Path | None = None) -> FastAPI:
                 ws.options[key] = bool(ws.options[key])
             ws.save()
         return {**ws.public(), 'warning': warning}
+
+    @app.get('/api/workspaces/{wid}/source-scope')
+    def get_source_scope(wid: str) -> dict:
+        from .source_scope import inspect_package_scope
+
+        ws = ws_or_404(wid)
+        package = ws.input_path('vnr_package')
+        if not package:
+            raise HTTPException(409, 'Asigne primero un paquete VNR-GIS.')
+        try:
+            return inspect_package_scope(
+                package,
+                selected_company=ws.options.get('source_company'),
+                selected_period=ws.options.get('source_period'),
+            ).as_dict()
+        except ValueError as exc:
+            raise UserError(str(exc)) from exc
+
+    @app.put('/api/workspaces/{wid}/source-scope')
+    def put_source_scope(wid: str, body: SourceScopeIn) -> dict:
+        from .source_scope import inspect_package_scope
+
+        ws = ws_or_404(wid)
+        package = ws.input_path('vnr_package')
+        if not package:
+            raise HTTPException(409, 'Asigne primero un paquete VNR-GIS.')
+        try:
+            scope = inspect_package_scope(
+                package, selected_company=body.company, selected_period=body.period,
+            )
+        except ValueError as exc:
+            raise UserError(str(exc)) from exc
+        if scope.ambiguous:
+            raise UserError('SOURCE_SCOPE_SELECTION_REQUIRED')
+        with ws.lock:
+            ws.invalidate()
+            ws.options['source_company'] = scope.selected_company
+            ws.options['source_period'] = scope.selected_period
+            ws.save()
+        return scope.as_dict()
 
     # ------------------------------------------------------------ entradas
     def _check_slot(slot: str) -> dict:

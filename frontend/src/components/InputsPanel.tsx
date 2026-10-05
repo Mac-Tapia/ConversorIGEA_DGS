@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, fmtBytes } from '../api';
 import { useApp } from '../context';
-import type { InputMode, VnrPublications } from '../types';
+import type { InputMode, SourceScope, VnrPublications } from '../types';
 import { FileDrop, Pill, useConfirm, useToast } from './ui';
 
 const ACCEPT: Record<string, string> = {
@@ -136,7 +136,26 @@ export function InputsPanel() {
   const { ws, setWs, health, run, active } = useApp();
   const toast = useToast();
   const mode = ws.options.input_mode;
+  const [sourceScope, setSourceScope] = useState<SourceScope | null>(null);
   const slots = Object.entries(health.slots).filter(([, s]) => s.grupo === mode).map(([k]) => k);
+
+  useEffect(() => {
+    if (mode !== 'vnr' || !ws.inputs.vnr_package) {
+      setSourceScope(null);
+      return;
+    }
+    void run(() => api.sourceScope(ws.id)).then((scope) => {
+      if (scope) setSourceScope(scope);
+    });
+  }, [mode, ws.id, ws.inputs.vnr_package?.set_at]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const saveScope = async (company: string | null, period: string | null) => {
+    const scope = await run(() => api.setSourceScope(ws.id, company, period));
+    if (!scope) return;
+    setSourceScope(scope);
+    const refreshed = await run(() => api.workspace(ws.id));
+    if (refreshed) setWs(refreshed);
+  };
 
   const setMode = async (m: InputMode) => {
     const r = await run(() => api.setOptions(ws.id, { input_mode: m }));
@@ -186,6 +205,41 @@ export function InputsPanel() {
         {slots.map((s) => <Slot key={s} slot={s} />)}
         {mode !== 'vnr' && <Slot slot="aliases" />}
       </div>
+
+      {mode === 'vnr' && sourceScope && (
+        <div className="form-grid">
+          {sourceScope.companies.length > 1 && (
+            <label className="field">
+              <span>Empresa de la fuente</span>
+              <select value={sourceScope.selected_company ?? ''} onChange={(event) => {
+                const company = event.target.value || null;
+                if (sourceScope.periods.length === 1) {
+                  void saveScope(company, sourceScope.periods[0]);
+                } else {
+                  setSourceScope({ ...sourceScope, selected_company: company, selected_period: null });
+                }
+              }}>
+                <option value="">— seleccione —</option>
+                {sourceScope.companies.map((company) => <option key={company}>{company}</option>)}
+              </select>
+            </label>
+          )}
+          {sourceScope.periods.length > 1 && (
+            <label className="field">
+              <span>Periodo de la fuente</span>
+              <select value={sourceScope.selected_period ?? ''} onChange={(event) => {
+                void saveScope(sourceScope.selected_company, event.target.value || null);
+              }} disabled={sourceScope.companies.length > 1 && !sourceScope.selected_company}>
+                <option value="">— seleccione —</option>
+                {sourceScope.periods.map((period) => <option key={period}>{period}</option>)}
+              </select>
+            </label>
+          )}
+          {sourceScope.ambiguous && (
+            <p className="alert alert-warn span-2">Seleccione empresa y periodo para evitar mezclar entregas.</p>
+          )}
+        </div>
+      )}
 
       <p className={`status-line ${ready ? 'ok' : ''}`}>
         {ready

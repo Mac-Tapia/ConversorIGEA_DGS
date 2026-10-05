@@ -127,7 +127,7 @@ def test_bridge_enumera_pero_bloquea_vnr_sin_fuente_ni_cargas():
         )
 
 
-def test_vnr_adapter_filtra_electro_dunas_y_periodo_mas_reciente(tmp_path):
+def test_vnr_adapter_respeta_empresa_y_periodo_explicitos(tmp_path):
     from igea_dgs.web.source_runs import create_source_run
     from igea_dgs.web.sources import adapter_for
     from igea_dgs.web.workspace import Workspace
@@ -138,7 +138,7 @@ def test_vnr_adapter_filtra_electro_dunas_y_periodo_mas_reciente(tmp_path):
     ws.set_input('vnr_package', archive, origin='server')
     snapshot = create_source_run(ws)
 
-    result = adapter_for('vnr').load(snapshot, aliases={})
+    result = adapter_for('vnr', company='ELDU', period='2025').load(snapshot, aliases={})
 
     assert set(result.dataset.feeders) == {'IN111', 'AL209'}
     assert set(result.readiness) == {'IN111', 'AL209'}

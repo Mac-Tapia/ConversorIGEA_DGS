@@ -9,7 +9,7 @@ from ..source_runs import SourceSnapshot
 class VnrSourceAdapter:
     mode = 'vnr'
 
-    def __init__(self, *, company: str = 'ELDU', period: str = 'latest_available') -> None:
+    def __init__(self, *, company: str | None = None, period: str | None = None) -> None:
         self.company = company
         self.period = period
 
