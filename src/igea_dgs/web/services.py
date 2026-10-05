@@ -158,6 +158,15 @@ def load_dataset(ws: Workspace, ctx: JobContext) -> dict:
     ctx.log(entrada.texto())
     inventory = build_dataset_inventory(dataset, aliases=aliases)
     inventory['provenance'] = dict(loaded.provenance)
+    from .readiness import build_feeder_readiness
+
+    readiness = build_feeder_readiness(
+        dataset,
+        inventory['feeders'],
+        loaded.provenance,
+        supplied=loaded.readiness,
+        aliases=aliases,
+    )
     ws.out_dir.mkdir(parents=True, exist_ok=True)
     inv_path = write_inventory(inventory, ws.out_dir / 'dataset_inventory.json')
     ctx.log(format_inventory_report(inventory))
@@ -171,6 +180,7 @@ def load_dataset(ws: Workspace, ctx: JobContext) -> dict:
         ws.loaded_source_mode = snapshot.mode
         ws.loaded_source_fingerprint = snapshot.fingerprint
         ws.inventory = inventory
+        ws.feeder_readiness = readiness
         ws.catalog_report = catalog_report
         ws.loaded_at = time.time()
         ws.plans.clear()
@@ -209,8 +219,18 @@ def feeder_rows(ws: Workspace) -> list[dict]:
         if conv.get('source_run_id') != ws.active_run_id:
             conv = {}
         dgs = conv.get('dgs')
+        readiness = ws.feeder_readiness.get(row['network_id']) or {
+            'status': 'INVENTORY_ONLY',
+            'blocking_codes': ['READINESS_NOT_ASSESSED'],
+        }
+        state = 'DGS_READY' if conv.get('status') == 'ok' else readiness['status']
         rows.append({
             **row,
+            'readiness': state,
+            'blocking_codes': list(readiness.get('blocking_codes') or []),
+            'source_run_id': ws.loaded_run_id,
+            'source_mode': ws.loaded_source_mode,
+            'source_fingerprint': ws.loaded_source_fingerprint,
             'conversion': {
                 'status': conv.get('status'),
                 'error': conv.get('error'),
@@ -295,10 +315,31 @@ def check_convert_options(ws: Workspace) -> None:
             raise UserError(str(exc)) from exc
 
 
+def check_selection_readiness(
+    ws: Workspace,
+    feeders: list[str] | None,
+    all_feeders: bool,
+) -> list[str]:
+    """Puerta común y síncrona para TXT, MDB y VNR-GIS."""
+    require_loaded(ws)
+    from .readiness import FeederReadinessError, validate_selection
+
+    try:
+        return validate_selection(
+            (ws.inventory or {}).get('feeders') or [],
+            ws.feeder_readiness,
+            feeders,
+            all_feeders=all_feeders,
+        )
+    except FeederReadinessError as exc:
+        raise UserError(str(exc)) from exc
+
+
 def convert(ws: Workspace, ctx: JobContext, feeders: list[str] | None, all_feeders: bool) -> dict:
     from ..batch import convert_selection, load_aliases
 
     snapshot = require_active_source_run(ws)
+    selected = check_selection_readiness(ws, feeders, all_feeders)
     opts = ws.options
     aliases = load_aliases(snapshot.path_for('aliases') or None)
     corrections = ws.catalog_corrections()
@@ -313,7 +354,7 @@ def convert(ws: Workspace, ctx: JobContext, feeders: list[str] | None, all_feede
 
     from ..batch import resolve_workers
 
-    total = len(ws.inventory['feeders']) if all_feeders and ws.inventory else len(feeders or [])
+    total = len(selected)
     workers = int(opts.get('workers') or 0)
     n_workers = resolve_workers(workers, max(total, 1))
     if n_workers > 1:
@@ -665,13 +706,13 @@ def build_model(ws: Workspace, feeder: str, *, geography: bool | None = None):
 
 def group_selection(ws: Workspace, feeders: list[str], all_feeders: bool) -> list[str]:
     require_loaded(ws)
-    if all_feeders:
-        feeders = [r['feeder'] for r in ws.inventory['feeders'] if r.get('convertible')]
+    feeders = check_selection_readiness(ws, feeders, all_feeders)
     if len(feeders) < 2:
         raise UserError('Para unir en un solo DGS seleccione al menos dos alimentadores.')
     from ..batch import expand_connected_feeders
 
-    return [feeder_short_name(n) for n in expand_connected_feeders(ws.dataset, feeders)]
+    expanded = [feeder_short_name(n) for n in expand_connected_feeders(ws.dataset, feeders)]
+    return check_selection_readiness(ws, expanded, False)
 
 
 def group_name(nombre: str, feeders: list[str]) -> str:
@@ -695,6 +736,7 @@ def convert_group(
     from ..reglas import catalogo_del_proyecto
 
     snapshot = require_active_source_run(ws)
+    check_selection_readiness(ws, feeders, False)
     opts = ws.options
     ctx.log(f'--- Red unida {nombre}: {", ".join(feeders)} ---')
     añadidos = sorted(set(feeders) - set(requested_feeders or feeders))

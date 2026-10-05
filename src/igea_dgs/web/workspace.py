@@ -118,6 +118,7 @@ class Workspace:
     loaded_source_mode: str | None = None
     loaded_source_fingerprint: str | None = None
     inventory: dict | None = None
+    feeder_readiness: dict[str, dict[str, Any]] = field(default_factory=dict)
     catalog_report: dict | None = None
     loaded_at: float | None = None
     plans: dict[str, dict[str, Any]] = field(default_factory=dict)
@@ -195,6 +196,7 @@ class Workspace:
         self.loaded_source_mode = None
         self.loaded_source_fingerprint = None
         self.inventory = None
+        self.feeder_readiness.clear()
         self.catalog_report = None
         self.loaded_at = None
         self.plans.clear()
