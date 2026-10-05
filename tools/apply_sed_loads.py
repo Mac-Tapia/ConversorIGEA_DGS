@@ -83,6 +83,16 @@ def _parser() -> argparse.ArgumentParser:
     return p
 
 
+def snapshot_load(obj) -> dict:
+    """Reread total/input/phase values needed to prove the effective PF state."""
+
+    names = (
+        'mode_inp', 'i_sym', 'plini', 'qlini', 'slini', 'coslini', 'pf_recap',
+        'plinir', 'plinis', 'plinit', 'qlinir', 'qlinis', 'qlinit',
+    )
+    return {name: getattr(obj, name, None) for name in names}
+
+
 def main(argv=None) -> int:
     args = _parser().parse_args(argv)
     plan = json.loads(Path(args.plan).read_text(encoding='utf-8'))
@@ -120,11 +130,13 @@ def main(argv=None) -> int:
         return 2
     proyecto = sorted(proyectos, key=lambda p: p.loc_name)[-1]
     proyecto.Activate()
-    # Sin caso de estudio activo, GetCalcRelevantObjects devuelve 0 elementos.
-    carpeta = app.GetProjectFolder('study')
-    casos = list(carpeta.GetContents('*.IntCase')) if carpeta else []
-    if casos:
-        casos[0].Activate()
+    # Sin caso de estudio activo, GetCalcRelevantObjects devuelve 0 elementos. Si el
+    # proyecto ya trae uno activo se respeta: es el que fija variaciones y escenario.
+    if app.GetActiveStudyCase() is None:
+        carpeta = app.GetProjectFolder('study')
+        casos = list(carpeta.GetContents('*.IntCase')) if carpeta else []
+        if casos:
+            casos[0].Activate()
     print(f'proyecto: {proyecto.loc_name}')
     print(f'caso activo: {app.GetActiveStudyCase()}')
 
@@ -132,6 +144,23 @@ def main(argv=None) -> int:
     for obj in app.GetCalcRelevantObjects('*.ElmLod'):
         cargas.setdefault(obj.loc_name, []).append(obj)
 
+    aplicados, no_encontrados, ambiguos, fallos = aplicar_actualizaciones(
+        cargas, updates, dry_run=args.dry_run,
+    )
+    _informe_y_flujo(app, proyecto, plan, args, aplicados, no_encontrados, ambiguos, fallos)
+    if no_encontrados or ambiguos or fallos:
+        return 2
+    return 0
+
+
+def aplicar_actualizaciones(cargas: dict, updates: list, *, dry_run: bool = False):
+    """Escribe cada fila del plan en su ``ElmLod``. Devuelve
+    ``(aplicados, no_encontrados, ambiguos, fallos)``.
+
+    ``cargas`` es ``{loc_name: [ElmLod, …]}``. El lote por alimentadores la pasa ya
+    limitada a las cargas de un alimentador, así que una SED con el mismo nombre en
+    otro alimentador de una red unida no la vuelve ambigua.
+    """
     aplicados, no_encontrados, ambiguos, fallos = [], [], [], []
     for row in updates:
         code = row['sed_code']
@@ -144,22 +173,59 @@ def main(argv=None) -> int:
             ambiguos.append(code)
             continue
         obj = candidatos[0]
-        antes = {'plini': obj.plini, 'qlini': obj.qlini, 'coslini': obj.coslini}
-        if args.dry_run:
+        antes = snapshot_load(obj)
+        if dry_run:
             aplicados.append({'sed_code': code, 'antes': antes, 'despues': None, 'dry_run': True})
             continue
         try:
             _escribir_carga(obj, row)
-            despues = {'plini': obj.plini, 'qlini': obj.qlini, 'coslini': obj.coslini}
+            despues = snapshot_load(obj)
             # Se relee: una asignación que PowerFactory recalcula no es un cambio.
-            if abs(float(despues['plini']) - float(row['plini_mw'])) > 1e-6 + 1e-4 * abs(float(row['plini_mw'])):
-                fallos.append(f"{code}: PowerFactory conserva P={despues['plini']:.6f} MW "
-                              f"(pedido {float(row['plini_mw']):.6f})")
+            if int(despues.get('i_sym') or 0) == 1:
+                actual_p = sum(float(despues.get(name) or 0.0) for name in ('plinir', 'plinis', 'plinit'))
+                actual_q = sum(float(despues.get(name) or 0.0) for name in ('qlinir', 'qlinis', 'qlinit'))
+            else:
+                actual_p = float(despues.get('plini') or 0.0)
+                actual_q = float(despues.get('qlini') or 0.0)
+            expected_p = float(row['plini_mw'])
+            expected_q = float(row['qlini_mvar'])
+            tol_p = 1e-6 + 1e-4 * abs(expected_p)
+            tol_q = 1e-6 + 1e-4 * abs(expected_q)
+            if abs(actual_p - expected_p) > tol_p or abs(actual_q - expected_q) > tol_q:
+                fallos.append(
+                    f'{code}: relectura PowerFactory P/Q={actual_p:.6f}/{actual_q:.6f} '
+                    f'MW/Mvar (pedido {expected_p:.6f}/{expected_q:.6f})'
+                )
                 continue
             aplicados.append({'sed_code': code, 'antes': antes, 'despues': despues})
         except Exception as exc:
             fallos.append(f'{code}: {exc}')
+    return aplicados, no_encontrados, ambiguos, fallos
 
+
+def flujo_de_carga(app) -> dict:
+    """Ejecuta ``ComLdf`` y resume el resultado (convergencia y tensiones extremas)."""
+    ldf = app.GetFromStudyCase('ComLdf')
+    ret = ldf.Execute()
+    valido = app.IsLdfValid()
+    resultado = {'return_code': ret, 'ldf_valid': valido, 'converged': ret == 0 and bool(valido)}
+    print(f'\nflujo: ComLdf -> {ret}  IsLdfValid -> {valido}')
+    if ret == 0 and valido:
+        tensiones = []
+        for bus in app.GetCalcRelevantObjects('*.ElmTerm'):
+            try:
+                if bus.HasResults():
+                    tensiones.append(bus.GetAttribute('m:u'))
+            except Exception:
+                pass
+        if tensiones:
+            resultado['vm_min'] = min(tensiones)
+            resultado['vm_max'] = max(tensiones)
+            print(f'  tensión min {min(tensiones):.4f}  max {max(tensiones):.4f} p.u.')
+    return resultado
+
+
+def _informe_y_flujo(app, proyecto, plan, args, aplicados, no_encontrados, ambiguos, fallos):
     print(f'\nSED actualizadas : {len(aplicados)}{" (simulación)" if args.dry_run else ""}')
     print(f'SED no halladas  : {len(no_encontrados)}')
     if no_encontrados:
@@ -183,33 +249,13 @@ def main(argv=None) -> int:
     }
 
     if args.run_load_flow and not args.dry_run:
-        ldf = app.GetFromStudyCase('ComLdf')
-        ret = ldf.Execute()
-        valido = app.IsLdfValid()
-        resultado['load_flow'] = {'return_code': ret, 'ldf_valid': valido, 'converged': ret == 0 and bool(valido)}
-        print(f'\nflujo tras actualizar: ComLdf -> {ret}  IsLdfValid -> {valido}')
-        if ret == 0 and valido:
-            tensiones = []
-            for bus in app.GetCalcRelevantObjects('*.ElmTerm'):
-                try:
-                    if bus.HasResults():
-                        tensiones.append(bus.GetAttribute('m:u'))
-                except Exception:
-                    pass
-            if tensiones:
-                resultado['load_flow']['vm_min'] = min(tensiones)
-                resultado['load_flow']['vm_max'] = max(tensiones)
-                print(f'  tensión min {min(tensiones):.4f}  max {max(tensiones):.4f} p.u.')
+        resultado['load_flow'] = flujo_de_carga(app)
 
     if args.output_json:
         Path(args.output_json).write_text(
             json.dumps(resultado, indent=2, ensure_ascii=False) + '\n', encoding='utf-8',
         )
         print(f'\nInforme: {args.output_json}')
-
-    if no_encontrados or ambiguos or fallos:
-        return 2
-    return 0
 
 
 if __name__ == '__main__':
