@@ -106,6 +106,8 @@ class Workspace:
     # Proyecto de PowerFactory creado al importar cada DGS (por nombre del DGS). Las
     # actualizaciones de cargas y las SED nuevas se aplican sobre ese proyecto.
     pf_projects: dict[str, str] = field(default_factory=dict)
+    # Ejecución inmutable que respalda el dataset en memoria y sus salidas.
+    active_run_id: str | None = None
     # --- solo en memoria
     dataset: Any = None
     inventory: dict | None = None
@@ -132,7 +134,7 @@ class Workspace:
     # -------------------------------------------------------------- persistencia
     def save(self) -> None:
         payload = {
-            'version': 1,
+            'version': 2,
             'id': self.id,
             'created_at': self.created_at,
             'options': self.options,
@@ -140,6 +142,7 @@ class Workspace:
             'catalog_file': self.catalog_file,
             'groups': self.groups,
             'pf_projects': self.pf_projects,
+            'active_run_id': self.active_run_id,
         }
         self.root.mkdir(parents=True, exist_ok=True)
         tmp = self.root / 'workspace.json.tmp'
@@ -164,6 +167,9 @@ class Workspace:
         ws.catalog_file = catalog if catalog and Path(catalog).is_file() else None
         ws.groups = dict(data.get('groups') or {})
         ws.pf_projects = dict(data.get('pf_projects') or {})
+        run_id = data.get('active_run_id')
+        if run_id and (root / 'runs' / str(run_id) / 'source_manifest.json').is_file():
+            ws.active_run_id = str(run_id)
         conv = root / 'conversiones.json'
         if conv.is_file():
             try:
@@ -180,6 +186,18 @@ class Workspace:
         self.catalog_report = None
         self.loaded_at = None
         self.plans.clear()
+        self.active_run_id = None
+
+    def active_run(self):
+        """Devuelve la instantánea activa persistida, o ``None`` si fue invalidada."""
+        if not self.active_run_id:
+            return None
+        from .source_runs import load_source_run
+
+        try:
+            return load_source_run(self, self.active_run_id)
+        except (OSError, ValueError, KeyError, TypeError):
+            return None
 
     def set_input(self, slot: str, path: Path, *, origin: str, warning: str = '') -> dict:
         meta = {
@@ -275,6 +293,7 @@ class Workspace:
             'missing_inputs': self.missing_inputs(),
             'loaded': self.dataset is not None,
             'loaded_at': self.loaded_at,
+            'active_run_id': self.active_run_id,
             'totals': inv.get('totals'),
             'conversion': inv.get('conversion'),
             'integrity': inv.get('integrity'),
