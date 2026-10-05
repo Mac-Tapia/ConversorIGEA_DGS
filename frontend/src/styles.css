@@ -358,6 +358,11 @@ details summary { cursor: pointer; color: var(--primary); margin-top: 8px; }
 .toast-error { border-left-color: var(--error); }
 .toast-close { position: absolute; top: 6px; right: 8px; background: none; border: 0; font-size: 18px; color: var(--muted); cursor: pointer; }
 
+.badge { display: inline-block; padding: .18rem .48rem; border-radius: 999px; font-size: .78rem; font-weight: 700; }
+.badge.ok { color: #14532d; background: #dcfce7; }
+.badge.warn { color: #78350f; background: #fef3c7; }
+.badge.err { color: #7f1d1d; background: #fee2e2; }
+
 .boot { display: grid; place-items: center; align-content: center; gap: 12px; height: 100vh; padding: 16px; text-align: center; }
 .spinner { width: 28px; height: 28px; border-radius: 50%; border: 3px solid var(--border); border-top-color: var(--primary); animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }

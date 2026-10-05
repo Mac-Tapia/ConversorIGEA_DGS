@@ -1,5 +1,5 @@
 import type {
-  CreatePlan, DiagnosisResponse, EventItem, FeederRow, Health, Job, LoadPlan,
+  CreatePlan, DiagnosisResponse, Economia, EventItem, FeederRow, Health, Job, LoadPlan, LotePlan,
   Options, OutputFile, PowerFactoryStatus, ReconstructionReport, ReconstructionResponse, WorkspaceState,
 } from './types';
 
@@ -119,6 +119,20 @@ export const api = {
     request<CreatePlan>(`${ws(id)}/feeders/${enc(feeder)}/create-plan/single`, json('POST', body)),
   applyPlan: (id: string, token: string) =>
     request<Job>(`${ws(id)}/plans/${token}/apply`, { method: 'POST' }),
+
+  pfProjects: (id: string) => request<Job>(`${ws(id)}/powerfactory/projects`, { method: 'POST' }),
+  lotePlan: (id: string, project: string, feeders: string[], update?: File | null, create?: File | null,
+    economia?: Economia | null) => {
+    const fd = new FormData();
+    fd.append('project', project);
+    feeders.forEach((f) => fd.append('feeders', f));
+    if (update) fd.append('update_file', update, update.name);
+    if (create) fd.append('create_file', create, create.name);
+    if (economia) fd.append('economia', JSON.stringify(economia));
+    return request<LotePlan>(`${ws(id)}/lote/plan`, { method: 'POST', body: fd });
+  },
+  loteApply: (id: string, token: string) =>
+    request<Job>(`${ws(id)}/lote/${token}/apply`, { method: 'POST' }),
 
   catalogBuild: (id: string, feeders: string[]) =>
     request<Job>(`${ws(id)}/catalog/build`, json('POST', { feeders })),

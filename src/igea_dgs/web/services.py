@@ -1291,6 +1291,7 @@ def lote_plan(
             if rows or errors:
                 creaciones[f] = build_create_plan(models[f], rows, errors)
 
+    stamp = datetime.now().strftime('%Y%m%d_%H%M')
     filas, entradas, errores = [], [], list(sueltos)
     for f in elegidos:
         upd, cre = actualizaciones.get(f), creaciones.get(f)
@@ -1298,6 +1299,14 @@ def lote_plan(
             continue
         errores += [f'{f}: {e}' for e in (upd.row_errors if upd else [])]
         errores += [f'{f}: {e}' for e in (cre.row_errors if cre else [])]
+        changes = [
+            {
+                'sed': new.sed_code,
+                'before': {'kw': old.kw, 'kvar': old.kvar, 'fp': old.fp},
+                'after': {'kw': new.kw, 'kvar': new.kvar, 'fp': new.fp},
+            }
+            for old, new in (upd.updates if upd else [])[:100]
+        ]
         filas.append({
             'feeder': f,
             'updates': len(upd.updates) if upd else 0,
@@ -1305,6 +1314,14 @@ def lote_plan(
             'create': len(cre.create) if cre else 0,
             'already_exists': list(cre.already_exists) if cre else [],
             'errors': len(upd.row_errors if upd else []) + len(cre.row_errors if cre else []),
+            'routing_basis': (
+                ['sed_identity'] if upd is not None else []
+            ) + (
+                ['sheet_node_coordinates'] if cre is not None else []
+            ),
+            'changes': changes,
+            'scenario': f'Cargas_{f}_{stamp}'[:40] if upd is not None else None,
+            'variation': f'SED_nuevas_{f}_{stamp}'[:40] if cre is not None else None,
         })
         crear = create_plan_to_payload(
             cre, nominal_kv=models[f].nominal_kv, source_crs=ws.options['source_crs'],
@@ -1322,7 +1339,7 @@ def lote_plan(
     con_algo = any(e['update'] or e['create'] for e in entradas)
     lote = {
         'project': project.strip(),
-        'stamp': datetime.now().strftime('%Y%m%d_%H%M'),
+        'stamp': stamp,
         'run_load_flow': True,
         'feeders': entradas,
         # La orden se lanza una vez, al final: la estrategia son todas las variaciones
@@ -1381,8 +1398,19 @@ def apply_lote(ws: Workspace, ctx: JobContext, token: str) -> dict:
         ctx.log('No se pudo conectar con PowerFactory. Ábralo y reintente.')
     elif rc != 0:
         ctx.log(f'El proceso devolvió el código {rc}: revise en el informe los alimentadores con fallos.')
-    return {'returncode': rc, 'report': report.name if report.is_file() else None,
-            'project': typed_plan.project, 'order': list(typed_plan.feeders)}
+    try:
+        report_payload = json.loads(report.read_text(encoding='utf-8')) if report.is_file() else {}
+    except (OSError, ValueError):
+        report_payload = {}
+    return {
+        'returncode': rc,
+        'report': report.name if report.is_file() else None,
+        'evidence_jsonl': report_payload.get('evidence_jsonl'),
+        'project': typed_plan.project,
+        'order': list(typed_plan.feeders),
+        'results': list(report_payload.get('feeders') or []),
+        'tecnico_economico': report_payload.get('tecnico_economico'),
+    }
 
 
 # ---------------------------------------------------------------------------
