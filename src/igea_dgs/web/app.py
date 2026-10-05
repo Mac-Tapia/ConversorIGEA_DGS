@@ -445,6 +445,7 @@ def create_app(data_root: Path | None = None) -> FastAPI:
             return submit(ws, 'convert_group', f'Unir {len(feeders)} alimentadores en {nombre}.dgs',
                           lambda ctx: services.convert_group(
                               ws, ctx, feeders, nombre, requested_feeders=requested))
+        services.check_selection_readiness(ws, body.feeders, body.all)
         n = len(ws.inventory['feeders']) if body.all and ws.inventory else len(body.feeders)
         title = f'Convertir {"TODOS" if body.all else ""} {n} alimentador(es) a DGS'.replace('  ', ' ')
         return submit(ws, 'convert', title,
