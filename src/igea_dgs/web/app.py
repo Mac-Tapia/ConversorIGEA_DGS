@@ -73,7 +73,7 @@ def frontend_dist() -> Path:
 
 
 class OptionsIn(BaseModel):
-    input_mode: Literal['txt', 'mdb'] | None = None
+    input_mode: Literal['txt', 'mdb', 'vnr'] | None = None
     source_crs: str | None = None
     target_crs: str | None = None
     include_geography: bool | None = None
@@ -87,6 +87,10 @@ class OptionsIn(BaseModel):
 
 class ServerPathIn(BaseModel):
     path: str
+
+
+class VnrDownloadIn(BaseModel):
+    publication_id: str
 
 
 class SelectionIn(BaseModel):
@@ -181,6 +185,48 @@ def create_app(data_root: Path | None = None) -> FastAPI:
     def powerfactory(refresh: bool = False) -> dict:
         return services.powerfactory_status(refresh=refresh)
 
+    # ------------------------------------------------------------ catálogo VNR oficial
+    def _vnr_catalog_dir() -> Path:
+        return store.root / '_vnr_catalog'
+
+    @app.get('/api/vnr/publications')
+    def vnr_publications(refresh: bool = False) -> dict:
+        from vnr_etl.discovery.catalog import PublicationCatalog
+        from vnr_etl.discovery.official import (
+            is_allowed_official_url, is_vnr_data_package, publication_evidence_sha256,
+            refresh_official_catalog,
+        )
+
+        report = None
+        if refresh:
+            catalog, report = refresh_official_catalog(_vnr_catalog_dir())
+        else:
+            catalog = PublicationCatalog.load(_vnr_catalog_dir())
+        rows = []
+        for publication in catalog.publications():
+            convertible = (
+                is_vnr_data_package(publication)
+                and is_allowed_official_url(publication.download_url)
+            )
+            rows.append({
+                **publication.as_dict(),
+                'convertible': convertible,
+                'status': (
+                    'OFFICIAL_DATA_PACKAGE' if convertible
+                    else 'REGULATORY_DOCUMENT_ONLY'
+                ),
+                'evidence_sha256': publication_evidence_sha256(publication),
+            })
+        available = any(row['convertible'] for row in rows)
+        return {
+            'status': (
+                'OFFICIAL_PACKAGE_AVAILABLE' if available
+                else 'BLOCKED_MISSING_OFFICIAL_PACKAGE'
+            ),
+            'publications': rows,
+            'refresh': report,
+        }
+
     # ------------------------------------------------------------ espacios
     @app.get('/api/workspaces')
     def list_workspaces() -> list[dict]:
@@ -242,8 +288,22 @@ def create_app(data_root: Path | None = None) -> FastAPI:
 
     def _assign(ws: Workspace, slot: str, path: Path, origin: str) -> dict:
         spec = SLOTS[slot]
+        if slot == 'vnr_package':
+            from vnr_etl.discovery.official import (
+                OfficialDiscoveryError, validate_vnr_package_file,
+            )
+
+            try:
+                validate_vnr_package_file(path)
+            except OfficialDiscoveryError as exc:
+                raise UserError(str(exc)) from exc
         warning = comprobar_ranura(path, spec['tipo']) if spec['tipo'] else ''
         meta = ws.set_input(slot, path, origin=origin, warning=warning)
+        group = str(spec.get('grupo') or '')
+        if group in ('txt', 'mdb', 'vnr'):
+            with ws.lock:
+                ws.options['input_mode'] = group
+                ws.save()
         ws.events.append('log', {'text': f'Archivo asignado a {slot}: {path.name}'
                                  + (f'  (AVISO: {warning.splitlines()[0]})' if warning else '')})
         return {'slot': slot, **meta, 'workspace': ws.public()}
@@ -260,7 +320,11 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         _check_slot(slot)
         target = ws.upload_target(slot, file.filename or slot)
         _save_upload(target, file)
-        return _assign(ws, slot, target, 'upload')
+        try:
+            return _assign(ws, slot, target, 'upload')
+        except Exception:
+            target.unlink(missing_ok=True)
+            raise
 
     @app.post('/api/workspaces/{wid}/inputs/{slot}/path')
     def server_path_input(wid: str, slot: str, body: ServerPathIn) -> dict:
@@ -279,6 +343,44 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         _check_slot(slot)
         ws.clear_input(slot)
         return ws.public()
+
+    @app.post('/api/workspaces/{wid}/vnr/download')
+    def download_vnr(wid: str, body: VnrDownloadIn) -> dict:
+        from vnr_etl.discovery.catalog import PublicationCatalog
+        from vnr_etl.discovery.download import DownloadManager
+        from vnr_etl.discovery.official import (
+            DEFAULT_ALLOWED_HOSTS, is_allowed_official_url, is_vnr_data_package,
+            validate_vnr_package_file,
+        )
+
+        ws = ws_or_404(wid)
+        catalog = PublicationCatalog.load(_vnr_catalog_dir())
+        publication = catalog.get(body.publication_id)
+        if publication is None:
+            raise UserError(f'Publicación VNR desconocida: {body.publication_id}.')
+        if not is_vnr_data_package(publication):
+            raise UserError(
+                f'{publication.file_name or publication.title} no es un paquete de datos VNR-GIS.'
+            )
+        if not is_allowed_official_url(publication.download_url):
+            raise UserError('La descarga no pertenece a un host oficial permitido.')
+        target = ws.upload_target('vnr_package', publication.file_name or 'vnr_package.zip')
+        manager = DownloadManager(
+            ws.inputs_dir / '_vnr_downloads',
+            max_file_size_bytes=4096 * 1024 * 1024,
+            verify_archive=True,
+            allowed_hosts=DEFAULT_ALLOWED_HOSTS,
+        )
+        manifest = manager.download(
+            publication.download_url,
+            target,
+            publication_id=publication.publication_id,
+            company=publication.company,
+            period=publication.period_label,
+        )
+        validate_vnr_package_file(target)
+        assigned = _assign(ws, 'vnr_package', target, 'upload')
+        return {**assigned, 'manifest': manifest.as_dict()}
 
     @app.post('/api/workspaces/{wid}/inputs-auto')
     def auto_inputs(wid: str, files: list[UploadFile] = File(...)) -> dict:

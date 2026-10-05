@@ -51,6 +51,10 @@ SLOTS: dict[str, dict[str, Any]] = {
                       'etiqueta': 'Base de equipos (.mdb, si está aparte)', 'obligatorio': False},
     'study': {'grupo': 'mdb', 'tipo': None,
               'etiqueta': 'Estudio o proyecto (.zxst, opcional)', 'obligatorio': False},
+    'vnr_package': {
+        'grupo': 'vnr', 'tipo': None,
+        'etiqueta': 'Paquete completo VNR-GIS', 'obligatorio': True,
+    },
     'aliases': {'grupo': 'comun', 'tipo': None,
                 'etiqueta': 'Aliases de tipos (JSON, opcional)', 'obligatorio': False},
 }
