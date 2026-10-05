@@ -107,9 +107,18 @@ En la web: «Unir en un solo DGS…» con los alimentadores seleccionados. `--li
 (CLI) convierte sin reglas, solo para comparar con la entrada.
 
 **Cargas de SED en bloque (Excel o CSV)**: descargue la plantilla del alimentador,
-escriba los valores nuevos en `Kw` y `Kvar` (o en `(kVA)` y `FP`; `accion = omitir` salta la fila), súbala, revise el plan y aplíquelo. Se aplica sobre el
+rellene por SED un par, el que tenga: `Kw` y `Kvar`, `Kw` y `FP` (cos φ), o `(kVA)` y `FP`.
+La carga actual va aparte, en `Kw_actual`/`Kvar_actual`/`FP_actual`; la SED que se deja en
+blanco no cambia, y una fila con dos pares que no coinciden es un error (`accion = omitir`
+salta la fila). Súbala, revise el plan y aplíquelo. Se aplica sobre el
 proyecto de PowerFactory que creó «Cargar en DigSILENT» (el del alimentador o el del DGS
 unido que lo contiene); por eso hay que cargarlo antes.
+
+Para uno, varios o todos los alimentadores use la pestaña **Cargas en DIgSILENT**:
+crea un plan inmutable con hashes, muestra enrutamiento y valores antes/después, y
+aplica cada alimentador con relectura, `ComLdf` y rollback aislado. La aceptación
+genérica y la real se ejecutan con `python tools/accept_load_batch.py --help`; consulte
+[`docs/runbooks/load-batch-production-acceptance.md`](docs/runbooks/load-batch-production-acceptance.md).
 
 ## Instalación (otra máquina local)
 
