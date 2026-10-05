@@ -110,6 +110,9 @@ class Workspace:
     active_run_id: str | None = None
     # --- solo en memoria
     dataset: Any = None
+    loaded_run_id: str | None = None
+    loaded_source_mode: str | None = None
+    loaded_source_fingerprint: str | None = None
     inventory: dict | None = None
     catalog_report: dict | None = None
     loaded_at: float | None = None
@@ -125,6 +128,8 @@ class Workspace:
 
     @property
     def out_dir(self) -> Path:
+        if self.active_run_id:
+            return self.root / 'runs' / self.active_run_id / 'salida'
         return self.root / 'salida'
 
     @property
@@ -182,6 +187,9 @@ class Workspace:
     def invalidate(self) -> None:
         """Otra entrada = otro dataset. Lo leído deja de valer, y los planes también."""
         self.dataset = None
+        self.loaded_run_id = None
+        self.loaded_source_mode = None
+        self.loaded_source_fingerprint = None
         self.inventory = None
         self.catalog_report = None
         self.loaded_at = None
@@ -294,6 +302,9 @@ class Workspace:
             'loaded': self.dataset is not None,
             'loaded_at': self.loaded_at,
             'active_run_id': self.active_run_id,
+            'loaded_run_id': self.loaded_run_id,
+            'source_mode': self.loaded_source_mode,
+            'source_fingerprint': self.loaded_source_fingerprint,
             'totals': inv.get('totals'),
             'conversion': inv.get('conversion'),
             'integrity': inv.get('integrity'),
@@ -301,7 +312,10 @@ class Workspace:
             'catalog_applied': bool(self.catalog_file),
             'catalog_file': Path(self.catalog_file).name if self.catalog_file else None,
             'converted': sum(1 for c in self.conversions.values() if c.get('status') == 'ok'),
-            'groups': list(self.groups.values()),
+            'groups': [
+                group for group in self.groups.values()
+                if group.get('source_run_id') == self.active_run_id
+            ],
             'pf_projects': self.pf_projects,
             'last_seq': self.events.last_seq,
         }
