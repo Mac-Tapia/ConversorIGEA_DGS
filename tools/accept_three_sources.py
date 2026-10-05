@@ -28,6 +28,17 @@ from igea_dgs.web.workspace import Workspace  # noqa: E402
 class AcceptanceConfig:
     audit_dir: Path
     feeder: str = 'IN111'
+    feeders: tuple[str, ...] = ()
+    all_feeders: bool = False
+    source_company: str = ''
+    source_period: str = ''
+    source_crs: str = 'EPSG:32718'
+    reconstruct: bool = True
+    allow_catalog_matches: bool = True
+    allow_engineering_assumptions: bool = True
+    minimum_catalog_confidence: float = 0.75
+    topology_snap_tolerance: float = 1.0
+    provisional_nominal_voltage_kv: float = 10.0
     txt_red: Path | None = None
     txt_loads: Path | None = None
     txt_equipment: Path | None = None
@@ -95,8 +106,31 @@ def _empty_result(mode: str, status: str, *, error: str | None = None) -> dict[s
         'feeder_count': None,
         'selected_ids': [],
         'dgs_files': [],
+        'reconstruction': None,
+        'original_hashes_before': {},
+        'original_hashes_after': {},
+        'originals_unchanged': None,
         'powerfactory': {'evidence_level': 'NOT_RUN'},
     }
+
+
+def _original_hashes(config: AcceptanceConfig, mode: str) -> dict[str, str]:
+    hashes: dict[str, str] = {}
+    for _slot, field in MODE_INPUTS[mode]:
+        value = getattr(config, field)
+        if value is not None and Path(value).is_file():
+            hashes[str(Path(value).resolve())] = sha256_file(Path(value))
+    return hashes
+
+
+def _finalize_original_hashes(
+    row: dict[str, Any], config: AcceptanceConfig, mode: str,
+) -> None:
+    after = _original_hashes(config, mode)
+    row['original_hashes_after'] = after
+    row['originals_unchanged'] = bool(row['original_hashes_before']) and (
+        row['original_hashes_before'] == after
+    )
 
 
 def _accept_mode(config: AcceptanceConfig, mode: str) -> dict[str, Any]:
@@ -115,6 +149,9 @@ def _accept_mode(config: AcceptanceConfig, mode: str) -> dict[str, Any]:
         'export_xlsx': False,
         'export_tsv': False,
         'workers': 1,
+        'source_company': config.source_company,
+        'source_period': config.source_period,
+        'source_crs': config.source_crs,
     })
     workspace.save()
     for slot, field in MODE_INPUTS[mode]:
@@ -127,6 +164,7 @@ def _accept_mode(config: AcceptanceConfig, mode: str) -> dict[str, Any]:
 
     ctx = _context(workspace, config.audit_dir / mode / 'acceptance.log')
     row = _empty_result(mode, 'RUNNING')
+    row['original_hashes_before'] = _original_hashes(config, mode)
     try:
         services.check_ready(workspace)
         services.load_dataset(workspace, ctx)
@@ -147,15 +185,48 @@ def _accept_mode(config: AcceptanceConfig, mode: str) -> dict[str, Any]:
             'feeder_count': len((workspace.inventory or {}).get('feeders') or []),
         })
         rows = services.feeder_rows(workspace)
-        selected = [item['feeder'] for item in rows if item['feeder'] == config.feeder]
+        available = [item['feeder'] for item in rows]
+        requested = list(config.feeders or (config.feeder,))
+        selected = available if config.all_feeders else [name for name in requested if name in available]
         row['selected_ids'] = selected
-        if not selected:
+        missing_selected = [] if config.all_feeders else [name for name in requested if name not in available]
+        if not selected or missing_selected:
             row['status'] = 'SKIP_FEEDER_NOT_PRESENT'
+            row['missing_feeders'] = missing_selected or requested
             return row
-        selected_row = next(item for item in rows if item['feeder'] == config.feeder)
-        if selected_row['readiness'] == 'INVENTORY_ONLY':
+
+        if config.reconstruct:
+            from igea_dgs.reconstruction import ReconstructionPolicy
+            from igea_dgs.web.reconstruction_service import reconstruct_selection
+
+            reconstruction = reconstruct_selection(
+                workspace,
+                selected,
+                all_feeders=config.all_feeders,
+                policy=ReconstructionPolicy(
+                    allow_catalog_matches=config.allow_catalog_matches,
+                    allow_engineering_assumptions=config.allow_engineering_assumptions,
+                    minimum_catalog_confidence=config.minimum_catalog_confidence,
+                    topology_snap_tolerance=config.topology_snap_tolerance,
+                    provisional_nominal_voltage_kv=config.provisional_nominal_voltage_kv,
+                ),
+            )
+            row['reconstruction'] = {
+                **reconstruction,
+                'selection': list(selected),
+                'path': str(workspace.out_dir / reconstruction['report']),
+            }
+            rows = services.feeder_rows(workspace)
+
+        blocked_rows = [
+            item for item in rows
+            if item['feeder'] in selected and item['readiness'] == 'INVENTORY_ONLY'
+        ]
+        if blocked_rows:
             row['status'] = 'BLOCKED_FEEDER_NOT_READY'
-            row['blocking_codes'] = selected_row['blocking_codes']
+            row['blocking_codes'] = {
+                item['feeder']: item['blocking_codes'] for item in blocked_rows
+            }
             return row
 
         conversion = services.convert(workspace, ctx, selected, False)
@@ -198,6 +269,8 @@ def _accept_mode(config: AcceptanceConfig, mode: str) -> dict[str, Any]:
                 'project': (report.get('import') or {}).get('project_name'),
                 'effective_reread': reread,
                 'rollback': report.get('rollback'),
+                'reconstruction': report.get('reconstruction_verification'),
+                'convergence_classification': report.get('convergence_classification'),
             }
             row['status'] = 'POWERFACTORY_VERIFIED' if verified else 'FAILED_POWERFACTORY'
         return row
@@ -205,6 +278,8 @@ def _accept_mode(config: AcceptanceConfig, mode: str) -> dict[str, Any]:
         row['status'] = 'FAILED'
         row['error'] = f'{type(exc).__name__}: {exc}'
         return row
+    finally:
+        _finalize_original_hashes(row, config, mode)
 
 
 def validate_summary(summary: dict[str, Any]) -> None:
@@ -226,6 +301,8 @@ def validate_summary(summary: dict[str, Any]) -> None:
         for item in row.get('dgs_files') or []:
             if len(item.get('sha256') or '') != 64:
                 raise ValueError(f'{mode} tiene un DGS sin SHA-256')
+        if row.get('originals_unchanged') is False:
+            raise ValueError(f'{mode} modificó un archivo original durante la aceptación')
 
 
 def run_three_sources(config: AcceptanceConfig) -> dict[str, Any]:
@@ -233,10 +310,16 @@ def run_three_sources(config: AcceptanceConfig) -> dict[str, Any]:
     sources = [_accept_mode(config, mode) for mode in ('txt', 'mdb', 'vnr')]
     complete_states = {'DGS_READY', 'POWERFACTORY_VERIFIED'}
     summary = {
-        'schema_version': 'igea-dgs-three-source-acceptance-v1',
+        'schema_version': 'igea-dgs-three-source-acceptance-v2',
         'created_at': time.time(),
         'audit_dir': str(config.audit_dir.resolve()),
         'requested_feeder': config.feeder,
+        'requested_feeders': list(config.feeders or (config.feeder,)),
+        'all_feeders': config.all_feeders,
+        'requested_company': config.source_company,
+        'requested_period': config.source_period,
+        'source_crs': config.source_crs,
+        'reconstruction_requested': config.reconstruct,
         'powerfactory_requested': config.run_powerfactory,
         'sources': sources,
         'overall_status': (
@@ -251,7 +334,17 @@ def run_three_sources(config: AcceptanceConfig) -> dict[str, Any]:
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--audit-dir', type=Path)
-    parser.add_argument('--feeder', default='IN111')
+    parser.add_argument('--feeder', action='append', dest='feeders')
+    parser.add_argument('--all-feeders', action='store_true')
+    parser.add_argument('--company', default='')
+    parser.add_argument('--period', default='')
+    parser.add_argument('--source-crs', default='EPSG:32718')
+    parser.add_argument('--no-reconstruct', action='store_true')
+    parser.add_argument('--no-catalog-matches', action='store_true')
+    parser.add_argument('--no-engineering-assumptions', action='store_true')
+    parser.add_argument('--minimum-catalog-confidence', type=float, default=0.75)
+    parser.add_argument('--topology-snap-tolerance', type=float, default=1.0)
+    parser.add_argument('--provisional-nominal-voltage-kv', type=float, default=10.0)
     parser.add_argument('--txt-red', type=Path)
     parser.add_argument('--txt-loads', type=Path)
     parser.add_argument('--txt-equipment', type=Path)
@@ -271,7 +364,18 @@ def main(argv: list[str] | None = None) -> int:
     audit_dir = args.audit_dir or ROOT / 'AUDIT' / f'three_source_{time.strftime("%Y%m%d_%H%M%S")}'
     config = AcceptanceConfig(
         audit_dir=audit_dir,
-        feeder=args.feeder,
+        feeder=(args.feeders or ['IN111'])[0],
+        feeders=tuple(args.feeders or ()),
+        all_feeders=args.all_feeders,
+        source_company=args.company,
+        source_period=args.period,
+        source_crs=args.source_crs,
+        reconstruct=not args.no_reconstruct,
+        allow_catalog_matches=not args.no_catalog_matches,
+        allow_engineering_assumptions=not args.no_engineering_assumptions,
+        minimum_catalog_confidence=args.minimum_catalog_confidence,
+        topology_snap_tolerance=args.topology_snap_tolerance,
+        provisional_nominal_voltage_kv=args.provisional_nominal_voltage_kv,
         txt_red=args.txt_red,
         txt_loads=args.txt_loads,
         txt_equipment=args.txt_equipment,

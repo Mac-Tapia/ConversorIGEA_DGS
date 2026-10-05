@@ -8,13 +8,19 @@ Conversor modular para transformar los archivos TXT `RED`, `CARGA` y `BD_Equipo`
 
 La interfaz admite **tres TXT**, **MDB/Access** y **VNR-GIS**. Cada carga crea una
 ejecución inmutable propia; nunca completa una modalidad con archivos de otra. La
-tabla permite seleccionar uno, varios o todos los alimentadores y bloquea el lote
-completo si alguno carece de fuente, topología o catálogo exacto.
+tabla permite seleccionar uno, varios o todos los alimentadores. Si faltan nodos,
+tramos o parámetros, trabaja sobre una copia reconstruida auditable: conserva primero
+el valor original, completa por catálogo exacto/fabricante/global y deja cualquier
+supuesto de ingeniería visible. Los archivos primarios nunca se mezclan ni se mutan.
 
 Para ejecutar y documentar el flujo independiente hasta DGS/PowerFactory use
 `python tools/accept_three_sources.py --help`. El procedimiento, los niveles de
 evidencia y las referencias científicas están en
 [`docs/runbooks/three-source-production-acceptance.md`](docs/runbooks/three-source-production-acceptance.md).
+El ejecutor acepta `--feeder` repetido o `--all-feeders`, empresa, periodo, CRS y
+política de reconstrucción; registra hashes antes/después, decisiones y clase de
+convergencia. Una convergencia lograda reduciendo o desconectando carga exige revisión
+del operador y no se declara lista para producción.
 
 ## Interfaz web (recomendada)
 
