@@ -306,6 +306,10 @@ class ResolvedNewSed:
     new_node_id: str
     new_section_id: str
     nearest_from_coords: bool
+    # Nodos cercanos con sus coordenadas del export: (nodo, x, y). PowerFactory no sabe
+    # qué escala usó el DGS (hoja a medida, A0, red unida…), así que la herramienta la
+    # mide comparando dónde dibujó estos nodos con dónde están en el terreno.
+    references: tuple[tuple[str, float, float], ...] = ()
 
     @property
     def p_mw(self) -> float:
@@ -778,8 +782,24 @@ def build_create_plan(
             new_node_id=f'NODE_{row.sed_code}',
             new_section_id=f'SEC_{row.sed_code}',
             nearest_from_coords=desde_coords,
+            references=_reference_nodes(model, node_id),
         ))
     return plan
+
+
+# Basta con unos pocos para medir la escala; se mandan varios porque en el diagrama no
+# todos los nodos tienen símbolo (los de paso sin derivación no se dibujan).
+REFERENCE_NODES = 12
+
+
+def _reference_nodes(model, node_id: str) -> tuple[tuple[str, float, float], ...]:
+    """El nodo de enganche y sus vecinos más cercanos, con coordenadas."""
+    anchor = model.nodes.get(node_id)
+    if anchor is None or anchor.x is None or anchor.y is None:
+        return ()
+    con_xy = [n for n in model.nodes.values() if n.x is not None and n.y is not None]
+    con_xy.sort(key=lambda n: (math.hypot(n.x - anchor.x, n.y - anchor.y), n.node_id))
+    return tuple((n.node_id, float(n.x), float(n.y)) for n in con_xy[:REFERENCE_NODES])
 
 
 def _to_gps(points: Sequence[tuple[float, float]], source_crs: str) -> list[tuple[float, float] | None]:
@@ -849,6 +869,9 @@ def create_plan_to_payload(
                 'new_section_id': item.new_section_id,
                 'coord_x': item.load.coord_x,
                 'coord_y': item.load.coord_y,
+                'reference_nodes': [
+                    {'node_id': n, 'x': x, 'y': y} for n, x, y in item.references
+                ],
                 # Conductor de la derivación, con los números que lo justifican.
                 'conductor_code': item.conductor.code,
                 'conductor_ampacity_a': item.conductor.ampacity_a,

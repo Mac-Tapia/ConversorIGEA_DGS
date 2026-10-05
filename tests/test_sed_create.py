@@ -350,3 +350,156 @@ class TestRealFeederCreation:
         assert item.distance_m <= 50.0 + 1e-6
         assert item.conductor.code in {t.code for t in model.line_types.values()}
         assert item.conductor.current_a == pytest.approx(160 / (math.sqrt(3) * model.nominal_kv))
+
+
+def _create_tool():
+    import importlib.util
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parents[1] / 'tools' / 'create_sed_loads.py'
+    spec = importlib.util.spec_from_file_location('create_sed_loads', path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+class TestDrawingInPowerFactory:
+    """La SED nueva se dibuja en el unifilar, a la escala con que se importó el DGS.
+
+    PowerFactory no guarda esa escala, así que se mide con los nodos cercanos: lo que
+    se prueba aquí es esa medida, que no necesita PowerFactory.
+    """
+
+    def test_plan_carries_the_reference_nodes(self):
+        model = _model()
+        rows, errors = single_new_load(
+            sed_code='SE_N', coord_x=500130.0, coord_y=8500040.0, installed_kva=160, kw=40,
+        )
+        payload = create_plan_to_payload(build_create_plan(model, rows, errors), nominal_kv=22.9)
+        refs = payload['create'][0]['reference_nodes']
+        assert refs[0]['node_id'] == 'N2', 'primero el nodo de enganche'
+        assert {r['node_id'] for r in refs} == {'N1', 'N2', 'N3'}
+        assert refs[0]['x'] == pytest.approx(500100.0)
+
+    def test_scale_and_offset_are_measured_from_drawn_nodes(self):
+        tool = _create_tool()
+        # Diagrama a 2,08 u/m con origen desplazado, como la escala NA205.
+        s, bx, by = 2.08, -1_040_000.0, -17_680_000.0
+        refs = [(x, y, s * x + bx, s * y + by)
+                for x, y in ((500000, 8500000), (500100, 8500000), (500100, 8500300))]
+        to_diagram = tool.diagram_transform(refs)
+        gx, gy = to_diagram(500130.0, 8500040.0)
+        assert gx == pytest.approx(s * 500130 + bx)
+        assert gy == pytest.approx(s * 8500040 + by)
+
+    def test_a_straight_street_still_gives_the_scale(self):
+        """Todos los nodos con la misma y: un ajuste por eje fallaría en y."""
+        tool = _create_tool()
+        refs = [(x, 100.0, 3 * x, 300.0) for x in (0.0, 50.0, 120.0)]
+        assert tool.diagram_transform(refs)(10.0, 110.0) == pytest.approx((30.0, 330.0))
+
+    def test_without_two_distinct_points_there_is_no_scale(self):
+        tool = _create_tool()
+        assert tool.diagram_transform([(1.0, 1.0, 5.0, 5.0)]) is None
+        assert tool.diagram_transform([(1.0, 1.0, 5.0, 5.0), (1.0, 1.0, 5.0, 5.0)]) is None
+
+    def test_without_scale_the_new_bus_is_set_apart_from_the_anchor(self):
+        tool = _create_tool()
+        xy = tool.new_sed_positions({'coord_x': None, 'coord_y': None}, (10.0, 10.0), None, 4.0)
+        assert xy == (14.0, 6.0)
+
+    def test_line_rotation_matches_the_converter(self):
+        tool = _create_tool()
+        assert tool.line_rotation((0, 0), (1, 1)) == 45
+        assert tool.line_rotation((0, 0), (-1, 0)) == 180
+
+
+class TestSplitCreateByFeeder:
+    def _far_model(self):
+        """Otro alimentador 5 km al este del de ``_model``."""
+        m = _model()
+        nodes = {f'F{i}': type(n)(f'F{i}', n.x + 5000.0, n.y) for i, n in enumerate(m.nodes.values())}
+        return type(m)(name='AL02', network_id='NET_AL02', nominal_kv=22.9, source_node='F0',
+                       nodes=nodes, lines=[], loads=[], devices=[], line_types=m.line_types, seds=[])
+
+    def test_sheet_named_as_a_feeder_wins(self):
+        from igea_dgs.loads_create import split_create_by_feeder
+
+        rows, _ = single_new_load(sed_code='SE_A', coord_x=505100.0, coord_y=8500000.0,
+                                  installed_kva=100, kw=10)
+        out, sueltos = split_create_by_feeder({'AL01': (rows, [])}, {'AL01': _model(), 'AL02': self._far_model()})
+        assert [r.sed_code for r in out['AL01'][0]] == ['SE_A'] and sueltos == []
+
+    def test_coordinates_pick_the_nearest_feeder(self):
+        from igea_dgs.loads_create import split_create_by_feeder
+
+        cerca_1, _ = single_new_load(sed_code='SE_1', coord_x=500120.0, coord_y=8500010.0, installed_kva=100, kw=10)
+        cerca_2, _ = single_new_load(sed_code='SE_2', coord_x=505110.0, coord_y=8500010.0, installed_kva=100, kw=10)
+        out, sueltos = split_create_by_feeder(
+            {'NUEVAS': (cerca_1 + cerca_2, [])}, {'AL01': _model(), 'AL02': self._far_model()})
+        assert sueltos == []
+        assert [r.sed_code for r in out['AL01'][0]] == ['SE_1']
+        assert [r.sed_code for r in out['AL02'][0]] == ['SE_2']
+        assert out['AL02'][0][0].feeder == 'AL02'
+
+    def test_node_id_picks_its_feeder(self):
+        from igea_dgs.loads_create import split_create_by_feeder
+
+        rows, _ = single_new_load(sed_code='SE_N', node_id='F1', installed_kva=100, kw=10)
+        out, _ = split_create_by_feeder({'NUEVAS': (rows, [])}, {'AL01': _model(), 'AL02': self._far_model()})
+        assert [r.sed_code for r in out['AL02'][0]] == ['SE_N']
+
+    def test_coordinate_tie_is_ambiguous_not_dictionary_order(self):
+        from igea_dgs.loads_create import split_create_by_feeder
+
+        same_a = _model()
+        same_b = _model()
+        rows, _ = single_new_load(
+            sed_code='SE_TIE', coord_x=500100.0, coord_y=8500000.0,
+            installed_kva=100, kw=10,
+        )
+        out, sueltos = split_create_by_feeder(
+            {'NUEVAS': (rows, [])}, {'F-A': same_a, 'F-B': same_b},
+        )
+        assert out['F-A'][0] == [] and out['F-B'][0] == []
+        assert len(sueltos) == 1
+        assert 'ambigua' in sueltos[0].lower()
+        assert 'F-A' in sueltos[0] and 'F-B' in sueltos[0]
+
+    def test_row_without_any_clue_is_reported(self):
+        from igea_dgs.loads_create import NewSedLoad, split_create_by_feeder
+
+        out, sueltos = split_create_by_feeder(
+            {'NUEVAS': ([NewSedLoad('SE_X', installed_kva=100)], [])}, {'AL01': _model()})
+        assert out['AL01'][0] == [] and 'SE_X' in sueltos[0]
+
+
+def _lote_tool():
+    import importlib.util
+    import sys
+    from pathlib import Path
+
+    tools = Path(__file__).resolve().parents[1] / 'tools'
+    sys.path.insert(0, str(tools))
+    try:
+        spec = importlib.util.spec_from_file_location('aplicar_lote_cargas', tools / 'aplicar_lote_cargas.py')
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+    finally:
+        sys.path.remove(str(tools))
+
+
+class TestBatchTool:
+    def test_scenario_and_variation_names_are_valid_in_powerfactory(self):
+        tool = _lote_tool()
+        assert tool.nombre_escenario('PA217', '20261002_0930') == 'Cargas_PA217_20261002_0930'
+        assert tool.nombre_variacion('PA 2/17', '20261002_0930') == 'SED_nuevas_PA_2_17_20261002_0930'
+        assert len(tool.nombre_variacion('X' * 60, '20261002_0930')) <= tool.MAX_NOMBRE
+
+    def test_undrawn_is_a_warning_and_not_found_is_a_failure(self):
+        tool = _lote_tool()
+        assert not tool.con_fallos({'creacion': {'created': [1], 'undrawn': ['SE: sin diagrama']}})
+        assert tool.con_fallos({'actualizacion': {'not_found': ['SE1']}})
+        assert tool.con_fallos({'creacion': {'error': 'no se pudo crear la etapa'}})
+        assert tool.con_fallos({'error': 'boom'})
