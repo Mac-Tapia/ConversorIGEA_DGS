@@ -4,6 +4,7 @@ import { Ctx, type AppCtx } from './context';
 import { FeedersPanel } from './components/FeedersPanel';
 import { InputsPanel } from './components/InputsPanel';
 import { JobBar } from './components/JobBar';
+import { LoteTab } from './components/LoteTab';
 import { LogPanel } from './components/LogPanel';
 import { CatalogTab, LoadsTab, NewSedTab, ResultsTab, SystemTab } from './components/Modules';
 import { OptionsPanel } from './components/OptionsPanel';
@@ -15,6 +16,7 @@ const TABS = [
   { id: 'results', label: 'Resultados', el: <ResultsTab /> },
   { id: 'loads', label: 'Cargas de SED', el: <LoadsTab /> },
   { id: 'newsed', label: 'SED nuevas', el: <NewSedTab /> },
+  { id: 'lote', label: 'Cargas en DIgSILENT', el: <LoteTab /> },
   { id: 'catalog', label: 'Catálogo de parámetros', el: <CatalogTab /> },
   { id: 'system', label: 'Sistema completo', el: <SystemTab /> },
 ] as const;

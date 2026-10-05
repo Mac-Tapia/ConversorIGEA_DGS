@@ -133,7 +133,7 @@ export function LoadsTab() {
               <button className="btn" onClick={() => run(() => download(api.loadTemplateUrl(ws.id, feeder, 'xlsx')))}>Excel</button>
               <button className="btn btn-ghost" onClick={() => run(() => download(api.loadTemplateUrl(ws.id, feeder, 'csv')))}>CSV</button>
             </div>
-            <small className="muted">Escriba los valores nuevos en «Kw» y «Kvar» (o en «(kVA)» y «FP»). «accion» = omitir salta la fila.</small>
+            <small className="muted">Por SED, rellene un par: «Kw» y «Kvar», «Kw» y «FP», o «(kVA)» y «FP». La SED que deje en blanco no cambia; la carga actual está en «Kw_actual». «accion» = omitir salta la fila.</small>
           </div>
           <div className="step-box">
             <h3>2 · Subir la plantilla rellenada</h3>

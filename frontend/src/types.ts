@@ -337,3 +337,81 @@ export interface CreatePlan {
   }[];
   applicable: boolean;
 }
+
+export interface PfProject {
+  name: string;
+  feeders: string[];
+}
+
+export interface LotePlan {
+  token: string;
+  kind: 'lote';
+  plan_file: string;
+  project: string;
+  /** Orden en que se aplicarán en PowerFactory: el de la selección. */
+  order: string[];
+  feeders_summary: {
+    feeder: string;
+    updates: number;
+    unknown: string[];
+    create: number;
+    already_exists: string[];
+    errors: number;
+    routing_basis: ('sed_identity' | 'sheet_node_coordinates')[];
+    scenario: string | null;
+    variation: string | null;
+    changes: {
+      sed: string;
+      before: { kw: number; kvar: number; fp: number };
+      after: { kw: number; kvar: number; fp: number };
+    }[];
+    /** Inversión de la etapa de SED nuevas, en miles de US$ (si se dieron costes). */
+    inversion_kusd?: number;
+  }[];
+  without_changes: string[];
+  tec: EconomiaTec | null;
+  row_errors: string[];
+  applicable: boolean;
+}
+
+export type LoteFeederStatus = 'APPLIED' | 'ROLLED_BACK' | 'ROLLBACK_FAILED';
+
+export interface LoteFeederResult {
+  feeder: string;
+  status: LoteFeederStatus;
+  before: Record<string, Record<string, unknown>>;
+  after: Record<string, Record<string, unknown>>;
+  created: string[];
+  comldf: { converged?: boolean; return_code?: number; ldf_valid?: boolean };
+  rollback: {
+    status: 'NOT_REQUIRED' | 'RESTORED' | 'PARTIAL';
+    attempted: boolean;
+    containers_deleted: string[];
+    errors: string[];
+  };
+  actualizacion?: { escenario?: string } | null;
+  creacion?: { variacion?: string } | null;
+}
+
+/** Parámetros de la evaluación técnico-económica (ComTececo). Años y %, US$/kWh. */
+export interface EconomiaTec {
+  inicio: number;
+  fin: number;
+  interes_pct: number;
+  perdidas_usd_kwh: number;
+  perdidas_vacio_usd_kwh: number;
+  puntos: 'anual' | 'etapas';
+}
+
+/** Costes unitarios en US$ con los que se valora cada SED nueva. */
+export interface Economia {
+  costos: {
+    sed_fijo_usd: number;
+    trafo_usd_por_kva: number;
+    linea_usd_por_km: number;
+    vida_util_anios: number;
+    valor_residual_pct: number;
+    om_pct_anual: number;
+  };
+  tec: EconomiaTec | null;
+}
