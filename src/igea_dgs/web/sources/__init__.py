@@ -7,7 +7,9 @@ from .mdb import MdbSourceAdapter
 from .txt import TxtSourceAdapter
 
 
-def adapter_for(mode: str) -> SourceAdapter:
+def adapter_for(
+    mode: str, *, company: str | None = None, period: str | None = None,
+) -> SourceAdapter:
     if mode == 'txt':
         return TxtSourceAdapter()
     if mode == 'mdb':
@@ -17,7 +19,7 @@ def adapter_for(mode: str) -> SourceAdapter:
             from .vnr import VnrSourceAdapter
         except ImportError as exc:
             raise SourceModeError('El adaptador VNR-GIS todavía no está disponible.') from exc
-        return VnrSourceAdapter()
+        return VnrSourceAdapter(company=company, period=period)
     raise SourceModeError(f'Modo de entrada desconocido: {mode!r}.')
 
 

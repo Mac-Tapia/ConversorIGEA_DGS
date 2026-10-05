@@ -46,18 +46,20 @@ def safe_extract_package(source: Path | str, destination: Path | str) -> Extract
     try:
         suffix = source.suffix.lower()
         if suffix == '.zip':
-            files = safe_extract_zip(source, staging, uncompressed_limit_bytes=8 * 1024**3)
+            safe_extract_zip(source, staging, uncompressed_limit_bytes=8 * 1024**3)
             package_format = 'zip'
         elif suffix == '.rar':
-            files = safe_extract_rar(source, staging, uncompressed_limit_bytes=8 * 1024**3)
+            safe_extract_rar(source, staging, uncompressed_limit_bytes=8 * 1024**3)
             package_format = 'rar'
         elif source.is_file():
             target = staging / source.name
             shutil.copy2(source, target)
-            files = [target]
             package_format = source.suffix.lower().lstrip('.') or 'file'
         else:
             raise ValueError(f'Paquete VNR inexistente o no soportado: {source}')
+        # Enumerar desde el mismo objeto ``staging`` evita que Windows compare el
+        # alias 8.3 del directorio temporal con la ruta larga devuelta por zipfile.
+        files = sorted(path for path in staging.rglob('*') if path.is_file())
         staging.replace(destination)
         published = [destination / path.relative_to(staging) for path in files]
         return ExtractReport(
@@ -88,8 +90,8 @@ def _geojson_rows(path: Path) -> tuple[list[dict], str]:
 def canonicalize_vnr_package(
     package_root: Path | str,
     *,
-    company: str | None = 'ELDU',
-    period: str | None = 'latest_available',
+    company: str | None = None,
+    period: str | None = None,
 ) -> tuple[CanonicalizeResult, dict[str, str]]:
     """Descubre capas de tramo por campos, no por nombre de archivo."""
     from vnr_etl.connectors.registry import iter_supported_sources
@@ -297,7 +299,15 @@ def select_source_scope(
         if period_field and row.get(period_field) not in (None, '')
     }, key=_period_key)
     requested_period = (period or '').strip()
-    selected_period = periods[-1] if requested_period == 'latest_available' and periods else requested_period
+    if not requested_period and len(periods) > 1:
+        raise ValueError(
+            'La fuente contiene múltiples periodos; indique --period para evitar mezclarlos.'
+        )
+    selected_period = (
+        periods[-1] if requested_period == 'latest_available' and periods
+        else periods[0] if not requested_period and len(periods) == 1
+        else requested_period
+    )
     if requested_period not in ('', 'latest_available') and periods and requested_period not in periods:
         raise ValueError(f'Periodo no encontrado para {selected_company or "la fuente"}: {requested_period}')
     if selected_period:

@@ -4,6 +4,8 @@ export type InputMode = 'txt' | 'mdb' | 'vnr';
 
 export interface Options {
   input_mode: InputMode;
+  source_company: string | null;
+  source_period: string | null;
   source_crs: string;
   target_crs: string;
   include_geography: boolean;
@@ -15,6 +17,14 @@ export interface Options {
   workers: number;
   /** Formato fijo opcional. null ajusta el lienzo a la red a escala real. */
   hoja: 'A0' | 'A1' | 'A2' | 'A3' | 'A4' | null;
+}
+
+export interface SourceScope {
+  companies: string[];
+  periods: string[];
+  selected_company: string | null;
+  selected_period: string | null;
+  ambiguous: boolean;
 }
 
 /** DGS de red unida: varios alimentadores en un solo fichero. */
