@@ -9,6 +9,7 @@ import math
 from typing import Any, Iterable, Mapping, Sequence
 
 from .reconstruction import EvidenceLevel, ReconstructionPolicy, ReconstructionResult
+from .util import finite_or_none
 
 
 PARAMETER_FIELDS = ('R1', 'R0', 'X1', 'X0', 'B1', 'B0', 'Amps')
@@ -306,23 +307,23 @@ def _provisional(query, policy, *, candidates=(), reason=''):
 
 
 def _derive_physical(query):
-    rho = _number(query.physical.get('resistivity_ohm_mm2_m'))
+    rho = finite_or_none(query.physical.get('resistivity_ohm_mm2_m'))
     if rho is None or query.section_mm2 is None or query.section_mm2 <= 0:
         return None
     r1 = rho * 1000.0 / query.section_mm2
     return {
         'R1': r1,
-        'R0': _number(query.physical.get('r0_ohm_km')) or r1,
-        'X1': _number(query.physical.get('x1_ohm_km')) or (0.4 if query.overhead else 0.1),
-        'X0': _number(query.physical.get('x0_ohm_km')) or (1.2 if query.overhead else 0.3),
-        'B1': _number(query.physical.get('b1')) or 0.0,
-        'B0': _number(query.physical.get('b0')) or 0.0,
-        'Amps': _number(query.physical.get('ampacity_a')) or 100.0,
+        'R0': finite_or_none(query.physical.get('r0_ohm_km')) or r1,
+        'X1': finite_or_none(query.physical.get('x1_ohm_km')) or (0.4 if query.overhead else 0.1),
+        'X0': finite_or_none(query.physical.get('x0_ohm_km')) or (1.2 if query.overhead else 0.3),
+        'B1': finite_or_none(query.physical.get('b1')) or 0.0,
+        'B0': finite_or_none(query.physical.get('b0')) or 0.0,
+        'Amps': finite_or_none(query.physical.get('ampacity_a')) or 100.0,
     }
 
 
 def _parameters(row):
-    return {key: value for key in PARAMETER_FIELDS if (value := _number(row.get(key))) is not None}
+    return {key: value for key in PARAMETER_FIELDS if (value := finite_or_none(row.get(key))) is not None}
 
 
 def _parameters_complete(parameters):
@@ -360,7 +361,7 @@ def _text(row, *keys):
 
 def _float_from(row, *keys):
     for key in keys:
-        value = _number(row.get(key))
+        value = finite_or_none(row.get(key))
         if value is not None:
             return value
     return None
@@ -377,12 +378,6 @@ def _bool_from(row, *keys):
     return None
 
 
-def _number(value):
-    try:
-        result = float(value)
-    except (TypeError, ValueError):
-        return None
-    return result if math.isfinite(result) else None
 
 
 def _source_voltage(source):

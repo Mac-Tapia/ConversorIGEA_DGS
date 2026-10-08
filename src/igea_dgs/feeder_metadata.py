@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Iterable
+
+from .util import sha256_file, write_json_atomic
 
 SCHEMA_VERSION = 'igea-dgs-feeder-metadata-v1'
 TARGET_CLASSES = frozenset({'ElmLod', 'ElmSubstat', 'ElmSym', 'ElmXnet'})
@@ -27,14 +28,6 @@ class FeederAssignment:
 
 def _loc_name(value: str) -> str:
     return str(value or '').replace(';', ',').replace('\r', ' ').replace('\n', ' ').strip()[:40]
-
-
-def sha256_file(path: Path | str) -> str:
-    digest = hashlib.sha256()
-    with Path(path).open('rb') as source:
-        for block in iter(lambda: source.read(1024 * 1024), b''):
-            digest.update(block)
-    return digest.hexdigest()
 
 
 def validate_assignments(records: Iterable[FeederAssignment]) -> None:
@@ -124,10 +117,7 @@ def write_feeder_metadata(
         'classes': sorted({row.class_name for row in assignments}),
         'assignments': [asdict(row) for row in assignments],
     }
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = output_path.with_name(output_path.name + '.tmp')
-    temporary.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
-    temporary.replace(output_path)
+    write_json_atomic(output_path, payload)
     return output_path
 
 

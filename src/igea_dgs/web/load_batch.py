@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Sequence
 
+from ..util import sha256_file, write_json_atomic
+
 
 class LoadBatchPlanError(RuntimeError):
     """A load batch plan cannot be created or read safely."""
@@ -51,14 +53,6 @@ class LoadBatchPlan:
     applicable: bool
 
 
-def _sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open('rb') as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b''):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
 def _json_sha256(payload: Any) -> str:
     raw = json.dumps(
         payload, ensure_ascii=False, sort_keys=True, separators=(',', ':'), default=str,
@@ -73,16 +67,6 @@ def project_identity(ws: Any, project: str) -> str:
         'projects_from_workspace': getattr(ws, 'pf_projects', {}),
     }
     return _json_sha256({'project': project, 'inventory': inventory})
-
-
-def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(path.name + '.tmp')
-    temporary.write_text(
-        json.dumps(payload, indent=2, ensure_ascii=False, default=str) + '\n',
-        encoding='utf-8',
-    )
-    temporary.replace(path)
 
 
 def create_load_batch_plan(
@@ -120,9 +104,9 @@ def create_load_batch_plan(
         if not source.is_file():
             raise LoadBatchPlanError(f'archivo {slot} no encontrado: {source}')
         destination = plan_dir / f'{slot}_{source.name}'
-        before = _sha256(source)
+        before = sha256_file(source)
         shutil.copy2(source, destination)
-        after = _sha256(destination)
+        after = sha256_file(destination)
         if before != after:
             raise LoadBatchPlanError(f'falló la custodia SHA-256 de {source.name}')
         custody.append(CustodiedInput(
@@ -152,8 +136,8 @@ def create_load_batch_plan(
         'applicable': applicable,
     }
     plan_path = plan_dir / 'load_batch_plan.json'
-    _write_json_atomic(plan_path, document)
-    plan_sha256 = _sha256(plan_path)
+    write_json_atomic(plan_path, document)
+    plan_sha256 = sha256_file(plan_path)
     ws.plans[token] = {
         'kind': 'lote',
         'token': token,
@@ -192,7 +176,7 @@ def require_current_load_batch_plan(ws: Any, token: str) -> LoadBatchPlan:
     if not registry or registry.get('kind') != 'lote':
         raise LoadBatchPlanError('el plan ya no existe')
     path = Path(registry['path'])
-    if not path.is_file() or _sha256(path) != registry.get('plan_sha256'):
+    if not path.is_file() or sha256_file(path) != registry.get('plan_sha256'):
         raise LoadBatchPlanStale('LOAD_BATCH_PLAN_STALE: cambió el archivo del plan')
     payload = json.loads(path.read_text(encoding='utf-8'))
     if (
@@ -210,7 +194,7 @@ def require_current_load_batch_plan(ws: Any, token: str) -> LoadBatchPlan:
         if (
             not item_path.is_file()
             or item_path.stat().st_size != item.size
-            or _sha256(item_path) != item.sha256
+            or sha256_file(item_path) != item.sha256
         ):
             raise LoadBatchPlanStale(
                 f'LOAD_BATCH_PLAN_STALE: cambió el libro custodiado {item.name}'

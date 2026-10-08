@@ -27,6 +27,7 @@ from ..naming import feeder_short_name
 from ..powerfactory_env import (
     pf_api_version, pf_python_dir, pf_subprocess_env, project_root, python_for_pf, tools_dir,
 )
+from ..util import nombre_seguro, write_json_atomic
 from .jobs import JobContext
 from .workspace import Workspace
 
@@ -285,14 +286,6 @@ def _rel(ws: Workspace, path: str | None) -> str | None:
 # ---------------------------------------------------------------------------
 
 
-def _write_json_atomic(path: Path, payload: dict) -> None:
-    temporary = path.with_name(path.name + '.tmp')
-    temporary.write_text(
-        json.dumps(payload, indent=2, ensure_ascii=False) + '\n', encoding='utf-8',
-    )
-    temporary.replace(path)
-
-
 def _stamp_source_manifest(
     ws: Workspace,
     manifest: dict,
@@ -322,8 +315,8 @@ def _stamp_source_manifest(
         metadata.update(source)
         if reconstruction is not None:
             metadata['reconstruction'] = reconstruction
-        _write_json_atomic(path, metadata)
-    _write_json_atomic(ws.out_dir / 'batch_manifest.json', manifest)
+        write_json_atomic(path, metadata)
+    write_json_atomic(ws.out_dir / 'batch_manifest.json', manifest)
 
 
 def check_convert_options(ws: Workspace) -> None:
@@ -884,8 +877,7 @@ def group_selection(ws: Workspace, feeders: list[str], all_feeders: bool) -> lis
 
 def group_name(nombre: str, feeders: list[str]) -> str:
     base = (nombre or '').strip() or '_'.join(feeders[:4]) + ('_ETC' if len(feeders) > 4 else '')
-    limpio = ''.join(c if c.isalnum() or c in '-_' else '_' for c in base)[:60]
-    return limpio or 'GRUPO'
+    return nombre_seguro(base, maximo=60)
 
 
 def convert_group(
@@ -958,8 +950,8 @@ def convert_group(
         metadata.update(source)
         if reconstruction is not None:
             metadata['reconstruction'] = reconstruction
-        _write_json_atomic(Path(metadata_path), metadata)
-    _write_json_atomic(ws.out_dir / f'{nombre}_manifest.json', man)
+        write_json_atomic(Path(metadata_path), metadata)
+    write_json_atomic(ws.out_dir / f'{nombre}_manifest.json', man)
     ctx.log(man.get('entrada') or '')
     if man.get('union'):
         ctx.log(man['union'])

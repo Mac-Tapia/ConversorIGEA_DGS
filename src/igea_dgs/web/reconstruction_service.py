@@ -14,6 +14,7 @@ from ..reconstruction import EvidenceLevel, ReconstructionPolicy, reconstruct_da
 from ..reconstruction_topology import repair_discontinuities, repair_missing_nodes
 from .readiness import assess_feeder_readiness
 from .workspace import Workspace
+from ..util import sha256_file, write_json_atomic
 
 
 def resolve_selection(
@@ -193,7 +194,7 @@ def reconstruct_selection(
     report_hash = _payload_hash(payload)
     payload['report_sha256'] = report_hash
     report_path = ws.out_dir / 'reconstruction_report.json'
-    _write_json_atomic(report_path, payload)
+    write_json_atomic(report_path, payload)
 
     counts = Counter(decision.level for decision in result.report.decisions)
     with ws.lock:
@@ -382,7 +383,7 @@ def _catalog_sources(ws: Workspace) -> tuple[CatalogSource, ...]:
         version=str(path.stat().st_mtime_ns),
         manufacturer='',
         locator=str(path.resolve()),
-        sha256=_file_sha256(path),
+        sha256=sha256_file(path),
         rows=rows,
     ),)
 
@@ -426,21 +427,3 @@ def _payload_hash(payload: dict[str, Any]) -> str:
         payload, ensure_ascii=False, sort_keys=True, separators=(',', ':'), default=str,
     ).encode('utf-8')
     return hashlib.sha256(encoded).hexdigest()
-
-
-def _file_sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open('rb') as handle:
-        while chunk := handle.read(1024 * 1024):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
-def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(path.name + '.tmp')
-    temporary.write_text(
-        json.dumps(payload, indent=2, ensure_ascii=False, default=str) + '\n',
-        encoding='utf-8',
-    )
-    temporary.replace(path)

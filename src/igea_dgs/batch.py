@@ -26,6 +26,7 @@ from .model import ModelBuildError, build_feeder_model
 from .naming import feeder_short_name, sort_key_feeder
 from .preview import write_preview_geojson, write_preview_html
 from .reglas import REGLAS_PROYECTO, Reglas, aplicar_reglas, auditar_completitud, preparar_dataset
+from .util import nombre_seguro
 from .validate import parse_dgs, validate_dgs, write_validation_reports
 
 ProgressCallback = Callable[[str, int, int], None]
@@ -673,7 +674,7 @@ def convert_group(
         if catalog_corrections is None:
             catalog_corrections = leer_catalogo(catalogo)
 
-    nombre = ''.join(c if c.isalnum() or c in '-_' else '_' for c in name.strip()) or 'GRUPO'
+    nombre = nombre_seguro(name.strip())
     stage = out_dir / f'{STAGE_PREFIX}{nombre}'
     manifest: dict[str, Any] = {
         'name': nombre, 'feeders': list(selectors), 'network_ids': [],

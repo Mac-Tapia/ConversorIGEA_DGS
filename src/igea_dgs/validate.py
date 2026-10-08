@@ -8,6 +8,7 @@ import math
 from .model import FeederModel, Line
 from .schema import load_schema
 from .geography import GeographyManifest
+from .util import finite_or_none
 
 
 def parse_dgs(path: Path | str) -> dict[str, dict]:
@@ -50,12 +51,6 @@ def _loc(value: str) -> str:
     return value.replace(';', ',').replace('\n', ' ').replace('\r', ' ')[:40]
 
 
-def _finite_float(value: str | None) -> float | None:
-    try:
-        result = float(value)
-    except (TypeError, ValueError):
-        return None
-    return result if math.isfinite(result) else None
 
 
 def validate_dgs(
@@ -354,8 +349,8 @@ def validate_dgs(
             if row is None:
                 geographic_errors.append(f'{node_id}: no ElmTerm for GPS validation')
                 continue
-            lat = _finite_float(row.get('GPSlat'))
-            lon = _finite_float(row.get('GPSlon'))
+            lat = finite_or_none(row.get('GPSlat'))
+            lon = finite_or_none(row.get('GPSlon'))
             if lat is None or lon is None:
                 geographic_errors.append(f'{node_id}: missing/non-numeric GPSlat/GPSlon')
                 continue
@@ -388,8 +383,8 @@ def validate_dgs(
                 continue
             if drow is None:
                 continue
-            lat = _finite_float(drow.get('GPSlat'))
-            lon = _finite_float(drow.get('GPSlon'))
+            lat = finite_or_none(drow.get('GPSlat'))
+            lon = finite_or_none(drow.get('GPSlon'))
             if lat is None or lon is None:
                 geographic_errors.append(f'{sed.code}: ElmSubstat missing GPSlat/GPSlon for node {sed.node_id}')
             elif not (math.isclose(lat, gp.lat, rel_tol=0.0, abs_tol=1e-8) and math.isclose(lon, gp.lon, rel_tol=0.0, abs_tol=1e-8)):
@@ -566,8 +561,8 @@ def validate_dgs(
         sheet_xs: list[float] = []
         sheet_ys: list[float] = []
         for r in graphic_rows:
-            x = _finite_float(r.get('rCenterX'))
-            y = _finite_float(r.get('rCenterY'))
+            x = finite_or_none(r.get('rCenterX'))
+            y = finite_or_none(r.get('rCenterY'))
             if x is not None and y is not None:
                 sheet_xs.append(x)
                 sheet_ys.append(y)
@@ -577,8 +572,8 @@ def validate_dgs(
             except ValueError:
                 n = 0
             for i in range(max(n, 0)):
-                x = _finite_float(r.get(f'rX:{i}'))
-                y = _finite_float(r.get(f'rY:{i}'))
+                x = finite_or_none(r.get(f'rX:{i}'))
+                y = finite_or_none(r.get(f'rY:{i}'))
                 if x is not None and y is not None:
                     sheet_xs.append(x)
                     sheet_ys.append(y)
