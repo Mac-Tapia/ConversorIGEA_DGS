@@ -3,7 +3,7 @@
 Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y parar.
 Spec aprobada el 2026-10-08.
 
-- [ ] T1. Línea base de RF-14: generar los DGS de referencia con los TXT reales (todos los
+- [x] T1. Línea base de RF-14: generar los DGS de referencia con los TXT reales (todos los
       alimentadores, `workers=1`) y guardar sus SHA-256 en `output/linea_base_001.json` (ignorado por git). (RF-14)
       Hecho cuando: existe el JSON y la prueba RF-14 pasa contra el código sin tocar.
 - [ ] T2. `util.py` con `sha256_file`, `write_json_atomic`, `finite_or_none` y
