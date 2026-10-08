@@ -27,12 +27,17 @@ comprueba; uno que no se pueda comprobar no es un principio.
    trabajo en cola, con progreso por WebSocket y cancelable; PowerFactory, en un único
    carril en serie.
 8. **Entorno.** Python 3.12 exacto (lo exige `powerfactory.pyd` de PF 2024). Todas las
-   dependencias Python en un único `requirements.txt`, salvo los drivers opcionales de
+   dependencias del núcleo en un único `requirements.txt`, salvo los drivers opcionales de
    VNR-GIS, que van en `requirements-drivers.txt`: un driver que no se descargue no
-   puede impedir instalar el conversor.
+   puede impedir instalar el conversor. Un módulo externo (spec 002) declara las suyas en
+   su propio paquete, y ninguna puede ser necesaria para instalar o arrancar el núcleo.
+   *Cambio del 2026-10-08:* antes no había módulos externos; se permite para que un
+   estudio o un formato nuevo se distribuya sin tocar este repositorio.
 9. **Datos de la distribuidora.** Los TXT de `referencia/` y las bases de
    `D:\BaseDatosElectroDunas` nunca se publican, ni se suben, ni se envían a un servicio
-   externo, tampoco a un modelo de IA de terceros.
+   externo, tampoco a un modelo de IA de terceros. Un módulo externo solo se carga si
+   figura en la lista de módulos permitidos, porque se ejecuta con acceso a esos datos.
+   *Se comprueba:* prueba de que un módulo instalado y no permitido no se carga.
 10. **Idioma y estilo.** Código, comentarios, mensajes y commits en español. Los
     comentarios explican el **porqué**, con el caso real que lo motivó.
 11. **Las pruebas son la puerta.** Una tarea termina con la suite en verde, y con datos
@@ -40,3 +45,12 @@ comprueba; uno que no se pueda comprobar no es un principio.
     «pasa» sin haber probado nada real.
 12. **La spec manda.** Un comportamiento nuevo entra primero en la spec activa y luego en
     el código; cada requisito `RF-n` tiene al menos una prueba que lo cita.
+13. **Universal.** El conversor carga TXT, MDB y paquetes VNR-GIS de cualquier
+    distribuidora. Los datos de Electro Dunas son un caso de prueba, no el diseño. Toda
+    convención propia de una empresa (CRS de origen, prefijo de las SED de medición, forma
+    de los nombres de alimentador, escala del diagrama) va en un perfil de empresa, nunca
+    en el código ni como valor por defecto. *Se comprueba:* las pruebas sintéticas
+    convierten con al menos dos perfiles distintos, y la comprobación de universalidad
+    falla si el núcleo contiene códigos, CRS o prefijos de una empresa concreta.
+    *Añadido el 2026-10-08:* el CRS de Ica y la exclusión de SED `M…` estaban fijados
+    por defecto, y en otra empresa desplazarían la red o borrarían SED reales sin aviso.

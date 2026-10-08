@@ -19,7 +19,8 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
 ## Especificaciones
 
 - `docs/constitution.md`: principios innegociables, cada uno con cómo se comprueba.
-- `specs/NNN-<nombre>/{spec,plan,tasks}.md`: una carpeta por funcionalidad. Spec activa: `specs/001-reorganizacion/` (pendiente de aprobar).
+- `specs/NNN-<nombre>/{spec,plan,tasks}.md`: una carpeta por funcionalidad. Specs activas, en este orden: `specs/001-reorganizacion/` y
+  `specs/002-arquitectura-por-capas/`, aprobadas el 2026-10-08 (la 002 aún sin plan ni tareas).
 - `docs/superpowers/specs/` y `plans/` son históricos: no tienen requisitos numerados ni casillas al día.
 
 ## Pruebas
@@ -39,13 +40,15 @@ más reciente no trae catálogo de equipos:
 `IGEA_EQUIPMENT_MDB="D:/BaseDatosElectroDunas/260919BaseDatos/202603/BASE JUL25 1.mdb"`.
 
 Esas bases **no** son la misma foto de la red que los TXT de `referencia/` (03/08): los
-nodos están numerados de otra forma. Por eso, con las cinco variables a la vez,
-`test_feeder_pa217.py` y `test_feeder_sl143.py` dan 10 fallos que no son del código:
-comparan el mismo alimentador por las dos vías. Ejecute `tests/test_access_input.py`
-por separado, o use un TXT y una `.mdb` de la misma exportación.
+nodos están numerados de otra forma. Con las cinco variables a la vez la suite pasa
+entera (924 correctas a 2026-10-08): las comparaciones tramo a tramo entre las dos vías
+se omiten solas cuando `igea_dgs.huella` dice que no son la misma exportación. Que las
+dos vías den el mismo modelo **no** está comprobado hasta tener un TXT y una `.mdb` de la
+misma fecha.
 
 ## Reglas que más se rompen
 
+- Universal: TXT, MDB y VNR-GIS de cualquier distribuidora. Electro Dunas es un caso de prueba; sus convenciones (CRS `EPSG:32718`, SED `M…`, escala NA205) van en un perfil de empresa, nunca como valor por defecto (constitución P13).
 - El número de alimentadores es variable (10, 50, 200…): nada de recorrer una tabla entera por alimentador, y nada de tamaños fijos en las pruebas. Ver la sección «Escala» del skill.
 - Dos disposiciones de export (reducida y completa): todo cambio en el lector se prueba con las dos.
 - Determinismo: el DGS es idéntico byte a byte con `workers=1` y con `workers>1`.

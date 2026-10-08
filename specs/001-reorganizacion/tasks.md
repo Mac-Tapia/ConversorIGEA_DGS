@@ -1,7 +1,7 @@
 # Tareas — Spec 001
 
 Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y parar.
-Pendiente de aprobar la spec antes de empezar T1.
+Spec aprobada el 2026-10-08.
 
 - [ ] T1. Línea base de RF-14: generar los DGS de referencia con los TXT reales (todos los
       alimentadores, `workers=1`) y guardar sus SHA-256 en `output/linea_base_001.json` (ignorado por git). (RF-14)
