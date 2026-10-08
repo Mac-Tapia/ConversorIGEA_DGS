@@ -235,7 +235,7 @@ class DgsExporter:
                     'Export DGS bloqueado por round-trip: ' + '; '.join(roundtrip_errors[:5])
                 )
             from vnr_etl import __version__
-            from vnr_etl.discovery.download import sha256_of
+            from igea_dgs.util import sha256_file
 
             manifest = {
                 field: model.metadata.get(field, '') for field in PROVENANCE_FIELDS
@@ -245,7 +245,7 @@ class DgsExporter:
                 'schema_profile': self.schema_profile,
                 'converter_version': __version__,
                 'artifact': stage_dgs.name,
-                'artifact_sha256': sha256_of(stage_dgs),
+                'artifact_sha256': sha256_file(stage_dgs),
                 'roundtrip': 'PASS',
             })
             stage_manifest.write_text(

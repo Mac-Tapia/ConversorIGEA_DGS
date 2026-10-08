@@ -247,7 +247,8 @@ def _convert(args, log: Logger) -> int:
     from datetime import datetime
 
     from .discovery import compute_schema_fingerprint, compute_source_fingerprint
-    from .discovery.download import sha256_of
+    from igea_dgs.util import sha256_file
+
     from .pipeline import (
         canonicalize_sections,
         discover_layers,
@@ -306,7 +307,7 @@ def _convert(args, log: Logger) -> int:
     source_fingerprint = hashlib.sha256(fingerprint_json.encode('utf-8')).hexdigest()
     source_path = Path(args.source)
     source_sha256 = (
-        sha256_of(source_path) if source_path.is_file()
+        sha256_file(source_path) if source_path.is_file()
         else hashlib.sha256(
             json.dumps(section_rows, sort_keys=True, ensure_ascii=False, default=str).encode('utf-8')
         ).hexdigest()

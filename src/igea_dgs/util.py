@@ -7,9 +7,11 @@ fichero en cuatro, la escritura atómica de JSON en tres con formatos que ya div
 from __future__ import annotations
 
 import hashlib
+import importlib
 import json
 import math
 from pathlib import Path
+from types import ModuleType
 from typing import Any
 
 
@@ -43,6 +45,18 @@ def finite_or_none(value: Any) -> float | None:
     except (TypeError, ValueError):
         return None
     return result if math.isfinite(result) else None
+
+
+def importar_opcional(modulo: str, error: Exception) -> ModuleType:
+    """Importa una dependencia opcional o lanza ``error``, que elige quien llama.
+
+    Cada vía conserva su excepción (``DownloadError``, ``ArcGISError``…) porque sus
+    llamadores la capturan por tipo; lo común es solo el intento de importar.
+    """
+    try:
+        return importlib.import_module(modulo)
+    except ImportError as exc:
+        raise error from exc
 
 
 def nombre_seguro(texto: str, *, maximo: int | None = None, defecto: str = 'GRUPO') -> str:

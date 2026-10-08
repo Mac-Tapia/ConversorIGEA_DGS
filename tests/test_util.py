@@ -14,7 +14,9 @@ from pathlib import Path
 import pytest
 
 from igea_dgs import util
-from igea_dgs.util import finite_or_none, nombre_seguro, sha256_file, write_json_atomic
+from igea_dgs.util import (
+    finite_or_none, importar_opcional, nombre_seguro, sha256_file, write_json_atomic,
+)
 
 SRC = Path(__file__).resolve().parents[1] / 'src'
 
@@ -90,6 +92,23 @@ def test_nombre_seguro(texto, maximo, esperado):
     assert nombre_seguro(texto, maximo=maximo) == esperado
 
 
+# --- Dependencia opcional --------------------------------------------------------------
+
+def test_importar_opcional_devuelve_el_modulo():
+    """001:T3 — si está instalado, devuelve el módulo."""
+    assert importar_opcional('json', RuntimeError('no')) is json
+
+
+def test_importar_opcional_lanza_el_error_de_quien_llama():
+    """001:T3 — cada vía conserva su excepción (DownloadError, ArcGISError…)."""
+    class ErrorPropio(RuntimeError):
+        pass
+
+    with pytest.raises(ErrorPropio, match='falta X') as info:
+        importar_opcional('modulo_que_no_existe_igea', ErrorPropio('falta X'))
+    assert isinstance(info.value.__cause__, ImportError)
+
+
 # --- Detector de copias ----------------------------------------------------------------
 
 class _Normaliza(ast.NodeTransformer):
@@ -121,13 +140,14 @@ def _funciones(ruta: Path):
     return [n for n in ast.walk(arbol) if isinstance(n, ast.FunctionDef)]
 
 
-def test_ninguna_utilidad_esta_copiada_en_igea_dgs():
-    """001:RF-4, 001:RF-5 — las utilidades viven solo en ``util``."""
+@pytest.mark.parametrize('paquete', ['igea_dgs', 'vnr_etl'])
+def test_ninguna_utilidad_esta_copiada(paquete):
+    """001:RF-4, 001:RF-5 — las utilidades viven solo en ``igea_dgs.util``."""
     ruta_util = Path(util.__file__)
     propias = {_huella(f): f.name for f in _funciones(ruta_util) if not f.name.startswith('_')}
     copias = [
         f'{ruta.relative_to(SRC).as_posix()}:{f.lineno} {f.name} = util.{propias[h]}'
-        for ruta in sorted((SRC / 'igea_dgs').rglob('*.py')) if ruta != ruta_util
+        for ruta in sorted((SRC / paquete).rglob('*.py')) if ruta != ruta_util
         for f in _funciones(ruta) if (h := _huella(f)) in propias
     ]
     assert not copias, copias
