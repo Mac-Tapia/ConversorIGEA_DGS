@@ -47,7 +47,7 @@ reescribirlo.
    de la página.
 6. **Cargar en DigSILENT + flujo**, **Cargas de SED**, **SED nuevas**, **Catálogo de
    parámetros** y **Sistema completo** (red unida, escenario año 0, datos que faltan):
-   lo mismo que la GUI de escritorio, con el plan a la vista antes de aplicarlo.
+   con el plan a la vista antes de aplicarlo.
 
 El Registro llega por WebSocket línea a línea, también la salida de los guiones de
 PowerFactory mientras corren. Cada navegador trabaja en su **espacio de trabajo**
@@ -74,16 +74,13 @@ Hay dos carriles, cada uno en serie: **motor** (leer, convertir, auditar) y
 proceso con el motor a la vez; serializarlo evita el fallo que eso produce, y separar
 los carriles permite seguir convirtiendo mientras DigSILENT importa la red unida.
 
-### Interfaz de escritorio (heredada)
-
-La GUI Tkinter sigue disponible con `run_gui_escritorio.bat` o
-`python -m igea_dgs.gui`. Sus funciones están todas en la web; se retirará cuando la
-web se haya usado en producción.
+La interfaz de escritorio Tkinter se retiró (spec 001, RF-16): todas sus funciones
+están en la web, y `run_gui.bat` conserva el nombre por los accesos directos ya creados.
 
 ## Reglas del proyecto (se aplican a toda conversión)
 
-Cada entrada —los tres TXT o la base Access `.mdb`— y cada vía —interfaz web, CLI,
-GUI de escritorio, red unida— convierte con las mismas reglas (`src/igea_dgs/reglas.py`):
+Cada entrada —los tres TXT, la base Access `.mdb` o el paquete VNR-GIS— y cada vía
+—interfaz web, CLI, red unida— convierte con las mismas reglas (`src/igea_dgs/reglas.py`):
 
 | Regla | Qué hace |
 |---|---|
@@ -136,11 +133,11 @@ python -m pip install -r requirements-drivers.txt   # opcional, solo VNR-GIS
 
 Alternativa con extras de `pyproject.toml`:
 
-- Sin GPS/diagrama: `pip install -e .` y use `--no-geography` / desactive georreferenciación en la GUI.
+- Sin GPS/diagrama: `pip install -e .` y use `--no-geography` / desactive georreferenciación en la web.
 - Solo producción (con geografía): `pip install -e ".[geo]"`.
 - Desarrollo + tests: `pip install -e ".[geo,dev]"`.
 
-Entradas de consola: `igea-dgs`, `igea-dgs-web` (interfaz web) e `igea-dgs-gui` (escritorio). `run_gui.bat` instala `requirements.txt` si faltan dependencias.
+Entradas de consola: `igea-dgs` (CLI) e `igea-dgs-web` (interfaz web). `run_gui.bat` instala `requirements.txt` si faltan dependencias. Tras actualizar el código, `pip install -e .` retira el antiguo `igea-dgs-gui` del entorno.
 
 ## Principio de arquitectura
 
@@ -157,9 +154,9 @@ La fuente de verdad para cada conversión es:
 | Ítem | Estado |
 | ---- | ------ |
 | Motor de conversión (dataset → model → DGS → validate) | Listo |
-| CLI `list` / `convert` / `gui` / `web` | Listo |
+| CLI `list` / `convert` / `web` (TXT, Access y VNR-GIS) | Listo |
 | Interfaz web (FastAPI + React) | Listo (`src/igea_dgs/web/` + `frontend/` + `run_gui.bat`) |
-| Interfaz de escritorio Tkinter | Heredada (`gui.py` + `run_gui_escritorio.bat`) |
+| Interfaz de escritorio Tkinter | Retirada (spec 001, RF-16) |
 | Empaquetado `pyproject.toml` | Listo |
 | Dependencia `pyproj` (GPS) | En `requirements.txt` (+ extra `[geo]`) — opcional si convierte sin geografía |
 | TXT de entrada en el repo | No incluidos — hay que suministrarlos |

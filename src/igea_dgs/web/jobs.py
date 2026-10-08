@@ -150,7 +150,7 @@ class JobContext:
     ) -> int:
         """Ejecuta un guion volcando su salida al Registro **línea a línea**.
 
-        La GUI de escritorio esperaba a que terminara y lo volcaba todo de golpe: en un
+        La GUI de escritorio, ya retirada, esperaba a que terminara y lo volcaba todo: en un
         escenario base de media hora, el operador no veía nada hasta el final. Aquí
         cada línea llega al navegador en cuanto el guion la escribe.
 

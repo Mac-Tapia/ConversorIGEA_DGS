@@ -1,4 +1,4 @@
-"""Validate GUI selection → full TXT fidelity (sections/loads/devices → DGS)."""
+"""Validate a feeder selection → full TXT fidelity (sections/loads/devices → DGS)."""
 
 from __future__ import annotations
 

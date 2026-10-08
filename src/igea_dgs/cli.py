@@ -113,7 +113,6 @@ def _parser() -> argparse.ArgumentParser:
              'El resultado es idéntico; cada proceso guarda una copia del dataset en memoria.',
     )
 
-    sub.add_parser('gui', help='Abrir la interfaz de escritorio (Tkinter, heredada)')
     web = sub.add_parser('web', help='Arrancar la interfaz web (FastAPI + React) y abrir el navegador')
     web.add_argument('--host', default='127.0.0.1', help='Interfaz de escucha')
     web.add_argument('--port', type=int, default=8765, help='Puerto')
@@ -249,9 +248,6 @@ def load_dataset(args) -> CymdistDataset:
 def main(argv=None) -> int:
     args = _parser().parse_args(argv)
 
-    if args.command == 'gui':
-        from .gui import main as gui_main
-        return gui_main()
     if args.command == 'web':
         from .web.__main__ import main as web_main
         argv_web = ['--host', args.host, '--port', str(args.port)]
