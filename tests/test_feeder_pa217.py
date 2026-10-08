@@ -17,53 +17,19 @@ TXT escribe ``DEFAULT``. Esa diferencia se comprueba de forma explícita en
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
 
 from igea_dgs.batch import convert_selection
+from igea_dgs.reglas import SIN_REGLAS
 from igea_dgs.validate import parse_dgs
 
 FEEDER = 'PA217'
-MDB = os.environ.get('IGEA_MDB', '').strip()
 
-
-@pytest.fixture(scope='module')
-def txt_dataset(igea_paths):
-    from igea_dgs.dataset import CymdistDataset
-
-    red, loads, equip = igea_paths
-    return CymdistDataset.from_files(red, loads, equip)
-
-
-@pytest.fixture(scope='module')
-def mdb_dataset():
-    if not MDB or not Path(MDB).is_file():
-        pytest.skip('Defina IGEA_MDB con la ruta de una base de red CYMDIST (.mdb)')
-    pytest.importorskip('pyodbc')
-    from igea_dgs.access import AccessReadError, read_access_dataset
-
-    try:
-        return read_access_dataset(MDB, equipment_db=os.environ.get('IGEA_EQUIPMENT_MDB') or None)
-    except AccessReadError as exc:
-        pytest.skip(f'No se pudo leer {MDB}: {exc}')
-
-
-@pytest.fixture(params=['txt', 'mdb'])
-def dataset_for(request, txt_dataset, mdb_dataset):
-    """Parametriza cada prueba sobre las dos alternativas de entrada."""
-    ds = txt_dataset if request.param == 'txt' else mdb_dataset
-    try:
-        ds.resolve_feeder(FEEDER)
-    except KeyError:
-        pytest.skip(f'{FEEDER} no está en la entrada «{request.param}»')
-    return request.param, ds
-
-
-def _convert(ds, out_dir):
+def _convert(ds, out_dir, **kw):
     manifest = convert_selection(
-        ds, [FEEDER], out_dir, include_geography=True,
+        ds, [FEEDER], out_dir, include_geography=True, **kw,
         source_crs='EPSG:32718', strict=True, export_tsv=True,
     )
     return manifest, manifest['feeders'][0]
@@ -85,7 +51,11 @@ class TestPa217ConvertsFromBothInputs:
         sections = len(ds.feeders[network_id])
         loads = sum(1 for key in ds.customer_loads if ds.section_owner.get(key[0]) == network_id)
 
-        _manifest, item = _convert(ds, tmp_path / source)
+        # Sin las reglas del proyecto: con ellas los puentes DEFAULT de 10 m o menos se
+        # funden en acopladores (en PA217, 784 de 1.324 tramos) y la cuenta deja de ser
+        # una línea por tramo. Esta prueba mide la fidelidad literal a la entrada; que las
+        # reglas no pierdan nada lo vigila auditar_completitud.
+        _manifest, item = _convert(ds, tmp_path / source, reglas=SIN_REGLAS)
         tables = parse_dgs(item['dgs'])
         assert len(tables['ElmLne']['rows']) == sections
         assert len(tables['ElmLod']['rows']) == loads
@@ -138,24 +108,6 @@ class TestPa217ConvertsFromBothInputs:
 class TestPa217IsTheSameNetworkFromBothInputs:
     """Las dos vías deben describir el mismo alimentador."""
 
-    @pytest.fixture
-    def both(self, txt_dataset, mdb_dataset):
-        for ds in (txt_dataset, mdb_dataset):
-            try:
-                ds.resolve_feeder(FEEDER)
-            except KeyError:
-                pytest.skip(f'{FEEDER} no está en las dos entradas')
-        # Solo tiene sentido comparar tramo a tramo la MISMA exportación. CYMDIST renumera
-        # nodos entre entregas: con TXT y base de fechas distintas, esto daba 10 fallos
-        # que no eran del lector. El criterio mira los ID de NODE y SECTION, no los
-        # extremos de cada tramo, así que un fallo real de mapeo sigue detectándose.
-        from igea_dgs.huella import comparar
-
-        huella = comparar(txt_dataset, mdb_dataset)
-        if not huella.misma_foto:
-            pytest.skip(huella.motivo())
-        return txt_dataset, mdb_dataset
-
     def test_same_network_id_and_sections(self, both):
         txt, mdb = both
         network_id = txt.resolve_feeder(FEEDER)
@@ -203,24 +155,6 @@ class TestPa217ConductorRecovery:
     Es la diferencia legítima entre las dos vías, y la razón por la que no se exige
     igualdad byte a byte del .dgs.
     """
-
-    @pytest.fixture
-    def both(self, txt_dataset, mdb_dataset):
-        for ds in (txt_dataset, mdb_dataset):
-            try:
-                ds.resolve_feeder(FEEDER)
-            except KeyError:
-                pytest.skip(f'{FEEDER} no está en las dos entradas')
-        # Solo tiene sentido comparar tramo a tramo la MISMA exportación. CYMDIST renumera
-        # nodos entre entregas: con TXT y base de fechas distintas, esto daba 10 fallos
-        # que no eran del lector. El criterio mira los ID de NODE y SECTION, no los
-        # extremos de cada tramo, así que un fallo real de mapeo sigue detectándose.
-        from igea_dgs.huella import comparar
-
-        huella = comparar(txt_dataset, mdb_dataset)
-        if not huella.misma_foto:
-            pytest.skip(huella.motivo())
-        return txt_dataset, mdb_dataset
 
     def test_access_has_fewer_default_sections(self, both):
         txt, mdb = both

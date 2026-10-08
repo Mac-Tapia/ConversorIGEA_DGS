@@ -91,5 +91,7 @@ chardet>=5.0
 
 # ── Pruebas ──────────────────────────────────────────────────────────────────────────
 pytest>=8.0
-# Cliente HTTP de fastapi.testclient, para tests/test_web_api.py
-httpx>=0.27
+# Cliente HTTP de fastapi.testclient, para las pruebas web. Starlette 1.x pide httpx2:
+# con httpx a secas avisaba de que está obsoleto en cada ejecución de la suite, y dejará
+# de funcionar cuando Starlette retire ese camino.
+httpx2>=2.0

@@ -1,17 +1,12 @@
 from __future__ import annotations
 
-import importlib.util
 import json
-from pathlib import Path
+
+from apoyo import cargar_herramienta
 
 
 def _module():
-    path = Path(__file__).resolve().parents[1] / 'tools' / 'accept_load_batch.py'
-    spec = importlib.util.spec_from_file_location('accept_load_batch', path)
-    assert spec and spec.loader
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    return cargar_herramienta('accept_load_batch.py', 'accept_load_batch')
 
 
 def test_generic_acceptance_records_order_hashes_and_isolated_rollback(tmp_path):

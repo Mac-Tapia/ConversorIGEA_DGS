@@ -59,11 +59,14 @@ class CymdistExporter:
         output_dir = Path(output_dir) / 'cymdist'
         output_dir.mkdir(parents=True, exist_ok=True)
         mapping = profile.object_mapping
-        written: list[Path] = []
-        written.append(self._write_sections(model, output_dir, mapping.get('sections', {})))
-        written.append(self._write_loads(model, output_dir, mapping.get('loads', {})))
-        written.append(self._write_equipment(model, output_dir, mapping.get('equipment', {})))
-        return written
+        # Por nombre: en orden posicional se pasaba la carpeta donde iba la especificación
+        # de columnas, y todo export con perfil verificado fallaba con TypeError. Nadie lo
+        # vio porque ninguna prueba llegaba a exportar con un perfil verificado.
+        return [
+            self._write_sections(model, spec=mapping.get('sections', {}), output_dir=output_dir),
+            self._write_loads(model, spec=mapping.get('loads', {}), output_dir=output_dir),
+            self._write_equipment(model, spec=mapping.get('equipment', {}), output_dir=output_dir),
+        ]
 
     # --- escritores deterministas -------------------------------------------
     def _headers(self, spec: dict) -> list[str]:
