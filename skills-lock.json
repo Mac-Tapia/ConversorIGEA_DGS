@@ -16,6 +16,16 @@
       "source": "C:/Users/LENOVO~1/AppData/Local/Temp/claude/d--converter-ConversorIGEA-DGS/27395aa3-32bf-4eca-be61-6e7657124dea/scratchpad/skills-src/anthropics-skills",
       "sourceType": "local",
       "computedHash": "6498a736a8dc5c645047c8a875b8ea7417e2ad97146f005200e50d20a9337ada"
+    },
+    "vercel-react-best-practices": {
+      "source": "C:/Users/LENOVO~1/AppData/Local/Temp/claude/d--converter-ConversorIGEA-DGS/27395aa3-32bf-4eca-be61-6e7657124dea/scratchpad/skills-src/vercel-agent-skills-1",
+      "sourceType": "local",
+      "computedHash": "6b526d013e28073246a36f99b529bc43745d30832ecfa8217b359c34f260ca6b"
+    },
+    "web-design-guidelines": {
+      "source": "C:/Users/LENOVO~1/AppData/Local/Temp/claude/d--converter-ConversorIGEA-DGS/27395aa3-32bf-4eca-be61-6e7657124dea/scratchpad/skills-src/vercel-agent-skills-1",
+      "sourceType": "local",
+      "computedHash": "d8e7d3afe37dcc8a97b99ffb5afdb4d0919ae0092ea8b68f44eb201f035e33ac"
     }
   }
 }
