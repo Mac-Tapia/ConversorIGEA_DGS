@@ -1,6 +1,6 @@
 # Spec 001 — Reorganización: una responsabilidad, un sitio
 
-Estado: borrador · Fecha: 2026-10-07 · Origen: `docs/DIAGNOSTICO_SDD_2026-10-07.md`
+Estado: aprobada (2026-10-08) · Fecha: 2026-10-07 · Origen: `docs/DIAGNOSTICO_SDD_2026-10-07.md`
 
 ## Contexto y objetivo
 
