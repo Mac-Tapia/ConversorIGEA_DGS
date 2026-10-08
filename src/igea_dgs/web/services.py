@@ -1,11 +1,11 @@
 """Las acciones de la interfaz, sin interfaz.
 
-Cada función de aquí es lo que hacía un botón de la GUI de escritorio, pero sin Tk y
-sin diálogos: recibe el espacio de trabajo y un :class:`JobContext`, escribe en el
-Registro y devuelve un resultado serializable. Las rutas de la API solo validan,
-encolan y responden.
+Cada función de aquí es lo que hacía un botón de la GUI de escritorio (retirada en la
+spec 001), pero sin Tk y sin diálogos: recibe el espacio de trabajo y un
+:class:`JobContext`, escribe en el Registro y devuelve un resultado serializable. Las
+rutas de la API solo validan, encolan y responden.
 
-Dos defectos de la GUI de escritorio se corrigen aquí en lugar de copiarse:
+Dos defectos de aquella GUI se corrigieron aquí en lugar de copiarse:
 
 * «Cargar fichero y actualizar» llamaba a ``loads.read_template``, que no existe; el
   botón fallaba siempre. Aquí se usa ``loads.read_workbook``.
@@ -320,7 +320,7 @@ def _stamp_source_manifest(
 
 
 def check_convert_options(ws: Workspace) -> None:
-    """Lo que la GUI comprobaba con diálogos antes de lanzar el lote."""
+    """Lo que se comprueba antes de lanzar el lote."""
     opts = ws.options
     caps = capabilities()
     if opts['include_geography'] and not caps['geography']:

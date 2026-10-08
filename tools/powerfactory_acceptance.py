@@ -18,7 +18,7 @@ Checks:
     (aligned with User Manual ch. 24.6 + ComLdf attrs from PF Help)
   - Optional study suite (``--run-studies``): ComLdf + ComShc (+ registry)
   - After import / LDF: persist ``{feeder}.dgs`` (+ known sidecars) into the
-    same convert ``out_dir`` used by GUI/CLI individual convert; optionally
+    same convert ``out_dir`` used by web/CLI individual convert; optionally
     ComExport a ``{feeder}_pf_converged.dgs`` round-trip when LDF passes
 
 DigSILENT Help sources used (PF 2024 install)::
@@ -37,8 +37,8 @@ Example::
 
     set PYTHONPATH=C:\\Program Files\\DIgSILENT\\PowerFactory 2024\\Python\\3.12
     python tools\\powerfactory_acceptance.py ^
-      --import-dgs output\\gui\\AL104.dgs ^
-      --manifest output\\gui\\AL104_geography.json ^
+      --import-dgs output\\AL104.dgs ^
+      --manifest output\\AL104_geography.json ^
       --require-diagram --run-load-flow --fix-until-converge --run-studies
 """
 from __future__ import annotations
@@ -357,7 +357,7 @@ def _generated_project_name(stamp: str, dgs_stem: str) -> str:
 # ---------------------------------------------------------------------------
 # Persist DGS into convert out_dir (+ optional ComExport after LDF)
 # ---------------------------------------------------------------------------
-# Individual convert (GUI ``out_dir`` / CLI ``--out-dir`` / ``convert_selection``)
+# Individual convert (web workspace / CLI ``--out-dir`` / ``convert_selection``)
 # writes ``{feeder}.dgs`` and sidecars there. The PF gate imports from that path
 # into a *new* PF project; corrections stay in-memory unless we export.
 # These helpers guarantee the convert folder always holds the DGS used/validated.
@@ -723,7 +723,7 @@ def ensure_operation_scenario(
     """Find an IntScenario or create one, then activate it.
 
     DigSilent DGS imports often leave Study Case present but no operation
-    scenario; load flow can still run, but GUI/acceptance expect an explicit
+    scenario; load flow can still run, but web/acceptance expect an explicit
     IntScenario for operating state.
     """
     info: dict[str, Any] = {
@@ -2252,7 +2252,7 @@ def _parser() -> argparse.ArgumentParser:
         '--persist-dir',
         help=(
             'Convert out_dir where {feeder}.dgs must remain after the gate '
-            '(default: parent of --import-dgs, same as GUI/CLI individual convert)'
+            '(default: parent of --import-dgs, same as web/CLI individual convert)'
         ),
     )
     p.add_argument(
@@ -2336,7 +2336,7 @@ def main(argv=None) -> int:
     persist_dir = Path(args.persist_dir) if args.persist_dir else None
 
     if args.import_dgs and (manifest_path is None or args.fix_until_converge or run_studies):
-        # GUI / one-shot path: import → scenario → LDF (+ optional study suite).
+        # Web / one-shot path: import → scenario → LDF (+ optional study suite).
         try:
             flow_only_report = run_import_activate_flow(
                 app,

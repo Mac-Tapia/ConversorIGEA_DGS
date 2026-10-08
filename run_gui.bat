@@ -3,7 +3,8 @@ setlocal
 cd /d "%~dp0"
 
 rem Interfaz principal: web (API FastAPI + front React) en http://127.0.0.1:8765/
-rem La interfaz de escritorio Tkinter sigue disponible en run_gui_escritorio.bat.
+rem Conserva el nombre run_gui.bat por los accesos directos ya creados: la interfaz de
+rem escritorio Tkinter se retiro (spec 001, RF-16) y esta es la unica.
 
 set "PY="
 if exist ".venv\Scripts\python.exe" set "PY=.venv\Scripts\python.exe"
@@ -25,7 +26,7 @@ if not exist "frontend\dist\index.html" (
   if errorlevel 1 (
     echo.
     echo Falta compilar la interfaz web y no se encuentra Node.js ^(npm^).
-    echo Instale Node.js 20 o superior y vuelva a ejecutar, o use run_gui_escritorio.bat.
+    echo Instale Node.js 20 o superior y vuelva a ejecutar, o convierta por consola con igea-dgs convert.
     pause
     exit /b 1
   )

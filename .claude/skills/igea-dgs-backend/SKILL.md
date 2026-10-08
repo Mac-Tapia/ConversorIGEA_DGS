@@ -2,7 +2,7 @@
 name: igea-dgs-backend
 description: >-
   Reglas y checklist del motor de conversión IGEA/CYMDIST TXT → DIgSILENT DGS y de su
-  API web. Usar al editar src/igea_dgs/*.py (salvo gui.py), src/igea_dgs/web/, el CLI,
+  API web. Usar al editar src/igea_dgs/*.py, src/igea_dgs/sources/, src/igea_dgs/web/, el CLI,
   el lote multi-alimentador, el lector de TXT, la validación, el rendimiento o la
   escala (10, 50, 200+ alimentadores), y al evaluar o endurecer el backend.
 ---
@@ -11,12 +11,12 @@ description: >-
 
 ## Alcance
 
-El «backend» es el motor Python, el CLI y la API web. La interfaz Tkinter (`gui.py`)
-es heredada; la principal es la web (`src/igea_dgs/web/` + `frontend/`).
+El «backend» es el motor Python, el CLI y la API web. La única interfaz gráfica es la
+web (`src/igea_dgs/web/` + `frontend/`); la Tkinter se retiró (spec 001, RF-16).
 
 | Capa | Módulos | Rol |
 | ---- | ------- | --- |
-| Entrada | `dataset.py`, `access.py`, `identify.py` | Una lectura de RED / CARGA / BD_Equipo (TXT) o `.mdb`. Reconoce cada TXT por su contenido, no por su nombre |
+| Entrada | `sources/` (adaptadores), `dataset.py`, `access.py`, `identify.py` | Una lectura de RED / CARGA / BD_Equipo (TXT), `.mdb` o paquete VNR-GIS, la misma para la web y el CLI (`adapter_for`). Reconoce cada TXT por su contenido, no por su nombre |
 | Índices | `CymdistDataset.*_by_feeder`, `intermediate_by_section` | Agrupan las tablas una vez por lote |
 | Modelo | `model.py`, `catalog*.py` | Modelo aislado por alimentador; correcciones de catálogo |
 | Salida | `dgs.py`, `geography.py`, `validate.py`, `export_tables.py`, `preview.py` | DGS determinista, GPS, validación estricta |
@@ -41,7 +41,7 @@ catálogo del proyecto) y `aplicar_reglas` (puentes `DEFAULT` ≤ 10 m fundidos,
 `M…` excluidos, SED sobrecargadas redimensionadas, hoja a medida a escala real por
 defecto, formatos A0–A4 solo explícitos, todo dibujado) y
 `auditar_completitud` (un alimentador que pierde elementos no es «ok»). Las usan
-`convert_selection`, `convert_group`, la web, el CLI y la GUI. Si añade una vía nueva,
+`convert_selection`, `convert_group`, la web y el CLI. Si añade una vía nueva,
 llame a estas funciones; no copie la lógica. `SIN_REGLAS` solo para pruebas de fidelidad
 literal a la entrada.
 
@@ -115,7 +115,7 @@ coste lineal de escribir lo tapa. Para eso está la guarda determinista.
 ## Patrones preferidos
 
 ```python
-# Progreso desacoplado: la GUI, la web y el CLI pasan un callable.
+# Progreso desacoplado: la web y el CLI pasan un callable.
 convert_selection(ds, sel, out, on_progress=cb, cancel=event, workers=0)
 ```
 
@@ -138,7 +138,7 @@ def algo_by_feeder(self) -> dict[str, tuple[...]]:
 
 - Python **3.12 exacto** (`powerfactory.pyd` de PF 2024 solo carga en 3.12)
 - Extras: `[geo]`, `[xlsx]`, `[access]`, `[validate]`, `[preview]`, `[web]`, `[all]`, `[dev]`
-- Scripts: `igea-dgs`, `igea-dgs-gui`, `igea-dgs-web`
+- Scripts: `igea-dgs`, `igea-dgs-web` (`vnr-etl-web` lo retira T11 de la spec 001)
 
 ## Referencias
 

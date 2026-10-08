@@ -50,11 +50,17 @@ Spec aprobada el 2026-10-08.
       el CLI lee lo mismo que el lector directo; suite con las cinco variables: 977
       correctas. Fuera de T6: el CLI no bloquea alimentadores no listos como hace la web
       (`web/readiness.py`); si se quiere, es un requisito nuevo.
-- [ ] T7. Retirar la GUI Tkinter: `gui.py`, la orden `gui` del CLI, el script
+- [x] T7. Retirar la GUI Tkinter: `gui.py`, la orden `gui` del CLI, el script
       `igea-dgs-gui`, `run_gui_escritorio.bat` y `tests/test_gui_wiring.py`, tomando
       como referencia el commit `52974c8e`. (RF-16)
       Hecho cuando: una prueba comprueba que `igea_dgs.gui` no existe y que el CLI no
       ofrece `gui`, y `pytest -q` en verde.
+      Hecho el 2026-10-08 (`tests/test_sin_gui.py`). También se retira `settings.py`, que
+      solo usaba la ventana (la web guarda eso en cada `Workspace`); `test_settings.py`
+      prueba ahora esa persistencia en la web. `version_key` se usa desde
+      `powerfactory_env` (la de `gui.py` era copia). A diferencia de la referencia,
+      `run_gui.bat` conserva su nombre por los accesos directos ya creados. El entorno
+      instalado conserva `igea-dgs-gui.exe` hasta el próximo `pip install -e .`.
 - [ ] T8. `diagnose` y `reconstruct` como trabajos del carril `engine`; la cancelación
       conserva el dataset anterior. (RF-8, RF-9)
       Hecho cuando: pruebas de API (202 + Job, cancelación) en verde.

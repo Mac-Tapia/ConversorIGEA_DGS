@@ -4,8 +4,8 @@ description: >-
   Reglas de UX y checklist de la interfaz web del conversor IGEA-DGS (React + TypeScript
   en frontend/, servida por la API FastAPI de src/igea_dgs/web/). Usar al editar
   frontend/src/**, al añadir una opción o un botón que llame a la API, al tocar el
-  Registro, el progreso o la cancelación, y al evaluar la interfaz. La GUI Tkinter
-  (gui.py) es heredada.
+  Registro, el progreso o la cancelación, y al evaluar la interfaz. Es la única
+  interfaz gráfica: la GUI Tkinter se retiró.
 ---
 
 # IGEA-DGS Frontend (interfaz web)
@@ -20,8 +20,9 @@ description: >-
 | Estilo | `src/styles.css` | Tokens en `:root`, modo oscuro con `prefers-color-scheme` |
 | Servidor | `src/igea_dgs/web/` | La API sirve `frontend/dist`; ver el skill `igea-dgs-backend` |
 
-`run_gui.bat` abre la web. La interfaz de escritorio (`gui.py`, `run_gui_escritorio.bat`)
-está heredada: solo se corrige, no recibe funciones nuevas.
+`run_gui.bat` abre la web; conserva ese nombre por los accesos directos ya creados. La
+interfaz de escritorio Tkinter se retiró (spec 001, RF-16) y `tests/test_sin_gui.py`
+impide que vuelva.
 
 ## Principios de UX
 
