@@ -122,18 +122,16 @@ genérica y la real se ejecutan con `python tools/accept_load_batch.py --help`; 
 
 ## Instalación (otra máquina local)
 
-**Producción / interfaz web** (paquete + `pyproj` + FastAPI):
+Las dependencias Python del proyecto (conversor, web, VNR-GIS y pruebas) están en un
+único `requirements.txt`. Lo opcional va aparte en `requirements-drivers.txt` —los
+drivers de VNR-GIS (PostgreSQL, Oracle, OpenCV, PDF, RAR) y `leafmap` para la vista
+previa del mapa—, para que un paquete que no se descargue no impida instalar el resto:
 
 ```bash
-python -m venv .venv
+py -3.12 -m venv .venv
 .venv\Scripts\activate
-python -m pip install -r requirements.txt  # incluye TXT, MDB y VNR-GIS
-```
-
-**Desarrollo + tests:**
-
-```bash
-python -m pip install -r requirements-dev.txt
+python -m pip install -r requirements.txt
+python -m pip install -r requirements-drivers.txt   # opcional, solo VNR-GIS
 ```
 
 Alternativa con extras de `pyproject.toml`:
@@ -142,7 +140,7 @@ Alternativa con extras de `pyproject.toml`:
 - Solo producción (con geografía): `pip install -e ".[geo]"`.
 - Desarrollo + tests: `pip install -e ".[geo,dev]"`.
 
-Entradas de consola: `igea-dgs`, `igea-dgs-web` (interfaz web) e `igea-dgs-gui` (escritorio). `run_gui.bat` instala solo `requirements.txt` (sin pytest) si faltan dependencias.
+Entradas de consola: `igea-dgs`, `igea-dgs-web` (interfaz web) e `igea-dgs-gui` (escritorio). `run_gui.bat` instala `requirements.txt` si faltan dependencias.
 
 ## Principio de arquitectura
 
@@ -261,7 +259,7 @@ Se transforma `CoordX/CoordY` con `pyproj` desde el `--source-crs` **de su expor
 
 ## Pruebas
 
-Instale deps de desarrollo: `pip install -r requirements-dev.txt`.
+Instale deps de desarrollo: `pip install -r requirements.txt`.
 
 Sin TXT, pasan las unitarias (schema, independencia, gráficos, resolución de tipos). Con TXT:
 

@@ -34,7 +34,7 @@ def _require_requests():
         import requests  # noqa: F401
     except ImportError as exc:  # pragma: no cover - depende del entorno
         raise DownloadError(
-            'La descarga necesita la dependencia «requests» (ver vnr_requirements.txt '
+            'La descarga necesita la dependencia «requests» (ver requirements.txt '
             'y `python -m vnr_etl doctor`).'
         ) from exc
     return __import__('requests')
@@ -335,7 +335,7 @@ def safe_extract_rar(
     except ImportError as exc:
         raise DownloadError(
             'La extracción de RAR necesita el driver opcional «rarfile» '
-            '(ver vnr_requirements_optional.txt).'
+            '(ver requirements-drivers.txt).'
         ) from exc
     archive = Path(archive)
     destination = Path(destination)

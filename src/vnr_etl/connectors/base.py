@@ -123,7 +123,7 @@ class AdapterUnavailable(RuntimeError):
     def __init__(self, adapter: str, requirement: str) -> None:
         super().__init__(
             f'El adaptador {adapter} necesita {requirement}; no está disponible '
-            f'(ver vnr_requirements_optional.txt y `python -m vnr_etl doctor`).'
+            f'(ver requirements-drivers.txt y `python -m vnr_etl doctor`).'
         )
         self.adapter = adapter
         self.requirement = requirement

@@ -17,7 +17,7 @@ def _require_networkx():
     try:
         import networkx as nx  # noqa: F401
     except ImportError as exc:  # pragma: no cover
-        raise RuntimeError('La topología necesita «networkx» (ver vnr_requirements.txt).') from exc
+        raise RuntimeError('La topología necesita «networkx» (ver requirements.txt).') from exc
     return __import__('networkx')
 
 

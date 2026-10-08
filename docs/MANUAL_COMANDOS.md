@@ -30,11 +30,7 @@ rompe la integración con DIgSILENT, que es la razón de ser del proyecto.
 > python -m pip install -r requirements.txt
 ```
 
-Para poder ejecutar además las pruebas:
-
-```bat
-> python -m pip install -r requirements-dev.txt
-```
+Ese único fichero trae todo: conversor, web, VNR-GIS y las herramientas de prueba.
 
 Comprobar que quedó bien instalado:
 

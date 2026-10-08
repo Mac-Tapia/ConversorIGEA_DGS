@@ -1,0 +1,29 @@
+# Drivers opcionales del módulo VNR-GIS (vnr_etl) y la vista previa con leafmap.
+# Instálelos DESPUÉS de requirements.txt:
+#
+#   python -m pip install -r requirements.txt
+#   python -m pip install -r requirements-drivers.txt
+#   python -m vnr_etl doctor          # dice qué adaptador quedó operativo
+#
+# Están aparte porque pip instala un fichero de requisitos todo o nada: con ellos dentro
+# de requirements.txt, un solo driver que no se descargara (el 2026-10-08 PyPI no respondía
+# para psycopg2-binary desde la red de la oficina) hacía fallar la instalación entera, y con
+# ella el arranque de run_gui.bat. Ninguno es necesario para convertir TXT, Access o un
+# paquete VNR-GIS: cada uno desbloquea UN adaptador, y si falta, solo ese adaptador se
+# desactiva con un mensaje que remite a este fichero.
+#
+# Si uno falla, los demás se pueden instalar uno a uno:
+#   python -m pip install oracledb
+
+# Vista previa del mapa del conversor con leafmap (preview.py); sin él usa Leaflet por
+# CDN. Va aquí por la misma razón que los drivers: arrastra muchas dependencias
+# (folium, ipyleaflet, ipywidgets…), y el 2026-10-08 pip no pudo resolverlas con la red
+# cortándose, lo que hizo fallar la instalación de todo requirements.txt.
+leafmap>=0.30
+
+psycopg2-binary>=2.9          # PostgreSQL / PostGIS
+oracledb>=2.0                 # Oracle / Oracle Spatial
+SQLAlchemy>=2.0               # abstracción de bases
+opencv-python>=4.8            # recuperación por PDF (requiere Poppler en el sistema)
+pdf2image>=1.17
+rarfile>=4.1                  # extracción segura de .rar

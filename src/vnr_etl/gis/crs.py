@@ -18,7 +18,7 @@ def _require_pyproj():
     try:
         import pyproj  # noqa: F401
     except ImportError as exc:  # pragma: no cover
-        raise CRSError('La reproyección necesita «pyproj» (ver vnr_requirements.txt).') from exc
+        raise CRSError('La reproyección necesita «pyproj» (ver requirements.txt).') from exc
     return __import__('pyproj')
 
 

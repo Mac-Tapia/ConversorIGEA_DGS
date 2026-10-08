@@ -57,6 +57,14 @@ PERDIDAS_SOSPECHOSAS_PCT = 15.0
 #: cálculo del oráculo: el modelo y el DGS conservan la longitud de la fuente.
 _LONGITUD_MIN_KM = 1e-6
 
+#: Por debajo de esta longitud un tramo se calcula como una conexión (interruptor
+#: entre barras) y no como una línea. Un tramo de 0 m llevado a 1 mm daba una
+#: impedancia de 10⁻⁷ Ω junto a tramos de decenas de metros: la matriz quedaba mal
+#: condicionada y el flujo «no convergía» en redes sanas. Pasaba con toda carga en el
+#: punto medio de la disposición completa, que cuelga de una derivación virtual de
+#: 0 m. A partir de 1 cm sí converge, y 1 cm de cable no mueve la tensión.
+_LARGO_CONEXION_M = 0.01
+
 
 @dataclass(frozen=True)
 class Hallazgo:
@@ -155,11 +163,17 @@ def red_pandapower(model: FeederModel):
     lineas = sorted(model.lines, key=lambda ln: ln.section_id)
     omega = 2.0 * math.pi * FRECUENCIA_HZ
     desde, hasta, largo, r, x, c, imax, nombres = [], [], [], [], [], [], [], []
+    conexiones = []
     for ln in lineas:
         typ = model.line_types.get(ln.type_key)
         if typ is None:
             informe.hallazgos.append(Hallazgo('error', 'tipo_ausente',
                                               f'tipo {ln.type_key!r} sin definir', ln.section_id))
+            continue
+        if ln.length_m < _LARGO_CONEXION_M:
+            # Ver _LARGO_CONEXION_M: se calcula como conexión, no como línea, así que
+            # su impedancia no interviene y no se comprueba.
+            conexiones.append(ln)
             continue
         if typ.r1_ohm_km <= 0 and typ.x1_ohm_km <= 0:
             informe.hallazgos.append(Hallazgo(
@@ -199,6 +213,13 @@ def red_pandapower(model: FeederModel):
         if cp.node_a in barra and cp.node_b in barra:
             sw_bus.append(barra[cp.node_a]); sw_el.append(barra[cp.node_b])
             sw_et.append('b'); sw_closed.append(cp.on_off == 1); sw_name.append(cp.name)
+    # Los tramos-conexión: abiertos si alguna maniobra de ese tramo lo está, como
+    # habría quedado la línea con su maniobra abierta.
+    abiertos = {d.section_id for d in model.devices if d.on_off != 1}
+    for ln in conexiones:
+        sw_bus.append(barra[ln.from_node]); sw_el.append(barra[ln.to_node])
+        sw_et.append('b'); sw_closed.append(ln.section_id not in abiertos)
+        sw_name.append(ln.section_id)
     if sw_bus:
         pp.create_switches(net, sw_bus, sw_el, sw_et, closed=sw_closed, name=sw_name)
 
@@ -276,7 +297,12 @@ def validar(model: FeederModel) -> InformeOraculo:
         # pandapower las deja fuera del cálculo por su cuenta; se sigue.
 
     try:
-        pp.runpp(net, algorithm='nr', init='auto', max_iteration=30, calculate_voltage_angles=False)
+        # numba=False: sin numba instalado, runpp imprime en cada llamada un aviso de
+        # cuatro líneas; en un lote de 96 alimentadores eran 96 avisos que tapaban el
+        # Registro. Sin numba, los 96 alimentadores de la entrega de 03/08 se calcularon
+        # en 31 s, que es aceptable para una validación previa.
+        pp.runpp(net, algorithm='nr', init='auto', max_iteration=30,
+                 calculate_voltage_angles=False, numba=False)
         informe.convergio = bool(net.converged)
     except Exception as exc:  # noqa: BLE001 - pandapower lanza varias clases al no converger
         informe.convergio = False

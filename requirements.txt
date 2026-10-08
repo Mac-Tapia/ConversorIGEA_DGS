@@ -1,34 +1,48 @@
-# Conversor IGEA/CYMDIST → DGS — dependencias de producción
+# Conversor IGEA/CYMDIST → DGS — dependencias Python del proyecto.
 #
-#   python -m venv .venv
+# Un único fichero para todo lo necesario: motor de conversión, interfaz web, módulo
+# VNR-GIS (vnr_etl) y herramientas de prueba. Antes estaban repartidas en cinco
+# (requirements-dev.txt y tres vnr_requirements*.txt) y era fácil instalar solo una
+# parte y encontrarse un ModuleNotFoundError a mitad de una conversión. Lo único que va
+# aparte son los drivers opcionales de VNR-GIS, en requirements-drivers.txt, porque uno
+# que no se descargue no debe impedir instalar el resto.
+#
+# El entorno es Python 3.12, ni más ni menos: es la versión contra la que está
+# compilado powerfactory.pyd de PowerFactory 2024. Con cualquier otra no habla con
+# DIgSILENT.
+#
+#   py -3.12 -m venv .venv
 #   .venv\Scripts\activate
 #   python -m pip install -r requirements.txt
+#   python -m pip install -r requirements-drivers.txt   # opcional, solo VNR-GIS
 #
-# Instala TODO lo que la interfaz necesita para funcionar completa: las dos
-# alternativas de entrada (TXT y base Access), la georreferenciación, las plantillas
-# Excel de cargas y la validación independiente del modelo.
-#
-# Para pruebas y desarrollo:  pip install -r requirements-dev.txt
-# Python >= 3.10. En Linux la GUI suele necesitar el paquete del sistema python3-tk.
+# La web necesita además compilar el front una vez con Node:
+#   cd frontend && npm install && npm run build
 #
 # Nota sobre PowerFactory: su API (powerfactory.pyd) NO se instala con pip. Viene con
-# DIgSILENT y está atada a una versión concreta de CPython (PF 2024 → 3.12). El
-# conversor la usa desde un proceso aparte; ver docs/MANUAL_COMANDOS.md §5.
+# DIgSILENT y está atada a una versión concreta de CPython (PF 2024 → 3.12).
+#
+# Para ejecutar la suite completa con datos reales hacen falta además las tres
+# variables de entorno de los TXT (y opcionalmente la base Access):
+#
+#   set IGEA_RED=referencia\RED_...txt
+#   set IGEA_LOADS=referencia\CARGA_...txt
+#   set IGEA_EQUIPMENT=referencia\BD_Equipo_...txt
+#   set IGEA_MDB=D:\ruta\BaseDatos.mdb          (opcional, alternativa 2)
+#
+# Sin ellas las pruebas de integración hacen skip y solo corren las sintéticas.
 
-# Paquete del proyecto (src/igea_dgs + schemas/*.json)
+# ── Paquete del proyecto (src/igea_dgs, src/vnr_etl + schemas/*.json) ──────────────
 -e .
 
-# Tercera alternativa de entrada: paquete oficial VNR-GIS. Mantener esta lista en
-# un archivo propio permite instalar solo el adaptador en integraciones externas,
-# pero la interfaz principal la incluye para que sus tres modos estén operativos.
--r vnr_requirements.txt
+# ── Motor de conversión ──────────────────────────────────────────────────────────────
 
-# Georreferenciación: GPS en terminales y diagrama IntGrf.
+# Georreferenciación: GPS en terminales y diagrama IntGrf; reproyección en VNR-GIS.
 # Sin esto solo se puede convertir con --no-geography.
 pyproj>=3.6
 
-# Alternativa 2 de entrada: base de datos Access de CYMDIST (.mdb).
-# Solo Windows, y requiere además el driver «Microsoft Access Driver (*.mdb, *.accdb)»
+# Alternativa 2 de entrada: base Access de CYMDIST (.mdb). También SQL Server/ODBC en
+# VNR-GIS. Solo Windows, y requiere el driver «Microsoft Access Driver (*.mdb, *.accdb)»
 # de 64 bits, que se instala aparte con Microsoft Access Database Engine.
 pyodbc>=5.0 ; sys_platform == "win32"
 
@@ -39,12 +53,43 @@ openpyxl>=3.1
 pandas>=2.0
 
 # Validación independiente del modelo: flujo de potencia y detección de islas con un
-# motor distinto de PowerFactory, sin licencia y en segundos. Ver docs del diagnóstico.
+# motor distinto de PowerFactory, sin licencia y en segundos.
 pandapower>=3.0
 
-# Interfaz web (la interfaz principal): API FastAPI + front React compilado.
-# El front se compila una vez con Node (cd frontend && npm install && npm run build);
-# el resultado, frontend/dist, lo sirve esta misma API.
+# La vista previa del mapa usa leafmap si está instalado (requirements-drivers.txt) y,
+# si no, Leaflet por CDN: no hace falta para convertir.
+
+# ── Interfaz web (la interfaz principal) ─────────────────────────────────────────────
+# API FastAPI + front React compilado (frontend/dist), que sirve esta misma API.
 fastapi>=0.115
 uvicorn[standard]>=0.30
 python-multipart>=0.0.9
+
+# ── Módulo VNR-GIS (vnr_etl): tercera alternativa de entrada ─────────────────────────
+
+# Descubrimiento / descarga y ArcGIS REST
+requests>=2.31
+
+# Geometría y archivos GIS (SHP/GeoPackage/GeoJSON)
+shapely>=2.0
+geopandas>=0.14
+
+# Topología y validación de grafo
+networkx>=3.0
+
+# Configuración YAML
+PyYAML>=6.0
+
+# Modelos de datos / validación
+pydantic>=2.0
+
+# Detección de codificación de CSV/TXT sin BOM (si falta, cae a latin-1)
+chardet>=5.0
+
+# Los drivers opcionales de VNR-GIS (PostgreSQL, Oracle, SQLAlchemy, OpenCV, PDF, RAR)
+# están en requirements-drivers.txt: ver allí por qué van aparte.
+
+# ── Pruebas ──────────────────────────────────────────────────────────────────────────
+pytest>=8.0
+# Cliente HTTP de fastapi.testclient, para tests/test_web_api.py
+httpx>=0.27

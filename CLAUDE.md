@@ -6,14 +6,21 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
 ## Entorno
 
 - Python **3.12 exacto**, en `.venv` (`.venv/Scripts/python.exe`). La API de PowerFactory 2024 solo carga en 3.12.
-- Instalación: `pip install -r requirements-dev.txt`. La web necesita compilar el front una vez: `cd frontend && npm install && npm run build`.
+- Instalación: `pip install -r requirements.txt`; los drivers opcionales de VNR-GIS, aparte con `pip install -r requirements-drivers.txt`. La web necesita compilar el front una vez: `cd frontend && npm install && npm run build`.
 - Web: `run_gui.bat` o `igea-dgs-web`. CLI: `igea-dgs convert --red ... --loads ... --equipment ... --all --out-dir out --workers 0`.
 
 ## Skills del proyecto
 
 - `.claude/skills/igea-dgs-backend/SKILL.md`: reglas del motor, la escala y la API. **Léelo antes de tocar `src/igea_dgs/`.**
 - `.claude/skills/igea-dgs-frontend/SKILL.md`: UX y checklist de la interfaz web (React en `frontend/`). Léelo antes de tocar `frontend/src/` o `src/igea_dgs/web/`.
+- `.claude/skills/igea-dgs-spec/SKILL.md`: desarrollo guiado por especificaciones. Toda funcionalidad o reorganización que no sea un arreglo de una línea empieza por `specs/NNN-*/spec.md` (requisitos `RF-n` en EARS), luego plan y tareas; las pruebas citan `NNN:RF-n`.
 - Las copias de `.cursor/skills/` son solo punteros a estas: el texto vigente es uno.
+
+## Especificaciones
+
+- `docs/constitution.md`: principios innegociables, cada uno con cómo se comprueba.
+- `specs/NNN-<nombre>/{spec,plan,tasks}.md`: una carpeta por funcionalidad. Spec activa: `specs/001-reorganizacion/` (pendiente de aprobar).
+- `docs/superpowers/specs/` y `plans/` son históricos: no tienen requisitos numerados ni casillas al día.
 
 ## Pruebas
 
@@ -43,4 +50,4 @@ por separado, o use un TXT y una `.mdb` de la misma exportación.
 - Dos disposiciones de export (reducida y completa): todo cambio en el lector se prueba con las dos.
 - Determinismo: el DGS es idéntico byte a byte con `workers=1` y con `workers>1`.
 - Idioma: código, comentarios, mensajes y commits en español, con el estilo de los existentes. Los comentarios explican **por qué**, con el caso real que lo motivó.
-- Los TXT de `referencia/` y `D:\BaseDatosElectroDunas` son datos de la distribuidora: nunca se publican ni se suben.
+- Los TXT de `referencia/` y `D:\BaseDatosElectroDunas` son datos de la distribuidora: nunca se publican ni se suben. Tampoco se envían a un modelo de terceros: `.claude/settings.json` niega leerlos con la herramienta Read. Las pruebas los siguen leyendo por las variables `IGEA_*`.
