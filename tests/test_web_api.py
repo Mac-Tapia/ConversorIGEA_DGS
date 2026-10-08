@@ -6,18 +6,19 @@ disposiciones de export (ver ``tests/synthetic_export.py``).
 
 from __future__ import annotations
 
-import time
 from pathlib import Path
 
 import pytest
 
 pytest.importorskip('fastapi')
-pytest.importorskip('httpx')
+pytest.importorskip('httpx2')
 
 from fastapi.testclient import TestClient  # noqa: E402
 
 from synthetic_export import ExportSpec, write_export  # noqa: E402
 from igea_dgs.web.app import create_app  # noqa: E402
+
+from apoyo import esperar_trabajo  # noqa: E402
 
 
 @pytest.fixture()
@@ -31,16 +32,6 @@ def client(tmp_path, monkeypatch):
 @pytest.fixture()
 def export(tmp_path):
     return write_export(ExportSpec(feeders=3), tmp_path / 'export')
-
-
-def _wait(client, job: dict, timeout: float = 60.0) -> dict:
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        state = client.get(f"/api/jobs/{job['id']}").json()
-        if state['status'] in ('done', 'failed', 'cancelled'):
-            return state
-        time.sleep(0.05)
-    raise AssertionError(f'el trabajo {job["title"]} no terminó en {timeout} s')
 
 
 def _workspace(client) -> str:
@@ -63,7 +54,7 @@ def _loaded(client, export, *, geography: bool = False) -> str:
         _upload(client, wid, slot, path)
     client.put(f'/api/workspaces/{wid}/options', json={'include_geography': geography})
     job = client.post(f'/api/workspaces/{wid}/load').json()
-    state = _wait(client, job)
+    state = esperar_trabajo(client, job)
     assert state['status'] == 'done', state
     return wid
 
@@ -206,7 +197,7 @@ def test_flujo_completo_subir_cargar_convertir_descargar(client, export):
     name = feeders[0]['feeder']
 
     job = client.post(f'/api/workspaces/{wid}/convert', json={'feeders': [name]}).json()
-    state = _wait(client, job)
+    state = esperar_trabajo(client, job)
     assert state['status'] == 'done', state
     assert state['result']['summary']['ok'] == 1
 
@@ -226,7 +217,7 @@ def test_el_estado_de_conversion_se_acumula_entre_lotes(client, export):
     wid = _loaded(client, export)
     names = [f['feeder'] for f in client.get(f'/api/workspaces/{wid}/feeders').json()['feeders']]
     for name in names[:2]:
-        _wait(client, client.post(f'/api/workspaces/{wid}/convert', json={'feeders': [name]}).json())
+        esperar_trabajo(client, client.post(f'/api/workspaces/{wid}/convert', json={'feeders': [name]}).json())
     rows = client.get(f'/api/workspaces/{wid}/feeders').json()['feeders']
     assert sum(1 for r in rows if r['conversion'] and r['conversion']['status'] == 'ok') == 2
 
@@ -345,7 +336,7 @@ def test_convertir_en_paralelo_da_lo_mismo_que_en_serie(client, tmp_path):
         wid = _loaded(client, export)
         client.put(f'/api/workspaces/{wid}/options', json={'workers': workers})
         job = client.post(f'/api/workspaces/{wid}/convert', json={'all': True}).json()
-        state = _wait(client, job, timeout=120)
+        state = esperar_trabajo(client, job, timeout=120)
         assert state['status'] == 'done', state
         assert state['result']['workers'] == workers
         assert state['result']['summary']['ok'] == 5

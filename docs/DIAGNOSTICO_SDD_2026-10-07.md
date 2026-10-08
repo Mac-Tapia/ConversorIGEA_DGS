@@ -430,3 +430,82 @@ hoy; R1 y R2 son los que más conviene cerrar.
   dependencias lee los dos. Al probarlo, `leafmap` también hizo fallar el fichero
   principal: con la red cortándose, pip no pudo resolver sus muchas dependencias. Es
   opcional (sin él, la vista previa usa Leaflet por CDN), así que pasó al fichero aparte.
+
+### Verificación de las correcciones
+
+| Comprobación | Resultado |
+| --- | --- |
+| Suite completa con los tres TXT reales | **864 correctas**, 58 omitidas (todas de la vía Access, por falta de `IGEA_MDB`), 0 fallos. Son las 854 anteriores más las 10 nuevas del oráculo |
+| Repetida tras instalar los drivers opcionales | 864 correctas, 0 fallos: los drivers no cambian ningún resultado |
+| `tests/test_access_input.py` con las dos `.mdb` | 21 correctas; 6 omitidas por diseño (base y TXT de exportaciones distintas) |
+| `igea-dgs convert --all --workers 4` con los 96 alimentadores reales | 96/96 OK; los 96 DGS idénticos byte a byte a los de la revisión anterior (`--workers 1`). El resumen sale en español: «Pedidos / OK / Omitidos / Fallidos / Manifiesto» |
+| Oráculo sobre los 96 alimentadores reales | Igual que antes del arreglo: 95 convergen y 1 da error (`tension_imposible`, PE105 a 0,756 pu); 0 excepciones; 0 líneas de aviso de numba |
+| Prueba de que la prueba de numba sirve | `runpp` sin `numba=False` imprime el aviso: la prueba lo detectaría |
+| `pip install -r requirements.txt` | **Correcto**, ya sin drivers ni `leafmap`: el `.venv` tiene ahora todo lo del fichero principal, incluido `chardet`, que faltaba |
+
+### Estado de los opcionales en esta máquina
+
+| Paquete | Estado |
+| --- | --- |
+| `oracledb`, `SQLAlchemy`, `psycopg2-binary`, `pdf2image`, `rarfile` | Instalados (uno a uno) |
+| `opencv-python` | **Sin instalar**: 44 MB que la red no llegó a descargar en dos intentos de 15 min. Solo afecta a la recuperación por PDF de VNR-GIS |
+| `leafmap` | **Sin instalar**: pip no resolvió sus dependencias con la red cortándose. La vista previa usa Leaflet por CDN |
+
+Un hallazgo de la propia separación: dentro de `requirements-drivers.txt`, un paquete que
+falla también bloquea a los demás, porque pip trata cada fichero como un todo. Por eso el
+fichero indica que, si falla, los drivers se instalan uno a uno con
+`python -m pip install <paquete>`, y así se hizo aquí. Lo importante es que eso ya no
+afecta al fichero principal ni al arranque de `run_gui.bat`.
+
+### Pendiente
+
+- Instalar `opencv-python` y `leafmap` con una conexión estable: `python -m pip install
+  -r requirements-drivers.txt`, o uno a uno si alguno falla.
+- Revisar con la distribuidora el alimentador PE105: el oráculo calcula una tensión
+  mínima de 0,756 pu, por debajo del umbral de dato roto (0,80 pu). Apunta a un dato de
+  la entrega, no al conversor.
+- Siguen abiertos S1, T1, T2, T3 y R5. S1 está en la spec 001 como RF-15. R5 (pruebas de
+  `gis/crs.py`, `gis/geometry.py`, `exporters/cymdist.py` y `catalogs/conductor.py`) no
+  lo cubre ningún requisito: RF-10 y RF-11 solo tocan el exportador DGS y la API.
+
+## 9. Pendientes cerrados (2026-10-08, segunda tanda)
+
+- **T3 — corregido.** Starlette 1.7 pide `httpx2` para su cliente de pruebas. Se cambió en
+  `requirements.txt`, en el extra `[dev]` de `pyproject.toml` y en las guardas de las tres
+  pruebas web. La suite ya no da el aviso de obsolescencia.
+- **T2 — corregido.** Las fixtures `txt_dataset`, `mdb_dataset`, `dataset_for` y `both`
+  (esta, en tres copias) pasaron a `tests/conftest.py`, con el mismo alcance `module`. El
+  cargador de scripts de `tools/` (4 copias) y la espera de trabajos (2 copias) pasaron
+  a `tests/apoyo.py`. En las pruebas solo queda repetida a propósito la comprobación de
+  longitudes por alimentador, más dos en `test_gui_wiring.py`, que se retira con RF-16.
+- **Fallo de prueba oculto, corregido.** Al refactorizar T2 apareció que
+  `test_element_counts_match_the_source` (PA217 y SL143, en sus variantes TXT y Access)
+  fallaba siempre que se le daba la `.mdb`. Esperaba una línea por tramo, pero las
+  reglas del proyecto funden los puentes `DEFAULT` cortos (en PA217, 784 de 1.324
+  tramos, y la auditoría de completitud no da fallos). Como depende de la `.mdb`, en la
+  suite normal se omitía y el fallo no se veía. Ahora mide la fidelidad literal con
+  `SIN_REGLAS`, como pide el skill backend. Con las cinco variables a la vez la suite
+  pasa entera: **924 correctas** (antes, 10 fallos documentados como «no son del código»).
+- **R5 — corregido, y con un fallo real.** `tests/test_vnr_gis_cobertura.py` (20 pruebas)
+  cubre `gis/crs.py`, `gis/geometry.py`, `catalogs/conductor.py` y
+  `exporters/cymdist.py`. Al escribirlas apareció que **todo export CYMDIST con perfil
+  verificado fallaba con `TypeError`**: `export()` pasaba la carpeta donde iba la
+  especificación de columnas. Corregido pasando los argumentos por nombre.
+- **PE105 — analizado.** La causa no está en el conversor. El alimentador pide 5,38 MW a
+  10 kV (13,3 MVA instalados en 65 SED) por 19 km, con 408 A en cabecera a través de
+  troncales de 25 mm² (125-154 A), sin ninguna maniobra abierta y sin tramos `DEFAULT`.
+  O la demanda de CARGA está sobrestimada, o parte de esa carga la alimenta otro
+  alimentador por un punto de apertura que el export no recoge. Es una pregunta para la
+  distribuidora. El detalle con códigos de SED y de tramo está en
+  `output/verif/PE105_informe.md`, que git ignora porque son datos de la distribuidora.
+- **`opencv-python` y `leafmap`** — siguen sin instalar: la red de esta máquina corta las
+  descargas grandes (44 MB) en cada intento.
+
+Estado de la suite al cerrar: **884 correctas** con los TXT (antes 864) y **924** con las
+cinco variables; 0 fallos en ambos casos.
+
+Sigue abierto, y no es de esta revisión:
+
+- **S1** es el RF-15 de la spec 001, pendiente de aprobar la spec.
+- **T1** necesita una pareja TXT + `.mdb` de la misma fecha, que solo puede dar la
+  distribuidora.

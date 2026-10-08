@@ -2,25 +2,14 @@
 
 from __future__ import annotations
 
-import importlib.util
 import json
-from pathlib import Path
 from types import SimpleNamespace
+
+from apoyo import cargar_herramienta
 
 
 def _module():
-    tools = Path(__file__).resolve().parents[1] / 'tools'
-    import sys
-
-    sys.path.insert(0, str(tools))
-    try:
-        spec = importlib.util.spec_from_file_location('load_batch_pf', tools / 'aplicar_lote_cargas.py')
-        assert spec and spec.loader
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        return module
-    finally:
-        sys.path.remove(str(tools))
+    return cargar_herramienta('aplicar_lote_cargas.py', 'load_batch_pf', tools_en_path=True)
 
 
 class Container:

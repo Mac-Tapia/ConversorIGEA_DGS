@@ -2,27 +2,17 @@
 
 from __future__ import annotations
 
-import time
 
 import pytest
 
 pytest.importorskip('fastapi')
-pytest.importorskip('httpx')
+pytest.importorskip('httpx2')
 
 from fastapi.testclient import TestClient  # noqa: E402
 
 from igea_dgs.web.app import create_app  # noqa: E402
 from synthetic_export import ExportSpec, write_export  # noqa: E402
-
-
-def _wait(client: TestClient, job: dict) -> dict:
-    deadline = time.time() + 30
-    while time.time() < deadline:
-        state = client.get(f"/api/jobs/{job['id']}").json()
-        if state['status'] in {'done', 'failed', 'cancelled'}:
-            return state
-        time.sleep(0.03)
-    raise AssertionError('el trabajo de carga no terminó')
+from apoyo import esperar_trabajo  # noqa: E402
 
 
 def test_health_declares_the_three_isolated_source_modes(tmp_path, monkeypatch):
@@ -45,7 +35,7 @@ def test_workspace_exposes_active_manifest_and_safe_run_history(tmp_path, monkey
                     files={'file': (path.name, handle)},
                 )
             assert response.status_code == 200
-        state = _wait(client, client.post(f'/api/workspaces/{wid}/load').json())
+        state = esperar_trabajo(client, client.post(f'/api/workspaces/{wid}/load').json())
         assert state['status'] == 'done', state
 
         workspace = client.get(f'/api/workspaces/{wid}').json()

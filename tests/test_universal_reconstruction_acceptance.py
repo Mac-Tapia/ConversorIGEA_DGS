@@ -3,19 +3,14 @@
 from __future__ import annotations
 
 import hashlib
-import importlib.util
 from pathlib import Path
 
 from synthetic_export import ExportSpec, write_export
+from apoyo import cargar_herramienta
 
 
 def _module():
-    path = Path(__file__).resolve().parents[1] / 'tools' / 'accept_three_sources.py'
-    spec = importlib.util.spec_from_file_location('accept_reconstruction', path)
-    assert spec and spec.loader
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    return cargar_herramienta('accept_three_sources.py', 'accept_reconstruction')
 
 
 def _sha(path: Path) -> str:
