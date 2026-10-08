@@ -27,8 +27,8 @@ from vnr_etl.discovery.download import (
     DownloadManager,
     inventory_zip,
     safe_extract_zip,
-    sha256_of,
 )
+from igea_dgs.util import sha256_file as sha256_of
 from vnr_etl.discovery.fingerprint import compute_schema_fingerprint
 from vnr_etl.discovery.freshness import resolve_freshness
 from vnr_etl.discovery.official import (

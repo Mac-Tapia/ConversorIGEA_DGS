@@ -12,7 +12,7 @@ from __future__ import annotations
 import pytest
 
 from vnr_etl.catalogs.conductor import ConductorCatalog, load_conductor_catalog
-from vnr_etl.discovery.download import sha256_of
+from igea_dgs.util import sha256_file as sha256_of
 from vnr_etl.exporters.base import ExportBlocked, TargetProfile
 from vnr_etl.exporters.cymdist import CymdistExporter
 from vnr_etl.gis.crs import CRSError, CRSManager
@@ -121,6 +121,17 @@ class TestCatalogoDeConductores:
         assert cov['total'] == 4 and cov['resolved'] == 1
         assert cov['coverage'] == pytest.approx(0.25)
         assert cov['missing'] == ['AUSENTE', 'INCOMPLETO', 'NEGATIVO']
+
+    def test_nan_e_inf_no_son_parametros(self):
+        """001:T3 — antes un X1 = «nan» contaba como dato y el conductor salía completo."""
+        cat = load_conductor_catalog([
+            {'ID': 'NAN', 'R1': '0.3', 'X1': 'nan', 'R0': '0.9', 'X0': '1.2'},
+            {'ID': 'INF', 'R1': 'inf', 'X1': '0.4', 'R0': '0.9', 'X0': '1.2', 'Amps': '-inf'},
+        ])
+        nan, inf = cat.by_code()['NAN'], cat.by_code()['INF']
+        assert nan.x1_ohm_km is None
+        assert inf.r1_ohm_km is None and inf.ampacity_a is None
+        assert cat.coverage(['NAN', 'INF'])['missing'] == ['INF', 'NAN']
 
     def test_cobertura_sin_codigos_es_completa(self):
         assert ConductorCatalog().coverage([])['coverage'] == 1.0

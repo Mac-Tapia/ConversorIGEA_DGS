@@ -12,6 +12,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
+from igea_dgs.util import importar_opcional
+
 from .base import LayerInfo, SourceProbe, VNRSourceAdapter
 
 
@@ -20,13 +22,8 @@ class ArcGISError(RuntimeError):
 
 
 def _require_requests():
-    try:
-        import requests  # noqa: F401
-    except ImportError as exc:  # pragma: no cover
-        raise ArcGISError(
-            'El conector ArcGIS necesita «requests» (ver requirements.txt).'
-        ) from exc
-    return __import__('requests')
+    return importar_opcional('requests', ArcGISError(
+        'El conector ArcGIS necesita «requests» (ver requirements.txt).'))
 
 
 @dataclass

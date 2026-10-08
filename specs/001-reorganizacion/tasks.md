@@ -16,8 +16,14 @@ Spec aprobada el 2026-10-08.
       sin RF: cinco variantes de «SHA-256 de un JSON canónico» (`load_batch`,
       `reconstruction_service`, `powerfactory_metadata`, `source_runs`,
       `catalog_resolution`); unirlas cambia hashes ya guardados si difieren en algo.
-- [ ] T3. Sustituir en `vnr_etl` las copias de hash, `_require_requests` y número finito. (RF-4)
+- [x] T3. Sustituir en `vnr_etl` las copias de hash, `_require_requests` y número finito. (RF-4)
       Hecho cuando: `pytest -q tests/test_vnr_etl.py` en verde.
+      Hecho el 2026-10-08. `_require_requests` no eran copias idénticas (cada una lanza su
+      excepción): lo común pasa a `util.importar_opcional(modulo, error)`. El «número
+      finito» de `catalogs/conductor.py` no lo era: dejaba pasar `nan` e `inf`, y un
+      conductor con `X1 = nan` contaba como completo; ahora usa `finite_or_none`. La copia
+      de `pipeline.py:485` ya no existía. `vnr_etl/web/app.py:252` hashea mientras recibe
+      la subida (no es copia) y se retira en T11.
 - [ ] T4. `geography.make_transformer` único; `loads_create` lo usa y un CRS inválido da
       error con el nombre del CRS. (RF-6, RF-7)
       Hecho cuando: prueba de CRS inválido en verde y RF-14 sigue igual.

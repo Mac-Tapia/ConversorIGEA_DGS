@@ -8,13 +8,13 @@ inventan clases/columnas DGS ni columnas CYMDIST.
 
 from __future__ import annotations
 
-import hashlib
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
+from igea_dgs.util import sha256_file
 from vnr_etl.models import CanonicalModel
 
 
@@ -63,11 +63,7 @@ class TargetProfile:
         path = Path(self.sample_path)
         if not path.is_file():
             return False
-        digest = hashlib.sha256()
-        with path.open('rb') as stream:
-            for chunk in iter(lambda: stream.read(1024 * 1024), b''):
-                digest.update(chunk)
-        return digest.hexdigest().lower() == self.sample_hash.lower()
+        return sha256_file(path) == self.sample_hash.lower()
 
 
 @runtime_checkable

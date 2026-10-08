@@ -7,7 +7,6 @@ Descarga con reintentos, fichero ``.part``, renombre atómico, SHA-256 y
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import re
@@ -20,6 +19,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
 
+from igea_dgs.util import importar_opcional, sha256_file
+
 
 class DownloadError(RuntimeError):
     pass
@@ -27,25 +28,6 @@ class DownloadError(RuntimeError):
 
 class ArchiveSecurityError(DownloadError):
     pass
-
-
-def _require_requests():
-    try:
-        import requests  # noqa: F401
-    except ImportError as exc:  # pragma: no cover - depende del entorno
-        raise DownloadError(
-            'La descarga necesita la dependencia «requests» (ver requirements.txt '
-            'y `python -m vnr_etl doctor`).'
-        ) from exc
-    return __import__('requests')
-
-
-def sha256_of(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open('rb') as fh:
-        for chunk in iter(lambda: fh.read(1024 * 1024), b''):
-            digest.update(chunk)
-    return digest.hexdigest()
 
 
 @dataclass
@@ -116,7 +98,9 @@ class DownloadManager:
         on_progress: Callable[[int, int | None], None] | None = None,
     ) -> DownloadManifest:
         self._validate_url(url)
-        requests = _require_requests()
+        requests = importar_opcional('requests', DownloadError(
+            'La descarga necesita la dependencia «requests» (ver requirements.txt '
+            'y `python -m vnr_etl doctor`).'))
         destination = Path(destination)
         destination.parent.mkdir(parents=True, exist_ok=True)
         part = destination.with_suffix(destination.suffix + '.part')
@@ -183,7 +167,7 @@ class DownloadManager:
     def _finalize(self, part: Path, destination: Path, url: str,
                   publication_id: str, company: str, period: str,
                   content_type: str = '') -> DownloadManifest:
-        digest = sha256_of(part)
+        digest = sha256_file(part)
         archive_test = 'N/A'
         if self.verify_archive and destination.suffix.lower() in ('.zip', '.rar'):
             if destination.suffix.lower() == '.zip':
@@ -236,7 +220,7 @@ class DownloadManager:
             http_status=200,
             content_type='',
             bytes=destination.stat().st_size,
-            sha256=sha256_of(destination),
+            sha256=sha256_file(destination),
             archive_test='N/A',
         )
 
@@ -245,7 +229,7 @@ class DownloadManager:
         path.write_text(json.dumps(manifest.as_dict(), ensure_ascii=False, indent=2), encoding='utf-8')
 
     def verify(self, path: Path | str, expected_sha256: str | None = None) -> bool:
-        digest = sha256_of(Path(path))
+        digest = sha256_file(Path(path))
         return expected_sha256 is None or digest == expected_sha256
 
     def _validate_url(self, url: str) -> None:

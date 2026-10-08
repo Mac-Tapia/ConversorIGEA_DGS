@@ -9,6 +9,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
+from igea_dgs.util import finite_or_none
 from vnr_etl.models import ConductorType
 
 
@@ -59,23 +60,14 @@ def load_conductor_catalog(rows: Sequence[Mapping]) -> ConductorCatalog:
         entries.append(ConductorType(
             conductor_code=str(code),
             material=str(row.get('Material', '')),
-            section_mm2=_float_or_none(row.get('Section')),
-            r1_ohm_km=_float_or_none(row.get('R1')),
-            x1_ohm_km=_float_or_none(row.get('X1')),
-            r0_ohm_km=_float_or_none(row.get('R0')),
-            x0_ohm_km=_float_or_none(row.get('X0')),
-            ampacity_a=_float_or_none(row.get('Amps')),
-            nominal_kv=_float_or_none(row.get('NominalKV')),
+            section_mm2=finite_or_none(row.get('Section')),
+            r1_ohm_km=finite_or_none(row.get('R1')),
+            x1_ohm_km=finite_or_none(row.get('X1')),
+            r0_ohm_km=finite_or_none(row.get('R0')),
+            x0_ohm_km=finite_or_none(row.get('X0')),
+            ampacity_a=finite_or_none(row.get('Amps')),
+            nominal_kv=finite_or_none(row.get('NominalKV')),
             source_layer=str(row.get('source_layer', '')),
             source_id=str(row.get('source_id', '')),
         ))
     return ConductorCatalog(entries=entries)
-
-
-def _float_or_none(value) -> float | None:
-    if value in (None, ''):
-        return None
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
