@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
-from .source_runs import SourceSnapshot
+from ..sources.snapshot import SourceSnapshot
 
 
 @dataclass(frozen=True)

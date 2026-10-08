@@ -32,8 +32,14 @@ Spec aprobada el 2026-10-08.
       `UserError` (400) al crear SED. Sin pyproj, `loads_create` sigue dejando el GPS
       vacío a propósito. `tests/test_transformador.py` falla si aparece otro
       `Transformer.from_crs` en `src/`.
-- [ ] T5. Mover `web/sources` a `igea_dgs/sources` con reexportación. (RF-1)
+- [x] T5. Mover `web/sources` a `igea_dgs/sources` con reexportación. (RF-1)
       Hecho cuando: `pytest -q tests/test_web_*.py` en verde sin tocar las pruebas.
+      Hecho el 2026-10-08. Los tipos de la instantánea (`SourceSnapshot`, `SourceFile`,
+      `SourceMode`, `MODE_SLOTS`) pasan a `sources/snapshot.py`; la custodia
+      (`create_source_run`, `load_source_run`) sigue en `web/source_runs.py`.
+      Reexportan, hasta la spec 002: `web/sources/__init__.py`, `web/sources/vnr.py` y los
+      tipos en `web/source_runs.py`. `tests/test_fuentes_sin_web.py` comprueba en otro
+      proceso que importar los adaptadores no carga FastAPI.
 - [ ] T6. `cli.load_dataset` con `adapter_for`; el CLI acepta `--vnr-package` y pasa los
       alias al catálogo. (RF-1, RF-2, RF-3)
       Hecho cuando: pruebas de CLI con TXT (las dos disposiciones), MDB y VNR en verde.
