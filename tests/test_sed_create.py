@@ -323,6 +323,17 @@ class TestPayloadForPowerFactory:
         item = create_plan_to_payload(plan, nominal_kv=22.9)['create'][0]
         assert item['gps_lat'] is None, 'sin CRS no se inventa GPS'
 
+    def test_crs_invalido_se_rechaza_nombrandolo(self):
+        """001:RF-7 — antes se tragaba el error y todas las SED salían sin GPS, sin aviso."""
+        pytest.importorskip('pyproj')
+        rows, errors = single_new_load(
+            sed_code='SE_N', coord_x=500130.0, coord_y=8500040.0,
+            installed_kva=160, kw=40, feeder='AL01',
+        )
+        plan = build_create_plan(_model(), rows, errors)
+        with pytest.raises(ValueError, match='EPSG:999999'):
+            create_plan_to_payload(plan, nominal_kv=22.9, source_crs='EPSG:999999')
+
     def test_payload_is_json_serialisable(self):
         import json
 

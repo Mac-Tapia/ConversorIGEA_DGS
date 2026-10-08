@@ -9,17 +9,17 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 
+from igea_dgs.geography import make_transformer
+from igea_dgs.util import importar_opcional
+
 
 class CRSError(RuntimeError):
     pass
 
 
 def _require_pyproj():
-    try:
-        import pyproj  # noqa: F401
-    except ImportError as exc:  # pragma: no cover
-        raise CRSError('La reproyección necesita «pyproj» (ver requirements.txt).') from exc
-    return __import__('pyproj')
+    return importar_opcional('pyproj', CRSError(
+        'La reproyección necesita «pyproj» (ver requirements.txt).'))
 
 
 def _is_projected(crs: str) -> bool:
@@ -62,10 +62,10 @@ class CRSManager:
 
     def transformer_to_working(self) -> Callable | None:
         """Devuelve un transformador source→working si difieren; si no, ``None``."""
-        pyproj = _require_pyproj()
+        _require_pyproj()
         if not self.source_crs or not self.working_crs or self.source_crs == self.working_crs:
             return None
-        return pyproj.Transformer.from_crs(self.source_crs, self.working_crs, always_xy=True).transform
+        return make_transformer(self.source_crs, self.working_crs).transform
 
     def transform_points(
         self, points: Sequence[tuple[float, float]]

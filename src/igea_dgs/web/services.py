@@ -1074,8 +1074,11 @@ def _create_plan_response(ws: Workspace, model, plan) -> dict:
         ],
         'applicable': plan.is_applicable,
     }
-    payload = create_plan_to_payload(plan, nominal_kv=model.nominal_kv,
-                                     source_crs=ws.options['source_crs'])
+    try:
+        payload = create_plan_to_payload(plan, nominal_kv=model.nominal_kv,
+                                         source_crs=ws.options['source_crs'])
+    except ValueError as exc:
+        raise UserError(str(exc)) from exc
     return _store_plan(ws, 'sed_nuevas', model.name, payload, info)
 
 
@@ -1315,9 +1318,12 @@ def lote_plan(
             'scenario': f'Cargas_{f}_{stamp}'[:40] if upd is not None else None,
             'variation': f'SED_nuevas_{f}_{stamp}'[:40] if cre is not None else None,
         })
-        crear = create_plan_to_payload(
-            cre, nominal_kv=models[f].nominal_kv, source_crs=ws.options['source_crs'],
-        ) if cre and cre.create else None
+        try:
+            crear = create_plan_to_payload(
+                cre, nominal_kv=models[f].nominal_kv, source_crs=ws.options['source_crs'],
+            ) if cre and cre.create else None
+        except ValueError as exc:
+            raise UserError(str(exc)) from exc
         if crear is not None and costos is not None:
             # Precio de la etapa: lo que la evaluación técnico-económica pondrá en el VAN.
             crear['economia'] = datos_etapa(crear['create'], costos)
