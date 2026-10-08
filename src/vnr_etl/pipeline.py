@@ -217,13 +217,13 @@ def _transform_points(points, source_crs, working_crs):
     """Reproyecta puntos; devuelve la misma lista si no hay pyproj o ya coinciden."""
     if not source_crs or not working_crs or source_crs == working_crs:
         return points
-    try:
-        import pyproj
+    from igea_dgs.geography import make_transformer
 
-        transformer = pyproj.Transformer.from_crs(source_crs, working_crs, always_xy=True)
-        return [transformer.transform(x, y) for x, y in points]
+    try:
+        transformer = make_transformer(source_crs, working_crs)
     except ImportError:  # pragma: no cover
         raise RuntimeError('Reproyección requiere «pyproj».') from None
+    return [transformer.transform(x, y) for x, y in points]
 
 
 @dataclass

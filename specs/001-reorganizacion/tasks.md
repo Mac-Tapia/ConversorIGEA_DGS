@@ -24,9 +24,14 @@ Spec aprobada el 2026-10-08.
       conductor con `X1 = nan` contaba como completo; ahora usa `finite_or_none`. La copia
       de `pipeline.py:485` ya no existía. `vnr_etl/web/app.py:252` hashea mientras recibe
       la subida (no es copia) y se retira en T11.
-- [ ] T4. `geography.make_transformer` único; `loads_create` lo usa y un CRS inválido da
+- [x] T4. `geography.make_transformer` único; `loads_create` lo usa y un CRS inválido da
       error con el nombre del CRS. (RF-6, RF-7)
       Hecho cuando: prueba de CRS inválido en verde y RF-14 sigue igual.
+      Hecho el 2026-10-08: los cinco constructores (dos en `igea_dgs`, tres en `vnr_etl`)
+      usan `make_transformer`, que da `ValueError` con los dos CRS. La web lo convierte en
+      `UserError` (400) al crear SED. Sin pyproj, `loads_create` sigue dejando el GPS
+      vacío a propósito. `tests/test_transformador.py` falla si aparece otro
+      `Transformer.from_crs` en `src/`.
 - [ ] T5. Mover `web/sources` a `igea_dgs/sources` con reexportación. (RF-1)
       Hecho cuando: `pytest -q tests/test_web_*.py` en verde sin tocar las pruebas.
 - [ ] T6. `cli.load_dataset` con `adapter_for`; el CLI acepta `--vnr-package` y pasa los

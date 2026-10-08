@@ -43,16 +43,30 @@ def assert_metre_source_crs(source_crs: str) -> None:
         )
 
 
-def _transformer(source_crs: str, target_crs: str):
+def make_transformer(source_crs: str, target_crs: str):
+    """El único constructor de transformadores del proyecto, siempre en orden x/y.
+
+    Había cinco y cada uno trataba distinto un CRS inválido: ``loads_create`` lo
+    callaba y todas las SED nuevas salían sin GPS, sin aviso; los demás soltaban el
+    ``CRSError`` de pyproj sin decir qué CRS fallaba. Aquí es un ``ValueError`` con los
+    dos CRS, el mismo tipo que ``assert_metre_source_crs`` y que el CLI ya informa.
+    """
     try:
         from pyproj import Transformer
+        from pyproj.exceptions import CRSError
     except ImportError as exc:  # pragma: no cover - depends on local install
         raise ImportError(
             'pyproj es obligatorio para georreferenciación. '
             'Instale con: pip install -r requirements.txt  '
             '(o desactive geografía con --no-geography / la GUI).'
         ) from exc
-    return Transformer.from_crs(source_crs, target_crs, always_xy=True)
+    try:
+        return Transformer.from_crs(source_crs, target_crs, always_xy=True)
+    except CRSError as exc:
+        raise ValueError(
+            f'No se puede reproyectar de {source_crs!r} a {target_crs!r}: '
+            f'CRS no reconocido ({exc})'
+        ) from exc
 
 
 @dataclass(frozen=True)
@@ -127,7 +141,7 @@ def build_geography(
     deliberately configurable because exported GIS databases may use a different
     projected coordinate reference system.
     """
-    transformer = _transformer(source_crs, target_crs)
+    transformer = make_transformer(source_crs, target_crs)
 
     nodes: dict[str, GeoPoint] = {}
     xs: list[float] = []

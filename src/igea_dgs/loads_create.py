@@ -807,16 +807,17 @@ def _to_gps(points: Sequence[tuple[float, float]], source_crs: str) -> list[tupl
 
     Sin ``pyproj`` o sin CRS se devuelve ``None`` por punto: la SED se crea igual, solo
     que sin GPS. Perder el mapa no justifica bloquear la creación.
+
+    Un CRS que no existe sí se rechaza (``ValueError`` con su nombre): antes se callaba
+    y todas las SED del plan salían sin GPS, y nadie sabía por qué.
     """
     if not points or not source_crs:
         return [None] * len(points)
+    from .geography import make_transformer
+
     try:
-        from pyproj import Transformer
+        transformer = make_transformer(source_crs, 'EPSG:4326')
     except ImportError:
-        return [None] * len(points)
-    try:
-        transformer = Transformer.from_crs(source_crs, 'EPSG:4326', always_xy=True)
-    except Exception:
         return [None] * len(points)
     out: list[tuple[float, float] | None] = []
     for x, y in points:

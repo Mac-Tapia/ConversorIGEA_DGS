@@ -308,14 +308,15 @@ class DgsExporter:
         working_crs = model.metadata.get('working_crs')
         if not working_crs:
             return None, None
-        try:
-            import pyproj
+        from igea_dgs.geography import make_transformer
 
-            transformer = pyproj.Transformer.from_crs(
-                working_crs, 'EPSG:4326', always_xy=True
-            )
+        try:
+            transformer = make_transformer(working_crs, 'EPSG:4326')
+        except ImportError:
+            return None, None
+        try:
             lon, lat = transformer.transform(float(node.x), float(node.y))
-        except (ImportError, ValueError, TypeError):
+        except (ValueError, TypeError):
             return None, None
         if not (math.isfinite(lat) and math.isfinite(lon) and -90 <= lat <= 90 and -180 <= lon <= 180):
             return None, None
