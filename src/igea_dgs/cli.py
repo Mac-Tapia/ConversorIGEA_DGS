@@ -11,12 +11,14 @@ from .naming import feeder_short_name, sort_key_feeder
 
 
 def _common(parser: argparse.ArgumentParser) -> None:
-    """Las dos alternativas de entrada: tres TXT, o una base Access de CYMDIST."""
+    """Las tres alternativas de entrada: tres TXT, una base Access o un paquete VNR-GIS."""
     src = parser.add_argument_group(
         'entrada (elija UNA alternativa)',
         'Alternativa 1 — ficheros TXT: --red --loads --equipment (no requiere CYMDIST '
         'ni driver). Alternativa 2 — base de datos Access de CYMDIST: --mdb '
-        '(requiere Windows, el driver Microsoft Access y igea-dgs[access]).',
+        '(requiere Windows, el driver Microsoft Access y igea-dgs[access]). '
+        'Alternativa 3 — paquete VNR-GIS: --vnr-package (con --company/--period si trae '
+        'varias empresas o periodos).',
     )
     src.add_argument('--red', help='Alternativa 1: export TXT RED de IGEA/CYMDIST')
     src.add_argument('--loads', help='Alternativa 1: export TXT CARGA de IGEA/CYMDIST')
@@ -40,6 +42,15 @@ def _common(parser: argparse.ArgumentParser) -> None:
         '--study',
         help='Opcional: estudio o proyecto CYMDIST (.zxst/.xst). Limita la conversión a '
              'los alimentadores que el estudio incluye',
+    )
+    src.add_argument('--vnr-package', help='Alternativa 3: paquete VNR-GIS (.zip o .rar)')
+    src.add_argument(
+        '--company',
+        help='Alternativa 3: empresa a leer si el paquete trae varias (no se mezclan)',
+    )
+    src.add_argument(
+        '--period',
+        help='Alternativa 3: periodo a leer si el paquete trae varios (no se mezclan)',
     )
 
 
@@ -110,30 +121,60 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _require_input_files(red: str, loads: str, equipment: str) -> None:
-    missing = []
-    for label, path in (('RED', red), ('CARGA', loads), ('BD_Equipo', equipment)):
-        if not Path(path).is_file():
-            missing.append(f'{label}: {path}')
+def _entrada(args) -> tuple[str, dict[str, str]]:
+    """Modo y ficheros por casilla, con los mismos nombres de casilla que la web."""
+    txt_given = any((args.red, args.loads, args.equipment))
+    elegidas = [m for m, dada in (('txt', txt_given), ('mdb', bool(args.mdb)),
+                                  ('vnr', bool(args.vnr_package))) if dada]
+    if len(elegidas) > 1:
+        raise SystemExit(
+            'Elija UNA alternativa de entrada: los tres TXT (--red --loads --equipment), '
+            'la base Access (--mdb) o el paquete VNR-GIS (--vnr-package).'
+        )
+    if not elegidas:
+        raise SystemExit(
+            'Falta la entrada. Alternativa 1: --red --loads --equipment. '
+            'Alternativa 2: --mdb  (opcionalmente --equipment-mdb, --load-year, --study). '
+            'Alternativa 3: --vnr-package  (opcionalmente --company, --period).'
+        )
+    mode = elegidas[0]
+    if mode == 'txt':
+        if not (args.red and args.loads and args.equipment):
+            raise SystemExit(
+                'La entrada por TXT necesita los tres ficheros: --red, --loads y --equipment.'
+            )
+        from .sources.txt import extra_slot
+
+        files = {'red': args.red, 'loads': args.loads, 'equipment': args.equipment}
+        for i, extra in enumerate(getattr(args, 'equipment_extra', ()) or (), 1):
+            files[extra_slot(i)] = extra
+    elif mode == 'mdb':
+        files = {'mdb': args.mdb}
+        if args.equipment_mdb:
+            files['equipment_mdb'] = args.equipment_mdb
+        if args.study:
+            files['study'] = args.study
+    else:
+        files = {'vnr_package': args.vnr_package}
+
+    etiquetas = {'red': 'RED', 'loads': 'CARGA', 'equipment': 'BD_Equipo'}
+    missing = [f'{etiquetas.get(slot, slot)}: {path}'
+               for slot, path in files.items() if not Path(path).is_file()]
     if missing:
         raise SystemExit('Archivos de entrada no encontrados:\n  - ' + '\n  - '.join(missing))
+    return mode, files
 
 
 def load_dataset(args) -> CymdistDataset:
-    """Resuelve la entrada elegida y devuelve el dataset, igual por las dos vías."""
-    txt_given = any((args.red, args.loads, args.equipment))
-    mdb_given = bool(args.mdb)
+    """Lee la entrada con los adaptadores de ``igea_dgs.sources``, los mismos de la web."""
+    import atexit
+    import shutil
+    import tempfile
 
-    if txt_given and mdb_given:
-        raise SystemExit(
-            'Elija UNA alternativa de entrada: los tres TXT (--red --loads --equipment) '
-            'o la base Access (--mdb), no ambas.'
-        )
-    if not txt_given and not mdb_given:
-        raise SystemExit(
-            'Falta la entrada. Alternativa 1: --red --loads --equipment. '
-            'Alternativa 2: --mdb  (opcionalmente --equipment-mdb, --load-year, --study).'
-        )
+    from .sources import SourceModeError, adapter_for
+    from .sources.snapshot import snapshot_from_paths
+
+    mode, files = _entrada(args)
 
     networks = None
     if args.study:
@@ -146,52 +187,52 @@ def load_dataset(args) -> CymdistDataset:
         networks = info['networks']
         print(f"Estudio «{info['study_name']}»: {info['network_count']} alimentadores.")
 
-    if mdb_given:
-        from .access import AccessReadError, read_access_dataset
+    try:
+        aliases = load_aliases(getattr(args, 'aliases', None))
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        raise SystemExit(f'Error en aliases: {exc}') from exc
 
-        try:
-            dataset = read_access_dataset(
-                args.mdb,
-                equipment_db=args.equipment_mdb,
-                load_year=args.load_year,
-                networks=networks,
-            )
-        except AccessReadError as exc:
-            raise SystemExit(f'Error al leer la base Access: {exc}') from exc
+    # Las entradas se leen donde están; esta carpeta es solo para derivados (VNR-GIS
+    # descomprime aquí el paquete) y se borra al salir.
+    derivados = Path(tempfile.mkdtemp(prefix='igea-dgs-entrada-'))
+    atexit.register(shutil.rmtree, derivados, ignore_errors=True)
+    snapshot = snapshot_from_paths(mode, files, derivados, origin='cli')  # type: ignore[arg-type]
+    adapter = adapter_for(mode, company=args.company, period=args.period,
+                          load_year=args.load_year)
+
+    from .access import AccessReadError
+
+    prefijo = {'txt': 'Error al leer TXT', 'mdb': 'Error al leer la base Access',
+               'vnr': 'Error al leer el paquete VNR-GIS'}[mode]
+    try:
+        loaded = adapter.load(snapshot, aliases=aliases)
+    except (AccessReadError, SourceModeError, OSError, ValueError, KeyError) as exc:
+        raise SystemExit(f'{prefijo}: {exc}') from exc
+    dataset = loaded.dataset
+
+    if mode == 'mdb':
         print(f'Entrada: base de datos CYMDIST {Path(args.mdb).name}')
         return dataset
+    if mode == 'vnr':
+        prov = loaded.provenance
+        print(f"Entrada: paquete VNR-GIS {Path(args.vnr_package).name} — empresa "
+              f"{prov.get('company') or '(única)'}, periodo {prov.get('period') or '(único)'}")
+        return dataset
 
-    if not (args.red and args.loads and args.equipment):
-        raise SystemExit(
-            'La entrada por TXT necesita los tres ficheros: --red, --loads y --equipment.'
-        )
-    try:
-        _require_input_files(args.red, args.loads, args.equipment)
-        dataset = CymdistDataset.from_files(args.red, args.loads, args.equipment)
-    except SystemExit:
-        raise
-    except (OSError, ValueError, KeyError) as exc:
-        raise SystemExit(f'Error al leer TXT: {exc}') from exc
     print(f'Entrada: TXT {Path(args.red).name} / {Path(args.loads).name} / {Path(args.equipment).name}')
-
     # Catálogo incompleto: se completa con otras entregas si se indicaron, y en
     # cualquier caso se dice cuánta red se quedaría con la impedancia de DEFAULT. Un
     # catálogo que no corresponde con la red no rompe nada visible —el modelo converge
     # igual—, así que si no se avisa aquí no se avisa en ninguna parte.
-    from .catalog_merge import completar, diagnosticar
-
-    extra = list(getattr(args, 'equipment_extra', ()) or ())
-    if extra:
-        informe_cat = completar(dataset, extra)
-        print(informe_cat.texto())
-    else:
-        informe_cat = diagnosticar(dataset)
-        if informe_cat.cobertura_final < 0.5:
-            print(
-                f'AVISO: solo el {informe_cat.cobertura_final * 100:.0f} % de los tipos '
-                f'de línea tiene catálogo. El resto tomará la impedancia de DEFAULT. '
-                f'Use --equipment-extra con el BD_Equipo de otra entrega.'
-            )
+    informe = loaded.catalog_report or {}
+    if getattr(args, 'equipment_extra', None):
+        print(informe.get('text', ''))
+    elif informe.get('final_coverage', 1.0) < 0.5:
+        print(
+            f"AVISO: solo el {informe['final_coverage'] * 100:.0f} % de los tipos "
+            f'de línea tiene catálogo. El resto tomará la impedancia de DEFAULT. '
+            f'Use --equipment-extra con el BD_Equipo de otra entrega.'
+        )
     if networks is not None and hasattr(args, 'network'):
         # Con TXT el estudio no filtra la lectura, porque el TXT ya viene completo;
         # se aplica como selección de alimentadores.

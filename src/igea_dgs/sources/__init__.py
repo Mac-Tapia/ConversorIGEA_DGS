@@ -9,11 +9,12 @@ from .txt import TxtSourceAdapter
 
 def adapter_for(
     mode: str, *, company: str | None = None, period: str | None = None,
+    load_year: int | None = None,
 ) -> SourceAdapter:
     if mode == 'txt':
         return TxtSourceAdapter()
     if mode == 'mdb':
-        return MdbSourceAdapter()
+        return MdbSourceAdapter(load_year=load_year)
     if mode == 'vnr':
         try:
             from .vnr import VnrSourceAdapter
