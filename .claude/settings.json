@@ -5,6 +5,17 @@
       "Bash(git status *)",
       "Bash(git diff *)",
       "Bash(git log *)"
+    ],
+    "deny": [
+      "Read(./referencia/RED_*.txt)",
+      "Read(./referencia/CARGA_*.txt)",
+      "Read(./referencia/BD_Equipo*.txt)",
+      "Read(./referencia/*.xlsx)",
+      "Read(./referencia/*.csv)",
+      "Read(./referencia/audit_ternas_*.json)",
+      "Read(**/*.mdb)",
+      "Read(**/*.accdb)",
+      "Read(//d/BaseDatosElectroDunas/**)"
     ]
   },
   "hooks": {

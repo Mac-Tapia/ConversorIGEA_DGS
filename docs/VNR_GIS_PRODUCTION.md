@@ -19,13 +19,15 @@ real con importación, inventario, conectividad y `ComLdf` permite acreditar G-H
 ```powershell
 py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe -m pip install -r vnr_requirements.txt
+.\.venv\Scripts\python.exe -m pip install -r requirements-drivers.txt
 .\.venv\Scripts\python.exe -m vnr_etl doctor
 ```
 
-Los drivers de Oracle/PostgreSQL/ODBC, RAR y la recuperación PDF/OpenCV son
-capacidades opcionales documentadas en `vnr_requirements_optional.txt`. Su ausencia
-deshabilita solo el adaptador correspondiente.
+Los drivers de Oracle, PostgreSQL, SQLAlchemy, RAR y la recuperación PDF/OpenCV van en
+`requirements-drivers.txt`, aparte del resto, para que uno que no se descargue no
+impida instalar lo demás. La ausencia de uno deshabilita solo su adaptador; `doctor`
+dice cuáles quedaron operativos. ODBC (`pyodbc`) va en `requirements.txt`, porque la
+vía Access del conversor lo necesita.
 
 ## Uso CLI
 

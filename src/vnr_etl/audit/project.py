@@ -92,7 +92,7 @@ def _discover(project_dir: Path) -> AuditFindings:
 
 def _read_requirements(project_dir: Path) -> list[str]:
     lines: list[str] = []
-    for name in ('requirements.txt', 'requirements-dev.txt', 'vnr_requirements.txt'):
+    for name in ('requirements.txt', 'requirements-drivers.txt'):
         path = project_dir / name
         if path.is_file():
             lines.append(f'# {name}')

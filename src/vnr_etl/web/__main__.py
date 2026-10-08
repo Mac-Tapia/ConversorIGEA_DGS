@@ -25,7 +25,7 @@ def main(argv=None) -> int:
     try:
         import uvicorn
     except ImportError as exc:  # pragma: no cover
-        raise SystemExit('La web necesita «uvicorn» (ver vnr_requirements.txt).') from exc
+        raise SystemExit('La web necesita «uvicorn» (ver requirements.txt).') from exc
 
     if not args.no_browser:
         browser_host = args.host if args.host in LOOPBACK_HOSTS else '127.0.0.1'

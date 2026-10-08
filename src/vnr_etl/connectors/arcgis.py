@@ -24,7 +24,7 @@ def _require_requests():
         import requests  # noqa: F401
     except ImportError as exc:  # pragma: no cover
         raise ArcGISError(
-            'El conector ArcGIS necesita «requests» (ver vnr_requirements.txt).'
+            'El conector ArcGIS necesita «requests» (ver requirements.txt).'
         ) from exc
     return __import__('requests')
 

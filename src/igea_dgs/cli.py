@@ -44,41 +44,44 @@ def _common(parser: argparse.ArgumentParser) -> None:
 
 
 def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description='Universal IGEA/CYMDIST TXT to DIgSILENT DGS converter')
+    parser = argparse.ArgumentParser(
+        prog='igea-dgs',
+        description='Conversor universal IGEA/CYMDIST (TXT o Access) a DGS de DIgSILENT PowerFactory',
+    )
     sub = parser.add_subparsers(dest='command', required=True)
 
-    list_p = sub.add_parser('list', help='List feeders and print deep TXT inventory')
+    list_p = sub.add_parser('list', help='Listar los alimentadores e imprimir el inventario detallado de la entrada')
     _common(list_p)
     list_p.add_argument(
         '--inventory-json',
-        help='Optional path to write dataset_inventory.json',
+        help='Opcional: ruta donde escribir dataset_inventory.json',
     )
 
-    conv = sub.add_parser('convert', help='Convert one, several, or all feeders')
+    conv = sub.add_parser('convert', help='Convertir uno, varios o todos los alimentadores')
     _common(conv)
-    conv.add_argument('--feeder', action='append', default=[], help='Short feeder name; repeat for several feeders')
-    conv.add_argument('--network', action='append', default=[], help='Full NetworkID; repeat for several feeders')
-    conv.add_argument('--all', action='store_true', help='Convert every feeder independently')
-    conv.add_argument('--out-dir', required=True)
-    conv.add_argument('--aliases', help='Optional JSON string->string line-type aliases (applied before catalog auto-map)')
+    conv.add_argument('--feeder', action='append', default=[], help='Nombre corto del alimentador; repetir para varios')
+    conv.add_argument('--network', action='append', default=[], help='NetworkID completo; repetir para varios')
+    conv.add_argument('--all', action='store_true', help='Convertir todos los alimentadores, cada uno por separado')
+    conv.add_argument('--out-dir', required=True, help='Carpeta de salida')
+    conv.add_argument('--aliases', help='Opcional: JSON de alias de tipos de línea, texto→texto (se aplica antes de buscar en el catálogo)')
     conv.add_argument(
         '--catalogo', nargs='?', const='', metavar='XLSX',
         help=('Corregir las características eléctricas con el catálogo de fichas antes '
               'de escribir el DGS. Sin valor usa input/catalogo_parametros.xlsx. La '
               'identidad de cada elemento (código, material, sección) se conserva.'))
-    conv.add_argument('--schema-profile', default='pf21_dgs_1_8_4')
-    conv.add_argument('--source-crs', default='EPSG:32718', help='CRS of CoordX/CoordY in the loaded TXT (any EPSG; example EPSG:32718)')
-    conv.add_argument('--target-crs', default='EPSG:4326', help='Target geographic CRS for GPSlat/GPSlon')
-    conv.add_argument('--no-geography', action='store_true', help='Disable GPS/diagram generation')
-    conv.add_argument('--non-strict', action='store_true', help='Omit unsupported topology/load/switch rows instead of failing; line types always auto-resolve')
-    conv.add_argument('--export-xlsx', action='store_true', help='Also write multi-sheet Excel (.xlsx) from DGS tables (needs igea-dgs[xlsx])')
-    conv.add_argument('--export-tsv', action='store_true', help='Also write one TSV per DGS table under {feeder}_dgs_tables/')
-    conv.add_argument('--preview', action='store_true', help='Write interactive map HTML (+ GeoJSON) before DGS (requires geography)')
+    conv.add_argument('--schema-profile', default='pf21_dgs_1_8_4', help='Perfil de esquema DGS')
+    conv.add_argument('--source-crs', default='EPSG:32718', help='CRS de CoordX/CoordY de la entrada (cualquier EPSG en metros; p. ej. EPSG:32718)')
+    conv.add_argument('--target-crs', default='EPSG:4326', help='CRS geográfico de destino para GPSlat/GPSlon')
+    conv.add_argument('--no-geography', action='store_true', help='No generar GPS ni diagrama')
+    conv.add_argument('--non-strict', action='store_true', help='Omitir filas de topología, carga o maniobra no admitidas en vez de fallar; los tipos de línea se resuelven siempre')
+    conv.add_argument('--export-xlsx', action='store_true', help='Escribir además un Excel (.xlsx) con una hoja por tabla DGS')
+    conv.add_argument('--export-tsv', action='store_true', help='Escribir además un TSV por tabla DGS en {alimentador}_dgs_tables/')
+    conv.add_argument('--preview', action='store_true', help='Escribir un mapa HTML interactivo (+ GeoJSON) antes del DGS (requiere geografía)')
     conv.add_argument(
         '--preview-backend',
         default='auto',
         choices=('auto', 'leafmap', 'leaflet'),
-        help='Map renderer: leafmap (@opengeos) or Leaflet CDN fallback',
+        help='Motor del mapa: leafmap (@opengeos) o Leaflet por CDN',
     )
     conv.add_argument(
         '--hoja', default=None, choices=('A0', 'A1', 'A2', 'A3', 'A4'),
@@ -99,11 +102,11 @@ def _parser() -> argparse.ArgumentParser:
              'El resultado es idéntico; cada proceso guarda una copia del dataset en memoria.',
     )
 
-    sub.add_parser('gui', help='Open the desktop (Tkinter) interface')
-    web = sub.add_parser('web', help='Start the web interface (FastAPI + React) and open the browser')
-    web.add_argument('--host', default='127.0.0.1')
-    web.add_argument('--port', type=int, default=8765)
-    web.add_argument('--no-browser', action='store_true')
+    sub.add_parser('gui', help='Abrir la interfaz de escritorio (Tkinter, heredada)')
+    web = sub.add_parser('web', help='Arrancar la interfaz web (FastAPI + React) y abrir el navegador')
+    web.add_argument('--host', default='127.0.0.1', help='Interfaz de escucha')
+    web.add_argument('--port', type=int, default=8765, help='Puerto')
+    web.add_argument('--no-browser', action='store_true', help='No abrir el navegador')
     return parser
 
 
@@ -222,14 +225,14 @@ def main(argv=None) -> int:
         print(format_inventory_report(inventory))
         if args.inventory_json:
             path = write_inventory(inventory, args.inventory_json)
-            print(f'Inventory JSON: {path}')
+            print(f'Inventario JSON: {path}')
         return 0 if inventory['integrity']['errors'] == 0 else 2
 
     selectors = list(args.feeder) + list(args.network)
     if args.all and selectors:
-        raise SystemExit('--all cannot be combined with --feeder/--network')
+        raise SystemExit('--all no se puede combinar con --feeder/--network')
     if not args.all and not selectors:
-        raise SystemExit('Use --feeder/--network at least once, or use --all')
+        raise SystemExit('Indique al menos un --feeder/--network, o use --all')
 
     try:
         aliases = load_aliases(args.aliases)
@@ -295,7 +298,7 @@ def main(argv=None) -> int:
                   f"{'OK' if not comp.get('fallos') else comp['fallos']}")
             if grupo.get('error'):
                 print(f"  {grupo['error']}")
-            print(f"Manifest: {Path(args.out_dir) / (grupo['name'] + '_manifest.json')}")
+            print(f"Manifiesto: {Path(args.out_dir) / (grupo['name'] + '_manifest.json')}")
             return 0 if grupo['status'] == 'ok' else 2
 
         manifest = convert_selection(
@@ -322,11 +325,11 @@ def main(argv=None) -> int:
     except (OSError, ValueError, ImportError) as exc:
         raise SystemExit(f'Error de conversión: {exc}') from exc
 
-    print(f"Requested: {manifest['summary']['requested']}")
+    print(f"Pedidos: {manifest['summary']['requested']}")
     print(f"OK: {manifest['summary']['ok']}")
-    print(f"Skipped: {manifest['summary'].get('skipped', 0)}")
-    print(f"Failed: {manifest['summary']['failed']}")
-    print(f"Manifest: {Path(args.out_dir) / 'batch_manifest.json'}")
+    print(f"Omitidos: {manifest['summary'].get('skipped', 0)}")
+    print(f"Fallidos: {manifest['summary']['failed']}")
+    print(f"Manifiesto: {Path(args.out_dir) / 'batch_manifest.json'}")
     return 0 if manifest['summary']['failed'] == 0 else 2
 
 
