@@ -17,7 +17,6 @@ Uso::
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import sys
 import tempfile
@@ -38,29 +37,24 @@ PARAMETROS = {
 }
 
 
-def _sha256(ruta: Path) -> str:
-    h = hashlib.sha256()
-    with open(ruta, 'rb') as f:
-        for bloque in iter(lambda: f.read(1 << 20), b''):
-            h.update(bloque)
-    return h.hexdigest()
-
-
 def _hashes_dgs(carpeta: Path) -> dict[str, str]:
-    return {p.relative_to(carpeta).as_posix(): _sha256(p)
+    from igea_dgs.util import sha256_file
+
+    return {p.relative_to(carpeta).as_posix(): sha256_file(p)
             for p in sorted(carpeta.rglob('*.dgs'))}
 
 
 def huella_entradas(red: Path, loads: Path, equipment: Path) -> dict[str, str | None]:
     """Hash de lo que determina la salida además del código: entradas y catálogo."""
     from igea_dgs.reglas import catalogo_del_proyecto
+    from igea_dgs.util import sha256_file
 
     catalogo = catalogo_del_proyecto()
     return {
-        'red': _sha256(red),
-        'loads': _sha256(loads),
-        'equipment': _sha256(equipment),
-        'catalogo_proyecto': _sha256(catalogo) if catalogo else None,
+        'red': sha256_file(red),
+        'loads': sha256_file(loads),
+        'equipment': sha256_file(equipment),
+        'catalogo_proyecto': sha256_file(catalogo) if catalogo else None,
     }
 
 

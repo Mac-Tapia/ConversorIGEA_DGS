@@ -8,6 +8,7 @@ import math
 from typing import Any, Iterable
 
 from .reconstruction import EvidenceLevel, ReconstructionResult
+from .util import finite_or_none
 
 
 @dataclass(frozen=True, order=True)
@@ -328,26 +329,20 @@ def _compatible(dataset, network_id, left, right, phases) -> bool:
 def _node_voltage(dataset, network_id: str, node_id: str) -> float | None:
     row = dataset.nodes.get(node_id, {})
     for key in ('NominalVoltageKV', 'NominalVoltage', 'VoltageKV', 'kV'):
-        value = _number(row.get(key))
+        value = finite_or_none(row.get(key))
         if value is not None:
             return value
     return _source_voltage(dataset.sources.get(network_id, {}))
 
 
 def _source_voltage(source: dict[str, Any]) -> float | None:
-    desired = _number(source.get('DesiredVoltage'))
+    desired = finite_or_none(source.get('DesiredVoltage'))
     if desired is not None:
         return desired
-    phase_voltage = _number(source.get('OperatingVoltageA'))
+    phase_voltage = finite_or_none(source.get('OperatingVoltageA'))
     return phase_voltage * math.sqrt(3) if phase_voltage is not None else None
 
 
-def _number(value: Any) -> float | None:
-    try:
-        number = float(value)
-    except (TypeError, ValueError):
-        return None
-    return number if math.isfinite(number) else None
 
 
 def _first(row: dict[str, Any], *keys: str) -> str:

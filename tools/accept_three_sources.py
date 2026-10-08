@@ -18,7 +18,7 @@ SRC = ROOT / 'src'
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from igea_dgs.feeder_metadata import sha256_file  # noqa: E402
+from igea_dgs.util import sha256_file  # noqa: E402
 from igea_dgs.web import services  # noqa: E402
 from igea_dgs.web.jobs import Job, JobContext  # noqa: E402
 from igea_dgs.web.workspace import Workspace  # noqa: E402

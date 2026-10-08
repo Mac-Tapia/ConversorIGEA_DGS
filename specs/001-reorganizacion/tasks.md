@@ -6,9 +6,16 @@ Spec aprobada el 2026-10-08.
 - [x] T1. Línea base de RF-14: generar los DGS de referencia con los TXT reales (todos los
       alimentadores, `workers=1`) y guardar sus SHA-256 en `output/linea_base_001.json` (ignorado por git). (RF-14)
       Hecho cuando: existe el JSON y la prueba RF-14 pasa contra el código sin tocar.
-- [ ] T2. `util.py` con `sha256_file`, `write_json_atomic`, `finite_or_none` y
+- [x] T2. `util.py` con `sha256_file`, `write_json_atomic`, `finite_or_none` y
       `nombre_seguro`, con sus pruebas; sustituir las copias de `igea_dgs`. (RF-4, RF-5)
       Hecho cuando: `pytest -q` en verde y el detector de duplicados no las lista.
+      Hecho el 2026-10-08: el detector es ahora una prueba fija (`tests/test_util.py`).
+      Fuera a propósito: `source_runs._atomic_json` (sin salto de línea final: cambiarla
+      altera los ficheros de custodia ya escritos), `source_runs._sha256_copy` (copia y
+      hashea a la vez) y `loads._number` (admite coma decimal y devuelve `nan`). Pendiente
+      sin RF: cinco variantes de «SHA-256 de un JSON canónico» (`load_batch`,
+      `reconstruction_service`, `powerfactory_metadata`, `source_runs`,
+      `catalog_resolution`); unirlas cambia hashes ya guardados si difieren en algo.
 - [ ] T3. Sustituir en `vnr_etl` las copias de hash, `_require_requests` y número finito. (RF-4)
       Hecho cuando: `pytest -q tests/test_vnr_etl.py` en verde.
 - [ ] T4. `geography.make_transformer` único; `loads_create` lo usa y un CRS inválido da
