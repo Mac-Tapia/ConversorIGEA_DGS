@@ -40,9 +40,16 @@ Spec aprobada el 2026-10-08.
       Reexportan, hasta la spec 002: `web/sources/__init__.py`, `web/sources/vnr.py` y los
       tipos en `web/source_runs.py`. `tests/test_fuentes_sin_web.py` comprueba en otro
       proceso que importar los adaptadores no carga FastAPI.
-- [ ] T6. `cli.load_dataset` con `adapter_for`; el CLI acepta `--vnr-package` y pasa los
+- [x] T6. `cli.load_dataset` con `adapter_for`; el CLI acepta `--vnr-package` y pasa los
       alias al catálogo. (RF-1, RF-2, RF-3)
       Hecho cuando: pruebas de CLI con TXT (las dos disposiciones), MDB y VNR en verde.
+      Hecho el 2026-10-08 (`tests/test_cli_fuentes.py`). El CLI construye la instantánea
+      con `snapshot_from_paths`, sin copiar; VNR-GIS descomprime en una carpeta temporal
+      que se borra al salir. Para igualar al CLI anterior, el adaptador TXT admite varios
+      `equipment_extra` (en el orden indicado) y el MDB, `load_year`. Con una `.mdb` real,
+      el CLI lee lo mismo que el lector directo; suite con las cinco variables: 977
+      correctas. Fuera de T6: el CLI no bloquea alimentadores no listos como hace la web
+      (`web/readiness.py`); si se quiere, es un requisito nuevo.
 - [ ] T7. Retirar la GUI Tkinter: `gui.py`, la orden `gui` del CLI, el script
       `igea-dgs-gui`, `run_gui_escritorio.bat` y `tests/test_gui_wiring.py`, tomando
       como referencia el commit `52974c8e`. (RF-16)

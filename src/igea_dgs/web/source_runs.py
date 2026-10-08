@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any
 
 from ..sources.snapshot import (  # noqa: F401 - SourceFile/SourceSnapshot: API pública
     COMMON_SLOTS, MODE_SLOTS, SourceFile, SourceMode, SourceSnapshot,
+    fingerprint as source_fingerprint,
 )
 
 if TYPE_CHECKING:  # pragma: no cover - solo para tipos, evita un ciclo de imports
@@ -82,18 +83,6 @@ def _atomic_json(path: Path, payload: dict[str, Any]) -> None:
     temporary.replace(path)
 
 
-def _fingerprint(mode: SourceMode, files: list[SourceFile]) -> str:
-    identity = {
-        'mode': mode,
-        'files': [
-            {'slot': item.slot, 'name': item.name, 'size': item.size, 'sha256': item.sha256}
-            for item in sorted(files, key=lambda item: item.slot)
-        ],
-    }
-    encoded = json.dumps(identity, sort_keys=True, separators=(',', ':')).encode('utf-8')
-    return hashlib.sha256(encoded).hexdigest()
-
-
 def create_source_run(ws: Workspace) -> SourceSnapshot:
     """Copia solo las entradas del modo activo y activa la instantánea resultante."""
     raw_mode = str(ws.options.get('input_mode') or '')
@@ -123,7 +112,7 @@ def create_source_run(ws: Workspace) -> SourceSnapshot:
                 origin=str(meta.get('origin') or ''),
                 source_path=str(source),
             ))
-        fingerprint = _fingerprint(mode, copied)
+        fingerprint = source_fingerprint(mode, copied)
         manifest = SourceRunManifest(
             version=1,
             run_id=run_id,
