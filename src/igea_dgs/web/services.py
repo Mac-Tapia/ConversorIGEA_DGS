@@ -131,8 +131,8 @@ def require_loaded(ws: Workspace) -> None:
 def load_dataset(ws: Workspace, ctx: JobContext) -> dict:
     from ..inventory import build_dataset_inventory, format_inventory_report, write_inventory
     from ..batch import load_aliases
+    from ..sources import adapter_for
     from .source_runs import create_source_run
-    from .sources import adapter_for
 
     ctx.log('--- Carga e inventario de alimentadores ---')
     snapshot = create_source_run(ws)

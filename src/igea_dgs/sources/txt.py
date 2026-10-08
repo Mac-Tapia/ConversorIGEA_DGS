@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .base import SourceLoadResult, provenance, validate_snapshot
-from ..source_runs import SourceSnapshot
+from .snapshot import SourceSnapshot
 
 
 class TxtSourceAdapter:
@@ -18,8 +18,8 @@ class TxtSourceAdapter:
             allowed={'red', 'loads', 'equipment', 'equipment_extra'},
             required={'red', 'loads', 'equipment'},
         )
-        from ...catalog_merge import completar, diagnosticar
-        from ...dataset import CymdistDataset
+        from ..catalog_merge import completar, diagnosticar
+        from ..dataset import CymdistDataset
 
         dataset = CymdistDataset.from_files(
             snapshot.path_for('red'),

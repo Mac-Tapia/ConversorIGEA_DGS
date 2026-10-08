@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from .base import SourceLoadResult, provenance, validate_snapshot
-from ..source_runs import SourceSnapshot
+from .snapshot import SourceSnapshot
 
 
 class MdbSourceAdapter:
@@ -17,12 +17,12 @@ class MdbSourceAdapter:
             allowed={'mdb', 'equipment_mdb', 'study'},
             required={'mdb'},
         )
-        from ...access import read_access_dataset
+        from ..access import read_access_dataset
 
         networks = None
         study = snapshot.path_for('study')
         if study:
-            from ...study import study_networks
+            from ..study import study_networks
 
             networks = study_networks(study)
         dataset = read_access_dataset(
