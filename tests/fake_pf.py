@@ -6,6 +6,11 @@ escenario activo y ``ComLdf``. Las cargas reproducen la regla que motivó RF-9: 
 P–cos φ los datos son P y cos φ, y escribir S recalcula P desde el cos φ anterior.
 Cada escritura queda anotada con la etapa que grababa y el escenario activo, para
 comprobar que todo fue a la variación nueva.
+
+Para la spec 005 imita además las carpetas del usuario (``IntFolder``), ``Move``,
+``Delete``, la activación de proyectos y ``ComImport``, que crea el proyecto en la raíz
+del usuario como DIgSILENT. ``App.fallar_mover`` hace que ``Move`` devuelva error, el caso
+que RF-9 no puede dejar con el proyecto en la raíz.
 """
 from __future__ import annotations
 
@@ -40,7 +45,7 @@ class Obj:
         return (self._padre.GetFullName() + '\\' if self._padre else '') + f'{self.loc_name}.{self._clase}'
 
     def CreateObject(self, clase, nombre):
-        cls = {'ElmLod': Carga, 'IntScheme': Variacion}.get(clase, Obj)
+        cls = {'ElmLod': Carga, 'IntScheme': Variacion, 'ComImport': Importacion}.get(clase, Obj)
         hijo = cls(self._app, clase, nombre, self)
         self._hijos.append(hijo)
         self._app.creados.append(hijo)
@@ -69,6 +74,53 @@ class Obj:
         return hasattr(self, 'm_u')
 
     def Activate(self, *_a):
+        if self._clase == 'IntPrj' and self._app is not None:
+            self._app.activo = self
+        return 0
+
+    def Deactivate(self, *_a):
+        if self._clase == 'IntPrj' and self._app is not None and self._app.activo is self:
+            self._app.activo = None
+        return 0
+
+    # ----------------------------------------------------------- spec 005
+    def Move(self, obj):
+        """Lleva ``obj`` a esta carpeta: 0 si lo movió, como la API."""
+        if self._app is not None and self._app.fallar_mover:
+            return 1
+        obj._padre._hijos.remove(obj)
+        self._hijos.append(obj)
+        object.__setattr__(obj, '_padre', self)
+        if self._app is not None:
+            self._app.movidos.append((obj, self))
+        return 0
+
+    def Delete(self):
+        self._padre._hijos.remove(self)
+        if self._app is not None:
+            self._app.borrados.append(self)
+            if self._app.activo is self:
+                self._app.activo = None
+        return 0
+
+
+class Importacion(Obj):
+    """``ComImport``: con ``iopt_prj=0`` crea un proyecto nuevo en la raíz del usuario."""
+
+    def SetAttributes(self, valores):
+        nombres = self._app.transferencia.get('ComImport', [])
+        for nombre, valor in zip(nombres, valores):
+            object.__setattr__(self, nombre, valor)
+
+    def Execute(self):
+        app = self._app
+        if app.fallar_importacion:
+            return 1
+        nombre = getattr(self, 'targname', None)
+        if not nombre or any(p.loc_name == nombre for p in app.usuario.GetContents('*.IntPrj')):
+            return 1      # DIgSILENT no crea un segundo proyecto con el mismo nombre
+        app.importados.append(nuevo_proyecto(app, app.usuario, nombre,
+                                             alimentadores=app.alimentadores_al_importar))
         return 0
 
 
@@ -172,13 +224,19 @@ class App:
         self.grabando = None
         self.escenario = None
         self.variaciones_activas = []
-        self.usuario = Obj(None, 'IntUser', 'usuario')
-        object.__setattr__(self.usuario, '_app', None)
+        self.usuario = Obj(self, 'IntUser', 'usuario')
         self.carpetas = {}
         self.caso = None
         self.ldf = None
         self.ldf_valido = True
         self.proyecto = None
+        # spec 005
+        self.activo = None
+        self.transferencia = {}
+        self.movidos, self.borrados, self.importados = [], [], []
+        self.fallar_mover = False
+        self.fallar_importacion = False
+        self.alimentadores_al_importar = ('F1',)
 
     def GetCurrentUser(self):
         return self.usuario
@@ -203,6 +261,48 @@ class App:
 
     def GetCalcRelevantObjects(self, patron):
         return self.proyecto.GetContents(patron, 1) if self.proyecto else []
+
+    # ----------------------------------------------------------- spec 005
+    def DefineTransferAttributes(self, clase, atributos):
+        self.transferencia[clase] = [a.strip() for a in atributos.split(',')]
+
+    def GetActiveProject(self):
+        return self.activo
+
+    def ActivateProject(self, nombre):
+        """Como la API: por nombre, solo entre los proyectos de la raíz del usuario."""
+        for prj in self.usuario.GetContents('*.IntPrj'):
+            if prj.loc_name == nombre:
+                return prj.Activate()
+        return 1
+
+
+def nuevo_proyecto(app, padre, nombre, *, alimentadores=('F1',), con_datos_de_red=True):
+    """Proyecto con la estructura de uno importado desde DGS (spec 005).
+
+    ``Network Model / Network Data / Red / <alimentador>``, más casos de estudio y una
+    biblioteca. ``con_datos_de_red=False`` imita un proyecto hecho a mano: la red cuelga
+    del proyecto sin carpetas de modelo de red.
+    """
+    prj = Obj(app, 'IntPrj', nombre, padre)
+    padre._hijos.append(prj)
+    if con_datos_de_red:
+        modelo = prj.CreateObject('IntPrjfolder', 'Network Model')
+        modelo.iopt_typ = 'netmod'
+        datos = modelo.CreateObject('IntPrjfolder', 'Network Data')
+        datos.iopt_typ = 'netdat'
+        red = datos.CreateObject('ElmNet', 'Red')
+    else:
+        red = prj.CreateObject('ElmNet', 'Red')
+    for f in alimentadores:
+        alim = Alimentador(app, f, red)
+        red._hijos.append(alim)
+    casos = prj.CreateObject('IntPrjfolder', 'Study Cases')
+    casos.iopt_typ = 'study'
+    casos.CreateObject('IntCase', 'Caso')
+    biblioteca = prj.CreateObject('IntPrjfolder', 'Library')
+    biblioteca.iopt_typ = 'lib'
+    return prj
 
 
 def proyecto(nombre='P', *, alimentadores=('F1', 'F2'), cargas_por_alim=3, escenario=False,
