@@ -372,3 +372,30 @@ def test_un_alimentador_que_falla_no_para_los_demas(guion):
     f1, f2 = informe['feeders']
     assert f1['fallos'] and 'bloqueado' in f1['fallos'][0]['error']
     assert [a['sed'] for a in f2['actualizadas']] == ['F2_S1']
+
+
+# =========================================================================== spec 005
+def test_proyecto_por_su_ruta_en_la_carpeta(guion):
+    """005:RF-16 — el guion abre el proyecto de la ruta en la carpeta, no otro de la raíz
+    que se llame igual."""
+    app = fake_pf.proyecto()
+    elegido = app.proyecto
+    carpeta = app.usuario.CreateObject('IntFolder', 'Red')
+    carpeta.CreateObject('IntFolder', 'Oct').Move(elegido)
+    otro = fake_pf.nuevo_proyecto(app, app.usuario, 'P', alimentadores=('F1',))
+    app.creados.clear()
+    app.escrituras.clear()
+    plan = {**_plan(['F1'], [_demanda('F1_S1', 120, 40)]), 'project': 'Oct/P', 'folder': 'Red'}
+    informe, rc = guion.ejecutar(app, plan, simular=True)
+    assert rc == 0, informe
+    assert app.GetActiveProject() is elegido and app.GetActiveProject() is not otro
+    assert informe['project_path'] == 'Oct/P'
+
+
+def test_ruta_que_no_existe_en_la_carpeta(guion):
+    """005:RF-16 — una ruta que no está en la carpeta es un error que la nombra."""
+    app = fake_pf.proyecto()
+    app.usuario.CreateObject('IntFolder', 'Red')
+    plan = {**_plan(['F1'], [_demanda('F1_S1', 1, 1)]), 'project': 'Oct/P', 'folder': 'Red'}
+    informe, rc = guion.ejecutar(app, plan, simular=True)
+    assert rc == 2 and 'Oct/P' in informe['error']

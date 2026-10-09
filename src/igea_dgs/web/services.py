@@ -1111,6 +1111,7 @@ def cargas_plan(
             project=project, feeders=feeders, demandas=demandas, nuevas=nuevas,
             costos=asdict(costos) if costos is not None else None,
             tec=None if tec is None else {'parametros': tec.to_dict(), 'comtececo': tec.a_comtececo()},
+            carpeta=carpeta_pf(),
         )
     except LoadTemplateError as exc:
         raise UserError(str(exc)) from exc
@@ -1120,7 +1121,7 @@ def cargas_plan(
     path.write_text(json.dumps(plan, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
     resumen = {
         'token': token, 'kind': 'cargas_pf', 'project': plan['project'],
-        'feeders': plan['feeders'], 'variacion': plan['variacion'],
+        'folder': plan['folder'], 'feeders': plan['feeders'], 'variacion': plan['variacion'],
         'demandas': plan['demandas'][:500], 'nuevas': plan['nuevas'][:500],
         'n_demandas': len(plan['demandas']), 'n_nuevas': len(plan['nuevas']),
         'row_errors': plan['row_errors'], 'omitidas_por_el_operador': plan['omitidas_por_el_operador'],
