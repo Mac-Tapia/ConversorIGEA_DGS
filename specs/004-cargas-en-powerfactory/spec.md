@@ -50,6 +50,8 @@ Proyecto
   operador, sin necesitar entradas cargadas ni convertidas en la web.
 - RF-2: CUANDO el operador lee los proyectos, EL SISTEMA listará los proyectos de
   DIgSILENT y, de cada uno, sus alimentadores.
+  *Cambio del 2026-10-09:* sustituido por la spec 005, RF-11 a RF-16: se listan solo los
+  proyectos de la carpeta de importación.
 - RF-3: CUANDO se aplican cambios, EL SISTEMA los grabará en una variación nueva del
   proyecto, con una etapa propia que graba, sin escribir en la red base.
 - RF-4: EL SISTEMA dará a cada variación un nombre que no exista ya en el proyecto.
