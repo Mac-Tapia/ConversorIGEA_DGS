@@ -62,6 +62,7 @@ ALIAS: dict[str, tuple[str, ...]] = {
     'pot': ('pot max', 'pot', 'potencia maxima', 'potencia'),
 }
 MAGNITUDES = ('kw', 'kvar', 'kva', 'fp')
+NOMBRE = {'kw': 'kW', 'kvar': 'kVAR', 'kva': 'kVA', 'fp': 'FP'}
 
 
 class DemandaError(ValueError):
@@ -293,6 +294,19 @@ def hojas_del_medidor(hojas: Sequence[str], medidor: str) -> tuple[list[str], li
     return enteras[:1], partes
 
 
+def base_del_medidor(medidor: str) -> str | None:
+    """Medidor del que ``medidor`` es un canal: ``IN111_V18`` → ``IN111`` (RF-44).
+
+    En Ica el libro de medidores nombra canales sueltos de un medidor (``IN111_V18``, el
+    kW) y su kVAR está en la hoja hermana ``IN111_V19``. La base ha de tener un dígito:
+    sin él, ``L-6613`` daría ``L`` y juntaría hojas de medidores distintos.
+    """
+    m = re.match(r'^(.+?)[\s_\-.]+[^\s_\-.]+$', medidor.strip())
+    if m is None or not any(c.isdigit() for c in m.group(1)):
+        return None
+    return m.group(1)
+
+
 @dataclass
 class Registro:
     fecha: Any
@@ -386,6 +400,8 @@ class MaximaCabecera:
     columnas: dict[str, str] = field(default_factory=dict)
     avisos: list[str] = field(default_factory=list)
     error: str | None = None
+    # Medidor sin hoja que se leyó como el medidor del que es canal (RF-45).
+    canal_de: str = ''
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -443,6 +459,48 @@ class Cabecera:
             self._abiertos[path] = _abrir(path)
         return self._abiertos[path]
 
+    def _completar(self, path: Path, medidor: str, registros: list[Registro],
+                   res: MaximaCabecera) -> list[Registro]:
+        """kVAR y kVA que le faltan a la hoja del kW, de hojas de una sola magnitud (RF-44).
+
+        Se buscan entre las partes del medidor y las de su base: ``IN111_V18`` trae solo el
+        kW y su kVAR está en ``IN111_V19``. Se unen por fecha y hora, así que el kVAR es el
+        del mismo registro que el kW máximo (RF-28). Si dos hojas dan la misma magnitud no
+        se elige ninguna: se avisa.
+        """
+        faltan = [m for m in ('kvar', 'kva') if m not in res.columnas]
+        if not faltan:
+            return registros
+        hojas = self._libro(path).sheet_names
+        candidatas = hojas_del_medidor(hojas, medidor)[1]
+        base = base_del_medidor(medidor)
+        if base:
+            candidatas += sum(hojas_del_medidor(hojas, base), [])
+        por_magnitud: dict[str, list[tuple[str, list[Registro], str]]] = {}
+        for hoja in dict.fromkeys(candidatas):
+            if hoja in res.hojas:
+                continue
+            regs, usadas = _registros_hoja(_filas(self._libro(path), hoja), self.alias)
+            if len(usadas) == 1 and next(iter(usadas)) in faltan:
+                m = next(iter(usadas))
+                por_magnitud.setdefault(m, []).append((hoja, regs, usadas[m]))
+        trozos, de_donde = [registros], []
+        for m in faltan:
+            opciones = por_magnitud.get(m, [])
+            if len(opciones) > 1:
+                res.avisos.append(f'{NOMBRE[m]} en varias hojas ('
+                                  + ', '.join(h for h, _r, _c in opciones) + '); no se toma ninguna')
+            elif opciones:
+                hoja, regs, col = opciones[0]
+                res.hojas.append(hoja)
+                res.columnas[m] = col
+                trozos.append(regs)
+                de_donde.append(f'{NOMBRE[m]} de {hoja}')
+        if not de_donde:
+            return registros
+        res.avisos.append(', '.join(de_donde) + ', del mismo registro que el kW máximo')
+        return _unir_por_fecha(trozos)
+
     def maxima(self, medidor: str, alimentador: str = '') -> MaximaCabecera:
         res = MaximaCabecera(medidor=medidor, alimentador=alimentador)
         hallados: list[tuple[Path, list[str], list[str]]] = []
@@ -451,6 +509,15 @@ class Cabecera:
             if entera or partes:
                 hallados.append((path, entera, partes))
         if not hallados:
+            # «IN111_V119» en el libro de medidores, sin hoja: es un canal de IN111, que sí
+            # está (RF-45). Se lee IN111; ``maximas`` lo junta con IN111_V18 si también se pidió.
+            base = base_del_medidor(medidor)
+            if base and any(any(hojas_del_medidor(self._libro(p).sheet_names, base))
+                            for p in self.libros):
+                res = self.maxima(base, alimentador)
+                res.medidor, res.canal_de = medidor, base
+                res.avisos.insert(0, f'no hay hoja {medidor}; se usa {base}, el medidor del que es canal')
+                return res
             res.error = f'el medidor {medidor} no está en ningún libro de cabecera'
             return res
         # Mejor el libro con la hoja de su nombre; entre iguales, el primero por nombre.
@@ -467,7 +534,7 @@ class Cabecera:
                 if 'kw' not in usadas:
                     res.error = f'{path.name} › {entera[0]}: sin columna de kW'
                     return res
-                return maxima_de_registros(registros, res)
+                return maxima_de_registros(self._completar(path, medidor, registros, res), res)
             res.avisos.append(f'{entera[0]}: sin columna de kW; se usan sus hojas por magnitud')
         trozos, completas = [], []
         for hoja in partes:
@@ -516,6 +583,30 @@ def maximas(rutas: Iterable[Path | str], medidores: Sequence[tuple[str, str]], *
             out.append(cabecera.maxima(medidor, alimentador))
         except DemandaError as exc:
             out.append(MaximaCabecera(medidor=medidor, alimentador=alimentador, error=str(exc)))
+    return _unir_canales(out)
+
+
+def _unir_canales(resultados: list[MaximaCabecera]) -> list[MaximaCabecera]:
+    """Un canal sin hoja cuyo medidor ya da otro resultado del alimentador no se repite (RF-45).
+
+    «IN111_V18 Y IN111_V119»: V18 ya trae el kW y, por RF-44, el kVAR de IN111; V119
+    leería el mismo medidor y daría una segunda fila igual.
+    """
+    def da(r: MaximaCabecera, base: str) -> bool:
+        return (not r.canal_de and r.error is None
+                and clave_codigo(base) in (clave_codigo(r.medidor),
+                                           clave_codigo(base_del_medidor(r.medidor) or '')))
+
+    out = []
+    for r in resultados:
+        otro = None
+        if r.canal_de and r.error is None:
+            otro = next((s for s in resultados if s is not r and s.libro == r.libro and da(s, r.canal_de)
+                         and clave_codigo(s.alimentador) == clave_codigo(r.alimentador)), None)
+        if otro is None:
+            out.append(r)
+        else:
+            otro.avisos.append(f'{r.medidor}: no tiene hoja; es otro canal de {r.canal_de}, ya incluido aquí')
     return out
 
 

@@ -169,6 +169,18 @@ Cambio del 2026-10-09, pedido por el operador al usarla con los libros reales:
   máxima, dirá cuántos de otros alimentadores no muestra y dejará aparte los que no
   están en el libro de suministros, porque no se sabe de qué alimentador son.
 
+Cambio del 2026-10-09, visto con el alimentador IN111 de Ica: su libro de medidores da
+«IN111_V18 Y IN111_V119»; en el libro de cabecera `IN111_V18` es solo el kW, `IN111_V19`
+el kVAR y `IN111_V20` el kVA (canales del medidor `IN111`), y `IN111_V119` no existe.
+
+- RF-44: SI la hoja de un medidor trae el kW pero le falta el kVAR o el kVA, ENTONCES EL
+  SISTEMA los tomará, por la fecha y hora del registro del kW máximo, de las hojas de una
+  sola magnitud del mismo medidor (`<medidor>_<sufijo>`) o de sus canales hermanos
+  (`<base>_<sufijo>`, con la base con algún dígito), y nombrará esas hojas.
+- RF-45: SI un medidor no tiene hoja pero es un canal de un medidor que sí la tiene, y otro
+  medidor del mismo alimentador ya da ese medidor, ENTONCES EL SISTEMA dará un solo
+  resultado, con un aviso que nombre el canal que no está.
+
 ## Requisitos no funcionales
 
 - Universal (P13): ninguna tensión, frecuencia ni CRS de una empresa como valor fijo.
@@ -213,7 +225,7 @@ Cambio del 2026-10-09, pedido por el operador al usarla con los libros reales:
 
 ## Criterios de finalización
 
-- `grep -rnoE "004:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-43.
+- `grep -rnoE "004:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-45.
 - Suite completa en verde y RF-14 de la spec 001 sin cambios.
 - `npx tsc --noEmit -p .` (en `frontend/`) y `npm run build` correctos.
 - Prueba real en DIgSILENT, a cargo del usuario.

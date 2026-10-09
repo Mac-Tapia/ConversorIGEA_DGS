@@ -164,6 +164,73 @@ def test_hoja_con_su_nombre_sin_kw_usa_sus_partes(tmp_path):
     assert res.columnas['fp'] == 'calculado con kW y kVA'
 
 
+def _canales(rng, base: str, n: int = 60) -> tuple[dict[str, list[list]], dict]:
+    """Medidor partido en canales como IN111 de Ica: kW, kVAR, kVA y una corriente, cada
+    uno en su hoja ``<base>_V<n>`` y en su propio orden."""
+    completo, esperado = _medicion(rng, n, {'kw': 'kW tot', 'kvar': 'kVAR tot', 'kva': 'kVA tot'})
+    cab = completo[0]
+    hojas = {}
+    for canal, col in (('V18', 'kW tot'), ('V19', 'kVAR tot'), ('V20', 'kVA tot'), ('V9', None)):
+        k = cab.index(col) if col else None
+        filas = [[r[0], r[1], (r[k] if k is not None else 1.0)] for r in completo[1:]]
+        rng.shuffle(filas)
+        hojas[f'{base}_{canal}'] = [['Local Time', 'Timestamp', col or 'I a']] + filas
+    return hojas, esperado
+
+
+def test_canal_del_kw_toma_el_kvar_de_su_hoja_hermana(tmp_path):
+    """004:RF-44 — ``IN1_V18`` solo trae kW: el kVAR y el kVA salen de ``IN1_V19`` e
+    ``IN1_V20`` en la fecha del kW máximo, no de sus propios máximos."""
+    rng = random.Random(SEMILLA)
+    hojas, esperado = _canales(rng, 'IN1')
+    otro, _ = _canales(rng, 'IN10')                 # IN10_V19 no es hermana de IN1_V18
+    _libro(tmp_path / 'c.xlsx', {**hojas, **otro})
+    res = dm.maximas([tmp_path / 'c.xlsx'], [('A1', 'IN1_V18')])[0]
+    assert res.error is None, res
+    assert sorted(res.hojas) == ['IN1_V18', 'IN1_V19', 'IN1_V20']
+    assert res.fecha == esperado['fecha'].isoformat(sep=' ')
+    assert (res.kw, res.kvar) == (esperado['kw'], esperado['kvar'])
+    assert res.kva == pytest.approx(esperado['kva']) and not res.kva_calculado
+    assert res.fp_calculado and res.avisos
+
+
+def test_kvar_en_dos_hojas_hermanas_no_se_elige(tmp_path):
+    """004:RF-44 — si dos hojas dan el kVAR, no se toma ninguna y se avisa."""
+    rng = random.Random(SEMILLA)
+    hojas, esperado = _canales(rng, 'IN1')
+    hojas['IN1_V29'] = hojas['IN1_V19']
+    _libro(tmp_path / 'c.xlsx', hojas)
+    res = dm.maximas([tmp_path / 'c.xlsx'], [('', 'IN1_V18')])[0]
+    assert res.kw == esperado['kw'] and res.kvar is None
+    assert any('IN1_V29' in a for a in res.avisos)
+
+
+def test_base_del_medidor_necesita_un_digito():
+    """004:RF-44 — ``L-6613`` no tiene por base ``L``: juntaría medidores distintos."""
+    assert dm.base_del_medidor('IN111_V18') == 'IN111'
+    assert dm.base_del_medidor('L-6613_PE') == 'L-6613'
+    assert dm.base_del_medidor('L-6613') is None
+    assert dm.base_del_medidor('M7') is None
+
+
+def test_canal_sin_hoja_se_une_al_medidor_que_ya_lo_da(tmp_path):
+    """004:RF-45 — «IN1_V18 Y IN1_V119»: V119 no tiene hoja y es canal de IN1; sale una
+    sola fila, con aviso, en cualquier orden. Pedido solo, se lee como IN1."""
+    rng = random.Random(SEMILLA)
+    hojas, esperado = _canales(rng, 'IN1')
+    _libro(tmp_path / 'c.xlsx', hojas)
+    for orden in (['IN1_V18', 'IN1_V119'], ['IN1_V119', 'IN1_V18']):
+        res = dm.maximas([tmp_path / 'c.xlsx'], [('A1', m) for m in orden])
+        assert [r.medidor for r in res] == ['IN1_V18'], res
+        assert res[0].kvar == esperado['kvar']
+        assert any('IN1_V119' in a for a in res[0].avisos)
+    solo = dm.maximas([tmp_path / 'c.xlsx'], [('A1', 'IN1_V119')])[0]
+    assert solo.error is None and solo.canal_de == 'IN1'
+    assert (solo.kw, solo.kvar) == (esperado['kw'], esperado['kvar'])
+    # Un canal de un medidor que no está sigue siendo un error (RF-32).
+    assert dm.maximas([tmp_path / 'c.xlsx'], [('A1', 'IN9_V119')])[0].error
+
+
 @pytest.mark.parametrize('variante', [
     {'kw': 'kW tot', 'kvar': 'kVAR tot', 'kva': 'kVA tot', 'fp': 'PF lag mean'},
     {'kw': 'kW tot mean', 'kvar': 'kVAR tot mean', 'kva': 'kVA tot mean', 'fp': 'PF lead mean'},
