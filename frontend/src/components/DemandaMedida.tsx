@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { api, fmtNum, type DemandaTipo } from '../api';
 import { useApp } from '../context';
 import type { ClientesCruce, ClienteImportante, MaximaCabecera } from '../types';
+import { AjusteCabecera } from './AjusteCabecera';
 import { FileDrop, useToast } from './ui';
 
 const LIBROS: { tipo: DemandaTipo; titulo: string; ayuda: string }[] = [
@@ -62,10 +63,10 @@ const fp = (n: number | null) => (n == null ? '—' : fmtNum(n, 3));
 
 /**
  * Demanda medida (spec 004, RF-22 a RF-41): máxima de cabecera por medidor y clientes
- * importantes con su SED. Solo extrae, muestra y descarga; no cambia las demandas en
- * bloque ni las cargas nuevas de arriba.
+ * importantes con su SED. Se muestra y se descarga; el ajuste de las demandas a la
+ * máxima (spec 006) va aparte, en ``AjusteCabecera``.
  */
-export function DemandaMedida() {
+export function DemandaMedida({ project }: { project: string }) {
   const { ws, run, startJob, active, jobs } = useApp();
   const [alimentador, setAlimentador] = useState('');
   const [medidores, setMedidores] = useState<string[]>([]);
@@ -74,14 +75,28 @@ export function DemandaMedida() {
   const [manual, setManual] = useState('');
   const [cruce, setCruce] = useState<ClientesCruce | null>(null);
   const [filtro, setFiltro] = useState('');
+  const [lista, setLista] = useState<string[]>([]);
   const toast = useToast();
   const engineBusy = Boolean(active.engine);
 
   const ultimo = Object.values(jobs).filter((j) => j.kind === 'demanda_cabecera' && j.result).pop();
   const cabecera = (ultimo?.result?.resultados ?? []) as MaximaCabecera[];
+  // Los clientes se cruzan para el alimentador de la máxima mostrada (RF-43); sin máxima
+  // todavía, para el escrito arriba; sin ninguno, toda la empresa.
+  const deLaMaxima = [...new Set(cabecera.map((r) => r.alimentador).filter(Boolean))];
+  const paraCruce = deLaMaxima.length ? deLaMaxima : alimentador.trim() ? [alimentador.trim()] : [];
 
-  const buscar = async () => {
-    const r = await run(() => api.demandaMedidores(ws.id, alimentador.trim()));
+  // Desplegable del código (RF-42): se vuelve a leer al cambiar el libro de medidores.
+  const libroMedidores = ws.demanda?.medidores?.name ?? '';
+  useEffect(() => {
+    if (!libroMedidores) { setLista([]); return; }
+    let vivo = true;
+    api.demandaAlimentadores(ws.id).then((r) => { if (vivo) setLista(r.alimentadores); }).catch(() => setLista([]));
+    return () => { vivo = false; };
+  }, [ws.id, libroMedidores]);
+
+  const buscar = async (codigo = alimentador) => {
+    const r = await run(() => api.demandaMedidores(ws.id, codigo.trim()));
     if (!r) return;
     setMedidores(r.medidores);
     setElegidos(r.medidores);
@@ -99,7 +114,7 @@ export function DemandaMedida() {
     startJob(() => api.demandaCabecera(ws.id, elegidos.map((medidor) => ({ alimentador: alimentador.trim(), medidor }))));
   };
   const cruzar = async () => {
-    const r = await run(() => api.demandaClientes(ws.id));
+    const r = await run(() => api.demandaClientes(ws.id, paraCruce));
     if (r) setCruce(r);
   };
   const excel = () => run(() => api.demandaExcel(ws.id, {
@@ -125,10 +140,18 @@ export function DemandaMedida() {
       <div className="row">
         <label className="field">
           <span>Código de alimentador</span>
-          <input value={alimentador} onChange={(e) => setAlimentador(e.target.value)}
+          <input value={alimentador} list="demanda-alimentadores" autoComplete="off"
+            placeholder={lista.length ? `escriba o elija (${lista.length})` : undefined}
+            onChange={(e) => {
+              const v = e.target.value;
+              setAlimentador(v);
+              // Elegido de la lista: se buscan sus medidores sin pulsar el botón.
+              if (lista.includes(v)) buscar(v);
+            }}
             onKeyDown={(e) => { if (e.key === 'Enter' && alimentador.trim()) buscar(); }} />
+          <datalist id="demanda-alimentadores">{lista.map((a) => <option key={a} value={a} />)}</datalist>
         </label>
-        <button className="btn" disabled={!alimentador.trim() || !ws.demanda?.medidores} onClick={buscar}>Buscar medidores</button>
+        <button className="btn" disabled={!alimentador.trim() || !ws.demanda?.medidores} onClick={() => buscar()}>Buscar medidores</button>
       </div>
       {noEncontrado && <p className="alert alert-warn">{noEncontrado} no está en el libro de medidores: escriba el medidor a mano.</p>}
       <div className="row">
@@ -184,8 +207,9 @@ export function DemandaMedida() {
       <h4>Clientes importantes</h4>
       <div className="row">
         <button className="btn" disabled={!ws.demanda?.suministros || !ws.demanda?.clientes} onClick={cruzar}>
-          Cruzar clientes con suministros
+          {paraCruce.length ? `Cruzar clientes de ${paraCruce.join(', ')}` : 'Cruzar clientes con suministros'}
         </button>
+        {!paraCruce.length && <small className="muted">Sin alimentador: se cruzan los de toda la empresa.</small>}
         {(!ws.demanda?.suministros || !ws.demanda?.clientes) && <small className="muted">Faltan los suministros o los clientes.</small>}
       </div>
       {cruce && <Cruce cruce={cruce} visibles={visibles} filtro={filtro} setFiltro={setFiltro} />}
@@ -193,6 +217,9 @@ export function DemandaMedida() {
       <div className="row">
         <button className="btn" disabled={!cabecera.length && !cruce} onClick={excel}>Descargar en Excel</button>
       </div>
+
+      {/* Spec 006: la máxima de arriba, repartida entre las SED del proyecto de DIgSILENT. */}
+      <AjusteCabecera project={project} maxima={ultimo} />
     </div>
   );
 }
@@ -201,9 +228,13 @@ function Cruce({ cruce, visibles, filtro, setFiltro }: {
   cruce: ClientesCruce; visibles: ClienteImportante[]; filtro: string; setFiltro: (v: string) => void;
 }) {
   const t = cruce.totales;
+  const ali = cruce.alimentadores.join(', ');
   return <>
-    <p>{fmtNum(t.cruzados)} de {fmtNum(t.clientes)} cruzados ({fmtNum(t.por_actual)} por «Suministro Act», {fmtNum(t.por_anterior)} por
-      «Suministro»); {fmtNum(t.no_cruzados)} aparte.</p>
+    <p>{ali ? <>{fmtNum(t.cruzados)} cliente(s) de <strong>{ali}</strong> de {fmtNum(t.clientes)}</> : <>{fmtNum(t.cruzados)} de {fmtNum(t.clientes)} cruzados</>}
+      {' '}({fmtNum(t.por_actual)} por «Suministro Act», {fmtNum(t.por_anterior)} por «Suministro»); {fmtNum(t.no_cruzados)} aparte
+      {ali ? `, ${fmtNum(t.de_otros)} de otros alimentadores sin mostrar` : ''}.</p>
+    {ali && t.cruzados === 0 && t.de_otros > 0 && <p className="alert alert-warn">Ningún suministro tiene «{ali}» en la columna
+      RADIAL: compruebe que el libro de suministros usa el mismo código de alimentador.</p>}
     {cruce.avisos.length > 0 && <details className="alert alert-warn"><summary>Avisos: {cruce.avisos.length}</summary>
       <ul className="small">{cruce.avisos.slice(0, 100).map((a) => <li key={a}>{a}</li>)}</ul></details>}
     <input className="search" type="search" placeholder="Filtrar por Nis, SED o radial…" value={filtro}

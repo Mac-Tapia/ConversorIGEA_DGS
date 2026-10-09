@@ -194,6 +194,7 @@ input[type="search"], input:not([type]), input[type="text"], .field input, .fiel
 .alert p { margin: 4px 0; }
 .alert-warn { background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 35%, transparent); color: var(--text); }
 .alert-error { background: var(--error-soft); border-color: color-mix(in srgb, var(--error) 35%, transparent); color: var(--text); }
+.alert-ok { background: var(--ok-soft); border-color: color-mix(in srgb, var(--ok) 35%, transparent); color: var(--text); }
 .alert-info { background: var(--info-soft); border-color: color-mix(in srgb, var(--info) 30%, transparent); }
 small.alert { display: block; margin: 4px 0 0; }
 

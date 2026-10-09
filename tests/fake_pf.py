@@ -7,6 +7,13 @@ P–cos φ los datos son P y cos φ, y escribir S recalcula P desde el cos φ an
 Cada escritura queda anotada con la etapa que grababa y el escenario activo, para
 comprobar que todo fue a la variación nueva.
 
+Para la spec 006 (ajuste a la máxima de cabecera), con ``proyecto(bt=True)`` cada SED
+tiene su barra de baja, con el transformador entre la de media y ella y la carga
+colgada de ella, y el ``ElmFeeder`` apunta al cubículo de su cabecera. Con
+``proyecto(flujo=True)`` el ``ComLdf`` es :class:`FlujoConPerdidas`: calcula lo que entra
+por cada cabecera con pérdidas cuadráticas y deja de converger por encima de un
+límite, que suben los ajustes del flujo que DIgSILENT usa para converger.
+
 Para la spec 005 imita además las carpetas del usuario (``IntFolder``), ``Move``,
 ``Delete``, la activación de proyectos y ``ComImport``, que crea el proyecto en la raíz
 del usuario como DIgSILENT. ``App.fallar_mover`` hace que ``Move`` devuelva error, el caso
@@ -68,10 +75,24 @@ class Obj:
         setattr(self, name, value)
 
     def GetAttribute(self, name):
-        return getattr(self, name.replace('m:', 'm_'))
+        # Solo el prefijo: «m:Psum:bus1» lleva otro «m:» dentro.
+        return getattr(self, 'm_' + name[2:] if name.startswith('m:') else name)
 
     def HasResults(self):
         return hasattr(self, 'm_u')
+
+    def HasAttribute(self, name):
+        return hasattr(self, name)
+
+    # ----------------------------------------------------------- spec 006
+    def GetConnectedElements(self, *_a):
+        """De una barra: lo conectado a sus cubículos."""
+        return [c.obj_id for c in self._hijos if c._clase == 'StaCubic' and getattr(c, 'obj_id', None)]
+
+    @property
+    def cterm(self):
+        """De un cubículo: su barra."""
+        return self._padre
 
     def Activate(self, *_a):
         if self._clase == 'IntPrj' and self._app is not None:
@@ -218,6 +239,60 @@ class Orden(Obj):
         return self.rc
 
 
+class FlujoConPerdidas(Orden):
+    """``ComLdf`` que calcula la cabecera de cada alimentador (spec 006).
+
+    Lo que entra por la cabecera es la suma de sus cargas más ``rp·S²`` y ``rq·S²`` de
+    pérdidas (S en MVA), menos ``cables`` Mvar. Si la carga del alimentador pasa de
+    ``limite`` MW no converge; cada ajuste del flujo distinto de su valor inicial lo
+    sube en ``por_ajuste`` MW, como ayudan en DIgSILENT a converger.
+    """
+
+    INICIALES = {'itrlx': 25, 'iStepAdapt': 0, 'iopt_lev': 0, 'iopt_pq': 0}
+
+    def __init__(self, app, rp=0.02, rq=0.04, cables=0.0, limite=math.inf, por_ajuste=0.0):
+        super().__init__(app, 'ComLdf')
+        for k, v in self.INICIALES.items():
+            object.__setattr__(self, k, v)
+        for k, v in dict(rp=rp, rq=rq, cables=cables, limite=limite, por_ajuste=por_ajuste,
+                         ejecuciones=0).items():
+            object.__setattr__(self, k, v)
+
+    def limite_efectivo(self):
+        return self.limite + self.por_ajuste * sum(
+            getattr(self, k) != v for k, v in self.INICIALES.items())
+
+    def Execute(self):
+        object.__setattr__(self, 'ejecuciones', self.ejecuciones + 1)
+        app = self._app
+        alims = app.proyecto.GetContents('*.ElmFeeder', 1)
+        for alim in alims:
+            cub = getattr(alim, 'obj_id', None)
+            if cub is None:
+                continue
+            cargas = [o for o in alim.GetObjs('ElmLod') if not getattr(o, 'outserv', 0)]
+            p = sum(c.plini for c in cargas)
+            q = sum(c.qlini for c in cargas)
+            if p > self.limite_efectivo():
+                app.ldf_valido = False
+                for o in app.proyecto.GetContents('*.ElmTerm', 1):
+                    if hasattr(o, 'm_u'):
+                        object.__delattr__(o, 'm_u')
+                return 1
+            s2 = p * p + q * q
+            rama, lado = cub.obj_id, cub.obj_bus + 1
+            object.__setattr__(rama, f'm_Psum:bus{lado}', p + self.rp * s2)
+            object.__setattr__(rama, f'm_Qsum:bus{lado}', q + self.rq * s2 - self.cables)
+            for i, b in enumerate(alim.GetObjs('ElmTerm')):
+                object.__setattr__(b, 'm_u', 1.0 - 0.01 * i * p)
+            for tr in alim.GetObjs('ElmTr2'):
+                carga = next((c for c in cargas if c.loc_name == tr.loc_name.removeprefix('TR_')), None)
+                s = math.hypot(carga.plini, carga.qlini) if carga else 0.0
+                object.__setattr__(tr, 'c:loading', 100.0 * s / tr.typ_id.strn)
+        app.ldf_valido = True
+        return 0
+
+
 class App:
     def __init__(self):
         self.escrituras, self.creados = [], []
@@ -306,11 +381,16 @@ def nuevo_proyecto(app, padre, nombre, *, alimentadores=('F1',), con_datos_de_re
 
 
 def proyecto(nombre='P', *, alimentadores=('F1', 'F2'), cargas_por_alim=3, escenario=False,
-             con_gps=True, con_trafos=True, frnom=60.0):
+             con_gps=True, con_trafos=True, frnom=60.0, bt=False, flujo=False, kva=None):
     """Proyecto con N alimentadores; cada uno con una cadena de barras, líneas y SED.
 
     Barras ``<F>_B0..Bn`` en línea recta (unos 100 m entre barras), líneas ``<F>_L<i>``
     del tipo ``AAAC_<F>``, y SED ``<F>_S<i>`` con su ``ElmTr2`` y su ``ElmLod``.
+
+    ``bt``: barra de baja por SED, cubículos del transformador y de la carga, y cabecera
+    del alimentador (spec 006). ``kva``: función ``(alimentador, i) -> kVA`` del
+    transformador de cada SED, para sortearlo; por defecto 100. ``flujo``: el ``ComLdf``
+    es :class:`FlujoConPerdidas`.
     """
     app = App()
     prj = Obj(app, 'IntPrj', nombre, app.usuario)
@@ -322,7 +402,7 @@ def proyecto(nombre='P', *, alimentadores=('F1', 'F2'), cargas_por_alim=3, escen
     app.caso = estudio.CreateObject('IntCase', 'Caso')
     app.caso.iStudyTime = 1_760_000_000
     app.carpetas = {'equip': equip, 'scheme': scheme, 'study': estudio}
-    app.ldf = Orden(app, 'ComLdf')
+    app.ldf = FlujoConPerdidas(app) if flujo else Orden(app, 'ComLdf')
     red = prj.CreateObject('ElmNet', 'Red')
     red.frnom = frnom
     grf = prj.CreateObject('IntGrfnet', 'Diagrama')
@@ -362,7 +442,26 @@ def proyecto(nombre='P', *, alimentadores=('F1', 'F2'), cargas_por_alim=3, escen
             if con_trafos:
                 tr = sub.CreateObject('ElmTr2', f'TR_{f}_S{i}')
                 tr.typ_id = tr_tipo
+                if kva is not None:
+                    tr.typ_id = equip.CreateObject('TypTr2', f'TR{i}_{f}')
+                    tr.typ_id.strn = kva(f, i) / 1000.0
                 alim._objs.append(tr)
+                if bt:
+                    baja = sub.CreateObject('ElmTerm', f'{f}_S{i}_BT')
+                    baja.uknom = 0.38
+                    for nombre_cub, barra, attr in (('hv', barras[i], 'bushv'), ('lv', baja, 'buslv')):
+                        cub = barra.CreateObject('StaCubic', f'{nombre_cub}_{tr.loc_name}')
+                        cub.obj_id = tr
+                        setattr(tr, attr, cub)
+            if bt:
+                baja = next((o for o in sub.GetContents('*.ElmTerm')), None) or barras[i]
+                cub = baja.CreateObject('StaCubic', f'c_{carga.loc_name}')
+                cub.obj_id = carga
+                carga.bus1 = cub
+        if bt:
+            alim.obj_id = next(c for c in barras[0].GetContents('*.StaCubic')
+                               if c.obj_id.loc_name == f'{f}_L1')
+            alim.iorient = 0          # hacia la rama: lo que entra en ella es del alimentador
     if escenario:
         carpeta = prj.CreateObject('IntPrjfolder', 'Operation Scenarios')
         app.escenario = Escenario(app, 'IntScenario', 'Operador', carpeta)

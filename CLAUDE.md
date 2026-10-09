@@ -23,6 +23,8 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   `specs/002-arquitectura-por-capas/`, aprobadas el 2026-10-08. La 001 está cumplida; la 002, aún sin plan ni tareas.
   `specs/005-carpeta-de-proyectos-pf/` (aprobada el 2026-10-09): implementada, falta la prueba manual en DIgSILENT (T12).
   La carpeta de DIgSILENT de cada empresa va en `config/perfil_empresa.json`, local y fuera de git.
+  `specs/006-ajuste-a-la-maxima-de-cabecera/` (aprobada el 2026-10-09): implementada, falta la
+  prueba en DIgSILENT (T8), que confirma el signo y el lado de la cabecera.
 - `docs/superpowers/specs/` y `plans/` son históricos: no tienen requisitos numerados ni casillas al día.
 
 ## Pruebas

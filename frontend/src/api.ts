@@ -1,5 +1,5 @@
 import type {
-  CargasPlan, ClientesCruce, DemandaMedidores, Economia, FeederRow, Health, Job, MaximaCabecera,
+  AjustePlan, CargasPlan, ClientesCruce, DemandaMedidores, Economia, FeederRow, Health, Job, MaximaCabecera,
   Options, OutputFile, PowerFactoryStatus, ReconstructionReport, WorkspaceState,
 } from './types';
 
@@ -159,8 +159,16 @@ export const api = {
     request<DemandaMedidores>(`${ws(id)}/demanda/medidores?alimentador=${enc(alimentador)}`),
   demandaCabecera: (id: string, medidores: { alimentador: string; medidor: string }[]) =>
     request<Job>(`${ws(id)}/demanda/cabecera/buscar`, json('POST', { medidores })),
-  demandaClientes: (id: string) =>
-    request<ClientesCruce>(`${ws(id)}/demanda/clientes/cruzar`, { method: 'POST' }),
+  demandaAlimentadores: (id: string) =>
+    request<{ alimentadores: string[] }>(`${ws(id)}/demanda/alimentadores`),
+  demandaClientes: (id: string, alimentadores: string[]) =>
+    request<ClientesCruce>(`${ws(id)}/demanda/clientes/cruzar`, json('POST', { alimentadores })),
+  ajustePlan: (id: string, body: { project: string; job_id: string; medidor: string; tolerancia: number }) =>
+    request<AjustePlan>(`${ws(id)}/demanda/ajuste/plan`, json('POST', body)),
+  ajusteSimular: (id: string, token: string) =>
+    request<Job>(`${ws(id)}/demanda/ajuste/${enc(token)}/simular`, { method: 'POST' }),
+  ajusteAplicar: (id: string, token: string) =>
+    request<Job>(`${ws(id)}/demanda/ajuste/${enc(token)}/aplicar`, { method: 'POST' }),
   demandaExcel: (id: string, datos: { cabecera: MaximaCabecera[]; clientes: unknown[]; no_cruzados: unknown[] }) =>
     download(`${ws(id)}/demanda/excel`, json('POST', datos)),
 
