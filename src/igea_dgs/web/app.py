@@ -539,19 +539,34 @@ def create_app(data_root: Path | None = None) -> FastAPI:
         ws = ws_or_404(wid)
         return {'loaded': ws.dataset is not None, 'feeders': services.feeder_rows(ws)}
 
-    @app.post('/api/workspaces/{wid}/diagnose')
+    def _check_selection(ws: Workspace, body: SelectionIn) -> list[str]:
+        # Lo que falla por la petición falla aquí, con 400, y no como trabajo fallido.
+        from .reconstruction_service import resolve_selection
+
+        services.require_loaded(ws)
+        services.require_active_source_run(ws)
+        names, _ = resolve_selection(ws, body.feeders, all_feeders=body.all)
+        return names
+
+    @app.post('/api/workspaces/{wid}/diagnose', status_code=202)
     def diagnose(wid: str, body: SelectionIn) -> dict:
         from .reconstruction_service import diagnose_selection
 
         ws = ws_or_404(wid)
-        return diagnose_selection(ws, body.feeders, all_feeders=body.all)
+        names = _check_selection(ws, body)
+        return submit(ws, 'diagnose', f'Diagnosticar {len(names)} alimentador(es)',
+                      lambda ctx: diagnose_selection(
+                          ws, body.feeders, all_feeders=body.all, ctx=ctx))
 
-    @app.post('/api/workspaces/{wid}/reconstruct')
+    @app.post('/api/workspaces/{wid}/reconstruct', status_code=202)
     def reconstruct(wid: str, body: SelectionIn) -> dict:
         from .reconstruction_service import reconstruct_selection
 
         ws = ws_or_404(wid)
-        return reconstruct_selection(ws, body.feeders, all_feeders=body.all)
+        names = _check_selection(ws, body)
+        return submit(ws, 'reconstruct', f'Reconstruir {len(names)} alimentador(es)',
+                      lambda ctx: reconstruct_selection(
+                          ws, body.feeders, all_feeders=body.all, ctx=ctx))
 
     @app.post('/api/workspaces/{wid}/convert', status_code=202)
     def convert(wid: str, body: SelectionIn) -> dict:

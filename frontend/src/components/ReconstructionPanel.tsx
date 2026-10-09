@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../context';
 import type {
@@ -13,44 +13,55 @@ const showValue = (value: unknown) => {
   return typeof value === 'string' ? value : JSON.stringify(value);
 };
 
+/** Reconstrucción en curso que, si acaba bien, sigue con la conversión de su selección. */
+interface Pending {
+  jobId: string;
+  targets: string[];
+  all: boolean;
+}
+
 export function ReconstructionPanel() {
-  const { ws, feeders, selected, active, run, startJob, refresh } = useApp();
-  const [diagnosis, setDiagnosis] = useState<DiagnosisResponse | ReconstructionResponse | null>(null);
+  const { ws, feeders, selected, active, jobs, run, startJob } = useApp();
   const [report, setReport] = useState<ReconstructionReport | null>(null);
   const [filter, setFilter] = useState<EvidenceFilter>('all');
   const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<Pending | null>(null);
   const all = selected.length === 0;
   const targets = all ? [] : selected;
   const stale = ws.loaded_run_id !== ws.active_run_id;
-  const disabled = Boolean(active.engine) || busy || stale || !ws.loaded;
+  const disabled = Boolean(active.engine) || busy || Boolean(pending) || stale || !ws.loaded;
+
+  // Diagnosticar y reconstruir son trabajos (spec 001, RF-8): el resultado que se
+  // muestra es el del último que terminó bien en este espacio, como en «Lote».
+  const diagnosis = useMemo(() => Object.values(jobs)
+    .filter((j) => j.workspace_id === ws.id && (j.kind === 'diagnose' || j.kind === 'reconstruct')
+      && j.status === 'done')
+    .sort((a, b) => (a.finished_at ?? 0) - (b.finished_at ?? 0))
+    .pop()?.result as DiagnosisResponse | ReconstructionResponse | undefined, [jobs, ws.id]);
 
   const decisions = useMemo(() => (report?.decisions ?? []).filter(
     (decision) => filter === 'all' || decision.level === filter,
   ), [report, filter]);
 
-  const diagnose = async () => {
-    setBusy(true);
-    try {
-      const response = await run(() => api.diagnose(ws.id, targets, all));
-      if (response) setDiagnosis(response);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const reconstructAndConvert = async () => {
-    setBusy(true);
-    try {
-      const response = await run(() => api.reconstruct(ws.id, targets, all));
-      if (!response) return;
-      setDiagnosis(response);
+  const pendingJob = pending ? jobs[pending.jobId] : undefined;
+  useEffect(() => {
+    if (!pending || !pendingJob) return;
+    if (pendingJob.status === 'queued' || pendingJob.status === 'running') return;
+    setPending(null);
+    // Cancelada o fallida: no se convierte, y el dataset anterior sigue activo (RF-9).
+    if (pendingJob.status !== 'done') return;
+    void (async () => {
       const loaded = await run(() => api.reconstructionReport(ws.id));
       if (loaded) setReport(loaded);
-      await refresh();
-      await startJob(() => api.convert(ws.id, targets, all));
-    } finally {
-      setBusy(false);
-    }
+      await startJob(() => api.convert(ws.id, pending.targets, pending.all));
+    })();
+  }, [pending, pendingJob, run, startJob, ws.id]);
+
+  const diagnose = () => startJob(() => api.diagnose(ws.id, targets, all));
+
+  const reconstructAndConvert = async () => {
+    const job = await startJob(() => api.reconstruct(ws.id, targets, all));
+    if (job) setPending({ jobId: job.id, targets, all });
   };
 
   const viewChanges = async () => {

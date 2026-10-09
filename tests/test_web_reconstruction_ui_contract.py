@@ -43,3 +43,45 @@ def test_frontend_api_and_types_expose_reconstruction_contract():
     assert '/diagnose' in api and '/reconstruct' in api
     assert 'ReconstructionDecision' in types
     assert 'report_sha256' in types
+
+
+def test_diagnosticar_y_reconstruir_se_lanzan_como_trabajos():
+    """001:RF-8 — el front inicia diagnosticar y reconstruir con startJob, sin esperar en el clic."""
+    import re
+
+    api = _read('frontend/src/api.ts')
+    panel = _read('frontend/src/components/ReconstructionPanel.tsx')
+    for metodo in ('diagnose', 'reconstruct'):
+        assert re.search(rf'{metodo}: \([^)]*\) =>\s*request<Job>', api), metodo
+        assert f'startJob(() => api.{metodo}(' in panel, metodo
+    assert 'run(() => api.diagnose' not in panel and 'run(() => api.reconstruct(' not in panel
+
+
+def test_la_descarga_trata_el_detail_como_el_resto_de_peticiones():
+    """001:RF-12 — un 422 en una descarga muestra los mensajes, no «[object Object]»."""
+    import re
+
+    api = _read('frontend/src/api.ts')
+    cuerpo = lambda nombre: re.search(  # noqa: E731
+        rf'(?:async )?function {nombre}\b.*?\n}}', api, re.S).group(0)
+    assert 'throw await apiError(res)' in cuerpo('request')
+    assert 'throw await apiError(res)' in cuerpo('download')
+    assert 'Array.isArray(body.detail)' in cuerpo('apiError')
+    assert '.detail ??' not in api
+
+
+def test_el_cliente_no_tiene_metodos_sin_uso():
+    """001:RF-13 — cada método de `api` lo llama alguna pantalla."""
+    import re
+
+    api = _read('frontend/src/api.ts')
+    objeto = api[api.index('export const api = {'):]
+    objeto = objeto[:objeto.index('\n};')]
+    metodos = re.findall(r'^  (\w+): ', objeto, re.M)
+    assert len(metodos) > 10
+    resto = '\n'.join(
+        p.read_text(encoding='utf-8')
+        for p in (ROOT / 'frontend/src').rglob('*.ts*') if p.name != 'api.ts'
+    )
+    sin_uso = [m for m in metodos if not re.search(rf'\bapi\.{m}\b', resto)]
+    assert sin_uso == []

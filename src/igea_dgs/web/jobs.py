@@ -99,6 +99,9 @@ class Job:
     started_at: float | None = None
     finished_at: float | None = None
     cancel: threading.Event = field(default_factory=threading.Event)
+    # Ver ``JobContext.sin_retorno``: a partir de ahí, cancelar no hace nada.
+    irrevocable: bool = field(default=False, repr=False)
+    gate: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
     def public(self) -> dict:
         return {
@@ -144,6 +147,19 @@ class JobContext:
     def check_cancel(self) -> None:
         if self.job.cancel.is_set():
             raise JobCancelled()
+
+    def sin_retorno(self) -> None:
+        """Punto sin retorno: la cancelación llega antes o ya no llega.
+
+        Al publicar una reconstrucción se sustituye el dataset activo del espacio. Si la
+        cancelación pudiera entrar después, el trabajo acabaría «cancelado» con la
+        reconstrucción ya publicada, y el operador creería conservar la anterior
+        (spec 001, RF-9). La comprobación y la marca van bajo el mismo cerrojo que
+        ``JobManager.cancel``, así que no hay hueco entre las dos.
+        """
+        with self.job.gate:
+            self.check_cancel()
+            self.job.irrevocable = True
 
     def run_process(
         self, cmd: list[str], *, env: dict[str, str] | None = None, cwd: str | None = None,
@@ -234,7 +250,10 @@ class JobManager:
         job = self._jobs.get(job_id)
         if job is None or job.status in FINISHED:
             return job
-        job.cancel.set()
+        with job.gate:
+            if job.irrevocable:
+                return job
+            job.cancel.set()
         if job.status == QUEUED:
             # Aún no empezó: se da por cancelado ya; el hilo lo saltará al sacarlo.
             self._finish(job, CANCELLED)

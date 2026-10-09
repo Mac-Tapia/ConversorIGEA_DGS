@@ -61,11 +61,26 @@ def resolve_selection(
     )
 
 
+def _paso(ctx, index: int, total: int, label: str) -> None:
+    """Avance y punto de cancelación de un trabajo; sin ``ctx`` (llamada directa), nada.
+
+    Diagnosticar y reconstruir eran peticiones síncronas: con muchos alimentadores el
+    navegador esperaba sin ver avance y sin poder cancelar (spec 001, RF-8). Ahora
+    corren en el carril ``engine`` y comprueban la cancelación entre pasos, nunca a
+    mitad de uno.
+    """
+    if ctx is None:
+        return
+    ctx.check_cancel()
+    ctx.progress(index, total, label)
+
+
 def diagnose_selection(
     ws: Workspace,
     feeders: Sequence[str] | None,
     *,
     all_feeders: bool,
+    ctx=None,
 ) -> dict[str, Any]:
     """Read-only diagnostics over the active original dataset."""
 
@@ -75,7 +90,8 @@ def diagnose_selection(
     snapshot = require_active_source_run(ws)
     names, network_ids = resolve_selection(ws, feeders, all_feeders=all_feeders)
     rows = []
-    for name, network_id in zip(names, network_ids):
+    for index, (name, network_id) in enumerate(zip(names, network_ids)):
+        _paso(ctx, index, len(names), name)
         state = ws.feeder_readiness.get(network_id) or assess_feeder_readiness(
             ws.dataset, network_id, {'source_mode': snapshot.mode},
         ).as_dict()
@@ -91,6 +107,7 @@ def diagnose_selection(
             'catalog_sources': [],
             'convergence_state': None,
         })
+    _paso(ctx, len(names), len(names), '')
     return {
         'source_run_id': snapshot.run_id,
         'source_mode': snapshot.mode,
@@ -105,8 +122,13 @@ def reconstruct_selection(
     *,
     all_feeders: bool,
     policy: ReconstructionPolicy | None = None,
+    ctx=None,
 ) -> dict[str, Any]:
-    """Atomically publish one derived dataset/report for the selected source run."""
+    """Atomically publish one derived dataset/report for the selected source run.
+
+    Con ``ctx``, una cancelación antes de publicar deja activo el dataset anterior
+    (RF-9): todo se construye sobre una copia y el espacio solo se toca al final.
+    """
 
     from .services import require_active_source_run, require_loaded
 
@@ -114,6 +136,8 @@ def reconstruct_selection(
     snapshot = require_active_source_run(ws)
     names, network_ids = resolve_selection(ws, feeders, all_feeders=all_feeders)
     effective_policy = policy or ReconstructionPolicy()
+    pasos = 9
+    _paso(ctx, 0, pasos, 'Reconstruir el dataset')
     result = reconstruct_dataset(ws.dataset, effective_policy, ())
     result.report.metadata.update({
         'source_run_id': snapshot.run_id,
@@ -122,12 +146,19 @@ def reconstruct_selection(
         'selected_network_ids': list(network_ids),
     })
 
+    _paso(ctx, 1, pasos, 'Fuentes')
     _repair_missing_sources(result, network_ids)
+    _paso(ctx, 2, pasos, 'Configuraciones de línea')
     _repair_missing_line_configurations(result, network_ids)
+    _paso(ctx, 3, pasos, 'Nodos')
     repair_missing_nodes(result, network_ids)
+    _paso(ctx, 4, pasos, 'Continuidad')
     repair_discontinuities(result, network_ids)
+    _paso(ctx, 5, pasos, 'Coordenadas')
     _complete_coordinates(result, network_ids)
+    _paso(ctx, 6, pasos, 'Catálogo')
     resolutions = result.resolve_equipment(_catalog_sources(ws), network_ids)
+    _paso(ctx, 7, pasos, 'Disponibilidad por alimentador')
 
     decisions_by_network = _decisions_by_network(result, network_ids)
     readiness: dict[str, dict[str, Any]] = {}
@@ -194,9 +225,14 @@ def reconstruct_selection(
     report_hash = _payload_hash(payload)
     payload['report_sha256'] = report_hash
     report_path = ws.out_dir / 'reconstruction_report.json'
-    write_json_atomic(report_path, payload)
 
     counts = Counter(decision.level for decision in result.report.decisions)
+    _paso(ctx, 8, pasos, 'Publicar')
+    # El informe se escribe tras el punto sin retorno: si se escribiera antes, una
+    # cancelación dejaría en disco un informe que no corresponde al dataset activo.
+    if ctx is not None:
+        ctx.sin_retorno()
+    write_json_atomic(report_path, payload)
     with ws.lock:
         # Publish only after every rule and the report write completed.
         ws.reconstructed_dataset = result.dataset
@@ -205,6 +241,8 @@ def reconstruct_selection(
         ws.reconstruction_run_id = snapshot.run_id
         ws.reconstruction_selection = tuple(network_ids)
         ws.feeder_readiness.update(readiness)
+    if ctx is not None:
+        ctx.progress(pasos, pasos, '')
     return {
         'source_run_id': snapshot.run_id,
         'source_fingerprint': snapshot.fingerprint,
