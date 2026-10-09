@@ -123,49 +123,22 @@ def test_generated_project_name_fits_powerfactory_limit():
     assert result.endswith(long_name[-8:])
 
 
-def test_import_dgs_accepts_nonzero_activate_when_project_is_active(tmp_path):
+def test_import_dgs_nombres_caben_en_powerfactory(tmp_path):
+    """El nombre provisional y el final caben en los 40 caracteres de loc_name, y el
+    proyecto queda activo aunque se llame igual que el DGS largo (spec 005 lo activa por
+    objeto, no por nombre)."""
+    from fake_pf import App
+
     mod = _load_pf_mod()
     dgs = tmp_path / 'AL104_AL105_AL106_AL107_ETC.dgs'
     dgs.write_text('DGS', encoding='ascii')
-    created = {}
+    app = App()
+    result = mod.import_dgs_file(app, dgs, carpeta='Red')
 
-    class FakeCom:
-        def SetAttributes(self, values):
-            created['transfer'] = values
-
-        def Execute(self):
-            return 0
-
-        def Delete(self):
-            return None
-
-    class FakeUser:
-        def CreateObject(self, *_args):
-            return FakeCom()
-
-    class FakeApp:
-        active = None
-
-        def GetCurrentUser(self):
-            return FakeUser()
-
-        def DefineTransferAttributes(self, *_args):
-            return None
-
-        def GetActiveProject(self):
-            return self.active
-
-        def ActivateProject(self, _name):
-            self.active = SimpleNamespace(loc_name=_name)
-            return 1
-
-    result = mod.import_dgs_file(FakeApp(), dgs)
-    requested_project = created['transfer'][1]
-
-    assert len(requested_project) <= 40
-    assert result['ok'] is True
-    assert result['errors'] == []
-    assert any('project is active' in warning for warning in result['warnings'])
+    assert result['ok'] is True and result['errors'] == []
+    assert all(len(p.loc_name) <= 40 for p in app.importados)
+    assert len(result['project_name']) <= 40
+    assert app.GetActiveProject().loc_name == result['project_name']
 
 
 def test_powerfactory_gate_help_exits_zero():
