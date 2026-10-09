@@ -451,3 +451,58 @@ def test_lote_economia_invalida_es_error_de_usuario(client, export):
                     data={'project': 'P', 'feeders': [name], 'economia': '{no es json'},
                     files={'create_file': ('n.csv', b'SED\n')})
     assert r.status_code == 422
+
+
+# ------------------------------------------------------------ rutas del disco del servidor
+def _ruta_local(tmp_path, monkeypatch, **kwargs):
+    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'no-frontend'))
+    red, _carga, _equipo = write_export(ExportSpec(feeders=2), tmp_path / 'e')
+    with TestClient(create_app(tmp_path / 'web', **kwargs)) as c:
+        wid = c.post('/api/workspaces').json()['id']
+        health = c.get('/api/health').json()
+        r = c.post(f'/api/workspaces/{wid}/inputs/red/path', json={'path': str(red)})
+    return health['server_paths'], r.status_code
+
+
+@pytest.mark.parametrize('host', ['0.0.0.0', '192.168.1.20', '::'])
+def test_rutas_locales_cerradas_si_escucha_en_red_aunque_la_variable_diga_1(
+        tmp_path, monkeypatch, host):
+    """001:RF-15 — con host de red, 403 en /inputs/{slot}/path aunque IGEA_WEB_SERVER_PATHS=1."""
+    monkeypatch.setenv('IGEA_WEB_SERVER_PATHS', '1')
+    assert _ruta_local(tmp_path, monkeypatch, host=host) == (False, 403)
+
+
+def test_rutas_locales_cerradas_si_no_se_sabe_donde_escucha(tmp_path, monkeypatch):
+    """001:RF-15 — sin host (p. ej. `uvicorn --factory` a mano), cerradas por defecto."""
+    monkeypatch.delenv('IGEA_WEB_HOST', raising=False)
+    monkeypatch.setenv('IGEA_WEB_SERVER_PATHS', '1')
+    assert _ruta_local(tmp_path, monkeypatch) == (False, 403)
+
+
+def test_rutas_locales_abiertas_en_loopback_y_apagables(tmp_path, monkeypatch):
+    """001:RF-15 — en 127.0.0.1 se admiten; la variable solo puede apagarlas."""
+    monkeypatch.delenv('IGEA_WEB_SERVER_PATHS', raising=False)
+    assert _ruta_local(tmp_path / 'a', monkeypatch, host='127.0.0.1') == (True, 200)
+    monkeypatch.setenv('IGEA_WEB_HOST', 'localhost')
+    assert _ruta_local(tmp_path / 'b', monkeypatch) == (True, 200)
+    monkeypatch.setenv('IGEA_WEB_SERVER_PATHS', '0')
+    assert _ruta_local(tmp_path / 'c', monkeypatch, host='127.0.0.1') == (False, 403)
+
+
+def test_el_lanzador_pasa_la_interfaz_de_escucha_a_la_api(monkeypatch):
+    """001:RF-15 — `igea-dgs-web --host` llega a create_app, que con factory=True no tiene argumentos."""
+    import sys
+    import types
+
+    from igea_dgs.web import __main__ as lanzador
+
+    llamadas = []
+    monkeypatch.setitem(sys.modules, 'uvicorn', types.SimpleNamespace(
+        run=lambda *a, **k: llamadas.append(k)))
+    monkeypatch.delenv('IGEA_WEB_HOST', raising=False)
+    monkeypatch.setenv('IGEA_WEB_SERVER_PATHS', '1')
+    assert lanzador.main(['--host', '0.0.0.0', '--no-browser']) == 0
+    assert llamadas and llamadas[0]['host'] == '0.0.0.0'
+    import os
+    assert os.environ['IGEA_WEB_HOST'] == '0.0.0.0'
+

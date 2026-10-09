@@ -53,13 +53,22 @@ CRS_PRESETS = (
 )
 
 
-def _server_paths_allowed() -> bool:
+LOOPBACK_HOSTS = frozenset({'127.0.0.1', 'localhost', '::1'})
+
+
+def _server_paths_allowed(host: str | None) -> bool:
     """Si se puede indicar una ruta del disco del servidor en lugar de subir el fichero.
 
     Útil en local —la base .mdb pesa cientos de MB y ya está en el disco—, peligroso
-    si el servidor se expone en red: cualquiera leería cualquier fichero. Por eso el
-    lanzador lo activa solo cuando escucha en 127.0.0.1.
+    si el servidor se expone en red: cualquiera leería cualquier fichero. Antes lo
+    decidía solo la variable ``IGEA_WEB_SERVER_PATHS``, que valía ``1`` por defecto y
+    que el lanzador ponía a ``0`` con ``setdefault``: con la variable ya a ``1``, o
+    arrancando con ``uvicorn --host 0.0.0.0`` sin el lanzador, quedaban abiertas a la
+    red (spec 001, RF-15). Ahora manda la interfaz de escucha, y si no se conoce, se
+    cierran. La variable solo puede apagarlas en local, nunca abrirlas fuera.
     """
+    if (host or '').strip().lower() not in LOOPBACK_HOSTS:
+        return False
     return os.environ.get('IGEA_WEB_SERVER_PATHS', '1').strip() not in ('0', 'false', 'no', '')
 
 
@@ -129,8 +138,17 @@ class NewSedIn(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-def create_app(data_root: Path | None = None, *, vnr_settings=None) -> FastAPI:
-    """La API web, la única (spec 001, RF-11). ``vnr_settings`` configura las rutas de VNR."""
+def create_app(
+    data_root: Path | None = None, *, host: str | None = None, vnr_settings=None,
+) -> FastAPI:
+    """La API web, la única (spec 001, RF-11).
+
+    ``host`` es la interfaz donde escucha el servidor; sin él se lee ``IGEA_WEB_HOST``,
+    que pone el lanzador, y si tampoco está, se trata como red (RF-15).
+    ``vnr_settings`` configura las rutas de VNR.
+    """
+    if host is None:
+        host = os.environ.get('IGEA_WEB_HOST') or None
     store = WorkspaceStore(data_root)
 
     def emit(workspace_id: str, kind: str, data: dict) -> None:
@@ -195,7 +213,7 @@ def create_app(data_root: Path | None = None, *, vnr_settings=None) -> FastAPI:
             'crs_presets': CRS_PRESETS,
             'slots': SLOTS,
             'default_options': DEFAULT_OPTIONS,
-            'server_paths': _server_paths_allowed(),
+            'server_paths': _server_paths_allowed(host),
             'parallel': services.parallel_info(),
             'source_modes': ['txt', 'mdb', 'vnr'],
         }
@@ -445,7 +463,7 @@ def create_app(data_root: Path | None = None, *, vnr_settings=None) -> FastAPI:
     def server_path_input(wid: str, slot: str, body: ServerPathIn) -> dict:
         ws = ws_or_404(wid)
         _check_slot(slot)
-        if not _server_paths_allowed():
+        if not _server_paths_allowed(host):
             raise HTTPException(403, 'Este servidor no admite rutas locales: suba el fichero.')
         path = Path(body.path.strip().strip('"'))
         if not path.is_file():

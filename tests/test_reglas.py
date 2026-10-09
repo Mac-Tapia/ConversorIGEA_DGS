@@ -93,7 +93,7 @@ def test_web_une_en_un_dgs_y_exige_proyecto_para_aplicar_cargas(tmp_path, monkey
 
     monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     red, carga, equipo = write_export(ExportSpec(feeders=3), tmp_path / 'e')
-    with TestClient(create_app(tmp_path / 'web')) as c:
+    with TestClient(create_app(tmp_path / 'web', host='127.0.0.1')) as c:
         wid = c.post('/api/workspaces').json()['id']
         for slot, path in (('red', red), ('loads', carga), ('equipment', equipo)):
             c.post(f'/api/workspaces/{wid}/inputs/{slot}/path', json={'path': str(path)})
