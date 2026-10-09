@@ -78,17 +78,16 @@ def test_un_grupo_con_un_alimentador_roto_no_publica_dgs(ds, tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# Web: unir en un DGS y aplicar cargas sobre el proyecto correcto
+# Web: unir en un DGS
 # ---------------------------------------------------------------------------
 
-def test_web_une_en_un_dgs_y_exige_proyecto_para_aplicar_cargas(tmp_path, monkeypatch):
+def test_web_une_en_un_dgs(tmp_path, monkeypatch):
     pytest.importorskip('fastapi')
     import time
 
     from fastapi.testclient import TestClient
 
     from synthetic_export import write_export
-    from igea_dgs.web import services
     from igea_dgs.web.app import create_app
 
     monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'sin_front'))
@@ -119,9 +118,3 @@ def test_web_une_en_un_dgs_y_exige_proyecto_para_aplicar_cargas(tmp_path, monkey
         assert estado['groups'][0]['requested_feeders'] == nombres
         assert estado['groups'][0]['feeder_metadata'].endswith('RED_feeder_metadata.json')
         assert estado['options']['hoja'] is None
-
-        ws = c.app.state.store.get(wid)
-        assert services.proyecto_pf_de(ws, nombres[0]) is None
-        ws.pf_projects['RED'] = 'RED_proyecto'
-        assert services.proyecto_pf_de(ws, nombres[0]) == 'RED_proyecto', \
-            'un alimentador de un DGS unido usa el proyecto del grupo'

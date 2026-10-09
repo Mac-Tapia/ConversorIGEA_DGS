@@ -103,19 +103,24 @@ igea-dgs convert --red R.txt --loads C.txt --equipment E.txt --all --out-dir out
 En la web: «Unir en un solo DGS…» con los alimentadores seleccionados. `--literal`
 (CLI) convierte sin reglas, solo para comparar con la entrada.
 
-**Cargas de SED en bloque (Excel o CSV)**: descargue la plantilla del alimentador,
-rellene por SED un par, el que tenga: `Kw` y `Kvar`, `Kw` y `FP` (cos φ), o `(kVA)` y `FP`.
-La carga actual va aparte, en `Kw_actual`/`Kvar_actual`/`FP_actual`; la SED que se deja en
-blanco no cambia, y una fila con dos pares que no coinciden es un error (`accion = omitir`
-salta la fila). Súbala, revise el plan y aplíquelo. Se aplica sobre el
-proyecto de PowerFactory que creó «Cargar en DigSILENT» (el del alimentador o el del DGS
-unido que lo contiene); por eso hay que cargarlo antes.
+**Cargas en DIgSILENT** (pestaña del mismo nombre, spec 004): trabaja sobre un proyecto
+que **ya existe** en DIgSILENT, sin convertir ni cargar entradas en la web. Lea los
+proyectos, elija uno y sus alimentadores (uno o varios, en el orden de aplicación) y
+suba el libro de **demandas** (por SED un par: `Kw` y `Kvar`, `Kw` y `FP`, o `(kVA)` y
+`FP`), el de **cargas nuevas** (`SED`, `kVA_instalado`, la demanda y `barra` o
+`Lat`/`Lon` o `CoordX`/`CoordY`) o escriba **una carga nueva** en el formulario. Las
+plantillas vacías se descargan en la misma pestaña. «Simular» dice qué coincide, qué
+se omite y dónde se conectaría cada carga, sin escribir; «Aplicar» lo graba todo en una
+**variación nueva** del proyecto y lanza el flujo de carga. Una SED que no está en el
+alimentador se omite y se informa; cancelar termina el alimentador en curso.
 
-Para uno, varios o todos los alimentadores use la pestaña **Cargas en DIgSILENT**:
-crea un plan inmutable con hashes, muestra enrutamiento y valores antes/después, y
-aplica cada alimentador con relectura, `ComLdf` y rollback aislado. La aceptación
-genérica y la real se ejecutan con `python tools/accept_load_batch.py --help`; consulte
-[`docs/runbooks/load-batch-production-acceptance.md`](docs/runbooks/load-batch-production-acceptance.md).
+**Demanda medida** (misma pestaña): escriba el código de alimentador y salen sus
+medidores (libro medidor–alimentador); con la carpeta de medición de cabecera da, por
+medidor, el kW máximo con su fecha y hora y el kVAR, kVA y FP de ese mismo registro.
+Con el libro de suministros y el de clientes importantes del mes cruza cada cliente
+(por suministro actual o, si no, el anterior) y da su SED, radial, EA, ERI y potencia.
+Todo se descarga en Excel. Los alias de columna propios de una empresa van en
+`config/demanda_medida_alias.json`.
 
 ## Instalación (otra máquina local)
 

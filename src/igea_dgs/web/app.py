@@ -120,19 +120,6 @@ class FeedersIn(BaseModel):
     feeders: list[str] = Field(default_factory=list)
 
 
-class NewSedIn(BaseModel):
-    sed_code: str
-    installed_kva: float = 0.0
-    coord_x: float | None = None
-    coord_y: float | None = None
-    node_id: str = ''
-    kw: float | None = None
-    kvar: float | None = None
-    kva: float | None = None
-    fp: float | None = 0.95
-    conductor: str = ''
-
-
 # ---------------------------------------------------------------------------
 # Aplicación
 # ---------------------------------------------------------------------------
@@ -184,12 +171,6 @@ def create_app(
     @app.exception_handler(UserError)
     async def _user_error(_request: Request, exc: UserError):
         return JSONResponse(status_code=400, content={'detail': str(exc)})
-
-    from .load_batch import LoadBatchPlanStale
-
-    @app.exception_handler(LoadBatchPlanStale)
-    async def _load_batch_stale(_request: Request, exc: LoadBatchPlanStale):
-        return JSONResponse(status_code=409, content={'detail': str(exc)})
 
     def ws_or_404(wid: str) -> Workspace:
         ws = store.get(wid)
@@ -719,7 +700,9 @@ def create_app(
                       lambda ctx: services.powerfactory_flow(ws, ctx, targets),
                       lane='powerfactory')
 
-    # ------------------------------------------------------------ cargas de SED
+    # ------------------------------------------------------------ cargas en DIgSILENT
+    # Spec 004: un módulo aparte de la conversión. No pide entradas cargadas: la web
+    # valida los libros y el guion decide en el proyecto de DIgSILENT (RF-1).
     def _upload_tmp(ws: Workspace, upload: UploadFile, default: str) -> Path:
         folder = ws.root / 'subidas'
         folder.mkdir(parents=True, exist_ok=True)
@@ -730,52 +713,25 @@ def create_app(
         _save_upload(Path(tmp), upload)
         return Path(tmp)
 
-    def _template_response(path: Path) -> FileResponse:
+    def _json_form(texto: str | None, campo: str) -> dict | None:
+        try:
+            valor = json.loads(texto) if texto else None
+        except ValueError as exc:
+            raise HTTPException(422, f'{campo} no es JSON válido: {exc}') from exc
+        if valor is not None and not isinstance(valor, dict):
+            raise HTTPException(422, f'{campo} debe ser un objeto JSON.')
+        return valor
+
+    @app.get('/api/workspaces/{wid}/cargas/plantilla/{tipo}')
+    def cargas_plantilla(wid: str, tipo: Literal['demandas', 'nuevas'],
+                         format: Literal['xlsx', 'csv'] = 'xlsx') -> FileResponse:
+        path = services.cargas_plantilla(ws_or_404(wid), tipo, format)
         return FileResponse(path, filename=path.name)
 
-    @app.get('/api/workspaces/{wid}/feeders/{feeder}/load-template')
-    def load_template(wid: str, feeder: str, format: Literal['xlsx', 'csv'] = 'xlsx') -> FileResponse:
-        return _template_response(services.load_template(ws_or_404(wid), feeder, format))
-
-    @app.post('/api/workspaces/{wid}/feeders/{feeder}/load-plan')
-    def load_plan(wid: str, feeder: str, file: UploadFile = File(...)) -> dict:
-        ws = ws_or_404(wid)
-        tmp = _upload_tmp(ws, file, 'plantilla.xlsx')
-        try:
-            return services.load_update_plan(ws, feeder, tmp)
-        finally:
-            tmp.unlink(missing_ok=True)
-
-    @app.get('/api/workspaces/{wid}/feeders/{feeder}/create-template')
-    def create_template(wid: str, feeder: str, format: Literal['xlsx', 'csv'] = 'xlsx') -> FileResponse:
-        return _template_response(services.create_template(ws_or_404(wid), feeder, format))
-
-    @app.post('/api/workspaces/{wid}/feeders/{feeder}/create-plan')
-    def create_plan(wid: str, feeder: str, file: UploadFile = File(...)) -> dict:
-        ws = ws_or_404(wid)
-        tmp = _upload_tmp(ws, file, 'sed_nuevas.xlsx')
-        try:
-            return services.create_plan_from_file(ws, feeder, tmp)
-        finally:
-            tmp.unlink(missing_ok=True)
-
-    @app.post('/api/workspaces/{wid}/feeders/{feeder}/create-plan/single')
-    def create_plan_single(wid: str, feeder: str, body: NewSedIn) -> dict:
-        return services.create_plan_single(ws_or_404(wid), feeder, body.model_dump())
-
-    @app.post('/api/workspaces/{wid}/plans/{token}/apply', status_code=202)
-    def apply_plan(wid: str, token: str) -> dict:
-        ws = ws_or_404(wid)
-        plan = services.check_plan(ws, token)
-        title = ('Actualizar cargas' if plan['kind'] == 'cargas' else 'Crear SED') + f" en {plan['feeder']}"
-        return submit(ws, 'plan', title, lambda ctx: services.apply_plan(ws, ctx, token),
-                      lane='powerfactory')
-
-    # ------------------------------------------------------------ lote en PowerFactory
     @app.post('/api/workspaces/{wid}/powerfactory/projects', status_code=202)
     def pf_projects(wid: str) -> dict:
         ws = ws_or_404(wid)
-        return submit(ws, 'pf_projects', 'Leer proyectos de DigSILENT',
+        return submit(ws, 'pf_projects', 'Leer proyectos de DIgSILENT',
                       lambda ctx: services.pf_projects(ws, ctx), lane='powerfactory')
 
     @app.post('/api/workspaces/{wid}/lote/plan')
@@ -785,46 +741,44 @@ def create_app(
         feeders: list[str] = Form(...),
         update_file: UploadFile | None = File(None),
         create_file: UploadFile | None = File(None),
+        nueva: str | None = Form(None),
         economia: str | None = Form(None),
     ) -> dict:
         ws = ws_or_404(wid)
-        try:
-            eco = json.loads(economia) if economia else None
-        except ValueError as exc:
-            raise HTTPException(422, f'economia no es JSON válido: {exc}') from exc
-        if eco is not None and not isinstance(eco, dict):
-            raise HTTPException(422, 'economia debe ser un objeto JSON.')
+        eco = _json_form(economia, 'economia')
+        una = _json_form(nueva, 'nueva')
         tmps: list[Path] = []
         try:
             upd = cre = None
             if update_file:
-                upd = _upload_tmp(ws, update_file, 'cargas.xlsx')
+                upd = _upload_tmp(ws, update_file, 'demandas.xlsx')
                 tmps.append(upd)
             if create_file:
-                cre = _upload_tmp(ws, create_file, 'sed_nuevas.xlsx')
+                cre = _upload_tmp(ws, create_file, 'cargas_nuevas.xlsx')
                 tmps.append(cre)
-            return services.lote_plan(ws, project, feeders, upd, cre, eco)
+            return services.cargas_plan(ws, project, feeders, upd, cre, una, eco)
         finally:
             for p in tmps:
                 p.unlink(missing_ok=True)
 
+    def _cargas_job(wid: str, token: str, simular: bool) -> dict:
+        ws = ws_or_404(wid)
+        if token not in ws.cargas_planes:
+            raise HTTPException(404, 'El plan ya no existe: vuelva a prepararlo.')
+        plan = services.cargas_plan_de(ws, token)
+        verbo = 'Simular' if simular else 'Aplicar'
+        title = f"{verbo} cargas · {plan['project']} ({len(plan['feeders'])} alim.)"
+        return submit(ws, 'cargas_simular' if simular else 'cargas_aplicar', title,
+                      lambda ctx: services.cargas_ejecutar(ws, ctx, token, simular=simular),
+                      lane='powerfactory')
+
+    @app.post('/api/workspaces/{wid}/lote/{token}/simular', status_code=202)
+    def lote_simular(wid: str, token: str) -> dict:
+        return _cargas_job(wid, token, True)
+
     @app.post('/api/workspaces/{wid}/lote/{token}/apply', status_code=202)
     def lote_apply(wid: str, token: str) -> dict:
-        from .load_batch import require_current_load_batch_plan
-
-        ws = ws_or_404(wid)
-        plan = ws.plans.get(token)
-        if plan is None or plan.get('kind') != 'lote':
-            raise HTTPException(404, 'El plan ya no existe: vuelva a prepararlo.')
-        typed_plan = require_current_load_batch_plan(ws, token)
-        if not typed_plan.applicable:
-            raise UserError('El plan no es aplicable: tiene filas con error o no cambia nada.')
-        title = (
-            f"Cargas en DigSILENT · {typed_plan.project} "
-            f"({len(typed_plan.feeders)} alim.)"
-        )
-        return submit(ws, 'lote', title, lambda ctx: services.apply_lote(ws, ctx, token),
-                      lane='powerfactory')
+        return _cargas_job(wid, token, False)
 
     # ------------------------------------------------------------ catálogo
     @app.post('/api/workspaces/{wid}/catalog/build', status_code=202)

@@ -142,6 +142,11 @@ class Workspace:
     reconstruction_selection: tuple[str, ...] = ()
     loaded_at: float | None = None
     plans: dict[str, dict[str, Any]] = field(default_factory=dict)
+    # Planes del módulo de cargas en DIgSILENT (spec 004). Aparte de ``plans`` porque
+    # no dependen de las entradas: cargar otro TXT no debe tirar un plan de demandas.
+    cargas_planes: dict[str, dict[str, Any]] = field(default_factory=dict)
+    # Libros de la demanda medida (spec 004, RF-39), por tipo: {'path', 'name', 'origin'}.
+    demanda: dict[str, Any] = field(default_factory=dict)
     events: EventLog = field(default_factory=EventLog)
     lock: threading.RLock = field(default_factory=threading.RLock)
     _corrections_cache: tuple[float, Any] | None = None
@@ -174,6 +179,7 @@ class Workspace:
             'pf_projects': self.pf_projects,
             'pf_inventory': self.pf_inventory,
             'active_run_id': self.active_run_id,
+            'demanda': self.demanda,
         }
         self.root.mkdir(parents=True, exist_ok=True)
         tmp = self.root / 'workspace.json.tmp'
@@ -199,6 +205,9 @@ class Workspace:
         ws.groups = dict(data.get('groups') or {})
         ws.pf_projects = dict(data.get('pf_projects') or {})
         ws.pf_inventory = dict(data.get('pf_inventory') or {})
+        # Igual que las entradas: un libro o una carpeta que ya no está no se restaura.
+        ws.demanda = {tipo: meta for tipo, meta in (data.get('demanda') or {}).items()
+                      if isinstance(meta, dict) and Path(meta.get('path', '')).exists()}
         run_id = data.get('active_run_id')
         if run_id and (root / 'runs' / str(run_id) / 'source_manifest.json').is_file():
             ws.active_run_id = str(run_id)
@@ -364,6 +373,8 @@ class Workspace:
                 if group.get('source_run_id') == self.active_run_id
             ],
             'pf_projects': self.pf_projects,
+            'demanda': {tipo: {k: v for k, v in meta.items() if k != 'path'}
+                        for tipo, meta in self.demanda.items()},
             'last_seq': self.events.last_seq,
         }
 

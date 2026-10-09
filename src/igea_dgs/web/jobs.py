@@ -28,6 +28,7 @@ import traceback
 import uuid
 from collections import deque
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Callable
 
 LANES = ('engine', 'powerfactory')
@@ -163,6 +164,7 @@ class JobContext:
 
     def run_process(
         self, cmd: list[str], *, env: dict[str, str] | None = None, cwd: str | None = None,
+        cancel_file: Path | str | None = None,
     ) -> int:
         """Ejecuta un guion volcando su salida al Registro **línea a línea**.
 
@@ -173,6 +175,10 @@ class JobContext:
         Al cancelar se termina el proceso. Para PowerFactory eso es seguro: los
         guiones trabajan sobre el proyecto activo, y un import cortado no deja un DGS
         a medias en la carpeta de salida porque el DGS ya estaba escrito.
+
+        Con ``cancel_file`` no se mata: se crea el fichero y se espera a que el guion
+        acabe el alimentador en curso y salga, y se devuelve su código. Matarlo dejaba un
+        alimentador con la mitad de sus cargas escritas en la variación (spec 004, RF-19).
         """
         import os
 
@@ -194,8 +200,16 @@ class JobContext:
 
         reader = threading.Thread(target=pump, daemon=True)
         reader.start()
+        avisado = False
         while proc.poll() is None:
-            if self.job.cancel.is_set():
+            if self.job.cancel.is_set() and cancel_file is not None:
+                if not avisado:
+                    Path(cancel_file).parent.mkdir(parents=True, exist_ok=True)
+                    Path(cancel_file).write_text('cancelar\n', encoding='utf-8')
+                    self.log('Cancelación pedida: se termina el alimentador en curso '
+                             'y no se empieza otro.')
+                    avisado = True
+            elif self.job.cancel.is_set():
                 proc.terminate()
                 try:
                     proc.wait(timeout=10)

@@ -5,10 +5,8 @@ spec 001), pero sin Tk y sin diálogos: recibe el espacio de trabajo y un
 :class:`JobContext`, escribe en el Registro y devuelve un resultado serializable. Las
 rutas de la API solo validan, encolan y responden.
 
-Dos defectos de aquella GUI se corrigieron aquí en lugar de copiarse:
+Un defecto de aquella GUI se corrigió aquí en lugar de copiarse:
 
-* «Cargar fichero y actualizar» llamaba a ``loads.read_template``, que no existe; el
-  botón fallaba siempre. Aquí se usa ``loads.read_workbook``.
 * «Aplicar catálogo corregido» corregía un modelo en memoria que se tiraba a
   continuación: ninguna conversión posterior lo usaba. Aquí el catálogo aplicado queda
   en el espacio y **toda conversión siguiente** lo pasa a ``convert_selection`` como
@@ -988,139 +986,6 @@ def convert_group(
             'reconstruction': reconstruction}
 
 
-def load_template(ws: Workspace, feeder: str, fmt: str) -> Path:
-    from ..loads import LoadTemplateError, model_sed_loads, write_template
-
-    model = build_model(ws, feeder)
-    if not model.seds:
-        raise UserError(f'{model.name} no tiene SED en el export: no hay cargas que actualizar.')
-    out = ws.out_dir / 'plantillas' / f'{model.name}_cargas.{fmt}'
-    out.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        return write_template(model_sed_loads(model), out)
-    except LoadTemplateError as exc:
-        raise UserError(str(exc)) from exc
-
-
-def _store_plan(ws: Workspace, kind: str, feeder: str, payload: dict, extra: dict) -> dict:
-    token = uuid.uuid4().hex[:12]
-    ws.plans_dir.mkdir(parents=True, exist_ok=True)
-    path = ws.plans_dir / f'{feeder}_{kind}_{token}.json'
-    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
-    ws.plans[token] = {'kind': kind, 'feeder': feeder, 'path': str(path), **extra}
-    return {'token': token, 'kind': kind, 'feeder': feeder, 'plan_file': path.name, **extra}
-
-
-def load_update_plan(ws: Workspace, feeder: str, upload: Path) -> dict:
-    from ..loads import LoadTemplateError, build_plan, plan_to_payload, read_workbook
-
-    model = build_model(ws, feeder)
-    try:
-        sheets = read_workbook(upload)
-    except LoadTemplateError as exc:
-        raise UserError(str(exc)) from exc
-    # Una hoja por alimentador en .xlsx; en .csv puede venir todo en una sola clave.
-    sheet = sheets.get(model.name) or sheets.get(feeder)
-    if sheet is None and len(sheets) == 1:
-        sheet = next(iter(sheets.values()))
-    if sheet is None:
-        raise UserError(f'El fichero no trae una hoja para {model.name}. '
-                        f'Hojas encontradas: {", ".join(sheets) or "ninguna"}.')
-    plan = build_plan(model, sheet)
-    summary = plan.summary()
-    info = {
-        'summary': summary,
-        'report': plan.report(),
-        'row_errors': list(plan.row_errors),
-        'unknown': [r.sed_code for r in plan.unknown],
-        'updates': [
-            {'sed': new.sed_code, 'kw_before': old.kw, 'kvar_before': old.kvar,
-             'kw_after': new.kw, 'kvar_after': new.kvar}
-            for old, new in plan.updates[:500]
-        ],
-        'applicable': plan.is_applicable,
-    }
-    return _store_plan(ws, 'cargas', model.name, plan_to_payload(plan), info)
-
-
-def create_template(ws: Workspace, feeder: str, fmt: str) -> Path:
-    from ..loads import LoadTemplateError
-    from ..loads_create import write_create_template
-
-    model = build_model(ws, feeder)
-    out = ws.out_dir / 'plantillas' / f'{model.name}_sed_nuevas.{fmt}'
-    out.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        return write_create_template([], out, feeder=model.name, node_choices=sorted(model.nodes))
-    except LoadTemplateError as exc:
-        raise UserError(str(exc)) from exc
-
-
-def _create_plan_response(ws: Workspace, model, plan) -> dict:
-    from ..loads_create import create_plan_to_payload
-
-    info = {
-        'summary': plan.summary(),
-        'report': plan.report(),
-        'row_errors': list(plan.row_errors),
-        'already_exists': list(plan.already_exists),
-        'create': [
-            {'sed': i.load.sed_code, 'installed_kva': i.load.installed_kva,
-             'node_id': i.node_id, 'distance_m': i.distance_m,
-             'conductor': i.conductor.code, 'binding': i.conductor.binding,
-             'voltage_drop_pct': i.conductor.voltage_drop_pct,
-             'kw': i.load.kw, 'kvar': i.load.kvar}
-            for i in plan.create
-        ],
-        'applicable': plan.is_applicable,
-    }
-    try:
-        payload = create_plan_to_payload(plan, nominal_kv=model.nominal_kv,
-                                         source_crs=ws.options['source_crs'])
-    except ValueError as exc:
-        raise UserError(str(exc)) from exc
-    return _store_plan(ws, 'sed_nuevas', model.name, payload, info)
-
-
-def create_plan_from_file(ws: Workspace, feeder: str, upload: Path) -> dict:
-    from ..loads import LoadTemplateError
-    from ..loads_create import build_create_plan, read_create_workbook
-
-    model = build_model(ws, feeder)
-    try:
-        sheets = read_create_workbook(upload)
-    except LoadTemplateError as exc:
-        raise UserError(str(exc)) from exc
-    rows = [r for rows, _ in sheets.values() for r in rows]
-    errors = [e for _, errs in sheets.values() for e in errs]
-    return _create_plan_response(ws, model, build_create_plan(model, rows, errors))
-
-
-def create_plan_single(ws: Workspace, feeder: str, data: dict) -> dict:
-    """Formulario de una SED. **No valida nada aquí**: comparte reglas con la plantilla."""
-    from ..loads_create import build_create_plan, single_new_load
-
-    model = build_model(ws, feeder)
-    rows, errors = single_new_load(feeder=model.name, **data)
-    return _create_plan_response(ws, model, build_create_plan(model, rows, errors))
-
-
-def check_plan(ws: Workspace, token: str) -> dict:
-    plan = ws.plans.get(token)
-    if plan is None:
-        raise UserError('El plan ya no existe: vuelva a generarlo (cambiaron las entradas '
-                        'o se reinició el servidor).')
-    if not plan.get('applicable'):
-        raise UserError('El plan no es aplicable: tiene filas con error o no cambia nada.')
-    if proyecto_pf_de(ws, plan['feeder']) is None:
-        raise UserError(
-            f"{plan['feeder']} no se ha cargado todavía en DigSILENT desde este espacio. "
-            'Pulse «Cargar en DigSILENT» (del alimentador o del DGS unido que lo contiene) '
-            'antes de aplicar el plan.')
-    _require_pf()
-    return plan
-
-
 def _proyecto_importado(informe: Path) -> str | None:
     """Nombre del proyecto que creó la importación, leído del informe de aceptación."""
     import json
@@ -1130,46 +995,6 @@ def _proyecto_importado(informe: Path) -> str | None:
     except (OSError, ValueError):
         return None
     return ((datos.get('import') or {}).get('project_name')) or None
-
-
-def proyecto_pf_de(ws: Workspace, feeder: str) -> str | None:
-    """Proyecto de PowerFactory donde está el alimentador: el suyo, o el de un DGS
-    unido que lo contiene (el último importado)."""
-    if feeder in ws.pf_projects:
-        return ws.pf_projects[feeder]
-    candidatos = [ws.pf_projects[g] for g, info in ws.groups.items()
-                  if g in ws.pf_projects and feeder in (info.get('feeders') or [])]
-    return sorted(candidatos)[-1] if candidatos else None
-
-
-def apply_plan(ws: Workspace, ctx: JobContext, token: str) -> dict:
-    plan = check_plan(ws, token)
-    pf_dir, interpreter = _require_pf()
-    if plan['kind'] == 'cargas':
-        script, suffix = _script('apply_sed_loads.py'), 'cargas_aplicadas'
-    else:
-        script, suffix = _script('create_sed_loads.py'), 'sed_creadas'
-    report = ws.out_dir / f"{plan['feeder']}_{suffix}.json"
-    proyecto = proyecto_pf_de(ws, plan['feeder'])
-    if proyecto is None:
-        raise UserError(
-            f"{plan['feeder']} no se ha cargado todavía en DigSILENT desde este espacio. "
-            'Conviértalo (solo o en un DGS unido) y pulse «Cargar en DigSILENT» antes de '
-            'actualizar sus cargas: el plan se aplica sobre ese proyecto.')
-    ctx.log(f'Proyecto de PowerFactory: {proyecto}')
-    rc = ctx.run_process(
-        [str(interpreter), str(script), '--plan', plan['path'], '--project', proyecto,
-         '--run-load-flow', '--output-json', str(report)],
-        env=pf_subprocess_env(pf_dir), cwd=str(project_root()),
-    )
-    if rc == 0:
-        ctx.log(f'Aplicado sobre el proyecto. Informe: {report.name}')
-    elif rc == 3:
-        ctx.log('No se pudo conectar con PowerFactory. Ábralo y reintente.')
-    else:
-        ctx.log(f'El proceso devolvió el código {rc}: puede haber SED no encontradas o ambiguas.')
-    return {'returncode': rc, 'report': report.name if report.is_file() else None,
-            'feeder': plan['feeder'], 'kind': plan['kind']}
 
 
 # ---------------------------------------------------------------------------
@@ -1217,198 +1042,116 @@ def _economia_del_lote(economia: dict | None):
     return costos, tec
 
 
-def lote_plan(
+def cargas_plantilla(ws: Workspace, tipo: str, fmt: str) -> Path:
+    """Plantilla **vacía** de demandas o de cargas nuevas: sin modelo ni entradas (RF-1)."""
+    from ..cargas_pf import escribir_plantilla
+
+    nombre = {'demandas': 'demandas', 'nuevas': 'cargas_nuevas'}[tipo]
+    return escribir_plantilla(tipo, ws.out_dir / 'plantillas' / f'{nombre}.{fmt}')
+
+
+def cargas_plan(
     ws: Workspace, project: str, feeders: list[str],
-    update_file: Path | None, create_file: Path | None,
-    economia: dict | None = None,
+    demandas_file: Path | None, nuevas_file: Path | None,
+    nueva: dict | None = None, economia: dict | None = None,
 ) -> dict:
-    """Prepara el lote: un Excel (o dos) con varios alimentadores → un plan por alimentador.
+    """Valida los libros y guarda el plan para ``tools/cargas_pf.py`` (spec 004).
 
-    Cada fila se asigna al alimentador al que pertenece (``loads.split_by_feeder`` y
-    ``loads_create.split_create_by_feeder``), no al que diga la hoja. El orden de
-    ``feeders`` es el orden en que se aplicarán en PowerFactory.
+    No mira las entradas del espacio: qué SED coincide y dónde se conecta cada carga
+    nueva lo decide el guion en el proyecto de DIgSILENT (RF-1). Una fila con error se
+    informa y no impide aplicar las demás. ``nueva`` es la carga del formulario: pasa por
+    el mismo lector que el libro, para que no haya dos definiciones de «fila válida».
     """
-    from datetime import datetime
+    from dataclasses import asdict
 
-    from ..loads import (
-        LoadTemplateError, build_plan, plan_to_payload, read_workbook, split_by_feeder,
-    )
-    from ..loads_create import (
-        build_create_plan, create_plan_to_payload, read_create_workbook,
-        split_create_by_feeder,
-    )
+    from ..cargas_pf import Lectura, armar_plan, leer_demandas, leer_hoja_nuevas, leer_nuevas
+    from ..loads import LoadTemplateError
 
-    from ..economia import datos_etapa
-
-    require_loaded(ws)
-    if not project.strip():
-        raise UserError('Elija el proyecto de PowerFactory.')
     costos, tec = _economia_del_lote(economia)
-    if tec is not None and create_file is None:
-        raise UserError('La evaluación técnico-económica valora las SED nuevas: '
-                        'suba también el Excel de SED nuevas.')
-    elegidos = list(dict.fromkeys(f.strip() for f in feeders if f.strip()))
-    if not elegidos:
-        raise UserError('Elija al menos un alimentador.')
-    if update_file is None and create_file is None:
-        raise UserError('Suba el Excel de actualización de cargas, el de SED nuevas o los dos.')
-    disponibles = {feeder_short_name(n) for n in ws.dataset.feeder_ids()}
-    faltan = [f for f in elegidos if f not in disponibles]
-    if faltan:
-        raise UserError(
-            f'{", ".join(faltan)} no está en las entradas cargadas en este espacio. Para '
-            'preparar el plan hace falta su red: cargue el TXT o la base que lo contiene.')
-    models = {f: build_model(ws, f) for f in elegidos}
-
-    actualizaciones: dict[str, Any] = {}
-    sueltos: list[str] = []
-    if update_file is not None:
-        try:
-            libro = read_workbook(update_file)
-        except LoadTemplateError as exc:
-            raise UserError(str(exc)) from exc
-        sed_feeder = {sed.code: f for f, m in models.items() for sed in m.seds}
-        por_feeder, sin = split_by_feeder(libro, sed_feeder, elegidos)
-        sueltos += sin
-        for f, read in por_feeder.items():
-            if read.rows or read.errors or read.skipped:
-                actualizaciones[f] = build_plan(models[f], read)
-
-    creaciones: dict[str, Any] = {}
-    if create_file is not None:
-        try:
-            libro_c = read_create_workbook(create_file)
-        except LoadTemplateError as exc:
-            raise UserError(str(exc)) from exc
-        por_feeder_c, sin = split_create_by_feeder(libro_c, models)
-        sueltos += sin
-        for f, (rows, errors) in por_feeder_c.items():
-            if rows or errors:
-                creaciones[f] = build_create_plan(models[f], rows, errors)
-
-    stamp = datetime.now().strftime('%Y%m%d_%H%M')
-    filas, entradas, errores = [], [], list(sueltos)
-    for f in elegidos:
-        upd, cre = actualizaciones.get(f), creaciones.get(f)
-        if upd is None and cre is None:
-            continue
-        errores += [f'{f}: {e}' for e in (upd.row_errors if upd else [])]
-        errores += [f'{f}: {e}' for e in (cre.row_errors if cre else [])]
-        changes = [
-            {
-                'sed': new.sed_code,
-                'before': {'kw': old.kw, 'kvar': old.kvar, 'fp': old.fp},
-                'after': {'kw': new.kw, 'kvar': new.kvar, 'fp': new.fp},
-            }
-            for old, new in (upd.updates if upd else [])[:100]
-        ]
-        filas.append({
-            'feeder': f,
-            'updates': len(upd.updates) if upd else 0,
-            'unknown': [r.sed_code for r in upd.unknown] if upd else [],
-            'create': len(cre.create) if cre else 0,
-            'already_exists': list(cre.already_exists) if cre else [],
-            'errors': len(upd.row_errors if upd else []) + len(cre.row_errors if cre else []),
-            'routing_basis': (
-                ['sed_identity'] if upd is not None else []
-            ) + (
-                ['sheet_node_coordinates'] if cre is not None else []
-            ),
-            'changes': changes,
-            'scenario': f'Cargas_{f}_{stamp}'[:40] if upd is not None else None,
-            'variation': f'SED_nuevas_{f}_{stamp}'[:40] if cre is not None else None,
-        })
-        try:
-            crear = create_plan_to_payload(
-                cre, nominal_kv=models[f].nominal_kv, source_crs=ws.options['source_crs'],
-            ) if cre and cre.create else None
-        except ValueError as exc:
-            raise UserError(str(exc)) from exc
-        if crear is not None and costos is not None:
-            # Precio de la etapa: lo que la evaluación técnico-económica pondrá en el VAN.
-            crear['economia'] = datos_etapa(crear['create'], costos)
-            filas[-1]['inversion_kusd'] = crear['economia']['InvCosts']
-        entradas.append({
-            'feeder': f,
-            'update': plan_to_payload(upd) if upd and upd.updates else None,
-            'create': crear,
-        })
-    sin_cambios = [f for f in elegidos if f not in {r['feeder'] for r in filas}]
-    con_algo = any(e['update'] or e['create'] for e in entradas)
-    lote = {
-        'project': project.strip(),
-        'stamp': stamp,
-        'run_load_flow': True,
-        'feeders': entradas,
-        # La orden se lanza una vez, al final: la estrategia son todas las variaciones
-        # del lote juntas, no una por alimentador.
-        'tec': None if tec is None else {'parametros': tec.to_dict(), 'comtececo': tec.a_comtececo()},
-    }
-    info = {
-        'project': lote['project'],
-        'tec': lote['tec']['parametros'] if lote['tec'] else None,
-        'order': [r['feeder'] for r in filas],
-        'feeders_summary': filas,
-        'without_changes': sin_cambios,
-        'row_errors': errores,
-        'applicable': con_algo and not errores,
-    }
-    from .load_batch import create_load_batch_plan
-
-    result = create_load_batch_plan(
-        ws,
-        project.strip(),
-        elegidos,
-        update_file,
-        create_file,
-        economia,
-        payload=lote,
-        feeders_summary=filas,
-        row_errors=errores,
-    )
-    # Preserve the established API fields while the typed plan owns custody/versioning.
-    result.update({
-        'tec': info['tec'],
-        'without_changes': info['without_changes'],
-    })
-    return result
-
-
-def apply_lote(ws: Workspace, ctx: JobContext, token: str) -> dict:
-    from .load_batch import require_current_load_batch_plan
-
-    typed_plan = require_current_load_batch_plan(ws, token)
-    if not typed_plan.applicable:
-        raise UserError('El plan no es aplicable: tiene filas con error o no cambia nada.')
-    plan = ws.plans[token]
-    pf_dir, interpreter = _require_pf()
-    report = ws.out_dir / f"lote_cargas_{Path(plan['path']).stem}.json"
-    ctx.log(
-        f"Proyecto de PowerFactory: {typed_plan.project}  ·  "
-        f"orden: {', '.join(typed_plan.feeders)}"
-    )
-    rc = ctx.run_process(
-        [str(interpreter), str(_script('aplicar_lote_cargas.py')), '--lote', plan['path'],
-         '--output-json', str(report)],
-        env=pf_subprocess_env(pf_dir), cwd=str(project_root()),
-    )
-    if rc == 3:
-        ctx.log('No se pudo conectar con PowerFactory. Ábralo y reintente.')
-    elif rc != 0:
-        ctx.log(f'El proceso devolvió el código {rc}: revise en el informe los alimentadores con fallos.')
+    crs = ws.options.get('source_crs') or ''
     try:
-        report_payload = json.loads(report.read_text(encoding='utf-8')) if report.is_file() else {}
-    except (OSError, ValueError):
-        report_payload = {}
-    return {
-        'returncode': rc,
-        'report': report.name if report.is_file() else None,
-        'evidence_jsonl': report_payload.get('evidence_jsonl'),
-        'project': typed_plan.project,
-        'order': list(typed_plan.feeders),
-        'results': list(report_payload.get('feeders') or []),
-        'tecnico_economico': report_payload.get('tecnico_economico'),
+        demandas = leer_demandas(demandas_file) if demandas_file is not None else None
+        nuevas = leer_nuevas(nuevas_file, source_crs=crs) if nuevas_file is not None else None
+        if nueva:
+            filas, errores = leer_hoja_nuevas(list(nueva), [list(nueva.values())], 'formulario',
+                                              source_crs=crs)
+            nuevas = nuevas or Lectura()
+            nuevas.filas += filas
+            nuevas.errores += errores
+        if tec is not None and not (nuevas and nuevas.filas):
+            raise UserError('La evaluación técnico-económica valora las cargas nuevas: '
+                            'suba también el libro de cargas nuevas o use el formulario.')
+        plan = armar_plan(
+            project=project, feeders=feeders, demandas=demandas, nuevas=nuevas,
+            costos=asdict(costos) if costos is not None else None,
+            tec=None if tec is None else {'parametros': tec.to_dict(), 'comtececo': tec.a_comtececo()},
+        )
+    except LoadTemplateError as exc:
+        raise UserError(str(exc)) from exc
+    token = uuid.uuid4().hex[:12]
+    ws.plans_dir.mkdir(parents=True, exist_ok=True)
+    path = ws.plans_dir / f'cargas_pf_{token}.json'
+    path.write_text(json.dumps(plan, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+    resumen = {
+        'token': token, 'kind': 'cargas_pf', 'project': plan['project'],
+        'feeders': plan['feeders'], 'variacion': plan['variacion'],
+        'demandas': plan['demandas'][:500], 'nuevas': plan['nuevas'][:500],
+        'n_demandas': len(plan['demandas']), 'n_nuevas': len(plan['nuevas']),
+        'row_errors': plan['row_errors'], 'omitidas_por_el_operador': plan['omitidas_por_el_operador'],
+        'sin_datos': plan['sin_datos'], 'applicable': plan['aplicable'],
+        'tec': plan['tec']['parametros'] if plan['tec'] else None,
     }
+    with ws.lock:
+        ws.cargas_planes[token] = {'path': str(path), 'project': plan['project'],
+                                   'feeders': plan['feeders'], 'applicable': plan['aplicable']}
+    return resumen
+
+
+def cargas_plan_de(ws: Workspace, token: str) -> dict:
+    plan = ws.cargas_planes.get(token)
+    if plan is None or not Path(plan['path']).is_file():
+        raise UserError('El plan ya no existe: vuelva a prepararlo.')
+    if not plan['applicable']:
+        raise UserError('El plan no tiene nada que aplicar: ninguna fila válida.')
+    return plan
+
+
+def cargas_ejecutar(ws: Workspace, ctx: JobContext, token: str, *, simular: bool) -> dict:
+    """Simula o aplica el plan en DIgSILENT con ``tools/cargas_pf.py`` (RF-17 a RF-21).
+
+    Cancelar no mata el guion: se le avisa con un fichero y termina el alimentador en
+    curso (RF-19). El trabajo acaba con el informe, que dice qué no se empezó.
+    """
+    plan = cargas_plan_de(ws, token)
+    pf_dir, interpreter = _require_pf()
+    modo = 'simulacion' if simular else 'aplicacion'
+    report = ws.out_dir / f'cargas_pf_{modo}_{token}.json'
+    report.parent.mkdir(parents=True, exist_ok=True)
+    report.unlink(missing_ok=True)
+    flag = ws.plans_dir / f'cancelar_{token}.flag'
+    flag.unlink(missing_ok=True)
+    ctx.log(f"Proyecto de DIgSILENT: {plan['project']}  ·  orden: {', '.join(plan['feeders'])}")
+    cmd = [str(interpreter), str(_script('cargas_pf.py')), '--plan', plan['path'],
+           '--output-json', str(report), '--cancel-file', str(flag)]
+    if simular:
+        cmd.append('--simular')
+    rc = ctx.run_process(cmd, env=pf_subprocess_env(pf_dir), cwd=str(project_root()),
+                         cancel_file=flag)
+    flag.unlink(missing_ok=True)
+    if rc == 3:
+        raise UserError('No se pudo conectar con DIgSILENT. Ábralo y reintente.')
+    try:
+        informe = json.loads(report.read_text(encoding='utf-8')) if report.is_file() else {}
+    except (OSError, ValueError):
+        informe = {}
+    if not informe:
+        raise UserError(f'El guion terminó con el código {rc} sin dejar informe: vea el Registro.')
+    if informe.get('error'):
+        raise UserError(informe['error'])
+    if rc == 2:
+        ctx.log('Hubo cargas que no se pudieron escribir o crear: vea «fallos» en el informe.')
+    return {'returncode': rc, 'modo': informe.get('modo'), 'report': report.name,
+            'project': plan['project'], 'informe': informe}
 
 
 # ---------------------------------------------------------------------------

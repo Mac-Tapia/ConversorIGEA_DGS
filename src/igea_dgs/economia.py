@@ -5,8 +5,7 @@ definida con variaciones y etapas (manual PF 2024, cap. 43.2). Cada etapa lleva 
 datos económicos y la orden suma inversión, valor depreciado, coste de pérdidas, de
 interrupciones y costes propios. Gana la estrategia con el VAN más **bajo**.
 
-El lote de cargas ya crea una variación con su etapa por alimentador para las SED
-nuevas. Este módulo pone precio a esa etapa con los costes unitarios del operador:
+El módulo de cargas crea una variación con su etapa para las cargas nuevas (spec 004). Este módulo pone precio a esa etapa con los costes unitarios del operador:
 
     inversión = Σ (coste fijo por SED + US$/kVA · kVA de placa + US$/km · km de derivación)
 
@@ -15,7 +14,7 @@ de su API: la inversión, el valor original y el de desecho van en **miles de US
 costes adicionales en miles de US$/año; la vida útil en años; el interés en %; las
 pérdidas en US$/kWh.
 
-No habla con PowerFactory: lo escribe ``tools/aplicar_lote_cargas.py``.
+No habla con PowerFactory: lo escribe ``tools/cargas_pf.py`` en la etapa de la variación.
 """
 
 from __future__ import annotations

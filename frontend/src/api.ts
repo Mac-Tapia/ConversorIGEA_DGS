@@ -1,5 +1,5 @@
 import type {
-  CreatePlan, Economia, FeederRow, Health, Job, LoadPlan, LotePlan,
+  CargasPlan, Economia, FeederRow, Health, Job,
   Options, OutputFile, PowerFactoryStatus, ReconstructionReport, WorkspaceState,
 } from './types';
 
@@ -111,31 +111,24 @@ export const api = {
   powerfactoryFlow: (id: string, feeders: string[]) =>
     request<Job>(`${ws(id)}/powerfactory/flow`, json('POST', { feeders })),
 
-  loadTemplateUrl: (id: string, feeder: string, format: 'xlsx' | 'csv') =>
-    `${ws(id)}/feeders/${enc(feeder)}/load-template?format=${format}`,
-  loadPlan: (id: string, feeder: string, file: File) =>
-    request<LoadPlan>(`${ws(id)}/feeders/${enc(feeder)}/load-plan`, form(file)),
-  createTemplateUrl: (id: string, feeder: string, format: 'xlsx' | 'csv') =>
-    `${ws(id)}/feeders/${enc(feeder)}/create-template?format=${format}`,
-  createPlan: (id: string, feeder: string, file: File) =>
-    request<CreatePlan>(`${ws(id)}/feeders/${enc(feeder)}/create-plan`, form(file)),
-  createPlanSingle: (id: string, feeder: string, body: Record<string, unknown>) =>
-    request<CreatePlan>(`${ws(id)}/feeders/${enc(feeder)}/create-plan/single`, json('POST', body)),
-  applyPlan: (id: string, token: string) =>
-    request<Job>(`${ws(id)}/plans/${token}/apply`, { method: 'POST' }),
-
+  // Spec 004: cargas en un proyecto que ya existe en DIgSILENT, sin entradas cargadas.
+  cargasPlantillaUrl: (id: string, tipo: 'demandas' | 'nuevas', format: 'xlsx' | 'csv') =>
+    `${ws(id)}/cargas/plantilla/${tipo}?format=${format}`,
   pfProjects: (id: string) => request<Job>(`${ws(id)}/powerfactory/projects`, { method: 'POST' }),
-  lotePlan: (id: string, project: string, feeders: string[], update?: File | null, create?: File | null,
-    economia?: Economia | null) => {
+  cargasPlan: (id: string, project: string, feeders: string[], demandas?: File | null,
+    nuevas?: File | null, nueva?: Record<string, string> | null, economia?: Economia | null) => {
     const fd = new FormData();
     fd.append('project', project);
     feeders.forEach((f) => fd.append('feeders', f));
-    if (update) fd.append('update_file', update, update.name);
-    if (create) fd.append('create_file', create, create.name);
+    if (demandas) fd.append('update_file', demandas, demandas.name);
+    if (nuevas) fd.append('create_file', nuevas, nuevas.name);
+    if (nueva) fd.append('nueva', JSON.stringify(nueva));
     if (economia) fd.append('economia', JSON.stringify(economia));
-    return request<LotePlan>(`${ws(id)}/lote/plan`, { method: 'POST', body: fd });
+    return request<CargasPlan>(`${ws(id)}/lote/plan`, { method: 'POST', body: fd });
   },
-  loteApply: (id: string, token: string) =>
+  cargasSimular: (id: string, token: string) =>
+    request<Job>(`${ws(id)}/lote/${token}/simular`, { method: 'POST' }),
+  cargasAplicar: (id: string, token: string) =>
     request<Job>(`${ws(id)}/lote/${token}/apply`, { method: 'POST' }),
 
   catalogBuild: (id: string, feeders: string[]) =>
