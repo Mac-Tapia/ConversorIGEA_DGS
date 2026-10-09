@@ -31,7 +31,9 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from igea_dgs.reconstruction import EvidenceLevel, ReconstructionDecision, ReconstructionPolicy
+from vnr_etl.gis.crs import parecen_grados
 from vnr_etl.models import CanonicalModel, Source
+from vnr_etl.pipeline import suggest_utm_crs
 
 SUPUESTO = EvidenceLevel.ENGINEERING_ASSUMPTION
 FASES_POR_DEFECTO = 'ABC'
@@ -71,6 +73,7 @@ def reconstruir_modelo(
     """Devuelve una copia del modelo con los datos ausentes completados y anotados."""
     politica = policy or ReconstructionPolicy()
     out = ModeloReconstruido(model=CanonicalModel.from_dict(deepcopy(model.to_dict())))
+    _procedencia(out, nombre)
     _crs(out)
     _alimentadores_de_tramos(out, nombre)
     _fuentes(out, politica)
@@ -78,6 +81,54 @@ def reconstruir_modelo(
     _longitudes(out)
     _cargas(out)
     return out
+
+
+# --------------------------------------------------------------------------- procedencia
+# Los campos que el manifiesto de procedencia exige (los de exporters.dgs.PROVENANCE_FIELDS).
+CAMPOS_PROCEDENCIA = (
+    'source_publication_id', 'source_company', 'source_period', 'source_url',
+    'source_sha256', 'retrieved_at', 'schema_fingerprint',
+    'source_fingerprint', 'canonical_model_version',
+)
+DESCONOCIDO = 'DESCONOCIDO'
+
+
+def _procedencia(out: ModeloReconstruido, nombre: str) -> None:
+    """RF-22: la procedencia que falta se deriva del propio modelo y se marca.
+
+    Un modelo armado a mano o por otra herramienta no trae la procedencia de una
+    descarga oficial, y por eso se negaba el export. Lo que se puede calcular (la huella
+    del modelo) se calcula; lo que no, queda como ``DESCONOCIDO``, nunca inventado.
+    """
+    import hashlib
+    import json
+
+    meta = out.model.metadata
+    faltan = [campo for campo in CAMPOS_PROCEDENCIA if not meta.get(campo)]
+    if not faltan:
+        return
+    contenido = {k: v for k, v in out.model.to_dict().items() if k != 'metadata'}
+    huella = hashlib.sha256(json.dumps(
+        contenido, sort_keys=True, ensure_ascii=False, default=str).encode('utf-8')).hexdigest()
+    from vnr_etl import __version__
+
+    derivables = {
+        'source_fingerprint': huella,
+        'source_sha256': huella,
+        'schema_fingerprint': huella,
+        'source_publication_id': f'DIRECT-{huella[:16]}',
+        'canonical_model_version': __version__,
+    }
+    for campo in faltan:
+        valor = derivables.get(campo, DESCONOCIDO)
+        out.anotar('model', 'metadata', campo, meta.get(campo), valor,
+                   'DERIVED_PROVENANCE' if campo in derivables else 'UNKNOWN_PROVENANCE',
+                   'Procedencia ausente: huella del propio modelo.' if campo in derivables
+                   else 'Procedencia ausente y no derivable: se marca como desconocida.',
+                   0.9 if campo in derivables else 0.0)
+        meta[campo] = valor
+    meta['procedencia_reconstruida'] = sorted(faltan)
+    out.avisos.append('Procedencia incompleta: ' + ', '.join(faltan) + ' (ver decisiones).')
 
 
 # --------------------------------------------------------------------------- CRS
@@ -107,7 +158,7 @@ def _crs(out: ModeloReconstruido) -> None:
             return
         if parsed is not None and parsed.is_geographic:
             origen = crs
-    elif puntos and _parecen_grados(puntos):
+    elif parecen_grados(puntos):
         origen = 'EPSG:4326'
     if origen is None or not puntos:
         out.avisos.append(
@@ -118,8 +169,7 @@ def _crs(out: ModeloReconstruido) -> None:
         return
     lon = sum(p[0] for p in puntos) / len(puntos)
     lat = sum(p[1] for p in puntos) / len(puntos)
-    zona = min(60, max(1, int((lon + 180) // 6) + 1))
-    destino = f'EPSG:{(32600 if lat >= 0 else 32700) + zona}'
+    destino = suggest_utm_crs(lon, lat)
     from igea_dgs.geography import make_transformer
 
     transformer = make_transformer(origen, destino)
@@ -133,21 +183,9 @@ def _crs(out: ModeloReconstruido) -> None:
     out.source_crs = destino
     out.anotar('model', 'metadata', 'working_crs', crs or None, destino,
                'REPROJECT_TO_UTM',
-               f'Coordenadas en grados ({origen}); se reproyectan a la zona UTM {zona} '
-               'que les corresponde para medir longitudes en metros.',
+               f'Coordenadas en grados ({origen}); se reproyectan a su zona UTM ({destino}) '
+               'para medir longitudes en metros.',
                0.9 if crs else 0.6, origen=origen)
-
-
-def _parecen_grados(puntos: list[tuple[float, float]]) -> bool:
-    # Una red de distribución cabe holgada en dos grados. Unas coordenadas proyectadas
-    # pequeñas (un modelo de prueba en 0..20 m) también caben en el rango, por eso se
-    # exige además que alguna tenga decimales.
-    xs = [p[0] for p in puntos]
-    ys = [p[1] for p in puntos]
-    en_rango = all(-180 <= x <= 180 for x in xs) and all(-90 <= y <= 90 for y in ys)
-    extension = max(max(xs) - min(xs), max(ys) - min(ys))
-    con_decimales = any(float(v) != int(float(v)) for v in xs + ys)
-    return en_rango and extension <= 2.0 and con_decimales
 
 
 def _reproyectar(geometry: Any, transformer) -> Any:

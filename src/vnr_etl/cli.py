@@ -254,6 +254,7 @@ def _convert(args, log: Logger) -> int:
     from igea_dgs.util import sha256_file
 
     from .pipeline import (
+        buscar_capa_de_tramos,
         canonicalize_sections,
         discover_layers,
         read_layer,
@@ -266,7 +267,7 @@ def _convert(args, log: Logger) -> int:
     except Exception as exc:
         raise SystemExit(f'No se pudo descubrir la fuente: {exc}') from exc
 
-    sections_layer = _find_section_layer(layers)
+    sections_layer = buscar_capa_de_tramos(layers)
     if sections_layer is None:
         raise SystemExit(
             'No se identificó una capa de tramos MT. Indique una fuente con '
@@ -281,11 +282,13 @@ def _convert(args, log: Logger) -> int:
     except ValueError as exc:
         raise SystemExit(f'Selección empresa/periodo: {exc}') from exc
     source_crs = args.source_crs or sections_layer.get('crs')
+    crs_deducido = ''
     if not source_crs:
-        raise SystemExit(
-            'La fuente no declara CRS. Indíquelo explícitamente con --source-crs; '
-            'no se asumirá EPSG:4326.'
-        )
+        # Ni la capa ni --source-crs lo dicen: se deduce en vez de rechazar (RF-25).
+        from .pipeline import deducir_crs_de_tramos
+
+        source_crs, crs_deducido = deducir_crs_de_tramos(section_rows)
+        log.warning('gis', 'VNRGIS_CRS', crs_deducido)  # noqa: PLE1205
     result = canonicalize_sections(
         section_rows,
         source_crs=source_crs,
@@ -338,6 +341,8 @@ def _convert(args, log: Logger) -> int:
         'canonical_model_version': __version__,
         'source_descriptor': source_descriptor,
     })
+    if crs_deducido:
+        model.metadata['crs_deducido'] = crs_deducido
     out_dir = Path(args.output)
     out_dir.mkdir(parents=True, exist_ok=True)
     canonical_path = out_dir / 'canonical.json'
@@ -348,19 +353,6 @@ def _convert(args, log: Logger) -> int:
     if args.format in ('dgs', 'cymdist'):
         return _run_export(model, args.format, out_dir, settings)
     return 0
-
-
-def _find_section_layer(layers: list[dict]) -> dict | None:
-    for layer in layers:
-        name = (layer.get('name') or '').lower()
-        if 'tramo' in name or 'section' in name or 'line' in name:
-            return layer
-    # Fallback: la primera capa con geometría polilínea.
-    for layer in layers:
-        gtype = (layer.get('geometry_type') or '').lower()
-        if 'polyline' in gtype or 'linestring' in gtype or 'multiline' in gtype:
-            return layer
-    return None
 
 
 def _validate(args) -> int:
@@ -402,7 +394,8 @@ def _run_export(model, target: str, out_dir: Path, settings: Settings) -> int:
         return 2
     for p in result.paths:
         print(f'  {p}')
-    print(f'Estado: {result.readiness}; puertas A-F verificadas localmente.')
+    print(f'Estado: {result.readiness}. Lo reconstruido y los avisos están en el informe '
+          'de reconstrucción y en el manifiesto, junto al DGS.')
     return 0
 
 

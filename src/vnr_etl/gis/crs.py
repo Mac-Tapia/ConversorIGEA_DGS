@@ -81,3 +81,37 @@ class CRSManager:
         if not info.get('projected'):
             raise CRSError('Se necesita un CRS proyectado (metros) para topología.')
         return info['working_crs']
+
+
+def parecen_grados(puntos: Sequence[tuple[float, float]]) -> bool:
+    """Si unas coordenadas sin CRS declarado están, con toda probabilidad, en grados.
+
+    Una red de distribución cabe holgada en dos grados. Unas coordenadas proyectadas
+    pequeñas (un modelo de prueba en 0..20 m) también caben en el rango de lon/lat, por
+    eso se exige además que alguna tenga decimales, como toda coordenada en grados real.
+    """
+    if not puntos:
+        return False
+    xs = [float(p[0]) for p in puntos]
+    ys = [float(p[1]) for p in puntos]
+    en_rango = all(-180 <= x <= 180 for x in xs) and all(-90 <= y <= 90 for y in ys)
+    extension = max(max(xs) - min(xs), max(ys) - min(ys))
+    con_decimales = any(v != int(v) for v in xs + ys)
+    return en_rango and extension <= 2.0 and con_decimales
+
+
+def deducir_crs(puntos: Sequence[tuple[float, float]]) -> tuple[str | None, str]:
+    """CRS de origen para una capa que no lo declara, y por qué.
+
+    Antes se rechazaba la conversión («no se asumirá EPSG:4326») y el usuario se quedaba
+    sin red por un dato que las propias coordenadas suelen delatar (spec 001, RF-25).
+    En grados se toma EPSG:4326 (el CRS de trabajo será su zona UTM). Si no, ``None``:
+    se lee sin reproyectar, las longitudes se toman en las unidades de la capa y la red
+    se exporta sin georreferenciación.
+    """
+    if parecen_grados(puntos):
+        return 'EPSG:4326', ('La capa no declara CRS y sus coordenadas están en grados: '
+                             'se toma EPSG:4326 y se trabaja en su zona UTM.')
+    return None, ('La capa no declara CRS y no se puede deducir: se lee sin reproyectar '
+                  '(longitudes en sus unidades) y se exporta sin georreferenciación.')
+

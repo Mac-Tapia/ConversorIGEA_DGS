@@ -12,12 +12,15 @@ fuente oficial/archivo/SQLite -> inventario y huellas -> modelo canónico
 ```
 
 CLI y API Web usan `vnr_etl.application.VnrApplicationService`. Las puertas A–F se
-evalúan siempre y se informan. Impiden exportar solo la procedencia (A), el mapeo y el
-perfil de destino verificado (E) y el round-trip (F): no son datos de la red. Lo que
-falta para B (CRS), C (topología) o D (eléctrico) se reconstruye (spec 001, RF-17).
-`EXPORT_READY` acredita A–F con los datos originales; `EXPORT_RECONSTRUCTED`, un DGS
-válido con datos reconstruidos, que detalla `<red>_reconstruccion.json`. Solo una
-aceptación real con importación, inventario, conectividad y `ComLdf` acredita G–H.
+evalúan siempre y se informan, pero ninguna impide exportar (spec 001, RF-17 y RF-22 a
+RF-24): lo que les falta se reconstruye y se anota. La procedencia ausente se deriva de
+la huella del modelo o queda `DESCONOCIDO`; sin perfil de destino verificado se usa el
+perfil de esquema del motor; un error de relectura queda en el manifiesto. Solo se
+queda sin DGS un modelo sin ningún tramo, y G–H bloquean únicamente si quien llama exige
+evidencia de simulador. `EXPORT_READY` acredita A–F con los datos originales;
+`EXPORT_RECONSTRUCTED`, un DGS escrito con datos reconstruidos, que detallan
+`<red>_reconstruccion.json` y el manifiesto (`perfil_verificado`,
+`procedencia_reconstruida`, `roundtrip`, `avisos`).
 
 ## Instalación
 
@@ -45,7 +48,7 @@ vía Access del conversor lo necesita.
 # Inspección segura: un SQL se analiza, nunca se ejecuta
 .\.venv\Scripts\python.exe -m vnr_etl inspect-sql backup.sql
 
-# Inventario y conversión; un CRS ausente se bloquea
+# Inventario y conversión; sin CRS declarado se deduce de las coordenadas
 .\.venv\Scripts\python.exe -m vnr_etl inventory fuente.gpkg
 .\.venv\Scripts\python.exe -m vnr_etl convert fuente.gpkg `
   --company EMPRESA --period latest_available --format json --output output\vnr
@@ -63,6 +66,11 @@ derivación física y, en último lugar, con un perfil provisional; lo que el co
 trae se conserva. Un CRS geográfico se reproyecta a su zona UTM; uno desconocido da un
 DGS sin georreferenciación, con las longitudes del modelo. No se crean cargas: una
 carga sin red ni coordenadas queda fuera, y el informe lo dice.
+
+Al leer (`convert`, `/api/vnr/topology/build`), una capa sin CRS declarado ya no se
+rechaza: si sus coordenadas están en grados se toma EPSG:4326 y se trabaja en su zona
+UTM; si no, se lee sin reproyectar y la red se exporta sin georreferenciación. El
+motivo queda en `metadata.crs_deducido`. `--source-crs` sigue mandando si se indica.
 
 ## API Web y seguridad
 

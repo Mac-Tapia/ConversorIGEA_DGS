@@ -568,17 +568,6 @@ def _production_ready_model() -> CanonicalModel:
     return model
 
 
-def test_dgs_export_is_blocked_without_verified_profile(tmp_path):
-    model = _model_base()
-    model.nodes[0].nominal_kv = 10.0
-    model.nodes[1].nominal_kv = 10.0
-    model.loads = [Load(load_id='L1', connection_node='B', kw=100.0, kvar=40.0)]
-    exporter = DgsExporter()
-
-    with pytest.raises(ExportBlocked, match='perfil'):
-        exporter.export(model, tmp_path)
-
-
 def test_dgs_export_writes_file_with_verified_profile(tmp_path):
     """001:RF-10 — `vnr-etl export` escribe el DGS con el motor, validado y con procedencia."""
     model = _production_ready_model()
@@ -800,12 +789,6 @@ def test_dgs_export_projects_node_coordinates_to_gps(tmp_path):
     assert all(-180 <= float(row[lon_index]) <= 180 for row in table['rows'])
 
 
-def test_dgs_export_blocks_missing_provenance(tmp_path):
-    exporter = DgsExporter(profile=_verified_dgs_profile(tmp_path))
-    with pytest.raises(ExportBlocked, match='procedencia'):
-        exporter.export(_model_base(), tmp_path)
-
-
 def test_target_profile_loads_relative_sample_and_validates_hash(tmp_path):
     sample = tmp_path / 'reference.dgs'
     sample.write_text('known-good', encoding='utf-8')
@@ -862,27 +845,6 @@ def test_validation_gates_require_and_accept_complete_simulator_evidence(tmp_pat
     )
     assert verdict.all_passed()
     assert not verdict.blocked
-
-
-def test_application_service_blocks_before_writing_invalid_export(tmp_path):
-    settings = Settings()
-    profile_path = tmp_path / 'profile.json'
-    profile = _verified_dgs_profile(tmp_path)
-    profile_path.write_text(json.dumps({
-        'simulator': profile.simulator,
-        'version': profile.version,
-        'workflow': profile.workflow,
-        'sample_path': profile.sample_path,
-        'sample_hash': profile.sample_hash,
-        'object_mapping': profile.object_mapping,
-    }), encoding='utf-8')
-    settings.templates['dgs'] = str(profile_path)
-    service = VnrApplicationService(settings)
-
-    with pytest.raises(ExportBlocked):
-        service.export(_model_base(), 'dgs', tmp_path / 'out')
-
-    assert not list((tmp_path / 'out').rglob('*.dgs'))
 
 
 def test_application_service_exports_only_after_a_to_f_evidence(tmp_path):
@@ -1204,3 +1166,137 @@ def test_dgs_export_reconstruido_es_determinista(tmp_path):
         informe = dgs_path.with_name(f'{dgs_path.stem}_reconstruccion.json')
         salidas.append((dgs_path.read_bytes(), informe.read_bytes()))
     assert salidas[0] == salidas[1]
+
+
+def test_dgs_export_sin_perfil_verificado_exporta_y_lo_dice(tmp_path):
+    """001:RF-23 — sin perfil verificado se exporta con el esquema del motor y se indica."""
+    exporter = DgsExporter()
+    paths = exporter.export(_production_ready_model(), tmp_path / 'out')
+    dgs_path = next(path for path in paths if path.suffix == '.dgs')
+    manifiesto = json.loads(next(p for p in paths if p.name.endswith('.manifest.json')).read_text(
+        encoding='utf-8'))
+    assert dgs_path.is_file()
+    assert manifiesto['perfil_verificado'] is False
+    assert manifiesto['target_profile_hash'] is None
+    assert any('Perfil de destino no verificado' in aviso for aviso in manifiesto['avisos'])
+
+
+def test_dgs_export_sin_procedencia_la_deriva_y_la_marca(tmp_path):
+    """001:RF-22 — la procedencia que falta se deriva del modelo o queda como DESCONOCIDO."""
+    model = _production_ready_model()
+    for campo in ('source_publication_id', 'source_url', 'source_sha256', 'retrieved_at'):
+        del model.metadata[campo]
+    _tablas, informe = _exporta(tmp_path, model)
+    reglas = _reglas(informe)
+    publicacion = reglas[('model', 'metadata', 'source_publication_id')]
+    assert publicacion['rule'] == 'DERIVED_PROVENANCE'
+    assert publicacion['applied_value'].startswith('DIRECT-')
+    assert reglas[('model', 'metadata', 'source_url')]['applied_value'] == 'DESCONOCIDO'
+    manifiesto = json.loads(next((tmp_path / 'out' / 'dgs').glob('*.manifest.json')).read_text(
+        encoding='utf-8'))
+    assert manifiesto['procedencia_reconstruida'] == [
+        'retrieved_at', 'source_publication_id', 'source_sha256', 'source_url']
+    assert manifiesto['source_url'] == 'DESCONOCIDO'
+
+
+def test_dgs_export_relectura_con_errores_se_registra_y_publica(tmp_path):
+    """001:RF-24 — un error de relectura queda en el manifiesto y el DGS se publica."""
+    from unittest import mock
+
+    with mock.patch.object(DgsExporter, 'roundtrip_errors', return_value=['Falta tabla X.']):
+        paths = DgsExporter(profile=_verified_dgs_profile(tmp_path)).export(
+            _production_ready_model(), tmp_path / 'out')
+    manifiesto = json.loads(next(p for p in paths if p.name.endswith('.manifest.json')).read_text(
+        encoding='utf-8'))
+    assert any(path.suffix == '.dgs' and path.is_file() for path in paths)
+    assert manifiesto['roundtrip'] == 'FAIL'
+    assert manifiesto['roundtrip_errors'] == ['Falta tabla X.']
+
+
+def test_servicio_exporta_un_modelo_a_medias_sin_perfil_ni_procedencia(tmp_path):
+    """001:RF-22 — el servicio ya no se detiene por ninguna puerta A–F."""
+    model = _model_base()
+    model.loads = [Load(load_id='L1', connection_node='B', kw=50.0, kvar=10.0)]
+
+    result = VnrApplicationService(Settings()).export(model, 'dgs', tmp_path / 'out')
+
+    passed = {r.gate: r.passed for r in result.verdict.results}
+    assert passed['A'] is False and passed['E'] is False
+    assert result.readiness == 'EXPORT_RECONSTRUCTED'
+    assert result.as_dict()['readiness'] == 'EXPORT_RECONSTRUCTED'
+    assert any(path.suffix == '.dgs' for path in result.paths)
+
+
+def test_servicio_sigue_exigiendo_simulador_si_se_pide(tmp_path):
+    """001:RF-22 — `require_simulator` es una exigencia explícita de quien llama y se respeta."""
+    with pytest.raises(ExportBlocked, match='G/H'):
+        VnrApplicationService(Settings()).export(
+            _model_base(), 'dgs', tmp_path / 'out', require_simulator=True)
+
+
+def test_deducir_crs_en_grados_y_en_unidades_desconocidas():
+    """001:RF-25 — sin CRS declarado: grados → EPSG:4326; si no, sin reproyectar."""
+    from vnr_etl.gis.crs import deducir_crs
+
+    assert deducir_crs([(-75.73, -14.06), (-75.72, -14.07)])[0] == 'EPSG:4326'
+    crs, motivo = deducir_crs([(500000.0, 8450000.0), (500100.0, 8450000.0)])
+    assert crs is None and 'sin reproyectar' in motivo
+    assert deducir_crs([(0.0, 0.0), (10.0, 0.0)])[0] is None
+    assert deducir_crs([])[0] is None
+
+
+def _capa_sin_crs(tmp_path, puntos_a, puntos_b, monkeypatch):
+    from vnr_etl import pipeline
+
+    source = tmp_path / 'sections.geojson'
+    source.write_text(json.dumps({
+        'type': 'FeatureCollection',
+        'features': [_arcgis_feature('T1', puntos_a, puntos_b, feeder='F1')],
+    }), encoding='utf-8')
+    original = pipeline.discover_layers
+
+    def sin_crs(fuente):
+        return [{**layer, 'crs': None} for layer in original(fuente)]
+
+    monkeypatch.setattr(pipeline, 'discover_layers', sin_crs)
+    return source
+
+
+def test_cli_convert_deduce_el_crs_de_una_capa_en_grados(tmp_path, monkeypatch):
+    """001:RF-25 — una capa en grados sin CRS declarado convierte, en su zona UTM."""
+    from vnr_etl.cli import main
+
+    source = _capa_sin_crs(tmp_path, [-75.0, -14.0], [-74.999, -14.0], monkeypatch)
+    assert main(['convert', str(source), '--output', str(tmp_path / 'out')]) == 0
+    canonical = json.loads((tmp_path / 'out' / 'canonical.json').read_text(encoding='utf-8'))
+    assert canonical['metadata']['working_crs'] == 'EPSG:32718'
+    assert 'grados' in canonical['metadata']['crs_deducido']
+    assert 100 < canonical['sections'][0]['length_m'] < 115
+
+
+def test_cli_convert_lee_sin_reproyectar_si_no_puede_deducir_el_crs(tmp_path, monkeypatch):
+    """001:RF-25 — sin CRS deducible, la capa se lee sin reproyectar en vez de rechazarse."""
+    from vnr_etl.cli import main
+
+    source = _capa_sin_crs(tmp_path, [500000.0, 8450000.0], [500250.0, 8450000.0], monkeypatch)
+    assert main(['convert', str(source), '--output', str(tmp_path / 'out')]) == 0
+    canonical = json.loads((tmp_path / 'out' / 'canonical.json').read_text(encoding='utf-8'))
+    assert canonical['metadata']['working_crs'] is None
+    assert canonical['sections'][0]['length_m'] == pytest.approx(250.0)
+    assert 'sin reproyectar' in canonical['metadata']['crs_deducido']
+
+
+def test_web_topologia_acepta_una_capa_sin_crs(tmp_path, monkeypatch):
+    """001:RF-25 — /api/vnr/topology/build deduce el CRS en vez de responder 400."""
+    from fastapi.testclient import TestClient
+
+    source = _capa_sin_crs(tmp_path, [-75.0, -14.0], [-74.999, -14.0], monkeypatch)
+    with TestClient(_main_app(tmp_path, monkeypatch)) as client:
+        with source.open('rb') as stream:
+            subida = client.post('/api/vnr/sources/upload', files={
+                'file': ('tramos.geojson', stream, 'application/geo+json')}).json()
+        respuesta = client.post('/api/vnr/topology/build', json={'source_id': subida['source_id']})
+    assert respuesta.status_code == 200, respuesta.text
+    datos = respuesta.json()
+    assert datos['source_crs'] == 'EPSG:4326'
+    assert any('grados' in aviso for aviso in datos['warnings'])
