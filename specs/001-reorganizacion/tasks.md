@@ -111,5 +111,11 @@ Spec aprobada el 2026-10-08.
       argumentos), y sin ninguno de los dos, cerradas: un `uvicorn --factory --host
       0.0.0.0` a mano también queda cubierto. Solo 127.0.0.1, `localhost` y `::1` las
       abren; `IGEA_WEB_SERVER_PATHS=0` las apaga en local, pero ya no las abre fuera.
-- [ ] T12. Validación: cada RF citado y en verde; RF-14 contra la línea base. (Todos)
+- [x] T12. Validación: cada RF citado y en verde; RF-14 contra la línea base. (Todos)
       Hecho cuando: `grep -rnoE "001:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-16.
+      Hecho el 2026-10-08. RF-1 a RF-16 citados por al menos una prueba, todas en verde.
+      Suite con las cinco variables `IGEA_*`: 929 correctas y 18 omitidas (las
+      comparaciones tramo a tramo TXT↔Access, que no son la misma exportación).
+      `test_linea_base_001` se ejecutó, no se omitió: los DGS por alimentador y de la red
+      unida son idénticos byte a byte a los de T1 (RF-14). Front: `npx tsc --noEmit -p .`
+      (desde `frontend/`) y `npm run build` correctos. Spec cumplida.
