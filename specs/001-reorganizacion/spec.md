@@ -1,6 +1,6 @@
 # Spec 001 — Reorganización: una responsabilidad, un sitio
 
-Estado: cumplida (2026-10-08), con los cambios RF-17 a RF-25 (T13–T20) · Fecha: 2026-10-07 · Origen: `docs/DIAGNOSTICO_SDD_2026-10-07.md`
+Estado: cumplida (2026-10-08), con los cambios RF-17 a RF-27 (T13–T23) · Fecha: 2026-10-07 · Origen: `docs/DIAGNOSTICO_SDD_2026-10-07.md`
 
 ## Contexto y objetivo
 
@@ -91,6 +91,10 @@ Front
 - RF-12: SI una descarga falla con un error de validación (422), ENTONCES la interfaz
   mostrará los mensajes del servidor igual que en el resto de peticiones.
 - RF-13: El cliente de la API no contendrá métodos que ninguna pantalla use.
+- RF-26: EL SISTEMA ofrecerá en la casilla VNR-GIS de la interfaz exactamente los formatos
+  que su lector admite, tomados de una única lista del servidor.
+- RF-27: CUANDO se abre la interfaz con el lanzador y el código del front es más reciente
+  que su compilación, EL SISTEMA recompilará el front antes de servirlo.
 
 Seguridad
 
@@ -149,6 +153,13 @@ relectura (RF-22 a RF-24), y que leer una capa sin CRS sea flexible (RF-25). Sol
 impiden exportar un modelo sin ningún tramo, que no tiene nada que exportar, y la
 evidencia de simulador cuando quien llama la exige (`require_simulator`). Las puertas
 A–H se siguen evaluando y se informan.
+
+## Tercer cambio del 2026-10-08: formatos VNR-GIS en la web y front al día
+
+La casilla VNR-GIS ofrecía `.7z` y `.gdb`, que el servidor rechazaba, y no ofrecía
+`.mdb`, `.accdb`, `.sqlite`, `.db`, `.json`, `.csv` ni `.tsv`, que el lector sí lee
+(RF-26). El lanzador solo compilaba el front si faltaba: tras un cambio, el acceso
+directo seguía mostrando la versión anterior sin avisar (RF-27).
 
 ## Dudas resueltas (2026-10-08)
 

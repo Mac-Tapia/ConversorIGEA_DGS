@@ -182,3 +182,21 @@ Spec aprobada el 2026-10-08.
 - [x] T20. Validación: RF-22 a RF-25 citados, suite completa en verde y RF-14 igual.
       Hecho el 2026-10-08: 945 correctas y 18 omitidas (las de siempre); RF-14 en verde.
 
+## Tercer cambio del 2026-10-08 (RF-26, RF-27)
+
+- [x] T21. Lista única de formatos VNR-GIS en el servidor (`vnr_etl.connectors.registry`),
+      publicada en `/api/health` con la casilla; la web la usa. (RF-26)
+      Hecho cuando: prueba de que lo que ofrece la casilla es lo que acepta el servidor.
+      Hecho el 2026-10-08: `FORMATOS_PAQUETE_VNR` = `.zip`, `.rar` y las fuentes del
+      lector menos `.shp` suelto (necesita `.dbf` y `.shx`: va en un ZIP o RAR).
+      `validate_vnr_package_file` la usa y nombra los formatos al rechazar. Etiqueta de
+      la casilla: «Paquete o base VNR-GIS», con los formatos bajo ella.
+- [x] T22. `igea_dgs.web.runtime --front` dice si `frontend/dist` está por detrás del
+      código del front; `run_gui.bat` recompila en ese caso. (RF-27)
+      Hecho cuando: prueba con un fichero del front más reciente que `dist`.
+      Hecho el 2026-10-08 (`tests/test_web_runtime_front.py`). Probado además en `cmd`
+      con una copia del lanzador: al día abre directo; con `api.ts` tocado, recompila y
+      abre. Sin Node.js y con un `dist` viejo, avisa y abre el anterior en vez de cerrar.
+- [x] T23. Validación: RF-26 y RF-27 citados, `tsc` y `build` correctos, suite en verde.
+      Hecho el 2026-10-08: 951 correctas y 18 omitidas (las de siempre); RF-14 en verde.
+

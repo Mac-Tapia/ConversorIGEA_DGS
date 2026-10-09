@@ -34,6 +34,14 @@ from .jobs import EventLog
 
 #: Casillas de entrada. ``grupo`` decide con qué alternativa se usa cada una y
 #: ``tipo`` el contenido que se comprueba al elegirla (``identify``).
+def _formatos_vnr() -> tuple[str, ...]:
+    try:
+        from vnr_etl.connectors.registry import FORMATOS_PAQUETE_VNR
+    except ImportError:  # sin el módulo VNR la casilla no se puede usar igual
+        return ('.zip',)
+    return FORMATOS_PAQUETE_VNR
+
+
 SLOTS: dict[str, dict[str, Any]] = {
     'red': {'grupo': 'txt', 'tipo': RED, 'etiqueta': 'RED — topología (nodos, tramos, fuentes)',
             'obligatorio': True},
@@ -53,7 +61,9 @@ SLOTS: dict[str, dict[str, Any]] = {
               'etiqueta': 'Estudio o proyecto (.zxst, opcional)', 'obligatorio': False},
     'vnr_package': {
         'grupo': 'vnr', 'tipo': None,
-        'etiqueta': 'Paquete completo VNR-GIS', 'obligatorio': True,
+        'etiqueta': 'Paquete o base VNR-GIS', 'obligatorio': True,
+        # La interfaz ofrece estos y solo estos (spec 001, RF-26); ver FORMATOS_PAQUETE_VNR.
+        'extensiones': list(_formatos_vnr()),
     },
     'aliases': {'grupo': 'comun', 'tipo': None,
                 'etiqueta': 'Aliases de tipos (JSON, opcional)', 'obligatorio': False},

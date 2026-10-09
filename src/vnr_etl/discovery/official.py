@@ -74,11 +74,14 @@ def validate_vnr_package_file(path) -> None:
     """Validación local mínima antes de ofrecer un archivo como fuente convertible."""
     from pathlib import Path
 
+    from vnr_etl.connectors.registry import FORMATOS_PAQUETE_VNR
+
     source = Path(path)
     suffix = source.suffix.lower()
-    if suffix not in VNR_DATA_SUFFIXES:
+    if suffix not in FORMATOS_PAQUETE_VNR:
         raise OfficialDiscoveryError(
-            f'{source.name} no es un paquete VNR-GIS soportado; los PDF son solo evidencia.'
+            f'{source.name} no es un paquete VNR-GIS soportado. Formatos admitidos: '
+            + ', '.join(FORMATOS_PAQUETE_VNR) + '. Los PDF son solo evidencia.'
         )
     if not source.is_file() or source.stat().st_size == 0:
         raise OfficialDiscoveryError(f'Paquete VNR-GIS vacío o inexistente: {source}')

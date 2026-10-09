@@ -163,7 +163,7 @@ def test_health_y_opciones_exponen_modo_vnr(client):
     response = client.put(f'/api/workspaces/{wid}/options', json={'input_mode': 'vnr'})
     assert response.status_code == 200
     assert response.json()['options']['input_mode'] == 'vnr'
-    assert response.json()['missing_inputs'] == ['Paquete completo VNR-GIS']
+    assert response.json()['missing_inputs'] == ['Paquete o base VNR-GIS']
 
 
 @pytest.mark.parametrize('content_type', ['application/pdf', 'text/html; charset=utf-8'])
@@ -195,3 +195,41 @@ def test_stream_rechaza_respuesta_documental_aunque_url_diga_zip(tmp_path, conte
         manager._stream(
             Requests, Response.url, tmp_path / 'download.part', on_progress=None,
         )
+
+
+def test_la_casilla_vnr_ofrece_lo_que_el_servidor_lee(client, tmp_path):
+    """001:RF-26 — la casilla VNR-GIS ofrece los formatos del lector y el servidor los acepta."""
+    import zipfile
+
+    from vnr_etl.connectors.registry import FORMATOS_PAQUETE_VNR, SUPPORTED_SOURCE_SUFFIXES
+
+    ofrecidos = client.get('/api/health').json()['slots']['vnr_package']['extensiones']
+    assert ofrecidos == list(FORMATOS_PAQUETE_VNR)
+    assert {'.zip', '.rar', '.mdb', '.accdb', '.gpkg', '.geojson', '.sqlite', '.csv'} <= set(ofrecidos)
+    assert set(ofrecidos) == ({'.zip', '.rar'} | SUPPORTED_SOURCE_SUFFIXES) - {'.shp'}
+
+    from vnr_etl.discovery.official import OfficialDiscoveryError, validate_vnr_package_file
+
+    for extension in ofrecidos:
+        fichero = tmp_path / f'paquete{extension}'
+        if extension == '.zip':
+            with zipfile.ZipFile(fichero, 'w') as zf:
+                zf.writestr('tramos.csv', 'CODTRAMOMT\nT1\n')
+        else:
+            fichero.write_bytes(b'datos')
+        validate_vnr_package_file(fichero)
+    for extension in ('.7z', '.gdb', '.shp', '.pdf'):
+        fichero = tmp_path / f'paquete{extension}'
+        fichero.write_bytes(b'datos')
+        with pytest.raises(OfficialDiscoveryError, match='Formatos admitidos'):
+            validate_vnr_package_file(fichero)
+
+
+def test_la_interfaz_no_fija_formatos_vnr_propios():
+    """001:RF-26 — la web toma los formatos VNR del servidor, no de una lista suya."""
+    from pathlib import Path
+
+    panel = (Path(__file__).resolve().parents[1] / 'frontend/src/components/InputsPanel.tsx'
+             ).read_text(encoding='utf-8')
+    assert 'vnr_package:' not in panel
+    assert "spec.extensiones?.join(',')" in panel

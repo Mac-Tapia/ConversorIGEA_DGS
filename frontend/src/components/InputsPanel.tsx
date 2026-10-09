@@ -4,10 +4,12 @@ import { useApp } from '../context';
 import type { InputMode, SourceScope, VnrPublications } from '../types';
 import { FileDrop, Pill, useConfirm, useToast } from './ui';
 
+// Los formatos de VNR-GIS no van aquí: los fija el servidor (health.slots.vnr_package
+// .extensiones), que es quien los lee. Una lista propia ofrecía .7z y .gdb, que luego
+// se rechazaban, y escondía .mdb, .sqlite o .csv, que sí se leen (spec 001, RF-26).
 const ACCEPT: Record<string, string> = {
   red: '.txt', loads: '.txt', equipment: '.txt', equipment_extra: '.txt',
   mdb: '.mdb,.accdb', equipment_mdb: '.mdb,.accdb', study: '.zxst,.xst', aliases: '.json',
-  vnr_package: '.zip,.rar,.7z,.gpkg,.gdb,.geojson',
 };
 
 function VnrDiscovery() {
@@ -119,11 +121,15 @@ function Slot({ slot }: { slot: string }) {
           <button className="btn btn-sm btn-ghost" onClick={() => setPathMode(false)}>Cancelar</button>
         </div>
       ) : (
-        <FileDrop onFiles={upload} accept={ACCEPT[slot]} disabled={locked || uploading !== null} compact>
+        <FileDrop onFiles={upload} accept={spec.extensiones?.join(',') ?? ACCEPT[slot]}
+          disabled={locked || uploading !== null} compact>
           {uploading !== null
             ? <span>Subiendo {fmtBytes(uploading)}…</span>
             : <span>Soltar el fichero o <u>elegir</u></span>}
         </FileDrop>
+      )}
+      {!meta && spec.extensiones && (
+        <p className="muted small">Admite {spec.extensiones.join(' ')}. Un shapefile, dentro de un ZIP o RAR.</p>
       )}
       {!meta && !pathMode && health.server_paths && (
         <button className="link small" onClick={() => setPathMode(true)}>…o indicar una ruta de este equipo</button>

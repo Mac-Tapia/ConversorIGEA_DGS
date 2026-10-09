@@ -26,6 +26,16 @@ SUPPORTED_SOURCE_SUFFIXES = frozenset({
 })
 
 
+# Lo que se puede subir como «paquete VNR-GIS»: un archivo comprimido o una fuente que
+# el lector abre sola. Es la única lista: el servidor valida con ella y la interfaz web
+# la recibe por /api/health, para no ofrecer un formato que luego se rechaza
+# (pasaba con .7z y .gdb) ni esconder uno que se lee (.mdb, .sqlite, .csv…). Un .shp
+# suelto no vale: necesita su .dbf y su .shx, así que va dentro de un ZIP o RAR.
+FORMATOS_PAQUETE_VNR = tuple(sorted(
+    ({'.zip', '.rar'} | SUPPORTED_SOURCE_SUFFIXES) - {'.shp'}
+))
+
+
 def iter_supported_sources(root: Path | str) -> list[Path]:
     """Archivos de datos candidatos de un paquete, en orden determinista."""
     path = Path(root)

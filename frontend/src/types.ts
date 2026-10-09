@@ -120,6 +120,8 @@ export interface SlotSpec {
   tipo: string | null;
   etiqueta: string;
   obligatorio: boolean;
+  /** Formatos que el servidor admite en la casilla, si los fija él (VNR-GIS). */
+  extensiones?: string[];
 }
 
 export interface InputMeta {
