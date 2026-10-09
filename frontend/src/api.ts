@@ -1,5 +1,5 @@
 import type {
-  CargasPlan, Economia, FeederRow, Health, Job,
+  CargasPlan, ClientesCruce, DemandaMedidores, Economia, FeederRow, Health, Job, MaximaCabecera,
   Options, OutputFile, PowerFactoryStatus, ReconstructionReport, WorkspaceState,
 } from './types';
 
@@ -49,6 +49,8 @@ function form(file: File, field = 'file'): RequestInit {
 
 const ws = (id: string) => `/api/workspaces/${encodeURIComponent(id)}`;
 const enc = encodeURIComponent;
+
+export type DemandaTipo = 'medidores' | 'cabecera' | 'suministros' | 'clientes';
 
 export const api = {
   health: () => request<Health>('/api/health'),
@@ -143,13 +145,32 @@ export const api = {
     }>(`${ws(id)}/catalog/apply${previewFeeder ? `?preview_feeder=${enc(previewFeeder)}` : ''}`, form(file)),
   catalogClear: (id: string) => request<WorkspaceState>(`${ws(id)}/catalog`, { method: 'DELETE' }),
 
+  // Demanda medida (spec 004, RF-22 a RF-39): misma pestaña que las cargas.
+  demandaSubir: (id: string, tipo: DemandaTipo, files: File[]) => {
+    const fd = new FormData();
+    files.forEach((f) => fd.append('files', f, f.name));
+    return request<WorkspaceState>(`${ws(id)}/demanda/${tipo}`, { method: 'POST', body: fd });
+  },
+  demandaRuta: (id: string, tipo: DemandaTipo, path: string) =>
+    request<WorkspaceState>(`${ws(id)}/demanda/${tipo}/path`, json('POST', { path })),
+  demandaQuitar: (id: string, tipo: DemandaTipo) =>
+    request<WorkspaceState>(`${ws(id)}/demanda/${tipo}`, { method: 'DELETE' }),
+  demandaMedidores: (id: string, alimentador: string) =>
+    request<DemandaMedidores>(`${ws(id)}/demanda/medidores?alimentador=${enc(alimentador)}`),
+  demandaCabecera: (id: string, medidores: { alimentador: string; medidor: string }[]) =>
+    request<Job>(`${ws(id)}/demanda/cabecera/buscar`, json('POST', { medidores })),
+  demandaClientes: (id: string) =>
+    request<ClientesCruce>(`${ws(id)}/demanda/clientes/cruzar`, { method: 'POST' }),
+  demandaExcel: (id: string, datos: { cabecera: MaximaCabecera[]; clientes: unknown[]; no_cruzados: unknown[] }) =>
+    download(`${ws(id)}/demanda/excel`, json('POST', datos)),
+
   system: (id: string, action: 'grid' | 'base' | 'missing-data') =>
     request<Job>(`${ws(id)}/system/${action}`, { method: 'POST' }),
 };
 
-/** Descarga una URL de la API mostrando el error del servidor si lo hay. */
-export async function download(url: string): Promise<void> {
-  const res = await fetch(url);
+/** Descarga una URL de la API mostrando el error del servidor si lo hay. `init` para un POST. */
+export async function download(url: string, init?: RequestInit): Promise<void> {
+  const res = await fetch(url, init);
   if (!res.ok) throw await apiError(res);
   const blob = await res.blob();
   const cd = res.headers.get('content-disposition') ?? '';

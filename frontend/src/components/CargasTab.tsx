@@ -5,6 +5,7 @@ import type {
   CargaConectada, CargasFeederInforme, CargasInforme, CargasMotivo, CargasPlan, CargasResultado,
   Economia, PfProject,
 } from '../types';
+import { DemandaMedida } from './DemandaMedida';
 import { PfWarning } from './Modules';
 import { FileDrop, Modal, Toggle, useToast } from './ui';
 
@@ -243,6 +244,9 @@ export function CargasTab() {
       )}
 
       {resultado && <Informe resultado={resultado} cancelado={lastRun?.status === 'cancelled'} />}
+
+      {/* Spec 004, RF-40: la demanda medida va en esta misma pestaña. */}
+      <DemandaMedida />
 
       {form && (
         <Modal title="Una carga nueva" onClose={() => setForm(false)} actions={<>

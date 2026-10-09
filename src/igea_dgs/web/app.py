@@ -37,7 +37,7 @@ from . import services
 from .jobs import JobManager
 from .services import UserError
 from .workspace import (
-    BOOL_OPTIONS, DEFAULT_OPTIONS, MAX_WORKERS, SLOTS, Workspace, WorkspaceStore,
+    BOOL_OPTIONS, DEFAULT_OPTIONS, MAX_WORKERS, SLOTS, Workspace, WorkspaceStore, safe_filename,
 )
 
 # Solo CRS proyectados en metros: uno en
@@ -97,6 +97,27 @@ class OptionsIn(BaseModel):
 
 class ServerPathIn(BaseModel):
     path: str
+
+
+# Libros de la demanda medida (spec 004, RF-39).
+DemandaTipo = Literal['medidores', 'cabecera', 'suministros', 'clientes']
+
+
+class DemandaMedidorIn(BaseModel):
+    alimentador: str = ''
+    medidor: str
+
+
+class DemandaMedidoresIn(BaseModel):
+    medidores: list[DemandaMedidorIn] = Field(default_factory=list)
+
+
+class DemandaExcelIn(BaseModel):
+    """Lo que el operador ve en pantalla: el Excel no se arma con estado guardado (RF-38)."""
+
+    cabecera: list[dict[str, Any]] = Field(default_factory=list)
+    clientes: list[dict[str, Any]] = Field(default_factory=list)
+    no_cruzados: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class VnrDownloadIn(BaseModel):
@@ -779,6 +800,62 @@ def create_app(
     @app.post('/api/workspaces/{wid}/lote/{token}/apply', status_code=202)
     def lote_apply(wid: str, token: str) -> dict:
         return _cargas_job(wid, token, False)
+
+    # ------------------------------------------------------------ demanda medida
+    # Spec 004, RF-22 a RF-39: misma pestaña que las cargas (RF-40), sin entradas cargadas.
+    @app.get('/api/workspaces/{wid}/demanda/medidores')
+    def demanda_medidores(wid: str, alimentador: str = Query(...)) -> dict:
+        return services.demanda_medidores(ws_or_404(wid), alimentador)
+
+    @app.post('/api/workspaces/{wid}/demanda/cabecera/buscar', status_code=202)
+    def demanda_cabecera(wid: str, body: DemandaMedidoresIn) -> dict:
+        ws = ws_or_404(wid)
+        pares = [(m.alimentador.strip(), m.medidor.strip()) for m in body.medidores if m.medidor.strip()]
+        if not pares:
+            raise HTTPException(422, 'Indique al menos un medidor.')
+        return submit(ws, 'demanda_cabecera', f'Máxima de cabecera ({len(pares)} medidor(es))',
+                      lambda ctx: services.demanda_cabecera(ws, ctx, pares))
+
+    @app.post('/api/workspaces/{wid}/demanda/clientes/cruzar')
+    def demanda_clientes(wid: str) -> dict:
+        return services.demanda_clientes(ws_or_404(wid))
+
+    @app.post('/api/workspaces/{wid}/demanda/excel')
+    def demanda_excel(wid: str, body: DemandaExcelIn) -> FileResponse:
+        path = services.demanda_excel(ws_or_404(wid), body.model_dump())
+        return FileResponse(path, filename=path.name)
+
+    @app.post('/api/workspaces/{wid}/demanda/{tipo}/path')
+    def demanda_ruta(wid: str, tipo: DemandaTipo, body: ServerPathIn) -> dict:
+        ws = ws_or_404(wid)
+        if not _server_paths_allowed(host):
+            raise HTTPException(403, 'Este servidor no admite rutas locales: suba el fichero.')
+        path = Path(body.path.strip().strip('"'))
+        if not (path.is_file() or (tipo == 'cabecera' and path.is_dir())):
+            raise HTTPException(400, f'No existe: {path}')
+        return services.demanda_asignar(ws, tipo, path, 'server')
+
+    @app.post('/api/workspaces/{wid}/demanda/{tipo}')
+    def demanda_subir(wid: str, tipo: DemandaTipo, files: list[UploadFile] = File(...)) -> dict:
+        """Subida del libro. La cabecera admite varios libros, que van a una carpeta."""
+        ws = ws_or_404(wid)
+        if tipo != 'cabecera' and len(files) != 1:
+            raise HTTPException(422, 'Suba un solo libro.')
+        carpeta = services.demanda_carpeta(ws, tipo)
+        if tipo != 'cabecera':
+            shutil.rmtree(carpeta, ignore_errors=True)
+        carpeta.mkdir(parents=True, exist_ok=True)
+        destinos = []
+        for f in files:
+            destino = carpeta / safe_filename(f.filename or f'{tipo}.xlsx')
+            _save_upload(destino, f)
+            destinos.append(destino)
+        return services.demanda_asignar(ws, tipo, carpeta if tipo == 'cabecera' else destinos[0],
+                                        'upload')
+
+    @app.delete('/api/workspaces/{wid}/demanda/{tipo}')
+    def demanda_quitar(wid: str, tipo: DemandaTipo) -> dict:
+        return services.demanda_quitar(ws_or_404(wid), tipo)
 
     # ------------------------------------------------------------ catálogo
     @app.post('/api/workspaces/{wid}/catalog/build', status_code=202)

@@ -23,7 +23,7 @@ dependencies = []
 
 [project.optional-dependencies]
 geo = ["pyproj>=3.6"]
-xlsx = ["pandas>=2.0", "openpyxl>=3.1"]
+xlsx = ["pandas>=2.0", "openpyxl>=3.1", "python-calamine>=0.3"]
 # Alternativa 2 de entrada: base de datos Access de CYMDIST (solo Windows)
 access = ["pyodbc>=5.0"]
 # Validación independiente del modelo (flujo de potencia sin PowerFactory)
@@ -39,6 +39,7 @@ all = [
     "pyodbc>=5.0",
     "pandas>=2.0",
     "openpyxl>=3.1",
+    "python-calamine>=0.3",
     "pandapower>=3.0",
     "geopandas>=0.14",
     "leafmap>=0.30",

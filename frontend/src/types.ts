@@ -180,6 +180,8 @@ export interface WorkspaceState {
   } | null;
   converted: number;
   groups?: GroupDgs[];
+  /** Libros de la demanda medida guardados en el espacio (spec 004, RF-39). */
+  demanda?: Partial<Record<'medidores' | 'cabecera' | 'suministros' | 'clientes', DemandaLibro>>;
   last_seq: number;
   jobs?: Job[];
   warning?: string;
@@ -410,4 +412,59 @@ export interface Economia {
     om_pct_anual: number;
   };
   tec: EconomiaTec | null;
+}
+
+// ------------------------------------------------------------ demanda medida (spec 004)
+
+export interface DemandaLibro {
+  name: string;
+  origin: 'upload' | 'server';
+  /** Solo la cabecera: los libros de la carpeta. */
+  libros?: string[];
+}
+
+export interface DemandaMedidores {
+  alimentador: string;
+  medidores: string[];
+  encontrado: boolean;
+}
+
+/** kW máximo de un medidor; kVAR, kVA y FP son del mismo registro (RF-27, RF-28). */
+export interface MaximaCabecera {
+  medidor: string;
+  alimentador: string;
+  libro: string;
+  hojas: string[];
+  fecha: string | null;
+  kw: number | null;
+  kvar: number | null;
+  kva: number | null;
+  fp: number | null;
+  kva_calculado: boolean;
+  fp_calculado: boolean;
+  registros: number;
+  columnas: Record<string, string>;
+  avisos: string[];
+  error: string | null;
+}
+
+export interface ClienteImportante {
+  codigo: string;
+  fila: number;
+  ea: number | null;
+  eri: number | null;
+  pot: number | null;
+  cruzado_por: '' | 'actual' | 'anterior';
+  suministro_actual: string;
+  suministro_anterior: string;
+  sed: string;
+  radial: string;
+  motivo: string;
+}
+
+export interface ClientesCruce {
+  cruzados: ClienteImportante[];
+  no_cruzados: ClienteImportante[];
+  avisos: string[];
+  totales: { clientes: number; cruzados: number; no_cruzados: number; por_actual: number; por_anterior: number };
 }
