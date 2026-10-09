@@ -322,3 +322,109 @@ def test_alimentadores_de_un_proyecto_sin_elmfeeder():
     datos.CreateObject('ElmNet', 'Summary Grid')
     datos.CreateObject('ElmNet', 'Norte')
     assert alimentadores_de(prj) == (['Norte', 'Red'], None)
+
+
+# --------------------------------------------------------------------------- importación
+def _mod_aceptacion():
+    import importlib.util
+
+    ruta = RAIZ / 'tools' / 'powerfactory_acceptance.py'
+    spec = importlib.util.spec_from_file_location('powerfactory_acceptance', ruta)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+@pytest.fixture
+def dgs(tmp_path):
+    ruta = tmp_path / 'SI213.dgs'
+    ruta.write_text('DGS', encoding='ascii')
+    return ruta
+
+
+def _proyectos_en(objeto):
+    return sorted(p.loc_name for p in objeto.GetContents('*.IntPrj'))
+
+
+def test_importa_dentro_de_la_carpeta(dgs):
+    """005:RF-6 — el proyecto importado queda en la carpeta, no en la raíz, y activo."""
+    app = _app()
+    info = _mod_aceptacion().import_dgs_file(app, dgs, project_name='SI213', carpeta='Red')
+    carpeta = buscar_carpeta(app.usuario, 'Red')
+    assert info['ok'] and info['errors'] == []
+    assert _proyectos_en(carpeta) == ['SI213'] and _proyectos_en(app.usuario) == []
+    assert app.GetActiveProject() is proyecto_por_ruta(carpeta, 'SI213')
+    assert (info['project_name'], info['project_folder'], info['project_path']) == ('SI213', 'Red', 'SI213')
+
+
+def test_crea_la_carpeta_antes_de_importar(dgs):
+    """005:RF-5 — sin carpeta, se crea en la raíz del usuario antes de ComImport."""
+    app = _app()
+    app.fallar_importacion = True
+    info = _mod_aceptacion().import_dgs_file(app, dgs, carpeta='Red')
+    assert not info['ok']
+    assert buscar_carpeta(app.usuario, 'Red') is not None
+
+
+def test_nombre_ocupado_en_la_carpeta(dgs):
+    """005:RF-7 — con el nombre ocupado se importa con el primero libre y se avisa."""
+    app = _app()
+    carpeta = app.usuario.CreateObject('IntFolder', 'Red')
+    _proyecto(app, carpeta, 'SI213')
+    mod = _mod_aceptacion()
+    info = mod.import_dgs_file(app, dgs, project_name='SI213', carpeta='Red')
+    assert info['ok'] and info['project_name'] == 'SI213_2'
+    assert any('SI213_2' in aviso for aviso in info['warnings'])
+    info = mod.import_dgs_file(app, dgs, project_name='SI213', carpeta='Red')
+    assert info['project_name'] == 'SI213_3'
+    assert _proyectos_en(carpeta) == ['SI213', 'SI213_2', 'SI213_3']
+
+
+def test_no_toca_los_proyectos_existentes(dgs):
+    """005:RF-8 — importar no borra, sobrescribe ni mueve un proyecto que ya existía."""
+    app = _app()
+    carpeta = app.usuario.CreateObject('IntFolder', 'Red')
+    previos = [_proyecto(app, carpeta, 'SI213'), _proyecto(app, app.usuario, 'SI213')]
+    padres = [p.GetParent() for p in previos]
+    _mod_aceptacion().import_dgs_file(app, dgs, project_name='SI213', carpeta='Red')
+    assert [p.GetParent() for p in previos] == padres
+    assert not any(p in app.borrados for p in previos)
+    assert all(obj not in previos for obj, _destino in app.movidos)
+
+
+def test_los_anteriores_se_quedan_en_la_raiz(dgs):
+    """005:RF-20 — los proyectos de la raíz, importados antes, siguen en la raíz."""
+    app = _app()
+    _proyecto(app, app.usuario, 'Antiguo')
+    _mod_aceptacion().import_dgs_file(app, dgs, project_name='SI213', carpeta='Red')
+    assert _proyectos_en(app.usuario) == ['Antiguo']
+
+
+def test_si_no_se_puede_mover_no_queda_en_la_raiz(dgs):
+    """005:RF-9 — si no se puede mover a la carpeta, falla nombrándola y no deja el proyecto."""
+    app = _app()
+    _proyecto(app, app.usuario, 'Antiguo')
+    app.fallar_mover = True
+    info = _mod_aceptacion().import_dgs_file(app, dgs, project_name='SI213', carpeta='Red')
+    assert not info['ok'] and any("'Red'" in e for e in info['errors'])
+    assert _proyectos_en(app.usuario) == ['Antiguo']
+    assert _proyectos_en(buscar_carpeta(app.usuario, 'Red')) == []
+
+
+def test_carpeta_del_perfil_por_defecto(dgs, tmp_path, monkeypatch):
+    """005:RF-2 — sin carpeta explícita, la importación usa la del perfil de empresa."""
+    import igea_dgs.carpeta_pf as cpf
+
+    monkeypatch.setattr(cpf, 'ruta_perfil', lambda: _perfil(tmp_path, {CLAVE_PERFIL: 'Empresa'}))
+    app = _app()
+    info = _mod_aceptacion().import_dgs_file(app, dgs, project_name='SI213')
+    assert info['ok'] and info['project_folder'] == 'Empresa'
+    assert _proyectos_en(buscar_carpeta(app.usuario, 'Empresa')) == ['SI213']
+
+
+def test_carpeta_invalida_no_abre_nada(dgs):
+    """005:RF-4 — un nombre de carpeta inválido falla sin crear nada en DIgSILENT."""
+    app = _app()
+    info = _mod_aceptacion().import_dgs_file(app, dgs, carpeta='a/b')
+    assert not info['ok'] and "'a/b'" in info['errors'][0]
+    assert app.creados == [] and app.importados == []

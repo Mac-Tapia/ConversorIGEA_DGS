@@ -260,23 +260,60 @@ def import_dgs_file(
     dgs_path: Path,
     *,
     project_name: str | None = None,
+    carpeta: str | None = None,
 ) -> dict[str, Any]:
-    """Import ASCII DGS via ComImport into a new project (DigSilent API Example)."""
+    """Importa un DGS con ComImport en un proyecto nuevo dentro de la carpeta (spec 005).
+
+    ``ComImport`` con ``iopt_prj=0`` (ApiExample.cpp) crea el proyecto en la raíz del
+    usuario, donde están también los proyectos hechos a mano y los importados antes de
+    la spec 005. Por eso se importa con un nombre provisional único, se mueve a la
+    carpeta y allí recibe el nombre libre: con el nombre final en la raíz chocaría con
+    un proyecto antiguo que se llame igual (RF-20). Si no se puede mover, el proyecto
+    recién creado se borra, para no dejarlo suelto en la raíz (RF-9).
+
+    ``carpeta`` None toma la del perfil de empresa (``config/perfil_empresa.json``).
+    """
+    from igea_dgs.carpeta_pf import (
+        CarpetaError, asegurar_carpeta, nombre_de_perfil, nombre_libre, validar_nombre,
+    )
+
     dgs_path = Path(dgs_path).resolve()
     if not dgs_path.is_file():
         raise FileNotFoundError(f'DGS no encontrado: {dgs_path}')
-
-    user = app.GetCurrentUser()
-    if user is None:
-        raise RuntimeError('GetCurrentUser() falló — sesión PF no válida')
 
     stamp = datetime.now().strftime('%Y%m%d-%H%M%S')
     if project_name:
         if len(project_name) > 40:
             raise ValueError('El nombre de proyecto PowerFactory no puede superar 40 caracteres.')
-        prj = project_name
+        pedido = project_name
     else:
-        prj = _generated_project_name(stamp, dgs_path.stem)
+        pedido = _generated_project_name(stamp, dgs_path.stem)
+
+    def fallo(*errores: str, carpeta_nombre: str | None = None) -> dict[str, Any]:
+        return {'project_name': None, 'project_requested': pedido,
+                'project_folder': carpeta_nombre, 'project_path': None,
+                'dgs': str(dgs_path), 'errors': list(errores), 'warnings': [], 'ok': False}
+
+    # El nombre se valida antes de tocar DIgSILENT (RF-4).
+    try:
+        nombre_carpeta = validar_nombre(carpeta) if carpeta is not None else nombre_de_perfil()
+    except CarpetaError as exc:
+        return fallo(str(exc))
+
+    user = app.GetCurrentUser()
+    if user is None:
+        raise RuntimeError('GetCurrentUser() falló — sesión PF no válida')
+    try:
+        destino = asegurar_carpeta(user, nombre_carpeta)
+    except CarpetaError as exc:
+        return fallo(str(exc), carpeta_nombre=nombre_carpeta)
+
+    en_raiz = {_name(p).lower() for p in (user.GetContents('*.IntPrj') or [])}
+    provisional = f'_igea_{stamp}'
+    n = 1
+    while provisional.lower() in en_raiz:
+        n += 1
+        provisional = f'_igea_{stamp}_{n}'
 
     com = user.CreateObject('ComImport', f'DGSImport_{stamp}')
     if com is None:
@@ -288,12 +325,12 @@ def import_dgs_file(
     try:
         app.DefineTransferAttributes('ComImport', 'iopt_prj,targname,dgsFormat,fFile')
         try:
-            com.SetAttributes([0, prj, 'DGS File', str(dgs_path)])
+            com.SetAttributes([0, provisional, 'DGS File', str(dgs_path)])
         except Exception:
             # Fallback attribute-by-attribute (PF version differences).
             for name, value in (
                 ('iopt_prj', 0),
-                ('targname', prj),
+                ('targname', provisional),
                 ('dgsFormat', 'DGS File'),
                 ('fFile', str(dgs_path)),
                 ('fName', str(dgs_path)),
@@ -312,32 +349,51 @@ def import_dgs_file(
             except Exception:
                 pass
 
-    # Activate imported project if not already active.
+    prj = next((p for p in (user.GetContents('*.IntPrj') or []) if _name(p) == provisional), None)
+    if prj is None:
+        return fallo(*errors, 'ComImport no creó el proyecto en la raíz del usuario.',
+                     carpeta_nombre=nombre_carpeta)
+
+    # DIgSILENT puede dejar activo el proyecto recién importado, y un proyecto activo no
+    # se mueve.
     active = app.GetActiveProject()
-    activation_warnings: list[str] = []
-    if active is None or _name(active) != prj:
+    if active is not None and active == prj:
+        prj.Deactivate()
+    nombre = nombre_libre(destino, pedido)
+    if int(destino.Move(prj)) != 0:
         try:
-            rc_act = int(app.ActivateProject(prj))
-            if rc_act != 0:
-                active_after = app.GetActiveProject()
-                if active_after is not None and _name(active_after) == prj:
-                    activation_warnings.append(
-                        f'ActivateProject({prj!r}) returned {rc_act}, but the imported '
-                        'project is active; continuing after state verification.'
-                    )
-                else:
-                    errors.append(
-                        f'ActivateProject({prj!r}) returned {rc_act}; active project is '
-                        f'{_name(active_after) if active_after is not None else None!r}'
-                    )
-        except Exception as exc:
-            errors.append(f'ActivateProject failed: {exc}')
+            prj.Delete()
+        except Exception as exc:          # se informa: el operador lo borra a mano
+            errors.append(f'No se pudo borrar el proyecto provisional {provisional!r} '
+                          f'de la raíz: {exc}')
+        return fallo(*errors, f'No se pudo mover el proyecto importado a la carpeta '
+                     f'{nombre_carpeta!r}; no se dejó en la raíz del usuario.',
+                     carpeta_nombre=nombre_carpeta)
+    prj.loc_name = nombre
+
+    warnings: list[str] = []
+    if nombre != pedido:
+        warnings.append(f'Ya había un proyecto {pedido!r} en la carpeta {nombre_carpeta!r}; '
+                        f'se importó como {nombre!r}.')
+    # Por objeto, no por nombre: ActivateProject(nombre) solo busca en la raíz del usuario.
+    try:
+        prj.Activate()
+    except Exception as exc:
+        errors.append(f'No se pudo activar el proyecto {nombre!r}: {exc}')
+    active_after = app.GetActiveProject()
+    if active_after is None or _name(active_after) != nombre:
+        errors.append(f'El proyecto activo es '
+                      f'{_name(active_after) if active_after is not None else None!r}, '
+                      f'no el importado {nombre!r}.')
 
     return {
-        'project_name': prj,
+        'project_name': nombre,
+        'project_requested': pedido,
+        'project_folder': nombre_carpeta,
+        'project_path': nombre,
         'dgs': str(dgs_path),
         'errors': errors,
-        'warnings': activation_warnings,
+        'warnings': warnings,
         'ok': not errors,
     }
 

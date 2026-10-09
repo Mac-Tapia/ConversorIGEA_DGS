@@ -16,7 +16,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 - [x] T4. `alimentadores_de` en los datos de red, con la búsqueda completa de reserva y su
       nota. (RF-17, RF-18, RF-19)
       Hecho cuando: `pytest -q tests/test_carpeta_pf.py` en verde.
-- [ ] T5. `import_dgs_file` con carpeta: nombre provisional, mover, nombre libre, activar
+- [x] T5. `import_dgs_file` con carpeta: nombre provisional, mover, nombre libre, activar
       por objeto, borrar el recién creado si mover falla; informe con `project_folder` y
       `project_path`; los proyectos de la raíz no se tocan. (RF-5, RF-6, RF-7, RF-8, RF-9, RF-20)
       Hecho cuando: `pytest -q tests/test_carpeta_pf.py tests/test_powerfactory_gate.py` en verde.
