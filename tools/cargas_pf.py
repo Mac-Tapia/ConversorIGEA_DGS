@@ -93,17 +93,22 @@ def a_metros(origen: tuple[float, float], punto: tuple[float, float]) -> tuple[f
 
 
 # =========================================================================== proyecto
-def activar_proyecto(app, nombre: str):
-    """Activa el proyecto por nombre exacto. Respeta su caso de estudio activo."""
-    user = app.GetCurrentUser()
-    proyectos = [p for p in user.GetContents('*.IntPrj') if p.loc_name == nombre]
-    if not proyectos:
+def activar_proyecto(app, ruta: str, carpeta: str | None = None):
+    """Activa el proyecto de ``ruta`` en la carpeta de importación (spec 005, RF-16).
+
+    Antes buscaba por nombre en la raíz del usuario; los proyectos importados están ahora
+    en la carpeta, y en la raíz puede quedar uno antiguo con el mismo nombre. Sin carpeta
+    en el plan (planes anteriores a la spec 005), la del perfil de empresa. Respeta el
+    caso de estudio activo del proyecto.
+    """
+    from igea_dgs.carpeta_pf import activar_proyecto as activar, nombre_de_perfil
+
+    proyecto = activar(app, ruta, carpeta or nombre_de_perfil())
+    if proyecto is None:
         return None
-    proyecto = proyectos[0]
-    proyecto.Activate()
     if app.GetActiveStudyCase() is None:
-        carpeta = app.GetProjectFolder('study')
-        casos = list(carpeta.GetContents('*.IntCase')) if carpeta else []
+        estudios = app.GetProjectFolder('study')
+        casos = list(estudios.GetContents('*.IntCase')) if estudios else []
         if casos:
             casos[0].Activate()
     return proyecto
@@ -594,12 +599,14 @@ def tecnico_economico(app, tec: dict) -> dict:
 # =========================================================================== orquestación
 def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tuple[dict, int]:
     """Aplica (o simula) el plan en el proyecto. Devuelve (informe, código de salida)."""
-    proyecto = activar_proyecto(app, plan['project'])
+    proyecto = activar_proyecto(app, plan['project'], plan.get('folder'))
     if proyecto is None:
-        return {'error': f"no existe el proyecto {plan['project']!r}"}, 2
+        return {'error': f"no existe el proyecto {plan['project']!r} en la carpeta "
+                         f"{plan.get('folder')!r} de DIgSILENT"}, 2
     alims = Alimentadores(app, proyecto, plan['feeders'])
     informe = {
-        'project': proyecto.loc_name, 'modo': 'simular' if simular else 'aplicar',
+        'project': proyecto.loc_name, 'project_path': plan['project'],
+        'modo': 'simular' if simular else 'aplicar',
         'feeders': [], 'avisos': [], 'cancelado': False,
         'sin_alimentador': [], 'ambiguas': [], 'no_creadas': [],
     }

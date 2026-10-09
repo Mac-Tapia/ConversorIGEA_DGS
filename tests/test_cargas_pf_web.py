@@ -223,3 +223,14 @@ def test_un_plan_de_cargas_sobrevive_a_cambiar_las_entradas(client, tmp_path):
     with red.open('rb') as fh:
         client.post(f'/api/workspaces/{wid}/inputs/red', files={'file': (red.name, fh)})
     assert client.post(f'/api/workspaces/{wid}/lote/{token}/simular').status_code == 202
+
+
+def test_el_plan_lleva_la_ruta_y_la_carpeta(client):
+    """005:RF-16 — el plan identifica el proyecto por su ruta y lleva la carpeta del perfil."""
+    from igea_dgs.web import services
+
+    wid = _wid(client)
+    r = _plan(client, wid, project='Oct/SI213', demandas=DEMANDAS)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body['project'] == 'Oct/SI213' and body['folder'] == services.carpeta_pf()

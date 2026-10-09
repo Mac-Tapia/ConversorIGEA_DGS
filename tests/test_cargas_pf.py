@@ -137,3 +137,12 @@ def test_plantillas_vacias_se_vuelven_a_leer(tmp_path, tipo, columnas, ext):
             lector(ruta)
     else:
         assert lector(ruta).filas == []
+
+
+def test_plan_con_carpeta(tmp_path):
+    """005:RF-16 — el plan lleva la carpeta donde buscar la ruta del proyecto."""
+    lectura = leer_demandas(_libro(tmp_path / 'd.xlsx', {'A': [['SED', 'Kw'], ['S1', 5]]}))
+    plan = armar_plan(project='Oct/P', feeders=['A'], demandas=lectura, nuevas=None, carpeta='Red')
+    assert (plan['project'], plan['folder']) == ('Oct/P', 'Red')
+    sin = armar_plan(project='P', feeders=['A'], demandas=lectura, nuevas=None)
+    assert sin['folder'] is None

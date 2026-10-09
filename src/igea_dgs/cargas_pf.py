@@ -303,8 +303,14 @@ def armar_plan(
     costos: dict | None = None,
     tec: dict | None = None,
     ahora: datetime | None = None,
+    carpeta: str | None = None,
 ) -> dict[str, Any]:
-    """El plan que recibe ``tools/cargas_pf.py``. Igual para uno que para varios (RF-5)."""
+    """El plan que recibe ``tools/cargas_pf.py``. Igual para uno que para varios (RF-5).
+
+    ``project`` es la ruta del proyecto dentro de ``carpeta``, la de importación de
+    DIgSILENT (spec 005, RF-16): dos proyectos con el mismo nombre en subcarpetas
+    distintas son dos proyectos.
+    """
     elegidos = list(dict.fromkeys(f.strip() for f in feeders if f and f.strip()))
     if not project.strip():
         raise LoadTemplateError('Elija el proyecto de DIgSILENT.')
@@ -317,6 +323,7 @@ def armar_plan(
     plan = {
         'schema': SCHEMA,
         'project': project.strip(),
+        'folder': carpeta,
         'feeders': elegidos,
         'stamp': stamp,
         # El guion añade un sufijo si ya existe (RF-4).

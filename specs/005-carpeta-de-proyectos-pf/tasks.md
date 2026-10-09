@@ -36,7 +36,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       nombre inválido falla sin lanzar el guion; `ws.pf_projects` guarda la ruta.
       (RF-2, RF-4, RF-10, RF-16)
       Hecho cuando: `pytest -q tests/test_web*.py` en verde.
-- [ ] T9. Cargas por ruta: el plan lleva la ruta y la carpeta; `tools/cargas_pf.py`
+- [x] T9. Cargas por ruta: el plan lleva la ruta y la carpeta; `tools/cargas_pf.py`
       activa con `proyecto_por_ruta`. (RF-16)
       Hecho cuando: `pytest -q tests/test_cargas_pf_guion.py tests/test_cargas_pf.py` en verde.
 - [ ] T10. Front: `PfProject.path`, desplegable por ruta con « / » y aviso de carpeta
