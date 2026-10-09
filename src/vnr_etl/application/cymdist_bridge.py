@@ -39,6 +39,7 @@ def canonical_to_cymdist(
     feeders: dict[str, list[str]] = defaultdict(list)
     line_configurations: dict[str, dict[str, str]] = {}
 
+    tipos = {item.conductor_code: item for item in model.conductor_types}
     for section in model.sections:
         feeder = (section.feeder_id or '').strip()
         if not feeder:
@@ -63,6 +64,14 @@ def canonical_to_cymdist(
             'Length': _text(section.length_m),
             'Overhead': '1',
         }
+        # Material y sección permiten al resolvedor buscar un conductor compatible en el
+        # catálogo de parámetros cuando el código no está (spec 001, RF-18).
+        tipo = tipos.get(section.conductor_code)
+        if tipo is not None:
+            if tipo.material:
+                line_configurations[section.section_id]['Material'] = tipo.material
+            if tipo.section_mm2:
+                line_configurations[section.section_id]['SectionMM2'] = _text(tipo.section_mm2)
 
     nodes = {
         node.node_id: {
@@ -123,6 +132,11 @@ def canonical_to_cymdist(
                     candidates.extend(
                         (candidate_feeder, sid, location) for sid, location in placements
                     )
+        if len(candidates) > 1 and len({feeder for feeder, _sid, _loc in candidates}) == 1:
+            # Varios tramos del mismo alimentador tocan el nodo de la carga: cualquiera la
+            # conecta al mismo nodo. Se toma el primero por identificador, para que sea
+            # determinista, en vez de dejar la carga fuera del DGS.
+            candidates = sorted(candidates, key=lambda item: (item[1], item[2]))[:1]
         if len(candidates) != 1:
             issues.append({
                 'code': 'AMBIGUOUS_LOAD_SECTION' if candidates else 'MISSING_LOAD_SECTION',
