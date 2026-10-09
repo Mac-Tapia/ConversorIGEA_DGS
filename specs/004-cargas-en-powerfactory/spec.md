@@ -151,13 +151,23 @@ todavía no rellena el libro de demandas.
 - RF-35: EL SISTEMA cruzará cada cliente importante con el libro de suministros por el
   código actual y, si no coincide, por el anterior, e indicará por cuál cruzó.
 - RF-36: EL SISTEMA dará de cada cliente cruzado su SED, su radial, EA, ERI y potencia
-  máxima, sin filtrar por el alimentador escrito.
+  máxima. (Cambiado el 2026-10-09: el filtro por alimentador lo fija RF-43.)
 - RF-37: SI un cliente importante no cruza con ningún suministro, o cruza sin SED,
   ENTONCES EL SISTEMA lo listará aparte con el motivo.
 - RF-38: CUANDO el operador lo pide, EL SISTEMA descargará en un libro Excel la máxima
   demanda de cabecera y los clientes cruzados y no cruzados.
 - RF-39: EL SISTEMA aceptará los libros por subida o, en local, por ruta del servidor; los
   de cabecera también como carpeta, de la que leerá todos los `.xls`, `.xlsx` y `.xlsb`.
+
+Cambio del 2026-10-09, pedido por el operador al usarla con los libros reales:
+
+- RF-42: CUANDO hay libro de medidores, EL SISTEMA ofrecerá en el código de alimentador
+  una lista desplegable con sus alimentadores, sin repetir, en la que se puede escribir
+  para buscar.
+- RF-43: CUANDO el operador cruza los clientes después de buscar una máxima, EL SISTEMA
+  mostrará solo los clientes cuyo suministro tiene por radial el alimentador de esa
+  máxima, dirá cuántos de otros alimentadores no muestra y dejará aparte los que no
+  están en el libro de suministros, porque no se sabe de qué alimentador son.
 
 ## Requisitos no funcionales
 
@@ -203,7 +213,7 @@ todavía no rellena el libro de demandas.
 
 ## Criterios de finalización
 
-- `grep -rnoE "004:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-41.
+- `grep -rnoE "004:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-43.
 - Suite completa en verde y RF-14 de la spec 001 sin cambios.
 - `npx tsc --noEmit -p .` (en `frontend/`) y `npm run build` correctos.
 - Prueba real en DIgSILENT, a cargo del usuario.

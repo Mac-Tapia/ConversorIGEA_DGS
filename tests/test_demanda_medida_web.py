@@ -133,7 +133,34 @@ def test_cruce_de_clientes(client):
     assert [(c['codigo'], c['cruzado_por'], c['sed']) for c in body['cruzados']] == [('11', 'anterior', 'E1')]
     assert {c['codigo'] for c in body['no_cruzados']} == {'9012', '777'}
     assert body['totales'] == {'clientes': 3, 'cruzados': 1, 'no_cruzados': 2,
-                               'por_actual': 0, 'por_anterior': 1}
+                               'por_actual': 0, 'por_anterior': 1, 'de_otros': 0}
+
+
+def test_lista_de_alimentadores(client):
+    """004:RF-42 — los alimentadores del libro de medidores, sin repetir, para elegir."""
+    wid = _wid(client)
+    hojas = {'h': MEDIDORES['h'] + [['a 1', 'M9']]}
+    _subir(client, wid, 'medidores', hojas)
+    r = client.get(f'/api/workspaces/{wid}/demanda/alimentadores')
+    assert r.status_code == 200 and r.json() == {'alimentadores': ['A1', 'A2']}
+
+
+def test_cruce_solo_del_alimentador_de_la_maxima(client):
+    """004:RF-43 — con el alimentador de la máxima, solo sus clientes; los que no están en
+    suministros siguen aparte porque no se sabe de qué alimentador son."""
+    wid = _wid(client)
+    sumi = {'s': SUMINISTROS['s'] + [[13, 9013, 'E3', 'A2']]}
+    _subir(client, wid, 'suministros', sumi)
+    _subir(client, wid, 'clientes', {'resumen': CLIENTES['resumen'] + [[13, 3.0, 1.0, 2.0]]})
+    url = f'/api/workspaces/{wid}/demanda/clientes/cruzar'
+    body = client.post(url, json={'alimentadores': ['a-2']}).json()
+    assert [c['codigo'] for c in body['cruzados']] == ['13']
+    assert {c['codigo'] for c in body['no_cruzados']} == {'9012', '777'}
+    assert body['alimentadores'] == ['a-2'] and body['totales']['de_otros'] == 1
+    body = client.post(url, json={'alimentadores': ['A1']}).json()
+    assert [c['codigo'] for c in body['cruzados']] == ['11']
+    assert {c['codigo'] for c in body['no_cruzados']} == {'777'}, 'el sin SED de A2 no es de A1'
+    assert len(client.post(url, json={'alimentadores': []}).json()['cruzados']) == 2
 
 
 def test_excel_de_lo_mostrado(client):

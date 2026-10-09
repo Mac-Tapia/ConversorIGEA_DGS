@@ -14,7 +14,7 @@ DEMANDA = (SRC / 'components' / 'DemandaMedida.tsx').read_text(encoding='utf-8')
 def test_demanda_medida_en_la_misma_pestana():
     """004:RF-40 — la demanda medida se monta dentro de la pestaña «Cargas en DIgSILENT»."""
     assert "import { DemandaMedida } from './DemandaMedida'" in CARGAS
-    assert '<DemandaMedida />' in CARGAS
+    assert '<DemandaMedida' in CARGAS      # con o sin propiedades (spec 006 le pasa el proyecto)
     app_tsx = (SRC / 'App.tsx').read_text(encoding='utf-8')
     assert 'DemandaMedida' not in app_tsx, 'no es una pestaña aparte'
 

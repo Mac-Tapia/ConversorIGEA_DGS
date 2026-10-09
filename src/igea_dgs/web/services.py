@@ -1136,7 +1136,8 @@ def cargas_plan(
 
 def cargas_plan_de(ws: Workspace, token: str) -> dict:
     plan = ws.cargas_planes.get(token)
-    if plan is None or not Path(plan['path']).is_file():
+    # Un plan del ajuste (spec 006) comparte el registro, pero no es para cargas_pf.py.
+    if plan is None or plan.get('kind') == 'ajuste_cabecera' or not Path(plan['path']).is_file():
         raise UserError('El plan ya no existe: vuelva a prepararlo.')
     if not plan['applicable']:
         raise UserError('El plan no tiene nada que aplicar: ninguna fila válida.')
@@ -1259,6 +1260,17 @@ def demanda_medidores(ws: Workspace, alimentador: str) -> dict:
     return {'alimentador': alimentador.strip(), 'medidores': medidores, 'encontrado': bool(medidores)}
 
 
+def demanda_alimentadores(ws: Workspace) -> dict:
+    """Alimentadores del libro de medidores, para el desplegable del código (RF-42)."""
+    from ..demanda_medida import DemandaError, alimentadores_de, leer_medidores
+
+    try:
+        return {'alimentadores': alimentadores_de(
+            leer_medidores(_demanda_ruta(ws, 'medidores'), demanda_alias()))}
+    except DemandaError as exc:
+        raise UserError(str(exc)) from exc
+
+
 def demanda_cabecera(ws: Workspace, ctx: JobContext, pares: list[tuple[str, str]]) -> dict:
     """Máxima de cada medidor en la medición de cabecera (RF-24 a RF-32). Es un trabajo:
     abrir los libros cuesta segundos (P7). Se cancela entre medidores."""
@@ -1285,9 +1297,11 @@ def demanda_cabecera(ws: Workspace, ctx: JobContext, pares: list[tuple[str, str]
             'cancelado': len(res) < len(pares)}
 
 
-def demanda_clientes(ws: Workspace) -> dict:
-    """Clientes importantes cruzados con los suministros, sin filtrar (RF-33 a RF-37)."""
-    from ..demanda_medida import DemandaError, cruzar, leer_clientes, leer_suministros
+def demanda_clientes(ws: Workspace, alimentadores: list[str] | None = None) -> dict:
+    """Clientes importantes cruzados con los suministros (RF-33 a RF-37); con
+    ``alimentadores``, solo los de esos alimentadores por su radial (RF-43)."""
+    from ..demanda_medida import (DemandaError, cruzar, del_alimentador, leer_clientes,
+                                  leer_suministros)
 
     alias = demanda_alias()
     try:
@@ -1296,13 +1310,19 @@ def demanda_clientes(ws: Workspace) -> dict:
     except DemandaError as exc:
         raise UserError(str(exc)) from exc
     cruzados, aparte = cruzar(clientes, suministros)
+    alimentadores = [a.strip() for a in alimentadores or [] if a.strip()]
+    de_otros = 0
+    if alimentadores:
+        cruzados, aparte, de_otros = del_alimentador(cruzados, aparte, alimentadores)
     return {
+        'alimentadores': alimentadores,
         'cruzados': [c.to_dict() for c in cruzados],
         'no_cruzados': [c.to_dict() for c in aparte],
         'avisos': avisos_s + avisos_c,
         'totales': {'clientes': len(clientes), 'cruzados': len(cruzados), 'no_cruzados': len(aparte),
                     'por_actual': sum(c.cruzado_por == 'actual' for c in cruzados),
-                    'por_anterior': sum(c.cruzado_por == 'anterior' for c in cruzados)},
+                    'por_anterior': sum(c.cruzado_por == 'anterior' for c in cruzados),
+                    'de_otros': de_otros},
     }
 
 
@@ -1316,6 +1336,136 @@ def demanda_excel(ws: Workspace, datos: dict) -> Path:
     return escribir_excel(destino, cabecera=datos.get('cabecera') or [],
                           clientes=datos.get('clientes') or [],
                           no_cruzados=datos.get('no_cruzados') or [])
+
+
+# ---------------------------------------------------------------------------
+# Ajuste a la máxima de cabecera (spec 006)
+# ---------------------------------------------------------------------------
+
+
+def _kva_de_la_entrada(ws: Workspace, alimentador: str) -> tuple[dict[str, float], str]:
+    """kVA de cada SED del alimentador en la entrada cargada (RF-10), y un aviso si no hay.
+
+    Es el mismo modelo que da el DGS, con sus reglas: el kVA que DIgSILENT debería tener.
+    El código del libro de medidores puede venir escrito de otra forma que el de la
+    entrada («PA217» y «pa-217»): se compara con ``clave_codigo``.
+    """
+    from ..demanda_medida import clave_codigo
+
+    if ws.dataset is None:
+        return {}, ('Sin entrada (TXT o .mdb) cargada: las SED sin transformador en '
+                    'DIgSILENT no tendrán de dónde sacar su kVA.')
+    clave = clave_codigo(alimentador)
+    feeder = next((f for f in ws.dataset.feeder_ids() if clave_codigo(f) == clave), None)
+    if feeder is None:
+        return {}, f'{alimentador} no está en la entrada cargada: no hay kVA de respaldo.'
+    try:
+        modelo = build_model(ws, feeder, geography=False)
+    except UserError as exc:
+        return {}, f'{exc} No hay kVA de respaldo.'
+    return {sed.code: float(sed.design_kva) for sed in modelo.seds if sed.design_kva}, ''
+
+
+def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
+                tolerancia: float) -> dict:
+    """Plan para ``tools/ajuste_cabecera_pf.py`` (spec 006, RF-1 a RF-3, RF-10).
+
+    ``maximas`` es el resultado del trabajo de la máxima de cabecera que el operador ve
+    en su tabla: el objetivo es ese mismo valor (RF-1), sin volver a abrir los libros de
+    cabecera, que pesan cientos de MB.
+    """
+    import time as _time
+
+    from ..ajuste_cabecera import AjusteError, objetivo_de
+
+    if not project.strip():
+        raise UserError('Elija el proyecto de DIgSILENT.')
+    filas = [m for m in maximas if m.get('medidor')]
+    if not filas:
+        raise UserError('Busque antes la máxima de cabecera.')
+    if medidor.strip():
+        filas = [m for m in filas if m['medidor'] == medidor.strip()]
+        if not filas:
+            raise UserError(f'{medidor} no está entre los medidores de la máxima buscada.')
+    elif len(filas) > 1:
+        raise UserError('La máxima tiene ' + ', '.join(m['medidor'] for m in filas)
+                        + ': elija el medidor de la cabecera.')
+    try:
+        objetivo = objetivo_de(filas[0])
+    except AjusteError as exc:
+        raise UserError(str(exc)) from exc
+    alimentador = objetivo.alimentador.strip()
+    if not alimentador:
+        raise UserError(f'{objetivo.medidor}: la máxima no dice de qué alimentador es.')
+    avisos = []
+    clientes: list[dict] = []
+    if ws.demanda.get('suministros') and ws.demanda.get('clientes'):
+        clientes = demanda_clientes(ws, [alimentador])['cruzados']
+    else:
+        avisos.append('Sin libros de suministros y de clientes: todas las SED se reparten por kVA.')
+    kva_entrada, aviso = _kva_de_la_entrada(ws, alimentador)
+    if aviso:
+        avisos.append(aviso)
+    stamp = _time.strftime('%Y%m%d_%H%M%S')
+    plan = {
+        'schema': 'igea-dgs-ajuste-cabecera-v1', 'project': project.strip(),
+        'folder': carpeta_pf(), 'feeder': alimentador, 'stamp': stamp,
+        'variacion': f'Ajuste_{alimentador}_{stamp}',
+        'objetivo': {'kw': objetivo.kw, 'kvar': objetivo.kvar, 'medidor': objetivo.medidor,
+                     'alimentador': alimentador, 'fecha': objetivo.fecha},
+        'clientes': clientes, 'kva_entrada': kva_entrada, 'tolerancia': tolerancia,
+    }
+    token = uuid.uuid4().hex[:12]
+    ws.plans_dir.mkdir(parents=True, exist_ok=True)
+    path = ws.plans_dir / f'ajuste_cabecera_{token}.json'
+    path.write_text(json.dumps(plan, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+    with ws.lock:
+        ws.cargas_planes[token] = {'path': str(path), 'project': plan['project'],
+                                   'feeders': [alimentador], 'applicable': True,
+                                   'kind': 'ajuste_cabecera'}
+    return {'token': token, 'project': plan['project'], 'feeder': alimentador,
+            'objetivo': plan['objetivo'], 'tolerancia': tolerancia,
+            'n_clientes': len(clientes), 'n_kva_entrada': len(kva_entrada), 'avisos': avisos}
+
+
+def ajuste_ejecutar(ws: Workspace, ctx: JobContext, token: str, *, simular: bool) -> dict:
+    """Simula o aplica el ajuste con ``tools/ajuste_cabecera_pf.py`` (RF-19 a RF-22).
+
+    Como las cargas: cancelar no mata el guion, se le avisa con un fichero y termina el
+    flujo en curso, dejando la variación con el último reparto que convergió (RF-22).
+    """
+    plan = ws.cargas_planes.get(token)
+    if plan is None or plan.get('kind') != 'ajuste_cabecera' or not Path(plan['path']).is_file():
+        raise UserError('El plan del ajuste ya no existe: vuelva a prepararlo.')
+    pf_dir, interpreter = _require_pf()
+    modo = 'simulacion' if simular else 'aplicacion'
+    report = ws.out_dir / f'ajuste_cabecera_{modo}_{token}.json'
+    report.parent.mkdir(parents=True, exist_ok=True)
+    report.unlink(missing_ok=True)
+    flag = ws.plans_dir / f'cancelar_{token}.flag'
+    flag.unlink(missing_ok=True)
+    ctx.log(f"Proyecto de DIgSILENT: {plan['project']}  ·  alimentador {plan['feeders'][0]}")
+    cmd = [str(interpreter), str(_script('ajuste_cabecera_pf.py')), '--plan', plan['path'],
+           '--output-json', str(report), '--cancel-file', str(flag)]
+    if simular:
+        cmd.append('--simular')
+    rc = ctx.run_process(cmd, env=pf_subprocess_env(pf_dir), cwd=str(project_root()),
+                         cancel_file=flag)
+    flag.unlink(missing_ok=True)
+    if rc == 3:
+        raise UserError('No se pudo conectar con DIgSILENT. Ábralo y reintente.')
+    try:
+        informe = json.loads(report.read_text(encoding='utf-8')) if report.is_file() else {}
+    except (OSError, ValueError):
+        informe = {}
+    if not informe:
+        raise UserError(f'El guion terminó con el código {rc} sin dejar informe: vea el Registro.')
+    if informe.get('error'):
+        raise UserError(informe['error'])
+    if not simular and not informe.get('cuadrado'):
+        ctx.log(f"No cumple la tolerancia: {informe.get('motivo')}. Vea el diagnóstico.")
+    return {'returncode': rc, 'modo': informe.get('modo'), 'report': report.name,
+            'project': plan['project'], 'informe': informe}
 
 
 # ---------------------------------------------------------------------------

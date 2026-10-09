@@ -240,6 +240,18 @@ def partir_medidores(celda: str) -> list[str]:
     return [m.strip() for m in re.split(r'\s+(?:y|e)\s+|\s*[,;/+]\s*', celda, flags=re.I) if m.strip()]
 
 
+def alimentadores_de(medidores: Sequence[Medidor]) -> list[str]:
+    """Alimentadores del libro, sin repetir y ordenados, para elegir de una lista (RF-42).
+
+    El libro real repite el código con otra grafía («PA217» y «pa 217»): se queda la
+    primera que aparece.
+    """
+    vistos: dict[str, str] = {}
+    for m in medidores:
+        vistos.setdefault(clave_codigo(m.alimentador), m.alimentador)
+    return sorted(vistos.values(), key=clave_codigo)
+
+
 def medidores_de(medidores: Sequence[Medidor], alimentador: str) -> list[str]:
     """Cada medidor que el libro asigna al alimentador, sin repetir y en su orden (RF-22)."""
     clave = clave_codigo(alimentador)
@@ -622,6 +634,23 @@ def cruzar(clientes: Sequence[ClienteImportante], suministros: Sequence[Suminist
         else:
             cruzados.append(c)
     return cruzados, aparte
+
+
+def del_alimentador(cruzados: Sequence[ClienteImportante], aparte: Sequence[ClienteImportante],
+                    alimentadores: Iterable[str],
+                    ) -> tuple[list[ClienteImportante], list[ClienteImportante], int]:
+    """Solo los clientes cuyo suministro cuelga de esos alimentadores, por su radial (RF-43).
+
+    El operador cruza los clientes para repartir la máxima de un alimentador: los 257
+    cruzados de toda la empresa le sobran. De los no cruzados quedan los que cruzan sin
+    SED pero con ese radial, y los que no están en el libro de suministros, porque de
+    esos no se sabe el alimentador y podrían ser suyos. Devuelve también cuántos
+    cruzados quedaron fuera por ser de otro alimentador.
+    """
+    claves = {clave_codigo(a) for a in alimentadores if str(a).strip()}
+    suyo = [c for c in cruzados if clave_codigo(c.radial) in claves]
+    otros = [c for c in aparte if not c.cruzado_por or clave_codigo(c.radial) in claves]
+    return suyo, otros, len(cruzados) - len(suyo)
 
 
 # =========================================================================== salida

@@ -260,7 +260,7 @@ export function CargasTab() {
       {resultado && <Informe resultado={resultado} cancelado={lastRun?.status === 'cancelled'} />}
 
       {/* Spec 004, RF-40: la demanda medida va en esta misma pestaña. */}
-      <DemandaMedida />
+      <DemandaMedida project={project} />
 
       {form && (
         <Modal title="Una carga nueva" onClose={() => setForm(false)} actions={<>

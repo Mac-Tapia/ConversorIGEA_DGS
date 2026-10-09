@@ -112,6 +112,22 @@ class DemandaMedidoresIn(BaseModel):
     medidores: list[DemandaMedidorIn] = Field(default_factory=list)
 
 
+class DemandaClientesIn(BaseModel):
+    """Alimentadores de la máxima buscada: el cruce se queda con sus clientes (RF-43)."""
+
+    alimentadores: list[str] = Field(default_factory=list)
+
+
+class AjusteIn(BaseModel):
+    """Ajuste a la máxima de cabecera (spec 006): el trabajo de la máxima que se ve."""
+
+    project: str
+    job_id: str
+    medidor: str = ''
+    # 1 % por defecto; entre 0,1 % y 10 % (requisitos no funcionales de la spec 006).
+    tolerancia: float = Field(0.01, ge=0.001, le=0.10)
+
+
 class DemandaExcelIn(BaseModel):
     """Lo que el operador ve en pantalla: el Excel no se arma con estado guardado (RF-38)."""
 
@@ -807,6 +823,10 @@ def create_app(
     def demanda_medidores(wid: str, alimentador: str = Query(...)) -> dict:
         return services.demanda_medidores(ws_or_404(wid), alimentador)
 
+    @app.get('/api/workspaces/{wid}/demanda/alimentadores')
+    def demanda_alimentadores(wid: str) -> dict:
+        return services.demanda_alimentadores(ws_or_404(wid))
+
     @app.post('/api/workspaces/{wid}/demanda/cabecera/buscar', status_code=202)
     def demanda_cabecera(wid: str, body: DemandaMedidoresIn) -> dict:
         ws = ws_or_404(wid)
@@ -817,8 +837,39 @@ def create_app(
                       lambda ctx: services.demanda_cabecera(ws, ctx, pares))
 
     @app.post('/api/workspaces/{wid}/demanda/clientes/cruzar')
-    def demanda_clientes(wid: str) -> dict:
-        return services.demanda_clientes(ws_or_404(wid))
+    def demanda_clientes(wid: str, body: DemandaClientesIn | None = None) -> dict:
+        return services.demanda_clientes(ws_or_404(wid), body.alimentadores if body else None)
+
+    # Spec 006: ajuste de las demandas del alimentador a la máxima de cabecera.
+    @app.post('/api/workspaces/{wid}/demanda/ajuste/plan')
+    def ajuste_plan(wid: str, body: AjusteIn) -> dict:
+        ws = ws_or_404(wid)
+        job = jobs.get(body.job_id)
+        if job is None or job.workspace_id != wid or job.kind != 'demanda_cabecera':
+            raise HTTPException(404, 'No se encuentra la máxima buscada: vuelva a buscarla.')
+        if not isinstance(job.result, dict):
+            raise HTTPException(409, 'La máxima de cabecera todavía no ha terminado.')
+        return services.ajuste_plan(ws, body.project, job.result.get('resultados') or [],
+                                    body.medidor, body.tolerancia)
+
+    def _ajuste_job(wid: str, token: str, simular: bool) -> dict:
+        ws = ws_or_404(wid)
+        plan = ws.cargas_planes.get(token)
+        if plan is None or plan.get('kind') != 'ajuste_cabecera':
+            raise HTTPException(404, 'El plan del ajuste ya no existe: vuelva a prepararlo.')
+        verbo = 'Simular' if simular else 'Ajustar'
+        return submit(ws, 'ajuste_simular' if simular else 'ajuste_aplicar',
+                      f"{verbo} {plan['feeders'][0]} a la máxima · {plan['project']}",
+                      lambda ctx: services.ajuste_ejecutar(ws, ctx, token, simular=simular),
+                      lane='powerfactory')
+
+    @app.post('/api/workspaces/{wid}/demanda/ajuste/{token}/simular', status_code=202)
+    def ajuste_simular(wid: str, token: str) -> dict:
+        return _ajuste_job(wid, token, True)
+
+    @app.post('/api/workspaces/{wid}/demanda/ajuste/{token}/aplicar', status_code=202)
+    def ajuste_aplicar(wid: str, token: str) -> dict:
+        return _ajuste_job(wid, token, False)
 
     @app.post('/api/workspaces/{wid}/demanda/excel')
     def demanda_excel(wid: str, body: DemandaExcelIn) -> FileResponse:

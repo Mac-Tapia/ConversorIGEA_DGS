@@ -474,8 +474,71 @@ export interface ClienteImportante {
 }
 
 export interface ClientesCruce {
+  alimentadores: string[];
   cruzados: ClienteImportante[];
   no_cruzados: ClienteImportante[];
   avisos: string[];
-  totales: { clientes: number; cruzados: number; no_cruzados: number; por_actual: number; por_anterior: number };
+  totales: { clientes: number; cruzados: number; no_cruzados: number; por_actual: number; por_anterior: number; de_otros: number };
+}
+
+/** Spec 006: plan del ajuste a la máxima de cabecera. */
+export interface AjustePlan {
+  token: string;
+  project: string;
+  feeder: string;
+  objetivo: { kw: number; kvar: number; medidor: string; alimentador: string; fecha: string | null };
+  tolerancia: number;
+  n_clientes: number;
+  n_kva_entrada: number;
+  avisos: string[];
+}
+
+export interface AjusteSed {
+  sed: string;
+  origen: 'cliente' | 'kva';
+  kva: number | null;
+  kva_de: 'pf' | 'entrada' | null;
+  clientes: string[];
+  antes: { kw: number; kvar: number };
+  despues: { kw: number; kvar: number };
+}
+
+export interface AjusteInforme {
+  project: string;
+  feeder: string;
+  modo: 'simular' | 'aplicar';
+  variacion?: string;
+  objetivo?: { kw: number; kvar: number; medidor: string; fecha: string | null };
+  tolerancia?: number;
+  cuadrado?: boolean;
+  motivo?: string | null;
+  cancelado?: boolean;
+  flujos?: number;
+  cabecera?: { kw: number; kvar: number } | null;
+  perdidas?: { kw: number | null; kvar: number | null };
+  error?: { kw: number | null; kvar: number | null };
+  solo_kw?: boolean;
+  todo_escala?: boolean;
+  totales_sin_perdidas?: { kw: number; kvar: number };
+  remedios?: { remedio: string; cambios: string[] }[];
+  diagnostico?: {
+    barras_sin_tension: string[];
+    n_barras_sin_tension: number;
+    sobrecargados: { elemento: string; clase: string; carga_pct: number }[];
+    tension_minima?: { barra: string; u_pu: number };
+    sed_por_encima_de_su_transformador?: { sed: string; kva: number; carga_kva: number }[];
+  };
+  avisos: string[];
+  omitidas?: { sed: string; motivo: string; clientes?: string }[];
+  ambiguas?: { sed: string; motivo: string }[];
+  fallos?: { sed: string; error: string }[];
+  sed?: AjusteSed[];
+}
+
+export interface AjusteResultado {
+  returncode: number;
+  modo: string;
+  report: string;
+  project: string;
+  informe: AjusteInforme;
 }
