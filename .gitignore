@@ -74,3 +74,6 @@ referencia/audit_ternas_*.json
 # tools/build_input_catalog.py, así que no se versiona.
 input/*.xlsx
 input/*.csv
+
+# Perfil de empresa local (spec 005): convenciones de una distribuidora, fuera del repositorio.
+config/perfil_empresa.json
