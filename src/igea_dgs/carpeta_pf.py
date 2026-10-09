@@ -75,3 +75,89 @@ def nombre_de_perfil(ruta: Path | None = None) -> str:
         return validar_nombre(nombre)
     except CarpetaError as exc:
         raise CarpetaError(f'{exc} (perfil {ruta.name}, clave {CLAVE_PERFIL!r})') from exc
+
+
+# --------------------------------------------------------------------------- árbol
+# Las funciones siguientes reciben objetos de la API de PowerFactory (o el doble de
+# tests/fake_pf.py) y solo usan GetContents, GetClassName, CreateObject y loc_name.
+
+#: Separador de la ruta de un proyecto dentro de la carpeta. «/» no es un carácter
+#: admitido en un nombre de DIgSILENT, así que no se confunde con uno.
+SEPARADOR = '/'
+
+
+def _hijos(objeto, clase: str) -> list:
+    return [h for h in (objeto.GetContents() or []) if h.GetClassName() == clase]
+
+
+def buscar_carpeta(usuario, nombre: str):
+    """La ``IntFolder`` de la raíz del usuario con ese nombre, o None.
+
+    Solo la raíz y solo carpetas: un proyecto que se llame igual, o una subcarpeta con
+    ese nombre en otro sitio, no es la carpeta de importación.
+    """
+    for carpeta in _hijos(usuario, 'IntFolder'):
+        if carpeta.loc_name == nombre:
+            return carpeta
+    return None
+
+
+def asegurar_carpeta(usuario, nombre: str):
+    """La carpeta de importación, creada en la raíz del usuario si aún no existe (RF-5)."""
+    carpeta = buscar_carpeta(usuario, nombre)
+    if carpeta is None:
+        carpeta = usuario.CreateObject('IntFolder', nombre)
+    if carpeta is None:
+        raise CarpetaError(
+            f'DIgSILENT no dejó crear la carpeta {nombre!r} en la raíz del usuario.')
+    return carpeta
+
+
+def nombre_libre(carpeta, nombre: str) -> str:
+    """``nombre`` o el primero libre de ``nombre_2``, ``nombre_3``… en la carpeta (RF-7).
+
+    Se compara sin distinguir mayúsculas, porque DIgSILENT tampoco las distingue al
+    buscar un objeto por nombre. Solo cuentan los proyectos de la propia carpeta: los
+    de la raíz, importados antes de la spec 005, se quedan donde están (RF-20).
+    """
+    ocupados = {p.loc_name.lower() for p in _hijos(carpeta, 'IntPrj')}
+    if nombre.lower() not in ocupados:
+        return nombre
+    n = 2
+    while True:
+        sufijo = f'_{n}'
+        candidato = nombre[:LARGO_MAXIMO - len(sufijo)] + sufijo
+        if candidato.lower() not in ocupados:
+            return candidato
+        n += 1
+
+
+def proyectos_de(carpeta) -> list[tuple[str, object]]:
+    """``[(ruta relativa, IntPrj)]`` de la carpeta y sus subcarpetas, por ruta.
+
+    Solo baja por ``IntFolder``: de un proyecto lee el nombre y nada más, para no abrir
+    su contenido (RF-13), que es lo que hacía tardar minutos la lectura.
+    """
+    hallados: list[tuple[str, object]] = []
+
+    def bajar(actual, prefijo: list[str]) -> None:
+        for hijo in actual.GetContents() or []:
+            clase = hijo.GetClassName()
+            if clase == 'IntPrj':
+                hallados.append((SEPARADOR.join([*prefijo, hijo.loc_name]), hijo))
+            elif clase == 'IntFolder':
+                bajar(hijo, [*prefijo, hijo.loc_name])
+
+    bajar(carpeta, [])
+    return sorted(hallados, key=lambda par: par[0].lower())
+
+
+def proyecto_por_ruta(carpeta, ruta: str):
+    """El proyecto de esa ruta relativa a la carpeta, o None (RF-16)."""
+    *subcarpetas, nombre = ruta.split(SEPARADOR)
+    actual = carpeta
+    for parte in subcarpetas:
+        actual = next((c for c in _hijos(actual, 'IntFolder') if c.loc_name == parte), None)
+        if actual is None:
+            return None
+    return next((p for p in _hijos(actual, 'IntPrj') if p.loc_name == nombre), None)
