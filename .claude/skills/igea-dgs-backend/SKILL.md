@@ -138,7 +138,7 @@ def algo_by_feeder(self) -> dict[str, tuple[...]]:
 
 - Python **3.12 exacto** (`powerfactory.pyd` de PF 2024 solo carga en 3.12)
 - Extras: `[geo]`, `[xlsx]`, `[access]`, `[validate]`, `[preview]`, `[web]`, `[all]`, `[dev]`
-- Scripts: `igea-dgs`, `igea-dgs-web` (`vnr-etl-web` lo retira T11 de la spec 001)
+- Scripts: `igea-dgs`, `igea-dgs-web`, `vnr-etl`. Las rutas de VNR (`/api/vnr/…`) van en la API única; `vnr-etl-web` se retiró (spec 001, RF-11)
 
 ## Referencias
 

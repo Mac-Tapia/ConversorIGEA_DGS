@@ -91,8 +91,17 @@ Spec aprobada el 2026-10-08.
       un alimentador no está listo o si falta un CRS de trabajo proyectado; el escritor
       anterior escribía líneas sin tipo. Por eso el modelo «listo para producción» de
       las pruebas lleva ahora alimentador y conductor.
-- [ ] T11. Una sola API web y una sola cola; se retira el script `vnr-etl-web`. (RF-11)
+- [x] T11. Una sola API web y una sola cola; se retira el script `vnr-etl-web`. (RF-11)
       Hecho cuando: las pruebas de `vnr_etl.web` pasan contra la app principal.
+      Hecho el 2026-10-08. `vnr_etl/web/app.py` es ahora `create_router`, un `APIRouter`
+      bajo `/api/vnr` que `create_app` monta; sus trabajos (`export`, `download`) van al
+      `JobManager` común, carril `engine`, con los estados de siempre (`done`, no
+      `SUCCEEDED`). No se repite lo que la API ya tenía: `/api/health`, `/api/jobs/{id}`
+      y `/api/vnr/publications` (que con `?refresh=true` sustituye a
+      `/api/discovery/refresh`). Se retiran `vnr_etl/web/__main__.py`, el script y el
+      token `VNR_WEB_TOKEN`: la API única tiene un solo modelo de acceso (T11b), y las
+      rutas de VNR solo leen ficheros subidos o URL oficiales HTTPS. `vnr-etl web` abre
+      la web única. Una prueba exige que ninguna ruta esté dos veces.
 - [ ] T11b. `create_app` decide las rutas locales según la interfaz de escucha, por
       defecto en cerrado. (RF-15)
       Hecho cuando: prueba de API con host de red → 403 en `/inputs/{slot}/path`, aunque

@@ -49,7 +49,6 @@ dev = ["pytest>=8.0", "pyproj>=3.6", "httpx2>=2.0"]
 igea-dgs = "igea_dgs.cli:main"
 igea-dgs-web = "igea_dgs.web.__main__:main"
 vnr-etl = "vnr_etl.cli:main"
-vnr-etl-web = "vnr_etl.web.__main__:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -61,9 +61,10 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument('--project', default='.')
     p.add_argument('--output')
 
-    p = sub.add_parser('web', help='Inicia la interfaz web del módulo')
+    p = sub.add_parser('web', help='Inicia la interfaz web (la de igea-dgs-web, con las rutas de VNR)')
     p.add_argument('--host', default='127.0.0.1')
-    p.add_argument('--port', type=int, default=8776)
+    p.add_argument('--port', type=int, default=8765)
+    p.add_argument('--no-browser', action='store_true')
 
     p = sub.add_parser('convert', help='Convierte una fuente a modelo canónico (+export)')
     p.add_argument('source')
@@ -146,8 +147,11 @@ def main(argv=None) -> int:
         print(f'vnr_etl {__version__}')
         return 0
     if args.command == 'web':
-        from .web.__main__ import main as web_main
-        return web_main(['--host', args.host, '--port', str(args.port)])
+        # Una sola API web (spec 001, RF-11): las rutas de VNR van en igea-dgs-web.
+        from igea_dgs.web.__main__ import main as web_main
+
+        argv = ['--host', args.host, '--port', str(args.port)]
+        return web_main(argv + (['--no-browser'] if args.no_browser else []))
 
     if args.command == 'inspect-sql':
         from .connectors.databases import inspect_sql_dump

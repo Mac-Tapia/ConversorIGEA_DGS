@@ -1,36 +1,38 @@
-"""API HTTP del módulo `vnr_etl` (sección E20 de VNR-GIS.md).
+"""Rutas HTTP del módulo `vnr_etl` (sección E20 de VNR-GIS.md), dentro de la API principal.
+
+Eran una segunda aplicación FastAPI, con su propia cola de trabajos y su propio
+lanzador (`vnr-etl-web`): dos API y dos colas que vigilar, y dos sitios donde corregir
+lo mismo (spec 001, RF-11). Ahora son un ``APIRouter`` bajo ``/api/vnr`` que
+:func:`igea_dgs.web.app.create_app` monta, y sus trabajos van al ``JobManager`` común.
+Lo que la API principal ya ofrece (salud, catálogo oficial con ``refresh``, estado de
+un trabajo) no se repite aquí.
 
 El trabajo lo hacen las funciones de :mod:`vnr_etl.pipeline`; estas rutas solo
-validan y despachan. Para no replicar el patrón de colas del proyecto anfitrión
-aquí se usa una cola mínima de trabajos en segundo plano, de modo que una
-descarga o un export no quedan dentro de la petición HTTP.
+validan y despachan.
 """
 
 from __future__ import annotations
 
 import hashlib
 import os
-import queue
-import secrets
 import shutil
-import threading
 import uuid
-from collections.abc import Callable
-from contextlib import asynccontextmanager
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Any
 from urllib.parse import urlparse
 
-from fastapi import FastAPI, File, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
-from .. import __version__
 from ..application import VnrApplicationService
 from ..config import Settings
 from ..discovery import PublicationCatalog
 from ..doctor import doctor
+
+# Los trabajos de VNR no son de ningún espacio de trabajo; el JobManager los guarda
+# bajo este identificador, que no corresponde a ninguno (sus eventos no se publican).
+VNR_JOBS = '_vnr'
 
 
 class SourceIn(BaseModel):
@@ -60,76 +62,22 @@ class ReconcileIn(BaseModel):
     attribute_keys: list[str] = Field(default_factory=list)
 
 
-class _Jobs:
-    """Cola mínima de trabajos en segundo plano (estado + resultado)."""
+def create_router(root: Path | str, jobs: Any, settings: Settings | None = None) -> APIRouter:
+    """Rutas de VNR bajo ``/api/vnr``. ``jobs`` es el ``JobManager`` de la API principal."""
+    from igea_dgs.web.jobs import DONE
 
-    def __init__(self) -> None:
-        self._jobs: dict[str, dict] = {}
-        self._workers: dict[str, threading.Thread] = {}
-        self._queues: dict[str, queue.Queue] = {}
-
-    def submit(self, kind: str, fn: Callable[[], Any]) -> dict:
-        job_id = uuid.uuid4().hex[:12]
-        lane = kind
-        now = datetime.now(UTC).isoformat()
-        self._jobs[job_id] = {
-            'id': job_id, 'kind': kind, 'status': 'QUEUED', 'progress': 0,
-            'result': None, 'error': None, 'created_at': now, 'updated_at': now,
-        }
-        self._queues.setdefault(lane, queue.Queue()).put((job_id, fn))
-        self._ensure_worker(lane)
-        return self._jobs[job_id]
-
-    def get(self, job_id: str) -> dict | None:
-        return self._jobs.get(job_id)
-
-    def _ensure_worker(self, lane: str) -> None:
-        thread = self._workers.get(lane)
-        if thread is None or not thread.is_alive():
-            thread = threading.Thread(target=self._worker, args=(lane,), daemon=True, name=f'vnr-{lane}')
-            self._workers[lane] = thread
-            thread.start()
-
-    def _worker(self, lane: str) -> None:
-        q = self._queues[lane]
-        while True:
-            item = q.get()
-            if item is None:
-                return
-            job_id, fn = item
-            job = self._jobs[job_id]
-            job['status'] = 'RUNNING'
-            job['progress'] = 10
-            job['updated_at'] = datetime.now(UTC).isoformat()
-            try:
-                job['result'] = fn()
-                job['status'] = 'SUCCEEDED'
-                job['progress'] = 100
-            except Exception as exc:  # noqa: BLE001 - el trabajo informa
-                job['error'] = str(exc) or exc.__class__.__name__
-                job['status'] = 'FAILED'
-                job['progress'] = 100
-            job['updated_at'] = datetime.now(UTC).isoformat()
-
-    def shutdown(self) -> None:
-        for lane in list(self._queues):
-            self._queues[lane].put(None)
-
-
-def create_app(
-    data_root: Path | str = 'data/vnr_catalog',
-    output_root: Path | str = 'output/vnr',
-    settings: Settings | None = None,
-    auth_token: str | None = None,
-) -> FastAPI:
-    jobs = _Jobs()
     resolved_settings = settings or Settings()
-    catalog_root = Path(data_root).resolve()
-    artifacts_root = Path(output_root).resolve()
-    uploads_root = (catalog_root.parent / 'uploads').resolve()
+    root = Path(root).resolve()
+    catalog_root = root / '_vnr_catalog'
+    artifacts_root = root / '_vnr_output'
+    uploads_root = root / '_vnr_uploads'
     uploads_root.mkdir(parents=True, exist_ok=True)
     uploaded_sources: dict[str, Path] = {}
     service = VnrApplicationService(resolved_settings)
+    router = APIRouter(prefix='/api/vnr')
+
+    def submit(kind: str, title: str, fn) -> dict:
+        return jobs.submit(VNR_JOBS, kind, title, lambda _ctx: fn(), lane='engine').public()
 
     def source_for(body: SourceIn | DatabaseIn) -> str:
         source_id = getattr(body, 'source_id', '')
@@ -149,30 +97,7 @@ def create_app(
             return source
         raise HTTPException(400, 'use source_id de una carga controlada o una URL oficial HTTPS.')
 
-    @asynccontextmanager
-    async def lifespan(_app: FastAPI):
-        yield
-        jobs.shutdown()
-
-    app = FastAPI(title='vnr_etl — VNRGIS/CYMDIST/DGS', version=__version__, lifespan=lifespan)
-
-    @app.middleware('http')
-    async def authentication(request: Request, call_next):
-        if auth_token and request.url.path != '/api/health':
-            supplied = request.headers.get('X-Session-Token', '')
-            if not secrets.compare_digest(supplied, auth_token):
-                return JSONResponse(status_code=401, content={'detail': 'token de sesión inválido.'})
-        return await call_next(request)
-
-    @app.exception_handler(HTTPException)
-    async def _http(_req, exc: HTTPException):
-        return JSONResponse(status_code=exc.status_code, content={'detail': exc.detail})
-
-    @app.get('/api/health')
-    def health() -> dict:
-        return {'version': __version__, 'modules': {'igea_dgs': True, 'vnr_etl': True}}
-
-    @app.get('/api/doctor')
+    @router.get('/doctor')
     def api_doctor() -> dict:
         d = doctor()
         return {
@@ -182,27 +107,12 @@ def create_app(
             'web_ui': d.web_ui,
         }
 
-    @app.get('/api/vnr/companies')
+    @router.get('/companies')
     def companies() -> dict:
         catalog = PublicationCatalog.load(catalog_root)
         return {'companies': [c.as_dict() for c in catalog.companies()]}
 
-    @app.get('/api/vnr/publications')
-    def publications(company: str | None = None) -> dict:
-        catalog = PublicationCatalog.load(catalog_root)
-        pubs = catalog.publications(company=company)
-        return {'publications': [p.as_dict() for p in pubs]}
-
-    @app.post('/api/discovery/refresh')
-    def refresh() -> dict:
-        def run() -> dict:
-            from ..discovery import refresh_official_catalog
-
-            _catalog, report = refresh_official_catalog(catalog_root)
-            return report
-        return jobs.submit('discovery', run)
-
-    @app.post('/api/vnr/download')
+    @router.post('/download', status_code=202)
     def download_publication(body: PublicationIn) -> dict:
         publication = PublicationCatalog.load(catalog_root).get(body.publication_id)
         if publication is None or not publication.download_url:
@@ -228,9 +138,9 @@ def create_app(
             uploaded_sources[source_id] = destination.resolve()
             return {'source_id': source_id, 'manifest': manifest.as_dict()}
 
-        return jobs.submit('download', run)
+        return submit('download', f'Descargar {publication.publication_id}', run)
 
-    @app.post('/api/sources/upload')
+    @router.post('/sources/upload')
     async def upload_source(file: Annotated[UploadFile, File()]) -> dict:
         from ..connectors.databases import inspect_sql_dump
         from ..discovery.download import DownloadError, inventory_zip, safe_extract_zip
@@ -313,7 +223,7 @@ def create_app(
         finally:
             await file.close()
 
-    @app.post('/api/schema/resolve')
+    @router.post('/schema/resolve')
     def schema_resolve(body: SourceIn) -> dict:
         from ..discovery.schema import SchemaResolver
 
@@ -321,7 +231,7 @@ def create_app(
         result = resolver.resolve_fields(body.fields, layer=body.layer)
         return {'mapping': {k: v.as_dict() for k, v in result.items()}}
 
-    @app.post('/api/sources/inspect')
+    @router.post('/sources/inspect')
     def sources_inspect(body: SourceIn) -> dict:
         from ..pipeline import discover_layers, probe_source
 
@@ -333,7 +243,7 @@ def create_app(
             raise HTTPException(400, str(exc))
         return {'probe': probe, 'layers': layers}
 
-    @app.post('/api/topology/build')
+    @router.post('/topology/build')
     def topology_build(body: SourceIn) -> dict:
         from ..pipeline import canonicalize_sections, discover_layers, read_layer
 
@@ -356,7 +266,7 @@ def create_app(
         )
         return {'counts': result.model.counts(), 'warnings': result.warnings}
 
-    @app.post('/api/database/test')
+    @router.post('/database/test')
     def database_test(body: DatabaseIn) -> dict:
         from ..connectors.databases import SQLiteAdapter
 
@@ -367,7 +277,7 @@ def create_app(
         return {'ok': True, 'engine': 'sqlite', 'read_only': True,
                 'tables': len(adapter.list_layers())}
 
-    @app.post('/api/database/discover')
+    @router.post('/database/discover')
     def database_discover(body: DatabaseIn) -> dict:
         from ..connectors.databases import SQLiteAdapter
 
@@ -378,7 +288,7 @@ def create_app(
         return {'engine': 'sqlite', 'read_only': True,
                 'layers': [item.as_dict() for item in adapter.list_layers()]}
 
-    @app.post('/api/validate')
+    @router.post('/validate')
     def validate(body: ValidateIn) -> dict:
         from ..models import CanonicalModel
 
@@ -388,7 +298,7 @@ def create_app(
             raise HTTPException(400, f'modelo canónico inválido: {exc}') from exc
         return service.assess(model, 'dgs').as_dict()
 
-    @app.post('/api/reconcile')
+    @router.post('/reconcile')
     def reconcile(body: ReconcileIn) -> dict:
         from ..reconciliation.diff import diff_records
 
@@ -400,7 +310,7 @@ def create_app(
         )
         return {'summary': result.summary(), 'classified': result.as_dict()}
 
-    @app.post('/api/export/{target}')
+    @router.post('/export/{target}', status_code=202)
     def export(target: str, body: ValidateIn) -> dict:
         from ..models import CanonicalModel
         if target not in ('cymdist', 'dgs'):
@@ -414,21 +324,14 @@ def create_app(
             result = service.export(model, target, artifacts_root)
             return result.as_dict()
 
-        return jobs.submit(target, run)
+        return submit(f'vnr_export_{target}', f'Exportar a {target.upper()}', run)
 
-    @app.get('/api/jobs/{job_id}')
-    def get_job(job_id: str) -> dict:
-        job = jobs.get(job_id)
-        if job is None:
-            raise HTTPException(404, 'trabajo no encontrado.')
-        return job
-
-    @app.get('/api/artifacts/{job_id}/{index}')
+    @router.get('/artifacts/{job_id}/{index}')
     def get_artifact(job_id: str, index: int):
         job = jobs.get(job_id)
-        if job is None or job.get('status') != 'SUCCEEDED':
+        if job is None or job.workspace_id != VNR_JOBS or job.status != DONE:
             raise HTTPException(404, 'trabajo o artefacto no disponible.')
-        paths = (job.get('result') or {}).get('paths') or []
+        paths = (job.result or {}).get('paths') or []
         if index < 0 or index >= len(paths):
             raise HTTPException(404, 'artefacto no encontrado.')
         path = Path(paths[index]).resolve()
@@ -438,4 +341,4 @@ def create_app(
             raise HTTPException(404, 'artefacto no encontrado.')
         return FileResponse(path, filename=path.name)
 
-    return app
+    return router
