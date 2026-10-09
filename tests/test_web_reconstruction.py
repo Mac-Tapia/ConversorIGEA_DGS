@@ -213,7 +213,7 @@ def test_cancelar_la_reconstruccion_conserva_el_dataset_anterior(tmp_path, monke
     """001:RF-9 — cancelar a mitad deja activa la reconstrucción anterior y su informe."""
     import threading
 
-    from igea_dgs.web import reconstruction_service
+    from igea_dgs import reconstruction_pipeline
     from igea_dgs.web.jobs import CANCELLED, JobManager
     from igea_dgs.web.reconstruction_service import reconstruct_selection
 
@@ -224,14 +224,14 @@ def test_cancelar_la_reconstruccion_conserva_el_dataset_anterior(tmp_path, monke
     informe = (ws.out_dir / 'reconstruction_report.json').read_bytes()
 
     en_marcha, seguir = threading.Event(), threading.Event()
-    original = reconstruction_service.repair_discontinuities
+    original = reconstruction_pipeline.repair_discontinuities
 
     def lento(*args, **kwargs):
         en_marcha.set()
         seguir.wait(10)
         return original(*args, **kwargs)
 
-    monkeypatch.setattr(reconstruction_service, 'repair_discontinuities', lento)
+    monkeypatch.setattr(reconstruction_pipeline, 'repair_discontinuities', lento)
     jobs = JobManager(lambda *_args: None)
     job = jobs.submit(ws.id, 'reconstruct', 'Reconstruir', lambda ctx: reconstruct_selection(
         ws, ['F-A', 'F-B'], all_feeders=False, ctx=ctx))

@@ -173,8 +173,21 @@ def resolve_dataset_equipment(
     source_catalog = _catalog_from_dataset(dataset)
     all_catalogs = (source_catalog, *external) if source_catalog.rows else external
     resolved: dict[str, ResolvedParameters] = {}
+    # Un código cuya fila trae todos los parámetros está resuelto. Uno cuya fila llega a
+    # medias (un paquete VNR-GIS con R1 y X1 pero sin R0 ni Amps) no: antes se daba por
+    # resuelto por existir la fila y el motor lo rechazaba después (spec 001, RF-19).
     existing = {
-        table: {(row.get('ID') or '').strip() for row in rows}
+        table: {
+            (row.get('ID') or '').strip() for row in rows
+            if _parameters_complete(_parameters(row))
+        }
+        for table, rows in dataset.equipment_tables.items()
+    }
+    partial = {
+        table: {
+            (row.get('ID') or '').strip(): row for row in rows
+            if (row.get('ID') or '').strip() and not _parameters_complete(_parameters(row))
+        }
         for table, rows in dataset.equipment_tables.items()
     }
     for section_id in sorted(dataset.line_configurations):
@@ -220,12 +233,23 @@ def resolve_dataset_equipment(
         )
         resolution = resolve_equipment(query, all_catalogs, result.policy)
         row = resolution.materialize_row()
+        original_row = partial.get(table, {}).pop(code, None)
+        if original_row is not None:
+            # Lo que la fuente sí trae se conserva; el resolvedor solo rellena lo que falta.
+            kept = _parameters(original_row)
+            row = {**dict(original_row), **row,
+                   **{key: format(value, '.12g') for key, value in kept.items()}}
+            dataset.equipment_tables[table] = tuple(
+                item for item in dataset.equipment_tables.get(table, ())
+                if (item.get('ID') or '').strip() != code
+            )
         dataset.equipment_tables[table] = tuple(dataset.equipment_tables.get(table, ())) + (row,)
         existing.setdefault(table, set()).add(code)
         resolved[code] = resolution
         result.record_change(
             entity_type='equipment', entity_id=code, field='__row__',
-            original_value=None, applied_value=row,
+            original_value=dict(original_row) if original_row is not None else None,
+            applied_value=row,
             level=resolution.level, rule=resolution.rule,
             reason='Missing equipment parameters were materialized under the original asset code.',
             confidence=resolution.confidence,

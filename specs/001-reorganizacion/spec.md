@@ -1,6 +1,6 @@
 # Spec 001 — Reorganización: una responsabilidad, un sitio
 
-Estado: cumplida (2026-10-08; validación en `tasks.md`, T12) · Fecha: 2026-10-07 · Origen: `docs/DIAGNOSTICO_SDD_2026-10-07.md`
+Estado: aprobada; cambio del 2026-10-08 (RF-17 a RF-21) en curso, T13–T17 · Fecha: 2026-10-07 · Origen: `docs/DIAGNOSTICO_SDD_2026-10-07.md`
 
 ## Contexto y objetivo
 
@@ -63,6 +63,19 @@ VNR-GIS
   `igea_dgs` (reglas, validación y publicación atómica).
 - RF-11: EL SISTEMA ofrecerá una única API web y una única cola de trabajos; el script
   `vnr-etl-web` se retira.
+- RF-17: SI al exportar desde VNR-GIS falta un dato de la red (alimentador de un tramo,
+  fuente, tensión, fases, longitud, ubicación de una carga, código de conductor o sus
+  parámetros), ENTONCES EL SISTEMA lo reconstruirá y exportará, en vez de rechazar el export.
+- RF-18: CUANDO reconstruye un parámetro de conductor, EL SISTEMA usará primero el
+  catálogo de parámetros (el del modelo y el del proyecto), después atributos compatibles,
+  después la derivación física y, solo en último lugar, un perfil provisional.
+- RF-19: CUANDO un conductor trae parte de sus parámetros, EL SISTEMA completará los que
+  faltan y conservará los que trae.
+- RF-20: SI el modelo no declara un CRS proyectado, ENTONCES EL SISTEMA reproyectará las
+  coordenadas geográficas a su zona UTM o, si no puede saber en qué están, exportará sin
+  georreferenciación con las longitudes del modelo.
+- RF-21: EL SISTEMA dejará junto al DGS un informe con cada valor reconstruido, su origen
+  (catálogo o supuesto de ingeniería), su confianza y el valor original.
 
 Front
 
@@ -108,6 +121,17 @@ Salida
 - Suite en verde con las tres variables `IGEA_*`.
 - RF-14 comprobado: DGS de referencia regenerados e idénticos a los anteriores.
 - `npx tsc --noEmit -p frontend` y `npm run build` correctos.
+
+## Cambio del 2026-10-08: el export VNR reconstruye en vez de bloquear
+
+Tras T10, `vnr-etl export` se negaba a exportar si un tramo no tenía alimentador, si
+faltaba el CRS proyectado o si un conductor no traía parámetros. El usuario lo corrige:
+el conversor debe reconstruir y completar con el catálogo de parámetros, de forma
+flexible y adaptable, y no negarse. RF-17 a RF-21 lo recogen. Siguen bloqueando solo la
+procedencia (puerta A) y el perfil de destino verificado (puerta E del perfil): no son
+datos de la red, sino garantía de trazabilidad y de formato. No se inventan tipos
+`DEFAULT` (constitución P4): cada valor reconstruido va bajo su código original, con su
+evidencia. Las puertas B, C y D se siguen evaluando e informando, pero no bloquean.
 
 ## Dudas resueltas (2026-10-08)
 

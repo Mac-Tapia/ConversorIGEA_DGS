@@ -119,3 +119,25 @@ Spec aprobada el 2026-10-08.
       `test_linea_base_001` se ejecutó, no se omitió: los DGS por alimentador y de la red
       unida son idénticos byte a byte a los de T1 (RF-14). Front: `npx tsc --noEmit -p .`
       (desde `frontend/`) y `npm run build` correctos. Spec cumplida.
+
+## Cambio del 2026-10-08 (RF-17 a RF-21)
+
+- [x] T13. La reconstrucción de la web sale a un módulo puro del motor, sin `Workspace`,
+      para que la use también VNR. (RF-17)
+      Hecho cuando: `pytest -q tests/test_web_reconstruction.py` en verde sin cambios.
+      Hecho el 2026-10-08: `igea_dgs/reconstruction_pipeline.py` (`reconstruir_seleccion`,
+      `catalogos_del_fichero`). Única prueba tocada: la de cancelación, que sustituía
+      `repair_discontinuities` en el módulo web y ahora lo hace en el nuevo.
+- [x] T14. El resolvedor completa un conductor con parámetros a medias sin descartar los
+      que trae. (RF-18, RF-19)
+      Hecho cuando: prueba con un conductor sin R0 ni Amps, con y sin catálogo.
+      Hecho el 2026-10-08 (`tests/test_catalog_resolution.py`). Antes, una fila con el
+      código bastaba para darlo por resuelto aunque le faltaran parámetros.
+- [ ] T15. Reconstrucción del modelo canónico VNR: alimentador por conectividad, fuente,
+      tensión, fases, longitud, ubicación de cargas y CRS (UTM o sin geografía). (RF-17, RF-20)
+      Hecho cuando: pruebas de cada caso, deterministas.
+- [ ] T16. `DgsExporter` y `VnrApplicationService.export` reconstruyen y exportan; B, C y
+      D se informan sin bloquear; informe de reconstrucción junto al DGS. (RF-17, RF-21)
+      Hecho cuando: los tres casos que antes bloqueaban exportan un DGS validado.
+- [ ] T17. Validación: RF-17 a RF-21 citados y suite completa en verde, RF-14 igual.
+
