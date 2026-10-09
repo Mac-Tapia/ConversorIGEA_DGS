@@ -161,3 +161,46 @@ def proyecto_por_ruta(carpeta, ruta: str):
         if actual is None:
             return None
     return next((p for p in _hijos(actual, 'IntPrj') if p.loc_name == nombre), None)
+
+
+# --------------------------------------------------------------------------- alimentadores
+def _datos_de_red(proyecto) -> list:
+    """Carpetas «Network Data» (``iopt_typ='netdat'``) del proyecto, sin activarlo.
+
+    ``app.GetProjectFolder('netdat')`` solo sirve para el proyecto activo, y leer no activa
+    nada (RF-15): se buscan a mano, directamente en el proyecto o dentro de «Network
+    Model», que es donde las deja la importación de un DGS.
+    """
+    carpetas = _hijos(proyecto, 'IntPrjfolder')
+    hallados = [c for c in carpetas if getattr(c, 'iopt_typ', None) == 'netdat']
+    for modelo in carpetas:
+        if getattr(modelo, 'iopt_typ', None) == 'netmod':
+            hallados += [c for c in _hijos(modelo, 'IntPrjfolder')
+                         if getattr(c, 'iopt_typ', None) == 'netdat']
+    return hallados
+
+
+def _nombres(donde: list, patron: str) -> set[str]:
+    return {o.loc_name for d in donde for o in (d.GetContents(patron, 1) or [])}
+
+
+def alimentadores_de(proyecto) -> tuple[list[str], str | None]:
+    """Alimentadores del proyecto y, si no se pudo buscar solo en la red, la nota de por qué.
+
+    Se busca solo en los datos de red (RF-17): buscar ``ElmFeeder`` en todo el proyecto
+    abría también casos de estudio, resultados y bibliotecas, y en la prueba del
+    2026-10-09 eso tenía la lectura más de seis minutos. Un proyecto hecho a mano sin
+    «Network Data» se busca entero, como antes (RF-18).
+
+    El DGS crea un ``ElmFeeder`` por alimentador; un proyecto sin ninguno muestra sus
+    ``ElmNet`` (spec 004), salvo la red de resumen.
+    """
+    donde, nota = _datos_de_red(proyecto), None
+    if not donde:
+        donde = [proyecto]
+        nota = (f'{proyecto.loc_name}: sin carpeta de datos de red; se buscaron los '
+                'alimentadores en todo el proyecto.')
+    nombres = _nombres(donde, '*.ElmFeeder')
+    if not nombres:
+        nombres = {n for n in _nombres(donde, '*.ElmNet') if 'summary' not in n.lower()}
+    return sorted(nombres), nota
