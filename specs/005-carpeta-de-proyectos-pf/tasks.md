@@ -32,7 +32,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       escribir. (RF-11, RF-13, RF-14, RF-15)
       Hecho cuando: `pytest -q tests/test_carpeta_pf.py` en verde, con la prueba de que el
       doble no registra ninguna creación ni escritura al leer.
-- [ ] T8. Web: `services.pf_projects` y `powerfactory_flow` pasan la carpeta validada;
+- [x] T8. Web: `services.pf_projects` y `powerfactory_flow` pasan la carpeta validada;
       nombre inválido falla sin lanzar el guion; `ws.pf_projects` guarda la ruta.
       (RF-2, RF-4, RF-10, RF-16)
       Hecho cuando: `pytest -q tests/test_web*.py` en verde.

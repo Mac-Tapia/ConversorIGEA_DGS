@@ -621,7 +621,23 @@ def check_powerfactory_source_run(ws: Workspace, feeders: list[str]) -> dict[str
     }
 
 
+def carpeta_pf() -> str:
+    """Carpeta de DIgSILENT de los proyectos importados, según el perfil de empresa.
+
+    Se valida aquí, antes de lanzar nada en DIgSILENT (spec 005, RF-4): un nombre que
+    PowerFactory recorte o rechace dejaría la carpeta con otro nombre, y la siguiente
+    lectura no la encontraría.
+    """
+    from ..carpeta_pf import CarpetaError, nombre_de_perfil
+
+    try:
+        return nombre_de_perfil(project_root() / 'config' / 'perfil_empresa.json')
+    except CarpetaError as exc:
+        raise UserError(str(exc)) from exc
+
+
 def check_powerfactory_flow(ws: Workspace, feeders: list[str]) -> None:
+    carpeta_pf()
     if not feeders:
         raise UserError('Seleccione al menos un alimentador ya convertido.')
     jobs, missing = dgs_jobs(ws, feeders)
@@ -723,8 +739,10 @@ def powerfactory_flow(ws: Workspace, ctx: JobContext, feeders: list[str]) -> dic
         ctx.log(f'  AVISO pandapower: {aviso}')
     ctx.log('Preflight informativo terminado; se importará completo cada DGS solicitado.')
 
+    carpeta = carpeta_pf()
     pf_dir, interpreter = _require_pf()
     ctx.log(f'Intérprete para la API: {interpreter}  [{powerfactory_status()["interpreter_reason"]}]')
+    ctx.log(f'Carpeta de DIgSILENT: {carpeta}')
     for feeder in missing:
         ctx.log(f'  (sin DGS, se omite) {feeder}')
     env = pf_subprocess_env(pf_dir)
@@ -738,7 +756,7 @@ def powerfactory_flow(ws: Workspace, ctx: JobContext, feeders: list[str]) -> dic
         # cada clic) y sin --fix-until-converge, que ante un flujo que no converge
         # modifica el modelo (escala cargas) sin pedirlo. Los estudios se lanzan aparte.
         cmd = [str(interpreter), str(script), '--import-dgs', str(dgs),
-               '--ensure-scenario', '--run-load-flow']
+               '--ensure-scenario', '--run-load-flow', '--pf-carpeta', carpeta]
         metadata_path = dgs.with_name(f'{dgs.stem}_feeder_metadata.json')
         cmd += ['--feeder-metadata', str(metadata_path)]
         if source_evidence is not None:
@@ -987,14 +1005,18 @@ def convert_group(
 
 
 def _proyecto_importado(informe: Path) -> str | None:
-    """Nombre del proyecto que creó la importación, leído del informe de aceptación."""
+    """Ruta en la carpeta del proyecto que creó la importación, leída del informe.
+
+    Los informes anteriores a la spec 005 solo traen el nombre.
+    """
     import json
 
     try:
         datos = json.loads(informe.read_text(encoding='utf-8'))
     except (OSError, ValueError):
         return None
-    return ((datos.get('import') or {}).get('project_name')) or None
+    importacion = datos.get('import') or {}
+    return importacion.get('project_path') or importacion.get('project_name') or None
 
 
 # ---------------------------------------------------------------------------
@@ -1003,13 +1025,15 @@ def _proyecto_importado(informe: Path) -> str | None:
 
 
 def pf_projects(ws: Workspace, ctx: JobContext) -> dict:
-    """Proyectos que hay en PowerFactory y los alimentadores de cada uno."""
+    """Proyectos de la carpeta de importación de PowerFactory y sus alimentadores (spec 005)."""
+    carpeta = carpeta_pf()
     pf_dir, interpreter = _require_pf()
     out = ws.out_dir / 'pf_proyectos.json'
     out.parent.mkdir(parents=True, exist_ok=True)
     out.unlink(missing_ok=True)
     rc = ctx.run_process(
-        [str(interpreter), str(_script('pf_proyectos.py')), '--output-json', str(out)],
+        [str(interpreter), str(_script('pf_proyectos.py')), '--output-json', str(out),
+         '--carpeta', carpeta],
         env=pf_subprocess_env(pf_dir), cwd=str(project_root()),
     )
     if rc == 3:
@@ -1017,6 +1041,8 @@ def pf_projects(ws: Workspace, ctx: JobContext) -> dict:
     if rc != 0 or not out.is_file():
         raise UserError(f'No se pudieron leer los proyectos de PowerFactory (código {rc}).')
     result = json.loads(out.read_text(encoding='utf-8'))
+    if result.get('aviso'):
+        ctx.log(f"AVISO: {result['aviso']}")
     with ws.lock:
         ws.pf_inventory = result
         ws.save()
@@ -1421,7 +1447,7 @@ def system_command(ws: Workspace, action: str) -> list[str]:
         out = ws.out_dir / 'sistema' / 'SISTEMA.dgs'
         return [sys.executable, str(_script('build_system_grid.py')), *args,
                 '--nombre', 'SISTEMA', '--out', str(out), '--source-crs', crs,
-                '--importar', '--run-load-flow']
+                '--importar', '--run-load-flow', '--pf-carpeta', carpeta_pf()]
     if action == 'base':
         return [sys.executable, str(_script('base_scenario.py')), *args,
                 '--nombre', 'PIDE_ANIO_0', '--out-dir', str(ws.out_dir / 'anio0'),
