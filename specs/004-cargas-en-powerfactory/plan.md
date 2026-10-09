@@ -28,6 +28,10 @@ módulo de cargas del 2026-10-08 (resumida en el contexto de la spec).
 | F. Front | Una pestaña «Cargas en DIgSILENT»: proyecto → alimentadores → libro de demandas y/o de cargas nuevas (o una carga en formulario) → Simular → Aplicar; resultados por alimentador. Fuera `LoadsTab` y `NewSedTab` | RF-2, RF-17, RF-20 |
 | G. Limpieza | Retirar `apply_sed_loads.py`, `create_sed_loads.py`, `aplicar_lote_cargas.py` y lo que solo ellos usaban en `loads.py`/`loads_create.py` (`build_plan`, `build_create_plan`, `select_conductor`…) si nada más lo usa | P5 |
 
+| H. Demanda medida: lectura | `igea_dgs/demanda_medida.py` nuevo, con `python-calamine` (lee `.xls`, `.xlsx` y `.xlsb` con un solo lector, en Rust: abrir un `.xls` de 400 MB tarda ~1 s). Medidores por alimentador; índice de hojas de los libros de cabecera sin convertir filas; máxima por medidor con columnas por alias; suministros; clientes importantes en los dos formatos; cruce actual → anterior; Excel de salida | RF-22 a RF-37, RF-38 |
+| I. Demanda medida: web | `services.demanda_*`; libros por subida o ruta del servidor (carpeta para la cabecera), guardados en el espacio; medidores y cruce de clientes en la petición (libros pequeños); máxima de cabecera como trabajo del carril `engine`, cancelable entre medidores; descarga del Excel | RF-23, RF-38, RF-39 |
+| J. Demanda medida: front | Sección «Demanda medida» en la misma pestaña «Cargas en DIgSILENT» que las demandas en bloque y las cargas nuevas | RF-22, RF-29, RF-36, RF-37, RF-40, RF-41 |
+
 ## Decisiones
 
 - Una variación por aplicación, no escenario: lo eligió el usuario (H3). La etapa de la
@@ -42,6 +46,23 @@ módulo de cargas del 2026-10-08 (resumida en el contexto de la spec).
   del perfil de empresa de la web; el guion recibe siempre WGS84.
 - Un guion único (`tools/cargas_pf.py`) en vez de tres: los tres flujos eran lo mismo
   con distinta envoltura (P5).
+
+- Demanda medida, lector: `python-calamine` en `requirements.txt`. Descartados `xlrd` +
+  `pyxlsb` + `openpyxl` (tres lectores para lo mismo, y `xlrd` tarda decenas de segundos
+  con un `.xls` de 400 MB).
+- Demanda medida, hoja del medidor: código entero normalizado (sin mayúsculas, espacios
+  ni `_-.`); si no hay, hojas `<código>_<sufijo>` con una sola magnitud cada una, unidas
+  por fecha. Descartado el prefijo libre: `X1` encontraría `X10`.
+- Demanda medida, alias de columna: genéricos en el código (nombres de los medidores,
+  no de una empresa) y, si existe, `config/demanda_medida_alias.json` con los de la
+  empresa, como `config/line_type_aliases.json` (P13).
+- Demanda medida, cancelar: entre medidores; un medidor se lee entero.
+- Demanda medida, el Excel de salida se arma con lo que manda el navegador (el
+  resultado ya mostrado): sin estado guardado que se desfase.
+- Cancelar la aplicación en DIgSILENT (parte D) no es error: el trabajo termina con
+  el informe, que dice `cancelado` y qué alimentadores no se empezaron.
+- Parte G: con la web en la vía nueva, `web/load_batch.py` (custodia del plan con
+  reversión por alimentador, que la spec descarta) se retira con sus pruebas.
 
 ## Comprobación contra la constitución
 
@@ -62,6 +83,11 @@ módulo de cargas del 2026-10-08 (resumida en el contexto de la spec).
 - Web: rutas con un espacio sin entradas cargadas; el trabajo llama al guion con los
   argumentos esperados.
 - Front: `tsc` y `build`; contrato de que no quedan llamadas a las rutas retiradas.
+- Demanda medida: libros sintéticos escritos en la prueba (`.xlsx` con openpyxl; el
+  lector es el mismo para `.xls` y `.xlsb`), con columnas en orden sorteado, medidor
+  partido en hojas, registros vacíos, empate de máximos, los dos formatos de clientes y
+  códigos número/texto. Con datos reales, `IGEA_DEMANDA_DIR` apunta a la carpeta con las
+  cuatro subcarpetas; sin ella, la prueba se omite.
 
 ## Riesgos
 

@@ -304,95 +304,89 @@ export interface OutputFile {
   modified: number;
 }
 
-export interface LoadPlan {
-  token: string;
-  kind: 'cargas';
-  feeder: string;
-  plan_file: string;
-  summary: Record<string, number | boolean | string>;
-  report: string;
-  row_errors: string[];
-  unknown: string[];
-  updates: { sed: string; kw_before: number; kvar_before: number; kw_after: number; kvar_after: number }[];
-  applicable: boolean;
-}
-
-export interface CreatePlan {
-  token: string;
-  kind: 'sed_nuevas';
-  feeder: string;
-  plan_file: string;
-  summary: Record<string, number | boolean | string>;
-  report: string;
-  row_errors: string[];
-  already_exists: string[];
-  create: {
-    sed: string;
-    installed_kva: number;
-    node_id: string;
-    distance_m: number;
-    conductor: string;
-    binding: string;
-    voltage_drop_pct: number;
-    kw: number;
-    kvar: number;
-  }[];
-  applicable: boolean;
-}
-
 export interface PfProject {
   name: string;
   feeders: string[];
 }
 
-export interface LotePlan {
+/** Plan validado de la spec 004: la web solo lee los libros; DIgSILENT decide qué coincide. */
+export interface CargasPlan {
   token: string;
-  kind: 'lote';
-  plan_file: string;
+  kind: 'cargas_pf';
   project: string;
-  /** Orden en que se aplicarán en PowerFactory: el de la selección. */
-  order: string[];
-  feeders_summary: {
-    feeder: string;
-    updates: number;
-    unknown: string[];
-    create: number;
-    already_exists: string[];
-    errors: number;
-    routing_basis: ('sed_identity' | 'sheet_node_coordinates')[];
-    scenario: string | null;
-    variation: string | null;
-    changes: {
-      sed: string;
-      before: { kw: number; kvar: number; fp: number };
-      after: { kw: number; kvar: number; fp: number };
-    }[];
-    /** Inversión de la etapa de SED nuevas, en miles de US$ (si se dieron costes). */
-    inversion_kusd?: number;
+  /** Orden en que se aplicarán: el de la selección. */
+  feeders: string[];
+  variacion: string;
+  demandas: { sed: string; hoja: string; kw: number; kvar: number; fp: number }[];
+  nuevas: {
+    sed: string; hoja: string; alimentador: string; barra: string;
+    lat: number | null; lon: number | null; kva_instalado: number;
+    kw: number; kvar: number; fp: number; tipo_linea: string; tension_bt_kv: number | null;
   }[];
-  without_changes: string[];
-  tec: EconomiaTec | null;
+  n_demandas: number;
+  n_nuevas: number;
   row_errors: string[];
+  omitidas_por_el_operador: string[];
+  sin_datos: string[];
   applicable: boolean;
+  tec: EconomiaTec | null;
 }
 
-export type LoteFeederStatus = 'APPLIED' | 'ROLLED_BACK' | 'ROLLBACK_FAILED';
+export interface CargasMotivo { sed: string; motivo: string }
 
-export interface LoteFeederResult {
+/** Foto de una carga de DIgSILENT: los atributos de demanda tal como estaban. */
+export type FotoCarga = Record<string, number | string | null>;
+
+export interface CargaConectada {
+  sed: string;
+  barra: string;
+  criterio: string;
+  distancia_m: number | null;
+  tipo_linea: string | null;
+  origen_tipo_linea: string | null;
+  tension_mt_kv: number | null;
+  tension_bt_kv: number | null;
+  kva_instalado?: number;
+  aviso?: string | null;
+  error_relectura?: string | null;
+}
+
+export interface CargasFeederInforme {
   feeder: string;
-  status: LoteFeederStatus;
-  before: Record<string, Record<string, unknown>>;
-  after: Record<string, Record<string, unknown>>;
-  created: string[];
-  comldf: { converged?: boolean; return_code?: number; ldf_valid?: boolean };
-  rollback: {
-    status: 'NOT_REQUIRED' | 'RESTORED' | 'PARTIAL';
-    attempted: boolean;
-    containers_deleted: string[];
-    errors: string[];
+  // Al simular
+  actualizarian?: { sed: string; antes: FotoCarga; despues: { kw: number; kvar: number } }[];
+  crearian?: CargaConectada[];
+  // Al aplicar
+  actualizadas?: { sed: string; antes: FotoCarga; despues: FotoCarga }[];
+  creadas?: CargaConectada[];
+  fallos?: { sed: string; error: string }[];
+}
+
+/** Informe de ``tools/cargas_pf.py``, uno por simulación o aplicación (RF-17, RF-20). */
+export interface CargasInforme {
+  project: string;
+  modo: 'simular' | 'aplicar';
+  variacion?: string;
+  feeders: CargasFeederInforme[];
+  avisos: string[];
+  cancelado: boolean;
+  sin_alimentador: CargasMotivo[];
+  ambiguas: CargasMotivo[];
+  no_creadas: CargasMotivo[];
+  flujo?: {
+    converged: boolean; return_code: number; ldf_valid: boolean;
+    vm_min?: number; vm_min_bus?: string; vm_max?: number; vm_max_bus?: string;
   };
-  actualizacion?: { escenario?: string } | null;
-  creacion?: { variacion?: string } | null;
+  tecnico_economico?: { ok: boolean; error?: string; resumen?: string[] };
+  plan_errores_de_fila?: string[];
+}
+
+export interface CargasResultado {
+  returncode: number;
+  modo: string;
+  report: string;
+  project: string;
+  informe: CargasInforme;
 }
 
 /** Parámetros de la evaluación técnico-económica (ComTececo). Años y %, US$/kWh. */

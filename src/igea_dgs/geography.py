@@ -46,8 +46,8 @@ def assert_metre_source_crs(source_crs: str) -> None:
 def make_transformer(source_crs: str, target_crs: str):
     """El único constructor de transformadores del proyecto, siempre en orden x/y.
 
-    Había cinco y cada uno trataba distinto un CRS inválido: ``loads_create`` lo
-    callaba y todas las SED nuevas salían sin GPS, sin aviso; los demás soltaban el
+    Había cinco y cada uno trataba distinto un CRS inválido: el lector de SED nuevas,
+    ya retirado, lo callaba y todas las SED nuevas salían sin GPS, sin aviso; los demás soltaban el
     ``CRSError`` de pyproj sin decir qué CRS fallaba. Aquí es un ``ValueError`` con los
     dos CRS, el mismo tipo que ``assert_metre_source_crs`` y que el CLI ya informa.
     """

@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { api } from './api';
 import { Ctx, type AppCtx } from './context';
+import { CargasTab } from './components/CargasTab';
 import { FeedersPanel } from './components/FeedersPanel';
 import { InputsPanel } from './components/InputsPanel';
 import { JobBar } from './components/JobBar';
-import { LoteTab } from './components/LoteTab';
 import { LogPanel } from './components/LogPanel';
-import { CatalogTab, LoadsTab, NewSedTab, ResultsTab, SystemTab } from './components/Modules';
+import { CatalogTab, ResultsTab, SystemTab } from './components/Modules';
 import { OptionsPanel } from './components/OptionsPanel';
 import { Modal, Pill, useConfirm, useToast } from './components/ui';
 import type { Health, Job, PowerFactoryStatus } from './types';
@@ -14,9 +14,7 @@ import { useWorkspace } from './useWorkspace';
 
 const TABS = [
   { id: 'results', label: 'Resultados', el: <ResultsTab /> },
-  { id: 'loads', label: 'Cargas de SED', el: <LoadsTab /> },
-  { id: 'newsed', label: 'SED nuevas', el: <NewSedTab /> },
-  { id: 'lote', label: 'Cargas en DIgSILENT', el: <LoteTab /> },
+  { id: 'cargas', label: 'Cargas en DIgSILENT', el: <CargasTab /> },
   { id: 'catalog', label: 'Catálogo de parámetros', el: <CatalogTab /> },
   { id: 'system', label: 'Sistema completo', el: <SystemTab /> },
 ] as const;
@@ -70,6 +68,19 @@ function JobSummary({ job, onClose }: { job: Job; onClose: () => void }) {
       <p>Solicitados: {r.requested} · OK: <b>{r.ok}</b> · Fallidos: <b>{r.failed}</b></p>
       <ul>{r.lines.map((l: string) => <li key={l}>{l}</li>)}</ul>
       <p className="muted">Reportes: *_powerfactory_acceptance.json / .txt en la salida.</p>
+    </>;
+  } else if ((job.kind === 'cargas_simular' || job.kind === 'cargas_aplicar') && r) {
+    const inf = r.informe;
+    const n = (k: string) => inf.feeders.reduce((t: number, f: Record<string, unknown[]>) => t + (f[k]?.length ?? 0), 0);
+    body = <>
+      {inf.cancelado && <p className="alert alert-warn">Cancelado: el alimentador en curso terminó; los siguientes no se empezaron.</p>}
+      {inf.modo === 'simular'
+        ? <p>Simulación: se actualizarían <b>{n('actualizarian')}</b> demanda(s) y se crearían <b>{n('crearian')}</b> carga(s). Nada se escribió.</p>
+        : <p>Variación <b>{inf.variacion ?? '—'}</b>: <b>{n('actualizadas')}</b> demanda(s) actualizadas, <b>{n('creadas')}</b> carga(s) creadas,
+          {' '}<b>{n('fallos')}</b> fallo(s).</p>}
+      <p>Omitidas: {inf.sin_alimentador.length} sin coincidencia, {inf.ambiguas.length} ambiguas, {inf.no_creadas.length} cargas nuevas no creadas.</p>
+      {inf.flujo && <p className={inf.flujo.converged ? '' : 'alert alert-error'}>Flujo de carga: {inf.flujo.converged ? 'converge' : 'no converge'}.</p>}
+      <p className="muted">El detalle por alimentador está en la pestaña «Cargas en DIgSILENT».</p>
     </>;
   } else if ((job.kind === 'plan' || job.kind === 'system') && r) {
     body = r.returncode === 0

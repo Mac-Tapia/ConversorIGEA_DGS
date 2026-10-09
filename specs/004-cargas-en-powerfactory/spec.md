@@ -1,6 +1,6 @@
 # Spec 004 — Cargas en un proyecto existente de DIgSILENT
 
-Estado: aprobada (2026-10-08) · Fecha: 2026-10-08 · Origen: revisión del módulo de cargas del 2026-10-08
+Estado: aprobada (2026-10-08); cambio «Demanda medida» (RF-22 a RF-41) aprobado el 2026-10-08 · Fecha: 2026-10-08 · Origen: revisión del módulo de cargas del 2026-10-08
 
 ## Contexto y objetivo
 
@@ -97,9 +97,76 @@ Ejecución e informe
   (antes y después), las omitidas y ambiguas, las cargas creadas y las no creadas.
 - RF-21: SI un alimentador falla, ENTONCES EL SISTEMA seguirá con los demás.
 
+Demanda medida (cambio aprobado el 2026-10-08)
+
+El operador prepara las demandas con cuatro libros del área comercial y de medición:
+medidor por alimentador, medición de cabecera (una hoja por medidor, exportación de los
+medidores con registros cada 15 min), suministros (código actual, anterior, SED y
+radial) y clientes importantes del mes (hoja resumen). Hoy los cruza a mano. La demanda
+medida es una parte más del mismo módulo, junto a las que ya tiene: conectar una carga
+nueva, conectar cargas nuevas en bloque y actualizar demandas en bloque (RF-1 a RF-21),
+que no cambian. En esta iteración la demanda medida se extrae, se muestra y se descarga;
+todavía no rellena el libro de demandas.
+
+- RF-40: EL SISTEMA ofrecerá la demanda medida en la misma pestaña que la carga nueva,
+  las cargas nuevas en bloque y la actualización de demandas en bloque.
+- RF-41: EL SISTEMA mantendrá la carga nueva, las cargas nuevas en bloque y la
+  actualización de demandas en bloque como las definen RF-1 a RF-21, con o sin demanda
+  medida.
+
+- RF-22: CUANDO el operador escribe un código de alimentador, EL SISTEMA mostrará cada
+  código de medidor que le asigna el libro de medidores por alimentador.
+- RF-23: SI el alimentador no figura en el libro de medidores, ENTONCES EL SISTEMA lo
+  dirá y dejará escribir el código de medidor a mano.
+- RF-24: CUANDO hay un código de medidor, EL SISTEMA buscará su hoja en todos los libros
+  de medición de cabecera indicados, comparando el código sin distinguir mayúsculas,
+  espacios ni separadores.
+- RF-25: SI un medidor está repartido en varias hojas, una por magnitud, ENTONCES EL
+  SISTEMA unirá sus registros por la fecha y hora de cada uno.
+- RF-26: EL SISTEMA reconocerá las columnas de la medición por su nombre, en cualquier
+  posición y con sus variantes (`kW tot`, `kW tot mean`, `PF sign tot us`, `PF lag
+  mean`, `Pot Aparente`…).
+- RF-27: EL SISTEMA dará, por cada medidor, el kW máximo y la fecha y hora en que
+  ocurrió.
+- RF-28: EL SISTEMA dará el kVAR, el kVA y el FP del mismo registro que el kW máximo, sin
+  buscar sus propios máximos.
+- RF-29: SI el alimentador tiene varios medidores, ENTONCES EL SISTEMA dará el resultado
+  de cada medidor por separado, sin sumarlos.
+- RF-30: SI el registro del máximo no trae kVA o FP, ENTONCES EL SISTEMA los calculará
+  con su kW y su kVAR y los marcará como calculados.
+- RF-31: EL SISTEMA no tomará como máximo un registro cuyo kW esté vacío o no sea un
+  número.
+- RF-32: SI un medidor no está en ningún libro de cabecera, o su hoja no tiene columna de
+  kW, ENTONCES EL SISTEMA lo dirá, con el libro y la hoja si los hay, y seguirá con los
+  demás medidores.
+- RF-33: CUANDO el operador elige un libro de suministros, EL SISTEMA leerá de cada
+  suministro el código actual (`Suministro Act`), el anterior (`Suministro`), la SED y
+  el radial.
+- RF-34: CUANDO el operador elige un libro de clientes importantes, EL SISTEMA leerá su
+  hoja resumen encontrando la fila de cabecera y las columnas por nombre, en los dos
+  formatos conocidos (`Nis`, `EA`, `ERI`, `Pot` y `SUMINISTRO`, `EA_TOTAL`, `ERI_TOTAL`,
+  `POT_MAX`).
+- RF-35: EL SISTEMA cruzará cada cliente importante con el libro de suministros por el
+  código actual y, si no coincide, por el anterior, e indicará por cuál cruzó.
+- RF-36: EL SISTEMA dará de cada cliente cruzado su SED, su radial, EA, ERI y potencia
+  máxima, sin filtrar por el alimentador escrito.
+- RF-37: SI un cliente importante no cruza con ningún suministro, o cruza sin SED,
+  ENTONCES EL SISTEMA lo listará aparte con el motivo.
+- RF-38: CUANDO el operador lo pide, EL SISTEMA descargará en un libro Excel la máxima
+  demanda de cabecera y los clientes cruzados y no cruzados.
+- RF-39: EL SISTEMA aceptará los libros por subida o, en local, por ruta del servidor; los
+  de cabecera también como carpeta, de la que leerá todos los `.xls`, `.xlsx` y `.xlsb`.
+
 ## Requisitos no funcionales
 
 - Universal (P13): ninguna tensión, frecuencia ni CRS de una empresa como valor fijo.
+- Demanda medida: los nombres de columna y de hoja reconocidos (RF-26, RF-33, RF-34)
+  son variantes genéricas; las propias de una empresa se añaden en su perfil (P13).
+- Demanda medida: buscar la cabecera abre libros de cientos de MB (1 GB entre los cuatro
+  del caso de prueba): es un trabajo en cola, con progreso y cancelable (P7), y solo
+  convierte a filas las hojas del medidor buscado.
+- Demanda medida (P9): los libros son datos de la distribuidora; las pruebas usan libros
+  sintéticos y, con datos reales, una variable de entorno que apunta a ellos.
 - Escala: cualquier número de alimentadores y de filas; nada fijo en código ni pruebas.
 - Idioma y estilo del proyecto (P10). Nada largo en una petición HTTP (P7).
 
@@ -112,8 +179,19 @@ Ejecución e informe
   se puede conectar (RF-16).
 - Tipo de línea indicado que no existe en el proyecto, o barra sin línea que llegue.
 - Cancelar durante el primer alimentador, o entre dos.
+- Demanda medida: un medidor cuyo código casa por prefijo con varias hojas que no son
+  magnitudes de él (p. ej. `X1` y `X10`): se compara el código entero; un sufijo solo
+  vale si la hoja tiene una sola magnitud.
+- Demanda medida: dos registros con el mismo kW máximo: se da el primero en el tiempo.
+- Demanda medida: hoja con columnas sin nombre al final, o con registros vacíos.
+- Demanda medida: cliente importante repetido en la hoja resumen.
+- Demanda medida: códigos de suministro escritos como número en un libro y como texto
+  en otro (`1234.0` frente a `1234`).
 
 ## Fuera de alcance
+
+- Demanda medida: repartir la máxima demanda de cabecera entre las SED, descontar los
+  clientes importantes o rellenar con ello el libro de demandas; sumar medidores.
 
 - Conversión, reconstrucción y catálogo de parámetros de la conversión.
 - Plantilla rellenada con las cargas que ya tiene el proyecto: la plantilla es vacía.
@@ -123,7 +201,7 @@ Ejecución e informe
 
 ## Criterios de finalización
 
-- `grep -rnoE "004:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-21.
+- `grep -rnoE "004:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-41.
 - Suite completa en verde y RF-14 de la spec 001 sin cambios.
 - `npx tsc --noEmit -p .` (en `frontend/`) y `npm run build` correctos.
 - Prueba real en DIgSILENT, a cargo del usuario.
@@ -134,3 +212,12 @@ Ejecución e informe
 - Dónde quedan los cambios: una variación nueva por aplicación, para todo.
 - Conductor del enlace: el de la fila si existe en el proyecto o el de la red.
 - Una SED sin coincidencia se omite y se informa; no es un error ni deshace nada.
+- Demanda medida: se muestra y se descarga; el reparto entre SED queda para otro cambio.
+- Demanda medida: varios medidores de un alimentador son unidades distintas: un
+  resultado por medidor, sin sumar; solo el kW es un máximo, el resto es del mismo
+  registro.
+- Demanda medida: «Pot» del formato nuevo de clientes importantes es `POT_MAX`.
+- Demanda medida: los clientes importantes no se filtran por el alimentador.
+- Demanda medida: el cruce por código anterior sale de los datos: en los libros de enero
+  a abril el `Nis` casa con `Suministro` y no con `Suministro Act`; en los de mayo a julio,
+  al revés.

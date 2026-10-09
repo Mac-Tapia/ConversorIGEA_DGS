@@ -20,7 +20,7 @@ def cargar_herramienta(fichero: str, nombre: str | None = None, *,
     """Importa ``tools/<fichero>`` como módulo, sin que ``tools/`` sea un paquete.
 
     ``tools_en_path`` deja ``tools/`` en ``sys.path`` mientras se ejecuta el módulo,
-    para los scripts que importan a sus vecinos (``aplicar_lote_cargas.py``).
+    para los scripts que importan a sus vecinos.
     """
     path = TOOLS / fichero
     spec = importlib.util.spec_from_file_location(nombre or path.stem, path)
