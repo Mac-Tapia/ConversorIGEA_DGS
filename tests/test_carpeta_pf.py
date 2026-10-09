@@ -282,8 +282,13 @@ def _carpeta_de(prj, tipo):
 
 
 def _busqueda_completa(prj):
-    """La búsqueda de antes de la spec 005: todo el árbol del proyecto."""
-    return sorted({f.loc_name for f in prj.GetContents('*.ElmFeeder', 1)})
+    """La búsqueda de antes de la spec 005 (``alimentadores_de`` de ``tools/pf_proyectos.py``):
+    todo el árbol del proyecto, y sus ``ElmNet`` si no tiene ningún ``ElmFeeder``."""
+    nombres = {f.loc_name for f in prj.GetContents('*.ElmFeeder', 1)}
+    if not nombres:
+        nombres = {n.loc_name for n in prj.GetContents('*.ElmNet', 1)
+                   if 'summary' not in n.loc_name.lower()}
+    return sorted(nombres)
 
 
 def test_alimentadores_solo_en_los_datos_de_red():
@@ -490,3 +495,86 @@ def test_activar_proyecto_anterior_de_la_raiz():
     antiguo = _proyecto(app, app.usuario, 'PIDE_A0')
     assert activar_proyecto(app, 'PIDE_A0', 'Red') is antiguo     # la carpeta ni existe
     assert activar_proyecto(app, 'No/Existe', 'Red') is None
+
+
+# --------------------------------------------------------------------------- lectura
+def _mod_proyectos():
+    import importlib.util
+
+    ruta = RAIZ / 'tools' / 'pf_proyectos.py'
+    spec = importlib.util.spec_from_file_location('pf_proyectos', ruta)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _sin_cambios(app):
+    return not (app.creados or app.escrituras or app.movidos or app.borrados)
+
+
+def test_leer_solo_la_carpeta():
+    """005:RF-11 — se listan los proyectos de la carpeta y subcarpetas, con sus alimentadores."""
+    app = _app()
+    carpeta = app.usuario.CreateObject('IntFolder', 'Red')
+    _proyecto(app, carpeta, 'SI213', alimentadores=('SI213',))
+    _proyecto(app, carpeta.CreateObject('IntFolder', '2026-10'), 'PE104', alimentadores=('B', 'A'))
+    _intocable(_proyecto(app, app.usuario, 'Ajeno'))           # la raíz ni se abre
+    _intocable(app.usuario.CreateObject('IntFolder', 'Otra'))
+    datos = _mod_proyectos().leer(app, 'Red')
+    assert datos['folder'] == 'Red' and datos['exists'] is True and datos['aviso'] is None
+    assert datos['projects'] == [
+        {'name': 'PE104', 'path': '2026-10/PE104', 'feeders': ['A', 'B']},
+        {'name': 'SI213', 'path': 'SI213', 'feeders': ['SI213']},
+    ]
+
+
+def test_leer_sin_carpeta():
+    """005:RF-14 — sin carpeta, lista vacía con un aviso que la nombra y dice cuándo se crea."""
+    app = _app()
+    _proyecto(app, app.usuario, 'Ajeno')
+    datos = _mod_proyectos().leer(app, 'Red')
+    assert datos['projects'] == [] and datos['exists'] is False
+    assert "'Red'" in datos['aviso'] and 'primer DGS' in datos['aviso']
+
+
+def test_leer_carpeta_vacia_sin_aviso():
+    """005:RF-14 — una carpeta que existe y está vacía no es «carpeta inexistente»."""
+    app = _app()
+    app.usuario.CreateObject('IntFolder', 'Red')
+    datos = _mod_proyectos().leer(app, 'Red')
+    assert datos == {'folder': 'Red', 'exists': True, 'aviso': None, 'projects': []}
+
+
+def test_leer_no_cambia_nada():
+    """005:RF-15 — leer no crea ni modifica nada en DIgSILENT, exista o no la carpeta."""
+    mod = _mod_proyectos()
+    app = _app()
+    mod.leer(app, 'Red')
+    assert _sin_cambios(app) and buscar_carpeta(app.usuario, 'Red') is None
+    carpeta = app.usuario.CreateObject('IntFolder', 'Red')
+    _proyecto(app, carpeta, 'SI213')
+    _proyecto(app, carpeta, 'Manual', con_datos_de_red=False)
+    for lista in (app.creados, app.escrituras):
+        lista.clear()
+    mod.leer(app, 'Red')
+    assert _sin_cambios(app) and app.GetActiveProject() is None
+
+
+def test_leer_proyecto_danado():
+    """005:RF-11 — un proyecto que no se puede leer sale sin alimentadores y no tumba la lista."""
+    app = _app()
+    carpeta = app.usuario.CreateObject('IntFolder', 'Red')
+    _intocable(_proyecto(app, carpeta, 'Roto'))
+    _proyecto(app, carpeta, 'Sano')
+    datos = _mod_proyectos().leer(app, 'Red')
+    assert [(p['path'], p['feeders']) for p in datos['projects']] == [('Roto', []), ('Sano', ['F1'])]
+
+
+def test_leer_por_linea_de_ordenes_valida_la_carpeta(tmp_path):
+    """005:RF-4 — con un nombre inválido el guion sale con 2 antes de buscar PowerFactory."""
+    salida = subprocess.run(
+        [sys.executable, str(RAIZ / 'tools' / 'pf_proyectos.py'), '--carpeta', 'a/b',
+         '--output-json', str(tmp_path / 'p.json')],
+        capture_output=True, text=True, cwd=RAIZ, env={**os.environ, 'PYTHONPATH': str(RAIZ / 'src')})
+    assert salida.returncode == 2 and "'a/b'" in salida.stdout
+    assert not (tmp_path / 'p.json').exists()
