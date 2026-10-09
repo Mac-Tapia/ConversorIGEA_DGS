@@ -7,7 +7,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       `config/perfil_empresa.json` local con «sistemaeletricoELD», fuera de git. (RF-2, RF-3, RF-4)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_carpeta_pf.py` en verde,
       con la prueba de que `src/` y `tools/` no contienen el nombre de la empresa.
-- [ ] T2. Doble de PowerFactory: `IntFolder`, `Move`, `Delete`, `ComImport` simulado y
+- [x] T2. Doble de PowerFactory: `IntFolder`, `Move`, `Delete`, `ComImport` simulado y
       fallo opcional al mover, en `tests/fake_pf.py`. (apoyo de RF-5 a RF-9)
       Hecho cuando: `tests/test_cargas_pf_guion.py` sigue en verde con el doble ampliado.
 - [ ] T3. Árbol: `buscar_carpeta`, `asegurar_carpeta`, `nombre_libre`, `proyectos_de` con

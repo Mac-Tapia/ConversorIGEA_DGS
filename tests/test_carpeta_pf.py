@@ -102,3 +102,38 @@ def test_perfil_de_la_empresa_fuera_de_git():
 
     assert ignorado('config/perfil_empresa.json')
     assert not ignorado('config/perfil_empresa.example.json')
+
+
+# --------------------------------------------------------------------------- doble
+# El doble de tests/fake_pf.py es lo único que ven estas pruebas de DIgSILENT: si imita
+# mal la API, todo lo demás pasa sin probar nada. Estas fijan lo que se le pide.
+def _importar(app, nombre):
+    com = app.usuario.CreateObject('ComImport', 'imp')
+    app.DefineTransferAttributes('ComImport', 'iopt_prj,targname,dgsFormat,fFile')
+    com.SetAttributes([0, nombre, 'DGS File', 'x.dgs'])
+    return com.Execute()
+
+
+def test_doble_importa_en_la_raiz_del_usuario():
+    from fake_pf import App
+
+    app = App()
+    assert _importar(app, 'SI213') == 0
+    assert [p.loc_name for p in app.usuario.GetContents('*.IntPrj')] == ['SI213']
+    assert _importar(app, 'SI213') == 1          # no crea dos con el mismo nombre
+
+
+def test_doble_mueve_borra_y_activa():
+    from fake_pf import App
+
+    app = App()
+    _importar(app, 'SI213')
+    prj = app.importados[0]
+    carpeta = app.usuario.CreateObject('IntFolder', 'Carpeta')
+    assert carpeta.Move(prj) == 0
+    assert prj.GetParent() is carpeta and app.usuario.GetContents('*.IntPrj') == []
+    assert app.ActivateProject('SI213') == 1     # por nombre solo mira la raíz
+    assert prj.Activate() == 0 and app.GetActiveProject() is prj
+    app.fallar_mover = True
+    assert app.usuario.Move(prj) == 1 and prj.GetParent() is carpeta
+    assert prj.Delete() == 0 and carpeta.GetContents() == [] and app.GetActiveProject() is None
