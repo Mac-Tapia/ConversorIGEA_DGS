@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import importlib
+import sys
 from collections.abc import Callable
+from pathlib import Path
 
 REQUIRED_MODULES = (
     'igea_dgs',
@@ -32,7 +34,42 @@ def missing_dependencies(
     return tuple(missing)
 
 
-def main() -> int:
+# Lo que entra en la compilación del front: si algo de esto es más reciente que
+# frontend/dist, la interfaz servida no es la del código.
+FUENTES_DEL_FRONT = ('src', 'index.html', 'package.json', 'package-lock.json',
+                     'vite.config.ts', 'tsconfig.json', 'tsconfig.app.json', 'tsconfig.node.json')
+
+
+def front_desactualizado(frontend: Path) -> str:
+    """Por qué hay que recompilar el front, o cadena vacía si ``dist`` está al día.
+
+    El lanzador solo compilaba si faltaba ``dist``: tras un cambio del front, el acceso
+    directo seguía sirviendo la versión anterior sin avisar (spec 001, RF-27).
+    """
+    compilado = frontend / 'dist' / 'index.html'
+    if not compilado.is_file():
+        return 'no está compilado'
+    referencia = compilado.stat().st_mtime
+    for nombre in FUENTES_DEL_FRONT:
+        ruta = frontend / nombre
+        ficheros = ruta.rglob('*') if ruta.is_dir() else [ruta]
+        for fichero in ficheros:
+            if fichero.is_file() and fichero.stat().st_mtime > referencia:
+                return f'{fichero.relative_to(frontend).as_posix()} es más reciente que la compilación'
+    return ''
+
+
+def main(argv: list[str] | None = None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if argv[:1] == ['--front']:
+        from ..powerfactory_env import project_root
+
+        motivo = front_desactualizado(project_root() / 'frontend')
+        if motivo:
+            print(f'Hay que compilar la interfaz web: {motivo}.')
+            return 1
+        print('La interfaz web compilada está al día.')
+        return 0
     missing = missing_dependencies()
     if missing:
         print('Dependencias faltantes: ' + ', '.join(missing))
