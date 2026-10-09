@@ -108,7 +108,8 @@ def auditar(dataset, net: str, model, tablas: dict, trafomix) -> dict:
 # PowerFactory
 # ---------------------------------------------------------------------------
 
-def importar(dgs: Path, red_nombre: str, hoja, grid_mm: float, en_dgs: dict) -> dict:
+def importar(dgs: Path, red_nombre: str, hoja, grid_mm: float, en_dgs: dict,
+             carpeta: str | None = None) -> dict:
     pf_dir = Path(r'C:\Program Files\DIgSILENT\PowerFactory 2024\Python\3.12')
     sys.path.insert(0, str(pf_dir))
     sys.path.insert(0, str(RAIZ / 'tools'))
@@ -126,7 +127,7 @@ def importar(dgs: Path, red_nombre: str, hoja, grid_mm: float, en_dgs: dict) -> 
     except Exception:  # noqa: BLE001
         pass
     proyecto = f'REPR_{red_nombre}_{time.strftime("%H%M%S")}'
-    info = import_dgs_file(app, dgs, project_name=proyecto)
+    info = import_dgs_file(app, dgs, project_name=proyecto, carpeta=carpeta)
     activate_base_study_and_scenario(app)
     ensure_operation_scenario(app)
     prj = app.GetActiveProject()
@@ -174,7 +175,7 @@ def importar(dgs: Path, red_nombre: str, hoja, grid_mm: float, en_dgs: dict) -> 
     tensiones = sorted(b.GetAttribute('m:u') for b in app.GetCalcRelevantObjects('*.ElmTerm')
                        if b.HasResults() and b.GetAttribute('m:u') is not None)
     return {
-        'proyecto': proyecto, 'errores_import': info['errors'],
+        'proyecto': info['project_name'] or proyecto, 'errores_import': info['errors'],
         'formato_creado_al_importar': formato_importado, 'ajustes_diagrama': ajustes,
         'hoja_mm': [ancho, alto], 'graficos': graficos, 'graficos_fuera_de_hoja': fuera[:20],
         'n_fuera_de_hoja': len(fuera), 'diferencias_con_dgs': diferencias,
@@ -216,6 +217,9 @@ def main(argv: list[str] | None = None) -> int:
                    help='Limitar a estos alimentadores. Repetible. Por defecto, todos.')
     p.add_argument('--importar', action='append', default=[],
                    help='Importar este alimentador en PowerFactory. Repetible.')
+    p.add_argument('--pf-carpeta', metavar='NOMBRE',
+                   help='Carpeta de DIgSILENT donde queda el proyecto importado (spec 005). '
+                        'Por defecto, la del perfil de empresa o «Conversor IGEA-DGS».')
     p.add_argument('--muestra', action='store_true',
                    help='Importar además una muestra representativa.')
     p.add_argument('--source-crs', default='EPSG:32718')
@@ -294,7 +298,8 @@ def main(argv: list[str] | None = None) -> int:
             continue
         print(f'  importando {nombre} en PowerFactory…')
         r['powerfactory'] = importar(Path(r['dgs']).resolve(), nombre, r['_hoja'],
-                                     r['hoja']['cuadricula_mm'], r['en_dgs'])
+                                     r['hoja']['cuadricula_mm'], r['en_dgs'],
+                                     carpeta=args.pf_carpeta)
         pf = r['powerfactory']
         print(f"    formato al importar: {pf.get('formato_creado_al_importar')} → {pf.get('ajustes_diagrama', {}).get('cDrawFormat')}; "
               f"gráficos {pf.get('graficos')}, fuera de hoja {pf.get('n_fuera_de_hoja')}; "

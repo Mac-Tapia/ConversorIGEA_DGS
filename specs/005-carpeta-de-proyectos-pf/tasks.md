@@ -20,11 +20,14 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       por objeto, borrar el recién creado si mover falla; informe con `project_folder` y
       `project_path`; los proyectos de la raíz no se tocan. (RF-5, RF-6, RF-7, RF-8, RF-9, RF-20)
       Hecho cuando: `pytest -q tests/test_carpeta_pf.py tests/test_powerfactory_gate.py` en verde.
-- [ ] T6. `--pf-carpeta` en `powerfactory_acceptance.py`, `build_system_grid.py`,
+- [x] T6. `--pf-carpeta` en `powerfactory_acceptance.py`, `build_system_grid.py`,
       `convertir_grupos_mdb.py`, `prueba_representacion.py` y `run_one_study.py`, con el
       perfil cuando falta. (RF-10)
+      Activar después de importar con `carpeta_pf.activar_proyecto` en `run_one_study.py`,
+      `base_scenario.py`, `check_pf_license.py` y `show_pf_diagram.py`.
       Hecho cuando: una prueba recorre los cinco guiones y comprueba que pasan la carpeta a
-      `import_dgs_file`; `--help` de cada uno sale con 0.
+      `import_dgs_file`; `activar_proyecto` probado con el doble; ningún guion de `tools/`
+      llama a `ActivateProject(`; `--help` de cada uno sale con 0.
 - [ ] T7. `tools/pf_proyectos.py --carpeta`: solo la carpeta, aviso si no existe, sin
       escribir. (RF-11, RF-13, RF-14, RF-15)
       Hecho cuando: `pytest -q tests/test_carpeta_pf.py` en verde, con la prueba de que el

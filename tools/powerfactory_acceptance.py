@@ -1605,6 +1605,7 @@ def run_import_activate_flow(
     dgs_path: Path,
     *,
     project_name: str | None = None,
+    carpeta: str | None = None,
     feeder_metadata_path: Path | str | None = None,
     ensure_scenario: bool = True,
     run_load_flow_flag: bool = True,
@@ -1637,7 +1638,8 @@ def run_import_activate_flow(
     }
 
     try:
-        import_info = import_dgs_file(app, Path(dgs_path), project_name=project_name)
+        import_info = import_dgs_file(app, Path(dgs_path), project_name=project_name,
+                                      carpeta=carpeta)
     except Exception as exc:
         report['errors'].append(f'DGS import failed: {exc}')
         return report
@@ -2244,6 +2246,9 @@ def _parser() -> argparse.ArgumentParser:
         help='Path to .dgs — imports via ComImport into a new PF project before checks',
     )
     p.add_argument('--project-name', help='Optional PF project name for ComImport')
+    p.add_argument('--pf-carpeta', metavar='NOMBRE',
+                   help='Carpeta de DIgSILENT donde queda el proyecto importado (spec 005). '
+                        'Por defecto, la del perfil de empresa o «Conversor IGEA-DGS».')
     p.add_argument('--feeder-metadata', help='Sidecar de procedencia por alimentador ligado al DGS')
     p.add_argument('--source-run-id', help='Ejecución fuente que debe declarar el sidecar')
     p.add_argument('--source-mode', choices=('txt', 'mdb', 'vnr'), help='Modo de la ejecución fuente')
@@ -2398,6 +2403,7 @@ def main(argv=None) -> int:
                 app,
                 Path(args.import_dgs),
                 project_name=args.project_name,
+                carpeta=args.pf_carpeta,
                 feeder_metadata_path=args.feeder_metadata,
                 ensure_scenario=ensure_scenario,
                 run_load_flow_flag=want_flow and not run_studies,
@@ -2503,6 +2509,7 @@ def main(argv=None) -> int:
                 app,
                 Path(args.import_dgs),
                 project_name=args.project_name,
+                carpeta=args.pf_carpeta,
             )
             time.sleep(0.5)
             if not import_info['ok']:

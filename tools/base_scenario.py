@@ -176,6 +176,7 @@ def _trabajador(argumentos: list[str], *, limite_s: float) -> dict:
 
 def ejecutar_estudios(
     proyecto: str, *, incluir_pesados: bool, limite_s: float, saltar: set[str],
+    carpeta: str | None = None,
 ) -> list[dict]:
     """Ejecuta cada módulo en su propio proceso, con presupuesto de tiempo.
 
@@ -204,6 +205,8 @@ def ejecutar_estudios(
             continue
 
         argumentos = ['--project', proyecto, '--clase', estudio.clase_pf]
+        if carpeta:
+            argumentos += ['--pf-carpeta', carpeta]
         if estudio.clave == 'flujo_desequilibrado':
             argumentos.append('--desequilibrado')
         presupuesto = limite_s if estudio.coste == PESADO else max(limite_s, 180.0)
@@ -229,6 +232,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument('--out-dir', default='output/anio0')
     p.add_argument('--source-crs', default='EPSG:32718')
     p.add_argument('--sin-geografia', action='store_true')
+    p.add_argument('--pf-carpeta', metavar='NOMBRE',
+                   help='Carpeta de DIgSILENT donde queda el proyecto importado (spec 005). '
+                        'Por defecto, la del perfil de empresa o «Conversor IGEA-DGS».')
     p.add_argument('--solo-datos', action='store_true',
                    help='Solo auditar el export y listar lo que falta. No usa PowerFactory.')
     p.add_argument('--sin-estudios', action='store_true',
@@ -278,7 +284,8 @@ def main(argv: list[str] | None = None) -> int:
     print(f'\nImportando y haciendo converger como «{args.nombre}»…')
     datos = _trabajador(
         ['--project', args.nombre, '--importar', str(dgs.resolve()),
-         '--caso', CASO_BASE, '--escenario', ESCENARIO_BASE],
+         '--caso', CASO_BASE, '--escenario', ESCENARIO_BASE,
+         *(['--pf-carpeta', args.pf_carpeta] if args.pf_carpeta else [])],
         limite_s=args.limite_importacion,
     )
     if not datos.get('ok'):
@@ -288,6 +295,10 @@ def main(argv: list[str] | None = None) -> int:
         print('El año 0 NO converge. No se ejecutan los demás estudios.', file=sys.stderr)
         return 5
     caso = {'caso': datos.get('caso'), 'escenario': datos.get('escenario')}
+    # El proyecto que creó la importación, que puede llevar _2 (spec 005, RF-7), y su
+    # carpeta: los estudios lo abren por esa ruta, no por el nombre pedido.
+    proyecto = datos.get('proyecto') or args.nombre
+    carpeta = datos.get('carpeta') or args.pf_carpeta
     estado = datos['estado']
     print(f'Caso de estudio: {caso["caso"]}   escenario: {caso["escenario"]}')
 
@@ -328,8 +339,8 @@ def main(argv: list[str] | None = None) -> int:
             print('Los que resuelven la red muchas veces quedan fuera; use --pesados.')
         print()
         estudios = ejecutar_estudios(
-            args.nombre, incluir_pesados=args.pesados,
-            limite_s=args.limite_segundos, saltar={'flujo'})
+            proyecto, incluir_pesados=args.pesados,
+            limite_s=args.limite_segundos, saltar={'flujo'}, carpeta=carpeta)
         for f in estudios:
             if f.get('agotado'):
                 marca, detalle = 'SIN TIEMPO', f.get('motivo', '')
@@ -347,7 +358,8 @@ def main(argv: list[str] | None = None) -> int:
 
     informe_json = salida / 'anio0_diagnostico.json'
     informe_json.write_text(json.dumps({
-        'proyecto': args.nombre,
+        'proyecto': proyecto,
+        'carpeta': carpeta,
         'caso': caso,
         'construccion': {
             'alimentadores': informe.feeders,

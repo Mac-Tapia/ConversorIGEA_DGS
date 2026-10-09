@@ -60,7 +60,14 @@ def _importar_y_medir(args) -> int:
         if app is None:
             raise RuntimeError('PowerFactory no respondio; motor tomado por otro proceso')
 
-        import_dgs_file(app, Path(args.importar).resolve(), project_name=args.project)
+        info = import_dgs_file(app, Path(args.importar).resolve(), project_name=args.project,
+                               carpeta=args.pf_carpeta)
+        if not info['ok']:
+            raise RuntimeError('; '.join(info['errors']) or 'la importación falló')
+        # Puede llevar _2 si el nombre ya estaba en la carpeta (spec 005, RF-7): los
+        # estudios tienen que abrir este, no el anterior.
+        salida['proyecto'] = info['project_path']
+        salida['carpeta'] = info['project_folder']
         proyecto = app.GetActiveProject()
         casos = proyecto.GetContents('*.IntCase', 1)
         caso = next((c for c in casos if c.loc_name == args.caso), None)
@@ -178,6 +185,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument('--importar', metavar='DGS',
                    help='En vez de un estudio: importa el DGS, prepara el caso del '
                         'ano 0, hace converger el flujo y mide el estado base.')
+    p.add_argument('--pf-carpeta', metavar='NOMBRE',
+                   help='Carpeta de DIgSILENT donde queda el proyecto importado (spec 005). '
+                        'Por defecto, la del perfil de empresa o «Conversor IGEA-DGS».')
     p.add_argument('--caso', default='ANIO_0_BASE')
     p.add_argument('--escenario', default='ANIO_0_OPERACION')
     p.add_argument('--muestra', type=int, default=6000)
@@ -198,8 +208,12 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(salida, ensure_ascii=False))
             return 3
         ventana = app.GetOutputWindow()
-        app.ActivateProject(args.project)
-        proyecto = app.GetActiveProject()
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
+        from igea_dgs.carpeta_pf import activar_proyecto, nombre_de_perfil
+
+        # ActivateProject(nombre) solo mira la raíz del usuario, y los proyectos
+        # importados están en la carpeta (spec 005, RF-16).
+        proyecto = activar_proyecto(app, args.project, args.pf_carpeta or nombre_de_perfil())
         if proyecto is None:
             salida.update(ok=False, motivo=f'no existe el proyecto {args.project}')
             print(json.dumps(salida, ensure_ascii=False))

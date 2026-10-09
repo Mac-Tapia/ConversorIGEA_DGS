@@ -122,7 +122,12 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.project:
-        app.ActivateProject(args.project)
+        # Por ruta en la carpeta de proyectos, o por nombre en la raíz para los
+        # anteriores: ActivateProject(nombre) solo mira la raíz (spec 005, RF-16).
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
+        from igea_dgs.carpeta_pf import activar_proyecto, nombre_de_perfil
+
+        activar_proyecto(app, args.project, nombre_de_perfil())
     proyecto = app.GetActiveProject()
     if proyecto is None:
         print('No hay proyecto activo. Use --project o actívelo en PowerFactory.',

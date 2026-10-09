@@ -29,6 +29,7 @@ Lee: `docs/constitution.md` y `specs/005-carpeta-de-proyectos-pf/spec.md`.
 | Árbol de DIgSILENT | `src/igea_dgs/carpeta_pf.py`: `buscar_carpeta(user, nombre)`, `asegurar_carpeta(user, nombre)`, `nombre_libre(carpeta, nombre)`, `proyectos_de(carpeta)` → `[(ruta_relativa, IntPrj)]`, `proyecto_por_ruta(carpeta, ruta)`, `alimentadores_de(proyecto)`. Solo usan la API por duck typing, sin importar `powerfactory`; se prueban con `tests/fake_pf.py` | RF-1, RF-5, RF-7, RF-12, RF-13, RF-16, RF-17, RF-18, RF-19 |
 | Importación | `import_dgs_file(app, dgs, project_name=None, carpeta=None)`: importa con un nombre provisional único en la raíz, mueve el proyecto a la carpeta, le da el nombre libre y lo activa por objeto (`prj.Activate()`), no por nombre. Si mover falla, borra ese proyecto recién creado y devuelve error con la carpeta. El informe añade `project_folder` y `project_path` | RF-5, RF-6, RF-7, RF-8, RF-9 |
 | Guiones | `--pf-carpeta` en `powerfactory_acceptance.py`, `build_system_grid.py`, `convertir_grupos_mdb.py`, `prueba_representacion.py`, `run_one_study.py`; sin la opción, `nombre_de_perfil(config/perfil_empresa.json)` | RF-10 |
+| Activar después de importar | `carpeta_pf.activar_proyecto(app, ruta, carpeta)`: busca la ruta en la carpeta y, si no está, un proyecto de la raíz con ese nombre exacto (los anteriores, RF-20), y lo activa por objeto. La usan los estudios de `run_one_study.py` (que antes hacían `ActivateProject(nombre)`, que solo mira la raíz), `check_pf_license.py --project` y `show_pf_diagram.py`. `base_scenario.py` pasa a los estudios el proyecto que devolvió la importación, que puede llevar `_2`, y `--pf-carpeta` | RF-10, RF-16 |
 | Lectura | `tools/pf_proyectos.py --carpeta`: lista `proyectos_de`, alimentadores con `alimentadores_de`, `{'folder', 'exists', 'aviso', 'projects': [{name, path, feeders}]}`. Si no existe la carpeta: lista vacía y aviso, sin crearla | RF-11, RF-13, RF-14, RF-15 |
 | Web | `services.pf_projects` y `powerfactory_flow` pasan `--carpeta`/`--pf-carpeta` tomada de `nombre_de_perfil`, validada antes del subproceso; `ws.pf_projects[feeder]` guarda la ruta | RF-2, RF-4, RF-10, RF-16 |
 | Cargas | `tools/cargas_pf.py`: `activar_proyecto(app, carpeta, ruta)` con `proyecto_por_ruta`; el plan lleva `project` = ruta y `folder` | RF-16 |
@@ -97,5 +98,9 @@ Lee: `docs/constitution.md` y `specs/005-carpeta-de-proyectos-pf/spec.md`.
 - La estructura de carpetas `netdat` puede variar en proyectos hechos a mano: RF-18 lo cubre.
 - Los informes de aceptación antiguos no traen `project_path`: `_proyecto_importado` cae al
   nombre.
+- *Hallado en la T6 (2026-10-09):* `run_one_study.py` activaba cada estudio con
+  `ActivateProject(nombre)`, que solo busca en la raíz; tras importar en la carpeta, el
+  estudio no encontraba el proyecto o activaba uno antiguo con el mismo nombre. Lo
+  cubre la fila «Activar después de importar».
 - Que el guion de un usuario llame a `import_dgs_file` sin carpeta: toma la del perfil o la
   de por defecto, así que todo cae en una carpeta, nunca en la raíz.

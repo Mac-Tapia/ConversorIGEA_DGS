@@ -201,7 +201,8 @@ def _salida_pf(app) -> str:
     return ''
 
 
-def importar(dgs: Path, proyecto: str, en_dgs: dict, hoja=None, grid_mm: float = 0.0) -> dict:
+def importar(dgs: Path, proyecto: str, en_dgs: dict, hoja=None, grid_mm: float = 0.0,
+             carpeta: str | None = None) -> dict:
     pf_dir = Path(r'C:\Program Files\DIgSILENT\PowerFactory 2024\Python\3.12')
     sys.path.insert(0, str(pf_dir))
     sys.path.insert(0, str(RAIZ / 'tools'))
@@ -219,7 +220,7 @@ def importar(dgs: Path, proyecto: str, en_dgs: dict, hoja=None, grid_mm: float =
     except Exception:  # noqa: BLE001
         pass
     t = time.time()
-    info = import_dgs_file(app, dgs, project_name=proyecto)
+    info = import_dgs_file(app, dgs, project_name=proyecto, carpeta=carpeta)
     salida_import = _salida_pf(app)
     activate_base_study_and_scenario(app)
     ensure_operation_scenario(app)
@@ -321,6 +322,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument('--out-dir', default=str(RAIZ / 'output' / 'grupos'))
     p.add_argument('--source-crs', default='EPSG:32718')
     p.add_argument('--importar', action='store_true')
+    p.add_argument('--pf-carpeta', metavar='NOMBRE',
+                   help='Carpeta de DIgSILENT donde queda el proyecto importado (spec 005). '
+                        'Por defecto, la del perfil de empresa o «Conversor IGEA-DGS».')
     p.add_argument('--hoja', default='A0', help='Hoja del diagrama: A0 … A4 (defecto A0).')
     args = p.parse_args(argv)
 
@@ -374,7 +378,8 @@ def main(argv: list[str] | None = None) -> int:
             en_dgs = {c: len(t.get('rows_dict', [])) for c, t in parse_dgs(man['dgs']).items()}
             print('  importando en PowerFactory…')
             pf = importar(Path(man['dgs']).resolve(), f'{nombre}_{time.strftime("%H%M%S")}',
-                          en_dgs, hoja=hoja_ns, grid_mm=hoja['cuadricula_mm'])
+                          en_dgs, hoja=hoja_ns, grid_mm=hoja['cuadricula_mm'],
+                          carpeta=args.pf_carpeta)
             grupo['powerfactory'] = pf
             ok = (pf['flujo']['pass'] and not pf['diferencias_con_dgs']
                   and not pf['graficos_fuera_de_hoja']
