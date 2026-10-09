@@ -2,7 +2,7 @@
 
 Por defecto escucha solo en 127.0.0.1, que es lo que permite indicar rutas del disco
 local en lugar de subir los ficheros. Con ``--host 0.0.0.0`` se expone en la red y
-esas rutas se desactivan salvo que se pida lo contrario (``IGEA_WEB_SERVER_PATHS=1``).
+esas rutas se desactivan siempre, aunque ``IGEA_WEB_SERVER_PATHS`` valga ``1``.
 """
 
 from __future__ import annotations
@@ -37,8 +37,10 @@ def main(argv: list[str] | None = None) -> int:
               file=sys.stderr)
         return 1
 
-    if args.host not in ('127.0.0.1', 'localhost'):
-        os.environ.setdefault('IGEA_WEB_SERVER_PATHS', '0')
+    # La API decide las rutas locales por la interfaz de escucha (create_app); con
+    # factory=True no recibe argumentos, así que va por el entorno, que hereda también
+    # el proceso de recarga.
+    os.environ['IGEA_WEB_HOST'] = args.host
 
     from .app import frontend_dist
 

@@ -57,7 +57,7 @@ def client(tmp_path, monkeypatch):
         'REGULATORY_VNRGIS_PACKAGE',
     ))
     catalog.save(data_root / '_vnr_catalog')
-    with TestClient(create_app(data_root)) as value:
+    with TestClient(create_app(data_root, host='127.0.0.1')) as value:
         yield value
 
 

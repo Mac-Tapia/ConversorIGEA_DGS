@@ -102,9 +102,14 @@ Spec aprobada el 2026-10-08.
       token `VNR_WEB_TOKEN`: la API única tiene un solo modelo de acceso (T11b), y las
       rutas de VNR solo leen ficheros subidos o URL oficiales HTTPS. `vnr-etl web` abre
       la web única. Una prueba exige que ninguna ruta esté dos veces.
-- [ ] T11b. `create_app` decide las rutas locales según la interfaz de escucha, por
+- [x] T11b. `create_app` decide las rutas locales según la interfaz de escucha, por
       defecto en cerrado. (RF-15)
       Hecho cuando: prueba de API con host de red → 403 en `/inputs/{slot}/path`, aunque
       la variable esté a `1`.
+      Hecho el 2026-10-08 (`tests/test_web_api.py`). `create_app(host=...)`; sin él lee
+      `IGEA_WEB_HOST`, que pone el lanzador (con `factory=True` uvicorn no pasa
+      argumentos), y sin ninguno de los dos, cerradas: un `uvicorn --factory --host
+      0.0.0.0` a mano también queda cubierto. Solo 127.0.0.1, `localhost` y `::1` las
+      abren; `IGEA_WEB_SERVER_PATHS=0` las apaga en local, pero ya no las abre fuera.
 - [ ] T12. Validación: cada RF citado y en verde; RF-14 contra la línea base. (Todos)
       Hecho cuando: `grep -rnoE "001:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-16.
