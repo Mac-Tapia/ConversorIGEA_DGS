@@ -61,12 +61,25 @@ Spec aprobada el 2026-10-08.
       `powerfactory_env` (la de `gui.py` era copia). A diferencia de la referencia,
       `run_gui.bat` conserva su nombre por los accesos directos ya creados. El entorno
       instalado conserva `igea-dgs-gui.exe` hasta el próximo `pip install -e .`.
-- [ ] T8. `diagnose` y `reconstruct` como trabajos del carril `engine`; la cancelación
+- [x] T8. `diagnose` y `reconstruct` como trabajos del carril `engine`; la cancelación
       conserva el dataset anterior. (RF-8, RF-9)
       Hecho cuando: pruebas de API (202 + Job, cancelación) en verde.
-- [ ] T9. Front: `startJob` para diagnosticar y reconstruir; `download()` con el mismo
+      Hecho el 2026-10-08 (`tests/test_web_reconstruction.py`). La selección se valida
+      antes de encolar: un alimentador desconocido sigue siendo un 400 de la petición.
+      La cancelación se comprueba entre pasos; el informe y el dataset se publican tras
+      `JobContext.sin_retorno()`, que bajo el mismo cerrojo que `JobManager.cancel`
+      decide si la cancelación llegó antes (se conserva lo anterior) o ya no entra (el
+      trabajo acaba `done`, nunca «cancelado» con la reconstrucción publicada). Fuera de
+      T8: la reconstrucción que lanza `convert` por su cuenta sigue sin cancelarse a
+      mitad, como antes.
+- [x] T9. Front: `startJob` para diagnosticar y reconstruir; `download()` con el mismo
       tratamiento de `detail`; quitar los métodos sin uso. (RF-8, RF-12, RF-13)
       Hecho cuando: `npx tsc --noEmit -p frontend` y `npm run build` correctos.
+      Hecho el 2026-10-08. El panel muestra el resultado del último trabajo terminado
+      y encadena la conversión solo si la reconstrucción acaba bien. Fuera: `sourceRuns`,
+      `job` y `events`. `apiError` es común a `request()` y `download()`. La orden real
+      es `npx tsc --noEmit -p .` desde `frontend/`: desde la raíz, `npx` no encuentra
+      TypeScript. Pruebas de contrato en `tests/test_web_reconstruction_ui_contract.py`.
 - [ ] T10. `DgsExporter` por el motor. (RF-10)
       Hecho cuando: `pytest -q tests/test_vnr_etl.py` en verde con el DGS validado.
 - [ ] T11. Una sola API web y una sola cola; se retira el script `vnr-etl-web`. (RF-11)

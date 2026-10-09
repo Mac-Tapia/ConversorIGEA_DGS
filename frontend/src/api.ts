@@ -1,6 +1,6 @@
 import type {
-  CreatePlan, DiagnosisResponse, Economia, EventItem, FeederRow, Health, Job, LoadPlan, LotePlan,
-  Options, OutputFile, PowerFactoryStatus, ReconstructionReport, ReconstructionResponse, WorkspaceState,
+  CreatePlan, Economia, FeederRow, Health, Job, LoadPlan, LotePlan,
+  Options, OutputFile, PowerFactoryStatus, ReconstructionReport, WorkspaceState,
 } from './types';
 
 export class ApiError extends Error {
@@ -11,19 +11,26 @@ export class ApiError extends Error {
   }
 }
 
+/** Convierte una respuesta fallida en `ApiError` con el `detail` del servidor.
+ *
+ * Un 422 de FastAPI trae `detail` como lista de objetos; `download()` lo copiaba como
+ * venía y el aviso mostraba «[object Object]» (spec 001, RF-12). Las dos vías pasan
+ * por aquí. */
+async function apiError(res: Response): Promise<ApiError> {
+  let detail = `${res.status} ${res.statusText}`;
+  try {
+    const body = await res.json();
+    if (typeof body.detail === 'string') detail = body.detail;
+    else if (Array.isArray(body.detail)) detail = body.detail.map((d: { msg: string }) => d.msg).join('; ');
+  } catch {
+    /* respuesta sin JSON: se queda el estado HTTP */
+  }
+  return new ApiError(res.status, detail);
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, init);
-  if (!res.ok) {
-    let detail = `${res.status} ${res.statusText}`;
-    try {
-      const body = await res.json();
-      if (typeof body.detail === 'string') detail = body.detail;
-      else if (Array.isArray(body.detail)) detail = body.detail.map((d: { msg: string }) => d.msg).join('; ');
-    } catch {
-      /* respuesta sin JSON: se queda el estado HTTP */
-    }
-    throw new ApiError(res.status, detail);
-  }
+  if (!res.ok) throw await apiError(res);
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
 }
@@ -52,7 +59,6 @@ export const api = {
   workspace: (id: string) => request<WorkspaceState>(ws(id)),
   setOptions: (id: string, opts: Partial<Options>) =>
     request<WorkspaceState>(`${ws(id)}/options`, json('PUT', opts)),
-  sourceRuns: (id: string) => request<import('./types').SourceRun[]>(`${ws(id)}/runs`),
   sourceScope: (id: string) => request<import('./types').SourceScope>(`${ws(id)}/source-scope`),
   setSourceScope: (id: string, company: string | null, period: string | null) =>
     request<import('./types').SourceScope>(
@@ -84,9 +90,9 @@ export const api = {
   load: (id: string) => request<Job>(`${ws(id)}/load`, { method: 'POST' }),
   feeders: (id: string) => request<{ loaded: boolean; feeders: FeederRow[] }>(`${ws(id)}/feeders`),
   diagnose: (id: string, feeders: string[], all: boolean) =>
-    request<DiagnosisResponse>(`${ws(id)}/diagnose`, json('POST', { feeders, all })),
+    request<Job>(`${ws(id)}/diagnose`, json('POST', { feeders, all })),
   reconstruct: (id: string, feeders: string[], all: boolean) =>
-    request<ReconstructionResponse>(`${ws(id)}/reconstruct`, json('POST', { feeders, all })),
+    request<Job>(`${ws(id)}/reconstruct`, json('POST', { feeders, all })),
   reconstructionReport: (id: string) =>
     request<ReconstructionReport>(`${ws(id)}/files/reconstruction_report.json`),
   convert: (id: string, feeders: string[], all: boolean) =>
@@ -94,9 +100,7 @@ export const api = {
   convertGroup: (id: string, feeders: string[], nombre: string) =>
     request<Job>(`${ws(id)}/convert`, json('POST', { feeders, all: false, unir: true, nombre })),
 
-  job: (jobId: string) => request<Job>(`/api/jobs/${jobId}`),
   cancelJob: (jobId: string) => request<Job>(`/api/jobs/${jobId}/cancel`, { method: 'POST' }),
-  events: (id: string, since: number) => request<EventItem[]>(`${ws(id)}/events?since=${since}`),
 
   outputs: (id: string) => request<OutputFile[]>(`${ws(id)}/outputs`),
   fileUrl: (id: string, rel: string, download = false) =>
@@ -153,15 +157,7 @@ export const api = {
 /** Descarga una URL de la API mostrando el error del servidor si lo hay. */
 export async function download(url: string): Promise<void> {
   const res = await fetch(url);
-  if (!res.ok) {
-    let detail = `${res.status} ${res.statusText}`;
-    try {
-      detail = (await res.json()).detail ?? detail;
-    } catch {
-      /* sin JSON */
-    }
-    throw new ApiError(res.status, detail);
-  }
+  if (!res.ok) throw await apiError(res);
   const blob = await res.blob();
   const cd = res.headers.get('content-disposition') ?? '';
   const match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(cd);
