@@ -10,7 +10,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 - [x] T2. Doble de PowerFactory: `IntFolder`, `Move`, `Delete`, `ComImport` simulado y
       fallo opcional al mover, en `tests/fake_pf.py`. (apoyo de RF-5 a RF-9)
       Hecho cuando: `tests/test_cargas_pf_guion.py` sigue en verde con el doble ampliado.
-- [ ] T3. Árbol: `buscar_carpeta`, `asegurar_carpeta`, `nombre_libre`, `proyectos_de` con
+- [x] T3. Árbol: `buscar_carpeta`, `asegurar_carpeta`, `nombre_libre`, `proyectos_de` con
       subcarpetas sorteadas, `proyecto_por_ruta`. (RF-1, RF-5, RF-7, RF-12, RF-13, RF-16)
       Hecho cuando: `pytest -q tests/test_carpeta_pf.py` en verde.
 - [ ] T4. `alimentadores_de` en los datos de red, con la búsqueda completa de reserva y su
