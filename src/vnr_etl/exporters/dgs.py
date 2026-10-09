@@ -109,22 +109,18 @@ class DgsExporter:
         return errors
 
     def export(self, model: CanonicalModel, output_dir: Path) -> list[Path]:
-        if self.profile is None or not self.profile.verified:
-            raise ExportBlocked(
-                'Export DGS bloqueado: falta un perfil verificado contra una '
-                'muestra DGS conocida y sin alteraciones.'
-            )
-        configured_schema = self.profile.object_mapping.get('schema_profile')
-        if configured_schema != self.schema_profile:
-            raise ExportBlocked(
-                f'Export DGS bloqueado: el perfil declara {configured_schema!r} '
-                f'pero el exportador usa {self.schema_profile!r}.'
-            )
-        errors = self.validate_mapping(model)
-        if errors:
-            raise ExportBlocked(
-                'Export DGS bloqueado: ' + '; '.join(errors[:5])
-            )
+        # Ni el perfil de destino, ni la procedencia, ni la relectura impiden exportar
+        # (spec 001, RF-22 a RF-24): se exporta y el manifiesto dice qué falló. Solo un
+        # modelo sin ningún tramo se queda sin DGS, porque no hay red que escribir.
+        avisos: list[str] = []
+        verificado = bool(self.profile is not None and self.profile.verified)
+        if not verificado:
+            avisos.append('Perfil de destino no verificado: se usa el perfil de esquema del '
+                          f'motor ({self.schema_profile}).')
+        configured_schema = (self.profile.object_mapping.get('schema_profile')
+                             if self.profile is not None else None)
+        if configured_schema and configured_schema != self.schema_profile:
+            avisos.append(f'El perfil declara {configured_schema!r}; se usa {self.schema_profile!r}.')
         from igea_dgs.batch import convert_group
         from igea_dgs.reconstruction_pipeline import catalogos_del_fichero, reconstruir_seleccion
         from vnr_etl.application.cymdist_bridge import canonical_to_cymdist
@@ -134,6 +130,7 @@ class DgsExporter:
         # Primero el modelo canónico (alimentadores, fuentes, tensión, fases, longitudes,
         # cargas, CRS) y después el dataset con el catálogo de parámetros (RF-17, RF-18).
         modelo = reconstruir_modelo(model, nombre=name)
+        avisos = modelo.avisos + avisos
         bridge = canonical_to_cymdist(modelo.model, source_path=Path(f'{name}.vnr'))
         feeders = sorted(bridge.dataset.feeders)
         if not feeders:
@@ -168,15 +165,14 @@ class DgsExporter:
                     'Export DGS bloqueado por el motor: '
                     + str(engine.get('error') or engine['status'])
                 )
+            # El motor ya validó el DGS; la relectura es una segunda opinión y se informa.
             roundtrip_errors = self.roundtrip_errors(stage_dgs)
-            if roundtrip_errors:
-                raise ExportBlocked(
-                    'Export DGS bloqueado por round-trip: ' + '; '.join(roundtrip_errors[:5])
-                )
+            avisos += [f'Relectura: {error}' for error in roundtrip_errors]
             from vnr_etl import __version__
             from igea_dgs.util import sha256_file
 
             informe = _informe_reconstruccion(modelo, bridge, result, resolutions, catalogo)
+            informe['avisos'] = avisos
             stage_report = stage_dir / f'{name}_reconstruccion.json'
             stage_report.write_text(
                 json.dumps(informe, ensure_ascii=False, indent=2, sort_keys=True) + '\n',
@@ -184,15 +180,19 @@ class DgsExporter:
             )
             stage_manifest = stage_dir / f'{name}.manifest.json'
             manifest = {
-                field: model.metadata.get(field, '') for field in PROVENANCE_FIELDS
+                field: modelo.model.metadata.get(field, '') for field in PROVENANCE_FIELDS
             }
             manifest.update({
-                'target_profile_hash': self.profile.sample_hash,
+                'target_profile_hash': self.profile.sample_hash if self.profile else None,
+                'perfil_verificado': verificado,
+                'procedencia_reconstruida': modelo.model.metadata.get('procedencia_reconstruida', []),
                 'schema_profile': self.schema_profile,
                 'converter_version': __version__,
                 'artifact': stage_dgs.name,
                 'artifact_sha256': sha256_file(stage_dgs),
-                'roundtrip': 'PASS',
+                'roundtrip': 'FAIL' if roundtrip_errors else 'PASS',
+                'roundtrip_errors': roundtrip_errors,
+                'avisos': avisos,
                 'engine': 'igea_dgs.batch.convert_group',
                 'feeders': engine['feeders'],
                 'engine_manifest': f'{name}_manifest.json',

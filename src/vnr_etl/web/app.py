@@ -245,26 +245,34 @@ def create_router(root: Path | str, jobs: Any, settings: Settings | None = None)
 
     @router.post('/topology/build')
     def topology_build(body: SourceIn) -> dict:
-        from ..pipeline import canonicalize_sections, discover_layers, read_layer
+        from ..pipeline import (
+            buscar_capa_de_tramos, canonicalize_sections, discover_layers, read_layer,
+        )
 
         try:
             source = source_for(body)
             layers = discover_layers(source)
         except Exception as exc:  # noqa: BLE001
             raise HTTPException(400, str(exc))
-        target = next((l for l in layers if 'tramo' in (l.get('name') or '').lower()), None)
+        target = buscar_capa_de_tramos(layers)
         if target is None:
             raise HTTPException(400, 'no se identificó una capa de tramos.')
-        source_crs = target.get('crs')
-        if not source_crs:
-            raise HTTPException(400, 'la capa no declara CRS; no se asumirá uno.')
         rows = read_layer(source, target.get('name') or target.get('layer_id'))
+        source_crs = target.get('crs')
+        avisos = []
+        if not source_crs:
+            # Se deduce de las coordenadas en vez de rechazar la capa (RF-25).
+            from ..pipeline import deducir_crs_de_tramos
+
+            source_crs, motivo = deducir_crs_de_tramos(rows)
+            avisos.append(motivo)
         result = canonicalize_sections(
             rows,
             source_crs=source_crs,
             source_layer=str(target.get('name') or target.get('layer_id')),
         )
-        return {'counts': result.model.counts(), 'warnings': result.warnings}
+        return {'counts': result.model.counts(), 'warnings': avisos + result.warnings,
+                'source_crs': source_crs}
 
     @router.post('/database/test')
     def database_test(body: DatabaseIn) -> dict:

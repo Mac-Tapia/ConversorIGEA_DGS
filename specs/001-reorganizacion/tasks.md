@@ -159,3 +159,26 @@ Spec aprobada el 2026-10-08.
       Hecho el 2026-10-08: suite con las cinco `IGEA_*`, 939 correctas y 18 omitidas (las
       de siempre); `test_linea_base_001` en verde.
 
+## Segundo cambio del 2026-10-08 (RF-22 a RF-25)
+
+- [x] T18. Procedencia reconstruida en `reconstruir_modelo`; perfil sin verificar y
+      relectura con errores no bloquean; el servicio no bloquea por puertas A–F. (RF-22, RF-23, RF-24)
+      Hecho cuando: un modelo sin procedencia ni perfil exporta un DGS validado y el
+      manifiesto lo dice.
+      Hecho el 2026-10-08. Huella del modelo para `source_fingerprint`, `source_sha256`,
+      `schema_fingerprint` y `source_publication_id` (`DIRECT-…`); el resto,
+      `DESCONOCIDO`. Manifiesto: `perfil_verificado`, `procedencia_reconstruida`,
+      `roundtrip` (`PASS`/`FAIL`), `roundtrip_errors`, `avisos`. Un export escrito es
+      `EXPORT_READY` o `EXPORT_RECONSTRUCTED`, nunca `BLOCKED`. Solo bloquean un modelo
+      sin tramos y `require_simulator` sin evidencia.
+- [x] T19. Deducción de CRS común (`vnr_etl.gis.crs.deducir_crs`), usada por la
+      reconstrucción, `vnr-etl convert` y `/api/vnr/topology/build`. (RF-25)
+      Hecho cuando: una capa en grados sin CRS y otra en metros sin CRS convierten.
+      Hecho el 2026-10-08. De paso, dos rigideces previas: `canonicalize_sections` solo
+      buscaba la geometría en `geometry` (las capas ArcGIS la traen en `__geometry__`) y
+      se quedaba en grados aunque se dijera EPSG:4326; y la ruta web solo encontraba la
+      capa de tramos si su nombre decía «tramo», cosa que una subida nunca cumple. Ahora
+      las dos vías usan `pipeline.buscar_capa_de_tramos`.
+- [x] T20. Validación: RF-22 a RF-25 citados, suite completa en verde y RF-14 igual.
+      Hecho el 2026-10-08: 945 correctas y 18 omitidas (las de siempre); RF-14 en verde.
+

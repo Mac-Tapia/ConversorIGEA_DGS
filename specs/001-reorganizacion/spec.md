@@ -1,6 +1,6 @@
 # Spec 001 — Reorganización: una responsabilidad, un sitio
 
-Estado: cumplida (2026-10-08), con el cambio RF-17 a RF-21 (T13–T17) · Fecha: 2026-10-07 · Origen: `docs/DIAGNOSTICO_SDD_2026-10-07.md`
+Estado: cumplida (2026-10-08), con los cambios RF-17 a RF-25 (T13–T20) · Fecha: 2026-10-07 · Origen: `docs/DIAGNOSTICO_SDD_2026-10-07.md`
 
 ## Contexto y objetivo
 
@@ -76,6 +76,15 @@ VNR-GIS
   georreferenciación con las longitudes del modelo.
 - RF-21: EL SISTEMA dejará junto al DGS un informe con cada valor reconstruido, su origen
   (catálogo o supuesto de ingeniería), su confianza y el valor original.
+- RF-22: SI al modelo le falta procedencia, ENTONCES EL SISTEMA la completará con lo que se
+  puede derivar del propio modelo, la marcará como reconstruida y exportará.
+- RF-23: SI no hay un perfil de destino verificado, ENTONCES EL SISTEMA exportará con el
+  perfil de esquema del motor e indicará en el manifiesto que el perfil no está verificado.
+- RF-24: SI la relectura del DGS escrito encuentra errores, ENTONCES EL SISTEMA los
+  registrará en el manifiesto y publicará el DGS que el motor ya validó.
+- RF-25: SI una capa de origen no declara CRS, ENTONCES EL SISTEMA lo deducirá de las
+  coordenadas (grados → EPSG:4326 y su zona UTM) o, si no puede, leerá la capa sin
+  reproyectar, en vez de rechazar la conversión.
 
 Front
 
@@ -132,6 +141,14 @@ procedencia (puerta A) y el perfil de destino verificado (puerta E del perfil): 
 datos de la red, sino garantía de trazabilidad y de formato. No se inventan tipos
 `DEFAULT` (constitución P4): cada valor reconstruido va bajo su código original, con su
 evidencia. Las puertas B, C y D se siguen evaluando e informando, pero no bloquean.
+
+## Segundo cambio del 2026-10-08: nada que no sea la red vacía impide exportar
+
+El usuario pide que tampoco bloqueen la procedencia, el perfil de destino ni la
+relectura (RF-22 a RF-24), y que leer una capa sin CRS sea flexible (RF-25). Solo
+impiden exportar un modelo sin ningún tramo, que no tiene nada que exportar, y la
+evidencia de simulador cuando quien llama la exige (`require_simulator`). Las puertas
+A–H se siguen evaluando y se informan.
 
 ## Dudas resueltas (2026-10-08)
 

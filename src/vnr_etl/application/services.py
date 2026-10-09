@@ -4,10 +4,9 @@ La interfaz de línea de comandos y la API web deben pasar por este módulo. As�
 no pueden divergir en las reglas de CRS, topología, enriquecimiento, perfil de
 destino ni round-trip.
 
-Las puertas B (CRS), C (topología) y D (eléctrico) se evalúan y se informan, pero no
-impiden exportar: lo que les falta lo reconstruye el exportador (spec 001, RF-17).
-Bloquean la procedencia (A), el mapeo y el perfil de destino (E) y el round-trip (F),
-que no son datos de la red.
+Las puertas A–F se evalúan y se informan, pero no impiden exportar: lo que les falta lo
+reconstruye el exportador y lo anota (spec 001, RF-17 y RF-22 a RF-24). G y H solo
+bloquean cuando quien llama exige evidencia de simulador (``require_simulator``).
 """
 
 from __future__ import annotations
@@ -25,8 +24,8 @@ from vnr_etl.validation import run_gates
 from vnr_etl.validation.gates import GateVerdict
 
 
-# Puertas que impiden exportar. B, C y D no: sus datos se reconstruyen (RF-17).
-BLOQUEANTES_ANTES = 'AE'
+# Puertas que impiden exportar: ninguna de A–F, cuyos datos se reconstruyen (RF-17, RF-22).
+BLOQUEANTES_ANTES = ''
 
 
 @dataclass
@@ -55,9 +54,6 @@ class Assessment:
             return 'SIMULATOR_VERIFIED'
         if all(passed.get(gate, False) for gate in 'ABCDEF'):
             return 'EXPORT_READY'
-        if all(passed.get(gate, False) for gate in 'AEF'):
-            # Exportado con datos reconstruidos: el informe dice cuáles.
-            return 'EXPORT_RECONSTRUCTED'
         if all(passed.get(gate, False) for gate in 'ABCD'):
             return 'ELECTRICALLY_ENRICHED'
         if all(passed.get(gate, False) for gate in 'ABC'):
@@ -76,12 +72,16 @@ class ExportResult:
 
     @property
     def readiness(self) -> str:
-        return self.assessment.readiness
+        # Un DGS escrito no está «bloqueado»: o cumple A–F con los datos originales, o
+        # se exportó con datos reconstruidos, que el informe detalla.
+        estado = self.assessment.readiness
+        return estado if estado in ('SIMULATOR_VERIFIED', 'EXPORT_READY') else 'EXPORT_RECONSTRUCTED'
 
     def as_dict(self) -> dict:
         return {
             'paths': [str(path) for path in self.paths],
             **self.assessment.as_dict(),
+            'readiness': self.readiness,
         }
 
 
@@ -198,7 +198,7 @@ class VnrApplicationService:
             load_flow_ok=load_flow_ok,
             require_simulator=require_simulator,
         )
-        bloqueantes = BLOQUEANTES_ANTES + 'F' + ('GH' if require_simulator else '')
+        bloqueantes = BLOQUEANTES_ANTES + ('GH' if require_simulator else '')
         if any(r.gate in bloqueantes and not r.passed for r in final.verdict.results):
             raise ExportBlocked(
                 f'Export {target.upper()} generado pero no cumple las puertas obligatorias.'

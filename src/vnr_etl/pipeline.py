@@ -200,6 +200,37 @@ def fingerprint_layers(layers: Sequence[dict]) -> str:
     return compute_schema_fingerprint(layers)
 
 
+def buscar_capa_de_tramos(layers: Sequence[Mapping[str, Any]]) -> dict | None:
+    """La capa de tramos MT: por el nombre o, si no, la primera de polilíneas.
+
+    Era del CLI; la web buscaba solo «tramo» en el nombre, y una capa subida, que se
+    guarda con un nombre opaco, nunca se encontraba (spec 001, RF-25).
+    """
+    for layer in layers:
+        name = (layer.get('name') or '').lower()
+        if 'tramo' in name or 'section' in name or 'line' in name:
+            return dict(layer)
+    for layer in layers:
+        gtype = (layer.get('geometry_type') or '').lower()
+        if 'polyline' in gtype or 'linestring' in gtype or 'multiline' in gtype:
+            return dict(layer)
+    return None
+
+
+def deducir_crs_de_tramos(section_rows: Sequence[Mapping[str, Any]]) -> tuple[str | None, str]:
+    """:func:`vnr_etl.gis.crs.deducir_crs` sobre las geometrías de una capa de tramos."""
+    from vnr_etl.gis.crs import deducir_crs
+    from vnr_etl.gis.geometry import coords_from_geojson
+
+    puntos: list[tuple[float, float]] = []
+    for row in section_rows:
+        normal = normalize_feature_record(row)
+        geometry = normal.get('geometry') or normal.get('__geometry__')
+        if geometry:
+            puntos.extend(coords_from_geojson(geometry))
+    return deducir_crs(puntos)
+
+
 def suggest_utm_crs(lon: float, lat: float) -> str:
     """CRS UTM WGS84 para un punto, como CRS de **trabajo** métrico.
 
@@ -348,7 +379,12 @@ def canonicalize_sections(
     # Auto-elegir CRS de trabajo métrico si venía en grados.
     resolved_working = working_crs
     if source_crs == 'EPSG:4326' and not resolved_working:
-        first = normalized_rows[0].get('geometry') if normalized_rows else None
+        # La geometría puede venir como «geometry» o «__geometry__» (ArcGIS), igual que
+        # en el bucle de abajo; mirando solo la primera, una capa ArcGIS en grados se
+        # quedaba trabajando en grados y medía longitudes en grados.
+        first = next((row.get('geometry') or row.get('__geometry__')
+                      for row in normalized_rows
+                      if row.get('geometry') or row.get('__geometry__')), None)
         pts = coords_from_geojson(first) if first else []
         if pts:
             resolved_working = suggest_utm_crs(pts[0][0], pts[0][1])
