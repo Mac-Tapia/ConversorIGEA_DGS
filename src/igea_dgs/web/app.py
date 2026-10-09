@@ -129,7 +129,8 @@ class NewSedIn(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-def create_app(data_root: Path | None = None) -> FastAPI:
+def create_app(data_root: Path | None = None, *, vnr_settings=None) -> FastAPI:
+    """La API web, la única (spec 001, RF-11). ``vnr_settings`` configura las rutas de VNR."""
     store = WorkspaceStore(data_root)
 
     def emit(workspace_id: str, kind: str, data: dict) -> None:
@@ -147,6 +148,11 @@ def create_app(data_root: Path | None = None) -> FastAPI:
     app = FastAPI(title='Conversor IGEA/CYMDIST → DGS', version=__version__, lifespan=lifespan)
     app.state.store = store
     app.state.jobs = jobs
+
+    from vnr_etl.web.app import create_router
+
+    # Las rutas de VNR-GIS son parte de esta API y usan su cola de trabajos.
+    app.include_router(create_router(store.root, jobs, vnr_settings))
 
     # Solo el servidor de desarrollo de Vite. En producción el front se sirve desde
     # este mismo origen y CORS no interviene.

@@ -783,10 +783,19 @@ def test_application_service_requires_simulator_evidence_before_production_write
     assert not (tmp_path / 'out').exists()
 
 
-def test_web_uses_same_gates_and_protects_artifacts(tmp_path):
+def _main_app(tmp_path, monkeypatch, settings=None):
+    """La API web única (spec 001, RF-11), con las rutas de VNR montadas."""
+    from igea_dgs.web.app import create_app
+
+    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'no-frontend'))
+    return create_app(tmp_path / 'web', vnr_settings=settings)
+
+
+def test_web_uses_same_gates_and_protects_artifacts(tmp_path, monkeypatch):
+    """001:RF-11 — exportar desde VNR es un trabajo de la cola común de la API principal."""
     from fastapi.testclient import TestClient
 
-    from vnr_etl.web.app import create_app
+    from apoyo import esperar_trabajo
 
     settings = Settings()
     profile_path = tmp_path / 'profile.json'
@@ -800,64 +809,74 @@ def test_web_uses_same_gates_and_protects_artifacts(tmp_path):
         'object_mapping': profile.object_mapping,
     }), encoding='utf-8')
     settings.templates['dgs'] = str(profile_path)
-    app = create_app(
-        tmp_path / 'catalog', tmp_path / 'artifacts', settings, auth_token='secret'
-    )
 
-    with TestClient(app) as client:
-        assert client.get('/api/doctor').status_code == 401
-        headers = {'X-Session-Token': 'secret'}
-        validation = client.post(
-            '/api/validate', json={'canonical': _model_base().to_dict()}, headers=headers
-        )
+    with TestClient(_main_app(tmp_path, monkeypatch, settings)) as client:
+        assert client.get('/api/vnr/doctor').status_code == 200
+        validation = client.post('/api/vnr/validate', json={'canonical': _model_base().to_dict()})
         assert validation.status_code == 200
         assert validation.json()['gates']['blocked'] is True
 
         submitted = client.post(
-            '/api/export/dgs',
-            json={'canonical': _production_ready_model().to_dict()},
-            headers=headers,
+            '/api/vnr/export/dgs', json={'canonical': _production_ready_model().to_dict()},
         )
-        assert submitted.status_code == 200
-        job_id = submitted.json()['id']
-        for _ in range(100):
-            job = client.get(f'/api/jobs/{job_id}', headers=headers).json()
-            if job['status'] in ('SUCCEEDED', 'FAILED'):
-                break
-            time.sleep(0.01)
-        assert job['status'] == 'SUCCEEDED', job
+        assert submitted.status_code == 202
+        assert submitted.json()['lane'] == 'engine'
+        job = esperar_trabajo(client, submitted.json())
+        assert job['status'] == 'done', job
         assert job['result']['readiness'] == 'EXPORT_READY'
-        artifact = client.get(f'/api/artifacts/{job_id}/0', headers=headers)
+        assert client.app.state.jobs.get(job['id']) is not None
+        artifact = client.get(f"/api/vnr/artifacts/{job['id']}/0")
         assert artifact.status_code == 200
+        assert client.get(f"/api/vnr/artifacts/{job['id']}/9").status_code == 404
 
 
-def test_web_refuses_non_loopback_without_session_token(monkeypatch):
-    from vnr_etl.web.__main__ import main
+def test_una_sola_api_web_sin_lanzador_de_vnr():
+    """001:RF-11 — no queda una segunda app FastAPI ni el script `vnr-etl-web`."""
+    import importlib.util
 
-    monkeypatch.delenv('VNR_WEB_TOKEN', raising=False)
-    with pytest.raises(SystemExit, match='VNR_WEB_TOKEN'):
-        main(['--host', '0.0.0.0', '--no-browser'])
+    import vnr_etl.web.app as rutas
+
+    assert not hasattr(rutas, 'create_app')
+    assert importlib.util.find_spec('vnr_etl.web.__main__') is None
+    pyproject = (Path(__file__).resolve().parents[1] / 'pyproject.toml').read_text(encoding='utf-8')
+    assert 'vnr-etl-web' not in pyproject
 
 
-def test_web_upload_rejects_unsafe_archive_and_does_not_execute_sql(tmp_path):
+def test_las_rutas_de_vnr_no_pisan_las_de_la_api_principal(tmp_path, monkeypatch):
+    """001:RF-11 — cada ruta existe una vez; las de VNR van bajo /api/vnr."""
+    from collections import Counter
+
+    from fastapi.routing import APIRoute
+
+    from vnr_etl.web.app import create_router
+
+    app = _main_app(tmp_path, monkeypatch)
+    rutas = Counter(
+        (route.path, method) for route in app.routes if isinstance(route, APIRoute)
+        for method in route.methods
+    )
+    assert [r for r, n in rutas.items() if n > 1] == []
+    vnr = create_router(tmp_path / 'r', app.state.jobs)
+    assert all(route.path.startswith('/api/vnr/') for route in vnr.routes)
+
+
+def test_web_upload_rejects_unsafe_archive_and_does_not_execute_sql(tmp_path, monkeypatch):
     from fastapi.testclient import TestClient
 
-    from vnr_etl.web.app import create_app
-
-    app = create_app(tmp_path / 'catalog', tmp_path / 'artifacts')
+    app = _main_app(tmp_path, monkeypatch)
     unsafe = tmp_path / 'unsafe.zip'
     with zipfile.ZipFile(unsafe, 'w') as zf:
         zf.writestr('../escape.txt', 'no')
     with TestClient(app) as client:
         with unsafe.open('rb') as stream:
             response = client.post(
-                '/api/sources/upload', files={'file': ('unsafe.zip', stream, 'application/zip')}
+                '/api/vnr/sources/upload', files={'file': ('unsafe.zip', stream, 'application/zip')}
             )
         assert response.status_code == 400
         assert not (tmp_path / 'escape.txt').exists()
 
         response = client.post(
-            '/api/sources/upload',
+            '/api/vnr/sources/upload',
             files={'file': ('backup.sql', b'CREATE TABLE danger (id INTEGER);', 'text/plain')},
         )
         assert response.status_code == 200
@@ -868,7 +887,7 @@ def test_web_upload_rejects_unsafe_archive_and_does_not_execute_sql(tmp_path):
             zf.writestr('network/sections.csv', 'CODTRAMOMT\nT1\n')
         with valid.open('rb') as stream:
             response = client.post(
-                '/api/sources/upload', files={'file': ('valid.zip', stream, 'application/zip')}
+                '/api/vnr/sources/upload', files={'file': ('valid.zip', stream, 'application/zip')}
             )
         assert response.status_code == 200
         payload = response.json()
@@ -878,34 +897,32 @@ def test_web_upload_rejects_unsafe_archive_and_does_not_execute_sql(tmp_path):
         )
 
 
-def test_web_discovers_uploaded_sqlite_read_only(tmp_path):
+def test_web_discovers_uploaded_sqlite_read_only(tmp_path, monkeypatch):
     import sqlite3
 
     from fastapi.testclient import TestClient
-
-    from vnr_etl.web.app import create_app
 
     database = tmp_path / 'network.sqlite'
     connection = sqlite3.connect(database)
     connection.execute('CREATE TABLE sections (id TEXT)')
     connection.commit()
     connection.close()
-    app = create_app(tmp_path / 'catalog', tmp_path / 'artifacts')
+    app = _main_app(tmp_path, monkeypatch)
 
     with TestClient(app) as client, database.open('rb') as stream:
         uploaded = client.post(
-            '/api/sources/upload',
+            '/api/vnr/sources/upload',
             files={'file': ('network.sqlite', stream, 'application/octet-stream')},
         ).json()
         source_id = uploaded['source_id']
-        tested = client.post('/api/database/test', json={'source_id': source_id})
-        discovered = client.post('/api/database/discover', json={'source_id': source_id})
+        tested = client.post('/api/vnr/database/test', json={'source_id': source_id})
+        discovered = client.post('/api/vnr/database/discover', json={'source_id': source_id})
     assert tested.json() == {'ok': True, 'engine': 'sqlite', 'read_only': True, 'tables': 1}
     assert discovered.json()['layers'][0]['name'] == 'sections'
 
     with TestClient(app) as client:
         spoofed = client.post(
-            '/api/sources/upload',
+            '/api/vnr/sources/upload',
             files={'file': ('fake.sqlite', b'not a database', 'application/octet-stream')},
         )
     assert spoofed.status_code == 400

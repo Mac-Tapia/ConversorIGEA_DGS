@@ -56,26 +56,26 @@ fuente empresarial/catálogo aprobado para superar L4.
 
 ## API Web y seguridad
 
-```powershell
-# Loopback, sin autenticación remota
-.\.venv\Scripts\python.exe -m vnr_etl web --host 127.0.0.1 --port 8776
+Las rutas de VNR forman parte de la API web única (`igea-dgs-web`), con su misma cola
+de trabajos; el lanzador `vnr-etl-web` y su token de sesión se retiraron (spec 001,
+RF-11). `vnr-etl web` abre esa misma web.
 
-# Exposición de red: token obligatorio
-$env:VNR_WEB_TOKEN = '<secreto-aleatorio>'
-.\.venv\Scripts\python.exe -m vnr_etl web --host 0.0.0.0 --port 8776
+```powershell
+.\.venv\Scripts\igea-dgs-web.exe            # o: python -m vnr_etl web
 ```
 
-Fuera de loopback se exige `X-Session-Token`. Las cargas usan identificadores
+Las cargas usan identificadores
 opacos, límite de tamaño, nombre saneado y SHA-256. ZIP rechaza traversal, rutas
 absolutas, enlaces simbólicos y expansión excesiva. SQLite abre en `mode=ro` y las
 conexiones se cierran explícitamente. Los artefactos solo se sirven por ID de job
 y dentro de la raíz autorizada.
 
-Rutas principales: `/api/health`, `/api/doctor`, `/api/discovery/refresh`,
-`/api/vnr/download`, `/api/sources/upload`, `/api/sources/inspect`,
-`/api/database/test`, `/api/database/discover`, `/api/schema/resolve`,
-`/api/topology/build`, `/api/validate`, `/api/reconcile`, `/api/export/{target}`,
-`/api/jobs/{id}` y `/api/artifacts/{job_id}/{index}`.
+Rutas de VNR, todas bajo `/api/vnr`: `doctor`, `companies`, `download`,
+`sources/upload`, `sources/inspect`, `database/test`, `database/discover`,
+`schema/resolve`, `topology/build`, `validate`, `reconcile`, `export/{target}` y
+`artifacts/{job_id}/{index}`. El catálogo oficial es `/api/vnr/publications`
+(`?refresh=true` lo actualiza), y el estado de un trabajo, `/api/jobs/{id}`, como el
+de cualquier otro.
 
 ## Evidencia ejecutada el 2026-10-05
 
