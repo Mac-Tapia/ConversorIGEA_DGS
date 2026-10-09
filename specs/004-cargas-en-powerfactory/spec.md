@@ -1,6 +1,6 @@
 # Spec 004 — Cargas en un proyecto existente de DIgSILENT
 
-Estado: borrador · Fecha: 2026-10-08 · Origen: revisión del módulo de cargas del 2026-10-08
+Estado: aprobada (2026-10-08) · Fecha: 2026-10-08 · Origen: revisión del módulo de cargas del 2026-10-08
 
 ## Contexto y objetivo
 

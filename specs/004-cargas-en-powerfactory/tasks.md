@@ -2,9 +2,12 @@
 
 Una tarea cada vez, pruebas primero. Al terminarla: suite en verde y `- [x]`.
 
-- [ ] T1. `igea_dgs/cargas_pf.py`: lee los libros de demandas y de cargas nuevas sin
+- [x] T1. `igea_dgs/cargas_pf.py`: lee los libros de demandas y de cargas nuevas sin
       modelo, valida cada fila, pasa coordenadas a WGS84 y arma el plan. (RF-1, RF-5)
       Hecho cuando: pruebas con libros sorteados de varios alimentadores, sin dataset.
+      Hecho el 2026-10-08 (`tests/test_cargas_pf.py`). Una fila con error se informa y no
+      impide las demás. Carga nueva: `barra`, `Lat`/`Lon` o `CoordX`/`CoordY` con el CRS
+      del perfil; columnas nuevas `alimentador`, `tipo_linea` y `tension_bt_kv`.
 - [ ] T2. `tools/cargas_pf.py`, actualización de demandas: variación nueva con nombre
       libre, coincidencia en el alimentador, omitidas y ambiguas, escritura por modo
       con signo de Q y relectura. (RF-3, RF-4, RF-6 a RF-9, RF-21)
