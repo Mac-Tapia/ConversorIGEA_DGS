@@ -578,3 +578,108 @@ def test_leer_por_linea_de_ordenes_valida_la_carpeta(tmp_path):
         capture_output=True, text=True, cwd=RAIZ, env={**os.environ, 'PYTHONPATH': str(RAIZ / 'src')})
     assert salida.returncode == 2 and "'a/b'" in salida.stdout
     assert not (tmp_path / 'p.json').exists()
+
+
+# --------------------------------------------------------------------------- web
+from types import SimpleNamespace
+
+
+@pytest.fixture
+def web(tmp_path, monkeypatch):
+    """Servicios de la web con DIgSILENT simulado: ``run`` anota cada orden lanzada."""
+    from igea_dgs.web import services
+    from igea_dgs.web.workspace import Workspace
+
+    (tmp_path / 'config').mkdir()
+    monkeypatch.setattr(services, 'project_root', lambda: tmp_path)
+    monkeypatch.setattr(services, '_script', lambda nombre: tmp_path / nombre)
+    monkeypatch.setattr(services, '_require_pf', lambda: (tmp_path, tmp_path / 'python.exe'))
+    monkeypatch.setattr(services, 'pf_subprocess_env', lambda _d: {})
+    monkeypatch.setattr(services, 'powerfactory_status', lambda: {'interpreter_reason': 'prueba'})
+    ws = Workspace(id='w', root=tmp_path / 'ws')
+    ws.out_dir.mkdir(parents=True)
+    ordenes: list[list[str]] = []
+
+    def run_process(orden, **_kw):
+        ordenes.append(orden)
+        if '--output-json' in orden and orden[1].endswith('pf_proyectos.py'):
+            Path(orden[orden.index('--output-json') + 1]).write_text(json.dumps(
+                {'folder': 'x', 'exists': True, 'aviso': None,
+                 'projects': [{'name': 'SI213', 'path': 'Oct/SI213', 'feeders': ['SI213']}]}),
+                encoding='utf-8')
+        return 0
+
+    logs: list[str] = []
+    ctx = SimpleNamespace(log=logs.append, progress=lambda *_a: None,
+                          check_cancel=lambda: None, run_process=run_process)
+    return SimpleNamespace(services=services, ws=ws, ctx=ctx, ordenes=ordenes, logs=logs,
+                           perfil=tmp_path / 'config' / 'perfil_empresa.json')
+
+
+def _valor(orden, opcion):
+    return orden[orden.index(opcion) + 1]
+
+
+def test_web_lee_la_carpeta_del_perfil(web):
+    """005:RF-2 — «Leer proyectos» de la web pasa al guion la carpeta del perfil de empresa."""
+    web.perfil.write_text(json.dumps({CLAVE_PERFIL: 'Empresa'}), encoding='utf-8')
+    datos = web.services.pf_projects(web.ws, web.ctx)
+    assert _valor(web.ordenes[0], '--carpeta') == 'Empresa'
+    assert datos['projects'][0]['path'] == 'Oct/SI213'
+
+
+def test_web_sin_perfil_usa_el_nombre_por_defecto(web):
+    """005:RF-3 — sin perfil, la web usa «Conversor IGEA-DGS»."""
+    web.services.pf_projects(web.ws, web.ctx)
+    assert _valor(web.ordenes[0], '--carpeta') == NOMBRE_POR_DEFECTO
+
+
+def test_web_carpeta_invalida_no_lanza_digsilent(web):
+    """005:RF-4 — con el perfil inválido la web falla sin lanzar ningún guion de DIgSILENT."""
+    web.perfil.write_text(json.dumps({CLAVE_PERFIL: 'a/b'}), encoding='utf-8')
+    with pytest.raises(web.services.UserError, match="'a/b'"):
+        web.services.pf_projects(web.ws, web.ctx)
+    dgs = web.ws.out_dir / 'RED.dgs'
+    dgs.write_text('DGS', encoding='ascii')
+    dgs.with_name('RED_feeder_metadata.json').write_text('{}', encoding='utf-8')
+    with pytest.raises(web.services.UserError, match="'a/b'"):
+        web.services.check_powerfactory_flow(web.ws, ['RED'])
+    assert web.ordenes == []
+
+
+def test_web_importa_en_la_carpeta_y_guarda_la_ruta(web, monkeypatch):
+    """005:RF-10 — la importación de la web pasa la carpeta; 005:RF-16 — guarda la ruta del proyecto."""
+    web.perfil.write_text(json.dumps({CLAVE_PERFIL: 'Empresa'}), encoding='utf-8')
+    dgs = web.ws.out_dir / 'RED.dgs'
+    dgs.write_text('DGS', encoding='ascii')
+    monkeypatch.setattr(web.services, 'dgs_jobs', lambda _ws, _f: ([('RED', dgs, None)], []))
+    monkeypatch.setattr(web.services, 'pandapower_preflight',
+                        lambda *_a: {'disponible': False, 'avisos': [], 'feeders': []})
+    (web.ws.out_dir / 'RED_powerfactory_acceptance.json').write_text(json.dumps(
+        {'import': {'project_name': 'RED_2', 'project_path': 'RED_2',
+                    'project_folder': 'Empresa'}}), encoding='utf-8')
+    web.services.powerfactory_flow(web.ws, web.ctx, ['RED'])
+    assert _valor(web.ordenes[0], '--pf-carpeta') == 'Empresa'
+    assert web.ws.pf_projects['RED'] == 'RED_2'
+
+
+def test_web_avisa_si_no_existe_la_carpeta(web, monkeypatch):
+    """005:RF-14 — el aviso de carpeta inexistente llega al registro del trabajo."""
+    def sin_carpeta(orden, **_kw):
+        Path(_valor(orden, '--output-json')).write_text(json.dumps(
+            {'folder': 'x', 'exists': False, 'projects': [],
+             'aviso': "No existe la carpeta 'x' en DIgSILENT; se crea al importar el primer DGS."}),
+            encoding='utf-8')
+        return 0
+    web.ctx.run_process = sin_carpeta
+    datos = web.services.pf_projects(web.ws, web.ctx)
+    assert datos['projects'] == [] and any('primer DGS' in linea for linea in web.logs)
+
+
+def test_web_red_unida_en_la_carpeta(web, tmp_path):
+    """005:RF-10 — la red unida («Sistema completo») también se importa en la carpeta."""
+    web.perfil.write_text(json.dumps({CLAVE_PERFIL: 'Empresa'}), encoding='utf-8')
+    web.ws.options['input_mode'] = 'mdb'
+    web.ws.inputs = {'mdb': {'path': str(tmp_path / 'base.mdb')}}
+    orden = web.services.system_command(web.ws, 'grid')
+    assert _valor(orden, '--pf-carpeta') == 'Empresa'
