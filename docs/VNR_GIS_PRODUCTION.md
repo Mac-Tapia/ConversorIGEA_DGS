@@ -2,17 +2,22 @@
 
 ## Alcance
 
-`vnr_etl` implementa un flujo auditable y fail-closed:
+`vnr_etl` implementa un flujo auditable que reconstruye lo que falta en vez de negarse:
 
 ```text
 fuente oficial/archivo/SQLite -> inventario y huellas -> modelo canónico
--> CRS/snapping/topología -> cobertura eléctrica -> perfil objetivo verificado
--> DGS transaccional + manifiesto -> importación PowerFactory -> ComLdf
+-> reconstrucción (alimentadores, fuentes, tensión, fases, longitudes, cargas, CRS)
+-> catálogo de parámetros para los conductores -> motor igea_dgs
+-> DGS transaccional + manifiesto + informe de reconstrucción -> PowerFactory -> ComLdf
 ```
 
-CLI y API Web usan `vnr_etl.application.VnrApplicationService`; ninguna interfaz
-puede evitar las puertas A-F. `EXPORT_READY` acredita A-F. Solo una aceptación
-real con importación, inventario, conectividad y `ComLdf` permite acreditar G-H.
+CLI y API Web usan `vnr_etl.application.VnrApplicationService`. Las puertas A–F se
+evalúan siempre y se informan. Impiden exportar solo la procedencia (A), el mapeo y el
+perfil de destino verificado (E) y el round-trip (F): no son datos de la red. Lo que
+falta para B (CRS), C (topología) o D (eléctrico) se reconstruye (spec 001, RF-17).
+`EXPORT_READY` acredita A–F con los datos originales; `EXPORT_RECONSTRUCTED`, un DGS
+válido con datos reconstruidos, que detalla `<red>_reconstruccion.json`. Solo una
+aceptación real con importación, inventario, conectividad y `ComLdf` acredita G–H.
 
 ## Instalación
 
@@ -50,9 +55,14 @@ vía Access del conversor lo necesita.
 .\.venv\Scripts\python.exe -m vnr_etl export-dgs output\vnr\canonical.json
 ```
 
-La conversión no inventa cargas, fuente/slack, tensión, fases ni parámetros R/X.
-Si la fuente pública solo contiene geometría, la ejecución queda en L3 y exige una
-fuente empresarial/catálogo aprobado para superar L4.
+Al exportar, un dato ausente no detiene el proceso: se reconstruye y queda anotado con
+su valor original, la regla, el nivel de evidencia y la confianza. Los conductores se
+completan primero con el catálogo de parámetros (el del modelo y
+`input/catalogo_parametros.xlsx`), después por atributos compatibles, después por
+derivación física y, en último lugar, con un perfil provisional; lo que el conductor sí
+trae se conserva. Un CRS geográfico se reproyecta a su zona UTM; uno desconocido da un
+DGS sin georreferenciación, con las longitudes del modelo. No se crean cargas: una
+carga sin red ni coordenadas queda fuera, y el informe lo dice.
 
 ## API Web y seguridad
 

@@ -618,24 +618,170 @@ def test_dgs_export_es_el_mismo_dgs_que_el_motor(tmp_path):
     assert dgs_path.read_bytes() == (tmp_path / 'motor' / dgs_path.name).read_bytes()
 
 
-def test_dgs_export_bloquea_lo_que_el_puente_no_sabe_ubicar(tmp_path):
-    """001:RF-10 — un tramo sin alimentador bloquea el export en vez de perderse en silencio."""
+def _exporta(tmp_path, model):
+    """Exporta y devuelve las tablas del DGS y el informe de reconstrucción."""
+    from igea_dgs.validate import parse_dgs
+
+    exporter = DgsExporter(profile=_verified_dgs_profile(tmp_path))
+    paths = exporter.export(model, tmp_path / 'out')
+    dgs_path = next(path for path in paths if path.suffix == '.dgs')
+    carpeta, stem = dgs_path.parent, dgs_path.stem
+    validacion = json.loads((carpeta / f'{stem}_validation.json').read_text(encoding='utf-8'))
+    informe = json.loads((carpeta / f'{stem}_reconstruccion.json').read_text(encoding='utf-8'))
+    assert validacion['errors_total'] == 0
+    return parse_dgs(dgs_path), informe
+
+
+def _reglas(informe):
+    return {(d['entity_type'], d['entity_id'], d['field']): d for d in informe['decisiones']}
+
+
+def test_dgs_export_reconstruye_el_alimentador_de_un_tramo(tmp_path):
+    """001:RF-17 — un tramo sin alimentador toma el de su red en vez de bloquear el export."""
+    model = _production_ready_model()
+    model.nodes.append(Node(node_id='C', x=500200.0, y=8450000.0, nominal_kv=10.0))
+    model.sections.append(Section(section_id='S2', from_node='B', to_node='C',
+                                  conductor_code='AA70', phases='ABC', length_m=100.0))
+    tablas, informe = _exporta(tmp_path, model)
+    assert len(tablas['ElmLne']['rows']) == 2
+    decision = _reglas(informe)[('section', 'S2', 'feeder_id')]
+    assert decision['applied_value'] == 'F1' and decision['rule'] == 'FEEDER_BY_CONNECTIVITY'
+    assert decision['level'] == 'engineering_assumption' and decision['original_value'] == ''
+
+
+def test_dgs_export_sin_alimentador_ni_fuente_crea_ambos(tmp_path):
+    """001:RF-17 — sin alimentadores ni fuente: la red sale con uno y su fuente en la raíz."""
     model = _production_ready_model()
     model.sections[0].feeder_id = ''
-    exporter = DgsExporter(profile=_verified_dgs_profile(tmp_path))
-    with pytest.raises(ExportBlocked, match='MISSING_FEEDER_ID S1'):
-        exporter.export(model, tmp_path / 'out')
-    assert not list((tmp_path / 'out').rglob('*.dgs'))
+    model.loads[0].feeder_id = ''
+    model.sources = []
+    tablas, informe = _exporta(tmp_path, model)
+    assert len(tablas['ElmXnet']['rows']) == 1 and len(tablas['ElmLod']['rows']) == 1
+    reglas = {d['rule'] for d in informe['decisiones']}
+    assert {'FEEDER_FOR_ISLAND', 'RECOVER_SOURCE_AT_ROOT'} <= reglas
 
 
-def test_dgs_export_bloquea_si_el_motor_rechaza_el_modelo(tmp_path):
-    """001:RF-10 — un conductor sin parámetros no se escribe con valores inventados."""
+def test_dgs_export_conductor_sin_parametros_se_completa_con_el_catalogo(tmp_path):
+    """001:RF-18 — un conductor sin parámetros se completa con el catálogo antes que con supuestos."""
+    from unittest import mock
+
+    from igea_dgs.catalog_resolution import CatalogSource
+
     model = _production_ready_model()
-    model.conductor_types[0].r1_ohm_km = None
-    exporter = DgsExporter(profile=_verified_dgs_profile(tmp_path))
-    with pytest.raises(ExportBlocked):
-        exporter.export(model, tmp_path / 'out')
-    assert not list((tmp_path / 'out').rglob('*.dgs'))
+    for campo in ('r0_ohm_km', 'x0_ohm_km', 'ampacity_a'):
+        setattr(model.conductor_types[0], campo, None)
+    catalogo = CatalogSource(
+        name='catalogo', kind='global', version='1', manufacturer='', locator='memoria',
+        sha256='b' * 64, rows=({'ID': 'AA70', 'R1': 0.9, 'R0': 0.71, 'X1': 0.4, 'X0': 1.25,
+                               'B1': 0, 'B0': 0, 'Amps': 230, 'EquipmentClass': 'LINE',
+                               'Overhead': True},),
+    )
+    with mock.patch('igea_dgs.reconstruction_pipeline.catalogos_del_fichero',
+                    return_value=(catalogo,)):
+        _tablas, informe = _exporta(tmp_path, model)
+    assert informe['equipos_resueltos']['AA70']['nivel'] == 'catalog_match'
+    fila = _reglas(informe)[('equipment', 'AA70', '__row__')]['applied_value']
+    assert float(fila['R1']) == pytest.approx(0.5)    # lo que trae se conserva (RF-19)
+    assert float(fila['R0']) == pytest.approx(0.71)   # lo que falta sale del catálogo
+    assert float(fila['Amps']) == pytest.approx(230)
+
+
+def test_dgs_export_sin_codigo_ni_catalogo_usa_el_perfil_provisional(tmp_path):
+    """001:RF-18 — sin código ni catálogo, el perfil provisional es el último recurso."""
+    from unittest import mock
+
+    model = _production_ready_model()
+    model.sections[0].conductor_code = ''
+    model.conductor_types = []
+    with mock.patch('igea_dgs.reconstruction_pipeline.catalogos_del_fichero', return_value=()):
+        tablas, informe = _exporta(tmp_path, model)
+    assert len(tablas['ElmLne']['rows']) == 1
+    [equipo] = informe['equipos_resueltos'].values()
+    assert equipo['regla'] == 'PROVISIONAL_PROFILE'
+    assert equipo['nivel'] == 'engineering_assumption'
+
+
+def test_dgs_export_sin_crs_exporta_sin_georreferenciacion(tmp_path):
+    """001:RF-20 — sin CRS que deducir, se exporta sin GPS y con las longitudes del modelo."""
+    model = _production_ready_model()
+    del model.metadata['working_crs']
+    model.metadata['working_crs_is_projected'] = False
+    model.sections[0].length_m = 250.0
+    tablas, informe = _exporta(tmp_path, model)
+    assert informe['resumen']['georreferenciado'] is False
+    lne = tablas['ElmLne']
+    assert float(lne['rows'][0][lne['fields'].index('dline')]) == pytest.approx(0.25)
+
+
+def test_dgs_export_en_grados_reproyecta_a_su_zona_utm(tmp_path):
+    """001:RF-20 — coordenadas en grados se reproyectan a su zona UTM y salen georreferenciadas."""
+    pytest.importorskip('pyproj')
+    model = _production_ready_model()
+    model.metadata['working_crs'] = 'EPSG:4326'
+    model.metadata['working_crs_is_projected'] = False
+    model.nodes[0].x, model.nodes[0].y = -75.7311, -14.0678
+    model.nodes[1].x, model.nodes[1].y = -75.7302, -14.0678
+    model.sections[0].length_m = None
+    tablas, informe = _exporta(tmp_path, model)
+    assert informe['resumen']['working_crs'] == 'EPSG:32718'
+    longitud = _reglas(informe)[('section', 'S1', 'length_m')]['applied_value']
+    assert 90 < longitud < 105    # unos 97 m a esa latitud
+    term = tablas['ElmTerm']
+    lat = term['fields'].index('GPSlat')
+    assert all(float(row[lat]) == pytest.approx(-14.0678, abs=1e-4) for row in term['rows'])
+
+
+def test_dgs_export_completa_fases_tension_y_ubica_cargas(tmp_path):
+    """001:RF-17 — fases, tensión de la fuente y una carga fuera de la red se reconstruyen."""
+    model = _production_ready_model()
+    model.sections[0].phases = ''
+    model.sources[0].nominal_kv = None
+    model.nodes.append(Node(node_id='SUELTO', x=500101.0, y=8450001.0))
+    model.loads.append(Load(load_id='L2', connection_node='SUELTO', kw=20.0, kvar=5.0))
+    tablas, informe = _exporta(tmp_path, model)
+    reglas = _reglas(informe)
+    assert reglas[('section', 'S1', 'phases')]['applied_value'] == 'ABC'
+    assert reglas[('source', 'G', 'nominal_kv')]['rule'] == 'VOLTAGE_FROM_NETWORK'
+    assert reglas[('load', 'L2', 'connection_node')]['applied_value'] == 'B'
+    assert len(tablas['ElmLod']['rows']) == 2
+
+
+def test_dgs_export_informa_cada_valor_reconstruido(tmp_path):
+    """001:RF-21 — el informe da origen, confianza y valor original de cada cambio."""
+    model = _production_ready_model()
+    model.sections[0].feeder_id = ''
+    _tablas, informe = _exporta(tmp_path, model)
+    assert informe['resumen']['cambios'] == len(informe['decisiones']) > 0
+    for decision in informe['decisiones']:
+        assert {'original_value', 'applied_value', 'level', 'rule', 'confidence'} <= set(decision)
+        assert decision['level'] in ('catalog_match', 'engineering_assumption')
+    manifiesto = next((tmp_path / 'out' / 'dgs').glob('*.manifest.json'))
+    datos = json.loads(manifiesto.read_text(encoding='utf-8'))
+    assert datos['reconstruccion']['cambios'] == informe['resumen']['cambios']
+
+
+def test_servicio_exporta_con_datos_reconstruidos(tmp_path):
+    """001:RF-17 — las puertas B, C y D se informan sin impedir el export."""
+    settings = Settings()
+    profile = _verified_dgs_profile(tmp_path)
+    profile_path = tmp_path / 'profile.json'
+    profile_path.write_text(json.dumps({
+        'simulator': profile.simulator, 'version': profile.version, 'workflow': profile.workflow,
+        'sample_path': profile.sample_path, 'sample_hash': profile.sample_hash,
+        'object_mapping': profile.object_mapping,
+    }), encoding='utf-8')
+    settings.templates['dgs'] = str(profile_path)
+    model = _production_ready_model()
+    del model.metadata['working_crs']
+    model.metadata['working_crs_is_projected'] = False
+    model.sections[0].feeder_id = ''
+
+    result = VnrApplicationService(settings).export(model, 'dgs', tmp_path / 'out')
+
+    passed = {r.gate: r.passed for r in result.verdict.results}
+    assert passed['B'] is False and passed['A'] and passed['E'] and passed['F']
+    assert result.readiness == 'EXPORT_RECONSTRUCTED'
+    assert any(path.suffix == '.dgs' for path in result.paths)
 
 
 def test_dgs_export_projects_node_coordinates_to_gps(tmp_path):
@@ -1036,3 +1182,25 @@ def test_cli_audit(tmp_path):
 
     assert main(['audit', '--project', str(tmp_path)]) == 0
     assert (tmp_path / 'AUDIT' / 'integration_plan.md').is_file()
+
+
+def test_dgs_export_reconstruido_es_determinista(tmp_path):
+    """001:RF-17 — el mismo modelo incompleto da el mismo DGS y el mismo informe."""
+    def modelo():
+        model = _production_ready_model()
+        model.sections[0].feeder_id = ''
+        model.sections[0].phases = ''
+        model.sources[0].nominal_kv = None
+        del model.metadata['working_crs']
+        model.metadata['working_crs_is_projected'] = False
+        return model
+
+    salidas = []
+    for intento in ('a', 'b'):
+        (tmp_path / intento).mkdir()
+        exporter = DgsExporter(profile=_verified_dgs_profile(tmp_path / intento))
+        paths = exporter.export(modelo(), tmp_path / intento / 'out')
+        dgs_path = next(path for path in paths if path.suffix == '.dgs')
+        informe = dgs_path.with_name(f'{dgs_path.stem}_reconstruccion.json')
+        salidas.append((dgs_path.read_bytes(), informe.read_bytes()))
+    assert salidas[0] == salidas[1]

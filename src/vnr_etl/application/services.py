@@ -1,8 +1,13 @@
-"""Orquestación única y fail-closed de validación y exportación VNR.
+"""Orquestación única de validación y exportación VNR.
 
 La interfaz de línea de comandos y la API web deben pasar por este módulo. Así
 no pueden divergir en las reglas de CRS, topología, enriquecimiento, perfil de
 destino ni round-trip.
+
+Las puertas B (CRS), C (topología) y D (eléctrico) se evalúan y se informan, pero no
+impiden exportar: lo que les falta lo reconstruye el exportador (spec 001, RF-17).
+Bloquean la procedencia (A), el mapeo y el perfil de destino (E) y el round-trip (F),
+que no son datos de la red.
 """
 
 from __future__ import annotations
@@ -18,6 +23,10 @@ from vnr_etl.models import CanonicalModel
 from vnr_etl.topology import validate_topology
 from vnr_etl.validation import run_gates
 from vnr_etl.validation.gates import GateVerdict
+
+
+# Puertas que impiden exportar. B, C y D no: sus datos se reconstruyen (RF-17).
+BLOQUEANTES_ANTES = 'AE'
 
 
 @dataclass
@@ -46,6 +55,9 @@ class Assessment:
             return 'SIMULATOR_VERIFIED'
         if all(passed.get(gate, False) for gate in 'ABCDEF'):
             return 'EXPORT_READY'
+        if all(passed.get(gate, False) for gate in 'AEF'):
+            # Exportado con datos reconstruidos: el informe dice cuáles.
+            return 'EXPORT_RECONSTRUCTED'
         if all(passed.get(gate, False) for gate in 'ABCD'):
             return 'ELECTRICALLY_ENRICHED'
         if all(passed.get(gate, False) for gate in 'ABC'):
@@ -167,7 +179,7 @@ class VnrApplicationService:
         preflight = self.assess(model, target)
         failed = [
             result for result in preflight.verdict.results
-            if result.gate in 'ABCDE' and not result.passed
+            if result.gate in BLOQUEANTES_ANTES and not result.passed
         ]
         if failed:
             detail = '; '.join(f'{item.gate}: {item.detail}' for item in failed)
@@ -186,7 +198,8 @@ class VnrApplicationService:
             load_flow_ok=load_flow_ok,
             require_simulator=require_simulator,
         )
-        if final.verdict.blocked:
+        bloqueantes = BLOQUEANTES_ANTES + 'F' + ('GH' if require_simulator else '')
+        if any(r.gate in bloqueantes and not r.passed for r in final.verdict.results):
             raise ExportBlocked(
                 f'Export {target.upper()} generado pero no cumple las puertas obligatorias.'
             )

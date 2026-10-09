@@ -133,11 +133,29 @@ Spec aprobada el 2026-10-08.
       Hecho cuando: prueba con un conductor sin R0 ni Amps, con y sin catálogo.
       Hecho el 2026-10-08 (`tests/test_catalog_resolution.py`). Antes, una fila con el
       código bastaba para darlo por resuelto aunque le faltaran parámetros.
-- [ ] T15. Reconstrucción del modelo canónico VNR: alimentador por conectividad, fuente,
+- [x] T15. Reconstrucción del modelo canónico VNR: alimentador por conectividad, fuente,
       tensión, fases, longitud, ubicación de cargas y CRS (UTM o sin geografía). (RF-17, RF-20)
       Hecho cuando: pruebas de cada caso, deterministas.
-- [ ] T16. `DgsExporter` y `VnrApplicationService.export` reconstruyen y exportan; B, C y
+      Hecho el 2026-10-08: `vnr_etl/application/reconstruccion.py`. Alimentador por BFS
+      multiorigen desde los tramos que lo tienen (gana el más cercano y, a igual
+      distancia, el de nombre menor); islas sin ninguno, uno propio. Fuente en el nodo
+      raíz si falta; si sobran, se conserva la primera. Tensión más frecuente de la red o
+      la provisional de la política. Fases `ABC`. Longitud por geometría, por nodos o
+      1 m. Carga fuera de la red, al nodo más cercano. CRS geográfico → zona UTM de sus
+      coordenadas; desconocido → sin geografía y `CoordOrigen='sin_crs'`, para que el
+      motor use la longitud del modelo. El puente pasa material y sección (atributos
+      compatibles) y elige, por identificador, entre tramos del mismo alimentador en el
+      nodo de una carga. `convert_group(include_geography=False)`, nuevo.
+- [x] T16. `DgsExporter` y `VnrApplicationService.export` reconstruyen y exportan; B, C y
       D se informan sin bloquear; informe de reconstrucción junto al DGS. (RF-17, RF-21)
       Hecho cuando: los tres casos que antes bloqueaban exportan un DGS validado.
-- [ ] T17. Validación: RF-17 a RF-21 citados y suite completa en verde, RF-14 igual.
+      Hecho el 2026-10-08 (`tests/test_vnr_etl.py`): modelo → `reconstruir_modelo` →
+      puente → `reconstruir_seleccion` con el catálogo del proyecto (o
+      `DgsExporter(catalogo=...)`) → `convert_group`. `<red>_reconstruccion.json` y su
+      resumen en el manifiesto. Bloquean solo A, E (procedencia, perfil) y F. Nuevo
+      estado `EXPORT_RECONSTRUCTED`. Las pruebas de T10 que exigían el bloqueo se
+      sustituyen por las de RF-17 a RF-21.
+- [x] T17. Validación: RF-17 a RF-21 citados y suite completa en verde, RF-14 igual.
+      Hecho el 2026-10-08: suite con las cinco `IGEA_*`, 939 correctas y 18 omitidas (las
+      de siempre); `test_linea_base_001` en verde.
 

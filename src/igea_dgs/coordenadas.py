@@ -29,6 +29,9 @@ from collections import defaultdict, deque
 from dataclasses import dataclass, field
 
 ORIGEN_GRAFO = 'grafo'
+# Coordenadas de un modelo cuyo CRS no se conoce (un paquete VNR-GIS sin CRS): sirven
+# para dibujar, no para medir, así que el tramo conserva su longitud (spec 001, RF-20).
+ORIGEN_SIN_CRS = 'sin_crs'
 
 
 @dataclass

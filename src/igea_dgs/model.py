@@ -1221,7 +1221,7 @@ def build_feeder_model(
             node_id=node_id,
             x=x if math.isfinite(x) else None,
             y=y if math.isfinite(y) else None,
-            coord_inferida=raw.get('CoordOrigen') == 'grafo',
+            coord_inferida=raw.get('CoordOrigen') in ('grafo', 'sin_crs'),
         )
 
     warnings: list[str] = []

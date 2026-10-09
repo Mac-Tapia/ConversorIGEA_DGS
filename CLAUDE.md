@@ -41,7 +41,7 @@ más reciente no trae catálogo de equipos:
 
 Esas bases **no** son la misma foto de la red que los TXT de `referencia/` (03/08): los
 nodos están numerados de otra forma. Con las cinco variables a la vez la suite pasa
-entera (929 correctas y 18 omitidas a 2026-10-08, con la spec 001 cumplida): las comparaciones tramo a tramo entre las dos vías
+entera (939 correctas y 18 omitidas a 2026-10-08, con la spec 001 cumplida): las comparaciones tramo a tramo entre las dos vías
 se omiten solas cuando `igea_dgs.huella` dice que no son la misma exportación. Que las
 dos vías den el mismo modelo **no** está comprobado hasta tener un TXT y una `.mdb` de la
 misma fecha.

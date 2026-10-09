@@ -9,8 +9,14 @@ por el mismo puente que usa la web para los paquetes VNR-GIS
 :func:`igea_dgs.batch.convert_group`, que une los alimentadores en una sola red,
 valida y publica de forma atómica.
 
+Un dato ausente no impide exportar (RF-17): antes del motor, el modelo pasa por
+:func:`vnr_etl.application.reconstruccion.reconstruir_modelo` y el dataset por
+:func:`igea_dgs.reconstruction_pipeline.reconstruir_seleccion`, que completa los
+conductores con el catálogo de parámetros. Junto al DGS queda
+``<red>_reconstruccion.json`` con cada valor completado (RF-21).
+
 Este módulo conserva lo suyo: las puertas del perfil verificado y de la procedencia,
-y el manifiesto de procedencia junto al DGS.
+que no son datos de la red, y el manifiesto de procedencia junto al DGS.
 """
 
 from __future__ import annotations
@@ -46,35 +52,55 @@ def _load_schema(profile: str = 'pf21_dgs_1_8_4'):
     return load_schema(profile)
 
 
+def _catalogo_del_proyecto():
+    from igea_dgs.reglas import catalogo_del_proyecto
+
+    return catalogo_del_proyecto()
+
+
+def _informe_reconstruccion(modelo, bridge, result, resolutions, catalogo) -> dict:
+    """Cada valor reconstruido, con su origen, su confianza y el original (RF-21)."""
+    decisiones = [d.to_dict() for d in modelo.decisiones]
+    decisiones += [d.to_dict() for d in result.report.decisions]
+    por_nivel = Counter(d['level'] for d in decisiones)
+    return {
+        'resumen': {
+            'cambios': len(decisiones),
+            'por_nivel': dict(sorted(por_nivel.items())),
+            'catalogo_de_parametros': str(catalogo) if catalogo else None,
+            'georreferenciado': modelo.include_geography,
+            'working_crs': modelo.source_crs,
+        },
+        'decisiones': decisiones,
+        'equipos_resueltos': {
+            code: {'regla': item.rule, 'nivel': item.level.value,
+                   'codigo_de_catalogo': item.source_code, 'candidatos': list(item.candidates)}
+            for code, item in sorted(resolutions.items())
+        },
+        # Lo que ni la reconstrucción pudo ubicar (una carga sin red ni coordenadas, una
+        # carga solo reactiva) no entra en el DGS, y se dice.
+        'omitidos': list(bridge.issues),
+        'avisos': list(modelo.avisos),
+    }
+
+
 @dataclass
 class DgsExporter:
     profile: TargetProfile | None = None
     schema_profile: str = 'pf21_dgs_1_8_4'
+    # Catálogo de parámetros (Excel) para completar conductores; sin él, el del proyecto.
+    catalogo: Path | None = None
 
     def validate_mapping(self, model: CanonicalModel) -> list[str]:
+        """Lo que impide exportar: solo lo que no es un dato de la red reconstruible.
+
+        Fuente, nodos referenciados y parámetros de conductor ya no son errores: se
+        reconstruyen al exportar (spec 001, RF-17). Queda la procedencia, que no se
+        puede inventar sin falsear la trazabilidad, y un modelo sin nodos.
+        """
         errors: list[str] = []
-        nodes = model.nodes_by_id()
-        if not model.sources:
-            errors.append('El DGS necesita al menos una fuente/slack.')
         if not model.nodes:
             errors.append('El modelo no tiene nodos.')
-        conductor = model.conductor_by_code()
-        for section in model.sections:
-            if section.from_node not in nodes or section.to_node not in nodes:
-                errors.append(
-                    f'Tramo {section.section_id} referencia nodos inexistentes.'
-                )
-            if section.conductor_code and (
-                section.conductor_code not in conductor
-                or conductor[section.conductor_code].r1_ohm_km is None
-            ):
-                errors.append(
-                    f'Tramo {section.section_id} sin parámetros de conductor aprobados '
-                    f'({section.conductor_code}).'
-                )
-        for load in model.loads:
-            if load.connection_node not in nodes:
-                errors.append(f'Carga {load.load_id} referencia nodo inexistente.')
         missing_provenance = [name for name in PROVENANCE_FIELDS if not model.metadata.get(name)]
         if missing_provenance:
             errors.append(
@@ -99,33 +125,30 @@ class DgsExporter:
             raise ExportBlocked(
                 'Export DGS bloqueado: ' + '; '.join(errors[:5])
             )
-        source_crs = str(model.metadata.get('working_crs') or '')
-        if not source_crs or model.metadata.get('working_crs_is_projected') is not True:
-            raise ExportBlocked(
-                'Export DGS bloqueado: el modelo no declara un CRS de trabajo proyectado '
-                '(working_crs), y sin él no hay longitudes ni coordenadas fiables.'
-            )
         from igea_dgs.batch import convert_group
+        from igea_dgs.reconstruction_pipeline import catalogos_del_fichero, reconstruir_seleccion
         from vnr_etl.application.cymdist_bridge import canonical_to_cymdist
+        from vnr_etl.application.reconstruccion import reconstruir_modelo
 
         name = self._network_name(model)
-        bridge = canonical_to_cymdist(model, source_path=Path(f'{name}.vnr'))
-        # El puente deja fuera lo que no sabe ubicar (un tramo sin alimentador, una carga
-        # sin tramo). Exportar igual daría un DGS al que le faltan elementos sin decirlo.
-        if bridge.issues:
-            detail = ', '.join(
-                f"{issue['code']} {issue['source_id']}" for issue in bridge.issues[:5]
-            )
-            raise ExportBlocked(f'Export DGS bloqueado: el modelo no se puede mapear ({detail}).')
-        blocked = {
-            feeder: state['blocking_codes']
-            for feeder, state in sorted(bridge.readiness.items()) if state['blocking_codes']
-        }
-        if blocked or not bridge.dataset.feeders:
-            detail = '; '.join(
-                f"{feeder}: {', '.join(codes)}" for feeder, codes in list(blocked.items())[:5]
-            ) or 'ningún alimentador'
-            raise ExportBlocked(f'Export DGS bloqueado: alimentadores no listos ({detail}).')
+        # Primero el modelo canónico (alimentadores, fuentes, tensión, fases, longitudes,
+        # cargas, CRS) y después el dataset con el catálogo de parámetros (RF-17, RF-18).
+        modelo = reconstruir_modelo(model, nombre=name)
+        bridge = canonical_to_cymdist(modelo.model, source_path=Path(f'{name}.vnr'))
+        feeders = sorted(bridge.dataset.feeders)
+        if not feeders:
+            raise ExportBlocked('Export DGS bloqueado: el modelo no tiene ningún tramo que exportar.')
+        catalogo = self.catalogo if self.catalogo is not None else _catalogo_del_proyecto()
+        result, resolutions = reconstruir_seleccion(
+            bridge.dataset, feeders, catalogos_del_fichero(catalogo),
+        )
+        if not modelo.include_geography:
+            from igea_dgs.coordenadas import ORIGEN_SIN_CRS
+
+            # Sin CRS las coordenadas no están en metros conocidos: dibujan la red, pero
+            # la longitud eléctrica es la del modelo (RF-20).
+            for row in result.dataset.nodes.values():
+                row.setdefault('CoordOrigen', ORIGEN_SIN_CRS)
 
         output_root = Path(output_dir)
         final_dir = output_root / 'dgs'
@@ -134,8 +157,10 @@ class DgsExporter:
         stage_dir = Path(tempfile.mkdtemp(prefix='vnr-dgs-', dir=staging_root))
         try:
             engine = convert_group(
-                bridge.dataset, sorted(bridge.dataset.feeders), stage_dir, name=name,
-                schema_profile=self.schema_profile, source_crs=source_crs,
+                result.dataset, feeders, stage_dir, name=name,
+                schema_profile=self.schema_profile,
+                source_crs=modelo.source_crs or 'EPSG:4326',
+                include_geography=modelo.include_geography,
             )
             stage_dgs = stage_dir / f'{name}.dgs'
             if engine['status'] != 'ok' or not stage_dgs.is_file():
@@ -151,6 +176,12 @@ class DgsExporter:
             from vnr_etl import __version__
             from igea_dgs.util import sha256_file
 
+            informe = _informe_reconstruccion(modelo, bridge, result, resolutions, catalogo)
+            stage_report = stage_dir / f'{name}_reconstruccion.json'
+            stage_report.write_text(
+                json.dumps(informe, ensure_ascii=False, indent=2, sort_keys=True) + '\n',
+                encoding='utf-8',
+            )
             stage_manifest = stage_dir / f'{name}.manifest.json'
             manifest = {
                 field: model.metadata.get(field, '') for field in PROVENANCE_FIELDS
@@ -165,6 +196,14 @@ class DgsExporter:
                 'engine': 'igea_dgs.batch.convert_group',
                 'feeders': engine['feeders'],
                 'engine_manifest': f'{name}_manifest.json',
+                'georreferenciado': modelo.include_geography,
+                'working_crs': modelo.source_crs,
+                'reconstruccion': {
+                    'informe': stage_report.name,
+                    'cambios': informe['resumen']['cambios'],
+                    'por_nivel': informe['resumen']['por_nivel'],
+                    'omitidos': len(informe['omitidos']),
+                },
             })
             stage_manifest.write_text(
                 json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + '\n',

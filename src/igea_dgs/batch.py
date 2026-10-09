@@ -651,8 +651,13 @@ def convert_group(
     catalogo: Path | str | None = None,
     on_progress: ProgressCallback | None = None,
     cancel: threading.Event | None = None,
+    include_geography: bool = True,
 ) -> dict:
     """Une los alimentadores elegidos en una sola red y escribe **un** DGS.
+
+    ``include_geography=False`` escribe la red sin GPS, como ``convert_selection``: un
+    modelo VNR-GIS sin CRS conocido no se puede reproyectar, y negarse a exportarlo
+    dejaba al usuario sin red (spec 001, RF-20).
 
     Cada alimentador conserva su tensión y su fuente; los nodos que comparten quedan
     unidos por un interruptor normalmente abierto (:mod:`igea_dgs.combine`). Se aplican
@@ -664,7 +669,8 @@ def convert_group(
 
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-    assert_metre_source_crs(source_crs)
+    if include_geography:
+        assert_metre_source_crs(source_crs)
     informe_entrada = preparar_dataset(dataset, catalogo=catalogo)
     trafos = None
     if catalogo:
@@ -693,11 +699,12 @@ def convert_group(
             if on_progress is not None:
                 on_progress(net, index, len(networks))
             m = build_feeder_model(dataset, net, aliases=dict(aliases or {}), strict=strict,
-                                   include_geography=True)
+                                   include_geography=include_geography)
             informes[m.name] = aplicar_reglas(m, reglas, correcciones=catalog_corrections)
             modelos.append(m)
         combinado, informe_union = combine_models(modelos, name=nombre)
-        geography = build_geography(dataset, combinado, source_crs=source_crs, target_crs=target_crs)
+        geography = (build_geography(dataset, combinado, source_crs=source_crs, target_crs=target_crs)
+                     if include_geography else None)
         _clear_stage(stage)
         stage.mkdir(parents=True, exist_ok=True)
         dgs_path = stage / f'{nombre}.dgs'
@@ -712,7 +719,8 @@ def convert_group(
         report = validate_dgs(combinado, dgs_path, schema_profile=schema_profile, geography=geography)
         write_validation_reports(report, stage / f'{nombre}_validation.json',
                                  stage / f'{nombre}_validation.txt')
-        write_geography_manifest(geography, stage / f'{nombre}_geography.json', model=combinado)
+        if geography is not None:
+            write_geography_manifest(geography, stage / f'{nombre}_geography.json', model=combinado)
         completitud = auditar_completitud(dataset, networks, combinado, parse_dgs(dgs_path),
                                           informes.values())
         ok = report['errors_total'] == 0 and not completitud['fallos']
