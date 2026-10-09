@@ -51,7 +51,9 @@ def main(argv=None) -> int:
 
     target = matches[-1]
     print('Activando proyecto:', target.loc_name)
-    app.ActivateProject(target.loc_name)
+    # Por objeto: el proyecto puede estar en la carpeta de importación (spec 005), y
+    # ActivateProject(nombre) solo busca en la raíz del usuario.
+    target.Activate()
     time.sleep(0.5)
 
     study = app.GetProjectFolder('study')

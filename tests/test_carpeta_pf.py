@@ -428,3 +428,65 @@ def test_carpeta_invalida_no_abre_nada(dgs):
     info = _mod_aceptacion().import_dgs_file(app, dgs, carpeta='a/b')
     assert not info['ok'] and "'a/b'" in info['errors'][0]
     assert app.creados == [] and app.importados == []
+
+
+# --------------------------------------------------------------------------- guiones
+import ast
+import sys
+
+from igea_dgs.carpeta_pf import activar_proyecto
+
+GUIONES_QUE_IMPORTAN = ('powerfactory_acceptance.py', 'build_system_grid.py',
+                        'convertir_grupos_mdb.py', 'prueba_representacion.py',
+                        'run_one_study.py')
+
+
+def _llamadas(fichero: Path, funcion: str) -> list[ast.Call]:
+    arbol = ast.parse(fichero.read_text(encoding='utf-8'))
+    return [n for n in ast.walk(arbol) if isinstance(n, ast.Call)
+            and getattr(n.func, 'id', getattr(n.func, 'attr', None)) == funcion]
+
+
+@pytest.mark.parametrize('guion', GUIONES_QUE_IMPORTAN)
+def test_cada_guion_importa_en_la_carpeta(guion):
+    """005:RF-10 — toda importación de los guiones pasa la carpeta y la ofrece en --pf-carpeta."""
+    ruta = RAIZ / 'tools' / guion
+    llamadas = _llamadas(ruta, 'import_dgs_file')
+    assert llamadas, f'{guion} ya no importa: actualice la lista'
+    assert all(any(k.arg == 'carpeta' for k in c.keywords) for c in llamadas), guion
+    assert "'--pf-carpeta'" in ruta.read_text(encoding='utf-8')
+
+
+@pytest.mark.parametrize('guion', [*GUIONES_QUE_IMPORTAN, 'base_scenario.py',
+                                   'check_pf_license.py', 'show_pf_diagram.py', 'pf_proyectos.py'])
+def test_ningun_guion_activa_por_nombre(guion):
+    """005:RF-16 — ActivateProject(nombre) solo mira la raíz: ningún guion lo usa."""
+    assert _llamadas(RAIZ / 'tools' / guion, 'ActivateProject') == []
+
+
+@pytest.mark.parametrize('guion', [*GUIONES_QUE_IMPORTAN, 'base_scenario.py'])
+def test_ayuda_de_los_guiones(guion):
+    """005:RF-10 — la opción nueva no rompe la línea de órdenes."""
+    salida = subprocess.run([sys.executable, str(RAIZ / 'tools' / guion), '--help'],
+                            capture_output=True, text=True, cwd=RAIZ,
+                            env={**os.environ, 'PYTHONPATH': str(RAIZ / 'src')})
+    assert salida.returncode == 0, salida.stderr
+    assert '--pf-carpeta' in salida.stdout
+
+
+def test_activar_proyecto_de_la_carpeta():
+    """005:RF-16 — se activa el proyecto de la ruta, aunque en la raíz haya otro con su nombre."""
+    app = _app()
+    carpeta = app.usuario.CreateObject('IntFolder', 'Red')
+    _proyecto(app, app.usuario, 'SI213')
+    nuevo = _proyecto(app, carpeta.CreateObject('IntFolder', 'Oct'), 'SI213')
+    assert activar_proyecto(app, 'Oct/SI213', 'Red') is nuevo
+    assert app.GetActiveProject() is nuevo
+
+
+def test_activar_proyecto_anterior_de_la_raiz():
+    """005:RF-20 — un proyecto anterior, que sigue en la raíz, se puede seguir usando."""
+    app = _app()
+    antiguo = _proyecto(app, app.usuario, 'PIDE_A0')
+    assert activar_proyecto(app, 'PIDE_A0', 'Red') is antiguo     # la carpeta ni existe
+    assert activar_proyecto(app, 'No/Existe', 'Red') is None

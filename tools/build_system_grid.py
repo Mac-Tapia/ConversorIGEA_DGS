@@ -47,7 +47,8 @@ def _cargar_dataset(args: argparse.Namespace):
     return CymdistDataset.from_files(args.red, args.cargas, args.equipos)
 
 
-def _importar_en_powerfactory(dgs: Path, nombre: str, *, run_ldf: bool) -> int:
+def _importar_en_powerfactory(dgs: Path, nombre: str, *, run_ldf: bool,
+                              carpeta: str | None = None) -> int:
     """Importa el DGS como un proyecto nuevo y, si se pide, corre el flujo.
 
     La importación la hace ``powerfactory_acceptance.import_dgs_file``, que ya está
@@ -79,7 +80,7 @@ def _importar_en_powerfactory(dgs: Path, nombre: str, *, run_ldf: bool) -> int:
     print()
     print(f'Importando en PowerFactory como «{nombre}»…')
     try:
-        info = import_dgs_file(app, dgs, project_name=nombre)
+        info = import_dgs_file(app, dgs, project_name=nombre, carpeta=carpeta)
     except Exception as exc:  # noqa: BLE001 - la API lanza tipos propios
         print(f'La importación falló: {exc}', file=sys.stderr)
         return 4
@@ -144,6 +145,9 @@ def main(argv: list[str] | None = None) -> int:
                    help='Corregir las características con el catálogo de fichas.')
     p.add_argument('--importar', action='store_true',
                    help='Importar el DGS en PowerFactory como proyecto nuevo.')
+    p.add_argument('--pf-carpeta', metavar='NOMBRE',
+                   help='Carpeta de DIgSILENT donde queda el proyecto importado (spec 005). '
+                        'Por defecto, la del perfil de empresa o «Conversor IGEA-DGS».')
     p.add_argument('--run-load-flow', action='store_true')
     p.add_argument('--informe-json')
     args = p.parse_args(argv)
@@ -213,7 +217,7 @@ def main(argv: list[str] | None = None) -> int:
     if not args.importar:
         return 0
     return _importar_en_powerfactory(
-        destino.resolve(), args.nombre, run_ldf=args.run_load_flow)
+        destino.resolve(), args.nombre, run_ldf=args.run_load_flow, carpeta=args.pf_carpeta)
 
 
 if __name__ == '__main__':
