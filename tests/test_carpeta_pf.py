@@ -271,3 +271,54 @@ def test_mismo_nombre_en_dos_subcarpetas():
     assert proyecto_por_ruta(raiz, 'Julio/SI213') is b
     assert proyecto_por_ruta(raiz, 'SI213') is None
     assert proyecto_por_ruta(raiz, 'Agosto/SI213') is None
+
+
+# --------------------------------------------------------------------------- alimentadores
+from igea_dgs.carpeta_pf import alimentadores_de
+
+
+def _carpeta_de(prj, tipo):
+    return next(h for h in prj.GetContents('*.IntPrjfolder', 1) if getattr(h, 'iopt_typ', '') == tipo)
+
+
+def _busqueda_completa(prj):
+    """La búsqueda de antes de la spec 005: todo el árbol del proyecto."""
+    return sorted({f.loc_name for f in prj.GetContents('*.ElmFeeder', 1)})
+
+
+def test_alimentadores_solo_en_los_datos_de_red():
+    """005:RF-17 — no abre casos de estudio ni bibliotecas para buscar alimentadores."""
+    app = _app()
+    prj = _proyecto(app, app.usuario, 'P', alimentadores=('F2', 'F1'))
+    for carpeta in [_carpeta_de(prj, 'study'), _carpeta_de(prj, 'lib')]:
+        _intocable(carpeta)
+    assert alimentadores_de(prj) == (['F1', 'F2'], None)
+
+
+def test_alimentadores_sin_datos_de_red():
+    """005:RF-18 — un proyecto sin datos de red se busca entero, y se anota."""
+    app = _app()
+    prj = _proyecto(app, app.usuario, 'Manual', alimentadores=('F1',), con_datos_de_red=False)
+    feeders, nota = alimentadores_de(prj)
+    assert feeders == ['F1']
+    assert nota and 'Manual' in nota and 'datos de red' in nota
+
+
+def test_alimentadores_misma_lista_que_la_busqueda_completa():
+    """005:RF-19 — con datos de red, la misma lista que buscando en todo el proyecto."""
+    rng = random.Random(SEMILLA)
+    app = _app()
+    for k in range(rng.randint(1, 6)):
+        nombres = tuple(f'F{rng.randrange(1000)}' for _ in range(rng.randint(0, 30)))
+        prj = _proyecto(app, app.usuario, f'P{k}', alimentadores=nombres)
+        assert alimentadores_de(prj) == (_busqueda_completa(prj), None), f'semilla {SEMILLA}'
+
+
+def test_alimentadores_de_un_proyecto_sin_elmfeeder():
+    """005:RF-17 — sin ElmFeeder, se muestran sus redes (regla de la spec 004), sin la de resumen."""
+    app = _app()
+    prj = _proyecto(app, app.usuario, 'P', alimentadores=())
+    datos = _carpeta_de(prj, 'netdat')
+    datos.CreateObject('ElmNet', 'Summary Grid')
+    datos.CreateObject('ElmNet', 'Norte')
+    assert alimentadores_de(prj) == (['Norte', 'Red'], None)

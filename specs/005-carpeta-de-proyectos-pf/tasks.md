@@ -13,7 +13,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 - [x] T3. Árbol: `buscar_carpeta`, `asegurar_carpeta`, `nombre_libre`, `proyectos_de` con
       subcarpetas sorteadas, `proyecto_por_ruta`. (RF-1, RF-5, RF-7, RF-12, RF-13, RF-16)
       Hecho cuando: `pytest -q tests/test_carpeta_pf.py` en verde.
-- [ ] T4. `alimentadores_de` en los datos de red, con la búsqueda completa de reserva y su
+- [x] T4. `alimentadores_de` en los datos de red, con la búsqueda completa de reserva y su
       nota. (RF-17, RF-18, RF-19)
       Hecho cuando: `pytest -q tests/test_carpeta_pf.py` en verde.
 - [ ] T5. `import_dgs_file` con carpeta: nombre provisional, mover, nombre libre, activar
