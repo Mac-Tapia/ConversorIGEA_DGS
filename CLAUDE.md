@@ -21,6 +21,8 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
 - `docs/constitution.md`: principios innegociables, cada uno con cómo se comprueba.
 - `specs/NNN-<nombre>/{spec,plan,tasks}.md`: una carpeta por funcionalidad. Specs activas, en este orden: `specs/001-reorganizacion/` y
   `specs/002-arquitectura-por-capas/`, aprobadas el 2026-10-08. La 001 está cumplida; la 002, aún sin plan ni tareas.
+  `specs/005-carpeta-de-proyectos-pf/` (aprobada el 2026-10-09): implementada, falta la prueba manual en DIgSILENT (T12).
+  La carpeta de DIgSILENT de cada empresa va en `config/perfil_empresa.json`, local y fuera de git.
 - `docs/superpowers/specs/` y `plans/` son históricos: no tienen requisitos numerados ni casillas al día.
 
 ## Pruebas
@@ -41,7 +43,7 @@ más reciente no trae catálogo de equipos:
 
 Esas bases **no** son la misma foto de la red que los TXT de `referencia/` (03/08): los
 nodos están numerados de otra forma. Con las cinco variables a la vez la suite pasa
-entera (951 correctas y 18 omitidas a 2026-10-08, con la spec 001 cumplida): las comparaciones tramo a tramo entre las dos vías
+entera (1036 correctas y 20 omitidas a 2026-10-09; dos de ellas, de la demanda medida, piden además `IGEA_DEMANDA_DIR`): las comparaciones tramo a tramo entre las dos vías
 se omiten solas cuando `igea_dgs.huella` dice que no son la misma exportación. Que las
 dos vías den el mismo modelo **no** está comprobado hasta tener un TXT y una `.mdb` de la
 misma fecha.
