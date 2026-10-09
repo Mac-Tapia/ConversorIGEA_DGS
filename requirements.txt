@@ -49,6 +49,11 @@ pyodbc>=5.0 ; sys_platform == "win32"
 # Plantillas de cargas de SED en Excel (una hoja por alimentador) y export .xlsx.
 openpyxl>=3.1
 
+# Demanda medida (spec 004): los libros del operador llegan en .xls, .xlsx y .xlsb, y la
+# medición de cabecera pesa cientos de MB por libro. Un solo lector para los tres, en
+# Rust: abre un .xls de 400 MB en ~1 s, donde xlrd tarda decenas de segundos.
+python-calamine>=0.3
+
 # Tablas de las exportaciones analíticas.
 pandas>=2.0
 

@@ -1155,6 +1155,143 @@ def cargas_ejecutar(ws: Workspace, ctx: JobContext, token: str, *, simular: bool
 
 
 # ---------------------------------------------------------------------------
+# Demanda medida (spec 004, RF-22 a RF-39)
+# ---------------------------------------------------------------------------
+
+DEMANDA_TIPOS = ('medidores', 'cabecera', 'suministros', 'clientes')
+DEMANDA_ETIQUETAS = {
+    'medidores': 'libro medidor por alimentador', 'cabecera': 'medición de cabecera',
+    'suministros': 'libro de suministros', 'clientes': 'libro de clientes importantes',
+}
+
+
+def demanda_alias():
+    """Alias genéricos y, delante, los de la empresa en ``config/demanda_medida_alias.json``."""
+    from ..demanda_medida import DemandaError, cargar_alias
+
+    try:
+        return cargar_alias(project_root() / 'config' / 'demanda_medida_alias.json')
+    except DemandaError as exc:
+        raise UserError(str(exc)) from exc
+
+
+def demanda_carpeta(ws: Workspace, tipo: str) -> Path:
+    return ws.root / 'demanda' / tipo
+
+
+def demanda_asignar(ws: Workspace, tipo: str, path: Path, origin: str) -> dict:
+    """Guarda en el espacio el libro (o la carpeta de cabecera) de ``tipo`` (RF-39)."""
+    from ..demanda_medida import EXTENSIONES, libros_de_cabecera
+
+    if tipo == 'cabecera':
+        try:
+            libros = libros_de_cabecera([path])
+        except Exception as exc:  # noqa: BLE001 - DemandaError o de E/S: error de usuario
+            raise UserError(str(exc)) from exc
+        meta = {'path': str(path), 'name': path.name, 'origin': origin,
+                'libros': [p.name for p in libros]}
+    else:
+        if not path.is_file() or path.suffix.lower() not in EXTENSIONES:
+            raise UserError(f'{path.name}: el {DEMANDA_ETIQUETAS[tipo]} debe ser un libro '
+                            + ', '.join(EXTENSIONES))
+        meta = {'path': str(path), 'name': path.name, 'origin': origin}
+    with ws.lock:
+        ws.demanda[tipo] = meta
+        ws.save()
+    return ws.public()
+
+
+def demanda_quitar(ws: Workspace, tipo: str) -> dict:
+    import shutil
+
+    with ws.lock:
+        ws.demanda.pop(tipo, None)
+        ws.save()
+    shutil.rmtree(demanda_carpeta(ws, tipo), ignore_errors=True)
+    return ws.public()
+
+
+def _demanda_ruta(ws: Workspace, tipo: str) -> Path:
+    meta = ws.demanda.get(tipo)
+    if not meta or not Path(meta['path']).exists():
+        raise UserError(f'Falta el {DEMANDA_ETIQUETAS[tipo]}: súbalo o indique su ruta.')
+    return Path(meta['path'])
+
+
+def demanda_medidores(ws: Workspace, alimentador: str) -> dict:
+    """Medidores del alimentador según el libro (RF-22). Vacío si no está (RF-23)."""
+    from ..demanda_medida import DemandaError, leer_medidores, medidores_de
+
+    if not alimentador.strip():
+        raise UserError('Escriba el código de alimentador.')
+    try:
+        medidores = medidores_de(leer_medidores(_demanda_ruta(ws, 'medidores'), demanda_alias()),
+                                 alimentador)
+    except DemandaError as exc:
+        raise UserError(str(exc)) from exc
+    return {'alimentador': alimentador.strip(), 'medidores': medidores, 'encontrado': bool(medidores)}
+
+
+def demanda_cabecera(ws: Workspace, ctx: JobContext, pares: list[tuple[str, str]]) -> dict:
+    """Máxima de cada medidor en la medición de cabecera (RF-24 a RF-32). Es un trabajo:
+    abrir los libros cuesta segundos (P7). Se cancela entre medidores."""
+    from ..demanda_medida import DemandaError, maximas
+
+    if not pares:
+        raise UserError('Indique al menos un medidor.')
+    ruta = _demanda_ruta(ws, 'cabecera')
+    alias = demanda_alias()
+    ctx.log(f'Medición de cabecera: {ruta.name} · {len(pares)} medidor(es)')
+    try:
+        res = maximas([ruta], pares, alias=alias, cancelado=ctx.cancel.is_set,
+                      progreso=lambda i, n, m: ctx.progress(i, n, m))
+    except DemandaError as exc:
+        raise UserError(str(exc)) from exc
+    for r in res:
+        if r.error:
+            ctx.log(f'  {r.medidor}: {r.error}')
+        else:
+            ctx.log(f'  {r.medidor}: kW máx {r.kw:g} el {r.fecha} ({r.libro} › {", ".join(r.hojas)})')
+        for aviso in r.avisos:
+            ctx.log(f'    aviso: {aviso}')
+    return {'resultados': [r.to_dict() for r in res],
+            'cancelado': len(res) < len(pares)}
+
+
+def demanda_clientes(ws: Workspace) -> dict:
+    """Clientes importantes cruzados con los suministros, sin filtrar (RF-33 a RF-37)."""
+    from ..demanda_medida import DemandaError, cruzar, leer_clientes, leer_suministros
+
+    alias = demanda_alias()
+    try:
+        suministros, avisos_s = leer_suministros(_demanda_ruta(ws, 'suministros'), alias)
+        clientes, avisos_c = leer_clientes(_demanda_ruta(ws, 'clientes'), alias)
+    except DemandaError as exc:
+        raise UserError(str(exc)) from exc
+    cruzados, aparte = cruzar(clientes, suministros)
+    return {
+        'cruzados': [c.to_dict() for c in cruzados],
+        'no_cruzados': [c.to_dict() for c in aparte],
+        'avisos': avisos_s + avisos_c,
+        'totales': {'clientes': len(clientes), 'cruzados': len(cruzados), 'no_cruzados': len(aparte),
+                    'por_actual': sum(c.cruzado_por == 'actual' for c in cruzados),
+                    'por_anterior': sum(c.cruzado_por == 'anterior' for c in cruzados)},
+    }
+
+
+def demanda_excel(ws: Workspace, datos: dict) -> Path:
+    """Excel con lo que el operador ve en pantalla (RF-38): sin estado que se desfase."""
+    import time as _time
+
+    from ..demanda_medida import escribir_excel
+
+    destino = ws.out_dir / 'demanda_medida' / f"demanda_medida_{_time.strftime('%Y%m%d_%H%M%S')}.xlsx"
+    return escribir_excel(destino, cabecera=datos.get('cabecera') or [],
+                          clientes=datos.get('clientes') or [],
+                          no_cruzados=datos.get('no_cruzados') or [])
+
+
+# ---------------------------------------------------------------------------
 # Catálogo de parámetros eléctricos
 # ---------------------------------------------------------------------------
 

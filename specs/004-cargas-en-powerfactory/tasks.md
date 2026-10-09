@@ -36,17 +36,30 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde y `- [x]`.
       Hecho cuando: ninguna referencia a ellos y suite en verde.
       Hecho el 2026-10-09: fuera los tres guiones, `loads_create.py`, `web/load_batch.py` y
       sus pruebas; `services.proyecto_pf_de` también (el proyecto lo elige el operador).
-- [ ] T9. `igea_dgs/demanda_medida.py`, cabecera: medidores por alimentador, índice de
+- [x] T9. `igea_dgs/demanda_medida.py`, cabecera: medidores por alimentador, índice de
       hojas, hoja del medidor (entera o partida), columnas por alias, kW máximo con su
       registro, kVA/FP calculados, medidor no hallado. (RF-22, RF-24 a RF-32)
       Hecho cuando: pruebas con libros sintéticos de columnas sorteadas en verde.
-- [ ] T10. `demanda_medida.py`, clientes: suministros, resumen en los dos formatos,
+      Hecho el 2026-10-09 (`tests/test_demanda_medida.py`). Visto en los libros reales y
+      cubierto: `PF lag/lead mean` en %, pasan a decimal con su signo; `PF sign tot us`
+      con valores de más de ±100 no es un FP y se calcula; «Local Time» a veces sin hora
+      (se usa «Timestamp»); hoja con el nombre del medidor sin kW y el kW en una parte;
+      hojas completas con sufijo (`L-6613_PE`); celdas con dos medidores («A Y B»).
+- [x] T10. `demanda_medida.py`, clientes: suministros, resumen en los dos formatos,
       cruce actual → anterior, no cruzados, Excel de salida. (RF-33 a RF-38)
       Hecho cuando: pruebas sintéticas en verde y, con `IGEA_DEMANDA_DIR`, con los reales.
-- [ ] T11. Web de la demanda medida: libros por subida o ruta (carpeta), medidores,
+      Hecho el 2026-10-09. Con los reales: 98 de 103 medidores con máxima (los otros 5,
+      con motivo); clientes de enero a abril 257 cruzados (107 por el código anterior),
+      de mayo a julio 253.
+- [x] T11. Web de la demanda medida: libros por subida o ruta (carpeta), medidores,
       cabecera como trabajo cancelable, cruce y descarga. (RF-23, RF-38, RF-39)
       Hecho cuando: pruebas de API en verde.
-- [ ] T12. Front: sección «Demanda medida» en la pestaña de cargas. (RF-40, RF-41)
+      Hecho el 2026-10-09 (`tests/test_demanda_medida_web.py`). Rutas `/demanda/…`.
+- [x] T12. Front: sección «Demanda medida» en la pestaña de cargas. (RF-40, RF-41)
       Hecho cuando: `tsc`, `build` y prueba de contrato en verde.
+      Hecho el 2026-10-09 (`DemandaMedida.tsx`, `tests/test_demanda_medida_front.py`).
 - [ ] T8. Validación: RF-1 a RF-41 citados, suite completa en verde, RF-14 de la 001
       igual; prueba real en DIgSILENT a cargo del usuario.
+      2026-10-09: RF-1 a RF-41 citados; suite completa con las cinco variables `IGEA_*` y
+      `IGEA_DEMANDA_DIR` en verde (948 correctas, 18 omitidas). Falta la prueba real en
+      DIgSILENT.
