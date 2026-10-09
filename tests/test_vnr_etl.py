@@ -44,6 +44,7 @@ from vnr_etl.exporters.cymdist import CymdistExporter
 from vnr_etl.exporters.dgs import DgsExporter
 from vnr_etl.gis.snapping import deterministic_node_id, snap_endpoints
 from vnr_etl.models import CanonicalModel, Load, Node, Section, Source
+from vnr_etl.models.canonical import ConductorType
 from vnr_etl.pipeline import (
     canonicalize_sections,
     list_companies,
@@ -545,11 +546,25 @@ def _production_ready_model() -> CanonicalModel:
         'working_crs': 'EPSG:32718',
         'working_crs_is_projected': True,
     })
+    # Una red que el motor igea_dgs acepta en modo estricto (spec 001, RF-10): cada
+    # elemento con su alimentador y el tramo con un conductor de parámetros completos.
     for node in model.nodes:
         node.nominal_kv = 10.0
     model.nodes = model.nodes[:2]
-    model.sections[0].phases = 'ABC'
-    model.loads = [Load(load_id='L1', connection_node='B', kw=100.0, kvar=40.0)]
+    model.nodes[0].x, model.nodes[0].y = 500000.0, 8450000.0
+    model.nodes[1].x, model.nodes[1].y = 500100.0, 8450000.0
+    section = model.sections[0]
+    section.phases = 'ABC'
+    section.feeder_id = 'F1'
+    section.conductor_code = 'AA70'
+    section.length_m = 100.0
+    model.sources[0].feeder_id = 'F1'
+    model.sources[0].nominal_kv = 10.0
+    model.loads = [Load(load_id='L1', connection_node='B', kw=100.0, kvar=40.0, feeder_id='F1')]
+    model.conductor_types = [ConductorType(
+        conductor_code='AA70', r1_ohm_km=0.5, x1_ohm_km=0.4, r0_ohm_km=0.7, x0_ohm_km=1.2,
+        ampacity_a=200.0,
+    )]
     return model
 
 
@@ -565,21 +580,8 @@ def test_dgs_export_is_blocked_without_verified_profile(tmp_path):
 
 
 def test_dgs_export_writes_file_with_verified_profile(tmp_path):
-    model = _model_base()
-    model.metadata.update({
-        'schema_fingerprint': 'schema',
-        'source_fingerprint': 'source',
-        'source_publication_id': 'PUB-1',
-        'source_company': 'ELDU',
-        'source_period': '2025',
-        'source_url': 'https://www.osinergmin.gob.pe/source',
-        'source_sha256': 'abc123',
-        'retrieved_at': '2026-10-05T00:00:00Z',
-        'canonical_model_version': '1.0',
-    })
-    model.nodes[0].nominal_kv = 10.0
-    model.nodes[1].nominal_kv = 10.0
-    model.loads = [Load(load_id='L1', connection_node='B', kw=100.0, kvar=40.0)]
+    """001:RF-10 — `vnr-etl export` escribe el DGS con el motor, validado y con procedencia."""
+    model = _production_ready_model()
     exporter = DgsExporter(profile=_verified_dgs_profile(tmp_path))
     paths = exporter.export(model, tmp_path)
     assert len(paths) == 2 and all(path.is_file() for path in paths)
@@ -591,6 +593,49 @@ def test_dgs_export_writes_file_with_verified_profile(tmp_path):
     assert manifest['source_publication_id'] == 'PUB-1'
     assert manifest['target_profile_hash'] == exporter.profile.sample_hash
     assert manifest['artifact_sha256'] == sha256_of(dgs_path)
+    assert manifest['engine'] == 'igea_dgs.batch.convert_group'
+    assert manifest['feeders'] == ['F1']
+    # La validación del motor queda junto al DGS, sin errores.
+    stem = dgs_path.stem
+    validation = json.loads((dgs_path.parent / f'{stem}_validation.json').read_text(encoding='utf-8'))
+    assert validation['errors_total'] == 0
+    engine = json.loads((dgs_path.parent / f'{stem}_manifest.json').read_text(encoding='utf-8'))
+    assert engine['status'] == 'ok'
+    assert not list((tmp_path / '.staging').iterdir())
+
+
+def test_dgs_export_es_el_mismo_dgs_que_el_motor(tmp_path):
+    """001:RF-10 — mismo modelo, mismo DGS byte a byte que el motor por la vía de la web."""
+    from igea_dgs.batch import convert_group
+    from vnr_etl.application.cymdist_bridge import canonical_to_cymdist
+
+    model = _production_ready_model()
+    exporter = DgsExporter(profile=_verified_dgs_profile(tmp_path))
+    dgs_path = next(p for p in exporter.export(model, tmp_path / 'vnr') if p.suffix == '.dgs')
+    bridge = canonical_to_cymdist(model, source_path=Path('x.vnr'))
+    convert_group(bridge.dataset, ['F1'], tmp_path / 'motor', name=dgs_path.stem,
+                  source_crs='EPSG:32718')
+    assert dgs_path.read_bytes() == (tmp_path / 'motor' / dgs_path.name).read_bytes()
+
+
+def test_dgs_export_bloquea_lo_que_el_puente_no_sabe_ubicar(tmp_path):
+    """001:RF-10 — un tramo sin alimentador bloquea el export en vez de perderse en silencio."""
+    model = _production_ready_model()
+    model.sections[0].feeder_id = ''
+    exporter = DgsExporter(profile=_verified_dgs_profile(tmp_path))
+    with pytest.raises(ExportBlocked, match='MISSING_FEEDER_ID S1'):
+        exporter.export(model, tmp_path / 'out')
+    assert not list((tmp_path / 'out').rglob('*.dgs'))
+
+
+def test_dgs_export_bloquea_si_el_motor_rechaza_el_modelo(tmp_path):
+    """001:RF-10 — un conductor sin parámetros no se escribe con valores inventados."""
+    model = _production_ready_model()
+    model.conductor_types[0].r1_ohm_km = None
+    exporter = DgsExporter(profile=_verified_dgs_profile(tmp_path))
+    with pytest.raises(ExportBlocked):
+        exporter.export(model, tmp_path / 'out')
+    assert not list((tmp_path / 'out').rglob('*.dgs'))
 
 
 def test_dgs_export_projects_node_coordinates_to_gps(tmp_path):

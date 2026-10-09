@@ -80,8 +80,17 @@ Spec aprobada el 2026-10-08.
       `job` y `events`. `apiError` es común a `request()` y `download()`. La orden real
       es `npx tsc --noEmit -p .` desde `frontend/`: desde la raíz, `npx` no encuentra
       TypeScript. Pruebas de contrato en `tests/test_web_reconstruction_ui_contract.py`.
-- [ ] T10. `DgsExporter` por el motor. (RF-10)
+- [x] T10. `DgsExporter` por el motor. (RF-10)
       Hecho cuando: `pytest -q tests/test_vnr_etl.py` en verde con el DGS validado.
+      Hecho el 2026-10-08. `export` = `canonical_to_cymdist` (el puente de la web) +
+      `batch.convert_group`: un solo DGS con todos los alimentadores del modelo, con las
+      reglas, la validación y la auditoría del motor; mismo DGS byte a byte que el motor
+      directo. Conserva las puertas del perfil verificado y de la procedencia, y su
+      `.manifest.json`; deja al lado la validación y el manifiesto del motor. Nuevo: se
+      bloquea si el puente deja algo fuera (tramo sin alimentador, carga sin tramo), si
+      un alimentador no está listo o si falta un CRS de trabajo proyectado; el escritor
+      anterior escribía líneas sin tipo. Por eso el modelo «listo para producción» de
+      las pruebas lleva ahora alimentador y conductor.
 - [ ] T11. Una sola API web y una sola cola; se retira el script `vnr-etl-web`. (RF-11)
       Hecho cuando: las pruebas de `vnr_etl.web` pasan contra la app principal.
 - [ ] T11b. `create_app` decide las rutas locales según la interfaz de escucha, por
