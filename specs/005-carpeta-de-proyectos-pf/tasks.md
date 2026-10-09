@@ -39,7 +39,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 - [x] T9. Cargas por ruta: el plan lleva la ruta y la carpeta; `tools/cargas_pf.py`
       activa con `proyecto_por_ruta`. (RF-16)
       Hecho cuando: `pytest -q tests/test_cargas_pf_guion.py tests/test_cargas_pf.py` en verde.
-- [ ] T10. Front: `PfProject.path`, desplegable por ruta con « / » y aviso de carpeta
+- [x] T10. Front: `PfProject.path`, desplegable por ruta con « / » y aviso de carpeta
       inexistente. (RF-12, RF-14, RF-16)
       Hecho cuando: `cd frontend && npm run build` sin errores de tipos.
 - [ ] T11. Validación: cada RF citado por al menos una prueba y en verde; suite completa

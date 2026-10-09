@@ -3,7 +3,7 @@ import { api, download, fmtNum } from '../api';
 import { useApp } from '../context';
 import type {
   CargaConectada, CargasFeederInforme, CargasInforme, CargasMotivo, CargasPlan, CargasResultado,
-  Economia, PfProject,
+  Economia, PfInventario, PfProject,
 } from '../types';
 import { DemandaMedida } from './DemandaMedida';
 import { PfWarning } from './Modules';
@@ -81,8 +81,12 @@ export function CargasTab() {
 
   // El resultado del último «Leer proyectos» que terminó bien.
   const lastRead = Object.values(jobs).filter((j) => j.kind === 'pf_projects' && j.status === 'done').pop();
-  const projects = (lastRead?.result?.projects ?? []) as PfProject[];
-  const current = projects.find((p) => p.name === project) ?? null;
+  const inventario = (lastRead?.result ?? null) as PfInventario | null;
+  const projects = inventario?.projects ?? [];
+  // El proyecto se identifica por su ruta en la carpeta: dos SI213 en subcarpetas
+  // distintas son dos proyectos (spec 005, RF-16).
+  const ruta = (p: PfProject) => p.path ?? p.name;
+  const current = projects.find((p) => ruta(p) === project) ?? null;
   // Un trabajo cancelado también deja informe: dice qué alimentadores no se empezaron.
   const lastRun = Object.values(jobs)
     .filter((j) => (j.kind === 'cargas_simular' || j.kind === 'cargas_aplicar') && j.result)
@@ -158,11 +162,21 @@ export function CargasTab() {
               <select value={project} onChange={(e) => choose(e.target.value)}>
                 <option value="">— elija un proyecto —</option>
                 {projects.map((p) => (
-                  <option key={p.name} value={p.name}>{p.name} ({p.feeders.length} alim.)</option>
+                  <option key={ruta(p)} value={ruta(p)}>
+                    {ruta(p).split('/').join(' / ')} ({p.feeders.length} alim.)
+                  </option>
                 ))}
               </select>
             </label>
-          ) : <small className="muted">Lee la lista de DIgSILENT; tarda lo que tarde en abrirse.</small>}
+          ) : !inventario?.aviso && (
+            <small className="muted">Lee los proyectos de la carpeta de importación de DIgSILENT.</small>
+          )}
+          {inventario?.aviso && <small className="alert alert-warn">{inventario.aviso}</small>}
+          {inventario?.exists && inventario.folder && (
+            <small className="muted">
+              Carpeta «{inventario.folder}»{projects.length ? '' : ': sin proyectos todavía'}.
+            </small>
+          )}
         </div>
 
         <div className="step-box">
