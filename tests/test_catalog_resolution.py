@@ -172,3 +172,56 @@ def test_dataset_materialization_keeps_linecableid_and_records_provenance():
     decision = result.report.decisions[-1]
     assert decision.rule == 'COMPATIBLE_ATTRIBUTES'
     assert decision.provenance['catalog']['sha256'] == 'a' * 64
+
+
+def _dataset_con_conductor_a_medias():
+    # Como llega de un paquete VNR-GIS: R1 y X1 sí, R0, X0, B y Amps no.
+    return CymdistDataset(
+        red_path=Path('red.txt'), loads_path=Path('loads.txt'),
+        equipment_path=Path('equipment.txt'),
+        headnodes={'N0': 'F1'},
+        nodes={'N0': {'NodeID': 'N0'}, 'N1': {'NodeID': 'N1'}},
+        sources={'F1': {'NetworkID': 'F1', 'NodeID': 'N0', 'DesiredVoltage': '10'}},
+        line_configurations={'S1': {
+            'SectionID': 'S1', 'LineCableID': 'AA70', 'Overhead': '1', 'Length': '100',
+        }},
+        sections={'S1': {'SectionID': 'S1', 'FromNodeID': 'N0', 'ToNodeID': 'N1', 'Phase': 'ABC'}},
+        section_owner={'S1': 'F1'}, feeders={'F1': ('S1',)},
+        switch_settings=(), sectionalizer_settings=(), intermediate_nodes=(),
+        load_placements={}, customer_loads={},
+        equipment_tables={'LINE': ({'ID': 'AA70', 'R1': '0.55', 'X1': '0.41',
+                                    'R0': '', 'X0': '', 'B1': '', 'B0': '', 'Amps': ''},)},
+    )
+
+
+def test_conductor_a_medias_se_completa_con_el_catalogo_y_conserva_lo_que_trae():
+    """001:RF-19 — un conductor con parámetros a medias se completa; R1 y X1 se conservan."""
+    from igea_dgs.catalog_resolution import resolve_dataset_equipment
+
+    result = reconstruct_dataset(_dataset_con_conductor_a_medias(), ReconstructionPolicy(), [])
+    catalog = _catalog('proyecto', 'global', [_row('AA70', 0.9, Amps=210)])
+
+    resolved = resolve_dataset_equipment(result, [catalog])
+
+    [row] = result.dataset.equipment_tables['LINE']
+    assert row['ID'] == 'AA70'
+    assert float(row['R1']) == pytest.approx(0.55) and float(row['X1']) == pytest.approx(0.41)
+    assert float(row['R0']) == pytest.approx(0.9) and float(row['Amps']) == pytest.approx(210)
+    assert resolved['AA70'].level is EvidenceLevel.CATALOG_MATCH
+    decision = result.report.decisions[-1]
+    assert decision.original_value['R0'] == '' and decision.applied_value['R1'] == '0.55'
+
+
+def test_conductor_a_medias_sin_catalogo_usa_el_ultimo_recurso_sin_perder_lo_que_trae():
+    """001:RF-18 — sin catálogo, perfil provisional como último recurso; lo original manda."""
+    from igea_dgs.catalog_resolution import resolve_dataset_equipment
+
+    result = reconstruct_dataset(_dataset_con_conductor_a_medias(), ReconstructionPolicy(), [])
+
+    resolved = resolve_dataset_equipment(result, [])
+
+    [row] = result.dataset.equipment_tables['LINE']
+    assert float(row['R1']) == pytest.approx(0.55)
+    assert all(row[key] != '' for key in ('R0', 'X0', 'B1', 'B0', 'Amps'))
+    assert resolved['AA70'].rule == 'PROVISIONAL_PROFILE'
+    assert resolved['AA70'].level is EvidenceLevel.ENGINEERING_ASSUMPTION
