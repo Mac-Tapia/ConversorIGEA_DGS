@@ -118,8 +118,8 @@ function InformeAjuste({ inf, report, cancelado }: { inf: AjusteInforme; report:
                 <td className="num">{fmtNum(inf.cabecera.kw, 1)}</td><td className="num">{fmtNum(inf.cabecera.kvar, 1)}</td></tr>}
               {inf.perdidas && inf.perdidas.kw != null && <tr><td>Pérdidas</td>
                 <td className="num">{fmtNum(inf.perdidas.kw, 1)}</td><td className="num">{fmtNum(inf.perdidas.kvar ?? 0, 1)}</td></tr>}
-              {inf.error && <tr><td>Error</td><td className="num">{pct(inf.error.kw)}</td>
-                <td className="num">{inf.solo_kw ? 'solo se cuadra el kW' : pct(inf.error.kvar)}</td></tr>}
+              {inf.desvio && <tr><td>Error</td><td className="num">{pct(inf.desvio.kw)}</td>
+                <td className="num">{inf.solo_kw ? 'solo se cuadra el kW' : pct(inf.desvio.kvar)}</td></tr>}
             </tbody>
           </table>
         </div>

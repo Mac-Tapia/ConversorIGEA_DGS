@@ -516,7 +516,8 @@ export interface AjusteInforme {
   flujos?: number;
   cabecera?: { kw: number; kvar: number } | null;
   perdidas?: { kw: number | null; kvar: number | null };
-  error?: { kw: number | null; kvar: number | null };
+  /** Error relativo en la cabecera (medido − objetivo); «error» queda para los fallos. */
+  desvio?: { kw: number | null; kvar: number | null };
   solo_kw?: boolean;
   todo_escala?: boolean;
   totales_sin_perdidas?: { kw: number; kvar: number };
