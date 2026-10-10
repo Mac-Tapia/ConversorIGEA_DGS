@@ -221,7 +221,7 @@ class DgsExporter:
 
     def roundtrip_errors(self, path: Path) -> list[str]:
         """Valida cabeceras, aridad y unicidad de FID releyendo el DGS escrito."""
-        from igea_dgs.validate import parse_dgs
+        from igea_dgs.validate import parse_dgs, total_fids
 
         schema = _load_schema(self.schema_profile)
         tables = parse_dgs(path)
@@ -233,15 +233,15 @@ class DgsExporter:
                 continue
             if tables[table]['header'] != schema.header(table):
                 errors.append(f'Cabecera inválida para {table}.')
-        fids: list[str] = []
         for table, payload in tables.items():
             expected = len(payload['fields'])
             for index, row in enumerate(payload['rows'], start=1):
                 if len(row) != expected:
                     errors.append(f'{table} fila {index}: aridad {len(row)} != {expected}.')
-            if 'FID' in payload['fields']:
-                fid_index = payload['fields'].index('FID')
-                fids.extend(row[fid_index] for row in payload['rows'] if len(row) > fid_index)
+        # La misma regla de FID único que el validador del motor. Esta copia propia no
+        # sabía que en «Matrix» el FID se repite en cada fila (spec 010) y daba por
+        # roto todo DGS con trazado GPS.
+        fids = [fid for fid, _tabla in total_fids(tables)]
         duplicates = sorted(fid for fid, count in Counter(fids).items() if fid and count > 1)
         if duplicates:
             errors.append('FID duplicados: ' + ', '.join(duplicates[:5]))

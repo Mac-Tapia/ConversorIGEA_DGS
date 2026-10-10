@@ -921,11 +921,25 @@ def write_dgs(
         ))
 
     for line in sorted(model.lines, key=lambda x: x.section_id):
+        # Trazado GPS de la línea (spec 010): sin él, la vista geográfica de PowerFactory
+        # dibujaba cada línea como una recta entre sus barras. Va en la tabla normalizada
+        # «Matrix» de DGS 7.0, una fila por punto y coordenada (columna 0 latitud,
+        # 1 longitud), comprobado al importar AL106 en PowerFactory 2024. El FID se deriva
+        # del de la línea: pedirlo al registro renumeraría todo lo que viene después.
+        gline = geography.lines.get(line.section_id) if geography is not None else None
+        gps_fid = ''
+        if gline is not None and gline.path:
+            gps_fid = f'GPS_{line_fids[line.section_id]}'
+            for fila, punto in enumerate(gline.path):
+                rows['Matrix'].append(_make_row(
+                    schema, 'Matrix', FID=gps_fid, MatColumn=0, MatRow=fila, Val=punto.lat))
+                rows['Matrix'].append(_make_row(
+                    schema, 'Matrix', FID=gps_fid, MatColumn=1, MatRow=fila, Val=punto.lon))
         rows['ElmLne'].append(_make_row(
             schema, 'ElmLne', FID=line_fids[line.section_id], OP='C',
             loc_name=_loc_name(line.section_id), fold_id=network_fid,
             typ_id=type_fids[line.type_key], dline=line.length_km, fline=1,
-            GPScoords='', nlnum=1, inAir=1 if line.overhead else 0,
+            GPScoords=gps_fid, nlnum=1, inAir=1 if line.overhead else 0,
         ))
 
     for key in sed_keys:
@@ -1372,6 +1386,8 @@ def write_dgs(
         used_tables.add('ElmCoup')
     if geography is not None:
         used_tables |= {'IntGrf', 'IntGrfcon', 'IntGrfnet'}
+    if rows['Matrix']:
+        used_tables.add('Matrix')
     for table in schema.table_order:
         if table not in used_tables:
             continue

@@ -33,6 +33,7 @@
     "TypSym": "$$TypSym;FID(a:40);OP(a:1);loc_name(a:40);sgn(r);ugn(r);cosn(r);xd(r);xq(r);xdsss(r);rstr(r);xdsat(r);satur(i);nphase(i);nslty(i);x0sy(r);r0sy(r);x2sy(r);r2sy(r);iopt_data(i);xds(r);xqs(r);xdss(r);xqss(r);xrlq(r);tds(r);tqs(r);tdss(r);tqss(r)",
     "TypTr2": "$$TypTr2;FID(a:40);OP(a:1);loc_name(a:40);nt2ph(i);strn(r);frnom(r);utrn_h(r);utrn_l(r);uktr(r);pcutr(r);uk0tr(r);ur0tr(r);tr2cn_h(a:2);tr2cn_l(a:2);nt2ag(r);curmg(r);pfe(r);zx0hl_n(r);itapch(i);tap_side(i);dutap(r);phitr(r);nntap0(i);ntpmn(i);ntpmx(i);manuf(a:20)",
     "TypTr3": "$$TypTr3;FID(a:40);OP(a:1);loc_name(a:40);strn3_h(r);strn3_m(r);strn3_l(r);utrn3_h(r);utrn3_m(r);utrn3_l(r);uktr3_h(r);uktr3_m(r);uktr3_l(r);pcut3_h(r);pcut3_m(r);pcut3_l(r);uk0hm(r);uk0ml(r);uk0hl(r);ur0hm(r);ur0ml(r);ur0hl(r);tr3cn_h(a:2);tr3cn_m(a:2);tr3cn_l(a:2);nt3ag_h(r);nt3ag_m(r);nt3ag_l(r);curm3(r);pfe(r);du3tp_h(r);ph3tr_h(r);n3tp0_h(i);n3tmn_h(i);n3tmx_h(i);du3tp_m(r);ph3tr_m(r);n3tp0_m(i);n3tmn_m(i);n3tmx_m(i);du3tp_l(r);ph3tr_l(r);n3tp0_l(i);n3tmn_l(i);n3tmx_l(i);itapos(i);i3loc(i)",
+    "Matrix": "$$Matrix;FID(a:40);MatColumn(i);MatRow(i);Val(r)",
     "TypVoltreg": "$$TypVoltreg;FID(a:40);OP(a:1);loc_name(a:40);type(i);config(i);frnom(r);Un(r);In(r);pcReg(r);nntap0(i);ntapmin(i);ntapmax(i);uk(r);pcu(r)"
   },
   "table_order": [
@@ -65,6 +66,7 @@
     "TypSym",
     "TypTr2",
     "TypTr3",
-    "TypVoltreg"
+    "TypVoltreg",
+    "Matrix"
   ]
 }

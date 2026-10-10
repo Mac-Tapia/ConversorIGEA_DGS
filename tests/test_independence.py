@@ -9,8 +9,10 @@ def test_production_source_has_no_fixed_reference_dgs_dependency():
         assert token not in text
 
 
-def test_schema_profile_defines_30_versioned_dgs_tables():
+def test_schema_profile_defines_31_versioned_dgs_tables():
+    """Las 30 del perfil más ``Matrix``, que lleva el trazado GPS de las líneas (010:RF-1)."""
     from igea_dgs.schema import load_schema
     schema = load_schema()
-    assert len(schema.tables) == 30
-    assert len(schema.table_order) == 30
+    assert len(schema.tables) == 31
+    assert len(schema.table_order) == 31
+    assert schema.table_order[-1] == 'Matrix'

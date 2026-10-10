@@ -35,16 +35,40 @@ def parse_dgs(path: Path | str) -> dict[str, dict]:
     return tables
 
 
-def _total_fids(tables: dict[str, dict]) -> list[tuple[str, str]]:
+def total_fids(tables: dict[str, dict]) -> list[tuple[str, str]]:
     result: list[tuple[str, str]] = []
     for name, table in tables.items():
-        if 'FID' not in table['fields']:
+        # En «Matrix» el FID nombra la matriz entera y se repite en cada fila: la clave
+        # es FID + columna + fila (DGS 7.0, apartado 6.7). Ver spec 010.
+        if 'FID' not in table['fields'] or name == 'Matrix':
             continue
         idx = table['fields'].index('FID')
         for row in table['rows']:
             if idx < len(row):
                 result.append((row[idx], name))
     return result
+
+
+def _trazados_gps(tables: dict[str, dict]) -> dict[str, list[tuple[float, float]]]:
+    """Cada matriz de la tabla ``Matrix`` como lista de puntos (latitud, longitud)."""
+    celdas: dict[str, dict[tuple[int, int], float]] = {}
+    for row in tables.get('Matrix', {}).get('rows_dict', []):
+        try:
+            clave = (int(row['MatRow']), int(row['MatColumn']))
+            celdas.setdefault(row['FID'], {})[clave] = float(row['Val'])
+        except (KeyError, ValueError):
+            continue
+    out: dict[str, list[tuple[float, float]]] = {}
+    for fid, valores in celdas.items():
+        filas = sorted({fila for fila, _ in valores})
+        out[fid] = [(valores.get((f, 0), math.nan), valores.get((f, 1), math.nan)) for f in filas]
+    return out
+
+
+def _mismo_trazado(a: list[tuple[float, float]], b: list[tuple[float, float]]) -> bool:
+    # 1e-8 grados (~1 mm), la misma tolerancia que el GPS de las barras.
+    return len(a) == len(b) and all(
+        math.isclose(x, y, rel_tol=0.0, abs_tol=1e-8) for p, q in zip(a, b) for x, y in zip(p, q))
 
 
 def _loc(value: str) -> str:
@@ -85,7 +109,7 @@ def validate_dgs(
             if len(row) != expected:
                 structural_errors.append(f'{name} row {n}: {len(row)} fields, expected {expected}')
 
-    fid_pairs = _total_fids(tables)
+    fid_pairs = total_fids(tables)
     fid_counts = Counter(fid for fid, _ in fid_pairs if fid)
     for fid, count in sorted(fid_counts.items()):
         if count > 1:
@@ -339,6 +363,9 @@ def validate_dgs(
         structural_errors.append(f'Line length total mismatch: source={source_length:.12g} km dgs={dgs_length:.12g} km')
 
     if geography is not None:
+        trazados = _trazados_gps(tables)
+        gps_de_linea = {row.get('loc_name', ''): row.get('GPScoords', '')
+                        for row in tables.get('ElmLne', {}).get('rows_dict', [])}
         # Geographic coverage and GPS equality.
         if set(geography.nodes) != set(model.nodes):
             geographic_errors.append('Geographic node set differs from electrical model')
@@ -374,6 +401,13 @@ def validate_dgs(
                     geographic_errors.append(f'{line.section_id}: path does not start at georeferenced FromNode')
                 if gline.path[-1] != geography.nodes.get(line.to_node):
                     geographic_errors.append(f'{line.section_id}: path does not end at georeferenced ToNode')
+                # Trazado GPS escrito en la línea (spec 010, RF-5): el que relee
+                # PowerFactory, punto a punto, frente a la geografía del modelo.
+                escrito = trazados.get(gps_de_linea.get(_loc(line.section_id), ''), [])
+                if not _mismo_trazado(escrito, [(p.lat, p.lon) for p in gline.path]):
+                    geographic_errors.append(
+                        f'{line.section_id}: el trazado GPS escrito ({len(escrito)} puntos) '
+                        f'no coincide con la geografía ({len(gline.path)} puntos)')
 
         for sed in model.seds:
             gp = geography.nodes.get(sed.node_id)
