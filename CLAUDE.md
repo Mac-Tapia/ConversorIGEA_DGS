@@ -25,6 +25,9 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   La carpeta de DIgSILENT de cada empresa va en `config/perfil_empresa.json`, local y fuera de git.
   `specs/006-ajuste-a-la-maxima-de-cabecera/` (aprobada el 2026-10-09): implementada, falta la
   prueba en DIgSILENT (T8), que confirma el signo y el lado de la cabecera.
+  `specs/007-cargas-nuevas-sobre-el-ajuste/` (aprobada el 2026-10-09): cargas nuevas sobre la
+  variación del ajuste (sin proyecto), una variación por carga (con proyecto); plan y tareas
+  escritos, sin empezar.
 - `docs/superpowers/specs/` y `plans/` son históricos: no tienen requisitos numerados ni casillas al día.
 
 ## Pruebas
