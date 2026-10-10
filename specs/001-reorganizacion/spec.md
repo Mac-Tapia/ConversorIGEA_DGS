@@ -107,6 +107,10 @@ Salida
 - RF-14: EL SISTEMA producirá, para la misma entrada, perfil y alias, los mismos DGS byte a
   byte que antes de la reorganización. La única excepción es la salida de `vnr-etl export`
   (RF-10).
+  *Cambio del 2026-10-10:* la spec 010 añade a propósito el trazado GPS de las líneas a
+  todo DGS georreferenciado (columna `GPScoords` y tabla `Matrix`). La línea base
+  `output/linea_base_001.json` se regeneró ese día con el código de la spec 010, después
+  de comprobar que, sin ese cambio, los DGS seguían idénticos a la anterior.
 
 ## Requisitos no funcionales
 

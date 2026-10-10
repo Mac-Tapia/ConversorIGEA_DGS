@@ -565,3 +565,29 @@ def test_las_definiciones_dgs_se_buscan_solo_en_el_primer_nivel_del_usuario():
     assert mod._find_dgs_export_definitions(app) is None
     propia = _ObjPF('DGS Export Definition', usuario, 'IntFolder')
     assert mod._find_dgs_export_definitions(app) is propia
+
+
+def test_la_aceptacion_compara_el_trazado_de_cada_linea_con_el_manifiesto():
+    """010:RF-6 — cuenta las líneas con trazado y las que difieren del manifiesto.
+
+    010:RF-7 — una línea sin el trazado del manifiesto es la que PowerFactory dibujaría
+    recta en la vista geográfica: cuenta como distinta.
+    """
+    mod = _load_pf_mod()
+    manifest = {'lines': {
+        'SEC_1': {'path': [{'lat': -14.0, 'lon': -75.0}, {'lat': -14.001, 'lon': -75.002},
+                           {'lat': -14.002, 'lon': -75.003}]},
+        'SEC_2': {'path': [{'lat': -14.1, 'lon': -75.1}, {'lat': -14.2, 'lon': -75.2}]},
+        'SEC_3': {'path': [{'lat': -14.3, 'lon': -75.3}, {'lat': -14.4, 'lon': -75.4}]},
+    }}
+    lineas = [
+        _ObjPF('SEC_1', clase='ElmLne',
+               GPScoords=[[-14.0, -75.0], [-14.001, -75.002], [-14.002, -75.003]]),
+        # Lat y lon cambiadas de columna: así se vería un trazado mal interpretado.
+        _ObjPF('SEC_2', clase='ElmLne', GPScoords=[[-75.1, -14.1], [-75.2, -14.2]]),
+        _ObjPF('SEC_3', clase='ElmLne', GPScoords=[]),
+    ]
+    r = mod.compare_line_gps(lineas, manifest)
+    assert r == {'with_path': 2, 'compared': 3, 'mismatches': 2,
+                 'mismatch_sample': ['SEC_2', 'SEC_3']}
+    assert mod.compare_line_gps(lineas[:1], manifest)['mismatches'] == 0

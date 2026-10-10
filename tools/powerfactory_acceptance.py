@@ -1876,6 +1876,41 @@ def _feeders_of(net: Any) -> list[Any]:
     return propios
 
 
+def compare_line_gps(lines: list[Any], manifest: dict[str, Any]) -> dict[str, Any]:
+    """Trazado GPS de cada ElmLne en PowerFactory frente al del manifiesto (spec 010).
+
+    ``GPScoords`` llega como n filas de (latitud, longitud). Tolerancia 1e-7 grados,
+    la misma que el GPS de las barras. Una línea del manifiesto sin trazado en
+    PowerFactory cuenta como distinta: es la que se vería recta en la vista geográfica.
+    """
+    esperado = {str(k)[:40]: [(float(p['lat']), float(p['lon'])) for p in v.get('path') or []]
+                for k, v in (manifest.get('lines') or {}).items()}
+    with_path = compared = mismatches = 0
+    muestra: list[str] = []
+    for line in lines:
+        try:
+            gps = [tuple(float(x) for x in fila) for fila in (_attr(line, 'GPScoords') or [])]
+        except (TypeError, ValueError):
+            gps = []
+        if gps:
+            with_path += 1
+        nombre = _name(line)
+        puntos = esperado.get(nombre)
+        if not puntos:
+            continue
+        compared += 1
+        igual = len(gps) == len(puntos) and all(
+            len(a) >= 2 and math.isclose(a[0], b[0], rel_tol=0.0, abs_tol=1e-7)
+            and math.isclose(a[1], b[1], rel_tol=0.0, abs_tol=1e-7)
+            for a, b in zip(gps, puntos))
+        if not igual:
+            mismatches += 1
+            if len(muestra) < 10:
+                muestra.append(nombre)
+    return {'with_path': with_path, 'compared': compared, 'mismatches': mismatches,
+            'mismatch_sample': muestra}
+
+
 def inventory_network(net: Any) -> dict[str, int]:
     """Count DigSilent elements relevant to IGEA→DGS acceptance."""
     all_terms = _contents(net, '*.ElmTerm')
@@ -2064,6 +2099,12 @@ def run_acceptance(
         errors.append(f'{unconnected_single} load/source objects do not resolve to a terminal cubicle')
     connectivity_pass = valid_lines == len(lines) and unconnected_single == 0
 
+    trazados = compare_line_gps(lines, manifest)
+    if trazados['mismatches']:
+        errors.append(
+            f"{trazados['mismatches']} ElmLne no tienen en PowerFactory el trazado GPS del "
+            f"manifiesto (spec 010); ejemplos: {trazados['mismatch_sample']}")
+
     # Diagram
     diagram = _attr(net, 'pDiagram')
     diagram_name = _name(diagram) if diagram is not None else None
@@ -2103,6 +2144,9 @@ def run_acceptance(
 
     if require_diagram and graphic_count == 0:
         errors.append('Associated diagram exposes zero IntGrf objects')
+        diagram_pass = False
+    # Una línea sin su recorrido real sale recta en la vista geográfica (spec 010, RF-7).
+    if trazados['mismatches']:
         diagram_pass = False
 
     # Load flow convergence on active study case
@@ -2160,6 +2204,9 @@ def run_acceptance(
             'invalid_names_sample': bad_gps[:20],
             'coordinate_mismatches': coordinate_mismatches,
             'compared_terminals': compared,
+            'lines_with_path': trazados['with_path'],
+            'compared_line_paths': trazados['compared'],
+            'line_path_mismatches': trazados['mismatches'],
         },
         'connectivity': {'valid_lines': valid_lines, 'total_lines': len(lines)},
         'diagram': {
@@ -2203,6 +2250,9 @@ def _write_reports(report: dict, json_path: Path, txt_path: Path) -> None:
         '',
         f"GPS terminals: {report['gps']['valid']}/{report['gps']['total']} ({report['gps']['coverage_pct']} %)",
         f"GPS mismatches vs manifest: {report['gps'].get('coordinate_mismatches')}",
+        f"Lines with GPS path: {report['gps'].get('lines_with_path')}/"
+        f"{report['connectivity']['total_lines']}; "
+        f"path mismatches vs manifest: {report['gps'].get('line_path_mismatches')}",
         f"Lines with two valid terminal connections: "
         f"{report['connectivity']['valid_lines']}/{report['connectivity']['total_lines']}",
         f"Diagram object: {report['diagram']['object_name']}",
