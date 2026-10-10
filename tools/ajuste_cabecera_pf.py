@@ -306,7 +306,9 @@ def ejecutar(app, plan: dict, *, simular: bool = False, cancelado=lambda: False)
             flujos=res.flujos, remedios=res.remedios, historial=res.historial,
             cabecera=({'kw': res.medida.kw, 'kvar': res.medida.kvar}
                       if res.medida is not None and res.medida.converge else None),
-            perdidas={'kw': p_kw, 'kvar': p_kvar}, error={'kw': e_kw, 'kvar': e_kvar},
+            # «desvio» y no «error»: la web toma «error» por un fallo y mostraba un ajuste
+            # que sí cuadró (SI213, −0,14 % y −0,41 %) como error con este diccionario.
+            perdidas={'kw': p_kw, 'kvar': p_kvar}, desvio={'kw': e_kw, 'kvar': e_kvar},
             solo_kw=res.reparto.solo_kw if res.reparto is not None else reparto.solo_kw,
             fallos=list(fallos),
         )

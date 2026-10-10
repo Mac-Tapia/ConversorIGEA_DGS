@@ -53,8 +53,10 @@ def test_cuadra_la_cabecera_en_una_variacion_nueva(guion):
     otra = _carga(app, 'F2_S1').plini
     informe, rc = guion.ejecutar(app, _plan())
     assert rc == 0, informe
-    assert informe['cuadrado'] and abs(informe['error']['kw']) <= 0.01
-    assert abs(informe['error']['kvar']) <= 0.01
+    assert informe['cuadrado'] and abs(informe['desvio']['kw']) <= 0.01
+    assert abs(informe['desvio']['kvar']) <= 0.01
+    # «error» es solo para fallos: la web lo toma por uno y paraba un ajuste que cuadró.
+    assert 'error' not in informe
     assert informe['perdidas']['kw'] > 0 and 1 <= informe['flujos'] < 20
     assert [v.loc_name for v in app.carpetas['scheme'].GetContents('*.IntScheme')] == [informe['variacion']]
     escritas = [e for e in app.escrituras if getattr(e[0], '_clase', '') == 'ElmLod']
