@@ -1,3 +1,6 @@
+"""Perfiles de esquema DGS versionados: tablas y campos que se escriben.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

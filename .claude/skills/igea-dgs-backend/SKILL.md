@@ -23,6 +23,7 @@ web (`src/igea_dgs/web/` + `frontend/`); la Tkinter se retiró (spec 001, RF-16)
 | Lote | `batch.py` | Multi-alimentador, publicación atómica, `batch_manifest.json`, `workers` |
 | Red unida | `combine.py`, `puentes.py`, `studies.py` | Grid única con los N alimentadores; estudios |
 | Borde | `cli.py`, `web/app.py`, `web/jobs.py`, `web/services.py`, `web/workspace.py` | CLI; API FastAPI + WebSocket; cola de trabajos con carriles `engine` y `powerfactory` |
+| Proyecto en DIgSILENT | `cargas_pf.py`, `demanda_medida.py`, `ajuste_cabecera.py`, `carpeta_pf.py`; guiones `tools/cargas_pf.py`, `tools/ajuste_cabecera_pf.py`, `tools/verificar_pf.py`, `tools/pf_proyectos.py` | Specs 004 a 008: la web valida y escribe un plan JSON; el guion, con el intérprete de PowerFactory, decide en el proyecto y deja siempre un informe (también si revienta, 008:RF-17). Pruebas con el doble `tests/fake_pf.py` |
 
 ## Reglas de dominio (no romper)
 
@@ -90,6 +91,8 @@ desiguales. Ningún número está grabado en el motor ni en las pruebas.
 - [ ] Pruebas con exports sintéticos **sorteados** (`ExportSpec(seed=...)`), no solo con tamaños fijos
 - [ ] Probadas las dos disposiciones de export
 - [ ] Sin secretos ni rutas absolutas de la máquina en el código
+- [ ] Fichero nuevo de `src/` o `tools/` en `CODIGO_FUENTE.md`, con su spec; herramienta con docstring en español y `--help` sin DIgSILENT (spec 009)
+- [ ] Ninguna función de nivel superior sin uso y ningún valor por defecto de una empresa (CRS, alimentador, códigos)
 
 ## Pruebas
 

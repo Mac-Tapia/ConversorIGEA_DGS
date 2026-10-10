@@ -45,9 +45,42 @@ reescribirlo.
    se conserva. La tabla recuerda qué alimentadores tienen su DGS entre lotes.
 5. **Resultados**: descarga por fichero o en `.zip`, y el mapa de vista previa dentro
    de la página.
-6. **Cargar en DigSILENT + flujo**, **Cargas de SED**, **SED nuevas**, **Catálogo de
-   parámetros** y **Sistema completo** (red unida, escenario año 0, datos que faltan):
-   con el plan a la vista antes de aplicarlo.
+6. **Cargar en DigSILENT + flujo**, **Catálogo de parámetros** y **Sistema completo**
+   (red unida, escenario año 0, datos que faltan): con el plan a la vista antes de
+   aplicarlo.
+
+### Cargas en DIgSILENT
+
+Esta pestaña trabaja sobre un proyecto que **ya existe** en DIgSILENT, sin convertir
+nada, y por eso se ve aunque no haya entradas cargadas (spec 008). Sigue el orden del
+trabajo:
+
+1. **1 · Proyecto de DIgSILENT**: leer los proyectos de la carpeta de importación,
+   buscar por nombre o carpeta y elegir uno (spec 005).
+2. **2 · Alimentadores y calibración**: al elegir el proyecto se marcan todos sus
+   alimentadores. Con los libros de medición se busca la máxima de cabecera de cada uno,
+   los clientes importantes quedan como demanda fija y el resto se escala por kVA hasta
+   que la cabecera dé la máxima; los alimentadores se ajustan uno tras otro, cada uno en
+   su variación (specs 004, 006 y 008).
+3. **3 · Integración de nuevas**: verificar que el flujo converge y, sobre esa red,
+   integrar demandas en bloque, una carga nueva y cargas nuevas en bloque. Las tres son
+   optativas; aplicar exige que el último flujo del proyecto haya convergido, y simular
+   no escribe nada.
+
+El detalle, con los guiones que hay detrás, está en `docs/MANUAL_COMANDOS.md` (7.ter).
+
+### Perfil de empresa
+
+Las convenciones de cada distribuidora no van en el código (constitución P13). Se copian
+los ejemplos de `config/` y se rellenan en local, fuera de git:
+
+- `config/perfil_empresa.json` (de `perfil_empresa.example.json`): la carpeta de
+  DIgSILENT donde quedan los proyectos importados (spec 005).
+- `config/demanda_medida_alias.json`: otros nombres de columna de los libros de medición.
+- `config/line_type_aliases.json`: equivalencias de tipos de línea, revisadas a mano.
+
+La spec 002 llevará al perfil de empresa también el CRS de origen, el patrón de las SED
+de medición y la escala del diagrama, que hoy todavía tienen un valor por defecto.
 
 El Registro llega por WebSocket línea a línea, también la salida de los guiones de
 PowerFactory mientras corren. Cada navegador trabaja en su **espacio de trabajo**

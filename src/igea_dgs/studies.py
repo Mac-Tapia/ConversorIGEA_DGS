@@ -318,14 +318,6 @@ ESTUDIOS: tuple[Estudio, ...] = (
 )
 
 
-def estudios_ligeros() -> tuple[Estudio, ...]:
-    return tuple(e for e in ESTUDIOS if e.coste == LIGERO)
-
-
-def estudios_pesados() -> tuple[Estudio, ...]:
-    return tuple(e for e in ESTUDIOS if e.coste == PESADO)
-
-
 def estudios_ejecutables() -> tuple[Estudio, ...]:
     """Los que hoy dan un resultado defendible con lo que trae el export."""
     return tuple(e for e in ESTUDIOS if e.defendible)

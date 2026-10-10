@@ -66,3 +66,51 @@ def test_cada_ruta_del_cliente_existe_en_la_api():
     for llamada in llamadas:
         ruta = '/api/workspaces/{}' + re.sub(r'\$\{[^}]+\}', '{}', llamada)
         assert ruta in rutas, f'{ruta} no existe en la API'
+
+
+# ----------------------------------------------------------------- spec 007
+def _tab():
+    return (SRC / 'components' / 'CargasTab.tsx').read_text(encoding='utf-8')
+
+
+def test_base_propuesta_desde_el_ultimo_ajuste():
+    """007:RF-1 / 007:RF-2 — la base es el último ajuste aplicado del proyecto, se manda al
+    plan y se muestra con su variación, su máxima y si cuadró."""
+    tab = _tab()
+    assert "j.kind === 'ajuste_aplicar' && j.result?.project === project" in tab
+    assert 'conBase ? baseJob!.id : null' in tab
+    assert "fd.append('ajuste_job_id', ajusteJobId)" in (SRC / 'api.ts').read_text(encoding='utf-8')
+    for pieza in ('function Base(', 'i.variacion', 'i.objetivo', 'i.cuadrado'):
+        assert pieza in tab, pieza
+
+
+def test_orden_de_los_pasos_del_trabajo():
+    """007:RF-3 — proyecto, alimentador, máxima y clientes, ajuste, y por último las cargas."""
+    tab = _tab()
+    demanda = (SRC / 'components' / 'DemandaMedida.tsx').read_text(encoding='utf-8')
+    assert tab.index('1 · Proyecto') < tab.index('<DemandaMedida') < tab.index('3 · Integración de nuevas')
+    assert demanda.index('2.2 · Máxima') < demanda.index('2.3 · Clientes') < demanda.index('<AjusteCabecera')
+
+
+def test_quitar_la_base():
+    """007:RF-4 / 007:RF-5 — se puede quitar la base; sin ella se dice que se aplica sobre lo activo."""
+    tab = _tab()
+    assert 'Quitar base' in tab and 'setSinBase(true)' in tab
+    assert 'se aplica sobre las variaciones que' in tab and 'plan.avisos.map' in tab
+
+
+def test_base_que_no_cuadro_y_calibradas_cambiadas_a_la_vista():
+    """007:RF-34 / 007:RF-21 — el plan muestra si la base no cuadró y qué SED calibradas cambia el libro."""
+    tab = _tab()
+    assert 'se usa igual' in tab
+    assert '<Calibradas xs={plan.calibradas_cambiadas} />' in tab
+    assert 'inf.calibradas_cambiadas' in tab
+
+
+def test_informe_por_carga():
+    """007:RF-18 / 007:RF-23 / 007:RF-30 / 007:RF-33 — por carga su variación, barra y distancia,
+    las diferencias con y sin proyecto y su evaluación técnico-económica."""
+    tab = _tab()
+    for pieza in ('function PorCarga(', 'c.variacion', 'c.distancia_m', 'c.delta?.kw', 'c.delta?.perdidas_kw',
+                  'c.delta?.vm_min', 'c.tecnico_economico', 'variación ${c.variacion}'):
+        assert pieza in tab, pieza

@@ -1,9 +1,10 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { api, download, fmtNum } from '../api';
 import { useApp } from '../context';
 import type {
-  CargaConectada, CargasFeederInforme, CargasInforme, CargasMotivo, CargasPlan, CargasResultado,
-  Economia, PfInventario, PfProject,
+  AjusteInforme, AjusteResultado, CalibradaCambiada, CargaConectada, CargaIntegrada, CargasFeederInforme,
+  CargasInforme, CargasMotivo, CargasPlan, CargasResultado, Economia, Job, PfInventario, PfProject,
+  VerificarInforme, VerificarResultado,
 } from '../types';
 import { DemandaMedida } from './DemandaMedida';
 import { PfWarning } from './Modules';
@@ -52,17 +53,53 @@ const NUEVA_CAMPOS: { key: string; label: string; help?: string; required?: bool
 
 const vacio = () => Object.fromEntries(NUEVA_CAMPOS.map((c) => [c.key, '']));
 
+/** Estado del último flujo de carga del proyecto (spec 008, RF-20). */
+interface EstadoFlujo {
+  converge: boolean;
+  /** De dónde sale: la verificación, el ajuste o la última integración aplicada. */
+  fuente: string;
+  cuando: number;
+}
+
 /**
- * Cargas en un proyecto que ya existe en DIgSILENT (spec 004).
+ * El último flujo del proyecto entre la verificación, el ajuste aplicado y la
+ * integración aplicada. Un ajuste converge si cada alimentador ajustado terminó con
+ * cabecera medida y sin error: que no cuadre no impide integrar (spec 007, RF-34).
+ */
+export function estadoFlujo(jobs: Job[], project: string): EstadoFlujo | null {
+  let mejor: EstadoFlujo | null = null;
+  for (const j of jobs) {
+    if (!j.result || j.status === 'failed' || !project) continue;
+    const cuando = j.finished_at ?? j.created_at;
+    let e: EstadoFlujo | null = null;
+    if (j.kind === 'pf_verificar' && j.result.project === project) {
+      e = { converge: Boolean(j.result.informe?.flujo?.converged), fuente: 'verificación', cuando };
+    } else if (j.kind === 'ajuste_aplicar' && j.result.project === project) {
+      const informes = ((j.result.informes ?? [j.result.informe]) as AjusteInforme[]).filter((i) => !i.no_empezado);
+      e = { converge: informes.length > 0 && informes.every((i) => !i.error && i.cabecera != null),
+        fuente: 'ajuste a la máxima', cuando };
+    } else if (j.kind === 'cargas_aplicar' && (j.result.project ?? j.result.informe?.project_path) === project
+      && j.result.informe?.flujo) {
+      e = { converge: Boolean(j.result.informe.flujo.converged), fuente: 'última integración', cuando };
+    }
+    if (e && (!mejor || e.cuando >= mejor.cuando)) mejor = e;
+  }
+  return mejor;
+}
+
+/**
+ * Cargas en un proyecto que ya existe en DIgSILENT (specs 004, 006 y 008).
  *
- * Es un módulo aparte de la conversión: no pide entradas cargadas en el espacio. La web
- * solo valida los libros; qué SED coincide y dónde se conecta cada carga nueva lo decide
- * el guion dentro del proyecto. Todo queda en una variación nueva, para uno o varios
- * alimentadores, que se aplican en el orden en que se marcan.
+ * Es un módulo aparte de la conversión: no pide entradas cargadas en el espacio, y por
+ * eso la pestaña se ve siempre (spec 008, RF-1). Sigue el orden del trabajo del
+ * operador: 1, el proyecto; 2, sus alimentadores y la calibración a la máxima de
+ * cabecera; 3, verificar que converge e integrar lo nuevo. Qué SED coincide y dónde se
+ * conecta cada carga nueva lo decide el guion dentro del proyecto.
  */
 export function CargasTab() {
   const { ws, run, startJob, active, jobs } = useApp();
   const [project, setProject] = useState('');
+  const [buscaProyecto, setBuscaProyecto] = useState('');
   const [order, setOrder] = useState<string[]>([]);
   const [filter, setFilter] = useState('');
   const [demandas, setDemandas] = useState<File | null>(null);
@@ -72,30 +109,53 @@ export function CargasTab() {
   const [values, setValues] = useState<Record<string, string>>(vacio);
   const [plan, setPlan] = useState<CargasPlan | null>(null);
   const [tecOn, setTecOn] = useState(false);
+  // Spec 007, RF-4: el operador puede quitar la base y aplicar sobre lo activo.
+  const [sinBase, setSinBase] = useState(false);
   const [eco, setEco] = useState<Record<string, string>>(
     Object.fromEntries([...COSTOS, ...TEC].map(([k, , v]) => [k, v])));
   const toast = useToast();
 
   const hayNuevas = Boolean(nuevas || nueva);
   const pfBusy = Boolean(active.powerfactory);
+  const todos = Object.values(jobs);
 
   // El resultado del último «Leer proyectos» que terminó bien.
-  const lastRead = Object.values(jobs).filter((j) => j.kind === 'pf_projects' && j.status === 'done').pop();
+  const lastRead = todos.filter((j) => j.kind === 'pf_projects' && j.status === 'done').pop();
   const inventario = (lastRead?.result ?? null) as PfInventario | null;
   const projects = inventario?.projects ?? [];
   // El proyecto se identifica por su ruta en la carpeta: dos SI213 en subcarpetas
   // distintas son dos proyectos (spec 005, RF-16).
   const ruta = (p: PfProject) => p.path ?? p.name;
   const current = projects.find((p) => ruta(p) === project) ?? null;
+  // RF-4: filtrar por parte de la ruta; el elegido sigue en la lista aunque no coincida.
+  const q = buscaProyecto.trim().toLowerCase();
+  const filtrados = projects.filter((p) => !q || ruta(p).toLowerCase().includes(q) || ruta(p) === project);
   // Un trabajo cancelado también deja informe: dice qué alimentadores no se empezaron.
-  const lastRun = Object.values(jobs)
+  const lastRun = todos
     .filter((j) => (j.kind === 'cargas_simular' || j.kind === 'cargas_aplicar') && j.result)
     .pop();
   const resultado = (lastRun?.result ?? null) as CargasResultado | null;
+  const flujo = estadoFlujo(todos, project);
+  const lastCheck = todos.filter((j) => j.kind === 'pf_verificar' && j.result?.project === project).pop();
+  const verificado = (lastCheck?.result ?? null) as VerificarResultado | null;
+  // Spec 007, RF-1: la base es el último ajuste aplicado de este proyecto.
+  const baseJob = todos.filter((j) => j.kind === 'ajuste_aplicar' && j.result?.project === project
+    && j.status !== 'failed').pop();
+  const ajusteBase = (baseJob?.result ?? null) as AjusteResultado | null;
+  const informesBase = ajusteBase ? (ajusteBase.informes ?? [ajusteBase.informe]) : [];
+  const conBase = Boolean(baseJob) && !sinBase
+    && informesBase.some((i) => i.variacion && !i.error && !i.no_empezado);
+  // Un ajuste nuevo vuelve a proponerse como base aunque se quitara la anterior.
+  useEffect(() => { setSinBase(false); setPlan(null); }, [baseJob?.id]);
 
   const visible = (current?.feeders ?? []).filter((f) => f.toLowerCase().includes(filter.trim().toLowerCase()));
   const toggle = (f: string) => setOrder((o) => (o.includes(f) ? o.filter((x) => x !== f) : [...o, f]));
-  const choose = (name: string) => { setProject(name); setOrder([]); setPlan(null); };
+  // RF-6: al elegir un proyecto se marcan todos sus alimentadores.
+  const choose = (name: string) => {
+    setProject(name);
+    setOrder(projects.find((p) => ruta(p) === name)?.feeders ?? []);
+    setPlan(null);
+  };
 
   /** Solo convierte texto a número; las reglas las valida la API (economia.py). */
   const economia = (): Economia | null | undefined => {
@@ -116,7 +176,8 @@ export function CargasTab() {
   const prepare = async () => {
     const e = economia();
     if (e === undefined) return;
-    const p = await run(() => api.cargasPlan(ws.id, project, order, demandas, nuevas, nueva, e));
+    const p = await run(() => api.cargasPlan(ws.id, project, order, demandas, nuevas, nueva, e,
+      conBase ? baseJob!.id : null));
     if (p) setPlan(p);
   };
 
@@ -141,83 +202,71 @@ export function CargasTab() {
       <button className="btn btn-sm btn-ghost" onClick={() => run(() => download(api.cargasPlantillaUrl(ws.id, tipo, 'csv')))}>CSV</button>
     </span>
   );
+  // RF-20: aplicar solo con el último flujo del proyecto convergido; simular, siempre (RF-21).
+  const porQueNoAplicar = !flujo
+    ? 'Verifique antes la convergencia (3.0) o ajuste a la máxima en el paso 2.'
+    : !flujo.converge ? `El último flujo del proyecto (${flujo.fuente}) no converge: corríjalo y vuelva a verificar.` : '';
+  const quien = order.length === 1 ? order[0] : `${order.length} alimentadores`;
 
   return (
     <div className="module">
-      <p className="muted">Trabaja sobre un proyecto que <strong>ya existe</strong> en DIgSILENT, sin convertir nada: actualiza
-        las demandas por SED y conecta cargas nuevas, en uno o en varios alimentadores. Todo queda en una
-        <strong> variación nueva</strong>, que se puede activar, comparar o borrar sin tocar la red base.</p>
+      <p className="muted">Trabaja sobre un proyecto que <strong>ya existe</strong> en DIgSILENT, sin convertir nada: calibra
+        las demandas a la máxima de cabecera y, sobre esa red, integra demandas y cargas nuevas. Cada cambio queda en
+        una <strong>variación nueva</strong>, que se puede activar, comparar o borrar sin tocar la red base.</p>
       <PfWarning />
-      <div className="steps">
-        <div className="step-box">
-          <h3>1 · Proyecto de DIgSILENT</h3>
+
+      <div className="step-box">
+        <h3>1 · Proyecto de DIgSILENT</h3>
+        <div className="row">
+          <button className="btn" disabled={pfBusy} onClick={() => startJob(() => api.pfProjects(ws.id))}>
+            {projects.length ? 'Volver a leer proyectos' : 'Leer proyectos de DIgSILENT'}
+          </button>
+        </div>
+        {projects.length > 0 ? (
           <div className="row">
-            <button className="btn" disabled={pfBusy} onClick={() => startJob(() => api.pfProjects(ws.id))}>
-              {projects.length ? 'Volver a leer proyectos' : 'Leer proyectos de DIgSILENT'}
-            </button>
-          </div>
-          {projects.length > 0 ? (
             <label className="field">
-              <span>Proyecto</span>
+              <span>Buscar</span>
+              <input className="search" type="search" placeholder="parte del nombre o de la carpeta…" value={buscaProyecto}
+                onChange={(e) => setBuscaProyecto(e.target.value)} />
+            </label>
+            <label className="field">
+              <span>Proyecto ({filtrados.length} de {projects.length})</span>
               <select value={project} onChange={(e) => choose(e.target.value)}>
                 <option value="">— elija un proyecto —</option>
-                {projects.map((p) => (
+                {filtrados.map((p) => (
                   <option key={ruta(p)} value={ruta(p)}>
                     {ruta(p).split('/').join(' / ')} ({p.feeders.length} alim.)
                   </option>
                 ))}
               </select>
             </label>
-          ) : !inventario?.aviso && (
-            <small className="muted">Lee los proyectos de la carpeta de importación de DIgSILENT.</small>
-          )}
-          {inventario?.aviso && <small className="alert alert-warn">{inventario.aviso}</small>}
-          {inventario?.exists && inventario.folder && (
-            <small className="muted">
-              Carpeta «{inventario.folder}»{projects.length ? '' : ': sin proyectos todavía'}.
-            </small>
-          )}
-        </div>
-
-        <div className="step-box">
-          <h3>2 · Qué aplicar</h3>
-          <div className="field">
-            <span>Demandas en bloque {plantilla('demandas')}</span>
-            <FileDrop compact accept=".xlsx,.csv" onFiles={([f]) => { setDemandas(f); setPlan(null); }}>
-              <span>{demandas ? <strong>{demandas.name}</strong> : <>Libro de demandas: soltar o <u>elegir</u></>}</span>
-            </FileDrop>
           </div>
-          <div className="field">
-            <span>Cargas nuevas en bloque {plantilla('nuevas')}</span>
-            <FileDrop compact accept=".xlsx,.csv" onFiles={([f]) => { setNuevas(f); setPlan(null); }}>
-              <span>{nuevas ? <strong>{nuevas.name}</strong> : <>Libro de cargas nuevas: soltar o <u>elegir</u></>}</span>
-            </FileDrop>
-          </div>
-          <div className="row">
-            <button className="btn btn-sm" onClick={() => setForm(true)}>
-              {nueva ? `Carga nueva: ${nueva.SED} (editar)` : 'Una carga nueva…'}
-            </button>
-            {(demandas || nuevas || nueva) && (
-              <button className="btn btn-ghost btn-sm" onClick={() => {
-                setDemandas(null); setNuevas(null); setNueva(null); setValues(vacio()); setPlan(null);
-              }}>Quitar todo</button>
-            )}
-          </div>
-          <small className="muted">Un libro puede traer varios alimentadores. Una SED que no está en los elegidos se
-            omite y se informa; no es un error.</small>
-        </div>
+        ) : !inventario?.aviso && (
+          <small className="muted">Lee los proyectos de la carpeta de importación de DIgSILENT.</small>
+        )}
+        {projects.length > 0 && q && !projects.some((p) => ruta(p).toLowerCase().includes(q)) && (
+          <small className="alert alert-warn">Ningún proyecto coincide con «{buscaProyecto.trim()}».</small>
+        )}
+        {inventario?.aviso && <small className="alert alert-warn">{inventario.aviso}</small>}
+        {inventario?.exists && inventario.folder && (
+          <small className="muted">
+            Carpeta «{inventario.folder}»{projects.length ? '' : ': sin proyectos todavía'}.
+          </small>
+        )}
       </div>
 
-      {current && (
-        <div className="step-box">
-          <h3>3 · Alimentadores de {current.name}, en el orden de aplicación</h3>
+      <div className="step-box">
+        <h3>2 · Alimentadores y calibración{current ? ` de ${current.name}` : ''}</h3>
+        {!current ? <p className="muted">Elija un proyecto en el paso 1.</p> : <>
+          <p className="muted">Se calibran y se integran los alimentadores marcados, en el orden en que se marcan. Con dos o más,
+            cada uno se ajusta a la máxima de su propia cabecera.</p>
           <div className="toolbar">
             <input className="search" type="search" placeholder="Filtrar alimentadores…" value={filter}
               onChange={(e) => setFilter(e.target.value)} />
             <button className="btn btn-sm btn-ghost" onClick={() =>
               setOrder((o) => [...o, ...visible.filter((f) => !o.includes(f))])}>Marcar los visibles</button>
             <button className="btn btn-sm btn-ghost" disabled={!order.length} onClick={() => setOrder([])}>Ninguno</button>
-            <span className="muted">{order.length} elegido(s)</span>
+            <span className="muted">{order.length} de {current.feeders.length} marcado(s)</span>
           </div>
           {current.feeders.length === 0 ? (
             <p className="empty">El proyecto no tiene alimentadores (ElmFeeder ni redes).</p>
@@ -227,13 +276,70 @@ export function CargasTab() {
                 const n = order.indexOf(f);
                 return (
                   <button key={f} className={`chip ${n >= 0 ? 'on' : ''}`} onClick={() => toggle(f)}
-                    title="El número es el orden en que se aplicará">
+                    title="El número es el orden de calibración e integración">
                     {n >= 0 ? `${n + 1}. ` : ''}{f}
                   </button>
                 );
               })}
             </div>
           )}
+          {/* Spec 004, RF-40: la demanda medida va en esta misma pestaña; spec 008, RF-7: con los marcados. */}
+          <DemandaMedida project={project} feeders={order} />
+        </>}
+      </div>
+
+      <div className="step-box">
+        <h3>3 · Integración de nuevas</h3>
+        {!current ? <p className="muted">Elija un proyecto en el paso 1.</p> : <>
+          <p className="muted">Sobre la red calibrada y con el flujo convergido. Las tres partes son optativas: use las que
+            necesite y revíselas juntas; se aplican en este orden en cada alimentador.</p>
+
+          <Base informes={informesBase} activa={conBase} hay={Boolean(baseJob)} order={order}
+            onQuitar={() => { setSinBase(true); setPlan(null); }} onUsar={() => { setSinBase(false); setPlan(null); }}
+            onMarcar={(fs) => setOrder(fs)} />
+
+          <h4>3.0 · Convergencia</h4>
+          <div className="row">
+            <button className="btn" disabled={pfBusy || !project} onClick={() => startJob(() => api.pfVerificar(ws.id, project, order))}
+              title="Flujo de carga con las variaciones activas; no escribe en el proyecto">
+              Verificar la convergencia en DIgSILENT
+            </button>
+            {flujo && (
+              <span className={`badge ${flujo.converge ? 'ok' : 'err'}`}>
+                {flujo.converge ? 'Converge' : 'No converge'} · {flujo.fuente}
+              </span>
+            )}
+          </div>
+          {verificado && <Verificacion inf={verificado.informe} />}
+
+          <h4>3.1 · Demandas en bloque {plantilla('demandas')}</h4>
+          <div className="row">
+            <FileDrop compact accept=".xlsx,.csv" onFiles={([f]) => { setDemandas(f); setPlan(null); }}>
+              <span>{demandas ? <strong>{demandas.name}</strong> : <>Libro de demandas: soltar o <u>elegir</u></>}</span>
+            </FileDrop>
+            {demandas && <button className="btn btn-ghost btn-sm" onClick={() => { setDemandas(null); setPlan(null); }}>Quitar</button>}
+          </div>
+
+          <h4>3.2 · Una carga nueva</h4>
+          <div className="row">
+            <button className="btn btn-sm" onClick={() => setForm(true)}>
+              {nueva ? `Carga nueva: ${nueva.SED} (editar)` : 'Escribir una carga nueva…'}
+            </button>
+            {nueva && <button className="btn btn-ghost btn-sm" onClick={() => {
+              setNueva(null); setValues(vacio()); setPlan(null);
+            }}>Quitar</button>}
+          </div>
+
+          <h4>3.3 · Cargas nuevas en bloque {plantilla('nuevas')}</h4>
+          <div className="row">
+            <FileDrop compact accept=".xlsx,.csv" onFiles={([f]) => { setNuevas(f); setPlan(null); }}>
+              <span>{nuevas ? <strong>{nuevas.name}</strong> : <>Libro de cargas nuevas: soltar o <u>elegir</u></>}</span>
+            </FileDrop>
+            {nuevas && <button className="btn btn-ghost btn-sm" onClick={() => { setNuevas(null); setPlan(null); }}>Quitar</button>}
+          </div>
+          <small className="muted">Un libro puede traer varios alimentadores. Una SED que no está en los marcados se
+            omite y se informa; no es un error.</small>
+
           <Toggle label="Evaluación técnico-económica de las cargas nuevas (valor actual neto en DIgSILENT)"
             checked={tecOn && hayNuevas} disabled={!hayNuevas} onChange={setTecOn}
             hint="Lanza ComTececo con la inversión de la variación" />
@@ -250,17 +356,16 @@ export function CargasTab() {
           )}
           <div className="row">
             <button className="btn btn-primary" disabled={!order.length || (!demandas && !hayNuevas)} onClick={prepare}>
-              Revisar los libros
+              Revisar la integración ({quien})
             </button>
-            {!order.length && <small className="muted">Elija al menos un alimentador.</small>}
+            {!order.length && <small className="muted">Marque al menos un alimentador en el paso 2.</small>}
+            {order.length > 0 && !demandas && !hayNuevas && <small className="muted">Añada al menos una de 3.1, 3.2 o 3.3.</small>}
           </div>
-        </div>
-      )}
+          {porQueNoAplicar && <small className="muted">Se podrá simular; para aplicar: {porQueNoAplicar}</small>}
+        </>}
+      </div>
 
       {resultado && <Informe resultado={resultado} cancelado={lastRun?.status === 'cancelled'} />}
-
-      {/* Spec 004, RF-40: la demanda medida va en esta misma pestaña. */}
-      <DemandaMedida project={project} />
 
       {form && (
         <Modal title="Una carga nueva" onClose={() => setForm(false)} actions={<>
@@ -288,13 +393,20 @@ export function CargasTab() {
             title="Dice qué coincide y dónde se conectaría cada carga, sin escribir en el proyecto">
             Simular en DIgSILENT
           </button>
-          <button className="btn btn-pf" disabled={!plan.applicable || pfBusy} onClick={() => ejecutar(false)}>
+          <button className="btn btn-pf" disabled={!plan.applicable || pfBusy || Boolean(porQueNoAplicar)}
+            title={porQueNoAplicar || undefined} onClick={() => ejecutar(false)}>
             Aplicar ({plan.feeders.length} alim., en este orden)
           </button>
         </>}>
-          <p>Variación nueva: <strong className="mono">{plan.variacion}</strong> · alimentadores: {plan.feeders.join(' → ')}</p>
-          <p>{fmtNum(plan.n_demandas)} demanda(s) y {fmtNum(plan.n_nuevas)} carga(s) nueva(s) válidas. Qué SED coincide
-            lo decide DIgSILENT: simule para verlo antes de aplicar.</p>
+          <p>Alimentadores: {plan.feeders.join(' → ')}
+            {plan.base ? <> · base: <span className="mono">{plan.base.variaciones.join(', ')}</span></> : ' · sin base del ajuste'}</p>
+          <p>{fmtNum(plan.n_demandas)} demanda(s) en la variación <strong className="mono">{plan.variacion_demandas}</strong> y
+            {' '}{fmtNum(plan.n_nuevas)} carga(s) nueva(s), <strong>cada una en su propia variación</strong>. Se aplican primero las
+            demandas, después la carga del formulario y después las del libro; cada carga se mide con la base y sin las
+            demás, y al terminar queda activa solo la base. Simule para ver qué coincide antes de aplicar.</p>
+          {plan.avisos.map((a) => <p key={a} className="alert alert-warn">{a}</p>)}
+          {plan.calibradas_cambiadas.length > 0 && <Calibradas xs={plan.calibradas_cambiadas} />}
+          {porQueNoAplicar && <p className="alert alert-warn">Para aplicar: {porQueNoAplicar}</p>}
           {!plan.applicable && <p className="alert alert-error">Ninguna fila válida: no hay nada que aplicar.</p>}
           {plan.row_errors.length > 0 && (
             <div className="alert alert-warn"><strong>{plan.row_errors.length} fila(s) con error: se omiten, el resto se aplica.</strong>
@@ -324,6 +436,115 @@ export function CargasTab() {
               sobre la variación.</p>
           )}
         </Modal>
+      )}
+    </div>
+  );
+}
+
+/** Recuadro de la base: el ajuste sobre el que se integra (spec 007, RF-1 a RF-5, RF-34). */
+function Base({ informes, activa, hay, order, onQuitar, onUsar, onMarcar }: {
+  informes: AjusteInforme[]; activa: boolean; hay: boolean; order: string[];
+  onQuitar: () => void; onUsar: () => void; onMarcar: (fs: string[]) => void;
+}) {
+  if (!hay) {
+    return <p className="muted">Sin ajuste aplicado en este proyecto: la integración se aplica sobre las variaciones que
+      estén activas en DIgSILENT.</p>;
+  }
+  const buenos = informes.filter((i) => i.variacion && !i.error && !i.no_empezado);
+  const feeders = buenos.map((i) => i.feeder);
+  const otros = order.length !== feeders.length || order.some((f) => !feeders.includes(f));
+  return (
+    <div className={activa ? 'alert alert-ok' : 'alert'}>
+      <p><strong>Base (sin proyecto)</strong>: {activa ? 'las cargas se integran sobre el ajuste a la máxima.'
+        : 'quitada: se aplica sobre lo que esté activo en DIgSILENT.'}</p>
+      <div className="table-wrap">
+        <table className="table">
+          <thead><tr><th>Alimentador</th><th>Variación</th><th className="num">Máxima (kW)</th><th>Cuadró</th></tr></thead>
+          <tbody>{informes.map((i) => (
+            <tr key={i.feeder}><td className="strong">{i.feeder}</td>
+              <td className="mono small">{i.variacion ?? '—'}</td>
+              <td className="num">{i.objetivo ? fmtNum(i.objetivo.kw, 1) : '—'}</td>
+              <td className="small">{i.error ? `fuera de la base: ${i.error}` : i.no_empezado ? 'no se empezó'
+                : i.cuadrado ? 'sí' : `no${i.desvio?.kw != null ? ` (${signo(i.desvio.kw * 100, 2)} %)` : ''}: se usa igual`}</td></tr>
+          ))}</tbody>
+        </table>
+      </div>
+      <div className="row">
+        {activa ? <button className="btn btn-sm btn-ghost" onClick={onQuitar}>Quitar base</button>
+          : <button className="btn btn-sm" onClick={onUsar}>Usar la base</button>}
+        {activa && otros && feeders.length > 0 && (
+          <button className="btn btn-sm btn-ghost" onClick={() => onMarcar(feeders)}>
+            Marcar los alimentadores de la base ({feeders.join(', ')})</button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** SED que el ajuste calibró y el libro de demandas cambia (spec 007, RF-21). */
+function Calibradas({ xs }: { xs: CalibradaCambiada[] }) {
+  return (
+    <details className="alert alert-warn"><summary>SED calibradas por el ajuste que el libro de demandas cambia: {xs.length}</summary>
+      <ul className="small">{xs.map((x) => (
+        <li key={x.sed}><strong>{x.sed}</strong>: {fmtNum(x.calibrada.kw ?? 0, 1)} → {fmtNum(x.libro.kw, 1)} kW
+          ({fmtNum(x.calibrada.kvar ?? 0, 1)} → {fmtNum(x.libro.kvar, 1)} kVAR); manda el libro.</li>
+      ))}</ul>
+    </details>
+  );
+}
+
+const signo = (x: number | null | undefined, d = 1) => (x == null ? '—' : `${x >= 0 ? '+' : ''}${fmtNum(x, d)}`);
+
+/** Cada carga nueva frente al estado sin proyecto (spec 007, RF-13, RF-23, RF-30, RF-33). */
+function PorCarga({ cargas, sin }: { cargas: CargaIntegrada[]; sin: CargasInforme['sin_proyecto'] }) {
+  return (
+    <div className="table-wrap table-short">
+      <table className="table">
+        <thead><tr><th>Carga</th><th>Alimentador</th><th>Variación</th><th>Barra</th><th className="num">m</th>
+          <th className="num">Δ kW cabecera</th><th className="num">Δ kVAR</th><th className="num">Δ pérdidas kW</th>
+          <th className="num">Δ V mín (p.u.)</th><th>Converge</th><th>Técnico-económica</th></tr></thead>
+        <tbody>{cargas.map((c) => (
+          <tr key={c.variacion}>
+            <td className="strong">{c.sed}{c.nota && <div className="muted small">{c.nota}</div>}</td>
+            <td>{c.alimentador}</td><td className="mono small">{c.variacion}</td>
+            <td className="small">{c.barra} <span className="muted">({c.criterio})</span></td>
+            <td className="num">{c.distancia_m != null ? fmtNum(c.distancia_m) : '—'}</td>
+            <td className="num">{signo(c.delta?.kw)}</td><td className="num">{signo(c.delta?.kvar)}</td>
+            <td className="num">{signo(c.delta?.perdidas_kw, 2)}</td><td className="num">{signo(c.delta?.vm_min, 4)}</td>
+            <td>{c.con_proyecto ? (c.con_proyecto.converged ? 'sí' : <span className="badge err">no</span>) : '—'}</td>
+            <td className="small">{c.tecnico_economico ? (c.tecnico_economico.ok
+              ? (c.tecnico_economico.resumen ?? []).slice(-1)[0] ?? 'hecha' : c.tecnico_economico.error ?? 'falló') : '—'}</td>
+          </tr>
+        ))}</tbody>
+      </table>
+      {sin && <small className="muted">Sin proyecto (base y demandas): {Object.entries(sin.feeders).map(([f, x]) =>
+        `${f} ${x.cabecera ? `${fmtNum(x.cabecera.kw, 1)} kW` : x.motivo ?? '—'}`).join(' · ')}.</small>}
+    </div>
+  );
+}
+
+/** Resultado de «Verificar la convergencia» (spec 008, RF-19). */
+function Verificacion({ inf }: { inf: VerificarInforme }) {
+  const f = inf.flujo;
+  return (
+    <div className={f?.converged ? 'alert alert-ok' : 'alert alert-error'}>
+      <p>Flujo de carga con lo activo: <strong>{f?.converged ? 'converge' : 'no converge'}</strong>
+        {f?.vm_min != null && <> · tensión mínima {fmtNum(f.vm_min, 3)} p.u. ({f.vm_min_bus}),
+          máxima {fmtNum(f.vm_max ?? 0, 3)} p.u. ({f.vm_max_bus})</>}</p>
+      <small className="muted">Variaciones activas: {inf.variaciones_activas?.length ? inf.variaciones_activas.join(', ') : 'ninguna'}
+        {inf.escenario ? ` · escenario ${inf.escenario}` : ''}</small>
+      {inf.feeders.length > 0 && (
+        <div className="table-wrap">
+          <table className="table">
+            <thead><tr><th>Alimentador</th><th className="num">kW cabecera</th><th className="num">kVAR cabecera</th><th /></tr></thead>
+            <tbody>{inf.feeders.map((x) => (
+              <tr key={x.feeder}><td className="strong">{x.feeder}</td>
+                <td className="num">{x.cabecera ? fmtNum(x.cabecera.kw, 1) : '—'}</td>
+                <td className="num">{x.cabecera ? fmtNum(x.cabecera.kvar, 1) : '—'}</td>
+                <td className="small">{x.motivo ?? ''}</td></tr>
+            ))}</tbody>
+          </table>
+        </div>
       )}
     </div>
   );
@@ -365,6 +586,12 @@ function Informe({ resultado, cancelado }: { resultado: CargasResultado; cancela
             máxima {fmtNum(inf.flujo.vm_max ?? 0, 3)} p.u. ({inf.flujo.vm_max_bus})</>}
         </p>
       )}
+      {(inf.variaciones_activas_inicio || inf.variaciones_activas_fin) && (
+        <small className="muted">Variaciones activas al empezar: {(inf.variaciones_activas_inicio ?? []).join(', ') || 'ninguna'}
+          {' '}· al terminar: {(inf.variaciones_activas_fin ?? []).join(', ') || 'ninguna'}.</small>
+      )}
+      {(inf.cargas ?? []).length > 0 && <PorCarga cargas={inf.cargas!} sin={inf.sin_proyecto} />}
+      {(inf.calibradas_cambiadas ?? []).length > 0 && <Calibradas xs={inf.calibradas_cambiadas!} />}
       {inf.tecnico_economico && (
         <details><summary>Evaluación técnico-económica: {inf.tecnico_economico.ok ? 'hecha' : inf.tecnico_economico.error ?? 'falló'}</summary>
           <pre className="report">{(inf.tecnico_economico.resumen ?? []).join('\n')}</pre></details>
@@ -405,7 +632,7 @@ function FilaFeeder({ f, simular }: { f: CargasFeederInforme; simular: boolean }
         {act.length > 0 && <ul className="small">{act.slice(0, 200).map((a) => (
           <li key={a.sed}>{a.sed}: {kw(a.antes)} → {kwDespues(a.despues)} kW</li>))}</ul>}
         {cre.length > 0 && <ul className="small">{cre.map((c) => (
-          <li key={c.sed}><strong>{c.sed}</strong> en {conexion(c)} · línea {c.tipo_linea ?? '—'}
+          <li key={c.sed}><strong>{c.sed}</strong> en {conexion(c)}{c.variacion ? ` · variación ${c.variacion}` : ''} · línea {c.tipo_linea ?? '—'}
             {c.origen_tipo_linea ? ` (${c.origen_tipo_linea})` : ''} · {fmtNum(c.tension_mt_kv ?? 0, 2)}/{fmtNum(c.tension_bt_kv ?? 0, 2)} kV
             {c.aviso ? ` · ${c.aviso}` : ''}</li>))}</ul>}
         {fallos.length > 0 && <ul className="small">{fallos.map((x) => <li key={x.sed}><strong>{x.sed}</strong>: {x.error}</li>)}</ul>}

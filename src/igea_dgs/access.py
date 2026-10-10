@@ -70,7 +70,7 @@ _SWITCH_LOCATION = {1: 'S', 2: 'L'}      # el TXT usa 'S'=lado fuente, 'L'=lado 
 # 0 discrepancias en 38.657 tramos.
 # La decodificación vive en model.py: el TXT y esta base traen el mismo código y deben
 # traducirlo igual. Se reexporta el nombre para no romper a quien ya lo importaba de aquí.
-from .model import PHASE_CODES, decode_phase as _phase  # noqa: F401
+from .model import decode_phase as _phase
 
 
 class AccessReadError(RuntimeError):
@@ -156,17 +156,6 @@ def available() -> bool:
     except ImportError:
         return False
     return any(ACCESS_DRIVER.split('(')[0].strip() in d for d in pyodbc.drivers())
-
-
-def list_networks(network_db: Path | str) -> list[str]:
-    """NetworkId presentes en la base, sin cargar el resto."""
-    path = Path(network_db)
-    cn = _connect(path)
-    try:
-        cur = cn.cursor()
-        return sorted({_txt(r[0]) for r in _fetch(cur, 'CYMHEADNODE', 'NetworkId') if r[0]})
-    finally:
-        cn.close()
 
 
 def read_access_dataset(

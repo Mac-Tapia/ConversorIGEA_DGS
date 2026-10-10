@@ -124,8 +124,18 @@ class AjusteIn(BaseModel):
     project: str
     job_id: str
     medidor: str = ''
+    # Spec 008, RF-12: un medidor por alimentador, en el orden de ajuste. Vacío: el de
+    # ``medidor`` o, si cada alimentador de la máxima tiene uno, todos.
+    medidores: list[str] = Field(default_factory=list, max_length=2000)
     # 1 % por defecto; entre 0,1 % y 10 % (requisitos no funcionales de la spec 006).
     tolerancia: float = Field(0.01, ge=0.001, le=0.10)
+
+
+class VerificarIn(BaseModel):
+    """Verificación de la convergencia (spec 008): el proyecto y los alimentadores a medir."""
+
+    project: str
+    feeders: list[str] = Field(default_factory=list, max_length=2000)
 
 
 class DemandaExcelIn(BaseModel):
@@ -771,6 +781,16 @@ def create_app(
         return submit(ws, 'pf_projects', 'Leer proyectos de DIgSILENT',
                       lambda ctx: services.pf_projects(ws, ctx), lane='powerfactory')
 
+    # Spec 008, RF-18: el flujo de carga con lo activo, antes de integrar cargas.
+    @app.post('/api/workspaces/{wid}/powerfactory/verificar', status_code=202)
+    def pf_verificar(wid: str, body: VerificarIn) -> dict:
+        ws = ws_or_404(wid)
+        if not body.project.strip():
+            raise HTTPException(422, 'Elija el proyecto de DIgSILENT.')
+        return submit(ws, 'pf_verificar', f'Verificar la convergencia · {body.project.strip()}',
+                      lambda ctx: services.pf_verificar(ws, ctx, body.project, body.feeders),
+                      lane='powerfactory')
+
     @app.post('/api/workspaces/{wid}/lote/plan')
     def lote_plan(
         wid: str,
@@ -780,10 +800,23 @@ def create_app(
         create_file: UploadFile | None = File(None),
         nueva: str | None = Form(None),
         economia: str | None = Form(None),
+        ajuste_job_id: str | None = Form(None),
     ) -> dict:
         ws = ws_or_404(wid)
         eco = _json_form(economia, 'economia')
         una = _json_form(nueva, 'nueva')
+        # Spec 007, RF-1: la base es el último ajuste aplicado; solo uno de este espacio,
+        # terminado y aplicado (una simulación no deja variación).
+        ajuste = None
+        if ajuste_job_id:
+            job = jobs.get(ajuste_job_id)
+            if job is None or job.workspace_id != wid:
+                raise HTTPException(404, 'No se encuentra el ajuste de la base: quite la base o vuelva a ajustar.')
+            if job.kind != 'ajuste_aplicar':
+                raise HTTPException(400, 'La base tiene que ser un ajuste aplicado, no una simulación.')
+            if not isinstance(job.result, dict):
+                raise HTTPException(409, 'El ajuste de la base todavía no ha terminado.')
+            ajuste = job.result
         tmps: list[Path] = []
         try:
             upd = cre = None
@@ -793,7 +826,7 @@ def create_app(
             if create_file:
                 cre = _upload_tmp(ws, create_file, 'cargas_nuevas.xlsx')
                 tmps.append(cre)
-            return services.cargas_plan(ws, project, feeders, upd, cre, una, eco)
+            return services.cargas_plan(ws, project, feeders, upd, cre, una, eco, ajuste)
         finally:
             for p in tmps:
                 p.unlink(missing_ok=True)
@@ -850,7 +883,7 @@ def create_app(
         if not isinstance(job.result, dict):
             raise HTTPException(409, 'La máxima de cabecera todavía no ha terminado.')
         return services.ajuste_plan(ws, body.project, job.result.get('resultados') or [],
-                                    body.medidor, body.tolerancia)
+                                    body.medidor, body.tolerancia, body.medidores)
 
     def _ajuste_job(wid: str, token: str, simular: bool) -> dict:
         ws = ws_or_404(wid)
@@ -858,8 +891,9 @@ def create_app(
         if plan is None or plan.get('kind') != 'ajuste_cabecera':
             raise HTTPException(404, 'El plan del ajuste ya no existe: vuelva a prepararlo.')
         verbo = 'Simular' if simular else 'Ajustar'
+        quien = plan['feeders'][0] if len(plan['feeders']) == 1 else f"{len(plan['feeders'])} alim."
         return submit(ws, 'ajuste_simular' if simular else 'ajuste_aplicar',
-                      f"{verbo} {plan['feeders'][0]} a la máxima · {plan['project']}",
+                      f"{verbo} {quien} a la máxima · {plan['project']}",
                       lambda ctx: services.ajuste_ejecutar(ws, ctx, token, simular=simular),
                       lane='powerfactory')
 

@@ -106,7 +106,8 @@ def test_plan_es_igual_para_uno_que_para_varios(tmp_path):
                         ahora=hora)
     assert uno.keys() == varios.keys()
     assert varios['feeders'] == ['A', 'B']
-    assert uno['variacion'] == 'Cargas_20261008_093015'
+    # 007:RF-19: las demandas van en su propia variación.
+    assert uno['variacion_demandas'] == uno['variacion'] == 'Demandas_20261008_093015'
     assert uno['aplicable'] and uno['demandas'][0]['plini_mw'] == pytest.approx(0.005)
 
 
@@ -146,3 +147,46 @@ def test_plan_con_carpeta(tmp_path):
     assert (plan['project'], plan['folder']) == ('Oct/P', 'Red')
     sin = armar_plan(project='P', feeders=['A'], demandas=lectura, nuevas=None)
     assert sin['folder'] is None
+
+
+def _base(cuadrado=True):
+    return {'job_id': 'j1', 'feeders': ['A'], 'variaciones': ['Ajuste_A_20261009_120000'],
+            'ajustes': [{'feeder': 'A', 'variacion': 'Ajuste_A_20261009_120000', 'cuadrado': cuadrado,
+                         'desvio': {'kw': 0.031, 'kvar': 0.0}, 'cabecera': {'kw': 500.0, 'kvar': 90.0},
+                         'objetivo': {'kw': 485.0, 'kvar': 90.0, 'medidor': 'M1'}}],
+            'sed': {'S1': {'kw': 40.0, 'kvar': 9.0, 'feeder': 'A'}}, 'excluidos': []}
+
+
+def test_plan_con_base_y_calibradas_que_el_libro_cambia(tmp_path):
+    """007:RF-1 / 007:RF-21 — el plan lleva la base del ajuste y lista las SED calibradas que
+    el libro de demandas cambia, con la calibrada y la del libro."""
+    lectura = leer_demandas(_libro(tmp_path / 'd.xlsx', {'A': [['SED', 'Kw', 'Kvar'], ['S1', 55, 12], ['S2', 5, 1]]}))
+    plan = armar_plan(project='P', feeders=['A'], demandas=lectura, nuevas=None, base=_base())
+    assert plan['base']['variaciones'] == ['Ajuste_A_20261009_120000']
+    assert plan['calibradas_cambiadas'] == [{'sed': 'S1', 'feeder': 'A', 'calibrada': {'kw': 40.0, 'kvar': 9.0},
+                                             'libro': {'kw': 55.0, 'kvar': 12.0}}]
+    assert plan['avisos'] == []
+
+
+def test_base_que_no_cuadro_se_avisa(tmp_path):
+    """007:RF-34 — un ajuste que no cuadró sirve de base, con su error en la cabecera."""
+    lectura = leer_demandas(_libro(tmp_path / 'd.xlsx', {'A': [['SED', 'Kw'], ['S2', 5]]}))
+    plan = armar_plan(project='P', feeders=['A'], demandas=lectura, nuevas=None, base=_base(cuadrado=False))
+    assert plan['base'] and len(plan['avisos']) == 1
+    assert 'A no cuadró' in plan['avisos'][0] and '+3.10%' in plan['avisos'][0]
+
+
+def test_sin_base_se_dice(tmp_path):
+    """007:RF-5 — sin ajuste previo, el plan dice que se aplica sobre lo activo."""
+    lectura = leer_demandas(_libro(tmp_path / 'd.xlsx', {'A': [['SED', 'Kw'], ['S2', 5]]}))
+    plan = armar_plan(project='P', feeders=['A'], demandas=lectura, nuevas=None)
+    assert plan['base'] is None and 'Sin base' in plan['avisos'][0]
+    assert plan['calibradas_cambiadas'] == []
+
+
+def test_alimentadores_fuera_de_la_base_se_dicen(tmp_path):
+    """007:RF-37 — un alimentador cuyo ajuste falló queda fuera de la base, y se dice."""
+    lectura = leer_demandas(_libro(tmp_path / 'd.xlsx', {'A': [['SED', 'Kw'], ['S2', 5]]}))
+    base = {**_base(), 'excluidos': [{'feeder': 'B', 'motivo': 'su ajuste falló'}]}
+    plan = armar_plan(project='P', feeders=['A', 'B'], demandas=lectura, nuevas=None, base=base)
+    assert any(a.startswith('B queda fuera de la base') for a in plan['avisos'])

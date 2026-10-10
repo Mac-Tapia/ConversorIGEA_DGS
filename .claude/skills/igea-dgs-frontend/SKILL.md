@@ -34,6 +34,10 @@ impide que vuelva.
 6. **El número de alimentadores es variable** (10, 50, 200…): la tabla filtra, ordena y admite selección con Mayús. Nada de listas fijas ni de textos con «96».
 7. **Opciones con consecuencias explicadas:** si una casilla depende de otra (vista previa ↔ georreferenciación) o de una capacidad del servidor (`health.capabilities`), se desactiva y dice por qué. El selector de procesos explica que más no siempre es más rápido.
 
+8. **«Cargas en DIgSILENT» no depende de la conversión** (spec 008): se ve sin entradas
+   cargadas y sigue el orden del operador — 1 proyecto, 2 alimentadores y calibración, 3
+   integración de nuevas —. Aplicar exige un flujo convergido del proyecto; simular, nunca.
+
 ## Checklist (al tocar la web)
 
 - [ ] Una opción nueva existe en los cuatro sitios: `DEFAULT_OPTIONS` (workspace.py), `OptionsIn` con su validación (app.py), `Options` (types.ts) y el panel

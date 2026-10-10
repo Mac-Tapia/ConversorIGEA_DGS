@@ -63,7 +63,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde y `- [x]`.
       el canal sin hoja con el medidor que ya lo da. (RF-44, RF-45)
       Hecho cuando: `pytest tests/test_demanda_medida.py` en verde y, con
       `IGEA_DEMANDA_DIR`, IN111 de Ica sale con kW y kVAR en una sola fila.
-- [ ] T8. Validación: RF-1 a RF-41 citados, suite completa en verde, RF-14 de la 001
+- [x] T8. Validación: RF-1 a RF-41 citados, suite completa en verde, RF-14 de la 001
       igual; prueba real en DIgSILENT a cargo del usuario.
       2026-10-09: RF-1 a RF-41 citados; suite completa con las cinco variables `IGEA_*` y
       `IGEA_DEMANDA_DIR` en verde (948 correctas, 18 omitidas). Falta la prueba real en

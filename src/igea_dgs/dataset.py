@@ -1,3 +1,8 @@
+"""Lector de los TXT de IGEA/CYMDIST (RED, CARGA y BD_Equipo) en un dataset reutilizable.
+
+Acepta las dos disposiciones del export, la reducida y la completa (constitución P3).
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

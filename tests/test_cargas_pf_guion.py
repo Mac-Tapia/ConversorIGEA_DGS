@@ -48,19 +48,32 @@ def _carga(app, nombre):
 
 
 # =========================================================================== variación
+def _ver_cargas(app):
+    """Activa las variaciones de las cargas nuevas para inspeccionar lo que crearon: el
+    guion las deja desactivadas al terminar (007:RF-17)."""
+    for v in app.carpetas['scheme'].GetContents('*.IntScheme'):
+        if v.loc_name.startswith('Carga_'):
+            v.Activate()
+
+
 def test_todo_se_escribe_en_la_etapa_de_una_variacion_nueva(guion):
-    """004:RF-3 — demandas y cargas nuevas van a una variación nueva que graba; con el
-    escenario del operador apagado mientras se escribe y encendido al terminar."""
+    """004:RF-3 / 007:RF-9 / 007:RF-19 — las demandas van a su variación y cada carga nueva
+    a la suya, todas grabando; con el escenario del operador apagado mientras se escribe
+    y encendido al terminar."""
     app = fake_pf.proyecto(escenario=True)
     plan = _plan(['F1', 'F2'], [_demanda('F1_S1', 120, 40), _demanda('F2_S2', 90, 10)],
                  [_nueva('N1', barra='F1_B2')])
     informe, rc = guion.ejecutar(app, plan, simular=False)
     assert rc == 0, informe
-    variaciones = app.carpetas['scheme'].GetContents('*.IntScheme')
-    assert [v.loc_name for v in variaciones] == [informe['variacion']]
-    etapa = variaciones[0].GetContents('*.IntSstage')[0]
+    variaciones = {v.loc_name: v for v in app.carpetas['scheme'].GetContents('*.IntScheme')}
+    assert set(variaciones) == {informe['variacion_demandas'], 'Carga_N1_F1_20261008_120000'}
+    etapa_dem = variaciones[informe['variacion_demandas']].GetContents('*.IntSstage')[0]
+    etapa_n1 = variaciones['Carga_N1_F1_20261008_120000'].GetContents('*.IntSstage')[0]
     escritas = [e for e in app.escrituras if e[0].GetClassName() in ('ElmLod', 'ElmTerm', 'ElmLne')]
-    assert escritas and all(e[3] is etapa for e in escritas)
+    demandas = [e for e in escritas if e[0].loc_name in ('F1_S1', 'F2_S2')]
+    nuevas = [e for e in escritas if 'N1' in e[0].loc_name]
+    assert demandas and all(e[3] is etapa_dem for e in demandas)
+    assert nuevas and all(e[3] is etapa_n1 for e in nuevas)
     assert all(e[4] is None for e in escritas), 'se escribió con el escenario activo'
     assert app.escenario is not None and app.escenario.loc_name == 'Operador'
 
@@ -185,6 +198,7 @@ def test_carga_nueva_en_la_barra_mas_cercana_por_gps(guion):
     creada = informe['feeders'][1]['creadas'][0]
     assert creada['barra'] == 'F2_B3' and creada['criterio'] == 'barra más cercana por GPS'
     assert creada['distancia_m'] == pytest.approx(33.4, abs=0.5)
+    _ver_cargas(app)
     linea = next(o for o in app.proyecto.GetContents('*.ElmLne', 1) if o.loc_name == 'LNE_N1')
     assert linea.dline == pytest.approx(creada['distancia_m'] / 1000.0)
 
@@ -234,6 +248,7 @@ def test_carga_nueva_escrita_como_demanda_y_dibujada(guion):
     plan = _plan(['F1'], nuevas=[_nueva('N1', kw=120, kvar=-40, lat=b.GPSlat + 0.0002, lon=b.GPSlon)])
     informe, rc = guion.ejecutar(app, plan, simular=False)
     assert rc == 0, informe
+    _ver_cargas(app)
     carga = _carga(app, 'N1')
     assert carga.plini == pytest.approx(0.12) and carga.qlini == pytest.approx(-0.04)
     assert 'slini' not in {e[1] for e in app.escrituras if e[0] is carga}
@@ -399,3 +414,24 @@ def test_ruta_que_no_existe_en_la_carpeta(guion):
     plan = {**_plan(['F1'], [_demanda('F1_S1', 1, 1)]), 'project': 'Oct/P', 'folder': 'Red'}
     informe, rc = guion.ejecutar(app, plan, simular=True)
     assert rc == 2 and 'Oct/P' in informe['error']
+
+
+def test_error_inesperado_deja_informe(guion, tmp_path, monkeypatch):
+    """008:RF-17 — si ``ejecutar`` revienta, ``main`` escribe el informe con el error y su tipo."""
+    import sys
+    import types
+
+    app = fake_pf.proyecto()
+    monkeypatch.setitem(sys.modules, 'powerfactory', types.SimpleNamespace(GetApplicationExt=lambda: app))
+
+    def revienta(*_a, **_k):
+        raise RuntimeError('la etapa de Cargas_F1 no quedó grabando')
+
+    monkeypatch.setattr(guion, 'ejecutar', revienta)
+    plan = tmp_path / 'plan.json'
+    plan.write_text(json.dumps(_plan(['F1'], [_demanda('F1_S1', 1, 0)])), encoding='utf-8')
+    salida = tmp_path / 'informe.json'
+    rc = guion.main(['--plan', str(plan), '--output-json', str(salida), '--simular'])
+    informe = json.loads(salida.read_text(encoding='utf-8'))
+    assert rc == 1 and informe['modo'] == 'simular'
+    assert informe['error'] == 'error inesperado del guion: RuntimeError: la etapa de Cargas_F1 no quedó grabando'

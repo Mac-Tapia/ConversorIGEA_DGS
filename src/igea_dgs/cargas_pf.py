@@ -304,12 +304,17 @@ def armar_plan(
     tec: dict | None = None,
     ahora: datetime | None = None,
     carpeta: str | None = None,
+    base: dict | None = None,
 ) -> dict[str, Any]:
     """El plan que recibe ``tools/cargas_pf.py``. Igual para uno que para varios (RF-5).
 
     ``project`` es la ruta del proyecto dentro de ``carpeta``, la de importación de
     DIgSILENT (spec 005, RF-16): dos proyectos con el mismo nombre en subcarpetas
     distintas son dos proyectos.
+
+    ``base`` es el ajuste a la máxima sobre el que se integra (spec 007, RF-1): sus
+    variaciones, una por alimentador ajustado, forman con las demandas del envío el
+    estado sin proyecto. La lee la web del trabajo del ajuste (``services.base_del_ajuste``).
     """
     elegidos = list(dict.fromkeys(f.strip() for f in feeders if f and f.strip()))
     if not project.strip():
@@ -326,8 +331,11 @@ def armar_plan(
         'folder': carpeta,
         'feeders': elegidos,
         'stamp': stamp,
-        # El guion añade un sufijo si ya existe (RF-4).
-        'variacion': f'Cargas_{stamp}',
+        # El guion añade un sufijo si ya existe (spec 004, RF-4). Las demandas van en su
+        # propia variación y cada carga nueva en la suya, que el guion nombra con su SED y
+        # su alimentador cuando sabe a cuál se conecta (spec 007, RF-9, RF-10, RF-19).
+        'variacion': f'Demandas_{stamp}',
+        'variacion_demandas': f'Demandas_{stamp}',
         'demandas': [d.para_pf() for d in (demandas.filas if demandas else [])],
         'nuevas': [n.para_pf() for n in (nuevas.filas if nuevas else [])],
         'omitidas_por_el_operador': list(demandas.omitidas) if demandas else [],
@@ -337,7 +345,39 @@ def armar_plan(
         'tec': tec,
     }
     plan['aplicable'] = bool(plan['demandas'] or plan['nuevas'])
+    plan['base'] = base or None
+    plan['avisos'] = _avisos_de_la_base(base)
+    plan['calibradas_cambiadas'] = _calibradas_cambiadas(base, plan['demandas'])
     return plan
+
+
+def _avisos_de_la_base(base: dict | None) -> list[str]:
+    """Lo que el operador debe saber de la base antes de aplicar (spec 007, RF-5, RF-34, RF-37)."""
+    if not base:
+        return ['Sin base del ajuste: se aplica sobre las variaciones que estén activas en el '
+                'proyecto (spec 007, RF-5).']
+    avisos = []
+    for a in base.get('ajustes') or []:
+        if not a.get('cuadrado'):
+            desvio = (a.get('desvio') or {}).get('kw')
+            error = f' (error en la cabecera {desvio:+.2%})' if isinstance(desvio, (int, float)) else ''
+            avisos.append(f"El ajuste de {a['feeder']} no cuadró{error}: se usa igual como base (RF-34).")
+    for x in base.get('excluidos') or []:
+        avisos.append(f"{x['feeder']} queda fuera de la base: {x['motivo']} (RF-37).")
+    return avisos
+
+
+def _calibradas_cambiadas(base: dict | None, demandas: list[dict]) -> list[dict]:
+    """SED que el ajuste calibró y que el libro de demandas cambia (spec 007, RF-20, RF-21)."""
+    calibradas = (base or {}).get('sed') or {}
+    out = []
+    for d in demandas:
+        c = calibradas.get(d['sed'])
+        if c is not None:
+            out.append({'sed': d['sed'], 'feeder': c.get('feeder'),
+                        'calibrada': {'kw': c.get('kw'), 'kvar': c.get('kvar')},
+                        'libro': {'kw': d['kw'], 'kvar': d['kvar']}})
+    return out
 
 
 # --------------------------------------------------------------------------- plantillas

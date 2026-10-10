@@ -19,16 +19,29 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
 ## Especificaciones
 
 - `docs/constitution.md`: principios innegociables, cada uno con cómo se comprueba.
-- `specs/NNN-<nombre>/{spec,plan,tasks}.md`: una carpeta por funcionalidad. Specs activas, en este orden: `specs/001-reorganizacion/` y
-  `specs/002-arquitectura-por-capas/`, aprobadas el 2026-10-08. La 001 está cumplida; la 002, aún sin plan ni tareas.
-  `specs/005-carpeta-de-proyectos-pf/` (aprobada el 2026-10-09): implementada, falta la prueba manual en DIgSILENT (T12).
-  La carpeta de DIgSILENT de cada empresa va en `config/perfil_empresa.json`, local y fuera de git.
-  `specs/006-ajuste-a-la-maxima-de-cabecera/` (aprobada el 2026-10-09): implementada, falta la
-  prueba en DIgSILENT (T8), que confirma el signo y el lado de la cabecera.
-  `specs/007-cargas-nuevas-sobre-el-ajuste/` (aprobada el 2026-10-09): cargas nuevas sobre la
-  variación del ajuste (sin proyecto), una variación por carga (con proyecto); plan y tareas
-  escritos, sin empezar.
-- `docs/superpowers/specs/` y `plans/` son históricos: no tienen requisitos numerados ni casillas al día.
+- `specs/NNN-<nombre>/{spec,plan,tasks}.md`: una carpeta por funcionalidad. Estado a 2026-10-10:
+
+  | Spec | Estado |
+  | --- | --- |
+  | 001 reorganización | cumplida |
+  | 002 arquitectura por capas | aprobada; plan y tareas escritos el 2026-10-10, **pendientes de aprobar**; sin código |
+  | 003 | no existe: la citan la 002 y la memoria para lo que queda de la rama `feat/integracion-web-retiro-gui`, tras las capas |
+  | 004 cargas en PowerFactory | implementada y validada |
+  | 005 carpeta de proyectos PF | implementada; falta la prueba en DIgSILENT (T12) |
+  | 006 ajuste a la máxima | implementada; falta la prueba en DIgSILENT (T8): signo y lado de la cabecera |
+  | 007 cargas sobre el ajuste | implementada el 2026-10-10 (una variación por carga, base del ajuste, RF-36/37 para varios alimentadores); falta la prueba en DIgSILENT (T11) |
+  | 008 pestaña en tres pasos | implementada; falta la prueba en DIgSILENT con dos alimentadores (T7) |
+  | 009 inventario del repositorio | implementada |
+  | 010 trazado GPS de las líneas | cumplida; probada en DIgSILENT con NA203 + NA205 (574/574 líneas) |
+
+  La carpeta de DIgSILENT de cada empresa va en `config/perfil_empresa.json`; los alias de
+  tipos de línea en `config/line_type_aliases.json`. Los dos, locales y fuera de git.
+- `CODIGO_FUENTE.md` lista cada fichero de `src/`, `tools/` y `frontend/src/` con su spec.
+  **Un fichero nuevo entra en el índice en el mismo cambio**: `tests/test_inventario.py`
+  (spec 009) falla si falta, si una herramienta no responde a `--help`, si una función de
+  `src/` no la usa nada o si una spec con sus tareas hechas tiene un RF sin prueba.
+- `docs/superpowers/specs/` y `plans/`, y `docs/DIAGNOSTICO_*.md`, son históricos: no tienen
+  requisitos numerados ni casillas al día.
 
 ## Pruebas
 
@@ -48,7 +61,7 @@ más reciente no trae catálogo de equipos:
 
 Esas bases **no** son la misma foto de la red que los TXT de `referencia/` (03/08): los
 nodos están numerados de otra forma. Con las cinco variables a la vez la suite pasa
-entera (1036 correctas y 20 omitidas a 2026-10-09; dos de ellas, de la demanda medida, piden además `IGEA_DEMANDA_DIR`): las comparaciones tramo a tramo entre las dos vías
+entera (más de 1100 correctas a 2026-10-10; dos de ellas, de la demanda medida, piden además `IGEA_DEMANDA_DIR`): las comparaciones tramo a tramo entre las dos vías
 se omiten solas cuando `igea_dgs.huella` dice que no son la misma exportación. Que las
 dos vías den el mismo modelo **no** está comprobado hasta tener un TXT y una `.mdb` de la
 misma fecha.

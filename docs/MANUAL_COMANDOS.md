@@ -1,7 +1,7 @@
 # Manual de comandos — pruebas, conversión e importación en DigSILENT
 
 Cada cosa que hace la interfaz gráfica se puede lanzar también desde la consola. Este
-manual empareja las dos vías: **lo que pulsa en la ventana** y **el comando equivalente**,
+manual empareja las dos vías: **lo que pulsa en la interfaz web** y **el comando equivalente**,
 para poder automatizar, diagnosticar una incidencia o trabajar en una máquina sin pantalla.
 
 Todos los comandos se ejecutan desde la raíz del proyecto (`D:\converter\ConversorIGEA_DGS`)
@@ -61,12 +61,25 @@ repita `pip install -r requirements.txt`, o convierta con `--no-geography`.
 
 ## 1. Abrir la interfaz gráfica
 
-| En la ventana | Comando |
+| En la interfaz | Comando |
 | --- | --- |
-| Doble clic en `run_gui.bat` | `> .venv\Scripts\python.exe -m igea_dgs.gui` |
+| Doble clic en `run_gui.bat` | `> .venv\Scripts\igea-dgs.exe web` (o `igea-dgs-web`) |
 
-`run_gui.bat` prefiere el `.venv`, instala las dependencias de producción si faltan y
-abre la ventana. El comando directo no instala nada: asume el entorno ya preparado.
+`run_gui.bat` prefiere el `.venv`, instala las dependencias de producción si faltan,
+recompila el front si su código es más reciente que la compilación y abre el navegador
+en `http://127.0.0.1:8765/`. El comando directo no instala nada: asume el entorno ya
+preparado. La interfaz de escritorio Tkinter (`igea_dgs.gui`) se retiró (spec 001, RF-16).
+
+### Las órdenes del CLI
+
+| Orden | Para qué | Sección |
+| --- | --- | --- |
+| `igea-dgs list` | Listar alimentadores e inventario de la entrada (TXT, `.mdb` o VNR-GIS). | 3 |
+| `igea-dgs convert` | Convertir uno, varios (`--feeder` repetido) o todos (`--all`). | 4 |
+| `igea-dgs web` | Arrancar la interfaz web y abrir el navegador. | 1 |
+| `vnr-etl` | Módulo VNR-GIS: descubrir, validar y exportar paquetes (`docs/VNR_GIS_PRODUCTION.md`). | — |
+
+`igea-dgs` equivale a `python -m igea_dgs.cli`; los ejemplos usan una u otra forma.
 
 ---
 
@@ -134,7 +147,7 @@ rem Vínculo de la interfaz con el motor
 
 ## 3. Listar alimentadores e inventario
 
-| En la ventana | Comando |
+| En la interfaz | Comando |
 | --- | --- |
 | **Cargar / listar alimentadores** | `igea_dgs.cli list` |
 
@@ -202,16 +215,16 @@ Funciona también con la entrada por TXT, donde actúa como filtro de selección
 
 ### En la interfaz
 
-**Paso 1** tiene dos botones de opción: *Alternativa 1 — Tres ficheros TXT* y
-*Alternativa 2 — Base de datos Access*. Al cambiar, el panel de campos se sustituye. En
-la alternativa 2 solo la base de red es obligatoria; la base de equipos y el estudio son
+El panel **1 · Entrada de datos** tiene tres pestañas: *Tres TXT de IGEA/CYMDIST*,
+*Base Access (.mdb)* y *VNR-GIS*. Al cambiar, el panel de casillas se sustituye. Con la
+base Access solo la base de red es obligatoria; la base de equipos y el estudio son
 opcionales.
 
 ---
 
 ## 4. Conversión a DGS
 
-| En la ventana | Comando |
+| En la interfaz | Comando |
 | --- | --- |
 | **Convertir a DGS** (uno) | `convert --feeder NOMBRE` |
 | **Convertir a DGS** (varios) | `convert --feeder A --feeder B` |
@@ -243,7 +256,7 @@ opcionales.
 
 ### 4.3 Opciones, y su casilla equivalente
 
-| Casilla en la ventana | Opción | Qué hace |
+| Casilla en la interfaz | Opción | Qué hace |
 | --- | --- | --- |
 | Georreferenciación (GPS + diagrama) | *(activa por defecto)* / `--no-geography` | GPS en terminales, diagrama `IntGrf` y sidecar `_geography.json` |
 | Modo estricto | *(activo por defecto)* / `--non-strict` | En estricto, una topología rota bloquea el alimentador |
@@ -296,7 +309,7 @@ Por cada alimentador, en `--out-dir`:
 
 ### 4.7 Cancelar
 
-En la ventana: botón **Cancelar**, habilitado mientras convierte. No empieza ningún
+En la interfaz: botón **Cancelar**, habilitado mientras convierte. No empieza ningún
 alimentador más; el que está en marcha (o los que están en marcha, con `--workers`)
 termina y se conserva junto con lo ya convertido. Ningún DGS queda a medias.
 
@@ -350,7 +363,7 @@ parametrizadas sobre las dos alternativas).
 
 ## 5. Importación en DigSILENT PowerFactory
 
-| En la ventana | Comando |
+| En la interfaz | Comando |
 | --- | --- |
 | **Cargar DGS en DigSILENT + flujo** | `tools\powerfactory_acceptance.py` |
 
@@ -623,37 +636,55 @@ cambio de más del 25 %.
 
 ---
 
-## 7.ter Crear SED nuevas desde la interfaz
+## 7.ter Cargas en DIgSILENT: calibrar e integrar (pestaña en tres pasos)
 
-Los botones 3, 4 y 5 de la fila «SED nuevas»:
+La pestaña **«Cargas en DIgSILENT»** trabaja sobre un proyecto que **ya existe** en
+DIgSILENT, sin convertir nada: por eso se ve aunque no haya entradas cargadas (spec 008).
+Sustituye a las antiguas filas «Cargas de SED» y «SED nuevas», retiradas por la spec 004.
+Cada cambio queda en una **variación nueva** del proyecto, que se puede activar, comparar
+o borrar sin tocar la red base.
 
-* **3) Descargar plantilla de creación** — una fila por SED. Basta con `SED`, `CoordX`,
-  `CoordY` y `kVA_instalado`. Trae además una hoja `nodos_validos` con los nodos del
-  alimentador.
-* **4) Cargar fichero y crear** — lee la plantilla, resuelve cada punto y aplica.
-* **5) Crear una SED…** — el mismo camino con un formulario, para una sola.
+| Paso | En la pestaña | Lo que hace por debajo |
+| --- | --- | --- |
+| **1 · Proyecto de DIgSILENT** | «Leer proyectos», buscar por nombre o carpeta y elegir | `tools/pf_proyectos.py` lee la carpeta de importación (spec 005) |
+| **2 · Alimentadores y calibración** | Marcar alimentadores (todos al elegir el proyecto) | Los marcados sirven a la calibración y a la integración |
+| 2.1 Libros de medición | Medidor por alimentador, medición de cabecera, suministros, clientes importantes | Se validan en la web (spec 004, RF-22 a RF-45) |
+| 2.2 Máxima de cabecera | «Buscar medidores» y «Buscar la máxima», para todos los marcados en un trabajo | `igea_dgs.demanda_medida` |
+| 2.3 Clientes importantes | «Cruzar clientes»: su demanda queda fija | Cruce por «Suministro Act» y «Suministro» |
+| 2.4 Escalar y ajustar | «Simular» o «Ajustar en DIgSILENT» | `tools/ajuste_cabecera_pf.py`, un alimentador tras otro, cada uno en su variación (specs 006 y 008) |
+| **3 · Integración de nuevas** | | |
+| 3.0 Convergencia | «Verificar la convergencia en DIgSILENT» | `tools/verificar_pf.py`: flujo con lo activo y cabecera de cada alimentador; no escribe |
+| 3.1 Demandas en bloque | Libro de demandas (plantilla Excel o CSV) | `tools/cargas_pf.py` |
+| 3.2 Una carga nueva | Formulario, con las mismas reglas que el libro | `tools/cargas_pf.py` |
+| 3.3 Cargas nuevas en bloque | Libro de cargas nuevas | `tools/cargas_pf.py` |
 
-Qué hace con las coordenadas: busca el **nodo más cercano**, usa esa distancia como
-longitud de la derivación y elige el **conductor aéreo** por ampacidad con margen y
-caída de tensión. En PowerFactory crea el nodo con su GPS, el tramo con su `TypLne`, la
-`ElmSubstat` con sus barras MT y BT, el `TypTr2`/`ElmTr2`, el `ElmCoup` y el `ElmLod`.
+Las tres partes del paso 3 son optativas: se usa cualquier combinación y se revisan
+juntas. En cada alimentador se aplican en ese orden: demandas, carga del formulario y
+cargas del libro. **Aplicar** solo se activa si el último flujo del proyecto —la
+verificación, el ajuste o la última integración— convergió; **Simular** está disponible
+siempre y no escribe nada.
 
-Un punto a más de 2 km del nodo más cercano se rechaza: casi siempre es un error de
-coordenadas o un CRS equivocado, no una derivación real.
+Los tres guiones se ejecutan con el intérprete de PowerFactory y reciben un plan JSON
+que prepara la web (`output/web/<espacio>/planes/`):
 
-**Sobre la elección automática de sección.** Medido con datos reales a 22,9 kV, una SED
-de 15 a 630 kVA toma entre 0,4 y 16 A, y el conductor más pequeño de un catálogo real
-ya es de 112 A. Ni la ampacidad ni la caída de tensión discriminan en ese rango: sale
-siempre el menor. El campo `binding` del informe lo dice (`minimo`, `ampacidad`,
-`caida` o `impuesto`). Lo que decide en la práctica es la normalización de la empresa,
-y para eso está la columna `conductor`.
+```bat
+> python tools\verificar_pf.py --plan plan.json --output-json informe.json
+> python tools\ajuste_cabecera_pf.py --plan plan.json --output-json informe.json [--simular] [--cancel-file cancelar.flag]
+> python tools\cargas_pf.py --plan plan.json --output-json informe.json [--simular] [--cancel-file cancelar.flag]
+```
+
+Si un guion falla por un error inesperado, deja igualmente el informe con el tipo y el
+mensaje del error, que la web muestra; la traza completa va al Registro (spec 008, RF-17).
+
+**Códigos de salida:** `0` correcto, `1` error inesperado, `2` sin cuadrar, sin converger
+o con fallos parciales, `3` sin API de DIgSILENT.
 
 ---
 
-## 9. La red completa y el año 0 del PIDE
+## 8. La red completa y el año 0 del PIDE
 
-Todo lo de esta sección se puede lanzar desde la interfaz, fila **«Sistema»**, o desde
-el terminal. La interfaz solo llama a estos mismos guiones, así que dan lo mismo.
+Todo lo de esta sección se puede lanzar desde la interfaz, pestaña **«Sistema completo»**,
+o desde el terminal. La interfaz solo llama a estos mismos guiones, así que dan lo mismo.
 
 ### Por qué una sola grid
 
@@ -738,21 +769,22 @@ traen sus propios límites.
 
 ---
 
-## 8. Referencia rápida
+## 9. Referencia rápida
 
 ```bat
-rem Interfaz
-.venv\Scripts\python.exe -m igea_dgs.gui
+rem Interfaz web
+run_gui.bat
+.venv\Scripts\igea-dgs.exe web
 
 rem Pruebas
 .venv\Scripts\python.exe -m pytest -q
 
 rem Listar
-.venv\Scripts\python.exe -m igea_dgs.cli list --red R.txt --loads C.txt --equipment E.txt
+.venv\Scripts\igea-dgs.exe list --red R.txt --loads C.txt --equipment E.txt
 
 rem Convertir uno / todos
-.venv\Scripts\python.exe -m igea_dgs.cli convert --red R.txt --loads C.txt --equipment E.txt --feeder IN111 --source-crs EPSG:32718 --out-dir output\prod
-.venv\Scripts\python.exe -m igea_dgs.cli convert --red R.txt --loads C.txt --equipment E.txt --all --source-crs EPSG:32718 --out-dir output\prod
+.venv\Scripts\igea-dgs.exe convert --red R.txt --loads C.txt --equipment E.txt --feeder ALIMENTADOR --source-crs EPSG:XXXXX --out-dir output\prod
+.venv\Scripts\igea-dgs.exe convert --red R.txt --loads C.txt --equipment E.txt --all --source-crs EPSG:XXXXX --out-dir output\prod
 
 rem Red unida y ano 0 del PIDE
 .venv\Scripts\python.exe tools\build_system_grid.py --red R.txt --cargas C.txt --equipos E.txt --importar --run-load-flow
@@ -763,8 +795,40 @@ rem Catalogo de parametros electricos -> input\catalogo_parametros.xlsx
 .venv\Scripts\python.exe tools\build_input_catalog.py --red R.txt --cargas C.txt --equipos E.txt
 
 rem Importar en DigSILENT
-.venv\Scripts\python.exe tools\powerfactory_acceptance.py --import-dgs output\prod\IN111.dgs --manifest output\prod\IN111_geography.json --ensure-scenario --run-load-flow --fix-until-converge --run-studies
+.venv\Scripts\python.exe tools\powerfactory_acceptance.py --import-dgs output\prod\ALIMENTADOR.dgs --manifest output\prod\ALIMENTADOR_geography.json --ensure-scenario --run-load-flow --fix-until-converge --run-studies
 ```
 
+---
+
+## 10. Herramientas de `tools/`
+
+Todas aceptan `--help`, que no necesita DIgSILENT ni datos (spec 009). Las marcadas «PF»
+se ejecutan con el intérprete de PowerFactory (Python 3.12 con `powerfactory.pyd`). El
+índice de `CODIGO_FUENTE.md` dice qué spec rige cada una.
+
+| Herramienta | Para qué | PF |
+| --- | --- | --- |
+| `accept_three_sources.py` | Aceptación auditada y separada de MDB, TXT y VNR-GIS (`docs/runbooks/`). | opcional |
+| `ajuste_cabecera_pf.py` | Ajusta un alimentador a su máxima de cabecera (sección 7.ter). | PF |
+| `apply_catalog_to_model.py` | Corrige impedancias y ampacidades del modelo con el catálogo de fichas (sección 7.bis). | |
+| `base_scenario.py` | Escenario base (año 0): construye, hace converger y diagnostica (sección 8). | PF |
+| `build_input_catalog.py` | Tabla de parámetros eléctricos en `input/` y auditoría (sección 7.bis). | |
+| `build_system_grid.py` | Todos los alimentadores en una sola red, importada en PowerFactory (sección 8). | PF |
+| `cargas_pf.py` | Demandas y cargas nuevas en un proyecto existente (sección 7.ter). | PF |
+| `check_pf_license.py` | Qué módulos de PowerFactory permite la licencia. | PF |
+| `compare_schema.py` | Cabeceras de un DGS de otra versión de PF frente a un perfil de esquema. | |
+| `convertir_grupos_mdb.py` | Varios alimentadores de una base en un DGS, importado y con flujo. | PF |
+| `emparejar_entradas.py` | Qué TXT y qué `.mdb` son la misma foto de la red (para las pruebas de las dos vías). | |
+| `fidelidad_seleccion.py` | Que una selección pase entera del TXT al modelo y al DGS. | |
+| `linea_base_dgs.py` | Línea base de DGS antes de una reorganización, y comparación después. | |
+| `pf_proyectos.py` | Proyectos de la carpeta de importación y sus alimentadores (paso 1 de 7.ter). | PF |
+| `powerfactory_acceptance.py` | Puerta de aceptación: importa un DGS y lo valida (sección 5). | PF |
+| `prueba_representacion.py` | Red, cargas y SED del TXT en una sola hoja de PowerFactory. | PF |
+| `run_one_study.py` | Trabajador de un estudio en su propio proceso (sección 8). | PF |
+| `run_powerfactory_gate.bat` | Atajo de `powerfactory_acceptance.py` con el intérprete de PF (sección 5.3). | PF |
+| `show_pf_diagram.py` | Abre en DIgSILENT el diagrama de un alimentador (`--feeder`). | PF |
+| `suggest_line_type_aliases.py` | Propone alias para tipos de línea sin ficha en el catálogo. | |
+| `verificar_pf.py` | Convergencia del proyecto con lo activo (paso 3.0 de 7.ter). | PF |
+
 Documentos relacionados: `docs/POWERFACTORY_ACCEPTANCE.md` (detalle de la puerta de
-aceptación) y `README.md` (instalación y arquitectura).
+aceptación), `README.md` (instalación y arquitectura) y `CODIGO_FUENTE.md` (índice).

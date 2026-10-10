@@ -117,8 +117,11 @@ export const api = {
   cargasPlantillaUrl: (id: string, tipo: 'demandas' | 'nuevas', format: 'xlsx' | 'csv') =>
     `${ws(id)}/cargas/plantilla/${tipo}?format=${format}`,
   pfProjects: (id: string) => request<Job>(`${ws(id)}/powerfactory/projects`, { method: 'POST' }),
+  pfVerificar: (id: string, project: string, feeders: string[]) =>
+    request<Job>(`${ws(id)}/powerfactory/verificar`, json('POST', { project, feeders })),
   cargasPlan: (id: string, project: string, feeders: string[], demandas?: File | null,
-    nuevas?: File | null, nueva?: Record<string, string> | null, economia?: Economia | null) => {
+    nuevas?: File | null, nueva?: Record<string, string> | null, economia?: Economia | null,
+    ajusteJobId?: string | null) => {
     const fd = new FormData();
     fd.append('project', project);
     feeders.forEach((f) => fd.append('feeders', f));
@@ -126,6 +129,8 @@ export const api = {
     if (nuevas) fd.append('create_file', nuevas, nuevas.name);
     if (nueva) fd.append('nueva', JSON.stringify(nueva));
     if (economia) fd.append('economia', JSON.stringify(economia));
+    // Spec 007, RF-1: el ajuste aplicado que hace de base; sin él, sobre lo activo.
+    if (ajusteJobId) fd.append('ajuste_job_id', ajusteJobId);
     return request<CargasPlan>(`${ws(id)}/lote/plan`, { method: 'POST', body: fd });
   },
   cargasSimular: (id: string, token: string) =>
@@ -163,7 +168,7 @@ export const api = {
     request<{ alimentadores: string[] }>(`${ws(id)}/demanda/alimentadores`),
   demandaClientes: (id: string, alimentadores: string[]) =>
     request<ClientesCruce>(`${ws(id)}/demanda/clientes/cruzar`, json('POST', { alimentadores })),
-  ajustePlan: (id: string, body: { project: string; job_id: string; medidor: string; tolerancia: number }) =>
+  ajustePlan: (id: string, body: { project: string; job_id: string; medidor: string; medidores?: string[]; tolerancia: number }) =>
     request<AjustePlan>(`${ws(id)}/demanda/ajuste/plan`, json('POST', body)),
   ajusteSimular: (id: string, token: string) =>
     request<Job>(`${ws(id)}/demanda/ajuste/${enc(token)}/simular`, { method: 'POST' }),

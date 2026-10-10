@@ -17,8 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from vnr_etl.connectors import resolve_adapter
-from vnr_etl.discovery import compute_schema_fingerprint
-from vnr_etl.discovery.schema import SchemaResolver, resolve_alias
+from vnr_etl.discovery.schema import resolve_alias
 from vnr_etl.gis.geometry import coords_from_geojson, polyline_length_m
 from vnr_etl.gis.snapping import deterministic_node_id, snap_endpoints
 from vnr_etl.models import CanonicalModel, Lineage, Node, Section
@@ -188,16 +187,6 @@ def list_periods(source: str, company: str | None = None) -> list[str]:
         return adapter.available_periods(company=company)
     finally:
         adapter.close()
-
-
-def resolve_schema(fields: Sequence[str], *, layer: str = '',
-                   aliases: Mapping[str, Sequence[str]] | None = None) -> dict:
-    resolver = SchemaResolver(aliases=aliases)
-    return {k: v.as_dict() for k, v in resolver.resolve_fields(fields, layer=layer).items()}
-
-
-def fingerprint_layers(layers: Sequence[dict]) -> str:
-    return compute_schema_fingerprint(layers)
 
 
 def buscar_capa_de_tramos(layers: Sequence[Mapping[str, Any]]) -> dict | None:
@@ -485,37 +474,6 @@ def canonicalize_sections(
         length_report=length_report,
         snap_report=snap.displacement_report(),
     )
-
-
-def add_loads(
-    result: CanonicalizeResult,
-    load_rows: Sequence[Mapping[str, Any]],
-    *,
-    load_id_field: str = 'COD_SED',
-    node_field: str = 'NODO_CONEX',
-    kw_field: str = 'KW_MEDIDO',
-    kvar_field: str = 'KVAR_MEDID',
-    phases_field: str = 'FASES',
-) -> CanonicalizeResult:
-    """Añade cargas al modelo canónico, referidas a nodos ya reconstruidos."""
-    from vnr_etl.models import Load
-
-    nodes = result.model.nodes_by_id()
-    for row in load_rows:
-        node_id = str(row.get(node_field) or '')
-        if node_id not in nodes:
-            result.warnings.append(f'Carga en nodo inexistente, se omite: {row.get(load_id_field, "?")}')
-            continue
-        result.model.loads.append(Load(
-            load_id=str(row.get(load_id_field) or ''),
-            connection_node=node_id,
-            kw=_parse_float(row.get(kw_field)) or 0.0,
-            kvar=_parse_float(row.get(kvar_field)) or 0.0,
-            phases=str(row.get(phases_field) or ''),
-            source_layer='loads',
-            source_id=str(row.get(load_id_field) or ''),
-        ))
-    return result
 
 
 def _parse_float(value) -> float | None:

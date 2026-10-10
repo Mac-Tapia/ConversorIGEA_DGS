@@ -1,3 +1,6 @@
+"""Escritor DGS: tablas, FID, cubículos, maniobras y capa gráfica del diagrama.
+"""
+
 from __future__ import annotations
 
 from collections import defaultdict
@@ -108,14 +111,6 @@ def _type_name(key: str, code: str, kv: float | None = None) -> str:
 def _make_row(schema: DgsSchema, table: str, **values) -> str:
     fields = schema.fields(table)
     return '  ' + ';'.join(_fmt(values.get(field, '')) for field in fields)
-
-
-def _node_degrees(model: FeederModel) -> dict[str, int]:
-    degrees: dict[str, int] = defaultdict(int)
-    for line in model.lines:
-        degrees[line.from_node] += 1
-        degrees[line.to_node] += 1
-    return dict(degrees)
 
 
 # node_id → [(neighbor_id, Line), ...]. Built once per model and threaded through
@@ -468,14 +463,6 @@ DIAGRAM_SHEET_MARGIN_DU = max(
     NA205_SED_RADIUS,
     NA205_SOURCE_OFFSET,
 ) + PARALLEL_CIRCUIT_OFFSET_DU + NA205_SYMBOL_SIZE
-
-
-def _meter_span(points: list[tuple[float, float]]) -> float:
-    if len(points) < 2:
-        return 0.0
-    xs = [p[0] for p in points]
-    ys = [p[1] for p in points]
-    return max(max(xs) - min(xs), max(ys) - min(ys), 0.0)
 
 
 def _adaptive_scale(

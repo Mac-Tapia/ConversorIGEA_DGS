@@ -1,44 +1,43 @@
 #!/usr/bin/env python3
-"""Runtime gate: import DGS into DigSilent PowerFactory via API and validate.
+r"""Puerta de aceptación: importa un DGS en DIgSILENT PowerFactory por la API y lo valida.
 
-Uses the PowerFactory Python module (bundled under
-``PowerFactory 20xx/Python/3.xx``). Prefer running with that interpreter, or set
-``PYTHONPATH`` to the matching PF Python folder, with PowerFactory available
-(``GetApplication`` / ``GetApplicationExt``).
+Usa el módulo Python de PowerFactory (en ``PowerFactory 20xx/Python/3.xx``). Ejecútelo
+con ese intérprete, o ponga en ``PYTHONPATH`` la carpeta Python de PF que corresponda,
+con PowerFactory disponible (``GetApplication`` / ``GetApplicationExt``).
 
-Checks:
-  - DGS file import into a new (or existing) project
-  - Activate Study Case base + Operation Scenario (create if missing)
-  - Element inventory: lines, loads, switches, SED transformers (ElmTr2),
-    capacitors (ElmShnt), voltage regulators (ElmVoltreg)
-  - Connectivity (StaCubic → ElmTerm)
-  - Scaled GPS location vs geography manifest
-  - Optional load-flow convergence (ComLdf) on the base study case
-  - Optional diagnose + correction intents until LDF converges
-    (aligned with User Manual ch. 24.6 + ComLdf attrs from PF Help)
-  - Optional study suite (``--run-studies``): ComLdf + ComShc (+ registry)
-  - After import / LDF: persist ``{feeder}.dgs`` (+ known sidecars) into the
-    same convert ``out_dir`` used by web/CLI individual convert; optionally
-    ComExport a ``{feeder}_pf_converged.dgs`` round-trip when LDF passes
+Comprueba:
+  - La importación del DGS en un proyecto nuevo (o existente).
+  - El caso de estudio base y el escenario de operación activos (los crea si faltan).
+  - El inventario: líneas, cargas, maniobras, transformadores de SED (ElmTr2),
+    condensadores (ElmShnt) y reguladores de tensión (ElmVoltreg).
+  - La conectividad (StaCubic → ElmTerm).
+  - La ubicación GPS escalada frente al manifiesto de geografía.
+  - Opcional: la convergencia del flujo de carga (ComLdf) en el caso base.
+  - Opcional: diagnóstico y correcciones hasta que el flujo converja (manual de
+    usuario, cap. 24.6, y atributos de ComLdf de la ayuda de PF).
+  - Opcional (``--run-studies``): ComLdf y ComShc, más el registro de estudios.
+  - Tras importar o el flujo: guarda ``{alimentador}.dgs`` (y sus ficheros auxiliares)
+    en la misma carpeta de salida que la conversión de la web y el CLI; y, si el flujo
+    converge, puede exportar con ComExport un ``{alimentador}_pf_converged.dgs``.
 
-DigSILENT Help sources used (PF 2024 install)::
+Fuentes de la ayuda de DIgSILENT (instalación PF 2024)::
 
-    Help/UserManual_en.pdf  — ch. 12.8 Commands, 24 Load Flow, 24.6 Troubleshooting,
-                              25 Short-Circuit; IntCase / IntScenario activation
+    Help/UserManual_en.pdf  — cap. 12.8 Commands, 24 Load Flow, 24.6 Troubleshooting,
+                              25 Short-Circuit; activación de IntCase / IntScenario
     Help/PythonReference_en.pdf — Application.GetFromStudyCase, IsLdfValid,
                                   ComLdf.Execute (0/1/2), ComShc
-    Help/DplReference_en.pdf — GetFromStudyCase creates command if missing;
-                               Ldf:iopt_net = 0|1 (balanced|unbalanced)
-    localisation/*/data.db — ComLdf attribute labels (iopt_lim, iopt_at, iopt_fl, …)
+    Help/DplReference_en.pdf — GetFromStudyCase crea la orden si falta;
+                               Ldf:iopt_net = 0|1 (equilibrado|desequilibrado)
+    localisation/*/data.db — etiquetas de atributos de ComLdf (iopt_lim, iopt_at, iopt_fl, …)
     Api/Example/src/ApiExample.cpp — ComImport + GetCaseObject(ComLdf) + IsLdfValid
                                      + ComExport / ExportDgsFile
 
-Example::
+Ejemplo::
 
-    set PYTHONPATH=C:\\Program Files\\DIgSILENT\\PowerFactory 2024\\Python\\3.12
-    python tools\\powerfactory_acceptance.py ^
-      --import-dgs output\\AL104.dgs ^
-      --manifest output\\AL104_geography.json ^
+    set PYTHONPATH=C:\Program Files\DIgSILENT\PowerFactory 2024\Python\3.12
+    python tools\powerfactory_acceptance.py ^
+      --import-dgs output\ALIMENTADOR.dgs ^
+      --manifest output\ALIMENTADOR_geography.json ^
       --require-diagram --run-load-flow --fix-until-converge --run-studies
 """
 from __future__ import annotations

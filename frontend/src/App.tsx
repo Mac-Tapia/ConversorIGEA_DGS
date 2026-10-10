@@ -12,11 +12,13 @@ import { Modal, Pill, useConfirm, useToast } from './components/ui';
 import type { Health, Job, PowerFactoryStatus } from './types';
 import { useWorkspace } from './useWorkspace';
 
+// ``entradas``: la pestaña necesita la entrega cargada. «Cargas en DIgSILENT» trabaja
+// sobre un proyecto que ya está en DIgSILENT y se ve siempre (spec 008, RF-1).
 const TABS = [
-  { id: 'results', label: 'Resultados', el: <ResultsTab /> },
-  { id: 'cargas', label: 'Cargas en DIgSILENT', el: <CargasTab /> },
-  { id: 'catalog', label: 'Catálogo de parámetros', el: <CatalogTab /> },
-  { id: 'system', label: 'Sistema completo', el: <SystemTab /> },
+  { id: 'results', label: 'Resultados', el: <ResultsTab />, entradas: true },
+  { id: 'cargas', label: 'Cargas en DIgSILENT', el: <CargasTab />, entradas: false },
+  { id: 'catalog', label: 'Catálogo de parámetros', el: <CatalogTab />, entradas: true },
+  { id: 'system', label: 'Sistema completo', el: <SystemTab />, entradas: true },
 ] as const;
 
 const LOG_KEY = 'igea-dgs.log-height';
@@ -160,6 +162,9 @@ export default function App() {
     selected, setSelected, active, run, startJob, refresh: w.refresh,
   };
   const running = [active.engine, active.powerfactory].filter(Boolean) as Job[];
+  // RF-2: sin entradas, solo las pestañas que no las necesitan.
+  const tabs = TABS.filter((t) => w.state!.loaded || !t.entradas);
+  const actual = tabs.find((t) => t.id === tab) ?? tabs[0];
   const caps = health.capabilities;
 
   return (
@@ -201,17 +206,15 @@ export default function App() {
             </div>
             <div className="col-main">
               <FeedersPanel />
-              {w.state.loaded && (
-                <section className="card">
-                  <nav className="tabs" role="tablist">
-                    {TABS.map((t) => (
-                      <button key={t.id} role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'on' : ''}
-                        onClick={() => setTab(t.id)}>{t.label}</button>
-                    ))}
-                  </nav>
-                  {TABS.find((t) => t.id === tab)!.el}
-                </section>
-              )}
+              <section className="card">
+                <nav className="tabs" role="tablist">
+                  {tabs.map((t) => (
+                    <button key={t.id} role="tab" aria-selected={actual.id === t.id} className={actual.id === t.id ? 'on' : ''}
+                      onClick={() => setTab(t.id)}>{t.label}</button>
+                  ))}
+                </nav>
+                {actual.el}
+              </section>
             </div>
           </div>
         </main>

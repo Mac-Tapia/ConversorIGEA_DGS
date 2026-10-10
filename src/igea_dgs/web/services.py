@@ -1087,10 +1087,45 @@ def cargas_plantilla(ws: Workspace, tipo: str, fmt: str) -> Path:
     return escribir_plantilla(tipo, ws.out_dir / 'plantillas' / f'{nombre}.{fmt}')
 
 
+def base_del_ajuste(ajuste: dict, project: str) -> dict:
+    """La base de las cargas desde el resultado de un ajuste aplicado (spec 007, RF-1, RF-37).
+
+    ``ajuste`` es el ``result`` del trabajo ``ajuste_aplicar``. Cada alimentador ajustado
+    aporta su variación; el que falló o no se empezó queda fuera, con su motivo. La
+    demanda que el ajuste dejó en cada SED va en ``sed``, para decir qué SED calibradas
+    cambia el libro de demandas (RF-21).
+    """
+    if (ajuste.get('project') or '').strip() != project.strip():
+        raise UserError(f"El ajuste es de {ajuste.get('project')!r}, no de {project!r}: "
+                        'elija el mismo proyecto o quite la base.')
+    informes = ajuste.get('informes') or ([ajuste['informe']] if ajuste.get('informe') else [])
+    base = {'variaciones': [], 'feeders': [], 'ajustes': [], 'sed': {}, 'excluidos': []}
+    for inf in informes:
+        feeder = inf.get('feeder') or ''
+        if inf.get('no_empezado'):
+            base['excluidos'].append({'feeder': feeder, 'motivo': 'su ajuste no se empezó (cancelado)'})
+            continue
+        if inf.get('error') or not inf.get('variacion'):
+            base['excluidos'].append({'feeder': feeder, 'motivo': inf.get('error') or 'su ajuste no dejó variación'})
+            continue
+        base['variaciones'].append(inf['variacion'])
+        base['feeders'].append(feeder)
+        base['ajustes'].append({k: inf.get(k) for k in ('feeder', 'variacion', 'cuadrado', 'desvio',
+                                                        'cabecera', 'objetivo', 'motivo')})
+        for x in inf.get('sed') or []:
+            despues = x.get('despues') or {}
+            base['sed'][x['sed']] = {'kw': despues.get('kw'), 'kvar': despues.get('kvar'), 'feeder': feeder}
+    if not base['variaciones']:
+        raise UserError('Ningún alimentador del ajuste dejó variación: no hay base. Quite la base '
+                        'o vuelva a ajustar.')
+    return base
+
+
 def cargas_plan(
     ws: Workspace, project: str, feeders: list[str],
     demandas_file: Path | None, nuevas_file: Path | None,
     nueva: dict | None = None, economia: dict | None = None,
+    ajuste: dict | None = None,
 ) -> dict:
     """Valida los libros y guarda el plan para ``tools/cargas_pf.py`` (spec 004).
 
@@ -1106,6 +1141,7 @@ def cargas_plan(
 
     costos, tec = _economia_del_lote(economia)
     crs = ws.options.get('source_crs') or ''
+    base = base_del_ajuste(ajuste, project) if ajuste is not None else None
     try:
         demandas = leer_demandas(demandas_file) if demandas_file is not None else None
         nuevas = leer_nuevas(nuevas_file, source_crs=crs) if nuevas_file is not None else None
@@ -1113,7 +1149,9 @@ def cargas_plan(
             filas, errores = leer_hoja_nuevas(list(nueva), [list(nueva.values())], 'formulario',
                                               source_crs=crs)
             nuevas = nuevas or Lectura()
-            nuevas.filas += filas
+            # Spec 008, RF-24: primero la carga sola y después las del libro, el orden
+            # del trabajo; con la misma SED en los dos, se crea la del formulario.
+            nuevas.filas = filas + nuevas.filas
             nuevas.errores += errores
         if tec is not None and not (nuevas and nuevas.filas):
             raise UserError('La evaluación técnico-económica valora las cargas nuevas: '
@@ -1122,7 +1160,7 @@ def cargas_plan(
             project=project, feeders=feeders, demandas=demandas, nuevas=nuevas,
             costos=asdict(costos) if costos is not None else None,
             tec=None if tec is None else {'parametros': tec.to_dict(), 'comtececo': tec.a_comtececo()},
-            carpeta=carpeta_pf(),
+            carpeta=carpeta_pf(), base=base,
         )
     except LoadTemplateError as exc:
         raise UserError(str(exc)) from exc
@@ -1138,6 +1176,9 @@ def cargas_plan(
         'row_errors': plan['row_errors'], 'omitidas_por_el_operador': plan['omitidas_por_el_operador'],
         'sin_datos': plan['sin_datos'], 'applicable': plan['aplicable'],
         'tec': plan['tec']['parametros'] if plan['tec'] else None,
+        'base': plan['base'], 'avisos': plan['avisos'],
+        'calibradas_cambiadas': plan['calibradas_cambiadas'],
+        'variacion_demandas': plan['variacion_demandas'],
     }
     with ws.lock:
         ws.cargas_planes[token] = {'path': str(path), 'project': plan['project'],
@@ -1377,13 +1418,44 @@ def _kva_de_la_entrada(ws: Workspace, alimentador: str) -> tuple[dict[str, float
     return {sed.code: float(sed.design_kva) for sed in modelo.seds if sed.design_kva}, ''
 
 
+def _medidores_del_ajuste(maximas: list[dict], medidor: str, medidores: list[str] | None) -> list[dict]:
+    """Las filas de la máxima que se ajustan: una por alimentador (spec 008, RF-12, RF-13).
+
+    Con ``medidores``, esos, en su orden. Con ``medidor``, ese solo (spec 006). Sin
+    ninguno, todas las filas con medidor, si cada alimentador tiene una.
+    """
+    filas = [m for m in maximas if m.get('medidor')]
+    if not filas:
+        raise UserError('Busque antes la máxima de cabecera.')
+    pedidos = [m.strip() for m in (medidores or []) if m.strip()]
+    if not pedidos and medidor.strip():
+        pedidos = [medidor.strip()]
+    if pedidos:
+        por_medidor = {m['medidor']: m for m in filas}
+        faltan = [m for m in dict.fromkeys(pedidos) if m not in por_medidor]
+        if faltan:
+            raise UserError(f"{', '.join(faltan)} no está entre los medidores de la máxima buscada.")
+        filas = [por_medidor[m] for m in dict.fromkeys(pedidos)]
+    por_alim: dict[str, list[str]] = {}
+    for m in filas:
+        por_alim.setdefault(str(m.get('alimentador') or '').strip(), []).append(m['medidor'])
+    dobles = {a: ms for a, ms in por_alim.items() if len(ms) > 1}
+    if dobles:
+        # RF-13: con dos medidores para un alimentador no se sabe cuál es su cabecera.
+        a, ms = next(iter(dobles.items()))
+        quien = f'{a} tiene' if a else 'La máxima tiene'
+        raise UserError(f"{quien} {', '.join(ms)}: elija el medidor de la cabecera.")
+    return filas
+
+
 def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
-                tolerancia: float) -> dict:
+                tolerancia: float, medidores: list[str] | None = None) -> dict:
     """Plan para ``tools/ajuste_cabecera_pf.py`` (spec 006, RF-1 a RF-3, RF-10).
 
     ``maximas`` es el resultado del trabajo de la máxima de cabecera que el operador ve
     en su tabla: el objetivo es ese mismo valor (RF-1), sin volver a abrir los libros de
-    cabecera, que pesan cientos de MB.
+    cabecera, que pesan cientos de MB. Con varios alimentadores (spec 008, RF-12) hay un
+    plan por alimentador, el mismo JSON de la spec 006, y un solo token que los recorre.
     """
     import time as _time
 
@@ -1391,52 +1463,60 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
 
     if not project.strip():
         raise UserError('Elija el proyecto de DIgSILENT.')
-    filas = [m for m in maximas if m.get('medidor')]
-    if not filas:
-        raise UserError('Busque antes la máxima de cabecera.')
-    if medidor.strip():
-        filas = [m for m in filas if m['medidor'] == medidor.strip()]
-        if not filas:
-            raise UserError(f'{medidor} no está entre los medidores de la máxima buscada.')
-    elif len(filas) > 1:
-        raise UserError('La máxima tiene ' + ', '.join(m['medidor'] for m in filas)
-                        + ': elija el medidor de la cabecera.')
-    try:
-        objetivo = objetivo_de(filas[0])
-    except AjusteError as exc:
-        raise UserError(str(exc)) from exc
-    alimentador = objetivo.alimentador.strip()
-    if not alimentador:
-        raise UserError(f'{objetivo.medidor}: la máxima no dice de qué alimentador es.')
-    avisos = []
-    clientes: list[dict] = []
-    if ws.demanda.get('suministros') and ws.demanda.get('clientes'):
-        clientes = demanda_clientes(ws, [alimentador])['cruzados']
-    else:
-        avisos.append('Sin libros de suministros y de clientes: todas las SED se reparten por kVA.')
-    kva_entrada, aviso = _kva_de_la_entrada(ws, alimentador)
-    if aviso:
-        avisos.append(aviso)
+    filas = _medidores_del_ajuste(maximas, medidor, medidores)
+    varios = len(filas) > 1
     stamp = _time.strftime('%Y%m%d_%H%M%S')
-    plan = {
-        'schema': 'igea-dgs-ajuste-cabecera-v1', 'project': project.strip(),
-        'folder': carpeta_pf(), 'feeder': alimentador, 'stamp': stamp,
-        'variacion': f'Ajuste_{alimentador}_{stamp}',
-        'objetivo': {'kw': objetivo.kw, 'kvar': objetivo.kvar, 'medidor': objetivo.medidor,
-                     'alimentador': alimentador, 'fecha': objetivo.fecha},
-        'clientes': clientes, 'kva_entrada': kva_entrada, 'tolerancia': tolerancia,
-    }
-    token = uuid.uuid4().hex[:12]
     ws.plans_dir.mkdir(parents=True, exist_ok=True)
-    path = ws.plans_dir / f'ajuste_cabecera_{token}.json'
-    path.write_text(json.dumps(plan, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+    token = uuid.uuid4().hex[:12]
+    ajustes, avisos, paths = [], [], []
+    for fila in filas:
+        try:
+            objetivo = objetivo_de(fila)
+        except AjusteError as exc:
+            if not varios:
+                raise UserError(str(exc)) from exc
+            # RF-14: un medidor sin máxima no impide ajustar los demás alimentadores.
+            avisos.append(f"{fila.get('alimentador') or fila['medidor']}: no se ajusta. {exc}")
+            continue
+        alimentador = objetivo.alimentador.strip()
+        if not alimentador:
+            raise UserError(f'{objetivo.medidor}: la máxima no dice de qué alimentador es.')
+        pre = f'{alimentador}: ' if varios else ''
+        clientes: list[dict] = []
+        if ws.demanda.get('suministros') and ws.demanda.get('clientes'):
+            clientes = demanda_clientes(ws, [alimentador])['cruzados']
+        elif not paths:
+            avisos.append('Sin libros de suministros y de clientes: todas las SED se reparten por kVA.')
+        kva_entrada, aviso = _kva_de_la_entrada(ws, alimentador)
+        if aviso:
+            avisos.append(pre + aviso)
+        plan = {
+            'schema': 'igea-dgs-ajuste-cabecera-v1', 'project': project.strip(),
+            'folder': carpeta_pf(), 'feeder': alimentador, 'stamp': stamp,
+            'variacion': f'Ajuste_{alimentador}_{stamp}',
+            'objetivo': {'kw': objetivo.kw, 'kvar': objetivo.kvar, 'medidor': objetivo.medidor,
+                         'alimentador': alimentador, 'fecha': objetivo.fecha},
+            'clientes': clientes, 'kva_entrada': kva_entrada, 'tolerancia': tolerancia,
+        }
+        nombre = (f'ajuste_cabecera_{token}.json' if not varios
+                  else f'ajuste_cabecera_{token}_{len(paths) + 1}.json')
+        path = ws.plans_dir / nombre
+        path.write_text(json.dumps(plan, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+        paths.append(str(path))
+        ajustes.append({'feeder': alimentador, 'objetivo': plan['objetivo'],
+                        'n_clientes': len(clientes), 'n_kva_entrada': len(kva_entrada)})
+    if not ajustes:
+        raise UserError('Ningún alimentador tiene máxima: no hay objetivo. ' + ' '.join(avisos))
+    feeders = [a['feeder'] for a in ajustes]
     with ws.lock:
-        ws.cargas_planes[token] = {'path': str(path), 'project': plan['project'],
-                                   'feeders': [alimentador], 'applicable': True,
+        ws.cargas_planes[token] = {'path': paths[0], 'paths': paths, 'project': project.strip(),
+                                   'feeders': feeders, 'applicable': True,
                                    'kind': 'ajuste_cabecera'}
-    return {'token': token, 'project': plan['project'], 'feeder': alimentador,
-            'objetivo': plan['objetivo'], 'tolerancia': tolerancia,
-            'n_clientes': len(clientes), 'n_kva_entrada': len(kva_entrada), 'avisos': avisos}
+    primero = ajustes[0]
+    return {'token': token, 'project': project.strip(), 'feeder': primero['feeder'],
+            'objetivo': primero['objetivo'], 'tolerancia': tolerancia,
+            'n_clientes': primero['n_clientes'], 'n_kva_entrada': primero['n_kva_entrada'],
+            'feeders': feeders, 'ajustes': ajustes, 'avisos': avisos}
 
 
 def ajuste_ejecutar(ws: Workspace, ctx: JobContext, token: str, *, simular: bool) -> dict:
@@ -1444,25 +1524,93 @@ def ajuste_ejecutar(ws: Workspace, ctx: JobContext, token: str, *, simular: bool
 
     Como las cargas: cancelar no mata el guion, se le avisa con un fichero y termina el
     flujo en curso, dejando la variación con el último reparto que convergió (RF-22).
+    Con varios alimentadores (spec 008) se lanzan uno tras otro: el que falla queda en su
+    informe y se sigue con el siguiente (RF-14); cancelar no empieza otro (RF-15).
     """
     plan = ws.cargas_planes.get(token)
-    if plan is None or plan.get('kind') != 'ajuste_cabecera' or not Path(plan['path']).is_file():
+    if plan is None or plan.get('kind') != 'ajuste_cabecera':
+        raise UserError('El plan del ajuste ya no existe: vuelva a prepararlo.')
+    paths = plan.get('paths') or [plan['path']]
+    if not all(Path(p).is_file() for p in paths):
         raise UserError('El plan del ajuste ya no existe: vuelva a prepararlo.')
     pf_dir, interpreter = _require_pf()
     modo = 'simulacion' if simular else 'aplicacion'
-    report = ws.out_dir / f'ajuste_cabecera_{modo}_{token}.json'
-    report.parent.mkdir(parents=True, exist_ok=True)
-    report.unlink(missing_ok=True)
     flag = ws.plans_dir / f'cancelar_{token}.flag'
     flag.unlink(missing_ok=True)
-    ctx.log(f"Proyecto de DIgSILENT: {plan['project']}  ·  alimentador {plan['feeders'][0]}")
-    cmd = [str(interpreter), str(_script('ajuste_cabecera_pf.py')), '--plan', plan['path'],
-           '--output-json', str(report), '--cancel-file', str(flag)]
-    if simular:
-        cmd.append('--simular')
-    rc = ctx.run_process(cmd, env=pf_subprocess_env(pf_dir), cwd=str(project_root()),
-                         cancel_file=flag)
+    varios = len(paths) > 1
+    informes, reports, codigos = [], [], []
+    for n, (path, feeder) in enumerate(zip(paths, plan['feeders'])):
+        if ctx.cancel.is_set() or flag.exists():
+            resto = plan['feeders'][n:]
+            ctx.log(f"Cancelado: no se empezó {', '.join(resto)}.")
+            informes += [{'project': plan['project'], 'feeder': f, 'cancelado': True,
+                          'no_empezado': True, 'avisos': ['Cancelado antes de empezar.']}
+                         for f in resto]
+            break
+        if varios:
+            ctx.progress(n, len(paths), feeder)
+        sufijo = f'_{n + 1}' if varios else ''
+        report = ws.out_dir / f'ajuste_cabecera_{modo}_{token}{sufijo}.json'
+        report.parent.mkdir(parents=True, exist_ok=True)
+        report.unlink(missing_ok=True)
+        ctx.log(f"Proyecto de DIgSILENT: {plan['project']}  ·  alimentador {feeder}")
+        cmd = [str(interpreter), str(_script('ajuste_cabecera_pf.py')), '--plan', path,
+               '--output-json', str(report), '--cancel-file', str(flag)]
+        if simular:
+            cmd.append('--simular')
+        rc = ctx.run_process(cmd, env=pf_subprocess_env(pf_dir), cwd=str(project_root()),
+                             cancel_file=flag)
+        if rc == 3:
+            flag.unlink(missing_ok=True)
+            raise UserError('No se pudo conectar con DIgSILENT. Ábralo y reintente.')
+        try:
+            informe = json.loads(report.read_text(encoding='utf-8')) if report.is_file() else {}
+        except (OSError, ValueError):
+            informe = {}
+        if not informe:
+            informe = {'error': f'El guion terminó con el código {rc} sin dejar informe: vea el Registro.'}
+        informe.setdefault('feeder', feeder)
+        informe.setdefault('project', plan['project'])
+        if informe.get('error'):
+            ctx.log(f"{feeder}: {informe['error']}")
+        elif not simular and not informe.get('cuadrado'):
+            ctx.log(f"{feeder}: no cumple la tolerancia: {informe.get('motivo')}. Vea el diagnóstico.")
+        informes.append(informe)
+        reports.append(report.name)
+        codigos.append(rc)
     flag.unlink(missing_ok=True)
+    errores = [i for i in informes if i.get('error')]
+    if errores and len(errores) == len(informes):
+        raise UserError(' · '.join(f"{i['feeder']}: {i['error']}" if varios else i['error']
+                                   for i in errores))
+    hechos = [i for i in informes if not i.get('no_empezado')]
+    return {'returncode': max(codigos, default=0), 'modo': hechos[0].get('modo') if hechos else None,
+            'report': reports[0] if reports else '', 'reports': reports,
+            'project': plan['project'], 'feeders': plan['feeders'],
+            'informe': informes[0], 'informes': informes}
+
+
+def pf_verificar(ws: Workspace, ctx: JobContext, project: str, feeders: list[str]) -> dict:
+    """Convergencia del proyecto con lo que tenga activo (spec 008, RF-18, RF-19).
+
+    No escribe en el proyecto: el guion solo ejecuta el flujo de carga y lee la cabecera
+    de cada alimentador.
+    """
+    if not project.strip():
+        raise UserError('Elija el proyecto de DIgSILENT.')
+    pf_dir, interpreter = _require_pf()
+    token = uuid.uuid4().hex[:12]
+    ws.plans_dir.mkdir(parents=True, exist_ok=True)
+    path = ws.plans_dir / f'verificar_{token}.json'
+    feeders = list(dict.fromkeys(f.strip() for f in feeders if f.strip()))
+    path.write_text(json.dumps({'project': project.strip(), 'folder': carpeta_pf(),
+                                'feeders': feeders}, ensure_ascii=False), encoding='utf-8')
+    report = ws.out_dir / f'verificar_{token}.json'
+    report.parent.mkdir(parents=True, exist_ok=True)
+    ctx.log(f'Proyecto de DIgSILENT: {project.strip()}  ·  verificar la convergencia')
+    rc = ctx.run_process([str(interpreter), str(_script('verificar_pf.py')), '--plan', str(path),
+                          '--output-json', str(report)],
+                         env=pf_subprocess_env(pf_dir), cwd=str(project_root()))
     if rc == 3:
         raise UserError('No se pudo conectar con DIgSILENT. Ábralo y reintente.')
     try:
@@ -1473,10 +1621,8 @@ def ajuste_ejecutar(ws: Workspace, ctx: JobContext, token: str, *, simular: bool
         raise UserError(f'El guion terminó con el código {rc} sin dejar informe: vea el Registro.')
     if informe.get('error'):
         raise UserError(informe['error'])
-    if not simular and not informe.get('cuadrado'):
-        ctx.log(f"No cumple la tolerancia: {informe.get('motivo')}. Vea el diagnóstico.")
-    return {'returncode': rc, 'modo': informe.get('modo'), 'report': report.name,
-            'project': plan['project'], 'informe': informe}
+    return {'returncode': rc, 'report': report.name, 'project': project.strip(),
+            'informe': informe}
 
 
 # ---------------------------------------------------------------------------

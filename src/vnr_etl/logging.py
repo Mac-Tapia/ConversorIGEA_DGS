@@ -7,12 +7,10 @@ JSONL o recogerse en una lista (para las pruebas y la web).
 
 from __future__ import annotations
 
-import json
 import sys
 import time
 import uuid
 from dataclasses import asdict, dataclass
-from pathlib import Path
 from typing import TextIO
 
 
@@ -50,24 +48,6 @@ class StreamSink(EventSink):
             f'{event.object_type}:{event.source_id} {event.message}',
             file=self.stream,
         )
-
-
-class JsonlSink(EventSink):
-    def __init__(self, path: Path | str) -> None:
-        self.path = Path(path)
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-
-    def emit(self, event: LogEvent) -> None:
-        with self.path.open('a', encoding='utf-8') as fh:
-            fh.write(json.dumps(event.as_dict(), ensure_ascii=False) + '\n')
-
-
-class MemorySink(EventSink):
-    def __init__(self) -> None:
-        self.events: list[LogEvent] = []
-
-    def emit(self, event: LogEvent) -> None:
-        self.events.append(event)
 
 
 class Logger:
