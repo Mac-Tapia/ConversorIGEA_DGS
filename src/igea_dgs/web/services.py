@@ -699,9 +699,12 @@ def pandapower_preflight(
         ctx.check_cancel()
         ctx.progress(index - 1, len(members), f'pandapower: {feeder}')
         try:
+            # El mismo modelo que se convirtió: sin georreferenciación, la prueba de
+            # conexión no exige coordenadas, y un VNR-GIS sin CRS no se descarta aquí.
             model = build_feeder_model(
                 ws.dataset, feeder, aliases=aliases,
                 strict=bool(ws.options.get('strict', True)),
+                include_geography=bool(ws.options.get('include_geography', True)),
             )
             aplicar_reglas(model, reglas_de(ws), correcciones=corrections)
             report = validar(model)
@@ -945,6 +948,12 @@ def convert_group(
         dataset, selected, ws.out_dir, name=nombre,
         aliases=load_aliases(snapshot.path_for('aliases') or None),
         strict=bool(opts['strict']),
+        # Las mismas opciones que un lote suelto: antes la red unida solo recibía
+        # «strict» y salía siempre georreferenciada, sin Excel, sin TSV y sin mapa.
+        include_geography=bool(opts['include_geography']),
+        export_xlsx=bool(opts['export_xlsx']),
+        export_tsv=bool(opts['export_tsv']),
+        write_preview=bool(opts['write_preview']),
         source_crs=opts['source_crs'] or 'EPSG:32718',
         target_crs=opts['target_crs'] or 'EPSG:4326',
         catalog_corrections=ws.catalog_corrections() or None,
@@ -993,6 +1002,8 @@ def convert_group(
             'name', 'feeders', 'status', 'error', 'dgs', 'feeder_metadata',
             'hoja', 'ties', 'completitud', 'source_run_id', 'source_mode',
             'source_fingerprint', 'reconstruction')}
+        ws.groups[nombre]['preview_html'] = _rel(ws, man.get('preview_html'))
+        ws.groups[nombre]['xlsx'] = _rel(ws, man.get('xlsx'))
         ws.groups[nombre]['requested_feeders'] = list(requested_feeders or feeders)
         ws.groups[nombre]['converted_at'] = time.time() if man['status'] == 'ok' else None
         ws.save()

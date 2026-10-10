@@ -652,12 +652,20 @@ def convert_group(
     on_progress: ProgressCallback | None = None,
     cancel: threading.Event | None = None,
     include_geography: bool = True,
+    export_xlsx: bool = False,
+    export_tsv: bool = False,
+    write_preview: bool = False,
+    preview_backend: str = 'auto',
 ) -> dict:
     """Une los alimentadores elegidos en una sola red y escribe **un** DGS.
 
     ``include_geography=False`` escribe la red sin GPS, como ``convert_selection``: un
     modelo VNR-GIS sin CRS conocido no se puede reproyectar, y negarse a exportarlo
     dejaba al usuario sin red (spec 001, RF-20).
+
+    ``export_xlsx``, ``export_tsv`` y ``write_preview`` dejan junto al DGS unido lo mismo
+    que junto al de un alimentador suelto. Antes la red unida los ignoraba: la web los
+    mostraba activados y la salida no traía ni el Excel, ni las tablas, ni el mapa.
 
     Cada alimentador conserva su tensión y su fuente; los nodos que comparten quedan
     unidos por un interruptor normalmente abierto (:mod:`igea_dgs.combine`). Se aplican
@@ -669,6 +677,8 @@ def convert_group(
 
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+    if write_preview and not include_geography:
+        raise ValueError('write_preview=True requiere include_geography=True')
     if include_geography:
         assert_metre_source_crs(source_crs)
     informe_entrada = preparar_dataset(dataset, catalogo=catalogo)
@@ -721,6 +731,14 @@ def convert_group(
                                  stage / f'{nombre}_validation.txt')
         if geography is not None:
             write_geography_manifest(geography, stage / f'{nombre}_geography.json', model=combinado)
+        if write_preview:
+            write_preview_html(combinado, geography, stage / f'{nombre}_preview.html',
+                               backend=preview_backend)
+            write_preview_geojson(combinado, geography, stage / f'{nombre}_preview.geojson')
+        if export_xlsx:
+            write_dgs_xlsx(dgs_path, stage / f'{nombre}.xlsx')
+        if export_tsv:
+            write_dgs_tsv(dgs_path, stage / f'{nombre}_dgs_tables')
         completitud = auditar_completitud(dataset, networks, combinado, parse_dgs(dgs_path),
                                           informes.values())
         ok = report['errors_total'] == 0 and not completitud['fallos']
@@ -745,6 +763,13 @@ def convert_group(
                       'cuadricula_mm': man.diagram_grid_mm} if hoja is not None and hoja.formato else None),
             'warnings': list(combinado.warnings),
         })
+        if ok and write_preview:
+            manifest['preview_html'] = str(out_dir / f'{nombre}_preview.html')
+            manifest['preview_geojson'] = str(out_dir / f'{nombre}_preview.geojson')
+        if ok and export_xlsx:
+            manifest['xlsx'] = str(out_dir / f'{nombre}.xlsx')
+        if ok and export_tsv:
+            manifest['tsv_dir'] = str(out_dir / f'{nombre}_dgs_tables')
         if not ok:
             manifest['error'] = '; '.join(
                 report['schema_errors'] + report['structural_errors'] + report['connection_errors']

@@ -385,3 +385,109 @@ def test_el_lanzador_pasa_la_interfaz_de_escucha_a_la_api(monkeypatch):
     import os
     assert os.environ['IGEA_WEB_HOST'] == '0.0.0.0'
 
+
+
+# ------------------------------------------------------------ interruptores de conversión
+# Cada interruptor del panel «Opciones de conversión» deja su fichero en la salida, tanto
+# al convertir alimentadores sueltos como al unirlos. La red unida solo recibía «strict»:
+# salía siempre georreferenciada y sin Excel, sin TSV y sin mapa, con los interruptores
+# encendidos.
+_INTERRUPTORES = {
+    'write_preview': ('_preview.html', '_preview.geojson'),
+    'export_xlsx': ('.xlsx',),
+    'export_tsv': ('_dgs_tables/ElmLne.tsv',),
+}
+
+
+def _salidas(client, wid: str) -> set[str]:
+    return {o['path'] for o in client.get(f'/api/workspaces/{wid}/outputs').json()}
+
+
+def _convertir(client, wid: str, cuerpo: dict) -> dict:
+    state = esperar_trabajo(client, client.post(f'/api/workspaces/{wid}/convert', json=cuerpo).json(),
+                            timeout=120)
+    assert state['status'] == 'done', state
+    return state
+
+
+@pytest.mark.parametrize('unir', [False, True], ids=['suelto', 'red_unida'])
+@pytest.mark.parametrize('opcion', sorted(_INTERRUPTORES))
+def test_cada_interruptor_deja_su_fichero(client, export, opcion, unir):
+    wid = _loaded(client, export, geography=True)
+    nombres = [f['feeder'] for f in client.get(f'/api/workspaces/{wid}/feeders').json()['feeders']]
+    r = client.put(f'/api/workspaces/{wid}/options', json={opcion: True})
+    assert r.status_code == 200 and r.json()['options'][opcion] is True
+    if unir:
+        _convertir(client, wid, {'feeders': nombres[:2], 'unir': True, 'nombre': 'RED'})
+        base = 'RED'
+    else:
+        _convertir(client, wid, {'feeders': nombres[:1]})
+        base = nombres[0]
+    salidas = _salidas(client, wid)
+    assert f'{base}.dgs' in salidas
+    for sufijo in _INTERRUPTORES[opcion]:
+        assert f'{base}{sufijo}' in salidas, sorted(salidas)
+    # Y apagado no deja nada: el fichero sale del interruptor, no de un valor por defecto.
+    for otra, sufijos in _INTERRUPTORES.items():
+        if otra != opcion:
+            assert not any(f'{base}{s}' in salidas for s in sufijos), (otra, sorted(salidas))
+
+
+def test_la_red_unida_trae_su_mapa_para_la_pestana_de_resultados(client, export):
+    wid = _loaded(client, export, geography=True)
+    nombres = [f['feeder'] for f in client.get(f'/api/workspaces/{wid}/feeders').json()['feeders']]
+    client.put(f'/api/workspaces/{wid}/options', json={'write_preview': True, 'export_xlsx': True})
+    _convertir(client, wid, {'feeders': nombres[:2], 'unir': True, 'nombre': 'RED'})
+    grupo = next(g for g in client.get(f'/api/workspaces/{wid}').json()['groups'] if g['name'] == 'RED')
+    assert grupo['preview_html'] == 'RED_preview.html'
+    assert grupo['xlsx'] == 'RED.xlsx'
+
+
+@pytest.mark.parametrize('unir', [False, True], ids=['suelto', 'red_unida'])
+def test_sin_georreferenciacion_no_hay_gps_ni_diagrama(client, export, unir):
+    nombres_dgs = {}
+    for geo in (True, False):
+        wid = _loaded(client, export, geography=geo)
+        nombres = [f['feeder'] for f in client.get(f'/api/workspaces/{wid}/feeders').json()['feeders']]
+        if unir:
+            _convertir(client, wid, {'feeders': nombres[:2], 'unir': True, 'nombre': 'RED'})
+            base = 'RED'
+        else:
+            _convertir(client, wid, {'feeders': nombres[:1]})
+            base = nombres[0]
+        assert (f'{base}_geography.json' in _salidas(client, wid)) is geo
+        nombres_dgs[geo] = client.get(f'/api/workspaces/{wid}/files/{base}.dgs',
+                                      params={'download': 1}).content.decode('utf-8', 'replace')
+    assert 'IntGrf' in nombres_dgs[True]
+    assert 'IntGrf' not in nombres_dgs[False]
+
+
+@pytest.mark.parametrize('unir', [False, True], ids=['suelto', 'red_unida'])
+def test_el_modo_estricto_llega_al_motor(client, export, monkeypatch, unir):
+    from igea_dgs import batch
+
+    vistos = []
+    original = batch.build_feeder_model
+
+    def espia(*args, **kwargs):
+        vistos.append(kwargs.get('strict'))
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(batch, 'build_feeder_model', espia)
+    wid = _loaded(client, export)
+    nombres = [f['feeder'] for f in client.get(f'/api/workspaces/{wid}/feeders').json()['feeders']]
+    client.put(f'/api/workspaces/{wid}/options', json={'strict': False, 'workers': 1})
+    cuerpo = ({'feeders': nombres[:2], 'unir': True, 'nombre': 'RED'} if unir
+              else {'feeders': nombres[:1]})
+    _convertir(client, wid, cuerpo)
+    assert vistos and all(v is False for v in vistos), vistos
+
+
+def test_vista_previa_sin_georreferenciacion_se_rechaza_tambien_al_unir(client, export):
+    wid = _loaded(client, export)
+    nombres = [f['feeder'] for f in client.get(f'/api/workspaces/{wid}/feeders').json()['feeders']]
+    client.put(f'/api/workspaces/{wid}/options', json={'write_preview': True})
+    r = client.post(f'/api/workspaces/{wid}/convert',
+                    json={'feeders': nombres[:2], 'unir': True, 'nombre': 'RED'})
+    assert r.status_code == 400, r.text
+    assert 'georreferenciación' in r.json()['detail']

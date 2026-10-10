@@ -325,8 +325,11 @@ def main(argv=None) -> int:
             grupo = convert_group(
                 dataset, selectors, args.out_dir, name=args.unir, aliases=aliases,
                 strict=not args.non_strict, schema_profile=args.schema_profile,
+                include_geography=not args.no_geography,
                 source_crs=args.source_crs, target_crs=args.target_crs,
                 catalog_corrections=correcciones_catalogo, reglas=reglas, catalogo=catalogo,
+                export_xlsx=args.export_xlsx, export_tsv=args.export_tsv,
+                write_preview=args.preview, preview_backend=args.preview_backend,
                 on_progress=_progress,
             )
             comp = grupo.get('completitud') or {}
