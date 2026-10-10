@@ -509,20 +509,28 @@ def persist_feeder_dgs(
 
 
 def _find_dgs_export_definitions(app: Any) -> Any | None:
-    """Locate user IntFolder whose name contains 'DGS' and 'Definition' (ApiExample)."""
+    """Locate user IntFolder whose name contains 'DGS' and 'Definition' (ApiExample).
+
+    Solo el primer nivel del usuario, que es donde ApiExample deja esa carpeta. La
+    búsqueda recursiva recorría todos los proyectos importados con sus carpetas: con la
+    base de PowerFactory llena, la importación de AL107 (3 tramos) sin georreferenciación
+    pasaba de 8 minutos aquí, después de que el flujo ya hubiera convergido.
+    """
     try:
         user = app.GetCurrentUser()
     except Exception:
         return None
     if user is None:
         return None
-    folders = _contents(user, '*.IntFolder')
-    if not folders:
-        # Shallow children only
+    try:
+        folders = list(user.GetContents('*.IntFolder', 0) or [])
+    except TypeError:
         try:
             folders = list(user.GetContents('*.IntFolder') or [])
         except Exception:
             folders = []
+    except Exception:
+        folders = []
     for folder in folders:
         name = _name(folder)
         if 'DGS' in name.upper() and 'DEFINITION' in name.upper():
@@ -1833,6 +1841,41 @@ def _one_terminal_cubicle(obj: Any):
     return None
 
 
+def _full_name(obj: Any) -> str:
+    try:
+        return str(obj.GetFullName())
+    except Exception:
+        return ''
+
+
+def _feeders_of(net: Any) -> list[Any]:
+    """Los ElmFeeder de la grid ``net``.
+
+    PowerFactory guarda los ElmFeeder del DGS en la carpeta «Feeders» de los datos de
+    red, no dentro de la grid: contarlos dentro de ``net`` daba 0 en todos los
+    alimentadores (red unida NA203_NA205: 0 contados, 2 en el proyecto). Se buscan en la
+    carpeta de datos de red y se quedan los que arrancan en un cubículo de esta grid.
+    """
+    propios = list(_contents(net, '*.ElmFeeder'))
+    try:
+        datos = net.GetParent()
+    except Exception:
+        datos = None
+    raiz = _full_name(net)
+    if datos is None or not raiz:
+        return propios
+    vistos = {_full_name(f) for f in propios}
+    for feeder in _contents(datos, '*.ElmFeeder'):
+        nombre = _full_name(feeder)
+        if nombre in vistos:
+            continue
+        cub = _attr(feeder, 'obj_id')
+        if cub is not None and _full_name(cub).startswith(raiz + '\\'):
+            propios.append(feeder)
+            vistos.add(nombre)
+    return propios
+
+
 def inventory_network(net: Any) -> dict[str, int]:
     """Count DigSilent elements relevant to IGEA→DGS acceptance."""
     all_terms = _contents(net, '*.ElmTerm')
@@ -1864,7 +1907,7 @@ def inventory_network(net: Any) -> dict[str, int]:
         'substations_sed': len(_contents(net, '*.ElmSubstat')),
         'capacitors': len(_contents(net, '*.ElmShnt')),
         'regulators': len(_contents(net, '*.ElmVoltreg')),
-        'feeders': len(_contents(net, '*.ElmFeeder')),
+        'feeders': len(_feeders_of(net)),
         'couplers': len(_contents(net, '*.ElmCoup')),
     }
 

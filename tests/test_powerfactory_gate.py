@@ -494,3 +494,74 @@ def test_powerfactory_help_mentions_persist_flags():
     assert '--persist-dir' in proc.stdout
     assert '--no-persist-dgs' in proc.stdout
     assert '--no-export-converged-dgs' in proc.stdout
+
+
+class _ObjPF:
+    """Objeto de PowerFactory mínimo: nombre completo, padre, hijos y atributos."""
+
+    def __init__(self, nombre, padre=None, clase='', **attrs):
+        self.padre, self.clase, self.hijos = padre, clase, []
+        self.attrs = {'loc_name': nombre, **attrs}
+        self.nombre = f'{padre.nombre}\\{nombre}' if padre else nombre
+        if padre is not None:
+            padre.hijos.append(self)
+
+    def GetFullName(self):
+        return self.nombre
+
+    def GetParent(self):
+        return self.padre
+
+    def GetAttribute(self, name):
+        return self.attrs.get(name)
+
+    def GetContents(self, pattern, recursive=0):
+        clase = pattern.split('.')[-1]
+        out = []
+        for h in self.hijos:
+            if h.clase == clase:
+                out.append(h)
+            if recursive:
+                out.extend(h.GetContents(pattern, 1))
+        return out
+
+
+def test_los_alimentadores_se_cuentan_en_la_carpeta_feeders_de_la_grid():
+    """PF guarda los ElmFeeder en «Feeders», fuera de la grid: antes contaba 0 siempre.
+
+    Visto en la red unida NA203_NA205 importada: 2 ElmFeeder en el proyecto, 0 contados.
+    Los de otra grid del mismo proyecto no cuentan.
+    """
+    mod = _load_pf_mod()
+    datos = _ObjPF('Network Data')
+    red = _ObjPF('NA203_NA205', datos, 'ElmNet')
+    otra = _ObjPF('OTRA', datos, 'ElmNet')
+    feeders = _ObjPF('Feeders', datos, 'IntFeeder')
+    for nombre, grid in (('NA203', red), ('NA205', red), ('X', otra)):
+        barra = _ObjPF(f'B_{nombre}', grid, 'ElmTerm')
+        cub = _ObjPF(f'Cub_{nombre}', barra, 'StaCubic')
+        _ObjPF(nombre, feeders, 'ElmFeeder', obj_id=cub)
+    assert mod.inventory_network(red)['feeders'] == 2
+    assert mod.inventory_network(otra)['feeders'] == 1
+
+
+def test_las_definiciones_dgs_se_buscan_solo_en_el_primer_nivel_del_usuario():
+    """La búsqueda recursiva recorría todos los proyectos del usuario de PowerFactory.
+
+    Con la base llena, AL107 sin georreferenciación (3 tramos) no terminaba en 8 minutos
+    tras converger; con la búsqueda en el primer nivel, 37 s.
+    """
+    mod = _load_pf_mod()
+
+    class _Usuario(_ObjPF):
+        def GetContents(self, pattern, recursive=0):
+            assert not recursive, 'no se recorre la base entera del usuario'
+            return super().GetContents(pattern, 0)
+
+    usuario = _Usuario('Usuario')
+    proyecto = _ObjPF('Proyecto', usuario, 'IntPrj')
+    _ObjPF('DGS Definition', proyecto, 'IntFolder')
+    app = SimpleNamespace(GetCurrentUser=lambda: usuario)
+    assert mod._find_dgs_export_definitions(app) is None
+    propia = _ObjPF('DGS Export Definition', usuario, 'IntFolder')
+    assert mod._find_dgs_export_definitions(app) is propia
