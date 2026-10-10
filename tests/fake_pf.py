@@ -18,6 +18,13 @@ Para la spec 005 imita además las carpetas del usuario (``IntFolder``), ``Move`
 ``Delete``, la activación de proyectos y ``ComImport``, que crea el proyecto en la raíz
 del usuario como DIgSILENT. ``App.fallar_mover`` hace que ``Move`` devuelva error, el caso
 que RF-9 no puede dejar con el proyecto en la raíz.
+
+Para la spec 007 (una variación por carga nueva), las variaciones se activan y se
+desactivan, y lo que se creó con la etapa de una variación inactiva sale de la red: no
+aparece en ``GetContents``, ``GetObjs`` ni ``GetCalcRelevantObjects``, como en
+DIgSILENT. El alimentador encuentra lo nuevo por conexión desde sus barras (cubículos),
+porque en DIgSILENT pertenecer a un alimentador es topológico: así el flujo de la
+cabecera ve la carga nueva solo mientras su variación está activa.
 """
 from __future__ import annotations
 
@@ -58,10 +65,20 @@ class Obj:
         self._app.creados.append(hijo)
         return hijo
 
+    @property
+    def en_red(self) -> bool:
+        """Elementos de red creados en una variación inactiva no existen (spec 007)."""
+        etapa = self.etapa_creacion
+        if etapa is None or not self._clase.startswith(('Elm', 'Sta')):
+            return True
+        return etapa._padre in self._app.variaciones_activas
+
     def GetContents(self, patron='*', recursivo=0):
         clase = patron.split('.', 1)[1] if '.' in patron else None
         out = []
         for h in self._hijos:
+            if not h.en_red:
+                continue
             if clase is None or h._clase == clase:
                 out.append(h)
             if recursivo:
@@ -206,8 +223,21 @@ class Variacion(Obj):
     def NewStage(self, nombre, _instante, activar):
         etapa = self.CreateObject('IntSstage', nombre)
         if activar:
-            self._app.variaciones_activas.append(self)
+            self.Activate()
             self._app.grabando = etapa
+        return 0
+
+    def Activate(self, *_a):
+        if self not in self._app.variaciones_activas:
+            self._app.variaciones_activas.append(self)
+        return 0
+
+    def Deactivate(self, *_a):
+        app = self._app
+        if self in app.variaciones_activas:
+            app.variaciones_activas.remove(self)
+        if app.grabando is not None and app.grabando._padre is self:
+            app.grabando = None
         return 0
 
 
@@ -217,7 +247,36 @@ class Alimentador(Obj):
         object.__setattr__(self, '_objs', [])
 
     def GetObjs(self, clase):
-        return [o for o in self._objs if o._clase == clase]
+        return [o for o in self._objs + self._nuevos() if o._clase == clase and o.en_red]
+
+    def _nuevos(self) -> list:
+        """Lo creado después de montar la red y conectado a sus barras por cubículos."""
+        app = self._app
+        nuevos = [o for o in app.creados if o.etapa_creacion is not None and o.en_red]
+        if not nuevos:
+            return []
+        cubiculos: dict[int, list] = {}
+        for c in (o for o in app.creados if o._clase == 'StaCubic' and o.en_red):
+            if getattr(c, 'obj_id', None) is not None:
+                cubiculos.setdefault(id(c.obj_id), []).append(c)
+        vistos = {id(o) for o in self._objs}
+        pendientes = [o for o in self._objs if o._clase == 'ElmTerm']
+        out = []
+        while pendientes:
+            barra = pendientes.pop()
+            for cub in barra.GetContents('*.StaCubic'):
+                elem = getattr(cub, 'obj_id', None)
+                if elem is None or id(elem) in vistos or elem.etapa_creacion is None:
+                    continue
+                vistos.add(id(elem))
+                out.append(elem)
+                for otro in cubiculos.get(id(elem), []):
+                    term = otro._padre
+                    if id(term) not in vistos:
+                        vistos.add(id(term))
+                        out.append(term)
+                        pendientes.append(term)
+        return out
 
 
 class Escenario(Obj):
@@ -336,6 +395,10 @@ class App:
 
     def GetCalcRelevantObjects(self, patron):
         return self.proyecto.GetContents(patron, 1) if self.proyecto else []
+
+    # ----------------------------------------------------------- spec 007
+    def GetActiveNetworkVariations(self):
+        return list(self.variaciones_activas)
 
     # ----------------------------------------------------------- spec 005
     def DefineTransferAttributes(self, clase, atributos):
