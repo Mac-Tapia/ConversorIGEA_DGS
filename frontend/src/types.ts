@@ -110,6 +110,8 @@ export interface GroupDgs {
   dgs: string | null;
   feeder_metadata?: string | null;
   converted_at?: number | null;
+  preview_html?: string | null;
+  xlsx?: string | null;
   hoja: { formato: string; orientacion: string; escala_1_a: number; cuadricula_mm: number } | null;
   ties: number | null;
   completitud: { fallos: string[] } | null;

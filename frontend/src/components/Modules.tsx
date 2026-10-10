@@ -33,7 +33,15 @@ export function ResultsTab() {
     });
   }, [outputs, selected, filter]);
 
-  const previews = feeders.filter((r) => r.conversion?.preview_html && (!selected.length || selected.includes(r.feeder)));
+  // Mapas de los alimentadores sueltos y de las redes unidas: las dos salidas traen el suyo.
+  const previews = [
+    ...feeders
+      .filter((r) => r.conversion?.preview_html && (!selected.length || selected.includes(r.feeder)))
+      .map((r) => ({ name: r.feeder, html: r.conversion!.preview_html! })),
+    ...(ws.groups ?? [])
+      .filter((g) => g.preview_html && (!selected.length || g.feeders.some((f) => selected.includes(f))))
+      .map((g) => ({ name: g.name, html: g.preview_html! })),
+  ];
 
   return (
     <div className="module">
@@ -46,10 +54,10 @@ export function ResultsTab() {
       {previews.length > 0 && (
         <div className="chips">
           <span className="muted">Mapas:</span>
-          {previews.map((r) => (
-            <button key={r.feeder} className={`chip ${preview === r.conversion!.preview_html ? 'on' : ''}`}
-              onClick={() => setPreview(preview === r.conversion!.preview_html ? null : r.conversion!.preview_html)}>
-              {r.feeder}
+          {previews.map((p) => (
+            <button key={p.html} className={`chip ${preview === p.html ? 'on' : ''}`}
+              onClick={() => setPreview(preview === p.html ? null : p.html)}>
+              {p.name}
             </button>
           ))}
         </div>
