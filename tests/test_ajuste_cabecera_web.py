@@ -35,6 +35,14 @@ informe = {'modo': 'simular' if a.simular else 'aplicar', 'cuadrado': not a.simu
            'recibido': plan}
 if plan['project'] == 'SIN_KVA':
     informe = {'error': '1 SED sin potencia instalada: S9. Corríjalas antes de ajustar.'}
+if plan['project'] == 'FALLA_A1' and plan['feeder'] == 'A1':
+    informe = {'error': 'A1 no tiene ElmFeeder con cabecera en el proyecto.'}
+if plan['project'] == 'ESPERAR_CANCELACION':
+    import time
+    limite = time.time() + 20
+    while not Path(a.cancel_file).exists() and time.time() < limite:
+        time.sleep(0.05)
+    informe['cancelado'] = True
 Path(a.output_json).write_text(json.dumps(informe), encoding='utf-8')
 '''
 
@@ -202,6 +210,99 @@ def test_ajuste_en_la_seccion_de_demanda_medida():
     cargas = (src / 'CargasTab.tsx').read_text(encoding='utf-8')
     demanda = (src / 'DemandaMedida.tsx').read_text(encoding='utf-8')
     ajuste = (src / 'AjusteCabecera.tsx').read_text(encoding='utf-8')
-    assert '<DemandaMedida project={project} />' in cargas
-    assert '<AjusteCabecera project={project} maxima={ultimo} />' in demanda
+    # Spec 008, RF-7: con los alimentadores marcados en el paso 2.
+    assert '<DemandaMedida project={project} feeders={order} />' in cargas
+    assert '<AjusteCabecera project={project} maxima={ultimo} feeders={feeders} />' in demanda
     assert 'api.ajustePlan' in ajuste and 'job_id: maxima.id' in ajuste
+
+
+# ----------------------------------------------------------------- spec 008
+# Dos alimentadores, cada uno con su medidor de cabecera con kW y kVAR.
+CABECERA_DOS = {
+    'M1': CABECERA['M1'],
+    'M3': [['Local Time', 'kVAR tot', 'kW tot']] + [[r[0], 20.0, 200.0 + i] for i, r in enumerate(CABECERA['M1'][1:])],
+}
+
+
+def _maxima_dos(client, medidores=(('A1', 'M1'), ('A2', 'M3'))):
+    wid = client.post('/api/workspaces').json()['id']
+    r = client.post(f'/api/workspaces/{wid}/demanda/cabecera',
+                    files=[('files', ('SISTEMA B.xlsx', _xlsx(CABECERA_DOS)))])
+    assert r.status_code == 200, r.text
+    job = client.post(f'/api/workspaces/{wid}/demanda/cabecera/buscar', json={'medidores': [
+        {'alimentador': a, 'medidor': m} for a, m in medidores]}).json()
+    assert esperar_trabajo(client, job)['status'] == 'done'
+    return wid, job['id']
+
+
+def test_varios_alimentadores_en_un_trabajo(client):
+    """008:RF-10 / 008:RF-12 / 008:RF-16 — un plan por alimentador, ajustados uno tras otro en
+    un solo trabajo, cada uno en su variación, con un informe por alimentador."""
+    wid, job = _maxima_dos(client)
+    r = _plan(client, wid, job)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body['feeders'] == ['A1', 'A2']
+    assert [a['objetivo']['medidor'] for a in body['ajustes']] == ['M1', 'M3']
+    trabajo = client.post(f"/api/workspaces/{wid}/demanda/ajuste/{body['token']}/aplicar").json()
+    assert trabajo['title'].startswith('Ajustar 2 alim.')
+    estado = esperar_trabajo(client, trabajo)
+    assert estado['status'] == 'done', estado
+    informes = estado['result']['informes']
+    assert [i['recibido']['feeder'] for i in informes] == ['A1', 'A2']
+    variaciones = [i['recibido']['variacion'] for i in informes]
+    assert variaciones[0].startswith('Ajuste_A1_') and variaciones[1].startswith('Ajuste_A2_')
+    assert len(estado['result']['reports']) == 2
+
+
+def test_orden_y_eleccion_de_los_medidores(client):
+    """008:RF-12 / 008:RF-13 — ``medidores`` fija cuáles y en qué orden; dos medidores de un
+    mismo alimentador piden elegir."""
+    wid, job = _maxima_dos(client)
+    body = _plan(client, wid, job, medidores=['M3', 'M1']).json()
+    assert body['feeders'] == ['A2', 'A1']
+    assert _plan(client, wid, job, medidores=['M3']).json()['feeders'] == ['A2']
+    assert _plan(client, wid, job, medidores=['M9']).status_code == 400
+    wid, job = _maxima_dos(client, (('A1', 'M1'), ('A1', 'M3')))
+    r = _plan(client, wid, job)
+    assert r.status_code == 400 and 'A1 tiene M1, M3' in r.json()['detail']
+    assert _plan(client, wid, job, medidores=['M3']).json()['feeders'] == ['A1']
+
+
+def test_un_medidor_sin_maxima_no_para_los_demas(client):
+    """008:RF-14 — con varios alimentadores, el que no tiene objetivo se avisa y se ajustan los demás."""
+    wid, job = _maxima_dos(client, (('A1', 'M1'), ('A2', 'NO')))
+    body = _plan(client, wid, job).json()
+    assert body['feeders'] == ['A1']
+    assert any(a.startswith('A2: no se ajusta') for a in body['avisos'])
+
+
+def test_un_ajuste_que_falla_no_para_el_siguiente(client):
+    """008:RF-14 — el error de un alimentador queda en su informe y el siguiente se ajusta."""
+    wid, job = _maxima_dos(client)
+    token = _plan(client, wid, job, project='FALLA_A1').json()['token']
+    estado = esperar_trabajo(client, client.post(
+        f'/api/workspaces/{wid}/demanda/ajuste/{token}/aplicar').json())
+    assert estado['status'] == 'done', estado
+    a1, a2 = estado['result']['informes']
+    assert 'ElmFeeder' in a1['error'] and a1['feeder'] == 'A1'
+    assert 'error' not in a2 and a2['recibido']['feeder'] == 'A2'
+
+
+def test_cancelar_no_empieza_otro_alimentador(client):
+    """008:RF-15 — cancelar termina el alimentador en curso y no empieza el siguiente."""
+    import time
+
+    wid, job = _maxima_dos(client)
+    token = _plan(client, wid, job, project='ESPERAR_CANCELACION').json()['token']
+    trabajo = client.post(f'/api/workspaces/{wid}/demanda/ajuste/{token}/aplicar').json()
+    limite = time.time() + 20
+    while time.time() < limite and client.get(f"/api/jobs/{trabajo['id']}").json()['status'] != 'running':
+        time.sleep(0.05)
+    time.sleep(0.5)
+    client.post(f"/api/jobs/{trabajo['id']}/cancel")
+    estado = esperar_trabajo(client, trabajo)
+    assert estado['status'] == 'cancelled'
+    a1, a2 = estado['result']['informes']
+    assert a1['cancelado'] and 'recibido' in a1, 'A1 terminó con su informe'
+    assert a2['no_empezado'] and a2['feeder'] == 'A2'

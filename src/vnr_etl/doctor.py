@@ -10,7 +10,6 @@ from __future__ import annotations
 import importlib.util
 import platform
 import shutil
-import sys
 from dataclasses import dataclass, field
 
 #: Mapa de dependencia Python → adaptador que desbloquea.
@@ -87,16 +86,7 @@ ADAPTER_REQUIREMENTS: dict[str, list[str]] = {
 
 
 def _native_status() -> dict[str, bool]:
-    return {
-        'poppler': shutil.which('pdftoppm') is not None,
-        'python': sys.executable,
-    } if False else {
-        'poppler': shutil.which('pdftoppm') is not None,
-    }
-
-
-def run_doctor() -> DoctorResult:
-    return doctor()
+    return {'poppler': shutil.which('pdftoppm') is not None}
 
 
 def doctor() -> DoctorResult:

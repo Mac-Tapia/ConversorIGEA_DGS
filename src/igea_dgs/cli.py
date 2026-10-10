@@ -1,3 +1,8 @@
+"""Interfaz de línea de comandos ``igea-dgs``: ``list``, ``convert`` y ``web``.
+
+Lee la entrada con los mismos adaptadores que la web (spec 001, RF-1).
+"""
+
 from __future__ import annotations
 
 import argparse

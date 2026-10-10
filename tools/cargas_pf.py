@@ -34,6 +34,7 @@ import argparse
 import json
 import math
 import re
+import traceback
 from collections import Counter
 from pathlib import Path
 
@@ -138,6 +139,63 @@ class Alimentadores:
                 objs = list(self.app.GetCalcRelevantObjects(f'*.{clase}'))
             self._cache[clave] = objs
         return self._cache[clave]
+
+
+# =========================================================================== medidas
+# De ``ajuste_cabecera_pf.py`` (spec 006): la spec 007 mide la cabecera con y sin cada
+# carga nueva, y el ajuste ya importa de aquí; al revés sería una importación circular.
+def _num(obj, attr) -> float | None:
+    try:
+        v = float(obj.GetAttribute(attr))
+    except Exception:  # noqa: BLE001 - atributo sin resultados o que no existe
+        try:
+            v = float(getattr(obj, attr))
+        except Exception:  # noqa: BLE001
+            return None
+    return v if math.isfinite(v) else None
+
+
+def potencia(obj) -> tuple[float, float]:
+    """kW y kVAR que tiene escritos la carga, también si es desequilibrada."""
+    if int(getattr(obj, 'i_sym', 0) or 0) == 1:
+        p = sum(float(getattr(obj, f'plini{f}', 0.0) or 0.0) for f in 'rst')
+        q = sum(float(getattr(obj, f'qlini{f}', 0.0) or 0.0) for f in 'rst')
+    else:
+        p, q = float(obj.plini or 0.0), float(obj.qlini or 0.0)
+    return p * 1000.0, q * 1000.0
+
+
+def medir_cabecera(app, elm):
+    """Ejecuta el flujo y devuelve lo que entra por la cabecera del alimentador.
+
+    La cabecera es la rama del cubículo ``obj_id`` del ``ElmFeeder``, en el lado de ese
+    cubículo. ``m:Psum:busN`` es lo que sale de la barra hacia la rama: si el alimentador
+    está orientado hacia la barra (``iorient`` = 1), lo que entra en él es lo contrario.
+    """
+    from igea_dgs.ajuste_cabecera import Medida
+
+    ldf = app.GetFromStudyCase('ComLdf')
+    rc = ldf.Execute()
+    if rc != 0 or not app.IsLdfValid():
+        return Medida(False, motivo=f'el flujo de carga no converge (código {rc})')
+    return leer_cabecera(elm)
+
+
+def leer_cabecera(elm):
+    """Lo que entra por la cabecera según el último flujo, sin volver a ejecutarlo.
+
+    La verificación de la spec 008 mide varios alimentadores con un solo flujo.
+    """
+    from igea_dgs.ajuste_cabecera import Medida
+
+    cub = elm.obj_id
+    rama = cub.obj_id
+    lado = int(getattr(cub, 'obj_bus', 0) or 0) + 1
+    p, q = _num(rama, f'm:Psum:bus{lado}'), _num(rama, f'm:Qsum:bus{lado}')
+    if p is None or q is None:
+        return Medida(False, motivo=f'sin resultados en la cabecera ({rama.loc_name})')
+    signo = -1.0 if int(getattr(elm, 'iorient', 0) or 0) == 1 else 1.0
+    return Medida(True, signo * p * 1000.0, signo * q * 1000.0)
 
 
 # =========================================================================== demandas
@@ -271,24 +329,35 @@ def _tension_bt(alims: Alimentadores, feeder: str) -> float | None:
 
 
 def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict]):
-    """Cada carga nueva → cómo se conecta, o el motivo para no crearla. Solo lectura."""
+    """Cada carga nueva → cómo se conecta, o el motivo para no crearla. Solo lectura.
+
+    Devuelve (resueltas por alimentador, no creadas, avisos). Solo se buscan barras en
+    los alimentadores marcados (spec 007, RF-25): las cargas del libro vienen aprobadas
+    para ellos, y una fila que dice otro alimentador se conecta igual y se anota (RF-29).
+    Con varios marcados, el de su columna si está entre ellos o, si no, el de la barra
+    más cercana (RF-36).
+    """
     tipos = {t.loc_name: t for t in proyecto.GetContents('*.TypLne', 1)}
     existentes = {o.loc_name for f in alims.elegidos for clase in ('ElmLod', 'ElmSubstat')
                   for o in alims.objetos(f, clase)}
     barras = {f: alims.objetos(f, 'ElmTerm') for f in alims.elegidos}
     resueltas = {f: [] for f in alims.elegidos}
-    no_creadas = []
+    no_creadas, avisos = [], []
+    # RF-28: un alimentador sin barras con GPS se dice una vez, no carga por carga.
+    sin_gps = {f for f in alims.elegidos if not any(gps_de(b) for b in barras[f])}
+    avisados = set()
     for fila in nuevas:
         sed = fila['sed']
         if sed in existentes:
             no_creadas.append({'sed': sed, 'motivo': 'ya existe en el alimentador (RF-15)'})
             continue
         candidatos = list(alims.elegidos)
+        otro = ''
         if fila.get('alimentador'):
-            if fila['alimentador'] not in candidatos:
-                no_creadas.append({'sed': sed, 'motivo': f"el alimentador {fila['alimentador']} no está elegido"})
-                continue
-            candidatos = [fila['alimentador']]
+            if fila['alimentador'] in candidatos:
+                candidatos = [fila['alimentador']]
+            else:
+                otro = fila['alimentador']
         punto = (fila['lat'], fila['lon']) if fila.get('lat') is not None else None
         eleccion = None
         if fila.get('barra'):
@@ -316,6 +385,11 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict]):
                     if mejor is None or (d, f, b.loc_name) < (mejor[2], mejor[0], mejor[1].loc_name):
                         mejor = (f, b, d)
             if mejor is None:
+                nuevos = sorted(set(candidatos) & sin_gps - avisados)
+                if nuevos:
+                    avisos.append(f"Ninguna barra de {', '.join(nuevos)} tiene coordenadas en DIgSILENT: "
+                                  'no se conecta por coordenadas ninguna carga suya (RF-28).')
+                    avisados.update(nuevos)
                 no_creadas.append({'sed': sed, 'motivo': 'ninguna barra de los alimentadores tiene GPS'})
                 continue
             eleccion = (*mejor, 'barra más cercana por GPS')
@@ -341,13 +415,15 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict]):
         red = _red_de(barra)
         resueltas[feeder].append({
             'fila': fila, 'barra': barra, 'distancia_m': dist, 'criterio': criterio,
+            'nota': (f'el libro la da en {otro}, que no está marcado: se conecta a {feeder} (RF-29)'
+                     if otro else None),
             'tipo': tipo, 'origen_tipo': origen_tipo,
             'tension_mt_kv': float(getattr(barra, 'uknom', 0) or 0),
             'tension_bt_kv': float(bt), 'red': red,
             'frecuencia_hz': float(getattr(red, 'frnom', 0) or 0) if red is not None else 0.0,
         })
         existentes.add(sed)
-    return resueltas, no_creadas
+    return resueltas, no_creadas, avisos
 
 
 def _tipo_trafo(alims, feeder, typ_folder, kva: float, mt: float, bt: float, frecuencia: float):
@@ -596,40 +672,149 @@ def tecnico_economico(app, tec: dict) -> dict:
     return {'ok': rc == 0, 'return_code': rc, 'parametros': tec.get('parametros'), 'resumen': resumen}
 
 
+# =========================================================================== base (spec 007)
+def variaciones_activas(app) -> list[str]:
+    """Nombres de las variaciones activas, para el informe (spec 007, RF-8)."""
+    try:
+        return sorted(v.loc_name for v in (app.GetActiveNetworkVariations() or []))
+    except Exception:  # noqa: BLE001 - versiones sin el método: no se informa
+        return []
+
+
+def variaciones_de_la_base(app, base: dict | None) -> tuple[list, list[str]]:
+    """Las variaciones de la base que existen y los nombres de las que no (RF-7)."""
+    if not base:
+        return [], []
+    carpeta = app.GetProjectFolder('scheme')
+    por_nombre = {v.loc_name: v for v in (carpeta.GetContents('*.IntScheme', 1) if carpeta else [])}
+    nombres = list(base.get('variaciones') or [])
+    return [por_nombre[n] for n in nombres if n in por_nombre], [n for n in nombres if n not in por_nombre]
+
+
+def nombre_de_carga(carpeta, sed: str, feeder: str, stamp: str, usados: set[str]) -> str:
+    """``Carga_<SED>_<alimentador>_<stamp>``, sin repetir una variación existente (RF-10).
+
+    ``usados`` lleva los nombres ya dados en esta ejecución: al simular no se crea nada,
+    y dos cargas no pueden anunciar el mismo nombre.
+    """
+    base = nombre_pf(f'Carga_{sed}_{feeder}_{stamp}')
+    existentes = {o.loc_name for o in carpeta.GetContents('*.IntScheme')} | usados if carpeta else usados
+    nombre, n = base, 2
+    while nombre in existentes:
+        sufijo = f'_{n}'
+        nombre, n = base[:MAX_NOMBRE - len(sufijo)] + sufijo, n + 1
+    usados.add(nombre)
+    return nombre
+
+
+def medir_estado(app, alims: Alimentadores, feeders: list[str]) -> dict:
+    """Un flujo y, por alimentador, su cabecera, sus pérdidas y su tensión mínima.
+
+    Pérdidas = kW que entra por la cabecera − Σ kW de sus cargas (plan de la spec 007).
+    Las cargas y barras se piden al ``ElmFeeder`` en cada medida, sin la caché de
+    ``Alimentadores``: la carga nueva solo existe mientras su variación está activa.
+    """
+    flujo = flujo_de_carga(app)
+    out = {'converged': flujo['converged'], 'vm_min': flujo.get('vm_min'),
+           'vm_min_bus': flujo.get('vm_min_bus'), 'feeders': {}}
+    for feeder in feeders:
+        fila = {'cabecera': None, 'perdidas_kw': None, 'vm_min': None, 'vm_min_bus': None, 'motivo': None}
+        elm = alims.elm.get(feeder)
+        if not flujo['converged']:
+            fila['motivo'] = 'el flujo de carga no converge'
+        elif elm is None or getattr(elm, 'obj_id', None) is None:
+            fila['motivo'] = 'sin ElmFeeder con cabecera'
+        else:
+            medida = leer_cabecera(elm)
+            if medida.converge:
+                kw_cargas = sum(potencia(o)[0] for o in elm.GetObjs('ElmLod')
+                                if not getattr(o, 'outserv', 0))
+                fila.update(cabecera={'kw': medida.kw, 'kvar': medida.kvar},
+                            perdidas_kw=medida.kw - kw_cargas)
+            else:
+                fila['motivo'] = medida.motivo
+            tensiones = sorted((_num(b, 'm:u'), b.loc_name) for b in elm.GetObjs('ElmTerm')
+                               if b.HasResults() and _num(b, 'm:u') is not None)
+            if tensiones:
+                fila['vm_min'], fila['vm_min_bus'] = tensiones[0]
+        out['feeders'][feeder] = fila
+    return out
+
+
+def _resta(x, y):
+    return None if x is None or y is None else x - y
+
+
+def diferencia(con: dict, sin: dict | None, feeder: str) -> dict | None:
+    """Con proyecto menos sin proyecto en la cabecera, las pérdidas y la tensión mínima (RF-33)."""
+    a = (con.get('feeders') or {}).get(feeder) or {}
+    b = ((sin or {}).get('feeders') or {}).get(feeder) or {}
+    if not a.get('cabecera') or not b.get('cabecera'):
+        return None
+    return {'kw': a['cabecera']['kw'] - b['cabecera']['kw'],
+            'kvar': a['cabecera']['kvar'] - b['cabecera']['kvar'],
+            'perdidas_kw': _resta(a.get('perdidas_kw'), b.get('perdidas_kw')),
+            'vm_min': _resta(a.get('vm_min'), b.get('vm_min'))}
+
+
 # =========================================================================== orquestación
+def _crearian(r: dict, variacion: str) -> dict:
+    return {'sed': r['fila']['sed'], 'barra': r['barra'].loc_name, 'criterio': r['criterio'],
+            'distancia_m': r['distancia_m'], 'tipo_linea': getattr(r['tipo'], 'loc_name', None),
+            'origen_tipo_linea': r['origen_tipo'] or None, 'tension_mt_kv': r['tension_mt_kv'],
+            'tension_bt_kv': r['tension_bt_kv'], 'variacion': variacion, 'nota': r.get('nota')}
+
+
 def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tuple[dict, int]:
-    """Aplica (o simula) el plan en el proyecto. Devuelve (informe, código de salida)."""
+    """Aplica (o simula) el plan en el proyecto. Devuelve (informe, código de salida).
+
+    Spec 007: la base (las variaciones del ajuste) se activa primero; las demandas van a
+    su variación, que forma con la base el estado sin proyecto; se mide ese estado una
+    vez, y cada carga nueva se crea en su propia variación, se mide con proyecto y se
+    desactiva antes de la siguiente. Al terminar queda activa la base y ninguna carga.
+    """
     proyecto = activar_proyecto(app, plan['project'], plan.get('folder'))
     if proyecto is None:
         return {'error': f"no existe el proyecto {plan['project']!r} en la carpeta "
                          f"{plan.get('folder')!r} de DIgSILENT"}, 2
     alims = Alimentadores(app, proyecto, plan['feeders'])
+    base = plan.get('base') or None
     informe = {
         'project': proyecto.loc_name, 'project_path': plan['project'],
         'modo': 'simular' if simular else 'aplicar',
-        'feeders': [], 'avisos': [], 'cancelado': False,
-        'sin_alimentador': [], 'ambiguas': [], 'no_creadas': [],
+        'feeders': [], 'avisos': list(plan.get('avisos') or []), 'cancelado': False,
+        'sin_alimentador': [], 'ambiguas': [], 'no_creadas': [], 'cargas': [],
+        'base': base, 'variaciones_activas_inicio': variaciones_activas(app),
+        'calibradas_cambiadas': list(plan.get('calibradas_cambiadas') or []),
     }
+    variaciones_base, faltan = variaciones_de_la_base(app, base)
+    if faltan:
+        # RF-7: sin su base, las cargas se sumarían a otra red: no se aplica nada.
+        return {**informe, 'error': f"la variación base {', '.join(faltan)} ya no existe en el "
+                                    'proyecto: no se aplica nada'}, 2
     if alims.sin_elm:
         informe['avisos'].append('sin ElmFeeder (se buscó en todo el proyecto): '
                                  + ', '.join(alims.sin_elm))
     asignadas, omitidas, ambiguas = resolver_demandas(alims, plan.get('demandas') or [])
-    resueltas, no_creadas = resolver_nuevas(alims, proyecto, plan.get('nuevas') or [])
+    resueltas, no_creadas, avisos = resolver_nuevas(alims, proyecto, plan.get('nuevas') or [])
     informe['sin_alimentador'], informe['ambiguas'], informe['no_creadas'] = omitidas, ambiguas, no_creadas
+    informe['avisos'] += avisos
+    carpeta = app.GetProjectFolder('scheme')
+    stamp = plan.get('stamp') or ''
+    nombre_demandas = plan.get('variacion_demandas') or plan.get('variacion') or f'Demandas_{stamp}'
 
     if simular:
+        usados: set[str] = set()
+        if any(asignadas.values()):
+            informe['variacion_demandas'] = nombre_libre(carpeta, 'IntScheme', nombre_demandas)
         for feeder in alims.elegidos:
             informe['feeders'].append({
                 'feeder': feeder,
                 'actualizarian': [{'sed': f['sed'], 'antes': foto_carga(o),
                                    'despues': {'kw': f['kw'], 'kvar': f['kvar']}}
                                   for f, o in asignadas[feeder]],
-                'crearian': [{'sed': r['fila']['sed'], 'barra': r['barra'].loc_name,
-                              'criterio': r['criterio'], 'distancia_m': r['distancia_m'],
-                              'tipo_linea': getattr(r['tipo'], 'loc_name', None),
-                              'origen_tipo_linea': r['origen_tipo'] or None,
-                              'tension_mt_kv': r['tension_mt_kv'],
-                              'tension_bt_kv': r['tension_bt_kv']}
+                # RF-18: la barra, el criterio y la variación que tendría cada carga.
+                'crearian': [_crearian(r, nombre_de_carga(carpeta, r['fila']['sed'], feeder, stamp, usados))
                              for r in resueltas[feeder]],
             })
         return informe, 0
@@ -645,19 +830,27 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
     if escenario is not None:
         escenario.Deactivate(0)
     fallos = 0
+    de_cargas: list = []
+    por_feeder = {f: {'feeder': f, 'actualizadas': [], 'creadas': [], 'fallos': []} for f in alims.elegidos}
+    empezados: list[str] = []
     try:
-        variacion, etapa = crear_variacion(app, plan['variacion'], plan.get('stamp') or '')
-        informe['variacion'] = variacion.loc_name
-        typ_folder = app.GetProjectFolder('equip') or proyecto
-        diagrama = Diagrama(proyecto)
-        creadas_todas = []
+        # RF-6: la base, antes de crear ninguna variación.
+        for v in variaciones_base:
+            v.Activate()
+        informe['base_activada'] = [v.loc_name for v in variaciones_base]
+
+        # Fase 1, demandas (RF-19, RF-35): su variación queda activa, en el estado sin proyecto.
+        if any(asignadas.values()):
+            variacion, _etapa = crear_variacion(app, nombre_demandas, stamp)
+            informe['variacion'] = informe['variacion_demandas'] = variacion.loc_name
         for feeder in alims.elegidos:
             if cancelado():
                 informe['cancelado'] = True
                 informe['avisos'].append(f'Cancelado: no se empezó {feeder} ni los siguientes.')
                 break
+            empezados.append(feeder)
             print(f'== {feeder}')
-            r_feeder = {'feeder': feeder, 'actualizadas': [], 'creadas': [], 'fallos': []}
+            r_feeder = por_feeder[feeder]
             for fila, obj in asignadas[feeder]:
                 antes = foto_carga(obj)
                 try:
@@ -670,43 +863,100 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
                 else:
                     r_feeder['actualizadas'].append({'sed': fila['sed'], 'antes': antes,
                                                      'despues': foto_carga(obj)})
-            for r in resueltas[feeder]:
-                try:
-                    creada = crear_carga(alims, proyecto, typ_folder, diagrama, feeder, r)
-                except Exception as exc:  # noqa: BLE001
-                    r_feeder['fallos'].append({'sed': r['fila']['sed'], 'error': f'{type(exc).__name__}: {exc}'})
-                    continue
-                if creada['error_relectura']:
-                    r_feeder['fallos'].append({'sed': creada['sed'], 'error': creada['error_relectura']})
-                r_feeder['creadas'].append(creada)
-                creadas_todas.append(creada)
-            fallos += len(r_feeder['fallos'])
-            print(f"  actualizadas {len(r_feeder['actualizadas'])}  creadas {len(r_feeder['creadas'])}"
-                  f"  fallos {len(r_feeder['fallos'])}")
-            informe['feeders'].append(r_feeder)
 
-        if plan.get('costos') and creadas_todas:
-            from igea_dgs.economia import CostosUnitarios, datos_etapa
-
-            eco = datos_etapa([{'sed_code': c['sed'], 'installed_kva': c['kva_instalado'],
-                                'length_km': (c['distancia_m'] or 0) / 1000.0} for c in creadas_todas],
-                              CostosUnitarios(**plan['costos']))
-            for attr in ('InvCosts', 'OrigVal', 'ScrVal', 'AddCosts', 'LifeSpan'):
-                etapa.SetAttribute(attr, eco[attr])
-            informe['economia'] = eco
-        if plan.get('tec'):
-            informe['tecnico_economico'] = (
-                tecnico_economico(app, plan['tec']) if creadas_todas
-                else {'ok': False, 'error': 'no se creó ninguna carga: no hay inversión que evaluar'})
+        # Fase 2, una variación por carga nueva (RF-9 a RF-17).
+        con_cargas = [f for f in empezados if resueltas[f]]
+        if con_cargas and not informe['cancelado']:
+            sin = medir_estado(app, alims, con_cargas)          # RF-32: una vez, como referencia
+            informe['sin_proyecto'] = sin
+            typ_folder = app.GetProjectFolder('equip') or proyecto
+            diagrama = Diagrama(proyecto)
+            usados: set[str] = set()
+            for feeder in con_cargas:
+                for r in resueltas[feeder]:
+                    if cancelado():
+                        informe['cancelado'] = True
+                        informe['avisos'].append(f"Cancelado: no se empezó {r['fila']['sed']} ni las siguientes.")
+                        break
+                    creada = _una_carga(app, plan, alims, proyecto, typ_folder, diagrama, feeder, r,
+                                        nombre_de_carga(carpeta, r['fila']['sed'], feeder, stamp, usados),
+                                        sin, de_cargas)
+                    if creada.get('error'):
+                        por_feeder[feeder]['fallos'].append({'sed': r['fila']['sed'], 'error': creada['error']})
+                        continue
+                    if creada['error_relectura']:
+                        por_feeder[feeder]['fallos'].append({'sed': creada['sed'], 'error': creada['error_relectura']})
+                    por_feeder[feeder]['creadas'].append(creada)
+                    informe['cargas'].append({k: creada.get(k) for k in (
+                        'sed', 'alimentador', 'variacion', 'barra', 'criterio', 'distancia_m', 'nota',
+                        'con_proyecto', 'delta', 'economia', 'tecnico_economico')})
+                if informe['cancelado']:
+                    break
+            print(f"  cargas nuevas: {len(informe['cargas'])}, cada una en su variación")
+        # El flujo que queda: la base y las demandas, sin ninguna carga nueva (RF-17).
         informe['flujo'] = flujo_de_carga(app)
     finally:
-        # También si algo revienta: el escenario del operador no se queda apagado.
+        # RF-17: también si algo revienta, ninguna variación de carga queda activa.
+        for v in de_cargas:
+            try:
+                v.Deactivate()
+            except Exception:  # noqa: BLE001 - se informa en variaciones_activas_fin
+                pass
+        # Y el escenario del operador no se queda apagado.
         if escenario is not None and app.GetActiveScenario() is None:
             escenario.Activate()
             informe['avisos'].append(
                 f'El escenario {escenario.loc_name} vuelve a estar activo: sus demandas '
                 'mandan sobre las de la variación mientras esté activo.')
+        informe['variaciones_activas_fin'] = variaciones_activas(app)
+    informe['feeders'] = [por_feeder[f] for f in empezados]
+    fallos = sum(len(f['fallos']) for f in informe['feeders'])
+    print(f'  fallos {fallos}')
     return informe, (2 if fallos else 0)
+
+
+def _una_carga(app, plan, alims, proyecto, typ_folder, diagrama, feeder, r, nombre, sin, de_cargas) -> dict:
+    """Una carga en su variación: crear, medir con proyecto, evaluar y desactivar (RF-11 a RF-15, RF-22)."""
+    variacion, etapa = crear_variacion(app, nombre, plan.get('stamp') or '')
+    de_cargas.append(variacion)
+    try:
+        creada = crear_carga(alims, proyecto, typ_folder, diagrama, feeder, r)
+    except Exception as exc:  # noqa: BLE001 - sin la carga, su variación no sirve
+        variacion.Deactivate()
+        de_cargas.remove(variacion)
+        try:
+            variacion.Delete()
+        except Exception:  # noqa: BLE001
+            pass
+        return {'error': f'{type(exc).__name__}: {exc}'}
+    creada.update(variacion=variacion.loc_name, nota=r.get('nota'))
+    if plan.get('costos'):
+        from igea_dgs.economia import CostosUnitarios, datos_etapa
+
+        eco = datos_etapa([{'sed_code': creada['sed'], 'installed_kva': creada['kva_instalado'],
+                            'length_km': (creada['distancia_m'] or 0) / 1000.0}],
+                          CostosUnitarios(**plan['costos']))
+        for attr in ('InvCosts', 'OrigVal', 'ScrVal', 'AddCosts', 'LifeSpan'):
+            etapa.SetAttribute(attr, eco[attr])
+        creada['economia'] = eco
+    con = medir_estado(app, alims, [feeder])                # RF-13: base + esta carga
+    creada['con_proyecto'] = con
+    creada['delta'] = diferencia(con, sin, feeder)        # RF-33
+    if plan.get('tec'):
+        creada['tecnico_economico'] = tecnico_economico(app, plan['tec'])   # RF-22, RF-23
+    variacion.Deactivate()                                # RF-12: la siguiente no la ve
+    print(f"  {creada['sed']} → {creada['barra']} en {variacion.loc_name}")
+    return creada
+
+
+def error_inesperado(plan: dict, simular: bool, exc: BaseException) -> dict:
+    """Informe de un guion que revienta: el error con su tipo, para que la web lo muestre."""
+    informe = {'project': plan.get('project'), 'modo': 'simular' if simular else 'aplicar',
+               'avisos': [], 'cancelado': False,
+               'error': f'error inesperado del guion: {type(exc).__name__}: {exc}'}
+    if plan.get('feeder'):
+        informe['feeder'] = plan['feeder']
+    return informe
 
 
 def main(argv=None) -> int:
@@ -728,8 +978,14 @@ def main(argv=None) -> int:
         print(f'ERROR: no se pudo conectar a DIgSILENT: {exc}')
         return 3
     flag = Path(args.cancel_file) if args.cancel_file else None
-    informe, codigo = ejecutar(app, plan, simular=args.simular,
-                               cancelado=lambda: bool(flag and flag.exists()))
+    try:
+        informe, codigo = ejecutar(app, plan, simular=args.simular,
+                                   cancelado=lambda: bool(flag and flag.exists()))
+    except Exception as exc:  # noqa: BLE001 - el informe dice el error en vez de perderse
+        # «Ajustar SI213 a la máxima» (2026-10-10) acabó con el código 1 y sin informe: la
+        # web solo podía decir «vea el Registro». La traza sigue yendo al Registro.
+        traceback.print_exc()
+        informe, codigo = error_inesperado(plan, args.simular, exc), 1
     informe['plan_errores_de_fila'] = plan.get('row_errors') or []
     Path(args.output_json).write_text(
         json.dumps(informe, indent=2, ensure_ascii=False, default=str) + '\n', encoding='utf-8')

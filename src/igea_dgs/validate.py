@@ -1,3 +1,6 @@
+"""Validación del DGS escrito: esquema, estructura, conectividad, GPS y gráficos.
+"""
+
 from __future__ import annotations
 
 from collections import Counter, defaultdict

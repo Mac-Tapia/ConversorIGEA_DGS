@@ -1,3 +1,9 @@
+"""Modelo eléctrico de un alimentador, independiente del formato de entrada y de salida.
+
+En modo estricto no inventa tipos ``DEFAULT``: un tipo de línea sin ficha se informa
+(constitución P4).
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -32,13 +38,6 @@ class IslandWithLoadsError(ModelBuildError):
         self.feeder = feeder
         self.islands = islands
         super().__init__(message)
-
-
-class UnresolvedLineTypesError(ModelBuildError):
-    def __init__(self, feeder: str, types: set[str]):
-        self.feeder = feeder
-        self.types = frozenset(types)
-        super().__init__(f'{feeder}: unresolved line types: {", ".join(sorted(types))}')
 
 
 @dataclass(frozen=True)

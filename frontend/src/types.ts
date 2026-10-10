@@ -345,6 +345,63 @@ export interface CargasPlan {
   sin_datos: string[];
   applicable: boolean;
   tec: EconomiaTec | null;
+  /** Spec 007: el ajuste sobre el que se integra, o null si se aplica sobre lo activo. */
+  base: CargasBase | null;
+  avisos: string[];
+  calibradas_cambiadas: CalibradaCambiada[];
+  variacion_demandas: string;
+}
+
+/** Spec 007, RF-1: las variaciones del ajuste aplicado, una por alimentador. */
+export interface CargasBase {
+  variaciones: string[];
+  feeders: string[];
+  ajustes: {
+    feeder: string; variacion: string; cuadrado?: boolean;
+    desvio?: { kw: number | null; kvar: number | null } | null;
+    cabecera?: { kw: number; kvar: number } | null;
+    objetivo?: { kw: number; kvar: number; medidor: string } | null;
+  }[];
+  excluidos: { feeder: string; motivo: string }[];
+}
+
+/** Spec 007, RF-21: una SED calibrada por el ajuste que el libro de demandas cambia. */
+export interface CalibradaCambiada {
+  sed: string;
+  feeder: string | null;
+  calibrada: { kw: number | null; kvar: number | null };
+  libro: { kw: number; kvar: number };
+}
+
+/** Spec 007: lo que entra por la cabecera de un alimentador, sus pérdidas y su tensión mínima. */
+export interface EstadoAlimentador {
+  cabecera: { kw: number; kvar: number } | null;
+  perdidas_kw: number | null;
+  vm_min: number | null;
+  vm_min_bus: string | null;
+  motivo: string | null;
+}
+
+export interface EstadoRed {
+  converged: boolean;
+  vm_min?: number | null;
+  vm_min_bus?: string | null;
+  feeders: Record<string, EstadoAlimentador>;
+}
+
+/** Spec 007: una carga nueva en su variación, con proyecto frente a sin proyecto (RF-33). */
+export interface CargaIntegrada {
+  sed: string;
+  alimentador: string;
+  variacion: string;
+  barra: string;
+  criterio: string;
+  distancia_m: number | null;
+  nota: string | null;
+  con_proyecto: EstadoRed | null;
+  delta: { kw: number; kvar: number; perdidas_kw: number | null; vm_min: number | null } | null;
+  economia?: { InvCosts: number } | null;
+  tecnico_economico?: { ok: boolean; error?: string; resumen?: string[] } | null;
 }
 
 export interface CargasMotivo { sed: string; motivo: string }
@@ -364,6 +421,9 @@ export interface CargaConectada {
   kva_instalado?: number;
   aviso?: string | null;
   error_relectura?: string | null;
+  /** Spec 007: la variación de esta carga (al simular, la que tendría). */
+  variacion?: string;
+  nota?: string | null;
 }
 
 export interface CargasFeederInforme {
@@ -394,6 +454,15 @@ export interface CargasInforme {
   };
   tecnico_economico?: { ok: boolean; error?: string; resumen?: string[] };
   plan_errores_de_fila?: string[];
+  // Spec 007
+  base?: CargasBase | null;
+  base_activada?: string[];
+  variacion_demandas?: string;
+  variaciones_activas_inicio?: string[];
+  variaciones_activas_fin?: string[];
+  sin_proyecto?: EstadoRed;
+  cargas?: CargaIntegrada[];
+  calibradas_cambiadas?: CalibradaCambiada[];
 }
 
 export interface CargasResultado {
@@ -492,6 +561,9 @@ export interface AjustePlan {
   tolerancia: number;
   n_clientes: number;
   n_kva_entrada: number;
+  /** Spec 008: alimentadores que se ajustan, en orden, con su objetivo. */
+  feeders?: string[];
+  ajustes?: { feeder: string; objetivo: AjustePlan['objetivo']; n_clientes: number; n_kva_entrada: number }[];
   avisos: string[];
 }
 
@@ -508,7 +580,11 @@ export interface AjusteSed {
 export interface AjusteInforme {
   project: string;
   feeder: string;
-  modo: 'simular' | 'aplicar';
+  modo?: 'simular' | 'aplicar';
+  /** Spec 008: el ajuste de este alimentador falló; los demás siguieron. */
+  error?: string;
+  /** Spec 008: cancelado antes de empezar este alimentador. */
+  no_empezado?: boolean;
   variacion?: string;
   objetivo?: { kw: number; kvar: number; medidor: string; fecha: string | null };
   tolerancia?: number;
@@ -544,4 +620,31 @@ export interface AjusteResultado {
   report: string;
   project: string;
   informe: AjusteInforme;
+  /** Spec 008: uno por alimentador, en el orden del ajuste. */
+  informes?: AjusteInforme[];
+  reports?: string[];
+}
+
+/** Spec 008: verificación de la convergencia del proyecto con lo que tenga activo. */
+export interface VerificarInforme {
+  project: string;
+  modo: 'verificar';
+  avisos: string[];
+  variaciones_activas?: string[];
+  escenario?: string | null;
+  flujo?: {
+    converged: boolean;
+    vm_min?: number;
+    vm_min_bus?: string;
+    vm_max?: number;
+    vm_max_bus?: string;
+  };
+  feeders: { feeder: string; cabecera: { kw: number; kvar: number } | null; motivo: string | null }[];
+}
+
+export interface VerificarResultado {
+  returncode: number;
+  report: string;
+  project: string;
+  informe: VerificarInforme;
 }

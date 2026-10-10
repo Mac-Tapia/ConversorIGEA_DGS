@@ -74,3 +74,16 @@ carga nueva. Cada carga se conecta con solo la base y su variación activas, se 
 - `tests/test_cargas_pf_front.py`, `npx tsc --noEmit -p .` y `npm run build`.
 - Las pruebas de la spec 004 que fijaban «una variación para todo» se actualizan y citan
   `007:RF-9`; las demás deben seguir en verde sin tocarlas.
+
+## Al implementar (2026-10-10)
+
+- La base sale de `services.base_del_ajuste(result, project)`: el endpoint del plan de
+  cargas recibe `ajuste_job_id`, comprueba que es un `ajuste_aplicar` del espacio y pasa
+  su `result`. Con la spec 008 un ajuste trae un informe por alimentador: cada uno aporta
+  su variación y los que fallaron quedan en `excluidos` (RF-37).
+- Varios alimentadores marcados (RF-36): `resolver_nuevas` busca en el de la columna si
+  está marcado y, si no, en todos los marcados; la nota de RF-29 lo dice.
+- Las pruebas del guion de esta spec están en `tests/test_cargas_pf_guion_007.py`; las
+  de la 004 que fijaban una variación para todo citan ahora `007:RF-9` y `007:RF-19`.
+- `informe['flujo']` es el flujo final, con la base y las demandas: el estado sin
+  proyecto tras desactivar todas las cargas.

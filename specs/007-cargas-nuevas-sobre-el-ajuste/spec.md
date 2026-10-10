@@ -1,6 +1,6 @@
 # Spec 007 — Cargas nuevas sobre el alimentador ajustado, una variación por carga
 
-Estado: aprobada (2026-10-09) · Fecha: 2026-10-09 · Origen: uso real con SI213, 2026-10-09 (ajuste de la spec 006 aplicado y libro de cargas nuevas con coordenadas subido)
+Estado: aprobada (2026-10-09), implementada el 2026-10-10 con el cambio RF-36 y RF-37; falta la prueba en DIgSILENT (T11) · Fecha: 2026-10-09 · Origen: uso real con SI213, 2026-10-09 (ajuste de la spec 006 aplicado y libro de cargas nuevas con coordenadas subido)
 
 ## Contexto y objetivo
 
@@ -146,6 +146,20 @@ el que el operador elige.
   simulación la barra elegida y su distancia en metros al punto.
 - RF-31: EL SISTEMA conectará la carga a su barra más cercana cualquiera que sea la
   distancia, sin umbral que avise ni que la rechace: la distancia solo se informa.
+
+Cambio del 2026-10-10: varios alimentadores (spec 008)
+
+La spec 008 ajusta en un trabajo todos los alimentadores marcados, cada uno en su
+variación, y los mismos marcados se usan para integrar. La base son entonces las
+variaciones del ajuste, una por alimentador, y «el alimentador activo» de RF-24 a RF-29
+es, para cada carga, uno de los marcados:
+
+- RF-36: MIENTRAS haya varios alimentadores marcados, EL SISTEMA tomará como alimentador
+  activo de una carga el de su columna si está entre los marcados y, si no, el de la
+  barra más cercana a su punto entre todos los marcados.
+- RF-37: CUANDO la base viene de un ajuste de varios alimentadores, EL SISTEMA activará
+  la variación de cada alimentador ajustado y dejará fuera de la base los que fallaron,
+  y lo dirá en el plan.
 
 ## Casos límite
 

@@ -399,26 +399,6 @@ def _run_export(model, target: str, out_dir: Path, settings: Settings) -> int:
     return 0
 
 
-def _import_topology():
-    import vnr_etl.topology
-
-    from .topology import validate_topology  # noqa: F401
-
-    return vnr_etl.topology
-
-
-def _import_enrich():
-    import vnr_etl.electrical
-
-    return vnr_etl.electrical
-
-
-def _import_exporters():
-    import vnr_etl.exporters
-
-    return vnr_etl.exporters
-
-
 def _discovery(args) -> int:
     from .discovery import PublicationCatalog, refresh_official_catalog
 

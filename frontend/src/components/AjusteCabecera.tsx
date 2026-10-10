@@ -6,22 +6,35 @@ import type { AjusteInforme, AjustePlan, AjusteResultado, Job, MaximaCabecera } 
 const pct = (x: number | null | undefined) => (x == null ? '—' : `${x >= 0 ? '+' : ''}${fmtNum(x * 100, 2)} %`);
 
 /**
- * Ajuste de las demandas del alimentador a su máxima de cabecera (spec 006, RF-23).
+ * Ajuste de las demandas de los alimentadores a su máxima de cabecera (spec 006, RF-23).
  *
- * Toma la máxima que se ve en la tabla de arriba y el proyecto elegido en esta misma
- * pestaña. Las SED con clientes importantes llevan su demanda; las demás se reparten lo
- * que falta por kVA y el flujo de carga de DIgSILENT cuadra las pérdidas.
+ * Toma la máxima que se ve en la tabla de arriba y el proyecto del paso 1. Las SED con
+ * clientes importantes llevan su demanda; las demás se reparten lo que falta por kVA y
+ * el flujo de carga de DIgSILENT cuadra las pérdidas. Con varios alimentadores marcados
+ * se ajustan uno tras otro en un solo trabajo, cada uno en su variación (spec 008, RF-12).
  */
-export function AjusteCabecera({ project, maxima }: { project: string; maxima: Job | undefined }) {
+export function AjusteCabecera({ project, maxima, feeders }: { project: string; maxima: Job | undefined; feeders: string[] }) {
   const { ws, run, startJob, active, jobs } = useApp();
-  const [medidor, setMedidor] = useState('');
+  const [elegido, setElegido] = useState<Record<string, string>>({});
   const [tolerancia, setTolerancia] = useState('1');
   const [plan, setPlan] = useState<AjustePlan | null>(null);
   const pfBusy = Boolean(active.powerfactory);
 
-  const filas = ((maxima?.result?.resultados ?? []) as MaximaCabecera[]).filter((r) => !r.error);
-  // RF-2: con varios medidores hay que elegir el de la cabecera; con uno, es ese.
-  const elegido = filas.length === 1 ? filas[0].medidor : medidor;
+  const filas = useMemo(() => ((maxima?.result?.resultados ?? []) as MaximaCabecera[]).filter((r) => !r.error), [maxima]);
+  // Un grupo por alimentador marcado con máxima, en el orden de los marcados.
+  const grupos = useMemo(() => {
+    const por = new Map<string, MaximaCabecera[]>();
+    for (const r of filas) {
+      const a = r.alimentador || '';
+      if (feeders.length && !feeders.includes(a)) continue;
+      por.set(a, [...(por.get(a) ?? []), r]);
+    }
+    const orden = [...feeders.filter((f) => por.has(f)), ...[...por.keys()].filter((a) => !feeders.includes(a))];
+    return orden.map((a) => ({ alimentador: a, filas: por.get(a)! }));
+  }, [filas, feeders]);
+  // RF-13: con varios medidores en un alimentador hay que elegir el de su cabecera.
+  const medidores = grupos.map((g) => (g.filas.length === 1 ? g.filas[0].medidor : elegido[g.alimentador] ?? ''));
+  const sinElegir = grupos.filter((_g, i) => !medidores[i]).map((g) => g.alimentador || '—');
   const tol = Number(tolerancia.replace(',', '.')) / 100;
   const tolValida = Number.isFinite(tol) && tol >= 0.001 && tol <= 0.1;
 
@@ -29,37 +42,43 @@ export function AjusteCabecera({ project, maxima }: { project: string; maxima: J
     .filter((j) => (j.kind === 'ajuste_simular' || j.kind === 'ajuste_aplicar') && j.result)
     .pop();
   const resultado = (ultimo?.result ?? null) as AjusteResultado | null;
+  const informes = resultado ? (resultado.informes ?? [resultado.informe]) : [];
 
   const falta = !maxima ? 'Busque antes la máxima de cabecera.'
-    : !filas.length ? 'Ningún medidor tiene máxima: no hay objetivo.'
-      : !elegido ? 'Elija el medidor de la cabecera.'
-        : !project ? 'Elija arriba el proyecto de DIgSILENT («Leer proyectos de DIgSILENT»).'
+    : !grupos.length ? 'Ningún alimentador marcado tiene máxima: no hay objetivo.'
+      : sinElegir.length ? `Elija el medidor de la cabecera de ${sinElegir.join(', ')}.`
+        : !project ? 'Elija el proyecto de DIgSILENT en el paso 1.'
           : !tolValida ? 'La tolerancia va de 0,1 % a 10 %.' : '';
 
   const lanzar = async (simular: boolean) => {
     if (!maxima || falta) return;
-    const p = await run(() => api.ajustePlan(ws.id, { project, job_id: maxima.id, medidor: elegido, tolerancia: tol }));
+    const p = await run(() => api.ajustePlan(ws.id, { project, job_id: maxima.id, medidor: '', medidores, tolerancia: tol }));
     if (!p) return;
     setPlan(p);
     await startJob(() => (simular ? api.ajusteSimular : api.ajusteAplicar)(ws.id, p.token));
   };
+  const quien = grupos.length === 1 ? grupos[0].alimentador : `${grupos.length} alimentadores`;
 
   return (
     <div className="step-box">
       <h4>Ajustar a la máxima en DIgSILENT</h4>
-      <p className="muted">Las SED con clientes importantes llevan su demanda; las demás se reparten lo que falta en
+      <p className="muted">Las SED con clientes importantes llevan su demanda (fija); las demás se reparten lo que falta en
         proporción al kVA de su transformador, y el flujo de carga cuadra las pérdidas hasta que la cabecera dé la
-        máxima. Se graba en una variación nueva.</p>
+        máxima. Cada alimentador se graba en su propia variación.</p>
+      {grupos.some((g) => g.filas.length > 1) && (
+        <div className="row">
+          {grupos.filter((g) => g.filas.length > 1).map((g) => (
+            <label key={g.alimentador} className="field">
+              <span>Medidor de la cabecera de {g.alimentador || '—'}</span>
+              <select value={elegido[g.alimentador] ?? ''} onChange={(e) => setElegido((x) => ({ ...x, [g.alimentador]: e.target.value }))}>
+                <option value="">— elija —</option>
+                {g.filas.map((r) => <option key={r.medidor} value={r.medidor}>{r.medidor} · {fmtNum(r.kw, 1)} kW</option>)}
+              </select>
+            </label>
+          ))}
+        </div>
+      )}
       <div className="row">
-        {filas.length > 1 && (
-          <label className="field">
-            <span>Medidor de la cabecera</span>
-            <select value={medidor} onChange={(e) => setMedidor(e.target.value)}>
-              <option value="">— elija —</option>
-              {filas.map((r) => <option key={r.medidor} value={r.medidor}>{r.medidor} · {fmtNum(r.kw, 1)} kW</option>)}
-            </select>
-          </label>
-        )}
         <label className="field">
           <span>Tolerancia (%)</span>
           <input value={tolerancia} inputMode="decimal" size={5} onChange={(e) => setTolerancia(e.target.value)} />
@@ -67,14 +86,23 @@ export function AjusteCabecera({ project, maxima }: { project: string; maxima: J
         <button className="btn" disabled={Boolean(falta) || pfBusy} onClick={() => lanzar(true)}
           title="El reparto por SED antes de las pérdidas, sin escribir en el proyecto">Simular</button>
         <button className="btn btn-pf" disabled={Boolean(falta) || pfBusy} onClick={() => lanzar(false)}>
-          Ajustar en DIgSILENT
+          Ajustar {grupos.length ? quien : ''} en DIgSILENT
         </button>
       </div>
       {falta && <small className="muted">{falta}</small>}
-      {project && !falta && <small className="muted">Proyecto: <span className="mono">{project}</span></small>}
+      {!falta && grupos.length > 1 && (
+        <small className="muted">Orden: {grupos.map((g, i) => `${g.alimentador} (${medidores[i]})`).join(' → ')}. Si uno falla,
+          se sigue con el siguiente.</small>
+      )}
       {plan && plan.avisos.map((a) => <p key={a} className="alert alert-warn">{a}</p>)}
-      {resultado && <InformeAjuste inf={resultado.informe} report={resultado.report}
-        cancelado={ultimo?.status === 'cancelled'} />}
+      {informes.map((inf, i) => (
+        inf.no_empezado
+          ? <p key={inf.feeder} className="alert alert-warn">{inf.feeder}: cancelado antes de empezar.</p>
+          : inf.error
+            ? <p key={inf.feeder} className="alert alert-error"><strong>{inf.feeder}</strong>: {inf.error}</p>
+            : <InformeAjuste key={inf.feeder} inf={inf} report={resultado?.reports?.[i] ?? resultado?.report ?? ''}
+              cancelado={ultimo?.status === 'cancelled'} />
+      ))}
     </div>
   );
 }

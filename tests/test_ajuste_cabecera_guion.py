@@ -174,3 +174,26 @@ def test_sin_cabecera_no_se_ajusta(guion):
     app = fake_pf.proyecto(alimentadores=('F1',), cargas_por_alim=2, flujo=True)
     informe, rc = guion.ejecutar(app, _plan())
     assert rc == 2 and 'cabecera' in informe['error']
+
+
+def test_error_inesperado_deja_informe(guion, tmp_path, monkeypatch):
+    """008:RF-17 — si ``ejecutar`` revienta, ``main`` escribe el informe con el error y su tipo."""
+    import json
+    import sys
+    import types
+
+    app = _app()
+    monkeypatch.setitem(sys.modules, 'powerfactory', types.SimpleNamespace(GetApplicationExt=lambda: app))
+
+    def revienta(*_a, **_k):
+        raise AttributeError("'NoneType' object has no attribute 'obj_id'")
+
+    monkeypatch.setattr(guion, 'ejecutar', revienta)
+    plan = tmp_path / 'plan.json'
+    plan.write_text(json.dumps(_plan()), encoding='utf-8')
+    salida = tmp_path / 'informe.json'
+    rc = guion.main(['--plan', str(plan), '--output-json', str(salida)])
+    informe = json.loads(salida.read_text(encoding='utf-8'))
+    assert rc == 1
+    assert 'AttributeError' in informe['error'] and 'obj_id' in informe['error']
+    assert informe['feeder'] == 'F1' and informe['modo'] == 'aplicar'

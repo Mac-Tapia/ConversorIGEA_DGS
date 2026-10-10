@@ -27,10 +27,12 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import traceback
 from pathlib import Path
 
 from cargas_pf import (
-    Alimentadores, activar_proyecto, crear_variacion, error_relectura, escribir_carga,
+    Alimentadores, _num, activar_proyecto, crear_variacion, error_inesperado, error_relectura,
+    escribir_carga, medir_cabecera, potencia,
 )
 
 #: Tensión (p.u.) por debajo de la cual una barra cuenta como caída en el diagnóstico.
@@ -40,17 +42,6 @@ MAX_SOBRECARGAS = 20
 
 
 # =========================================================================== lectura
-def _num(obj, attr) -> float | None:
-    try:
-        v = float(obj.GetAttribute(attr))
-    except Exception:  # noqa: BLE001 - atributo sin resultados o que no existe
-        try:
-            v = float(getattr(obj, attr))
-        except Exception:  # noqa: BLE001
-            return None
-    return v if math.isfinite(v) else None
-
-
 def kva_en_pf(carga) -> float | None:
     """kVA de los transformadores conectados a la barra de la carga, sumados.
 
@@ -101,40 +92,7 @@ def kva_por_sed(cargas: dict, kva_entrada: dict) -> tuple[dict, dict]:
     return kva, origen
 
 
-def potencia(obj) -> tuple[float, float]:
-    """kW y kVAR que tiene escritos la carga, también si es desequilibrada."""
-    if int(getattr(obj, 'i_sym', 0) or 0) == 1:
-        p = sum(float(getattr(obj, f'plini{f}', 0.0) or 0.0) for f in 'rst')
-        q = sum(float(getattr(obj, f'qlini{f}', 0.0) or 0.0) for f in 'rst')
-    else:
-        p, q = float(obj.plini or 0.0), float(obj.qlini or 0.0)
-    return p * 1000.0, q * 1000.0
-
-
-# =========================================================================== cabecera
-def medir_cabecera(app, elm):
-    """Ejecuta el flujo y devuelve lo que entra por la cabecera del alimentador.
-
-    La cabecera es la rama del cubículo ``obj_id`` del ``ElmFeeder``, en el lado de ese
-    cubículo. ``m:Psum:busN`` es lo que sale de la barra hacia la rama: si el alimentador
-    está orientado hacia la barra (``iorient`` = 1), lo que entra en él es lo contrario.
-    """
-    from igea_dgs.ajuste_cabecera import Medida
-
-    ldf = app.GetFromStudyCase('ComLdf')
-    rc = ldf.Execute()
-    if rc != 0 or not app.IsLdfValid():
-        return Medida(False, motivo=f'el flujo de carga no converge (código {rc})')
-    cub = elm.obj_id
-    rama = cub.obj_id
-    lado = int(getattr(cub, 'obj_bus', 0) or 0) + 1
-    p, q = _num(rama, f'm:Psum:bus{lado}'), _num(rama, f'm:Qsum:bus{lado}')
-    if p is None or q is None:
-        return Medida(False, motivo=f'sin resultados en la cabecera ({rama.loc_name})')
-    signo = -1.0 if int(getattr(elm, 'iorient', 0) or 0) == 1 else 1.0
-    return Medida(True, signo * p * 1000.0, signo * q * 1000.0)
-
-
+# =========================================================================== remedios del flujo
 class Remedios:
     """Ajustes del ``ComLdf`` de la escalera (RF-16): se guardan para restituirlos."""
 
@@ -358,8 +316,14 @@ def main(argv=None) -> int:
         print(f'ERROR: no se pudo conectar a DIgSILENT: {exc}')
         return 3
     flag = Path(args.cancel_file) if args.cancel_file else None
-    informe, codigo = ejecutar(app, plan, simular=args.simular,
-                               cancelado=lambda: bool(flag and flag.exists()))
+    try:
+        informe, codigo = ejecutar(app, plan, simular=args.simular,
+                                   cancelado=lambda: bool(flag and flag.exists()))
+    except Exception as exc:  # noqa: BLE001 - el informe dice el error en vez de perderse
+        # «Ajustar SI213 a la máxima» (2026-10-10) acabó con el código 1 y sin informe: la
+        # web solo podía decir «vea el Registro». La traza sigue yendo al Registro.
+        traceback.print_exc()
+        informe, codigo = error_inesperado(plan, args.simular, exc), 1
     Path(args.output_json).write_text(
         json.dumps(informe, indent=2, ensure_ascii=False, default=str) + '\n', encoding='utf-8')
     print(f'Informe: {args.output_json}')

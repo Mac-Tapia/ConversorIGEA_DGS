@@ -12,6 +12,7 @@ import json
 import sys
 import textwrap
 import time
+from pathlib import Path
 
 import pytest
 
@@ -133,7 +134,8 @@ def test_carga_nueva_del_formulario_pasa_por_el_mismo_lector(client):
     assert mala['applicable'] is False
     assert 'kVA_instalado' in mala['row_errors'][0]
     libro = _plan(client, wid, nuevas=[list(buena), list(buena.values())], nueva=buena | {'SED': 'N9'})
-    assert [n['sed'] for n in libro.json()['nuevas']] == ['N1', 'N9']
+    # 008:RF-24: el formulario va delante del libro.
+    assert [n['sed'] for n in libro.json()['nuevas']] == ['N9', 'N1']
 
 
 def test_errores_de_usuario(client):
@@ -234,3 +236,108 @@ def test_el_plan_lleva_la_ruta_y_la_carpeta(client):
     assert r.status_code == 200, r.text
     body = r.json()
     assert body['project'] == 'Oct/SI213' and body['folder'] == services.carpeta_pf()
+
+
+def test_formulario_delante_del_libro(client):
+    """008:RF-24 — la carga del formulario se aplica antes que las del libro."""
+    wid = _wid(client)
+    fila = {'SED': 'L1', 'barra': 'B1', 'kVA_instalado': 50, 'Kw': 20, 'FP': 0.9}
+    libro = [list(fila), list(fila.values()), list((fila | {'SED': 'L2'}).values())]
+    r = _plan(client, wid, nuevas=libro, nueva=fila | {'SED': 'FORM'}, demandas=DEMANDAS)
+    assert [n['sed'] for n in r.json()['nuevas']] == ['FORM', 'L1', 'L2']
+
+
+VERIFICAR_FALSO = textwrap.dedent('''
+    import argparse, json
+    from pathlib import Path
+    p = argparse.ArgumentParser(); p.add_argument('--plan'); p.add_argument('--output-json')
+    a = p.parse_args()
+    plan = json.loads(Path(a.plan).read_text(encoding='utf-8'))
+    informe = {'project': plan['project'], 'modo': 'verificar',
+               'flujo': {'converged': plan['project'] != 'NO_CONVERGE'},
+               'feeders': [{'feeder': f, 'cabecera': {'kw': 1.0, 'kvar': 0.5}} for f in plan['feeders']]}
+    Path(a.output_json).write_text(json.dumps(informe), encoding='utf-8')
+''')
+
+
+def test_verificar_convergencia_es_un_trabajo(client, tmp_path, monkeypatch):
+    """008:RF-18 / 008:RF-19 — la verificación va al carril powerfactory y devuelve el informe
+    del guion; sin proyecto, 422."""
+    guion = tmp_path / 'verificar_falso.py'
+    guion.write_text(VERIFICAR_FALSO, encoding='utf-8')
+    monkeypatch.setattr(services, '_script', lambda _nombre: guion)
+    wid = _wid(client)
+    url = f'/api/workspaces/{wid}/powerfactory/verificar'
+    assert client.post(url, json={'project': ' ', 'feeders': []}).status_code == 422
+    for proyecto, converge in (('P', True), ('NO_CONVERGE', False)):
+        trabajo = client.post(url, json={'project': proyecto, 'feeders': ['F1', 'F2', 'F1']})
+        assert trabajo.status_code == 202 and trabajo.json()['lane'] == 'powerfactory'
+        estado = esperar_trabajo(client, trabajo.json())
+        assert estado['status'] == 'done', estado
+        informe = estado['result']['informe']
+        assert informe['flujo']['converged'] is converge
+        assert [f['feeder'] for f in informe['feeders']] == ['F1', 'F2']
+
+
+# ----------------------------------------------------------------- spec 007
+def _ajuste(client, wid, kind='ajuste_aplicar', project='P', informes=None):
+    """Un trabajo de ajuste terminado en el espacio, sin pasar por DIgSILENT."""
+    informes = informes if informes is not None else [
+        {'feeder': 'F1', 'variacion': 'Ajuste_F1_20261009_120000', 'cuadrado': True,
+         'desvio': {'kw': -0.001, 'kvar': 0.002}, 'cabecera': {'kw': 500.0, 'kvar': 90.0},
+         'sed': [{'sed': 'S1', 'despues': {'kw': 40.0, 'kvar': 9.0}}]},
+        {'feeder': 'F2', 'error': 'F2 no tiene ElmFeeder con cabecera'},
+    ]
+    resultado = {'project': project, 'informes': informes, 'informe': informes[0]}
+    job = client.app.state.jobs.submit(wid, kind, 'ajuste', lambda ctx: resultado, lane='powerfactory')
+    assert esperar_trabajo(client, job.public())['status'] == 'done'
+    return job.id
+
+
+def test_plan_con_la_base_del_ajuste(client):
+    """007:RF-1 / 007:RF-2 / 007:RF-21 / 007:RF-37 — el plan toma la base del ajuste aplicado del
+    mismo proyecto: sus variaciones, si cuadró, las SED calibradas que el libro cambia y los
+    alimentadores que quedaron fuera."""
+    wid = _wid(client)
+    job = _ajuste(client, wid)
+    data = {'project': 'P', 'feeders': ['F1'], 'ajuste_job_id': job}
+    r = client.post(f'/api/workspaces/{wid}/lote/plan', data=data,
+                    files={'update_file': ('d.xlsx', _xlsx([['SED', 'Kw', 'Kvar'], ['S1', 55, 12]]))})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body['base']['variaciones'] == ['Ajuste_F1_20261009_120000']
+    assert body['base']['ajustes'][0]['cuadrado'] is True
+    assert body['calibradas_cambiadas'][0]['sed'] == 'S1'
+    assert any(a.startswith('F2 queda fuera de la base') for a in body['avisos'])
+    plan = json.loads(Path(client.app.state.store.get(wid).cargas_planes[body['token']]['path'])
+                      .read_text(encoding='utf-8'))
+    assert plan['base']['variaciones'] == ['Ajuste_F1_20261009_120000']
+
+
+def test_base_de_otro_proyecto_o_de_una_simulacion_se_rechaza(client):
+    """007:RF-1 / 007:RF-4 — la base es un ajuste aplicado del mismo proyecto; sin ella, sin base."""
+    wid = _wid(client)
+    url = f'/api/workspaces/{wid}/lote/plan'
+    libro = {'update_file': ('d.xlsx', _xlsx(DEMANDAS))}
+    otro = _ajuste(client, wid, project='OTRO')
+    r = client.post(url, data={'project': 'P', 'feeders': ['F1'], 'ajuste_job_id': otro}, files=libro)
+    assert r.status_code == 400 and 'OTRO' in r.json()['detail']
+    sim = _ajuste(client, wid, kind='ajuste_simular')
+    r = client.post(url, data={'project': 'P', 'feeders': ['F1'], 'ajuste_job_id': sim},
+                    files={'update_file': ('d.xlsx', _xlsx(DEMANDAS))})
+    assert r.status_code == 400 and 'simulación' in r.json()['detail']
+    r = client.post(url, data={'project': 'P', 'feeders': ['F1'], 'ajuste_job_id': 'nada'},
+                    files={'update_file': ('d.xlsx', _xlsx(DEMANDAS))})
+    assert r.status_code == 404
+    # RF-4 / RF-5: sin base, el plan lo dice.
+    body = _plan(client, wid, demandas=DEMANDAS).json()
+    assert body['base'] is None and 'Sin base' in body['avisos'][0]
+
+
+def test_ajuste_sin_ninguna_variacion_no_es_base(client):
+    """007:RF-37 — si ningún alimentador del ajuste dejó variación, no hay base."""
+    wid = _wid(client)
+    job = _ajuste(client, wid, informes=[{'feeder': 'F1', 'error': 'no converge'}])
+    r = client.post(f'/api/workspaces/{wid}/lote/plan', data={'project': 'P', 'feeders': ['F1'],
+                    'ajuste_job_id': job}, files={'update_file': ('d.xlsx', _xlsx(DEMANDAS))})
+    assert r.status_code == 400 and 'Ningún alimentador' in r.json()['detail']

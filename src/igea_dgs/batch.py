@@ -1,3 +1,10 @@
+"""Conversión de uno, varios o todos los alimentadores, en serie o en paralelo.
+
+Cada alimentador se convierte y se publica de forma atómica e independiente; el
+manifiesto ``batch_manifest.json`` se escribe siempre, también al cancelar
+(constitución P6). El resultado es idéntico con ``workers=1`` y ``workers>1`` (P1).
+"""
+
 from __future__ import annotations
 
 import hashlib
@@ -32,10 +39,6 @@ from .validate import parse_dgs, validate_dgs, write_validation_reports
 ProgressCallback = Callable[[str, int, int], None]
 
 STAGE_PREFIX = '.igea-stage-'
-
-
-class BatchCancelled(Exception):
-    """El operador canceló el lote; los alimentadores ya publicados se conservan."""
 
 
 def _clear_stage(stage: Path) -> None:

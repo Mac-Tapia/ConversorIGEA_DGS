@@ -1,3 +1,6 @@
+"""Coordenadas: del CRS de origen a WGS84, geometría de nodos y tramos y su validación.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
