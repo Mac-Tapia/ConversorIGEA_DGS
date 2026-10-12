@@ -25,6 +25,13 @@ encontró la revisión del 2026-10-08:
     python tools/cargas_pf.py --plan plan.json --output-json informe.json \\
         [--simular] [--cancel-file cancelar.flag]
 
+Spec 011: si el proyecto ya tiene los casos «Caso base», «Sin proyecto» y «Con
+proyecto», las demandas se escriben en «Sin proyecto» (RF-51) y las cargas nuevas en
+«Con proyecto» (RF-52), con el escenario de cada caso apagado mientras se escribe
+(RF-55); la variación de las demandas queda activa también en «Con proyecto» (RF-54) y,
+al terminar, «Con proyecto» tiene activas todas las cargas nuevas (011:RF-8). El «Caso
+base» no se toca (RF-53).
+
 Códigos de salida: 0 hecho, 2 algún fallo al escribir o crear, 3 sin API.
 """
 
@@ -34,6 +41,7 @@ import argparse
 import json
 import math
 import re
+import sys
 import traceback
 from collections import Counter
 from pathlib import Path
@@ -765,6 +773,16 @@ def _crearian(r: dict, variacion: str) -> dict:
             'tension_bt_kv': r['tension_bt_kv'], 'variacion': variacion, 'nota': r.get('nota')}
 
 
+def _casos_011():
+    """``tools/casos_pf.py``, que importa este módulo: por eso no se importa arriba."""
+    try:
+        import casos_pf
+    except ImportError:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import casos_pf
+    return casos_pf
+
+
 def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tuple[dict, int]:
     """Aplica (o simula) el plan en el proyecto. Devuelve (informe, código de salida).
 
@@ -825,10 +843,26 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
 
     # Con un escenario activo, los datos de operación (las demandas) irían a él y no a
     # la variación. Se desactiva sin guardar —este proceso no tiene cambios propios en
-    # él— y se vuelve a activar al final.
-    escenario = app.GetActiveScenario()
-    if escenario is not None:
-        escenario.Deactivate(0)
+    # él— y se vuelve a activar al final. Con los tres casos de la spec 011, cada caso
+    # tiene el suyo, y se apaga el del caso en que se escribe.
+    c011 = _casos_011()
+    casos = c011.tres_casos(app)
+    inicial = app.GetActiveStudyCase()
+    apagados: list = []
+
+    def entrar(caso):
+        if caso is not None:
+            caso.Activate()
+        esc = app.GetActiveScenario()
+        if esc is not None:
+            esc.Deactivate(0)
+            apagados.append((caso, esc))
+
+    if casos:
+        informe['casos'] = {'demandas': c011.NOMBRES['sin'], 'cargas': c011.NOMBRES['con']}
+    entrar(casos['sin'] if casos else None)
+    dem_var = None
+    previas_con: list = []
     fallos = 0
     de_cargas: list = []
     por_feeder = {f: {'feeder': f, 'actualizadas': [], 'creadas': [], 'fallos': []} for f in alims.elegidos}
@@ -842,6 +876,7 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
         # Fase 1, demandas (RF-19, RF-35): su variación queda activa, en el estado sin proyecto.
         if any(asignadas.values()):
             variacion, _etapa = crear_variacion(app, nombre_demandas, stamp)
+            dem_var = variacion
             informe['variacion'] = informe['variacion_demandas'] = variacion.loc_name
         for feeder in alims.elegidos:
             if cancelado():
@@ -866,6 +901,17 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
 
         # Fase 2, una variación por carga nueva (RF-9 a RF-17).
         con_cargas = [f for f in empezados if resueltas[f]]
+        if con_cargas and not informe['cancelado'] and casos:
+            # RF-52: las cargas en «Con proyecto», sobre la base y las demandas. Las cargas
+            # de otras aplicaciones se apagan mientras tanto: la referencia sin proyecto
+            # de cada carga es la base (007:RF-32), y se vuelven a encender al final.
+            entrar(casos['con'])
+            for v in variaciones_base + ([dem_var] if dem_var is not None else []):
+                v.Activate()
+            todas = carpeta.GetContents('*.IntScheme', 1) if carpeta else []
+            previas_con = c011.clasificar(todas, list(alims.elegidos), [], None)['cargas']
+            for v in previas_con:
+                v.Deactivate()
         if con_cargas and not informe['cancelado']:
             sin = medir_estado(app, alims, con_cargas)          # RF-32: una vez, como referencia
             informe['sin_proyecto'] = sin
@@ -902,12 +948,22 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
                 v.Deactivate()
             except Exception:  # noqa: BLE001 - se informa en variaciones_activas_fin
                 pass
-        # Y el escenario del operador no se queda apagado.
-        if escenario is not None and app.GetActiveScenario() is None:
-            escenario.Activate()
-            informe['avisos'].append(
-                f'El escenario {escenario.loc_name} vuelve a estar activo: sus demandas '
-                'mandan sobre las de la variación mientras esté activo.')
+        # Y el escenario del operador no se queda apagado, en ningún caso.
+        for caso, esc in apagados:
+            if caso is not None:
+                caso.Activate()
+            if app.GetActiveScenario() is None:
+                esc.Activate()
+                informe['avisos'].append(
+                    f'El escenario {esc.loc_name} vuelve a estar activo: sus demandas '
+                    'mandan sobre las de la variación mientras esté activo.')
+        if casos:
+            # RF-54 y 011:RF-8: «Con proyecto» con las demandas y con todas las cargas.
+            casos['con'].Activate()
+            for v in ([dem_var] if dem_var is not None else []) + previas_con + de_cargas:
+                v.Activate()
+            if inicial is not None:
+                inicial.Activate()
         informe['variaciones_activas_fin'] = variaciones_activas(app)
     informe['feeders'] = [por_feeder[f] for f in empezados]
     fallos = sum(len(f['fallos']) for f in informe['feeders'])

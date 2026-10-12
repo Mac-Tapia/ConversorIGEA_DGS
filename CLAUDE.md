@@ -33,6 +33,8 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 008 pestaña en tres pasos | implementada; falta la prueba en DIgSILENT con dos alimentadores (T7) |
   | 009 inventario del repositorio | implementada |
   | 010 trazado GPS de las líneas | cumplida; probada en DIgSILENT con NA203 + NA205 (574/574 líneas) |
+  | 011 estudios y obras de mejora sobre la red calibrada | implementada el 2026-10-12 (129 RF, T1 a T18 y T17b, añadida en la validación para los guiones del operador en la web); falta la prueba en DIgSILENT (T19), con la lista de lo que confirmar en el plan |
+  | 012 confiabilidad y capacidad de la red | spec aprobada el 2026-10-11 (72 RF): confiabilidad, reconectadores (`ComOpri`), capacidad de alojamiento, curvas PV y condensadores con los módulos nativos; tasas y costes de un libro Excel de la empresa. Plan y tareas aprobados el mismo día; T1 y T2 hechas (sondas en DIgSILENT real el 2026-10-12, RF-69 a RF-72 nuevos), sigue T3; T7, T8 y T11 dependen de T13, T15a, T16 y T17 de la 011 |
 
   Las convenciones de cada empresa (CRS de origen, patrón de SED de medición, escala,
   carpeta de DIgSILENT) van en `config/perfil_empresa.json`, local y fuera de git, que

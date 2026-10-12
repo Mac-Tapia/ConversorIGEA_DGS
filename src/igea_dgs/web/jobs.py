@@ -41,6 +41,11 @@ CANCELLED = 'cancelled'
 FINISHED = (DONE, FAILED, CANCELLED)
 
 
+
+#: Código con que ``run_process`` informa de un guion terminado por pasar su límite de
+#: tiempo (spec 011, RF-40); el mismo que usa ``timeout`` de coreutils.
+TIEMPO_AGOTADO = 124
+
 class JobCancelled(Exception):
     """El operador canceló el trabajo."""
 
@@ -164,7 +169,7 @@ class JobContext:
 
     def run_process(
         self, cmd: list[str], *, env: dict[str, str] | None = None, cwd: str | None = None,
-        cancel_file: Path | str | None = None,
+        cancel_file: Path | str | None = None, limite_s: float | None = None,
     ) -> int:
         """Ejecuta un guion volcando su salida al Registro **línea a línea**.
 
@@ -179,6 +184,10 @@ class JobContext:
         Con ``cancel_file`` no se mata: se crea el fichero y se espera a que el guion
         acabe el alimentador en curso y salga, y se devuelve su código. Matarlo dejaba un
         alimentador con la mitad de sus cargas escritas en la variación (spec 004, RF-19).
+
+        Con ``limite_s``, un guion que pasa ese tiempo se termina y se devuelve
+        ``TIEMPO_AGOTADO``: un estudio de contingencias colgado cuesta ese estudio, no el
+        trabajo entero (spec 011, RF-39, RF-40).
         """
         import os
 
@@ -201,7 +210,17 @@ class JobContext:
         reader = threading.Thread(target=pump, daemon=True)
         reader.start()
         avisado = False
+        inicio = time.monotonic()
         while proc.poll() is None:
+            if limite_s is not None and time.monotonic() - inicio > limite_s:
+                self.log(f'El guion pasó su límite de {limite_s:g} s: se termina.')
+                proc.terminate()
+                try:
+                    proc.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                reader.join(timeout=5)
+                return TIEMPO_AGOTADO
             if self.job.cancel.is_set() and cancel_file is not None:
                 if not avisado:
                     Path(cancel_file).parent.mkdir(parents=True, exist_ok=True)

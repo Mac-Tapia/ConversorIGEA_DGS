@@ -25,10 +25,29 @@ aparece en ``GetContents``, ``GetObjs`` ni ``GetCalcRelevantObjects``, como en
 DIgSILENT. El alimentador encuentra lo nuevo por conexión desde sus barras (cubículos),
 porque en DIgSILENT pertenecer a un alimentador es topológico: así el flujo de la
 cabecera ve la carga nueva solo mientras su variación está activa.
+
+Para la spec 011 (tres casos de estudio), las variaciones activas, la etapa que graba y
+el escenario son **de cada caso** (:class:`Caso`), como en DIgSILENT: activar otro caso
+cambia qué red se ve. ``app.variaciones_activas``, ``app.grabando`` y ``app.escenario``
+siguen existiendo y apuntan al caso activo, así que las pruebas de antes no cambian.
+Imita además ``AddCopy`` y ``PasteCopy`` (copias independientes del original, que es lo
+que la spec exige de los tipos), la biblioteca global, y ``Open``/``Close``/``IsClosed``
+de los interruptores.
+
+Para la spec 012 imita ``ComRel3``, ``ComOpri``, ``ComHostcap``, ``ComPvcurves``,
+``ComCapo`` y ``SetSelect`` como se comportaron en DIgSILENT 2024 sobre una copia de un
+proyecto real (2026-10-12), con los nombres reales de sus variables de resultado. Con
+``app.atributos_en_variacion`` los atributos escritos mientras graba una etapa son de su
+variación y desactivarla los devuelve, como en DIgSILENT; y al activar otro caso se ven
+solo los de las variaciones activas en él (spec 011, T12: obras activas en un solo caso).
 """
 from __future__ import annotations
 
 import math
+
+
+_NO_SE_COPIA = frozenset({'_app', '_clase', '_padre', '_hijos', '_estado',
+                          'loc_name', 'etapa_creacion'})
 
 
 class Obj:
@@ -43,9 +62,16 @@ class Obj:
             object.__setattr__(self, k, v)
 
     def __setattr__(self, name, value):
-        if self._app is not None and name != 'loc_name':
-            self._app.escrituras.append((self, name, value, self._app.grabando,
-                                         self._app.escenario))
+        app = self._app
+        if app is not None and name != 'loc_name':
+            app.escrituras.append((self, name, value, app.grabando, app.escenario))
+            etapa = app.grabando
+            # Spec 012: en DIgSILENT un atributo escrito mientras graba una etapa es de esa
+            # variación, y desactivarla lo devuelve a su valor. Opcional: las pruebas de
+            # las specs anteriores dan por hecho que el valor se queda.
+            if app.atributos_en_variacion and etapa is not None and self.etapa_creacion is not etapa:
+                cambios = etapa._padre.__dict__.setdefault('_cambios', [])
+                cambios.append((self, name, getattr(self, name, None), value))
         object.__setattr__(self, name, value)
 
     # ----------------------------------------------------------- árbol
@@ -59,11 +85,35 @@ class Obj:
         return (self._padre.GetFullName() + '\\' if self._padre else '') + f'{self.loc_name}.{self._clase}'
 
     def CreateObject(self, clase, nombre):
-        cls = {'ElmLod': Carga, 'IntScheme': Variacion, 'ComImport': Importacion}.get(clase, Obj)
-        hijo = cls(self._app, clase, nombre, self)
+        hijo = _CLASES.get(clase, Obj)(self._app, clase, nombre, self)
         self._hijos.append(hijo)
         self._app.creados.append(hijo)
         return hijo
+
+    # ----------------------------------------------------------- spec 011
+    def _copia(self, padre, nombre):
+        """Copia independiente de este objeto y de sus hijos, colgada de ``padre``."""
+        nuevo = type(self)(self._app, self._clase, nombre, padre)
+        for k, v in vars(self).items():
+            # Los datos propios de una clase (P y cos φ de una carga) se copian; el
+            # árbol, el estado del caso y la etapa de creación son del objeto nuevo.
+            if k in _NO_SE_COPIA:
+                continue
+            object.__setattr__(nuevo, k, list(v) if isinstance(v, list) else v)
+        for h in self._hijos:
+            nuevo._hijos.append(h._copia(nuevo, h.loc_name))
+        return nuevo
+
+    def AddCopy(self, obj, *partes):
+        """Como la API: con partes de nombre, el nombre nuevo es su concatenación."""
+        nuevo = obj._copia(self, ''.join(str(p) for p in partes) if partes else obj.loc_name)
+        self._hijos.append(nuevo)
+        self._app.creados.append(nuevo)
+        return nuevo
+
+    def PasteCopy(self, obj, _reset=0):
+        """Copia desde otro proyecto: devuelve ``(error, nuevo)`` como la API."""
+        return 0, self.AddCopy(obj)
 
     @property
     def en_red(self) -> bool:
@@ -114,6 +164,10 @@ class Obj:
     def Activate(self, *_a):
         if self._clase == 'IntPrj' and self._app is not None:
             self._app.activo = self
+        # Como ``IntSstage.Activate(1)`` en DIgSILENT: la etapa pasa a ser la que graba
+        # (spec 011, T15c: la transferencia devuelve la que grababa antes de su cálculo).
+        if self._clase == 'IntSstage' and self._app is not None:
+            self._app.grabando = self
         return 0
 
     def Deactivate(self, *_a):
@@ -230,15 +284,126 @@ class Variacion(Obj):
     def Activate(self, *_a):
         if self not in self._app.variaciones_activas:
             self._app.variaciones_activas.append(self)
+            for obj, nombre, _antes, despues in self.__dict__.get('_cambios', []):
+                object.__setattr__(obj, nombre, despues)
         return 0
 
     def Deactivate(self, *_a):
         app = self._app
         if self in app.variaciones_activas:
             app.variaciones_activas.remove(self)
+            for obj, nombre, antes, _despues in reversed(self.__dict__.get('_cambios', [])):
+                object.__setattr__(obj, nombre, antes)
         if app.grabando is not None and app.grabando._padre is self:
             app.grabando = None
         return 0
+
+    def Delete(self):
+        self.Deactivate()
+        return super().Delete()
+
+
+class Caso(Obj):
+    """``IntCase`` con sus propias variaciones activas, etapa que graba y escenario."""
+
+    def __init__(self, app, clase, nombre, padre=None, **attrs):
+        super().__init__(app, clase, nombre, padre, **attrs)
+        object.__setattr__(self, '_estado', _Estado())
+
+    def _copia(self, padre, nombre):
+        nuevo = super()._copia(padre, nombre)
+        # Copiar un caso copia qué variaciones tiene activas y su escenario, no la etapa.
+        nuevo._estado.variaciones = list(self._estado.variaciones)
+        nuevo._estado.escenario = self._estado.escenario
+        return nuevo
+
+    def Activate(self, *_a):
+        # Con ``atributos_en_variacion``, lo que graba una variación solo se ve en los casos
+        # donde está activa: al cambiar de caso se deshace lo de las que dejan de estarlo y
+        # se aplica lo de las que pasan a estarlo (spec 011, T12: una obra activa solo en
+        # «Con proyecto» no puede verse en «Sin proyecto»).
+        app = self._app
+        antes = list(app.variaciones_activas)
+        despues = self._estado.variaciones
+        for v in reversed([v for v in antes if v not in despues]):
+            for obj, nombre, previo, _nuevo in reversed(v.__dict__.get('_cambios', [])):
+                object.__setattr__(obj, nombre, previo)
+        app.caso = self
+        for v in despues:
+            if v not in antes:
+                for obj, nombre, _previo, nuevo in v.__dict__.get('_cambios', []):
+                    object.__setattr__(obj, nombre, nuevo)
+        return 0
+
+    def Deactivate(self, *_a):
+        if self._app.caso is self:
+            self._app.caso = None
+        return 0
+
+
+class Interruptor(Obj):
+    """``StaSwitch`` o ``ElmCoup``: el estado es ``on_off`` (1 cerrado)."""
+
+    def Open(self):
+        self.on_off = 0
+        return 0
+
+    def Close(self):
+        self.on_off = 1
+        return 0
+
+    def IsClosed(self):
+        return int(getattr(self, 'on_off', 1) == 1)
+
+
+class Contingencias(Obj):
+    """``ComSimoutage``: cuenta sus ejecuciones; sus contingencias son sus ``ComOutage``."""
+
+    def Execute(self):
+        self._app.n1_ejecuciones += 1
+        return 0
+
+
+class Contingencia(Obj):
+    """``ComOutage`` con su traza: durante ella, sus elementos están fuera del cálculo.
+
+    La traza imita el estado posterior a la falta: el flujo del doble se ejecuta con los
+    elementos de la contingencia marcados en ``app.en_falta``, y ``StopTrace`` los devuelve.
+    Tiene dos pasos, para que un guion que no recorra la traza hasta el final se note.
+    """
+
+    def SetObjs(self, objs):
+        object.__setattr__(self, 'objs', list(objs))
+        return 0
+
+    def StartTrace(self):
+        app = self._app
+        app.trazas.append(self)
+        app.en_falta = set(id(o) for o in self.objs)
+        object.__setattr__(self, 'paso', 0)
+        app.ldf.Execute()
+        return 0
+
+    def ContinueTrace(self):
+        if self.paso >= 1:
+            return 1
+        object.__setattr__(self, 'paso', self.paso + 1)
+        self._app.ldf.Execute()
+        return 0
+
+    def StopTrace(self, *_a):
+        self._app.en_falta = set()
+        self._app.trazas_cerradas.append(self)
+        return 0
+
+
+class _Estado:
+    """Lo que en DIgSILENT es de cada caso de estudio."""
+
+    def __init__(self):
+        self.variaciones = []
+        self.grabando = None
+        self.escenario = None
 
 
 class Alimentador(Obj):
@@ -290,12 +455,33 @@ class Escenario(Obj):
 
 
 class Orden(Obj):
-    def __init__(self, app, nombre, rc=0):
-        super().__init__(app, 'ComLdf', nombre)
+    """Orden de cálculo. ``efecto(app, orden)``, si lo hay, imita lo que hace al ejecutarse
+    (abrir un interruptor, crear una variación, escribir en la ventana de salida)."""
+
+    def __init__(self, app, nombre, rc=0, clase='ComLdf', efecto=None):
+        super().__init__(app, clase, nombre)
         object.__setattr__(self, 'rc', rc)
+        object.__setattr__(self, 'efecto', efecto)
+        object.__setattr__(self, 'ejecuciones', 0)
 
     def Execute(self):
+        object.__setattr__(self, 'ejecuciones', self.ejecuciones + 1)
+        if self.efecto is not None:
+            self.efecto(self._app, self)
         return self.rc
+
+
+class Ventana:
+    """Ventana de salida: lo que las órdenes escriben en ``app.salida``."""
+
+    def __init__(self, app):
+        self._app = app
+
+    def Clear(self):
+        self._app.salida.clear()
+
+    def GetContent(self):
+        return list(self._app.salida)
 
 
 class FlujoConPerdidas(Orden):
@@ -325,6 +511,13 @@ class FlujoConPerdidas(Orden):
         object.__setattr__(self, 'ejecuciones', self.ejecuciones + 1)
         app = self._app
         alims = app.proyecto.GetContents('*.ElmFeeder', 1)
+        if getattr(self, 'iopt_fls', 0):
+            # Escalado por alimentador (spec 011, RF-20): mueve las cargas escalables. Lo
+            # imita para que una prueba note si un estudio lo deja encendido.
+            for alim in alims:
+                for c in alim.GetObjs('ElmLod'):
+                    if getattr(c, 'i_scale', 1):
+                        c.plini = c.plini * 1.1
         for alim in alims:
             cub = getattr(alim, 'obj_id', None)
             if cub is None:
@@ -352,18 +545,375 @@ class FlujoConPerdidas(Orden):
         return 0
 
 
+# --------------------------------------------------------------------------- spec 012
+# Lo que imitan estas clases lo dio DIgSILENT 2024 en las sondas del 2026-10-12 sobre una
+# copia de un proyecto real (plan de la spec 012, «Lo que confirmó DIgSILENT»). Los
+# números son sintéticos: sirven para que una prueba note un guion equivocado, no para
+# validar el cálculo de DIgSILENT.
+
+def _num(x: float) -> str:
+    """Como la ventana de salida de DIgSILENT en la configuración regional del usuario."""
+    return f'{x:.2f}'.replace('.', ',')
+
+
+def _dice(app, *lineas):
+    app.salida.extend(lineas)
+
+
+class Seleccion(Obj):
+    """``SetSelect``: un conjunto de referencias."""
+
+    def AddRef(self, objs):
+        lista = self.__dict__.setdefault('_refs', [])
+        for o in (objs if isinstance(objs, (list, tuple)) else [objs]):
+            if o not in lista:
+                lista.append(o)
+        return 0
+
+    def All(self):
+        return list(self.__dict__.get('_refs', []))
+
+    def Clear(self):
+        self.__dict__['_refs'] = []
+        return 0
+
+
+def _barras_de(alim) -> set[int]:
+    return {id(b) for b in alim.GetObjs('ElmTerm')}
+
+
+def _protegido(app, alim) -> bool:
+    """¿Hay un interruptor automático con protección, cerrado, en el alimentador?
+
+    Sin él, ``ComRel3`` no despeja ninguna falla de línea («No protection devices to
+    clear the faults»): es lo que pasó con el DGS del conversor, que une la red externa
+    al primer tramo sin interruptor (spec 012, RF-69).
+    """
+    barras = _barras_de(alim)
+    for sw in app.proyecto.GetContents('*.StaSwitch', 1) + app.proyecto.GetContents('*.ElmCoup', 1):
+        if (getattr(sw, 'aUsage', '') == 'cbk' and getattr(sw, 'rel_hasProt', 0)
+                and getattr(sw, 'on_off', 1) == 1):
+            padre = sw.GetParent()
+            if sw in alim.GetObjs(sw.GetClassName()) or (
+                    padre is not None and padre._clase == 'StaCubic' and id(padre._padre) in barras):
+                return True
+    return False
+
+
+def _modelo(elem):
+    sto = getattr(elem, 'pStoch', None)
+    if sto is None:
+        return 0.0, 0.0
+    return float(getattr(sto, 'DnFr', 0.0)), float(getattr(sto, 'RepMu', 0.0))
+
+
+class Fiabilidad(Obj):
+    """``ComRel3`` de una red radial: cada falla de línea interrumpe todo el alimentador
+    durante su reparación, y la de un transformador, solo su carga (``TR_<carga>``).
+
+    Deja los resultados con los nombres reales: por carga ``c:LPIF``, ``c:LPIT``,
+    ``c:ACIF``, ``c:ACIT``, ``c:TCIF``, ``c:TCIT``, ``c:LPENS`` (MWh/a); por alimentador
+    ``c:SAIFI``, ``c:SAIDI``, ``c:CAIDI``, ``c:ENS``, ``c:MAIFI``; por elemento ``c:C_ENS``,
+    ``c:CpENS`` y ``c:C_SAIDI``. Un alimentador con ``sin_tension`` da ceros, como uno con
+    la fuente fuera de servicio (RF-71).
+    """
+
+    def Execute(self):
+        app = self._app
+        app.rel_ejecuciones += 1
+        _dice(app, 'info - Reliability calculation started')
+        sin_despeje = []
+        for alim in app.proyecto.GetContents('*.ElmFeeder', 1):
+            cargas = alim.GetObjs('ElmLod')
+            lineas = alim.GetObjs('ElmLne')
+            trafos = {tr.loc_name.removeprefix('TR_'): tr for tr in alim.GetObjs('ElmTr2')}
+            con_tension = not getattr(alim, 'sin_tension', 0)
+            protegido = _protegido(app, alim)
+            if not protegido:
+                sin_despeje.extend(lineas)
+            lam_l = sum(_modelo(l)[0] * float(getattr(l, 'dline', 1.0)) for l in lineas) if protegido else 0.0
+            u_l = sum(_modelo(l)[0] * float(getattr(l, 'dline', 1.0)) * _modelo(l)[1]
+                      for l in lineas) if protegido else 0.0
+            n_tot = tcif_tot = tcit_tot = ens_tot = 0.0
+            p_tot = sum(c.plini for c in cargas)
+            for c in cargas:
+                lam_t, r_t = _modelo(trafos[c.loc_name]) if c.loc_name in trafos else (0.0, 0.0)
+                lpif = (lam_l + lam_t) if con_tension else 0.0
+                lpit = (u_l + lam_t * r_t) if con_tension else 0.0
+                n = int(getattr(c, 'NrCust', 1) or 1)
+                valores = {'c:LPIF': lpif, 'c:LPIT': lpit, 'c:ACIF': lpif, 'c:ACIT': lpit,
+                           'c:TCIF': lpif * n, 'c:TCIT': lpit * n, 'c:LPENS': c.plini * lpit,
+                           'c:AID': lpit / lpif if lpif else 0.0}
+                for k, v in valores.items():
+                    object.__setattr__(c, k, v)
+                n_tot += n
+                tcif_tot += lpif * n
+                tcit_tot += lpit * n
+                ens_tot += c.plini * lpit
+            saifi = tcif_tot / n_tot if n_tot else 0.0
+            saidi = tcit_tot / n_tot if n_tot else 0.0
+            for k, v in {'c:SAIFI': saifi, 'c:SAIDI': saidi, 'c:CAIDI': saidi / saifi if saifi else 0.0,
+                         'c:ENS': ens_tot, 'c:MAIFI': 0.0}.items():
+                object.__setattr__(alim, k, v)
+            for l in lineas:
+                lam, r = _modelo(l)
+                u = lam * float(getattr(l, 'dline', 1.0)) * r if (protegido and con_tension) else 0.0
+                object.__setattr__(l, 'c:C_ENS', u * p_tot)
+                object.__setattr__(l, 'c:CpENS', 100.0 * u * p_tot / ens_tot if ens_tot else 0.0)
+                object.__setattr__(l, 'c:C_SAIDI', u)
+            for nombre, tr in trafos.items():
+                lam, r = _modelo(tr)
+                carga = next((c for c in cargas if c.loc_name == nombre), None)
+                ens = lam * r * carga.plini if (carga is not None and con_tension) else 0.0
+                object.__setattr__(tr, 'c:C_ENS', ens)
+                object.__setattr__(tr, 'c:CpENS', 100.0 * ens / ens_tot if ens_tot else 0.0)
+        if sin_despeje:
+            _dice(app, 'err  - No protection devices to clear the faults of the following '
+                       'contingencies were found:',
+                  *(f'err  - Contingency: {l.loc_name} (Faulted elements: {l.loc_name})'
+                    for l in sin_despeje))
+        _dice(app, 'info - Reliability calculation finished')
+        return 0
+
+
+class Reconectadores(Obj):
+    """``ComOpri``. Candidatos: interruptores automáticos con protección (``locations=1``)
+    o todos los automáticos (``locations=0``), sin los de ``excludedSwts`` ni, con
+    ``exclCableProt``, los que tienen ``protege_cable``. Elige los de mayor ``mejora_ens``
+    (sintético, MWh/a). Con ``recResults=2`` crea y activa su variación y graba en ella
+    ``rel_hasRecl`` y ``reclAttempts``; **cambia la hora de estudio del caso**, como hizo
+    DIgSILENT en la sonda (RF-60).
+    """
+
+    def Execute(self):
+        app = self._app
+        app.rel_ejecuciones += 1
+        excluidos = {id(o) for o in (self.excludedSwts.All() if getattr(self, 'excludedSwts', None) else [])}
+        por_alim = {}
+        for alim in app.proyecto.GetContents('*.ElmFeeder', 1):
+            for sw in alim.GetObjs('StaSwitch') + alim.GetObjs('ElmCoup'):
+                if getattr(sw, 'aUsage', '') != 'cbk' or id(sw) in excluidos:
+                    continue
+                if getattr(self, 'locations', 1) == 1 and not getattr(sw, 'rel_hasProt', 0):
+                    continue
+                if getattr(self, 'exclCableProt', 1) and getattr(sw, 'protege_cable', 0):
+                    continue
+                por_alim.setdefault(alim.loc_name, []).append(sw)
+        if not por_alim:
+            _dice(app, 'err  - No candidates could be found for the optimisation.',
+                  'err  - Optimal Recloser Placement failed.')
+            return 1
+        elegidos = []
+        for lista in por_alim.values():
+            lista = sorted((s for s in lista if getattr(s, 'mejora_ens', 0) > 0),
+                           key=lambda s: -s.mejora_ens)
+            elegidos.extend(lista[:int(getattr(self, 'maxNrPerFeeder', 3))])
+        elegidos = sorted(elegidos, key=lambda s: -s.mejora_ens)[:int(getattr(self, 'nrOfRecl', 3))]
+        antes = sum(getattr(a, 'c:ENS', 0.0) for a in app.proyecto.GetContents('*.ElmFeeder', 1))
+        if not elegidos:
+            _dice(app, 'info - No suitable locations for placing reclosers could be identified.')
+            return 0
+        despues = max(0.0, antes - sum(s.mejora_ens for s in elegidos))
+        _dice(app, f'info - The following locations for placing reclosers were determined: '
+                   f'({len(elegidos)} objects)',
+              f'info - The ENS is reduced by {_num(antes - despues)} MWh/a (Before: '
+              f'{_num(antes)} MWh/a, After: {_num(despues)} MWh/a).')
+        caso = app.caso
+        if caso is not None:
+            caso.iStudyTime = getattr(caso, 'iStudyTime', 0) + 3600
+        if getattr(self, 'recResults', 0) == 2:
+            var = app.carpetas['scheme'].CreateObject('IntScheme', self.variationName)
+            var.NewStage(self.variationName, 0, 1)
+        if getattr(self, 'recResults', 0) in (1, 2):
+            for sw in elegidos:
+                sw.rel_hasRecl = 1
+                sw.reclAttempts = int(getattr(self, 'maxNrAttempts', 3))
+        return 0
+
+
+class Alojamiento(Obj):
+    """``ComHostcap``. ``CalcMaxHostedPower(barra)`` → ``[código, P, Q, elemento]``.
+
+    ``objective`` 0 es generación distribuida y 1 carga nueva. En carga, una barra sin
+    carga conectada da ``[1, 0, 0, None]`` («No relevant loads connected», RF-72). Las
+    respuestas se pueden fijar en ``app.alojamiento[(objetivo, barra)]``.
+    """
+
+    def CalcMaxHostedPower(self, barra):
+        app = self._app
+        if getattr(app.ldf, 'iopt_fls', 0):
+            _dice(app, "err  - Please disable 'Feeder Load Scaling' option.")
+            return [0, 0.0, 0.0, None]
+        objetivo = int(getattr(self, 'objective', 0))
+        fijo = app.alojamiento.get((objetivo, barra.loc_name))
+        if fijo is not None:
+            return list(fijo)
+        alim = next((a for a in app.proyecto.GetContents('*.ElmFeeder', 1)
+                     if id(barra) in _barras_de(a)), None)
+        lineas = alim.GetObjs('ElmLne') if alim else []
+        limita = lineas[0] if lineas else None
+        if objetivo == 1:
+            con_carga = any(getattr(c, 'obj_id', None) is not None
+                            and c.obj_id._clase in ('ElmLod', 'ElmTr2')
+                            for c in barra.GetContents('*.StaCubic'))
+            if not con_carga:
+                _dice(app, 'err  - No relevant loads connected to the selected terminal(s). '
+                           'Calculation not possible.')
+                return [1, 0.0, 0.0, None]
+            return [2, 2.0, 0.0, limita]
+        orden = [b.loc_name for b in alim.GetObjs('ElmTerm')] if alim else []
+        i = orden.index(barra.loc_name) if barra.loc_name in orden else 0
+        return [2, round(10.0 / (1 + i), 4), 0.0, limita]
+
+
+class CurvasPV(Obj):
+    """``ComPvcurves``: escribe el resumen en la ventana de salida, con coma decimal, y
+    deja las demandas como estaban. La demanda crítica es la inicial por ``app.pv_factor``;
+    la barra crítica, la última del alimentador de la primera carga escalada."""
+
+    def Execute(self):
+        app = self._app
+        if getattr(self, 'calcCont', 0) and not app.licencia_pv_contingencias:
+            _dice(app, "err  - No licence available to execute PV Curves Calculation with "
+                       "'Consider contingencies' option.")
+            return 1
+        if getattr(self, 'frLoads', 0) == 1 and getattr(self, 'pSel_Load', None) is not None:
+            cargas = self.pSel_Load.All()
+        else:
+            cargas = app.proyecto.GetContents('*.ElmLod', 1)
+        cargas = [c for c in cargas if c.plini]
+        inicial = sum(c.plini for c in cargas)
+        critica = inicial * app.pv_factor
+        alim = next((a for a in app.proyecto.GetContents('*.ElmFeeder', 1)
+                     if cargas and cargas[0] in a.GetObjs('ElmLod')), None)
+        barra = alim.GetObjs('ElmTerm')[-1].loc_name if alim else '?'
+        _dice(app, 'info - PV Curves calculation started.',
+              f'info - Scaling {len(cargas)} load(s).',
+              f'info - Initial scalable demand for this case: {_num(inicial)} MW '
+              f'(total demand of the system: {_num(inicial)} MW).',
+              f'info - Total critical demand of the scaled loads: {_num(critica)} MW.',
+              'info - - Contingency              Critical bus               Critical scalable demand -',
+              f'info -  Base Case                {barra:<26} {_num(critica):>14}',
+              'info - PV Curves calculation finished.')
+        return 0
+
+
+class Condensadores(Obj):
+    """``ComCapo``: con ``iopt_con=1`` instala un ``ElmShnt`` por cada propuesta de
+    ``app.capo_propuestas`` (``(barra, fila de bancos, pasos)``), en la etapa que grabe;
+    ``TotalLossCost()`` da ``app.capo_coste`` antes de ejecutar y después de instalar."""
+
+    def Execute(self):
+        app = self._app
+        object.__setattr__(self, '_ejecutado', True)
+        if getattr(app.ldf, 'iopt_fls', 0):
+            _dice(app, 'err  - Please turn off feeder load scaling in load flow command.')
+            return 1
+        if getattr(self, 'feeder', None) is None:
+            _dice(app, 'err  - Please select feeder to be optimised!')
+            return 1
+        _dice(app, 'Optimal Capacitor Placement')
+        if not getattr(self, 'iopt_con', 0):
+            return 0
+        barras = {b.loc_name: b for b in self.feeder.GetObjs('ElmTerm')}
+        qstep = list(getattr(self, 'shntqstep', []))
+        for k, (barra, fila, pasos) in enumerate(app.capo_propuestas):
+            b = barras.get(barra)
+            if b is None:
+                continue
+            sh = b.GetParent().CreateObject('ElmShnt', f'Shunt/Filter({k}) {k + 1}')
+            cub = b.CreateObject('StaCubic', f'c_{sh.loc_name}')
+            cub.obj_id = sh
+            sh.bus1 = cub
+            sh.qcapn, sh.ncapx, sh.ncapa = qstep[fila], pasos, pasos
+            sh.ushnm = getattr(b, 'uknom', 0.0)
+        return 0
+
+    def TotalLossCost(self):
+        antes, despues = self._app.capo_coste
+        return despues if self.__dict__.get('_ejecutado') else antes
+
+
+class Guion(Obj):
+    """``ComDpl`` o ``ComPython`` del operador (spec 011, RF-27 a RF-30).
+
+    Los parámetros de entrada son los vectores ``IntName``, ``IntType`` (``int``,
+    ``double``, ``string``) e ``IntExpr`` (el valor, como texto), y los objetos externos
+    ``obj_name``/``obj_id``, como en ``datascheme.db`` de PF 2024. ``SetInputParameter*``
+    devuelve 1 si el parámetro no existe o es de otro tipo, como la API. ``efecto(app,
+    guion)`` imita lo que hace el guion; ``rc`` es lo que devuelve ``Execute``.
+    """
+
+    def _pon(self, nombre, tipo, valor):
+        nombres = list(getattr(self, 'IntName', []))
+        if nombre not in nombres or list(self.IntType)[nombres.index(nombre)] != tipo:
+            return 1
+        expr = list(getattr(self, 'IntExpr', []))
+        expr[nombres.index(nombre)] = str(valor)
+        self.IntExpr = expr
+        return 0
+
+    def SetInputParameterInt(self, nombre, valor):
+        return self._pon(nombre, 'int', int(valor))
+
+    def SetInputParameterDouble(self, nombre, valor):
+        return self._pon(nombre, 'double', float(valor))
+
+    def SetInputParameterString(self, nombre, valor):
+        return self._pon(nombre, 'string', str(valor))
+
+    def SetExternalObject(self, nombre, obj):
+        nombres = list(getattr(self, 'obj_name', []))
+        if nombre not in nombres:
+            return 1
+        objs = list(getattr(self, 'obj_id', [None] * len(nombres)))
+        objs[nombres.index(nombre)] = obj
+        self.obj_id = objs
+        return 0
+
+    def Execute(self):
+        object.__setattr__(self, 'ejecuciones', getattr(self, 'ejecuciones', 0) + 1)
+        efecto = getattr(self, 'efecto', None)
+        if efecto is not None:
+            efecto(self._app, self)
+        return getattr(self, 'rc', 0)
+
+
+_CLASES = {'ElmLod': Carga, 'IntScheme': Variacion, 'ComImport': Importacion,
+           'IntCase': Caso, 'IntScenario': Escenario,
+           'StaSwitch': Interruptor, 'ElmCoup': Interruptor,
+           'ComSimoutage': Contingencias, 'ComOutage': Contingencia,
+           'SetSelect': Seleccion, 'ComRel3': Fiabilidad, 'ComOpri': Reconectadores,
+           'ComHostcap': Alojamiento, 'ComPvcurves': CurvasPV, 'ComCapo': Condensadores,
+           'ComDpl': Guion, 'ComPython': Guion}
+
+
 class App:
     def __init__(self):
         self.escrituras, self.creados = [], []
-        self.grabando = None
-        self.escenario = None
-        self.variaciones_activas = []
+        # Sin caso activo, el estado es el de la aplicación (los dobles de antes).
+        self._sin_caso = _Estado()
+        self.caso = None
         self.usuario = Obj(self, 'IntUser', 'usuario')
         self.carpetas = {}
-        self.caso = None
+        self.biblioteca_global = Obj(self, 'IntPrjfolder', 'Library')
         self.ldf = None
         self.ldf_valido = True
         self.proyecto = None
+        # spec 011: órdenes del caso distintas del flujo, y la ventana de salida
+        self.ordenes = {}
+        self.salida = []
+        self.n1_ejecuciones = 0
+        self.trazas, self.trazas_cerradas = [], []
+        self.en_falta = set()
+        # spec 012
+        self.atributos_en_variacion = False
+        self.rel_ejecuciones = 0
+        self.alojamiento = {}
+        self.pv_factor = 2.7
+        self.licencia_pv_contingencias = True
+        self.capo_propuestas = []
+        self.capo_coste = (100.0, 90.0)
         # spec 005
         self.activo = None
         self.transferencia = {}
@@ -372,13 +922,52 @@ class App:
         self.fallar_importacion = False
         self.alimentadores_al_importar = ('F1',)
 
+    # ----------------------------------------------------------- spec 011
+    @property
+    def _estado(self) -> _Estado:
+        caso = self.caso
+        return caso._estado if isinstance(caso, Caso) else self._sin_caso
+
+    @property
+    def variaciones_activas(self):
+        return self._estado.variaciones
+
+    @variaciones_activas.setter
+    def variaciones_activas(self, valor):
+        self._estado.variaciones = valor
+
+    @property
+    def grabando(self):
+        return self._estado.grabando
+
+    @grabando.setter
+    def grabando(self, valor):
+        self._estado.grabando = valor
+
+    @property
+    def escenario(self):
+        return self._estado.escenario
+
+    @escenario.setter
+    def escenario(self, valor):
+        self._estado.escenario = valor
+
+    def GetGlobalLibrary(self, _clase=''):
+        return self.biblioteca_global
+
+    def GetLocalLibrary(self, _clase=''):
+        return self.carpetas.get('equip')
+
     def GetCurrentUser(self):
         return self.usuario
 
     def GetActiveStudyCase(self):
         return self.caso
 
-    def GetProjectFolder(self, nombre):
+    def GetProjectFolder(self, nombre, crear=0):
+        """Como la API: con ``crear=1`` crea la carpeta del proyecto si no existe."""
+        if nombre not in self.carpetas and crear and self.proyecto is not None:
+            self.carpetas[nombre] = self.proyecto.CreateObject('IntPrjfolder', nombre)
         return self.carpetas.get(nombre)
 
     def GetActiveScenario(self):
@@ -388,7 +977,10 @@ class App:
         return self.grabando
 
     def GetFromStudyCase(self, nombre):
-        return self.ldf if nombre == 'ComLdf' else None
+        return self.ldf if nombre == 'ComLdf' else self.ordenes.get(nombre)
+
+    def GetOutputWindow(self):
+        return Ventana(self)
 
     def IsLdfValid(self):
         return self.ldf_valido
@@ -492,7 +1084,10 @@ def proyecto(nombre='P', *, alimentadores=('F1', 'F2'), cargas_por_alim=3, escen
             g.rCenterX, g.rCenterY, g.rSizeX, g.rSizeY = 10.0 * i, 100.0 * k, 1.0, 1.0
         for i in range(1, len(barras)):
             ln = red.CreateObject('ElmLne', f'{f}_L{i}')
-            ln.typ_id = tipo
+            # Como en DIgSILENT, toda línea tiene sus ternas (1 por defecto) y su
+            # «fuera de servicio» (0): sin los atributos, desactivar la variación de una
+            # terna más, o restituir un tramo abierto por la transferencia, los dejaba en None.
+            ln.typ_id, ln.nlnum, ln.outserv = tipo, 1, 0
             for lado, b in ((0, barras[i - 1]), (1, barras[i])):
                 cub = b.CreateObject('StaCubic', f'c{lado}_{ln.loc_name}')
                 cub.obj_id, cub.obj_bus = ln, lado
@@ -527,7 +1122,9 @@ def proyecto(nombre='P', *, alimentadores=('F1', 'F2'), cargas_por_alim=3, escen
             alim.iorient = 0          # hacia la rama: lo que entra en ella es del alimentador
     if escenario:
         carpeta = prj.CreateObject('IntPrjfolder', 'Operation Scenarios')
+        app.carpetas['scen'] = carpeta
         app.escenario = Escenario(app, 'IntScenario', 'Operador', carpeta)
+        carpeta._hijos.append(app.escenario)
     app.escrituras.clear()
     app.creados.clear()
     return app

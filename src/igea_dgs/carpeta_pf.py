@@ -207,20 +207,27 @@ def alimentadores_de(proyecto) -> tuple[list[str], str | None]:
 
 
 # --------------------------------------------------------------------------- activar
-def activar_proyecto(app, ruta: str, carpeta: str):
-    """Activa por objeto el proyecto de ``ruta`` en la carpeta; None si no existe.
+def buscar_proyecto(app, ruta: str, carpeta: str):
+    """El proyecto de ``ruta`` en la carpeta, sin activarlo; None si no existe.
 
     ``app.ActivateProject(nombre)`` solo busca en la raíz del usuario: tras importar en
     la carpeta, un estudio de ``run_one_study.py`` no encontraba el proyecto, o activaba
     uno antiguo de la raíz con el mismo nombre. Si la ruta no está en la carpeta, se
     busca un proyecto de la raíz con ese nombre exacto, para seguir usando los
-    importados antes de la spec 005 (RF-20).
+    importados antes de la spec 005 (RF-20). Las obras (spec 011, RF-91) leen así los
+    tipos de otro proyecto sin cambiar cuál está activo.
     """
     usuario = app.GetCurrentUser()
     destino = buscar_carpeta(usuario, carpeta)
     proyecto = proyecto_por_ruta(destino, ruta) if destino is not None else None
     if proyecto is None and SEPARADOR not in ruta:
         proyecto = next((p for p in _hijos(usuario, 'IntPrj') if p.loc_name == ruta), None)
+    return proyecto
+
+
+def activar_proyecto(app, ruta: str, carpeta: str):
+    """Activa por objeto el proyecto de ``ruta`` en la carpeta (``buscar_proyecto``)."""
+    proyecto = buscar_proyecto(app, ruta, carpeta)
     if proyecto is None:
         return None
     proyecto.Activate()

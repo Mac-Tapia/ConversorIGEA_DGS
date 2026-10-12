@@ -7,7 +7,10 @@ import type {
   VerificarInforme, VerificarResultado,
 } from '../types';
 import { DemandaMedida } from './DemandaMedida';
+import { EstudiosPF } from './EstudiosPF';
+import { ObrasPF } from './ObrasPF';
 import { PfWarning } from './Modules';
+import { TransferenciaPF } from './TransferenciaPF';
 import { FileDrop, Modal, Toggle, useToast } from './ui';
 
 const ANIO = new Date().getFullYear();
@@ -366,6 +369,20 @@ export function CargasTab() {
       </div>
 
       {resultado && <Informe resultado={resultado} cancelado={lastRun?.status === 'cancelled'} />}
+
+      {/* Spec 011, RF-42 y RF-98: con el mismo proyecto y los mismos alimentadores marcados. */}
+      <div className="step-box">
+        <h3>4 · Obras y estudios</h3>
+        {!current ? <p className="muted">Elija un proyecto en el paso 1.</p> : !order.length
+          ? <p className="muted">Marque al menos un alimentador en el paso 2.</p> : <>
+            <h4>4.1 · Obras de mejora</h4>
+            <ObrasPF project={project} feeders={order} />
+            <h4>4.2 · Estudios</h4>
+            <EstudiosPF project={project} feeders={order} ajusteJobId={baseJob?.id ?? null} />
+            <h4>4.3 · Transferencia de carga</h4>
+            <TransferenciaPF project={project} feeders={order} />
+          </>}
+      </div>
 
       {form && (
         <Modal title="Una carga nueva" onClose={() => setForm(false)} actions={<>

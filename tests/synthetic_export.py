@@ -96,6 +96,9 @@ class ExportSpec:
     sections_per_feeder: int = 4
     loads_per_feeder: int = 2
     switches_per_feeder: int = 1
+    #: Seccionalizadores por alimentador, en los tramos que siguen a los de los
+    #: seccionadores (spec 011, RF-128: el DGS los distingue por su tabla del export).
+    sectionalizers_per_feeder: int = 0
     intermediate_per_section: int = 1
     naming: str = 'net'
     # Origen en un UTM cualquiera; el espaciado son metros reales.
@@ -208,6 +211,7 @@ def write_export(spec: ExportSpec, out_dir: Path) -> tuple[Path, Path, Path]:
     underground_setting: list[str] = []
     completo = spec.layout == 'completo'
     switches: list[str] = []
+    sectionalizers: list[str] = []
     intermediate: list[str] = []
     loads: list[str] = []
     customer_loads: list[str] = []
@@ -302,6 +306,10 @@ def write_export(spec: ExportSpec, out_dir: Path) -> tuple[Path, Path, Path]:
         for i in range(min(size.switches, size.sections)):
             sid = f'SEC_{f}_{i}'
             switches.append(_pad([sid, f'EQ_{f}_{i}', f'SW_{f}_{i}', 'ABC', 'S', '1', '0', '0'], FMT_SWITCH))
+        primero = min(size.switches, size.sections)
+        for i in range(primero, min(primero + spec.sectionalizers_per_feeder, size.sections)):
+            sectionalizers.append(_pad([f'SEC_{f}_{i}', f'EQS_{f}_{i}', f'SZ_{f}_{i}', 'ABC', 'S',
+                                        '1', '0', '0'], FMT_SWITCH))
 
         block.extend(stub_sections)
         section_blocks.append('\n'.join(block))
@@ -332,6 +340,9 @@ def write_export(spec: ExportSpec, out_dir: Path) -> tuple[Path, Path, Path]:
         ]
     if spec.with_switch_table:
         red_parts += ['[SWITCH SETTING]', f'FORMAT_SWITCHSETTING={FMT_SWITCH}', *switches]
+    if sectionalizers:
+        red_parts += ['[SECTIONALIZER SETTING]', f'FORMAT_SECTIONALIZERSETTING={FMT_SWITCH}',
+                      *sectionalizers]
     if spec.with_intermediate_table:
         red_parts += ['[INTERMEDIATE NODES]', f'FORMAT_INTERMEDIATENODE={FMT_INTERMEDIATE}', *intermediate]
     red.write_text('\n'.join(red_parts) + '\n', encoding='utf-8')
