@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import pytest
 
-from synthetic_export import ExportSpec, write_export
+from synthetic_export import CRS_SINTETICO, ExportSpec, write_export
 from apoyo import cargar_herramienta
 
 
@@ -34,6 +34,7 @@ def test_txt_real_file_flow_records_hashes_selection_and_dgs(tmp_path):
         txt_loads=loads,
         txt_equipment=equipment,
         feeder='AL01',
+        source_crs=CRS_SINTETICO,
     )
     summary = mod.run_three_sources(config)
     txt = next(row for row in summary['sources'] if row['mode'] == 'txt')

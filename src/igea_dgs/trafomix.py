@@ -13,6 +13,10 @@ carga de 0 kW. El tramo de red en el que están se conserva.
 
 Si algún trafomix trajera carga, esa carga **no se pierde**: queda como carga de
 media tensión en su nodo, sin transformador, y se avisa.
+
+El código ``M…`` es una convención de Electro Dunas, no de CYMDIST: otra empresa puede
+tener SED reales que empiecen por ``M``. El patrón sale del perfil de empresa
+(``patron_sed_medicion``, spec 002 RF-33); sin patrón no se excluye ninguna SED.
 """
 
 from __future__ import annotations
@@ -22,22 +26,24 @@ from dataclasses import dataclass, field
 
 from .model import FeederModel
 
-#: Código de SED de un trafomix: una M y cifras (``M41608``, ``M50174``).
-PATRON_TRAFOMIX = re.compile(r'^M\d+(?:-\d+)?$', re.IGNORECASE)
 
 
-def es_trafomix(codigo: str) -> bool:
-    return bool(PATRON_TRAFOMIX.match((codigo or '').strip()))
+def es_trafomix(codigo: str, patron: str | None) -> bool:
+    """¿Es ``codigo`` una SED de medición según el patrón del perfil? Sin patrón, nunca."""
+    if not patron:
+        return False
+    return bool(re.search(patron, (codigo or '').strip()))
 
 
 @dataclass
 class InformeTrafomix:
+    patron: str = ''
     excluidos: int = 0
     cargas_nulas_quitadas: int = 0
     cargas_conservadas_mt: list[str] = field(default_factory=list)
 
     def texto(self) -> str:
-        t = (f'Trafomix (medición MT, códigos M…): {self.excluidos} excluidos como SED; '
+        t = (f'Trafomix (medición MT, patrón {self.patron}): {self.excluidos} excluidos como SED; '
              f'{self.cargas_nulas_quitadas} cargas de 0 kW quitadas.')
         if self.cargas_conservadas_mt:
             t += (f' {len(self.cargas_conservadas_mt)} traían carga y se conservan como '
@@ -45,13 +51,15 @@ class InformeTrafomix:
         return t
 
 
-def excluir_trafomix(model: FeederModel) -> InformeTrafomix:
-    """Quita del modelo, en el sitio, las SED que son trafomix."""
-    informe = InformeTrafomix()
+def excluir_trafomix(model: FeederModel, patron: str | None) -> InformeTrafomix:
+    """Quita del modelo, en el sitio, las SED cuyo código cumple ``patron``."""
+    informe = InformeTrafomix(patron=patron or '')
+    if not patron:
+        return informe
     claves_quitar: set[tuple[str, str]] = set()
     quedan = []
     for sed in model.seds:
-        if not es_trafomix(sed.code):
+        if not es_trafomix(sed.code, patron):
             quedan.append(sed)
             continue
         informe.excluidos += 1

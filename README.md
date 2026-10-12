@@ -290,7 +290,7 @@ Los destinos deben existir en el `BD_Equipo` cargado. Si un destino no está, el
 
 ## Georreferenciación
 
-Se transforma `CoordX/CoordY` con `pyproj` desde el `--source-crs` **de su export** (cualquier EPSG) a WGS84. Elija el CRS de la empresa/región que entregó los TXT; el valor por defecto es solo un ejemplo editable. Genera GPS en terminales, diagrama `IntGrf*` y sidecars `*_geography.json`.
+Se transforma `CoordX/CoordY` con `pyproj` desde el `--source-crs` **de su export** (cualquier EPSG) a WGS84. Elija el CRS de la empresa/región que entregó los TXT, o déjelo en el perfil de empresa (`crs_origen` en `config/perfil_empresa.json`, o un perfil de `config/perfiles/` con `--perfil`). Sin ninguno de los dos el conversor no supone un CRS: lo pide. Genera GPS en terminales, diagrama `IntGrf*` y sidecars `*_geography.json`.
 
 ## Pruebas
 

@@ -12,6 +12,29 @@ from .dataset import CymdistDataset
 from .model import FeederModel
 
 
+class CrsOrigenFaltaError(ValueError):
+    """Se pidió georreferenciar sin CRS de origen (spec 002, RF-32)."""
+
+
+MENSAJE_FALTA_CRS = (
+    'Falta el CRS de origen de las coordenadas. Elíjalo (un código EPSG en metros, por '
+    'ejemplo el UTM de su zona) o póngalo como «crs_origen» en config/perfil_empresa.json '
+    '(puede heredar uno de config/perfiles/ con «"perfil": "<nombre>"»). Sin CRS, '
+    'convierta sin georreferenciación.'
+)
+
+
+def exigir_crs_origen(source_crs: str | None) -> str:
+    """El CRS de origen, o :class:`CrsOrigenFaltaError` si no se eligió ninguno.
+
+    Antes se suponía el UTM 18S de Ica: con datos de otra zona la red salía desplazada
+    cientos de kilómetros, sin aviso (constitución P13). Ahora se pregunta.
+    """
+    if not source_crs or not str(source_crs).strip():
+        raise CrsOrigenFaltaError(MENSAJE_FALTA_CRS)
+    return str(source_crs).strip()
+
+
 def assert_metre_source_crs(source_crs: str) -> None:
     """Reject a source CRS whose axes are not in metres.
 
@@ -135,7 +158,7 @@ def build_geography(
     dataset: CymdistDataset,
     model: FeederModel,
     *,
-    source_crs: str = 'EPSG:32718',
+    source_crs: str | None,
     target_crs: str = 'EPSG:4326',
 ) -> GeographyManifest:
     """Build WGS84/geographic geometry for one feeder from IGEA/CYMDIST coordinates.
@@ -144,7 +167,7 @@ def build_geography(
     deliberately configurable because exported GIS databases may use a different
     projected coordinate reference system.
     """
-    transformer = make_transformer(source_crs, target_crs)
+    transformer = make_transformer(exigir_crs_origen(source_crs), target_crs)
 
     nodes: dict[str, GeoPoint] = {}
     xs: list[float] = []

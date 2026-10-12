@@ -14,6 +14,44 @@ from igea_paths import SKIP_MSG, resolve_igea_txt_paths
 from igea_dgs.naming import feeder_short_name
 
 
+@pytest.fixture(autouse=True)
+def _sin_perfil_de_la_maquina(monkeypatch, tmp_path_factory):
+    """Sin perfil de empresa salvo que la prueba lo pida (spec 002, RF-32 y RF-33).
+
+    ``config/perfil_empresa.json`` es local: con el de Electro Dunas, las pruebas
+    pasaban en su equipo y fallaban en otro sin él. Una prueba que necesite un perfil lo
+    escribe ella o usa uno de ``config/perfiles``.
+    """
+    from igea_dgs.perfil_empresa import VARIABLE_RUTA
+
+    vacio = tmp_path_factory.getbasetemp() / 'sin_perfil_empresa.json'
+    monkeypatch.setenv(VARIABLE_RUTA, str(vacio))
+
+
+@pytest.fixture(scope='session')
+def perfil_real():
+    """Perfil de empresa de los datos reales de las variables ``IGEA_*``.
+
+    Los de ``referencia/`` son de Electro Dunas, así que por defecto es su perfil: es
+    el de los datos de prueba, no un valor por defecto del código (spec 002, RF-35).
+    La entrega de otra empresa lo dice con ``IGEA_PERFIL=<nombre de config/perfiles>``.
+    """
+    import os
+
+    from igea_dgs.perfil_empresa import perfil_con_nombre
+
+    return perfil_con_nombre(os.environ.get('IGEA_PERFIL', '').strip() or 'electro_dunas')
+
+
+@pytest.fixture(scope='session')
+def opciones_reales(perfil_real) -> dict:
+    """CRS, reglas y perfil con que se convierten los datos reales."""
+    from igea_dgs.reglas import reglas_de_perfil
+
+    return {'source_crs': perfil_real.crs_origen, 'reglas': reglas_de_perfil(perfil_real),
+            'perfil': perfil_real}
+
+
 @pytest.fixture(scope='session')
 def igea_paths() -> tuple[Path, Path, Path]:
     paths = resolve_igea_txt_paths()

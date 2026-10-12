@@ -188,11 +188,13 @@ def test_documentacion_del_readme():
 
 
 def test_config_sin_datos_de_una_empresa():
-    """009:RF-14 — en config/ solo se versionan ejemplos y perfiles genéricos."""
+    """009:RF-14 — en config/ solo se versionan ejemplos, perfiles genéricos y perfiles de
+    empresa con convenciones (los de config/perfiles, que comprueba 002:RF-35)."""
     salida = subprocess.run(['git', 'ls-files', 'config'], cwd=RAIZ, capture_output=True,
                             text=True, encoding='utf-8', check=True).stdout.split()
     genericos = {'config/vnr_dgs_profile.json'}
-    malos = [f for f in salida if '.example.' not in f and f not in genericos]
+    malos = [f for f in salida if '.example.' not in f and f not in genericos
+             and not (f.startswith('config/perfiles/') and f.endswith('.json'))]
     assert not malos, f'config/ con datos de una empresa en git: {malos}'
 
 

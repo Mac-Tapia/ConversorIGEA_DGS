@@ -81,7 +81,8 @@ Documentación
 Configuración
 
 - RF-14: EL SISTEMA no versionará en `config/` ficheros con datos de una distribuidora:
-  se versionan los `*.example.*` y los perfiles genéricos, y el resto queda en local.
+  se versionan los `*.example.*`, los perfiles genéricos y los perfiles de empresa de
+  `config/perfiles/`, que solo llevan convenciones (spec 002, RF-35); el resto queda en local.
 
 Código
 

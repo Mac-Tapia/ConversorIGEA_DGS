@@ -34,9 +34,9 @@ class CarpetaError(ValueError):
 
 
 def ruta_perfil() -> Path:
-    from .powerfactory_env import project_root
+    from .perfil_empresa import ruta_perfil_activo
 
-    return project_root() / 'config' / 'perfil_empresa.json'
+    return ruta_perfil_activo()
 
 
 def validar_nombre(nombre: object) -> str:

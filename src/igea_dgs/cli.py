@@ -86,7 +86,12 @@ def _parser() -> argparse.ArgumentParser:
               'de escribir el DGS. Sin valor usa input/catalogo_parametros.xlsx. La '
               'identidad de cada elemento (código, material, sección) se conserva.'))
     conv.add_argument('--schema-profile', default='pf21_dgs_1_8_4', help='Perfil de esquema DGS')
-    conv.add_argument('--source-crs', default='EPSG:32718', help='CRS de CoordX/CoordY de la entrada (cualquier EPSG en metros; p. ej. EPSG:32718)')
+    conv.add_argument('--source-crs', default=None,
+                      help='CRS de CoordX/CoordY de la entrada (un EPSG en metros, p. ej. el UTM '
+                           'de su zona). Sin él, el del perfil de empresa; sin perfil, se pide.')
+    conv.add_argument('--perfil', default=None, metavar='NOMBRE',
+                      help='Perfil de empresa de config/perfiles/ (CRS, SED de medición, escala). '
+                           'Sin él, config/perfil_empresa.json si existe.')
     conv.add_argument('--target-crs', default='EPSG:4326', help='CRS geográfico de destino para GPSlat/GPSlon')
     conv.add_argument('--no-geography', action='store_true', help='No generar GPS ni diagrama')
     conv.add_argument('--non-strict', action='store_true', help='Omitir filas de topología, carga o maniobra no admitidas en vez de fallar; los tipos de línea se resuelven siempre')
@@ -109,8 +114,8 @@ def _parser() -> argparse.ArgumentParser:
     )
     conv.add_argument(
         '--literal', action='store_true',
-        help='Convertir sin las reglas del proyecto (sin fundir puentes, con trafomix, '
-             'sin redimensionar SED, escala NA205). Solo para comparar con la entrada.',
+        help='Convertir sin las reglas del proyecto (sin fundir puentes, con las SED de '
+             'medición, sin redimensionar SED, escala del motor). Solo para comparar con la entrada.',
     )
     conv.add_argument(
         '--workers', type=int, default=1,
@@ -260,6 +265,26 @@ def main(argv=None) -> int:
             argv_web.append('--no-browser')
         return web_main(argv_web)
 
+    perfil = None
+    if args.command == 'convert':
+        # Perfil y CRS antes de leer la entrada: sin CRS no se supone ninguno (spec 002,
+        # RF-32), y leer una entrega grande para fallar después es tiempo perdido.
+        from .perfil_empresa import PerfilError, cargar_perfil, perfil_con_nombre
+
+        try:
+            perfil = perfil_con_nombre(args.perfil) if args.perfil else cargar_perfil()
+        except PerfilError as exc:
+            raise SystemExit(f'Perfil de empresa: {exc}') from exc
+        args.source_crs = args.source_crs or perfil.crs_origen
+        if not args.no_geography and not args.source_crs:
+            from .geography import MENSAJE_FALTA_CRS
+
+            raise SystemExit(f'{MENSAJE_FALTA_CRS} Use --source-crs EPSG:xxxxx, --perfil '
+                             f'NOMBRE o --no-geography.')
+        if perfil.nombre or perfil.crs_origen:
+            print(f'Perfil de empresa: {perfil.nombre or "local"} — CRS {args.source_crs or "—"}',
+                  flush=True)
+
     dataset = load_dataset(args)
 
     if args.command == 'list':
@@ -302,9 +327,10 @@ def main(argv=None) -> int:
         # del proyecto completa conductores, da los transformadores y sus fichas.
         from dataclasses import replace as _replace
 
-        from .reglas import REGLAS_PROYECTO, SIN_REGLAS, catalogo_del_proyecto
+        from .reglas import REGLAS_PROYECTO, SIN_REGLAS, catalogo_del_proyecto, reglas_de_perfil
 
-        reglas = SIN_REGLAS if args.literal else _replace(REGLAS_PROYECTO, hoja=args.hoja)
+        reglas = SIN_REGLAS if args.literal else reglas_de_perfil(
+            perfil, _replace(REGLAS_PROYECTO, hoja=args.hoja))
         catalogo = None if args.literal else catalogo_del_proyecto()
         correcciones_catalogo = None
         if args.catalogo is not None:
@@ -333,7 +359,7 @@ def main(argv=None) -> int:
                 include_geography=not args.no_geography,
                 source_crs=args.source_crs, target_crs=args.target_crs,
                 catalog_corrections=correcciones_catalogo, reglas=reglas, catalogo=catalogo,
-                export_xlsx=args.export_xlsx, export_tsv=args.export_tsv,
+                perfil=perfil, export_xlsx=args.export_xlsx, export_tsv=args.export_tsv,
                 write_preview=args.preview, preview_backend=args.preview_backend,
                 on_progress=_progress,
             )
@@ -366,6 +392,7 @@ def main(argv=None) -> int:
             workers=args.workers,
             reglas=reglas,
             catalogo=catalogo,
+            perfil=perfil,
         )
     except (OSError, ValueError, ImportError) as exc:
         raise SystemExit(f'Error de conversión: {exc}') from exc

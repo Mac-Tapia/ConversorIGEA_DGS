@@ -16,12 +16,14 @@ Sobre cada **modelo** (por alimentador):
 
 1. Tramos puente ``DEFAULT`` fundidos; sus seccionadores pasan a ``ElmCoup``
    (:mod:`igea_dgs.puentes`).
-2. Trafomix —medición MT registrada como SED ``M…``— excluidos (:mod:`igea_dgs.trafomix`).
+2. Trafomix —medición MT registrada como SED— excluidos (:mod:`igea_dgs.trafomix`), solo
+   si el perfil de empresa da su patrón (``M…`` en Electro Dunas).
 3. SED con más carga que kVA → tamaño normalizado que la cubre, listado
    (:mod:`igea_dgs.sed_potencia`).
 4. Correcciones de ficha del catálogo (filas ``ficha``/``derivado``), conservando código,
    sección y tipo.
-5. Diagrama en hoja a medida, a escala geográfica real, con símbolos de tamaño NA205.
+5. Diagrama en hoja a medida, a escala geográfica real (la del perfil, si la da), con
+   símbolos de tamaño NA205.
     A0–A4 solo se usan si el operador selecciona explícitamente un formato fijo.
 
 Y sobre el **resultado**: auditoría de completitud contra la entrada
@@ -49,6 +51,10 @@ class Reglas:
     excluir_trafomix: bool = True
     redimensionar_sed: bool = True
     dibujar_todo: bool = True
+    #: Del perfil de empresa (spec 002, RF-31 a RF-33): sin patrón no se excluye ninguna
+    #: SED por su nombre, y sin escala queda la del motor.
+    patron_sed_medicion: str | None = None
+    escala_diagrama: float | None = None
 
 
 #: Las reglas del proyecto. Es lo que usan todas las vías por defecto.
@@ -56,6 +62,14 @@ REGLAS_PROYECTO = Reglas()
 #: Conversión literal de la entrada, sin ninguna regla (pruebas de fidelidad).
 SIN_REGLAS = Reglas(hoja=None, fundir_puentes=False, excluir_trafomix=False,
                     redimensionar_sed=False, dibujar_todo=False)
+
+
+def reglas_de_perfil(perfil, base: Reglas = REGLAS_PROYECTO) -> Reglas:
+    """``base`` con las convenciones del perfil de empresa (:mod:`igea_dgs.perfil_empresa`)."""
+    from dataclasses import replace
+
+    return replace(base, patron_sed_medicion=perfil.patron_sed_medicion,
+                   escala_diagrama=perfil.escala_diagrama)
 
 
 def catalogo_del_proyecto() -> Path | None:
@@ -144,10 +158,10 @@ def aplicar_reglas(model, reglas: Reglas = REGLAS_PROYECTO, *,
         p = fundir_puentes(model)
         informe['puentes'] = {'tramos': p.tramos, 'fundidos': p.fundidos,
                               'interruptores': p.interruptores, 'texto': p.texto()}
-    if reglas.excluir_trafomix:
+    if reglas.excluir_trafomix and reglas.patron_sed_medicion:
         from .trafomix import excluir_trafomix
 
-        t = excluir_trafomix(model)
+        t = excluir_trafomix(model, reglas.patron_sed_medicion)
         informe['trafomix'] = {'excluidos': t.excluidos,
                                'cargas_nulas_quitadas': t.cargas_nulas_quitadas,
                                'con_carga_en_mt': t.cargas_conservadas_mt}
@@ -157,6 +171,8 @@ def aplicar_reglas(model, reglas: Reglas = REGLAS_PROYECTO, *,
         informe['sed_redimensionadas'] = [r.linea() for r in redimensionar_sobrecargadas(model)]
     if reglas.hoja:
         model.diagram_sheet = reglas.hoja
+    if reglas.escala_diagrama:
+        model.diagram_units_per_meter = reglas.escala_diagrama
     if reglas.dibujar_todo:
         model.diagram_max_stub_m = -1.0
     return informe

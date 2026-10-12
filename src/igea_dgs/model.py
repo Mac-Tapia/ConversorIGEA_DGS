@@ -200,6 +200,9 @@ class FeederModel:
     # Hoja normalizada (``A0``…) opcional. None conserva 2,08 u/m y ajusta el lienzo
     # a la red. Ver dgs._diagram_mapper_hoja.
     diagram_sheet: str | None = None
+    # Unidades de diagrama por metro del perfil de empresa (spec 002, RF-31). None deja
+    # la del motor, calibrada con NA205.
+    diagram_units_per_meter: float | None = None
     # Alias explícitos de nodos duplicados por el export; se usan también en la prueba
     # From/To para no ocultar qué identidad del RED se normalizó.
     node_aliases: dict[str, str] = field(default_factory=dict)

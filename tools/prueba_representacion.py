@@ -8,8 +8,8 @@ Por cada alimentador:
 1. Toma del TXT los valores y coordenadas de cada elemento. Los nodos sin
    ``CoordX/CoordY`` se colocan por el grafo (``igea_dgs.coordenadas``) y quedan
    marcados como inferidos.
-2. Excluye los trafomix —medición de MT registrada como SED ``M…``—
-   (``igea_dgs.trafomix``).
+2. Excluye los trafomix —medición de MT registrada como SED, con el patrón del perfil
+   de empresa— (``igea_dgs.trafomix``).
 3. Encaja el diagrama en la hoja pedida con escala isótropa y dimensiona los símbolos
    en múltiplos de la cuadrícula (``FeederModel.diagram_sheet``).
 4. Valida el DGS y **audita la completitud contra el TXT**: tramos, barras, cargas,
@@ -89,7 +89,7 @@ def auditar(dataset, net: str, model, tablas: dict, trafomix) -> dict:
         fallos.append(f'kvar: TXT {kvar_txt:,.1f} ≠ DGS {kvar_dgs:,.1f}')
     if n('StaSwitch') != maniobras_txt:
         fallos.append(f'maniobras: TXT {maniobras_txt} ≠ StaSwitch {n("StaSwitch")}')
-    if any(es_trafomix(s.code) for s in model.seds):
+    if any(es_trafomix(s.code, trafomix.patron) for s in model.seds):
         fallos.append('queda un trafomix modelado como SED')
     return {
         'txt': {'tramos': len(secciones), 'barras': len(nodos_txt),
@@ -222,13 +222,18 @@ def main(argv: list[str] | None = None) -> int:
                         'Por defecto, la del perfil de empresa o «Conversor IGEA-DGS».')
     p.add_argument('--muestra', action='store_true',
                    help='Importar además una muestra representativa.')
-    p.add_argument('--source-crs', default='EPSG:32718')
+    p.add_argument('--source-crs', default=None, help='CRS de las coordenadas (EPSG en metros). Por defecto, el del perfil de empresa.')
     p.add_argument('--sin-redimensionar-sed', dest='redimensionar_sed', action='store_false',
                    help='Respetar el kVA del TXT aunque la SED no pueda con su carga.')
     p.add_argument('--out-dir', default=str(RAIZ / 'output' / 'representacion'))
     args = p.parse_args(argv)
 
     formato_hoja(args.hoja)
+    from igea_dgs.geography import exigir_crs_origen
+    from igea_dgs.perfil_empresa import cargar_perfil
+
+    perfil = cargar_perfil()
+    args.source_crs = exigir_crs_origen(args.source_crs or perfil.crs_origen)
     assert_metre_source_crs(args.source_crs)
     out = Path(args.out_dir)
     out.mkdir(parents=True, exist_ok=True)
@@ -247,7 +252,7 @@ def main(argv: list[str] | None = None) -> int:
             continue
         try:
             m = build_feeder_model(ds, net, strict=False, include_geography=True)
-            tfx = excluir_trafomix(m)
+            tfx = excluir_trafomix(m, perfil.patron_sed_medicion)
             # SED con más carga que kVA en el TXT: al tamaño normalizado que la cubre
             # (decisión del usuario, igual que en la base 260924). Queda listado.
             redim = redimensionar_sobrecargadas(m) if args.redimensionar_sed else []

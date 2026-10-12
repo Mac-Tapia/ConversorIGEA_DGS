@@ -90,15 +90,16 @@ def _mdb_inventario(dataset, nets: list[str]) -> dict:
 
 
 def construir_grupo(dataset, nombre: str, nets: list[str], *, correcciones, crs: str,
-                    out_dir: Path, trafos: dict | None = None, hoja: str | None = None) -> dict:
+                    out_dir: Path, trafos: dict | None = None, hoja: str | None = None,
+                    patron_sed_medicion: str | None = None) -> dict:
     modelos, por_alimentador = [], {}
     for net in nets:
         m = build_feeder_model(dataset, net, strict=True, include_geography=True)
         cambios = aplicar_correcciones(m, correcciones) if correcciones else []
         puentes = fundir_puentes(m)
-        # Trafomix (medición MT, SED «M…»): no son SED. Antes de redimensionar, para
-        # que un trafomix no cuente como transformador sobrecargado.
-        tfx = excluir_trafomix(m)
+        # Trafomix (medición MT; patrón del perfil de empresa): no son SED. Antes de
+        # redimensionar, para que un trafomix no cuente como transformador sobrecargado.
+        tfx = excluir_trafomix(m, patron_sed_medicion)
         redimensiones = redimensionar_sobrecargadas(m)
         m.diagram_sheet = hoja
         # Todo tramo lleva su símbolo, también los de menos de 1 m: no se omite nada.
@@ -320,7 +321,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument('--grupo', action='append', required=True,
                    help='NOMBRE=AL1,AL2 — alimentadores que van en un mismo DGS. Repetible.')
     p.add_argument('--out-dir', default=str(RAIZ / 'output' / 'grupos'))
-    p.add_argument('--source-crs', default='EPSG:32718')
+    p.add_argument('--source-crs', default=None, help='CRS de las coordenadas (EPSG en metros). Por defecto, el del perfil de empresa.')
     p.add_argument('--importar', action='store_true')
     p.add_argument('--pf-carpeta', metavar='NOMBRE',
                    help='Carpeta de DIgSILENT donde queda el proyecto importado (spec 005). '
@@ -328,9 +329,15 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument('--hoja', default='A0', help='Hoja del diagrama: A0 … A4 (defecto A0).')
     args = p.parse_args(argv)
 
+    from igea_dgs.geography import exigir_crs_origen
+    from igea_dgs.perfil_empresa import cargar_perfil
+    from igea_dgs.reglas import reglas_de_perfil
+
+    perfil = cargar_perfil()
+    args.source_crs = exigir_crs_origen(args.source_crs or perfil.crs_origen)
     assert_metre_source_crs(args.source_crs)
     catalogo = Path(args.catalogo) if args.catalogo else catalogo_del_proyecto()
-    reglas = replace(REGLAS_PROYECTO, hoja=args.hoja)
+    reglas = reglas_de_perfil(perfil, replace(REGLAS_PROYECTO, hoja=args.hoja))
     grupos = {}
     for g in args.grupo:
         nombre, _, lista = g.partition('=')
@@ -349,7 +356,8 @@ def main(argv: list[str] | None = None) -> int:
     for nombre, feeders in grupos.items():
         print(f'\n=== {nombre}: {", ".join(feeders)} ===')
         man = convert_group(dataset, feeders, out_dir, name=nombre, strict=True,
-                            source_crs=args.source_crs, reglas=reglas, catalogo=catalogo)
+                            source_crs=args.source_crs, reglas=reglas, catalogo=catalogo,
+                            perfil=perfil)
         print(f"  {man.get('entrada', '')}")
         for alim, inf in (man.get('reglas_por_alimentador') or {}).items():
             print(f"  {alim}: puentes {(inf.get('puentes') or {}).get('tramos', 0)}, "

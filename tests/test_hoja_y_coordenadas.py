@@ -16,7 +16,7 @@ import math
 
 import pytest
 
-from synthetic_export import ExportSpec, load_export
+from synthetic_export import CRS_SINTETICO, ExportSpec, load_export
 from igea_dgs.coordenadas import ORIGEN_GRAFO, completar_coordenadas
 
 pytest.importorskip('pyproj')
@@ -121,7 +121,7 @@ def _dgs_en_hoja(tmp_path, formato='A3', **kw):
     ds = _dataset(tmp_path, **kw)
     m = build_feeder_model(ds, ds.feeder_ids()[0], strict=False, include_geography=True)
     m.diagram_sheet = formato
-    geo = build_geography(ds, m)
+    geo = build_geography(ds, m, source_crs=CRS_SINTETICO)
     out = tmp_path / 'h.dgs'
     man = write_dgs(m, out, geography=geo)
     return m, geo, man, validate_dgs(m, out, geography=geo), parse_dgs(out)

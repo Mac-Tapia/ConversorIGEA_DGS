@@ -24,7 +24,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | Spec | Estado |
   | --- | --- |
   | 001 reorganización | cumplida |
-  | 002 arquitectura por capas | aprobada; plan y tareas escritos el 2026-10-10, **pendientes de aprobar**; sin código |
+  | 002 arquitectura por capas | aprobada; plan y tareas escritos el 2026-10-10, **pendientes de aprobar**; T1 (línea base) y T5 (perfil de empresa) adelantadas el 2026-10-12 |
   | 003 | no existe: la citan la 002 y la memoria para lo que queda de la rama `feat/integracion-web-retiro-gui`, tras las capas |
   | 004 cargas en PowerFactory | implementada y validada |
   | 005 carpeta de proyectos PF | implementada; falta la prueba en DIgSILENT (T12) |
@@ -34,8 +34,11 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 009 inventario del repositorio | implementada |
   | 010 trazado GPS de las líneas | cumplida; probada en DIgSILENT con NA203 + NA205 (574/574 líneas) |
 
-  La carpeta de DIgSILENT de cada empresa va en `config/perfil_empresa.json`; los alias de
-  tipos de línea en `config/line_type_aliases.json`. Los dos, locales y fuera de git.
+  Las convenciones de cada empresa (CRS de origen, patrón de SED de medición, escala,
+  carpeta de DIgSILENT) van en `config/perfil_empresa.json`, local y fuera de git, que
+  puede heredar de un perfil de `config/perfiles/` (`{"perfil": "electro_dunas"}`); los
+  alias de tipos de línea en `config/line_type_aliases.json`, también local. Sin perfil
+  no se supone nada: el CRS se pide y ninguna SED se excluye por su nombre.
 - `CODIGO_FUENTE.md` lista cada fichero de `src/`, `tools/` y `frontend/src/` con su spec.
   **Un fichero nuevo entra en el índice en el mismo cambio**: `tests/test_inventario.py`
   (spec 009) falla si falta, si una herramienta no responde a `--help`, si una función de

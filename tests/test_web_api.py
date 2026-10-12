@@ -15,7 +15,7 @@ pytest.importorskip('httpx2')
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from synthetic_export import ExportSpec, write_export  # noqa: E402
+from synthetic_export import CRS_SINTETICO, ExportSpec, write_export  # noqa: E402
 from igea_dgs.web.app import create_app  # noqa: E402
 
 from apoyo import esperar_trabajo  # noqa: E402
@@ -52,7 +52,8 @@ def _loaded(client, export, *, geography: bool = False) -> str:
     red, loads, equip = export
     for slot, path in (('red', red), ('loads', loads), ('equipment', equip)):
         _upload(client, wid, slot, path)
-    client.put(f'/api/workspaces/{wid}/options', json={'include_geography': geography})
+    client.put(f'/api/workspaces/{wid}/options',
+               json={'include_geography': geography, 'source_crs': CRS_SINTETICO})
     job = client.post(f'/api/workspaces/{wid}/load').json()
     state = esperar_trabajo(client, job)
     assert state['status'] == 'done', state

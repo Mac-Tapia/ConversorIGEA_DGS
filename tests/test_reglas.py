@@ -11,7 +11,7 @@ import json
 
 import pytest
 
-from synthetic_export import ExportSpec, load_export
+from synthetic_export import CRS_SINTETICO, ExportSpec, load_export
 from igea_dgs.batch import convert_group, convert_selection
 from igea_dgs.reglas import REGLAS_PROYECTO, SIN_REGLAS
 from igea_dgs.validate import parse_dgs
@@ -27,7 +27,7 @@ def ds(tmp_path, request):
 
 
 def test_las_reglas_del_proyecto_son_el_defecto(ds, tmp_path):
-    m = convert_selection(ds, None, tmp_path / 'o', all_feeders=True, source_crs='EPSG:32718')
+    m = convert_selection(ds, None, tmp_path / 'o', all_feeders=True, source_crs=CRS_SINTETICO)
     assert m['reglas'] == REGLAS_PROYECTO.__dict__
     for item in m['feeders']:
         assert item['status'] == 'ok', item.get('error')
@@ -37,7 +37,7 @@ def test_las_reglas_del_proyecto_son_el_defecto(ds, tmp_path):
 
 def test_un_default_largo_es_linea_real_y_no_se_funde(ds, tmp_path):
     """El sintético tipa DEFAULT sus tramos de 40 m: son líneas, no puentes."""
-    m = convert_selection(ds, None, tmp_path / 'o', all_feeders=True, source_crs='EPSG:32718')
+    m = convert_selection(ds, None, tmp_path / 'o', all_feeders=True, source_crs=CRS_SINTETICO)
     for item in m['feeders']:
         tablas = parse_dgs(item['dgs'])
         largos = [float(r['dline']) * 1000 for r in tablas['ElmLne']['rows_dict']]
@@ -47,7 +47,7 @@ def test_un_default_largo_es_linea_real_y_no_se_funde(ds, tmp_path):
 
 def test_sin_reglas_es_la_conversion_literal(ds, tmp_path):
     m = convert_selection(ds, None, tmp_path / 'o', all_feeders=True,
-                          source_crs='EPSG:32718', reglas=SIN_REGLAS)
+                          source_crs=CRS_SINTETICO, reglas=SIN_REGLAS)
     for item in m['feeders']:
         assert item['status'] == 'ok', item.get('error')
         assert 'hoja' not in item
@@ -57,8 +57,8 @@ def test_sin_reglas_es_la_conversion_literal(ds, tmp_path):
 
 def test_varios_alimentadores_en_un_solo_dgs(ds, tmp_path):
     nombres = [f['feeder'] for f in convert_selection(
-        ds, None, tmp_path / 'x', all_feeders=True, source_crs='EPSG:32718')['feeders']]
-    man = convert_group(ds, nombres, tmp_path / 'g', name='GRUPO 1', source_crs='EPSG:32718')
+        ds, None, tmp_path / 'x', all_feeders=True, source_crs=CRS_SINTETICO)['feeders']]
+    man = convert_group(ds, nombres, tmp_path / 'g', name='GRUPO 1', source_crs=CRS_SINTETICO)
     assert man['status'] == 'ok', man.get('error')
     assert man['name'] == 'GRUPO_1'
     assert man['completitud']['fallos'] == []
@@ -71,7 +71,7 @@ def test_varios_alimentadores_en_un_solo_dgs(ds, tmp_path):
 
 def test_un_grupo_con_un_alimentador_roto_no_publica_dgs(ds, tmp_path):
     man = convert_group(ds, ['NO_EXISTE', 'TAMPOCO'], tmp_path / 'g', name='MAL',
-                        source_crs='EPSG:32718')
+                        source_crs=CRS_SINTETICO)
     assert man['status'] == 'failed' and man.get('error')
     assert not (tmp_path / 'g' / 'MAL.dgs').exists()
     assert (tmp_path / 'g' / 'MAL_manifest.json').exists()
@@ -94,6 +94,7 @@ def test_web_une_en_un_dgs(tmp_path, monkeypatch):
     red, carga, equipo = write_export(ExportSpec(feeders=3), tmp_path / 'e')
     with TestClient(create_app(tmp_path / 'web', host='127.0.0.1')) as c:
         wid = c.post('/api/workspaces').json()['id']
+        c.put(f'/api/workspaces/{wid}/options', json={'source_crs': CRS_SINTETICO})
         for slot, path in (('red', red), ('loads', carga), ('equipment', equipo)):
             c.post(f'/api/workspaces/{wid}/inputs/{slot}/path', json={'path': str(path)})
 

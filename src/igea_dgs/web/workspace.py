@@ -73,7 +73,8 @@ DEFAULT_OPTIONS: dict[str, Any] = {
     'input_mode': 'txt',
     'source_company': None,
     'source_period': None,
-    'source_crs': 'EPSG:32718',
+    # Sin CRS: el del perfil de empresa o, sin perfil, se pide (spec 002, RF-32).
+    'source_crs': None,
     'target_crs': 'EPSG:4326',
     'include_geography': True,
     'strict': True,
