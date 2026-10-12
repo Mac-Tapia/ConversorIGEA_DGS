@@ -27,12 +27,13 @@ from igea_dgs.web.workspace import Workspace  # noqa: E402
 @dataclass(frozen=True)
 class AcceptanceConfig:
     audit_dir: Path
-    feeder: str = 'IN111'
+    feeder: str = ''
     feeders: tuple[str, ...] = ()
     all_feeders: bool = False
     source_company: str = ''
     source_period: str = ''
-    source_crs: str = 'EPSG:32718'
+    #: None: el del perfil de empresa (spec 002, RF-32).
+    source_crs: str | None = None
     reconstruct: bool = True
     allow_catalog_matches: bool = True
     allow_engineering_assumptions: bool = True
@@ -186,7 +187,7 @@ def _accept_mode(config: AcceptanceConfig, mode: str) -> dict[str, Any]:
         })
         rows = services.feeder_rows(workspace)
         available = [item['feeder'] for item in rows]
-        requested = list(config.feeders or (config.feeder,))
+        requested = list(config.feeders or ((config.feeder,) if config.feeder else ()))
         selected = available if config.all_feeders else [name for name in requested if name in available]
         row['selected_ids'] = selected
         missing_selected = [] if config.all_feeders else [name for name in requested if name not in available]
@@ -314,7 +315,7 @@ def run_three_sources(config: AcceptanceConfig) -> dict[str, Any]:
         'created_at': time.time(),
         'audit_dir': str(config.audit_dir.resolve()),
         'requested_feeder': config.feeder,
-        'requested_feeders': list(config.feeders or (config.feeder,)),
+        'requested_feeders': list(config.feeders or ((config.feeder,) if config.feeder else ())),
         'all_feeders': config.all_feeders,
         'requested_company': config.source_company,
         'requested_period': config.source_period,
@@ -338,7 +339,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument('--all-feeders', action='store_true')
     parser.add_argument('--company', default='')
     parser.add_argument('--period', default='')
-    parser.add_argument('--source-crs', default='EPSG:32718')
+    parser.add_argument('--source-crs', default=None, help='CRS de las coordenadas (EPSG en metros). Por defecto, el del perfil de empresa.')
     parser.add_argument('--no-reconstruct', action='store_true')
     parser.add_argument('--no-catalog-matches', action='store_true')
     parser.add_argument('--no-engineering-assumptions', action='store_true')
@@ -364,7 +365,7 @@ def main(argv: list[str] | None = None) -> int:
     audit_dir = args.audit_dir or ROOT / 'AUDIT' / f'three_source_{time.strftime("%Y%m%d_%H%M%S")}'
     config = AcceptanceConfig(
         audit_dir=audit_dir,
-        feeder=(args.feeders or ['IN111'])[0],
+        feeder=(args.feeders or [''])[0],
         feeders=tuple(args.feeders or ()),
         all_feeders=args.all_feeders,
         source_company=args.company,

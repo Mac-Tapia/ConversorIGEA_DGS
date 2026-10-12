@@ -152,8 +152,8 @@ def main(argv: list[str] | None = None) -> int:
     salida.add_argument('--out-dir', default='output/catalogo',
                         help='Destino de los DGS corregidos.')
     salida.add_argument('--sin-geografia', action='store_true')
-    salida.add_argument('--source-crs', default='EPSG:32718',
-                        help='CRS de las coordenadas del export. Debe estar en metros.')
+    salida.add_argument('--source-crs', default=None,
+                        help='CRS de las coordenadas del export, en metros. Por defecto, el del perfil de empresa.')
     salida.add_argument('--informe-json', help='Volcar los cambios a un JSON.')
     args = p.parse_args(argv)
 
@@ -276,15 +276,20 @@ def main(argv: list[str] | None = None) -> int:
     # validación y la publicación atómica, y habría creado una segunda ruta de
     # conversión que se desviaría de la primera en cuanto una cambiase.
     from igea_dgs.batch import convert_selection
+    from igea_dgs.perfil_empresa import cargar_perfil
+    from igea_dgs.reglas import reglas_de_perfil
 
+    perfil = cargar_perfil()
     out_dir = Path(args.out_dir)
     manifiesto = convert_selection(
         ds, args.feeder or None, out_dir,
         all_feeders=not args.feeder,
         strict=False,
         include_geography=not args.sin_geografia,
-        source_crs=args.source_crs,
+        source_crs=args.source_crs or perfil.crs_origen,
         catalog_corrections=correcciones,
+        reglas=reglas_de_perfil(perfil),
+        perfil=perfil,
     )
     hechos = [f for f in manifiesto.get('feeders', []) if f.get('status') == 'ok']
     print()

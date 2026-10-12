@@ -140,7 +140,7 @@ def main(argv: list[str] | None = None) -> int:
                    help='Limitar a estos alimentadores. Repetible. Por defecto, todos.')
     p.add_argument('--out', help='Ruta del DGS. Por defecto output/sistema/<nombre>.dgs')
     p.add_argument('--sin-geografia', action='store_true')
-    p.add_argument('--source-crs', default='EPSG:32718')
+    p.add_argument('--source-crs', default=None, help='CRS de las coordenadas (EPSG en metros). Por defecto, el del perfil de empresa.')
     p.add_argument('--catalogo', nargs='?', const='', metavar='XLSX',
                    help='Corregir las características con el catálogo de fichas.')
     p.add_argument('--importar', action='store_true',
@@ -187,7 +187,9 @@ def main(argv: list[str] | None = None) -> int:
 
     geografia = None
     if not args.sin_geografia:
-        from igea_dgs.geography import assert_metre_source_crs, build_geography
+        from igea_dgs.geography import assert_metre_source_crs, build_geography, exigir_crs_origen
+        from igea_dgs.perfil_empresa import crs_o_perfil
+        args.source_crs = exigir_crs_origen(crs_o_perfil(args.source_crs))
         assert_metre_source_crs(args.source_crs)
         geografia = build_geography(ds, modelo, source_crs=args.source_crs)
 

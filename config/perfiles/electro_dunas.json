@@ -1,0 +1,9 @@
+{
+  "_comentario": "Convenciones de Electro Dunas (Ica, Perú), caso de prueba del conversor (spec 002, RF-35). Solo convenciones, ningún dato de la red. Para usarlo, ponga en config/perfil_empresa.json: {\"perfil\": \"electro_dunas\"}.",
+  "_comentario_crs": "Coordenadas de sus exportaciones CYMDIST/IGEA: UTM 18S (WGS 84).",
+  "crs_origen": "EPSG:32718",
+  "_comentario_sed": "Medición en MT («trafomix») registrada como SED con código M y cifras (M41608 mide a SE41608): no transforma a BT y se excluye.",
+  "patron_sed_medicion": "(?i)^M\\d+(?:-\\d+)?$",
+  "_comentario_escala": "Unidades de diagrama por metro, calibradas con el DGS de referencia de NA205.",
+  "escala_diagrama": 2.08
+}

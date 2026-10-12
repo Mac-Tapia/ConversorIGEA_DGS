@@ -680,6 +680,7 @@ def test_web_red_unida_en_la_carpeta(web, tmp_path):
     """005:RF-10 — la red unida («Sistema completo») también se importa en la carpeta."""
     web.perfil.write_text(json.dumps({CLAVE_PERFIL: 'Empresa'}), encoding='utf-8')
     web.ws.options['input_mode'] = 'mdb'
+    web.ws.options['source_crs'] = 'EPSG:32719'
     web.ws.inputs = {'mdb': {'path': str(tmp_path / 'base.mdb')}}
     orden = web.services.system_command(web.ws, 'grid')
     assert _valor(orden, '--pf-carpeta') == 'Empresa'

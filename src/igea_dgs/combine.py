@@ -468,6 +468,9 @@ def combine_models(
     # La hoja pedida por el primer alimentador que pida una.
     combinado.diagram_sheet = next(
         (m.diagram_sheet for m in modelos if getattr(m, 'diagram_sheet', None)), None)
+    combinado.diagram_units_per_meter = next(
+        (m.diagram_units_per_meter for m in modelos
+         if getattr(m, 'diagram_units_per_meter', None)), None)
     return combinado, informe
 
 

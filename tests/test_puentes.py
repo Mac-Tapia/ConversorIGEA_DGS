@@ -193,8 +193,14 @@ def test_solo_se_redimensiona_la_sed_que_no_puede_con_su_carga():
 
 
 # ---------------------------------------------------------------------------
-# Trafomix: medición MT registrada como SED «M…»
+# Trafomix: medición MT registrada como SED «M…» (patrón del perfil de Electro Dunas)
 # ---------------------------------------------------------------------------
+
+def _patron_ed() -> str:
+    from igea_dgs.perfil_empresa import perfil_con_nombre
+
+    return perfil_con_nombre('electro_dunas').patron_sed_medicion
+
 
 def test_trafomix_sin_carga_se_excluye_entero():
     from dataclasses import replace
@@ -204,7 +210,7 @@ def test_trafomix_sin_carga_se_excluye_entero():
     m = _modelo()
     m.seds = [replace(m.seds[0], code='M41608', loc_name='M41608')]
     m.loads = [replace(m.loads[0], p_mw=0.0, q_mvar=0.0, sed_code='M41608')]
-    inf = excluir_trafomix(m)
+    inf = excluir_trafomix(m, _patron_ed())
     assert (inf.excluidos, inf.cargas_nulas_quitadas) == (1, 1)
     assert m.seds == [] and m.loads == []
     assert len(m.lines) == 6, 'el tramo de red del trafomix se conserva'
@@ -217,7 +223,7 @@ def test_trafomix_con_carga_la_conserva_en_media_tension():
 
     m = _modelo()
     m.seds = [replace(m.seds[0], code='M50099')]
-    inf = excluir_trafomix(m)
+    inf = excluir_trafomix(m, _patron_ed())
     assert m.seds == [] and len(m.loads) == 1
     assert inf.cargas_conservadas_mt
 
@@ -226,5 +232,7 @@ def test_trafomix_con_carga_la_conserva_en_media_tension():
 def test_solo_los_codigos_m_con_cifras_son_trafomix(codigo):
     from igea_dgs.trafomix import es_trafomix
 
-    assert not es_trafomix(codigo)
-    assert es_trafomix('M41608') and es_trafomix('m50174') and es_trafomix('M20730-2')
+    patron = _patron_ed()
+    assert not es_trafomix(codigo, patron)
+    assert es_trafomix('M41608', patron) and es_trafomix('m50174', patron)
+    assert es_trafomix('M20730-2', patron)

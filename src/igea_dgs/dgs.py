@@ -538,6 +538,7 @@ def _diagram_mapper(
     *,
     margin_du: float = DIAGRAM_SHEET_MARGIN_DU,
     formato: str | None = None,
+    units_per_meter: float | None = None,
 ):
     """Return (map_point, DiagramSheet) with scale covering the full network map."""
     if formato:
@@ -547,6 +548,7 @@ def _diagram_mapper(
         meter_xy,
         visible_ids,
         extra_points=extras,
+        units_per_meter=units_per_meter or NA205_DIAGRAM_UNITS_PER_METER,
     )
 
     def map_point(point: GeoPoint) -> tuple[float, float]:
@@ -1152,7 +1154,9 @@ def write_dgs(
         drawn_line_sections = diagram_line_sections(model, neighbors=neighbors)
         visible_nodes = visible_pointterm_nodes(model, neighbors=neighbors, drawn=drawn_line_sections)
         formato = getattr(model, 'diagram_sheet', None)
-        map_point, diagram_sheet = _diagram_mapper(geography, visible_nodes, formato=formato)
+        map_point, diagram_sheet = _diagram_mapper(
+            geography, visible_nodes, formato=formato,
+            units_per_meter=getattr(model, 'diagram_units_per_meter', None))
         node_xy = {node_id: map_point(point) for node_id, point in geography.nodes.items()}
         layout = _diagram_symbol_layout(geography, model, map_point, sheet=diagram_sheet)
 

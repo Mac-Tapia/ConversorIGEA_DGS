@@ -24,6 +24,7 @@ from .dgs import write_dgs
 from .export_tables import write_dgs_tsv, write_dgs_xlsx
 from .geography import (
     assert_metre_source_crs,
+    exigir_crs_origen,
     build_geography,
     validate_geography,
     write_geography_manifest,
@@ -32,6 +33,7 @@ from .geography import (
 from .model import ModelBuildError, build_feeder_model
 from .naming import feeder_short_name, sort_key_feeder
 from .preview import write_preview_geojson, write_preview_html
+from .perfil_empresa import SIN_PERFIL, PerfilEmpresa
 from .reglas import REGLAS_PROYECTO, Reglas, aplicar_reglas, auditar_completitud, preparar_dataset
 from .util import nombre_seguro
 from .validate import parse_dgs, validate_dgs, write_validation_reports
@@ -186,7 +188,7 @@ class _FeederOptions:
     strict: bool
     schema_profile: str
     include_geography: bool
-    source_crs: str
+    source_crs: str | None
     target_crs: str
     export_xlsx: bool
     export_tsv: bool
@@ -450,7 +452,7 @@ def convert_selection(
     strict: bool = True,
     schema_profile: str = 'pf21_dgs_1_8_4',
     include_geography: bool = True,
-    source_crs: str = 'EPSG:32718',
+    source_crs: str | None = None,
     target_crs: str = 'EPSG:4326',
     export_xlsx: bool = False,
     export_tsv: bool = False,
@@ -462,6 +464,7 @@ def convert_selection(
     workers: int | None = None,
     reglas: Reglas = REGLAS_PROYECTO,
     catalogo: Path | str | None = None,
+    perfil: PerfilEmpresa | None = None,
 ) -> dict:
     """Convierte la selección y devuelve el manifiesto del lote.
 
@@ -498,7 +501,9 @@ def convert_selection(
         raise ValueError('write_preview=True requiere include_geography=True')
     if include_geography:
         # Fail before writing anything: a non-metre source CRS scales every line
-        # length silently and the validator cannot detect it (C-01).
+        # length silently and the validator cannot detect it (C-01). Sin CRS no se
+        # supone ninguno (spec 002, RF-32).
+        source_crs = exigir_crs_origen(source_crs)
         assert_metre_source_crs(source_crs)
     # Avisos de ingestión: un CARGA vacío convertía sin una sola carga y el lote
     # salía «ok». Ahora queda registrado en el manifiesto y visible para la GUI.
@@ -536,6 +541,15 @@ def convert_selection(
 
     networks = _selection(dataset, selectors, all_feeders)
     names = output_names(networks)
+    # La forma de los nombres es del perfil (spec 002, RF-31): solo avisa. Un nombre
+    # fuera de forma suele ser una red de prueba o un export de otra empresa.
+    fuera_de_forma = (perfil or SIN_PERFIL).nombre_fuera_de_forma(
+        [feeder_short_name(n) for n in networks])
+    if fuera_de_forma:
+        input_warnings.append(
+            f'{len(fuera_de_forma)} alimentador(es) no cumplen la forma del perfil de '
+            f'empresa ({(perfil or SIN_PERFIL).forma_alimentador}): '
+            f'{", ".join(fuera_de_forma[:10])}.')
     disambiguated = {
         network_id: name for network_id, name in names.items()
         if name != feeder_short_name(network_id)
@@ -591,6 +605,8 @@ def convert_selection(
             'write_preview': write_preview,
             'source_crs': source_crs if include_geography else None,
             'target_crs': target_crs if include_geography else None,
+            # Con qué convenciones de empresa se convirtió (spec 002, RF-37).
+            'perfil_empresa': (perfil or SIN_PERFIL).valores(),
             'runtime_reference_dependency': False,
             'disambiguated_output_names': disambiguated,
             # Un DGS con impedancias distintas a las del TXT tiene que decir de dónde
@@ -647,7 +663,7 @@ def convert_group(
     aliases: Mapping[str, str] | None = None,
     strict: bool = True,
     schema_profile: str = 'pf21_dgs_1_8_4',
-    source_crs: str = 'EPSG:32718',
+    source_crs: str | None = None,
     target_crs: str = 'EPSG:4326',
     catalog_corrections: Mapping[str, Any] | None = None,
     reglas: Reglas = REGLAS_PROYECTO,
@@ -659,6 +675,7 @@ def convert_group(
     export_tsv: bool = False,
     write_preview: bool = False,
     preview_backend: str = 'auto',
+    perfil: PerfilEmpresa | None = None,
 ) -> dict:
     """Une los alimentadores elegidos en una sola red y escribe **un** DGS.
 
@@ -683,6 +700,7 @@ def convert_group(
     if write_preview and not include_geography:
         raise ValueError('write_preview=True requiere include_geography=True')
     if include_geography:
+        source_crs = exigir_crs_origen(source_crs)
         assert_metre_source_crs(source_crs)
     informe_entrada = preparar_dataset(dataset, catalogo=catalogo)
     trafos = None
@@ -698,6 +716,7 @@ def convert_group(
     manifest: dict[str, Any] = {
         'name': nombre, 'feeders': list(selectors), 'network_ids': [],
         'reglas': reglas.__dict__, 'entrada': informe_entrada.texto(), 'status': 'failed',
+        'perfil_empresa': (perfil or SIN_PERFIL).valores(),
     }
     try:
         # Dentro del try: un nombre que no existe también deja manifiesto.

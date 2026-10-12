@@ -332,7 +332,7 @@ def check_convert_options(ws: Workspace) -> None:
         from ..geography import assert_metre_source_crs
 
         try:
-            assert_metre_source_crs(opts['source_crs'] or 'EPSG:32718')
+            assert_metre_source_crs(crs_origen_exigido(ws))
         except ValueError as exc:
             raise UserError(str(exc)) from exc
 
@@ -421,8 +421,9 @@ def convert(ws: Workspace, ctx: JobContext, feeders: list[str] | None, all_feede
         aliases=aliases,
         strict=bool(opts['strict']),
         include_geography=bool(opts['include_geography']),
-        source_crs=opts['source_crs'] or 'EPSG:32718',
+        source_crs=crs_origen(ws),
         target_crs=opts['target_crs'] or 'EPSG:4326',
+        perfil=perfil_de(ws),
         export_xlsx=bool(opts['export_xlsx']),
         export_tsv=bool(opts['export_tsv']),
         write_preview=bool(opts['write_preview']),
@@ -823,13 +824,77 @@ def powerfactory_flow(ws: Workspace, ctx: JobContext, feeders: list[str]) -> dic
 # ---------------------------------------------------------------------------
 
 
+def perfil_de(ws: Workspace):
+    """Perfil de empresa activo (``config/perfil_empresa.json``), o ninguno.
+
+    Se lee en cada conversión, no al arrancar: quien crea el perfil con la web abierta no
+    tiene que reiniciarla.
+    """
+    from ..perfil_empresa import PerfilError, cargar_perfil
+
+    try:
+        return cargar_perfil()
+    except PerfilError as exc:
+        raise UserError(f'Perfil de empresa: {exc}') from exc
+
+
+def perfil_info() -> dict[str, Any]:
+    """El perfil activo para la interfaz; un perfil roto se informa, no tumba la página."""
+    from ..perfil_empresa import PerfilError, cargar_perfil
+
+    try:
+        return {**cargar_perfil().valores(), 'error': None}
+    except PerfilError as exc:
+        return {'error': str(exc)}
+
+
+def crs_presets() -> list[dict[str, str]]:
+    """CRS sugeridos: el del perfil activo y los de ``config/perfiles``, sin repetir.
+
+    Antes era una lista fija que empezaba por el UTM de Ica; ahora la dan los perfiles,
+    y cualquier otro EPSG en metros se puede escribir a mano.
+    """
+    from ..perfil_empresa import PerfilError, cargar_perfil, perfil_con_nombre, perfiles_disponibles
+
+    sugeridos: dict[str, str] = {}
+    try:
+        activo = cargar_perfil()
+        if activo.crs_origen:
+            sugeridos[activo.crs_origen] = f'Perfil activo{f" ({activo.nombre})" if activo.nombre else ""}'
+    except PerfilError:
+        pass
+    for nombre in perfiles_disponibles():
+        try:
+            crs = perfil_con_nombre(nombre).crs_origen
+        except PerfilError:
+            continue
+        if crs and crs not in sugeridos:
+            sugeridos[crs] = f'Perfil {nombre}'
+    return [{'code': code, 'label': label} for code, label in sugeridos.items()]
+
+
+def crs_origen(ws: Workspace) -> str | None:
+    """El CRS elegido en la web, o el del perfil de empresa; None si ninguno lo da."""
+    return ws.options.get('source_crs') or perfil_de(ws).crs_origen
+
+
+def crs_origen_exigido(ws: Workspace) -> str:
+    """:func:`crs_origen`, o un error que dice cómo elegirlo (spec 002, RF-32)."""
+    from ..geography import MENSAJE_FALTA_CRS
+
+    crs = crs_origen(ws)
+    if not crs:
+        raise UserError(MENSAJE_FALTA_CRS)
+    return crs
+
+
 def reglas_de(ws: Workspace):
-    """Reglas del proyecto con la hoja elegida; por defecto se ajusta a la red."""
+    """Reglas del proyecto con la hoja elegida y las convenciones del perfil de empresa."""
     from dataclasses import replace
 
-    from ..reglas import REGLAS_PROYECTO
+    from ..reglas import REGLAS_PROYECTO, reglas_de_perfil
 
-    return replace(REGLAS_PROYECTO, hoja=ws.options.get('hoja'))
+    return reglas_de_perfil(perfil_de(ws), replace(REGLAS_PROYECTO, hoja=ws.options.get('hoja')))
 
 
 def build_model(ws: Workspace, feeder: str, *, geography: bool | None = None):
@@ -954,8 +1019,9 @@ def convert_group(
         export_xlsx=bool(opts['export_xlsx']),
         export_tsv=bool(opts['export_tsv']),
         write_preview=bool(opts['write_preview']),
-        source_crs=opts['source_crs'] or 'EPSG:32718',
+        source_crs=crs_origen(ws),
         target_crs=opts['target_crs'] or 'EPSG:4326',
+        perfil=perfil_de(ws),
         catalog_corrections=ws.catalog_corrections() or None,
         reglas=reglas_de(ws),
         catalogo=None if use_reconstruction else catalogo_del_proyecto(),
@@ -1140,7 +1206,7 @@ def cargas_plan(
     from ..loads import LoadTemplateError
 
     costos, tec = _economia_del_lote(economia)
-    crs = ws.options.get('source_crs') or ''
+    crs = crs_origen(ws) or ''
     base = base_del_ajuste(ajuste, project) if ajuste is not None else None
     try:
         demandas = leer_demandas(demandas_file) if demandas_file is not None else None
@@ -1749,7 +1815,7 @@ def script_inputs(ws: Workspace) -> list[str]:
 
 
 def system_command(ws: Workspace, action: str) -> list[str]:
-    crs = ws.options['source_crs'] or 'EPSG:32718'
+    crs = crs_origen_exigido(ws)
     args = script_inputs(ws)
     if action == 'grid':
         out = ws.out_dir / 'sistema' / 'SISTEMA.dgs'

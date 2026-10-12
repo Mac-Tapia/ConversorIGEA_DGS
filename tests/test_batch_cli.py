@@ -37,8 +37,8 @@ def test_expand_connected_selection_follows_shared_nodes_at_same_voltage():
     assert expanded == [network_ids[name] for name in ('AL101', 'CN101', 'CN102')]
 
 
-def test_convert_one_feeder(ds, sample_feeder, tmp_path):
-    manifest = convert_selection(ds, [sample_feeder], tmp_path)
+def test_convert_one_feeder(ds, sample_feeder, tmp_path, opciones_reales):
+    manifest = convert_selection(ds, [sample_feeder], tmp_path, **opciones_reales)
     assert manifest['summary'] == {
         'status': 'completed', 'selected': 1, 'requested': 1,
         'ok': 1, 'skipped': 0, 'failed': 0, 'not_processed': 0,
@@ -50,15 +50,15 @@ def test_convert_one_feeder(ds, sample_feeder, tmp_path):
     assert (tmp_path / f'{sample_feeder}_validation.json').exists()
 
 
-def test_convert_multiple_feeders(ds, sample_feeder, second_feeder, tmp_path):
+def test_convert_multiple_feeders(ds, sample_feeder, second_feeder, tmp_path, opciones_reales):
     selected = [sample_feeder, second_feeder]
-    manifest = convert_selection(ds, selected, tmp_path)
+    manifest = convert_selection(ds, selected, tmp_path, **opciones_reales)
     assert manifest['summary']['requested'] == 2
     assert manifest['summary']['ok'] == 2
     assert {x['feeder'] for x in manifest['feeders']} == set(selected)
 
 
-def test_all_mode_converts_every_feeder_without_blocking(ds, tmp_path):
+def test_all_mode_converts_every_feeder_without_blocking(ds, tmp_path, opciones_reales):
     """Todos los alimentadores del export se convierten: ninguno se omite.
 
     Una cabecera FEEDER=/SOURCE sin filas SECTION ya no se salta; se dibuja su barra
@@ -71,7 +71,8 @@ def test_all_mode_converts_every_feeder_without_blocking(ds, tmp_path):
     # strict=False: lo que se prueba es que ninguno se OMITE y que todos producen un
     # DGS. Una isla con cargas bloquea en modo estricto por política deliberada
     # (ver tests/test_topology_islands.py), y eso se comprueba aparte.
-    manifest = convert_selection(ds, None, tmp_path, all_feeders=True, strict=False)
+    manifest = convert_selection(ds, None, tmp_path, all_feeders=True, strict=False,
+                                 **opciones_reales)
     assert manifest['summary']['requested'] == n_feeders
     assert manifest['summary']['ok'] == n_feeders
     assert manifest['summary']['skipped'] == 0
@@ -86,17 +87,19 @@ def test_all_mode_converts_every_feeder_without_blocking(ds, tmp_path):
             assert item['completitud']['fallos'] == []
 
 
-def test_external_alias_file_is_recorded(ds, sample_feeder, tmp_path):
+def test_external_alias_file_is_recorded(ds, sample_feeder, tmp_path, opciones_reales):
     alias_path = tmp_path / 'aliases.json'
     # Self-documenting placeholder; conversion must succeed regardless of codes.
     alias_path.write_text(json.dumps({'MISSING_TYPE': 'DEFAULT'}), encoding='utf-8')
     aliases = load_aliases(alias_path)
-    manifest = convert_selection(ds, [sample_feeder], tmp_path / 'out', aliases=aliases)
+    manifest = convert_selection(ds, [sample_feeder], tmp_path / 'out', aliases=aliases,
+                                 **opciones_reales)
     assert manifest['summary']['ok'] == 1
     assert manifest['feeders'][0]['status'] == 'ok'
 
 
-def test_cli_list_and_convert_do_not_accept_reference_dgs(igea_paths, sample_feeder, tmp_path, capsys):
+def test_cli_list_and_convert_do_not_accept_reference_dgs(igea_paths, sample_feeder, tmp_path, capsys,
+                                                          perfil_real):
     from igea_dgs.cli import main
 
     red, loads, equip = igea_paths
@@ -122,6 +125,7 @@ def test_cli_list_and_convert_do_not_accept_reference_dgs(igea_paths, sample_fee
         '--equipment', str(equip),
         '--feeder', sample_feeder,
         '--out-dir', str(out),
+        '--perfil', perfil_real.nombre,
     ])
     assert rc == 0
     assert (out / f'{sample_feeder}.dgs').exists()

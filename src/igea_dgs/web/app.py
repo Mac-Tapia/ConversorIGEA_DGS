@@ -40,18 +40,6 @@ from .workspace import (
     BOOL_OPTIONS, DEFAULT_OPTIONS, MAX_WORKERS, SLOTS, Workspace, WorkspaceStore, safe_filename,
 )
 
-# Solo CRS proyectados en metros: uno en
-# grados (EPSG:4326) falsea las longitudes ~1e5 veces sin que nada lo detecte (C-01).
-CRS_PRESETS = (
-    {'code': 'EPSG:32718', 'label': 'UTM 18S (Ica / costa Perú)'},
-    {'code': 'EPSG:32717', 'label': 'UTM 17S'},
-    {'code': 'EPSG:32719', 'label': 'UTM 19S'},
-    {'code': 'EPSG:32716', 'label': 'UTM 16S'},
-    {'code': 'EPSG:32618', 'label': 'UTM 18N'},
-    {'code': 'EPSG:31983', 'label': 'SIRGAS 2000 / UTM 23S'},
-    {'code': 'EPSG:5343', 'label': 'POSGAR 2007 / Argentina 3'},
-)
-
 
 LOOPBACK_HOSTS = frozenset({'127.0.0.1', 'localhost', '::1'})
 
@@ -238,7 +226,8 @@ def create_app(
         return {
             'version': __version__,
             'capabilities': services.capabilities(),
-            'crs_presets': CRS_PRESETS,
+            'crs_presets': services.crs_presets(),
+            'perfil_empresa': services.perfil_info(),
             'slots': SLOTS,
             'default_options': DEFAULT_OPTIONS,
             'server_paths': _server_paths_allowed(host),

@@ -3,7 +3,12 @@
 Pendientes de aprobar el plan. Una tarea cada vez; cada una deja la suite en verde con
 las tres variables `IGEA_*` y la línea base de DGS idéntica (RF-20).
 
-- [ ] T1. Línea base de DGS con `tools/linea_base_dgs.py`, que guarda los SHA-256 en
+T1 y T5 se adelantaron el 2026-10-12 a petición del usuario («siempre debe ser universal;
+Electro Dunas es un ejemplo de aplicación para pruebas»): no dependen de las capas. La
+línea base con el perfil `electro_dunas` es idéntica a la de antes en TXT, red unida y
+Access.
+
+- [x] T1. Línea base de DGS con `tools/linea_base_dgs.py`, que guarda los SHA-256 en
       `output/linea_base_001.json` (fuera de git); añadirle la vía MDB y `workers=4`. (RF-20)
       Hecho cuando: `pytest -q tests/test_linea_base_001.py`, con las variables `IGEA_*`, en verde.
 - [ ] T2. `tests/test_capas.py` y la tabla módulo → capa en `pyproject.toml`, con las
@@ -13,7 +18,7 @@ las tres variables `IGEA_*` y la línea base de DGS idéntica (RF-20).
       Hecho cuando: la lista de ciclos permitidos de `test_capas.py` está vacía.
 - [ ] T4. Quitar las 12 importaciones de nombres privados. (RF-5)
       Hecho cuando: la lista de privados permitidos está vacía.
-- [ ] T5. Perfil de empresa: CRS, patrón de SED de medición, escala y forma del
+- [x] T5. Perfil de empresa: CRS, patrón de SED de medición, escala y forma del
       alimentador; perfil de Electro Dunas; pedir el CRS si falta; manifiesto. (RF-31 a RF-37)
       Hecho cuando: `pytest -q tests/test_perfil_empresa.py` en verde y `git grep EPSG:32718 -- src tools`
       solo encuentra el perfil.

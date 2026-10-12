@@ -39,6 +39,7 @@ spec 001, RF-14 (DGS idéntico byte a byte); su diseño histórico está en
 | `src/igea_dgs/model.py` | Modelo eléctrico de un alimentador; en modo estricto no inventa tipos. | base |
 | `src/igea_dgs/naming.py` | Nombres y selectores de alimentador. | base |
 | `src/igea_dgs/oraculo.py` | Flujo independiente con pandapower antes de escribir el DGS. | base |
+| `src/igea_dgs/perfil_empresa.py` | Perfil de empresa: CRS de origen, patrón de las SED de medición, escala del diagrama y forma de los alimentadores, fuera del código; hereda de `config/perfiles/`. | 002 (RF-31 a RF-37) |
 | `src/igea_dgs/powerfactory_env.py` | Dónde está la API de PowerFactory y qué intérprete la carga. | base |
 | `src/igea_dgs/powerfactory_metadata.py` | Procedencia IGEA en los objetos de PowerFactory. | base |
 | `src/igea_dgs/preview.py` | Vista previa georreferenciada del modelo. | base |
@@ -46,13 +47,13 @@ spec 001, RF-14 (DGS idéntico byte a byte); su diseño histórico está en
 | `src/igea_dgs/reconstruction.py` | Contrato de la reconstrucción auditable del dataset. | 001 (RF-17 a RF-22) |
 | `src/igea_dgs/reconstruction_pipeline.py` | Reconstrucción de una selección de alimentadores, sin estado de la web. | 001 (RF-8, RF-9) |
 | `src/igea_dgs/reconstruction_topology.py` | Reconstrucción determinista de la topología. | 001 (RF-17) |
-| `src/igea_dgs/reglas.py` | Reglas que se aplican a todo alimentador, venga de TXT o de base. | base (P5) |
+| `src/igea_dgs/reglas.py` | Reglas que se aplican a todo alimentador, venga de TXT o de base; patrón de SED de medición y escala del perfil de empresa. | base (P5), 002 (RF-33) |
 | `src/igea_dgs/schema.py` | Perfiles de esquema DGS versionados. | base |
 | `src/igea_dgs/schemas/pf21_dgs_1_8_4.json` | Perfil DGS genérico de PowerFactory. | base |
 | `src/igea_dgs/sed_potencia.py` | Lleva al tamaño normalizado las SED cuya carga supera su transformador. | base |
 | `src/igea_dgs/studies.py` | Qué estudios de PowerFactory se pueden correr y qué dato falta para cada uno. | base |
 | `src/igea_dgs/study.py` | Estudio de CYMDIST (`.zxst`/`.xst`), entrada opcional que filtra la selección. | base |
-| `src/igea_dgs/trafomix.py` | Equipos de medición en MT que la base registra como SED. | base |
+| `src/igea_dgs/trafomix.py` | Equipos de medición en MT que la base registra como SED, con el patrón del perfil de empresa. | base, 002 (RF-33) |
 | `src/igea_dgs/util.py` | SHA-256, JSON atómico y números: una sola implementación. | 001 (RF-4, RF-5) |
 | `src/igea_dgs/validate.py` | Validación del DGS escrito, con el trazado GPS de cada línea. | base, 010 (RF-5) |
 

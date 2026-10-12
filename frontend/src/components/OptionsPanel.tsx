@@ -8,12 +8,15 @@ export function OptionsPanel() {
   const { ws, setWs, health, run, active } = useApp();
   const o = ws.options;
   const caps = health.capabilities;
-  const [crs, setCrs] = useState(o.source_crs);
+  const [crs, setCrs] = useState(o.source_crs ?? '');
   const [target, setTarget] = useState(o.target_crs);
   const [crsWarning, setCrsWarning] = useState('');
   const locked = Boolean(active.engine);
 
-  useEffect(() => setCrs(o.source_crs), [o.source_crs]);
+  useEffect(() => setCrs(o.source_crs ?? ''), [o.source_crs]);
+  const perfil = health.perfil_empresa;
+  const crsPerfil = perfil.crs_origen ?? '';
+  const sinCrs = o.include_geography && !o.source_crs && !crsPerfil;
   useEffect(() => setTarget(o.target_crs), [o.target_crs]);
 
   const save = async (patch: Partial<Options>) => {
@@ -31,8 +34,9 @@ export function OptionsPanel() {
         <label className="field">
           <span>CRS de origen (el de su empresa o región)</span>
           <input list="crs-presets" value={crs} disabled={locked}
+            placeholder={crsPerfil ? `${crsPerfil} (del perfil de empresa)` : 'Elija un EPSG en metros'}
             onChange={(e) => setCrs(e.target.value)}
-            onBlur={() => crs !== o.source_crs && save({ source_crs: crs })}
+            onBlur={() => crs !== (o.source_crs ?? '') && save({ source_crs: crs })}
             onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()} />
           <datalist id="crs-presets">
             {health.crs_presets.map((p) => <option key={p.code} value={p.code}>{p.label}</option>)}
@@ -42,6 +46,13 @@ export function OptionsPanel() {
             longitudes unas 100.000 veces y se rechaza al convertir.
           </small>
           {crsWarning && <small className="alert alert-error">{crsWarning}</small>}
+          {perfil.error && <small className="alert alert-error">Perfil de empresa: {perfil.error}</small>}
+          {sinCrs && (
+            <small className="alert alert-warn">
+              Sin perfil de empresa no se supone ningún CRS: elíjalo aquí, defina <code>crs_origen</code> en
+              {' '}<code>config/perfil_empresa.json</code> o desactive la georreferenciación.
+            </small>
+          )}
         </label>
         <label className="field">
           <span>CRS de destino GPS</span>

@@ -263,10 +263,16 @@ opcionales.
 | Excel multi-hoja | `--export-xlsx` | Requiere `pip install "igea-dgs[xlsx]"` |
 | TSV por tabla | `--export-tsv` | Una carpeta `{alimentador}_dgs_tables/` |
 | Vista previa | `--preview` | Mapa HTML + GeoJSON. Exige georreferenciación |
-| CRS origen | `--source-crs EPSG:XXXXX` | El de **su** export |
+| CRS origen | `--source-crs EPSG:XXXXX` | El de **su** export. Sin él, el del perfil de empresa; sin perfil, se pide |
+| Perfil de empresa | `--perfil NOMBRE` | Uno de `config/perfiles/` (CRS, SED de medición, escala). Sin él, `config/perfil_empresa.json` |
 | Aliases de tipos | `--aliases ruta.json` | Equivalencias de códigos de conductor |
 
 ### 4.4 El CRS de origen: el punto que más caro sale equivocar
+
+El conversor no supone ningún CRS (spec 002): lo toma de `--source-crs`, si no del perfil
+de empresa (`crs_origen` en `config/perfil_empresa.json`, o el de `--perfil NOMBRE`), y si
+ninguno lo da se niega a georreferenciar y dice cómo elegirlo. Para Electro Dunas, el
+caso de prueba, basta con `config/perfil_empresa.json` = `{"perfil": "electro_dunas"}`.
 
 `--source-crs` debe ser un sistema **proyectado en metros** (un UTM regional, por
 ejemplo). Las longitudes eléctricas se miden sobre `CoordX/CoordY` y se escriben como

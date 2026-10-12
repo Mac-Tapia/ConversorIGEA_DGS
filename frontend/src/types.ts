@@ -6,7 +6,8 @@ export interface Options {
   input_mode: InputMode;
   source_company: string | null;
   source_period: string | null;
-  source_crs: string;
+  /** null: el del perfil de empresa; sin perfil, hay que elegirlo (spec 002, RF-32). */
+  source_crs: string | null;
   target_crs: string;
   include_geography: boolean;
   strict: boolean;
@@ -189,10 +190,21 @@ export interface WorkspaceState {
   warning?: string;
 }
 
+export interface PerfilEmpresa {
+  nombre?: string;
+  crs_origen?: string | null;
+  patron_sed_medicion?: string | null;
+  escala_diagrama?: number | null;
+  forma_alimentador?: string | null;
+  error: string | null;
+}
+
 export interface Health {
   version: string;
   capabilities: { geography: boolean; xlsx: boolean; access: boolean; pandapower: boolean };
   crs_presets: { code: string; label: string }[];
+  /** Perfil de empresa activo (config/perfil_empresa.json); `error` si no se pudo leer. */
+  perfil_empresa: PerfilEmpresa;
   slots: Record<string, SlotSpec>;
   default_options: Options;
   server_paths: boolean;

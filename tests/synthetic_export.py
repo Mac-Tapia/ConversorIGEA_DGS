@@ -73,6 +73,12 @@ def _pad(values: list[str], columns: str) -> str:
     return ','.join(values + [''] * (total - len(values)))
 
 
+#: CRS de las coordenadas del export sintético: un UTM sur cualquiera, a propósito no el
+#: de la empresa de los datos reales. El conversor no supone ninguno (spec 002, RF-32):
+#: las pruebas que georreferencian lo dicen.
+CRS_SINTETICO = 'EPSG:32719'
+
+
 @dataclass(frozen=True)
 class ExportSpec:
     """Forma del export a generar.
