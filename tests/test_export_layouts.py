@@ -281,3 +281,46 @@ class TestLaEntregaRealLarga:
         assert ok >= total * 0.9, (
             f'solo {ok} de {total}; antes de reconocer esta disposición eran 0 tramos '
             f'en los {total}, sin un solo error')
+
+
+class TestLosEquiposDeManiobraSegunSuClase:
+    """011:RF-128 — el DGS escribe cada equipo de maniobra con el uso de su tabla del export.
+
+    La transferencia de carga cuenta solo los seccionadores (RF-118) y la spec 012 toma
+    como candidatos a reconectador solo los interruptores: con todos escritos como ``cbk``,
+    cada seccionador del export pasaba por interruptor.
+    """
+
+    @staticmethod
+    def _usos(dgs: str) -> dict[str, str]:
+        usos, dentro, columnas = {}, False, []
+        for linea in dgs.splitlines():
+            if linea.startswith('$$'):
+                dentro = linea.startswith('$$StaSwitch;')
+                columnas = [c.split('(')[0] for c in linea.split(';')[1:]]
+                continue
+            if dentro and linea.strip() and not linea.startswith('*'):
+                fila = dict(zip(columnas, linea.split(';')))
+                usos[fila['loc_name'].strip()] = fila['aUsage'].strip()
+        return usos
+
+    @pytest.mark.parametrize('layout', LAYOUTS)
+    def test_seccionador_y_seccionalizador_con_su_uso(self, tmp_path, layout):
+        """011:RF-128 — con las dos disposiciones: seccionadores ``dct``, seccionalizadores ``swt``."""
+        from igea_dgs.batch import convert_selection
+
+        spec = _spec(layout, switches_per_feeder=1, sectionalizers_per_feeder=2)
+        ds = load_export(spec, tmp_path / layout)
+        assert ds.sectionalizer_settings, 'el export sintético no trae seccionalizadores'
+        salida = tmp_path / f'out_{layout}'
+        manifest = convert_selection(ds, None, str(salida), all_feeders=True, aliases={},
+                                     strict=True, include_geography=False)
+        assert manifest['summary']['failed'] == 0, manifest['summary']
+        usos = {}
+        for dgs in salida.glob('*.dgs'):
+            usos.update(self._usos(dgs.read_text(encoding='utf-8', errors='replace')))
+        seccionadores = {n: u for n, u in usos.items() if n.startswith('SW_')}
+        seccionalizadores = {n: u for n, u in usos.items() if n.startswith('SZ_')}
+        assert len(seccionadores) == spec.feeders and len(seccionalizadores) == 2 * spec.feeders
+        assert set(seccionadores.values()) == {'dct'}
+        assert set(seccionalizadores.values()) == {'swt'}

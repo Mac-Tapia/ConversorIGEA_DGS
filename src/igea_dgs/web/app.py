@@ -134,6 +134,62 @@ class DemandaExcelIn(BaseModel):
     no_cruzados: list[dict[str, Any]] = Field(default_factory=list)
 
 
+class BibliotecasIn(BaseModel):
+    """Lectura de alimentadores y tipos para el formulario de obras (spec 011, RF-88 a RF-94)."""
+
+    project: str
+    feeders: list[str] = Field(default_factory=list, max_length=2000)
+    otro_proyecto: str = ''
+    clases: list[str] = Field(default_factory=list)
+
+
+class ObrasIn(BaseModel):
+    """Obras guardadas que se simulan o aplican; sin ``ids``, todas (spec 011)."""
+
+    project: str
+    feeders: list[str] = Field(default_factory=list, max_length=2000)
+    ids: list[str] = Field(default_factory=list)
+    otro_proyecto: str = ''
+
+
+class EstudiosIn(BaseModel):
+    """Plan de los estudios sobre la base del último ajuste aplicado (spec 011, RF-12, RF-25)."""
+
+    project: str
+    feeders: list[str] = Field(default_factory=list, max_length=2000)
+    estudios: list[str] = Field(default_factory=list)
+    ajuste_job_id: str | None = None
+    limites: dict[str, float] = Field(default_factory=dict)
+    # RF-39: límite por estudio y caso, entre 10 s y un día.
+    limite_s: float | None = Field(None, ge=10, le=86400)
+
+
+class TransferenciaIn(BaseModel):
+    """Transferencia de carga entre dos alimentadores (spec 011, RF-104)."""
+
+    project: str
+    feeders: list[str] = Field(default_factory=list, max_length=2)
+    casos: list[str] = Field(default_factory=lambda: ['Sin proyecto'])
+    limites: dict[str, float] = Field(default_factory=dict)
+
+
+class GuionesIn(BaseModel):
+    """Guiones DPL y Python del operador en el proyecto (spec 011, RF-27)."""
+
+    project: str
+
+
+class GuionIn(BaseModel):
+    """Un guion del operador en los casos elegidos, con sus parámetros (RF-28)."""
+
+    project: str
+    nombre: str
+    origen: Literal['caso', 'proyecto'] = 'caso'
+    parametros: dict[str, str] = Field(default_factory=dict)
+    casos: list[str] = Field(default_factory=lambda: ['Sin proyecto', 'Con proyecto'])
+    limite_s: float | None = Field(None, ge=10, le=86400)
+
+
 class VnrDownloadIn(BaseModel):
     publication_id: str
 
@@ -794,18 +850,7 @@ def create_app(
         ws = ws_or_404(wid)
         eco = _json_form(economia, 'economia')
         una = _json_form(nueva, 'nueva')
-        # Spec 007, RF-1: la base es el último ajuste aplicado; solo uno de este espacio,
-        # terminado y aplicado (una simulación no deja variación).
-        ajuste = None
-        if ajuste_job_id:
-            job = jobs.get(ajuste_job_id)
-            if job is None or job.workspace_id != wid:
-                raise HTTPException(404, 'No se encuentra el ajuste de la base: quite la base o vuelva a ajustar.')
-            if job.kind != 'ajuste_aplicar':
-                raise HTTPException(400, 'La base tiene que ser un ajuste aplicado, no una simulación.')
-            if not isinstance(job.result, dict):
-                raise HTTPException(409, 'El ajuste de la base todavía no ha terminado.')
-            ajuste = job.result
+        ajuste = _ajuste_aplicado(wid, ajuste_job_id)
         tmps: list[Path] = []
         try:
             upd = cre = None
@@ -893,6 +938,109 @@ def create_app(
     @app.post('/api/workspaces/{wid}/demanda/ajuste/{token}/aplicar', status_code=202)
     def ajuste_aplicar(wid: str, token: str) -> dict:
         return _ajuste_job(wid, token, False)
+
+    def _ajuste_aplicado(wid: str, job_id: str | None) -> dict | None:
+        """El resultado del ajuste de la base (spec 007, RF-1; spec 011, RF-12).
+
+        Solo uno de este espacio, terminado y aplicado: una simulación no deja variación.
+        """
+        if not job_id:
+            return None
+        job = jobs.get(job_id)
+        if job is None or job.workspace_id != wid:
+            raise HTTPException(404, 'No se encuentra el ajuste de la base: quite la base o vuelva a ajustar.')
+        if job.kind != 'ajuste_aplicar':
+            raise HTTPException(400, 'La base tiene que ser un ajuste aplicado, no una simulación.')
+        if not isinstance(job.result, dict):
+            raise HTTPException(409, 'El ajuste de la base todavía no ha terminado.')
+        return job.result
+
+    # ------------------------------------------------------------ obras y estudios (spec 011)
+    @app.get('/api/workspaces/{wid}/obras')
+    def obras_listar(wid: str) -> list[dict]:
+        return list(ws_or_404(wid).obras)
+
+    @app.post('/api/workspaces/{wid}/obras', status_code=201)
+    def obra_anadir(wid: str, body: dict[str, Any]) -> dict:
+        return services.obra_anadir(ws_or_404(wid), body)
+
+    @app.delete('/api/workspaces/{wid}/obras/{obra_id}', status_code=204)
+    def obra_quitar(wid: str, obra_id: str) -> None:
+        services.obra_quitar(ws_or_404(wid), obra_id)
+
+    @app.post('/api/workspaces/{wid}/pf/obras/bibliotecas', status_code=202)
+    def obras_bibliotecas(wid: str, body: BibliotecasIn) -> dict:
+        ws = ws_or_404(wid)
+        return submit(ws, 'obras_bibliotecas', f'Leer tipos de DIgSILENT · {body.project.strip()}',
+                      lambda ctx: services.obras_bibliotecas(ws, ctx, body.project, body.feeders,
+                                                             body.otro_proyecto, body.clases),
+                      lane='powerfactory')
+
+    @app.get('/api/workspaces/{wid}/pf/obras/bibliotecas')
+    def obras_bibliotecas_leidas(wid: str) -> dict:
+        return dict(ws_or_404(wid).pf_bibliotecas)
+
+    def _obras_job(wid: str, body: ObrasIn, simular: bool) -> dict:
+        ws = ws_or_404(wid)
+        verbo = 'Simular' if simular else 'Aplicar'
+        return submit(ws, 'obras_simular' if simular else 'obras_aplicar',
+                      f'{verbo} obras · {body.project.strip()}',
+                      lambda ctx: services.obras_ejecutar(ws, ctx, body.project, body.feeders,
+                                                          body.ids, body.otro_proyecto,
+                                                          simular=simular),
+                      lane='powerfactory')
+
+    @app.post('/api/workspaces/{wid}/pf/obras/simular', status_code=202)
+    def obras_simular(wid: str, body: ObrasIn) -> dict:
+        return _obras_job(wid, body, True)
+
+    @app.post('/api/workspaces/{wid}/pf/obras/aplicar', status_code=202)
+    def obras_aplicar(wid: str, body: ObrasIn) -> dict:
+        return _obras_job(wid, body, False)
+
+    @app.get('/api/pf/estudios')
+    def estudios_catalogo() -> dict:
+        return services.estudios_catalogo()
+
+    @app.post('/api/workspaces/{wid}/pf/estudios/plan')
+    def estudios_plan(wid: str, body: EstudiosIn) -> dict:
+        ws = ws_or_404(wid)
+        return services.estudios_plan(ws, body.project, body.feeders, body.estudios,
+                                      _ajuste_aplicado(wid, body.ajuste_job_id), body.limites,
+                                      body.limite_s)
+
+    @app.post('/api/workspaces/{wid}/pf/estudios/{token}/ejecutar', status_code=202)
+    def estudios_ejecutar(wid: str, token: str) -> dict:
+        ws = ws_or_404(wid)
+        plan = ws.cargas_planes.get(token)
+        if plan is None or plan.get('kind') != 'estudios':
+            raise HTTPException(404, 'El plan de los estudios ya no existe: vuelva a prepararlo.')
+        return submit(ws, 'estudios', f"Estudios · {plan['project']} ({len(plan['feeders'])} alim.)",
+                      lambda ctx: services.estudios_ejecutar(ws, ctx, token), lane='powerfactory')
+
+    @app.post('/api/workspaces/{wid}/pf/guiones', status_code=202)
+    def guiones_listar(wid: str, body: GuionesIn) -> dict:
+        ws = ws_or_404(wid)
+        return submit(ws, 'guiones_listar', f'Leer guiones · {body.project.strip()}',
+                      lambda ctx: services.guiones_listar(ws, ctx, body.project), lane='powerfactory')
+
+    @app.post('/api/workspaces/{wid}/pf/guiones/ejecutar', status_code=202)
+    def guion_ejecutar(wid: str, body: GuionIn) -> dict:
+        ws = ws_or_404(wid)
+        return submit(ws, 'guion_ejecutar', f'Guion {body.nombre.strip()} · {body.project.strip()}',
+                      lambda ctx: services.guion_ejecutar(ws, ctx, body.project, body.nombre, body.origen,
+                                                          body.parametros, body.casos, body.limite_s),
+                      lane='powerfactory')
+
+    @app.post('/api/workspaces/{wid}/pf/transferencia', status_code=202)
+    def transferencia(wid: str, body: TransferenciaIn) -> dict:
+        ws = ws_or_404(wid)
+        if len({f.strip() for f in body.feeders if f.strip()}) != 2:
+            raise HTTPException(400, 'Elija dos alimentadores distintos.')
+        return submit(ws, 'transferencia', f"Transferencia · {' ↔ '.join(body.feeders)}",
+                      lambda ctx: services.transferencia_ejecutar(ws, ctx, body.project, body.feeders,
+                                                                  body.casos, body.limites),
+                      lane='powerfactory')
 
     @app.post('/api/workspaces/{wid}/demanda/excel')
     def demanda_excel(wid: str, body: DemandaExcelIn) -> FileResponse:

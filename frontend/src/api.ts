@@ -1,6 +1,7 @@
 import type {
-  AjustePlan, CargasPlan, ClientesCruce, DemandaMedidores, Economia, FeederRow, Health, Job, MaximaCabecera,
-  Options, OutputFile, PowerFactoryStatus, ReconstructionReport, WorkspaceState,
+  AjustePlan, CargasPlan, ClientesCruce, DemandaMedidores, Economia, EstudiosCatalogo, EstudiosPlan, FeederRow,
+  Health, Job, Limites, MaximaCabecera, Obra, ObraGuardada, Options, OutputFile, PowerFactoryStatus,
+  ReconstructionReport, WorkspaceState,
 } from './types';
 
 export class ApiError extends Error {
@@ -176,6 +177,30 @@ export const api = {
     request<Job>(`${ws(id)}/demanda/ajuste/${enc(token)}/aplicar`, { method: 'POST' }),
   demandaExcel: (id: string, datos: { cabecera: MaximaCabecera[]; clientes: unknown[]; no_cruzados: unknown[] }) =>
     download(`${ws(id)}/demanda/excel`, json('POST', datos)),
+
+  // Spec 011: obras de mejora, estudios y transferencia sobre la red calibrada (paso 4).
+  obraAnadir: (id: string, obra: Obra) => request<ObraGuardada>(`${ws(id)}/obras`, json('POST', obra)),
+  obraQuitar: (id: string, obraId: string) =>
+    request<void>(`${ws(id)}/obras/${enc(obraId)}`, { method: 'DELETE' }),
+  obrasBibliotecas: (id: string, body: { project: string; feeders: string[]; otro_proyecto: string }) =>
+    request<Job>(`${ws(id)}/pf/obras/bibliotecas`, json('POST', body)),
+  obrasSimular: (id: string, body: { project: string; feeders: string[]; otro_proyecto: string }) =>
+    request<Job>(`${ws(id)}/pf/obras/simular`, json('POST', body)),
+  obrasAplicar: (id: string, body: { project: string; feeders: string[]; otro_proyecto: string }) =>
+    request<Job>(`${ws(id)}/pf/obras/aplicar`, json('POST', body)),
+  estudiosCatalogo: () => request<EstudiosCatalogo>('/api/pf/estudios'),
+  estudiosPlan: (id: string, body: {
+    project: string; feeders: string[]; estudios: string[]; ajuste_job_id: string | null;
+    limites: Partial<Limites>; limite_s: number | null;
+  }) => request<EstudiosPlan>(`${ws(id)}/pf/estudios/plan`, json('POST', body)),
+  estudiosEjecutar: (id: string, token: string) =>
+    request<Job>(`${ws(id)}/pf/estudios/${enc(token)}/ejecutar`, { method: 'POST' }),
+  guiones: (id: string, project: string) => request<Job>(`${ws(id)}/pf/guiones`, json('POST', { project })),
+  guionEjecutar: (id: string, body: {
+    project: string; nombre: string; origen: 'caso' | 'proyecto'; parametros: Record<string, string>; casos: string[];
+  }) => request<Job>(`${ws(id)}/pf/guiones/ejecutar`, json('POST', body)),
+  transferencia: (id: string, body: { project: string; feeders: string[]; casos: string[] }) =>
+    request<Job>(`${ws(id)}/pf/transferencia`, json('POST', body)),
 
   system: (id: string, action: 'grid' | 'base' | 'missing-data') =>
     request<Job>(`${ws(id)}/system/${action}`, { method: 'POST' }),

@@ -44,6 +44,7 @@ from dataclasses import dataclass, field, replace
 from typing import Iterable, Sequence
 
 from .model import FeederModel, Line, LineType, Load, Node, Sed
+from .naming import sufijo_tension
 
 
 @dataclass(frozen=True)
@@ -197,17 +198,13 @@ class CombineReport:
         return '\n'.join(lineas)
 
 
-def _kv_suffix(kv: float) -> str:
-    return f'{kv:g}kV'.replace('.', '_')
-
-
 def type_key_for(key: str, kv: float) -> str:
     """Clave de tipo con la tensión incorporada.
 
     Se mantiene el prefijo original (``LINE:`` / ``CABLE:``) porque el escritor lo usa
     para distinguir aéreo de subterráneo en ``cohl_``.
     """
-    return f'{key}@{_kv_suffix(kv)}'
+    return f'{key}@{sufijo_tension(kv)}'
 
 
 def unsupplied_nodes(model: FeederModel, sources: Iterable[str]) -> set[str]:
@@ -287,7 +284,7 @@ def combine_models(
     def resolver(node_id: str, kv: float, feeder: str = '') -> str:
         """Identificador del nodo en la red unida."""
         if node_id in conflictivos:
-            return f'{node_id}__{_kv_suffix(kv)}'
+            return f'{node_id}__{sufijo_tension(kv)}'
         if node_id in enlazados and feeder:
             return f'{node_id}@{feeder}'
         return node_id

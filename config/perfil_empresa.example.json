@@ -11,5 +11,11 @@
   "_comentario_forma": "Expresión regular que deben cumplir los nombres cortos de alimentador; solo avisa de los que no la cumplen.",
   "forma_alimentador": null,
   "_comentario_carpeta": "Carpeta de DIgSILENT de los proyectos importados (spec 005). Sin ella, «Conversor IGEA-DGS».",
-  "carpeta_proyectos_pf": "Conversor IGEA-DGS"
+  "carpeta_proyectos_pf": "Conversor IGEA-DGS",
+  "_comentario_estudios": "Límites con que los estudios juzgan tensiones y cargabilidad (spec 011, RF-35). Sin esta clave se usan 0,95 – 1,05 p.u. y 100 %; el operador los puede cambiar antes de ejecutar.",
+  "estudios": {
+    "tension_min_pu": 0.95,
+    "tension_max_pu": 1.05,
+    "cargabilidad_max_pct": 100
+  }
 }

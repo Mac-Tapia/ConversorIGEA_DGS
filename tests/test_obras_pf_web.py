@@ -1,0 +1,121 @@
+"""Spec 011, T16: la API de las obras de mejora (espacio, bibliotecas, simular y aplicar)."""
+from __future__ import annotations
+
+import pytest
+
+pytest.importorskip('fastapi')
+pytest.importorskip('httpx2')
+
+from fastapi.testclient import TestClient  # noqa: E402
+
+from apoyo import esperar_trabajo  # noqa: E402
+from apoyo_pf_web import guion_falso  # noqa: E402,F401
+from igea_dgs.web.app import create_app  # noqa: E402
+
+TERNA = {'clase': 'terna', 'alimentador': 'A1', 'casos': ['Sin proyecto'], 'tramos': ['L1']}
+BANCO = {'clase': 'condensador', 'alimentador': 'A1', 'casos': ['Con proyecto'],
+         'barra': 'B1', 'q_kvar': 600, 'escalones': 3}
+
+
+@pytest.fixture()
+def client(tmp_path, monkeypatch, guion_falso):
+    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    with TestClient(create_app(tmp_path / 'web', host='127.0.0.1')) as c:
+        yield c
+
+
+def _espacio(client):
+    return client.post('/api/workspaces').json()['id']
+
+
+def _trabajo(client, r):
+    assert r.status_code == 202, r.text
+    return esperar_trabajo(client, r.json())
+
+
+def test_obras_guardadas_en_el_espacio_hasta_aplicarlas(client, tmp_path):
+    """011:RF-95, 011:RF-70 — cada obra del formulario se valida y queda en el espacio, también
+    después de reiniciar el servidor; se puede quitar."""
+    wid = _espacio(client)
+    a = client.post(f'/api/workspaces/{wid}/obras', json=TERNA)
+    b = client.post(f'/api/workspaces/{wid}/obras', json=BANCO)
+    assert a.status_code == b.status_code == 201
+    assert a.json()['id'] != b.json()['id'] and a.json()['tramos'] == ['L1']
+    with TestClient(create_app(tmp_path / 'web', host='127.0.0.1')) as otro:
+        guardadas = otro.get(f'/api/workspaces/{wid}/obras').json()
+    assert [o['clase'] for o in guardadas] == ['terna', 'condensador']
+    assert client.delete(f"/api/workspaces/{wid}/obras/{a.json()['id']}").status_code == 204
+    assert [o['clase'] for o in client.get(f'/api/workspaces/{wid}/obras').json()] == ['condensador']
+    assert client.delete(f"/api/workspaces/{wid}/obras/{a.json()['id']}").status_code == 400
+
+
+@pytest.mark.parametrize('obra, falta', [
+    ({'clase': 'condensador', 'alimentador': 'A1', 'casos': ['Sin proyecto'], 'barra': 'B1',
+      'q_kvar': -1, 'escalones': 1}, 'potencia'),
+    ({**TERNA, 'casos': ['Caso base']}, 'Caso base'),
+])
+def test_obra_no_valida_se_rechaza_al_definirla(client, obra, falta):
+    """011:RF-70, 011:RF-58 — el formulario no guarda una obra que no se podría aplicar."""
+    wid = _espacio(client)
+    r = client.post(f'/api/workspaces/{wid}/obras', json=obra)
+    assert r.status_code == 400 and falta in r.json()['detail']
+    assert client.get(f'/api/workspaces/{wid}/obras').json() == []
+
+
+def test_bibliotecas_en_el_carril_de_powerfactory_y_guardadas(client):
+    """011:RF-88, 011:RF-91 — la lectura de tipos es un trabajo del carril de DIgSILENT; lleva
+    el otro proyecto y queda guardada para el formulario."""
+    wid = _espacio(client)
+    estado = _trabajo(client, client.post(f'/api/workspaces/{wid}/pf/obras/bibliotecas', json={
+        'project': 'P', 'feeders': ['A1'], 'otro_proyecto': 'Otro'}))
+    assert estado['status'] == 'done', estado
+    assert estado['lane'] == 'powerfactory'
+    recibido = estado['result']['informe']['recibido']
+    assert recibido['otro_proyecto'] == 'Otro' and recibido['feeders'] == ['A1'] and 'folder' in recibido
+    leidas = client.get(f'/api/workspaces/{wid}/pf/obras/bibliotecas').json()
+    assert leidas['project'] == 'P' and leidas['tipos'][0]['nombre'] == 'AAAC_70'
+
+
+def test_simular_no_toca_las_obras_guardadas(client):
+    """011:RF-69, 011:RF-95 — simular manda las obras al guion y no las quita del espacio."""
+    wid = _espacio(client)
+    for obra in (TERNA, BANCO):
+        client.post(f'/api/workspaces/{wid}/obras', json=obra)
+    estado = _trabajo(client, client.post(f'/api/workspaces/{wid}/pf/obras/simular',
+                                          json={'project': 'P', 'feeders': ['A1']}))
+    assert estado['status'] == 'done', estado
+    assert estado['result']['informe']['modo'] == 'simular'
+    assert [o['clase'] for o in estado['result']['informe']['recibido']['obras']] == ['terna', 'condensador']
+    assert 'id' not in estado['result']['informe']['recibido']['obras'][0]
+    assert len(client.get(f'/api/workspaces/{wid}/obras').json()) == 2
+
+
+def test_aplicar_quita_las_creadas_y_deja_las_que_fallaron(client):
+    """011:RF-95 — al aplicar, las obras que quedaron en el proyecto salen del espacio; la que
+    no se pudo crear se queda para corregirla."""
+    wid = _espacio(client)
+    buena = client.post(f'/api/workspaces/{wid}/obras', json=TERNA).json()
+    mala = client.post(f'/api/workspaces/{wid}/obras', json={**BANCO, 'barra': 'NO_EXISTE'}).json()
+    estado = _trabajo(client, client.post(f'/api/workspaces/{wid}/pf/obras/aplicar',
+                                          json={'project': 'P', 'feeders': ['A1']}))
+    assert estado['status'] == 'done', estado
+    assert estado['result']['aplicadas'] == [buena['id']]
+    assert [o['id'] for o in client.get(f'/api/workspaces/{wid}/obras').json()] == [mala['id']]
+
+
+def test_aplicar_solo_las_elegidas(client):
+    """011:RF-95 — con ``ids`` se aplican solo esas obras."""
+    wid = _espacio(client)
+    a = client.post(f'/api/workspaces/{wid}/obras', json=TERNA).json()
+    client.post(f'/api/workspaces/{wid}/obras', json=BANCO)
+    estado = _trabajo(client, client.post(f'/api/workspaces/{wid}/pf/obras/aplicar',
+                                          json={'project': 'P', 'ids': [a['id']]}))
+    assert [o['clase'] for o in estado['result']['informe']['recibido']['obras']] == ['terna']
+
+
+def test_sin_obras_no_hay_nada_que_aplicar(client):
+    """011:RF-95 — sin obras guardadas, el trabajo lo dice."""
+    wid = _espacio(client)
+    estado = _trabajo(client, client.post(f'/api/workspaces/{wid}/pf/obras/aplicar',
+                                          json={'project': 'P'}))
+    assert estado['status'] == 'failed' and 'defina alguna' in estado['error']

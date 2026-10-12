@@ -68,6 +68,17 @@ ORDENES = (
     ('ComCapo', 'Colocación óptima de condensadores', 41, 'Compensación del Anexo 6'),
     ('ComTieopt', 'Punto de apertura óptimo', 41, 'Reconfiguración de la red'),
     ('ComBbone', 'Cálculo de troncal (backbone)', 41, 'Troncal vs. derivaciones del TdR'),
+    # Spec 011: la capacidad del enlace entre dos alimentadores es una herramienta de
+    # transmisión, y la migración de tensión, una de las de alimentador. Si la licencia
+    # no las cubre, la spec calcula lo mismo por otra vía y hay que saberlo antes.
+    ('ComTransfer', 'Capacidad de transferencia', 40, 'Margen del enlace entre alimentadores'),
+    ('ComFeedertool', 'Herramientas de alimentador', 14, 'Migración de tensión (p. ej. a 22,9 kV)'),
+    # Spec 012: reconectadores, capacidad de alojamiento y curvas PV. La ubicación de
+    # reconectadores es `ComOpri` (en `data.db` de PF 2024, «Optimal Recloser
+    # Placement»), no `ComOmr`, que es la reposición manual.
+    ('ComOpri', 'Ubicación óptima de reconectadores', 46, 'Dónde un reconectador baja más la ENS'),
+    ('ComHostcap', 'Capacidad de alojamiento', 41, 'Generación y carga nueva admisibles por nodo'),
+    ('ComPvcurves', 'Curvas PV', 40, 'Margen hasta el colapso de tensión'),
     ('ComBalance', 'Balance de fases', 41, 'Desbalance de carga que el TdR nombra'),
     ('ComVoltplan', 'Optimización del perfil de tensión', 41, 'Caída de tensión'),
     ('ComVsag', 'Huecos de tensión', 41, 'Calidad de producto'),

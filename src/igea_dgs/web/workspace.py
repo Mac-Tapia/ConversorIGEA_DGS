@@ -128,6 +128,9 @@ class Workspace:
     pf_inventory: dict[str, Any] = field(default_factory=dict)
     # Ejecución inmutable que respalda el dataset en memoria y sus salidas.
     active_run_id: str | None = None
+    # Obras de mejora definidas en el formulario hasta que se aplican (spec 011, RF-95),
+    # cada una con su ``id`` y la forma de ``obras_pf.Obra.a_dict``.
+    obras: list[dict[str, Any]] = field(default_factory=list)
     # --- solo en memoria
     dataset: Any = None
     loaded_run_id: str | None = None
@@ -148,6 +151,9 @@ class Workspace:
     cargas_planes: dict[str, dict[str, Any]] = field(default_factory=dict)
     # Libros de la demanda medida (spec 004, RF-39), por tipo: {'path', 'name', 'origin'}.
     demanda: dict[str, Any] = field(default_factory=dict)
+    # Última lectura de alimentadores y tipos de DIgSILENT para el formulario de obras:
+    # abrir DIgSILENT tarda, y no se repite al cambiar de obra (plan de la spec 011).
+    pf_bibliotecas: dict[str, Any] = field(default_factory=dict)
     events: EventLog = field(default_factory=EventLog)
     lock: threading.RLock = field(default_factory=threading.RLock)
     _corrections_cache: tuple[float, Any] | None = None
@@ -181,6 +187,7 @@ class Workspace:
             'pf_inventory': self.pf_inventory,
             'active_run_id': self.active_run_id,
             'demanda': self.demanda,
+            'obras': self.obras,
         }
         self.root.mkdir(parents=True, exist_ok=True)
         tmp = self.root / 'workspace.json.tmp'
@@ -209,6 +216,7 @@ class Workspace:
         # Igual que las entradas: un libro o una carpeta que ya no está no se restaura.
         ws.demanda = {tipo: meta for tipo, meta in (data.get('demanda') or {}).items()
                       if isinstance(meta, dict) and Path(meta.get('path', '')).exists()}
+        ws.obras = [o for o in (data.get('obras') or []) if isinstance(o, dict) and o.get('id')]
         run_id = data.get('active_run_id')
         if run_id and (root / 'runs' / str(run_id) / 'source_manifest.json').is_file():
             ws.active_run_id = str(run_id)
@@ -374,6 +382,7 @@ class Workspace:
                 if group.get('source_run_id') == self.active_run_id
             ],
             'pf_projects': self.pf_projects,
+            'obras': self.obras,
             'demanda': {tipo: {k: v for k, v in meta.items() if k != 'path'}
                         for tipo, meta in self.demanda.items()},
             'last_seq': self.events.last_seq,

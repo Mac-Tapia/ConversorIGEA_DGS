@@ -183,6 +183,8 @@ export interface WorkspaceState {
   } | null;
   converted: number;
   groups?: GroupDgs[];
+  /** Obras de mejora definidas y aún sin aplicar (spec 011, RF-95). */
+  obras?: ObraGuardada[];
   /** Libros de la demanda medida guardados en el espacio (spec 004, RF-39). */
   demanda?: Partial<Record<'medidores' | 'cabecera' | 'suministros' | 'clientes', DemandaLibro>>;
   last_seq: number;
@@ -660,3 +662,171 @@ export interface VerificarResultado {
   project: string;
   informe: VerificarInforme;
 }
+
+// ---------------------------------------------------------------------------
+// Spec 011: obras de mejora, estudios y transferencia sobre la red calibrada
+// ---------------------------------------------------------------------------
+
+export type ClaseObra = 'condensador' | 'reconectador' | 'regulador' | 'seccion' | 'terna' | 'tension';
+export type ClaseTipo = 'TypLne' | 'TypTr2' | 'TypVoltreg' | 'TypRecl';
+export type OrigenTipo = 'proyecto' | 'global' | 'otro';
+
+export interface TipoRef {
+  nombre: string;
+  clase: ClaseTipo;
+  origen?: OrigenTipo;
+  proyecto?: string;
+}
+
+/** Una obra como la define el formulario; el servidor la valida (obras_pf.validar_obra). */
+export interface Obra {
+  clase: ClaseObra;
+  alimentador: string;
+  casos: string[];
+  barra?: string;
+  tramo?: string;
+  tramos?: string[];
+  q_kvar?: number;
+  escalones?: number;
+  consigna_pu?: number;
+  rango_pct?: number;
+  pasos?: number;
+  tipo?: TipoRef;
+  kv_destino?: number;
+}
+
+export interface ObraGuardada extends Obra {
+  id: string;
+}
+
+/** Un tipo de una biblioteca, con los datos que deciden la elección (RF-94). */
+export interface TipoFicha {
+  nombre: string;
+  clase: ClaseTipo;
+  origen: OrigenTipo;
+  proyecto: string;
+  datos: Record<string, number | string>;
+  resumen: string;
+}
+
+export interface AlimentadorLeido {
+  kv: number | null;
+  barras: { nombre: string; kv: number | null }[];
+  tramos: { nombre: string; tipo: string | null; nlnum: number }[];
+}
+
+export interface ObrasBibliotecas {
+  project?: string;
+  alimentadores?: Record<string, AlimentadorLeido>;
+  tipos?: TipoFicha[];
+  avisos?: string[];
+}
+
+export interface ObraFila {
+  obra: number;
+  clase: ClaseObra;
+  alimentador: string;
+  casos: string[];
+  variacion: string;
+  elementos: { elemento: string; clase: string; cambio: string }[];
+  tipos: { nombre: string; clase: string; desde: string; origen: string; reutiliza: boolean }[];
+  avisos: string[];
+  error: string;
+  casos_activos?: string[];
+  flujo?: Record<string, { converge: boolean }>;
+}
+
+export interface ObrasResultado {
+  report: string;
+  project: string;
+  aplicadas: string[];
+  informe: {
+    modo: 'simular' | 'aplicar';
+    obras: ObraFila[];
+    avisos: string[];
+    comprobacion?: { alimentadores: string[]; diferencias: { alimentador: string; medida: string }[] } | null;
+    error?: string;
+  };
+}
+
+export interface Limites {
+  tension_min_pu: number;
+  tension_max_pu: number;
+  cargabilidad_max_pct: number;
+  origen?: string;
+}
+
+export interface EstudiosCatalogo {
+  ofrecidos: { clave: string; nombre: string }[];
+  no_ofrecidos: { clave: string; nombre: string; falta: string[]; motivo: string }[];
+  limites: Limites | null;
+  error_limites: string | null;
+  limite_s: number;
+}
+
+export interface EstudiosPlan {
+  token: string;
+  project: string;
+  feeders: string[];
+  estudios: string[];
+  excluidos: { feeder: string; motivo: string }[];
+  avisos: string[];
+  limites: Limites;
+  limite_s: number;
+}
+
+export interface EstudiosResultado {
+  project: string;
+  feeders: string[];
+  estudios: {
+    caso: string; estudio: string; error: string | null; no_terminado: boolean; avisos: string[];
+    obras_activas: string[];
+  }[];
+  ficheros: string[];
+  cancelado: boolean;
+  casos: { avisos?: string[]; excluidos?: { feeder: string; motivo: string }[] };
+}
+
+export interface MaximoTransferencia {
+  punto: string;
+  carga_kw: number;
+  carga_kva: number;
+}
+
+export interface SentidoTransferencia {
+  caso: string;
+  cede: string;
+  recibe: string;
+  enlace: string;
+  admite?: boolean;
+  maximo_seccionador?: MaximoTransferencia | null;
+  maximo_nodo?: MaximoTransferencia | null;
+  limita?: { paso: number; punto: string; motivo: string; elemento: string | null; valor: number | null } | null;
+  capacidad?: { metodo: string; capacidad_kw: number | null; margen_kw: number | null } | null;
+  avisos?: string[];
+}
+
+export interface TransferenciaResultado {
+  report: string;
+  fichero: string | null;
+  informe: { resultados: SentidoTransferencia[]; avisos: string[]; error?: string };
+}
+
+/** Un guion DPL o Python del operador (spec 011, RF-27). */
+export interface GuionOperador {
+  nombre: string;
+  clase: 'ComDpl' | 'ComPython';
+  origen: 'caso' | 'proyecto';
+  /** Roles de los casos que lo tienen: «sin», «con». */
+  casos: string[];
+  parametros: { nombre: string; tipo: string; valor: string; unidad: string; descripcion: string }[];
+  objetos: string[];
+}
+
+export interface GuionResultado {
+  project: string;
+  guion: string;
+  cancelado: boolean;
+  resultados: { caso: string; codigo_guion: number | null; salida: string[]; error: string | null; no_terminado: boolean }[];
+}
+

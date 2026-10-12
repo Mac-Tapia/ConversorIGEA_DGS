@@ -1840,3 +1840,374 @@ def run_system(ws: Workspace, ctx: JobContext, action: str) -> dict:
         ctx.log(f'El proceso devolvió el código {rc}. Causas frecuentes: PowerFactory no '
                 'está abierto, u otro proceso tiene tomado su motor (solo admite uno).')
     return {'returncode': rc, 'action': action}
+
+
+# ---------------------------------------------------------------------------
+# Obras, estudios y transferencia sobre la red calibrada (spec 011)
+# ---------------------------------------------------------------------------
+
+#: Límite de cada estudio en cada caso si el operador no da otro (RF-39). Cada estudio va
+#: en su proceso: un contingencias colgado cuesta ese estudio y no el resto (RF-40).
+LIMITE_ESTUDIO_S = 1800.0
+
+
+def _guion_pf(ws: Workspace, ctx: JobContext, script: str, plan: dict, *, nombre: str,
+              args: tuple[str, ...] = (), cancelable: bool = True,
+              limite_s: float | None = None) -> tuple[int, dict, Path]:
+    """Escribe el plan, ejecuta el guion de DIgSILENT y lee su informe.
+
+    Es lo mismo que hacen el ajuste y las cargas, una vez para los guiones de la spec 011.
+    Con ``cancelable``, cancelar le avisa con un fichero y el guion termina lo que tiene en
+    curso; sin él, cancelar lo termina. Pasado ``limite_s``, el informe dice que no terminó.
+    """
+    from .jobs import TIEMPO_AGOTADO
+
+    pf_dir, interpreter = _require_pf()
+    token = uuid.uuid4().hex[:12]
+    ws.plans_dir.mkdir(parents=True, exist_ok=True)
+    ruta_plan = ws.plans_dir / f'{nombre}_{token}.json'
+    ruta_plan.write_text(json.dumps(plan, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+    report = ws.out_dir / f'{nombre}_{token}.json'
+    report.parent.mkdir(parents=True, exist_ok=True)
+    cmd = [str(interpreter), str(_script(script)), '--plan', str(ruta_plan),
+           '--output-json', str(report), *args]
+    flag = ws.plans_dir / f'cancelar_{token}.flag' if cancelable else None
+    if flag is not None:
+        cmd += ['--cancel-file', str(flag)]
+    rc = ctx.run_process(cmd, env=pf_subprocess_env(pf_dir), cwd=str(project_root()),
+                         cancel_file=flag, limite_s=limite_s)
+    if flag is not None:
+        flag.unlink(missing_ok=True)
+    if rc == 3:
+        raise UserError('No se pudo conectar con DIgSILENT. Ábralo y reintente.')
+    if rc == TIEMPO_AGOTADO:
+        return rc, {'no_terminado': True,
+                    'error': f'no terminó en su límite de {limite_s:g} s'}, report
+    try:
+        informe = json.loads(report.read_text(encoding='utf-8')) if report.is_file() else {}
+    except (OSError, ValueError):
+        informe = {}
+    if not informe:
+        informe = {'error': f'El guion terminó con el código {rc} sin dejar informe: vea el Registro.'}
+    return rc, informe, report
+
+
+# ------------------------------------------------------------------ obras (RF-95)
+def obra_anadir(ws: Workspace, datos: dict) -> dict:
+    """Valida una obra del formulario y la guarda en el espacio hasta aplicarla (RF-70, RF-95)."""
+    from ..obras_pf import ObrasError, validar_obra
+
+    try:
+        obra = validar_obra(datos)
+    except ObrasError as exc:
+        raise UserError(str(exc)) from exc
+    fila = {'id': uuid.uuid4().hex[:10], **obra.a_dict()}
+    with ws.lock:
+        ws.obras.append(fila)
+        ws.save()
+    return fila
+
+
+def obra_quitar(ws: Workspace, obra_id: str) -> None:
+    with ws.lock:
+        quedan = [o for o in ws.obras if o['id'] != obra_id]
+        if len(quedan) == len(ws.obras):
+            raise UserError('Esa obra ya no está en el espacio.')
+        ws.obras = quedan
+        ws.save()
+
+
+def obras_bibliotecas(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
+                      otro_proyecto: str = '', clases: list[str] | None = None) -> dict:
+    """Alimentadores y tipos de las tres bibliotecas para el formulario (RF-88 a RF-94).
+
+    La lectura queda en el espacio para no volver a abrir DIgSILENT al cambiar de obra.
+    """
+    if not project.strip():
+        raise UserError('Elija el proyecto de DIgSILENT.')
+    plan = {'project': project.strip(), 'folder': carpeta_pf(), 'feeders': list(feeders),
+            'clases': list(clases or []), 'otro_proyecto': otro_proyecto.strip()}
+    ctx.log(f'Proyecto de DIgSILENT: {plan["project"]}  ·  leer bibliotecas de tipos')
+    rc, informe, report = _guion_pf(ws, ctx, 'obras_pf.py', plan, nombre='obras_bibliotecas',
+                                    args=('--bibliotecas',), cancelable=False)
+    if informe.get('error'):
+        raise UserError(informe['error'])
+    with ws.lock:
+        ws.pf_bibliotecas = {**informe, 'project': plan['project']}
+    return {'returncode': rc, 'report': report.name, 'informe': informe}
+
+
+def obras_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
+                   ids: list[str] | None, otro_proyecto: str, *, simular: bool) -> dict:
+    """Simula o aplica las obras guardadas con ``tools/obras_pf.py`` (RF-56 a RF-87).
+
+    Al aplicar, las obras que quedaron creadas en el proyecto salen del espacio (RF-95):
+    también la que no converge en un caso, que se conserva en el proyecto (RF-67). La que
+    no se pudo crear se queda, para corregirla.
+    """
+    if not project.strip():
+        raise UserError('Elija el proyecto de DIgSILENT.')
+    elegidas = [o for o in ws.obras if not ids or o['id'] in ids]
+    if not elegidas:
+        raise UserError('No hay obras que simular ni aplicar: defina alguna primero.')
+    plan = {'project': project.strip(), 'folder': carpeta_pf(), 'feeders': list(feeders),
+            'obras': [{k: v for k, v in o.items() if k != 'id'} for o in elegidas],
+            'otro_proyecto': otro_proyecto.strip()}
+    modo = 'simulacion' if simular else 'aplicacion'
+    ctx.log(f"Proyecto de DIgSILENT: {plan['project']}  ·  {len(elegidas)} obra(s)")
+    rc, informe, report = _guion_pf(ws, ctx, 'obras_pf.py', plan, nombre=f'obras_{modo}',
+                                    args=('--simular',) if simular else ())
+    if informe.get('error') and not informe.get('obras'):
+        raise UserError(informe['error'])
+    aplicadas: list[str] = []
+    if not simular:
+        for fila in informe.get('obras') or []:
+            n = int(fila.get('obra') or 0)
+            if 1 <= n <= len(elegidas) and fila.get('variacion') and not fila.get('error'):
+                aplicadas.append(elegidas[n - 1]['id'])
+        with ws.lock:
+            ws.obras = [o for o in ws.obras if o['id'] not in aplicadas]
+            ws.save()
+    return {'returncode': rc, 'report': report.name, 'project': plan['project'],
+            'informe': informe, 'aplicadas': aplicadas}
+
+
+# ------------------------------------------------------------------ estudios
+def estudios_catalogo() -> dict:
+    """Estudios ofrecidos, los demás con lo que les falta y los límites del perfil (RF-23, RF-24, RF-35)."""
+    from dataclasses import asdict
+
+    from ..estudios_pf import EstudiosError, estudios_no_ofrecidos, estudios_ofrecidos, limites_de_perfil
+
+    try:
+        limites, error = asdict(limites_de_perfil()), None
+    except EstudiosError as exc:
+        limites, error = None, str(exc)
+    return {'ofrecidos': [{'clave': e.clave, 'nombre': e.nombre} for e in estudios_ofrecidos()],
+            'no_ofrecidos': estudios_no_ofrecidos(), 'limites': limites,
+            'error_limites': error, 'limite_s': LIMITE_ESTUDIO_S}
+
+
+def estudios_plan(ws: Workspace, project: str, feeders: list[str], estudios: list[str],
+                  ajuste: dict | None, limites: dict | None = None,
+                  limite_s: float | None = None) -> dict:
+    """Valida y guarda el plan de los estudios sobre la base calibrada (RF-12 a RF-15, RF-25).
+
+    La base es la del último ajuste aplicado, la misma de las cargas (RF-12). Sin ajuste
+    no hay base (RF-13); un alimentador sin variación de ajuste queda fuera, con el
+    motivo (RF-14); uno que no cuadró se estudia y se avisa (RF-15).
+    """
+    from dataclasses import asdict
+
+    from ..estudios_pf import EstudiosError, limites_de_perfil, validar_estudios
+
+    if not project.strip():
+        raise UserError('Elija el proyecto de DIgSILENT.')
+    if ajuste is None:
+        raise UserError('El proyecto no tiene ningún ajuste a la máxima aplicado en este espacio: '
+                        'primero hay que calibrar.')
+    try:
+        claves = list(validar_estudios(estudios))
+        lim = limites_de_perfil().con(**(limites or {}))
+    except EstudiosError as exc:
+        raise UserError(str(exc)) from exc
+    base = base_del_ajuste(ajuste, project)
+    pedidos = list(dict.fromkeys(feeders)) or list(base['feeders'])
+    excluidos = [x for x in base['excluidos'] if x['feeder'] in pedidos]
+    fuera = {x['feeder'] for x in excluidos}
+    excluidos += [{'feeder': f, 'motivo': 'no tiene variación de ajuste'}
+                  for f in pedidos if f not in base['feeders'] and f not in fuera]
+    estudiables = [f for f in pedidos if f in base['feeders']]
+    if not estudiables:
+        raise UserError('Ningún alimentador marcado tiene su ajuste aplicado: primero hay que '
+                        'calibrar.')
+    avisos = [f"{a['feeder']}: su ajuste no cuadró ({a.get('motivo') or 'fuera de tolerancia'}); "
+              'se estudia igual.' for a in base['ajustes']
+              if a['feeder'] in estudiables and not a.get('cuadrado')]
+    token = uuid.uuid4().hex[:12]
+    plan = {'project': project.strip(), 'folder': carpeta_pf(), 'feeders': estudiables,
+            'base': base, 'estudios': claves, 'limites': asdict(lim),
+            'limite_s': float(limite_s or LIMITE_ESTUDIO_S),
+            'objetivos': {a['feeder']: a.get('objetivo') for a in base['ajustes']
+                          if isinstance(a.get('objetivo'), dict)},
+            'tolerancia': float(ajuste.get('tolerancia') or 0.01)}
+    ws.plans_dir.mkdir(parents=True, exist_ok=True)
+    path = ws.plans_dir / f'estudios_{token}.json'
+    path.write_text(json.dumps(plan, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+    with ws.lock:
+        ws.cargas_planes[token] = {'kind': 'estudios', 'path': str(path),
+                                   'project': plan['project'], 'feeders': estudiables,
+                                   'applicable': True}
+    return {'token': token, 'kind': 'estudios', 'project': plan['project'],
+            'feeders': estudiables, 'estudios': claves, 'excluidos': excluidos,
+            'avisos': avisos, 'limites': plan['limites'], 'limite_s': plan['limite_s']}
+
+
+def estudios_ejecutar(ws: Workspace, ctx: JobContext, token: str) -> dict:
+    """Prepara los casos y ejecuta cada estudio en «Sin proyecto» y luego en «Con proyecto»
+    (RF-25), cada uno en su proceso con su límite (RF-39, RF-40).
+
+    Cancelar termina el estudio en curso, no empieza otro y conserva los terminados
+    (RF-41): los ficheros se escriben con lo que haya.
+    """
+    from ..estudios_pf import (
+        COLUMNAS_RESULTADOS, COLUMNAS_VIOLACIONES, CON_PROYECTO, SIN_PROYECTO, Limites,
+        escribir_csv, filas_resultados, filas_violaciones,
+    )
+    from .jobs import JobCancelled
+
+    meta = ws.cargas_planes.get(token)
+    if meta is None or meta.get('kind') != 'estudios' or not Path(meta['path']).is_file():
+        raise UserError('El plan de los estudios ya no existe: vuelva a prepararlo.')
+    plan = json.loads(Path(meta['path']).read_text(encoding='utf-8'))
+    nombres = {'sin': SIN_PROYECTO, 'con': CON_PROYECTO}
+    ctx.log(f"Proyecto de DIgSILENT: {plan['project']}  ·  preparar los casos")
+    _rc, casos, casos_report = _guion_pf(
+        ws, ctx, 'casos_pf.py', {k: plan[k] for k in ('project', 'folder', 'feeders', 'base')},
+        nombre='casos', cancelable=False)
+    if casos.get('error'):
+        raise UserError(casos['error'])                                # RF-13, RF-16
+    feeders = casos.get('feeders') or plan['feeders']
+    roles = ['sin'] + (['con'] if (casos.get('casos') or {}).get('con', {}).get('estudiable') else [])
+    total = len(roles) * len(plan['estudios'])
+    resultados, informes, cancelado, n = [], [], False, 0
+    try:
+        for rol in roles:
+            for estudio in plan['estudios']:
+                if ctx.cancel.is_set():
+                    cancelado = True
+                    break
+                ctx.progress(n, total, f'{estudio} · {nombres[rol]}')
+                n += 1
+                sub = {'project': plan['project'], 'folder': plan['folder'], 'feeders': feeders,
+                       'estudio': estudio, 'caso': rol, 'objetivos': plan['objetivos'],
+                       'tolerancia': plan['tolerancia'], 'stamp': token}
+                rc, inf, report = _guion_pf(ws, ctx, 'estudios_pf.py', sub,
+                                            nombre=f'estudio_{rol}_{estudio}', cancelable=False,
+                                            limite_s=plan['limite_s'])
+                if inf.get('no_terminado'):
+                    ctx.log(f'{estudio} en «{nombres[rol]}»: {inf["error"]}; se sigue con el siguiente.')
+                informes.append({'caso': nombres[rol], 'estudio': estudio, 'returncode': rc,
+                                 'report': report.name, 'error': inf.get('error'),
+                                 'no_terminado': bool(inf.get('no_terminado')),
+                                 'obras_activas': inf.get('obras_activas') or [],     # RF-68
+                                 'avisos': inf.get('avisos') or []})
+                for f, medida in sorted((inf.get('medidas') or {}).items()):
+                    resultados.append({'caso': nombres[rol], 'alimentador': f,
+                                       'estudio': estudio, **medida})
+            if cancelado:
+                break
+    except JobCancelled:
+        cancelado = True
+    if cancelado:
+        ctx.log('Cancelado: se conservan los estudios terminados.')
+    limites = Limites(**plan['limites'])
+    ficheros = []
+    if resultados:
+        for nombre, filas, columnas in (
+                ('resultados', filas_resultados(resultados, limites), COLUMNAS_RESULTADOS),
+                ('violaciones', filas_violaciones(resultados, limites), COLUMNAS_VIOLACIONES)):
+            destino = escribir_csv(filas, columnas, ws.out_dir / f'estudios_{nombre}_{token}.csv')
+            ficheros.append(destino.name)
+    return {'project': plan['project'], 'feeders': feeders, 'casos': casos,
+            'casos_report': casos_report.name, 'estudios': informes, 'ficheros': ficheros,
+            'cancelado': cancelado}
+
+
+# ------------------------------------------------------------------ transferencia
+def _seccionadores_de_la_entrada(ws: Workspace, feeders: list[str]) -> list[str]:
+    """Números de equipo de los seccionadores de la entrada cargada (RF-129).
+
+    Solo hacen falta para un proyecto convertido antes de que el DGS distinguiera los
+    seccionadores; sin entrada cargada, el guion lo dice.
+    """
+    ds = ws.dataset
+    if ds is None:
+        return []
+    cortos = set(feeders)
+    out = []
+    for network_id, filas in getattr(ds, 'switching_by_feeder', {}).items():
+        if network_id in cortos or feeder_short_name(network_id) in cortos:
+            out += [fila.get('EqNumber') for clase, fila in filas
+                    if clase == 'SWITCH' and fila.get('EqNumber')]
+    return sorted(set(out))
+
+
+def transferencia_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
+                           casos: list[str], limites: dict | None = None) -> dict:
+    """Transferencia de carga entre dos alimentadores con ``tools/transferencia_pf.py``
+    (RF-104 a RF-129), con su fichero descargable (RF-121)."""
+    feeders = list(dict.fromkeys(f.strip() for f in feeders if f.strip()))
+    if not project.strip():
+        raise UserError('Elija el proyecto de DIgSILENT.')
+    if len(feeders) != 2:
+        raise UserError('Elija dos alimentadores distintos.')
+    token = uuid.uuid4().hex[:12]
+    fichero = ws.out_dir / f'transferencias_{token}.csv'
+    plan = {'project': project.strip(), 'folder': carpeta_pf(), 'feeders': feeders,
+            'casos': list(casos), 'limites': dict(limites or {}),
+            'seccionadores': _seccionadores_de_la_entrada(ws, feeders)}
+    ctx.log(f"Proyecto de DIgSILENT: {plan['project']}  ·  transferencia {feeders[0]} ↔ {feeders[1]}")
+    rc, informe, report = _guion_pf(ws, ctx, 'transferencia_pf.py', plan, nombre='transferencia',
+                                    args=('--fichero', str(fichero)))
+    if informe.get('error') and not informe.get('resultados'):
+        raise UserError(informe['error'])
+    return {'returncode': rc, 'report': report.name, 'project': plan['project'],
+            'fichero': fichero.name if fichero.is_file() else None, 'informe': informe}
+
+
+# ------------------------------------------------------------------ guiones del operador
+def guiones_listar(ws: Workspace, ctx: JobContext, project: str) -> dict:
+    """Los guiones DPL y Python de los casos y de la carpeta de guiones (RF-27)."""
+    if not project.strip():
+        raise UserError('Elija el proyecto de DIgSILENT.')
+    plan = {'project': project.strip(), 'folder': carpeta_pf()}
+    ctx.log(f'Proyecto de DIgSILENT: {plan["project"]}  ·  leer los guiones del operador')
+    rc, informe, report = _guion_pf(ws, ctx, 'estudios_pf.py', plan, nombre='guiones',
+                                    args=('--guion',), cancelable=False)
+    if informe.get('error'):
+        raise UserError(informe['error'])
+    return {'returncode': rc, 'report': report.name, 'project': plan['project'],
+            'guiones': informe.get('guiones') or []}
+
+
+def guion_ejecutar(ws: Workspace, ctx: JobContext, project: str, nombre: str, origen: str,
+                   parametros: dict[str, str], casos: list[str],
+                   limite_s: float | None = None) -> dict:
+    """Un guion del operador en cada caso pedido, con sus parámetros (RF-28 a RF-30).
+
+    Cada caso va en su proceso, con el límite de los estudios. Si en un caso el guion
+    devuelve error, se informa con su código y su salida y se sigue con el otro (RF-30).
+    """
+    from ..estudios_pf import CON_PROYECTO, SIN_PROYECTO
+    from .jobs import JobCancelled
+
+    if not project.strip() or not nombre.strip():
+        raise UserError('Elija el proyecto y el guion.')
+    roles = {SIN_PROYECTO: 'sin', CON_PROYECTO: 'con'}
+    malos = [c for c in casos if c not in roles]
+    if malos or not casos:
+        raise UserError(f'Los guiones se ejecutan en «{SIN_PROYECTO}» o «{CON_PROYECTO}»'
+                        + (f', no en {", ".join(malos)}.' if malos else '.'))
+    resultados, cancelado = [], False
+    try:
+        for n, caso in enumerate(casos):
+            if ctx.cancel.is_set():
+                cancelado = True
+                break
+            ctx.progress(n, len(casos), f'{nombre} · {caso}')
+            plan = {'project': project.strip(), 'folder': carpeta_pf(), 'caso': roles[caso],
+                    'guion': {'nombre': nombre.strip(), 'origen': origen},
+                    'parametros': dict(parametros)}
+            rc, inf, report = _guion_pf(ws, ctx, 'estudios_pf.py', plan, nombre='guion',
+                                        args=('--guion',), cancelable=False,
+                                        limite_s=limite_s or LIMITE_ESTUDIO_S)
+            if inf.get('error'):
+                ctx.log(f'{nombre} en «{caso}»: {inf["error"]}; se sigue.')
+            resultados.append({'caso': caso, 'returncode': rc, 'report': report.name,
+                               'codigo_guion': inf.get('codigo_guion'), 'salida': inf.get('salida') or [],
+                               'error': inf.get('error'), 'no_terminado': bool(inf.get('no_terminado'))})
+    except JobCancelled:
+        cancelado = True
+    return {'project': project.strip(), 'guion': nombre.strip(), 'origen': origen,
+            'resultados': resultados, 'cancelado': cancelado}

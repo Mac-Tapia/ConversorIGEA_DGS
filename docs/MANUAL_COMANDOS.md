@@ -677,7 +677,62 @@ que prepara la web (`output/web/<espacio>/planes/`):
 > python tools\verificar_pf.py --plan plan.json --output-json informe.json
 > python tools\ajuste_cabecera_pf.py --plan plan.json --output-json informe.json [--simular] [--cancel-file cancelar.flag]
 > python tools\cargas_pf.py --plan plan.json --output-json informe.json [--simular] [--cancel-file cancelar.flag]
+> python tools\casos_pf.py --plan plan.json --output-json informe.json
+> python tools\estudios_pf.py --plan plan.json --output-json informe.json
+> python tools\estudios_pf.py --guion --plan plan.json --output-json informe.json
+> python tools\obras_pf.py --bibliotecas --plan plan.json --output-json informe.json
+> python tools\obras_pf.py --plan plan.json --output-json informe.json [--simular] [--cancel-file cancelar.flag]
+> python tools	ransferencia_pf.py --plan plan.json --output-json informe.json [--fichero transferencias.csv] [--cancel-file cancelar.flag]
 ```
+
+Con `--guion`, `estudios_pf.py` trabaja con los guiones DPL y Python del operador (spec
+011, RF-27 a RF-30): si el plan no trae `guion`, lista los de «Sin proyecto», «Con
+proyecto» y la carpeta de guiones del proyecto, con sus parámetros de entrada; si lo
+trae (`{"nombre": ..., "origen": "caso"|"proyecto"}`), lo ejecuta en el `caso` del
+plan con los `parametros` que escribió el operador, y el informe da su código de salida
+y lo que escribió en la ventana de salida. Un guion que termina con error sale con `2`.
+
+Con `--bibliotecas`, `obras_pf.py` solo lee lo que ofrece el formulario de las obras de
+mejora (spec 011, RF-88 a RF-94): de cada alimentador del plan, su tensión, barras,
+tramos con su tipo y ternas, y SED con su tipo de transformador; y los tipos de línea,
+transformador, regulador y reconectador de la biblioteca del proyecto, de la global de
+DIgSILENT y, si el plan trae `otro_proyecto`, de ese proyecto, que se lee sin activarlo.
+`clases` limita la lista a unas clases. No escribe nada en ningún proyecto.
+
+Sin `--bibliotecas`, `obras_pf.py` aplica las `obras` del plan (con `--simular`, solo dice
+por obra su variación, los elementos que cambiaría y los tipos que copiaría). Necesita
+los tres casos de `casos_pf.py`. Cada obra va en su propia variación, activa solo en los
+casos que eligió el operador y nunca en el «Caso base»; los tipos que necesita se copian
+a la biblioteca del proyecto sin tocar los originales. En cada caso donde queda activa se
+ejecuta un flujo de carga: si no converge, la obra se desactiva en ese caso, se conserva
+en el proyecto y el informe trae el diagnóstico del ajuste. Al final se comprueba que en
+«Sin proyecto» los alimentadores sin obras siguen con la misma cabecera y tensión mínima.
+Se cancela entre obras. Hoy se aplican el banco de condensadores (fijo, o regulando por
+escalones si trae `consigna_pu`), el reconectador (interruptor con protección y reenganche
+y su relé, al principio del tramo) y el regulador de tensión (intercalado al principio
+del tramo con una barra nueva; `pasos` son a cada lado de la toma central), el cambio de
+sección y la terna más. Sin `tramos`, la sección y la terna van a la troncal del
+alimentador, que el guion calcula con el estudio de troncal (`ComBbone`) del caso y borra
+después de leerla; la sección avisa de los tramos indicados que no son de ella. El cambio
+de tensión (`kv_destino`) migra el alimentador entero desde su cabecera: barras de media y
+de cabecera a la tensión nueva, una copia de cada tipo de línea, de SED (cambia solo la
+alta) y de regulador, y los condensadores de media; la fuente queda en su barra con su
+consigna en p.u. Se rechaza si otro alimentador sale de la misma barra de cabecera. Si el flujo de carga del caso no ajusta los escalones
+de los condensadores (`iopt_asht`) o las tomas (`iopt_at`), el informe lo avisa.
+
+`transferencia_pf.py` calcula cuánta carga puede pasar un alimentador a otro por su
+punto de enlace, en los dos sentidos y en los casos del plan (`casos`): cierra el enlace
+y abre, uno tras otro desde el enlace hacia la cabecera del que cede, cada seccionador
+de la troncal y cada barra, con un flujo de carga en cada paso. Da por sentido y enlace
+el seccionador y el nodo viables más lejanos con su carga, y qué limita en el primer
+paso que no lo es. Solo cuentan como puntos de maniobra los seccionadores (los que el DGS
+escribe con `aUsage='dct'`); en un proyecto convertido antes, `seccionadores` del plan da
+sus números de equipo. En la configuración del seccionador viable más lejano da además
+la capacidad del enlace (hasta dónde puede subir la carga transferida sin pasar un límite
+del que recibe) y el margen sobre lo que ya transfiere: con `ComTransfer` si la licencia lo
+tiene, o por flujos sucesivos, y el informe dice con cuál. Las maniobras y el punto
+escalado se hacen en una variación temporal, con el escenario apagado, y al terminar todo
+vuelve a como estaba.
 
 Si un guion falla por un error inesperado, deja igualmente el informe con el tipo y el
 mensaje del error, que la web muestra; la traza completa va al Registro (spec 008, RF-17).
@@ -821,6 +876,10 @@ se ejecutan con el intérprete de PowerFactory (Python 3.12 con `powerfactory.py
 | `build_input_catalog.py` | Tabla de parámetros eléctricos en `input/` y auditoría (sección 7.bis). | |
 | `build_system_grid.py` | Todos los alimentadores en una sola red, importada en PowerFactory (sección 8). | PF |
 | `cargas_pf.py` | Demandas y cargas nuevas en un proyecto existente (sección 7.ter). | PF |
+| `casos_pf.py` | Deja los casos «Caso base», «Sin proyecto» y «Con proyecto» sobre la red calibrada, cada uno con su escenario (spec 011; sección 7.ter). | PF |
+| `estudios_pf.py` | Un estudio de la spec 011 en «Sin proyecto» o «Con proyecto», sin aplicar las propuestas de los optimizadores (sección 7.ter). | PF |
+| `obras_pf.py` | Obras de mejora de la spec 011: con `--bibliotecas`, alimentadores y tipos de las tres bibliotecas para el formulario; sin él, simula o aplica las obras en sus casos (sección 7.ter). | PF |
+| `transferencia_pf.py` | Transferencia de carga entre dos alimentadores por su enlace, en los dos sentidos, sin dejar nada en el proyecto (spec 011; sección 7.ter). | PF |
 | `check_pf_license.py` | Qué módulos de PowerFactory permite la licencia. | PF |
 | `compare_schema.py` | Cabeceras de un DGS de otra versión de PF frente a un perfil de esquema. | |
 | `convertir_grupos_mdb.py` | Varios alimentadores de una base en un DGS, importado y con flujo. | PF |

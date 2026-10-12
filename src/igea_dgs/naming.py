@@ -27,3 +27,22 @@ def feeder_short_name(network_id: str) -> str:
 
 def sort_key_feeder(network_id: str) -> str:
     return feeder_short_name(network_id).lower()
+
+
+def sufijo_tension(kv: float) -> str:
+    """Sufijo de tensión de los nombres del conversor: ``22_9kV``, ``10kV``.
+
+    Vive aquí, y no en ``dgs`` ni en ``combine``, porque lo usan el DGS de la red unida
+    y las copias de tipo de las obras (spec 011, RF-61): con dos reglas, el mismo
+    conductor a 22,9 kV saldría con dos nombres según lo creara el DGS o una obra.
+    """
+    return f'{kv:g}kV'.replace('.', '_')
+
+
+def nombre_con_tension(base: str, kv: float) -> str:
+    """Nombre de un tipo con su tensión: ``AA12003D_22_9kV``.
+
+    Los puntos del nombre base también pasan a ``_``, como hacía el conversor desde el
+    principio; cambiarlo alteraría los ``loc_name`` de los DGS ya importados.
+    """
+    return f'{base}_{kv:g}kV'.replace('.', '_')

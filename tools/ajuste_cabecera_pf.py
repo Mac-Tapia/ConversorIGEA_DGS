@@ -16,6 +16,13 @@ aquí está lo que toca DIgSILENT:
 
 Todo se graba en una variación nueva (RF-19), como las cargas de la spec 004.
 
+Spec 011: si el proyecto ya tiene los casos «Caso base», «Sin proyecto» y «Con proyecto»,
+el ajuste se hace en «Sin proyecto» (RF-51), los ajustes anteriores del alimentador se
+desactivan allí y en «Con proyecto», y la variación nueva queda activa en los dos (RF-54).
+El «Caso base» no se toca (RF-53). Cada carga queda marcada en su variación como fija
+(cliente importante, no escala) o escalable (repartida por kVA), para que ningún estudio
+que escale cargas mueva la demanda medida de los clientes (RF-18, RF-19).
+
     python tools/ajuste_cabecera_pf.py --plan plan.json --output-json informe.json \\
         [--simular] [--cancel-file cancelar.flag]
 
@@ -34,6 +41,7 @@ from cargas_pf import (
     Alimentadores, _num, activar_proyecto, crear_variacion, error_inesperado, error_relectura,
     escribir_carga, medir_cabecera, potencia,
 )
+from casos_pf import NOMBRES, ajustes_de, tres_casos
 
 #: Tensión (p.u.) por debajo de la cual una barra cuenta como caída en el diagnóstico.
 TENSION_CAIDA = 0.5
@@ -230,14 +238,30 @@ def ejecutar(app, plan: dict, *, simular: bool = False, cancelado=lambda: False)
         informe['totales_sin_perdidas'] = dict(zip(('kw', 'kvar'), reparto.totales()))
         return informe, 0
 
+    casos = tres_casos(app)
+    inicial = app.GetActiveStudyCase()
+    anteriores: list = []
+    if casos:
+        casos['sin'].Activate()
+        informe['caso'] = NOMBRES['sin']
+        # Un ajuste anterior del mismo alimentador escribiría las mismas cargas: con los
+        # dos activos, cuál manda dependería del orden de las etapas.
+        anteriores = ajustes_de(app, feeder)
+        for v in anteriores:
+            v.Deactivate()
     escenario = app.GetActiveScenario()
     if escenario is not None:
         escenario.Deactivate(0)
     remedios = Remedios(app)
     fallos: list[dict] = []
+    variacion = None
     try:
         variacion, _etapa = crear_variacion(app, plan['variacion'], plan.get('stamp') or '')
         informe['variacion'] = variacion.loc_name
+        # RF-18, RF-19: fija o escalable, en la variación del ajuste. Marcarlo después,
+        # al preparar los estudios, lo grabaría en la variación que estuviera grabando.
+        for sed, d in reparto.demandas.items():
+            cargas[sed].i_scale = 0 if d.origen == 'cliente' else 1
 
         def flujo(rep):
             fallos.clear()
@@ -294,6 +318,18 @@ def ejecutar(app, plan: dict, *, simular: bool = False, cancelado=lambda: False)
             informe['avisos'].append(
                 f'El escenario {escenario.loc_name} vuelve a estar activo: sus demandas '
                 'mandan sobre las de la variación mientras esté activo.')
+        if casos:
+            # RF-54: las cargas nuevas de «Con proyecto» siguen sobre la red calibrada.
+            casos['con'].Activate()
+            for v in anteriores:
+                v.Deactivate()
+            if variacion is not None:
+                variacion.Activate()
+            if anteriores:
+                informe['avisos'].append('Ajustes anteriores desactivados en «Sin proyecto» y '
+                                         '«Con proyecto»: ' + ', '.join(v.loc_name for v in anteriores))
+        if inicial is not None and app.GetActiveStudyCase() is not inicial:
+            inicial.Activate()
     return informe, (0 if informe.get('cuadrado') and not informe.get('fallos') else 2)
 
 

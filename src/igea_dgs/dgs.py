@@ -10,6 +10,7 @@ from typing import Mapping
 import math
 
 from .model import FeederModel, Line, Sed, decode_phase, split_by_phase
+from .naming import nombre_con_tension
 from .schema import DgsSchema, load_schema
 from .geography import GeographyManifest, GeoPoint
 
@@ -105,7 +106,18 @@ def _type_name(key: str, code: str, kv: float | None = None) -> str:
         'DEFAULT_OH' if key.startswith('LINE:') else 'DEFAULT_UG')
     if kv is None:
         return base
-    return f'{base}_{kv:g}kV'.replace('.', '_')
+    return nombre_con_tension(base, kv)
+
+
+#: Clase del equipo en el export → ``aUsage`` de PowerFactory (spec 011, RF-128). La
+#: transferencia de carga cuenta como puntos de maniobra solo los seccionadores (RF-118),
+#: y la confiabilidad de la spec 012 toma como candidatos a reconectador solo los
+#: interruptores (RF-35): con todos escritos como ``cbk``, un seccionador del export
+#: pasaba por interruptor en los dos. ``dct`` es seccionador («disconnector»); el
+#: seccionalizador abre sin carga en el tiempo muerto de un reenganche, ni seccionador
+#: ni interruptor de falla, y va como ``swt``. Una clase desconocida conserva el valor de
+#: antes en cada elemento.
+USO_POR_CLASE = {'SWITCH': 'dct', 'SECTIONALIZER': 'swt'}
 
 
 def _make_row(schema: DgsSchema, table: str, **values) -> str:
@@ -1092,7 +1104,8 @@ def write_dgs(
         rows['ElmCoup'].append(_make_row(
             schema, 'ElmCoup', FID=coup_fid, OP='C',
             loc_name=_loc_name(acoplador.name), fold_id=network_fid, typ_id='',
-            on_off=int(acoplador.on_off), aUsage='swt', nphase=3, nneutral=0,
+            on_off=int(acoplador.on_off), aUsage=USO_POR_CLASE.get(acoplador.kind, 'swt'),
+            nphase=3, nneutral=0,
         ))
         for lado, nodo in ((0, acoplador.node_a), (1, acoplador.node_b)):
             rows['StaCubic'].append(_make_row(
@@ -1141,7 +1154,7 @@ def write_dgs(
         rows['StaSwitch'].append(_make_row(
             schema, 'StaSwitch', FID=fid, OP='C', loc_name=_loc_name(device.eq_number or device.eq_id or device.kind),
             fold_id=line_cubic_fids[(device.section_id, device.terminal_side)],
-            on_off=device.on_off, typ_id='', aUsage='cbk',
+            on_off=device.on_off, typ_id='', aUsage=USO_POR_CLASE.get(device.kind, 'cbk'),
         ))
 
     graphic_fids: dict[str, str] = {}
