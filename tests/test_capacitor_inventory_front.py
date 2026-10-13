@@ -33,6 +33,10 @@ class _Shunt:
     def GetAttribute(self, name):
         return getattr(self, name, None)
 
+    def SetAttribute(self, name, value):
+        setattr(self, name, value)
+        return 0
+
 
 def test_native_capacitor_reread_matches_every_required_attribute():
     from apoyo import cargar_herramienta
@@ -54,7 +58,7 @@ def test_native_capacitor_reread_matches_every_required_attribute():
     assert result['mismatches'] == []
 
 
-def test_native_capacitor_mismatch_is_specific_and_non_destructive():
+def test_native_capacitor_mismatch_is_corrected_reread_and_nonblocking():
     from apoyo import cargar_herramienta
 
     reread_capacitors = cargar_herramienta('powerfactory_acceptance.py').reread_capacitors
@@ -67,9 +71,14 @@ def test_native_capacitor_mismatch_is_specific_and_non_destructive():
         'qcapn': .3, 'ncapx': 3, 'ncapa': 3, 'ushnm': 10, 'outserv': 0,
     }])
 
-    assert result['status'] == 'BLOQUEADO_PERSISTENCIA'
-    assert result['rollback']['status'] == 'NOT_REQUIRED_READ_ONLY'
-    assert 'qcapn' in result['mismatches'][0]
+    assert result['status'] == 'AVISO_PERSISTENCIA_CORREGIDA'
+    assert result['blocks_conversion'] is False
+    assert result['banks'][0]['qcapn'] == .3
+    assert result['banks'][0]['terminal'] == 'N1'
+    assert result['corrections'][0]['field'] == 'qcapn'
+    assert result['corrections'][0]['before'] == .15
+    assert result['corrections'][0]['after'] == .3
+    assert result['mismatches'] == []
 
 
 def test_bank_panel_uses_server_totals_without_recalculating_power():
@@ -79,5 +88,7 @@ def test_bank_panel_uses_server_totals_without_recalculating_power():
     assert 'capacitor_banks:' in types
     assert 'capacitor_reread:' in types
     assert 'total_native_mvar' in panel
+    assert 'corrections' in panel and 'mismatches' in panel
+    assert 'BLOQUEADO_PERSISTENCIA' not in types
     assert 'qcapn *' not in panel
     assert 'qcapn*' not in panel

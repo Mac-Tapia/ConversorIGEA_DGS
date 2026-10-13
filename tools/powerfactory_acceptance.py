@@ -137,7 +137,9 @@ def attach_source_evidence(report: dict[str, Any], evidence: dict[str, Any]) -> 
         'comldf_valid': final_load_flow.get('ldf_valid', (report.get('load_flow') or {}).get('ldf_valid')),
         'capacitor_banks': (
             not capacitor_reread.get('expected')
-            or capacitor_reread.get('status') == 'VERIFICADO_PERSISTENCIA'
+            or capacitor_reread.get('status') in {
+                'VERIFICADO_PERSISTENCIA', 'AVISO_PERSISTENCIA_CORREGIDA',
+            }
         ),
     }
     report['rollback'] = metadata.get('rollback') or {
@@ -1846,7 +1848,7 @@ def _one_terminal_cubicle(obj: Any):
 
 
 def reread_capacitors(app: Any, expected: list[dict[str, Any]]) -> dict[str, Any]:
-    """Relee bancos efectivos y compara atributos/terminal sin modificar el proyecto."""
+    """Relee y reconcilia bancos; una diferencia se informa, nunca bloquea el flujo."""
     objects = list(_calc_objects(app, '*.ElmShnt'))
     by_identity: dict[tuple[str, str, str], list[Any]] = {}
     for obj in objects:
@@ -1868,6 +1870,7 @@ def reread_capacitors(app: Any, expected: list[dict[str, Any]]) -> dict[str, Any
     fields = ('ctech', 'shtype', 'qcapn', 'ncapx', 'ncapa', 'ushnm', 'outserv')
     banks: list[dict[str, Any]] = []
     mismatches: list[str] = []
+    corrections: list[dict[str, Any]] = []
     for wanted in expected:
         identity = (
             str(wanted.get('loc_name') or ''),
@@ -1896,10 +1899,31 @@ def reread_capacitors(app: Any, expected: list[dict[str, Any]]) -> dict[str, Any
             except (TypeError, ValueError):
                 equal = actual[field] == expected_value
             if not equal:
-                mismatches.append(
-                    f'{identity[0]} [{identity[1]}] {field}: '
-                    f'esperado {expected_value!r}, nativo {actual[field]!r}'
-                )
+                before = actual[field]
+                written = _set_attr(obj, field, expected_value)
+                reread = _attr(obj, field)
+                try:
+                    corrected = math.isclose(
+                        float(reread), float(expected_value), rel_tol=1e-9, abs_tol=1e-9,
+                    )
+                except (TypeError, ValueError):
+                    corrected = reread == expected_value
+                if written and corrected:
+                    actual[field] = reread
+                    corrections.append({
+                        'loc_name': identity[0], 'terminal': identity[1],
+                        'grid': identity[2], 'field': field,
+                        'before': before, 'after': reread,
+                        'message': (
+                            f'{identity[0]} corregido en nodo {identity[1]}: '
+                            f'{field} {before!r} → {reread!r}'
+                        ),
+                    })
+                else:
+                    mismatches.append(
+                        f'{identity[0]} [{identity[1]}] {field}: esperado '
+                        f'{expected_value!r}, nativo {before!r}, no se pudo corregir'
+                    )
         try:
             actual['total_native_mvar'] = round(
                 float(actual['qcapn']) * int(actual['ncapa']), 12,
@@ -1910,16 +1934,26 @@ def reread_capacitors(app: Any, expected: list[dict[str, Any]]) -> dict[str, Any
         actual['network_id'] = wanted.get('network_id')
         actual['phases'] = wanted.get('phases')
         banks.append(actual)
+    status = (
+        'AVISO_PERSISTENCIA_NO_CORREGIDA' if mismatches
+        else 'AVISO_PERSISTENCIA_CORREGIDA' if corrections
+        else 'VERIFICADO_PERSISTENCIA'
+    )
     return {
-        'status': 'BLOQUEADO_PERSISTENCIA' if mismatches else 'VERIFICADO_PERSISTENCIA',
+        'status': status,
+        'blocks_conversion': False,
         'expected': len(expected),
         'reread': len(banks),
         'banks': banks,
         'mismatches': mismatches,
+        'corrections': corrections,
         'rollback': {
-            'status': 'NOT_REQUIRED_READ_ONLY',
+            'status': 'NOT_REQUIRED_CORRECTION_APPLIED' if corrections else 'NOT_REQUIRED_READ_ONLY',
             'attempted': False,
-            'reason': 'La relectura no modifica el proyecto.',
+            'reason': (
+                'Las diferencias se corrigieron y releyeron en el proyecto nativo.'
+                if corrections else 'No hubo correcciones nativas que revertir.'
+            ),
         },
     }
 
@@ -2108,9 +2142,9 @@ def run_acceptance(
     equipment_pass = not equipment_errors
 
     capacitor_reread = reread_capacitors(app, list(manifest.get('capacitor_banks') or []))
-    if capacitor_reread['status'] == 'BLOQUEADO_PERSISTENCIA':
-        errors.extend(capacitor_reread['mismatches'])
-        equipment_pass = False
+    if capacitor_reread['status'] != 'VERIFICADO_PERSISTENCIA':
+        warnings.extend(item['message'] for item in capacitor_reread.get('corrections') or [])
+        warnings.extend(capacitor_reread.get('mismatches') or [])
 
     # GPS / scaled location
     terms = _contents(net, '*.ElmTerm')
@@ -2875,9 +2909,11 @@ def main(argv=None) -> int:
             'connectivity': {'valid_lines': 0, 'total_lines': 0},
             'diagram': {'object_name': None, 'render_evidence': None},
         }
-        if capacitor_reread['status'] == 'BLOQUEADO_PERSISTENCIA':
-            report['errors'].extend(capacitor_reread['mismatches'])
-            report['powerfactory_runtime_pass'] = False
+        if capacitor_reread['status'] != 'VERIFICADO_PERSISTENCIA':
+            report['warnings'].extend(
+                item['message'] for item in capacitor_reread.get('corrections') or []
+            )
+            report['warnings'].extend(capacitor_reread.get('mismatches') or [])
         if dgs_persist_report and not dgs_persist_report.get('ok'):
             report['errors'].extend(dgs_persist_report.get('errors') or [])
             report['powerfactory_runtime_pass'] = False
