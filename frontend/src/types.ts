@@ -156,6 +156,31 @@ export interface Totals {
   [k: string]: number;
 }
 
+export interface UniversalSourceAudit {
+  format: string;
+  status: 'SOURCE_AUDIT_OK' | 'SOURCE_AUDIT_BLOCKED';
+  source_run_id: string;
+  source_mode: InputMode;
+  source_fingerprint: string;
+  totals: Record<string, number>;
+  feeders: Array<{
+    feeder: string;
+    network_id: string;
+    status: 'SOURCE_AUDIT_OK' | 'SOURCE_AUDIT_BLOCKED';
+    counts: Record<string, number>;
+    blocking_codes: string[];
+    warning_codes: string[];
+  }>;
+  issues: Array<{
+    code: string;
+    severity: string;
+    object_type: string;
+    object_id: string;
+    feeder: string;
+    detail: string;
+  }>;
+}
+
 export interface WorkspaceState {
   id: string;
   created_at: number;
@@ -172,6 +197,7 @@ export interface WorkspaceState {
   totals: Totals | null;
   conversion: { expected_dgs_files: number } | null;
   integrity: { errors: number; warnings: number } | null;
+  universal_audit: UniversalSourceAudit | null;
   catalog_report: CatalogReport | null;
   catalog_applied: boolean;
   catalog_file: string | null;
@@ -273,6 +299,8 @@ export interface FeederRow {
   assumption_count: number;
   catalog_sources: string[];
   convergence_state: string | null;
+  source_audit_status: 'SOURCE_AUDIT_OK' | 'SOURCE_AUDIT_BLOCKED' | 'SOURCE_AUDIT_NOT_AVAILABLE';
+  source_audit_counts: Record<string, number>;
   source_run_id: string | null;
   source_mode: InputMode | null;
   source_fingerprint: string | null;

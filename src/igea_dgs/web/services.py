@@ -148,6 +148,11 @@ def load_dataset(ws: Workspace, ctx: JobContext) -> dict:
         period=ws.options.get('source_period'),
     ).load(snapshot, aliases=aliases)
     dataset, catalog_report = loaded.dataset, loaded.catalog_report
+    from ..source_contract import audit_source
+
+    source_audit = audit_source(dataset, loaded.provenance)
+    loaded.audit = source_audit
+    source_audit_dict = source_audit.as_dict()
     if catalog_report and (
         snapshot.path_for('equipment_extra') or catalog_report.get('final_coverage', 1.0) < 1.0
     ):
@@ -161,6 +166,7 @@ def load_dataset(ws: Workspace, ctx: JobContext) -> dict:
     ctx.log(entrada.texto())
     inventory = build_dataset_inventory(dataset, aliases=aliases)
     inventory['provenance'] = dict(loaded.provenance)
+    inventory['universal_audit'] = source_audit_dict
     from .readiness import build_feeder_readiness
 
     readiness = build_feeder_readiness(
@@ -169,11 +175,15 @@ def load_dataset(ws: Workspace, ctx: JobContext) -> dict:
         loaded.provenance,
         supplied=loaded.readiness,
         aliases=aliases,
+        audit=source_audit_dict,
     )
     ws.out_dir.mkdir(parents=True, exist_ok=True)
+    audit_path = ws.out_dir / 'universal_source_audit.json'
+    write_json_atomic(audit_path, source_audit_dict)
     inv_path = write_inventory(inventory, ws.out_dir / 'dataset_inventory.json')
     ctx.log(format_inventory_report(inventory))
     ctx.log(f'Inventario JSON: {inv_path.name}')
+    ctx.log(f'Auditoria universal: {source_audit.status} ({audit_path.name})')
 
     import time
 
@@ -183,6 +193,7 @@ def load_dataset(ws: Workspace, ctx: JobContext) -> dict:
         ws.loaded_source_mode = snapshot.mode
         ws.loaded_source_fingerprint = snapshot.fingerprint
         ws.inventory = inventory
+        ws.source_audit = source_audit_dict
         ws.feeder_readiness = readiness
         ws.catalog_report = catalog_report
         ws.reconstructed_dataset = None
@@ -197,6 +208,7 @@ def load_dataset(ws: Workspace, ctx: JobContext) -> dict:
         'conversion': inventory['conversion'],
         'integrity': inventory['integrity'],
         'catalog_report': catalog_report,
+        'universal_audit': source_audit_dict,
         **loaded.provenance,
     }
 
@@ -247,6 +259,8 @@ def feeder_rows(ws: Workspace) -> list[dict]:
             'assumption_count': readiness.get('assumption_count', 0),
             'catalog_sources': list(readiness.get('catalog_sources') or []),
             'convergence_state': readiness.get('convergence_state'),
+            'source_audit_status': readiness.get('source_audit_status'),
+            'source_audit_counts': readiness.get('source_audit_counts') or {},
             'source_run_id': ws.loaded_run_id,
             'source_mode': ws.loaded_source_mode,
             'source_fingerprint': ws.loaded_source_fingerprint,
