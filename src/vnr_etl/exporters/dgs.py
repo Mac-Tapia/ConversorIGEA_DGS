@@ -190,7 +190,7 @@ class DgsExporter:
                 'converter_version': __version__,
                 'artifact': stage_dgs.name,
                 'artifact_sha256': sha256_file(stage_dgs),
-                'roundtrip': 'FAIL' if roundtrip_errors else 'PASS',
+                'roundtrip': 'BLOQUEADO_PERSISTENCIA' if roundtrip_errors else 'OK',
                 'roundtrip_errors': roundtrip_errors,
                 'avisos': avisos,
                 'engine': 'igea_dgs.batch.convert_group',

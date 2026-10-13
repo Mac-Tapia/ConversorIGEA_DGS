@@ -14,7 +14,7 @@ import types
 import pytest
 
 import fake_pf
-from apoyo import cargar_herramienta
+from apoyo import cargar_herramienta, contexto_nativo
 
 SEMILLA = int(os.environ.get('IGEA_SCALE_SEED', random.randrange(1 << 30)))
 
@@ -30,7 +30,8 @@ def _alimentadores():
 
 
 def _plan(feeders):
-    return {'project': 'P', 'feeders': list(feeders)}
+    return {'project': 'P', 'feeders': list(feeders),
+            'native_action_context': contexto_nativo('P', list(feeders), 'verificar')}
 
 
 def test_converge_y_mide_cada_cabecera(guion):

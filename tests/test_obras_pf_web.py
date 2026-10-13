@@ -8,7 +8,7 @@ pytest.importorskip('httpx2')
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from apoyo import esperar_trabajo  # noqa: E402
+from apoyo import esperar_trabajo, vincular_proyecto  # noqa: E402
 from apoyo_pf_web import guion_falso  # noqa: E402,F401
 from igea_dgs.web.app import create_app  # noqa: E402
 
@@ -25,7 +25,9 @@ def client(tmp_path, monkeypatch, guion_falso):
 
 
 def _espacio(client):
-    return client.post('/api/workspaces').json()['id']
+    wid = client.post('/api/workspaces').json()['id']
+    vincular_proyecto(client, wid, 'P', ['A1'])
+    return wid
 
 
 def _trabajo(client, r):

@@ -15,6 +15,39 @@ from types import ModuleType
 TOOLS = Path(__file__).resolve().parents[1] / 'tools'
 
 
+def contexto_nativo(project: str, feeders: list[str] | tuple[str, ...], action: str) -> dict:
+    """Contexto mínimo pero firmado para planes unitarios que llegan al ``main``."""
+    from igea_dgs.native_action import build_native_action_context
+
+    return build_native_action_context({'project': project}, project, feeders, action)
+
+
+def vincular_proyecto(client, wid: str, project: str, feeders) -> None:
+    """Registra en un workspace de prueba el proyecto releído para su fuente activa."""
+    from igea_dgs.powerfactory_binding import PowerFactoryProjectBinding
+
+    project = str(project or '').strip()
+    if not project:
+        return
+    ws = client.app.state.store.get(wid)
+    assert ws is not None
+    requested = {str(feeder).strip() for feeder in feeders if str(feeder).strip()}
+    previous = (ws.pf_project_bindings.get(project) or {}).get('feeders') or []
+    bound = tuple(sorted(requested | {str(feeder) for feeder in previous}))
+    ws.active_run_id = 'web-test-run'
+    ws.loaded_run_id = 'web-test-run'
+    ws.loaded_source_mode = 'txt'
+    ws.loaded_source_fingerprint = 'f' * 64
+    binding = PowerFactoryProjectBinding(
+        project=project, folder='Conversor IGEA-DGS', source_run_id='web-test-run',
+        source_mode='txt', source_fingerprint='f' * 64, feeders=bound,
+        dgs_sha256={feeder: 'd' * 64 for feeder in bound},
+        native_inventory_sha256='n' * 64,
+        native_reread={'status': 'VERIFICADO_PERSISTENCIA'}, accepted_at=1.0,
+    )
+    ws.pf_project_bindings[project] = binding.as_dict()
+
+
 def cargar_herramienta(fichero: str, nombre: str | None = None, *,
                        tools_en_path: bool = False) -> ModuleType:
     """Importa ``tools/<fichero>`` como módulo, sin que ``tools/`` sea un paquete.

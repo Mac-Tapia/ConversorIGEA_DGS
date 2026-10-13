@@ -46,6 +46,8 @@ import traceback
 from collections import Counter
 from pathlib import Path
 
+from igea_dgs.native_action import native_action_block_report
+
 MAX_NOMBRE = 40               # loc_name de DIgSILENT
 REFERENCIAS_DIBUJO = 12       # barras dibujadas cercanas con que se mide la escala
 RADIO_TIERRA_M = 6_371_000.0
@@ -1023,6 +1025,12 @@ def main(argv=None) -> int:
     p.add_argument('--cancel-file', help='Si aparece, no se empieza otro alimentador (RF-19)')
     args = p.parse_args(argv)
     plan = json.loads(Path(args.plan).read_text(encoding='utf-8'))
+    blocked = native_action_block_report(plan, 'cargas')
+    if blocked:
+        Path(args.output_json).write_text(
+            json.dumps(blocked, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+        print(blocked['error'])
+        return 2
     try:
         import powerfactory
     except ImportError as exc:

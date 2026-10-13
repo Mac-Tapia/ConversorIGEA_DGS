@@ -37,6 +37,8 @@ import math
 import traceback
 from pathlib import Path
 
+from igea_dgs.native_action import native_action_block_report
+
 from cargas_pf import (
     Alimentadores, _num, activar_proyecto, crear_variacion, error_inesperado, error_relectura,
     escribir_carga, medir_cabecera, potencia,
@@ -345,7 +347,7 @@ def ejecutar(app, plan: dict, *, simular: bool = False, cancelado=lambda: False)
                     'el ajuste ni los estudios.')
         else:
             informe['status'] = ('NO_CONVERGE' if res.medida is None or
-                                  not res.medida.converge else 'NO_CUADRADO_KW')
+                                  not res.medida.converge else 'VIOLACION_FISICA')
         if res.reparto is not None:
             informe['sed'] = _por_sed(res.reparto, cargas, kva_origen, antes, fijas)
             despues_nativo = _foto_cargas_nativas(cargas)
@@ -401,6 +403,12 @@ def main(argv=None) -> int:
     p.add_argument('--cancel-file', help='Si aparece, termina el flujo en curso (RF-22)')
     args = p.parse_args(argv)
     plan = json.loads(Path(args.plan).read_text(encoding='utf-8'))
+    blocked = native_action_block_report(plan, 'ajuste')
+    if blocked:
+        Path(args.output_json).write_text(
+            json.dumps(blocked, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+        print(blocked['error'])
+        return 2
     try:
         import powerfactory
     except ImportError as exc:

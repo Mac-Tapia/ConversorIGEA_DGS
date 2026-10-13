@@ -354,6 +354,14 @@ monitoreo, análisis o control está sustentada en *IEEE Transactions on
 Instrumentation and Measurement*, DOI 10.1109/TIM.2022.3175043:
 <https://ieeexplore.ieee.org/document/9781319/>.
 
+Por esa razón, la implementación no limita esa verificación a la importación: cargas,
+ajuste, obras, estudios, guiones y transferencia transportan un único contexto firmado
+fuente–proyecto–alimentadores y lo vuelven a comprobar antes de abrir PowerFactory. Es
+la aplicación operativa de la trazabilidad de modelo propuesta por McMorran y de la
+verificación previa de topología y parámetros exigida por el artículo IEEE citado; una
+respuesta genérica `FAIL` no conserva esa trazabilidad y se reemplaza por un estado con
+causa técnica precisa.
+
 La asignación temporal de perfiles a cargas de un alimentador está respaldada por el
 test feeder cuasiestático publicado en IEEE PES General Meeting, DOI
 10.1109/PESGM.2012.6345414:

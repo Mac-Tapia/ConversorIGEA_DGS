@@ -1209,7 +1209,7 @@ def test_dgs_export_relectura_con_errores_se_registra_y_publica(tmp_path):
     manifiesto = json.loads(next(p for p in paths if p.name.endswith('.manifest.json')).read_text(
         encoding='utf-8'))
     assert any(path.suffix == '.dgs' and path.is_file() for path in paths)
-    assert manifiesto['roundtrip'] == 'FAIL'
+    assert manifiesto['roundtrip'] == 'BLOQUEADO_PERSISTENCIA'
     assert manifiesto['roundtrip_errors'] == ['Falta tabla X.']
 
 

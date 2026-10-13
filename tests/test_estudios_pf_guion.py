@@ -16,7 +16,7 @@ import types
 import pytest
 
 import fake_pf
-from apoyo import cargar_herramienta
+from apoyo import cargar_herramienta, contexto_nativo
 
 casos_pf = cargar_herramienta('casos_pf.py', 'casos_t6', tools_en_path=True)
 guion = cargar_herramienta('estudios_pf.py', 'estudios_t6', tools_en_path=True)
@@ -50,7 +50,8 @@ def _red(rng=None, *, escenario=False):
 
 def _plan(feeders, estudio='flujo', caso='sin', **extra):
     return {'project': 'P', 'feeders': feeders, 'estudio': estudio, 'caso': caso,
-            'stamp': '20261011_120000', **extra}
+            'stamp': '20261011_120000',
+            'native_action_context': contexto_nativo('P', feeders, 'estudios'), **extra}
 
 
 def _alim(app, f):
@@ -323,7 +324,8 @@ def _carpeta_guiones(app):
 
 def _plan_guion(feeders, caso='sin', nombre='Revisar', origen='caso', **parametros):
     return {'project': 'P', 'feeders': feeders, 'caso': caso, 'stamp': '20261011_120000',
-            'guion': {'nombre': nombre, 'origen': origen}, 'parametros': parametros}
+            'guion': {'nombre': nombre, 'origen': origen}, 'parametros': parametros,
+            'native_action_context': contexto_nativo('P', feeders, 'guion')}
 
 
 PARAMS = (('umbral', 'double', 0.95, 'p.u.', 'Tensión mínima'),
@@ -466,7 +468,10 @@ def test_guion_por_linea_de_ordenes(tmp_path, monkeypatch):
                         types.SimpleNamespace(GetApplicationExt=lambda: app))
     plan, salida = tmp_path / 'plan.json', tmp_path / 'informe.json'
     args = ['--guion', '--plan', str(plan), '--output-json', str(salida)]
-    plan.write_text(json.dumps({'project': 'P', 'feeders': feeders}), encoding='utf-8')
+    plan.write_text(json.dumps({
+        'project': 'P', 'feeders': feeders,
+        'native_action_context': contexto_nativo('P', feeders, 'guion'),
+    }), encoding='utf-8')
     assert guion.main(args) == 0
     assert [g['nombre'] for g in json.loads(salida.read_text(encoding='utf-8'))['guiones']] == ['Revisar']
     plan.write_text(json.dumps(_plan_guion(feeders, pasos=2)), encoding='utf-8')

@@ -14,7 +14,7 @@ import os
 import pytest
 
 import fake_pf
-from apoyo import cargar_herramienta
+from apoyo import cargar_herramienta, contexto_nativo
 
 SEMILLA = int(os.environ.get('IGEA_SCALE_SEED', random.randrange(1 << 30)))
 
@@ -40,7 +40,8 @@ def _nueva(sed, **extra):
 
 def _plan(feeders, demandas=(), nuevas=(), variacion='Cargas_20261008_120000'):
     return {'project': 'P', 'feeders': list(feeders), 'stamp': '20261008_120000',
-            'variacion': variacion, 'demandas': list(demandas), 'nuevas': list(nuevas)}
+            'variacion': variacion, 'demandas': list(demandas), 'nuevas': list(nuevas),
+            'native_action_context': contexto_nativo('P', list(feeders), 'cargas')}
 
 
 def _carga(app, nombre):
