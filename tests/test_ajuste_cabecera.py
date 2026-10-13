@@ -66,6 +66,49 @@ def test_cliente_sin_energias_usa_el_fp_del_objetivo():
     assert any('1' in a and 'FP' in a for a in fijas['E1'].avisos)
 
 
+@pytest.mark.parametrize('native_q', [-250.0, 0.0, 300.0, 900.0])
+def test_kw_acceptance_never_depends_on_native_q(native_q):
+    from igea_dgs.ajuste_cabecera import Medida, cuadrado_kw
+
+    objetivo = objetivo_de(_maxima(kw=1000.0, kvar=300.0))
+    assert cuadrado_kw(Medida(True, 1005.0, native_q), objetivo, 0.01)
+    assert not cuadrado_kw(Medida(True, 1011.0, native_q), objetivo, 0.01)
+    assert not cuadrado_kw(Medida(False, 1000.0, native_q), objetivo, 0.01)
+
+
+def test_kvar_difference_is_complete_and_never_blocks_including_zero_target():
+    from igea_dgs.ajuste_cabecera import Medida, kvar_difference
+
+    objetivo = objetivo_de(_maxima(kw=1000.0, kvar=300.0))
+    aviso = kvar_difference(Medida(True, 1000.0, 450.0), objetivo, 0.01)
+    assert aviso == {
+        'status': 'AVISO_KVAR', 'objetivo_kvar': 300.0, 'red_nativa_kvar': 450.0,
+        'diferencia_kvar': 150.0, 'diferencia_relativa': pytest.approx(0.5),
+        'tolerancia': 0.01, 'supera_tolerancia': True, 'bloquea': False,
+    }
+    cero = objetivo_de(_maxima(kw=1000.0, kvar=0.0))
+    dato = kvar_difference(Medida(True, 1000.0, -5.0), cero, 0.01)
+    assert dato['diferencia_relativa'] == pytest.approx(-0.005)
+    assert dato['status'] == 'OK' and dato['bloquea'] is False
+
+
+def test_cuadrar_preserves_initial_q_factor_and_stops_when_kw_matches():
+    from igea_dgs.ajuste_cabecera import Medida
+
+    objetivo, _kva, reparto = _caso(n=2, kw=1000.0, kvar=300.0)
+    vistos = []
+
+    def flujo(actual):
+        vistos.append((actual.a, actual.b))
+        p, _q = actual.totales()
+        return Medida(True, p + 20.0, 9999.0)
+
+    resultado = cuadrar(reparto, objetivo, flujo, tolerancia=0.001)
+    assert resultado.cuadrado
+    assert len(vistos) >= 2
+    assert {b for _a, b in vistos} == {reparto.b}
+
+
 def test_pot_is_active_power_and_ea_eri_derive_q_and_fp_with_evidence():
     o = objetivo_de(_maxima())
     fija = fijas_de([_cliente('NIS-1', 'SED-1', 100.0, ea=400.0, eri=120.0)], o)['SED-1']
@@ -207,7 +250,8 @@ def test_cuadra_con_las_perdidas_al_uno_por_ciento():
     res = cuadrar(r, o, red.flujo)
     assert res.cuadrado and res.flujos < 20
     e_kw, e_kvar = res.errores()
-    assert abs(e_kw) <= 0.01 and abs(e_kvar) <= 0.01
+    assert abs(e_kw) <= 0.01
+    assert abs(e_kvar) > 0.01, 'el kVAR nativo se informa, pero no decide el cuadre'
     p, q = res.perdidas()
     assert p > 0 and q > 0
     # Las SED fijas no se tocan; las repartidas suben todas por igual por kVA.
@@ -225,13 +269,13 @@ def test_tolerancia_elegida(tol):
     assert res.cuadrado and abs(res.errores()[0]) <= tol
 
 
-def test_perdidas_reactivas_mayores_que_la_cabecera_pasan_a_solo_kw():
-    """006:RF-14 — si con las pérdidas el kVAR por repartir sale negativo, solo kW."""
+def test_perdidas_reactivas_mayores_no_cambian_q_y_cuadran_kw():
+    """El Q inicial se conserva y el resultado reactivo nativo no bloquea el kW."""
     o, _, r = _caso(kvar=100.0)
     # 3000 kW en la red dan unos 1800 kVAR de pérdidas: más que los 100 de la cabecera.
     res = cuadrar(r, o, RedDeJuguete(rq=2e-4).flujo)
-    assert res.cuadrado and res.reparto.solo_kw
-    assert any('negativo' in a for a in res.avisos)
+    assert res.cuadrado and not res.reparto.solo_kw
+    assert res.medida.kvar > o.kvar
 
 
 def test_no_converge_se_acerca_en_pasos():

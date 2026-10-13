@@ -300,10 +300,11 @@ class Cuadre:
     def errores(self) -> tuple[float | None, float | None]:
         """Error relativo de kW y kVAR en la cabecera, con signo (medido − objetivo)."""
         m = self.medida
-        if m is None or not m.converge or m.kw is None or m.kvar is None:
+        if m is None or not m.converge or m.kw is None:
             return None, None
-        return (_rel(m.kw, self.objetivo.kw),
-                _rel(m.kvar, self.objetivo.kvar, self.objetivo.kw))
+        q_error = (None if m.kvar is None else
+                   _rel(m.kvar, self.objetivo.kvar, self.objetivo.kw))
+        return _rel(m.kw, self.objetivo.kw), q_error
 
     def perdidas(self) -> tuple[float | None, float | None]:
         """Lo que entra por la cabecera menos lo que consumen las SED."""
@@ -320,13 +321,48 @@ def _rel(medido: float, objetivo: float, respaldo: float | None = None) -> float
     return (medido - objetivo) / den
 
 
-def cuadrado(medida: Medida, objetivo: Objetivo, tolerancia: float, solo_kw: bool) -> bool:
-    """RF-11: converge y kW (y kVAR, salvo en «solo kW») dentro de la tolerancia."""
-    if not medida.converge or medida.kw is None or medida.kvar is None:
-        return False
-    if abs(_rel(medida.kw, objetivo.kw)) > tolerancia:
-        return False
-    return solo_kw or abs(_rel(medida.kvar, objetivo.kvar, objetivo.kw)) <= tolerancia
+def cuadrado_kw(medida: Medida, objetivo: Objetivo, tolerancia: float) -> bool:
+    """Aceptación universal: flujo convergente y kW dentro de tolerancia.
+
+    El kVAR es un resultado físico de la red nativa —incluidos sus bancos— y se informa
+    por separado; nunca decide si el ajuste puede continuar.
+    """
+    return bool(
+        medida.converge and medida.kw is not None
+        and abs(_rel(medida.kw, objetivo.kw)) <= tolerancia
+    )
+
+
+def kvar_difference(medida: Medida, objetivo: Objetivo, tolerancia: float) -> dict[str, Any]:
+    """Diferencia reactiva informativa, completa y explícitamente no bloqueante."""
+    native = medida.kvar if medida.converge else None
+    if native is None:
+        return {
+            'status': 'AVISO_KVAR', 'objetivo_kvar': objetivo.kvar,
+            'red_nativa_kvar': None, 'diferencia_kvar': None,
+            'diferencia_relativa': None, 'tolerancia': tolerancia,
+            'supera_tolerancia': True, 'bloquea': False,
+        }
+    difference = native - objetivo.kvar
+    relative = _rel(native, objetivo.kvar, objetivo.kw)
+    exceeded = abs(relative) > tolerancia
+    return {
+        'status': 'AVISO_KVAR' if exceeded else 'OK',
+        'objetivo_kvar': objetivo.kvar,
+        'red_nativa_kvar': native,
+        'diferencia_kvar': difference,
+        'diferencia_relativa': relative,
+        'tolerancia': tolerancia,
+        'supera_tolerancia': exceeded,
+        'bloquea': False,
+    }
+
+
+def cuadrado(medida: Medida, objetivo: Objetivo, tolerancia: float,
+             solo_kw: bool = True) -> bool:
+    """Compatibilidad del API histórico; ``solo_kw`` ya no cambia la aceptación."""
+    del solo_kw
+    return cuadrado_kw(medida, objetivo, tolerancia)
 
 
 def _siguiente(x: float, y: float, objetivo: float, puntos: list[tuple[float, float]],
@@ -361,7 +397,6 @@ def cuadrar(
     res = Cuadre(cuadrado=False, reparto=None, medida=None, objetivo=objetivo,
                  tolerancia=tolerancia, avisos=list(reparto.avisos))
     puntos_p: list[tuple[float, float]] = []
-    puntos_q: list[tuple[float, float]] = []
     actual = meta = reparto      # meta: adonde se quería llegar cuando dejó de converger
     escalon = mitades = 0
     ultimo_flujo: Reparto | None = None
@@ -379,12 +414,12 @@ def cuadrar(
         progreso(res.flujos, max_flujos, f'flujo {res.flujos}: ' + (
             f'{m.kw:,.1f} kW / {m.kvar:,.1f} kVAR en la cabecera'
             if m.converge and m.kw is not None and m.kvar is not None else 'no converge'))
-        if m.converge and m.kw is not None and m.kvar is not None:
+        if m.converge and m.kw is not None:
             # ``mitades`` no vuelve a cero aquí: tras un medio camino que converge, la
             # secante vuelve a saltar al objetivo, y si allí no converge se repetía sin
             # llegar nunca a los remedios del flujo de carga.
             res.reparto, res.medida = actual, m
-            if cuadrado(m, objetivo, tolerancia, actual.solo_kw):
+            if cuadrado_kw(m, objetivo, tolerancia):
                 res.cuadrado = True
                 return res
             puntos_p.append((actual.a, m.kw))
@@ -393,19 +428,9 @@ def cuadrar(
             if a <= 0:
                 # Las pérdidas y las fijas ya pasan del objetivo: no se cruza el cero de un salto.
                 a = actual.a / 2
-            b = None
-            if not actual.solo_kw:
-                puntos_q.append((actual.b, m.kvar))
-                b = _siguiente(actual.b, m.kvar, objetivo.kvar, puntos_q,
-                               sum(q for _, q in actual.base.values()))
-                if b < 0:
-                    # Los cables dan más reactiva de la que pide la cabecera (RF-14).
-                    actual = actual.a_solo_kw(objetivo)
-                    res.avisos.append(
-                        'Con las pérdidas, el kVAR que falta por repartir sale negativo: se '
-                        'cuadra solo el kW y las SED repartidas llevan el FP del objetivo.')
-                    puntos_q.clear()
-            actual = meta = actual.con_factores(a, b)
+            # La asignación inicial de Q se conserva. Sólo P se itera para compensar las
+            # pérdidas; el Q final será el que produzca la red nativa con sus bancos.
+            actual = meta = actual.con_factores(a)
             continue
 
         # No converge: acercarse a medio camino desde el último reparto que convergió

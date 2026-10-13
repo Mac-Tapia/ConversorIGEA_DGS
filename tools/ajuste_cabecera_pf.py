@@ -198,10 +198,30 @@ def _por_sed(reparto, cargas, kva_origen, antes, fijas):
     return filas
 
 
+def _foto_cargas_nativas(cargas: dict) -> list[dict]:
+    """Relectura efectiva P/Q/FP, estado y bandera de escala de cada carga SED."""
+    fotos = []
+    for sed, obj in sorted(cargas.items()):
+        p_kw, q_kvar = potencia(obj)
+        apparent = math.hypot(p_kw, q_kvar)
+        try:
+            full_name = str(obj.GetFullName())
+        except Exception:  # noqa: BLE001 - dobles y versiones antiguas
+            full_name = str(getattr(obj, 'loc_name', sed))
+        fotos.append({
+            'sed': sed, 'full_name': full_name, 'p_kw': p_kw, 'q_kvar': q_kvar,
+            'fp': abs(p_kw) / apparent if apparent else 1.0,
+            'outserv': int(getattr(obj, 'outserv', 0) or 0),
+            'i_scale': int(getattr(obj, 'i_scale', 0) or 0),
+            'mode_inp': str(getattr(obj, 'mode_inp', '') or ''),
+        })
+    return fotos
+
+
 def ejecutar(app, plan: dict, *, simular: bool = False, cancelado=lambda: False) -> tuple[dict, int]:
     """Simula o aplica el ajuste. Devuelve (informe, código de salida)."""
     from igea_dgs.ajuste_cabecera import (
-        MAX_FLUJOS, AjusteError, Objetivo, cuadrar, fijas_de, reparto_inicial,
+        MAX_FLUJOS, AjusteError, Objetivo, cuadrar, fijas_de, kvar_difference, reparto_inicial,
     )
 
     feeder = plan['feeder']
@@ -217,6 +237,10 @@ def ejecutar(app, plan: dict, *, simular: bool = False, cancelado=lambda: False)
         return {**informe, 'error': f'{feeder} no tiene ElmFeeder con cabecera en el proyecto: '
                                     'no se puede medir lo que entra por ella.'}, 2
     cargas, ambiguas = cargas_sed(alims, feeder)
+    poblacion_nativa = {
+        'algoritmo': 'SELECCION_NATIVA_DEL_ALIMENTADOR',
+        'cargas_activas_unicas': len(cargas), 'nombres_ambiguos': len(ambiguas),
+    }
     kva, kva_origen = kva_por_sed(cargas, plan.get('kva_entrada') or {})
     objetivo = Objetivo(**plan['objetivo'])
     # Las SED de los clientes se emparejan con las cargas por su código: las fijas toman
@@ -230,6 +254,7 @@ def ejecutar(app, plan: dict, *, simular: bool = False, cancelado=lambda: False)
     fijas = {s: f for f in fijas_libro.values() for s in cargas
              if clave_codigo(s) == clave_codigo(f.sed)}
     antes = {s: potencia(o) for s, o in cargas.items()}
+    antes_nativo = _foto_cargas_nativas(cargas)
     desde_entrada = sorted(s for s, o in kva_origen.items() if o == 'entrada')
     if desde_entrada:
         informe['avisos'].append(f'{len(desde_entrada)} SED sin transformador con potencia en '
@@ -298,12 +323,40 @@ def ejecutar(app, plan: dict, *, simular: bool = False, cancelado=lambda: False)
             # «desvio» y no «error»: la web toma «error» por un fallo y mostraba un ajuste
             # que sí cuadró (SI213, −0,14 % y −0,41 %) como error con este diccionario.
             perdidas={'kw': p_kw, 'kvar': p_kvar}, desvio={'kw': e_kw, 'kvar': e_kvar},
-            solo_kw=res.reparto.solo_kw if res.reparto is not None else reparto.solo_kw,
+            criterio_cuadre='KW_ONLY', solo_kw=True,
+            reparto_solo_kw=(res.reparto.solo_kw if res.reparto is not None else
+                             reparto.solo_kw),
             fallos=list(fallos),
         )
         informe['avisos'] += [a for a in res.avisos if a not in informe['avisos']]
+        if res.cuadrado and res.medida is not None:
+            q_audit = kvar_difference(res.medida, objetivo, float(informe['tolerancia']))
+            informe['status'] = q_audit['status']
+            informe['kvar_no_bloqueante'] = q_audit
+            if q_audit['status'] == 'AVISO_KVAR':
+                native = q_audit['red_nativa_kvar']
+                difference = q_audit['diferencia_kvar']
+                detail = ('sin lectura de kVAR' if native is None else
+                          f'{native:,.2f} kVAR frente a {objetivo.kvar:,.2f} kVAR '
+                          f'(diferencia {difference:+,.2f} kVAR)')
+                informe['avisos'].append(
+                    'AVISO_KVAR: ajuste aceptado por kW; la red nativa DIgSILENT resulta '
+                    f'{detail}. La diferencia reactiva se informa y no bloquea la conversión, '
+                    'el ajuste ni los estudios.')
+        else:
+            informe['status'] = ('NO_CONVERGE' if res.medida is None or
+                                  not res.medida.converge else 'NO_CUADRADO_KW')
         if res.reparto is not None:
             informe['sed'] = _por_sed(res.reparto, cargas, kva_origen, antes, fijas)
+            despues_nativo = _foto_cargas_nativas(cargas)
+            informe['relectura_cargas_nativas'] = {
+                'status': 'VERIFICADO_PERSISTENCIA' if not informe['fallos'] else 'AVISO_RELECTURA',
+                'antes': antes_nativo, 'despues': despues_nativo,
+                'cantidad': len(despues_nativo), 'poblacion': poblacion_nativa,
+            }
+            binding_reread = dict((plan.get('project_binding') or {}).get('native_reread') or {})
+            informe['relectura_proyecto_vinculado'] = binding_reread
+            informe['relectura_bancos'] = dict(binding_reread.get('capacitor_reread') or {})
         if any(not h['converge'] for h in res.historial) or not res.cuadrado:
             fallido = next((reparto.con_factores(h['a'], h['b'])
                             for h in res.historial if not h['converge']), None)
