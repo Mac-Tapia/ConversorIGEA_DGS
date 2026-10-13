@@ -84,6 +84,7 @@ def test_el_perfil_activo_hereda_de_uno_con_nombre_y_lo_pisa(tmp_path):
 
 @pytest.mark.parametrize('datos, texto', [
     ({'patron_sed_medicion': '(sin cerrar'}, 'patron_sed_medicion'),
+    ({'patron_libro_clientes': r'^clientes\d+$'}, 'patron_libro_clientes'),
     ({'escala_diagrama': 0}, 'escala_diagrama'),
     ({'escala_diagrama': 'mucha'}, 'escala_diagrama'),
     ({'crs_origen': ''}, 'crs_origen'),
@@ -261,9 +262,11 @@ def test_electro_dunas_es_un_perfil_mas():
     assert 'electro_dunas' in perfiles_disponibles()
     perfil = perfil_con_nombre('electro_dunas')
     assert perfil.crs_origen and perfil.patron_sed_medicion and perfil.escala_diagrama
+    assert perfil.patron_libro_clientes
     datos = json.loads((RAIZ / 'config' / 'perfiles' / 'electro_dunas.json').read_text(encoding='utf-8'))
     assert {k for k in datos if not k.startswith('_')} <= {
-        'crs_origen', 'patron_sed_medicion', 'escala_diagrama', 'forma_alimentador'}
+        'crs_origen', 'patron_sed_medicion', 'escala_diagrama', 'forma_alimentador',
+        'patron_libro_clientes'}
 
 
 # --------------------------------------------------------------------------- RF-36

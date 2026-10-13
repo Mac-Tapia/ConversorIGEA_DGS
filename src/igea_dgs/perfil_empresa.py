@@ -28,7 +28,8 @@ from typing import Any
 CLAVE_BASE = 'perfil'
 #: Claves de convención que este módulo valida; el resto (carpeta de DIgSILENT, límites
 #: de los estudios) las leen sus módulos, del mismo fichero.
-CLAVES = ('crs_origen', 'patron_sed_medicion', 'escala_diagrama', 'forma_alimentador')
+CLAVES = ('crs_origen', 'patron_sed_medicion', 'escala_diagrama', 'forma_alimentador',
+          'patron_libro_clientes')
 _NOMBRE_VALIDO = re.compile(r'^[a-z0-9_]+$')
 
 
@@ -48,18 +49,26 @@ class PerfilEmpresa:
     escala_diagrama: float | None = None
     #: Expresión regular que deben cumplir los nombres de alimentador; solo avisa.
     forma_alimentador: str | None = None
+    #: Expresión regular con grupos «mes» y «anio» para los libros de clientes.
+    patron_libro_clientes: str | None = None
 
     def __post_init__(self) -> None:
-        for clave in ('patron_sed_medicion', 'forma_alimentador'):
+        for clave in ('patron_sed_medicion', 'forma_alimentador', 'patron_libro_clientes'):
             patron = getattr(self, clave)
             if patron is None:
                 continue
             if not isinstance(patron, str) or not patron.strip():
                 raise PerfilError(f'{clave} tiene que ser una expresión regular, no {patron!r}.')
             try:
-                re.compile(patron)
+                compilado = re.compile(patron)
             except re.error as exc:
                 raise PerfilError(f'{clave} no es una expresión regular válida ({exc}): {patron!r}.') from exc
+            if clave == 'patron_libro_clientes':
+                faltan = {'mes', 'anio'} - set(compilado.groupindex)
+                if faltan:
+                    raise PerfilError(
+                        f'{clave} debe tener grupos nombrados «mes» y «anio» '
+                        f'(faltan: {", ".join(sorted(faltan))}).')
         if self.crs_origen is not None and (not isinstance(self.crs_origen, str)
                                             or not self.crs_origen.strip()):
             raise PerfilError(f'crs_origen tiene que ser un código como «EPSG:xxxxx», no {self.crs_origen!r}.')
