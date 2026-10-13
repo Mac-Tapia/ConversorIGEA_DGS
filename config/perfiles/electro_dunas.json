@@ -5,5 +5,7 @@
   "_comentario_sed": "Medición en MT («trafomix») registrada como SED con código M y cifras (M41608 mide a SE41608): no transforma a BT y se excluye.",
   "patron_sed_medicion": "(?i)^M\\d+(?:-\\d+)?$",
   "_comentario_escala": "Unidades de diagrama por metro, calibradas con el DGS de referencia de NA205.",
-  "escala_diagrama": 2.08
+  "escala_diagrama": 2.08,
+  "_comentario_clientes": "Libros mensuales de clientes importantes: MMAA seguido del nombre fijo.",
+  "patron_libro_clientes": "(?i)^(?P<mes>0[1-9]|1[0-2])(?P<anio>\\d{2})clientesImportantes\\.(?:xlsb|xlsx)$"
 }

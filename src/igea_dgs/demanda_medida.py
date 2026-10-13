@@ -27,10 +27,10 @@ import json
 import math
 import re
 import unicodedata
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from datetime import date, datetime
 from pathlib import Path
-from typing import Any, Callable, Iterable, Sequence
+from typing import Any, Callable, Iterable, Literal, Sequence
 
 EXTENSIONES = ('.xls', '.xlsx', '.xlsb', '.xlsm')
 FILAS_CABECERA = 30          # dónde se busca la fila de cabecera de un libro
@@ -186,6 +186,154 @@ def _abrir(path: Path | str):
 
 def _filas(libro, hoja: str) -> list[list[Any]]:
     return libro.get_sheet_by_name(hoja).to_python(skip_empty_area=False)
+
+
+@dataclass(frozen=True)
+class LibroClientesMes:
+    """Un libro mensual indexado, incluida la evidencia de cómo se obtuvo su mes."""
+
+    path: str
+    nombre: str
+    mes: str | None
+    origen_mes: Literal['nombre', 'contenido', 'manual', 'sin_mes']
+    mtime_ns: int
+    size: int
+    activo: bool
+    avisos: tuple[str, ...] = ()
+
+
+_MES_VALIDO = re.compile(r'^(?P<anio>\d{4})-(?P<mes>0[1-9]|1[0-2])$')
+
+
+def _mes_valido(valor: str) -> str:
+    mes = str(valor).strip()
+    if not _MES_VALIDO.fullmatch(mes):
+        raise DemandaError(f'Mes no válido {valor!r}; use AAAA-MM.')
+    return mes
+
+
+def mes_de_nombre(nombre: str, patron: str | None) -> str | None:
+    """Mes AAAA-MM extraído con los grupos mes y anio del perfil."""
+    if not patron:
+        return None
+    try:
+        expresion = re.compile(patron)
+    except re.error as exc:
+        raise DemandaError(f'patron_libro_clientes no es válido: {exc}.') from exc
+    if {'mes', 'anio'} - set(expresion.groupindex):
+        raise DemandaError('patron_libro_clientes debe tener grupos «mes» y «anio».')
+    hallado = expresion.fullmatch(Path(nombre).name)
+    if hallado is None:
+        return None
+    mes, anio = hallado.group('mes'), hallado.group('anio')
+    if not mes.isdigit() or not anio.isdigit() or not 1 <= int(mes) <= 12:
+        return None
+    if len(anio) == 2:
+        anio = f'{2000 + int(anio):04d}'
+    elif len(anio) != 4:
+        return None
+    return f'{int(anio):04d}-{int(mes):02d}'
+
+
+def _mes_de_valor(valor: Any, *, columna_fecha: bool) -> str | None:
+    if isinstance(valor, datetime):
+        return f'{valor.year:04d}-{valor.month:02d}'
+    if isinstance(valor, date):
+        return f'{valor.year:04d}-{valor.month:02d}'
+    if not columna_fecha or not isinstance(valor, str):
+        return None
+    texto = valor.strip()
+    iso = re.fullmatch(r'(?P<anio>\d{4})-(?P<mes>0[1-9]|1[0-2])(?:-\d{2})?', texto)
+    if iso:
+        return f"{int(iso.group('anio')):04d}-{int(iso.group('mes')):02d}"
+    periodo = re.fullmatch(r'(?P<mes>0[1-9]|1[0-2])[/.-](?P<anio>\d{4})', texto)
+    if periodo:
+        return f"{int(periodo.group('anio')):04d}-{int(periodo.group('mes')):02d}"
+    return None
+
+
+def meses_de_contenido(path: Path | str, alias=ALIAS) -> set[str]:
+    """Meses explícitos dentro del libro; no interpreta números ni texto ambiguo."""
+    libro = _abrir(path)
+    nombres_fecha = {normalizar(n) for n in alias.get('fecha', ())}
+    nombres_fecha.update({'mes', 'periodo'})
+    meses: set[str] = set()
+    for hoja in libro.sheet_names:
+        filas = _filas(libro, hoja)
+        # Una celda que el motor ya tipó como fecha es evidencia aun fuera de una tabla.
+        for fila in filas:
+            for valor in fila:
+                mes = _mes_de_valor(valor, columna_fecha=False)
+                if mes:
+                    meses.add(mes)
+        # Las cadenas solo se aceptan bajo una columna que diga fecha, mes o periodo.
+        for i, fila in enumerate(filas[:FILAS_CABECERA]):
+            indices = [j for j, valor in enumerate(fila) if normalizar(valor) in nombres_fecha]
+            if not indices:
+                continue
+            for datos in filas[i + 1:]:
+                for j in indices:
+                    valor = datos[j] if j < len(datos) else None
+                    mes = _mes_de_valor(valor, columna_fecha=True)
+                    if mes:
+                        meses.add(mes)
+            break
+    return meses
+
+
+def catalogar_libros_clientes(carpeta: Path | str, patron: str | None,
+                              asignaciones: dict[str, str] | None = None,
+                              alias=ALIAS) -> list[LibroClientesMes]:
+    """Indexa una carpeta o un libro y activa uno solo por mes (013:RF-1 a RF-5)."""
+    fuente = Path(carpeta)
+    if fuente.is_file():
+        rutas = [fuente] if fuente.suffix.lower() in EXTENSIONES else []
+    elif fuente.is_dir():
+        rutas = sorted(
+            (p for p in fuente.iterdir()
+             if p.is_file() and p.suffix.lower() in EXTENSIONES and not p.name.startswith('~$')),
+            key=lambda p: (p.name.casefold(), p.name),
+        )
+    else:
+        raise DemandaError(f'No se encuentra la fuente de clientes: {fuente}')
+    if fuente.is_file() and not rutas:
+        raise DemandaError(f'{fuente.name}: extensión no soportada; use ' + ', '.join(EXTENSIONES))
+
+    manuales = asignaciones or {}
+    catalogo: list[LibroClientesMes] = []
+    for path in rutas:
+        manual = next((manuales[k] for k in (str(path), path.as_posix(), path.name)
+                       if k in manuales), None)
+        if manual is not None:
+            mes, origen = _mes_valido(manual), 'manual'
+        else:
+            mes = mes_de_nombre(path.name, patron)
+            origen = 'nombre' if mes else 'sin_mes'
+            if mes is None:
+                internos = meses_de_contenido(path, alias)
+                if len(internos) == 1:
+                    mes, origen = next(iter(internos)), 'contenido'
+        stat = path.stat()
+        catalogo.append(LibroClientesMes(
+            path=str(path), nombre=path.name, mes=mes, origen_mes=origen,
+            mtime_ns=stat.st_mtime_ns, size=stat.st_size, activo=mes is not None,
+        ))
+
+    por_mes: dict[str, list[int]] = {}
+    for i, libro in enumerate(catalogo):
+        if libro.mes:
+            por_mes.setdefault(libro.mes, []).append(i)
+    for mes, indices in por_mes.items():
+        if len(indices) < 2:
+            continue
+        ganador = max(indices, key=lambda i: (catalogo[i].mtime_ns, catalogo[i].nombre))
+        nombres = ', '.join(catalogo[i].nombre for i in indices)
+        aviso = (f'{mes}: hay libros duplicados ({nombres}); '
+                 f'se usa {catalogo[ganador].nombre}, el más reciente.')
+        for i in indices:
+            catalogo[i] = replace(
+                catalogo[i], activo=i == ganador, avisos=(*catalogo[i].avisos, aviso))
+    return catalogo
 
 
 def _buscar_cabecera(filas: Sequence[Sequence[Any]], campos: Sequence[str], alias,

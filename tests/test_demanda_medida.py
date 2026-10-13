@@ -396,6 +396,96 @@ FORMATO_NUEVO = {'Resumen': [
 ]}
 
 
+def test_mes_del_nombre_sale_del_patron_del_perfil():
+    """013:RF-3 — el código interpreta los grupos del patrón recibido, no un nombre de
+    Electro Dunas incrustado."""
+    patron = r'^(?P<mes>0[1-9]|1[0-2])(?P<anio>\d{2})clientesImportantes\.(xlsb|xlsx)$'
+    assert dm.mes_de_nombre('0126clientesImportantes.xlsb', patron) == '2026-01'
+    assert dm.mes_de_nombre('0726clientesImportantes.xlsx', patron) == '2026-07'
+    assert dm.mes_de_nombre('clientes-julio.xlsx', patron) is None
+    assert dm.mes_de_nombre('1326clientesImportantes.xlsx', patron) is None
+
+
+def test_catalogo_acepta_extensiones_y_no_abre_nombres_resueltos(tmp_path, monkeypatch):
+    """013:RF-1 / 013:RF-2 / 013:RF-3 — un nombre resuelto basta para catalogar los
+    formatos admitidos; abrir esos libros de gran tamaño sería una regresión."""
+    patron = r'^(?P<mes>0[1-9]|1[0-2])(?P<anio>\d{2})clientes\.(xls|xlsx|xlsb|xlsm)$'
+    nombres = ['0126clientes.xls', '0226clientes.xlsx', '0326clientes.xlsb',
+               '0426clientes.xlsm']
+    for nombre in nombres:
+        (tmp_path / nombre).write_bytes(b'no hace falta abrir')
+    monkeypatch.setattr(dm, '_abrir', lambda _p: pytest.fail('no debía abrir el libro'))
+
+    catalogo = dm.catalogar_libros_clientes(tmp_path, patron, {}, dm.ALIAS)
+
+    assert [(x.nombre, x.mes, x.origen_mes, x.activo) for x in catalogo] == [
+        ('0126clientes.xls', '2026-01', 'nombre', True),
+        ('0226clientes.xlsx', '2026-02', 'nombre', True),
+        ('0326clientes.xlsb', '2026-03', 'nombre', True),
+        ('0426clientes.xlsm', '2026-04', 'nombre', True),
+    ]
+
+
+def test_catalogo_busca_fecha_interna_solo_si_da_un_mes_inequivoco(tmp_path):
+    """013:RF-4 — una fecha interna única asigna mes; cero o varios meses dejan el libro
+    pendiente de decisión humana."""
+    _libro(tmp_path / 'unico.xlsx', {'Resumen': [
+        ['Nis', 'Fecha', 'EA'], [11, datetime(2026, 5, 2), 10],
+        [12, datetime(2026, 5, 31), 20],
+    ]})
+    _libro(tmp_path / 'ambiguo.xlsx', {'Resumen': [
+        ['Nis', 'Periodo', 'EA'], [11, datetime(2026, 5, 31), 10],
+        [12, datetime(2026, 6, 1), 20],
+    ]})
+    _libro(tmp_path / 'sin-fecha.xlsx', {'Resumen': [
+        ['Nis', 'EA'], [11, 10],
+    ]})
+
+    por_nombre = {x.nombre: x for x in dm.catalogar_libros_clientes(tmp_path, None, {}, dm.ALIAS)}
+
+    assert (por_nombre['unico.xlsx'].mes, por_nombre['unico.xlsx'].origen_mes,
+            por_nombre['unico.xlsx'].activo) == ('2026-05', 'contenido', True)
+    assert (por_nombre['ambiguo.xlsx'].mes, por_nombre['ambiguo.xlsx'].origen_mes,
+            por_nombre['ambiguo.xlsx'].activo) == (None, 'sin_mes', False)
+    assert (por_nombre['sin-fecha.xlsx'].mes, por_nombre['sin-fecha.xlsx'].origen_mes,
+            por_nombre['sin-fecha.xlsx'].activo) == (None, 'sin_mes', False)
+
+
+def test_asignacion_manual_manda_sobre_nombre_y_contenido(tmp_path, monkeypatch):
+    """013:RF-4 — la decisión explícita del operador no se sustituye por inferencias."""
+    path = tmp_path / '0126clientesImportantes.xlsx'
+    path.write_bytes(b'no abrir')
+    patron = r'^(?P<mes>\d{2})(?P<anio>\d{2})clientesImportantes\.xlsx$'
+    monkeypatch.setattr(dm, '_abrir', lambda _p: pytest.fail('la asignación manual era suficiente'))
+
+    catalogo = dm.catalogar_libros_clientes(tmp_path, patron, {path.name: '2026-07'}, dm.ALIAS)
+
+    assert len(catalogo) == 1
+    assert (catalogo[0].mes, catalogo[0].origen_mes, catalogo[0].activo) == (
+        '2026-07', 'manual', True)
+
+
+def test_duplicado_mensual_usa_el_mas_reciente_y_avisa_ambos(tmp_path, monkeypatch):
+    """013:RF-5 — dos libros del mismo mes no se mezclan: gana el `mtime_ns` mayor y la
+    elección queda visible en ambos registros."""
+    antiguo = tmp_path / '0126clientesImportantes.xlsb'
+    nuevo = tmp_path / '0126clientesImportantes.xlsx'
+    antiguo.write_bytes(b'antiguo')
+    nuevo.write_bytes(b'nuevo')
+    os.utime(antiguo, ns=(1_000_000_000, 1_000_000_000))
+    os.utime(nuevo, ns=(2_000_000_000, 2_000_000_000))
+    patron = r'^(?P<mes>\d{2})(?P<anio>\d{2})clientesImportantes\.(xlsb|xlsx)$'
+    monkeypatch.setattr(dm, '_abrir', lambda _p: pytest.fail('el nombre resuelve el mes'))
+
+    catalogo = dm.catalogar_libros_clientes(tmp_path, patron, {}, dm.ALIAS)
+    por_nombre = {x.nombre: x for x in catalogo}
+
+    assert not por_nombre[antiguo.name].activo
+    assert por_nombre[nuevo.name].activo
+    assert all(antiguo.name in ' '.join(x.avisos) and nuevo.name in ' '.join(x.avisos)
+               for x in catalogo)
+
+
 @pytest.mark.parametrize('formato', ['antiguo', 'nuevo'])
 def test_clientes_importantes_en_los_dos_formatos(tmp_path, formato):
     """004:RF-34 — hoja resumen, cabecera en otra fila y columnas por nombre."""
