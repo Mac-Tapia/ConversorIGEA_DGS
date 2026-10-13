@@ -156,7 +156,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 
 | Fichero | Qué hace | Spec |
 | --- | --- | --- |
-| `tools/accept_three_sources.py` | Aceptación separada y auditada de MDB, TXT y VNR-GIS. | 001 |
+| `tools/accept_three_sources.py` | Aceptación universal y separada de MDB, TXT y VNR-GIS hasta ajuste, relectura y estudio nativos. | 001, 004, 006, 011 |
 | `tools/ajuste_cabecera_pf.py` | Guion de DIgSILENT: ajusta un alimentador a su máxima de cabecera. | 006, 008, 011 (RF-18, RF-19, RF-51, RF-54) |
 | `tools/apply_catalog_to_model.py` | Corrige las características eléctricas del modelo con el catálogo de fichas. | base |
 | `tools/base_scenario.py` | Escenario base (año 0): lo construye, lo hace converger y lo diagnostica. | 005 |
@@ -221,6 +221,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `docs/POWERFACTORY_ACCEPTANCE.md` | Aceptación en PowerFactory. | vigente |
 | `docs/VNR_GIS_PRODUCTION.md` | Operación del módulo VNR-GIS. | vigente |
 | `docs/runbooks/three-source-production-acceptance.md` | Aceptación de las tres fuentes. | vigente |
+| `docs/runbooks/universal-native-load-acceptance.md` | Aceptación universal hasta carga, relectura y estudio nativos. | vigente |
 | `VNR-GIS.md` | Diseño completo de VNR-GIS, citado por secciones en el código. | vigente |
 | `input/README.md` | Qué va en `input/`. | vigente |
 | `specs/NNN-*/` | Specs, planes y tareas. | vigente |

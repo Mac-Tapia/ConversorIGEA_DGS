@@ -1,5 +1,9 @@
 # Aceptación de producción: MDB, TXT y VNR-GIS
 
+Para el cierre completo con máxima de cabecera, clientes importantes, bancos y
+estudios nativos, continúe con
+[`universal-native-load-acceptance.md`](universal-native-load-acceptance.md).
+
 ## Objetivo y criterio de evidencia
 
 Este procedimiento ejecuta cada fuente en un espacio independiente, conserva sus
@@ -30,6 +34,8 @@ Valverde et al. (<https://doi.org/10.1049/iet-gtd.2016.1560>).
 python tools\accept_three_sources.py `
   --audit-dir AUDIT\three_source_YYYYMMDD_HHMMSS `
   --feeder IN111 `
+  --meter IN111=MEDIDOR_CABECERA `
+  --cabecera "ruta\medicion_cabecera" `
   --company "EMPRESA_EJEMPLO" `
   --period 2026 `
   --source-crs EPSG:32718 `
@@ -41,7 +47,8 @@ python tools\accept_three_sources.py `
   --powerfactory
 ```
 
-Omita `--powerfactory` para validar hasta DGS. Omita `--vnr-package` cuando no exista:
+Omita `--powerfactory` para validar hasta DGS. Al usarlo, `--meter` y `--cabecera` son
+obligatorios para acreditar carga nativa. Omita `--vnr-package` cuando no exista:
 el resumen lo marcará bloqueado sin reutilizar el MDB o los TXT.
 
 `--feeder` se puede repetir para uno o varios alimentadores; `--all-feeders` procesa
@@ -69,7 +76,9 @@ Las clases finales son `CONVERGED_ORIGINAL`, `CONVERGED_RECONSTRUCTED`,
 `REJECTED_STALE_EVIDENCE`. Reducir, escalar o desconectar carga siempre produce
 `NEEDS_OPERATOR_REVIEW`, aunque `ComLdf` converja.
 
-Estados de éxito: `DGS_READY` o `POWERFACTORY_VERIFIED`. Estados como
+Sin `--powerfactory`, el estado de éxito es `DGS_READY`. Con PowerFactory y el contrato
+completo de carga, es `NATIVE_LOAD_VERIFIED`; la mera importación nativa ya no acredita
+el ajuste ni los estudios. Estados como
 `SKIP_MISSING_INPUT`, `SKIP_FEEDER_NOT_PRESENT`, `BLOCKED_FEEDER_NOT_READY` y
 `BLOCKED_MISSING_OFFICIAL_PACKAGE` son límites de evidencia, no aprobaciones.
 

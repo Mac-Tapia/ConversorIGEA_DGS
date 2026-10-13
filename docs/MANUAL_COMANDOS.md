@@ -869,7 +869,7 @@ se ejecutan con el intérprete de PowerFactory (Python 3.12 con `powerfactory.py
 
 | Herramienta | Para qué | PF |
 | --- | --- | --- |
-| `accept_three_sources.py` | Aceptación auditada y separada de MDB, TXT y VNR-GIS (`docs/runbooks/`). | opcional |
+| `accept_three_sources.py` | Aceptación universal TXT/MDB/VNR-GIS hasta ajuste y estudio nativos (`docs/runbooks/universal-native-load-acceptance.md`). | opcional |
 | `ajuste_cabecera_pf.py` | Ajusta un alimentador a su máxima de cabecera (sección 7.ter). | PF |
 | `apply_catalog_to_model.py` | Corrige impedancias y ampacidades del modelo con el catálogo de fichas (sección 7.bis). | |
 | `base_scenario.py` | Escenario base (año 0): construye, hace converger y diagnostica (sección 8). | PF |
