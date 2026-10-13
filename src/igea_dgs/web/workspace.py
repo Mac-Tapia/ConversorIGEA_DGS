@@ -137,6 +137,7 @@ class Workspace:
     loaded_source_mode: str | None = None
     loaded_source_fingerprint: str | None = None
     inventory: dict | None = None
+    source_audit: dict | None = None
     feeder_readiness: dict[str, dict[str, Any]] = field(default_factory=dict)
     catalog_report: dict | None = None
     reconstructed_dataset: Any = None
@@ -236,6 +237,7 @@ class Workspace:
         self.loaded_source_mode = None
         self.loaded_source_fingerprint = None
         self.inventory = None
+        self.source_audit = None
         self.feeder_readiness.clear()
         self.catalog_report = None
         self.reconstructed_dataset = None
@@ -367,6 +369,7 @@ class Workspace:
             'totals': inv.get('totals'),
             'conversion': inv.get('conversion'),
             'integrity': inv.get('integrity'),
+            'universal_audit': self.source_audit,
             'catalog_report': self.catalog_report,
             'catalog_applied': bool(self.catalog_file),
             'catalog_file': Path(self.catalog_file).name if self.catalog_file else None,

@@ -214,6 +214,11 @@ export function FeedersPanel() {
             <span className="mono">run {ws.loaded_run_id ?? '—'}</span>
             <span className="mono">SHA {ws.source_fingerprint?.slice(0, 12) ?? '—'}…</span>
             {ws.source_manifest_url && <a className="link" href={ws.source_manifest_url} target="_blank" rel="noreferrer">Ver manifiesto</a>}
+            {ws.universal_audit && (
+              <Pill tone={ws.universal_audit.status === 'SOURCE_AUDIT_OK' ? 'ok' : 'error'}>
+                {ws.universal_audit.status === 'SOURCE_AUDIT_OK' ? 'Fuente auditada' : 'Fuente bloqueada'}
+              </Pill>
+            )}
           </div>
           <div className="stats">
             <Stat label="alimentadores" value={fmtNum(t.feeders)} />
@@ -295,7 +300,7 @@ export function FeedersPanel() {
                     <td className="num">{fmtNum(r.sections)}</td>
                     <td className="num">{fmtNum(r.loads)}</td>
                     <td className="num">{fmtNum(r.switches)}</td>
-                    <td>{statusOf(r).node}</td>
+                    <td title={r.source_audit_status}>{statusOf(r).node}</td>
                   </tr>
                 ))}
                 {rows.length === 0 && <tr><td colSpan={8} className="empty">Ningún alimentador coincide con el filtro.</td></tr>}

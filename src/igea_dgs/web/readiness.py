@@ -135,10 +135,14 @@ def build_feeder_readiness(
     *,
     supplied: Mapping[str, Mapping[str, Any]] | None = None,
     aliases: Mapping[str, str] | None = None,
+    audit: Mapping[str, Any] | None = None,
 ) -> dict[str, dict[str, Any]]:
     """Normaliza la evaluación propia o las puertas más estrictas de un adaptador."""
     result: dict[str, dict[str, Any]] = {}
     supplied = supplied or {}
+    audit_by_network = {
+        str(item.get('network_id')): item for item in (audit or {}).get('feeders', [])
+    }
     for inventory in inventory_rows:
         feeder = str(inventory['feeder'])
         network_id = str(inventory['network_id'])
@@ -159,6 +163,15 @@ def build_feeder_readiness(
                 'status': status,
                 'blocking_codes': blockers,
             }
+        source_audit = audit_by_network.get(network_id) or {}
+        audit_blockers = [str(code) for code in source_audit.get('blocking_codes') or []]
+        if audit_blockers:
+            normalized['blocking_codes'] = list(dict.fromkeys(
+                [*normalized.get('blocking_codes', []), *audit_blockers]
+            ))
+            normalized['status'] = 'INVENTORY_ONLY'
+        normalized['source_audit_status'] = source_audit.get('status', 'SOURCE_AUDIT_NOT_AVAILABLE')
+        normalized['source_audit_counts'] = dict(source_audit.get('counts') or {})
         result[network_id] = normalized
     return result
 

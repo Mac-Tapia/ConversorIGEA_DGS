@@ -18,6 +18,7 @@ class SourceLoadResult:
     catalog_report: dict | None = None
     readiness: dict[str, Any] = field(default_factory=dict)
     provenance: dict[str, Any] = field(default_factory=dict)
+    audit: Any | None = None
 
 
 class SourceAdapter(Protocol):
