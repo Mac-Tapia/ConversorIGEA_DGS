@@ -178,6 +178,21 @@ def canonical_to_cymdist(
         }
         mapped_loads[feeder] += 1
 
+    capacitor_settings = tuple({
+        'DeviceNumber': capacitor.capacitor_id,
+        'NetworkID': capacitor.feeder_id,
+        'NodeID': capacitor.connection_node,
+        'Phase': capacitor.phases,
+        # ``kvar`` del contrato VNR es potencia total. Cero significa ausente:
+        # no se transforma en un banco de 0 ni en un valor por defecto.
+        'TotalKVAR': _text(capacitor.kvar) if capacitor.kvar > 0 else '',
+        'KVARPerStep': '',
+        'NumberOfSteps': _text(capacitor.steps),
+        'NominalKV': _text(capacitor.nominal_kv),
+        'Status': capacitor.status,
+        'SourceTable': capacitor.source_layer or 'VNR_CAPACITOR',
+    } for capacitor in model.capacitors)
+
     conductor_types = {item.conductor_code: item for item in model.conductor_types}
     equipment_rows = []
     for conductor in model.conductor_types:
@@ -205,6 +220,7 @@ def canonical_to_cymdist(
         load_placements=load_placements,
         customer_loads=customer_loads,
         equipment_tables={'LINE': tuple(equipment_rows)},
+        capacitor_settings=capacitor_settings,
     )
 
     projected = model.metadata.get('working_crs_is_projected') is True

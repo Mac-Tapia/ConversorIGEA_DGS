@@ -73,6 +73,7 @@ class CymdistDataset:
     load_placements: dict[tuple[str, str], dict[str, str]]
     customer_loads: dict[tuple[str, str], dict[str, str]]
     equipment_tables: dict[str, tuple[dict[str, str], ...]]
+    capacitor_settings: tuple[dict[str, str], ...] = ()
 
     @classmethod
     def from_files(cls, red: Path | str, loads: Path | str, equipment: Path | str) -> 'CymdistDataset':
@@ -115,6 +116,7 @@ class CymdistDataset:
         switch_settings: list[dict[str, str]] = []
         sectionalizer_settings: list[dict[str, str]] = []
         intermediate_nodes: list[dict[str, str]] = []
+        capacitor_settings: list[dict[str, str]] = []
 
         section: str | None = None
         columns: list[str] | None = None
@@ -212,6 +214,11 @@ class CymdistDataset:
                     sectionalizer_settings.append(row)
                 elif section == 'INTERMEDIATE NODES':
                     intermediate_nodes.append(row)
+                elif section == 'SHUNT CAPACITOR SETTING':
+                    # Se conserva la fila completa: distintas versiones de CYMDIST
+                    # cambian nombres de columnas y ninguna ausencia autoriza a
+                    # completar potencia, fases o escalones.
+                    capacitor_settings.append(row)
 
         for sid, ajuste in line_settings.items():
             line_configurations.setdefault(sid, ajuste)
@@ -267,6 +274,7 @@ class CymdistDataset:
             load_placements=load_placements,
             customer_loads=customer_loads,
             equipment_tables=equipment_tables,
+            capacitor_settings=tuple(capacitor_settings),
         )
 
     # ------------------------------------------------------------------ índices

@@ -136,6 +136,11 @@ class Capacitor:
     kvar: float = 0.0
     source_layer: str = ''
     source_id: str = ''
+    feeder_id: str = ''
+    phases: str = ''
+    steps: int | None = None
+    nominal_kv: float | None = None
+    status: str = 'in_service'
 
 
 @dataclass
