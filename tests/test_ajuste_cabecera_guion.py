@@ -12,7 +12,7 @@ import random
 import pytest
 
 import fake_pf
-from apoyo import cargar_herramienta
+from apoyo import cargar_herramienta, contexto_nativo
 
 SEMILLA = int(os.environ.get('IGEA_SCALE_SEED', random.randrange(1 << 30)))
 
@@ -39,7 +39,8 @@ def _plan(kw=300.0, kvar=90.0, clientes=(), kva_entrada=None, tolerancia=0.01, m
             'project_binding': {'native_reread': {
                 'status': 'VERIFICADO_PERSISTENCIA',
                 'capacitor_reread': {'status': 'VERIFICADO_PERSISTENCIA', 'expected': 3},
-            }}}
+            }},
+            'native_action_context': contexto_nativo('P', ['F1'], 'ajuste')}
 
 
 def _carga(app, nombre):
@@ -51,7 +52,7 @@ def _sed(informe, sed):
 
 
 def test_cuadra_la_cabecera_en_una_variacion_nueva(guion):
-    """006:RF-4 / 006:RF-11 / 006:RF-19 / 006:RF-21 — solo el alimentador elegido, en su variación, y
+    """006:RF-4 / 006:RF-11 / 006:RF-19 / 006:RF-21 / 006:RF-40 — solo el alimentador elegido, en su variación, y
     el informe con objetivo, cabecera, pérdidas, error y flujos."""
     app = _app(escenario=True)
     otra = _carga(app, 'F2_S1').plini

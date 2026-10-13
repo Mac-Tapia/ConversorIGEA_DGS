@@ -100,6 +100,28 @@ def _require_pf() -> tuple[Path | None, Path]:
     return pf_dir, Path(status['interpreter'])
 
 
+def native_action_context(
+    ws: Workspace, project: str, feeders: list[str], action: str,
+) -> dict[str, Any]:
+    """Vincula toda acción nativa con la fuente y relectura PowerFactory aceptadas."""
+    from ..native_action import build_native_action_context
+    from ..powerfactory_binding import ProjectBindingError, require_project_binding
+
+    project = str(project or '').strip()
+    normalized = sorted({str(feeder).strip() for feeder in feeders if str(feeder).strip()})
+    if not normalized:
+        normalized = sorted({
+            str(feeder).strip()
+            for feeder in ((ws.pf_project_bindings.get(project) or {}).get('feeders') or [])
+            if str(feeder).strip()
+        })
+    try:
+        binding = require_project_binding(ws, project, normalized)
+    except ProjectBindingError as exc:
+        raise UserError(str(exc)) from exc
+    return build_native_action_context(binding, project, normalized, action)
+
+
 def _script(name: str) -> Path:
     path = tools_dir() / name
     if not path.is_file():
@@ -488,7 +510,7 @@ def convert(ws: Workspace, ctx: JobContext, feeders: list[str] | None, all_feede
         elif status == 'skipped':
             ctx.log(f"  OMITIDO {name}: {item.get('error') or 'sin topología'}")
         else:
-            ctx.log(f"  FAIL {name}: {item.get('error') or 'error'}")
+            ctx.log(f"  BLOQUEADO_DATOS {name}: {item.get('error') or 'error de conversión'}")
     ctx.log('--- Fin de conversión ---')
     return {
         'summary': summary,
@@ -846,10 +868,13 @@ def powerfactory_flow(ws: Workspace, ctx: JobContext, feeders: list[str]) -> dic
             lines.append(f'OK {feeder} → convergencia / aceptación')
         elif rc == 3:
             fail_n += 1
-            lines.append(f'FAIL {feeder}: API PowerFactory no disponible (abra PF o configure PF_PYTHON)')
+            lines.append(
+                f'BLOQUEADO_DATOS {feeder}: API PowerFactory no disponible '
+                '(abra PF o configure PF_PYTHON)'
+            )
         else:
             fail_n += 1
-            lines.append(f'FAIL {feeder}: código {rc}')
+            lines.append(f'BLOQUEADO_PERSISTENCIA {feeder}: código nativo {rc}')
     ctx.progress(len(jobs), len(jobs), '')
     for line in lines:
         ctx.log('  ' + line)
@@ -1102,7 +1127,7 @@ def convert_group(
                 f"hoja {hoja.get('formato')} {hoja.get('orientacion')}; "
                 f"completitud: {'OK' if not man['completitud']['fallos'] else man['completitud']['fallos']}")
     else:
-        ctx.log(f"FAIL {nombre}: {man.get('error')}")
+        ctx.log(f"BLOQUEADO_DATOS {nombre}: {man.get('error')}")
     with ws.lock:
         ws.groups[nombre] = {k: man.get(k) for k in (
             'name', 'feeders', 'status', 'error', 'dgs', 'feeder_metadata',
@@ -1256,6 +1281,9 @@ def cargas_plan(
     from ..cargas_pf import Lectura, armar_plan, leer_demandas, leer_hoja_nuevas, leer_nuevas
     from ..loads import LoadTemplateError
 
+    if not project.strip():
+        raise UserError('Elija el proyecto de DIgSILENT.')
+    action_context = native_action_context(ws, project, feeders, 'cargas')
     costos, tec = _economia_del_lote(economia)
     crs = crs_origen(ws) or ''
     base = base_del_ajuste(ajuste, project) if ajuste is not None else None
@@ -1279,6 +1307,7 @@ def cargas_plan(
             tec=None if tec is None else {'parametros': tec.to_dict(), 'comtececo': tec.a_comtececo()},
             carpeta=carpeta_pf(), base=base,
         )
+        plan['native_action_context'] = action_context
     except LoadTemplateError as exc:
         raise UserError(str(exc)) from exc
     token = uuid.uuid4().hex[:12]
@@ -1296,6 +1325,7 @@ def cargas_plan(
         'base': plan['base'], 'avisos': plan['avisos'],
         'calibradas_cambiadas': plan['calibradas_cambiadas'],
         'variacion_demandas': plan['variacion_demandas'],
+        'native_action_context': action_context,
     }
     with ws.lock:
         ws.cargas_planes[token] = {'path': str(path), 'project': plan['project'],
@@ -1635,16 +1665,14 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
 
     from ..ajuste_cabecera import AjusteError, fijas_de, objetivo_de
     from ..demanda_medida import periodo_de_fecha
-    from ..powerfactory_binding import ProjectBindingError, require_project_binding
+    from ..powerfactory_binding import PowerFactoryProjectBinding
 
     if not project.strip():
         raise UserError('Elija el proyecto de DIgSILENT.')
     filas = _medidores_del_ajuste(maximas, medidor, medidores)
     requested_feeders = [str(row.get('alimentador') or '').strip() for row in filas]
-    try:
-        project_binding = require_project_binding(ws, project.strip(), requested_feeders)
-    except ProjectBindingError as exc:
-        raise UserError(str(exc)) from exc
+    action_context = native_action_context(ws, project, requested_feeders, 'ajuste')
+    project_binding = PowerFactoryProjectBinding.from_dict(action_context['binding'])
     client_period = periodo_clientes_activo(ws)
     varios = len(filas) > 1
     stamp = _time.strftime('%Y%m%d_%H%M%S')
@@ -1716,6 +1744,9 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
                 'source_fingerprint': project_binding.source_fingerprint,
             },
             'project_binding': project_binding.as_dict(),
+            'native_action_context': native_action_context(
+                ws, project, [alimentador], 'ajuste',
+            ),
             'periodo': period_evidence,
             'client_evidence': client_period.to_dict(),
             'fixed_load_evidence': fixed_evidence,
@@ -1750,6 +1781,7 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
             'n_sed_escaladas_estimadas': primero['n_sed_escaladas_estimadas'],
             'periodo': primero['periodo'], 'client_evidence': primero['client_evidence'],
             'source': plan['source'], 'project_binding': plan['project_binding'],
+            'native_action_context': action_context,
             'feeders': feeders, 'ajustes': ajustes, 'avisos': avisos}
 
 
@@ -1832,13 +1864,16 @@ def pf_verificar(ws: Workspace, ctx: JobContext, project: str, feeders: list[str
     """
     if not project.strip():
         raise UserError('Elija el proyecto de DIgSILENT.')
+    feeders = list(dict.fromkeys(f.strip() for f in feeders if f.strip()))
+    action_context = native_action_context(ws, project, feeders, 'verificar')
     pf_dir, interpreter = _require_pf()
     token = uuid.uuid4().hex[:12]
     ws.plans_dir.mkdir(parents=True, exist_ok=True)
     path = ws.plans_dir / f'verificar_{token}.json'
-    feeders = list(dict.fromkeys(f.strip() for f in feeders if f.strip()))
     path.write_text(json.dumps({'project': project.strip(), 'folder': carpeta_pf(),
-                                'feeders': feeders}, ensure_ascii=False), encoding='utf-8')
+                                'feeders': feeders,
+                                'native_action_context': action_context},
+                               ensure_ascii=False), encoding='utf-8')
     report = ws.out_dir / f'verificar_{token}.json'
     report.parent.mkdir(parents=True, exist_ok=True)
     ctx.log(f'Proyecto de DIgSILENT: {project.strip()}  ·  verificar la convergencia')
@@ -2093,8 +2128,11 @@ def obras_bibliotecas(ws: Workspace, ctx: JobContext, project: str, feeders: lis
     """
     if not project.strip():
         raise UserError('Elija el proyecto de DIgSILENT.')
-    plan = {'project': project.strip(), 'folder': carpeta_pf(), 'feeders': list(feeders),
-            'clases': list(clases or []), 'otro_proyecto': otro_proyecto.strip()}
+    action_context = native_action_context(ws, project, feeders, 'obras_bibliotecas')
+    plan = {'project': project.strip(), 'folder': carpeta_pf(),
+            'feeders': action_context['feeders'],
+            'clases': list(clases or []), 'otro_proyecto': otro_proyecto.strip(),
+            'native_action_context': action_context}
     ctx.log(f'Proyecto de DIgSILENT: {plan["project"]}  ·  leer bibliotecas de tipos')
     rc, informe, report = _guion_pf(ws, ctx, 'obras_pf.py', plan, nombre='obras_bibliotecas',
                                     args=('--bibliotecas',), cancelable=False)
@@ -2115,12 +2153,15 @@ def obras_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
     """
     if not project.strip():
         raise UserError('Elija el proyecto de DIgSILENT.')
+    action_context = native_action_context(ws, project, feeders, 'obras')
     elegidas = [o for o in ws.obras if not ids or o['id'] in ids]
     if not elegidas:
         raise UserError('No hay obras que simular ni aplicar: defina alguna primero.')
-    plan = {'project': project.strip(), 'folder': carpeta_pf(), 'feeders': list(feeders),
+    plan = {'project': project.strip(), 'folder': carpeta_pf(),
+            'feeders': action_context['feeders'],
             'obras': [{k: v for k, v in o.items() if k != 'id'} for o in elegidas],
-            'otro_proyecto': otro_proyecto.strip()}
+            'otro_proyecto': otro_proyecto.strip(),
+            'native_action_context': action_context}
     modo = 'simulacion' if simular else 'aplicacion'
     ctx.log(f"Proyecto de DIgSILENT: {plan['project']}  ·  {len(elegidas)} obra(s)")
     rc, informe, report = _guion_pf(ws, ctx, 'obras_pf.py', plan, nombre=f'obras_{modo}',
@@ -2171,6 +2212,8 @@ def estudios_plan(ws: Workspace, project: str, feeders: list[str], estudios: lis
 
     if not project.strip():
         raise UserError('Elija el proyecto de DIgSILENT.')
+    requested_for_gate = list(dict.fromkeys(f.strip() for f in feeders if f.strip()))
+    native_action_context(ws, project, requested_for_gate, 'estudios')
     if ajuste is None:
         raise UserError('El proyecto no tiene ningún ajuste a la máxima aplicado en este espacio: '
                         'primero hay que calibrar.')
@@ -2198,7 +2241,10 @@ def estudios_plan(ws: Workspace, project: str, feeders: list[str], estudios: lis
             'limite_s': float(limite_s or LIMITE_ESTUDIO_S),
             'objetivos': {a['feeder']: a.get('objetivo') for a in base['ajustes']
                           if isinstance(a.get('objetivo'), dict)},
-            'tolerancia': float(ajuste.get('tolerancia') or 0.01)}
+            'tolerancia': float(ajuste.get('tolerancia') or 0.01),
+            'native_action_context': native_action_context(
+                ws, project, estudiables, 'estudios',
+            )}
     ws.plans_dir.mkdir(parents=True, exist_ok=True)
     path = ws.plans_dir / f'estudios_{token}.json'
     path.write_text(json.dumps(plan, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
@@ -2231,7 +2277,10 @@ def estudios_ejecutar(ws: Workspace, ctx: JobContext, token: str) -> dict:
     nombres = {'sin': SIN_PROYECTO, 'con': CON_PROYECTO}
     ctx.log(f"Proyecto de DIgSILENT: {plan['project']}  ·  preparar los casos")
     _rc, casos, casos_report = _guion_pf(
-        ws, ctx, 'casos_pf.py', {k: plan[k] for k in ('project', 'folder', 'feeders', 'base')},
+        ws, ctx, 'casos_pf.py', {
+            **{k: plan[k] for k in ('project', 'folder', 'feeders', 'base')},
+            'native_action_context': plan['native_action_context'],
+        },
         nombre='casos', cancelable=False)
     if casos.get('error'):
         raise UserError(casos['error'])                                # RF-13, RF-16
@@ -2249,7 +2298,8 @@ def estudios_ejecutar(ws: Workspace, ctx: JobContext, token: str) -> dict:
                 n += 1
                 sub = {'project': plan['project'], 'folder': plan['folder'], 'feeders': feeders,
                        'estudio': estudio, 'caso': rol, 'objetivos': plan['objetivos'],
-                       'tolerancia': plan['tolerancia'], 'stamp': token}
+                       'tolerancia': plan['tolerancia'], 'stamp': token,
+                       'native_action_context': plan['native_action_context']}
                 rc, inf, report = _guion_pf(ws, ctx, 'estudios_pf.py', sub,
                                             nombre=f'estudio_{rol}_{estudio}', cancelable=False,
                                             limite_s=plan['limite_s'])
@@ -2310,11 +2360,13 @@ def transferencia_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders
         raise UserError('Elija el proyecto de DIgSILENT.')
     if len(feeders) != 2:
         raise UserError('Elija dos alimentadores distintos.')
+    action_context = native_action_context(ws, project, feeders, 'transferencia')
     token = uuid.uuid4().hex[:12]
     fichero = ws.out_dir / f'transferencias_{token}.csv'
     plan = {'project': project.strip(), 'folder': carpeta_pf(), 'feeders': feeders,
             'casos': list(casos), 'limites': dict(limites or {}),
-            'seccionadores': _seccionadores_de_la_entrada(ws, feeders)}
+            'seccionadores': _seccionadores_de_la_entrada(ws, feeders),
+            'native_action_context': action_context}
     ctx.log(f"Proyecto de DIgSILENT: {plan['project']}  ·  transferencia {feeders[0]} ↔ {feeders[1]}")
     rc, informe, report = _guion_pf(ws, ctx, 'transferencia_pf.py', plan, nombre='transferencia',
                                     args=('--fichero', str(fichero)))
@@ -2329,7 +2381,10 @@ def guiones_listar(ws: Workspace, ctx: JobContext, project: str) -> dict:
     """Los guiones DPL y Python de los casos y de la carpeta de guiones (RF-27)."""
     if not project.strip():
         raise UserError('Elija el proyecto de DIgSILENT.')
-    plan = {'project': project.strip(), 'folder': carpeta_pf()}
+    bound = (ws.pf_project_bindings.get(project.strip()) or {}).get('feeders') or []
+    action_context = native_action_context(ws, project, list(bound), 'guion')
+    plan = {'project': project.strip(), 'folder': carpeta_pf(),
+            'feeders': list(bound), 'native_action_context': action_context}
     ctx.log(f'Proyecto de DIgSILENT: {plan["project"]}  ·  leer los guiones del operador')
     rc, informe, report = _guion_pf(ws, ctx, 'estudios_pf.py', plan, nombre='guiones',
                                     args=('--guion',), cancelable=False)
@@ -2352,6 +2407,8 @@ def guion_ejecutar(ws: Workspace, ctx: JobContext, project: str, nombre: str, or
 
     if not project.strip() or not nombre.strip():
         raise UserError('Elija el proyecto y el guion.')
+    bound = (ws.pf_project_bindings.get(project.strip()) or {}).get('feeders') or []
+    action_context = native_action_context(ws, project, list(bound), 'guion')
     roles = {SIN_PROYECTO: 'sin', CON_PROYECTO: 'con'}
     malos = [c for c in casos if c not in roles]
     if malos or not casos:
@@ -2365,6 +2422,7 @@ def guion_ejecutar(ws: Workspace, ctx: JobContext, project: str, nombre: str, or
                 break
             ctx.progress(n, len(casos), f'{nombre} · {caso}')
             plan = {'project': project.strip(), 'folder': carpeta_pf(), 'caso': roles[caso],
+                    'feeders': list(bound), 'native_action_context': action_context,
                     'guion': {'nombre': nombre.strip(), 'origen': origen},
                     'parametros': dict(parametros)}
             rc, inf, report = _guion_pf(ws, ctx, 'estudios_pf.py', plan, nombre='guion',

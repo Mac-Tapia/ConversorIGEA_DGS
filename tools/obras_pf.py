@@ -66,6 +66,7 @@ from casos_pf import NOMBRES, tres_casos
 from estudios_pf import tramos_troncales
 
 from igea_dgs.carpeta_pf import buscar_proyecto, nombre_de_perfil
+from igea_dgs.native_action import native_action_block_report
 from igea_dgs.obras_pf import (
     ATRIBUTOS_TIPO, BANDA_TENSION_PU, Obra, ObrasError, RedAlimentador, Tipo, diferencias_sin_proyecto,
     mismos_datos, plan_simulacion, red_de_lectura, resolver_copia, resumen_tipo,
@@ -735,6 +736,12 @@ def main(argv=None) -> int:
     p.add_argument('--cancel-file', help='Si este fichero aparece, para entre obras')
     args = p.parse_args(argv)
     plan = json.loads(Path(args.plan).read_text(encoding='utf-8'))
+    blocked = native_action_block_report(plan, ('obras', 'obras_bibliotecas'))
+    if blocked:
+        Path(args.output_json).write_text(
+            json.dumps(blocked, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+        print(blocked['error'])
+        return 2
     try:
         import powerfactory
     except ImportError as exc:

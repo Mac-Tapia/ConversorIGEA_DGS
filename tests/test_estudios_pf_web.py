@@ -16,7 +16,7 @@ pytest.importorskip('httpx2')
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from apoyo import esperar_trabajo  # noqa: E402
+from apoyo import esperar_trabajo, vincular_proyecto  # noqa: E402
 from apoyo_pf_web import guion_falso  # noqa: E402,F401
 from igea_dgs.web.app import create_app  # noqa: E402
 
@@ -50,11 +50,14 @@ def _ajuste(client, wid, proyecto='P'):
 def _plan(client, wid, ajuste, **kw):
     body = {'project': kw.pop('project', 'P'), 'feeders': ['A1', 'A2', 'A3', 'A4'],
             'estudios': ['flujo', 'contingencias'], 'ajuste_job_id': ajuste, **kw}
+    vincular_proyecto(client, wid, body['project'], body['feeders'])
     return client.post(f'/api/workspaces/{wid}/pf/estudios/plan', json=body)
 
 
 def _espacio(client):
-    return client.post('/api/workspaces').json()['id']
+    wid = client.post('/api/workspaces').json()['id']
+    vincular_proyecto(client, wid, 'P', ['A1', 'A2', 'A3', 'A4'])
+    return wid
 
 
 # --------------------------------------------------------------------------- catálogo y plan

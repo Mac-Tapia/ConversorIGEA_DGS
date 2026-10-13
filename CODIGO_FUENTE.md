@@ -39,10 +39,12 @@ spec 001, RF-14 (DGS idéntico byte a byte); su diseño histórico está en
 | `src/igea_dgs/loads.py` | Lector de libros de cargas por SED (columnas, potencia y FP), que usa `cargas_pf.py`. | 004 |
 | `src/igea_dgs/model.py` | Modelo eléctrico de un alimentador; en modo estricto no inventa tipos. | base |
 | `src/igea_dgs/naming.py` | Nombres y selectores de alimentador; sufijo de tensión de los tipos, el mismo para el DGS y las obras. | base, 011 (RF-61) |
+| `src/igea_dgs/native_action.py` | Contexto firmado fuente–proyecto–alimentadores y vocabulario común de resultados para toda acción nativa. | 004, 006, 011 |
 | `src/igea_dgs/obras_pf.py` | Obras de mejora sin DIgSILENT: modelo y validación de cada obra, nombres de variación y de copias de tipo, datos e igualdad de tipos, resumen de cada tipo, plan de la simulación y comprobación de «Sin proyecto». | 011 (RF-56, RF-59, RF-61 a RF-65, RF-69, RF-85, RF-94) |
 | `src/igea_dgs/oraculo.py` | Flujo independiente con pandapower antes de escribir el DGS. | base |
 | `src/igea_dgs/perfil_empresa.py` | Perfil de empresa: CRS de origen, patrón de las SED de medición, escala del diagrama y forma de los alimentadores, fuera del código; hereda de `config/perfiles/`. | 002 (RF-31 a RF-37) |
 | `src/igea_dgs/powerfactory_env.py` | Dónde está la API de PowerFactory y qué intérprete la carga. | base |
+| `src/igea_dgs/powerfactory_binding.py` | Vínculo auditable entre ejecución fuente, DGS, inventario releído y proyecto nativo aceptado. | 004, 006, 011 |
 | `src/igea_dgs/powerfactory_metadata.py` | Procedencia IGEA en los objetos de PowerFactory. | base |
 | `src/igea_dgs/preview.py` | Vista previa georreferenciada del modelo. | base |
 | `src/igea_dgs/puentes.py` | Funde los tramos puente de CYMDIST en vez de modelarlos como líneas. | base |
@@ -51,6 +53,7 @@ spec 001, RF-14 (DGS idéntico byte a byte); su diseño histórico está en
 | `src/igea_dgs/reconstruction_topology.py` | Reconstrucción determinista de la topología. | 001 (RF-17) |
 | `src/igea_dgs/reglas.py` | Reglas que se aplican a todo alimentador, venga de TXT o de base; patrón de SED de medición y escala del perfil de empresa. | base (P5), 002 (RF-33) |
 | `src/igea_dgs/schema.py` | Perfiles de esquema DGS versionados. | base |
+| `src/igea_dgs/source_contract.py` | Contrato canónico y evidencia de auditoría compartidos por TXT, MDB y VNR-GIS. | 001, 004, 006 |
 | `src/igea_dgs/schemas/pf21_dgs_1_8_4.json` | Perfil DGS genérico de PowerFactory. | base |
 | `src/igea_dgs/sed_potencia.py` | Lleva al tamaño normalizado las SED cuya carga supera su transformador. | base |
 | `src/igea_dgs/studies.py` | Qué estudios de PowerFactory se pueden correr y qué dato falta para cada uno. | base |

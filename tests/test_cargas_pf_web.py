@@ -22,7 +22,7 @@ openpyxl = pytest.importorskip('openpyxl')
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from apoyo import esperar_trabajo  # noqa: E402
+from apoyo import esperar_trabajo, vincular_proyecto  # noqa: E402
 from igea_dgs.web import services  # noqa: E402
 from igea_dgs.web.app import create_app  # noqa: E402
 
@@ -84,6 +84,7 @@ def _xlsx(filas: list[list]) -> bytes:
 
 def _plan(client, wid, *, project='P', feeders=('F1',), demandas=None, nuevas=None,
           nueva=None, economia=None):
+    vincular_proyecto(client, wid, project, feeders)
     files = {}
     if demandas is not None:
         files['update_file'] = ('demandas.xlsx', _xlsx(demandas))
@@ -270,6 +271,7 @@ def test_verificar_convergencia_es_un_trabajo(client, tmp_path, monkeypatch):
     url = f'/api/workspaces/{wid}/powerfactory/verificar'
     assert client.post(url, json={'project': ' ', 'feeders': []}).status_code == 422
     for proyecto, converge in (('P', True), ('NO_CONVERGE', False)):
+        vincular_proyecto(client, wid, proyecto, ['F1', 'F2'])
         trabajo = client.post(url, json={'project': proyecto, 'feeders': ['F1', 'F2', 'F1']})
         assert trabajo.status_code == 202 and trabajo.json()['lane'] == 'powerfactory'
         estado = esperar_trabajo(client, trabajo.json())
@@ -300,6 +302,7 @@ def test_plan_con_la_base_del_ajuste(client):
     alimentadores que quedaron fuera."""
     wid = _wid(client)
     job = _ajuste(client, wid)
+    vincular_proyecto(client, wid, 'P', ['F1'])
     data = {'project': 'P', 'feeders': ['F1'], 'ajuste_job_id': job}
     r = client.post(f'/api/workspaces/{wid}/lote/plan', data=data,
                     files={'update_file': ('d.xlsx', _xlsx([['SED', 'Kw', 'Kvar'], ['S1', 55, 12]]))})
@@ -320,6 +323,7 @@ def test_base_de_otro_proyecto_o_de_una_simulacion_se_rechaza(client):
     url = f'/api/workspaces/{wid}/lote/plan'
     libro = {'update_file': ('d.xlsx', _xlsx(DEMANDAS))}
     otro = _ajuste(client, wid, project='OTRO')
+    vincular_proyecto(client, wid, 'P', ['F1'])
     r = client.post(url, data={'project': 'P', 'feeders': ['F1'], 'ajuste_job_id': otro}, files=libro)
     assert r.status_code == 400 and 'OTRO' in r.json()['detail']
     sim = _ajuste(client, wid, kind='ajuste_simular')
@@ -338,6 +342,7 @@ def test_ajuste_sin_ninguna_variacion_no_es_base(client):
     """007:RF-37 — si ningún alimentador del ajuste dejó variación, no hay base."""
     wid = _wid(client)
     job = _ajuste(client, wid, informes=[{'feeder': 'F1', 'error': 'no converge'}])
+    vincular_proyecto(client, wid, 'P', ['F1'])
     r = client.post(f'/api/workspaces/{wid}/lote/plan', data={'project': 'P', 'feeders': ['F1'],
                     'ajuste_job_id': job}, files={'update_file': ('d.xlsx', _xlsx(DEMANDAS))})
     assert r.status_code == 400 and 'Ningún alimentador' in r.json()['detail']

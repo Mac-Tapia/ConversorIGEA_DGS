@@ -737,7 +737,7 @@ export interface AjusteSed {
 export interface AjusteInforme {
   project: string;
   feeder: string;
-  status?: 'OK' | 'AVISO_KVAR' | 'NO_CUADRADO_KW' | 'NO_CONVERGE';
+  status?: 'OK' | 'AVISO_KVAR' | 'VIOLACION_FISICA' | 'NO_CONVERGE';
   criterio_cuadre?: 'KW_ONLY';
   modo?: 'simular' | 'aplicar';
   /** Spec 008: el ajuste de este alimentador falló; los demás siguieron. */

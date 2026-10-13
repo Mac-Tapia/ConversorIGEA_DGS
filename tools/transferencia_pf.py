@@ -62,6 +62,7 @@ from casos_pf import NOMBRES, tres_casos
 from estudios_pf import medida
 
 from igea_dgs.estudios_pf import EstudiosError, limites_de_perfil
+from igea_dgs.native_action import native_action_block_report
 from igea_dgs.transferencia_pf import (
     NODO, SECCIONADOR, Punto, escribir_fichero, juzgar, margen, maximo_factor,
     pasos_del_camino, resumir_sentido,
@@ -541,6 +542,12 @@ def main(argv=None) -> int:
     p.add_argument('--cancel-file', help='Si este fichero aparece, para entre pasos')
     args = p.parse_args(argv)
     plan = json.loads(Path(args.plan).read_text(encoding='utf-8'))
+    blocked = native_action_block_report(plan, 'transferencia')
+    if blocked:
+        Path(args.output_json).write_text(
+            json.dumps(blocked, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+        print(blocked['error'])
+        return 2
     try:
         import powerfactory
     except ImportError as exc:

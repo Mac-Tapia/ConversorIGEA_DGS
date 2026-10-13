@@ -1650,7 +1650,7 @@ def run_study_suite(
                 report['errors'].extend(result.get('errors') or [])
             elif not result.get('available'):
                 report['warnings'].append(
-                    f'{study_id}: module not available / not licensed — skipped as FAIL soft'
+                    f'{study_id}: module not available / not licensed — NO_APLICA'
                 )
             else:
                 report['ok'] = False

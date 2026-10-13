@@ -22,6 +22,7 @@ import traceback
 from pathlib import Path
 
 from cargas_pf import activar_proyecto, error_inesperado, flujo_de_carga, leer_cabecera
+from igea_dgs.native_action import native_action_block_report
 
 
 def ejecutar(app, plan: dict) -> tuple[dict, int]:
@@ -60,6 +61,12 @@ def main(argv=None) -> int:
     p.add_argument('--output-json', required=True)
     args = p.parse_args(argv)
     plan = json.loads(Path(args.plan).read_text(encoding='utf-8'))
+    blocked = native_action_block_report(plan, 'verificar')
+    if blocked:
+        Path(args.output_json).write_text(
+            json.dumps(blocked, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+        print(blocked['error'])
+        return 2
     try:
         import powerfactory
     except ImportError as exc:
