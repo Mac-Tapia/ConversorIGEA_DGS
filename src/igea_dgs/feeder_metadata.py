@@ -10,7 +10,7 @@ from typing import Any, Iterable
 from .util import sha256_file, write_json_atomic
 
 SCHEMA_VERSION = 'igea-dgs-feeder-metadata-v1'
-TARGET_CLASSES = frozenset({'ElmLod', 'ElmSubstat', 'ElmSym', 'ElmXnet'})
+TARGET_CLASSES = frozenset({'ElmLod', 'ElmShnt', 'ElmSubstat', 'ElmSym', 'ElmXnet'})
 
 
 @dataclass(frozen=True)
@@ -24,6 +24,7 @@ class FeederAssignment:
     substation: str
     section_id: str = ''
     node_id: str = ''
+    grid: str = ''
 
 
 def _loc_name(value: str) -> str:
@@ -68,6 +69,7 @@ def assignments_from_model(model: Any, dgs_manifest: Any) -> list[FeederAssignme
             terminal=_loc_name(f'{sed.loc_name}_BT') if sed else _loc_name(load.node_id),
             substation=_loc_name(sed.loc_name) if sed else '',
             section_id=load.section_id, node_id=load.node_id,
+            grid=_loc_name(model.name),
         ))
 
     for key, fid in dgs_manifest.sed_fids.items():
@@ -80,6 +82,21 @@ def assignments_from_model(model: Any, dgs_manifest: Any) -> list[FeederAssignme
             feeder=sed.feeder, network_id=sed.network_id,
             terminal='', substation=_loc_name(sed.loc_name),
             section_id=sed.section_id, node_id=sed.node_id,
+            grid=_loc_name(model.name),
+        ))
+
+    capacitors_by_key = {
+        (bank.network_id, bank.capacitor_id): bank for bank in model.capacitors
+    }
+    for key, fid in dgs_manifest.shunt_fids.items():
+        bank = capacitors_by_key.get(key)
+        if bank is None:
+            raise ValueError(f'FID de ElmShnt sin objeto fuente: {key!r}')
+        assignments.append(FeederAssignment(
+            class_name='ElmShnt', dgs_fid=fid, loc_name=_loc_name(bank.capacitor_id),
+            feeder=bank.feeder, network_id=bank.network_id,
+            terminal=_loc_name(bank.node_id), substation='', node_id=bank.node_id,
+            grid=_loc_name(model.name),
         ))
 
     combined = getattr(model, 'combined', None)
@@ -96,6 +113,7 @@ def assignments_from_model(model: Any, dgs_manifest: Any) -> list[FeederAssignme
             class_name='ElmXnet', dgs_fid=fid,
             loc_name=_loc_name(f'External Grid {feeder}'), feeder=feeder,
             network_id=network_id, terminal=_loc_name(node_id), substation='', node_id=node_id,
+            grid=_loc_name(model.name),
         ))
 
     validate_assignments(assignments)
@@ -106,6 +124,9 @@ def write_feeder_metadata(
     records: Iterable[FeederAssignment],
     dgs_path: Path | str,
     output_path: Path | str,
+    *,
+    capacitor_banks: Iterable[dict[str, Any]] = (),
+    capacitor_issues: Iterable[dict[str, Any]] = (),
 ) -> Path:
     dgs_path, output_path = Path(dgs_path), Path(output_path)
     assignments = list(records)
@@ -116,6 +137,8 @@ def write_feeder_metadata(
         'dgs_sha256': sha256_file(dgs_path),
         'classes': sorted({row.class_name for row in assignments}),
         'assignments': [asdict(row) for row in assignments],
+        'capacitor_banks': list(capacitor_banks),
+        'capacitor_issues': list(capacitor_issues),
     }
     write_json_atomic(output_path, payload)
     return output_path

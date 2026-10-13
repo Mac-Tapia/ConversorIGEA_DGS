@@ -123,10 +123,19 @@ def test_extension_is_created_once_and_is_idempotent():
     first = ensure_alimentador_data_extensions(project)
     second = ensure_alimentador_data_extensions(project)
 
-    assert first['created'] == ['ElmLod', 'ElmSubstat', 'ElmSym', 'ElmXnet']
-    assert second['existing'] == ['ElmLod', 'ElmSubstat', 'ElmSym', 'ElmXnet']
+    assert first['created'] == ['ElmLod', 'ElmShnt', 'ElmSubstat', 'ElmSym', 'ElmXnet']
+    assert second['existing'] == ['ElmLod', 'ElmShnt', 'ElmSubstat', 'ElmSym', 'ElmXnet']
     assert all(config.add_calls == 1 for config in project.settings.configurations.values())
     assert project.begin_calls == project.end_calls == 2
+
+
+def test_resolution_supports_shunt_name_and_terminal():
+    record = _assignment('ElmShnt', 'BC_450', 'CA101', 'N1')
+    bank = _RuntimeObject('ElmShnt', 'BC_450', 'N1')
+
+    plan = resolve_feeder_assignments([record], [bank])
+
+    assert plan[0].record.feeder == 'CA101'
 
 
 def test_extension_transaction_closes_even_when_api_raises():

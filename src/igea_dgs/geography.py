@@ -257,8 +257,11 @@ def geography_to_dict(geo: GeographyManifest, model: FeederModel | None = None) 
         # SED distribution transformers (ElmTr2 inside ElmSubstat).
         'transformers': sed_n,
         'substations_sed': sed_n,
-        # No CAPACITOR/REGULATOR SETTING rows in current RED exports → 0 in DGS.
-        'capacitors': 0,
+        'capacitors': sum(
+            1 for bank in (model.capacitors if model is not None else ())
+            if bank.kvar_per_step is not None and bank.total_kvar is not None
+            and bank.node_id in geo.nodes
+        ),
         'regulators': 0,
     }
     return {
@@ -267,6 +270,31 @@ def geography_to_dict(geo: GeographyManifest, model: FeederModel | None = None) 
         'network_id': geo.network_id,
         'source_node': geo.source_node,
         'expected_counts': expected,
+        'capacitor_banks': [{
+            'loc_name': bank.capacitor_id[:40],
+            'terminal': bank.node_id[:40],
+            'feeder': bank.feeder,
+            'network_id': bank.network_id,
+            'grid': model.name,
+            'ctech': 1 if bank.phases == 'ABC' else (3 if len(bank.phases) == 2 else 6),
+            'shtype': 2,
+            'qcapn': bank.kvar_per_step / 1000.0,
+            'ncapx': bank.steps,
+            'ncapa': bank.steps,
+            'ushnm': bank.nominal_kv or model.nominal_kv,
+            'outserv': 0 if bank.in_service else 1,
+            'total_source_mvar': bank.total_kvar / 1000.0,
+            'phases': bank.phases,
+        } for bank in (model.capacitors if model is not None else ())
+            if bank.kvar_per_step is not None and bank.total_kvar is not None
+            and bank.node_id in geo.nodes],
+        'capacitor_issues': [{
+            'capacitor_id': bank.capacitor_id,
+            'feeder': bank.feeder,
+            'network_id': bank.network_id,
+            'node_id': bank.node_id,
+            'codes': list(bank.issues),
+        } for bank in (model.capacitors if model is not None else ()) if bank.issues],
         'source_crs': geo.source_crs,
         'target_crs': geo.target_crs,
         'source_xy_bounds': list(geo.source_xy_bounds),

@@ -11,7 +11,7 @@ from typing import Any
 
 ATTRIBUTE = 'p:alimentador'
 CONFIGURATION = 'Trazabilidad IGEA'
-TARGET_CLASSES = ('ElmLod', 'ElmSubstat', 'ElmSym', 'ElmXnet')
+TARGET_CLASSES = ('ElmLod', 'ElmShnt', 'ElmSubstat', 'ElmSym', 'ElmXnet')
 
 
 @dataclass(frozen=True)
@@ -20,6 +20,7 @@ class RuntimeObjectIdentity:
     loc_name: str
     terminal: str
     substation: str
+    grid: str = ''
 
 
 @dataclass(frozen=True)
@@ -152,6 +153,7 @@ def classify_convergence(report: dict[str, Any]) -> str:
         not reread.get('feeder_metadata')
         or not reread.get('comldf_executed')
         or not reread.get('comldf_valid')
+        or reread.get('capacitor_banks') is False
         or rollback.get('status') not in safe_rollback
     ):
         return 'NEEDS_OPERATOR_REVIEW'
@@ -185,6 +187,7 @@ def assignment_plan_sha256(plan: Iterable[PlannedAssignment]) -> str:
             'network_id': record.network_id,
             'terminal': record.terminal,
             'substation': record.substation,
+            'grid': record.grid,
         })
     encoded = json.dumps(rows, sort_keys=True, separators=(',', ':')).encode('utf-8')
     return hashlib.sha256(encoded).hexdigest()
@@ -269,7 +272,15 @@ def build_runtime_identity(obj: Any) -> RuntimeObjectIdentity:
         if parent_class == 'ElmSubstat' else ''
     )
     terminal = '' if class_name == 'ElmSubstat' else _terminal_name(obj)
-    return RuntimeObjectIdentity(class_name, loc_name, terminal, substation)
+    grid = str(_attribute(parent, 'loc_name', '') or '').strip() if parent_class == 'ElmNet' else ''
+    if not grid and parent_class == 'ElmSubstat':
+        try:
+            grandparent = parent.GetParent()
+        except Exception:
+            grandparent = None
+        if _class_name(grandparent) == 'ElmNet':
+            grid = str(_attribute(grandparent, 'loc_name', '') or '').strip()
+    return RuntimeObjectIdentity(class_name, loc_name, terminal, substation, grid)
 
 
 def ensure_alimentador_data_extensions(
@@ -358,9 +369,13 @@ def resolve_feeder_assignments(records: Iterable[Any], objects: Iterable[Any]) -
             str(record.loc_name or '').strip(),
             str(record.terminal or '').strip(),
             str(record.substation or '').strip(),
+            str(record.grid or '').strip(),
         )
         candidates = runtime.get(identity, [])
-        label = f'{record.class_name} {record.loc_name} [{record.terminal}/{record.substation}]'
+        label = (
+            f'{record.class_name} {record.loc_name} '
+            f'[{record.terminal}/{record.substation}/{record.grid}]'
+        )
         if not candidates:
             missing.append(label)
         elif len(candidates) != 1:

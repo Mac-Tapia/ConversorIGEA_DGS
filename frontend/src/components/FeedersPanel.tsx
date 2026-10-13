@@ -283,6 +283,7 @@ export function FeedersPanel() {
                   {header('sections', 'Tramos', true)}
                   {header('loads', 'Cargas', true)}
                   {header('switches', 'SW', true)}
+                  <th className="num">Bancos</th>
                   {header('status', 'Estado')}
                 </tr>
               </thead>
@@ -300,10 +301,16 @@ export function FeedersPanel() {
                     <td className="num">{fmtNum(r.sections)}</td>
                     <td className="num">{fmtNum(r.loads)}</td>
                     <td className="num">{fmtNum(r.switches)}</td>
+                    <td className="num" title={(r.conversion?.capacitor_issues ?? []).flatMap((item) => item.codes).join(', ')}>
+                      {r.conversion?.capacitor_reread
+                        ? `${r.conversion.capacitor_reread.reread} nativo · ${r.conversion.capacitor_reread.banks
+                          .reduce((sum, bank) => sum + (bank.total_native_mvar ?? 0), 0).toLocaleString('es-PE')} Mvar`
+                        : (r.conversion?.capacitor_banks.length ?? r.source_audit_counts.capacitors ?? 0)}
+                    </td>
                     <td title={r.source_audit_status}>{statusOf(r).node}</td>
                   </tr>
                 ))}
-                {rows.length === 0 && <tr><td colSpan={8} className="empty">Ningún alimentador coincide con el filtro.</td></tr>}
+                {rows.length === 0 && <tr><td colSpan={9} className="empty">Ningún alimentador coincide con el filtro.</td></tr>}
               </tbody>
             </table>
           </div>

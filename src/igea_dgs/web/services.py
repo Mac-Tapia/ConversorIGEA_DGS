@@ -277,6 +277,9 @@ def feeder_rows(ws: Workspace) -> list[dict]:
                 'counts': conv.get('counts'),
                 'converted_at': conv.get('converted_at'),
                 'output_name': conv.get('feeder'),
+                'capacitor_banks': list(conv.get('capacitor_banks') or []),
+                'capacitor_issues': list(conv.get('capacitor_issues') or []),
+                'capacitor_reread': conv.get('capacitor_reread'),
             } if conv else None,
         })
     return rows
@@ -804,6 +807,16 @@ def powerfactory_flow(ws: Workspace, ctx: JobContext, feeders: list[str]) -> dic
         except (OSError, ValueError):
             acceptance = {}
         metadata = acceptance.get('feeder_metadata') or {}
+        capacitor_reread = acceptance.get('capacitor_reread')
+        if capacitor_reread:
+            with ws.lock:
+                for conversion in ws.conversions.values():
+                    if conversion.get('feeder') == feeder:
+                        conversion['capacitor_reread'] = capacitor_reread
+                group = ws.groups.get(feeder)
+                if group is not None:
+                    group['capacitor_reread'] = capacitor_reread
+                ws.save()
         if metadata.get('status') == 'assigned':
             ctx.log(f"  Columna Alimentador: {metadata.get('written', 0)} objeto(s) — "
                     f"{metadata.get('by_feeder', {})}")

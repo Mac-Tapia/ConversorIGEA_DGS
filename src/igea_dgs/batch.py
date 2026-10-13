@@ -260,6 +260,8 @@ def _convert_feeder(
 
         write_feeder_metadata(
             assignments_from_model(model, manifiesto_dgs), dgs_path, metadata_path,
+            capacitor_banks=manifiesto_dgs.capacitor_banks,
+            capacitor_issues=manifiesto_dgs.capacitor_issues,
         )
 
         if opts.export_xlsx:
@@ -310,6 +312,8 @@ def _convert_feeder(
             'topology': 'source_only' if source_only else 'full',
             'islands': model.islands or {},
             'warnings': list(model.warnings),
+            'capacitor_banks': list(manifiesto_dgs.capacitor_banks),
+            'capacitor_issues': list(manifiesto_dgs.capacitor_issues),
             'source_crs': opts.source_crs if opts.include_geography else None,
             'target_crs': opts.target_crs if opts.include_geography else None,
             'reglas': informe_reglas,
@@ -747,6 +751,8 @@ def convert_group(
 
         write_feeder_metadata(
             assignments_from_model(combinado, man), dgs_path, metadata_path,
+            capacitor_banks=man.capacitor_banks,
+            capacitor_issues=man.capacitor_issues,
         )
         report = validate_dgs(combinado, dgs_path, schema_profile=schema_profile, geography=geography)
         write_validation_reports(report, stage / f'{nombre}_validation.json',
@@ -784,6 +790,8 @@ def convert_group(
                       'escala_1_a': round(1000.0 / hoja.scale),
                       'cuadricula_mm': man.diagram_grid_mm} if hoja is not None and hoja.formato else None),
             'warnings': list(combinado.warnings),
+            'capacitor_banks': list(man.capacitor_banks),
+            'capacitor_issues': list(man.capacitor_issues),
         })
         if ok and write_preview:
             manifest['preview_html'] = str(out_dir / f'{nombre}_preview.html')
