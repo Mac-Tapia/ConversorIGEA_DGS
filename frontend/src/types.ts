@@ -307,15 +307,34 @@ export interface CapacitorBankEvidence {
   ncapa: number;
   ushnm: number;
   outserv: number;
-  total_source_mvar: number;
+  total_source_mvar: number | null;
+  total_effective_mvar: number;
+  capacity_origin: 'source' | 'catalog_voltage';
+  correction: {
+    code: string;
+    node_id: string;
+    nominal_kv?: number;
+    before_total_kvar?: number | null;
+    after_total_kvar?: number;
+  } | null;
 }
 
 export interface CapacitorReread {
-  status: 'VERIFICADO_PERSISTENCIA' | 'BLOQUEADO_PERSISTENCIA';
+  status: 'VERIFICADO_PERSISTENCIA' | 'AVISO_PERSISTENCIA_CORREGIDA' | 'AVISO_PERSISTENCIA_NO_CORREGIDA';
+  blocks_conversion: false;
   expected: number;
   reread: number;
   banks: Array<CapacitorBankEvidence & { total_native_mvar: number | null }>;
   mismatches: string[];
+  corrections: Array<{
+    loc_name: string;
+    terminal: string;
+    grid: string;
+    field: string;
+    before: unknown;
+    after: unknown;
+    message: string;
+  }>;
 }
 
 export interface FeederRow {

@@ -247,6 +247,15 @@ def geography_to_dict(geo: GeographyManifest, model: FeederModel | None = None) 
     # Una fuente por alimentador: en una red unida (combine) hay tantas como alimentadores.
     combinado = getattr(model, 'combined', None) if model is not None else None
     fuentes = len(getattr(combinado, 'feeders', None) or ()) or 1
+    from .model import capacitor_resolution_issue, resolve_capacitor_capacity
+
+    combined_node_kv = getattr(combinado, 'node_kv', {}) if combinado is not None else {}
+    resolved_capacitors = [
+        (bank, resolve_capacitor_capacity(
+            bank, combined_node_kv.get(bank.node_id, model.nominal_kv),
+        ))
+        for bank in (model.capacitors if model is not None else ())
+    ]
     expected = {
         'nodes': len(geo.nodes),
         'lines': len(geo.lines),
@@ -258,8 +267,8 @@ def geography_to_dict(geo: GeographyManifest, model: FeederModel | None = None) 
         'transformers': sed_n,
         'substations_sed': sed_n,
         'capacitors': sum(
-            1 for bank in (model.capacitors if model is not None else ())
-            if bank.kvar_per_step is not None and bank.total_kvar is not None
+            1 for bank, capacity in resolved_capacitors
+            if capacity.kvar_per_step is not None and capacity.total_kvar is not None
             and bank.node_id in geo.nodes
         ),
         'regulators': 0,
@@ -278,23 +287,25 @@ def geography_to_dict(geo: GeographyManifest, model: FeederModel | None = None) 
             'grid': model.name,
             'ctech': 1 if bank.phases == 'ABC' else (3 if len(bank.phases) == 2 else 6),
             'shtype': 2,
-            'qcapn': bank.kvar_per_step / 1000.0,
+            'qcapn': capacity.kvar_per_step / 1000.0,
             'ncapx': bank.steps,
             'ncapa': bank.steps,
-            'ushnm': bank.nominal_kv or model.nominal_kv,
+            'ushnm': capacity.nominal_kv,
             'outserv': 0 if bank.in_service else 1,
-            'total_source_mvar': bank.total_kvar / 1000.0,
+            'total_source_mvar': (
+                bank.total_kvar / 1000.0 if bank.total_kvar is not None else None
+            ),
+            'total_effective_mvar': capacity.total_kvar / 1000.0,
             'phases': bank.phases,
-        } for bank in (model.capacitors if model is not None else ())
-            if bank.kvar_per_step is not None and bank.total_kvar is not None
+            'capacity_origin': capacity.origin,
+            'correction': capacity.correction,
+        } for bank, capacity in resolved_capacitors
+            if capacity.kvar_per_step is not None and capacity.total_kvar is not None
             and bank.node_id in geo.nodes],
-        'capacitor_issues': [{
-            'capacitor_id': bank.capacitor_id,
-            'feeder': bank.feeder,
-            'network_id': bank.network_id,
-            'node_id': bank.node_id,
-            'codes': list(bank.issues),
-        } for bank in (model.capacitors if model is not None else ()) if bank.issues],
+        'capacitor_issues': [issue for bank, capacity in resolved_capacitors
+            if (issue := capacitor_resolution_issue(
+                bank, capacity, node_exists=bank.node_id in geo.nodes,
+            )) is not None],
         'source_crs': geo.source_crs,
         'target_crs': geo.target_crs,
         'source_xy_bounds': list(geo.source_xy_bounds),

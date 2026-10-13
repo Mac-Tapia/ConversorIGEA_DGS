@@ -800,10 +800,18 @@ def write_dgs(
     line_fids = {line.section_id: reg.new() for line in sorted(model.lines, key=lambda x: x.section_id)}
     load_keys = sorted((load.section_id, load.device_number) for load in model.loads)
     load_fids = {key: reg.new() for key in load_keys}
+    from .model import capacitor_resolution_issue, resolve_capacitor_capacity
+
+    capacitor_values = {}
+    for bank in model.capacitors:
+        capacitor_values[(bank.network_id, bank.capacitor_id)] = (
+            resolve_capacitor_capacity(bank, kv_de(bank.node_id))
+        )
     complete_capacitors = sorted(
         (
             bank for bank in model.capacitors
-            if bank.kvar_per_step is not None and bank.total_kvar is not None
+            if capacitor_values[(bank.network_id, bank.capacitor_id)].kvar_per_step is not None
+            and capacitor_values[(bank.network_id, bank.capacitor_id)].total_kvar is not None
             and bank.node_id in node_fids
         ),
         key=lambda bank: (bank.network_id, bank.capacitor_id, bank.node_id),
@@ -813,17 +821,12 @@ def write_dgs(
     }
     capacitor_issues: list[dict] = []
     for bank in model.capacitors:
-        codes = list(bank.issues)
-        if bank.node_id not in node_fids and 'MISSING_CAPACITOR_NODE' not in codes:
-            codes.append('MISSING_CAPACITOR_NODE')
-        if codes:
-            capacitor_issues.append({
-                'capacitor_id': bank.capacitor_id,
-                'feeder': bank.feeder,
-                'network_id': bank.network_id,
-                'node_id': bank.node_id,
-                'codes': codes,
-            })
+        effective = capacitor_values[(bank.network_id, bank.capacitor_id)]
+        issue = capacitor_resolution_issue(
+            bank, effective, node_exists=bank.node_id in node_fids,
+        )
+        if issue:
+            capacitor_issues.append(issue)
     sed_keys = sorted((sed.section_id, sed.device_number) for sed in model.seds)
     sed_fids = {key: reg.new() for key in sed_keys}
     # NA205 triangle interior: MT bus + BT bus + Tr2 + coupler to feeder node.
@@ -1035,8 +1038,11 @@ def write_dgs(
     capacitor_banks: list[dict] = []
     for bank in complete_capacitors:
         fid = shunt_fids[(bank.network_id, bank.capacitor_id)]
+        effective = capacitor_values[(bank.network_id, bank.capacitor_id)]
         ctech, ilcph = _capacitor_technology(bank.phases)
-        nominal_kv = bank.nominal_kv or kv_de(bank.node_id)
+        nominal_kv = effective.nominal_kv
+        per_step = effective.kvar_per_step
+        total_kvar = effective.total_kvar
         values = {
             'loc_name': _loc_name(bank.capacitor_id),
             'terminal': _loc_name(bank.node_id),
@@ -1045,13 +1051,18 @@ def write_dgs(
             'grid': model.name,
             'ctech': ctech,
             'shtype': 2,
-            'qcapn': bank.kvar_per_step / 1000.0,
+            'qcapn': per_step / 1000.0,
             'ncapx': bank.steps,
             'ncapa': bank.steps,
             'ushnm': nominal_kv,
             'outserv': 0 if bank.in_service and not fuera(bank.node_id) else 1,
-            'total_source_mvar': bank.total_kvar / 1000.0,
+            'total_source_mvar': (
+                bank.total_kvar / 1000.0 if bank.total_kvar is not None else None
+            ),
+            'total_effective_mvar': total_kvar / 1000.0,
             'phases': bank.phases,
+            'capacity_origin': effective.origin,
+            'correction': effective.correction,
         }
         capacitor_banks.append(values)
         rows['ElmShnt'].append(_make_row(
@@ -1059,7 +1070,7 @@ def write_dgs(
             fold_id=network_fid, systp=0, ctech=ctech, shtype=2,
             ushnm=nominal_kv, mode_inp='DEF', qcapn=values['qcapn'],
             ncapx=bank.steps, ncapa=bank.steps, outserv=values['outserv'],
-            qrean=0, qtotn=values['total_source_mvar'], tandc=0, fres=0,
+            qrean=0, qtotn=values['total_effective_mvar'], tandc=0, fres=0,
             greaf0=0, grea=0, bcap=0, xrea=0, rrea=0, gparac=0,
             iswitch=0, imldc='V', iQorient=0, ilcph=ilcph,
         ))

@@ -301,7 +301,11 @@ export function FeedersPanel() {
                     <td className="num">{fmtNum(r.sections)}</td>
                     <td className="num">{fmtNum(r.loads)}</td>
                     <td className="num">{fmtNum(r.switches)}</td>
-                    <td className="num" title={(r.conversion?.capacitor_issues ?? []).flatMap((item) => item.codes).join(', ')}>
+                    <td className="num" title={[
+                      ...(r.conversion?.capacitor_issues ?? []).flatMap((item) => item.codes),
+                      ...(r.conversion?.capacitor_reread?.corrections ?? []).map((item) => item.message),
+                      ...(r.conversion?.capacitor_reread?.mismatches ?? []),
+                    ].join(' · ')}>
                       {r.conversion?.capacitor_reread
                         ? `${r.conversion.capacitor_reread.reread} nativo · ${r.conversion.capacitor_reread.banks
                           .reduce((sum, bank) => sum + (bank.total_native_mvar ?? 0), 0).toLocaleString('es-PE')} Mvar`

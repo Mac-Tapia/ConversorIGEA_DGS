@@ -85,7 +85,7 @@
 - Produces: `CymdistDataset.capacitor_settings`; `CapacitorBank`; `capacitor_from_source(row) -> CapacitorBank`; `FeederModel.capacitors`.
 
 - [ ] **Step 1: Write failing normalization tests**
-  Add mono 150 kVAR, tri 300 kVAR, banco 450 kVAR, multi-step total, missing capacity, missing node, and ambiguous feeder cases. Assert exact source value, phases, per-step and total power; missing capacity must emit `MISSING_CAPACITOR_CAPACITY` and must not synthesize a number.
+  Add mono 150 kVAR, tri 300 kVAR, banco 450 kVAR, multi-step total, missing capacity, missing node, and ambiguous feeder cases. Assert exact source value, phases, per-step and total power; missing capacity remains explicit in the source layer.
 - [ ] **Step 2: Write failing three-adapter parity tests**
   Build equivalent TXT, mocked MDB rows and VNR canonical fixtures; assert all reach the same `CapacitorBank` fields without mode branches below the adapters.
 - [ ] **Step 3: Run tests to verify failure**
@@ -94,7 +94,7 @@
 - [ ] **Step 4: Implement dataset and adapter mappings**
   Add `capacitor_settings` with an empty default for compatibility. Parse source fields losslessly; VNR must retain all `CanonicalModel.capacitors`. Resolve owner by explicit feeder first and by a unique connected node second.
 - [ ] **Step 5: Implement model normalization**
-  Define `CapacitorBank` and `capacitor_from_source`. Preserve every positive source capacity verbatim; retain an incomplete inventory record and issue when capacity is absent or invalid. Do not consult a profile or catalogue to invent bank power.
+  Define `CapacitorBank` and `capacitor_from_source`. Preserve every positive source capacity verbatim; retain an incomplete source record when capacity is absent or invalid. Resolve it later through the one approved voltage catalogue so all source modes share the same rule.
 - [ ] **Step 6: Merge banks in combined models**
   Preserve feeder, network, node and stable identity when `build_combined` joins feeders.
 - [ ] **Step 7: Run focused tests**
@@ -125,14 +125,14 @@
 - Produces: `DgsManifest.shunt_fids`; `FeederAssignment` rows for `ElmShnt`; `reread_capacitors(app, expected) -> dict[str, Any]`.
 
 - [ ] **Step 1: Write failing DGS and sidecar tests**
-  Assert one `ElmShnt` and cubicle per complete source bank, exact source `ctech/qcapn/ncapx/ncapa/ushnm/outserv`, stable FID, and `p:alimentador` assignment metadata. Assert an incomplete bank creates no `ElmShnt` and remains visible as `MISSING_CAPACITOR_CAPACITY` in the manifest.
+  Assert one `ElmShnt` and cubicle per source bank, exact source values when present and the approved 10 kV/300 kVAr or 22.9 kV/450 kVAr catalogue when absent, stable FID, node evidence and `p:alimentador` metadata.
 - [ ] **Step 2: Run tests to verify failure**
   Run: `pytest tests/test_dgs_capacitors.py tests/test_feeder_metadata.py tests/test_powerfactory_feeder_metadata.py -q`
   Expected: FAIL because `DgsManifest` and metadata omit shunts.
 - [ ] **Step 3: Extend DGS and metadata**
   Export banks from the common model only. Add `ElmShnt` to metadata target classes and identify it by name, terminal and parent substation/grid context.
 - [ ] **Step 4: Add native reread and rollback evidence**
-  Compare all required shunt attributes and connection after import/reopen. A mismatch returns `BLOQUEADO_PERSISTENCIA` and records rollback status.
+  Compare all required shunt attributes and connection after import/reopen. Reconcile a mismatch, reread it and return a nonblocking correction warning with node/before/after evidence.
 - [ ] **Step 5: Render planned and reread bank values**
   Show per-feeder bank count, phase technology, Mvar per step, active/maximum steps and total native Mvar from server evidence; add `test_bank_panel_does_not_recalculate_power`.
 - [ ] **Step 6: Run focused tests**

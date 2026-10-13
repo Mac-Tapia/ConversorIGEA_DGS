@@ -184,6 +184,93 @@ class CapacitorBank:
     issues: tuple[str, ...] = ()
 
 
+@dataclass(frozen=True)
+class CapacitorCapacityResolution:
+    kvar_per_step: float | None
+    total_kvar: float | None
+    nominal_kv: float
+    origin: str
+    correction: dict | None
+
+
+def resolve_capacitor_capacity(
+    bank: CapacitorBank, nominal_kv: float,
+) -> CapacitorCapacityResolution:
+    """Una sola regla de capacidad para TXT, MDB, VNR-GIS, DGS y sidecars.
+
+    La magnitud declarada por la fuente gana siempre. Si falta, el catálogo aprobado
+    completa el total por tensión: 300 kVAr a 10 kV y 450 kVAr a 22,9 kV. Una pareja
+    fuente total/paso inconsistente conserva el total y normaliza el paso.
+    """
+    voltage = bank.nominal_kv or float(nominal_kv)
+    per_step = bank.kvar_per_step
+    total = bank.total_kvar
+    origin = 'source'
+    correction = None
+    if total is not None and per_step is not None and not math.isclose(
+        total, per_step * bank.steps, rel_tol=1e-9, abs_tol=1e-9,
+    ):
+        per_step = total / bank.steps
+        correction = {
+            'code': 'CAPACITOR_SOURCE_CAPACITY_NORMALIZED',
+            'node_id': bank.node_id,
+            'before_kvar_per_step': bank.kvar_per_step,
+            'after_kvar_per_step': per_step,
+            'total_kvar': total,
+        }
+    elif total is None or per_step is None:
+        catalog_total = (
+            300.0 if math.isclose(voltage, 10.0, rel_tol=0.0, abs_tol=0.15)
+            else 450.0 if math.isclose(voltage, 22.9, rel_tol=0.0, abs_tol=0.2)
+            else None
+        )
+        if catalog_total is not None:
+            total = catalog_total
+            per_step = catalog_total / bank.steps
+            origin = 'catalog_voltage'
+            correction = {
+                'code': 'CAPACITOR_CAPACITY_FROM_CATALOG',
+                'node_id': bank.node_id,
+                'nominal_kv': voltage,
+                'before_total_kvar': bank.total_kvar,
+                'after_total_kvar': total,
+            }
+    return CapacitorCapacityResolution(per_step, total, voltage, origin, correction)
+
+
+def capacitor_resolution_issue(
+    bank: CapacitorBank,
+    resolution: CapacitorCapacityResolution,
+    *,
+    node_exists: bool,
+) -> dict | None:
+    """Evidencia común de corrección/advertencia para DGS y manifiestos."""
+    codes = [code for code in bank.issues if code not in {
+        'MISSING_CAPACITOR_CAPACITY', 'INCONSISTENT_CAPACITOR_CAPACITY',
+    }]
+    if resolution.correction:
+        codes.append(str(resolution.correction['code']))
+    elif resolution.total_kvar is None:
+        codes.append('MISSING_CAPACITOR_CAPACITY_OUTSIDE_CATALOG')
+    if not node_exists:
+        codes.append('MISSING_CAPACITOR_NODE')
+    if not codes:
+        return None
+    result = {
+        'capacitor_id': bank.capacitor_id,
+        'feeder': bank.feeder,
+        'network_id': bank.network_id,
+        'node_id': bank.node_id,
+        'codes': list(dict.fromkeys(codes)),
+    }
+    if resolution.correction and resolution.correction['code'] == 'CAPACITOR_CAPACITY_FROM_CATALOG':
+        result['message'] = (
+            f'Capacidad faltante corregida en {bank.node_id}: catálogo '
+            f'{resolution.nominal_kv:g} kV = {resolution.total_kvar:g} kVAr.'
+        )
+    return result
+
+
 @dataclass
 class FeederModel:
     name: str

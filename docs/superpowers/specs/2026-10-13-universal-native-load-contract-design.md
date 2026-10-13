@@ -103,18 +103,18 @@ El modelo del conversor incorporará `CapacitorBank` con, como mínimo:
 TXT, MDB y VNR-GIS mapearán sus campos a esa estructura. El puente VNR no podrá
 descartar los objetos `CanonicalModel.capacitors`.
 
-### 5.2 Potencia exclusivamente de origen
+### 5.2 Potencia de origen y catálogo aprobado
 
-No existe potencia nominal predeterminada, normalizada ni inferida para un banco.
 El sistema conserva exactamente la capacidad que declare la fuente original, junto
-con sus fases, tecnología de conexión y escalones. La potencia instalada total solo
-se calcula como `qcapn × ncapa` cuando ambos valores proceden de la fuente.
+con sus fases, tecnología de conexión y escalones. Si total y valor por escalón son
+inconsistentes, el total de origen es autoritativo y el valor por escalón se normaliza
+con evidencia explícita.
 
-Si la fuente identifica un banco pero no declara una capacidad válida, el objeto se
-conserva en el inventario como incompleto, no se crea un `ElmShnt` con una potencia
-inventada y el dictamen registra `MISSING_CAPACITOR_CAPACITY`. La conversión puede
-conservar el resto de la red, pero no se declara completa la aceptación nativa del
-banco ni los estudios que dependan de su compensación reactiva.
+Solo cuando la fuente identifica el banco pero no declara capacidad válida se aplica
+el catálogo único aprobado: 300 kVAr para una conexión de 10 kV y 450 kVAr para una
+conexión de 22,9 kV. El total se reparte entre los escalones declarados. Se registra
+`CAPACITOR_CAPACITY_FROM_CATALOG`, tensión, nodo, valor anterior, valor corregido y
+procedencia `catalog_voltage`. No existen ramas distintas para TXT, MDB o VNR-GIS.
 
 ### 5.3 DGS, metadata y relectura
 
@@ -125,7 +125,11 @@ El escritor común generará `ElmShnt`, su cubículo y su FID. El sidecar inclui
 - barra/cubículo y alimentador;
 - potencia nominal por escalón y total activa.
 
-Una diferencia entre plan y relectura es un bloqueo de persistencia, no un aviso.
+Una diferencia entre plan y relectura se corrige contra el contrato canónico y se
+relee. El resultado es `AVISO_PERSISTENCIA_CORREGIDA`; si la API no permite corregir,
+es `AVISO_PERSISTENCIA_NO_CORREGIDA`. Ambos conservan detalle y no bloquean la
+conversión ni el flujo. Los demás bloqueos de persistencia del proyecto mantienen su
+semántica fail-closed.
 
 ## 6. Custodia del proyecto PowerFactory
 
@@ -251,6 +255,8 @@ código de ejecución, validez de resultados y magnitudes relevantes.
 
 - `OK`: identidad, persistencia, relectura, convergencia y cuadre de kW válidos.
 - `AVISO_KVAR`: kW cuadrado; diferencia reactiva nativa informativa.
+- `AVISO_PERSISTENCIA_CORREGIDA`: banco corregido y releído en PowerFactory.
+- `AVISO_PERSISTENCIA_NO_CORREGIDA`: diferencia del banco informada sin detener el flujo.
 - `BLOQUEADO_DATOS`: fuente, alimentador, periodo o dato imprescindible ambiguo.
 - `BLOQUEADO_PERSISTENCIA`: PowerFactory no conservó lo escrito al releer.
 - `NO_CONVERGE`: el flujo nativo no entrega solución válida.
@@ -280,8 +286,8 @@ el frontend.
 ### Automatizadas
 
 - Una prueba parametrizada `txt/mdb/vnr` verifica el mismo dictamen canónico.
-- Bancos monofásicos y trifásicos con distintas capacidades de origen conservadas
-  exactamente, y banco sin capacidad que nunca recibe un valor sintético.
+- Bancos monofásicos y trifásicos con capacidades de origen conservadas exactamente;
+  banco sin capacidad resuelto por el catálogo único 10 kV/300 kVAr o 22,9 kV/450 kVAr.
 - Conservación VNR → modelo común → DGS → sidecar.
 - Carga sin alimentador, banco ambiguo y FID duplicado.
 - Mes coincidente, distinto y desconocido.
@@ -316,6 +322,8 @@ Los fakes prueban contratos, no sustituyen esta aceptación.
 - No existe una rama de algoritmo de calibración por `txt`, `mdb` o `vnr`.
 - Los tres adaptadores producen el mismo contrato y las mismas clases canónicas.
 - Los bancos sobreviven de la fuente hasta la relectura `ElmShnt`.
+- Toda corrección de banco identifica nodo, valor anterior, catálogo y relectura nativa,
+  sin detener conversión o flujo por una diferencia de potencia reactiva del banco.
 - El periodo de clientes queda probado contra el periodo de la máxima.
 - Las cargas fijas usan `Pot`, EA y ERI; las demás se escalan por kVA.
 - El kW puede quedar `OK` con diferencia kVAR explícita y no bloqueante.
@@ -350,3 +358,14 @@ La asignación temporal de perfiles a cargas de un alimentador está respaldada 
 test feeder cuasiestático publicado en IEEE PES General Meeting, DOI
 10.1109/PESGM.2012.6345414:
 <https://ieeexplore.ieee.org/document/6345414/>.
+
+La decisión de conservar ubicación y tamaño como evidencia explícita responde a que
+la compensación shunt es un problema conjunto de localización y dimensionamiento para
+reducir pérdidas y mejorar el perfil de tensión, como muestran Abul'Wafa, *Electric
+Power Systems Research*, DOI 10.1016/j.epsr.2012.09.004:
+<https://www.sciencedirect.com/science/article/pii/S0378779612002866>, y Sultana y
+Roy, *International Journal of Electrical Power & Energy Systems*, DOI
+10.1016/j.ijepes.2013.07.011:
+<https://www.sciencedirect.com/science/article/pii/S0142061513003086>. Los valores
+discretos 300/450 kVAr son el catálogo operativo aprobado para este proyecto, no una
+constante deducida de esos artículos.
