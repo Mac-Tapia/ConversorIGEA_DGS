@@ -67,17 +67,23 @@ Demandas por SED
 
 Cuadre con las pérdidas
 
-- RF-11: EL SISTEMA dará por cuadrado el alimentador cuando el flujo de carga converge y
-  el kW y el kVAR que entran por su cabecera difieren del objetivo un 1 % o menos cada
-  uno, salvo en el caso de RF-14, en que basta el kW.
-- RF-12: MIENTRAS no esté cuadrado, EL SISTEMA corregirá el kW y el kVAR repartidos con
-  lo que entra por la cabecera en el último flujo y volverá a ejecutar el flujo.
+- RF-11: EL SISTEMA dará por cuadrado el alimentador cuando el flujo nativo converge y
+  el kW que entra por la cabecera difiere del objetivo dentro de la tolerancia elegida.
+  El kVAR nunca será criterio de aceptación ni bloqueará la conversión o los estudios.
+- RF-12: MIENTRAS el kW no esté cuadrado, EL SISTEMA corregirá únicamente el factor de
+  potencia activa repartida para compensar pérdidas y volverá a ejecutar el flujo. La
+  asignación inicial de Q se conserva y el Q final es el resultado de la red nativa.
 - RF-13: SI las SED con clientes importantes ya superan el objetivo, o no dejan nada que
   repartir, ENTONCES EL SISTEMA las escalará también, junto con las demás, hasta cuadrar,
   y lo dirá.
-- RF-14: SI el kVAR que falta para el objetivo es negativo, ENTONCES EL SISTEMA
-  cuadrará solo el kW, dará a las SED repartidas el factor de potencia del objetivo y lo
-  dirá.
+- RF-14: SI el kW cumple la tolerancia, ENTONCES EL SISTEMA aceptará el ajuste con estado
+  `OK` o `AVISO_KVAR`. El informe y la interfaz mostrarán siempre el objetivo de kVAR,
+  el resultado del flujo nativo, la diferencia firmada y relativa, la tolerancia y
+  `bloquea=false`; `AVISO_KVAR` se usa cuando la diferencia reactiva supera esa
+  tolerancia, sin impedir la conversión, el ajuste ni los estudios.
+- RF-40: EL SISTEMA releerá después del flujo P, Q, FP, estado e `i_scale` de cada SED y
+  adjuntará los conteos de la unión topología/`p:alimentador`, junto con la relectura de
+  bancos del vínculo del proyecto.
 
 Convergencia
 
@@ -119,6 +125,23 @@ Ejecución e informe
   prueba en DIgSILENT la hace el usuario.
 - Escala: cualquier número de SED y de medidores por alimentador.
 
+## Justificación científica y académica
+
+- La separación entre medición de cabecera y asignación de cargas sigue la formulación
+  de estimación/asignación de carga en redes de distribución de Carmona-Delgado et al.,
+  *Electric Power Systems Research*, DOI
+  [10.1016/j.epsr.2013.03.004](https://doi.org/10.1016/j.epsr.2013.03.004).
+- La trazabilidad fuente–modelo–relectura se apoya en la tesis doctoral de McMorran
+  sobre intercambio de modelos CIM y consistencia semántica:
+  [University of Strathclyde](https://stax.strath.ac.uk/concern/theses/cc08hf706).
+- Mantener el Q resultante de la red permite que la compensación capacitiva siga siendo
+  una variable física del flujo, coherente con la optimización de bancos estudiada por
+  Sultana y Roy en *International Journal of Electrical Power & Energy Systems*, DOI
+  [10.1016/j.ijepes.2013.07.011](https://doi.org/10.1016/j.ijepes.2013.07.011).
+
+Estas referencias justifican el método y la trazabilidad; no sustituyen los datos del
+catálogo aprobado ni la relectura efectiva del proyecto nativo.
+
 ## Casos límite
 
 - Alimentador sin clientes importantes: todo se reparte por kVA.
@@ -156,4 +179,5 @@ Ninguna. Resueltas el 2026-10-09:
   es un error de datos que se corrige antes de ajustar (RF-10, RF-24).
 - Cabecera: cada alimentador tiene una sola medición, la del medidor que da la demanda
   medida; se compara con lo que entra por la cabecera del `ElmFeeder` (RF-1, RF-2).
-- kVAR negativo: se cuadra solo el kW (RF-14).
+- kVAR distinto, positivo o negativo: se conserva el resultado nativo, se informa con
+  `OK`/`AVISO_KVAR` y nunca bloquea el cuadre de kW (RF-14).

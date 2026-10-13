@@ -149,7 +149,8 @@ function InformeAjuste({ inf, report, cancelado }: { inf: AjusteInforme; report:
       {!simular && (
         <p className={inf.cuadrado ? 'alert alert-ok' : 'alert alert-error'}>
           {inf.cuadrado
-            ? <>Cuadrado al {fmtNum((inf.tolerancia ?? 0) * 100, 1)} % en {inf.flujos} flujo(s) de carga.</>
+            ? <>Cuadrado de kW al {fmtNum((inf.tolerancia ?? 0) * 100, 1)} % en {inf.flujos} flujo(s) de carga
+              {inf.status ? ` · ${inf.status}` : ''}. El kVAR es informativo.</>
             : <>No cumple el {fmtNum((inf.tolerancia ?? 0) * 100, 1)} %: {inf.motivo}. La variación queda con el último reparto
               que convergió.</>}
         </p>
@@ -172,6 +173,11 @@ function InformeAjuste({ inf, report, cancelado }: { inf: AjusteInforme; report:
                 <td className="num">{fmtNum(inf.perdidas.kw, 1)}</td><td className="num">{fmtNum(inf.perdidas.kvar ?? 0, 1)}</td></tr>}
               {inf.desvio && <tr><td>Error</td><td className="num">{pct(inf.desvio.kw)}</td>
                 <td className="num">{inf.solo_kw ? 'solo se cuadra el kW' : pct(inf.desvio.kvar)}</td></tr>}
+              {inf.kvar_no_bloqueante && <tr><td>Diferencia de kVAR (no bloqueante)</td>
+                <td className="num">—</td>
+                <td className="num">{inf.kvar_no_bloqueante.diferencia_kvar == null ? 'sin lectura'
+                  : `${fmtNum(inf.kvar_no_bloqueante.diferencia_kvar, 2)} kVAR · ${pct(inf.kvar_no_bloqueante.diferencia_relativa)}`}
+                  {' · '}{inf.kvar_no_bloqueante.status}</td></tr>}
             </tbody>
           </table>
         </div>
@@ -181,6 +187,13 @@ function InformeAjuste({ inf, report, cancelado }: { inf: AjusteInforme; report:
           <ul className="small">{inf.remedios!.map((r) => (
             <li key={r.remedio}><strong>{r.remedio}</strong>{r.cambios.length ? `: ${r.cambios.join('; ')}` : ''}</li>))}</ul>
           <small className="muted">Los ajustes del flujo de carga se devolvieron a su valor al terminar.</small>
+        </details>
+      )}
+      {inf.relectura_cargas_nativas && (
+        <details>
+          <summary>Relectura nativa de cargas: {inf.relectura_cargas_nativas.status} · {inf.relectura_cargas_nativas.cantidad} SED</summary>
+          <small className="muted">P/Q/FP, estado e i_scale releídos después del flujo. Población:{' '}
+            {Object.entries(inf.relectura_cargas_nativas.poblacion).map(([k, v]) => `${k}=${v}`).join(' · ')}</small>
         </details>
       )}
       {inf.diagnostico && <Diagnostico d={inf.diagnostico} />}

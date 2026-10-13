@@ -35,7 +35,11 @@ def _plan(kw=300.0, kvar=90.0, clientes=(), kva_entrada=None, tolerancia=0.01, m
             'objetivo': {'kw': kw, 'kvar': kvar, 'medidor': 'M1', 'alimentador': 'F1',
                          'fecha': '2026-03-03 10:00:00'},
             'clientes': list(clientes), 'kva_entrada': kva_entrada or {},
-            'tolerancia': tolerancia, 'max_flujos': max_flujos}
+            'tolerancia': tolerancia, 'max_flujos': max_flujos,
+            'project_binding': {'native_reread': {
+                'status': 'VERIFICADO_PERSISTENCIA',
+                'capacitor_reread': {'status': 'VERIFICADO_PERSISTENCIA', 'expected': 3},
+            }}}
 
 
 def _carga(app, nombre):
@@ -54,7 +58,15 @@ def test_cuadra_la_cabecera_en_una_variacion_nueva(guion):
     informe, rc = guion.ejecutar(app, _plan())
     assert rc == 0, informe
     assert informe['cuadrado'] and abs(informe['desvio']['kw']) <= 0.01
-    assert abs(informe['desvio']['kvar']) <= 0.01
+    assert informe['status'] == 'AVISO_KVAR'
+    assert informe['kvar_no_bloqueante']['bloquea'] is False
+    assert informe['kvar_no_bloqueante']['supera_tolerancia']
+    reread = informe['relectura_cargas_nativas']
+    assert reread['status'] == 'VERIFICADO_PERSISTENCIA'
+    assert reread['cantidad'] == len(informe['sed'])
+    assert all({'p_kw', 'q_kvar', 'fp', 'outserv', 'i_scale', 'full_name'} <= set(x)
+               for x in reread['despues'])
+    assert informe['relectura_bancos']['expected'] == 3
     # «error» es solo para fallos: la web lo toma por uno y paraba un ajuste que cuadró.
     assert 'error' not in informe
     assert informe['perdidas']['kw'] > 0 and 1 <= informe['flujos'] < 20

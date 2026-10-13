@@ -737,6 +737,8 @@ export interface AjusteSed {
 export interface AjusteInforme {
   project: string;
   feeder: string;
+  status?: 'OK' | 'AVISO_KVAR' | 'NO_CUADRADO_KW' | 'NO_CONVERGE';
+  criterio_cuadre?: 'KW_ONLY';
   modo?: 'simular' | 'aplicar';
   /** Spec 008: el ajuste de este alimentador falló; los demás siguieron. */
   error?: string;
@@ -754,6 +756,27 @@ export interface AjusteInforme {
   /** Error relativo en la cabecera (medido − objetivo); «error» queda para los fallos. */
   desvio?: { kw: number | null; kvar: number | null };
   solo_kw?: boolean;
+  reparto_solo_kw?: boolean;
+  /** RF-14: diferencia informativa cuando el kVAR no participa en la aceptación. */
+  kvar_no_bloqueante?: {
+    status: 'OK' | 'AVISO_KVAR';
+    objetivo_kvar: number;
+    red_nativa_kvar: number | null;
+    diferencia_kvar: number | null;
+    diferencia_relativa: number | null;
+    tolerancia: number;
+    supera_tolerancia: boolean;
+    bloquea: false;
+  };
+  relectura_cargas_nativas?: {
+    status: 'VERIFICADO_PERSISTENCIA' | 'AVISO_RELECTURA';
+    cantidad: number;
+    antes: NativeLoadReread[];
+    despues: NativeLoadReread[];
+    poblacion: Record<string, string | number>;
+  };
+  relectura_proyecto_vinculado?: Record<string, unknown>;
+  relectura_bancos?: Record<string, unknown>;
   todo_escala?: boolean;
   totales_sin_perdidas?: { kw: number; kvar: number };
   remedios?: { remedio: string; cambios: string[] }[];
@@ -769,6 +792,17 @@ export interface AjusteInforme {
   ambiguas?: { sed: string; motivo: string }[];
   fallos?: { sed: string; error: string }[];
   sed?: AjusteSed[];
+}
+
+export interface NativeLoadReread {
+  sed: string;
+  full_name: string;
+  p_kw: number;
+  q_kvar: number;
+  fp: number;
+  outserv: number;
+  i_scale: number;
+  mode_inp: string;
 }
 
 export interface AjusteResultado {
