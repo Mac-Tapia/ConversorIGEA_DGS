@@ -2321,14 +2321,17 @@ def estudios_ejecutar(ws: Workspace, ctx: JobContext, token: str) -> dict:
         ctx.log('Cancelado: se conservan los estudios terminados.')
     limites = Limites(**plan['limites'])
     ficheros = []
+    result_rows = filas_resultados(resultados, limites) if resultados else []
+    violation_rows = filas_violaciones(resultados, limites) if resultados else []
     if resultados:
         for nombre, filas, columnas in (
-                ('resultados', filas_resultados(resultados, limites), COLUMNAS_RESULTADOS),
-                ('violaciones', filas_violaciones(resultados, limites), COLUMNAS_VIOLACIONES)):
+                ('resultados', result_rows, COLUMNAS_RESULTADOS),
+                ('violaciones', violation_rows, COLUMNAS_VIOLACIONES)):
             destino = escribir_csv(filas, columnas, ws.out_dir / f'estudios_{nombre}_{token}.csv')
             ficheros.append(destino.name)
     return {'project': plan['project'], 'feeders': feeders, 'casos': casos,
             'casos_report': casos_report.name, 'estudios': informes, 'ficheros': ficheros,
+            'medidas': resultados, 'resultados': result_rows, 'violaciones': violation_rows,
             'cancelado': cancelado}
 
 

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Aceptación auditada y separada de MDB, TXT y VNR-GIS.
+"""Aceptación universal y auditada de MDB, TXT y VNR-GIS hasta el estudio nativo.
 
 Cada modalidad obtiene su propio ``Workspace`` y ``source_run_id``. Nunca se usa
-un archivo de otra modalidad ni se rellena una fuente ausente con un fixture.
+un archivo de otra modalidad ni se rellena una fuente ausente con un fixture. Todas
+recorren los mismos servicios de carga, ajuste, relectura y estudio de PowerFactory.
 """
 
 import argparse
@@ -49,6 +50,12 @@ class AcceptanceConfig:
     study: Path | None = None
     vnr_package: Path | None = None
     run_powerfactory: bool = False
+    cabecera: Path | None = None
+    suministros: Path | None = None
+    clientes: Path | None = None
+    meters_by_feeder: tuple[tuple[str, str], ...] = ()
+    load_tolerance: float = 0.01
+    studies: tuple[str, ...] = ('flujo',)
 
 
 MODE_INPUTS: dict[str, tuple[tuple[str, str], ...]] = {
@@ -96,6 +103,206 @@ def _missing(config: AcceptanceConfig, mode: str) -> list[str]:
     return missing
 
 
+def build_native_load_evidence(
+    *,
+    source_audit: dict[str, Any] | None = None,
+    source_audit_sha256: str | None = None,
+    conversion_result: dict[str, Any] | None = None,
+    powerfactory_reports: list[dict[str, Any]] | None = None,
+    adjustments: list[dict[str, Any]] | None = None,
+    studies: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Compone la evidencia pública sin introducir un algoritmo por tipo de fuente."""
+    pf_reports = list(powerfactory_reports or [])
+    adjustment_rows = list(adjustments or [])
+    study_rows = list(studies or [])
+
+    metadata_rows = [dict(report.get('feeder_metadata') or {}) for report in pf_reports]
+    capacitor_rows = [dict(report.get('capacitor_reread') or {}) for report in pf_reports]
+    bindings = [dict(report['project_binding']) for report in pf_reports
+                if isinstance(report.get('project_binding'), dict)]
+    expected_capacitors = sum(int(row.get('expected') or 0) for row in capacitor_rows)
+    capacitor_banks = [bank for row in capacitor_rows for bank in (row.get('banks') or [])]
+    corrections = [item for row in capacitor_rows for item in (row.get('corrections') or [])]
+    mismatches = [item for row in capacitor_rows for item in (row.get('mismatches') or [])]
+
+    client_periods: list[dict[str, Any]] = []
+    fixed_keys: set[tuple[str, str]] = set()
+    scaled_keys: set[tuple[str, str]] = set()
+    fixed_evidence: list[dict[str, Any]] = []
+    native_reread: list[dict[str, Any]] = []
+    head_balance: list[dict[str, Any]] = []
+    adjustment_statuses: list[str] = []
+    for row in adjustment_rows:
+        plan = dict(row.get('plan') or {})
+        result = dict(row.get('result') or {})
+        report = dict(result.get('informe') or result)
+        feeder = str(report.get('feeder') or plan.get('feeder') or '')
+        client_periods.append({
+            'feeder': feeder,
+            'periodo': dict(plan.get('periodo') or {}),
+            'client_evidence': dict(plan.get('client_evidence') or {}),
+        })
+        for item in plan.get('fixed_load_evidence') or []:
+            fixed = {'feeder': feeder, **dict(item)}
+            fixed_evidence.append(fixed)
+            fixed_keys.add((feeder, str(item.get('sed') or '')))
+        for item in report.get('sed') or []:
+            key = (feeder, str(item.get('sed') or ''))
+            if item.get('origen') == 'cliente':
+                fixed_keys.add(key)
+            else:
+                scaled_keys.add(key)
+        reread = dict(report.get('relectura_cargas_nativas') or {})
+        if reread:
+            native_reread.append({'feeder': feeder, **reread})
+        status = str(report.get('status') or '')
+        if status:
+            adjustment_statuses.append(status)
+        head_balance.append({
+            'feeder': feeder,
+            'status': status or None,
+            'kw_accepted': bool(report.get('cuadrado')),
+            'objective': dict(report.get('objetivo') or {}),
+            'native': dict(report.get('cabecera') or {}),
+            'kvar_difference': dict(report.get('kvar_no_bloqueante') or {}),
+        })
+
+    measures = [dict(item) for study in study_rows for item in (study.get('medidas') or [])]
+    physical_violations = [
+        dict(item) for study in study_rows for item in (study.get('violaciones') or [])
+    ]
+    comldf_rows = [dict(report.get('effective_reread') or {}) for report in pf_reports]
+    all_valid = bool(comldf_rows) and all(
+        row.get('comldf_executed') is True and row.get('comldf_valid') is True
+        for row in comldf_rows
+    )
+
+    if not pf_reports:
+        status = 'NOT_RUN'
+    elif not adjustment_rows or not study_rows:
+        status = 'BLOQUEADO_DATOS'
+    elif physical_violations:
+        status = 'VIOLACION_FISICA'
+    elif not all_valid or any(not item.get('converge') for item in measures):
+        status = 'NO_CONVERGE'
+    elif any(value == 'AVISO_KVAR' for value in adjustment_statuses):
+        status = 'AVISO_KVAR'
+    elif corrections or mismatches:
+        status = ('AVISO_PERSISTENCIA_CORREGIDA' if corrections and not mismatches
+                  else 'AVISO_PERSISTENCIA_NO_CORREGIDA')
+    else:
+        status = 'OK'
+
+    return {
+        'schema_version': 'igea-dgs-three-source-native-load-v1',
+        'status': status,
+        'source_audit': {
+            'status': (source_audit or {}).get('status'),
+            'counts': dict((source_audit or {}).get('counts') or
+                           (source_audit or {}).get('totals') or {}),
+            'sha256': source_audit_sha256,
+        },
+        'conversion': dict(conversion_result or {}),
+        'capacitors': {
+            'expected': expected_capacitors,
+            'reread': len(capacitor_banks),
+            'banks': capacitor_banks,
+            'corrections': corrections,
+            'mismatches': mismatches,
+            'blocks': False,
+        },
+        'metadata_assignment': {
+            'written': sum(int(row.get('written') or 0) for row in metadata_rows),
+            'reread': sum(int(row.get('reread_count') or 0) for row in metadata_rows),
+            'verified': bool(metadata_rows) and all(row.get('reread_verified') for row in metadata_rows),
+            'by_feeder': {
+                feeder: count for row in metadata_rows
+                for feeder, count in (row.get('by_feeder') or {}).items()
+            },
+        },
+        'project_bindings': bindings,
+        'client_periods': client_periods,
+        'loads': {
+            'fixed_seds': len({key for key in fixed_keys if key[1]}),
+            'scaled_seds': len({key for key in scaled_keys if key[1]}),
+            'fixed_evidence': fixed_evidence,
+            'native_reread': native_reread,
+        },
+        'head_balance': head_balance,
+        'load_flow': {'all_valid': all_valid, 'reports': comldf_rows},
+        'studies': study_rows,
+        'measures': measures,
+        'physical_violations': physical_violations,
+    }
+
+
+def _run_native_load_contract(
+    workspace: Workspace,
+    ctx: JobContext,
+    config: AcceptanceConfig,
+    selected: list[str],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Ejecuta ajuste y estudios por los mismos servicios usados por la web."""
+    meters = {str(feeder): str(meter) for feeder, meter in config.meters_by_feeder}
+    missing_meters = [feeder for feeder in selected if not meters.get(feeder)]
+    if config.cabecera is None or not Path(config.cabecera).exists():
+        raise ValueError('BLOQUEADO_DATOS: falta la medición de cabecera para el contrato de carga')
+    if missing_meters:
+        raise ValueError(
+            'BLOQUEADO_DATOS: faltan medidores de cabecera para ' + ', '.join(missing_meters)
+        )
+    if bool(config.suministros) != bool(config.clientes):
+        raise ValueError(
+            'BLOQUEADO_DATOS: suministros y clientes importantes deben indicarse juntos'
+        )
+
+    services.demanda_asignar(workspace, 'cabecera', Path(config.cabecera), 'server')
+    if config.suministros and config.clientes:
+        services.demanda_asignar(
+            workspace, 'suministros', Path(config.suministros), 'server',
+        )
+        services.demanda_asignar(workspace, 'clientes', Path(config.clientes), 'server')
+        if Path(config.clientes).is_dir():
+            services.demanda_clientes_indexar(workspace, ctx)
+
+    maxima_result = services.demanda_cabecera(
+        workspace, ctx, [(feeder, meters[feeder]) for feeder in selected],
+    )
+    maximas = list(maxima_result.get('resultados') or [])
+    adjustments: list[dict[str, Any]] = []
+    studies: list[dict[str, Any]] = []
+    for feeder in selected:
+        project = str(workspace.pf_projects.get(feeder) or '')
+        if not project:
+            raise ValueError(
+                f'BLOQUEADO_PERSISTENCIA: {feeder} no tiene proyecto nativo aceptado'
+            )
+        plan_summary = services.ajuste_plan(
+            workspace, project, maximas, meters[feeder], config.load_tolerance,
+        )
+        token = plan_summary['token']
+        meta = workspace.cargas_planes[token]
+        paths = [Path(path) for path in (meta.get('paths') or [meta['path']])]
+        candidate_plans = [
+            json.loads(path.read_text(encoding='utf-8')) for path in paths
+        ]
+        feeder_plan = next(
+            (plan for plan in candidate_plans if plan.get('feeder') == feeder), None,
+        )
+        if feeder_plan is None:
+            raise ValueError(f'BLOQUEADO_DATOS: no se conservó el plan de {feeder}')
+        adjustment = services.ajuste_ejecutar(workspace, ctx, token, simular=False)
+        adjustments.append({'plan': feeder_plan, 'result': adjustment})
+
+        study_plan = services.estudios_plan(
+            workspace, project, [feeder], list(config.studies), adjustment,
+        )
+        study_result = services.estudios_ejecutar(workspace, ctx, study_plan['token'])
+        studies.append(study_result)
+    return adjustments, studies
+
+
 def _empty_result(mode: str, status: str, *, error: str | None = None) -> dict[str, Any]:
     return {
         'mode': mode,
@@ -112,6 +319,7 @@ def _empty_result(mode: str, status: str, *, error: str | None = None) -> dict[s
         'original_hashes_after': {},
         'originals_unchanged': None,
         'powerfactory': {'evidence_level': 'NOT_RUN'},
+        'native_load_contract': build_native_load_evidence(),
     }
 
 
@@ -185,6 +393,12 @@ def _accept_mode(config: AcceptanceConfig, mode: str) -> dict[str, Any]:
             ],
             'feeder_count': len((workspace.inventory or {}).get('feeders') or []),
         })
+        audit_path = workspace.out_dir / 'universal_source_audit.json'
+        row['source_audit'] = {
+            'path': str(audit_path) if audit_path.is_file() else None,
+            'sha256': sha256_file(audit_path) if audit_path.is_file() else None,
+            'evidence': dict(workspace.source_audit or {}),
+        }
         rows = services.feeder_rows(workspace)
         available = [item['feeder'] for item in rows]
         requested = list(config.feeders or ((config.feeder,) if config.feeder else ()))
@@ -244,26 +458,41 @@ def _accept_mode(config: AcceptanceConfig, mode: str) -> dict[str, Any]:
                 })
         row['dgs_files'] = dgs_files
         if len(dgs_files) != len(selected) or conversion['summary']['ok'] != len(selected):
-            row['status'] = 'FAILED_CONVERSION'
+            row['status'] = 'BLOQUEADO_DATOS'
             return row
         row['status'] = 'DGS_READY'
+        row['native_load_contract'] = build_native_load_evidence(
+            source_audit=(row.get('source_audit') or {}).get('evidence'),
+            source_audit_sha256=(row.get('source_audit') or {}).get('sha256'),
+            conversion_result=conversion,
+        )
 
         if config.run_powerfactory:
             services.check_powerfactory_flow(workspace, selected)
             pf_result = services.powerfactory_flow(workspace, ctx, selected)
-            report_path = workspace.out_dir / f'{selected[0]}_powerfactory_acceptance.json'
-            report = json.loads(report_path.read_text(encoding='utf-8')) if report_path.is_file() else {}
+            report_paths = [
+                workspace.out_dir / f'{feeder}_powerfactory_acceptance.json'
+                for feeder in selected
+            ]
+            reports = [json.loads(path.read_text(encoding='utf-8'))
+                       for path in report_paths if path.is_file()]
+            report_path = report_paths[0]
+            report = reports[0] if reports else {}
             reread = report.get('effective_reread') or {}
             verified = bool(
-                pf_result.get('ok') == len(selected)
-                and report.get('powerfactory_runtime_pass')
-                and (report.get('source_verification') or {}).get('status') == 'VERIFIED_BEFORE_MUTATION'
-                and reread.get('feeder_metadata')
-                and reread.get('comldf_valid') is True
+                len(reports) == len(selected)
+                and pf_result.get('ok') == len(selected)
+                and all(item.get('powerfactory_runtime_pass') for item in reports)
+                and all((item.get('source_verification') or {}).get('status') ==
+                        'VERIFIED_BEFORE_MUTATION' for item in reports)
+                and all((item.get('effective_reread') or {}).get('feeder_metadata')
+                        for item in reports)
+                and all((item.get('effective_reread') or {}).get('comldf_valid') is True
+                        for item in reports)
             )
             row['powerfactory'] = {
                 'evidence_level': (
-                    'POWERFACTORY_REAL_VERIFIED' if verified else 'POWERFACTORY_EXECUTED_FAILED'
+                    'POWERFACTORY_REAL_VERIFIED' if verified else 'BLOQUEADO_PERSISTENCIA'
                 ),
                 'result': pf_result,
                 'report': str(report_path) if report_path.is_file() else None,
@@ -273,10 +502,38 @@ def _accept_mode(config: AcceptanceConfig, mode: str) -> dict[str, Any]:
                 'reconstruction': report.get('reconstruction_verification'),
                 'convergence_classification': report.get('convergence_classification'),
             }
-            row['status'] = 'POWERFACTORY_VERIFIED' if verified else 'FAILED_POWERFACTORY'
+            row['native_load_contract'] = build_native_load_evidence(
+                source_audit=(row.get('source_audit') or {}).get('evidence'),
+                source_audit_sha256=(row.get('source_audit') or {}).get('sha256'),
+                conversion_result=conversion,
+                powerfactory_reports=reports,
+            )
+            if verified:
+                adjustments, studies = _run_native_load_contract(
+                    workspace, ctx, config, selected,
+                )
+                row['native_load_contract'] = build_native_load_evidence(
+                    source_audit=(row.get('source_audit') or {}).get('evidence'),
+                    source_audit_sha256=(row.get('source_audit') or {}).get('sha256'),
+                    conversion_result=conversion,
+                    powerfactory_reports=reports,
+                    adjustments=adjustments,
+                    studies=studies,
+                )
+                nonblocking = {
+                    'OK', 'AVISO_KVAR', 'AVISO_PERSISTENCIA_CORREGIDA',
+                    'AVISO_PERSISTENCIA_NO_CORREGIDA',
+                }
+                row['status'] = (
+                    'NATIVE_LOAD_VERIFIED'
+                    if row['native_load_contract']['status'] in nonblocking
+                    else row['native_load_contract']['status']
+                )
+            else:
+                row['status'] = 'BLOQUEADO_PERSISTENCIA'
         return row
     except Exception as exc:  # noqa: BLE001 - el resumen debe persistir también el bloqueo
-        row['status'] = 'FAILED'
+        row['status'] = 'BLOQUEADO_DATOS'
         row['error'] = f'{type(exc).__name__}: {exc}'
         return row
     finally:
@@ -304,14 +561,38 @@ def validate_summary(summary: dict[str, Any]) -> None:
                 raise ValueError(f'{mode} tiene un DGS sin SHA-256')
         if row.get('originals_unchanged') is False:
             raise ValueError(f'{mode} modificó un archivo original durante la aceptación')
+        contract = row.get('native_load_contract') or {}
+        if contract.get('schema_version') != 'igea-dgs-three-source-native-load-v1':
+            raise ValueError(f'{mode} no contiene el contrato nativo universal')
+        if (contract.get('capacitors') or {}).get('blocks') is not False:
+            raise ValueError(f'{mode} intenta bloquear por la potencia reactiva de bancos')
+        for balance in contract.get('head_balance') or []:
+            kvar = balance.get('kvar_difference') or {}
+            if kvar and kvar.get('bloquea') is not False:
+                raise ValueError(f'{mode} intenta bloquear por diferencia de kVAR')
+        if row.get('status') == 'NATIVE_LOAD_VERIFIED':
+            allowed = {
+                'OK', 'AVISO_KVAR', 'AVISO_PERSISTENCIA_CORREGIDA',
+                'AVISO_PERSISTENCIA_NO_CORREGIDA',
+            }
+            if contract.get('status') not in allowed:
+                raise ValueError(f'{mode} acredita carga nativa con estado {contract.get("status")}')
+            if len(((contract.get('source_audit') or {}).get('sha256') or '')) != 64:
+                raise ValueError(f'{mode} acredita carga nativa sin hash de auditoría fuente')
+            if not contract.get('project_bindings'):
+                raise ValueError(f'{mode} acredita carga nativa sin vínculo de proyecto')
+            if not (contract.get('load_flow') or {}).get('all_valid'):
+                raise ValueError(f'{mode} acredita carga nativa sin ComLdf válido')
+            if contract.get('physical_violations'):
+                raise ValueError(f'{mode} acredita carga nativa con violaciones físicas')
 
 
 def run_three_sources(config: AcceptanceConfig) -> dict[str, Any]:
     config.audit_dir.mkdir(parents=True, exist_ok=True)
     sources = [_accept_mode(config, mode) for mode in ('txt', 'mdb', 'vnr')]
-    complete_states = {'DGS_READY', 'POWERFACTORY_VERIFIED'}
+    complete_states = ({'NATIVE_LOAD_VERIFIED'} if config.run_powerfactory else {'DGS_READY'})
     summary = {
-        'schema_version': 'igea-dgs-three-source-acceptance-v2',
+        'schema_version': 'igea-dgs-three-source-native-load-v1',
         'created_at': time.time(),
         'audit_dir': str(config.audit_dir.resolve()),
         'requested_feeder': config.feeder,
@@ -355,7 +636,25 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument('--study', type=Path)
     parser.add_argument('--vnr-package', type=Path)
     parser.add_argument('--powerfactory', action='store_true')
+    parser.add_argument('--cabecera', type=Path,
+                        help='Libro o carpeta de medición de cabecera del periodo analizado')
+    parser.add_argument('--suministros', type=Path)
+    parser.add_argument('--clientes', type=Path,
+                        help='Libro o carpeta mensual de clientes importantes')
+    parser.add_argument('--meter', action='append', default=[], metavar='ALIMENTADOR=MEDIDOR')
+    parser.add_argument('--load-tolerance', type=float, default=0.01)
+    parser.add_argument('--study-key', action='append', default=[])
     return parser
+
+
+def _meter_pairs(values: list[str]) -> tuple[tuple[str, str], ...]:
+    pairs = []
+    for value in values:
+        feeder, separator, meter = value.partition('=')
+        if not separator or not feeder.strip() or not meter.strip():
+            raise ValueError(f'--meter debe ser ALIMENTADOR=MEDIDOR, no {value!r}')
+        pairs.append((feeder.strip(), meter.strip()))
+    return tuple(pairs)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -386,6 +685,12 @@ def main(argv: list[str] | None = None) -> int:
         study=args.study,
         vnr_package=args.vnr_package,
         run_powerfactory=args.powerfactory,
+        cabecera=args.cabecera,
+        suministros=args.suministros,
+        clientes=args.clientes,
+        meters_by_feeder=_meter_pairs(args.meter),
+        load_tolerance=args.load_tolerance,
+        studies=tuple(args.study_key or ('flujo',)),
     )
     summary = run_three_sources(config)
     print(json.dumps(summary, indent=2, ensure_ascii=False))
