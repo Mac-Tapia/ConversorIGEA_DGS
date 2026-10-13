@@ -6,7 +6,7 @@ En modo estricto no inventa tipos ``DEFAULT``: un tipo de línea sin ficha se in
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from collections import defaultdict, deque
 import math
 import re
@@ -168,6 +168,22 @@ class Coupler:
     network_id: str = ''
 
 
+@dataclass(frozen=True)
+class CapacitorBank:
+    capacitor_id: str
+    node_id: str
+    network_id: str
+    feeder: str
+    phases: str
+    kvar_per_step: float | None
+    steps: int
+    total_kvar: float | None
+    nominal_kv: float | None
+    in_service: bool
+    source_table: str = ''
+    issues: tuple[str, ...] = ()
+
+
 @dataclass
 class FeederModel:
     name: str
@@ -206,6 +222,7 @@ class FeederModel:
     # Alias explícitos de nodos duplicados por el export; se usan también en la prueba
     # From/To para no ocultar qué identidad del RED se normalizó.
     node_aliases: dict[str, str] = field(default_factory=dict)
+    capacitors: list[CapacitorBank] = field(default_factory=list)
 
 
 #: Código de fase de CYMDIST → letras. **No es una máscara de bits**: el 7 no es
@@ -264,6 +281,99 @@ def _int(value: str | None, default: int = 0) -> int:
         return int(value) if value not in (None, '') else default
     except (ValueError, TypeError):
         return default
+
+
+def _source_value(row: Mapping[str, object], *names: str) -> object | None:
+    folded = {str(key).casefold(): value for key, value in row.items()}
+    for name in names:
+        if name.casefold() in folded:
+            value = folded[name.casefold()]
+            if value not in (None, ''):
+                return value
+    return None
+
+
+def _positive_float(value: object | None) -> float | None:
+    try:
+        number = float(value) if value not in (None, '') else float('nan')
+    except (TypeError, ValueError):
+        return None
+    return number if math.isfinite(number) and number > 0 else None
+
+
+def capacitor_from_source(row: Mapping[str, object]) -> CapacitorBank:
+    """Normaliza un banco conservando solo magnitudes declaradas o su aritmetica."""
+    capacitor_id = str(_source_value(
+        row, 'DeviceNumber', 'CapacitorID', 'ID', 'EqNumber',
+    ) or '').strip()
+    node_id = str(_source_value(row, 'NodeID', 'ConnectionNode') or '').strip()
+    network_id = str(_source_value(row, 'NetworkID', 'FeederID') or '').strip()
+    phases = decode_phase(_source_value(row, 'Phase', 'Phases', 'EqPhase'))
+    raw_steps = _source_value(row, 'NumberOfSteps', 'Steps', 'StepCount')
+    steps = _int(str(raw_steps) if raw_steps is not None else None, 1)
+    steps = steps if steps > 0 else 1
+    per_step = _positive_float(_source_value(
+        row, 'KVARPerStep', 'StepKVAR', 'RatedKVARPerStep',
+    ))
+    total = _positive_float(_source_value(
+        row, 'TotalKVAR', 'KVAR', 'RatedKVAR', 'ReactivePowerKVAR',
+    ))
+    if per_step is None and total is not None:
+        per_step = total / steps
+    if total is None and per_step is not None:
+        total = per_step * steps
+    issues: list[str] = []
+    if total is None or per_step is None:
+        issues.append('MISSING_CAPACITOR_CAPACITY')
+    elif not math.isclose(total, per_step * steps, rel_tol=1e-9, abs_tol=1e-9):
+        issues.append('INCONSISTENT_CAPACITOR_CAPACITY')
+    status = str(_source_value(row, 'Status', 'InService') or '1').strip().casefold()
+    return CapacitorBank(
+        capacitor_id=capacitor_id,
+        node_id=node_id,
+        network_id=network_id,
+        feeder=feeder_short_name(network_id) if network_id else '',
+        phases=phases,
+        kvar_per_step=per_step,
+        steps=steps,
+        total_kvar=total,
+        nominal_kv=_positive_float(_source_value(row, 'NominalKV', 'RatedKV', 'VoltageKV')),
+        in_service=status not in {'0', 'false', 'off', 'out_of_service', 'outserv'},
+        source_table=str(_source_value(row, 'SourceTable') or '').strip(),
+        issues=tuple(issues),
+    )
+
+
+def capacitor_node(dataset: CymdistDataset, row: Mapping[str, object]) -> str:
+    node_id = str(_source_value(row, 'NodeID', 'ConnectionNode') or '').strip()
+    if node_id:
+        return node_id
+    section_id = str(_source_value(row, 'SectionID') or '').strip()
+    section = dataset.sections.get(section_id) or {}
+    location = str(_source_value(row, 'Location') or '').strip().upper()
+    field = 'FromNodeID' if location in {'0', 'S', 'FROM', '1'} else 'ToNodeID'
+    return str(section.get(field) or '')
+
+
+def capacitor_owner_candidates(
+    dataset: CymdistDataset, row: Mapping[str, object],
+) -> set[str]:
+    explicit = str(_source_value(row, 'NetworkID', 'FeederID') or '').strip()
+    if explicit:
+        return {explicit} if explicit in dataset.feeders else set()
+    node_id = capacitor_node(dataset, row)
+    if not node_id:
+        return set()
+    candidates = {
+        dataset.section_owner[section_id]
+        for section_id, section in dataset.sections.items()
+        if node_id in (section.get('FromNodeID'), section.get('ToNodeID'))
+    }
+    candidates.update(
+        network_id for network_id, source in dataset.sources.items()
+        if source.get('NodeID') == node_id
+    )
+    return candidates
 
 
 def _tension_de_fuente(source: Mapping[str, str]) -> float:
@@ -1214,6 +1324,19 @@ def build_feeder_model(
             network_id=network_id,
         ))
 
+    capacitors: list[CapacitorBank] = []
+    for row in dataset.capacitor_settings:
+        if capacitor_owner_candidates(dataset, row) != {network_id}:
+            continue
+        raw = capacitor_from_source(row)
+        raw_node = capacitor_node(dataset, row)
+        capacitors.append(replace(
+            raw,
+            node_id=node_aliases.get(raw_node, raw_node),
+            network_id=network_id,
+            feeder=name,
+        ))
+
     nodes: dict[str, Node] = {}
     for node_id in sorted(used_nodes):
         raw = dataset.nodes[node_id]
@@ -1286,6 +1409,7 @@ def build_feeder_model(
         seds=seds,
         islands=islands,
         node_aliases=node_aliases,
+        capacitors=capacitors,
     )
 
     # Electrical lengths follow the georeferenced polyline (From + intermediates + To)

@@ -43,7 +43,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field, replace
 from typing import Iterable, Sequence
 
-from .model import FeederModel, Line, LineType, Load, Node, Sed
+from .model import CapacitorBank, FeederModel, Line, LineType, Load, Node, Sed
 from .naming import sufijo_tension
 
 
@@ -300,6 +300,7 @@ def combine_models(
     devices: list = []
     couplers: list = []
     seds: list[Sed] = []
+    capacitors: list[CapacitorBank] = []
     feeders: list[FeederRef] = []
     codigos_tipo: set[str] = set()
 
@@ -339,6 +340,14 @@ def combine_models(
 
         for sed in m.seds:
             seds.append(replace(sed, node_id=resolver(sed.node_id, kv, m.name)))
+
+        for capacitor in m.capacitors:
+            capacitors.append(replace(
+                capacitor,
+                node_id=resolver(capacitor.node_id, kv, m.name),
+                feeder=m.name,
+                network_id=m.network_id,
+            ))
 
         for dev in m.devices:
             campos = {}
@@ -409,6 +418,7 @@ def combine_models(
             name=name, network_id=name, nominal_kv=1.0, source_node='',
             nodes=nodes, lines=lines, loads=loads, devices=devices,
             line_types=line_types, seds=seds, couplers=couplers,
+            capacitors=capacitors,
         )
         sin_alimentar = unsupplied_nodes(provisional, (f.source_node for f in feeders))
         if sin_alimentar:
@@ -446,6 +456,7 @@ def combine_models(
         line_types=line_types,
         seds=seds,
         couplers=couplers,
+        capacitors=capacitors,
         warnings=informe.warnings,
         section_by_id={ln.section_id: ln for ln in lines},
         combined=CombinedInfo(

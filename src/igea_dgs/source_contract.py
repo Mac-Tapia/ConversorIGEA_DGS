@@ -110,6 +110,34 @@ def audit_source(dataset: Any, provenance: Mapping[str, Any]) -> UniversalSource
                 detail=detail,
             )
 
+    from .model import capacitor_from_source, capacitor_node, capacitor_owner_candidates
+
+    capacitor_by_owner: dict[str, int] = {network_id: 0 for network_id in dataset.feeders}
+    capacitor_warnings: dict[str, set[str]] = {
+        network_id: set() for network_id in dataset.feeders
+    }
+    for index, row in enumerate(getattr(dataset, 'capacitor_settings', ())):
+        bank = capacitor_from_source(row)
+        object_id = bank.capacitor_id or f'row-{index + 1}'
+        node_id = capacitor_node(dataset, row)
+        candidates = capacitor_owner_candidates(dataset, row)
+        if not node_id:
+            issues[('MISSING_CAPACITOR_NODE', object_id)] = SourceIssue(
+                'MISSING_CAPACITOR_NODE', 'warning', 'capacitor', object_id,
+            )
+        if len(candidates) != 1:
+            code = 'AMBIGUOUS_CAPACITOR_FEEDER' if len(candidates) > 1 else 'MISSING_CAPACITOR_FEEDER'
+            issues[(code, object_id)] = SourceIssue(code, 'warning', 'capacitor', object_id)
+        else:
+            owner = next(iter(candidates))
+            capacitor_by_owner[owner] += 1
+            for code in bank.issues:
+                capacitor_warnings[owner].add(code)
+                issues[(code, object_id)] = SourceIssue(
+                    code, 'warning', 'capacitor', object_id,
+                    feeder=feeder_short_name(owner),
+                )
+
     global_blockers = tuple(sorted({
         issue.code for issue in issues.values() if issue.severity == 'blocking'
     }))
@@ -120,6 +148,7 @@ def audit_source(dataset: Any, provenance: Mapping[str, Any]) -> UniversalSource
             'sources': int(network_id in dataset.sources),
             'customer_loads': len(loads_by_owner[network_id]),
             'load_placements': len(placements_by_owner[network_id]),
+            'capacitors': capacitor_by_owner[network_id],
         }
         feeder_audits.append(FeederSourceAudit(
             feeder=feeder_short_name(network_id),
@@ -127,6 +156,7 @@ def audit_source(dataset: Any, provenance: Mapping[str, Any]) -> UniversalSource
             status='SOURCE_AUDIT_BLOCKED' if global_blockers else 'SOURCE_AUDIT_OK',
             counts=counts,
             blocking_codes=global_blockers,
+            warning_codes=tuple(sorted(capacitor_warnings[network_id])),
         ))
 
     return UniversalSourceAudit(
@@ -138,6 +168,7 @@ def audit_source(dataset: Any, provenance: Mapping[str, Any]) -> UniversalSource
             'sections': len(dataset.sections),
             'customer_loads': len(dataset.customer_loads),
             'load_placements': len(dataset.load_placements),
+            'capacitors': len(getattr(dataset, 'capacitor_settings', ())),
             'issues': len(issues),
         },
         feeders=tuple(feeder_audits),

@@ -114,6 +114,58 @@ def _fetch(cursor, table: str, columns: str) -> list[tuple]:
         ) from exc
 
 
+def _optional_table_dicts(cursor, table: str) -> list[dict[str, Any]]:
+    """Lee una tabla opcional sin convertir su ausencia en error de la red."""
+    try:
+        cursor.execute(f'SELECT * FROM [{table}]')
+        columns = [str(item[0]) for item in cursor.description]
+        return [dict(zip(columns, row)) for row in cursor.fetchall()]
+    except Exception:  # la tabla no existe en todos los esquemas/versiones CYME
+        return []
+
+
+def _pick(row: dict[str, Any], *names: str) -> Any:
+    folded = {str(key).casefold(): value for key, value in row.items()}
+    for name in names:
+        if name.casefold() in folded:
+            return folded[name.casefold()]
+    return None
+
+
+def capacitor_rows_from_access(
+    rows: list[Any], *, wanted: set[str] | None = None,
+) -> tuple[dict[str, str], ...]:
+    """Normaliza bancos Access sin completar valores ausentes."""
+    result: list[dict[str, str]] = []
+    for raw in rows:
+        if isinstance(raw, dict):
+            values = (
+                _pick(raw, 'DeviceNumber', 'CapacitorId'),
+                _pick(raw, 'NetworkId', 'FeederId'),
+                _pick(raw, 'NodeId', 'ConnectionNode'),
+                _pick(raw, 'Phase', 'Phases'),
+                _pick(raw, 'KVARPerStep', 'StepKVAR'),
+                _pick(raw, 'NumberOfSteps', 'Steps'),
+                _pick(raw, 'TotalKVAR', 'KVAR', 'RatedKVAR'),
+                _pick(raw, 'NominalKV', 'RatedKV'),
+                _pick(raw, 'Status', 'InService'),
+            )
+        else:
+            values = tuple(raw)
+        dev, net, node, phase, per_step, steps, total, nominal, status = values[:9]
+        network_id = _txt(net)
+        if wanted is not None and network_id not in wanted:
+            continue
+        result.append({
+            'DeviceNumber': _txt(dev), 'NetworkID': network_id, 'NodeID': _txt(node),
+            'Phase': _phase(phase), 'KVARPerStep': _txt(per_step),
+            'NumberOfSteps': _txt(steps), 'TotalKVAR': _txt(total),
+            'NominalKV': _txt(nominal), 'Status': _txt(status),
+            'SourceTable': 'CYMSHUNTCAPACITOR',
+        })
+    return tuple(result)
+
+
 def _txt(value: Any) -> str:
     """Todo el motor trabaja con cadenas, como el TXT."""
     if value is None:
@@ -343,6 +395,10 @@ def read_access_dataset(
                 'SectionID': _txt(sid), 'SeqNumber': _txt(index),
                 'CoordX': _txt(x), 'CoordY': _txt(y),
             })
+
+        capacitor_settings = capacitor_rows_from_access(
+            _optional_table_dicts(cur, 'CYMSHUNTCAPACITOR'), wanted=wanted,
+        )
     finally:
         cn.close()
 
@@ -394,6 +450,7 @@ def read_access_dataset(
         load_placements=load_placements,
         customer_loads=customer_loads,
         equipment_tables=equipment_tables,
+        capacitor_settings=capacitor_settings,
     )
 
 
