@@ -74,6 +74,7 @@
 - Modify: `src/igea_dgs/access.py`
 - Modify: `src/igea_dgs/model.py`
 - Modify: `src/igea_dgs/combine.py`
+- Modify: `src/igea_dgs/source_contract.py`
 - Modify: `src/vnr_etl/application/cymdist_bridge.py`
 - Test: `tests/test_capacitor_canonical.py`
 - Test: `tests/test_vnr_cymdist_bridge.py`
@@ -106,6 +107,7 @@
 
 **Files:**
 - Modify: `src/igea_dgs/dgs.py`
+- Modify: `src/igea_dgs/batch.py`
 - Modify: `src/igea_dgs/feeder_metadata.py`
 - Modify: `src/igea_dgs/powerfactory_metadata.py`
 - Modify: `src/igea_dgs/geography.py`
