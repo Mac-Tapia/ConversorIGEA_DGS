@@ -167,3 +167,53 @@ def test_assignment_report_proves_plan_identity_reread_and_rollback(tmp_path):
     assert caught.value.rollback['attempted'] is True
     assert caught.value.rollback['restored'] == 1
     assert good.value == ['OLD']
+
+
+def test_successful_acceptance_attaches_source_to_native_project_binding(tmp_path):
+    import importlib.util
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parents[1] / 'tools' / 'powerfactory_acceptance.py'
+    spec = importlib.util.spec_from_file_location('pf_acceptance_binding', path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    class Obj:
+        def GetClassName(self):
+            return 'ElmLod'
+
+        def GetFullName(self):
+            return r'Grid\SED1\L1.ElmLod'
+
+        def GetAttribute(self, name):
+            return ['IN111'] if name == 'p:alimentador' else None
+
+        GetUserAttribute = GetAttribute
+
+    app = SimpleNamespace(
+        GetCalcRelevantObjects=lambda pattern: [Obj()] if pattern == '*.ElmLod' else [],
+    )
+    report = {
+        'powerfactory_runtime_pass': True,
+        'effective_reread': {'feeder_metadata': True, 'comldf_valid': True},
+    }
+    module.attach_project_binding(
+        report,
+        app,
+        {
+            'status': 'VERIFIED_BEFORE_MUTATION',
+            'source_run_id': 'run-active',
+            'source_mode': 'txt',
+            'source_fingerprint': 'f' * 64,
+            'dgs_sha256': 'd' * 64,
+            'feeders': ['IN111'],
+        },
+        {'ok': True, 'project_path': 'Oct/IN111', 'project_folder': 'Empresa'},
+        fallback_feeder='IN111',
+    )
+    binding = report['project_binding']
+    assert binding['project'] == 'Oct/IN111'
+    assert binding['source_run_id'] == 'run-active'
+    assert binding['native_inventory_sha256']
+    assert binding['native_reread']['status'] == 'VERIFICADO_PERSISTENCIA'

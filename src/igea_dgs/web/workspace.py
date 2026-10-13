@@ -123,6 +123,8 @@ class Workspace:
     # Proyecto de PowerFactory creado al importar cada DGS (por nombre del DGS). Las
     # actualizaciones de cargas y las SED nuevas se aplican sobre ese proyecto.
     pf_projects: dict[str, str] = field(default_factory=dict)
+    # Contrato fuente → DGS → proyecto nativo, indexado por ruta de proyecto.
+    pf_project_bindings: dict[str, dict[str, Any]] = field(default_factory=dict)
     # Último inventario leído directamente de PowerFactory; su identidad invalida
     # planes de carga revisados si el proyecto cambia antes de aplicar.
     pf_inventory: dict[str, Any] = field(default_factory=dict)
@@ -185,6 +187,7 @@ class Workspace:
             'catalog_file': self.catalog_file,
             'groups': self.groups,
             'pf_projects': self.pf_projects,
+            'pf_project_bindings': self.pf_project_bindings,
             'pf_inventory': self.pf_inventory,
             'active_run_id': self.active_run_id,
             'demanda': self.demanda,
@@ -213,6 +216,7 @@ class Workspace:
         ws.catalog_file = catalog if catalog and Path(catalog).is_file() else None
         ws.groups = dict(data.get('groups') or {})
         ws.pf_projects = dict(data.get('pf_projects') or {})
+        ws.pf_project_bindings = dict(data.get('pf_project_bindings') or {})
         ws.pf_inventory = dict(data.get('pf_inventory') or {})
         # Igual que las entradas: un libro o una carpeta que ya no está no se restaura.
         ws.demanda = {tipo: meta for tipo, meta in (data.get('demanda') or {}).items()
@@ -385,6 +389,7 @@ class Workspace:
                 if group.get('source_run_id') == self.active_run_id
             ],
             'pf_projects': self.pf_projects,
+            'pf_project_bindings': self.pf_project_bindings,
             'obras': self.obras,
             'demanda': {tipo: {k: v for k, v in meta.items() if k != 'path'}
                         for tipo, meta in self.demanda.items()},
