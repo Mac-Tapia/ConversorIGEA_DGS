@@ -15,7 +15,7 @@
 - TXT, MDB y VNR-GIS solo difieren dentro de sus adaptadores; no se duplica lógica de bancos, cargas, cuadre o aceptación.
 - No se codifican alimentadores, empresas, rutas ni cantidades de equipos concretos.
 - Cada artefacto conserva `source_run_id`, `source_mode`, `source_fingerprint` y SHA-256.
-- Banco estándar monofásico: 0.100 Mvar por escalón; trifásico: `ctech=1` y 0.300 Mvar por escalón, solo cuando perfil o catálogo lo declara.
+- Ningún banco recibe una potencia predeterminada o inferida: capacidad, fases y escalones se conservan exactamente desde la fuente.
 - El mes del libro de clientes debe coincidir con el mes de la máxima cuando se usan clientes fijos.
 - `Pot` es kW; `Q = Pot × ERI / EA`; el fallback usa el FP del objetivo.
 - El criterio de cuadre es kW; toda diferencia de kVAR se informa y no bloquea.
@@ -25,7 +25,7 @@
 
 ## Review Focus
 
-- Banco con `kvar` original distinto del módulo estándar: debe conservar el original y avisar, no forzar 100/300.
+- Bancos con 150, 300 o 450 kVAR de origen: deben conservar exactamente su valor; un banco sin capacidad no recibe ninguna.
 - Libro de clientes sin periodo demostrable: no debe fijar cargas silenciosamente.
 - Proyecto PowerFactory histórico con el mismo nombre: debe bloquearse por binding/run o inventario nativo distinto.
 - `p:alimentador` leído como lista y wrapper duplicado: debe producir una sola carga.
@@ -75,17 +75,16 @@
 - Modify: `src/igea_dgs/model.py`
 - Modify: `src/igea_dgs/combine.py`
 - Modify: `src/vnr_etl/application/cymdist_bridge.py`
-- Modify: `src/igea_dgs/perfil_empresa.py`
 - Test: `tests/test_capacitor_canonical.py`
 - Test: `tests/test_vnr_cymdist_bridge.py`
 - Test: `tests/test_access.py`
 
 **Interfaces:**
-- Consumes: filas de condensador TXT/MDB, `vnr_etl.models.Capacitor`, perfil/catálogo.
-- Produces: `CymdistDataset.capacitor_settings`; `CapacitorPolicy(kvar_per_phase: float | None)`; `CapacitorBank`; `normalize_capacitor(row, policy: CapacitorPolicy) -> CapacitorBank`; `FeederModel.capacitors`.
+- Consumes: filas de condensador TXT/MDB y `vnr_etl.models.Capacitor`, siempre con valores de la fuente.
+- Produces: `CymdistDataset.capacitor_settings`; `CapacitorBank`; `capacitor_from_source(row) -> CapacitorBank`; `FeederModel.capacitors`.
 
 - [ ] **Step 1: Write failing normalization tests**
-  Add mono 100 kVAR, tri 300 kVAR, multi-step total, original 450 kVAR preserved, missing node, and ambiguous feeder cases. Assert `source_value`, `normalized_by`, per-step and total power.
+  Add mono 150 kVAR, tri 300 kVAR, banco 450 kVAR, multi-step total, missing capacity, missing node, and ambiguous feeder cases. Assert exact source value, phases, per-step and total power; missing capacity must emit `MISSING_CAPACITOR_CAPACITY` and must not synthesize a number.
 - [ ] **Step 2: Write failing three-adapter parity tests**
   Build equivalent TXT, mocked MDB rows and VNR canonical fixtures; assert all reach the same `CapacitorBank` fields without mode branches below the adapters.
 - [ ] **Step 3: Run tests to verify failure**
@@ -94,7 +93,7 @@
 - [ ] **Step 4: Implement dataset and adapter mappings**
   Add `capacitor_settings` with an empty default for compatibility. Parse source fields losslessly; VNR must retain all `CanonicalModel.capacitors`. Resolve owner by explicit feeder first and by a unique connected node second.
 - [ ] **Step 5: Implement model normalization**
-  Define `CapacitorBank` and `normalize_capacitor`. Apply 0.100/0.300 Mvar only when the profile/catalog policy declares the standard module; otherwise retain positive source kVAR.
+  Define `CapacitorBank` and `capacitor_from_source`. Preserve every positive source capacity verbatim; retain an incomplete inventory record and issue when capacity is absent or invalid. Do not consult a profile or catalogue to invent bank power.
 - [ ] **Step 6: Merge banks in combined models**
   Preserve feeder, network, node and stable identity when `build_combined` joins feeders.
 - [ ] **Step 7: Run focused tests**
@@ -124,7 +123,7 @@
 - Produces: `DgsManifest.shunt_fids`; `FeederAssignment` rows for `ElmShnt`; `reread_capacitors(app, expected) -> dict[str, Any]`.
 
 - [ ] **Step 1: Write failing DGS and sidecar tests**
-  Assert one `ElmShnt` and cubicle per bank, exact `ctech/qcapn/ncapx/ncapa/ushnm/outserv`, stable FID, and `p:alimentador` assignment metadata.
+  Assert one `ElmShnt` and cubicle per complete source bank, exact source `ctech/qcapn/ncapx/ncapa/ushnm/outserv`, stable FID, and `p:alimentador` assignment metadata. Assert an incomplete bank creates no `ElmShnt` and remains visible as `MISSING_CAPACITOR_CAPACITY` in the manifest.
 - [ ] **Step 2: Run tests to verify failure**
   Run: `pytest tests/test_dgs_capacitors.py tests/test_feeder_metadata.py tests/test_powerfactory_feeder_metadata.py -q`
   Expected: FAIL because `DgsManifest` and metadata omit shunts.
