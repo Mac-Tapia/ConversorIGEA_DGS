@@ -90,6 +90,13 @@ def test_sed_con_clientes_lleva_su_demanda(guion):
     fila = _sed(informe, 'F1_S2')
     assert fila['origen'] == 'cliente' and fila['clientes'] == ['11']
     assert fila['despues']['kw'] == pytest.approx(40.0)
+    assert fila['despues']['kvar'] == pytest.approx(10.0)
+    assert fila['despues']['fp'] == pytest.approx(1 / (1 + 0.25**2) ** 0.5)
+    assert fila['derivaciones'] == [{
+        'cliente': '11', 'p_kw': 40.0, 'q_kvar': 10.0,
+        'fp': pytest.approx(1 / (1 + 0.25**2) ** 0.5),
+        'metodo': 'ERI/EA', 'ea': 1.0, 'eri': 0.25,
+    }]
     assert _carga(app, 'F1_S2').plini == pytest.approx(0.040)
     assert [o['sed'] for o in informe['omitidas']] == ['ZZ9']
 

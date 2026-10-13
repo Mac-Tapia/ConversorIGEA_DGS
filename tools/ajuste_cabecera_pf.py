@@ -182,11 +182,18 @@ def diagnostico(alims: Alimentadores, feeder: str, cargas: dict, kva: dict,
 def _por_sed(reparto, cargas, kva_origen, antes, fijas):
     filas = []
     for sed, d in reparto.demandas.items():
+        apparent = math.hypot(d.kw, d.kvar)
+        fija = fijas.get(sed)
         filas.append({
             'sed': sed, 'origen': d.origen, 'kva': d.kva, 'kva_de': kva_origen.get(sed) or None,
-            'clientes': fijas[sed].clientes if sed in fijas else [],
+            'clientes': fija.clientes if fija else [],
             'antes': {'kw': antes[sed][0], 'kvar': antes[sed][1]},
-            'despues': {'kw': d.kw, 'kvar': d.kvar},
+            'despues': {
+                'kw': d.kw, 'kvar': d.kvar,
+                'fp': abs(d.kw) / apparent if apparent else 1.0,
+            },
+            'derivaciones': list(fija.derivaciones) if fija else [],
+            'avisos': list(fija.avisos) if fija else [],
         })
     return filas
 

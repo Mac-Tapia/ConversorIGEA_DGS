@@ -672,6 +672,33 @@ export interface ClientesCruce {
 }
 
 /** Spec 006: plan del ajuste a la máxima de cabecera. */
+export interface ClientPeriodEvidence {
+  status: 'CLIENT_PERIOD_VERIFIED' | 'CLIENT_PERIOD_UNKNOWN' | 'NO_CLIENT_BOOK';
+  period: string | null;
+  file: string | null;
+  sheet: string | null;
+  fingerprint: string | null;
+  period_origin: string | null;
+  warning: string | null;
+}
+
+export interface AjustePeriodo {
+  status: 'CLIENT_PERIOD_MATCH' | 'NO_CLIENT_BOOK';
+  maxima: string | null;
+  clientes: string | null;
+}
+
+export interface AjusteResumenAlimentador {
+  feeder: string;
+  objetivo: AjustePlan['objetivo'];
+  n_clientes: number;
+  n_kva_entrada: number;
+  n_sed_fijas: number;
+  n_sed_escaladas_estimadas: number;
+  periodo: AjustePeriodo;
+  client_evidence: ClientPeriodEvidence;
+}
+
 export interface AjustePlan {
   token: string;
   project: string;
@@ -680,9 +707,15 @@ export interface AjustePlan {
   tolerancia: number;
   n_clientes: number;
   n_kva_entrada: number;
+  n_sed_fijas: number;
+  n_sed_escaladas_estimadas: number;
+  periodo: AjustePeriodo;
+  client_evidence: ClientPeriodEvidence;
+  source: { source_run_id: string; source_mode: InputMode; source_fingerprint: string };
+  project_binding: PowerFactoryProjectBinding;
   /** Spec 008: alimentadores que se ajustan, en orden, con su objetivo. */
   feeders?: string[];
-  ajustes?: { feeder: string; objetivo: AjustePlan['objetivo']; n_clientes: number; n_kva_entrada: number }[];
+  ajustes?: AjusteResumenAlimentador[];
   avisos: string[];
 }
 
@@ -693,7 +726,12 @@ export interface AjusteSed {
   kva_de: 'pf' | 'entrada' | null;
   clientes: string[];
   antes: { kw: number; kvar: number };
-  despues: { kw: number; kvar: number };
+  despues: { kw: number; kvar: number; fp: number };
+  derivaciones?: {
+    cliente: string; p_kw: number; q_kvar: number; fp: number;
+    metodo: 'ERI/EA' | 'FP_CABECERA_FALLBACK'; ea: number | null; eri: number | null;
+  }[];
+  avisos?: string[];
 }
 
 export interface AjusteInforme {

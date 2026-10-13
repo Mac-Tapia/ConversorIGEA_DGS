@@ -66,6 +66,19 @@ def test_cliente_sin_energias_usa_el_fp_del_objetivo():
     assert any('1' in a and 'FP' in a for a in fijas['E1'].avisos)
 
 
+def test_pot_is_active_power_and_ea_eri_derive_q_and_fp_with_evidence():
+    o = objetivo_de(_maxima())
+    fija = fijas_de([_cliente('NIS-1', 'SED-1', 100.0, ea=400.0, eri=120.0)], o)['SED-1']
+    assert fija.kw == 100.0
+    assert fija.kvar == pytest.approx(30.0)
+    assert fija.fp == pytest.approx(100.0 / math.hypot(100.0, 30.0))
+    assert fija.derivaciones == [{
+        'cliente': 'NIS-1', 'p_kw': 100.0, 'q_kvar': 30.0,
+        'fp': pytest.approx(100.0 / math.hypot(100.0, 30.0)),
+        'metodo': 'ERI/EA', 'ea': 400.0, 'eri': 120.0,
+    }]
+
+
 def test_reparto_por_kva_sin_mirar_la_demanda_actual():
     """006:RF-5 / 006:RF-8 — fijas con sus clientes; las demás, kW y kVAR ∝ kVA."""
     o = objetivo_de(_maxima())

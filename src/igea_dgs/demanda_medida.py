@@ -202,7 +202,41 @@ class LibroClientesMes:
     avisos: tuple[str, ...] = ()
 
 
+@dataclass(frozen=True)
+class ClientPeriodEvidence:
+    status: str
+    period: str | None
+    file: str | None
+    sheet: str | None
+    fingerprint: str | None
+    period_origin: str | None
+    warning: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
 _MES_VALIDO = re.compile(r'^(?P<anio>\d{4})-(?P<mes>0[1-9]|1[0-2])$')
+
+
+def periodo_de_fecha(value: Any) -> str | None:
+    """Mes ``AAAA-MM`` de una fecha de medición, sin depender del formato fuente."""
+    if isinstance(value, datetime):
+        return f'{value.year:04d}-{value.month:02d}'
+    if isinstance(value, date):
+        return f'{value.year:04d}-{value.month:02d}'
+    text = str(value or '').strip()
+    if not text:
+        return None
+    iso = re.match(r'^(?P<anio>\d{4})-(?P<mes>0[1-9]|1[0-2])(?:-\d{2})?', text)
+    if iso:
+        return f"{iso.group('anio')}-{iso.group('mes')}"
+    local = re.match(
+        r'^\d{1,2}[/.-](?P<mes>0?[1-9]|1[0-2])[/.-](?P<anio>\d{4})(?:\s|$)', text,
+    )
+    if local:
+        return f"{local.group('anio')}-{int(local.group('mes')):02d}"
+    return None
 
 
 def _mes_valido(valor: str) -> str:

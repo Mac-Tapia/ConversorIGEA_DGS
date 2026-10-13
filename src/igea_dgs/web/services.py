@@ -1522,7 +1522,7 @@ def _kva_de_la_entrada(ws: Workspace, alimentador: str) -> tuple[dict[str, float
     from ..demanda_medida import clave_codigo
 
     if ws.dataset is None:
-        return {}, ('Sin entrada (TXT o .mdb) cargada: las SED sin transformador en '
+        return {}, ('Sin fuente canónica activa cargada: las SED sin transformador en '
                     'DIgSILENT no tendrán de dónde sacar su kVA.')
     clave = clave_codigo(alimentador)
     feeder = next((f for f in ws.dataset.feeder_ids() if clave_codigo(f) == clave), None)
@@ -1533,6 +1533,63 @@ def _kva_de_la_entrada(ws: Workspace, alimentador: str) -> tuple[dict[str, float
     except UserError as exc:
         return {}, f'{exc} No hay kVA de respaldo.'
     return {sed.code: float(sed.design_kva) for sed in modelo.seds if sed.design_kva}, ''
+
+
+def periodo_clientes_activo(ws: Workspace):
+    """Evidencia inmutable del único libro de clientes seleccionado para el ajuste."""
+    import hashlib
+
+    from ..demanda_medida import ClientPeriodEvidence, catalogar_libros_clientes
+
+    meta = dict(ws.demanda.get('clientes') or {})
+    if not meta:
+        return ClientPeriodEvidence(
+            status='NO_CLIENT_BOOK', period=None, file=None, sheet=None,
+            fingerprint=None, period_origin=None,
+            warning='Sin libro de clientes importantes: todas las SED se escalan por kVA.',
+        )
+    source = Path(str(meta.get('path') or ''))
+    if not source.exists():
+        return ClientPeriodEvidence(
+            status='CLIENT_PERIOD_UNKNOWN', period=None, file=source.name or None,
+            sheet='resumen', fingerprint=None, period_origin=None,
+            warning='La fuente activa de clientes importantes ya no existe.',
+        )
+    catalog = list(meta.get('catalogo') or [])
+    if not catalog:
+        try:
+            catalog = [dict(vars(item)) for item in catalogar_libros_clientes(
+                source, perfil_de(ws).patron_libro_clientes, meta.get('asignaciones') or {},
+            )]
+        except Exception as exc:  # noqa: BLE001 - se convierte en evidencia bloqueante
+            return ClientPeriodEvidence(
+                status='CLIENT_PERIOD_UNKNOWN', period=None, file=source.name,
+                sheet='resumen', fingerprint=None, period_origin=None, warning=str(exc),
+            )
+    active = [item for item in catalog if item.get('activo')]
+    if len(active) != 1:
+        return ClientPeriodEvidence(
+            status='CLIENT_PERIOD_UNKNOWN', period=None, file=None, sheet='resumen',
+            fingerprint=None, period_origin=None,
+            warning=f'La fuente tiene {len(active)} libros activos; debe quedar uno solo.',
+        )
+    chosen = active[0]
+    path = source if source.is_file() else source / str(chosen.get('nombre') or '')
+    if not path.is_file():
+        return ClientPeriodEvidence(
+            status='CLIENT_PERIOD_UNKNOWN', period=None, file=path.name or None,
+            sheet='resumen', fingerprint=None,
+            period_origin=str(chosen.get('origen_mes') or '') or None,
+            warning='El libro activo de clientes importantes ya no existe.',
+        )
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    period = str(chosen.get('mes') or '').strip() or None
+    return ClientPeriodEvidence(
+        status='CLIENT_PERIOD_VERIFIED' if period else 'CLIENT_PERIOD_UNKNOWN',
+        period=period, file=path.name, sheet='resumen', fingerprint=digest,
+        period_origin=str(chosen.get('origen_mes') or '') or None,
+        warning=None if period else 'El libro activo no tiene un mes demostrable.',
+    )
 
 
 def _medidores_del_ajuste(maximas: list[dict], medidor: str, medidores: list[str] | None) -> list[dict]:
@@ -1576,11 +1633,19 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
     """
     import time as _time
 
-    from ..ajuste_cabecera import AjusteError, objetivo_de
+    from ..ajuste_cabecera import AjusteError, fijas_de, objetivo_de
+    from ..demanda_medida import periodo_de_fecha
+    from ..powerfactory_binding import ProjectBindingError, require_project_binding
 
     if not project.strip():
         raise UserError('Elija el proyecto de DIgSILENT.')
     filas = _medidores_del_ajuste(maximas, medidor, medidores)
+    requested_feeders = [str(row.get('alimentador') or '').strip() for row in filas]
+    try:
+        project_binding = require_project_binding(ws, project.strip(), requested_feeders)
+    except ProjectBindingError as exc:
+        raise UserError(str(exc)) from exc
+    client_period = periodo_clientes_activo(ws)
     varios = len(filas) > 1
     stamp = _time.strftime('%Y%m%d_%H%M%S')
     ws.plans_dir.mkdir(parents=True, exist_ok=True)
@@ -1599,17 +1664,61 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
         if not alimentador:
             raise UserError(f'{objetivo.medidor}: la máxima no dice de qué alimentador es.')
         pre = f'{alimentador}: ' if varios else ''
+        maximum_period = periodo_de_fecha(objetivo.fecha)
+        if client_period.status != 'NO_CLIENT_BOOK':
+            if maximum_period is None:
+                raise UserError(
+                    f'MAXIMUM_PERIOD_UNKNOWN: {objetivo.medidor} no tiene una fecha '
+                    'que demuestre el mes de la máxima.'
+                )
+            if client_period.period is None:
+                raise UserError(
+                    'CLIENT_PERIOD_UNKNOWN: '
+                    + (client_period.warning or 'el libro activo no demuestra su mes')
+                )
+            if maximum_period != client_period.period:
+                raise UserError(
+                    f'CLIENT_PERIOD_MISMATCH: la máxima es {maximum_period} y el libro '
+                    f'{client_period.file} es {client_period.period}.'
+                )
+            period_evidence = {
+                'status': 'CLIENT_PERIOD_MATCH', 'maxima': maximum_period,
+                'clientes': client_period.period,
+            }
+        else:
+            period_evidence = {
+                'status': 'NO_CLIENT_BOOK', 'maxima': maximum_period, 'clientes': None,
+            }
+            if client_period.warning and client_period.warning not in avisos:
+                avisos.append(client_period.warning)
         clientes: list[dict] = []
         if ws.demanda.get('suministros') and ws.demanda.get('clientes'):
             clientes = demanda_clientes(ws, [alimentador])['cruzados']
         elif not paths:
             avisos.append('Sin libros de suministros y de clientes: todas las SED se reparten por kVA.')
+        fixed = fijas_de(clientes, objetivo)
+        fixed_evidence = [{
+            'sed': item.sed, 'p_kw': item.kw, 'q_kvar': item.kvar, 'fp': item.fp,
+            'clientes': list(item.clientes), 'derivaciones': list(item.derivaciones),
+            'avisos': list(item.avisos),
+        } for item in fixed.values()]
+        for item in fixed.values():
+            avisos.extend(pre + warning for warning in item.avisos if pre + warning not in avisos)
         kva_entrada, aviso = _kva_de_la_entrada(ws, alimentador)
         if aviso:
             avisos.append(pre + aviso)
         plan = {
-            'schema': 'igea-dgs-ajuste-cabecera-v1', 'project': project.strip(),
+            'schema': 'igea-dgs-ajuste-cabecera-v2', 'project': project.strip(),
             'folder': carpeta_pf(), 'feeder': alimentador, 'stamp': stamp,
+            'source': {
+                'source_run_id': project_binding.source_run_id,
+                'source_mode': project_binding.source_mode,
+                'source_fingerprint': project_binding.source_fingerprint,
+            },
+            'project_binding': project_binding.as_dict(),
+            'periodo': period_evidence,
+            'client_evidence': client_period.to_dict(),
+            'fixed_load_evidence': fixed_evidence,
             'variacion': f'Ajuste_{alimentador}_{stamp}',
             'objetivo': {'kw': objetivo.kw, 'kvar': objetivo.kvar, 'medidor': objetivo.medidor,
                          'alimentador': alimentador, 'fecha': objetivo.fecha},
@@ -1621,7 +1730,11 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
         path.write_text(json.dumps(plan, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
         paths.append(str(path))
         ajustes.append({'feeder': alimentador, 'objetivo': plan['objetivo'],
-                        'n_clientes': len(clientes), 'n_kva_entrada': len(kva_entrada)})
+                        'n_clientes': len(clientes),
+                        'n_sed_fijas': len(fixed_evidence),
+                        'n_sed_escaladas_estimadas': max(0, len(kva_entrada) - len(fixed_evidence)),
+                        'n_kva_entrada': len(kva_entrada), 'periodo': period_evidence,
+                        'client_evidence': client_period.to_dict()})
     if not ajustes:
         raise UserError('Ningún alimentador tiene máxima: no hay objetivo. ' + ' '.join(avisos))
     feeders = [a['feeder'] for a in ajustes]
@@ -1633,6 +1746,10 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
     return {'token': token, 'project': project.strip(), 'feeder': primero['feeder'],
             'objetivo': primero['objetivo'], 'tolerancia': tolerancia,
             'n_clientes': primero['n_clientes'], 'n_kva_entrada': primero['n_kva_entrada'],
+            'n_sed_fijas': primero['n_sed_fijas'],
+            'n_sed_escaladas_estimadas': primero['n_sed_escaladas_estimadas'],
+            'periodo': primero['periodo'], 'client_evidence': primero['client_evidence'],
+            'source': plan['source'], 'project_binding': plan['project_binding'],
             'feeders': feeders, 'ajustes': ajustes, 'avisos': avisos}
 
 
