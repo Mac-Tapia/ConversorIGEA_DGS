@@ -52,12 +52,36 @@ SUMINISTROS = {'s': [['Suministro', 'Suministro Act', 'SED', 'RADIAL'], [11, 901
 
 @pytest.fixture()
 def client(tmp_path, monkeypatch):
+    from igea_dgs.demanda_medida import ClientPeriodEvidence
+    from igea_dgs.powerfactory_binding import PowerFactoryProjectBinding
+
     monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     guion = tmp_path / 'ajuste_falso.py'
     guion.write_text(GUION_FALSO, encoding='utf-8')
     monkeypatch.setattr(services, '_require_pf', lambda: (tmp_path, sys.executable))
     monkeypatch.setattr(services, '_script', lambda _nombre: guion)
     monkeypatch.setattr(services, 'pf_subprocess_env', lambda _d: None)
+    monkeypatch.setattr(
+        'igea_dgs.powerfactory_binding.require_project_binding',
+        lambda _ws, project, feeders: PowerFactoryProjectBinding(
+            project=project, folder='Conversor IGEA-DGS', source_run_id='legacy-test-run',
+            source_mode='txt', source_fingerprint='f' * 64, feeders=tuple(feeders),
+            dgs_sha256={f: 'd' * 64 for f in feeders}, native_inventory_sha256='n' * 64,
+            native_reread={'status': 'VERIFICADO_PERSISTENCIA'}, accepted_at=1.0,
+        ),
+    )
+    monkeypatch.setattr(
+        services, 'periodo_clientes_activo',
+        lambda ws: ClientPeriodEvidence(
+            status='CLIENT_PERIOD_VERIFIED' if ws.demanda.get('clientes') else 'NO_CLIENT_BOOK',
+            period='2026-07' if ws.demanda.get('clientes') else None,
+            file='clientes-prueba.xlsx' if ws.demanda.get('clientes') else None,
+            sheet='resumen', fingerprint='c' * 64 if ws.demanda.get('clientes') else None,
+            period_origin='fixture' if ws.demanda.get('clientes') else None,
+            warning=None if ws.demanda.get('clientes') else
+            'Sin libro de clientes importantes: todas las SED se escalan por kVA.',
+        ),
+    )
     with TestClient(create_app(tmp_path / 'web', host='127.0.0.1')) as c:
         yield c
 
@@ -90,7 +114,7 @@ def test_objetivo_es_la_maxima_de_la_tabla(client):
     assert body['objetivo']['kw'] == 107.0 and body['objetivo']['kvar'] == 10.0
     assert body['tolerancia'] == 0.01
     assert any('suministros' in a for a in body['avisos'])
-    assert any('entrada' in a.lower() for a in body['avisos'])
+    assert any('fuente canónica activa' in a.lower() for a in body['avisos'])
 
 
 def test_varios_medidores_hay_que_elegir(client):

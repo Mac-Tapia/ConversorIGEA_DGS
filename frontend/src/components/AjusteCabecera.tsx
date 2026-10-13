@@ -94,6 +94,30 @@ export function AjusteCabecera({ project, maxima, feeders }: { project: string; 
         <small className="muted">Orden: {grupos.map((g, i) => `${g.alimentador} (${medidores[i]})`).join(' → ')}. Si uno falla,
           se sigue con el siguiente.</small>
       )}
+      {plan && (
+        <div className="callout">
+          <strong>Contrato de datos demostrado antes de ajustar</strong>
+          <div className="kv-grid">
+            <span>Ejecución fuente</span><code>{plan.source.source_run_id}</code>
+            <span>Huella fuente</span><code>{plan.source.source_fingerprint.slice(0, 12)}…</code>
+            <span>Proyecto nativo vinculado</span>
+            <span>{plan.project_binding.native_reread.status} · {plan.project_binding.native_inventory_sha256.slice(0, 12)}…</span>
+            {(plan.ajustes ?? []).map((x) => (
+              <div style={{ display: 'contents' }} key={x.feeder}>
+                <span>{x.feeder}: período</span>
+                <span>{x.periodo.status === 'CLIENT_PERIOD_MATCH'
+                  ? `${x.periodo.maxima} = ${x.client_evidence.file} (${x.periodo.clientes})`
+                  : `${x.periodo.maxima ?? '—'} · sin libro de clientes`}</span>
+                <span>{x.feeder}: reparto</span>
+                <span>{x.n_sed_fijas} SED fija(s) · {x.n_sed_escaladas_estimadas} SED escalada(s)</span>
+              </div>
+            ))}
+          </div>
+          {plan.client_evidence.fingerprint && (
+            <small className="muted">Huella del libro de clientes: {plan.client_evidence.fingerprint}</small>
+          )}
+        </div>
+      )}
       {plan && plan.avisos.map((a) => <p key={a} className="alert alert-warn">{a}</p>)}
       {informes.map((inf, i) => (
         inf.no_empezado
@@ -174,7 +198,8 @@ function InformeAjuste({ inf, report, cancelado }: { inf: AjusteInforme; report:
         <div className="table-wrap table-short">
           <table className="table">
             <thead><tr><th>SED</th><th>Demanda de</th><th className="num">kVA</th><th className="num">kW antes</th>
-              <th className="num">kW {simular ? 'sin pérdidas' : 'después'}</th><th className="num">kVAR {simular ? 'sin pérdidas' : 'después'}</th></tr></thead>
+              <th className="num">kW {simular ? 'sin pérdidas' : 'después'}</th><th className="num">kVAR {simular ? 'sin pérdidas' : 'después'}</th>
+              <th className="num">FP</th></tr></thead>
             <tbody>{filas.map((x) => (
               <tr key={x.sed}>
                 <td className="strong">{x.sed}</td>
@@ -184,6 +209,8 @@ function InformeAjuste({ inf, report, cancelado }: { inf: AjusteInforme; report:
                 <td className="num">{fmtNum(x.antes.kw, 1)}</td>
                 <td className="num">{fmtNum(x.despues.kw, 1)}</td>
                 <td className="num">{fmtNum(x.despues.kvar, 1)}</td>
+                <td className="num" title={(x.derivaciones ?? []).map((d) => `${d.cliente}: ${d.metodo}`).join('; ') || undefined}>
+                  {fmtNum(x.despues.fp, 4)}</td>
               </tr>
             ))}</tbody>
           </table>

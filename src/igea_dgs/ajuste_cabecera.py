@@ -76,6 +76,12 @@ class Fija:
     kvar: float = 0.0
     clientes: list[str] = field(default_factory=list)
     avisos: list[str] = field(default_factory=list)
+    derivaciones: list[dict[str, Any]] = field(default_factory=list)
+
+    @property
+    def fp(self) -> float:
+        apparent = math.hypot(self.kw, self.kvar)
+        return abs(self.kw) / apparent if apparent else 1.0
 
 
 def fijas_de(cruzados: Iterable[Mapping[str, Any]], objetivo: Objetivo) -> dict[str, Fija]:
@@ -96,13 +102,25 @@ def fijas_de(cruzados: Iterable[Mapping[str, Any]], objetivo: Objetivo) -> dict[
         codigo = str(c.get('codigo') or '')
         if ea is None or eri is None or ea == 0:
             tan = objetivo.tan_phi
+            metodo = 'FP_CABECERA_FALLBACK'
             f.avisos.append(f'{codigo}: sin EA o ERI; su kVAR con el FP del objetivo '
                             f'({objetivo.fp:.3f}).')
         else:
             tan = eri / ea
+            metodo = 'ERI/EA'
+        q_kvar = kw * tan
         f.kw += kw
-        f.kvar += kw * tan
+        f.kvar += q_kvar
         f.clientes.append(codigo)
+        f.derivaciones.append({
+            'cliente': codigo,
+            'p_kw': kw,
+            'q_kvar': q_kvar,
+            'fp': abs(kw) / math.hypot(kw, q_kvar) if (kw or q_kvar) else 1.0,
+            'metodo': metodo,
+            'ea': ea,
+            'eri': eri,
+        })
     return {f.sed: f for f in por_clave.values()}
 
 
