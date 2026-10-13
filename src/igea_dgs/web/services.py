@@ -824,6 +824,19 @@ def powerfactory_flow(ws: Workspace, ctx: JobContext, feeders: list[str]) -> dic
             ctx.log(f"  ERROR columna Alimentador: {metadata.get('error')}")
         proyecto = _proyecto_importado(acceptance_path)
         if proyecto:
+            binding_payload = acceptance.get('project_binding')
+            if rc == 0 and binding_payload:
+                from ..powerfactory_binding import (
+                    PowerFactoryProjectBinding, record_project_binding,
+                )
+
+                binding = PowerFactoryProjectBinding.from_dict(binding_payload)
+                if binding.project != proyecto:
+                    raise UserError(
+                        'PROJECT_BINDING_PROJECT_MISMATCH: el informe nativo no '
+                        'corresponde al proyecto importado.'
+                    )
+                record_project_binding(ws, binding)
             with ws.lock:
                 ws.pf_projects[feeder] = proyecto
                 ws.save()
@@ -1150,6 +1163,17 @@ def pf_projects(ws: Workspace, ctx: JobContext) -> dict:
     with ws.lock:
         ws.pf_inventory = result
         ws.save()
+    from ..powerfactory_binding import ProjectBindingError, require_project_binding
+
+    for project in result.get('projects') or []:
+        path = str(project.get('path') or project.get('name') or '')
+        project['binding'] = ws.pf_project_bindings.get(path)
+        try:
+            require_project_binding(ws, path, project.get('feeders') or [])
+        except ProjectBindingError as exc:
+            project['binding_blocked_reason'] = str(exc)
+        else:
+            project['binding_blocked_reason'] = None
     return result
 
 

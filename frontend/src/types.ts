@@ -409,6 +409,30 @@ export interface PfProject {
    *  lecturas anteriores a la spec 005 no la traen: entonces vale el nombre. */
   path?: string;
   feeders: string[];
+  native_inventory_sha256?: string | null;
+  native_reread_at?: number | null;
+  native_warning?: string | null;
+  binding?: PowerFactoryProjectBinding | null;
+  binding_blocked_reason?: string | null;
+}
+
+export interface PowerFactoryProjectBinding {
+  schema_version: 'igea-dgs-powerfactory-project-binding-v1';
+  project: string;
+  folder: string;
+  source_run_id: string;
+  source_mode: InputMode;
+  source_fingerprint: string;
+  feeders: string[];
+  dgs_sha256: Record<string, string>;
+  native_inventory_sha256: string;
+  native_reread: {
+    status: string;
+    recorded_at?: number;
+    effective_reread?: Record<string, unknown>;
+  };
+  accepted_at: number;
+  binding_sha256: string;
 }
 
 /** Resultado de «Leer proyectos de DIgSILENT». */

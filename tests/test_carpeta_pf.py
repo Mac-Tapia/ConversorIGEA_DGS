@@ -522,10 +522,12 @@ def test_leer_solo_la_carpeta():
     _intocable(app.usuario.CreateObject('IntFolder', 'Otra'))
     datos = _mod_proyectos().leer(app, 'Red')
     assert datos['folder'] == 'Red' and datos['exists'] is True and datos['aviso'] is None
-    assert datos['projects'] == [
-        {'name': 'PE104', 'path': '2026-10/PE104', 'feeders': ['A', 'B']},
-        {'name': 'SI213', 'path': 'SI213', 'feeders': ['SI213']},
+    assert [(p['name'], p['path'], p['feeders']) for p in datos['projects']] == [
+        ('PE104', '2026-10/PE104', ['A', 'B']),
+        ('SI213', 'SI213', ['SI213']),
     ]
+    assert all(p['native_inventory_sha256'] for p in datos['projects'])
+    assert all(p['native_reread_at'] for p in datos['projects'])
 
 
 def test_leer_sin_carpeta():

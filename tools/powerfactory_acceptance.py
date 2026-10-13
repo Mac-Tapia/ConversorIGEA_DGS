@@ -99,6 +99,15 @@ def verify_source_contract(
         'source_fingerprint': source_fingerprint,
         'dgs_sha256': digest,
         'metadata_file': metadata_path.name,
+        'feeders': sorted({
+            str(item.get('feeder') or '').strip()
+            for item in (payload.get('assignments') or [])
+            if str(item.get('feeder') or '').strip()
+        } | {
+            str(item.get('feeder') or '').strip()
+            for item in (payload.get('capacitor_banks') or [])
+            if str(item.get('feeder') or '').strip()
+        }),
     }
     reconstruction = payload.get('reconstruction')
     if reconstruction is not None or reconstruction_report_path is not None:
@@ -149,6 +158,41 @@ def attach_source_evidence(report: dict[str, Any], evidence: dict[str, Any]) -> 
     }
     report['load_intervention'] = load_intervention_from_attempts(loop.get('attempts') or [])
     report['convergence_classification'] = classify_convergence(report)
+
+
+def attach_project_binding(
+    report: dict[str, Any],
+    app: Any,
+    evidence: dict[str, Any],
+    import_info: dict[str, Any] | None,
+    *,
+    fallback_feeder: str,
+) -> None:
+    """Adjunta la identidad nativa solo tras una aceptación satisfactoria."""
+    if not report.get('powerfactory_runtime_pass') or not import_info or not import_info.get('ok'):
+        return
+    if evidence.get('status') != 'VERIFIED_BEFORE_MUTATION':
+        return
+    from igea_dgs.powerfactory_binding import PowerFactoryProjectBinding, native_inventory_sha256
+
+    feeders = tuple(evidence.get('feeders') or [fallback_feeder])
+    binding = PowerFactoryProjectBinding(
+        project=str(import_info.get('project_path') or import_info.get('project_name') or ''),
+        folder=str(import_info.get('project_folder') or ''),
+        source_run_id=str(evidence['source_run_id']),
+        source_mode=str(evidence['source_mode']),
+        source_fingerprint=str(evidence['source_fingerprint']),
+        feeders=feeders,
+        dgs_sha256={fallback_feeder: str(evidence['dgs_sha256'])},
+        native_inventory_sha256=native_inventory_sha256(app, feeders),
+        native_reread={
+            'status': 'VERIFICADO_PERSISTENCIA',
+            'recorded_at': time.time(),
+            'effective_reread': dict(report.get('effective_reread') or {}),
+            'capacitor_reread': dict(report.get('capacitor_reread') or {}),
+        },
+    )
+    report['project_binding'] = binding.as_dict()
 
 
 # ---------------------------------------------------------------------------
@@ -2925,6 +2969,9 @@ def main(argv=None) -> int:
             f'{feeder}_powerfactory_acceptance.txt'
         )
         attach_source_evidence(report, source_evidence)
+        attach_project_binding(
+            report, app, source_evidence, import_info, fallback_feeder=feeder,
+        )
         _write_reports(report, json_path, txt_path)
         print(f"PowerFactory runtime PASS: {report['powerfactory_runtime_pass']}")
         print(f"Convergence PASS: {report.get('convergence_pass')}")
@@ -3007,6 +3054,9 @@ def main(argv=None) -> int:
         f'{feeder}_powerfactory_acceptance.txt'
     )
     attach_source_evidence(report, source_evidence)
+    attach_project_binding(
+        report, app, source_evidence, import_info, fallback_feeder=feeder,
+    )
     _write_reports(report, json_path, txt_path)
 
     print(f"PowerFactory runtime PASS: {report['powerfactory_runtime_pass']}")

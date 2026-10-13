@@ -13,7 +13,9 @@ Los alimentadores son los ``ElmFeeder`` de los datos de red del proyecto: el DGS
 uno por alimentador, también en una red unida. Un proyecto sin ``ElmFeeder`` (hecho a
 mano) muestra sus ``ElmNet``.
 
-No crea ni modifica nada, tampoco la carpeta si falta, y no activa ningún proyecto.
+No crea ni modifica nada, tampoco la carpeta si falta. Para demostrar que el proyecto
+sigue siendo el aceptado, activa cada proyecto solo durante su lectura, calcula una
+huella sin P/Q operativo y restaura al final el proyecto que estaba activo.
 Se ejecuta con el Python que exige la API.
 
     python tools/pf_proyectos.py --output-json proyectos.json [--carpeta NOMBRE]
@@ -27,6 +29,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
@@ -35,6 +38,7 @@ from igea_dgs.carpeta_pf import (  # noqa: E402
     CarpetaError, alimentadores_de, buscar_carpeta, nombre_de_perfil, proyectos_de,
     validar_nombre,
 )
+from igea_dgs.powerfactory_binding import native_inventory_sha256  # noqa: E402
 
 
 def leer(app, carpeta: str) -> dict:
@@ -45,6 +49,7 @@ def leer(app, carpeta: str) -> dict:
                 'aviso': (f'No existe la carpeta {carpeta!r} en DIgSILENT; se crea al '
                           'importar el primer DGS.')}
     proyectos = []
+    anterior = app.GetActiveProject()
     for ruta, prj in proyectos_de(destino):
         try:
             feeders, nota = alimentadores_de(prj)
@@ -53,8 +58,30 @@ def leer(app, carpeta: str) -> dict:
             feeders, nota = [], None
         if nota:
             print(f'  AVISO {nota}')
-        proyectos.append({'name': prj.loc_name, 'path': ruta, 'feeders': feeders})
+        native_hash = None
+        native_reread_at = None
+        native_warning = None
+        try:
+            if app.GetActiveProject() is not prj:
+                rc = prj.Activate()
+                if rc not in (None, 0):
+                    raise RuntimeError(f'Activate devolvió {rc}')
+            native_hash = native_inventory_sha256(app, feeders)
+            native_reread_at = time.time()
+        except Exception as exc:
+            native_warning = f'No se pudo releer la identidad nativa: {exc}'
+        proyectos.append({
+            'name': prj.loc_name, 'path': ruta, 'feeders': feeders,
+            'native_inventory_sha256': native_hash,
+            'native_reread_at': native_reread_at,
+            'native_warning': native_warning,
+        })
         print(f'  {ruta}: {len(feeders)} alimentador(es)')
+    active = app.GetActiveProject()
+    if active is not None and active is not anterior:
+        active.Deactivate()
+    if anterior is not None and app.GetActiveProject() is not anterior:
+        anterior.Activate()
     return {'folder': carpeta, 'exists': True, 'aviso': None, 'projects': proyectos}
 
 

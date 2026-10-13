@@ -130,6 +130,7 @@ export function CargasTab() {
   // distintas son dos proyectos (spec 005, RF-16).
   const ruta = (p: PfProject) => p.path ?? p.name;
   const current = projects.find((p) => ruta(p) === project) ?? null;
+  const bindingBlocked = Boolean(current && (!current.binding || current.binding_blocked_reason));
   // RF-4: filtrar por parte de la ruta; el elegido sigue en la lista aunque no coincida.
   const q = buscaProyecto.trim().toLowerCase();
   const filtrados = projects.filter((p) => !q || ruta(p).toLowerCase().includes(q) || ruta(p) === project);
@@ -256,8 +257,27 @@ export function CargasTab() {
             Carpeta «{inventario.folder}»{projects.length ? '' : ': sin proyectos todavía'}.
           </small>
         )}
+        {current?.binding && !current.binding_blocked_reason ? (
+          <div className="callout">
+            <strong>Proyecto vinculado y relectura identificada</strong>
+            <div className="kv-grid">
+              <span>Ejecución fuente</span><code>{current.binding.source_run_id}</code>
+              <span>Huella fuente</span><code>{current.binding.source_fingerprint.slice(0, 12)}…</code>
+              <span>Alimentadores</span><span>{current.binding.feeders.join(', ')}</span>
+              <span>Última relectura nativa</span>
+              <span>{current.binding.native_reread.status} · {current.binding.native_inventory_sha256.slice(0, 12)}…
+                {current.native_reread_at ? ` · ${new Date(current.native_reread_at * 1000).toLocaleString('es-PE')}` : ''}</span>
+            </div>
+            {current.native_warning && <small className="alert alert-warn">{current.native_warning}</small>}
+          </div>
+        ) : current ? (
+          <small className="alert alert-warn">
+            {current.binding_blocked_reason || 'PROJECT_BINDING_MISSING: importe y acepte este proyecto desde la ejecución fuente activa.'}
+          </small>
+        ) : null}
       </div>
 
+      <fieldset disabled={bindingBlocked} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
       <div className="step-box">
         <h3>2 · Alimentadores y calibración{current ? ` de ${current.name}` : ''}</h3>
         {!current ? <p className="muted">Elija un proyecto en el paso 1.</p> : <>
@@ -383,6 +403,7 @@ export function CargasTab() {
             <TransferenciaPF project={project} feeders={order} />
           </>}
       </div>
+      </fieldset>
 
       {form && (
         <Modal title="Una carga nueva" onClose={() => setForm(false)} actions={<>
