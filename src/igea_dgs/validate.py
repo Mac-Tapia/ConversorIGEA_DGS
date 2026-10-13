@@ -96,6 +96,11 @@ def validate_dgs(
     graphic_errors: list[str] = []
 
     required = ['General','ElmNet','ElmTerm','TypLne','ElmLne','ElmLod','ElmXnet','StaCubic','StaSwitch']
+    expected_shunts = [bank for bank in model.capacitors
+                       if bank.kvar_per_step is not None and bank.total_kvar is not None
+                       and bank.node_id in model.nodes]
+    if expected_shunts:
+        required.append('ElmShnt')
     if geography is not None:
         required += ['IntGrf','IntGrfcon','IntGrfnet']
 
@@ -132,6 +137,7 @@ def validate_dgs(
     line_rows = tables['ElmLne']['rows_dict']
     load_rows = tables['ElmLod']['rows_dict']
     source_rows = tables['ElmXnet']['rows_dict']
+    shunt_rows = tables.get('ElmShnt', {}).get('rows_dict', [])
     cubic_rows = tables['StaCubic']['rows_dict']
     switch_rows = tables['StaSwitch']['rows_dict']
 
@@ -150,6 +156,9 @@ def validate_dgs(
     fuentes_esperadas = len(getattr(getattr(model, 'combined', None), 'feeders', None) or ()) or 1
     if len(source_rows) != fuentes_esperadas:
         structural_errors.append(f'ElmXnet count {len(source_rows)} != expected {fuentes_esperadas}')
+    if len(shunt_rows) != len(expected_shunts):
+        structural_errors.append(
+            f'ElmShnt count {len(shunt_rows)} != complete source banks {len(expected_shunts)}')
     if len(switch_rows) != len(model.devices):
         structural_errors.append(f'StaSwitch count {len(switch_rows)} != source devices {len(model.devices)}')
 
@@ -175,6 +184,7 @@ def validate_dgs(
     line_fids = {r.get('FID','') for r in line_rows}
     load_fids = {r.get('FID','') for r in load_rows}
     source_fids = {r.get('FID','') for r in source_rows}
+    shunt_fids = {r.get('FID','') for r in shunt_rows}
     sed_fids = {r.get('FID','') for r in substat_rows}
     cubic_fids = {r.get('FID','') for r in cubic_rows}
 
@@ -204,6 +214,9 @@ def validate_dgs(
         fold = r.get('fold_id', '')
         if fold not in allowed_load_folds:
             connection_errors.append(f'ElmLod {r.get("FID")} fold_id {fold} is not ElmNet/ElmSubstat')
+    for r in shunt_rows:
+        if r.get('fold_id', '') not in network_fids:
+            connection_errors.append(f'ElmShnt {r.get("FID")} fold_id is not ElmNet')
 
     for r in line_rows:
         if r.get('typ_id','') not in type_fids:
@@ -211,7 +224,7 @@ def validate_dgs(
 
     tr2_fids = {r.get('FID', '') for r in tr2_rows}
     coup_fids = {r.get('FID', '') for r in coup_rows}
-    valid_objects = line_fids | load_fids | source_fids | tr2_fids | coup_fids
+    valid_objects = line_fids | load_fids | source_fids | shunt_fids | tr2_fids | coup_fids
     obj_cubics: dict[str, list[dict[str, str]]] = defaultdict(list)
     for r in cubic_rows:
         if r.get('fold_id','') not in term_fids:
@@ -238,6 +251,10 @@ def validate_dgs(
     for fid in sorted(source_fids):
         if len(obj_cubics.get(fid, [])) != 1:
             connection_errors.append(f'ElmXnet {fid} has {len(obj_cubics.get(fid, []))} cubicles, expected 1')
+    for fid in sorted(shunt_fids):
+        if len(obj_cubics.get(fid, [])) != 1:
+            connection_errors.append(
+                f'ElmShnt {fid} has {len(obj_cubics.get(fid, []))} cubicles, expected 1')
 
     for r in switch_rows:
         if r.get('fold_id','') not in cubic_fids:

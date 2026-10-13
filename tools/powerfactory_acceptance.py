@@ -129,11 +129,16 @@ def attach_source_evidence(report: dict[str, Any], evidence: dict[str, Any]) -> 
     metadata = report.get('feeder_metadata') or {}
     loop = report.get('load_flow_loop') or {}
     final_load_flow = loop.get('final_load_flow') or {}
+    capacitor_reread = report.get('capacitor_reread') or {}
     report['effective_reread'] = {
         'feeder_metadata': bool(metadata.get('reread_verified')),
         'feeder_objects': metadata.get('reread_count', 0),
         'comldf_executed': bool((report.get('load_flow') or {}).get('requested')),
         'comldf_valid': final_load_flow.get('ldf_valid', (report.get('load_flow') or {}).get('ldf_valid')),
+        'capacitor_banks': (
+            not capacitor_reread.get('expected')
+            or capacitor_reread.get('status') == 'VERIFICADO_PERSISTENCIA'
+        ),
     }
     report['rollback'] = metadata.get('rollback') or {
         'status': 'NOT_REQUIRED_ISOLATED_PROJECT',
@@ -1840,6 +1845,85 @@ def _one_terminal_cubicle(obj: Any):
     return None
 
 
+def reread_capacitors(app: Any, expected: list[dict[str, Any]]) -> dict[str, Any]:
+    """Relee bancos efectivos y compara atributos/terminal sin modificar el proyecto."""
+    objects = list(_calc_objects(app, '*.ElmShnt'))
+    by_identity: dict[tuple[str, str, str], list[Any]] = {}
+    for obj in objects:
+        terminal = _terminal_of_cubicle(_one_terminal_cubicle(obj))
+        try:
+            parent = obj.GetParent()
+        except Exception:
+            parent = None
+        grid = _name(parent) if _classname(parent) == 'ElmNet' else ''
+        if not grid and _classname(parent) == 'ElmSubstat':
+            try:
+                grandparent = parent.GetParent()
+            except Exception:
+                grandparent = None
+            grid = _name(grandparent) if _classname(grandparent) == 'ElmNet' else ''
+        key = (_name(obj), _name(terminal) if terminal is not None else '', grid)
+        by_identity.setdefault(key, []).append(obj)
+
+    fields = ('ctech', 'shtype', 'qcapn', 'ncapx', 'ncapa', 'ushnm', 'outserv')
+    banks: list[dict[str, Any]] = []
+    mismatches: list[str] = []
+    for wanted in expected:
+        identity = (
+            str(wanted.get('loc_name') or ''),
+            str(wanted.get('terminal') or ''),
+            str(wanted.get('grid') or ''),
+        )
+        candidates = by_identity.get(identity, [])
+        if not identity[2]:
+            candidates = [obj for (name, terminal, _grid), values in by_identity.items()
+                          if (name, terminal) == identity[:2] for obj in values]
+        if len(candidates) != 1:
+            mismatches.append(
+                f'{identity[0]} [{identity[1]}/{identity[2]}]: '
+                f'esperado un ElmShnt, encontrados {len(candidates)}'
+            )
+            continue
+        obj = candidates[0]
+        actual = {'loc_name': identity[0], 'terminal': identity[1], 'grid': identity[2]}
+        for field in fields:
+            actual[field] = _attr(obj, field)
+            expected_value = wanted.get(field)
+            try:
+                equal = math.isclose(
+                    float(actual[field]), float(expected_value), rel_tol=1e-9, abs_tol=1e-9,
+                )
+            except (TypeError, ValueError):
+                equal = actual[field] == expected_value
+            if not equal:
+                mismatches.append(
+                    f'{identity[0]} [{identity[1]}] {field}: '
+                    f'esperado {expected_value!r}, nativo {actual[field]!r}'
+                )
+        try:
+            actual['total_native_mvar'] = round(
+                float(actual['qcapn']) * int(actual['ncapa']), 12,
+            )
+        except (TypeError, ValueError):
+            actual['total_native_mvar'] = None
+        actual['feeder'] = wanted.get('feeder')
+        actual['network_id'] = wanted.get('network_id')
+        actual['phases'] = wanted.get('phases')
+        banks.append(actual)
+    return {
+        'status': 'BLOQUEADO_PERSISTENCIA' if mismatches else 'VERIFICADO_PERSISTENCIA',
+        'expected': len(expected),
+        'reread': len(banks),
+        'banks': banks,
+        'mismatches': mismatches,
+        'rollback': {
+            'status': 'NOT_REQUIRED_READ_ONLY',
+            'attempted': False,
+            'reason': 'La relectura no modifica el proyecto.',
+        },
+    }
+
+
 def _full_name(obj: Any) -> str:
     try:
         return str(obj.GetFullName())
@@ -2023,6 +2107,11 @@ def run_acceptance(
     errors.extend(equipment_errors)
     equipment_pass = not equipment_errors
 
+    capacitor_reread = reread_capacitors(app, list(manifest.get('capacitor_banks') or []))
+    if capacitor_reread['status'] == 'BLOQUEADO_PERSISTENCIA':
+        errors.extend(capacitor_reread['mismatches'])
+        equipment_pass = False
+
     # GPS / scaled location
     terms = _contents(net, '*.ElmTerm')
     lines = _contents(net, '*.ElmLne')
@@ -2194,6 +2283,7 @@ def run_acceptance(
         'location_scale_pass': location_scale_pass,
         'connectivity_pass': connectivity_pass,
         'equipment_pass': equipment_pass,
+        'capacitor_reread': capacitor_reread,
         'expected_counts': expected,
         'actual_counts': actual,
         'gps': {
@@ -2743,6 +2833,17 @@ def main(argv=None) -> int:
     if manifest_path is None:
         # Import+flow only (no geography acceptance).
         feeder = Path(args.import_dgs).stem if args.import_dgs else 'unknown'
+        capacitor_contract: dict[str, Any] = {}
+        if args.feeder_metadata and Path(args.feeder_metadata).is_file():
+            try:
+                capacitor_contract = json.loads(
+                    Path(args.feeder_metadata).read_text(encoding='utf-8')
+                )
+            except (OSError, ValueError):
+                capacitor_contract = {}
+        capacitor_reread = reread_capacitors(
+            app, list(capacitor_contract.get('capacitor_banks') or []),
+        )
         report = {
             'feeder': feeder,
             'powerfactory_runtime_pass': bool(flow_only_report and flow_only_report.get('ok')),
@@ -2764,6 +2865,7 @@ def main(argv=None) -> int:
             'study_scenario': study_info,
             'scenario_ensure': scenario_ensure,
             'feeder_metadata': feeder_metadata_report,
+            'capacitor_reread': capacitor_reread,
             'dgs_persist': dgs_persist_report,
             'errors': list((flow_only_report or {}).get('errors') or []),
             'warnings': list((flow_only_report or {}).get('warnings') or []),
@@ -2773,6 +2875,9 @@ def main(argv=None) -> int:
             'connectivity': {'valid_lines': 0, 'total_lines': 0},
             'diagram': {'object_name': None, 'render_evidence': None},
         }
+        if capacitor_reread['status'] == 'BLOQUEADO_PERSISTENCIA':
+            report['errors'].extend(capacitor_reread['mismatches'])
+            report['powerfactory_runtime_pass'] = False
         if dgs_persist_report and not dgs_persist_report.get('ok'):
             report['errors'].extend(dgs_persist_report.get('errors') or [])
             report['powerfactory_runtime_pass'] = False

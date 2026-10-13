@@ -282,6 +282,40 @@ export interface Conversion {
   counts: Record<string, number> | null;
   converted_at: number | null;
   output_name: string | null;
+  capacitor_banks: CapacitorBankEvidence[];
+  capacitor_issues: Array<{
+    capacitor_id: string;
+    feeder: string;
+    network_id: string;
+    node_id: string;
+    codes: string[];
+  }>;
+  capacitor_reread: CapacitorReread | null;
+}
+
+export interface CapacitorBankEvidence {
+  loc_name: string;
+  terminal: string;
+  feeder: string;
+  network_id: string;
+  grid: string;
+  phases: string;
+  ctech: number;
+  shtype: number;
+  qcapn: number;
+  ncapx: number;
+  ncapa: number;
+  ushnm: number;
+  outserv: number;
+  total_source_mvar: number;
+}
+
+export interface CapacitorReread {
+  status: 'VERIFICADO_PERSISTENCIA' | 'BLOQUEADO_PERSISTENCIA';
+  expected: number;
+  reread: number;
+  banks: Array<CapacitorBankEvidence & { total_native_mvar: number | null }>;
+  mismatches: string[];
 }
 
 export interface FeederRow {

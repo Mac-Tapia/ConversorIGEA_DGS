@@ -52,6 +52,9 @@ class DgsManifest:
     source_cubic_fid: str
     line_cubic_fids: dict[tuple[str, int], str]
     switch_fids: dict[tuple[str, str, str], str]
+    shunt_fids: dict[tuple[str, str], str] = field(default_factory=dict)
+    capacitor_banks: tuple[dict, ...] = ()
+    capacitor_issues: tuple[dict, ...] = ()
     source_fids: dict[str, str] = field(default_factory=dict)
     diagram_fid: str = ''
     graphic_fids: dict[str, str] = field(default_factory=dict)
@@ -123,6 +126,16 @@ USO_POR_CLASE = {'SWITCH': 'dct', 'SECTIONALIZER': 'swt'}
 def _make_row(schema: DgsSchema, table: str, **values) -> str:
     fields = schema.fields(table)
     return '  ' + ';'.join(_fmt(values.get(field, '')) for field in fields)
+
+
+def _capacitor_technology(phases: str) -> tuple[int, int]:
+    """ElmShnt.ctech/ilcph from source phase occupancy (DGS enum)."""
+    letters = decode_phase(phases)
+    if letters == 'ABC':
+        return 1, 0  # 3PH-'Y'
+    if len(letters) == 2:
+        return 3, {'A': 0, 'B': 1, 'C': 2}.get(letters[0], 0)  # 2PH-'Y'
+    return 6, {'A': 0, 'B': 1, 'C': 2}.get(letters[:1], 0)  # 1PH PH-N
 
 
 # node_id → [(neighbor_id, Line), ...]. Built once per model and threaded through
@@ -787,6 +800,30 @@ def write_dgs(
     line_fids = {line.section_id: reg.new() for line in sorted(model.lines, key=lambda x: x.section_id)}
     load_keys = sorted((load.section_id, load.device_number) for load in model.loads)
     load_fids = {key: reg.new() for key in load_keys}
+    complete_capacitors = sorted(
+        (
+            bank for bank in model.capacitors
+            if bank.kvar_per_step is not None and bank.total_kvar is not None
+            and bank.node_id in node_fids
+        ),
+        key=lambda bank: (bank.network_id, bank.capacitor_id, bank.node_id),
+    )
+    shunt_fids = {
+        (bank.network_id, bank.capacitor_id): reg.new() for bank in complete_capacitors
+    }
+    capacitor_issues: list[dict] = []
+    for bank in model.capacitors:
+        codes = list(bank.issues)
+        if bank.node_id not in node_fids and 'MISSING_CAPACITOR_NODE' not in codes:
+            codes.append('MISSING_CAPACITOR_NODE')
+        if codes:
+            capacitor_issues.append({
+                'capacitor_id': bank.capacitor_id,
+                'feeder': bank.feeder,
+                'network_id': bank.network_id,
+                'node_id': bank.node_id,
+                'codes': codes,
+            })
     sed_keys = sorted((sed.section_id, sed.device_number) for sed in model.seds)
     sed_fids = {key: reg.new() for key in sed_keys}
     # NA205 triangle interior: MT bus + BT bus + Tr2 + coupler to feeder node.
@@ -995,6 +1032,38 @@ def write_dgs(
             qlinir=qr, qlinis=qs, qlinit=qt,
         ))
 
+    capacitor_banks: list[dict] = []
+    for bank in complete_capacitors:
+        fid = shunt_fids[(bank.network_id, bank.capacitor_id)]
+        ctech, ilcph = _capacitor_technology(bank.phases)
+        nominal_kv = bank.nominal_kv or kv_de(bank.node_id)
+        values = {
+            'loc_name': _loc_name(bank.capacitor_id),
+            'terminal': _loc_name(bank.node_id),
+            'feeder': bank.feeder,
+            'network_id': bank.network_id,
+            'grid': model.name,
+            'ctech': ctech,
+            'shtype': 2,
+            'qcapn': bank.kvar_per_step / 1000.0,
+            'ncapx': bank.steps,
+            'ncapa': bank.steps,
+            'ushnm': nominal_kv,
+            'outserv': 0 if bank.in_service and not fuera(bank.node_id) else 1,
+            'total_source_mvar': bank.total_kvar / 1000.0,
+            'phases': bank.phases,
+        }
+        capacitor_banks.append(values)
+        rows['ElmShnt'].append(_make_row(
+            schema, 'ElmShnt', FID=fid, OP='C', loc_name=values['loc_name'],
+            fold_id=network_fid, systp=0, ctech=ctech, shtype=2,
+            ushnm=nominal_kv, mode_inp='DEF', qcapn=values['qcapn'],
+            ncapx=bank.steps, ncapa=bank.steps, outserv=values['outserv'],
+            qrean=0, qtotn=values['total_source_mvar'], tandc=0, fres=0,
+            greaf0=0, grea=0, bcap=0, xrea=0, rrea=0, gparac=0,
+            iswitch=0, imldc='V', iQorient=0, ilcph=ilcph,
+        ))
+
     # Una red unida tiene una fuente por alimentador: cada uno viene de su propia barra
     # de subestación. Un modelo de un alimentador tiene una sola, y el bucle recorre esa.
     fuentes = [(model.name, model.source_node, source_fid)]
@@ -1037,6 +1106,14 @@ def write_dgs(
             schema, 'StaCubic', FID=cubic_fid, OP='C',
             loc_name=_loc_name(f'Cub_{load.device_number}'), fold_id=fold_term,
             obj_bus=0, obj_id=load_fids[key], it2p1=0, it2p2=1, it2p3=2,
+        ))
+
+    for bank in complete_capacitors:
+        fid = shunt_fids[(bank.network_id, bank.capacitor_id)]
+        rows['StaCubic'].append(_make_row(
+            schema, 'StaCubic', FID=reg.new(), OP='C',
+            loc_name=_loc_name(f'Cub_{bank.capacitor_id}'), fold_id=node_fids[bank.node_id],
+            obj_bus=0, obj_id=fid, it2p1=0, it2p2=1, it2p3=2,
         ))
 
     for key in sed_keys:
@@ -1381,6 +1458,8 @@ def write_dgs(
         'General', 'ElmNet', 'ElmTerm', 'TypLne', 'ElmLne', 'ElmLod', 'ElmXnet',
         'StaCubic', 'StaSwitch', 'ElmFeeder',
     }
+    if complete_capacitors:
+        used_tables.add('ElmShnt')
     if sed_keys:
         used_tables |= {'ElmSubstat', 'ElmTr2', 'TypTr2', 'ElmCoup'}
     if rows['ElmCoup']:
@@ -1410,6 +1489,9 @@ def write_dgs(
         source_cubic_fid=source_cubic_fid,
         line_cubic_fids=line_cubic_fids,
         switch_fids=switch_fids,
+        shunt_fids=shunt_fids,
+        capacitor_banks=tuple(capacitor_banks),
+        capacitor_issues=tuple(capacitor_issues),
         source_fids=source_fids,
         diagram_fid=diagram_fid,
         graphic_fids=graphic_fids,
