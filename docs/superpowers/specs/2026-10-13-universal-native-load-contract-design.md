@@ -103,18 +103,18 @@ El modelo del conversor incorporará `CapacitorBank` con, como mínimo:
 TXT, MDB y VNR-GIS mapearán sus campos a esa estructura. El puente VNR no podrá
 descartar los objetos `CanonicalModel.capacitors`.
 
-### 5.2 Regla nominal aprobada
+### 5.2 Potencia exclusivamente de origen
 
-Cuando el perfil o catálogo aplicable declare el módulo estándar solicitado:
+No existe potencia nominal predeterminada, normalizada ni inferida para un banco.
+El sistema conserva exactamente la capacidad que declare la fuente original, junto
+con sus fases, tecnología de conexión y escalones. La potencia instalada total solo
+se calcula como `qcapn × ncapa` cuando ambos valores proceden de la fuente.
 
-- banco monofásico: `qcapn = 0.100 Mvar` por escalón;
-- banco trifásico: `ctech = 1` y `qcapn = 0.300 Mvar` por escalón;
-- potencia instalada total: `qcapn × ncapa`.
-
-La regla expresa 100 kVAR por fase. No se aplicará a ciegas a un banco cuya ficha
-original declare otra potencia: en ese caso manda la evidencia original y el
-dictamen muestra la discrepancia. Esta condición evita convertir una corrección de
-CA101 en un valor fijo peligroso para cualquier distribuidora.
+Si la fuente identifica un banco pero no declara una capacidad válida, el objeto se
+conserva en el inventario como incompleto, no se crea un `ElmShnt` con una potencia
+inventada y el dictamen registra `MISSING_CAPACITOR_CAPACITY`. La conversión puede
+conservar el resto de la red, pero no se declara completa la aceptación nativa del
+banco ni los estudios que dependan de su compensación reactiva.
 
 ### 5.3 DGS, metadata y relectura
 
@@ -280,7 +280,8 @@ el frontend.
 ### Automatizadas
 
 - Una prueba parametrizada `txt/mdb/vnr` verifica el mismo dictamen canónico.
-- Bancos monofásicos de 100 kVAR y trifásicos de 300 kVAR.
+- Bancos monofásicos y trifásicos con distintas capacidades de origen conservadas
+  exactamente, y banco sin capacidad que nunca recibe un valor sintético.
 - Conservación VNR → modelo común → DGS → sidecar.
 - Carga sin alimentador, banco ambiguo y FID duplicado.
 - Mes coincidente, distinto y desconocido.
