@@ -4,6 +4,8 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
+import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -697,3 +699,66 @@ def test_front_elige_el_proyecto_por_su_ruta():
     assert ".split('/').join(' / ')" in tab
     assert 'inventario?.aviso' in tab
     assert 'path?: string' in (RAIZ / 'frontend' / 'src' / 'types.ts').read_text(encoding='utf-8')
+
+
+# ---------------------------------------------------------------------------
+# PowerFactory que no responde al leer los proyectos (RF-21)
+# ---------------------------------------------------------------------------
+
+
+def _contexto_real():
+    """``JobContext`` de verdad, con el Registro en una lista."""
+    from igea_dgs.web.jobs import Job, JobContext
+
+    registro: list[str] = []
+    job = Job(kind='pf_projects', title='prueba', workspace_id='w', lane='powerfactory',
+              fn=lambda _ctx: None)
+    ctx = JobContext(job, lambda _w, tipo, datos: registro.append(datos.get('text', ''))
+                     if tipo == 'log' else None)
+    return ctx, registro
+
+
+def test_guion_mudo_se_termina_al_pasar_el_arranque():
+    """005:RF-21 — un guion que no escribe nada en el tiempo de arranque se termina."""
+    from igea_dgs.web.jobs import TIEMPO_AGOTADO
+
+    ctx, registro = _contexto_real()
+    inicio = time.monotonic()
+    rc = ctx.run_process([sys.executable, '-c', 'import time; time.sleep(60)'],
+                         limite_arranque_s=1)
+    assert rc == TIEMPO_AGOTADO
+    assert time.monotonic() - inicio < 30
+    assert any('no escribió nada' in linea for linea in registro)
+
+
+def test_guion_que_ya_escribio_no_se_corta_por_el_arranque():
+    """005:RF-21 — el límite de arranque no corta un guion que ya respondió y sigue leyendo."""
+    ctx, _registro = _contexto_real()
+    rc = ctx.run_process(
+        [sys.executable, '-c', 'import time; print("conectado", flush=True); time.sleep(2)'],
+        limite_arranque_s=1)
+    assert rc == 0
+
+
+def test_guion_no_espera_la_consola():
+    """005:RF-21 — el guion no hereda la consola: una pregunta recibe EOF en vez de colgarse."""
+    ctx, registro = _contexto_real()
+    rc = ctx.run_process([sys.executable, '-c', 'input("¿continuar? ")'], limite_s=30)
+    assert rc != 0
+    assert any('EOFError' in linea for linea in registro)
+
+
+def test_web_avisa_si_powerfactory_no_responde(web):
+    """005:RF-21 — la web pide el límite de arranque y, si se agota, avisa sin colgarse."""
+    from igea_dgs.web.jobs import TIEMPO_AGOTADO
+
+    opciones: list[dict] = []
+
+    def colgado(orden, **kw):
+        opciones.append(kw)
+        return TIEMPO_AGOTADO
+
+    web.ctx.run_process = colgado
+    with pytest.raises(web.services.UserError, match='PowerFactory no responde'):
+        web.services.pf_projects(web.ws, web.ctx)
+    assert opciones[0]['limite_arranque_s'] == web.services.LIMITE_ARRANQUE_PF_S

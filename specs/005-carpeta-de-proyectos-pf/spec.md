@@ -82,6 +82,14 @@ Proyectos anteriores
 
 - RF-20: EL SISTEMA dejará donde están los proyectos importados antes de esta spec.
 
+PowerFactory que no responde (añadido el 2026-10-14)
+
+- RF-21: SI al leer los proyectos PowerFactory no entrega el usuario de DIgSILENT en el
+  tiempo de arranque, ENTONCES EL SISTEMA terminará la lectura, liberará el carril de
+  PowerFactory y dirá que PowerFactory no responde y qué revisar. Motivo: tras reiniciar
+  la web con sesiones cortadas, la lectura se quedó parada en `GetCurrentUser` sin
+  escribir nada y dejó deshabilitados todos los botones de DIgSILENT.
+
 ## Requisitos no funcionales
 
 - Idioma y estilo de la constitución (P10).

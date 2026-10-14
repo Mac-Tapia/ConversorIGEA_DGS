@@ -170,6 +170,7 @@ class JobContext:
     def run_process(
         self, cmd: list[str], *, env: dict[str, str] | None = None, cwd: str | None = None,
         cancel_file: Path | str | None = None, limite_s: float | None = None,
+        limite_arranque_s: float | None = None,
     ) -> int:
         """Ejecuta un guion volcando su salida al Registro **línea a línea**.
 
@@ -188,6 +189,12 @@ class JobContext:
         Con ``limite_s``, un guion que pasa ese tiempo se termina y se devuelve
         ``TIEMPO_AGOTADO``: un estudio de contingencias colgado cuesta ese estudio, no el
         trabajo entero (spec 011, RF-39, RF-40).
+
+        Con ``limite_arranque_s``, un guion que en ese tiempo no ha escrito ni una línea se
+        termina y se devuelve ``TIEMPO_AGOTADO`` (spec 005, RF-21). El 2026-10-14, tras
+        reiniciar la web con sesiones de PowerFactory cortadas, «Leer proyectos» se quedó
+        parado en ``GetCurrentUser`` sin escribir nada, y el carril de PowerFactory —con
+        todos sus botones— quedó ocupado sin aviso hasta matar el proceso a mano.
         """
         import os
 
@@ -197,14 +204,18 @@ class JobContext:
         full_env.setdefault('PYTHONUNBUFFERED', '1')
         full_env.setdefault('PYTHONIOENCODING', 'utf-8')
         self.log('$ ' + ' '.join(cmd))
+        # Sin consola de entrada: una pregunta del guion o de PowerFactory recibe EOF y
+        # falla, en vez de esperar una respuesta que nadie puede dar desde la web.
         proc = subprocess.Popen(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
-            encoding='utf-8', errors='replace', env=full_env, cwd=cwd,
+            cmd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            text=True, encoding='utf-8', errors='replace', env=full_env, cwd=cwd,
         )
+        primera_linea = threading.Event()
 
         def pump() -> None:
             assert proc.stdout is not None
             for line in proc.stdout:
+                primera_linea.set()
                 self.log(line.rstrip('\r\n'))
 
         reader = threading.Thread(target=pump, daemon=True)
@@ -212,8 +223,13 @@ class JobContext:
         avisado = False
         inicio = time.monotonic()
         while proc.poll() is None:
-            if limite_s is not None and time.monotonic() - inicio > limite_s:
-                self.log(f'El guion pasó su límite de {limite_s:g} s: se termina.')
+            transcurrido = time.monotonic() - inicio
+            sin_arrancar = (limite_arranque_s is not None and not primera_linea.is_set()
+                            and transcurrido > limite_arranque_s)
+            if sin_arrancar or (limite_s is not None and transcurrido > limite_s):
+                self.log(f'El guion no escribió nada en {limite_arranque_s:g} s: se termina.'
+                         if sin_arrancar else
+                         f'El guion pasó su límite de {limite_s:g} s: se termina.')
                 proc.terminate()
                 try:
                     proc.wait(timeout=10)

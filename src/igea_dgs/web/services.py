@@ -1163,8 +1163,16 @@ def _proyecto_importado(informe: Path) -> str | None:
 # ---------------------------------------------------------------------------
 
 
+#: Tiempo para que ``pf_proyectos.py`` escriba su primera línea, que sale cuando
+#: PowerFactory ya ha dado el usuario (spec 005, RF-21). El arranque normal medido el
+#: 2026-10-14 fue de unos 20 s; el margen cubre un equipo frío o la licencia lenta.
+LIMITE_ARRANQUE_PF_S = 180.0
+
+
 def pf_projects(ws: Workspace, ctx: JobContext) -> dict:
     """Proyectos de la carpeta de importación de PowerFactory y sus alimentadores (spec 005)."""
+    from .jobs import TIEMPO_AGOTADO
+
     carpeta = carpeta_pf()
     pf_dir, interpreter = _require_pf()
     out = ws.out_dir / 'pf_proyectos.json'
@@ -1174,7 +1182,14 @@ def pf_projects(ws: Workspace, ctx: JobContext) -> dict:
         [str(interpreter), str(_script('pf_proyectos.py')), '--output-json', str(out),
          '--carpeta', carpeta],
         env=pf_subprocess_env(pf_dir), cwd=str(project_root()),
+        limite_arranque_s=LIMITE_ARRANQUE_PF_S,
     )
+    if rc == TIEMPO_AGOTADO:
+        raise UserError(
+            f'PowerFactory no responde: en {LIMITE_ARRANQUE_PF_S:g} s no entregó el usuario '
+            'de DIgSILENT. Suele quedar así tras cortar una sesión anterior. Cierre '
+            'PowerFactory si está abierto, compruebe que no queda ningún python.exe de '
+            'DIgSILENT y vuelva a leer los proyectos.')
     if rc == 3:
         raise UserError('No se pudo conectar con PowerFactory. Ábralo y reintente.')
     if rc != 0 or not out.is_file():

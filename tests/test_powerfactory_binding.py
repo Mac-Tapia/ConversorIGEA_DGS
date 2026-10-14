@@ -161,6 +161,27 @@ def test_different_source_fingerprint_is_still_rejected(tmp_path):
         require_project_binding(ws, 'Oct/IN111', ['IN111'])
 
 
+def test_tras_reiniciar_la_web_el_vinculo_usa_el_manifiesto_activo(tmp_path, monkeypatch):
+    """014:RF-17 — reiniciar la web no bloquea el proyecto: sin la fuente en memoria, la
+    identidad sale del manifiesto persistido de la ejecución activa (CA101, 2026-10-14)."""
+    from igea_dgs.powerfactory_binding import (
+        ProjectBindingError, record_project_binding, require_project_binding,
+    )
+
+    ws = _workspace(tmp_path)
+    record_project_binding(ws, _binding(source_run_id='run-historical'))
+    # Lo que queda tras reiniciar: solo ``active_run_id`` sobrevive en workspace.json.
+    ws.loaded_run_id = ws.loaded_source_mode = ws.loaded_source_fingerprint = None
+    ws.dataset = None
+    manifiesto = SimpleNamespace(run_id='run-active', mode='txt', fingerprint='f' * 64)
+    monkeypatch.setattr(ws, 'active_run', lambda: manifiesto)
+    assert require_project_binding(ws, 'Oct/IN111', ['IN111']).project == 'Oct/IN111'
+
+    manifiesto.fingerprint = 'e' * 64
+    with pytest.raises(ProjectBindingError, match='PROJECT_BINDING_SOURCE_MISMATCH'):
+        require_project_binding(ws, 'Oct/IN111', ['IN111'])
+
+
 def test_changed_native_topology_is_reported_but_does_not_block(tmp_path):
     """014:RF-17 — una modificación manual del modelo nativo se lista como aviso y no
     bloquea: el vínculo sigue siendo válido."""
