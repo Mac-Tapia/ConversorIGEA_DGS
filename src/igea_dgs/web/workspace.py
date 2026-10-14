@@ -125,6 +125,10 @@ class Workspace:
     pf_projects: dict[str, str] = field(default_factory=dict)
     # Contrato fuente → DGS → proyecto nativo, indexado por ruta de proyecto.
     pf_project_bindings: dict[str, dict[str, Any]] = field(default_factory=dict)
+    # Spec 015: demanda que dejó la última calibración de cada alimentador, por proyecto.
+    # La calibración ya no deja variación en DIgSILENT donde leerla, y sin ella no se ve
+    # qué cambió el operador a mano (014:RF-10).
+    calibraciones: dict[str, dict[str, Any]] = field(default_factory=dict)
     # Último inventario leído directamente de PowerFactory; su identidad invalida
     # planes de carga revisados si el proyecto cambia antes de aplicar.
     pf_inventory: dict[str, Any] = field(default_factory=dict)
@@ -192,6 +196,7 @@ class Workspace:
             'groups': self.groups,
             'pf_projects': self.pf_projects,
             'pf_project_bindings': self.pf_project_bindings,
+            'calibraciones': self.calibraciones,
             'pf_inventory': self.pf_inventory,
             'active_run_id': self.active_run_id,
             'demanda': self.demanda,
@@ -221,6 +226,7 @@ class Workspace:
         ws.groups = dict(data.get('groups') or {})
         ws.pf_projects = dict(data.get('pf_projects') or {})
         ws.pf_project_bindings = dict(data.get('pf_project_bindings') or {})
+        ws.calibraciones = dict(data.get('calibraciones') or {})
         ws.pf_inventory = dict(data.get('pf_inventory') or {})
         # Igual que las entradas: un libro o una carpeta que ya no está no se restaura.
         ws.demanda = {tipo: meta for tipo, meta in (data.get('demanda') or {}).items()

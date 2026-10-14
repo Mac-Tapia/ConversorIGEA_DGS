@@ -7,6 +7,7 @@ prueba qué manda la web (objetivo, clientes, kVA de respaldo) y que corre en el
 from __future__ import annotations
 
 import json
+from pathlib import Path
 import sys
 
 import pytest
@@ -33,6 +34,9 @@ a = p.parse_args()
 plan = json.loads(Path(a.plan).read_text(encoding='utf-8'))
 informe = {'modo': 'simular' if a.simular else 'aplicar', 'cuadrado': not a.simular,
            'recibido': plan}
+if not a.simular:
+    informe.update(sed=[{'sed': 'S1', 'despues': {'kw': 40.0, 'kvar': 9.0}}],
+                   escenario='Sin proyecto')
 if plan['project'] == 'SIN_KVA':
     informe = {'error': '1 SED sin potencia instalada: S9. Corríjalas antes de ajustar.'}
 if plan['project'] == 'FALLA_A1' and plan['feeder'] == 'A1':
@@ -61,6 +65,9 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setattr(services, '_require_pf', lambda: (tmp_path, sys.executable))
     monkeypatch.setattr(services, '_script', lambda _nombre: guion)
     monkeypatch.setattr(services, 'pf_subprocess_env', lambda _d: None)
+    # Spec 015: el «Caso base» de cada alimentador, verificado.
+    monkeypatch.setattr('igea_dgs.powerfactory_binding.caso_base_verificado',
+                        lambda _ws, _project, _feeders: {})
     monkeypatch.setattr(
         'igea_dgs.powerfactory_binding.require_project_binding',
         lambda _ws, project, feeders: PowerFactoryProjectBinding(
@@ -357,3 +364,51 @@ def test_cancelar_no_empieza_otro_alimentador(client):
     a1, a2 = estado['result']['informes']
     assert a1['cancelado'] and 'recibido' in a1, 'A1 terminó con su informe'
     assert a2['no_empezado'] and a2['feeder'] == 'A2'
+
+
+def test_sin_caso_base_verificado_no_se_calibra(client, monkeypatch):
+    """015:RF-13, 015:RF-15 — un alimentador sin «Caso base» verificado no se calibra; con
+    varios, los demás sí, y el que queda fuera se dice."""
+    monkeypatch.setattr('igea_dgs.powerfactory_binding.caso_base_verificado',
+                        lambda _ws, _project, feeders: {f: ['flujo'] for f in feeders if f == 'A1'})
+    wid, job = _maxima(client)
+    r = _plan(client, wid, job)
+    assert r.status_code == 400 and 'no está verificado' in r.json()['detail']
+    wid, job = _maxima_dos(client)
+    r = _plan(client, wid, job, medidores=['M3', 'M1'])
+    assert r.status_code == 200, r.text
+    assert r.json()['feeders'] == ['A2']
+    assert any('A1' in a and 'no está verificado' in a for a in r.json()['avisos'])
+
+
+def test_la_calibracion_aplicada_queda_en_el_espacio_y_viaja_en_el_plan(client):
+    """014:RF-10 / 015:RF-26 — la demanda que dejó la calibración se guarda en el espacio y
+    el plan siguiente la manda al guion, para ver lo que el operador cambió a mano."""
+    wid, job = _maxima(client)
+    token = _plan(client, wid, job).json()['token']
+    estado = esperar_trabajo(client, client.post(
+        f'/api/workspaces/{wid}/demanda/ajuste/{token}/aplicar').json())
+    assert estado['status'] == 'done', estado
+    ws = client.app.state.store.get(wid)
+    guardada = ws.calibraciones['P']['A1']
+    assert guardada['sed'] == {'S1': [40.0, 9.0]} and guardada['escenario'] == 'Sin proyecto'
+    token = _plan(client, wid, job).json()['token']
+    plan = json.loads(Path(ws.cargas_planes[token]['path']).read_text(encoding='utf-8'))
+    assert plan['ultima_calibracion']['sed'] == {'S1': [40.0, 9.0]}
+    assert plan['caso_base_sin_verificar'] == {}
+
+
+@pytest.mark.parametrize('proyecto', ['P', 'FALLA_A1'])
+def test_calibrar_no_cambia_el_estado_del_caso_base(client, proyecto):
+    """015:RF-22, 015:RF-24 — ni una calibración que cuadra ni una que falla cambian el
+    estado verificado del «Caso base» en el vínculo."""
+    wid, job = _maxima(client)
+    ws = client.app.state.store.get(wid)
+    vinculo = {'project': proyecto, 'feeders': ['A1'], 'native_reread': {
+        'status': 'VERIFICADO_PERSISTENCIA',
+        'caso_base': {'A1': {'status': 'VERIFICADO', 'fallos': []}}}}
+    ws.pf_project_bindings[proyecto] = json.loads(json.dumps(vinculo))
+    token = _plan(client, wid, job, project=proyecto).json()['token']
+    esperar_trabajo(client, client.post(
+        f'/api/workspaces/{wid}/demanda/ajuste/{token}/aplicar').json())
+    assert ws.pf_project_bindings[proyecto] == vinculo

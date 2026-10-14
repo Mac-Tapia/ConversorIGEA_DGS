@@ -829,6 +829,16 @@ def create_app(
         return submit(ws, 'pf_projects', 'Leer proyectos de DIgSILENT',
                       lambda ctx: services.pf_projects(ws, ctx), lane='powerfactory')
 
+    # Spec 015, RF-1 a RF-14: verificar el «Caso base» del proyecto, repetible tras corregir.
+    @app.post('/api/workspaces/{wid}/powerfactory/caso-base', status_code=202)
+    def pf_verificar_base(wid: str, body: VerificarIn) -> dict:
+        ws = ws_or_404(wid)
+        if not body.project.strip():
+            raise HTTPException(422, 'Elija el proyecto de DIgSILENT.')
+        return submit(ws, 'pf_verificar_base', f'Verificar el Caso base · {body.project.strip()}',
+                      lambda ctx: services.pf_verificar_base(ws, ctx, body.project, body.feeders),
+                      lane='powerfactory')
+
     # Spec 008, RF-18: el flujo de carga con lo activo, antes de integrar cargas.
     @app.post('/api/workspaces/{wid}/powerfactory/verificar', status_code=202)
     def pf_verificar(wid: str, body: VerificarIn) -> dict:

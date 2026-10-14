@@ -853,19 +853,9 @@ def powerfactory_flow(ws: Workspace, ctx: JobContext, feeders: list[str]) -> dic
             ctx.log(f"  ERROR columna Alimentador: {metadata.get('error')}")
         proyecto = _proyecto_importado(acceptance_path)
         if proyecto:
-            binding_payload = acceptance.get('project_binding')
-            if rc == 0 and binding_payload:
-                from ..powerfactory_binding import (
-                    PowerFactoryProjectBinding, record_project_binding,
-                )
-
-                binding = PowerFactoryProjectBinding.from_dict(binding_payload)
-                if binding.project != proyecto:
-                    raise UserError(
-                        'PROJECT_BINDING_PROJECT_MISMATCH: el informe nativo no '
-                        'corresponde al proyecto importado.'
-                    )
-                record_project_binding(ws, binding)
+            # 015:RF-14: también si el «Caso base» no quedó verificado, para poder
+            # volver a verificarlo tras corregirlo en DIgSILENT.
+            _registrar_vinculo(ws, acceptance, proyecto)
             with ws.lock:
                 ws.pf_projects[feeder] = proyecto
                 ws.save()
@@ -1260,19 +1250,23 @@ def base_del_ajuste(ajuste: dict, project: str) -> dict:
         if inf.get('no_empezado'):
             base['excluidos'].append({'feeder': feeder, 'motivo': 'su ajuste no se empezó (cancelado)'})
             continue
-        if inf.get('error') or not inf.get('variacion'):
-            base['excluidos'].append({'feeder': feeder, 'motivo': inf.get('error') or 'su ajuste no dejó variación'})
+        if inf.get('error') or inf.get('calibracion_revertida'):
+            base['excluidos'].append({'feeder': feeder, 'motivo': inf.get('error')
+                                      or 'su calibración no superó la relectura y se revirtió'})
             continue
-        base['variaciones'].append(inf['variacion'])
+        # 015:RF-26: la calibración está en el escenario de «Sin proyecto»; un ajuste de
+        # antes de la spec 015 aún trae su variación, que se sigue nombrando.
+        if inf.get('variacion'):
+            base['variaciones'].append(inf['variacion'])
         base['feeders'].append(feeder)
         base['ajustes'].append({k: inf.get(k) for k in ('feeder', 'variacion', 'cuadrado', 'desvio',
                                                         'cabecera', 'objetivo', 'motivo')})
         for x in inf.get('sed') or []:
             despues = x.get('despues') or {}
             base['sed'][x['sed']] = {'kw': despues.get('kw'), 'kvar': despues.get('kvar'), 'feeder': feeder}
-    if not base['variaciones']:
-        raise UserError('Ningún alimentador del ajuste dejó variación: no hay base. Quite la base '
-                        'o vuelva a ajustar.')
+    if not base['feeders']:
+        raise UserError('Ningún alimentador del ajuste quedó calibrado: no hay base. Quite la '
+                        'base o vuelva a ajustar.')
     return base
 
 
@@ -1321,6 +1315,10 @@ def cargas_plan(
             carpeta=carpeta_pf(), base=base,
         )
         plan['native_action_context'] = action_context
+        # 015:RF-17: «Sin» y «Con proyecto» solo se crean con el «Caso base» verificado.
+        from ..powerfactory_binding import caso_base_verificado
+
+        plan['caso_base_sin_verificar'] = caso_base_verificado(ws, project, feeders)
     except LoadTemplateError as exc:
         raise UserError(str(exc)) from exc
     token = uuid.uuid4().hex[:12]
@@ -1824,7 +1822,7 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
 
     from ..ajuste_cabecera import AjusteError, fijas_de, objetivo_de
     from ..demanda_medida import periodo_de_fecha
-    from ..powerfactory_binding import PowerFactoryProjectBinding
+    from ..powerfactory_binding import PowerFactoryProjectBinding, caso_base_verificado
 
     if not project.strip():
         raise UserError('Elija el proyecto de DIgSILENT.')
@@ -1838,7 +1836,17 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
     token = uuid.uuid4().hex[:12]
     fuera = {str(c).strip() for c in desconectados or [] if str(c).strip()}
     ajustes, avisos, paths = [], [], []
+    # 015:RF-13, RF-15: sin «Caso base» verificado no se calibra; con varios, los demás sí.
+    sin_verificar = caso_base_verificado(ws, project, requested_feeders)
     for fila in filas:
+        alim_fila = str(fila.get('alimentador') or '').strip()
+        if alim_fila in sin_verificar:
+            motivo = (f"{alim_fila}: su «Caso base» no está verificado "
+                      f"({', '.join(sin_verificar[alim_fila])}); verifíquelo en el paso 1.1.")
+            if not varios:
+                raise UserError(motivo)
+            avisos.append(motivo + ' No se calibra.')
+            continue
         try:
             objetivo = objetivo_de(fila)
         except AjusteError as exc:
@@ -1919,6 +1927,9 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
                          'alimentador': alimentador, 'fecha': objetivo.fecha},
             'clientes': clientes, 'desconectados': apagados, 'kva_entrada': kva_entrada,
             'tolerancia': tolerancia,
+            'caso_base_sin_verificar': {},
+            # 014:RF-10: la demanda que dejó la última calibración, para ver lo manual.
+            'ultima_calibracion': (ws.calibraciones.get(project.strip()) or {}).get(alimentador),
         }
         nombre = (f'ajuste_cabecera_{token}.json' if not varios
                   else f'ajuste_cabecera_{token}_{len(paths) + 1}.json')
@@ -1932,7 +1943,7 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
                         'n_kva_entrada': len(kva_entrada), 'periodo': period_evidence,
                         'client_evidence': client_period.to_dict()})
     if not ajustes:
-        raise UserError('Ningún alimentador tiene máxima: no hay objetivo. ' + ' '.join(avisos))
+        raise UserError('Ningún alimentador se puede calibrar. ' + ' '.join(avisos))
     feeders = [a['feeder'] for a in ajustes]
     with ws.lock:
         ws.cargas_planes[token] = {'path': paths[0], 'paths': paths, 'project': project.strip(),
@@ -1948,6 +1959,24 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
             'source': plan['source'], 'project_binding': plan['project_binding'],
             'native_action_context': action_context,
             'feeders': feeders, 'ajustes': ajustes, 'avisos': avisos}
+
+
+def _guardar_calibracion(ws: Workspace, project: str, feeder: str, informe: dict) -> None:
+    """La demanda que dejó la calibración en cada SED (015, T8; 014:RF-10).
+
+    Sin error y sin revertir: una calibración que no quedó en el escenario no es con la
+    que comparar lo que cambie el operador.
+    """
+    if informe.get('error') or informe.get('calibracion_revertida') or not informe.get('sed'):
+        return
+    sed = {x['sed']: [(x.get('despues') or {}).get('kw'), (x.get('despues') or {}).get('kvar')]
+           for x in informe['sed'] if (x.get('despues') or {}).get('kw') is not None}
+    with ws.lock:
+        ws.calibraciones.setdefault(project.strip(), {})[feeder] = {
+            'nombre': f"la calibración del {informe.get('stamp') or time.strftime('%Y-%m-%d %H:%M')}",
+            'sed': sed, 'cuadrado': bool(informe.get('cuadrado')),
+            'escenario': informe.get('escenario'), 'recorded_at': time.time()}
+        ws.save()
 
 
 def ajuste_ejecutar(ws: Workspace, ctx: JobContext, token: str, *, simular: bool) -> dict:
@@ -2007,9 +2036,7 @@ def ajuste_ejecutar(ws: Workspace, ctx: JobContext, token: str, *, simular: bool
         elif not simular and not informe.get('cuadrado'):
             ctx.log(f"{feeder}: no cumple la tolerancia: {informe.get('motivo')}. Vea el diagnóstico.")
         if not simular:
-            from ..powerfactory_binding import promote_project_binding_after_calibration
-
-            promote_project_binding_after_calibration(ws, plan['project'], informe)
+            _guardar_calibracion(ws, plan['project'], feeder, informe)
         informes.append(informe)
         reports.append(report.name)
         codigos.append(rc)
@@ -2023,6 +2050,100 @@ def ajuste_ejecutar(ws: Workspace, ctx: JobContext, token: str, *, simular: bool
             'report': reports[0] if reports else '', 'reports': reports,
             'project': plan['project'], 'feeders': plan['feeders'],
             'informe': informes[0], 'informes': informes}
+
+
+def _registrar_vinculo(ws: Workspace, acceptance: dict, proyecto: str) -> None:
+    """Guarda el vínculo del informe de aceptación, con el estado de su «Caso base».
+
+    Se guarda aunque el «Caso base» no quede verificado (015:RF-14) y se fusiona con el
+    estado de los alimentadores verificados antes en el mismo proyecto.
+    """
+    binding_payload = acceptance.get('project_binding')
+    if not binding_payload:
+        return
+    from ..powerfactory_binding import (
+        PowerFactoryProjectBinding, fusionar_caso_base, record_project_binding,
+    )
+
+    binding = PowerFactoryProjectBinding.from_dict(binding_payload)
+    if binding.project != proyecto:
+        raise UserError('PROJECT_BINDING_PROJECT_MISMATCH: el informe nativo no '
+                        'corresponde al proyecto importado.')
+    record_project_binding(ws, fusionar_caso_base(ws.pf_project_bindings.get(proyecto), binding))
+
+
+def pf_verificar_base(ws: Workspace, ctx: JobContext, project: str, feeders: list[str]) -> dict:
+    """Verifica el «Caso base» de un proyecto ya importado (spec 015, RF-1 a RF-14).
+
+    Es la aceptación nativa sobre el proyecto existente, sin volver a importar: GPS y
+    trazado frente a la geografía del archivo original, conectividad, diagrama,
+    capacidades, y grupo de conexión y tensión de baja de los transformadores (que se
+    corrigen). Sin flujo: la convergencia se prueba al importar el DGS, con el oráculo
+    antes (RF-8, RF-39, RF-41). Se puede repetir tras corregir en DIgSILENT (RF-14). Uno a
+    uno: un alimentador sin verificar no impide verificar los demás.
+    """
+    project = project.strip()
+    if not project:
+        raise UserError('Elija el proyecto de DIgSILENT.')
+    bound = (ws.pf_project_bindings.get(project) or {}).get('feeders') or []
+    pedidos = list(dict.fromkeys(f.strip() for f in feeders if f.strip())) or list(bound)
+    if not pedidos:
+        raise UserError('Elija los alimentadores cuyo «Caso base» quiere verificar.')
+    jobs, missing = dgs_jobs(ws, pedidos)
+    if not jobs:
+        raise UserError('Para verificar hace falta el DGS convertido de cada alimentador. Faltan: '
+                        + ', '.join(f'{f}.dgs' for f in missing[:12]))
+    source_evidence = check_powerfactory_source_run(ws, [f for f, _d, _g in jobs])
+    pf_dir, interpreter = _require_pf()
+    script = _script('powerfactory_acceptance.py')
+    resultados: list[dict] = [{'feeder': f, 'status': 'NO_VERIFICADO',
+                               'motivo': 'no hay DGS convertido'} for f in missing]
+    for index, (feeder, dgs, geo) in enumerate(jobs, start=1):
+        ctx.check_cancel()
+        ctx.progress(index - 1, len(jobs), feeder)
+        if geo is None:
+            resultados.append({'feeder': feeder, 'status': 'NO_VERIFICADO',
+                               'motivo': 'convertido sin georreferenciación: no hay con qué '
+                                         'comparar el GPS (015:RF-1)'})
+            continue
+        report = ws.out_dir / f'{feeder}_caso_base.json'
+        report.unlink(missing_ok=True)
+        cmd = [str(interpreter), str(script), '--existing-project', project,
+               '--pf-carpeta', carpeta_pf(), '--source-dgs', str(dgs), '--manifest', str(geo),
+               '--feeder-metadata', str(dgs.with_name(f'{dgs.stem}_feeder_metadata.json')),
+               # 015:RF-39: sin flujo; la convergencia se probó al importar el DGS.
+               '--require-diagram',
+               '--source-run-id', source_evidence['source_run_id'],
+               '--source-mode', source_evidence['source_mode'],
+               '--source-fingerprint', source_evidence['source_fingerprint'],
+               '--output-json', str(report),
+               '--output-txt', str(report.with_suffix('.txt'))]
+        target = next((t for t in source_evidence['targets'] if t['target'] == feeder), {})
+        if target.get('reconstruction'):
+            cmd += ['--reconstruction-report', str(ws.out_dir / target['reconstruction']['report']),
+                    '--reconstruction-report-sha256', target['reconstruction']['report_sha256']]
+        ctx.log(f'[{index}/{len(jobs)}] Verificar el «Caso base» de {feeder} en {project}…')
+        rc = ctx.run_process(cmd, env=pf_subprocess_env(pf_dir), cwd=str(project_root()))
+        if rc == 3:
+            raise UserError('No se pudo conectar con DIgSILENT. Ábralo y reintente.')
+        try:
+            acceptance = json.loads(report.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            resultados.append({'feeder': feeder, 'status': 'NO_VERIFICADO',
+                               'motivo': f'el guion terminó con el código {rc} sin informe'})
+            continue
+        _registrar_vinculo(ws, acceptance, project)
+        caso = acceptance.get('caso_base') or {}
+        ctx.log(f"  {feeder}: {caso.get('status') or 'NO_VERIFICADO'}")
+        for aviso in caso.get('avisos') or []:
+            ctx.log(f'    {aviso}')
+        resultados.append({'feeder': feeder, 'status': caso.get('status') or 'NO_VERIFICADO',
+                           'comprobaciones': caso.get('comprobaciones') or {},
+                           'avisos': caso.get('avisos') or [],
+                           'transformadores_corregidos': caso.get('transformadores_corregidos') or [],
+                           'report': report.name})
+    ctx.progress(len(jobs), len(jobs), 'listo')
+    return {'project': project, 'feeders': resultados}
 
 
 def pf_verificar(ws: Workspace, ctx: JobContext, project: str, feeders: list[str]) -> dict:
@@ -2395,7 +2516,7 @@ def estudios_plan(ws: Workspace, project: str, feeders: list[str], estudios: lis
     pedidos = list(dict.fromkeys(feeders)) or list(base['feeders'])
     excluidos = [x for x in base['excluidos'] if x['feeder'] in pedidos]
     fuera = {x['feeder'] for x in excluidos}
-    excluidos += [{'feeder': f, 'motivo': 'no tiene variación de ajuste'}
+    excluidos += [{'feeder': f, 'motivo': 'no está calibrado'}
                   for f in pedidos if f not in base['feeders'] and f not in fuera]
     estudiables = [f for f in pedidos if f in base['feeders']]
     if not estudiables:
@@ -2445,10 +2566,14 @@ def estudios_ejecutar(ws: Workspace, ctx: JobContext, token: str) -> dict:
     plan = json.loads(Path(meta['path']).read_text(encoding='utf-8'))
     nombres = {'sin': SIN_PROYECTO, 'con': CON_PROYECTO}
     ctx.log(f"Proyecto de DIgSILENT: {plan['project']}  ·  preparar los casos")
+    from ..powerfactory_binding import caso_base_verificado
+
     _rc, casos, casos_report = _guion_pf(
         ws, ctx, 'casos_pf.py', {
             **{k: plan[k] for k in ('project', 'folder', 'feeders', 'base')},
             'native_action_context': plan['native_action_context'],
+            # 015:RF-17: sin «Caso base» verificado no se crean «Sin» ni «Con proyecto».
+            'caso_base_sin_verificar': caso_base_verificado(ws, plan['project'], plan['feeders']),
         },
         nombre='casos', cancelable=False)
     if casos.get('error'):

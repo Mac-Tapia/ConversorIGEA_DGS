@@ -168,25 +168,34 @@ def attach_project_binding(
     *,
     fallback_feeder: str,
 ) -> None:
-    """Adjunta identidad aceptada o, al adoptar, identidad previa a la calibración.
+    """Adjunta la identidad del proyecto y el estado de su «Caso base» (spec 015).
 
-    Un proyecto recién importado solo se vincula tras aceptar el flujo. Un proyecto
-    existente puede requerir precisamente el ajuste de cargas para converger: en ese
-    caso se vincula su identidad/topología verificada con estado pendiente, permitiendo
-    la calibración sin confundirla con aceptación operativa final.
+    El vínculo existe aunque el «Caso base» no quede verificado: es lo que deja volver a
+    verificarlo desde la web después de corregirlo en DIgSILENT (RF-14). Qué se puede
+    hacer con él lo decide ese estado: sin «Caso base» verificado no se calibra (RF-13).
+    Antes, un proyecto existente quedaba «pendiente de convergencia» y el ajuste lo daba
+    por bueno al cuadrar (CA101, 2026-10-13); ahora solo lo verifica la aceptación (RF-22).
+    La huella del inventario es la de este momento: lo que cambie después se avisa (RF-30).
     """
     if not import_info or not import_info.get('ok'):
-        return
-    existing_pending = bool(import_info.get('existing_project')) and not report.get(
-        'powerfactory_runtime_pass'
-    )
-    if not report.get('powerfactory_runtime_pass') and not existing_pending:
         return
     if evidence.get('status') != 'VERIFIED_BEFORE_MUTATION':
         return
     from igea_dgs.powerfactory_binding import PowerFactoryProjectBinding, native_inventory_evidence
 
     feeders = tuple(evidence.get('feeders') or [fallback_feeder])
+    caso = report.get('caso_base') or {'status': 'NO_VERIFICADO', 'comprobaciones': {},
+                                       'avisos': ['Sin la geografía del archivo original '
+                                                  'no se verifica (015:RF-1).']}
+    comprobaciones = {k: bool(v.get('pass')) for k, v in (caso.get('comprobaciones') or {}).items()}
+    estado = {
+        'status': caso.get('status') or 'NO_VERIFICADO',
+        'comprobaciones': comprobaciones,
+        'fallos': sorted(k for k, ok in comprobaciones.items() if not ok)
+        or ([] if caso.get('status') == 'VERIFICADO' else ['sin verificación completa']),
+        'recorded_at': time.time(),
+    }
+    verificado = estado['status'] == 'VERIFICADO'
     native_hash, native_manifest = native_inventory_evidence(app, feeders)
     binding = PowerFactoryProjectBinding(
         project=str(import_info.get('project_path') or import_info.get('project_name') or ''),
@@ -198,10 +207,8 @@ def attach_project_binding(
         dgs_sha256={fallback_feeder: str(evidence['dgs_sha256'])},
         native_inventory_sha256=native_hash,
         native_reread={
-            'status': (
-                'IDENTIDAD_VERIFICADA_PENDIENTE_CONVERGENCIA'
-                if existing_pending else 'VERIFICADO_PERSISTENCIA'
-            ),
+            'status': 'VERIFICADO_PERSISTENCIA' if verificado else 'CASO_BASE_NO_VERIFICADO',
+            'caso_base': {feeder: dict(estado) for feeder in feeders},
             'recorded_at': time.time(),
             'effective_reread': dict(report.get('effective_reread') or {}),
             'capacitor_reread': dict(report.get('capacitor_reread') or {}),
@@ -2245,6 +2252,288 @@ def inventory_network(net: Any) -> dict[str, int]:
 
 
 # ---------------------------------------------------------------------------
+# «Caso base» verificado (spec 015)
+# ---------------------------------------------------------------------------
+
+def _grupo_pf(tipo: Any) -> tuple[Any, Any, Any]:
+    from igea_dgs.capacidades import grupo_canonico
+
+    return grupo_canonico(_attr(tipo, 'tr2cn_h'), _attr(tipo, 'tr2cn_l'), _attr(tipo, 'nt2ag'))
+
+
+def _float_o_none(valor: Any) -> float | None:
+    try:
+        x = float(valor)
+    except (TypeError, ValueError):
+        return None
+    return x if math.isfinite(x) else None
+
+
+def leer_equipos_pf(trafos: list[Any], lineas: list[Any]) -> dict[str, dict]:
+    """Lo que DIgSILENT tiene de cada ``ElmTr2`` y ``ElmLne``, en la forma de ``capacidades``.
+
+    015:RF-6, RF-7, RF-32, RF-33: capacidad por las unidades en paralelo, tensión de baja y
+    grupo de conexión del tipo asignado. Sin tipo, todo queda sin definir.
+    """
+    from igea_dgs.capacidades import Linea, Trafo
+
+    out_tr = {}
+    for tr in trafos:
+        tipo = _attr(tr, 'typ_id')
+        u = int(_float_o_none(_attr(tr, 'ntnum')) or 1)
+        strn = _float_o_none(_attr(tipo, 'strn')) if tipo is not None else None
+        out_tr[_name(tr)] = Trafo(
+            strn * u if strn is not None else None,
+            _float_o_none(_attr(tipo, 'utrn_l')) if tipo is not None else None,
+            _grupo_pf(tipo) if tipo is not None else (None, None, None), u)
+    out_ln = {}
+    for ln in lineas:
+        tipo = _attr(ln, 'typ_id')
+        u = int(_float_o_none(_attr(ln, 'nlnum')) or 1)
+        ka = None
+        if tipo is not None:
+            aire = _float_o_none(_attr(tipo, 'InomAir'))
+            ka = (aire if int(_float_o_none(_attr(ln, 'inAir')) or 0) == 1 and aire
+                  else _float_o_none(_attr(tipo, 'sline')))
+        out_ln[_name(ln)] = Linea(ka * u if ka is not None else None, u)
+    return {'transformadores': out_tr, 'lineas': out_ln}
+
+
+def _usuarios_del_tipo(tipo: Any, todos: list[Any]) -> list[Any]:
+    return [t for t in todos if _attr(t, 'typ_id') is tipo]
+
+
+def corregir_trafos(a_corregir: list[dict], trafos: list[Any], todos: list[Any]) -> list[dict]:
+    """Grupo de conexión y tensión de baja de los transformadores de SED (015:RF-34 a RF-36).
+
+    El archivo original dice cuál es el valor, así que no se bloquea: se corrige y se
+    informa con el valor que tenía y el que deja (RF-35). Si el tipo lo usan también
+    transformadores que no necesitan la corrección —un ``TypTr2`` de 220 V compartido
+    con SED que sí son de 220 V—, se corrige una copia del tipo y solo se le asigna a los
+    que la necesitan (RF-36); la copia se reutiliza si ya existe, para que volver a
+    verificar no la duplique.
+    """
+    por_nombre = {_name(t): t for t in trafos}
+    hechas: list[dict] = []
+    grupos: dict[tuple, list[tuple[Any, dict]]] = {}
+    for item in a_corregir:
+        tr = por_nombre.get(item['nombre'])
+        tipo = _attr(tr, 'typ_id') if tr is not None else None
+        if tipo is None:
+            hechas.append({**item, 'corregido': False, 'motivo': 'sin tipo asignado'})
+            continue
+        destino = (
+            (item.get('kv_baja') or {}).get('archivo', _float_o_none(_attr(tipo, 'utrn_l'))),
+            tuple((item.get('grupo') or {}).get('archivo', _grupo_pf(tipo))),
+        )
+        grupos.setdefault((id(tipo), destino), []).append((tr, item))
+    for (_tid, (kv, grupo)), miembros in grupos.items():
+        tipo = _attr(miembros[0][0], 'typ_id')
+        usuarios = _usuarios_del_tipo(tipo, todos)
+        nombres = {_name(t) for t, _ in miembros}
+        propio = {_name(u) for u in usuarios} <= nombres
+        objetivo = tipo
+        if not propio:
+            letras = ''.join(str(x) for x in grupo if x is not None)
+            nombre = f"{_name(tipo)[:24]}_{round((kv or 0) * 1000)}V_{letras}"[:40]
+            carpeta = tipo.GetParent()
+            objetivo = next((t for t in _contents(carpeta, '*.TypTr2') if _name(t) == nombre), None)
+            if objetivo is None:
+                objetivo = carpeta.AddCopy(tipo, nombre)
+        if kv is not None:
+            _set_attr(objetivo, 'utrn_l', kv)
+        if grupo[0] is not None:
+            _set_attr(objetivo, 'tr2cn_h', grupo[0])
+        if grupo[1] is not None:
+            _set_attr(objetivo, 'tr2cn_l', grupo[1])
+        if grupo[2] is not None:
+            _set_attr(objetivo, 'nt2ag', grupo[2])
+        for tr, item in miembros:
+            if objetivo is not tipo:
+                _set_attr(tr, 'typ_id', objetivo)
+            hechas.append({**item, 'corregido': True, 'tipo': _name(objetivo),
+                           'tipo_copiado': objetivo is not tipo})
+    return sorted(hechas, key=lambda x: x['nombre'])
+
+
+def variaciones_activas(app: Any) -> list[str]:
+    try:
+        return sorted(_name(v) for v in (app.GetActiveNetworkVariations() or []))
+    except Exception:
+        return []
+
+
+def resumen_caso_base(report: dict[str, Any], equipos: dict[str, list],
+                      correcciones: list[dict], variaciones: list[str]) -> dict[str, Any]:
+    """Resultado por comprobación del «Caso base» (015:RF-9, RF-10).
+
+    Bloquean el GPS de las barras, el trazado de las líneas, la conectividad, el diagrama,
+    la capacidad definida y la convergencia. Una capacidad distinta, un equipo que el
+    archivo no trae, una corrección de transformador o una variación activa se avisan.
+    """
+    gps = report.get('gps') or {}
+    conn = report.get('connectivity') or {}
+    flujo = report.get('convergence_pass')
+
+    def comprobacion(ok, fallos=None):
+        return {'pass': bool(ok), 'fallos': list(fallos or [])}
+
+    comprobaciones: dict[str, dict[str, Any]] = {
+        'gps_barras': comprobacion(
+            not gps.get('coordinate_mismatches') and not gps.get('invalid_in_manifest'),
+            gps.get('invalid_names_sample')),
+        'trazado_lineas': comprobacion(not gps.get('line_path_mismatches'),
+                                       gps.get('line_path_mismatch_sample')),
+        'conectividad': comprobacion(report.get('connectivity_pass'),
+                                     [f"{conn.get('total_lines', 0) - conn.get('valid_lines', 0)} "
+                                      'líneas sin dos barras']
+                                     if conn.get('total_lines') != conn.get('valid_lines') else []),
+        'diagrama': comprobacion(report.get('geographic_diagram_pass')),
+        'capacidades': comprobacion(not equipos.get('sin_capacidad'), equipos.get('sin_capacidad')),
+    }
+    # 015:RF-8, RF-39: el flujo solo se prueba al importar el DGS.
+    if (report.get('load_flow') or {}).get('requested'):
+        comprobaciones['flujo'] = comprobacion(
+            flujo is True, [] if flujo is True else
+            ['el flujo no se ejecutó' if flujo is None else 'no converge'])
+    avisos = []
+    for x in equipos.get('capacidad_distinta') or []:
+        avisos.append(f"{x['nombre']}: {x['digsilent']} {x['magnitud']} en DIgSILENT y "
+                      f"{x['archivo']} en el archivo original (corrección del operador).")
+    for x in correcciones:
+        detalle = '; '.join(f"{k} {x[k]['digsilent']} → {x[k]['archivo']}"
+                            for k in ('kv_baja', 'grupo') if k in x)
+        avisos.append(f"{x['nombre']}: corregido con el archivo original ({detalle})"
+                      if x.get('corregido') else f"{x['nombre']}: no se pudo corregir "
+                      f"({x.get('motivo')})")
+    if gps.get('sin_coordenadas_en_archivo'):
+        avisos.append(f"{gps['sin_coordenadas_en_archivo']} barras sin coordenadas en el archivo "
+                      'original: no se compara su GPS.')
+    if variaciones:
+        avisos.append('Variaciones activas en el «Caso base»: ' + ', '.join(variaciones))
+    aviso = _aviso_convergencia((report.get('load_flow') or {}).get('ajuste_de_cargas'))
+    if aviso:
+        avisos.append(aviso)
+    # 015:RF-10, RF-38 a RF-40: el flujo se informa y no bloquea.
+    verificado = all(c['pass'] for k, c in comprobaciones.items() if k != 'flujo')
+    return {'status': 'VERIFICADO' if verificado else 'NO_VERIFICADO',
+            'comprobaciones': comprobaciones, 'transformadores_corregidos': correcciones,
+            'capacidad_distinta': list(equipos.get('capacidad_distinta') or []),
+            'no_en_archivo': list(equipos.get('no_en_archivo') or []),
+            'variaciones_activas': variaciones, 'avisos': avisos}
+
+
+def converger_caso_base(app: Any, *, minimo: float = 0.1, paso: float = 0.1,
+                        refinos: int = 4) -> dict[str, Any]:
+    """Reduce por igual la demanda del «Caso base» hasta el mayor factor que converge (015:RF-38).
+
+    CA101 (2026-10-14) no convergía con las cargas del archivo: ComLdf daba divergencia por
+    exceso de carga. El usuario no quiere que eso bloquee: se baja la demanda de todas las
+    cargas en servicio por el mismo factor, de 10 en 10 %, y se afina por bisección entre el
+    último que no convergió y el primero que sí; queda el mayor que converge, grabado en el
+    escenario del caso. Se escribe con ``escribir_carga`` (solo las entradas del modo de
+    cada carga), como el ajuste. Si no converge ni con ``minimo``, la demanda vuelve a la
+    original y solo se avisa (RF-40).
+    """
+    from cargas_pf import escribir_carga, potencia
+
+    cargas = [c for c in _loads(app) if not _is_out_of_service(c)]
+    originales = {id(c): potencia(c) for c in cargas}
+
+    def con(factor: float) -> dict[str, Any]:
+        for c in cargas:
+            p_kw, q_kvar = originales[id(c)]
+            escribir_carga(c, p_kw * factor / 1000.0, q_kvar * factor / 1000.0)
+        return execute_load_flow(app, relaxed=False)
+
+    intentos: list[dict[str, Any]] = []
+    bueno, malo = None, 1.0
+    factor = 1.0 - paso
+    while factor >= minimo - 1e-9:
+        ldf = con(factor)
+        intentos.append({'factor': round(factor, 4), 'converge': bool(ldf.get('pass'))})
+        if ldf.get('pass'):
+            bueno = factor
+            break
+        malo = factor
+        factor -= paso
+    if bueno is None:
+        con(1.0)
+        return {'pass': False, 'factor': None, 'cargas': len(cargas), 'intentos': intentos}
+    for _ in range(refinos):
+        medio = (bueno + malo) / 2.0
+        ldf = con(medio)
+        intentos.append({'factor': round(medio, 4), 'converge': bool(ldf.get('pass'))})
+        if ldf.get('pass'):
+            bueno = medio
+        else:
+            malo = medio
+    final = con(bueno)
+    esc = app.GetActiveScenario()
+    if esc is not None:
+        esc.Save()
+    return {'pass': bool(final.get('pass')), 'factor': bueno, 'cargas': len(cargas),
+            'intentos': intentos, 'escenario': _name(esc) if esc is not None else None,
+            'final_load_flow': final}
+
+
+def _aviso_convergencia(ajuste: dict[str, Any] | None) -> str | None:
+    if not ajuste:
+        return None
+    if ajuste.get('omitido'):
+        return ('El flujo del «Caso base» no converge con las cargas del archivo; «Sin proyecto» '
+                'ya existe y el «Caso base» no se toca (015:RF-39). No bloquea: «Sin proyecto» '
+                'calibra con su propio escenario.')
+    if ajuste.get('pass'):
+        return (f"El flujo del «Caso base» no convergía con las cargas del archivo: su demanda "
+                f"se redujo por igual al {ajuste['factor'] * 100:.1f} % en el escenario "
+                f"{ajuste.get('escenario') or 'activo'} y converge (015:RF-38).")
+    return ('El flujo del «Caso base» no converge ni reduciendo la demanda al 10 %: la demanda '
+            'queda la del archivo; vea el diagnóstico. No bloquea (015:RF-40).')
+
+
+def actualizar_flujo_caso_base(caso_base: dict[str, Any] | None, converge: bool | None,
+                               ajuste: dict[str, Any] | None = None) -> None:
+    """El flujo que corrió en la importación, en el resumen del «Caso base» (015:RF-8).
+
+    No bloquea (RF-38 a RF-40): el estado lo deciden las demás comprobaciones.
+    """
+    if not caso_base or 'comprobaciones' not in caso_base or not caso_base['comprobaciones']:
+        return
+    caso_base['comprobaciones']['flujo'] = {
+        'pass': converge is True,
+        'fallos': [] if converge is True else
+        ['el flujo no se ejecutó' if converge is None else 'no converge']}
+    aviso = _aviso_convergencia(ajuste)
+    if aviso and aviso not in caso_base.setdefault('avisos', []):
+        caso_base['avisos'].append(aviso)
+    caso_base['status'] = ('VERIFICADO' if all(c['pass'] for k, c in caso_base['comprobaciones'].items()
+                                               if k != 'flujo') else 'NO_VERIFICADO')
+
+
+def sin_proyecto_existe(app: Any) -> bool:
+    """Si ya está el caso «Sin proyecto» de la spec 011: entonces el base no se toca (015:RF-19)."""
+    try:
+        from casos_pf import casos_del_proyecto
+    except ImportError:
+        return False
+    return casos_del_proyecto(app).get('sin') is not None
+
+
+def activar_caso_base(app: Any) -> str | None:
+    """Activa el caso que el sistema marcó como «Caso base» (spec 011), si lo hay."""
+    try:
+        from casos_pf import casos_del_proyecto
+    except ImportError:
+        return None
+    caso = casos_del_proyecto(app).get('base')
+    if caso is None:
+        return None
+    caso.Activate()
+    return _name(caso)
+
+
+# ---------------------------------------------------------------------------
 # Acceptance core
 # ---------------------------------------------------------------------------
 
@@ -2258,6 +2547,8 @@ def run_acceptance(
     require_diagram: bool = False,
     export_wmf: str | None = None,
     require_equipment: bool = True,
+    source_dgs: Path | None = None,
+    corregir: bool = True,
 ) -> dict:
     manifest = json.loads(Path(manifest_path).read_text(encoding='utf-8'))
     feeder = manifest['feeder']
@@ -2287,6 +2578,8 @@ def run_acceptance(
             'load_flow': {'requested': run_load_flow, 'pass': None, 'return_code': None},
             'errors': errors,
             'warnings': warnings,
+            'caso_base': {'status': 'NO_VERIFICADO', 'comprobaciones': {},
+                          'avisos': [f'No está la red {feeder} en el proyecto.']},
         }
 
     actual = inventory_network(net)
@@ -2332,8 +2625,10 @@ def run_acceptance(
     loads = _contents(net, '*.ElmLod')
     sources = _contents(net, '*.ElmXnet')
 
+    expected_geo = {str(k)[:40]: v for k, v in manifest.get('nodes', {}).items()}
     valid_gps = 0
     bad_gps: list[str] = []
+    sin_coordenadas_en_archivo = 0
     for term in terms:
         lat = _attr(term, 'GPSlat')
         lon = _attr(term, 'GPSlon')
@@ -2344,13 +2639,15 @@ def run_acceptance(
             ok = False
         if ok:
             valid_gps += 1
+        elif expected_geo and _name(term) not in expected_geo:
+            # 015:RF-12: el archivo original no le da coordenadas; no hay con qué compararla.
+            sin_coordenadas_en_archivo += 1
         else:
             bad_gps.append(_name(term))
     gps_coverage = (100.0 * valid_gps / len(terms)) if terms else 0.0
-    if valid_gps != len(terms):
-        errors.append(f'{len(terms) - valid_gps} ElmTerm objects have invalid GPSlat/GPSlon')
+    if bad_gps:
+        errors.append(f'{len(bad_gps)} ElmTerm objects have invalid GPSlat/GPSlon')
 
-    expected_geo = {str(k)[:40]: v for k, v in manifest.get('nodes', {}).items()}
     if len(expected_geo) != len(manifest.get('nodes', {})):
         warnings.append(
             'Some source node names collide after 40-character DGS loc_name truncation; '
@@ -2376,7 +2673,7 @@ def run_acceptance(
             coordinate_mismatches += 1
     if coordinate_mismatches:
         errors.append(f'{coordinate_mismatches} ElmTerm GPS coordinates differ from the conversion manifest')
-    location_scale_pass = coordinate_mismatches == 0 and valid_gps == len(terms) and len(terms) > 0
+    location_scale_pass = coordinate_mismatches == 0 and not bad_gps and len(terms) > 0
 
     # Connectivity
     valid_lines = 0
@@ -2451,6 +2748,34 @@ def run_acceptance(
     if trazados['mismatches']:
         diagram_pass = False
 
+    # 015:RF-6, RF-7, RF-32 a RF-36: capacidades, grupo y tensión de baja frente al DGS
+    # importado; el grupo y la baja se corrigen antes del flujo para que no lo paren.
+    equipos: dict[str, list] = {'sin_capacidad': [], 'capacidad_distinta': [],
+                                'a_corregir': [], 'no_en_archivo': []}
+    correcciones: list[dict] = []
+    trafos = _contents(net, '*.ElmTr2')
+    if source_dgs is not None and Path(source_dgs).is_file():
+        from igea_dgs.capacidades import comparar_equipos, equipos_de_dgs
+        from igea_dgs.validate import parse_dgs
+
+        archivo = equipos_de_dgs(parse_dgs(source_dgs))
+        equipos = comparar_equipos(archivo, leer_equipos_pf(trafos, lines))
+        if equipos['a_corregir'] and corregir:
+            correcciones = corregir_trafos(equipos['a_corregir'], trafos,
+                                           _calc_objects(app, '*.ElmTr2') or trafos)
+        elif equipos['a_corregir']:
+            # 015:RF-19: con «Sin proyecto» creado, el «Caso base» ya no se toca; lo que
+            # habría que corregir se dice y lo decide el operador.
+            correcciones = [{**item, 'corregido': False,
+                             'motivo': '«Sin proyecto» ya existe: el «Caso base» no se toca '
+                                       '(015:RF-19)'} for item in equipos['a_corregir']]
+        for x in equipos['sin_capacidad']:
+            errors.append(f"{x['clase']} {x['nombre']} sin capacidad definida en DIgSILENT")
+    else:
+        warnings.append('Sin el DGS original no se comparan capacidades, grupo de conexión '
+                        'ni tensión de baja (spec 015).')
+        equipos['sin_capacidad'].append({'clase': 'DGS', 'nombre': 'archivo original ausente'})
+
     # Load flow convergence on active study case
     load_flow: dict[str, Any] = {
         'requested': run_load_flow,
@@ -2484,11 +2809,18 @@ def run_acceptance(
             load_flow['return_code'] = ldf.get('return_code')
             load_flow['ldf_valid'] = ldf.get('ldf_valid')
             convergence_pass = bool(ldf.get('pass'))
-            for err in ldf.get('errors') or []:
-                errors.append(err)
+            # 015:RF-38 a RF-40: no converger no bloquea; se reduce la demanda del «Caso
+            # base» hasta que converja, salvo con «Sin proyecto» ya creado (RF-39).
+            warnings.extend(ldf.get('errors') or [])
+            if not convergence_pass:
+                ajuste = converger_caso_base(app) if corregir else {'omitido': 'sin_proyecto'}
+                load_flow['ajuste_de_cargas'] = ajuste
+                if ajuste.get('pass'):
+                    convergence_pass = True
+                    load_flow['pass'] = True
 
     powerfactory_runtime_pass = not errors
-    return {
+    report = {
         'feeder': feeder,
         'network_id': manifest.get('network_id'),
         'powerfactory_runtime_pass': powerfactory_runtime_pass,
@@ -2507,9 +2839,12 @@ def run_acceptance(
             'invalid_names_sample': bad_gps[:20],
             'coordinate_mismatches': coordinate_mismatches,
             'compared_terminals': compared,
+            'invalid_in_manifest': len(bad_gps),
+            'sin_coordenadas_en_archivo': sin_coordenadas_en_archivo,
             'lines_with_path': trazados['with_path'],
             'compared_line_paths': trazados['compared'],
             'line_path_mismatches': trazados['mismatches'],
+            'line_path_mismatch_sample': trazados['mismatch_sample'],
         },
         'connectivity': {'valid_lines': valid_lines, 'total_lines': len(lines)},
         'diagram': {
@@ -2524,6 +2859,10 @@ def run_acceptance(
         'errors': errors,
         'warnings': warnings,
     }
+    report['caso_base'] = resumen_caso_base(report, equipos, correcciones,
+                                            variaciones_activas(app))
+    warnings.extend(a for a in report['caso_base']['avisos'] if a not in warnings)
+    return report
 
 
 def _write_reports(report: dict, json_path: Path, txt_path: Path) -> None:
@@ -2537,6 +2876,7 @@ def _write_reports(report: dict, json_path: Path, txt_path: Path) -> None:
         f"Connectivity PASS:         {report.get('connectivity_pass')}",
         f"Location/scale PASS:       {report.get('location_scale_pass')}",
         f"Equipment PASS:            {report.get('equipment_pass')}",
+        f"Caso base (spec 015):      {(report.get('caso_base') or {}).get('status')}",
         f"Geographic diagram PASS:   {report.get('geographic_diagram_pass')}",
         f"Convergence PASS:          {report.get('convergence_pass')}",
         f"Load flow executed:         {(report.get('load_flow') or {}).get('requested')}",
@@ -2771,6 +3111,20 @@ def main(argv=None) -> int:
     if manifest_path is not None and not manifest_path.is_file():
         print(f'ERROR: manifest not found: {manifest_path}', file=sys.stderr)
         return 1
+    # 015:RF-1: un proyecto existente se verifica entero como «Caso base». CA101
+    # (2026-10-13) se adoptó sin manifiesto y quedó con 0 de 0 barras comparadas.
+    if args.existing_project and manifest_path is None:
+        print('ERROR: --existing-project requiere --manifest: sin la geografía del archivo '
+              'original no se puede verificar el «Caso base» (spec 015).', file=sys.stderr)
+        return 1
+    if args.existing_project and (args.fix_until_converge or args.run_load_flow
+                                  or args.run_studies):
+        # 015:RF-39: la convergencia se prueba al importar el DGS; un proyecto ya importado
+        # se verifica sin correr el flujo ni tocar sus cargas.
+        print('ERROR: con --existing-project no se corre el flujo (--run-load-flow, '
+              '--fix-until-converge, --run-studies): la convergencia del «Caso base» se '
+              'prueba al importar el DGS (spec 015, RF-8, RF-39).', file=sys.stderr)
+        return 1
 
     try:
         source_evidence = verify_source_contract(
@@ -2817,7 +3171,14 @@ def main(argv=None) -> int:
             return 2
         print(f"Activated existing project without import: {import_info.get('project_path')}")
         study_errors: list[str] = []
-        if args.activate_base and not args.no_activate_base:
+        caso_base = activar_caso_base(app)
+        if caso_base is not None:
+            # 015:RF-1: con los casos de la spec 011 se verifica el «Caso base», no el
+            # caso que quedó activo al cerrar DIgSILENT.
+            study_info = {'active_study_case': caso_base, 'study_activated': True,
+                          'scenario_activated': app.GetActiveScenario() is not None,
+                          'errors': []}
+        elif args.activate_base and not args.no_activate_base:
             study_info = activate_base_study_and_scenario(app)
             study_errors.extend(study_info.get('errors') or [])
             if ensure_scenario and not study_info.get('scenario_activated'):
@@ -2851,26 +3212,16 @@ def main(argv=None) -> int:
             )
             flow_errors.extend(suite.get('errors') or [])
             flow_warnings.extend(suite.get('warnings') or [])
-        elif want_flow:
-            if args.fix_until_converge:
-                loop = run_load_flow_until_converged(app, max_intents=args.max_intents)
-            else:
-                ldf = execute_load_flow(app, relaxed=False)
-                loop = {
-                    'pass': bool(ldf.get('pass')),
-                    'attempts': [{'attempt': 0, 'phase': 'initial', 'load_flow': ldf}],
-                    'final_load_flow': ldf,
-                    'converged_after_intent': None,
-                }
-            if not loop.get('pass'):
-                flow_errors.append('Load flow did not converge in the existing project')
-        flow_only_report = {
-            'ok': bool(import_info.get('ok')) and not study_errors and not flow_errors,
-            'load_flow_loop': loop,
-            'study_suite': suite,
-            'errors': study_errors + flow_errors,
-            'warnings': flow_warnings,
-        }
+            flow_only_report = {
+                'ok': bool(import_info.get('ok')) and not study_errors and not flow_errors,
+                'load_flow_loop': loop,
+                'study_suite': suite,
+                'errors': study_errors + flow_errors,
+                'warnings': flow_warnings,
+            }
+        # Sin estudios, el flujo lo corre ``run_acceptance`` después de corregir el grupo
+        # y la tensión de baja de los transformadores (015:RF-34): correrlo aquí lo
+        # haría antes de la corrección.
     elif args.import_dgs and (manifest_path is None or args.fix_until_converge or run_studies):
         # Web / one-shot path: import → scenario → LDF (+ optional study suite).
         try:
@@ -3215,7 +3566,22 @@ def main(argv=None) -> int:
         require_diagram=args.require_diagram,
         export_wmf=args.export_wmf,
         require_equipment=args.require_equipment and not args.no_require_equipment,
+        source_dgs=source_dgs_path,
+        corregir=not sin_proyecto_existe(app),
     )
+    corregidos = [x for x in (report.get('caso_base') or {}).get('transformadores_corregidos') or []
+                  if x.get('corregido')]
+    if already_flowed and corregidos:
+        # 015:RF-34: el flujo de la importación corrió antes de corregir los
+        # transformadores; el que cuenta para el «Caso base» es el de después.
+        ldf = execute_load_flow(app, relaxed=False)
+        flow_only_report['load_flow_loop'] = {
+            'pass': bool(ldf.get('pass')),
+            'attempts': [{'attempt': 0, 'phase': 'tras_corregir_trafos', 'load_flow': ldf}],
+            'final_load_flow': ldf, 'converged_after_intent': None,
+        }
+        flow_only_report['errors'] = [e for e in flow_only_report.get('errors') or []
+                                      if 'converge' not in e.lower()]
     if import_info is not None:
         report['import'] = import_info
     if feeder_metadata_report is not None:
@@ -3245,11 +3611,21 @@ def main(argv=None) -> int:
             'attempts': len((loop or {}).get('attempts') or []),
         }
         report['convergence_pass'] = bool(loop and loop.get('pass'))
+        ajuste = None
         if not report['convergence_pass']:
-            report['errors'].append('Load flow did not converge after correction intents')
+            ajuste = (converger_caso_base(app) if not sin_proyecto_existe(app)
+                      else {'omitido': 'sin_proyecto'})
+            report['load_flow']['ajuste_de_cargas'] = ajuste
+            report['convergence_pass'] = bool(ajuste.get('pass'))
+        actualizar_flujo_caso_base(report.get('caso_base'), report['convergence_pass'], ajuste)
+        if not report['convergence_pass']:
+            # 015:RF-40: se informa y no bloquea.
+            report['warnings'].append('Load flow did not converge after correction intents')
         for err in flow_only_report.get('errors') or []:
-            if err not in report['errors']:
-                report['errors'].append(err)
+            # 015:RF-38 a RF-40: lo del flujo se avisa; el resto sigue siendo error.
+            destino = report['warnings'] if 'converge' in err.lower() else report['errors']
+            if err not in destino:
+                destino.append(err)
         for warn in flow_only_report.get('warnings') or []:
             if warn not in report['warnings']:
                 report['warnings'].append(warn)
@@ -3282,6 +3658,10 @@ def main(argv=None) -> int:
     print(f"Location/scale PASS: {report.get('location_scale_pass')}")
     print(f"Equipment PASS: {report.get('equipment_pass')}")
     print(f"Geographic diagram PASS: {report['geographic_diagram_pass']}")
+    caso = report.get('caso_base') or {}
+    print(f"Caso base: {caso.get('status')}  "
+          + ', '.join(f"{k}={'OK' if v['pass'] else 'FALLA'}"
+                      for k, v in (caso.get('comprobaciones') or {}).items()))
     print(f"Convergence PASS: {report.get('convergence_pass')}")
     if dgs_persist_report:
         print(

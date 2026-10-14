@@ -10,9 +10,10 @@ const pct = (x: number | null | undefined) => (x == null ? '—' : `${x >= 0 ? '
  * Ajuste de las demandas de los alimentadores a su máxima de cabecera (spec 006, RF-23).
  *
  * Toma la máxima que se ve en la tabla de arriba y el proyecto del paso 1. Las SED con
- * clientes importantes llevan su demanda; las demás se reparten lo que falta por kVA y
- * el flujo de carga de DIgSILENT cuadra las pérdidas. Con varios alimentadores marcados
- * se ajustan uno tras otro en un solo trabajo, cada uno en su variación (spec 008, RF-12).
+ * clientes importantes llevan su P y Q; las demás conservan las del archivo original y
+ * suben con un mismo factor de escala hasta que la cabecera dé la máxima (spec 015,
+ * RF-43, RF-44). Todo queda en el escenario de «Sin proyecto», sin variaciones. Con varios
+ * alimentadores marcados se ajustan uno tras otro en un solo trabajo (spec 008, RF-12).
  */
 export function AjusteCabecera({ project, maxima, feeders, desconectados }: {
   project: string; maxima: Job | undefined; feeders: string[]; desconectados: Set<string>;
@@ -67,9 +68,10 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados }: {
   return (
     <div className="step-box">
       <h4>Ajustar a la máxima en DIgSILENT</h4>
-      <p className="muted">Las SED con clientes importantes llevan su demanda (fija); las demás se reparten lo que falta en
-        proporción al kVA de su transformador, y el flujo de carga cuadra las pérdidas hasta que la cabecera dé la
-        máxima. Cada alimentador se graba en su propia variación.</p>
+      <p className="muted">Se calibra en «Sin proyecto», la copia del «Caso base» verificado. Las SED con clientes
+        importantes llevan su P y Q (fijas, factor de escala 1); las demás conservan la P y Q del archivo original y
+        suben todas con el mismo <strong>factor de escala</strong> de DIgSILENT hasta que la cabecera dé la máxima, con
+        las pérdidas del flujo. Queda en el escenario de «Sin proyecto», sin variaciones; el «Caso base» no cambia.</p>
       {grupos.some((g) => g.filas.length > 1) && (
         <div className="row">
           {grupos.filter((g) => g.filas.length > 1).map((g) => (
@@ -152,10 +154,13 @@ function InformeAjuste({ inf, report, cancelado }: { inf: AjusteInforme; report:
     return f ? xs.filter((x) => x.sed.toLowerCase().includes(f)) : xs;
   }, [inf.sed, filtro]);
   const o = inf.objetivo;
+  // Spec 015, RF-44: el mismo factor en todas las escaladas; se lee de la primera con demanda.
+  const escalada = (inf.sed ?? []).find((x) => x.origen === 'escala' && x.antes.kw);
+  const factor = escalada ? escalada.despues.kw / escalada.antes.kw : null;
   return (
     <div className="step-box">
       <h4>{simular ? 'Simulación' : 'Ajuste'} de {inf.feeder} en {inf.project}
-        {inf.variacion ? ` · variación ${inf.variacion}` : ''}</h4>
+        {inf.escenario ? ` · escenario «${inf.escenario}»` : inf.variacion ? ` · variación ${inf.variacion}` : ''}</h4>
       {simular && <p className="muted">Nada se ha escrito en el proyecto. Es el reparto antes de las pérdidas: al ajustar,
         las SED repartidas suben lo que pidan las pérdidas.</p>}
       {!simular && (
@@ -163,7 +168,7 @@ function InformeAjuste({ inf, report, cancelado }: { inf: AjusteInforme; report:
           {inf.cuadrado
             ? <>Cuadrado de kW al {fmtNum((inf.tolerancia ?? 0) * 100, 1)} % en {inf.flujos} flujo(s) de carga
               {inf.status ? ` · ${inf.status}` : ''}. El kVAR es informativo.</>
-            : <>No cumple el {fmtNum((inf.tolerancia ?? 0) * 100, 1)} %: {inf.motivo}. La variación queda con el último reparto
+            : <>No cumple el {fmtNum((inf.tolerancia ?? 0) * 100, 1)} %: {inf.motivo}. El escenario queda con el último reparto
               que convergió.</>}
         </p>
       )}
@@ -186,6 +191,8 @@ function InformeAjuste({ inf, report, cancelado }: { inf: AjusteInforme; report:
                 <td className="num">{fmtNum(inf.cabecera_con_escenario.kvar, 1)}</td></tr>}
               {inf.perdidas && inf.perdidas.kw != null && <tr><td>Pérdidas</td>
                 <td className="num">{fmtNum(inf.perdidas.kw, 1)}</td><td className="num">{fmtNum(inf.perdidas.kvar ?? 0, 1)}</td></tr>}
+              {factor != null && <tr><td>Factor de escala de las SED escaladas</td>
+                <td className="num">{fmtNum(factor, 4)}</td><td className="num">—</td></tr>}
               {inf.desvio && <tr><td>Error</td><td className="num">{pct(inf.desvio.kw)}</td>
                 <td className="num">{inf.solo_kw ? 'solo se cuadra el kW' : pct(inf.desvio.kvar)}</td></tr>}
               {inf.kvar_no_bloqueante && <tr><td>Diferencia de kVAR (no bloqueante)</td>
@@ -201,7 +208,9 @@ function InformeAjuste({ inf, report, cancelado }: { inf: AjusteInforme; report:
         <details open={!inf.cuadrado}><summary>Remedios para converger: {inf.remedios!.length}</summary>
           <ul className="small">{inf.remedios!.map((r) => (
             <li key={r.remedio}><strong>{r.remedio}</strong>{r.cambios.length ? `: ${r.cambios.join('; ')}` : ''}</li>))}</ul>
-          <small className="muted">Los ajustes del flujo de carga se devolvieron a su valor al terminar.</small>
+          <small className="muted">{inf.ajustes_del_flujo_conservados
+            ? `Se quedan en el flujo de «Sin proyecto» para que converja: ${Object.entries(inf.ajustes_del_flujo_conservados).map(([k, v]) => `${k}=${v}`).join(', ')}.`
+            : 'Los ajustes del flujo de carga se devolvieron a su valor al terminar.'}</small>
         </details>
       )}
       {inf.relectura_cargas_nativas && (
@@ -236,7 +245,8 @@ function InformeAjuste({ inf, report, cancelado }: { inf: AjusteInforme; report:
             <tbody>{filas.map((x) => (
               <tr key={x.sed}>
                 <td className="strong">{x.sed}</td>
-                <td className="small">{x.origen === 'cliente' ? `clientes ${x.clientes.join(', ')}` : 'reparto por kVA'}</td>
+                <td className="small">{x.origen === 'cliente' ? `clientes ${x.clientes.join(', ')}`
+                  : x.origen === 'escala' ? 'escalada (factor de escala)' : 'reparto por kVA'}</td>
                 <td className="num" title={x.kva_de === 'entrada' ? 'De la entrada original: sin transformador en DIgSILENT' : undefined}>
                   {x.kva == null ? '—' : fmtNum(x.kva)}{x.kva_de === 'entrada' ? ' *' : ''}</td>
                 <td className="num">{fmtNum(x.antes.kw, 1)}</td>

@@ -314,7 +314,7 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
           Cruzar clientes de {cuales}
         </button>
         {(!ws.demanda?.suministros || !ws.demanda?.clientes) && (
-          <small className="muted">Faltan los suministros o los clientes: sin ellos todas las SED se reparten por kVA.</small>)}
+          <small className="muted">Faltan los suministros o los clientes: sin ellos todas las SED se escalan con el factor de escala.</small>)}
         {ws.demanda?.clientes && estadoClientes.motivo && <small className="muted">{estadoClientes.motivo}</small>}
       </div>
       {cruce && <Cruce cruce={cruce} visibles={visibles} filtro={filtro} setFiltro={setFiltro}
@@ -365,7 +365,8 @@ function Cruce({ cruce, visibles, filtro, setFiltro, desconectados, conmutar }: 
       </table>
     </div>
     {desconectados.size > 0 && <small className="muted">{fmtNum(desconectados.size)} cliente(s) desmarcado(s): no suman a su
-      SED en el ajuste, y la SED que se queda sin ningún cliente conectado queda fuera de servicio en su variación.</small>}
+      SED en el ajuste, y la SED que se queda sin ningún cliente conectado queda fuera de servicio en el escenario de
+      «Sin proyecto».</small>}
     {cruce.no_cruzados.length > 0 && (
       <details className="alert alert-warn"><summary>No cruzados: {cruce.no_cruzados.length}</summary>
         <ul className="small">{cruce.no_cruzados.map((c) => <li key={c.codigo}><strong>{c.codigo}</strong>: {c.motivo}</li>)}</ul>

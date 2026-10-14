@@ -14,6 +14,16 @@ import threading
 import webbrowser
 
 
+def puerto_ocupado(host: str, port: int) -> bool:
+    """Si ya escucha algo en ``host:port``: el servidor nuevo no podría arrancar."""
+    import socket
+
+    destino = '127.0.0.1' if host in ('0.0.0.0', '::') else host
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.settimeout(0.5)
+        return s.connect_ex((destino, port)) == 0
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog='igea-dgs-web', description=__doc__)
     p.add_argument('--host', default='127.0.0.1')
@@ -45,6 +55,14 @@ def main(argv: list[str] | None = None) -> int:
     from .app import frontend_dist
 
     url = f'http://{"127.0.0.1" if args.host in ("0.0.0.0", "::") else args.host}:{args.port}/'
+    if puerto_ocupado(args.host, args.port):
+        # 2026-10-14: con un servidor de la mañana aún abierto, el acceso directo abría el
+        # navegador en él —sin los cambios del día— y el nuevo moría sin bind; la ventana
+        # solo decía «si faltan librerías».
+        print(f'Ya hay un Conversor u otro programa escuchando en {url}. Cierre esa ventana '
+              '(Ctrl+C) y vuelva a abrir el acceso directo para usar esta versión.',
+              file=sys.stderr)
+        return 2
     if not (frontend_dist() / 'index.html').is_file():
         print('AVISO: no está compilado el front (frontend/dist). Solo responderá la API.\n'
               '       Compílelo con:  cd frontend && npm install && npm run build',

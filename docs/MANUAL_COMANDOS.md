@@ -415,22 +415,34 @@ Qué hace cada opción:
 | `--require-diagram` | Exige `ElmNet.pDiagram` + `IntGrf` |
 | `--output-json` / `--output-txt` | Informes de aceptación |
 
-#### Adoptar el proyecto nativo existente, sin duplicarlo
+#### Verificar el «Caso base» de un proyecto existente (spec 015)
 
-Cuando el proyecto ya fue importado y contiene cambios manuales que deben conservarse,
-use su ruta exacta con `--existing-project`. Esta opción es mutuamente exclusiva con
-`--import-dgs`; `--source-dgs` y el sidecar demuestran la procedencia sin volver a
-ejecutar `ComImport`:
+Cuando el proyecto ya fue importado y contiene correcciones manuales que deben
+conservarse, use su ruta exacta con `--existing-project`. Esta opción es mutuamente
+exclusiva con `--import-dgs`; `--source-dgs` y el sidecar demuestran la procedencia sin
+volver a ejecutar `ComImport`. Exige `--manifest`, la geografía del archivo original: sin
+ella no se puede verificar el «Caso base» (015:RF-1). No admite `--run-load-flow`,
+`--fix-until-converge` ni `--run-studies`: la convergencia se prueba al importar el DGS,
+y antes con el oráculo y las cargas del archivo (015:RF-8, RF-39, RF-41).
 
 ```bat
 > .venv\Scripts\python.exe tools\powerfactory_acceptance.py ^
     --existing-project "20261013-121930_IGEA_CA101" ^
     --pf-carpeta "sistemaeletricoELD" ^
     --source-dgs output\produccion\CA101.dgs ^
+    --manifest output\produccion\CA101_geography.json ^
     --feeder-metadata output\produccion\CA101_feeder_metadata.json ^
     --source-run-id RUN_ID --source-mode mdb --source-fingerprint SHA256 ^
-    --run-load-flow --run-studies
+    --require-diagram
 ```
+
+Si el proyecto tiene el caso «Caso base» de la spec 011, se verifica ese. El informe trae
+`caso_base` con el resultado de cada comprobación: GPS de barras y trazado de líneas
+frente al archivo original, conectividad, diagrama y capacidades. Bloquean todas;
+una capacidad distinta de la del archivo solo se avisa, y el grupo de conexión y la
+tensión de baja de los transformadores se corrigen con el valor del archivo antes del
+flujo, copiando el tipo si lo comparten transformadores que estaban bien. Lo mismo hace
+el botón «Verificar el Caso base» del paso 1.1 de la pestaña de cargas.
 
 La aceptación relee también los `ElmShnt` presentes únicamente en el proyecto. Si no
 hay capacidad de origen, aplica el catálogo 10 kV/300 kVAr o 22,9 kV/450 kVAr, informa

@@ -41,7 +41,9 @@ def _nueva(sed, **extra):
 def _plan(feeders, demandas=(), nuevas=(), variacion='Cargas_20261008_120000'):
     return {'project': 'P', 'feeders': list(feeders), 'stamp': '20261008_120000',
             'variacion': variacion, 'demandas': list(demandas), 'nuevas': list(nuevas),
-            'native_action_context': contexto_nativo('P', list(feeders), 'cargas')}
+            'native_action_context': contexto_nativo('P', list(feeders), 'cargas'),
+            # 015:RF-17: la web solo manda aplicar con el «Caso base» verificado.
+            'caso_base_sin_verificar': {}}
 
 
 def _carga(app, nombre):
@@ -57,45 +59,47 @@ def _ver_cargas(app):
             v.Activate()
 
 
-def test_todo_se_escribe_en_la_etapa_de_una_variacion_nueva(guion):
-    """004:RF-3 / 007:RF-9 / 007:RF-19 — las demandas van a su variación y cada carga nueva
-    a la suya, todas grabando; con el escenario del operador apagado mientras se escribe
-    y encendido al terminar."""
+def test_cada_carga_en_su_variacion_y_las_demandas_en_el_escenario(guion):
+    """004:RF-3 / 007:RF-9 / 015:RF-27 / 015:RF-29 — cada carga nueva va a su variación, en
+    «Con proyecto», con el escenario apagado mientras se crea; las demandas, al escenario
+    de «Sin proyecto» y al de «Con proyecto», sin variación. El escenario del operador
+    queda en el «Caso base»."""
     app = fake_pf.proyecto(escenario=True)
     plan = _plan(['F1', 'F2'], [_demanda('F1_S1', 120, 40), _demanda('F2_S2', 90, 10)],
                  [_nueva('N1', barra='F1_B2')])
     informe, rc = guion.ejecutar(app, plan, simular=False)
     assert rc == 0, informe
     variaciones = {v.loc_name: v for v in app.carpetas['scheme'].GetContents('*.IntScheme')}
-    assert set(variaciones) == {informe['variacion_demandas'], 'Carga_N1_F1_20261008_120000'}
-    etapa_dem = variaciones[informe['variacion_demandas']].GetContents('*.IntSstage')[0]
+    assert set(variaciones) == {'Carga_N1_F1_20261008_120000'}
     etapa_n1 = variaciones['Carga_N1_F1_20261008_120000'].GetContents('*.IntSstage')[0]
     escritas = [e for e in app.escrituras if e[0].GetClassName() in ('ElmLod', 'ElmTerm', 'ElmLne')]
     demandas = [e for e in escritas if e[0].loc_name in ('F1_S1', 'F2_S2')]
     nuevas = [e for e in escritas if 'N1' in e[0].loc_name]
-    en_variacion = [e for e in demandas if e[4] is None]
-    assert en_variacion and all(e[3] is etapa_dem for e in en_variacion)
+    assert demandas and all(e[3] is None and e[4] is not None for e in demandas)
+    assert {e[4].loc_name for e in demandas} == {'Sin proyecto', 'Con proyecto'}
     assert nuevas and all(e[3] is etapa_n1 and e[4] is None for e in nuevas)
-    # 004:RF-54: las demandas, además, en el escenario y fuera de toda etapa.
-    en_escenario = [e for e in escritas if e[4] is not None]
-    assert {e[0].loc_name for e in en_escenario} == {'F1_S1', 'F2_S2'}
-    assert all(e[3] is None and e[4] is app.escenario for e in en_escenario)
     assert app.escenario is not None and app.escenario.loc_name == 'Operador'
 
 
-def test_las_demandas_se_ven_con_el_escenario_activo(guion):
-    """004:RF-54 — con el escenario del operador guardando las demandas de antes, al terminar
-    manda la actualizada, y el escenario queda guardado."""
+def test_las_demandas_se_ven_con_el_escenario_de_sin_proyecto(guion):
+    """004:RF-54 / 015:RF-19 / 015:RF-27 — con el escenario guardando las demandas, la
+    actualizada manda en «Sin proyecto» y en «Con proyecto»; el escenario del operador, en
+    el «Caso base», no cambia."""
     app = fake_pf.proyecto(escenario=True)
     app.escenario_manda = True
     app.escenario.fotografiar()
+    operador = app.escenario
+    carga = next(o for o in app.proyecto.GetContents('*.ElmLod', 1) if o.loc_name == 'F1_S1')
+    antes = carga.plini
     plan = _plan(['F1'], [_demanda('F1_S1', 120, 40)], [])
     informe, rc = guion.ejecutar(app, plan, simular=False)
     assert rc == 0, informe
-    assert app.GetActiveScenario() is app.escenario and app.escenario.guardados >= 1
-    carga = next(o for o in app.proyecto.GetContents('*.ElmLod', 1) if o.loc_name == 'F1_S1')
-    assert carga.plini == pytest.approx(0.120) and carga.qlini == pytest.approx(0.040)
-    assert [g['escenario'] for g in informe['escenarios']] == ['Operador']
+    assert sorted(g['escenario'] for g in informe['escenarios']) == ['Con proyecto', 'Sin proyecto']
+    assert operador.guardados == 0
+    for caso in app.carpetas['study'].GetContents('*.IntCase'):
+        caso.Activate()
+        esperado = antes if caso.loc_name == 'Caso base' else 0.120
+        assert carga.plini == pytest.approx(esperado), caso.loc_name
 
 
 def test_nombre_de_variacion_libre_si_ya_existe(guion):
@@ -104,10 +108,8 @@ def test_nombre_de_variacion_libre_si_ya_existe(guion):
     base = 'X' * 40
     app.carpetas['scheme'].CreateObject('IntScheme', base)
     app.carpetas['scheme'].CreateObject('IntScheme', base[:38] + '_2')
-    informe, _rc = guion.ejecutar(app, _plan(['F1'], [_demanda('F1_S1', 1, 0)], variacion=base),
-                                  simular=False)
-    assert informe['variacion'] == base[:38] + '_3'
-    assert len(informe['variacion']) <= 40
+    libre = guion.nombre_libre(app.carpetas['scheme'], 'IntScheme', base)
+    assert libre == base[:38] + '_3' and len(libre) <= 40
 
 
 def test_un_alimentador_es_un_lote_de_uno(guion):
@@ -376,7 +378,8 @@ def test_flujo_final_con_tensiones_extremas(guion):
     assert flujo['converged'] is True
     assert flujo['vm_min'] == pytest.approx(0.95) and flujo['vm_min_bus'] == 'F1_B0'
     assert flujo['vm_max'] > flujo['vm_min']
-    assert app.variaciones_activas, 'el flujo se lanzó sin la variación activa'
+    # 015:RF-27: las demandas no dejan variación; el flujo se lanza sobre «Sin proyecto».
+    assert informe['demandas_en'] == 'Sin proyecto'
 
 
 def test_flujo_que_no_converge_se_informa(guion):

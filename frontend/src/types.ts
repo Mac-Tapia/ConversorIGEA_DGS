@@ -441,6 +441,8 @@ export interface PowerFactoryProjectBinding {
     status: string;
     recorded_at?: number;
     effective_reread?: Record<string, unknown>;
+    /** Spec 015: estado del «Caso base» de cada alimentador, tal como lo dejó la aceptación. */
+    caso_base?: Record<string, CasoBaseEstado>;
   };
   accepted_at: number;
   binding_sha256: string;
@@ -763,7 +765,8 @@ export interface AjustePlan {
 
 export interface AjusteSed {
   sed: string;
-  origen: 'cliente' | 'kva';
+  /** Spec 015, RF-44: 'escala'; 'kva' en informes de antes de la 015. */
+  origen: 'cliente' | 'escala' | 'kva';
   kva: number | null;
   kva_de: 'pf' | 'entrada' | null;
   clientes: string[];
@@ -787,6 +790,8 @@ export interface AjusteInforme {
   /** Spec 008: cancelado antes de empezar este alimentador. */
   no_empezado?: boolean;
   variacion?: string;
+  /** Spec 015: el escenario de «Sin proyecto» donde quedó la calibración. */
+  escenario?: string;
   objetivo?: { kw: number; kvar: number; medidor: string; fecha: string | null };
   tolerancia?: number;
   cuadrado?: boolean;
@@ -796,6 +801,8 @@ export interface AjusteInforme {
   cabecera?: { kw: number; kvar: number } | null;
   /** RF-29: la cabecera con el escenario de operación restaurado, que manda sobre la variación. */
   cabecera_con_escenario?: { kw: number; kvar: number } | null;
+  /** Spec 015, RF-46: ajustes del flujo que se quedan en «Sin proyecto» porque cuadró con ellos. */
+  ajustes_del_flujo_conservados?: Record<string, number>;
   /** RF-27, RF-28: escenarios en que se grabó también el resultado. */
   escenarios?: { escenario: string; cargas: number; fallos: { sed: string; error: string }[] }[];
   perdidas?: { kw: number | null; kvar: number | null };
@@ -879,6 +886,27 @@ export interface VerificarInforme {
     vm_max_bus?: string;
   };
   feeders: { feeder: string; cabecera: { kw: number; kvar: number } | null; motivo: string | null }[];
+}
+
+/** Spec 015: el «Caso base» de un alimentador en el vínculo del proyecto. */
+export interface CasoBaseEstado {
+  status: 'VERIFICADO' | 'NO_VERIFICADO';
+  comprobaciones: Record<string, boolean>;
+  fallos: string[];
+  recorded_at?: number;
+}
+
+/** Resultado de «Verificar el Caso base» (spec 015, RF-9). */
+export interface CasoBaseResultado {
+  project: string;
+  feeders: {
+    feeder: string;
+    status: 'VERIFICADO' | 'NO_VERIFICADO';
+    motivo?: string;
+    comprobaciones?: Record<string, { pass: boolean; fallos: unknown[] }>;
+    avisos?: string[];
+    report?: string;
+  }[];
 }
 
 export interface VerificarResultado {

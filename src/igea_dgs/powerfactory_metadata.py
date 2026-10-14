@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -356,9 +356,14 @@ def _configuration_has_variable(config: Any, variable: str) -> bool:
 def resolve_feeder_assignments(records: Iterable[Any], objects: Iterable[Any]) -> list[PlannedAssignment]:
     records = list(records)
     runtime: dict[RuntimeObjectIdentity, list[Any]] = {}
+    # Metadatos escritos antes de que la identidad llevara la red (commit 1f415549, 13/10
+    # a las 16:13) no traen ``grid``: CA101 de las 12:18 no resolvía ninguna carga al
+    # reimportarse. Sin red en el registro se busca sin ella; si hay dos, sigue ambiguo.
+    sin_red: dict[RuntimeObjectIdentity, list[Any]] = {}
     for obj in objects:
         identity = build_runtime_identity(obj)
         runtime.setdefault(identity, []).append(obj)
+        sin_red.setdefault(replace(identity, grid=''), []).append(obj)
 
     plan: list[PlannedAssignment] = []
     missing: list[str] = []
@@ -371,7 +376,7 @@ def resolve_feeder_assignments(records: Iterable[Any], objects: Iterable[Any]) -
             str(record.substation or '').strip(),
             str(record.grid or '').strip(),
         )
-        candidates = runtime.get(identity, [])
+        candidates = (runtime if identity.grid else sin_red).get(identity, [])
         label = (
             f'{record.class_name} {record.loc_name} '
             f'[{record.terminal}/{record.substation}/{record.grid}]'

@@ -14,7 +14,7 @@ from __future__ import annotations
 import hashlib
 import json
 import time
-from dataclasses import asdict, dataclass, field, replace
+from dataclasses import asdict, dataclass, field
 from typing import Any, Iterable
 
 
@@ -227,60 +227,47 @@ def record_project_binding(ws: Any, binding: PowerFactoryProjectBinding) -> None
         ws.save()
 
 
-def promote_project_binding_after_calibration(
-    ws: Any, project: str, report: dict[str, Any],
-) -> PowerFactoryProjectBinding | None:
-    """Completa un vínculo adoptado tras cuadre kW y relectura nativa verificables.
+def fusionar_caso_base(
+    anterior: dict[str, Any] | None, binding: PowerFactoryProjectBinding,
+) -> PowerFactoryProjectBinding:
+    """Conserva el estado del «Caso base» de los alimentadores que no se volvieron a verificar.
 
-    ``AVISO_KVAR`` es admisible porque su propio contrato declara ``bloquea=false``;
-    fallos, simulaciones o relecturas incompletas no promocionan la evidencia.
+    Spec 015, RF-14: se verifica alimentador por alimentador y el vínculo es uno por
+    proyecto; sin fusionar, verificar PE104 borraría el estado de CA101. Solo se fusiona
+    con un vínculo de la misma fuente; otra fuente es otro modelo y empieza de cero.
     """
-    raw = (getattr(ws, 'pf_project_bindings', {}) or {}).get(str(project or '').strip())
-    if not raw or report.get('modo') != 'aplicar' or not report.get('cuadrado'):
-        return None
-    if report.get('fallos'):
-        return None
-    load_reread = report.get('relectura_cargas_nativas') or {}
-    capacitor_reread = report.get('relectura_bancos') or {}
-    if load_reread.get('status') != 'VERIFICADO_PERSISTENCIA':
-        return None
-    if capacitor_reread.get('status') not in {
-        'VERIFICADO_PERSISTENCIA', 'AVISO_PERSISTENCIA_CORREGIDA',
-    }:
-        return None
-    kvar = report.get('kvar_no_bloqueante') or {}
-    if kvar.get('bloquea') is True:
-        return None
-    binding = PowerFactoryProjectBinding.from_dict(raw)
-    if str(report.get('feeder') or '') not in binding.feeders:
-        return None
-    promoted = replace(
-        binding,
-        native_reread={
-            **binding.native_reread,
-            'status': 'VERIFICADO_PERSISTENCIA',
-            'effective_reread': {
-                **dict(binding.native_reread.get('effective_reread') or {}),
-                'comldf_executed': True,
-                'comldf_valid': True,
-                'native_loads': int(load_reread.get('cantidad') or 0),
-                'capacitor_banks': int(capacitor_reread.get('reread') or 0),
-            },
-            'calibration': {
-                'status': str(report.get('status') or 'OK'),
-                'criterion': str(report.get('criterio_cuadre') or 'KW'),
-                'objective': dict(report.get('objetivo') or {}),
-                'head_reread': dict(report.get('cabecera') or {}),
-                'native_loads': int(load_reread.get('cantidad') or 0),
-                'capacitor_banks': int(capacitor_reread.get('reread') or 0),
-                'kvar_blocks': bool(kvar.get('bloquea', False)),
-                'recorded_at': time.time(),
-            },
-        },
-        accepted_at=time.time(),
+    if not anterior or anterior.get('source_fingerprint') != binding.source_fingerprint:
+        return binding
+    previo = dict((anterior.get('native_reread') or {}).get('caso_base') or {})
+    nuevo = dict(binding.native_reread.get('caso_base') or {})
+    feeders = tuple(sorted(set(binding.feeders) | set(anterior.get('feeders') or [])))
+    return PowerFactoryProjectBinding(
+        project=binding.project, folder=binding.folder,
+        source_run_id=binding.source_run_id, source_mode=binding.source_mode,
+        source_fingerprint=binding.source_fingerprint, feeders=feeders,
+        dgs_sha256={**dict(anterior.get('dgs_sha256') or {}), **binding.dgs_sha256},
+        native_inventory_sha256=binding.native_inventory_sha256,
+        native_reread={**binding.native_reread, 'caso_base': {**previo, **nuevo}},
+        accepted_at=binding.accepted_at,
     )
-    record_project_binding(ws, promoted)
-    return promoted
+
+
+def caso_base_verificado(ws: Any, project: str, feeders: Iterable[str]) -> dict[str, list[str]]:
+    """Alimentador → comprobaciones que fallan en su «Caso base»; vacío si todos pasan.
+
+    Spec 015, RF-13: sin «Caso base» verificado no se calibra ni se crea «Sin proyecto».
+    Un vínculo de antes de la spec 015 no trae ``caso_base`` (CA101, 2026-10-13, adoptado
+    sin GPS ni convergencia y promovido por el ajuste): cuenta como no verificado y hay
+    que volver a verificarlo.
+    """
+    raw = (getattr(ws, 'pf_project_bindings', {}) or {}).get(str(project or '').strip()) or {}
+    estados = ((raw.get('native_reread') or {}).get('caso_base') or {})
+    out: dict[str, list[str]] = {}
+    for feeder in feeders:
+        estado = estados.get(str(feeder).strip()) or {}
+        if estado.get('status') != 'VERIFICADO':
+            out[str(feeder).strip()] = list(estado.get('fallos') or ['sin verificar'])
+    return out
 
 
 def _active_source_identity(ws: Any) -> tuple[str | None, str | None, str | None]:

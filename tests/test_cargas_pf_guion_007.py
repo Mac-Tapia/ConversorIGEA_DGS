@@ -59,6 +59,15 @@ def _variaciones(app):
     return {v.loc_name: v for v in app.carpetas['scheme'].GetContents('*.IntScheme')}
 
 
+def _activas_en(app, nombre):
+    """Variaciones activas en uno de los tres casos, que la inserción prepara (014:RF-19)."""
+    previo = app.caso
+    next(c for c in app.carpetas['study'].GetContents('*.IntCase') if c.loc_name == nombre).Activate()
+    out = sorted(v.loc_name for v in app.GetActiveNetworkVariations())
+    previo.Activate()
+    return out
+
+
 # =========================================================================== base
 def test_base_se_activa_antes_de_crear_nada(guion):
     """007:RF-6 / 007:RF-8 — la variación base se activa antes de crear ninguna, y el informe
@@ -76,7 +85,13 @@ def test_base_se_activa_antes_de_crear_nada(guion):
     assert orden[0] == 1, 'la base se activó con otras variaciones ya creadas'
     assert informe['base_activada'] == ['Ajuste_F1_20261009_120000']
     assert informe['variaciones_activas_inicio'] == []
-    assert informe['variaciones_activas_fin'] == sorted(['Ajuste_F1_20261009_120000', informe['variacion_demandas']])
+    # 014:RF-19 / 015:RF-27: sin los tres casos se preparan; las demandas quedan en el
+    # escenario de «Sin proyecto», sin variación, y el caso del principio, ya «Caso base»,
+    # sin ninguna. La base de antes de la 015 sigue activa en «Sin proyecto».
+    assert informe['casos_preparados']
+    assert informe['demandas_en'] == 'Sin proyecto'
+    assert _activas_en(app, 'Sin proyecto') == ['Ajuste_F1_20261009_120000']
+    assert informe['variaciones_activas_fin'] == []
 
 
 def test_base_que_no_existe_no_aplica_nada(guion):
@@ -305,7 +320,7 @@ def test_cancelar_entre_cargas(guion):
     assert informe['cancelado'] is True
     assert [c['sed'] for c in informe['cargas']] == ['N1']
     assert f'Carga_N1_F1_{STAMP}' in _variaciones(app)
-    assert informe['variaciones_activas_fin'] == ['Ajuste_F1_20261009_120000']
+    assert _activas_en(app, 'Sin proyecto') == ['Ajuste_F1_20261009_120000']
 
 
 def test_simular_dice_la_variacion_de_cada_carga(guion):
@@ -321,9 +336,9 @@ def test_simular_dice_la_variacion_de_cada_carga(guion):
     assert crearian[1]['criterio'] == 'barra indicada'
 
 
-def test_demandas_en_su_variacion_antes_que_las_cargas(guion):
-    """007:RF-19 / 007:RF-35 — las demandas van a su variación, antes que las cargas, y entran en
-    el estado sin proyecto, que queda activo al terminar."""
+def test_demandas_en_el_escenario_de_sin_proyecto_antes_que_las_cargas(guion):
+    """007:RF-19 / 007:RF-35 / 015:RF-27 — las demandas van al escenario de «Sin proyecto»,
+    antes que las cargas, y entran en el estado sin proyecto; no crean variación."""
     app = _app()
     plan = _plan(['F1'], [_demanda('F1_S1', 300, 50)], [_nueva('N1', barra='F1_B2')])
     sin_demanda = fake_pf.proyecto(alimentadores=('F1', 'F2'), cargas_por_alim=4, bt=True, flujo=True)
@@ -331,10 +346,11 @@ def test_demandas_en_su_variacion_antes_que_las_cargas(guion):
     informe, rc = guion.ejecutar(app, plan, simular=False)
     assert rc == 0, informe
     nombres = [v.loc_name for v in app.carpetas['scheme'].GetContents('*.IntScheme')]
-    assert nombres == [informe['variacion_demandas'], f'Carga_N1_F1_{STAMP}']
+    assert nombres == [f'Carga_N1_F1_{STAMP}']
+    assert informe['demandas_en'] == 'Sin proyecto'
     sin = informe['sin_proyecto']['feeders']['F1']['cabecera']['kw']
     assert sin > ref['sin_proyecto']['feeders']['F1']['cabecera']['kw'] + 200, 'la demanda no entró sin proyecto'
-    assert informe['variacion_demandas'] in informe['variaciones_activas_fin']
+    assert _activas_en(app, 'Sin proyecto') == []
 
 
 def test_el_libro_manda_sobre_la_calibrada(guion):
@@ -396,3 +412,102 @@ def test_tececo_por_carga_con_su_etapa(guion, monkeypatch):
     assert all(c['tecnico_economico']['ok'] for c in informe['cargas'])
     etapa_n2 = _variaciones(app)[f'Carga_N2_F1_{STAMP}'].GetContents('*.IntSstage')[0]
     assert etapa_n2.InvCosts == pytest.approx(3.5)
+
+
+# =========================================================================== spec 014
+def _caso(app, nombre):
+    return next(c for c in app.carpetas['study'].GetContents('*.IntCase') if c.loc_name == nombre)
+
+
+def test_repetir_la_insercion_reutiliza_la_variacion(guion):
+    """014:RF-19, 014:RF-23, 014:RF-24, 014:RF-27, 014:RF-28 — la primera inserción prepara
+    los casos y deja la carga solo en «Con proyecto»; repetirla, con la variación apagada y
+    otra potencia y otro punto en el libro, no crea otra: reutiliza la variación, la deja
+    activa en «Con proyecto» y avisa de las diferencias."""
+    app = _app()
+    primero, rc = guion.ejecutar(app, _plan(['F1'], nuevas=[_nueva('N1', **_cerca(app, 'F1_B2'))]),
+                                 simular=False)
+    assert rc == 0, primero
+    var = f'Carga_N1_F1_{STAMP}'
+    assert primero['casos_preparados']
+    assert var in _activas_en(app, 'Con proyecto')
+    assert var not in _activas_en(app, 'Sin proyecto') and var not in _activas_en(app, 'Caso base')
+    _caso(app, 'Con proyecto').Activate()
+    _variaciones(app)[var].Deactivate()
+    _caso(app, 'Caso base').Activate()
+
+    otra = _nueva('N1', kw=95.0, **_cerca(app, 'F1_B2', dlat=0.001))
+    segundo, rc = guion.ejecutar(app, _plan(['F1'], nuevas=[otra]), simular=False)
+
+    assert rc == 0, segundo
+    assert sorted(_variaciones(app)) == [var] and segundo['cargas'] == []
+    (reuso,) = segundo['reutilizadas']
+    assert reuso['variacion'] == var and '014:RF-24' in reuso['motivo']
+    assert any('80.0 kW' in a and '95.0 kW' in a for a in segundo['avisos'])
+    assert any('libro la da en' in a for a in segundo['avisos'])
+    assert var in _activas_en(app, 'Con proyecto')
+
+
+def test_carga_en_dos_variaciones_no_se_crea_ni_se_toca(guion):
+    """014:RF-26 — una carga que ya está en dos variaciones no se crea otra vez, ninguna de
+    las dos cambia de estado en «Con proyecto» y se avisa; las demás cargas sí se crean."""
+    app = _app()
+    primero, rc = guion.ejecutar(app, _plan(['F1'], nuevas=[_nueva('N1', barra='F1_B2')]),
+                                 simular=False)
+    assert rc == 0, primero
+    _caso(app, 'Con proyecto').Activate()
+    copia = app.carpetas['scheme'].CreateObject('IntScheme', 'Carga_N1_F1_20261001_000000')
+    copia.NewStage('Etapa_copia', 1, 1)
+    app.grabando = copia.GetContents('*.IntSstage')[0]
+    _carga(app, 'F1_S1').GetParent().CreateObject('ElmLod', 'N1')
+    app.grabando = None
+    copia.Deactivate()
+    antes = _activas_en(app, 'Con proyecto')
+    _caso(app, 'Caso base').Activate()
+
+    segundo, rc = guion.ejecutar(app, _plan(['F1'], nuevas=[_nueva('N1', barra='F1_B2'),
+                                                           _nueva('N2', barra='F1_B3')]),
+                                 simular=False)
+
+    assert rc == 0, segundo
+    assert [c['sed'] for c in segundo['cargas']] == ['N2']
+    n1 = next(x for x in segundo['no_creadas'] if x['sed'] == 'N1')
+    assert n1['variaciones'] == sorted([copia.loc_name, f'Carga_N1_F1_{STAMP}'])
+    assert any('014:RF-26' in a for a in segundo['avisos'])
+    despues = _activas_en(app, 'Con proyecto')
+    assert copia.loc_name not in despues and f'Carga_N1_F1_{STAMP}' in despues
+    assert set(antes) <= set(despues)
+
+
+def test_ya_creada_en_la_red_de_con_proyecto_o_en_el_libro(guion):
+    """014:RF-25, 014:RF-27 — por su nombre en su alimentador: en la red de «Con proyecto»
+    fuera de una variación de carga nueva no se crea; repetida en el libro, tampoco."""
+    fila = _nueva('N7', barra='F1_B2')
+    no_creada, avisos = guion.ya_creada(fila, ['F1'], set(), {'indice': {}, 'red': {'N7'}})
+    assert '014:RF-25' in no_creada['motivo'] and avisos == []
+    no_creada, _ = guion.ya_creada(fila, ['F1'], {'N7'}, {'indice': {}, 'red': set()})
+    assert 'RF-15' in no_creada['motivo']
+    assert guion.ya_creada(fila, ['F1'], set(), {'indice': {('F2', 'N7'): {'variaciones': ['x']}},
+                                                  'red': set()}) is None
+
+
+def test_con_proyecto_recibe_lo_del_operador_en_sin_proyecto(guion):
+    """014:RF-21, 014:RF-22 — antes de insertar, lo que el operador tiene activo en «Sin
+    proyecto» se activa en «Con proyecto» y se dice en el informe."""
+    app = _app()
+    primero, rc = guion.ejecutar(app, _plan(['F1'], nuevas=[_nueva('N1', barra='F1_B2')]),
+                                 simular=False)
+    assert rc == 0, primero
+    _caso(app, 'Sin proyecto').Activate()
+    trafo = next(o for o in app.proyecto.GetContents('*.ElmTr2', 1) if o.loc_name == 'TR_F1_S2')
+    operador = fake_pf.variacion_del_operador(app, 'Refuerzo_TR_F1_S2', [(trafo, 'ntnum', 2)])
+    _caso(app, 'Caso base').Activate()
+
+    segundo, rc = guion.ejecutar(app, _plan(['F1'], nuevas=[_nueva('N2', barra='F1_B3')]),
+                                 simular=False)
+
+    assert rc == 0, segundo
+    assert segundo['variaciones_operador_activadas'] == [operador.loc_name]
+    assert operador.loc_name in _activas_en(app, 'Con proyecto')
+    assert operador.loc_name in _activas_en(app, 'Sin proyecto')
+    assert any(operador.loc_name in a and 'Activadas en «Con proyecto»' in a for a in segundo['avisos'])

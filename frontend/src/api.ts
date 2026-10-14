@@ -118,6 +118,8 @@ export const api = {
   cargasPlantillaUrl: (id: string, tipo: 'demandas' | 'nuevas', format: 'xlsx' | 'csv') =>
     `${ws(id)}/cargas/plantilla/${tipo}?format=${format}`,
   pfProjects: (id: string) => request<Job>(`${ws(id)}/powerfactory/projects`, { method: 'POST' }),
+  pfVerificarBase: (id: string, project: string, feeders: string[]) =>
+    request<Job>(`${ws(id)}/powerfactory/caso-base`, json('POST', { project, feeders })),
   pfVerificar: (id: string, project: string, feeders: string[]) =>
     request<Job>(`${ws(id)}/powerfactory/verificar`, json('POST', { project, feeders })),
   cargasPlan: (id: string, project: string, feeders: string[], demandas?: File | null,

@@ -31,7 +31,10 @@ def _workspace(tmp_path, *, client_period='2026-04', with_client_book=True):
         project='P', folder='Conversor IGEA-DGS', source_run_id='run-active',
         source_mode='txt', source_fingerprint='f' * 64, feeders=('A1',),
         dgs_sha256={'A1': 'd' * 64}, native_inventory_sha256='n' * 64,
-        native_reread={'status': 'VERIFICADO_PERSISTENCIA'}, accepted_at=1.0,
+        # Spec 015: el «Caso base» de A1, verificado.
+        native_reread={'status': 'VERIFICADO_PERSISTENCIA',
+                       'caso_base': {'A1': {'status': 'VERIFICADO', 'fallos': []}}},
+        accepted_at=1.0,
     )
     ws.pf_project_bindings['P'] = binding.as_dict()
     ws.pf_inventory = {'projects': [{

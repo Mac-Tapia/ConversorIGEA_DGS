@@ -350,3 +350,22 @@ def test_ajuste_sin_ninguna_variacion_no_es_base(client):
     r = client.post(f'/api/workspaces/{wid}/lote/plan', data={'project': 'P', 'feeders': ['F1'],
                     'ajuste_job_id': job}, files={'update_file': ('d.xlsx', _xlsx(DEMANDAS))})
     assert r.status_code == 400 and 'Ningún alimentador' in r.json()['detail']
+
+
+def test_la_base_es_la_calibracion_sin_variacion(client):
+    """015:RF-22, 015:RF-26 — un ajuste de la 015 no deja variación: su alimentador está en
+    la base igual; uno cuya calibración se revirtió queda fuera con su motivo."""
+    wid = _wid(client)
+    job = _ajuste(client, wid, informes=[
+        {'feeder': 'F1', 'cuadrado': True, 'escenario': 'Sin proyecto',
+         'sed': [{'sed': 'S1', 'despues': {'kw': 40.0, 'kvar': 9.0}}]},
+        {'feeder': 'F2', 'cuadrado': False, 'calibracion_revertida': True},
+    ])
+    vincular_proyecto(client, wid, 'P', ['F1'])
+    data = {'project': 'P', 'feeders': ['F1'], 'ajuste_job_id': job}
+    r = client.post(f'/api/workspaces/{wid}/lote/plan', data=data,
+                    files={'update_file': ('d.xlsx', _xlsx([['SED', 'Kw', 'Kvar'], ['S1', 55, 12]]))})
+    assert r.status_code == 200, r.text
+    base = r.json()['base']
+    assert base['variaciones'] == [] and base['feeders'] == ['F1']
+    assert [x['feeder'] for x in base['excluidos']] == ['F2']

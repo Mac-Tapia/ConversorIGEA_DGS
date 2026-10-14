@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { api, download, fmtNum } from '../api';
 import { useApp } from '../context';
 import type {
-  AjusteInforme, AjusteResultado, CalibradaCambiada, CargaConectada, CargaIntegrada, CargasFeederInforme,
+  AjusteInforme, AjusteResultado, CalibradaCambiada, CasoBaseEstado, CasoBaseResultado, CargaConectada, CargaIntegrada, CargasFeederInforme,
   CargasInforme, CargasMotivo, CargasPlan, CargasResultado, Economia, Job, PfInventario, PfProject,
   VerificarInforme, VerificarResultado,
 } from '../types';
@@ -147,13 +147,23 @@ export function CargasTab() {
   const flujo = estadoFlujo(todos, project);
   const lastCheck = todos.filter((j) => j.kind === 'pf_verificar' && j.result?.project === project).pop();
   const verificado = (lastCheck?.result ?? null) as VerificarResultado | null;
+  // Spec 015: el «Caso base» de cada alimentador. La última verificación manda sobre el
+  // estado leído con «Leer proyectos», que puede ser de antes.
+  const lastBase = todos.filter((j) => j.kind === 'pf_verificar_base' && j.result?.project === project).pop();
+  const casoBaseRes = (lastBase?.result ?? null) as CasoBaseResultado | null;
+  const estadoBase: Record<string, CasoBaseEstado> = { ...(current?.binding?.native_reread.caso_base ?? {}) };
+  for (const x of casoBaseRes?.feeders ?? []) {
+    estadoBase[x.feeder] = { status: x.status, fallos: [],
+      comprobaciones: Object.fromEntries(Object.entries(x.comprobaciones ?? {}).map(([k, v]) => [k, v.pass])) };
+  }
+  const sinVerificar = order.filter((f) => estadoBase[f]?.status !== 'VERIFICADO');
   // Spec 007, RF-1: la base es el último ajuste aplicado de este proyecto.
   const baseJob = todos.filter((j) => j.kind === 'ajuste_aplicar' && j.result?.project === project
     && j.status !== 'failed').pop();
   const ajusteBase = (baseJob?.result ?? null) as AjusteResultado | null;
   const informesBase = ajusteBase ? (ajusteBase.informes ?? [ajusteBase.informe]) : [];
   const conBase = Boolean(baseJob) && !sinBase
-    && informesBase.some((i) => i.variacion && !i.error && !i.no_empezado);
+    && informesBase.some((i) => !i.error && !i.no_empezado);
   // Un ajuste nuevo vuelve a proponerse como base aunque se quitara la anterior.
   useEffect(() => { setSinBase(false); setPlan(null); }, [baseJob?.id]);
 
@@ -228,9 +238,9 @@ export function CargasTab() {
 
   return (
     <div className="module">
-      <p className="muted">Trabaja sobre un proyecto que <strong>ya existe</strong> en DIgSILENT, sin convertir nada: calibra
-        las demandas a la máxima de cabecera y, sobre esa red, integra demandas y cargas nuevas. Cada cambio queda en
-        una <strong>variación nueva</strong>, que se puede activar, comparar o borrar sin tocar la red base.</p>
+      <p className="muted">Trabaja sobre un proyecto que <strong>ya existe</strong> en DIgSILENT, sin convertir nada: verifica
+        el «Caso base», calibra las demandas a la máxima de cabecera en «Sin proyecto» y, sobre esa red, integra
+        demandas y cargas nuevas en «Con proyecto», cada carga nueva en su <strong>variación</strong>.</p>
       <PfWarning />
 
       <div className="step-box">
@@ -305,6 +315,23 @@ export function CargasTab() {
             {current.binding_blocked_reason || 'PROJECT_BINDING_MISSING: importe y acepte este proyecto desde la ejecución fuente activa.'}
           </small>
         ) : null}
+        {current?.binding && (
+          <>
+            <h4>1.1 · Caso base</h4>
+            <p className="muted">El modelo físico se verifica frente al archivo original: GPS y trazado, conexiones, diagrama
+              y capacidades. El grupo de conexión y la tensión de baja de las SED se corrigen solos. La convergencia se prueba
+              al importar el DGS (antes, con el oráculo y las cargas del archivo); aquí no se corre el flujo. Si falla algo
+              físico, corríjalo en el «Caso base» de DIgSILENT y vuelva a verificar; sin él verificado no se calibra.</p>
+            <div className="row">
+              <button className="btn" disabled={pfBusy || !order.length}
+                onClick={() => startJob(() => api.pfVerificarBase(ws.id, project, order))}
+                title="Lee y compara; solo corrige el grupo y la tensión de baja de los transformadores">
+                Verificar el Caso base{order.length ? ` (${quien})` : ''}
+              </button>
+            </div>
+            <CasoBase estado={estadoBase} ultimo={casoBaseRes} />
+          </>
+        )}
       </div>
 
       <fieldset disabled={bindingBlocked} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
@@ -335,6 +362,10 @@ export function CargasTab() {
                 );
               })}
             </div>
+          )}
+          {sinVerificar.length > 0 && (
+            <small className="alert alert-warn">Sin «Caso base» verificado no se calibran: {sinVerificar.join(', ')}.
+              Verifíquelos en el paso 1.1.</small>
           )}
           {/* Spec 004, RF-40: la demanda medida va en esta misma pestaña; spec 008, RF-7: con los marcados. */}
           <DemandaMedida project={project} feeders={order} />
@@ -466,8 +497,8 @@ export function CargasTab() {
           </button>
         </>}>
           <p>Alimentadores: {plan.feeders.join(' → ')}
-            {plan.base ? <> · base: <span className="mono">{plan.base.variaciones.join(', ')}</span></> : ' · sin base del ajuste'}</p>
-          <p>{fmtNum(plan.n_demandas)} demanda(s) en la variación <strong className="mono">{plan.variacion_demandas}</strong> y
+            {plan.base ? <> · base: <span className="mono">{plan.base.variaciones.join(', ') || `calibración de ${plan.base.feeders.join(', ')} en «Sin proyecto»`}</span></> : ' · sin base del ajuste'}</p>
+          <p>{fmtNum(plan.n_demandas)} demanda(s) en el escenario de «Sin proyecto» y
             {' '}{fmtNum(plan.n_nuevas)} carga(s) nueva(s), <strong>cada una en su propia variación</strong>. Se aplican primero las
             demandas, después la carga del formulario y después las del libro; cada carga se mide con la base y sin las
             demás, y al terminar queda activa solo la base. Simule para ver qué coincide antes de aplicar.</p>
@@ -517,7 +548,7 @@ function Base({ informes, activa, hay, order, onQuitar, onUsar, onMarcar }: {
     return <p className="muted">Sin ajuste aplicado en este proyecto: la integración se aplica sobre las variaciones que
       estén activas en DIgSILENT.</p>;
   }
-  const buenos = informes.filter((i) => i.variacion && !i.error && !i.no_empezado);
+  const buenos = informes.filter((i) => !i.error && !i.no_empezado);
   const feeders = buenos.map((i) => i.feeder);
   const otros = order.length !== feeders.length || order.some((f) => !feeders.includes(f));
   return (
@@ -526,10 +557,11 @@ function Base({ informes, activa, hay, order, onQuitar, onUsar, onMarcar }: {
         : 'quitada: se aplica sobre lo que esté activo en DIgSILENT.'}</p>
       <div className="table-wrap">
         <table className="table">
-          <thead><tr><th>Alimentador</th><th>Variación</th><th className="num">Máxima (kW)</th><th>Cuadró</th></tr></thead>
+          <thead><tr><th>Alimentador</th><th>Calibración</th><th className="num">Máxima (kW)</th><th>Cuadró</th></tr></thead>
           <tbody>{informes.map((i) => (
             <tr key={i.feeder}><td className="strong">{i.feeder}</td>
-              <td className="mono small">{i.variacion ?? '—'}</td>
+              {/* Spec 015: en el escenario de «Sin proyecto»; un ajuste de antes, en su variación. */}
+              <td className="mono small">{i.variacion ?? i.escenario ?? '—'}</td>
               <td className="num">{i.objetivo ? fmtNum(i.objetivo.kw, 1) : '—'}</td>
               <td className="small">{i.error ? `fuera de la base: ${i.error}` : i.no_empezado ? 'no se empezó'
                 : i.cuadrado ? 'sí' : `no${i.desvio?.kw != null ? ` (${signo(i.desvio.kw * 100, 2)} %)` : ''}: se usa igual`}</td></tr>
@@ -586,6 +618,45 @@ function PorCarga({ cargas, sin }: { cargas: CargaIntegrada[]; sin: CargasInform
       </table>
       {sin && <small className="muted">Sin proyecto (base y demandas): {Object.entries(sin.feeders).map(([f, x]) =>
         `${f} ${x.cabecera ? `${fmtNum(x.cabecera.kw, 1)} kW` : x.motivo ?? '—'}`).join(' · ')}.</small>}
+    </div>
+  );
+}
+
+const COMPROBACIONES: [string, string][] = [
+  ['gps_barras', 'GPS barras'], ['trazado_lineas', 'Trazado líneas'], ['conectividad', 'Conexiones'],
+  ['diagrama', 'Diagrama'], ['capacidades', 'Capacidades'], ['flujo', 'Flujo'],
+];
+
+/** «Caso base» de cada alimentador y avisos de la última verificación (spec 015, RF-9). */
+function CasoBase({ estado, ultimo }: { estado: Record<string, CasoBaseEstado>; ultimo: CasoBaseResultado | null }) {
+  const feeders = Object.keys(estado).sort();
+  if (!feeders.length) return <small className="muted">Ningún alimentador verificado todavía.</small>;
+  const motivos = Object.fromEntries((ultimo?.feeders ?? []).map((x) => [x.feeder, x]));
+  return (
+    <div className="table-wrap">
+      <table className="table">
+        <thead><tr><th>Alimentador</th><th>Caso base</th>{COMPROBACIONES.map(([k, l]) => <th key={k}>{l}</th>)}</tr></thead>
+        <tbody>{feeders.map((f) => {
+          const e = estado[f];
+          return (
+            <tr key={f}>
+              <td className="strong">{f}</td>
+              <td><span className={`badge ${e.status === 'VERIFICADO' ? 'ok' : 'err'}`}>
+                {e.status === 'VERIFICADO' ? 'Verificado' : 'Sin verificar'}</span>
+                {motivos[f]?.motivo && <small className="muted"> {motivos[f].motivo}</small>}</td>
+              {COMPROBACIONES.map(([k]) => (
+                <td key={k}>{e.comprobaciones?.[k] == null ? '—' : e.comprobaciones[k] ? '✓' : '✗'}</td>
+              ))}
+            </tr>
+          );
+        })}</tbody>
+      </table>
+      {(ultimo?.feeders ?? []).filter((x) => x.avisos?.length).map((x) => (
+        <details key={x.feeder}>
+          <summary>{x.feeder}: {x.avisos!.length} aviso(s)</summary>
+          <ul className="small">{x.avisos!.map((a) => <li key={a}>{a}</li>)}</ul>
+        </details>
+      ))}
     </div>
   );
 }

@@ -353,3 +353,32 @@ def test_condensadores_instalados_en_una_variacion_temporal_desaparecen():
     assert cp.TotalLossCost() == 90.0
     var.Deactivate()
     assert app.GetCalcRelevantObjects('*.ElmShnt') == []
+
+
+def test_la_etapa_lista_lo_que_creo_y_la_copia_de_lo_que_cambio():
+    """apoyo de 014 (T1) — una etapa da sus objetos nuevos y, de los que ya existían, sus
+    valores grabados, aunque después mande otro valor o la variación esté inactiva."""
+    from fake_pf import variacion_del_operador
+
+    app = proyecto(alimentadores=('F1',), cargas_por_alim=2)
+    carga = next(o for o in app.proyecto.GetContents('*.ElmLod', 1))
+    trafo = next(o for o in app.proyecto.GetContents('*.ElmTr2', 1))
+    v = _variacion(app, 'Ajuste_F1_1')
+    carga.plini = 0.30
+    nueva = trafo.GetParent().CreateObject('ElmLod', 'Nueva')
+    etapa = v.GetContents('*.IntSstage')[0]
+
+    assert {o.loc_name for o in etapa.GetContents('*.ElmLod')} == {carga.loc_name, 'Nueva'}
+    copia = next(o for o in etapa.GetContents('*.ElmLod') if o.loc_name == carga.loc_name)
+    assert copia is not carga and copia.GetAttribute('plini') == 0.30
+    assert next(o for o in etapa.GetContents('*.ElmLod') if o.loc_name == 'Nueva') is nueva
+
+    v.Deactivate()
+    carga.plini = 0.10                    # lo escribe otro, ya sin la etapa grabando
+    assert copia.plini == 0.30 and len(etapa.GetContents('*')) == 2
+
+    tipo = app.carpetas['equip'].CreateObject('TypTr2', 'TR_250kVA')
+    op = variacion_del_operador(app, 'Ajuste_F1_2', [(trafo, 'typ_id', tipo)])
+    clases = {o.GetClassName() for s in op.GetContents('*.IntSstage') for o in s.GetContents('*')}
+    assert clases == {'ElmTr2'} and op in app.GetActiveNetworkVariations()
+    assert trafo.typ_id is tipo and app.grabando is None
