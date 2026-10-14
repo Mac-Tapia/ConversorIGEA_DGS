@@ -73,10 +73,29 @@ def test_todo_se_escribe_en_la_etapa_de_una_variacion_nueva(guion):
     escritas = [e for e in app.escrituras if e[0].GetClassName() in ('ElmLod', 'ElmTerm', 'ElmLne')]
     demandas = [e for e in escritas if e[0].loc_name in ('F1_S1', 'F2_S2')]
     nuevas = [e for e in escritas if 'N1' in e[0].loc_name]
-    assert demandas and all(e[3] is etapa_dem for e in demandas)
-    assert nuevas and all(e[3] is etapa_n1 for e in nuevas)
-    assert all(e[4] is None for e in escritas), 'se escribió con el escenario activo'
+    en_variacion = [e for e in demandas if e[4] is None]
+    assert en_variacion and all(e[3] is etapa_dem for e in en_variacion)
+    assert nuevas and all(e[3] is etapa_n1 and e[4] is None for e in nuevas)
+    # 004:RF-54: las demandas, además, en el escenario y fuera de toda etapa.
+    en_escenario = [e for e in escritas if e[4] is not None]
+    assert {e[0].loc_name for e in en_escenario} == {'F1_S1', 'F2_S2'}
+    assert all(e[3] is None and e[4] is app.escenario for e in en_escenario)
     assert app.escenario is not None and app.escenario.loc_name == 'Operador'
+
+
+def test_las_demandas_se_ven_con_el_escenario_activo(guion):
+    """004:RF-54 — con el escenario del operador guardando las demandas de antes, al terminar
+    manda la actualizada, y el escenario queda guardado."""
+    app = fake_pf.proyecto(escenario=True)
+    app.escenario_manda = True
+    app.escenario.fotografiar()
+    plan = _plan(['F1'], [_demanda('F1_S1', 120, 40)], [])
+    informe, rc = guion.ejecutar(app, plan, simular=False)
+    assert rc == 0, informe
+    assert app.GetActiveScenario() is app.escenario and app.escenario.guardados >= 1
+    carga = next(o for o in app.proyecto.GetContents('*.ElmLod', 1) if o.loc_name == 'F1_S1')
+    assert carga.plini == pytest.approx(0.120) and carga.qlini == pytest.approx(0.040)
+    assert [g['escenario'] for g in informe['escenarios']] == ['Operador']
 
 
 def test_nombre_de_variacion_libre_si_ya_existe(guion):
@@ -188,6 +207,21 @@ def test_carga_nueva_en_la_barra_indicada(guion):
     assert not app.proyecto.GetContents('*.ElmLne', 1)[-1].loc_name.startswith('LNE_')
 
 
+def test_barra_que_no_esta_en_el_proyecto_cae_a_las_coordenadas(guion):
+    """004:RF-50 — la «BARRA» de un libro de planificación es la de la subestación: con
+    coordenadas, la carga se ubica por ellas y se anota; sin ellas, no se crea."""
+    app = fake_pf.proyecto(cargas_por_alim=4)
+    destino = next(b for b in app.proyecto.GetContents('*.ElmTerm', 1) if b.loc_name == 'F2_B3')
+    nuevas = [_nueva('N1', barra='B 10 kV', lat=destino.GPSlat + 0.0003, lon=destino.GPSlon),
+              _nueva('N2', barra='B 10 kV')]
+    informe, rc = guion.ejecutar(app, _plan(['F1', 'F2'], nuevas=nuevas), simular=False)
+    assert rc == 0, informe
+    creada = informe['feeders'][1]['creadas'][0]
+    assert (creada['sed'], creada['barra'], creada['criterio']) == ('N1', 'F2_B3', 'barra más cercana por GPS')
+    assert [n['sed'] for n in informe['no_creadas']] == ['N2']
+    assert creada['nota'] and 'RF-50' in creada['nota']
+
+
 def test_carga_nueva_en_la_barra_mas_cercana_por_gps(guion):
     """004:RF-11 — sin barra, la más cercana a sus coordenadas, con línea de esa longitud."""
     app = fake_pf.proyecto(cargas_por_alim=4)
@@ -281,6 +315,40 @@ def test_carga_no_conectable_se_omite_y_siguen_las_demas(guion):
     assert set(motivos) == {'N1', 'N3'}
     assert 'GPS' in motivos['N1'] and 'NO_ESTA' in motivos['N3']
     assert [c['sed'] for c in informe['feeders'][0]['creadas']] == ['N2']
+
+
+def test_mas_cercana_solo_en_media_y_antes_la_de_la_red(guion):
+    """004:RF-48 — la barra de BT de una SED, aunque esté justo en el punto, no se elige; y
+    la barra MT interna de una SED con el mismo GPS que su nodo cede ante el nodo."""
+    app = fake_pf.proyecto(alimentadores=('F1',), cargas_por_alim=3)
+    alim = app.proyecto.GetContents('*.ElmFeeder', 1)[0]
+    nodo = next(b for b in app.proyecto.GetContents('*.ElmTerm', 1) if b.loc_name == 'F1_B2')
+    punto = dict(lat=nodo.GPSlat + 0.0002, lon=nodo.GPSlon)
+    sed = nodo.GetParent().CreateObject('ElmSubstat', 'SED_X')
+    baja = sed.CreateObject('ElmTerm', 'A_BT')          # «A…» gana a «F1_B2» por nombre
+    baja.uknom, baja.GPSlat, baja.GPSlon = 0.38, punto['lat'], punto['lon']
+    interna = sed.CreateObject('ElmTerm', 'A_MT')
+    interna.uknom, interna.GPSlat, interna.GPSlon = 10.0, nodo.GPSlat, nodo.GPSlon
+    alim._objs.extend([sed, baja, interna])
+    informe, rc = guion.ejecutar(app, _plan(['F1'], nuevas=[_nueva('N1', **punto)]), simular=True)
+    assert rc == 0, informe
+    assert informe['feeders'][0]['crearian'][0]['barra'] == 'F1_B2'
+
+
+def test_la_sed_nueva_lleva_su_gps(guion):
+    """004:RF-49 — la SED, sus barras y su carga con el GPS de la fila o, sin él, el de la barra."""
+    app = fake_pf.proyecto(alimentadores=('F1',), cargas_por_alim=3)
+    b1 = next(b for b in app.proyecto.GetContents('*.ElmTerm', 1) if b.loc_name == 'F1_B1')
+    punto = (b1.GPSlat + 0.0004, b1.GPSlon)
+    plan = _plan(['F1'], nuevas=[_nueva('N1', lat=punto[0], lon=punto[1]), _nueva('N2', barra='F1_B3')])
+    informe, rc = guion.ejecutar(app, plan, simular=False)
+    assert rc == 0, informe
+    _ver_cargas(app)
+    b3 = next(b for b in app.proyecto.GetContents('*.ElmTerm', 1) if b.loc_name == 'F1_B3')
+    for sed, esperado in (('N1', punto), ('N2', (b3.GPSlat, b3.GPSlon))):
+        sub = next(o for o in app.proyecto.GetContents('*.ElmSubstat', 1) if o.loc_name == sed)
+        for obj in (sub, *sub.GetContents('*.ElmTerm'), *sub.GetContents('*.ElmLod')):
+            assert (obj.GPSlat, obj.GPSlon) == pytest.approx(esperado), (sed, obj.loc_name)
 
 
 # =========================================================================== ejecución

@@ -51,6 +51,9 @@ from igea_dgs.native_action import native_action_block_report
 MAX_NOMBRE = 40               # loc_name de DIgSILENT
 REFERENCIAS_DIBUJO = 12       # barras dibujadas cercanas con que se mide la escala
 RADIO_TIERRA_M = 6_371_000.0
+# Baja tensión hasta 1 kV (IEC 60038), en cualquier empresa: una carga nueva se engancha
+# en media, nunca en la barra de BT de una SED existente (RF-48).
+MAX_BT_KV = 1.0
 
 
 # =========================================================================== nombres
@@ -112,7 +115,8 @@ def activar_proyecto(app, ruta: str, carpeta: str | None = None):
     en el plan (planes anteriores a la spec 005), la del perfil de empresa. Respeta el
     caso de estudio activo del proyecto.
     """
-    from igea_dgs.carpeta_pf import activar_proyecto as activar, nombre_de_perfil
+    from igea_dgs.carpeta_pf import activar_proyecto as activar
+    from igea_dgs.carpeta_pf import nombre_de_perfil
 
     proyecto = activar(app, ruta, carpeta or nombre_de_perfil())
     if proyecto is None:
@@ -191,6 +195,46 @@ def medir_cabecera(app, elm):
     return leer_cabecera(elm)
 
 
+def _frontera_cabecera(elm):
+    """Cubículo medido, método, troncales y fuentes activas de la barra de cabecera."""
+    cub_feeder = elm.obj_id
+    try:
+        barra = cub_feeder.GetParent()
+        cubiculos = [c for c in barra.GetContents('*.StaCubic')
+                     if getattr(c, 'obj_id', None) is not None
+                     and not int(getattr(c.obj_id, 'outserv', 0) or 0)]
+    except Exception:  # noqa: BLE001 - proyectos antiguos conservan la rama ElmFeeder
+        return cub_feeder, 'RAMA_ELMFEEDER', [], []
+    fuentes = [c for c in cubiculos if c.obj_id.GetClassName() == 'ElmXnet']
+    clases_troncal = {'ElmLne', 'ElmTr2', 'ElmTr3'}
+    troncales = [c for c in cubiculos if c.obj_id.GetClassName() in clases_troncal]
+    if len(troncales) < 2:
+        return cub_feeder, 'RAMA_ELMFEEDER', troncales, fuentes
+    if len(fuentes) == 1:
+        return fuentes[0], 'FUENTE_UNICA', troncales, fuentes
+    # Nunca usar una sola rama como sustituto de una cabecera multitroncal: sin una
+    # frontera común única, el objetivo del medidor no puede reconciliarse con toda la red.
+    return cub_feeder, 'MULTITRONCAL_SIN_MEDIDOR_UNICO', troncales, fuentes
+
+
+def _leer_cubiculo(cub, signo: float):
+    rama = cub.obj_id
+    lado = int(getattr(cub, 'obj_bus', 0) or 0) + 1
+    p, q = _num(rama, f'm:Psum:bus{lado}'), _num(rama, f'm:Qsum:bus{lado}')
+    return rama, p, q, lado, signo
+
+
+def _signo_fuente(cub, troncales) -> float:
+    """Signo del ElmXnet que hace su P coherente con la suma de salidas de la barra."""
+    _rama, p, _q, _lado, _ = _leer_cubiculo(cub, 1.0)
+    salidas = [_leer_cubiculo(c, 1.0)[1] for c in troncales]
+    salidas = [x for x in salidas if x is not None]
+    if p is None or not salidas:
+        return 1.0
+    total = sum(salidas)
+    return 1.0 if abs(p - total) <= abs(-p - total) else -1.0
+
+
 def leer_cabecera(elm):
     """Lo que entra por la cabecera según el último flujo, sin volver a ejecutarlo.
 
@@ -198,14 +242,63 @@ def leer_cabecera(elm):
     """
     from igea_dgs.ajuste_cabecera import Medida
 
-    cub = elm.obj_id
-    rama = cub.obj_id
-    lado = int(getattr(cub, 'obj_bus', 0) or 0) + 1
-    p, q = _num(rama, f'm:Psum:bus{lado}'), _num(rama, f'm:Qsum:bus{lado}')
+    cub, metodo, troncales, fuentes = _frontera_cabecera(elm)
+    # Un ``ElmFeeder`` puede apuntar solo a una de varias troncales que salen de la
+    # misma barra (CA101: dos salidas y un solo medidor). Cuando hay una única fuente
+    # externa en esa barra, su cubículo es la frontera medida común y agrega todas las
+    # troncales. PowerFactory no conserva la misma convención de signo del ElmXnet en
+    # todos los proyectos; se elige la que coincide con la suma de salidas de la barra.
+    if metodo == 'FUENTE_UNICA':
+        signo = _signo_fuente(cub, troncales)
+        rama, p, q, _lado, _signo = _leer_cubiculo(cub, signo)
+        if p is None or q is None:
+            return Medida(False, motivo=f'sin resultados en la fuente ({rama.loc_name})')
+        return Medida(True, signo * p * 1000.0, signo * q * 1000.0)
+    if metodo == 'MULTITRONCAL_SIN_MEDIDOR_UNICO':
+        return Medida(
+            False,
+            motivo=(f'{len(troncales)} troncales en la barra de cabecera, pero se '
+                    f'detectaron {len(fuentes)} fuentes ElmXnet: no se puede demostrar '
+                    'un medidor común único y no se calibrará con una rama parcial'),
+        )
+
+    rama, p, q, _lado, _signo = _leer_cubiculo(cub, 1.0)
     if p is None or q is None:
         return Medida(False, motivo=f'sin resultados en la cabecera ({rama.loc_name})')
     signo = -1.0 if int(getattr(elm, 'iorient', 0) or 0) == 1 else 1.0
     return Medida(True, signo * p * 1000.0, signo * q * 1000.0)
+
+
+def detalle_cabecera(elm) -> dict:
+    """Frontera de medición y flujo individual de las troncales, para auditoría."""
+    cub, metodo, troncales, fuentes = _frontera_cabecera(elm)
+    signo_fuente = _signo_fuente(cub, troncales) if metodo == 'FUENTE_UNICA' else 1.0
+    rama, p, q, lado, signo = _leer_cubiculo(
+        cub, signo_fuente if metodo == 'FUENTE_UNICA' else
+        (-1.0 if int(getattr(elm, 'iorient', 0) or 0) == 1 else 1.0))
+    filas = []
+    for troncal in troncales:
+        elemento, tp, tq, tlado, _ = _leer_cubiculo(troncal, 1.0)
+        filas.append({
+            'cubiculo': str(getattr(troncal, 'loc_name', '') or ''),
+            'elemento': str(getattr(elemento, 'loc_name', '') or ''),
+            'clase': str(elemento.GetClassName()), 'lado': tlado,
+            'kw': None if tp is None else tp * 1000.0,
+            'kvar': None if tq is None else tq * 1000.0,
+        })
+    return {
+        'metodo': metodo,
+        'barra': str(getattr(cub.GetParent(), 'loc_name', '') or ''),
+        'cubiculo_medidor': str(getattr(cub, 'loc_name', '') or ''),
+        'elemento_medidor': str(getattr(rama, 'loc_name', '') or ''),
+        'clase_medidor': str(rama.GetClassName()), 'lado_medidor': lado,
+        'kw': None if p is None or metodo == 'MULTITRONCAL_SIN_MEDIDOR_UNICO'
+        else signo * p * 1000.0,
+        'kvar': None if q is None or metodo == 'MULTITRONCAL_SIN_MEDIDOR_UNICO'
+        else signo * q * 1000.0,
+        'cantidad_fuentes': len(fuentes),
+        'cantidad_troncales': len(filas), 'troncales': filas,
+    }
 
 
 # =========================================================================== demandas
@@ -303,6 +396,37 @@ def error_relectura(obj, p_mw: float, q_mvar: float) -> str:
     return ''
 
 
+def grabar_en_escenario(app, filas, apagar=()) -> dict | None:
+    """Escribe las demandas también en el escenario activo y lo guarda (006:RF-27, 004:RF-54).
+
+    La potencia de una carga es dato de operación: con un escenario activo, DIgSILENT usa
+    la que guarda él y no la de la variación. SI213 (2026-10-12) cuadró a 1.622 kW con el
+    escenario apagado y, al restaurarlo, la cabecera daba 229 kW, los de antes del ajuste.
+    ``filas``: ``(nombre, carga, p_mw, q_mvar)``; ``apagar``: ``(nombre, carga)`` que
+    quedan fuera de servicio. Sin escenario activo, ``None``.
+    """
+    esc = app.GetActiveScenario()
+    if esc is None:
+        return None
+    fallos = []
+    for nombre, obj, p_mw, q_mvar in filas:
+        try:
+            escribir_carga(obj, p_mw, q_mvar)
+            error = error_relectura(obj, p_mw, q_mvar)
+        except Exception as exc:  # noqa: BLE001 - una SED no tumba las demás
+            error = f'{type(exc).__name__}: {exc}'
+        if error:
+            fallos.append({'sed': nombre, 'error': f'en el escenario {esc.loc_name}: {error}'})
+    for nombre, obj in apagar:
+        try:
+            obj.outserv = 1
+        except Exception as exc:  # noqa: BLE001
+            fallos.append({'sed': nombre, 'error': f'en el escenario {esc.loc_name}: '
+                                                   f'{type(exc).__name__}: {exc}'})
+    esc.Save()
+    return {'escenario': esc.loc_name, 'cargas': len(filas), 'fallos': fallos}
+
+
 # =========================================================================== cargas nuevas
 def _tipo_de_barra(barra):
     """Tipo de una línea que llega a la barra: tiene su R y X reales (RF-12)."""
@@ -311,6 +435,27 @@ def _tipo_de_barra(barra):
         if obj is not None and obj.GetClassName() == 'ElmLne' and getattr(obj, 'typ_id', None) is not None:
             return obj.typ_id
     return None
+
+
+def _tipo_del_alimentador(alims, feeder, barra):
+    """Tipo de línea más usado del alimentador a la tensión de la barra (RF-39).
+
+    A igual número de líneas, el de nombre menor, para que dos ejecuciones elijan el mismo.
+    """
+    kv = float(getattr(barra, 'uknom', 0) or 0)
+    cuenta: dict[str, list] = {}
+    for linea in alims.objetos(feeder, 'ElmLne'):
+        tipo = getattr(linea, 'typ_id', None)
+        if tipo is None:
+            continue
+        nominal = float(getattr(tipo, 'uline', 0) or 0)
+        if kv and nominal and abs(nominal - kv) > 0.2 * kv:
+            continue
+        cuenta.setdefault(tipo.loc_name, [0, tipo])[0] += 1
+    if not cuenta:
+        return None
+    _nombre, (_n, tipo) = min(cuenta.items(), key=lambda kv_: (-kv_[1][0], kv_[0]))
+    return tipo
 
 
 def _red_de(obj):
@@ -335,41 +480,72 @@ def _tension_bt(alims: Alimentadores, feeder: str) -> float | None:
             tensiones[round(float(valor), 4)] += 1
     if not tensiones:
         return None
-    return sorted(tensiones.items(), key=lambda kv: (-kv[1], kv[0]))[0][0]
+    return min(tensiones.items(), key=lambda kv: (-kv[1], kv[0]))[0]
+
+
+def _de_media(barra) -> bool:
+    """Barra donde se puede enganchar una SED nueva por cercanía (RF-48).
+
+    El conversor da a la barra de BT de cada SED el GPS de su nodo de MT: sin este filtro
+    la «más cercana» podía ser una de 0,38 kV, y la línea de enlace de media acababa en ella.
+    """
+    try:
+        return float(getattr(barra, 'uknom', 0) or 0) > MAX_BT_KV
+    except (TypeError, ValueError):
+        return False
+
+
+def _en_sed(barra) -> bool:
+    try:
+        padre = barra.GetParent()
+        return padre is not None and padre.GetClassName() == 'ElmSubstat'
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict]):
     """Cada carga nueva → cómo se conecta, o el motivo para no crearla. Solo lectura.
 
     Devuelve (resueltas por alimentador, no creadas, avisos). Solo se buscan barras en
-    los alimentadores marcados (spec 007, RF-25): las cargas del libro vienen aprobadas
-    para ellos, y una fila que dice otro alimentador se conecta igual y se anota (RF-29).
-    Con varios marcados, el de su columna si está entre ellos o, si no, el de la barra
-    más cercana (RF-36).
+    los alimentadores marcados (spec 007, RF-25). Una fila cuyo alimentador (TRONCAL) no
+    está marcado no se crea (RF-29): el libro de planificación trae las cargas de todos
+    los alimentadores, y con SI213 marcado se colgaban de su barra más cercana las 27 de
+    otros alimentadores, una a 216 km (2026-10-13). Sin alimentador en la fila, la barra
+    más cercana entre los marcados (RF-36).
     """
     tipos = {t.loc_name: t for t in proyecto.GetContents('*.TypLne', 1)}
     existentes = {o.loc_name for f in alims.elegidos for clase in ('ElmLod', 'ElmSubstat')
                   for o in alims.objetos(f, clase)}
     barras = {f: alims.objetos(f, 'ElmTerm') for f in alims.elegidos}
+    # RF-48: por cercanía solo barras de media, y a igual distancia la de la red antes que
+    # la barra MT interna de una SED, que en un proyecto convertido tiene el mismo GPS.
+    cercanas = {f: [(b, pos, _en_sed(b)) for b in barras[f] if _de_media(b)
+                    for pos in [gps_de(b)] if pos is not None] for f in alims.elegidos}
     resueltas = {f: [] for f in alims.elegidos}
     no_creadas, avisos = [], []
     # RF-28: un alimentador sin barras con GPS se dice una vez, no carga por carga.
-    sin_gps = {f for f in alims.elegidos if not any(gps_de(b) for b in barras[f])}
+    sin_gps = {f for f in alims.elegidos if not cercanas[f]}
     avisados = set()
+    # El libro escribe la TRONCAL a mano: «si213 » es SI213.
+    marcados = {str(f).strip().upper(): f for f in alims.elegidos}
+    de_otros: dict[str, int] = {}
     for fila in nuevas:
         sed = fila['sed']
+        candidatos = list(alims.elegidos)
+        suyo = str(fila.get('alimentador') or '').strip()
+        if suyo:
+            if suyo.upper() not in marcados:
+                de_otros[suyo] = de_otros.get(suyo, 0) + 1
+                no_creadas.append({'sed': sed, 'motivo': f'el libro la da en {suyo}, que no está '
+                                                         'entre los alimentadores marcados (RF-29)'})
+                continue
+            candidatos = [marcados[suyo.upper()]]
         if sed in existentes:
             no_creadas.append({'sed': sed, 'motivo': 'ya existe en el alimentador (RF-15)'})
             continue
-        candidatos = list(alims.elegidos)
-        otro = ''
-        if fila.get('alimentador'):
-            if fila['alimentador'] in candidatos:
-                candidatos = [fila['alimentador']]
-            else:
-                otro = fila['alimentador']
         punto = (fila['lat'], fila['lon']) if fila.get('lat') is not None else None
         eleccion = None
+        sobre_barra = ''
         if fila.get('barra'):
             halladas = [(f, b) for f in candidatos for b in barras[f] if b.loc_name == fila['barra']]
             if len(halladas) > 1:
@@ -378,32 +554,36 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict]):
             if len(halladas) != 1:
                 motivo = (f"la barra {fila['barra']} no está en los alimentadores elegidos" if not halladas
                           else f"la barra {fila['barra']} está en varios alimentadores")
-                no_creadas.append({'sed': sed, 'motivo': motivo})
-                continue
-            feeder, barra = halladas[0]
-            pos = gps_de(barra)
-            dist = distancia_m(pos, punto) if (pos and punto) else None
-            eleccion = (feeder, barra, dist, 'barra indicada')
-        elif punto is not None:
+                # RF-50: un libro de planificación llama «BARRA» a la de la subestación, no
+                # a una barra del proyecto (SI213, 2026-10-12); con coordenadas, se ubica por ellas.
+                if punto is None:
+                    no_creadas.append({'sed': sed, 'motivo': motivo})
+                    continue
+                sobre_barra = f'{motivo}: se ubica por sus coordenadas (RF-50)'
+            else:
+                feeder, barra = halladas[0]
+                pos = gps_de(barra)
+                dist = distancia_m(pos, punto) if (pos and punto) else None
+                eleccion = (feeder, barra, dist, 'barra indicada')
+        if eleccion is None and punto is not None:
             mejor = None
+            clave_mejor = None
             for f in candidatos:
-                for b in barras[f]:
-                    pos = gps_de(b)
-                    if pos is None:
-                        continue
+                for b, pos, interna in cercanas[f]:
                     d = distancia_m(pos, punto)
-                    if mejor is None or (d, f, b.loc_name) < (mejor[2], mejor[0], mejor[1].loc_name):
-                        mejor = (f, b, d)
+                    clave = (d, interna, f, b.loc_name)
+                    if clave_mejor is None or clave < clave_mejor:
+                        mejor, clave_mejor = (f, b, d), clave
             if mejor is None:
                 nuevos = sorted(set(candidatos) & sin_gps - avisados)
                 if nuevos:
-                    avisos.append(f"Ninguna barra de {', '.join(nuevos)} tiene coordenadas en DIgSILENT: "
+                    avisos.append(f"Ninguna barra de media de {', '.join(nuevos)} tiene coordenadas en DIgSILENT: "
                                   'no se conecta por coordenadas ninguna carga suya (RF-28).')
                     avisados.update(nuevos)
                 no_creadas.append({'sed': sed, 'motivo': 'ninguna barra de los alimentadores tiene GPS'})
                 continue
             eleccion = (*mejor, 'barra más cercana por GPS')
-        else:
+        elif eleccion is None:
             no_creadas.append({'sed': sed, 'motivo': 'sin barra ni coordenadas'})
             continue
         feeder, barra, dist, criterio = eleccion
@@ -413,6 +593,12 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict]):
                 tipo, origen_tipo = tipos[fila['tipo_linea']], 'de la fila'
             else:
                 tipo, origen_tipo = _tipo_de_barra(barra), 'de la red'
+            if tipo is None:
+                # RF-39: SI213, 2026-10-13: la barra más cercana a «SU Fundo El Eden» era el
+                # nodo de una SED sin línea propia (solo su seccionador) y la única carga del
+                # libro para SI213 no se creó. Se toma el tipo más usado del alimentador.
+                tipo = _tipo_del_alimentador(alims, feeder, barra)
+                origen_tipo = 'el más usado del alimentador' if tipo is not None else ''
             if tipo is None:
                 no_creadas.append({'sed': sed, 'motivo': f'ninguna línea llega a {barra.loc_name} y '
                                                          'la fila no da un tipo de línea del proyecto'})
@@ -425,14 +611,18 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict]):
         red = _red_de(barra)
         resueltas[feeder].append({
             'fila': fila, 'barra': barra, 'distancia_m': dist, 'criterio': criterio,
-            'nota': (f'el libro la da en {otro}, que no está marcado: se conecta a {feeder} (RF-29)'
-                     if otro else None),
+            'nota': sobre_barra or None,
             'tipo': tipo, 'origen_tipo': origen_tipo,
             'tension_mt_kv': float(getattr(barra, 'uknom', 0) or 0),
             'tension_bt_kv': float(bt), 'red': red,
             'frecuencia_hz': float(getattr(red, 'frnom', 0) or 0) if red is not None else 0.0,
         })
         existentes.add(sed)
+    if de_otros:
+        total = sum(de_otros.values())
+        detalle = ', '.join(f'{f} ({n})' for f, n in sorted(de_otros.items()))
+        avisos.append(f'{total} carga(s) nueva(s) del libro son de alimentadores no marcados '
+                      f'({detalle}): no se crean (RF-29).')
     return resueltas, no_creadas, avisos
 
 
@@ -515,6 +705,16 @@ def crear_carga(alims, proyecto, typ_folder, diagrama, feeder, r) -> dict:
     escribir_carga(carga, float(fila['plini_mw']), float(fila['qlini_mvar']))
     cub = b_bt.CreateObject('StaCubic', nombre_pf(f'Cub_{sed}'))
     cub.obj_id, cub.obj_bus = carga, 0
+    # RF-49: sin GPS, la SED nueva no salía en el diagrama geográfico aunque la fila
+    # trajera sus coordenadas; el conversor pone el de su nodo a la SED y a sus barras.
+    punto = ((float(fila['lat']), float(fila['lon'])) if fila.get('lat') is not None
+             else gps_de(barra))
+    if punto is not None:
+        for obj in (sub, b_mt, b_bt, carga):
+            try:
+                obj.GPSlat, obj.GPSlon = punto
+            except Exception:  # noqa: BLE001, S110 - una clase sin GPS no impide crearla
+                pass
     error = error_relectura(carga, float(fila['plini_mw']), float(fila['qlini_mvar']))
     dibujo = None
     if diagrama is not None:
@@ -596,7 +796,7 @@ class Diagrama:
         if nueva_barra is not None and linea is not None:
             self._simbolo(grfnet, f"G_{nueva_barra.loc_name}", 'PointTerm', nueva_barra, destino)
             centro = ((ancla[0] + destino[0]) / 2, (ancla[1] + destino[1]) / 2)
-            rot = int(round(math.degrees(math.atan2(destino[1] - ancla[1], destino[0] - ancla[0])))) % 360
+            rot = round(math.degrees(math.atan2(destino[1] - ancla[1], destino[0] - ancla[0]))) % 360
             g = self._simbolo(grfnet, f'G_{linea.loc_name}', 'd_lin', linea, centro, rot)
             for nr, extremo in ((0, ancla), (1, destino)):
                 con = g.CreateObject('IntGrfcon', nombre_pf(f'GCO_{nr + 1}_{linea.loc_name}'))
@@ -624,8 +824,28 @@ def crear_variacion(app, nombre_base: str, etiqueta_etapa: str):
     etapa = next((s for s in variacion.GetContents('*.IntSstage') if s.loc_name == nombre_etapa), None)
     if etapa is not None and not _misma(app.GetRecordingStage(), etapa):
         etapa.Activate(1)
+    otras = []
+    if etapa is not None and not _misma(app.GetRecordingStage(), etapa):
+        # Con otras etapas activas de la misma fecha PF puede no dejar grabando ninguna, ni
+        # con Activate(1) (manual de PF 2024, 16.5). SI213, 2026-10-12, en una copia del
+        # proyecto: con sus cuatro ajustes activos no grababa; sola, la etapa nueva graba y
+        # sigue grabando al reactivar las otras… hasta la cuarta. Qué combinación lo impide
+        # no lo dice el manual: se prueba y se comprueba al final, sin suponerlo.
+        otras = [v for v in app.GetActiveNetworkVariations() if not _misma(v, variacion)]
+        for v in otras:
+            v.Deactivate()
+        etapa.Activate(1)
+        for v in otras:
+            v.Activate()
     if etapa is None or not _misma(app.GetRecordingStage(), etapa):
-        raise RuntimeError(f'la etapa de {nombre} no quedó grabando: no se escribe nada')
+        # Activa y vacía, se sumaría a las etapas de la misma fecha que ya impidieron grabar
+        # y el siguiente intento fallaría igual.
+        variacion.Deactivate()
+        detalle = (': DIgSILENT no la deja grabar con estas variaciones activas en la misma '
+                   'fecha; desactive las que no hagan falta y repita: '
+                   + ', '.join(v.loc_name for v in otras)) if otras else ''
+        raise RuntimeError(f'la etapa de {nombre} no quedó grabando: no se escribe nada'
+                           + detalle)
     return variacion, etapa
 
 
@@ -650,7 +870,7 @@ def flujo_de_carga(app) -> dict:
             try:
                 if bus.HasResults():
                     tensiones.append((bus.GetAttribute('m:u'), bus.loc_name))
-            except Exception:  # noqa: BLE001
+            except Exception:  # noqa: BLE001, S110
                 pass
         if tensiones:
             tensiones.sort()
@@ -673,7 +893,7 @@ def tecnico_economico(app, tec: dict) -> dict:
     ventana = app.GetOutputWindow()
     try:
         ventana.Clear()
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001, S110
         pass
     rc = orden.Execute()
     lineas = [str(x) for x in (ventana.GetContent() or [])]
@@ -841,6 +1061,8 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
 
     if not any(asignadas.values()) and not any(resueltas.values()):
         informe['avisos'].append('Nada que aplicar: ninguna fila coincide en el proyecto.')
+        # Sin esto la web decía «al terminar: ninguna» con el ajuste aún activo (2026-10-13).
+        informe['variaciones_activas_fin'] = variaciones_activas(app)
         return informe, 0
 
     # Con un escenario activo, los datos de operación (las demandas) irían a él y no a
@@ -943,12 +1165,21 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
             print(f"  cargas nuevas: {len(informe['cargas'])}, cada una en su variación")
         # El flujo que queda: la base y las demandas, sin ninguna carga nueva (RF-17).
         informe['flujo'] = flujo_de_carga(app)
+        # Solo las que se escribieron bien en la variación: la que falló, falla igual.
+        bien = {(f, x['sed']) for f in empezados for x in por_feeder[f]['actualizadas']}
+        actualizadas = [(fila['sed'], obj, float(fila['plini_mw']), float(fila['qlini_mvar']))
+                        for f in empezados for fila, obj in asignadas[f]
+                        if (f, fila['sed']) in bien]
+        if actualizadas:
+            informe['escenarios'] = _demandas_al_escenario(app, casos, apagados, actualizadas)
+            for g in informe['escenarios']:
+                informe['avisos'] += [f"{x['sed']}: {x['error']}" for x in g['fallos']]
     finally:
         # RF-17: también si algo revienta, ninguna variación de carga queda activa.
         for v in de_cargas:
             try:
                 v.Deactivate()
-            except Exception:  # noqa: BLE001 - se informa en variaciones_activas_fin
+            except Exception:  # noqa: BLE001, S110 - se informa en variaciones_activas_fin
                 pass
         # Y el escenario del operador no se queda apagado, en ningún caso.
         for caso, esc in apagados:
@@ -973,6 +1204,31 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
     return informe, (2 if fallos else 0)
 
 
+def _demandas_al_escenario(app, casos, apagados, filas) -> list[dict]:
+    """Las demandas también en el escenario de operación (RF-54, RF-55).
+
+    Se escriben en la variación con el escenario apagado (RF-3) pero, al restaurarlo,
+    manda la potencia que guarda él (spec 006, RF-27). Con los tres casos, en los de «Sin
+    proyecto» y «Con proyecto»; el del «Caso base» guarda el ajuste y no se toca.
+    """
+    previo = app.GetActiveStudyCase()
+    grabados = []
+    for caso in ([casos['sin'], casos['con']] if casos else [None]):
+        if caso is not None:
+            caso.Activate()
+        if app.GetActiveScenario() is None:
+            # El que se apagó para escribir en la variación vuelve ya, para grabar en él.
+            esc = next((e for c, e in apagados if c is caso), None)
+            if esc is not None:
+                esc.Activate()
+        g = grabar_en_escenario(app, filas)
+        if g is not None:
+            grabados.append(g)
+    if previo is not None and app.GetActiveStudyCase() is not previo:
+        previo.Activate()
+    return grabados
+
+
 def _una_carga(app, plan, alims, proyecto, typ_folder, diagrama, feeder, r, nombre, sin, de_cargas) -> dict:
     """Una carga en su variación: crear, medir con proyecto, evaluar y desactivar (RF-11 a RF-15, RF-22)."""
     variacion, etapa = crear_variacion(app, nombre, plan.get('stamp') or '')
@@ -984,7 +1240,7 @@ def _una_carga(app, plan, alims, proyecto, typ_folder, diagrama, feeder, r, nomb
         de_cargas.remove(variacion)
         try:
             variacion.Delete()
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: BLE001, S110
             pass
         return {'error': f'{type(exc).__name__}: {exc}'}
     creada.update(variacion=variacion.loc_name, nota=r.get('nota'))
@@ -1007,6 +1263,67 @@ def _una_carga(app, plan, alims, proyecto, typ_folder, diagrama, feeder, r, nomb
     return creada
 
 
+def deshacer(app, plan: dict, aplicado: dict, *, simular: bool) -> tuple[dict, int]:
+    """Borra lo que creó una aplicación anterior, según su informe (spec 007, RF-38).
+
+    SI213 (2026-10-13) creó 28 cargas nuevas, 27 de otros alimentadores (RF-29). Cada
+    carga vive en su variación y se va con ella; los símbolos del diagrama y los tipos
+    de transformador nuevos no están en la variación y se borran aparte. Un tipo que use
+    todavía algún transformador del proyecto se deja.
+    """
+    proyecto = activar_proyecto(app, plan['project'], plan.get('folder'))
+    if proyecto is None:
+        return {'error': f"no existe el proyecto {plan['project']!r} en la carpeta "
+                         f"{plan.get('folder')!r} de DIgSILENT"}, 2
+    if aplicado.get('project') and aplicado['project'] != proyecto.loc_name:
+        return {'error': f"el informe es del proyecto {aplicado['project']!r}, no de "
+                         f'{proyecto.loc_name!r}: no se borra nada'}, 2
+    creadas = [c for f in aplicado.get('feeders') or [] for c in f.get('creadas') or []]
+    nombres = list(dict.fromkeys(c['variacion'] for c in creadas if c.get('variacion')))
+    carpeta = app.GetProjectFolder('scheme')
+    por_nombre = {v.loc_name: v for v in (carpeta.GetContents('*.IntScheme', 1) if carpeta else [])}
+    informe = {'project': proyecto.loc_name, 'modo': 'simular' if simular else 'deshacer',
+               'variaciones': [], 'no_estaban': [n for n in nombres if n not in por_nombre],
+               'simbolos': [], 'tipos': [], 'tipos_en_uso': []}
+    for nombre in nombres:
+        v = por_nombre.get(nombre)
+        if v is None:
+            continue
+        if not simular:
+            v.Deactivate()
+            v.Delete()
+        informe['variaciones'].append(nombre)
+    # Los nombres que da ``Diagrama.dibujar``.
+    simbolos = set()
+    for c in creadas:
+        if (c.get('dibujo') or {}).get('dibujada'):
+            sed = nombre_pf(c['sed'])
+            simbolos |= {nombre_pf(f'G_{nombre_pf(f"NODE_{sed}")}'),
+                         nombre_pf(f'G_{nombre_pf(f"LNE_{sed}")}'), nombre_pf(f'gnoT {sed}')}
+    for grfnet in proyecto.GetContents('*.IntGrfnet', 1) if simbolos else []:
+        for grf in grfnet.GetContents('*.IntGrf'):
+            if grf.loc_name in simbolos:
+                informe['simbolos'].append(grf.loc_name)
+                if not simular:
+                    grf.Delete()
+    nuevos = {c['tipo_trafo'] for c in creadas if c.get('tipo_trafo_nuevo') and c.get('tipo_trafo')}
+    if nuevos:
+        en_uso = {getattr(getattr(t, 'typ_id', None), 'loc_name', None)
+                  for t in proyecto.GetContents('*.ElmTr2', 1)}
+        typ_folder = app.GetProjectFolder('equip') or proyecto
+        for tipo in typ_folder.GetContents('*.TypTr2', 1):
+            if tipo.loc_name not in nuevos:
+                continue
+            if tipo.loc_name in en_uso:
+                informe['tipos_en_uso'].append(tipo.loc_name)
+                continue
+            informe['tipos'].append(tipo.loc_name)
+            if not simular:
+                tipo.Delete()
+    informe['variaciones_activas_fin'] = variaciones_activas(app)
+    return informe, 0
+
+
 def error_inesperado(plan: dict, simular: bool, exc: BaseException) -> dict:
     """Informe de un guion que revienta: el error con su tipo, para que la web lo muestre."""
     informe = {'project': plan.get('project'), 'modo': 'simular' if simular else 'aplicar',
@@ -1023,6 +1340,8 @@ def main(argv=None) -> int:
     p.add_argument('--output-json', required=True)
     p.add_argument('--simular', action='store_true', help='Informa sin escribir (RF-17)')
     p.add_argument('--cancel-file', help='Si aparece, no se empieza otro alimentador (RF-19)')
+    p.add_argument('--deshacer', metavar='INFORME',
+                   help='Borra lo que creó la aplicación de ese informe (spec 007, RF-38)')
     args = p.parse_args(argv)
     plan = json.loads(Path(args.plan).read_text(encoding='utf-8'))
     blocked = native_action_block_report(plan, 'cargas')
@@ -1041,6 +1360,13 @@ def main(argv=None) -> int:
     except Exception as exc:  # noqa: BLE001
         print(f'ERROR: no se pudo conectar a DIgSILENT: {exc}')
         return 3
+    if args.deshacer:
+        aplicado = json.loads(Path(args.deshacer).read_text(encoding='utf-8'))
+        informe, codigo = deshacer(app, plan, aplicado, simular=args.simular)
+        Path(args.output_json).write_text(
+            json.dumps(informe, indent=2, ensure_ascii=False, default=str) + '\n', encoding='utf-8')
+        print(json.dumps(informe, indent=2, ensure_ascii=False, default=str))
+        return codigo
     flag = Path(args.cancel_file) if args.cancel_file else None
     try:
         informe, codigo = ejecutar(app, plan, simular=args.simular,

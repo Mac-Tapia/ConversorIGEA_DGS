@@ -194,6 +194,14 @@ def _salida(app, tope: int = MAX_SALIDA) -> list[str]:
         return []
 
 
+def _clave_nativa(obj):
+    """Identidad persistente aunque PowerFactory entregue un wrapper Python nuevo."""
+    try:
+        return 'pf', str(obj.GetFullName())
+    except Exception:  # noqa: BLE001
+        return 'py', id(obj)
+
+
 def _limpiar_salida(app) -> None:
     try:
         app.GetOutputWindow().Clear()
@@ -217,8 +225,12 @@ def _tomas(alims: Alimentadores, feeders: list[str]) -> list[dict]:
 # =========================================================================== estudio
 def _optimizador(app, plan, alims, feeders, orden, informe) -> None:
     """RF-26: ejecuta en una variación temporal, lee la propuesta y lo deshace todo."""
+    if plan['estudio'] == 'balance_fases' and len(feeders) == 1:
+        # PowerFactory no toma el alimentador del caso ni del ElmFeeder activo: ComBalance
+        # exige explícitamente ``startElm`` y termina con código 1 si queda vacío.
+        orden.startElm = alims.elm.get(feeders[0])
     carpeta = app.GetProjectFolder('scheme')
-    previas = {id(v) for v in carpeta.GetContents('*.IntScheme', 1)}
+    previas = {_clave_nativa(v) for v in carpeta.GetContents('*.IntScheme', 1)}
     foto = Foto(alims, feeders)
     temporal, _etapa = crear_variacion(app, f"Estudio_{plan['estudio']}", plan.get('stamp') or '')
     try:
@@ -231,8 +243,9 @@ def _optimizador(app, plan, alims, feeders, orden, informe) -> None:
         informe['propuesta'] = propuesta
     finally:
         movidas = foto.restituir()
+        clave_temporal = _clave_nativa(temporal)
         for v in carpeta.GetContents('*.IntScheme', 1):
-            if id(v) not in previas or v is temporal:
+            if _clave_nativa(v) not in previas or _clave_nativa(v) == clave_temporal:
                 v.Deactivate()
                 v.Delete()
         if movidas:

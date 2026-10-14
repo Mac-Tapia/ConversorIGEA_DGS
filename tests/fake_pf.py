@@ -40,6 +40,13 @@ proyecto real (2026-10-12), con los nombres reales de sus variables de resultado
 ``app.atributos_en_variacion`` los atributos escritos mientras graba una etapa son de su
 variación y desactivarla los devuelve, como en DIgSILENT; y al activar otro caso se ven
 solo los de las variaciones activas en él (spec 011, T12: obras activas en un solo caso).
+
+Para el escenario de operación (spec 006, RF-27): con ``app.escenario_manda``, la
+potencia de una carga es dato de operación, como en DIgSILENT. Con un escenario activo
+se escribe en él y, si la guarda, se lee de él, no de la carga ni de su variación. SI213
+(2026-10-12) cuadró a 1.622 kW con el escenario apagado y, al restaurarlo, la cabecera
+volvió a los 229 kW que el escenario guardaba. ``Escenario.fotografiar`` guarda las
+cargas que haya, como un escenario creado sobre la red importada.
 """
 from __future__ import annotations
 
@@ -166,9 +173,22 @@ class Obj:
             self._app.activo = self
         # Como ``IntSstage.Activate(1)`` en DIgSILENT: la etapa pasa a ser la que graba
         # (spec 011, T15c: la transferencia devuelve la que grababa antes de su cálculo).
-        if self._clase == 'IntSstage' and self._app is not None:
+        if self._clase == 'IntSstage' and self._app is not None and not self._empatada():
             self._app.grabando = self
         return 0
+
+    def _empatada(self) -> bool:
+        """Otra variación activa tiene una etapa de la misma fecha que esta.
+
+        Manual de PF 2024, 16.5: con varias etapas activas de la misma fecha sigue grabando
+        la que ya grababa. SI213 (2026-10-12) tenía tres ajustes activos así y la etapa del
+        cuarto no llegó a grabar, ni con ``Activate(1)``.
+        """
+        app = self._app
+        mia = getattr(self, 'tAcTime', 0)
+        return any(getattr(s, 'tAcTime', 0) == mia
+                   for v in app.variaciones_activas if v is not self._padre
+                   for s in v.GetContents('*.IntSstage'))
 
     def Deactivate(self, *_a):
         if self._clase == 'IntPrj' and self._app is not None and self._app.activo is self:
@@ -216,8 +236,33 @@ class Importacion(Obj):
         return 0
 
 
+#: Lo que de una carga guarda el escenario de operación con ``app.escenario_manda``.
+_DATOS_DE_OPERACION = ('_p', '_q', '_cos')
+
+
 class Carga(Obj):
     """ElmLod con P y cos φ como datos en modo PC (y P, Q en PQ)."""
+
+    def _op(self, nombre):
+        """Dato de operación: el del escenario activo si lo guarda (``escenario_manda``)."""
+        esc = self._escenario_que_manda()
+        datos = esc._datos.get(id(self)) if esc is not None else None
+        return datos[nombre] if datos is not None else object.__getattribute__(self, nombre)
+
+    def _fijar(self, nombre, valor):
+        esc = self._escenario_que_manda()
+        if esc is None:
+            object.__setattr__(self, nombre, valor)
+            return
+        datos = esc._datos.setdefault(id(self), {k: object.__getattribute__(self, k)
+                                                 for k in _DATOS_DE_OPERACION})
+        datos[nombre] = valor
+
+    def _escenario_que_manda(self):
+        app = self._app
+        if app is None or not app.escenario_manda:
+            return None
+        return app.escenario
 
     def __init__(self, app, clase, nombre, padre=None, **attrs):
         object.__setattr__(self, '_p', 0.0)
@@ -235,37 +280,40 @@ class Carga(Obj):
                                              self._app.escenario))
             modo = self.mode_inp
             if name == 'plini':
-                object.__setattr__(self, '_p', float(value))
+                self._fijar('_p', float(value))
             elif name == 'coslini':
-                object.__setattr__(self, '_cos', float(value))
+                self._fijar('_cos', float(value))
             elif name == 'qlini':
                 if modo == 'PQ':
-                    object.__setattr__(self, '_q', float(value))
+                    self._fijar('_q', float(value))
                 else:     # en PC la Q es derivada: escribirla mueve el cos φ
-                    s = math.hypot(self._p, float(value))
-                    object.__setattr__(self, '_cos', abs(self._p) / s if s else 1.0)
+                    p = self._op('_p')
+                    s = math.hypot(p, float(value))
+                    self._fijar('_cos', abs(p) / s if s else 1.0)
             elif name == 'slini':
                 # El fallo documentado: en PC, S recalcula P con el cos φ que hubiera.
-                object.__setattr__(self, '_p', float(value) * self._cos)
+                self._fijar('_p', float(value) * self._op('_cos'))
             return
         super().__setattr__(name, value)
 
     @property
     def plini(self):
-        return self._p
+        return self._op('_p')
 
     @property
     def coslini(self):
         if self.mode_inp == 'PQ':
-            s = math.hypot(self._p, self._q)
-            return abs(self._p) / s if s else 1.0
-        return self._cos
+            p, q = self._op('_p'), self._op('_q')
+            s = math.hypot(p, q)
+            return abs(p) / s if s else 1.0
+        return self._op('_cos')
 
     @property
     def qlini(self):
         if self.mode_inp == 'PQ':
-            return self._q
-        q = abs(self._p) * math.tan(math.acos(min(1.0, max(0.0, self._cos))))
+            return self._op('_q')
+        cos = self._op('_cos')
+        q = abs(self._op('_p')) * math.tan(math.acos(min(1.0, max(0.0, cos))))
         return -q if self.pf_recap else q
 
     @property
@@ -276,14 +324,21 @@ class Carga(Obj):
 class Variacion(Obj):
     def NewStage(self, nombre, _instante, activar):
         etapa = self.CreateObject('IntSstage', nombre)
+        etapa.tAcTime = _instante
         if activar:
             self.Activate()
-            self._app.grabando = etapa
+            if not etapa._empatada():
+                self._app.grabando = etapa
         return 0
 
     def Activate(self, *_a):
         if self not in self._app.variaciones_activas:
             self._app.variaciones_activas.append(self)
+            # En el orden en que se crearon, no en el de activarlas: ``crear_variacion``
+            # aparta y reactiva las demás para que grabe la nueva, y dos obras sobre el
+            # mismo tramo se reaplicarían al revés.
+            self._app.variaciones_activas.sort(
+                key=lambda v: v._padre._hijos.index(v) if v._padre is not None else 0)
             for obj, nombre, _antes, despues in self.__dict__.get('_cambios', []):
                 object.__setattr__(obj, nombre, despues)
         return 0
@@ -445,6 +500,29 @@ class Alimentador(Obj):
 
 
 class Escenario(Obj):
+    """``IntScenario``. Con ``app.escenario_manda`` guarda la potencia de las cargas."""
+
+    def __init__(self, app, clase, nombre, padre=None, **attrs):
+        super().__init__(app, clase, nombre, padre, **attrs)
+        object.__setattr__(self, '_datos', {})
+        object.__setattr__(self, 'guardados', 0)
+
+    def _copia(self, padre, nombre):
+        # Una copia del escenario lleva sus propios datos: cambiar uno no toca el otro.
+        nuevo = super()._copia(padre, nombre)
+        object.__setattr__(nuevo, '_datos', {k: dict(v) for k, v in self._datos.items()})
+        object.__setattr__(nuevo, 'guardados', 0)
+        return nuevo
+
+    def fotografiar(self):
+        """Guarda la potencia de todas las cargas del proyecto, como al crearlo."""
+        for c in self._app.proyecto.GetContents('*.ElmLod', 1):
+            self._datos[id(c)] = {k: object.__getattribute__(c, k) for k in _DATOS_DE_OPERACION}
+
+    def Save(self):
+        object.__setattr__(self, 'guardados', self.guardados + 1)
+        return 0
+
     def Deactivate(self, *_a):
         self._app.escenario = None
         return 0
@@ -908,6 +986,8 @@ class App:
         self.en_falta = set()
         # spec 012
         self.atributos_en_variacion = False
+        # spec 006, RF-27: el escenario activo manda sobre la potencia de las cargas.
+        self.escenario_manda = False
         self.rel_ejecuciones = 0
         self.alojamiento = {}
         self.pv_factor = 2.7

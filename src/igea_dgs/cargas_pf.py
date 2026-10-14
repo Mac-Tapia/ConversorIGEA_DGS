@@ -46,7 +46,43 @@ NUEVA_ALIASES = {
     'tensionbtkv': 'tension_bt_kv', 'tensionbt': 'tension_bt_kv', 'btkv': 'tension_bt_kv',
     'kvbt': 'tension_bt_kv',
     'observaciones': 'observaciones', 'obs': 'observaciones',
+    # Libro de planificación (SI213, 2026-10-12): la carga no tiene SED aún y se nombra
+    # por su descripción; el alimentador va como «TRONCAL».
+    'descripcion': 'nombre', 'nombre': 'nombre', 'proyecto': 'nombre', 'cliente': 'nombre',
+    'troncal': 'alimentador',
 }
+
+# Potencias normalizadas de transformador (IEC 60076-1, serie R10) para deducir el kVA
+# instalado de una carga que solo trae su demanda (RF-52). Se repite ×10 hasta cubrirla.
+SERIE_R10_KVA = (10, 12.5, 16, 20, 25, 31.5, 40, 50, 63, 80)
+
+
+def _columna_por_patron(clave: str) -> str:
+    """Nombre canónico de una cabecera que no es un alias exacto (RF-51).
+
+    «DEM PROY (KW)» o «COORDENADAS UTM (X)» no se pueden listar todas: se reconoce la
+    unidad o el eje al final. El kVA no, porque puede ser la demanda o el instalado.
+    """
+    if clave.endswith('kvar'):
+        return 'Kvar'
+    if clave.endswith('kw'):
+        return 'Kw'
+    if 'utm' in clave or clave.startswith('coord'):
+        if clave.endswith(('x', 'este')):
+            return 'CoordX'
+        if clave.endswith(('y', 'norte')):
+            return 'CoordY'
+    return ''
+
+
+def kva_normalizado(kva: float) -> float:
+    """La menor potencia de la serie R10 que cubre ``kva`` (RF-52)."""
+    escala = 1.0
+    while True:
+        for valor in SERIE_R10_KVA:
+            if valor * escala >= kva - 1e-9:
+                return valor * escala
+        escala *= 10
 
 
 @dataclass(frozen=True)
@@ -93,6 +129,7 @@ class CargaNueva:
 class Lectura:
     filas: list = field(default_factory=list)
     errores: list[str] = field(default_factory=list)
+    avisos: list[str] = field(default_factory=list)        # valores deducidos (RF-52, RF-53)
     omitidas: list[str] = field(default_factory=list)      # accion = omitir
     sin_datos: list[str] = field(default_factory=list)     # ni kW ni kVA/FP
 
@@ -180,7 +217,8 @@ def leer_nuevas(path: Path | str, *, source_crs: str = '') -> Lectura:
     """
     lectura = Lectura()
     for hoja, (header, body) in _hojas(path).items():
-        filas, errores = leer_hoja_nuevas(header, body, hoja, source_crs=source_crs)
+        filas, errores = leer_hoja_nuevas(header, body, hoja, source_crs=source_crs,
+                                          avisos=lectura.avisos)
         lectura.filas += filas
         lectura.errores += errores
     return lectura
@@ -188,14 +226,19 @@ def leer_nuevas(path: Path | str, *, source_crs: str = '') -> Lectura:
 
 def leer_hoja_nuevas(
     header: Sequence[Any], body: Sequence[Sequence[Any]], hoja: str, *, source_crs: str = '',
+    avisos: list[str] | None = None,
 ) -> tuple[list[CargaNueva], list[str]]:
+    """Filas de una hoja de cargas nuevas. Lo deducido se anota en ``avisos`` (RF-52, RF-53)."""
+    avisos = [] if avisos is None else avisos
     mapping = dict(canonical_columns(header))
     for index, raw in enumerate(header):
         clave = _normalise(raw)
         if clave in NUEVA_ALIASES:
             mapping[index] = NUEVA_ALIASES[clave]
-    if 'SED' not in mapping.values():
-        return [], [f'hoja {hoja!r}: falta la columna «SED». Cabecera: {[str(h) for h in header]}']
+    for index, raw in enumerate(header):
+        nombre = '' if index in mapping else _columna_por_patron(_normalise(raw))
+        if nombre and nombre not in mapping.values():
+            mapping[index] = nombre
     filas: list[CargaNueva] = []
     errores: list[str] = []
     vistas: dict[str, int] = {}
@@ -204,9 +247,14 @@ def leer_hoja_nuevas(
         fila = offset + 2
         cell = {name: values[i] if i < len(values) else None for i, name in mapping.items()}
         texto = {k: ('' if v is None else str(v)).strip() for k, v in cell.items()}
-        sed = texto.get('SED', '')
+        # RF-53: sin SED, la carga se nombra por su descripción y, sin ella, por su fila;
+        # una fila sin nombre ni demanda es un resto de la hoja y se salta.
+        sed = texto.get('SED') or texto.get('nombre', '')
         if not sed:
-            continue
+            if not any(texto.get(c) for c in ('Kw', 'Kvar', '(kVA)')):
+                continue
+            sed = f'{hoja}_F{fila}'
+            avisos.append(f'hoja {hoja}, fila {fila}: sin SED ni descripción; se nombra {sed} (RF-53)')
         donde = f'hoja {hoja}, fila {fila}: {sed}'
         if sed in vistas:
             errores.append(f'{donde} repetida (fila {vistas[sed]})')
@@ -226,8 +274,6 @@ def leer_hoja_nuevas(
             numeros[nombre] = valor
         if not malo and numeros.get('FP') is not None and not 0 <= numeros['FP'] <= 1:
             malo = f'FP={numeros["FP"]} fuera de [0, 1]'
-        if not malo and not numeros.get('kVA_instalado'):
-            malo = 'sin kVA_instalado: hace falta la potencia del transformador'
         lat, lon = numeros.get('Lat'), numeros.get('Lon')
         if not malo and (lat is None) != (lon is None):
             malo = 'Lat y Lon van juntas'
@@ -251,12 +297,19 @@ def leer_hoja_nuevas(
         if sin_datos:
             errores.append(f'{donde}: sin demanda (Kw, o (kVA) y FP)')
             continue
+        kva_instalado = numeros.get('kVA_instalado')
+        if not kva_instalado:
+            # RF-52: un libro de planificación da la demanda, no el transformador; se toma
+            # el normalizado que la cubre y se anota, en vez de rechazar la carga.
+            kva_instalado = kva_normalizado(math.hypot(kw, kvar))
+            avisos.append(f'{donde}: sin kVA_instalado; se toma {kva_instalado:g} kVA, el '
+                          f'normalizado que cubre {math.hypot(kw, kvar):.1f} kVA de demanda (RF-52)')
         if lat is None and tiene_xy:
             pendientes_xy.append((len(filas), x, y))
         filas.append(CargaNueva(
             sed=sed, hoja=hoja, alimentador=texto.get('alimentador', ''),
             barra=texto.get('barra', ''), lat=lat, lon=lon,
-            kva_instalado=float(numeros['kVA_instalado']), kw=kw, kvar=kvar, fp=fp,
+            kva_instalado=float(kva_instalado), kw=kw, kvar=kvar, fp=fp,
             tipo_linea=texto.get('tipo_linea', ''), tension_bt_kv=numeros.get('tension_bt_kv'),
         ))
     if pendientes_xy:
@@ -346,7 +399,7 @@ def armar_plan(
     }
     plan['aplicable'] = bool(plan['demandas'] or plan['nuevas'])
     plan['base'] = base or None
-    plan['avisos'] = _avisos_de_la_base(base)
+    plan['avisos'] = _avisos_de_la_base(base) + list(nuevas.avisos if nuevas else [])
     plan['calibradas_cambiadas'] = _calibradas_cambiadas(base, plan['demandas'])
     return plan
 

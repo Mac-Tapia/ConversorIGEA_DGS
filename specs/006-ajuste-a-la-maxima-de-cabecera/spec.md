@@ -44,7 +44,15 @@ Objetivo de cabecera
 Demandas por SED
 
 - RF-4: EL SISTEMA trabajará sobre el alimentador de la máxima en el proyecto de
-  DIgSILENT que elige el operador, con las cargas de SED de ese alimentador.
+  DIgSILENT que elige el operador, con las cargas de SED de ese alimentador. SI un solo
+  medidor alimenta dos o más troncales que salen de la misma barra fuente, ENTONCES EL
+  SISTEMA medirá la inyección común en el `ElmXnet`, no solo la rama apuntada por
+  `ElmFeeder`; la suma de las troncales deberá cuadrar una sola vez contra la máxima del
+  medidor y el informe dará también el flujo individual de cada troncal. Esta detección
+  se ejecutará automáticamente en cada calibración y admitirá cualquier cantidad de
+  troncales. SI hay dos o más troncales y no se demuestra exactamente un `ElmXnet`
+  común activo, ENTONCES EL SISTEMA no calibrará usando una rama parcial y explicará la
+  ambigüedad; con una sola troncal conservará la medición de `ElmFeeder`.
 - RF-5: CUANDO una SED tiene clientes importantes cruzados (spec 004, RF-43), EL SISTEMA
   le asignará como kW la suma de la potencia máxima de esos clientes, en lugar de la
   demanda que tenga en DIgSILENT.
@@ -53,9 +61,11 @@ Demandas por SED
   reactiva y su activa.
 - RF-7: SI un cliente importante no trae energía activa o reactiva, ENTONCES EL SISTEMA
   usará para su kVAR el factor de potencia del objetivo y lo dirá.
-- RF-8: EL SISTEMA repartirá entre las demás SED del alimentador el kW y el kVAR que
-  faltan para el objetivo, en proporción a la potencia instalada (kVA) del
-  transformador de cada una y sin tener en cuenta la demanda que tenga en DIgSILENT.
+- RF-8: EL SISTEMA formará la población de SED uniendo la topología de `ElmFeeder` con
+  todas las cargas cuya columna nativa `p:alimentador` corresponde al alimentador, sin
+  omitir una carga solo porque `ElmFeeder.GetObjs` no la devuelve. Repartirá entre las
+  SED no fijas el kW y el kVAR que faltan, en proporción a la potencia instalada (kVA)
+  del transformador de cada una y sin usar su demanda anterior en DIgSILENT.
 - RF-9: SI una SED con clientes importantes no está en el alimentador del proyecto,
   ENTONCES EL SISTEMA la omitirá, la listará en el informe y seguirá.
 - RF-10: SI una SED a repartir no tiene en DIgSILENT transformador con potencia
@@ -64,12 +74,24 @@ Demandas por SED
 - RF-24: SI la SED tampoco tiene kVA en la entrada original, o no hay entrada cargada,
   ENTONCES EL SISTEMA no la repartirá, la listará como error de datos y no aplicará el
   ajuste hasta corregirla.
+- RF-25: EL SISTEMA mostrará en la tabla de clientes importantes una casilla por cliente,
+  marcada por defecto, para dejarlo conectado o desconectarlo en el ajuste.
+- RF-26: CUANDO el operador desmarca un cliente importante, EL SISTEMA no sumará su
+  potencia a su SED (RF-5) y, si todos los clientes de esa SED están desmarcados, pondrá
+  fuera de servicio la carga de la SED en la variación del ajuste, no le repartirá
+  demanda y la listará en el informe.
 
 Cuadre con las pérdidas
 
 - RF-11: EL SISTEMA dará por cuadrado el alimentador cuando el flujo nativo converge y
   el kW que entra por la cabecera difiere del objetivo dentro de la tolerancia elegida.
   El kVAR nunca será criterio de aceptación ni bloqueará la conversión o los estudios.
+  La potencia activa de cabecera menos la suma del consumo efectivo nativo
+  (`m:Psum:bus1`) de todas las cargas no podrá ser negativa más allá del ruido numérico;
+  si faltan esos resultados se usará, de forma conservadora, la suma nominal escrita.
+  Una diferencia negativa dejará el ajuste como `VIOLACION_FISICA`, porque la frontera
+  puede estar omitiendo una troncal o cargas. El informe identificará cuál de las dos
+  bases se usó para calcular las pérdidas.
 - RF-12: MIENTRAS el kW no esté cuadrado, EL SISTEMA corregirá únicamente el factor de
   potencia activa repartida para compensar pérdidas y volverá a ejecutar el flujo. La
   asignación inicial de Q se conserva y el Q final es el resultado de la red nativa.
@@ -84,6 +106,20 @@ Cuadre con las pérdidas
 - RF-40: EL SISTEMA releerá después del flujo P, Q, FP, estado e `i_scale` de cada SED y
   adjuntará los conteos de la unión topología/`p:alimentador`, junto con la relectura de
   bancos del vínculo del proyecto.
+- RF-41: ANTES de crear una variación o escribir cargas, EL SISTEMA ejecutará el flujo y
+  releerá el estado efectivo del alimentador en DIgSILENT. No considerará suficiente que
+  existan objetos `ElmLod` o que sus potencias sean distintas de cero.
+- RF-42: EL SISTEMA considerará el reparto ya cargado solamente si las cargas fijas
+  coinciden con su P/Q calculada, las cargas escalables conservan un factor común de P y
+  el factor Q calculado, `i_scale` identifica correctamente ambos grupos, no hay SED
+  ambiguas o faltantes, el flujo converge y la cabecera cumple la tolerancia de kW.
+- RF-43: SI RF-42 se cumple, ENTONCES EL SISTEMA devolverá
+  `YA_CARGADO_VALIDADO`, no creará otra variación y no volverá a distribuir ni escribir
+  las cargas. La prueba física también admitirá valores correctos cargados manualmente,
+  sin exigir un recibo previo de esta aplicación.
+- RF-44: DESPUÉS de una distribución nueva, EL SISTEMA repetirá RF-42 carga por carga. SI
+  la relectura falla, ENTONCES devolverá `FALLO_VALIDACION_NATIVA`, retirará la variación
+  defectuosa y no promoverá el resultado como una calibración aceptada.
 
 Convergencia
 
@@ -114,6 +150,51 @@ Ejecución e informe
 - RF-23: EL SISTEMA ofrecerá el ajuste en la sección «Demanda medida», con el proyecto de
   DIgSILENT elegido en la misma pestaña y el alimentador de la máxima buscada.
 
+Escenario de operación (cambio del 2026-10-12). SI213 cuadró a 1.621,8 kW y 796,8 kVAR
+(objetivo 1.624 y 800), pero «Verificar la convergencia» midió 229,2 kW y 53,1 kVAR en
+la cabecera: la potencia de una carga es dato de operación y, con el «Operation
+Scenario» activo, manda la que guarda el escenario, que seguía siendo la de antes del
+ajuste. Y «Sin proyecto» y «Con proyecto» copian ese escenario (011:RF-47). El usuario
+lo ordena así: el escenario base lleva la red ajustada a la máxima —clientes
+importantes con su demanda y el resto de las SED escaladas—, sus copias salen
+calibradas, y solo las demandas en bloque y las cargas nuevas cambian después la
+cabecera.
+
+- RF-27: CUANDO termina el ajuste, EL SISTEMA grabará la demanda final de cada SED
+  repartida, y el fuera de servicio de las de RF-26, también en el escenario de operación
+  del caso en que se ajustó, si lo tiene.
+- RF-28: MIENTRAS existan los tres casos de la spec 011, EL SISTEMA grabará la demanda
+  final del ajuste también en el escenario de cada uno de los tres.
+- RF-29: CUANDO termina el ajuste, EL SISTEMA medirá la cabecera con el escenario
+  restaurado y la dará en el informe.
+- RF-30: SI la cabecera medida con el escenario difiere de la ajustada más que la
+  tolerancia, ENTONCES EL SISTEMA lo dirá en un aviso, con las dos medidas.
+
+Curva del registro del medidor (cambio aprobado el 2026-10-12). El objetivo
+del ajuste es un solo registro de todo el histórico del medidor, y la web solo da su
+fecha: el operador no ve si esa máxima es un día típico o un pico aislado (una
+maniobra, una transferencia de carga) que no conviene usar para calibrar. El usuario
+pide ver en la caja del ajuste el registro entero, del primer dato al último, con el
+mes de la máxima resaltado con una franja.
+
+- RF-31: CUANDO se busca la máxima de cabecera de un alimentador, EL SISTEMA conservará
+  la curva de kW y kVAR de cada medidor, sin volver a abrir el libro para dibujarla.
+- RF-32: EL SISTEMA mostrará en la caja del ajuste la curva del registro en orden
+  cronológico, desde su primer registro hasta el último, con la fecha en el eje
+  horizontal y el kW en el vertical.
+- RF-33: EL SISTEMA sombreará con una franja el mes natural que contiene la máxima.
+- RF-34: EL SISTEMA marcará el punto de la máxima con su fecha, hora y kW.
+- RF-35: CUANDO el operador acerca la gráfica a un tramo de fechas, EL SISTEMA mostrará
+  ese tramo con el detalle de cada registro.
+- RF-36: CUANDO el operador lo pide, EL SISTEMA añadirá el kVAR del registro a la gráfica.
+- RF-37: SI un registro no trae fecha o su kW no es numérico, ENTONCES EL SISTEMA lo
+  dejará fuera de la curva y dirá cuántos dejó fuera.
+- RF-38: DONDE el alimentador tiene varios medidores, EL SISTEMA dibujará la curva del
+  medidor que da el objetivo, con un selector para ver la de los demás.
+- RF-39: SI la curva tiene más puntos de los que la gráfica distingue, ENTONCES EL SISTEMA
+  la reducirá conservando el máximo y el mínimo de cada intervalo, de modo que la máxima
+  nunca desaparezca de la vista general.
+
 ## Requisitos no funcionales
 
 - El ajuste corre en DIgSILENT: es un trabajo del carril `powerfactory`, con progreso
@@ -131,6 +212,15 @@ Ejecución e informe
   de estimación/asignación de carga en redes de distribución de Carmona-Delgado et al.,
   *Electric Power Systems Research*, DOI
   [10.1016/j.epsr.2013.03.004](https://doi.org/10.1016/j.epsr.2013.03.004).
+- La reasignación de cargas no monitorizadas para reconciliarlas con mediciones reales
+  está desarrollada también por Sarić y Ranković en *Electric Power Systems Research*,
+  DOI [10.1016/j.epsr.2011.10.003](https://doi.org/10.1016/j.epsr.2011.10.003).
+- La estimación de cargas de un alimentador a partir de mediciones y perfiles se estudia
+  en la tesis de maestría de Urvir Singh:
+  [North Carolina State University](https://repository.lib.ncsu.edu/items/a3fd70d6-6f1a-43cf-a853-bb07191b8e75).
+- El uso conjunto de mediciones limitadas, restricciones operativas y topologías radiales
+  o generales para estimar cargas nodales se sustenta en la tesis doctoral de Jie Wan:
+  [Drexel University](https://doi.org/10.17918/etd-201).
 - La trazabilidad fuente–modelo–relectura se apoya en la tesis doctoral de McMorran
   sobre intercambio de modelos CIM y consistencia semántica:
   [University of Strathclyde](https://stax.strath.ac.uk/concern/theses/cc08hf706).
@@ -138,6 +228,10 @@ Ejecución e informe
   una variable física del flujo, coherente con la optimización de bancos estudiada por
   Sultana y Roy en *International Journal of Electrical Power & Energy Systems*, DOI
   [10.1016/j.ijepes.2013.07.011](https://doi.org/10.1016/j.ijepes.2013.07.011).
+- Un único medidor común obliga a usar la demanda coincidente agregada, no a repetir la
+  misma máxima en cada salida. La diferencia entre máxima coincidente y suma de máximas
+  individuales se sustenta en la tesis de maestría de Erickson:
+  [University of Tennessee](https://trace.tennessee.edu/handle/20.500.14382/37180).
 
 Estas referencias justifican el método y la trazabilidad; no sustituyen los datos del
 catálogo aprobado ni la relectura efectiva del proyecto nativo.
@@ -145,13 +239,19 @@ catálogo aprobado ni la relectura efectiva del proyecto nativo.
 ## Casos límite
 
 - Alimentador sin clientes importantes: todo se reparte por kVA.
+- Un medidor y dos o más troncales: clientes importantes fijos donde están conectados,
+  un solo factor por kVA para las demás SED de todas las troncales y cuadre de la suma
+  una sola vez contra el medidor común.
+- Dos o más troncales sin exactamente un `ElmXnet` común activo: no se calibra con la
+  rama de `ElmFeeder`; se informa que la frontera única no pudo demostrarse.
 - Todas las SED del alimentador tienen clientes importantes: no hay nada que repartir
   (RF-13).
 - Dos clientes importantes en la misma SED: se suman.
 - SED con clientes importantes y otros usuarios: lleva solo la de los clientes (RF-5).
 - Carga desequilibrada (por fase): se conserva su reparto entre fases (spec 004, RF-9).
 - Escenario de operación activo en el caso de estudio: las demandas irían a él y no a la
-  variación (como en `tools/cargas_pf.py`).
+  variación (como en `tools/cargas_pf.py`); y, una vez restaurado, manda sobre la
+  variación: por eso el resultado se graba también en él (RF-27, RF-28).
 - Alimentador sin `ElmFeeder`: no se puede medir lo que entra por su cabecera.
 - El objetivo es menor que las pérdidas en vacío de la red.
 
@@ -162,11 +262,14 @@ catálogo aprobado ni la relectura efectiva del proyecto nativo.
 - Cambiar la topología, los taps o los tipos para que el flujo converja: los remedios de
   RF-16 solo tocan los ajustes del flujo de carga y el reparto.
 - Rellenar el libro de demandas de la spec 004 con el resultado.
+- Elegir en la curva otro registro como objetivo del ajuste: la curva solo informa; el
+  objetivo sigue siendo la máxima de la spec 004.
+- Curvas de las SED o de los clientes importantes: solo la del medidor de cabecera.
 - Prueba real en DIgSILENT: la hace el usuario.
 
 ## Criterios de finalización
 
-- `grep -rnoE "006:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-24.
+- `grep -rnoE "006:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-39.
 - Suite completa en verde.
 - `npx tsc --noEmit -p .` (en `frontend/`) y `npm run build` correctos.
 - Prueba real en DIgSILENT con un alimentador, a cargo del usuario.

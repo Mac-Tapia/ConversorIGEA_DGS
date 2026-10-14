@@ -122,3 +122,72 @@ cuya carga escrita supera su kVA (el caso de `SE50111` en `sed_potencia.py`).
   lista.
 - `iStepAdapt` o `iopt_lev` con otro sentido en otra versión de DIgSILENT: el guion
   comprueba que el atributo existe antes de escribirlo y lo informa si no.
+
+## Curva del registro del medidor (RF-31 a RF-39, cambio del 2026-10-12)
+
+| Parte | Ficheros | Cubre |
+| --- | --- | --- |
+| Curva y reducción, puras | `src/igea_dgs/demanda_medida.py` | RF-31, RF-37, RF-39 |
+| Guardar la curva y servirla | `src/igea_dgs/web/services.py`, `workspace.py`, `app.py` | RF-31, RF-35, RF-38, RF-39 |
+| Gráfica | `frontend/src/components/CurvaCabecera.tsx` (nuevo), `AjusteCabecera.tsx`, `api.ts`, `types.ts`, `styles.css` | RF-32 a RF-36, RF-38 |
+
+### `demanda_medida.py`
+
+- `maxima_de_registros` ya recorre todos los registros: guarda en `MaximaCabecera.curva`
+  la lista ordenada por fecha de `(fecha, kw, kvar)` de los registros con fecha
+  `datetime` y kW numérico, y en `fuera_de_curva` cuántos dejó fuera (RF-31, RF-37).
+  `to_dict` **no** incluye `curva`: el resultado del trabajo viaja entero al navegador
+  por el WebSocket y un año de lecturas de 15 min son ~35 000 registros por medidor.
+- `reducir_curva(curva, desde, hasta, max_puntos) -> list`: recorta al tramo y, si
+  quedan más de `max_puntos`, parte el tramo en `max_puntos // 2` intervalos de tiempo
+  iguales y conserva de cada uno el registro de kW mínimo y el de kW máximo, en su orden
+  (RF-39). El registro de la máxima siempre sobrevive: es el máximo de su intervalo.
+
+### Web
+
+- `services.demanda_cabecera` guarda las curvas en `ws.curvas_cabecera[job_id] =
+  {medidor: curva}`, en memoria y solo la del último trabajo de máxima del espacio
+  (sustituye la anterior), para no acumular cientos de miles de registros.
+- `GET /api/workspaces/{wid}/demanda/cabecera/{job_id}/curva?medidor=&desde=&hasta=`
+  devuelve `{medidor, inicio, fin, maxima: {fecha, kw}, puntos: [[iso, kw, kvar]],
+  total, reducida, fuera_de_curva}`. Sin `desde`/`hasta`, el registro entero (RF-32);
+  con ellos, el tramo (RF-35). `max_puntos` = 2 000, fijo en el servidor. 404 si el
+  trabajo ya no es el último o el medidor no está; 422 si `desde > hasta`.
+- La franja del mes (RF-33) la calcula el front con la fecha de la máxima: no hace falta
+  pedirla al servidor.
+
+### `CurvaCabecera.tsx`
+
+- SVG propio, una `polyline` de kW (y otra de kVAR si se activa, RF-36), ejes con
+  fechas y kW, un `rect` sombreado del día 1 al último del mes de la máxima (RF-33) y un
+  círculo con su etiqueta en el punto de la máxima (RF-34).
+- Zoom: arrastrar sobre la gráfica selecciona un tramo y pide ese tramo al servidor;
+  «Ver todo» vuelve al registro entero (RF-35). Sin rueda del ratón: en una página que
+  hace scroll, la rueda no debe capturarse.
+- Selector de medidor si el alimentador tiene varios con curva, por defecto el que da
+  el objetivo (RF-38). Aviso con `fuera_de_curva` si es mayor que 0 (RF-37).
+- Colores con los tokens de `styles.css` (modo claro y oscuro).
+- Va en la caja del ajuste, a todo el ancho, encima de la tabla del objetivo.
+
+### Decisiones
+
+- SVG propio. Descartado: `recharts` (~100 kB comprimidos más en un front de 109 kB) y
+  `uPlot` (pinta en canvas, sin tokens CSS para el modo oscuro, y otra dependencia que
+  mantener) para una sola línea de 2 000 puntos.
+- La curva se guarda al buscar la máxima. Descartado: releerla del libro al dibujar,
+  porque abrir un libro de cabecera cuesta segundos y pesa cientos de MB.
+- Reducción mín./máx. por intervalo. Descartado: la media diaria, que aplana el pico
+  y haría que la máxima marcada no estuviera sobre la línea.
+- Mes natural para la franja (RF-33), como se acordó al aprobar la spec.
+
+### Pruebas
+
+- `tests/test_demanda_medida.py`: curva y `fuera_de_curva` desde un libro sintético;
+  `reducir_curva` con longitudes sorteadas y la máxima en una posición sorteada, que
+  nunca desaparece y no pasa de `max_puntos` (RF-31, RF-37, RF-39).
+- `tests/test_demanda_medida_web.py`: endpoint con registro entero y con tramo, 404 y
+  422; el resultado del trabajo no lleva la curva (RF-31, RF-32, RF-35, RF-38).
+- `tests/test_ajuste_cabecera_web.py` o una prueba de front estática como
+  `tests/test_cargas_tres_pasos_front.py`: el componente existe, tiene la franja, la
+  marca, el zoom, el kVAR y el selector (RF-32 a RF-36, RF-38).
+

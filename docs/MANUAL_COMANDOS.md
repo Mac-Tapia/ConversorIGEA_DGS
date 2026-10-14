@@ -415,6 +415,27 @@ Qué hace cada opción:
 | `--require-diagram` | Exige `ElmNet.pDiagram` + `IntGrf` |
 | `--output-json` / `--output-txt` | Informes de aceptación |
 
+#### Adoptar el proyecto nativo existente, sin duplicarlo
+
+Cuando el proyecto ya fue importado y contiene cambios manuales que deben conservarse,
+use su ruta exacta con `--existing-project`. Esta opción es mutuamente exclusiva con
+`--import-dgs`; `--source-dgs` y el sidecar demuestran la procedencia sin volver a
+ejecutar `ComImport`:
+
+```bat
+> .venv\Scripts\python.exe tools\powerfactory_acceptance.py ^
+    --existing-project "20261013-121930_IGEA_CA101" ^
+    --pf-carpeta "sistemaeletricoELD" ^
+    --source-dgs output\produccion\CA101.dgs ^
+    --feeder-metadata output\produccion\CA101_feeder_metadata.json ^
+    --source-run-id RUN_ID --source-mode mdb --source-fingerprint SHA256 ^
+    --run-load-flow --run-studies
+```
+
+La aceptación relee también los `ElmShnt` presentes únicamente en el proyecto. Si no
+hay capacidad de origen, aplica el catálogo 10 kV/300 kVAr o 22,9 kV/450 kVAr, informa
+nodo y cubículo, y mantiene cualquier diferencia como aviso no bloqueante.
+
 ### 5.3 Atajo con el `.bat`
 
 ```bat
@@ -661,7 +682,7 @@ o borrar sin tocar la red base.
 | **3 · Integración de nuevas** | | |
 | 3.0 Convergencia | «Verificar la convergencia en DIgSILENT» | `tools/verificar_pf.py`: flujo con lo activo y cabecera de cada alimentador; no escribe |
 | 3.1 Demandas en bloque | Libro de demandas (plantilla Excel o CSV) | `tools/cargas_pf.py` |
-| 3.2 Una carga nueva | Formulario, con las mismas reglas que el libro | `tools/cargas_pf.py` |
+| 3.2 Una carga nueva | Formulario: kW, FP y coordenadas; se conecta a la barra de media más cercana y la SED queda con su GPS. Las mismas reglas que el libro | `tools/cargas_pf.py` |
 | 3.3 Cargas nuevas en bloque | Libro de cargas nuevas | `tools/cargas_pf.py` |
 
 Las tres partes del paso 3 son optativas: se usa cualquier combinación y se revisan
@@ -677,6 +698,7 @@ que prepara la web (`output/web/<espacio>/planes/`):
 > python tools\verificar_pf.py --plan plan.json --output-json informe.json
 > python tools\ajuste_cabecera_pf.py --plan plan.json --output-json informe.json [--simular] [--cancel-file cancelar.flag]
 > python tools\cargas_pf.py --plan plan.json --output-json informe.json [--simular] [--cancel-file cancelar.flag]
+> python tools\cargas_pf.py --plan plan.json --deshacer informe_aplicacion.json --output-json deshecho.json [--simular]
 > python tools\casos_pf.py --plan plan.json --output-json informe.json
 > python tools\estudios_pf.py --plan plan.json --output-json informe.json
 > python tools\estudios_pf.py --guion --plan plan.json --output-json informe.json
@@ -684,6 +706,11 @@ que prepara la web (`output/web/<espacio>/planes/`):
 > python tools\obras_pf.py --plan plan.json --output-json informe.json [--simular] [--cancel-file cancelar.flag]
 > python tools	ransferencia_pf.py --plan plan.json --output-json informe.json [--fichero transferencias.csv] [--cancel-file cancelar.flag]
 ```
+
+Con `--deshacer`, `cargas_pf.py` borra lo que creó una aplicación anterior según su
+informe (`runs/<id>/salida/cargas_pf_aplicacion_<token>.json`): las variaciones de sus
+cargas nuevas, sus símbolos del diagrama y los tipos de transformador que creó y ya no
+usa nadie (spec 007, RF-38). Con `--simular` solo lo lista.
 
 Con `--guion`, `estudios_pf.py` trabaja con los guiones DPL y Python del operador (spec
 011, RF-27 a RF-30): si el plan no trae `guion`, lista los de «Sin proyecto», «Con

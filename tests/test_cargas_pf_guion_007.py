@@ -71,7 +71,9 @@ def test_base_se_activa_antes_de_crear_nada(guion):
     plan = {**_plan(['F1'], [_demanda('F1_S1', 10, 1)], [_nueva('N1', barra='F1_B2')]), 'base': _base()}
     informe, rc = guion.ejecutar(app, plan, simular=False)
     assert rc == 0, informe
-    assert orden == [1], 'la base se activó con otras variaciones ya creadas'
+    # Solo cuenta la primera: después ``crear_variacion`` la aparta y la reactiva para que
+    # grabe la etapa nueva, que es de la misma fecha (manual de PF 2024, 16.5).
+    assert orden[0] == 1, 'la base se activó con otras variaciones ya creadas'
     assert informe['base_activada'] == ['Ajuste_F1_20261009_120000']
     assert informe['variaciones_activas_inicio'] == []
     assert informe['variaciones_activas_fin'] == sorted(['Ajuste_F1_20261009_120000', informe['variacion_demandas']])
@@ -143,30 +145,83 @@ def test_activo_sin_gps_se_dice_una_vez(guion):
     assert len(avisos) == 1 and 'F1' in avisos[0]
 
 
-def test_activo_otro_alimentador_se_anota(guion):
-    """007:RF-29 — una carga del libro con otro alimentador se conecta al activo y se anota."""
+def test_activo_otro_alimentador_no_se_crea(guion):
+    """007:RF-29 — una carga del libro con otro alimentador no se crea, aunque esté junto a
+    una barra del activo; la del activo sí, escrita como la escriba el libro."""
     app = _app()
-    plan = _plan(['F1'], nuevas=[_nueva('N1', alimentador='F2', **_cerca(app, 'F1_B2'))])
+    plan = _plan(['F1'], nuevas=[_nueva('N1', alimentador='F2', **_cerca(app, 'F1_B2')),
+                                 _nueva('N2', alimentador=' f1 ', **_cerca(app, 'F1_B3'))])
     informe, rc = guion.ejecutar(app, plan, simular=False)
     assert rc == 0, informe
-    carga = informe['cargas'][0]
-    assert carga['alimentador'] == 'F1' and 'F2' in carga['nota'] and 'F1' in carga['nota']
+    assert [c['sed'] for c in informe['cargas']] == ['N2']
+    assert informe['no_creadas'][0]['sed'] == 'N1' and 'F2' in informe['no_creadas'][0]['motivo']
+    assert any('F2 (1)' in a for a in informe['avisos'])
+
+
+def test_activo_ninguna_del_libro_ninguna_creada(guion):
+    """007:RF-29 — si ninguna fila es de un alimentador marcado, no se crea ninguna."""
+    app = _app()
+    plan = _plan(['F1'], nuevas=[_nueva('N1', alimentador='F2', **_cerca(app, 'F1_B1')),
+                                 _nueva('N2', alimentador='F9', **_cerca(app, 'F1_B2'))])
+    informe, _rc = guion.ejecutar(app, plan, simular=False)
+    assert informe['cargas'] == [] and not any(f['creadas'] for f in informe['feeders'])
+    assert {n['sed'] for n in informe['no_creadas']} == {'N1', 'N2'}
+    assert not _variaciones(app)
+
+
+def test_barra_sin_linea_toma_el_tipo_del_alimentador(guion):
+    """007:RF-39 — la barra más cercana no tiene línea (el nodo de una SED): la línea de
+    enlace toma el tipo más usado del alimentador, y se dice de dónde sale."""
+    app = _app()
+    alim = next(a for a in app.proyecto.GetContents('*.ElmFeeder', 1) if a.loc_name == 'F1')
+    junto = _barra(app, 'F1_B2')
+    suelta = junto.GetParent().CreateObject('ElmTerm', 'F1_SED_SIN_LINEA')
+    suelta.uknom, suelta.iUsage = 10.0, 1
+    suelta.GPSlat, suelta.GPSlon = junto.GPSlat - 0.002, junto.GPSlon
+    alim._objs.append(suelta)
+    app.creados.clear()
+    plan = _plan(['F1'], nuevas=[_nueva('N1', alimentador='F1', lat=suelta.GPSlat - 0.0003,
+                                        lon=suelta.GPSlon)])
+    informe, rc = guion.ejecutar(app, plan, simular=False)
+    assert rc == 0 and not informe['no_creadas'], informe['no_creadas']
+    creada = informe['feeders'][0]['creadas'][0]
+    assert creada['barra'] == 'F1_SED_SIN_LINEA'
+    assert creada['tipo_linea'] and creada['origen_tipo_linea'] == 'el más usado del alimentador'
+
+
+def test_deshacer_borra_lo_creado(guion):
+    """007:RF-38 — deshacer con el informe borra las variaciones de las cargas creadas y
+    nada más; simulando, solo las lista."""
+    app = _app()
+    previa = _ajuste(app, 'Ajuste_F1')
+    plan = _plan(['F1'], nuevas=[_nueva('N1', barra='F1_B1'), _nueva('N2', barra='F1_B2')])
+    aplicado, rc = guion.ejecutar(app, plan, simular=False)
+    cargas = lambda: sorted(n for n in _variaciones(app) if n.startswith('Carga_'))
+    assert rc == 0 and len(cargas()) == 2
+    simulado, _rc = guion.deshacer(app, plan, aplicado, simular=True)
+    assert len(simulado['variaciones']) == 2 and len(cargas()) == 2
+    informe, rc = guion.deshacer(app, plan, aplicado, simular=False)
+    assert rc == 0 and sorted(informe['variaciones']) == sorted(c['variacion'] for c in aplicado['cargas'])
+    assert cargas() == []
+    assert previa in app.GetProjectFolder('scheme').GetContents('*.IntScheme', 1)
+    otro, rc = guion.deshacer(app, plan, {**aplicado, 'project': 'Otro'}, simular=False)
+    assert rc == 2 and 'Otro' in otro['error']
 
 
 def test_activo_con_varios_marcados(guion):
-    """007:RF-36 — con varios marcados: el de su columna si está marcado; si no, el de la
-    barra más cercana entre los marcados."""
+    """007:RF-36 — con varios marcados: el de su columna si está marcado; sin columna, el de
+    la barra más cercana entre los marcados; con uno no marcado, no se crea (RF-29)."""
     app = _app()
     plan = _plan(['F1', 'F2'], nuevas=[
         _nueva('N1', alimentador='F2', **_cerca(app, 'F1_B1')),      # su columna manda
         _nueva('N2', **_cerca(app, 'F1_B3')),                        # sin columna: la más cercana
-        _nueva('N3', alimentador='F9', **_cerca(app, 'F2_B2')),      # F9 no marcado: la más cercana
+        _nueva('N3', alimentador='F9', **_cerca(app, 'F2_B2')),      # F9 no marcado: no se crea
     ])
     informe, rc = guion.ejecutar(app, plan, simular=False)
     assert rc == 0, informe
     donde = {c['sed']: c['alimentador'] for c in informe['cargas']}
-    assert donde == {'N1': 'F2', 'N2': 'F1', 'N3': 'F2'}
-    assert 'F9' in next(c['nota'] for c in informe['cargas'] if c['sed'] == 'N3')
+    assert donde == {'N1': 'F2', 'N2': 'F1'}
+    assert [n['sed'] for n in informe['no_creadas']] == ['N3']
 
 
 # =========================================================================== una variación por carga

@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, fmtNum, type DemandaTipo } from '../api';
+import { estadoCatalogoClientes } from '../clientesCatalogo';
 import { useApp } from '../context';
 import type { ClientesCruce, ClienteImportante, MaximaCabecera } from '../types';
 import { AjusteCabecera } from './AjusteCabecera';
@@ -9,22 +10,38 @@ const LIBROS: { tipo: DemandaTipo; titulo: string; ayuda: string }[] = [
   { tipo: 'medidores', titulo: 'Medidor por alimentador', ayuda: 'Columnas «codigo alimentador» y «Medidor».' },
   { tipo: 'cabecera', titulo: 'Medición de cabecera', ayuda: 'Uno o varios libros (una hoja por medidor), o la carpeta que los contiene.' },
   { tipo: 'suministros', titulo: 'Suministros', ayuda: '«Suministro Act», «Suministro», «SED» y «RADIAL».' },
-  { tipo: 'clientes', titulo: 'Clientes importantes del mes', ayuda: 'Hoja «resumen»: Nis/EA/ERI/Pot o SUMINISTRO/EA_TOTAL/ERI_TOTAL/POT_MAX.' },
+  { tipo: 'clientes', titulo: 'Clientes importantes mensuales', ayuda: 'Carpeta o libros con hoja «resumen»: Nis/EA/ERI/Pot o SUMINISTRO/EA_TOTAL/ERI_TOTAL/POT_MAX.' },
 ];
 const EXT = '.xls,.xlsx,.xlsb,.xlsm';
 
 /** Un libro de la demanda medida: subida o, en local, ruta del servidor (RF-39). */
 function Libro({ tipo, titulo, ayuda }: (typeof LIBROS)[number]) {
-  const { ws, setWs, run, health } = useApp();
+  const { ws, setWs, run, health, startJob, jobs, active } = useApp();
   const [ruta, setRuta] = useState('');
   const meta = ws.demanda?.[tipo];
+  const autoIndexado = useRef('');
+  const indexando = Object.values(jobs).some((j) => j.kind === 'demanda_clientes_index'
+    && (j.status === 'queued' || j.status === 'running'));
+  const engineBusy = Boolean(active.engine);
+  const indexar = () => startJob(() => api.demandaClientesIndexar(ws.id));
+
+  // Al elegir o volver a abrir una fuente de clientes se reescanea la misma carpeta.
+  useEffect(() => {
+    if (tipo !== 'clientes' || !meta || indexando || engineBusy) return;
+    const clave = `${ws.id}:${meta.origin}:${meta.name}`;
+    if (autoIndexado.current === clave) return;
+    autoIndexado.current = clave;
+    void startJob(() => api.demandaClientesIndexar(ws.id)).then((job) => {
+      if (!job) autoIndexado.current = '';
+    });
+  }, [engineBusy, indexando, meta, startJob, tipo, ws.id]);
   const subir = async (files: File[]) => {
     const r = await run(() => api.demandaSubir(ws.id, tipo, files));
-    if (r) setWs(r);
+    if (r) { autoIndexado.current = ''; setWs(r); }
   };
   const porRuta = async () => {
     const r = await run(() => api.demandaRuta(ws.id, tipo, ruta.trim()));
-    if (r) { setWs(r); setRuta(''); }
+    if (r) { autoIndexado.current = ''; setWs(r); setRuta(''); }
   };
   const quitar = async () => {
     const r = await run(() => api.demandaQuitar(ws.id, tipo));
@@ -42,21 +59,50 @@ function Libro({ tipo, titulo, ayuda }: (typeof LIBROS)[number]) {
         </div>
       ) : (
         <>
-          <FileDrop compact accept={EXT} multiple={tipo === 'cabecera'} onFiles={subir}>
-            <span>Soltar o <u>elegir</u>{tipo === 'cabecera' ? ' (varios)' : ''}</span>
+          <FileDrop compact accept={EXT} multiple={tipo === 'cabecera' || tipo === 'clientes'} onFiles={subir}>
+            <span>Soltar o <u>elegir</u>{tipo === 'cabecera' || tipo === 'clientes' ? ' (varios)' : ''}</span>
           </FileDrop>
           {health.server_paths && (
             <div className="row">
-              <input className="search" placeholder={tipo === 'cabecera' ? 'o ruta de la carpeta en el servidor' : 'o ruta en el servidor'}
+              <input className="search" placeholder={tipo === 'cabecera' || tipo === 'clientes' ? 'o ruta de la carpeta en el servidor' : 'o ruta en el servidor'}
                 value={ruta} onChange={(e) => setRuta(e.target.value)} />
               <button className="btn btn-sm" disabled={!ruta.trim()} onClick={porRuta}>Usar ruta</button>
             </div>
           )}
         </>
       )}
+      {tipo === 'clientes' && meta && (
+        <CatalogoClientes meta={meta} indexando={indexando} bloqueado={engineBusy} actualizar={indexar} />
+      )}
       <small className="muted">{ayuda}</small>
     </div>
   );
+}
+
+function CatalogoClientes({ meta, indexando, bloqueado, actualizar }: {
+  meta: NonNullable<ReturnType<typeof useApp>['ws']['demanda']>['clientes'];
+  indexando: boolean;
+  bloqueado: boolean;
+  actualizar: () => unknown;
+}) {
+  if (!meta) return null;
+  const catalogo = meta.catalogo ?? [];
+  return <div className="stack compact">
+    <div className="row">
+      <button className="btn btn-sm" disabled={bloqueado} onClick={actualizar}>
+        {indexando ? 'Actualizando índice…' : 'Actualizar índice'}
+      </button>
+      {meta.indexado_en && <small className="muted">{catalogo.length} libro(s) indexado(s)</small>}
+    </div>
+    {meta.avisos?.map((aviso) => <p className="alert alert-warn" key={aviso}>{aviso}</p>)}
+    {catalogo.length > 0 && <div className="table-wrap table-short"><table className="table">
+      <thead><tr><th>Libro</th><th>Mes</th><th>Origen</th><th>Estado</th></tr></thead>
+      <tbody>{catalogo.map((libro) => <tr key={libro.nombre}>
+        <td className="mono">{libro.nombre}</td><td>{libro.mes ?? 'Sin mes'}</td>
+        <td>{libro.origen_mes}</td><td>{libro.activo ? 'Activo' : 'No usado'}</td>
+      </tr>)}</tbody>
+    </table></div>}
+  </div>;
 }
 
 const fp = (n: number | null) => (n == null ? '—' : fmtNum(n, 3));
@@ -79,9 +125,12 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   const [lista, setLista] = useState<string[]>([]);
   const [buscando, setBuscando] = useState(false);
   const [cruce, setCruce] = useState<ClientesCruce | null>(null);
+  // Spec 006, RF-25/RF-26: Nis desmarcados en la tabla del cruce; vacío, todos conectados.
+  const [desconectados, setDesconectados] = useState<Set<string>>(new Set());
   const [filtro, setFiltro] = useState('');
   const toast = useToast();
   const engineBusy = Boolean(active.engine);
+  const estadoClientes = estadoCatalogoClientes(ws.demanda?.clientes);
 
   const ultimo = Object.values(jobs).filter((j) => j.kind === 'demanda_cabecera' && j.result).pop();
   const cabecera = (ultimo?.result?.resultados ?? []) as MaximaCabecera[];
@@ -92,6 +141,7 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
     setPorAlim({});
     setElegidos([]);
     setCruce(null);
+    setDesconectados(new Set());
   }, [project, marcados]);
 
   // Desplegable de códigos del libro (spec 004, RF-42): se vuelve a leer al cambiar el libro.
@@ -150,8 +200,13 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   // RF-11: los clientes de los alimentadores marcados.
   const cruzar = async () => {
     const r = await run(() => api.demandaClientes(ws.id, feeders));
-    if (r) setCruce(r);
+    if (r) { setCruce(r); setDesconectados(new Set()); }
   };
+  const conmutar = (codigo: string) => setDesconectados((s) => {
+    const n = new Set(s);
+    if (!n.delete(codigo)) n.add(codigo);
+    return n;
+  });
   const excel = () => run(() => api.demandaExcel(ws.id, {
     cabecera, clientes: cruce?.cruzados ?? [], no_cruzados: cruce?.no_cruzados ?? [],
   }));
@@ -254,13 +309,16 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
 
       <h4>2.3 · Clientes importantes (demanda fija)</h4>
       <div className="row">
-        <button className="btn" disabled={!feeders.length || !ws.demanda?.suministros || !ws.demanda?.clientes} onClick={cruzar}>
+        <button className="btn" disabled={!feeders.length || !ws.demanda?.suministros || !ws.demanda?.clientes
+          || !estadoClientes.listoParaCruzar} onClick={cruzar}>
           Cruzar clientes de {cuales}
         </button>
         {(!ws.demanda?.suministros || !ws.demanda?.clientes) && (
           <small className="muted">Faltan los suministros o los clientes: sin ellos todas las SED se reparten por kVA.</small>)}
+        {ws.demanda?.clientes && estadoClientes.motivo && <small className="muted">{estadoClientes.motivo}</small>}
       </div>
-      {cruce && <Cruce cruce={cruce} visibles={visibles} filtro={filtro} setFiltro={setFiltro} />}
+      {cruce && <Cruce cruce={cruce} visibles={visibles} filtro={filtro} setFiltro={setFiltro}
+        desconectados={desconectados} conmutar={conmutar} />}
 
       <div className="row">
         <button className="btn btn-ghost btn-sm" disabled={!cabecera.length && !cruce} onClick={excel}>
@@ -270,13 +328,14 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
 
       {/* Spec 006: la máxima de arriba, repartida entre las SED del proyecto de DIgSILENT. */}
       <h4>2.4 · Escalar las demás cargas y ajustar</h4>
-      <AjusteCabecera project={project} maxima={ultimo} feeders={feeders} />
+      <AjusteCabecera project={project} maxima={ultimo} feeders={feeders} desconectados={desconectados} />
     </div>
   );
 }
 
-function Cruce({ cruce, visibles, filtro, setFiltro }: {
+function Cruce({ cruce, visibles, filtro, setFiltro, desconectados, conmutar }: {
   cruce: ClientesCruce; visibles: ClienteImportante[]; filtro: string; setFiltro: (v: string) => void;
+  desconectados: Set<string>; conmutar: (codigo: string) => void;
 }) {
   const t = cruce.totales;
   const ali = cruce.alimentadores.join(', ');
@@ -292,15 +351,21 @@ function Cruce({ cruce, visibles, filtro, setFiltro }: {
       onChange={(e) => setFiltro(e.target.value)} />
     <div className="table-wrap table-short">
       <table className="table">
-        <thead><tr><th>Nis / Suministro</th><th>Cruzado por</th><th>SED</th><th>Radial</th>
+        <thead><tr><th>Conectado</th><th>Nis / Suministro</th><th>Cruzado por</th><th>SED</th><th>Radial</th>
           <th className="num">EA</th><th className="num">ERI</th><th className="num">Pot</th></tr></thead>
         <tbody>{visibles.map((c) => (
-          <tr key={c.codigo}><td className="mono">{c.codigo}</td><td className="small">{c.cruzado_por === 'actual' ? 'Suministro Act' : 'Suministro'}</td>
+          <tr key={c.codigo} className={desconectados.has(c.codigo) ? 'muted' : undefined}>
+            <td><input type="checkbox" checked={!desconectados.has(c.codigo)} onChange={() => conmutar(c.codigo)}
+              aria-label={`Conectar ${c.codigo} en DIgSILENT`}
+              title="Desmarcado: no suma a su SED y, si su SED se queda sin clientes conectados, su carga queda fuera de servicio en el ajuste" /></td>
+            <td className="mono">{c.codigo}</td><td className="small">{c.cruzado_por === 'actual' ? 'Suministro Act' : 'Suministro'}</td>
             <td className="strong">{c.sed}</td><td>{c.radial || '—'}</td><td className="num">{fmtNum(c.ea, 2)}</td>
             <td className="num">{fmtNum(c.eri, 2)}</td><td className="num">{fmtNum(c.pot, 2)}</td></tr>
         ))}</tbody>
       </table>
     </div>
+    {desconectados.size > 0 && <small className="muted">{fmtNum(desconectados.size)} cliente(s) desmarcado(s): no suman a su
+      SED en el ajuste, y la SED que se queda sin ningún cliente conectado queda fuera de servicio en su variación.</small>}
     {cruce.no_cruzados.length > 0 && (
       <details className="alert alert-warn"><summary>No cruzados: {cruce.no_cruzados.length}</summary>
         <ul className="small">{cruce.no_cruzados.map((c) => <li key={c.codigo}><strong>{c.codigo}</strong>: {c.motivo}</li>)}</ul>

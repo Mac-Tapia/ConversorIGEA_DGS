@@ -181,6 +181,52 @@ el kVAR y `IN111_V20` el kVA (canales del medidor `IN111`), y `IN111_V119` no ex
   medidor del mismo alimentador ya da ese medidor, ENTONCES EL SISTEMA dará un solo
   resultado, con un aviso que nombre el canal que no está.
 
+Cambio del 2026-10-12, pedido por el operador al escribir una carga nueva a mano: el
+formulario pedía a la vez kW, kVAR, kVA y FP, y la barra antes que las coordenadas.
+Además, en un proyecto convertido la barra de BT de cada SED tiene el GPS de su nodo de
+MT, así que la «barra más cercana» podía ser una de 0,38 kV; y la SED nueva quedaba sin
+GPS, fuera de su sitio en el diagrama geográfico.
+
+- RF-46: EL SISTEMA pedirá en el formulario de una carga nueva la demanda como potencia
+  activa (kW) y factor de potencia; el kVAR y el kVA quedan solo en el libro.
+- RF-47: EL SISTEMA pedirá en el formulario la ubicación por coordenadas (Lat/Lon o
+  CoordX/CoordY) y dejará la barra, el alimentador, el tipo de línea y la tensión de baja
+  como opciones que se despliegan.
+- RF-48: CUANDO busca la barra más cercana a una carga nueva, EL SISTEMA considerará solo
+  barras de más de 1 kV y, a igual distancia, preferirá la de la red a la interna de una
+  SED.
+- RF-49: CUANDO crea una carga nueva, EL SISTEMA escribirá en su SED, sus barras y su
+  carga el GPS de la fila o, si la fila no lo trae, el de la barra de conexión.
+
+Cambio del 2026-10-12, con un libro de planificación de cargas nuevas de SI213 (hoja
+«DemandaNUEVA»): cabecera `DESCRIPCION`, `DEM PROY (KW)`, `TRONCAL`, `BARRA`, `SISTEMA`,
+`SUBESTACIÓN`, `COORDENADAS UTM (X)`, `COORDENADAS UTM (Y)`. Sin columna SED la hoja
+entera se rechazaba; tampoco trae el kVA del transformador, y su «BARRA» es la de la
+subestación, no una barra del proyecto.
+
+- RF-50: SI la barra indicada en la fila no está, o está en varios, de los alimentadores
+  elegidos y la fila trae coordenadas, ENTONCES EL SISTEMA conectará la carga a la barra
+  más cercana por GPS y lo anotará en la carga creada; sin coordenadas, no la creará.
+- RF-51: EL SISTEMA reconocerá en el libro de cargas nuevas, además de los alias, las
+  columnas cuyo nombre termine en kW o kVAR como demanda, las que contengan «UTM» o
+  empiecen por «coord» y terminen en X/Este o Y/Norte como CoordX/CoordY, y «TRONCAL»
+  como alimentador.
+- RF-52: SI una carga nueva no trae kVA_instalado, ENTONCES EL SISTEMA tomará la menor
+  potencia normalizada (IEC 60076-1, serie R10) que cubra su demanda y lo anotará en los
+  avisos del plan.
+- RF-53: SI el libro no trae columna SED, ENTONCES EL SISTEMA nombrará cada carga por su
+  descripción (`DESCRIPCION`, `nombre`, `proyecto`, `cliente`) y, si tampoco la tiene, por
+  su hoja y su fila, con un aviso.
+
+Cambio del 2026-10-12 (spec 006, RF-27): con el escenario de operación activo, la
+potencia de las cargas que manda es la del escenario, no la de la variación; las
+demandas grabadas solo en la variación no se veían en la cabecera.
+
+- RF-54: CUANDO actualiza demandas, EL SISTEMA las grabará también en el escenario de
+  operación del caso en que escribe, si lo tiene.
+- RF-55: MIENTRAS existan los tres casos de la spec 011, EL SISTEMA grabará las demandas
+  también en el escenario de «Con proyecto» y no en el del «Caso base».
+
 ## Requisitos no funcionales
 
 - Universal (P13): ninguna tensión, frecuencia ni CRS de una empresa como valor fijo.
@@ -225,7 +271,7 @@ el kVAR y `IN111_V20` el kVA (canales del medidor `IN111`), y `IN111_V119` no ex
 
 ## Criterios de finalización
 
-- `grep -rnoE "004:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-45.
+- `grep -rnoE "004:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-55.
 - Suite completa en verde y RF-14 de la spec 001 sin cambios.
 - `npx tsc --noEmit -p .` (en `frontend/`) y `npm run build` correctos.
 - Prueba real en DIgSILENT, a cargo del usuario.

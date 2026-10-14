@@ -23,11 +23,13 @@ genéricos y, delante, los que traiga la empresa en ``config/demanda_medida_alia
 
 from __future__ import annotations
 
+import bisect
+import copy
 import json
 import math
 import re
 import unicodedata
-from dataclasses import asdict, dataclass, field, replace
+from dataclasses import asdict, dataclass, field, fields, replace
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Callable, Iterable, Literal, Sequence
@@ -584,9 +586,15 @@ class MaximaCabecera:
     error: str | None = None
     # Medidor sin hoja que se leyó como el medidor del que es canal (RF-45).
     canal_de: str = ''
+    # Spec 006, RF-31 y RF-37: registros que no entran en la curva (sin fecha o sin kW).
+    fuera_de_curva: int = 0
+    # Curva entera ``(fecha, kW, kVAR)`` en orden. Fuera de ``to_dict``: el resultado del
+    # trabajo viaja al navegador por el WebSocket, y un año de lecturas cada 15 min son
+    # unos 35 000 registros por medidor. La web la sirve aparte y reducida (RF-39).
+    curva: list[tuple[datetime, float, float | None]] = field(default_factory=list, repr=False)
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        return {f.name: copy.deepcopy(getattr(self, f.name)) for f in fields(self) if f.name != 'curva'}
 
 
 def _iso(fecha: Any) -> str | None:
@@ -606,6 +614,7 @@ def maxima_de_registros(registros: Sequence[Registro], resultado: MaximaCabecera
                 or (kw == mejor.valores['kw'] and _antes(r.fecha, mejor.fecha))):
             mejor = r
     resultado.registros = len(registros)
+    resultado.curva, resultado.fuera_de_curva = curva_de_registros(registros)
     if mejor is None:
         resultado.error = 'ningún registro con kW numérico'
         return resultado
@@ -626,6 +635,63 @@ def maxima_de_registros(registros: Sequence[Registro], resultado: MaximaCabecera
         resultado.fp_calculado = True
         resultado.columnas['fp'] = 'calculado con kW y kVA'
     return resultado
+
+
+def _como_datetime(fecha: Any) -> datetime | None:
+    if isinstance(fecha, datetime):
+        return fecha
+    if isinstance(fecha, date):
+        return datetime(fecha.year, fecha.month, fecha.day)
+    return None
+
+
+def curva_de_registros(registros: Sequence[Registro]) -> tuple[list[tuple[datetime, float, float | None]], int]:
+    """Curva ``(fecha, kW, kVAR)`` en orden de fecha y cuántos registros quedan fuera (006:RF-31, RF-37).
+
+    Un registro sin fecha o con el kW vacío o de texto («n/d») no se puede dibujar: se
+    cuenta para decirlo, en vez de pintarlo como un cero que parecería un corte de servicio.
+    """
+    curva, fuera = [], 0
+    for r in registros:
+        fecha, kw = _como_datetime(r.fecha), r.valores.get('kw')
+        if fecha is None or kw is None:
+            fuera += 1
+            continue
+        curva.append((fecha, kw, r.valores.get('kvar')))
+    curva.sort(key=lambda p: p[0])
+    return curva, fuera
+
+
+def reducir_curva(curva: Sequence[tuple[datetime, float, float | None]], desde: datetime | None = None,
+                  hasta: datetime | None = None, max_puntos: int = 2000) -> list:
+    """El tramo ``[desde, hasta]`` de una curva ordenada, con ``max_puntos`` como mucho (006:RF-39).
+
+    Se parte el tramo en intervalos de tiempo iguales y de cada uno se conservan el
+    registro de kW mínimo y el de kW máximo. Así la máxima de cabecera, que es el máximo
+    de su intervalo, nunca desaparece de la vista general; con la media diaria se
+    aplanaba el pico y el punto marcado quedaba fuera de la línea.
+    """
+    fechas = [p[0] for p in curva]
+    i = 0 if desde is None else bisect.bisect_left(fechas, desde)
+    j = len(curva) if hasta is None else bisect.bisect_right(fechas, hasta)
+    tramo = list(curva[i:j])
+    if len(tramo) <= max_puntos:
+        return tramo
+    intervalos = max(1, max_puntos // 2)
+    t0 = tramo[0][0]
+    ancho = (tramo[-1][0] - t0).total_seconds() / intervalos or 1.0
+    extremos: dict[int, list[int]] = {}
+    for k, (fecha, kw, _kvar) in enumerate(tramo):
+        n = min(intervalos - 1, int((fecha - t0).total_seconds() / ancho))
+        e = extremos.get(n)
+        if e is None:
+            extremos[n] = [k, k]
+        else:
+            if kw < tramo[e[0]][1]:
+                e[0] = k
+            if kw > tramo[e[1]][1]:
+                e[1] = k
+    return [tramo[k] for k in sorted({k for e in extremos.values() for k in e})]
 
 
 class Cabecera:

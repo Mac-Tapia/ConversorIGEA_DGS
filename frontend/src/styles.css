@@ -261,6 +261,29 @@ small.alert { display: block; margin: 4px 0 0; }
   display: flex; flex-direction: column; gap: 8px; align-items: flex-start;
 }
 .step-box .drop { width: 100%; }
+/* En la caja en columna, el flex-basis de .search se volvía altura: el «Filtrar SED…»
+   del ajuste salía de casi 500 px de alto y dejaba vacía la caja a su derecha. */
+.step-box .search { flex: none; width: 100%; max-width: 320px; }
+/* Curva del registro del medidor de cabecera (spec 006, RF-32 a RF-38). */
+.curva { align-self: stretch; display: flex; flex-direction: column; gap: 6px; }
+.curva-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.curva-check { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; cursor: pointer; }
+.curva-svg {
+  width: 100%; height: auto; display: block; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; cursor: crosshair; touch-action: none; user-select: none;
+}
+.curva-franja { fill: var(--warn-soft); }
+.curva-rejilla { stroke: var(--border); stroke-width: 1; }
+.curva-texto { fill: var(--muted); font-size: 12px; }
+.curva-kw { fill: none; stroke: var(--primary); stroke-width: 1.2; vector-effect: non-scaling-stroke; }
+.curva-kvar { fill: none; stroke: var(--pf); stroke-width: 1; opacity: .8; vector-effect: non-scaling-stroke; }
+.curva-pico { fill: var(--error); stroke: var(--surface); stroke-width: 2; }
+.curva-pico-texto { fill: var(--text); font-weight: 600; }
+.curva-seleccion { fill: var(--primary); opacity: .12; }
+.curva-leyenda { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
+.curva-muestra { display: inline-block; width: 14px; height: 2px; }
+.curva-muestra-kw { background: var(--primary); }
+.curva-muestra-kvar { background: var(--pf); margin-left: 6px; }
 .row { display: flex; gap: 6px; flex-wrap: wrap; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0; }
 .chip {

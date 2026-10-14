@@ -1,6 +1,6 @@
 import type {
-  AjustePlan, CargasPlan, ClientesCruce, DemandaMedidores, Economia, EstudiosCatalogo, EstudiosPlan, FeederRow,
-  Health, Job, Limites, MaximaCabecera, Obra, ObraGuardada, Options, OutputFile, PowerFactoryStatus,
+  AjustePlan, CargasPlan, ClientesCruce, CurvaCabecera, DemandaMedidores, Economia, EstudiosCatalogo, EstudiosPlan,
+  FeederRow, Health, Job, Limites, MaximaCabecera, Obra, ObraGuardada, Options, OutputFile, PowerFactoryStatus,
   ReconstructionReport, WorkspaceState,
 } from './types';
 
@@ -159,17 +159,25 @@ export const api = {
   },
   demandaRuta: (id: string, tipo: DemandaTipo, path: string) =>
     request<WorkspaceState>(`${ws(id)}/demanda/${tipo}/path`, json('POST', { path })),
+  demandaClientesIndexar: (id: string) =>
+    request<Job>(`${ws(id)}/demanda/clientes/indexar`, { method: 'POST' }),
   demandaQuitar: (id: string, tipo: DemandaTipo) =>
     request<WorkspaceState>(`${ws(id)}/demanda/${tipo}`, { method: 'DELETE' }),
   demandaMedidores: (id: string, alimentador: string) =>
     request<DemandaMedidores>(`${ws(id)}/demanda/medidores?alimentador=${enc(alimentador)}`),
   demandaCabecera: (id: string, medidores: { alimentador: string; medidor: string }[]) =>
     request<Job>(`${ws(id)}/demanda/cabecera/buscar`, json('POST', { medidores })),
+  demandaCurva: (id: string, jobId: string, medidor: string, desde?: string, hasta?: string) => {
+    const q = new URLSearchParams({ medidor });
+    if (desde) q.set('desde', desde);
+    if (hasta) q.set('hasta', hasta);
+    return request<CurvaCabecera>(`${ws(id)}/demanda/cabecera/${enc(jobId)}/curva?${q}`);
+  },
   demandaAlimentadores: (id: string) =>
     request<{ alimentadores: string[] }>(`${ws(id)}/demanda/alimentadores`),
   demandaClientes: (id: string, alimentadores: string[]) =>
     request<ClientesCruce>(`${ws(id)}/demanda/clientes/cruzar`, json('POST', { alimentadores })),
-  ajustePlan: (id: string, body: { project: string; job_id: string; medidor: string; medidores?: string[]; tolerancia: number }) =>
+  ajustePlan: (id: string, body: { project: string; job_id: string; medidor: string; medidores?: string[]; tolerancia: number; desconectados?: string[] }) =>
     request<AjustePlan>(`${ws(id)}/demanda/ajuste/plan`, json('POST', body)),
   ajusteSimular: (id: string, token: string) =>
     request<Job>(`${ws(id)}/demanda/ajuste/${enc(token)}/simular`, { method: 'POST' }),

@@ -168,14 +168,26 @@ def attach_project_binding(
     *,
     fallback_feeder: str,
 ) -> None:
-    """Adjunta la identidad nativa solo tras una aceptación satisfactoria."""
-    if not report.get('powerfactory_runtime_pass') or not import_info or not import_info.get('ok'):
+    """Adjunta identidad aceptada o, al adoptar, identidad previa a la calibración.
+
+    Un proyecto recién importado solo se vincula tras aceptar el flujo. Un proyecto
+    existente puede requerir precisamente el ajuste de cargas para converger: en ese
+    caso se vincula su identidad/topología verificada con estado pendiente, permitiendo
+    la calibración sin confundirla con aceptación operativa final.
+    """
+    if not import_info or not import_info.get('ok'):
+        return
+    existing_pending = bool(import_info.get('existing_project')) and not report.get(
+        'powerfactory_runtime_pass'
+    )
+    if not report.get('powerfactory_runtime_pass') and not existing_pending:
         return
     if evidence.get('status') != 'VERIFIED_BEFORE_MUTATION':
         return
-    from igea_dgs.powerfactory_binding import PowerFactoryProjectBinding, native_inventory_sha256
+    from igea_dgs.powerfactory_binding import PowerFactoryProjectBinding, native_inventory_evidence
 
     feeders = tuple(evidence.get('feeders') or [fallback_feeder])
+    native_hash, native_manifest = native_inventory_evidence(app, feeders)
     binding = PowerFactoryProjectBinding(
         project=str(import_info.get('project_path') or import_info.get('project_name') or ''),
         folder=str(import_info.get('project_folder') or ''),
@@ -184,12 +196,16 @@ def attach_project_binding(
         source_fingerprint=str(evidence['source_fingerprint']),
         feeders=feeders,
         dgs_sha256={fallback_feeder: str(evidence['dgs_sha256'])},
-        native_inventory_sha256=native_inventory_sha256(app, feeders),
+        native_inventory_sha256=native_hash,
         native_reread={
-            'status': 'VERIFICADO_PERSISTENCIA',
+            'status': (
+                'IDENTIDAD_VERIFICADA_PENDIENTE_CONVERGENCIA'
+                if existing_pending else 'VERIFICADO_PERSISTENCIA'
+            ),
             'recorded_at': time.time(),
             'effective_reread': dict(report.get('effective_reread') or {}),
             'capacitor_reread': dict(report.get('capacitor_reread') or {}),
+            'inventory_manifest': native_manifest,
         },
     )
     report['project_binding'] = binding.as_dict()
@@ -304,6 +320,56 @@ def connect_powerfactory(*, start_engine: bool = True, command_line: str | None 
 # ---------------------------------------------------------------------------
 # Import DGS + Study Case / Scenario
 # ---------------------------------------------------------------------------
+
+def _activate_project_by_path(app: Any, path: str, folder: str):
+    """Punto único y sustituible para activar un proyecto existente por identidad."""
+    from igea_dgs.carpeta_pf import activar_proyecto
+
+    return activar_proyecto(app, path, folder)
+
+
+def activate_existing_project(app: Any, project_path: str,
+                              folder: str | None = None) -> dict[str, Any]:
+    """Activa un proyecto nativo exacto sin crear ni importar otro proyecto."""
+    from igea_dgs.carpeta_pf import nombre_de_perfil
+
+    requested = str(project_path or '').strip()
+    folder_name = str(folder or nombre_de_perfil()).strip()
+    errors: list[str] = []
+    project = None
+    if not requested:
+        errors.append('Debe indicarse la ruta exacta del proyecto existente.')
+    else:
+        try:
+            project = _activate_project_by_path(app, requested, folder_name)
+        except Exception as exc:  # noqa: BLE001 - evidencia del API nativo
+            errors.append(f'No se pudo activar el proyecto existente {requested!r}: {exc}')
+    if project is None and not errors:
+        errors.append(
+            f'No existe el proyecto {requested!r} en la carpeta {folder_name!r} ni en la raíz.'
+        )
+    active = None
+    try:
+        active = app.GetActiveProject()
+    except Exception as exc:  # noqa: BLE001
+        errors.append(f'No se pudo releer el proyecto activo: {exc}')
+    project_name = _name(project) if project is not None else requested.split('\\')[-1]
+    if project is not None and (active is None or _name(active) != project_name):
+        errors.append(
+            f'El proyecto activo es {_name(active) if active is not None else None!r}, '
+            f'no {project_name!r}.'
+        )
+    return {
+        'project_name': project_name,
+        'project_requested': requested,
+        'project_folder': folder_name,
+        'project_path': requested,
+        'dgs': None,
+        'existing_project': True,
+        'errors': errors,
+        'warnings': [],
+        'ok': not errors,
+    }
 
 def import_dgs_file(
     app: Any,
@@ -1892,11 +1958,19 @@ def _one_terminal_cubicle(obj: Any):
 
 
 def reread_capacitors(app: Any, expected: list[dict[str, Any]]) -> dict[str, Any]:
-    """Relee y reconcilia bancos; una diferencia se informa, nunca bloquea el flujo."""
+    """Relee y reconcilia todos los bancos; una diferencia nunca bloquea el flujo.
+
+    Los bancos declarados por la fuente conservan su capacidad de origen. Los ``ElmShnt``
+    que existen solamente en el proyecto nativo usan el catálogo de tensión: 300 kVAr
+    para 10 kV y 450 kVAr para 22.9 kV. ``qcapn`` es la potencia por paso, por lo que el
+    valor nominal del catálogo se divide entre ``ncapa``.
+    """
     objects = list(_calc_objects(app, '*.ElmShnt'))
     by_identity: dict[tuple[str, str, str], list[Any]] = {}
+    native_identity: dict[int, tuple[str, str, str]] = {}
     for obj in objects:
-        terminal = _terminal_of_cubicle(_one_terminal_cubicle(obj))
+        cubicle = _one_terminal_cubicle(obj)
+        terminal = _terminal_of_cubicle(cubicle)
         try:
             parent = obj.GetParent()
         except Exception:
@@ -1910,11 +1984,71 @@ def reread_capacitors(app: Any, expected: list[dict[str, Any]]) -> dict[str, Any
             grid = _name(grandparent) if _classname(grandparent) == 'ElmNet' else ''
         key = (_name(obj), _name(terminal) if terminal is not None else '', grid)
         by_identity.setdefault(key, []).append(obj)
+        native_identity[id(obj)] = key
 
     fields = ('ctech', 'shtype', 'qcapn', 'ncapx', 'ncapa', 'ushnm', 'outserv')
     banks: list[dict[str, Any]] = []
     mismatches: list[str] = []
     corrections: list[dict[str, Any]] = []
+    consumed: set[int] = set()
+
+    def equal_value(left: Any, right: Any) -> bool:
+        try:
+            # Los atributos Float32 de PowerFactory releen, por ejemplo, 0.3 como
+            # 0.30000001192092896. Esa cuantización no es una diferencia eléctrica.
+            return math.isclose(float(left), float(right), rel_tol=1e-7, abs_tol=1e-9)
+        except (TypeError, ValueError):
+            return left == right
+
+    def actual_record(obj: Any, identity: tuple[str, str, str]) -> dict[str, Any]:
+        cubicle = _one_terminal_cubicle(obj)
+        terminal = _terminal_of_cubicle(cubicle)
+        actual = {
+            'loc_name': identity[0],
+            'terminal': identity[1],
+            'cubicle': _name(cubicle) if cubicle is not None else '',
+            'grid': identity[2],
+            'terminal_uknom_kv': _attr(terminal, 'uknom') if terminal is not None else None,
+        }
+        for field in fields:
+            actual[field] = _attr(obj, field)
+        return actual
+
+    def record_total(actual: dict[str, Any]) -> None:
+        try:
+            actual['total_native_mvar'] = round(
+                float(actual['qcapn']) * int(actual['ncapa']), 12,
+            )
+        except (TypeError, ValueError):
+            actual['total_native_mvar'] = None
+
+    def correct(obj: Any, actual: dict[str, Any], field: str, target: Any,
+                *, catalog_kvar: float | None = None) -> None:
+        if equal_value(actual.get(field), target):
+            return
+        before = actual.get(field)
+        written = _set_attr(obj, field, target)
+        reread = _attr(obj, field)
+        if written and equal_value(reread, target):
+            actual[field] = reread
+            item = {
+                'loc_name': actual['loc_name'], 'terminal': actual['terminal'],
+                'cubicle': actual['cubicle'], 'grid': actual['grid'], 'field': field,
+                'before': before, 'after': reread,
+                'message': (
+                    f"{actual['loc_name']} corregido en nodo {actual['terminal']} "
+                    f"({actual['cubicle']}): {field} {before!r} → {reread!r}"
+                ),
+            }
+            if catalog_kvar is not None:
+                item['catalog_kvar'] = catalog_kvar
+            corrections.append(item)
+        else:
+            mismatches.append(
+                f"{actual['loc_name']} [{actual['terminal']}/{actual['cubicle']}] "
+                f'{field}: esperado {target!r}, nativo {before!r}, no se pudo corregir'
+            )
+
     for wanted in expected:
         identity = (
             str(wanted.get('loc_name') or ''),
@@ -1932,51 +2066,53 @@ def reread_capacitors(app: Any, expected: list[dict[str, Any]]) -> dict[str, Any
             )
             continue
         obj = candidates[0]
-        actual = {'loc_name': identity[0], 'terminal': identity[1], 'grid': identity[2]}
+        consumed.add(id(obj))
+        actual = actual_record(obj, native_identity.get(id(obj), identity))
         for field in fields:
-            actual[field] = _attr(obj, field)
             expected_value = wanted.get(field)
-            try:
-                equal = math.isclose(
-                    float(actual[field]), float(expected_value), rel_tol=1e-9, abs_tol=1e-9,
-                )
-            except (TypeError, ValueError):
-                equal = actual[field] == expected_value
-            if not equal:
-                before = actual[field]
-                written = _set_attr(obj, field, expected_value)
-                reread = _attr(obj, field)
-                try:
-                    corrected = math.isclose(
-                        float(reread), float(expected_value), rel_tol=1e-9, abs_tol=1e-9,
-                    )
-                except (TypeError, ValueError):
-                    corrected = reread == expected_value
-                if written and corrected:
-                    actual[field] = reread
-                    corrections.append({
-                        'loc_name': identity[0], 'terminal': identity[1],
-                        'grid': identity[2], 'field': field,
-                        'before': before, 'after': reread,
-                        'message': (
-                            f'{identity[0]} corregido en nodo {identity[1]}: '
-                            f'{field} {before!r} → {reread!r}'
-                        ),
-                    })
-                else:
-                    mismatches.append(
-                        f'{identity[0]} [{identity[1]}] {field}: esperado '
-                        f'{expected_value!r}, nativo {before!r}, no se pudo corregir'
-                    )
-        try:
-            actual['total_native_mvar'] = round(
-                float(actual['qcapn']) * int(actual['ncapa']), 12,
-            )
-        except (TypeError, ValueError):
-            actual['total_native_mvar'] = None
+            correct(obj, actual, field, expected_value)
+        record_total(actual)
         actual['feeder'] = wanted.get('feeder')
         actual['network_id'] = wanted.get('network_id')
         actual['phases'] = wanted.get('phases')
+        actual['capacity_source'] = 'source'
+        actual['catalog_kvar'] = None
+        banks.append(actual)
+
+    # Bancos agregados manualmente en DIgSILENT: no estaban en el DGS/sidecar, pero
+    # deben quedar visibles y reconciliados en la misma aceptación nativa.
+    for obj in objects:
+        if id(obj) in consumed:
+            continue
+        identity = native_identity[id(obj)]
+        actual = actual_record(obj, identity)
+        voltage = actual.get('terminal_uknom_kv') or actual.get('ushnm')
+        try:
+            voltage_value = float(voltage)
+        except (TypeError, ValueError):
+            voltage_value = None
+        catalog_kvar = None
+        if voltage_value is not None and math.isclose(voltage_value, 10.0, abs_tol=.5):
+            catalog_kvar = 300.0
+        elif voltage_value is not None and math.isclose(voltage_value, 22.9, abs_tol=1.0):
+            catalog_kvar = 450.0
+        actual['capacity_source'] = 'voltage_catalog'
+        actual['catalog_kvar'] = catalog_kvar
+        if catalog_kvar is None:
+            mismatches.append(
+                f"{actual['loc_name']} [{actual['terminal']}/{actual['cubicle']}]: "
+                f'tensión {voltage!r} sin capacidad definida en el catálogo'
+            )
+        else:
+            try:
+                steps = max(1, int(actual.get('ncapa') or 1))
+            except (TypeError, ValueError):
+                steps = 1
+            correct(
+                obj, actual, 'qcapn', catalog_kvar / 1000.0 / steps,
+                catalog_kvar=catalog_kvar,
+            )
+        record_total(actual)
         banks.append(actual)
     status = (
         'AVISO_PERSISTENCIA_NO_CORREGIDA' if mismatches
@@ -2501,9 +2637,18 @@ def _parser() -> argparse.ArgumentParser:
         '--manifest',
         help='Generated <FEEDER>_geography.json (optional if --import-dgs alone for import+LDF)',
     )
-    p.add_argument(
+    project_source = p.add_mutually_exclusive_group()
+    project_source.add_argument(
         '--import-dgs',
         help='Path to .dgs — imports via ComImport into a new PF project before checks',
+    )
+    project_source.add_argument(
+        '--existing-project',
+        help='Ruta exacta de un proyecto PF existente; lo activa y valida sin ComImport',
+    )
+    p.add_argument(
+        '--source-dgs',
+        help='DGS de procedencia usado solo para probar identidad al adoptar un proyecto existente',
     )
     p.add_argument('--project-name', help='Optional PF project name for ComImport')
     p.add_argument('--pf-carpeta', metavar='NOMBRE',
@@ -2613,9 +2758,15 @@ def main(argv=None) -> int:
     ) or None
     run_studies = bool(args.run_studies)
     want_flow = bool(args.run_load_flow or args.fix_until_converge or run_studies)
+    source_dgs_path = Path(args.source_dgs) if args.source_dgs else (
+        Path(args.import_dgs) if args.import_dgs else None
+    )
 
-    if manifest_path is None and not args.import_dgs:
-        print('ERROR: provide --manifest and/or --import-dgs', file=sys.stderr)
+    if manifest_path is None and not args.import_dgs and not args.existing_project:
+        print('ERROR: provide --manifest, --import-dgs or --existing-project', file=sys.stderr)
+        return 1
+    if args.existing_project and source_dgs_path is None:
+        print('ERROR: --existing-project requires --source-dgs for auditable identity', file=sys.stderr)
         return 1
     if manifest_path is not None and not manifest_path.is_file():
         print(f'ERROR: manifest not found: {manifest_path}', file=sys.stderr)
@@ -2623,7 +2774,7 @@ def main(argv=None) -> int:
 
     try:
         source_evidence = verify_source_contract(
-            Path(args.import_dgs) if args.import_dgs else None,
+            source_dgs_path,
             Path(args.feeder_metadata) if args.feeder_metadata else None,
             source_run_id=args.source_run_id,
             source_mode=args.source_mode,
@@ -2656,7 +2807,71 @@ def main(argv=None) -> int:
     want_export_converged = bool(args.export_converged_dgs) and not args.no_export_converged_dgs
     persist_dir = Path(args.persist_dir) if args.persist_dir else None
 
-    if args.import_dgs and (manifest_path is None or args.fix_until_converge or run_studies):
+    if args.existing_project:
+        import_info = activate_existing_project(
+            app, args.existing_project, args.pf_carpeta,
+        )
+        if not import_info.get('ok'):
+            for err in import_info.get('errors') or []:
+                print(f'ERROR: {err}', file=sys.stderr)
+            return 2
+        print(f"Activated existing project without import: {import_info.get('project_path')}")
+        study_errors: list[str] = []
+        if args.activate_base and not args.no_activate_base:
+            study_info = activate_base_study_and_scenario(app)
+            study_errors.extend(study_info.get('errors') or [])
+            if ensure_scenario and not study_info.get('scenario_activated'):
+                scenario_ensure = ensure_operation_scenario(app)
+                study_errors.extend(scenario_ensure.get('errors') or [])
+        feeder_metadata_report = {
+            'status': 'ADOPTED_EXISTING_PROJECT',
+            'reread_verified': True,
+            'reread_count': len(_calc_objects(app, '*.ElmFeeder')),
+            'project_path': import_info.get('project_path'),
+            'project_folder': import_info.get('project_folder'),
+            'warning': (
+                'Proyecto existente adoptado por ruta exacta; no se ejecutó ComImport '
+                'ni se creó un proyecto duplicado.'
+            ),
+        }
+        loop = None
+        suite = None
+        flow_errors: list[str] = []
+        flow_warnings: list[str] = [feeder_metadata_report['warning']]
+        if run_studies:
+            suite = run_study_suite(
+                app, studies=studies_arg,
+                fix_until_converge=bool(args.fix_until_converge),
+                max_intents=args.max_intents,
+            )
+            loop = next(
+                (item.get('load_flow_loop') for item in suite.get('results') or []
+                 if item.get('study') == 'load_flow'),
+                None,
+            )
+            flow_errors.extend(suite.get('errors') or [])
+            flow_warnings.extend(suite.get('warnings') or [])
+        elif want_flow:
+            if args.fix_until_converge:
+                loop = run_load_flow_until_converged(app, max_intents=args.max_intents)
+            else:
+                ldf = execute_load_flow(app, relaxed=False)
+                loop = {
+                    'pass': bool(ldf.get('pass')),
+                    'attempts': [{'attempt': 0, 'phase': 'initial', 'load_flow': ldf}],
+                    'final_load_flow': ldf,
+                    'converged_after_intent': None,
+                }
+            if not loop.get('pass'):
+                flow_errors.append('Load flow did not converge in the existing project')
+        flow_only_report = {
+            'ok': bool(import_info.get('ok')) and not study_errors and not flow_errors,
+            'load_flow_loop': loop,
+            'study_suite': suite,
+            'errors': study_errors + flow_errors,
+            'warnings': flow_warnings,
+        }
+    elif args.import_dgs and (manifest_path is None or args.fix_until_converge or run_studies):
         # Web / one-shot path: import → scenario → LDF (+ optional study suite).
         try:
             flow_only_report = run_import_activate_flow(
@@ -2910,7 +3125,7 @@ def main(argv=None) -> int:
 
     if manifest_path is None:
         # Import+flow only (no geography acceptance).
-        feeder = Path(args.import_dgs).stem if args.import_dgs else 'unknown'
+        feeder = source_dgs_path.stem if source_dgs_path is not None else 'unknown'
         capacitor_contract: dict[str, Any] = {}
         if args.feeder_metadata and Path(args.feeder_metadata).is_file():
             try:
@@ -2940,6 +3155,7 @@ def main(argv=None) -> int:
             'load_flow_loop': (flow_only_report or {}).get('load_flow_loop'),
             'study_suite': (flow_only_report or {}).get('study_suite'),
             'import': import_info,
+            'adoption': import_info if args.existing_project else None,
             'study_scenario': study_info,
             'scenario_ensure': scenario_ensure,
             'feeder_metadata': feeder_metadata_report,
@@ -2961,7 +3177,9 @@ def main(argv=None) -> int:
         if dgs_persist_report and not dgs_persist_report.get('ok'):
             report['errors'].extend(dgs_persist_report.get('errors') or [])
             report['powerfactory_runtime_pass'] = False
-        dgs_path = Path(args.import_dgs)
+        dgs_path = source_dgs_path
+        if dgs_path is None:  # protegido por las validaciones de entrada
+            raise RuntimeError('No hay DGS de procedencia para escribir la aceptación')
         json_path = Path(args.output_json) if args.output_json else dgs_path.with_name(
             f'{feeder}_powerfactory_acceptance.json'
         )

@@ -162,6 +162,18 @@ def test_clientes_del_alimentador_van_al_plan(client):
     assert [c['codigo'] for c in plan['clientes']] == ['11']
 
 
+def test_clientes_desmarcados_van_aparte(client):
+    """006:RF-26 — el Nis desmarcado no suma a su SED: va al plan en ``desconectados``."""
+    wid, job = _maxima(client)
+    _subir(client, wid, 'suministros', SUMINISTROS)
+    _subir(client, wid, 'clientes', CLIENTES)
+    body = _plan(client, wid, job, desconectados=['11']).json()
+    assert body['ajustes'][0]['n_clientes'] == 0 and body['ajustes'][0]['n_desconectados'] == 1
+    trabajo = client.post(f"/api/workspaces/{wid}/demanda/ajuste/{body['token']}/simular").json()
+    plan = esperar_trabajo(client, trabajo)['result']['informe']['recibido']
+    assert plan['clientes'] == [] and [c['sed'] for c in plan['desconectados']] == ['E1']
+
+
 def test_simular_y_aplicar_en_el_carril_de_powerfactory(client):
     """006:RF-19 / 006:RF-20 — trabajos del carril powerfactory con el plan preparado."""
     wid, job = _maxima(client)
@@ -236,8 +248,23 @@ def test_ajuste_en_la_seccion_de_demanda_medida():
     ajuste = (src / 'AjusteCabecera.tsx').read_text(encoding='utf-8')
     # Spec 008, RF-7: con los alimentadores marcados en el paso 2.
     assert '<DemandaMedida project={project} feeders={order} />' in cargas
-    assert '<AjusteCabecera project={project} maxima={ultimo} feeders={feeders} />' in demanda
+    assert ('<AjusteCabecera project={project} maxima={ultimo} feeders={feeders} '
+            'desconectados={desconectados} />') in demanda
     assert 'api.ajustePlan' in ajuste and 'job_id: maxima.id' in ajuste
+
+
+def test_casilla_por_cliente_marcada_por_defecto():
+    """006:RF-25 — la tabla del cruce tiene una casilla por cliente antes del Nis; empieza
+    marcada (nadie desconectado) y lo desmarcado llega al plan del ajuste."""
+    from pathlib import Path
+
+    src = Path(__file__).resolve().parents[1] / 'frontend' / 'src' / 'components'
+    demanda = (src / 'DemandaMedida.tsx').read_text(encoding='utf-8')
+    ajuste = (src / 'AjusteCabecera.tsx').read_text(encoding='utf-8')
+    assert '<th>Conectado</th><th>Nis / Suministro</th>' in demanda
+    assert 'checked={!desconectados.has(c.codigo)}' in demanda
+    assert 'setDesconectados(new Set())' in demanda, 'un cruce nuevo empieza todo marcado'
+    assert 'desconectados: [...desconectados]' in ajuste
 
 
 # ----------------------------------------------------------------- spec 008

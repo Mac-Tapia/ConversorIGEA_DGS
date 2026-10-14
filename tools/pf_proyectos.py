@@ -38,7 +38,7 @@ from igea_dgs.carpeta_pf import (  # noqa: E402
     CarpetaError, alimentadores_de, buscar_carpeta, nombre_de_perfil, proyectos_de,
     validar_nombre,
 )
-from igea_dgs.powerfactory_binding import native_inventory_sha256  # noqa: E402
+from igea_dgs.powerfactory_binding import native_inventory_evidence  # noqa: E402
 
 
 def leer(app, carpeta: str) -> dict:
@@ -59,6 +59,7 @@ def leer(app, carpeta: str) -> dict:
         if nota:
             print(f'  AVISO {nota}')
         native_hash = None
+        native_manifest = None
         native_reread_at = None
         native_warning = None
         try:
@@ -66,13 +67,14 @@ def leer(app, carpeta: str) -> dict:
                 rc = prj.Activate()
                 if rc not in (None, 0):
                     raise RuntimeError(f'Activate devolvió {rc}')
-            native_hash = native_inventory_sha256(app, feeders)
+            native_hash, native_manifest = native_inventory_evidence(app, feeders)
             native_reread_at = time.time()
         except Exception as exc:
             native_warning = f'No se pudo releer la identidad nativa: {exc}'
         proyectos.append({
             'name': prj.loc_name, 'path': ruta, 'feeders': feeders,
             'native_inventory_sha256': native_hash,
+            'native_inventory_manifest': native_manifest,
             'native_reread_at': native_reread_at,
             'native_warning': native_warning,
         })
