@@ -513,6 +513,36 @@ def test_validacion_de_perdidas_usa_consumo_efectivo_no_plini(guion):
     assert reconstruido is not None
 
 
+def test_no_redistribuir_informa_perdidas_con_consumo_efectivo(guion):
+    """006:RF-11 / 006:RF-41 — la rama NO_REDISTRIBUIR mide pérdidas como la validación.
+
+    En CA101 reabierto (168 cargas, ``_6`` reutilizada) el informe restaba la ``plini``
+    escrita a la cabecera y daba -846 kW de pérdidas, mientras el flujo aplicado sobre el
+    mismo estado daba +499,8 kW.
+    """
+    app = _app()
+    primero, rc = guion.ejecutar(app, _plan())
+    assert rc == 0, primero
+    efectivo = 0.0
+    for obj in app.proyecto.GetContents('*.ElmLod', 1):
+        # Carga dependiente de tensión: consume en terminal el 90 % de lo escrito.
+        object.__setattr__(obj, 'm:Psum:bus1', 0.9 * obj.plini)
+        object.__setattr__(obj, 'm:Qsum:bus1', 0.9 * obj.qlini)
+        if obj.loc_name.startswith('F1_'):
+            efectivo += 900.0 * obj.plini
+
+    segundo, rc = guion.ejecutar(app, _plan())
+
+    assert rc == 0, segundo
+    assert segundo['decision_carga_nativa']['accion'] == 'NO_REDISTRIBUIR'
+    consumo = segundo['validacion_previa_nativa']['consumo_cargas_efectivo']
+    assert consumo['origen'] == 'RESULTADOS_CARGAS_NATIVAS'
+    assert consumo['kw'] == pytest.approx(efectivo)
+    assert segundo['consumo_cargas_efectivo']['kw'] == pytest.approx(efectivo)
+    assert segundo['perdidas_de'] == 'RESULTADOS_CARGAS_NATIVAS'
+    assert segundo['perdidas']['kw'] == pytest.approx(segundo['cabecera']['kw'] - efectivo)
+
+
 def test_ajuste_suma_dos_troncales_y_conserva_clientes_fijos(guion):
     """006:RF-4 / 006:RF-5 / 006:RF-8 — las dos troncales suman un solo objetivo.
 

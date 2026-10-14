@@ -608,7 +608,14 @@ def ejecutar(app, plan: dict, *, simular: bool = False, cancelado=lambda: False)
         informe['reutilizacion_variaciones_existentes'] = intentos_reutilizacion
     if validacion_previa['correcta'] and reparto_nativo is not None:
         fotos = _foto_cargas_nativas(cargas)
+        # Las perdidas salen del mismo consumo efectivo con que se valido, no de
+        # ``reparto_nativo.totales()`` (la ``plini`` escrita): en CA101 reabierto, con
+        # NO_REDISTRIBUIR sobre ``_6``, el informe daba -846 kW de perdidas mientras el
+        # flujo aplicado sobre el mismo estado daba +499,8 kW.
+        efectivo = validacion_previa.get('consumo_cargas_efectivo') or {}
         p_cargas, q_cargas = reparto_nativo.totales()
+        if efectivo.get('kw') is not None:
+            p_cargas, q_cargas = efectivo['kw'], efectivo.get('kvar')
         e_kw = ((medida_previa.kw - objetivo.kw) / abs(objetivo.kw)
                 if objetivo.kw else medida_previa.kw - objetivo.kw)
         e_kvar = ((medida_previa.kvar - objetivo.kvar) /
@@ -630,7 +637,11 @@ def ejecutar(app, plan: dict, *, simular: bool = False, cancelado=lambda: False)
                         'kvar': medida_previa.kvar}],
             perdidas={'kw': medida_previa.kw - p_cargas,
                       'kvar': (medida_previa.kvar - q_cargas
-                               if medida_previa.kvar is not None else None)},
+                               if medida_previa.kvar is not None and q_cargas is not None
+                               else None)},
+            consumo_cargas_efectivo=(dict(efectivo) if efectivo.get('kw') is not None
+                                     else None),
+            perdidas_de=efectivo.get('origen') or 'ENTRADAS_NOMINALES',
             desvio={'kw': e_kw, 'kvar': e_kvar},
             criterio_cuadre='KW_ONLY', reparto_solo_kw=reparto_nativo.solo_kw,
             sed=_por_sed(reparto_nativo, cargas, kva_origen, antes, fijas),
