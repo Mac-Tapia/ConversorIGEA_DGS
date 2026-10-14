@@ -382,6 +382,8 @@ def test_el_lanzador_pasa_la_interfaz_de_escucha_a_la_api(monkeypatch):
         run=lambda *a, **k: llamadas.append(k)))
     monkeypatch.delenv('IGEA_WEB_HOST', raising=False)
     monkeypatch.setenv('IGEA_WEB_SERVER_PATHS', '1')
+    # Sin esto la prueba fallaba con la web del operador abierta en el 8765.
+    monkeypatch.setattr(lanzador, 'puerto_ocupado', lambda *_a: False)
     assert lanzador.main(['--host', '0.0.0.0', '--no-browser']) == 0
     assert llamadas and llamadas[0]['host'] == '0.0.0.0'
     import os

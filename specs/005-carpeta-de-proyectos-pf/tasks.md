@@ -49,3 +49,8 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       nombre repetido, crear una subcarpeta y leer los proyectos. (RF-5 a RF-17)
       Hecho cuando: el usuario lo confirma, y la lista de caracteres no admitidos queda
       comprobada.
+- [x] T13. PowerFactory que no responde al leer los proyectos (2026-10-14): `pf_proyectos.py`
+      escribe su primera línea tras `GetCurrentUser`; `run_process` acepta
+      `limite_arranque_s` y cierra la entrada estándar del guion; `services.pf_projects`
+      convierte el corte en un aviso claro. (RF-21)
+      Hecho cuando: `pytest -q tests/test_carpeta_pf.py` en verde.

@@ -109,7 +109,12 @@ def main(argv=None) -> int:
         print(f'ERROR: no se pudo conectar a PowerFactory: {exc}')
         return 3
 
-    print(f'Carpeta de DIgSILENT: {carpeta}')
+    # Primera línea de la salida solo con PowerFactory ya respondiendo: la web espera esta
+    # línea un tiempo limitado (spec 005, RF-21). El 2026-10-14 una sesión se quedó
+    # parada justo en ``GetCurrentUser``, sin escribir nada.
+    usuario = app.GetCurrentUser()
+    print(f'Conectado a DIgSILENT como {getattr(usuario, "loc_name", "?")}. '
+          f'Carpeta: {carpeta}', flush=True)
     datos = leer(app, carpeta)
     if datos['aviso']:
         print(f'AVISO: {datos["aviso"]}')

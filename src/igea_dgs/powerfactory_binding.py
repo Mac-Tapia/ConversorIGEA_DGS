@@ -271,11 +271,21 @@ def caso_base_verificado(ws: Any, project: str, feeders: Iterable[str]) -> dict[
 
 
 def _active_source_identity(ws: Any) -> tuple[str | None, str | None, str | None]:
-    return (
-        getattr(ws, 'active_run_id', None),
-        getattr(ws, 'loaded_source_mode', None),
-        getattr(ws, 'loaded_source_fingerprint', None),
-    )
+    run_id = getattr(ws, 'active_run_id', None)
+    mode = getattr(ws, 'loaded_source_mode', None)
+    fingerprint = getattr(ws, 'loaded_source_fingerprint', None)
+    # El modo y la huella cargados solo viven en memoria; ``active_run_id`` se guarda en
+    # disco. El 2026-10-14, tras reiniciar la web, CA101 quedó bloqueado con
+    # PROJECT_BINDING_SOURCE_MISMATCH frente a la misma .mdb: la pestaña de cargas no
+    # vuelve a cargar la fuente. El manifiesto de la ejecución activa es inmutable y
+    # dice lo mismo que la carga en memoria.
+    if (mode is None or fingerprint is None
+            or getattr(ws, 'loaded_run_id', None) != run_id):
+        active_run = getattr(ws, 'active_run', None)
+        snapshot = active_run() if callable(active_run) else None
+        if snapshot is not None:
+            return snapshot.run_id, snapshot.mode, snapshot.fingerprint
+    return run_id, mode, fingerprint
 
 
 def _current_project(ws: Any, project: str) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
