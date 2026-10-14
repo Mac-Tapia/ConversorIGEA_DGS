@@ -215,10 +215,17 @@ AJUSTE_VIEJO = 'Ajuste_F1_20261001_080000'
 CLIENTES = [{'codigo': '11', 'sed': 'f1_s2', 'pot': 40.0, 'ea': 1.0, 'eri': 0.25}]
 
 
-def _red_calibrada(*, escenario=False, preparar=True):
-    """F1 y F2 con barras de baja y flujo; F1 ya ajustado una vez y los tres casos hechos."""
+def _red_calibrada(*, escenario=False, preparar=True, manda=False):
+    """F1 y F2 con barras de baja y flujo; F1 ya ajustado una vez y los tres casos hechos.
+
+    ``manda``: el escenario del original guarda las demandas importadas y manda sobre las
+    variaciones (006:RF-27); «Sin proyecto» y «Con proyecto» salen con copias de él.
+    """
     app = fake_pf.proyecto(alimentadores=('F1', 'F2'), cargas_por_alim=4, bt=True, flujo=True,
-                           escenario=escenario)
+                           escenario=escenario or manda)
+    if manda:
+        app.escenario_manda = True
+        app.escenario.fotografiar()
     _variacion(app, AJUSTE_VIEJO)
     base = {'variaciones': [AJUSTE_VIEJO], 'feeders': ['F1'], 'excluidos': [],
             'ajustes': [{'feeder': 'F1', 'variacion': AJUSTE_VIEJO, 'cuadrado': True}]}
@@ -262,7 +269,9 @@ def test_con_tres_casos_el_ajuste_va_a_sin_proyecto():
         assert nuevo in activas and AJUSTE_VIEJO not in activas, n
     assert _activas_en(app, caso_base)[0] == []
     escritas = [e for e in app.escrituras if getattr(e[0], '_clase', '') == 'ElmLod']
-    assert escritas and all(e[3]._padre.loc_name == nuevo for e in escritas)
+    assert escritas and all(e[3]._padre.loc_name == nuevo for e in escritas if e[4] is None)
+    # El resultado, además, en el escenario de cada caso (006:RF-28).
+    assert {e[4].loc_name for e in escritas if e[4] is not None} == set(casos_pf.NOMBRES.values())
 
 
 def test_con_tres_casos_demandas_en_sin_y_cargas_en_con():
@@ -284,7 +293,9 @@ def test_con_tres_casos_demandas_en_sin_y_cargas_en_con():
     assert _activas_en(app, caso_base)[0] == []
     assert esc_sin.loc_name == 'Sin proyecto' and esc_con.loc_name == 'Con proyecto'
     escritas = [e for e in app.escrituras if getattr(e[0], '_clase', '') == 'ElmLod']
-    assert escritas and all(e[3] is not None and e[4] is None for e in escritas)
+    assert escritas and all(e[3] is not None for e in escritas if e[4] is None)
+    # Las demandas, además, en los escenarios de «Sin proyecto» y «Con proyecto» (004:RF-55).
+    assert {e[4] for e in escritas if e[4] is not None} == {esc_sin, esc_con}
     assert informe['casos'] == {'demandas': 'Sin proyecto', 'cargas': 'Con proyecto'}
     assert app.caso is caso_base
 
@@ -296,3 +307,50 @@ def test_sin_los_tres_casos_todo_sigue_como_antes():
     informe, rc = ajuste_pf.ejecutar(app, _plan_ajuste())
     assert rc == 0 and 'caso' not in informe and app.caso is original
     assert informe['variacion'] in [v.loc_name for v in app.GetActiveNetworkVariations()]
+
+
+def _cabecera_en(app, caso, feeder='F1'):
+    """Lo que entra por la cabecera en ``caso``, con su escenario activo."""
+    previo = app.caso
+    caso.Activate()
+    elm = next(f for f in app.proyecto.GetContents('*.ElmFeeder', 1) if f.loc_name == feeder)
+    medida = ajuste_pf.medir_cabecera(app, elm)
+    previo.Activate()
+    return medida
+
+
+def test_con_tres_casos_el_ajuste_va_a_los_tres_escenarios():
+    """006:RF-28 / 011:RF-53 — con los tres casos, la cabecera ajustada se ve en los tres con
+    su escenario activo; el «Caso base», sin las variaciones activas (011:RF-3)."""
+    app, _base = _red_calibrada(manda=True)
+    caso_base = _caso(app, 'Caso base')
+    caso_base.Activate()
+    informe, rc = ajuste_pf.ejecutar(app, _plan_ajuste())
+    assert rc == 0, informe
+    assert sorted(g['escenario'] for g in informe['escenarios']) ==         sorted(['Sin proyecto', 'Con proyecto', 'Operador'])
+    for n in ('Caso base', 'Sin proyecto', 'Con proyecto'):
+        medida = _cabecera_en(app, _caso(app, n))
+        assert medida.converge, n
+        assert medida.kw == pytest.approx(informe['cabecera']['kw'], rel=1e-6), n
+        assert medida.kvar == pytest.approx(informe['cabecera']['kvar'], rel=1e-6), n
+    assert _activas_en(app, caso_base)[0] == []
+    assert app.caso is caso_base
+
+
+def test_con_tres_casos_las_demandas_van_a_sin_y_con_no_al_base():
+    """004:RF-54 / 004:RF-55 — la demanda en bloque se ve con el escenario de «Sin proyecto» y
+    de «Con proyecto»; el del «Caso base» guarda el ajuste y no cambia."""
+    app, base = _red_calibrada(manda=True)
+    caso_base = _caso(app, 'Caso base')
+    caso_base.Activate()
+    antes = _carga_de(app, 'F1_S1').plini
+    plan = {**_plan_cargas(['F1'], demandas=[_demanda('F1_S1', 30.0, 10.0)]), 'base': base}
+    informe, rc = cargas_guion.ejecutar(app, plan, simular=False)
+    assert rc == 0, informe
+    assert sorted(g['escenario'] for g in informe['escenarios']) == ['Con proyecto', 'Sin proyecto']
+    for n in ('Sin proyecto', 'Con proyecto'):
+        _caso(app, n).Activate()
+        assert app.GetActiveScenario().loc_name == n
+        assert _carga_de(app, 'F1_S1').plini == pytest.approx(0.030), n
+    caso_base.Activate()
+    assert _carga_de(app, 'F1_S1').plini == pytest.approx(antes)

@@ -52,6 +52,7 @@ def build_native_action_context(
     project: str,
     feeders: Iterable[str],
     action: str,
+    warnings: Iterable[Mapping[str, Any]] = (),
 ) -> dict[str, Any]:
     """Construye la única identidad fuente/proyecto que acompaña al plan."""
     project = str(project or '').strip()
@@ -71,6 +72,7 @@ def build_native_action_context(
             'source_fingerprint': binding_data.get('source_fingerprint'),
         },
         'binding': binding_data,
+        'binding_warnings': [dict(item) for item in warnings],
     }
     return {**payload, 'context_sha256': _sha256(payload)}
 

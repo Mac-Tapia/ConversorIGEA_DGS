@@ -29,6 +29,31 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       (RF-2, RF-3, RF-20, RF-21, RF-23)
       Hecho cuando: `npx tsc --noEmit -p .` y `npm run build` en `frontend/` correctos.
 - [x] T7. Validación: cada RF citado por al menos una prueba y en verde; suite completa. (Todos)
-      Hecho cuando: `grep -rnoE "006:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-24.
+      Hecho cuando: `grep -rnoE "006:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-30.
+- [x] T9. Casilla por cliente importante en la tabla del cruce, marcada por defecto; los
+      desmarcados van al plan aparte y el guion pone fuera de servicio, en la variación,
+      la carga de la SED que se queda sin ningún cliente conectado. (RF-25, RF-26)
+      Hecho cuando: `pytest -q tests/test_ajuste_cabecera_guion.py tests/test_ajuste_cabecera_web.py`
+      en verde y `npm run build` correcto.
+- [x] T10. El resultado del ajuste también en el escenario de operación del caso y, con los
+      tres casos de la 011, en los de los tres; la cabecera medida con el escenario
+      restaurado en el informe y en la web, con aviso si no coincide. (RF-27 a RF-30)
+      Hecho cuando: `pytest -q tests/test_ajuste_cabecera_guion.py tests/test_casos_pf.py`
+      en verde y `npm run build` correcto. Hecho el 2026-10-12.
 - [ ] T8. Prueba real en DIgSILENT con un alimentador, a cargo del usuario: comprobar el
-      signo y el lado de lo medido en la cabecera y que cuadra al 1 %.
+      signo y el lado de lo medido en la cabecera y que cuadra al 1 %. Y que, con el
+      «Operation Scenario» activo, «Verificar la convergencia» da la cabecera ajustada
+      (RF-27): SI213 daba 229,2 kW antes del cambio, con el ajuste en 1.621,8 kW.
+- [x] T11. `demanda_medida.py`: `MaximaCabecera.curva` y `fuera_de_curva`, fuera de
+      `to_dict`, y `reducir_curva` mín./máx. por intervalo. (RF-31, RF-37, RF-39)
+      Hecho cuando: `pytest -q tests/test_demanda_medida.py` en verde. Hecho el 2026-10-12.
+- [x] T12. Web: guardar la curva del último trabajo de máxima en el espacio y servirla
+      entera o por tramo, reducida a 2 000 puntos. (RF-31, RF-32, RF-35, RF-38, RF-39)
+      Hecho cuando: `pytest -q tests/test_demanda_medida_web.py` en verde. Hecho el 2026-10-12.
+- [x] T13. `CurvaCabecera.tsx` en la caja del ajuste: línea cronológica, franja del mes
+      de la máxima, punto marcado, zoom por arrastre y «Ver todo», kVAR opcional,
+      selector de medidor y aviso de registros fuera; entra en `CODIGO_FUENTE.md`.
+      (RF-32 a RF-38)
+      Hecho cuando: su prueba de front en verde, `npx tsc --noEmit -p .` y `npm run build`
+      correctos, y `grep -rnoE "006:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-39.
+      Hecho el 2026-10-13; visto en el navegador con un libro sintético de 92 días.

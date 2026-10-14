@@ -12,6 +12,7 @@ import json
 import random
 import sys
 import types
+import copy
 
 import pytest
 
@@ -56,6 +57,15 @@ def _plan(feeders, estudio='flujo', caso='sin', **extra):
 
 def _alim(app, f):
     return next(a for a in app.proyecto.GetContents('*.ElmFeeder', 1) if a.loc_name == f)
+
+
+def test_identidad_nativa_no_depende_del_wrapper_python():
+    """PowerFactory puede devolver dos wrappers para la misma variación; la limpieza de
+    optimizadores no debe confundir una variación previa con una creada por el estudio."""
+    app, _feeders = _red()
+    previa = app.carpetas['scheme'].GetContents('*.IntScheme', 1)[0]
+    assert copy.copy(previa) is not previa
+    assert guion._clave_nativa(copy.copy(previa)) == guion._clave_nativa(previa)
 
 
 @pytest.mark.parametrize('semilla', SEMILLAS)
@@ -151,8 +161,9 @@ def test_el_balance_y_el_perfil_no_dejan_cambios():
 
     app.ordenes['ComBalance'] = fake_pf.Orden(app, 'BAL', clase='ComBalance', efecto=balance)
     app.ordenes['ComVoltplan'] = fake_pf.Orden(app, 'VPO', clase='ComVoltplan', efecto=perfil)
-    bal, rc = guion.ejecutar(app, _plan(feeders, 'balance_fases'))
+    bal, rc = guion.ejecutar(app, _plan([feeders[0]], 'balance_fases'))
     assert rc == 0 and 'Number of modified elements: 3' in bal['propuesta']['resumen']
+    assert app.ordenes['ComBalance'].startElm is _alim(app, feeders[0])
     vpo, rc = guion.ejecutar(app, _plan(feeders, 'perfil_tension'))
     assert rc == 0 and vpo['propuesta']['tomas']
     assert {t['toma'] for t in vpo['propuesta']['tomas']} == {2}

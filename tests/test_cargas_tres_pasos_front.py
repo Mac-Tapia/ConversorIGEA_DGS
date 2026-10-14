@@ -83,6 +83,14 @@ def test_ajuste_de_varios_y_su_informe():
     assert 'medidores?: string[]' in API
 
 
+def test_el_informe_muestra_el_kvar_nativo_no_bloqueante():
+    """006:RF-14 — el operador ve objetivo, resultado nativo y diferencia de kVAR aunque
+    el criterio de aceptación sea solo el cuadre de kW."""
+    for pieza in ('kvar_no_bloqueante', 'red_nativa_kvar', 'diferencia_kvar',
+                  'Diferencia de kVAR (no bloqueante)'):
+        assert pieza in AJUSTE or pieza in (SRC / 'types.ts').read_text(encoding='utf-8'), pieza
+
+
 def test_verificar_y_aplicar_solo_con_convergencia():
     """008:RF-18 / 008:RF-20 / 008:RF-21 — verificar es un trabajo; aplicar se desactiva sin un
     flujo convergido, simular no."""
@@ -108,3 +116,26 @@ def test_tres_partes_optativas_en_orden():
     a, b, c = _pos(CARGAS, '3.1 · Demandas en bloque', '3.2 · Una carga nueva', '3.3 · Cargas nuevas en bloque')
     assert a < b < c
     assert 'disabled={!order.length || (!demandas && !hayNuevas)}' in CARGAS
+
+
+def _campos_nueva() -> str:
+    return CARGAS[CARGAS.index('const NUEVA_CAMPOS'):CARGAS.index('const TEXTO')]
+
+
+def test_carga_nueva_con_kw_y_fp():
+    """004:RF-46 — el formulario pide kW y FP; kVAR y kVA solo están en el libro."""
+    campos = _campos_nueva()
+    for clave in ('Kw', 'FP'):
+        assert re.search(rf"key: '{clave}'[^}}]*required: true", campos), clave
+    assert "key: 'Kvar'" not in campos and "key: '(kVA)'" not in campos
+
+
+def test_carga_nueva_ubicada_por_coordenadas():
+    """004:RF-47 — Lat/Lon a la vista; CoordX/CoordY, barra, alimentador, línea y BT plegados."""
+    campos = _campos_nueva()
+    for clave in ('Lat', 'Lon'):
+        assert re.search(rf"key: '{clave}'(?![^}}]*mas: true)[^}}]*}}", campos), clave
+    for clave in ('CoordX', 'CoordY', 'barra', 'alimentador', 'tipo_linea', 'tension_bt_kv'):
+        assert re.search(rf"key: '{clave}'[^}}]*mas: true", campos), clave
+    assert 'NUEVA_CAMPOS.filter((c) => !c.mas).map(campoNueva)' in CARGAS
+    assert '<summary>Más opciones' in CARGAS

@@ -19,8 +19,9 @@ kVAR) de las SED que escalan.
 from __future__ import annotations
 
 import math
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
-from typing import Any, Callable, Iterable, Mapping
+from typing import Any
 
 from .demanda_medida import clave_codigo, numero
 
@@ -124,6 +125,23 @@ def fijas_de(cruzados: Iterable[Mapping[str, Any]], objetivo: Objetivo) -> dict[
     return {f.sed: f for f in por_clave.values()}
 
 
+def sed_desconectadas(desconectados: Iterable[Mapping[str, Any]],
+                      conectados: Iterable[Mapping[str, Any]]) -> dict[str, list[str]]:
+    """SED cuyos clientes importantes desmarcó todos el operador (RF-26): SED → sus Nis.
+
+    Una SED con un cliente desmarcado y otro conectado sigue en servicio con la potencia
+    del conectado: la carga de DIgSILENT es la de la SED entera, no la de cada cliente.
+    """
+    siguen = {clave_codigo(str(c.get('sed') or '')) for c in conectados}
+    por_clave: dict[str, tuple[str, list[str]]] = {}
+    for c in desconectados:
+        sed = str(c.get('sed') or '').strip()
+        if not sed or clave_codigo(sed) in siguen:
+            continue
+        por_clave.setdefault(clave_codigo(sed), (sed, []))[1].append(str(c.get('codigo') or ''))
+    return dict(por_clave.values())
+
+
 @dataclass(frozen=True)
 class DemandaSed:
     sed: str
@@ -148,12 +166,12 @@ class Reparto:
     omitidas: list[dict[str, str]] = field(default_factory=list)
     avisos: list[str] = field(default_factory=list)
 
-    def con_factores(self, a: float, b: float | None = None) -> 'Reparto':
+    def con_factores(self, a: float, b: float | None = None) -> Reparto:
         """El mismo reparto con otros factores; en «solo kW» el kVAR sigue al kW (RF-14)."""
         b = a if self.solo_kw else (self.b if b is None else b)
         return Reparto(**{**self.__dict__, 'a': a, 'b': b})
 
-    def a_solo_kw(self, objetivo: 'Objetivo') -> 'Reparto':
+    def a_solo_kw(self, objetivo: Objetivo) -> Reparto:
         """Pasa a «solo kW» (RF-14): el kVAR de las que escalan, con el FP del objetivo."""
         if self.solo_kw:
             return self
@@ -261,6 +279,8 @@ class Medida:
     kw: float | None = None
     kvar: float | None = None
     motivo: str = ''
+    carga_kw: float | None = None       # consumo efectivo nativo de las cargas
+    carga_kvar: float | None = None
 
 
 #: Remedios de RF-16, por orden. El primero no toca el flujo de carga: se acerca al
@@ -311,7 +331,9 @@ class Cuadre:
         m = self.medida
         if self.reparto is None or m is None or m.kw is None or m.kvar is None:
             return None, None
-        p, q = self.reparto.totales()
+        nominal_p, nominal_q = self.reparto.totales()
+        p = nominal_p if m.carga_kw is None else m.carga_kw
+        q = nominal_q if m.carga_kvar is None else m.carga_kvar
         return m.kw - p, m.kvar - q
 
 
@@ -410,6 +432,7 @@ def cuadrar(
         ultimo_flujo = actual
         res.historial.append({'flujo': res.flujos, 'a': actual.a, 'b': actual.b,
                               'converge': m.converge, 'kw': m.kw, 'kvar': m.kvar,
+                              'carga_kw': m.carga_kw, 'carga_kvar': m.carga_kvar,
                               'motivo': m.motivo})
         progreso(res.flujos, max_flujos, f'flujo {res.flujos}: ' + (
             f'{m.kw:,.1f} kW / {m.kvar:,.1f} kVAR en la cabecera'
@@ -420,6 +443,20 @@ def cuadrar(
             # llegar nunca a los remedios del flujo de carga.
             res.reparto, res.medida = actual, m
             if cuadrado_kw(m, objetivo, tolerancia):
+                p_nominal, _q_nominal = actual.totales()
+                p_cargas = p_nominal if m.carga_kw is None else m.carga_kw
+                perdida_p = m.kw - p_cargas
+                # Una red pasiva no puede entregar en su cabecera menos potencia activa
+                # que el consumo efectivo de sus cargas (o el nominal, si el motor no da
+                # resultados). CA101 llegó a aparentar -6.684 MW porque el ElmFeeder
+                # medía solo una de sus dos troncales.
+                # Se admite únicamente ruido numérico pequeño (0,01 % del objetivo).
+                tolerancia_perdida = max(0.1, abs(objetivo.kw) * 1e-4)
+                if perdida_p < -tolerancia_perdida:
+                    res.motivo = (
+                        f'pérdidas activas negativas ({perdida_p:,.1f} kW): la frontera '
+                        'de medición puede estar omitiendo una troncal o parte de las cargas')
+                    return res
                 res.cuadrado = True
                 return res
             puntos_p.append((actual.a, m.kw))

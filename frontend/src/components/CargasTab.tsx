@@ -6,6 +6,7 @@ import type {
   CargasInforme, CargasMotivo, CargasPlan, CargasResultado, Economia, Job, PfInventario, PfProject,
   VerificarInforme, VerificarResultado,
 } from '../types';
+import { estadoVinculoProyecto } from '../projectBinding';
 import { DemandaMedida } from './DemandaMedida';
 import { EstudiosPF } from './EstudiosPF';
 import { ObrasPF } from './ObrasPF';
@@ -36,23 +37,26 @@ const TEC: [string, string, string, string][] = [
  * Campos del formulario de una carga nueva. Las claves son las cabeceras de la plantilla:
  * el servidor pasa el formulario por el mismo lector que el libro, así que aquí no se
  * valida nada (habría dos definiciones de «fila válida»).
+ *
+ * Spec 004, RF-46 y RF-47: la demanda se escribe como kW y FP, y la ubicación por
+ * coordenadas. Con los cuatro campos de potencia a la vista el operador no sabía cuáles
+ * llenar; kVAR y kVA siguen en el libro. Lo que casi nunca hace falta (`mas`) va plegado.
  */
-const NUEVA_CAMPOS: { key: string; label: string; help?: string; required?: boolean }[] = [
+const NUEVA_CAMPOS: { key: string; label: string; help?: string; required?: boolean; mas?: boolean }[] = [
   { key: 'SED', label: 'Código de la SED', required: true },
   { key: 'kVA_instalado', label: 'Transformador (kVA)', required: true },
-  { key: 'Kw', label: 'Demanda (kW)' },
-  { key: 'Kvar', label: 'Demanda (kVAR)', help: 'O bien kW y FP, o (kVA) y FP.' },
-  { key: '(kVA)', label: 'Demanda (kVA)' },
-  { key: 'FP', label: 'Factor de potencia' },
-  { key: 'barra', label: 'Barra de conexión', help: 'En blanco: la barra más cercana por GPS.' },
-  { key: 'Lat', label: 'Latitud (WGS84)' },
+  { key: 'Kw', label: 'Potencia activa (kW)', required: true },
+  { key: 'FP', label: 'Factor de potencia', required: true, help: 'Entre 0 y 1, p. ej. 0.95.' },
+  { key: 'Lat', label: 'Latitud (WGS84)', help: 'Se conecta a la barra de media más cercana.' },
   { key: 'Lon', label: 'Longitud (WGS84)' },
-  { key: 'CoordX', label: 'CoordX', help: 'En el CRS del perfil de empresa, si no hay Lat/Lon.' },
-  { key: 'CoordY', label: 'CoordY' },
-  { key: 'alimentador', label: 'Alimentador', help: 'En blanco: el que tenga la barra.' },
-  { key: 'tipo_linea', label: 'Tipo de línea del enlace', help: 'En blanco o si no existe: el de la red.' },
-  { key: 'tension_bt_kv', label: 'Tensión de baja (kV)', help: 'En blanco: la de un transformador del alimentador.' },
+  { key: 'CoordX', label: 'CoordX', mas: true, help: 'En el CRS del perfil de empresa, en lugar de Lat/Lon.' },
+  { key: 'CoordY', label: 'CoordY', mas: true },
+  { key: 'barra', label: 'Barra de conexión', mas: true, help: 'Solo para forzar una barra; si no, la más cercana.' },
+  { key: 'alimentador', label: 'Alimentador', mas: true, help: 'En blanco: el que tenga la barra.' },
+  { key: 'tipo_linea', label: 'Tipo de línea del enlace', mas: true, help: 'En blanco o si no existe: el de la red.' },
+  { key: 'tension_bt_kv', label: 'Tensión de baja (kV)', mas: true, help: 'En blanco: la de un transformador del alimentador.' },
 ];
+const TEXTO = new Set(['SED', 'barra', 'alimentador', 'tipo_linea']);
 
 const vacio = () => Object.fromEntries(NUEVA_CAMPOS.map((c) => [c.key, '']));
 
@@ -130,7 +134,8 @@ export function CargasTab() {
   // distintas son dos proyectos (spec 005, RF-16).
   const ruta = (p: PfProject) => p.path ?? p.name;
   const current = projects.find((p) => ruta(p) === project) ?? null;
-  const bindingBlocked = Boolean(current && (!current.binding || current.binding_blocked_reason));
+  const bindingState = estadoVinculoProyecto(current);
+  const bindingBlocked = bindingState.bloqueado;
   // RF-4: filtrar por parte de la ruta; el elegido sigue en la lista aunque no coincida.
   const q = buscaProyecto.trim().toLowerCase();
   const filtrados = projects.filter((p) => !q || ruta(p).toLowerCase().includes(q) || ruta(p) === project);
@@ -199,6 +204,15 @@ export function CargasTab() {
     setPlan(null);
     setForm(false);
   };
+
+  const campoNueva = (c: (typeof NUEVA_CAMPOS)[number]) => (
+    <label key={c.key} className="field">
+      <span>{c.label}{c.required && <span className="req">*</span>}</span>
+      <input value={values[c.key]} inputMode={TEXTO.has(c.key) ? undefined : 'decimal'}
+        onChange={(e) => setValues((v) => ({ ...v, [c.key]: e.target.value }))} />
+      {c.help && <small className="muted">{c.help}</small>}
+    </label>
+  );
 
   const plantilla = (tipo: 'demandas' | 'nuevas') => (
     <span className="row">
@@ -269,6 +283,22 @@ export function CargasTab() {
                 {current.native_reread_at ? ` · ${new Date(current.native_reread_at * 1000).toLocaleString('es-PE')}` : ''}</span>
             </div>
             {current.native_warning && <small className="alert alert-warn">{current.native_warning}</small>}
+            {(current.binding_warnings ?? []).map((warning) => (
+              <div className="alert alert-warn" key={warning.code}>
+                <strong>{warning.message}</strong>
+                {warning.elements.length > 0 && (
+                  <details>
+                    <summary>{warning.elements.length} elemento(s) modificados</summary>
+                    <ul className="small">{warning.elements.map((element) => (
+                      <li key={`${element.change}:${element.class}:${element.full_name}`}>
+                        {element.change === 'added' ? 'Agregado' : element.change === 'removed' ? 'Eliminado' : 'Modificado'}:
+                        {' '}<code>{element.class}</code> {element.full_name}
+                      </li>
+                    ))}</ul>
+                  </details>
+                )}
+              </div>
+            ))}
           </div>
         ) : current ? (
           <small className="alert alert-warn">
@@ -411,15 +441,14 @@ export function CargasTab() {
           <button className="btn btn-primary" type="submit" form="carga-nueva">Usar esta carga</button>
         </>}>
           <form id="carga-nueva" className="form-grid" onSubmit={guardarNueva}>
-            <p className="muted span-2">Indique la barra de conexión o las coordenadas. Se valida al revisar, con las
-              mismas reglas que el libro.</p>
-            {NUEVA_CAMPOS.map((c) => (
-              <label key={c.key} className="field">
-                <span>{c.label}{c.required && <span className="req">*</span>}</span>
-                <input value={values[c.key]} onChange={(e) => setValues((v) => ({ ...v, [c.key]: e.target.value }))} />
-                {c.help && <small className="muted">{c.help}</small>}
-              </label>
-            ))}
+            <p className="muted span-2">Con las coordenadas, la SED queda en su sitio en DIgSILENT y se conecta a la barra
+              de media más cercana con una línea de enlace de esa longitud. Se valida al revisar, con las mismas reglas
+              que el libro.</p>
+            {NUEVA_CAMPOS.filter((c) => !c.mas).map(campoNueva)}
+            <details className="span-2" open={NUEVA_CAMPOS.some((c) => c.mas && values[c.key]?.trim())}>
+              <summary>Más opciones: CoordX/CoordY, barra, alimentador, línea y tensión de baja</summary>
+              <div className="form-grid">{NUEVA_CAMPOS.filter((c) => c.mas).map(campoNueva)}</div>
+            </details>
           </form>
         </Modal>
       )}

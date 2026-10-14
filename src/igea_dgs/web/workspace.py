@@ -154,6 +154,10 @@ class Workspace:
     cargas_planes: dict[str, dict[str, Any]] = field(default_factory=dict)
     # Libros de la demanda medida (spec 004, RF-39), por tipo: {'path', 'name', 'origin'}.
     demanda: dict[str, Any] = field(default_factory=dict)
+    # Curvas del último trabajo de máxima de cabecera, {job_id: {medidor: {curva, fuera}}} (spec 006,
+    # RF-31). Solo la última: un año de lecturas cada 15 min son ~35 000 registros por
+    # medidor, y no deben acumularse búsqueda tras búsqueda.
+    curvas_cabecera: dict[str, dict[str, list]] = field(default_factory=dict)
     # Última lectura de alimentadores y tipos de DIgSILENT para el formulario de obras:
     # abrir DIgSILENT tarda, y no se repite al cambiar de obra (plan de la spec 011).
     pf_bibliotecas: dict[str, Any] = field(default_factory=dict)

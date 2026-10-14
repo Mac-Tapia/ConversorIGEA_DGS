@@ -414,6 +414,17 @@ export interface PfProject {
   native_warning?: string | null;
   binding?: PowerFactoryProjectBinding | null;
   binding_blocked_reason?: string | null;
+  binding_warnings?: ProjectBindingWarning[];
+}
+
+export interface ProjectBindingWarning {
+  code: 'PROJECT_BINDING_SOURCE_RUN_CHANGED' | 'PROJECT_BINDING_NATIVE_MODIFIED';
+  message: string;
+  elements: Array<{
+    change: 'added' | 'removed' | 'modified';
+    class: string;
+    full_name: string;
+  }>;
 }
 
 export interface PowerFactoryProjectBinding {
@@ -620,8 +631,21 @@ export interface Economia {
 export interface DemandaLibro {
   name: string;
   origin: 'upload' | 'server';
-  /** Solo la cabecera: los libros de la carpeta. */
+  source_kind?: 'file' | 'folder';
+  /** Cabecera o clientes: los libros de la carpeta. */
   libros?: string[];
+  catalogo?: LibroClientesMes[];
+  vigente?: boolean;
+  avisos?: string[];
+  indexado_en?: number;
+}
+
+export interface LibroClientesMes {
+  nombre: string;
+  mes: string | null;
+  origen_mes: 'nombre' | 'contenido' | 'manual' | 'sin_mes';
+  activo: boolean;
+  avisos: string[];
 }
 
 export interface DemandaMedidores {
@@ -647,6 +671,23 @@ export interface MaximaCabecera {
   columnas: Record<string, string>;
   avisos: string[];
   error: string | null;
+  /** Registros sin fecha o sin kW, que no entran en la curva (spec 006, RF-37). */
+  fuera_de_curva?: number;
+}
+
+/** Curva del registro de un medidor de cabecera, entera o un tramo (spec 006, RF-31 a RF-39). */
+export interface CurvaCabecera {
+  medidor: string;
+  /** Primer y último registro de la curva entera, aunque se pida un tramo. */
+  inicio: string;
+  fin: string;
+  maxima: { fecha: string; kw: number };
+  /** `[fecha ISO sin zona, kW, kVAR]`, en orden; reducida a 2 000 como mucho. */
+  puntos: [string, number, number | null][];
+  /** Registros del tramo antes de reducir. */
+  total: number;
+  reducida: boolean;
+  fuera_de_curva: number;
 }
 
 export interface ClienteImportante {
@@ -692,6 +733,7 @@ export interface AjusteResumenAlimentador {
   feeder: string;
   objetivo: AjustePlan['objetivo'];
   n_clientes: number;
+  n_desconectados?: number;
   n_kva_entrada: number;
   n_sed_fijas: number;
   n_sed_escaladas_estimadas: number;
@@ -752,6 +794,10 @@ export interface AjusteInforme {
   cancelado?: boolean;
   flujos?: number;
   cabecera?: { kw: number; kvar: number } | null;
+  /** RF-29: la cabecera con el escenario de operación restaurado, que manda sobre la variación. */
+  cabecera_con_escenario?: { kw: number; kvar: number } | null;
+  /** RF-27, RF-28: escenarios en que se grabó también el resultado. */
+  escenarios?: { escenario: string; cargas: number; fallos: { sed: string; error: string }[] }[];
   perdidas?: { kw: number | null; kvar: number | null };
   /** Error relativo en la cabecera (medido − objetivo); «error» queda para los fallos. */
   desvio?: { kw: number | null; kvar: number | null };
@@ -789,6 +835,8 @@ export interface AjusteInforme {
   };
   avisos: string[];
   omitidas?: { sed: string; motivo: string; clientes?: string }[];
+  // Spec 006, RF-26: SED fuera de servicio porque se desmarcaron todos sus clientes.
+  desconectadas?: { sed: string; clientes: string[] }[];
   ambiguas?: { sed: string; motivo: string }[];
   fallos?: { sed: string; error: string }[];
   sed?: AjusteSed[];

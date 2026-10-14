@@ -359,7 +359,71 @@ def test_alias_de_la_empresa(tmp_path):
         dm.cargar_alias(tmp_path / 'malo.json')
 
 
-# =========================================================================== clientes
+# =========================================================================== curva
+def test_curva_del_registro_en_orden_y_fuera_de_to_dict(tmp_path):
+    """006:RF-31 — la búsqueda de la máxima conserva la curva de kW y kVAR, ordenada por
+    fecha, sin meterla en el resultado que viaja al navegador."""
+    rng = random.Random(SEMILLA)
+    n = rng.randrange(50, 300)
+    filas, esperado = _medicion(rng, n, {'kw': 'kW tot', 'kvar': 'kVAR tot'})
+    cab, cuerpo = filas[0], filas[1:]
+    rng.shuffle(cuerpo)
+    _libro(tmp_path / 'c.xlsx', {'M1': [cab] + cuerpo})
+    res = dm.maximas([tmp_path / 'c.xlsx'], [('', 'M1')])[0]
+    assert len(res.curva) == n and res.fuera_de_curva == 0, f'semilla {SEMILLA}'
+    fechas = [p[0] for p in res.curva]
+    assert fechas == sorted(fechas)
+    pico = next(p for p in res.curva if p[0] == esperado['fecha'])
+    assert pico[1] == esperado['kw'] and pico[2] == esperado['kvar']
+    d = res.to_dict()
+    assert 'curva' not in d and d['fuera_de_curva'] == 0
+
+
+def test_curva_deja_fuera_registros_sin_fecha_o_sin_kw(tmp_path):
+    """006:RF-37 — registros sin fecha o con kW no numérico quedan fuera y se cuentan."""
+    rng = random.Random(SEMILLA)
+    n = rng.randrange(40, 200)
+    filas, _esperado = _medicion(rng, n, {'kw': 'kW tot', 'kvar': 'kVAR tot'}, vacios=0.3)
+    k = filas[0].index('kW tot')
+    malos_kw = sum(1 for f in filas[1:] if not isinstance(f[k], float))
+    filas.append([None, None] + [7.0] * (len(filas[0]) - 2))      # sin fecha
+    _libro(tmp_path / 'c.xlsx', {'M1': filas})
+    res = dm.maximas([tmp_path / 'c.xlsx'], [('', 'M1')])[0]
+    assert len(res.curva) == n - malos_kw, f'semilla {SEMILLA}'
+    assert res.fuera_de_curva == malos_kw + 1
+
+
+def _curva_sorteada(rng, n: int) -> tuple[list, int]:
+    pico = rng.randrange(n)
+    curva = [(INICIO + timedelta(minutes=15 * i), 9999.0 if i == pico else rng.uniform(0, 5000),
+              rng.uniform(-100, 100)) for i in range(n)]
+    return curva, pico
+
+
+def test_reducir_curva_conserva_la_maxima_y_no_pasa_del_tope():
+    """006:RF-39 — la curva reducida no pasa del tope, sigue en orden y la máxima nunca
+    desaparece, esté donde esté."""
+    rng = random.Random(SEMILLA)
+    for _ in range(20):
+        n = rng.randrange(1, 40000)
+        tope = rng.choice([2, 10, 500, 2000])
+        curva, pico = _curva_sorteada(rng, n)
+        red = dm.reducir_curva(curva, max_puntos=tope)
+        assert len(red) <= max(tope, 2) and len(red) <= n, f'semilla {SEMILLA}, n={n}, tope={tope}'
+        assert curva[pico] in red, f'semilla {SEMILLA}, n={n}, tope={tope}'
+        assert [p[0] for p in red] == sorted(p[0] for p in red)
+        if n <= tope:
+            assert red == curva
+
+
+def test_reducir_curva_por_tramo():
+    """006:RF-39 — con desde y hasta, solo el tramo, con sus extremos incluidos."""
+    rng = random.Random(SEMILLA)
+    curva, _pico = _curva_sorteada(rng, 1000)
+    desde, hasta = curva[100][0], curva[299][0]
+    red = dm.reducir_curva(curva, desde, hasta, max_puntos=5000)
+    assert red == curva[100:300]
+    assert dm.reducir_curva(curva, hasta, desde) == []
 def _suministros(tmp_path) -> Path:
     return _libro(tmp_path / 'ML.xlsx', {'Hoja1': [
         ['Suministro', 'Suministro Act', 'Cliente', 'Generador', 'VAD', 'SED', 'RADIAL', 'Concesión'],

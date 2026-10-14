@@ -1,10 +1,12 @@
-"""Vínculo auditable entre la fuente canónica y un proyecto PowerFactory.
+"""Vínculo auditable y flexible entre la fuente canónica y PowerFactory.
 
 El nombre de un proyecto no demuestra que sea el que se acaba de importar. Este
 módulo conserva la identidad de la ejecución fuente y una huella del inventario
 nativo. La huella describe objetos, conexiones, tipos y etiquetas de alimentador;
 deliberadamente no incluye P/Q, resultados ni estados operativos que los estudios
-pueden modificar.
+pueden modificar. Una recarga equivalente o una modificación manual legible se
+informa como evolución del proyecto y no impide trabajar; se bloquea solo cuando ya
+no puede demostrarse la fuente, el proyecto o el alimentador solicitado.
 """
 
 from __future__ import annotations
@@ -12,7 +14,7 @@ from __future__ import annotations
 import hashlib
 import json
 import time
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from typing import Any, Iterable
 
 
@@ -133,13 +135,33 @@ def native_inventory_records(app: Any, feeders: Iterable[str]) -> list[dict[str,
 
 
 def native_inventory_sha256(app: Any, feeders: Iterable[str]) -> str:
+    digest, _manifest = native_inventory_evidence(app, feeders)
+    return digest
+
+
+def native_inventory_evidence(
+    app: Any, feeders: Iterable[str],
+) -> tuple[str, list[dict[str, str]]]:
+    """Devuelve huella global y manifiesto compacto para explicar cambios manuales."""
+    normalized = sorted({str(item).strip() for item in feeders if str(item).strip()})
+    records = native_inventory_records(app, normalized)
     payload = {
         'schema': 'igea-dgs-native-inventory-v1',
-        'feeders': sorted({str(item).strip() for item in feeders if str(item).strip()}),
-        'objects': native_inventory_records(app, feeders),
+        'feeders': normalized,
+        'objects': records,
     }
     raw = json.dumps(payload, sort_keys=True, separators=(',', ':'), ensure_ascii=False)
-    return hashlib.sha256(raw.encode('utf-8')).hexdigest()
+    manifest = []
+    for record in records:
+        serialized = json.dumps(
+            record, sort_keys=True, separators=(',', ':'), ensure_ascii=False,
+        ).encode('utf-8')
+        manifest.append({
+            'class': str(record['class']),
+            'full_name': str(record['full_name']),
+            'sha256': hashlib.sha256(serialized).hexdigest(),
+        })
+    return hashlib.sha256(raw.encode('utf-8')).hexdigest(), manifest
 
 
 @dataclass(frozen=True)
@@ -205,6 +227,62 @@ def record_project_binding(ws: Any, binding: PowerFactoryProjectBinding) -> None
         ws.save()
 
 
+def promote_project_binding_after_calibration(
+    ws: Any, project: str, report: dict[str, Any],
+) -> PowerFactoryProjectBinding | None:
+    """Completa un vínculo adoptado tras cuadre kW y relectura nativa verificables.
+
+    ``AVISO_KVAR`` es admisible porque su propio contrato declara ``bloquea=false``;
+    fallos, simulaciones o relecturas incompletas no promocionan la evidencia.
+    """
+    raw = (getattr(ws, 'pf_project_bindings', {}) or {}).get(str(project or '').strip())
+    if not raw or report.get('modo') != 'aplicar' or not report.get('cuadrado'):
+        return None
+    if report.get('fallos'):
+        return None
+    load_reread = report.get('relectura_cargas_nativas') or {}
+    capacitor_reread = report.get('relectura_bancos') or {}
+    if load_reread.get('status') != 'VERIFICADO_PERSISTENCIA':
+        return None
+    if capacitor_reread.get('status') not in {
+        'VERIFICADO_PERSISTENCIA', 'AVISO_PERSISTENCIA_CORREGIDA',
+    }:
+        return None
+    kvar = report.get('kvar_no_bloqueante') or {}
+    if kvar.get('bloquea') is True:
+        return None
+    binding = PowerFactoryProjectBinding.from_dict(raw)
+    if str(report.get('feeder') or '') not in binding.feeders:
+        return None
+    promoted = replace(
+        binding,
+        native_reread={
+            **binding.native_reread,
+            'status': 'VERIFICADO_PERSISTENCIA',
+            'effective_reread': {
+                **dict(binding.native_reread.get('effective_reread') or {}),
+                'comldf_executed': True,
+                'comldf_valid': True,
+                'native_loads': int(load_reread.get('cantidad') or 0),
+                'capacitor_banks': int(capacitor_reread.get('reread') or 0),
+            },
+            'calibration': {
+                'status': str(report.get('status') or 'OK'),
+                'criterion': str(report.get('criterio_cuadre') or 'KW'),
+                'objective': dict(report.get('objetivo') or {}),
+                'head_reread': dict(report.get('cabecera') or {}),
+                'native_loads': int(load_reread.get('cantidad') or 0),
+                'capacitor_banks': int(capacitor_reread.get('reread') or 0),
+                'kvar_blocks': bool(kvar.get('bloquea', False)),
+                'recorded_at': time.time(),
+            },
+        },
+        accepted_at=time.time(),
+    )
+    record_project_binding(ws, promoted)
+    return promoted
+
+
 def _active_source_identity(ws: Any) -> tuple[str | None, str | None, str | None]:
     return (
         getattr(ws, 'active_run_id', None),
@@ -213,12 +291,49 @@ def _active_source_identity(ws: Any) -> tuple[str | None, str | None, str | None
     )
 
 
+def _current_project(ws: Any, project: str) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+    inventory = getattr(ws, 'pf_inventory', {}) or {}
+    projects = list(inventory.get('projects') or [])
+    current = next(
+        (item for item in projects if str(item.get('path') or item.get('name') or '') == project),
+        None,
+    )
+    return projects, current
+
+
+def _manifest_index(items: Any) -> dict[tuple[str, str], str]:
+    index: dict[tuple[str, str], str] = {}
+    for item in items if isinstance(items, list) else []:
+        if not isinstance(item, dict):
+            continue
+        class_name = str(item.get('class') or '').strip()
+        full_name = str(item.get('full_name') or '').strip()
+        digest = str(item.get('sha256') or '').strip()
+        if class_name and full_name and digest:
+            index[(class_name, full_name)] = digest
+    return index
+
+
+def _modified_elements(before: Any, after: Any) -> list[dict[str, str]]:
+    previous = _manifest_index(before)
+    current = _manifest_index(after)
+    elements: list[dict[str, str]] = []
+    for class_name, full_name in sorted(current.keys() - previous.keys()):
+        elements.append({'change': 'added', 'class': class_name, 'full_name': full_name})
+    for class_name, full_name in sorted(previous.keys() - current.keys()):
+        elements.append({'change': 'removed', 'class': class_name, 'full_name': full_name})
+    for class_name, full_name in sorted(previous.keys() & current.keys()):
+        if previous[(class_name, full_name)] != current[(class_name, full_name)]:
+            elements.append({'change': 'modified', 'class': class_name, 'full_name': full_name})
+    return elements
+
+
 def require_project_binding(
     ws: Any,
     project: str,
     feeders: Iterable[str],
 ) -> PowerFactoryProjectBinding:
-    """Exige el proyecto exacto de la ejecución activa antes de una acción nativa."""
+    """Exige identidad suficiente; la evolución manual legible queda como aviso."""
     project = str(project or '').strip()
     requested = {str(item).strip() for item in feeders if str(item).strip()}
     raw = (getattr(ws, 'pf_project_bindings', {}) or {}).get(project)
@@ -229,10 +344,7 @@ def require_project_binding(
         )
     binding = PowerFactoryProjectBinding.from_dict(raw)
     active = _active_source_identity(ws)
-    expected = (
-        binding.source_run_id, binding.source_mode, binding.source_fingerprint,
-    )
-    if active != expected:
+    if active[1:] != (binding.source_mode, binding.source_fingerprint):
         raise ProjectBindingError(
             'PROJECT_BINDING_SOURCE_MISMATCH',
             f'el vínculo pertenece a {binding.source_run_id!r} y la fuente activa es {active[0]!r}',
@@ -243,12 +355,7 @@ def require_project_binding(
             f'{sorted(requested)} no es subconjunto de {list(binding.feeders)}',
         )
 
-    inventory = getattr(ws, 'pf_inventory', {}) or {}
-    projects = inventory.get('projects') or []
-    current = next(
-        (item for item in projects if str(item.get('path') or item.get('name') or '') == project),
-        None,
-    )
+    projects, current = _current_project(ws, project)
     if projects and current is None:
         raise ProjectBindingError(
             'PROJECT_BINDING_PROJECT_MISMATCH',
@@ -272,9 +379,36 @@ def require_project_binding(
                 'PROJECT_BINDING_NATIVE_UNREADABLE',
                 'la última lectura no produjo una huella del inventario nativo',
             )
-        if current_hash and current_hash != binding.native_inventory_sha256:
-            raise ProjectBindingError(
-                'PROJECT_BINDING_NATIVE_MISMATCH',
-                'la topología o identidad de equipos cambió desde la aceptación nativa',
-            )
     return binding
+
+
+def project_binding_warnings(
+    ws: Any,
+    project: str,
+    feeders: Iterable[str],
+) -> list[dict[str, Any]]:
+    """Describe evolución deliberada sin convertirla en impedimento operativo."""
+    binding = require_project_binding(ws, project, feeders)
+    active = _active_source_identity(ws)
+    warnings: list[dict[str, Any]] = []
+    if active[0] != binding.source_run_id:
+        warnings.append({
+            'code': 'PROJECT_BINDING_SOURCE_RUN_CHANGED',
+            'message': (
+                f'La fuente se volvió a cargar como {active[0]!r}; conserva la misma '
+                f'huella que {binding.source_run_id!r}.'
+            ),
+            'elements': [],
+        })
+
+    _projects, current = _current_project(ws, str(project or '').strip())
+    current_hash = str((current or {}).get('native_inventory_sha256') or '')
+    if current_hash and current_hash != binding.native_inventory_sha256:
+        baseline = binding.native_reread.get('inventory_manifest') or []
+        actual = (current or {}).get('native_inventory_manifest') or []
+        warnings.append({
+            'code': 'PROJECT_BINDING_NATIVE_MODIFIED',
+            'message': 'El proyecto contiene modificaciones manuales posteriores a su aceptación.',
+            'elements': _modified_elements(baseline, actual),
+        })
+    return warnings

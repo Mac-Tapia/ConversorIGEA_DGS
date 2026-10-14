@@ -190,6 +190,8 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `frontend/src/App.tsx` | Marco de la página: paneles, pestañas, resúmenes de trabajos. | 001, 008 (RF-1, RF-2) |
 | `frontend/src/api.ts` | Cliente tipado de la API. | 001 (RF-12, RF-13), 011 (RF-42) |
 | `frontend/src/types.ts` | Tipos de las respuestas de la API. | 001, 011 |
+| `frontend/src/clientesCatalogo.ts` | Estado del catálogo mensual de clientes: un solo libro activo e índice vigente antes de cruzar. | 004, 008 |
+| `frontend/src/projectBinding.ts` | Vínculo del proyecto de DIgSILENT con su ejecución de origen: separa los bloqueos de las advertencias por cambios manuales. | 005 |
 | `frontend/src/context.tsx` | Contexto común de la aplicación. | 001 |
 | `frontend/src/useWorkspace.ts` | Espacio de trabajo, Registro en vivo y trabajos por WebSocket. | 001 |
 | `frontend/src/styles.css` | Tokens y estilos, modo claro y oscuro. | 001 |
@@ -205,6 +207,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `frontend/src/components/ObrasPF.tsx` | Paso 4.1: formulario de obras de mejora, bibliotecas de tipos, obras guardadas, simular y aplicar. | 011 (RF-56 a RF-95) |
 | `frontend/src/components/TransferenciaPF.tsx` | Paso 4.3: transferencia de carga entre dos alimentadores. | 011 (RF-104 a RF-123) |
 | `frontend/src/components/AjusteCabecera.tsx` | Paso 2.4: ajuste a la máxima de uno o varios alimentadores. | 006, 008 |
+| `frontend/src/components/CurvaCabecera.tsx` | Paso 2.4: curva del registro del medidor de cabecera, con el mes de la máxima sombreado y zoom por tramo. | 006 (RF-32 a RF-38) |
 | `frontend/src/components/JobBar.tsx` | Barra de trabajos en curso. | 001 |
 | `frontend/src/components/LogPanel.tsx` | Registro. | 001 |
 | `frontend/src/components/ui.tsx` | Piezas comunes: modal, avisos, casillas, ficheros. | 001 |

@@ -9,7 +9,7 @@ import pytest
 
 from igea_dgs.cargas_pf import (
     DEMANDA_COLUMNS, NUEVA_COLUMNS, armar_plan, escribir_plantilla, leer_demandas,
-    leer_hoja_nuevas, leer_nuevas,
+    kva_normalizado, leer_hoja_nuevas, leer_nuevas,
 )
 
 openpyxl = pytest.importorskip('openpyxl')
@@ -79,13 +79,47 @@ def test_nuevas_con_barra_latlon_o_coordenadas_proyectadas():
              tension_bt_kv=0.38),
     ], 'A', source_crs='EPSG:32718')
     por_sed = {f.sed: f for f in filas}
-    assert set(por_sed) == {'N1', 'N2', 'N3', 'N6'}
+    assert set(por_sed) == {'N1', 'N2', 'N3', 'N5', 'N6'}
     assert por_sed['N1'].barra == 'B12' and por_sed['N1'].lat is None
     assert por_sed['N2'].lat == pytest.approx(-14.06)
     assert -15 < por_sed['N3'].lat < -13 and -77 < por_sed['N3'].lon < -75
     assert por_sed['N6'].tipo_linea == 'AAAC 35' and por_sed['N6'].tension_bt_kv == 0.38
     assert any('N4' in e and 'sin barra ni coordenadas' in e for e in errores)
-    assert any('N5' in e and 'kVA_instalado' in e for e in errores)
+    # 004:RF-52: sin kVA_instalado ya no es un error: se deduce de la demanda.
+    assert por_sed['N5'].kva_instalado == 10 and not any('N5' in e for e in errores)
+
+
+def test_libro_de_planificacion_sin_sed_ni_kva_instalado():
+    """004:RF-51 / 004:RF-53 — «DESCRIPCION», «DEM PROY (KW)», «TRONCAL» y «COORDENADAS UTM
+    (X)/(Y)», con columnas vacías al final, como el libro de SI213 del 2026-10-12."""
+    pytest.importorskip('pyproj')
+    header = ['DESCRIPCION', 'DEM PROY (KW)', 'TRONCAL', 'BARRA', 'SISTEMA', 'SUBESTACIÓN',
+              'COORDENADAS UTM (X)', 'COORDENADAS UTM (Y)'] + [None] * 5
+    avisos: list[str] = []
+    filas, errores = leer_hoja_nuevas(header, [
+        ['Habilitación urbana Los Pinos', 300, 'F1', 'B 10 kV', 'S', 'SE', 420000, 8445000],
+        [None, 50, 'F1', '', '', '', 420100, 8445100],
+        [None, None, None, None, None, None, None, None, None, 'resto'],
+    ], 'DemandaNUEVA', source_crs='EPSG:32718', avisos=avisos)
+    assert errores == []
+    assert [f.sed for f in filas] == ['Habilitación urbana Los Pinos', 'DemandaNUEVA_F3']
+    pinos = filas[0]
+    assert (pinos.kw, pinos.alimentador, pinos.barra) == (300, 'F1', 'B 10 kV')
+    assert -15 < pinos.lat < -13 and -77 < pinos.lon < -75
+    assert any('DemandaNUEVA_F3' in a and 'RF-53' in a for a in avisos)
+
+
+@pytest.mark.parametrize('kva,esperado', [(0.5, 10), (10, 10), (300, 315), (316, 400),
+                                          (2600, 3150), (12000, 12500)])
+def test_kva_instalado_deducido_es_el_normalizado_que_cubre_la_demanda(kva, esperado):
+    """004:RF-52 — la menor potencia de la serie R10 que cubre la demanda, anotada."""
+    assert kva_normalizado(kva) == esperado
+    avisos: list[str] = []
+    filas, _ = leer_hoja_nuevas(['SED', 'Kw', 'barra'], [['N1', kva, 'B1']], 'A', avisos=avisos)
+    assert filas[0].kva_instalado == esperado and 'RF-52' in avisos[0]
+    plan = armar_plan(project='P', feeders=['A'], demandas=None,
+                      nuevas=type('L', (), {'filas': filas, 'errores': [], 'avisos': avisos})())
+    assert avisos[0] in plan['avisos']
 
 
 def test_coordenadas_proyectadas_sin_crs_del_perfil_es_error_de_fila():

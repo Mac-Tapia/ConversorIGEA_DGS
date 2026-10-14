@@ -122,12 +122,18 @@ Dónde trabajan las specs 006 a 008 una vez creados los casos
 - RF-52: MIENTRAS existan los tres casos, EL SISTEMA aplicará las cargas nuevas en «Con
   proyecto».
 - RF-53: MIENTRAS existan los tres casos, EL SISTEMA no aplicará nada en el «Caso base».
+  *Cambio del 2026-10-12 (006:RF-28):* salvo la demanda final del ajuste, que se graba
+  también en el escenario del «Caso base»: el escenario base es la red ajustada a la
+  máxima (usuario). El «Caso base» sigue sin las variaciones activas (RF-3).
 - RF-54: CUANDO se aplica un ajuste o unas demandas en «Sin proyecto», EL SISTEMA activará
   también sus variaciones en «Con proyecto», para que las cargas nuevas sigan sobre la
   red calibrada.
 - RF-55: EL SISTEMA grabará el ajuste, las demandas y las cargas nuevas en sus variaciones,
   desactivando el escenario de operación del caso mientras escribe y restaurándolo al
   terminar, como hacen hoy las specs 004 y 006.
+  *Cambio del 2026-10-12:* al restaurarlo, el escenario manda sobre la variación; por
+  eso el ajuste y las demandas se graban además en los escenarios (006:RF-27, RF-28;
+  004:RF-54, RF-55).
 
 Base calibrada
 

@@ -68,3 +68,10 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde y `- [x]`.
       2026-10-09: RF-1 a RF-41 citados; suite completa con las cinco variables `IGEA_*` y
       `IGEA_DEMANDA_DIR` en verde (948 correctas, 18 omitidas). Falta la prueba real en
       DIgSILENT.
+- [x] T14. Demandas también en el escenario de operación: en el del caso en que se escriben
+      y, con los tres casos de la 011, en los de «Sin proyecto» y «Con proyecto», no en el
+      del «Caso base». El doble imita que el escenario manda (`app.escenario_manda`).
+      (RF-54, RF-55)
+      Hecho cuando: `pytest -q tests/test_cargas_pf_guion.py tests/test_casos_pf.py` en verde.
+      Hecho el 2026-10-12. Falta comprobarlo en DIgSILENT: una demanda en bloque se ve en la
+      cabecera con el escenario activo.

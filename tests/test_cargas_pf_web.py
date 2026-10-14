@@ -131,9 +131,13 @@ def test_carga_nueva_del_formulario_pasa_por_el_mismo_lector(client):
     r = _plan(client, wid, nueva=buena)
     assert r.status_code == 200, r.text
     assert [n['sed'] for n in r.json()['nuevas']] == ['N1']
-    mala = _plan(client, wid, nueva={'SED': 'N2', 'barra': 'B7', 'Kw': 40}).json()
+    mala = _plan(client, wid, nueva={'SED': 'N2', 'kVA_instalado': 100, 'Kw': 40}).json()
     assert mala['applicable'] is False
-    assert 'kVA_instalado' in mala['row_errors'][0]
+    assert 'sin barra ni coordenadas' in mala['row_errors'][0]
+    # 004:RF-52: sin kVA_instalado se deduce y el aviso llega al plan.
+    deducida = _plan(client, wid, nueva={'SED': 'N3', 'barra': 'B7', 'Kw': 40}).json()
+    assert deducida['nuevas'][0]['kva_instalado'] == 40
+    assert any('RF-52' in a for a in deducida['avisos'])
     libro = _plan(client, wid, nuevas=[list(buena), list(buena.values())], nueva=buena | {'SED': 'N9'})
     # 008:RF-24: el formulario va delante del libro.
     assert [n['sed'] for n in libro.json()['nuevas']] == ['N9', 'N1']

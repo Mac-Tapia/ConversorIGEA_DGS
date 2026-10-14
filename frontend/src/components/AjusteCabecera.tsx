@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { api, fmtNum } from '../api';
 import { useApp } from '../context';
 import type { AjusteInforme, AjustePlan, AjusteResultado, Job, MaximaCabecera } from '../types';
+import { CurvaCabecera } from './CurvaCabecera';
 
 const pct = (x: number | null | undefined) => (x == null ? '—' : `${x >= 0 ? '+' : ''}${fmtNum(x * 100, 2)} %`);
 
@@ -13,7 +14,9 @@ const pct = (x: number | null | undefined) => (x == null ? '—' : `${x >= 0 ? '
  * el flujo de carga de DIgSILENT cuadra las pérdidas. Con varios alimentadores marcados
  * se ajustan uno tras otro en un solo trabajo, cada uno en su variación (spec 008, RF-12).
  */
-export function AjusteCabecera({ project, maxima, feeders }: { project: string; maxima: Job | undefined; feeders: string[] }) {
+export function AjusteCabecera({ project, maxima, feeders, desconectados }: {
+  project: string; maxima: Job | undefined; feeders: string[]; desconectados: Set<string>;
+}) {
   const { ws, run, startJob, active, jobs } = useApp();
   const [elegido, setElegido] = useState<Record<string, string>>({});
   const [tolerancia, setTolerancia] = useState('1');
@@ -52,7 +55,9 @@ export function AjusteCabecera({ project, maxima, feeders }: { project: string; 
 
   const lanzar = async (simular: boolean) => {
     if (!maxima || falta) return;
-    const p = await run(() => api.ajustePlan(ws.id, { project, job_id: maxima.id, medidor: '', medidores, tolerancia: tol }));
+    const p = await run(() => api.ajustePlan(ws.id, {
+      project, job_id: maxima.id, medidor: '', medidores, tolerancia: tol, desconectados: [...desconectados],
+    }));
     if (!p) return;
     setPlan(p);
     await startJob(() => (simular ? api.ajusteSimular : api.ajusteAplicar)(ws.id, p.token));
@@ -77,6 +82,13 @@ export function AjusteCabecera({ project, maxima, feeders }: { project: string; 
             </label>
           ))}
         </div>
+      )}
+      {maxima && grupos.length > 0 && (
+        // RF-38: por defecto, la del medidor que da el objetivo del primer alimentador.
+        <CurvaCabecera wsId={ws.id} jobId={maxima.id} inicial={medidores[0] || grupos[0].filas[0].medidor}
+          opciones={grupos.flatMap((g) => g.filas.map((r) => ({
+            medidor: r.medidor, etiqueta: `${g.alimentador || '—'} · ${r.medidor} · ${fmtNum(r.kw, 1)} kW`,
+          })))} />
       )}
       <div className="row">
         <label className="field">
@@ -169,6 +181,9 @@ function InformeAjuste({ inf, report, cancelado }: { inf: AjusteInforme; report:
                 <td className="num">{fmtNum(inf.totales_sin_perdidas.kvar, 1)}</td></tr>}
               {inf.cabecera && <tr><td>Entra por la cabecera</td>
                 <td className="num">{fmtNum(inf.cabecera.kw, 1)}</td><td className="num">{fmtNum(inf.cabecera.kvar, 1)}</td></tr>}
+              {inf.cabecera_con_escenario && <tr><td>Con el escenario {(inf.escenarios ?? [])[0]?.escenario ?? ''} activo</td>
+                <td className="num">{fmtNum(inf.cabecera_con_escenario.kw, 1)}</td>
+                <td className="num">{fmtNum(inf.cabecera_con_escenario.kvar, 1)}</td></tr>}
               {inf.perdidas && inf.perdidas.kw != null && <tr><td>Pérdidas</td>
                 <td className="num">{fmtNum(inf.perdidas.kw, 1)}</td><td className="num">{fmtNum(inf.perdidas.kvar ?? 0, 1)}</td></tr>}
               {inf.desvio && <tr><td>Error</td><td className="num">{pct(inf.desvio.kw)}</td>
@@ -201,6 +216,11 @@ function InformeAjuste({ inf, report, cancelado }: { inf: AjusteInforme; report:
         <details className="alert alert-warn"><summary>SED de clientes que no están en el alimentador: {inf.omitidas!.length}</summary>
           <ul className="small">{inf.omitidas!.map((x) => <li key={x.sed}><strong>{x.sed}</strong>: {x.motivo}
             {x.clientes ? ` (clientes ${x.clientes})` : ''}</li>)}</ul></details>
+      )}
+      {(inf.desconectadas ?? []).length > 0 && (
+        <details className="alert alert-warn"><summary>SED fuera de servicio por clientes desmarcados: {inf.desconectadas!.length}</summary>
+          <ul className="small">{inf.desconectadas!.map((x) => <li key={x.sed}><strong>{x.sed}</strong>: clientes {x.clientes.join(', ')}</li>)}</ul>
+        </details>
       )}
       {(inf.fallos ?? []).length > 0 && (
         <details className="alert alert-error"><summary>SED que DIgSILENT no dejó escribir: {inf.fallos!.length}</summary>

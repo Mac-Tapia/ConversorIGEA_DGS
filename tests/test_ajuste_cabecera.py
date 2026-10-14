@@ -7,7 +7,14 @@ import random
 import pytest
 
 from igea_dgs.ajuste_cabecera import (
-    ESCALERA, MITADES, AjusteError, Medida, cuadrar, fijas_de, objetivo_de, reparto_inicial,
+    ESCALERA,
+    MITADES,
+    AjusteError,
+    Medida,
+    cuadrar,
+    fijas_de,
+    objetivo_de,
+    reparto_inicial,
 )
 
 
@@ -245,7 +252,7 @@ def _caso(n=40, seed=7, kw=3000.0, kvar=900.0):
 
 def test_cuadra_con_las_perdidas_al_uno_por_ciento():
     """006:RF-11 / 006:RF-12 — se corrige con la cabecera de cada flujo hasta el 1 %."""
-    o, fijas, r = _caso()
+    o, _fijas, r = _caso()
     red = RedDeJuguete()
     res = cuadrar(r, o, red.flujo)
     assert res.cuadrado and res.flujos < 20
@@ -259,6 +266,40 @@ def test_cuadra_con_las_perdidas_al_uno_por_ciento():
     assert d['S0'].kw == 150.0
     ratios = {round(x.kw / x.kva, 9) for x in d.values() if x.origen == 'kva'}
     assert len(ratios) == 1
+
+
+def test_no_acepta_cabecera_parcial_con_perdidas_activas_negativas():
+    """006:RF-11 — coincidir en kW no basta si la cabecera omite otra troncal."""
+    objetivo, _, reparto = _caso(kw=6000.0, kvar=900.0)
+    reparto = reparto.con_factores(reparto.a * 2.1, reparto.b)
+
+    res = cuadrar(
+        reparto, objetivo,
+        lambda _reparto: Medida(True, objetivo.kw, objetivo.kvar),
+        max_flujos=2,
+    )
+
+    assert not res.cuadrado
+    assert 'pérdidas activas negativas' in res.motivo
+    assert res.perdidas()[0] < 0
+
+
+def test_perdidas_usan_consumo_efectivo_nativo_si_esta_disponible():
+    """006:RF-11 — el modelo de carga puede consumir menos que su entrada nominal."""
+    objetivo, _, reparto = _caso(kw=6000.0, kvar=900.0)
+    reparto = reparto.con_factores(reparto.a * 2.1, reparto.b)
+
+    res = cuadrar(
+        reparto, objetivo,
+        lambda _reparto: Medida(
+            True, objetivo.kw, objetivo.kvar,
+            carga_kw=5500.0, carga_kvar=700.0,
+        ),
+        max_flujos=2,
+    )
+
+    assert res.cuadrado
+    assert res.perdidas() == pytest.approx((500.0, 200.0))
 
 
 @pytest.mark.parametrize('tol', [0.001, 0.05])

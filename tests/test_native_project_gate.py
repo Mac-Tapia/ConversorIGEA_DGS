@@ -81,6 +81,34 @@ def test_native_action_context_carries_one_signed_binding(tmp_path):
     assert context['context_sha256']
 
 
+def test_native_action_context_signs_nonblocking_project_warnings(tmp_path):
+    from igea_dgs.native_action import verify_native_action_context
+    from igea_dgs.powerfactory_binding import PowerFactoryProjectBinding
+    from igea_dgs.web import services
+
+    ws = _workspace(tmp_path)
+    binding = PowerFactoryProjectBinding(
+        project='P', folder='Conversor IGEA-DGS', source_run_id='run-previous',
+        source_mode='txt', source_fingerprint='f' * 64, feeders=('A1',),
+        dgs_sha256={'A1': 'a' * 64}, native_inventory_sha256='n' * 64,
+        native_reread={'status': 'VERIFICADO_PERSISTENCIA'}, accepted_at=1.0,
+    )
+    ws.pf_project_bindings['P'] = binding.as_dict()
+    ws.pf_inventory = {'projects': [{
+        'name': 'P', 'path': 'P', 'feeders': ['A1'],
+        'native_inventory_sha256': 'x' * 64,
+    }]}
+
+    context = services.native_action_context(ws, 'P', ['A1'], 'estudios')
+    verified = verify_native_action_context({
+        'project': 'P', 'feeders': ['A1'], 'native_action_context': context,
+    }, 'estudios')
+
+    assert [item['code'] for item in verified['binding_warnings']] == [
+        'PROJECT_BINDING_SOURCE_RUN_CHANGED', 'PROJECT_BINDING_NATIVE_MODIFIED',
+    ]
+
+
 @pytest.mark.parametrize(('evidence', 'expected'), [
     ({'ok': True}, 'OK'),
     ({'status': 'AVISO_KVAR'}, 'AVISO_KVAR'),

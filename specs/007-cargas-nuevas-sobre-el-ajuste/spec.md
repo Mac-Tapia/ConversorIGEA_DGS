@@ -140,8 +140,11 @@ el que el operador elige.
 - RF-28: SI ninguna barra del alimentador activo tiene coordenadas en DIgSILENT,
   ENTONCES EL SISTEMA no conectará por coordenadas ninguna carga y lo dirá una vez,
   con el alimentador.
-- RF-29: SI la carga trae un alimentador distinto del activo, ENTONCES EL SISTEMA la
-  conectará igualmente al activo y lo anotará en el informe con los dos alimentadores.
+- RF-29: SI la carga trae un alimentador (TRONCAL) que no es ninguno de los marcados,
+  ENTONCES EL SISTEMA no la creará, la dará como no creada con su alimentador y dirá una
+  vez cuántas del libro son de alimentadores no marcados. (Cambio del 2026-10-13: antes
+  se conectaba al activo; el libro de planificación trae las cargas de todos los
+  alimentadores y con SI213 marcado se crearon 28, 27 de otros, una a 216 km.)
 - RF-30: EL SISTEMA mostrará en el plan, por carga, el punto del libro, y en la
   simulación la barra elegida y su distancia en metros al punto.
 - RF-31: EL SISTEMA conectará la carga a su barra más cercana cualquiera que sea la
@@ -155,15 +158,28 @@ variaciones del ajuste, una por alimentador, y «el alimentador activo» de RF-2
 es, para cada carga, uno de los marcados:
 
 - RF-36: MIENTRAS haya varios alimentadores marcados, EL SISTEMA tomará como alimentador
-  activo de una carga el de su columna si está entre los marcados y, si no, el de la
-  barra más cercana a su punto entre todos los marcados.
+  activo de una carga el de su columna si está entre los marcados (si no lo está, RF-29)
+  y, si la columna viene vacía, el de la barra más cercana a su punto entre todos los
+  marcados.
 - RF-37: CUANDO la base viene de un ajuste de varios alimentadores, EL SISTEMA activará
   la variación de cada alimentador ajustado y dejará fuera de la base los que fallaron,
   y lo dirá en el plan.
 
+Cambio del 2026-10-13: deshacer una aplicación
+
+- RF-38: CUANDO el operador pide deshacer una aplicación con su informe, EL SISTEMA
+  borrará las variaciones de las cargas nuevas que dice el informe, los símbolos que
+  dibujó en el diagrama y los tipos de transformador que creó y que ya no usa ningún
+  transformador del proyecto; con `--simular`, solo lo listará.
+- RF-39: SI ninguna línea llega a la barra elegida y la fila no da un tipo de línea del
+  proyecto, ENTONCES EL SISTEMA tomará para la línea de enlace el tipo más usado de las
+  líneas del alimentador a la tensión de la barra y lo dirá en el informe. (SI213,
+  2026-10-13: la barra más cercana era el nodo de una SED, solo con su seccionador.)
+
 ## Casos límite
 
-- Libro con otro alimentador en su columna: se conecta al activo y se anota (RF-29).
+- Libro con otro alimentador en su columna: no se crea y se dice (RF-29). Si ninguna
+  fila es de un alimentador marcado, no se crea ninguna carga nueva.
 - Punto lejos del alimentador activo: se conecta a su barra más cercana y se informa
   la distancia (RF-31).
 - Coordenadas del libro en otro sistema de referencia que las barras de DIgSILENT: se

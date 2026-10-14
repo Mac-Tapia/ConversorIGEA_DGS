@@ -127,32 +127,78 @@ def test_exact_active_binding_is_persisted_and_accepted(tmp_path):
     assert require_project_binding(reopened, 'Oct/IN111', ['IN111']).binding_sha256
 
 
-def test_same_name_historical_binding_is_rejected(tmp_path):
+def test_equivalent_source_reload_is_warning_not_blocking(tmp_path):
     from igea_dgs.powerfactory_binding import (
-        ProjectBindingError, record_project_binding, require_project_binding,
+        project_binding_warnings, record_project_binding, require_project_binding,
     )
 
     ws = _workspace(tmp_path)
     record_project_binding(ws, _binding(source_run_id='run-historical'))
-    with pytest.raises(ProjectBindingError, match='PROJECT_BINDING_SOURCE_MISMATCH'):
-        require_project_binding(ws, 'Oct/IN111', ['IN111'])
+    accepted = require_project_binding(ws, 'Oct/IN111', ['IN111'])
+    warnings = project_binding_warnings(ws, 'Oct/IN111', ['IN111'])
 
-def test_changed_native_topology_is_rejected_but_changed_pq_is_not(tmp_path):
+    assert accepted.project == 'Oct/IN111'
+    assert warnings == [{
+        'code': 'PROJECT_BINDING_SOURCE_RUN_CHANGED',
+        'message': (
+            "La fuente se volvió a cargar como 'run-active'; conserva la misma "
+            "huella que 'run-historical'."
+        ),
+        'elements': [],
+    }]
+
+
+def test_different_source_fingerprint_is_still_rejected(tmp_path):
     from igea_dgs.powerfactory_binding import (
         ProjectBindingError, record_project_binding, require_project_binding,
     )
 
     ws = _workspace(tmp_path)
-    record_project_binding(ws, _binding())
-    ws.pf_inventory['projects'][0]['native_inventory_sha256'] = 'x' * 64
-    with pytest.raises(ProjectBindingError, match='PROJECT_BINDING_NATIVE_MISMATCH'):
+    record_project_binding(ws, _binding(
+        source_run_id='run-historical', source_fingerprint='e' * 64,
+    ))
+    with pytest.raises(ProjectBindingError, match='PROJECT_BINDING_SOURCE_MISMATCH'):
         require_project_binding(ws, 'Oct/IN111', ['IN111'])
+
+
+def test_changed_native_topology_is_reported_but_does_not_block(tmp_path):
+    from igea_dgs.powerfactory_binding import (
+        project_binding_warnings, record_project_binding, require_project_binding,
+    )
+
+    ws = _workspace(tmp_path)
+    baseline = [
+        {'class': 'ElmLne', 'full_name': r'Grid\L1.ElmLne', 'sha256': '1' * 64},
+        {'class': 'ElmTerm', 'full_name': r'Grid\B1.ElmTerm', 'sha256': '2' * 64},
+    ]
+    record_project_binding(ws, _binding(native_reread={
+        'status': 'VERIFICADO_PERSISTENCIA', 'inventory_manifest': baseline,
+    }))
+    ws.pf_inventory['projects'][0]['native_inventory_sha256'] = 'x' * 64
+    ws.pf_inventory['projects'][0]['native_inventory_manifest'] = [
+        {'class': 'ElmLne', 'full_name': r'Grid\L1.ElmLne', 'sha256': '3' * 64},
+        {'class': 'ElmLod', 'full_name': r'Grid\SED1.ElmLod', 'sha256': '4' * 64},
+    ]
+
+    assert require_project_binding(ws, 'Oct/IN111', ['IN111']).project == 'Oct/IN111'
+    warnings = project_binding_warnings(ws, 'Oct/IN111', ['IN111'])
+    assert warnings == [{
+        'code': 'PROJECT_BINDING_NATIVE_MODIFIED',
+        'message': 'El proyecto contiene modificaciones manuales posteriores a su aceptación.',
+        'elements': [
+            {'change': 'added', 'class': 'ElmLod', 'full_name': r'Grid\SED1.ElmLod'},
+            {'change': 'removed', 'class': 'ElmTerm', 'full_name': r'Grid\B1.ElmTerm'},
+            {'change': 'modified', 'class': 'ElmLne', 'full_name': r'Grid\L1.ElmLne'},
+        ],
+    }]
 
     # P/Q no forman parte de la huella y por eso no invalidan el contrato.
     ws.pf_inventory['projects'][0]['native_inventory_sha256'] = 'n' * 64
+    ws.pf_inventory['projects'][0].pop('native_inventory_manifest')
     ws.pf_inventory['projects'][0]['operational_p_kw'] = 999.0
     ws.pf_inventory['projects'][0]['operational_q_kvar'] = 444.0
     assert require_project_binding(ws, 'Oct/IN111', ['IN111']).project == 'Oct/IN111'
+    assert project_binding_warnings(ws, 'Oct/IN111', ['IN111']) == []
 
 
 def test_unbound_project_and_foreign_feeder_are_rejected(tmp_path):

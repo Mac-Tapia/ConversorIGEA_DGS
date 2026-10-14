@@ -18,6 +18,7 @@ import shutil
 import tempfile
 import zipfile
 from contextlib import asynccontextmanager
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
 
@@ -115,6 +116,8 @@ class AjusteIn(BaseModel):
     # Spec 008, RF-12: un medidor por alimentador, en el orden de ajuste. Vacío: el de
     # ``medidor`` o, si cada alimentador de la máxima tiene uno, todos.
     medidores: list[str] = Field(default_factory=list, max_length=2000)
+    # Spec 006, RF-26: Nis de los clientes importantes desmarcados en la tabla del cruce.
+    desconectados: list[str] = Field(default_factory=list, max_length=20000)
     # 1 % por defecto; entre 0,1 % y 10 % (requisitos no funcionales de la spec 006).
     tolerancia: float = Field(0.01, ge=0.001, le=0.10)
 
@@ -903,6 +906,17 @@ def create_app(
         return submit(ws, 'demanda_cabecera', f'Máxima de cabecera ({len(pares)} medidor(es))',
                       lambda ctx: services.demanda_cabecera(ws, ctx, pares))
 
+    @app.get('/api/workspaces/{wid}/demanda/cabecera/{job_id}/curva')
+    def demanda_curva(wid: str, job_id: str, medidor: str = Query(...),
+                      desde: datetime | None = None, hasta: datetime | None = None) -> dict:
+        """Spec 006, RF-31 a RF-39: curva del registro del medidor, entera o por tramo."""
+        if desde is not None and hasta is not None and desde > hasta:
+            raise HTTPException(422, 'El inicio del tramo es posterior a su fin.')
+        try:
+            return services.demanda_curva(ws_or_404(wid), job_id, medidor, desde, hasta)
+        except LookupError as exc:
+            raise HTTPException(404, str(exc)) from exc
+
     @app.post('/api/workspaces/{wid}/demanda/clientes/cruzar')
     def demanda_clientes(wid: str, body: DemandaClientesIn | None = None) -> dict:
         return services.demanda_clientes(ws_or_404(wid), body.alimentadores if body else None)
@@ -917,7 +931,8 @@ def create_app(
         if not isinstance(job.result, dict):
             raise HTTPException(409, 'La máxima de cabecera todavía no ha terminado.')
         return services.ajuste_plan(ws, body.project, job.result.get('resultados') or [],
-                                    body.medidor, body.tolerancia, body.medidores)
+                                    body.medidor, body.tolerancia, body.medidores,
+                                    body.desconectados)
 
     def _ajuste_job(wid: str, token: str, simular: bool) -> dict:
         ws = ws_or_404(wid)
@@ -1053,15 +1068,21 @@ def create_app(
         if not _server_paths_allowed(host):
             raise HTTPException(403, 'Este servidor no admite rutas locales: suba el fichero.')
         path = Path(body.path.strip().strip('"'))
-        if not (path.is_file() or (tipo == 'cabecera' and path.is_dir())):
+        if not (path.is_file() or (tipo in {'cabecera', 'clientes'} and path.is_dir())):
             raise HTTPException(400, f'No existe: {path}')
         return services.demanda_asignar(ws, tipo, path, 'server')
 
+    @app.post('/api/workspaces/{wid}/demanda/clientes/indexar', status_code=202)
+    def demanda_clientes_indexar(wid: str) -> dict:
+        ws = ws_or_404(wid)
+        return submit(ws, 'demanda_clientes_index', 'Actualizar libros de clientes',
+                      lambda ctx: services.demanda_clientes_indexar(ws, ctx), lane='engine')
+
     @app.post('/api/workspaces/{wid}/demanda/{tipo}')
     def demanda_subir(wid: str, tipo: DemandaTipo, files: list[UploadFile] = File(...)) -> dict:
-        """Subida del libro. La cabecera admite varios libros, que van a una carpeta."""
+        """Subida de libros. Cabecera y clientes admiten varios, guardados en una carpeta."""
         ws = ws_or_404(wid)
-        if tipo != 'cabecera' and len(files) != 1:
+        if tipo not in {'cabecera', 'clientes'} and len(files) != 1:
             raise HTTPException(422, 'Suba un solo libro.')
         carpeta = services.demanda_carpeta(ws, tipo)
         if tipo != 'cabecera':
@@ -1072,8 +1093,8 @@ def create_app(
             destino = carpeta / safe_filename(f.filename or f'{tipo}.xlsx')
             _save_upload(destino, f)
             destinos.append(destino)
-        return services.demanda_asignar(ws, tipo, carpeta if tipo == 'cabecera' else destinos[0],
-                                        'upload')
+        fuente = carpeta if tipo == 'cabecera' or (tipo == 'clientes' and len(destinos) > 1) else destinos[0]
+        return services.demanda_asignar(ws, tipo, fuente, 'upload')
 
     @app.delete('/api/workspaces/{wid}/demanda/{tipo}')
     def demanda_quitar(wid: str, tipo: DemandaTipo) -> dict:

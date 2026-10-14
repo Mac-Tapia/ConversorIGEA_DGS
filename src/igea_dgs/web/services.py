@@ -17,7 +17,9 @@ from __future__ import annotations
 
 import json
 import sys
+import time
 import uuid
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -105,7 +107,9 @@ def native_action_context(
 ) -> dict[str, Any]:
     """Vincula toda acción nativa con la fuente y relectura PowerFactory aceptadas."""
     from ..native_action import build_native_action_context
-    from ..powerfactory_binding import ProjectBindingError, require_project_binding
+    from ..powerfactory_binding import (
+        ProjectBindingError, project_binding_warnings, require_project_binding,
+    )
 
     project = str(project or '').strip()
     normalized = sorted({str(feeder).strip() for feeder in feeders if str(feeder).strip()})
@@ -119,7 +123,10 @@ def native_action_context(
         binding = require_project_binding(ws, project, normalized)
     except ProjectBindingError as exc:
         raise UserError(str(exc)) from exc
-    return build_native_action_context(binding, project, normalized, action)
+    warnings = project_binding_warnings(ws, project, normalized)
+    return build_native_action_context(
+        binding, project, normalized, action, warnings=warnings,
+    )
 
 
 def _script(name: str) -> Path:
@@ -1188,7 +1195,9 @@ def pf_projects(ws: Workspace, ctx: JobContext) -> dict:
     with ws.lock:
         ws.pf_inventory = result
         ws.save()
-    from ..powerfactory_binding import ProjectBindingError, require_project_binding
+    from ..powerfactory_binding import (
+        ProjectBindingError, project_binding_warnings, require_project_binding,
+    )
 
     for project in result.get('projects') or []:
         path = str(project.get('path') or project.get('name') or '')
@@ -1197,8 +1206,12 @@ def pf_projects(ws: Workspace, ctx: JobContext) -> dict:
             require_project_binding(ws, path, project.get('feeders') or [])
         except ProjectBindingError as exc:
             project['binding_blocked_reason'] = str(exc)
+            project['binding_warnings'] = []
         else:
             project['binding_blocked_reason'] = None
+            project['binding_warnings'] = project_binding_warnings(
+                ws, path, project.get('feeders') or [],
+            )
     return result
 
 
@@ -1291,9 +1304,9 @@ def cargas_plan(
         demandas = leer_demandas(demandas_file) if demandas_file is not None else None
         nuevas = leer_nuevas(nuevas_file, source_crs=crs) if nuevas_file is not None else None
         if nueva:
-            filas, errores = leer_hoja_nuevas(list(nueva), [list(nueva.values())], 'formulario',
-                                              source_crs=crs)
             nuevas = nuevas or Lectura()
+            filas, errores = leer_hoja_nuevas(list(nueva), [list(nueva.values())], 'formulario',
+                                              source_crs=crs, avisos=nuevas.avisos)
             # Spec 008, RF-24: primero la carga sola y después las del libro, el orden
             # del trabajo; con la misma SED en los dos, se crea la del formulario.
             nuevas.filas = filas + nuevas.filas
@@ -1407,7 +1420,7 @@ def demanda_carpeta(ws: Workspace, tipo: str) -> Path:
 
 
 def demanda_asignar(ws: Workspace, tipo: str, path: Path, origin: str) -> dict:
-    """Guarda en el espacio el libro (o la carpeta de cabecera) de ``tipo`` (RF-39)."""
+    """Guarda en el espacio la fuente de ``tipo``; cabecera y clientes admiten carpeta."""
     from ..demanda_medida import EXTENSIONES, libros_de_cabecera
 
     if tipo == 'cabecera':
@@ -1416,16 +1429,89 @@ def demanda_asignar(ws: Workspace, tipo: str, path: Path, origin: str) -> dict:
         except Exception as exc:  # noqa: BLE001 - DemandaError o de E/S: error de usuario
             raise UserError(str(exc)) from exc
         meta = {'path': str(path), 'name': path.name, 'origin': origin,
+                'source_kind': 'folder' if path.is_dir() else 'file',
                 'libros': [p.name for p in libros]}
+    elif tipo == 'clientes' and path.is_dir():
+        # El índice se construye en un trabajo aparte: un nombre no reconocido puede
+        # obligar a abrir un libro grande para buscar una fecha interna (013:RF-4).
+        meta = {'path': str(path), 'name': path.name, 'origin': origin,
+                'source_kind': 'folder',
+                'libros': [], 'catalogo': [], 'vigente': False, 'avisos': []}
     else:
         if not path.is_file() or path.suffix.lower() not in EXTENSIONES:
             raise UserError(f'{path.name}: el {DEMANDA_ETIQUETAS[tipo]} debe ser un libro '
                             + ', '.join(EXTENSIONES))
-        meta = {'path': str(path), 'name': path.name, 'origin': origin}
+        meta = {'path': str(path), 'name': path.name, 'origin': origin, 'source_kind': 'file'}
     with ws.lock:
         ws.demanda[tipo] = meta
         ws.save()
     return ws.public()
+
+
+def _foto_fuente_clientes(path: Path) -> tuple[tuple[str, int, int], ...]:
+    """Identidad observable del fichero/carpeta para detectar cambios durante el índice."""
+    from ..demanda_medida import EXTENSIONES
+
+    if path.is_file():
+        rutas = [path] if path.suffix.lower() in EXTENSIONES else []
+    elif path.is_dir():
+        rutas = sorted(
+            (p for p in path.iterdir()
+             if p.is_file() and p.suffix.lower() in EXTENSIONES and not p.name.startswith('~$')),
+            key=lambda p: (p.name.casefold(), p.name),
+        )
+    else:
+        return ()
+    return tuple((p.name, p.stat().st_size, p.stat().st_mtime_ns) for p in rutas)
+
+
+def demanda_clientes_indexar(ws: Workspace, ctx: JobContext) -> dict:
+    """Reescanea la fuente persistida y publica un catálogo mensual sin rutas absolutas."""
+    from ..demanda_medida import DemandaError, catalogar_libros_clientes
+
+    with ws.lock:
+        meta = dict(ws.demanda.get('clientes') or {})
+    if not meta:
+        raise UserError('Falta la fuente de clientes importantes: indique un libro o una carpeta.')
+    fuente = Path(meta.get('path', ''))
+    foto_inicial = _foto_fuente_clientes(fuente)
+    if not foto_inicial:
+        raise UserError('No hay libros de clientes importantes en la fuente elegida.')
+
+    ctx.progress(0, len(foto_inicial), 'Leyendo nombres y meses')
+    try:
+        catalogo = catalogar_libros_clientes(
+            fuente, perfil_de(ws).patron_libro_clientes, meta.get('asignaciones') or {})
+    except DemandaError as exc:
+        raise UserError(str(exc)) from exc
+    ctx.check_cancel()
+    foto_final = _foto_fuente_clientes(fuente)
+    vigente = foto_final == foto_inicial
+    avisos = [] if vigente else [
+        'La carpeta cambió mientras se construía el índice; pulse «Actualizar índice» antes de usarla.'
+    ]
+    publico = [{
+        'nombre': libro.nombre,
+        'mes': libro.mes,
+        'origen_mes': libro.origen_mes,
+        'activo': libro.activo,
+        'avisos': list(libro.avisos),
+    } for libro in catalogo]
+
+    with ws.lock:
+        actual = ws.demanda.get('clientes') or {}
+        if actual.get('path') != str(fuente):
+            raise UserError('La fuente de clientes cambió durante el índice; vuelva a actualizarla.')
+        actual.update({
+            'libros': [libro.nombre for libro in catalogo],
+            'catalogo': publico,
+            'vigente': vigente,
+            'avisos': avisos,
+            'indexado_en': time.time(),
+        })
+        ws.save()
+    ctx.progress(len(catalogo), len(catalogo), f'{len(catalogo)} libro(s)')
+    return {'catalogo': publico, 'vigente': vigente, 'avisos': avisos}
 
 
 def demanda_quitar(ws: Workspace, tipo: str) -> dict:
@@ -1438,11 +1524,27 @@ def demanda_quitar(ws: Workspace, tipo: str) -> dict:
     return ws.public()
 
 
-def _demanda_ruta(ws: Workspace, tipo: str) -> Path:
+def _demanda_ruta(ws: Workspace, tipo: str, *, periodo: str | None = None) -> Path:
     meta = ws.demanda.get(tipo)
     if not meta or not Path(meta['path']).exists():
         raise UserError(f'Falta el {DEMANDA_ETIQUETAS[tipo]}: súbalo o indique su ruta.')
-    return Path(meta['path'])
+    path = Path(meta['path'])
+    if tipo == 'clientes' and path.is_dir():
+        if not meta.get('vigente'):
+            raise UserError('Actualice el índice de clientes importantes antes de usar la carpeta.')
+        activos = [x for x in meta.get('catalogo') or [] if x.get('activo')]
+        if periodo:
+            activos = [x for x in activos if str(x.get('mes') or '').strip() == periodo]
+        if len(activos) != 1:
+            detalle = f' para el periodo {periodo}' if periodo else ''
+            raise UserError(
+                f'La carpeta tiene {len(activos)} libros mensuales activos{detalle}; '
+                'elija un mes (debe existir uno solo) para cruzar clientes.')
+        elegido = path / activos[0]['nombre']
+        if not elegido.is_file():
+            raise UserError('El libro indexado ya no existe; pulse «Actualizar índice».')
+        return elegido
+    return path
 
 
 def demanda_medidores(ws: Workspace, alimentador: str) -> dict:
@@ -1492,11 +1594,46 @@ def demanda_cabecera(ws: Workspace, ctx: JobContext, pares: list[tuple[str, str]
             ctx.log(f'  {r.medidor}: kW máx {r.kw:g} el {r.fecha} ({r.libro} › {", ".join(r.hojas)})')
         for aviso in r.avisos:
             ctx.log(f'    aviso: {aviso}')
+    # La curva no va en el resultado, que viaja entero por el WebSocket: se guarda aparte
+    # y se pide reducida (spec 006, RF-31 y RF-39).
+    with ws.lock:
+        ws.curvas_cabecera = {ctx.job.id: {r.medidor: {'curva': r.curva, 'fuera': r.fuera_de_curva}
+                                           for r in res if r.curva}}
     return {'resultados': [r.to_dict() for r in res],
             'cancelado': len(res) < len(pares)}
 
 
-def demanda_clientes(ws: Workspace, alimentadores: list[str] | None = None) -> dict:
+# Puntos de la curva que se envían a la web: con ~1 000 px de gráfica, más no se distinguen.
+CURVA_MAX_PUNTOS = 2000
+
+
+def demanda_curva(ws: Workspace, job_id: str, medidor: str, desde: datetime | None = None,
+                  hasta: datetime | None = None) -> dict:
+    """Curva de un medidor de la última máxima buscada, entera o por tramo (spec 006,
+    RF-31, RF-32, RF-35, RF-38, RF-39). ``LookupError`` si no está: la API da 404."""
+    from ..demanda_medida import clave_codigo, reducir_curva
+
+    with ws.lock:
+        curvas = ws.curvas_cabecera.get(job_id)
+    if curvas is None:
+        raise LookupError('La curva no es de la última máxima buscada: vuelva a buscarla.')
+    clave = clave_codigo(medidor)
+    nombre = next((m for m in curvas if m == medidor), None) or         next((m for m in curvas if clave_codigo(m) == clave), None)
+    if nombre is None:
+        raise LookupError(f'El medidor {medidor} no tiene curva en la última máxima buscada.')
+    curva = curvas[nombre]['curva']
+    tramo = reducir_curva(curva, desde, hasta, max_puntos=len(curva) or 1)
+    puntos = reducir_curva(tramo, max_puntos=CURVA_MAX_PUNTOS)
+    pico = max(curva, key=lambda p: p[1])
+    return {'medidor': nombre, 'inicio': curva[0][0].isoformat(), 'fin': curva[-1][0].isoformat(),
+            'maxima': {'fecha': pico[0].isoformat(), 'kw': pico[1]},
+            'puntos': [[f.isoformat(), kw, kvar] for f, kw, kvar in puntos],
+            'total': len(tramo), 'reducida': len(puntos) < len(tramo),
+            'fuera_de_curva': curvas[nombre]['fuera']}
+
+
+def demanda_clientes(ws: Workspace, alimentadores: list[str] | None = None,
+                     *, periodo: str | None = None) -> dict:
     """Clientes importantes cruzados con los suministros (RF-33 a RF-37); con
     ``alimentadores``, solo los de esos alimentadores por su radial (RF-43)."""
     from ..demanda_medida import (DemandaError, cruzar, del_alimentador, leer_clientes,
@@ -1505,7 +1642,9 @@ def demanda_clientes(ws: Workspace, alimentadores: list[str] | None = None) -> d
     alias = demanda_alias()
     try:
         suministros, avisos_s = leer_suministros(_demanda_ruta(ws, 'suministros'), alias)
-        clientes, avisos_c = leer_clientes(_demanda_ruta(ws, 'clientes'), alias)
+        clientes, avisos_c = leer_clientes(
+            _demanda_ruta(ws, 'clientes', periodo=periodo), alias,
+        )
     except DemandaError as exc:
         raise UserError(str(exc)) from exc
     cruzados, aparte = cruzar(clientes, suministros)
@@ -1565,8 +1704,8 @@ def _kva_de_la_entrada(ws: Workspace, alimentador: str) -> tuple[dict[str, float
     return {sed.code: float(sed.design_kva) for sed in modelo.seds if sed.design_kva}, ''
 
 
-def periodo_clientes_activo(ws: Workspace):
-    """Evidencia inmutable del único libro de clientes seleccionado para el ajuste."""
+def periodo_clientes_activo(ws: Workspace, periodo: str | None = None):
+    """Evidencia del libro activo; con ``periodo`` elige exactamente el mes de la máxima."""
     import hashlib
 
     from ..demanda_medida import ClientPeriodEvidence, catalogar_libros_clientes
@@ -1597,11 +1736,18 @@ def periodo_clientes_activo(ws: Workspace):
                 sheet='resumen', fingerprint=None, period_origin=None, warning=str(exc),
             )
     active = [item for item in catalog if item.get('activo')]
+    if periodo:
+        matching = [item for item in active if str(item.get('mes') or '').strip() == periodo]
+        # Con un único libro conservamos su mes real para emitir MISMATCH; con una
+        # carpeta multimensual solo es válida la coincidencia exacta.
+        active = matching or (active if len(active) == 1 else [])
     if len(active) != 1:
+        detalle = f' para {periodo}' if periodo else ''
         return ClientPeriodEvidence(
             status='CLIENT_PERIOD_UNKNOWN', period=None, file=None, sheet='resumen',
             fingerprint=None, period_origin=None,
-            warning=f'La fuente tiene {len(active)} libros activos; debe quedar uno solo.',
+            warning=(f'La fuente tiene {len(active)} libros activos{detalle}; '
+                     'debe existir uno solo.'),
         )
     chosen = active[0]
     path = source if source.is_file() else source / str(chosen.get('nombre') or '')
@@ -1620,6 +1766,16 @@ def periodo_clientes_activo(ws: Workspace):
         period_origin=str(chosen.get('origen_mes') or '') or None,
         warning=None if period else 'El libro activo no tiene un mes demostrable.',
     )
+
+
+def _periodo_clientes_para_maxima(ws: Workspace, periodo: str | None):
+    """Invoca el contrato mensual conservando extensiones antiguas de un solo argumento."""
+    import inspect
+
+    parameters = inspect.signature(periodo_clientes_activo).parameters
+    if 'periodo' not in parameters:
+        return periodo_clientes_activo(ws)
+    return periodo_clientes_activo(ws, periodo)
 
 
 def _medidores_del_ajuste(maximas: list[dict], medidor: str, medidores: list[str] | None) -> list[dict]:
@@ -1653,13 +1809,16 @@ def _medidores_del_ajuste(maximas: list[dict], medidor: str, medidores: list[str
 
 
 def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
-                tolerancia: float, medidores: list[str] | None = None) -> dict:
+                tolerancia: float, medidores: list[str] | None = None,
+                desconectados: list[str] | None = None) -> dict:
     """Plan para ``tools/ajuste_cabecera_pf.py`` (spec 006, RF-1 a RF-3, RF-10).
 
     ``maximas`` es el resultado del trabajo de la máxima de cabecera que el operador ve
     en su tabla: el objetivo es ese mismo valor (RF-1), sin volver a abrir los libros de
     cabecera, que pesan cientos de MB. Con varios alimentadores (spec 008, RF-12) hay un
     plan por alimentador, el mismo JSON de la spec 006, y un solo token que los recorre.
+    ``desconectados`` son los Nis que el operador desmarcó en la tabla del cruce (RF-26):
+    van aparte en el plan, y el guion decide qué carga de SED se queda sin clientes.
     """
     import time as _time
 
@@ -1673,11 +1832,11 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
     requested_feeders = [str(row.get('alimentador') or '').strip() for row in filas]
     action_context = native_action_context(ws, project, requested_feeders, 'ajuste')
     project_binding = PowerFactoryProjectBinding.from_dict(action_context['binding'])
-    client_period = periodo_clientes_activo(ws)
     varios = len(filas) > 1
     stamp = _time.strftime('%Y%m%d_%H%M%S')
     ws.plans_dir.mkdir(parents=True, exist_ok=True)
     token = uuid.uuid4().hex[:12]
+    fuera = {str(c).strip() for c in desconectados or [] if str(c).strip()}
     ajustes, avisos, paths = [], [], []
     for fila in filas:
         try:
@@ -1693,6 +1852,7 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
             raise UserError(f'{objetivo.medidor}: la máxima no dice de qué alimentador es.')
         pre = f'{alimentador}: ' if varios else ''
         maximum_period = periodo_de_fecha(objetivo.fecha)
+        client_period = _periodo_clientes_para_maxima(ws, maximum_period)
         if client_period.status != 'NO_CLIENT_BOOK':
             if maximum_period is None:
                 raise UserError(
@@ -1721,9 +1881,13 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
                 avisos.append(client_period.warning)
         clientes: list[dict] = []
         if ws.demanda.get('suministros') and ws.demanda.get('clientes'):
-            clientes = demanda_clientes(ws, [alimentador])['cruzados']
+            clientes = demanda_clientes(
+                ws, [alimentador], periodo=maximum_period,
+            )['cruzados']
         elif not paths:
             avisos.append('Sin libros de suministros y de clientes: todas las SED se reparten por kVA.')
+        apagados = [c for c in clientes if str(c.get('codigo') or '').strip() in fuera]
+        clientes = [c for c in clientes if str(c.get('codigo') or '').strip() not in fuera]
         fixed = fijas_de(clientes, objetivo)
         fixed_evidence = [{
             'sed': item.sed, 'p_kw': item.kw, 'q_kvar': item.kvar, 'fp': item.fp,
@@ -1753,7 +1917,8 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
             'variacion': f'Ajuste_{alimentador}_{stamp}',
             'objetivo': {'kw': objetivo.kw, 'kvar': objetivo.kvar, 'medidor': objetivo.medidor,
                          'alimentador': alimentador, 'fecha': objetivo.fecha},
-            'clientes': clientes, 'kva_entrada': kva_entrada, 'tolerancia': tolerancia,
+            'clientes': clientes, 'desconectados': apagados, 'kva_entrada': kva_entrada,
+            'tolerancia': tolerancia,
         }
         nombre = (f'ajuste_cabecera_{token}.json' if not varios
                   else f'ajuste_cabecera_{token}_{len(paths) + 1}.json')
@@ -1761,7 +1926,7 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
         path.write_text(json.dumps(plan, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
         paths.append(str(path))
         ajustes.append({'feeder': alimentador, 'objetivo': plan['objetivo'],
-                        'n_clientes': len(clientes),
+                        'n_clientes': len(clientes), 'n_desconectados': len(apagados),
                         'n_sed_fijas': len(fixed_evidence),
                         'n_sed_escaladas_estimadas': max(0, len(kva_entrada) - len(fixed_evidence)),
                         'n_kva_entrada': len(kva_entrada), 'periodo': period_evidence,
@@ -1841,6 +2006,10 @@ def ajuste_ejecutar(ws: Workspace, ctx: JobContext, token: str, *, simular: bool
             ctx.log(f"{feeder}: {informe['error']}")
         elif not simular and not informe.get('cuadrado'):
             ctx.log(f"{feeder}: no cumple la tolerancia: {informe.get('motivo')}. Vea el diagnóstico.")
+        if not simular:
+            from ..powerfactory_binding import promote_project_binding_after_calibration
+
+            promote_project_binding_after_calibration(ws, plan['project'], informe)
         informes.append(informe)
         reports.append(report.name)
         codigos.append(rc)

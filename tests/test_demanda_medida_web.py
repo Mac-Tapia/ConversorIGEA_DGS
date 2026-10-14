@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import io
+import json
 from datetime import datetime, timedelta
 
 import pytest
@@ -60,6 +61,29 @@ def _subir(client, wid, tipo, hojas, nombre='libro.xlsx'):
     return r.json()
 
 
+def _perfil_clientes_mensuales(tmp_path, monkeypatch):
+    """Perfil mínimo real: el resultado mensual depende del perfil, no del nombre codificado."""
+    from igea_dgs.perfil_empresa import VARIABLE_RUTA
+
+    perfil = tmp_path / 'perfil-mensual.json'
+    perfil.write_text(json.dumps({
+        'patron_libro_clientes': (
+            r'(?i)^(?P<mes>0[1-9]|1[0-2])(?P<anio>\d{2})'
+            r'clientesImportantes\.(?:xlsb|xlsx)$'
+        ),
+    }), encoding='utf-8')
+    monkeypatch.setenv(VARIABLE_RUTA, str(perfil))
+
+
+def _indexar_clientes(client, wid):
+    respuesta = client.post(f'/api/workspaces/{wid}/demanda/clientes/indexar')
+    assert respuesta.status_code == 202, respuesta.text
+    assert respuesta.json()['lane'] == 'engine'
+    estado = esperar_trabajo(client, respuesta.json())
+    assert estado['status'] == 'done', estado
+    return client.get(f'/api/workspaces/{wid}').json()
+
+
 def test_medidores_por_alimentador(client):
     """004:RF-22 / RF-23 — el alimentador da sus medidores; uno que no está, vacío."""
     wid = _wid(client)
@@ -110,7 +134,134 @@ def test_cabecera_por_ruta_de_carpeta(client, tmp_path):
     assert r.json()['demanda']['cabecera']['libros'] == ['SISTEMA A.xlsx']
     assert 'path' not in r.json()['demanda']['cabecera']
     r = client.post(f'/api/workspaces/{wid}/demanda/suministros/path', json={'path': str(carpeta)})
-    assert r.status_code == 400, 'solo la cabecera admite carpeta'
+    assert r.status_code == 400, 'solo cabecera y clientes admiten carpeta'
+
+
+def test_clientes_por_carpeta_publica_catalogo_mensual_sin_rutas(client, tmp_path, monkeypatch):
+    """013:RF-1 / 013:RF-2 — la carpeta queda elegida y todos sus libros aparecen en el catálogo."""
+    _perfil_clientes_mensuales(tmp_path, monkeypatch)
+    carpeta = tmp_path / '4.-clientesimportantes'
+    carpeta.mkdir()
+    (carpeta / '0126clientesImportantes.xlsb').write_bytes(b'el nombre evita abrirlo')
+    (carpeta / '0726clientesImportantes.xlsx').write_bytes(b'el nombre evita abrirlo')
+    (carpeta / 'notas.txt').write_text('ignorado', encoding='utf-8')
+    wid = _wid(client)
+
+    asignada = client.post(
+        f'/api/workspaces/{wid}/demanda/clientes/path', json={'path': str(carpeta)})
+    assert asignada.status_code == 200, asignada.text
+    assert asignada.json()['demanda']['clientes']['name'] == carpeta.name
+
+    estado = _indexar_clientes(client, wid)
+    meta = estado['demanda']['clientes']
+    assert meta['source_kind'] == 'folder'
+    assert meta['libros'] == [
+        '0126clientesImportantes.xlsb', '0726clientesImportantes.xlsx']
+    assert [(x['nombre'], x['mes'], x['origen_mes'], x['activo']) for x in meta['catalogo']] == [
+        ('0126clientesImportantes.xlsb', '2026-01', 'nombre', True),
+        ('0726clientesImportantes.xlsx', '2026-07', 'nombre', True),
+    ]
+    assert all(set(x) == {'nombre', 'mes', 'origen_mes', 'activo', 'avisos'}
+               for x in meta['catalogo'])
+    assert str(carpeta) not in json.dumps(meta)
+
+
+def test_clientes_subidos_admiten_varios_libros(client, tmp_path, monkeypatch):
+    """013:RF-1 / 013:RF-2 — la alternativa de subida conserva todos los libros mensuales."""
+    _perfil_clientes_mensuales(tmp_path, monkeypatch)
+    wid = _wid(client)
+    respuesta = client.post(f'/api/workspaces/{wid}/demanda/clientes', files=[
+        ('files', ('0126clientesImportantes.xlsb', b'enero')),
+        ('files', ('0226clientesImportantes.xlsx', b'febrero')),
+    ])
+    assert respuesta.status_code == 200, respuesta.text
+
+    meta = _indexar_clientes(client, wid)['demanda']['clientes']
+    assert meta['source_kind'] == 'folder'
+    assert meta['libros'] == [
+        '0126clientesImportantes.xlsb', '0226clientesImportantes.xlsx']
+    assert [x['mes'] for x in meta['catalogo']] == ['2026-01', '2026-02']
+
+
+def test_actualizar_indice_detecta_libros_agregados_y_retirados(client, tmp_path, monkeypatch):
+    """013:RF-6 — reusar la carpeta detecta altas y bajas sin volver a seleccionarla."""
+    _perfil_clientes_mensuales(tmp_path, monkeypatch)
+    carpeta = tmp_path / 'clientes'
+    carpeta.mkdir()
+    enero = carpeta / '0126clientesImportantes.xlsx'
+    julio = carpeta / '0726clientesImportantes.xlsx'
+    enero.write_bytes(b'enero')
+    wid = _wid(client)
+    assert client.post(f'/api/workspaces/{wid}/demanda/clientes/path',
+                       json={'path': str(carpeta)}).status_code == 200
+    assert _indexar_clientes(client, wid)['demanda']['clientes']['libros'] == [enero.name]
+
+    julio.write_bytes(b'julio')
+    enero.unlink()
+    meta = _indexar_clientes(client, wid)['demanda']['clientes']
+    assert meta['libros'] == [julio.name]
+    assert meta['catalogo'][0]['mes'] == '2026-07'
+
+
+def test_carpeta_con_un_mes_puede_cruzar_y_con_varios_exige_elegir(client, tmp_path, monkeypatch):
+    """013:RF-1 — una carpeta no llega accidentalmente al lector como si fuera un Excel."""
+    _perfil_clientes_mensuales(tmp_path, monkeypatch)
+    carpeta = tmp_path / 'clientes'
+    carpeta.mkdir()
+    (carpeta / '0126clientesImportantes.xlsx').write_bytes(_xlsx(CLIENTES))
+    wid = _wid(client)
+    _subir(client, wid, 'suministros', SUMINISTROS)
+    assert client.post(f'/api/workspaces/{wid}/demanda/clientes/path',
+                       json={'path': str(carpeta)}).status_code == 200
+    _indexar_clientes(client, wid)
+    assert client.post(f'/api/workspaces/{wid}/demanda/clientes/cruzar').status_code == 200
+
+    (carpeta / '0226clientesImportantes.xlsx').write_bytes(_xlsx(CLIENTES))
+    _indexar_clientes(client, wid)
+    respuesta = client.post(f'/api/workspaces/{wid}/demanda/clientes/cruzar')
+    assert respuesta.status_code == 400
+    assert 'elija un mes' in respuesta.json()['detail'].lower()
+
+
+def test_indice_de_clientes_rechaza_carpeta_sin_libros(client, tmp_path, monkeypatch):
+    """013:RF-2 — una carpeta vacía falla explícitamente en vez de aparentar estar lista."""
+    _perfil_clientes_mensuales(tmp_path, monkeypatch)
+    carpeta = tmp_path / 'vacia'
+    carpeta.mkdir()
+    wid = _wid(client)
+    assert client.post(f'/api/workspaces/{wid}/demanda/clientes/path',
+                       json={'path': str(carpeta)}).status_code == 200
+
+    respuesta = client.post(f'/api/workspaces/{wid}/demanda/clientes/indexar')
+    assert respuesta.status_code == 202
+    estado = esperar_trabajo(client, respuesta.json())
+    assert estado['status'] == 'failed'
+    assert 'No hay libros' in estado['error']
+
+
+def test_indice_detecta_si_la_carpeta_cambia_durante_el_escaneo(client, tmp_path, monkeypatch):
+    """013:RF-6 — una carrera no publica como vigente una instantánea que ya cambió."""
+    from igea_dgs import demanda_medida as dm
+
+    _perfil_clientes_mensuales(tmp_path, monkeypatch)
+    carpeta = tmp_path / 'clientes'
+    carpeta.mkdir()
+    (carpeta / '0126clientesImportantes.xlsx').write_bytes(b'enero')
+    real = dm.catalogar_libros_clientes
+
+    def catalogar_y_cambiar(*args, **kwargs):
+        catalogo = real(*args, **kwargs)
+        (carpeta / '0226clientesImportantes.xlsx').write_bytes(b'febrero')
+        return catalogo
+
+    monkeypatch.setattr(dm, 'catalogar_libros_clientes', catalogar_y_cambiar)
+    wid = _wid(client)
+    assert client.post(f'/api/workspaces/{wid}/demanda/clientes/path',
+                       json={'path': str(carpeta)}).status_code == 200
+
+    meta = _indexar_clientes(client, wid)['demanda']['clientes']
+    assert meta['vigente'] is False
+    assert any('cambió' in aviso and 'Actualizar índice' in aviso for aviso in meta['avisos'])
 
 
 def test_rutas_cerradas_si_escucha_en_red(tmp_path, monkeypatch):
@@ -183,3 +334,82 @@ def test_libros_se_conservan_y_se_quitan(client):
     assert client.delete(f'/api/workspaces/{wid}/demanda/medidores').json()['demanda'] == {}
     r = client.post(f'/api/workspaces/{wid}/demanda/otra', files=[('files', ('x.xlsx', b'x'))])
     assert r.status_code == 422
+
+
+# =========================================================================== curva (spec 006)
+def _buscar(client, wid, medidores=('M1', 'M2')):
+    job = client.post(f'/api/workspaces/{wid}/demanda/cabecera/buscar', json={'medidores': [
+        {'alimentador': 'A1', 'medidor': m} for m in medidores]})
+    estado = esperar_trabajo(client, job.json())
+    assert estado['status'] == 'done', estado
+    return estado
+
+
+def _curva(client, wid, job_id, **params):
+    return client.get(f'/api/workspaces/{wid}/demanda/cabecera/{job_id}/curva', params=params)
+
+
+def test_curva_entera_del_medidor(client):
+    """006:RF-31 / RF-32 — la curva del registro entero, del primer dato al último, aparte
+    del resultado del trabajo, con la máxima para marcarla."""
+    wid = _wid(client)
+    _subir(client, wid, 'cabecera', CABECERA)
+    estado = _buscar(client, wid)
+    assert 'curva' not in estado['result']['resultados'][0]
+    r = _curva(client, wid, estado['id'], medidor='M1')
+    assert r.status_code == 200, r.text
+    c = r.json()
+    assert c['medidor'] == 'M1' and c['total'] == 8 and c['reducida'] is False
+    assert c['inicio'] == T0.isoformat() and c['fin'] == (T0 + timedelta(minutes=105)).isoformat()
+    assert c['puntos'][0] == [T0.isoformat(), 100.0, 10.0]
+    assert [p[1] for p in c['puntos']] == [100.0 + i for i in range(8)]
+    assert c['maxima'] == {'fecha': (T0 + timedelta(minutes=105)).isoformat(), 'kw': 107.0}
+    assert c['fuera_de_curva'] == 0
+
+
+def test_curva_por_tramo(client):
+    """006:RF-35 — con desde y hasta, solo ese tramo; el inicio y el fin siguen siendo los
+    del registro entero, para volver a «Ver todo»."""
+    wid = _wid(client)
+    _subir(client, wid, 'cabecera', CABECERA)
+    estado = _buscar(client, wid)
+    c = _curva(client, wid, estado['id'], medidor='M1', desde=(T0 + timedelta(minutes=30)).isoformat(),
+               hasta=(T0 + timedelta(minutes=60)).isoformat()).json()
+    assert [p[1] for p in c['puntos']] == [102.0, 103.0, 104.0] and c['total'] == 3
+    assert c['inicio'] == T0.isoformat()
+    r = _curva(client, wid, estado['id'], medidor='M1', desde=(T0 + timedelta(hours=1)).isoformat(),
+               hasta=T0.isoformat())
+    assert r.status_code == 422
+
+
+def test_curva_de_cada_medidor_del_alimentador(client):
+    """006:RF-38 — cada medidor del alimentador tiene su curva; uno que no está, 404."""
+    wid = _wid(client)
+    _subir(client, wid, 'cabecera', CABECERA)
+    estado = _buscar(client, wid)
+    assert _curva(client, wid, estado['id'], medidor='M2').json()['total'] == 1
+    assert _curva(client, wid, estado['id'], medidor='m1').json()['medidor'] == 'M1'
+    assert _curva(client, wid, estado['id'], medidor='NO').status_code == 404
+
+
+def test_curva_solo_del_ultimo_trabajo(client):
+    """006:RF-31 — se guarda la curva de la última búsqueda: la de una anterior ya no está."""
+    wid = _wid(client)
+    _subir(client, wid, 'cabecera', CABECERA)
+    viejo = _buscar(client, wid)
+    nuevo = _buscar(client, wid, ('M1',))
+    assert _curva(client, wid, nuevo['id'], medidor='M1').status_code == 200
+    r = _curva(client, wid, viejo['id'], medidor='M1')
+    assert r.status_code == 404 and 'vuelva a buscar' in r.json()['detail']
+
+
+def test_curva_reducida_conserva_la_maxima(client, monkeypatch):
+    """006:RF-39 — por encima del tope de puntos se reduce sin perder la máxima."""
+    from igea_dgs.web import services
+    monkeypatch.setattr(services, 'CURVA_MAX_PUNTOS', 4)
+    wid = _wid(client)
+    _subir(client, wid, 'cabecera', CABECERA)
+    estado = _buscar(client, wid)
+    c = _curva(client, wid, estado['id'], medidor='M1').json()
+    assert c['reducida'] is True and c['total'] == 8 and len(c['puntos']) <= 4
+    assert max(p[1] for p in c['puntos']) == 107.0
