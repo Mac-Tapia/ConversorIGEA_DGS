@@ -153,6 +153,7 @@ def test_powerfactory_importa_dgs_aunque_pandapower_avise_isla(tmp_path, monkeyp
 
     result = services.powerfactory_flow(ws, ctx, ['RED'])
 
+    # 015:RF-41: el oráculo, con el modelo de la fuente y sus cargas, antes de importar.
     assert result['ok'] == 1
     assert result['preflight']['feeders'][0]['barras_sin_alimentar'] == 2
     assert len(commands) == 1
@@ -492,3 +493,18 @@ def test_vista_previa_sin_georreferenciacion_se_rechaza_tambien_al_unir(client, 
                     json={'feeders': nombres[:2], 'unir': True, 'nombre': 'RED'})
     assert r.status_code == 400, r.text
     assert 'georreferenciación' in r.json()['detail']
+
+
+def test_el_arranque_no_abre_otro_servidor_si_el_puerto_esta_ocupado(capsys):
+    """Con otro servidor en el puerto, el arranque lo dice y sale con 2, sin abrir el viejo."""
+    import socket
+
+    from igea_dgs.web.__main__ import main, puerto_ocupado
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(('127.0.0.1', 0))
+        s.listen(8)
+        port = s.getsockname()[1]
+        assert puerto_ocupado('127.0.0.1', port)
+        assert main(['--port', str(port), '--no-browser']) == 2
+    assert 'Cierre esa ventana' in capsys.readouterr().err

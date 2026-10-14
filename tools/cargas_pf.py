@@ -503,7 +503,99 @@ def _en_sed(barra) -> bool:
         return False
 
 
-def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict]):
+def indice_de_cargas_nuevas(app, feeders) -> dict[tuple[str, str], dict]:
+    """``(alimentador, nombre)`` → variaciones de carga nueva que guardan esa carga (014:RF-23).
+
+    Se recorren una vez por trabajo todas las variaciones ``Carga_…`` del proyecto,
+    activas o no: ``ElmFeeder.GetObjs`` solo ve la red del caso activo, y una carga creada
+    antes en una variación apagada no se veía y se volvía a crear.
+    """
+    c011 = _casos_011()
+    carpeta = app.GetProjectFolder('scheme')
+    out: dict[tuple[str, str], dict] = {}
+    for v in (carpeta.GetContents('*.IntScheme', 1) if carpeta else []):
+        if not c011.es_de_carga_nueva(v):
+            continue
+        feeder = c011._de_alimentador(v.loc_name, 'Carga_', list(feeders))
+        if feeder is None:
+            continue
+        for etapa in v.GetContents('*.IntSstage'):
+            for carga in etapa.GetContents('*.ElmLod', 1):
+                d = out.setdefault((feeder, carga.loc_name), {'variaciones': [], 'carga': carga})
+                if v.loc_name not in d['variaciones']:
+                    d['variaciones'].append(v.loc_name)
+    return out
+
+
+def nombres_en_red(app, alims: Alimentadores, caso) -> set[str]:
+    """Cargas y SED de los alimentadores en la red de ``caso`` (014:RF-25), sin la caché."""
+    previo = app.GetActiveStudyCase()
+    if caso is not None and previo is not caso:
+        caso.Activate()
+    nombres: set[str] = set()
+    for f in alims.elegidos:
+        elm = alims.elm.get(f)
+        for clase in ('ElmLod', 'ElmSubstat'):
+            objs = (list(elm.GetObjs(clase)) if elm is not None
+                    else list(app.GetCalcRelevantObjects(f'*.{clase}')))
+            nombres.update(o.loc_name for o in objs)
+    if previo is not None and app.GetActiveStudyCase() is not previo:
+        previo.Activate()
+    return nombres
+
+
+def _diferencias_con_la_fila(sed: str, carga, fila: dict) -> list[str]:
+    """014:RF-28: la carga ya creada no se cambia; solo se dice en qué difiere del libro."""
+    avisos = []
+    try:
+        kw = potencia(carga)[0]
+    except Exception:  # noqa: BLE001 - sin potencia legible no hay con qué comparar
+        kw = None
+    if kw is not None and fila.get('kw') is not None and not math.isclose(
+            kw, float(fila['kw']), rel_tol=1e-3, abs_tol=0.01):
+        avisos.append(f"{sed}: ya creada con {kw:.1f} kW y el libro da {float(fila['kw']):.1f} kW; "
+                      'no se crea otra (014:RF-28).')
+    lat, lon = getattr(carga, 'GPSlat', None), getattr(carga, 'GPSlon', None)
+    if fila.get('lat') is not None and lat is not None and (
+            abs(float(lat) - float(fila['lat'])) > 1e-6 or abs(float(lon) - float(fila['lon'])) > 1e-6):
+        avisos.append(f"{sed}: ya creada en ({float(lat):.6f}, {float(lon):.6f}) y el libro la da en "
+                      f"({float(fila['lat']):.6f}, {float(fila['lon']):.6f}); no se crea otra (014:RF-28).")
+    return avisos
+
+
+def ya_creada(fila: dict, candidatos: list[str], existentes: set[str], ya: dict | None):
+    """La carga del libro ya existe: ``(no_creada, avisos)``, o ``None`` si hay que crearla.
+
+    014:RF-24 a RF-27: por su nombre en su alimentador; en una variación de carga nueva se
+    reutiliza esa variación, en dos o más no se toca ninguna, y en la red de «Con
+    proyecto» fuera de una variación tampoco se crea.
+    """
+    sed = fila['sed']
+    nombre = nombre_pf(sed)
+    indice = (ya or {}).get('indice') or {}
+    en_red = (ya or {}).get('red')
+    halladas = [indice[(f, nombre)] for f in candidatos if (f, nombre) in indice]
+    variaciones = sorted({v for d in halladas for v in d['variaciones']})
+    if len(variaciones) > 1:
+        return ({'sed': sed, 'motivo': 'ya existe en varias variaciones de carga nueva: no se crea '
+                                       'otra ni se cambia cuál está activa (014:RF-26)',
+                 'variaciones': variaciones},
+                [f"{sed}: está en {len(variaciones)} variaciones de carga nueva "
+                 f"({', '.join(variaciones)}); revise cuál vale (014:RF-26)."])
+    if variaciones:
+        return ({'sed': sed, 'motivo': f'ya existe en la variación {variaciones[0]}: se reutiliza, '
+                                       'activa en «Con proyecto» (014:RF-24)',
+                 'variacion': variaciones[0], 'reutilizada': True},
+                _diferencias_con_la_fila(sed, halladas[0]['carga'], fila))
+    if sed in existentes:
+        return {'sed': sed, 'motivo': 'ya existe en el alimentador (RF-15)'}, []
+    if en_red is not None and nombre in en_red:
+        return ({'sed': sed, 'motivo': 'ya existe en la red de «Con proyecto», fuera de una '
+                                       'variación de carga nueva (014:RF-25)'}, [])
+    return None
+
+
+def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict | None = None):
     """Cada carga nueva → cómo se conecta, o el motivo para no crearla. Solo lectura.
 
     Devuelve (resueltas por alimentador, no creadas, avisos). Solo se buscan barras en
@@ -540,8 +632,10 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict]):
                                                          'entre los alimentadores marcados (RF-29)'})
                 continue
             candidatos = [marcados[suyo.upper()]]
-        if sed in existentes:
-            no_creadas.append({'sed': sed, 'motivo': 'ya existe en el alimentador (RF-15)'})
+        repetida = ya_creada(fila, candidatos, existentes, ya)
+        if repetida is not None:
+            no_creadas.append(repetida[0])
+            avisos += repetida[1]
             continue
         punto = (fila['lat'], fila['lon']) if fila.get('lat') is not None else None
         eleccion = None
@@ -1036,7 +1130,32 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
         informe['avisos'].append('sin ElmFeeder (se buscó en todo el proyecto): '
                                  + ', '.join(alims.sin_elm))
     asignadas, omitidas, ambiguas = resolver_demandas(alims, plan.get('demandas') or [])
-    resueltas, no_creadas, avisos = resolver_nuevas(alims, proyecto, plan.get('nuevas') or [])
+    # 015:RF-16, RF-17, RF-28: las demandas van a «Sin proyecto» y las cargas nuevas a «Con
+    # proyecto», que se crean si faltan, solo con el «Caso base» verificado (014:RF-19).
+    # Al simular no se crea nada.
+    c011 = _casos_011()
+    casos = c011.tres_casos(app)
+    if not simular and not casos and (plan.get('nuevas') or plan.get('demandas')):
+        pedido = {'project': plan['project'], 'folder': plan.get('folder'),
+                  'feeders': list(plan['feeders'])}
+        if 'caso_base_sin_verificar' in plan:
+            pedido['caso_base_sin_verificar'] = plan['caso_base_sin_verificar']
+        preparados, rc = c011.preparar_con(app, pedido)
+        if rc:
+            return {**informe, 'error': preparados.get('error')}, 2
+        if any((preparados.get('casos') or {}).get(r, {}).get('creado') for r in ('sin', 'con')):
+            informe['casos_preparados'] = preparados.get('casos')
+        casos = c011.tres_casos(app)
+    # 014:RF-23: una vez por trabajo, no por carga.
+    ya = {'indice': indice_de_cargas_nuevas(app, alims.elegidos),
+          'red': nombres_en_red(app, alims, casos['con']) if casos else None}
+    resueltas, no_creadas, avisos = resolver_nuevas(alims, proyecto, plan.get('nuevas') or [], ya)
+    informe['reutilizadas'] = [x for x in no_creadas if x.get('reutilizada')]
+    duplicadas = {n for x in no_creadas for n in x.get('variaciones') or []}
+    por_nombre_var = {v.loc_name: v for v in (app.GetProjectFolder('scheme').GetContents('*.IntScheme', 1)
+                                              if app.GetProjectFolder('scheme') else [])}
+    reutilizadas = [por_nombre_var[x['variacion']] for x in informe['reutilizadas']
+                    if x['variacion'] in por_nombre_var] if casos else []
     informe['sin_alimentador'], informe['ambiguas'], informe['no_creadas'] = omitidas, ambiguas, no_creadas
     informe['avisos'] += avisos
     carpeta = app.GetProjectFolder('scheme')
@@ -1046,7 +1165,8 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
     if simular:
         usados: set[str] = set()
         if any(asignadas.values()):
-            informe['variacion_demandas'] = nombre_libre(carpeta, 'IntScheme', nombre_demandas)
+            # 015:RF-27: las demandas, en el escenario de «Sin proyecto», sin variación.
+            informe['demandas_en'] = c011.NOMBRES['sin']
         for feeder in alims.elegidos:
             informe['feeders'].append({
                 'feeder': feeder,
@@ -1061,6 +1181,15 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
 
     if not any(asignadas.values()) and not any(resueltas.values()):
         informe['avisos'].append('Nada que aplicar: ninguna fila coincide en el proyecto.')
+        if reutilizadas:
+            # 014:RF-24: todas las del libro ya existían; sus variaciones, activas en «Con
+            # proyecto» igualmente.
+            previo = app.GetActiveStudyCase()
+            casos['con'].Activate()
+            for v in reutilizadas:
+                v.Activate()
+            if previo is not None:
+                previo.Activate()
         # Sin esto la web decía «al terminar: ninguna» con el ajuste aún activo (2026-10-13).
         informe['variaciones_activas_fin'] = variaciones_activas(app)
         return informe, 0
@@ -1069,8 +1198,6 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
     # la variación. Se desactiva sin guardar —este proceso no tiene cambios propios en
     # él— y se vuelve a activar al final. Con los tres casos de la spec 011, cada caso
     # tiene el suyo, y se apaga el del caso en que se escribe.
-    c011 = _casos_011()
-    casos = c011.tres_casos(app)
     inicial = app.GetActiveStudyCase()
     apagados: list = []
 
@@ -1084,7 +1211,11 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
 
     if casos:
         informe['casos'] = {'demandas': c011.NOMBRES['sin'], 'cargas': c011.NOMBRES['con']}
-    entrar(casos['sin'] if casos else None)
+        # 015:RF-27: en «Sin proyecto» las demandas se escriben con su escenario activo,
+        # que es donde quedan; ninguna variación graba allí.
+        casos['sin'].Activate()
+    else:
+        entrar(None)
     dem_var = None
     previas_con: list = []
     fallos = 0
@@ -1097,11 +1228,14 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
             v.Activate()
         informe['base_activada'] = [v.loc_name for v in variaciones_base]
 
-        # Fase 1, demandas (RF-19, RF-35): su variación queda activa, en el estado sin proyecto.
-        if any(asignadas.values()):
+        # Fase 1, demandas (RF-19, RF-35): con los tres casos, en el escenario de «Sin
+        # proyecto» (015:RF-27); sin ellos, en su variación, como antes de la 015.
+        if any(asignadas.values()) and not casos:
             variacion, _etapa = crear_variacion(app, nombre_demandas, stamp)
             dem_var = variacion
             informe['variacion'] = informe['variacion_demandas'] = variacion.loc_name
+        elif any(asignadas.values()):
+            informe['demandas_en'] = c011.NOMBRES['sin']
         for feeder in alims.elegidos:
             if cancelado():
                 informe['cancelado'] = True
@@ -1129,11 +1263,21 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
             # RF-52: las cargas en «Con proyecto», sobre la base y las demandas. Las cargas
             # de otras aplicaciones se apagan mientras tanto: la referencia sin proyecto
             # de cada carga es la base (007:RF-32), y se vuelven a encender al final.
+            # 014:RF-21, RF-22: antes, lo que el operador tiene activo en «Sin proyecto».
+            informe['variaciones_operador_activadas'] = c011.operador_a_con_proyecto(app, casos)
+            if informe['variaciones_operador_activadas']:
+                informe['avisos'].append(
+                    'Activadas en «Con proyecto» porque están activas en «Sin proyecto»: '
+                    + ', '.join(informe['variaciones_operador_activadas']))
             entrar(casos['con'])
             for v in variaciones_base + ([dem_var] if dem_var is not None else []):
                 v.Activate()
             todas = carpeta.GetContents('*.IntScheme', 1) if carpeta else []
             previas_con = c011.clasificar(todas, list(alims.elegidos), [], None)['cargas']
+            activas_con_antes = {v.loc_name for v in previas_con if v in app.GetActiveNetworkVariations()}
+            # 014:RF-26: una carga repetida en varias variaciones no cambia cuáles están activas.
+            previas_con = [v for v in previas_con
+                           if v.loc_name not in duplicadas or v.loc_name in activas_con_antes]
             for v in previas_con:
                 v.Deactivate()
         if con_cargas and not informe['cancelado']:
@@ -1194,6 +1338,10 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
             # RF-54 y 011:RF-8: «Con proyecto» con las demandas y con todas las cargas.
             casos['con'].Activate()
             for v in ([dem_var] if dem_var is not None else []) + previas_con + de_cargas:
+                v.Activate()
+            # 014:RF-24: la variación de una carga que ya existía queda activa en «Con
+            # proyecto», también si no se creó ninguna otra.
+            for v in reutilizadas:
                 v.Activate()
             if inicial is not None:
                 inicial.Activate()

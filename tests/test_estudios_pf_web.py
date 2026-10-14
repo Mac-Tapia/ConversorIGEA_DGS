@@ -87,7 +87,7 @@ def test_plan_sobre_la_base_del_ultimo_ajuste(client):
     assert plan['feeders'] == ['A1', 'A3']
     motivos = {x['feeder']: x['motivo'] for x in plan['excluidos']}
     assert set(motivos) == {'A2', 'A4'} and 'no converge' in motivos['A2']
-    assert 'variación de ajuste' in motivos['A4']
+    assert 'no está calibrado' in motivos['A4']
     assert any('A3' in a and 'no cuadró' in a for a in plan['avisos'])
 
 

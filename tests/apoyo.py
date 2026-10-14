@@ -22,8 +22,13 @@ def contexto_nativo(project: str, feeders: list[str] | tuple[str, ...], action: 
     return build_native_action_context({'project': project}, project, feeders, action)
 
 
-def vincular_proyecto(client, wid: str, project: str, feeders) -> None:
-    """Registra en un workspace de prueba el proyecto releído para su fuente activa."""
+def vincular_proyecto(client, wid: str, project: str, feeders, *,
+                      sin_verificar: tuple[str, ...] = ()) -> None:
+    """Registra en un workspace de prueba el proyecto releído para su fuente activa.
+
+    Con el «Caso base» de cada alimentador verificado (spec 015), salvo los de
+    ``sin_verificar``.
+    """
     from igea_dgs.powerfactory_binding import PowerFactoryProjectBinding
 
     project = str(project or '').strip()
@@ -43,7 +48,11 @@ def vincular_proyecto(client, wid: str, project: str, feeders) -> None:
         source_mode='txt', source_fingerprint='f' * 64, feeders=bound,
         dgs_sha256={feeder: 'd' * 64 for feeder in bound},
         native_inventory_sha256='n' * 64,
-        native_reread={'status': 'VERIFICADO_PERSISTENCIA'}, accepted_at=1.0,
+        native_reread={'status': 'VERIFICADO_PERSISTENCIA', 'caso_base': {
+            feeder: ({'status': 'NO_VERIFICADO', 'fallos': ['flujo']} if feeder in sin_verificar
+                     else {'status': 'VERIFICADO', 'fallos': []})
+            for feeder in bound}},
+        accepted_at=1.0,
     )
     ws.pf_project_bindings[project] = binding.as_dict()
 

@@ -197,6 +197,8 @@ def test_successful_acceptance_attaches_source_to_native_project_binding(tmp_pat
     report = {
         'powerfactory_runtime_pass': True,
         'effective_reread': {'feeder_metadata': True, 'comldf_valid': True},
+        # Spec 015: el vínculo queda verificado solo con el «Caso base» verificado.
+        'caso_base': {'status': 'VERIFICADO', 'comprobaciones': {'flujo': {'pass': True}}},
     }
     module.attach_project_binding(
         report,

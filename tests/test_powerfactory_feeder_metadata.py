@@ -228,3 +228,21 @@ def test_apply_assignment_rolls_back_if_a_write_fails():
     with pytest.raises(RuntimeError, match='SetAttribute failed'):
         apply_feeder_assignment_plan(plan)
     assert one.GetUserAttribute('alimentador') == ['']
+
+
+def test_metadatos_sin_red_se_resuelven_sin_ella():
+    """Metadatos de antes de que la identidad llevara la red (CA101 del 13/10 a las 12:18):
+    sin ``grid`` en el registro, la carga dentro de una SED de la red «CA101» se resuelve
+    igual; con dos candidatas, sigue siendo ambigua."""
+    red = _RuntimeObject('ElmNet', 'CA101')
+    sed = _RuntimeObject('ElmSubstat', 'SE21194', substation=red)
+    carga = _RuntimeObject('ElmLod', 'SE21194', 'SE21194_BT', sed)
+    record = _assignment('ElmLod', 'SE21194', 'CA101', 'SE21194_BT', 'SE21194')
+    plan = resolve_feeder_assignments([record], [carga])
+    assert [item.record.feeder for item in plan] == ['CA101']
+
+    otra_red = _RuntimeObject('ElmNet', 'PE104')
+    otra_sed = _RuntimeObject('ElmSubstat', 'SE21194', substation=otra_red)
+    gemela = _RuntimeObject('ElmLod', 'SE21194', 'SE21194_BT', otra_sed)
+    with pytest.raises(PowerFactoryMetadataError, match='ambiguos'):
+        resolve_feeder_assignments([record], [carga, gemela])

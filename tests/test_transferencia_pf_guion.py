@@ -129,7 +129,8 @@ def _red(rng, *, n=None, seccionadores=(), otros=(), escenario=False):
         ajustes.append({'feeder': f, 'variacion': v.loc_name, 'cuadrado': True})
     base = {'variaciones': [x['variacion'] for x in ajustes], 'feeders': ['A', 'B'],
             'ajustes': ajustes, 'excluidos': []}
-    informe, codigo = casos_pf.preparar(app, {'project': 'P', 'feeders': ['A', 'B'], 'base': base})
+    informe, codigo = casos_pf.preparar(app, {'project': 'P', 'feeders': ['A', 'B'], 'base': base,
+                                              'caso_base_sin_verificar': {}})
     assert codigo == 0, informe
     a, b = _alim(app, 'A'), _alim(app, 'B')
     fin_a, fin_b = _por_indice(a.GetObjs('ElmTerm'))[-1], _por_indice(b.GetObjs('ElmTerm'))[-1]

@@ -111,28 +111,93 @@ def _de_alimentador(nombre: str, prefijo: str, feeders: list[str]) -> str | None
     return None
 
 
+def objetos_de_variacion(variacion) -> list[tuple[str, str]]:
+    """``(clase, nombre)`` de lo que graban las etapas de una variación (spec 014).
+
+    Recursivo dentro de cada etapa: la carga nueva de la 007 cuelga de la SED que la etapa
+    crea. Se lee una vez por variación y por trabajo, no por carga.
+    """
+    out = []
+    for etapa in variacion.GetContents('*.IntSstage'):
+        out += [(o.GetClassName(), o.loc_name) for o in etapa.GetContents('*', 1)]
+    return out
+
+
+def es_ajuste_puro(variacion) -> bool:
+    """Un ``Ajuste_…`` cuyas etapas solo cambian cargas: lo dejó el ajuste y nada más.
+
+    CA101 (2026-10-14): el operador cambió el tipo de cuatro transformadores con
+    ``Ajuste_CA101_20261013_203247_3`` grabando, y los ajustes siguientes lo desactivaron
+    por su nombre. Una variación así es del operador (014:RF-3).
+    """
+    return (variacion.loc_name.startswith('Ajuste_')
+            and all(clase == 'ElmLod' for clase, _ in objetos_de_variacion(variacion)))
+
+
+def es_de_carga_nueva(variacion) -> bool:
+    """Variación de una carga nueva de la spec 007 (``Carga_<SED>_<alim>_…``)."""
+    return variacion.loc_name.startswith('Carga_')
+
+
+def es_del_operador(variacion) -> bool:
+    """Ni de carga nueva ni ajuste puro: se conserva tal como la dejó el operador (spec 014)."""
+    return not es_de_carga_nueva(variacion) and not es_ajuste_puro(variacion)
+
+
 def clasificar(variaciones, feeders: list[str], base: list[str], demandas: str | None) -> dict:
     """Separa las variaciones del proyecto por su papel en los casos.
 
     - ``base``: las del último ajuste (las que da el plan) y la de demandas.
     - ``cargas``: las de cargas nuevas de los alimentadores marcados (``Carga_<SED>_<alim>_…``,
       spec 007, RF-10).
-    - ``anteriores``: otros ajustes de esos alimentadores (``Ajuste_<alim>_…``), que se
-      desactivan sin borrar (RF-50).
+    - ``anteriores``: otros ajustes puros de esos alimentadores (``Ajuste_<alim>_…`` que solo
+      cambian cargas), que se desactivan sin borrar (RF-50).
+    - ``operador``: cualquier otra, también un ajuste que grabó cambios del operador; no se
+      desactiva nunca (014:RF-3, RF-15, RF-20).
     """
     nombres_base = set(base) | ({demandas} if demandas else set())
-    out = {'base': [], 'cargas': [], 'anteriores': []}
+    out = {'base': [], 'cargas': [], 'anteriores': [], 'operador': []}
     for v in variaciones:
         n = v.loc_name
         if n in nombres_base:
             out['base'].append(v)
-        elif _de_alimentador(n, 'Ajuste_', feeders):
-            out['anteriores'].append(v)
-        elif n.startswith('Carga_') and _de_alimentador(n, 'Carga_', feeders):
-            out['cargas'].append(v)
+        elif es_de_carga_nueva(v):
+            if _de_alimentador(n, 'Carga_', feeders):
+                out['cargas'].append(v)
+        elif es_ajuste_puro(v):
+            if _de_alimentador(n, 'Ajuste_', feeders):
+                out['anteriores'].append(v)
+        else:
+            out['operador'].append(v)
     for k in out:
         out[k].sort(key=lambda v: v.loc_name)
     return out
+
+
+def operador_a_con_proyecto(app, casos: dict, variaciones=None) -> list[str]:
+    """Activa en «Con proyecto» las variaciones del operador activas en «Sin proyecto».
+
+    014:RF-21: «Con proyecto» es «Sin proyecto» más las cargas nuevas; un cambio que el
+    operador grabó en «Sin proyecto» después de copiarlo también tiene que estar. Solo
+    activa, nunca apaga. Devuelve los nombres activados (014:RF-22). Deja activo el caso
+    que lo estaba.
+    """
+    previo = app.GetActiveStudyCase()
+    casos['sin'].Activate()
+    en_sin = [v for v in (app.GetActiveNetworkVariations() or []) if es_del_operador(v)]
+    if variaciones is not None:
+        nombres = {v.loc_name for v in variaciones}
+        en_sin = [v for v in en_sin if v.loc_name in nombres]
+    casos['con'].Activate()
+    ya = {v.loc_name for v in (app.GetActiveNetworkVariations() or [])}
+    activadas = []
+    for v in en_sin:
+        if v.loc_name not in ya:
+            v.Activate()
+            activadas.append(v.loc_name)
+    if previo is not None:
+        previo.Activate()
+    return sorted(activadas)
 
 
 def _dejar_activas(app, caso, activas: list, inactivas: list) -> list[str]:
@@ -170,26 +235,167 @@ def _escenario_propio(app, caso, rol: str, origen) -> str:
 
 
 # =========================================================================== preparar
-def preparar(app, plan: dict) -> tuple[dict, int]:
-    """Deja los tres casos. Devuelve (informe, código de salida)."""
-    informe = {'project': plan.get('project'), 'avisos': [], 'excluidos': [], 'casos': {}}
+def _sin_verificar(plan: dict, feeders: list[str]) -> list[str]:
+    """Alimentadores de ``feeders`` cuyo «Caso base» no está verificado (015:RF-17).
+
+    El estado lo pone la web desde el vínculo del proyecto (``caso_base_sin_verificar``);
+    un plan que no lo trae es de antes de la spec 015 y no se da por verificado.
+    """
+    if 'caso_base_sin_verificar' not in plan:
+        return list(feeders) or ['(sin estado del «Caso base»)']
+    fuera = plan.get('caso_base_sin_verificar') or {}
+    return [f for f in feeders if f in fuera]
+
+
+def caso(app, rol: str):
+    """El caso del sistema con ese rol, o ``None``."""
+    return casos_del_proyecto(app).get(rol)
+
+
+def _ajenos(app) -> list[str]:
+    carpeta = app.GetProjectFolder('study')
+    casos = casos_del_proyecto(app)
+    return [c.loc_name for c in carpeta.GetContents('*.IntCase')
+            if c.loc_name in NOMBRES.values() and c not in casos.values()]
+
+
+def _de_carga_nueva(app) -> list:
+    carpeta = app.GetProjectFolder('scheme')
+    return [v for v in (carpeta.GetContents('*.IntScheme', 1) if carpeta else [])
+            if es_de_carga_nueva(v)]
+
+
+def preparar_sin(app, plan: dict) -> tuple[dict, int]:
+    """«Sin proyecto» como copia del «Caso base» verificado (015:RF-16 a RF-18, RF-27).
+
+    Solo con el «Caso base» verificado. Si aún no hay casos, el activo pasa a ser el
+    «Caso base»; «Sin proyecto» sale de él con una copia de su escenario de operación y
+    sin activar ninguna variación: las modificaciones del operador se graban en la red
+    (RF-27). Una vez creado, el «Caso base» no se vuelve a tocar (RF-19).
+    """
+    informe = {'project': plan.get('project'), 'avisos': [], 'casos': {}}
     proyecto = activar_proyecto(app, plan['project'], plan.get('folder'))
     if proyecto is None:
         return {**informe, 'error': f"no existe el proyecto {plan['project']!r} en DIgSILENT"}, 2
+    fuera = _sin_verificar(plan, list(plan.get('feeders') or []))
+    if fuera:
+        return {**informe, 'error': 'El «Caso base» de ' + ', '.join(fuera) + ' no está '
+                                    'verificado: verifíquelo (paso 1.1) antes de crear «Sin '
+                                    'proyecto» (015:RF-17).'}, 2
+    ajenos = _ajenos(app)
+    if ajenos:
+        return {**informe, 'error': 'Hay en el proyecto un caso de estudio que no creó el sistema '
+                                    'con el nombre ' + ', '.join(f'«{n}»' for n in ajenos)
+                                    + ': renómbrelo en DIgSILENT y vuelva a preparar.'}, 2
+    carpeta = app.GetProjectFolder('study')
+    casos = casos_del_proyecto(app)
+    inicial = app.GetActiveStudyCase()
+    try:
+        caso_base = casos.get('base') or inicial
+        creado_base = 'base' not in casos
+        sin = casos.get('sin')
+        if sin is None:
+            if creado_base:
+                caso_base.loc_name = NOMBRES['base']
+                _marcar(caso_base, 'base')
+            caso_base.Activate()
+            # 014:RF-16: ninguna carga nueva en el base ni, por tanto, en su copia.
+            for v in _de_carga_nueva(app):
+                v.Deactivate()
+            if app.GetActiveScenario() is None:
+                _escenario_propio(app, caso_base, 'base', None)
+            sin = carpeta.AddCopy(caso_base, NOMBRES['sin'])
+            _marcar(sin, 'sin')
+        caso_base.Activate()
+        activas_base = sorted(v.loc_name for v in (app.GetActiveNetworkVariations() or []))
+        esc_base = app.GetActiveScenario()
+        informe['casos']['base'] = {
+            'nombre': caso_base.loc_name, 'creado': creado_base, 'variaciones': activas_base,
+            'escenario': esc_base.loc_name if esc_base is not None else None}
+        if activas_base:
+            # 015:RF-31: se avisa y no se toca; son del operador.
+            informe['avisos'].append('Variaciones activas en el «Caso base»: '
+                                     + ', '.join(activas_base))
+        informe['casos']['sin'] = {
+            'nombre': sin.loc_name, 'creado': 'sin' not in casos,
+            'escenario': _escenario_propio(app, sin, 'sin', esc_base),
+            'variaciones': sorted(v.loc_name for v in (app.GetActiveNetworkVariations() or [])),
+            'estudiable': True}
+    finally:
+        if inicial is not None:
+            inicial.Activate()
+    return informe, 0
 
+
+def preparar_con(app, plan: dict) -> tuple[dict, int]:
+    """«Con proyecto» como copia de «Sin proyecto», antes de insertar cargas (015:RF-28).
+
+    Con su propio escenario, copia del de «Sin proyecto». Activa las cargas nuevas de los
+    alimentadores marcados y lo que el operador tenga activo en «Sin proyecto»
+    (014:RF-21); los ajustes puros de antes de la spec 015 se desactivan sin borrar.
+    """
+    informe, rc = preparar_sin(app, plan)
+    if rc:
+        return informe, rc
+    carpeta = app.GetProjectFolder('study')
+    casos = casos_del_proyecto(app)
+    sin = casos['sin']
+    carpeta_var = app.GetProjectFolder('scheme')
+    todas = carpeta_var.GetContents('*.IntScheme', 1) if carpeta_var else []
+    grupos = clasificar(todas, list(plan.get('feeders') or []), [], None)
+    inicial = app.GetActiveStudyCase()
+    try:
+        con = casos.get('con')
+        if con is None:
+            con = carpeta.AddCopy(sin, NOMBRES['con'])
+            _marcar(con, 'con')
+        estudiable = bool(grupos['cargas'])
+        escenario_con = _escenario_propio(app, con, 'con', _escenario_de(app, sin))
+        _dejar_activas(app, con, grupos['cargas'], grupos['anteriores'])
+        del_operador = operador_a_con_proyecto(app, {'sin': sin, 'con': con})
+        con.Activate()
+        informe['casos']['con'] = {
+            'nombre': con.loc_name, 'creado': 'con' not in casos, 'escenario': escenario_con,
+            'variaciones': sorted(v.loc_name for v in (app.GetActiveNetworkVariations() or [])),
+            'variaciones_operador_activadas': del_operador, 'estudiable': estudiable}
+        if not estudiable:
+            informe['avisos'].append('Ningún alimentador marcado tiene cargas nuevas: «Con '
+                                     'proyecto» queda igual que «Sin proyecto» y no se estudia.')
+        if grupos['anteriores']:
+            informe['avisos'].append(
+                'Ajustes de antes de la spec 015 desactivados en «Con proyecto» (siguen en el '
+                'proyecto): ' + ', '.join(v.loc_name for v in grupos['anteriores']))
+        if del_operador:
+            informe['avisos'].append('Activadas en «Con proyecto» porque están activas en «Sin '
+                                     'proyecto»: ' + ', '.join(del_operador))
+    finally:
+        if inicial is not None:
+            inicial.Activate()
+    return informe, 0
+
+
+def preparar(app, plan: dict) -> tuple[dict, int]:
+    """Los tres casos para los estudios (spec 011 con la 015). Devuelve (informe, código).
+
+    Los alimentadores sin calibrar quedan fuera con su motivo; el que no cuadró, con
+    aviso (011:RF-14, RF-15). La calibración ya no es una variación: está en el
+    escenario de «Sin proyecto» (015:RF-26).
+    """
     base = plan.get('base') or {}
-    if not base.get('variaciones'):
-        return {**informe, 'error': 'El proyecto no tiene ningún ajuste a la máxima aplicado: '
-                                    'primero hay que calibrar (paso 2).'}, 2
-
     marcados = list(plan.get('feeders') or [])
     ajustados = {a['feeder']: a for a in base.get('ajustes') or []}
-    informe['excluidos'] = list(base.get('excluidos') or [])
-    ya_fuera = {x['feeder'] for x in informe['excluidos']}
+    excluidos = list(base.get('excluidos') or [])
+    ya_fuera = {x['feeder'] for x in excluidos}
     for f in marcados:
         if f not in ajustados and f not in ya_fuera:
-            informe['excluidos'].append({'feeder': f, 'motivo': 'no tiene variación de ajuste'})
+            excluidos.append({'feeder': f, 'motivo': 'no está calibrado'})
     feeders = [f for f in marcados if f in ajustados]
+    if not feeders:
+        return {'project': plan.get('project'), 'avisos': [], 'excluidos': excluidos, 'casos': {},
+                'error': 'Ningún alimentador marcado está calibrado: primero hay que calibrar '
+                         '(paso 2).'}, 2
+    informe, rc = preparar_con(app, {**plan, 'feeders': feeders})
+    informe['excluidos'] = excluidos
     informe['feeders'] = feeders
     for f in feeders:
         a = ajustados[f]
@@ -198,78 +404,7 @@ def preparar(app, plan: dict) -> tuple[dict, int]:
             informe['avisos'].append(
                 f"{f}: su ajuste no cuadró (error en la cabecera {_pct(d.get('kw'))} en kW, "
                 f"{_pct(d.get('kvar'))} en kVAR); se estudia igual.")
-
-    carpeta_var = app.GetProjectFolder('scheme')
-    todas = carpeta_var.GetContents('*.IntScheme', 1) if carpeta_var else []
-    por_nombre = {v.loc_name for v in todas}
-    demandas = plan.get('variacion_demandas')
-    faltan = [n for n in list(base['variaciones']) + ([demandas] if demandas else [])
-              if n not in por_nombre]
-    if faltan:
-        return {**informe, 'error': 'Ya no están en el proyecto estas variaciones de la base: '
-                                    + ', '.join(faltan) + '. Vuelva a calibrar.'}, 2
-
-    carpeta = app.GetProjectFolder('study')
-    casos = casos_del_proyecto(app)
-    ajenos = [c.loc_name for c in carpeta.GetContents('*.IntCase')
-              if c.loc_name in NOMBRES.values() and c not in casos.values()]
-    if ajenos:
-        return {**informe, 'error': 'Hay en el proyecto un caso de estudio que no creó el sistema '
-                                    'con el nombre ' + ', '.join(f'«{n}»' for n in ajenos)
-                                    + ': renómbrelo en DIgSILENT y vuelva a preparar.'}, 2
-
-    grupos = clasificar(todas, feeders, list(base['variaciones']), demandas)
-    calibrada = grupos['base']
-    no_base = grupos['cargas'] + grupos['anteriores']
-    inicial = app.GetActiveStudyCase()
-    try:
-        # Caso base: el de la calibración, o el que ya se marcó como tal.
-        caso_base = casos.get('base') or inicial
-        creado_base = 'base' not in casos
-        if creado_base:
-            caso_base.loc_name = NOMBRES['base']
-            _marcar(caso_base, 'base')
-        caso_base.Activate()
-        esc_original = app.GetActiveScenario()
-        activas = _dejar_activas(app, caso_base, [], calibrada + no_base)
-        informe['casos']['base'] = {'nombre': caso_base.loc_name, 'creado': creado_base,
-                                    'variaciones': activas,
-                                    'escenario': _escenario_propio(app, caso_base, 'base', None)
-                                    if esc_original is None else esc_original.loc_name}
-
-        # Sin proyecto: copia del base (ya limpio), con la base calibrada.
-        sin = casos.get('sin')
-        if sin is None:
-            sin = carpeta.AddCopy(caso_base, NOMBRES['sin'])
-            _marcar(sin, 'sin')
-        esc_base = _escenario_de(app, caso_base)
-        informe['casos']['sin'] = {
-            'nombre': sin.loc_name, 'creado': 'sin' not in casos,
-            'escenario': _escenario_propio(app, sin, 'sin', esc_base),
-            'variaciones': _dejar_activas(app, sin, calibrada, no_base), 'estudiable': True}
-
-        # Con proyecto: copia de «Sin proyecto», con todas las cargas nuevas.
-        con = casos.get('con')
-        if con is None:
-            con = carpeta.AddCopy(sin, NOMBRES['con'])
-            _marcar(con, 'con')
-        estudiable = bool(grupos['cargas'])
-        informe['casos']['con'] = {
-            'nombre': con.loc_name, 'creado': 'con' not in casos,
-            'escenario': _escenario_propio(app, con, 'con', _escenario_de(app, sin)),
-            'variaciones': _dejar_activas(app, con, calibrada + grupos['cargas'], grupos['anteriores']),
-            'estudiable': estudiable}
-        if not estudiable:
-            informe['avisos'].append('Ningún alimentador marcado tiene cargas nuevas: «Con '
-                                     'proyecto» queda igual que «Sin proyecto» y no se estudia.')
-        if grupos['anteriores']:
-            informe['avisos'].append(
-                'Ajustes anteriores desactivados en «Sin proyecto» y «Con proyecto» (siguen en el '
-                'proyecto): ' + ', '.join(v.loc_name for v in grupos['anteriores']))
-    finally:
-        if inicial is not None:
-            inicial.Activate()
-    return informe, 0
+    return informe, rc
 
 
 def _escenario_de(app, caso):

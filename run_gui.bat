@@ -46,11 +46,18 @@ if errorlevel 1 (
 
 echo Abriendo la interfaz web en el navegador...
 "%PY%" -m igea_dgs.web
+if errorlevel 2 (
+  echo.
+  echo El puerto 8765 ya esta en uso: cierre la otra ventana del Conversor y vuelva a abrirlo.
+  pause
+  goto :fin
+)
 if errorlevel 1 (
   echo.
   echo Si faltan librerias:  "%PY%" -m pip install -r requirements.txt
   pause
 )
+:fin
 endlocal
 exit /b 0
 

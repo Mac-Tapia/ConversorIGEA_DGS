@@ -201,14 +201,21 @@ def _kva_valido(v: Any) -> float | None:
 
 
 def reparto_inicial(objetivo: Objetivo, fijas: Mapping[str, Fija],
-                    kva: Mapping[str, Any]) -> Reparto:
-    """El reparto que da el objetivo sin pérdidas.
+                    cargas: Mapping[str, tuple[float, float]],
+                    kva: Mapping[str, Any] | None = None) -> Reparto:
+    """El reparto que da el objetivo sin pérdidas, con el factor de escala de DIgSILENT.
 
-    ``kva`` tiene una entrada por cada carga de SED del alimentador en DIgSILENT, con el
-    nombre que tiene allí: es la lista de SED. Las fijas se buscan en ella por su código.
+    ``cargas`` tiene una entrada por cada carga de SED del alimentador en DIgSILENT, con el
+    nombre que tiene allí y su P y Q del archivo original (kW, kVAR): es la lista de SED.
+    Las fijas (clientes importantes) se buscan en ella por su código y llevan su P y Q
+    (015:RF-43). Las demás conservan su P y Q y escalan todas con el mismo factor, el
+    ``scale0`` de DIgSILENT (015:RF-44): el usuario, el 2026-10-14, «las escaladas se
+    multiplican por el factor de escala hasta cuadrar con la máxima». Antes se repartían
+    por kVA y se reescribía su P y Q. Se cuadra el kW; el kVAR de cada escalada sigue su
+    propio factor de potencia, porque el factor de escala mueve P y Q juntas.
     """
-    por_clave = {clave_codigo(s): s for s in kva}
-    kvas = {s: _kva_valido(v) for s, v in kva.items()}
+    por_clave = {clave_codigo(s): s for s in cargas}
+    kvas = {s: _kva_valido((kva or {}).get(s)) for s in cargas}
     fijas_pf: dict[str, tuple[float, float]] = {}
     omitidas, avisos = [], []
     for f in fijas.values():
@@ -219,55 +226,37 @@ def reparto_inicial(objetivo: Objetivo, fijas: Mapping[str, Fija],
             continue
         fijas_pf[sed] = (f.kw, f.kvar)
         avisos += [f'{sed}: {a}' for a in f.avisos]
-    repartir = [s for s in kva if s not in fijas_pf]
-    sin_kva = [s for s in repartir if kvas[s] is None]
-    if sin_kva:
-        raise AjusteError(
-            f'{len(sin_kva)} SED sin potencia instalada ni en DIgSILENT ni en la entrada '
-            f'original: {", ".join(sin_kva[:50])}. Corríjalas antes de ajustar.')
-    origen = {s: ('cliente' if s in fijas_pf else 'kva') for s in kva}
-    kva_r = {s: kvas[s] or 0.0 for s in repartir}       # ya comprobado: ninguno es None
-    kva_rep = sum(kva_r.values())
+    base = {s: (float(p or 0.0), float(q or 0.0)) for s, (p, q) in cargas.items()
+            if s not in fijas_pf}
+    ceros = sorted(s for s, (p, _) in base.items() if p <= 0)
+    if ceros:
+        # 015:RF-45: sin demanda en el archivo, el factor de escala la deja en cero.
+        avisos.append(f'{len(ceros)} SED escaladas sin demanda en el archivo original: quedan '
+                      'en cero: ' + ', '.join(ceros[:50]))
+    origen = {s: ('cliente' if s in fijas_pf else 'escala') for s in cargas}
     p_fijas = sum(p for p, _ in fijas_pf.values())
-    q_fijas = sum(q for _, q in fijas_pf.values())
-    p_falta, q_falta = objetivo.kw - p_fijas, objetivo.kvar - q_fijas
+    p_base = sum(p for p, _ in base.values())
+    p_falta = objetivo.kw - p_fijas
+    if p_falta > 0 and p_base > 0:
+        a = p_falta / p_base
+        return Reparto(fijas=fijas_pf, base=base, origen=origen, kva=kvas, a=a, b=a,
+                       solo_kw=True, omitidas=omitidas, avisos=avisos)
 
-    if p_falta > 0 and kva_rep > 0:
-        solo_kw = q_falta < 0
-        if solo_kw:
-            avisos.append(f'El kVAR que falta por repartir es negativo ({q_falta:,.1f}): se '
-                          'cuadra solo el kW y las SED repartidas llevan el FP del objetivo '
-                          f'({objetivo.fp:.3f}).')
-        base = {s: (k, k * objetivo.tan_phi if solo_kw else k) for s, k in kva_r.items()}
-        a = p_falta / kva_rep
-        return Reparto(fijas=fijas_pf, base=base, origen=origen, kva=kvas, a=a,
-                       b=a if solo_kw else q_falta / kva_rep, solo_kw=solo_kw,
-                       omitidas=omitidas, avisos=avisos)
-
-    # Los clientes ya llenan la cabecera, o no queda SED que repartir: escala todo (RF-13).
-    # Las repartidas parten de la utilización media de las fijas, para que «junto con
-    # las demás» no las deje en cero.
-    kva_fij = sum(kvas[s] or 0.0 for s in fijas_pf)
-    uso = p_fijas / kva_fij if kva_fij else 0.0
-    base = dict(fijas_pf)
-    for s, k in kva_r.items():
-        p = uso * k
-        base[s] = (p, p * objetivo.tan_phi)
-    bp = sum(p for p, _ in base.values())
-    bq = sum(q for _, q in base.values())
+    # Los clientes ya llenan la cabecera, o no queda demanda que escalar: escala todo
+    # (RF-13), las fijas con su P y Q como punto de partida.
+    todo = {**base, **fijas_pf}
+    bp = sum(p for p, _ in todo.values())
     if bp <= 0:
-        raise AjusteError('No hay demanda que escalar: ninguna SED con clientes importantes '
-                          'tiene potencia ni hay SED que repartir.')
-    solo_kw = objetivo.kvar < 0 or bq <= 0
+        raise AjusteError('No hay demanda que escalar: ninguna SED tiene demanda en el archivo '
+                          'original ni clientes importantes con potencia.')
     avisos.append(
         f'Los clientes importantes suman {p_fijas:,.1f} kW frente a un objetivo de '
         f'{objetivo.kw:,.1f} kW: se escalan todas las SED, también las suyas.'
-        if repartir else
+        if base else
         'Todas las SED del alimentador tienen clientes importantes: se escalan sus demandas.')
     a = objetivo.kw / bp
-    return Reparto(fijas={}, base=base, origen=origen, kva=kvas, a=a,
-                   b=a if solo_kw else objetivo.kvar / bq, todo_escala=True, solo_kw=solo_kw,
-                   omitidas=omitidas, avisos=avisos)
+    return Reparto(fijas={}, base=todo, origen=origen, kva=kvas, a=a, b=a, todo_escala=True,
+                   solo_kw=True, omitidas=omitidas, avisos=avisos)
 
 
 # =========================================================================== cuadre
@@ -291,8 +280,8 @@ ESCALERA: tuple[tuple[str, dict[str, Any]], ...] = (
     ('acercarse en pasos', {}),
     ('más iteraciones', {'itrlx': ('x', 3)}),
     ('paso automático', {'iStepAdapt': 1}),
-    ('adaptación automática del modelo y cargas dependientes de la tensión',
-     {'iopt_lev': 1, 'iopt_pq': 1}),
+    # 015:RF-42: las cargas son PQ; no se activa su dependencia de la tensión (iopt_pq).
+    ('adaptación automática del modelo', {'iopt_lev': 1}),
 )
 #: Flujos que no convergen con cada remedio antes de pasar al siguiente; con cada uno se
 #: parte el paso a la mitad.

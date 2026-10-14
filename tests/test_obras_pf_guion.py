@@ -213,7 +213,8 @@ def _calibrada(rng, n_min=2, cargas_min=2):
         ajustes.append({'feeder': f, 'variacion': v.loc_name, 'cuadrado': True})
     base = {'variaciones': [a['variacion'] for a in ajustes], 'feeders': list(alims),
             'ajustes': ajustes, 'excluidos': []}
-    informe, codigo = casos_pf.preparar(app, {'project': 'P', 'feeders': list(alims), 'base': base})
+    informe, codigo = casos_pf.preparar(app, {'project': 'P', 'feeders': list(alims), 'base': base,
+                                              'caso_base_sin_verificar': {}})
     assert codigo == 0, informe
     # Como en DIgSILENT: lo que escribe una etapa es de su variación, y desactivarla lo deshace.
     app.atributos_en_variacion = True

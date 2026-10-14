@@ -571,3 +571,15 @@ pasar por el enlace en una configuración dada: el margen que queda para crecer.
 ## Dudas abiertas
 
 Ninguna.
+
+## Cambios de la spec 015 (2026-10-14)
+
+- RF-2, RF-3: el «Caso base» es la red física verificada frente al archivo original, con
+  las correcciones del operador hechas antes de copiarlo; después no se toca (015:RF-1,
+  RF-14, RF-19).
+- RF-4, RF-5: «Sin proyecto» se crea solo con el «Caso base» verificado, y «Con
+  proyecto», antes de insertar cargas nuevas (015:RF-16, RF-17, RF-28).
+- RF-7, RF-8, RF-12, RF-13, RF-16, RF-50, RF-54, RF-55: no hay variación del ajuste ni de
+  las demandas en bloque. La calibración y las demandas están en el escenario de «Sin
+  proyecto» (y se copian al de «Con proyecto»); un alimentador está calibrado si su
+  ajuste aplicado no falló (015:RF-26, RF-27). Los ajustes de antes de la 015 no se tocan.

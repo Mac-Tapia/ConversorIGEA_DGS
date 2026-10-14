@@ -82,6 +82,7 @@ def test_native_action_context_carries_one_signed_binding(tmp_path):
 
 
 def test_native_action_context_signs_nonblocking_project_warnings(tmp_path):
+    """014:RF-17 — la acción nativa se autoriza con las modificaciones manuales como aviso."""
     from igea_dgs.native_action import verify_native_action_context
     from igea_dgs.powerfactory_binding import PowerFactoryProjectBinding
     from igea_dgs.web import services

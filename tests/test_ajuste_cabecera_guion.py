@@ -42,7 +42,9 @@ def _plan(kw=300.0, kvar=90.0, clientes=(), kva_entrada=None, tolerancia=0.01, m
                 'status': 'VERIFICADO_PERSISTENCIA',
                 'capacitor_reread': {'status': 'VERIFICADO_PERSISTENCIA', 'expected': 3},
             }},
-            'native_action_context': contexto_nativo('P', ['F1'], 'ajuste')}
+            'native_action_context': contexto_nativo('P', ['F1'], 'ajuste'),
+            # 015:RF-13: la web solo manda a calibrar alimentadores con el base verificado.
+            'caso_base_sin_verificar': {}}
 
 
 def _carga(app, nombre):
@@ -53,8 +55,14 @@ def _sed(informe, sed):
     return next(x for x in informe['sed'] if x['sed'] == sed)
 
 
-def test_cuadra_la_cabecera_en_una_variacion_nueva(guion):
-    """006:RF-4 / 006:RF-11 / 006:RF-19 / 006:RF-21 / 006:RF-40 — solo el alimentador elegido, en su variación, y
+def _caso(app, nombre):
+    """Uno de los tres casos de la 011, que el ajuste prepara si faltan (014:RF-5)."""
+    return next(c for c in app.carpetas['study'].GetContents('*.IntCase') if c.loc_name == nombre)
+
+
+def test_cuadra_la_cabecera_en_el_escenario_de_sin_proyecto(guion):
+    """006:RF-4 / 006:RF-11 / 006:RF-21 / 006:RF-40 / 015:RF-20 / 015:RF-26 — solo el
+    alimentador elegido, en el escenario de «Sin proyecto» y sin crear ninguna variación;
     el informe con objetivo, cabecera, pérdidas, error y flujos."""
     app = _app(escenario=True)
     otra = _carga(app, 'F2_S1').plini
@@ -75,22 +83,35 @@ def test_cuadra_la_cabecera_en_una_variacion_nueva(guion):
     assert reread['cantidad'] == len(informe['sed'])
     assert all({'p_kw', 'q_kvar', 'fp', 'outserv', 'i_scale', 'full_name'} <= set(x)
                for x in reread['despues'])
-    assert informe['relectura_bancos']['expected'] == 3
     # «error» es solo para fallos: la web lo toma por uno y paraba un ajuste que cuadró.
-    assert 'error' not in informe
+    assert 'error' not in informe and 'variacion' not in informe
     assert informe['perdidas']['kw'] > 0 and 1 <= informe['flujos'] < 20
-    assert [v.loc_name for v in app.carpetas['scheme'].GetContents('*.IntScheme')] == [informe['variacion']]
+    assert app.carpetas['scheme'].GetContents('*.IntScheme') == []
+    assert informe['caso'] == 'Sin proyecto' and informe['escenario'] == 'Sin proyecto'
     escritas = [e for e in app.escrituras if getattr(e[0], '_clase', '') == 'ElmLod']
-    # Los flujos del cuadre, en la etapa y con el escenario apagado; el resultado, además,
-    # en el escenario (RF-27).
-    en_variacion = [e for e in escritas if e[4] is None]
-    assert en_variacion and all(e[3] is not None for e in en_variacion), \
-        'el cuadre, en la etapa que graba y con el escenario apagado'
-    assert all(e[4] is app.escenario for e in escritas if e[4] is not None)
-    assert app.escenario is not None, 'el escenario del operador vuelve a estar activo'
+    # Todo con el escenario de «Sin proyecto» activo y ninguna etapa grabando.
+    assert escritas and all(e[3] is None and e[4] is not None and e[4].loc_name == 'Sin proyecto'
+                            for e in escritas)
+    assert app.escenario is not None, 'el caso del operador vuelve con su escenario'
     assert _carga(app, 'F2_S1').plini == otra
     fila = _sed(informe, 'F1_S3')
     assert fila['antes']['kw'] == pytest.approx(50.0) and fila['kva_de'] == 'pf'
+
+
+def test_sin_caso_base_verificado_no_se_calibra(guion):
+    """015:RF-13, 015:RF-17 — sin «Sin proyecto» y sin el «Caso base» verificado no se crea
+    nada ni se escribe: el informe dice por qué."""
+    app = _app()
+    for estado in ({'F1': ['flujo']}, None):
+        plan = _plan()
+        if estado is None:
+            del plan['caso_base_sin_verificar']
+        else:
+            plan['caso_base_sin_verificar'] = estado
+        informe, rc = guion.ejecutar(app, plan)
+        assert rc == 2 and 'no está verificado' in informe['error']
+    assert not app.escrituras
+    assert [c.loc_name for c in app.carpetas['study'].GetContents('*.IntCase')] == ['Caso']
 
 
 def test_segunda_carga_validada_no_redistribuye_ni_crea_variacion(guion):
@@ -123,45 +144,6 @@ def test_segunda_carga_validada_no_redistribuye_ni_crea_variacion(guion):
                 if getattr(e[0], '_clase', '') == 'ElmLod']) == escrituras_antes
 
 
-def test_reapertura_reactiva_variacion_valida_sin_redistribuir(guion):
-    """Una variacion persistida pero inactiva se valida y reutiliza al reabrir."""
-    app = _app()
-    primero, rc = guion.ejecutar(app, _plan())
-    assert rc == 0, primero
-    variacion = next(v for v in app.carpetas['scheme'].GetContents('*.IntScheme')
-                     if v.loc_name == primero['variacion'])
-    cambios = []
-    for fila in primero['sed']:
-        obj = _carga(app, fila['sed'])
-        antes, despues = fila['antes'], fila['despues']
-        fp_antes = abs(antes['kw']) / math.hypot(antes['kw'], antes['kvar'])
-        fp_despues = abs(despues['kw']) / math.hypot(despues['kw'], despues['kvar'])
-        cambios.extend([
-            (obj, '_p', antes['kw'] / 1000.0, despues['kw'] / 1000.0),
-            (obj, '_cos', fp_antes, fp_despues),
-            (obj, 'i_scale', 0, obj.i_scale),
-        ])
-    object.__setattr__(variacion, '_cambios', cambios)
-    variacion.Deactivate()
-    variaciones_antes = list(app.carpetas['scheme'].GetContents('*.IntScheme'))
-    escrituras_antes = len([e for e in app.escrituras
-                            if getattr(e[0], '_clase', '') == 'ElmLod'])
-
-    reabierto, rc = guion.ejecutar(app, _plan())
-
-    assert rc == 0, reabierto
-    assert reabierto['decision_carga_nativa'] == {
-        'status': 'YA_CARGADO_VALIDADO',
-        'accion': 'NO_REDISTRIBUIR',
-        'bloquea': False,
-        'origen': 'VARIACION_EXISTENTE_REACTIVADA',
-    }
-    assert reabierto['variacion_reutilizada'] == primero['variacion']
-    assert app.carpetas['scheme'].GetContents('*.IntScheme') == variaciones_antes
-    assert len([e for e in app.escrituras
-                if getattr(e[0], '_clase', '') == 'ElmLod']) == escrituras_antes
-
-
 def test_relectura_reconoce_juntas_cargas_fijas_y_escaladas(guion):
     """006:RF-42 — la decisión idempotente valida por separado ambos grupos."""
     app = _app()
@@ -183,46 +165,42 @@ def test_relectura_reconoce_juntas_cargas_fijas_y_escaladas(guion):
     assert len(app.escrituras) == escrituras_antes
 
 
-def test_estado_manual_correcto_se_adopta_sin_recibo_ni_variacion_previa(guion):
-    """La prueba física basta: no se exige que el ajuste lo haya creado esta aplicación."""
+def test_estado_manual_correcto_se_adopta_sin_recibo(guion):
+    """006:RF-41 — la prueba física basta: no se exige que la calibración la haya hecho
+    esta aplicación, ni que deje variación."""
     app = _app()
     plan = _plan(clientes=[
         {'codigo': '11', 'sed': 'F1_S2', 'pot': 40.0, 'ea': 1.0, 'eri': 0.25},
     ])
     aplicado, rc = guion.ejecutar(app, plan)
     assert rc == 0, aplicado
-    # Imita valores correctos dejados directamente en el modelo por el operador: no queda
-    # una variación/recibo de la aplicación, pero P/Q/i_scale y cabecera siguen efectivos.
-    for variacion in list(app.carpetas['scheme'].GetContents('*.IntScheme')):
-        variacion.Delete()
     app.escrituras.clear()
 
     adoptado, rc = guion.ejecutar(app, plan)
 
     assert rc == 0, adoptado
     assert adoptado['decision_carga_nativa']['status'] == 'YA_CARGADO_VALIDADO'
-    assert adoptado['variacion'] is None
+    assert 'variacion' not in adoptado
     assert app.escrituras == []
     assert app.carpetas['scheme'].GetContents('*.IntScheme') == []
 
 
-def test_q_proporcional_pero_distinta_a_la_calculada_obliga_a_recalibrar(guion):
-    """Q uniforme pero equivocada no convierte un estado modificado en ya validado."""
+def test_un_factor_de_escala_distinto_obliga_a_recalibrar(guion):
+    """006:RF-41 / 015:RF-44 — si una escalada no lleva el factor de las demás, el estado
+    no es el calibrado y se vuelve a cuadrar."""
     app = _app()
     plan = _plan()
     aplicado, rc = guion.ejecutar(app, plan)
     assert rc == 0, aplicado
-    for fila in aplicado['sed']:
-        obj = _carga(app, fila['sed'])
-        guion.escribir_carga(
-            obj, fila['despues']['kw'] / 1000.0, 2.0 * fila['despues']['kvar'] / 1000.0,
-        )
+    _caso(app, 'Sin proyecto').Activate()
+    otra = next(x['sed'] for x in aplicado['sed'] if x['origen'] == 'escala')
+    _carga(app, otra).scale0 = 2.0 * _carga(app, otra).scale0
 
     corregido, rc = guion.ejecutar(app, plan)
 
     assert rc == 0, corregido
     assert corregido['decision_carga_nativa']['status'] == 'REQUIERE_DISTRIBUCION'
-    assert any(f['tipo'] == 'FACTOR_Q_INCORRECTO'
+    assert any(f['tipo'] == 'REPARTO_P_NO_PROPORCIONAL'
                for f in corregido['validacion_previa_nativa']['fallos'])
     assert corregido['resultado_carga_nativa']['status'] == 'APLICADO_Y_VALIDADO'
 
@@ -260,14 +238,20 @@ def test_relectura_posterior_invalida_no_deja_variacion_aceptada(guion):
 
 
 def test_kva_de_los_transformadores_y_reparto_proporcional(guion):
-    """006:RF-8 — kW por kVA igual en todas las repartidas; kVA del transformador en PF."""
+    """015:RF-23 / 006:RF-8 / 015:RF-44 — todas las escaladas suben por el mismo factor sobre
+    su demanda del archivo, que no se reescribe; el kVA del transformador en PF se informa."""
     rnd = random.Random(SEMILLA)
     tamanos = {i: rnd.choice([25.0, 50.0, 100.0, 160.0, 250.0]) for i in range(1, 30)}
     app = _app(n=rnd.randint(5, 25), kva=lambda f, i: tamanos[i])
+    escritas = {c.loc_name: c.plini for c in app.proyecto.GetContents('*.ElmLod', 1)}
     informe, rc = guion.ejecutar(app, _plan(kw=900.0, kvar=250.0))
     assert rc == 0, (SEMILLA, informe)
-    ratios = {round(x['despues']['kw'] / x['kva'], 9) for x in informe['sed']}
+    ratios = {round(x['despues']['kw'] / x['antes']['kw'], 9) for x in informe['sed']}
     assert len(ratios) == 1, SEMILLA
+    for x in informe['sed']:
+        carga = _carga(app, x['sed'])
+        assert carga.plini == escritas[x['sed']]
+        assert carga.scale0 == pytest.approx(x['despues']['kw'] / x['antes']['kw'])
     assert {x['kva'] for x in informe['sed']} <= set(tamanos.values())
 
 
@@ -572,12 +556,12 @@ def test_ajuste_suma_dos_troncales_y_conserva_clientes_fijos(guion):
     def ejecutar_flujo_dos_troncales():
         object.__setattr__(app.ldf, 'ejecuciones', app.ldf.ejecuciones + 1)
         activas = [c for c in cargas if not int(getattr(c, 'outserv', 0) or 0)]
-        p_total = sum(float(c.plini or 0.0) for c in activas)
-        q_total = sum(float(c.qlini or 0.0) for c in activas)
+        p_total = sum(float(c.plini or 0.0) * c.scale0 for c in activas)
+        q_total = sum(float(c.qlini or 0.0) * c.scale0 for c in activas)
         s2 = p_total * p_total + q_total * q_total
         perdida_p, perdida_q = 0.02 * s2, 0.04 * s2
-        p_1 = sum(float(c.plini or 0.0) for c in elm.GetObjs('ElmLod'))
-        q_1 = sum(float(c.qlini or 0.0) for c in elm.GetObjs('ElmLod'))
+        p_1 = sum(float(c.plini or 0.0) * c.scale0 for c in elm.GetObjs('ElmLod'))
+        q_1 = sum(float(c.qlini or 0.0) * c.scale0 for c in elm.GetObjs('ElmLod'))
         fraccion_1 = p_1 / p_total if p_total else 0.5
         object.__setattr__(cub_troncal_1.obj_id, 'm_Psum:bus1',
                            p_1 + perdida_p * fraccion_1)
@@ -603,7 +587,7 @@ def test_ajuste_suma_dos_troncales_y_conserva_clientes_fijos(guion):
     assert informe['perdidas']['kw'] > 0
     fija = _sed(informe, 'F1_S4')
     assert fija['origen'] == 'cliente' and fija['despues']['kw'] == pytest.approx(40.0)
-    assert all(x['origen'] == 'kva' for x in informe['sed'] if x['sed'] != 'F1_S4')
+    assert all(x['origen'] == 'escala' for x in informe['sed'] if x['sed'] != 'F1_S4')
     medicion = informe['medicion_cabecera']
     assert medicion['metodo'] == 'FUENTE_UNICA'
     assert medicion['cantidad_troncales'] == 2
@@ -635,8 +619,9 @@ def test_diferencia_kvar_nativa_es_informativa_y_no_bloquea(guion):
 
 
 def test_cliente_desmarcado_desconecta_su_sed(guion):
-    """006:RF-26 — la SED cuyos clientes están todos desmarcados queda fuera de servicio en
-    la variación y sin reparto; la que conserva un cliente sigue con la potencia de él."""
+    """006:RF-26 / 015:RF-20 — la SED cuyos clientes están todos desmarcados queda fuera de
+    servicio en el escenario de «Sin proyecto» y sin reparto; la que conserva un cliente
+    sigue con la potencia de él."""
     app = _app()
     plan = _plan(clientes=[{'codigo': '13', 'sed': 'F1_S3', 'pot': 30.0, 'ea': 1.0, 'eri': 0.2}])
     plan['desconectados'] = [
@@ -648,7 +633,7 @@ def test_cliente_desmarcado_desconecta_su_sed(guion):
     assert informe['desconectadas'] == [{'sed': 'F1_S2', 'clientes': ['11']}]
     assert 'F1_S2' not in {x['sed'] for x in informe['sed']}
     apagada = [e for e in app.escrituras if e[0] is _carga(app, 'F1_S2') and e[1] == 'outserv']
-    assert apagada and apagada[-1][2] == 1 and apagada[-1][3] is not None, 'en la variación'
+    assert any(e[2] == 1 and e[3] is None and e[4].loc_name == 'Sin proyecto' for e in apagada)
     assert _sed(informe, 'F1_S3')['despues']['kw'] == pytest.approx(30.0)
     assert any('ZZ9' in a for a in informe['avisos'])
     simulado, _ = guion.ejecutar(_app(), plan, simular=True)
@@ -667,12 +652,13 @@ def test_kva_de_la_entrada_original(guion):
     assert any('entrada original' in a for a in informe['avisos'])
 
 
-def test_sin_kva_en_ningun_sitio_no_se_escribe(guion):
-    """006:RF-24 — una SED sin kVA ni en DIgSILENT ni en la entrada: error y nada escrito."""
+def test_sin_kva_en_ningun_sitio_se_calibra_igual(guion):
+    """006:RF-24 (cambiado por 015:RF-44) — el factor de escala no necesita el kVA: una SED
+    sin kVA ni en DIgSILENT ni en la entrada no impide calibrar."""
     app = fake_pf.proyecto(alimentadores=('F1',), cargas_por_alim=3, bt=True, flujo=True,
                            con_trafos=False)
     informe, rc = guion.ejecutar(app, _plan(kva_entrada={'F1_S1': 100.0}))
-    assert rc == 2 and 'F1_S2' in informe['error']
+    assert rc == 0 and informe['cuadrado'], informe
     assert not app.carpetas['scheme'].GetContents('*.IntScheme')
 
 
@@ -686,8 +672,8 @@ def test_simular_no_escribe(guion):
 
 
 def test_no_converge_remedios_y_ajustes_restituidos(guion):
-    """006:RF-15 / 006:RF-16 / 006:RF-17 — remedios por orden, el informe dice qué cambió, y el
-    ComLdf del operador queda como estaba."""
+    """006:RF-15 / 006:RF-16 / 006:RF-17 / 015:RF-46 — remedios por orden, el informe dice qué
+    cambió, y en «Sin proyecto» se quedan si cuadra."""
     app = _app()
     # MW de carga de F1: con 900 kW hacen falta dos remedios (F2 tiene 0,3 MW y converge).
     app.ldf.limite, app.ldf.por_ajuste = 0.6, 0.2
@@ -696,8 +682,12 @@ def test_no_converge_remedios_y_ajustes_restituidos(guion):
     nombres = [r['remedio'] for r in informe['remedios']]
     assert nombres[:3] == ['acercarse en pasos', 'más iteraciones', 'paso automático']
     assert any('itrlx: 25 → 75' in c for r in informe['remedios'] for c in r['cambios'])
-    assert app.ldf.itrlx == 25 and app.ldf.iStepAdapt == 0
-    assert informe['ajustes_restituidos'] == {'itrlx': 25, 'iStepAdapt': 0}
+    # 015:RF-46: cuadró en «Sin proyecto», caso del sistema: los ajustes se quedan para que
+    # el caso siga convergiendo, y se dicen.
+    assert app.ldf.itrlx == 75 and app.ldf.iStepAdapt == 1
+    assert informe['ajustes_del_flujo_conservados'] == {'itrlx': 75, 'iStepAdapt': 1}
+    assert 'ajustes_restituidos' not in informe
+    assert any('015:RF-46' in a for a in informe['avisos'])
     assert 'sed_por_encima_de_su_transformador' in informe['diagnostico']
 
 
@@ -760,13 +750,12 @@ def test_error_inesperado_deja_informe(guion, tmp_path, monkeypatch):
     assert informe['feeder'] == 'F1' and informe['modo'] == 'aplicar'
 
 
-def test_ajustes_anteriores_activos_sin_los_tres_casos(guion):
-    """006:RF-19 / 011:RF-50 — con un solo caso de estudio y ajustes anteriores del mismo
-    alimentador activos, con etapas de la misma fecha, el ajuste nuevo graba en su etapa.
+def test_ajustes_de_antes_de_la_015_no_se_tocan(guion):
+    """014:RF-3 / 015:RF-26 — los ajustes de antes de la spec 015 activos donde se calibra
+    no se apagan ni se borran, y se dicen; la calibración nueva no crea ninguna variación.
 
-    SI213 (2026-10-12): tres ajustes activos y la etapa del cuarto no quedó grabando
-    (manual de PF 2024, 16.5); el guion paraba sin escribir nada.
-    """
+    SI213 (2026-10-12): tres ajustes activos con etapas de la misma fecha y la etapa del
+    cuarto no quedó grabando; desde la 015 ya no hay etapa que grabar."""
     app = _app()
     instante = int(getattr(app.GetActiveStudyCase(), 'iStudyTime', 0) or 0)
     anteriores = []
@@ -777,12 +766,11 @@ def test_ajustes_anteriores_activos_sin_los_tres_casos(guion):
     app.grabando = None
     informe, rc = guion.ejecutar(app, _plan())
     assert rc == 0, informe
-    assert informe['variacion'] not in [v.loc_name for v in anteriores]
-    assert all(v not in app.variaciones_activas for v in anteriores)
-    assert any('Ajustes anteriores desactivados' in a for a in informe['avisos'])
+    assert informe['variaciones_de_ajustes_previos'] == [v.loc_name for v in anteriores]
+    assert any('antes de la spec 015' in a for a in informe['avisos'])
+    assert sorted(app.carpetas['scheme'].GetContents('*.IntScheme'), key=lambda v: v.loc_name) == anteriores
     escritas = [e for e in app.escrituras if getattr(e[0], '_clase', '') == 'ElmLod']
-    assert escritas and all(e[3] is not None and e[3]._padre.loc_name == informe['variacion']
-                            for e in escritas)
+    assert escritas and all(e[3] is None for e in escritas)
 
 
 def test_etapa_empatada_graba_con_las_demas_activas(guion):
@@ -835,49 +823,251 @@ def _con_escenario_que_manda(**kw):
     return app
 
 
-def test_el_escenario_lleva_el_ajuste(guion):
-    """006:RF-27 / 006:RF-29 — con el escenario restaurado la cabecera es la ajustada, no la
-    de las demandas que guardaba el escenario.
+def test_el_escenario_lleva_el_ajuste(guion, monkeypatch):
+    """006:RF-27 / 006:RF-29 / 014:RF-4 / 015:RF-19 / 015:RF-26 / 015:RF-37 — la demanda
+    calibrada queda en el escenario de «Sin proyecto» y, si existe, en el de «Con
+    proyecto»; el «Caso base» conserva su demanda y su escenario, y ve la marca fija o
+    escalable, que DIgSILENT guarda en la red (sonda T1 de la 015).
 
-    SI213 (2026-10-12): cuadró a 1.621,8 kW y, con el «Operation Scenario» activo, la
-    verificación medía 229,2 kW.
+    SI213 (2026-10-12): cuadró a 1.621,8 kW con el escenario apagado y, con el
+    «Operation Scenario» activo, la verificación medía 229,2 kW; ahora se mide con él.
     """
+    monkeypatch.setattr(guion, 'activar_proyecto', lambda app, ruta, carpeta=None: app.proyecto)
     rnd = random.Random(SEMILLA)
     app = _con_escenario_que_manda(n=rnd.randint(3, 12))
     objetivo = rnd.uniform(400.0, 900.0)
+    sys_casos = __import__('sys').modules['casos_pf']
+    monkeypatch.setattr(sys_casos, 'activar_proyecto', lambda app, ruta, carpeta=None: app.proyecto)
+    sys_casos.preparar_sin(app, {'project': 'P', 'feeders': ['F1'], 'caso_base_sin_verificar': {}})
+    _con_proyecto(app)
+    operador = app.escenario
+    antes_base = {c.loc_name: c.plini for c in app.proyecto.GetContents('*.ElmLod', 1)}
     informe, rc = guion.ejecutar(app, _plan(kw=objetivo, kvar=objetivo * 0.3))
     assert rc == 0, (SEMILLA, informe)
-    assert app.GetActiveScenario() is not None
-    medida, con_esc = informe['cabecera'], informe['cabecera_con_escenario']
-    assert con_esc['kw'] == pytest.approx(medida['kw'], rel=1e-6), SEMILLA
-    assert con_esc['kvar'] == pytest.approx(medida['kvar'], rel=1e-6), SEMILLA
-    assert [g['escenario'] for g in informe['escenarios']] == ['Operador']
-    assert app.escenario.guardados >= 1
-    for x in informe['sed']:
-        assert _carga(app, x['sed']).plini * 1000.0 == pytest.approx(x['despues']['kw'])
-    assert not any('no tomó' in a for a in informe['avisos'])
+    assert [g['escenario'] for g in informe['escenarios']] == ['Sin proyecto', 'Con proyecto']
+    assert operador.loc_name == 'Operador' and operador.guardados == 0
+    for nombre in ('Sin proyecto', 'Con proyecto'):
+        _caso(app, nombre).Activate()
+        assert app.GetActiveScenario().loc_name == nombre
+        for x in informe['sed']:
+            carga = _carga(app, x['sed'])
+            assert carga.plini * carga.scale0 * 1000.0 == pytest.approx(x['despues']['kw']), nombre
+    _caso(app, 'Caso base').Activate()
+    assert app.GetActiveScenario() is operador
+    assert {c.loc_name: c.plini for c in app.proyecto.GetContents('*.ElmLod', 1)} == antes_base
+    marcas = {x['sed']: _carga(app, x['sed']).i_scale for x in informe['sed']}
+    assert set(marcas.values()) <= {0, 1} and 1 in marcas.values()
 
 
-def test_cabecera_con_escenario_distinta_se_avisa(guion, monkeypatch):
-    """006:RF-30 — si el escenario no toma las demandas, el aviso da las dos cabeceras."""
+def test_sed_desconectada_tambien_en_con_proyecto(guion, monkeypatch):
+    """006:RF-27 / 014:RF-4 — la SED de RF-26 queda fuera de servicio en el escenario de
+    «Sin proyecto» y en el de «Con proyecto»; nada fuera de un escenario."""
     app = _con_escenario_que_manda()
-    monkeypatch.setattr(guion, 'grabar_en_escenario',
-                        lambda app, filas, apagar=(): {'escenario': 'Operador', 'cargas': 0,
-                                                       'fallos': []})
-    informe, _rc = guion.ejecutar(app, _plan())
-    assert informe['cuadrado'], informe
-    aviso = next(a for a in informe['avisos'] if 'no tomó' in a)
-    assert f"{informe['cabecera']['kw']:.1f} kW" in aviso
-    assert f"{informe['cabecera_con_escenario']['kw']:.1f} kW" in aviso
-
-
-def test_sed_desconectada_tambien_en_el_escenario(guion):
-    """006:RF-27 — la SED de RF-26 queda fuera de servicio también con el escenario activo."""
-    app = _con_escenario_que_manda()
+    sys_casos = __import__('sys').modules['casos_pf']
+    monkeypatch.setattr(sys_casos, 'activar_proyecto', lambda app, ruta, carpeta=None: app.proyecto)
+    _con_proyecto(app)
     plan = _plan()
     plan['desconectados'] = [{'codigo': '11', 'sed': 'F1_S2', 'pot': 40.0, 'ea': 1.0, 'eri': 0.25}]
     informe, rc = guion.ejecutar(app, plan)
     assert rc == 0, informe
     assert [d['sed'] for d in informe['desconectadas']] == ['F1_S2']
     apagadas = [e for e in app.escrituras if e[1] == 'outserv' and e[0].loc_name == 'F1_S2']
-    assert any(e[4] is None for e in apagadas) and any(e[4] is app.escenario for e in apagadas)
+    assert apagadas and all(e[4] is not None for e in apagadas)
+    assert {e[4].loc_name for e in apagadas} == {'Sin proyecto', 'Con proyecto'}
+
+
+def _con_proyecto(app):
+    """«Con proyecto» copia de «Sin proyecto», como lo deja la inserción de cargas (015:RF-28)."""
+    import sys
+
+    informe, rc = sys.modules['casos_pf'].preparar_con(
+        app, {'project': 'P', 'feeders': ['F1'], 'caso_base_sin_verificar': {}})
+    assert rc == 0, informe
+
+
+# =========================================================================== spec 014
+def _trafo(app, nombre='TR_F1_S1'):
+    return next(o for o in app.proyecto.GetContents('*.ElmTr2', 1) if o.loc_name == nombre)
+
+
+def _activas(app, nombre):
+    previo = app.caso
+    _caso(app, nombre).Activate()
+    out = [v.loc_name for v in app.GetActiveNetworkVariations()]
+    esc = app.GetActiveScenario()
+    previo.Activate()
+    return out, esc
+
+
+def test_el_ajuste_conserva_las_variaciones_del_operador(guion, monkeypatch):
+    """014:RF-1, 014:RF-2, 014:RF-3, 014:RF-14, 014:RF-15, 014:RF-20 / 015:RF-25, 015:RF-26 — un ajuste
+    de antes de la 015 con cambios del operador (CA101 ``_3``: cargas y un ElmTr2) sigue
+    activo en «Sin» y «Con», y se mide con él; cada caso termina con su escenario."""
+    app = _app(escenario=True)
+    sys_casos = __import__('sys').modules['casos_pf']
+    monkeypatch.setattr(sys_casos, 'activar_proyecto', lambda app, ruta, carpeta=None: app.proyecto)
+    primero, rc = guion.ejecutar(app, _plan())
+    assert rc == 0, primero
+    _caso(app, 'Sin proyecto').Activate()
+    tipo = app.carpetas['equip'].CreateObject('TypTr2', 'TR_2000kVA')
+    tipo.strn = 2.0
+    operador = fake_pf.variacion_del_operador(
+        app, 'Ajuste_F1_20261009_120000_3',
+        [(_carga(app, 'F1_S1'), 'plini', 0.07), (_trafo(app), 'typ_id', tipo)])
+    _caso(app, 'Caso base').Activate()
+    _con_proyecto(app)
+    medidas = []
+    original = guion.medir_cabecera
+
+    def medir(app_, elm):
+        medidas.append((app_.caso.loc_name, [v.loc_name for v in app_.GetActiveNetworkVariations()]))
+        return original(app_, elm)
+
+    monkeypatch.setattr(guion, 'medir_cabecera', medir)
+    segundo, rc = guion.ejecutar(app, _plan(kw=360.0, kvar=100.0))
+    assert rc == 0, segundo
+    assert segundo['caso'] == 'Sin proyecto'
+    assert segundo['variaciones_de_ajustes_previos'] == [operador.loc_name]
+    assert medidas and all(caso == 'Sin proyecto' and operador.loc_name in activas
+                           for caso, activas in medidas)
+    for nombre in ('Sin proyecto', 'Con proyecto'):
+        activas, esc = _activas(app, nombre)
+        assert operador.loc_name in activas, nombre
+        assert esc is not None and esc.loc_name == nombre
+    activas_base, esc_base = _activas(app, 'Caso base')
+    assert operador.loc_name not in activas_base and esc_base.loc_name == 'Operador'
+    assert _trafo(app).typ_id is tipo
+
+
+@pytest.mark.parametrize('como', ['termina', 'cancela', 'falla'])
+def test_cargas_nuevas_fuera_del_ajuste_y_de_vuelta(guion, monkeypatch, como):
+    """014:RF-6, 014:RF-7, 014:RF-8, 014:RF-9 — una variación de carga nueva activa donde se
+    mide queda fuera mientras se ajusta y vuelve al terminar, también si se cancela o falla;
+    la demanda de la carga nueva no cambia."""
+    app = _app(escenario=True)
+    primero, rc = guion.ejecutar(app, _plan())
+    assert rc == 0, primero
+    _caso(app, 'Sin proyecto').Activate()
+    nueva_var = app.carpetas['scheme'].CreateObject('IntScheme', 'Carga_N1_F1_20261014_100000')
+    nueva_var.NewStage('Etapa_N1', 0, 1)
+    app.grabando = nueva_var.GetContents('*.IntSstage')[0]
+    sub = _carga(app, 'F1_S1').GetParent()
+    nueva = sub.CreateObject('ElmLod', 'N1')
+    nueva.plini, nueva.coslini = 0.3, 0.9
+    app.grabando = None
+    _caso(app, 'Caso base').Activate()
+    vistas = []
+    original = guion.medir_cabecera
+
+    def medir(app_, elm):
+        vistas.append([v.loc_name for v in app_.GetActiveNetworkVariations()])
+        return original(app_, elm)
+
+    monkeypatch.setattr(guion, 'medir_cabecera', medir)
+    if como == 'falla':
+        def revienta(*_a, **_k):
+            raise RuntimeError('ComLdf sin configurar')
+
+        monkeypatch.setattr(guion, 'Remedios', revienta)
+        with pytest.raises(RuntimeError):
+            guion.ejecutar(app, _plan(kw=360.0, kvar=100.0))
+    else:
+        informe, _rc = guion.ejecutar(app, _plan(kw=360.0, kvar=100.0),
+                                      cancelado=(lambda: True) if como == 'cancela' else (lambda: False))
+        assert informe['cargas_nuevas_apartadas'] == [nueva_var.loc_name]
+        assert all(nueva_var.loc_name not in activas for activas in vistas)
+        assert 'N1' not in {x['sed'] for x in informe.get('sed') or []}
+    assert nueva_var.loc_name in _activas(app, 'Sin proyecto')[0]
+    assert nueva.plini == pytest.approx(0.3) and nueva.coslini == pytest.approx(0.9)
+
+
+def _ultima(informe, nombre='la calibración del 2026-10-14'):
+    """Lo que la web guarda de una calibración aplicada (015, T8)."""
+    return {'nombre': nombre, 'sed': {x['sed']: [x['despues']['kw'], x['despues']['kvar']]
+                                      for x in informe['sed']}}
+
+
+def test_gana_el_cambio_manual_de_demanda(guion, monkeypatch):
+    """014:RF-10, 014:RF-11, 014:RF-12, 014:RF-13 — una demanda cambiada a mano en «Sin
+    proyecto» queda fija con su valor, no se escribe en ningún escenario y se avisa; sin
+    una calibración anterior no se buscan cambios manuales."""
+    app = _con_escenario_que_manda()
+    sys_casos = __import__('sys').modules['casos_pf']
+    monkeypatch.setattr(sys_casos, 'activar_proyecto', lambda app, ruta, carpeta=None: app.proyecto)
+    primero, rc = guion.ejecutar(app, _plan())
+    assert rc == 0, primero
+    assert 'cargas_manuales' not in primero
+    _con_proyecto(app)
+    _caso(app, 'Con proyecto').Activate()
+    en_con = _carga(app, 'F1_S2').plini
+    _caso(app, 'Sin proyecto').Activate()
+    _carga(app, 'F1_S2').plini = 0.123                   # el operador, a mano, con su escenario
+    _caso(app, 'Caso base').Activate()
+    marca = len(app.escrituras)
+
+    segundo, rc = guion.ejecutar(app, {**_plan(kw=360.0, kvar=100.0),
+                                       'ultima_calibracion': _ultima(primero)})
+
+    assert rc == 0, segundo
+    (manual,) = segundo['cargas_manuales']
+    assert manual['sed'] == 'F1_S2' and manual['manual']['kw'] == pytest.approx(123.0)
+    assert manual['calibracion'] == 'la calibración del 2026-10-14'
+    assert _sed(segundo, 'F1_S2')['despues']['kw'] == pytest.approx(123.0)
+    assert any('cambiada a mano' in a and 'F1_S2' in a for a in segundo['avisos'])
+    en_escenario = [e for e in app.escrituras[marca:]
+                    if e[0] is _carga(app, 'F1_S2') and e[1] == 'plini']
+    assert en_escenario == []
+    _caso(app, 'Sin proyecto').Activate()
+    assert _carga(app, 'F1_S2').plini == pytest.approx(0.123)
+    _caso(app, 'Con proyecto').Activate()
+    assert _carga(app, 'F1_S2').plini == pytest.approx(en_con)
+
+
+def test_el_ajuste_no_comprueba_la_red(guion):
+    """015:RF-17, 015:RF-21 — el ajuste no relee ni compara la red: no trae la relectura del
+    vínculo ni de los bancos, y calibra igual con un transformador sin capacidad, porque eso
+    es de la verificación del «Caso base»."""
+    import inspect
+
+    fuente = inspect.getsource(guion)
+    for comprobacion in ('reread_capacitors', 'compare_line_gps', 'native_inventory',
+                         'relectura_proyecto_vinculado', 'relectura_bancos'):
+        assert comprobacion not in fuente, comprobacion
+    app = _app()
+    for tr in app.proyecto.GetContents('*.ElmTr2', 1):
+        if tr.loc_name.startswith('F2'):
+            tr.typ_id = None                  # F2 no se calibra: su red no se mira
+    informe, rc = guion.ejecutar(app, _plan())
+    assert rc == 0, informe
+    assert 'relectura_bancos' not in informe and 'relectura_proyecto_vinculado' not in informe
+
+
+def test_la_cabecera_se_mide_con_el_escenario_de_sin_proyecto(guion, monkeypatch):
+    """006:RF-29, 006:RF-30 (con la 015:RF-26) — cada medida de la cabecera, la del cuadre y la
+    del informe, se hace con el escenario de «Sin proyecto» activo: no queda otra cabecera
+    «con el escenario» que pueda diferir de la ajustada, como en SI213 (2026-10-12)."""
+    app = _con_escenario_que_manda()
+    escenarios = []
+    original = guion.medir_cabecera
+
+    def medir(app_, elm):
+        escenarios.append(app_.GetActiveScenario().loc_name)
+        return original(app_, elm)
+
+    monkeypatch.setattr(guion, 'medir_cabecera', medir)
+    informe, rc = guion.ejecutar(app, _plan())
+    assert rc == 0, informe
+    assert escenarios and set(escenarios) == {'Sin proyecto'}
+    _caso(app, 'Sin proyecto').Activate()
+    elm = next(f for f in app.proyecto.GetContents('*.ElmFeeder', 1) if f.loc_name == 'F1')
+    assert original(app, elm).kw == pytest.approx(informe['cabecera']['kw'], rel=1e-9)
+
+
+def test_si_no_cuadra_los_ajustes_del_flujo_se_restituyen(guion):
+    """006:RF-16 / 015:RF-46 — sin cuadre, los remedios no se quedan en «Sin proyecto»."""
+    app = _app(kva=lambda f, i: 100.0)
+    app.ldf.limite = 0.5
+    informe, rc = guion.ejecutar(app, _plan(kw=900.0, kvar=250.0))
+    assert rc == 2 and not informe['cuadrado']
+    assert app.ldf.itrlx == 25 and app.ldf.iStepAdapt == 0
+    assert 'ajustes_del_flujo_conservados' not in informe and informe['ajustes_restituidos']

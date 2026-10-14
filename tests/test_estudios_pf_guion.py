@@ -43,7 +43,8 @@ def _red(rng=None, *, escenario=False):
                 'cuadrado': True} for f in alims]
     base = {'variaciones': [a['variacion'] for a in ajustes], 'feeders': list(alims),
             'ajustes': ajustes, 'excluidos': []}
-    informe, codigo = casos_pf.preparar(app, {'project': 'P', 'feeders': list(alims), 'base': base})
+    informe, codigo = casos_pf.preparar(app, {'project': 'P', 'feeders': list(alims), 'base': base,
+                                              'caso_base_sin_verificar': {}})
     assert codigo == 0, informe
     app.escrituras.clear()
     return app, list(alims)
@@ -178,7 +179,9 @@ def test_escenario_y_variaciones_del_caso():
     informe, rc = guion.ejecutar(app, _plan(feeders, caso='con'))
     assert rc == 0, informe
     assert informe['escenario'] == 'Con proyecto' and informe['caso'] == 'Con proyecto'
-    assert set(informe['variaciones_activas']) >= {AJUSTE.format(f=f) for f in feeders}
+    # 015:RF-26: la calibración está en el escenario, no en una variación; los ajustes de
+    # antes de la 015 no se activan en «Con proyecto».
+    assert not {AJUSTE.format(f=f) for f in feeders} & set(informe['variaciones_activas'])
     assert app.caso is inicial
 
 

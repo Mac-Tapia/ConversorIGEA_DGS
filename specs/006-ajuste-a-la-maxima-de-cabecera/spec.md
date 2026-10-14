@@ -284,3 +284,14 @@ Ninguna. Resueltas el 2026-10-09:
   medida; se compara con lo que entra por la cabecera del `ElmFeeder` (RF-1, RF-2).
 - kVAR distinto, positivo o negativo: se conserva el resultado nativo, se informa con
   `OK`/`AVISO_KVAR` y nunca bloquea el cuadre de kW (RF-14).
+
+## Cambios de la spec 015 (2026-10-14)
+
+- RF-19, RF-27 a RF-30: la calibración ya no crea una variación. Se escribe y se mide con
+  el escenario de «Sin proyecto» activo, que es donde queda la demanda; si existe «Con
+  proyecto», su escenario recibe la misma (015:RF-26, 014:RF-4). Una sola medida de la
+  cabecera, con el escenario, y no hay otra que pueda diferir (RF-30).
+- RF-18: la marca fija o escalable se escribe en la red, que comparten los casos: el
+  escenario no la guarda (sonda T1 de la 015; 015:RF-37).
+- La calibración no comprueba la red ni da por verificado el vínculo del proyecto: eso es
+  la verificación del «Caso base» (015:RF-17, RF-22).

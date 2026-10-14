@@ -14,16 +14,14 @@ aquí está lo que toca DIgSILENT:
   variación; el informe dice cuáles hicieron falta para converger (RF-17).
 - El diagnóstico cuando no converge (RF-15).
 
-Todo se graba en una variación nueva (RF-19), como las cargas de la spec 004, y el
-resultado también en el escenario de operación (RF-27, RF-28): con el escenario activo,
-la potencia de las cargas que manda es la suya, no la de la variación.
-
-Spec 011: si el proyecto ya tiene los casos «Caso base», «Sin proyecto» y «Con proyecto»,
-el ajuste se hace en «Sin proyecto» (RF-51), los ajustes anteriores del alimentador se
-desactivan allí y en «Con proyecto», y la variación nueva queda activa en los dos (RF-54).
-El «Caso base» no se toca (RF-53). Cada carga queda marcada en su variación como fija
-(cliente importante, no escala) o escalable (repartida por kVA), para que ningún estudio
-que escale cargas mueva la demanda medida de los clientes (RF-18, RF-19).
+Spec 015: se calibra en «Sin proyecto», la copia del «Caso base» verificado, y solo se
+cambian las cargas: demanda, estado de servicio y marca fija o escalable (RF-16, RF-20).
+La demanda se escribe y se mide con el escenario de «Sin proyecto» activo, que es donde
+queda; no se crea ni se apaga ninguna variación (RF-26), y el «Caso base» conserva su
+demanda (RF-19). La marca fija o escalable es dato de la red en DIgSILENT y la ven todos
+los casos (RF-37). Si existe «Con proyecto», su escenario recibe la misma demanda
+(014:RF-4). No se comprueba nada de la red: eso es de la verificación del «Caso base»
+(RF-17).
 
     python tools/ajuste_cabecera_pf.py --plan plan.json --output-json informe.json \\
         [--simular] [--cancel-file cancelar.flag]
@@ -44,16 +42,15 @@ from cargas_pf import (
     Alimentadores,
     _num,
     activar_proyecto,
-    crear_variacion,
     detalle_cabecera,
     error_inesperado,
     error_relectura,
     escribir_carga,
-    grabar_en_escenario,
     medir_cabecera,
     potencia,
 )
-from casos_pf import NOMBRES, ajustes_de, tres_casos
+from casos_pf import NOMBRES, es_de_carga_nueva, preparar_sin
+from casos_pf import caso as caso_del_sistema
 
 from igea_dgs.native_action import native_action_block_report
 
@@ -208,6 +205,16 @@ class Remedios:
         except Exception:  # noqa: BLE001 - versiones sin HasAttribute
             return hasattr(self.ldf, attr)
 
+    def aplicados(self) -> dict:
+        """Los valores que dejaron los remedios, por atributo."""
+        return {attr: getattr(self.ldf, attr) for attr in self.originales}
+
+    @staticmethod
+    def aplicar_en(ldf, valores: dict) -> None:
+        """Los mismos ajustes en el ComLdf de otro caso (015:RF-46)."""
+        for attr, valor in valores.items():
+            setattr(ldf, attr, valor)
+
     def restituir(self) -> dict:
         for attr, valor in self.originales.items():
             setattr(self.ldf, attr, valor)
@@ -258,42 +265,82 @@ def diagnostico(alims: Alimentadores, feeder: str, cargas: dict, kva: dict,
 
 
 # =========================================================================== escenario
-def al_escenario(app, informe, casos, escenario, elm, filas, apagar, medida, tolerancia) -> list:
-    """El resultado también en los escenarios y la cabecera con ellos (RF-27 a RF-30).
+# =========================================================================== spec 014
+def cambios_manuales(cargas: dict, ultima: dict | None) -> tuple[list[dict], str | None]:
+    """Cargas cuya demanda difiere de la que dejó la última calibración (014:RF-10 a RF-13).
 
-    SI213 (2026-10-12) cuadró a 1.621,8 kW con el escenario apagado y «Verificar la
-    convergencia», con el «Operation Scenario» restaurado, medía 229,2 kW: el escenario
-    guardaba las demandas de antes. El escenario base es la red ajustada (usuario), y
-    con los tres casos se graba en los tres: «Sin proyecto» y «Con proyecto» son copias.
-    Devuelve los fallos de escritura.
+    La demanda de ahora se lee con el escenario de «Sin proyecto» activo, que es la que
+    manda. La de la calibración la guarda la web de su informe (015, T8): desde la spec
+    015 la calibración no deja variación en la que leerla. Sin calibración anterior no hay
+    con qué comparar (RF-13).
     """
-    grabados = []
-    if escenario is not None:
-        escenario.Activate()
-        grabados.append(grabar_en_escenario(app, filas, apagar))
-    if casos:
-        donde = app.GetActiveStudyCase()
-        for rol in ('con', 'base'):
-            casos[rol].Activate()
-            grabados.append(grabar_en_escenario(app, filas, apagar))
-        donde.Activate()
-    grabados = [g for g in grabados if g]
-    informe['escenarios'] = grabados
-    if escenario is not None:
-        con_esc = medir_cabecera(app, elm)
-        if not con_esc.converge:
-            informe['avisos'].append(f'Con el escenario {escenario.loc_name} activo, '
-                                     f'{con_esc.motivo}.')
-        else:
-            informe['cabecera_con_escenario'] = {'kw': con_esc.kw, 'kvar': con_esc.kvar}
-            if medida is not None and medida.converge and any(
-                    abs(a - b) > tolerancia * max(abs(b), 1e-9)
-                    for a, b in ((con_esc.kw, medida.kw), (con_esc.kvar, medida.kvar))):
-                informe['avisos'].append(
-                    f'Con el escenario {escenario.loc_name} activo la cabecera da '
-                    f'{con_esc.kw:.1f} kW y {con_esc.kvar:.1f} kVAR, no los {medida.kw:.1f} kW '
-                    f'y {medida.kvar:.1f} kVAR del ajuste: el escenario no tomó las demandas.')
-    return [f for g in grabados for f in g['fallos']]
+    ultima = ultima or {}
+    grabadas = ultima.get('sed') or {}
+    if not grabadas:
+        return [], None
+    nombre = ultima.get('nombre') or 'la última calibración'
+    out = []
+    for sed, obj in cargas.items():
+        if sed not in grabadas:
+            continue
+        ahora, antes = potencia_efectiva(obj), tuple(grabadas[sed])
+        if all(_cerca(a, b, rel=1e-3, abs_=0.01) for a, b in zip(ahora, antes)):
+            continue
+        out.append({'sed': sed, 'calibracion': nombre,
+                    'manual': {'kw': ahora[0], 'kvar': ahora[1]},
+                    'ajuste': {'kw': antes[0], 'kvar': antes[1]}})
+    return out, nombre
+
+
+def _restaurar_cargas(cargas: dict, fotos: list[dict], apagar: dict, antes_apagar: dict) -> None:
+    """Deja las cargas como estaban antes de calibrar (validación nativa fallida)."""
+    por_sed = {f['sed']: f for f in fotos}
+    for sed, obj in cargas.items():
+        foto = por_sed.get(sed)
+        if foto is None:
+            continue
+        try:
+            escrita = foto.get('escrita') or {'p_kw': foto['p_kw'], 'q_kvar': foto['q_kvar']}
+            escribir_carga(obj, escrita['p_kw'] / 1000.0, escrita['q_kvar'] / 1000.0)
+            obj.scale0 = foto.get('scale0', 1.0)
+            obj.outserv = foto['outserv']
+            obj.i_scale = foto['i_scale']
+        except Exception:  # noqa: BLE001 - lo que no se pueda restaurar lo dice el informe
+            continue
+    for sed, obj in apagar.items():
+        try:
+            obj.outserv = antes_apagar.get(sed, 0)
+        except Exception:  # noqa: BLE001
+            continue
+
+
+def _apartar_cargas_nuevas(app, estado: dict) -> list[str]:
+    """Saca de la red del caso activo las variaciones de carga nueva (014:RF-6, RF-7).
+
+    Las cargas nuevas de la 007 solo existen por su variación: desactivarla en el caso en
+    que se mide las deja fuera del cuadre sin escribir nada en el escenario ni en una
+    etapa, y ``_devolver_cargas_nuevas`` las vuelve a dejar como estaban (RF-8).
+    """
+    activas = [v for v in (app.GetActiveNetworkVariations() or []) if es_de_carga_nueva(v)]
+    for v in activas:
+        v.Deactivate()
+    if activas:
+        estado['apartadas'].append((app.GetActiveStudyCase(), activas))
+    return sorted(v.loc_name for v in activas)
+
+
+def _devolver_cargas_nuevas(app, estado: dict) -> None:
+    """RF-8: también si el ajuste falla o se cancela."""
+    if not estado['apartadas']:
+        return
+    previo = app.GetActiveStudyCase()
+    for caso, variaciones in estado['apartadas']:
+        if caso is not None and app.GetActiveStudyCase() is not caso:
+            caso.Activate()
+        for v in variaciones:
+            v.Activate()
+    if previo is not None and app.GetActiveStudyCase() is not previo:
+        previo.Activate()
 
 
 # =========================================================================== orquestación
@@ -316,11 +363,58 @@ def _por_sed(reparto, cargas, kva_origen, antes, fijas):
     return filas
 
 
+def factor_de_escala(obj) -> float:
+    """``scale0`` de la carga: el factor de escala de DIgSILENT, normalmente 1."""
+    try:
+        valor = float(getattr(obj, 'scale0', 1.0))
+    except (TypeError, ValueError):
+        return 1.0
+    return valor if math.isfinite(valor) else 1.0
+
+
+def potencia_efectiva(obj) -> tuple[float, float]:
+    """kW y kVAR que consume la carga: los escritos por su factor de escala (015:RF-44)."""
+    p_kw, q_kvar = potencia(obj)
+    k = factor_de_escala(obj)
+    return p_kw * k, q_kvar * k
+
+
+def escribir_reparto(cargas: dict, rep, omitir=frozenset()) -> list[dict]:
+    """Escribe un reparto como DIgSILENT lo escala (015:RF-43, RF-44).
+
+    Las fijas reciben su P y Q y factor 1; las escaladas conservan la P y la Q de su base
+    (las del archivo original) y llevan todas el mismo factor de escala. ``omitir``: las
+    que no se escriben (cambio manual de demanda, 014:RF-11). Devuelve los fallos.
+    """
+    fallos = []
+    for sed, d in rep.demandas.items():
+        if sed in omitir:
+            continue
+        obj = cargas[sed]
+        try:
+            if sed in rep.base:
+                bp, bq = rep.base[sed]
+                if not all(_cerca(a, b) for a, b in zip(potencia(obj), (bp, bq))):
+                    escribir_carga(obj, bp / 1000.0, bq / 1000.0)
+                obj.scale0 = rep.a
+                error = (None if math.isclose(factor_de_escala(obj), rep.a, rel_tol=1e-6)
+                         else f'scale0={factor_de_escala(obj)}, esperado {rep.a}')
+            else:
+                escribir_carga(obj, d.kw / 1000.0, d.kvar / 1000.0)
+                obj.scale0 = 1.0
+                error = error_relectura(obj, d.kw / 1000.0, d.kvar / 1000.0)
+        except Exception as exc:  # noqa: BLE001 - una SED no tumba el ajuste
+            error = f'{type(exc).__name__}: {exc}'
+        if error:
+            fallos.append({'sed': sed, 'error': error})
+    return fallos
+
+
 def _foto_cargas_nativas(cargas: dict) -> list[dict]:
     """Relectura efectiva P/Q/FP, estado y bandera de escala de cada carga SED."""
     fotos = []
     for sed, obj in sorted(cargas.items()):
-        p_kw, q_kvar = potencia(obj)
+        p_kw, q_kvar = potencia_efectiva(obj)
         apparent = math.hypot(p_kw, q_kvar)
         try:
             full_name = str(obj.GetFullName())
@@ -332,6 +426,8 @@ def _foto_cargas_nativas(cargas: dict) -> list[dict]:
             'outserv': int(getattr(obj, 'outserv', 0) or 0),
             'i_scale': int(getattr(obj, 'i_scale', 0) or 0),
             'mode_inp': str(getattr(obj, 'mode_inp', '') or ''),
+            'escrita': dict(zip(('p_kw', 'q_kvar'), potencia(obj))),
+            'scale0': factor_de_escala(obj),
         })
     return fotos
 
@@ -384,7 +480,7 @@ def validar_cargas_nativas(cargas: dict, reparto, medida, objetivo, tolerancia: 
         if obj is None:
             fallos.append({'tipo': 'SED_FALTANTE', 'sed': sed})
             continue
-        p_kw, q_kvar = potencia(obj)
+        p_kw, q_kvar = potencia_efectiva(obj)
         escalable = sed in reparto.base
         esperado_i_scale = 1 if escalable else 0
         actual_i_scale = int(getattr(obj, 'i_scale', 0) or 0)
@@ -452,8 +548,8 @@ def validar_cargas_nativas(cargas: dict, reparto, medida, objetivo, tolerancia: 
         # Algunos modelos/dobles no publican resultados por ElmLod aunque el ComLdf si
         # publique la cabecera. En ese caso se conserva la comprobacion historica sobre
         # las entradas; cuando los resultados existen, como en CA101, siempre prevalecen.
-        total_p = sum(potencia(obj)[0] for obj in cargas.values())
-        total_q = sum(potencia(obj)[1] for obj in cargas.values())
+        total_p = sum(potencia_efectiva(obj)[0] for obj in cargas.values())
+        total_q = sum(potencia_efectiva(obj)[1] for obj in cargas.values())
         consumo_origen = 'ENTRADAS_CARGAS_NATIVAS'
     if medida.converge and medida.kw is not None:
         ruido = max(0.1, abs(objetivo.kw) * 1e-4)
@@ -482,9 +578,18 @@ def validar_cargas_nativas(cargas: dict, reparto, medida, objetivo, tolerancia: 
 
 def ejecutar(app, plan: dict, *, simular: bool = False, cancelado=lambda: False) -> tuple[dict, int]:
     """Simula o aplica el ajuste. Devuelve (informe, código de salida)."""
+    estado = {'apartadas': []}
+    try:
+        return _ejecutar(app, plan, simular=simular, cancelado=cancelado, estado=estado)
+    finally:
+        _devolver_cargas_nuevas(app, estado)
+
+
+def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tuple[dict, int]:
     from igea_dgs.ajuste_cabecera import (
         MAX_FLUJOS,
         AjusteError,
+        Fija,
         Objetivo,
         cuadrar,
         fijas_de,
@@ -506,13 +611,43 @@ def ejecutar(app, plan: dict, *, simular: bool = False, cancelado=lambda: False)
     if elm is None or getattr(elm, 'obj_id', None) is None:
         return {**informe, 'error': f'{feeder} no tiene ElmFeeder con cabecera en el proyecto: '
                                     'no se puede medir lo que entra por ella.'}, 2
+    # 015:RF-16, RF-17: se calibra en «Sin proyecto», la copia del «Caso base»
+    # verificado; si aún no existe se crea, y sin «Caso base» verificado no se calibra.
+    # Al simular no se crea nada: se lee en el caso activo.
+    inicial = app.GetActiveStudyCase()
+    sin = caso_del_sistema(app, 'sin')
+    if sin is None and not simular:
+        pedido = {'project': plan['project'], 'folder': plan.get('folder'), 'feeders': [feeder]}
+        if 'caso_base_sin_verificar' in plan:
+            pedido['caso_base_sin_verificar'] = plan['caso_base_sin_verificar']
+        preparado, rc = preparar_sin(app, pedido)
+        if rc:
+            return {**informe, 'error': preparado.get('error')}, 2
+        informe['casos_preparados'] = preparado.get('casos')
+        sin = caso_del_sistema(app, 'sin')
+        inicial = app.GetActiveStudyCase()
+    if sin is not None:
+        sin.Activate()
+        informe['caso'] = NOMBRES['sin']
+    con = caso_del_sistema(app, 'con')
+    escenario = app.GetActiveScenario()
+    if escenario is None and not simular:
+        # Sin escenario, lo escrito iría a la red que comparten los casos y cambiaría el
+        # «Caso base» (015:RF-19).
+        return {**informe, 'error': f"«{NOMBRES['sin']}» no tiene escenario de operación: "
+                                    'la calibración se graba en él (015:RF-26).'}, 2
+    apartadas = _apartar_cargas_nuevas(app, estado)
+    if apartadas:
+        informe['cargas_nuevas_apartadas'] = apartadas
+        informe['avisos'].append('Cargas nuevas fuera del ajuste mientras se mide (vuelven al '
+                                 'terminar): ' + ', '.join(apartadas))
     cargas, ambiguas = cargas_sed(alims, feeder)
     poblacion_nativa = dict(getattr(cargas_sed, 'last_audit', {}) or {
         'algoritmo': 'SELECCION_NATIVA_DEL_ALIMENTADOR',
         'cargas_activas_unicas': len(cargas), 'nombres_ambiguos': len(ambiguas),
     })
     # RF-26: la SED cuyos clientes desmarcó todos el operador sale del reparto y su carga
-    # queda fuera de servicio en la variación; repartirle por kVA sería volver a cargarla.
+    # queda fuera de servicio en el escenario; repartirle por kVA sería volver a cargarla.
     apagar, desconectadas, avisos_desc = {}, [], []
     por_clave = {clave_codigo(s): s for s in cargas}
     for sed, nis in sed_desconectadas(plan.get('desconectados') or [],
@@ -529,14 +664,30 @@ def ejecutar(app, plan: dict, *, simular: bool = False, cancelado=lambda: False)
     # Las SED de los clientes se emparejan con las cargas por su código: las fijas toman
     # el nombre de la carga de DIgSILENT.
     fijas_libro = fijas_de(plan.get('clientes') or [], objetivo)
+    # 014:RF-10 a RF-12: una demanda cambiada a mano entra fija con su valor y no se
+    # sobrescribe; gana sobre el cliente importante de la misma SED.
+    manuales, ultimo = cambios_manuales(cargas, plan.get('ultima_calibracion'))
+    for m in manuales:
+        fijas_libro[clave_codigo(m['sed'])] = Fija(
+            m['sed'], m['manual']['kw'], m['manual']['kvar'],
+            avisos=['cambio manual: se conserva su demanda (014:RF-10).'])
+    if manuales:
+        informe['cargas_manuales'] = manuales
+        informe['avisos'].append(
+            f'{len(manuales)} carga(s) con la demanda cambiada a mano respecto de {ultimo}: '
+            'quedan fijas con su valor y no se sobrescriben: ' + '; '.join(
+                f"{m['sed']} {m['manual']['kw']:.1f} kW (el ajuste dejó "
+                f"{m['ajuste']['kw']:.1f} kW)" for m in manuales[:50]))
     try:
-        reparto = reparto_inicial(objetivo, fijas_libro, kva)
+        reparto = reparto_inicial(objetivo, fijas_libro,
+                                  {s: potencia(o) for s, o in cargas.items()}, kva)
     except AjusteError as exc:
         return {**informe, 'error': str(exc), 'ambiguas': ambiguas}, 2
     fijas = {s: f for f in fijas_libro.values() for s in cargas
              if clave_codigo(s) == clave_codigo(f.sed)}
-    antes = {s: potencia(o) for s, o in cargas.items()}
+    antes = {s: potencia_efectiva(o) for s, o in cargas.items()}
     antes_nativo = _foto_cargas_nativas(cargas)
+    antes_apagar = {s: int(getattr(o, 'outserv', 0) or 0) for s, o in apagar.items()}
     desde_entrada = sorted(s for s, o in kva_origen.items() if o == 'entrada')
     if desde_entrada:
         informe['avisos'].append(f'{len(desde_entrada)} SED sin transformador con potencia en '
@@ -551,67 +702,32 @@ def ejecutar(app, plan: dict, *, simular: bool = False, cancelado=lambda: False)
     if simular:
         informe['sed'] = _por_sed(reparto, cargas, kva_origen, antes, fijas)
         informe['totales_sin_perdidas'] = dict(zip(('kw', 'kvar'), reparto.totales()))
+        if inicial is not None and app.GetActiveStudyCase() is not inicial:
+            inicial.Activate()
         return informe, 0
-
-    casos = tres_casos(app)
-    inicial = app.GetActiveStudyCase()
-    if casos:
-        casos['sin'].Activate()
-        informe['caso'] = NOMBRES['sin']
-    # Idempotencia nativa: antes de desactivar ajustes, crear una variación o escribir una
-    # carga, se demuestra si el estado efectivo ya contiene el mismo reparto y cuadre.
-    ajustes = ajustes_de(app, feeder)
+    # 015:RF-26: la calibración ya no crea ni apaga variaciones. Las de ajustes de antes de
+    # la spec 015 que sigan activas no se tocan (014:RF-3); se dicen.
+    viejos = sorted(v.loc_name for v in (app.GetActiveNetworkVariations() or [])
+                    if v.loc_name.startswith('Ajuste_'))
+    if viejos:
+        informe['variaciones_de_ajustes_previos'] = viejos
+        informe['avisos'].append('Ajustes de antes de la spec 015 activos en «Sin proyecto» '
+                                 '(no se tocan; la calibración va al escenario): '
+                                 + ', '.join(viejos))
+    # Idempotencia nativa: antes de escribir una carga se demuestra si el estado efectivo
+    # ya contiene el mismo reparto y cuadre.
     medida_previa = medir_cabecera(app, elm)
     validacion_previa, reparto_nativo = validar_cargas_nativas(
         cargas, reparto, medida_previa, objetivo, float(informe['tolerancia']),
         ambiguas=ambiguas, apagar=apagar,
     )
-    variacion_reutilizada = None
-    intentos_reutilizacion = []
-    escenario_previo = app.GetActiveScenario()
-    variaciones_activas_previas = list(app.GetActiveNetworkVariations() or [])
-    # Al reabrir PowerFactory la variacion puede seguir persistida pero inactiva. Antes
-    # de redistribuir, se activa cada ajuste existente (mas reciente primero) y se somete
-    # a exactamente la misma relectura P/Q/i_scale + ComLdf. Existir por nombre no basta.
-    if not validacion_previa['correcta'] and ajustes:
-        if escenario_previo is not None:
-            escenario_previo.Deactivate(0)
-        for candidata in reversed(ajustes):
-            for ajuste in ajustes:
-                ajuste.Deactivate()
-            candidata.Activate()
-            medida_candidata = medir_cabecera(app, elm)
-            validacion_candidata, reparto_candidato = validar_cargas_nativas(
-                cargas, reparto, medida_candidata, objetivo, float(informe['tolerancia']),
-                ambiguas=ambiguas, apagar=apagar,
-            )
-            intentos_reutilizacion.append({
-                'variacion': candidata.loc_name,
-                'correcta': validacion_candidata['correcta'],
-                'fallos': validacion_candidata['fallos'],
-            })
-            if validacion_candidata['correcta'] and reparto_candidato is not None:
-                variacion_reutilizada = candidata
-                medida_previa = medida_candidata
-                validacion_previa = validacion_candidata
-                reparto_nativo = reparto_candidato
-                break
-        if variacion_reutilizada is None:
-            for ajuste in ajustes:
-                ajuste.Deactivate()
-            for anterior in variaciones_activas_previas:
-                anterior.Activate()
-            if escenario_previo is not None:
-                escenario_previo.Activate()
     informe['validacion_previa_nativa'] = validacion_previa
-    if intentos_reutilizacion:
-        informe['reutilizacion_variaciones_existentes'] = intentos_reutilizacion
     if validacion_previa['correcta'] and reparto_nativo is not None:
         fotos = _foto_cargas_nativas(cargas)
-        # Las perdidas salen del mismo consumo efectivo con que se valido, no de
+        # Las pérdidas salen del mismo consumo efectivo con que se validó, no de
         # ``reparto_nativo.totales()`` (la ``plini`` escrita): en CA101 reabierto, con
-        # NO_REDISTRIBUIR sobre ``_6``, el informe daba -846 kW de perdidas mientras el
-        # flujo aplicado sobre el mismo estado daba +499,8 kW.
+        # NO_REDISTRIBUIR, el informe daba -846 kW de pérdidas mientras el flujo aplicado
+        # sobre el mismo estado daba +499,8 kW.
         efectivo = validacion_previa.get('consumo_cargas_efectivo') or {}
         p_cargas, q_cargas = reparto_nativo.totales()
         if efectivo.get('kw') is not None:
@@ -625,9 +741,7 @@ def ejecutar(app, plan: dict, *, simular: bool = False, cancelado=lambda: False)
         informe.update(
             decision_carga_nativa={
                 'status': 'YA_CARGADO_VALIDADO', 'accion': 'NO_REDISTRIBUIR',
-                'bloquea': False,
-                'origen': ('VARIACION_EXISTENTE_REACTIVADA'
-                           if variacion_reutilizada is not None else 'ESTADO_EFECTIVO'),
+                'bloquea': False, 'origen': 'ESTADO_EFECTIVO',
             },
             cuadrado=True, status=q_audit['status'], kvar_no_bloqueante=q_audit,
             cabecera={'kw': medida_previa.kw, 'kvar': medida_previa.kvar},
@@ -645,21 +759,12 @@ def ejecutar(app, plan: dict, *, simular: bool = False, cancelado=lambda: False)
             desvio={'kw': e_kw, 'kvar': e_kvar},
             criterio_cuadre='KW_ONLY', reparto_solo_kw=reparto_nativo.solo_kw,
             sed=_por_sed(reparto_nativo, cargas, kva_origen, antes, fijas),
-            variacion=(variacion_reutilizada.loc_name if variacion_reutilizada is not None
-                       else ajustes[-1].loc_name if ajustes else None),
-            variacion_reutilizada=(variacion_reutilizada.loc_name
-                                   if variacion_reutilizada is not None
-                                   else ajustes[-1].loc_name if ajustes else None),
+            escenario=escenario.loc_name,
             relectura_cargas_nativas={
                 'status': 'VERIFICADO_PERSISTENCIA', 'antes': fotos, 'despues': fotos,
                 'cantidad': len(fotos), 'poblacion': poblacion_nativa,
             },
         )
-        binding_reread = dict((plan.get('project_binding') or {}).get('native_reread') or {})
-        informe['relectura_proyecto_vinculado'] = binding_reread
-        informe['relectura_bancos'] = dict(binding_reread.get('capacitor_reread') or {})
-        if escenario_previo is not None and app.GetActiveScenario() is None:
-            escenario_previo.Activate()
         if inicial is not None and app.GetActiveStudyCase() is not inicial:
             inicial.Activate()
         return informe, 0
@@ -667,37 +772,19 @@ def ejecutar(app, plan: dict, *, simular: bool = False, cancelado=lambda: False)
         'status': 'REQUIERE_DISTRIBUCION', 'accion': 'DISTRIBUIR_Y_CUADRAR',
         'bloquea': False,
     }
-    try:
-        variaciones_inicio = list(app.GetActiveNetworkVariations() or [])
-    except Exception:  # noqa: BLE001 - versiones antiguas: se restaura lo conocido
-        variaciones_inicio = []
-    # Un ajuste anterior del mismo alimentador escribiría las mismas cargas: con los dos
-    # activos, cuál manda dependería del orden de las etapas. Y se desactivan también sin
-    # los tres casos: SI213 (2026-10-12, un solo «Study Case») tenía tres ajustes activos
-    # con etapas en la misma fecha, y con varias así PF deja grabando la que ya grababa
-    # (manual 16.5), ninguna: el cuarto ajuste no llegó a grabar.
-    anteriores = ajustes_de(app, feeder)
-    for v in anteriores:
-        v.Deactivate()
-    escenario = app.GetActiveScenario()
-    if escenario is not None:
-        escenario.Deactivate(0)
     remedios = Remedios(app)
     fallos: list[dict] = []
     fallos_desc: list[dict] = []
-    variacion = None
     fallo_validacion_nativa = False
+    con_manual = {m['sed'] for m in manuales}
+    informe['escenario'] = escenario.loc_name
     try:
-        variacion, _etapa = crear_variacion(app, plan['variacion'], plan.get('stamp') or '')
-        informe['variacion'] = variacion.loc_name
-        # RF-18, RF-19: fija o escalable, en la variación del ajuste. Marcarlo después,
-        # al preparar los estudios, lo grabaría en la variación que estuviera grabando.
+        # RF-18, RF-19 de la 011 y 015:RF-37: fija o escalable. DIgSILENT guarda la marca en
+        # la red que comparten los casos, no en el escenario (sonda T1 de la 015); el
+        # «Caso base» la ve, pero conserva su demanda porque en él no se calibra.
         for sed in reparto.demandas:
-            # ``origen=cliente`` describe de dónde salió la demanda, no si finalmente
-            # quedó fija. RF-13 coloca también esas SED en ``reparto.base``.
             cargas[sed].i_scale = 1 if sed in reparto.base else 0
-        # RF-26: en la variación, para que volver a marcar el cliente y ajustar de nuevo
-        # la deje en servicio al desactivar este ajuste.
+        # RF-26: en el escenario, como la demanda.
         for sed, obj in apagar.items():
             try:
                 obj.outserv = 1
@@ -706,15 +793,8 @@ def ejecutar(app, plan: dict, *, simular: bool = False, cancelado=lambda: False)
 
         def flujo(rep):
             fallos.clear()
-            for sed, d in rep.demandas.items():
-                obj = cargas[sed]
-                try:
-                    escribir_carga(obj, d.kw / 1000.0, d.kvar / 1000.0)
-                    error = error_relectura(obj, d.kw / 1000.0, d.kvar / 1000.0)
-                except Exception as exc:  # noqa: BLE001 - una SED no tumba el ajuste
-                    error = f'{type(exc).__name__}: {exc}'
-                if error:
-                    fallos.append({'sed': sed, 'error': error})
+            # 014:RF-11: la demanda manual no se escribe.
+            fallos.extend(escribir_reparto(cargas, rep, con_manual))
             medida = medir_cabecera(app, elm)
             if medida.converge:
                 carga_kw, carga_kvar = consumo_nativo(cargas)
@@ -792,28 +872,9 @@ def ejecutar(app, plan: dict, *, simular: bool = False, cancelado=lambda: False)
                     'detalle': fallo,
                 } for fallo in validacion_posterior['fallos'])
                 # Una cabecera cuadrada no compensa una carga que la relectura nativa no
-                # conservó. La variación defectuosa no queda disponible para estudios.
-                nombre_revertido = getattr(variacion, 'loc_name', None)
-                if variacion is not None:
-                    try:
-                        variacion.Delete()
-                        informe['variacion_revertida'] = nombre_revertido
-                        variacion = None
-                    except Exception as exc:  # noqa: BLE001 - el informe bloquea igualmente
-                        informe['fallos'].append({
-                            'sed': None,
-                            'error': f'no se pudo retirar la variación inválida: '
-                                     f'{type(exc).__name__}: {exc}',
-                        })
-                try:
-                    activas = list(app.GetActiveNetworkVariations() or [])
-                except Exception:  # noqa: BLE001
-                    activas = []
-                for activa in activas:
-                    if activa not in variaciones_inicio:
-                        activa.Deactivate()
-                for anterior in variaciones_inicio:
-                    anterior.Activate()
+                # conservó: las cargas vuelven a como estaban y no queda nada para estudios.
+                _restaurar_cargas(cargas, antes_nativo, apagar, antes_apagar)
+                informe['calibracion_revertida'] = True
         if res.reparto is not None:
             informe['sed'] = _por_sed(res.reparto, cargas, kva_origen, antes, fijas)
             despues_nativo = _foto_cargas_nativas(cargas)
@@ -824,49 +885,56 @@ def ejecutar(app, plan: dict, *, simular: bool = False, cancelado=lambda: False)
                 'antes': antes_nativo, 'despues': despues_nativo,
                 'cantidad': len(despues_nativo), 'poblacion': poblacion_nativa,
             }
-            binding_reread = dict((plan.get('project_binding') or {}).get('native_reread') or {})
-            informe['relectura_proyecto_vinculado'] = binding_reread
-            informe['relectura_bancos'] = dict(binding_reread.get('capacitor_reread') or {})
         if any(not h['converge'] for h in res.historial) or not res.cuadrado:
             fallido = next((reparto.con_factores(h['a'], h['b'])
                             for h in res.historial if not h['converge']), None)
             informe['diagnostico'] = diagnostico(alims, feeder, cargas, kva, fallido)
         if res.cancelado:
-            informe['avisos'].append('Cancelado: la variación queda con el último reparto '
+            informe['avisos'].append('Cancelado: el escenario queda con el último reparto '
                                      'que convergió.')
         if not res.cuadrado:
             informe['avisos'].append(
-                f'NO cumple el {informe["tolerancia"]:.1%}: {res.motivo}. La variación queda '
+                f'NO cumple el {informe["tolerancia"]:.1%}: {res.motivo}. El escenario queda '
                 'con el último reparto que convergió.')
         if res.reparto is not None and not fallo_validacion_nativa:
-            filas = [(s, cargas[s], d.kw / 1000.0, d.kvar / 1000.0)
-                     for s, d in res.reparto.demandas.items()]
-            informe['fallos'] += al_escenario(app, informe, casos, escenario, elm, filas,
-                                              list(apagar.items()), res.medida,
-                                              float(informe['tolerancia']))
+            escenario.Save()
+            informe['escenarios'] = [{'escenario': escenario.loc_name,
+                                      'cargas': len(res.reparto.demandas) - len(con_manual),
+                                      'fallos': []}]
+            if con is not None:
+                # 014:RF-4: «Con proyecto» sigue sobre la red calibrada; su escenario es suyo.
+                con.Activate()
+                esc_con = app.GetActiveScenario()
+                if esc_con is not None:
+                    fallos_con = escribir_reparto(cargas, res.reparto, con_manual)
+                    for _sed, obj in apagar.items():
+                        obj.outserv = 1
+                    esc_con.Save()
+                    informe['escenarios'].append({'escenario': esc_con.loc_name,
+                                                  'cargas': len(res.reparto.demandas) - len(con_manual),
+                                                  'fallos': fallos_con})
+                    informe['fallos'] += fallos_con
+                sin.Activate()
     finally:
-        restituidos = remedios.restituir()
-        if restituidos:
-            informe['ajustes_restituidos'] = restituidos
-        # También si algo revienta: el escenario del operador no se queda apagado.
-        if escenario is not None and app.GetActiveScenario() is None:
-            escenario.Activate()
+        # 015:RF-46: en «Sin proyecto», caso del sistema, los ajustes del flujo que hicieron
+        # falta se quedan para que el caso siga convergiendo (CA101 desde cero, 2026-10-14:
+        # cuadró con «adaptación automática del modelo» y, restituida, no convergía). Si no
+        # cuadró o se revirtió, se restituyen, como en el caso del operador (006:RF-16).
+        if (sin is not None and remedios.originales and informe.get('cuadrado')
+                and not fallo_validacion_nativa):
+            aplicados = remedios.aplicados()
+            informe['ajustes_del_flujo_conservados'] = aplicados
+            if con is not None:
+                con.Activate()
+                remedios.aplicar_en(app.GetFromStudyCase('ComLdf'), aplicados)
             informe['avisos'].append(
-                f'El escenario {escenario.loc_name} vuelve a estar activo: sus demandas '
-                'mandan sobre las de la variación mientras esté activo.')
-        if casos and not fallo_validacion_nativa:
-            # RF-54: las cargas nuevas de «Con proyecto» siguen sobre la red calibrada.
-            casos['con'].Activate()
-            for v in anteriores:
-                v.Deactivate()
-            if variacion is not None:
-                variacion.Activate()
-            if anteriores:
-                informe['avisos'].append('Ajustes anteriores desactivados en «Sin proyecto» y '
-                                         '«Con proyecto»: ' + ', '.join(v.loc_name for v in anteriores))
-        elif anteriores and not fallo_validacion_nativa:
-            informe['avisos'].append('Ajustes anteriores desactivados en el caso activo: '
-                                     + ', '.join(v.loc_name for v in anteriores))
+                'Ajustes del flujo de carga que se quedan en «Sin proyecto»'
+                + (' y «Con proyecto»' if con is not None else '') + ' para que converja: '
+                + ', '.join(f'{k}={v}' for k, v in aplicados.items()) + ' (015:RF-46).')
+        else:
+            restituidos = remedios.restituir()
+            if restituidos:
+                informe['ajustes_restituidos'] = restituidos
         if inicial is not None and app.GetActiveStudyCase() is not inicial:
             inicial.Activate()
     return informe, (0 if informe.get('cuadrado') and not informe.get('fallos') else 2)

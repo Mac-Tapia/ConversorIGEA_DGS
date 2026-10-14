@@ -162,6 +162,8 @@ def test_different_source_fingerprint_is_still_rejected(tmp_path):
 
 
 def test_changed_native_topology_is_reported_but_does_not_block(tmp_path):
+    """014:RF-17 — una modificación manual del modelo nativo se lista como aviso y no
+    bloquea: el vínculo sigue siendo válido."""
     from igea_dgs.powerfactory_binding import (
         project_binding_warnings, record_project_binding, require_project_binding,
     )
@@ -237,3 +239,22 @@ def test_failed_native_reread_is_fail_closed(tmp_path):
     ws.pf_inventory['projects'][0]['native_warning'] = 'API sin relectura'
     with pytest.raises(ProjectBindingError, match='PROJECT_BINDING_NATIVE_UNREADABLE'):
         require_project_binding(ws, 'Oct/IN111', ['IN111'])
+
+
+def test_caso_base_verificado_por_alimentador():
+    """015:RF-13 — solo se calibra el alimentador cuyo «Caso base» está verificado; un
+    vínculo de antes de la spec 015 cuenta como no verificado."""
+    from types import SimpleNamespace
+
+    from igea_dgs.powerfactory_binding import caso_base_verificado
+
+    ws = SimpleNamespace(pf_project_bindings={
+        'P': {'native_reread': {'caso_base': {
+            'CA101': {'status': 'VERIFICADO', 'fallos': []},
+            'PE104': {'status': 'NO_VERIFICADO', 'fallos': ['flujo']},
+        }}},
+        'VIEJO': {'native_reread': {'status': 'VERIFICADO_PERSISTENCIA'}},
+    })
+    assert caso_base_verificado(ws, 'P', ['CA101', 'PE104', 'SI213']) == {
+        'PE104': ['flujo'], 'SI213': ['sin verificar']}
+    assert caso_base_verificado(ws, 'VIEJO', ['CA101']) == {'CA101': ['sin verificar']}

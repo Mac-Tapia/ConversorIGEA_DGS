@@ -79,6 +79,7 @@ class Obj:
             if app.atributos_en_variacion and etapa is not None and self.etapa_creacion is not etapa:
                 cambios = etapa._padre.__dict__.setdefault('_cambios', [])
                 cambios.append((self, name, getattr(self, name, None), value))
+            _registrar_en_etapa(etapa, self, name, value)
         object.__setattr__(self, name, value)
 
     # ----------------------------------------------------------- árbol
@@ -95,6 +96,9 @@ class Obj:
         hijo = _CLASES.get(clase, Obj)(self._app, clase, nombre, self)
         self._hijos.append(hijo)
         self._app.creados.append(hijo)
+        etapa = self._app.grabando if self._app is not None else None
+        if etapa is not None and _es_de_red(hijo):
+            etapa._creados.append(hijo)
         return hijo
 
     # ----------------------------------------------------------- spec 011
@@ -139,7 +143,11 @@ class Obj:
             if clase is None or h._clase == clase:
                 out.append(h)
             if recursivo:
-                out.extend(h.GetContents(patron, 1))
+                # Al recorrer el proyecto no se entra en lo grabado por una etapa: en este
+                # doble es también ``GetCalcRelevantObjects``, y las copias de etapa no son
+                # red (las obras de la 011 tomaban la copia del tramo por el tramo).
+                out.extend(Obj.GetContents(h, patron, 1) if isinstance(h, Etapa)
+                           else h.GetContents(patron, 1))
         return out
 
     def GetAttributeLength(self, _name):
@@ -237,7 +245,7 @@ class Importacion(Obj):
 
 
 #: Lo que de una carga guarda el escenario de operación con ``app.escenario_manda``.
-_DATOS_DE_OPERACION = ('_p', '_q', '_cos')
+_DATOS_DE_OPERACION = ('_p', '_q', '_cos', '_s')
 
 
 class Carga(Obj):
@@ -268,17 +276,28 @@ class Carga(Obj):
         object.__setattr__(self, '_p', 0.0)
         object.__setattr__(self, '_q', 0.0)
         object.__setattr__(self, '_cos', 1.0)
+        object.__setattr__(self, '_s', 1.0)
         attrs.setdefault('mode_inp', 'PC')
         attrs.setdefault('i_sym', 0)
         attrs.setdefault('pf_recap', 0)
         super().__init__(app, clase, nombre, padre, **attrs)
 
     def __setattr__(self, name, value):
+        if name == 'scale0':
+            # Factor de escala: dato de operación, como en DIgSILENT (sonda T1 de la 015).
+            if self._app is not None:
+                self._app.escrituras.append((self, name, value, self._app.grabando,
+                                             self._app.escenario))
+            self._fijar('_s', float(value))
+            return
         if name in ('plini', 'qlini', 'slini', 'coslini'):
             if self._app is not None:
                 self._app.escrituras.append((self, name, value, self._app.grabando,
                                              self._app.escenario))
             modo = self.mode_inp
+            if self._app is not None and self._escenario_que_manda() is None:
+                # Con el escenario mandando, el dato va al escenario y no a la etapa.
+                _registrar_en_etapa(self._app.grabando, self, name, value)
             if name == 'plini':
                 self._fijar('_p', float(value))
             elif name == 'coslini':
@@ -301,6 +320,10 @@ class Carga(Obj):
         return self._op('_p')
 
     @property
+    def scale0(self):
+        return self._op('_s')
+
+    @property
     def coslini(self):
         if self.mode_inp == 'PQ':
             p, q = self._op('_p'), self._op('_q')
@@ -319,6 +342,73 @@ class Carga(Obj):
     @property
     def slini(self):
         return math.hypot(self.plini, self.qlini)
+
+
+def _es_de_red(obj) -> bool:
+    return obj._clase.startswith(('Elm', 'Sta'))
+
+
+def _registrar_en_etapa(etapa, obj, nombre, valor) -> None:
+    """Lo escrito en un elemento de red mientras ``etapa`` graba queda en ella (spec 014).
+
+    En DIgSILENT una etapa guarda, de cada objeto que ya existía, su copia con los
+    valores escritos; leerla da lo que grabó el ajuste aunque después mande otro valor.
+    """
+    if etapa is None or not _es_de_red(obj) or any(o is obj for o in etapa._creados):
+        return
+    delta = etapa._deltas.get(id(obj))
+    if delta is None:
+        delta = etapa._deltas[id(obj)] = Delta(etapa, obj)
+    delta._attrs[nombre] = valor
+
+
+class Delta:
+    """Copia de un objeto dentro de una etapa: sus valores grabados y el resto del original."""
+
+    def __init__(self, etapa, obj):
+        self.__dict__.update(_etapa=etapa, _obj=obj, _attrs={}, loc_name=obj.loc_name)
+
+    def __getattr__(self, nombre):
+        attrs = self.__dict__['_attrs']
+        if nombre in attrs:
+            return attrs[nombre]
+        obj = self.__dict__['_obj']
+        if nombre == 'qlini' and isinstance(obj, Carga) and obj.mode_inp != 'PQ' and (
+                'plini' in attrs or 'coslini' in attrs):
+            # En modo PC la Q de la copia sale de su P y su cos φ, no de la carga de ahora.
+            p = attrs.get('plini', obj.plini)
+            cos = min(1.0, max(0.0, attrs.get('coslini', obj.coslini)))
+            return abs(p) * math.tan(math.acos(cos))
+        return getattr(obj, nombre)
+
+    def GetClassName(self):
+        return self._obj._clase
+
+    def GetParent(self):
+        return self._etapa
+
+    def GetFullName(self):
+        return self._etapa.GetFullName() + '\\' + f'{self.loc_name}.{self._obj._clase}'
+
+    def GetAttribute(self, nombre):
+        return self._attrs[nombre] if nombre in self._attrs else self._obj.GetAttribute(nombre)
+
+
+class Etapa(Obj):
+    """``IntSstage``: lista los objetos que creó y las copias de los que cambió (spec 014)."""
+
+    def __init__(self, app, clase, nombre, padre=None, **attrs):
+        super().__init__(app, clase, nombre, padre, **attrs)
+        object.__setattr__(self, '_creados', [])
+        object.__setattr__(self, '_deltas', {})
+
+    def GetContents(self, patron='*', recursivo=0):
+        # Con ``recursivo`` también lo creado dentro de lo creado: en DIgSILENT la carga
+        # nueva de la 007 cuelga de su ElmSubstat, que es lo que guarda la etapa.
+        clase = patron.split('.', 1)[1] if '.' in patron else None
+        propios = list(self._creados) + list(self._deltas.values())
+        return (super().GetContents(patron, recursivo)
+                + [o for o in propios if clase is None or o.GetClassName() == clase])
 
 
 class Variacion(Obj):
@@ -601,8 +691,9 @@ class FlujoConPerdidas(Orden):
             if cub is None:
                 continue
             cargas = [o for o in alim.GetObjs('ElmLod') if not getattr(o, 'outserv', 0)]
-            p = sum(c.plini for c in cargas)
-            q = sum(c.qlini for c in cargas)
+            # Lo que consumen: lo escrito por su factor de escala (015:RF-44).
+            p = sum(c.plini * c.scale0 for c in cargas)
+            q = sum(c.qlini * c.scale0 for c in cargas)
             if p > self.limite_efectivo():
                 app.ldf_valido = False
                 for o in app.proyecto.GetContents('*.ElmTerm', 1):
@@ -957,7 +1048,7 @@ class Guion(Obj):
         return getattr(self, 'rc', 0)
 
 
-_CLASES = {'ElmLod': Carga, 'IntScheme': Variacion, 'ComImport': Importacion,
+_CLASES = {'ElmLod': Carga, 'IntScheme': Variacion, 'IntSstage': Etapa, 'ComImport': Importacion,
            'IntCase': Caso, 'IntScenario': Escenario,
            'StaSwitch': Interruptor, 'ElmCoup': Interruptor,
            'ComSimoutage': Contingencias, 'ComOutage': Contingencia,
@@ -1085,6 +1176,23 @@ class App:
             if prj.loc_name == nombre:
                 return prj.Activate()
         return 1
+
+
+def variacion_del_operador(app, nombre: str, cambios) -> Variacion:
+    """Variación activa con cambios hechos a mano por el operador (spec 014).
+
+    ``cambios`` son ``(objeto, atributo, valor)``. Imita a CA101 (2026-10-14): el
+    operador cambió el tipo de cuatro transformadores y quedaron en la etapa que grababa.
+    """
+    previa = app.grabando
+    v = app.carpetas['scheme'].CreateObject('IntScheme', nombre)
+    v.NewStage(f'Etapa_{nombre}', getattr(app.caso, 'iStudyTime', 0), 1)
+    etapa = next(s for s in v.GetContents('*.IntSstage'))
+    app.grabando = etapa          # el operador graba a mano aunque haya empate de fecha
+    for obj, atributo, valor in cambios:
+        setattr(obj, atributo, valor)
+    app.grabando = previa
+    return v
 
 
 def nuevo_proyecto(app, padre, nombre, *, alimentadores=('F1',), con_datos_de_red=True):
