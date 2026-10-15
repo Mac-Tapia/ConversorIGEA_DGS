@@ -297,6 +297,19 @@ def connect_powerfactory(*, start_engine: bool = True, command_line: str | None 
             '(o la versión instalada) y use un Python compatible (3.10–3.12).'
         ) from exc
 
+    # 019:RF-1, RF-2, RF-4, RF-13: el turno del motor de la máquina. Engancharse a un
+    # DIgSILENT abierto (sin arrancar el motor) es elección del operador: no se le avisa.
+    import atexit  # noqa: PLC0415
+
+    from igea_dgs.pf_arnes import PFNoDisponible, soltar_turno, tomar_turno  # noqa: PLC0415
+
+    try:
+        turno = tomar_turno('powerfactory_acceptance.py',
+                            **({} if start_engine else {'abierto': lambda: []}))
+    except PFNoDisponible as exc:
+        raise RuntimeError(str(exc)) from exc
+    atexit.register(soltar_turno, turno)
+
     app = pf.GetApplication()
     if app is not None:
         return app

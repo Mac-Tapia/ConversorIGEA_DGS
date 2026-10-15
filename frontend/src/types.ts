@@ -1110,7 +1110,7 @@ export interface VerificarResultado {
 // ---------------------------------------------------------------------------
 
 export type ClaseObra = 'condensador' | 'reconectador' | 'regulador' | 'seccion' | 'terna' | 'tension'
-  | 'enlace' | 'migracion';
+  | 'enlace' | 'migracion' | 'consigna';
 export type ClaseTipo = 'TypLne' | 'TypTr2' | 'TypVoltreg' | 'TypRecl';
 export type OrigenTipo = 'proyecto' | 'global' | 'otro';
 

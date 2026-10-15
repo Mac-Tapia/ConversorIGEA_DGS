@@ -46,6 +46,7 @@ spec 001, RF-14 (DGS idéntico byte a byte); su diseño histórico está en
 | `src/igea_dgs/obras_pf.py` | Obras de mejora sin DIgSILENT: modelo y validación de cada obra (lo de «Sin proyecto» pasa a «Con proyecto»; enlace y migración solo en «Con proyecto»), nombres de variación y de copias de tipo, datos e igualdad de tipos, resumen de cada tipo, plan de la simulación (sección de toda la troncal, enlace entre alimentadores, migración de lo que queda aguas abajo de un nodo) y comprobación de «Sin proyecto». | 011 (RF-56, RF-59, RF-61 a RF-65, RF-69, RF-85, RF-94); 016 (RF-6 a RF-9, RF-11, RF-13, RF-14, RF-23 a RF-25, RF-31, RF-38 a RF-41, RF-51 a RF-59, RF-61, RF-65, RF-66) |
 | `src/igea_dgs/oraculo.py` | Flujo independiente con pandapower antes de escribir el DGS. | base |
 | `src/igea_dgs/perfil_empresa.py` | Perfil de empresa: CRS de origen, patrón de las SED de medición, escala del diagrama y forma de los alimentadores, fuera del código; hereda de `config/perfiles/`. | 002 (RF-31 a RF-37) |
+| `src/igea_dgs/pf_arnes.py` | Arnés de DIgSILENT: turno del motor de la máquina, conexión común con reintento, caso restituido y proceso que se queda abierto. | 019 |
 | `src/igea_dgs/powerfactory_env.py` | Dónde está la API de PowerFactory y qué intérprete la carga; cierra los guiones de PowerFactory huérfanos y corta un guion con sus hijos. | base |
 | `src/igea_dgs/powerfactory_binding.py` | Vínculo auditable entre ejecución fuente, DGS, inventario releído y proyecto nativo aceptado, con el estado del «Caso base» de cada alimentador. | 004, 006, 011, 015 |
 | `src/igea_dgs/powerfactory_metadata.py` | Procedencia IGEA en los objetos de PowerFactory. | base |
@@ -184,6 +185,8 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `tools/suggest_line_type_aliases.py` | Propone alias para tipos de línea sin ficha en el catálogo. | base |
 | `tools/transformador_set_pf.py` | Guion de DIgSILENT: cargabilidad del devanado de la SET en el proyecto de transmisión, sin proyecto (el caso tal cual) y con proyecto (la carga de la barra más el Δ de cabecera de 4.2), un flujo por estado, con la carga restituida y comprobada; `--listar` da las cargas de barra con su transformador y los casos. | 017 (RF-65 a RF-68, RF-70) |
 | `tools/transferencia_pf.py` | Guion de DIgSILENT: transferencia de carga entre dos alimentadores por su enlace, paso a paso en los dos sentidos, con la capacidad y el margen del enlace (`ComTransfer` o flujos sucesivos), sin dejar nada en el proyecto; un enlace entre barras de distinta tensión no se cierra ni se calcula. | 011 (RF-104 a RF-129), 016 (RF-62, RF-63) |
+| `tools/pf_cliente.py` | Envía un guion de DIgSILENT al proceso que se queda abierto y reescribe su salida. | 019 |
+| `tools/pf_servidor.py` | Proceso que mantiene DIgSILENT abierto y atiende las órdenes de los guiones; se cierra a los 2 minutos sin órdenes. | 019 |
 | `tools/verificar_pf.py` | Guion de DIgSILENT: convergencia del proyecto con lo activo. | 008 |
 
 ## `frontend/src/` — interfaz web

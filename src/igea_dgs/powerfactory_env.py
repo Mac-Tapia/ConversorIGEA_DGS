@@ -174,8 +174,11 @@ def guiones_pf_huerfanos(lista: list[dict], guiones: set[str], propio: int) -> l
     desde su consola tiene padre y no se toca.
     """
     vivos = {p['pid'] for p in lista}
+    # 019:RF-7: el proceso que se queda abierto vive sin su cliente a propósito; se cierra
+    # solo tras 2 minutos sin órdenes, o lo cierra la web si corta una orden.
     return [p for p in lista
             if p['pid'] != propio and p['ppid'] not in vivos
+            and 'tools/pf_servidor.py' not in p['cmd'].replace(chr(92), '/')
             and 'python' in p['name'].lower()
             and any(f'tools/{g}' in p['cmd'].replace('\\', '/') for g in guiones)]
 

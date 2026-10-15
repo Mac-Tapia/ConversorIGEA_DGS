@@ -736,6 +736,17 @@ que prepara la web (`output/web/<espacio>/planes/`):
 > python tools\transferencia_pf.py --plan plan.json --output-json informe.json [--fichero transferencias.csv] [--cancel-file cancelar.flag]
 ```
 
+Un solo proceso a la vez tiene el motor de DIgSILENT en la máquina (spec 019): si otro lo
+tiene, el guion espera hasta 10 minutos diciendo quién, y con DIgSILENT abierto a mano
+avisa y no se lanza. La web manda estos guiones a un proceso que mantiene DIgSILENT
+abierto entre órdenes, sin volver a activar el proyecto, y que se cierra a los 2 minutos
+sin órdenes (`IGEA_PF_SERVIDOR=0` lo apaga):
+
+```bat
+> python tools\pf_servidor.py [--inactividad 120]
+> python tools\pf_cliente.py verificar_pf.py --plan plan.json --output-json informe.json
+```
+
 Con `--deshacer`, `cargas_pf.py` borra lo que creó una aplicación anterior según su
 informe (`runs/<id>/salida/cargas_pf_aplicacion_<token>.json`): las variaciones de sus
 cargas nuevas, sus símbolos del diagrama y los tipos de transformador que creó y ya no
