@@ -62,6 +62,8 @@ MAX_SOBRECARGAS = 20
 #: DIgSILENT da lo escrito a 1e-12; CA101 (2026-10-15) consumía el 73 % por u².
 CONSUMO_REL = 1e-3
 CONSUMO_ABS = 0.01
+#: Margen del factor de potencia de las escaladas frente al pedido (015:RF-67).
+FP_MARGEN = 1e-3
 #: Ajustes del ``ComLdf`` que cambian lo que consume una carga (015:RF-51).
 AJUSTES_QUE_CAMBIAN_EL_CONSUMO = {
     'iopt_lev': 'adaptación automática del modelo',
@@ -362,20 +364,8 @@ def bancos_instalados(alims: Alimentadores, feeder: str) -> list[dict]:
     con el alimentador y, si el proyecto solo tiene este alimentador, todos los del cálculo,
     porque en CA101 el ``ElmFeeder`` no alcanzaba las barras de los bancos.
     """
-    from igea_dgs.demanda_medida import clave_codigo
-
-    clave = clave_codigo(feeder)
-    candidatos = {_clave_objeto_nativo(o): o for o in alims.objetos(feeder, 'ElmShnt')}
-    try:
-        relevantes = list(alims.app.GetCalcRelevantObjects('*.ElmShnt') or [])
-    except Exception:  # noqa: BLE001 - sin cálculo, los del ElmFeeder
-        relevantes = []
-    solo_este = set(alims.elm) <= {feeder}
-    for o in relevantes:
-        if solo_este or clave in {clave_codigo(x) for x in _alimentadores_nativos(o)}:
-            candidatos.setdefault(_clave_objeto_nativo(o), o)
     filas = []
-    for o in candidatos.values():
+    for o in _objetos_banco(alims, feeder):
         try:
             barra = o.bus1.cterm
         except Exception:  # noqa: BLE001 - banco sin conectar
@@ -391,8 +381,47 @@ def bancos_instalados(alims: Alimentadores, feeder: str) -> list[dict]:
             'q_flujo_kvar': None if q_flujo is None else -q_flujo * 1000.0,
             'u_pu': _num(barra, 'm:u') if barra is not None else None,
             'en_servicio': not int(getattr(o, 'outserv', 0) or 0),
+            'escalones': f"{int(pasos)} de {int(_num(o, 'ncapx') or pasos)}",
         })
     return sorted(filas, key=lambda x: (str(x['barra']), x['banco']))
+
+
+def bancos_a_su_maxima_capacidad(alims: Alimentadores, feeder: str) -> list[dict]:
+    """Cada banco existente con todos sus escalones y en servicio (015:RF-66).
+
+    El usuario, 2026-10-15: «los bancos existentes deben trabajar a su máxima capacidad».
+    Se escribe con el escenario de «Sin proyecto» activo; devuelve lo que cambió.
+    """
+    cambios = []
+    for o in _objetos_banco(alims, feeder):
+        antes = {'escalones': _num(o, 'ncapa'), 'en_servicio': not int(getattr(o, 'outserv', 0) or 0)}
+        maximo = _num(o, 'ncapx')
+        if maximo and (antes['escalones'] or 0) < maximo:
+            o.ncapa = int(maximo)
+        if not antes['en_servicio']:
+            o.outserv = 0
+        despues = {'escalones': _num(o, 'ncapa'),
+                   'en_servicio': not int(getattr(o, 'outserv', 0) or 0)}
+        if despues != antes:
+            cambios.append({'banco': o.loc_name, 'antes': antes, 'despues': despues})
+    return cambios
+
+
+def _objetos_banco(alims: Alimentadores, feeder: str) -> list:
+    """Los ``ElmShnt`` del alimentador en el proyecto (los de :func:`bancos_instalados`)."""
+    from igea_dgs.demanda_medida import clave_codigo
+
+    clave = clave_codigo(feeder)
+    candidatos = {_clave_objeto_nativo(o): o for o in alims.objetos(feeder, 'ElmShnt')}
+    try:
+        relevantes = list(alims.app.GetCalcRelevantObjects('*.ElmShnt') or [])
+    except Exception:  # noqa: BLE001 - sin cálculo, los del ElmFeeder
+        relevantes = []
+    solo_este = set(alims.elm) <= {feeder}
+    for o in relevantes:
+        if solo_este or clave in {clave_codigo(x) for x in _alimentadores_nativos(o)}:
+            candidatos.setdefault(_clave_objeto_nativo(o), o)
+    return list(candidatos.values())
 
 
 def fijas_sobre_su_transformador(fijas: dict, kva: dict) -> list[dict]:
@@ -546,7 +575,8 @@ def _cerca(actual: float, esperado: float, *, rel: float = 1e-4,
 
 def validar_cargas_nativas(cargas: dict, reparto, medida, objetivo, tolerancia: float,
                            *, ambiguas=(), apagar=None,
-                           ajustes_flujo: dict | None = None) -> tuple[dict, object | None]:
+                           ajustes_flujo: dict | None = None,
+                           fp_escaladas: float | None = None) -> tuple[dict, object | None]:
     """Demuestra si el reparto ya existe en la red efectiva sin escribirla.
 
     Las fijas deben coincidir con su P/Q calculada. Las escalables no se comparan contra
@@ -577,6 +607,7 @@ def validar_cargas_nativas(cargas: dict, reparto, medida, objetivo, tolerancia: 
     detalles = []
     fisicas: list[dict] = []
     sin_resultado: list[str] = []
+    fp_distinto: list[dict] = []
     for sed, demanda in reparto.demandas.items():
         obj = cargas.get(sed)
         if obj is None:
@@ -608,6 +639,12 @@ def validar_cargas_nativas(cargas: dict, reparto, medida, objetivo, tolerancia: 
                 errores.append(f'P={p_kw:.6f} kW, esperada {demanda.kw:.6f}')
             if not _cerca(q_kvar, demanda.kvar):
                 errores.append(f'Q={q_kvar:.6f} kVAR, esperada {demanda.kvar:.6f}')
+        # 015:RF-67: cada escalada con demanda, con el FP de las escaladas.
+        if escalable and fp_escaladas is not None and p_kw > CONSUMO_ABS:
+            fp_escrito = abs(p_kw) / math.hypot(p_kw, q_kvar)
+            if abs(fp_escrito - fp_escaladas) > FP_MARGEN:
+                errores.append(f'FP escrito {fp_escrito:.4f}, esperado {fp_escaladas:.4f}')
+                fp_distinto.append({'sed': sed, 'fp': fp_escrito, 'donde': 'escrito'})
         # 015:RF-47, RF-48, RF-52: lo que consume en el flujo, frente a lo escrito.
         consumo_p = consumo_q = tension = None
         errores_fisicos = []
@@ -626,6 +663,13 @@ def validar_cargas_nativas(cargas: dict, reparto, medida, objetivo, tolerancia: 
                     and not _consume_lo_escrito(consumo_q, q_kvar)):
                 errores_fisicos.append(
                     f'consume Q={consumo_q:.3f} kVAR, escrita {q_kvar:.3f} kVAR')
+            if (escalable and fp_escaladas is not None and consumo_p is not None
+                    and consumo_q is not None and consumo_p > CONSUMO_ABS):
+                fp_flujo = abs(consumo_p) / math.hypot(consumo_p, consumo_q)
+                if abs(fp_flujo - fp_escaladas) > FP_MARGEN:
+                    errores_fisicos.append(f'FP en el flujo {fp_flujo:.4f}, esperado '
+                                           f'{fp_escaladas:.4f}')
+                    fp_distinto.append({'sed': sed, 'fp': fp_flujo, 'donde': 'flujo'})
             if errores_fisicos and consumo_p is not None:
                 fisicas.append({
                     'sed': sed, 'clase': 'ESCALABLE' if escalable else 'FIJA',
@@ -646,6 +690,9 @@ def validar_cargas_nativas(cargas: dict, reparto, medida, objetivo, tolerancia: 
     for sed, obj in apagar.items():
         if int(getattr(obj, 'outserv', 0) or 0) != 1:
             fallos.append({'tipo': 'SED_DESCONECTADA_ACTIVA', 'sed': sed})
+    if fp_distinto:
+        fallos.append({'tipo': 'FP_ESCALADAS_DISTINTO', 'esperado': fp_escaladas,
+                       'cantidad': len(fp_distinto), 'sed': fp_distinto})
     if sin_resultado:
         fallos.append({'tipo': 'CARGAS_SIN_RESULTADO_DEL_FLUJO',
                        'cantidad': len(sin_resultado), 'sed': sin_resultado})
@@ -740,6 +787,7 @@ def validar_cargas_nativas(cargas: dict, reparto, medida, objetivo, tolerancia: 
         'consumo_cargas_efectivo': {'kw': total_p, 'kvar': total_q,
                                     'origen': consumo_origen},
         'balance': balance,
+        'fp_escaladas': {'esperado': fp_escaladas, 'distintas': len(fp_distinto)},
         'cabecera': ({'kw': medida.kw, 'kvar': medida.kvar}
                      if medida.converge else None),
     }, reconstruido
@@ -857,13 +905,28 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
     # 015:RF-53, RF-54, RF-56: las fijas, con el EA/ERI de la tabla cruzada; las escaladas,
     # con el factor del perfil si lo hay (Electro Dunas, 0,98) y si no con el del archivo.
     fp_cargas = plan.get('factor_potencia_cargas')
+    fp_min_fijas = plan.get('factor_potencia_minimo_fijas')
     informe['factor_potencia_cargas'] = {
-        'fijas': 'EA/ERI del libro de clientes',
+        'fijas': ('EA/ERI del libro de clientes' if not fp_min_fijas else
+                  f'EA/ERI del libro de clientes; por debajo de {fp_min_fijas:.2f}, a '
+                  f'{fp_min_fijas:.2f} por su banco propio'),
         'escaladas': fp_cargas or Objetivo(**plan['objetivo']).fp,
         'escaladas_origen': 'perfil de empresa' if fp_cargas else 'máxima de cabecera',
         # 015:RF-44: la P base de cada escalada, su potencia instalada por ese factor.
         'escaladas_reparto': 'potencia instalada (kVA) de cada SED'}
-    fijas_libro = fijas_de(plan.get('clientes') or [], objetivo)
+    fijas_libro = fijas_de(plan.get('clientes') or [], objetivo, fp_min_fijas)
+    # 015:RF-62, RF-63: los clientes compensados por su banco propio, dichos uno a uno.
+    compensadas = [{'sed': f.sed, 'cliente': d['cliente'], 'p_kw': d['p_kw'],
+                    **d['compensado']}
+                   for f in fijas_libro.values() for d in f.derivaciones if d.get('compensado')]
+    if compensadas:
+        informe['fijas_compensadas'] = compensadas
+        informe['avisos'].append(
+            f'{len(compensadas)} cliente(s) fijo(s) con FP por debajo de {fp_min_fijas:.2f} en su '
+            f'EA/ERI se escriben a {fp_min_fijas:.2f}, como compensados por su banco propio: '
+            + '; '.join(f"{c['sed']} FP {c['fp_ea_eri']:.3f} → {c['fp_escrito']:.3f} "
+                        f"(Q {c['q_ea_eri_kvar']:,.1f} → {c['q_escrita_kvar']:,.1f} kvar)"
+                        for c in compensadas) + ' (015:RF-62).')
     # 014:RF-10 a RF-12: una demanda cambiada a mano entra fija con su valor y no se
     # sobrescribe; gana sobre el cliente importante de la misma SED.
     manuales, ultimo = cambios_manuales(cargas, plan.get('ultima_calibracion'))
@@ -926,12 +989,20 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
         informe['avisos'].append('Ajustes de antes de la spec 015 activos en «Sin proyecto» '
                                  '(no se tocan; la calibración va al escenario): '
                                  + ', '.join(viejos))
+    # 015:RF-66: los bancos existentes, a su máxima capacidad antes de medir.
+    al_maximo = bancos_a_su_maxima_capacidad(alims, feeder)
+    if al_maximo:
+        informe['bancos_puestos_a_maxima'] = al_maximo
+        informe['avisos'].append(
+            'Bancos existentes puestos a su máxima capacidad (todos los escalones, en '
+            'servicio): ' + ', '.join(c['banco'] for c in al_maximo) + ' (015:RF-66).')
     # Idempotencia nativa: antes de escribir una carga se demuestra si el estado efectivo
     # ya contiene el mismo reparto y cuadre.
     medida_previa = medir_cabecera(app, elm)
     validacion_previa, reparto_nativo = validar_cargas_nativas(
         cargas, reparto, medida_previa, objetivo, float(informe['tolerancia']),
         ambiguas=ambiguas, apagar=apagar, ajustes_flujo=ajustes_del_flujo(app),
+        fp_escaladas=None if reparto.todo_escala else (fp_cargas or objetivo.fp),
     )
     informe['validacion_previa_nativa'] = validacion_previa
     if validacion_previa['correcta'] and reparto_nativo is not None:
@@ -1068,6 +1139,7 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
             validacion_posterior, _reparto_verificado = validar_cargas_nativas(
                 cargas, res.reparto, res.medida, objetivo, float(informe['tolerancia']),
                 ambiguas=ambiguas, apagar=apagar, ajustes_flujo=ajustes_del_flujo(app),
+                fp_escaladas=None if res.reparto.todo_escala else (fp_cargas or objetivo.fp),
             )
             informe['validacion_posterior_nativa'] = validacion_posterior
             if res.cuadrado and not informe['fallos'] and validacion_posterior['correcta']:

@@ -62,6 +62,19 @@ def _server_paths_allowed(host: str | None) -> bool:
     return os.environ.get('IGEA_WEB_SERVER_PATHS', '1').strip() not in ('0', 'false', 'no', '')
 
 
+# Cabecera con la que el lanzador pide cerrar el servidor. Una cabecera propia obliga al
+# navegador a una consulta CORS previa, que solo pasan los orígenes de desarrollo: una
+# página cualquiera no puede cerrar el Conversor con un formulario.
+CABECERA_LANZADOR = 'X-Igea-Lanzador'
+
+_cierre: list = []
+
+
+def al_pedir_cierre(fn) -> None:
+    """Registra cómo se cierra este proceso; lo pone el lanzador, que tiene el servidor."""
+    _cierre[:] = [fn]
+
+
 def frontend_dist() -> Path:
     env = os.environ.get('IGEA_WEB_FRONTEND', '').strip()
     return Path(env) if env else project_root() / 'frontend' / 'dist'
@@ -256,6 +269,9 @@ def create_app(
             ws.events.append(kind, data)
 
     jobs = JobManager(emit)
+    from .runtime import huella_del_codigo
+
+    huella = huella_del_codigo(frontend_dist())
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
@@ -315,7 +331,26 @@ def create_app(
             'server_paths': _server_paths_allowed(host),
             'parallel': services.parallel_info(),
             'source_modes': ['txt', 'mdb', 'vnr'],
+            # Para el lanzador (spec 001, RF-28 a RF-30): si este servidor es el mismo
+            # código, si se puede cerrar sin perder trabajo y qué proceso es.
+            'servidor': {'pid': os.getpid(), 'huella': huella,
+                         'trabajos_en_curso': jobs.en_curso()},
         }
+
+    @app.post('/api/sistema/cerrar', status_code=202)
+    def cerrar_servidor(request: Request) -> dict:
+        """El lanzador pide cerrar este servidor para arrancar otra versión (RF-29, RF-33)."""
+        cliente = request.client.host if request.client else ''
+        if request.headers.get(CABECERA_LANZADOR) != '1' or cliente not in LOOPBACK_HOSTS:
+            raise HTTPException(403, 'Solo el lanzador de esta máquina puede cerrar el servidor.')
+        en_curso = jobs.en_curso()
+        if en_curso:
+            raise HTTPException(409, f'Hay {en_curso} trabajo(s) en curso: no se cierra.')
+        if not _cierre:
+            raise HTTPException(503, 'Este servidor no admite el cierre por petición.')
+        # Tras responder: si se cierra antes, el lanzador ve la conexión cortada.
+        threading.Timer(0.2, _cierre[0]).start()
+        return {'cerrando': True}
 
     @app.get('/api/powerfactory')
     def powerfactory(refresh: bool = False) -> dict:

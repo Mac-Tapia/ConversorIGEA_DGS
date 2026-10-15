@@ -59,6 +59,28 @@ def front_desactualizado(frontend: Path) -> str:
     return ''
 
 
+def huella_del_codigo(dist: Path | None = None) -> str:
+    """Huella del código Python y del front compilado, para saber si un servidor es este.
+
+    2026-10-15: con un servidor de otra versión en el puerto, el acceso directo no sabía si
+    reutilizarlo o reemplazarlo. El servidor la calcula al arrancar y la publica en
+    ``/api/health``; el lanzador la calcula del disco y las compara. Es fecha y tamaño de
+    cada fichero, no su contenido: un par de cientos de ``stat``, sin leer nada.
+    """
+    import hashlib
+
+    src = Path(__file__).resolve().parents[2]
+    h = hashlib.sha1()
+    for paquete in ('igea_dgs', 'vnr_etl'):
+        for f in sorted((src / paquete).rglob('*.py')):
+            st = f.stat()
+            h.update(f'{f.relative_to(src).as_posix()}:{st.st_mtime_ns}:{st.st_size};'.encode())
+    if dist is not None and (dist / 'index.html').is_file():
+        st = (dist / 'index.html').stat()
+        h.update(f'dist:{st.st_mtime_ns}:{st.st_size}'.encode())
+    return h.hexdigest()[:16]
+
+
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     if argv[:1] == ['--front']:

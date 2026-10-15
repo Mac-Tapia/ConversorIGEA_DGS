@@ -85,13 +85,18 @@ class Fija:
         return abs(self.kw) / apparent if apparent else 1.0
 
 
-def fijas_de(cruzados: Iterable[Mapping[str, Any]], objetivo: Objetivo) -> dict[str, Fija]:
+def fijas_de(cruzados: Iterable[Mapping[str, Any]], objetivo: Objetivo,
+             fp_minimo: float | None = None) -> dict[str, Fija]:
     """Suma por SED de los clientes cruzados (``ClienteImportante.to_dict``).
 
     El kVAR de cada cliente sale de su energía reactiva y activa del mes (RF-6): es su
     factor de potencia medio, que es lo que se conoce de él. Sin una de las dos, el del
-    objetivo (RF-7). El factor del perfil de empresa no las toca: es solo de las
-    escaladas (usuario, 2026-10-15; 015:RF-53).
+    objetivo (RF-7). El factor de las escaladas del perfil no las toca (015:RF-53).
+
+    Con ``fp_minimo`` (perfil de empresa, 015:RF-62 a RF-64), el cliente cuyo EA/ERI da un
+    factor menor se escribe con ese mínimo, como compensado por su banco propio, y queda
+    dicho en su derivación y en un aviso. En CA101 (2026-10-15) el EA/ERI daba factores
+    de 0,43 a 0,98 y la cabecera 3036 kvar frente a 302 medidos.
     """
     por_clave: dict[str, Fija] = {}
     for c in cruzados:
@@ -111,10 +116,20 @@ def fijas_de(cruzados: Iterable[Mapping[str, Any]], objetivo: Objetivo) -> dict[
             tan = eri / ea
             metodo = 'ERI/EA'
         q_kvar = kw * tan
+        fp_libro = abs(kw) / math.hypot(kw, q_kvar) if (kw or q_kvar) else 1.0
+        compensado = None
+        if fp_minimo is not None and fp_libro < fp_minimo and kw > 0:
+            q_libro = q_kvar
+            q_kvar = kw * math.tan(math.acos(fp_minimo))
+            compensado = {'fp_ea_eri': fp_libro, 'fp_escrito': fp_minimo,
+                          'q_ea_eri_kvar': q_libro, 'q_escrita_kvar': q_kvar}
+            f.avisos.append(
+                f'{codigo}: FP {fp_libro:.3f} de su EA/ERI llevado a {fp_minimo:.3f} por su '
+                f'banco propio; Q {q_libro:,.1f} → {q_kvar:,.1f} kvar (015:RF-62).')
         f.kw += kw
         f.kvar += q_kvar
         f.clientes.append(codigo)
-        f.derivaciones.append({
+        derivacion = {
             'cliente': codigo,
             'p_kw': kw,
             'q_kvar': q_kvar,
@@ -122,7 +137,10 @@ def fijas_de(cruzados: Iterable[Mapping[str, Any]], objetivo: Objetivo) -> dict[
             'metodo': metodo,
             'ea': ea,
             'eri': eri,
-        })
+        }
+        if compensado:
+            derivacion['compensado'] = compensado
+        f.derivaciones.append(derivacion)
     return {f.sed: f for f in por_clave.values()}
 
 

@@ -336,6 +336,10 @@ class JobManager:
     def active(self, workspace_id: str) -> list[Job]:
         return [j for j in self.list(workspace_id) if j.status not in FINISHED]
 
+    def en_curso(self) -> int:
+        """Trabajos sin terminar en todos los espacios: el lanzador no cierra un servidor con ellos."""
+        return sum(1 for j in self.list() if j.status not in FINISHED)
+
     # -------------------------------------------------------------- acciones
     def submit(
         self, workspace_id: str, kind: str, title: str,

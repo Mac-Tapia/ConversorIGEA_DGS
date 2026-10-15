@@ -379,8 +379,16 @@ def test_el_lanzador_pasa_la_interfaz_de_escucha_a_la_api(monkeypatch):
     from igea_dgs.web import __main__ as lanzador
 
     llamadas = []
+    class Servidor:
+        def __init__(self, config):
+            self.should_exit = False
+            llamadas.append(config)
+
+        def run(self):
+            pass
+
     monkeypatch.setitem(sys.modules, 'uvicorn', types.SimpleNamespace(
-        run=lambda *a, **k: llamadas.append(k)))
+        Config=lambda *a, **k: k, Server=Servidor, run=lambda *a, **k: llamadas.append(k)))
     monkeypatch.delenv('IGEA_WEB_HOST', raising=False)
     monkeypatch.setenv('IGEA_WEB_SERVER_PATHS', '1')
     # Sin esto la prueba fallaba con la web del operador abierta en el 8765.
@@ -498,19 +506,22 @@ def test_vista_previa_sin_georreferenciacion_se_rechaza_tambien_al_unir(client, 
     assert 'georreferenciación' in r.json()['detail']
 
 
-def test_el_arranque_no_abre_otro_servidor_si_el_puerto_esta_ocupado(capsys):
-    """Con otro servidor en el puerto, el arranque lo dice y sale con 2, sin abrir el viejo."""
+def test_el_arranque_no_abre_otro_servidor_si_el_puerto_esta_ocupado(capsys, monkeypatch):
+    """001:RF-31 — con el puerto y los siguientes en manos de otro programa, sale con 2 y lo nombra."""
     import socket
 
-    from igea_dgs.web.__main__ import main, puerto_ocupado
+    from igea_dgs.web import __main__ as lanzador
 
+    # Otro programa (no un Conversor) y ningún puerto libre después: no hay qué hacer.
+    monkeypatch.setattr(lanzador, 'conversor_en', lambda *_a, **_k: None)
+    monkeypatch.setattr(lanzador, 'puerto_libre_siguiente', lambda *_a: None)
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(('127.0.0.1', 0))
         s.listen(8)
         port = s.getsockname()[1]
-        assert puerto_ocupado('127.0.0.1', port)
-        assert main(['--port', str(port), '--no-browser']) == 2
+        assert lanzador.puerto_ocupado('127.0.0.1', port)
+        assert lanzador.main(['--port', str(port), '--no-browser']) == 2
     err = capsys.readouterr().err
-    assert 'Cierre esa ventana' in err
+    assert 'Ciérrelo con' in err
     # El que escucha es esta misma prueba: el aviso da su PID para cerrarlo sin ventana.
-    assert f'Proceso {os.getpid()}' in err
+    assert f'proceso {os.getpid()}' in err

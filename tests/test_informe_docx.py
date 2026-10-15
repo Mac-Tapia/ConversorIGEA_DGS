@@ -409,3 +409,22 @@ def test_bancos_existentes_tal_como_estan_en_digsilent(tmp_path):
     filas = _filas(destino)
     assert ['BC1', 'N7', '300', 'En servicio'] in filas and ['BC2', 'N9', '150', 'Fuera de servicio'] in filas
     assert json.loads(destino.with_suffix('.json').read_text(encoding='utf-8'))['bancos'][0]['barra'] == 'N7'
+
+
+def test_clientes_fijos_con_fp_real_y_corregido(tmp_path):
+    """015:RF-65 — usuario, 2026-10-15: el informe modelo lleva el factor de potencia real
+    (EA/ERI) y el corregido de cada cliente fijo, y dice cuáles se suponen compensados."""
+    fijas = ({'sed': 'SE1', 'cliente': 'C1', 'p_kw': 100.0, 'fp_real': 0.43, 'fp_corregido': 0.98,
+              'q_real_kvar': 210.0, 'q_kvar': 20.3, 'compensado': True},
+             {'sed': 'SE2', 'cliente': 'C2', 'p_kw': 200.0, 'fp_real': 0.982, 'fp_corregido': 0.982,
+              'q_real_kvar': 38.0, 'q_kvar': 38.0, 'compensado': False})
+    destino = tmp_path / 'informe.docx'
+    escribir_informe_estudio(_config(tmp_path), destino, _estudio(tmp_path, fijas=fijas))
+    filas = _filas(destino)
+    assert ['SED', 'Cliente', 'P (kW)', 'FP real', 'FP corregido', 'Q real (kvar)',
+            'Q modelada (kvar)'] in filas
+    assert ['SE1', 'C1', '100,0', '0,430', '0,980', '210,0', '20,3'] in filas \
+        or ['SE1', 'C1', '100.0', '0.430', '0.980', '210.0', '20.3'] in filas
+    texto = '\n'.join(p.text for p in __import__('docx').Document(destino).paragraphs)
+    assert 'banco de condensadores propio' in texto and 'SE1' in texto
+    assert json.loads(destino.with_suffix('.json').read_text(encoding='utf-8'))['fijas'][0]['sed'] == 'SE1'

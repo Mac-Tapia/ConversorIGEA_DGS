@@ -10,7 +10,8 @@
   "patron_libro_clientes": "(?i)^(?P<mes>0[1-9]|1[0-2])(?P<anio>\\d{2})clientesImportantes\\.(?:xlsb|xlsx)$",
   "_comentario_informes": "Bandas del coloreado de sus informes (spec 017, RF-115), las del modelo EMAPICA: tensión en % de la nominal y cargabilidad en %. Los modelos .docx, el libro de pérdidas y el proyecto de transmisión van en el perfil local, porque son ficheros y proyectos de la máquina.",
   "_comentario_calibracion": "Factor de potencia de las SED escaladas al calibrar a la máxima de cabecera (spec 015, RF-54), pedido el 2026-10-15. Las fijas conservan el de su EA/ERI de la tabla cruzada (RF-53).",
-  "calibracion": {"factor_potencia_cargas": 0.98},
+  "_comentario_fijas": "Factor de potencia mínimo de los clientes fijos (spec 015, RF-62): por debajo, se suponen compensados por su banco propio hasta este valor; pedido el 2026-10-15.",
+  "calibracion": {"factor_potencia_cargas": 0.98, "factor_potencia_minimo_fijas": 0.98},
   "informes": {
     "bandas_tension_pct": [85, 90, 95, 105],
     "bandas_cargabilidad_pct": [80, 90, 95, 105, 150],

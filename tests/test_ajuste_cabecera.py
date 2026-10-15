@@ -418,3 +418,23 @@ def test_fp_del_perfil_no_cambia_una_demanda_puesta_a_mano():
     r = reparto_inicial(o, manual, {'E1': (50.0, 10.0), 'E2': (100.0, 20.0)},
                         {'E1': 50.0, 'E2': 100.0}, fp=0.98)
     assert (r.demandas['E1'].kw, r.demandas['E1'].kvar) == (120.0, 90.0)
+
+
+def test_fija_con_fp_bajo_se_compensa_al_minimo_del_perfil():
+    """015:RF-62 / 015:RF-63 / 015:RF-64 — usuario, 2026-10-15: el cliente fijo cuyo EA/ERI
+    da un factor menor que el mínimo del perfil (0,98) se escribe a 0,98, como compensado
+    por su banco propio, y queda dicho; el que ya está por encima conserva el suyo."""
+    o = objetivo_de(_maxima())
+    fijas = fijas_de([_cliente('BAJO', 'E1', 100.0, ea=1.0, eri=2.1),      # FP 0,430
+                      _cliente('ALTO', 'E2', 200.0, ea=1.0, eri=0.19)], o,  # FP 0,982
+                     fp_minimo=0.98)
+    bajo, alto = fijas['E1'], fijas['E2']
+    assert bajo.fp == pytest.approx(0.98)
+    (d,) = bajo.derivaciones
+    assert d['compensado']['fp_ea_eri'] == pytest.approx(1 / math.hypot(1, 2.1))
+    assert d['compensado']['q_ea_eri_kvar'] == pytest.approx(210.0)
+    assert d['compensado']['q_escrita_kvar'] == pytest.approx(100.0 * math.tan(math.acos(0.98)))
+    assert any('BAJO' in a and 'banco propio' in a for a in bajo.avisos)
+    assert alto.kvar == pytest.approx(38.0) and 'compensado' not in alto.derivaciones[0]
+    assert fijas_de([_cliente('BAJO', 'E1', 100.0, ea=1.0, eri=2.1)], o)['E1'].kvar \
+        == pytest.approx(210.0), 'sin mínimo en el perfil, su EA/ERI'

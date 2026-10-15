@@ -232,6 +232,28 @@ Clientes y bancos del propio proyecto (cambio del 2026-10-15)
 - RF-61: EL SISTEMA no creará bancos al calibrar ni tomará bancos, cargas ni otros datos de
   otro proyecto o de otro alimentador.
 
+Compensación propia de los clientes fijos (cambio del 2026-10-15)
+
+- RF-62: DONDE el perfil de empresa fija un factor de potencia mínimo para las SED fijas,
+  SI el factor de potencia de la EA y la ERI de un cliente es menor, ENTONCES EL SISTEMA
+  escribirá su Q con ese factor mínimo, como compensado por un banco propio del cliente.
+- RF-63: CUANDO aplica RF-62, EL SISTEMA lo dirá en el informe de la calibración y en la web,
+  por cliente: su SED, el factor de potencia de su EA/ERI, el escrito y la Q antes y después.
+- RF-64: EL SISTEMA no cambiará con RF-62 el factor de potencia de un cliente que ya es igual
+  o mayor que el mínimo.
+- RF-65: EL SISTEMA pondrá en el informe de estudio (spec 017), en el estado actual, cada
+  cliente fijo de la última calibración con su factor de potencia real (de su EA/ERI) y el
+  corregido con que se escribió, y dirá cuáles se suponen compensados por su banco propio.
+- RF-66: CUANDO calibra, EL SISTEMA pondrá cada banco de condensadores existente del
+  alimentador con todos sus escalones conectados y en servicio, para que trabaje a su
+  máxima capacidad, y dirá en el informe los que cambió. (Usuario, 2026-10-15.) Lo que
+  entrega un banco sigue siendo su potencia por el cuadrado de la tensión de su barra.
+- RF-67: CUANDO valida la calibración, EL SISTEMA comprobará que cada SED escalada con
+  demanda tiene, escrito y consumido en el flujo, el factor de potencia de las escaladas
+  (RF-54, RF-55), con un margen de 0,001, y SI alguna no lo tiene, ENTONCES no dará la
+  calibración por válida y la nombrará. (Usuario, 2026-10-15: «debes asegurar que las cargas
+  escaladas de las SED todas tengan un factor de potencia de 0,98».)
+
 ## Requisitos que esta spec cambia
 
 | Requisito | Antes | Ahora |
@@ -363,6 +385,11 @@ Clientes y bancos del propio proyecto (cambio del 2026-10-15)
     RF-61). En CA101 son tres de 300 kvar en 10 kV, dos en la barra «Terminal» (que parte
     el tramo SEC_1091_1082263) y uno en «Terminal(1)». El cliente que pide más que su
     transformador se avisa (RF-59): en CA101, SE20859 (496 %) y SE21082 (201 %).
+17. Los clientes fijos con factor de potencia por debajo de 0,98 se suponen compensados por
+    sus propios bancos hasta 0,98, y el informe lo dice (usuario, 2026-10-15; RF-62 a
+    RF-64). Medido ese día en una copia de CA101: con las fijas en su EA/ERI la cabecera da
+    3036 kvar frente a 302 medidos; con las nueve a 0,98, 1537 kvar; para llegar a 302 harían
+    falta 0,994 capacitivo. El 0,98 va en el perfil de empresa (P13).
 
 ## Para el plan
 

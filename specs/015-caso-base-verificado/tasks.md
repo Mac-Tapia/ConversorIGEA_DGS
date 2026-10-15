@@ -122,6 +122,19 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       el usuario). Recalibrado (`output/spec015/T22_ajuste_CA101_trafos_ntp.json`): 5987,9 kW
       (−0,20 %), validación física correcta, ninguna fija sobre su transformador, pérdidas
       1050 kW (17,5 %), 0,637 pu en SE20701; registrado en el espacio de la web.
+- [x] T23. Clientes fijos con FP por debajo de 0,98 compensados por su banco propio hasta
+      0,98 y dichos en el informe de la calibración, en la web y en el informe de estudio
+      con su FP real y el corregido; bancos existentes a su máxima capacidad; toda escalada
+      con el FP de las escaladas comprobado escrito y en el flujo. (RF-62 a RF-67)
+      Hecho cuando: suite de web, front, calibración e informes en verde y CA101 en DIgSILENT.
+      Resultado del 2026-10-15 (`output/spec015/T23_*.json`): 8 de 9 fijas llevadas a 0,98
+      (SE20426 0,430, SE20531 0,615, SE20730 0,706, SE20444 0,792, SE21082 0,851, SE20701
+      0,894, SE21081 0,962, SE20859 0,975; SE20069 conserva 0,981); cuadra en 5998,6 kW
+      (−0,02 %), validación física correcta, cabecera 1532 kvar (frente a 302 medidos),
+      pérdidas 734 kW (12,2 %), 0,751 pu en SE20701; los 3 bancos ya estaban a su máximo
+      (1 de 1 escalón) y entregan 198, 198 y 185 kvar. Repetida sobre lo calibrado:
+      YA_CARGADO_VALIDADO con las 160 escaladas a 0,98 en lo escrito y en el flujo. Antes, en
+      una copia: sin bancos SE20701 caía de 0,637 a 0,546 pu y las pérdidas subían 486 kW.
 - [ ] T12. Prueba en DIgSILENT con CA101, sobre el proyecto existente y sin datos
       inventados: la verificación lista lo que falla; corregido, pasa; se crea
       «Sin proyecto»; la calibración solo cambia su escenario y el «Caso base» queda igual;

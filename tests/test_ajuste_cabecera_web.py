@@ -314,6 +314,11 @@ def test_la_web_muestra_la_validacion_fisica_y_el_balance():
     assert '<ConsumoDistintoLista cargas={consumoDistinto.cargas} />' in ajuste
     # Los fallos de la validación (con «detalle») no se listan como escrituras rechazadas.
     assert '(inf.fallos ?? []).filter((x) => !x.detalle)' in ajuste
+    # 015:RF-66: los bancos a su máxima capacidad, con sus escalones.
+    assert 'puesto(s) a su máxima capacidad' in ajuste and 'bancos_puestos_a_maxima?:' in tipos
+    # 015:RF-63: los clientes compensados, con FP real y corregido.
+    assert 'Clientes fijos compensados por su banco propio' in ajuste
+    assert 'FP real (EA/ERI)' in ajuste and 'fijas_compensadas?: {' in tipos
     # 015:RF-59 / 015:RF-60: clientes sobre su transformador y bancos instalados.
     assert 'Clientes que piden más que el transformador de su SED' in ajuste
     assert 'Bancos de condensadores instalados en el proyecto' in ajuste
@@ -463,6 +468,7 @@ def test_la_calibracion_aplicada_queda_en_el_espacio_y_viaja_en_el_plan(client):
     ws = client.app.state.store.get(wid)
     guardada = ws.calibraciones['P']['A1']
     assert guardada['sed'] == {'S1': [40.0, 9.0]} and guardada['escenario'] == 'Sin proyecto'
+    assert 'fijas' in guardada, '015:RF-65: las fijas con su FP real y corregido, para el informe'
     token = _plan(client, wid, job).json()['token']
     plan = json.loads(Path(ws.cargas_planes[token]['path']).read_text(encoding='utf-8'))
     assert plan['ultima_calibracion']['sed'] == {'S1': [40.0, 9.0]}
@@ -483,3 +489,22 @@ def test_calibrar_no_cambia_el_estado_del_caso_base(client, proyecto):
     esperar_trabajo(client, client.post(
         f'/api/workspaces/{wid}/demanda/ajuste/{token}/aplicar').json())
     assert ws.pf_project_bindings[proyecto] == vinculo
+
+
+def test_la_calibracion_guarda_las_fijas_con_fp_real_y_corregido(tmp_path):
+    """015:RF-65 — lo que la calibración deja en el espacio para el informe: por cliente, el FP
+    real de su EA/ERI y el corregido, y si se supone compensado por su banco propio."""
+    from igea_dgs.web.workspace import Workspace
+
+    ws = Workspace(id='w', root=tmp_path / 'ws')
+    informe = {'cuadrado': True, 'escenario': 'Sin proyecto', 'sed': [
+        {'sed': 'SE1', 'despues': {'kw': 100.0, 'kvar': 20.3}, 'derivaciones': [
+            {'cliente': 'C1', 'p_kw': 100.0, 'q_kvar': 20.3, 'fp': 0.98,
+             'compensado': {'fp_ea_eri': 0.43, 'fp_escrito': 0.98, 'q_ea_eri_kvar': 210.0,
+                            'q_escrita_kvar': 20.3}}]},
+        {'sed': 'SE2', 'despues': {'kw': 50.0, 'kvar': 5.0}, 'derivaciones': []}]}
+    services._guardar_calibracion(ws, 'P', 'A1', informe)
+    (fija,) = ws.calibraciones['P']['A1']['fijas']
+    assert fija == {'sed': 'SE1', 'cliente': 'C1', 'p_kw': 100.0, 'fp_real': 0.43,
+                    'fp_corregido': 0.98, 'q_real_kvar': 210.0, 'q_kvar': 20.3,
+                    'compensado': True}

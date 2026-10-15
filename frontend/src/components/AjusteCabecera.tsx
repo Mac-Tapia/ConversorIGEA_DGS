@@ -226,6 +226,22 @@ function InformeAjuste({ inf, report, cancelado }: { inf: AjusteInforme; report:
         </div>
       )}
       {validacion?.balance && <BalanceFisico b={validacion.balance} />}
+      {(inf.fijas_compensadas ?? []).length > 0 && (
+        <details className="alert alert-warn" open>
+          <summary>Clientes fijos compensados por su banco propio: {inf.fijas_compensadas!.length}</summary>
+          <div className="table-wrap">
+            <table className="table">
+              <thead><tr><th>SED</th><th>Cliente</th><th className="num">P (kW)</th><th className="num">FP real (EA/ERI)</th>
+                <th className="num">FP corregido</th><th className="num">Q real (kvar)</th><th className="num">Q modelada (kvar)</th></tr></thead>
+              <tbody>{inf.fijas_compensadas!.map((c) => (
+                <tr key={`${c.sed}-${c.cliente}`}><td>{c.sed}</td><td>{c.cliente}</td>
+                  <td className="num">{fmtNum(c.p_kw, 1)}</td><td className="num">{fmtNum(c.fp_ea_eri, 3)}</td>
+                  <td className="num">{fmtNum(c.fp_escrito, 3)}</td><td className="num">{fmtNum(c.q_ea_eri_kvar, 1)}</td>
+                  <td className="num">{fmtNum(c.q_escrita_kvar, 1)}</td></tr>))}</tbody>
+            </table>
+          </div>
+        </details>
+      )}
       {(inf.fijas_sobre_su_transformador ?? []).length > 0 && (
         <details className="alert alert-warn" open>
           <summary>Clientes que piden más que el transformador de su SED: {inf.fijas_sobre_su_transformador!.length}</summary>
@@ -237,14 +253,19 @@ function InformeAjuste({ inf, report, cancelado }: { inf: AjusteInforme; report:
       )}
       {inf.bancos && (
         <details>
-          <summary>Bancos de condensadores instalados en el proyecto: {inf.bancos.length}</summary>
+          <summary>Bancos de condensadores instalados en el proyecto: {inf.bancos.length}
+            {(inf.bancos_puestos_a_maxima ?? []).length > 0
+              ? ` · ${inf.bancos_puestos_a_maxima!.length} puesto(s) a su máxima capacidad` : ''}</summary>
+          <small className="muted">Trabajan a su máxima capacidad (todos los escalones, en servicio); lo que
+            entregan es su potencia por el cuadrado de la tensión de su barra.</small>
           {inf.bancos.length === 0 ? <small className="muted">El alimentador no tiene bancos en el proyecto.</small> : (
             <div className="table-wrap">
               <table className="table">
-                <thead><tr><th>Banco</th><th>Barra</th><th className="num">kvar nominales</th>
+                <thead><tr><th>Banco</th><th>Barra</th><th className="num">Escalones</th><th className="num">kvar nominales</th>
                   <th className="num">kvar en el flujo</th><th className="num">Tensión (p.u.)</th><th>Estado</th></tr></thead>
                 <tbody>{inf.bancos.map((b) => (
                   <tr key={`${b.barra ?? ''}-${b.banco}`}><td>{b.banco}</td><td>{b.barra ?? '—'}</td>
+                    <td className="num">{b.escalones ?? '—'}</td>
                     <td className="num">{b.q_nominal_kvar == null ? '—' : fmtNum(b.q_nominal_kvar, 0)}</td>
                     <td className="num">{b.q_flujo_kvar == null ? '—' : fmtNum(b.q_flujo_kvar, 0)}</td>
                     <td className="num">{b.u_pu == null ? '—' : fmtNum(b.u_pu, 3)}</td>

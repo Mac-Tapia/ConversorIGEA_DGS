@@ -83,12 +83,12 @@ spec 001, RF-14 (DGS idéntico byte a byte); su diseño histórico está en
 | Fichero | Qué hace | Spec |
 | --- | --- | --- |
 | `src/igea_dgs/web/__init__.py` | Paquete de la interfaz web. | 001 |
-| `src/igea_dgs/web/__main__.py` | Arranca la web: `python -m igea_dgs.web` o `igea-dgs-web`. | 001 (RF-15, RF-27) |
+| `src/igea_dgs/web/__main__.py` | Arranca la web: `python -m igea_dgs.web` o `igea-dgs-web`; con el puerto ocupado reutiliza, reemplaza o cambia de puerto. | 001 (RF-15, RF-27, RF-28 a RF-32) |
 | `src/igea_dgs/web/app.py` | Rutas FastAPI sobre el motor. | 001, 004 a 008, 011 (RF-12, RF-25, RF-27, RF-28, RF-95, RF-104) |
 | `src/igea_dgs/web/jobs.py` | Trabajos largos en cola, con progreso, cancelación y límite de tiempo por guion (P7). | 001 (RF-8), 011 (RF-39, RF-40) |
 | `src/igea_dgs/web/readiness.py` | Puertas por alimentador antes de producir DGS. | 001 |
 | `src/igea_dgs/web/reconstruction_service.py` | Diagnóstico y reconstrucción como trabajos de la web. | 001 (RF-8, RF-9) |
-| `src/igea_dgs/web/runtime.py` | Comprobación del entorno que hace el lanzador de Windows. | 001 (RF-27) |
+| `src/igea_dgs/web/runtime.py` | Comprobación del entorno que hace el lanzador de Windows y huella del código. | 001 (RF-27, RF-28) |
 | `src/igea_dgs/web/services.py` | Las acciones de la interfaz, sin interfaz. | 001, 004 a 008, 011 (RF-12 a RF-16, RF-25, RF-27 a RF-30, RF-39 a RF-41, RF-68, RF-95, RF-121) |
 | `src/igea_dgs/web/source_runs.py` | Custodia inmutable de los ficheros de cada ejecución. | 001 |
 | `src/igea_dgs/web/source_scope.py` | Empresa y periodo de los paquetes VNR-GIS. | 001 (RF-2) |
