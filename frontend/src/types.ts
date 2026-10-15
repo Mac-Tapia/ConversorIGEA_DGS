@@ -721,6 +721,96 @@ export interface ClientesCruce {
   totales: { clientes: number; cruzados: number; no_cruzados: number; por_actual: number; por_anterior: number; de_otros: number };
 }
 
+// ------------------------------------------------------------ informes (spec 017, paso 4.4)
+
+/** Una carga nueva aplicada en el paso 3: la barra donde se conectó es su punto de diseño. */
+export interface CargaAplicada {
+  sed: string;
+  alimentador: string;
+  barra: string;
+  variacion: string;
+  distancia_m: number | null;
+  kw: number | null;
+  kvar: number | null;
+  kva_instalado: number | null;
+  /** Ingresada sola (formulario); las del libro van en bloque. */
+  sola: boolean;
+}
+
+export interface InformeGenerado {
+  tipo: 'estudio' | 'factibilidad';
+  docx: string;
+  json: string;
+  alimentadores: string[];
+  numero: string | null;
+  fecha: string | null;
+  huecos: string[];
+  factible: boolean | null;
+  creado: number;
+}
+
+export interface InformesContexto {
+  /** Claves del perfil que faltan por tipo; vacío, se puede generar. */
+  faltan: Record<'estudio' | 'factibilidad', string[]>;
+  /** Banda y umbral que trae el perfil; los que falten se piden (RF-81). */
+  limites: Partial<Limites>;
+  estudios: Record<'sin' | 'con', { fichero: string; alimentadores: Record<string, boolean> } | null>;
+  obras: Record<string, number>;
+  cargas: CargaAplicada[];
+  /** Por medidor de la última máxima buscada: factor de carga del mes de su máxima. */
+  factor_carga: Record<string, { fc: number; mes: string }>;
+  generados: InformeGenerado[];
+}
+
+export interface InformeEstudioForm {
+  project: string;
+  alimentador: string;
+  fecha: string;
+  lugar: string;
+  numero: string;
+  asunto: string;
+  destinatario: string;
+  antecedentes: string[];
+  descripcion: string[];
+  limites: Partial<Limites>;
+  anio: number | null;
+}
+
+export interface InformeFactibilidadForm {
+  project: string;
+  alimentador: string;
+  sed: string;
+  fecha: string;
+  lugar: string;
+  numero: string;
+  asunto: string;
+  destinatario: string;
+  limites: Partial<Limites>;
+  factor_carga: number | null;
+  codigo_punto: string;
+  solicitud: {
+    cliente: string; ubicacion: string; tipo_solicitud: string; potencia_kw: number | null;
+    fecha_solicitud: string; set_nombre: string; tension_kv: number | null; transformador: string;
+    expediente: string; en_concesion: boolean | null;
+  };
+  perdidas_reconocidas: {
+    sistema_electrico: string; codigo_sistema: string; reconocido_kw_pct: number | null;
+    reconocido_kwh_pct: number | null; precio_compra: number | null;
+  };
+  transformador_set: { kv: number | null; sin_pct: number | null; con_pct: number | null; caso: string };
+}
+
+export interface InformeResultado {
+  informe: string;
+  json: string;
+  huecos: string[];
+  estudios: string[];
+  etapa?: string | null;
+  factible?: boolean;
+  excesos?: string[];
+  punto_diseno?: Record<string, number | null> | null;
+}
+
 /** Spec 006: plan del ajuste a la máxima de cabecera. */
 export interface ClientPeriodEvidence {
   status: 'CLIENT_PERIOD_VERIFIED' | 'CLIENT_PERIOD_UNKNOWN' | 'NO_CLIENT_BOOK';

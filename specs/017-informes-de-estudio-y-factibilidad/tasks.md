@@ -48,10 +48,18 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 - [ ] T11. API, trabajo en el carril `powerfactory` y CLI con el mismo plan. (RF-26, RF-82,
       RF-96, RF-97, RF-99, RF-103 a RF-105)
       Hecho cuando: una prueba por endpoint en `tests/test_web_api.py`.
-- [ ] T12. Paso «5 · Informes» en la web. (RF-73 a RF-95, RF-98, RF-100 a RF-102, RF-124,
-      RF-125)
+      Estado 2026-10-15: `GET informes` (contexto), `POST informes/estudio` y
+      `POST informes/factibilidad` en el carril `engine`, con lo ya guardado, probados en
+      `tests/test_informe_web.py`; faltan el carril `powerfactory` (con T7), la CLI y RF-82.
+- [ ] T12. Paso «4.4 · Informes» en la web (antes «5 · Informes», cambiado por el usuario
+      el 2026-10-15). (RF-73 a RF-95, RF-98, RF-100 a RF-102, RF-124, RF-125)
       Hecho cuando: `npx tsc --noEmit -p frontend`, `npm run build` y checklist del skill
       `igea-dgs-frontend`.
+      Estado 2026-10-15: `InformesPF.tsx` con los dos formularios, botones «Generar»,
+      huecos, descarga e informes generados; faltan las etapas de 5.2 (RF-83 a RF-88, con
+      T8 y T9), subir el libro de pérdidas (RF-93, RF-94, con T5), el proyecto de
+      transmisión (RF-95, con T10), la vista previa de ubicación (RF-124) y las miniaturas
+      (RF-101, con T7).
 - [ ] T13. Prueba en DIgSILENT: informe de estudio de CA101 desde cero, con los bancos de
       «CA101 13», revisado por el usuario.
       Hecho cuando: el usuario da por bueno el `.docx`.
