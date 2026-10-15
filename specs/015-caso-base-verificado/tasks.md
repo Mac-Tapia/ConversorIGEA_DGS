@@ -150,6 +150,14 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       esos tramos 112 → 38 %, bancos 581 → 748 kvar; «Caso base» y «Sin proyecto» sin la
       variación y con sus tipos; las 169 cargas consumen lo escrito y las 160 escaladas a
       0,98 en «Sin» y «Con proyecto».
+- [x] T25. Etapas siguientes en «Con proyecto» de CA101, cada obra en su variación (pedido del
+      usuario, 2026-10-15): bancos nuevos de 600 kvar en SE20701(1) y 300 kvar en SE20730(1)
+      con la herramienta de obras; como no bastaba (SE20701 0,942 pu, 357 barras < 0,95), la
+      consigna de la red externa a 1,05 pu (máxima del perfil) en el escenario de «Con
+      proyecto». Resultado (`output/spec015/T26_*.json`): SE20701 1,007 pu, mínima BT 0,985 y
+      MT 0,990 pu, ninguna barra fuera de 0,95–1,05, pérdidas 381 kW, cabecera 125 kvar; «Sin
+      proyecto» sin cambios. La consigna de cabecera no es aún una clase de obra: queda para
+      una spec.
 - [ ] T12. Prueba en DIgSILENT con CA101, sobre el proyecto existente y sin datos
       inventados: la verificación lista lo que falla; corregido, pasa; se crea
       «Sin proyecto»; la calibración solo cambia su escenario y el «Caso base» queda igual;
