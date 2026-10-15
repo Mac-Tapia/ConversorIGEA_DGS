@@ -1333,3 +1333,30 @@ def test_toda_escalada_con_el_fp_del_perfil(guion):
         fp_escaladas=1 / math.hypot(1, 0.1))
     fallo = next(f for f in validacion['fallos'] if f['tipo'] == 'FP_ESCALADAS_DISTINTO')
     assert [s['sed'] for s in fallo['sed']] == ['F1_S2'] and not validacion['correcta']
+
+
+def test_con_proyecto_recibe_la_demanda_aunque_sin_proyecto_ya_este_calibrado(guion, monkeypatch):
+    """014:RF-4 — CA101, 2026-10-15, en DIgSILENT: «Sin proyecto» estaba calibrado y la
+    calibración salía por «ya cargado y válido», pero «Con proyecto» conservaba en su
+    escenario la demanda del archivo (3861 kW frente a 5264). Ahora se compara y se le
+    escribe lo que falte, y el informe lo dice."""
+    app = _con_escenario_que_manda()
+    sys_casos = __import__('sys').modules['casos_pf']
+    monkeypatch.setattr(sys_casos, 'activar_proyecto', lambda app, ruta, carpeta=None: app.proyecto)
+    primero, rc = guion.ejecutar(app, _plan())
+    assert rc == 0, primero
+    _con_proyecto(app)
+    _caso(app, 'Sin proyecto').Activate()
+    en_sin = _carga(app, 'F1_S2').plini
+    _caso(app, 'Con proyecto').Activate()
+    _carga(app, 'F1_S2').plini = en_sin / 3.0              # la demanda vieja del escenario
+    _caso(app, 'Caso base').Activate()
+
+    segundo, rc = guion.ejecutar(app, {**_plan(), 'ultima_calibracion': _ultima(primero)})
+
+    assert rc == 0, segundo
+    assert segundo['decision_carga_nativa']['accion'] == 'NO_REDISTRIBUIR'
+    assert segundo['con_proyecto']['corregidas'] == 1 and not segundo['con_proyecto']['fallos']
+    assert any('Con proyecto' in a and '014:RF-4' in a for a in segundo['avisos'])
+    _caso(app, 'Con proyecto').Activate()
+    assert _carga(app, 'F1_S2').plini == pytest.approx(en_sin)
