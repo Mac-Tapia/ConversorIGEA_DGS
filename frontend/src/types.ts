@@ -712,6 +712,9 @@ export interface ClienteImportante {
 
 export interface ClientesCruce {
   alimentadores: string[];
+  /** Spec 013, RF-16: libro y mes de donde salieron los clientes. */
+  libro?: string;
+  mes?: string | null;
   cruzados: ClienteImportante[];
   no_cruzados: ClienteImportante[];
   avisos: string[];

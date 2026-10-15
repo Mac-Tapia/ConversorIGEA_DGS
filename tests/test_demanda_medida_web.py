@@ -223,6 +223,29 @@ def test_carpeta_con_un_mes_puede_cruzar_y_con_varios_exige_elegir(client, tmp_p
     assert 'elija un mes' in respuesta.json()['detail'].lower()
 
 
+def test_cruce_con_el_mes_elegido_dice_su_libro(client, tmp_path, monkeypatch):
+    """013:RF-12 y RF-16 — con varios meses se cruza el libro del mes elegido y se dice cuál."""
+    _perfil_clientes_mensuales(tmp_path, monkeypatch)
+    carpeta = tmp_path / 'clientes'
+    carpeta.mkdir()
+    (carpeta / '0126clientesImportantes.xlsx').write_bytes(_xlsx(CLIENTES))
+    (carpeta / '0226clientesImportantes.xlsx').write_bytes(_xlsx(CLIENTES))
+    wid = _wid(client)
+    _subir(client, wid, 'suministros', SUMINISTROS)
+    assert client.post(f'/api/workspaces/{wid}/demanda/clientes/path',
+                       json={'path': str(carpeta)}).status_code == 200
+    _indexar_clientes(client, wid)
+    url = f'/api/workspaces/{wid}/demanda/clientes/cruzar'
+
+    body = client.post(url, json={'periodo': '2026-02'}).json()
+    assert (body['libro'], body['mes']) == ('0226clientesImportantes.xlsx', '2026-02')
+    assert body['totales']['cruzados'] == 1
+
+    sin_libro = client.post(url, json={'periodo': '2026-03'})
+    assert sin_libro.status_code == 400 and '2026-03' in sin_libro.json()['detail']
+    assert client.post(url, json={'periodo': 'febrero'}).status_code == 422
+
+
 def test_indice_de_clientes_rechaza_carpeta_sin_libros(client, tmp_path, monkeypatch):
     """013:RF-2 — una carpeta vacía falla explícitamente en vez de aparentar estar lista."""
     _perfil_clientes_mensuales(tmp_path, monkeypatch)
