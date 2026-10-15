@@ -1906,11 +1906,15 @@ def demanda_clientes(ws: Workspace, alimentadores: list[str] | None = None,
     alias = demanda_alias()
     try:
         suministros, avisos_s = leer_suministros(_demanda_ruta(ws, 'suministros'), alias)
-        clientes, avisos_c = leer_clientes(
-            _demanda_ruta(ws, 'clientes', periodo=periodo), alias,
-        )
+        libro = _demanda_ruta(ws, 'clientes', periodo=periodo)
+        clientes, avisos_c = leer_clientes(libro, alias)
     except DemandaError as exc:
         raise UserError(str(exc)) from exc
+    # Spec 013, RF-16: de qué libro y de qué mes salen los clientes; con siete libros
+    # mensuales en la carpeta, el operador no lo deduce del nombre de la fuente.
+    mes = next((str(x.get('mes') or '') or None
+                for x in (ws.demanda.get('clientes') or {}).get('catalogo') or []
+                if x.get('activo') and x.get('nombre') == libro.name), None)
     cruzados, aparte = cruzar(clientes, suministros)
     alimentadores = [a.strip() for a in alimentadores or [] if a.strip()]
     de_otros = 0
@@ -1918,6 +1922,8 @@ def demanda_clientes(ws: Workspace, alimentadores: list[str] | None = None,
         cruzados, aparte, de_otros = del_alimentador(cruzados, aparte, alimentadores)
     return {
         'alimentadores': alimentadores,
+        'libro': libro.name,
+        'mes': mes,
         'cruzados': [c.to_dict() for c in cruzados],
         'no_cruzados': [c.to_dict() for c in aparte],
         'avisos': avisos_s + avisos_c,

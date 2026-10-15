@@ -119,6 +119,8 @@ class DemandaClientesIn(BaseModel):
     """Alimentadores de la máxima buscada: el cruce se queda con sus clientes (RF-43)."""
 
     alimentadores: list[str] = Field(default_factory=list)
+    # Spec 013, RF-12: con una carpeta de libros mensuales, el mes que eligió el operador.
+    periodo: str | None = Field(default=None, pattern=r'^\d{4}-(0[1-9]|1[0-2])$')
 
 
 class AjusteIn(BaseModel):
@@ -1012,7 +1014,8 @@ def create_app(
 
     @app.post('/api/workspaces/{wid}/demanda/clientes/cruzar')
     def demanda_clientes(wid: str, body: DemandaClientesIn | None = None) -> dict:
-        return services.demanda_clientes(ws_or_404(wid), body.alimentadores if body else None)
+        return services.demanda_clientes(ws_or_404(wid), body.alimentadores if body else None,
+                                         periodo=body.periodo if body else None)
 
     # Spec 006: ajuste de las demandas del alimentador a la máxima de cabecera.
     @app.post('/api/workspaces/{wid}/demanda/ajuste/plan')

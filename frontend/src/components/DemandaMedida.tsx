@@ -106,6 +106,11 @@ function CatalogoClientes({ meta, indexando, bloqueado, actualizar }: {
 }
 
 const fp = (n: number | null) => (n == null ? '—' : fmtNum(n, 3));
+/** «2026-04» → «abril 2026»; el índice guarda el mes en AAAA-MM. */
+const nombreMes = (mes: string) => {
+  const [anio, m] = mes.split('-').map(Number);
+  return anio && m ? new Date(anio, m - 1, 1).toLocaleDateString('es', { month: 'long', year: 'numeric' }) : mes;
+};
 
 type Par = { alimentador: string; medidor: string };
 const clave = (p: Par) => `${p.alimentador}|${p.medidor}`;
@@ -128,12 +133,23 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   // Spec 006, RF-25/RF-26: Nis desmarcados en la tabla del cruce; vacío, todos conectados.
   const [desconectados, setDesconectados] = useState<Set<string>>(new Set());
   const [filtro, setFiltro] = useState('');
+  // Spec 013, RF-8 y RF-10: mes del libro de clientes, siempre elegido por el operador.
+  const [periodo, setPeriodo] = useState('');
   const toast = useToast();
   const engineBusy = Boolean(active.engine);
-  const estadoClientes = estadoCatalogoClientes(ws.demanda?.clientes);
+  const estadoClientes = estadoCatalogoClientes(ws.demanda?.clientes, periodo);
 
   const ultimo = Object.values(jobs).filter((j) => j.kind === 'demanda_cabecera' && j.result).pop();
   const cabecera = (ultimo?.result?.resultados ?? []) as MaximaCabecera[];
+  // Mes de la máxima de cada alimentador: el ajuste (2.4) cruza con el libro de ese mes.
+  const mesesMaxima = useMemo(() => {
+    const m: Record<string, string[]> = {};
+    cabecera.forEach((r) => {
+      const mes = r.fecha?.slice(0, 7);
+      if (mes && !r.error) (m[mes] ??= []).push(r.alimentador || r.medidor);
+    });
+    return m;
+  }, [cabecera]);
 
   // Otro proyecto u otros alimentadores: lo buscado para los anteriores ya no vale.
   const marcados = feeders.join('|');
@@ -142,6 +158,7 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
     setElegidos([]);
     setCruce(null);
     setDesconectados(new Set());
+    setPeriodo('');
   }, [project, marcados]);
 
   // Desplegable de códigos del libro (spec 004, RF-42): se vuelve a leer al cambiar el libro.
@@ -199,9 +216,17 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   };
   // RF-11: los clientes de los alimentadores marcados.
   const cruzar = async () => {
-    const r = await run(() => api.demandaClientes(ws.id, feeders));
+    const r = await run(() => api.demandaClientes(ws.id, feeders, periodo || undefined));
     if (r) { setCruce(r); setDesconectados(new Set()); }
   };
+  // Los clientes de otro mes son otros: el cruce mostrado deja de valer.
+  const elegirPeriodo = (mes: string) => {
+    setPeriodo(mes);
+    setCruce(null);
+    setDesconectados(new Set());
+  };
+  const otrosMesesMaxima = periodo
+    ? Object.entries(mesesMaxima).filter(([mes]) => mes !== periodo) : [];
   const conmutar = (codigo: string) => setDesconectados((s) => {
     const n = new Set(s);
     if (!n.delete(codigo)) n.add(codigo);
@@ -308,9 +333,28 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
       )}
 
       <h4>2.3 · Clientes importantes (demanda fija)</h4>
+      {estadoClientes.esCatalogo && estadoClientes.activos > 1 && (
+        <label className="row">
+          <span>Mes de los clientes</span>
+          <select value={periodo} disabled={engineBusy} onChange={(e) => elegirPeriodo(e.target.value)}>
+            <option value="">Elija un mes…</option>
+            {estadoClientes.meses.map(({ mes, libro }) => (
+              <option key={mes} value={mes}>
+                {nombreMes(mes)} · {libro}{mesesMaxima[mes] ? ` · máxima de ${mesesMaxima[mes].join(', ')}` : ''}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      {otrosMesesMaxima.length > 0 && (
+        <small className="alert alert-warn">
+          {otrosMesesMaxima.map(([mes, alims]) => `${alims.join(', ')} tiene su máxima en ${nombreMes(mes)}`).join('; ')}:
+          el ajuste (2.4) reparte cada máxima con los clientes de su propio mes, no con los de {nombreMes(periodo)}.
+        </small>
+      )}
       <div className="row">
         <button className="btn" disabled={!feeders.length || !ws.demanda?.suministros || !ws.demanda?.clientes
-          || !estadoClientes.listoParaCruzar} onClick={cruzar}>
+          || !estadoClientes.listoParaCruzar || engineBusy} onClick={cruzar}>
           Cruzar clientes de {cuales}
         </button>
         {(!ws.demanda?.suministros || !ws.demanda?.clientes) && (
@@ -342,7 +386,8 @@ function Cruce({ cruce, visibles, filtro, setFiltro, desconectados, conmutar }: 
   return <>
     <p>{ali ? <>{fmtNum(t.cruzados)} cliente(s) de <strong>{ali}</strong> de {fmtNum(t.clientes)}</> : <>{fmtNum(t.cruzados)} de {fmtNum(t.clientes)} cruzados</>}
       {' '}({fmtNum(t.por_actual)} por «Suministro Act», {fmtNum(t.por_anterior)} por «Suministro»); {fmtNum(t.no_cruzados)} aparte
-      {ali ? `, ${fmtNum(t.de_otros)} de otros alimentadores sin mostrar` : ''}.</p>
+      {ali ? `, ${fmtNum(t.de_otros)} de otros alimentadores sin mostrar` : ''}.
+      {cruce.libro && <small className="muted"> Libro {cruce.libro}{cruce.mes ? ` (${nombreMes(cruce.mes)})` : ''}.</small>}</p>
     {ali && t.cruzados === 0 && t.de_otros > 0 && <p className="alert alert-warn">Ningún suministro tiene «{ali}» en la columna
       RADIAL: compruebe que el libro de suministros usa el mismo código de alimentador.</p>}
     {cruce.avisos.length > 0 && <details className="alert alert-warn"><summary>Avisos: {cruce.avisos.length}</summary>

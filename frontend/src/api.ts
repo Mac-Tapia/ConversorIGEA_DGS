@@ -188,8 +188,9 @@ export const api = {
   },
   demandaAlimentadores: (id: string) =>
     request<{ alimentadores: string[] }>(`${ws(id)}/demanda/alimentadores`),
-  demandaClientes: (id: string, alimentadores: string[]) =>
-    request<ClientesCruce>(`${ws(id)}/demanda/clientes/cruzar`, json('POST', { alimentadores })),
+  demandaClientes: (id: string, alimentadores: string[], periodo?: string) =>
+    request<ClientesCruce>(`${ws(id)}/demanda/clientes/cruzar`,
+      json('POST', periodo ? { alimentadores, periodo } : { alimentadores })),
   ajustePlan: (id: string, body: { project: string; job_id: string; medidor: string; medidores?: string[]; tolerancia: number; desconectados?: string[] }) =>
     request<AjustePlan>(`${ws(id)}/demanda/ajuste/plan`, json('POST', body)),
   ajusteSimular: (id: string, token: string) =>
