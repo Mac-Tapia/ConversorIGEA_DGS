@@ -68,7 +68,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       una inserción crea «Con proyecto» y una variación por carga. (Criterios de finalización)
       Hecho cuando: informe JSON de cada paso en `output/` y resultados anotados aquí.
       Resultado del 2026-10-14, sobre una copia de `20261013-121930_IGEA_CA101` (borrada al
-      terminar; `output/spec015/T12_caso_base_CA101.json`): se verificó el caso «Caso base»
+      terminar; informe superado, en `output/_historico/2026-10-14_spec015/`): se verificó el caso «Caso base»
       con la geografía de la ejecución MDB del 13/10. Pasan el GPS de barras (1002 de 1002),
       el trazado de líneas (482 de 482), la conectividad, el diagrama y la capacidad de
       todos los equipos; ningún grupo de conexión ni tensión de baja que corregir. Avisos: 8
@@ -102,6 +102,12 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       `output/spec015/T12_correccion_CA101_existente.json`): su «Caso base» no convergía;
       la demanda de sus 168 cargas se redujo por igual al 91,9 % en su escenario
       «Operation Scenario» y converge; «Sin proyecto» converge también.
+      Verificado desde la web a las 19:04 del mismo día, sobre ese proyecto y con el DGS de
+      CA101 reconvertido de la misma `.mdb` (idéntico byte a byte al del 13/10;
+      `output/spec015/T12_caso_base_CA101_existente.json`): «Caso base» VERIFICADO, con el
+      GPS, el trazado, la conectividad, el diagrama y las capacidades bien, y solo los avisos
+      de los 8 transformadores de 800 kVA; el vínculo del proyecto lo guarda. Los informes
+      del 13/10 de CA101 se apartaron a `output/_historico/2026-10-13_ca101/`.
       Pendiente, a cargo del usuario: una inserción de cargas nuevas que cree «Con
       proyecto» con una variación por carga.
 - [x] T13. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
