@@ -77,7 +77,7 @@ def test_el_formulario_ofrece_las_obras_nuevas():
     for pieza in ("clase: 'enlace'", "clase: 'migracion'", "'Alimentador que cede'",
                   "texto('nodo'", "campo('minima_m'", "texto('origen'", "texto('destino'",
                   'Toda la troncal', 'Tipo de los tramos de cable', 'toda_troncal:', 'tipo_cable:',
-                  "const SOLO_CON: ClaseObra[] = ['enlace', 'migracion']", 'soloCon ? [CON] : CASOS_OBRA'):
+                  "const SOLO_CON: ClaseObra[] = ['enlace', 'migracion', 'consigna']", 'soloCon ? [CON] : CASOS_OBRA'):
         assert pieza in OBRAS, pieza
     assert "| 'enlace' | 'migracion'" in TYPES and 'nodo?: string' in TYPES
 

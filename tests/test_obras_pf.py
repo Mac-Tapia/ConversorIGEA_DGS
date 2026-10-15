@@ -329,3 +329,18 @@ def test_seccion_de_otra_tension_se_copia_a_la_del_alimentador():
     (copia,) = p['tipos']
     assert copia['nombre'] == nombre_con_tension('XLPE_240', kv)
     assert copia['datos']['uline'] == kv and copia['origen'] == 'otro'
+
+
+def test_consigna_de_cabecera_dentro_del_perfil_y_solo_con_proyecto():
+    """019:RF-11 / 019:RF-12 — la consigna de cabecera es una clase registrada: dentro de los
+    límites del perfil (0,95 a 1,05 por defecto), solo en «Con proyecto»."""
+    obra = op.validar_obra({'clase': 'consigna', 'alimentador': 'A1',
+                            'casos': [CON_PROYECTO], 'consigna_pu': 1.05})
+    assert obra.consigna_pu == 1.05 and obra.casos == (CON_PROYECTO,)
+    assert 'consigna' in op.VALIDADORES and 'consigna' in op.CLASES
+    with pytest.raises(op.ObrasError, match='entre 0.95 y 1.05'):
+        op.validar_obra({'clase': 'consigna', 'alimentador': 'A1', 'casos': [CON_PROYECTO],
+                         'consigna_pu': 1.08})
+    with pytest.raises(op.ObrasError, match='solo en «Con proyecto»'):
+        op.validar_obra({'clase': 'consigna', 'alimentador': 'A1',
+                         'casos': [SIN_PROYECTO, CON_PROYECTO], 'consigna_pu': 1.02})

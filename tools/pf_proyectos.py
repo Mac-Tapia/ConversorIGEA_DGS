@@ -98,23 +98,19 @@ def main(argv=None) -> int:
     except CarpetaError as exc:
         print(f'ERROR: {exc}')
         return 2
+    # 019:RF-1 a RF-6: turno del motor de la máquina, reintento con el motor ocupado y
+    # primera línea al responder, comunes a todos los guiones.
+    from igea_dgs.pf_arnes import PFNoDisponible, conectar
+
     try:
-        import powerfactory
-    except ImportError as exc:
-        print(f'ERROR: API de PowerFactory no disponible ({exc}).')
-        return 3
-    try:
-        app = powerfactory.GetApplicationExt()
-    except Exception as exc:
-        print(f'ERROR: no se pudo conectar a PowerFactory: {exc}')
+        app = conectar('pf_proyectos.py')
+    except PFNoDisponible as exc:
+        print(f'ERROR: {exc}')
         return 3
 
-    # Primera línea de la salida solo con PowerFactory ya respondiendo: la web espera esta
-    # línea un tiempo limitado (spec 005, RF-21). El 2026-10-14 una sesión se quedó
-    # parada justo en ``GetCurrentUser``, sin escribir nada.
-    usuario = app.GetCurrentUser()
-    print(f'Conectado a DIgSILENT como {getattr(usuario, "loc_name", "?")}. '
-          f'Carpeta: {carpeta}', flush=True)
+    # La primera línea («Conectado…») ya la escribió ``conectar`` al responder DIgSILENT
+    # (spec 005, RF-21; 019:RF-6).
+    print(f'Carpeta: {carpeta}', flush=True)
     datos = leer(app, carpeta)
     if datos['aviso']:
         print(f'AVISO: {datos["aviso"]}')

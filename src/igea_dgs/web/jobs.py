@@ -227,6 +227,26 @@ class JobContext:
             for h in cerrar_guiones_pf_huerfanos():
                 self.log(f"Se cierra un guion de PowerFactory de una sesión anterior que "
                          f"seguía vivo (proceso {h['pid']}): {h['cmd']}")
+        # 019:RF-7: un guion de DIgSILENT va al proceso que se queda abierto, por medio de
+        # ``tools/pf_cliente.py``, que reescribe su salida y devuelve su código: lo demás
+        # (primera línea, cancelación, límites) sigue igual. ``IGEA_PF_SERVIDOR=0`` lo apaga.
+        por_servidor = False
+        if es_pf and full_env.get('IGEA_PF_SERVIDOR', '1') != '0' and len(cmd) > 1:
+            from ..pf_arnes import GUIONES_SERVIBLES
+
+            if Path(cmd[1]).name in GUIONES_SERVIBLES:
+                cmd = [cmd[0], str(Path(cmd[1]).with_name('pf_cliente.py')), *cmd[1:]]
+                por_servidor = True
+
+        def cortar() -> None:
+            self._terminar(proc)
+            if por_servidor:
+                # 019:RF-8, RF-9: la orden cortada sigue en el servidor; se cierra.
+                from ..pf_arnes import cerrar_servidor
+
+                if cerrar_servidor():
+                    self.log('Se cierra el proceso de DIgSILENT que atendía la orden.')
+
         self.log('$ ' + ' '.join(cmd))
         # Sin consola de entrada: una pregunta del guion o de PowerFactory recibe EOF y
         # falla, en vez de esperar una respuesta que nadie puede dar desde la web.
@@ -254,7 +274,7 @@ class JobContext:
                 self.log(f'El guion no escribió nada en {limite_arranque_s:g} s: se termina.'
                          if sin_arrancar else
                          f'El guion pasó su límite de {limite_s:g} s: se termina.')
-                self._terminar(proc)
+                cortar()
                 reader.join(timeout=5)
                 if es_pf and sin_arrancar:
                     from ..powerfactory_env import powerfactory_abierto
@@ -289,7 +309,7 @@ class JobContext:
                              'y no se empieza otro.')
                     avisado = True
             elif self.job.cancel.is_set():
-                self._terminar(proc)
+                cortar()
                 reader.join(timeout=5)
                 raise JobCancelled()
             time.sleep(0.2)

@@ -31,7 +31,7 @@ from __future__ import annotations
 import math
 import re
 from dataclasses import asdict, dataclass, field
-from typing import Any, Iterable, Mapping
+from typing import Any, Callable, Iterable, Mapping
 
 from .estudios_pf import CASO_BASE, CON_PROYECTO, SIN_PROYECTO
 from .naming import feeder_short_name, nombre_con_tension, sufijo_tension
@@ -46,10 +46,10 @@ BANDA_TENSION_PU = 0.01
 #: Casos en que se puede activar una obra; el «Caso base» nunca (RF-58).
 CASOS = (SIN_PROYECTO, CON_PROYECTO)
 CLASES = ('condensador', 'reconectador', 'regulador', 'seccion', 'terna', 'tension', 'enlace',
-          'migracion')
+          'migracion', 'consigna')
 #: Obras que construyen algo nuevo o cambian la tensión de una parte: solo en «Con
-#: proyecto» (016:RF-14, RF-25, RF-53).
-SOLO_CON_PROYECTO = ('enlace', 'migracion')
+#: proyecto» (016:RF-14, RF-25, RF-53). La consigna de cabecera también (019:RF-12).
+SOLO_CON_PROYECTO = ('enlace', 'migracion', 'consigna')
 #: Clase de tipo que pide cada obra (RF-89). Banco y terna no tienen tipo; la migración
 #: copia los que ya usa el alimentador.
 CLASE_DE_TIPO = {'reconectador': 'TypRecl', 'regulador': 'TypVoltreg', 'seccion': 'TypLne',
@@ -306,6 +306,32 @@ def _lista(valor: Any) -> tuple[str, ...]:
     return tuple(vistos)
 
 
+def _validar_consigna(comunes: dict[str, Any], datos: Mapping[str, Any]) -> Obra:
+    """Consigna de la red externa de la cabecera, en p.u., dentro del perfil (019:RF-12).
+
+    En CA101 (2026-10-15), con el conductor y los bancos nuevos SE20701 seguía en 0,942 pu y
+    la cabecera a 1,05 pu (la máxima del perfil) lo llevó a 1,007; se hizo con un guion
+    suelto porque no había clase de obra.
+    """
+    from .estudios_pf import limites_de_perfil
+
+    consigna = _numero(datos, 'consigna_pu', 'la consigna de tensión de la cabecera (p.u.)')
+    lim = limites_de_perfil()
+    if not lim.tension_min_pu <= consigna <= lim.tension_max_pu:
+        raise ObrasError(f'La consigna de la cabecera tiene que estar entre '
+                         f'{lim.tension_min_pu:g} y {lim.tension_max_pu:g} p.u. (límites del '
+                         f'perfil): {consigna:g}.')
+    return Obra(**comunes, consigna_pu=consigna)
+
+
+#: Clase de obra → su validación, para las que no están en ``validar_obra`` (019:RF-11):
+#: una clase nueva se añade aquí, en ``_PLANES`` y en ``CONSTRUCTORES`` del guion, sin
+#: tocar la lógica común de variaciones, casos y flujos.
+VALIDADORES: dict[str, Callable[[dict[str, Any], Mapping[str, Any]], Obra]] = {
+    'consigna': _validar_consigna,
+}
+
+
 def validar_obra(datos: Mapping[str, Any]) -> Obra:
     """La obra del formulario o del espacio de trabajo, o un error que dice qué falta.
 
@@ -320,6 +346,8 @@ def validar_obra(datos: Mapping[str, Any]) -> Obra:
         'clase': clase,
         'alimentador': _texto(datos, 'alimentador', 'el alimentador de la obra'),
         'casos': _casos(datos.get('casos'), clase)}
+    if clase in VALIDADORES:
+        return VALIDADORES[clase](comunes, datos)
     if clase == 'condensador':
         return Obra(**comunes, barra=_texto(datos, 'barra', 'la barra del banco'),
                     q_kvar=_numero(datos, 'q_kvar', 'la potencia reactiva del banco (kvar)'),
@@ -597,6 +625,12 @@ def _condensador(p: _Plan) -> None:
                f'{p.estado.barras[o.barra]:g} kV, {modo}')
 
 
+def _consigna(p: _Plan) -> None:
+    """La red externa de la cabecera a la consigna pedida (019:RF-12)."""
+    p.elemento('Red externa de la cabecera', 'ElmXnet',
+               f'usetp → {p.obra.consigna_pu:g} p.u. (escenario de «{CON_PROYECTO}»)')
+
+
 def _reconectador(p: _Plan) -> None:
     o = p.obra
     tramo = p.tramo(o.tramo)
@@ -870,7 +904,7 @@ def _migracion(p: _Plan) -> None:
 
 _PLANES = {'condensador': _condensador, 'reconectador': _reconectador, 'regulador': _regulador,
            'seccion': _seccion, 'terna': _terna, 'tension': _tension, 'enlace': _enlace,
-           'migracion': _migracion}
+           'migracion': _migracion, 'consigna': _consigna}
 
 
 def plan_simulacion(obras: Iterable[Obra], redes: Mapping[str, RedAlimentador],

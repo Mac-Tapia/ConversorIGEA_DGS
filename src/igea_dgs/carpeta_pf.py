@@ -230,5 +230,10 @@ def activar_proyecto(app, ruta: str, carpeta: str):
     proyecto = buscar_proyecto(app, ruta, carpeta)
     if proyecto is None:
         return None
+    # 019:RF-7: en el proceso que se queda abierto, el proyecto de la orden anterior sigue
+    # activo; activarlo otra vez costaba minutos en CA101.
+    activo = app.GetActiveProject() if hasattr(app, 'GetActiveProject') else None
+    if activo is not None and activo.GetFullName() == proyecto.GetFullName():
+        return proyecto
     proyecto.Activate()
     return proyecto

@@ -786,10 +786,24 @@ def construir_migracion(ctx) -> None:
                      'entrada': entrada}
 
 
+def construir_consigna(ctx) -> None:
+    """Consigna de la red externa de la cabecera (019:RF-12).
+
+    Es dato de operación: queda en el escenario del caso activo al construir, que es
+    «Con proyecto» porque la obra solo va allí; «Sin proyecto» conserva la suya.
+    """
+    cabecera = cabecera_de(ctx.elm)
+    fuentes = _fuentes_en(cabecera) if cabecera is not None else []
+    if not fuentes:
+        raise RuntimeError(f'no hay red externa en la cabecera de {ctx.obra.alimentador}')
+    for fuente in fuentes:
+        fuente.usetp = float(ctx.obra.consigna_pu)
+
+
 CONSTRUCTORES.update(condensador=construir_condensador, reconectador=construir_reconectador,
                      regulador=construir_regulador, seccion=construir_seccion,
                      terna=construir_terna, tension=construir_tension, enlace=construir_enlace,
-                     migracion=construir_migracion)
+                     migracion=construir_migracion, consigna=construir_consigna)
 
 #: Obras que necesitan la troncal o la red: sin tramos indicados, la sección y la terna
 #: van a la troncal (RF-77, RF-80); el enlace se apoya en las dos troncales y la migración
@@ -1079,20 +1093,15 @@ def main(argv=None) -> int:
             json.dumps(blocked, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
         print(blocked['error'])
         return 2
+    # 019:RF-1 a RF-6: turno del motor de la máquina, reintento con el motor ocupado y
+    # primera línea al responder, comunes a todos los guiones.
+    from igea_dgs.pf_arnes import PFNoDisponible, conectar
+
     try:
-        import powerfactory
-    except ImportError as exc:
-        print(f'ERROR: API de DIgSILENT no disponible ({exc}).')
+        app = conectar('obras_pf.py')
+    except PFNoDisponible as exc:
+        print(f'ERROR: {exc}')
         return 3
-    try:
-        app = powerfactory.GetApplicationExt()
-    except Exception as exc:  # noqa: BLE001
-        print(f'ERROR: no se pudo conectar a DIgSILENT: {exc}')
-        return 3
-    # Primera línea solo con DIgSILENT ya respondiendo: la web la espera un tiempo
-    # limitado y, si no llega, corta el guion en vez de dejar ocupado el carril (005:RF-21).
-    print(f'Conectado a DIgSILENT como {getattr(app.GetCurrentUser(), "loc_name", "?")}.',
-          flush=True)
 
     def cancelado() -> bool:
         return bool(args.cancel_file) and Path(args.cancel_file).exists()

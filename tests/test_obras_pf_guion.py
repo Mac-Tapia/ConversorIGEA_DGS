@@ -999,3 +999,22 @@ def test_migracion_cambia_la_cabecera_aunque_el_alimentador_no_la_liste():
     assert cabecera.loc_name in {e['elemento'] for e in informe['obras'][0]['elementos']}
     _activas(app, CON)
     assert cabecera.uknom == 22.9
+
+
+def test_consigna_de_cabecera_en_su_variacion_de_con_proyecto():
+    """019:RF-12 — la red externa de la cabecera queda con la consigna pedida en «Con
+    proyecto», en su variación; el flujo converge."""
+    app, alims = _calibrada(random.Random(31))
+    f = alims[0]
+    cabecera = guion.cabecera_de(_elm(app, f))
+    fuente = cabecera.GetParent().CreateObject('ElmXnet', f'Red externa {f}')
+    cub = cabecera.CreateObject('StaCubic', f'Cub_red_{f}')
+    cub.obj_id, cub.obj_bus, fuente.usetp = fuente, 0, 1.0
+    obra = {'clase': 'consigna', 'alimentador': f, 'casos': [CON], 'consigna_pu': 1.05}
+    informe, codigo = guion.aplicar(app, _plan(alims, obras=[obra]))
+    assert codigo == 0, informe
+    fila = informe['obras'][0]
+    assert fila['variacion'] and not fila['error'] and fila['casos_activos'] == [CON]
+    _activas(app, CON)
+    fuentes = guion._fuentes_en(guion.cabecera_de(_elm(app, f)))
+    assert fuentes and all(x.usetp == pytest.approx(1.05) for x in fuentes)

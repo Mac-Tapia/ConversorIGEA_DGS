@@ -1718,20 +1718,15 @@ def main(argv=None) -> int:
             json.dumps(blocked, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
         print(blocked['error'])
         return 2
+    # 019:RF-1 a RF-6: turno del motor de la máquina, reintento con el motor ocupado y
+    # primera línea al responder, comunes a todos los guiones.
+    from igea_dgs.pf_arnes import PFNoDisponible, conectar
+
     try:
-        import powerfactory
-    except ImportError as exc:
-        print(f'ERROR: API de DIgSILENT no disponible ({exc}).')
+        app = conectar('cargas_pf.py')
+    except PFNoDisponible as exc:
+        print(f'ERROR: {exc}')
         return 3
-    try:
-        app = powerfactory.GetApplicationExt()
-    except Exception as exc:  # noqa: BLE001
-        print(f'ERROR: no se pudo conectar a DIgSILENT: {exc}')
-        return 3
-    # Primera línea solo con DIgSILENT ya respondiendo: la web la espera un tiempo
-    # limitado y, si no llega, corta el guion en vez de dejar ocupado el carril (005:RF-21).
-    print(f'Conectado a DIgSILENT como {getattr(app.GetCurrentUser(), "loc_name", "?")}.',
-          flush=True)
     if args.deshacer:
         aplicado = json.loads(Path(args.deshacer).read_text(encoding='utf-8'))
         informe, codigo = deshacer(app, plan, aplicado, simular=args.simular)

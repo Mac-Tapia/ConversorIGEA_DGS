@@ -11,7 +11,7 @@ export const CASOS_OBRA = ['Sin proyecto', 'Con proyecto'] as const;
 const SIN = 'Sin proyecto';
 const CON = 'Con proyecto';
 /** Construyen algo nuevo: solo en «Con proyecto» (spec 016, RF-14, RF-25, RF-53, RF-71). */
-const SOLO_CON: ClaseObra[] = ['enlace', 'migracion'];
+const SOLO_CON: ClaseObra[] = ['enlace', 'migracion', 'consigna'];
 
 const CLASES: { clase: ClaseObra; label: string; tipo?: ClaseTipo }[] = [
   { clase: 'condensador', label: 'Banco de condensadores' },
@@ -22,6 +22,7 @@ const CLASES: { clase: ClaseObra; label: string; tipo?: ClaseTipo }[] = [
   { clase: 'tension', label: 'Cambio de nivel de tensión del alimentador' },
   { clase: 'enlace', label: 'Enlace con otro alimentador (línea nueva, abierta)', tipo: 'TypLne' },
   { clase: 'migracion', label: 'Migración a otra tensión desde un nodo' },
+  { clase: 'consigna', label: 'Tensión de la cabecera (consigna de la red externa)' },
 ];
 const ETIQUETA = Object.fromEntries(CLASES.map((c) => [c.clase, c.label])) as Record<ClaseObra, string>;
 const ORIGEN: Record<string, string> = { proyecto: 'proyecto', global: 'biblioteca global', otro: 'otro proyecto' };
@@ -192,6 +193,8 @@ export function ObrasPF({ project, feeders }: { project: string; feeders: string
             : 'Lo que se hace en «Sin proyecto» pasa también a «Con proyecto».'}</small>
         </div>
 
+        {clase === 'consigna' && campo('consigna_pu', 'Consigna de la cabecera (p.u.)',
+          'Dentro de los límites de tensión del perfil (spec 019, RF-12).')}
         {clase === 'condensador' && <>
           {lista('barra', 'Barra', (red?.barras ?? []).map((b) => b.nombre))}
           {campo('q_kvar', 'Potencia reactiva total (kvar)')}
