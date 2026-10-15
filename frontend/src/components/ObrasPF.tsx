@@ -1,12 +1,17 @@
 import { useState, type FormEvent } from 'react';
 import { api } from '../api';
 import { useApp } from '../context';
+import { Toggle } from './ui';
 import type {
   AlimentadorLeido, ClaseObra, ClaseTipo, Obra, ObraFila, ObrasBibliotecas, ObrasResultado, TipoFicha, TipoRef,
 } from '../types';
 
 /** Los casos donde se puede activar una obra; el «Caso base» nunca (spec 011, RF-58). */
 export const CASOS_OBRA = ['Sin proyecto', 'Con proyecto'] as const;
+const SIN = 'Sin proyecto';
+const CON = 'Con proyecto';
+/** Construyen algo nuevo: solo en «Con proyecto» (spec 016, RF-14, RF-25, RF-53, RF-71). */
+const SOLO_CON: ClaseObra[] = ['enlace', 'migracion'];
 
 const CLASES: { clase: ClaseObra; label: string; tipo?: ClaseTipo }[] = [
   { clase: 'condensador', label: 'Banco de condensadores' },
@@ -15,6 +20,8 @@ const CLASES: { clase: ClaseObra; label: string; tipo?: ClaseTipo }[] = [
   { clase: 'seccion', label: 'Cambio de sección (troncal)', tipo: 'TypLne' },
   { clase: 'terna', label: 'Una terna más (troncal)' },
   { clase: 'tension', label: 'Cambio de nivel de tensión del alimentador' },
+  { clase: 'enlace', label: 'Enlace con otro alimentador (línea nueva, abierta)', tipo: 'TypLne' },
+  { clase: 'migracion', label: 'Migración a otra tensión desde un nodo' },
 ];
 const ETIQUETA = Object.fromEntries(CLASES.map((c) => [c.clase, c.label])) as Record<ClaseObra, string>;
 const ORIGEN: Record<string, string> = { proyecto: 'proyecto', global: 'biblioteca global', otro: 'otro proyecto' };
@@ -43,6 +50,9 @@ export function ObrasPF({ project, feeders }: { project: string; feeders: string
   const [v, setV] = useState<Record<string, string>>({});
   const [tramos, setTramos] = useState<string[]>([]);
   const [tipo, setTipo] = useState('');
+  const [tipoCable, setTipoCable] = useState('');
+  const [todaTroncal, setTodaTroncal] = useState(false);
+  const [cede, setCede] = useState('');
   const pfBusy = Boolean(active.powerfactory);
   const todos = Object.values(jobs);
 
@@ -62,24 +72,48 @@ export function ObrasPF({ project, feeders }: { project: string; feeders: string
 
   const set = (k: string) => (e: { target: { value: string } }) => setV((x) => ({ ...x, [k]: e.target.value }));
   const alternar = (xs: string[], x: string) => (xs.includes(x) ? xs.filter((y) => y !== x) : [...xs, x]);
+  const soloCon = SOLO_CON.includes(clase);
+  // Spec 016, RF-11: lo que se hace en «Sin proyecto» pasa siempre a «Con proyecto».
+  const alternarCaso = (c: string) => setCasos((xs) => {
+    if (c === SIN) return xs.includes(SIN) ? xs.filter((y) => y !== SIN) : [SIN, CON];
+    return xs.includes(SIN) ? xs : alternar(xs, c);
+  });
+  const elegirClase = (c: ClaseObra) => {
+    setClase(c);
+    setTipo('');
+    setTipoCable('');
+    if (SOLO_CON.includes(c)) setCasos([CON]);
+  };
+  const alimentadorCede = cede && cede !== alimentador ? cede : feeders.find((f) => f !== alimentador) ?? '';
+  const redCede: AlimentadorLeido | undefined = leido?.alimentadores?.[alimentadorCede];
+  const refDe = (clave: string): TipoRef | undefined => {
+    const t = tipos.find((x) => claveTipo(x) === clave);
+    return t ? { nombre: t.nombre, clase: t.clase, origen: t.origen, proyecto: t.proyecto } : undefined;
+  };
 
   const anadir = async (e: FormEvent) => {
     e.preventDefault();
-    const elegido = tipos.find((t) => claveTipo(t) === tipo);
-    const ref: TipoRef | undefined = elegido
-      ? { nombre: elegido.nombre, clase: elegido.clase, origen: elegido.origen, proyecto: elegido.proyecto }
-      : undefined;
+    const ref = refDe(tipo);
+    const seccionTroncal = clase === 'seccion' && todaTroncal;
     const obra: Obra = {
-      clase, alimentador, casos,
-      barra: v.barra, tramo: v.tramo, tramos: tramos.length ? tramos : undefined,
+      clase, alimentador, casos: soloCon ? [CON] : casos,
+      barra: v.barra, tramo: v.tramo, tramos: tramos.length && !seccionTroncal ? tramos : undefined,
       q_kvar: num(v.q_kvar ?? ''), escalones: num(v.escalones ?? ''), consigna_pu: num(v.consigna_pu ?? ''),
       rango_pct: num(v.rango_pct ?? ''), pasos: num(v.pasos ?? ''), kv_destino: num(v.kv_destino ?? ''), tipo: ref,
+      toda_troncal: seccionTroncal || undefined,
+      tipo_cable: seccionTroncal ? refDe(tipoCable) : undefined,
+      cede: clase === 'enlace' ? alimentadorCede : undefined,
+      minima_m: clase === 'enlace' ? num(v.minima_m ?? '') : undefined,
+      origen: clase === 'enlace' ? v.origen?.trim() || undefined : undefined,
+      destino: clase === 'enlace' ? v.destino?.trim() || undefined : undefined,
+      nodo: clase === 'migracion' ? v.nodo?.trim() || undefined : undefined,
     };
     const r = await run(() => api.obraAnadir(ws.id, obra));
     if (r) {
       setV({});
       setTramos([]);
       setTipo('');
+      setTipoCable('');
       await refresh();
     }
   };
@@ -93,6 +127,14 @@ export function ObrasPF({ project, feeders }: { project: string; feeders: string
       <span>{label}</span>
       <input value={v[k] ?? ''} inputMode="decimal" onChange={set(k)} />
       {ayuda && <small className="muted">{ayuda}</small>}
+    </label>
+  );
+  // Texto con sugerencias de las barras leídas: un punto «latitud, longitud» también vale.
+  const texto = (k: string, label: string, de: AlimentadorLeido | undefined, ayuda: string) => (
+    <label className="field">
+      <span>{label}</span>
+      <input value={v[k] ?? ''} list={`barras-${k}`} placeholder={ayuda} onChange={set(k)} />
+      <datalist id={`barras-${k}`}>{(de?.barras ?? []).map((b) => <option key={b.nombre} value={b.nombre} />)}</datalist>
     </label>
   );
   const lista = (k: 'barra' | 'tramo', label: string, opciones: string[]) => (
@@ -127,12 +169,12 @@ export function ObrasPF({ project, feeders }: { project: string; feeders: string
       <form className="form-grid" onSubmit={anadir}>
         <label className="field">
           <span>Obra</span>
-          <select value={clase} onChange={(e) => { setClase(e.target.value as ClaseObra); setTipo(''); }}>
+          <select value={clase} onChange={(e) => elegirClase(e.target.value as ClaseObra)}>
             {CLASES.map((c) => <option key={c.clase} value={c.clase}>{c.label}</option>)}
           </select>
         </label>
         <label className="field">
-          <span>Alimentador</span>
+          <span>{clase === 'enlace' ? 'Alimentador que recibe' : clase === 'migracion' ? 'Alimentador que cede' : 'Alimentador'}</span>
           <select value={alimentador} onChange={(e) => { setAlim(e.target.value); setTramos([]); }}>
             {feeders.map((f) => <option key={f} value={f}>{f}</option>)}
           </select>
@@ -140,11 +182,14 @@ export function ObrasPF({ project, feeders }: { project: string; feeders: string
         <div className="field span-2">
           <span>Activa en</span>
           <div className="chips">
-            {CASOS_OBRA.map((c) => (
-              <button key={c} type="button" className={`chip ${casos.includes(c) ? 'on' : ''}`}
-                onClick={() => setCasos((xs) => alternar(xs, c))}>{c}</button>
+            {(soloCon ? [CON] : CASOS_OBRA).map((c) => (
+              <button key={c} type="button" className={`chip ${(soloCon || casos.includes(c)) ? 'on' : ''}`}
+                disabled={soloCon || (c === CON && casos.includes(SIN))} onClick={() => alternarCaso(c)}>{c}</button>
             ))}
           </div>
+          <small className="muted">{soloCon
+            ? 'Construye algo nuevo: va solo en «Con proyecto», en su variación.'
+            : 'Lo que se hace en «Sin proyecto» pasa también a «Con proyecto».'}</small>
         </div>
 
         {clase === 'condensador' && <>
@@ -160,7 +205,14 @@ export function ObrasPF({ project, feeders }: { project: string; feeders: string
           {campo('rango_pct', 'Rango de regulación (± %)')}
           {campo('pasos', 'Pasos a cada lado de la toma central', 'Por ejemplo 16 para ±16 pasos.')}
         </>}
-        {(clase === 'seccion' || clase === 'terna') && (
+        {clase === 'seccion' && (
+          <div className="field span-2">
+            <Toggle label="Toda la troncal (el camino continuo más largo desde la cabecera)"
+              checked={todaTroncal} onChange={setTodaTroncal}
+              hint="Todos sus tramos aéreos pasan al tipo elegido, sean del material y la sección que sean" />
+          </div>
+        )}
+        {((clase === 'seccion' && !todaTroncal) || clase === 'terna') && (
           <div className="field span-2">
             <span>Tramos ({tramos.length ? `${tramos.length} elegidos` : 'ninguno: toda la troncal'})</span>
             <div className="chips">
@@ -176,9 +228,31 @@ export function ObrasPF({ project, feeders }: { project: string; feeders: string
         {clase === 'tension' &&
           campo('kv_destino', `Tensión nueva (kV)${red?.kv ? `; hoy ${red.kv} kV` : ''}`,
             'Se migra el alimentador entero desde su cabecera, sin subestación nueva.')}
+        {clase === 'enlace' && <>
+          <label className="field">
+            <span>Alimentador que cede</span>
+            <select value={alimentadorCede} onChange={(e) => setCede(e.target.value)}>
+              {feeders.filter((f) => f !== alimentador).map((f) => <option key={f} value={f}>{f}</option>)}
+            </select>
+          </label>
+          {campo('minima_m', 'Distancia mínima a una barra (m)',
+            'En blanco: se parte el tramo salvo en la barra misma.')}
+          {texto('origen', `Origen en ${alimentador} (opcional)`, red, 'barra o «latitud, longitud»')}
+          {texto('destino', `Destino en ${alimentadorCede || 'el que cede'} (opcional)`, redCede,
+            'barra o «latitud, longitud»')}
+          <small className="muted span-2">Sin origen ni destino: el punto de la troncal de {alimentador} dentro de los
+            límites de tensión y cargabilidad más cercano a la troncal de {alimentadorCede || 'el que cede'}, y el punto
+            de esa troncal más cercano a él. La línea queda abierta del lado del que cede.</small>
+        </>}
+        {clase === 'migracion' && <>
+          {texto('nodo', 'Nodo desde el que se pasa a la tensión nueva', red, 'nombre de la barra')}
+          {campo('kv_destino', `Tensión nueva (kV)${red?.kv ? `; hoy ${red.kv} kV` : ''}`,
+            'Pasa lo que queda aguas abajo del nodo; se abre el tramo que entra a él.')}
+        </>}
         {claseTipo && (
           <label className="field span-2">
-            <span>Tipo{clase === 'reconectador' ? ' de reenganche (opcional)' : ''}</span>
+            <span>Tipo{clase === 'reconectador' ? ' de reenganche (opcional)' : ''}
+              {clase === 'seccion' && todaTroncal ? ' de los tramos aéreos' : ''}</span>
             <select value={tipo} onChange={(e) => setTipo(e.target.value)}>
               <option value="">— elija —</option>
               {tipos.map((t) => (
@@ -188,6 +262,20 @@ export function ObrasPF({ project, feeders }: { project: string; feeders: string
               ))}
             </select>
             <small className="muted">Un tipo de la biblioteca global o de otro proyecto se copia al proyecto.</small>
+          </label>
+        )}
+        {clase === 'seccion' && todaTroncal && (
+          <label className="field span-2">
+            <span>Tipo de los tramos de cable (opcional)</span>
+            <select value={tipoCable} onChange={(e) => setTipoCable(e.target.value)}>
+              <option value="">— sin cambiar los cables —</option>
+              {tipos.map((t) => (
+                <option key={claveTipo(t)} value={claveTipo(t)}>
+                  {t.nombre} · {t.resumen || 'sin datos'} · {ORIGEN[t.origen]}{t.proyecto ? ` ${t.proyecto}` : ''}
+                </option>
+              ))}
+            </select>
+            <small className="muted">Sin tipo de cable, los tramos de cable de la troncal se quedan y se listan.</small>
           </label>
         )}
         <div className="row span-2">
@@ -205,7 +293,10 @@ export function ObrasPF({ project, feeders }: { project: string; feeders: string
               <tr key={o.id}>
                 <td className="strong">{ETIQUETA[o.clase]}</td><td>{o.alimentador}</td>
                 <td className="small">{o.casos.join(', ')}</td>
-                <td className="small">{[o.barra, o.tramo, o.tramos?.join(', '), o.tipo?.nombre,
+                <td className="small">{[o.barra, o.tramo, o.tramos?.join(', '), o.toda_troncal ? 'toda la troncal' : '',
+                  o.tipo?.nombre, o.tipo_cable ? `cable ${o.tipo_cable.nombre}` : '', o.cede ? `cede ${o.cede}` : '',
+                  o.minima_m != null ? `mínima ${o.minima_m} m` : '', o.origen ? `desde ${o.origen}` : '',
+                  o.destino ? `hasta ${o.destino}` : '', o.nodo ? `desde el nodo ${o.nodo}` : '',
                   o.kv_destino != null ? `${o.kv_destino} kV` : ''].filter(Boolean).join(' · ')}</td>
                 <td><button className="btn btn-sm btn-ghost" onClick={() => quitar(o.id)}>Quitar</button></td>
               </tr>

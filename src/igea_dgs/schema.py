@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import lru_cache
 from importlib.resources import files
 import json
@@ -19,6 +19,29 @@ class DgsSchema:
     tables: dict[str, str]
     table_order: tuple[str, ...]
     source_path: str
+
+    def con_puntos_por_conector(self, n: int) -> 'DgsSchema':
+        """El mismo perfil con ``IntGrfcon`` declarando ``n`` puntos ``rX``/``rY``.
+
+        El perfil trae 4 columnas, como la referencia NA205, y el escritor recortaba cada
+        conector a 4 puntos: en IN111 + TA225 (2026-10-14) la grid dibujaba hasta 7
+        vértices por línea donde el mapa geográfico, con el GPS completo, tenía 74, y las
+        curvas se separaban hasta 257 m. La cabecera crece con el conector más largo.
+        """
+        n = max(4, int(n))
+        cabecera = self.tables.get('IntGrfcon')
+        if cabecera is None or n == 4:
+            return self
+        partes = []
+        for parte in cabecera.split(';'):
+            campo = parte.split('(')[0]
+            if campo in ('rX:SIZEROW', 'rY:SIZEROW'):
+                eje = campo[:2]
+                partes.append(parte)
+                partes.extend(f'{eje}:{i}(r)' for i in range(n))
+            elif not (campo.startswith(('rX:', 'rY:'))):
+                partes.append(parte)
+        return replace(self, tables={**self.tables, 'IntGrfcon': ';'.join(partes)})
 
     def header(self, table: str) -> str:
         try:

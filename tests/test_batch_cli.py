@@ -2,39 +2,8 @@ from pathlib import Path
 import json
 from types import SimpleNamespace
 
-from igea_dgs.batch import convert_selection, expand_connected_feeders, load_aliases
-
-
-def test_expand_connected_selection_follows_shared_nodes_at_same_voltage():
-    network_ids = {
-        name: f'NET_2030_131_{name}'
-        for name in ('AL101', 'CN101', 'CN102', 'AL201', 'AL202')
-    }
-    dataset = SimpleNamespace(
-        feeders={
-            network_ids['AL101']: ('S1',),
-            network_ids['CN101']: ('S2',),
-            network_ids['CN102']: ('S3',),
-            network_ids['AL201']: ('S4',),
-            network_ids['AL202']: ('S5',),
-        },
-        sources={
-            network_ids[name]: {'DesiredVoltage': '22.9' if name == 'AL201' else '10'}
-            for name in network_ids
-        },
-        sections={
-            'S1': {'FromNodeID': 'N0', 'ToNodeID': 'N1'},
-            'S2': {'FromNodeID': 'N1', 'ToNodeID': 'N2'},
-            'S3': {'FromNodeID': 'N2', 'ToNodeID': 'N3'},
-            'S4': {'FromNodeID': 'N3', 'ToNodeID': 'N4'},
-            'S5': {'FromNodeID': 'OTHER', 'ToNodeID': 'END'},
-        },
-        resolve_feeder=lambda name: network_ids[name],
-    )
-
-    expanded = expand_connected_feeders(dataset, ['AL101'])
-
-    assert expanded == [network_ids[name] for name in ('AL101', 'CN101', 'CN102')]
+from igea_dgs.batch import convert_group, convert_selection, load_aliases, sort_key_feeder
+from igea_dgs.naming import feeder_short_name
 
 
 def test_convert_one_feeder(ds, sample_feeder, tmp_path, opciones_reales):
@@ -130,3 +99,21 @@ def test_cli_list_and_convert_do_not_accept_reference_dgs(igea_paths, sample_fee
     assert rc == 0
     assert (out / f'{sample_feeder}.dgs').exists()
     assert (out / 'dataset_inventory.json').exists()
+
+
+def test_unir_incluye_solo_los_alimentadores_seleccionados(ds, opciones_reales, tmp_path):
+    """Unir mete en el DGS exactamente los alimentadores elegidos, ni uno más.
+
+    IN111 + TA225 (2026-10-14) dio un DGS de 15 alimentadores: se añadían en cadena los
+    que comparten un nodo a la misma tensión. Con los datos de referencia se prueba ese
+    par; con otra exportación, dos cualesquiera.
+    """
+    nombres = {feeder_short_name(n) for n in ds.feeder_ids()}
+    seleccion = (['IN111', 'TA225'] if {'IN111', 'TA225'} <= nombres
+                 else sorted(nombres, key=sort_key_feeder)[:2])
+    man = convert_group(ds, seleccion, tmp_path, name='UNIDOS', include_geography=False,
+                        **{k: v for k, v in opciones_reales.items() if k != 'source_crs'})
+    assert man['status'] == 'ok', man.get('error')
+    assert man['feeders'] == seleccion
+    metadata = json.loads((tmp_path / 'UNIDOS_feeder_metadata.json').read_text(encoding='utf-8'))
+    assert {a['feeder'] for a in metadata['assignments']} <= set(seleccion)

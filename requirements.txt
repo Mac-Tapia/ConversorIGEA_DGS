@@ -54,6 +54,10 @@ openpyxl>=3.1
 # Rust: abre un .xls de 400 MB en ~1 s, donde xlrd tarda decenas de segundos.
 python-calamine>=0.3
 
+# Informes de estudio y de factibilidad en Word (spec 017). Se escriben sobre el .docx
+# modelo de la empresa, que pone la cabecera, el logo y los estilos.
+python-docx>=1.1
+
 # Tablas de las exportaciones analíticas.
 pandas>=2.0
 

@@ -61,7 +61,9 @@ Verificación del «Caso base»
 - RF-3: EL SISTEMA comparará el trazado GPS de cada línea con el del archivo original
   (spec 010).
 - RF-4: EL SISTEMA comprobará que cada línea y cada carga están conectadas a sus barras.
-- RF-5: EL SISTEMA comprobará que el diagrama geográfico existe.
+- RF-5: EL SISTEMA comprobará que el diagrama geográfico existe. (2026-10-15: la curva de
+  cada línea en el unifilar frente al mapa se avisa y no bloquea; un diagrama que falla dice
+  por qué. Caso CA101: 296 curvas del unifilar de un DGS anterior, con el GPS perfecto.)
 - RF-6: EL SISTEMA comprobará que cada transformador, línea y banco de condensadores tiene
   definida su capacidad: potencia nominal, corriente nominal y potencia por paso.
 - RF-7: EL SISTEMA comparará la capacidad de cada transformador, línea y banco de
@@ -171,14 +173,64 @@ Fijas y escaladas con el factor de escala de DIgSILENT
   activará la dependencia de la tensión de las cargas para converger.
 - RF-43: CUANDO calibra, EL SISTEMA escribirá en cada SED fija (clientes importantes) su P y
   su Q, y dejará su factor de escala en 1.
-- RF-44: CUANDO calibra, EL SISTEMA conservará en cada SED escalada la P y la Q del archivo
-  original y cambiará solo su factor de escala (``scale0``), el mismo en todas, hasta
-  cuadrar la cabecera con la máxima.
-- RF-45: SI una SED escalada no tiene demanda en el archivo original, ENTONCES EL SISTEMA la
-  dejará en cero y la listará en un aviso.
+- RF-44: CUANDO calibra, EL SISTEMA escribirá en cada SED escalada una P base igual a su
+  potencia instalada (kVA de sus transformadores) por el factor de potencia de RF-54, y
+  cambiará solo su factor de escala (``scale0``), el mismo en todas, hasta cuadrar la
+  cabecera con la máxima. (Cambiado el 2026-10-15: antes conservaba la P y la Q del
+  archivo original; en CA101, 98 de las 160 escaladas, con 11 057 kVA instalados, tenían
+  demanda cero en el archivo y los 6 MW caían en 62 SED con 3132 kVA.)
+- RF-45: SI una SED escalada no tiene potencia instalada conocida, ni en DIgSILENT ni en el
+  archivo original, ENTONCES EL SISTEMA la dejará en cero y la listará en un aviso.
+  (Cambiado el 2026-10-15: antes, la SED sin demanda en el archivo.)
 - RF-46: SI la calibración en «Sin proyecto» cuadra con ajustes del flujo de carga (los
   remedios de la spec 006), ENTONCES EL SISTEMA los dejará en el flujo de «Sin proyecto» y
   en el de «Con proyecto», para que queden convergiendo, y los nombrará en el informe.
+
+Demanda física: lo que las cargas consumen en el flujo (cambio del 2026-10-15)
+
+- RF-47: CUANDO valida la calibración, EL SISTEMA comparará la P y la Q que cada SED fija
+  consume en el flujo de carga de DIgSILENT con su P y su Q escritas.
+- RF-48: CUANDO valida la calibración, EL SISTEMA comparará la P que cada SED escalada
+  consume en el flujo con su P escrita multiplicada por su factor de escala.
+- RF-49: SI una carga consume en el flujo una P o una Q que difiere de la escrita en más
+  del 0,1 % y de 0,01 kW (o kvar), ENTONCES EL SISTEMA no dará la calibración por válida y
+  nombrará la carga con lo escrito, lo consumido y la tensión de su barra.
+- RF-50: CUANDO valida la calibración, EL SISTEMA informará el balance de la cabecera: P
+  de la cabecera, P consumida por las fijas, P consumida por las escaladas, pérdidas (la
+  cabecera menos lo consumido) y P escrita de todas las cargas.
+- RF-51: SI alguna carga consume distinto de lo escrito y el flujo tiene activa la
+  adaptación automática del modelo o la dependencia de la tensión de las cargas,
+  ENTONCES EL SISTEMA nombrará ese ajuste del flujo como la causa probable.
+- RF-52: SI el flujo convergió y no publica la P consumida de una carga, ENTONCES EL
+  SISTEMA no dará esa carga por verificada y no dará la calibración por válida.
+
+Factor de potencia de las cargas (cambio del 2026-10-15)
+
+- RF-53: EL SISTEMA escribirá en cada SED fija la Q que da el factor de potencia de su
+  energía activa (EA) y reactiva (ERI) de la tabla cruzada de clientes, también cuando el
+  perfil de empresa fije un factor de potencia para las escaladas.
+- RF-54: DONDE el perfil de empresa fija el factor de potencia de las SED escaladas, EL
+  SISTEMA dará a cada una la Q que da su P base (RF-44) con ese factor, y la escalará con
+  el mismo factor de escala que su P.
+- RF-55: MIENTRAS el perfil de empresa no fije el factor de potencia de las escaladas, EL
+  SISTEMA usará para ellas el factor de potencia de la máxima de cabecera.
+- RF-56: EL SISTEMA dirá en el informe de la calibración de dónde sale el factor de
+  potencia de las fijas y cuál es el de las escaladas, con su origen (perfil o archivo).
+- RF-57: SI el factor de potencia del perfil no está entre 0 (sin incluirlo) y 1, ENTONCES
+  EL SISTEMA no preparará la calibración y nombrará el valor y el perfil.
+- RF-58: EL SISTEMA no cambiará con RF-53 y RF-54 la demanda de una carga cambiada a mano
+  por el operador (014:RF-10).
+
+Clientes y bancos del propio proyecto (cambio del 2026-10-15)
+
+- RF-59: SI la demanda de una SED fija supera la potencia instalada de su SED, ENTONCES EL
+  SISTEMA lo avisará con la SED, sus clientes, la demanda, los kVA y el porcentaje, y
+  seguirá calibrando.
+- RF-60: CUANDO calibra, EL SISTEMA listará en el informe los bancos de condensadores del
+  alimentador que ya están instalados en el proyecto, con su barra, sus kvar nominales, los
+  que entregan en el flujo y su estado.
+- RF-61: EL SISTEMA no creará bancos al calibrar ni tomará bancos, cargas ni otros datos de
+  otro proyecto o de otro alimentador.
 
 ## Requisitos que esta spec cambia
 
@@ -188,11 +240,13 @@ Fijas y escaladas con el factor de escala de DIgSILENT
 | 014, contexto | El operador hace sus cambios en «Sin proyecto», grabados en la variación que estuviera grabando | Las correcciones para aceptar el modelo van al «Caso base» antes de la copia; después, en «Sin proyecto», directas en la red y sin variaciones (RF-14, RF-27) |
 | Aceptación de un proyecto existente | Solo el flujo; sin GPS, conectividad ni diagrama; se vincula pendiente de convergencia | Todas las comprobaciones de RF-2 a RF-8 (RF-1, RF-10) |
 | Vínculo tras el ajuste | El ajuste promueve el vínculo a verificado | El vínculo solo lo verifica la aceptación del «Caso base» (RF-22) |
-| 006:RF-10, RF-24 | Las SED repartidas reciben P y Q proporcionales a su kVA; sin kVA no se ajusta | Conservan su P y Q del archivo y escalan con el factor de escala de DIgSILENT; el kVA no hace falta (RF-44) |
+| 006:RF-10, RF-24 | Las SED repartidas reciben P y Q proporcionales a su kVA; sin kVA no se ajusta | P base proporcional a su kVA y un mismo factor de escala de DIgSILENT; sin kVA, en cero con aviso (RF-44, RF-45; el 2026-10-14 se cambió a la P del archivo y el 2026-10-15 se volvió al kVA) |
 | 006:RF-16 | Un remedio activa las cargas dependientes de la tensión; al terminar se restituyen todos | Las cargas son PQ: ese ajuste no se usa (RF-42); en «Sin» y «Con proyecto», casos del sistema, se conservan si la calibración cuadra (RF-46) |
 | 014:RF-5 | Si faltan los tres casos, el ajuste los prepara desde el caso activo | Solo se preparan desde un «Caso base» verificado; si no lo está, no se calibra (RF-16, RF-17) |
 | 006:RF-19 | El ajuste graba las demandas en una variación nueva, y también en el escenario | En el escenario de operación de «Sin proyecto», sin variación de ajuste (RF-26) |
 | 011:RF-7 | «Sin proyecto» activa la variación del ajuste | No hay variación del ajuste: la calibración está en su escenario (RF-26) |
+| 015:RF-44 | La Q de las escaladas, la del archivo | La de su P base con el factor del perfil o, sin él, el de la máxima de cabecera; las fijas siguen con su EA/ERI (RF-53 a RF-55) |
+| 006:RF-42, RF-44 | Las fijas se comprueban con su P/Q escrita; las pérdidas, con lo consumido | Las fijas y las escaladas también tienen que consumir en el flujo lo escrito; si no, la calibración no es válida (RF-47 a RF-52) |
 
 ## Requisitos no funcionales
 
@@ -288,6 +342,27 @@ Fijas y escaladas con el factor de escala de DIgSILENT
     cuadrar con la máxima (usuario, 2026-10-14; RF-42 a RF-45).
 12. «Sin proyecto» tiene que quedar convergiendo: los ajustes del flujo que necesitó la
     calibración se quedan en él y en «Con proyecto» (usuario, 2026-10-14; RF-46).
+13. La validación es física, en DIgSILENT: las fijas tienen que estar cargadas en sus SED
+    y, con las escaladas, sumar a la cabecera de «Sin proyecto» con lo que consumen en el
+    flujo, no con lo escrito (usuario, 2026-10-15; RF-47 a RF-52). Motivo, medido en
+    DIgSILENT con CA101 ese día: con la adaptación automática del modelo (`iopt_lev`) que
+    dejó RF-46, cada carga consumía lo escrito por u²; las 9 fijas escribían 3677 kW y
+    consumían 2686 kW (SE20701, 1582 kW escritos, 984 kW a 0,788 pu), y la validación decía
+    «válido» porque solo releía lo escrito. Sin ese ajuste, «Sin proyecto» no converge.
+14. Factor de potencia: las fijas, el de su EA y ERI de la tabla cruzada; las escaladas,
+    0,98 (usuario, 2026-10-15, que corrigió un primer «todas a 0,98»; RF-53 a RF-58). El
+    0,98 va en el perfil de empresa (P13), no en el código. Medido ese día en una copia de
+    CA101 con cargas PQ: tal cual no converge; con todas a 0,98 converge a 6002 kW
+    (+0,04 %), aún con 0,73 pu en SE20701.
+15. Las escaladas se reparten según la potencia instalada de cada SED (usuario, 2026-10-15;
+    RF-44, RF-45), no según su demanda del archivo, que dejaba sin carga 98 de las 160
+    escaladas de CA101. En la misma copia, por kVA y con 0,98 convergía a 6029 kW con
+    menos pérdidas (770 kW frente a 827) y mejor tensión mínima (0,749 frente a 0,733 pu).
+16. Los bancos del proyecto que se analiza ya están instalados y valen tal cual; no se
+    extrae nada de otro alimentador ni de otro proyecto (usuario, 2026-10-15; RF-60,
+    RF-61). En CA101 son tres de 300 kvar en 10 kV, dos en la barra «Terminal» (que parte
+    el tramo SEC_1091_1082263) y uno en «Terminal(1)». El cliente que pide más que su
+    transformador se avisa (RF-59): en CA101, SE20859 (496 %) y SE21082 (201 %).
 
 ## Para el plan
 

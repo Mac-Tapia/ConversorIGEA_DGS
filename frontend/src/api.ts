@@ -1,6 +1,6 @@
 import type {
-  AjustePlan, CargasPlan, ClientesCruce, CurvaCabecera, DemandaMedidores, Economia, EstudiosCatalogo, EstudiosPlan,
-  FeederRow, Health, Job, Limites, MaximaCabecera, Obra, ObraGuardada, Options, OutputFile, PowerFactoryStatus,
+  AjustePlan, AjusteResultado, CargasPlan, ClientesCruce, CurvaCabecera, DemandaMedidores, Economia, EstudiosCatalogo, EstudiosPlan,
+  FeederRow, Health, Job, Limites, MaximaCabecera, Obra, ObraGuardada, Options, OutputFile, PfInventario, PowerFactoryStatus,
   ReconstructionReport, WorkspaceState,
 } from './types';
 
@@ -118,13 +118,22 @@ export const api = {
   cargasPlantillaUrl: (id: string, tipo: 'demandas' | 'nuevas', format: 'xlsx' | 'csv') =>
     `${ws(id)}/cargas/plantilla/${tipo}?format=${format}`,
   pfProjects: (id: string) => request<Job>(`${ws(id)}/powerfactory/projects`, { method: 'POST' }),
+  // Spec 007, RF-40: el último ajuste aplicado guardado en disco (sobrevive a un reinicio).
+  ajusteUltimo: (id: string, project: string) =>
+    request<{ ajuste: (AjusteResultado & { id: string; finished_at: number }) | null }>(
+      `${ws(id)}/demanda/ajuste/ultimo?project=${encodeURIComponent(project)}`),
+  // Spec 018, RF-13: la última lista leída en el espacio, sin abrir DIgSILENT.
+  pfProjectsGuardados: (id: string) => request<PfInventario>(`${ws(id)}/powerfactory/projects`),
+  // Spec 018, RF-10: usar la ejecución fuente con la que se aceptó el proyecto.
+  pfAdoptarFuente: (id: string, project: string) =>
+    request<Job>(`${ws(id)}/powerfactory/adoptar-fuente`, json('POST', { project })),
   pfVerificarBase: (id: string, project: string, feeders: string[]) =>
     request<Job>(`${ws(id)}/powerfactory/caso-base`, json('POST', { project, feeders })),
   pfVerificar: (id: string, project: string, feeders: string[]) =>
     request<Job>(`${ws(id)}/powerfactory/verificar`, json('POST', { project, feeders })),
   cargasPlan: (id: string, project: string, feeders: string[], demandas?: File | null,
     nuevas?: File | null, nueva?: Record<string, string> | null, economia?: Economia | null,
-    ajusteJobId?: string | null) => {
+    ajusteJobId?: string | null, minimaM?: number | null) => {
     const fd = new FormData();
     fd.append('project', project);
     feeders.forEach((f) => fd.append('feeders', f));
@@ -134,6 +143,8 @@ export const api = {
     if (economia) fd.append('economia', JSON.stringify(economia));
     // Spec 007, RF-1: el ajuste aplicado que hace de base; sin él, sobre lo activo.
     if (ajusteJobId) fd.append('ajuste_job_id', ajusteJobId);
+    // Spec 016, RF-73: la distancia mínima para enganchar en una barra sin partir el tramo.
+    if (minimaM != null) fd.append('minima_m', String(minimaM));
     return request<CargasPlan>(`${ws(id)}/lote/plan`, { method: 'POST', body: fd });
   },
   cargasSimular: (id: string, token: string) =>

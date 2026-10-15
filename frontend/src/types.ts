@@ -414,6 +414,10 @@ export interface PfProject {
   native_warning?: string | null;
   binding?: PowerFactoryProjectBinding | null;
   binding_blocked_reason?: string | null;
+  /** Código estable de PROJECT_BINDING_* (p. ej. PROJECT_BINDING_MISSING), para elegir el texto. */
+  binding_blocked_code?: string | null;
+  /** Spec 018, RF-9: la ejecución fuente del vínculo sigue en disco y se puede usar aquí. */
+  binding_fuente_disponible?: boolean;
   binding_warnings?: ProjectBindingWarning[];
 }
 
@@ -779,11 +783,62 @@ export interface AjusteSed {
   avisos?: string[];
 }
 
+/** Spec 015, RF-50: balance de la cabecera con lo que consumen las cargas en el flujo. */
+export interface BalanceCabecera {
+  cabecera_kw: number;
+  fijas_consumida_kw: number | null;
+  fijas_escrita_kw: number | null;
+  escaladas_consumida_kw: number | null;
+  escaladas_escrita_kw: number | null;
+  escrita_kw: number;
+  perdidas_kw: number | null;
+  ajustes_del_flujo: Record<string, number>;
+  causa_probable: string | null;
+}
+
+/** Spec 015, RF-49: una carga que no consume en el flujo lo que tiene escrito. */
+export interface ConsumoDistinto {
+  sed: string;
+  clase: 'FIJA' | 'ESCALABLE';
+  p_escrita_kw: number;
+  p_consumida_kw: number;
+  q_escrita_kvar: number;
+  q_consumida_kvar: number | null;
+  u_pu: number | null;
+}
+
+export interface ValidacionNativa {
+  status: 'VALIDO' | 'REQUIERE_DISTRIBUCION';
+  correcta: boolean;
+  fallos: ({ tipo: string; cargas?: ConsumoDistinto[]; causa_probable?: string | null } &
+    Record<string, unknown>)[];
+  balance?: BalanceCabecera | null;
+}
+
 export interface AjusteInforme {
   project: string;
   feeder: string;
-  status?: 'OK' | 'AVISO_KVAR' | 'VIOLACION_FISICA' | 'NO_CONVERGE';
+  status?: 'OK' | 'AVISO_KVAR' | 'VIOLACION_FISICA' | 'NO_CONVERGE' | 'FALLO_VALIDACION_NATIVA';
   criterio_cuadre?: 'KW_ONLY';
+  /** Spec 015, RF-56: fijas con su EA/ERI; escaladas con el factor del perfil o del archivo. */
+  factor_potencia_cargas?: {
+    fijas: string; escaladas: number | null; escaladas_origen: string;
+    /** Spec 015, RF-44: las escaladas, por la potencia instalada de su SED. */
+    escaladas_reparto?: string;
+  };
+  /** Spec 015, RF-60: bancos ya instalados en el proyecto, tal como están. */
+  bancos?: {
+    banco: string; barra: string | null; kv: number | null; q_nominal_kvar: number | null;
+    q_flujo_kvar: number | null; u_pu: number | null; en_servicio: boolean;
+  }[];
+  /** Spec 015, RF-59: fijas que piden más que la potencia instalada de su SED. */
+  fijas_sobre_su_transformador?: {
+    sed: string; clientes: string[]; p_kw: number; kva_carga: number; kva: number; carga_pct: number;
+  }[];
+  /** Spec 015, RF-49: la validación no pasó y las cargas volvieron a como estaban. */
+  calibracion_revertida?: boolean;
+  /** Spec 015, RF-47 a RF-52: lo que consumen las cargas en el flujo, después de calibrar. */
+  validacion_posterior_nativa?: ValidacionNativa;
   modo?: 'simular' | 'aplicar';
   /** Spec 008: el ajuste de este alimentador falló; los demás siguieron. */
   error?: string;
@@ -832,6 +887,8 @@ export interface AjusteInforme {
   relectura_bancos?: Record<string, unknown>;
   todo_escala?: boolean;
   totales_sin_perdidas?: { kw: number; kvar: number };
+  /** Cada flujo del cuadre; ``a`` es el factor de escala (scale0) de las escaladas. */
+  historial?: { flujo: number; a?: number; converge: boolean; kw?: number | null }[];
   remedios?: { remedio: string; cambios: string[] }[];
   diagnostico?: {
     barras_sin_tension: string[];
@@ -845,7 +902,8 @@ export interface AjusteInforme {
   // Spec 006, RF-26: SED fuera de servicio porque se desmarcaron todos sus clientes.
   desconectadas?: { sed: string; clientes: string[] }[];
   ambiguas?: { sed: string; motivo: string }[];
-  fallos?: { sed: string; error: string }[];
+  /** Escritura que DIgSILENT no aceptó; con ``detalle``, un fallo de la validación nativa. */
+  fallos?: { sed?: string | null; error: string; detalle?: Record<string, unknown> }[];
   sed?: AjusteSed[];
 }
 
@@ -920,7 +978,8 @@ export interface VerificarResultado {
 // Spec 011: obras de mejora, estudios y transferencia sobre la red calibrada
 // ---------------------------------------------------------------------------
 
-export type ClaseObra = 'condensador' | 'reconectador' | 'regulador' | 'seccion' | 'terna' | 'tension';
+export type ClaseObra = 'condensador' | 'reconectador' | 'regulador' | 'seccion' | 'terna' | 'tension'
+  | 'enlace' | 'migracion';
 export type ClaseTipo = 'TypLne' | 'TypTr2' | 'TypVoltreg' | 'TypRecl';
 export type OrigenTipo = 'proyecto' | 'global' | 'otro';
 
@@ -946,6 +1005,17 @@ export interface Obra {
   pasos?: number;
   tipo?: TipoRef;
   kv_destino?: number;
+  /** Spec 016: sección de toda la troncal del camino más largo, y el tipo de sus cables. */
+  toda_troncal?: boolean;
+  tipo_cable?: TipoRef;
+  /** Enlace: el alimentador que cede (``alimentador`` es el que recibe). */
+  cede?: string;
+  minima_m?: number;
+  /** Barra, o «latitud, longitud», que indica el operador para el enlace. */
+  origen?: string;
+  destino?: string;
+  /** Migración: el nodo desde el que se pasa a la tensión de destino. */
+  nodo?: string;
 }
 
 export interface ObraGuardada extends Obra {

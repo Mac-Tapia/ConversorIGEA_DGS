@@ -135,8 +135,19 @@ class Lectura:
 
 
 # --------------------------------------------------------------------------- libros
-def _hojas(path: Path | str) -> dict[str, tuple[list[Any], list[list[Any]]]]:
-    """``{hoja: (cabecera, filas)}`` de un .xlsx (una por hoja) o un .csv (una)."""
+def _vacia(fila: Sequence[Any] | None) -> bool:
+    return not fila or not any(c is not None and str(c).strip() for c in fila)
+
+
+def _hojas(path: Path | str) -> dict[str, tuple[list[Any], list[list[Any]], int]]:
+    """``{hoja: (cabecera, filas, fila_cabecera)}`` de un .xlsx (una por hoja) o un .csv (una).
+
+    La cabecera es la primera fila con algo, no la fila 1: el libro de planificación de
+    Electro Dunas (NuevosclientesMayoresv1, 2026-10-14) la trae en la fila 3 tras dos
+    vacías, y tomando la fila 1 no se reconocía ninguna columna y sus 58 cargas se
+    descartaban sin un solo aviso. ``fila_cabecera`` es su número en Excel, para que los
+    mensajes citen la fila que el operador ve.
+    """
     src = Path(path)
     if not src.is_file():
         raise LoadTemplateError(f'No se encuentra el fichero: {src}')
@@ -151,12 +162,16 @@ def _hojas(path: Path | str) -> dict[str, tuple[list[Any], list[list[Any]]]]:
                 dialect = csv.excel
                 dialect.delimiter = ';'
             reader = csv.reader(fh, dialect=dialect)
-            try:
-                header = next(reader)
-            except StopIteration:
-                raise LoadTemplateError(f'{src.name}: fichero vacío.') from None
-            body = [row for row in reader if any((c or '').strip() for c in row)]
-        return {src.stem: (header, body)}
+            fila_cabecera = 0
+            header: list[Any] | None = None
+            for header in reader:
+                fila_cabecera += 1
+                if not _vacia(header):
+                    break
+            if header is None or _vacia(header):
+                raise LoadTemplateError(f'{src.name}: fichero vacío.')
+            body = [row for row in reader if not _vacia(row)]
+        return {src.stem: (header, body, fila_cabecera)}
     if suffix != '.xlsx':
         raise LoadTemplateError(
             f'Extensión no soportada: {src.suffix!r}. Use ' + ' o '.join(SUPPORTED_SUFFIXES))
@@ -166,17 +181,22 @@ def _hojas(path: Path | str) -> dict[str, tuple[list[Any], list[list[Any]]]]:
         raise LoadTemplateError(
             'Leer .xlsx necesita openpyxl. Instale con: pip install -r requirements.txt') from exc
     wb = load_workbook(src, data_only=True, read_only=True)
-    out: dict[str, tuple[list[Any], list[list[Any]]]] = {}
+    out: dict[str, tuple[list[Any], list[list[Any]], int]] = {}
     try:
         for name in wb.sheetnames:
             it = wb[name].iter_rows(values_only=True)
-            try:
-                header = list(next(it))
-            except StopIteration:
+            fila_cabecera = 0
+            header = None
+            for fila in it:
+                fila_cabecera += 1
+                if not _vacia(fila):
+                    header = list(fila)
+                    break
+            if header is None:
                 continue
-            body = [list(v) for v in it if v and any(c is not None and str(c).strip() for c in v)]
+            body = [list(v) for v in it if not _vacia(v)]
             if body:
-                out[name] = (header, body)
+                out[name] = (header, body, fila_cabecera)
     finally:
         wb.close()
     if not out:
@@ -188,7 +208,7 @@ def leer_demandas(path: Path | str) -> Lectura:
     """Demandas por SED de todas las hojas. Sin modelo: valida cada fila por sí misma."""
     lectura = Lectura()
     vistas: dict[str, str] = {}
-    for hoja, (header, body) in _hojas(path).items():
+    for hoja, (header, body, _fila_cabecera) in _hojas(path).items():
         try:
             read = read_sheet(header, body, hoja)
         except LoadTemplateError as exc:
@@ -216,9 +236,9 @@ def leer_nuevas(path: Path | str, *, source_crs: str = '') -> Lectura:
     así que el guion la recibe siempre en grados.
     """
     lectura = Lectura()
-    for hoja, (header, body) in _hojas(path).items():
+    for hoja, (header, body, fila_cabecera) in _hojas(path).items():
         filas, errores = leer_hoja_nuevas(header, body, hoja, source_crs=source_crs,
-                                          avisos=lectura.avisos)
+                                          avisos=lectura.avisos, fila_cabecera=fila_cabecera)
         lectura.filas += filas
         lectura.errores += errores
     return lectura
@@ -226,7 +246,7 @@ def leer_nuevas(path: Path | str, *, source_crs: str = '') -> Lectura:
 
 def leer_hoja_nuevas(
     header: Sequence[Any], body: Sequence[Sequence[Any]], hoja: str, *, source_crs: str = '',
-    avisos: list[str] | None = None,
+    avisos: list[str] | None = None, fila_cabecera: int = 1,
 ) -> tuple[list[CargaNueva], list[str]]:
     """Filas de una hoja de cargas nuevas. Lo deducido se anota en ``avisos`` (RF-52, RF-53)."""
     avisos = [] if avisos is None else avisos
@@ -239,12 +259,18 @@ def leer_hoja_nuevas(
         nombre = '' if index in mapping else _columna_por_patron(_normalise(raw))
         if nombre and nombre not in mapping.values():
             mapping[index] = nombre
+    # Sin columna de nombre ni de demanda, cada fila se saltaría como «resto de la hoja»
+    # y el libro entero daría cero cargas sin decir por qué.
+    if body and not {'SED', 'nombre', 'Kw', '(kVA)'} & set(mapping.values()):
+        cabecera = ', '.join(str(c).strip() for c in header if c is not None and str(c).strip())
+        return [], [f'hoja {hoja}, fila {fila_cabecera}: no se reconoce la cabecera '
+                    f'({cabecera or "vacía"}); hace falta SED o descripción, y Kw o (kVA).']
     filas: list[CargaNueva] = []
     errores: list[str] = []
     vistas: dict[str, int] = {}
     pendientes_xy: list[tuple[int, float, float]] = []
     for offset, values in enumerate(body):
-        fila = offset + 2
+        fila = offset + fila_cabecera + 1
         cell = {name: values[i] if i < len(values) else None for i, name in mapping.items()}
         texto = {k: ('' if v is None else str(v)).strip() for k, v in cell.items()}
         # RF-53: sin SED, la carga se nombra por su descripción y, sin ella, por su fila;
@@ -358,6 +384,7 @@ def armar_plan(
     ahora: datetime | None = None,
     carpeta: str | None = None,
     base: dict | None = None,
+    minima_m: float | None = None,
 ) -> dict[str, Any]:
     """El plan que recibe ``tools/cargas_pf.py``. Igual para uno que para varios (RF-5).
 
@@ -368,7 +395,13 @@ def armar_plan(
     ``base`` es el ajuste a la máxima sobre el que se integra (spec 007, RF-1): sus
     variaciones, una por alimentador ajustado, forman con las demandas del envío el
     estado sin proyecto. La lee la web del trabajo del ajuste (``services.base_del_ajuste``).
+
+    ``minima_m`` es la distancia mínima de la spec 016 (RF-20, RF-73): una carga cuyo punto
+    de la troncal queda más cerca de una barra se engancha en ella sin partir el tramo.
     """
+    if minima_m is not None and (not isinstance(minima_m, (int, float)) or minima_m < 0):
+        raise LoadTemplateError(f'La distancia mínima tiene que ser un número de metros, 0 o más: '
+                                f'{minima_m!r}.')
     elegidos = list(dict.fromkeys(f.strip() for f in feeders if f and f.strip()))
     if not project.strip():
         raise LoadTemplateError('Elija el proyecto de DIgSILENT.')
@@ -396,6 +429,7 @@ def armar_plan(
         'row_errors': errores,
         'costos': costos,
         'tec': tec,
+        'minima_m': minima_m,
     }
     plan['aplicable'] = bool(plan['demandas'] or plan['nuevas'])
     plan['base'] = base or None

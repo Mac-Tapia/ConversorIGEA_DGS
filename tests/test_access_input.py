@@ -7,10 +7,8 @@ Los tests del estudio son sintéticos y siempre corren. Los de la base necesitan
     set IGEA_EQUIPMENT_MDB=D:\\ruta\\OtraBase.mdb   (opcional)
     set IGEA_STUDY=D:\\ruta\\estudio.zxst           (opcional)
 
-La prueba que de verdad valida el mapeo es
-``TestAccessMatchesTxt::test_same_network_from_both_inputs``: lee el mismo sistema por
-las dos vías y exige que coincidan alimentadores, nodos, tramos, cargas y tensiones.
-Requiere además los TXT (``IGEA_RED`` etc.) del mismo sistema.
+La base se valida por sí misma, sin compararla con los TXT: las dos fuentes son
+independientes y pueden ser de otra fecha o de otra empresa (2026-10-14).
 """
 
 from __future__ import annotations
@@ -157,15 +155,6 @@ class TestPhaseCodeDecoding:
         assert _phase(99) == ''
         assert _phase('x') == ''
 
-    def test_real_database_phases_match_the_txt(self, access_dataset, ds):
-        if set(access_dataset.feeder_ids()) != set(ds.feeder_ids()):
-            pytest.skip('la base y los TXT no son del mismo sistema')
-        wrong = [
-            s for s, row in ds.sections.items()
-            if access_dataset.sections[s]['Phase'] != row['Phase']
-        ]
-        assert not wrong[:5], f'{len(wrong)} tramos con fase distinta'
-
     def test_device_phase_comes_from_its_section(self, access_dataset):
         """ClosedPhase describe qué fases están cerradas, no las del equipo."""
         by_section = access_dataset.sections
@@ -253,53 +242,3 @@ class TestAccessDatasetIsUsable:
         assert set(limited.feeder_ids()) == set(subset)
         # Los nodos NO se filtran: hay tramos que referencian nodos de otra red.
         assert len(limited.nodes) == len(access_dataset.nodes)
-
-
-class TestAccessMatchesTxt:
-    """La prueba que valida el mapeo: el mismo sistema por las dos vías."""
-
-    @pytest.fixture
-    def both(self, access_dataset, ds):
-        if set(access_dataset.feeder_ids()) != set(ds.feeder_ids()):
-            pytest.skip('la base y los TXT no son del mismo sistema')
-        return access_dataset, ds
-
-    def test_same_network_from_both_inputs(self, both):
-        access, txt = both
-        assert set(access.feeder_ids()) == set(txt.feeder_ids())
-        assert set(access.sections) == set(txt.sections)
-        assert set(access.nodes) == set(txt.nodes)
-        assert set(access.customer_loads) == set(txt.customer_loads)
-        assert len(access.intermediate_nodes) == len(txt.intermediate_nodes)
-        assert len(access.switch_settings) == len(txt.switch_settings)
-        assert len(access.sectionalizer_settings) == len(txt.sectionalizer_settings)
-
-    def test_nominal_voltages_agree(self, both):
-        access, txt = both
-        for network_id, row in txt.sources.items():
-            a = float(access.sources[network_id]['DesiredVoltage'])
-            t = float(row['DesiredVoltage'])
-            assert abs(a - t) < 1e-6, f'{network_id}: base={a} txt={t}'
-
-    def test_lengths_agree(self, both):
-        access, txt = both
-        for section_id, row in txt.line_configurations.items():
-            a = float(access.line_configurations[section_id]['Length'] or 0)
-            t = float(row['Length'] or 0)
-            assert abs(a - t) < 1e-3, f'{section_id}: base={a} txt={t}'
-
-    def test_overhead_flag_agrees(self, both):
-        access, txt = both
-        for section_id, row in txt.line_configurations.items():
-            assert access.line_configurations[section_id]['Overhead'] == row['Overhead'], section_id
-
-    def test_access_never_has_less_type_information(self, both):
-        """La base puede tener el conductor real donde el TXT dice DEFAULT, no al revés."""
-        access, txt = both
-        txt_default = {s for s, v in txt.line_configurations.items() if v['LineCableID'] == 'DEFAULT'}
-        access_default = {s for s, v in access.line_configurations.items() if v['LineCableID'] == 'DEFAULT'}
-        perdidos = access_default - txt_default
-        assert not perdidos, (
-            f'{len(perdidos)} tramos con código real en el TXT y DEFAULT en la base: '
-            'el lector estaría perdiendo información'
-        )

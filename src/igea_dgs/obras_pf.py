@@ -11,6 +11,12 @@ PowerFactory, para probarlo con redes sorteadas:
 - el plan de la simulación: por obra, los elementos que cambiaría, los tipos que
   copiaría y su variación, sin escribir nada (RF-69).
 
+La spec 016 añade la sección de toda la troncal (la del camino más largo, ``troncal.py``),
+el enlace entre dos alimentadores y la migración a otra tensión de lo que queda aguas
+abajo de un nodo, y fija el orden de los casos: lo que se hace en «Sin proyecto» pasa
+siempre a «Con proyecto» (016:RF-11, RF-13), y las construcciones nuevas van solo en
+«Con proyecto» (016:RF-14, RF-25, RF-53).
+
 Por qué se copian los tipos y nunca se editan (RF-59): DIgSILENT no graba los tipos en
 las variaciones. Cambiar ``uline`` de un ``TypLne`` compartido para migrar un
 alimentador lo cambiaría también en «Sin proyecto» y en los demás alimentadores. La
@@ -29,6 +35,7 @@ from typing import Any, Iterable, Mapping
 
 from .estudios_pf import CASO_BASE, CON_PROYECTO, SIN_PROYECTO
 from .naming import feeder_short_name, nombre_con_tension, sufijo_tension
+from .troncal import Red, TroncalError, aguas_abajo
 
 #: DIgSILENT no admite más en ``loc_name``.
 LARGO_MAXIMO = 40
@@ -38,10 +45,15 @@ LARGO_MAXIMO = 40
 BANDA_TENSION_PU = 0.01
 #: Casos en que se puede activar una obra; el «Caso base» nunca (RF-58).
 CASOS = (SIN_PROYECTO, CON_PROYECTO)
-CLASES = ('condensador', 'reconectador', 'regulador', 'seccion', 'terna', 'tension')
+CLASES = ('condensador', 'reconectador', 'regulador', 'seccion', 'terna', 'tension', 'enlace',
+          'migracion')
+#: Obras que construyen algo nuevo o cambian la tensión de una parte: solo en «Con
+#: proyecto» (016:RF-14, RF-25, RF-53).
+SOLO_CON_PROYECTO = ('enlace', 'migracion')
 #: Clase de tipo que pide cada obra (RF-89). Banco y terna no tienen tipo; la migración
 #: copia los que ya usa el alimentador.
-CLASE_DE_TIPO = {'reconectador': 'TypRecl', 'regulador': 'TypVoltreg', 'seccion': 'TypLne'}
+CLASE_DE_TIPO = {'reconectador': 'TypRecl', 'regulador': 'TypVoltreg', 'seccion': 'TypLne',
+                 'enlace': 'TypLne'}
 #: De dónde puede venir un tipo (RF-89 a RF-91).
 ORIGENES = ('proyecto', 'global', 'otro')
 
@@ -104,6 +116,9 @@ class Tramo:
     nombre: str
     tipo: str
     nlnum: int = 1
+    cable: bool = False
+    """Subterráneo: la sección de toda la troncal le da el tipo de cable (016:RF-7)."""
+    largo_m: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -117,7 +132,7 @@ class RedAlimentador:
     """Barra → ``uknom`` en kV; las de baja de las SED también están."""
     tramos: Mapping[str, Tramo]
     troncal: tuple[str, ...] = ()
-    """Tramos de la troncal que da el estudio de troncal (RF-44)."""
+    """Tramos de la troncal de las obras: la del camino más largo (016:RF-1)."""
     trafos: Mapping[str, str] = field(default_factory=dict)
     """Transformador de SED → nombre de su ``TypTr2``."""
     condensadores: Mapping[str, float | None] = field(default_factory=dict)
@@ -126,6 +141,11 @@ class RedAlimentador:
     """Regulador → nombre de su ``TypVoltreg``."""
     cabecera_compartida_con: tuple[str, ...] = ()
     """Alimentadores que comparten la barra de cabecera o la fuente (RF-102)."""
+    topologia: Red | None = None
+    """La red de ``troncal.py``: la migración toma de ella lo que queda aguas abajo."""
+    cabecera: str = ''
+    trafo_barra: Mapping[str, str] = field(default_factory=dict)
+    """Transformador de SED → su barra de media: la migración cambia los de la parte que pasa."""
 
 
 @dataclass(frozen=True)
@@ -146,12 +166,25 @@ class Obra:
     """Pasos a cada lado de la toma central del regulador (``ntapmax`` = −``ntapmin``)."""
     tipo: TipoRef | None = None
     kv_destino: float | None = None
+    toda_troncal: bool = False
+    """Sección de todos los tramos de la troncal (016:RF-6)."""
+    tipo_cable: TipoRef | None = None
+    """Para los tramos de cable de la troncal (016:RF-7)."""
+    cede: str = ''
+    """Enlace: el alimentador que cede; ``alimentador`` es el que recibe (016:RF-23)."""
+    minima_m: float | None = None
+    """Distancia mínima a una barra para no partir el tramo (016:RF-20, RF-67)."""
+    origen: str = ''
+    destino: str = ''
+    """Barra, o «latitud, longitud», que indica el operador (016:RF-31)."""
+    nodo: str = ''
+    """Migración: desde dónde se pasa a la tensión de destino (016:RF-51)."""
 
     def a_dict(self) -> dict[str, Any]:
         """Lo que se guarda en el espacio de trabajo; ``validar_obra`` lo reconstruye."""
         out = {}
         for clave, valor in asdict(self).items():
-            if valor is None or valor == '' or valor == ():
+            if valor is None or valor == '' or valor == () or valor is False:
                 continue
             out[clave] = list(valor) if isinstance(valor, tuple) else valor
         return out
@@ -184,7 +217,14 @@ def _texto(datos: Mapping, clave: str, que: str) -> str:
     return valor
 
 
-def _casos(valor: Any) -> tuple[str, ...]:
+def _casos(valor: Any, clase: str = '') -> tuple[str, ...]:
+    """Los casos de la obra, con las reglas del usuario del 2026-10-14 (spec 016).
+
+    «Lo que se modifica en Sin proyecto debe pasar a Con proyecto»: una obra en «Sin
+    proyecto» va también en «Con proyecto» y pedirla solo en «Sin proyecto» es un error
+    (016:RF-11, RF-13). «Las construcciones de nueva línea se hacen ya en Con proyecto»:
+    el enlace y la migración, solo allí (016:RF-14, RF-25, RF-53).
+    """
     pedidos = [valor] if isinstance(valor, str) else list(valor or [])
     if not pedidos:
         raise ObrasError(f'Elija al menos un caso para la obra: {" o ".join(CASOS)}.')
@@ -195,7 +235,40 @@ def _casos(valor: Any) -> tuple[str, ...]:
     if malos:
         raise ObrasError(f'No es un caso de obras: {", ".join(map(repr, malos))}; '
                          f'los que hay son {" y ".join(CASOS)}.')
+    if clase in SOLO_CON_PROYECTO and SIN_PROYECTO in pedidos:
+        raise ObrasError(f'La obra {clase} construye algo nuevo: va solo en «{CON_PROYECTO}», '
+                         f'en su variación, no en «{SIN_PROYECTO}».')
+    if CON_PROYECTO not in pedidos:
+        raise ObrasError(f'Lo que se hace en «{SIN_PROYECTO}» pasa siempre a «{CON_PROYECTO}»: '
+                         f'elija los dos casos.')
     return tuple(c for c in CASOS if c in pedidos)
+
+
+def _decimal(datos: Mapping, clave: str, que: str) -> float | None:
+    """Un número opcional que puede ser 0 (la distancia mínima)."""
+    valor = datos.get(clave)
+    if valor is None or valor == '':
+        return None
+    try:
+        if isinstance(valor, bool):
+            raise ValueError
+        numero = float(valor)
+    except (TypeError, ValueError):
+        raise ObrasError(f'{que[0].upper()}{que[1:]} tiene que ser un número: {valor!r}.') from None
+    if not math.isfinite(numero) or numero < 0:
+        raise ObrasError(f'{que[0].upper()}{que[1:]} no puede ser negativa: {valor!r}.')
+    return numero
+
+
+def punto_indicado(texto: str) -> tuple[float, float] | None:
+    """«-14.03, -75.77» → (latitud, longitud); ``None`` si es el nombre de una barra."""
+    m = re.fullmatch(r'\s*(-?\d+(?:\.\d+)?)\s*[,;]\s*(-?\d+(?:\.\d+)?)\s*', texto or '')
+    if not m:
+        return None
+    lat, lon = float(m.group(1)), float(m.group(2))
+    if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+        raise ObrasError(f'El punto {texto!r} no es una latitud y longitud válidas.')
+    return lat, lon
 
 
 def _tipo_ref(valor: Any, clase_obra: str, *, requerido: bool) -> TipoRef | None:
@@ -246,7 +319,7 @@ def validar_obra(datos: Mapping[str, Any]) -> Obra:
     comunes: dict[str, Any] = {
         'clase': clase,
         'alimentador': _texto(datos, 'alimentador', 'el alimentador de la obra'),
-        'casos': _casos(datos.get('casos'))}
+        'casos': _casos(datos.get('casos'), clase)}
     if clase == 'condensador':
         return Obra(**comunes, barra=_texto(datos, 'barra', 'la barra del banco'),
                     q_kvar=_numero(datos, 'q_kvar', 'la potencia reactiva del banco (kvar)'),
@@ -263,10 +336,29 @@ def validar_obra(datos: Mapping[str, Any]) -> Obra:
                     pasos=_numero(datos, 'pasos', 'el número de pasos', entero=True),
                     tipo=_tipo_ref(datos.get('tipo'), clase, requerido=True))
     if clase == 'seccion':
-        return Obra(**comunes, tramos=_lista(datos.get('tramos')),
-                    tipo=_tipo_ref(datos.get('tipo'), clase, requerido=True))
+        toda = bool(datos.get('toda_troncal'))
+        tramos = _lista(datos.get('tramos'))
+        if toda and tramos:
+            raise ObrasError('Elija «toda la troncal» o unos tramos, no las dos cosas.')
+        return Obra(**comunes, tramos=tramos, toda_troncal=toda,
+                    tipo=_tipo_ref(datos.get('tipo'), clase, requerido=True),
+                    tipo_cable=_tipo_ref(datos.get('tipo_cable'), clase, requerido=False))
     if clase == 'terna':
         return Obra(**comunes, tramos=_lista(datos.get('tramos')))
+    if clase == 'enlace':
+        cede = _texto(datos, 'cede', 'el alimentador que cede')
+        if cede == comunes['alimentador']:
+            raise ObrasError(f'El enlace une dos alimentadores distintos: {cede} cede y recibe.')
+        origen, destino = (str(datos.get(k) or '').strip() for k in ('origen', 'destino'))
+        for texto in (origen, destino):
+            punto_indicado(texto)
+        return Obra(**comunes, cede=cede, tipo=_tipo_ref(datos.get('tipo'), clase, requerido=True),
+                    minima_m=_decimal(datos, 'minima_m', 'la distancia mínima (m)'),
+                    origen=origen, destino=destino)
+    if clase == 'migracion':
+        return Obra(**comunes, nodo=_texto(datos, 'nodo', 'el nodo desde el que se pasa a la '
+                                                             'tensión de destino'),
+                    kv_destino=_numero(datos, 'kv_destino', 'la tensión de destino (kV)'))
     return Obra(**comunes, kv_destino=_numero(datos, 'kv_destino',
                                               'la tensión de destino (kV)'))
 
@@ -297,10 +389,17 @@ def nombre_libre(base: str, ocupados: Iterable[str]) -> str:
 PREFIJO_VARIACION = 'Obra_'
 
 
+def base_variacion(obra: Obra) -> str:
+    """La obra y el alimentador; el enlace, los dos (016:RF-24)."""
+    base = f'{PREFIJO_VARIACION}{obra.clase}_{feeder_short_name(obra.alimentador)}'
+    if obra.clase == 'enlace':
+        base += f'_{feeder_short_name(obra.cede)}'
+    return nombre_pf(base)
+
+
 def nombre_variacion(obra: Obra, ocupadas: Iterable[str]) -> str:
     """La obra y el alimentador, sin repetir ninguna variación del proyecto (RF-56)."""
-    return nombre_libre(f'{PREFIJO_VARIACION}{obra.clase}_{feeder_short_name(obra.alimentador)}',
-                        ocupadas)
+    return nombre_libre(base_variacion(obra), ocupadas)
 
 
 def nombre_copia(original: str, *, kv: float | None = None, kv_origen: float | None = None,
@@ -408,8 +507,15 @@ class _Plan:
     """Una obra que se planifica: lo que cambiaría, sin tocar el estado hasta acabar bien."""
 
     def __init__(self, obra: Obra, red: RedAlimentador, estado: _Estado,
-                 proyecto: dict[str, Tipo], ajenos: Mapping[tuple, Tipo]):
+                 proyecto: dict[str, Tipo], ajenos: Mapping[tuple, Tipo], *,
+                 redes: Mapping[str, RedAlimentador] | None = None,
+                 estados: Mapping[str, _Estado] | None = None,
+                 ocupadas: Iterable[str] = (), destinos: Mapping[str, str] | None = None):
         self.obra, self.red = obra, red
+        self.redes = dict(redes or {})
+        self.estados = dict(estados or {})
+        self.ocupadas = list(ocupadas)
+        self.destinos = dict(destinos or {})
         self.estado = estado.copia()
         self.proyecto = dict(proyecto)
         self.ajenos = ajenos
@@ -522,17 +628,66 @@ def _regulador(p: _Plan) -> None:
                f'nuevo, {tipo}, consigna {o.consigna_pu:g} p.u., ±{o.pasos} pasos, {o.rango_pct:g} %')
 
 
-def _seccion(p: _Plan) -> None:
-    o = p.obra
-    base = p.traer(o.tipo)
+def _a_tension(p: _Plan, ref: TipoRef) -> str:
+    """El tipo de línea a la tensión del alimentador, copiado si hace falta (RF-79).
+
+    ``uline`` decide la tensión nominal de la línea en DIgSILENT.
+    """
+    base = p.traer(ref)
     kv = p.estado.kv
-    # Un tipo a otra tensión se copia a la del alimentador (RF-79): ``uline`` decide la
-    # tensión nominal de la línea en DIgSILENT.
     otra = base.datos.get('uline')
     nombre = (base.nombre if otra is not None and math.isclose(otra, kv)
               else nombre_copia(base.nombre, kv=kv, kv_origen=otra))
-    tipo = p.con_datos(base, {**base.datos, 'uline': kv}, nombre)
+    return p.con_datos(base, {**base.datos, 'uline': kv}, nombre)
+
+
+def _toda_la_troncal(p: _Plan, tipo: str) -> None:
+    """Todos los tramos de la troncal del camino más largo a la sección pedida (016:RF-6 a RF-9).
+
+    Los aéreos, al tipo pedido, sean del material y la sección que sean (usuario,
+    2026-10-14: «toda la troncal pasa a 120 mm²», también el cobre de 25 mm² de IN111).
+    Los de cable, al tipo de cable si se da; si no, se quedan y se listan.
+    """
+    o, red = p.obra, p.red
+    if not red.troncal:
+        raise ObrasError(f'No se leyó la troncal del alimentador {o.alimentador}.')
+    cable = _a_tension(p, o.tipo_cable) if o.tipo_cable else ''
+    if cable:
+        p.extra['tipo_cable'] = cable
+    cambian: dict[str, float] = {}
+    sin_cambiar = []
+    for nombre in red.troncal:
+        tramo = red.tramos.get(nombre)
+        if tramo is None:
+            raise ObrasError(f'El tramo {nombre!r} de la troncal no es del alimentador '
+                             f'{o.alimentador}.')
+        nuevo = cable if tramo.cable else tipo
+        if not nuevo:
+            sin_cambiar.append(nombre)
+            continue
+        antes = p.estado.tipo_tramo[nombre]
+        if antes == nuevo:
+            continue
+        p.elemento(nombre, 'ElmLne', f'typ_id {antes} → {nuevo}', nuevo)
+        p.estado.tipo_tramo[nombre] = nuevo
+        cambian[antes] = cambian.get(antes, 0.0) + tramo.largo_m
+    if sin_cambiar:
+        p.avisos.append(f'Sin tipo de cable, se quedan como están los tramos de cable de la '
+                        f'troncal: {", ".join(sin_cambiar)}.')
+    p.extra['troncal'] = {
+        'tramos': len(red.troncal),
+        'largo_m': round(sum(red.tramos[n].largo_m for n in red.troncal), 1),
+        'cambian_m': {k: round(v, 1) for k, v in sorted(cambian.items())},
+        'cables_sin_cambiar': sin_cambiar}
+
+
+def _seccion(p: _Plan) -> None:
+    o = p.obra
+    tipo = _a_tension(p, o.tipo)
     p.extra['tipo'] = tipo
+    if o.toda_troncal:
+        _toda_la_troncal(p, tipo)
+        return
     troncal = set(p.red.troncal)
     if not troncal:
         p.avisos.append('No se leyó la troncal del alimentador: no se comprueba si los tramos '
@@ -544,7 +699,7 @@ def _seccion(p: _Plan) -> None:
         if antes == tipo:
             p.avisos.append(f'El tramo {tramo} ya tiene el tipo {tipo}.')
             continue
-        p.elemento(tramo, 'ElmLne', f'typ_id {antes} → {tipo}')
+        p.elemento(tramo, 'ElmLne', f'typ_id {antes} → {tipo}', tipo)
         p.estado.tipo_tramo[tramo] = tipo
 
 
@@ -553,6 +708,33 @@ def _terna(p: _Plan) -> None:
         n = p.estado.nlnum[tramo]
         p.elemento(tramo, 'ElmLne', f'nlnum {n} → {n + 1}')
         p.estado.nlnum[tramo] = n + 1
+
+
+def _tipo_del_proyecto(p: _Plan, clase: str, nombre: str, donde: str) -> Tipo:
+    try:
+        return p.traer(TipoRef(nombre, clase))
+    except ObrasError:
+        raise ObrasError(f'Falta en la biblioteca del proyecto el tipo {nombre!r} ({clase}) '
+                         f'de {donde}.') from None
+
+
+def _tipos_a_tension(p: _Plan, tramos: Iterable[str], trafos: Iterable[str],
+                     origen: float, destino: float) -> None:
+    """Una copia de tipo a la tensión de destino por tipo original (RF-82, RF-83, RF-99)."""
+    estado = p.estado
+    for tramo in tramos:
+        base = _tipo_del_proyecto(p, 'TypLne', estado.tipo_tramo[tramo], f'el tramo {tramo}')
+        nuevo = p.con_datos(base, {**base.datos, 'uline': destino},
+                            nombre_copia(base.nombre, kv=destino, kv_origen=origen))
+        p.elemento(tramo, 'ElmLne', f'typ_id {base.nombre} → {nuevo}', nuevo)
+        estado.tipo_tramo[tramo] = nuevo
+    # En las SED cambia solo la alta: la baja y la potencia quedan (RF-83, RF-103).
+    for trafo in trafos:
+        base = _tipo_del_proyecto(p, 'TypTr2', estado.trafos[trafo], f'la SED {trafo}')
+        nuevo = p.con_datos(base, {**base.datos, 'utrn_h': destino},
+                            nombre_copia(base.nombre, kv=destino, kv_origen=origen))
+        p.elemento(trafo, 'ElmTr2', f'typ_id {base.nombre} → {nuevo}', nuevo)
+        estado.trafos[trafo] = nuevo
 
 
 def _tension(p: _Plan) -> None:
@@ -572,33 +754,14 @@ def _tension(p: _Plan) -> None:
         p.elemento(barra, 'ElmTerm', f'uknom {origen:g} → {destino:g} kV')
         estado.barras[barra] = destino
 
-    def tipo_del_proyecto(clase: str, nombre: str, donde: str) -> Tipo:
-        try:
-            return p.traer(TipoRef(nombre, clase))
-        except ObrasError:
-            raise ObrasError(f'Falta en la biblioteca del proyecto el tipo {nombre!r} ({clase}) '
-                             f'de {donde}.') from None
-
-    for tramo in sorted(estado.tipo_tramo):
-        base = tipo_del_proyecto('TypLne', estado.tipo_tramo[tramo], f'el tramo {tramo}')
-        nuevo = p.con_datos(base, {**base.datos, 'uline': destino},
-                            nombre_copia(base.nombre, kv=destino, kv_origen=origen))
-        p.elemento(tramo, 'ElmLne', f'typ_id {base.nombre} → {nuevo}', nuevo)
-        estado.tipo_tramo[tramo] = nuevo
-    # En las SED cambia solo la alta: la baja y la potencia quedan (RF-83, RF-103).
-    for trafo in sorted(estado.trafos):
-        base = tipo_del_proyecto('TypTr2', estado.trafos[trafo], f'la SED {trafo}')
-        nuevo = p.con_datos(base, {**base.datos, 'utrn_h': destino},
-                            nombre_copia(base.nombre, kv=destino, kv_origen=origen))
-        p.elemento(trafo, 'ElmTr2', f'typ_id {base.nombre} → {nuevo}', nuevo)
-        estado.trafos[trafo] = nuevo
+    _tipos_a_tension(p, sorted(estado.tipo_tramo), sorted(estado.trafos), origen, destino)
     # Los condensadores y reguladores de media pasan a la tensión nueva (RF-84); un banco
     # de baja en una SED tiene otra tensión y se queda.
     for nombre, kv in sorted(red.condensadores.items()):
         if kv is not None and math.isclose(kv, origen):
             p.elemento(nombre, 'ElmShnt', f'ushnm {origen:g} → {destino:g} kV')
     for nombre, tipo in sorted(red.reguladores.items()):
-        base = tipo_del_proyecto('TypVoltreg', tipo, f'el regulador {nombre}')
+        base = _tipo_del_proyecto(p, 'TypVoltreg', tipo, f'el regulador {nombre}')
         nuevo = p.con_datos(base, {**base.datos, 'Un': destino},
                             nombre_copia(base.nombre, kv=destino, kv_origen=origen))
         p.elemento(nombre, 'ElmVoltreg', f'typ_id {base.nombre} → {nuevo}', nuevo)
@@ -607,19 +770,124 @@ def _tension(p: _Plan) -> None:
     estado.kv = destino
 
 
+def _extremo(texto: str, red: RedAlimentador, quien: str, por_defecto: str) -> str:
+    """Cómo se describe un extremo del enlace; el que da el operador se comprueba (RF-31)."""
+    if not texto:
+        return por_defecto
+    punto = punto_indicado(texto)
+    if punto is not None:
+        return f'el punto {punto[0]:g}, {punto[1]:g} que indica el operador'
+    if texto not in red.barras:
+        raise ObrasError(f'La barra {texto!r} no es del alimentador {quien}.')
+    return f'la barra {texto} que indica el operador'
+
+
+def _enlace(p: _Plan) -> None:
+    """Una línea nueva entre dos alimentadores, abierta en el lado del que cede (016:RF-23 a RF-44).
+
+    Los dos puntos dependen del flujo de «Con proyecto» (RF-26) y de las coordenadas: los
+    calcula el guion; aquí se dice qué se hará y se comprueba lo que no necesita DIgSILENT.
+    """
+    o = p.obra
+    cede = p.redes.get(o.cede)
+    if cede is None:
+        raise ObrasError(f'El alimentador {o.cede!r} que cede no está en el proyecto leído.')
+    base = base_variacion(o).lower()
+    otra = base_variacion(Obra('enlace', o.cede, o.casos, cede=o.alimentador)).lower()
+    for v in p.ocupadas:
+        if v.lower() in (base, otra) or v.lower().startswith((base + '_', otra + '_')):
+            raise ObrasError(f'Ya hay una obra de enlace entre {o.alimentador} y {o.cede}: '
+                             f'la variación {v}.')
+    tipo = _a_tension(p, o.tipo)                              # a la tensión del que recibe (RF-38)
+    p.extra['tipo'] = tipo
+    kv_recibe = p.estado.kv
+    kv_cede = (p.estados.get(o.cede) or _Estado.de(cede)).kv
+    origen = _extremo(o.origen, p.red, o.alimentador,
+                      f'el punto de la troncal de {o.alimentador} más cercano a la de {o.cede}, '
+                      f'entre los tramos dentro de los límites de tensión y cargabilidad')
+    destino = _extremo(o.destino, cede, o.cede,
+                       f'el punto de la troncal de {o.cede} más cercano al origen')
+    minima = ('sin distancia mínima: se parte el tramo salvo en una barra' if o.minima_m is None
+              else f'a menos de {o.minima_m:g} m de una barra, se conecta en ella')
+    p.elemento('Línea de enlace', 'ElmLne',
+               f'nueva, {tipo}, en línea recta desde {origen} hasta {destino} ({minima})', tipo)
+    p.elemento('Seccionador del enlace', 'StaSwitch',
+               f'nuevo, abierto, en el extremo de {o.cede}: el punto de enlace')
+    if not math.isclose(kv_recibe, kv_cede):
+        p.avisos.append(f'{o.alimentador} es de {kv_recibe:g} kV y {o.cede} de {kv_cede:g} kV: el '
+                        f'enlace se crea a {kv_recibe:g} kV y queda abierto; no se puede cerrar '
+                        f'hasta migrar a {kv_recibe:g} kV la parte de {o.cede} que pasa.')
+    p.extra['enlace'] = {'recibe': o.alimentador, 'cede': o.cede, 'kv_recibe': kv_recibe,
+                         'kv_cede': kv_cede, 'minima_m': o.minima_m, 'origen': o.origen,
+                         'destino': o.destino}
+
+
+def _migracion(p: _Plan) -> None:
+    """Lo que queda aguas abajo de un nodo, a otra tensión (016:RF-51 a RF-66)."""
+    o, red, estado = p.obra, p.red, p.estado
+    if red.topologia is None or not red.cabecera:
+        raise ObrasError(f'No se leyó la red del alimentador {o.alimentador}: no se sabe qué '
+                         f'queda aguas abajo del nodo.')
+    if o.nodo not in red.topologia.barras and o.nodo not in red.barras:
+        raise ObrasError(f'El nodo {o.nodo} no es del alimentador {o.alimentador}.')
+    if o.nodo == red.cabecera:
+        raise ObrasError(f'El nodo {o.nodo} es la cabecera de {o.alimentador}: para migrar el '
+                         f'alimentador entero, use la obra de cambio de tensión.')
+    try:
+        parte = aguas_abajo(red.topologia, red.cabecera, o.nodo)
+    except TroncalError as exc:
+        raise ObrasError(f'El nodo {o.nodo} no es del alimentador {o.alimentador}: {exc}.') from None
+    origen, destino = estado.kv, o.kv_destino
+    if math.isclose(origen, destino):
+        raise ObrasError(f'El alimentador {o.alimentador} ya está a {origen:g} kV.')
+    dentro = set(parte.barras)
+    for barra in parte.barras:
+        kv = estado.barras.get(barra)
+        if kv is not None and math.isclose(kv, origen):              # las de media (RF-55)
+            p.elemento(barra, 'ElmTerm', f'uknom {origen:g} → {destino:g} kV')
+            estado.barras[barra] = destino
+    tramos = [n for n in parte.tramos if n in estado.tipo_tramo]
+    trafos = sorted(tr for tr, barra in red.trafo_barra.items()
+                    if barra in dentro and tr in estado.trafos)
+    _tipos_a_tension(p, tramos, trafos, origen, destino)
+    # Con el tramo de entrada cerrado la parte que pasa sigue unida a la que no (RF-58).
+    p.elemento(parte.entrada, 'ElmLne',
+               'se abre (fuera de servicio): separa la parte que pasa de la que no pasa')
+    for nombre in sorted(
+            t.nombre for t in red.topologia.tramos
+            if t.cerrado and t.nombre != parte.entrada and t.nombre not in parte.tramos
+            and ((t.desde in dentro) != (t.hasta in dentro))):
+        p.avisos.append(f'El tramo {nombre} une también la parte que pasa con la que no pasa '
+                        f'(un anillo): ábralo, o la red queda con dos tensiones unidas.')
+    destino_enlace = p.destinos.get(o.alimentador)
+    if destino_enlace and destino_enlace not in dentro:                 # RF-66
+        p.avisos.append(f'El punto de enlace ({destino_enlace}) no queda en la parte que pasa: '
+                        f'esa parte se quedará sin alimentación.')
+    p.extra.update(kv_origen=origen, kv_destino=destino, nodo=o.nodo,
+                   parte={'barras': len(parte.barras), 'tramos': len(tramos), 'seds': len(trafos),
+                          'entrada': parte.entrada})
+
+
 _PLANES = {'condensador': _condensador, 'reconectador': _reconectador, 'regulador': _regulador,
-           'seccion': _seccion, 'terna': _terna, 'tension': _tension}
+           'seccion': _seccion, 'terna': _terna, 'tension': _tension, 'enlace': _enlace,
+           'migracion': _migracion}
 
 
 def plan_simulacion(obras: Iterable[Obra], redes: Mapping[str, RedAlimentador],
-                    tipos: Iterable[Tipo], *, variaciones: Iterable[str] = ()) -> list[dict[str, Any]]:
+                    tipos: Iterable[Tipo], *, variaciones: Iterable[str] = (),
+                    destinos_enlace: Mapping[str, str] | None = None) -> list[dict[str, Any]]:
     """Por obra, lo que haría al aplicarse, sin escribir en el proyecto (RF-69).
 
     Las obras se planifican en el orden en que llegan: dos obras sobre el mismo tramo
     (sección y terna) se suman, y una copia que planifica una obra la reutiliza la
     siguiente (RF-62). Una obra que no se puede aplicar lleva su ``error`` y no cuenta
     para las demás.
+
+    ``destinos_enlace``: alimentador que cede → barra del punto de enlace, la que calcula
+    el guion; con ella la migración avisa si el enlace no queda en la parte que pasa
+    (016:RF-66). Un enlace de la lista con la barra de destino indicada cuenta igual.
     """
+    destinos = dict(destinos_enlace or {})
     tipos = list(tipos)
     proyecto = {t.nombre: t for t in tipos if t.origen == 'proyecto'}
     ajenos = {(t.origen, t.proyecto.lower(), t.clase, t.nombre.lower()): t
@@ -637,7 +905,8 @@ def plan_simulacion(obras: Iterable[Obra], redes: Mapping[str, RedAlimentador],
             out.append(fila)
             continue
         estado = estados.setdefault(obra.alimentador, _Estado.de(red))
-        plan = _Plan(obra, red, estado, proyecto, ajenos)
+        plan = _Plan(obra, red, estado, proyecto, ajenos, redes=redes, estados=estados,
+                     ocupadas=ocupadas, destinos=destinos)
         try:
             _PLANES[obra.clase](plan)
         except ObrasError as exc:
@@ -646,6 +915,8 @@ def plan_simulacion(obras: Iterable[Obra], redes: Mapping[str, RedAlimentador],
             continue
         estados[obra.alimentador] = plan.estado
         proyecto = plan.proyecto
+        if obra.clase == 'enlace' and obra.destino and punto_indicado(obra.destino) is None:
+            destinos.setdefault(obra.cede, obra.destino)
         fila['variacion'] = nombre_variacion(obra, ocupadas)
         ocupadas.append(fila['variacion'])
         fila.update(plan.fila())
@@ -661,7 +932,8 @@ def tipo_de_ficha(ficha: Mapping[str, Any]) -> Tipo:
 
 
 def red_de_lectura(alimentador: str, leido: Mapping[str, Any], *,
-                   troncal: Iterable[str] = ()) -> RedAlimentador:
+                   troncal: Iterable[str] = (), topologia: Red | None = None,
+                   cabecera: str = '') -> RedAlimentador:
     """Un alimentador como lo lee ``tools/obras_pf.py --bibliotecas`` (RF-88).
 
     Un alimentador sin tensión de cabecera leída no se puede migrar ni dar tensión a
@@ -674,13 +946,16 @@ def red_de_lectura(alimentador: str, leido: Mapping[str, Any], *,
         alimentador=alimentador, kv=float(kv),
         barras={b['nombre']: b['kv'] for b in leido.get('barras') or []
                 if isinstance(b.get('kv'), (int, float))},
-        tramos={t['nombre']: Tramo(t['nombre'], t.get('tipo') or '', int(t.get('nlnum') or 1))
+        tramos={t['nombre']: Tramo(t['nombre'], t.get('tipo') or '', int(t.get('nlnum') or 1),
+                                   bool(t.get('cable')), float(t.get('largo_m') or 0.0))
                 for t in leido.get('tramos') or []},
         troncal=tuple(troncal),
         trafos={t['nombre']: t.get('tipo') or '' for t in leido.get('trafos') or []},
         condensadores={c['nombre']: c.get('kv') for c in leido.get('condensadores') or []},
         reguladores={r['nombre']: r.get('tipo') or '' for r in leido.get('reguladores') or []},
-        cabecera_compartida_con=tuple(leido.get('cabecera_compartida_con') or ()))
+        cabecera_compartida_con=tuple(leido.get('cabecera_compartida_con') or ()),
+        topologia=topologia, cabecera=cabecera,
+        trafo_barra={t['nombre']: t['barra'] for t in leido.get('trafos') or [] if t.get('barra')})
 
 
 #: Diferencia que la comprobación de «Sin proyecto» tolera (RF-64): la red es la misma, así

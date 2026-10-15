@@ -77,6 +77,10 @@ def main(argv=None) -> int:
     except Exception as exc:  # noqa: BLE001
         print(f'ERROR: no se pudo conectar a DIgSILENT: {exc}')
         return 3
+    # Primera línea solo con DIgSILENT ya respondiendo: la web la espera un tiempo
+    # limitado y, si no llega, corta el guion en vez de dejar ocupado el carril (005:RF-21).
+    print(f'Conectado a DIgSILENT como {getattr(app.GetCurrentUser(), "loc_name", "?")}.',
+          flush=True)
     try:
         informe, codigo = ejecutar(app, plan)
     except Exception as exc:  # noqa: BLE001 - el informe dice el error (RF-17)

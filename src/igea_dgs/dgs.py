@@ -614,13 +614,6 @@ def _line_irot(path: list[tuple[float, float]]) -> int:
     return int(round(angle)) % 360
 
 
-def _reduce_points(points: list[tuple[float, float]], maximum: int = 4) -> list[tuple[float, float]]:
-    if len(points) <= maximum:
-        return points
-    indexes = [round(i * (len(points) - 1) / (maximum - 1)) for i in range(maximum)]
-    return [points[i] for i in indexes]
-
-
 def _offset_polyline(
     points: list[tuple[float, float]],
     distance: float,
@@ -664,8 +657,47 @@ def ug_parallel_rail_paths(
     return left, right
 
 
+#: Puntos de un ``IntGrfcon`` que PowerFactory admite: guarda ``rX``/``rY`` en un vector
+#: de 20 y con más rechaza el DGS entero (``ComImport`` devuelve -10, IN111 + TA225,
+#: 2026-10-14).
+PUNTOS_POR_CONECTOR_PF = 20
+
+
+def _puntos_que_dan_la_forma(points: list[tuple[float, float]], maximo: int) -> list[tuple[float, float]]:
+    """Los ``maximo`` puntos que mejor conservan la curva, con sus dos extremos.
+
+    Se añade cada vez el punto más alejado de la polilínea ya elegida (Douglas-Peucker
+    por número de puntos): un trazado de 74 puntos queda a pocos metros del GPS en vez
+    de cortar las curvas, que es lo que hacía tomar puntos a intervalos fijos.
+    """
+    if len(points) <= maximo:
+        return list(points)
+    elegidos = {0, len(points) - 1}
+
+    def distancia(p, a, b) -> float:
+        dx, dy = b[0] - a[0], b[1] - a[1]
+        largo = dx * dx + dy * dy
+        t = 0.0 if largo == 0 else max(0.0, min(1.0, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / largo))
+        return math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy)
+
+    while len(elegidos) < maximo:
+        orden = sorted(elegidos)
+        mejor, mejor_d = None, -1.0
+        for i, j in zip(orden, orden[1:]):
+            for k in range(i + 1, j):
+                d = distancia(points[k], points[i], points[j])
+                if d > mejor_d:
+                    mejor, mejor_d = k, d
+        if mejor is None:
+            break
+        elegidos.add(mejor)
+    return [points[i] for i in sorted(elegidos)]
+
+
 def _connector_values(points: list[tuple[float, float]]) -> dict[str, object]:
-    points = _reduce_points(points, 4)
+    # La curva de la grid es la del trazado GPS que dibuja el mapa, hasta donde
+    # PowerFactory admite puntos por conector.
+    points = _puntos_que_dan_la_forma(points, PUNTOS_POR_CONECTOR_PF)
     values: dict[str, object] = {'rX:SIZEROW': len(points), 'rY:SIZEROW': len(points)}
     for i, (x, y) in enumerate(points):
         values[f'rX:{i}'] = x
@@ -1259,6 +1291,10 @@ def write_dgs(
             geography, visible_nodes, formato=formato,
             units_per_meter=getattr(model, 'diagram_units_per_meter', None))
         node_xy = {node_id: map_point(point) for node_id, point in geography.nodes.items()}
+        # Cada mitad de una línea lleva, como mucho, su trazado entero y el centro.
+        schema = schema.con_puntos_por_conector(min(
+            PUNTOS_POR_CONECTOR_PF,
+            max((len(g.path) + 2 for g in geography.lines.values()), default=4)))
         layout = _diagram_symbol_layout(geography, model, map_point, sheet=diagram_sheet)
 
         # Visible PointTerm only (electrical ElmTerm always exist).

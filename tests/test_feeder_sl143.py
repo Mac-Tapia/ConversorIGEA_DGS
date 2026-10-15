@@ -24,7 +24,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
 
 from igea_dgs.batch import convert_selection
 from igea_dgs.reglas import SIN_REGLAS
@@ -165,51 +164,3 @@ class TestSl143IslandIsDetectedAndReported:
         idx = tables['ElmLne']['fields'].index('loc_name')
         names = {row[idx] for row in tables['ElmLne']['rows']}
         assert ISLAND_SECTION in names
-
-
-class TestSl143IsTheSameNetworkFromBothInputs:
-    def test_same_topology_and_phases(self, both):
-        txt, mdb = both
-        for section_id in txt.feeders[txt.resolve_feeder(FEEDER)]:
-            a, b = txt.sections[section_id], mdb.sections[section_id]
-            assert (a['FromNodeID'], a['ToNodeID'], a['Phase']) == \
-                   (b['FromNodeID'], b['ToNodeID'], b['Phase']), section_id
-
-    def test_same_lengths_and_medium(self, both):
-        txt, mdb = both
-        for section_id in txt.feeders[txt.resolve_feeder(FEEDER)]:
-            a, b = txt.line_configurations[section_id], mdb.line_configurations[section_id]
-            assert abs(float(a['Length'] or 0) - float(b['Length'] or 0)) < 1e-3, section_id
-            assert a['Overhead'] == b['Overhead'], section_id
-
-    def test_same_dgs_structure(self, both, tmp_path):
-        txt, mdb = both
-        _m1, a = _convert(txt, tmp_path / 'txt')
-        _m2, b = _convert(mdb, tmp_path / 'mdb')
-        ta, tb = parse_dgs(a['dgs']), parse_dgs(b['dgs'])
-        for table in ('ElmTerm', 'ElmLne', 'ElmLod', 'StaSwitch', 'StaCubic',
-                      'ElmTr2', 'ElmSubstat', 'IntGrf'):
-            na = len(ta.get(table, {'rows': []})['rows'])
-            nb = len(tb.get(table, {'rows': []})['rows'])
-            assert na == nb, f'{table}: TXT={na} ACCESS={nb}'
-
-    def test_both_detect_the_same_island(self, both):
-        from igea_dgs.model import _reachable_from_source
-
-        islands = []
-        for ds in both:
-            model = build_feeder_model(ds, FEEDER, strict=True)
-            reachable = _reachable_from_source(model.source_node, model.lines)
-            islands.append({
-                line.section_id for line in model.lines
-                if line.from_node not in reachable or line.to_node not in reachable
-            })
-        assert islands[0] == islands[1], f'islas distintas: {islands}'
-
-    def test_access_recovers_conductors_lost_in_the_txt(self, both):
-        txt, mdb = both
-        sections = txt.feeders[txt.resolve_feeder(FEEDER)]
-        txt_default = {s for s in sections if txt.line_configurations[s]['LineCableID'] == 'DEFAULT'}
-        mdb_default = {s for s in sections if mdb.line_configurations[s]['LineCableID'] == 'DEFAULT'}
-        assert mdb_default <= txt_default
-        assert len(txt_default) - len(mdb_default) > 0

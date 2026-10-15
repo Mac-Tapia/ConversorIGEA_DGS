@@ -95,7 +95,9 @@ def _bbone(app):
         for cede, recibe in (('A', 'B'), ('B', 'A')):
             x = _alim(app_, cede)
             red = x.GetParent()
-            t = _Troncal(app_, 'ElmBbone', f'BB_{cede}', red)
+            # DIgSILENT no deja dos objetos con el mismo nombre en una carpeta: cada
+            # ejecución deja troncales con nombre propio (el guion las reconoce por él).
+            t = _Troncal(app_, 'ElmBbone', f'BB_{cede}_{_orden.ejecuciones}', red)
             red._hijos.append(t)
             barras, lineas = _por_indice(x.GetObjs('ElmTerm')), _por_indice(x.GetObjs('ElmLne'))
             t.camino = [o for par in zip(barras, lineas + [None]) for o in par if o is not None]
@@ -479,3 +481,51 @@ def test_capacidad_sin_seccionador_viable_no_se_calcula():
     informe, codigo = guion.calcular(app, _plan())
     assert codigo == 0, informe
     assert _capacidad_de(informe) is None
+
+
+# --------------------------------------------------------------------------- spec 016
+def test_enlace_entre_tensiones_distintas_no_se_cierra():
+    """016:RF-62, 016:RF-63 — si las dos barras del enlace tienen distinta tensión (IN111 a
+    10 kV, TA225 a 22,9 kV), no se cierra ni se calcula por él, y se dicen las dos."""
+    app, _n = _red(random.Random(5))
+    fin_b = _por_indice(_alim(app, 'B').GetObjs('ElmTerm'))[-1]
+    _sin_grabar(fin_b, uknom=22.9)
+    app.ldf = _flujo(app, capacidad_kw=10_000.0)
+    informe, codigo = guion.calcular(app, _plan())
+    assert codigo == 2 and informe['resultados'] == [] and 'error' not in informe
+    assert {(x['cede'], x['enlace']) for x in informe['sin_calcular']} == {('A', 'NA_AB'), ('B', 'NA_AB')}
+    assert any('22.9 kV' in a and '10 kV' in a and 'NA_AB' in a for a in informe['avisos'])
+    assert app.enlace.on_off == 0
+    assert not any(n == 'on_off' and o is app.enlace and v == 1 for o, n, v, *_ in app.escrituras)
+
+
+def test_el_enlace_que_crea_la_obra_se_usa_para_transferir():
+    """016:RF-44 — el enlace de la obra de la 016 es una línea con un seccionador abierto en el
+    cubículo del que cede, no un acoplador: la transferencia lo toma como punto de enlace,
+    calcula los dos sentidos cerrándolo y lo deja abierto."""
+    app, _n = _red(random.Random(9))
+    acoplador = app.enlace
+    for cub in [c for c in app.proyecto.GetContents('*.StaCubic', 1) if getattr(c, 'obj_id', None) is acoplador]:
+        cub.Delete()
+    fin_a = _por_indice(_alim(app, 'A').GetObjs('ElmTerm'))[-1]
+    fin_b = _por_indice(_alim(app, 'B').GetObjs('ElmTerm'))[-1]
+    red = fin_a.GetParent()
+    linea = red.CreateObject('ElmLne', 'Enlace_B_A')
+    _sin_grabar(linea, dline=0.3, nlnum=1, outserv=0)
+    cubiculos = {}
+    for lado, barra in enumerate((fin_b, fin_a)):
+        cub = barra.CreateObject('StaCubic', f'Cub_Enlace_B_A_{lado}')
+        _sin_grabar(cub, obj_id=linea, obj_bus=lado)
+        cubiculos[lado] = cub
+    seccionador = cubiculos[1].CreateObject('StaSwitch', 'SECC_Enlace_B_A')
+    _sin_grabar(seccionador, on_off=0, aUsage='dct')
+    app.enlace = seccionador
+    app.ldf = _flujo(app, capacidad_kw=10_000.0)
+    app.escrituras.clear()
+    informe, codigo = guion.calcular(app, _plan())
+    assert codigo == 0, informe
+    assert {(r['cede'], r['enlace']) for r in informe['resultados']} == {
+        ('A', 'SECC_Enlace_B_A'), ('B', 'SECC_Enlace_B_A')}
+    assert seccionador.on_off == 0
+    redes = [guion.Red(_alim(app, 'A')), guion.Red(_alim(app, 'B'))]
+    assert {b for b, _kv in guion.tensiones_del_enlace(redes, seccionador)} == {fin_a.loc_name, fin_b.loc_name}

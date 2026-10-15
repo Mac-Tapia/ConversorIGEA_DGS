@@ -20,7 +20,9 @@ Códigos de salida: 0 fiel, 2 hay desajustes o errores.
 from __future__ import annotations
 
 import argparse
+import io
 import json
+import sys
 from collections import Counter
 from pathlib import Path
 
@@ -28,6 +30,12 @@ from igea_dgs.batch import convert_selection, load_aliases
 from igea_dgs.dataset import CymdistDataset
 from igea_dgs.inventory import build_dataset_inventory
 from igea_dgs.model import build_feeder_model
+
+# La consola de Windows usa cp1252 y la ayuda lleva «→»: con la salida redirigida,
+# ``--help`` moría con UnicodeEncodeError antes de escribir nada (2026-10-14).
+for _flujo in (sys.stdout, sys.stderr):
+    if isinstance(_flujo, io.TextIOWrapper):  # no lo es si alguien la sustituyó (pytest)
+        _flujo.reconfigure(encoding='utf-8', errors='replace')
 
 
 def extremos(sec: dict) -> tuple[str, str]:

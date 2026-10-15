@@ -27,8 +27,9 @@ from ..naming import feeder_short_name
 from ..powerfactory_env import (
     pf_api_version, pf_python_dir, pf_subprocess_env, project_root, python_for_pf, tools_dir,
 )
+from ..powerfactory_binding import alimentadores_vinculados
 from ..util import nombre_seguro, write_json_atomic
-from .jobs import JobContext
+from .jobs import LIMITE_ARRANQUE_PF_S, JobContext
 from .workspace import Workspace
 
 
@@ -102,25 +103,55 @@ def _require_pf() -> tuple[Path | None, Path]:
     return pf_dir, Path(status['interpreter'])
 
 
+def comprobar_dgs_vinculados(ws: Workspace, aceptados: dict[str, str], feeders: list[str]) -> None:
+    """El DGS que se usaría debe ser el que se aceptó en DIgSILENT (spec 018, RF-6).
+
+    La huella de la fuente no basta: dos espacios con la misma fuente pueden tener opciones
+    de conversión distintas y, con ellas, DGS distintos. Un alimentador sin huella
+    registrada (vínculo de antes de la spec 018, o aceptado antes de registrarla) no se
+    bloquea aquí; la comprobación de sidecar de cada acción sigue vigente.
+    """
+    from ..feeder_metadata import read_feeder_metadata
+
+    jobs, _missing = dgs_jobs(ws, feeders)
+    for feeder, dgs, _geo in jobs:
+        esperado = str((aceptados or {}).get(feeder) or '')
+        if not esperado:
+            continue
+        meta = dgs.with_name(f'{dgs.stem}_feeder_metadata.json')
+        if not meta.is_file():
+            continue
+        try:
+            actual = str(read_feeder_metadata(meta, expected_dgs=dgs).get('dgs_sha256') or '')
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            raise UserError(
+                f'PROJECT_BINDING_DGS_MISMATCH: no se puede leer el sidecar de {feeder}: {exc}'
+            ) from exc
+        if actual != esperado:
+            raise UserError(
+                f'PROJECT_BINDING_DGS_MISMATCH: el DGS de {feeder} ya no es el que se aceptó '
+                f'en DIgSILENT ({esperado[:12]}… → {actual[:12]}…). Convierta con las mismas '
+                'opciones de la aceptación, o reimporte y acepte el proyecto.'
+            )
+
+
 def native_action_context(
     ws: Workspace, project: str, feeders: list[str], action: str,
 ) -> dict[str, Any]:
     """Vincula toda acción nativa con la fuente y relectura PowerFactory aceptadas."""
     from ..native_action import build_native_action_context
     from ..powerfactory_binding import (
-        ProjectBindingError, project_binding_warnings, require_project_binding,
+        ProjectBindingError, alimentadores_vinculados, project_binding_warnings,
+        require_project_binding,
     )
 
     project = str(project or '').strip()
     normalized = sorted({str(feeder).strip() for feeder in feeders if str(feeder).strip()})
     if not normalized:
-        normalized = sorted({
-            str(feeder).strip()
-            for feeder in ((ws.pf_project_bindings.get(project) or {}).get('feeders') or [])
-            if str(feeder).strip()
-        })
+        normalized = sorted(set(alimentadores_vinculados(ws, project)))
     try:
         binding = require_project_binding(ws, project, normalized)
+        comprobar_dgs_vinculados(ws, binding.dgs_sha256, normalized)
     except ProjectBindingError as exc:
         raise UserError(str(exc)) from exc
     warnings = project_binding_warnings(ws, project, normalized)
@@ -245,6 +276,14 @@ def load_dataset(ws: Workspace, ctx: JobContext) -> dict:
 def require_active_source_run(ws: Workspace):
     """Impide usar un dataset o artefacto que pertenezca a otra ejecución."""
     snapshot = ws.active_run()
+    # Tras reiniciar la web la red ya no está en memoria aunque nada haya cambiado: decir
+    # «las entradas cambiaron» (IN111 + TA225, 2026-10-14) mandaba a buscar un cambio
+    # que no existía.
+    if snapshot is not None and ws.loaded_run_id is None:
+        raise UserError(
+            'SOURCE_RUN_MISMATCH: la red no está cargada en esta sesión de la web (por '
+            'ejemplo, tras reiniciarla). Pulse «Cargar / listar alimentadores».'
+        )
     if (
         snapshot is None
         or ws.loaded_run_id != snapshot.run_id
@@ -598,12 +637,24 @@ def dgs_jobs(ws: Workspace, feeders: list[str]) -> tuple[list[tuple[str, Path, P
     return jobs, missing
 
 
-def check_powerfactory_source_run(ws: Workspace, feeders: list[str]) -> dict[str, Any]:
-    """Liga cada DGS y sidecar al run activo antes de cualquier mutación en PF."""
+def check_powerfactory_source_run(
+    ws: Workspace, feeders: list[str], *, exigir_red_cargada: bool = True,
+) -> dict[str, Any]:
+    """Liga cada DGS y sidecar al run activo antes de cualquier mutación en PF.
+
+    ``exigir_red_cargada=False`` compara solo con el manifiesto en disco (018:RF-12): basta
+    para leer un proyecto ya importado. Importar sigue exigiendo la red cargada.
+    """
     from ..feeder_metadata import read_feeder_metadata
     from ..powerfactory_metadata import verify_reconstruction_contract
 
-    snapshot = require_active_source_run(ws)
+    if exigir_red_cargada:
+        snapshot = require_active_source_run(ws)
+    else:
+        snapshot = ws.active_run()
+        if snapshot is None:
+            raise UserError('PROJECT_BINDING_NO_ACTIVE_SOURCE: este espacio de trabajo no tiene '
+                            'una ejecución fuente activa.')
     jobs, missing = dgs_jobs(ws, feeders)
     if missing:
         raise UserError('Primero convierta a DGS. Faltan: '
@@ -632,6 +683,12 @@ def check_powerfactory_source_run(ws: Workspace, feeders: list[str]) -> dict[str
             )
         reconstruction_verification = None
         reconstruction = metadata.get('reconstruction')
+        if reconstruction is not None and ws.loaded_run_id is None:
+            # El informe de la reconstrucción se valida con lo cargado (018:RF-12).
+            raise UserError(
+                f'SOURCE_RUN_MISMATCH: {feeder} sale de una reconstrucción y la red no está '
+                'cargada en esta sesión de la web. Pulse «Cargar / listar alimentadores».'
+            )
         if reconstruction is not None:
             report_path = ws.out_dir / str(reconstruction.get('report') or '')
             try:
@@ -856,6 +913,13 @@ def powerfactory_flow(ws: Workspace, ctx: JobContext, feeders: list[str]) -> dic
             # 015:RF-14: también si el «Caso base» no quedó verificado, para poder
             # volver a verificarlo tras corregirlo en DIgSILENT.
             _registrar_vinculo(ws, acceptance, proyecto)
+            if not acceptance.get('project_binding'):
+                # El guion crea el proyecto pero no adjunta vínculo cuando la importación
+                # no quedó ok o la evidencia de la fuente no se verificó antes de mutar.
+                # Sin este aviso, el proyecto aparece en DIgSILENT y la web lo bloquea sin
+                # que nadie sepa por qué (caso CA101, 2026-10-14).
+                ctx.log(f'  AVISO: {proyecto} existe en DIgSILENT pero el informe no trae '
+                        'vínculo; este proyecto no se podrá calibrar desde esta web.')
             with ws.lock:
                 ws.pf_projects[feeder] = proyecto
                 ws.save()
@@ -1014,11 +1078,8 @@ def group_selection(ws: Workspace, feeders: list[str], all_feeders: bool) -> lis
     feeders, _network_ids = resolve_selection(ws, feeders, all_feeders=all_feeders)
     if len(feeders) < 2:
         raise UserError('Para unir en un solo DGS seleccione al menos dos alimentadores.')
-    from ..batch import expand_connected_feeders
-
-    expanded = list(expand_connected_feeders(ws.dataset, feeders))
-    expanded_names, _expanded_ids = resolve_selection(ws, expanded, all_feeders=False)
-    return expanded_names
+    # Solo los seleccionados: ver ``batch.convert_group``.
+    return feeders
 
 
 def group_name(nombre: str, feeders: list[str]) -> str:
@@ -1061,10 +1122,6 @@ def convert_group(
     reconstruction = reconstruction_evidence(ws) if use_reconstruction else None
     opts = ws.options
     ctx.log(f'--- Red unida {nombre}: {", ".join(feeders)} ---')
-    añadidos = sorted(set(feeders) - set(requested_feeders or feeders))
-    if añadidos:
-        ctx.log('Alimentadores añadidos por continuidad de red y tensión: '
-                + ', '.join(añadidos))
 
     def on_progress(network_id: str, index: int, total: int) -> None:
         name = feeder_short_name(network_id)
@@ -1163,12 +1220,6 @@ def _proyecto_importado(informe: Path) -> str | None:
 # ---------------------------------------------------------------------------
 
 
-#: Tiempo para que ``pf_proyectos.py`` escriba su primera línea, que sale cuando
-#: PowerFactory ya ha dado el usuario (spec 005, RF-21). El arranque normal medido el
-#: 2026-10-14 fue de unos 20 s; el margen cubre un equipo frío o la licencia lenta.
-LIMITE_ARRANQUE_PF_S = 180.0
-
-
 def pf_projects(ws: Workspace, ctx: JobContext) -> dict:
     """Proyectos de la carpeta de importación de PowerFactory y sus alimentadores (spec 005)."""
     from .jobs import TIEMPO_AGOTADO
@@ -1187,9 +1238,9 @@ def pf_projects(ws: Workspace, ctx: JobContext) -> dict:
     if rc == TIEMPO_AGOTADO:
         raise UserError(
             f'PowerFactory no responde: en {LIMITE_ARRANQUE_PF_S:g} s no entregó el usuario '
-            'de DIgSILENT. Suele quedar así tras cortar una sesión anterior. Cierre '
-            'PowerFactory si está abierto, compruebe que no queda ningún python.exe de '
-            'DIgSILENT y vuelva a leer los proyectos.')
+            'de DIgSILENT. Los guiones de sesiones anteriores ya se cerraron solos (ver '
+            'el Registro); si sigue igual, cierre la ventana de PowerFactory si está '
+            'abierta o compruebe la licencia, y vuelva a leer los proyectos.')
     if rc == 3:
         raise UserError('No se pudo conectar con PowerFactory. Ábralo y reintente.')
     if rc != 0 or not out.is_file():
@@ -1200,24 +1251,224 @@ def pf_projects(ws: Workspace, ctx: JobContext) -> dict:
     with ws.lock:
         ws.pf_inventory = result
         ws.save()
+    estado_vinculos(ws, result.get('projects') or [])
+    return result
+
+
+# Causas que se resuelven usando la ejecución fuente con la que se aceptó (018:RF-9).
+_CAUSAS_DE_FUENTE = ('PROJECT_BINDING_NO_ACTIVE_SOURCE', 'PROJECT_BINDING_SOURCE_MISMATCH')
+
+
+def estado_vinculos(ws: Workspace, projects: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Añade a cada proyecto leído su vínculo, la causa del bloqueo y sus avisos.
+
+    Se calcula con lo ya leído de DIgSILENT, sin volver a abrirlo: al usar la fuente del
+    vínculo (018:RF-10) cambia la fuente activa, no el proyecto.
+    """
     from ..powerfactory_binding import (
         ProjectBindingError, project_binding_warnings, require_project_binding,
+        vinculo_guardado,
     )
 
-    for project in result.get('projects') or []:
+    for project in projects:
         path = str(project.get('path') or project.get('name') or '')
-        project['binding'] = ws.pf_project_bindings.get(path)
+        project['binding'] = None
+        project['binding_fuente_disponible'] = False
         try:
+            project['binding'] = vinculo_guardado(ws, path)
             require_project_binding(ws, path, project.get('feeders') or [])
         except ProjectBindingError as exc:
+            # El código va aparte para que la web explique la causa sin parsear el texto.
+            project['binding_blocked_code'] = exc.code
             project['binding_blocked_reason'] = str(exc)
             project['binding_warnings'] = []
+            if exc.code in _CAUSAS_DE_FUENTE and project['binding']:
+                project['binding_fuente_disponible'] = (
+                    _ejecucion_del_vinculo(ws, project['binding']) is not None)
         else:
+            project['binding_blocked_code'] = None
             project['binding_blocked_reason'] = None
             project['binding_warnings'] = project_binding_warnings(
                 ws, path, project.get('feeders') or [],
             )
-    return result
+    return projects
+
+
+def _ejecucion_del_vinculo(ws: Workspace, binding: dict[str, Any]) -> Path | None:
+    """Carpeta de la ejecución fuente del vínculo, en este espacio o en otro (018:RF-9).
+
+    Solo vale si su manifiesto tiene el modo y la huella del vínculo: el identificador solo
+    nombra la carpeta, la huella demuestra que es la misma fuente. Se mira una carpeta por
+    espacio de trabajo, nunca un recorrido de todas las ejecuciones.
+    """
+    from .source_runs import valid_run_id
+
+    run_id = str(binding.get('source_run_id') or '')
+    if not valid_run_id(run_id):
+        return None
+    candidatas = [ws.root / 'runs' / run_id]
+    if ws.root.parent.is_dir():
+        candidatas += [c / 'runs' / run_id for c in sorted(ws.root.parent.iterdir())
+                       if c != ws.root and c.is_dir()]
+    for carpeta in candidatas:
+        try:
+            manifiesto = json.loads((carpeta / 'source_manifest.json').read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            continue
+        if (isinstance(manifiesto, dict) and manifiesto.get('run_id') == run_id
+                and manifiesto.get('mode') == binding.get('source_mode')
+                and manifiesto.get('fingerprint') == binding.get('source_fingerprint')):
+            return carpeta
+    return None
+
+
+def _espacio_que_acepto(ws: Workspace, project: str, run_id: str) -> Path | None:
+    """Otro espacio que trabajó el proyecto con esa ejecución: de él sale el contexto.
+
+    No basta con el de la carpeta copiada: al repetir el uso, la ejecución ya es la propia
+    y la calibración o los libros de demanda se buscarían en el mismo espacio que no los
+    tiene. Si varios lo tienen, el modificado más tarde.
+    """
+    mejor: tuple[float, Path] | None = None
+    if not ws.root.parent.is_dir():
+        return None
+    for carpeta in ws.root.parent.iterdir():
+        meta = carpeta / 'workspace.json'
+        if carpeta == ws.root or not meta.is_file():
+            continue
+        try:
+            datos = json.loads(meta.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            continue
+        vinculo = (datos.get('pf_project_bindings') or {}).get(project) or {}
+        if vinculo.get('source_run_id') == run_id:
+            cuando = meta.stat().st_mtime
+            if mejor is None or cuando > mejor[0]:
+                mejor = (cuando, carpeta)
+    return mejor[1] if mejor else None
+
+
+def adoptar_fuente_del_vinculo(ws: Workspace, project: str) -> dict[str, Any]:
+    """Hace activa en el espacio la ejecución fuente con la que se aceptó el proyecto.
+
+    Spec 018, RF-10. Caso real (CA101, 2026-10-15): el navegador abrió un espacio nuevo,
+    sin fuente, y el proyecto quedó bloqueado aunque su ejecución seguía en disco en el
+    espacio que lo aceptó y su «Caso base» estaba verificado. Se copia la ejecución (es
+    inmutable; copiar, y no enlazar, evita que una reescritura en el origen cambie esta),
+    y con ella la última calibración del proyecto, los DGS unidos de esa ejecución y, si el
+    espacio no tiene ninguno, los libros de demanda medida: viven en el espacio y no en la
+    ejecución, y sin ellos el paso 2 volvía a pedirlos. Las entradas no se tocan.
+    """
+    import shutil
+
+    from ..powerfactory_binding import ProjectBindingError, vinculo_guardado
+
+    project = str(project or '').strip()
+    if not project:
+        raise UserError('Elija el proyecto de DIgSILENT.')
+    try:
+        binding = vinculo_guardado(ws, project)
+    except ProjectBindingError as exc:
+        raise UserError(str(exc)) from exc
+    if not binding:
+        raise UserError(f'PROJECT_BINDING_MISSING: el proyecto {project!r} no tiene aceptación '
+                        'registrada en ningún espacio de trabajo.')
+    origen = _ejecucion_del_vinculo(ws, binding)
+    run_id = str(binding.get('source_run_id') or '')
+    if origen is None:
+        raise UserError(
+            f'PROJECT_BINDING_SOURCE_UNAVAILABLE: la ejecución {run_id!r} con la que se aceptó '
+            f'{project!r} ya no está en disco, o su manifiesto no es el de la aceptación. '
+            'Cargue y convierta la misma fuente con las mismas opciones.')
+    destino = ws.root / 'runs' / run_id
+    if origen != destino:
+        tmp = destino.with_name(destino.name + '.copia')
+        shutil.rmtree(tmp, ignore_errors=True)
+        shutil.copytree(origen, tmp)
+        shutil.rmtree(destino, ignore_errors=True)
+        tmp.replace(destino)
+    espacio_origen = _espacio_que_acepto(ws, project, run_id) or origen.parent.parent
+    calibracion = None
+    grupos: dict[str, dict[str, Any]] = {}
+    demanda: dict[str, Any] = {}
+    if espacio_origen != ws.root:
+        try:
+            datos = json.loads((espacio_origen / 'workspace.json').read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            datos = {}
+        calibracion = (datos.get('calibraciones') or {}).get(project)
+        demanda = {tipo: meta for tipo, meta in (datos.get('demanda') or {}).items()
+                   if isinstance(meta, dict) and Path(str(meta.get('path') or '')).exists()}
+        for nombre, grupo in (datos.get('groups') or {}).items():
+            if not isinstance(grupo, dict) or run_id not in str(grupo.get('dgs') or ''):
+                continue
+            grupos[nombre] = {
+                k: (v.replace(str(origen), str(destino))
+                    if k in ('dgs', 'feeder_metadata') and isinstance(v, str) else v)
+                for k, v in grupo.items()
+            }
+    with ws.lock:
+        if ws.loaded_run_id and ws.loaded_run_id != run_id:
+            # La red en memoria es de otra ejecución: dejarla haría creer que está cargada.
+            ws.invalidate()
+        ws.active_run_id = run_id
+        if calibracion and project not in ws.calibraciones:
+            ws.calibraciones[project] = calibracion
+        for nombre, grupo in grupos.items():
+            ws.groups.setdefault(nombre, grupo)
+        if not ws.demanda and demanda:
+            ws.demanda = demanda
+        ws.save()
+    inventario = pf_proyectos_guardados(ws)
+    inventario['fuente_adoptada'] = {'project': project, 'source_run_id': run_id,
+                                     'copiada_de': espacio_origen.name}
+    return inventario
+
+
+def pf_proyectos_guardados(ws: Workspace) -> dict[str, Any]:
+    """Última lista de proyectos leída en el espacio, con el vínculo recalculado (018:RF-13).
+
+    Los trabajos viven en memoria: tras reiniciar la web la pestaña perdía la lista, y
+    volver a leerla abre DIgSILENT y cada proyecto (231 s con 32 proyectos, 2026-10-15).
+    """
+    if not (ws.pf_inventory or {}).get('projects'):
+        otra = _lectura_mas_reciente_de_la_carpeta(ws)
+        if otra:
+            # La carpeta de DIgSILENT es común, como el registro de vínculos: un espacio
+            # nuevo parte de la última lectura de otro en vez de esperar a abrir DIgSILENT.
+            with ws.lock:
+                ws.pf_inventory = otra
+                ws.save()
+    inventario = dict(ws.pf_inventory or {})
+    inventario['projects'] = estado_vinculos(
+        ws, [dict(p) for p in inventario.get('projects') or []])
+    return inventario
+
+
+def _lectura_mas_reciente_de_la_carpeta(ws: Workspace) -> dict[str, Any] | None:
+    """La lectura de proyectos más reciente de otro espacio, de la misma carpeta de DIgSILENT."""
+    try:
+        carpeta = carpeta_pf()
+    except UserError:
+        return None
+    mejor: tuple[float, dict[str, Any]] | None = None
+    if not ws.root.parent.is_dir():
+        return None
+    for otra in ws.root.parent.iterdir():
+        meta = otra / 'workspace.json'
+        if otra == ws.root or not meta.is_file():
+            continue
+        try:
+            inventario = json.loads(meta.read_text(encoding='utf-8')).get('pf_inventory') or {}
+        except (OSError, ValueError, AttributeError):
+            continue
+        if inventario.get('folder') != carpeta or not inventario.get('projects'):
+            continue
+        cuando = max((float(p.get('native_reread_at') or 0) for p in inventario['projects']),
+                     default=0.0) or meta.stat().st_mtime
+        if mejor is None or cuando > mejor[0]:
+            mejor = (cuando, inventario)
+    return mejor[1] if mejor else None
 
 
 def _economia_del_lote(economia: dict | None):
@@ -1289,7 +1540,7 @@ def cargas_plan(
     ws: Workspace, project: str, feeders: list[str],
     demandas_file: Path | None, nuevas_file: Path | None,
     nueva: dict | None = None, economia: dict | None = None,
-    ajuste: dict | None = None,
+    ajuste: dict | None = None, minima_m: float | None = None,
 ) -> dict:
     """Valida los libros y guarda el plan para ``tools/cargas_pf.py`` (spec 004).
 
@@ -1327,7 +1578,7 @@ def cargas_plan(
             project=project, feeders=feeders, demandas=demandas, nuevas=nuevas,
             costos=asdict(costos) if costos is not None else None,
             tec=None if tec is None else {'parametros': tec.to_dict(), 'comtececo': tec.a_comtececo()},
-            carpeta=carpeta_pf(), base=base,
+            carpeta=carpeta_pf(), base=base, minima_m=minima_m,
         )
         plan['native_action_context'] = action_context
         # 015:RF-17: «Sin» y «Con proyecto» solo se crean con el «Caso base» verificado.
@@ -1707,7 +1958,12 @@ def _kva_de_la_entrada(ws: Workspace, alimentador: str) -> tuple[dict[str, float
         return {}, ('Sin fuente canónica activa cargada: las SED sin transformador en '
                     'DIgSILENT no tendrán de dónde sacar su kVA.')
     clave = clave_codigo(alimentador)
-    feeder = next((f for f in ws.dataset.feeder_ids() if clave_codigo(f) == clave), None)
+    # ``feeder_ids`` da el NetworkID entero («NET_2030_142_IN111»), que nunca coincidía
+    # con el código del libro: IN111 y TA225 (2026-10-14) se calibraban sin el kVA de la
+    # entrada con un aviso falso de «no está en la entrada cargada».
+    feeder = next((f for f in ws.dataset.feeder_ids()
+                   if clave_codigo(feeder_short_name(f)) == clave or clave_codigo(f) == clave),
+                  None)
     if feeder is None:
         return {}, f'{alimentador} no está en la entrada cargada: no hay kVA de respaldo.'
     try:
@@ -1837,11 +2093,17 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
 
     from ..ajuste_cabecera import AjusteError, fijas_de, objetivo_de
     from ..demanda_medida import periodo_de_fecha
+    from ..perfil_empresa import PerfilError, datos_perfil, factor_potencia_cargas
     from ..powerfactory_binding import PowerFactoryProjectBinding, caso_base_verificado
 
     if not project.strip():
         raise UserError('Elija el proyecto de DIgSILENT.')
     filas = _medidores_del_ajuste(maximas, medidor, medidores)
+    # 015:RF-54, RF-57: el factor de potencia de las escaladas, del perfil de empresa.
+    try:
+        fp_cargas = factor_potencia_cargas(datos_perfil())
+    except PerfilError as exc:
+        raise UserError(f'Perfil de empresa: {exc}') from exc
     requested_feeders = [str(row.get('alimentador') or '').strip() for row in filas]
     action_context = native_action_context(ws, project, requested_feeders, 'ajuste')
     project_binding = PowerFactoryProjectBinding.from_dict(action_context['binding'])
@@ -1942,6 +2204,8 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
                          'alimentador': alimentador, 'fecha': objetivo.fecha},
             'clientes': clientes, 'desconectados': apagados, 'kva_entrada': kva_entrada,
             'tolerancia': tolerancia,
+            # 015:RF-54: solo las escaladas; None deja la Q del archivo (RF-55).
+            'factor_potencia_cargas': fp_cargas,
             'caso_base_sin_verificar': {},
             # 014:RF-10: la demanda que dejó la última calibración, para ver lo manual.
             'ultima_calibracion': (ws.calibraciones.get(project.strip()) or {}).get(alimentador),
@@ -2067,6 +2331,43 @@ def ajuste_ejecutar(ws: Workspace, ctx: JobContext, token: str, *, simular: bool
             'informe': informes[0], 'informes': informes}
 
 
+def ajuste_aplicado_en_disco(ws: Workspace, project: str | None,
+                             token: str | None = None) -> dict[str, Any] | None:
+    """El último ajuste aplicado del proyecto, rehecho con sus informes en disco (007:RF-40).
+
+    Los trabajos viven en memoria; los informes ``ajuste_cabecera_aplicacion_<token>[_n]``
+    quedan en la salida de la ejecución. Se devuelve con la forma del ``result`` del
+    trabajo, y un ``id`` ``disco:<token>`` con el que la web lo pide como base. Con
+    ``token`` y sin ``project`` vale el proyecto que diga el informe.
+    """
+    project = str(project or '').strip()
+    grupos: dict[str, list[tuple[int, Path, dict]]] = {}
+    for path in ws.out_dir.glob('ajuste_cabecera_aplicacion_*.json'):
+        resto = path.stem.removeprefix('ajuste_cabecera_aplicacion_')
+        clave, _, n = resto.partition('_')
+        if token and clave != token:
+            continue
+        try:
+            informe = json.loads(path.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            continue
+        if not isinstance(informe, dict) or (
+                project and str(informe.get('project') or '').strip() != project):
+            continue
+        grupos.setdefault(clave, []).append((int(n) if n.isdigit() else 0, path, informe))
+    if not grupos:
+        return None
+    clave, filas = max(grupos.items(), key=lambda kv: max(p.stat().st_mtime for _, p, _ in kv[1]))
+    filas.sort(key=lambda fila: fila[0])
+    informes = [informe for _, _, informe in filas]
+    return {'id': f'disco:{clave}', 'project': project or str(informes[0].get('project') or ''),
+            'feeders': [str(i.get('feeder') or '') for i in informes],
+            'modo': informes[0].get('modo'), 'report': filas[0][1].name,
+            'reports': [p.name for _, p, _ in filas], 'returncode': 0,
+            'informe': informes[0], 'informes': informes,
+            'finished_at': max(p.stat().st_mtime for _, p, _ in filas)}
+
+
 def _registrar_vinculo(ws: Workspace, acceptance: dict, proyecto: str) -> None:
     """Guarda el vínculo del informe de aceptación, con el estado de su «Caso base».
 
@@ -2077,14 +2378,19 @@ def _registrar_vinculo(ws: Workspace, acceptance: dict, proyecto: str) -> None:
     if not binding_payload:
         return
     from ..powerfactory_binding import (
-        PowerFactoryProjectBinding, fusionar_caso_base, record_project_binding,
+        PowerFactoryProjectBinding, ProjectBindingError, fusionar_caso_base,
+        record_project_binding, vinculo_guardado,
     )
 
     binding = PowerFactoryProjectBinding.from_dict(binding_payload)
     if binding.project != proyecto:
         raise UserError('PROJECT_BINDING_PROJECT_MISMATCH: el informe nativo no '
                         'corresponde al proyecto importado.')
-    record_project_binding(ws, fusionar_caso_base(ws.pf_project_bindings.get(proyecto), binding))
+    try:
+        anterior = vinculo_guardado(ws, proyecto)
+        record_project_binding(ws, fusionar_caso_base(anterior, binding))
+    except ProjectBindingError as exc:
+        raise UserError(str(exc)) from exc
 
 
 def pf_verificar_base(ws: Workspace, ctx: JobContext, project: str, feeders: list[str]) -> dict:
@@ -2100,15 +2406,29 @@ def pf_verificar_base(ws: Workspace, ctx: JobContext, project: str, feeders: lis
     project = project.strip()
     if not project:
         raise UserError('Elija el proyecto de DIgSILENT.')
-    bound = (ws.pf_project_bindings.get(project) or {}).get('feeders') or []
+    from ..powerfactory_binding import ProjectBindingError, alimentadores_vinculados
+    from ..powerfactory_binding import require_project_binding
+
+    bound = alimentadores_vinculados(ws, project)
     pedidos = list(dict.fromkeys(f.strip() for f in feeders if f.strip())) or list(bound)
     if not pedidos:
         raise UserError('Elija los alimentadores cuyo «Caso base» quiere verificar.')
+    # Spec 018, RF-5: la exigencia va en el servidor, no solo en la interfaz. Sin vínculo se
+    # verificaría un proyecto de procedencia desconocida, y la verificación graba un vínculo
+    # nuevo con la fuente activa: justo el hueco que la aceptación existe para cerrar.
+    try:
+        binding = require_project_binding(ws, project, pedidos)
+    except ProjectBindingError as exc:
+        raise UserError(str(exc)) from exc
     jobs, missing = dgs_jobs(ws, pedidos)
     if not jobs:
         raise UserError('Para verificar hace falta el DGS convertido de cada alimentador. Faltan: '
                         + ', '.join(f'{f}.dgs' for f in missing[:12]))
-    source_evidence = check_powerfactory_source_run(ws, [f for f, _d, _g in jobs])
+    comprobar_dgs_vinculados(ws, binding.dgs_sha256, pedidos)
+    # 018:RF-12: compara el DGS y su sidecar con el manifiesto en disco; la red en memoria
+    # no hace falta, y exigirla obligaba a volver a cargarla tras reiniciar la web.
+    source_evidence = check_powerfactory_source_run(ws, [f for f, _d, _g in jobs],
+                                                    exigir_red_cargada=False)
     pf_dir, interpreter = _require_pf()
     script = _script('powerfactory_acceptance.py')
     resultados: list[dict] = [{'feeder': f, 'status': 'NO_VERIFICADO',
@@ -2693,7 +3013,7 @@ def guiones_listar(ws: Workspace, ctx: JobContext, project: str) -> dict:
     """Los guiones DPL y Python de los casos y de la carpeta de guiones (RF-27)."""
     if not project.strip():
         raise UserError('Elija el proyecto de DIgSILENT.')
-    bound = (ws.pf_project_bindings.get(project.strip()) or {}).get('feeders') or []
+    bound = alimentadores_vinculados(ws, project.strip())
     action_context = native_action_context(ws, project, list(bound), 'guion')
     plan = {'project': project.strip(), 'folder': carpeta_pf(),
             'feeders': list(bound), 'native_action_context': action_context}
@@ -2719,7 +3039,7 @@ def guion_ejecutar(ws: Workspace, ctx: JobContext, project: str, nombre: str, or
 
     if not project.strip() or not nombre.strip():
         raise UserError('Elija el proyecto y el guion.')
-    bound = (ws.pf_project_bindings.get(project.strip()) or {}).get('feeders') or []
+    bound = alimentadores_vinculados(ws, project.strip())
     action_context = native_action_context(ws, project, list(bound), 'guion')
     roles = {SIN_PROYECTO: 'sin', CON_PROYECTO: 'con'}
     malos = [c for c in casos if c not in roles]
@@ -2749,3 +3069,101 @@ def guion_ejecutar(ws: Workspace, ctx: JobContext, project: str, nombre: str, or
         cancelado = True
     return {'project': project.strip(), 'guion': nombre.strip(), 'origen': origen,
             'resultados': resultados, 'cancelado': cancelado}
+
+
+# ------------------------------------------------------------------ informes (spec 017)
+def _ultimo_estudio(ws: Workspace, rol: str) -> dict | None:
+    """El último informe de flujo que dejó el paso de estudios en ese caso.
+
+    El informe se arma con lo que guardaron los estudios al ejecutar «Sin proyecto» y
+    «Con proyecto» desde la web, no con otra ejecución de DIgSILENT (el usuario,
+    2026-10-15). Se prefiere el flujo desequilibrado: da la tensión de cada fase (RF-17).
+    """
+    for patron in (f'estudio_{rol}_flujo_desequilibrado_*.json', f'estudio_{rol}_flujo_*.json'):
+        ficheros = sorted((p for p in ws.out_dir.glob(patron)
+                           if patron.endswith('desequilibrado_*.json') or 'desequilibrado' not in p.name),
+                          key=lambda p: p.stat().st_mtime, reverse=True)
+        for fichero in ficheros:
+            datos = json.loads(fichero.read_text(encoding='utf-8'))
+            if datos.get('medidas'):
+                if 'desequilibrado' not in fichero.name:
+                    # En el flujo equilibrado DIgSILENT da las tres fases iguales: el informe
+                    # lleva una sola tensión, la trifásica (RF-18).
+                    datos['medidas'] = {f: {**m, 'vm_min_fases': None} for f, m in datos['medidas'].items()}
+                return {**datos, '_fichero': fichero.name}
+    return None
+
+
+def informe_estudio(ws: Workspace, ctx: JobContext | None, formulario: dict) -> dict:
+    """Escribe el informe de estudio eléctrico de un alimentador (spec 017, RF-1b, RF-29, RF-30).
+
+    Estado actual: el último flujo de «Sin proyecto»; proyectado: el de «Con proyecto» con
+    las obras del espacio que están en ese caso. Los datos del cliente y del encabezado
+    son los del formulario: del modelo solo se toma la forma.
+    """
+    from datetime import date as _date
+
+    from ..estudios_pf import CON_PROYECTO, SIN_PROYECTO, Limites
+    from ..informe_docx import DatosEstudio, escribir_informe_estudio
+    from ..informes import (Caso, ConfigInforme, Encabezado, Etapa, InformeError, etapa_de_obras,
+                            obra_para_informe)
+    from ..perfil_empresa import datos_perfil
+
+    alimentador = str(formulario.get('alimentador') or '').strip()
+    if not alimentador:
+        raise UserError('Indique el alimentador del informe.')
+    try:
+        config = ConfigInforme.de_perfil(datos_perfil(), project_root())
+        limites = formulario.get('limites') or {}
+        if limites:
+            config = config.con_limites(**{k: limites.get(k) for k in
+                                           ('tension_min_pu', 'tension_max_pu', 'cargabilidad_max_pct')})
+        config.modelo('estudio')
+    except InformeError as exc:
+        raise UserError(str(exc)) from exc
+    lim: Limites = config.limites
+
+    sin = _ultimo_estudio(ws, 'sin')
+    if sin is None or alimentador not in (sin.get('medidas') or {}):
+        raise UserError(f'No hay un flujo de «{SIN_PROYECTO}» de {alimentador}: ejecute antes el '
+                        'estudio de flujo en el paso de estudios.')
+    actual = Caso.desde_medida(SIN_PROYECTO, sin['medidas'][alimentador], lim)
+    etapas = []
+    con = _ultimo_estudio(ws, 'con')
+    obras = [o for o in (ws.obras or []) if o.get('alimentador') == alimentador
+             and CON_PROYECTO in (o.get('casos') or [])]
+    clave = etapa_de_obras(obras)
+    fuentes = [sin['_fichero']]
+    if con is not None and alimentador in (con.get('medidas') or {}) and clave:
+        etapas.append(Etapa(clave, caso=Caso.desde_medida(CON_PROYECTO, con['medidas'][alimentador], lim),
+                            obras=tuple(obra_para_informe(o) for o in obras),
+                            anio=formulario.get('anio')))
+        fuentes.append(con['_fichero'])
+
+    def lineas(valor) -> list[str]:
+        if isinstance(valor, list):
+            return [str(x).strip() for x in valor if str(x).strip()]
+        return [x.strip() for x in str(valor or '').split('\n\n') if x.strip()]
+
+    fecha = formulario.get('fecha')
+    encabezado = Encabezado(fecha=_date.fromisoformat(fecha) if fecha else _date.today(),
+                            asunto=str(formulario.get('asunto') or ''),
+                            destinatario=str(formulario.get('destinatario') or ''),
+                            lugar=str(formulario.get('lugar') or ''))
+    imagenes = formulario.get('imagenes') or {}
+    datos = DatosEstudio(alimentadores=[alimentador], encabezado=encabezado, actual=actual, etapas=etapas,
+                         imagenes={k: {i: Path(r) if r else None for i, r in v.items()}
+                                   for k, v in imagenes.items()},
+                         numero=formulario.get('numero') or None,
+                         antecedentes=lineas(formulario.get('antecedentes')),
+                         descripcion=lineas(formulario.get('descripcion')),
+                         bancos=tuple(sin['medidas'][alimentador].get('bancos') or ()))
+    destino = ws.out_dir / f'informe_estudio_{nombre_seguro(alimentador)}_{uuid.uuid4().hex[:8]}.docx'
+    try:
+        huecos = escribir_informe_estudio(config, destino, datos)
+    except InformeError as exc:
+        raise UserError(str(exc)) from exc
+    if ctx is not None:
+        ctx.log(f'Informe de estudio de {alimentador}: {destino.name} ({len(huecos)} hueco(s)).')
+    return {'informe': destino.name, 'json': destino.with_suffix('.json').name, 'huecos': huecos,
+            'estudios': fuentes, 'etapa': clave}

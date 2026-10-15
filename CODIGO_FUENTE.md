@@ -17,7 +17,7 @@ spec 001, RF-14 (DGS idéntico byte a byte); su diseño histórico está en
 | `src/igea_dgs/ajuste_cabecera.py` | Reparto y cuadre de las demandas a la máxima de cabecera, sin DIgSILENT. | 006 |
 | `src/igea_dgs/batch.py` | Conversión de uno, varios o todos los alimentadores, en serie o en paralelo. | base, 001 |
 | `src/igea_dgs/capacidades.py` | Capacidades, grupo de conexión y tensión de baja de transformadores y líneas del DGS original, y su comparación con lo leído en DIgSILENT. | 015 |
-| `src/igea_dgs/cargas_pf.py` | Lectura de los libros de demandas y cargas nuevas, y plan para DIgSILENT. | 004, 007, 008 |
+| `src/igea_dgs/cargas_pf.py` | Lectura de los libros de demandas y cargas nuevas, y plan para DIgSILENT. | 004, 007, 008, 016 (RF-73) |
 | `src/igea_dgs/carpeta_pf.py` | Carpeta de DIgSILENT donde quedan los proyectos importados; buscar un proyecto sin activarlo. | 005, 011 (RF-91) |
 | `src/igea_dgs/catalog.py` | Catálogo de parámetros eléctricos: tabla de entrada y auditoría del modelo. | base |
 | `src/igea_dgs/catalog_data.py` | Datos de fabricante y de norma para los parámetros eléctricos. | base |
@@ -34,17 +34,19 @@ spec 001, RF-14 (DGS idéntico byte a byte); su diseño histórico está en
 | `src/igea_dgs/export_tables.py` | DGS a Excel multihoja o TSV. | base |
 | `src/igea_dgs/feeder_metadata.py` | Procedencia por alimentador de los objetos de una red conjunta. | base |
 | `src/igea_dgs/geography.py` | Del CRS de origen a WGS84; geometría de nodos y tramos y su validación. | base, 001 (RF-6) |
-| `src/igea_dgs/huella.py` | Dice si dos entradas son la misma foto de la red. | base |
 | `src/igea_dgs/identify.py` | Reconoce cada TXT por su contenido, no por su nombre. | base |
+| `src/igea_dgs/informe_docx.py` | Escribe en Word los informes de estudio eléctrico y de factibilidad como esquemas generales sobre el modelo de la empresa: de él solo la forma (primera sección con su cabecera, pie y estilos; cuerpo vaciado; n.º, referencia y total de páginas fijos sustituidos); orden de Casa Blanca y de EMAPICA, datos de la fuente, tensión por fase o trifásica, leyendas, figuras de DIgSILENT, obras por etapa, punto de diseño, pérdidas, transformador de la SET y conclusiones, con coma decimal; lo que falta queda vacío y su motivo en el JSON; escritura atómica. Abre modelos que Word dejó con imágenes rotas. | 017 (RF-2 a RF-9, RF-13, RF-15 a RF-25, RF-27, RF-31, RF-44 a RF-46, RF-50, RF-52, RF-59, RF-62, RF-106, RF-113, RF-114, RF-118, RF-120, RF-122) |
+| `src/igea_dgs/libros_informe.py` | Libro de pérdidas de la empresa (sistema eléctrico, % reconocidos en potencia y energía, precio de compra), buscado por los nombres de hojas y columnas del perfil, con el hueco del alimentador que no está; tabla de costes de bancos, reguladores y precio de la energía, cada fila con fuente, fecha y marca «referencial», y lo que falta para las etapas 2 y 3. | 017 (RF-39b a RF-39e, RF-40c, RF-62 a RF-64) |
+| `src/igea_dgs/informes.py` | Informes de estudio eléctrico y de factibilidad sin DIgSILENT: qué toman del perfil de empresa (modelos, banda y umbral, bandas de coloreado, proyecto de transmisión) y qué falta para generar cada tipo; casos y etapas medidos (contrato JSON con el guion), etapa recomendada, pérdidas anuales con las fórmulas del libro de la empresa, veredicto de factibilidad y redacción de análisis, antecedentes y conclusiones. | 017 (RF-4, RF-5, RF-13 a RF-22, RF-31, RF-33, RF-34, RF-43, RF-50, RF-54 a RF-60, RF-71, RF-72, RF-107, RF-108, RF-115, RF-121, RF-122) |
 | `src/igea_dgs/inventory.py` | Inventario detallado de un dataset cargado. | base |
 | `src/igea_dgs/loads.py` | Lector de libros de cargas por SED (columnas, potencia y FP), que usa `cargas_pf.py`. | 004 |
 | `src/igea_dgs/model.py` | Modelo eléctrico de un alimentador; en modo estricto no inventa tipos. | base |
 | `src/igea_dgs/naming.py` | Nombres y selectores de alimentador; sufijo de tensión de los tipos, el mismo para el DGS y las obras. | base, 011 (RF-61) |
 | `src/igea_dgs/native_action.py` | Contexto firmado fuente–proyecto–alimentadores y vocabulario común de resultados para toda acción nativa. | 004, 006, 011 |
-| `src/igea_dgs/obras_pf.py` | Obras de mejora sin DIgSILENT: modelo y validación de cada obra, nombres de variación y de copias de tipo, datos e igualdad de tipos, resumen de cada tipo, plan de la simulación y comprobación de «Sin proyecto». | 011 (RF-56, RF-59, RF-61 a RF-65, RF-69, RF-85, RF-94) |
+| `src/igea_dgs/obras_pf.py` | Obras de mejora sin DIgSILENT: modelo y validación de cada obra (lo de «Sin proyecto» pasa a «Con proyecto»; enlace y migración solo en «Con proyecto»), nombres de variación y de copias de tipo, datos e igualdad de tipos, resumen de cada tipo, plan de la simulación (sección de toda la troncal, enlace entre alimentadores, migración de lo que queda aguas abajo de un nodo) y comprobación de «Sin proyecto». | 011 (RF-56, RF-59, RF-61 a RF-65, RF-69, RF-85, RF-94); 016 (RF-6 a RF-9, RF-11, RF-13, RF-14, RF-23 a RF-25, RF-31, RF-38 a RF-41, RF-51 a RF-59, RF-61, RF-65, RF-66) |
 | `src/igea_dgs/oraculo.py` | Flujo independiente con pandapower antes de escribir el DGS. | base |
 | `src/igea_dgs/perfil_empresa.py` | Perfil de empresa: CRS de origen, patrón de las SED de medición, escala del diagrama y forma de los alimentadores, fuera del código; hereda de `config/perfiles/`. | 002 (RF-31 a RF-37) |
-| `src/igea_dgs/powerfactory_env.py` | Dónde está la API de PowerFactory y qué intérprete la carga. | base |
+| `src/igea_dgs/powerfactory_env.py` | Dónde está la API de PowerFactory y qué intérprete la carga; cierra los guiones de PowerFactory huérfanos y corta un guion con sus hijos. | base |
 | `src/igea_dgs/powerfactory_binding.py` | Vínculo auditable entre ejecución fuente, DGS, inventario releído y proyecto nativo aceptado, con el estado del «Caso base» de cada alimentador. | 004, 006, 011, 015 |
 | `src/igea_dgs/powerfactory_metadata.py` | Procedencia IGEA en los objetos de PowerFactory. | base |
 | `src/igea_dgs/preview.py` | Vista previa georreferenciada del modelo. | base |
@@ -61,6 +63,7 @@ spec 001, RF-14 (DGS idéntico byte a byte); su diseño histórico está en
 | `src/igea_dgs/study.py` | Estudio de CYMDIST (`.zxst`/`.xst`), entrada opcional que filtra la selección. | base |
 | `src/igea_dgs/trafomix.py` | Equipos de medición en MT que la base registra como SED, con el patrón del perfil de empresa. | base, 002 (RF-33) |
 | `src/igea_dgs/transferencia_pf.py` | Transferencia de carga sin DIgSILENT: pasos del camino y carga transferida, viabilidad y elemento que limita, máximo por seccionador y por nodo, fichero, factor máximo por bisección y margen del enlace. | 011 (RF-110 a RF-117, RF-121, RF-123, RF-125, RF-129) |
+| `src/igea_dgs/troncal.py` | Troncal de las obras sin DIgSILENT: camino continuo más largo desde la cabecera sobre el árbol de caminos más cortos en metros (anillos cerrados avisados), lo que queda aguas abajo de un nodo, el punto de la troncal más cercano (partir el tramo o usar la barra según la distancia mínima), el corte del trazado y los dos extremos del enlace. | 016 (RF-1 a RF-5, RF-15, RF-18, RF-20, RF-27, RF-28, RF-45, RF-64, RF-65, RF-67) |
 | `src/igea_dgs/util.py` | SHA-256, JSON atómico y números: una sola implementación. | 001 (RF-4, RF-5) |
 | `src/igea_dgs/validate.py` | Validación del DGS escrito, con el trazado GPS de cada línea. | base, 010 (RF-5) |
 
@@ -163,16 +166,15 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `tools/base_scenario.py` | Escenario base (año 0): lo construye, lo hace converger y lo diagnostica. | 005 |
 | `tools/build_input_catalog.py` | Tabla de parámetros eléctricos en `input/` y auditoría de alimentadores. | base |
 | `tools/build_system_grid.py` | Todos los alimentadores en una sola red, importada en PowerFactory. | base |
-| `tools/cargas_pf.py` | Guion de DIgSILENT: demandas y cargas nuevas en un proyecto existente. | 004, 007, 008, 011 (RF-52 a RF-55) |
-| `tools/casos_pf.py` | Guion de DIgSILENT: los casos «Caso base», «Sin proyecto» y «Con proyecto», cada uno con su escenario y sus variaciones; «Sin proyecto» solo desde el «Caso base» verificado. | 011 (RF-1 a RF-16, RF-46 a RF-50; casos para RF-51 a RF-54), 014, 015 |
+| `tools/cargas_pf.py` | Guion de DIgSILENT: demandas y cargas nuevas en un proyecto existente; también el módulo común de los guiones: cabecera del alimentador, leer su red para la troncal y partir un tramo con `Application.SplitLine` en la variación que graba; las cargas nuevas se conectan en el punto más cercano de la troncal. | 004, 007, 008, 011 (RF-52 a RF-55), 016 (RF-2, RF-4, RF-16 a RF-19, RF-21, RF-22, RF-45 a RF-50) |
+| `tools/casos_pf.py` | Guion de DIgSILENT: los casos «Caso base», «Sin proyecto» y «Con proyecto», cada uno con su escenario y sus variaciones; «Sin proyecto» solo desde el «Caso base» verificado; «Con proyecto» como copia de «Sin proyecto», también para las obras. | 011 (RF-1 a RF-16, RF-46 a RF-50; casos para RF-51 a RF-54), 014, 015, 016 (RF-12) |
 | `tools/estudios_pf.py` | Guion de DIgSILENT: un estudio en un caso, sin escalado por alimentador y sin aplicar lo que proponen los optimizadores; mide cada alimentador. Con `--guion`, lista o ejecuta los guiones DPL y Python del operador. | 011 (RF-17, RF-20 a RF-22, RF-26, RF-27 a RF-30, RF-31, RF-33, RF-36, RF-38, RF-43 a RF-45, RF-49) |
 | `tools/check_pf_license.py` | Qué módulos de PowerFactory permite la licencia. | 005, 011, 012 (RF-4) |
 | `tools/compare_schema.py` | Cabeceras de un DGS externo frente a un perfil de esquema. | base |
 | `tools/convertir_grupos_mdb.py` | Varios alimentadores de una base en un DGS, importado y con flujo. | base |
-| `tools/emparejar_entradas.py` | Empareja TXT y bases Access que son la misma foto de la red. | base |
 | `tools/fidelidad_seleccion.py` | Comprueba que una selección pasa entera del TXT al DGS. | 009 |
 | `tools/linea_base_dgs.py` | Línea base de DGS para comprobar que una reorganización no cambia nada. | 001 (RF-14), 002 (RF-20) |
-| `tools/obras_pf.py` | Guion de DIgSILENT de las obras de mejora: con `--bibliotecas`, alimentadores y tipos de las tres bibliotecas; copia de un tipo al proyecto; simular y aplicar con las reglas comunes (variación por obra, activación por caso, flujo, comprobación de «Sin proyecto»); banco de condensadores, reconectador, regulador, sección de cable, terna en la troncal y migración del alimentador a otra tensión. | 011 (RF-56 a RF-60, RF-64 a RF-67, RF-69, RF-71 a RF-94, RF-96, RF-97, RF-99 a RF-103) |
+| `tools/obras_pf.py` | Guion de DIgSILENT de las obras de mejora: con `--bibliotecas`, alimentadores y tipos de las tres bibliotecas; copia de un tipo al proyecto; simular y aplicar con las reglas comunes (variación por obra, activación por caso, flujo, comprobación de «Sin proyecto»); banco de condensadores, reconectador, regulador, sección de cable, terna en la troncal y migración del alimentador a otra tensión; la troncal de las obras es la del camino más largo, leída en el caso de cada obra, sin `ComBbone`; enlace entre dos alimentadores en «Con proyecto» (tramos dentro de los límites con el flujo de antes, los dos puntos, partir tramos, línea recta con su trazado y seccionador abierto); migración a otra tensión de lo que queda aguas abajo de un nodo, calculado al construirla. | 011 (RF-56 a RF-60, RF-64 a RF-67, RF-69, RF-71 a RF-94, RF-96, RF-97, RF-99 a RF-103), 016 (RF-1, RF-2, RF-10 a RF-12, RF-26, RF-29, RF-30, RF-32 a RF-38, RF-40, RF-42, RF-43, RF-54 a RF-58, RF-60, RF-62) |
 | `tools/pf_proyectos.py` | Proyectos de la carpeta de importación de DIgSILENT y sus alimentadores. | 005 |
 | `tools/powerfactory_acceptance.py` | Puerta de aceptación: importa un DGS en PowerFactory, o adopta un proyecto existente, y verifica su «Caso base» frente al archivo original. | base, 010 (RF-6, RF-7), 015 |
 | `tools/prueba_representacion.py` | Red, cargas y SED del TXT en una hoja de PowerFactory. | base |
@@ -180,7 +182,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `tools/run_powerfactory_gate.bat` | Lanza `powerfactory_acceptance.py` con el intérprete de PowerFactory. | base |
 | `tools/show_pf_diagram.py` | Abre en DIgSILENT el diagrama de un alimentador. | 005 |
 | `tools/suggest_line_type_aliases.py` | Propone alias para tipos de línea sin ficha en el catálogo. | base |
-| `tools/transferencia_pf.py` | Guion de DIgSILENT: transferencia de carga entre dos alimentadores por su enlace, paso a paso en los dos sentidos, con la capacidad y el margen del enlace (`ComTransfer` o flujos sucesivos), sin dejar nada en el proyecto. | 011 (RF-104 a RF-129) |
+| `tools/transferencia_pf.py` | Guion de DIgSILENT: transferencia de carga entre dos alimentadores por su enlace, paso a paso en los dos sentidos, con la capacidad y el margen del enlace (`ComTransfer` o flujos sucesivos), sin dejar nada en el proyecto; un enlace entre barras de distinta tensión no se cierra ni se calcula. | 011 (RF-104 a RF-129), 016 (RF-62, RF-63) |
 | `tools/verificar_pf.py` | Guion de DIgSILENT: convergencia del proyecto con lo activo. | 008 |
 
 ## `frontend/src/` — interfaz web
@@ -201,11 +203,11 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `frontend/src/components/FeedersPanel.tsx` | Tabla de alimentadores y conversión. | 001 |
 | `frontend/src/components/ReconstructionPanel.tsx` | Diagnóstico y reconstrucción. | 001 (RF-8, RF-9) |
 | `frontend/src/components/Modules.tsx` | Pestañas de resultados, catálogo y sistema completo. | 001 |
-| `frontend/src/components/CargasTab.tsx` | Pestaña «Cargas en DIgSILENT» en cuatro pasos. | 004, 005, 008, 011 (RF-42, RF-98) |
+| `frontend/src/components/CargasTab.tsx` | Pestaña «Cargas en DIgSILENT» en cuatro pasos; la distancia mínima de las cargas nuevas. | 004, 005, 008, 011 (RF-42, RF-98), 016 (RF-73) |
 | `frontend/src/components/DemandaMedida.tsx` | Paso 2: libros de medición, máxima de cabecera y clientes. | 004, 008 |
 | `frontend/src/components/EstudiosPF.tsx` | Paso 4.2: estudios sobre la red calibrada, límites y resultados. | 011 (RF-24, RF-25, RF-35, RF-39, RF-68) |
 | `frontend/src/components/GuionesPF.tsx` | Paso 4.2: guiones DPL y Python del operador, sus parámetros y su salida por caso. | 011 (RF-27 a RF-30) |
-| `frontend/src/components/ObrasPF.tsx` | Paso 4.1: formulario de obras de mejora, bibliotecas de tipos, obras guardadas, simular y aplicar. | 011 (RF-56 a RF-95) |
+| `frontend/src/components/ObrasPF.tsx` | Paso 4.1: formulario de obras de mejora (también enlace, migración desde un nodo y sección de toda la troncal), bibliotecas de tipos, obras guardadas, simular y aplicar. | 011 (RF-56 a RF-95), 016 (RF-68 a RF-72) |
 | `frontend/src/components/TransferenciaPF.tsx` | Paso 4.3: transferencia de carga entre dos alimentadores. | 011 (RF-104 a RF-123) |
 | `frontend/src/components/AjusteCabecera.tsx` | Paso 2.4: ajuste a la máxima de uno o varios alimentadores. | 006, 008 |
 | `frontend/src/components/CurvaCabecera.tsx` | Paso 2.4: curva del registro del medidor de cabecera, con el mes de la máxima sombreado y zoom por tramo. | 006 (RF-32 a RF-38) |
@@ -221,6 +223,8 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `CLAUDE.md` | Reglas para trabajar en el repositorio. | vigente |
 | `CODIGO_FUENTE.md` | Este índice. | vigente |
 | `docs/constitution.md` | Principios innegociables. | vigente |
+| `docs/ARQUITECTURA.md` | Arquitectura actual: capas de hecho, flujos, casos de PowerFactory, carriles y mapa de specs. | vigente |
+| `docs/VERIFICACION_SPECS_2026-10-14.md` | Verificación de cada spec, RF por RF y tarea por tarea. | histórico |
 | `docs/MANUAL_COMANDOS.md` | Cada orden del CLI y cada herramienta. | vigente |
 | `docs/POWERFACTORY_ACCEPTANCE.md` | Aceptación en PowerFactory. | vigente |
 | `docs/VNR_GIS_PRODUCTION.md` | Operación del módulo VNR-GIS. | vigente |

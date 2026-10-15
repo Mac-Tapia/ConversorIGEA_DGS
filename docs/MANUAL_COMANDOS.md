@@ -675,13 +675,26 @@ cambio de más del 25 %.
 
 ---
 
-## 7.ter Cargas en DIgSILENT: calibrar e integrar (pestaña en tres pasos)
+## 7.ter Cargas en DIgSILENT: calibrar, integrar y estudiar (pestaña en cuatro pasos)
 
 La pestaña **«Cargas en DIgSILENT»** trabaja sobre un proyecto que **ya existe** en
 DIgSILENT, sin convertir nada: por eso se ve aunque no haya entradas cargadas (spec 008).
 Sustituye a las antiguas filas «Cargas de SED» y «SED nuevas», retiradas por la spec 004.
-Cada cambio queda en una **variación nueva** del proyecto, que se puede activar, comparar
-o borrar sin tocar la red base.
+
+El proyecto se trabaja en tres casos de estudio (specs 011, 014 y 015):
+
+- **«Caso base»**: la red física, verificada frente al archivo original (GPS, trazado,
+  conectividad, diagrama, capacidades, grupo y tensión de los transformadores) con
+  `tools/powerfactory_acceptance.py` (sección 5.2). Después no se toca.
+- **«Sin proyecto»**: copia del «Caso base». Aquí se calibra a la máxima, con la demanda y
+  la escala en su escenario de operación y sin variación de la aplicación, y aquí hace el
+  operador sus cambios manuales: si chocan con la calibración, **gana lo manual**.
+- **«Con proyecto»**: copia de «Sin proyecto» con su escenario. Solo aquí nacen las cargas
+  nuevas, cada una en su **variación**, que se puede activar, comparar o borrar; repetir
+  la inserción no las duplica.
+
+Un alimentador sin «Caso base» verificado no se calibra; los demás sí, y se dice cuál
+queda fuera. Una modificación manual del proyecto es un aviso, nunca un bloqueo.
 
 | Paso | En la pestaña | Lo que hace por debajo |
 | --- | --- | --- |
@@ -690,12 +703,16 @@ o borrar sin tocar la red base.
 | 2.1 Libros de medición | Medidor por alimentador, medición de cabecera, suministros, clientes importantes | Se validan en la web (spec 004, RF-22 a RF-45) |
 | 2.2 Máxima de cabecera | «Buscar medidores» y «Buscar la máxima», para todos los marcados en un trabajo | `igea_dgs.demanda_medida` |
 | 2.3 Clientes importantes | «Cruzar clientes»: su demanda queda fija | Cruce por «Suministro Act» y «Suministro» |
-| 2.4 Escalar y ajustar | «Simular» o «Ajustar en DIgSILENT» | `tools/ajuste_cabecera_pf.py`, un alimentador tras otro, cada uno en su variación (specs 006 y 008) |
+| 2.4 Escalar y ajustar | «Simular» o «Ajustar en DIgSILENT» | `tools/ajuste_cabecera_pf.py`, un alimentador tras otro, en el escenario de «Sin proyecto»; las cargas nuevas quedan fuera de la medida (specs 006, 008, 014 y 015) |
 | **3 · Integración de nuevas** | | |
 | 3.0 Convergencia | «Verificar la convergencia en DIgSILENT» | `tools/verificar_pf.py`: flujo con lo activo y cabecera de cada alimentador; no escribe |
 | 3.1 Demandas en bloque | Libro de demandas (plantilla Excel o CSV) | `tools/cargas_pf.py` |
 | 3.2 Una carga nueva | Formulario: kW, FP y coordenadas; se conecta a la barra de media más cercana y la SED queda con su GPS. Las mismas reglas que el libro | `tools/cargas_pf.py` |
-| 3.3 Cargas nuevas en bloque | Libro de cargas nuevas | `tools/cargas_pf.py` |
+| 3.3 Cargas nuevas en bloque | Libro de cargas nuevas | `tools/cargas_pf.py`, en «Con proyecto», una variación por carga (specs 007 y 014) |
+| **4 · Obras y estudios** | | Sobre «Sin proyecto» y «Con proyecto», preparados por `tools/casos_pf.py` (spec 011) |
+| 4.1 Obras de mejora | Formulario y obras guardadas; «Simular» o «Aplicar» | `tools/obras_pf.py` |
+| 4.2 Estudios y guiones | Estudio, caso y límites; guiones DPL y Python del operador | `tools/estudios_pf.py` |
+| 4.3 Transferencia | Dos alimentadores y su enlace | `tools/transferencia_pf.py` |
 
 Las tres partes del paso 3 son optativas: se usa cualquier combinación y se revisan
 juntas. En cada alimentador se aplican en ese orden: demandas, carga del formulario y
@@ -716,7 +733,7 @@ que prepara la web (`output/web/<espacio>/planes/`):
 > python tools\estudios_pf.py --guion --plan plan.json --output-json informe.json
 > python tools\obras_pf.py --bibliotecas --plan plan.json --output-json informe.json
 > python tools\obras_pf.py --plan plan.json --output-json informe.json [--simular] [--cancel-file cancelar.flag]
-> python tools	ransferencia_pf.py --plan plan.json --output-json informe.json [--fichero transferencias.csv] [--cancel-file cancelar.flag]
+> python tools\transferencia_pf.py --plan plan.json --output-json informe.json [--fichero transferencias.csv] [--cancel-file cancelar.flag]
 ```
 
 Con `--deshacer`, `cargas_pf.py` borra lo que creó una aplicación anterior según su
@@ -922,7 +939,6 @@ se ejecutan con el intérprete de PowerFactory (Python 3.12 con `powerfactory.py
 | `check_pf_license.py` | Qué módulos de PowerFactory permite la licencia. | PF |
 | `compare_schema.py` | Cabeceras de un DGS de otra versión de PF frente a un perfil de esquema. | |
 | `convertir_grupos_mdb.py` | Varios alimentadores de una base en un DGS, importado y con flujo. | PF |
-| `emparejar_entradas.py` | Qué TXT y qué `.mdb` son la misma foto de la red (para las pruebas de las dos vías). | |
 | `fidelidad_seleccion.py` | Que una selección pase entera del TXT al modelo y al DGS. | |
 | `linea_base_dgs.py` | Línea base de DGS antes de una reorganización, y comparación después. | |
 | `pf_proyectos.py` | Proyectos de la carpeta de importación y sus alimentadores (paso 1 de 7.ter). | PF |

@@ -6,6 +6,7 @@ disposiciones de export (ver ``tests/synthetic_export.py``).
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
@@ -509,4 +510,7 @@ def test_el_arranque_no_abre_otro_servidor_si_el_puerto_esta_ocupado(capsys):
         port = s.getsockname()[1]
         assert puerto_ocupado('127.0.0.1', port)
         assert main(['--port', str(port), '--no-browser']) == 2
-    assert 'Cierre esa ventana' in capsys.readouterr().err
+    err = capsys.readouterr().err
+    assert 'Cierre esa ventana' in err
+    # El que escucha es esta misma prueba: el aviso da su PID para cerrarlo sin ventana.
+    assert f'Proceso {os.getpid()}' in err

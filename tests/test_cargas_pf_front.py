@@ -57,12 +57,13 @@ def test_el_informe_se_muestra_por_alimentador():
 
 
 def test_cada_ruta_del_cliente_existe_en_la_api():
-    """004:RF-5 — el cliente del módulo llama a rutas que la API define, las mismas para uno o varios."""
+    """004:RF-5, 018:RF-13 — el cliente del módulo llama a rutas que la API define, las mismas
+    para uno o varios; la lista de proyectos se lee (POST) y se recupera guardada (GET)."""
     api_ts = (SRC / 'api.ts').read_text(encoding='utf-8')
     rutas = _rutas_api()
     llamadas = [ll for ll in re.findall(r'`\$\{ws\(id\)\}(/[^`?]*)', api_ts)
                 if ll.startswith(('/lote', '/cargas', '/powerfactory/projects'))]
-    assert len(llamadas) == 5, llamadas
+    assert len(llamadas) == 6, llamadas
     for llamada in llamadas:
         ruta = '/api/workspaces/{}' + re.sub(r'\$\{[^}]+\}', '{}', llamada)
         assert ruta in rutas, f'{ruta} no existe en la API'

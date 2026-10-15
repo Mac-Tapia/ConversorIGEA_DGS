@@ -54,7 +54,7 @@ def _escenario(semilla):
 
 
 def _obra(**datos) -> op.Obra:
-    datos.setdefault('casos', [SIN_PROYECTO])
+    datos.setdefault('casos', [SIN_PROYECTO, CON_PROYECTO])
     return op.validar_obra(datos)
 
 
@@ -97,7 +97,7 @@ def test_cada_clase_de_obra_se_valida_y_vuelve_igual_del_espacio():
 ])
 def test_una_obra_incompleta_se_rechaza_diciendo_que_falta(datos, falta):
     """011:RF-56 — una obra sin lo que necesita no se acepta; el mensaje lo nombra."""
-    datos.setdefault('casos', [SIN_PROYECTO])
+    datos.setdefault('casos', [SIN_PROYECTO, CON_PROYECTO])
     with pytest.raises(op.ObrasError, match=falta):
         op.validar_obra(datos)
 

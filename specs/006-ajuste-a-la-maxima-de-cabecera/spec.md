@@ -285,6 +285,17 @@ Ninguna. Resueltas el 2026-10-09:
 - kVAR distinto, positivo o negativo: se conserva el resultado nativo, se informa con
   `OK`/`AVISO_KVAR` y nunca bloquea el cuadre de kW (RF-14).
 
+## Cambios de la spec 014 (2026-10-14)
+
+- El ajuste se hace en «Sin proyecto», nunca en «Caso base» ni en «Con proyecto»
+  (014:RF-1, RF-2), y mide la cabecera con las variaciones del operador activas en
+  «Sin proyecto» (014:RF-14).
+- RF-28: la demanda del ajuste se graba en los escenarios de «Sin proyecto» y «Con
+  proyecto», solo en las cargas existentes y sin pisar una carga con cambio manual de
+  demanda, que entra en el ajuste como fija (014:RF-4, RF-9 a RF-11).
+- Las cargas nuevas quedan fuera de servicio mientras se mide y vuelven a su estado al
+  terminar o cancelar (014:RF-6 a RF-8).
+
 ## Cambios de la spec 015 (2026-10-14)
 
 - RF-19, RF-27 a RF-30: la calibración ya no crea una variación. Se escribe y se mide con
@@ -295,3 +306,6 @@ Ninguna. Resueltas el 2026-10-09:
   escenario no la guarda (sonda T1 de la 015; 015:RF-37).
 - La calibración no comprueba la red ni da por verificado el vínculo del proyecto: eso es
   la verificación del «Caso base» (015:RF-17, RF-22).
+- RF-42, RF-44 (2026-10-15): además de lo escrito, cada fija tiene que consumir en el flujo
+  su P y su Q, y cada escalada su P por el factor de escala; el informe trae el balance de
+  la cabecera (015:RF-47 a RF-52).

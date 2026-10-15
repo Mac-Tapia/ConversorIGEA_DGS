@@ -19,24 +19,28 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
 ## Especificaciones
 
 - `docs/constitution.md`: principios innegociables, cada uno con cómo se comprueba.
-- `specs/NNN-<nombre>/{spec,plan,tasks}.md`: una carpeta por funcionalidad. Estado a 2026-10-10:
+- `specs/NNN-<nombre>/{spec,plan,tasks}.md`: una carpeta por funcionalidad. Estado a 2026-10-14 (verificación RF por RF en `docs/VERIFICACION_SPECS_2026-10-14.md`; arquitectura en `docs/ARQUITECTURA.md`):
 
   | Spec | Estado |
   | --- | --- |
   | 001 reorganización | cumplida |
   | 002 arquitectura por capas | aprobada; plan y tareas escritos el 2026-10-10, **pendientes de aprobar**; T1 (línea base) y T5 (perfil de empresa) adelantadas el 2026-10-12 |
   | 003 | no existe: la citan la 002 y la memoria para lo que queda de la rama `feat/integracion-web-retiro-gui`, tras las capas |
-  | 004 cargas en PowerFactory | implementada y validada |
+  | 004 cargas en PowerFactory | cumplida (2026-10-14) |
   | 005 carpeta de proyectos PF | implementada; falta la prueba en DIgSILENT (T12) |
   | 006 ajuste a la máxima | implementada; falta la prueba en DIgSILENT (T8): signo y lado de la cabecera |
   | 007 cargas sobre el ajuste | implementada el 2026-10-10 (una variación por carga, base del ajuste, RF-36/37 para varios alimentadores); falta la prueba en DIgSILENT (T11) |
   | 008 pestaña en tres pasos | implementada; falta la prueba en DIgSILENT con dos alimentadores (T7) |
-  | 009 inventario del repositorio | implementada |
+  | 009 inventario del repositorio | cumplida (2026-10-14) |
   | 010 trazado GPS de las líneas | cumplida; probada en DIgSILENT con NA203 + NA205 (574/574 líneas) |
   | 011 estudios y obras de mejora sobre la red calibrada | implementada el 2026-10-12 (129 RF, T1 a T18 y T17b, añadida en la validación para los guiones del operador en la web); falta la prueba en DIgSILENT (T19), con la lista de lo que confirmar en el plan |
   | 012 confiabilidad y capacidad de la red | spec aprobada el 2026-10-11 (72 RF): confiabilidad, reconectadores (`ComOpri`), capacidad de alojamiento, curvas PV y condensadores con los módulos nativos; tasas y costes de un libro Excel de la empresa. Plan y tareas aprobados el mismo día; T1 y T2 hechas (sondas en DIgSILENT real el 2026-10-12, RF-69 a RF-72 nuevos), sigue T3; T7, T8 y T11 dependen de T13, T15a, T16 y T17 de la 011 |
-  | 014 calibración en «Sin proyecto» | spec aprobada el 2026-10-14 (28 RF); plan y tareas aprobados el mismo día; en curso desde T1: se calibra en «Sin proyecto», donde también van los cambios del operador (gana lo manual); «Con proyecto» es su copia con las cargas nuevas, sin duplicarlas; cambia 006:RF-28, 011:RF-2/6/7/8/50 y 004:RF-15 |
-  | 015 «Caso base» verificado | implementada el 2026-10-14 (46 RF, T1 a T11 y T13 a T17; suite en verde): el «Caso base» se verifica frente al archivo original (GPS, trazado, conectividad, diagrama, capacidades) y su flujo solo al importar el DGS, tras el oráculo; si no converge se reduce la demanda, sin bloquear. «Sin proyecto» es su copia: fijas con su P y Q, escaladas con su P y Q del archivo y un mismo factor de escala (scale0) en su escenario, sin variaciones; los ajustes del flujo que necesitó se quedan para que converja. Variaciones solo en «Con proyecto», una por carga nueva. Probada desde cero con CA101 en DIgSILENT; T12 sigue abierta por el proyecto CA101 existente, que no converge en su «Caso base» |
+  | 013 mes de análisis y transferencia | borrador del 2026-10-13 con plan, sin `tasks.md` ni aprobación; RF-1 a RF-6 ya tienen prueba |
+  | 014 calibración en «Sin proyecto» | implementada el 2026-10-14 (28 RF, todos con prueba; T1 a T10): se calibra en «Sin proyecto», donde también van los cambios del operador (gana lo manual); «Con proyecto» es su copia con las cargas nuevas, sin duplicarlas; cambia 006:RF-28, 011:RF-2/6/7/8/50 y 004:RF-15 (anotado en cada una). Falta la prueba en DIgSILENT con CA101 (T9), que espera a la T12 de la 015 |
+  | 015 «Caso base» verificado | implementada el 2026-10-14 (61 RF, T1 a T11, T13 a T21; suite en verde; del 2026-10-15: RF-47 a RF-52, validación física con lo que consume cada carga en el flujo y balance de la cabecera; RF-44, RF-45 y RF-53 a RF-58, escaladas por potencia instalada × FP del perfil (Electro Dunas 0,98) con un mismo scale0 y fijas con su EA/ERI; RF-59 a RF-61, clientes sobre su transformador avisados y bancos instalados del propio proyecto listados, sin tomar nada de otro; CA101 calibrado en DIgSILENT a −0,24 %): el «Caso base» se verifica frente al archivo original (GPS, trazado, conectividad, diagrama, capacidades) y su flujo solo al importar el DGS, tras el oráculo; si no converge se reduce la demanda, sin bloquear. «Sin proyecto» es su copia: fijas con su P y Q, escaladas con su P y Q del archivo y un mismo factor de escala (scale0) en su escenario, sin variaciones; los ajustes del flujo que necesitó se quedan para que converja. Variaciones solo en «Con proyecto», una por carga nueva. Probada desde cero con CA101 en DIgSILENT; T12 sigue abierta por el proyecto CA101 existente, que no converge en su «Caso base» |
+  | 016 troncal, enlace y conexión en un tramo | aprobada el 2026-10-14 (73 RF); plan y tareas (T1 a T14) aprobados el mismo día; T1 a T13 hechas (`Application.SplitLine` en DIgSILENT real y en `fake_pf`; `troncal.py`; reglas de las obras en `obras_pf.py`; red, troncal y partir tramo en los guiones; construir el enlace y la migración; «Con proyecto» se crea tras las obras de «Sin proyecto»; cargas nuevas en la troncal; la transferencia no cierra un enlace entre tensiones distintas; web; 007 y 011 anotadas), falta la prueba en DIgSILENT con IN111 y TA225 (T14): troncal de las obras = camino continuo más largo desde la cabecera, toda a la sección pedida (N-1 y transferencia siguen con la de DIgSILENT); toda obra de «Sin proyecto» pasa a «Con proyecto» (cambia 011:RF-57); obra de enlace solo en «Con proyecto», partiendo un tramo con un nodo nuevo donde la tensión y la cargabilidad del que recibe lo permiten; las cargas nuevas también parten el tramo más cercano de la troncal (cambia 007:RF-24/30/31); enlace entre tensiones distintas (IN111 10 kV, TA225 22,9 kV) abierto, y migración a 22,9 kV desde un nodo que indica el operador, aguas abajo, en otra variación |
+  | 017 informes de estudio y factibilidad | aprobada el 2026-10-15 (143 RF; plan y tareas T1 a T15 aprobados el mismo día; bancos existentes copiados del proyecto anterior «CA101 13», RF-36b a RF-36d; necesita la 016 para migrar por la troncal hasta la SED del cliente): informe de estudio eléctrico (modelo Casa Blanca, obras en escalera: bancos existentes y nuevos, reguladores, conductor, migración) e informe de factibilidad de una carga nueva (modelo EMAPICA, pérdidas del libro de la empresa, transformador de la SET del proyecto de transmisión), en `.docx` con imágenes de DIgSILENT, y paso «5 · Informes» en la web; sin dudas abiertas; caso de prueba CA101 desde cero |
+  | 018 vínculo compartido entre espacios | implementada el 2026-10-15 (13 RF, T1 a T11): el vínculo de un proyecto de DIgSILENT vale en cualquier espacio con la misma fuente (registro `output/web/vinculos_pf.json`, sembrado al arrancar); la verificación del «Caso base» exige el vínculo en el servidor y no la red en memoria; el DGS aceptado se comprueba antes de cada acción; un espacio sin fuente usa sola la ejecución con la que se aceptó (copia ejecución, calibración y libros de demanda); la lista de proyectos sobrevive a un reinicio. Cambia 015 (la verificación ya no crea vínculos). Probada en DIgSILENT con CA101 desde un espacio nuevo |
 
   Las convenciones de cada empresa (CRS de origen, patrón de SED de medición, escala,
   carpeta de DIgSILENT) van en `config/perfil_empresa.json`, local y fuera de git, que
@@ -66,12 +70,11 @@ más reciente no trae catálogo de equipos:
 `IGEA_MDB="D:/BaseDatosElectroDunas/260919BaseDatos/202603/260924.mdb"` e
 `IGEA_EQUIPMENT_MDB="D:/BaseDatosElectroDunas/260919BaseDatos/202603/BASE JUL25 1.mdb"`.
 
-Esas bases **no** son la misma foto de la red que los TXT de `referencia/` (03/08): los
-nodos están numerados de otra forma. Con las cinco variables a la vez la suite pasa
-entera (más de 1100 correctas a 2026-10-10; dos de ellas, de la demanda medida, piden además `IGEA_DEMANDA_DIR`): las comparaciones tramo a tramo entre las dos vías
-se omiten solas cuando `igea_dgs.huella` dice que no son la misma exportación. Que las
-dos vías den el mismo modelo **no** está comprobado hasta tener un TXT y una `.mdb` de la
-misma fecha.
+Las fuentes son independientes: un TXT, una `.mdb` o un paquete VNR-GIS se convierten
+y se prueban cada uno por su cuenta, sean de la empresa y la fecha que sean. No hay
+pruebas que comparen una fuente con otra (se retiraron el 2026-10-14). Con las cinco
+variables a la vez la suite pasa entera; solo dos pruebas de la demanda medida piden
+además `IGEA_DEMANDA_DIR`.
 
 ## Reglas que más se rompen
 

@@ -139,8 +139,8 @@ export function FeedersPanel() {
     const sugerido = selected.slice(0, 4).join('_') + (selected.length > 4 ? '_ETC' : '');
     const nombre = window.prompt(
       `Unir ${selected.length} alimentadores en UN solo DGS.\n\nCada uno conserva su tensión y su fuente; `
-      + 'los nodos compartidos quedan unidos por un interruptor abierto. También se incluirán los alimentadores '
-      + 'conectados a la selección por nodos compartidos a la misma tensión, para no cortar ramales.\n\nNombre del DGS:',
+      + 'los nodos compartidos quedan unidos por un interruptor abierto. Solo entran los alimentadores '
+      + 'seleccionados.\n\nNombre del DGS:',
       sugerido);
     if (nombre === null) return;
     await startJob(() => api.convertGroup(ws.id, selected, nombre.trim() || sugerido));

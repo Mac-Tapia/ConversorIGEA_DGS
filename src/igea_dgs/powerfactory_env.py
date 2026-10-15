@@ -126,3 +126,94 @@ def pf_subprocess_env(pf_dir: Path | None) -> dict[str, str]:
         env['PYTHONPATH'] = str(pf_dir) + os.pathsep + env.get('PYTHONPATH', '')
         env['PF_PYTHON'] = str(pf_dir)
     return env
+
+
+# ---------------------------------------------------------------------------
+# Guiones de PowerFactory que quedaron vivos
+# ---------------------------------------------------------------------------
+
+
+def procesos() -> list[dict]:
+    """``[{pid, ppid, name, cmd}]`` de los procesos del equipo; ``[]`` si no se averigua."""
+    import json
+
+    sin_ventana = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
+    try:
+        if os.name == 'nt':
+            r = subprocess.run(
+                ['powershell', '-NoProfile', '-Command',
+                 'Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,'
+                 'Name,CommandLine | ConvertTo-Json -Compress'],
+                capture_output=True, text=True, encoding='utf-8', errors='replace',
+                timeout=20, creationflags=sin_ventana)
+            filas = json.loads(r.stdout or '[]')
+            filas = [filas] if isinstance(filas, dict) else filas
+            return [{'pid': f.get('ProcessId'), 'ppid': f.get('ParentProcessId'),
+                     'name': f.get('Name') or '', 'cmd': f.get('CommandLine') or ''}
+                    for f in filas]
+        r = subprocess.run(['ps', '-eo', 'pid=,ppid=,comm=,args='], capture_output=True,
+                           text=True, timeout=20)
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return []
+    salida = []
+    for linea in r.stdout.splitlines():
+        campos = linea.split(None, 3)
+        if len(campos) >= 3 and campos[0].isdigit() and campos[1].isdigit():
+            salida.append({'pid': int(campos[0]), 'ppid': int(campos[1]), 'name': campos[2],
+                           'cmd': campos[3] if len(campos) > 3 else ''})
+    return salida
+
+
+def guiones_pf_huerfanos(lista: list[dict], guiones: set[str], propio: int) -> list[dict]:
+    """Guiones de ``tools/`` cuyo padre ya no existe: nadie los espera ni los cortará.
+
+    2026-10-14: «Leer proyectos» agotó sus 180 s sin que PowerFactory diera el usuario,
+    y a mano el mismo guion conectaba en 25 s. Un guion de una sesión anterior (la web
+    reiniciada, o una prueba cortada) seguía vivo con el motor de DIgSILENT, que solo
+    admite un proceso a la vez. Solo cuentan los huérfanos: un guion que alguien lanzó
+    desde su consola tiene padre y no se toca.
+    """
+    vivos = {p['pid'] for p in lista}
+    return [p for p in lista
+            if p['pid'] != propio and p['ppid'] not in vivos
+            and 'python' in p['name'].lower()
+            and any(f'tools/{g}' in p['cmd'].replace('\\', '/') for g in guiones)]
+
+
+def terminar_arbol(pid: int) -> None:
+    """Termina ``pid`` **con sus hijos**.
+
+    ``.venv\\Scripts\\python.exe`` es un lanzador que arranca el Python real como hijo:
+    ``Popen.terminate`` solo mataba el lanzador y el hijo seguía con PowerFactory.
+    """
+    if os.name == 'nt':
+        subprocess.run(['taskkill', '/T', '/F', '/PID', str(pid)], capture_output=True,
+                       timeout=20, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+        return
+    import signal
+
+    for p in procesos():
+        if p['ppid'] == pid:
+            terminar_arbol(p['pid'])
+    try:
+        os.kill(pid, getattr(signal, 'SIGKILL', signal.SIGTERM))
+    except OSError:
+        pass
+
+
+def cerrar_guiones_pf_huerfanos() -> list[dict]:
+    """Cierra los guiones de PowerFactory huérfanos y devuelve los que cerró."""
+    guiones = {f.name for f in tools_dir().glob('*.py')}
+    huerfanos = guiones_pf_huerfanos(procesos(), guiones, os.getpid())
+    for p in huerfanos:
+        try:
+            terminar_arbol(p['pid'])
+        except (OSError, subprocess.SubprocessError):
+            pass
+    return huerfanos
+
+
+def powerfactory_abierto(lista: list[dict] | None = None) -> list[int]:
+    """PID de las ventanas de PowerFactory abiertas: tienen el usuario y no se cierran solas."""
+    return [p['pid'] for p in (procesos() if lista is None else lista)
+            if p['name'].lower() == 'powerfactory.exe']

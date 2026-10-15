@@ -241,6 +241,7 @@ tensión, `ElmTerm.uknom` de las barras de media, `TypLne.uline` y `TypTr2.utrn_
   variación existente.
 - RF-57: EL SISTEMA activará cada obra solo en el caso o los casos que elija el operador:
   «Sin proyecto», «Con proyecto» o los dos.
+  **Cambiado por 016:RF-11 a RF-14 (2026-10-15):** una obra en «Sin proyecto» va también en «Con proyecto», pedirla solo en «Sin proyecto» se rechaza, y el enlace y la migración van solo en «Con proyecto».
 - RF-58: EL SISTEMA no activará nunca una obra en el «Caso base».
 - RF-59: EL SISTEMA no modificará ningún tipo existente del proyecto.
 - RF-60: CUANDO una obra necesita un tipo con otros datos que el que tiene el elemento,
@@ -324,6 +325,7 @@ Cambio de sección en la troncal
 - RF-78: DONDE el operador indica solo unos tramos, EL SISTEMA cambiará solo esos.
 - RF-87: SI un tramo indicado no es de la troncal, ENTONCES EL SISTEMA lo cambiará igual y
   lo anotará.
+  **Cambiado por 016:RF-1 (2026-10-15):** la troncal de las obras es la del camino continuo más largo desde la cabecera, no la de `ComBbone` (que siguen usando el N-1 y la transferencia, 016:RF-10).
 - RF-79: SI el tipo indicado no existe en el proyecto a la tensión del alimentador,
   ENTONCES EL SISTEMA lo creará como copia, a esa tensión, de uno que exista con esa
   sección, o, si no hay ninguno, rechazará la obra diciendo qué tipo falta.
@@ -571,6 +573,20 @@ pasar por el enlace en una configuración dada: el margen que queda para crecer.
 ## Dudas abiertas
 
 Ninguna.
+
+## Cambios de la spec 014 (2026-10-14)
+
+- RF-2: la calibración no se hace en el «Caso base» sino en «Sin proyecto» (014:RF-1,
+  RF-5).
+- RF-6: al reutilizar los casos solo cambian las variaciones de carga nueva; las del
+  operador solo se activan en «Con proyecto», si lo están en «Sin proyecto» (014:RF-15,
+  RF-20, RF-21).
+- RF-7, RF-50: la calibración no desactiva ni borra variaciones del operador (014:RF-3,
+  RF-20).
+- RF-8: «Con proyecto» hereda «Sin proyecto» y suma las cargas nuevas (014:RF-18, RF-21,
+  RF-24).
+- RF-54, RF-55: sustituidos después por la spec 015 (sección siguiente): no hay variación
+  del ajuste ni de las demandas; se graban en el escenario de «Sin proyecto».
 
 ## Cambios de la spec 015 (2026-10-14)
 

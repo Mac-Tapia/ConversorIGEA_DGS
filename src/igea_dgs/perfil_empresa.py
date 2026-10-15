@@ -176,3 +176,39 @@ def cargar_perfil(ruta: Path | None = None, *, carpeta: Path | None = None) -> P
     valores = {k: v for k, v in heredado.valores().items() if k in CLAVES}
     valores.update({k: datos[k] for k in CLAVES if k in datos})
     return _construir(heredado.nombre, valores, ruta.name)
+
+
+def factor_potencia_cargas(datos: dict[str, Any]) -> float | None:
+    """El factor de potencia de las SED escaladas al calibrar (015:RF-54, RF-57), o None.
+
+    Sección ``calibracion`` del perfil: Electro Dunas pide 0,98 (2026-10-15); las fijas
+    siguen con el de su EA/ERI. Sin la clave no se supone nada (015:RF-55).
+    """
+    valor = (datos.get('calibracion') or {}).get('factor_potencia_cargas')
+    if valor is None:
+        return None
+    if isinstance(valor, bool) or not isinstance(valor, (int, float)) or not 0 < valor <= 1:
+        raise PerfilError('calibracion.factor_potencia_cargas tiene que estar entre 0 (sin '
+                          f'incluirlo) y 1, no {valor!r}.')
+    return float(valor)
+
+
+def datos_perfil(ruta: Path | None = None, *, carpeta: Path | None = None) -> dict[str, Any]:
+    """Todas las claves del perfil activo, con la herencia resuelta.
+
+    :func:`cargar_perfil` solo valida las convenciones de la conversión; las secciones de
+    otros módulos (``informes`` de la spec 017) también se heredan del perfil con nombre,
+    para que las bandas de Electro Dunas no haya que copiarlas al perfil local. Una clave
+    del perfil activo pisa la heredada entera.
+    """
+    ruta = ruta_perfil_activo() if ruta is None else Path(ruta)
+    if not ruta.is_file():
+        return {}
+    datos = _leer_json(ruta)
+    base = datos.get(CLAVE_BASE)
+    if base is None:
+        return datos
+    perfil_con_nombre(base, carpeta)   # valida el nombre y que exista
+    carpeta = carpeta_perfiles() if carpeta is None else Path(carpeta)
+    heredados = _leer_json(carpeta / f'{base}.json')
+    return {**heredados, **datos}

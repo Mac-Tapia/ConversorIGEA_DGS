@@ -7,5 +7,17 @@
   "_comentario_escala": "Unidades de diagrama por metro, calibradas con el DGS de referencia de NA205.",
   "escala_diagrama": 2.08,
   "_comentario_clientes": "Libros mensuales de clientes importantes: MMAA seguido del nombre fijo.",
-  "patron_libro_clientes": "(?i)^(?P<mes>0[1-9]|1[0-2])(?P<anio>\\d{2})clientesImportantes\\.(?:xlsb|xlsx)$"
+  "patron_libro_clientes": "(?i)^(?P<mes>0[1-9]|1[0-2])(?P<anio>\\d{2})clientesImportantes\\.(?:xlsb|xlsx)$",
+  "_comentario_informes": "Bandas del coloreado de sus informes (spec 017, RF-115), las del modelo EMAPICA: tensión en % de la nominal y cargabilidad en %. Los modelos .docx, el libro de pérdidas y el proyecto de transmisión van en el perfil local, porque son ficheros y proyectos de la máquina.",
+  "_comentario_calibracion": "Factor de potencia de las SED escaladas al calibrar a la máxima de cabecera (spec 015, RF-54), pedido el 2026-10-15. Las fijas conservan el de su EA/ERI de la tabla cruzada (RF-53).",
+  "calibracion": {"factor_potencia_cargas": 0.98},
+  "informes": {
+    "bandas_tension_pct": [85, 90, 95, 105],
+    "bandas_cargabilidad_pct": [80, 90, 95, 105, 150],
+    "_comentario_cabecera": "Rótulos de las celdas de la cabecera del modelo de Casa Blanca donde van el n.º de informe y la referencia (asunto).",
+    "cabecera": {"numero": "INFORME TECNICO", "referencia": "REFERENCIA"},
+    "_comentario_norma": "La norma de calidad y el regulador que citan sus informes.",
+    "norma": "NTCSE",
+    "regulador": "Osinergmin"
+  }
 }

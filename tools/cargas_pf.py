@@ -47,6 +47,8 @@ from collections import Counter
 from pathlib import Path
 
 from igea_dgs.native_action import native_action_block_report
+from igea_dgs.troncal import Barra, Red, Tramo, cortar_trazado, punto_en_troncal, red_de
+from igea_dgs.troncal import troncal as troncal_de
 
 MAX_NOMBRE = 40               # loc_name de DIgSILENT
 REFERENCIAS_DIBUJO = 12       # barras dibujadas cercanas con que se mide la escala
@@ -90,6 +92,126 @@ def gps_de(obj) -> tuple[float, float] | None:
     if not (math.isfinite(lat) and math.isfinite(lon)) or (lat == 0 and lon == 0):
         return None      # DIgSILENT deja 0,0 cuando no hay posición
     return lat, lon
+
+
+# =========================================================================== red (spec 016)
+def cabecera_de(elm):
+    """La barra de la cabecera: la del cubículo con que se define el ``ElmFeeder``."""
+    cubiculo = getattr(elm, 'obj_id', None)
+    return getattr(cubiculo, 'cterm', None) if cubiculo is not None else None
+
+
+def clave_pf(obj) -> str:
+    """Identidad estable de un objeto de DIgSILENT: su nombre completo.
+
+    La API de PF 2024 devuelve un envoltorio de Python nuevo en cada acceso, así que ni
+    ``id()`` ni ``is`` reconocen el mismo objeto: con ``id()``, los dos extremos de cada
+    línea de IN111 quedaron separados y la red salió sin tramos (copia de IN111_TA225,
+    2026-10-15). El doble de las pruebas reutiliza el objeto y no lo notaba.
+    """
+    return obj.GetFullName()
+
+
+def es_cable(linea) -> bool:
+    """El tipo dice si es cable (``cohl_`` = 0, como lo escribe el DGS); sin él, ``inAir``."""
+    cohl = getattr(getattr(linea, 'typ_id', None), 'cohl_', None)
+    if cohl is not None:
+        return int(cohl) == 0
+    en_aire = getattr(linea, 'inAir', None)
+    return en_aire is not None and int(en_aire) == 0
+
+
+def trazado_de(linea) -> tuple[tuple[float, float], ...]:
+    """``GPScoords`` de la línea, (latitud, longitud) por fila; vacío si no tiene dos puntos."""
+    try:
+        filas = linea.GetAttribute('GPScoords') or []
+    except Exception:  # noqa: BLE001 - un elemento sin el atributo no tiene trazado
+        filas = []
+    puntos = tuple((float(f[0]), float(f[1])) for f in filas
+                   if len(f) >= 2 and not (float(f[0]) == 0 and float(f[1]) == 0))
+    return puntos if len(puntos) >= 2 else ()
+
+
+def _cerrado(objeto, cubiculos) -> bool:
+    """En servicio y sin un interruptor abierto en sus cubículos (016:RF-4)."""
+    if int(getattr(objeto, 'outserv', 0) or 0):
+        return False
+    if objeto.GetClassName() == 'ElmCoup' and int(getattr(objeto, 'on_off', 1) or 0) == 0:
+        return False
+    return all(int(getattr(sw, 'on_off', 1) or 0) != 0
+               for cub in cubiculos for sw in (cub.GetContents('*.StaSwitch') or []))
+
+
+def leer_red(elm, cabecera=None) -> Red:
+    """La red del alimentador en el caso activo, para ``igea_dgs.troncal`` (016:RF-2).
+
+    Tramos son sus líneas y sus acopladores: un seccionador ``ElmCoup`` cerrado une dos
+    barras igual que una línea, y abierto corta el camino. Los extremos salen de los
+    cubículos de sus barras (``obj_bus`` 0 es ``bus1``, desde donde ``SplitLine`` cuenta el
+    porcentaje). Un elemento con un extremo fuera del alimentador (un enlace con otro) no
+    es un tramo suyo.
+    """
+    barras = list(elm.GetObjs('ElmTerm'))
+    if cabecera is not None and all(clave_pf(b) != clave_pf(cabecera) for b in barras):
+        barras.append(cabecera)
+    extremos: dict[str, list] = {}
+    objetos: dict[str, object] = {}
+    for barra in barras:
+        for cub in barra.GetContents('*.StaCubic') or []:
+            o = getattr(cub, 'obj_id', None)
+            if o is None or o.GetClassName() not in ('ElmLne', 'ElmCoup'):
+                continue
+            clave = clave_pf(o)
+            objetos[clave] = o
+            extremos.setdefault(clave, []).append((int(getattr(cub, 'obj_bus', 0) or 0), barra, cub))
+    tramos = []
+    for clave, lados in extremos.items():
+        if len(lados) != 2:
+            continue
+        o = objetos[clave]
+        (_, desde, c1), (_, hasta, c2) = sorted(lados, key=lambda x: x[0])
+        linea = o.GetClassName() == 'ElmLne'
+        tramos.append(Tramo(o.loc_name, desde.loc_name, hasta.loc_name,
+                            float(getattr(o, 'dline', 0.0) or 0.0) * 1000.0 if linea else 0.0,
+                            cerrado=_cerrado(o, (c1, c2)), cable=linea and es_cable(o),
+                            trazado=trazado_de(o) if linea else ()))
+    return red_de([Barra(b.loc_name, getattr(b, 'uknom', None), gps_de(b)) for b in barras], tramos)
+
+
+def partir_tramo(app, linea, fraccion: float, nombre: str, gps=None):
+    """Parte ``linea`` con ``Application.SplitLine`` en la variación que graba (016:RF-16 a RF-22).
+
+    ``fraccion`` se cuenta desde ``bus1``. DIgSILENT deja a las dos mitades el tipo, las
+    ternas, el estado y la longitud repartida (RF-17, RF-18), pero llama ``Terminal`` a la
+    barra, la deja sin GPS y da a las dos el trazado entero (sonda del 2026-10-14, T1 de la
+    016): el nombre, las coordenadas y el trazado de cada mitad se ponen aquí (RF-19).
+    Devuelve (barra nueva, mitad nueva).
+    """
+    if app.GetRecordingStage() is None:
+        raise RuntimeError(f'no hay una variación grabando: el tramo {linea.loc_name} se parte '
+                           'solo dentro de la de la obra o de la carga')
+    if int(getattr(linea, 'outserv', 0) or 0):
+        raise RuntimeError(f'el tramo {linea.loc_name} está fuera de servicio: no se parte')
+    if not 0 < fraccion < 1:
+        raise RuntimeError(f'el punto del tramo {linea.loc_name} es un extremo: se conecta en su '
+                           'barra, sin partirlo')
+    trazado = trazado_de(linea)
+    barra = app.SplitLine(linea, 100.0 * fraccion, 0, 0, 0)
+    if not barra:
+        raise RuntimeError(f'DIgSILENT no partió el tramo {linea.loc_name}')
+    barra.loc_name = nombre
+    mitades = cortar_trazado(trazado, fraccion) if trazado else None
+    punto = gps or (mitades[0][-1] if mitades else None)
+    if punto is not None:
+        barra.GPSlat, barra.GPSlon = float(punto[0]), float(punto[1])
+    copia = next((c.obj_id for c in barra.GetContents('*.StaCubic') or []
+                  if getattr(c, 'obj_id', None) is not None
+                  and clave_pf(c.obj_id) != clave_pf(linea)
+                  and c.obj_id.GetClassName() == 'ElmLne'), None)
+    if mitades and copia is not None:
+        linea.SetAttribute('GPScoords', [list(q) for q in mitades[0]])
+        copia.SetAttribute('GPScoords', [list(q) for q in mitades[1]])
+    return barra, copia
 
 
 def distancia_m(a: tuple[float, float], b: tuple[float, float]) -> float:
@@ -595,17 +717,49 @@ def ya_creada(fila: dict, candidatos: list[str], existentes: set[str], ya: dict 
     return None
 
 
-def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict | None = None):
+def _troncales(alims: Alimentadores):
+    """Alimentador → (red, tramos de su troncal, líneas por nombre), calculado una vez.
+
+    ``None`` si no hay ``ElmFeeder`` o no dice su cabecera: sin ellos no hay troncal, y la
+    carga va a la barra más cercana, como antes de la spec 016.
+    """
+    cache: dict[str, tuple | None] = {}
+
+    def de(f: str):
+        if f not in cache:
+            elm = alims.elm.get(f)
+            cabecera = cabecera_de(elm) if elm is not None else None
+            if cabecera is None:
+                cache[f] = None
+            else:
+                red = leer_red(elm, cabecera)
+                lineas = {ln.loc_name: ln for ln in elm.GetObjs('ElmLne')}
+                tramos = tuple(n for n in troncal_de(red, cabecera.loc_name).tramos if n in lineas)
+                cache[f] = (red, tramos, lineas)
+        return cache[f]
+    return de
+
+
+def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict | None = None,
+                    minima_m: float | None = None):
     """Cada carga nueva → cómo se conecta, o el motivo para no crearla. Solo lectura.
 
     Devuelve (resueltas por alimentador, no creadas, avisos). Solo se buscan barras en
     los alimentadores marcados (spec 007, RF-25). Una fila cuyo alimentador (TRONCAL) no
     está marcado no se crea (RF-29): el libro de planificación trae las cargas de todos
     los alimentadores, y con SI213 marcado se colgaban de su barra más cercana las 27 de
-    otros alimentadores, una a 216 km (2026-10-13). Sin alimentador en la fila, la barra
-    más cercana entre los marcados (RF-36).
+    otros alimentadores, una a 216 km (2026-10-13). Sin alimentador en la fila, el más
+    cercano entre los marcados (RF-36).
+
+    Spec 016: la carga con coordenadas y sin barra va al punto más cercano de la troncal
+    (016:RF-45), no a la barra existente más cercana: en SI213 esa barra era el nodo de una
+    SED, que solo tenía su seccionador (007:RF-39). Si el punto cae dentro de un tramo, la
+    carga lo parte al crearse, en su variación (RF-46); a menos de ``minima_m`` de una
+    barra, se engancha en ella (RF-20).
     """
     tipos = {t.loc_name: t for t in proyecto.GetContents('*.TypLne', 1)}
+    troncales = _troncales(alims)
+    sin_troncal_gps: set[str] = set()
     existentes = {o.loc_name for f in alims.elegidos for clase in ('ElmLod', 'ElmSubstat')
                   for o in alims.objetos(f, clase)}
     barras = {f: alims.objetos(f, 'ElmTerm') for f in alims.elegidos}
@@ -659,24 +813,53 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict
                 pos = gps_de(barra)
                 dist = distancia_m(pos, punto) if (pos and punto) else None
                 eleccion = (feeder, barra, dist, 'barra indicada')
+        conexion = None
         if eleccion is None and punto is not None:
             mejor = None
             clave_mejor = None
             for f in candidatos:
+                t = troncales(f)
+                if t is not None:                                       # 016:RF-45
+                    c = punto_en_troncal(t[0], t[1], punto, minima_m)
+                    if c is None:
+                        sin_troncal_gps.add(f)
+                        continue
+                    clave = (c.distancia_m, False, f, c.tramo)
+                    if clave_mejor is None or clave < clave_mejor:
+                        mejor, clave_mejor = (f, c), clave
+                    continue
                 for b, pos, interna in cercanas[f]:
                     d = distancia_m(pos, punto)
                     clave = (d, interna, f, b.loc_name)
                     if clave_mejor is None or clave < clave_mejor:
                         mejor, clave_mejor = (f, b, d), clave
             if mejor is None:
-                nuevos = sorted(set(candidatos) & sin_gps - avisados)
+                nuevos = sorted((set(candidatos) & sin_gps | set(candidatos) & sin_troncal_gps) - avisados)
                 if nuevos:
-                    avisos.append(f"Ninguna barra de media de {', '.join(nuevos)} tiene coordenadas en DIgSILENT: "
-                                  'no se conecta por coordenadas ninguna carga suya (RF-28).')
+                    avisos.append(f"Ninguna barra de media ni tramo de la troncal de {', '.join(nuevos)} tiene "
+                                  'coordenadas en DIgSILENT: no se conecta por coordenadas ninguna carga '
+                                  'suya (007:RF-28, 016:RF-50).')
                     avisados.update(nuevos)
                 no_creadas.append({'sed': sed, 'motivo': 'ninguna barra de los alimentadores tiene GPS'})
                 continue
-            eleccion = (*mejor, 'barra más cercana por GPS')
+            if len(mejor) == 2:
+                f, conexion = mejor
+                _red, _tramos, lineas = troncales(f)
+                tramo = _red.por_nombre()[conexion.tramo]
+                extremo = conexion.barra or tramo.desde
+                barra_ref = next((b for b in barras[f] if b.loc_name == extremo), None)
+                if barra_ref is None:
+                    barra_ref = next(b for b in barras[f] if b.loc_name in (tramo.desde, tramo.hasta))
+                criterio = ('barra de la troncal más cercana' if conexion.barra
+                            else 'punto de la troncal más cercano')
+                eleccion = (f, barra_ref, conexion.distancia_m, criterio)
+                if conexion.barra:
+                    conexion = None                       # se engancha en la barra, sin partir
+                else:
+                    conexion = {'linea': lineas[conexion.tramo], 'tramo': conexion.tramo,
+                                'fraccion': conexion.fraccion, 'gps': conexion.gps}
+            else:
+                eleccion = (*mejor, 'barra más cercana por GPS')
         elif eleccion is None:
             no_creadas.append({'sed': sed, 'motivo': 'sin barra ni coordenadas'})
             continue
@@ -685,6 +868,8 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict
         if dist:                                   # hace falta una línea de enlace
             if fila.get('tipo_linea') and fila['tipo_linea'] in tipos:
                 tipo, origen_tipo = tipos[fila['tipo_linea']], 'de la fila'
+            elif conexion is not None:
+                tipo, origen_tipo = getattr(conexion['linea'], 'typ_id', None), 'del tramo que se parte'
             else:
                 tipo, origen_tipo = _tipo_de_barra(barra), 'de la red'
             if tipo is None:
@@ -705,6 +890,7 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict
         red = _red_de(barra)
         resueltas[feeder].append({
             'fila': fila, 'barra': barra, 'distancia_m': dist, 'criterio': criterio,
+            'partir': conexion,
             'nota': sobre_barra or None,
             'tipo': tipo, 'origen_tipo': origen_tipo,
             'tension_mt_kv': float(getattr(barra, 'uknom', 0) or 0),
@@ -712,6 +898,17 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict
             'frecuencia_hz': float(getattr(red, 'frnom', 0) or 0) if red is not None else 0.0,
         })
         existentes.add(sed)
+    # 016:RF-47: cada carga parte el tramo en su variación, que se mide sola (007:RF-12);
+    # dos cargas en el mismo tramo lo parten cada una en la suya, sin depender del orden.
+    for f, lista in resueltas.items():
+        por_tramo: dict[str, list[str]] = {}
+        for r in lista:
+            if r['partir']:
+                por_tramo.setdefault(r['partir']['tramo'], []).append(r['fila']['sed'])
+        for tramo, seds in sorted(por_tramo.items()):
+            if len(seds) > 1:
+                avisos.append(f"{', '.join(seds)} parten el mismo tramo {tramo}, cada una en su "
+                              'variación: con las dos activas en «Con proyecto», revise ese tramo.')
     if de_otros:
         total = sum(de_otros.values())
         detalle = ', '.join(f'{f} ({n})' for f, n in sorted(de_otros.items()))
@@ -758,10 +955,20 @@ def _tipo_trafo(alims, feeder, typ_folder, kva: float, mt: float, bt: float, fre
 
 
 def crear_carga(alims, proyecto, typ_folder, diagrama, feeder, r) -> dict:
-    """Crea la carga resuelta en la etapa que graba. Devuelve lo creado (RF-14)."""
+    """Crea la carga resuelta en la etapa que graba. Devuelve lo creado (RF-14).
+
+    Si la carga va dentro de un tramo de la troncal, primero lo parte en esta misma
+    variación (016:RF-46) y se engancha en la barra nueva.
+    """
     fila, barra, red = r['fila'], r['barra'], r['red']
     sed = fila['sed']
     contenedor = red if red is not None else barra.GetParent()
+    partido = None
+    if r.get('partir'):
+        p = r['partir']
+        nombre = nombre_libre(p['linea'].GetParent(), 'ElmTerm', f'NODE_T_{sed}')
+        barra, _ = partir_tramo(alims.app, p['linea'], p['fraccion'], nombre, gps=p['gps'])
+        partido = {'tramo': p['tramo'], 'fraccion': round(p['fraccion'], 4)}
     mt, bt = r['tension_mt_kv'], r['tension_bt_kv']
     enganche, linea, nueva_barra = barra, None, None
     if r['distancia_m']:
@@ -823,6 +1030,7 @@ def crear_carga(alims, proyecto, typ_folder, diagrama, feeder, r) -> dict:
         'kva_instalado': fila['kva_instalado'], 'kw': fila['kw'], 'kvar': fila['kvar'],
         'tipo_trafo': tipo_tr.loc_name, 'tipo_trafo_nuevo': tipo_nuevo,
         'aviso': aviso or None, 'error_relectura': error or None, 'dibujo': dibujo,
+        'tramo_partido': partido,
     }
 
 
@@ -1083,7 +1291,11 @@ def diferencia(con: dict, sin: dict | None, feeder: str) -> dict | None:
 
 # =========================================================================== orquestación
 def _crearian(r: dict, variacion: str) -> dict:
+    """Lo que se haría con la carga (RF-18; 016:RF-49: el tramo y si se parte)."""
+    partir = r.get('partir')
     return {'sed': r['fila']['sed'], 'barra': r['barra'].loc_name, 'criterio': r['criterio'],
+            'tramo': partir['tramo'] if partir else None, 'parte': bool(partir),
+            'fraccion': round(partir['fraccion'], 4) if partir else None,
             'distancia_m': r['distancia_m'], 'tipo_linea': getattr(r['tipo'], 'loc_name', None),
             'origen_tipo_linea': r['origen_tipo'] or None, 'tension_mt_kv': r['tension_mt_kv'],
             'tension_bt_kv': r['tension_bt_kv'], 'variacion': variacion, 'nota': r.get('nota')}
@@ -1149,7 +1361,8 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
     # 014:RF-23: una vez por trabajo, no por carga.
     ya = {'indice': indice_de_cargas_nuevas(app, alims.elegidos),
           'red': nombres_en_red(app, alims, casos['con']) if casos else None}
-    resueltas, no_creadas, avisos = resolver_nuevas(alims, proyecto, plan.get('nuevas') or [], ya)
+    resueltas, no_creadas, avisos = resolver_nuevas(alims, proyecto, plan.get('nuevas') or [], ya,
+                                                    minima_m=plan.get('minima_m'))
     informe['reutilizadas'] = [x for x in no_creadas if x.get('reutilizada')]
     duplicadas = {n for x in no_creadas for n in x.get('variaciones') or []}
     por_nombre_var = {v.loc_name: v for v in (app.GetProjectFolder('scheme').GetContents('*.IntScheme', 1)
@@ -1508,6 +1721,10 @@ def main(argv=None) -> int:
     except Exception as exc:  # noqa: BLE001
         print(f'ERROR: no se pudo conectar a DIgSILENT: {exc}')
         return 3
+    # Primera línea solo con DIgSILENT ya respondiendo: la web la espera un tiempo
+    # limitado y, si no llega, corta el guion en vez de dejar ocupado el carril (005:RF-21).
+    print(f'Conectado a DIgSILENT como {getattr(app.GetCurrentUser(), "loc_name", "?")}.',
+          flush=True)
     if args.deshacer:
         aplicado = json.loads(Path(args.deshacer).read_text(encoding='utf-8'))
         informe, codigo = deshacer(app, plan, aplicado, simular=args.simular)

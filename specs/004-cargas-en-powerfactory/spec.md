@@ -1,6 +1,6 @@
 # Spec 004 — Cargas en un proyecto existente de DIgSILENT
 
-Estado: aprobada (2026-10-08); cambio «Demanda medida» (RF-22 a RF-41) aprobado el 2026-10-08 · Fecha: 2026-10-08 · Origen: revisión del módulo de cargas del 2026-10-08
+Estado: cumplida (2026-10-14, verificación RF por RF); aprobada el 2026-10-08; cambio «Demanda medida» (RF-22 a RF-41) aprobado el 2026-10-08 · Fecha: 2026-10-08 · Origen: revisión del módulo de cargas del 2026-10-08
 
 ## Contexto y objetivo
 
@@ -291,3 +291,10 @@ demandas grabadas solo en la variación no se veían en la cabecera.
 - Demanda medida: el cruce por código anterior sale de los datos: en los libros de enero
   a abril el `Nis` casa con `Suministro` y no con `Suministro Act`; en los de mayo a julio,
   al revés.
+
+## Cambios de la spec 014 (2026-10-14)
+
+- RF-15: «la carga nueva ya existe» no se busca solo en la red activa: se busca en todas
+  las variaciones del proyecto, activas o no, y en la red de «Con proyecto», por su nombre
+  en el alimentador (014:RF-23, RF-27). Si ya existe no se crea otra vez; si difiere del
+  libro, se avisa de cada diferencia (014:RF-24 a RF-26, RF-28).

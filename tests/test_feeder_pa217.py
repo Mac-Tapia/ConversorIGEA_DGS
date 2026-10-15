@@ -1,25 +1,20 @@
 """Caso de aceptación por alimentador: PA217, por las dos alternativas de entrada.
 
 PA217 es un buen caso de referencia: 1.324 tramos, 253 cargas con SED, 22,9 kV, y
-mezcla de fases (ABC y AB). Estas pruebas exigen que **las dos vías de entrada**
-—tres TXT y base Access— produzcan el mismo modelo eléctrico.
+mezcla de fases (ABC y AB). Cada prueba se ejecuta por separado con cada vía de entrada
+—tres TXT y base Access—: cada fuente es independiente y se valida por sí misma, sin
+compararla con la otra.
 
 Se ejecutan solo con los datos disponibles, y hacen *skip* limpio si faltan:
 
     set IGEA_RED / IGEA_LOADS / IGEA_EQUIPMENT   → alternativa 1 (TXT)
     set IGEA_MDB  (+ IGEA_EQUIPMENT_MDB)         → alternativa 2 (Access)
-
-Lo que **no** se exige es igualdad byte a byte del ``.dgs``: las dos vías difieren
-legítimamente porque la base conserva el código de conductor real allí donde el export
-TXT escribe ``DEFAULT``. Esa diferencia se comprueba de forma explícita en
-``TestPa217ConductorRecovery``.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
 
 from igea_dgs.batch import convert_selection
 from igea_dgs.reglas import SIN_REGLAS
@@ -103,84 +98,3 @@ class TestPa217ConvertsFromBothInputs:
         out = tmp_path / source
         _convert(ds, out)
         assert not [p for p in out.iterdir() if p.name.startswith(STAGE_PREFIX)]
-
-
-class TestPa217IsTheSameNetworkFromBothInputs:
-    """Las dos vías deben describir el mismo alimentador."""
-
-    def test_same_network_id_and_sections(self, both):
-        txt, mdb = both
-        network_id = txt.resolve_feeder(FEEDER)
-        assert mdb.resolve_feeder(FEEDER) == network_id
-        assert set(txt.feeders[network_id]) == set(mdb.feeders[network_id])
-
-    def test_same_topology_per_section(self, both):
-        txt, mdb = both
-        for section_id in txt.feeders[txt.resolve_feeder(FEEDER)]:
-            a, b = txt.sections[section_id], mdb.sections[section_id]
-            assert a['FromNodeID'] == b['FromNodeID'], section_id
-            assert a['ToNodeID'] == b['ToNodeID'], section_id
-            assert a['Phase'] == b['Phase'], f'{section_id}: fase {a["Phase"]} vs {b["Phase"]}'
-
-    def test_same_lengths_and_medium(self, both):
-        txt, mdb = both
-        for section_id in txt.feeders[txt.resolve_feeder(FEEDER)]:
-            a, b = txt.line_configurations[section_id], mdb.line_configurations[section_id]
-            assert abs(float(a['Length'] or 0) - float(b['Length'] or 0)) < 1e-3, section_id
-            assert a['Overhead'] == b['Overhead'], section_id
-
-    def test_same_nominal_voltage(self, both):
-        txt, mdb = both
-        network_id = txt.resolve_feeder(FEEDER)
-        a = float(txt.sources[network_id]['DesiredVoltage'])
-        b = float(mdb.sources[network_id]['DesiredVoltage'])
-        assert abs(a - b) < 1e-6
-
-    def test_same_dgs_structure(self, both, tmp_path):
-        """Mismos conteos en todas las tablas del DGS, por ambas vías."""
-        txt, mdb = both
-        _m1, a = _convert(txt, tmp_path / 'txt')
-        _m2, b = _convert(mdb, tmp_path / 'mdb')
-        ta, tb = parse_dgs(a['dgs']), parse_dgs(b['dgs'])
-        for table in ('ElmTerm', 'ElmLne', 'ElmLod', 'StaSwitch', 'StaCubic',
-                      'ElmTr2', 'ElmSubstat', 'ElmCoup', 'IntGrf', 'IntGrfcon'):
-            na = len(ta.get(table, {'rows': []})['rows'])
-            nb = len(tb.get(table, {'rows': []})['rows'])
-            assert na == nb, f'{table}: TXT={na} ACCESS={nb}'
-
-
-class TestPa217ConductorRecovery:
-    """La base conserva el conductor real donde el export TXT escribe DEFAULT.
-
-    Es la diferencia legítima entre las dos vías, y la razón por la que no se exige
-    igualdad byte a byte del .dgs.
-    """
-
-    def test_access_has_fewer_default_sections(self, both):
-        txt, mdb = both
-        sections = txt.feeders[txt.resolve_feeder(FEEDER)]
-        txt_default = {s for s in sections if txt.line_configurations[s]['LineCableID'] == 'DEFAULT'}
-        mdb_default = {s for s in sections if mdb.line_configurations[s]['LineCableID'] == 'DEFAULT'}
-        assert mdb_default <= txt_default, (
-            'la base no puede tener DEFAULT donde el TXT trae un código real: '
-            'sería pérdida de información del lector'
-        )
-        assert len(mdb_default) < len(txt_default), (
-            'se esperaba que la base recuperase conductores que el TXT perdió'
-        )
-
-    def test_recovered_codes_exist_or_are_reported(self, both):
-        """Cada código recuperado debe estar en el catálogo, o quedar registrado."""
-        txt, mdb = both
-        sections = txt.feeders[txt.resolve_feeder(FEEDER)]
-        catalog = {r['ID'] for r in mdb.equipment_tables.get('LINE', ())}
-        catalog |= {r['ID'] for r in mdb.equipment_tables.get('CONCENTRIC NEUTRAL CABLE', ())}
-        recovered = {
-            mdb.line_configurations[s]['LineCableID']
-            for s in sections
-            if txt.line_configurations[s]['LineCableID'] == 'DEFAULT'
-            and mdb.line_configurations[s]['LineCableID'] != 'DEFAULT'
-        }
-        assert recovered, 'no se recuperó ningún conductor'
-        # Los que falten en el catálogo se resuelven por alias/vecino y se registran.
-        assert len(recovered - catalog) <= 3, sorted(recovered - catalog)

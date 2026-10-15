@@ -90,7 +90,8 @@ def fijas_de(cruzados: Iterable[Mapping[str, Any]], objetivo: Objetivo) -> dict[
 
     El kVAR de cada cliente sale de su energía reactiva y activa del mes (RF-6): es su
     factor de potencia medio, que es lo que se conoce de él. Sin una de las dos, el del
-    objetivo (RF-7).
+    objetivo (RF-7). El factor del perfil de empresa no las toca: es solo de las
+    escaladas (usuario, 2026-10-15; 015:RF-53).
     """
     por_clave: dict[str, Fija] = {}
     for c in cruzados:
@@ -202,17 +203,22 @@ def _kva_valido(v: Any) -> float | None:
 
 def reparto_inicial(objetivo: Objetivo, fijas: Mapping[str, Fija],
                     cargas: Mapping[str, tuple[float, float]],
-                    kva: Mapping[str, Any] | None = None) -> Reparto:
+                    kva: Mapping[str, Any] | None = None,
+                    fp: float | None = None) -> Reparto:
     """El reparto que da el objetivo sin pérdidas, con el factor de escala de DIgSILENT.
 
     ``cargas`` tiene una entrada por cada carga de SED del alimentador en DIgSILENT, con el
-    nombre que tiene allí y su P y Q del archivo original (kW, kVAR): es la lista de SED.
-    Las fijas (clientes importantes) se buscan en ella por su código y llevan su P y Q
-    (015:RF-43). Las demás conservan su P y Q y escalan todas con el mismo factor, el
-    ``scale0`` de DIgSILENT (015:RF-44): el usuario, el 2026-10-14, «las escaladas se
-    multiplican por el factor de escala hasta cuadrar con la máxima». Antes se repartían
-    por kVA y se reescribía su P y Q. Se cuadra el kW; el kVAR de cada escalada sigue su
-    propio factor de potencia, porque el factor de escala mueve P y Q juntas.
+    nombre que tiene allí y su P y Q (kW, kVAR): es la lista de SED. Las fijas (clientes
+    importantes) se buscan en ella por su código y llevan su P y Q (015:RF-43).
+
+    Las demás escalan según su potencia instalada (015:RF-44): P base = kVA × FP, Q base con
+    ese mismo FP, y un solo factor de escala, el ``scale0`` de DIgSILENT, que es así la
+    fracción de carga de sus transformadores. El usuario, el 2026-10-15: «el escalado se
+    debe hacer a sus potencias instaladas de cada SED escalada». Con la P del archivo, en
+    CA101 98 de 160 escaladas (11 057 kVA) tenían demanda cero y los 6 MW caían en 62 SED.
+    El FP es el del perfil de empresa (``fp``, 015:RF-54) o, sin él, el de la máxima de
+    cabecera (RF-55). Una SED sin kVA conocido queda en cero, con aviso (RF-45). Las fijas
+    conservan la Q de su EA/ERI y las cambiadas a mano la que tienen (RF-53, RF-58).
     """
     por_clave = {clave_codigo(s): s for s in cargas}
     kvas = {s: _kva_valido((kva or {}).get(s)) for s in cargas}
@@ -226,12 +232,14 @@ def reparto_inicial(objetivo: Objetivo, fijas: Mapping[str, Fija],
             continue
         fijas_pf[sed] = (f.kw, f.kvar)
         avisos += [f'{sed}: {a}' for a in f.avisos]
-    base = {s: (float(p or 0.0), float(q or 0.0)) for s, (p, q) in cargas.items()
-            if s not in fijas_pf}
-    ceros = sorted(s for s, (p, _) in base.items() if p <= 0)
+    fp_escaladas = objetivo.fp if fp is None else fp
+    tan = math.tan(math.acos(fp_escaladas))
+    base = {s: ((kvas[s] or 0.0) * fp_escaladas, (kvas[s] or 0.0) * fp_escaladas * tan)
+            for s in cargas if s not in fijas_pf}
+    ceros = sorted(s for s in base if not kvas[s])
     if ceros:
-        # 015:RF-45: sin demanda en el archivo, el factor de escala la deja en cero.
-        avisos.append(f'{len(ceros)} SED escaladas sin demanda en el archivo original: quedan '
+        # 015:RF-45: sin potencia instalada conocida, el factor de escala la deja en cero.
+        avisos.append(f'{len(ceros)} SED escaladas sin potencia instalada conocida: quedan '
                       'en cero: ' + ', '.join(ceros[:50]))
     origen = {s: ('cliente' if s in fijas_pf else 'escala') for s in cargas}
     p_fijas = sum(p for p, _ in fijas_pf.values())
