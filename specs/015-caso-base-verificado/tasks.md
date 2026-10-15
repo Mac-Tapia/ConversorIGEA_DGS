@@ -135,6 +135,21 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       (1 de 1 escalón) y entregan 198, 198 y 185 kvar. Repetida sobre lo calibrado:
       YA_CARGADO_VALIDADO con las 160 escaladas a 0,98 en lo escrito y en el flujo. Antes, en
       una copia: sin bancos SE20701 caía de 0,637 a 0,546 pu y las pérdidas subían 486 kW.
+- [x] T24. «Con proyecto» con la demanda calibrada de «Sin proyecto» (014:RF-4), probado con
+      la obra de cambio de conductor de CA101. Hallazgo en DIgSILENT real (2026-10-15): en
+      las cargas desequilibradas las fases son dato de la red y `plini` lo deriva DIgSILENT
+      en el escenario activo; «Con proyecto» conservaba la `plini` del archivo (consumía
+      3861 kW frente a 5264) porque `potencia()` sumaba las fases y la escritura se saltaba.
+      Ahora `potencia()` lee `plini` del escenario (lo que usa el flujo), cada escalada se
+      comprueba en el escenario tras escribirla, y aun con «Sin proyecto» ya calibrado se
+      sincroniza «Con proyecto» (143 cargas corregidas en CA101).
+      Obra (`output/spec015/T25_*.json`), variación `Obra_seccion_CA101` solo en «Con
+      proyecto»: los 21 tramos aéreos de 25 a 50 mm² del camino a SE20701 y SE20730
+      (6,58 km) a AA12003D. Con la misma demanda (5264,3 kW): pérdidas 734 → 388 kW
+      (12,2 → 6,9 %), SE20701 0,751 → 0,890 pu, SE20730 0,792 → 0,903 pu, carga máxima de
+      esos tramos 112 → 38 %, bancos 581 → 748 kvar; «Caso base» y «Sin proyecto» sin la
+      variación y con sus tipos; las 169 cargas consumen lo escrito y las 160 escaladas a
+      0,98 en «Sin» y «Con proyecto».
 - [ ] T12. Prueba en DIgSILENT con CA101, sobre el proyecto existente y sin datos
       inventados: la verificación lista lo que falla; corregido, pasa; se crea
       «Sin proyecto»; la calibración solo cambia su escenario y el «Caso base» queda igual;

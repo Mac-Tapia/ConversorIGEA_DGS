@@ -494,8 +494,14 @@ def escribir_reparto(cargas: dict, rep, omitir=frozenset()) -> list[dict]:
                 if not all(_cerca(a, b) for a, b in zip(potencia(obj), (bp, bq))):
                     escribir_carga(obj, bp / 1000.0, bq / 1000.0)
                 obj.scale0 = rep.a
-                error = (None if math.isclose(factor_de_escala(obj), rep.a, rel_tol=1e-6)
-                         else f'scale0={factor_de_escala(obj)}, esperado {rep.a}')
+                # 014:RF-4: la base también en el escenario de este caso (CA101: «Con
+                # proyecto» se quedaba con la del archivo, ver ``potencia``).
+                escrita = potencia(obj)
+                error = (f'scale0={factor_de_escala(obj)}, esperado {rep.a}'
+                         if not math.isclose(factor_de_escala(obj), rep.a, rel_tol=1e-6)
+                         else f'base {escrita[0]:.3f}/{escrita[1]:.3f} kW/kvar en el escenario, '
+                              f'esperada {bp:.3f}/{bq:.3f}'
+                         if not all(_cerca(a, b) for a, b in zip(escrita, (bp, bq))) else None)
             else:
                 escribir_carga(obj, d.kw / 1000.0, d.kvar / 1000.0)
                 obj.scale0 = 1.0
@@ -793,6 +799,33 @@ def validar_cargas_nativas(cargas: dict, reparto, medida, objetivo, tolerancia: 
     }, reconstruido
 
 
+def sincronizar_con_proyecto(app, con, sin, cargas: dict, reparto, omitir, apagar) -> dict:
+    """Deja en el escenario de «Con proyecto» la demanda calibrada de «Sin proyecto» (014:RF-4).
+
+    Solo escribe las cargas que difieren; las cambiadas a mano (``omitir``) no se tocan.
+    """
+    con.Activate()
+    escenario = app.GetActiveScenario()
+    distintas = []
+    for sed, d in reparto.demandas.items():
+        if sed in omitir:
+            continue
+        p, q = potencia_efectiva(cargas[sed])
+        if not (_cerca(p, d.kw) and _cerca(q, d.kvar)):
+            distintas.append(sed)
+    fallos = []
+    if distintas and escenario is not None:
+        iguales = set(reparto.demandas) - set(distintas)
+        fallos = escribir_reparto(cargas, reparto, set(omitir) | iguales)
+        for obj in apagar.values():
+            obj.outserv = 1
+        escenario.Save()
+    resultado = {'escenario': getattr(escenario, 'loc_name', None),
+                 'corregidas': len(distintas), 'fallos': fallos}
+    sin.Activate()
+    return resultado
+
+
 def aviso_consumo_fisico(validacion: dict) -> str | None:
     """El aviso de 015:RF-49 a RF-51 para el operador, o ``None`` si todas consumen bien."""
     fallo = next((f for f in validacion.get('fallos') or []
@@ -1049,9 +1082,20 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
                 'cantidad': len(fotos), 'poblacion': poblacion_nativa,
             },
         )
+        # 014:RF-4: aunque «Sin proyecto» ya esté calibrado, «Con proyecto» tiene que tener
+        # la misma demanda; en CA101 (2026-10-15) consumía 3861 kW frente a 5264.
+        if con is not None:
+            informe['con_proyecto'] = sincronizar_con_proyecto(
+                app, con, sin, cargas, reparto_nativo,
+                {m['sed'] for m in manuales}, apagar)
+            if informe['con_proyecto']['corregidas']:
+                informe['avisos'].append(
+                    f"«Con proyecto» no tenía la demanda de «Sin proyecto» en "
+                    f"{informe['con_proyecto']['corregidas']} carga(s): se le escribió "
+                    '(014:RF-4).')
         if inicial is not None and app.GetActiveStudyCase() is not inicial:
             inicial.Activate()
-        return informe, 0
+        return informe, 0 if not (informe.get('con_proyecto') or {}).get('fallos') else 2
     informe['decision_carga_nativa'] = {
         'status': 'REQUIERE_DISTRIBUCION', 'accion': 'DISTRIBUIR_Y_CUADRAR',
         'bloquea': False,

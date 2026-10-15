@@ -292,13 +292,20 @@ def _num(obj, attr) -> float | None:
 
 
 def potencia(obj) -> tuple[float, float]:
-    """kW y kVAR que tiene escritos la carga, también si es desequilibrada."""
-    if int(getattr(obj, 'i_sym', 0) or 0) == 1:
+    """kW y kVAR que tiene escritos la carga en el escenario activo, los que usa el flujo.
+
+    En una carga desequilibrada (``i_sym=1``) las fases son dato de la red, que comparten
+    los casos, y ``plini`` lo deriva DIgSILENT en el escenario activo al escribirlas. En
+    CA101 (2026-10-15) las fases valían lo calibrado en los tres casos, pero «Con proyecto»
+    conservaba en su escenario la ``plini`` del archivo (SE20250: 98 kW en fases, 32,4 kW
+    en ``plini``) y el flujo usaba esa. Antes se sumaban las fases y no se veía. Solo sin
+    ``plini`` se suman las fases.
+    """
+    p, q = getattr(obj, 'plini', None), getattr(obj, 'qlini', None)
+    if p is None and int(getattr(obj, 'i_sym', 0) or 0) == 1:
         p = sum(float(getattr(obj, f'plini{f}', 0.0) or 0.0) for f in 'rst')
         q = sum(float(getattr(obj, f'qlini{f}', 0.0) or 0.0) for f in 'rst')
-    else:
-        p, q = float(obj.plini or 0.0), float(obj.qlini or 0.0)
-    return p * 1000.0, q * 1000.0
+    return float(p or 0.0) * 1000.0, float(q or 0.0) * 1000.0
 
 
 def medir_cabecera(app, elm):
