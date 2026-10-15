@@ -4,6 +4,7 @@ import { useApp } from '../context';
 import { FileDrop } from './ui';
 import type {
   InformeEstudioForm, InformeFactibilidadForm, InformeResultado, InformesContexto, Limites, MaximaCabecera,
+  TrafoCargas, TrafoResultado,
 } from '../types';
 
 const LIMITES: [keyof Limites, string][] = [
@@ -294,7 +295,7 @@ function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, 
     concesion: '' as '' | 'si' | 'no', fc: '',
     perd: { sistema_electrico: '', codigo_sistema: '', reconocido_kw_pct: '', reconocido_kwh_pct: '',
       precio_compra: '' } as Perd,
-    trafo: { kv: '', sin_pct: '', con_pct: '', caso: '' } as Trafo, codigo: '',
+    trafo: { kv: '', sin_pct: '', con_pct: '', caso: '' } as Trafo, codigo: '', trafoCarga: '',
   });
   const { clave, cab, sol, concesion, fc, perd, trafo, codigo } = f;
   const carga = solas.find((c) => `${c.alimentador}|${c.sed}` === clave) ?? null;
@@ -315,6 +316,31 @@ function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, 
     if (await run(() => api.informesPerdidasRuta(ws.id, ruta.trim()))) { setRuta(''); recargar(); }
   };
   const quitarLibro = async () => { if (await run(() => api.informesPerdidasQuitar(ws.id))) recargar(); };
+
+  // T10: la carga de la barra de la SET en el proyecto de transmisión y su caso; el
+  // cálculo suma a esa carga el Δ de cabecera de los flujos de 4.2 y rellena el devanado.
+  const { active } = useApp();
+  const pfBusy = Boolean(active.powerfactory);
+  const jobCargas = Object.values(jobs).filter((j) => j.kind === 'informe_trafo_cargas').pop();
+  const ad08 = (jobCargas?.status === 'done' ? jobCargas.result : null) as TrafoCargas | null;
+  const jobTrafo = Object.values(jobs).filter((j) => j.kind === 'informe_trafo').pop();
+  const anio = cab.fecha.slice(0, 4);
+  const casoPropuesto = ad08?.casos.includes(`${anio}_D`) ? `${anio}_D` : ad08?.caso_activo ?? '';
+  const [caso, setCaso] = useState('');
+  const casoElegido = caso || trafo.caso || casoPropuesto;
+  const aplicado = useRef('');
+  useEffect(() => {
+    if (jobTrafo?.status !== 'done' || !jobTrafo.result || aplicado.current === jobTrafo.id) return;
+    aplicado.current = jobTrafo.id;
+    const r = jobTrafo.result as TrafoResultado;
+    const t = (v: number | null) => (v == null ? '' : String(Math.round(v * 100) / 100));
+    fijar({ trafo: { kv: t(r.devanado.kv), sin_pct: t(r.devanado.sin_pct), con_pct: t(r.devanado.con_pct), caso: r.caso } });
+  }, [jobTrafo?.id, jobTrafo?.status]);  // eslint-disable-line react-hooks/exhaustive-deps
+  const calcularTrafo = () => {
+    if (!carga) return;
+    void startJob(() => api.informesTrafo(ws.id, { project, alimentador: carga.alimentador, carga: f.trafoCarga,
+      caso: casoElegido }));
+  };
 
   // RF-60 y RF-92: factor de carga del mes de la máxima del medidor de ese alimentador.
   const fcMedido = useMemo(() => {
@@ -428,11 +454,42 @@ function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, 
           <Campos campos={PERDIDAS} valores={perd} fijar={(k, v) => setPerd((p) => ({ ...p, [k]: v }))} />
         </div>
         <p><strong>Transformador de la SET (del proyecto de transmisión)</strong></p>
+        <p className="muted small">El proyecto de transmisión tiene una carga por barra de SET, no por alimentador: elija
+          la de la barra de {carga.alimentador}. Sin proyecto se calcula el caso tal cual; con proyecto, esa carga más lo
+          que sube la cabecera de {carga.alimentador} entre los flujos de 4.2. Nada se guarda en el proyecto de
+          transmisión.</p>
+        <div className="form-grid">
+          <div className="field">
+            <span>Carga de la barra de la SET</span>
+            <input list="ad08-cargas" value={f.trafoCarga} placeholder={ad08 ? `${ad08.cargas.length} cargas` : 'lea antes las cargas'}
+              onChange={(e) => fijar({ trafoCarga: e.target.value })} />
+            <datalist id="ad08-cargas">{(ad08?.cargas ?? []).map((c) => (
+              <option key={c.nombre} value={c.nombre}>{c.barra} · {c.kv ?? '?'} kV · {c.trafos.join(', ')}</option>
+            ))}</datalist>
+          </div>
+          <label className="field"><span>Caso de estudio</span>
+            {ad08 ? <select value={casoElegido} onChange={(e) => setCaso(e.target.value)}>
+              {ad08.casos.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select> : <input value={casoElegido} onChange={(e) => setCaso(e.target.value)} placeholder={`${anio}_D`} />}
+          </label>
+        </div>
+        <div className="row">
+          <button className="btn btn-sm" disabled={pfBusy} onClick={() => void startJob(() => api.informesTrafoCargas(ws.id))}>
+            Leer cargas del proyecto de transmisión
+          </button>
+          <button className="btn btn-sm btn-pf" disabled={pfBusy || !f.trafoCarga.trim()} onClick={calcularTrafo}>
+            Calcular la cargabilidad en DIgSILENT
+          </button>
+          {jobTrafo?.status === 'failed' && <small className="alert alert-error">{jobTrafo.error}</small>}
+          {jobTrafo?.status === 'done' && jobTrafo.result && <small className="muted">
+            {(jobTrafo.result as TrafoResultado).transformador} en {(jobTrafo.result as TrafoResultado).caso}, con
+            Δ {fmtNum((jobTrafo.result as TrafoResultado).delta_kw, 0)} kW.</small>}
+        </div>
         <div className="form-grid">
           <Campos campos={TRAFO} valores={trafo} fijar={(k, v) => setTrafo((t) => ({ ...t, [k]: v }))} />
         </div>
         <small className="muted">Sin la cargabilidad del transformador el informe no puede concluir que la carga es
-          factible (RF-71): léala en el proyecto de transmisión de DIgSILENT.</small>
+          factible (RF-71).</small>
       </>}
       <div className="row">
         <button className="btn btn-primary" disabled={busy || Boolean(motivo)} onClick={generar}>

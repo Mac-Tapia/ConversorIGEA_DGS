@@ -238,6 +238,22 @@ class TransformadorSetIn(BaseModel):
     caso: str = ''
 
 
+class TransformadorListarIn(BaseModel):
+    """Proyecto de transmisión; vacío, el del perfil de empresa (017:RF-95)."""
+
+    transmision: str = ''
+
+
+class TransformadorCalcularIn(BaseModel):
+    """Carga de la barra de la SET en el proyecto de transmisión y su caso (017:RF-65b)."""
+
+    project: str = Field(min_length=1)
+    alimentador: str = Field(min_length=1)
+    carga: str = Field(min_length=1)
+    caso: str = ''
+    transmision: str = ''
+
+
 class InformeFormularioIn(BaseModel):
     """Lo escrito en un formulario de 4.4, para no perderlo al recargar (017:RF-82)."""
 
@@ -1258,6 +1274,23 @@ def create_app(
     @app.delete('/api/workspaces/{wid}/informes/perdidas')
     def informes_perdidas_quitar(wid: str) -> dict:
         return services.informes_perdidas_quitar(ws_or_404(wid))
+
+    @app.post('/api/workspaces/{wid}/informes/transformador/cargas', status_code=202)
+    def informes_trafo_cargas(wid: str, body: TransformadorListarIn) -> dict:
+        """Spec 017, T10: cargas de barra y casos del proyecto de transmisión."""
+        ws = ws_or_404(wid)
+        return submit(ws, 'informe_trafo_cargas', 'Cargas del proyecto de transmisión',
+                      lambda ctx: services.transformador_set_listar(ws, ctx, body.transmision),
+                      lane='powerfactory')
+
+    @app.post('/api/workspaces/{wid}/informes/transformador', status_code=202)
+    def informes_trafo(wid: str, body: TransformadorCalcularIn) -> dict:
+        """Spec 017, T10: cargabilidad del devanado de la SET sin y con proyecto."""
+        ws = ws_or_404(wid)
+        return submit(ws, 'informe_trafo', f'Transformador de la SET · {body.carga}',
+                      lambda ctx: services.transformador_set_calcular(
+                          ws, ctx, body.project, body.alimentador, body.carga, body.caso, body.transmision),
+                      lane='powerfactory')
 
     @app.post('/api/workspaces/{wid}/informes/factibilidad', status_code=202)
     def informe_factibilidad(wid: str, body: InformeFactibilidadIn) -> dict:

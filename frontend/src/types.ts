@@ -810,6 +810,25 @@ export interface InformeFactibilidadForm {
   transformador_set: { kv: number | null; sin_pct: number | null; con_pct: number | null; caso: string };
 }
 
+/** Spec 017, T10: cargas de barra del proyecto de transmisión y sus casos de estudio. */
+export interface TrafoCargas {
+  project: string;
+  casos: string[];
+  caso_activo: string | null;
+  cargas: { nombre: string; barra: string; kv: number | null; trafos: string[] }[];
+}
+
+export interface TrafoResultado {
+  project: string;
+  caso: string;
+  carga: string;
+  transformador: string;
+  delta_kw: number;
+  delta_kvar: number;
+  avisos: string[];
+  devanado: { kv: number | null; sin_pct: number | null; con_pct: number | null };
+}
+
 export interface InformeResultado {
   informe: string;
   json: string;

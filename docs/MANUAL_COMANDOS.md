@@ -936,6 +936,7 @@ se ejecutan con el intérprete de PowerFactory (Python 3.12 con `powerfactory.py
 | `estudios_pf.py` | Un estudio de la spec 011 en «Sin proyecto» o «Con proyecto», sin aplicar las propuestas de los optimizadores (sección 7.ter). | PF |
 | `obras_pf.py` | Obras de mejora de la spec 011: con `--bibliotecas`, alimentadores y tipos de las tres bibliotecas para el formulario; sin él, simula o aplica las obras en sus casos (sección 7.ter). | PF |
 | `transferencia_pf.py` | Transferencia de carga entre dos alimentadores por su enlace, en los dos sentidos, sin dejar nada en el proyecto (spec 011; sección 7.ter). | PF |
+| `transformador_set_pf.py` | Cargabilidad del devanado del transformador de la SET en el proyecto de transmisión (AD08), sin y con proyecto: a la carga de la barra de la SET se le suma el Δ de cabecera de los flujos guardados de 4.2; `--listar` da las cargas de barra y los casos. Nada se guarda (spec 017, T10; paso 4.4.2). | PF |
 | `check_pf_license.py` | Qué módulos de PowerFactory permite la licencia. | PF |
 | `compare_schema.py` | Cabeceras de un DGS de otra versión de PF frente a un perfil de esquema. | |
 | `convertir_grupos_mdb.py` | Varios alimentadores de una base en un DGS, importado y con flujo. | PF |
