@@ -3399,6 +3399,80 @@ def _perdidas_del_libro(ws: Workspace, alimentadores: list[str]) -> dict | None:
     return out
 
 
+def _proyecto_transmision(transmision: str | None) -> str:
+    """El proyecto de transmisión pedido, o el del perfil de empresa (RF-65, RF-95)."""
+    from ..informes import ConfigInforme, InformeError
+    from ..perfil_empresa import datos_perfil
+
+    if transmision and transmision.strip():
+        return transmision.strip()
+    try:
+        proyecto = ConfigInforme.de_perfil(datos_perfil(), project_root()).proyecto_transmision
+    except InformeError as exc:
+        raise UserError(str(exc)) from exc
+    if not proyecto:
+        raise UserError('El perfil de empresa no indica el proyecto de transmisión '
+                        '(informes.proyecto_transmision): escríbalo en 4.4.2.')
+    return proyecto
+
+
+def transformador_set_listar(ws: Workspace, ctx: JobContext, transmision: str | None = None) -> dict:
+    """Cargas de barra del proyecto de transmisión con su transformador, y sus casos (T10).
+
+    En AD08 no hay una carga por alimentador (sonda del 2026-10-15): el operador elige la
+    de la barra de la SET de la que cuelga el alimentador.
+    """
+    proyecto = _proyecto_transmision(transmision)
+    ctx.log(f'Proyecto de transmisión: {proyecto}  ·  cargas de barra y casos de estudio')
+    _rc, informe, _report = _guion_pf(ws, ctx, 'transformador_set_pf.py',
+                                      {'project': proyecto, 'folder': carpeta_pf()},
+                                      nombre='trafo_set_listar', args=('--listar',), cancelable=False)
+    if informe.get('error'):
+        raise UserError(informe['error'])
+    return {**informe, 'project': proyecto}
+
+
+def transformador_set_calcular(ws: Workspace, ctx: JobContext, project: str, alimentador: str,
+                               carga: str, caso: str, transmision: str | None = None) -> dict:
+    """Cargabilidad del devanado de la SET sin y con proyecto (spec 017, RF-65 a RF-68).
+
+    Decidido por el usuario el 2026-10-15: sin proyecto, el caso de transmisión tal cual;
+    con proyecto, a la carga de la barra se le suma el Δ P/Q de cabecera «Con − Sin
+    proyecto» del alimentador, de los flujos que ya guardó 4.2: nada se vuelve a simular
+    en el proyecto del alimentador. Nada se guarda en el de transmisión (RF-68).
+    """
+    from ..estudios_pf import CON_PROYECTO, SIN_PROYECTO
+
+    proyecto = _proyecto_transmision(transmision)
+    sin, con = _ultimo_estudio(ws, 'sin', project), _ultimo_estudio(ws, 'con', project)
+    medidas = []
+    for rol, datos in ((SIN_PROYECTO, sin), (CON_PROYECTO, con)):
+        medida = ((datos or {}).get('medidas') or {}).get(alimentador)
+        if not medida or medida.get('cabecera_kw') is None or medida.get('cabecera_kvar') is None:
+            raise UserError(f'No hay un flujo convergido de «{rol}» de {alimentador} en 4.2: sin él no '
+                            'se sabe cuánto sube la cabecera.')
+        medidas.append(medida)
+    delta_kw = float(medidas[1]['cabecera_kw']) - float(medidas[0]['cabecera_kw'])
+    delta_kvar = float(medidas[1]['cabecera_kvar']) - float(medidas[0]['cabecera_kvar'])
+    ctx.log(f'{proyecto} · {caso or "caso activo"} · {carga}: Δ de {alimentador} '
+            f'{delta_kw:+.1f} kW, {delta_kvar:+.1f} kvar (de {sin["_fichero"]} y {con["_fichero"]})')
+    rc, informe, report = _guion_pf(
+        ws, ctx, 'transformador_set_pf.py',
+        {'project': proyecto, 'folder': carpeta_pf(), 'caso': caso, 'carga': carga,
+         'delta_kw': delta_kw, 'delta_kvar': delta_kvar},
+        nombre='trafo_set', cancelable=False)
+    if informe.get('error'):
+        raise UserError(informe['error'])
+    t_sin = ((informe.get('sin') or {}).get('trafos') or [None])[0]
+    t_con = ((informe.get('con') or {}).get('trafos') or [None])[0]
+    if t_sin is None or t_con is None:
+        raise UserError(f'La barra de {carga} no tiene transformador con resultados en {informe.get("caso")}.')
+    return {'project': proyecto, 'caso': informe.get('caso'), 'carga': carga, 'report': report.name,
+            'delta_kw': delta_kw, 'delta_kvar': delta_kvar, 'avisos': informe.get('avisos') or [],
+            'transformador': t_sin['nombre'],
+            'devanado': {'kv': t_sin['kv'], 'sin_pct': t_sin['devanado_pct'], 'con_pct': t_con['devanado_pct']}}
+
+
 def carga_del_informe(ws: Workspace, project: str, alimentador: str, sed: str) -> dict:
     """La carga nueva del informe de factibilidad, que tiene que estar aplicada y sola (RF-47)."""
     from ..demanda_medida import clave_codigo

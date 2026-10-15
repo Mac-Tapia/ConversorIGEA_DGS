@@ -48,8 +48,14 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Sonda del 2026-10-15 (solo lectura, solo cargas, barras y trafos de AD08): las 859
       cargas de AD08 son por barra de SET y tensión (`LElCarmen10` en `CAR10A`, 7,53 MW;
       `LElCarmen23` en `CAR23A`), ninguna por alimentador; CA101 va dentro de `LElCarmen10`,
-      bajo el `ElmTr3` `TR1 EL CARMEN_N` (60/23/10 kV). RF-67 y RF-67c no se cumplen así:
-      falta que el usuario decida cómo entra el alimentador en la carga de su barra.
+      bajo el `ElmTr3` `TR1 EL CARMEN_N` (60/23/10 kV). Decidido por el usuario: Δ de
+      cabecera de 4.2 sumado a la carga de la barra, caso «{año}_D» (RF-67 cambiado).
+      Estado 2026-10-15: `tools/transformador_set_pf.py` (con `--listar`), probado en
+      `tests/test_transformador_set_pf.py` y en DIgSILENT real sobre AD08 con Δ = 0
+      (no hay flujo de «Con proyecto» de CA101 guardado): 2026_D, `LElCarmen10`,
+      devanado de 10 kV al 42,27 %, carga restituida; el listado da 525 cargas con
+      transformador en 28 s. Botones en 4.4.2. Falta la imagen del unifilar (RF-69,
+      RF-119) y la prueba con un Δ real (T14).
 - [ ] T11. API, trabajo en el carril `powerfactory` y CLI con el mismo plan. (RF-26, RF-82,
       RF-96, RF-97, RF-99, RF-103 a RF-105)
       Hecho cuando: una prueba por endpoint en `tests/test_web_api.py`.

@@ -219,3 +219,38 @@ def test_libro_de_perdidas_se_lee_y_entra_en_el_informe(client, tmp_path, monkey
     resumen = json.loads((salida / fin['result']['json']).read_text(encoding='utf-8'))
     assert resumen['libro']['sistema_electrico'] == 'ICA URBANO'
     assert resumen['perdidas']['actual']['no_reconocida_soles'] is not None
+
+
+def test_transformador_con_el_delta_de_los_flujos_guardados(client, tmp_path, monkeypatch):
+    """017:RF-65, 017:RF-67, 017:RF-67b — el Δ de cabecera «Con − Sin» de 4.2 va al guion de
+    transmisión; nada se vuelve a simular en el proyecto del alimentador."""
+    from igea_dgs.web import services
+
+    wid, salida = _espacio(client, tmp_path)
+    con = next(salida.glob('estudio_con_*.json'))
+    datos = json.loads(con.read_text(encoding='utf-8'))
+    datos['medidas']['AL01'].update(cabecera_kw=6800.0, cabecera_kvar=3300.0)
+    con.write_text(json.dumps(datos), encoding='utf-8')
+    planes = []
+
+    def guion(_ws, _ctx, script, plan, **_kw):
+        planes.append((script, plan))
+        t = {'nombre': 'TR1', 'kv': 10.0, 'lado': 'buslv'}
+        return 0, {'caso': plan.get('caso'), 'sin': {'converge': True, 'trafos': [{**t, 'devanado_pct': 40.0}]},
+                   'con': {'converge': True, 'trafos': [{**t, 'devanado_pct': 45.0}]}, 'restituida': True}, \
+            salida / 'trafo.json'
+
+    monkeypatch.setattr(services, '_guion_pf', guion)
+    job = client.post(f'/api/workspaces/{wid}/informes/transformador',
+                      json={'project': '', 'alimentador': 'AL01', 'carga': 'LElCarmen10', 'caso': '2026_D',
+                            'transmision': 'AD08'})
+    assert job.status_code == 422, 'el proyecto del alimentador es obligatorio'
+    job = client.post(f'/api/workspaces/{wid}/informes/transformador',
+                      json={'project': 'PRY', 'alimentador': 'AL01', 'carga': 'LElCarmen10', 'caso': '2026_D',
+                            'transmision': 'AD08'})
+    fin = esperar_trabajo(client, job.json())
+    assert fin['status'] == 'done', fin
+    script, plan = planes[0]
+    assert script == 'transformador_set_pf.py' and plan['project'] == 'AD08'
+    assert (plan['delta_kw'], plan['delta_kvar']) == (800.0, 300.0)
+    assert fin['result']['devanado'] == {'kv': 10.0, 'sin_pct': 40.0, 'con_pct': 45.0}

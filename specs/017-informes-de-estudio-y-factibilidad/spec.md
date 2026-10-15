@@ -261,6 +261,14 @@ el modelo no se incluyen.
   el informe.
 - RF-67e: DONDE parte del alimentador pase a otra tensión en el estado proyectado, EL
   SISTEMA pondrá esa parte en la barra de esa tensión de la misma SET.
+  > Cambio del 2026-10-15 (el usuario, tras la sonda de AD08): el proyecto de transmisión no
+  > tiene una carga por alimentador sino por barra de SET (`LElCarmen10` en `CAR10A` lleva
+  > CA101 y los demás de 10 kV de El Carmen). RF-67 y RF-67c quedan así: el operador elige
+  > la carga de la barra de la SET; sin proyecto se calcula el caso tal cual y con proyecto
+  > se suma a esa carga el Δ P/Q de cabecera «Con − Sin proyecto» de los flujos ya
+  > guardados en 4.2, sin volver a simular el proyecto del alimentador. El caso por
+  > defecto es «{año del informe}_D» (RF-65b). RF-67d y RF-67e no aplican mientras el
+  > alimentador entre por su Δ.
 - RF-68: EL SISTEMA no guardará ningún cambio en el proyecto de transmisión.
 - RF-69: EL SISTEMA dará la imagen del transformador de la SET con su cargabilidad, del
   diagrama del proyecto de transmisión.
