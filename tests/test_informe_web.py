@@ -163,3 +163,59 @@ def test_factibilidad_rechaza_carga_en_bloque_y_formulario_incompleto(client, tm
     assert r.status_code == 400 and 'en bloque' in r.json()['detail']
     incompleto = {**FACTIBILIDAD, 'solicitud': {**FACTIBILIDAD['solicitud'], 'cliente': ''}}
     assert client.post(f'/api/workspaces/{wid}/informes/factibilidad', json=incompleto).status_code == 422
+
+
+def test_formulario_se_conserva_al_reiniciar(client, tmp_path):
+    """017:RF-82 — lo escrito en 4.4 vuelve con el contexto, también tras reiniciar la web."""
+    wid, _ = _espacio(client, tmp_path)
+    datos = {'cab': {'asunto': 'MI ASUNTO'}, 'antecedentes': 'Texto largo.'}
+    r = client.put(f'/api/workspaces/{wid}/informes/formulario',
+                   json={'project': 'PRY', 'tipo': 'estudio', 'datos': datos})
+    assert r.status_code == 200, r.text
+    assert client.put(f'/api/workspaces/{wid}/informes/formulario',
+                      json={'project': 'PRY', 'tipo': 'otro', 'datos': {}}).status_code == 422
+    with TestClient(create_app(tmp_path / 'web')) as otra:
+        ctx = otra.get(f'/api/workspaces/{wid}/informes', params={'project': 'PRY'}).json()
+    assert ctx['formularios'] == {'estudio': datos}
+
+
+def test_libro_de_perdidas_se_lee_y_entra_en_el_informe(client, tmp_path, monkeypatch):
+    """017:RF-62, 017:RF-93, 017:RF-94 — el libro subido da lo reconocido del alimentador y
+    el informe lo usa si no se escribió a mano; sin columnas en el perfil, dice cuáles faltan."""
+    import io
+
+    import openpyxl
+
+    wid, salida = _espacio(client, tmp_path)
+    _carga_aplicada(client, wid, salida)
+    libro = openpyxl.Workbook()
+    hoja = libro.active
+    hoja.title = 'Perdidas'
+    hoja.append(['Alimentador', 'Sistema', 'Pérd kW', 'Pérd kWh', 'Precio'])
+    hoja.append(['AL01', 'ICA URBANO', 5.1, 4.2, 0.25])
+    contenido = io.BytesIO()
+    libro.save(contenido)
+    r = client.post(f'/api/workspaces/{wid}/informes/perdidas',
+                    files={'file': ('perdidas.xlsx', contenido.getvalue())})
+    assert r.status_code == 200, r.text
+    sin_perfil = client.get(f'/api/workspaces/{wid}/informes', params={'project': 'PRY', 'feeder': ['AL01']})
+    assert 'libro_perdidas' in sin_perfil.json()['libro_perdidas']['error']
+
+    perfil = Path(tmp_path / 'perfil_empresa.json')
+    datos = json.loads(perfil.read_text(encoding='utf-8'))
+    datos['informes']['libro_perdidas'] = {
+        'hoja': 'Perdidas', 'columnas': {'alimentador': 'Alimentador', 'sistema_electrico': 'Sistema',
+                                         'reconocido_kw_pct': 'Pérd kW', 'reconocido_kwh_pct': 'Pérd kWh'},
+        'precio_compra': {'columna': 'Precio'}}
+    perfil.write_text(json.dumps(datos), encoding='utf-8')
+    ctx = client.get(f'/api/workspaces/{wid}/informes', params={'project': 'PRY', 'feeder': ['AL01']}).json()
+    lectura = ctx['libro_perdidas']['lecturas']['AL01']
+    assert (lectura['sistema_electrico'], lectura['reconocido_kwh_pct'], lectura['precio_compra']) == \
+        ('ICA URBANO', 4.2, 0.25)
+
+    sin_mano = {**FACTIBILIDAD, 'perdidas_reconocidas': {}}
+    fin = esperar_trabajo(client, client.post(f'/api/workspaces/{wid}/informes/factibilidad', json=sin_mano).json())
+    assert fin['status'] == 'done', fin
+    resumen = json.loads((salida / fin['result']['json']).read_text(encoding='utf-8'))
+    assert resumen['libro']['sistema_electrico'] == 'ICA URBANO'
+    assert resumen['perdidas']['actual']['no_reconocida_soles'] is not None

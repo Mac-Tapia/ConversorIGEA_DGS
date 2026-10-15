@@ -238,6 +238,14 @@ class TransformadorSetIn(BaseModel):
     caso: str = ''
 
 
+class InformeFormularioIn(BaseModel):
+    """Lo escrito en un formulario de 4.4, para no perderlo al recargar (017:RF-82)."""
+
+    project: str = Field(min_length=1)
+    tipo: Literal['estudio', 'factibilidad']
+    datos: dict[str, Any] = Field(default_factory=dict)
+
+
 class InformeFactibilidadIn(BaseModel):
     """Formulario del informe de factibilidad y punto de diseño (spec 017, RF-47 a RF-72)."""
 
@@ -1220,6 +1228,36 @@ def create_app(
                           job_id: str | None = None) -> dict:
         """Spec 017, paso 4.4: lo que la web ya guardó para cada informe, sin DIgSILENT."""
         return services.informes_contexto(ws_or_404(wid), project, feeder, job_id)
+
+    @app.put('/api/workspaces/{wid}/informes/formulario')
+    def informes_formulario(wid: str, body: InformeFormularioIn) -> dict:
+        """017:RF-82: lo escrito en 4.4 queda en el servidor al recargar la página."""
+        return services.informes_formulario_guardar(ws_or_404(wid), body.project, body.tipo, body.datos)
+
+    @app.post('/api/workspaces/{wid}/informes/perdidas')
+    def informes_perdidas_subir(wid: str, file: UploadFile = File(...)) -> dict:
+        """017:RF-93: el libro de pérdidas de la empresa, guardado con el espacio."""
+        ws = ws_or_404(wid)
+        carpeta = services.informes_carpeta_perdidas(ws)
+        shutil.rmtree(carpeta, ignore_errors=True)
+        carpeta.mkdir(parents=True, exist_ok=True)
+        destino = carpeta / safe_filename(file.filename or 'perdidas.xlsx')
+        _save_upload(destino, file)
+        return services.informes_perdidas_asignar(ws, destino, 'upload')
+
+    @app.post('/api/workspaces/{wid}/informes/perdidas/path')
+    def informes_perdidas_ruta(wid: str, body: ServerPathIn) -> dict:
+        ws = ws_or_404(wid)
+        if not _server_paths_allowed(host):
+            raise HTTPException(403, 'Este servidor no admite rutas locales: suba el fichero.')
+        path = Path(body.path.strip().strip('"'))
+        if not path.is_file():
+            raise HTTPException(400, f'No existe: {path}')
+        return services.informes_perdidas_asignar(ws, path, 'server')
+
+    @app.delete('/api/workspaces/{wid}/informes/perdidas')
+    def informes_perdidas_quitar(wid: str) -> dict:
+        return services.informes_perdidas_quitar(ws_or_404(wid))
 
     @app.post('/api/workspaces/{wid}/informes/factibilidad', status_code=202)
     def informe_factibilidad(wid: str, body: InformeFactibilidadIn) -> dict:

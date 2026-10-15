@@ -3328,7 +3328,75 @@ def informes_contexto(ws: Workspace, project: str, feeders: list[str], job_id: s
     cargas = [c for c in _cargas_nuevas_aplicadas(ws, project) if clave_codigo(c['alimentador']) in claves]
     return {'faltan': faltan, 'limites': limites, 'estudios': estudios, 'obras': obras,
             'cargas': cargas, 'factor_carga': _factor_de_carga_cabecera(ws, job_id),
-            'generados': _informes_generados(ws)}
+            'generados': _informes_generados(ws),
+            'formularios': dict((ws.informes.get('formularios') or {}).get(project.strip()) or {}),
+            'libro_perdidas': _perdidas_del_libro(ws, list(feeders))}
+
+
+#: Tope de lo que se guarda de un formulario de 4.4: textos de antecedentes, no ficheros.
+MAX_FORMULARIO_BYTES = 200_000
+
+
+def informes_formulario_guardar(ws: Workspace, project: str, tipo: str, datos: dict) -> dict:
+    """Lo escrito en un formulario de 4.4, con el espacio y en el servidor (017:RF-82)."""
+    from ..informes import TIPOS
+
+    if tipo not in TIPOS:
+        raise UserError(f'Tipo de informe desconocido: {tipo}.')
+    if len(json.dumps(datos, ensure_ascii=False)) > MAX_FORMULARIO_BYTES:
+        raise UserError('El formulario es demasiado grande para guardarlo.')
+    with ws.lock:
+        ws.informes.setdefault('formularios', {}).setdefault(project.strip(), {})[tipo] = datos
+        ws.save()
+    return {'guardado': True}
+
+
+def informes_carpeta_perdidas(ws: Workspace) -> Path:
+    return ws.root / 'informes' / 'perdidas'
+
+
+def informes_perdidas_asignar(ws: Workspace, path: Path, origin: str) -> dict:
+    """El libro de pérdidas de la empresa del informe de factibilidad (017:RF-93)."""
+    if not path.is_file() or path.suffix.lower() not in ('.xlsx', '.xlsm'):
+        raise UserError(f'{path.name}: el libro de pérdidas tiene que ser .xlsx o .xlsm.')
+    with ws.lock:
+        ws.informes['libro_perdidas'] = {'path': str(path), 'name': path.name, 'origin': origin}
+        ws.save()
+    return {'name': path.name, 'origin': origin}
+
+
+def informes_perdidas_quitar(ws: Workspace) -> dict:
+    import shutil
+
+    with ws.lock:
+        ws.informes.pop('libro_perdidas', None)
+        ws.save()
+    shutil.rmtree(informes_carpeta_perdidas(ws), ignore_errors=True)
+    return {'quitado': True}
+
+
+def _perdidas_del_libro(ws: Workspace, alimentadores: list[str]) -> dict | None:
+    """Lo que el libro de pérdidas dice de cada alimentador, o por qué no se lee (RF-94).
+
+    Las hojas y columnas las da el perfil de empresa (RF-63): sin ellas, el error nombra
+    las claves que faltan.
+    """
+    from dataclasses import asdict
+
+    from ..libros_informe import ColumnasPerdidas, LibroError, leer_libro_perdidas
+    from ..perfil_empresa import datos_perfil
+
+    meta = ws.informes.get('libro_perdidas')
+    if not meta:
+        return None
+    out = {'name': meta['name'], 'origin': meta.get('origin'), 'lecturas': {}, 'error': None}
+    try:
+        columnas = ColumnasPerdidas.de_perfil(datos_perfil())
+        for alimentador in alimentadores:
+            out['lecturas'][alimentador] = asdict(leer_libro_perdidas(Path(meta['path']), alimentador, columnas))
+    except LibroError as exc:
+        out['error'] = str(exc)
+    return out
 
 
 def carga_del_informe(ws: Workspace, project: str, alimentador: str, sed: str) -> dict:
@@ -3422,6 +3490,13 @@ def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict
                               reconocidas.get('reconocido_kw_pct'), reconocidas.get('reconocido_kwh_pct'),
                               reconocidas.get('precio_compra'), tuple(faltan),
                               reconocidas.get('codigo_sistema') or None)
+    else:
+        # RF-62: sin nada escrito a mano, lo del libro de pérdidas subido en 4.4.2.
+        leido = _perdidas_del_libro(ws, [alimentador])
+        if leido and leido['error']:
+            raise UserError(f'Libro de pérdidas: {leido["error"]}')
+        if leido:
+            libro = DatosPerdidas(**leido['lecturas'][alimentador])
 
     def perdidas(caso: Caso):
         if fc is None or not caso.converge or caso.fuente is None or caso.perdidas is None:

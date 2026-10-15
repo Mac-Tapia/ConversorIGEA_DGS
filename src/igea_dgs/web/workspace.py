@@ -142,6 +142,9 @@ class Workspace:
     # Obras de mejora definidas en el formulario hasta que se aplican (spec 011, RF-95),
     # cada una con su ``id`` y la forma de ``obras_pf.Obra.a_dict``.
     obras: list[dict[str, Any]] = field(default_factory=list)
+    # Spec 017: lo escrito en los formularios de 4.4 por proyecto y tipo (RF-82), y el
+    # libro de pérdidas de la empresa (RF-93), para no perderlos al recargar la página.
+    informes: dict[str, Any] = field(default_factory=lambda: {'formularios': {}})
     # --- solo en memoria
     dataset: Any = None
     loaded_run_id: str | None = None
@@ -206,6 +209,7 @@ class Workspace:
             'active_run_id': self.active_run_id,
             'demanda': self.demanda,
             'obras': self.obras,
+            'informes': self.informes,
         }
         self.root.mkdir(parents=True, exist_ok=True)
         tmp = self.root / 'workspace.json.tmp'
@@ -237,6 +241,14 @@ class Workspace:
         ws.demanda = {tipo: meta for tipo, meta in (data.get('demanda') or {}).items()
                       if isinstance(meta, dict) and Path(meta.get('path', '')).exists()}
         ws.obras = [o for o in (data.get('obras') or []) if isinstance(o, dict) and o.get('id')]
+        informes = data.get('informes') if isinstance(data.get('informes'), dict) else {}
+        libro = informes.get('libro_perdidas')
+        ws.informes = {
+            'formularios': dict(informes.get('formularios') or {}),
+            # Como las entradas: un libro que ya no está no se restaura.
+            **({'libro_perdidas': libro} if isinstance(libro, dict)
+               and Path(libro.get('path', '')).is_file() else {}),
+        }
         run_id = data.get('active_run_id')
         if run_id and (root / 'runs' / str(run_id) / 'source_manifest.json').is_file():
             ws.active_run_id = str(run_id)
