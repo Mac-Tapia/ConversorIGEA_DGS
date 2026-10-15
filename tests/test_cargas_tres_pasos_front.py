@@ -69,8 +69,9 @@ def test_medidores_por_alimentador_y_maxima_en_un_trabajo():
 
 
 def test_clientes_de_los_marcados():
-    """008:RF-11 — el cruce de clientes es el de los alimentadores marcados."""
-    assert 'api.demandaClientes(ws.id, feeders)' in DEMANDA
+    """008:RF-11 / 013:RF-8 — el cruce de clientes es el de los alimentadores marcados, con
+    el mes elegido en «2.3» si lo hay."""
+    assert 'api.demandaClientes(ws.id, feeders, periodo || undefined)' in DEMANDA
 
 
 def test_ajuste_de_varios_y_su_informe():
