@@ -2102,6 +2102,8 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
     # 015:RF-54, RF-57: el factor de potencia de las escaladas, del perfil de empresa.
     try:
         fp_cargas = factor_potencia_cargas(datos_perfil())
+        # 015:RF-62: el mínimo de las fijas, por su banco propio.
+        fp_min_fijas = factor_potencia_cargas(datos_perfil(), 'factor_potencia_minimo_fijas')
     except PerfilError as exc:
         raise UserError(f'Perfil de empresa: {exc}') from exc
     requested_feeders = [str(row.get('alimentador') or '').strip() for row in filas]
@@ -2173,7 +2175,7 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
             avisos.append('Sin libros de suministros y de clientes: todas las SED se reparten por kVA.')
         apagados = [c for c in clientes if str(c.get('codigo') or '').strip() in fuera]
         clientes = [c for c in clientes if str(c.get('codigo') or '').strip() not in fuera]
-        fixed = fijas_de(clientes, objetivo)
+        fixed = fijas_de(clientes, objetivo, fp_min_fijas)
         fixed_evidence = [{
             'sed': item.sed, 'p_kw': item.kw, 'q_kvar': item.kvar, 'fp': item.fp,
             'clientes': list(item.clientes), 'derivaciones': list(item.derivaciones),
@@ -2206,6 +2208,7 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
             'tolerancia': tolerancia,
             # 015:RF-54: solo las escaladas; None deja la Q del archivo (RF-55).
             'factor_potencia_cargas': fp_cargas,
+            'factor_potencia_minimo_fijas': fp_min_fijas,
             'caso_base_sin_verificar': {},
             # 014:RF-10: la demanda que dejó la última calibración, para ver lo manual.
             'ultima_calibracion': (ws.calibraciones.get(project.strip()) or {}).get(alimentador),
@@ -2250,10 +2253,20 @@ def _guardar_calibracion(ws: Workspace, project: str, feeder: str, informe: dict
         return
     sed = {x['sed']: [(x.get('despues') or {}).get('kw'), (x.get('despues') or {}).get('kvar')]
            for x in informe['sed'] if (x.get('despues') or {}).get('kw') is not None}
+    # 015:RF-65: los clientes fijos con su FP real (EA/ERI) y el corregido, para el informe.
+    fijas = []
+    for x in informe['sed']:
+        for d in x.get('derivaciones') or []:
+            comp = d.get('compensado') or {}
+            fijas.append({
+                'sed': x['sed'], 'cliente': d.get('cliente'), 'p_kw': d.get('p_kw'),
+                'fp_real': comp.get('fp_ea_eri', d.get('fp')), 'fp_corregido': d.get('fp'),
+                'q_real_kvar': comp.get('q_ea_eri_kvar', d.get('q_kvar')),
+                'q_kvar': d.get('q_kvar'), 'compensado': bool(comp)})
     with ws.lock:
         ws.calibraciones.setdefault(project.strip(), {})[feeder] = {
             'nombre': f"la calibración del {informe.get('stamp') or time.strftime('%Y-%m-%d %H:%M')}",
-            'sed': sed, 'cuadrado': bool(informe.get('cuadrado')),
+            'sed': sed, 'fijas': fijas, 'cuadrado': bool(informe.get('cuadrado')),
             'escenario': informe.get('escenario'), 'recorded_at': time.time()}
         ws.save()
 
@@ -3094,6 +3107,20 @@ def _ultimo_estudio(ws: Workspace, rol: str) -> dict | None:
     return None
 
 
+def _fijas_de_la_calibracion(ws: Workspace, estudio: dict, alimentador: str) -> list[dict]:
+    """Los clientes fijos de la última calibración del alimentador (015:RF-65).
+
+    Del proyecto del estudio si lo dice; si no, de la única calibración de ese alimentador.
+    """
+    proyecto = str(estudio.get('project') or '').strip()
+    candidatas = ([ws.calibraciones.get(proyecto, {}).get(alimentador)] if proyecto else
+                  [c.get(alimentador) for c in ws.calibraciones.values()])
+    candidatas = [c for c in candidatas if c]
+    if len(candidatas) != 1:
+        return []
+    return list(candidatas[0].get('fijas') or [])
+
+
 def informe_estudio(ws: Workspace, ctx: JobContext | None, formulario: dict) -> dict:
     """Escribe el informe de estudio eléctrico de un alimentador (spec 017, RF-1b, RF-29, RF-30).
 
@@ -3157,7 +3184,8 @@ def informe_estudio(ws: Workspace, ctx: JobContext | None, formulario: dict) -> 
                          numero=formulario.get('numero') or None,
                          antecedentes=lineas(formulario.get('antecedentes')),
                          descripcion=lineas(formulario.get('descripcion')),
-                         bancos=tuple(sin['medidas'][alimentador].get('bancos') or ()))
+                         bancos=tuple(sin['medidas'][alimentador].get('bancos') or ()),
+                         fijas=tuple(_fijas_de_la_calibracion(ws, sin, alimentador)))
     destino = ws.out_dir / f'informe_estudio_{nombre_seguro(alimentador)}_{uuid.uuid4().hex[:8]}.docx'
     try:
         huecos = escribir_informe_estudio(config, destino, datos)

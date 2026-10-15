@@ -200,3 +200,21 @@ Spec aprobada el 2026-10-08.
 - [x] T23. Validación: RF-26 y RF-27 citados, `tsc` y `build` correctos, suite en verde.
       Hecho el 2026-10-08: 951 correctas y 18 omitidas (las de siempre); RF-14 en verde.
 
+## Cuarto cambio del 2026-10-15 (RF-28 a RF-33)
+
+- [x] T24. `/api/health` publica `servidor` (PID, huella del código, trabajos en curso) y
+      `POST /api/sistema/cerrar` cierra el servidor desde el lanzador. (RF-33)
+      Hecho cuando: pruebas de la huella, del rechazo sin cabecera, desde fuera y con
+      trabajos en curso, y del cierre aceptado.
+      Hecho el 2026-10-15 (`tests/test_lanzador_web.py`).
+- [x] T25. `igea_dgs.web` resuelve el puerto ocupado: reutiliza, reemplaza, respeta los
+      trabajos, termina el colgado o cambia de puerto; abre el navegador cuando responde;
+      `run_gui.bat` no pide tecla salvo error. (RF-28 a RF-32)
+      Hecho cuando: una prueba por caso, con servidores falsos en puertos libres.
+      Hecho el 2026-10-15; `test_web_api.py` ajustada: el puerto en manos de otro programa
+      ya no sale con 2, solo si tampoco hay un puerto libre después.
+- [x] T26. Validación: suite en verde y el acceso directo probado en Windows con la web ya
+      abierta, con un servidor de otra versión y con el puerto en uso por otro programa.
+      Hecho el 2026-10-15 con procesos reales en 8797 a 8799: el mismo código se reutiliza
+      (sale con 0 al momento), otra versión sin trabajos se cierra por petición y el nuevo
+      toma su puerto, y con `http.server` en el puerto arranca en el siguiente.

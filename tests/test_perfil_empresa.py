@@ -320,3 +320,16 @@ def test_factor_de_potencia_del_perfil_de_electro_dunas():
     datos = json.loads((raiz / 'electro_dunas.json').read_text(encoding='utf-8'))
     assert factor_potencia_cargas(datos) == 0.98
     assert factor_potencia_cargas({}) is None
+
+
+def test_fp_minimo_de_las_fijas_del_perfil():
+    """015:RF-62 / 015:RF-57 — Electro Dunas fija 0,98 como mínimo de las fijas; un valor
+    imposible se rechaza nombrando la clave."""
+    from igea_dgs.perfil_empresa import factor_potencia_cargas
+
+    raiz = Path(__file__).resolve().parents[1] / 'config' / 'perfiles'
+    datos = json.loads((raiz / 'electro_dunas.json').read_text(encoding='utf-8'))
+    assert factor_potencia_cargas(datos, 'factor_potencia_minimo_fijas') == 0.98
+    with pytest.raises(PerfilError, match='factor_potencia_minimo_fijas'):
+        factor_potencia_cargas({'calibracion': {'factor_potencia_minimo_fijas': 2}},
+                               'factor_potencia_minimo_fijas')

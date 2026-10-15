@@ -53,6 +53,9 @@ class DatosEstudio:
     #: Bancos de condensadores del alimentador como están en DIgSILENT (nombre, barra,
     #: kvar, en_servicio): entran en la calibración y el informe los muestra.
     bancos: Sequence[Mapping[str, Any]] = ()
+    #: Clientes fijos de la última calibración con su FP real (EA/ERI) y el corregido
+    #: (spec 015, RF-65).
+    fijas: Sequence[Mapping[str, Any]] = ()
 
 
 @dataclass(frozen=True)
@@ -470,6 +473,7 @@ def escribir_informe_estudio(config: ConfigInforme, destino: Path, datos: DatosE
     if not _sin_flujo(e, datos.actual):
         _datos_fuente(e, datos.actual, 'Datos de la fuente en MD:')
         _bancos(e, datos.bancos, lista)
+        _fijas(e, datos.fijas, lista)
         _analisis_tension(e, '2.2.1.1 ANÁLISIS DE CAÍDA DE TENSIÓN', datos.actual, actual_img.get('tension'),
                           'estado actual', config)
         _analisis_carga(e, '2.2.1.2 ANÁLISIS DE CARGABILIDAD', datos.actual, actual_img.get('cargabilidad'),
@@ -495,6 +499,7 @@ def escribir_informe_estudio(config: ConfigInforme, destino: Path, datos: DatosE
         'actual': asdict(datos.actual), 'etapas': [asdict(x) for x in etapas],
         'recomendada': rec.etapa.clave if rec.etapa else None, 'cumplen': dict(rec.cumplen),
         'obras_propuestas': [x.clave for x in a_ejecutar], 'bancos': [dict(b) for b in datos.bancos],
+        'fijas': [dict(f) for f in datos.fijas],
         'imagenes': _rutas(datos.imagenes), 'huecos': e.huecos,
     })
     return e.huecos
@@ -509,6 +514,33 @@ def _bancos(e: _Escritor, bancos: Sequence[Mapping[str, Any]], lista: str) -> No
     e.tabla(['Banco', 'Nodo', 'kvar', 'Estado'],
             [[str(b.get('nombre') or ''), str(b.get('barra') or ''), _f(b.get('kvar'), 0),
               'En servicio' if b.get('en_servicio') else 'Fuera de servicio'] for b in bancos])
+
+
+def _fijas(e: _Escritor, fijas: Sequence[Mapping[str, Any]], lista: str) -> None:
+    """Clientes fijos con su FP real (EA/ERI) y el corregido de la calibración (015:RF-65).
+
+    El usuario, 2026-10-15: «poner factor de potencia real y el corregido en el informe
+    modelo». En CA101 los clientes iban de 0,43 a 0,98 y se escribieron a 0,98 por su banco
+    propio; el lector tiene que ver los dos valores.
+    """
+    if not fijas:
+        return
+    e.parrafo(f'Clientes importantes del alimentador {lista} (cargas fijas de la calibración), '
+              'con su factor de potencia real, calculado de su energía activa y reactiva, y '
+              'el corregido con que se modelan:')
+    e.tabla(['SED', 'Cliente', 'P (kW)', 'FP real', 'FP corregido', 'Q real (kvar)',
+             'Q modelada (kvar)'],
+            [[str(f.get('sed') or ''), str(f.get('cliente') or ''), _f(f.get('p_kw'), 1),
+              _f(f.get('fp_real'), 3), _f(f.get('fp_corregido'), 3), _f(f.get('q_real_kvar'), 1),
+              _f(f.get('q_kvar'), 1)] for f in fijas])
+    compensados = [f for f in fijas if f.get('compensado')]
+    if compensados:
+        minimo = min(float(f.get('fp_corregido') or 0) for f in compensados)
+        e.parrafo(f'Los {len(compensados)} clientes con factor de potencia real por debajo de '
+                  f'{_f(minimo, 2)} se modelan compensados por su banco de condensadores propio '
+                  f'hasta {_f(minimo, 2)}: ' + ', '.join(
+                      f"{f.get('sed')} ({_f(f.get('fp_real'), 3)} → {_f(f.get('fp_corregido'), 3)})"
+                      for f in compensados) + '.')
 
 
 def _proyectado(e: _Escritor, datos: DatosEstudio, a_ejecutar: list[Etapa], config: ConfigInforme,

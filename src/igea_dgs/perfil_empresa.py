@@ -178,18 +178,20 @@ def cargar_perfil(ruta: Path | None = None, *, carpeta: Path | None = None) -> P
     return _construir(heredado.nombre, valores, ruta.name)
 
 
-def factor_potencia_cargas(datos: dict[str, Any]) -> float | None:
-    """El factor de potencia de las SED escaladas al calibrar (015:RF-54, RF-57), o None.
+def factor_potencia_cargas(datos: dict[str, Any],
+                           clave: str = 'factor_potencia_cargas') -> float | None:
+    """Un factor de potencia de la sección ``calibracion`` del perfil (015:RF-57), o None.
 
-    Sección ``calibracion`` del perfil: Electro Dunas pide 0,98 (2026-10-15); las fijas
-    siguen con el de su EA/ERI. Sin la clave no se supone nada (015:RF-55).
+    ``factor_potencia_cargas``: el de las SED escaladas (RF-54); ``factor_potencia_minimo_fijas``:
+    el mínimo de los clientes fijos, compensados por su banco propio (RF-62). Electro Dunas
+    pide 0,98 en los dos (2026-10-15). Sin la clave no se supone nada (RF-55).
     """
-    valor = (datos.get('calibracion') or {}).get('factor_potencia_cargas')
+    valor = (datos.get('calibracion') or {}).get(clave)
     if valor is None:
         return None
     if isinstance(valor, bool) or not isinstance(valor, (int, float)) or not 0 < valor <= 1:
-        raise PerfilError('calibracion.factor_potencia_cargas tiene que estar entre 0 (sin '
-                          f'incluirlo) y 1, no {valor!r}.')
+        raise PerfilError(f'calibracion.{clave} tiene que estar entre 0 (sin incluirlo) y 1, '
+                          f'no {valor!r}.')
     return float(valor)
 
 

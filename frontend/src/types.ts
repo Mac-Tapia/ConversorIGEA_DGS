@@ -830,6 +830,15 @@ export interface AjusteInforme {
   bancos?: {
     banco: string; barra: string | null; kv: number | null; q_nominal_kvar: number | null;
     q_flujo_kvar: number | null; u_pu: number | null; en_servicio: boolean;
+    /** Spec 015, RF-66: escalones conectados de los que tiene, «3 de 3». */
+    escalones?: string;
+  }[];
+  /** Spec 015, RF-66: bancos puestos a su máxima capacidad al calibrar. */
+  bancos_puestos_a_maxima?: { banco: string }[];
+  /** Spec 015, RF-62, RF-63: clientes fijos compensados por su banco propio. */
+  fijas_compensadas?: {
+    sed: string; cliente: string; p_kw: number; fp_ea_eri: number; fp_escrito: number;
+    q_ea_eri_kvar: number; q_escrita_kvar: number;
   }[];
   /** Spec 015, RF-59: fijas que piden más que la potencia instalada de su SED. */
   fijas_sobre_su_transformador?: {

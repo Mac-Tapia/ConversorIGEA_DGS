@@ -45,10 +45,18 @@ if errorlevel 1 (
 )
 
 echo Abriendo la interfaz web en el navegador...
+rem Con el puerto ocupado, igea_dgs.web reutiliza el Conversor abierto, reemplaza el de
+rem otra version o cambia de puerto (spec 001, RF-28 a RF-31): ya no hace falta pausa.
+rem 3 = otra version con trabajos en curso, abierta en el navegador: se deja leer el
+rem aviso y la ventana se cierra sola.
 "%PY%" -m igea_dgs.web
+if errorlevel 3 (
+  timeout /t 20
+  goto :fin
+)
 if errorlevel 2 (
   echo.
-  echo El puerto 8765 ya esta en uso: arriba se indica que proceso lo tiene y como cerrarlo.
+  echo El puerto 8765 y los siguientes estan en uso: arriba se indica que proceso lo tiene y como cerrarlo.
   pause
   goto :fin
 )

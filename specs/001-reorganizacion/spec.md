@@ -1,6 +1,6 @@
 # Spec 001 — Reorganización: una responsabilidad, un sitio
 
-Estado: cumplida (2026-10-08), con los cambios RF-17 a RF-27 (T13–T23) · Fecha: 2026-10-07 · Origen: `docs/DIAGNOSTICO_SDD_2026-10-07.md`
+Estado: cumplida (2026-10-08), con los cambios RF-17 a RF-27 (T13–T23) y RF-28 a RF-33 (T24–T26, 2026-10-15) · Fecha: 2026-10-07 · Origen: `docs/DIAGNOSTICO_SDD_2026-10-07.md`
 
 ## Contexto y objetivo
 
@@ -96,6 +96,24 @@ Front
 - RF-27: CUANDO se abre la interfaz con el lanzador y el código del front es más reciente
   que su compilación, EL SISTEMA recompilará el front antes de servirlo.
 
+Lanzador (acceso directo)
+
+- RF-28: CUANDO se abre el acceso directo y en el puerto ya responde un Conversor con el
+  mismo código, EL SISTEMA abrirá el navegador en él y terminará sin esperar una tecla.
+- RF-29: CUANDO en el puerto responde un Conversor con otro código y sin trabajos en
+  curso, EL SISTEMA le pedirá que se cierre, lo terminará si no se cierra, y arrancará el
+  nuevo en el mismo puerto.
+- RF-30: SI el Conversor del puerto tiene trabajos en curso o no se puede saber, ENTONCES
+  EL SISTEMA no lo cerrará: abrirá el navegador en él, avisará de que es otra versión y la
+  ventana se cerrará sola.
+- RF-31: SI el puerto lo tiene un Conversor que no responde, ENTONCES EL SISTEMA lo
+  terminará con sus hijos y arrancará el nuevo; SI lo tiene otro programa, ENTONCES
+  arrancará en el siguiente puerto libre y abrirá el navegador en él.
+- RF-32: EL SISTEMA abrirá el navegador cuando el servidor ya responda, no tras un retardo
+  fijo, y un Ctrl+C cerrará el servidor sin error.
+- RF-33: EL SISTEMA solo aceptará la petición de cierre desde la propia máquina y con la
+  cabecera del lanzador, y la rechazará con trabajos en curso.
+
 Seguridad
 
 - RF-15: SI la API escucha fuera de `127.0.0.1`, ENTONCES EL SISTEMA rechazará las rutas
@@ -164,6 +182,17 @@ La casilla VNR-GIS ofrecía `.7z` y `.gdb`, que el servidor rechazaba, y no ofre
 `.mdb`, `.accdb`, `.sqlite`, `.db`, `.json`, `.csv` ni `.tsv`, que el lector sí lee
 (RF-26). El lanzador solo compilaba el front si faltaba: tras un cambio, el acceso
 directo seguía mostrando la versión anterior sin avisar (RF-27).
+
+## Cuarto cambio, 2026-10-15: el acceso directo no se queda parado
+
+En fase comercial el acceso directo se quedaba en «Presione una tecla» cada vez que el
+puerto 8765 estaba ocupado: con la web ya abierta (doble clic dos veces), con un servidor
+arrancado con `--no-browser` por una sesión de prueba, o con un servidor colgado. El
+operador no tiene por qué saber qué proceso cerrar. Ahora el lanzador averigua quién
+tiene el puerto y resuelve solo (RF-28 a RF-31); el servidor publica en `/api/health`
+su PID, la huella del código con que arrancó y sus trabajos en curso, y admite que el
+lanzador le pida cerrarse (RF-33). El navegador se abría a los 1,2 s fijos, antes de que
+el servidor terminara de importar, y mostraba «no se puede conectar» (RF-32).
 
 ## Dudas resueltas (2026-10-08)
 

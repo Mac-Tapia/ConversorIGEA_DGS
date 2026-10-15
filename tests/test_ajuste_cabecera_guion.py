@@ -1268,3 +1268,68 @@ def test_cliente_que_pide_mas_que_su_transformador_se_avisa(guion):
     assert sobre['carga_pct'] == pytest.approx(100.0 * math.hypot(200.0, 40.0) / 50.0)
     assert any('F1_S2' in a and 'CI-9' in a and 'potencia instalada' in a
                for a in informe['avisos'])
+
+
+def test_clientes_compensados_por_su_banco_propio_en_el_informe(guion):
+    """015:RF-62 / 015:RF-63 — la fija con FP 0,447 en su EA/ERI se escribe a 0,98 y el informe
+    lo dice por cliente, con su FP y su Q antes y después."""
+    app = _app()
+    clientes = [{'codigo': 'CI-7', 'sed': 'F1_S2', 'pot': 40.0, 'ea': 1.0, 'eri': 2.0}]
+    plan = {**_plan(clientes=clientes), 'factor_potencia_minimo_fijas': 0.98}
+
+    informe, rc = guion.ejecutar(app, plan)
+
+    assert rc == 0, informe
+    (c,) = informe['fijas_compensadas']
+    assert (c['sed'], c['cliente']) == ('F1_S2', 'CI-7')
+    assert c['fp_ea_eri'] == pytest.approx(1 / math.sqrt(5)) and c['fp_escrito'] == 0.98
+    assert c['q_ea_eri_kvar'] == pytest.approx(80.0)
+    assert _sed(informe, 'F1_S2')['despues']['fp'] == pytest.approx(0.98)
+    assert any('banco propio' in a and 'F1_S2' in a for a in informe['avisos'])
+    assert 'banco propio' in informe['factor_potencia_cargas']['fijas']
+
+
+def test_bancos_existentes_a_su_maxima_capacidad(guion):
+    """015:RF-66 — usuario, 2026-10-15: los bancos existentes trabajan a su máxima capacidad;
+    el que tenía escalones sin conectar o estaba fuera de servicio queda con todos y en
+    servicio, y el informe lo dice."""
+    app = _app()
+    banco = _banco(app, 'F1', 'Banco F1', 100.0)
+    banco.ncapx, banco.ncapa, banco.outserv = 3, 1, 1
+    lleno = _banco(app, 'F1', 'Banco lleno', 300.0)
+
+    informe, rc = guion.ejecutar(app, _plan())
+
+    assert rc == 0, informe
+    assert (banco.ncapa, banco.outserv) == (3, 0)
+    (cambio,) = informe['bancos_puestos_a_maxima']
+    assert cambio['banco'] == 'Banco F1'
+    assert cambio['antes'] == {'escalones': 1, 'en_servicio': False}
+    assert cambio['despues'] == {'escalones': 3, 'en_servicio': True}
+    assert (lleno.ncapa, lleno.outserv) == (1, 0)
+    assert any('máxima capacidad' in a and 'Banco F1' in a for a in informe['avisos'])
+    fila = next(b for b in informe['bancos'] if b['banco'] == 'Banco F1')
+    assert fila['escalones'] == '3 de 3' and fila['q_nominal_kvar'] == pytest.approx(300.0)
+
+
+def test_toda_escalada_con_el_fp_del_perfil(guion):
+    """015:RF-67 — usuario, 2026-10-15: «todas las escaladas con factor de potencia 0,98».
+    Calibrada, cada escalada lo tiene; una que en DIgSILENT consume con otro FP hace que la
+    validación no pase y se nombra."""
+    from igea_dgs.ajuste_cabecera import Medida, Objetivo
+
+    app = _app()
+    informe, rc = guion.ejecutar(app, {**_plan(), 'factor_potencia_cargas': 0.98})
+    assert rc == 0, informe
+    assert informe['validacion_posterior_nativa']['fp_escaladas'] == {'esperado': 0.98,
+                                                                      'distintas': 0}
+    assert all(x['despues']['fp'] == pytest.approx(0.98) for x in informe['sed']
+               if x['origen'] == 'escala')
+
+    cargas, reparto = _reparto_de(_app(n=2), 1.0, fija='F1_S1')
+    object.__setattr__(cargas['F1_S2'], 'm:Qsum:bus1', cargas['F1_S2'].plini * 0.9)
+    validacion, _ = guion.validar_cargas_nativas(
+        cargas, reparto, Medida(True, 2600.0, 260.0), Objetivo(2600.0, 260.0, 'M1', 'F1'), 0.01,
+        fp_escaladas=1 / math.hypot(1, 0.1))
+    fallo = next(f for f in validacion['fallos'] if f['tipo'] == 'FP_ESCALADAS_DISTINTO')
+    assert [s['sed'] for s in fallo['sed']] == ['F1_S2'] and not validacion['correcta']
