@@ -114,8 +114,8 @@ def sample_model(ds, sample_feeder):
 # --- Un alimentador por las dos vías de entrada (test_feeder_*.py) -----------------
 #
 # Cada módulo que las usa declara ``FEEDER = '<nombre corto>'``. Estaban copiadas en
-# test_feeder_pa217.py y test_feeder_sl143.py (y ``both`` tres veces); el criterio de
-# «misma foto de la red» se había corregido en las tres copias a mano. Alcance
+# test_feeder_pa217.py y test_feeder_sl143.py. Cada fuente se prueba por su cuenta:
+# TXT y base son independientes y no se comparan entre sí (2026-10-14). Alcance
 # ``module``, como antes: convert_selection prepara el dataset en el sitio, y
 # compartirlo entre módulos cambiaría el aislamiento de las pruebas.
 
@@ -153,24 +153,3 @@ def dataset_for(request, txt_dataset, mdb_dataset):
     except KeyError:
         pytest.skip(f'{feeder} no está en la entrada «{request.param}»')
     return request.param, ds
-
-
-@pytest.fixture
-def both(request, txt_dataset, mdb_dataset):
-    """Los dos datasets, solo si son la misma exportación de la red."""
-    feeder = request.module.FEEDER
-    for ds in (txt_dataset, mdb_dataset):
-        try:
-            ds.resolve_feeder(feeder)
-        except KeyError:
-            pytest.skip(f'{feeder} no está en las dos entradas')
-    # Solo tiene sentido comparar tramo a tramo la MISMA exportación. CYMDIST renumera
-    # nodos entre entregas: con TXT y base de fechas distintas, esto daba 10 fallos
-    # que no eran del lector. El criterio mira los ID de NODE y SECTION, no los
-    # extremos de cada tramo, así que un fallo real de mapeo sigue detectándose.
-    from igea_dgs.huella import comparar
-
-    huella = comparar(txt_dataset, mdb_dataset)
-    if not huella.misma_foto:
-        pytest.skip(huella.motivo())
-    return txt_dataset, mdb_dataset

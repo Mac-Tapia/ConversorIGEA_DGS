@@ -94,13 +94,23 @@ MAX_SALIDA_GUION = 2000
 
 
 # =========================================================================== medidas
-def medida(elm) -> dict:
-    """Lo que la web necesita de un alimentador tras un flujo (RF-31, RF-33)."""
-    barras = sorted((b.loc_name, _num(b, 'm:u')) for b in elm.GetObjs('ElmTerm'))
+def medida(elm, app=None) -> dict:
+    """Lo que la web necesita de un alimentador tras un flujo (RF-31, RF-33).
+
+    Con ``app``, los objetos son los de toda la red calculable del proyecto en vez de los
+    del ``ElmFeeder``. El medidor de CA101 alimenta dos troncales desde la misma barra
+    (006:RF-11) y el ``ElmFeeder`` solo abarca una: el 2026-10-15 la medida dejó fuera
+    1900 kW de cargas y daba un 43 % de pérdidas. ``medidas`` lo pasa cuando el proyecto
+    es de un solo alimentador.
+    """
+    def objetos(clase):
+        return list(app.GetCalcRelevantObjects(f'*.{clase}')) if app is not None else list(elm.GetObjs(clase))
+
+    barras = sorted((b.loc_name, _num(b, 'm:u')) for b in objetos('ElmTerm'))
     barras = [(n, u) for n, u in barras if u is not None]
     elementos = []
     for clase in ('ElmLne', 'ElmTr2'):
-        for o in elm.GetObjs(clase):
+        for o in objetos(clase):
             carga = _num(o, 'c:loading')
             if carga is not None:
                 elementos.append((o.loc_name, clase, carga))
@@ -108,27 +118,70 @@ def medida(elm) -> dict:
     out = {'converge': True, 'barras': barras, 'elementos': elementos,
            'vm_min': None, 'vm_min_barra': None, 'vm_max': None, 'vm_max_barra': None,
            'mas_cargado': None, 'cargabilidad_max': None,
-           'cabecera_kw': None, 'cabecera_kvar': None, 'perdidas_kw': None}
+           'cabecera_kw': None, 'cabecera_kvar': None, 'perdidas_kw': None, 'perdidas_kvar': None,
+           'vm_min_fases': None, 'bancos': []}
+    # Los bancos de condensadores que existen en la red entran en la calibración y el
+    # informe los nombra con su nodo y sus kvar, tal como están en DIgSILENT (el usuario,
+    # 2026-10-15: CA101 tiene tres en la troncal que va a Casa Blanca).
+    for sh in objetos('ElmShnt'):
+        cub = getattr(sh, 'bus1', None)
+        barra = cub.GetParent() if cub is not None else None
+        # «qcapn» es la potencia de un escalón; la del banco es «qtotn» o escalón × conectados.
+        q = _num(sh, 'qtotn')
+        if q is None and _num(sh, 'qcapn') is not None:
+            q = _num(sh, 'qcapn') * (_num(sh, 'ncapa') or 1.0)
+        out['bancos'].append({'nombre': sh.loc_name, 'barra': getattr(barra, 'loc_name', None),
+                              'kvar': q * 1000.0 if q is not None else None,
+                              'escalones': _num(sh, 'ncapx'), 'en_servicio': not getattr(sh, 'outserv', 0),
+                              'q_flujo_kvar': (-_num(sh, 'm:Qsum:bus1') * 1000.0
+                                               if _num(sh, 'm:Qsum:bus1') is not None else None)})
+    out['bancos'].sort(key=lambda x: (str(x['barra']), x['nombre']))
     if barras:
         lo = min(barras, key=lambda b: b[1])
         hi = max(barras, key=lambda b: b[1])
         out.update(vm_min=lo[1], vm_min_barra=lo[0], vm_max=hi[1], vm_max_barra=hi[0])
+        # El informe da la mínima de cada fase en el flujo desequilibrado (017:RF-17); en el
+        # equilibrado DIgSILENT no tiene tensiones por fase y queda en None.
+        fases = {}
+        for fase in 'ABC':
+            valores = [(u, b.loc_name) for b in objetos('ElmTerm')
+                       if (u := _num(b, f'm:u:{fase}')) is not None]
+            if valores:
+                fases[fase] = min(valores)
+        out['vm_min_fases'] = fases if len(fases) == 3 else None
     if elementos:
         peor = max(elementos, key=lambda e: e[2])
         out.update(mas_cargado=peor[0], cargabilidad_max=peor[2])
     if getattr(elm, 'obj_id', None) is not None:
         cab = leer_cabecera(elm)
         if cab.converge:
-            kw_cargas = sum(potencia(o)[0] for o in elm.GetObjs('ElmLod')
-                            if not getattr(o, 'outserv', 0))
-            out.update(cabecera_kw=cab.kw, cabecera_kvar=cab.kvar, perdidas_kw=cab.kw - kw_cargas)
+            out.update(cabecera_kw=cab.kw, cabecera_kvar=cab.kvar)
+            # Pérdidas = cabecera − lo que consumen de verdad cargas y bancos en el flujo
+            # («m:Psum:bus1», como el ajuste). Con la P escrita en las cargas, CA101 dio el
+            # 2026-10-15 un 39 % de pérdidas: a 0,65 p.u. las cargas consumen mucho menos de
+            # lo escrito. Si a alguna le falta el resultado no se estima: queda en None.
+            consumos = []
+            for o in [*objetos('ElmLod'), *objetos('ElmShnt')]:
+                if getattr(o, 'outserv', 0):
+                    continue
+                p, q = _num(o, 'm:Psum:bus1'), _num(o, 'm:Qsum:bus1')
+                if p is None or q is None:
+                    consumos = None
+                    break
+                consumos.append((p * 1000.0, q * 1000.0))
+            if consumos is not None:
+                out['perdidas_kw'] = cab.kw - sum(p for p, _ in consumos)
+                if cab.kvar is not None:
+                    out['perdidas_kvar'] = cab.kvar - sum(q for _, q in consumos)
     return out
 
 
 def medidas(alims: Alimentadores, feeders: list[str], converge: bool) -> dict:
     if not converge:
         return {f: {'converge': False} for f in feeders}
-    return {f: medida(alims.elm[f]) if alims.elm.get(f) is not None
+    # Proyecto de un solo alimentador: toda su red, con todas las troncales de la cabecera.
+    app = alims.app if len(alims.elm) == 1 else None
+    return {f: medida(alims.elm[f], app) if alims.elm.get(f) is not None
             else {'converge': False, 'motivo': 'sin ElmFeeder'} for f in feeders}
 
 
@@ -574,6 +627,10 @@ def main(argv=None) -> int:
     except Exception as exc:  # noqa: BLE001
         print(f'ERROR: no se pudo conectar a DIgSILENT: {exc}')
         return 3
+    # Primera línea solo con DIgSILENT ya respondiendo: la web la espera un tiempo
+    # limitado y, si no llega, corta el guion en vez de dejar ocupado el carril (005:RF-21).
+    print(f'Conectado a DIgSILENT como {getattr(app.GetCurrentUser(), "loc_name", "?")}.',
+          flush=True)
     try:
         informe, codigo = (ejecutar_guion if args.guion else ejecutar)(app, plan)
     except Exception as exc:  # noqa: BLE001 - el informe dice el error en vez de perderse

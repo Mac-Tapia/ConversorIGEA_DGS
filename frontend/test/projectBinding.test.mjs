@@ -36,3 +36,17 @@ test('un error bloqueante sigue deshabilitando las acciones nativas', async () =
 
   assert.deepEqual(estado, { bloqueado: true, advertencias: 0, elementos: 0 });
 });
+
+test('018:RF-11 sin fuente activa se usa sola la fuente del vínculo; con otra, con botón', async () => {
+  const { usoDeLaFuente } = await cargar();
+  const proyecto = (code, disponible) => ({
+    name: 'P', path: 'P', feeders: ['A1'], binding: { project: 'P' },
+    binding_blocked_code: code, binding_blocked_reason: code, binding_fuente_disponible: disponible,
+  });
+
+  assert.equal(usoDeLaFuente(proyecto('PROJECT_BINDING_NO_ACTIVE_SOURCE', true)), 'automatico');
+  assert.equal(usoDeLaFuente(proyecto('PROJECT_BINDING_SOURCE_MISMATCH', true)), 'boton');
+  assert.equal(usoDeLaFuente(proyecto('PROJECT_BINDING_NO_ACTIVE_SOURCE', false)), null);
+  assert.equal(usoDeLaFuente(proyecto('PROJECT_BINDING_FOLDER_MISMATCH', true)), null);
+  assert.equal(usoDeLaFuente(null), null);
+});

@@ -762,3 +762,105 @@ def test_web_avisa_si_powerfactory_no_responde(web):
     with pytest.raises(web.services.UserError, match='PowerFactory no responde'):
         web.services.pf_projects(web.ws, web.ctx)
     assert opciones[0]['limite_arranque_s'] == web.services.LIMITE_ARRANQUE_PF_S
+
+
+def test_guion_de_pf_huerfano_se_reconoce_y_el_de_consola_no():
+    """005:RF-21 — solo se cierra el guion de ``tools/`` cuyo padre ya no existe."""
+    from igea_dgs.powerfactory_env import guiones_pf_huerfanos
+
+    lista = [
+        {'pid': 10, 'ppid': 1, 'name': 'cmd.exe', 'cmd': 'cmd'},
+        {'pid': 1, 'ppid': 0, 'name': 'System', 'cmd': ''},
+        # De una web ya cerrada: el padre 999 no existe.
+        {'pid': 20, 'ppid': 999, 'name': 'python.exe',
+         'cmd': r'python.exe D:\c\tools\pf_proyectos.py --output-json x'},
+        # Lanzado desde una consola viva: se respeta.
+        {'pid': 30, 'ppid': 10, 'name': 'python.exe', 'cmd': 'python tools/cargas_pf.py'},
+        # Huérfano, pero no es un guion del conversor.
+        {'pid': 40, 'ppid': 998, 'name': 'python.exe', 'cmd': 'python otro.py'},
+    ]
+    huerfanos = guiones_pf_huerfanos(lista, {'pf_proyectos.py', 'cargas_pf.py'}, propio=50)
+    assert [p['pid'] for p in huerfanos] == [20]
+
+
+def test_cortar_un_guion_termina_tambien_sus_hijos(tmp_path):
+    """005:RF-21 — al agotar el arranque se termina el árbol, no solo el lanzador.
+
+    Con ``.venv\\Scripts\\python.exe`` el Python real es hijo del lanzador y seguía vivo,
+    con PowerFactory, tras ``terminate``.
+    """
+    from igea_dgs.powerfactory_env import procesos
+    from igea_dgs.web.jobs import TIEMPO_AGOTADO
+
+    ctx, _registro = _contexto_real()
+    pids = tmp_path / 'pids.txt'
+    padre = ('import os, subprocess, sys, time; '
+             'h = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(120)"]); '
+             f'open({str(pids)!r}, "w").write(f"{{os.getpid()}} {{h.pid}}"); '
+             'time.sleep(120)')
+    rc = ctx.run_process([sys.executable, '-c', padre], limite_arranque_s=3)
+    assert rc == TIEMPO_AGOTADO
+    lista = procesos()
+    if not lista:
+        pytest.skip('no se pueden listar los procesos en este equipo')
+    vivos = {p['pid'] for p in lista}
+    assert not {int(x) for x in pids.read_text().split()} & vivos
+
+
+def _contexto_pf(monkeypatch, limite_s: float):
+    """``JobContext`` real con un entorno «de PowerFactory» y sin tocar procesos ajenos."""
+    import os
+
+    import igea_dgs.powerfactory_env as pf_env
+    import igea_dgs.web.jobs as jobs
+
+    monkeypatch.setattr(jobs, 'LIMITE_ARRANQUE_PF_S', limite_s)
+    monkeypatch.setattr(pf_env, 'cerrar_guiones_pf_huerfanos', lambda: [])
+    monkeypatch.setattr(pf_env, 'powerfactory_abierto', lambda lista=None: [])
+    ctx, registro = _contexto_real()
+    return ctx, registro, {**os.environ, 'PF_PYTHON': 'x'}
+
+
+def test_todo_guion_de_pf_lleva_el_limite_de_arranque(monkeypatch):
+    """005:RF-21 — el flujo, las cargas o el ajuste colgados al conectar no ocupan el carril.
+
+    Solo «Leer proyectos» pedía el límite; los demás guiones de PowerFactory, colgados en
+    la conexión, dejaban todos los botones de DIgSILENT ocupados sin aviso.
+    """
+    from igea_dgs.web.jobs import PowerFactorySinRespuesta
+
+    ctx, registro, env = _contexto_pf(monkeypatch, 1)
+    inicio = time.monotonic()
+    with pytest.raises(PowerFactorySinRespuesta, match='no respondió'):
+        ctx.run_process([sys.executable, '-c', 'import time; time.sleep(60)'], env=env)
+    assert time.monotonic() - inicio < 30
+    # Sin conectar no ha escrito nada: se reintenta una vez antes de dar el error.
+    assert sum('no escribió nada' in linea for linea in registro) == 2
+    assert any('Se reintenta una vez' in linea for linea in registro)
+
+
+def test_cancelar_un_guion_que_no_ha_conectado_lo_termina(monkeypatch, tmp_path):
+    """005:RF-21 — con fichero de cancelación, un guion aún mudo se termina al cancelar.
+
+    Esperar a que acabe «el alimentador en curso» no sirve si aún no ha conectado:
+    colgado en la conexión, el botón Cancelar no hacía nada.
+    """
+    import threading
+
+    from igea_dgs.web.jobs import JobCancelled
+
+    ctx, _registro, env = _contexto_pf(monkeypatch, 120)
+    threading.Timer(1.0, ctx.cancel.set).start()
+    inicio = time.monotonic()
+    with pytest.raises(JobCancelled):
+        ctx.run_process([sys.executable, '-c', 'import time; time.sleep(60)'], env=env,
+                        cancel_file=tmp_path / 'cancelar.flag')
+    assert time.monotonic() - inicio < 30
+
+
+def test_los_guiones_de_pf_avisan_al_conectar():
+    """005:RF-21 — cada guion escribe su primera línea en cuanto DIgSILENT da el usuario."""
+    for guion in sorted((RAIZ / 'tools').glob('*.py')):
+        texto = guion.read_text(encoding='utf-8')
+        if 'GetApplicationExt()' in texto or 'connect_powerfactory(\n' in texto:
+            assert 'Conectado a DIgSILENT como' in texto, guion.name

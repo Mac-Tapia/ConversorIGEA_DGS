@@ -1,6 +1,6 @@
 # Spec 009 — Inventario del repositorio: cada fichero con su módulo y su spec
 
-Estado: aprobada (2026-10-10) · Fecha: 2026-10-10 · Origen: revisión pedida por el usuario el 2026-10-10
+Estado: cumplida (2026-10-14, verificación RF por RF); aprobada el 2026-10-10 · Fecha: 2026-10-10 · Origen: revisión pedida por el usuario el 2026-10-10
 
 ## Contexto y objetivo
 

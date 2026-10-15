@@ -230,11 +230,31 @@ def test_unbound_project_and_foreign_feeder_are_rejected(tmp_path):
     )
 
     ws = _workspace(tmp_path)
-    with pytest.raises(ProjectBindingError, match='PROJECT_BINDING_MISSING'):
+    with pytest.raises(ProjectBindingError, match='PROJECT_BINDING_MISSING') as missing:
         require_project_binding(ws, 'Oct/IN111', ['IN111'])
+    assert missing.value.code == 'PROJECT_BINDING_MISSING'
     record_project_binding(ws, _binding())
     with pytest.raises(ProjectBindingError, match='PROJECT_BINDING_FEEDER_MISMATCH'):
         require_project_binding(ws, 'Oct/IN111', ['OTRO'])
+
+
+def test_vinculo_de_otro_espacio_sin_fuente_activa_se_dice_como_tal(tmp_path):
+    """018:RF-3 — caso real 2026-10-14: el proyecto se aceptó en un espacio con fuente activa
+    y se listó en otro espacio sin fuente activa; el mensaje decía «fuente activa None»."""
+    from igea_dgs.powerfactory_binding import (
+        ProjectBindingError, record_project_binding, require_project_binding,
+    )
+
+    ws = _workspace(tmp_path)
+    record_project_binding(ws, _binding())
+    ws.active_run_id = None
+    ws.loaded_run_id = None
+    ws.loaded_source_mode = None
+    ws.loaded_source_fingerprint = None
+    with pytest.raises(ProjectBindingError) as sin_fuente:
+        require_project_binding(ws, 'Oct/IN111', ['IN111'])
+    assert sin_fuente.value.code == 'PROJECT_BINDING_NO_ACTIVE_SOURCE'
+    assert 'None' not in sin_fuente.value.detail
 
 
 def test_tampered_persisted_binding_is_rejected(tmp_path):
@@ -279,3 +299,266 @@ def test_caso_base_verificado_por_alimentador():
     assert caso_base_verificado(ws, 'P', ['CA101', 'PE104', 'SI213']) == {
         'PE104': ['flujo'], 'SI213': ['sin verificar']}
     assert caso_base_verificado(ws, 'VIEJO', ['CA101']) == {'CA101': ['sin verificar']}
+
+
+def _espacio(tmp_path, nombre, registro):
+    """Espacio de trabajo con la misma fuente activa que _workspace, en su propia carpeta."""
+    ws = _workspace(tmp_path / nombre)
+    ws.vinculos_compartidos = registro
+    return ws
+
+
+def test_018_rf1_vinculo_aceptado_en_un_espacio_vale_en_otro_con_la_misma_fuente(tmp_path):
+    """018:RF-1 — un vínculo aceptado en un espacio vale en otro con la misma fuente activa."""
+    from igea_dgs.powerfactory_binding import record_project_binding, require_project_binding
+
+    registro = tmp_path / 'vinculos_pf.json'
+    record_project_binding(_espacio(tmp_path, 'origen', registro), _binding())
+    destino = _espacio(tmp_path, 'destino', registro)
+    assert destino.pf_project_bindings == {}
+    assert require_project_binding(destino, 'Oct/IN111', ['IN111']).project == 'Oct/IN111'
+
+
+def test_018_rf1_otra_fuente_no_reutiliza_el_vinculo_compartido(tmp_path):
+    """018:RF-1 — con otra fuente activa el vínculo compartido no se reutiliza."""
+    from igea_dgs.powerfactory_binding import (
+        ProjectBindingError, record_project_binding, require_project_binding,
+    )
+
+    registro = tmp_path / 'vinculos_pf.json'
+    record_project_binding(_espacio(tmp_path, 'origen', registro), _binding())
+    destino = _espacio(tmp_path, 'destino', registro)
+    destino.active_run_id = destino.loaded_run_id = 'run-otra'
+    destino.loaded_source_fingerprint = 'e' * 64
+    with pytest.raises(ProjectBindingError) as otra:
+        require_project_binding(destino, 'Oct/IN111', ['IN111'])
+    assert otra.value.code == 'PROJECT_BINDING_SOURCE_MISMATCH'
+
+
+def test_018_rf2_registro_ilegible_bloquea_aunque_el_espacio_tenga_copia(tmp_path):
+    """018:RF-2 — fail-closed: con el registro roto no se cae a la copia del espacio, y no se
+    sobrescribe."""
+    from igea_dgs.powerfactory_binding import (
+        ProjectBindingError, record_project_binding, require_project_binding,
+    )
+
+    registro = tmp_path / 'vinculos_pf.json'
+    registro.write_text('{no es json', encoding='utf-8')
+    ws = _espacio(tmp_path, 'espacio', registro)
+    ws.pf_project_bindings['Oct/IN111'] = _binding().as_dict()
+    with pytest.raises(ProjectBindingError, match='PROJECT_BINDING_REGISTRY_UNREADABLE'):
+        require_project_binding(ws, 'Oct/IN111', ['IN111'])
+    with pytest.raises(ProjectBindingError, match='PROJECT_BINDING_REGISTRY_UNREADABLE'):
+        record_project_binding(ws, _binding())
+    assert registro.read_text(encoding='utf-8') == '{no es json'
+
+
+def test_018_rf4_mismo_nombre_en_otra_carpeta_no_es_el_mismo_proyecto(tmp_path):
+    """018:RF-4 — el mismo nombre de proyecto en otra carpeta de DIgSILENT es otro proyecto."""
+    from igea_dgs.powerfactory_binding import (
+        ProjectBindingError, record_project_binding, require_project_binding,
+    )
+
+    ws = _workspace(tmp_path)
+    record_project_binding(ws, _binding())
+    ws.pf_inventory['folder'] = 'OtraCarpeta'
+    with pytest.raises(ProjectBindingError) as otra:
+        require_project_binding(ws, 'Oct/IN111', ['IN111'])
+    assert otra.value.code == 'PROJECT_BINDING_FOLDER_MISMATCH'
+
+
+def test_018_rf7_registro_conserva_todos_los_proyectos_sin_fichero_temporal(tmp_path):
+    """018:RF-7 — el registro guarda todos los proyectos y no deja ficheros temporales."""
+    import json
+
+    from igea_dgs.powerfactory_binding import record_project_binding
+
+    registro = tmp_path / 'vinculos_pf.json'
+    ws = _espacio(tmp_path, 'espacio', registro)
+    record_project_binding(ws, _binding())
+    record_project_binding(ws, _binding(project='Oct/IN222', feeders=('IN222',)))
+    datos = json.loads(registro.read_text(encoding='utf-8'))
+    assert set(datos['vinculos']) == {'Oct/IN111', 'Oct/IN222'}
+    assert not registro.with_name(registro.name + '.tmp').exists()
+
+
+def test_018_rf8_arranque_siembra_los_vinculos_de_los_espacios_existentes(tmp_path):
+    """018:RF-8 — al arrancar, los vínculos de los espacios existentes pasan al registro: un
+    conflicto gana el aceptado más tarde, uno alterado se descarta y una segunda siembra no
+    cambia nada."""
+    import json
+
+    from igea_dgs.web.workspace import REGISTRO_VINCULOS_FILE, WorkspaceStore
+
+    raiz = tmp_path / 'web'
+    viejo = _binding(accepted_at=1.0, feeders=('IN111',)).as_dict()
+    alterado = _binding(project='Oct/IN222', feeders=('IN222',)).as_dict()
+    alterado['source_fingerprint'] = 'x' * 64
+    nuevo = _binding(accepted_at=2.0, feeders=('IN111',), native_reread={'status': 'otro'})
+    espacio_a = raiz / 'aaaa'
+    espacio_a.mkdir(parents=True)
+    (espacio_a / 'workspace.json').write_text(json.dumps(
+        {'pf_project_bindings': {'Oct/IN111': viejo, 'Oct/IN222': alterado}}), encoding='utf-8')
+    espacio_b = raiz / 'bbbb'
+    espacio_b.mkdir()
+    (espacio_b / 'workspace.json').write_text(json.dumps(
+        {'pf_project_bindings': {'Oct/IN111': nuevo.as_dict()}}), encoding='utf-8')
+
+    primera = WorkspaceStore(raiz)
+    assert primera.siembra == {'añadidos': 1, 'actualizados': 1, 'iguales': 0, 'descartados': 1}
+    registro = raiz / REGISTRO_VINCULOS_FILE
+    datos = json.loads(registro.read_text(encoding='utf-8'))['vinculos']
+    assert datos['Oct/IN111']['binding_sha256'] == nuevo.binding_sha256
+    assert 'Oct/IN222' not in datos
+
+    segunda = WorkspaceStore(raiz)
+    assert segunda.siembra['añadidos'] == 0 and segunda.siembra['actualizados'] == 0
+
+
+class _CtxSinEjecutar:
+    """Si el servicio llega a usar el contexto, la exigencia del vínculo ya falló."""
+
+    def __getattr__(self, name):
+        raise AssertionError(f'se llegó a {name} sin vínculo')
+
+
+def test_018_rf5_verificar_caso_base_exige_vinculo_en_el_servidor(tmp_path):
+    """018:RF-5 — sin vínculo la API no verifica; la interfaz oculta el botón, pero no basta."""
+    from igea_dgs.web import services
+
+    ws = _workspace(tmp_path)
+    with pytest.raises(services.UserError, match='PROJECT_BINDING_MISSING'):
+        services.pf_verificar_base(ws, _CtxSinEjecutar(), 'Oct/IN111', ['IN111'])
+
+
+def test_018_rf6_dgs_distinto_del_aceptado_bloquea_y_sin_huella_no_bloquea(tmp_path, monkeypatch):
+    """018:RF-6 — un DGS distinto del aceptado bloquea; un alimentador sin huella, no."""
+    from igea_dgs.web import services
+
+    dgs = tmp_path / 'IN111.dgs'
+    dgs.write_text('dgs', encoding='utf-8')
+    (tmp_path / 'IN111_feeder_metadata.json').write_text('{}', encoding='utf-8')
+    monkeypatch.setattr(services, 'dgs_jobs', lambda ws, feeders: ([('IN111', dgs, None)], []))
+    monkeypatch.setattr(
+        'igea_dgs.feeder_metadata.read_feeder_metadata',
+        lambda path, expected_dgs: {'dgs_sha256': 'b' * 64},
+    )
+    ws = _workspace(tmp_path)
+    with pytest.raises(services.UserError, match='PROJECT_BINDING_DGS_MISMATCH'):
+        services.comprobar_dgs_vinculados(ws, {'IN111': 'a' * 64}, ['IN111'])
+    services.comprobar_dgs_vinculados(ws, {'IN111': 'b' * 64}, ['IN111'])
+    services.comprobar_dgs_vinculados(ws, {}, ['IN111'])
+
+
+_RID = '20261014T205152-71b14f2416a0'
+
+
+def _espacio_origen_en_disco(raiz, *, huella='f' * 64):
+    """Espacio que aceptó el proyecto: su ejecución en disco, calibración y DGS unido."""
+    import json
+
+    run = raiz / 'origen' / 'runs' / _RID
+    (run / 'salida').mkdir(parents=True)
+    (raiz / 'medidores.xlsx').write_bytes(b'')
+    (run / 'salida' / 'IN111.dgs').write_text('dgs', encoding='utf-8')
+    (run / 'source_manifest.json').write_text(json.dumps({
+        'version': 1, 'run_id': _RID, 'mode': 'txt', 'created_at': 1.0,
+        'fingerprint': huella, 'files': [],
+    }), encoding='utf-8')
+    (raiz / 'origen' / 'workspace.json').write_text(json.dumps({
+        'id': 'origen',
+        'pf_project_bindings': {'Oct/IN111': {'source_run_id': _RID}},
+        'calibraciones': {'Oct/IN111': {'IN111': {'kw': 1.0}}},
+        'demanda': {'medidores': {'path': str(raiz / 'medidores.xlsx'), 'name': 'medidores.xlsx'},
+                    'perdido': {'path': str(raiz / 'no_existe.xlsx'), 'name': 'no_existe.xlsx'}},
+        'groups': {'IN111_X': {'name': 'IN111_X', 'status': 'ok',
+                               'dgs': str(run / 'salida' / 'IN111_X.dgs')}},
+    }), encoding='utf-8')
+    return run
+
+
+def _espacio_sin_fuente(raiz, registro):
+    ws = _espacio(raiz, 'nuevo', registro)
+    ws.active_run_id = ws.loaded_run_id = None
+    ws.loaded_source_mode = ws.loaded_source_fingerprint = None
+    return ws
+
+
+def test_018_rf9_rf10_espacio_nuevo_usa_la_ejecucion_con_la_que_se_acepto(tmp_path):
+    """018:RF-9, 018:RF-10 — caso real CA101 (2026-10-15): un espacio nuevo, sin fuente, ve
+    disponible la ejecución del vínculo y, al usarla, el proyecto deja de estar bloqueado sin
+    volver a abrir DIgSILENT; trae la calibración, el DGS unido de esa ejecución y los libros
+    de demanda que siguen en disco."""
+    from igea_dgs.powerfactory_binding import record_project_binding
+    from igea_dgs.web import services
+
+    raiz = tmp_path / 'web'
+    registro = raiz / 'vinculos_pf.json'
+    origen = _espacio_origen_en_disco(raiz)
+    # El vínculo se graba desde fuera de la raíz: el espacio que trabajó el proyecto es «origen».
+    record_project_binding(_espacio(tmp_path, 'fuera', registro), _binding(source_run_id=_RID))
+    ws = _espacio_sin_fuente(raiz, registro)
+
+    antes = services.estado_vinculos(ws, [dict(p) for p in ws.pf_inventory['projects']])[0]
+    assert antes['binding_blocked_code'] == 'PROJECT_BINDING_NO_ACTIVE_SOURCE'
+    assert antes['binding_fuente_disponible'] is True
+
+    inventario = services.adoptar_fuente_del_vinculo(ws, 'Oct/IN111')
+    despues = inventario['projects'][0]
+    assert despues['binding_blocked_code'] is None
+    assert ws.active_run_id == _RID
+    assert (ws.root / 'runs' / _RID / 'salida' / 'IN111.dgs').read_text(encoding='utf-8') == 'dgs'
+    assert (origen / 'salida' / 'IN111.dgs').is_file()
+    assert ws.calibraciones['Oct/IN111'] == {'IN111': {'kw': 1.0}}
+    assert list(ws.demanda) == ['medidores']
+    assert ws.groups['IN111_X']['dgs'] == str(ws.root / 'runs' / _RID / 'salida' / 'IN111_X.dgs')
+    assert not (ws.root / 'runs' / f'{_RID}.copia').exists()
+    # Repetirlo no falla, y el contexto sigue saliendo del espacio que trabajó el proyecto
+    # aunque la ejecución ya sea la propia.
+    ws.demanda = {}
+    assert services.adoptar_fuente_del_vinculo(ws, 'Oct/IN111')['projects'][0][
+        'binding_blocked_code'] is None
+    assert list(ws.demanda) == ['medidores']
+
+
+def test_018_rf10_ejecucion_con_otra_huella_no_se_usa(tmp_path):
+    """018:RF-10 — una carpeta con el mismo identificador pero otra huella no es la fuente
+    aceptada: no se ofrece, y pedirla no cambia nada."""
+    from igea_dgs.powerfactory_binding import record_project_binding
+    from igea_dgs.web import services
+
+    raiz = tmp_path / 'web'
+    registro = raiz / 'vinculos_pf.json'
+    _espacio_origen_en_disco(raiz, huella='e' * 64)
+    record_project_binding(_espacio(raiz, 'aceptó', registro), _binding(source_run_id=_RID))
+    ws = _espacio_sin_fuente(raiz, registro)
+
+    estado = services.estado_vinculos(ws, [dict(p) for p in ws.pf_inventory['projects']])[0]
+    assert estado['binding_fuente_disponible'] is False
+    with pytest.raises(services.UserError, match='PROJECT_BINDING_SOURCE_UNAVAILABLE'):
+        services.adoptar_fuente_del_vinculo(ws, 'Oct/IN111')
+    assert ws.active_run_id is None
+    assert not (ws.root / 'runs').exists()
+
+
+def test_018_rf12_verificar_compara_con_el_manifiesto_sin_la_red_en_memoria(tmp_path, monkeypatch):
+    """018:RF-12 — tras reiniciar la web la red no está en memoria; para leer un proyecto ya
+    importado basta el manifiesto en disco. Importar sigue exigiendo la red cargada."""
+    from igea_dgs.web import services
+
+    raiz = tmp_path / 'web'
+    _espacio_origen_en_disco(raiz)
+    ws = _espacio_sin_fuente(raiz, None)
+    ws.root = raiz / 'origen'
+    ws.active_run_id = _RID
+    dgs = ws.out_dir / 'IN111.dgs'
+    (ws.out_dir / 'IN111_feeder_metadata.json').write_text('{}', encoding='utf-8')
+    monkeypatch.setattr(
+        'igea_dgs.feeder_metadata.read_feeder_metadata',
+        lambda path, expected_dgs: {'source_run_id': _RID, 'source_mode': 'txt',
+                                    'source_fingerprint': 'f' * 64, 'dgs_sha256': 'd' * 64},
+    )
+    evidencia = services.check_powerfactory_source_run(ws, ['IN111'], exigir_red_cargada=False)
+    assert evidencia['source_run_id'] == _RID and evidencia['targets'][0]['dgs'] == dgs.name
+    with pytest.raises(services.UserError, match='SOURCE_RUN_MISMATCH'):
+        services.check_powerfactory_source_run(ws, ['IN111'])

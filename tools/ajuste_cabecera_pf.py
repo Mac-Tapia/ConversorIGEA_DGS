@@ -58,6 +58,15 @@ from igea_dgs.native_action import native_action_block_report
 TENSION_CAIDA = 0.5
 #: Elementos sobrecargados que se listan en el diagnóstico, de más a menos cargado.
 MAX_SOBRECARGAS = 20
+#: Lo que una carga consume en el flujo frente a lo escrito (015:RF-49): con cargas PQ
+#: DIgSILENT da lo escrito a 1e-12; CA101 (2026-10-15) consumía el 73 % por u².
+CONSUMO_REL = 1e-3
+CONSUMO_ABS = 0.01
+#: Ajustes del ``ComLdf`` que cambian lo que consume una carga (015:RF-51).
+AJUSTES_QUE_CAMBIAN_EL_CONSUMO = {
+    'iopt_lev': 'adaptación automática del modelo',
+    'iopt_pq': 'dependencia de la tensión de las cargas',
+}
 
 
 # =========================================================================== lectura
@@ -344,6 +353,65 @@ def _devolver_cargas_nuevas(app, estado: dict) -> None:
 
 
 # =========================================================================== orquestación
+def bancos_instalados(alims: Alimentadores, feeder: str) -> list[dict]:
+    """Bancos de condensadores del alimentador en el proyecto, tal como están (015:RF-60).
+
+    Los del propio proyecto y nada más: en CA101 el operador los instaló a mano en barras
+    nuevas («Terminal», partiendo un tramo) y el usuario pidió, el 2026-10-15, no tomar nada
+    de otro proyecto ni de otro alimentador. Se toman los del ``ElmFeeder``, los etiquetados
+    con el alimentador y, si el proyecto solo tiene este alimentador, todos los del cálculo,
+    porque en CA101 el ``ElmFeeder`` no alcanzaba las barras de los bancos.
+    """
+    from igea_dgs.demanda_medida import clave_codigo
+
+    clave = clave_codigo(feeder)
+    candidatos = {_clave_objeto_nativo(o): o for o in alims.objetos(feeder, 'ElmShnt')}
+    try:
+        relevantes = list(alims.app.GetCalcRelevantObjects('*.ElmShnt') or [])
+    except Exception:  # noqa: BLE001 - sin cálculo, los del ElmFeeder
+        relevantes = []
+    solo_este = set(alims.elm) <= {feeder}
+    for o in relevantes:
+        if solo_este or clave in {clave_codigo(x) for x in _alimentadores_nativos(o)}:
+            candidatos.setdefault(_clave_objeto_nativo(o), o)
+    filas = []
+    for o in candidatos.values():
+        try:
+            barra = o.bus1.cterm
+        except Exception:  # noqa: BLE001 - banco sin conectar
+            barra = None
+        escalon = _num(o, 'qcapn')
+        pasos = _num(o, 'ncapa') or 1.0
+        q_flujo = _num(o, 'm:Qsum:bus1')
+        filas.append({
+            'banco': o.loc_name,
+            'barra': getattr(barra, 'loc_name', None),
+            'kv': getattr(barra, 'uknom', None),
+            'q_nominal_kvar': None if escalon is None else escalon * pasos * 1000.0,
+            'q_flujo_kvar': None if q_flujo is None else -q_flujo * 1000.0,
+            'u_pu': _num(barra, 'm:u') if barra is not None else None,
+            'en_servicio': not int(getattr(o, 'outserv', 0) or 0),
+        })
+    return sorted(filas, key=lambda x: (str(x['barra']), x['banco']))
+
+
+def fijas_sobre_su_transformador(fijas: dict, kva: dict) -> list[dict]:
+    """Fijas cuya demanda supera la potencia instalada de su SED (015:RF-59).
+
+    En CA101 (2026-10-15) un cliente pedía 248 kW en SE20859, de 50 kVA (496 %), y otro
+    201 kW en SE21082, de 100 kVA: o el cruce los lleva a otra SED o el
+    transformador está mal. No se puede saber cuál; se nombra y se sigue calibrando.
+    """
+    out = []
+    for sed, f in sorted(fijas.items()):
+        k = kva.get(sed)
+        s = math.hypot(f.kw, f.kvar)
+        if k and s > k:
+            out.append({'sed': sed, 'clientes': list(f.clientes), 'p_kw': f.kw,
+                        'kva_carga': s, 'kva': k, 'carga_pct': 100.0 * s / k})
+    return sorted(out, key=lambda x: -x['carga_pct'])
+
+
 def _por_sed(reparto, cargas, kva_origen, antes, fijas):
     filas = []
     for sed, d in reparto.demandas.items():
@@ -444,6 +512,32 @@ def consumo_nativo(cargas: dict) -> tuple[float | None, float | None]:
     return sum(p for p, _ in resultados), sum(q for _, q in resultados)
 
 
+def ajustes_del_flujo(app) -> dict:
+    """Ajustes del ``ComLdf`` activo que cambian el consumo de las cargas (015:RF-51)."""
+    out = {}
+    try:
+        ldf = app.GetFromStudyCase('ComLdf')
+    except Exception:  # noqa: BLE001 - sin caso activo no hay ajuste que nombrar
+        return out
+    for attr in AJUSTES_QUE_CAMBIAN_EL_CONSUMO:
+        try:
+            out[attr] = int(ldf.GetAttribute(attr) or 0)
+        except Exception:  # noqa: BLE001 - versiones y dobles sin el atributo
+            pass
+    return out
+
+
+def _tension_de_la_barra(obj) -> float | None:
+    try:
+        return _num(obj.bus1.cterm, 'm:u')
+    except Exception:  # noqa: BLE001 - dobles o carga sin conectar
+        return None
+
+
+def _consume_lo_escrito(consumido: float, escrito: float) -> bool:
+    return math.isclose(consumido, escrito, rel_tol=CONSUMO_REL, abs_tol=CONSUMO_ABS)
+
+
 def _cerca(actual: float, esperado: float, *, rel: float = 1e-4,
            abs_: float = 1e-3) -> bool:
     """Comparación de relectura en kW/kVAR, más estricta que el cuadre de cabecera."""
@@ -451,7 +545,8 @@ def _cerca(actual: float, esperado: float, *, rel: float = 1e-4,
 
 
 def validar_cargas_nativas(cargas: dict, reparto, medida, objetivo, tolerancia: float,
-                           *, ambiguas=(), apagar=None) -> tuple[dict, object | None]:
+                           *, ambiguas=(), apagar=None,
+                           ajustes_flujo: dict | None = None) -> tuple[dict, object | None]:
     """Demuestra si el reparto ya existe en la red efectiva sin escribirla.
 
     Las fijas deben coincidir con su P/Q calculada. Las escalables no se comparan contra
@@ -459,6 +554,11 @@ def validar_cargas_nativas(cargas: dict, reparto, medida, objetivo, tolerancia: 
     compartir un mismo factor P/base y Q/base. Finalmente el flujo nativo debe converger y
     la cabecera debe cumplir el objetivo. Devuelve también el reparto reconstruido desde
     la relectura, para informar exactamente lo que ya existe.
+
+    015:RF-47 a RF-52: lo escrito no basta. Tras un flujo convergente cada fija tiene que
+    consumir su P y su Q, y cada escalada su P por el factor de escala; si no, no es
+    válida. En CA101 (2026-10-15) la relectura de lo escrito daba «válido» mientras las
+    fijas consumían el 73 % por la adaptación automática del modelo del ``ComLdf``.
     """
     apagar = apagar or {}
     fallos: list[dict] = []
@@ -475,6 +575,8 @@ def validar_cargas_nativas(cargas: dict, reparto, medida, objetivo, tolerancia: 
     factores_p: list[tuple[str, float]] = []
     factores_q: list[tuple[str, float]] = []
     detalles = []
+    fisicas: list[dict] = []
+    sin_resultado: list[str] = []
     for sed, demanda in reparto.demandas.items():
         obj = cargas.get(sed)
         if obj is None:
@@ -506,10 +608,37 @@ def validar_cargas_nativas(cargas: dict, reparto, medida, objetivo, tolerancia: 
                 errores.append(f'P={p_kw:.6f} kW, esperada {demanda.kw:.6f}')
             if not _cerca(q_kvar, demanda.kvar):
                 errores.append(f'Q={q_kvar:.6f} kVAR, esperada {demanda.kvar:.6f}')
+        # 015:RF-47, RF-48, RF-52: lo que consume en el flujo, frente a lo escrito.
+        consumo_p = consumo_q = tension = None
+        errores_fisicos = []
+        if medida.converge:
+            consumo_p = _num(obj, 'm:Psum:bus1')
+            consumo_q = _num(obj, 'm:Qsum:bus1')
+            consumo_p = None if consumo_p is None else consumo_p * 1000.0
+            consumo_q = None if consumo_q is None else consumo_q * 1000.0
+            tension = _tension_de_la_barra(obj)
+            if consumo_p is None:
+                sin_resultado.append(sed)
+                errores_fisicos.append('el flujo no publica su P consumida: no verificada')
+            elif not _consume_lo_escrito(consumo_p, p_kw):
+                errores_fisicos.append(f'consume P={consumo_p:.3f} kW, escrita {p_kw:.3f} kW')
+            if (not escalable and consumo_q is not None
+                    and not _consume_lo_escrito(consumo_q, q_kvar)):
+                errores_fisicos.append(
+                    f'consume Q={consumo_q:.3f} kVAR, escrita {q_kvar:.3f} kVAR')
+            if errores_fisicos and consumo_p is not None:
+                fisicas.append({
+                    'sed': sed, 'clase': 'ESCALABLE' if escalable else 'FIJA',
+                    'p_escrita_kw': p_kw, 'p_consumida_kw': consumo_p,
+                    'q_escrita_kvar': q_kvar, 'q_consumida_kvar': consumo_q,
+                    'u_pu': tension,
+                })
         detalles.append({
             'sed': sed, 'clase': 'ESCALABLE' if escalable else 'FIJA',
             'p_kw': p_kw, 'q_kvar': q_kvar, 'i_scale': actual_i_scale,
-            'correcta': not errores, 'errores': errores,
+            'p_consumida_kw': consumo_p, 'q_consumida_kvar': consumo_q, 'u_pu': tension,
+            'correcta': not errores and not errores_fisicos,
+            'errores': errores + errores_fisicos,
         })
         if errores:
             fallos.append({'tipo': 'CARGA_INCORRECTA', 'sed': sed, 'errores': errores})
@@ -517,6 +646,23 @@ def validar_cargas_nativas(cargas: dict, reparto, medida, objetivo, tolerancia: 
     for sed, obj in apagar.items():
         if int(getattr(obj, 'outserv', 0) or 0) != 1:
             fallos.append({'tipo': 'SED_DESCONECTADA_ACTIVA', 'sed': sed})
+    if sin_resultado:
+        fallos.append({'tipo': 'CARGAS_SIN_RESULTADO_DEL_FLUJO',
+                       'cantidad': len(sin_resultado), 'sed': sin_resultado})
+    causa = None
+    if fisicas:
+        # 015:RF-51: el ajuste del flujo que vuelve las cargas dependientes de la tensión.
+        activos = [f'{AJUSTES_QUE_CAMBIAN_EL_CONSUMO[k]} ({k}={v})'
+                   for k, v in (ajustes_flujo or {}).items() if v]
+        causa = ('el flujo de carga tiene activa la ' + ' y la '.join(activos)
+                 if activos else None)
+        fallos.append({
+            'tipo': 'CONSUMO_DISTINTO_DE_LO_ESCRITO', 'cantidad': len(fisicas),
+            'fijas': sum(1 for f in fisicas if f['clase'] == 'FIJA'),
+            'causa_probable': causa,
+            'cargas': sorted(fisicas,
+                             key=lambda f: -abs(f['p_escrita_kw'] - f['p_consumida_kw'])),
+        })
 
     def factor_comun(factores, magnitud):
         if not factores:
@@ -557,6 +703,28 @@ def validar_cargas_nativas(cargas: dict, reparto, medida, objetivo, tolerancia: 
             fallos.append({'tipo': 'PERDIDAS_ACTIVAS_NEGATIVAS',
                            'cabecera_kw': medida.kw, 'cargas_kw': total_p})
 
+    # 015:RF-50: el balance físico de la cabecera, con lo que consumen las cargas.
+    balance = None
+    if medida.converge and medida.kw is not None:
+        def suma(clase, campo):
+            valores = [d[campo] for d in detalles if d['clase'] == clase]
+            return None if any(v is None for v in valores) else sum(valores)
+
+        fijas_kw = suma('FIJA', 'p_consumida_kw')
+        escaladas_kw = suma('ESCALABLE', 'p_consumida_kw')
+        consumido = (None if fijas_kw is None or escaladas_kw is None
+                     else fijas_kw + escaladas_kw)
+        balance = {
+            'cabecera_kw': medida.kw,
+            'fijas_consumida_kw': fijas_kw, 'fijas_escrita_kw': suma('FIJA', 'p_kw'),
+            'escaladas_consumida_kw': escaladas_kw,
+            'escaladas_escrita_kw': suma('ESCALABLE', 'p_kw'),
+            'escrita_kw': sum(d['p_kw'] for d in detalles),
+            'perdidas_kw': None if consumido is None else medida.kw - consumido,
+            'ajustes_del_flujo': dict(ajustes_flujo or {}),
+            'causa_probable': causa,
+        }
+
     reconstruido = None
     if not fallos:
         a = reparto.a if factor_p is None else factor_p
@@ -571,9 +739,32 @@ def validar_cargas_nativas(cargas: dict, reparto, medida, objetivo, tolerancia: 
         'factor_q': factor_q,
         'consumo_cargas_efectivo': {'kw': total_p, 'kvar': total_q,
                                     'origen': consumo_origen},
+        'balance': balance,
         'cabecera': ({'kw': medida.kw, 'kvar': medida.kvar}
                      if medida.converge else None),
     }, reconstruido
+
+
+def aviso_consumo_fisico(validacion: dict) -> str | None:
+    """El aviso de 015:RF-49 a RF-51 para el operador, o ``None`` si todas consumen bien."""
+    fallo = next((f for f in validacion.get('fallos') or []
+                  if f.get('tipo') == 'CONSUMO_DISTINTO_DE_LO_ESCRITO'), None)
+    if fallo is None:
+        return None
+    fijas = [c for c in fallo['cargas'] if c['clase'] == 'FIJA']
+    partes = [f"{fallo['cantidad']} cargas no consumen en el flujo lo que tienen escrito"]
+    if fijas:
+        escrita = sum(c['p_escrita_kw'] for c in fijas)
+        consumida = sum(c['p_consumida_kw'] for c in fijas)
+        peor = fijas[0]
+        tension = '' if peor['u_pu'] is None else f" a {peor['u_pu']:.3f} pu"
+        partes.append(f'{len(fijas)} fijas: {escrita:,.1f} kW escritos, {consumida:,.1f} kW '
+                      f"consumidos (la que más, {peor['sed']}: {peor['p_escrita_kw']:,.1f} → "
+                      f"{peor['p_consumida_kw']:,.1f} kW{tension})")
+    if fallo.get('causa_probable'):
+        partes.append('causa probable: ' + fallo['causa_probable'])
+    return ('VALIDACION_FISICA: ' + '; '.join(partes)
+            + '. La calibración no es válida y las cargas vuelven a como estaban (015:RF-49).')
 
 
 def ejecutar(app, plan: dict, *, simular: bool = False, cancelado=lambda: False) -> tuple[dict, int]:
@@ -663,6 +854,15 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
     objetivo = Objetivo(**plan['objetivo'])
     # Las SED de los clientes se emparejan con las cargas por su código: las fijas toman
     # el nombre de la carga de DIgSILENT.
+    # 015:RF-53, RF-54, RF-56: las fijas, con el EA/ERI de la tabla cruzada; las escaladas,
+    # con el factor del perfil si lo hay (Electro Dunas, 0,98) y si no con el del archivo.
+    fp_cargas = plan.get('factor_potencia_cargas')
+    informe['factor_potencia_cargas'] = {
+        'fijas': 'EA/ERI del libro de clientes',
+        'escaladas': fp_cargas or Objetivo(**plan['objetivo']).fp,
+        'escaladas_origen': 'perfil de empresa' if fp_cargas else 'máxima de cabecera',
+        # 015:RF-44: la P base de cada escalada, su potencia instalada por ese factor.
+        'escaladas_reparto': 'potencia instalada (kVA) de cada SED'}
     fijas_libro = fijas_de(plan.get('clientes') or [], objetivo)
     # 014:RF-10 a RF-12: una demanda cambiada a mano entra fija con su valor y no se
     # sobrescribe; gana sobre el cliente importante de la misma SED.
@@ -680,11 +880,22 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
                 f"{m['ajuste']['kw']:.1f} kW)" for m in manuales[:50]))
     try:
         reparto = reparto_inicial(objetivo, fijas_libro,
-                                  {s: potencia(o) for s, o in cargas.items()}, kva)
+                                  {s: potencia(o) for s, o in cargas.items()}, kva,
+                                  fp=fp_cargas)
     except AjusteError as exc:
         return {**informe, 'error': str(exc), 'ambiguas': ambiguas}, 2
     fijas = {s: f for f in fijas_libro.values() for s in cargas
              if clave_codigo(s) == clave_codigo(f.sed)}
+    # 015:RF-59: un cliente que pide más que el transformador de su SED, nombrado.
+    sobre = fijas_sobre_su_transformador(fijas, kva)
+    if sobre:
+        informe['fijas_sobre_su_transformador'] = sobre
+        informe['avisos'].append(
+            f'{len(sobre)} SED fija(s) con más demanda que su potencia instalada; revise el '
+            'cruce del cliente con su SED o el transformador: ' + '; '.join(
+                f"{x['sed']} ({', '.join(x['clientes']) or 'cambio manual'}) "
+                f"{x['kva_carga']:,.0f} kVA en {x['kva']:,.0f} kVA ({x['carga_pct']:,.0f} %)"
+                for x in sobre))
     antes = {s: potencia_efectiva(o) for s, o in cargas.items()}
     antes_nativo = _foto_cargas_nativas(cargas)
     antes_apagar = {s: int(getattr(o, 'outserv', 0) or 0) for s, o in apagar.items()}
@@ -700,6 +911,7 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
     informe['avisos'] += avisos_desc + reparto.avisos
 
     if simular:
+        informe['bancos'] = bancos_instalados(alims, feeder)
         informe['sed'] = _por_sed(reparto, cargas, kva_origen, antes, fijas)
         informe['totales_sin_perdidas'] = dict(zip(('kw', 'kvar'), reparto.totales()))
         if inicial is not None and app.GetActiveStudyCase() is not inicial:
@@ -719,7 +931,7 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
     medida_previa = medir_cabecera(app, elm)
     validacion_previa, reparto_nativo = validar_cargas_nativas(
         cargas, reparto, medida_previa, objetivo, float(informe['tolerancia']),
-        ambiguas=ambiguas, apagar=apagar,
+        ambiguas=ambiguas, apagar=apagar, ajustes_flujo=ajustes_del_flujo(app),
     )
     informe['validacion_previa_nativa'] = validacion_previa
     if validacion_previa['correcta'] and reparto_nativo is not None:
@@ -746,6 +958,7 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
             cuadrado=True, status=q_audit['status'], kvar_no_bloqueante=q_audit,
             cabecera={'kw': medida_previa.kw, 'kvar': medida_previa.kvar},
             medicion_cabecera=detalle_cabecera(elm), flujos=1, fallos=[],
+            bancos=bancos_instalados(alims, feeder),
             historial=[{'flujo': 1, 'origen': 'RELECTURA_PREVIA',
                         'converge': True, 'kw': medida_previa.kw,
                         'kvar': medida_previa.kvar}],
@@ -831,6 +1044,8 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
             fallos=fallos_desc + list(fallos),
         )
         informe['medicion_cabecera'] = detalle_cabecera(elm)
+        # 015:RF-60: los bancos instalados, con lo que entregan en el último flujo.
+        informe['bancos'] = bancos_instalados(alims, feeder)
         informe['avisos'] += [a for a in res.avisos if a not in informe['avisos']]
         if res.cuadrado and res.medida is not None:
             q_audit = kvar_difference(res.medida, objetivo, float(informe['tolerancia']))
@@ -852,7 +1067,7 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
         if res.reparto is not None and res.medida is not None:
             validacion_posterior, _reparto_verificado = validar_cargas_nativas(
                 cargas, res.reparto, res.medida, objetivo, float(informe['tolerancia']),
-                ambiguas=ambiguas, apagar=apagar,
+                ambiguas=ambiguas, apagar=apagar, ajustes_flujo=ajustes_del_flujo(app),
             )
             informe['validacion_posterior_nativa'] = validacion_posterior
             if res.cuadrado and not informe['fallos'] and validacion_posterior['correcta']:
@@ -866,6 +1081,9 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
                 }
                 informe['status'] = 'FALLO_VALIDACION_NATIVA'
                 informe['cuadrado'] = False
+                aviso = aviso_consumo_fisico(validacion_posterior)
+                if aviso:
+                    informe['avisos'].append(aviso)
                 informe['fallos'].extend({
                     'sed': fallo.get('sed'),
                     'error': f"validación nativa: {fallo.get('tipo')}",
@@ -964,6 +1182,10 @@ def main(argv=None) -> int:
     except Exception as exc:  # noqa: BLE001
         print(f'ERROR: no se pudo conectar a DIgSILENT: {exc}')
         return 3
+    # Primera línea solo con DIgSILENT ya respondiendo: la web la espera un tiempo
+    # limitado y, si no llega, corta el guion en vez de dejar ocupado el carril (005:RF-21).
+    print(f'Conectado a DIgSILENT como {getattr(app.GetCurrentUser(), "loc_name", "?")}.',
+          flush=True)
     flag = Path(args.cancel_file) if args.cancel_file else None
     try:
         informe, codigo = ejecutar(app, plan, simular=args.simular,

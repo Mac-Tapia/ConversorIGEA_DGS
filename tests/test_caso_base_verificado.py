@@ -175,6 +175,33 @@ def test_correcciones_y_variaciones_no_bloquean():
     assert any('Ajuste_CA101_20261013_203247_3' in a for a in r['avisos'])
 
 
+
+def test_diagrama_dice_su_motivo_y_la_curva_del_unifilar_solo_avisa():
+    """015:RF-5, 015:RF-10 — caso real CA101 (2026-10-15): «diagrama» salía ✗ con la lista de
+    fallos vacía, por 296 curvas del unifilar distintas del mapa con el GPS perfecto. El
+    diagrama que falla dice por qué; la curva del unifilar se avisa y no bloquea."""
+    falla = tool.resumen_caso_base(
+        _report(geographic_diagram_pass=False,
+                diagram={'fallos': ['el diagrama no tiene objetos gráficos']}),
+        _SIN_FALLOS, [], [])
+    assert falla['comprobaciones']['diagrama']['fallos'] == ['el diagrama no tiene objetos gráficos']
+    curvas = {'compared': 488, 'distintas': 296, 'max_m': 642.01, 'muestra': []}
+    r = tool.resumen_caso_base(_report(diagram={'curvas_grid_mapa': curvas, 'fallos': []}),
+                               _SIN_FALLOS, [], [])
+    assert r['status'] == 'VERIFICADO'
+    assert any('296 líneas' in a and 'unifilar' in a for a in r['avisos'])
+
+
+def test_equipos_que_el_archivo_no_trae_se_avisan_con_su_nombre():
+    """015:RF-11 — caso real CA101 (2026-10-15): dos tramos partidos y tres condensadores
+    dibujados a mano en el «Caso base» se avisan con su nombre y no bloquean."""
+    equipos = {**_SIN_FALLOS, 'no_en_archivo': [{'clase': 'ElmLne', 'nombre': 'SEC_1_a'}]}
+    reread = {'expected': 0, 'reread': 1, 'banks': [
+        {'loc_name': 'Shunt/Filter', 'terminal': 'Terminal', 'catalog_kvar': 300.0}]}
+    r = tool.resumen_caso_base(_report(capacitor_reread=reread), equipos, [], [])
+    assert r['status'] == 'VERIFICADO'
+    assert any('2 equipo(s)' in a and 'SEC_1_a' in a and 'Shunt/Filter' in a for a in r['avisos'])
+
 @pytest.mark.parametrize('converge', [False, None])
 def test_el_flujo_no_bloquea(converge):
     """015:RF-8, 015:RF-10, 015:RF-40 — el flujo se informa en su comprobación, pero el

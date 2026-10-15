@@ -266,7 +266,8 @@ def test_electro_dunas_es_un_perfil_mas():
     datos = json.loads((RAIZ / 'config' / 'perfiles' / 'electro_dunas.json').read_text(encoding='utf-8'))
     assert {k for k in datos if not k.startswith('_')} <= {
         'crs_origen', 'patron_sed_medicion', 'escala_diagrama', 'forma_alimentador',
-        'patron_libro_clientes'}
+        # 015:RF-54: el factor de potencia de las escaladas también es una convención.
+        'patron_libro_clientes', 'informes', 'calibracion'}
 
 
 # --------------------------------------------------------------------------- RF-36
@@ -300,3 +301,22 @@ def test_la_red_unida_registra_el_perfil(tmp_path):
                           include_geography=False, perfil=EMPRESA_B,
                           reglas=reglas_de_perfil(EMPRESA_B))
     assert grupo['perfil_empresa'] == EMPRESA_B.valores()
+
+
+@pytest.mark.parametrize('valor', [0, -0.5, 1.2, True, '0.98'])
+def test_factor_de_potencia_imposible_lo_nombra(valor):
+    """015:RF-57 — un factor de potencia fuera de (0, 1] es un error que dice el valor."""
+    from igea_dgs.perfil_empresa import factor_potencia_cargas
+
+    with pytest.raises(PerfilError, match='factor_potencia_cargas'):
+        factor_potencia_cargas({'calibracion': {'factor_potencia_cargas': valor}})
+
+
+def test_factor_de_potencia_del_perfil_de_electro_dunas():
+    """015:RF-54 / 015:RF-55 — Electro Dunas fija 0,98 para las escaladas; sin la clave, nada."""
+    from igea_dgs.perfil_empresa import factor_potencia_cargas
+
+    raiz = Path(__file__).resolve().parents[1] / 'config' / 'perfiles'
+    datos = json.loads((raiz / 'electro_dunas.json').read_text(encoding='utf-8'))
+    assert factor_potencia_cargas(datos) == 0.98
+    assert factor_potencia_cargas({}) is None

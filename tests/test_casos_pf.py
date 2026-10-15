@@ -110,6 +110,18 @@ def test_sin_cargas_nuevas_no_se_estudia_con_proyecto():
     assert any('cargas nuevas' in a for a in informe['avisos'])
 
 
+def test_con_obras_y_sin_cargas_nuevas_se_estudia_con_proyecto():
+    """017:RF-30 — un estudio sin cliente nuevo: las obras de «Con proyecto» bastan para estudiarlo."""
+    app, plan, _v = _escenario_red(random.Random(11), cargas=False)
+    casos_pf.preparar(app, plan)
+    _caso(app, 'Con proyecto').Activate()
+    _variacion(app, 'Obra_condensador_N7')
+    informe, codigo = casos_pf.preparar(app, plan)
+    assert codigo == 0
+    assert informe['casos']['con']['estudiable'] is True
+    assert 'Obra_condensador_N7' in informe['casos']['con']['variaciones']
+
+
 def test_un_caso_ajeno_con_el_mismo_nombre_no_se_toca():
     """011:RF-10 — un «Sin proyecto» que no creó el sistema: no se toca nada y se pide renombrarlo."""
     app, plan, _v = _escenario_red(random.Random(10))

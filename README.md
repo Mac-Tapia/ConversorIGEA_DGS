@@ -60,12 +60,18 @@ trabajo:
 2. **2 · Alimentadores y calibración**: al elegir el proyecto se marcan todos sus
    alimentadores. Con los libros de medición se busca la máxima de cabecera de cada uno,
    los clientes importantes quedan como demanda fija y el resto se escala por kVA hasta
-   que la cabecera dé la máxima; los alimentadores se ajustan uno tras otro, cada uno en
-   su variación (specs 004, 006 y 008).
+   que la cabecera dé la máxima; los alimentadores se ajustan uno tras otro, en el
+   escenario de «Sin proyecto» (specs 004, 006, 008, 014 y 015). Solo se calibra un
+   alimentador cuyo «Caso base» esté verificado frente al archivo original (spec 015), y
+   un cambio manual del operador gana a la calibración (spec 014).
 3. **3 · Integración de nuevas**: verificar que el flujo converge y, sobre esa red,
-   integrar demandas en bloque, una carga nueva y cargas nuevas en bloque. Las tres son
-   optativas; aplicar exige que el último flujo del proyecto haya convergido, y simular
-   no escribe nada.
+   integrar demandas en bloque, una carga nueva y cargas nuevas en bloque. Las cargas
+   nuevas nacen solo en «Con proyecto», una variación por carga y sin duplicarlas al
+   repetir (specs 007 y 014). Las tres son optativas; aplicar exige que el último flujo
+   del proyecto haya convergido, y simular no escribe nada.
+4. **4 · Obras y estudios**: obras de mejora, estudios con los módulos nativos de
+   DIgSILENT, guiones del operador y transferencia de carga entre dos alimentadores,
+   sobre «Sin proyecto» y «Con proyecto» (spec 011).
 
 El detalle, con los guiones que hay detrás, está en `docs/MANUAL_COMANDOS.md` (7.ter).
 
@@ -179,6 +185,10 @@ Entradas de consola: `igea-dgs` (CLI) e `igea-dgs-web` (interfaz web). `run_gui.
 
 ## Principio de arquitectura
 
+La arquitectura completa (capas, flujo de conversión, los tres casos de estudio en
+PowerFactory, carriles de trabajo de la web y su relación con cada spec) está en
+[`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md).
+
 El motor **no necesita un archivo DGS de referencia** para convertir. La compatibilidad de formato se describe en un perfil versionado (`src/igea_dgs/schemas/pf21_dgs_1_8_4.json`) que contiene únicamente nombres de tablas, campos y tipos DGS. No contiene nodos, FID, líneas, cargas, nombres ni datos eléctricos de un alimentador de ejemplo.
 
 La fuente de verdad para cada conversión es:
@@ -200,6 +210,9 @@ La fuente de verdad para cada conversión es:
 | TXT de entrada en el repo | No incluidos — hay que suministrarlos |
 | Base de datos SQL/Access | No aplica — `BD_Equipo` es TXT |
 | Aceptación en PowerFactory | Requiere PF + importar el `.dgs` |
+| Cargas, calibración, estudios y obras en PowerFactory | Implementado (specs 004 a 008, 011, 014, 015); falta la prueba en DIgSILENT de varias specs |
+| Arquitectura por capas (spec 002) | Pendiente: aprobada, sin hacer |
+| Confiabilidad y capacidad (spec 012) | En curso: T1–T2 de 13 |
 
 ## Estructura
 

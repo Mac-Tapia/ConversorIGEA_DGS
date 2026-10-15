@@ -131,18 +131,21 @@ def test_pot_is_active_power_and_ea_eri_derive_q_and_fp_with_evidence():
 
 
 def test_fijas_con_su_demanda_y_las_demas_con_un_mismo_factor():
-    """006:RF-5 / 006:RF-8 / 015:RF-43 / 015:RF-44 — fijas con sus clientes; las demás conservan
-    su P y Q y escalan todas por el mismo factor."""
+    """006:RF-5 / 006:RF-8 / 015:RF-43 / 015:RF-44 — fijas con sus clientes; las demás, por su
+    potencia instalada y todas por el mismo factor (usuario, 2026-10-15). La demanda del
+    archivo de las escaladas no cuenta: E3 trae 300 kW y tiene la mitad de kVA que E2."""
     o = objetivo_de(_maxima())
     fijas = fijas_de([_cliente('1', 'E1', 200.0, ea=1.0, eri=0.5)], o)
-    r = reparto_inicial(o, fijas, {'E1': (50.0, 10.0), 'E2': (100.0, 20.0), 'E3': (300.0, 150.0)})
+    r = reparto_inicial(o, fijas, {'E1': (50.0, 10.0), 'E2': (100.0, 20.0), 'E3': (300.0, 150.0)},
+                        {'E1': 50.0, 'E2': 200.0, 'E3': 100.0})
     d = r.demandas
     assert (d['E1'].kw, d['E1'].origen) == (200.0, 'cliente')
     assert d['E2'].origen == d['E3'].origen == 'escala'
-    assert d['E2'].kw == pytest.approx(800.0 * 100 / 400)
-    assert d['E3'].kw == pytest.approx(800.0 * 300 / 400)
-    assert d['E2'].kw / 100.0 == pytest.approx(d['E3'].kw / 300.0) == pytest.approx(r.a)
-    assert d['E3'].kvar / d['E3'].kw == pytest.approx(150.0 / 300.0)
+    assert d['E2'].kw == pytest.approx(800.0 * 200 / 300)
+    assert d['E3'].kw == pytest.approx(800.0 * 100 / 300)
+    assert r.base['E2'][0] == pytest.approx(200.0 * o.fp), 'P base = kVA × FP'
+    assert d['E2'].kw / r.base['E2'][0] == pytest.approx(d['E3'].kw / r.base['E3'][0]) \
+        == pytest.approx(r.a)
     assert sum(x.kw for x in d.values()) == pytest.approx(1000.0)
     assert not r.todo_escala and r.solo_kw
 
@@ -152,11 +155,12 @@ def test_reparto_sorteado_suma_el_objetivo():
     rnd = random.Random(6)
     n = rnd.randint(5, 300)
     cargas = {f'S{i}': (rnd.uniform(5, 200), rnd.uniform(1, 60)) for i in range(n)}
+    kva = {s: rnd.choice([10.0, 50.0, 100.0, 250.0]) for s in cargas}
     fijas_sed = rnd.sample(sorted(cargas), k=n // 10)
     total = sum(p for p, _ in cargas.values())
     o = objetivo_de(_maxima(kw=total * 1.6, kvar=total * 0.2))
     fijas = fijas_de([_cliente(str(i), s, 10.0, 1.0, 0.3) for i, s in enumerate(fijas_sed)], o)
-    r = reparto_inicial(o, fijas, cargas)
+    r = reparto_inicial(o, fijas, cargas, kva)
     assert len(r.demandas) == n
     assert sum(x.kw for x in r.demandas.values()) == pytest.approx(o.kw)
 
@@ -165,25 +169,29 @@ def test_sed_cliente_fuera_del_alimentador_se_omite():
     """006:RF-9 — la SED de un cliente que no está en el alimentador se lista y se sigue."""
     o = objetivo_de(_maxima())
     fijas = fijas_de([_cliente('1', 'ZZ', 100.0, 1.0, 0.1)], o)
-    r = reparto_inicial(o, fijas, {'E1': (400.0, 100.0)})
+    r = reparto_inicial(o, fijas, {'E1': (400.0, 100.0)}, {'E1': 100.0})
     assert [x['sed'] for x in r.omitidas] == ['ZZ'] and 'ZZ' not in r.demandas
     assert r.demandas['E1'].kw == pytest.approx(1000.0)
 
 
 def test_sed_sin_demanda_queda_en_cero_y_se_avisa():
-    """006:RF-24 (cambiado por 015:RF-44) / 015:RF-45 — el kVA no hace falta; una SED sin
-    demanda en el archivo queda en cero y se dice."""
+    """006:RF-24 / 015:RF-44 / 015:RF-45 — una SED escalada sin demanda en el archivo recibe la
+    suya por su kVA (CA101: 98 de 160 estaban en cero); la que no tiene kVA conocido queda
+    en cero y se dice."""
     o = objetivo_de(_maxima())
-    r = reparto_inicial(o, {}, {'E1': (400.0, 100.0), 'E2': (0.0, 0.0)})
-    assert r.demandas['E2'].kw == 0.0 and r.demandas['E1'].kw == pytest.approx(1000.0)
-    assert any('E2' in a and 'cero' in a for a in r.avisos)
+    r = reparto_inicial(o, {}, {'E1': (400.0, 100.0), 'E2': (0.0, 0.0), 'E3': (50.0, 5.0)},
+                        {'E1': 100.0, 'E2': 100.0, 'E3': None})
+    assert r.demandas['E2'].kw == pytest.approx(500.0) == r.demandas['E1'].kw
+    assert r.demandas['E3'].kw == 0.0
+    assert any('E3' in a and 'cero' in a and 'potencia instalada' in a for a in r.avisos)
 
 
 def test_clientes_que_superan_el_objetivo_escalan_todo():
     """006:RF-13 — si las fijas superan el objetivo, todas escalan juntas y se dice."""
     o = objetivo_de(_maxima(kw=100.0, kvar=30.0))
     fijas = fijas_de([_cliente('1', 'E1', 150.0, 1.0, 0.3)], o)
-    r = reparto_inicial(o, fijas, {'E1': (10.0, 1.0), 'E2': (150.0, 30.0)})
+    r = reparto_inicial(o, fijas, {'E1': (10.0, 1.0), 'E2': (150.0, 30.0)},
+                        {'E1': 100.0, 'E2': 150.0 / o.fp})
     assert r.todo_escala and r.avisos
     assert r.demandas['E1'].origen == 'cliente'
     assert sum(x.kw for x in r.demandas.values()) == pytest.approx(100.0)
@@ -199,14 +207,14 @@ def test_todas_las_sed_con_clientes_escalan():
 
 
 def test_el_kvar_de_las_escaladas_sigue_su_propio_fp():
-    """006:RF-14 (cambiado por 015:RF-44) — se cuadra el kW; el factor de escala mueve P y Q
-    juntas, así que cada escalada conserva su factor de potencia."""
+    """006:RF-14 / 015:RF-55 — se cuadra el kW; el factor de escala mueve P y Q juntas. Sin
+    factor de potencia en el perfil, las escaladas llevan el de la máxima de cabecera."""
     o = objetivo_de(_maxima(kw=1000.0, kvar=100.0))
     fijas = fijas_de([_cliente('1', 'E1', 200.0, ea=1.0, eri=1.0)], o)
-    r = reparto_inicial(o, fijas, {'E1': (1.0, 1.0), 'E2': (400.0, 120.0)})
+    r = reparto_inicial(o, fijas, {'E1': (1.0, 1.0), 'E2': (400.0, 120.0)}, {'E2': 500.0})
     assert r.solo_kw
     e2 = r.demandas['E2']
-    assert e2.kvar / e2.kw == pytest.approx(120.0 / 400.0)
+    assert e2.kvar / e2.kw == pytest.approx(100.0 / 1000.0)
     assert sum(x.kw for x in r.demandas.values()) == pytest.approx(1000.0)
 
 
@@ -239,11 +247,11 @@ class RedDeJuguete:
 def _caso(n=40, seed=7, kw=3000.0, kvar=900.0):
     rnd = random.Random(seed)
     # P y Q del archivo original de cada SED: la mitad de su kVA, con FP 0,96.
-    cargas = {f'S{i}': (k * 0.5, k * 0.14) for i, k in
-              ((i, rnd.choice([50.0, 100.0, 160.0, 250.0])) for i in range(n))}
+    kva = {f'S{i}': rnd.choice([50.0, 100.0, 160.0, 250.0]) for i in range(n)}
+    cargas = {s: (k * 0.5, k * 0.14) for s, k in kva.items()}
     o = objetivo_de(_maxima(kw=kw, kvar=kvar))
     fijas = fijas_de([_cliente('1', 'S0', 150.0, 1.0, 0.4)], o)
-    return o, fijas, reparto_inicial(o, fijas, cargas)
+    return o, fijas, reparto_inicial(o, fijas, cargas, kva)
 
 
 def test_cuadra_con_las_perdidas_al_uno_por_ciento():
@@ -307,13 +315,13 @@ def test_tolerancia_elegida(tol):
 
 
 def test_perdidas_reactivas_mayores_no_cambian_q_y_cuadran_kw():
-    """015:RF-44 — el FP de cada escalada se conserva y el resultado reactivo nativo no
-    bloquea el kW."""
+    """015:RF-44 / 015:RF-55 — el FP de las escaladas (aquí el de la cabecera, sin perfil) se
+    conserva al escalar y el resultado reactivo nativo no bloquea el kW."""
     o, _, r = _caso(kvar=100.0)
     # 3000 kW en la red dan unos 1800 kVAR de pérdidas: más que los 100 de la cabecera.
     res = cuadrar(r, o, RedDeJuguete(rq=2e-4).flujo)
     assert res.cuadrado and res.reparto.solo_kw
-    assert all(abs(d.kvar / d.kw - 0.28) < 1e-9 for s, d in res.reparto.demandas.items()
+    assert all(abs(d.kvar / d.kw - o.tan_phi) < 1e-9 for s, d in res.reparto.demandas.items()
                if d.origen == 'escala' and d.kw)
     assert res.medida.kvar > o.kvar
 
@@ -374,3 +382,39 @@ def test_cancelar_deja_el_ultimo_que_convergio():
 def test_ningun_remedio_hace_las_cargas_dependientes_de_la_tension():
     """015:RF-42 — las cargas son PQ: la escalera de remedios no activa ``iopt_pq``."""
     assert all('iopt_pq' not in ajustes for _nombre, ajustes in ESCALERA)
+
+
+def test_escaladas_con_el_fp_del_perfil_y_fijas_con_su_ea_eri():
+    """015:RF-53 / 015:RF-54 — usuario, 2026-10-15: las fijas, el factor de potencia de su
+    EA/ERI de la tabla cruzada; las escaladas, el del perfil (0,98) sobre su P del archivo,
+    y las dos magnitudes escalan con el mismo factor."""
+    o = objetivo_de(_maxima())
+    fijas = fijas_de([_cliente('1', 'E1', 200.0, ea=1.0, eri=0.5)], o)
+    r = reparto_inicial(o, fijas, {'E1': (50.0, 10.0), 'E2': (100.0, 60.0), 'E3': (300.0, 150.0)},
+                        {'E1': 50.0, 'E2': 100.0, 'E3': 300.0}, fp=0.98)
+    d = r.demandas
+    assert d['E1'].kvar == pytest.approx(100.0), 'la fija conserva su EA/ERI (FP 0,894)'
+    tan98 = math.tan(math.acos(0.98))
+    for sed, kva in (('E2', 100.0), ('E3', 300.0)):
+        assert r.base[sed] == pytest.approx((kva * 0.98, kva * 0.98 * tan98))
+        assert d[sed].kw / math.hypot(d[sed].kw, d[sed].kvar) == pytest.approx(0.98)
+    assert sum(x.kw for x in d.values()) == pytest.approx(1000.0)
+
+
+def test_sin_fp_en_el_perfil_las_escaladas_con_el_de_la_cabecera():
+    """015:RF-55 — sin factor de potencia en el perfil, el de la máxima de cabecera."""
+    o = objetivo_de(_maxima(kw=1000.0, kvar=300.0))
+    r = reparto_inicial(o, {}, {'E2': (100.0, 60.0)}, {'E2': 100.0}, fp=None)
+    assert r.base['E2'] == pytest.approx((100.0 * o.fp, 100.0 * o.fp * 0.3))
+
+
+def test_fp_del_perfil_no_cambia_una_demanda_puesta_a_mano():
+    """015:RF-58 — una carga cambiada a mano entra como fija con su P y Q (014:RF-10) y el
+    factor de las escaladas no la toca."""
+    from igea_dgs.ajuste_cabecera import Fija
+
+    o = objetivo_de(_maxima())
+    manual = {'E1': Fija('E1', 120.0, 90.0)}
+    r = reparto_inicial(o, manual, {'E1': (50.0, 10.0), 'E2': (100.0, 20.0)},
+                        {'E1': 50.0, 'E2': 100.0}, fp=0.98)
+    assert (r.demandas['E1'].kw, r.demandas['E1'].kvar) == (120.0, 90.0)

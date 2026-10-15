@@ -12,7 +12,8 @@ from apoyo import esperar_trabajo, vincular_proyecto  # noqa: E402
 from apoyo_pf_web import guion_falso  # noqa: E402,F401
 from igea_dgs.web.app import create_app  # noqa: E402
 
-TERNA = {'clase': 'terna', 'alimentador': 'A1', 'casos': ['Sin proyecto'], 'tramos': ['L1']}
+TERNA = {'clase': 'terna', 'alimentador': 'A1', 'casos': ['Sin proyecto', 'Con proyecto'],
+         'tramos': ['L1']}
 BANCO = {'clase': 'condensador', 'alimentador': 'A1', 'casos': ['Con proyecto'],
          'barra': 'B1', 'q_kvar': 600, 'escalones': 3}
 
@@ -52,7 +53,7 @@ def test_obras_guardadas_en_el_espacio_hasta_aplicarlas(client, tmp_path):
 
 
 @pytest.mark.parametrize('obra, falta', [
-    ({'clase': 'condensador', 'alimentador': 'A1', 'casos': ['Sin proyecto'], 'barra': 'B1',
+    ({'clase': 'condensador', 'alimentador': 'A1', 'casos': ['Con proyecto'], 'barra': 'B1',
       'q_kvar': -1, 'escalones': 1}, 'potencia'),
     ({**TERNA, 'casos': ['Caso base']}, 'Caso base'),
 ])

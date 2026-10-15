@@ -18,6 +18,7 @@ Las reglas de ``settings.py`` se mantienen:
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import shutil
@@ -94,6 +95,8 @@ BOOL_OPTIONS = ('include_geography', 'strict', 'write_preview', 'export_xlsx', '
 MAX_WORKERS = 16
 
 _ID_RE = re.compile(r'^[a-f0-9]{8,32}$')
+# Vive junto a los espacios (output/web/), no dentro de ninguno: lo comparten todos (spec 018).
+REGISTRO_VINCULOS_FILE = 'vinculos_pf.json'
 _SAFE_NAME = re.compile(r'[^A-Za-z0-9._() \-]+')
 
 
@@ -125,6 +128,8 @@ class Workspace:
     pf_projects: dict[str, str] = field(default_factory=dict)
     # Contrato fuente → DGS → proyecto nativo, indexado por ruta de proyecto.
     pf_project_bindings: dict[str, dict[str, Any]] = field(default_factory=dict)
+    # Registro compartido de vínculos entre espacios (spec 018); lo fija WorkspaceStore.
+    vinculos_compartidos: Path | None = None
     # Spec 015: demanda que dejó la última calibración de cada alimentador, por proyecto.
     # La calibración ya no deja variación en DIgSILENT donde leerla, y sin ella no se ve
     # qué cambió el operador a mano (014:RF-10).
@@ -412,10 +417,39 @@ class WorkspaceStore:
         self.root = root or data_root()
         self._items: dict[str, Workspace] = {}
         self._lock = threading.Lock()
+        self.siembra: dict[str, int] | None = None
+        self._sembrar_vinculos()
+
+    def _sembrar_vinculos(self) -> None:
+        """Arranque: los vínculos que ya tienen los espacios pasan al registro compartido.
+
+        Un fallo aquí no detiene el servidor: si el registro es ilegible, los proyectos
+        quedan bloqueados con PROJECT_BINDING_REGISTRY_UNREADABLE, que es lo visible.
+        """
+        from ..powerfactory_binding import ProjectBindingError, sembrar_registro
+
+        if not self.root.is_dir():
+            return
+        crudos = []
+        for carpeta in sorted(self.root.iterdir()):
+            meta = carpeta / 'workspace.json'
+            if not meta.is_file():
+                continue
+            try:
+                datos = json.loads(meta.read_text(encoding='utf-8'))
+            except (OSError, ValueError):
+                continue
+            if isinstance(datos, dict):
+                crudos.append(datos.get('pf_project_bindings') or {})
+        try:
+            self.siembra = sembrar_registro(self.root / REGISTRO_VINCULOS_FILE, crudos)
+        except ProjectBindingError as exc:
+            logging.getLogger(__name__).warning('Vínculos de DIgSILENT sin sembrar: %s', exc)
 
     def create(self) -> Workspace:
         wid = uuid.uuid4().hex[:16]
         ws = Workspace(id=wid, root=self.root / wid)
+        ws.vinculos_compartidos = self.root / REGISTRO_VINCULOS_FILE
         ws.out_dir.mkdir(parents=True, exist_ok=True)
         ws.save()
         with self._lock:
@@ -436,6 +470,7 @@ class WorkspaceStore:
                 ws = Workspace.load(folder)
             except (OSError, ValueError, KeyError):
                 return None
+            ws.vinculos_compartidos = self.root / REGISTRO_VINCULOS_FILE
             self._items[wid] = ws
             return ws
 

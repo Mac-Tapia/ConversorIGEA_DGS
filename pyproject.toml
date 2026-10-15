@@ -24,6 +24,8 @@ dependencies = []
 [project.optional-dependencies]
 geo = ["pyproj>=3.6"]
 xlsx = ["pandas>=2.0", "openpyxl>=3.1", "python-calamine>=0.3"]
+# Informes en Word (spec 017)
+informes = ["python-docx>=1.1"]
 # Alternativa 2 de entrada: base de datos Access de CYMDIST (solo Windows)
 access = ["pyodbc>=5.0"]
 # Validación independiente del modelo (flujo de potencia sin PowerFactory)
@@ -43,6 +45,7 @@ all = [
     "pandapower>=3.0",
     "geopandas>=0.14",
     "leafmap>=0.30",
+    "python-docx>=1.1",
 ]
 dev = ["pytest>=8.0", "pyproj>=3.6", "httpx2>=2.0"]
 
@@ -60,3 +63,12 @@ igea_dgs = ["schemas/*.json"]
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+
+# El código vive en src/: sin esto, los revisores del editor (mypy y pylint) marcaban
+# «no se encuentra igea_dgs» en tools/ y tests/, aunque al ejecutar se encuentra
+# siempre (paquete instalado en el .venv). Es el mismo dato que pythonpath de pytest.
+[tool.mypy]
+mypy_path = "src"
+
+[tool.pylint.main]
+source-roots = ["src"]

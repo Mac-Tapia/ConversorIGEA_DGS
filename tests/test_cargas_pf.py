@@ -224,3 +224,29 @@ def test_alimentadores_fuera_de_la_base_se_dicen(tmp_path):
     base = {**_base(), 'excluidos': [{'feeder': 'B', 'motivo': 'su ajuste falló'}]}
     plan = armar_plan(project='P', feeders=['A', 'B'], demandas=lectura, nuevas=None, base=base)
     assert any(a.startswith('B queda fuera de la base') for a in plan['avisos'])
+
+
+def test_libro_con_filas_vacias_sobre_la_cabecera(tmp_path):
+    """004:RF-51 — la cabecera es la primera fila con algo y las filas citan su número en Excel.
+
+    El libro de planificación real la trae en la fila 3 tras dos vacías; tomando la fila 1
+    sus cargas se descartaban todas sin un aviso.
+    """
+    libro = _libro(tmp_path / 'nuevas.xlsx', {'H': [
+        [None, None], [None, None],
+        ['DESCRIPCION', 'DEM PROY (KW)', 'TRONCAL', 'BARRA'],
+        ['Carga A', 120, 'AL1', 'B1'],
+        ['Carga B', -5, 'AL1', 'B1'],
+    ]})
+    lectura = leer_nuevas(libro)
+    assert [f.sed for f in lectura.filas] == ['Carga A']
+    assert lectura.filas[0].alimentador == 'AL1'
+    assert any(e.startswith('hoja H, fila 5:') for e in lectura.errores), lectura.errores
+
+
+def test_cabecera_irreconocible_es_un_error_y_no_cero_cargas(tmp_path):
+    """004:RF-51 — una hoja con datos y sin columnas de carga lo dice, no da cero en silencio."""
+    libro = _libro(tmp_path / 'nuevas.xlsx', {'H': [['foo', 'bar'], ['x', 'y']]})
+    lectura = leer_nuevas(libro)
+    assert not lectura.filas
+    assert lectura.errores and 'no se reconoce la cabecera' in lectura.errores[0]

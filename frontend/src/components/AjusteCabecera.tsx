@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
 import { api, fmtNum } from '../api';
 import { useApp } from '../context';
-import type { AjusteInforme, AjustePlan, AjusteResultado, Job, MaximaCabecera } from '../types';
+import type {
+  AjusteInforme, AjustePlan, AjusteResultado, BalanceCabecera, ConsumoDistinto, Job, MaximaCabecera,
+} from '../types';
 import { CurvaCabecera } from './CurvaCabecera';
 
 const pct = (x: number | null | undefined) => (x == null ? '—' : `${x >= 0 ? '+' : ''}${fmtNum(x * 100, 2)} %`);
@@ -154,16 +156,29 @@ function InformeAjuste({ inf, report, cancelado }: { inf: AjusteInforme; report:
     return f ? xs.filter((x) => x.sed.toLowerCase().includes(f)) : xs;
   }, [inf.sed, filtro]);
   const o = inf.objetivo;
-  // Spec 015, RF-44: el mismo factor en todas las escaladas; se lee de la primera con demanda.
-  const escalada = (inf.sed ?? []).find((x) => x.origen === 'escala' && x.antes.kw);
-  const factor = escalada ? escalada.despues.kw / escalada.antes.kw : null;
+  // Spec 015, RF-44: el mismo factor (scale0) en todas las escaladas, el del último flujo que
+  // convergió. Antes salía de después/antes, que con el reparto por kVA ya no es el factor.
+  const ultimoFlujo = [...(inf.historial ?? [])].reverse().find((h) => h.converge && h.a != null);
+  const factor = ultimoFlujo?.a ?? null;
+  // Spec 015, RF-49: la validación física no pasó; nada quedó grabado.
+  const revertida = inf.status === 'FALLO_VALIDACION_NATIVA' || inf.calibracion_revertida;
+  const validacion = inf.validacion_posterior_nativa;
+  const consumoDistinto = validacion?.fallos.find((f) => f.tipo === 'CONSUMO_DISTINTO_DE_LO_ESCRITO');
+  const fallosEscritura = (inf.fallos ?? []).filter((x) => !x.detalle);
   return (
     <div className="step-box">
       <h4>{simular ? 'Simulación' : 'Ajuste'} de {inf.feeder} en {inf.project}
         {inf.escenario ? ` · escenario «${inf.escenario}»` : inf.variacion ? ` · variación ${inf.variacion}` : ''}</h4>
       {simular && <p className="muted">Nada se ha escrito en el proyecto. Es el reparto antes de las pérdidas: al ajustar,
         las SED repartidas suben lo que pidan las pérdidas.</p>}
-      {!simular && (
+      {!simular && revertida && (
+        <p className="alert alert-error">
+          La validación física en DIgSILENT no pasa: las cargas no consumen en el flujo lo que tienen
+          escrito o falta su resultado. La calibración no es válida: las cargas vuelven a como estaban y
+          no se grabó nada.
+        </p>
+      )}
+      {!simular && !revertida && (
         <p className={inf.cuadrado ? 'alert alert-ok' : 'alert alert-error'}>
           {inf.cuadrado
             ? <>Cuadrado de kW al {fmtNum((inf.tolerancia ?? 0) * 100, 1)} % en {inf.flujos} flujo(s) de carga
@@ -191,6 +206,12 @@ function InformeAjuste({ inf, report, cancelado }: { inf: AjusteInforme; report:
                 <td className="num">{fmtNum(inf.cabecera_con_escenario.kvar, 1)}</td></tr>}
               {inf.perdidas && inf.perdidas.kw != null && <tr><td>Pérdidas</td>
                 <td className="num">{fmtNum(inf.perdidas.kw, 1)}</td><td className="num">{fmtNum(inf.perdidas.kvar ?? 0, 1)}</td></tr>}
+              {inf.factor_potencia_cargas && <tr><td>Factor de potencia</td>
+                <td colSpan={2}>Fijas: {inf.factor_potencia_cargas.fijas} · Escaladas:{' '}
+                  {inf.factor_potencia_cargas.escaladas == null ? 'el de cada SED en el archivo original'
+                    : `${fmtNum(inf.factor_potencia_cargas.escaladas, 2)} (${inf.factor_potencia_cargas.escaladas_origen})`}
+                  {inf.factor_potencia_cargas.escaladas_reparto
+                    ? `, repartidas por ${inf.factor_potencia_cargas.escaladas_reparto}` : ''}</td></tr>}
               {factor != null && <tr><td>Factor de escala de las SED escaladas</td>
                 <td className="num">{fmtNum(factor, 4)}</td><td className="num">—</td></tr>}
               {inf.desvio && <tr><td>Error</td><td className="num">{pct(inf.desvio.kw)}</td>
@@ -203,6 +224,38 @@ function InformeAjuste({ inf, report, cancelado }: { inf: AjusteInforme; report:
             </tbody>
           </table>
         </div>
+      )}
+      {validacion?.balance && <BalanceFisico b={validacion.balance} />}
+      {(inf.fijas_sobre_su_transformador ?? []).length > 0 && (
+        <details className="alert alert-warn" open>
+          <summary>Clientes que piden más que el transformador de su SED: {inf.fijas_sobre_su_transformador!.length}</summary>
+          <ul className="small">{inf.fijas_sobre_su_transformador!.map((x) => (
+            <li key={x.sed}><strong>{x.sed}</strong> ({x.clientes.join(', ') || 'cambio manual'}):{' '}
+              {fmtNum(x.kva_carga, 0)} kVA en {fmtNum(x.kva, 0)} kVA ({fmtNum(x.carga_pct, 0)} %).
+              Revise el cruce del cliente con su SED o el transformador.</li>))}</ul>
+        </details>
+      )}
+      {inf.bancos && (
+        <details>
+          <summary>Bancos de condensadores instalados en el proyecto: {inf.bancos.length}</summary>
+          {inf.bancos.length === 0 ? <small className="muted">El alimentador no tiene bancos en el proyecto.</small> : (
+            <div className="table-wrap">
+              <table className="table">
+                <thead><tr><th>Banco</th><th>Barra</th><th className="num">kvar nominales</th>
+                  <th className="num">kvar en el flujo</th><th className="num">Tensión (p.u.)</th><th>Estado</th></tr></thead>
+                <tbody>{inf.bancos.map((b) => (
+                  <tr key={`${b.barra ?? ''}-${b.banco}`}><td>{b.banco}</td><td>{b.barra ?? '—'}</td>
+                    <td className="num">{b.q_nominal_kvar == null ? '—' : fmtNum(b.q_nominal_kvar, 0)}</td>
+                    <td className="num">{b.q_flujo_kvar == null ? '—' : fmtNum(b.q_flujo_kvar, 0)}</td>
+                    <td className="num">{b.u_pu == null ? '—' : fmtNum(b.u_pu, 3)}</td>
+                    <td>{b.en_servicio ? 'en servicio' : 'fuera de servicio'}</td></tr>))}</tbody>
+              </table>
+            </div>
+          )}
+        </details>
+      )}
+      {consumoDistinto?.cargas && consumoDistinto.cargas.length > 0 && (
+        <ConsumoDistintoLista cargas={consumoDistinto.cargas} />
       )}
       {(inf.remedios ?? []).length > 0 && (
         <details open={!inf.cuadrado}><summary>Remedios para converger: {inf.remedios!.length}</summary>
@@ -231,9 +284,10 @@ function InformeAjuste({ inf, report, cancelado }: { inf: AjusteInforme; report:
           <ul className="small">{inf.desconectadas!.map((x) => <li key={x.sed}><strong>{x.sed}</strong>: clientes {x.clientes.join(', ')}</li>)}</ul>
         </details>
       )}
-      {(inf.fallos ?? []).length > 0 && (
-        <details className="alert alert-error"><summary>SED que DIgSILENT no dejó escribir: {inf.fallos!.length}</summary>
-          <ul className="small">{inf.fallos!.map((x) => <li key={x.sed}><strong>{x.sed}</strong>: {x.error}</li>)}</ul></details>
+      {fallosEscritura.length > 0 && (
+        <details className="alert alert-error"><summary>SED que DIgSILENT no dejó escribir: {fallosEscritura.length}</summary>
+          <ul className="small">{fallosEscritura.map((x, i) => (
+            <li key={`${x.sed ?? ''}-${i}`}><strong>{x.sed}</strong>: {x.error}</li>))}</ul></details>
       )}
       {filas.length > 0 || filtro ? <>
         <input className="search" type="search" placeholder="Filtrar SED…" value={filtro} onChange={(e) => setFiltro(e.target.value)} />
@@ -280,6 +334,58 @@ function Diagnostico({ d }: { d: NonNullable<AjusteInforme['diagnostico']> }) {
         {!d.tension_minima && !d.n_barras_sin_tension && !d.sobrecargados.length && !sed.length &&
           <li>Sin causa clara en los resultados: revise el alimentador en DIgSILENT.</li>}
       </ul>
+    </details>
+  );
+}
+
+/** Spec 015, RF-50: la cabecera con lo que consumen las cargas en el flujo, frente a lo escrito. */
+function BalanceFisico({ b }: { b: BalanceCabecera }) {
+  const kw = (x: number | null) => (x == null ? 'sin resultado' : fmtNum(x, 1));
+  const consumido = b.fijas_consumida_kw == null || b.escaladas_consumida_kw == null
+    ? null : b.fijas_consumida_kw + b.escaladas_consumida_kw;
+  return (
+    <details open={Boolean(b.causa_probable)}>
+      <summary>Balance físico de la cabecera: lo que consumen las cargas en el flujo</summary>
+      <div className="table-wrap">
+        <table className="table">
+          <thead><tr><th /><th className="num">Escrito (kW)</th><th className="num">Consumido en el flujo (kW)</th></tr></thead>
+          <tbody>
+            <tr><td>SED fijas (clientes importantes)</td>
+              <td className="num">{kw(b.fijas_escrita_kw)}</td><td className="num">{kw(b.fijas_consumida_kw)}</td></tr>
+            <tr><td>SED escaladas</td>
+              <td className="num">{kw(b.escaladas_escrita_kw)}</td><td className="num">{kw(b.escaladas_consumida_kw)}</td></tr>
+            <tr><td>Suma de las cargas</td>
+              <td className="num">{fmtNum(b.escrita_kw, 1)}</td><td className="num">{kw(consumido)}</td></tr>
+            <tr><td>Pérdidas (cabecera menos lo consumido)</td>
+              <td className="num">—</td><td className="num">{kw(b.perdidas_kw)}</td></tr>
+            <tr><td><strong>Entra por la cabecera</strong></td>
+              <td className="num">—</td><td className="num"><strong>{fmtNum(b.cabecera_kw, 1)}</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+      {b.causa_probable && <p className="alert alert-warn">Causa probable: {b.causa_probable}.</p>}
+    </details>
+  );
+}
+
+/** Spec 015, RF-49: las cargas que no consumen lo suyo, primero las fijas y las que más se apartan. */
+function ConsumoDistintoLista({ cargas }: { cargas: ConsumoDistinto[] }) {
+  const orden = [...cargas].sort((a, b) => (a.clase === b.clase ? 0 : a.clase === 'FIJA' ? -1 : 1));
+  const fijas = cargas.filter((c) => c.clase === 'FIJA').length;
+  return (
+    <details className="alert alert-error" open={fijas > 0}>
+      <summary>Cargas que no consumen lo escrito: {cargas.length} ({fijas} fijas)</summary>
+      <div className="table-wrap table-short">
+        <table className="table">
+          <thead><tr><th>SED</th><th>Clase</th><th className="num">P escrita (kW)</th>
+            <th className="num">P consumida (kW)</th><th className="num">Tensión (p.u.)</th></tr></thead>
+          <tbody>{orden.map((c) => (
+            <tr key={c.sed}><td>{c.sed}</td><td>{c.clase === 'FIJA' ? 'fija' : 'escalada'}</td>
+              <td className="num">{fmtNum(c.p_escrita_kw, 1)}</td><td className="num">{fmtNum(c.p_consumida_kw, 1)}</td>
+              <td className="num">{c.u_pu == null ? '—' : fmtNum(c.u_pu, 3)}</td></tr>
+          ))}</tbody>
+        </table>
+      </div>
     </details>
   );
 }

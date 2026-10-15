@@ -1,0 +1,52 @@
+{
+  "_nota": "Precios públicos de la web, solo como referencia (spec 017, RF-39d). Sustitúyalos por las cotizaciones de la empresa y ponga referencial en false. El precio de la energía se toma del libro de pérdidas de la empresa; el mantenimiento anual no tiene fuente pública y queda en null.",
+  "precio_energia": null,
+  "bancos": [
+    {
+      "kvar": 600,
+      "tension_kv": null,
+      "inversion": 40700,
+      "mantenimiento_anual": null,
+      "moneda": "USD",
+      "fuente": "https://dps.ny.gov/oru-ny-itwgupgrade-cost-estimate-v3-rev-2",
+      "fecha": "2022-07",
+      "referencial": true,
+      "nota": "Orange & Rockland, matriz de costes ante el regulador de Nueva York: «Install new 1P/3P capacitor bank (fixed/switched)», 40 700 USD instalado, sin distinguir el tamaño. Solo el equipo de 600 kvar: 7 945 a 13 029 USD (North Little Rock, oferta 21-3699 del 2021-05-04, https://nlr.ar.gov/download/539/2021/3937/21-3699-pole-mounted-capacitor-banks-for-the-nlred-summary.pdf)."
+    },
+    {
+      "kvar": 900,
+      "tension_kv": null,
+      "inversion": 40700,
+      "mantenimiento_anual": null,
+      "moneda": "USD",
+      "fuente": "https://dps.ny.gov/oru-ny-itwgupgrade-cost-estimate-v3-rev-2",
+      "fecha": "2022-07",
+      "referencial": true,
+      "nota": "Orange & Rockland, el mismo coste instalado para cualquier tamaño. Solo el equipo de 900 kvar: 8 390 a 13 441 USD (North Little Rock, oferta 21-3699 del 2021-05-04)."
+    }
+  ],
+  "reguladores": [
+    {
+      "tipo": "Regulador de línea 167 kVA, clase 15 kV, control bidireccional",
+      "clase_kv": 15,
+      "inversion": 65000,
+      "mantenimiento_anual": null,
+      "moneda": "USD",
+      "fuente": "https://dps.ny.gov/oru-ny-itwgupgrade-cost-estimate-v3-rev-2",
+      "fecha": "2022-07",
+      "referencial": true,
+      "nota": "Orange & Rockland: «Install new 50' pole and 15kV 167kVA line regulator with bi-directional control», instalado con poste nuevo."
+    },
+    {
+      "tipo": "Regulador de línea 333 kVA, clase 35 kV, control bidireccional",
+      "clase_kv": 35,
+      "inversion": 65000,
+      "mantenimiento_anual": null,
+      "moneda": "USD",
+      "fuente": "https://dps.ny.gov/oru-ny-itwgupgrade-cost-estimate-v3-rev-2",
+      "fecha": "2022-07",
+      "referencial": true,
+      "nota": "Orange & Rockland: el mismo precio que el de 15 kV, «will not differentiate by voltage class»."
+    }
+  ]
+}

@@ -312,9 +312,9 @@ def geography_to_dict(geo: GeographyManifest, model: FeederModel | None = None) 
         'target_bounds': list(geo.target_bounds),
         'intermediate_sections': geo.intermediate_section_count,
         'equipment_scope_note': (
-            'Transformers = SED ElmTr2 from CARGA. Capacitors/regulators require '
-            'CAPACITOR SETTING / REGULATOR SETTING in RED (absent in typical IGEA export); '
-            'BD_Equipo catalog alone is not placed on the network.'
+            'Transformers = SED ElmTr2 from CARGA. Capacitors come from [SHUNT CAPACITOR '
+            'SETTING] in RED or CYMSHUNTCAPACITOR in the .mdb; regulators from REGULATOR '
+            'SETTING. The BD_Equipo catalog alone is not placed on the network.'
         ),
         'nodes': {node_id: _point_dict(point) for node_id, point in geo.nodes.items()},
         'lines': {

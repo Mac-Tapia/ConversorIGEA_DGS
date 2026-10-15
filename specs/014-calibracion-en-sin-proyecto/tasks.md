@@ -33,10 +33,10 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `pytest -q tests/test_cargas_pf_guion_007.py tests/test_cargas_pf_guion.py tests/test_cargas_pf.py` en verde.
 - [x] T8b. Aviso sin bloqueo por modificaciones manuales, citado. (RF-17)
       Hecho cuando: una prueba con `014:RF-17` en verde.
-- [ ] T8c. Notas en las specs 004, 006, 007 y 011 sobre los RF que cambia la 014;
+- [x] T8c. Notas en las specs 004, 006, 007 y 011 sobre los RF que cambia la 014;
       `CODIGO_FUENTE.md` y `docs/MANUAL_COMANDOS.md` al día. (Trazabilidad)
       Hecho cuando: `pytest -q tests/test_inventario.py` en verde.
-- [ ] T8c-015. La spec 015 (2026-10-14) cambia RF-5 y RF-10 y el contexto: anotado al
+- [x] T8c-015. La spec 015 (2026-10-14) cambia RF-5 y RF-10 y el contexto: anotado al
       final de la spec. La prueba de T9 se hace después de verificar el «Caso base» de
       CA101 (015, T12).
 - [ ] T9. Prueba en DIgSILENT con CA101, sobre el proyecto existente y sin datos
@@ -47,6 +47,8 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       - repetir una inserción de cargas nuevas no crea duplicadas;
       - el tiempo de leer las etapas queda medido. (Criterios de finalización)
       Hecho cuando: informe JSON de cada paso en `output/` y resultados anotados aquí.
-- [ ] T10. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
+- [x] T10. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
       Hecho cuando: `grep -rnoE "014:RF-[0-9]+" tests | sort -u` lista los 28 RF y la suite
       con las variables `IGEA_*` pasa.
+      Hecho el 2026-10-14: los 28 RF citados; suite con las cinco variables, 1753 correctas
+      (`docs/VERIFICACION_SPECS_2026-10-14.md`).

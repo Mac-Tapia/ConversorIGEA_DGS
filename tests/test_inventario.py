@@ -26,6 +26,9 @@ RETIRADAS = (
     '_retry_pf_timeouts.py', '_run_production_pf_batch.py', '_write_production_readiness.py',
     'prod_readiness_sample.py', 'audit_ternas_backbone.py', 'audit_ternas_classify.py',
     'audit_ternas_ug.py',
+    # 2026-10-14: emparejaba TXT y bases «de la misma foto» para comparar una fuente con
+    # otra; las fuentes son independientes y esas comparaciones se retiraron.
+    'emparejar_entradas.py',
 )
 #: Tareas que no son de código: la prueba en DIgSILENT la hace el usuario.
 DEL_USUARIO = re.compile(r'a cargo del usuario|la hace el usuario', re.I)

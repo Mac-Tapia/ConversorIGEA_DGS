@@ -198,3 +198,61 @@ def test_red_alta_va_en_hoja_vertical(tmp_path):
 def test_formato_desconocido_se_rechaza(tmp_path):
     with pytest.raises(ValueError, match='Formato de hoja'):
         _dgs_en_hoja(tmp_path, 'B7')
+
+
+# ---------------------------------------------------------------------------
+# Curvas de la grid iguales a las del mapa geográfico (spec 010, RF-7)
+# ---------------------------------------------------------------------------
+
+
+def test_la_grid_conserva_la_curva_con_el_tope_de_powerfactory():
+    """010:RF-7 — con más puntos que el tope se guardan los extremos y los que dan la forma.
+
+    Tomar puntos a intervalos fijos (4 por mitad) cortaba las curvas: en IN111 + TA225
+    la grid se separaba hasta 257 m del trazado que dibuja el mapa.
+    """
+    from igea_dgs.dgs import PUNTOS_POR_CONECTOR_PF, _puntos_que_dan_la_forma
+
+    # Una recta larga con un único quiebro lejos de los intervalos regulares.
+    puntos = [(float(i), 0.0) for i in range(60)]
+    puntos[37] = (37.0, 50.0)
+    elegidos = _puntos_que_dan_la_forma(puntos, PUNTOS_POR_CONECTOR_PF)
+    assert len(elegidos) <= PUNTOS_POR_CONECTOR_PF
+    assert elegidos[0] == puntos[0] and elegidos[-1] == puntos[-1]
+    assert (37.0, 50.0) in elegidos
+    assert _puntos_que_dan_la_forma(puntos[:5], PUNTOS_POR_CONECTOR_PF) == puntos[:5]
+
+
+def test_cabecera_de_conectores_ensanchada_es_valida():
+    """010:RF-7 — el DGS declara tantos puntos por conector como usa, y el validador lo acepta."""
+    from igea_dgs.schema import load_schema
+
+    schema = load_schema()
+    ancho = schema.con_puntos_por_conector(20).header('IntGrfcon')
+    campos = [p.split('(')[0] for p in ancho.split(';')]
+    assert campos.count('rX:SIZEROW') == 1 and 'rX:19' in campos and 'rY:19' in campos
+    assert 'rX:20' not in campos
+    assert schema.con_puntos_por_conector(3) is schema
+
+
+def test_curva_distinta_entre_grid_y_mapa_se_detecta():
+    """010:RF-7 — una línea recta en la grid y curva en el mapa no pasa la aceptación."""
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
+    from powerfactory_acceptance import TOLERANCIA_CURVA_M, separacion_curvas
+
+    # Escala 2,08 u/m como la de la grid; un grado de latitud ≈ 110 574 m.
+    def a_grid(lat, lon):
+        return (lon * 111320.0 * math.cos(math.radians(-14.0)) * 2.08, lat * 110574.0 * 2.08)
+
+    gps = {'RECTA': [(-14.0, -75.0), (-14.0, -74.99)],
+           'CURVA': [(-14.01, -75.0), (-14.0095, -74.995), (-14.01, -74.99)]}
+    igual = {n: [a_grid(*p) for p in v] for n, v in gps.items()}
+    r = separacion_curvas(igual, gps)
+    assert r['compared'] == 2 and r['distintas'] == 0
+    recortada = dict(igual, CURVA=[igual['CURVA'][0], igual['CURVA'][-1]])
+    r = separacion_curvas(recortada, gps)
+    assert r['distintas'] == 1 and r['max_m'] > TOLERANCIA_CURVA_M
+    assert r['muestra'][0].startswith('CURVA')

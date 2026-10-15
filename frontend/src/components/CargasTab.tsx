@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, download, fmtNum } from '../api';
 import { useApp } from '../context';
 import type {
@@ -6,7 +6,7 @@ import type {
   CargasInforme, CargasMotivo, CargasPlan, CargasResultado, Economia, Job, PfInventario, PfProject,
   VerificarInforme, VerificarResultado,
 } from '../types';
-import { estadoVinculoProyecto } from '../projectBinding';
+import { estadoVinculoProyecto, textoCausaVinculo, usoDeLaFuente } from '../projectBinding';
 import { DemandaMedida } from './DemandaMedida';
 import { EstudiosPF } from './EstudiosPF';
 import { ObrasPF } from './ObrasPF';
@@ -111,6 +111,7 @@ export function CargasTab() {
   const [filter, setFilter] = useState('');
   const [demandas, setDemandas] = useState<File | null>(null);
   const [nuevas, setNuevas] = useState<File | null>(null);
+  const [minima, setMinima] = useState('');
   const [nueva, setNueva] = useState<Record<string, string> | null>(null);
   const [form, setForm] = useState(false);
   const [values, setValues] = useState<Record<string, string>>(vacio);
@@ -126,9 +127,18 @@ export function CargasTab() {
   const pfBusy = Boolean(active.powerfactory);
   const todos = Object.values(jobs);
 
-  // El resultado del último «Leer proyectos» que terminó bien.
-  const lastRead = todos.filter((j) => j.kind === 'pf_projects' && j.status === 'done').pop();
-  const inventario = (lastRead?.result ?? null) as PfInventario | null;
+  // El resultado del último «Leer proyectos» que terminó bien. Usar la fuente del vínculo
+  // devuelve la misma lista con el vínculo recalculado, sin volver a abrir DIgSILENT (018:RF-10).
+  const lastRead = todos.filter((j) => (j.kind === 'pf_projects' || j.kind === 'pf_adoptar_fuente')
+    && j.status === 'done').pop();
+  // 018:RF-13: sin lectura en esta sesión (p. ej. tras reiniciar la web), la última guardada.
+  const [guardado, setGuardado] = useState<PfInventario | null>(null);
+  useEffect(() => {
+    let vivo = true;
+    api.pfProjectsGuardados(ws.id).then((r) => { if (vivo) setGuardado(r); }).catch(() => undefined);
+    return () => { vivo = false; };
+  }, [ws.id]);
+  const inventario = (lastRead?.result ?? (guardado?.projects.length ? guardado : null)) as PfInventario | null;
   const projects = inventario?.projects ?? [];
   // El proyecto se identifica por su ruta en la carpeta: dos SI213 en subcarpetas
   // distintas son dos proyectos (spec 005, RF-16).
@@ -136,6 +146,20 @@ export function CargasTab() {
   const current = projects.find((p) => ruta(p) === project) ?? null;
   const bindingState = estadoVinculoProyecto(current);
   const bindingBlocked = bindingState.bloqueado;
+  const usoFuente = usoDeLaFuente(current);
+  const adoptando = todos.some((j) => j.kind === 'pf_adoptar_fuente' && (j.status === 'queued' || j.status === 'running'));
+  const adoptarFallo = todos.filter((j) => j.kind === 'pf_adoptar_fuente').pop();
+  // 018:RF-11: sin fuente activa se usa la del vínculo sin preguntar; una vez por proyecto,
+  // para que un fallo no se repita en bucle.
+  const adoptados = useRef(new Set<string>());
+  useEffect(() => {
+    if (!current || usoFuente !== 'automatico' || adoptando || active.engine) return;
+    const clave = ruta(current);
+    if (adoptados.current.has(clave)) return;
+    adoptados.current.add(clave);
+    void startJob(() => api.pfAdoptarFuente(ws.id, clave));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current, usoFuente, adoptando, active.engine]);
   // RF-4: filtrar por parte de la ruta; el elegido sigue en la lista aunque no coincida.
   const q = buscaProyecto.trim().toLowerCase();
   const filtrados = projects.filter((p) => !q || ruta(p).toLowerCase().includes(q) || ruta(p) === project);
@@ -157,9 +181,23 @@ export function CargasTab() {
       comprobaciones: Object.fromEntries(Object.entries(x.comprobaciones ?? {}).map(([k, v]) => [k, v.pass])) };
   }
   const sinVerificar = order.filter((f) => estadoBase[f]?.status !== 'VERIFICADO');
-  // Spec 007, RF-1: la base es el último ajuste aplicado de este proyecto.
+  // Spec 007, RF-1: la base es el último ajuste aplicado de este proyecto. RF-40: sin ninguno
+  // en la sesión (tras reiniciar la web u otro espacio), el último guardado en disco.
+  const [ajusteDisco, setAjusteDisco] = useState<Job | null>(null);
+  useEffect(() => {
+    setAjusteDisco(null);
+    if (!project) return;
+    let vivo = true;
+    api.ajusteUltimo(ws.id, project).then(({ ajuste }) => {
+      if (!vivo || !ajuste) return;
+      setAjusteDisco({ id: ajuste.id, kind: 'ajuste_aplicar', title: 'Ajuste guardado', workspace_id: ws.id,
+        lane: 'powerfactory', status: 'done', progress: null, result: ajuste, error: null,
+        created_at: ajuste.finished_at, started_at: null, finished_at: ajuste.finished_at, cancel_requested: false });
+    }).catch(() => undefined);
+    return () => { vivo = false; };
+  }, [ws.id, project]);
   const baseJob = todos.filter((j) => j.kind === 'ajuste_aplicar' && j.result?.project === project
-    && j.status !== 'failed').pop();
+    && j.status !== 'failed').pop() ?? ajusteDisco ?? undefined;
   const ajusteBase = (baseJob?.result ?? null) as AjusteResultado | null;
   const informesBase = ajusteBase ? (ajusteBase.informes ?? [ajusteBase.informe]) : [];
   const conBase = Boolean(baseJob) && !sinBase
@@ -195,8 +233,9 @@ export function CargasTab() {
   const prepare = async () => {
     const e = economia();
     if (e === undefined) return;
+    const m = minima.trim().replace(',', '.');
     const p = await run(() => api.cargasPlan(ws.id, project, order, demandas, nuevas, nueva, e,
-      conBase ? baseJob!.id : null));
+      conBase ? baseJob!.id : null, m === '' ? null : Number(m)));
     if (p) setPlan(p);
   };
 
@@ -310,12 +349,25 @@ export function CargasTab() {
               </div>
             ))}
           </div>
+        ) : current && (adoptando || usoFuente === 'automatico') ? (
+          <small className="alert">Usando en este espacio la ejecución fuente con la que se aceptó el proyecto
+            ({current.binding?.source_run_id})…</small>
+        ) : current && usoFuente === 'boton' ? (
+          <div className="alert alert-warn">
+            <p>{textoCausaVinculo(current)}</p>
+            <button className="btn btn-sm" disabled={Boolean(active.engine)}
+              onClick={() => startJob(() => api.pfAdoptarFuente(ws.id, ruta(current)))}>
+              Usar la fuente con la que se aceptó ({current.binding?.source_run_id})
+            </button>
+            <small className="muted"> Las entradas cargadas aquí no se tocan; solo cambia la ejecución activa.</small>
+          </div>
         ) : current ? (
           <small className="alert alert-warn">
-            {current.binding_blocked_reason || 'PROJECT_BINDING_MISSING: importe y acepte este proyecto desde la ejecución fuente activa.'}
+            {adoptarFallo?.status === 'failed' && adoptarFallo.error ? `${adoptarFallo.error} ` : ''}
+            {textoCausaVinculo(current)}
           </small>
         ) : null}
-        {current?.binding && (
+        {current?.binding && !bindingBlocked && (
           <>
             <h4>1.1 · Caso base</h4>
             <p className="muted">El modelo físico se verifica frente al archivo original: GPS y trazado, conexiones, diagrama
@@ -363,7 +415,11 @@ export function CargasTab() {
               })}
             </div>
           )}
-          {sinVerificar.length > 0 && (
+          {bindingBlocked && (
+            // Sin vínculo no aparece el paso 1.1, así que «verifíquelos en 1.1» apuntaría a nada.
+            <small className="alert alert-warn">Todavía no se puede calibrar este proyecto: vea el aviso del paso 1.</small>
+          )}
+          {!bindingBlocked && current.binding && sinVerificar.length > 0 && (
             <small className="alert alert-warn">Sin «Caso base» verificado no se calibran: {sinVerificar.join(', ')}.
               Verifíquelos en el paso 1.1.</small>
           )}
@@ -423,6 +479,13 @@ export function CargasTab() {
           </div>
           <small className="muted">Un libro puede traer varios alimentadores. Una SED que no está en los marcados se
             omite y se informa; no es un error.</small>
+          <label className="field">
+            <span>Distancia mínima a una barra (m)</span>
+            <input value={minima} inputMode="decimal" placeholder="en blanco: partir siempre"
+              onChange={(e) => { setMinima(e.target.value); setPlan(null); }} />
+            <small className="muted">Cada carga se conecta en el punto más cercano de la troncal, partiendo el tramo con
+              una barra nueva; si ese punto queda más cerca de una barra que esta distancia, se conecta en la barra.</small>
+          </label>
 
           <Toggle label="Evaluación técnico-económica de las cargas nuevas (valor actual neto en DIgSILENT)"
             checked={tecOn && hayNuevas} disabled={!hayNuevas} onChange={setTecOn}

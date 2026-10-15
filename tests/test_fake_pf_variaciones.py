@@ -6,6 +6,8 @@ pasarían sin probar nada.
 """
 from __future__ import annotations
 
+import math
+
 from fake_pf import proyecto
 
 
@@ -382,3 +384,60 @@ def test_la_etapa_lista_lo_que_creo_y_la_copia_de_lo_que_cambio():
     clases = {o.GetClassName() for s in op.GetContents('*.IntSstage') for o in s.GetContents('*')}
     assert clases == {'ElmTr2'} and op in app.GetActiveNetworkVariations()
     assert trafo.typ_id is tipo and app.grabando is None
+
+
+# --------------------------------------------------------------------------- spec 016
+# ``Application.SplitLine`` como se comportó en DIgSILENT 2024 el 2026-10-14, sobre una
+# copia de IN111_TA225 (T1 de la 016): si el doble no devolviera la línea entera al
+# desactivar la variación, el «deshacer» de una carga nueva que parte un tramo pasaría
+# sin probar nada.
+
+def _extremos(app, linea):
+    """Barras de cada lado (``obj_bus``) de ``linea`` en la red que se ve ahora."""
+    cubs = [c for c in app.proyecto.GetContents('*.StaCubic', 1) if getattr(c, 'obj_id', None) is linea]
+    return {c.obj_bus: c.cterm.loc_name for c in cubs}
+
+
+def test_partir_una_linea_en_una_variacion():
+    """apoyo de 016:RF-16 a RF-19 y RF-22 — dos tramos que suman la longitud, con el tipo,
+    las ternas y el estado del original, y una barra nueva sin GPS."""
+    app = proyecto(alimentadores=('F1',), cargas_por_alim=2)
+    ln = next(o for o in app.proyecto.GetContents('*.ElmLne', 1) if o.loc_name == 'F1_L1')
+    ln.nlnum = 2
+    trazado = list(ln.GPScoords)
+    v = _variacion(app, 'Enlace')
+
+    barra = app.SplitLine(ln, 40.0, 0, 0, 0)
+
+    copia = next(o for o in app.proyecto.GetContents('*.ElmLne', 1) if o.loc_name == 'F1_L1(1)')
+    assert barra.loc_name == 'Terminal' and barra.uknom == 10.0
+    assert (barra.GPSlat, barra.GPSlon) == (0.0, 0.0)
+    assert math.isclose(ln.dline, 0.4) and math.isclose(copia.dline, 0.6)
+    assert (copia.typ_id, copia.nlnum, copia.outserv) == (ln.typ_id, 2, 0)
+    assert copia.GPScoords == trazado and ln.GPScoords == trazado
+    assert _extremos(app, ln) == {0: 'F1_B0', 1: 'Terminal'}
+    assert _extremos(app, copia) == {0: 'Terminal', 1: 'F1_B1'}
+    alim = app.proyecto.GetContents('*.ElmFeeder', 1)[0]
+    assert barra in alim.GetObjs('ElmTerm') and copia in alim.GetObjs('ElmLne')
+    etapa = v.GetContents('*.IntSstage')[0]
+    assert {'Terminal', 'F1_L1', 'F1_L1(1)'} <= {o.loc_name for o in etapa.GetContents('*')}
+
+    v.Deactivate()
+    assert math.isclose(ln.dline, 1.0) and _extremos(app, ln) == {0: 'F1_B0', 1: 'F1_B1'}
+    assert barra not in app.proyecto.GetContents('*.ElmTerm', 1)
+    assert copia not in alim.GetObjs('ElmLne')
+
+
+def test_partir_con_interruptor_y_porcentaje_imposible():
+    """apoyo de 016:RF-21 — el interruptor del lado 1 nace cerrado en la barra nueva, y un
+    porcentaje fuera de (0, 100) es un error (0), como en DIgSILENT."""
+    app = proyecto(alimentadores=('F1',), cargas_por_alim=1)
+    ln = app.proyecto.GetContents('*.ElmLne', 1)[0]
+    _variacion(app, 'Corte')
+    assert app.SplitLine(ln, 0.0) == 0 and app.SplitLine(ln, 100.0) == 0
+
+    barra = app.SplitLine(ln, 50.0, 0, 1, 0)
+
+    sw = [s for c in barra.GetContents('*.StaCubic') for s in c.GetContents('*.StaSwitch')]
+    assert len(sw) == 1 and sw[0].IsClosed()
+    assert sw[0].GetParent().obj_id.loc_name == f'{ln.loc_name}(1)'

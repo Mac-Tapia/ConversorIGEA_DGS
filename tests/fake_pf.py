@@ -565,9 +565,14 @@ class Alimentador(Obj):
         nuevos = [o for o in app.creados if o.etapa_creacion is not None and o.en_red]
         if not nuevos:
             return []
+        def abierto(cub) -> bool:
+            # Como en DIgSILENT, el alimentador termina en un interruptor abierto (spec 016:
+            # el enlace nuevo queda abierto y no mete las barras del otro alimentador).
+            return any(getattr(s, 'on_off', 1) == 0 for s in cub.GetContents('*.StaSwitch'))
+
         cubiculos: dict[int, list] = {}
         for c in (o for o in app.creados if o._clase == 'StaCubic' and o.en_red):
-            if getattr(c, 'obj_id', None) is not None:
+            if getattr(c, 'obj_id', None) is not None and not abierto(c):
                 cubiculos.setdefault(id(c.obj_id), []).append(c)
         vistos = {id(o) for o in self._objs}
         pendientes = [o for o in self._objs if o._clase == 'ElmTerm']
@@ -576,7 +581,7 @@ class Alimentador(Obj):
             barra = pendientes.pop()
             for cub in barra.GetContents('*.StaCubic'):
                 elem = getattr(cub, 'obj_id', None)
-                if elem is None or id(elem) in vistos or elem.etapa_creacion is None:
+                if elem is None or id(elem) in vistos or elem.etapa_creacion is None or abierto(cub):
                     continue
                 vistos.add(id(elem))
                 out.append(elem)
@@ -701,6 +706,17 @@ class FlujoConPerdidas(Orden):
                         object.__delattr__(o, 'm_u')
                 return 1
             s2 = p * p + q * q
+            # Consumo efectivo de cada carga y banco, como «m:Psum:bus1» de DIgSILENT: las
+            # pérdidas del informe son cabecera menos esto (017:RF-15).
+            # ``consumo_relativo`` imita una carga dependiente de la tensión, que consume en
+            # terminal menos de lo escrito (006:RF-41).
+            for c in cargas:
+                rel = float(getattr(c, 'consumo_relativo', 1.0))
+                object.__setattr__(c, 'm_Psum:bus1', c.plini * c.scale0 * rel)
+                object.__setattr__(c, 'm_Qsum:bus1', c.qlini * c.scale0 * rel)
+            for sh in alim.GetObjs('ElmShnt'):
+                object.__setattr__(sh, 'm_Psum:bus1', 0.0)
+                object.__setattr__(sh, 'm_Qsum:bus1', -float(getattr(sh, 'qcapn', 0.0) or 0.0))
             rama, lado = cub.obj_id, cub.obj_bus + 1
             object.__setattr__(rama, f'm_Psum:bus{lado}', p + self.rp * s2)
             object.__setattr__(rama, f'm_Qsum:bus{lado}', q + self.rq * s2 - self.cables)
@@ -1159,6 +1175,60 @@ class App:
     def GetCalcRelevantObjects(self, patron):
         return self.proyecto.GetContents(patron, 1) if self.proyecto else []
 
+    # ----------------------------------------------------------- spec 016
+    def SplitLine(self, linea, percent=50, createSwitchSide0=0, createSwitchSide1=0,
+                  graphicSplit=0):
+        """Como en DIgSILENT 2024 (sonda del 2026-10-14 sobre IN111_TA225, T1 de la 016).
+
+        La línea conserva el nombre y va de su ``bus1`` a la barra nueva, con ``percent`` %
+        de la longitud; la copia, ``<nombre>(1)``, va de la barra al otro extremo. Las dos
+        conservan tipo, ternas y estado, y las dos se quedan el trazado **entero**. La barra
+        nueva se llama ``Terminal``, con la tensión del tramo y **sin GPS**. Todo es de la
+        variación que graba: desactivarla devuelve la línea entera.
+        """
+        if createSwitchSide0:
+            raise NotImplementedError('la sonda de la 016 no probó el interruptor del lado 0')
+        cubs = [c for c in self.proyecto.GetContents('*.StaCubic', 1)
+                if getattr(c, 'obj_id', None) is linea]
+        lados = {getattr(c, 'obj_bus', 0): c for c in cubs}
+        if (linea is None or linea._clase != 'ElmLne' or not 0 < percent < 100
+                or set(lados) != {0, 1}):
+            return 0
+        red = linea._padre
+        ocupados = {h.loc_name for h in red._hijos}
+        nombre, n = 'Terminal', 0
+        while nombre in ocupados:
+            n += 1
+            nombre = f'Terminal({n})'
+        barra = red.CreateObject('ElmTerm', nombre)
+        barra.uknom = getattr(lados[0].cterm, 'uknom', None)
+        barra.GPSlat, barra.GPSlon = 0.0, 0.0
+        copia = red.CreateObject('ElmLne', f'{linea.loc_name}(1)')
+        for k in ('typ_id', 'nlnum', 'outserv'):
+            setattr(copia, k, getattr(linea, k, None))
+        largo = getattr(linea, 'dline', 0.0) or 0.0
+        copia.dline = largo * (100 - percent) / 100
+        copia.GPScoords = [list(p) for p in (getattr(linea, 'GPScoords', None) or [])]
+        cerca = barra.CreateObject('StaCubic', 'Cub_1')
+        cerca.obj_id, cerca.obj_bus = linea, 1
+        lejos = barra.CreateObject('StaCubic', 'Cub_0')
+        lejos.obj_id, lejos.obj_bus = copia, 0
+        if createSwitchSide1:
+            sw = lejos.CreateObject('StaSwitch', 'Switch')
+            sw.on_off = 1
+        # El cubículo del otro extremo pasa a la copia y la línea se acorta. Son cambios de
+        # objetos que ya existían: se devuelven al desactivar la variación aunque el doble
+        # no tenga ``atributos_en_variacion``, porque DIgSILENT siempre lo hace.
+        for obj, k, valor in ((lados[1], 'obj_id', copia), (linea, 'dline', largo * percent / 100)):
+            etapa = self.grabando
+            if etapa is not None:
+                etapa._padre.__dict__.setdefault('_cambios', []).append(
+                    (obj, k, getattr(obj, k, None), valor))
+                _registrar_en_etapa(etapa, obj, k, valor)
+            self.escrituras.append((obj, k, valor, etapa, self.escenario))
+            object.__setattr__(obj, k, valor)
+        return barra
+
     # ----------------------------------------------------------- spec 007
     def GetActiveNetworkVariations(self):
         return list(self.variaciones_activas)
@@ -1276,6 +1346,10 @@ def proyecto(nombre='P', *, alimentadores=('F1', 'F2'), cargas_por_alim=3, escen
             # «fuera de servicio» (0): sin los atributos, desactivar la variación de una
             # terna más, o restituir un tramo abierto por la transferencia, los dejaba en None.
             ln.typ_id, ln.nlnum, ln.outserv = tipo, 1, 0
+            # Spec 016: longitud (km) y trazado, que dan la troncal y el punto de conexión.
+            ln.dline = 1.0          # el km que ya suponía la confiabilidad (spec 012)
+            ln.GPScoords = ([[barras[i - 1].GPSlat, barras[i - 1].GPSlon],
+                             [barras[i].GPSlat, barras[i].GPSlon]] if con_gps else [])
             for lado, b in ((0, barras[i - 1]), (1, barras[i])):
                 cub = b.CreateObject('StaCubic', f'c{lado}_{ln.loc_name}')
                 cub.obj_id, cub.obj_bus = ln, lado

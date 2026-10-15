@@ -48,7 +48,7 @@ echo Abriendo la interfaz web en el navegador...
 "%PY%" -m igea_dgs.web
 if errorlevel 2 (
   echo.
-  echo El puerto 8765 ya esta en uso: cierre la otra ventana del Conversor y vuelva a abrirlo.
+  echo El puerto 8765 ya esta en uso: arriba se indica que proceso lo tiene y como cerrarlo.
   pause
   goto :fin
 )

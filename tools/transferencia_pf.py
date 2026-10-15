@@ -55,6 +55,7 @@ from pathlib import Path
 from typing import Any
 
 from cargas_pf import (
+    clave_pf,
     Alimentadores, _num, activar_proyecto, crear_variacion, error_inesperado, flujo_de_carga,
     potencia,
 )
@@ -95,7 +96,7 @@ class Red:
         self.elm = elm
         self.cubiculos: dict[int, list] = {}
         self.extremos: dict[int, list] = {}
-        self.cargas = {id(c) for c in elm.GetObjs('ElmLod')}
+        self.cargas = {clave_pf(c) for c in elm.GetObjs('ElmLod')}
         pendientes = list(elm.GetObjs('ElmTerm'))
         cabecera = getattr(getattr(elm, 'obj_id', None), 'cterm', None)
         if cabecera is not None:
@@ -103,19 +104,19 @@ class Red:
         vistas: set[int] = set()
         while pendientes:
             barra = pendientes.pop()
-            if id(barra) in vistas:
+            if clave_pf(barra) in vistas:
                 continue
-            vistas.add(id(barra))
-            self.cubiculos[id(barra)] = list(barra.GetContents('*.StaCubic') or [])
-            for cub in self.cubiculos[id(barra)]:
+            vistas.add(clave_pf(barra))
+            self.cubiculos[clave_pf(barra)] = list(barra.GetContents('*.StaCubic') or [])
+            for cub in self.cubiculos[clave_pf(barra)]:
                 e = getattr(cub, 'obj_id', None)
                 if e is None:
                     continue
-                self.extremos.setdefault(id(e), []).append((barra, cub))
+                self.extremos.setdefault(clave_pf(e), []).append((barra, cub))
                 if e.GetClassName() == 'ElmTr2':
                     for lado in ('bushv', 'buslv'):
                         otra = getattr(getattr(e, lado, None), 'cterm', None)
-                        if otra is not None and id(otra) not in vistas:
+                        if otra is not None and clave_pf(otra) not in vistas:
                             pendientes.append(otra)
 
     def interruptores(self) -> list:
@@ -143,24 +144,24 @@ class Red:
         elementos y cargas. Es lo que pasa al otro alimentador junto con la barra."""
         kw = kvar = 0.0
         barras, elementos, cargas = [], [], []
-        vistas, pendientes = {id(barra)}, [barra]
+        vistas, pendientes = {clave_pf(barra)}, [barra]
         while pendientes:
             b = pendientes.pop()
-            for cub in self.cubiculos.get(id(b), []):
+            for cub in self.cubiculos.get(clave_pf(b), []):
                 e = getattr(cub, 'obj_id', None)
-                if e is None or id(e) in camino or self.abierto(cub):
+                if e is None or clave_pf(e) in camino or self.abierto(cub):
                     continue
-                if id(e) in self.cargas:
+                if clave_pf(e) in self.cargas:
                     p, q = potencia(e)
                     kw, kvar = kw + p, kvar + q
-                    if all(x is not e for x in cargas):
+                    if all(clave_pf(x) != clave_pf(e) for x in cargas):
                         cargas.append(e)
                     continue
-                if all(x is not e for x in elementos):
+                if all(clave_pf(x) != clave_pf(e) for x in elementos):
                     elementos.append(e)
-                for otra, _c in self.extremos.get(id(e), []):
-                    if id(otra) not in vistas and id(otra) not in camino:
-                        vistas.add(id(otra))
+                for otra, _c in self.extremos.get(clave_pf(e), []):
+                    if clave_pf(otra) not in vistas and clave_pf(otra) not in camino:
+                        vistas.add(clave_pf(otra))
                         barras.append(otra)
                         pendientes.append(otra)
         return kw, kvar, barras, elementos, cargas
@@ -186,8 +187,8 @@ class Camino:
     """Del enlace hacia la cabecera del que cede, con lo que se abre en cada punto."""
 
     def __init__(self, red: Red, objetos: list, enlace, entrada: set[str], reconoce: bool):
-        objetos = [o for o in reversed(objetos) if o is not enlace]
-        self.ids = {id(o) for o in objetos}
+        objetos = [o for o in reversed(objetos) if clave_pf(o) != clave_pf(enlace)]
+        self.ids = {clave_pf(o) for o in objetos}
         self.puntos: list[Punto] = []
         self.accion: dict[str, tuple] = {}
         #: Por punto, las barras, elementos y cargas que ya han pasado al que recibe.
@@ -213,7 +214,7 @@ class Camino:
             elementos_t.append(o)
             if not reconoce:
                 continue
-            for _barra, cub in red.extremos.get(id(o), []):
+            for _barra, cub in red.extremos.get(clave_pf(o), []):
                 for sw in cub.GetContents('*.StaSwitch') or []:
                     if es_seccionador(sw, entrada) and sw.loc_name not in self.accion:
                         self.puntos.append(Punto(sw.loc_name, SECCIONADOR))
@@ -229,12 +230,12 @@ class Camino:
 # =========================================================================== cálculo
 def _troncales(app, cede: str, recibe: str) -> tuple[dict[str, tuple], list]:
     """Enlace → (troncal desde ``cede``, objeto de enlace), y las troncales creadas."""
-    previas = {id(b) for b in app.GetCalcRelevantObjects('*.ElmBbone')}
+    previas = {clave_pf(b) for b in app.GetCalcRelevantObjects('*.ElmBbone')}
     bbone = app.GetFromStudyCase('ComBbone')
     if bbone is None:
         raise RuntimeError('el caso no admite la orden ComBbone: sin troncal no hay camino')
     bbone.Execute()
-    creadas = [b for b in app.GetCalcRelevantObjects('*.ElmBbone') if id(b) not in previas]
+    creadas = [b for b in app.GetCalcRelevantObjects('*.ElmBbone') if clave_pf(b) not in previas]
     out = {}
     for b in app.GetCalcRelevantObjects('*.ElmBbone'):
         desde = getattr(getattr(b, 'pBbStart', None), 'loc_name', None)
@@ -279,7 +280,7 @@ def _con_comtransfer(app, red_recibe: 'Red', transferido: tuple, resto: list, en
     que recibe y la parte transferida (RF-127). Todo lo creado se borra al terminar.
     """
     caso = app.GetActiveStudyCase()
-    cub_enlace = next((c for _b, c in red_recibe.extremos.get(id(enlace), [])), None)
+    cub_enlace = next((c for _b, c in red_recibe.extremos.get(clave_pf(enlace), [])), None)
     if cub_enlace is None:
         return None, 'el enlace no tiene cubículo en el alimentador que recibe'
     creados = []
@@ -346,8 +347,8 @@ def capacidad_del_enlace(app, alims, cede, recibe, camino, punto, paso, enlace,
     """RF-122 a RF-127 en la configuración de ``punto`` (el seccionador viable más lejano)."""
     red_recibe = Red(alims.elm[recibe])
     transferido = camino.transferido[punto]
-    pasan = {id(c) for c in transferido[2]}
-    resto = [c for c in alims.elm[cede].GetObjs('ElmLod') if id(c) not in pasan]
+    pasan = {clave_pf(c) for c in transferido[2]}
+    resto = [c for c in alims.elm[cede].GetObjs('ElmLod') if clave_pf(c) not in pasan]
     obj, atributo, abierto = camino.accion[punto]
     antes = getattr(obj, atributo, None)
     setattr(obj, atributo, abierto)
@@ -373,7 +374,7 @@ class Foto:
     """Interruptores de los dos alimentadores y ramas del camino, para restituirlos (RF-119)."""
 
     def __init__(self, objetos: list[tuple[Any, str]]):
-        self.valores = {(id(o), a): (o, a, getattr(o, a, None)) for o, a in objetos}
+        self.valores = {(clave_pf(o), a): (o, a, getattr(o, a, None)) for o, a in objetos}
 
     def restituir(self) -> list[str]:
         for o, a, v in self.valores.values():
@@ -466,6 +467,8 @@ def calcular(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
                 app, alims, a, b, nombre_caso, entrada, limites, cancelado, informe)
             if any(r['caso'] == nombre_caso for r in informe['resultados']):
                 sin_enlace = False
+            if any(e['caso'] == nombre_caso for e in informe.get('sin_calcular', [])):
+                sin_enlace = False       # hay enlace, pero entre tensiones distintas (016:RF-63)
             if informe['cancelado']:
                 break
     finally:
@@ -474,7 +477,42 @@ def calcular(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
     if sin_enlace and not informe['cancelado']:                         # RF-107
         return {**informe, 'error': f'{a} y {b} no tienen ningún punto de enlace entre ellos'}, 2
     no_vuelto = [x for r in informe['restitucion'].values() for x in r['distintos']]
-    return informe, 2 if no_vuelto or informe['cancelado'] else 0
+    nada = not informe['resultados'] and bool(informe.get('sin_calcular'))
+    return informe, 2 if no_vuelto or informe['cancelado'] or nada else 0
+
+
+def tensiones_del_enlace(redes, enlace) -> list[tuple[str, float]]:
+    """(barra, ``uknom``) de las barras que une el punto de enlace (016:RF-63).
+
+    El punto es un ``ElmCoup`` o el ``StaSwitch`` del cubículo de una línea: sus barras son
+    las de sus extremos en los dos alimentadores.
+    """
+    elemento = enlace
+    if enlace.GetClassName() == 'StaSwitch':
+        elemento = getattr(enlace.GetParent(), 'obj_id', None) or enlace
+    out = {}
+    for red in redes:
+        for barra, _cub in red.extremos.get(clave_pf(elemento), []):
+            kv = getattr(barra, 'uknom', None)
+            if isinstance(kv, (int, float)):
+                out[barra.loc_name] = float(kv)
+    return sorted(out.items())
+
+
+def _tensiones_distintas(redes, enlace) -> str:
+    """El motivo para no cerrar el enlace, o vacío (016:RF-62, RF-63).
+
+    IN111 es de 10 kV y TA225 de 22,9 kV: cerrado sin migrar, el flujo no converge
+    (usuario, 2026-10-14). Hasta migrar la parte que pasa, la transferencia por ese enlace
+    no se calcula.
+    """
+    tensiones = tensiones_del_enlace(redes, enlace)
+    distintas = {round(kv, 6) for _b, kv in tensiones}
+    if len(distintas) < 2:
+        return ''
+    detalle = ' y '.join(f'{b} a {kv:g} kV' for b, kv in tensiones)
+    return (f'el enlace {enlace.loc_name} une barras de distinta tensión ({detalle}): no se '
+            'cierra ni se calcula la transferencia por él hasta migrar la parte que pasa')
 
 
 def _en_un_caso(app, alims, a, b, nombre_caso, entrada, limites, cancelado, informe) -> dict:
@@ -484,7 +522,7 @@ def _en_un_caso(app, alims, a, b, nombre_caso, entrada, limites, cancelado, info
     if escenario is not None:
         escenario.Deactivate(0)        # RF-120: el on_off iría al escenario; no se guarda nada
     carpeta = app.GetProjectFolder('scheme')
-    previas = {id(v) for v in carpeta.GetContents('*.IntScheme', 1)}
+    previas = {clave_pf(v) for v in carpeta.GetContents('*.IntScheme', 1)}
     redes = [Red(alims.elm[a]), Red(alims.elm[b])]
     creadas: list = []
     foto = None
@@ -509,6 +547,15 @@ def _en_un_caso(app, alims, a, b, nombre_caso, entrada, limites, cancelado, info
                     informe['cancelado'] = True
                     break
                 troncal, enlace = enlaces[nombre_enlace]
+                motivo = _tensiones_distintas(redes, enlace)
+                if motivo:                                              # 016:RF-63
+                    aviso = f'En «{nombre_caso}», {motivo}.'
+                    if aviso not in informe['avisos']:
+                        informe['avisos'].append(aviso)
+                    informe.setdefault('sin_calcular', []).append(
+                        {'caso': nombre_caso, 'cede': cede, 'recibe': recibe,
+                         'enlace': nombre_enlace, 'motivo': motivo})
+                    continue
                 try:
                     r = _sentido(app, alims, cede, recibe, nombre_enlace, troncal, enlace,
                                  entrada, limites, cancelado)
@@ -520,7 +567,7 @@ def _en_un_caso(app, alims, a, b, nombre_caso, entrada, limites, cancelado, info
         for bb in creadas:
             bb.Delete()
         for v in carpeta.GetContents('*.IntScheme', 1):
-            if id(v) not in previas or v is temporal:
+            if clave_pf(v) not in previas or (temporal is not None and clave_pf(v) == clave_pf(temporal)):
                 v.Deactivate()
                 v.Delete()
         if escenario is not None and app.GetActiveScenario() is None:
@@ -558,6 +605,10 @@ def main(argv=None) -> int:
     except Exception as exc:  # noqa: BLE001
         print(f'ERROR: no se pudo conectar a DIgSILENT: {exc}')
         return 3
+    # Primera línea solo con DIgSILENT ya respondiendo: la web la espera un tiempo
+    # limitado y, si no llega, corta el guion en vez de dejar ocupado el carril (005:RF-21).
+    print(f'Conectado a DIgSILENT como {getattr(app.GetCurrentUser(), "loc_name", "?")}.',
+          flush=True)
 
     def cancelado() -> bool:
         return bool(args.cancel_file) and Path(args.cancel_file).exists()

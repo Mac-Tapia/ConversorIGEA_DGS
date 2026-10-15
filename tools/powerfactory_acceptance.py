@@ -2180,6 +2180,87 @@ def _feeders_of(net: Any) -> list[Any]:
     return propios
 
 
+#: Separación admitida entre la curva de una línea en la grid y la del mapa geográfico.
+#: PowerFactory guarda como mucho 20 puntos por conector: un trazado más largo se dibuja
+#: en la grid con los 39 vértices que mejor lo siguen, a 1,3 m del GPS en IN111 + TA225.
+TOLERANCIA_CURVA_M = 2.0
+
+
+def separacion_curvas(grid: dict[str, list[tuple[float, float]]],
+                      gps: dict[str, list[tuple[float, float]]]) -> dict[str, Any]:
+    """Cuánto se separa la curva de cada línea en la grid de la del mapa, en metros.
+
+    El mapa geográfico de PowerFactory no guarda gráficos: dibuja cada línea con su
+    ``GPScoords``. La grid la dibuja con sus ``IntGrfcon``. Se pasa la hoja a metros con
+    un ajuste lineal por eje sobre los extremos de todas las líneas (las barras) y se
+    mide, línea a línea, la mayor distancia entre las dos polilíneas. El 2026-10-14 la
+    grid recortaba cada línea a 7 vértices y el mapa la tenía entera: se separaban hasta
+    257 m sin que ninguna comprobación lo viera.
+    """
+    comunes = [n for n in grid if len(grid[n]) >= 2 and len(gps.get(n) or []) >= 2]
+    if not comunes:
+        return {'compared': 0, 'distintas': 0, 'max_m': None, 'muestra': []}
+    lat0 = sum(p[0] for n in comunes for p in gps[n]) / sum(len(gps[n]) for n in comunes)
+    k = math.cos(math.radians(lat0))
+
+    def metros(p):
+        return (p[1] * 111320.0 * k, p[0] * 110574.0)
+
+    def ajuste(pares):
+        n = len(pares)
+        sx = sum(a for a, _ in pares)
+        sy = sum(b for _, b in pares)
+        sxx = sum(a * a for a, _ in pares)
+        sxy = sum(a * b for a, b in pares)
+        den = n * sxx - sx * sx
+        pendiente = (n * sxy - sx * sy) / den if den else 1.0
+        return pendiente, (sy - pendiente * sx) / n
+
+    px, py = [], []
+    for n in comunes:
+        for g, m in ((grid[n][0], metros(gps[n][0])), (grid[n][-1], metros(gps[n][-1]))):
+            px.append((g[0], m[0]))
+            py.append((g[1], m[1]))
+    (ax, bx), (ay, by) = ajuste(px), ajuste(py)
+
+    def dist(p, poli):
+        mejor = math.inf
+        for a, b in zip(poli, poli[1:]):
+            dx, dy = b[0] - a[0], b[1] - a[1]
+            largo = dx * dx + dy * dy
+            t = 0.0 if largo == 0 else max(0.0, min(1.0, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / largo))
+            mejor = min(mejor, math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy))
+        return mejor
+
+    peores: list[tuple[float, str]] = []
+    for n in comunes:
+        g = [(ax * x + bx, ay * y + by) for x, y in grid[n]]
+        m = [metros(p) for p in gps[n]]
+        peores.append((max(max(dist(p, g) for p in m), max(dist(p, m) for p in g)), n))
+    peores.sort(reverse=True)
+    distintas = [(d, n) for d, n in peores if d > TOLERANCIA_CURVA_M]
+    return {'compared': len(comunes), 'distintas': len(distintas),
+            'max_m': round(peores[0][0], 2), 'unidades_por_metro': round(1 / ax, 3) if ax else None,
+            'muestra': [f'{n} ({d:.1f} m)' for d, n in distintas[:10]]}
+
+
+def curvas_de_la_grid(diagram: Any) -> dict[str, list[tuple[float, float]]]:
+    """Polilínea de cada ``ElmLne`` en la grid: sus dos ``IntGrfcon`` unidos por el centro."""
+    curvas: dict[str, list[tuple[float, float]]] = {}
+    for grf in _contents(diagram, '*.IntGrf'):
+        obj = _attr(grf, 'pDataObj')
+        if obj is None or not _name(obj) or obj.GetClassName() != 'ElmLne':
+            continue
+        mitades = []
+        for con in sorted(_contents(grf, '*.IntGrfcon'), key=_name):
+            xs, ys = _attr(con, 'rX') or [], _attr(con, 'rY') or []
+            mitades.append([(float(x), float(y)) for x, y in zip(xs, ys)
+                            if not (float(x) == -1.0 and float(y) == -1.0)])
+        if len(mitades) == 2 and mitades[0] and mitades[1]:
+            curvas[_name(obj)] = list(reversed(mitades[0])) + mitades[1][1:]
+    return curvas
+
+
 def compare_line_gps(lines: list[Any], manifest: dict[str, Any]) -> dict[str, Any]:
     """Trazado GPS de cada ElmLne en PowerFactory frente al del manifiesto (spec 010).
 
@@ -2388,7 +2469,8 @@ def resumen_caso_base(report: dict[str, Any], equipos: dict[str, list],
                                      [f"{conn.get('total_lines', 0) - conn.get('valid_lines', 0)} "
                                       'líneas sin dos barras']
                                      if conn.get('total_lines') != conn.get('valid_lines') else []),
-        'diagrama': comprobacion(report.get('geographic_diagram_pass')),
+        'diagrama': comprobacion(report.get('geographic_diagram_pass'),
+                                 (report.get('diagram') or {}).get('fallos')),
         'capacidades': comprobacion(not equipos.get('sin_capacidad'), equipos.get('sin_capacidad')),
     }
     # 015:RF-8, RF-39: el flujo solo se prueba al importar el DGS.
@@ -2411,6 +2493,23 @@ def resumen_caso_base(report: dict[str, Any], equipos: dict[str, list],
                       'original: no se compara su GPS.')
     if variaciones:
         avisos.append('Variaciones activas en el «Caso base»: ' + ', '.join(variaciones))
+    # Lo que el archivo no trae se avisa con su nombre (015:RF-11): CA101, 2026-10-15, tenía
+    # dos tramos partidos y tres condensadores dibujados a mano en el «Caso base» que solo
+    # aparecían en los errores internos, sin llegar al operador.
+    nuevos = [f"{x['clase']} {x['nombre']}" for x in equipos.get('no_en_archivo') or []]
+    reread = report.get('capacitor_reread') or {}
+    if int(reread.get('reread') or 0) > int(reread.get('expected') or 0):
+        nuevos += [f"ElmShnt {b.get('loc_name')} en {b.get('terminal')} ({b.get('catalog_kvar') or ''} kvar)"
+                   for b in reread.get('banks') or []][int(reread.get('expected') or 0):]
+    if nuevos:
+        avisos.append(f'{len(nuevos)} equipo(s) en DIgSILENT que el archivo original no trae '
+                      f"(cambio del operador): {', '.join(nuevos[:10])}"
+                      + (f' y {len(nuevos) - 10} más' if len(nuevos) > 10 else '') + '.')
+    curvas = (report.get('diagram') or {}).get('curvas_grid_mapa') or {}
+    if curvas.get('distintas'):
+        avisos.append(f"{curvas['distintas']} líneas con otra curva en el unifilar que en el mapa "
+                      f"(máx. {curvas.get('max_m')} m): el unifilar es de un DGS anterior; el mapa "
+                      'y el GPS están bien.')
     aviso = _aviso_convergencia((report.get('load_flow') or {}).get('ajuste_de_cargas'))
     if aviso:
         avisos.append(aviso)
@@ -2603,8 +2702,9 @@ def run_acceptance(
                 warnings.append(msg)
     if expected.get('capacitors', 0) == 0 and actual.get('capacitors', 0) == 0:
         warnings.append(
-            'Sin bancos de condensadores en DGS: el RED export no trae CAPACITOR SETTING '
-            '(solo catálogo BD_Equipo).'
+            'Sin bancos de condensadores en DGS: la entrada no trae ninguno colocado en la '
+            'red ([SHUNT CAPACITOR SETTING] del RED o CYMSHUNTCAPACITOR de la .mdb); el '
+            'catálogo de BD_Equipo solo no basta.'
         )
     if expected.get('regulators', 0) == 0 and actual.get('regulators', 0) == 0:
         warnings.append(
@@ -2716,6 +2816,9 @@ def run_acceptance(
         except Exception:
             pass
     diagram_pass = diagram is not None
+    # Motivo de cada fallo del diagrama, para que el «Caso base» no salga ✗ sin causa
+    # (CA101, 2026-10-15: «diagrama» fallaba con la lista de fallos vacía).
+    diagram_fallos: list[str] = [] if diagram is not None else ['la grid no tiene diagrama']
     if require_diagram and diagram is None:
         errors.append('ElmNet.pDiagram is empty/unresolved; required geographic/single-line diagram was not materialised')
 
@@ -2741,12 +2844,35 @@ def run_acceptance(
                 errors.append(f'Network diagram rendering/export failed: {exc}')
         diagram_pass = diagram_pass and render_evidence is not None
 
+    if export_wmf and render_evidence is None:
+        diagram_fallos.append('no se pudo exportar la imagen del diagrama')
     if require_diagram and graphic_count == 0:
         errors.append('Associated diagram exposes zero IntGrf objects')
         diagram_pass = False
+        diagram_fallos.append('el diagrama no tiene objetos gráficos')
     # Una línea sin su recorrido real sale recta en la vista geográfica (spec 010, RF-7).
     if trazados['mismatches']:
         diagram_pass = False
+        diagram_fallos.append(f"{trazados['mismatches']} líneas sin su trazado GPS")
+    # La curva de cada línea en la grid tiene que ser la del mapa geográfico.
+    curvas = None
+    if diagram is not None:
+        try:
+            gps_lineas = {_name(l): [tuple(float(x) for x in fila)[:2]
+                                     for fila in (_attr(l, 'GPScoords') or [])] for l in lines}
+            curvas = separacion_curvas(curvas_de_la_grid(diagram), gps_lineas)
+        except Exception as exc:  # noqa: BLE001 - se informa, no se adivina
+            curvas = {'error': str(exc)}
+            warnings.append(f'No se pudo comparar la grid con el mapa geográfico: {exc}')
+        # Se avisa, no bloquea (015:RF-5 pide que el diagrama exista): la curva del
+        # unifilar no entra en el cálculo, y el GPS y el trazado del mapa ya se comprueban
+        # aparte. CA101, importado el 2026-10-14 con el escritor que recortaba las curvas,
+        # quedaba sin calibrar por 296 curvas del unifilar con el mapa perfecto.
+        if curvas.get('distintas'):
+            warnings.append(
+                f"{curvas['distintas']} línea(s) tienen en la grid otra curva que en el mapa "
+                f"geográfico (más de {TOLERANCIA_CURVA_M:g} m); ejemplos: {curvas['muestra']}. "
+                'Reimporte el DGS actual si quiere el unifilar igual al mapa.')
 
     # 015:RF-6, RF-7, RF-32 a RF-36: capacidades, grupo y tensión de baja frente al DGS
     # importado; el grupo y la baja se corrigen antes del flujo para que no lo paren.
@@ -2853,6 +2979,8 @@ def run_acceptance(
             'graphic_connections': graphic_connector_count,
             'render_evidence': render_evidence,
             'require_diagram': require_diagram,
+            'curvas_grid_mapa': curvas,
+            'fallos': diagram_fallos if not diagram_pass else [],
         },
         'load_flow': load_flow,
         'load_flow_loop': load_flow_loop,
@@ -2878,6 +3006,9 @@ def _write_reports(report: dict, json_path: Path, txt_path: Path) -> None:
         f"Equipment PASS:            {report.get('equipment_pass')}",
         f"Caso base (spec 015):      {(report.get('caso_base') or {}).get('status')}",
         f"Geographic diagram PASS:   {report.get('geographic_diagram_pass')}",
+        f"Curvas grid = mapa:        {((report.get('diagram') or {}).get('curvas_grid_mapa') or {}).get('compared')} "
+        f"líneas, {((report.get('diagram') or {}).get('curvas_grid_mapa') or {}).get('distintas')} distintas, "
+        f"máx. {((report.get('diagram') or {}).get('curvas_grid_mapa') or {}).get('max_m')} m",
         f"Convergence PASS:          {report.get('convergence_pass')}",
         f"Load flow executed:         {(report.get('load_flow') or {}).get('requested')}",
         f"Load flow PASS:             {(report.get('load_flow') or {}).get('pass')}",
@@ -3150,6 +3281,9 @@ def main(argv=None) -> int:
     except (ImportError, RuntimeError) as exc:
         print(f'ERROR: {exc}', file=sys.stderr)
         return 3
+    # Primera línea solo con DIgSILENT ya respondiendo (005:RF-21): ver ``run_process``.
+    usuario = app.GetCurrentUser() if hasattr(app, 'GetCurrentUser') else None
+    print(f'Conectado a DIgSILENT como {getattr(usuario, "loc_name", "?")}.', flush=True)
 
     import_info = None
     study_info = None

@@ -31,6 +31,8 @@ p = argparse.ArgumentParser()
 p.add_argument('--plan'); p.add_argument('--output-json'); p.add_argument('--simular', action='store_true')
 p.add_argument('--cancel-file')
 a = p.parse_args()
+# Como el guion real: la primera línea sale con DIgSILENT ya conectado (005:RF-21).
+print('Conectado a DIgSILENT como prueba.', flush=True)
 plan = json.loads(Path(a.plan).read_text(encoding='utf-8'))
 informe = {'modo': 'simular' if a.simular else 'aplicar', 'cuadrado': not a.simular,
            'recibido': plan}
@@ -169,6 +171,37 @@ def test_clientes_del_alimentador_van_al_plan(client):
     assert [c['codigo'] for c in plan['clientes']] == ['11']
 
 
+def test_el_plan_lleva_el_fp_de_las_escaladas_del_perfil(client, tmp_path, monkeypatch):
+    """015:RF-53 / 015:RF-54 / 015:RF-55 / 015:RF-57 — con el perfil de Electro Dunas el plan
+    lleva 0,98 para las escaladas y las fijas siguen con su EA/ERI; sin perfil, nada; con
+    un valor imposible no se prepara y se dice cuál."""
+    import json as _json
+
+    from igea_dgs.perfil_empresa import VARIABLE_RUTA
+
+    wid, job = _maxima(client)
+    _subir(client, wid, 'suministros', SUMINISTROS)
+    _subir(client, wid, 'clientes', CLIENTES)
+
+    def plan_recibido():
+        token = _plan(client, wid, job).json()['token']
+        trabajo = client.post(f'/api/workspaces/{wid}/demanda/ajuste/{token}/simular').json()
+        return esperar_trabajo(client, trabajo)['result']['informe']['recibido']
+
+    assert plan_recibido()['factor_potencia_cargas'] is None
+    perfil = tmp_path / 'perfil_empresa.json'
+    perfil.write_text(_json.dumps({'perfil': 'electro_dunas'}), encoding='utf-8')
+    monkeypatch.setenv(VARIABLE_RUTA, str(perfil))
+    plan = plan_recibido()
+    assert plan['factor_potencia_cargas'] == 0.98
+    assert all(d['metodo'] == 'ERI/EA' for f in plan['fixed_load_evidence']
+               for d in f['derivaciones']), 'las fijas siguen con su EA/ERI'
+    perfil.write_text(_json.dumps({'calibracion': {'factor_potencia_cargas': 1.5}}),
+                      encoding='utf-8')
+    r = _plan(client, wid, job)
+    assert r.status_code >= 400 and 'factor_potencia_cargas' in r.text and '1.5' in r.text
+
+
 def test_clientes_desmarcados_van_aparte(client):
     """006:RF-26 — el Nis desmarcado no suma a su SED: va al plan en ``desconectados``."""
     wid, job = _maxima(client)
@@ -258,6 +291,38 @@ def test_ajuste_en_la_seccion_de_demanda_medida():
     assert ('<AjusteCabecera project={project} maxima={ultimo} feeders={feeders} '
             'desconectados={desconectados} />') in demanda
     assert 'api.ajustePlan' in ajuste and 'job_id: maxima.id' in ajuste
+
+
+def test_la_web_muestra_la_validacion_fisica_y_el_balance():
+    """015:RF-49 / 015:RF-50 / 015:RF-51 — CA101, 2026-10-15: con FALLO_VALIDACION_NATIVA la
+    caja decía «No cumple el 1 %: null. El escenario queda con el último reparto», cuando
+    las cargas se habían revertido. Ahora dice que no se grabó nada y enseña el balance
+    físico (escrito frente a consumido) y las cargas que no consumen lo suyo."""
+    from pathlib import Path
+
+    raiz = Path(__file__).resolve().parents[1] / 'frontend' / 'src'
+    ajuste = (raiz / 'components' / 'AjusteCabecera.tsx').read_text(encoding='utf-8')
+    tipos = (raiz / 'types.ts').read_text(encoding='utf-8')
+    assert "'FALLO_VALIDACION_NATIVA'" in tipos
+    assert 'validacion_posterior_nativa?: ValidacionNativa' in tipos
+    assert "inf.status === 'FALLO_VALIDACION_NATIVA' || inf.calibracion_revertida" in ajuste
+    assert '{!simular && !revertida && (' in ajuste, 'sin «el escenario queda con…» si se revirtió'
+    assert 'no se grabó nada' in ajuste
+    assert '<BalanceFisico b={validacion.balance} />' in ajuste
+    assert 'Consumido en el flujo (kW)' in ajuste and 'Causa probable: {b.causa_probable}' in ajuste
+    assert "f.tipo === 'CONSUMO_DISTINTO_DE_LO_ESCRITO'" in ajuste
+    assert '<ConsumoDistintoLista cargas={consumoDistinto.cargas} />' in ajuste
+    # Los fallos de la validación (con «detalle») no se listan como escrituras rechazadas.
+    assert '(inf.fallos ?? []).filter((x) => !x.detalle)' in ajuste
+    # 015:RF-59 / 015:RF-60: clientes sobre su transformador y bancos instalados.
+    assert 'Clientes que piden más que el transformador de su SED' in ajuste
+    assert 'Bancos de condensadores instalados en el proyecto' in ajuste
+    assert 'fijas_sobre_su_transformador?: {' in tipos and 'bancos?: {' in tipos
+    # 015:RF-56: de dónde sale el factor de potencia de fijas y escaladas.
+    assert 'fijas: string; escaladas: number | null; escaladas_origen: string;' in tipos
+    # 015:RF-44: el reparto de las escaladas por potencia instalada se dice.
+    assert 'repartidas por ${inf.factor_potencia_cargas.escaladas_reparto}' in ajuste
+    assert 'Fijas: {inf.factor_potencia_cargas.fijas} · Escaladas:' in ajuste
 
 
 def test_casilla_por_cliente_marcada_por_defecto():
@@ -355,7 +420,13 @@ def test_cancelar_no_empieza_otro_alimentador(client):
     token = _plan(client, wid, job, project='ESPERAR_CANCELACION').json()['token']
     trabajo = client.post(f'/api/workspaces/{wid}/demanda/ajuste/{token}/aplicar').json()
     limite = time.time() + 20
-    while time.time() < limite and client.get(f"/api/jobs/{trabajo['id']}").json()['status'] != 'running':
+    # Se cancela con el guion ya conectado: antes de conectar no hay alimentador en curso
+    # que terminar y cancelar lo corta sin más (005:RF-21).
+    def conectado() -> bool:
+        return any('Conectado a DIgSILENT' in (e['data'].get('text') or '')
+                   for e in client.get(f'/api/workspaces/{wid}/events').json())
+
+    while time.time() < limite and not conectado():
         time.sleep(0.05)
     time.sleep(0.5)
     client.post(f"/api/jobs/{trabajo['id']}/cancel")

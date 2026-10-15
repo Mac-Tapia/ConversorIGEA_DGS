@@ -102,59 +102,6 @@ def _selection(dataset: CymdistDataset, selectors: Sequence[str] | None, all_fee
     return networks
 
 
-def expand_connected_feeders(
-    dataset: CymdistDataset,
-    selectors: Sequence[str],
-) -> list[str]:
-    """Incluye la componente de alimentadores que comparten nodos a igual tensión."""
-    from collections import defaultdict, deque
-    import math
-
-    from .model import _tension_de_fuente
-
-    selected = _selection(dataset, selectors, False)
-    voltage_by_network: dict[str, float] = {}
-    networks_by_node_voltage: dict[tuple[str, float], set[str]] = defaultdict(set)
-    for network_id, section_ids in dataset.feeders.items():
-        source = dataset.sources.get(network_id)
-        if source is None:
-            continue
-        voltage = _tension_de_fuente(source)
-        if not math.isfinite(voltage) or voltage <= 0:
-            continue
-        voltage = round(voltage, 6)
-        voltage_by_network[network_id] = voltage
-        for section_id in section_ids:
-            section = dataset.sections.get(section_id)
-            if section is None:
-                continue
-            for node_id in (section.get('FromNodeID'), section.get('ToNodeID')):
-                if node_id:
-                    networks_by_node_voltage[(node_id, voltage)].add(network_id)
-
-    expanded = set(selected)
-    pending = deque(selected)
-    while pending:
-        network_id = pending.popleft()
-        feeder_voltage = voltage_by_network.get(network_id)
-        if feeder_voltage is None:
-            continue
-        neighbors: set[str] = set()
-        for section_id in dataset.feeders.get(network_id, ()):
-            section = dataset.sections.get(section_id)
-            if section is None:
-                continue
-            for node_id in (section.get('FromNodeID'), section.get('ToNodeID')):
-                if node_id:
-                    neighbors.update(networks_by_node_voltage[(node_id, feeder_voltage)])
-        for neighbor in sorted(neighbors - expanded, key=sort_key_feeder):
-            expanded.add(neighbor)
-            pending.append(neighbor)
-
-    additions = sorted(expanded - set(selected), key=sort_key_feeder)
-    return [*selected, *additions]
-
-
 def output_names(networks: Sequence[str]) -> dict[str, str]:
     """NetworkID → nombre de fichero, único dentro de la selección.
 
@@ -724,7 +671,12 @@ def convert_group(
     }
     try:
         # Dentro del try: un nombre que no existe también deja manifiesto.
-        networks = expand_connected_feeders(dataset, selectors)
+        # Solo los alimentadores pedidos. Añadir los que comparten un nodo a la misma
+        # tensión arrastraba en cadena la zona entera por sus enlaces: IN111 + TA225
+        # (2026-10-14) dio un DGS de 15 alimentadores y 1515 cargas. Cada alimentador ya
+        # se convierte completo por sí solo; un nodo compartido con uno no elegido queda
+        # como extremo, igual que en su DGS individual.
+        networks = _selection(dataset, selectors, False)
         manifest['feeders'] = [feeder_short_name(n) for n in networks]
         manifest['network_ids'] = networks
         modelos, informes = [], {}

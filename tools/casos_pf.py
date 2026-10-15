@@ -38,6 +38,7 @@ from pathlib import Path
 
 from cargas_pf import activar_proyecto, error_inesperado, nombre_pf
 from igea_dgs.native_action import native_action_block_report
+from igea_dgs.obras_pf import PREFIJO_VARIACION
 
 #: Rol → nombre del caso. Fijos y reutilizados (usuario, 2026-10-11).
 NOMBRES = {'base': 'Caso base', 'sin': 'Sin proyecto', 'con': 'Con proyecto'}
@@ -234,6 +235,19 @@ def _escenario_propio(app, caso, rol: str, origen) -> str:
     return nuevo.loc_name
 
 
+def crear_con_proyecto(app, sin):
+    """«Con proyecto» como copia de «Sin proyecto», con sus variaciones activas (014:RF-18).
+
+    Lo usan la preparación de los casos y las obras: lo que se hizo en «Sin proyecto»
+    pasa a «Con proyecto» porque la copia se hace después (016:RF-12). Devuelve el caso,
+    marcado y con su escenario, copia del de «Sin proyecto».
+    """
+    con = app.GetProjectFolder('study').AddCopy(sin, NOMBRES['con'])
+    _marcar(con, 'con')
+    _escenario_propio(app, con, 'con', _escenario_de(app, sin))
+    return con
+
+
 # =========================================================================== preparar
 def _sin_verificar(plan: dict, feeders: list[str]) -> list[str]:
     """Alimentadores de ``feeders`` cuyo «Caso base» no está verificado (015:RF-17).
@@ -337,7 +351,6 @@ def preparar_con(app, plan: dict) -> tuple[dict, int]:
     informe, rc = preparar_sin(app, plan)
     if rc:
         return informe, rc
-    carpeta = app.GetProjectFolder('study')
     casos = casos_del_proyecto(app)
     sin = casos['sin']
     carpeta_var = app.GetProjectFolder('scheme')
@@ -347,20 +360,24 @@ def preparar_con(app, plan: dict) -> tuple[dict, int]:
     try:
         con = casos.get('con')
         if con is None:
-            con = carpeta.AddCopy(sin, NOMBRES['con'])
-            _marcar(con, 'con')
-        estudiable = bool(grupos['cargas'])
+            con = crear_con_proyecto(app, sin)
         escenario_con = _escenario_propio(app, con, 'con', _escenario_de(app, sin))
         _dejar_activas(app, con, grupos['cargas'], grupos['anteriores'])
         del_operador = operador_a_con_proyecto(app, {'sin': sin, 'con': con})
         con.Activate()
+        activas = sorted(v.loc_name for v in (app.GetActiveNetworkVariations() or []))
+        # Un informe de estudio no trae cliente nuevo: lo que distingue «Con proyecto» son
+        # las obras de mejora (017:RF-30). Antes solo contaban las cargas nuevas, y en CA101
+        # (2026-10-15) «Con proyecto» con obras se quedaba sin estudiar.
+        obras = [v for v in activas if v.startswith(PREFIJO_VARIACION)]
+        estudiable = bool(grupos['cargas'] or obras)
         informe['casos']['con'] = {
             'nombre': con.loc_name, 'creado': 'con' not in casos, 'escenario': escenario_con,
-            'variaciones': sorted(v.loc_name for v in (app.GetActiveNetworkVariations() or [])),
+            'variaciones': activas,
             'variaciones_operador_activadas': del_operador, 'estudiable': estudiable}
         if not estudiable:
-            informe['avisos'].append('Ningún alimentador marcado tiene cargas nuevas: «Con '
-                                     'proyecto» queda igual que «Sin proyecto» y no se estudia.')
+            informe['avisos'].append('Ningún alimentador marcado tiene cargas nuevas ni obras: '
+                                     '«Con proyecto» queda igual que «Sin proyecto» y no se estudia.')
         if grupos['anteriores']:
             informe['avisos'].append(
                 'Ajustes de antes de la spec 015 desactivados en «Con proyecto» (siguen en el '
@@ -438,6 +455,10 @@ def main(argv=None) -> int:
     except Exception as exc:  # noqa: BLE001
         print(f'ERROR: no se pudo conectar a DIgSILENT: {exc}')
         return 3
+    # Primera línea solo con DIgSILENT ya respondiendo: la web la espera un tiempo
+    # limitado y, si no llega, corta el guion en vez de dejar ocupado el carril (005:RF-21).
+    print(f'Conectado a DIgSILENT como {getattr(app.GetCurrentUser(), "loc_name", "?")}.',
+          flush=True)
     try:
         informe, codigo = preparar(app, plan)
     except Exception as exc:  # noqa: BLE001 - el informe dice el error en vez de perderse

@@ -131,6 +131,7 @@ el que el operador elige.
 - RF-24: CUANDO una carga trae coordenadas y no trae barra, EL SISTEMA la conectará a la
   barra del alimentador activo más cercana a su punto, entre las que tienen coordenadas
   en DIgSILENT.
+  **Cambiado por 016:RF-45 (2026-10-15):** la carga va al punto más cercano de la troncal del alimentador activo, partiendo el tramo en su variación; ya no a la barra más cercana.
 - RF-25: EL SISTEMA no buscará la barra más cercana en otros alimentadores del proyecto
   que el activo.
 - RF-26: DONDE la carga trae una barra, EL SISTEMA la conectará a esa barra, como
@@ -140,6 +141,7 @@ el que el operador elige.
 - RF-28: SI ninguna barra del alimentador activo tiene coordenadas en DIgSILENT,
   ENTONCES EL SISTEMA no conectará por coordenadas ninguna carga y lo dirá una vez,
   con el alimentador.
+  **Cambiado por 016:RF-50 (2026-10-15):** cuenta que ningún tramo de la troncal tenga coordenadas.
 - RF-29: SI la carga trae un alimentador (TRONCAL) que no es ninguno de los marcados,
   ENTONCES EL SISTEMA no la creará, la dará como no creada con su alimentador y dirá una
   vez cuántas del libro son de alimentadores no marcados. (Cambio del 2026-10-13: antes
@@ -147,8 +149,10 @@ el que el operador elige.
   alimentadores y con SI213 marcado se crearon 28, 27 de otros, una a 216 km.)
 - RF-30: EL SISTEMA mostrará en el plan, por carga, el punto del libro, y en la
   simulación la barra elegida y su distancia en metros al punto.
+  **Cambiado por 016:RF-49 (2026-10-15):** la simulación dice además el tramo, si se parte y la distancia al punto de conexión.
 - RF-31: EL SISTEMA conectará la carga a su barra más cercana cualquiera que sea la
   distancia, sin umbral que avise ni que la rechace: la distancia solo se informa.
+  **Cambiado por 016:RF-45 y RF-20 (2026-10-15):** el punto es el de la troncal; a menos de la distancia mínima de una barra, se engancha en ella.
 
 Cambio del 2026-10-10: varios alimentadores (spec 008)
 
@@ -175,6 +179,11 @@ Cambio del 2026-10-13: deshacer una aplicación
   proyecto, ENTONCES EL SISTEMA tomará para la línea de enlace el tipo más usado de las
   líneas del alimentador a la tensión de la barra y lo dirá en el informe. (SI213,
   2026-10-13: la barra más cercana era el nodo de una SED, solo con su seccionador.)
+- RF-40: CUANDO no hay en la sesión ningún ajuste aplicado del proyecto (p. ej. tras
+  reiniciar la web, o en otro espacio que usó la fuente del vínculo, 018:RF-10), EL SISTEMA
+  tomará como base el último ajuste aplicado guardado en disco, con los informes por
+  alimentador de esa aplicación. (CA101, 2026-10-15: la calibración seguía en «Sin
+  proyecto» y la web pedía volver a calibrar para estudiar.)
 
 ## Casos límite
 
@@ -221,3 +230,11 @@ Cambio del 2026-10-13: deshacer una aplicación
 - La base es el estado sin proyecto; base + carga, el estado con proyecto (usuario).
 - Un ajuste que no cuadró sirve de base, con aviso; las demandas del mismo envío entran
   en el estado sin proyecto (propuesta del 2026-10-09, sin objeción).
+
+## Cambios de la spec 014 (2026-10-14)
+
+- Las cargas nuevas se crean solo en «Con proyecto», copia de «Sin proyecto» con sus
+  variaciones activas y su escenario (014:RF-18, RF-19); antes de insertarlas se activan
+  en «Con proyecto» las variaciones del operador activas en «Sin proyecto» (014:RF-21).
+- RF-10: el nombre de la variación (SED y alimentador) es también la clave con que se
+  reconoce una carga ya creada; repetir la inserción no la duplica (014:RF-23 a RF-28).

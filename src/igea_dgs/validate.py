@@ -108,7 +108,13 @@ def validate_dgs(
         if name not in tables:
             schema_errors.append(f'Missing required DGS table: {name}')
             continue
-        if tables[name]['header'] != schema.header(name):
+        esperada = schema.header(name)
+        if name == 'IntGrfcon':
+            # El escritor ensancha los puntos de los conectores al trazado más largo.
+            n = sum(1 for parte in tables[name]['header'].split(';')
+                    if parte.startswith('rX:') and not parte.startswith('rX:SIZEROW'))
+            esperada = schema.con_puntos_por_conector(n).header(name)
+        if tables[name]['header'] != esperada:
             schema_errors.append(f'{name}: header does not match schema profile {schema.profile}')
 
     for name, table in tables.items():

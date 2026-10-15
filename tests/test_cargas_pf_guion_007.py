@@ -186,9 +186,11 @@ def test_activo_ninguna_del_libro_ninguna_creada(guion):
 
 def test_barra_sin_linea_toma_el_tipo_del_alimentador(guion):
     """007:RF-39 — la barra más cercana no tiene línea (el nodo de una SED): la línea de
-    enlace toma el tipo más usado del alimentador, y se dice de dónde sale."""
+    enlace toma el tipo más usado del alimentador, y se dice de dónde sale. Desde la 016 la
+    carga va a la troncal; la barra más cercana queda para el alimentador sin cabecera."""
     app = _app()
     alim = next(a for a in app.proyecto.GetContents('*.ElmFeeder', 1) if a.loc_name == 'F1')
+    object.__setattr__(alim, 'obj_id', None)               # sin cabecera no hay troncal
     junto = _barra(app, 'F1_B2')
     suelta = junto.GetParent().CreateObject('ElmTerm', 'F1_SED_SIN_LINEA')
     suelta.uknom, suelta.iUsage = 10.0, 1

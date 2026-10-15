@@ -42,6 +42,7 @@ incluye P/Q, así que calibrar no lo cambia) y su aviso `PROJECT_BINDING_NATIVE_
 | G. La base sin variación | `services.base_del_ajuste`: un alimentador está calibrado si su ajuste aplicado no tiene error, sin pedir variación; la última calibración por alimentador queda en el espacio y viaja en el plan, para el cambio manual de la 014 (RF-10) | RF-22, RF-26 |
 | H. Cargas nuevas | `tools/cargas_pf.py`: antes de insertar, `preparar_con` si falta «Con proyecto»; variaciones solo allí, una por carga | RF-28, RF-29 |
 | I. Aviso de red cambiada | El aviso `PROJECT_BINDING_NATIVE_MODIFIED` se compara contra la huella tomada al verificar el «Caso base»; una calibración no lo dispara | RF-19, RF-30 |
+| J. Demanda física (2026-10-15) | `tools/ajuste_cabecera_pf.py`, `validar_cargas_nativas`: además de lo escrito, compara con `m:Psum:bus1` / `m:Qsum:bus1` de cada carga tras el flujo (fijas P y Q; escaladas P por `scale0`), con la tensión `m:u` de su barra; añade `balance` y los ajustes `iopt_lev` / `iopt_pq` del `ComLdf` activo. Sin resultados de P tras un flujo convergente, la carga no está verificada. Descartado: seguir validando con lo escrito y medir pérdidas con lo consumido (así pasó CA101 con las fijas al 73 %) | RF-47 a RF-52 |
 
 ## Decisiones
 

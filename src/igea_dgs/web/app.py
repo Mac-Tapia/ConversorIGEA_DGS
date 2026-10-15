@@ -16,6 +16,7 @@ import json
 import os
 import shutil
 import tempfile
+import threading
 import zipfile
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -167,6 +168,23 @@ class EstudiosIn(BaseModel):
     limite_s: float | None = Field(None, ge=10, le=86400)
 
 
+class InformeEstudioIn(BaseModel):
+    """Formulario del informe de estudio (spec 017): todo dato del cliente y del encabezado
+    sale de aquí; del modelo de la empresa solo se toma la forma."""
+
+    alimentador: str
+    fecha: str | None = None
+    lugar: str = ''
+    numero: str = ''
+    asunto: str = ''
+    destinatario: str = ''
+    antecedentes: list[str] = Field(default_factory=list, max_length=200)
+    descripcion: list[str] = Field(default_factory=list, max_length=200)
+    limites: dict[str, float] = Field(default_factory=dict)
+    anio: int | None = None
+    imagenes: dict[str, dict[str, str | None]] = Field(default_factory=dict)
+
+
 class TransferenciaIn(BaseModel):
     """Transferencia de carga entre dos alimentadores (spec 011, RF-104)."""
 
@@ -272,12 +290,17 @@ def create_app(
             raise HTTPException(404, 'Espacio de trabajo no encontrado.')
         return ws
 
+    # Comprobar el carril y encolar van juntos: las rutas corren en hilos distintos, y dos
+    # clics seguidos (o dos pestañas) pasaban los dos la comprobación y encolaban dos veces.
+    encolando = threading.Lock()
+
     def submit(ws: Workspace, kind: str, title: str, fn, *, lane: str = 'engine') -> dict:
-        busy = [j for j in jobs.active(ws.id) if j.lane == lane]
-        if busy:
-            raise HTTPException(409, f'Ya hay un trabajo en curso en este espacio: «{busy[0].title}». '
-                                     'Espere a que termine o cancélelo.')
-        return jobs.submit(ws.id, kind, title, fn, lane=lane).public()
+        with encolando:
+            busy = [j for j in jobs.active(ws.id) if j.lane == lane]
+            if busy:
+                raise HTTPException(409, f'Ya hay un trabajo en curso en este espacio: «{busy[0].title}». '
+                                         'Espere a que termine o cancélelo.')
+            return jobs.submit(ws.id, kind, title, fn, lane=lane).public()
 
     # ------------------------------------------------------------ sistema
     @app.get('/api/health')
@@ -829,6 +852,28 @@ def create_app(
         return submit(ws, 'pf_projects', 'Leer proyectos de DIgSILENT',
                       lambda ctx: services.pf_projects(ws, ctx), lane='powerfactory')
 
+    # Spec 018, RF-13: la última lista leída, sin abrir DIgSILENT (los trabajos no sobreviven
+    # a un reinicio de la web).
+    @app.get('/api/workspaces/{wid}/powerfactory/projects')
+    def pf_projects_guardados(wid: str) -> dict:
+        return services.pf_proyectos_guardados(ws_or_404(wid))
+
+    # Spec 007, RF-40: el último ajuste aplicado guardado en disco, para la base.
+    @app.get('/api/workspaces/{wid}/demanda/ajuste/ultimo')
+    def ajuste_ultimo(wid: str, project: str) -> dict:
+        return {'ajuste': services.ajuste_aplicado_en_disco(ws_or_404(wid), project)}
+
+    # Spec 018, RF-10: usar la ejecución fuente con la que se aceptó el proyecto. Carril del
+    # motor: cambia la ejecución activa, y una conversión en marcha escribe en ella.
+    @app.post('/api/workspaces/{wid}/powerfactory/adoptar-fuente', status_code=202)
+    def pf_adoptar_fuente(wid: str, body: VerificarIn) -> dict:
+        ws = ws_or_404(wid)
+        if not body.project.strip():
+            raise HTTPException(422, 'Elija el proyecto de DIgSILENT.')
+        return submit(ws, 'pf_adoptar_fuente', f'Usar la fuente de {body.project.strip()}',
+                      lambda ctx: services.adoptar_fuente_del_vinculo(ws, body.project),
+                      lane='engine')
+
     # Spec 015, RF-1 a RF-14: verificar el «Caso base» del proyecto, repetible tras corregir.
     @app.post('/api/workspaces/{wid}/powerfactory/caso-base', status_code=202)
     def pf_verificar_base(wid: str, body: VerificarIn) -> dict:
@@ -859,6 +904,8 @@ def create_app(
         nueva: str | None = Form(None),
         economia: str | None = Form(None),
         ajuste_job_id: str | None = Form(None),
+        # 016:RF-20, RF-73: a menos de esto de una barra, la carga se engancha en ella.
+        minima_m: float | None = Form(None, ge=0, le=100_000),
     ) -> dict:
         ws = ws_or_404(wid)
         eco = _json_form(economia, 'economia')
@@ -873,7 +920,8 @@ def create_app(
             if create_file:
                 cre = _upload_tmp(ws, create_file, 'cargas_nuevas.xlsx')
                 tmps.append(cre)
-            return services.cargas_plan(ws, project, feeders, upd, cre, una, eco, ajuste)
+            return services.cargas_plan(ws, project, feeders, upd, cre, una, eco, ajuste,
+                                        minima_m=minima_m)
         finally:
             for p in tmps:
                 p.unlink(missing_ok=True)
@@ -971,6 +1019,13 @@ def create_app(
         """
         if not job_id:
             return None
+        if job_id.startswith('disco:'):
+            # 007:RF-40: el ajuste de una sesión anterior, rehecho con sus informes.
+            guardado = services.ajuste_aplicado_en_disco(
+                ws_or_404(wid), None, job_id.removeprefix('disco:'))
+            if guardado is None:
+                raise HTTPException(404, 'No se encuentra el ajuste de la base: quite la base o vuelva a ajustar.')
+            return guardado
         job = jobs.get(job_id)
         if job is None or job.workspace_id != wid:
             raise HTTPException(404, 'No se encuentra el ajuste de la base: quite la base o vuelva a ajustar.')
@@ -1056,6 +1111,14 @@ def create_app(
                       lambda ctx: services.guion_ejecutar(ws, ctx, body.project, body.nombre, body.origen,
                                                           body.parametros, body.casos, body.limite_s),
                       lane='powerfactory')
+
+    @app.post('/api/workspaces/{wid}/informes/estudio', status_code=202)
+    def informe_estudio(wid: str, body: InformeEstudioIn) -> dict:
+        """Spec 017: el informe con lo que guardaron los estudios de «Sin proyecto» y «Con proyecto»."""
+        ws = ws_or_404(wid)
+        formulario = body.model_dump()
+        return submit(ws, 'informe_estudio', f'Informe de estudio · {body.alimentador}',
+                      lambda ctx: services.informe_estudio(ws, ctx, formulario), lane='engine')
 
     @app.post('/api/workspaces/{wid}/pf/transferencia', status_code=202)
     def transferencia(wid: str, body: TransferenciaIn) -> dict:

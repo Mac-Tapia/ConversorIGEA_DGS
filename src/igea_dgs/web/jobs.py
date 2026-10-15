@@ -46,8 +46,18 @@ FINISHED = (DONE, FAILED, CANCELLED)
 #: tiempo (spec 011, RF-40); el mismo que usa ``timeout`` de coreutils.
 TIEMPO_AGOTADO = 124
 
+#: Tiempo para que un guion de PowerFactory escriba su primera línea, que sale cuando
+#: DIgSILENT ya ha dado el usuario (spec 005, RF-21). El arranque normal medido el
+#: 2026-10-14 fue de unos 20 s; el margen cubre un equipo frío o la licencia lenta.
+LIMITE_ARRANQUE_PF_S = 180.0
+
+
 class JobCancelled(Exception):
     """El operador canceló el trabajo."""
+
+
+class PowerFactorySinRespuesta(RuntimeError):
+    """Un guion de PowerFactory no llegó a conectar en ``LIMITE_ARRANQUE_PF_S``."""
 
 
 class EventLog:
@@ -170,7 +180,7 @@ class JobContext:
     def run_process(
         self, cmd: list[str], *, env: dict[str, str] | None = None, cwd: str | None = None,
         cancel_file: Path | str | None = None, limite_s: float | None = None,
-        limite_arranque_s: float | None = None,
+        limite_arranque_s: float | None = None, _reintento: bool = False,
     ) -> int:
         """Ejecuta un guion volcando su salida al Registro **línea a línea**.
 
@@ -195,6 +205,10 @@ class JobContext:
         reiniciar la web con sesiones de PowerFactory cortadas, «Leer proyectos» se quedó
         parado en ``GetCurrentUser`` sin escribir nada, y el carril de PowerFactory —con
         todos sus botones— quedó ocupado sin aviso hasta matar el proceso a mano.
+        Todo guion de PowerFactory lleva ese límite aunque quien lo lanza no lo pida: el
+        mismo cuelgue en el flujo, las cargas o el ajuste dejaba el carril igual de
+        ocupado. Si quien lo lanza no lo pidió, el corte es un error con su motivo en vez
+        de un código que no esperaba.
         """
         import os
 
@@ -203,6 +217,16 @@ class JobContext:
         # bloques de 8 KB; y en Windows la consola por defecto no es UTF-8.
         full_env.setdefault('PYTHONUNBUFFERED', '1')
         full_env.setdefault('PYTHONIOENCODING', 'utf-8')
+        es_pf = 'PF_PYTHON' in full_env
+        limite_implicito = es_pf and limite_arranque_s is None
+        if limite_implicito:
+            limite_arranque_s = LIMITE_ARRANQUE_PF_S
+        if es_pf:
+            from ..powerfactory_env import cerrar_guiones_pf_huerfanos
+
+            for h in cerrar_guiones_pf_huerfanos():
+                self.log(f"Se cierra un guion de PowerFactory de una sesión anterior que "
+                         f"seguía vivo (proceso {h['pid']}): {h['cmd']}")
         self.log('$ ' + ' '.join(cmd))
         # Sin consola de entrada: una pregunta del guion o de PowerFactory recibe EOF y
         # falla, en vez de esperar una respuesta que nadie puede dar desde la web.
@@ -230,14 +254,34 @@ class JobContext:
                 self.log(f'El guion no escribió nada en {limite_arranque_s:g} s: se termina.'
                          if sin_arrancar else
                          f'El guion pasó su límite de {limite_s:g} s: se termina.')
-                proc.terminate()
-                try:
-                    proc.wait(timeout=10)
-                except subprocess.TimeoutExpired:
-                    proc.kill()
+                self._terminar(proc)
                 reader.join(timeout=5)
+                if es_pf and sin_arrancar:
+                    from ..powerfactory_env import powerfactory_abierto
+
+                    for pid in powerfactory_abierto():
+                        self.log(f'PowerFactory está abierto (proceso {pid}) y tiene el '
+                                 'usuario de DIgSILENT: ciérrelo y reintente.')
+                if limite_implicito and sin_arrancar and not _reintento:
+                    # Sin conectar, el guion no ha escrito nada: repetirlo es seguro. El
+                    # 2026-10-14, 3 de 15 conexiones se quedaron paradas sin causa a la
+                    # vista y las tres conectaron al primer reintento.
+                    self.log('Se reintenta una vez: DIgSILENT a veces no entrega el '
+                             'usuario a la primera.')
+                    self.check_cancel()
+                    return self.run_process(cmd, env=env, cwd=cwd, cancel_file=cancel_file,
+                                            limite_s=limite_s, _reintento=True)
+                if limite_implicito and sin_arrancar:
+                    raise PowerFactorySinRespuesta(
+                        f'DIgSILENT no respondió en {limite_arranque_s:g} s: no entregó el '
+                        'usuario. Cierre la ventana de PowerFactory si está abierta o '
+                        'compruebe la licencia, y reintente.')
                 return TIEMPO_AGOTADO
-            if self.job.cancel.is_set() and cancel_file is not None:
+            # Un guion que aún no ha escrito nada no ha conectado ni empezado ningún
+            # alimentador: con el fichero de cancelación esperaría a que conecte, y si
+            # está colgado en la conexión, el botón Cancelar no haría nada.
+            if (self.job.cancel.is_set() and cancel_file is not None
+                    and primera_linea.is_set()):
                 if not avisado:
                     Path(cancel_file).parent.mkdir(parents=True, exist_ok=True)
                     Path(cancel_file).write_text('cancelar\n', encoding='utf-8')
@@ -245,16 +289,26 @@ class JobContext:
                              'y no se empieza otro.')
                     avisado = True
             elif self.job.cancel.is_set():
-                proc.terminate()
-                try:
-                    proc.wait(timeout=10)
-                except subprocess.TimeoutExpired:
-                    proc.kill()
+                self._terminar(proc)
                 reader.join(timeout=5)
                 raise JobCancelled()
             time.sleep(0.2)
         reader.join(timeout=5)
         return proc.returncode
+
+    @staticmethod
+    def _terminar(proc: subprocess.Popen) -> None:
+        """Termina el guion y sus hijos: el lanzador del venv deja vivo al Python real."""
+        from ..powerfactory_env import terminar_arbol
+
+        try:
+            terminar_arbol(proc.pid)
+        except (OSError, subprocess.SubprocessError):
+            pass
+        try:
+            proc.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            proc.kill()
 
 
 class JobManager:
@@ -271,7 +325,11 @@ class JobManager:
         return self._jobs.get(job_id)
 
     def list(self, workspace_id: str | None = None) -> list[Job]:
-        jobs = [j for j in self._jobs.values()
+        # Copia bajo el cerrojo: las peticiones llegan en hilos distintos y recorrer el
+        # diccionario mientras otra encola un trabajo lanza «changed size during iteration».
+        with self._lock:
+            todos = list(self._jobs.values())
+        jobs = [j for j in todos
                 if workspace_id is None or j.workspace_id == workspace_id]
         return sorted(jobs, key=lambda j: j.created_at)
 

@@ -13,8 +13,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import threading
 import time
 from dataclasses import asdict, dataclass, field
+from pathlib import Path
 from typing import Any, Iterable
 
 
@@ -45,6 +48,112 @@ class ProjectBindingError(ValueError):
         self.code = code
         self.detail = detail
         super().__init__(f'{code}: {detail}')
+
+
+# Registro de vínculos compartido entre espacios de trabajo (spec 018, RF-1, RF-2, RF-8).
+# Un proyecto de DIgSILENT vive en una carpeta común a todos los espacios; su vínculo no
+# puede depender de qué espacio lo aceptó. Un único proceso de la web lo escribe, así que
+# un bloqueo de hilos basta; con varios procesos habría que pasar a un bloqueo de fichero.
+REGISTRO_SCHEMA = 'igea-dgs-powerfactory-vinculos-v1'
+_REGISTRO_LOCK = threading.Lock()
+
+
+def _leer_registro(path: Path) -> dict[str, dict[str, Any]]:
+    """Lee el registro compartido. Sin lock: el llamador lo toma.
+
+    Un registro ilegible bloquea en vez de vaciarse: vaciarlo haría que todos los proyectos
+    aparecieran a la vez como «no aceptados», sin una causa visible para el operador.
+    """
+    if not path.is_file():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding='utf-8'))
+    except (OSError, ValueError) as exc:
+        raise ProjectBindingError(
+            'PROJECT_BINDING_REGISTRY_UNREADABLE', f'{path.name} no se puede leer: {exc}',
+        ) from exc
+    if (not isinstance(data, dict) or data.get('schema') != REGISTRO_SCHEMA
+            or not isinstance(data.get('vinculos'), dict)):
+        raise ProjectBindingError(
+            'PROJECT_BINDING_REGISTRY_UNREADABLE', f'{path.name} no tiene el esquema esperado',
+        )
+    return dict(data['vinculos'])
+
+
+def _escribir_registro(path: Path, vinculos: dict[str, dict[str, Any]]) -> None:
+    """Escritura atómica: un fallo a mitad deja el registro anterior, no uno a medias."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + '.tmp')
+    payload = {'schema': REGISTRO_SCHEMA, 'vinculos': vinculos}
+    tmp.write_text(json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=True),
+                   encoding='utf-8')
+    os.replace(tmp, path)
+
+
+def sembrar_registro(path: Path, vinculos_por_espacio: Iterable[Any]) -> dict[str, int]:
+    """Lleva al registro compartido los vínculos que ya tenían los espacios (spec 018, RF-8).
+
+    Sin esto, un proyecto aceptado antes de la spec 018 seguiría bloqueado en todos los
+    espacios salvo en el que se aceptó. Cada vínculo se valida con su propia huella: uno
+    alterado se descarta y se cuenta. Si un mismo proyecto tiene vínculos distintos, gana el
+    aceptado más tarde. Es idempotente: una segunda siembra no cambia nada.
+    """
+    resumen = {'añadidos': 0, 'actualizados': 0, 'iguales': 0, 'descartados': 0}
+    with _REGISTRO_LOCK:
+        vinculos = _leer_registro(path)
+        cambio = False
+        for crudos in vinculos_por_espacio:
+            for proyecto, raw in dict(crudos or {}).items():
+                try:
+                    binding = PowerFactoryProjectBinding.from_dict(raw)
+                except (KeyError, TypeError, ValueError):
+                    resumen['descartados'] += 1
+                    continue
+                actual = vinculos.get(proyecto)
+                if actual is None:
+                    vinculos[proyecto] = binding.as_dict()
+                    resumen['añadidos'] += 1
+                    cambio = True
+                elif actual.get('binding_sha256') == binding.binding_sha256:
+                    resumen['iguales'] += 1
+                elif binding.accepted_at > float(actual.get('accepted_at') or 0.0):
+                    vinculos[proyecto] = binding.as_dict()
+                    resumen['actualizados'] += 1
+                    cambio = True
+        if cambio:
+            _escribir_registro(path, vinculos)
+    return resumen
+
+
+def vinculo_guardado(ws: Any, project: str) -> dict[str, Any] | None:
+    """Vínculo de un proyecto para este espacio (spec 018, RF-1 y RF-2).
+
+    El registro compartido manda: una aceptación en cualquier espacio llega a todos, y una
+    copia antigua del propio espacio no puede contradecirla. La copia del espacio solo
+    responde cuando el registro no tiene el proyecto (espacios de antes de la spec 018).
+    Si el registro es ilegible, lanza ``ProjectBindingError``: nunca se cae a la copia.
+    """
+    project = str(project or '').strip()
+    registro = getattr(ws, 'vinculos_compartidos', None)
+    if registro is not None:
+        with _REGISTRO_LOCK:
+            entrada = _leer_registro(Path(registro)).get(project)
+        if entrada:
+            return entrada
+    return (getattr(ws, 'pf_project_bindings', {}) or {}).get(project)
+
+
+def alimentadores_vinculados(ws: Any, project: str) -> list[str]:
+    """Alimentadores del vínculo, o ninguno si el registro no se puede leer.
+
+    Sin excepción aquí: quien lo usa para elegir qué alimentadores pedir decide mal si
+    falla; el control de verdad es ``require_project_binding``, que sí lanza.
+    """
+    try:
+        raw = vinculo_guardado(ws, project) or {}
+    except ProjectBindingError:
+        return []
+    return [str(f) for f in raw.get('feeders') or [] if str(f).strip()]
 
 
 def _get(obj: Any, name: str) -> Any:
@@ -221,7 +330,18 @@ class PowerFactoryProjectBinding:
 
 
 def record_project_binding(ws: Any, binding: PowerFactoryProjectBinding) -> None:
-    """Guarda el vínculo bajo el mismo bloqueo y escritura atómica del workspace."""
+    """Guarda el vínculo en el registro compartido y en la copia del espacio.
+
+    Primero el registro: si falla (p. ej. ilegible), el espacio no queda con una copia que
+    el registro no tiene. Sin registro configurado (pruebas, CLI) solo escribe la copia.
+    """
+    registro = getattr(ws, 'vinculos_compartidos', None)
+    if registro is not None:
+        with _REGISTRO_LOCK:
+            path = Path(registro)
+            vinculos = _leer_registro(path)
+            vinculos[binding.project] = binding.as_dict()
+            _escribir_registro(path, vinculos)
     with ws.lock:
         ws.pf_project_bindings[binding.project] = binding.as_dict()
         ws.save()
@@ -260,7 +380,11 @@ def caso_base_verificado(ws: Any, project: str, feeders: Iterable[str]) -> dict[
     sin GPS ni convergencia y promovido por el ajuste): cuenta como no verificado y hay
     que volver a verificarlo.
     """
-    raw = (getattr(ws, 'pf_project_bindings', {}) or {}).get(str(project or '').strip()) or {}
+    try:
+        raw = vinculo_guardado(ws, str(project or '').strip()) or {}
+    except ProjectBindingError as exc:
+        # Registro ilegible: nada está verificado a ciencia cierta; se dice por qué.
+        return {str(f).strip(): [exc.code] for f in feeders}
     estados = ((raw.get('native_reread') or {}).get('caso_base') or {})
     out: dict[str, list[str]] = {}
     for feeder in feeders:
@@ -333,7 +457,7 @@ def require_project_binding(
     """Exige identidad suficiente; la evolución manual legible queda como aviso."""
     project = str(project or '').strip()
     requested = {str(item).strip() for item in feeders if str(item).strip()}
-    raw = (getattr(ws, 'pf_project_bindings', {}) or {}).get(project)
+    raw = vinculo_guardado(ws, project)
     if not raw:
         raise ProjectBindingError(
             'PROJECT_BINDING_MISSING',
@@ -341,6 +465,15 @@ def require_project_binding(
         )
     binding = PowerFactoryProjectBinding.from_dict(raw)
     active = _active_source_identity(ws)
+    # El vínculo vive en cada espacio de trabajo (workspace.json), no en la carpeta de
+    # DIgSILENT, que es compartida. Un espacio sin fuente activa no puede demostrar la
+    # procedencia: se dice así, en vez de un «fuente activa None» que parece un desajuste.
+    if active[0] is None:
+        raise ProjectBindingError(
+            'PROJECT_BINDING_NO_ACTIVE_SOURCE',
+            'este espacio de trabajo no tiene una ejecución fuente activa; cargue y convierta '
+            'la fuente antes de usar proyectos de DIgSILENT',
+        )
     if active[1:] != (binding.source_mode, binding.source_fingerprint):
         raise ProjectBindingError(
             'PROJECT_BINDING_SOURCE_MISMATCH',
@@ -350,6 +483,15 @@ def require_project_binding(
         raise ProjectBindingError(
             'PROJECT_BINDING_FEEDER_MISMATCH',
             f'{sorted(requested)} no es subconjunto de {list(binding.feeders)}',
+        )
+    # Spec 018, RF-4: el mismo nombre de proyecto en otra carpeta de DIgSILENT es otro
+    # proyecto. Solo se compara si las dos partes dicen su carpeta.
+    carpeta_actual = str((getattr(ws, 'pf_inventory', {}) or {}).get('folder') or '').strip()
+    if carpeta_actual and binding.folder and carpeta_actual != binding.folder:
+        raise ProjectBindingError(
+            'PROJECT_BINDING_FOLDER_MISMATCH',
+            f'el vínculo es de la carpeta {binding.folder!r} y la carpeta actual es '
+            f'{carpeta_actual!r}',
         )
 
     projects, current = _current_project(ws, project)

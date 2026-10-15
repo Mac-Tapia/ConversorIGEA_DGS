@@ -288,7 +288,7 @@ def test_comunes_una_variacion_por_obra_activa_solo_en_sus_casos(semilla, monkey
     rng = random.Random(semilla)
     app, alims = _calibrada(rng)
     monkeypatch.setitem(guion.CONSTRUCTORES, 'terna', _terna)
-    pedidas = [rng.choice([[SIN], [CON], [SIN, CON]]) for _ in alims]
+    pedidas = [rng.choice([[CON], [SIN, CON]]) for _ in alims]
     plan = _plan(alims, obras=[_obra_terna(f, c) for f, c in zip(alims, pedidas)])
     informe, codigo = guion.aplicar(app, plan)
     assert codigo == 0, informe
@@ -363,14 +363,14 @@ def test_comunes_sin_proyecto_no_cambia_donde_no_hay_obras(semilla, monkeypatch)
     app, alims = _calibrada(rng)
     monkeypatch.setitem(guion.CONSTRUCTORES, 'terna', _terna)
     f = rng.choice(alims)
-    informe, codigo = guion.aplicar(app, _plan(alims, obras=[_obra_terna(f, [SIN])]))
+    informe, codigo = guion.aplicar(app, _plan(alims, obras=[_obra_terna(f, [SIN, CON])]))
     assert codigo == 0, informe
     assert informe['comprobacion'] == {'alimentadores': [a for a in alims if a != f],
                                        'diferencias': []}
 
     app, alims = _calibrada(random.Random(semilla + 1))
     monkeypatch.setitem(guion.CONSTRUCTORES, 'terna', _toca_a_otro)
-    informe, codigo = guion.aplicar(app, _plan(alims, obras=[_obra_terna(alims[0], [SIN])]))
+    informe, codigo = guion.aplicar(app, _plan(alims, obras=[_obra_terna(alims[0], [SIN, CON])]))
     assert codigo == 2
     tocados = {d['alimentador'] for d in informe['comprobacion']['diferencias']}
     assert tocados and alims[0] not in tocados
@@ -387,7 +387,7 @@ def test_comunes_obra_que_falla_al_construirse_no_deja_variacion(monkeypatch):
 
     monkeypatch.setitem(guion.CONSTRUCTORES, 'terna', falla)
     monkeypatch.setitem(guion.CONSTRUCTORES, 'condensador', lambda ctx: None)
-    obras = [_obra_terna(alims[0], [SIN]), _banco(alims[0], [SIN])]
+    obras = [_obra_terna(alims[0], [SIN, CON]), _banco(alims[0], [SIN, CON])]
     informe, codigo = guion.aplicar(app, _plan(alims, obras=obras))
     assert codigo == 2
     terna, banco = informe['obras']
@@ -400,7 +400,7 @@ def test_comunes_clase_sin_constructor_se_rechaza(monkeypatch):
     """011:RF-56 — una clase de obra que aún no se sabe construir se rechaza sin crear nada."""
     app, alims = _calibrada(random.Random(11))
     monkeypatch.setattr(guion, 'CONSTRUCTORES', {})
-    informe, codigo = guion.aplicar(app, _plan(alims, obras=[_obra_terna(alims[0], [SIN])]))
+    informe, codigo = guion.aplicar(app, _plan(alims, obras=[_obra_terna(alims[0], [SIN, CON])]))
     assert codigo == 2 and 'todavía no' in informe['obras'][0]['error']
     assert not any(n.startswith('Obra_') for n in _variaciones(app))
 
@@ -410,7 +410,7 @@ def test_comunes_simular_no_escribe_nada():
     app, alims = _calibrada(random.Random(12))
     _tipo(app.GetGlobalLibrary(), 'TypLne', 'AAAC_120', uline=22.9, qurs=120.0)
     _limpio(app)
-    obras = [_obra_terna(alims[0], [SIN]),
+    obras = [_obra_terna(alims[0], [SIN, CON]),
              {'clase': 'seccion', 'alimentador': alims[0], 'casos': [CON],
               'tramos': [f'{alims[0]}_L1'],
               'tipo': {'nombre': 'AAAC_120', 'clase': 'TypLne', 'origen': 'global'}}]
@@ -425,7 +425,7 @@ def test_comunes_simular_no_escribe_nada():
 def test_comunes_sin_los_tres_casos_no_aplica():
     """011:RF-57 — sin los casos preparados no hay dónde activar las obras: no se aplica."""
     app, alims = _red(random.Random(13))
-    informe, codigo = guion.aplicar(app, _plan(alims, obras=[_obra_terna(alims[0], [SIN])]))
+    informe, codigo = guion.aplicar(app, _plan(alims, obras=[_obra_terna(alims[0], [SIN, CON])]))
     assert codigo == 2 and 'prepare los casos' in informe['error']
 
 
@@ -482,7 +482,7 @@ def test_condensador_regulando_su_consigna():
     alrededor de ella; si el flujo no ajusta los condensadores, se avisa."""
     app, alims = _calibrada(random.Random(21))
     f = alims[0]
-    obra = {'clase': 'condensador', 'alimentador': f, 'casos': [SIN], 'barra': f'{f}_B1',
+    obra = {'clase': 'condensador', 'alimentador': f, 'casos': [SIN, CON], 'barra': f'{f}_B1',
             'q_kvar': 600, 'escalones': 3, 'consigna_pu': 1.02}
     informe, codigo = guion.aplicar(app, _plan(alims, obras=[obra]))
     assert codigo == 0, informe
@@ -526,7 +526,7 @@ def test_reconectador_con_tipo_de_reenganche_de_la_global():
     app, alims = _calibrada(random.Random(23))
     _tipo(app.GetGlobalLibrary(), 'TypRecl', 'Recl_3_disparos', roplockout=3)
     f = alims[0]
-    obra = {'clase': 'reconectador', 'alimentador': f, 'casos': [SIN], 'tramo': f'{f}_L1',
+    obra = {'clase': 'reconectador', 'alimentador': f, 'casos': [SIN, CON], 'tramo': f'{f}_L1',
             'tipo': {'nombre': 'Recl_3_disparos', 'clase': 'TypRecl', 'origen': 'global'}}
     informe, codigo = guion.aplicar(app, _plan(alims, obras=[obra]))
     assert codigo == 0, informe
@@ -546,7 +546,7 @@ def test_reconectador_en_un_cubiculo_con_interruptor_lo_reutiliza():
     viejo = cub.CreateObject('StaSwitch', 'SECC_1')
     viejo.aUsage, viejo.on_off = 'dct', 1
     _limpio(app)
-    obra = {'clase': 'reconectador', 'alimentador': f, 'casos': [SIN], 'tramo': f'{f}_L1'}
+    obra = {'clase': 'reconectador', 'alimentador': f, 'casos': [SIN, CON], 'tramo': f'{f}_L1'}
     informe, codigo = guion.aplicar(app, _plan(alims, obras=[obra]))
     assert codigo == 0, informe
     _activas(app, SIN)              # el cambio del interruptor es de la variación de la obra
@@ -635,7 +635,7 @@ def test_regulador_usa_el_tipo_del_proyecto_si_ya_tiene_los_datos():
                ntapmax=16, nntap0=0)
     antes = len(equip.GetContents('*.TypVoltreg'))
     f = alims[0]
-    obra = {'clase': 'regulador', 'alimentador': f, 'casos': [SIN], 'tramo': f'{f}_L1',
+    obra = {'clase': 'regulador', 'alimentador': f, 'casos': [SIN, CON], 'tramo': f'{f}_L1',
             'consigna_pu': 1.0, 'rango_pct': 10, 'pasos': 16,
             'tipo': {'nombre': 'VR_10kV', 'clase': 'TypVoltreg'}}
     informe, codigo = guion.aplicar(app, _plan(alims, obras=[obra]))
@@ -654,7 +654,7 @@ def test_regulador_que_no_puede_mover_el_cubiculo_no_deja_nada():
     _tipo(app.carpetas['equip'], 'TypVoltreg', 'VR', Un=10.0, pcReg=10.0, ntapmin=-16,
           ntapmax=16, nntap0=0)
     f = alims[0]
-    obra = {'clase': 'regulador', 'alimentador': f, 'casos': [SIN], 'tramo': f'{f}_L1',
+    obra = {'clase': 'regulador', 'alimentador': f, 'casos': [SIN, CON], 'tramo': f'{f}_L1',
             'consigna_pu': 1.0, 'rango_pct': 10, 'pasos': 16,
             'tipo': {'nombre': 'VR', 'clase': 'TypVoltreg'}}
     informe, codigo = guion.aplicar(app, _plan(alims, obras=[obra]))
@@ -671,7 +671,27 @@ class _Troncal(fake_pf.Obj):
 
 
 def _con_troncal(app, largo=2):
-    """``ComBbone`` que deja en cada alimentador una troncal con sus ``largo`` primeras líneas."""
+    """Una derivación corta en cada alimentador y un ``ComBbone`` que las obras no usan.
+
+    Desde la spec 016 la troncal de las obras es la del camino más largo (016:RF-1): en el
+    doble, la cadena de líneas ``<F>_L1…Ln`` de 1 km. La derivación ``<F>_LD`` sale de
+    ``<F>_B1`` con 0,5 km, así que nunca es troncal. ``ComBbone`` sigue registrado para
+    comprobar que las obras ya no lo ejecutan (016:RF-10); su efecto deja una troncal que
+    no coincide con la del camino más largo.
+    """
+    for a in app.proyecto.GetContents('*.ElmFeeder', 1):
+        red = a.GetParent()
+        f = a.loc_name
+        b1 = next(b for b in a.GetObjs('ElmTerm') if b.loc_name == f'{f}_B1')
+        bd = red.CreateObject('ElmTerm', f'{f}_BD')
+        bd.uknom, bd.GPSlat, bd.GPSlon = b1.uknom, b1.GPSlat + 0.002, b1.GPSlon
+        ld = red.CreateObject('ElmLne', f'{f}_LD')
+        ld.typ_id, ld.nlnum, ld.outserv, ld.dline = b1.GetContents('*.StaCubic')[0].obj_id.typ_id, 1, 0, 0.5
+        for lado, b in ((0, b1), (1, bd)):
+            cub = b.CreateObject('StaCubic', f'c{lado}_{ld.loc_name}')
+            cub.obj_id, cub.obj_bus = ld, lado
+        a._objs.extend([bd, ld])
+
     def efecto(app_, _orden):
         for a in app_.proyecto.GetContents('*.ElmFeeder', 1):
             red = a.GetParent()
@@ -682,17 +702,22 @@ def _con_troncal(app, largo=2):
             t.camino = [o for par in zip(a.GetObjs('ElmTerm'), lineas) for o in par]
     orden = fake_pf.Orden(app, 'BB', clase='ComBbone', efecto=efecto)
     app.ordenes['ComBbone'] = orden
+    _limpio(app)
     return orden
 
 
-def _troncal_esperada(f):
-    return [f'{f}_L1', f'{f}_L2']
+def _troncal_esperada(f, app=None):
+    """La cadena entera del alimentador: su camino más largo (016:RF-1)."""
+    elm = next(a for a in app.proyecto.GetContents('*.ElmFeeder', 1) if a.loc_name == f)
+    return sorted((ln.loc_name for ln in elm.GetObjs('ElmLne') if ln.loc_name != f'{f}_LD'),
+                  key=lambda n: int(n.rsplit('_L', 1)[1]))
 
 
 @pytest.mark.parametrize('semilla', SEMILLAS)
 def test_seccion_en_la_troncal_si_no_se_indican_tramos(semilla):
-    """011:RF-77 — sin tramos, el tipo nuevo va a los tramos de la troncal que da el estudio
-    de troncal, solo en el caso de la obra; las derivaciones conservan el suyo."""
+    """011:RF-77, 016:RF-1, 016:RF-10 — sin tramos, el tipo nuevo va a los tramos de la
+    troncal del camino más largo (no a la de ``ComBbone``, que las obras ya no ejecutan),
+    solo en el caso de la obra; las derivaciones conservan el suyo."""
     rng = random.Random(semilla)
     app, alims = _calibrada(rng)
     bb = _con_troncal(app)
@@ -703,13 +728,13 @@ def test_seccion_en_la_troncal_si_no_se_indican_tramos(semilla):
             'tipo': {'nombre': 'AAAC_240', 'clase': 'TypLne'}}
     informe, codigo = guion.aplicar(app, _plan(alims, obras=[obra]))
     assert codigo == 0, informe
-    assert bb.ejecuciones == 1
-    assert [e['elemento'] for e in informe['obras'][0]['elementos']] == _troncal_esperada(f)
+    assert bb.ejecuciones == 0
+    assert [e['elemento'] for e in informe['obras'][0]['elementos']] == _troncal_esperada(f, app)
     assert informe['obras'][0]['tipos'] == []          # mismo tipo y tensión: no se copia
     _activas(app, CON)
     lineas = {ln.loc_name: ln for ln in _elm(app, f).GetObjs('ElmLne')}
     for nombre, ln in lineas.items():
-        esperado = 'AAAC_240' if nombre in _troncal_esperada(f) else f'AAAC_{f}'
+        esperado = 'AAAC_240' if nombre in _troncal_esperada(f, app) else f'AAAC_{f}'
         assert ln.typ_id.loc_name == esperado, nombre
     _activas(app, SIN)
     assert {ln.typ_id.loc_name for ln in lineas.values()} == {f'AAAC_{f}'}
@@ -724,8 +749,8 @@ def test_seccion_solo_en_los_tramos_indicados_y_avisa_fuera_de_la_troncal():
     _con_troncal(app)
     _tipo(app.carpetas['equip'], 'TypLne', 'AAAC_240', uline=10.0, qurs=240.0)
     f = alims[0]
-    tramos = [f'{f}_L1', f'{f}_L3']
-    obra = {'clase': 'seccion', 'alimentador': f, 'casos': [SIN], 'tramos': tramos,
+    tramos = [f'{f}_L1', f'{f}_LD']
+    obra = {'clase': 'seccion', 'alimentador': f, 'casos': [SIN, CON], 'tramos': tramos,
             'tipo': {'nombre': 'AAAC_240', 'clase': 'TypLne'}}
     informe, codigo = guion.aplicar(app, _plan(alims, obras=[obra]))
     assert codigo == 0, informe
@@ -733,7 +758,7 @@ def test_seccion_solo_en_los_tramos_indicados_y_avisa_fuera_de_la_troncal():
     lineas = {ln.loc_name: ln.typ_id.loc_name for ln in _elm(app, f).GetObjs('ElmLne')}
     assert {n for n, t in lineas.items() if t == 'AAAC_240'} == set(tramos)
     avisos = informe['obras'][0]['avisos']
-    assert any(f'{f}_L3' in a and 'troncal' in a for a in avisos)
+    assert any(f'{f}_LD' in a and 'troncal' in a for a in avisos)
     assert not any(f'{f}_L1 ' in a and 'no es de la troncal' in a for a in avisos)
 
 
@@ -744,12 +769,12 @@ def test_seccion_de_otra_tension_se_copia_a_la_del_alimentador():
     _con_troncal(app)
     glob = _tipo(app.GetGlobalLibrary(), 'TypLne', 'AAAC_240', uline=22.9, sline=0.6, qurs=240.0)
     f = alims[0]
-    obra = {'clase': 'seccion', 'alimentador': f, 'casos': [SIN],
+    obra = {'clase': 'seccion', 'alimentador': f, 'casos': [SIN, CON],
             'tipo': {'nombre': 'AAAC_240', 'clase': 'TypLne', 'origen': 'global'}}
     informe, codigo = guion.aplicar(app, _plan(alims, obras=[obra]))
     assert codigo == 0, informe
     _activas(app, SIN)
-    tipos = {ln.typ_id for ln in _elm(app, f).GetObjs('ElmLne') if ln.loc_name in _troncal_esperada(f)}
+    tipos = {ln.typ_id for ln in _elm(app, f).GetObjs('ElmLne') if ln.loc_name in _troncal_esperada(f, app)}
     (copia,) = tipos
     assert copia.loc_name == 'AAAC_240_10kV' and copia.uline == 10.0 and copia.qurs == 240.0
     assert copia.GetParent() is app.carpetas['equip'] and glob.uline == 22.9
@@ -761,7 +786,7 @@ def test_seccion_con_un_tipo_que_no_existe_se_rechaza_diciendo_cual():
     app, alims = _calibrada(random.Random(34))
     _con_troncal(app)
     f = alims[0]
-    obra = {'clase': 'seccion', 'alimentador': f, 'casos': [SIN],
+    obra = {'clase': 'seccion', 'alimentador': f, 'casos': [SIN, CON],
             'tipo': {'nombre': 'NO_EXISTE_95', 'clase': 'TypLne'}}
     informe, codigo = guion.aplicar(app, _plan(alims, obras=[obra]))
     assert codigo == 2 and 'NO_EXISTE_95' in informe['obras'][0]['error']
@@ -781,7 +806,7 @@ def test_terna_mas_en_la_troncal(semilla):
     assert codigo == 0, informe
     _activas(app, CON)
     for ln in _elm(app, f).GetObjs('ElmLne'):
-        dentro = ln.loc_name in _troncal_esperada(f)
+        dentro = ln.loc_name in _troncal_esperada(f, app)
         assert int(getattr(ln, 'nlnum', 1)) == (2 if dentro else 1), ln.loc_name
         assert ln.typ_id.loc_name == f'AAAC_{f}'
     _activas(app, SIN)
@@ -795,10 +820,10 @@ def test_terna_y_seccion_en_el_mismo_tramo_se_suman():
     _con_troncal(app)
     _tipo(app.carpetas['equip'], 'TypLne', 'AAAC_240', uline=10.0, qurs=240.0)
     f = alims[0]
-    obras = [{'clase': 'seccion', 'alimentador': f, 'casos': [SIN], 'tramos': [f'{f}_L1'],
+    obras = [{'clase': 'seccion', 'alimentador': f, 'casos': [SIN, CON], 'tramos': [f'{f}_L1'],
               'tipo': {'nombre': 'AAAC_240', 'clase': 'TypLne'}},
-             {'clase': 'terna', 'alimentador': f, 'casos': [SIN], 'tramos': [f'{f}_L1']},
-             {'clase': 'terna', 'alimentador': f, 'casos': [SIN], 'tramos': [f'{f}_L1']}]
+             {'clase': 'terna', 'alimentador': f, 'casos': [SIN, CON], 'tramos': [f'{f}_L1']},
+             {'clase': 'terna', 'alimentador': f, 'casos': [SIN, CON], 'tramos': [f'{f}_L1']}]
     informe, codigo = guion.aplicar(app, _plan(alims, obras=obras))
     assert codigo == 0, informe
     _activas(app, SIN)
@@ -808,13 +833,15 @@ def test_terna_y_seccion_en_el_mismo_tramo_se_suman():
 
 def test_terna_sin_troncal_ni_tramos_se_rechaza():
     """011:RF-80 — sin troncal calculada ni tramos indicados no hay dónde sumar la terna: se
-    rechaza pidiéndolos."""
+    rechaza pidiéndolos. Desde la 016 la troncal sale de la red; falta si el ``ElmFeeder``
+    no dice su cabecera."""
     app, alims = _calibrada(random.Random(36))
     f = alims[0]
+    object.__setattr__(_elm(app, f), 'obj_id', None)
     informe, codigo = guion.aplicar(app, _plan(alims, obras=[
-        {'clase': 'terna', 'alimentador': f, 'casos': [SIN]}]))
+        {'clase': 'terna', 'alimentador': f, 'casos': [SIN, CON]}]))
     assert codigo == 2 and 'indique los tramos' in informe['obras'][0]['error']
-    assert any('ComBbone' in a for a in informe['avisos'])
+    assert any('cabecera' in a for a in informe['avisos'])
 
 
 # =========================================================================== T15

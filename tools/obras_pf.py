@@ -23,8 +23,10 @@ entre proyectos distintos (plan, «Métodos de la API comprobados»).
 Sin ``--bibliotecas`` aplica las obras del plan (``--simular``: dice lo que haría, sin
 escribir nada, RF-69). Las reglas comunes a todas (RF-57 a RF-60, RF-64 a RF-67):
 
-1. Lee la red y los tipos en «Sin proyecto» y planifica todas las obras con
-   ``igea_dgs.obras_pf.plan_simulacion``: lo que se aplica es lo que se simuló.
+1. Lee la red y los tipos y planifica todas las obras con
+   ``igea_dgs.obras_pf.plan_simulacion``: lo que se aplica es lo que se simuló. Cada
+   alimentador se lee en el caso de sus obras («Con proyecto» si todas son de allí, si no
+   «Sin proyecto»), con la troncal del camino más largo (spec 016).
 2. Mide «Sin proyecto» antes de tocar nada: cabecera y tensión mínima por alimentador.
 3. Por obra: una variación nueva, creada en el primero de sus casos; copia los tipos que
    pide y la construye (``CONSTRUCTORES``, uno por clase, tareas T13 a T15). Si algo
@@ -53,25 +55,32 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import traceback
 from pathlib import Path
 from typing import Any, Callable
 
 from ajuste_cabecera_pf import diagnostico
 from cargas_pf import (
-    Alimentadores, activar_proyecto, crear_variacion, error_inesperado, flujo_de_carga,
-    medir_estado, nombre_libre, nombre_pf,
+    Alimentadores, activar_proyecto, cabecera_de, clave_pf, crear_variacion, error_inesperado, es_cable,
+    flujo_de_carga, gps_de, leer_red, medir_estado, nombre_libre, nombre_pf, partir_tramo,
 )
-from casos_pf import NOMBRES, tres_casos
-from estudios_pf import tramos_troncales
+from casos_pf import NOMBRES, casos_del_proyecto, crear_con_proyecto
+from estudios_pf import medida
 
 from igea_dgs.carpeta_pf import buscar_proyecto, nombre_de_perfil
 from igea_dgs.native_action import native_action_block_report
 from igea_dgs.obras_pf import (
-    ATRIBUTOS_TIPO, BANDA_TENSION_PU, Obra, ObrasError, RedAlimentador, Tipo, diferencias_sin_proyecto,
-    mismos_datos, plan_simulacion, red_de_lectura, resolver_copia, resumen_tipo,
-    tipo_de_ficha, validar_obra,
+    ATRIBUTOS_TIPO, BANDA_TENSION_PU, SOLO_CON_PROYECTO, Obra, ObrasError, RedAlimentador, Tipo,
+    diferencias_sin_proyecto, mismos_datos, plan_simulacion, red_de_lectura, resolver_copia,
+    resumen_tipo, tipo_de_ficha, validar_obra,
 )
+from igea_dgs.estudios_pf import EstudiosError, limites_de_perfil
+from igea_dgs.naming import feeder_short_name
+from igea_dgs.obras_pf import nombre_copia, punto_indicado
+from igea_dgs.troncal import (Conexion, TroncalError, _metros, aguas_abajo, extremos_del_enlace,
+                              punto_en_troncal)
+from igea_dgs.troncal import troncal as troncal_de
 
 #: Las clases de tipo que piden las obras (RF-89), en el orden en que se listan.
 CLASES_TIPO = tuple(ATRIBUTOS_TIPO)
@@ -185,12 +194,6 @@ def copiar_tipo(app, original, nombre: str, cambios: dict | None = None) -> tupl
 
 
 # =========================================================================== red
-def cabecera_de(elm):
-    """La barra de la cabecera: la del cubículo con que se define el ``ElmFeeder``."""
-    cubiculo = getattr(elm, 'obj_id', None)
-    return getattr(cubiculo, 'cterm', None) if cubiculo is not None else None
-
-
 def _tension_de_cabecera(elm, barras: list[dict]) -> float | None:
     """La tensión de la barra de la cabecera; sin cabecera, la mayor del alimentador.
 
@@ -221,9 +224,12 @@ def leer_alimentador(elm) -> dict:
     return {
         'kv': _tension_de_cabecera(elm, barras),
         'barras': barras,
-        'tramos': [{'nombre': ln.loc_name, 'tipo': tipo(ln), 'nlnum': int(getattr(ln, 'nlnum', 1) or 1)}
+        'tramos': [{'nombre': ln.loc_name, 'tipo': tipo(ln), 'nlnum': int(getattr(ln, 'nlnum', 1) or 1),
+                    'cable': es_cable(ln), 'largo_m': float(getattr(ln, 'dline', 0.0) or 0.0) * 1000.0}
                    for ln in sorted(elm.GetObjs('ElmLne'), key=nombre)],
-        'trafos': [{'nombre': tr.loc_name, 'tipo': tipo(tr)}
+        # La barra de media de cada SED: la migración cambia las de la parte que pasa (016:RF-54).
+        'trafos': [{'nombre': tr.loc_name, 'tipo': tipo(tr),
+                    'barra': getattr(getattr(getattr(tr, 'bushv', None), 'cterm', None), 'loc_name', None)}
                    for tr in sorted(elm.GetObjs('ElmTr2'), key=nombre)],
         'condensadores': [{'nombre': o.loc_name, 'kv': getattr(o, 'ushnm', None)}
                           for o in sorted(elm.GetObjs('ElmShnt'), key=nombre)],
@@ -278,10 +284,15 @@ class Contexto:
     ``sys.modules``, y ``dataclasses`` lo busca ahí al resolver las anotaciones.
     """
 
-    def __init__(self, app, proyecto, obra: Obra, fila: dict, red: RedAlimentador, elm):
+    def __init__(self, app, proyecto, obra: Obra, fila: dict, red: RedAlimentador, elm, *,
+                 alims=None, redes=None, plan=None):
         self.app, self.proyecto, self.obra, self.fila, self.red = app, proyecto, obra, fila, red
         self.elm = elm
         """El ``ElmFeeder`` del alimentador de la obra."""
+        self.alims = alims
+        self.redes = dict(redes or {})
+        """Las redes leídas de todos los alimentadores: el enlace necesita la del que cede."""
+        self.plan = dict(plan or {})
         self.tipos: dict = {}
         """``(clase, nombre del original)`` → tipo copiado o reutilizado en el proyecto."""
         self.copias: dict = {}
@@ -336,27 +347,27 @@ def principio_del_tramo(elm, linea) -> tuple:
         raise RuntimeError(f'el alimentador {elm.loc_name} no tiene cabecera: no se sabe dónde '
                            'empieza cada tramo')
     barras = list(elm.GetObjs('ElmTerm'))
-    if all(b is not cabecera for b in barras):
+    if all(clave_pf(b) != clave_pf(cabecera) for b in barras):
         barras.append(cabecera)
     extremos: dict[int, list] = {}
     cubiculos = {}
     for barra in barras:
-        cubiculos[id(barra)] = list(barra.GetContents('*.StaCubic') or [])
-        for cub in cubiculos[id(barra)]:
+        cubiculos[clave_pf(barra)] = list(barra.GetContents('*.StaCubic') or [])
+        for cub in cubiculos[clave_pf(barra)]:
             elemento = getattr(cub, 'obj_id', None)
             if elemento is not None:
-                extremos.setdefault(id(elemento), []).append((barra, cub))
-    distancia = {id(cabecera): 0}
+                extremos.setdefault(clave_pf(elemento), []).append((barra, cub))
+    distancia = {clave_pf(cabecera): 0}
     cola = [cabecera]
     while cola:
         barra = cola.pop(0)
-        for cub in cubiculos.get(id(barra), []):
-            for otra, _ in extremos.get(id(getattr(cub, 'obj_id', None)), []):
-                if id(otra) not in distancia:
-                    distancia[id(otra)] = distancia[id(barra)] + 1
+        for cub in cubiculos.get(clave_pf(barra), []):
+            for otra, _ in extremos.get(clave_pf(getattr(cub, 'obj_id', None)), []):
+                if clave_pf(otra) not in distancia:
+                    distancia[clave_pf(otra)] = distancia[clave_pf(barra)] + 1
                     cola.append(otra)
-    lados = [(distancia[id(b)], i, b, c) for i, (b, c) in enumerate(extremos.get(id(linea), []))
-             if id(b) in distancia]
+    lados = [(distancia[clave_pf(b)], i, b, c) for i, (b, c) in enumerate(extremos.get(clave_pf(linea), []))
+             if clave_pf(b) in distancia]
     if not lados:
         raise RuntimeError(f'el tramo {linea.loc_name} no tiene camino hasta la cabecera')
     _, _, barra, cub = min(lados)
@@ -457,9 +468,9 @@ def construir_seccion(ctx) -> None:
     Los tramos y el tipo (copiado a la tensión del alimentador si hacía falta, RF-79) los
     decidió la simulación; los que ya lo tenían no están en la fila.
     """
-    tipo = ctx.tipo('TypLne', ctx.fila['tipo'])
     for e in ctx.fila['elementos']:
-        ctx.objeto('ElmLne', e['elemento']).typ_id = tipo
+        # Con toda la troncal, los tramos de cable llevan su propio tipo (016:RF-7).
+        ctx.objeto('ElmLne', e['elemento']).typ_id = ctx.tipo('TypLne', e.get('tipo') or ctx.fila['tipo'])
 
 
 def construir_terna(ctx) -> None:
@@ -518,37 +529,294 @@ def construir_tension(ctx) -> None:
             f'{pu:g} p.u., que a {destino:g} kV son {pu * destino:.3f} kV.')
 
 
+def _limites(plan: dict):
+    """Los de los estudios (011:RF-35): del perfil de empresa, con los que cambie el plan."""
+    try:
+        return limites_de_perfil().con(**{k: v for k, v in (plan.get('limites') or {}).items()
+                                          if k in ('tension_min_pu', 'tension_max_pu',
+                                                   'cargabilidad_max_pct')})
+    except EstudiosError as exc:
+        raise RuntimeError(str(exc)) from None
+
+
+def _dentro(red, medida_flujo: dict, limites) -> tuple[list[str], dict]:
+    """Tramos de la troncal con sus dos barras dentro de tensión y su carga bajo el límite (016:RF-26).
+
+    Devuelve los tramos y, para avisar (RF-30, RF-32), la tensión mínima y la cargabilidad
+    máxima de la troncal con su barra y su tramo.
+    """
+    u = dict(medida_flujo['barras'])
+    carga = {n: c for n, _clase, c in medida_flujo['elementos']}
+    por_nombre = red.topologia.por_nombre()
+    dentro, peor_u, peor_c = [], None, None
+    for nombre in red.troncal:
+        tramo = por_nombre[nombre]
+        tensiones = [(u[b], b) for b in (tramo.desde, tramo.hasta) if u.get(b) is not None]
+        for v in tensiones:
+            peor_u = v if peor_u is None or v[0] < peor_u[0] else peor_u
+        c = carga.get(nombre)
+        if c is not None:
+            peor_c = (c, nombre) if peor_c is None or c > peor_c[0] else peor_c
+        ok_u = len(tensiones) == 2 and all(limites.tension_min_pu <= v <= limites.tension_max_pu
+                                           for v, _ in tensiones)
+        if ok_u and (c is None or c < limites.cargabilidad_max_pct):
+            dentro.append(nombre)
+    return dentro, {'u': peor_u, 'carga': peor_c}
+
+
+def _conexion_indicada(texto: str, red, tramos, minima, quien: str) -> Conexion:
+    """La barra o el punto que indica el operador (016:RF-31): un punto, sobre su troncal."""
+    punto = punto_indicado(texto)
+    if punto is None:
+        barra = red.topologia.barras.get(texto)
+        if barra is None:
+            raise RuntimeError(f'la barra {texto} no es del alimentador {quien}')
+        return Conexion('', 0.0, barra.gps or (0.0, 0.0), 0.0, barra=texto)
+    conexion = punto_en_troncal(red.topologia, tramos, punto, minima)
+    if conexion is None:
+        raise RuntimeError(f'ningún tramo de la troncal de {quien} tiene coordenadas')
+    return conexion
+
+
+def _barra_de(ctx, conexion: Conexion, f: str, lado: str):
+    """La barra donde se engancha el enlace: la indicada, o la que deja partir el tramo (RF-29)."""
+    elm = ctx.alims.elm[f]
+    if not conexion.parte:
+        barras = list(elm.GetObjs('ElmTerm'))
+        cabecera = cabecera_de(elm)
+        if cabecera is not None:
+            barras.append(cabecera)
+        hallada = next((b for b in barras if b.loc_name == conexion.barra), None)
+        if hallada is None:
+            raise RuntimeError(f'no está la barra {conexion.barra} en el alimentador {f}')
+        return hallada
+    linea = next((ln for ln in elm.GetObjs('ElmLne') if ln.loc_name == conexion.tramo), None)
+    if linea is None:
+        raise RuntimeError(f'no está el tramo {conexion.tramo} en el alimentador {f}')
+    nombre = nombre_libre(linea.GetParent(), 'ElmTerm', f'ENLACE_{lado}_{feeder_short_name(f)}')
+    barra, _ = partir_tramo(ctx.app, linea, conexion.fraccion, nombre, gps=conexion.gps)
+    return barra
+
+
+def _describir(conexion: Conexion) -> dict:
+    return {'tramo': conexion.tramo, 'barra': conexion.barra, 'parte': conexion.parte,
+            'fraccion': round(conexion.fraccion, 4), 'gps': list(conexion.gps)}
+
+
+def construir_enlace(ctx) -> None:
+    """Línea nueva entre dos alimentadores, abierta del lado del que cede (016:RF-26 a RF-43).
+
+    El caso es «Con proyecto» y la variación de la obra ya graba. El flujo de antes del
+    enlace decide los tramos de la troncal del que recibe donde puede engancharse (RF-26);
+    los dos puntos los da ``troncal.extremos_del_enlace`` (RF-27, RF-28) o el operador
+    (RF-31). Cada punto parte su tramo dentro de la variación, o usa la barra si está a
+    menos de la distancia mínima (RF-20). La línea va en recta, con el trazado de sus dos
+    extremos, y el seccionador del lado del que cede queda abierto: IN111 es de 10 kV y
+    TA225 de 22,9 kV, y cerrado el flujo no converge (usuario, 2026-10-14). Nunca se cierra
+    aquí (RF-62).
+    """
+    o, app, fila = ctx.obra, ctx.app, ctx.fila
+    recibe, cede = ctx.red, ctx.redes.get(o.cede)
+    if cede is None or cede.topologia is None or recibe.topologia is None:
+        raise RuntimeError(f'no se leyó la red de {o.alimentador} o de {o.cede}')
+    limites = _limites(ctx.plan)
+    flujo = flujo_de_carga(app)
+    candidatos, peor, medido = list(recibe.troncal), {}, None
+    if flujo['converged']:
+        medido = medida(ctx.elm)
+        candidatos, peor = _dentro(recibe, medido, limites)
+    elif not o.origen:
+        raise RuntimeError(f'el flujo de «Con proyecto» no converge antes del enlace: no se sabe '
+                           f'qué tramos de {o.alimentador} están dentro de los límites; indique '
+                           f'el punto de origen')
+    if not o.origen and not candidatos:                                    # RF-30
+        u = peor.get('u') or (None, '?')
+        c = peor.get('carga') or (None, '?')
+        raise RuntimeError(
+            f'ningún tramo de la troncal de {o.alimentador} está dentro de los límites '
+            f'({limites.tension_min_pu:g} a {limites.tension_max_pu:g} p.u., '
+            f'{limites.cargabilidad_max_pct:g} %): tensión mínima {u[0]} p.u. en {u[1]}, '
+            f'cargabilidad máxima {c[0]} % en {c[1]}')
+    minima = o.minima_m
+    try:
+        if o.origen:
+            salida = _conexion_indicada(o.origen, recibe, recibe.troncal, minima, o.alimentador)
+        if o.destino:
+            llegada = _conexion_indicada(o.destino, cede, cede.troncal, minima, o.cede)
+        if not o.origen and not o.destino:
+            salida, llegada = extremos_del_enlace(recibe.topologia, candidatos, cede.topologia,
+                                                  cede.troncal, minima)
+        elif not o.destino:
+            llegada = punto_en_troncal(cede.topologia, cede.troncal, salida.gps, minima)
+        elif not o.origen:
+            salida = punto_en_troncal(recibe.topologia, candidatos, llegada.gps, minima)
+    except TroncalError as exc:                                                       # RF-33
+        raise RuntimeError(f'{exc}: no se crea el enlace; indique los dos puntos') from None
+    if salida is None or llegada is None:
+        raise RuntimeError('ningún tramo de las troncales tiene coordenadas: no se crea el '
+                           'enlace; indique los dos puntos')
+    if o.origen and medido is not None:                                           # RF-32
+        por_nombre = recibe.topologia.por_nombre()
+        if salida.parte:
+            fuera, donde = salida.tramo not in candidatos, f'el tramo {salida.tramo}'
+            barras_punto = (por_nombre[salida.tramo].desde, por_nombre[salida.tramo].hasta)
+        else:
+            fuera = not any(salida.barra in (por_nombre[n].desde, por_nombre[n].hasta)
+                            for n in candidatos)
+            donde, barras_punto = f'la barra {salida.barra}', (salida.barra,)
+        if fuera:
+            u = dict(medido['barras'])
+            carga = {n: c for n, _clase, c in medido['elementos']}
+            tensiones = ', '.join(f'{b} {u[b]:.3f} p.u.' for b in barras_punto if u.get(b) is not None)
+            cargabilidad = carga.get(salida.tramo) if salida.parte else None
+            fila['avisos'].append(
+                f'El origen que indica el operador, {donde}, está fuera de los límites '
+                f'({tensiones or "sin tensión"}'
+                f'{f", cargabilidad {cargabilidad:.1f} %" if cargabilidad is not None else ""}): '
+                f'se usa igual.')
+
+    origen = _barra_de(ctx, salida, o.alimentador, 'R')
+    destino = _barra_de(ctx, llegada, o.cede, 'C')
+    a = gps_de(origen) or salida.gps
+    b = gps_de(destino) or llegada.gps
+    largo_m = math.hypot(*_metros(b, a))
+    red = origen.GetParent()
+    linea = red.CreateObject('ElmLne', nombre_libre(red, 'ElmLne', f'Enlace_{o.alimentador}_{o.cede}'))
+    linea.typ_id = ctx.tipo('TypLne', fila['tipo'])                                  # RF-38
+    linea.dline = max(largo_m / 1000.0, 1e-6)                                         # RF-34
+    linea.nlnum, linea.outserv = 1, 0
+    linea.SetAttribute('GPScoords', [list(a), list(b)])                               # RF-35
+    cubiculos = []
+    for lado, (barra, cola) in enumerate(((origen, o.alimentador), (destino, o.cede))):
+        cub = barra.CreateObject('StaCubic', nombre_pf(f'Cub_{linea.loc_name}_{cola}'))
+        cub.obj_id, cub.obj_bus = linea, lado
+        cubiculos.append(cub)
+    seccionador = cubiculos[1].CreateObject('StaSwitch', nombre_pf(f'SECC_{linea.loc_name}'))
+    seccionador.aUsage, seccionador.on_off = 'dct', 0                                # RF-36
+    if int(getattr(seccionador, 'on_off', 1)) != 0:                                   # RF-43
+        raise RuntimeError(f'el seccionador {seccionador.loc_name} no quedó abierto')
+    fila['enlace'] = {**fila.get('enlace', {}), 'linea': linea.loc_name,
+                      'seccionador': seccionador.loc_name, 'largo_m': round(largo_m, 1),
+                      'origen': {**_describir(salida), 'barra_final': origen.loc_name},
+                      'destino': {**_describir(llegada), 'barra_final': destino.loc_name},
+                      'candidatos': len(candidatos)}
+
+
+def _tipo_a_tension(ctx, objeto, clase: str, campo: str, origen: float, destino: float):
+    """La copia a la tensión de destino del tipo de ``objeto`` (011:RF-82, RF-83, RF-99).
+
+    La que copió la obra por la simulación si está; si no (una mitad que dejó un enlace de
+    la misma tanda, que la simulación no conocía), se copia aquí con el mismo nombre y las
+    mismas reglas, una vez por tipo original.
+    """
+    base = getattr(objeto, 'typ_id', None)
+    if base is None:
+        raise RuntimeError(f'{objeto.loc_name} no tiene tipo: no se sabe a qué copiarlo')
+    hecho = ctx.tipos.get((clase, base.loc_name))
+    if hecho is not None:
+        return hecho
+    datos = datos_tipo(base)
+    if datos.get(campo) is not None and math.isclose(float(datos[campo]), destino):
+        return base
+    copia, _reutiliza, aviso = copiar_tipo(
+        ctx.app, base, nombre_copia(base.loc_name, kv=destino, kv_origen=origen),
+        {**datos, campo: destino})
+    if aviso:
+        ctx.fila['avisos'].append(aviso)
+    ctx.tipos[(clase, base.loc_name)] = copia
+    return copia
+
+
+def construir_migracion(ctx) -> None:
+    """Lo que queda aguas abajo del nodo, a la tensión de destino (016:RF-54 a RF-58).
+
+    El caso es «Con proyecto» y la variación de la obra ya graba. La parte que pasa se
+    vuelve a calcular aquí, con la red de ahora: un enlace de la misma tanda pudo partir un
+    tramo de esa parte, y la mitad nueva no estaba en la simulación (IN111 cede a TA225 y
+    el enlace llega a su troncal, 2026-10-15). Cambian las barras de media, los tipos de
+    las líneas y de las SED (solo la alta) y se abre el tramo que entra al nodo; nada más
+    del alimentador (RF-57).
+    """
+    o, fila = ctx.obra, ctx.fila
+    origen, destino = float(fila['kv_origen']), float(o.kv_destino)
+    cabecera = cabecera_de(ctx.elm)
+    if cabecera is None:
+        raise RuntimeError(f'el alimentador {o.alimentador} no dice su cabecera')
+    try:
+        parte = aguas_abajo(leer_red(ctx.elm, cabecera), cabecera.loc_name, o.nodo)
+    except TroncalError as exc:
+        raise RuntimeError(str(exc)) from None
+    dentro = set(parte.barras)
+    planificados = {e['elemento'] for e in fila['elementos']}
+    barras = {b.loc_name: b for b in ctx.elm.GetObjs('ElmTerm')}
+    for nombre in parte.barras:                                                     # RF-55
+        barra = barras.get(nombre)
+        if barra is not None and math.isclose(float(getattr(barra, 'uknom', 0) or 0), origen):
+            barra.uknom = destino
+    lineas = {ln.loc_name: ln for ln in ctx.elm.GetObjs('ElmLne')}
+    nuevos = []
+    for nombre in parte.tramos:                                                     # RF-56
+        linea = lineas.get(nombre)
+        if linea is None:
+            continue                                     # un seccionador: no tiene tensión
+        linea.typ_id = _tipo_a_tension(ctx, linea, 'TypLne', 'uline', origen, destino)
+        if nombre not in planificados:
+            nuevos.append(nombre)
+    for trafo in ctx.elm.GetObjs('ElmTr2'):                                          # RF-54
+        alta = getattr(getattr(getattr(trafo, 'bushv', None), 'cterm', None), 'loc_name', None)
+        if alta in dentro:
+            trafo.typ_id = _tipo_a_tension(ctx, trafo, 'TypTr2', 'utrn_h', origen, destino)
+    entrada = parte.entrada                                                          # RF-58
+    acopladores = {c.loc_name: c for c in ctx.elm.GetObjs('ElmCoup')}
+    if entrada in lineas:
+        lineas[entrada].outserv = 1
+    elif entrada in acopladores:
+        acopladores[entrada].on_off = 0
+    if nuevos:
+        fila['avisos'].append(f'La parte que pasa tiene tramos que no estaban en la simulación '
+                              f'(los que partió un enlace): {", ".join(nuevos)}; pasan también '
+                              f'a {destino:g} kV.')
+    otros = [s.loc_name for s in ctx.elm.GetObjs('ElmShnt') + ctx.elm.GetObjs('ElmVoltreg')
+             if getattr(getattr(getattr(s, 'bus1', None), 'cterm', None), 'loc_name', None) in dentro]
+    if otros:
+        fila['avisos'].append(f'Los bancos y reguladores de la parte que pasa no se cambian: '
+                              f'{", ".join(sorted(otros))}; revíselos a {destino:g} kV.')
+    fila['parte'] = {**fila.get('parte', {}), 'barras': len(parte.barras),
+                     'tramos': len([n for n in parte.tramos if n in lineas]),
+                     'entrada': entrada}
+
+
 CONSTRUCTORES.update(condensador=construir_condensador, reconectador=construir_reconectador,
                      regulador=construir_regulador, seccion=construir_seccion,
-                     terna=construir_terna, tension=construir_tension)
+                     terna=construir_terna, tension=construir_tension, enlace=construir_enlace,
+                     migracion=construir_migracion)
 
-#: Obras que necesitan la troncal: sin tramos indicados, son los de la troncal (RF-77,
-#: RF-80), y la sección avisa de los que no son de ella (RF-87).
-CON_TRONCAL = ('seccion', 'terna')
+#: Obras que necesitan la troncal o la red: sin tramos indicados, la sección y la terna
+#: van a la troncal (RF-77, RF-80); el enlace se apoya en las dos troncales y la migración
+#: toma lo que queda aguas abajo de un nodo (spec 016).
+CON_TRONCAL = ('seccion', 'terna', 'enlace', 'migracion')
 
 
-def leer_troncales(app, feeders: list[str]) -> tuple[dict[str, list[str]], list[str]]:
-    """Tramos de la troncal de cada alimentador, con el estudio de troncal (RF-44).
+def leer_troncal(elm, f: str) -> tuple[tuple[str, ...], object, str, list[str]]:
+    """(troncal, red, cabecera, avisos) del alimentador en el caso activo (016:RF-1, RF-2).
 
-    Es la misma lectura que el N-1 de ``estudios_pf``. Las troncales que crea
-    ``ComBbone`` son el resultado de un cálculo, no red: se borran después de leerlas
-    para que leer no deje objetos nuevos; las que ya había (de un estudio de troncal del
-    operador) se quedan.
+    Es la troncal del camino más largo de ``igea_dgs.troncal``, no la de ``ComBbone``:
+    DIgSILENT solo dibuja troncales entre alimentadores con un enlace, e IN111 no tenía
+    ninguno (2026-10-14). El N-1 y la transferencia siguen con ``ComBbone`` (016:RF-10).
+    Solo cuentan las líneas: un seccionador del camino une, pero no se le cambia el tipo.
     """
-    bbone = app.GetFromStudyCase('ComBbone')
-    if bbone is None:
-        return {}, ['El caso no admite la orden ComBbone: sin troncal, la sección y la terna '
-                    'necesitan los tramos indicados.']
-    previas = {id(b) for b in app.GetCalcRelevantObjects('*.ElmBbone')}
-    try:
-        bbone.Execute()
-        tramos, sin_troncal = tramos_troncales(app, feeders)
-    finally:
-        for b in app.GetCalcRelevantObjects('*.ElmBbone'):
-            if id(b) not in previas:
-                b.Delete()
-    avisos = [f'{f}: sin troncal calculada.' for f in sin_troncal]
-    return {f: [ln.loc_name for ln in lineas] for f, lineas in tramos.items()}, avisos
+    cabecera = cabecera_de(elm)
+    if cabecera is None:
+        return (), None, '', [f'{f}: el ElmFeeder no dice su cabecera; sin troncal, la sección y '
+                              'la terna necesitan los tramos indicados.']
+    red = leer_red(elm, cabecera)
+    t = troncal_de(red, cabecera.loc_name)
+    lineas = {ln.loc_name for ln in elm.GetObjs('ElmLne')}
+    avisos = []
+    if t.mallas:
+        avisos.append(f'{f}: hay anillos cerrados; para la troncal cada barra cuelga de su camino '
+                      f'más corto y se dejan fuera {", ".join(t.mallas)}.')
+    return tuple(n for n in t.tramos if n in lineas), red, cabecera.loc_name, avisos
 
 
 def _fuente_de_tipo(app, tipo: dict, plan: dict):
@@ -569,30 +837,50 @@ def _fuente_de_tipo(app, tipo: dict, plan: dict):
     return hallado
 
 
-def _leer(app, plan, alims, feeders, obras) -> tuple[dict, list, list[str]]:
-    """Redes, tipos y avisos de la lectura, en el caso activo («Sin proyecto»)."""
+def _leer(app, plan, alims, feeders, obras, casos) -> tuple[dict, list, list[str]]:
+    """Redes, tipos y avisos de la lectura, cada alimentador en el caso de sus obras.
+
+    En «Sin proyecto», salvo los alimentadores cuyas obras son todas de «Con proyecto»
+    (el enlace y la migración), que se leen allí: la red sobre la que se hace la obra
+    (016:RF-2), con lo que ya tenga «Con proyecto», como un enlace abierto anterior.
+    """
     redes, avisos = {}, []
-    troncales: dict[str, list[str]] = {}
-    con_troncal = sorted({o.alimentador for o in obras if o.clase in CON_TRONCAL})
-    if con_troncal:
-        troncales, avisos_troncal = leer_troncales(app, con_troncal)
-        avisos += avisos_troncal
-    for f in feeders:
-        elm = alims.elm.get(f)
-        if elm is None:
-            avisos.append(f'El alimentador {f} no está en el proyecto.')
+    toca: dict[str, set[str]] = {}
+    for o in obras:
+        for g in (o.alimentador, o.cede):
+            if g:
+                toca.setdefault(g, set()).add(o.clase)
+    con_troncal = {f for f, clases in toca.items() if clases & set(CON_TRONCAL)}
+    en_con = {f for f, clases in toca.items() if clases <= set(SOLO_CON_PROYECTO)}
+    for rol, grupo in (('con', [f for f in feeders if f in en_con]),
+                       ('sin', [f for f in feeders if f not in en_con])):
+        if not grupo:
             continue
-        leido = leer_alimentador(elm)
-        # RF-102: si otro alimentador sale de la misma barra, comparte barra y fuente, y
-        # migrar esa barra lo cambiaría también a él.
-        cabecera = cabecera_de(elm)
-        leido['cabecera_compartida_con'] = sorted(
-            g for g, otro in alims.elm.items()
-            if g != f and cabecera is not None and cabecera_de(otro) is cabecera)
-        try:
-            redes[f] = red_de_lectura(f, leido, troncal=troncales.get(f, ()))
-        except ObrasError as exc:
-            avisos.append(str(exc))
+        # Sin «Con proyecto» todavía (se crea después de las obras de «Sin proyecto»,
+        # 016:RF-12), su red es la de «Sin proyecto».
+        (casos.get(rol) or casos['sin']).Activate()
+        for f in grupo:
+            elm = alims.elm.get(f)
+            if elm is None:
+                avisos.append(f'El alimentador {f} no está en el proyecto.')
+                continue
+            leido = leer_alimentador(elm)
+            # RF-102: si otro alimentador sale de la misma barra, comparte barra y fuente, y
+            # migrar esa barra lo cambiaría también a él.
+            cabecera = cabecera_de(elm)
+            leido['cabecera_compartida_con'] = sorted(
+                g for g, otro in alims.elm.items()
+                if g != f and cabecera is not None and cabecera_de(otro) is cabecera)
+            troncal, topologia, nombre_cabecera = (), None, ''
+            if f in con_troncal:
+                troncal, topologia, nombre_cabecera, avisos_troncal = leer_troncal(elm, f)
+                avisos += avisos_troncal
+            try:
+                redes[f] = red_de_lectura(f, leido, troncal=troncal, topologia=topologia,
+                                          cabecera=nombre_cabecera)
+            except ObrasError as exc:
+                avisos.append(str(exc))
+    casos['sin'].Activate()
     otro = None
     if plan.get('otro_proyecto'):
         otro = buscar_proyecto(app, plan['otro_proyecto'], plan.get('folder') or nombre_de_perfil())
@@ -603,14 +891,20 @@ def _leer(app, plan, alims, feeders, obras) -> tuple[dict, list, list[str]]:
     return redes, tipos, avisos
 
 
-def _aplicar_una(app, plan, proyecto, casos, alims, obra: Obra, fila: dict, red) -> None:
-    """Una obra en su variación y en sus casos. Deja en ``fila`` lo que pasó."""
-    roles = [ROL_DE_CASO[c] for c in obra.casos]
+def _aplicar_una(app, plan, proyecto, casos, alims, obra: Obra, fila: dict, red,
+                 redes=None) -> None:
+    """Una obra en su variación y en sus casos. Deja en ``fila`` lo que pasó.
+
+    Solo en los casos que ya existen: si falta «Con proyecto», ``aplicar`` lo crea después
+    como copia de «Sin proyecto» y la obra pasa a él con la copia (016:RF-12).
+    """
+    roles = [ROL_DE_CASO[c] for c in obra.casos if ROL_DE_CASO[c] in casos]
     casos[roles[0]].Activate()
     variacion, _etapa = crear_variacion(app, fila['variacion'], fila['variacion'])
     fila['variacion'] = variacion.loc_name
     try:
-        ctx = Contexto(app, proyecto, obra, fila, red, alims.elm[obra.alimentador])
+        ctx = Contexto(app, proyecto, obra, fila, red, alims.elm[obra.alimentador], alims=alims,
+                       redes=redes, plan=plan)
         for t in fila['tipos']:                                            # RF-60
             copia, reutiliza, aviso = copiar_tipo(app, _fuente_de_tipo(app, t, plan),
                                                   t['nombre'], t['datos'])
@@ -627,6 +921,8 @@ def _aplicar_una(app, plan, proyecto, casos, alims, obra: Obra, fila: dict, red)
 
     # Activa solo en sus casos (RF-57); en el «Caso base», nunca (RF-58).
     for rol in NOMBRES:
+        if rol not in casos:
+            continue
         casos[rol].Activate()
         if rol in roles:
             variacion.Activate()
@@ -635,19 +931,47 @@ def _aplicar_una(app, plan, proyecto, casos, alims, obra: Obra, fila: dict, red)
 
     fila['casos_activos'], fila['flujo'] = [], {}
     for rol in roles:                                                     # RF-66
-        nombre = NOMBRES[rol]
-        casos[rol].Activate()
-        flujo = flujo_de_carga(app)
-        fila['flujo'][nombre] = {'converge': flujo['converged']}
-        if flujo['converged']:
-            fila['casos_activos'].append(nombre)
+        _flujo_con_la_obra(app, proyecto, casos, obra, fila, variacion, rol)
+
+
+def _flujo_con_la_obra(app, proyecto, casos, obra: Obra, fila: dict, variacion, rol: str) -> None:
+    """El flujo del caso con la obra activa; si no converge, la obra queda inactiva allí."""
+    nombre = NOMBRES[rol]
+    casos[rol].Activate()
+    flujo = flujo_de_carga(app)
+    fila['flujo'][nombre] = {'converge': flujo['converged']}
+    if flujo['converged']:
+        fila['casos_activos'].append(nombre)
+        return
+    # RF-67: el diagnóstico se lee antes de desactivarla, con lo que dejó este flujo.
+    fila['flujo'][nombre]['diagnostico'] = diagnostico(
+        Alimentadores(app, proyecto, [obra.alimentador]), obra.alimentador, {}, {})
+    variacion.Deactivate()
+    fila['avisos'].append(f'Con la obra, el flujo de «{nombre}» no converge: queda inactiva '
+                          'en ese caso y se conserva en el proyecto.')
+
+
+def _crear_con_proyecto(app, proyecto, casos, aplicadas, informe) -> None:
+    """«Con proyecto» como copia de «Sin proyecto» con sus obras ya hechas (016:RF-11, RF-12).
+
+    Usuario, 2026-10-14: «lo que se modifica en Sin proyecto debe pasar a Con proyecto y la
+    copia se hace una vez modificado el Sin proyecto». La copia lleva las variaciones
+    activas de «Sin proyecto», y con ellas las obras; aquí se comprueba que están activas
+    y se ejecuta el flujo de «Con proyecto» con cada una.
+    """
+    casos['con'] = crear_con_proyecto(app, casos['sin'])
+    informe['avisos'].append('El proyecto no tenía «Con proyecto»: se creó como copia de «Sin '
+                             'proyecto» después de aplicar sus obras.')
+    carpeta = app.GetProjectFolder('scheme')
+    por_nombre = {v.loc_name: v for v in (carpeta.GetContents('*.IntScheme', 1) if carpeta else [])}
+    for obra, fila in aplicadas:
+        variacion = por_nombre.get(fila.get('variacion'))
+        if fila['error'] or variacion is None or NOMBRES['sin'] not in fila['casos_activos']:
             continue
-        # RF-67: el diagnóstico se lee antes de desactivarla, con lo que dejó este flujo.
-        fila['flujo'][nombre]['diagnostico'] = diagnostico(
-            Alimentadores(app, proyecto, [obra.alimentador]), obra.alimentador, {}, {})
-        variacion.Deactivate()
-        fila['avisos'].append(f'Con la obra, el flujo de «{nombre}» no converge: queda inactiva '
-                              'en ese caso y se conserva en el proyecto.')
+        casos['con'].Activate()
+        if variacion.loc_name not in {v.loc_name for v in (app.GetActiveNetworkVariations() or [])}:
+            variacion.Activate()
+        _flujo_con_la_obra(app, proyecto, casos, obra, fila, variacion, 'con')
 
 
 def _comprobar_sin_proyecto(app, casos, alims, feeders, antes, informe) -> None:
@@ -680,17 +1004,18 @@ def aplicar(app, plan: dict, *, simular: bool = False,
     proyecto = activar_proyecto(app, plan['project'], plan.get('folder'))
     if proyecto is None:
         return {**informe, 'error': f"no existe el proyecto {plan['project']!r} en DIgSILENT"}, 2
-    casos = tres_casos(app)
-    if not casos:
-        return {**informe, 'error': 'el proyecto no tiene los casos «Caso base», «Sin proyecto» '
-                                    'y «Con proyecto»: prepare los casos primero'}, 2
+    casos = casos_del_proyecto(app)
+    if 'base' not in casos or 'sin' not in casos:
+        return {**informe, 'error': 'el proyecto no tiene los casos «Caso base» y «Sin proyecto»: '
+                                    'prepare los casos primero'}, 2
 
-    feeders = sorted({o.alimentador for o in obras} | set(plan.get('feeders') or []))
+    feeders = sorted({o.alimentador for o in obras} | {o.cede for o in obras if o.cede}
+                     | set(plan.get('feeders') or []))
     alims = Alimentadores(app, proyecto, feeders)
     inicial = app.GetActiveStudyCase()
     try:
         casos['sin'].Activate()
-        redes, tipos, avisos = _leer(app, plan, alims, feeders, obras)
+        redes, tipos, avisos = _leer(app, plan, alims, feeders, obras, casos)
         informe['avisos'] += avisos
         carpeta = app.GetProjectFolder('scheme')
         ocupadas = [v.loc_name for v in (carpeta.GetContents('*.IntScheme', 1) if carpeta else [])]
@@ -706,13 +1031,25 @@ def aplicar(app, plan: dict, *, simular: bool = False,
         if not antes['converged']:
             informe['avisos'].append('«Sin proyecto» no converge antes de las obras: no se puede '
                                      'comprobar después que no cambió.')
-        for obra, fila in zip(obras, filas):
+        # Sin «Con proyecto», primero las obras de «Sin proyecto»; después se crea «Con
+        # proyecto» como su copia, y luego van las que son solo de «Con proyecto» (016:RF-12).
+        pares = list(enumerate(zip(obras, filas)))
+        if 'con' not in casos:
+            pares.sort(key=lambda p: NOMBRES['sin'] not in p[1][0].casos)
+        hechas: list[tuple[int, tuple]] = []
+        for i, (obra, fila) in pares:
             if cancelado():
                 informe['cancelado'] = True
                 break
+            if 'con' not in casos and NOMBRES['sin'] not in obra.casos:
+                _crear_con_proyecto(app, proyecto, casos, [p for _, p in hechas], informe)
             if not fila['error']:
-                _aplicar_una(app, plan, proyecto, casos, alims, obra, fila, redes[obra.alimentador])
-            informe['obras'].append(fila)
+                _aplicar_una(app, plan, proyecto, casos, alims, obra, fila, redes[obra.alimentador],
+                             redes)
+            hechas.append((i, (obra, fila)))
+        if 'con' not in casos and not informe['cancelado']:
+            _crear_con_proyecto(app, proyecto, casos, [p for _, p in hechas], informe)
+        informe['obras'] = [fila for _, (_, fila) in sorted(hechas, key=lambda h: h[0])]
         if antes['converged']:
             _comprobar_sin_proyecto(app, casos, alims, feeders, antes, informe)
     finally:
@@ -752,6 +1089,10 @@ def main(argv=None) -> int:
     except Exception as exc:  # noqa: BLE001
         print(f'ERROR: no se pudo conectar a DIgSILENT: {exc}')
         return 3
+    # Primera línea solo con DIgSILENT ya respondiendo: la web la espera un tiempo
+    # limitado y, si no llega, corta el guion en vez de dejar ocupado el carril (005:RF-21).
+    print(f'Conectado a DIgSILENT como {getattr(app.GetCurrentUser(), "loc_name", "?")}.',
+          flush=True)
 
     def cancelado() -> bool:
         return bool(args.cancel_file) and Path(args.cancel_file).exists()

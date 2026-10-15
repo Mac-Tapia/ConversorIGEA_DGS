@@ -238,20 +238,22 @@ def test_relectura_posterior_invalida_no_deja_variacion_aceptada(guion):
 
 
 def test_kva_de_los_transformadores_y_reparto_proporcional(guion):
-    """015:RF-23 / 006:RF-8 / 015:RF-44 — todas las escaladas suben por el mismo factor sobre
-    su demanda del archivo, que no se reescribe; el kVA del transformador en PF se informa."""
+    """015:RF-23 / 006:RF-8 / 015:RF-44 — usuario, 2026-10-15: las escaladas se reparten por la
+    potencia instalada de su SED; P base = kVA × FP en ``plini`` y un mismo ``scale0`` en
+    todas, que es la fracción de carga de sus transformadores."""
     rnd = random.Random(SEMILLA)
     tamanos = {i: rnd.choice([25.0, 50.0, 100.0, 160.0, 250.0]) for i in range(1, 30)}
     app = _app(n=rnd.randint(5, 25), kva=lambda f, i: tamanos[i])
-    escritas = {c.loc_name: c.plini for c in app.proyecto.GetContents('*.ElmLod', 1)}
     informe, rc = guion.ejecutar(app, _plan(kw=900.0, kvar=250.0))
     assert rc == 0, (SEMILLA, informe)
-    ratios = {round(x['despues']['kw'] / x['antes']['kw'], 9) for x in informe['sed']}
-    assert len(ratios) == 1, SEMILLA
+    fp = 900.0 / math.hypot(900.0, 250.0)
+    factores = set()
     for x in informe['sed']:
         carga = _carga(app, x['sed'])
-        assert carga.plini == escritas[x['sed']]
-        assert carga.scale0 == pytest.approx(x['despues']['kw'] / x['antes']['kw'])
+        assert carga.plini * 1000.0 == pytest.approx(x['kva'] * fp), SEMILLA
+        assert x['despues']['kw'] / x['kva'] == pytest.approx(fp * carga.scale0)
+        factores.add(round(carga.scale0, 9))
+    assert len(factores) == 1, SEMILLA
     assert {x['kva'] for x in informe['sed']} <= set(tamanos.values())
 
 
@@ -460,45 +462,136 @@ def test_consumo_nativo_suma_resultados_de_todas_las_sed(guion):
     assert guion.consumo_nativo(cargas) == (None, None)
 
 
-def test_validacion_de_perdidas_usa_consumo_efectivo_no_plini(guion):
-    """La tension puede reducir el consumo terminal respecto de ``plini``.
+def _reparto_de(app, consumo_relativo, *, fija=None):
+    """Dos cargas de F1 con su consumo en el flujo: lo escrito por ``consumo_relativo``.
 
-    La cabecera debe compararse con ``m:Psum``: sumar las potencias escritas produciria
-    aqui una perdida activa negativa falsa (1 250 - 3 000 kW).
+    ``fija``: el nombre de la que queda fija (sin base), con 500 kW y 100 kVAR escritos.
     """
-    from igea_dgs.ajuste_cabecera import Medida, Objetivo
-
-    app = _app(n=2)
     objetos = [o for o in app.proyecto.GetContents('*.ElmLod', 1)
                if o.loc_name.startswith('F1_')]
     cargas = {o.loc_name: o for o in objetos}
-    demandas = {}
-    base = {}
+    demandas, base = {}, {}
     for i, obj in enumerate(objetos, 1):
-        obj.plini, obj.qlini, obj.i_scale = float(i), i / 10.0, 1
-        object.__setattr__(obj, 'm:Psum:bus1', 0.4 * i)
-        object.__setattr__(obj, 'm:Qsum:bus1', 0.04 * i)
-        demandas[obj.loc_name] = SimpleNamespace(kw=1000.0 * i, kvar=100.0 * i)
-        base[obj.loc_name] = (1000.0 * i, 100.0 * i)
+        es_fija = obj.loc_name == fija
+        p, q = (0.5, 0.1) if es_fija else (float(i), i / 10.0)
+        obj.plini, obj.qlini, obj.i_scale, obj.scale0 = p, q, 0 if es_fija else 1, 1.0
+        object.__setattr__(obj, 'm:Psum:bus1', p * consumo_relativo)
+        object.__setattr__(obj, 'm:Qsum:bus1', q * consumo_relativo)
+        demandas[obj.loc_name] = SimpleNamespace(kw=1000.0 * p, kvar=1000.0 * q)
+        if not es_fija:
+            base[obj.loc_name] = (1000.0 * p, 1000.0 * q)
     reparto = SimpleNamespace(
         demandas=demandas, base=base, solo_kw=False, a=1.0, b=1.0,
         con_factores=lambda _a, _b: object(),
     )
+    return cargas, reparto
+
+
+def test_validacion_de_perdidas_usa_consumo_efectivo_no_plini(guion):
+    """006:RF-11 / 015:RF-50 — las pérdidas, la cabecera menos lo que consumen las cargas.
+
+    Con las cargas consumiendo lo escrito, el balance cuadra: cabecera = fijas +
+    escaladas + pérdidas.
+    """
+    from igea_dgs.ajuste_cabecera import Medida, Objetivo
+
+    app = _app(n=2)
+    cargas, reparto = _reparto_de(app, 1.0, fija='F1_S1')
 
     validacion, reconstruido = guion.validar_cargas_nativas(
-        cargas, reparto, Medida(True, 1250.0, 125.0),
-        Objetivo(1250.0, 125.0, 'M1', 'F1'), 0.01,
+        cargas, reparto, Medida(True, 2600.0, 260.0),
+        Objetivo(2600.0, 260.0, 'M1', 'F1'), 0.01, ajustes_flujo={'iopt_lev': 0},
     )
 
-    assert validacion['correcta'] is True
-    assert validacion['consumo_cargas_efectivo']['kw'] == pytest.approx(1200.0)
-    assert validacion['consumo_cargas_efectivo']['kvar'] == pytest.approx(120.0)
+    assert validacion['correcta'] is True, validacion['fallos']
+    assert validacion['consumo_cargas_efectivo']['kw'] == pytest.approx(2500.0)
     assert validacion['consumo_cargas_efectivo']['origen'] == 'RESULTADOS_CARGAS_NATIVAS'
+    balance = validacion['balance']
+    assert balance['fijas_consumida_kw'] == pytest.approx(500.0)
+    assert balance['escaladas_consumida_kw'] == pytest.approx(2000.0)
+    assert balance['escrita_kw'] == pytest.approx(2500.0)
+    assert balance['perdidas_kw'] == pytest.approx(100.0)
+    assert balance['cabecera_kw'] == pytest.approx(
+        balance['fijas_consumida_kw'] + balance['escaladas_consumida_kw']
+        + balance['perdidas_kw'])
     assert reconstruido is not None
 
 
+def test_carga_que_consume_menos_de_lo_escrito_no_es_valida(guion):
+    """015:RF-47 / 015:RF-48 / 015:RF-49 / 015:RF-51 — CA101, 2026-10-15: con la adaptación
+    automática del modelo las cargas consumían lo escrito por u² y la relectura de lo
+    escrito daba «válido». Ahora la fija y la escalada que no consumen lo suyo se nombran,
+    con lo escrito, lo consumido y el ajuste del flujo como causa."""
+    from igea_dgs.ajuste_cabecera import Medida, Objetivo
+
+    app = _app(n=2)
+    cargas, reparto = _reparto_de(app, 0.73, fija='F1_S1')
+
+    validacion, reconstruido = guion.validar_cargas_nativas(
+        cargas, reparto, Medida(True, 2000.0, 200.0),
+        Objetivo(2000.0, 200.0, 'M1', 'F1'), 0.01,
+        ajustes_flujo={'iopt_lev': 1, 'iopt_pq': 0},
+    )
+
+    assert validacion['correcta'] is False and reconstruido is None
+    fallo = next(f for f in validacion['fallos']
+                 if f['tipo'] == 'CONSUMO_DISTINTO_DE_LO_ESCRITO')
+    assert fallo['cantidad'] == 2 and fallo['fijas'] == 1
+    assert 'iopt_lev=1' in fallo['causa_probable'] and 'iopt_pq' not in fallo['causa_probable']
+    fija = next(c for c in fallo['cargas'] if c['sed'] == 'F1_S1')
+    assert fija['p_escrita_kw'] == pytest.approx(500.0)
+    assert fija['p_consumida_kw'] == pytest.approx(365.0)
+    assert validacion['balance']['fijas_consumida_kw'] == pytest.approx(365.0)
+    assert validacion['balance']['causa_probable'] == fallo['causa_probable']
+    detalle = next(d for d in validacion['cargas'] if d['sed'] == 'F1_S1')
+    assert not detalle['correcta'] and any('consume P=' in e for e in detalle['errores'])
+    aviso = guion.aviso_consumo_fisico(validacion)
+    assert aviso.startswith('VALIDACION_FISICA') and 'F1_S1' in aviso and 'iopt_lev' in aviso
+
+
+def test_fija_con_su_p_pero_otra_q_en_el_flujo_no_es_valida(guion):
+    """015:RF-47 — la Q de una fija también se compara con lo que consume."""
+    from igea_dgs.ajuste_cabecera import Medida, Objetivo
+
+    app = _app(n=2)
+    cargas, reparto = _reparto_de(app, 1.0, fija='F1_S1')
+    object.__setattr__(cargas['F1_S1'], 'm:Qsum:bus1', 0.05)
+
+    validacion, _ = guion.validar_cargas_nativas(
+        cargas, reparto, Medida(True, 2600.0, 260.0),
+        Objetivo(2600.0, 260.0, 'M1', 'F1'), 0.01,
+    )
+
+    fallo = next(f for f in validacion['fallos']
+                 if f['tipo'] == 'CONSUMO_DISTINTO_DE_LO_ESCRITO')
+    assert [c['sed'] for c in fallo['cargas']] == ['F1_S1']
+    assert fallo['causa_probable'] is None
+
+
+def test_carga_sin_resultado_del_flujo_no_queda_verificada(guion):
+    """015:RF-52 — tras un flujo convergente, una carga sin P consumida no se da por buena."""
+    from igea_dgs.ajuste_cabecera import Medida, Objetivo
+
+    app = _app(n=2)
+    cargas, reparto = _reparto_de(app, 1.0, fija='F1_S1')
+    object.__delattr__(cargas['F1_S2'], 'm:Psum:bus1')
+
+    validacion, reconstruido = guion.validar_cargas_nativas(
+        cargas, reparto, Medida(True, 2600.0, 260.0),
+        Objetivo(2600.0, 260.0, 'M1', 'F1'), 0.01,
+    )
+
+    assert validacion['correcta'] is False and reconstruido is None
+    fallo = next(f for f in validacion['fallos']
+                 if f['tipo'] == 'CARGAS_SIN_RESULTADO_DEL_FLUJO')
+    assert fallo['sed'] == ['F1_S2']
+    assert validacion['balance']['escaladas_consumida_kw'] is None
+    assert validacion['balance']['perdidas_kw'] is None
+
+
 def test_no_redistribuir_informa_perdidas_con_consumo_efectivo(guion):
-    """006:RF-11 / 006:RF-41 — la rama NO_REDISTRIBUIR mide pérdidas como la validación.
+    """006:RF-11 / 006:RF-41 / 015:RF-50 — la rama NO_REDISTRIBUIR mide pérdidas como la
+    validación.
 
     En CA101 reabierto (168 cargas, ``_6`` reutilizada) el informe restaba la ``plini``
     escrita a la cabecera y daba -846 kW de pérdidas, mientras el flujo aplicado sobre el
@@ -507,13 +600,8 @@ def test_no_redistribuir_informa_perdidas_con_consumo_efectivo(guion):
     app = _app()
     primero, rc = guion.ejecutar(app, _plan())
     assert rc == 0, primero
-    efectivo = 0.0
-    for obj in app.proyecto.GetContents('*.ElmLod', 1):
-        # Carga dependiente de tensión: consume en terminal el 90 % de lo escrito.
-        object.__setattr__(obj, 'm:Psum:bus1', 0.9 * obj.plini)
-        object.__setattr__(obj, 'm:Qsum:bus1', 0.9 * obj.qlini)
-        if obj.loc_name.startswith('F1_'):
-            efectivo += 900.0 * obj.plini
+    efectivo = sum(1000.0 * o.plini * o.scale0 for o in app.proyecto.GetContents('*.ElmLod', 1)
+                   if o.loc_name.startswith('F1_'))
 
     segundo, rc = guion.ejecutar(app, _plan())
 
@@ -525,6 +613,34 @@ def test_no_redistribuir_informa_perdidas_con_consumo_efectivo(guion):
     assert segundo['consumo_cargas_efectivo']['kw'] == pytest.approx(efectivo)
     assert segundo['perdidas_de'] == 'RESULTADOS_CARGAS_NATIVAS'
     assert segundo['perdidas']['kw'] == pytest.approx(segundo['cabecera']['kw'] - efectivo)
+    balance = segundo['validacion_previa_nativa']['balance']
+    assert balance['perdidas_kw'] == pytest.approx(segundo['perdidas']['kw'])
+
+
+def test_calibracion_con_cargas_dependientes_de_la_tension_se_revierte(guion):
+    """015:RF-47 / 015:RF-49 / 015:RF-51 — CA101 en DIgSILENT, 2026-10-15: las cargas
+    consumían lo escrito por u² con ``iopt_lev=1`` y la calibración quedaba «válida».
+    Ahora no lo es: no se graba, las cargas vuelven a como estaban y el aviso nombra la
+    fija que no consume lo suyo y el ajuste del flujo."""
+    app = _app()
+    object.__setattr__(app.ldf, 'iopt_lev', 1)
+    antes = {o.loc_name: (o.plini, o.scale0) for o in app.proyecto.GetContents('*.ElmLod', 1)}
+    for obj in app.proyecto.GetContents('*.ElmLod', 1):
+        object.__setattr__(obj, 'consumo_relativo', 0.9)
+    clientes = [{'codigo': 'CI-1', 'sed': 'F1_S2', 'pot': 40.0, 'ea': 1.0, 'eri': 0.25}]
+
+    informe, rc = guion.ejecutar(app, _plan(clientes=clientes))
+
+    assert rc == 2
+    assert informe['status'] == 'FALLO_VALIDACION_NATIVA' and not informe['cuadrado']
+    assert informe['calibracion_revertida'] is True
+    assert 'escenarios' not in informe
+    aviso = next(a for a in informe['avisos'] if a.startswith('VALIDACION_FISICA'))
+    assert 'F1_S2' in aviso and 'iopt_lev=1' in aviso
+    balance = informe['validacion_posterior_nativa']['balance']
+    assert balance['fijas_consumida_kw'] == pytest.approx(0.9 * balance['fijas_escrita_kw'])
+    assert {o.loc_name: (o.plini, o.scale0)
+            for o in app.proyecto.GetContents('*.ElmLod', 1)} == pytest.approx(antes)
 
 
 def test_ajuste_suma_dos_troncales_y_conserva_clientes_fijos(guion):
@@ -573,6 +689,10 @@ def test_ajuste_suma_dos_troncales_y_conserva_clientes_fijos(guion):
                            q_total - q_1 + perdida_q * (1.0 - fraccion_1))
         object.__setattr__(fuente, 'm_Psum:bus1', -(p_total + perdida_p))
         object.__setattr__(fuente, 'm_Qsum:bus1', -(q_total + perdida_q))
+        # Lo que consume cada carga, como DIgSILENT tras el flujo (015:RF-47, RF-52).
+        for c in activas:
+            object.__setattr__(c, 'm_Psum:bus1', float(c.plini or 0.0) * c.scale0)
+            object.__setattr__(c, 'm_Qsum:bus1', float(c.qlini or 0.0) * c.scale0)
         app.ldf_valido = True
         return 0
 
@@ -698,7 +818,9 @@ def test_sin_cuadrar_queda_el_ultimo_que_convergio(guion):
     informe, rc = guion.ejecutar(app, _plan(kw=900.0, kvar=250.0))
     assert rc == 2 and not informe['cuadrado']
     assert any('NO cumple' in a for a in informe['avisos'])
-    total = sum(_carga(app, f'F1_S{i}').plini for i in range(1, 7))
+    # Lo que consumen: la base por el factor de escala (015:RF-44).
+    total = sum(_carga(app, f'F1_S{i}').plini * _carga(app, f'F1_S{i}').scale0
+                for i in range(1, 7))
     assert total <= 0.5 + 1e-9
     # 900 kW entre 6 SED de 100 kVA: cada una pedía más que su transformador.
     assert len(informe['diagnostico']['sed_por_encima_de_su_transformador']) == 6
@@ -1001,7 +1123,9 @@ def test_gana_el_cambio_manual_de_demanda(guion, monkeypatch):
     _caso(app, 'Con proyecto').Activate()
     en_con = _carga(app, 'F1_S2').plini
     _caso(app, 'Sin proyecto').Activate()
-    _carga(app, 'F1_S2').plini = 0.123                   # el operador, a mano, con su escenario
+    # El operador, a mano y con su escenario, deja 123 kW efectivos (P × factor de escala).
+    escala = _carga(app, 'F1_S2').scale0
+    _carga(app, 'F1_S2').plini = 0.123 / escala
     _caso(app, 'Caso base').Activate()
     marca = len(app.escrituras)
 
@@ -1018,7 +1142,7 @@ def test_gana_el_cambio_manual_de_demanda(guion, monkeypatch):
                     if e[0] is _carga(app, 'F1_S2') and e[1] == 'plini']
     assert en_escenario == []
     _caso(app, 'Sin proyecto').Activate()
-    assert _carga(app, 'F1_S2').plini == pytest.approx(0.123)
+    assert _carga(app, 'F1_S2').plini == pytest.approx(0.123 / escala)
     _caso(app, 'Con proyecto').Activate()
     assert _carga(app, 'F1_S2').plini == pytest.approx(en_con)
 
@@ -1071,3 +1195,76 @@ def test_si_no_cuadra_los_ajustes_del_flujo_se_restituyen(guion):
     assert rc == 2 and not informe['cuadrado']
     assert app.ldf.itrlx == 25 and app.ldf.iStepAdapt == 0
     assert 'ajustes_del_flujo_conservados' not in informe and informe['ajustes_restituidos']
+
+
+def test_escaladas_a_fp_del_perfil_y_fijas_con_su_ea_eri(guion):
+    """015:RF-53 / 015:RF-54 / 015:RF-56 — CA101, 2026-10-15: las escaladas con el factor de
+    potencia del perfil (0,98) y las fijas con el de su EA/ERI; el informe dice de dónde
+    sale cada uno."""
+    app = _app()
+    clientes = [{'codigo': 'CI-1', 'sed': 'F1_S2', 'pot': 40.0, 'ea': 1.0, 'eri': 0.5}]
+    plan = {**_plan(clientes=clientes), 'factor_potencia_cargas': 0.98}
+
+    informe, rc = guion.ejecutar(app, plan)
+
+    assert rc == 0, informe
+    assert informe['factor_potencia_cargas'] == {
+        'fijas': 'EA/ERI del libro de clientes', 'escaladas': 0.98,
+        'escaladas_origen': 'perfil de empresa',
+        'escaladas_reparto': 'potencia instalada (kVA) de cada SED'}
+    for x in informe['sed']:
+        fp = x['despues']['fp']
+        if x['sed'] == 'F1_S2':
+            assert x['origen'] == 'cliente' and fp == pytest.approx(1 / math.hypot(1, 0.5))
+        else:
+            assert x['origen'] == 'escala' and fp == pytest.approx(0.98)
+
+
+def _banco(app, feeder, nombre, kvar):
+    """Un banco instalado en la primera barra del alimentador, etiquetado con él."""
+    elm = next(f for f in app.proyecto.GetContents('*.ElmFeeder', 1) if f.loc_name == feeder)
+    barra = elm.GetObjs('ElmTerm')[0]
+    sh = barra.GetParent().CreateObject('ElmShnt', nombre)
+    cub = barra.CreateObject('StaCubic', f'c_{nombre}')
+    cub.obj_id = sh
+    sh.bus1 = cub
+    sh.qcapn, sh.ncapx, sh.ncapa, sh.outserv = kvar / 1000.0, 1, 1, 0
+    sh.SetAttribute('p:alimentador', [feeder])
+    elm._objs.append(sh)        # en el ElmFeeder, como lo dejaría DIgSILENT
+    return sh
+
+
+def test_lista_los_bancos_instalados_del_alimentador_y_no_otros(guion):
+    """015:RF-60 / 015:RF-61 — usuario, 2026-10-15: los bancos del proyecto que se analiza ya
+    están instalados; el informe los lista con barra, kvar y estado, no crea ninguno y no
+    toma los de otro alimentador."""
+    app = _app()
+    _banco(app, 'F1', 'Banco F1', 300.0)
+    _banco(app, 'F2', 'Banco F2', 450.0)
+    antes = len(list(app.proyecto.GetContents('*.ElmShnt', 1)))
+
+    informe, rc = guion.ejecutar(app, _plan())
+
+    assert rc == 0, informe
+    assert [b['banco'] for b in informe['bancos']] == ['Banco F1']
+    banco = informe['bancos'][0]
+    assert banco['q_nominal_kvar'] == pytest.approx(300.0) and banco['en_servicio']
+    assert banco['barra'] and banco['q_flujo_kvar'] is not None
+    assert len(list(app.proyecto.GetContents('*.ElmShnt', 1))) == antes, 'no se crea ninguno'
+
+
+def test_cliente_que_pide_mas_que_su_transformador_se_avisa(guion):
+    """015:RF-59 — CA101, 2026-10-15: un cliente pedía 248 kW en SE20859, de
+    50 kVA (496 %). Se nombra la SED con su cliente, kVA y porcentaje, y se calibra igual."""
+    app = _app(kva=lambda f, i: 50.0)
+    clientes = [{'codigo': 'CI-9', 'sed': 'F1_S2', 'pot': 200.0, 'ea': 1.0, 'eri': 0.2}]
+
+    informe, rc = guion.ejecutar(app, _plan(kw=600.0, kvar=150.0, clientes=clientes))
+
+    assert rc == 0, informe
+    (sobre,) = informe['fijas_sobre_su_transformador']
+    assert sobre['sed'] == 'F1_S2' and sobre['clientes'] == ['CI-9']
+    assert sobre['kva'] == pytest.approx(50.0)
+    assert sobre['carga_pct'] == pytest.approx(100.0 * math.hypot(200.0, 40.0) / 50.0)
+    assert any('F1_S2' in a and 'CI-9' in a and 'potencia instalada' in a
+               for a in informe['avisos'])
