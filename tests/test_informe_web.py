@@ -33,7 +33,8 @@ def client(tmp_path, monkeypatch):
     modelo.save(tmp_path / 'modelo.docx')
     perfil = tmp_path / 'perfil_empresa.json'
     perfil.write_text(json.dumps({'informes': {
-        'modelo_estudio': str(tmp_path / 'modelo.docx'), 'bandas_tension_pct': [95, 105],
+        'modelo_estudio': str(tmp_path / 'modelo.docx'),
+        'modelo_factibilidad': str(tmp_path / 'modelo.docx'), 'bandas_tension_pct': [95, 105],
         'bandas_cargabilidad_pct': [80, 100], 'cabecera': {'numero': 'INFORME TECNICO'}, 'norma': 'NTCSE'}}),
         encoding='utf-8')
     monkeypatch.setenv('IGEA_PERFIL_EMPRESA', str(perfil))
@@ -89,3 +90,76 @@ def test_sin_estudios_de_sin_proyecto_lo_dice(client, tmp_path):
     wid = client.post('/api/workspaces').json()['id']
     fin = esperar_trabajo(client, client.post(f'/api/workspaces/{wid}/informes/estudio', json=FORMULARIO).json())
     assert fin['status'] == 'failed' and 'estudio de flujo' in (fin['error'] or '')
+
+
+def _carga_aplicada(client, wid: str, salida: Path, *, hoja: str = 'formulario') -> None:
+    """Lo que deja el paso 3 al aplicar una carga nueva: su informe y su plan."""
+    for rol in ('sin', 'con'):
+        fichero = next(salida.glob(f'estudio_{rol}_*.json'))
+        datos = json.loads(fichero.read_text(encoding='utf-8'))
+        datos['project'] = 'PRY'
+        if rol == 'con':
+            datos['medidas']['AL01']['barras'].append(['B_NUEVA', 0.97])
+        fichero.write_text(json.dumps(datos), encoding='utf-8')
+    (salida / 'cargas_pf_aplicacion_tok1.json').write_text(json.dumps({
+        'project': 'PRY', 'cargas': [{'sed': 'SN1', 'alimentador': 'AL01', 'barra': 'B_NUEVA',
+                                      'variacion': 'CN_SN1', 'distancia_m': 120.0}]}), encoding='utf-8')
+    planes = salida.parent / 'planes'
+    planes.mkdir(parents=True, exist_ok=True)
+    (planes / 'cargas_pf_tok1.json').write_text(json.dumps({'nuevas': [
+        {'sed': 'SN1', 'hoja': hoja, 'alimentador': 'AL01', 'kw': 800.0, 'kvar': 300.0, 'kva_instalado': 1000}]}),
+        encoding='utf-8')
+
+
+FACTIBILIDAD = {'project': 'PRY', 'alimentador': 'AL01', 'sed': 'SN1', 'fecha': '2026-10-15',
+                'asunto': 'FACTIBILIDAD DE SUMINISTRO', 'factor_carga': 0.6,
+                'limites': FORMULARIO['limites'],
+                'solicitud': {'cliente': 'EMPRESA X', 'ubicacion': 'Fundo Y, Ica', 'tipo_solicitud': 'factibilidad',
+                              'potencia_kw': 800, 'fecha_solicitud': '2026-09-01', 'set_nombre': 'SET Z',
+                              'tension_kv': 10, 'transformador': '25 MVA 60/10 kV', 'expediente': 'EXP-1',
+                              'en_concesion': True},
+                'perdidas_reconocidas': {'reconocido_kw_pct': 5, 'reconocido_kwh_pct': 4, 'precio_compra': 0.2},
+                'transformador_set': {'kv': 10, 'sin_pct': 70, 'con_pct': 74, 'caso': '2026'}}
+
+
+def test_contexto_dice_lo_que_ya_guardo_la_web(client, tmp_path):
+    """017:RF-75, 017:RF-89, 017:RF-104 — estudios, cargas aplicadas e informes, sin DIgSILENT."""
+    wid, salida = _espacio(client, tmp_path)
+    _carga_aplicada(client, wid, salida)
+    r = client.get(f'/api/workspaces/{wid}/informes', params={'project': 'PRY', 'feeder': ['AL01']})
+    assert r.status_code == 200, r.text
+    ctx = r.json()
+    assert ctx['faltan'] == {'factibilidad': [], 'estudio': []}
+    assert ctx['estudios']['sin']['alimentadores'] == {'AL01': True}
+    assert [(c['sed'], c['barra'], c['sola'], c['kw']) for c in ctx['cargas']] == [('SN1', 'B_NUEVA', True, 800.0)]
+    otro = client.get(f'/api/workspaces/{wid}/informes', params={'project': 'OTRO', 'feeder': ['AL01']}).json()
+    assert otro['cargas'] == [] and otro['estudios']['sin'] is None, 'los flujos de otro proyecto no valen'
+
+
+def test_informe_de_factibilidad_con_lo_aplicado(client, tmp_path):
+    """017:RF-47, 017:RF-52, 017:RF-53, 017:RF-59, 017:RF-71 — punto de diseño en la barra
+    de la carga y veredicto con el transformador escrito por el operador."""
+    wid, salida = _espacio(client, tmp_path)
+    _carga_aplicada(client, wid, salida)
+    job = client.post(f'/api/workspaces/{wid}/informes/factibilidad', json=FACTIBILIDAD)
+    assert job.status_code == 202, job.text
+    fin = esperar_trabajo(client, job.json())
+    assert fin['status'] == 'done', fin
+    res = fin['result']
+    assert res['factible'] is True and res['excesos'] == []
+    assert res['punto_diseno']['u_pu'] == 0.97 and round(res['punto_diseno']['kv_ll'], 2) == 9.7
+    texto = '\n'.join(p.text for p in docx.Document(salida / res['informe']).paragraphs)
+    assert 'EMPRESA X' in texto and 'B_NUEVA' in texto
+    generados = client.get(f'/api/workspaces/{wid}/informes', params={'project': 'PRY'}).json()['generados']
+    assert [(g['tipo'], g['docx']) for g in generados] == [('factibilidad', res['informe'])]
+
+
+def test_factibilidad_rechaza_carga_en_bloque_y_formulario_incompleto(client, tmp_path):
+    """017:RF-47, 017:RF-96 — antes de empezar: una carga del libro no vale y la solicitud
+    sin cliente se rechaza con el campo."""
+    wid, salida = _espacio(client, tmp_path)
+    _carga_aplicada(client, wid, salida, hoja='Hoja1')
+    r = client.post(f'/api/workspaces/{wid}/informes/factibilidad', json=FACTIBILIDAD)
+    assert r.status_code == 400 and 'en bloque' in r.json()['detail']
+    incompleto = {**FACTIBILIDAD, 'solicitud': {**FACTIBILIDAD['solicitud'], 'cliente': ''}}
+    assert client.post(f'/api/workspaces/{wid}/informes/factibilidad', json=incompleto).status_code == 422

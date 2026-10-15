@@ -1,7 +1,7 @@
 import type {
   AjustePlan, AjusteResultado, CargasPlan, ClientesCruce, CurvaCabecera, DemandaMedidores, Economia, EstudiosCatalogo, EstudiosPlan,
-  FeederRow, Health, Job, Limites, MaximaCabecera, Obra, ObraGuardada, Options, OutputFile, PfInventario, PowerFactoryStatus,
-  ReconstructionReport, WorkspaceState,
+  FeederRow, Health, InformeEstudioForm, InformeFactibilidadForm, InformesContexto, Job, Limites, MaximaCabecera, Obra,
+  ObraGuardada, Options, OutputFile, PfInventario, PowerFactoryStatus, ReconstructionReport, WorkspaceState,
 } from './types';
 
 export class ApiError extends Error {
@@ -188,6 +188,17 @@ export const api = {
   },
   demandaAlimentadores: (id: string) =>
     request<{ alimentadores: string[] }>(`${ws(id)}/demanda/alimentadores`),
+  // Spec 017, paso 4.4: lo que la web ya guardó para los informes, y su generación.
+  informesContexto: (id: string, project: string, feeders: string[], jobId?: string) => {
+    const q = new URLSearchParams({ project });
+    feeders.forEach((f) => q.append('feeder', f));
+    if (jobId) q.set('job_id', jobId);
+    return request<InformesContexto>(`${ws(id)}/informes?${q}`);
+  },
+  informeEstudio: (id: string, body: InformeEstudioForm) =>
+    request<Job>(`${ws(id)}/informes/estudio`, json('POST', body)),
+  informeFactibilidad: (id: string, body: InformeFactibilidadForm) =>
+    request<Job>(`${ws(id)}/informes/factibilidad`, json('POST', body)),
   demandaClientes: (id: string, alimentadores: string[], periodo?: string) =>
     request<ClientesCruce>(`${ws(id)}/demanda/clientes/cruzar`,
       json('POST', periodo ? { alimentadores, periodo } : { alimentadores })),

@@ -11,6 +11,7 @@ import { DemandaMedida } from './DemandaMedida';
 import { EstudiosPF } from './EstudiosPF';
 import { ObrasPF } from './ObrasPF';
 import { PfWarning } from './Modules';
+import { InformesPF } from './InformesPF';
 import { TransferenciaPF } from './TransferenciaPF';
 import { FileDrop, Modal, Toggle, useToast } from './ui';
 
@@ -525,6 +526,9 @@ export function CargasTab() {
             <EstudiosPF project={project} feeders={order} ajusteJobId={baseJob?.id ?? null} />
             <h4>4.3 · Transferencia de carga</h4>
             <TransferenciaPF project={project} feeders={order} />
+            {/* Spec 017 (RF-73 cambiado: en 4.4, no en un paso 5): con lo que ya guardó la web. */}
+            <h4>4.4 · Informes</h4>
+            <InformesPF project={project} feeders={order} />
           </>}
       </div>
       </fieldset>

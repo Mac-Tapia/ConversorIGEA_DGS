@@ -19,7 +19,7 @@ import tempfile
 import threading
 import zipfile
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Literal
 
@@ -188,6 +188,8 @@ class InformeEstudioIn(BaseModel):
     sale de aquí; del modelo de la empresa solo se toma la forma."""
 
     alimentador: str
+    # Los flujos de 4.2 de ese proyecto: un espacio puede haber estudiado otro antes.
+    project: str = ''
     fecha: str | None = None
     lugar: str = ''
     numero: str = ''
@@ -198,6 +200,61 @@ class InformeEstudioIn(BaseModel):
     limites: dict[str, float] = Field(default_factory=dict)
     anio: int | None = None
     imagenes: dict[str, dict[str, str | None]] = Field(default_factory=dict)
+
+
+class SolicitudIn(BaseModel):
+    """Datos de la solicitud de la carga nueva (017:RF-51); el servidor los valida antes de
+    empezar (RF-96), para no escribir un Word con antecedentes en blanco."""
+
+    cliente: str = Field(min_length=1)
+    ubicacion: str = Field(min_length=1)
+    tipo_solicitud: str = Field(min_length=1)
+    potencia_kw: float = Field(gt=0)
+    fecha_solicitud: date
+    set_nombre: str = Field(min_length=1)
+    tension_kv: float = Field(gt=0)
+    transformador: str = ''
+    expediente: str = ''
+    en_concesion: bool | None = None
+
+
+class PerdidasReconocidasIn(BaseModel):
+    """Lo que daría el libro de pérdidas de la empresa (RF-62), escrito a mano."""
+
+    sistema_electrico: str = ''
+    codigo_sistema: str = ''
+    reconocido_kw_pct: float | None = Field(None, ge=0, le=100)
+    reconocido_kwh_pct: float | None = Field(None, ge=0, le=100)
+    precio_compra: float | None = Field(None, ge=0)
+
+
+class TransformadorSetIn(BaseModel):
+    """Cargabilidad del devanado de la SET (RF-66), leída por el operador en el proyecto
+    de transmisión mientras el guion no la obtiene solo (T10 de la spec 017)."""
+
+    kv: float | None = Field(None, gt=0)
+    sin_pct: float | None = Field(None, ge=0)
+    con_pct: float | None = Field(None, ge=0)
+    caso: str = ''
+
+
+class InformeFactibilidadIn(BaseModel):
+    """Formulario del informe de factibilidad y punto de diseño (spec 017, RF-47 a RF-72)."""
+
+    project: str = Field(min_length=1)
+    alimentador: str = Field(min_length=1)
+    sed: str = Field(min_length=1)
+    fecha: str | None = None
+    lugar: str = ''
+    numero: str = ''
+    asunto: str = ''
+    destinatario: str = ''
+    solicitud: SolicitudIn
+    limites: dict[str, float] = Field(default_factory=dict)
+    factor_carga: float | None = Field(None, gt=0, le=1)
+    perdidas_reconocidas: PerdidasReconocidasIn = Field(default_factory=PerdidasReconocidasIn)
+    transformador_set: TransformadorSetIn = Field(default_factory=TransformadorSetIn)
+    codigo_punto: str = ''
 
 
 class TransferenciaIn(BaseModel):
@@ -1157,6 +1214,22 @@ def create_app(
         formulario = body.model_dump()
         return submit(ws, 'informe_estudio', f'Informe de estudio · {body.alimentador}',
                       lambda ctx: services.informe_estudio(ws, ctx, formulario), lane='engine')
+
+    @app.get('/api/workspaces/{wid}/informes')
+    def informes_contexto(wid: str, project: str, feeder: list[str] = Query(default=[]),
+                          job_id: str | None = None) -> dict:
+        """Spec 017, paso 4.4: lo que la web ya guardó para cada informe, sin DIgSILENT."""
+        return services.informes_contexto(ws_or_404(wid), project, feeder, job_id)
+
+    @app.post('/api/workspaces/{wid}/informes/factibilidad', status_code=202)
+    def informe_factibilidad(wid: str, body: InformeFactibilidadIn) -> dict:
+        """Spec 017: factibilidad y punto de diseño de una carga nueva ingresada sola."""
+        ws = ws_or_404(wid)
+        formulario = body.model_dump(mode='json')
+        # RF-96: la carga se comprueba antes de poner el trabajo en cola.
+        services.carga_del_informe(ws, body.project, body.alimentador, body.sed)
+        return submit(ws, 'informe_factibilidad', f'Informe de factibilidad · {body.sed}',
+                      lambda ctx: services.informe_factibilidad(ws, ctx, formulario), lane='engine')
 
     @app.post('/api/workspaces/{wid}/pf/transferencia', status_code=202)
     def transferencia(wid: str, body: TransferenciaIn) -> dict:

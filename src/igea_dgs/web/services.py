@@ -3091,12 +3091,13 @@ def guion_ejecutar(ws: Workspace, ctx: JobContext, project: str, nombre: str, or
 
 
 # ------------------------------------------------------------------ informes (spec 017)
-def _ultimo_estudio(ws: Workspace, rol: str) -> dict | None:
+def _ultimo_estudio(ws: Workspace, rol: str, project: str | None = None) -> dict | None:
     """El último informe de flujo que dejó el paso de estudios en ese caso.
 
     El informe se arma con lo que guardaron los estudios al ejecutar «Sin proyecto» y
     «Con proyecto» desde la web, no con otra ejecución de DIgSILENT (el usuario,
     2026-10-15). Se prefiere el flujo desequilibrado: da la tensión de cada fase (RF-17).
+    Con ``project``, solo los de ese proyecto: un espacio puede haber estudiado otro antes.
     """
     for patron in (f'estudio_{rol}_flujo_desequilibrado_*.json', f'estudio_{rol}_flujo_*.json'):
         ficheros = sorted((p for p in ws.out_dir.glob(patron)
@@ -3104,6 +3105,8 @@ def _ultimo_estudio(ws: Workspace, rol: str) -> dict | None:
                           key=lambda p: p.stat().st_mtime, reverse=True)
         for fichero in ficheros:
             datos = json.loads(fichero.read_text(encoding='utf-8'))
+            if project and str(datos.get('project') or '').strip() not in ('', project.strip()):
+                continue
             if datos.get('medidas'):
                 if 'desequilibrado' not in fichero.name:
                     # En el flujo equilibrado DIgSILENT da las tres fases iguales: el informe
@@ -3156,13 +3159,14 @@ def informe_estudio(ws: Workspace, ctx: JobContext | None, formulario: dict) -> 
         raise UserError(str(exc)) from exc
     lim: Limites = config.limites
 
-    sin = _ultimo_estudio(ws, 'sin')
+    proyecto = str(formulario.get('project') or '').strip() or None
+    sin = _ultimo_estudio(ws, 'sin', proyecto)
     if sin is None or alimentador not in (sin.get('medidas') or {}):
         raise UserError(f'No hay un flujo de «{SIN_PROYECTO}» de {alimentador}: ejecute antes el '
                         'estudio de flujo en el paso de estudios.')
     actual = Caso.desde_medida(SIN_PROYECTO, sin['medidas'][alimentador], lim)
     etapas = []
-    con = _ultimo_estudio(ws, 'con')
+    con = _ultimo_estudio(ws, 'con', proyecto)
     obras = [o for o in (ws.obras or []) if o.get('alimentador') == alimentador
              and CON_PROYECTO in (o.get('casos') or [])]
     clave = etapa_de_obras(obras)
@@ -3201,3 +3205,265 @@ def informe_estudio(ws: Workspace, ctx: JobContext | None, formulario: dict) -> 
         ctx.log(f'Informe de estudio de {alimentador}: {destino.name} ({len(huecos)} hueco(s)).')
     return {'informe': destino.name, 'json': destino.with_suffix('.json').name, 'huecos': huecos,
             'estudios': fuentes, 'etapa': clave}
+
+
+def _cargas_nuevas_aplicadas(ws: Workspace, project: str) -> list[dict]:
+    """Las cargas nuevas que dejó en DIgSILENT la aplicación del paso 3 (spec 007), la
+    última de cada una, con su kW y kvar del plan y si se ingresó sola o en bloque.
+
+    El informe de factibilidad (017:RF-47, RF-53) sale de lo ya aplicado desde la web,
+    no de otra ejecución: la barra donde se conectó es su punto de diseño.
+    """
+    from ..demanda_medida import clave_codigo
+
+    vistas: dict[tuple[str, str], dict] = {}
+    informes = sorted(ws.out_dir.glob('cargas_pf_aplicacion_*.json'), key=lambda p: p.stat().st_mtime)
+    for fichero in informes:
+        try:
+            datos = json.loads(fichero.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            continue
+        if str(datos.get('project') or '').strip() != project.strip() or not datos.get('cargas'):
+            continue
+        token = fichero.stem.rsplit('_', 1)[-1]
+        plan_path = ws.plans_dir / f'cargas_pf_{token}.json'
+        try:
+            plan = json.loads(plan_path.read_text(encoding='utf-8')) if plan_path.is_file() else {}
+        except (OSError, ValueError):
+            plan = {}
+        filas = {clave_codigo(n.get('sed')): n for n in plan.get('nuevas') or []}
+        for c in datos['cargas']:
+            fila = filas.get(clave_codigo(c.get('sed')), {})
+            vistas[(clave_codigo(c.get('alimentador')), clave_codigo(c.get('sed')))] = {
+                'sed': c.get('sed'), 'alimentador': c.get('alimentador'), 'barra': c.get('barra'),
+                'variacion': c.get('variacion'), 'distancia_m': c.get('distancia_m'),
+                'kw': fila.get('kw'), 'kvar': fila.get('kvar'), 'kva_instalado': fila.get('kva_instalado'),
+                # 008:RF-24: la del formulario lleva la hoja «formulario»; las del libro, la suya.
+                'sola': fila.get('hoja') == 'formulario', 'informe': fichero.name,
+            }
+    return list(vistas.values())
+
+
+def _factor_de_carga_cabecera(ws: Workspace, job_id: str | None) -> dict[str, dict]:
+    """Factor de carga de cada medidor de la última máxima buscada, en el mes de su máxima
+    (017:RF-60). La curva solo vive en memoria: tras reiniciar la web hay que volver a
+    buscar la máxima o escribir el factor a mano (RF-61)."""
+    from ..informes import factor_de_carga
+
+    with ws.lock:
+        curvas = dict(ws.curvas_cabecera.get(job_id or '') or {})
+    out = {}
+    for medidor, entrada in curvas.items():
+        curva = entrada.get('curva') or []
+        if not curva:
+            continue
+        pico = max(curva, key=lambda p: p[1])[0]
+        del_mes = [p for p in curva if (p[0].year, p[0].month) == (pico.year, pico.month)]
+        fc = factor_de_carga(del_mes)
+        if fc is not None:
+            out[medidor] = {'fc': round(fc, 4), 'mes': f'{pico.year:04d}-{pico.month:02d}'}
+    return out
+
+
+def _informes_generados(ws: Workspace) -> list[dict]:
+    """Los informes ya escritos en el espacio, el más reciente primero (017:RF-104)."""
+    out = []
+    for fichero in ws.out_dir.glob('informe_*.json'):
+        docx_path = fichero.with_suffix('.docx')
+        if not docx_path.is_file():
+            continue
+        try:
+            datos = json.loads(fichero.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            continue
+        alimentadores = datos.get('alimentadores') or (
+            [datos['solicitud']['alimentador']] if datos.get('solicitud') else [])
+        out.append({'tipo': datos.get('tipo'), 'docx': docx_path.name, 'json': fichero.name,
+                    'alimentadores': alimentadores, 'numero': datos.get('numero'),
+                    'fecha': (datos.get('encabezado') or {}).get('fecha'),
+                    'huecos': datos.get('huecos') or [], 'factible': datos.get('factible'),
+                    'creado': docx_path.stat().st_mtime})
+    return sorted(out, key=lambda x: x['creado'], reverse=True)
+
+
+def informes_contexto(ws: Workspace, project: str, feeders: list[str], job_id: str | None = None) -> dict:
+    """Lo que la web ya tiene para los dos informes (spec 017, paso 4.4): qué falta en el
+    perfil, los flujos guardados de 4.2, las obras de «Con proyecto», las cargas nuevas del
+    paso 3, el factor de carga de la máxima de 2.2 y los informes ya escritos.
+
+    Solo lee lo guardado, nada de DIgSILENT, para que el operador vea antes de generar de
+    dónde sale cada dato (RF-75 a RF-78, RF-89 a RF-92, RF-104).
+    """
+    from ..demanda_medida import clave_codigo
+    from ..estudios_pf import CON_PROYECTO
+    from ..informes import TIPOS, ConfigInforme, InformeError
+    from ..perfil_empresa import datos_perfil
+
+    faltan: dict[str, list[str]] = {}
+    limites: dict = {}
+    try:
+        config = ConfigInforme.de_perfil(datos_perfil(), project_root())
+        for tipo in TIPOS:
+            # La banda y el umbral que falten se piden en el formulario (RF-81).
+            faltan[tipo] = [x for x in config.faltan(tipo) if x.startswith('informes.')]
+            modelo = config.modelos.get(tipo)
+            if modelo is not None and not modelo.is_file():
+                faltan[tipo].append(f'el modelo {modelo.name} no existe')
+        limites = dict(config.limites_parciales)
+    except InformeError as exc:
+        faltan = {tipo: [str(exc)] for tipo in TIPOS}
+    claves = {clave_codigo(f) for f in feeders}
+    estudios = {}
+    for rol in ('sin', 'con'):
+        datos = _ultimo_estudio(ws, rol, project)
+        estudios[rol] = None if datos is None else {
+            'fichero': datos['_fichero'],
+            'alimentadores': {f: bool(m.get('converge')) for f, m in (datos.get('medidas') or {}).items()
+                              if clave_codigo(f) in claves},
+        }
+    obras: dict[str, int] = {}
+    for o in ws.obras or []:
+        if clave_codigo(o.get('alimentador')) in claves and CON_PROYECTO in (o.get('casos') or []):
+            obras[o['alimentador']] = obras.get(o['alimentador'], 0) + 1
+    cargas = [c for c in _cargas_nuevas_aplicadas(ws, project) if clave_codigo(c['alimentador']) in claves]
+    return {'faltan': faltan, 'limites': limites, 'estudios': estudios, 'obras': obras,
+            'cargas': cargas, 'factor_carga': _factor_de_carga_cabecera(ws, job_id),
+            'generados': _informes_generados(ws)}
+
+
+def carga_del_informe(ws: Workspace, project: str, alimentador: str, sed: str) -> dict:
+    """La carga nueva del informe de factibilidad, que tiene que estar aplicada y sola (RF-47)."""
+    from ..demanda_medida import clave_codigo
+
+    carga = next((c for c in _cargas_nuevas_aplicadas(ws, project)
+                  if clave_codigo(c['sed']) == clave_codigo(sed)
+                  and clave_codigo(c['alimentador']) == clave_codigo(alimentador)), None)
+    if carga is None:
+        raise UserError(f'{sed} no es una carga nueva aplicada en {alimentador} de {project}: '
+                        'intégrela antes en el paso 3.')
+    if not carga['sola']:
+        raise UserError(f'{sed} se ingresó en bloque con el libro de cargas nuevas: el informe de '
+                        'factibilidad es de una carga ingresada sola (formulario «Una carga nueva»).')
+    return carga
+
+
+def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict) -> dict:
+    """Escribe el informe de factibilidad y punto de diseño de una carga nueva (spec 017,
+    RF-47 a RF-72) con lo que ya guardó la web.
+
+    Estado actual: el último flujo de «Sin proyecto» del paso 4.2; proyectado: el de «Con
+    proyecto». Punto de diseño: la barra donde el paso 3 conectó la carga, con su tensión
+    en el flujo de «Con proyecto» (RF-52, RF-53). Factor de carga de la máxima de cabecera
+    del paso 2.2 o del formulario (RF-60, RF-61). Las pérdidas reconocidas y el
+    transformador de la SET, del formulario mientras no se lean del libro de la empresa
+    y del proyecto de transmisión (T5 y T10 de la spec): lo que falte queda señalado.
+    """
+    import math
+    from datetime import date as _date
+
+    from ..estudios_pf import CON_PROYECTO, SIN_PROYECTO
+    from ..informe_docx import DatosFactibilidad, escribir_informe_factibilidad
+    from ..informes import (Caso, ConfigInforme, Devanado, Encabezado, InformeError, Solicitud,
+                            perdidas_anuales)
+    from ..libros_informe import DatosPerdidas
+    from ..perfil_empresa import datos_perfil
+
+    project = str(formulario.get('project') or '').strip()
+    alimentador = str(formulario.get('alimentador') or '').strip()
+    carga = carga_del_informe(ws, project, alimentador, str(formulario.get('sed') or ''))
+    try:
+        config = ConfigInforme.de_perfil(datos_perfil(), project_root())
+        limites = formulario.get('limites') or {}
+        if limites:
+            config = config.con_limites(**{k: limites.get(k) for k in
+                                           ('tension_min_pu', 'tension_max_pu', 'cargabilidad_max_pct')})
+        config.modelo('factibilidad')
+    except InformeError as exc:
+        raise UserError(str(exc)) from exc
+    lim = config.limites
+
+    sin, con = _ultimo_estudio(ws, 'sin', project), _ultimo_estudio(ws, 'con', project)
+    for rol, datos in ((SIN_PROYECTO, sin), (CON_PROYECTO, con)):
+        if datos is None or alimentador not in (datos.get('medidas') or {}):
+            raise UserError(f'No hay un flujo de «{rol}» de {alimentador}: ejecute antes el estudio de '
+                            'flujo en 4.2 con los dos casos.')
+    medida_sin, medida_con = sin['medidas'][alimentador], con['medidas'][alimentador]
+    actual = Caso.desde_medida(SIN_PROYECTO, medida_sin, lim)
+    proyectado = Caso.desde_medida(CON_PROYECTO, medida_con, lim)
+
+    s = formulario.get('solicitud') or {}
+    solicitud = Solicitud(
+        cliente=str(s.get('cliente') or '').strip(), ubicacion=str(s.get('ubicacion') or '').strip(),
+        tipo_solicitud=str(s.get('tipo_solicitud') or '').strip(), potencia_kw=float(s['potencia_kw']),
+        fecha_solicitud=_date.fromisoformat(s['fecha_solicitud']), alimentador=alimentador,
+        set_nombre=str(s.get('set_nombre') or '').strip(), tension_kv=float(s['tension_kv']),
+        transformador=str(s.get('transformador') or '').strip(),
+        expediente=str(s.get('expediente') or '').strip(), en_concesion=s.get('en_concesion'))
+
+    # RF-52: tensión de la barra de conexión en «Con proyecto»; kW y kvar, los de la carga.
+    u = next((u for nombre, u in medida_con.get('barras') or [] if nombre == carga['barra']), None)
+    punto = None
+    if u is not None and medida_con.get('converge'):
+        kw, kvar = float(carga.get('kw') or solicitud.potencia_kw), float(carga.get('kvar') or 0.0)
+        kva = math.hypot(kw, kvar)
+        kv_ll = u * solicitud.tension_kv
+        punto = {'u_pu': u, 'kv_ll': kv_ll, 'kv_ln': kv_ll / math.sqrt(3), 'kva': kva, 'kw': kw,
+                 'kvar': kvar, 'i_a': kva / (math.sqrt(3) * kv_ll) if kv_ll else None}
+
+    fc = formulario.get('factor_carga')
+    reconocidas = formulario.get('perdidas_reconocidas') or {}
+    libro = None
+    if any(v not in (None, '') for v in reconocidas.values()):
+        faltan = [n for k, n in (('reconocido_kw_pct', 'pérdidas reconocidas en potencia'),
+                                 ('reconocido_kwh_pct', 'pérdidas reconocidas en energía'),
+                                 ('precio_compra', 'precio de compra de la energía'))
+                  if reconocidas.get(k) is None]
+        libro = DatosPerdidas(alimentador, reconocidas.get('sistema_electrico') or None,
+                              reconocidas.get('reconocido_kw_pct'), reconocidas.get('reconocido_kwh_pct'),
+                              reconocidas.get('precio_compra'), tuple(faltan),
+                              reconocidas.get('codigo_sistema') or None)
+
+    def perdidas(caso: Caso):
+        if fc is None or not caso.converge or caso.fuente is None or caso.perdidas is None:
+            return None
+        try:
+            return perdidas_anuales(caso.fuente.kw, caso.perdidas.kw, float(fc),
+                                    libro.reconocido_kwh_pct if libro else None,
+                                    libro.precio_compra if libro else None)
+        except InformeError:
+            return None
+
+    t = formulario.get('transformador_set') or {}
+    devanado = (Devanado(float(t['kv']), t.get('sin_pct'), t.get('con_pct'))
+                if t.get('kv') and (t.get('sin_pct') is not None or t.get('con_pct') is not None) else None)
+    # RF-50: otras cargas del alimentador ingresadas en bloque, que están en «Con proyecto».
+    en_bloque = any(not c['sola'] for c in _cargas_nuevas_aplicadas(ws, project)
+                    if c['alimentador'] == carga['alimentador'])
+    fuentes = [f'el modelo de la red de media tensión del alimentador {alimentador} en DIgSILENT PowerFactory',
+               'la máxima demanda medida en la cabecera del alimentador',
+               f'la demanda de {solicitud.potencia_kw:g} kW solicitada por el interesado']
+    fecha = formulario.get('fecha')
+    encabezado = Encabezado(fecha=_date.fromisoformat(fecha) if fecha else _date.today(),
+                            asunto=str(formulario.get('asunto') or ''),
+                            destinatario=str(formulario.get('destinatario') or ''),
+                            lugar=str(formulario.get('lugar') or ''))
+    datos = DatosFactibilidad(
+        encabezado=encabezado, actual=actual, proyectado=proyectado, solicitud=solicitud,
+        punto_diseno=punto, codigo_punto=str(formulario.get('codigo_punto') or '').strip() or carga['barra'],
+        solicitudes_vigentes=en_bloque, perdidas_actual=perdidas(actual),
+        perdidas_proyectado=perdidas(proyectado), libro=libro, devanado=devanado,
+        caso_transmision=str(t.get('caso') or ''), fuentes=fuentes,
+        numero=formulario.get('numero') or None)
+    destino = ws.out_dir / (f'informe_factibilidad_{nombre_seguro(alimentador)}_'
+                            f'{nombre_seguro(str(carga["sed"]))}_{uuid.uuid4().hex[:8]}.docx')
+    try:
+        huecos = escribir_informe_factibilidad(config, destino, datos)
+    except InformeError as exc:
+        raise UserError(str(exc)) from exc
+    resumen = json.loads(destino.with_suffix('.json').read_text(encoding='utf-8'))
+    if ctx is not None:
+        ctx.log(f'Informe de factibilidad de {carga["sed"]} en {alimentador}: {destino.name} '
+                f'({len(huecos)} hueco(s)); {"factible" if resumen.get("factible") else "no factible"}.')
+    return {'informe': destino.name, 'json': destino.with_suffix('.json').name, 'huecos': huecos,
+            'estudios': [sin['_fichero'], con['_fichero']], 'factible': resumen.get('factible'),
+            'excesos': resumen.get('excesos') or [], 'punto_diseno': punto, 'carga': carga}

@@ -331,6 +331,15 @@ El informe es lo último que hace el operador sobre el proyecto: va en un paso n
 «5 · Informes», de la pestaña de cargas en DIgSILENT, después de «4 · Obras y estudios»,
 con el mismo proyecto (paso 1) y los mismos alimentadores marcados (paso 2).
 
+> Cambio del 2026-10-15 (el usuario): los informes van en **«4.4 · Informes»**, dentro de
+> «4 · Obras y estudios», no en un paso 5; «5.1» es «4.4.2» (factibilidad) y «5.2» es
+> «4.4.1» (estudio). Cada informe se arma con lo que la web ya guardó: los flujos de 4.2,
+> las obras de 4.1, las cargas nuevas aplicadas en el paso 3 y la máxima de 2.2. Hasta que
+> estén T5 (libro de pérdidas en la web) y T10 (transformador de la SET), las pérdidas
+> reconocidas y la cargabilidad del devanado de la SET se escriben a mano en 4.4.2; lo que
+> falte queda señalado en el Word. Sin T7 y T8 no hay imágenes ni etapas evaluadas por el
+> guion: el estudio usa las obras de «Con proyecto» tal como se aplicaron.
+
 Paso y requisitos previos
 
 - RF-73: EL SISTEMA mostrará el paso «5 · Informes» en la pestaña de cargas en DIgSILENT,
