@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { api, fmtNum } from '../api';
 import { useApp } from '../context';
+import { FileDrop } from './ui';
 import type {
   InformeEstudioForm, InformeFactibilidadForm, InformeResultado, InformesContexto, Limites, MaximaCabecera,
 } from '../types';
@@ -20,6 +21,27 @@ const num = (s: string) => {
 };
 /** Párrafos separados por una línea en blanco, como los escribe el operador. */
 const parrafos = (s: string) => s.split(/\n\s*\n/).map((x) => x.trim()).filter(Boolean);
+
+/**
+ * Estado de un formulario de 4.4 que se guarda en el servidor mientras se escribe
+ * (017:RF-82): al recargar la página o reiniciar la web vuelve tal cual.
+ */
+function useGuardado<T extends object>(project: string, tipo: 'estudio' | 'factibilidad', guardado: unknown,
+  inicial: T): [T, (cambio: Partial<T>) => void] {
+  const { ws } = useApp();
+  const [valor, setValor] = useState<T>(() => ({ ...inicial, ...((guardado ?? {}) as Partial<T>) }));
+  const json = JSON.stringify(valor);
+  const ultimo = useRef(json);
+  useEffect(() => {
+    if (json === ultimo.current) return undefined;
+    const t = setTimeout(() => {
+      ultimo.current = json;
+      void api.informesFormulario(ws.id, project, tipo, JSON.parse(json)).catch(() => undefined);
+    }, 800);
+    return () => clearTimeout(t);
+  }, [json, ws.id, project, tipo]);
+  return [valor, (cambio) => setValor((v) => ({ ...v, ...cambio }))];
+}
 
 type Cabecera = { fecha: string; numero: string; lugar: string; asunto: string; destinatario: string };
 const CABECERA: [keyof Cabecera, string, string][] = [
@@ -73,8 +95,11 @@ function Resultado({ r, cancelado }: { r: InformeResultado | null; cancelado: bo
  */
 export function InformesPF({ project, feeders }: { project: string; feeders: string[] }) {
   const { ws, run, active, jobs } = useApp();
-  const [ctx, setCtx] = useState<InformesContexto | null>(null);
+  const [ctxDe, setCtxDe] = useState<{ project: string; ctx: InformesContexto } | null>(null);
+  const ctx = ctxDe?.project === project ? ctxDe.ctx : null;
   const [limites, setLimites] = useState<Record<string, string>>({});
+  const [recargas, setRecargas] = useState(0);
+  const recargar = () => setRecargas((n) => n + 1);
   const engineBusy = Boolean(active.engine);
 
   const cabeceraJob = Object.values(jobs).filter((j) => j.kind === 'demanda_cabecera' && j.result).pop();
@@ -85,11 +110,16 @@ export function InformesPF({ project, feeders }: { project: string; feeders: str
   useEffect(() => {
     let vivo = true;
     void run(() => api.informesContexto(ws.id, project, feeders, cabeceraJob?.id)).then((c) => {
-      if (vivo && c) setCtx(c);
+      if (!vivo || !c) return;
+      // La primera vez en este proyecto, los límites escritos antes (RF-82).
+      setCtxDe((prev) => {
+        if (prev?.project !== project) setLimites((c.formularios.estudio?.limites ?? {}) as Record<string, string>);
+        return { project, ctx: c };
+      });
     });
     return () => { vivo = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ws.id, project, marcados, cabeceraJob?.id, hechos, run]);
+  }, [ws.id, project, marcados, cabeceraJob?.id, hechos, recargas, run]);
 
   // RF-81: la banda y el umbral que no trae el perfil se piden; los demás no se tocan.
   const faltanLimites = LIMITES.filter(([k]) => ctx?.limites?.[k] == null);
@@ -116,11 +146,11 @@ export function InformesPF({ project, feeders }: { project: string; feeders: str
         </div>
       )}
       <h4>4.4.1 · Análisis eléctrico (informe de estudio)</h4>
-      <InformeEstudio project={project} feeders={feeders} ctx={ctx} busy={engineBusy}
-        limites={limitesForm} limitesOk={limitesCompletos} />
+      <InformeEstudio key={`e-${project}`} project={project} feeders={feeders} ctx={ctx} busy={engineBusy}
+        limites={limitesForm} limitesOk={limitesCompletos} limitesTexto={limites} />
       <h4>4.4.2 · Conexión de un cliente nuevo (factibilidad y punto de diseño)</h4>
-      <InformeFactibilidad project={project} feeders={feeders} ctx={ctx} busy={engineBusy}
-        limites={limitesForm} limitesOk={limitesCompletos} maximas={maximas} />
+      <InformeFactibilidad key={`f-${project}`} project={project} feeders={feeders} ctx={ctx} busy={engineBusy}
+        limites={limitesForm} limitesOk={limitesCompletos} maximas={maximas} recargar={recargar} />
       {ctx.generados.length > 0 && <>
         <h4>Informes generados</h4>
         <div className="table-wrap table-short">
@@ -162,14 +192,27 @@ function Origen({ ctx, alimentador, conCon }: { ctx: InformesContexto; alimentad
   </ul>;
 }
 
-function InformeEstudio({ project, feeders, ctx, busy, limites, limitesOk }: Seccion) {
+function InformeEstudio({ project, feeders, ctx, busy, limites, limitesOk, limitesTexto }: Seccion & {
+  limitesTexto: Record<string, string>;
+}) {
   const { ws, startJob, jobs } = useApp();
-  const [alimentador, setAlimentador] = useState(feeders[0] ?? '');
-  const [cab, setCab] = useState<Cabecera>({ fecha: hoy(), numero: '', lugar: '', asunto: '', destinatario: '' });
-  const [antecedentes, setAntecedentes] = useState('');
-  const [descripcion, setDescripcion] = useState('');
-  const [anio, setAnio] = useState('');
-  useEffect(() => { if (!feeders.includes(alimentador)) setAlimentador(feeders[0] ?? ''); }, [feeders, alimentador]);
+  const [f, fijar] = useGuardado(project, 'estudio', ctx.formularios.estudio, {
+    alimentador: feeders[0] ?? '',
+    cab: { fecha: hoy(), numero: '', lugar: '', asunto: '', destinatario: '' } as Cabecera,
+    antecedentes: '', descripcion: '', anio: '', limites: limitesTexto,
+  });
+  const { alimentador, cab, antecedentes, descripcion, anio } = f;
+  const setAlimentador = (v: string) => fijar({ alimentador: v });
+  const setCab = (cambio: (c: Cabecera) => Cabecera) => fijar({ cab: cambio(cab) });
+  const setAntecedentes = (v: string) => fijar({ antecedentes: v });
+  const setDescripcion = (v: string) => fijar({ descripcion: v });
+  const setAnio = (v: string) => fijar({ anio: v });
+  // Los límites de arriba se guardan con este formulario.
+  const limitesJson = JSON.stringify(limitesTexto);
+  useEffect(() => { fijar({ limites: limitesTexto }); }, [limitesJson]);  // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!feeders.includes(alimentador)) setAlimentador(feeders[0] ?? '');
+  }, [feeders, alimentador]);  // eslint-disable-line react-hooks/exhaustive-deps
   const asunto = cab.asunto || `ESTUDIO ELÉCTRICO DEL ALIMENTADOR ${alimentador}`;   // RF-80
 
   const ultimo = Object.values(jobs).filter((j) => j.kind === 'informe_estudio').pop();
@@ -238,25 +281,40 @@ const TRAFO: [keyof Trafo, string, string?][] = [
   ['con_pct', 'Cargabilidad con proyecto (%)', 'decimal'], ['caso', 'Caso del proyecto de transmisión'],
 ];
 
-function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, maximas }: Seccion & {
-  maximas: MaximaCabecera[];
+function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, maximas, recargar }: Seccion & {
+  maximas: MaximaCabecera[]; recargar: () => void;
 }) {
-  const { ws, startJob, jobs } = useApp();
+  const { ws, startJob, jobs, run, health } = useApp();
   const solas = ctx.cargas.filter((c) => c.sola);
   const enBloque = ctx.cargas.filter((c) => !c.sola);
-  const [clave, setClave] = useState('');
-  const carga = solas.find((c) => `${c.alimentador}|${c.sed}` === clave) ?? null;
-  const [cab, setCab] = useState<Cabecera>({ fecha: hoy(), numero: '', lugar: '', asunto: '', destinatario: '' });
-  const [sol, setSol] = useState<Sol>({
-    cliente: '', ubicacion: '', tipo_solicitud: 'factibilidad de suministro', potencia_kw: '', fecha_solicitud: '',
-    set_nombre: '', tension_kv: '', transformador: '', expediente: '',
+  const [f, fijar] = useGuardado(project, 'factibilidad', ctx.formularios.factibilidad, {
+    clave: '', cab: { fecha: hoy(), numero: '', lugar: '', asunto: '', destinatario: '' } as Cabecera,
+    sol: { cliente: '', ubicacion: '', tipo_solicitud: 'factibilidad de suministro', potencia_kw: '',
+      fecha_solicitud: '', set_nombre: '', tension_kv: '', transformador: '', expediente: '' } as Sol,
+    concesion: '' as '' | 'si' | 'no', fc: '',
+    perd: { sistema_electrico: '', codigo_sistema: '', reconocido_kw_pct: '', reconocido_kwh_pct: '',
+      precio_compra: '' } as Perd,
+    trafo: { kv: '', sin_pct: '', con_pct: '', caso: '' } as Trafo, codigo: '',
   });
-  const [concesion, setConcesion] = useState<'' | 'si' | 'no'>('');
-  const [fc, setFc] = useState('');
-  const [perd, setPerd] = useState<Perd>({ sistema_electrico: '', codigo_sistema: '', reconocido_kw_pct: '',
-    reconocido_kwh_pct: '', precio_compra: '' });
-  const [trafo, setTrafo] = useState<Trafo>({ kv: '', sin_pct: '', con_pct: '', caso: '' });
-  const [codigo, setCodigo] = useState('');
+  const { clave, cab, sol, concesion, fc, perd, trafo, codigo } = f;
+  const carga = solas.find((c) => `${c.alimentador}|${c.sed}` === clave) ?? null;
+  const setCab = (cambio: (c: Cabecera) => Cabecera) => fijar({ cab: cambio(cab) });
+  const setSol = (cambio: (s: Sol) => Sol) => fijar({ sol: cambio(sol) });
+  const setConcesion = (v: '' | 'si' | 'no') => fijar({ concesion: v });
+  const setFc = (v: string) => fijar({ fc: v });
+  const setPerd = (cambio: (p: Perd) => Perd) => fijar({ perd: cambio(perd) });
+  const setTrafo = (cambio: (t: Trafo) => Trafo) => fijar({ trafo: cambio(trafo) });
+  const setCodigo = (v: string) => fijar({ codigo: v });
+  const [ruta, setRuta] = useState('');
+  const libro = ctx.libro_perdidas;
+  const lectura = carga ? libro?.lecturas[carga.alimentador] : undefined;
+  const subirLibro = async (files: File[]) => {
+    if (files[0] && await run(() => api.informesPerdidasSubir(ws.id, files[0]))) recargar();
+  };
+  const libroPorRuta = async () => {
+    if (await run(() => api.informesPerdidasRuta(ws.id, ruta.trim()))) { setRuta(''); recargar(); }
+  };
+  const quitarLibro = async () => { if (await run(() => api.informesPerdidasQuitar(ws.id))) recargar(); };
 
   // RF-60 y RF-92: factor de carga del mes de la máxima del medidor de ese alimentador.
   const fcMedido = useMemo(() => {
@@ -267,13 +325,12 @@ function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, 
 
   // RF-91: al elegir la carga se rellenan su potencia y su punto de conexión; lo demás, editable.
   const elegir = (k: string) => {
-    setClave(k);
     const c = solas.find((x) => `${x.alimentador}|${x.sed}` === k);
-    if (!c) return;
-    setSol((s) => ({ ...s, potencia_kw: c.kw != null ? String(c.kw) : s.potencia_kw }));
-    setCodigo(c.barra);
+    fijar(c ? { clave: k, codigo: c.barra, sol: { ...sol, potencia_kw: c.kw != null ? String(c.kw) : sol.potencia_kw } }
+      : { clave: k });
   };
-  useEffect(() => { if (fcMedido) setFc(String(fcMedido.fc)); }, [fcMedido]);
+  // El factor medido se propone solo si el operador no escribió otro.
+  useEffect(() => { if (fcMedido && !fc) setFc(String(fcMedido.fc)); }, [fcMedido]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   const ultimo = Object.values(jobs).filter((j) => j.kind === 'informe_factibilidad').pop();
   const faltan = ctx.faltan.factibilidad;
@@ -348,6 +405,26 @@ function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, 
             <small className="muted">{fcMedido ? `De la medición de ${fcMedido.medidor} en ${fcMedido.mes} (2.2).`
               : 'Sin máxima de cabecera buscada en 2.2: escríbalo, o las pérdidas quedan señaladas.'}</small>
           </label>
+          <div className="field span-2">
+            <span>Libro de pérdidas de la empresa</span>
+            {libro ? <>
+              <div className="row"><strong>{libro.name}</strong>
+                <button className="btn btn-ghost btn-sm" onClick={quitarLibro}>Quitar</button></div>
+              {libro.error ? <small className="alert alert-warn">{libro.error}</small>
+                : lectura && <small className="muted">{carga.alimentador}: sistema {lectura.sistema_electrico ?? '—'},
+                  reconocidas {lectura.reconocido_kw_pct ?? '—'} % en kW y {lectura.reconocido_kwh_pct ?? '—'} % en kWh,
+                  precio {lectura.precio_compra ?? '—'}{lectura.faltan.length ? ` · falta: ${lectura.faltan.join(', ')}` : ''}.
+                  Se usa si deja en blanco los campos de abajo.</small>}
+            </> : <>
+              <FileDrop compact accept=".xlsx,.xlsm" onFiles={subirLibro}><span>Soltar o <u>elegir</u></span></FileDrop>
+              {health.server_paths && <div className="row">
+                <input className="search" placeholder="o ruta en el servidor" value={ruta}
+                  onChange={(e) => setRuta(e.target.value)} />
+                <button className="btn btn-sm" disabled={!ruta.trim()} onClick={libroPorRuta}>Usar ruta</button>
+              </div>}
+              <small className="muted">Sin libro, escriba lo reconocido abajo; si falta, queda señalado en el Word.</small>
+            </>}
+          </div>
           <Campos campos={PERDIDAS} valores={perd} fijar={(k, v) => setPerd((p) => ({ ...p, [k]: v }))} />
         </div>
         <p><strong>Transformador de la SET (del proyecto de transmisión)</strong></p>

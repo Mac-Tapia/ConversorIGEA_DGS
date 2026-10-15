@@ -195,6 +195,17 @@ export const api = {
     if (jobId) q.set('job_id', jobId);
     return request<InformesContexto>(`${ws(id)}/informes?${q}`);
   },
+  informesFormulario: (id: string, project: string, tipo: 'estudio' | 'factibilidad', datos: unknown) =>
+    request<{ guardado: boolean }>(`${ws(id)}/informes/formulario`, json('PUT', { project, tipo, datos })),
+  informesPerdidasSubir: (id: string, file: File) => {
+    const fd = new FormData();
+    fd.append('file', file, file.name);
+    return request<{ name: string }>(`${ws(id)}/informes/perdidas`, { method: 'POST', body: fd });
+  },
+  informesPerdidasRuta: (id: string, path: string) =>
+    request<{ name: string }>(`${ws(id)}/informes/perdidas/path`, json('POST', { path })),
+  informesPerdidasQuitar: (id: string) =>
+    request<{ quitado: boolean }>(`${ws(id)}/informes/perdidas`, { method: 'DELETE' }),
   informeEstudio: (id: string, body: InformeEstudioForm) =>
     request<Job>(`${ws(id)}/informes/estudio`, json('POST', body)),
   informeFactibilidad: (id: string, body: InformeFactibilidadForm) =>

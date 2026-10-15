@@ -45,19 +45,25 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 - [ ] T10. Transformador de la SET en el proyecto de transmisión, sin guardar. (RF-65 a
       RF-70, RF-119)
       Hecho cuando: pruebas sobre `fake_pf` en verde.
+      Sonda del 2026-10-15 (solo lectura, solo cargas, barras y trafos de AD08): las 859
+      cargas de AD08 son por barra de SET y tensión (`LElCarmen10` en `CAR10A`, 7,53 MW;
+      `LElCarmen23` en `CAR23A`), ninguna por alimentador; CA101 va dentro de `LElCarmen10`,
+      bajo el `ElmTr3` `TR1 EL CARMEN_N` (60/23/10 kV). RF-67 y RF-67c no se cumplen así:
+      falta que el usuario decida cómo entra el alimentador en la carga de su barra.
 - [ ] T11. API, trabajo en el carril `powerfactory` y CLI con el mismo plan. (RF-26, RF-82,
       RF-96, RF-97, RF-99, RF-103 a RF-105)
       Hecho cuando: una prueba por endpoint en `tests/test_web_api.py`.
       Estado 2026-10-15: `GET informes` (contexto), `POST informes/estudio` y
       `POST informes/factibilidad` en el carril `engine`, con lo ya guardado, probados en
-      `tests/test_informe_web.py`; faltan el carril `powerfactory` (con T7), la CLI y RF-82.
+      `tests/test_informe_web.py`; RF-82 (formulario en el servidor) hecho el mismo día;
+      faltan el carril `powerfactory` (con T7) y la CLI.
 - [ ] T12. Paso «4.4 · Informes» en la web (antes «5 · Informes», cambiado por el usuario
       el 2026-10-15). (RF-73 a RF-95, RF-98, RF-100 a RF-102, RF-124, RF-125)
       Hecho cuando: `npx tsc --noEmit -p frontend`, `npm run build` y checklist del skill
       `igea-dgs-frontend`.
       Estado 2026-10-15: `InformesPF.tsx` con los dos formularios, botones «Generar»,
-      huecos, descarga e informes generados; faltan las etapas de 5.2 (RF-83 a RF-88, con
-      T8 y T9), subir el libro de pérdidas (RF-93, RF-94, con T5), el proyecto de
+      huecos, descarga e informes generados; el libro de pérdidas se sube y se lee en 4.4.2
+      (RF-93, RF-94); faltan las etapas de 5.2 (RF-83 a RF-88, con T8 y T9), el proyecto de
       transmisión (RF-95, con T10), la vista previa de ubicación (RF-124) y las miniaturas
       (RF-101, con T7).
 - [ ] T13. Prueba en DIgSILENT: informe de estudio de CA101 desde cero, con los bancos de

@@ -760,6 +760,16 @@ export interface InformesContexto {
   /** Por medidor de la última máxima buscada: factor de carga del mes de su máxima. */
   factor_carga: Record<string, { fc: number; mes: string }>;
   generados: InformeGenerado[];
+  /** Lo escrito antes en los formularios de este proyecto (RF-82). */
+  formularios: Partial<Record<'estudio' | 'factibilidad', Record<string, unknown>>>;
+  /** Libro de pérdidas subido y lo que dice de cada alimentador marcado (RF-93, RF-94). */
+  libro_perdidas: {
+    name: string; origin: string; error: string | null;
+    lecturas: Record<string, {
+      sistema_electrico: string | null; codigo_sistema: string | null; reconocido_kw_pct: number | null;
+      reconocido_kwh_pct: number | null; precio_compra: number | null; faltan: string[];
+    }>;
+  } | null;
 }
 
 export interface InformeEstudioForm {
