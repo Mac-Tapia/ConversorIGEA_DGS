@@ -464,10 +464,10 @@ def resolver_demandas(alims: Alimentadores, demandas: list[dict]):
             ambiguas.append({'sed': sed, 'motivo': f'{len(objs)} cargas con ese nombre en {feeder}'})
             continue
         obj = objs[0]
-        if id(obj) in usados:
-            omitidas.append({'sed': sed, 'motivo': f'repetida en el libro (ya en la hoja {usados[id(obj)]})'})
+        if clave_pf(obj) in usados:
+            omitidas.append({'sed': sed, 'motivo': f'repetida en el libro (ya en la hoja {usados[clave_pf(obj)]})'})
             continue
-        usados[id(obj)] = fila.get('hoja')
+        usados[clave_pf(obj)] = fila.get('hoja')
         asignadas[feeder].append((fila, obj))
     return asignadas, omitidas, ambiguas
 
@@ -746,8 +746,11 @@ def _troncales(alims: Alimentadores):
                 # Con solo la troncal, IC_11, IC_12, IC_15 e IC_17 de TA225 caían en el
                 # mismo punto de SEC_1091_815724, a 5-7 km de sus coordenadas (usuario,
                 # 2026-10-15: «ubicadas de acuerdo a su punto de coordenada»).
+                # Ni el enlace entre alimentadores (016, normalmente abierto): IC_13 caía en
+                # Enlace_TA225_IN111, a 720 m de su punto (2026-10-15).
                 tramos = tuple(n for n in sorted(lineas)
-                               if not int(getattr(lineas[n], 'outserv', 0) or 0))
+                               if not int(getattr(lineas[n], 'outserv', 0) or 0)
+                               and not n.startswith('Enlace_'))
                 cache[f] = (red, tramos, lineas)
         return cache[f]
     return de
@@ -1058,13 +1061,16 @@ class Diagrama:
             for grf in grfnet.GetContents('*.IntGrf'):
                 obj = getattr(grf, 'pDataObj', None)
                 if obj is not None:
-                    self.por_obj[id(obj)] = (grf, grfnet, obj)
+                    # Por la clave y no por id(): la API de DIgSILENT da un objeto Python
+                    # nuevo en cada llamada, y ninguna carga nueva de IN111 + TA225 se
+                    # dibujaba («no está en ningún diagrama», 2026-10-15).
+                    self.por_obj[clave_pf(obj)] = (grf, grfnet, obj)
                 sym = getattr(grf, 'sSymNam', '')
                 if sym and sym not in self.tamanos:
                     self.tamanos[sym] = (grf.rSizeX, grf.rSizeY)
 
     def _pos(self, obj):
-        hallado = self.por_obj.get(id(obj))
+        hallado = self.por_obj.get(clave_pf(obj))
         return ((hallado[0].rCenterX, hallado[0].rCenterY), hallado[1]) if hallado else (None, None)
 
     def _escala(self, punto):
