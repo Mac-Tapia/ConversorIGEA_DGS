@@ -911,12 +911,18 @@ def _leer(app, plan, alims, feeders, obras, casos) -> tuple[dict, list, list[str
     """
     redes, avisos = {}, []
     toca: dict[str, set[str]] = {}
+    solo_con: dict[str, bool] = {}
     for o in obras:
         for g in (o.alimentador, o.cede):
             if g:
                 toca.setdefault(g, set()).add(o.clase)
+                solo_con[g] = solo_con.get(g, True) and NOMBRES['sin'] not in o.casos
     con_troncal = {f for f, clases in toca.items() if clases & set(CON_TRONCAL)}
-    en_con = {f for f, clases in toca.items() if clases <= set(SOLO_CON_PROYECTO)}
+    # También las obras que el operador pone solo en «Con proyecto»: tras una migración,
+    # la parte que pasó cuelga de otro alimentador allí (SEC_1091_307903 de IN111 lo
+    # alimenta TA225), y leída en «Sin proyecto» la terna se rechazaba (2026-10-15).
+    en_con = {f for f, clases in toca.items()
+              if clases <= set(SOLO_CON_PROYECTO) or solo_con.get(f)}
     for rol, grupo in (('con', [f for f in feeders if f in en_con]),
                        ('sin', [f for f in feeders if f not in en_con])):
         if not grupo:

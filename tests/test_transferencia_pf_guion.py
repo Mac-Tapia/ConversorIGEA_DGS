@@ -297,6 +297,40 @@ def test_todo_vuelve_a_su_estado_y_no_se_graba_nada(semilla):
     assert not grababa.__dict__.get('_cambios')
 
 
+def test_restitucion_sin_avisos_por_el_escenario():
+    """011:RF-119 — la comparación de la restitución se hace con el escenario apagado,
+    como se tomó la foto: con él encendido, cada scale0 calibrado salía «distinto»
+    (311 avisos falsos en «Con proyecto» de IN111 + TA225, 2026-10-15)."""
+    app, _ = _red(random.Random(7), n=4, seccionadores=[2], escenario=True)
+    app.ldf = _flujo(app, capacidad_kw=5.5 * P_SED_KW)
+    caso = next(c for c in casos_pf.casos_del_proyecto(app).values() if c.loc_name == SIN)
+    caso.Activate()
+    escenario = app.GetActiveScenario()
+    cargas = app.proyecto.GetContents('*.ElmLod', 1)
+    original = type(escenario).Activate
+
+    def activa(esc, *a):
+        r = original(esc, *a)
+        for c in cargas:                       # el escenario guarda su propio scale0
+            c.scale0 = 1.37
+        return r
+
+    def apaga(esc, *a):
+        app.escenario = None
+        for c in cargas:
+            c.scale0 = 1.0
+        return 0
+
+    for c in cargas:
+        c.scale0 = 1.37
+    object.__setattr__(escenario, 'Activate', lambda *a: activa(escenario, *a))
+    object.__setattr__(escenario, 'Deactivate', lambda *a: apaga(escenario, *a))
+    informe, codigo = guion.calcular(app, _plan())
+    assert codigo == 0, informe
+    assert all(r['restituido'] for r in informe['restitucion'].values()), informe['avisos']
+    assert not any('scale0' in a for a in informe['avisos'])
+
+
 def test_cancelar_tambien_restituye():
     """011:RF-119 — si se cancela a mitad, todo vuelve igual y el informe lo dice."""
     app, n = _red(random.Random(5), n=4, seccionadores=[2, 3])

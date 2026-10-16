@@ -3370,6 +3370,15 @@ def informes_contexto(ws: Workspace, project: str, feeders: list[str], job_id: s
     for o in ws.obras or []:
         if clave_codigo(o.get('alimentador')) in claves and CON_PROYECTO in (o.get('casos') or []):
             obras[o['alimentador']] = obras.get(o['alimentador'], 0) + 1
+    # 017:RF-35: y las ya aplicadas activas en el último flujo de «Con proyecto», como las
+    # cuenta el informe: el formulario decía «0 obras» con cuatro aplicadas en TA225 e
+    # IN111 (2026-10-15).
+    con = _ultimo_estudio(ws, 'con', project)
+    activas = set((con or {}).get('obras_activas') or [])
+    for a in ws.obras_aplicadas or []:
+        f = a['obra'].get('alimentador')
+        if a.get('variacion') in activas and a.get('project') == project.strip()                 and clave_codigo(f) in claves:
+            obras[f] = obras.get(f, 0) + 1
     cargas = [c for c in _cargas_nuevas_aplicadas(ws, project) if clave_codigo(c['alimentador']) in claves]
     return {'faltan': faltan, 'limites': limites, 'estudios': estudios, 'obras': obras,
             'cargas': cargas, 'factor_carga': _factor_de_carga_cabecera(ws, job_id),

@@ -570,11 +570,14 @@ def _en_un_caso(app, alims, a, b, nombre_caso, entrada, limites, cancelado, info
             if clave_pf(v) not in previas or (temporal is not None and clave_pf(v) == clave_pf(temporal)):
                 v.Deactivate()
                 v.Delete()
+        # Se compara antes de volver a encender el escenario: la foto se tomó con él
+        # apagado, y con él encendido cada scale0 calibrado salía «distinto» (311 avisos
+        # falsos en «Con proyecto» de IN111 + TA225, 2026-10-15).
+        distintos = foto.distintos() if foto is not None else distintos
         if escenario is not None and app.GetActiveScenario() is None:
             escenario.Activate()
         if grababa is not None and app.GetRecordingStage() is not grababa:
             grababa.Activate(1)
-        distintos = foto.distintos() if foto is not None else distintos
     for nombre in distintos:
         informe['avisos'].append(f'En «{nombre_caso}», {nombre} no volvió a su valor.')
     return {'restituido': not distintos, 'distintos': distintos}
