@@ -164,3 +164,21 @@ de RF-25 es el contrato entre las dos mitades.
 - `src/igea_dgs/informes.py`: `ETAPAS` gana `refuerzo` entre `conductor` y `migracion`;
   `_ETAPA_DE_CLASE` asigna a ella `terna` y `enlace`; `obra_para_informe` y
   `describir_obra` describen la terna (tramos) y el enlace (largo, conductor, extremos).
+
+## Alternativas de obras (RF-128 a RF-134, 2026-10-16)
+
+- `tools/estudios_pf.py`: con `alternativas` en el plan (`[{clave, variaciones}]`) y el
+  flujo de «Con proyecto», tras la medida normal desactiva las variaciones de obras que no
+  son de cada alternativa, mide y guarda su geografía (`informe['alternativas']`), y en
+  `finally` vuelve a activar las que estaban. La geografía de cada tramo suma sus dos
+  barras, su tipo y su longitud (RF-131); las imágenes siguen leyendo los tres primeros
+  campos.
+- `web/services.py`: el plan del estudio de «Con proyecto» lleva las alternativas que
+  salen de las obras aplicadas activas (`informes.alternativas_de_obras`); el informe toma
+  de ese flujo una etapa por alternativa.
+- `informes.py`: agrupar las obras en alternativas (RF-128, RF-129) y los trechos continuos
+  del cambio de conductor con la topología de la geografía (RF-132).
+- `mapa_informe.py`: plano de la alternativa con los tramos y los bancos resaltados
+  (RF-133).
+- `informe_docx.py`: sección por alternativa (obras, plano, fuente, tensión,
+  cargabilidad), tabla comparativa y recomendación (RF-134).

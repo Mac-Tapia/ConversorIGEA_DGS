@@ -25,7 +25,7 @@ from .informes import (
     Encabezado, Etapa, InformeError, PerdidasAnuales, Solicitud, _pu, antecedentes_factibilidad,
     conclusiones_estudio, conclusiones_factibilidad, descripcion_factibilidad, describir_obra,
     etapa_recomendada, numero, obras_a_ejecutar, redactar_cargabilidad, redactar_tension,
-    texto_transformador, veredicto_factibilidad)
+    resumen_alternativa, texto_transformador, veredicto_factibilidad)
 from .libros_informe import DatosPerdidas
 
 #: Imágenes de cada estado: vista de ubicación y los dos coloreados (RF-10, RF-46).
@@ -304,7 +304,12 @@ class _Escritor:
         self.huecos.append(motivo)
 
     def vinieta(self, texto: str) -> None:
-        self.d.add_paragraph(texto, style=self.estilo_lista)
+        # El modelo de Casa Blanca no trae «List Bullet»: sin él, las obras salían como
+        # párrafos sueltos, sin marca de lista (revisión de CA101, 2026-10-16).
+        if self.estilo_lista:
+            self.d.add_paragraph(texto, style=self.estilo_lista)
+        else:
+            self.d.add_paragraph('•	' + texto)
 
     def imagen(self, ruta: Path | None, que: str, pie: str | None = None) -> None:
         from docx.shared import Cm
@@ -482,7 +487,10 @@ def escribir_informe_estudio(config: ConfigInforme, destino: Path, datos: DatosE
     etapas = sorted(datos.etapas, key=lambda x: ETAPAS.index(x.clave))
     rec = etapa_recomendada(datos.actual, etapas, config.limites)
     a_ejecutar = obras_a_ejecutar(rec, etapas)
-    if not rec.actual_cumple and a_ejecutar:
+    evaluadas = [x for x in etapas if x.evaluada]
+    if not rec.actual_cumple and len(evaluadas) > 1:
+        _alternativas(e, datos, evaluadas, rec, a_ejecutar, config, lista)     # RF-128
+    elif not rec.actual_cumple and a_ejecutar:
         _proyectado(e, datos, a_ejecutar, config, lista)
 
     e.titulo('3. CONCLUSIONES Y RECOMENDACIONES')
@@ -505,14 +513,33 @@ def escribir_informe_estudio(config: ConfigInforme, destino: Path, datos: DatosE
     return e.huecos
 
 
+def _nodo_banco(b: Mapping[str, Any]) -> str:
+    """El nodo de la red de un banco existente, no la barra auxiliar, y la SED más cercana
+    si el nodo no es ella (RF-135)."""
+    nodo = str(b.get('nodo') or b.get('barra') or '')
+    cerca = b.get('sed_cercana')
+    if cerca and not nodo.startswith(str(cerca[0])):
+        return f'{nodo} (a {numero(cerca[1], 0)} m de la SED {cerca[0]})'
+    return nodo
+
+
+def _utm_texto(utm: Sequence[float] | None) -> str:
+    return f'E {numero(utm[0], 1)} / N {numero(utm[1], 1)}' if utm else ''
+
+
 def _bancos(e: _Escritor, bancos: Sequence[Mapping[str, Any]], lista: str) -> None:
-    """Los bancos de condensadores existentes, tal como están en DIgSILENT."""
+    """Los bancos de condensadores existentes con el nodo donde están (RF-135)."""
     if not bancos:
         e.parrafo(f'El alimentador {lista} no tiene bancos de condensadores en el modelo.')
         return
-    e.parrafo(f'Bancos de condensadores existentes en el alimentador {lista}:')
-    e.tabla(['Banco', 'Nodo', 'kvar', 'Estado'],
-            [[str(b.get('nombre') or ''), str(b.get('barra') or ''), _f(b.get('kvar'), 0),
+    servicio = [b for b in bancos if b.get('en_servicio')]
+    total = sum(float(b.get('kvar') or 0) for b in servicio)
+    e.parrafo(f'El alimentador {lista} cuenta con {len(bancos)} bancos de condensadores existentes '
+              f'({len(servicio)} en servicio, {_f(total, 0)} kvar en total), ubicados en los nodos '
+              + ', '.join(dict.fromkeys(_nodo_banco(b) for b in bancos)) + ':')
+    e.tabla(['Banco', 'Nodo de la red', 'Barra en DIgSILENT', 'kvar', 'Coordenadas (UTM)', 'Estado'],
+            [[str(b.get('nombre') or ''), _nodo_banco(b), str(b.get('barra') or ''),
+              _f(b.get('kvar'), 0), _utm_texto(b.get('utm')),
               'En servicio' if b.get('en_servicio') else 'Fuera de servicio'] for b in bancos])
 
 
@@ -577,12 +604,157 @@ def _proyectado(e: _Escritor, datos: DatosEstudio, a_ejecutar: list[Etapa], conf
         e.titulo(f'2.4.{n} {ordinal} ETAPA' + (f' – AÑO {x.anio}' if x.anio else '') + ':')
         for obra in x.obras:
             e.parrafo(describir_obra(obra))
+            _trechos(e, obra)
     e.titulo(f'2.4.{n + 1} ESCENARIO ACTUAL Y PROYECTADO DEL ALIMENTADOR {lista}')
     e.parrafo(f'ESCENARIO ACTUAL: el alimentador {lista} en su configuración actual.')
     e.imagen((datos.imagenes.get('actual') or {}).get('ubicacion'),
              f'{_NOMBRE_IMAGEN["ubicacion"]} del estado actual')
     e.parrafo(f'ESCENARIO PROYECTADO: el alimentador {lista} con {resumen}.')
     e.imagen(imagenes.get('ubicacion'), f'{_NOMBRE_IMAGEN["ubicacion"]} del estado proyectado')
+
+
+def _punto(barra: str, sed: Sequence | None) -> str:
+    """Una barra con la SED más cercana, que es lo que la cuadrilla reconoce en campo."""
+    if sed and not str(barra).startswith(str(sed[0])):
+        return f'{barra} (a {numero(sed[1], 0)} m de la SED {sed[0]})'
+    return str(barra)
+
+
+def _trechos(e: _Escritor, obra: Mapping[str, Any]) -> None:
+    """Desde dónde hasta dónde va el cambio de conductor, trecho por trecho (RF-132)."""
+    trechos = list(obra.get('trechos') or [])
+    if not trechos:
+        return
+    e.tabla(['Trecho', 'Desde (barra)', 'Coordenadas inicio (UTM)', 'Hasta (barra)',
+             'Coordenadas fin (UTM)', 'Tramos', 'Longitud (km)', 'Conductor actual', 'Conductor nuevo'],
+            [[str(i), _punto(t['desde'], t.get('desde_sed')), _utm_texto(t.get('desde_utm')),
+              _punto(t['hasta'], t.get('hasta_sed')),
+              _utm_texto(t.get('hasta_utm')), str(len(t['tramos'])), _f(t['km'], 2),
+              ', '.join(t.get('actuales') or ()), str(obra.get('conductor') or '')]
+             for i, t in enumerate(trechos, 1)])
+    for i, t in enumerate(trechos, 1):
+        e.parrafo(f'Tramos del trecho {i}, de la cabecera hacia la cola: ' + ', '.join(t['tramos']) + '.')
+
+
+def _siguen_en_servicio(servicio: Sequence[Mapping[str, Any]]) -> str:
+    """Los bancos existentes que siguen en servicio, agrupados por nodo (RF-135)."""
+    por_nodo: dict[str, list[float]] = {}
+    for b in servicio:
+        por_nodo.setdefault(_nodo_banco(b), []).append(float(b.get('kvar') or 0))
+    partes = [f'{len(kv)} de {_f(kv[0], 0)} kvar en el nodo {nodo}' if len(kv) > 1 and len(set(kv)) == 1
+              else f'{_f(sum(kv), 0)} kvar en el nodo {nodo}' for nodo, kv in por_nodo.items()]
+    if len(servicio) == 1:
+        return f'Se mantiene en servicio el banco existente: {partes[0]}.'
+    return f'Se mantienen en servicio los {len(servicio)} bancos existentes: ' + '; '.join(partes) + '.'
+
+
+def _que_se_resalta(hasta: Sequence[Etapa], hay_existentes: bool) -> str:
+    """El pie del plano de una alternativa, con lo que de verdad lleva (RF-133): la
+    alternativa de solo bancos no tiene conductor nuevo que resaltar."""
+    tipos = {o.get('tipo') for x in hasta for o in x.obras}
+    partes = []
+    if 'conductor' in tipos:
+        partes.append('los tramos con el conductor nuevo en trazo grueso, con su inicio y su fin')
+    if 'banco' in tipos:
+        partes.append('los bancos de condensadores nuevos (triángulo lleno)')
+    if hay_existentes:
+        partes.append('los bancos existentes (triángulo hueco)')
+    if not partes:
+        return 'el alimentador con sus obras'
+    return 'se señalan ' + (partes[0] if len(partes) == 1 else ', '.join(partes[:-1]) + ' y ' + partes[-1])
+
+
+def _bancos_nuevos(e: _Escritor, obras: Sequence[Mapping[str, Any]]) -> None:
+    nuevos = [o for o in obras if o.get('tipo') == 'banco']
+    if nuevos:
+        e.tabla(['Banco nuevo', 'Nodo', 'kvar'],
+                [[str(i), str(o['nodo']), _f(o['kvar'], 0)] for i, o in enumerate(nuevos, 1)])
+
+
+def _alternativas(e: _Escritor, datos: DatosEstudio, evaluadas: list[Etapa], rec, a_ejecutar: list[Etapa],
+                  config: ConfigInforme, lista: str) -> None:
+    """Una sección por alternativa, el cuadro comparativo y el detalle de la recomendada
+    (RF-128 a RF-135). Cada alternativa suma la anterior (RF-32)."""
+    e.titulo('2.3 ALTERNATIVAS DE SOLUCIÓN')
+    e.parrafo(f'Para superar la mala calidad del servicio en el alimentador {lista} se evaluaron '
+              f'{len(evaluadas)} alternativas con flujo de carga en el software DIgSILENT PowerFactory; '
+              'cada una incluye las obras de la anterior:')
+    for i, x in enumerate(evaluadas, 1):
+        e.vinieta(f'Alternativa {i}: {NOMBRE_ETAPA[x.clave].lower()}.')
+    servicio = [b for b in datos.bancos if b.get('en_servicio')]
+    for i, x in enumerate(evaluadas, 1):
+        caso = x.caso
+        img = datos.imagenes.get(x.clave) or {}
+        nombre = NOMBRE_ETAPA[x.clave].upper()
+        e.titulo(f'2.3.{i} ALTERNATIVA {i}: {nombre}')
+        e.titulo(f'2.3.{i}.1 OBRAS')
+        if i > 1:
+            e.parrafo(f'Incluye las obras de la alternativa {i - 1} y, además:')
+        for obra in x.obras:
+            e.vinieta(describir_obra(obra))
+        _bancos_nuevos(e, x.obras)
+        for obra in x.obras:
+            _trechos(e, obra)
+        if any(o.get('tipo') == 'banco' for o in x.obras) and servicio:
+            e.parrafo(_siguen_en_servicio(servicio))
+        e.titulo(f'2.3.{i}.2 PLANO DE LA ALTERNATIVA {i}')
+        resaltado = _que_se_resalta(evaluadas[:i], bool(servicio))
+        e.imagen(img.get('ubicacion'), f'plano de la alternativa {i}',
+                 f'Plano de la alternativa {i}: {resaltado}.')
+        if img.get('detalle'):                                                  # RF-133
+            e.imagen(img.get('detalle'), f'detalle de las obras de la alternativa {i}',
+                     f'Detalle de la zona de las obras de la alternativa {i}: {resaltado}.')
+        if _sin_flujo(e, caso):
+            continue
+        _datos_fuente(e, caso, 'Datos de la fuente:')
+        _analisis_tension(e, f'2.3.{i}.3 ANÁLISIS DE CAÍDA DE TENSIÓN', caso, img.get('tension'),
+                          f'alternativa {i}', config)
+        _analisis_carga(e, f'2.3.{i}.4 ANÁLISIS DE CARGABILIDAD', caso, img.get('cargabilidad'),
+                        f'alternativa {i}', config)
+        e.parrafo(resumen_alternativa(i, x, config.limites))
+
+    e.titulo(f'2.4 CUADRO COMPARATIVO DE LAS ALTERNATIVAS DEL ALIMENTADOR {lista}')     # RF-134
+    filas = []
+    for nombre, caso in [('Estado actual', datos.actual)] + [
+            (f'Alternativa {i}', x.caso) for i, x in enumerate(evaluadas, 1)]:
+        if caso is None or not caso.converge:
+            filas.append([nombre, 'no converge', '', '', '', '', 'No'])
+            continue
+        m = caso.minima
+        filas.append([nombre, _f(m.valor if m else None, 3), m.donde if m else '',
+                      _f(caso.cargabilidad_max.valor if caso.cargabilidad_max else None, 1),
+                      _f(caso.trafo_max.valor if caso.trafo_max else None, 1),
+                      _f(caso.perdidas.kw if caso.perdidas else None, 1),
+                      'Sí' if caso.cumple(config.limites) else 'No'])
+    e.tabla(['Escenario', 'Tensión mínima (p.u.)', 'Nodo', 'Cargabilidad máx. tramos (%)',
+             'Cargabilidad máx. transformadores (%)', 'Pérdidas (kW)', 'Cumple'], filas)
+    if rec.etapa is not None:
+        n = evaluadas.index(rec.etapa) + 1
+        e.parrafo(f'Se recomienda la alternativa {n} ({NOMBRE_ETAPA[rec.etapa.clave].lower()}), la '
+                  'primera que cumple la banda de tensión y el umbral de cargabilidad.')
+    else:
+        e.parrafo('Ninguna de las alternativas evaluadas cumple la banda de tensión y el umbral de '
+                  'cargabilidad: se requieren obras adicionales.')
+
+    e.titulo(f'2.5 DETALLE DE LAS OBRAS DE MEJORA DEL ALIMENTADOR {lista}')
+    n = 0
+    for x in a_ejecutar:
+        if not x.obras:
+            continue
+        ordinal = _ORDINALES[n] if n < len(_ORDINALES) else f'{n + 1}.ª'
+        n += 1
+        e.titulo(f'2.5.{n} {ordinal} ETAPA' + (f' – AÑO {x.anio}' if x.anio else '') + ':')
+        for obra in x.obras:
+            e.parrafo(describir_obra(obra))
+    final = a_ejecutar[-1] if a_ejecutar else evaluadas[-1]
+    e.titulo(f'2.5.{n + 1} ESCENARIO ACTUAL Y PROYECTADO DEL ALIMENTADOR {lista}')
+    e.parrafo(f'ESCENARIO ACTUAL: el alimentador {lista} en su configuración actual.')
+    e.imagen((datos.imagenes.get('actual') or {}).get('ubicacion'),
+             f'{_NOMBRE_IMAGEN["ubicacion"]} del estado actual')
+    e.parrafo(f'ESCENARIO PROYECTADO: el alimentador {lista} con la alternativa '
+              f'{evaluadas.index(final) + 1} ({NOMBRE_ETAPA[final.clave].lower()}).')
+    e.imagen((datos.imagenes.get(final.clave) or {}).get('ubicacion'),
+             f'{_NOMBRE_IMAGEN["ubicacion"]} del estado proyectado')
 
 
 # --------------------------------------------------------------------------- factibilidad

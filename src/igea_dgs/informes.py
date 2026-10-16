@@ -16,7 +16,7 @@ import math
 from dataclasses import dataclass, field, replace
 from datetime import date
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence
 
 from .estudios_pf import EstudiosError, Limites
 
@@ -325,7 +325,7 @@ NOMBRE_ETAPA = {
     'bancos_existentes': 'Bancos de condensadores existentes',
     'bancos_nuevos': 'Bancos de condensadores propuestos',
     'reguladores': 'Reguladores de tensión',
-    'conductor': 'Cambio de conductor de la troncal',
+    'conductor': 'Cambio de sección del conductor de la troncal',
     'refuerzo': 'Refuerzo de la red (ternas y enlaces)',
     'migracion': 'Migración a otra tensión',
 }
@@ -601,6 +601,12 @@ def redactar_cargabilidad(caso: Caso, limites: Limites) -> str:
     return texto
 
 
+def _lista(cosas: Sequence[str]) -> str:
+    """«a, b y c»."""
+    cosas = list(cosas)
+    return cosas[0] if len(cosas) == 1 else ', '.join(cosas[:-1]) + ' y ' + cosas[-1]
+
+
 def describir_obra(obra: Mapping[str, Any]) -> str:
     """Una obra del detalle y de las conclusiones, con lo que pide RF-44."""
     tipo = obra.get('tipo')
@@ -611,6 +617,16 @@ def describir_obra(obra: Mapping[str, Any]) -> str:
     if tipo == 'regulador':
         return f'Instalar un regulador de tensión en el nodo {obra["nodo"]}.'
     if tipo == 'conductor':
+        trechos = list(obra.get('trechos') or [])
+        if trechos:                                                        # RF-132
+            partes = []
+            for t in trechos:
+                hoy = f', hoy con {_lista(t["actuales"])}' if t.get('actuales') else ''
+                partes.append(f'desde la barra {t["desde"]} hasta la barra {t["hasta"]} '
+                              f'({numero(t["km"], 2)} km en {len(t["tramos"])} tramos{hoy})')
+            km = sum(float(t['km']) for t in trechos)
+            return (f'Cambiar la sección del conductor de la troncal a {obra["conductor"]} en '
+                    f'{numero(km, 2)} km: ' + '; '.join(partes) + '.')
         if obra.get('km') is None:
             return f'Renovar la troncal con conductor {obra["conductor"]}.'
         return f'Renovar {numero(obra["km"], 2)} km de la troncal con conductor {obra["conductor"]}.'
@@ -648,7 +664,8 @@ def obra_para_informe(obra: Mapping[str, Any]) -> dict[str, Any]:
         return {'tipo': 'regulador', 'nodo': nodo}
     if clase == 'seccion':
         tipo = (obra.get('tipo') or {}).get('nombre', '')
-        return {'tipo': 'conductor', 'km': obra.get('km'), 'conductor': tipo}
+        return {'tipo': 'conductor', 'km': obra.get('km'), 'conductor': tipo,
+                'tramos': list(obra.get('tramos') or [])}
     if clase == 'consigna':
         return {'descripcion': f"Llevar la tensión de la barra de cabecera a "
                                f"{numero(float(obra.get('consigna_pu') or 0), 2)} p.u."}
@@ -676,6 +693,148 @@ def etapa_de_obras(obras: list[Mapping[str, Any]]) -> str | None:
     return max(claves, key=ETAPAS.index) if claves else None
 
 
+def alternativas_de_obras(aplicadas: list[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """Las alternativas del informe con las obras activas de «Con proyecto» (RF-128, RF-129).
+
+    ``aplicadas``: ``{'variacion', 'obra'}`` de cada obra. Una alternativa por etapa de
+    RF-32 con obras, cada una sumada a las anteriores. La consigna de cabecera no es obra:
+    va con la etapa siguiente, o con la última. En CA101 (2026-10-16): 1, los dos bancos;
+    2, el cambio de sección con los bancos y la consigna.
+    """
+    por_etapa: dict[str, list[str]] = {}
+    consignas: list[str] = []
+    for a in aplicadas:
+        clase = (a.get('obra') or {}).get('clase')
+        if clase == 'consigna':
+            consignas.append(str(a['variacion']))
+        elif clase in _ETAPA_DE_CLASE:
+            por_etapa.setdefault(_ETAPA_DE_CLASE[clase], []).append(str(a['variacion']))
+    claves = sorted(por_etapa, key=ETAPAS.index)
+    if not claves:
+        return [{'clave': 'reguladores', 'variaciones': sorted(consignas)}] if consignas else []
+    # La consigna se aplica desde la primera etapa posterior a la de reguladores.
+    destino = next((c for c in claves if ETAPAS.index(c) > ETAPAS.index('reguladores')), claves[-1])
+    if consignas:
+        por_etapa[destino] = por_etapa[destino] + consignas
+    out, acumuladas = [], []
+    for clave in claves:
+        acumuladas = acumuladas + por_etapa[clave]
+        out.append({'clave': clave, 'variaciones': sorted(acumuladas)})
+    return out
+
+
+@dataclass(frozen=True)
+class Trecho:
+    """Un trecho continuo del cambio de conductor (RF-132)."""
+
+    desde: str
+    hasta: str
+    tramos: tuple[str, ...]
+    km: float
+    #: Conductor que hay hoy en cada tramo, sin repetir y en el orden del trecho.
+    actuales: tuple[str, ...] = ()
+    desde_gps: tuple[float, float] | None = None
+    hasta_gps: tuple[float, float] | None = None
+
+
+def _km_de(pts: Sequence[Sequence[float]]) -> float:
+    total = 0.0
+    for (a1, o1), (a2, o2) in zip(pts, pts[1:]):
+        dx = math.radians(o2 - o1) * math.cos(math.radians((a1 + a2) / 2))
+        total += 6371.0 * math.hypot(dx, math.radians(a2 - a1))
+    return total
+
+
+def _generica(nombre: str) -> bool:
+    """Barra con el nombre que pone DIgSILENT a una barra creada a mano («Terminal(1)»)."""
+    return nombre.split('(')[0].strip().lower() in ('terminal', 'node', 'nodo', 'bus')
+
+
+def trechos_de_conductor(geo: Mapping[str, Any], tramos: Sequence[str],
+                         geo_actual: Mapping[str, Any] | None = None) -> list[Trecho]:
+    """Los trechos continuos de ``tramos`` con su inicio y fin, del lado de la cabecera al
+    lado de la cola (RF-132).
+
+    ``geo`` es la geografía del flujo (RF-131): cada tramo ``[nombre, pts, carga, barra1,
+    barra2, tipo, km]`` y los acoples cerrados ``[nombre, barra1, barra2]``, que unen
+    barras sin ser tramo: un seccionador no corta el trecho. El conductor actual sale de
+    ``geo_actual`` (el de «Sin proyecto»), porque en la geografía proyectada ya es el
+    nuevo. Sin las barras (una geografía guardada antes de RF-131) no hay trechos.
+    """
+    filas = {t[0]: t for t in geo.get('tramos') or [] if len(t) >= 5 and t[3] and t[4]}
+    elegidos = [n for n in dict.fromkeys(tramos) if n in filas]
+    if not elegidos:
+        return []
+    # Las barras unidas por acoples son un mismo punto de la red.
+    raiz: dict[str, str] = {}
+
+    def nodo(b: str) -> str:
+        while raiz.get(b, b) != b:
+            b = raiz[b]
+        return b
+    for _n, b1, b2 in geo.get('acoples') or []:
+        r1, r2 = nodo(b1), nodo(b2)
+        if r1 != r2:
+            raiz[max(r1, r2)] = min(r1, r2)
+    nombres: dict[str, list[str]] = {}
+    for t in filas.values():
+        for b in (t[3], t[4]):
+            nombres.setdefault(nodo(b), [])
+            if b not in nombres[nodo(b)]:
+                nombres[nodo(b)].append(b)
+    # Profundidad de cada punto desde la cabecera por la red entera: así el trecho va de
+    # la cabecera hacia la cola, como lo recorre la cuadrilla.
+    vecinos: dict[str, list[str]] = {}
+    for t in filas.values():
+        a, b = nodo(t[3]), nodo(t[4])
+        vecinos.setdefault(a, []).append(b)
+        vecinos.setdefault(b, []).append(a)
+    prof: dict[str, int] = {}
+    cabecera = nodo(geo['cabecera']) if geo.get('cabecera') else None
+    if cabecera in vecinos:
+        prof[cabecera] = 0
+        cola = [cabecera]
+        for b in cola:
+            for v in vecinos[b]:
+                if v not in prof:
+                    prof[v] = prof[b] + 1
+                    cola.append(v)
+    lejos = len(prof) + len(vecinos)
+    gps_barra = {b[0]: (b[1], b[2]) for b in geo.get('barras') or [] if b[1] is not None}
+
+    def rotulo(punto: str) -> tuple[str, tuple[float, float] | None]:
+        """El nombre con que se da un punto: el propio antes que «Terminal», y su GPS."""
+        lista = sorted(nombres.get(punto) or [punto], key=lambda b: (_generica(b), b not in gps_barra, b))
+        gps = next((gps_barra[b] for b in lista if b in gps_barra), None)
+        return lista[0], gps
+    tipo_hoy = {t[0]: t[5] for t in (geo_actual or {}).get('tramos') or [] if len(t) >= 6}
+    extremos = {n: (nodo(filas[n][3]), nodo(filas[n][4])) for n in elegidos}
+    pendientes = set(elegidos)
+    trechos = []
+    while pendientes:
+        semilla = min(pendientes, key=lambda n: (min(prof.get(p, lejos) for p in extremos[n]), n))
+        grupo, puntos, cola = [], set(), [semilla]
+        pendientes.discard(semilla)
+        while cola:
+            n = cola.pop()
+            grupo.append(n)
+            puntos |= set(extremos[n])
+            for m in sorted(m for m in pendientes if puntos & set(extremos[m])):
+                pendientes.discard(m)
+                cola.append(m)
+        grupo.sort(key=lambda n: (max(prof.get(p, lejos) for p in extremos[n]), n))
+        desde = min(puntos, key=lambda b: (prof.get(b, lejos), b))
+        hasta = max(puntos, key=lambda b: (prof.get(b, -1), b))
+        km = sum(float(filas[n][6]) if len(filas[n]) > 6 and filas[n][6] is not None
+                 else _km_de(filas[n][1]) for n in grupo)
+        actuales = tuple(dict.fromkeys(tipo_hoy[n] for n in grupo if tipo_hoy.get(n)))
+        (d_nombre, d_gps), (h_nombre, h_gps) = rotulo(desde), rotulo(hasta)
+        trechos.append((prof.get(desde, lejos), Trecho(d_nombre, h_nombre, tuple(grupo), km, actuales,
+                                                       d_gps, h_gps)))
+    return [t for _p, t in sorted(trechos, key=lambda x: (x[0], x[1].desde))]
+
+
+
 def obras_a_ejecutar(rec: Recomendacion, etapas: list[Etapa]) -> list[Etapa]:
     """Las etapas cuyas obras se proponen: hasta la recomendada, o todas si ninguna basta."""
     evaluadas = sorted((e for e in etapas if e.evaluada), key=lambda e: ETAPAS.index(e.clave))
@@ -699,6 +858,13 @@ def conclusiones_estudio(alimentadores: list[str], actual: Caso, rec: Recomendac
                 f'{_g(limites.cargabilidad_max_pct)} % de cargabilidad: no se requieren obras de mejora.']
     puntos = [f'En el estado actual, el alimentador {lista} presenta '
               + _incumplimientos(actual, limites) + '.']
+    evaluadas = sorted((e for e in etapas if e.evaluada), key=lambda e: ETAPAS.index(e.clave))
+    if len(evaluadas) > 1:                                                 # RF-134
+        puntos += [resumen_alternativa(i, e, limites) for i, e in enumerate(evaluadas, 1)]
+        if rec.etapa is not None:
+            n = evaluadas.index(rec.etapa) + 1
+            puntos.append(f'Se recomienda la alternativa {n} ({NOMBRE_ETAPA[rec.etapa.clave].lower()}), '
+                          'la primera que cumple la banda de tensión y el umbral de cargabilidad.')
     a_ejecutar = obras_a_ejecutar(rec, etapas)
     obras = [describir_obra(o) for e in a_ejecutar for o in e.obras]
     if obras:
@@ -718,6 +884,23 @@ def conclusiones_estudio(alimentadores: list[str], actual: Caso, rec: Recomendac
     else:
         puntos.append('Ninguna de las obras evaluadas permite superar la mala calidad del servicio.')
     return puntos
+
+
+def resumen_alternativa(n: int, etapa: Etapa, limites: Limites) -> str:
+    """Qué logra la alternativa ``n`` (RF-134): tensión mínima, cargabilidad y si cumple."""
+    caso = etapa.caso
+    que = f'Alternativa {n} ({NOMBRE_ETAPA[etapa.clave].lower()})'
+    if caso is None or not caso.converge:
+        return f'{que}: el flujo de carga no converge.'
+    datos = []
+    if caso.minima is not None:
+        datos.append(f'una tensión mínima de {_pu(caso.minima.valor)} en {caso.minima.donde}')
+    if caso.cargabilidad_max is not None:
+        datos.append(f'una cargabilidad máxima de {numero(caso.cargabilidad_max.valor, 1)} %')
+    logra = f' logra {" y ".join(datos)}' if datos else ''
+    if caso.cumple(limites):
+        return f'{que}:{logra}; cumple la banda de tensión y el umbral de cargabilidad.'
+    return f'{que}:{logra}; no basta, porque el alimentador sigue con ' + _incumplimientos(caso, limites) + '.'
 
 
 def _incumplimientos(caso: Caso, limites: Limites) -> str:

@@ -1358,6 +1358,8 @@ def proyecto(nombre='P', *, alimentadores=('F1', 'F2'), cargas_por_alim=3, escen
             for lado, b in ((0, barras[i - 1]), (1, barras[i])):
                 cub = b.CreateObject('StaCubic', f'c{lado}_{ln.loc_name}')
                 cub.obj_id, cub.obj_bus = ln, lado
+                # Como en DIgSILENT, la línea apunta a sus dos cubículos (017:RF-131).
+                object.__setattr__(ln, f'bus{lado + 1}', cub)
             alim._objs.append(ln)
         for i in range(1, len(barras)):
             sub = red.CreateObject('ElmSubstat', f'{f}_S{i}')

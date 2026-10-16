@@ -407,7 +407,8 @@ def test_bancos_existentes_tal_como_estan_en_digsilent(tmp_path):
     destino = tmp_path / 'informe.docx'
     escribir_informe_estudio(_config(tmp_path), destino, _estudio(tmp_path, bancos=bancos))
     filas = _filas(destino)
-    assert ['BC1', 'N7', '300', 'En servicio'] in filas and ['BC2', 'N9', '150', 'Fuera de servicio'] in filas
+    assert ['BC1', 'N7', 'N7', '300', '', 'En servicio'] in filas
+    assert ['BC2', 'N9', 'N9', '150', '', 'Fuera de servicio'] in filas
     assert json.loads(destino.with_suffix('.json').read_text(encoding='utf-8'))['bancos'][0]['barra'] == 'N7'
 
 

@@ -94,6 +94,60 @@ MAX_SALIDA_GUION = 2000
 
 
 # =========================================================================== medidas
+#: Saltos que se recorren desde la barra de un banco hasta un nodo de la red con nombre.
+MAX_SALTOS_BANCO = 6
+
+
+def _generica(nombre: str | None) -> bool:
+    """Barra con el nombre que pone DIgSILENT al crearla a mano («Terminal», «Terminal(1)»)."""
+    return not nombre or nombre.split('(')[0].strip().lower() in ('terminal', 'node', 'nodo', 'bus')
+
+
+def _nodo_de_banco(barra) -> tuple[str | None, list[float] | None]:
+    """El nodo de la red donde está un banco y su GPS (017, usuario 2026-10-16: «se debe
+    mencionar los bancos existentes y en qué nodos están»).
+
+    En CA101 los tres bancos cuelgan de barras «Terminal» y «Terminal(1)» creadas a mano:
+    ese nombre no dice dónde están. Se sube a la subestación que la contiene o se recorre
+    la red desde la barra hasta el primer nodo con nombre propio.
+    """
+    if barra is None:
+        return None, None
+    gps = gps_de(barra)
+    if not _generica(barra.loc_name):
+        return barra.loc_name, list(gps) if gps else None
+    padre = barra.GetParent() if hasattr(barra, 'GetParent') else None
+    if padre is not None and padre.GetClassName() in ('ElmSubstat', 'ElmTrfstat'):
+        return padre.loc_name, list(gps) if gps else None
+    vistos, frontera = {id(barra)}, [barra]
+    for _ in range(MAX_SALTOS_BANCO):
+        siguiente = []
+        for b in frontera:
+            try:
+                elementos = list(b.GetConnectedElements(1, 1, 0) or [])
+            except Exception:  # noqa: BLE001 - sin el método (versiones viejas): sin nodo
+                elementos = []
+            for el in elementos:
+                if el.GetClassName() == 'ElmTerm':
+                    terminales = [el]
+                else:
+                    try:
+                        terminales = [t for t in (el.GetConnectedElements(1, 1, 0) or [])
+                                      if t.GetClassName() == 'ElmTerm']
+                    except Exception:  # noqa: BLE001
+                        terminales = []
+                for t in terminales:
+                    if id(t) in vistos:
+                        continue
+                    vistos.add(id(t))
+                    if not _generica(t.loc_name):
+                        g = gps or gps_de(t)
+                        return t.loc_name, list(g) if g else None
+                    siguiente.append(t)
+        frontera = siguiente
+    return None, list(gps) if gps else None
+
+
 def medida(elm, app=None) -> dict:
     """Lo que la web necesita de un alimentador tras un flujo (RF-31, RF-33).
 
@@ -130,7 +184,9 @@ def medida(elm, app=None) -> dict:
         q = _num(sh, 'qtotn')
         if q is None and _num(sh, 'qcapn') is not None:
             q = _num(sh, 'qcapn') * (_num(sh, 'ncapa') or 1.0)
+        nodo, gps = _nodo_de_banco(barra)
         out['bancos'].append({'nombre': sh.loc_name, 'barra': getattr(barra, 'loc_name', None),
+                              'nodo': nodo, 'gps': gps,
                               'kvar': q * 1000.0 if q is not None else None,
                               'escalones': _num(sh, 'ncapx'), 'en_servicio': not getattr(sh, 'outserv', 0),
                               'q_flujo_kvar': (-_num(sh, 'm:Qsum:bus1') * 1000.0
@@ -203,11 +259,28 @@ def geografia(elm, app=None) -> dict:
             puntos = tuple(p for p in extremos if p is not None)
         if len(puntos) >= 2:
             carga = _num(ln, 'c:loading')
+            # 017:RF-131: barras, tipo y longitud, para decir desde dónde hasta dónde va el
+            # cambio de conductor (CA101, 2026-10-16: 21 tramos sin más que su nombre).
+            barras_ln = [getattr(getattr(getattr(ln, c, None), 'cterm', None), 'loc_name', None)
+                         for c in ('bus1', 'bus2')]
+            tipo = getattr(getattr(ln, 'typ_id', None), 'loc_name', None)
+            km = _num(ln, 'dline')
             tramos.append([ln.loc_name, [[round(a, 7), round(o, 7)] for a, o in puntos],
-                           None if carga is None else round(carga, 2)])
+                           None if carga is None else round(carga, 2), barras_ln[0], barras_ln[1],
+                           tipo, None if km is None else round(km, 4)])
+    # 017:RF-132: los acoples cerrados unen barras sin ser líneas. Sin ellos, el cambio de
+    # conductor de CA101 (2026-10-16) salía en 10 trechos, cuatro de 0,00 a 0,02 km,
+    # cortados en cada seccionador de la troncal.
+    acoples = []
+    for c in objetos('ElmCoup'):
+        if getattr(c, 'on_off', 1) and not getattr(c, 'outserv', 0):
+            extremos = [getattr(getattr(getattr(c, k, None), 'cterm', None), 'loc_name', None)
+                        for k in ('bus1', 'bus2')]
+            if all(extremos):
+                acoples.append([c.loc_name, extremos[0], extremos[1]])
     cabecera = cabecera_de(elm) if elm is not None else None
     return {'barras': sorted(barras), 'tramos': sorted(tramos, key=lambda t: t[0]),
-            'cabecera': getattr(cabecera, 'loc_name', None)}
+            'acoples': sorted(acoples), 'cabecera': getattr(cabecera, 'loc_name', None)}
 
 
 def medidas(alims: Alimentadores, feeders: list[str], converge: bool) -> dict:
@@ -430,6 +503,52 @@ def _traza(app, alims, feeders, feeder: str, linea, falta) -> dict:
         falta.StopTrace(0)
 
 
+def _alternativas(app, alims, feeders, alternativas: list[dict], todo, avisos: list) -> list[dict]:
+    """017:RF-130: cada alternativa medida con solo las variaciones de sus obras activas.
+
+    En CA101 (2026-10-16) «Con proyecto» tenía los bancos, la consigna y el cambio de
+    sección a la vez y el informe no podía decir qué lograban los bancos solos. Se mide en
+    la misma ejecución, con el mismo caso y escenario; solo se apartan variaciones de obras
+    (prefijo de la spec 011), nunca las del operador ni las de las cargas. Al terminar se
+    reactivan las que estaban, en su orden.
+    """
+    carpeta = app.GetProjectFolder('scheme')
+    obras = {v.loc_name: v for v in carpeta.GetContents('*.IntScheme', 1)
+             if v.loc_name.startswith(PREFIJO_VARIACION)}
+    activas = set(variaciones_activas(app))
+    estaban = [v for n, v in sorted(obras.items()) if n in activas]
+    nombres = {v.loc_name for v in estaban}
+    out = []
+    try:
+        for alt in alternativas:
+            queridas = set(alt.get('variaciones') or [])
+            # Solo las que el caso tenía activas: una obra apartada a mano no entra.
+            faltan = sorted(queridas - nombres)
+            for v in estaban:
+                if v.loc_name not in queridas and v.loc_name in set(variaciones_activas(app)):
+                    v.Deactivate()
+                elif v.loc_name in queridas and v.loc_name not in set(variaciones_activas(app)):
+                    v.Activate()
+            flujo = flujo_de_carga(app)
+            fila = {'clave': alt.get('clave'), 'variaciones': sorted(queridas & nombres),
+                    'faltan': faltan, 'medidas': medidas(alims, feeders, flujo['converged'])}
+            if flujo['converged']:
+                fila['geo'] = {f: geografia(alims.elm[f], todo) for f in feeders
+                               if alims.elm.get(f) is not None}
+            if faltan:
+                avisos.append(f"Alternativa {alt.get('clave')}: no están activas en el caso las "
+                              'variaciones ' + ', '.join(faltan))
+            out.append(fila)
+    finally:
+        actuales = set(variaciones_activas(app))
+        for v in estaban:
+            if v.loc_name not in actuales:
+                v.Activate()
+        # Deja el flujo como lo midió el estudio, con todas las obras.
+        flujo_de_carga(app)
+    return out
+
+
 def ejecutar(app, plan: dict) -> tuple[dict, int]:
     """Un estudio en un caso. Devuelve (informe, código de salida)."""
     estudio, rol = plan['estudio'], plan['caso']
@@ -484,6 +603,9 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
             todo = alims.app if len(alims.elm) == 1 else None
             informe['geo'] = {f: geografia(alims.elm[f], todo) for f in feeders
                               if alims.elm.get(f) is not None}
+            if rol == 'con' and plan.get('alternativas'):
+                informe['alternativas'] = _alternativas(app, alims, feeders, plan['alternativas'],
+                                                        todo, informe['avisos'])
         elif estudio == 'contingencias':
             motivo = _contingencias(app, plan, alims, feeders, informe)
             informe['medidas'] = base

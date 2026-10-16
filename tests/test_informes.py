@@ -328,7 +328,10 @@ def test_borrador_de_conclusiones_del_estudio():
     rec = etapa_recomendada(actual, etapas, LIMITES)
     texto = conclusiones_estudio(['AL01'], actual, rec, etapas, LIMITES, norma='NTCSE')
     assert '0,900 p.u.' in texto[0]
-    assert 'siguientes actividades' in texto[1]
+    # 017:RF-134: con dos etapas evaluadas, primero qué logra cada alternativa.
+    assert texto[1].startswith('Alternativa 1') and texto[2].startswith('Alternativa 2')
+    assert 'Se recomienda la alternativa 2' in texto[3]
+    assert any('siguientes actividades' in t for t in texto)
     assert 'Instalar un banco de condensadores de 300 kvar en el nodo N7.' in texto
     assert '0,960 p.u.' in texto[-1] and 'NTCSE' in texto[-1]
     rec_ok = etapa_recomendada(_caso(), [], LIMITES)
