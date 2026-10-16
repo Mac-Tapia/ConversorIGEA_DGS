@@ -245,6 +245,17 @@ Cargas nuevas en el tramo más cercano (cambia 007:RF-24 y 007:RF-31)
   EL SISTEMA no conectará por coordenadas ninguna carga y lo dirá una vez, con el
   alimentador (007:RF-28).
 
+Etapas de las variaciones (prueba en DIgSILENT con IN111 + TA225, 2026-10-15)
+
+- RF-74: CUANDO crea la etapa de una variación (carga nueva, ajuste u obra), EL SISTEMA le
+  dará una fecha de activación propia, la siguiente libre antes de la hora del caso de
+  estudio, de modo que la más nueva se aplique la última. Con tres o más etapas activas
+  de la misma fecha DIgSILENT no aplica ninguna y no lo dice: «Con proyecto» calculaba
+  sin las nueve cargas nuevas de TA225 ni las obras (cambia 007:RF-3 y 006:RF-19).
+- RF-75: CUANDO graba una obra de «Con proyecto», EL SISTEMA leerá la red y escribirá la
+  obra con las variaciones de cargas nuevas apartadas, las devolverá antes de su flujo y
+  avisará SI la obra y una carga graban el mismo objeto.
+
 ## Requisitos no funcionales
 
 - Determinismo: con el mismo proyecto, la troncal, los puntos del enlace y el tramo de

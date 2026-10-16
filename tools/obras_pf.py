@@ -65,7 +65,9 @@ from cargas_pf import (
     Alimentadores, activar_proyecto, cabecera_de, clave_pf, crear_variacion, error_inesperado, es_cable,
     flujo_de_carga, gps_de, leer_red, medir_estado, nombre_libre, nombre_pf, partir_tramo,
 )
-from casos_pf import NOMBRES, casos_del_proyecto, crear_con_proyecto
+from casos_pf import (
+    NOMBRES, casos_del_proyecto, crear_con_proyecto, es_de_carga_nueva,
+)
 from estudios_pf import medida
 
 from igea_dgs.carpeta_pf import buscar_proyecto, nombre_de_perfil
@@ -873,27 +875,14 @@ def _leer(app, plan, alims, feeders, obras, casos) -> tuple[dict, list, list[str
         # Sin «Con proyecto» todavía (se crea después de las obras de «Sin proyecto»,
         # 016:RF-12), su red es la de «Sin proyecto».
         (casos.get(rol) or casos['sin']).Activate()
-        for f in grupo:
-            elm = alims.elm.get(f)
-            if elm is None:
-                avisos.append(f'El alimentador {f} no está en el proyecto.')
-                continue
-            leido = leer_alimentador(elm)
-            # RF-102: si otro alimentador sale de la misma barra, comparte barra y fuente, y
-            # migrar esa barra lo cambiaría también a él.
-            cabecera = cabecera_de(elm)
-            leido['cabecera_compartida_con'] = sorted(
-                g for g, otro in alims.elm.items()
-                if g != f and cabecera is not None and cabecera_de(otro) is cabecera)
-            troncal, topologia, nombre_cabecera = (), None, ''
-            if f in con_troncal:
-                troncal, topologia, nombre_cabecera, avisos_troncal = leer_troncal(elm, f)
-                avisos += avisos_troncal
-            try:
-                redes[f] = red_de_lectura(f, leido, troncal=troncal, topologia=topologia,
-                                          cabecera=nombre_cabecera)
-            except ObrasError as exc:
-                avisos.append(str(exc))
+        # La obra se graba con las cargas nuevas apartadas (ver _apartar_cargas_nuevas): se
+        # lee la misma red sobre la que se escribe, sin sus barras de la troncal partida.
+        apartadas = _apartar_cargas_nuevas(app) if rol in casos and rol == 'con' else []
+        try:
+            _leer_grupo(grupo, alims, con_troncal, redes, avisos)
+        finally:
+            for v in apartadas:
+                v.Activate()
     casos['sin'].Activate()
     otro = None
     if plan.get('otro_proyecto'):
@@ -905,6 +894,46 @@ def _leer(app, plan, alims, feeders, obras, casos) -> tuple[dict, list, list[str
     return redes, tipos, avisos
 
 
+def _apartar_cargas_nuevas(app) -> list:
+    """Desactiva las variaciones de cargas nuevas (007) del caso activo y las devuelve.
+
+    DIgSILENT no deja grabar una etapa nueva con tres o más etapas activas de la misma
+    fecha, ni con ``Activate(1)`` ni cambiando el orden de reactivación: IN111 + TA225
+    (2026-10-15, sonda en el proyecto), con las nueve cargas nuevas de TA225 activas en
+    «Con proyecto», el enlace no grababa; con dos, sí. La 007 ya crea cada carga con las
+    demás apartadas; la obra hace lo mismo y se devuelven antes de su flujo.
+    """
+    apartadas = [v for v in (app.GetActiveNetworkVariations() or []) if es_de_carga_nueva(v)]
+    for v in apartadas:
+        v.Deactivate()
+    return apartadas
+
+
+def _leer_grupo(grupo, alims, con_troncal, redes, avisos) -> None:
+    """Lee la red de cada alimentador del grupo en el caso activo."""
+    for f in grupo:
+        elm = alims.elm.get(f)
+        if elm is None:
+            avisos.append(f'El alimentador {f} no está en el proyecto.')
+            continue
+        leido = leer_alimentador(elm)
+        # RF-102: si otro alimentador sale de la misma barra, comparte barra y fuente, y
+        # migrar esa barra lo cambiaría también a él.
+        cabecera = cabecera_de(elm)
+        leido['cabecera_compartida_con'] = sorted(
+            g for g, otro in alims.elm.items()
+            if g != f and cabecera is not None and cabecera_de(otro) is cabecera)
+        troncal, topologia, nombre_cabecera = (), None, ''
+        if f in con_troncal:
+            troncal, topologia, nombre_cabecera, avisos_troncal = leer_troncal(elm, f)
+            avisos += avisos_troncal
+        try:
+            redes[f] = red_de_lectura(f, leido, troncal=troncal, topologia=topologia,
+                                      cabecera=nombre_cabecera)
+        except ObrasError as exc:
+            avisos.append(str(exc))
+
+
 def _aplicar_una(app, plan, proyecto, casos, alims, obra: Obra, fila: dict, red,
                  redes=None) -> None:
     """Una obra en su variación y en sus casos. Deja en ``fila`` lo que pasó.
@@ -914,7 +943,63 @@ def _aplicar_una(app, plan, proyecto, casos, alims, obra: Obra, fila: dict, red,
     """
     roles = [ROL_DE_CASO[c] for c in obra.casos if ROL_DE_CASO[c] in casos]
     casos[roles[0]].Activate()
-    variacion, _etapa = crear_variacion(app, fila['variacion'], fila['variacion'])
+    apartadas = _apartar_cargas_nuevas(app) if roles[0] == 'con' else []
+    try:
+        _grabar_una(app, plan, proyecto, casos, alims, obra, fila, red, redes)
+    finally:
+        if apartadas:
+            casos['con'].Activate()
+            for v in apartadas:
+                v.Activate()
+    if apartadas and fila['variacion']:
+        # Una obra y una carga que graban el mismo objeto (p. ej. el mismo tramo de la
+        # troncal partido) se pisarían: se avisa, no se decide cuál manda.
+        # Por la ruta dentro de la etapa: «Cub_0» o «Terminal» se repiten en cada tramo.
+        propios = _grabados(_variacion(app, fila['variacion']))
+        comunes = sorted(set().union(*(_grabados(v) for v in apartadas)) & propios)
+        if comunes:
+            fila['avisos'].append('La obra y alguna carga nueva graban los mismos objetos: '
+                                  + ', '.join(comunes[:10]))
+    if not fila['variacion']:
+        return
+    variacion = _variacion(app, fila['variacion'])
+    # Activa solo en sus casos (RF-57); en el «Caso base», nunca (RF-58).
+    for rol in NOMBRES:
+        if rol not in casos:
+            continue
+        casos[rol].Activate()
+        if rol in roles:
+            variacion.Activate()
+        else:
+            variacion.Deactivate()
+
+    fila['casos_activos'], fila['flujo'] = [], {}
+    for rol in roles:                                                     # RF-66
+        _flujo_con_la_obra(app, proyecto, casos, obra, fila, variacion, rol)
+
+
+def _grabados(variacion) -> set[str]:
+    """Lo que graban las etapas de la variación, por su ruta relativa a la etapa."""
+    out = set()
+    for etapa in variacion.GetContents('*.IntSstage'):
+        raiz = etapa.GetFullName()
+        out |= {o.GetFullName().replace(raiz, '', 1) for o in etapa.GetContents('*', 1)}
+    return out
+
+
+def _variacion(app, nombre: str):
+    carpeta = app.GetProjectFolder('scheme')
+    return next(v for v in carpeta.GetContents('*.IntScheme', 1) if v.loc_name == nombre)
+
+
+def _grabar_una(app, plan, proyecto, casos, alims, obra: Obra, fila: dict, red,
+                redes) -> None:
+    """Crea la variación de la obra y graba en ella; si falla, la borra y deja el error."""
+    try:
+        variacion, _etapa = crear_variacion(app, fila['variacion'], fila['variacion'])
+    except RuntimeError as exc:
+        fila.update(variacion='', error=f'no se pudo crear la obra: {exc}')
+        return
     fila['variacion'] = variacion.loc_name
     try:
         ctx = Contexto(app, proyecto, obra, fila, red, alims.elm[obra.alimentador], alims=alims,
@@ -933,19 +1018,6 @@ def _aplicar_una(app, plan, proyecto, casos, alims, obra: Obra, fila: dict, red,
         fila.update(variacion='', error=f'no se pudo crear la obra: {exc}')
         return
 
-    # Activa solo en sus casos (RF-57); en el «Caso base», nunca (RF-58).
-    for rol in NOMBRES:
-        if rol not in casos:
-            continue
-        casos[rol].Activate()
-        if rol in roles:
-            variacion.Activate()
-        else:
-            variacion.Deactivate()
-
-    fila['casos_activos'], fila['flujo'] = [], {}
-    for rol in roles:                                                     # RF-66
-        _flujo_con_la_obra(app, proyecto, casos, obra, fila, variacion, rol)
 
 
 def _flujo_con_la_obra(app, proyecto, casos, obra: Obra, fila: dict, variacion, rol: str) -> None:
