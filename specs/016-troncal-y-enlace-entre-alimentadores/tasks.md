@@ -116,3 +116,9 @@ Cierre
       (RF-44 y los criterios de finalización)
       Hecho cuando: el informe de cada paso converge, o se anota por qué no, y el usuario
       lo da por bueno.
+      Avance del 2026-10-15 (desde la web, proyecto 20261015-170359_IGEA_IN111_TA225):
+      nueve cargas nuevas en TA225, enlace a 22,9 kV, migración de IN111 desde el nodo
+      del enlace (que lo cierra, RF-80) y segunda terna en siete tramos sobrecargados de
+      TA225: «Con proyecto» converge, tramo más cargado 98,1 %. Salieron RF-74 a RF-80.
+      La transferencia no aplica tras la migración (la parte que pasa ya no cuelga de
+      IN111). Falta la sección de toda la troncal de IN111 y el visto bueno del usuario.
