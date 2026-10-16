@@ -285,3 +285,28 @@ def test_informe_de_estudio_con_las_obras_ya_aplicadas(client, tmp_path):
     texto = '\n'.join(p.text for p in docx.Document(salida / fin['result']['informe']).paragraphs)
     assert 'AA12003D' in texto and '1,05 p.u.' in texto
     assert 'BARRA_VIEJA' not in texto, 'una obra cuya variación no está activa no entra'
+
+
+def test_informe_de_estudio_con_las_imagenes_del_flujo(client, tmp_path):
+    """017:RF-11b — sin imágenes del formulario, el informe las dibuja con la geografía y los
+    resultados de cada caso, y ya no quedan huecos de imagen."""
+    from test_mapa_informe import GEO
+
+    wid, salida = _espacio(client, tmp_path)
+    for nombre, u in (('estudio_sin_flujo_desequilibrado_a.json', 0.90),
+                      ('estudio_con_flujo_desequilibrado_b.json', 0.99)):
+        (salida / nombre).write_text(json.dumps({
+            'medidas': {'AL01': _medida(u)}, 'geo': {'AL01': GEO},
+            'obras_activas': ['Obra_consigna_AL01']}), encoding='utf-8')
+    from igea_dgs.web import services
+
+    ws = client.app.state.store.get(wid)
+    services.registrar_obra_aplicada(ws, '', 'Obra_consigna_AL01', {
+        'clase': 'consigna', 'alimentador': 'AL01', 'casos': ['Con proyecto'], 'consigna_pu': 1.05})
+    ws.save()
+    fin = esperar_trabajo(client, client.post(f'/api/workspaces/{wid}/informes/estudio',
+                                              json=FORMULARIO).json())
+    assert fin['status'] == 'done', fin.get('error')
+    assert not [h for h in fin['result']['huecos'] if h.startswith('imagen')], fin['result']['huecos']
+    documento = docx.Document(salida / fin['result']['informe'])
+    assert len(documento.inline_shapes) >= 6

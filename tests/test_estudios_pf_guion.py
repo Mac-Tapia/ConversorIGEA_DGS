@@ -491,3 +491,20 @@ def test_guion_por_linea_de_ordenes(tmp_path, monkeypatch):
     plan.write_text(json.dumps(_plan_guion(feeders, pasos=2)), encoding='utf-8')
     assert guion.main(args) == 0
     assert json.loads(salida.read_text(encoding='utf-8'))['codigo_guion'] == 0
+
+
+def test_el_flujo_guarda_la_geografia_para_las_imagenes_del_informe():
+    """017:RF-11b — el flujo deja, por alimentador, las barras con su GPS y su tensión y los
+    tramos con su trazado y su cargabilidad, con lo que el informe dibuja las imágenes."""
+    app, feeders = _red(random.Random(5))
+    for barra in app.proyecto.GetContents('*.ElmTerm', 1):
+        barra.GPSlat, barra.GPSlon = -14.0 - random.random() / 100, -75.7 + random.random() / 100
+    informe, rc = guion.ejecutar(app, _plan(feeders))
+    assert rc == 0, informe
+    for f in feeders:
+        geo = informe['geo'][f]
+        assert geo['barras'] and all(len(b) == 5 for b in geo['barras'])
+        assert any(b[3] is not None for b in geo['barras'])
+        assert all(len(t[1]) >= 2 for t in geo['tramos'])
+    informe, rc = guion.ejecutar(app, _plan(feeders, 'punto_apertura'))
+    assert 'geo' not in informe, 'solo los estudios de flujo la guardan'

@@ -92,6 +92,11 @@ el modelo no se incluyen.
 - RF-10: EL SISTEMA exportará, por cada caso del informe, una imagen del alimentador
   coloreado por tensión y otra coloreado por cargabilidad.
 - RF-11: EL SISTEMA exportará las imágenes del diagrama geográfico del alimentador.
+- RF-11b: SI DIgSILENT trabaja sin ventana y no puede dibujar el diagrama, ENTONCES EL
+  SISTEMA dibujará las imágenes con la posición GPS de cada barra y el trazado GPS de cada
+  tramo y con la tensión y la cargabilidad del flujo de DIgSILENT del caso, coloreadas con
+  las bandas del perfil (RF-115, RF-116). (2026-10-15: con el motor sin ventana `WriteWMF`
+  deja un fichero de 1 KB sin dibujo; los guiones trabajan siempre así.)
 - RF-12: SI el alimentador no tiene diagrama geográfico, ENTONCES EL SISTEMA exportará el
   esquemático y lo dirá al pie de la imagen.
 - RF-13: EL SISTEMA tomará del perfil de empresa la banda de tensión admitida y el umbral

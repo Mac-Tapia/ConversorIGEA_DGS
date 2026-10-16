@@ -267,7 +267,7 @@ def test_electro_dunas_es_un_perfil_mas():
     assert {k for k in datos if not k.startswith('_')} <= {
         'crs_origen', 'patron_sed_medicion', 'escala_diagrama', 'forma_alimentador',
         # 015:RF-54: el factor de potencia de las escaladas también es una convención.
-        'patron_libro_clientes', 'informes', 'calibracion'}
+        'patron_libro_clientes', 'informes', 'calibracion', 'estudios'}
 
 
 # --------------------------------------------------------------------------- RF-36

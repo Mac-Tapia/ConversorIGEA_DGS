@@ -57,6 +57,8 @@ python-calamine>=0.3
 # Informes de estudio y de factibilidad en Word (spec 017). Se escriben sobre el .docx
 # modelo de la empresa, que pone la cabecera, el logo y los estilos.
 python-docx>=1.1
+# Imágenes del informe de estudio (017:RF-11b): DIgSILENT sin ventana no dibuja.
+pillow>=10.0
 
 # Tablas de las exportaciones analíticas.
 pandas>=2.0
