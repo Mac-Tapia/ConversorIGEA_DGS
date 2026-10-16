@@ -2923,6 +2923,15 @@ def estudios_plan(ws: Workspace, project: str, feeders: list[str], estudios: lis
             'avisos': avisos, 'limites': plan['limites'], 'limite_s': plan['limite_s']}
 
 
+def _alternativas_del_proyecto(ws: Workspace, project: str, feeders: list[str]) -> list[dict]:
+    """Las alternativas del informe con las obras aplicadas del proyecto (017:RF-128)."""
+    from ..informes import alternativas_de_obras
+
+    marcados = set(feeders)
+    return alternativas_de_obras([a for a in ws.obras_aplicadas if a.get('project') == project
+                                  and a['obra'].get('alimentador') in marcados])
+
+
 def estudios_ejecutar(ws: Workspace, ctx: JobContext, token: str) -> dict:
     """Prepara los casos y ejecuta cada estudio en «Sin proyecto» y luego en «Con proyecto»
     (RF-25), cada uno en su proceso con su límite (RF-39, RF-40).
@@ -2970,6 +2979,11 @@ def estudios_ejecutar(ws: Workspace, ctx: JobContext, token: str) -> dict:
                        'estudio': estudio, 'caso': rol, 'objetivos': plan['objetivos'],
                        'tolerancia': plan['tolerancia'], 'stamp': token,
                        'native_action_context': plan['native_action_context']}
+                if rol == 'con' and estudio in ('flujo', 'flujo_desequilibrado'):
+                    # 017:RF-130: cada alternativa del informe medida en esta misma ejecución.
+                    alternativas = _alternativas_del_proyecto(ws, plan['project'], feeders)
+                    if len(alternativas) > 1:
+                        sub['alternativas'] = alternativas
                 rc, inf, report = _guion_pf(ws, ctx, 'estudios_pf.py', sub,
                                             nombre=f'estudio_{rol}_{estudio}', cancelable=False,
                                             limite_s=plan['limite_s'])
@@ -3198,10 +3212,42 @@ def informe_estudio(ws: Workspace, ctx: JobContext | None, formulario: dict) -> 
               and (proyecto is None or a.get('project') == proyecto)]
     clave = etapa_de_obras(obras)
     fuentes = [sin['_fichero']]
-    if con is not None and alimentador in (con.get('medidas') or {}) and clave:
+    geo_sin = (sin.get('geo') or {}).get(alimentador) or {}
+    # 017:RF-128: con alternativas medidas, una etapa por alternativa con sus obras propias;
+    # el plano de cada una resalta todas las obras que lleva (RF-133).
+    alternativas = [a for a in (con or {}).get('alternativas') or []
+                    if alimentador in (a.get('medidas') or {})]
+    resaltar: dict[str, dict] = {}
+    geo_de: dict[str, dict] = {}
+    existentes = sin['medidas'][alimentador].get('bancos') or []
+    if con is not None and len(alternativas) > 1:
+        por_variacion = {a['variacion']: a['obra'] for a in ws.obras_aplicadas
+                         if a['obra'].get('alimentador') == alimentador
+                         and (proyecto is None or a.get('project') == proyecto)}
+        previas: set[str] = set()
+        for alt in alternativas:
+            geo_alt = (alt.get('geo') or {}).get(alimentador) or {}
+            propias = [por_variacion[v] for v in alt['variaciones']
+                       if v in por_variacion and v not in previas]
+            todas = [por_variacion[v] for v in alt['variaciones'] if v in por_variacion]
+            previas |= set(alt['variaciones'])
+            # La consigna de cabecera es un ajuste de operación: va detrás de las obras.
+            propias.sort(key=lambda o: o.get('clase') == 'consigna')
+            descritas = [_obra_con_trechos(obra_para_informe(o), geo_alt, geo_sin) for o in propias]
+            etapas.append(Etapa(alt['clave'], caso=Caso.desde_medida(
+                CON_PROYECTO, alt['medidas'][alimentador], lim), obras=tuple(descritas),
+                anio=formulario.get('anio')))
+            resaltar[alt['clave']] = _resaltar(todas, geo_alt, geo_sin, existentes)
+            geo_de[alt['clave']] = geo_alt
+        fuentes.append(con['_fichero'])
+    elif con is not None and alimentador in (con.get('medidas') or {}) and clave:
+        geo_con = (con.get('geo') or {}).get(alimentador) or {}
         etapas.append(Etapa(clave, caso=Caso.desde_medida(CON_PROYECTO, con['medidas'][alimentador], lim),
-                            obras=tuple(obra_para_informe(o) for o in obras),
+                            obras=tuple(_obra_con_trechos(obra_para_informe(o), geo_con, geo_sin)
+                                        for o in obras),
                             anio=formulario.get('anio')))
+        resaltar[clave] = _resaltar(obras, geo_con, geo_sin, existentes)
+        geo_de[clave] = geo_con
         fuentes.append(con['_fichero'])
 
     def lineas(valor) -> list[str]:
@@ -3219,17 +3265,19 @@ def informe_estudio(ws: Workspace, ctx: JobContext | None, formulario: dict) -> 
     # resultados que guardó el flujo de cada caso (DIgSILENT sin ventana no dibuja).
     from ..mapa_informe import MapaError, imagenes_del_estado
 
-    for clave, estudio, estado in (('actual', sin, 'estado actual'),
-                                   *(((etapas[0].clave, con, 'estado proyectado'),)
-                                     if etapas else ())):
-        geo = ((estudio or {}).get('geo') or {}).get(alimentador)
+    varias = len(etapas) > 1
+    estados = [('actual', geo_sin, 'estado actual')] + [
+        (e.clave, geo_de.get(e.clave), f'alternativa {i}' if varias else 'estado proyectado')
+        for i, e in enumerate(etapas, 1)]
+    for clave, geo, estado in estados:
         if clave in imagenes or not geo:
             continue
         try:
             rutas = imagenes_del_estado(
                 geo, ws.out_dir / 'imagenes_informe', f'{nombre_seguro(alimentador)}_{clave}',
                 estado=estado, alimentador=alimentador,
-                bandas_tension=config.bandas_tension_pct, bandas_carga=config.bandas_cargabilidad_pct)
+                bandas_tension=config.bandas_tension_pct, bandas_carga=config.bandas_cargabilidad_pct,
+                obras=resaltar.get(clave))
         except MapaError as exc:
             if ctx is not None:
                 ctx.log(f'Sin imágenes del {estado}: {exc}')
@@ -3241,7 +3289,9 @@ def informe_estudio(ws: Workspace, ctx: JobContext | None, formulario: dict) -> 
                          numero=formulario.get('numero') or None,
                          antecedentes=lineas(formulario.get('antecedentes')),
                          descripcion=lineas(formulario.get('descripcion')),
-                         bancos=tuple(sin['medidas'][alimentador].get('bancos') or ()),
+                         bancos=tuple({**b, 'utm': _utm(b.get('gps')),                    # RF-135
+                                       'sed_cercana': _sed_cercana(b.get('gps'), geo_sin)}
+                                      for b in sin['medidas'][alimentador].get('bancos') or ()),
                          fijas=tuple(_fijas_de_la_calibracion(ws, sin, alimentador)))
     destino = ws.out_dir / f'informe_estudio_{nombre_seguro(alimentador)}_{uuid.uuid4().hex[:8]}.docx'
     try:
@@ -3252,6 +3302,80 @@ def informe_estudio(ws: Workspace, ctx: JobContext | None, formulario: dict) -> 
         ctx.log(f'Informe de estudio de {alimentador}: {destino.name} ({len(huecos)} hueco(s)).')
     return {'informe': destino.name, 'json': destino.with_suffix('.json').name, 'huecos': huecos,
             'estudios': fuentes, 'etapa': clave}
+
+
+def _utm(lat_lon) -> list[float] | None:
+    """Coordenadas en el CRS del perfil (UTM en Electro Dunas), para la cuadrilla; sin
+    perfil o sin pyproj, nada (P13: no se supone un CRS)."""
+    from ..perfil_empresa import datos_perfil
+
+    from ..geography import make_transformer
+
+    crs = (datos_perfil() or {}).get('crs_origen')
+    if not crs or not lat_lon:
+        return None
+    try:
+        este, norte = make_transformer('EPSG:4326', crs).transform(lat_lon[1], lat_lon[0])
+    except (ImportError, ValueError):
+        return None
+    return [round(este, 1), round(norte, 1)]
+
+
+def _sed_cercana(gps, geo: dict) -> list | None:
+    """La SED más cercana a un banco y su distancia en m (017:RF-135).
+
+    En CA101 dos bancos existentes están en el nodo «14717», un número de sección que no
+    dice nada al lector: a 18 m está SE20730. Las SED son las barras de baja tensión de la
+    geografía, con el nombre que les da el conversor («<SED>_BT»).
+    """
+    import math
+
+    if not gps:
+        return None
+    mejor = None
+    for nombre, lat, lon, _u, kv in geo.get('barras') or []:
+        if lat is None or not kv or kv >= 1.0:
+            continue
+        dx = math.radians(lon - gps[1]) * math.cos(math.radians(lat))
+        d = 6371000.0 * math.hypot(dx, math.radians(lat - gps[0]))
+        if mejor is None or d < mejor[1]:
+            mejor = [nombre.removesuffix('_BT'), round(d)]
+    return mejor
+
+
+def _obra_con_trechos(obra: dict, geo: dict, geo_sin: dict) -> dict:
+    """La obra de conductor con sus trechos desde-hasta (017:RF-132)."""
+    from dataclasses import asdict
+
+    from ..informes import trechos_de_conductor
+
+    if obra.get('tipo') != 'conductor' or not obra.get('tramos'):
+        return obra
+    trechos = (trechos_de_conductor(geo, obra['tramos'], geo_sin)
+               or trechos_de_conductor(geo_sin, obra['tramos'], geo_sin))
+    if not trechos:
+        return obra
+    filas = []
+    for t in trechos:
+        fila = asdict(t)
+        fila['desde_utm'], fila['hasta_utm'] = _utm(t.desde_gps), _utm(t.hasta_gps)
+        fila['desde_sed'], fila['hasta_sed'] = _sed_cercana(t.desde_gps, geo), _sed_cercana(t.hasta_gps, geo)
+        filas.append(fila)
+    return {**obra, 'trechos': filas}
+
+
+def _resaltar(obras: list[dict], geo: dict, geo_sin: dict, existentes=()) -> dict:
+    """Lo que el plano de una alternativa resalta: tramos cambiados, bancos nuevos y los
+    existentes en su nodo (017:RF-133, RF-135)."""
+    from ..informes import trechos_de_conductor
+
+    tramos = [t for o in obras if o.get('clase') == 'seccion' for t in o.get('tramos') or []]
+    trechos = trechos_de_conductor(geo, tramos, geo_sin) if tramos else []
+    return {'tramos': tramos, 'trechos': [(t.desde, t.hasta) for t in trechos],
+            'bancos': [(o.get('barra') or o.get('nodo') or '', float(o.get('q_kvar') or 0))
+                       for o in obras if o.get('clase') == 'condensador'],
+            'existentes': [(b.get('nodo') or b.get('barra') or '', float(b.get('kvar') or 0))
+                           for b in existentes if b.get('en_servicio')]}
 
 
 def _cargas_nuevas_aplicadas(ws: Workspace, project: str) -> list[dict]:

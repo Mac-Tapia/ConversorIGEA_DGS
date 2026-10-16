@@ -94,3 +94,14 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       informe. (RF-126, RF-127)
       Hecho cuando: las pruebas que citan 017:RF-126 y RF-127 pasan y el informe de
       estudio de TA225 en DIgSILENT trae la etapa.
+
+- [ ] T17. Alternativas de obras en el informe de estudio: bancos y cambio de sección,
+      con el trecho del conductor desde–hasta, su plano y los bancos existentes por nodo.
+      (RF-128 a RF-135)
+      Hecho cuando: las pruebas que citan 017:RF-128 a RF-135 pasan y el informe de
+      CA101 medido en DIgSILENT trae las dos alternativas.
+      Estado 2026-10-16: pruebas en `tests/test_informe_alternativas.py`; CA101 medido en
+      DIgSILENT (alternativa 1, bancos: 0,883 p.u. y 108 %, no cumple; alternativa 2, con
+      el cambio de sección: 0,985 p.u. y 63 %, cumple; un trecho de 6,58 km en 21 tramos de
+      14812 hasta SE20701) e informe generado; falta que el usuario lo dé por bueno, y que
+      la web lo haga al ejecutar los estudios (el plan ya lleva las alternativas).

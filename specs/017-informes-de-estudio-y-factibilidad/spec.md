@@ -410,6 +410,41 @@ Apartado 5.1 · Conexión de un cliente nuevo
 - RF-127: EL SISTEMA describirá en el informe la terna con sus tramos y el enlace con su
   largo, su conductor y sus dos extremos.
 
+Alternativas de obras (usuario, 2026-10-16, sobre el informe de CA101: «primero con la
+primera alternativa solo conectando los bancos y como segunda alternativa cambiando la
+sección del conductor; indicar en qué tramo va a ser el cambio, desde qué punto hasta qué
+punto, y se debe ver el plano modificado»). Hasta entonces el informe mostraba una sola
+etapa con todas las obras juntas y no se sabía qué lograban los bancos solos.
+
+- RF-128: CUANDO las obras de «Con proyecto» de un alimentador sean de más de una etapa de
+  RF-32, EL SISTEMA presentará el escenario proyectado como alternativas numeradas, una
+  por etapa con obras, en el orden de RF-32, cada una sumada a las anteriores (RF-32).
+- RF-129: EL SISTEMA no hará de la consigna de cabecera una alternativa propia: es un
+  ajuste de operación y entra en la alternativa siguiente, o en la última si no hay
+  siguiente. (En CA101: alternativa 1, los bancos; alternativa 2, el cambio de sección con
+  los bancos y la consigna.)
+- RF-130: CUANDO se ejecute el flujo de «Con proyecto» con alternativas, EL SISTEMA medirá
+  cada alternativa en esa misma ejecución con solo las variaciones de sus obras activas,
+  junto con su geografía, y al terminar dejará activas las variaciones que lo estaban.
+- RF-131: EL SISTEMA guardará en la geografía de cada tramo sus dos barras, su tipo de
+  línea y su longitud.
+- RF-132: EL SISTEMA describirá el cambio de conductor por trechos continuos: barra de
+  inicio y barra de fin, con sus coordenadas, número de tramos, longitud y conductor
+  actual y nuevo, y dará la lista de tramos de cada trecho.
+- RF-133: EL SISTEMA dará el plano de cada alternativa con sus obras resaltadas: los
+  tramos con el conductor nuevo en trazo grueso con el inicio y el fin rotulados, y los
+  bancos de condensadores nuevos señalados en su barra.
+- RF-134: EL SISTEMA dará una tabla comparativa del estado actual y de cada alternativa
+  (tensión mínima, cargabilidad máxima, pérdidas y si cumple) y recomendará la primera
+  alternativa que cumpla la banda y el umbral (RF-33); las conclusiones dirán qué logra
+  cada alternativa.
+- RF-135: EL SISTEMA nombrará cada banco de condensadores existente por el nodo de la red
+  donde está, con sus coordenadas, y no por la barra auxiliar de DIgSILENT: si la barra
+  tiene el nombre genérico («Terminal», «Terminal(1)»), dará la subestación que la
+  contiene o el primer nodo con nombre propio al que se conecta. La alternativa de bancos
+  dirá qué bancos existentes siguen en servicio y en qué nodos (usuario, 2026-10-16:
+  «también se debe mencionar los bancos existentes y en qué nodos están»).
+
 Apartado 5.2 · Análisis eléctrico
 
 - RF-83: EL SISTEMA mostrará en 5.2 las cinco etapas de obras de RF-32, en su orden, cada
