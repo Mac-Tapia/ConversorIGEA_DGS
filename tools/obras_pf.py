@@ -72,6 +72,8 @@ from casos_pf import (
 from estudios_pf import medida
 
 from igea_dgs.carpeta_pf import buscar_proyecto, nombre_de_perfil
+from igea_dgs.perfil_empresa import datos_perfil
+from igea_dgs.vias import ruta_por_vias
 from igea_dgs.native_action import native_action_block_report
 from igea_dgs.obras_pf import (
     ATRIBUTOS_TIPO, BANDA_TENSION_PU, SOLO_CON_PROYECTO, Obra, ObrasError, RedAlimentador, Tipo,
@@ -81,7 +83,7 @@ from igea_dgs.obras_pf import (
 from igea_dgs.estudios_pf import EstudiosError, limites_de_perfil
 from igea_dgs.naming import feeder_short_name
 from igea_dgs.obras_pf import nombre_copia, punto_indicado
-from igea_dgs.troncal import (Conexion, TroncalError, _metros, aguas_abajo, extremos_del_enlace,
+from igea_dgs.troncal import (Conexion, TroncalError, aguas_abajo, extremos_del_enlace,
                               punto_en_troncal)
 from igea_dgs.troncal import troncal as troncal_de
 
@@ -682,7 +684,10 @@ def construir_enlace(ctx) -> None:
     destino = _barra_de(ctx, llegada, o.cede, 'C')
     a = gps_de(origen) or salida.gps
     b = gps_de(destino) or llegada.gps
-    largo_m = math.hypot(*_metros(b, a))
+    # RF-81 a RF-87: por la vía, con sus curvas, si el perfil habilita un enrutador.
+    ruta = ruta_por_vias(tuple(a), tuple(b), datos_perfil().get('vias'))
+    fila['avisos'] += ruta.avisos
+    largo_m = ruta.largo_m
     red = origen.GetParent()
     linea = red.CreateObject('ElmLne', nombre_libre(red, 'ElmLne', f'Enlace_{o.alimentador}_{o.cede}'))
     linea.typ_id = ctx.tipo('TypLne', fila['tipo'])                                  # RF-38
@@ -699,7 +704,7 @@ def construir_enlace(ctx) -> None:
             f'{origen.loc_name} ({origen.uknom:g} kV) y {destino.loc_name} ({destino.uknom:g} kV) '
             f'tienen tensiones distintas: la línea {linea.loc_name} queda fuera de servicio '
             f'hasta migrar la parte de {o.cede} que pasa.')
-    linea.SetAttribute('GPScoords', [list(a), list(b)])                               # RF-35
+    linea.SetAttribute('GPScoords', [list(p) for p in ruta.puntos])                  # RF-35
     cubiculos = []
     for lado, (barra, cola) in enumerate(((origen, o.alimentador), (destino, o.cede))):
         cub = barra.CreateObject('StaCubic', nombre_pf(f'Cub_{linea.loc_name}_{cola}'))
@@ -711,6 +716,7 @@ def construir_enlace(ctx) -> None:
         raise RuntimeError(f'el seccionador {seccionador.loc_name} no quedó abierto')
     fila['enlace'] = {**fila.get('enlace', {}), 'linea': linea.loc_name,
                       'seccionador': seccionador.loc_name, 'largo_m': round(largo_m, 1),
+                      'trazado': ruta.resumen(),
                       'origen': {**_describir(salida), 'barra_final': origen.loc_name},
                       'destino': {**_describir(llegada), 'barra_final': destino.loc_name},
                       'candidatos': len(candidatos)}
@@ -741,9 +747,19 @@ def _tipo_a_tension(ctx, objeto, clase: str, campo: str, origen: float, destino:
     return copia
 
 
-def _barras_de(linea) -> set[str]:
-    return {c.cterm.loc_name for c in (getattr(linea, 'bus1', None), getattr(linea, 'bus2', None))
-            if c is not None and getattr(c, 'cterm', None) is not None}
+def _cubiculos(app, linea) -> list:
+    """Los cubículos de los extremos de ``linea``: ``bus1``/``bus2`` en DIgSILENT; sin ellos
+    (el doble de las pruebas), los del proyecto que la apuntan."""
+    if hasattr(linea, 'bus1'):
+        return [c for c in (linea.bus1, getattr(linea, 'bus2', None)) if c is not None]
+    proyecto = app.GetActiveProject()
+    return [c for c in (proyecto.GetContents('*.StaCubic', 1) if proyecto else [])
+            if getattr(c, 'obj_id', None) is linea]
+
+
+def _barras_de(app, linea) -> set[str]:
+    return {c.cterm.loc_name for c in _cubiculos(app, linea)
+            if getattr(c, 'cterm', None) is not None}
 
 
 def construir_migracion(ctx) -> None:
@@ -781,7 +797,7 @@ def construir_migracion(ctx) -> None:
     # los que cierran un anillo quedaban a 10 kV entre barras de 22,9 y el flujo no se
     # ejecutaba (IN111, SEC_1091_1059394 y SEC_1091_1059767, 2026-10-15).
     anillo = [n for n, ln in lineas.items() if n not in set(parte.tramos)
-              and len(_barras_de(ln)) == 2 and _barras_de(ln) <= dentro]
+              and len(_barras_de(ctx.app, ln)) == 2 and _barras_de(ctx.app, ln) <= dentro]
     nuevos = []
     for nombre in list(parte.tramos) + anillo:                                      # RF-56
         linea = lineas.get(nombre)
@@ -806,10 +822,12 @@ def construir_migracion(ctx) -> None:
                               f'{", ".join(nuevos)}; pasan también a {destino:g} kV.')
     # RF-76, RF-80: el enlace que llega a la parte que pasa ya une barras de la misma
     # tensión; se pone en servicio y se cierra, porque esa parte solo se alimenta por él.
-    datos_red = ctx.app.GetProjectFolder('netdat')
-    # Fuera de servicio no la da GetCalcRelevantObjects: se busca en los datos de red.
-    for linea in (datos_red.GetContents('Enlace_*.ElmLne', 1) if datos_red else []):
-        barras = [getattr(c, 'cterm', None) for c in (linea.bus1, linea.bus2) if c]
+    # Fuera de servicio no la da GetCalcRelevantObjects: se busca en los datos de red, o en
+    # el proyecto si no hay esa carpeta.
+    donde = ctx.app.GetProjectFolder('netdat') or ctx.app.GetActiveProject()
+    for linea in (donde.GetContents('Enlace_*.ElmLne', 1) if donde else []):
+        cubiculos = _cubiculos(ctx.app, linea)
+        barras = [getattr(c, 'cterm', None) for c in cubiculos]
         if int(getattr(linea, 'outserv', 0)) and any(b is not None and b.loc_name in dentro
                                                      for b in barras)                 and all(b is not None and math.isclose(float(b.uknom), destino, rel_tol=1e-3)
                         for b in barras):
@@ -818,8 +836,8 @@ def construir_migracion(ctx) -> None:
             # entrada) y sin el enlace cerrado quedaba sin servicio: 142 SED de IN111 en
             # «Con proyecto», y la transferencia no hallaba camino (2026-10-15).
             cerrados = []
-            for cub in (linea.bus1, linea.bus2):
-                for sw in (cub.GetContents('*.StaSwitch') if cub is not None else []):
+            for cub in cubiculos:
+                for sw in (cub.GetContents('*.StaSwitch') or []):
                     if int(getattr(sw, 'on_off', 1)) == 0:
                         sw.on_off = 1
                         cerrados.append(sw.loc_name)

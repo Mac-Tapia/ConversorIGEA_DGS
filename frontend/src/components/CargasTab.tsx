@@ -484,8 +484,9 @@ export function CargasTab() {
             <span>Distancia mínima a una barra (m)</span>
             <input value={minima} inputMode="decimal" placeholder="en blanco: partir siempre"
               onChange={(e) => { setMinima(e.target.value); setPlan(null); }} />
-            <small className="muted">Cada carga se conecta en el punto más cercano de la troncal, partiendo el tramo con
-              una barra nueva; si ese punto queda más cerca de una barra que esta distancia, se conecta en la barra.</small>
+            <small className="muted">Cada carga va en sus coordenadas y se conecta en el punto más cercano de la red de
+              media de su alimentador (016:RF-78), partiendo el tramo con una barra nueva; si ese punto queda más cerca
+              de una barra que esta distancia, se conecta en la barra.</small>
           </label>
 
           <Toggle label="Evaluación técnico-económica de las cargas nuevas (valor actual neto en DIgSILENT)"

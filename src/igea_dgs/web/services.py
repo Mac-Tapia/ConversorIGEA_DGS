@@ -2837,8 +2837,10 @@ def obras_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             for fila in informe.get('obras') or []:
                 n = int(fila.get('obra') or 0)
                 if 1 <= n <= len(elegidas) and elegidas[n - 1]['id'] in aplicadas:
+                    # 017:RF-127: con lo que dejó la obra (el largo y los extremos del enlace).
+                    hecho = {'enlace': fila['enlace']} if fila.get('enlace') else {}
                     registrar_obra_aplicada(ws, plan['project'], fila['variacion'],
-                                            elegidas[n - 1])
+                                            {**elegidas[n - 1], **hecho})
             ws.obras = [o for o in ws.obras if o['id'] not in aplicadas]
             ws.save()
     return {'returncode': rc, 'report': report.name, 'project': plan['project'],

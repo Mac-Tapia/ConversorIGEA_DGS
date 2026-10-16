@@ -109,7 +109,7 @@ Cierre
       Hecha el 2026-10-15: anotados 007:RF-24, RF-28, RF-30, RF-31 y 011:RF-57, RF-87. Los
       73 RF citados; RF-44 también con una prueba del doble (el enlace de la obra es una
       línea con seccionador abierto), además de la de DIgSILENT de la T14.
-- [ ] T14. Prueba en DIgSILENT con el proyecto de IN111 y TA225: toda la troncal de IN111
+- [x] T14. Prueba en DIgSILENT con el proyecto de IN111 y TA225: toda la troncal de IN111
       a 120 mm² en «Sin proyecto» y «Con proyecto»; el enlace abierto solo en «Con
       proyecto», partiendo un tramo de cada troncal; la migración a 22,9 kV desde el nodo
       que indique el operador; y la transferencia de IN111 a TA225 por el enlace.
@@ -121,4 +121,15 @@ Cierre
       del enlace (que lo cierra, RF-80) y segunda terna en siete tramos sobrecargados de
       TA225: «Con proyecto» converge, tramo más cargado 98,1 %. Salieron RF-74 a RF-80.
       La transferencia no aplica tras la migración (la parte que pasa ya no cuelga de
-      IN111). Falta la sección de toda la troncal de IN111 y el visto bueno del usuario.
+      IN111). Cerrada el 2026-10-16: el usuario aclaró que la sección de la troncal de
+      IN111 era solo actualizar lo existente.
+
+- [x] T15. Trazado del enlace por la vía: `vias.py` con pruebas que inyectan la respuesta
+      de OSRM (ruta, sin ruta, error de red, extremo lejos de la vía, sin perfil), el
+      enlace en `obras_pf.py` con su trazado y el perfil de Electro Dunas con `vias`.
+      (RF-81 a RF-87)
+      Hecho cuando: las pruebas que citan 016:RF-81 a RF-87 pasan y un enlace en DIgSILENT
+      sale con el trazado de la vía.
+      Hecho el 2026-10-16: enlace TA225-IN111 por la vía, 6,27 km y 140 vértices (3,62 km en
+      recta), 9,4 m fuera de vía; «Con proyecto» converge con la migración, las nueve
+      cargas y la segunda terna en siete tramos (máximo 98,1 %).

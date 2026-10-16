@@ -14,6 +14,8 @@
   "_comentario_estudios": "Límites de los estudios y del informe (spec 011 y 017): NTCSE, ±5 % de la tensión nominal y cargabilidad hasta el 100 %.",
   "estudios": {"tension_min_pu": 0.95, "tension_max_pu": 1.05, "cargabilidad_max_pct": 100},
   "calibracion": {"factor_potencia_cargas": 0.98, "factor_potencia_minimo_fijas": 0.98},
+  "_comentario_vias": "Enrutador de vías para trazar el enlace por la vía pública (spec 016, RF-81 a RF-87), elegido por el usuario el 2026-10-16: OSRM sobre OpenStreetMap. Solo salen las coordenadas de los dos extremos.",
+  "vias": {"servicio": "osrm", "url": "https://router.project-osrm.org", "perfil": "driving", "fuera_de_via_max_m": 50, "tiempo_max_s": 10},
   "informes": {
     "bandas_tension_pct": [85, 90, 95, 105],
     "bandas_cargabilidad_pct": [80, 90, 95, 105, 150],
