@@ -804,8 +804,8 @@ def construir_migracion(ctx) -> None:
         fila['avisos'].append(f'La parte que pasa tiene tramos que no estaban en la simulación '
                               f'(los que partió un enlace o cierran un anillo): '
                               f'{", ".join(nuevos)}; pasan también a {destino:g} kV.')
-    # RF-76: el enlace que llega a la parte que pasa ya une barras de la misma tensión; se
-    # pone en servicio, con su seccionador abierto como lo dejó la obra de enlace.
+    # RF-76, RF-80: el enlace que llega a la parte que pasa ya une barras de la misma
+    # tensión; se pone en servicio y se cierra, porque esa parte solo se alimenta por él.
     datos_red = ctx.app.GetProjectFolder('netdat')
     # Fuera de servicio no la da GetCalcRelevantObjects: se busca en los datos de red.
     for linea in (datos_red.GetContents('Enlace_*.ElmLne', 1) if datos_red else []):
@@ -814,8 +814,19 @@ def construir_migracion(ctx) -> None:
                                                      for b in barras)                 and all(b is not None and math.isclose(float(b.uknom), destino, rel_tol=1e-3)
                         for b in barras):
             linea.outserv = 0
+            # RF-80: la parte que pasa ya no cuelga de su alimentador (se abrió el tramo de
+            # entrada) y sin el enlace cerrado quedaba sin servicio: 142 SED de IN111 en
+            # «Con proyecto», y la transferencia no hallaba camino (2026-10-15).
+            cerrados = []
+            for cub in (linea.bus1, linea.bus2):
+                for sw in (cub.GetContents('*.StaSwitch') if cub is not None else []):
+                    if int(getattr(sw, 'on_off', 1)) == 0:
+                        sw.on_off = 1
+                        cerrados.append(sw.loc_name)
+            cuales = ', '.join(cerrados) or 'sin seccionador'
             fila['avisos'].append(f'El enlace {linea.loc_name} ya une barras de {destino:g} kV: '
-                                  f'queda en servicio, con su seccionador abierto.')
+                                  f'queda en servicio y cerrado ({cuales}); la parte que pasa '
+                                  f'se alimenta por él.')
     otros = [s.loc_name for s in ctx.elm.GetObjs('ElmShnt') + ctx.elm.GetObjs('ElmVoltreg')
              if getattr(getattr(getattr(s, 'bus1', None), 'cterm', None), 'loc_name', None) in dentro]
     if otros:

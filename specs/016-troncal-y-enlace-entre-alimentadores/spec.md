@@ -275,6 +275,10 @@ Etapas de las variaciones (prueba en DIgSILENT con IN111 + TA225, 2026-10-15)
 - RF-79: CUANDO mide una carga nueva en «Con proyecto», EL SISTEMA lo hará con el
   escenario de operación del caso activo, que guarda las demandas calibradas, y lo
   volverá a apagar sin guardar para escribir la siguiente.
+- RF-80: CUANDO la migración deja en servicio un enlace que llega a la parte que pasa,
+  EL SISTEMA cerrará su seccionador y lo dirá: esa parte ya no cuelga de su alimentador
+  (RF-58 abre el tramo de entrada) y sin el enlace cerrado queda sin servicio (cambia
+  RF-62 para este caso).
 
 ## Requisitos no funcionales
 
