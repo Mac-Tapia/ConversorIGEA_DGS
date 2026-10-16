@@ -513,3 +513,49 @@ def test_con_proyecto_recibe_lo_del_operador_en_sin_proyecto(guion):
     assert operador.loc_name in _activas_en(app, 'Con proyecto')
     assert operador.loc_name in _activas_en(app, 'Sin proyecto')
     assert any(operador.loc_name in a and 'Activadas en «Con proyecto»' in a for a in segundo['avisos'])
+
+
+def test_la_carga_con_sufijo_de_la_etapa_se_reutiliza(guion):
+    """014:RF-29 — DIgSILENT guarda la carga en la etapa como «N1(2)» (la SED y su barra ya
+    se llaman N1 y N1(1)); repetir la inserción la reconoce y reutiliza su variación, no
+    crea otra que parta de nuevo el tramo (PN107, CH_9, 2026-10-16)."""
+    app = _app()
+    primero, rc = guion.ejecutar(app, _plan(['F1'], nuevas=[_nueva('N1', **_cerca(app, 'F1_B2'))]),
+                                 simular=False)
+    assert rc == 0, primero
+    var = f'Carga_N1_F1_{STAMP}'
+    (etapa,) = _variaciones(app)[var].GetContents('*.IntSstage')
+    (carga,) = [c for c in etapa.GetContents('*.ElmLod', 1) if c.loc_name == 'N1']
+    carga.loc_name = 'N1(2)'
+    _caso(app, 'Con proyecto').Activate()
+    _variaciones(app)[var].Deactivate()
+    _caso(app, 'Caso base').Activate()
+
+    segundo, rc = guion.ejecutar(app, _plan(['F1'], nuevas=[_nueva('N1', **_cerca(app, 'F1_B2'))]),
+                                 simular=False)
+
+    assert rc == 0, segundo
+    assert sorted(_variaciones(app)) == [var] and segundo['cargas'] == []
+    assert [x['variacion'] for x in segundo['reutilizadas']] == [var]
+
+
+def test_la_carga_en_el_mismo_punto_con_otro_nombre_se_reutiliza(guion):
+    """014:RF-30 — la fila del libro trae otro nombre pero el mismo punto que una carga nueva
+    ya creada: es esa carga, se reutiliza su variación y el motivo dice con qué nombre está;
+    otra fila a unos 11 m sí se crea."""
+    app = _app()
+    punto = _cerca(app, 'F1_B2')
+    primero, rc = guion.ejecutar(app, _plan(['F1'], nuevas=[_nueva('N1', **punto)]), simular=False)
+    assert rc == 0, primero
+    var = f'Carga_N1_F1_{STAMP}'
+    _caso(app, 'Caso base').Activate()
+
+    lejos = {**punto, 'lat': punto['lat'] + 0.0001}
+    segundo, rc = guion.ejecutar(app, _plan(['F1'], nuevas=[_nueva('OTRO', **punto),
+                                                           _nueva('N3', **lejos)]), simular=True)
+
+    assert rc == 0, segundo
+    (reuso,) = segundo['reutilizadas']
+    assert reuso['sed'] == 'OTRO' and reuso['variacion'] == var
+    assert 'como N1' in reuso['motivo'] and '014:RF-30' in reuso['motivo']
+    assert [c['sed'] for f in segundo['feeders'] for c in f['crearian']] == ['N3']

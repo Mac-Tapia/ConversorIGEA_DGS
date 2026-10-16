@@ -302,6 +302,21 @@ Osinergmin»; servicio elegido: OpenStreetMap)
 - RF-87: EL SISTEMA dirá en el informe de la obra el largo por la vía, el de la recta, los
   metros fuera de vía y el servicio usado.
 
+Cable hasta la carga nueva (usuario, 2026-10-16)
+
+- RF-88: CUANDO conecta una carga nueva, en bloque o sola, EL SISTEMA pondrá primero el nodo
+  de media en el tramo (RF-46) o usará la barra (RF-20, RF-48); SI el punto de la carga
+  queda a más de 25 m de ese nodo, ENTONCES tenderá un cable desde el nodo hasta el punto,
+  conectado al lado de alta de la SED nueva; a 25 m o menos, la SED colgará del nodo sin
+  cable. La simulación y el informe dirán por carga si lleva cable.
+- RF-89: CUANDO termina de crear cargas nuevas u obras, EL SISTEMA dibujará en el diagrama,
+  con «Con proyecto» activo, cada barra de media y cada línea de más de 1 m de la red que
+  tenga coordenadas y no tenga símbolo: la barra en su punto y la línea por su trazado,
+  con los extremos en el símbolo de sus barras, y lo dirá en el informe. `SplitLine` y la
+  obra de enlace no dibujan: en IN111 + TA225 (2026-10-16) el enlace por la vía estaba en
+  «Con proyecto» y no se veía, ni la mitad nueva de cada tramo partido ni su nodo. El
+  cable de RF-88 llevará como trazado su nodo y el punto de la carga.
+
 ## Requisitos no funcionales
 
 - Determinismo: con el mismo proyecto, la troncal, los puntos del enlace y el tramo de

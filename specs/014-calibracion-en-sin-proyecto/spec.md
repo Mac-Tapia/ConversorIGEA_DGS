@@ -126,6 +126,16 @@ Inserción sin duplicados
 - RF-28: SI una carga ya existente difiere de la fila del libro en potencia o en punto,
   ENTONCES EL SISTEMA no la creará otra vez y avisará de cada diferencia con el valor
   existente y el del libro.
+- RF-29: EL SISTEMA reconocerá la carga de RF-27 en una variación también cuando DIgSILENT
+  le ha añadido un sufijo «(n)» al guardarla en la etapa, donde la SED, su barra y su carga
+  comparten carpeta y nombre (PN107, 2026-10-16: la carga CH_9 estaba guardada como
+  «CH_9(2)», no se reconoció, se creó otra en una segunda variación que partía otra vez el
+  trozo de la primera y «Con proyecto» no ejecutaba el flujo).
+- RF-30: SI una fila del libro no coincide por nombre con ninguna carga nueva ya creada,
+  ENTONCES EL SISTEMA la buscará también por su punto: la carga nueva de su alimentador a
+  1 m o menos de sus coordenadas es esa misma carga, se trata con RF-24 a RF-26 y el
+  motivo dice con qué nombre está (usuario, 2026-10-16: «la comparación podría ser por el
+  nombre y el mismo punto de coordenadas»).
 
 ## Requisitos que esta spec cambia
 

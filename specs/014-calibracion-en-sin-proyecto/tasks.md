@@ -52,3 +52,10 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       con las variables `IGEA_*` pasa.
       Hecho el 2026-10-14: los 28 RF citados; suite con las cinco variables, 1753 correctas
       (`docs/VERIFICACION_SPECS_2026-10-14.md`).
+- [x] T11. La carga de una variación se reconoce también con el sufijo «(n)» que le pone la
+      etapa (PN107, 2026-10-16), y por su punto con otro nombre. (RF-29, RF-30)
+      Hecho cuando: las pruebas que citan 014:RF-29 y RF-30 pasan y reaplicar las cargas de PN107 en
+      DIgSILENT reutiliza la variación de CH_9 en vez de crear otra.
+      Hecho el 2026-10-16: borrada la variación duplicada de CH_9 (14:05) y sus símbolos;
+      reaplicada la tanda en DIgSILENT, CH_9 se reutiliza (Carga_CH_9_PN107_20261016_100306),
+      no se crea ninguna y «Sin proyecto» y «Con proyecto» ejecutan el flujo.
