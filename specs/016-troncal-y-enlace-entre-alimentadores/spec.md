@@ -255,6 +255,26 @@ Etapas de las variaciones (prueba en DIgSILENT con IN111 + TA225, 2026-10-15)
 - RF-75: CUANDO graba una obra de «Con proyecto», EL SISTEMA leerá la red y escribirá la
   obra con las variaciones de cargas nuevas apartadas, las devolverá antes de su flujo y
   avisará SI la obra y una carga graban el mismo objeto.
+- RF-76: SI los dos extremos de la obra de enlace tienen tensiones distintas, ENTONCES EL
+  SISTEMA creará la línea fuera de servicio y lo dirá, y la migración que iguale las
+  tensiones la pondrá en servicio con el seccionador abierto; la migración cambiará
+  también el tipo de las líneas con sus dos barras en la parte que pasa aunque no sean
+  del árbol (las que cierran un anillo). DIgSILENT no ejecuta el flujo con una línea en
+  servicio entre tensiones distintas, aunque su seccionador esté abierto.
+- RF-77: CUANDO una carga nueva cae en un tramo que ya partió otra carga de la misma
+  aplicación, EL SISTEMA no lo partirá otra vez: la conectará en el nodo de esas cargas
+  más cercano a sus coordenadas, con su propia línea hasta su punto, con las variaciones
+  de las anteriores activas, y la medirá con ellas y lo dirá (cambia RF-47 y 007:RF-12
+  para esas cargas). DIgSILENT no resuelve partir un trozo creado por otra variación.
+- RF-78: CUANDO una carga nueva trae coordenadas y no trae barra, EL SISTEMA la conectará
+  en el punto más cercano a sus coordenadas de cualquier tramo de media en servicio del
+  alimentador, no solo de la troncal; SI ese punto es el de otra carga de la misma
+  aplicación, ENTONCES usará su nodo (cambia RF-45; usuario, 2026-10-15: «las cargas
+  nuevas en bloque deben ser ubicadas de acuerdo a su punto de coordenada, no en el
+  mismo punto»).
+- RF-79: CUANDO mide una carga nueva en «Con proyecto», EL SISTEMA lo hará con el
+  escenario de operación del caso activo, que guarda las demandas calibradas, y lo
+  volverá a apagar sin guardar para escribir la siguiente.
 
 ## Requisitos no funcionales
 

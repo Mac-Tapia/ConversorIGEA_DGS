@@ -56,6 +56,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import re
 import traceback
 from pathlib import Path
 from typing import Any, Callable
@@ -686,7 +687,18 @@ def construir_enlace(ctx) -> None:
     linea = red.CreateObject('ElmLne', nombre_libre(red, 'ElmLne', f'Enlace_{o.alimentador}_{o.cede}'))
     linea.typ_id = ctx.tipo('TypLne', fila['tipo'])                                  # RF-38
     linea.dline = max(largo_m / 1000.0, 1e-6)                                         # RF-34
-    linea.nlnum, linea.outserv = 1, 0
+    # Entre tensiones distintas DIgSILENT no calcula con la línea en servicio, aunque el
+    # seccionador esté abierto («Line is connected between different voltage levels»,
+    # IN111 + TA225, 2026-10-15): queda fuera de servicio hasta que una migración iguale
+    # las tensiones y la ponga en servicio (RF-76).
+    distinta = not math.isclose(float(getattr(origen, 'uknom', 0) or 0),
+                                float(getattr(destino, 'uknom', 0) or 0), rel_tol=1e-3)
+    linea.nlnum, linea.outserv = 1, int(distinta)
+    if distinta:
+        fila['avisos'].append(
+            f'{origen.loc_name} ({origen.uknom:g} kV) y {destino.loc_name} ({destino.uknom:g} kV) '
+            f'tienen tensiones distintas: la línea {linea.loc_name} queda fuera de servicio '
+            f'hasta migrar la parte de {o.cede} que pasa.')
     linea.SetAttribute('GPScoords', [list(a), list(b)])                               # RF-35
     cubiculos = []
     for lado, (barra, cola) in enumerate(((origen, o.alimentador), (destino, o.cede))):
@@ -729,6 +741,11 @@ def _tipo_a_tension(ctx, objeto, clase: str, campo: str, origen: float, destino:
     return copia
 
 
+def _barras_de(linea) -> set[str]:
+    return {c.cterm.loc_name for c in (getattr(linea, 'bus1', None), getattr(linea, 'bus2', None))
+            if c is not None and getattr(c, 'cterm', None) is not None}
+
+
 def construir_migracion(ctx) -> None:
     """Lo que queda aguas abajo del nodo, a la tensión de destino (016:RF-54 a RF-58).
 
@@ -741,6 +758,10 @@ def construir_migracion(ctx) -> None:
     """
     o, fila = ctx.obra, ctx.fila
     origen, destino = float(fila['kv_origen']), float(o.kv_destino)
+    # Un flujo antes de leer, como el enlace: sin él, el ElmFeeder no daba el nodo que
+    # partió el enlace de la misma variación activa («no tiene camino cerrado desde su
+    # cabecera»; IN111 + TA225, 2026-10-15, la simulación sí lo encontraba).
+    flujo_de_carga(ctx.app)
     cabecera = cabecera_de(ctx.elm)
     if cabecera is None:
         raise RuntimeError(f'el alimentador {o.alimentador} no dice su cabecera')
@@ -756,8 +777,13 @@ def construir_migracion(ctx) -> None:
         if barra is not None and math.isclose(float(getattr(barra, 'uknom', 0) or 0), origen):
             barra.uknom = destino
     lineas = {ln.loc_name: ln for ln in ctx.elm.GetObjs('ElmLne')}
+    # Toda línea con sus dos barras en la parte que pasa, no solo los tramos del árbol:
+    # los que cierran un anillo quedaban a 10 kV entre barras de 22,9 y el flujo no se
+    # ejecutaba (IN111, SEC_1091_1059394 y SEC_1091_1059767, 2026-10-15).
+    anillo = [n for n, ln in lineas.items() if n not in set(parte.tramos)
+              and len(_barras_de(ln)) == 2 and _barras_de(ln) <= dentro]
     nuevos = []
-    for nombre in parte.tramos:                                                     # RF-56
+    for nombre in list(parte.tramos) + anillo:                                      # RF-56
         linea = lineas.get(nombre)
         if linea is None:
             continue                                     # un seccionador: no tiene tensión
@@ -776,8 +802,20 @@ def construir_migracion(ctx) -> None:
         acopladores[entrada].on_off = 0
     if nuevos:
         fila['avisos'].append(f'La parte que pasa tiene tramos que no estaban en la simulación '
-                              f'(los que partió un enlace): {", ".join(nuevos)}; pasan también '
-                              f'a {destino:g} kV.')
+                              f'(los que partió un enlace o cierran un anillo): '
+                              f'{", ".join(nuevos)}; pasan también a {destino:g} kV.')
+    # RF-76: el enlace que llega a la parte que pasa ya une barras de la misma tensión; se
+    # pone en servicio, con su seccionador abierto como lo dejó la obra de enlace.
+    datos_red = ctx.app.GetProjectFolder('netdat')
+    # Fuera de servicio no la da GetCalcRelevantObjects: se busca en los datos de red.
+    for linea in (datos_red.GetContents('Enlace_*.ElmLne', 1) if datos_red else []):
+        barras = [getattr(c, 'cterm', None) for c in (linea.bus1, linea.bus2) if c]
+        if int(getattr(linea, 'outserv', 0)) and any(b is not None and b.loc_name in dentro
+                                                     for b in barras)                 and all(b is not None and math.isclose(float(b.uknom), destino, rel_tol=1e-3)
+                        for b in barras):
+            linea.outserv = 0
+            fila['avisos'].append(f'El enlace {linea.loc_name} ya une barras de {destino:g} kV: '
+                                  f'queda en servicio, con su seccionador abierto.')
     otros = [s.loc_name for s in ctx.elm.GetObjs('ElmShnt') + ctx.elm.GetObjs('ElmVoltreg')
              if getattr(getattr(getattr(s, 'bus1', None), 'cterm', None), 'loc_name', None) in dentro]
     if otros:
@@ -879,6 +917,10 @@ def _leer(app, plan, alims, feeders, obras, casos) -> tuple[dict, list, list[str
         # lee la misma red sobre la que se escribe, sin sus barras de la troncal partida.
         apartadas = _apartar_cargas_nuevas(app) if rol in casos and rol == 'con' else []
         try:
+            # El ElmFeeder da sus objetos según la última topología calculada: sin un flujo
+            # después de cambiar las variaciones activas, el nodo que creó el enlace unas
+            # veces estaba en IN111 y otras no (2026-10-15).
+            flujo_de_carga(app)
             _leer_grupo(grupo, alims, con_troncal, redes, avisos)
         finally:
             for v in apartadas:
@@ -956,7 +998,10 @@ def _aplicar_una(app, plan, proyecto, casos, alims, obra: Obra, fila: dict, red,
         # troncal partido) se pisarían: se avisa, no se decide cuál manda.
         # Por la ruta dentro de la etapa: «Cub_0» o «Terminal» se repiten en cada tramo.
         propios = _grabados(_variacion(app, fila['variacion']))
-        comunes = sorted(set().union(*(_grabados(v) for v in apartadas)) & propios)
+        comunes = sorted(n for n in set().union(*(_grabados(v) for v in apartadas)) & propios
+                         # SplitLine llama «Terminal» y «Cub_0/1» a lo que crea en cada etapa:
+                         # objetos distintos con el mismo nombre, no el mismo objeto.
+                         if not re.fullmatch(r'Terminal\.ElmTerm|Cub_\d+\.StaCubic', n.lstrip('\\')))
         if comunes:
             fila['avisos'].append('La obra y alguna carga nueva graban los mismos objetos: '
                                   + ', '.join(comunes[:10]))
@@ -1014,6 +1059,9 @@ def _grabar_una(app, plan, proyecto, casos, alims, obra: Obra, fila: dict, red,
             ctx.tipos[(t['clase'], t['desde'])] = copia
         CONSTRUCTORES[obra.clase](ctx)
     except Exception as exc:  # noqa: BLE001 - la obra no queda a medias; las demás siguen
+        # Activa y grabando, DIgSILENT no la borra y se quedaba con lo escrito a medias
+        # (una Obra_migracion_IN111 inactiva con 1457 objetos, 2026-10-15).
+        variacion.Deactivate()
         variacion.Delete()
         fila.update(variacion='', error=f'no se pudo crear la obra: {exc}')
         return
