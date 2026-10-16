@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.venv/Scripts/python.exe -m pytest *)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)"
+    ],
+    "deny": [
+      "Read(./referencia/RED_*.txt)",
+      "Read(./referencia/CARGA_*.txt)",
+      "Read(./referencia/BD_Equipo*.txt)",
+      "Read(./referencia/*.xlsx)",
+      "Read(./referencia/*.csv)",
+      "Read(./referencia/**/*.xlsb)",
+      "Read(./referencia/**/*.xlsx)",
+      "Read(./referencia/**/*.xls)",
+      "Read(./referencia/audit_ternas_*.json)",
+      "Read(**/*.mdb)",
+      "Read(**/*.accdb)",
+      "Read(//d/BaseDatosElectroDunas/**)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.venv/Scripts/python.exe\" \"$CLAUDE_PROJECT_DIR/.claude/hooks/check_py.py\"",
+            "timeout": 30,
+            "statusMessage": "Comprobando sintaxis…"
+          }
+        ]
+      }
+    ]
+  }
+}

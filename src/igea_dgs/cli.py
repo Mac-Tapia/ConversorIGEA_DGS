@@ -1,3 +1,8 @@
+"""Interfaz de línea de comandos ``igea-dgs``: ``list``, ``convert`` y ``web``.
+
+Lee la entrada con los mismos adaptadores que la web (spec 001, RF-1).
+"""
+
 from __future__ import annotations
 
 import argparse
@@ -11,85 +16,290 @@ from .naming import feeder_short_name, sort_key_feeder
 
 
 def _common(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument('--red', required=True, help='IGEA/CYMDIST RED TXT export')
-    parser.add_argument('--loads', required=True, help='IGEA/CYMDIST CARGA TXT export')
-    parser.add_argument('--equipment', required=True, help='IGEA/CYMDIST BD_Equipo TXT export')
+    """Las tres alternativas de entrada: tres TXT, una base Access o un paquete VNR-GIS."""
+    src = parser.add_argument_group(
+        'entrada (elija UNA alternativa)',
+        'Alternativa 1 — ficheros TXT: --red --loads --equipment (no requiere CYMDIST '
+        'ni driver). Alternativa 2 — base de datos Access de CYMDIST: --mdb '
+        '(requiere Windows, el driver Microsoft Access y igea-dgs[access]). '
+        'Alternativa 3 — paquete VNR-GIS: --vnr-package (con --company/--period si trae '
+        'varias empresas o periodos).',
+    )
+    src.add_argument('--red', help='Alternativa 1: export TXT RED de IGEA/CYMDIST')
+    src.add_argument('--loads', help='Alternativa 1: export TXT CARGA de IGEA/CYMDIST')
+    src.add_argument('--equipment', help='Alternativa 1: export TXT BD_Equipo de IGEA/CYMDIST')
+    src.add_argument(
+        '--equipment-extra', action='append', default=[], metavar='TXT',
+        help=('Completar el catálogo con otro BD_Equipo cuando el de la entrega '
+              'llega incompleto. Solo rellena los códigos que faltan; lo cargado '
+              'nunca se sobrescribe. Repetible.'))
+    src.add_argument('--mdb', help='Alternativa 2: base de datos de red CYMDIST (.mdb)')
+    src.add_argument(
+        '--equipment-mdb',
+        help='Alternativa 2: base con el catálogo de equipos, si no está en --mdb',
+    )
+    src.add_argument(
+        '--load-year', type=int,
+        help='Alternativa 2: año del escenario de carga (por defecto, el más reciente '
+             'de cada dispositivo, como hace el export TXT)',
+    )
+    src.add_argument(
+        '--study',
+        help='Opcional: estudio o proyecto CYMDIST (.zxst/.xst). Limita la conversión a '
+             'los alimentadores que el estudio incluye',
+    )
+    src.add_argument('--vnr-package', help='Alternativa 3: paquete VNR-GIS (.zip o .rar)')
+    src.add_argument(
+        '--company',
+        help='Alternativa 3: empresa a leer si el paquete trae varias (no se mezclan)',
+    )
+    src.add_argument(
+        '--period',
+        help='Alternativa 3: periodo a leer si el paquete trae varios (no se mezclan)',
+    )
 
 
 def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description='Universal IGEA/CYMDIST TXT to DIgSILENT DGS converter')
+    parser = argparse.ArgumentParser(
+        prog='igea-dgs',
+        description='Conversor universal IGEA/CYMDIST (TXT o Access) a DGS de DIgSILENT PowerFactory',
+    )
     sub = parser.add_subparsers(dest='command', required=True)
 
-    list_p = sub.add_parser('list', help='List feeders and print deep TXT inventory')
+    list_p = sub.add_parser('list', help='Listar los alimentadores e imprimir el inventario detallado de la entrada')
     _common(list_p)
     list_p.add_argument(
         '--inventory-json',
-        help='Optional path to write dataset_inventory.json',
+        help='Opcional: ruta donde escribir dataset_inventory.json',
     )
 
-    conv = sub.add_parser('convert', help='Convert one, several, or all feeders')
+    conv = sub.add_parser('convert', help='Convertir uno, varios o todos los alimentadores')
     _common(conv)
-    conv.add_argument('--feeder', action='append', default=[], help='Short feeder name; repeat for several feeders')
-    conv.add_argument('--network', action='append', default=[], help='Full NetworkID; repeat for several feeders')
-    conv.add_argument('--all', action='store_true', help='Convert every feeder independently')
-    conv.add_argument('--out-dir', required=True)
-    conv.add_argument('--aliases', help='Optional JSON string->string line-type aliases (applied before catalog auto-map)')
-    conv.add_argument('--schema-profile', default='pf21_dgs_1_8_4')
-    conv.add_argument('--source-crs', default='EPSG:32718', help='CRS of CoordX/CoordY in the loaded TXT (any EPSG; example EPSG:32718)')
-    conv.add_argument('--target-crs', default='EPSG:4326', help='Target geographic CRS for GPSlat/GPSlon')
-    conv.add_argument('--no-geography', action='store_true', help='Disable GPS/diagram generation')
-    conv.add_argument('--non-strict', action='store_true', help='Omit unsupported topology/load/switch rows instead of failing; line types always auto-resolve')
-    conv.add_argument('--export-xlsx', action='store_true', help='Also write multi-sheet Excel (.xlsx) from DGS tables (needs igea-dgs[xlsx])')
-    conv.add_argument('--export-tsv', action='store_true', help='Also write one TSV per DGS table under {feeder}_dgs_tables/')
-    conv.add_argument('--preview', action='store_true', help='Write interactive map HTML (+ GeoJSON) before DGS (requires geography)')
+    conv.add_argument('--feeder', action='append', default=[], help='Nombre corto del alimentador; repetir para varios')
+    conv.add_argument('--network', action='append', default=[], help='NetworkID completo; repetir para varios')
+    conv.add_argument('--all', action='store_true', help='Convertir todos los alimentadores, cada uno por separado')
+    conv.add_argument('--out-dir', required=True, help='Carpeta de salida')
+    conv.add_argument('--aliases', help='Opcional: JSON de alias de tipos de línea, texto→texto (se aplica antes de buscar en el catálogo)')
+    conv.add_argument(
+        '--catalogo', nargs='?', const='', metavar='XLSX',
+        help=('Corregir las características eléctricas con el catálogo de fichas antes '
+              'de escribir el DGS. Sin valor usa input/catalogo_parametros.xlsx. La '
+              'identidad de cada elemento (código, material, sección) se conserva.'))
+    conv.add_argument('--schema-profile', default='pf21_dgs_1_8_4', help='Perfil de esquema DGS')
+    conv.add_argument('--source-crs', default=None,
+                      help='CRS de CoordX/CoordY de la entrada (un EPSG en metros, p. ej. el UTM '
+                           'de su zona). Sin él, el del perfil de empresa; sin perfil, se pide.')
+    conv.add_argument('--perfil', default=None, metavar='NOMBRE',
+                      help='Perfil de empresa de config/perfiles/ (CRS, SED de medición, escala). '
+                           'Sin él, config/perfil_empresa.json si existe.')
+    conv.add_argument('--target-crs', default='EPSG:4326', help='CRS geográfico de destino para GPSlat/GPSlon')
+    conv.add_argument('--no-geography', action='store_true', help='No generar GPS ni diagrama')
+    conv.add_argument('--non-strict', action='store_true', help='Omitir filas de topología, carga o maniobra no admitidas en vez de fallar; los tipos de línea se resuelven siempre')
+    conv.add_argument('--export-xlsx', action='store_true', help='Escribir además un Excel (.xlsx) con una hoja por tabla DGS')
+    conv.add_argument('--export-tsv', action='store_true', help='Escribir además un TSV por tabla DGS en {alimentador}_dgs_tables/')
+    conv.add_argument('--preview', action='store_true', help='Escribir un mapa HTML interactivo (+ GeoJSON) antes del DGS (requiere geografía)')
     conv.add_argument(
         '--preview-backend',
         default='auto',
         choices=('auto', 'leafmap', 'leaflet'),
-        help='Map renderer: leafmap (@opengeos) or Leaflet CDN fallback',
+        help='Motor del mapa: leafmap (@opengeos) o Leaflet por CDN',
+    )
+    conv.add_argument(
+        '--hoja', default=None, choices=('A0', 'A1', 'A2', 'A3', 'A4'),
+        help='Formato fijo de hoja PowerFactory. Por defecto se ajusta a la red a escala real.',
+    )
+    conv.add_argument(
+        '--unir', metavar='NOMBRE',
+        help='Unir los alimentadores elegidos en UN solo DGS con este nombre (red unida).',
+    )
+    conv.add_argument(
+        '--literal', action='store_true',
+        help='Convertir sin las reglas del proyecto (sin fundir puentes, con las SED de '
+             'medición, sin redimensionar SED, escala del motor). Solo para comparar con la entrada.',
+    )
+    conv.add_argument(
+        '--workers', type=int, default=1,
+        help='Procesos en paralelo: 1 en serie (por defecto), N hasta N, 0 automático. '
+             'El resultado es idéntico; cada proceso guarda una copia del dataset en memoria.',
     )
 
-    sub.add_parser('gui', help='Open the graphical interface for selecting TXT inputs and converting')
+    web = sub.add_parser('web', help='Arrancar la interfaz web (FastAPI + React) y abrir el navegador')
+    web.add_argument('--host', default='127.0.0.1', help='Interfaz de escucha')
+    web.add_argument('--port', type=int, default=8765, help='Puerto')
+    web.add_argument('--no-browser', action='store_true', help='No abrir el navegador')
     return parser
 
 
-def _require_input_files(red: str, loads: str, equipment: str) -> None:
-    missing = []
-    for label, path in (('RED', red), ('CARGA', loads), ('BD_Equipo', equipment)):
-        if not Path(path).is_file():
-            missing.append(f'{label}: {path}')
+def _entrada(args) -> tuple[str, dict[str, str]]:
+    """Modo y ficheros por casilla, con los mismos nombres de casilla que la web."""
+    txt_given = any((args.red, args.loads, args.equipment))
+    elegidas = [m for m, dada in (('txt', txt_given), ('mdb', bool(args.mdb)),
+                                  ('vnr', bool(args.vnr_package))) if dada]
+    if len(elegidas) > 1:
+        raise SystemExit(
+            'Elija UNA alternativa de entrada: los tres TXT (--red --loads --equipment), '
+            'la base Access (--mdb) o el paquete VNR-GIS (--vnr-package).'
+        )
+    if not elegidas:
+        raise SystemExit(
+            'Falta la entrada. Alternativa 1: --red --loads --equipment. '
+            'Alternativa 2: --mdb  (opcionalmente --equipment-mdb, --load-year, --study). '
+            'Alternativa 3: --vnr-package  (opcionalmente --company, --period).'
+        )
+    mode = elegidas[0]
+    if mode == 'txt':
+        if not (args.red and args.loads and args.equipment):
+            raise SystemExit(
+                'La entrada por TXT necesita los tres ficheros: --red, --loads y --equipment.'
+            )
+        from .sources.txt import extra_slot
+
+        files = {'red': args.red, 'loads': args.loads, 'equipment': args.equipment}
+        for i, extra in enumerate(getattr(args, 'equipment_extra', ()) or (), 1):
+            files[extra_slot(i)] = extra
+    elif mode == 'mdb':
+        files = {'mdb': args.mdb}
+        if args.equipment_mdb:
+            files['equipment_mdb'] = args.equipment_mdb
+        if args.study:
+            files['study'] = args.study
+    else:
+        files = {'vnr_package': args.vnr_package}
+
+    etiquetas = {'red': 'RED', 'loads': 'CARGA', 'equipment': 'BD_Equipo'}
+    missing = [f'{etiquetas.get(slot, slot)}: {path}'
+               for slot, path in files.items() if not Path(path).is_file()]
     if missing:
         raise SystemExit('Archivos de entrada no encontrados:\n  - ' + '\n  - '.join(missing))
+    return mode, files
+
+
+def load_dataset(args) -> CymdistDataset:
+    """Lee la entrada con los adaptadores de ``igea_dgs.sources``, los mismos de la web."""
+    import atexit
+    import shutil
+    import tempfile
+
+    from .sources import SourceModeError, adapter_for
+    from .sources.snapshot import snapshot_from_paths
+
+    mode, files = _entrada(args)
+
+    networks = None
+    if args.study:
+        from .study import StudyReadError, describe
+
+        try:
+            info = describe(args.study)
+        except StudyReadError as exc:
+            raise SystemExit(f'Error en el estudio: {exc}') from exc
+        networks = info['networks']
+        print(f"Estudio «{info['study_name']}»: {info['network_count']} alimentadores.")
+
+    try:
+        aliases = load_aliases(getattr(args, 'aliases', None))
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        raise SystemExit(f'Error en aliases: {exc}') from exc
+
+    # Las entradas se leen donde están; esta carpeta es solo para derivados (VNR-GIS
+    # descomprime aquí el paquete) y se borra al salir.
+    derivados = Path(tempfile.mkdtemp(prefix='igea-dgs-entrada-'))
+    atexit.register(shutil.rmtree, derivados, ignore_errors=True)
+    snapshot = snapshot_from_paths(mode, files, derivados, origin='cli')  # type: ignore[arg-type]
+    adapter = adapter_for(mode, company=args.company, period=args.period,
+                          load_year=args.load_year)
+
+    from .access import AccessReadError
+
+    prefijo = {'txt': 'Error al leer TXT', 'mdb': 'Error al leer la base Access',
+               'vnr': 'Error al leer el paquete VNR-GIS'}[mode]
+    try:
+        loaded = adapter.load(snapshot, aliases=aliases)
+    except (AccessReadError, SourceModeError, OSError, ValueError, KeyError) as exc:
+        raise SystemExit(f'{prefijo}: {exc}') from exc
+    dataset = loaded.dataset
+
+    if mode == 'mdb':
+        print(f'Entrada: base de datos CYMDIST {Path(args.mdb).name}')
+        return dataset
+    if mode == 'vnr':
+        prov = loaded.provenance
+        print(f"Entrada: paquete VNR-GIS {Path(args.vnr_package).name} — empresa "
+              f"{prov.get('company') or '(única)'}, periodo {prov.get('period') or '(único)'}")
+        return dataset
+
+    print(f'Entrada: TXT {Path(args.red).name} / {Path(args.loads).name} / {Path(args.equipment).name}')
+    # Catálogo incompleto: se completa con otras entregas si se indicaron, y en
+    # cualquier caso se dice cuánta red se quedaría con la impedancia de DEFAULT. Un
+    # catálogo que no corresponde con la red no rompe nada visible —el modelo converge
+    # igual—, así que si no se avisa aquí no se avisa en ninguna parte.
+    informe = loaded.catalog_report or {}
+    if getattr(args, 'equipment_extra', None):
+        print(informe.get('text', ''))
+    elif informe.get('final_coverage', 1.0) < 0.5:
+        print(
+            f"AVISO: solo el {informe['final_coverage'] * 100:.0f} % de los tipos "
+            f'de línea tiene catálogo. El resto tomará la impedancia de DEFAULT. '
+            f'Use --equipment-extra con el BD_Equipo de otra entrega.'
+        )
+    if networks is not None and hasattr(args, 'network'):
+        # Con TXT el estudio no filtra la lectura, porque el TXT ya viene completo;
+        # se aplica como selección de alimentadores.
+        wanted = set(networks)
+        inside = [n for n in dataset.feeder_ids() if n in wanted]
+        outside = len(dataset.feeder_ids()) - len(inside)
+        if outside:
+            print(f'Estudio: se omitirán {outside} alimentadores fuera del estudio.')
+        args.network = list(args.network) + inside
+        args.all = False
+    return dataset
 
 
 def main(argv=None) -> int:
     args = _parser().parse_args(argv)
 
-    if args.command == 'gui':
-        from .gui import main as gui_main
-        return gui_main()
+    if args.command == 'web':
+        from .web.__main__ import main as web_main
+        argv_web = ['--host', args.host, '--port', str(args.port)]
+        if args.no_browser:
+            argv_web.append('--no-browser')
+        return web_main(argv_web)
 
-    try:
-        _require_input_files(args.red, args.loads, args.equipment)
-        dataset = CymdistDataset.from_files(args.red, args.loads, args.equipment)
-    except SystemExit:
-        raise
-    except (OSError, ValueError, KeyError) as exc:
-        raise SystemExit(f'Error al leer TXT: {exc}') from exc
+    perfil = None
+    if args.command == 'convert':
+        # Perfil y CRS antes de leer la entrada: sin CRS no se supone ninguno (spec 002,
+        # RF-32), y leer una entrega grande para fallar después es tiempo perdido.
+        from .perfil_empresa import PerfilError, cargar_perfil, perfil_con_nombre
+
+        try:
+            perfil = perfil_con_nombre(args.perfil) if args.perfil else cargar_perfil()
+        except PerfilError as exc:
+            raise SystemExit(f'Perfil de empresa: {exc}') from exc
+        args.source_crs = args.source_crs or perfil.crs_origen
+        if not args.no_geography and not args.source_crs:
+            from .geography import MENSAJE_FALTA_CRS
+
+            raise SystemExit(f'{MENSAJE_FALTA_CRS} Use --source-crs EPSG:xxxxx, --perfil '
+                             f'NOMBRE o --no-geography.')
+        if perfil.nombre or perfil.crs_origen:
+            print(f'Perfil de empresa: {perfil.nombre or "local"} — CRS {args.source_crs or "—"}',
+                  flush=True)
+
+    dataset = load_dataset(args)
 
     if args.command == 'list':
         inventory = build_dataset_inventory(dataset)
         print(format_inventory_report(inventory))
         if args.inventory_json:
             path = write_inventory(inventory, args.inventory_json)
-            print(f'Inventory JSON: {path}')
+            print(f'Inventario JSON: {path}')
         return 0 if inventory['integrity']['errors'] == 0 else 2
 
     selectors = list(args.feeder) + list(args.network)
     if args.all and selectors:
-        raise SystemExit('--all cannot be combined with --feeder/--network')
+        raise SystemExit('--all no se puede combinar con --feeder/--network')
     if not args.all and not selectors:
-        raise SystemExit('Use --feeder/--network at least once, or use --all')
+        raise SystemExit('Indique al menos un --feeder/--network, o use --all')
 
     try:
         aliases = load_aliases(args.aliases)
@@ -113,6 +323,55 @@ def main(argv=None) -> int:
             f"DGS de {inventory['totals']['feeders']} alimentadores leídos.",
             flush=True,
         )
+        # Reglas del proyecto (igea_dgs.reglas): siempre, salvo --literal. El catálogo
+        # del proyecto completa conductores, da los transformadores y sus fichas.
+        from dataclasses import replace as _replace
+
+        from .reglas import REGLAS_PROYECTO, SIN_REGLAS, catalogo_del_proyecto, reglas_de_perfil
+
+        reglas = SIN_REGLAS if args.literal else reglas_de_perfil(
+            perfil, _replace(REGLAS_PROYECTO, hoja=args.hoja))
+        catalogo = None if args.literal else catalogo_del_proyecto()
+        correcciones_catalogo = None
+        if args.catalogo is not None:
+            from .catalog import CATALOG_FILENAME, CatalogError, input_dir, leer_catalogo
+
+            ruta = Path(args.catalogo) if args.catalogo else (
+                input_dir('.') / CATALOG_FILENAME)
+            try:
+                correcciones_catalogo = leer_catalogo(ruta)
+            except CatalogError as exc:
+                raise SystemExit(f'Catálogo: {exc}') from exc
+            print(f'Catálogo: {ruta} — {len(correcciones_catalogo)} tipo(s) con valor '
+                  f'de ficha aplicable.', flush=True)
+            catalogo = ruta if not args.literal else None
+
+        if args.unir:
+            from .batch import convert_group
+
+            if args.all:
+                selectors = [feeder_short_name(n) for n in dataset.feeder_ids() if dataset.feeders.get(n)]
+            if len(selectors) < 2:
+                raise SystemExit('--unir necesita al menos dos alimentadores (--feeder … --feeder …).')
+            grupo = convert_group(
+                dataset, selectors, args.out_dir, name=args.unir, aliases=aliases,
+                strict=not args.non_strict, schema_profile=args.schema_profile,
+                include_geography=not args.no_geography,
+                source_crs=args.source_crs, target_crs=args.target_crs,
+                catalog_corrections=correcciones_catalogo, reglas=reglas, catalogo=catalogo,
+                perfil=perfil, export_xlsx=args.export_xlsx, export_tsv=args.export_tsv,
+                write_preview=args.preview, preview_backend=args.preview_backend,
+                on_progress=_progress,
+            )
+            comp = grupo.get('completitud') or {}
+            print(f"Red unida {grupo['name']}: {grupo['status']} — "
+                  f"{grupo.get('errors_total')} errores de validación, completitud "
+                  f"{'OK' if not comp.get('fallos') else comp['fallos']}")
+            if grupo.get('error'):
+                print(f"  {grupo['error']}")
+            print(f"Manifiesto: {Path(args.out_dir) / (grupo['name'] + '_manifest.json')}")
+            return 0 if grupo['status'] == 'ok' else 2
+
         manifest = convert_selection(
             dataset,
             selectors if not args.all else None,
@@ -129,15 +388,20 @@ def main(argv=None) -> int:
             write_preview=args.preview,
             preview_backend=args.preview_backend,
             on_progress=_progress,
+            catalog_corrections=correcciones_catalogo,
+            workers=args.workers,
+            reglas=reglas,
+            catalogo=catalogo,
+            perfil=perfil,
         )
     except (OSError, ValueError, ImportError) as exc:
         raise SystemExit(f'Error de conversión: {exc}') from exc
 
-    print(f"Requested: {manifest['summary']['requested']}")
+    print(f"Pedidos: {manifest['summary']['requested']}")
     print(f"OK: {manifest['summary']['ok']}")
-    print(f"Skipped: {manifest['summary'].get('skipped', 0)}")
-    print(f"Failed: {manifest['summary']['failed']}")
-    print(f"Manifest: {Path(args.out_dir) / 'batch_manifest.json'}")
+    print(f"Omitidos: {manifest['summary'].get('skipped', 0)}")
+    print(f"Fallidos: {manifest['summary']['failed']}")
+    print(f"Manifiesto: {Path(args.out_dir) / 'batch_manifest.json'}")
     return 0 if manifest['summary']['failed'] == 0 else 2
 
 

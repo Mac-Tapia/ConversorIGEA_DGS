@@ -1,3 +1,6 @@
+"""Validación del DGS escrito: esquema, estructura, conectividad, GPS y gráficos.
+"""
+
 from __future__ import annotations
 
 from collections import Counter, defaultdict
@@ -5,9 +8,10 @@ from pathlib import Path
 import json
 import math
 
-from .model import FeederModel
+from .model import FeederModel, Line
 from .schema import load_schema
 from .geography import GeographyManifest
+from .util import finite_or_none
 
 
 def parse_dgs(path: Path | str) -> dict[str, dict]:
@@ -34,10 +38,12 @@ def parse_dgs(path: Path | str) -> dict[str, dict]:
     return tables
 
 
-def _total_fids(tables: dict[str, dict]) -> list[tuple[str, str]]:
+def total_fids(tables: dict[str, dict]) -> list[tuple[str, str]]:
     result: list[tuple[str, str]] = []
     for name, table in tables.items():
-        if 'FID' not in table['fields']:
+        # En «Matrix» el FID nombra la matriz entera y se repite en cada fila: la clave
+        # es FID + columna + fila (DGS 7.0, apartado 6.7). Ver spec 010.
+        if 'FID' not in table['fields'] or name == 'Matrix':
             continue
         idx = table['fields'].index('FID')
         for row in table['rows']:
@@ -46,16 +52,32 @@ def _total_fids(tables: dict[str, dict]) -> list[tuple[str, str]]:
     return result
 
 
+def _trazados_gps(tables: dict[str, dict]) -> dict[str, list[tuple[float, float]]]:
+    """Cada matriz de la tabla ``Matrix`` como lista de puntos (latitud, longitud)."""
+    celdas: dict[str, dict[tuple[int, int], float]] = {}
+    for row in tables.get('Matrix', {}).get('rows_dict', []):
+        try:
+            clave = (int(row['MatRow']), int(row['MatColumn']))
+            celdas.setdefault(row['FID'], {})[clave] = float(row['Val'])
+        except (KeyError, ValueError):
+            continue
+    out: dict[str, list[tuple[float, float]]] = {}
+    for fid, valores in celdas.items():
+        filas = sorted({fila for fila, _ in valores})
+        out[fid] = [(valores.get((f, 0), math.nan), valores.get((f, 1), math.nan)) for f in filas]
+    return out
+
+
+def _mismo_trazado(a: list[tuple[float, float]], b: list[tuple[float, float]]) -> bool:
+    # 1e-8 grados (~1 mm), la misma tolerancia que el GPS de las barras.
+    return len(a) == len(b) and all(
+        math.isclose(x, y, rel_tol=0.0, abs_tol=1e-8) for p, q in zip(a, b) for x, y in zip(p, q))
+
+
 def _loc(value: str) -> str:
     return value.replace(';', ',').replace('\n', ' ').replace('\r', ' ')[:40]
 
 
-def _finite_float(value: str | None) -> float | None:
-    try:
-        result = float(value)
-    except (TypeError, ValueError):
-        return None
-    return result if math.isfinite(result) else None
 
 
 def validate_dgs(
@@ -74,6 +96,11 @@ def validate_dgs(
     graphic_errors: list[str] = []
 
     required = ['General','ElmNet','ElmTerm','TypLne','ElmLne','ElmLod','ElmXnet','StaCubic','StaSwitch']
+    expected_shunts = [bank for bank in model.capacitors
+                       if bank.kvar_per_step is not None and bank.total_kvar is not None
+                       and bank.node_id in model.nodes]
+    if expected_shunts:
+        required.append('ElmShnt')
     if geography is not None:
         required += ['IntGrf','IntGrfcon','IntGrfnet']
 
@@ -81,7 +108,13 @@ def validate_dgs(
         if name not in tables:
             schema_errors.append(f'Missing required DGS table: {name}')
             continue
-        if tables[name]['header'] != schema.header(name):
+        esperada = schema.header(name)
+        if name == 'IntGrfcon':
+            # El escritor ensancha los puntos de los conectores al trazado más largo.
+            n = sum(1 for parte in tables[name]['header'].split(';')
+                    if parte.startswith('rX:') and not parte.startswith('rX:SIZEROW'))
+            esperada = schema.con_puntos_por_conector(n).header(name)
+        if tables[name]['header'] != esperada:
             schema_errors.append(f'{name}: header does not match schema profile {schema.profile}')
 
     for name, table in tables.items():
@@ -90,7 +123,7 @@ def validate_dgs(
             if len(row) != expected:
                 structural_errors.append(f'{name} row {n}: {len(row)} fields, expected {expected}')
 
-    fid_pairs = _total_fids(tables)
+    fid_pairs = total_fids(tables)
     fid_counts = Counter(fid for fid, _ in fid_pairs if fid)
     for fid, count in sorted(fid_counts.items()):
         if count > 1:
@@ -110,6 +143,7 @@ def validate_dgs(
     line_rows = tables['ElmLne']['rows_dict']
     load_rows = tables['ElmLod']['rows_dict']
     source_rows = tables['ElmXnet']['rows_dict']
+    shunt_rows = tables.get('ElmShnt', {}).get('rows_dict', [])
     cubic_rows = tables['StaCubic']['rows_dict']
     switch_rows = tables['StaSwitch']['rows_dict']
 
@@ -124,8 +158,13 @@ def validate_dgs(
         structural_errors.append(f'ElmLne count {len(line_rows)} != source lines {len(model.lines)}')
     if len(load_rows) != len(model.loads):
         structural_errors.append(f'ElmLod count {len(load_rows)} != source loads {len(model.loads)}')
-    if len(source_rows) != 1:
-        structural_errors.append(f'ElmXnet count {len(source_rows)} != expected 1')
+    # Una fuente por alimentador: una sola, salvo en una red unida (combine).
+    fuentes_esperadas = len(getattr(getattr(model, 'combined', None), 'feeders', None) or ()) or 1
+    if len(source_rows) != fuentes_esperadas:
+        structural_errors.append(f'ElmXnet count {len(source_rows)} != expected {fuentes_esperadas}')
+    if len(shunt_rows) != len(expected_shunts):
+        structural_errors.append(
+            f'ElmShnt count {len(shunt_rows)} != complete source banks {len(expected_shunts)}')
     if len(switch_rows) != len(model.devices):
         structural_errors.append(f'StaSwitch count {len(switch_rows)} != source devices {len(model.devices)}')
 
@@ -136,14 +175,22 @@ def validate_dgs(
     coup_rows = tables.get('ElmCoup', {}).get('rows_dict', [])
     if len(tr2_rows) != len(model.seds):
         structural_errors.append(f'ElmTr2 count {len(tr2_rows)} != source SEDs {len(model.seds)}')
-    if len(coup_rows) != len(model.seds):
-        structural_errors.append(f'ElmCoup count {len(coup_rows)} != source SEDs {len(model.seds)}')
+    # ElmCoup: uno por SED (dentro de ella), más los que van en la red —enlaces entre
+    # alimentadores y seccionadores de tramos puente fundidos (igea_dgs.puentes)—.
+    combinado = getattr(model, 'combined', None)
+    n_red_coups = len(getattr(model, 'couplers', ()) or ()) + len(
+        getattr(combinado, 'ties', ()) or ())
+    if len(coup_rows) != len(model.seds) + n_red_coups:
+        structural_errors.append(
+            f'ElmCoup count {len(coup_rows)} != source SEDs {len(model.seds)} '
+            f'+ network switches {n_red_coups}')
 
     term_fids = {r.get('FID','') for r in term_rows}
     type_fids = {r.get('FID','') for r in type_rows}
     line_fids = {r.get('FID','') for r in line_rows}
     load_fids = {r.get('FID','') for r in load_rows}
     source_fids = {r.get('FID','') for r in source_rows}
+    shunt_fids = {r.get('FID','') for r in shunt_rows}
     sed_fids = {r.get('FID','') for r in substat_rows}
     cubic_fids = {r.get('FID','') for r in cubic_rows}
 
@@ -159,9 +206,13 @@ def validate_dgs(
     for r in tr2_rows:
         if r.get('fold_id', '') not in sed_fids:
             connection_errors.append(f'ElmTr2 {r.get("FID")} must fold under ElmSubstat')
+    red_coups = [r for r in coup_rows if r.get('fold_id', '') in network_fids]
     for r in coup_rows:
-        if r.get('fold_id', '') not in sed_fids:
-            connection_errors.append(f'ElmCoup {r.get("FID")} must fold under ElmSubstat')
+        if r.get('fold_id', '') not in sed_fids | network_fids:
+            connection_errors.append(f'ElmCoup {r.get("FID")} must fold under ElmSubstat or ElmNet')
+    if len(red_coups) != n_red_coups:
+        connection_errors.append(
+            f'{len(red_coups)} ElmCoup under ElmNet, expected {n_red_coups} network switches')
 
     # NA205: SED-backed loads fold under ElmSubstat; free loads stay under ElmNet.
     allowed_load_folds = network_fids | sed_fids
@@ -169,6 +220,9 @@ def validate_dgs(
         fold = r.get('fold_id', '')
         if fold not in allowed_load_folds:
             connection_errors.append(f'ElmLod {r.get("FID")} fold_id {fold} is not ElmNet/ElmSubstat')
+    for r in shunt_rows:
+        if r.get('fold_id', '') not in network_fids:
+            connection_errors.append(f'ElmShnt {r.get("FID")} fold_id is not ElmNet')
 
     for r in line_rows:
         if r.get('typ_id','') not in type_fids:
@@ -176,7 +230,7 @@ def validate_dgs(
 
     tr2_fids = {r.get('FID', '') for r in tr2_rows}
     coup_fids = {r.get('FID', '') for r in coup_rows}
-    valid_objects = line_fids | load_fids | source_fids | tr2_fids | coup_fids
+    valid_objects = line_fids | load_fids | source_fids | shunt_fids | tr2_fids | coup_fids
     obj_cubics: dict[str, list[dict[str, str]]] = defaultdict(list)
     for r in cubic_rows:
         if r.get('fold_id','') not in term_fids:
@@ -203,6 +257,10 @@ def validate_dgs(
     for fid in sorted(source_fids):
         if len(obj_cubics.get(fid, [])) != 1:
             connection_errors.append(f'ElmXnet {fid} has {len(obj_cubics.get(fid, []))} cubicles, expected 1')
+    for fid in sorted(shunt_fids):
+        if len(obj_cubics.get(fid, [])) != 1:
+            connection_errors.append(
+                f'ElmShnt {fid} has {len(obj_cubics.get(fid, []))} cubicles, expected 1')
 
     for r in switch_rows:
         if r.get('fold_id','') not in cubic_fids:
@@ -279,16 +337,14 @@ def validate_dgs(
                 connection_errors.append(f'{load.device_number}: free load must fold under ElmNet')
 
     tr2_by_fold = {r.get('fold_id', ''): r for r in tr2_rows}
+    load_by_key = {(item.section_id, item.device_number): item for item in model.loads}
     for sed in model.seds:
         drow = sed_by_name.get(_loc(sed.loc_name))
         if drow is None:
             connection_errors.append(f'{sed.code}: no matching ElmSubstat by loc_name')
             continue
         sub_fid = drow.get('FID', '')
-        load = next(
-            (item for item in model.loads if (item.section_id, item.device_number) == sed.load_key),
-            None,
-        )
+        load = load_by_key.get(sed.load_key)
         if load is None:
             connection_errors.append(f'{sed.code}: missing nested load for SED electrical connection')
             continue
@@ -333,6 +389,9 @@ def validate_dgs(
         structural_errors.append(f'Line length total mismatch: source={source_length:.12g} km dgs={dgs_length:.12g} km')
 
     if geography is not None:
+        trazados = _trazados_gps(tables)
+        gps_de_linea = {row.get('loc_name', ''): row.get('GPScoords', '')
+                        for row in tables.get('ElmLne', {}).get('rows_dict', [])}
         # Geographic coverage and GPS equality.
         if set(geography.nodes) != set(model.nodes):
             geographic_errors.append('Geographic node set differs from electrical model')
@@ -343,8 +402,8 @@ def validate_dgs(
             if row is None:
                 geographic_errors.append(f'{node_id}: no ElmTerm for GPS validation')
                 continue
-            lat = _finite_float(row.get('GPSlat'))
-            lon = _finite_float(row.get('GPSlon'))
+            lat = finite_or_none(row.get('GPSlat'))
+            lon = finite_or_none(row.get('GPSlon'))
             if lat is None or lon is None:
                 geographic_errors.append(f'{node_id}: missing/non-numeric GPSlat/GPSlon')
                 continue
@@ -368,6 +427,13 @@ def validate_dgs(
                     geographic_errors.append(f'{line.section_id}: path does not start at georeferenced FromNode')
                 if gline.path[-1] != geography.nodes.get(line.to_node):
                     geographic_errors.append(f'{line.section_id}: path does not end at georeferenced ToNode')
+                # Trazado GPS escrito en la línea (spec 010, RF-5): el que relee
+                # PowerFactory, punto a punto, frente a la geografía del modelo.
+                escrito = trazados.get(gps_de_linea.get(_loc(line.section_id), ''), [])
+                if not _mismo_trazado(escrito, [(p.lat, p.lon) for p in gline.path]):
+                    geographic_errors.append(
+                        f'{line.section_id}: el trazado GPS escrito ({len(escrito)} puntos) '
+                        f'no coincide con la geografía ({len(gline.path)} puntos)')
 
         for sed in model.seds:
             gp = geography.nodes.get(sed.node_id)
@@ -377,8 +443,8 @@ def validate_dgs(
                 continue
             if drow is None:
                 continue
-            lat = _finite_float(drow.get('GPSlat'))
-            lon = _finite_float(drow.get('GPSlon'))
+            lat = finite_or_none(drow.get('GPSlat'))
+            lon = finite_or_none(drow.get('GPSlon'))
             if lat is None or lon is None:
                 geographic_errors.append(f'{sed.code}: ElmSubstat missing GPSlat/GPSlon for node {sed.node_id}')
             elif not (math.isclose(lat, gp.lat, rel_tol=0.0, abs_tol=1e-8) and math.isclose(lon, gp.lon, rel_tol=0.0, abs_tol=1e-8)):
@@ -396,39 +462,60 @@ def validate_dgs(
         if net_rows and net_rows[0].get('pDiagram','') != diagram_fid:
             graphic_errors.append('ElmNet.pDiagram does not reference the generated IntGrfnet')
 
-        from .dgs import diagram_anchor_node, diagram_line_sections, visible_pointterm_nodes
+        from .dgs import (
+            _line_neighbors,
+            diagram_anchor_node,
+            diagram_line_sections,
+            visible_pointterm_nodes,
+        )
 
-        visible_nodes = visible_pointterm_nodes(model)
+        # One adjacency index and one drawn-section set for the whole graphic check.
+        neighbors = _line_neighbors(model)
+        drawn_sections = diagram_line_sections(model, neighbors=neighbors)
+        visible_nodes = visible_pointterm_nodes(model, neighbors=neighbors, drawn=drawn_sections)
         for load in model.loads:
-            visible_nodes.add(diagram_anchor_node(model, load.node_id))
+            visible_nodes.add(diagram_anchor_node(model, load.node_id, neighbors=neighbors))
         for sed in model.seds:
-            visible_nodes.add(diagram_anchor_node(model, sed.node_id))
+            visible_nodes.add(diagram_anchor_node(model, sed.node_id, neighbors=neighbors))
+        # Hoisted out of the comprehension below: nesting it there rebuilt the whole
+        # set once per ElmTerm row (≈4.6M _loc calls on a 2k-section feeder).
+        visible_node_locs = {_loc(n) for n in visible_nodes}
         visible_term_fids = {
-            r.get('FID', '') for r in term_rows if r.get('loc_name', '') in {_loc(n) for n in visible_nodes}
+            r.get('FID', '') for r in term_rows if r.get('loc_name', '') in visible_node_locs
         }
-        nested_load_fids = {
-            load_by_name[_loc(load.display_name or load.customer_number or load.device_number or load.section_id)].get('FID', '')
-            for load in model.loads
-            if (load.section_id, load.device_number) in nested_load_keys
-            and _loc(load.display_name or load.customer_number or load.device_number or load.section_id) in load_by_name
-        }
+        nested_load_fids = set()
+        for load in model.loads:
+            if (load.section_id, load.device_number) not in nested_load_keys:
+                continue
+            name = _loc(load.display_name or load.customer_number or load.device_number or load.section_id)
+            row = load_by_name.get(name)
+            if row is not None:
+                nested_load_fids.add(row.get('FID', ''))
         free_load_fids = load_fids - nested_load_fids
-        drawn_sections = diagram_line_sections(model)
+        # drawn_sections was already computed above with the shared index.
         line_by_name = {r.get('loc_name', ''): r for r in line_rows}
-        diagram_line_fids = {
-            line_by_name[_loc(sid)].get('FID', '')
-            for sid in drawn_sections
-            if _loc(sid) in line_by_name
-        }
         line_by_section = {line.section_id: line for line in model.lines}
-        ug_diagram_fids = {
-            line_by_name[_loc(sid)].get('FID', '')
-            for sid in drawn_sections
-            if _loc(sid) in line_by_name and not line_by_section[sid].overhead
-        }
+        diagram_line_fids = set()
+        ug_diagram_fids = set()
+        for sid in drawn_sections:
+            row = line_by_name.get(_loc(sid))
+            if row is None:
+                continue
+            fid = row.get('FID', '')
+            diagram_line_fids.add(fid)
+            if not line_by_section[sid].overhead:
+                ug_diagram_fids.add(fid)
         oh_diagram_fids = diagram_line_fids - ug_diagram_fids
         hidden_stub_line_fids = line_fids - diagram_line_fids
-        electrical_graphic_objects = visible_term_fids | diagram_line_fids | free_load_fids | source_fids | sed_fids
+        # Interruptores de la red —seccionadores de puentes fundidos y enlaces entre
+        # alimentadores—: cada uno con su d_couple y dos conectores.
+        coupler_fids = {
+            r.get('FID', '') for r in coup_rows if r.get('fold_id', '') in network_fids
+        }
+        electrical_graphic_objects = (
+            visible_term_fids | diagram_line_fids | free_load_fids | source_fids | sed_fids
+            | coupler_fids
+        )
         graphics_by_object: dict[str, list[dict[str, str]]] = defaultdict(list)
         graphic_fids = {r.get('FID','') for r in graphic_rows}
         symbol_counts: Counter[str] = Counter()
@@ -443,7 +530,7 @@ def validate_dgs(
         expected_line_graphics = len(diagram_line_fids)
         expected_graphics = (
             len(visible_term_fids) + expected_line_graphics + len(free_load_fids)
-            + len(source_fids) + len(sed_fids)
+            + len(source_fids) + len(sed_fids) + len(coupler_fids)
         )
         if len(graphic_rows) != expected_graphics:
             graphic_errors.append(f'IntGrf count {len(graphic_rows)} != expected {expected_graphics}')
@@ -456,7 +543,7 @@ def validate_dgs(
                 f'd_lin count {symbol_counts.get("d_lin", 0)} != expected {expected_line_graphics} '
                 f'(OH={len(oh_diagram_fids)} UG={len(ug_diagram_fids)})'
             )
-        for fid in diagram_line_fids | free_load_fids | source_fids | sed_fids | visible_term_fids:
+        for fid in diagram_line_fids | free_load_fids | source_fids | sed_fids | visible_term_fids | coupler_fids:
             if len(graphics_by_object.get(fid, [])) != 1:
                 graphic_errors.append(
                     f'Electrical object {fid} has {len(graphics_by_object.get(fid, []))} graphic objects, expected 1'
@@ -485,6 +572,12 @@ def validate_dgs(
                 graphic_errors.append(f'ElmLne graphic for {fid} does not have exactly two IntGrfcon rows')
             if gr and gr[0].get('sSymNam') != 'd_lin':
                 graphic_errors.append(f'ElmLne graphic for {fid} must use sSymNam=d_lin')
+        for fid in coupler_fids:
+            gr = graphics_by_object.get(fid, [])
+            if gr and gr[0].get('sSymNam') != 'd_couple':
+                graphic_errors.append(f'ElmCoup graphic for {fid} must use sSymNam=d_couple')
+            if gr and len(connectors_by_graphic.get(gr[0].get('FID', ''), [])) != 2:
+                graphic_errors.append(f'ElmCoup graphic for {fid} does not have exactly two IntGrfcon rows')
         for fid in free_load_fids | source_fids:
             gr = graphics_by_object.get(fid, [])
             if gr and len(connectors_by_graphic.get(gr[0].get('FID',''), [])) != 1:
@@ -507,9 +600,14 @@ def validate_dgs(
                 graphic_errors.append(f'Visible ElmTerm graphic for {fid} must use sSymNam=PointTerm')
 
         # Electrical: underground sections must keep inAir=0 (DigSilent cable look).
+        # First match wins, matching the previous next() scan: _loc truncates to 40
+        # chars, so two long SectionIDs can collide on the same key.
+        line_by_loc: dict[str, Line] = {}
+        for ln in model.lines:
+            line_by_loc.setdefault(_loc(ln.section_id), ln)
         for r in line_rows:
             name = r.get('loc_name', '')
-            line = next((ln for ln in model.lines if _loc(ln.section_id) == name), None)
+            line = line_by_loc.get(name)
             if line is None:
                 continue
             expected_in_air = '1' if line.overhead else '0'
@@ -520,13 +618,11 @@ def validate_dgs(
                 )
 
         # DigSilent sheet/grid must cover the full network map (no clipped edges).
-        from .dgs import NA205_MAX_DIAGRAM_EXTENT
-
         sheet_xs: list[float] = []
         sheet_ys: list[float] = []
         for r in graphic_rows:
-            x = _finite_float(r.get('rCenterX'))
-            y = _finite_float(r.get('rCenterY'))
+            x = finite_or_none(r.get('rCenterX'))
+            y = finite_or_none(r.get('rCenterY'))
             if x is not None and y is not None:
                 sheet_xs.append(x)
                 sheet_ys.append(y)
@@ -536,8 +632,8 @@ def validate_dgs(
             except ValueError:
                 n = 0
             for i in range(max(n, 0)):
-                x = _finite_float(r.get(f'rX:{i}'))
-                y = _finite_float(r.get(f'rY:{i}'))
+                x = finite_or_none(r.get(f'rX:{i}'))
+                y = finite_or_none(r.get(f'rY:{i}'))
                 if x is not None and y is not None:
                     sheet_xs.append(x)
                     sheet_ys.append(y)
@@ -547,22 +643,34 @@ def validate_dgs(
             span_x = max(sheet_xs) - min(sheet_xs)
             span_y = max(sheet_ys) - min(sheet_ys)
             span = max(span_x, span_y)
-            if span > NA205_MAX_DIAGRAM_EXTENT * 1.02:
-                graphic_errors.append(
-                    f'Diagram sheet span {span:.3f} exceeds DigSilent canvas '
-                    f'{NA205_MAX_DIAGRAM_EXTENT} (network/map not fully covered)'
-                )
             if span < 1e-6:
                 graphic_errors.append('Diagram sheet collapsed to a point; topology scale is invalid')
+            # Hoja normalizada: todo el dibujo dentro de ella, en cualquiera de sus dos
+            # orientaciones. PowerFactory dimensiona la hoja con este recuadro.
+            formato = getattr(model, 'diagram_sheet', None)
+            if formato:
+                from .dgs import formato_hoja
+
+                ancho, alto = formato_hoja(formato)
+                cabe = any(
+                    min(sheet_xs) >= -1e-6 and min(sheet_ys) >= -1e-6
+                    and max(sheet_xs) <= w + 1e-6 and max(sheet_ys) <= h + 1e-6
+                    for w, h in ((ancho, alto), (alto, ancho))
+                )
+                if not cabe:
+                    graphic_errors.append(
+                        f'El diagrama no cabe en la hoja {formato} ({ancho:g}×{alto:g} mm): '
+                        f'x {min(sheet_xs):.1f}…{max(sheet_xs):.1f}, '
+                        f'y {min(sheet_ys):.1f}…{max(sheet_ys):.1f}'
+                    )
 
     # ElmFeeder required always (DigSilent feeder colouring / Define Feeder).
     feeder_rows = tables.get('ElmFeeder', {}).get('rows_dict', [])
-    if len(feeder_rows) != 1:
-        structural_errors.append(f'ElmFeeder rows={len(feeder_rows)}, expected 1')
-    elif feeder_rows[0].get('obj_id', '') not in cubic_fids:
-        structural_errors.append(
-            f'ElmFeeder {feeder_rows[0].get("FID")} obj_id is not a StaCubic'
-        )
+    if len(feeder_rows) != fuentes_esperadas:
+        structural_errors.append(f'ElmFeeder rows={len(feeder_rows)}, expected {fuentes_esperadas}')
+    for fila in feeder_rows:
+        if fila.get('obj_id', '') not in cubic_fids:
+            structural_errors.append(f'ElmFeeder {fila.get("FID")} obj_id is not a StaCubic')
 
     return _report(model, tables, schema, schema_errors, structural_errors, connection_errors,
                    geographic_errors, graphic_errors, geography=geography, dgs_length=dgs_length)

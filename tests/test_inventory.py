@@ -13,14 +13,17 @@ def test_inventory_on_referencia_dataset(ds):
     assert totals['sections'] == len(ds.sections)
     assert totals['customer_loads'] == len(ds.customer_loads)
     assert totals['convertible_feeders'] + totals['stub_feeders'] == totals['feeders']
-    assert inv['conversion']['expected_dgs_files'] == totals['convertible_feeders']
+    # Todo alimentador produce un DGS: los que tienen topología MT completa y los que
+    # solo traen cabecera, que se dibujan igualmente con su barra de cabecera.
+    assert inv['conversion']['expected_dgs_files'] == totals['feeders']
     assert len(inv['feeders']) == totals['feeders']
-    # Referencia ElectroDunas lote: 96 feeders, 3 stubs, 38657 sections
+    # Referencia ElectroDunas lote: 96 feeders, 3 solo-cabecera, 38657 sections
     if totals['feeders'] == 96:
         assert totals['convertible_feeders'] == 93
         assert totals['stub_feeders'] == 3
         assert totals['sections'] == 38657
-        assert set(inv['conversion']['skipped_stub_feeders']) == {'CA103', 'PI101', 'PN208'}
+        assert set(inv['conversion']['source_only_feeders']) == {'CA103', 'PI101', 'PN208'}
+        assert set(inv['conversion']['full_topology_feeders']) & {'CA103', 'PI101', 'PN208'} == set()
     report = format_inventory_report(inv)
     assert 'INVENTARIO TXT' in report
     assert str(totals['feeders']) in report

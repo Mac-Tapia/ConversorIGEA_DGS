@@ -1,0 +1,28 @@
+{
+  "_comentario": "Convenciones de Electro Dunas (Ica, Perú), caso de prueba del conversor (spec 002, RF-35). Solo convenciones, ningún dato de la red. Para usarlo, ponga en config/perfil_empresa.json: {\"perfil\": \"electro_dunas\"}.",
+  "_comentario_crs": "Coordenadas de sus exportaciones CYMDIST/IGEA: UTM 18S (WGS 84).",
+  "crs_origen": "EPSG:32718",
+  "_comentario_sed": "Medición en MT («trafomix») registrada como SED con código M y cifras (M41608 mide a SE41608): no transforma a BT y se excluye.",
+  "patron_sed_medicion": "(?i)^M\\d+(?:-\\d+)?$",
+  "_comentario_escala": "Unidades de diagrama por metro, calibradas con el DGS de referencia de NA205.",
+  "escala_diagrama": 2.08,
+  "_comentario_clientes": "Libros mensuales de clientes importantes: MMAA seguido del nombre fijo.",
+  "patron_libro_clientes": "(?i)^(?P<mes>0[1-9]|1[0-2])(?P<anio>\\d{2})clientesImportantes\\.(?:xlsb|xlsx)$",
+  "_comentario_informes": "Bandas del coloreado de sus informes (spec 017, RF-115), las del modelo EMAPICA: tensión en % de la nominal y cargabilidad en %. Los modelos .docx, el libro de pérdidas y el proyecto de transmisión van en el perfil local, porque son ficheros y proyectos de la máquina.",
+  "_comentario_calibracion": "Factor de potencia de las SED escaladas al calibrar a la máxima de cabecera (spec 015, RF-54), pedido el 2026-10-15. Las fijas conservan el de su EA/ERI de la tabla cruzada (RF-53).",
+  "_comentario_fijas": "Factor de potencia mínimo de los clientes fijos (spec 015, RF-62): por debajo, se suponen compensados por su banco propio hasta este valor; pedido el 2026-10-15.",
+  "_comentario_estudios": "Límites de los estudios y del informe (spec 011 y 017): NTCSE, ±5 % de la tensión nominal y cargabilidad hasta el 100 %.",
+  "estudios": {"tension_min_pu": 0.95, "tension_max_pu": 1.05, "cargabilidad_max_pct": 100},
+  "calibracion": {"factor_potencia_cargas": 0.98, "factor_potencia_minimo_fijas": 0.98},
+  "_comentario_vias": "Enrutador de vías para trazar el enlace por la vía pública (spec 016, RF-81 a RF-87), elegido por el usuario el 2026-10-16: OSRM sobre OpenStreetMap. Solo salen las coordenadas de los dos extremos.",
+  "vias": {"servicio": "osrm", "url": "https://router.project-osrm.org", "perfil": "driving", "fuera_de_via_max_m": 50, "tiempo_max_s": 10},
+  "informes": {
+    "bandas_tension_pct": [85, 90, 95, 105],
+    "bandas_cargabilidad_pct": [80, 90, 95, 105, 150],
+    "_comentario_cabecera": "Rótulos de las celdas de la cabecera del modelo de Casa Blanca donde van el n.º de informe y la referencia (asunto).",
+    "cabecera": {"numero": "INFORME TECNICO", "referencia": "REFERENCIA"},
+    "_comentario_norma": "La norma de calidad y el regulador que citan sus informes.",
+    "norma": "NTCSE",
+    "regulador": "Osinergmin"
+  }
+}

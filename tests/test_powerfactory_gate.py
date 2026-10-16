@@ -62,6 +62,85 @@ def test_powerfactory_acceptance_module_imports():
     assert 'short_circuit' in mod.STUDY_REGISTRY
 
 
+def test_new_operation_scenario_is_saved_but_existing_one_is_not():
+    mod = _load_pf_mod()
+
+    class Scenario:
+        loc_name = 'Operation Scenario'
+
+        def __init__(self):
+            self.saves = 0
+
+        def Activate(self):
+            return 0
+
+        def Save(self):
+            self.saves += 1
+
+    created = Scenario()
+
+    class Folder:
+        def __init__(self, existing=None):
+            self.existing = existing
+
+        def GetContents(self, *_args):
+            return [self.existing] if self.existing else []
+
+        def CreateObject(self, *_args):
+            return created
+
+    class App:
+        def __init__(self, folder):
+            self.folder = folder
+
+        def GetProjectFolder(self, *_args):
+            return self.folder
+
+        def GetActiveProject(self):
+            return SimpleNamespace()
+
+        def GetActiveScenario(self):
+            return self.folder.existing or created
+
+    result = mod.ensure_operation_scenario(App(Folder()), name='Operation Scenario')
+    assert result['created'] is True
+    assert result['activated'] is True
+    assert created.saves == 1
+
+    existing = Scenario()
+    result = mod.ensure_operation_scenario(App(Folder(existing)), name='Operation Scenario')
+    assert result['created'] is False
+    assert result['activated'] is True
+    assert existing.saves == 0
+
+
+def test_generated_project_name_fits_powerfactory_limit():
+    mod = _load_pf_mod()
+    long_name = 'AL104_AL105_AL106_AL107_AL108_AL209_CA101_CA104_ETC'
+    result = mod._generated_project_name('20260929-055603', long_name)
+    assert len(result) <= 40
+    assert result.startswith('20260929-055603_IGEA_')
+    assert result.endswith(long_name[-8:])
+
+
+def test_import_dgs_nombres_caben_en_powerfactory(tmp_path):
+    """El nombre provisional y el final caben en los 40 caracteres de loc_name, y el
+    proyecto queda activo aunque se llame igual que el DGS largo (spec 005 lo activa por
+    objeto, no por nombre)."""
+    from fake_pf import App
+
+    mod = _load_pf_mod()
+    dgs = tmp_path / 'AL104_AL105_AL106_AL107_ETC.dgs'
+    dgs.write_text('DGS', encoding='ascii')
+    app = App()
+    result = mod.import_dgs_file(app, dgs, carpeta='Red')
+
+    assert result['ok'] is True and result['errors'] == []
+    assert all(len(p.loc_name) <= 40 for p in app.importados)
+    assert len(result['project_name']) <= 40
+    assert app.GetActiveProject().loc_name == result['project_name']
+
+
 def test_powerfactory_gate_help_exits_zero():
     import subprocess
     import sys
@@ -75,11 +154,44 @@ def test_powerfactory_gate_help_exits_zero():
     )
     assert proc.returncode == 0
     assert '--import-dgs' in proc.stdout
+    assert '--feeder-metadata' in proc.stdout
     assert '--run-load-flow' in proc.stdout
     assert '--ensure-scenario' in proc.stdout
     assert '--fix-until-converge' in proc.stdout
     assert '--run-studies' in proc.stdout
     assert '--list-studies' in proc.stdout
+
+
+def test_import_only_report_includes_feeder_metadata(monkeypatch, tmp_path):
+    mod = _load_pf_mod()
+    metadata = {
+        'status': 'assigned',
+        'written': 3,
+        'by_feeder': {'AL101': {'ElmLod': 1, 'ElmSubstat': 1, 'ElmXnet': 1}},
+    }
+    reports = []
+    monkeypatch.setattr(mod, 'connect_powerfactory', lambda **_kwargs: object())
+    monkeypatch.setattr(mod, 'run_import_activate_flow', lambda *_args, **_kwargs: {
+        'ok': True,
+        'import': {'project_name': 'PF_AL101'},
+        'study_scenario': {},
+        'scenario_ensure': {},
+        'feeder_metadata': metadata,
+        'load_flow_loop': {'pass': True, 'final_load_flow': {'pass': True}},
+        'errors': [],
+        'warnings': [],
+        'dgs_persist': {'ok': True},
+    })
+    monkeypatch.setattr(mod, '_write_reports', lambda report, *_paths: reports.append(report))
+
+    result = mod.main([
+        '--import-dgs', str(tmp_path / 'AL101.dgs'),
+        '--feeder-metadata', str(tmp_path / 'AL101_feeder_metadata.json'),
+        '--run-load-flow',
+    ])
+
+    assert result == 0
+    assert reports[0]['feeder_metadata'] == metadata
 
 
 def test_list_studies_exits_zero_without_pf():
@@ -382,3 +494,100 @@ def test_powerfactory_help_mentions_persist_flags():
     assert '--persist-dir' in proc.stdout
     assert '--no-persist-dgs' in proc.stdout
     assert '--no-export-converged-dgs' in proc.stdout
+
+
+class _ObjPF:
+    """Objeto de PowerFactory mínimo: nombre completo, padre, hijos y atributos."""
+
+    def __init__(self, nombre, padre=None, clase='', **attrs):
+        self.padre, self.clase, self.hijos = padre, clase, []
+        self.attrs = {'loc_name': nombre, **attrs}
+        self.nombre = f'{padre.nombre}\\{nombre}' if padre else nombre
+        if padre is not None:
+            padre.hijos.append(self)
+
+    def GetFullName(self):
+        return self.nombre
+
+    def GetParent(self):
+        return self.padre
+
+    def GetAttribute(self, name):
+        return self.attrs.get(name)
+
+    def GetContents(self, pattern, recursive=0):
+        clase = pattern.split('.')[-1]
+        out = []
+        for h in self.hijos:
+            if h.clase == clase:
+                out.append(h)
+            if recursive:
+                out.extend(h.GetContents(pattern, 1))
+        return out
+
+
+def test_los_alimentadores_se_cuentan_en_la_carpeta_feeders_de_la_grid():
+    """PF guarda los ElmFeeder en «Feeders», fuera de la grid: antes contaba 0 siempre.
+
+    Visto en la red unida NA203_NA205 importada: 2 ElmFeeder en el proyecto, 0 contados.
+    Los de otra grid del mismo proyecto no cuentan.
+    """
+    mod = _load_pf_mod()
+    datos = _ObjPF('Network Data')
+    red = _ObjPF('NA203_NA205', datos, 'ElmNet')
+    otra = _ObjPF('OTRA', datos, 'ElmNet')
+    feeders = _ObjPF('Feeders', datos, 'IntFeeder')
+    for nombre, grid in (('NA203', red), ('NA205', red), ('X', otra)):
+        barra = _ObjPF(f'B_{nombre}', grid, 'ElmTerm')
+        cub = _ObjPF(f'Cub_{nombre}', barra, 'StaCubic')
+        _ObjPF(nombre, feeders, 'ElmFeeder', obj_id=cub)
+    assert mod.inventory_network(red)['feeders'] == 2
+    assert mod.inventory_network(otra)['feeders'] == 1
+
+
+def test_las_definiciones_dgs_se_buscan_solo_en_el_primer_nivel_del_usuario():
+    """La búsqueda recursiva recorría todos los proyectos del usuario de PowerFactory.
+
+    Con la base llena, AL107 sin georreferenciación (3 tramos) no terminaba en 8 minutos
+    tras converger; con la búsqueda en el primer nivel, 37 s.
+    """
+    mod = _load_pf_mod()
+
+    class _Usuario(_ObjPF):
+        def GetContents(self, pattern, recursive=0):
+            assert not recursive, 'no se recorre la base entera del usuario'
+            return super().GetContents(pattern, 0)
+
+    usuario = _Usuario('Usuario')
+    proyecto = _ObjPF('Proyecto', usuario, 'IntPrj')
+    _ObjPF('DGS Definition', proyecto, 'IntFolder')
+    app = SimpleNamespace(GetCurrentUser=lambda: usuario)
+    assert mod._find_dgs_export_definitions(app) is None
+    propia = _ObjPF('DGS Export Definition', usuario, 'IntFolder')
+    assert mod._find_dgs_export_definitions(app) is propia
+
+
+def test_la_aceptacion_compara_el_trazado_de_cada_linea_con_el_manifiesto():
+    """010:RF-6 — cuenta las líneas con trazado y las que difieren del manifiesto.
+
+    010:RF-7 — una línea sin el trazado del manifiesto es la que PowerFactory dibujaría
+    recta en la vista geográfica: cuenta como distinta.
+    """
+    mod = _load_pf_mod()
+    manifest = {'lines': {
+        'SEC_1': {'path': [{'lat': -14.0, 'lon': -75.0}, {'lat': -14.001, 'lon': -75.002},
+                           {'lat': -14.002, 'lon': -75.003}]},
+        'SEC_2': {'path': [{'lat': -14.1, 'lon': -75.1}, {'lat': -14.2, 'lon': -75.2}]},
+        'SEC_3': {'path': [{'lat': -14.3, 'lon': -75.3}, {'lat': -14.4, 'lon': -75.4}]},
+    }}
+    lineas = [
+        _ObjPF('SEC_1', clase='ElmLne',
+               GPScoords=[[-14.0, -75.0], [-14.001, -75.002], [-14.002, -75.003]]),
+        # Lat y lon cambiadas de columna: así se vería un trazado mal interpretado.
+        _ObjPF('SEC_2', clase='ElmLne', GPScoords=[[-75.1, -14.1], [-75.2, -14.2]]),
+        _ObjPF('SEC_3', clase='ElmLne', GPScoords=[]),
+    ]
+    r = mod.compare_line_gps(lineas, manifest)
+    assert r == {'with_path': 2, 'compared': 3, 'mismatches': 2,
+                 'mismatch_sample': ['SEC_2', 'SEC_3']}
+    assert mod.compare_line_gps(lineas[:1], manifest)['mismatches'] == 0

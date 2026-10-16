@@ -9,7 +9,7 @@ import pytest
 from igea_dgs.batch import convert_selection
 
 
-def test_convert_with_preview_and_tsv(ds, sample_feeder, tmp_path: Path):
+def test_convert_with_preview_and_tsv(ds, sample_feeder, tmp_path: Path, opciones_reales):
     pytest.importorskip('pyproj')
     manifest = convert_selection(
         ds,
@@ -18,6 +18,7 @@ def test_convert_with_preview_and_tsv(ds, sample_feeder, tmp_path: Path):
         write_preview=True,
         export_tsv=True,
         preview_backend='leaflet',
+        **opciones_reales,
     )
     assert manifest['summary']['ok'] == 1
     item = manifest['feeders'][0]

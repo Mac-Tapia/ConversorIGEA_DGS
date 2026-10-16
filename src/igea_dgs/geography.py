@@ -1,3 +1,6 @@
+"""Coordenadas: del CRS de origen a WGS84, geometría de nodos y tramos y su validación.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -9,16 +12,87 @@ from .dataset import CymdistDataset
 from .model import FeederModel
 
 
-def _transformer(source_crs: str, target_crs: str):
+class CrsOrigenFaltaError(ValueError):
+    """Se pidió georreferenciar sin CRS de origen (spec 002, RF-32)."""
+
+
+MENSAJE_FALTA_CRS = (
+    'Falta el CRS de origen de las coordenadas. Elíjalo (un código EPSG en metros, por '
+    'ejemplo el UTM de su zona) o póngalo como «crs_origen» en config/perfil_empresa.json '
+    '(puede heredar uno de config/perfiles/ con «"perfil": "<nombre>"»). Sin CRS, '
+    'convierta sin georreferenciación.'
+)
+
+
+def exigir_crs_origen(source_crs: str | None) -> str:
+    """El CRS de origen, o :class:`CrsOrigenFaltaError` si no se eligió ninguno.
+
+    Antes se suponía el UTM 18S de Ica: con datos de otra zona la red salía desplazada
+    cientos de kilómetros, sin aviso (constitución P13). Ahora se pregunta.
+    """
+    if not source_crs or not str(source_crs).strip():
+        raise CrsOrigenFaltaError(MENSAJE_FALTA_CRS)
+    return str(source_crs).strip()
+
+
+def assert_metre_source_crs(source_crs: str) -> None:
+    """Reject a source CRS whose axes are not in metres.
+
+    Electrical lengths are measured as euclidean distance over raw CoordX/CoordY
+    and stored as metres (``model.apply_georeferenced_lengths``). A CRS in degrees
+    or feet therefore scales every length silently — with EPSG:4326 by a factor of
+    ~1e5 — and no validation catches it, because the validator compares the DGS
+    against the very model that produced it.
+
+    See docs/DIAGNOSTICO_BACKEND_FRONTEND_2026-09-22.md (C-01).
+    """
+    try:
+        from pyproj import CRS
+    except ImportError:  # pragma: no cover - geography path already requires pyproj
+        return
+    try:
+        crs = CRS.from_user_input(source_crs)
+    except Exception as exc:
+        raise ValueError(f'CRS de origen no reconocido: {source_crs!r} ({exc})') from exc
+    axis = crs.axis_info[0] if crs.axis_info else None
+    if axis is None:
+        raise ValueError(f'CRS de origen sin información de ejes: {source_crs!r}')
+    factor = getattr(axis, 'unit_conversion_factor', None)
+    if crs.is_geographic or factor is None or abs(factor - 1.0) > 1e-9:
+        unit = getattr(axis, 'unit_name', 'desconocida')
+        raise ValueError(
+            f'CRS de origen {source_crs!r} usa unidades {unit!r}, no metros. '
+            'Las longitudes de línea se miden en las unidades del CRS y se escriben '
+            'como metros, de modo que este CRS produciría un modelo eléctrico '
+            'silenciosamente falso. Indique el CRS proyectado en metros de su export '
+            '(por ejemplo un UTM regional), o convierta con --no-geography.'
+        )
+
+
+def make_transformer(source_crs: str, target_crs: str):
+    """El único constructor de transformadores del proyecto, siempre en orden x/y.
+
+    Había cinco y cada uno trataba distinto un CRS inválido: el lector de SED nuevas,
+    ya retirado, lo callaba y todas las SED nuevas salían sin GPS, sin aviso; los demás soltaban el
+    ``CRSError`` de pyproj sin decir qué CRS fallaba. Aquí es un ``ValueError`` con los
+    dos CRS, el mismo tipo que ``assert_metre_source_crs`` y que el CLI ya informa.
+    """
     try:
         from pyproj import Transformer
+        from pyproj.exceptions import CRSError
     except ImportError as exc:  # pragma: no cover - depends on local install
         raise ImportError(
             'pyproj es obligatorio para georreferenciación. '
             'Instale con: pip install -r requirements.txt  '
             '(o desactive geografía con --no-geography / la GUI).'
         ) from exc
-    return Transformer.from_crs(source_crs, target_crs, always_xy=True)
+    try:
+        return Transformer.from_crs(source_crs, target_crs, always_xy=True)
+    except CRSError as exc:
+        raise ValueError(
+            f'No se puede reproyectar de {source_crs!r} a {target_crs!r}: '
+            f'CRS no reconocido ({exc})'
+        ) from exc
 
 
 @dataclass(frozen=True)
@@ -84,7 +158,7 @@ def build_geography(
     dataset: CymdistDataset,
     model: FeederModel,
     *,
-    source_crs: str = 'EPSG:32718',
+    source_crs: str | None,
     target_crs: str = 'EPSG:4326',
 ) -> GeographyManifest:
     """Build WGS84/geographic geometry for one feeder from IGEA/CYMDIST coordinates.
@@ -93,7 +167,7 @@ def build_geography(
     deliberately configurable because exported GIS databases may use a different
     projected coordinate reference system.
     """
-    transformer = _transformer(source_crs, target_crs)
+    transformer = make_transformer(exigir_crs_origen(source_crs), target_crs)
 
     nodes: dict[str, GeoPoint] = {}
     xs: list[float] = []
@@ -112,12 +186,11 @@ def build_geography(
         nodes[node_id] = GeoPoint(lat=lat, lon=lon, x=x, y=y)
         xs.append(x); ys.append(y); lons.append(lon); lats.append(lat)
 
-    intermediate_by_section: dict[str, list[dict[str, str]]] = {}
-    selected_sections = set(model.section_by_id)
-    for row in dataset.intermediate_nodes:
-        sid = row.get('SectionID', '')
-        if sid in selected_sections:
-            intermediate_by_section.setdefault(sid, []).append(row)
+    # Índice del dataset, construido una vez para todo el lote (ver CymdistDataset).
+    intermediate_by_section = {
+        sid: rows for sid in model.section_by_id
+        if (rows := dataset.intermediate_by_section.get(sid))
+    }
 
     lines: dict[str, GeoLine] = {}
     intermediate_point_count = 0
@@ -171,18 +244,33 @@ def _point_dict(point: GeoPoint) -> dict[str, float]:
 
 def geography_to_dict(geo: GeographyManifest, model: FeederModel | None = None) -> dict:
     sed_n = len(model.seds) if model is not None else 0
+    # Una fuente por alimentador: en una red unida (combine) hay tantas como alimentadores.
+    combinado = getattr(model, 'combined', None) if model is not None else None
+    fuentes = len(getattr(combinado, 'feeders', None) or ()) or 1
+    from .model import capacitor_resolution_issue, resolve_capacitor_capacity
+
+    combined_node_kv = getattr(combinado, 'node_kv', {}) if combinado is not None else {}
+    resolved_capacitors = [
+        (bank, resolve_capacitor_capacity(
+            bank, combined_node_kv.get(bank.node_id, model.nominal_kv),
+        ))
+        for bank in (model.capacitors if model is not None else ())
+    ]
     expected = {
         'nodes': len(geo.nodes),
         'lines': len(geo.lines),
         'loads': len(model.loads) if model is not None else 0,
         'switches': len(model.devices) if model is not None else 0,
-        'sources': 1,
+        'sources': fuentes,
         'intermediate_points': geo.intermediate_point_count,
         # SED distribution transformers (ElmTr2 inside ElmSubstat).
         'transformers': sed_n,
         'substations_sed': sed_n,
-        # No CAPACITOR/REGULATOR SETTING rows in current RED exports → 0 in DGS.
-        'capacitors': 0,
+        'capacitors': sum(
+            1 for bank, capacity in resolved_capacitors
+            if capacity.kvar_per_step is not None and capacity.total_kvar is not None
+            and bank.node_id in geo.nodes
+        ),
         'regulators': 0,
     }
     return {
@@ -191,15 +279,42 @@ def geography_to_dict(geo: GeographyManifest, model: FeederModel | None = None) 
         'network_id': geo.network_id,
         'source_node': geo.source_node,
         'expected_counts': expected,
+        'capacitor_banks': [{
+            'loc_name': bank.capacitor_id[:40],
+            'terminal': bank.node_id[:40],
+            'feeder': bank.feeder,
+            'network_id': bank.network_id,
+            'grid': model.name,
+            'ctech': 1 if bank.phases == 'ABC' else (3 if len(bank.phases) == 2 else 6),
+            'shtype': 2,
+            'qcapn': capacity.kvar_per_step / 1000.0,
+            'ncapx': bank.steps,
+            'ncapa': bank.steps,
+            'ushnm': capacity.nominal_kv,
+            'outserv': 0 if bank.in_service else 1,
+            'total_source_mvar': (
+                bank.total_kvar / 1000.0 if bank.total_kvar is not None else None
+            ),
+            'total_effective_mvar': capacity.total_kvar / 1000.0,
+            'phases': bank.phases,
+            'capacity_origin': capacity.origin,
+            'correction': capacity.correction,
+        } for bank, capacity in resolved_capacitors
+            if capacity.kvar_per_step is not None and capacity.total_kvar is not None
+            and bank.node_id in geo.nodes],
+        'capacitor_issues': [issue for bank, capacity in resolved_capacitors
+            if (issue := capacitor_resolution_issue(
+                bank, capacity, node_exists=bank.node_id in geo.nodes,
+            )) is not None],
         'source_crs': geo.source_crs,
         'target_crs': geo.target_crs,
         'source_xy_bounds': list(geo.source_xy_bounds),
         'target_bounds': list(geo.target_bounds),
         'intermediate_sections': geo.intermediate_section_count,
         'equipment_scope_note': (
-            'Transformers = SED ElmTr2 from CARGA. Capacitors/regulators require '
-            'CAPACITOR SETTING / REGULATOR SETTING in RED (absent in typical IGEA export); '
-            'BD_Equipo catalog alone is not placed on the network.'
+            'Transformers = SED ElmTr2 from CARGA. Capacitors come from [SHUNT CAPACITOR '
+            'SETTING] in RED or CYMSHUNTCAPACITOR in the .mdb; regulators from REGULATOR '
+            'SETTING. The BD_Equipo catalog alone is not placed on the network.'
         ),
         'nodes': {node_id: _point_dict(point) for node_id, point in geo.nodes.items()},
         'lines': {

@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Activate DigSilent project and show the IntGrf diagram for a feeder (e.g. AL104)."""
+"""Activa un proyecto de DIgSILENT y abre el diagrama (IntGrf) de un alimentador.
+
+    python tools/show_pf_diagram.py --feeder ALIMENTADOR [--project-substr TEXTO] [--wait 3]
+
+El alimentador se pide: antes traía uno de Electro Dunas por defecto (spec 009, RF-8).
+"""
 from __future__ import annotations
 
 import argparse
@@ -8,11 +13,12 @@ import time
 
 
 def main(argv=None) -> int:
-    p = argparse.ArgumentParser(description='Show IGEA feeder diagram in DigSilent PowerFactory')
-    p.add_argument('--feeder', default='AL104', help='ElmNet / diagram name (default AL104)')
-    p.add_argument('--project-substr', default='AL104', help='Substring to pick IntPrj')
-    p.add_argument('--wait', type=float, default=3.0, help='Seconds to wait after connect')
+    p = argparse.ArgumentParser(description='Abre en DIgSILENT el diagrama de un alimentador')
+    p.add_argument('--feeder', required=True, help='Nombre del ElmNet y de su diagrama')
+    p.add_argument('--project-substr', default='', help='Texto del IntPrj; por defecto, el alimentador')
+    p.add_argument('--wait', type=float, default=3.0, help='Segundos de espera tras conectar')
     args = p.parse_args(argv)
+    args.project_substr = args.project_substr or args.feeder
 
     try:
         import powerfactory as pf
@@ -32,10 +38,10 @@ def main(argv=None) -> int:
             r'  set PYTHONPATH=C:\Program Files\DIgSILENT\PowerFactory 2024\Python\3.12' '\n'
             f'  python tools\\show_pf_diagram.py --feeder {args.feeder}\n'
             '\nMientras tanto, en DigSilent:\n'
-            f'  1) Manager → abra el proyecto *{args.project_substr}* (el más reciente IGEA_AL104)\n'
+            f'  1) Manager → abra el proyecto *{args.project_substr}* (el más reciente)\n'
             f'  2) Active Study Case\n'
             f'  3) Network Data → ElmNet "{args.feeder}" → clic derecho → Edit Graphic / Show Diagram\n'
-            '  4) O Graphics Board → diagrama AL104 → Zoom All\n',
+            f'  4) O Graphics Board → diagrama {args.feeder} → Zoom All\n',
             file=sys.stderr,
         )
         return 3
@@ -51,7 +57,9 @@ def main(argv=None) -> int:
 
     target = matches[-1]
     print('Activando proyecto:', target.loc_name)
-    app.ActivateProject(target.loc_name)
+    # Por objeto: el proyecto puede estar en la carpeta de importación (spec 005), y
+    # ActivateProject(nombre) solo busca en la raíz del usuario.
+    target.Activate()
     time.sleep(0.5)
 
     study = app.GetProjectFolder('study')

@@ -6,11 +6,14 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from .dataset import CymdistDataset
+from .dataset import TABLAS_TIPOS_LINEA,  CymdistDataset
 from .naming import feeder_short_name, sort_key_feeder
 
 
-def build_dataset_inventory(dataset: CymdistDataset) -> dict[str, Any]:
+def build_dataset_inventory(
+    dataset: CymdistDataset,
+    aliases: dict[str, str] | None = None,
+) -> dict[str, Any]:
     """Analyze RED/CARGA/BD_Equipo contents in depth for conversion planning.
 
     Returns a JSON-serializable report: totals, per-feeder stats, integrity issues,
@@ -82,15 +85,15 @@ def build_dataset_inventory(dataset: CymdistDataset) -> dict[str, Any]:
     }
     catalog_ids: set[str] = set()
     for table_name, rows in dataset.equipment_tables.items():
-        if table_name not in {'LINE', 'CONCENTRIC NEUTRAL CABLE'}:
+        if table_name not in TABLAS_TIPOS_LINEA:
             continue
         for row in rows:
             code = (row.get('ID') or '').strip()
             if code:
                 catalog_ids.add(code)
-    missing_in_catalog = sorted(
-        code for code in line_codes if code not in catalog_ids and code != 'DEFAULT'
-    )
+    from .model import unresolved_line_type_codes
+
+    missing_in_catalog = sorted(unresolved_line_type_codes(dataset, aliases))
 
     feeder_rows: list[dict[str, Any]] = []
     convertible: list[str] = []
@@ -128,8 +131,9 @@ def build_dataset_inventory(dataset: CymdistDataset) -> dict[str, Any]:
             'severity': 'warning',
             'code': 'empty_section_blocks',
             'message': (
-                f'{len(stubs)} alimentador(es) con FEEDER=/SOURCE pero 0 filas SECTION: '
-                + ', '.join(stubs)
+                f'{len(stubs)} alimentador(es) con FEEDER=/SOURCE pero 0 filas SECTION '
+                f'(se convierten dibujando solo su barra de cabecera; no son redes '
+                f'modeladas): ' + ', '.join(stubs)
             ),
             'feeders': stubs,
         })
@@ -186,15 +190,37 @@ def build_dataset_inventory(dataset: CymdistDataset) -> dict[str, Any]:
             'feeders': [feeder_short_name(n) for n in sources_without_feeder],
         })
     if missing_in_catalog:
+        # La gravedad depende de CUÁNTO falta, no de que falte algo.
+        #
+        # Que falten dos o tres códigos es rutina y el resolvedor por vecino los cubre
+        # bien. Que falte casi todo es otra cosa: en una entrega real llegó un
+        # Equipos.txt con 9 tipos frente a los 43 que usaba la red —otra convención de
+        # nombres—, y los 38.879 tramos, los 4.194,6 km, el 100 % de la red, acabaron
+        # con la impedancia de DEFAULT. Y no fallaba: producía un modelo que converge
+        # en PowerFactory y da un flujo impecable con todas las impedancias
+        # equivocadas. Salía como un aviso más, entre otros dos.
+        usados = len(line_codes) if line_codes else len(missing_in_catalog)
+        cobertura = 1.0 - (len(missing_in_catalog) / usados) if usados else 1.0
+        grave = cobertura < 0.5
         issues.append({
-            'severity': 'warning',
+            'severity': 'error' if grave else 'warning',
             'code': 'line_types_missing_from_bd_equipo',
             'message': (
-                f'{len(missing_in_catalog)} LineCableID usados en RED no están en BD_Equipo '
-                '(se resolverán por alias / vecino de catálogo / DEFAULT)'
+                f'{len(missing_in_catalog)} de {usados} LineCableID usados en RED no '
+                f'están en BD_Equipo: solo el {cobertura * 100:.0f} % de los tipos '
+                f'tiene catálogo.'
+                + (
+                    ' El catálogo cargado NO corresponde con esta red. Convertir así '
+                    'daría un modelo que converge pero con las impedancias de DEFAULT '
+                    'en casi toda la red, y nada en el resultado lo delataría. '
+                    'Complete el catálogo con el de otra entrega (--equipment-extra).'
+                    if grave else
+                    ' Se resolverán por alias / vecino de catálogo / DEFAULT.'
+                )
             ),
             'codes': missing_in_catalog[:50],
             'count': len(missing_in_catalog),
+            'coverage': round(cobertura, 4),
         })
 
     error_issues = sum(1 for i in issues if i['severity'] == 'error')
@@ -229,12 +255,14 @@ def build_dataset_inventory(dataset: CymdistDataset) -> dict[str, Any]:
             'catalog_line_cable_ids': len(catalog_ids),
         },
         'conversion': {
-            'expected_dgs_files': len(convertible),
-            'skipped_stub_feeders': stubs,
+            'expected_dgs_files': len(convertible) + len(stubs),
+            'full_topology_feeders': convertible,
+            'source_only_feeders': stubs,
             'convertible_feeders': convertible,
             'model': (
-                'Un DGS independiente por alimentador convertible '
-                '(tramos + cargas + SED + maniobras + geografía opcional).'
+                'Un DGS independiente por alimentador (tramos + cargas + SED + '
+                'maniobras + geografía opcional). Los alimentadores sin filas SECTION '
+                'generan un DGS con su barra de cabecera únicamente.'
             ),
         },
         'equipment_tables': equipment_counts,
@@ -264,8 +292,8 @@ def format_inventory_report(inventory: dict[str, Any]) -> str:
         '',
         '--- Totales leídos ---',
         f"Alimentadores (FEEDER=):     {t['feeders']}",
-        f"  Convertibles (con tramos): {t['convertible_feeders']}",
-        f"  Stub (0 SECTION):          {t['stub_feeders']}",
+        f"  Con topología MT:          {t['convertible_feeders']}",
+        f"  Solo cabecera (0 SECTION): {t['stub_feeders']}",
         f"SOURCE:                      {t['sources']}",
         f"Nodos:                       {t['nodes']}",
         f"Tramos (SECTION):            {t['sections']}",
@@ -282,10 +310,10 @@ def format_inventory_report(inventory: dict[str, Any]) -> str:
         f"Archivos .dgs a generar:     {c['expected_dgs_files']}",
         c['model'],
     ]
-    if c['skipped_stub_feeders']:
+    if c['source_only_feeders']:
         lines.append(
-            'Omitidos (sin topología en RED): '
-            + ', '.join(c['skipped_stub_feeders'])
+            'Solo cabecera (se dibuja la barra de cabecera, sin tramos ni cargas; '
+            'NO usar para flujo ni estudios): ' + ', '.join(c['source_only_feeders'])
         )
     lines.append('')
     lines.append('--- Integridad ---')
@@ -305,7 +333,7 @@ def format_inventory_report(inventory: dict[str, Any]) -> str:
         f"{'Nombre':<10} {'kV':>6} {'Tramos':>7} {'Cargas':>7} {'SW':>5} {'Estado':<12}"
     )
     for row in inventory['feeders']:
-        status = 'convertible' if row['convertible'] else 'STUB'
+        status = 'convertible' if row['convertible'] else 'solo-cabecera'
         lines.append(
             f"{row['feeder']:<10} {str(row['nominal_kv']):>6} {row['sections']:>7} "
             f"{row['loads']:>7} {row['switches']:>5} {status:<12}"

@@ -4,58 +4,205 @@ Conversor modular para transformar los archivos TXT `RED`, `CARGA` y `BD_Equipo`
 
 **Universal por diseño:** no está limitado a una empresa, a un número fijo de alimentadores ni a códigos como IN111/TA121. Cualquier export CYMDIST/IGEA con otras denominaciones de NetworkID, tipos de línea o CRS regionales se puede cargar; los nombres y conteos salen de los TXT, no de listas fijas en el código.
 
-## Interfaz gráfica (recomendada)
+### Tres fuentes aisladas y aceptación auditable
+
+La interfaz admite **tres TXT**, **MDB/Access** y **VNR-GIS**. Cada carga crea una
+ejecución inmutable propia; nunca completa una modalidad con archivos de otra. La
+tabla permite seleccionar uno, varios o todos los alimentadores. Si faltan nodos,
+tramos o parámetros, trabaja sobre una copia reconstruida auditable: conserva primero
+el valor original, completa por catálogo exacto/fabricante/global y deja cualquier
+supuesto de ingeniería visible. Los archivos primarios nunca se mezclan ni se mutan.
+
+Para ejecutar y documentar el flujo independiente hasta DGS/PowerFactory use
+`python tools/accept_three_sources.py --help`. El procedimiento, los niveles de
+evidencia y las referencias científicas están en
+[`docs/runbooks/three-source-production-acceptance.md`](docs/runbooks/three-source-production-acceptance.md).
+El ejecutor acepta `--feeder` repetido o `--all-feeders`, empresa, periodo, CRS y
+política de reconstrucción; registra hashes antes/después, decisiones y clase de
+convergencia. Una convergencia lograda reduciendo o desconectando carga exige revisión
+del operador y no se declara lista para producción.
+
+## Interfaz web (recomendada)
 
 Doble clic en `run_gui.bat`, o:
 
 ```bash
 set PYTHONPATH=src
-python -m igea_dgs.gui
+python -m igea_dgs.web          # o: igea-dgs-web  /  igea-dgs web
 ```
 
-En la ventana (flujo didáctico):
+Abre el navegador en `http://127.0.0.1:8765/`. Es una API **FastAPI** que sirve un
+front **React + TypeScript** (`frontend/`) y usa el mismo motor `igea_dgs`, sin
+reescribirlo.
 
-1. Elija los tres TXT: **RED**, **CARGA** y **BD_Equipo** — la GUI avisa cuando están listos.
-2. Pulse **Cargar / listar alimentadores** — diálogo al terminar con el número de alimentadores.
-3. Seleccione **uno**, **varios** (Ctrl/Mayús+clic) o **todos** (checkbox / botón).
-4. Pulse **Convertir a DGS** — progreso N/M, diálogo al terminar y opción de abrir la carpeta.
-5. (Opcional) Seleccione alimentadores ya convertidos y pulse **Cargar DGS en DigSILENT + flujo** — importa el `.dgs`, crea/activa escenario de operación, ejecuta flujo de potencia (ComLdf, con correcciones DigSILENT si no converge) y la suite de estudios (corto circuito ComShc si la licencia lo permite).
+1. **Entrada**: suelte los tres TXT juntos y cada uno va a su casilla por las tablas
+   que trae dentro, no por el nombre. También se pueden subir de uno en uno, o indicar
+   una ruta de este equipo (útil para la base `.mdb`, que pesa cientos de MB).
+2. **Cargar / listar alimentadores**: inventario, integridad y cobertura del catálogo
+   de conductores. Si el catálogo no cubre la red, lo avisa antes de convertir.
+3. **Seleccione** con las casillas (Mayús+clic = rango), filtre y ordene.
+4. **Convertir** uno, varios o todos: progreso en vivo, cancelable; lo ya convertido
+   se conserva. La tabla recuerda qué alimentadores tienen su DGS entre lotes.
+5. **Resultados**: descarga por fichero o en `.zip`, y el mapa de vista previa dentro
+   de la página.
+6. **Cargar en DigSILENT + flujo**, **Catálogo de parámetros** y **Sistema completo**
+   (red unida, escenario año 0, datos que faltan): con el plan a la vista antes de
+   aplicarlo.
 
-Sin `pyproj` puede listar alimentadores y convertir **desactivando georreferenciación**. Con GPS/diagrama debe estar instalado vía `requirements.txt`.
+### Cargas en DIgSILENT
+
+Esta pestaña trabaja sobre un proyecto que **ya existe** en DIgSILENT, sin convertir
+nada, y por eso se ve aunque no haya entradas cargadas (spec 008). Sigue el orden del
+trabajo:
+
+1. **1 · Proyecto de DIgSILENT**: leer los proyectos de la carpeta de importación,
+   buscar por nombre o carpeta y elegir uno (spec 005).
+2. **2 · Alimentadores y calibración**: al elegir el proyecto se marcan todos sus
+   alimentadores. Con los libros de medición se busca la máxima de cabecera de cada uno,
+   los clientes importantes quedan como demanda fija y el resto se escala por kVA hasta
+   que la cabecera dé la máxima; los alimentadores se ajustan uno tras otro, en el
+   escenario de «Sin proyecto» (specs 004, 006, 008, 014 y 015). Solo se calibra un
+   alimentador cuyo «Caso base» esté verificado frente al archivo original (spec 015), y
+   un cambio manual del operador gana a la calibración (spec 014).
+3. **3 · Integración de nuevas**: verificar que el flujo converge y, sobre esa red,
+   integrar demandas en bloque, una carga nueva y cargas nuevas en bloque. Las cargas
+   nuevas nacen solo en «Con proyecto», una variación por carga y sin duplicarlas al
+   repetir (specs 007 y 014). Cada carga va en sus coordenadas UTM y se conecta en el
+   punto más cercano de la red de media de su alimentador, partiendo el tramo, con su
+   propia línea hasta su punto si queda lejos (spec 016, RF-77 y RF-78). Las tres son
+   optativas; aplicar exige que el último flujo del proyecto haya convergido, y simular
+   no escribe nada.
+4. **4 · Obras y estudios**: obras de mejora, estudios con los módulos nativos de
+   DIgSILENT, guiones del operador y transferencia de carga entre dos alimentadores,
+   sobre «Sin proyecto» y «Con proyecto» (spec 011). Entre las obras: una terna más,
+   el enlace con otro alimentador (trazado por la vía pública con OpenStreetMap si el
+   perfil lo habilita) y la migración a otra tensión desde un nodo, que cierra el enlace
+   que llega a la parte que pasa (spec 016). Cada obra va en su variación, con fecha de
+   activación propia: DIgSILENT no aplica tres o más etapas de la misma fecha.
+5. **4.4 · Informes**: el informe de estudio, con las obras en etapas (bancos,
+   reguladores, conductor, refuerzo de la red con ternas y enlaces, migración), se arma
+   con lo ya ejecutado desde la web; el de factibilidad y punto de diseño es un análisis
+   aparte, de una carga nueva ingresada sola (spec 017).
+
+El detalle, con los guiones que hay detrás, está en `docs/MANUAL_COMANDOS.md` (7.ter).
+
+### Perfil de empresa
+
+Las convenciones de cada distribuidora no van en el código (constitución P13). Se copian
+los ejemplos de `config/` y se rellenan en local, fuera de git:
+
+- `config/perfil_empresa.json` (de `perfil_empresa.example.json`): la carpeta de
+  DIgSILENT donde quedan los proyectos importados (spec 005).
+- `config/demanda_medida_alias.json`: otros nombres de columna de los libros de medición.
+- `config/line_type_aliases.json`: equivalencias de tipos de línea, revisadas a mano.
+- Clave `vias` del perfil: el enrutador con que el enlace se traza por la vía pública
+  (OSRM sobre OpenStreetMap en el perfil de Electro Dunas). Solo se envían las
+  coordenadas de los dos extremos del enlace; sin la clave, el enlace va en recta y no
+  sale nada del equipo (spec 016, RF-81 a RF-87).
+
+La spec 002 llevará al perfil de empresa también el CRS de origen, el patrón de las SED
+de medición y la escala del diagrama, que hoy todavía tienen un valor por defecto.
+
+El Registro llega por WebSocket línea a línea, también la salida de los guiones de
+PowerFactory mientras corren. Cada navegador trabaja en su **espacio de trabajo**
+(`output/web/<id>/`), que se reabre al volver.
+
+**Primera vez**: `run_gui.bat` compila el front si falta `frontend/dist`. Para eso
+hace falta Node.js 20+ **solo una vez**; después, no.
+
+**Desarrollo del front** (recarga en caliente):
+
+```bash
+python -m igea_dgs.web --no-browser     # API en :8765
+cd frontend && npm install && npm run dev   # front en :5173, reenvía /api a :8765
+```
+
+**Seguridad**: por defecto escucha solo en `127.0.0.1`. Con `--host 0.0.0.0` se expone
+en la red y se desactivan las rutas locales del servidor (solo subida de ficheros);
+no hay autenticación todavía, así que no lo exponga fuera de una red de confianza.
+
+### Colas de trabajo
+
+Hay dos carriles, cada uno en serie: **motor** (leer, convertir, auditar) y
+**PowerFactory** (import, flujo, cargas, red unida). PowerFactory admite un solo
+proceso con el motor a la vez; serializarlo evita el fallo que eso produce, y separar
+los carriles permite seguir convirtiendo mientras DigSILENT importa la red unida.
+
+La interfaz de escritorio Tkinter se retiró (spec 001, RF-16): todas sus funciones
+están en la web, y `run_gui.bat` conserva el nombre por los accesos directos ya creados.
+
+## Reglas del proyecto (se aplican a toda conversión)
+
+Cada entrada —los tres TXT, la base Access `.mdb` o el paquete VNR-GIS— y cada vía
+—interfaz web, CLI, red unida— convierte con las mismas reglas (`src/igea_dgs/reglas.py`):
+
+| Regla | Qué hace |
+|---|---|
+| Hoja a medida | Por defecto el diagrama conserva la escala geográfica de referencia y el lienzo crece para cubrir la red completa, sin tope por tamaño. A0–A4 son opciones explícitas que reajustan la red al papel. |
+| Coordenadas | Los nodos sin `CoordX/CoordY` se colocan por el grafo (interpolación por longitud de tramo); se marcan como inferidos y no cambian longitudes eléctricas. |
+| Puentes `DEFAULT` | Los tramos `DEFAULT` de ≤ 10 m que CYMDIST crea para colgar un seccionador o una carga se funden: el seccionador pasa a `ElmCoup`, la SED queda en su barra. Un `DEFAULT` más largo es una línea real y se conserva. |
+| Trafomix | La medición de MT registrada como SED `M…` no se modela (no es un transformador de distribución). |
+| SED sobrecargadas | Una SED con más carga que kVA toma el menor tamaño normalizado que la cubre; queda listada en el manifiesto. |
+| Catálogo | `input/catalogo_parametros.xlsx` completa los conductores que falten (mismo material y sección), da los transformadores de SED y sus filas `ficha`/`derivado` corrigen los valores. Una base sin tablas `CYMEQ*` toma de él todos los parámetros. |
+| Completitud | Cada DGS se audita contra la entrada: tramos, cargas, kW, kvar y maniobras. Si algo se pierde, el alimentador no es «ok». |
+
+**Uno, varios o todos**, cada uno en su DGS, o **varios en un solo DGS** (red unida:
+cada alimentador con su fuente, enlaces como interruptores abiertos):
+
+```bash
+igea-dgs convert --mdb 260924.mdb --feeder NA203 --feeder NA205 --unir NA203_NA205 --out-dir out
+igea-dgs convert --red R.txt --loads C.txt --equipment E.txt --all --out-dir out   # hoja a medida, escala real
+```
+
+En la web: «Unir en un solo DGS…» con los alimentadores seleccionados. `--literal`
+(CLI) convierte sin reglas, solo para comparar con la entrada.
+
+**Cargas en DIgSILENT** (pestaña del mismo nombre, spec 004): trabaja sobre un proyecto
+que **ya existe** en DIgSILENT, sin convertir ni cargar entradas en la web. Lea los
+proyectos, elija uno y sus alimentadores (uno o varios, en el orden de aplicación) y
+suba el libro de **demandas** (por SED un par: `Kw` y `Kvar`, `Kw` y `FP`, o `(kVA)` y
+`FP`), el de **cargas nuevas** (`SED`, `kVA_instalado`, la demanda y `barra` o
+`Lat`/`Lon` o `CoordX`/`CoordY`) o escriba **una carga nueva** en el formulario. Las
+plantillas vacías se descargan en la misma pestaña. «Simular» dice qué coincide, qué
+se omite y dónde se conectaría cada carga, sin escribir; «Aplicar» lo graba todo en una
+**variación nueva** del proyecto y lanza el flujo de carga. Una SED que no está en el
+alimentador se omite y se informa; cancelar termina el alimentador en curso.
+
+**Demanda medida** (misma pestaña): escriba el código de alimentador y salen sus
+medidores (libro medidor–alimentador); con la carpeta de medición de cabecera da, por
+medidor, el kW máximo con su fecha y hora y el kVAR, kVA y FP de ese mismo registro.
+Con el libro de suministros y el de clientes importantes del mes cruza cada cliente
+(por suministro actual o, si no, el anterior) y da su SED, radial, EA, ERI y potencia.
+Todo se descarga en Excel. Los alias de columna propios de una empresa van en
+`config/demanda_medida_alias.json`.
 
 ## Instalación (otra máquina local)
 
-**Producción / GUI** (paquete + `pyproj`):
+Las dependencias Python del proyecto (conversor, web, VNR-GIS y pruebas) están en un
+único `requirements.txt`. Lo opcional va aparte en `requirements-drivers.txt` —los
+drivers de VNR-GIS (PostgreSQL, Oracle, OpenCV, PDF, RAR) y `leafmap` para la vista
+previa del mapa—, para que un paquete que no se descargue no impida instalar el resto:
 
 ```bash
-python -m venv .venv
+py -3.12 -m venv .venv
 .venv\Scripts\activate
 python -m pip install -r requirements.txt
-```
-
-**Desarrollo + tests:**
-
-```bash
-python -m pip install -r requirements-dev.txt
+python -m pip install -r requirements-drivers.txt   # opcional, solo VNR-GIS
 ```
 
 Alternativa con extras de `pyproject.toml`:
 
-- Sin GPS/diagrama: `pip install -e .` y use `--no-geography` / desactive georreferenciación en la GUI.
+- Sin GPS/diagrama: `pip install -e .` y use `--no-geography` / desactive georreferenciación en la web.
 - Solo producción (con geografía): `pip install -e ".[geo]"`.
 - Desarrollo + tests: `pip install -e ".[geo,dev]"`.
 
-Entradas de consola: `igea-dgs` y `igea-dgs-gui`. `run_gui.bat` instala solo `requirements.txt` (sin pytest) si faltan dependencias.
-
-### Interfaz gráfica (pruebas y producción)
-
-1. Elija RED, CARGA y BD_Equipo — la GUI avisa cuando los tres están listos.
-2. Pulse **Cargar / listar alimentadores** — avisa al terminar con el conteo.
-3. Convierta **uno** (clic), **varios** (Ctrl+clic / Mayús+clic / Seleccionar todos) o **todos** (checkbox).
-4. Al terminar la conversión muestra resumen OK/fallidos y ofrece abrir la carpeta de salida.
-5. **Cargar DGS en DigSILENT + flujo** importa el DGS seleccionado, asegura escenario de operación, corre flujo (ComLdf + correcciones) y la suite de estudios (`--run-studies`: ComLdf + ComShc).
+Entradas de consola: `igea-dgs` (CLI) e `igea-dgs-web` (interfaz web). `run_gui.bat` instala `requirements.txt` si faltan dependencias. Tras actualizar el código, `pip install -e .` retira el antiguo `igea-dgs-gui` del entorno.
 
 ## Principio de arquitectura
+
+La arquitectura completa (capas, flujo de conversión, los tres casos de estudio en
+PowerFactory, carriles de trabajo de la web y su relación con cada spec) está en
+[`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md).
 
 El motor **no necesita un archivo DGS de referencia** para convertir. La compatibilidad de formato se describe en un perfil versionado (`src/igea_dgs/schemas/pf21_dgs_1_8_4.json`) que contiene únicamente nombres de tablas, campos y tipos DGS. No contiene nodos, FID, líneas, cargas, nombres ni datos eléctricos de un alimentador de ejemplo.
 
@@ -70,13 +217,19 @@ La fuente de verdad para cada conversión es:
 | Ítem | Estado |
 | ---- | ------ |
 | Motor de conversión (dataset → model → DGS → validate) | Listo |
-| CLI `list` / `convert` / `gui` | Listo |
-| Interfaz gráfica de archivos | Listo (`gui.py` + `run_gui.bat`) |
+| CLI `list` / `convert` / `web` (TXT, Access y VNR-GIS) | Listo |
+| Interfaz web (FastAPI + React) | Listo (`src/igea_dgs/web/` + `frontend/` + `run_gui.bat`) |
+| Interfaz de escritorio Tkinter | Retirada (spec 001, RF-16) |
 | Empaquetado `pyproject.toml` | Listo |
 | Dependencia `pyproj` (GPS) | En `requirements.txt` (+ extra `[geo]`) — opcional si convierte sin geografía |
 | TXT de entrada en el repo | No incluidos — hay que suministrarlos |
 | Base de datos SQL/Access | No aplica — `BD_Equipo` es TXT |
 | Aceptación en PowerFactory | Requiere PF + importar el `.dgs` |
+| Cargas, calibración, estudios y obras en PowerFactory | Implementado (specs 004 a 008, 011, 014, 015); falta la prueba en DIgSILENT de varias specs |
+| Troncal, enlace, migración y cargas en un tramo (spec 016) | Cumplida: probada en DIgSILENT con IN111 + TA225 el 2026-10-16 («Con proyecto» converge con 9 cargas, enlace por la vía, migración y segunda terna) |
+| Informes de estudio y factibilidad (spec 017) | Estudio probado con IN111 y TA225; factibilidad pendiente, con otro alimentador |
+| Arquitectura por capas (spec 002) | Pendiente: aprobada, sin hacer |
+| Confiabilidad y capacidad (spec 012) | En curso: T1–T2 de 13 |
 
 ## Estructura
 
@@ -167,11 +320,11 @@ Los destinos deben existir en el `BD_Equipo` cargado. Si un destino no está, el
 
 ## Georreferenciación
 
-Se transforma `CoordX/CoordY` con `pyproj` desde el `--source-crs` **de su export** (cualquier EPSG) a WGS84. Elija el CRS de la empresa/región que entregó los TXT; el valor por defecto es solo un ejemplo editable. Genera GPS en terminales, diagrama `IntGrf*` y sidecars `*_geography.json`.
+Se transforma `CoordX/CoordY` con `pyproj` desde el `--source-crs` **de su export** (cualquier EPSG) a WGS84. Elija el CRS de la empresa/región que entregó los TXT, o déjelo en el perfil de empresa (`crs_origen` en `config/perfil_empresa.json`, o un perfil de `config/perfiles/` con `--perfil`). Sin ninguno de los dos el conversor no supone un CRS: lo pide. Genera GPS en terminales, diagrama `IntGrf*` y sidecars `*_geography.json`.
 
 ## Pruebas
 
-Instale deps de desarrollo: `pip install -r requirements-dev.txt`.
+Instale deps de desarrollo: `pip install -r requirements.txt`.
 
 Sin TXT, pasan las unitarias (schema, independencia, gráficos, resolución de tipos). Con TXT:
 

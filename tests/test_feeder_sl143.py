@@ -1,0 +1,166 @@
+"""Caso de aceptación por alimentador: SL143, por las dos alternativas de entrada.
+
+SL143 complementa a PA217 porque expone algo que aquél no tiene: **una isla
+eléctrica**. El tramo ``SEC_1091_975575`` (nodos 5605→5606, 69,3 m) no está conectado
+al SOURCE por ningún camino, y sus dos nodos no aparecen en ningún otro tramo: es un
+fragmento flotante.
+
+Eso lo convierte en el caso de referencia para una debilidad conocida: hoy la isla se
+reporta solo como **aviso**, y la conversión termina con ``errors_total = 0``. En el
+lote de referencia hay **10 de 93 alimentadores con isla**, 22 tramos y 20 cargas
+desconectados del SOURCE. Estas pruebas fijan el comportamiento actual y, sobre todo,
+dejan constancia de que la isla se detecta y se comunica — para que un cambio futuro de
+política (convertirla en error en modo estricto) rompa aquí y sea una decisión
+consciente, no un efecto colateral.
+
+Otras diferencias con PA217: 10 kV en lugar de 22,9; todo trifásico; y mezcla real de
+aéreo (797) y subterráneo (239).
+
+Requisitos: ``IGEA_RED``/``IGEA_LOADS``/``IGEA_EQUIPMENT`` para la vía TXT, ``IGEA_MDB``
+para la vía Access. Cada bloque hace *skip* limpio si falta su entrada.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+
+from igea_dgs.batch import convert_selection
+from igea_dgs.reglas import SIN_REGLAS
+from igea_dgs.model import build_feeder_model
+from igea_dgs.validate import parse_dgs
+
+FEEDER = 'SL143'
+ISLAND_SECTION = 'SEC_1091_975575'
+
+def _convert(ds, out_dir, **kw):
+    manifest = convert_selection(
+        ds, [FEEDER], out_dir, include_geography=True, **kw,
+        source_crs='EPSG:32718', strict=True,
+    )
+    return manifest, manifest['feeders'][0]
+
+
+class TestSl143ConvertsFromBothInputs:
+    def test_conversion_succeeds(self, dataset_for, tmp_path):
+        source, ds = dataset_for
+        _manifest, item = _convert(ds, tmp_path / source)
+        assert item['status'] == 'ok', item.get('error')
+        assert item['errors_total'] == 0
+        assert Path(item['dgs']).is_file()
+
+    def test_element_counts_match_the_source(self, dataset_for, tmp_path):
+        source, ds = dataset_for
+        network_id = ds.resolve_feeder(FEEDER)
+        sections = len(ds.feeders[network_id])
+        loads = sum(1 for key in ds.customer_loads if ds.section_owner.get(key[0]) == network_id)
+
+        # Sin las reglas del proyecto: con ellas los puentes DEFAULT de 10 m o menos se
+        # funden en acopladores (en PA217, 784 de 1.324 tramos) y la cuenta deja de ser
+        # una línea por tramo. Esta prueba mide la fidelidad literal a la entrada; que las
+        # reglas no pierdan nada lo vigila auditar_completitud.
+        _manifest, item = _convert(ds, tmp_path / source, reglas=SIN_REGLAS)
+        tables = parse_dgs(item['dgs'])
+        assert len(tables['ElmLne']['rows']) == sections
+        assert len(tables['ElmLod']['rows']) == loads
+        assert len(tables['ElmXnet']['rows']) == 1
+
+    def test_nominal_voltage_is_10_kv(self, dataset_for):
+        """SL143 es de 10 kV; en Access la nominal se reconstruye desde la fase-neutro."""
+        _source, ds = dataset_for
+        network_id = ds.resolve_feeder(FEEDER)
+        assert abs(float(ds.sources[network_id]['DesiredVoltage']) - 10.0) < 1e-6
+
+    def test_mixed_overhead_and_underground(self, dataset_for):
+        """Mezcla real de medio: el DGS debe distinguir aéreo de subterráneo."""
+        _source, ds = dataset_for
+        sections = ds.feeders[ds.resolve_feeder(FEEDER)]
+        media = {ds.line_configurations[s]['Overhead'] for s in sections}
+        assert media == {'0', '1'}, f'se esperaba mezcla aéreo/subterráneo, hay {media}'
+
+    def test_underground_sections_keep_inair_zero(self, dataset_for, tmp_path):
+        source, ds = dataset_for
+        network_id = ds.resolve_feeder(FEEDER)
+        underground = {
+            s for s in ds.feeders[network_id]
+            if ds.line_configurations[s]['Overhead'] == '0'
+        }
+        _manifest, item = _convert(ds, tmp_path / source)
+        tables = parse_dgs(item['dgs'])
+        name_i = tables['ElmLne']['fields'].index('loc_name')
+        air_i = tables['ElmLne']['fields'].index('inAir')
+        for row in tables['ElmLne']['rows']:
+            expected = '0' if row[name_i] in underground else '1'
+            assert row[air_i] == expected, row[name_i]
+
+    def test_geography_is_complete(self, dataset_for, tmp_path):
+        source, ds = dataset_for
+        _manifest, item = _convert(ds, tmp_path / source)
+        assert item['geography_coverage']['nodes_pct'] == 100.0
+        assert item['geography_coverage']['lines_pct'] == 100.0
+
+
+class TestSl143IslandIsDetectedAndReported:
+    """La debilidad que SL143 expone: la isla se avisa, pero no bloquea.
+
+    Si alguien decide que una isla deba ser error en modo estricto, estas pruebas
+    fallarán — y eso es lo que se busca: que sea un cambio deliberado.
+    """
+
+    def test_the_island_section_is_present_and_floating(self, dataset_for):
+        from igea_dgs.model import _reachable_from_source
+
+        _source, ds = dataset_for
+        model = build_feeder_model(ds, FEEDER, strict=True)
+        reachable = _reachable_from_source(model.source_node, model.lines)
+        islands = [
+            line for line in model.lines
+            if line.from_node not in reachable or line.to_node not in reachable
+        ]
+        assert islands, 'se esperaba al menos una isla en SL143'
+        ids = {line.section_id for line in islands}
+        assert ISLAND_SECTION in ids, f'islas encontradas: {sorted(ids)}'
+
+        island = next(line for line in islands if line.section_id == ISLAND_SECTION)
+        # Fragmento realmente flotante: sus nodos no aparecen en ningún otro tramo.
+        others = [
+            line for line in model.lines
+            if line is not island
+            and {line.from_node, line.to_node} & {island.from_node, island.to_node}
+        ]
+        assert not others, f'{ISLAND_SECTION} no está aislado: comparte nodo con {others[:2]}'
+
+    def test_the_island_is_reported_as_a_warning(self, dataset_for):
+        _source, ds = dataset_for
+        model = build_feeder_model(ds, FEEDER, strict=True)
+        island_warnings = [w for w in model.warnings if 'desconectados del SOURCE' in w]
+        assert island_warnings, f'la isla debe avisarse; avisos: {model.warnings}'
+        text = island_warnings[0]
+        assert FEEDER in text
+        assert model.source_node in text
+
+    def test_the_warning_reaches_the_manifest(self, dataset_for, tmp_path):
+        """Un aviso que no llega al manifiesto es un aviso que nadie lee."""
+        source, ds = dataset_for
+        _manifest, item = _convert(ds, tmp_path / source)
+        assert any('desconectados del SOURCE' in w for w in item['warnings'])
+
+    def test_conversion_still_succeeds_today(self, dataset_for, tmp_path):
+        """Comportamiento actual: la isla NO bloquea ni en modo estricto.
+
+        Queda fijado a propósito. Convertirlo en error es una decisión de producto
+        (ver plan de mejora), no un efecto colateral de otro cambio.
+        """
+        source, ds = dataset_for
+        _manifest, item = _convert(ds, tmp_path / source)
+        assert item['status'] == 'ok'
+        assert item['errors_total'] == 0
+
+    def test_island_elements_still_reach_the_dgs(self, dataset_for, tmp_path):
+        """El tramo aislado se escribe: el DGS refleja el TXT, no lo corrige."""
+        source, ds = dataset_for
+        _manifest, item = _convert(ds, tmp_path / source)
+        tables = parse_dgs(item['dgs'])
+        idx = tables['ElmLne']['fields'].index('loc_name')
+        names = {row[idx] for row in tables['ElmLne']['rows']}
+        assert ISLAND_SECTION in names

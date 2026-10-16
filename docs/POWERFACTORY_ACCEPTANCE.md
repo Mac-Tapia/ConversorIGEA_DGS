@@ -45,7 +45,7 @@ What this does:
 3. Activates **Study Case base**; if no **IntScenario** exists, **creates** `Operation Scenario` and activates it (`--ensure-scenario`, default on) — User Manual §12 study/scenario pattern
 4. Runs **ComLdf**; with `--fix-until-converge`, on failure diagnoses and applies DigSILENT-aligned correction intents until convergence (or intents exhausted)
 5. With `--run-studies`, runs the **study suite** (default: `load_flow` + `short_circuit` / ComShc)
-6. **Persists DGS into the convert out_dir** (same folder as GUI/CLI individual convert — parent of `--import-dgs`, or `--persist-dir`):
+6. **Persists DGS into the convert out_dir** (same folder as web/CLI individual convert — parent of `--import-dgs`, or `--persist-dir`):
    - Always ensures `{feeder}.dgs` (+ known sidecars if present) remain there (idempotent copy when the import path differed)
    - After LDF convergence, best-effort **ComExport** to `{feeder}_pf_converged.dgs` in that same folder (ApiExample `ExportDgsFile`); if export fails, the converter `{feeder}.dgs` stays and a warning is recorded
 7. Validates (when `--manifest` is provided):
@@ -62,12 +62,26 @@ Exit codes: `0` PASS, `2` FAIL, `3` PF API unavailable.
 
 | Path | Who writes it |
 |------|----------------|
-| GUI **Carpeta de salida** (default `output/gui`) | `convert_selection` → `{feeder}.dgs`, sidecars, `batch_manifest.json` |
+| Web: `salida/` of the workspace source run | `convert_selection` → `{feeder}.dgs`, sidecars, `batch_manifest.json` |
 | CLI `--out-dir` | Same via `convert_selection` |
 | Production batch `output/production_all` | Same when converting with that `--out-dir` |
 | PF gate | Imports from that folder; then **persists** `{feeder}.dgs` there again and optionally `{feeder}_pf_converged.dgs` |
 
 Flags: `--persist-dir DIR`, `--no-persist-dgs`, `--no-export-converged-dgs`.
+
+### Propiedad por alimentador en una Grid unida
+
+Las conversiones nuevas publican `{feeder}_feeder_metadata.json`, ligado al DGS por
+SHA-256. El gate crea/verifica la Data Extension `p:alimentador` y asigna el nombre
+original a cada `ElmLod`, `ElmSubstat` y `ElmXnet`; el informe JSON incluye
+`feeder_metadata.by_feeder` y debe indicar `status: assigned`. La asignación se hace
+por FID más clase, nombre, terminal y SED, no por el nombre de la Grid.
+
+Para ver el dato como columna en Network Model Manager, abra **Flexible Data** para
+la clase (por ejemplo General Load), seleccione `Data Extension → Alimentador` en el
+selector de variables y añádala junto a **Grid**. La propiedad ya está poblada aunque
+la vista **Basic Data** no muestre columnas personalizadas. Repita para `ElmSubstat`
+y `ElmXnet` si quiere inspeccionar SED y fuentes.
 
 ### Correction intents (`--fix-until-converge`)
 
@@ -102,9 +116,9 @@ Override the list: `--studies load_flow,short_circuit`.
 
 Short-circuit defaults (applied only when attributes exist): prefer IEC 60909 (`iopt_iec=1`), all busbars (`iopt_allbus=2`), max currents (`iopt_max=1`), 3-phase fault flags. If the short-circuit licence is missing, Execute typically fails — the report marks `available=false` / warnings without inventing results.
 
-### GUI
+### Web
 
-In the desktop UI, select converted feeder(s) and press **«Cargar DGS en DigSILENT + flujo»**. The GUI launches this script as a subprocess with `--run-load-flow --fix-until-converge --run-studies` and `PF_PYTHON` / `PYTHONPATH` set when DigSilent’s Python folder is found.
+In the web UI, select converted feeder(s) and press **«Cargar en DigSILENT + flujo»**. The API queues a job on the `powerfactory` lane that launches this script as a subprocess with `--run-load-flow --fix-until-converge --run-studies` and `PF_PYTHON` / `PYTHONPATH` set when DigSilent’s Python folder is found.
 
 ## Equipment scope (important)
 

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import math
 
+import pytest
+
 from igea_dgs.dataset import CymdistDataset
 from igea_dgs.geography import build_geography
 from igea_dgs.model import ModelBuildError, build_feeder_model, prove_mt_connections
@@ -11,8 +13,15 @@ from igea_dgs.dgs import write_dgs
 from igea_dgs.validate import validate_dgs
 
 
-def _write_mini_feeder(tmp_path, *, length_txt: float = 999.0, location: str = '1'):
-    """Two-node feeder: N1(0,0) → N2(30,40) so georef length is 50 m."""
+def _write_mini_feeder(tmp_path, *, length_txt: float = 52.0, location: str = '1'):
+    """Two-node feeder: N1(0,0) → N2(30,40) so georef length is 50 m.
+
+    ``length_txt`` defaults to a plausible 52 m (4 % slack over the straight line):
+    the georeferenced polyline still overrides it, but the two agree in scale, as a
+    real export does. ``check_length_scale_agreement`` rejects order-of-magnitude
+    disagreements, so an implausible value here would (correctly) block the build —
+    see ``test_scale_oracle_blocks_txt_length_disagreeing_by_orders_of_magnitude``.
+    """
     red = tmp_path / 'RED.txt'
     loads = tmp_path / 'CARGA.txt'
     equip = tmp_path / 'BD_Equipo.txt'
@@ -66,13 +75,24 @@ def _write_mini_feeder(tmp_path, *, length_txt: float = 999.0, location: str = '
 
 
 def test_georef_length_replaces_txt_length(tmp_path):
-    ds = _write_mini_feeder(tmp_path, length_txt=999.0)
+    ds = _write_mini_feeder(tmp_path, length_txt=52.0)
     model = build_feeder_model(ds, 'NA999')
     main = model.section_by_id['SEC_MAIN']
     assert main.length_source == 'georef'
-    assert main.txt_length_m == 999.0
-    assert math.isclose(main.length_m, 50.0, abs_tol=1e-9)
+    assert main.txt_length_m == 52.0        # el valor del TXT se conserva…
+    assert math.isclose(main.length_m, 50.0, abs_tol=1e-9)   # …pero manda la geometría
     assert math.isclose(main.length_km, 0.05, abs_tol=1e-12)
+
+
+def test_scale_oracle_blocks_txt_length_disagreeing_by_orders_of_magnitude(tmp_path):
+    """TXT 999 m sobre una geometría de 50 m: 20× solo puede ser un error de unidades."""
+    ds = _write_mini_feeder(tmp_path, length_txt=999.0)
+    with pytest.raises(ModelBuildError, match='Escala de coordenadas incoherente'):
+        build_feeder_model(ds, 'NA999', strict=True)
+
+    # En modo no estricto se degrada a aviso y la conversión continúa.
+    model = build_feeder_model(ds, 'NA999', strict=False)
+    assert any('Escala de coordenadas incoherente' in w for w in model.warnings)
 
 
 def test_prove_mt_connections_from_to_and_sed(tmp_path):
@@ -108,7 +128,7 @@ def test_sed_location_0_connects_to_from_node(tmp_path):
             'SEC_SED,N2,N3,ABC',
             '[LINE CONFIGURATION]',
             'FORMAT_LINE CONFIGURATION=SectionID,LineCableID,Length,Overhead',
-            'SEC_MAIN,DEFAULT,999,1',
+            'SEC_MAIN,DEFAULT,52,1',
             'SEC_SED,DEFAULT,0.3,0',
             '',
         ]),

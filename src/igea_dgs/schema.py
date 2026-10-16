@@ -1,6 +1,10 @@
+"""Perfiles de esquema DGS versionados: tablas y campos que se escriben.
+"""
+
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from functools import lru_cache
 from importlib.resources import files
 import json
 from pathlib import Path
@@ -16,6 +20,29 @@ class DgsSchema:
     table_order: tuple[str, ...]
     source_path: str
 
+    def con_puntos_por_conector(self, n: int) -> 'DgsSchema':
+        """El mismo perfil con ``IntGrfcon`` declarando ``n`` puntos ``rX``/``rY``.
+
+        El perfil trae 4 columnas, como la referencia NA205, y el escritor recortaba cada
+        conector a 4 puntos: en IN111 + TA225 (2026-10-14) la grid dibujaba hasta 7
+        vértices por línea donde el mapa geográfico, con el GPS completo, tenía 74, y las
+        curvas se separaban hasta 257 m. La cabecera crece con el conector más largo.
+        """
+        n = max(4, int(n))
+        cabecera = self.tables.get('IntGrfcon')
+        if cabecera is None or n == 4:
+            return self
+        partes = []
+        for parte in cabecera.split(';'):
+            campo = parte.split('(')[0]
+            if campo in ('rX:SIZEROW', 'rY:SIZEROW'):
+                eje = campo[:2]
+                partes.append(parte)
+                partes.extend(f'{eje}:{i}(r)' for i in range(n))
+            elif not (campo.startswith(('rX:', 'rY:'))):
+                partes.append(parte)
+        return replace(self, tables={**self.tables, 'IntGrfcon': ';'.join(partes)})
+
     def header(self, table: str) -> str:
         try:
             return self.tables[table]
@@ -23,8 +50,13 @@ class DgsSchema:
             raise KeyError(f'DGS table not defined in profile {self.profile}: {table}') from exc
 
     def fields(self, table: str) -> list[str]:
-        header = self.header(table)
-        return [part.split('(')[0].replace(':MATRIX', '') for part in header[2:].split(';')[1:]]
+        # Se llama una vez por fila escrita: cientos de miles en un lote grande.
+        return list(_fields_of(self.header(table)))
+
+
+@lru_cache(maxsize=None)
+def _fields_of(header: str) -> tuple[str, ...]:
+    return tuple(part.split('(')[0].replace(':MATRIX', '') for part in header[2:].split(';')[1:])
 
 
 def load_schema(profile: str = 'pf21_dgs_1_8_4') -> DgsSchema:

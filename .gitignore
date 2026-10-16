@@ -12,6 +12,7 @@ build/
 
 # Virtual environments
 .venv/
+.worktrees/
 venv/
 env/
 ENV/
@@ -29,6 +30,7 @@ secrets.json
 
 # Testing / coverage
 .pytest_cache/
+.pytest_tmp/
 .coverage
 htmlcov/
 .tox/
@@ -49,8 +51,43 @@ desktop.ini
 # Generated conversion dumps
 output/
 
+# Local execution evidence and simulator acceptance reports. These may contain
+# utility identifiers and machine-specific paths; publish only curated summaries.
+AUDIT/
+
 # Large IGEA sample TXT (keep local; do not publish utility dumps)
 referencia/RED_*.txt
 referencia/CARGA_*.txt
 referencia/BD_Equipo*.txt
 
+
+# Datos reales de la empresa distribuidora: quedan locales, no se publican.
+# La plantilla de cargas y las auditorías llevan códigos de SED y de tramo reales.
+referencia/*.xlsx
+referencia/*.xls
+referencia/*.csv
+referencia/*.mdb
+referencia/audit_ternas_*.json
+# Subcarpetas de mediciones, suministros y catálogos de la distribuidora (≈1,7 GB en
+# 2026-10): sin esta regla un ``git add -A`` las sube y GitHub rechaza el push (>100 MB).
+referencia/*/
+
+# Catálogo de parámetros generado: se deriva del export real y lleva los códigos de
+# conductor y el kilometraje de la distribuidora. Se regenera cuando haga falta con
+# tools/build_input_catalog.py, así que no se versiona.
+input/*.xlsx
+input/*.csv
+
+# Perfil de empresa local (spec 005): convenciones de una distribuidora, fuera del repositorio.
+config/perfil_empresa.json
+
+# Alias y nombres de columna de una distribuidora (spec 009, RF-14): como el perfil de
+# empresa, viven en local. Se versionan solo los ``*.example.json``.
+config/line_type_aliases.json
+config/demanda_medida_alias.json
+
+# Instantáneas del navegador de las pruebas desde la web (Playwright).
+.playwright-mcp/
+# Informes y modelos de la distribuidora: no se suben (constitución P9).
+referencia/*.doc
+referencia/*.docx

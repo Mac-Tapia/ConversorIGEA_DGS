@@ -1,12 +1,20 @@
+"""Modelo eléctrico de un alimentador, independiente del formato de entrada y de salida.
+
+En modo estricto no inventa tipos ``DEFAULT``: un tipo de línea sin ficha se informa
+(constitución P4).
+"""
+
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from collections import defaultdict, deque
 import math
 import re
 from typing import Mapping, Sequence
 
 from .dataset import CymdistDataset
+from .dataset import (TABLAS_TIPOS_AEREO, TABLAS_TIPOS_LINEA,
+                       TABLAS_TIPOS_SUBTERRANEO)
 from .naming import feeder_short_name
 
 # Optional equipment/substation suffix in customer/device IDs (utility-specific
@@ -19,11 +27,17 @@ class ModelBuildError(ValueError):
     pass
 
 
-class UnresolvedLineTypesError(ModelBuildError):
-    def __init__(self, feeder: str, types: set[str]):
+class IslandWithLoadsError(ModelBuildError):
+    """Hay carga eléctricamente inalcanzable desde el SOURCE.
+
+    Lleva la isla estructurada en ``islands`` para que el lote y la interfaz puedan
+    mostrar qué tramos y cargas están afectados sin volver a analizar la topología.
+    """
+
+    def __init__(self, feeder: str, islands: dict, message: str):
         self.feeder = feeder
-        self.types = frozenset(types)
-        super().__init__(f'{feeder}: unresolved line types: {", ".join(sorted(types))}')
+        self.islands = islands
+        super().__init__(message)
 
 
 @dataclass(frozen=True)
@@ -45,6 +59,9 @@ class Node:
     node_id: str
     x: float | None
     y: float | None
+    # Posición deducida del grafo (igea_dgs.coordenadas), no leída del TXT. Sirve para
+    # dibujar; no para medir: un tramo con un extremo inferido conserva su Length.
+    coord_inferida: bool = False
 
 
 @dataclass(frozen=True)
@@ -80,6 +97,20 @@ class Load:
     phase: str
     sed_code: str = ''
     display_name: str = ''
+    customers: int = 0
+    """Suministros que dependen de esta carga (NumberOfCustomer del CARGA).
+
+    Es el denominador de SAIFI y SAIDI: los índices de la NTCSE se ponderan por
+    cliente, no por carga. Sin este número, el análisis de fiabilidad de PowerFactory
+    devuelve índices que no son los que la norma define.
+    """
+    customer_type: str = ''
+    """Tipo de suministro (CustomerType). Va a ElmLod.classif y sirve para agrupar
+    resultados por tipo de cliente, que es como el VAD los pide."""
+    year: int = 0
+    """Año de alta del suministro. Único apoyo del export para la proyección."""
+    feeder: str = ''
+    network_id: str = ''
 
 
 @dataclass(frozen=True)
@@ -93,6 +124,8 @@ class Sed:
     section_id: str
     device_number: str
     load_key: tuple[str, str]
+    feeder: str = ''
+    network_id: str = ''
 
 
 @dataclass(frozen=True)
@@ -108,6 +141,134 @@ class SwitchingDevice:
     on_off: int
     locked: int
     eq_state: int
+    feeder: str = ''
+    network_id: str = ''
+
+
+@dataclass(frozen=True)
+class Coupler:
+    """Interruptor entre dos barras, sin tramo de línea que lo sostenga (``ElmCoup``).
+
+    Nace de un tramo «puente» de CYMDIST —un ``DEFAULT`` de 2 m que solo existe para
+    colgar un seccionador— cuando ese tramo se funde (ver :mod:`igea_dgs.puentes`). El
+    seccionador no se pierde: pasa a ser un elemento propio entre las dos barras, que
+    es como PowerFactory modela una maniobra sin línea.
+    """
+
+    name: str
+    node_a: str
+    node_b: str
+    on_off: int
+    kind: str
+    eq_id: str
+    eq_number: str
+    section_id: str
+    phase: str
+    feeder: str = ''
+    network_id: str = ''
+
+
+@dataclass(frozen=True)
+class CapacitorBank:
+    capacitor_id: str
+    node_id: str
+    network_id: str
+    feeder: str
+    phases: str
+    kvar_per_step: float | None
+    steps: int
+    total_kvar: float | None
+    nominal_kv: float | None
+    in_service: bool
+    source_table: str = ''
+    issues: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class CapacitorCapacityResolution:
+    kvar_per_step: float | None
+    total_kvar: float | None
+    nominal_kv: float
+    origin: str
+    correction: dict | None
+
+
+def resolve_capacitor_capacity(
+    bank: CapacitorBank, nominal_kv: float,
+) -> CapacitorCapacityResolution:
+    """Una sola regla de capacidad para TXT, MDB, VNR-GIS, DGS y sidecars.
+
+    La magnitud declarada por la fuente gana siempre. Si falta, el catálogo aprobado
+    completa el total por tensión: 300 kVAr a 10 kV y 450 kVAr a 22,9 kV. Una pareja
+    fuente total/paso inconsistente conserva el total y normaliza el paso.
+    """
+    voltage = bank.nominal_kv or float(nominal_kv)
+    per_step = bank.kvar_per_step
+    total = bank.total_kvar
+    origin = 'source'
+    correction = None
+    if total is not None and per_step is not None and not math.isclose(
+        total, per_step * bank.steps, rel_tol=1e-9, abs_tol=1e-9,
+    ):
+        per_step = total / bank.steps
+        correction = {
+            'code': 'CAPACITOR_SOURCE_CAPACITY_NORMALIZED',
+            'node_id': bank.node_id,
+            'before_kvar_per_step': bank.kvar_per_step,
+            'after_kvar_per_step': per_step,
+            'total_kvar': total,
+        }
+    elif total is None or per_step is None:
+        catalog_total = (
+            300.0 if math.isclose(voltage, 10.0, rel_tol=0.0, abs_tol=0.15)
+            else 450.0 if math.isclose(voltage, 22.9, rel_tol=0.0, abs_tol=0.2)
+            else None
+        )
+        if catalog_total is not None:
+            total = catalog_total
+            per_step = catalog_total / bank.steps
+            origin = 'catalog_voltage'
+            correction = {
+                'code': 'CAPACITOR_CAPACITY_FROM_CATALOG',
+                'node_id': bank.node_id,
+                'nominal_kv': voltage,
+                'before_total_kvar': bank.total_kvar,
+                'after_total_kvar': total,
+            }
+    return CapacitorCapacityResolution(per_step, total, voltage, origin, correction)
+
+
+def capacitor_resolution_issue(
+    bank: CapacitorBank,
+    resolution: CapacitorCapacityResolution,
+    *,
+    node_exists: bool,
+) -> dict | None:
+    """Evidencia común de corrección/advertencia para DGS y manifiestos."""
+    codes = [code for code in bank.issues if code not in {
+        'MISSING_CAPACITOR_CAPACITY', 'INCONSISTENT_CAPACITOR_CAPACITY',
+    }]
+    if resolution.correction:
+        codes.append(str(resolution.correction['code']))
+    elif resolution.total_kvar is None:
+        codes.append('MISSING_CAPACITOR_CAPACITY_OUTSIDE_CATALOG')
+    if not node_exists:
+        codes.append('MISSING_CAPACITOR_NODE')
+    if not codes:
+        return None
+    result = {
+        'capacitor_id': bank.capacitor_id,
+        'feeder': bank.feeder,
+        'network_id': bank.network_id,
+        'node_id': bank.node_id,
+        'codes': list(dict.fromkeys(codes)),
+    }
+    if resolution.correction and resolution.correction['code'] == 'CAPACITOR_CAPACITY_FROM_CATALOG':
+        result['message'] = (
+            f'Capacidad faltante corregida en {bank.node_id}: catálogo '
+            f'{resolution.nominal_kv:g} kV = {resolution.total_kvar:g} kVAr.'
+        )
+    return result
 
 
 @dataclass
@@ -126,6 +287,73 @@ class FeederModel:
     warnings: list[str] = field(default_factory=list)
     section_by_id: dict[str, Line] = field(default_factory=dict)
     seds: list[Sed] = field(default_factory=list)
+    # Elementos sin camino al SOURCE (ver find_topology_islands). Vacío = red conexa.
+    islands: dict = field(default_factory=dict)
+    # Relleno solo cuando el modelo es la unión de varios alimentadores en una sola
+    # red (ver igea_dgs.combine). Entonces la tensión ya no es única —conviven 10 kV y
+    # 22,9 kV— y hay una fuente por alimentador en lugar de una sola. Va en un campo
+    # aparte para que un modelo de un alimentador siga siendo idéntico a lo que era.
+    combined: object | None = None
+    # Interruptores entre barras sin tramo propio (ver Coupler). Vacío salvo que se
+    # hayan fundido los tramos puente.
+    couplers: list[Coupler] = field(default_factory=list)
+    # Tramos punta hasta esta longitud no se dibujan (quedan en el modelo eléctrico):
+    # a escala real son polvo. Negativo = dibujar todos (ver dgs.diagram_line_sections).
+    diagram_max_stub_m: float = 1.0
+    # Hoja normalizada (``A0``…) opcional. None conserva 2,08 u/m y ajusta el lienzo
+    # a la red. Ver dgs._diagram_mapper_hoja.
+    diagram_sheet: str | None = None
+    # Unidades de diagrama por metro del perfil de empresa (spec 002, RF-31). None deja
+    # la del motor, calibrada con NA205.
+    diagram_units_per_meter: float | None = None
+    # Alias explícitos de nodos duplicados por el export; se usan también en la prueba
+    # From/To para no ocultar qué identidad del RED se normalizó.
+    node_aliases: dict[str, str] = field(default_factory=dict)
+    capacitors: list[CapacitorBank] = field(default_factory=list)
+
+
+#: Código de fase de CYMDIST → letras. **No es una máscara de bits**: el 7 no es
+#: «1|2|4», es el séptimo valor de una enumeración. Tratarlo como máscara da ABC para
+#: el 7 por casualidad y disparates para el 4, el 5 y el 6.
+#:
+#: Vive aquí, y no en el lector de Access, porque las dos vías de entrada —el TXT y la
+#: base— traen el mismo código y deben decodificarlo igual. Tenerlo en un solo sitio es
+#: lo que evita que una de las dos se desvíe sin que nadie lo note.
+PHASE_CODES = {1: 'A', 2: 'B', 3: 'C', 4: 'AB', 5: 'AC', 6: 'BC', 7: 'ABC'}
+
+#: Orden de fases de PowerFactory: r, s, t ≙ A, B, C.
+FASES_PF = ('A', 'B', 'C')
+
+
+def decode_phase(code) -> str:
+    """Código de fase de CYMDIST → las letras que usa el resto del motor.
+
+    Acepta ya el resultado decodificado ('ABC') para que dé igual si el dato viene del
+    TXT en crudo o de una capa que ya lo tradujo.
+    """
+    if isinstance(code, str):
+        limpio = code.strip().upper()
+        if limpio in set(PHASE_CODES.values()):
+            return limpio
+    try:
+        return PHASE_CODES.get(int(code), '')
+    except (TypeError, ValueError):
+        return ''
+
+
+def split_by_phase(total: float, phase: str) -> tuple[float, float, float]:
+    """Reparte una potencia entre las fases (r, s, t) que la carga de verdad ocupa.
+
+    Una carga monofásica escrita como trifásica equilibrada reparte su corriente entre
+    tres conductores en lugar de uno: subestima la caída de tensión de ese ramal y borra
+    el desequilibrio, que es justo uno de los parámetros que el TdR del VAD manda
+    evaluar. Con fase desconocida se reparte entre las tres, que es lo que se venía
+    haciendo para todo.
+    """
+    letras = decode_phase(phase) or 'ABC'
+    activas = [f for f in FASES_PF if f in letras] or list(FASES_PF)
+    por_fase = total / len(activas)
+    return tuple(por_fase if f in activas else 0.0 for f in FASES_PF)  # type: ignore[return-value]
 
 
 def _float(value: str | None, default: float = 0.0) -> float:
@@ -142,9 +370,128 @@ def _int(value: str | None, default: int = 0) -> int:
         return default
 
 
+def _source_value(row: Mapping[str, object], *names: str) -> object | None:
+    folded = {str(key).casefold(): value for key, value in row.items()}
+    for name in names:
+        if name.casefold() in folded:
+            value = folded[name.casefold()]
+            if value not in (None, ''):
+                return value
+    return None
+
+
+def _positive_float(value: object | None) -> float | None:
+    try:
+        number = float(value) if value not in (None, '') else float('nan')
+    except (TypeError, ValueError):
+        return None
+    return number if math.isfinite(number) and number > 0 else None
+
+
+def capacitor_from_source(row: Mapping[str, object]) -> CapacitorBank:
+    """Normaliza un banco conservando solo magnitudes declaradas o su aritmetica."""
+    capacitor_id = str(_source_value(
+        row, 'DeviceNumber', 'CapacitorID', 'ID', 'EqNumber',
+    ) or '').strip()
+    node_id = str(_source_value(row, 'NodeID', 'ConnectionNode') or '').strip()
+    network_id = str(_source_value(row, 'NetworkID', 'FeederID') or '').strip()
+    phases = decode_phase(_source_value(row, 'Phase', 'Phases', 'EqPhase'))
+    raw_steps = _source_value(row, 'NumberOfSteps', 'Steps', 'StepCount')
+    steps = _int(str(raw_steps) if raw_steps is not None else None, 1)
+    steps = steps if steps > 0 else 1
+    per_step = _positive_float(_source_value(
+        row, 'KVARPerStep', 'StepKVAR', 'RatedKVARPerStep',
+    ))
+    total = _positive_float(_source_value(
+        row, 'TotalKVAR', 'KVAR', 'RatedKVAR', 'ReactivePowerKVAR',
+    ))
+    if per_step is None and total is not None:
+        per_step = total / steps
+    if total is None and per_step is not None:
+        total = per_step * steps
+    issues: list[str] = []
+    if total is None or per_step is None:
+        issues.append('MISSING_CAPACITOR_CAPACITY')
+    elif not math.isclose(total, per_step * steps, rel_tol=1e-9, abs_tol=1e-9):
+        issues.append('INCONSISTENT_CAPACITOR_CAPACITY')
+    status = str(_source_value(row, 'Status', 'InService') or '1').strip().casefold()
+    return CapacitorBank(
+        capacitor_id=capacitor_id,
+        node_id=node_id,
+        network_id=network_id,
+        feeder=feeder_short_name(network_id) if network_id else '',
+        phases=phases,
+        kvar_per_step=per_step,
+        steps=steps,
+        total_kvar=total,
+        nominal_kv=_positive_float(_source_value(row, 'NominalKV', 'RatedKV', 'VoltageKV')),
+        in_service=status not in {'0', 'false', 'off', 'out_of_service', 'outserv'},
+        source_table=str(_source_value(row, 'SourceTable') or '').strip(),
+        issues=tuple(issues),
+    )
+
+
+def capacitor_node(dataset: CymdistDataset, row: Mapping[str, object]) -> str:
+    node_id = str(_source_value(row, 'NodeID', 'ConnectionNode') or '').strip()
+    if node_id:
+        return node_id
+    section_id = str(_source_value(row, 'SectionID') or '').strip()
+    section = dataset.sections.get(section_id) or {}
+    location = str(_source_value(row, 'Location') or '').strip().upper()
+    field = 'FromNodeID' if location in {'0', 'S', 'FROM', '1'} else 'ToNodeID'
+    return str(section.get(field) or '')
+
+
+def capacitor_owner_candidates(
+    dataset: CymdistDataset, row: Mapping[str, object],
+) -> set[str]:
+    explicit = str(_source_value(row, 'NetworkID', 'FeederID') or '').strip()
+    if explicit:
+        return {explicit} if explicit in dataset.feeders else set()
+    node_id = capacitor_node(dataset, row)
+    if not node_id:
+        return set()
+    candidates = {
+        dataset.section_owner[section_id]
+        for section_id, section in dataset.sections.items()
+        if node_id in (section.get('FromNodeID'), section.get('ToNodeID'))
+    }
+    candidates.update(
+        network_id for network_id, source in dataset.sources.items()
+        if source.get('NodeID') == node_id
+    )
+    return candidates
+
+
+def _tension_de_fuente(source: Mapping[str, str]) -> float:
+    """Tensión nominal de la fuente en kV entre fases, de donde la traiga el export.
+
+    Los dos exports de CYMDIST que se han visto la dan de forma distinta:
+
+    * el reducido, en ``DesiredVoltage``, ya entre fases (``10.0``);
+    * el completo, en ``OperatingVoltageA/B/C``, **entre fase y neutro**
+      (``5.773503``, que es 10/√3).
+
+    Sin esto, el export completo abortaba con «invalid SOURCE.DesiredVoltage=None» en
+    los 96 alimentadores. Tomar el valor fase-neutro sin multiplicar sería peor que
+    fallar: el modelo se construiría entero a 5,77 kV y convergería.
+    """
+    entre_fases = _float(source.get('DesiredVoltage'), float('nan'))
+    if math.isfinite(entre_fases) and entre_fases > 0:
+        return entre_fases
+    fase_neutro = [
+        v for v in (
+            _float(source.get(f'OperatingVoltage{f}'), float('nan')) for f in 'ABC')
+        if math.isfinite(v) and v > 0
+    ]
+    if fase_neutro:
+        return max(fase_neutro) * math.sqrt(3.0)
+    return float('nan')
+
+
 def _line_type_from_row(table: str, row: Mapping[str, str]) -> LineType:
     code = row.get('ID', '')
-    prefix = 'CABLE' if table == 'CONCENTRIC NEUTRAL CABLE' else 'LINE'
+    prefix = 'CABLE' if table in TABLAS_TIPOS_SUBTERRANEO else 'LINE'
     return LineType(
         key=f'{prefix}:{code}',
         code=code,
@@ -162,7 +509,7 @@ def _line_type_from_row(table: str, row: Mapping[str, str]) -> LineType:
 def _catalog(dataset: CymdistDataset) -> tuple[dict[str, LineType], dict[str, list[LineType]]]:
     by_key: dict[str, LineType] = {}
     by_code: dict[str, list[LineType]] = {}
-    for table in ('LINE', 'CONCENTRIC NEUTRAL CABLE'):
+    for table in TABLAS_TIPOS_LINEA:
         for row in dataset.equipment_tables.get(table, ()):
             code = row.get('ID', '')
             if not code:
@@ -254,10 +601,11 @@ def _pick_type(
         return None
     if len(candidates) == 1:
         return candidates[0]
-    desired_table = 'LINE' if overhead else 'CONCENTRIC NEUTRAL CABLE'
-    for candidate in candidates:
-        if candidate.source_table == desired_table:
-            return candidate
+    deseadas = TABLAS_TIPOS_AEREO if overhead else TABLAS_TIPOS_SUBTERRANEO
+    for tabla in deseadas:
+        for candidate in candidates:
+            if candidate.source_table == tabla:
+                return candidate
     return None
 
 
@@ -289,10 +637,35 @@ def _resolve_type(
     return None, aliases.get(raw_code)
 
 
+def unresolved_line_type_codes(
+    dataset: CymdistDataset,
+    aliases: Mapping[str, str] | None = None,
+) -> set[str]:
+    """Devuelve los códigos usados que el conversor resolvería a DEFAULT."""
+    aliases = dict(aliases or {})
+    _, by_code = _catalog(dataset)
+    unresolved: set[str] = set()
+    for config in dataset.line_configurations.values():
+        raw_code = (config.get('LineCableID') or 'DEFAULT').strip() or 'DEFAULT'
+        if raw_code == 'DEFAULT':
+            continue
+        overhead = config.get('Overhead', '1') == '1'
+        line_type, target = _resolve_type(raw_code, overhead, by_code, aliases)
+        if line_type is None or target == 'DEFAULT':
+            unresolved.add(raw_code)
+    return unresolved
+
+
 def _calc_p_q(row: Mapping[str, str]) -> tuple[float, float, float]:
     value_type = row.get('ValueType', '')
     value1 = _float(row.get('Value1'))
     value2 = _float(row.get('Value2'))
+    # CYMDIST guarda el factor de potencia EN PORCENTAJE (97.0), tanto en la base como
+    # en el export TXT. Solo se aceptaba en por unidad, así que un 97 no pasaba el
+    # filtro y todas las cargas salían con Q = 0: el flujo daba tensiones optimistas y
+    # pérdidas reactivas nulas sin ningún aviso.
+    if value_type == '2' and 1 < abs(value2) <= 100:
+        value2 = value2 / 100.0
     if value_type == '2' and 0 < abs(value2) <= 1:
         p_mw = value1 / 1000.0
         pf = min(max(abs(value2), 1e-12), 1.0)
@@ -303,10 +676,33 @@ def _calc_p_q(row: Mapping[str, str]) -> tuple[float, float, float]:
     return value1 / 1000.0, 0.0, abs(value2) if 0 < abs(value2) <= 1 else 0.0
 
 
+#: Hasta qué longitud de tramo se acepta una carga declarada en el punto medio
+#: (``Location='2'``) colgándola del nudo final. PowerFactory no tiene nudo a mitad de
+#: línea, así que la alternativa sería partir el tramo y cambiar la topología.
+#:
+#: El umbral no es arbitrario. En el export completo de la distribuidora las 7.287
+#: cargas con ``Location='2'`` están **todas** sobre derivaciones virtuales de 0,300 m
+#: —mínimo y máximo coinciden—, de modo que el punto medio dista 0,15 m del extremo:
+#: unos 6·10⁻⁵ Ω en cable de 120 mm². A 10 m sigue siendo 2·10⁻³ Ω, despreciable. Por
+#: encima de eso el atajo dejaría de ser inocuo y es mejor fallar que falsear.
+LARGO_MAXIMO_CARGA_CENTRAL_M = 10.0
+
+
 def _load_node(location: str, line: Line, strict: bool) -> str | None:
     if location == '0':
         return line.from_node
     if location == '1':
+        return line.to_node
+    if location == '2':
+        # Punto medio del tramo. Ver LARGO_MAXIMO_CARGA_CENTRAL_M.
+        if line.length_km * 1000.0 <= LARGO_MAXIMO_CARGA_CENTRAL_M:
+            return line.to_node
+        if strict:
+            raise ModelBuildError(
+                f'{line.section_id}: la carga está declarada en el punto medio '
+                f'(LOADS.Location=2) de un tramo de {line.length_km * 1000:.1f} m. '
+                f'Por encima de {LARGO_MAXIMO_CARGA_CENTRAL_M:.0f} m colgarla de un '
+                f'extremo falsearía la caída de tensión; habría que partir el tramo.')
         return line.to_node
     if strict:
         raise ModelBuildError(f'{line.section_id}: unsupported LOADS.Location={location!r}')
@@ -415,9 +811,12 @@ def _section_projected_path(
         return None
     if start.x is None or start.y is None or end.x is None or end.y is None:
         return None
+    if start.coord_inferida or end.coord_inferida:
+        # Una posición deducida del grafo no mide nada: vale la longitud del TXT.
+        return None
     path: list[tuple[float, float]] = [(start.x, start.y)]
     if intermediate_by_section is None:
-        rows = [row for row in dataset.intermediate_nodes if row.get('SectionID', '') == section_id]
+        rows = list(dataset.intermediate_by_section.get(section_id, ()))
     else:
         rows = list(intermediate_by_section.get(section_id, ()))
     for row in sorted(rows, key=lambda r: _intermediate_seq(r.get('SeqNumber'))):
@@ -436,12 +835,7 @@ def apply_georeferenced_lengths(model: FeederModel, dataset: CymdistDataset) -> 
     Uses NODE.CoordX/Y (projected CRS, typically metres) plus INTERMEDIATE NODES when
     present. Sections without coordinates keep the TXT length.
     """
-    intermediate_by_section: dict[str, list[dict[str, str]]] = defaultdict(list)
-    selected = set(model.section_by_id)
-    for row in dataset.intermediate_nodes:
-        sid = row.get('SectionID', '')
-        if sid in selected:
-            intermediate_by_section[sid].append(row)
+    intermediate_by_section = dataset.intermediate_by_section
 
     new_lines: list[Line] = []
     updated = 0
@@ -493,12 +887,102 @@ def apply_georeferenced_lengths(model: FeederModel, dataset: CymdistDataset) -> 
     return model
 
 
-def prove_mt_connections(model: FeederModel, dataset: CymdistDataset) -> dict:
-    """Prove each MT section ends on georeferenced From/To nodes and each SED matches TXT Location."""
+def _median(values: Sequence[float]) -> float:
+    ordered = sorted(values)
+    n = len(ordered)
+    if n == 0:
+        return float('nan')
+    mid = n // 2
+    return ordered[mid] if n % 2 else (ordered[mid - 1] + ordered[mid]) / 2.0
+
+
+def check_length_scale_agreement(
+    model: FeederModel,
+    *,
+    warn_band: tuple[float, float] = (0.8, 1.25),
+    error_band: tuple[float, float] = (0.1, 10.0),
+) -> dict:
+    """Compare georeferenced lengths against the TXT ``Length`` of the same sections.
+
+    An independent scale oracle. ``assert_metre_source_crs`` checks what the CRS
+    *declares*; this checks what the coordinates actually *are*. They catch
+    different faults: coordinates supplied in centimetres, or a TXT ``Length`` in
+    feet, pass the CRS check and fail here.
+
+    A legitimate export can differ by some percent (sag, slack, as-built vs
+    as-drawn), so only an order-of-magnitude divergence is treated as an error —
+    that can only be a unit or projection mistake, never physical.
+    """
+    # Degenerate stubs whose two endpoints share the same coordinates measure 0 m by
+    # geometry; their TXT Length is the only information available, so comparing them
+    # would only add a meaningless 0.0 ratio.
+    ratios = [
+        line.length_m / line.txt_length_m
+        for line in model.lines
+        if line.length_source == 'georef'
+        and line.txt_length_m is not None
+        and line.txt_length_m > 0
+        and math.isfinite(line.length_m)
+        and line.length_m > 0
+    ]
+    compared = len(ratios)
+    if not compared:
+        return {
+            'compared': 0, 'median_ratio': None, 'mad': None,
+            'outside_warn_band': 0, 'ok': True, 'error': None, 'warning': None,
+        }
+
+    median_ratio = _median(ratios)
+    mad = _median([abs(r - median_ratio) for r in ratios])
+    outside = sum(1 for r in ratios if not (warn_band[0] <= r <= warn_band[1]))
+
+    detail = (
+        f'{compared} tramo(s) comparados: razón georreferencia/TXT mediana '
+        f'{median_ratio:.4g} (MAD {mad:.3g}); {outside} fuera de '
+        f'[{warn_band[0]:g}, {warn_band[1]:g}]'
+    )
+    error = None
+    warning = None
+    if not (error_band[0] <= median_ratio <= error_band[1]):
+        error = (
+            f'Escala de coordenadas incoherente con las longitudes del TXT. {detail}. '
+            'Una discrepancia de este orden solo puede venir de unidades o proyección '
+            'equivocadas (p. ej. CoordX/CoordY en grados o centímetros, o Length en '
+            'otra unidad), no de holgura física. Revise --source-crs y las unidades '
+            'del export antes de usar el modelo.'
+        )
+    elif outside:
+        warning = f'Longitudes georreferenciadas y del TXT no coinciden en todos los tramos. {detail}.'
+
+    return {
+        'compared': compared,
+        'median_ratio': median_ratio,
+        'mad': mad,
+        'outside_warn_band': outside,
+        'ok': error is None,
+        'error': error,
+        'warning': warning,
+    }
+
+
+def prove_mt_connections(
+    model: FeederModel,
+    dataset: CymdistDataset,
+    *,
+    require_coordinates: bool = True,
+) -> dict:
+    """Prove each MT section matches TXT From/To and each SED matches TXT Location.
+
+    Topology is always proven. ``require_coordinates`` controls only the
+    georeferencing part: with geography disabled an export without CoordX/CoordY
+    must still convert, so missing coordinates are counted instead of failing.
+    """
     errors: list[str] = []
     line_ok = 0
     sed_ok = 0
     georef_lengths = 0
+    lines_without_coords = 0
+    seds_without_coords = 0
 
     for line in model.lines:
         sec = dataset.sections.get(line.section_id)
@@ -507,10 +991,13 @@ def prove_mt_connections(model: FeederModel, dataset: CymdistDataset) -> dict:
             continue
         txt_from = sec.get('FromNodeID', '')
         txt_to = sec.get('ToNodeID', '')
-        if line.from_node != txt_from or line.to_node != txt_to:
+        expected_from = model.node_aliases.get(txt_from, txt_from)
+        expected_to = model.node_aliases.get(txt_to, txt_to)
+        if line.from_node != expected_from or line.to_node != expected_to:
             errors.append(
                 f'{line.section_id}: From/To del modelo ({line.from_node}->{line.to_node}) '
-                f'no coinciden con TXT ({txt_from}->{txt_to})'
+                f'no coinciden con TXT normalizado ({expected_from}->{expected_to}; '
+                f'original {txt_from}->{txt_to})'
             )
             continue
         start = model.nodes.get(line.from_node)
@@ -519,10 +1006,16 @@ def prove_mt_connections(model: FeederModel, dataset: CymdistDataset) -> dict:
             errors.append(f'{line.section_id}: nodos From/To no están en el modelo')
             continue
         if start.x is None or start.y is None:
-            errors.append(f'{line.section_id}: FromNode {line.from_node} sin CoordX/CoordY georreferenciadas')
+            if require_coordinates:
+                errors.append(f'{line.section_id}: FromNode {line.from_node} sin CoordX/CoordY georreferenciadas')
+                continue
+            lines_without_coords += 1
             continue
         if end.x is None or end.y is None:
-            errors.append(f'{line.section_id}: ToNode {line.to_node} sin CoordX/CoordY georreferenciadas')
+            if require_coordinates:
+                errors.append(f'{line.section_id}: ToNode {line.to_node} sin CoordX/CoordY georreferenciadas')
+                continue
+            lines_without_coords += 1
             continue
         line_ok += 1
         if line.length_source == 'georef':
@@ -561,7 +1054,10 @@ def prove_mt_connections(model: FeederModel, dataset: CymdistDataset) -> dict:
             continue
         node = model.nodes.get(sed.node_id)
         if node is None or node.x is None or node.y is None:
-            errors.append(f'SED {sed.code}: nodo {sed.node_id} sin georreferencia CoordX/CoordY')
+            if require_coordinates:
+                errors.append(f'SED {sed.code}: nodo {sed.node_id} sin georreferencia CoordX/CoordY')
+                continue
+            seds_without_coords += 1
             continue
         sed_ok += 1
 
@@ -573,33 +1069,158 @@ def prove_mt_connections(model: FeederModel, dataset: CymdistDataset) -> dict:
         'seds_checked': sed_ok,
         'seds_total': len(model.seds),
         'lines_with_georef_length': georef_lengths,
+        'lines_without_coords': lines_without_coords,
+        'seds_without_coords': seds_without_coords,
+        'coordinates_required': require_coordinates,
         'errors_total': len(errors),
     }
 
 
-def _topology_island_warning(name: str, source_node: str, lines: list[Line], loads: list[Load], seds: list[Sed]) -> str | None:
-    """Warn when RED sections under this feeder are not reachable from SOURCE."""
+def find_topology_islands(
+    source_node: str,
+    lines: list[Line],
+    loads: list[Load],
+    seds: list[Sed],
+) -> dict:
+    """Elementos del alimentador sin ningún camino eléctrico hasta el SOURCE.
+
+    Devuelve la isla de forma **estructurada**, no como texto: quien decide la política
+    necesita saber si la isla arrastra cargas. Una isla vacía suele ser ruido del GIS
+    (un fragmento dibujado y nunca conectado); una isla **con cargas** es un error de
+    modelo, porque esas cargas no pueden recibir energía y PowerFactory las presenta a
+    0,0 p.u. como si fuese un resultado válido.
+    """
     if not lines:
-        return None
+        return {'sections': [], 'nodes': [], 'loads': [], 'seds': [], 'has_loads': False}
     reachable = _reachable_from_source(source_node, lines)
-    island_lines = [line for line in lines if line.from_node not in reachable or line.to_node not in reachable]
+    island_lines = [
+        line for line in lines
+        if line.from_node not in reachable or line.to_node not in reachable
+    ]
     if not island_lines:
-        return None
-    island_nodes = {
+        return {'sections': [], 'nodes': [], 'loads': [], 'seds': [], 'has_loads': False}
+    island_nodes = sorted({
         node
         for line in island_lines
         for node in (line.from_node, line.to_node)
         if node not in reachable
+    })
+    island_loads = sorted(load.device_number for load in loads if load.node_id not in reachable)
+    island_seds = sorted(sed.code for sed in seds if sed.node_id not in reachable)
+    return {
+        'sections': sorted(line.section_id for line in island_lines),
+        'nodes': island_nodes,
+        'loads': island_loads,
+        'seds': island_seds,
+        'has_loads': bool(island_loads or island_seds),
     }
-    island_loads = sum(1 for load in loads if load.node_id not in reachable)
-    island_seds = sum(1 for sed in seds if sed.node_id not in reachable)
-    sample = ', '.join(sorted(line.section_id for line in island_lines)[:8])
-    more = '' if len(island_lines) <= 8 else f' (+{len(island_lines) - 8} más)'
-    return (
-        f'{name}: {len(island_lines)} tramo(s), {len(island_nodes)} nodo(s), '
-        f'{island_loads} carga(s) y {island_seds} SED desconectados del SOURCE '
-        f'({source_node}). Revise SECTION/FromNode/ToNode en el RED. Ejemplos: {sample}{more}'
+
+
+def describe_islands(name: str, source_node: str, islands: dict) -> str:
+    """Mensaje legible de una isla, para aviso o para error."""
+    sections = islands['sections']
+    sample = ', '.join(sections[:8])
+    more = '' if len(sections) <= 8 else f' (+{len(sections) - 8} más)'
+    detalle = (
+        f'{name}: {len(sections)} tramo(s), {len(islands["nodes"])} nodo(s), '
+        f'{len(islands["loads"])} carga(s) y {len(islands["seds"])} SED desconectados '
+        f'del SOURCE ({source_node}). Revise SECTION/FromNode/ToNode en el RED. '
+        f'Ejemplos: {sample}{more}'
     )
+    if islands['has_loads']:
+        return (
+            detalle + ' Esas cargas no pueden recibir energía: PowerFactory las '
+            'importará en servicio y su flujo devolverá 0,0 p.u. como si fuese un '
+            'resultado válido. Corrija la topología del RED, o convierta con '
+            '--non-strict aceptando que el modelo tiene carga no alimentable.'
+        )
+    return detalle + ' La isla no arrastra cargas ni SED; se convierte igualmente.'
+
+
+COINCIDENT_NODE_TOLERANCE_M = 0.01
+"""Diferencia máxima de coordenadas para reconocer IDs duplicados del mismo punto."""
+
+
+def _short_default_node_aliases(
+    dataset: CymdistDataset,
+    network_id: str,
+    source_node: str,
+) -> dict[str, str]:
+    """Repara solo el endpoint aislado de un puente corto con coordenada duplicada."""
+    from .puentes import CODIGOS_PUENTE, LARGO_MAXIMO_PUENTE_M
+
+    degree: dict[str, int] = defaultdict(int)
+    adjacency: dict[str, list[str]] = defaultdict(list)
+    short_defaults: set[str] = set()
+    for section_id in dataset.feeders.get(network_id, ()):
+        section = dataset.sections.get(section_id, {})
+        a, b = section.get('FromNodeID', ''), section.get('ToNodeID', '')
+        if not a or not b or a == b:
+            continue
+        degree[a] += 1
+        degree[b] += 1
+        adjacency[a].append(b)
+        adjacency[b].append(a)
+        config = dataset.line_configurations.get(section_id, {})
+        code = (config.get('LineCableID') or '').strip().upper()
+        try:
+            length = float(config.get('Length') or '')
+        except (TypeError, ValueError):
+            continue
+        if code in {item.upper() for item in CODIGOS_PUENTE} and 0 <= length <= LARGO_MAXIMO_PUENTE_M:
+            short_defaults.add(section_id)
+
+    reachable = {source_node}
+    pending = deque([source_node])
+    while pending:
+        current = pending.popleft()
+        for neighbor in adjacency.get(current, ()):
+            if neighbor not in reachable:
+                reachable.add(neighbor)
+                pending.append(neighbor)
+
+    tolerance = COINCIDENT_NODE_TOLERANCE_M
+    cells: dict[tuple[int, int], list[str]] = defaultdict(list)
+
+    def coordinates(node_id: str) -> tuple[float, float] | None:
+        row = dataset.nodes.get(node_id)
+        if not row:
+            return None
+        try:
+            x, y = float(row.get('CoordX')), float(row.get('CoordY'))
+        except (TypeError, ValueError):
+            return None
+        return (x, y) if math.isfinite(x) and math.isfinite(y) else None
+
+    for node_id in degree:
+        point = coordinates(node_id)
+        if point is not None:
+            cells[(math.floor(point[0] / tolerance), math.floor(point[1] / tolerance))].append(node_id)
+
+    aliases: dict[str, str] = {}
+    for section_id in sorted(short_defaults):
+        section = dataset.sections[section_id]
+        for node_id in (section.get('FromNodeID', ''), section.get('ToNodeID', '')):
+            if not node_id or degree[node_id] != 1 or node_id in reachable:
+                continue
+            point = coordinates(node_id)
+            if point is None:
+                continue
+            cell_x, cell_y = math.floor(point[0] / tolerance), math.floor(point[1] / tolerance)
+            candidates: set[str] = set()
+            for dx in (-1, 0, 1):
+                for dy in (-1, 0, 1):
+                    for other in cells.get((cell_x + dx, cell_y + dy), ()):
+                        if other == node_id or other not in reachable:
+                            continue
+                        other_point = coordinates(other)
+                        if other_point is not None and math.hypot(
+                            point[0] - other_point[0], point[1] - other_point[1],
+                        ) <= tolerance:
+                            candidates.add(other)
+            if len(candidates) == 1:
+                aliases[node_id] = next(iter(candidates))
+    return aliases
 
 
 def build_feeder_model(
@@ -608,7 +1229,16 @@ def build_feeder_model(
     *,
     aliases: Mapping[str, str] | None = None,
     strict: bool = True,
+    include_geography: bool = True,
 ) -> FeederModel:
+    """Build one feeder's isolated electrical model.
+
+    ``include_geography`` mirrors the converter flag. With geography enabled every
+    node must carry CoordX/CoordY, as before. With it disabled the export may lack
+    coordinates entirely and still convert: sections that *do* have them keep using
+    the georeferenced polyline length, so a complete export produces exactly the
+    same model either way.
+    """
     aliases = dict(aliases or {})
     network_id = dataset.resolve_feeder(selector)
     name = feeder_short_name(network_id)
@@ -618,9 +1248,15 @@ def build_feeder_model(
     source_node = source.get('NodeID', '')
     if not source_node:
         raise ModelBuildError(f'{network_id}: SOURCE.NodeID is empty')
-    nominal_kv = _float(source.get('DesiredVoltage'), float('nan'))
+    node_aliases = _short_default_node_aliases(dataset, network_id, source_node)
+    source_node = node_aliases.get(source_node, source_node)
+    nominal_kv = _tension_de_fuente(source)
     if not math.isfinite(nominal_kv) or nominal_kv <= 0:
-        raise ModelBuildError(f'{network_id}: invalid SOURCE.DesiredVoltage={source.get("DesiredVoltage")!r}')
+        raise ModelBuildError(
+            f'{network_id}: la fuente no declara una tensión utilizable. '
+            f'Se buscó DesiredVoltage y OperatingVoltageA/B/C, y se encontró '
+            f'DesiredVoltage={source.get("DesiredVoltage")!r}, '
+            f'OperatingVoltageA={source.get("OperatingVoltageA")!r}.')
 
     _, by_code = _catalog(dataset)
     lines: list[Line] = []
@@ -638,6 +1274,8 @@ def build_feeder_model(
         to_node = sec.get('ToNodeID', '')
         if from_node not in dataset.nodes or to_node not in dataset.nodes:
             raise ModelBuildError(f'{network_id}: {section_id} references missing node')
+        from_node = node_aliases.get(from_node, from_node)
+        to_node = node_aliases.get(to_node, to_node)
         overhead = cfg.get('Overhead', '1') == '1'
         raw_code = cfg.get('LineCableID') or 'DEFAULT'
         typ, alias_target = _resolve_type(raw_code, overhead, by_code, aliases)
@@ -668,19 +1306,22 @@ def build_feeder_model(
         used_types[typ.key] = typ
         used_nodes.update((from_node, to_node))
 
-    if not lines:
+    # Un alimentador sin filas SECTION no es un error del export: es una cabecera
+    # real (SOURCE + headnode + nodo georreferenciado) cuya red MT todavía no está
+    # modelada. Se convierte igual, dibujando lo único que existe — el nodo de
+    # cabecera — en vez de omitirlo. No se inventa ningún elemento.
+    source_only = not lines
+    if source_only and source_node not in dataset.nodes:
         raise ModelBuildError(
-            f'{name}: el RED no tiene filas SECTION para este alimentador '
-            f'(solo cabecera FEEDER=/SOURCE en {network_id}). '
-            'No hay tramos, cargas ni SED que convertir; revise el export IGEA.'
+            f'{name}: el RED no tiene filas SECTION y el nodo de cabecera '
+            f'{source_node!r} tampoco está en la tabla NODE. No hay nada que convertir '
+            f'para {network_id}; revise el export IGEA.'
         )
 
     section_by_id = {line.section_id: line for line in lines}
     loads: list[Load] = []
-    for key, row in dataset.customer_loads.items():
+    for key, row in dataset.customer_loads_by_feeder.get(network_id, ()):
         section_id, device_number = key
-        if dataset.section_owner.get(section_id) != network_id:
-            continue
         line = section_by_id.get(section_id)
         if line is None:
             if strict:
@@ -713,6 +1354,11 @@ def build_feeder_model(
             phase=row.get('Phase', ''),
             sed_code=sed_code,
             display_name=display[:40],
+            customers=_int(row.get('NumberOfCustomer')),
+            customer_type=(row.get('CustomerType') or '').strip()[:20],
+            year=_int(row.get('Year')),
+            feeder=name,
+            network_id=network_id,
         ))
 
     loads = _assign_load_display_names(loads)
@@ -729,43 +1375,54 @@ def build_feeder_model(
             section_id=load.section_id,
             device_number=load.device_number,
             load_key=(load.section_id, load.device_number),
+            feeder=load.feeder,
+            network_id=load.network_id,
         ))
 
     devices: list[SwitchingDevice] = []
-    for kind, rows in (
-        ('SWITCH', dataset.switch_settings),
-        ('SECTIONALIZER', dataset.sectionalizer_settings),
-    ):
-        for row in rows:
-            section_id = row.get('SectionID', '')
-            if dataset.section_owner.get(section_id) != network_id:
-                continue
-            line = section_by_id.get(section_id)
-            if line is None:
-                if strict:
-                    raise ModelBuildError(f'{network_id}: {kind} is on unresolved section {section_id}')
-                continue
-            location = row.get('Location', '')
-            side = _device_side(location, section_id, strict)
-            if side is None:
-                continue
-            node_id = line.from_node if side == 0 else line.to_node
-            status = _int(row.get('Status'), 1)
-            if status not in (0, 1):
-                raise ModelBuildError(f'{section_id}: invalid switching Status={row.get("Status")!r}')
-            devices.append(SwitchingDevice(
-                kind=kind,
-                section_id=section_id,
-                location=location.upper(),
-                terminal_side=side,
-                node_id=node_id,
-                eq_id=row.get('EqID', ''),
-                eq_number=row.get('EqNumber', ''),
-                phase=row.get('EqPhase', ''),
-                on_off=status,
-                locked=_int(row.get('Locked'), 0),
-                eq_state=_int(row.get('EqState'), 0),
-            ))
+    for kind, row in dataset.switching_by_feeder.get(network_id, ()):
+        section_id = row.get('SectionID', '')
+        line = section_by_id.get(section_id)
+        if line is None:
+            if strict:
+                raise ModelBuildError(f'{network_id}: {kind} is on unresolved section {section_id}')
+            continue
+        location = row.get('Location', '')
+        side = _device_side(location, section_id, strict)
+        if side is None:
+            continue
+        node_id = line.from_node if side == 0 else line.to_node
+        status = _int(row.get('Status'), 1)
+        if status not in (0, 1):
+            raise ModelBuildError(f'{section_id}: invalid switching Status={row.get("Status")!r}')
+        devices.append(SwitchingDevice(
+            kind=kind,
+            section_id=section_id,
+            location=location.upper(),
+            terminal_side=side,
+            node_id=node_id,
+            eq_id=row.get('EqID', ''),
+            eq_number=row.get('EqNumber', ''),
+            phase=row.get('EqPhase', ''),
+            on_off=status,
+            locked=_int(row.get('Locked'), 0),
+            eq_state=_int(row.get('EqState'), 0),
+            feeder=name,
+            network_id=network_id,
+        ))
+
+    capacitors: list[CapacitorBank] = []
+    for row in dataset.capacitor_settings:
+        if capacitor_owner_candidates(dataset, row) != {network_id}:
+            continue
+        raw = capacitor_from_source(row)
+        raw_node = capacitor_node(dataset, row)
+        capacitors.append(replace(
+            raw,
+            node_id=node_aliases.get(raw_node, raw_node),
+            network_id=network_id,
+            feeder=name,
+        ))
 
     nodes: dict[str, Node] = {}
     for node_id in sorted(used_nodes):
@@ -776,9 +1433,15 @@ def build_feeder_model(
             node_id=node_id,
             x=x if math.isfinite(x) else None,
             y=y if math.isfinite(y) else None,
+            coord_inferida=raw.get('CoordOrigen') in ('grafo', 'sin_crs'),
         )
 
     warnings: list[str] = []
+    if node_aliases:
+        warnings.append(
+            f'{name}: {len(node_aliases)} extremo(s) DEFAULT corto(s) conectado(s) a su '
+            'nodo eléctrico coincidente por coordenadas (tolerancia 1 cm).'
+        )
     auto_aliased = {
         src: dst
         for src, dst in applied_aliases.items()
@@ -798,9 +1461,23 @@ def build_feeder_model(
     if any(d.eq_state != 0 for d in devices):
         warnings.append('One or more switching devices have EqState != 0; EqState is preserved in the model but DGS StaSwitch has no equivalent field in this profile.')
 
-    island_warning = _topology_island_warning(name, source_node, lines, loads, seds)
-    if island_warning:
-        warnings.append(island_warning)
+    if source_only:
+        warnings.append(
+            f'{name}: el RED solo trae la cabecera (SOURCE + nodo {source_node}) sin '
+            f'filas SECTION en {network_id}. Se genera un DGS con la barra de cabecera '
+            'y su red externa —lo único que el export contiene— sin tramos, cargas ni '
+            'SED. NO es un alimentador modelado: no lo use para flujo ni estudios.'
+        )
+
+    # Política de islas: una isla vacía es ruido del GIS y solo se avisa; una isla
+    # **con cargas** bloquea en modo estricto, porque esas cargas no pueden recibir
+    # energía y nadie aguas abajo lo detecta (ver describe_islands).
+    islands = find_topology_islands(source_node, lines, loads, seds)
+    if islands['sections']:
+        message = describe_islands(name, source_node, islands)
+        if islands['has_loads'] and strict:
+            raise IslandWithLoadsError(name, islands, message)
+        warnings.append(message)
 
     model = FeederModel(
         name=name,
@@ -817,12 +1494,26 @@ def build_feeder_model(
         warnings=warnings,
         section_by_id=section_by_id,
         seds=seds,
+        islands=islands,
+        node_aliases=node_aliases,
+        capacitors=capacitors,
     )
 
-    # Electrical lengths follow the georeferenced polyline (From + intermediates + To).
+    # Electrical lengths follow the georeferenced polyline (From + intermediates + To)
+    # wherever coordinates exist; sections without them keep the TXT Length.
     apply_georeferenced_lengths(model, dataset)
 
-    proof = prove_mt_connections(model, dataset)
+    # Independent scale oracle: the coordinates must agree with the TXT lengths.
+    # A wrong unit or projection shows up here even when the CRS declares metres.
+    scale = check_length_scale_agreement(model)
+    if scale['error']:
+        if strict:
+            raise ModelBuildError(f'{name}: {scale["error"]}')
+        model.warnings.append(f'{name}: {scale["error"]}')
+    elif scale['warning']:
+        model.warnings.append(f'{name}: {scale["warning"]}')
+
+    proof = prove_mt_connections(model, dataset, require_coordinates=include_geography)
     if proof['errors']:
         detail = '; '.join(proof['errors'][:12])
         more = '' if len(proof['errors']) <= 12 else f' (+{len(proof["errors"]) - 12} más)'
@@ -834,11 +1525,20 @@ def build_feeder_model(
             raise ModelBuildError(message)
         model.warnings.append(message)
     else:
-        model.warnings.append(
+        summary = (
             f'Prueba OK: {proof["lines_checked"]}/{proof["lines_total"]} tramos MT '
             f'conectados a From/To georreferenciados; '
             f'{proof["seds_checked"]}/{proof["seds_total"]} SED en el nodo TXT; '
             f'{proof["lines_with_georef_length"]} longitudes actualizadas por georreferencia.'
         )
+        if proof['lines_without_coords'] or proof['seds_without_coords']:
+            summary += (
+                f' Sin georreferencia (geografía desactivada): '
+                f'{proof["lines_without_coords"]} tramo(s) y '
+                f'{proof["seds_without_coords"]} SED conservan la longitud del TXT.'
+            )
+        if scale['compared']:
+            summary += f' Escala georreferencia/TXT: mediana {scale["median_ratio"]:.4g}.'
+        model.warnings.append(summary)
 
     return model

@@ -1,12 +1,17 @@
 from pathlib import Path
 import json
+from types import SimpleNamespace
 
-from igea_dgs.batch import convert_selection, load_aliases
+from igea_dgs.batch import convert_group, convert_selection, load_aliases, sort_key_feeder
+from igea_dgs.naming import feeder_short_name
 
 
-def test_convert_one_feeder(ds, sample_feeder, tmp_path):
-    manifest = convert_selection(ds, [sample_feeder], tmp_path)
-    assert manifest['summary'] == {'requested': 1, 'ok': 1, 'skipped': 0, 'failed': 0}
+def test_convert_one_feeder(ds, sample_feeder, tmp_path, opciones_reales):
+    manifest = convert_selection(ds, [sample_feeder], tmp_path, **opciones_reales)
+    assert manifest['summary'] == {
+        'status': 'completed', 'selected': 1, 'requested': 1,
+        'ok': 1, 'skipped': 0, 'failed': 0, 'not_processed': 0,
+    }
     item = manifest['feeders'][0]
     assert item['feeder'] == sample_feeder
     assert item['status'] == 'ok'
@@ -14,42 +19,56 @@ def test_convert_one_feeder(ds, sample_feeder, tmp_path):
     assert (tmp_path / f'{sample_feeder}_validation.json').exists()
 
 
-def test_convert_multiple_feeders(ds, sample_feeder, second_feeder, tmp_path):
+def test_convert_multiple_feeders(ds, sample_feeder, second_feeder, tmp_path, opciones_reales):
     selected = [sample_feeder, second_feeder]
-    manifest = convert_selection(ds, selected, tmp_path)
+    manifest = convert_selection(ds, selected, tmp_path, **opciones_reales)
     assert manifest['summary']['requested'] == 2
     assert manifest['summary']['ok'] == 2
     assert {x['feeder'] for x in manifest['feeders']} == set(selected)
 
 
-def test_all_mode_converts_every_feeder_without_blocking(ds, tmp_path):
+def test_all_mode_converts_every_feeder_without_blocking(ds, tmp_path, opciones_reales):
+    """Todos los alimentadores del export se convierten: ninguno se omite.
+
+    Una cabecera FEEDER=/SOURCE sin filas SECTION ya no se salta; se dibuja su barra
+    de cabecera, que es lo único que el export contiene, y el manifiesto la marca
+    como ``topology='source_only'`` para no confundirla con una red modelada.
+    """
     n_feeders = len(ds.feeder_ids())
     assert n_feeders >= 1
-    empty = {nid for nid in ds.feeder_ids() if not ds.feeders[nid]}
-    manifest = convert_selection(ds, None, tmp_path, all_feeders=True)
+    header_only = {nid for nid in ds.feeder_ids() if not ds.feeders[nid]}
+    # strict=False: lo que se prueba es que ninguno se OMITE y que todos producen un
+    # DGS. Una isla con cargas bloquea en modo estricto por política deliberada
+    # (ver tests/test_topology_islands.py), y eso se comprueba aparte.
+    manifest = convert_selection(ds, None, tmp_path, all_feeders=True, strict=False,
+                                 **opciones_reales)
     assert manifest['summary']['requested'] == n_feeders
-    assert manifest['summary']['ok'] == n_feeders - len(empty)
-    assert manifest['summary']['skipped'] == len(empty)
+    assert manifest['summary']['ok'] == n_feeders
+    assert manifest['summary']['skipped'] == 0
     assert manifest['summary']['failed'] == 0
     for item in manifest['feeders']:
-        if item['network_id'] in empty:
-            assert item['status'] == 'skipped'
-            continue
         assert item['status'] == 'ok'
         assert (tmp_path / f"{item['feeder']}.dgs").exists()
+        expected = 'source_only' if item['network_id'] in header_only else 'full'
+        assert item['topology'] == expected
+        if expected == 'full':
+            assert item['counts']['source_lines'] == item['counts']['dgs_lines']
+            assert item['completitud']['fallos'] == []
 
 
-def test_external_alias_file_is_recorded(ds, sample_feeder, tmp_path):
+def test_external_alias_file_is_recorded(ds, sample_feeder, tmp_path, opciones_reales):
     alias_path = tmp_path / 'aliases.json'
     # Self-documenting placeholder; conversion must succeed regardless of codes.
     alias_path.write_text(json.dumps({'MISSING_TYPE': 'DEFAULT'}), encoding='utf-8')
     aliases = load_aliases(alias_path)
-    manifest = convert_selection(ds, [sample_feeder], tmp_path / 'out', aliases=aliases)
+    manifest = convert_selection(ds, [sample_feeder], tmp_path / 'out', aliases=aliases,
+                                 **opciones_reales)
     assert manifest['summary']['ok'] == 1
     assert manifest['feeders'][0]['status'] == 'ok'
 
 
-def test_cli_list_and_convert_do_not_accept_reference_dgs(igea_paths, sample_feeder, tmp_path, capsys):
+def test_cli_list_and_convert_do_not_accept_reference_dgs(igea_paths, sample_feeder, tmp_path, capsys,
+                                                          perfil_real):
     from igea_dgs.cli import main
 
     red, loads, equip = igea_paths
@@ -75,7 +94,26 @@ def test_cli_list_and_convert_do_not_accept_reference_dgs(igea_paths, sample_fee
         '--equipment', str(equip),
         '--feeder', sample_feeder,
         '--out-dir', str(out),
+        '--perfil', perfil_real.nombre,
     ])
     assert rc == 0
     assert (out / f'{sample_feeder}.dgs').exists()
     assert (out / 'dataset_inventory.json').exists()
+
+
+def test_unir_incluye_solo_los_alimentadores_seleccionados(ds, opciones_reales, tmp_path):
+    """Unir mete en el DGS exactamente los alimentadores elegidos, ni uno más.
+
+    IN111 + TA225 (2026-10-14) dio un DGS de 15 alimentadores: se añadían en cadena los
+    que comparten un nodo a la misma tensión. Con los datos de referencia se prueba ese
+    par; con otra exportación, dos cualesquiera.
+    """
+    nombres = {feeder_short_name(n) for n in ds.feeder_ids()}
+    seleccion = (['IN111', 'TA225'] if {'IN111', 'TA225'} <= nombres
+                 else sorted(nombres, key=sort_key_feeder)[:2])
+    man = convert_group(ds, seleccion, tmp_path, name='UNIDOS', include_geography=False,
+                        **{k: v for k, v in opciones_reales.items() if k != 'source_crs'})
+    assert man['status'] == 'ok', man.get('error')
+    assert man['feeders'] == seleccion
+    metadata = json.loads((tmp_path / 'UNIDOS_feeder_metadata.json').read_text(encoding='utf-8'))
+    assert {a['feeder'] for a in metadata['assignments']} <= set(seleccion)

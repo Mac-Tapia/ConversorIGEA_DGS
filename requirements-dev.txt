@@ -1,3 +1,0 @@
-# Desarrollo y pruebas (incluye producción)
--r requirements.txt
-pytest>=8.0

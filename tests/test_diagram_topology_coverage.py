@@ -11,7 +11,6 @@ from igea_dgs.batch import convert_selection, load_aliases
 from igea_dgs.dgs import (
     DIAGRAM_SHEET_MARGIN_DU,
     NA205_DIAGRAM_UNITS_PER_METER,
-    NA205_MAX_DIAGRAM_EXTENT,
     _diagram_mapper,
     write_dgs,
 )
@@ -29,11 +28,26 @@ def _aliases():
 
 
 def _convertible_feeders(ds):
-    return [
-        feeder_short_name(nid)
-        for nid in ds.feeder_ids()
-        if ds.feeders.get(nid)
-    ]
+    """Alimentadores con topología y sin isla con cargas.
+
+    Una isla con cargas bloquea en modo estricto (política deliberada), y estas
+    pruebas son de fidelidad de diagrama, no de esa política.
+    """
+    from igea_dgs.model import find_topology_islands
+
+    result = []
+    for nid in ds.feeder_ids():
+        if not ds.feeders.get(nid):
+            continue
+        try:
+            model = build_feeder_model(ds, feeder_short_name(nid), strict=False)
+        except Exception:
+            continue
+        islands = find_topology_islands(model.source_node, model.lines, model.loads, model.seds)
+        if islands['has_loads']:
+            continue
+        result.append(feeder_short_name(nid))
+    return result
 
 
 def _txt_xy(model):
@@ -117,15 +131,14 @@ def test_diagram_sheet_covers_full_network_and_map(ds, sample_model, tmp_path):
     geo = build_geography(ds, sample_model, source_crs='EPSG:32718')
     visible = set(sample_model.nodes)
     _map_point, sheet = _diagram_mapper(geo, visible)
-    assert sheet.span <= NA205_MAX_DIAGRAM_EXTENT + 1e-6
-    assert sheet.scale <= NA205_DIAGRAM_UNITS_PER_METER + 1e-12
+    assert sheet.scale == pytest.approx(NA205_DIAGRAM_UNITS_PER_METER)
     assert sheet.width >= 2 * DIAGRAM_SHEET_MARGIN_DU
     assert sheet.height >= 2 * DIAGRAM_SHEET_MARGIN_DU
 
     out = tmp_path / f'{sample_model.name}_sheet.dgs'
     manifest = write_dgs(sample_model, out, geography=geo)
     assert manifest.diagram_sheet is not None
-    assert manifest.diagram_sheet.span <= NA205_MAX_DIAGRAM_EXTENT + 1e-6
+    assert manifest.diagram_sheet.scale == pytest.approx(NA205_DIAGRAM_UNITS_PER_METER)
 
     tables = parse_dgs(out)
     xs, ys = _all_graphic_xy(tables)
@@ -135,7 +148,8 @@ def test_diagram_sheet_covers_full_network_and_map(ds, sample_model, tmp_path):
     assert min(ys) >= sheet.ymin - 1e-6
     assert max(ys) <= sheet.ymax + 1e-6
     span = max(max(xs) - min(xs), max(ys) - min(ys))
-    assert span <= NA205_MAX_DIAGRAM_EXTENT * 1.02
+    assert sheet.span == pytest.approx(
+        span + 2 * DIAGRAM_SHEET_MARGIN_DU, abs=1e-5)
 
 
 def test_validate_dgs_converges_for_digsilent_static_gate(ds, sample_model, tmp_path):
@@ -194,7 +208,7 @@ def test_batch_selection_preserves_double_circuits_and_sheet(ds, tmp_path):
         tables = parse_dgs(item['dgs'])
         xs, ys = _all_graphic_xy(tables)
         span = max(max(xs) - min(xs), max(ys) - min(ys))
-        assert span <= NA205_MAX_DIAGRAM_EXTENT * 1.02
+        assert span > 0
         assert len(tables['IntGrfnet']['rows']) == 1
         assert tables['ElmNet']['rows_dict'][0]['pDiagram'] == tables['IntGrfnet']['rows_dict'][0]['FID']
 

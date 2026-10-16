@@ -1,0 +1,203 @@
+# Spec 001 — Reorganización: una responsabilidad, un sitio
+
+Estado: cumplida (2026-10-08), con los cambios RF-17 a RF-27 (T13–T23) y RF-28 a RF-33 (T24–T26, 2026-10-15) · Fecha: 2026-10-07 · Origen: `docs/DIAGNOSTICO_SDD_2026-10-07.md`
+
+## Contexto y objetivo
+
+El diagnóstico del 2026-10-07 encontró responsabilidades implementadas varias veces y
+que ya divergen. La lectura de la entrada está en tres sitios (web, CLI, GUI), y por eso
+el CLI no admite VNR-GIS ni pasa los alias al catálogo. Hay dos escritores de DGS (el
+motor y `vnr_etl`), y el segundo se salta las reglas y la validación. Hay dos API web
+con dos colas de trabajos. Y hay utilidades copiadas en hasta 7 sitios. Cada copia es un
+sitio más donde corregir un fallo, y uno más donde olvidarse de hacerlo. El objetivo es
+que cada responsabilidad viva en un solo sitio **sin cambiar ningún DGS que hoy sea
+correcto**.
+
+## Usuarios / actores
+
+- Ingeniero de planificación que convierte desde la web.
+- Quien convierte en lote con el CLI `igea-dgs`.
+- Quien usa el módulo VNR-GIS (`vnr-etl`).
+- Desarrollador del proyecto, que mantiene el código.
+
+## Historias de usuario
+
+- H1: Como usuario del CLI quiero cargar las mismas fuentes que la web (TXT, MDB y VNR-GIS)
+  para no depender de la interfaz.
+- H2: Como ingeniero quiero que diagnosticar y reconstruir muestren su avance y se puedan
+  cancelar, para no esperar a ciegas con muchos alimentadores.
+- H3: Como desarrollador quiero corregir cada cosa en un solo sitio, para que las vías no
+  vuelvan a divergir.
+
+## Requisitos funcionales (EARS)
+
+Entrada
+
+- RF-1: EL SISTEMA leerá la entrada (TXT, MDB y VNR-GIS) con un único conjunto de
+  adaptadores, compartido por la web y el CLI.
+- RF-16: EL SISTEMA ofrecerá la conversión solo por la web y el CLI: la GUI Tkinter, su
+  orden `igea-dgs gui`, su script `igea-dgs-gui` y sus lanzadores `.bat` se retiran.
+- RF-2: CUANDO el CLI recibe un paquete VNR-GIS, EL SISTEMA lo cargará con el mismo
+  adaptador y el mismo resultado que la web.
+- RF-3: CUANDO se completa o diagnostica el catálogo de conductores, EL SISTEMA aplicará
+  los alias del usuario en todas las vías de entrada.
+
+Utilidades
+
+- RF-4: EL SISTEMA calculará el SHA-256 de un fichero con una única implementación.
+- RF-5: EL SISTEMA escribirá los JSON de forma atómica con una única implementación.
+- RF-6: EL SISTEMA reproyectará coordenadas con una única forma de construir el transformador.
+- RF-7: SI el CRS de origen no se puede construir al crear una plantilla de cargas,
+  ENTONCES EL SISTEMA rechazará la operación con un error que nombre ese CRS.
+
+Trabajos
+
+- RF-8: CUANDO se pide diagnosticar o reconstruir, EL SISTEMA lo ejecutará como un trabajo
+  del carril `engine`, con progreso por WebSocket.
+- RF-9: SI se cancela una reconstrucción, ENTONCES EL SISTEMA conservará como activo el
+  dataset anterior a la reconstrucción.
+
+VNR-GIS
+
+- RF-10: CUANDO `vnr-etl` exporta a DGS, EL SISTEMA generará el DGS con el motor
+  `igea_dgs` (reglas, validación y publicación atómica).
+- RF-11: EL SISTEMA ofrecerá una única API web y una única cola de trabajos; el script
+  `vnr-etl-web` se retira.
+- RF-17: SI al exportar desde VNR-GIS falta un dato de la red (alimentador de un tramo,
+  fuente, tensión, fases, longitud, ubicación de una carga, código de conductor o sus
+  parámetros), ENTONCES EL SISTEMA lo reconstruirá y exportará, en vez de rechazar el export.
+- RF-18: CUANDO reconstruye un parámetro de conductor, EL SISTEMA usará primero el
+  catálogo de parámetros (el del modelo y el del proyecto), después atributos compatibles,
+  después la derivación física y, solo en último lugar, un perfil provisional.
+- RF-19: CUANDO un conductor trae parte de sus parámetros, EL SISTEMA completará los que
+  faltan y conservará los que trae.
+- RF-20: SI el modelo no declara un CRS proyectado, ENTONCES EL SISTEMA reproyectará las
+  coordenadas geográficas a su zona UTM o, si no puede saber en qué están, exportará sin
+  georreferenciación con las longitudes del modelo.
+- RF-21: EL SISTEMA dejará junto al DGS un informe con cada valor reconstruido, su origen
+  (catálogo o supuesto de ingeniería), su confianza y el valor original.
+- RF-22: SI al modelo le falta procedencia, ENTONCES EL SISTEMA la completará con lo que se
+  puede derivar del propio modelo, la marcará como reconstruida y exportará.
+- RF-23: SI no hay un perfil de destino verificado, ENTONCES EL SISTEMA exportará con el
+  perfil de esquema del motor e indicará en el manifiesto que el perfil no está verificado.
+- RF-24: SI la relectura del DGS escrito encuentra errores, ENTONCES EL SISTEMA los
+  registrará en el manifiesto y publicará el DGS que el motor ya validó.
+- RF-25: SI una capa de origen no declara CRS, ENTONCES EL SISTEMA lo deducirá de las
+  coordenadas (grados → EPSG:4326 y su zona UTM) o, si no puede, leerá la capa sin
+  reproyectar, en vez de rechazar la conversión.
+
+Front
+
+- RF-12: SI una descarga falla con un error de validación (422), ENTONCES la interfaz
+  mostrará los mensajes del servidor igual que en el resto de peticiones.
+- RF-13: El cliente de la API no contendrá métodos que ninguna pantalla use.
+- RF-26: EL SISTEMA ofrecerá en la casilla VNR-GIS de la interfaz exactamente los formatos
+  que su lector admite, tomados de una única lista del servidor.
+- RF-27: CUANDO se abre la interfaz con el lanzador y el código del front es más reciente
+  que su compilación, EL SISTEMA recompilará el front antes de servirlo.
+
+Lanzador (acceso directo)
+
+- RF-28: CUANDO se abre el acceso directo y en el puerto ya responde un Conversor con el
+  mismo código, EL SISTEMA abrirá el navegador en él y terminará sin esperar una tecla.
+- RF-29: CUANDO en el puerto responde un Conversor con otro código y sin trabajos en
+  curso, EL SISTEMA le pedirá que se cierre, lo terminará si no se cierra, y arrancará el
+  nuevo en el mismo puerto.
+- RF-30: SI el Conversor del puerto tiene trabajos en curso o no se puede saber, ENTONCES
+  EL SISTEMA no lo cerrará: abrirá el navegador en él, avisará de que es otra versión y la
+  ventana se cerrará sola.
+- RF-31: SI el puerto lo tiene un Conversor que no responde, ENTONCES EL SISTEMA lo
+  terminará con sus hijos y arrancará el nuevo; SI lo tiene otro programa, ENTONCES
+  arrancará en el siguiente puerto libre y abrirá el navegador en él.
+- RF-32: EL SISTEMA abrirá el navegador cuando el servidor ya responda, no tras un retardo
+  fijo, y un Ctrl+C cerrará el servidor sin error.
+- RF-33: EL SISTEMA solo aceptará la petición de cierre desde la propia máquina y con la
+  cabecera del lanzador, y la rechazará con trabajos en curso.
+
+Seguridad
+
+- RF-15: SI la API escucha fuera de `127.0.0.1`, ENTONCES EL SISTEMA rechazará las rutas
+  del disco del servidor como entrada, cualquiera que sea el lanzador y aunque la
+  variable `IGEA_WEB_SERVER_PATHS` exista.
+
+Salida
+
+- RF-14: EL SISTEMA producirá, para la misma entrada, perfil y alias, los mismos DGS byte a
+  byte que antes de la reorganización. La única excepción es la salida de `vnr-etl export`
+  (RF-10).
+  *Cambio del 2026-10-10:* la spec 010 añade a propósito el trazado GPS de las líneas a
+  todo DGS georreferenciado (columna `GPScoords` y tabla `Matrix`). La línea base
+  `output/linea_base_001.json` se regeneró ese día con el código de la spec 010, después
+  de comprobar que, sin ese cambio, los DGS seguían idénticos a la anterior.
+
+## Requisitos no funcionales
+
+- Determinismo: DGS idéntico con `workers=1` y con `workers>1`, antes y después.
+- Escala: ninguna fase introduce recorridos completos de tablas por alimentador.
+- Ninguna fase deja la suite en rojo; cada una se puede publicar sola.
+
+## Casos límite
+
+- Disposición de export reducida y completa (RF-1, RF-14).
+- Estudio `.xml` con TXT, que filtra la selección pero no la lectura (RF-1).
+- Cancelación con alimentadores en marcha durante la reconstrucción (RF-9).
+- Paquete VNR-GIS con varias empresas o periodos, que exige elegir (RF-2).
+
+## Fuera de alcance
+
+- Cambios en el formato DGS o en el perfil de esquema.
+- Lint y tipado (`ruff`, `pyright`): van en otra spec.
+- Optimizar el rendimiento.
+
+## Criterios de finalización
+
+- Cada RF lo cita al menos una prueba: `grep -rnoE "001:RF-[0-9]+" tests | sort -u` lista
+  RF-1 a RF-16.
+- Suite en verde con las tres variables `IGEA_*`.
+- RF-14 comprobado: DGS de referencia regenerados e idénticos a los anteriores.
+- `npx tsc --noEmit -p frontend` y `npm run build` correctos.
+
+## Cambio del 2026-10-08: el export VNR reconstruye en vez de bloquear
+
+Tras T10, `vnr-etl export` se negaba a exportar si un tramo no tenía alimentador, si
+faltaba el CRS proyectado o si un conductor no traía parámetros. El usuario lo corrige:
+el conversor debe reconstruir y completar con el catálogo de parámetros, de forma
+flexible y adaptable, y no negarse. RF-17 a RF-21 lo recogen. Siguen bloqueando solo la
+procedencia (puerta A) y el perfil de destino verificado (puerta E del perfil): no son
+datos de la red, sino garantía de trazabilidad y de formato. No se inventan tipos
+`DEFAULT` (constitución P4): cada valor reconstruido va bajo su código original, con su
+evidencia. Las puertas B, C y D se siguen evaluando e informando, pero no bloquean.
+
+## Segundo cambio del 2026-10-08: nada que no sea la red vacía impide exportar
+
+El usuario pide que tampoco bloqueen la procedencia, el perfil de destino ni la
+relectura (RF-22 a RF-24), y que leer una capa sin CRS sea flexible (RF-25). Solo
+impiden exportar un modelo sin ningún tramo, que no tiene nada que exportar, y la
+evidencia de simulador cuando quien llama la exige (`require_simulator`). Las puertas
+A–H se siguen evaluando y se informan.
+
+## Tercer cambio del 2026-10-08: formatos VNR-GIS en la web y front al día
+
+La casilla VNR-GIS ofrecía `.7z` y `.gdb`, que el servidor rechazaba, y no ofrecía
+`.mdb`, `.accdb`, `.sqlite`, `.db`, `.json`, `.csv` ni `.tsv`, que el lector sí lee
+(RF-26). El lanzador solo compilaba el front si faltaba: tras un cambio, el acceso
+directo seguía mostrando la versión anterior sin avisar (RF-27).
+
+## Cuarto cambio, 2026-10-15: el acceso directo no se queda parado
+
+En fase comercial el acceso directo se quedaba en «Presione una tecla» cada vez que el
+puerto 8765 estaba ocupado: con la web ya abierta (doble clic dos veces), con un servidor
+arrancado con `--no-browser` por una sesión de prueba, o con un servidor colgado. El
+operador no tiene por qué saber qué proceso cerrar. Ahora el lanzador averigua quién
+tiene el puerto y resuelve solo (RF-28 a RF-31); el servidor publica en `/api/health`
+su PID, la huella del código con que arrancó y sus trabajos en curso, y admite que el
+lanzador le pida cerrarse (RF-33). El navegador se abría a los 1,2 s fijos, antes de que
+el servidor terminara de importar, y mostraba «no se puede conectar» (RF-32).
+
+## Dudas resueltas (2026-10-08)
+
+- RF-10 y RF-11: nadie fuera del repositorio usa `vnr-etl export` ni `vnr-etl-web`, así
+  que se unen al motor y a la API principal sin periodo de convivencia.
+- La GUI Tkinter se retira (RF-16): la web cubre su uso, y mantenerla era una tercera vía
+  de lectura que adaptar en RF-1. La rama `feat/integracion-web-retiro-gui` (commit
+  `52974c8e`) ya lo hizo, sin integrar; se toma como referencia.
