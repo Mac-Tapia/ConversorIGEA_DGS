@@ -195,6 +195,57 @@ def factor_potencia_cargas(datos: dict[str, Any],
     return float(valor)
 
 
+def _positivo(v: Any) -> bool:
+    return not isinstance(v, bool) and isinstance(v, (int, float)) and v > 0
+
+
+def transformadores_sed(datos: dict[str, Any]) -> dict[str, Any] | None:
+    """Las fichas de transformadores de ``calibracion.transformadores_sed`` (020:RF-29 a RF-31).
+
+    Con ellas se proponen transformadores nuevos para las SED fijas sobrecargadas. En PA217
+    (2026-10-16) SE30940 pedía 3818 kVA sobre 400 kVA y hubo que buscar a mano la ficha de
+    la NTP 370.400; la norma es de Perú, así que va en el perfil y no en el código (P13).
+    Devuelve ``None`` sin la sección; si no, el umbral, las tablas válidas (``fichas`` por
+    kVA, ``(po_w, pc_w, io_pct, uk_pct)``) y un aviso por cada fila o tabla descartada.
+    """
+    seccion = (datos.get('calibracion') or {}).get('transformadores_sed')
+    if seccion is None:
+        return None
+    umbral = seccion.get('umbral_carga_pct')
+    if not _positivo(umbral) or umbral > 100:
+        raise PerfilError('calibracion.transformadores_sed.umbral_carga_pct tiene que estar '
+                          f'entre 0 (sin incluirlo) y 100, no {umbral!r}.')
+    perfil = datos.get(CLAVE_BASE) or 'activo'
+    tablas, avisos = [], []
+    for n, tabla in enumerate(seccion.get('tablas') or [], 1):
+        norma = str(tabla.get('norma') or f'tabla {n}')
+        kv_min, kv_max = tabla.get('kv_min'), tabla.get('kv_max')
+        if (isinstance(kv_min, bool) or not isinstance(kv_min, (int, float)) or kv_min < 0
+                or not _positivo(kv_max) or kv_max <= kv_min):
+            avisos.append(f'perfil {perfil}: la tabla «{norma}» no tiene un rango de tensión '
+                          f'primaria válido ({kv_min!r} a {kv_max!r} kV); no se usa.')
+            continue
+        fichas = {}
+        for kva, fila in (tabla.get('fichas') or {}).items():
+            try:
+                potencia = float(kva)
+            except (TypeError, ValueError):
+                potencia = None
+            if (potencia is None or potencia <= 0 or not isinstance(fila, list)
+                    or len(fila) != 4 or not all(_positivo(v) for v in fila)):
+                avisos.append(f'perfil {perfil}: la fila {kva!r} de la tabla «{norma}» tiene que '
+                              f'ser [Po W, Pc W, Io %, uk %] positivos, no {fila!r}; no se usa.')
+                continue
+            fichas[int(potencia) if potencia.is_integer() else potencia] = tuple(fila)
+        if not fichas:
+            avisos.append(f'perfil {perfil}: la tabla «{norma}» no tiene ninguna fila válida; '
+                          'no se usa.')
+            continue
+        tablas.append({'norma': norma, 'codigo': str(tabla.get('codigo') or ''),
+                       'kv_min': kv_min, 'kv_max': kv_max, 'fichas': dict(sorted(fichas.items()))})
+    return {'umbral_carga_pct': umbral, 'tablas': tablas, 'avisos': avisos}
+
+
 def datos_perfil(ruta: Path | None = None, *, carpeta: Path | None = None) -> dict[str, Any]:
     """Todas las claves del perfil activo, con la herencia resuelta.
 

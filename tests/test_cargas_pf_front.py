@@ -78,7 +78,9 @@ def test_base_propuesta_desde_el_ultimo_ajuste():
     """007:RF-1 / 007:RF-2 — la base es el último ajuste aplicado del proyecto, se manda al
     plan y se muestra con su variación, su máxima y si cuadró."""
     tab = _tab()
-    assert "j.kind === 'ajuste_aplicar' && j.result?.project === project" in tab
+    # 020:RF-28: el ajuste que recalibró tras los transformadores nuevos también vale.
+    assert ("(j.kind === 'ajuste_aplicar' || j.kind === 'ajuste_transformadores')\n"
+            "    && j.result?.project === project") in tab
     assert 'conBase ? baseJob!.id : null' in tab
     assert "fd.append('ajuste_job_id', ajusteJobId)" in (SRC / 'api.ts').read_text(encoding='utf-8')
     for pieza in ('function Base(', 'i.variacion', 'i.objetivo', 'i.cuadrado'):

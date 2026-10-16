@@ -77,7 +77,9 @@ def kva_en_pf(carga) -> float | None:
 
     En los DGS del conversor la carga de la SED cuelga de la barra de baja de su
     transformador; con varios transformadores en paralelo en la misma barra, la SED
-    tiene la suma.
+    tiene la suma. Un ``ElmTr2`` con ``ntnum`` unidades en paralelo cuenta ``ntnum``
+    veces su tipo: en PA217 (2026-10-16) SE30940 quedó con 8 × 630 kVA de la NTP
+    370.400 y, sin ``ntnum``, se veía con 630 kVA al 606 %.
     """
     try:
         barra = carga.bus1.cterm
@@ -90,7 +92,7 @@ def kva_en_pf(carga) -> float | None:
             continue
         strn = _num(getattr(e, 'typ_id', None), 'strn') if getattr(e, 'typ_id', None) else None
         if strn:
-            total += strn * 1000.0
+            total += strn * 1000.0 * max(1, int(_num(e, 'ntnum') or 1))
     return total or None
 
 
@@ -439,6 +441,203 @@ def fijas_sobre_su_transformador(fijas: dict, kva: dict) -> list[dict]:
             out.append({'sed': sed, 'clientes': list(f.clientes), 'p_kw': f.kw,
                         'kva_carga': s, 'kva': k, 'carga_pct': 100.0 * s / k})
     return sorted(out, key=lambda x: -x['carga_pct'])
+
+
+def transformadores_de(carga) -> list[dict]:
+    """Los ElmTr2 de la barra de la carga, con lo que hace falta para proponer otro (020:RF-9).
+
+    Los mismos que suma :func:`kva_en_pf`: la carga de la SED cuelga de su barra de baja.
+    """
+    try:
+        conectados = list(carga.bus1.cterm.GetConnectedElements())
+    except Exception:  # noqa: BLE001 - carga sin conectar
+        return []
+    out = []
+    for e in conectados:
+        if e.GetClassName() != 'ElmTr2':
+            continue
+        tipo = getattr(e, 'typ_id', None)
+        at, bt = _num(tipo, 'utrn_h'), _num(tipo, 'utrn_l')
+        out.append({
+            'transformador': e.loc_name, 'tipo': getattr(tipo, 'loc_name', None),
+            'kva': (_num(tipo, 'strn') or 0.0) * 1000.0,
+            'unidades': max(1, int(_num(e, 'ntnum') or 1)),
+            'kv_at': at, 'v_bt': None if bt is None else bt * 1000.0,
+            'grupo': (f"{getattr(tipo, 'tr2cn_h', '') or ''}{getattr(tipo, 'tr2cn_l', '') or ''}"
+                      f"{_num(tipo, 'nt2ag') or 0:g}") if tipo is not None else None,
+        })
+    return sorted(out, key=lambda t: t['transformador'])
+
+
+def proponer_transformadores(sobre: list[dict], cargas: dict, fichas: dict | None,
+                             motivo_sin_fichas: str | None = None) -> None:
+    """Pone en cada SED sobrecargada sus transformadores y la propuesta (020:RF-6 a RF-12)."""
+    from igea_dgs.trafos_sed import nombre_tipo, proponer
+
+    for x in sobre:
+        trs = transformadores_de(cargas[x['sed']]) if x['sed'] in cargas else []
+        x['transformadores'] = trs
+        if fichas is None:
+            x['propuesta'] = {'kva': None, 'motivo': motivo_sin_fichas or
+                              'el perfil de empresa no trae tablas de fichas de '
+                              'transformadores (calibracion.transformadores_sed)'}
+        elif len(trs) != 1:
+            x['propuesta'] = {'kva': None, 'motivo': (
+                f'la SED tiene {len(trs)} transformadores: no se sabe cuál cambiar'
+                if trs else 'la SED no tiene transformador en DIgSILENT')}
+        else:
+            p = proponer(x['kva_carga'], trs[0]['kv_at'], fichas['tablas'],
+                         fichas['umbral_carga_pct'])
+            if p['kva'] is not None:
+                p['tipo_nuevo'] = nombre_tipo(p['kva'], p['codigo'], trs[0]['kv_at'],
+                                              trs[0]['v_bt'], trs[0]['grupo'])
+            x['propuesta'] = p
+
+
+#: Datos de la ficha en el tipo de DIgSILENT: atributo → (clave de la propuesta, factor).
+FICHA_EN_TIPO = {'strn': ('kva', 1e-3), 'pfe': ('po_w', 1e-3), 'pcutr': ('pc_w', 1e-3),
+                 'curmg': ('io_pct', 1.0), 'uktr': ('uk_pct', 1.0), 'uk0tr': ('uk_pct', 1.0)}
+
+
+def _elm_tr2(carga) -> list:
+    try:
+        return sorted((e for e in carga.bus1.cterm.GetConnectedElements()
+                       if e.GetClassName() == 'ElmTr2'), key=lambda e: e.loc_name)
+    except Exception:  # noqa: BLE001 - carga sin conectar
+        return []
+
+
+def implementar_transformadores(app, cargas: dict, cambios: list[dict]) -> dict:
+    """Los transformadores nuevos de las SED marcadas, en la red de «Sin proyecto» (020:RF-16 a RF-24).
+
+    Se llama con «Sin proyecto» activo y antes de leer los kVA de la calibración, que así
+    ya ve los nuevos. En PA217 (2026-10-16) se hizo a mano (015, T26): tipo propio copiado
+    del actual (tensiones, grupo, secuencia cero) con la ficha de la NTP, y ``ntnum``
+    unidades en paralelo; ningún tipo existente se toca, porque lo comparten otras SED.
+    """
+    from igea_dgs.demanda_medida import clave_codigo
+    from igea_dgs.trafos_sed import nombre_tipo
+
+    variaciones = sorted(v.loc_name for v in (app.GetActiveNetworkVariations() or []))
+    etapa = app.GetRecordingStage()
+    if variaciones or etapa is not None:
+        # 020:RF-17: lo escrito iría a esa variación y no a la red que se calibra.
+        que = (f"las variaciones activas {', '.join(variaciones)}" if variaciones
+               else f"la etapa {etapa.loc_name} grabando")
+        return {'error': f"«{NOMBRES['sin']}» tiene {que}: los transformadores se escriben en "
+                         'la red, sin variación; desactívelas y vuelva a implementar '
+                         '(020:RF-17).', 'cambios': [], 'omitidas': []}
+    equip = app.GetProjectFolder('equip')
+    tipos = {t.loc_name: t for t in (equip.GetContents('*.TypTr2', 1) if equip else [])}
+    por_clave = {clave_codigo(s): o for s, o in cargas.items()}
+    hechos, omitidas = [], []
+    for c in cambios:
+        sed, p = c['sed'], c.get('propuesta') or {}
+        carga = cargas.get(sed) or por_clave.get(clave_codigo(sed))
+        trs = _elm_tr2(carga) if carga is not None else []
+        if carga is None or len(trs) != 1 or trs[0].loc_name != c.get('transformador'):
+            omitidas.append({'sed': sed, 'motivo': (
+                'la SED no está en el alimentador' if carga is None else
+                f'la SED tiene {len(trs)} transformadores (020:RF-12)' if len(trs) != 1 else
+                f"su transformador es {trs[0].loc_name}, no {c.get('transformador')}: la red "
+                'cambió desde la propuesta; vuelva a simular')})
+            continue
+        tr = trs[0]
+        actual = tr.typ_id
+        info = transformadores_de(carga)[0]
+        nombre = nombre_tipo(p['kva'], p.get('codigo') or '', info['kv_at'], info['v_bt'],
+                             info['grupo'])
+        nuevo = tipos.get(nombre)
+        if nuevo is not None:
+            # 020:RF-21, RF-22: el tipo propio de un cambio anterior vale si tiene la ficha.
+            distinto = next(((a, _num(nuevo, a), p[k] * f) for a, (k, f) in FICHA_EN_TIPO.items()
+                             if not math.isclose(_num(nuevo, a) or 0.0, p[k] * f,
+                                                 rel_tol=1e-4, abs_tol=1e-6)), None)
+            if distinto is not None:
+                a, tiene, pide = distinto
+                tiene = 'nada' if tiene is None else f'{tiene:g}'
+                omitidas.append({'sed': sed, 'motivo': (
+                    f'ya existe el tipo {nombre} con {a}={tiene} y la ficha pide {pide:g}: '
+                    'no se toca un tipo existente (020:RF-20, 020:RF-22)')})
+                continue
+        else:
+            nuevo = actual.GetParent().AddCopy(actual, nombre)
+            for a, (k, f) in FICHA_EN_TIPO.items():
+                setattr(nuevo, a, p[k] * f)
+            tipos[nombre] = nuevo
+        antes = {'tipo': getattr(actual, 'loc_name', None), 'kva': info['kva'],
+                 'unidades': info['unidades']}
+        tr.typ_id = nuevo
+        tr.ntnum = int(p['unidades'])
+        hechos.append({'sed': sed, 'transformador': tr.loc_name, 'antes': antes,
+                       'despues': {'tipo': nombre, 'kva': p['kva'], 'unidades': int(p['unidades']),
+                                   'norma': p.get('norma')}})
+    return {'cambios': hechos, 'omitidas': omitidas}
+
+
+def resultado_transformadores(cambiados: list[dict], sobre: list[dict], fijas: dict,
+                              cargas: dict, fichas: dict, *, calibracion_valida: bool,
+                              validacion: dict | None, remedios, motivo) -> dict:
+    """Lo que dejan los transformadores nuevos en la recalibración (020:RF-26, RF-32).
+
+    La sobrecarga era lo que no dejaba converger ni validar (PA217, 2026-10-16: válida a
+    −0,34 % tras el cambio). Si aun así la calibración no sale, ya no es la causa, y se dice
+    qué sigue fallando en vez de repetir el aviso de la sobrecarga.
+    """
+    umbral = fichas.get('umbral_carga_pct')
+    sobre_umbral = []
+    for h in cambiados:
+        f = fijas.get(h['sed'])
+        kva = kva_en_pf(cargas[h['sed']]) if h['sed'] in cargas else None
+        if f is None or not kva or umbral is None:
+            continue
+        pct = 100.0 * math.hypot(f.kw, f.kvar) / kva
+        if pct > umbral + 1e-6:
+            sobre_umbral.append({'sed': h['sed'], 'carga_pct': pct, 'kva': kva})
+    motivos = []
+    if not calibracion_valida:
+        fallo = next((f for f in (validacion or {}).get('fallos') or []
+                      if f.get('tipo') == 'CONSUMO_DISTINTO_DE_LO_ESCRITO'), None)
+        if fallo:
+            motivos.append(f"{fallo['cantidad']} cargas no consumen en el flujo lo que tienen "
+                           'escrito')
+        usados = [r['remedio'] for r in remedios or [] if r.get('cambios')]
+        if usados:
+            motivos.append('el flujo necesitó ' + ', '.join(usados))
+        if motivo:
+            motivos.append(str(motivo))
+        if not motivos:
+            motivos.append('la calibración no cuadra con la máxima de cabecera')
+    if sobre:
+        motivos.append(f'{len(sobre)} SED fija(s) siguen por encima de su potencia instalada: '
+                       + ', '.join(f"{x['sed']} ({x['carga_pct']:,.0f} %)" for x in sobre[:10]))
+    if sobre_umbral:
+        motivos.append(f'{len(sobre_umbral)} SED cambiada(s) por encima del umbral del '
+                       f'{umbral:g} %: ' + ', '.join(f"{x['sed']} ({x['carga_pct']:,.0f} %)"
+                                                    for x in sobre_umbral))
+    status = 'VALIDO' if not motivos else 'FALLO'
+    aviso = None
+    if status == 'FALLO':
+        aviso = (f"TRANSFORMADORES: {len(cambiados)} cambiado(s) en «{NOMBRES['sin']}», que se "
+                 'quedan, pero ' + ('la calibración no es válida' if not calibracion_valida
+                                    else 'la comprobación no pasa')
+                 + '; la sobrecarga ya no es la causa. Sigue fallando: ' + '; '.join(motivos)
+                 + ' (020:RF-26, RF-32).')
+    return {'status': status, 'calibracion_valida': calibracion_valida,
+            'sobrecargadas': [x['sed'] for x in sobre], 'sobre_umbral': sobre_umbral,
+            'motivos': motivos, 'aviso': aviso}
+
+
+def aviso_sobrecarga(sobre: list[dict]) -> str:
+    """020:RF-4: la sobrecarga como causa probable de que la calibración no salga."""
+    con = sum(1 for x in sobre if (x.get('propuesta') or {}).get('kva'))
+    return (f'SOBRECARGA: {len(sobre)} SED fija(s) piden más que su potencia instalada y son '
+            'la causa probable de que la calibración no converja o no sea válida: '
+            + ', '.join(f"{x['sed']} ({x['carga_pct']:,.0f} %)" for x in sobre[:10])
+            + (f'. Hay propuesta de transformadores nuevos para {con}: márquelas e '
+               'implemente los transformadores (020:RF-6).' if con else
+               '. Sin propuesta de transformadores nuevos: corrija el transformador o el '
+               'cruce del cliente en DIgSILENT.'))
 
 
 def _por_sed(reparto, cargas, kva_origen, antes, fijas):
@@ -826,8 +1025,28 @@ def sincronizar_con_proyecto(app, con, sin, cargas: dict, reparto, omitir, apaga
     return resultado
 
 
-def aviso_consumo_fisico(validacion: dict) -> str | None:
-    """El aviso de 015:RF-49 a RF-51 para el operador, o ``None`` si todas consumen bien."""
+def _factor_minimo_sin_converger(historial) -> float | None:
+    """El menor factor de las escaladas con el que el flujo no convergió antes del primero
+    que sí, o ``None`` si convergió sin remedios."""
+    menor = None
+    for paso in historial or []:
+        if paso.get('converge'):
+            return menor
+        a = paso.get('a')
+        if a is not None and (menor is None or a < menor):
+            menor = a
+    return menor
+
+
+def aviso_consumo_fisico(validacion: dict, historial=None, sobre=None) -> str | None:
+    """El aviso de 015:RF-49 a RF-51 para el operador, o ``None`` si todas consumen bien.
+
+    Con el ``historial`` del cuadre y las fijas ``sobre`` su transformador (RF-59) dice
+    además por qué hizo falta el ajuste del flujo. En PA217 (2026-10-16) el aviso culpaba a
+    ``iopt_lev`` y no al modelo: sin él no convergía ni con las escaladas al 0,5 % de su
+    kVA, porque SE30940 recibía los 3800 kW de su cliente sobre un transformador de
+    400 kVA (955 %); lo que hay que corregir en DIgSILENT es ese transformador o el cruce.
+    """
     fallo = next((f for f in validacion.get('fallos') or []
                   if f.get('tipo') == 'CONSUMO_DISTINTO_DE_LO_ESCRITO'), None)
     if fallo is None:
@@ -844,6 +1063,16 @@ def aviso_consumo_fisico(validacion: dict) -> str | None:
                       f"{peor['p_consumida_kw']:,.1f} kW{tension})")
     if fallo.get('causa_probable'):
         partes.append('causa probable: ' + fallo['causa_probable'])
+    minimo = _factor_minimo_sin_converger(historial)
+    if fallo.get('causa_probable') and minimo is not None:
+        partes.append(f'sin ese ajuste el flujo no converge ni con las escaladas al '
+                      f'{minimo:.1%} de su kVA, así que lo impiden las fijas')
+    if sobre:
+        lista = ', '.join(f"{s['sed']} {s['kva_carga']:,.0f} kVA en {s['kva']:,.0f} kVA "
+                          f"({s['carga_pct']:.0f} %)" for s in sobre[:5])
+        partes.append(f'{len(sobre)} SED fija(s) piden más que su transformador ({lista}): '
+                      'corrija en «Sin proyecto» su transformador o el cruce del cliente '
+                      'con su SED y vuelva a calibrar (015:RF-59)')
     return ('VALIDACION_FISICA: ' + '; '.join(partes)
             + '. La calibración no es válida y las cargas vuelven a como estaban (015:RF-49).')
 
@@ -918,6 +1147,28 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
         'algoritmo': 'SELECCION_NATIVA_DEL_ALIMENTADOR',
         'cargas_activas_unicas': len(cargas), 'nombres_ambiguos': len(ambiguas),
     })
+    # 020:RF-16 a RF-24: los transformadores nuevos que marcó el operador, antes de leer
+    # los kVA, para que la calibración ya cuente con ellos (RF-25).
+    if plan.get('transformadores') and not simular:
+        hecho = implementar_transformadores(app, cargas, plan['transformadores'])
+        informe['transformadores_implementados'] = hecho
+        if hecho.get('error'):
+            return {**informe, 'error': hecho['error']}, 2
+        for o in hecho['omitidas']:
+            informe['avisos'].append(f"{o['sed']}: transformador no cambiado: {o['motivo']}.")
+        if hecho['cambios']:
+            informe['avisos'].append(
+                f"{len(hecho['cambios'])} transformador(es) nuevo(s) en «{NOMBRES['sin']}», en la "
+                'red: ' + '; '.join(
+                    f"{h['sed']} {h['antes']['unidades']} × {h['antes']['kva']:,.0f} kVA → "
+                    f"{h['despues']['unidades']} × {h['despues']['kva']:g} kVA "
+                    f"({h['despues']['tipo']})" for h in hecho['cambios']) + ' (020:RF-24).')
+        if cancelado():
+            # 020:RF-27: lo escrito queda; la calibración no llegó a correr.
+            informe['cancelado'] = True
+            informe['avisos'].append('Cancelado después de cambiar los transformadores: quedan '
+                                     'en la red y falta calibrar (020:RF-27).')
+            return informe, 0
     # RF-26: la SED cuyos clientes desmarcó todos el operador sale del reparto y su carga
     # queda fuera de servicio en el escenario; repartirle por kVA sería volver a cargarla.
     apagar, desconectadas, avisos_desc = {}, [], []
@@ -984,7 +1235,23 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
              if clave_codigo(s) == clave_codigo(f.sed)}
     # 015:RF-59: un cliente que pide más que el transformador de su SED, nombrado.
     sobre = fijas_sobre_su_transformador(fijas, kva)
+    # 020:RF-6 a RF-12: la propuesta de transformadores nuevos, con las fichas del perfil
+    # que manda la web en el plan; se validan aquí con la misma lectura que el perfil.
+    fichas, motivo_fichas = None, None
+    if plan.get('transformadores_sed') is not None:
+        from igea_dgs.perfil_empresa import PerfilError, transformadores_sed
+        try:
+            fichas = transformadores_sed(
+                {'calibracion': {'transformadores_sed': plan['transformadores_sed']}})
+        except PerfilError as exc:
+            motivo_fichas = str(exc)
+    informe['fichas_transformador_sed'] = (
+        {'umbral_carga_pct': fichas['umbral_carga_pct'],
+         'normas': [t['norma'] for t in fichas['tablas']], 'avisos': fichas['avisos']}
+        if fichas else {'falta': motivo_fichas or 'el perfil de empresa no trae tablas de '
+                        'fichas de transformadores (calibracion.transformadores_sed)'})
     if sobre:
+        proponer_transformadores(sobre, cargas, fichas, motivo_fichas)
         informe['fijas_sobre_su_transformador'] = sobre
         informe['avisos'].append(
             f'{len(sobre)} SED fija(s) con más demanda que su potencia instalada; revise el '
@@ -1197,7 +1464,8 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
                 }
                 informe['status'] = 'FALLO_VALIDACION_NATIVA'
                 informe['cuadrado'] = False
-                aviso = aviso_consumo_fisico(validacion_posterior)
+                aviso = aviso_consumo_fisico(validacion_posterior, res.historial,
+                                             informe.get('fijas_sobre_su_transformador'))
                 if aviso:
                     informe['avisos'].append(aviso)
                 informe['fallos'].extend({
@@ -1230,6 +1498,18 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
             informe['avisos'].append(
                 f'NO cumple el {informe["tolerancia"]:.1%}: {res.motivo}. El escenario queda '
                 'con el último reparto que convergió.')
+        if sobre and (fallo_validacion_nativa or not res.cuadrado):
+            informe['sobrecarga_causa_probable'] = True
+            informe['avisos'].append(aviso_sobrecarga(sobre))
+        cambiados = (informe.get('transformadores_implementados') or {}).get('cambios') or []
+        if cambiados:
+            informe['resultado_transformadores'] = resultado_transformadores(
+                cambiados, sobre, fijas, cargas, plan.get('transformadores_sed') or {},
+                calibracion_valida=bool(res.cuadrado and not fallo_validacion_nativa),
+                validacion=informe.get('validacion_posterior_nativa'),
+                remedios=res.remedios, motivo=res.motivo)
+            if informe['resultado_transformadores']['status'] != 'VALIDO':
+                informe['avisos'].append(informe['resultado_transformadores']['aviso'])
         if res.reparto is not None and not fallo_validacion_nativa:
             escenario.Save()
             informe['escenarios'] = [{'escenario': escenario.loc_name,

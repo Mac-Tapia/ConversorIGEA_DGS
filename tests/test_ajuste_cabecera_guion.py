@@ -548,6 +548,16 @@ def test_carga_que_consume_menos_de_lo_escrito_no_es_valida(guion):
     aviso = guion.aviso_consumo_fisico(validacion)
     assert aviso.startswith('VALIDACION_FISICA') and 'F1_S1' in aviso and 'iopt_lev' in aviso
 
+    # 015:RF-59 — PA217, 2026-10-16: sin la adaptación no convergía ni con las escaladas
+    # casi en cero; el aviso nombra a la fija que pide más que su transformador.
+    historial = [{'a': 0.08, 'converge': False}, {'a': 0.005, 'converge': False},
+                 {'a': 0.08, 'converge': True}]
+    sobre = [{'sed': 'F1_S1', 'kva_carga': 3818.0, 'kva': 400.0, 'carga_pct': 954.5}]
+    aviso = guion.aviso_consumo_fisico(validacion, historial, sobre)
+    assert 'ni con las escaladas al 0.5%' in aviso
+    assert 'F1_S1 3,818 kVA en 400 kVA (954 %)' in aviso and '015:RF-59' in aviso
+    assert guion.aviso_consumo_fisico(validacion, historial[2:]).count(';') == aviso.count(';') - 2
+
 
 def test_fija_con_su_p_pero_otra_q_en_el_flujo_no_es_valida(guion):
     """015:RF-47 — la Q de una fija también se compara con lo que consume."""
@@ -1382,3 +1392,313 @@ def test_con_proyecto_recibe_la_demanda_aunque_sin_proyecto_ya_este_calibrado(gu
     assert any('Con proyecto' in a and '014:RF-4' in a for a in segundo['avisos'])
     _caso(app, 'Con proyecto').Activate()
     assert _carga(app, 'F1_S2').plini == pytest.approx(en_sin)
+
+
+def test_kva_de_la_sed_cuenta_las_unidades_en_paralelo(guion):
+    """015:RF-59 / 015:RF-44 — PA217, 2026-10-16: SE30940 quedó con 8 × 630 kVA (``ntnum``)
+    y el ajuste la veía con 630 kVA al 606 %; un ElmTr2 con ``ntnum`` unidades cuenta todas."""
+    app = _app(n=2)
+    carga = next(c for c in app.proyecto.GetContents('*.ElmLod', 1)
+                 if guion.kva_en_pf(c))
+    una = guion.kva_en_pf(carga)
+    tr = next(e for e in carga.bus1.cterm.GetConnectedElements()
+              if e.GetClassName() == 'ElmTr2')
+    tr.ntnum = 8
+    assert guion.kva_en_pf(carga) == pytest.approx(8 * una)
+
+
+# --------------------------------------------------------------------------- spec 020
+def _fichas_plan():
+    """La sección del perfil de Electro Dunas, como la manda la web en el plan."""
+    import json
+    from pathlib import Path
+
+    raiz = Path(__file__).resolve().parents[1] / 'config' / 'perfiles'
+    datos = json.loads((raiz / 'electro_dunas.json').read_text(encoding='utf-8'))
+    return datos['calibracion']['transformadores_sed']
+
+
+def _sobrecargada(app):
+    """F1_S2 con un cliente de 300 kW sobre su transformador de 100 kVA a 10 kV (306 %)."""
+    tr = next(o for o in app.proyecto.GetContents('*.ElmTr2', 1) if o.loc_name == 'TR_F1_S2')
+    t = tr.typ_id
+    t.utrn_h, t.utrn_l, t.tr2cn_h, t.tr2cn_l, t.nt2ag = 10.0, 0.38, 'D', 'YN', 11
+    return [{'codigo': 'CI-9', 'sed': 'F1_S2', 'pot': 300.0, 'ea': 1.0, 'eri': 0.2}]
+
+
+def test_sed_sobrecargada_con_su_transformador_y_la_propuesta(guion):
+    """020:RF-1 / 020:RF-6 / 020:RF-8 / 020:RF-9 / 020:RF-5 — la fija que pasa del 100 % sale con su
+    transformador (tipo, kVA, tensiones, grupo, unidades) y la propuesta de la Tabla 6 (10 kV):
+    306 kVA al 80 % piden 400 kVA. La calibración sigue."""
+    app = _app(n=3)
+    plan = {**_plan(kw=600.0, kvar=150.0, clientes=_sobrecargada(app)),
+            'transformadores_sed': _fichas_plan()}
+
+    informe, rc = guion.ejecutar(app, plan)
+
+    assert rc == 0, informe
+    (x,) = informe['fijas_sobre_su_transformador']
+    (tr,) = x['transformadores']
+    assert tr['transformador'] == 'TR_F1_S2' and tr['tipo'] == 'TR2_F1'
+    assert tr['kva'] == pytest.approx(100.0) and tr['unidades'] == 1
+    assert tr['kv_at'] == pytest.approx(10.0) and tr['v_bt'] == pytest.approx(380.0)
+    assert tr['grupo'] == 'DYN11'
+    p = x['propuesta']
+    assert (p['kva'], p['unidades']) == (400, 1) and 'Tabla 6' in p['norma']
+    assert (p['po_w'], p['pc_w'], p['io_pct'], p['uk_pct']) == (968, 5550, 1.84, 4)
+    assert p['carga_pct_prevista'] == pytest.approx(100 * x['kva_carga'] / 400)
+    assert p['tipo_nuevo'] == 'TR_400kVA_NTP370400_10-380V_DYN11'
+    assert informe['fichas_transformador_sed']['umbral_carga_pct'] == 80
+    assert len(informe['fichas_transformador_sed']['normas']) == 2
+
+
+def test_sin_fichas_en_el_plan_se_avisa_sin_propuesta(guion):
+    """020:RF-10 — sin tablas del perfil, la SED se lista igual, sin propuesta y con el motivo."""
+    app = _app(n=3)
+    informe, rc = guion.ejecutar(app, _plan(kw=600.0, kvar=150.0, clientes=_sobrecargada(app)))
+
+    assert rc == 0, informe
+    (x,) = informe['fijas_sobre_su_transformador']
+    assert x['propuesta']['kva'] is None and 'perfil' in x['propuesta']['motivo']
+    assert 'perfil' in informe['fichas_transformador_sed']['falta']
+
+
+def test_sed_con_dos_transformadores_sin_propuesta(guion):
+    """020:RF-12 — con dos transformadores en la SED no se adivina cuál cambiar."""
+    app = _app(n=3)
+    sub = next(o for o in app.proyecto.GetContents('*.ElmSubstat', 1) if o.loc_name == 'F1_S2')
+    primero = next(o for o in sub.GetContents('*.ElmTr2'))
+    otro = sub.CreateObject('ElmTr2', 'TR_F1_S2_b')
+    otro.typ_id = primero.typ_id
+    baja = next(o for o in sub.GetContents('*.ElmTerm'))
+    baja.CreateObject('StaCubic', 'lv_b').obj_id = otro
+    plan = {**_plan(kw=600.0, kvar=150.0, clientes=_sobrecargada(app)),
+            'transformadores_sed': _fichas_plan()}
+
+    informe, rc = guion.ejecutar(app, plan)
+
+    sobre = informe.get('fijas_sobre_su_transformador') or []
+    # Con 200 kVA instalados el cliente de 306 kVA sigue por encima del 100 % (020:RF-2).
+    (x,) = sobre
+    assert x['kva'] == pytest.approx(200.0) and len(x['transformadores']) == 2
+    assert x['propuesta']['kva'] is None and '2 transformadores' in x['propuesta']['motivo']
+
+
+def test_fichas_imposibles_en_el_plan_se_dicen(guion):
+    """020:RF-31 — un umbral imposible en el perfil no rompe la calibración: se dice por qué
+    no hay propuesta."""
+    app = _app(n=3)
+    plan = {**_plan(kw=600.0, kvar=150.0, clientes=_sobrecargada(app)),
+            'transformadores_sed': {'umbral_carga_pct': 0, 'tablas': []}}
+
+    informe, rc = guion.ejecutar(app, plan)
+
+    assert rc == 0, informe
+    (x,) = informe['fijas_sobre_su_transformador']
+    assert 'umbral_carga_pct' in x['propuesta']['motivo']
+
+
+def test_aviso_de_sobrecarga_como_causa_probable(guion):
+    """020:RF-4 — el aviso nombra las SED y remite a la propuesta, o dice que no la hay."""
+    sobre = [{'sed': 'SE30940', 'carga_pct': 954.5, 'propuesta': {'kva': 630}},
+             {'sed': 'SE30424', 'carga_pct': 118.7, 'propuesta': {'kva': None}}]
+    aviso = guion.aviso_sobrecarga(sobre)
+    assert aviso.startswith('SOBRECARGA') and 'SE30940 (954 %)' in aviso
+    assert 'propuesta de transformadores nuevos para 1' in aviso and '020:RF-6' in aviso
+    assert 'Sin propuesta' in guion.aviso_sobrecarga(sobre[1:])
+
+
+def _tr(app, nombre):
+    return next(o for o in app.proyecto.GetContents('*.ElmTr2', 1) if o.loc_name == nombre)
+
+
+def _con_propuesta(guion, app, clientes, kw=600.0):
+    """El plan de implementar: la propuesta que dio la simulación, como la manda la web."""
+    plan = {**_plan(kw=kw, kvar=kw / 4, clientes=clientes),
+            'transformadores_sed': _fichas_plan()}
+    simulado, rc = guion.ejecutar(app, plan, simular=True)
+    assert rc == 0, simulado
+    cambios = [{'sed': x['sed'], 'transformador': x['transformadores'][0]['transformador'],
+                'propuesta': x['propuesta']} for x in simulado['fijas_sobre_su_transformador']]
+    return {**plan, 'transformadores': cambios}
+
+
+def test_implementar_cambia_el_transformador_con_un_tipo_propio(guion):
+    """020:RF-16 / 020:RF-19 / 020:RF-20 / 020:RF-23 / 020:RF-24 / 020:RF-25 — en «Sin proyecto», en la
+    red: tipo propio de 400 kVA con la ficha, copiado del actual; el tipo de antes queda igual;
+    el informe dice antes y después y la calibración ya cuenta los 400 kVA."""
+    app = _app(n=3)
+    plan = _con_propuesta(guion, app, _sobrecargada(app))
+    viejo = _tr(app, 'TR_F1_S2').typ_id
+    assert not app.variaciones_activas
+
+    informe, rc = guion.ejecutar(app, plan)
+
+    assert rc == 0, informe
+    tr = _tr(app, 'TR_F1_S2')
+    nuevo = tr.typ_id
+    assert nuevo.loc_name == 'TR_400kVA_NTP370400_10-380V_DYN11' and nuevo is not viejo
+    assert (nuevo.strn, nuevo.pfe, nuevo.pcutr, nuevo.curmg, nuevo.uktr, nuevo.uk0tr) == \
+        pytest.approx((0.4, 0.968, 5.55, 1.84, 4.0, 4.0))
+    assert (nuevo.utrn_h, nuevo.utrn_l, nuevo.tr2cn_h, nuevo.tr2cn_l, nuevo.nt2ag) == \
+        (10.0, 0.38, 'D', 'YN', 11)
+    assert tr.ntnum == 1 and viejo.strn == pytest.approx(0.1) and viejo.loc_name == 'TR2_F1'
+    (h,) = informe['transformadores_implementados']['cambios']
+    assert h['antes'] == {'tipo': 'TR2_F1', 'kva': pytest.approx(100.0), 'unidades': 1}
+    assert h['despues']['tipo'] == nuevo.loc_name and h['despues']['kva'] == 400
+    assert 'fijas_sobre_su_transformador' not in informe
+    assert any('020:RF-24' in a for a in informe['avisos'])
+
+
+def test_implementar_unidades_en_paralelo(guion):
+    """020:RF-7 / 020:RF-23 — 2000 kW (2040 kVA) sobre 100 kVA: 5 unidades de 630 kVA en paralelo
+    (``ntnum``), las menos que lo dejan en el 80 % (4 darían el 81 %)."""
+    app = _app(n=3)
+    clientes = [{**_sobrecargada(app)[0], 'pot': 2000.0}]
+    plan = _con_propuesta(guion, app, clientes, kw=2300.0)
+    p = plan['transformadores'][0]['propuesta']
+    assert (p['kva'], p['unidades']) == (630, 5)
+
+    guion.ejecutar(app, plan)
+
+    tr = _tr(app, 'TR_F1_S2')
+    assert tr.ntnum == 5 and tr.typ_id.strn == pytest.approx(0.63)
+    assert guion.kva_en_pf(_carga(app, 'F1_S2')) == pytest.approx(5 * 630)
+
+
+def test_solo_cambian_las_sed_marcadas(guion):
+    """020:RF-18 — la SED que el operador desmarcó no se toca."""
+    app = _app(n=3)
+    t1 = _tr(app, 'TR_F1_S1').typ_id
+    t1.utrn_h, t1.utrn_l, t1.tr2cn_h, t1.tr2cn_l, t1.nt2ag = 10.0, 0.38, 'D', 'YN', 11
+    clientes = _sobrecargada(app) + [{'codigo': 'CI-8', 'sed': 'F1_S1', 'pot': 300.0,
+                                      'ea': 1.0, 'eri': 0.2}]
+    plan = _con_propuesta(guion, app, clientes, kw=900.0)
+    assert {c['sed'] for c in plan['transformadores']} == {'F1_S1', 'F1_S2'}
+    plan['transformadores'] = [c for c in plan['transformadores'] if c['sed'] == 'F1_S2']
+
+    guion.ejecutar(app, plan)
+
+    assert _tr(app, 'TR_F1_S1').typ_id is t1
+    assert _tr(app, 'TR_F1_S2').typ_id.loc_name.startswith('TR_400kVA')
+
+
+def test_con_una_etapa_grabando_no_se_cambia_nada(guion):
+    """020:RF-17 — con una etapa grabando en «Sin proyecto», nada cambia y se nombra."""
+    app = _app(n=3)
+    plan = _con_propuesta(guion, app, _sobrecargada(app))
+    viejo = _tr(app, 'TR_F1_S2').typ_id
+    # El estado de la etapa es de cada caso, y el guion activa «Sin proyecto»: se simula
+    # lo que DIgSILENT devuelve en él.
+    app.GetRecordingStage = lambda: SimpleNamespace(loc_name='Etapa_del_operador')
+
+    informe, rc = guion.ejecutar(app, plan)
+
+    assert rc == 2 and 'Etapa_del_operador' in informe['error'] and '020:RF-17' in informe['error']
+    assert _tr(app, 'TR_F1_S2').typ_id is viejo
+
+
+def test_el_tipo_propio_se_reutiliza(guion):
+    """020:RF-21 — un tipo propio con la misma ficha, de un cambio anterior, se reutiliza."""
+    app = _app(n=3)
+    plan = _con_propuesta(guion, app, _sobrecargada(app))
+    equip = app.GetProjectFolder('equip')
+    previo = equip.AddCopy(_tr(app, 'TR_F1_S2').typ_id, 'TR_400kVA_NTP370400_10-380V_DYN11')
+    previo.strn, previo.pfe, previo.pcutr = 0.4, 0.968, 5.55
+    previo.curmg, previo.uktr, previo.uk0tr = 1.84, 4.0, 4.0
+
+    guion.ejecutar(app, plan)
+
+    assert _tr(app, 'TR_F1_S2').typ_id is previo
+    assert len([t for t in equip.GetContents('*.TypTr2', 1)
+                if t.loc_name == previo.loc_name]) == 1
+
+
+def test_el_tipo_propio_con_otra_ficha_no_se_toca(guion):
+    """020:RF-22 / 020:RF-20 — con otra ficha, la SED no cambia y se nombra el dato."""
+    app = _app(n=3)
+    plan = _con_propuesta(guion, app, _sobrecargada(app))
+    viejo = _tr(app, 'TR_F1_S2').typ_id
+    otro = app.GetProjectFolder('equip').AddCopy(viejo, 'TR_400kVA_NTP370400_10-380V_DYN11')
+    otro.strn = 0.4
+
+    informe, _ = guion.ejecutar(app, plan)
+
+    assert _tr(app, 'TR_F1_S2').typ_id is viejo and otro.strn == pytest.approx(0.4)
+    (o,) = informe['transformadores_implementados']['omitidas']
+    assert 'ya existe el tipo' in o['motivo'] and '020:RF-22' in o['motivo']
+
+
+def test_cancelar_tras_el_cambio_deja_los_transformadores(guion):
+    """020:RF-27 — cancelado entre el cambio y la calibración: quedan y se dice que falta calibrar."""
+    app = _app(n=3)
+    plan = _con_propuesta(guion, app, _sobrecargada(app))
+
+    informe, rc = guion.ejecutar(app, plan, cancelado=lambda: True)
+
+    assert rc == 0 and informe['cancelado'] and 'sed' not in informe
+    assert _tr(app, 'TR_F1_S2').typ_id.loc_name.startswith('TR_400kVA')
+    assert any('falta calibrar' in a for a in informe['avisos'])
+
+
+def test_simular_no_cambia_transformadores(guion):
+    """020:RF-16 — simular no escribe: el plan con transformadores solo se aplica."""
+    app = _app(n=3)
+    plan = _con_propuesta(guion, app, _sobrecargada(app))
+    viejo = _tr(app, 'TR_F1_S2').typ_id
+
+    informe, rc = guion.ejecutar(app, plan, simular=True)
+
+    assert rc == 0 and _tr(app, 'TR_F1_S2').typ_id is viejo
+    assert 'transformadores_implementados' not in informe
+
+
+def test_tras_implementar_la_calibracion_sale_valida(guion):
+    """020:RF-26 — con el transformador nuevo ninguna fija queda sobre su potencia, la cambiada
+    queda en el umbral y la calibración es válida (PA217, 2026-10-16)."""
+    app = _app(n=3)
+    plan = _con_propuesta(guion, app, _sobrecargada(app))
+
+    informe, rc = guion.ejecutar(app, plan)
+
+    assert rc == 0, informe
+    r = informe['resultado_transformadores']
+    assert r['status'] == 'VALIDO' and r['calibracion_valida'], r
+    assert r['sobrecargadas'] == [] and r['sobre_umbral'] == [] and r['aviso'] is None
+    assert informe['resultado_carga_nativa']['status'] == 'APLICADO_Y_VALIDADO'
+
+
+def test_si_tras_implementar_no_es_valida_es_un_fallo_con_lo_que_sigue_fallando(guion):
+    """020:RF-32 — calibración no válida tras el cambio: fallo, los transformadores se quedan
+    y se dice qué sigue (cargas que no consumen lo escrito, remedio del flujo)."""
+    from igea_dgs.ajuste_cabecera import Fija
+
+    cambiados = [{'sed': 'S1'}]
+    validacion = {'fallos': [{'tipo': 'CONSUMO_DISTINTO_DE_LO_ESCRITO', 'cantidad': 12}]}
+    r = guion.resultado_transformadores(
+        cambiados, [], {'S1': Fija('S1', 100.0, 20.0)}, {}, {'umbral_carga_pct': 80},
+        calibracion_valida=False, validacion=validacion,
+        remedios=[{'remedio': 'más iteraciones', 'cambios': []},
+                  {'remedio': 'adaptación automática del modelo', 'cambios': ['iopt_lev: 0 → 1']}],
+        motivo=None)
+    assert r['status'] == 'FALLO' and not r['calibracion_valida']
+    assert any('12 cargas no consumen' in m for m in r['motivos'])
+    assert any('adaptación automática' in m and 'iteraciones' not in m for m in r['motivos'])
+    assert 'se quedan' in r['aviso'] and 'ya no es la causa' in r['aviso']
+
+
+def test_la_sed_cambiada_por_encima_del_umbral_se_nombra(guion):
+    """020:RF-26 — una SED cambiada que queda sobre el umbral (o una fija que sigue sobre su
+    potencia) hace fallar la comprobación aunque la calibración valga."""
+    from igea_dgs.ajuste_cabecera import Fija
+
+    app = _app(n=3)
+    carga = _carga(app, 'F1_S2')                 # 100 kVA en el doble
+    r = guion.resultado_transformadores(
+        [{'sed': 'F1_S2'}], [{'sed': 'F1_S3', 'carga_pct': 130.0}],
+        {'F1_S2': Fija('F1_S2', 90.0, 0.0)}, {'F1_S2': carga}, {'umbral_carga_pct': 80},
+        calibracion_valida=True, validacion=None, remedios=[], motivo=None)
+    assert r['status'] == 'FALLO' and r['calibracion_valida']
+    assert [x['sed'] for x in r['sobre_umbral']] == ['F1_S2']
+    assert r['sobre_umbral'][0]['carga_pct'] == pytest.approx(90.0)
+    assert r['sobrecargadas'] == ['F1_S3'] and 'la comprobación no pasa' in r['aviso']

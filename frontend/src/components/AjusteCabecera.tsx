@@ -3,6 +3,7 @@ import { api, fmtNum } from '../api';
 import { useApp } from '../context';
 import type {
   AjusteInforme, AjustePlan, AjusteResultado, BalanceCabecera, ConsumoDistinto, Job, MaximaCabecera,
+  SedSobrecargada,
 } from '../types';
 import { CurvaCabecera } from './CurvaCabecera';
 
@@ -45,7 +46,8 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados }: {
   const tolValida = Number.isFinite(tol) && tol >= 0.001 && tol <= 0.1;
 
   const ultimo = Object.values(jobs)
-    .filter((j) => (j.kind === 'ajuste_simular' || j.kind === 'ajuste_aplicar') && j.result)
+    .filter((j) => (j.kind === 'ajuste_simular' || j.kind === 'ajuste_aplicar'
+      || j.kind === 'ajuste_transformadores') && j.result)
     .pop();
   const resultado = (ultimo?.result ?? null) as AjusteResultado | null;
   const informes = resultado ? (resultado.informes ?? [resultado.informe]) : [];
@@ -140,14 +142,17 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados }: {
           ? <p key={inf.feeder} className="alert alert-warn">{inf.feeder}: cancelado antes de empezar.</p>
           : inf.error
             ? <p key={inf.feeder} className="alert alert-error"><strong>{inf.feeder}</strong>: {inf.error}</p>
-            : <InformeAjuste key={inf.feeder} inf={inf} report={resultado?.reports?.[i] ?? resultado?.report ?? ''}
-              cancelado={ultimo?.status === 'cancelled'} />
+            : <InformeAjuste key={`${inf.feeder}-${ultimo?.id}`} inf={inf}
+              report={resultado?.reports?.[i] ?? resultado?.report ?? ''}
+              cancelado={ultimo?.status === 'cancelled'} token={resultado?.token ?? plan?.token ?? null} />
       ))}
     </div>
   );
 }
 
-function InformeAjuste({ inf, report, cancelado }: { inf: AjusteInforme; report: string; cancelado: boolean }) {
+function InformeAjuste({ inf, report, cancelado, token }: {
+  inf: AjusteInforme; report: string; cancelado: boolean; token: string | null;
+}) {
   const [filtro, setFiltro] = useState('');
   const simular = inf.modo === 'simular';
   const filas = useMemo(() => {
@@ -169,6 +174,10 @@ function InformeAjuste({ inf, report, cancelado }: { inf: AjusteInforme; report:
     <div className="step-box">
       <h4>{simular ? 'Simulación' : 'Ajuste'} de {inf.feeder} en {inf.project}
         {inf.escenario ? ` · escenario «${inf.escenario}»` : inf.variacion ? ` · variación ${inf.variacion}` : ''}</h4>
+      {(inf.fijas_sobre_su_transformador ?? []).length > 0 && (
+        <SedSobrecargadas inf={inf} token={token} />
+      )}
+      {inf.transformadores_implementados && <TransformadoresImplementados inf={inf} />}
       {simular && <p className="muted">Nada se ha escrito en el proyecto. Es el reparto antes de las pérdidas: al ajustar,
         las SED repartidas suben lo que pidan las pérdidas.</p>}
       {!simular && revertida && (
@@ -240,15 +249,6 @@ function InformeAjuste({ inf, report, cancelado }: { inf: AjusteInforme; report:
                   <td className="num">{fmtNum(c.q_escrita_kvar, 1)}</td></tr>))}</tbody>
             </table>
           </div>
-        </details>
-      )}
-      {(inf.fijas_sobre_su_transformador ?? []).length > 0 && (
-        <details className="alert alert-warn" open>
-          <summary>Clientes que piden más que el transformador de su SED: {inf.fijas_sobre_su_transformador!.length}</summary>
-          <ul className="small">{inf.fijas_sobre_su_transformador!.map((x) => (
-            <li key={x.sed}><strong>{x.sed}</strong> ({x.clientes.join(', ') || 'cambio manual'}):{' '}
-              {fmtNum(x.kva_carga, 0)} kVA en {fmtNum(x.kva, 0)} kVA ({fmtNum(x.carga_pct, 0)} %).
-              Revise el cruce del cliente con su SED o el transformador.</li>))}</ul>
         </details>
       )}
       {inf.bancos && (
@@ -408,5 +408,112 @@ function ConsumoDistintoLista({ cargas }: { cargas: ConsumoDistinto[] }) {
         </table>
       </div>
     </details>
+  );
+}
+
+const instalada = (x: SedSobrecargada) => {
+  const trs = x.transformadores ?? [];
+  if (trs.length !== 1) return `${fmtNum(x.kva, 0)} kVA`;
+  const t = trs[0];
+  return `${t.unidades > 1 ? `${t.unidades} × ` : ''}${fmtNum(t.kva, 0)} kVA · ${t.tipo ?? '—'}`;
+};
+
+/**
+ * Spec 020, RF-3 a RF-14: las SED fijas por encima del 100 % de su potencia instalada, al
+ * principio del resultado, con la propuesta de transformadores nuevos por SED (todas
+ * marcadas) y el botón que los implementa en «Sin proyecto» y vuelve a calibrar. En PA217
+ * (2026-10-16) SE30940 pedía 3818 kVA sobre 400 kVA y solo se veía en un desplegable.
+ */
+function SedSobrecargadas({ inf, token }: { inf: AjusteInforme; token: string | null }) {
+  const { ws, startJob, active } = useApp();
+  const sobre = inf.fijas_sobre_su_transformador ?? [];
+  const conPropuesta = sobre.filter((x) => x.propuesta?.kva != null);
+  const [marcadas, setMarcadas] = useState<Set<string>>(() => new Set(conPropuesta.map((x) => x.sed)));
+  const pfBusy = Boolean(active.powerfactory);
+  const causa = inf.sobrecarga_causa_probable;
+  const fichas = inf.fichas_transformador_sed;
+  const alternar = (sed: string) => setMarcadas((m) => {
+    const n = new Set(m);
+    if (n.has(sed)) n.delete(sed); else n.add(sed);
+    return n;
+  });
+  const implementar = () => {
+    if (!token || !marcadas.size) return;
+    void startJob(() => api.ajusteTransformadores(ws.id, token, inf.feeder, [...marcadas]));
+  };
+  const motivoBoton = !token ? 'Vuelva a simular: falta el plan del ajuste.'
+    : !marcadas.size ? 'Marque al menos una SED.' : pfBusy ? 'DIgSILENT está ocupado con otro trabajo.' : '';
+  return (
+    <div className={causa ? 'alert alert-error' : 'alert alert-warn'}>
+      <strong>{sobre.length} SED fija(s) sobrecargada(s): piden más que su potencia instalada.</strong>
+      {causa
+        ? <p>Es la causa probable de que la calibración no converja o no sea válida. Implemente los transformadores
+          propuestos y se volverá a calibrar.</p>
+        : <p>La calibración sigue igual; con estas SED el flujo puede no converger o las cargas no consumir lo escrito.</p>}
+      <div className="table-wrap">
+        <table className="table">
+          <thead><tr><th /><th>SED</th><th>Clientes</th><th className="num">Demanda (kVA)</th><th>Instalada</th>
+            <th className="num">Carga</th><th>Propuesta</th><th className="num">Po / Pc (W)</th>
+            <th className="num">Io / uk (%)</th><th className="num">Carga prevista</th></tr></thead>
+          <tbody>{sobre.map((x) => {
+            const p = x.propuesta;
+            const hay = p?.kva != null;
+            return (
+              <tr key={x.sed}>
+                <td>{hay && <input type="checkbox" aria-label={`Implementar ${x.sed}`} checked={marcadas.has(x.sed)}
+                  disabled={pfBusy} onChange={() => alternar(x.sed)} />}</td>
+                <td><strong>{x.sed}</strong></td>
+                <td>{x.clientes.join(', ') || 'cambio manual'}</td>
+                <td className="num">{fmtNum(x.kva_carga, 0)}</td>
+                <td>{instalada(x)}</td>
+                <td className="num">{fmtNum(x.carga_pct, 0)} %</td>
+                {hay
+                  ? <><td>{(p!.unidades ?? 1) > 1 ? `${p!.unidades} × ` : ''}{fmtNum(p!.kva!, 0)} kVA
+                      <br /><small className="muted">{p!.norma}</small></td>
+                    <td className="num">{fmtNum(p!.po_w ?? 0, 0)} / {fmtNum(p!.pc_w ?? 0, 0)}</td>
+                    <td className="num">{fmtNum(p!.io_pct ?? 0, 2)} / {fmtNum(p!.uk_pct ?? 0, 1)}</td>
+                    <td className="num">{fmtNum(p!.carga_pct_prevista ?? 0, 0)} %</td></>
+                  : <td colSpan={4}><small className="muted">Sin propuesta: {p?.motivo ?? 'sin datos'}.</small></td>}
+              </tr>
+            );
+          })}</tbody>
+        </table>
+      </div>
+      {fichas?.falta && <p className="small">Sin propuesta: {fichas.falta}.</p>}
+      {(fichas?.avisos ?? []).map((a) => <p key={a} className="small">{a}</p>)}
+      {conPropuesta.length > 0 && (
+        <div className="row">
+          <button className="btn btn-pf" disabled={Boolean(motivoBoton)} title={motivoBoton || undefined}
+            onClick={implementar}>Implementar transformadores ({marcadas.size})</button>
+          <small className="muted">Se cambian en «Sin proyecto», en la red y sin variación, con un tipo propio de la ficha
+            {fichas?.umbral_carga_pct ? ` (máxima al ${fmtNum(fichas.umbral_carga_pct, 0)} % o menos)` : ''}; los tipos
+            existentes no se tocan. Después se vuelve a calibrar.</small>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Spec 020, RF-24, RF-26, RF-32: lo que se cambió y si la recalibración salió válida. */
+function TransformadoresImplementados({ inf }: { inf: AjusteInforme }) {
+  const t = inf.transformadores_implementados!;
+  const r = inf.resultado_transformadores;
+  const ok = r?.status === 'VALIDO';
+  return (
+    <div className={!r ? 'alert alert-warn' : ok ? 'alert alert-ok' : 'alert alert-error'}>
+      <strong>Transformadores nuevos en «Sin proyecto»: {t.cambios.length}</strong>
+      {r && <p>{ok ? 'La calibración salió válida con ellos.'
+        : `Se quedan, pero no salió: ${r.motivos.join('; ')}.`}</p>}
+      {!r && t.cambios.length > 0 && <p>Quedan en la red; falta calibrar.</p>}
+      {t.cambios.length > 0 && (
+        <ul className="small">{t.cambios.map((c) => (
+          <li key={c.sed}><strong>{c.sed}</strong> ({c.transformador}): {c.antes.unidades} × {fmtNum(c.antes.kva, 0)} kVA
+            ({c.antes.tipo ?? '—'}) → {c.despues.unidades} × {fmtNum(c.despues.kva, 0)} kVA ({c.despues.tipo})</li>
+        ))}</ul>
+      )}
+      {t.omitidas.length > 0 && (
+        <ul className="small">{t.omitidas.map((o) => <li key={o.sed}>{o.sed}: no cambiado, {o.motivo}.</li>)}</ul>
+      )}
+    </div>
   );
 }

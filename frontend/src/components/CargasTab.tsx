@@ -82,7 +82,7 @@ export function estadoFlujo(jobs: Job[], project: string): EstadoFlujo | null {
     let e: EstadoFlujo | null = null;
     if (j.kind === 'pf_verificar' && j.result.project === project) {
       e = { converge: Boolean(j.result.informe?.flujo?.converged), fuente: 'verificación', cuando };
-    } else if (j.kind === 'ajuste_aplicar' && j.result.project === project) {
+    } else if ((j.kind === 'ajuste_aplicar' || j.kind === 'ajuste_transformadores') && j.result.project === project) {
       const informes = ((j.result.informes ?? [j.result.informe]) as AjusteInforme[]).filter((i) => !i.no_empezado);
       e = { converge: informes.length > 0 && informes.every((i) => !i.error && i.cabecera != null),
         fuente: 'ajuste a la máxima', cuando };
@@ -197,7 +197,9 @@ export function CargasTab() {
     }).catch(() => undefined);
     return () => { vivo = false; };
   }, [ws.id, project]);
-  const baseJob = todos.filter((j) => j.kind === 'ajuste_aplicar' && j.result?.project === project
+  // Spec 020, RF-28: los transformadores nuevos recalibran; su ajuste también hace de base.
+  const baseJob = todos.filter((j) => (j.kind === 'ajuste_aplicar' || j.kind === 'ajuste_transformadores')
+    && j.result?.project === project
     && j.status !== 'failed').pop() ?? ajusteDisco ?? undefined;
   const ajusteBase = (baseJob?.result ?? null) as AjusteResultado | null;
   const informesBase = ajusteBase ? (ajusteBase.informes ?? [ajusteBase.informe]) : [];

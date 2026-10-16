@@ -123,6 +123,13 @@ class DemandaClientesIn(BaseModel):
     periodo: str | None = Field(default=None, pattern=r'^\d{4}-(0[1-9]|1[0-2])$')
 
 
+class TransformadoresIn(BaseModel):
+    """020:RF-13: las SED marcadas de un alimentador del ajuste."""
+
+    feeder: str
+    sed: list[str] = Field(default_factory=list, max_length=2000)
+
+
 class AjusteIn(BaseModel):
     """Ajuste a la máxima de cabecera (spec 006): el trabajo de la máxima que se ve."""
 
@@ -1131,6 +1138,21 @@ def create_app(
     def ajuste_aplicar(wid: str, token: str) -> dict:
         return _ajuste_job(wid, token, False)
 
+    # Spec 020: transformadores nuevos de las SED fijas sobrecargadas y recalibración.
+    @app.post('/api/workspaces/{wid}/demanda/ajuste/{token}/transformadores', status_code=202)
+    def ajuste_transformadores(wid: str, token: str, body: TransformadoresIn) -> dict:
+        ws = ws_or_404(wid)
+        plan = ws.cargas_planes.get(token)
+        if plan is None or plan.get('kind') != 'ajuste_cabecera':
+            raise HTTPException(404, 'El plan del ajuste ya no existe: vuelva a prepararlo.')
+        # 020:RF-13, RF-14: se valida antes de encolar, para decirlo en el acto.
+        cambios = services.ajuste_transformadores_pedido(ws, token, body.feeder, body.sed)
+        return submit(ws, 'ajuste_transformadores',
+                      f"Transformadores nuevos y calibración de {body.feeder} · {plan['project']}",
+                      lambda ctx: services.ajuste_transformadores(ws, ctx, token, body.feeder,
+                                                                  cambios),
+                      lane='powerfactory')
+
     def _ajuste_aplicado(wid: str, job_id: str | None) -> dict | None:
         """El resultado del ajuste de la base (spec 007, RF-1; spec 011, RF-12).
 
@@ -1148,7 +1170,7 @@ def create_app(
         job = jobs.get(job_id)
         if job is None or job.workspace_id != wid:
             raise HTTPException(404, 'No se encuentra el ajuste de la base: quite la base o vuelva a ajustar.')
-        if job.kind != 'ajuste_aplicar':
+        if job.kind not in ('ajuste_aplicar', 'ajuste_transformadores'):   # 020:RF-28
             raise HTTPException(400, 'La base tiene que ser un ajuste aplicado, no una simulación.')
         if not isinstance(job.result, dict):
             raise HTTPException(409, 'El ajuste de la base todavía no ha terminado.')

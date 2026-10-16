@@ -223,6 +223,9 @@ export const api = {
     request<Job>(`${ws(id)}/demanda/ajuste/${enc(token)}/simular`, { method: 'POST' }),
   ajusteAplicar: (id: string, token: string) =>
     request<Job>(`${ws(id)}/demanda/ajuste/${enc(token)}/aplicar`, { method: 'POST' }),
+  // Spec 020, RF-13 a RF-15: transformadores nuevos de las SED marcadas y recalibración.
+  ajusteTransformadores: (id: string, token: string, feeder: string, sed: string[]) =>
+    request<Job>(`${ws(id)}/demanda/ajuste/${enc(token)}/transformadores`, json('POST', { feeder, sed })),
   demandaExcel: (id: string, datos: { cabecera: MaximaCabecera[]; clientes: unknown[]; no_cruzados: unknown[] }) =>
     download(`${ws(id)}/demanda/excel`, json('POST', datos)),
 
