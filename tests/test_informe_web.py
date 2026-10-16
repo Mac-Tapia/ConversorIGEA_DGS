@@ -254,3 +254,34 @@ def test_transformador_con_el_delta_de_los_flujos_guardados(client, tmp_path, mo
     assert script == 'transformador_set_pf.py' and plan['project'] == 'AD08'
     assert (plan['delta_kw'], plan['delta_kvar']) == (800.0, 300.0)
     assert fin['result']['devanado'] == {'kv': 10.0, 'sin_pct': 40.0, 'con_pct': 45.0}
+
+
+def test_informe_de_estudio_con_las_obras_ya_aplicadas(client, tmp_path):
+    """017:RF-35 / 019:RF-12 — CA101, 2026-10-15: al aplicarse una obra sale de la lista del
+    espacio, y el informe salía solo con el estado actual. Ahora toma las obras aplicadas
+    cuya variación está activa en el flujo de «Con proyecto», con la consigna de cabecera
+    como etapa de regulación."""
+    from igea_dgs.web import services
+
+    wid, salida = _espacio(client, tmp_path)
+    con = salida / 'estudio_con_flujo_desequilibrado_b.json'
+    con.write_text(json.dumps({'medidas': {'AL01': _medida(0.99)},
+                               'obras_activas': ['Obra_seccion_AL01', 'Obra_consigna_AL01']}),
+                   encoding='utf-8')
+    ws = client.app.state.store.get(wid)
+    services.registrar_obra_aplicada(ws, '', 'Obra_seccion_AL01', {
+        'id': 'x', 'clase': 'seccion', 'alimentador': 'AL01', 'casos': ['Con proyecto'],
+        'tramos': ['L1'], 'tipo': {'nombre': 'AA12003D', 'clase': 'TypLne'}, 'km': 6.58})
+    services.registrar_obra_aplicada(ws, '', 'Obra_consigna_AL01', {
+        'clase': 'consigna', 'alimentador': 'AL01', 'casos': ['Con proyecto'], 'consigna_pu': 1.05})
+    services.registrar_obra_aplicada(ws, '', 'Obra_vieja_AL01', {
+        'clase': 'condensador', 'alimentador': 'AL01', 'casos': ['Con proyecto'], 'barra': 'BARRA_VIEJA',
+        'q_kvar': 300})
+    ws.save()
+    fin = esperar_trabajo(client, client.post(f'/api/workspaces/{wid}/informes/estudio',
+                                              json=FORMULARIO).json())
+    assert fin['status'] == 'done', fin
+    assert fin['result']['etapa'] == 'conductor'
+    texto = '\n'.join(p.text for p in docx.Document(salida / fin['result']['informe']).paragraphs)
+    assert 'AA12003D' in texto and '1,05 p.u.' in texto
+    assert 'BARRA_VIEJA' not in texto, 'una obra cuya variación no está activa no entra'

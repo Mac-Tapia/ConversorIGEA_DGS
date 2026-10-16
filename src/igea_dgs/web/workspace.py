@@ -142,6 +142,9 @@ class Workspace:
     # Obras de mejora definidas en el formulario hasta que se aplican (spec 011, RF-95),
     # cada una con su ``id`` y la forma de ``obras_pf.Obra.a_dict``.
     obras: list[dict[str, Any]] = field(default_factory=list)
+    # Obras ya aplicadas en DIgSILENT, con su proyecto y su variación: salen de ``obras``
+    # al aplicarse y el informe de estudio las necesita (017:RF-35; CA101, 2026-10-15).
+    obras_aplicadas: list[dict[str, Any]] = field(default_factory=list)
     # Spec 017: lo escrito en los formularios de 4.4 por proyecto y tipo (RF-82), y el
     # libro de pérdidas de la empresa (RF-93), para no perderlos al recargar la página.
     informes: dict[str, Any] = field(default_factory=lambda: {'formularios': {}})
@@ -209,6 +212,7 @@ class Workspace:
             'active_run_id': self.active_run_id,
             'demanda': self.demanda,
             'obras': self.obras,
+            'obras_aplicadas': self.obras_aplicadas,
             'informes': self.informes,
         }
         self.root.mkdir(parents=True, exist_ok=True)
@@ -241,6 +245,8 @@ class Workspace:
         ws.demanda = {tipo: meta for tipo, meta in (data.get('demanda') or {}).items()
                       if isinstance(meta, dict) and Path(meta.get('path', '')).exists()}
         ws.obras = [o for o in (data.get('obras') or []) if isinstance(o, dict) and o.get('id')]
+        ws.obras_aplicadas = [o for o in (data.get('obras_aplicadas') or [])
+                              if isinstance(o, dict) and o.get('variacion')]
         informes = data.get('informes') if isinstance(data.get('informes'), dict) else {}
         libro = informes.get('libro_perdidas')
         ws.informes = {
@@ -418,6 +424,7 @@ class Workspace:
             'pf_projects': self.pf_projects,
             'pf_project_bindings': self.pf_project_bindings,
             'obras': self.obras,
+            'obras_aplicadas': self.obras_aplicadas,
             'demanda': {tipo: {k: v for k, v in meta.items() if k != 'path'}
                         for tipo, meta in self.demanda.items()},
             'last_seq': self.events.last_seq,

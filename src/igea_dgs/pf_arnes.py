@@ -260,10 +260,6 @@ def compartir_app(app: Any) -> None:
     _APP_COMPARTIDA = app
 
 
-def app_compartida() -> Any:
-    return _APP_COMPARTIDA
-
-
 def ruta_cola() -> Path:
     if os.environ.get(VARIABLE_COLA):
         return Path(os.environ[VARIABLE_COLA])

@@ -619,7 +619,9 @@ def describir_obra(obra: Mapping[str, Any]) -> str:
 #: Etapa del informe (RF-32) de cada clase de obra de la spec 011; las que no son de
 #: calidad de tensión (reconectador, terna, enlace) no la cambian.
 _ETAPA_DE_CLASE = {'condensador': 'bancos_nuevos', 'regulador': 'reguladores', 'seccion': 'conductor',
-                   'tension': 'migracion', 'migracion': 'migracion'}
+                   'tension': 'migracion', 'migracion': 'migracion',
+                   # 019:RF-12: la consigna de cabecera es regulación de tensión.
+                   'consigna': 'reguladores'}
 
 
 def obra_para_informe(obra: Mapping[str, Any]) -> dict[str, Any]:
@@ -633,6 +635,9 @@ def obra_para_informe(obra: Mapping[str, Any]) -> dict[str, Any]:
     if clase == 'seccion':
         tipo = (obra.get('tipo') or {}).get('nombre', '')
         return {'tipo': 'conductor', 'km': obra.get('km'), 'conductor': tipo}
+    if clase == 'consigna':
+        return {'descripcion': f"Llevar la tensión de la barra de cabecera a "
+                               f"{numero(float(obra.get('consigna_pu') or 0), 2)} p.u."}
     if clase in ('tension', 'migracion'):
         return {'tipo': 'migracion', 'kv': float(obra.get('kv_destino') or 0),
                 'transformadores': obra.get('transformadores', 0)}

@@ -2787,6 +2787,20 @@ def obras_bibliotecas(ws: Workspace, ctx: JobContext, project: str, feeders: lis
     return {'returncode': rc, 'report': report.name, 'informe': informe}
 
 
+def registrar_obra_aplicada(ws: Workspace, project: str, variacion: str, obra: dict) -> None:
+    """Una obra aplicada en DIgSILENT, con su proyecto y su variación (017:RF-35).
+
+    Al aplicarse sale de ``ws.obras``; sin este registro el informe de estudio no veía
+    ninguna obra de «Con proyecto» (CA101, 2026-10-15: salió solo el estado actual).
+    """
+    ws.obras_aplicadas = [o for o in ws.obras_aplicadas
+                          if not (o.get('project') == project.strip()
+                                  and o.get('variacion') == variacion)]
+    ws.obras_aplicadas.append({'project': project.strip(), 'variacion': variacion,
+                               'obra': {k: v for k, v in obra.items() if k != 'id'},
+                               'aplicada': time.time()})
+
+
 def obras_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
                    ids: list[str] | None, otro_proyecto: str, *, simular: bool) -> dict:
     """Simula o aplica las obras guardadas con ``tools/obras_pf.py`` (RF-56 a RF-87).
@@ -2819,6 +2833,12 @@ def obras_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             if 1 <= n <= len(elegidas) and fila.get('variacion') and not fila.get('error'):
                 aplicadas.append(elegidas[n - 1]['id'])
         with ws.lock:
+            # 017:RF-35: lo aplicado se recuerda con su variación para el informe de estudio.
+            for fila in informe.get('obras') or []:
+                n = int(fila.get('obra') or 0)
+                if 1 <= n <= len(elegidas) and elegidas[n - 1]['id'] in aplicadas:
+                    registrar_obra_aplicada(ws, plan['project'], fila['variacion'],
+                                            elegidas[n - 1])
             ws.obras = [o for o in ws.obras if o['id'] not in aplicadas]
             ws.save()
     return {'returncode': rc, 'report': report.name, 'project': plan['project'],
@@ -3169,6 +3189,11 @@ def informe_estudio(ws: Workspace, ctx: JobContext | None, formulario: dict) -> 
     con = _ultimo_estudio(ws, 'con', proyecto)
     obras = [o for o in (ws.obras or []) if o.get('alimentador') == alimentador
              and CON_PROYECTO in (o.get('casos') or [])]
+    # 017:RF-35: y las ya aplicadas cuya variación está activa en el flujo de «Con proyecto».
+    activas = set((con or {}).get('obras_activas') or [])
+    obras += [a['obra'] for a in ws.obras_aplicadas
+              if a.get('variacion') in activas and a['obra'].get('alimentador') == alimentador
+              and (proyecto is None or a.get('project') == proyecto)]
     clave = etapa_de_obras(obras)
     fuentes = [sin['_fichero']]
     if con is not None and alimentador in (con.get('medidas') or {}) and clave:
