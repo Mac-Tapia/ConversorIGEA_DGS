@@ -953,6 +953,9 @@ def test_etapas_nuevas_con_fecha_propia_antes_del_estudio(guion):
     assert fechas == sorted(set(fechas)) and fechas[-1] < 5_000_000
     assert fechas[0] == 5_000_000 - cargas_pf.VENTANA_ETAPAS_S
     assert app.GetRecordingStage() is etapas[-1]
+    # NewStage lleva la hora del caso a la de la etapa: se devuelve, o las anteriores
+    # quedarían después de la hora del estudio, inactivas.
+    assert app.caso.iStudyTime == 5_000_000
 
 
 def _con_escenario_que_manda(**kw):

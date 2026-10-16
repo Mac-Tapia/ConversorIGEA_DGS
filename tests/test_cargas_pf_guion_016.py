@@ -69,8 +69,9 @@ def test_distancia_minima_a_una_barra(guion, minima, parte):
     assert (r['tramo'] == 'F1_L2') if parte else (r['barra'] == 'F1_B1' and r['tramo'] is None)
 
 
-def test_solo_en_la_troncal_aunque_una_derivacion_este_mas_cerca(guion):
-    """016:RF-45 — una derivación más cercana al punto no se usa: la carga va a la troncal."""
+def test_en_la_derivacion_mas_cercana_a_sus_coordenadas(guion):
+    """016:RF-78 — la carga se conecta en el tramo de media más cercano a sus coordenadas,
+    también en una derivación, no solo en la troncal (cambia RF-45)."""
     app = _app(alimentadores=('F1',))
     b1 = _barra(app, 'F1_B1')
     red = b1.GetParent()
@@ -88,7 +89,7 @@ def test_solo_en_la_troncal_aunque_una_derivacion_este_mas_cerca(guion):
     fila = _nueva('N1', alimentador='F1', lat=LAT + 0.0035, lon=LON0 + 0.0015)
     informe, rc = guion.ejecutar(app, _plan(['F1'], nuevas=[fila]), simular=True)
     (r,) = informe['feeders'][0]['crearian']
-    assert rc == 0 and r['tramo'] == 'F1_L2'
+    assert rc == 0 and r['tramo'] == 'F1_LD'
 
 
 def test_la_barra_indicada_no_parte_nada(guion):
@@ -128,18 +129,19 @@ def test_troncal_sin_coordenadas(guion):
 
 
 def test_dos_cargas_en_el_mismo_tramo(guion):
-    """016:RF-47 — dos cargas en el mismo tramo lo parten cada una en su variación, que se
-    mide sola, y se avisa de revisar el tramo con las dos activas."""
+    """016:RF-47, RF-77 — dos cargas en el mismo tramo: la primera lo parte y la segunda se
+    conecta en su nodo, con su propia línea, sin partir otra vez, y se dice."""
     app = _app(alimentadores=('F1',))
     nuevas = [_nueva('N1', alimentador='F1', lat=LAT + 0.0005, lon=LON0 + 0.0013),
               _nueva('N2', alimentador='F1', lat=LAT + 0.0005, lon=LON0 + 0.0017)]
     informe, rc = guion.ejecutar(app, _plan(['F1'], nuevas=nuevas), simular=False)
     assert rc == 0, informe
     creadas = informe['feeders'][0]['creadas']
-    assert [c['tramo_partido']['tramo'] for c in creadas] == ['F1_L2', 'F1_L2']
-    assert [c['tramo_partido']['fraccion'] for c in creadas] == [pytest.approx(0.3, abs=1e-3),
-                                                                 pytest.approx(0.7, abs=1e-3)]
+    assert creadas[0]['tramo_partido']['tramo'] == 'F1_L2'
+    assert creadas[0]['tramo_partido']['fraccion'] == pytest.approx(0.3, abs=1e-3)
+    assert creadas[1]['tramo_partido'] is None and creadas[1]['barra'] == creadas[0]['barra']
     assert any('N1, N2' in a and 'F1_L2' in a for a in informe['avisos'])
+    assert creadas[0]['nota'] is None and 'Carga_N1_F1' in creadas[1]['nota']
 
 
 def test_el_plan_lleva_la_distancia_minima():

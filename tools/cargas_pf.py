@@ -40,6 +40,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+from contextlib import contextmanager
 import re
 import sys
 import traceback
@@ -741,7 +742,12 @@ def _troncales(alims: Alimentadores):
             else:
                 red = leer_red(elm, cabecera)
                 lineas = {ln.loc_name: ln for ln in elm.GetObjs('ElmLne')}
-                tramos = tuple(n for n in troncal_de(red, cabecera.loc_name).tramos if n in lineas)
+                # 016:RF-78 (cambia RF-45): cualquier tramo de media, no solo la troncal.
+                # Con solo la troncal, IC_11, IC_12, IC_15 e IC_17 de TA225 caían en el
+                # mismo punto de SEC_1091_815724, a 5-7 km de sus coordenadas (usuario,
+                # 2026-10-15: «ubicadas de acuerdo a su punto de coordenada»).
+                tramos = tuple(n for n in sorted(lineas)
+                               if not int(getattr(lineas[n], 'outserv', 0) or 0))
                 cache[f] = (red, tramos, lineas)
         return cache[f]
     return de
@@ -905,8 +911,8 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict
             'frecuencia_hz': float(getattr(red, 'frnom', 0) or 0) if red is not None else 0.0,
         })
         existentes.add(sed)
-    # 016:RF-47: cada carga parte el tramo en su variación, que se mide sola (007:RF-12);
-    # dos cargas en el mismo tramo lo parten cada una en la suya, sin depender del orden.
+    # 016:RF-47 (cambia con RF-77): dos cargas en el mismo tramo lo parten una tras otra;
+    # la segunda parte el trozo que dejó la primera, con su variación activa.
     for f, lista in resueltas.items():
         por_tramo: dict[str, list[str]] = {}
         for r in lista:
@@ -914,8 +920,8 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict
                 por_tramo.setdefault(r['partir']['tramo'], []).append(r['fila']['sed'])
         for tramo, seds in sorted(por_tramo.items()):
             if len(seds) > 1:
-                avisos.append(f"{', '.join(seds)} parten el mismo tramo {tramo}, cada una en su "
-                              'variación: con las dos activas en «Con proyecto», revise ese tramo.')
+                avisos.append(f"{', '.join(seds)} parten el mismo tramo {tramo}, una tras otra: "
+                              'cada una se mide con las anteriores de ese tramo activas.')
     if de_otros:
         total = sum(de_otros.values())
         detalle = ', '.join(f'{f} ({n})' for f, n in sorted(de_otros.items()))
@@ -975,7 +981,8 @@ def crear_carga(alims, proyecto, typ_folder, diagrama, feeder, r) -> dict:
         p = r['partir']
         nombre = nombre_libre(p['linea'].GetParent(), 'ElmTerm', f'NODE_T_{sed}')
         barra, _ = partir_tramo(alims.app, p['linea'], p['fraccion'], nombre, gps=p['gps'])
-        partido = {'tramo': p['tramo'], 'fraccion': round(p['fraccion'], 4)}
+        p['barra_nueva'] = barra
+        partido = {'tramo': p['tramo'], 'fraccion': round(p.get('fraccion_tramo', p['fraccion']), 4)}
     mt, bt = r['tension_mt_kv'], r['tension_bt_kv']
     enganche, linea, nueva_barra = barra, None, None
     if r['distancia_m']:
@@ -1146,10 +1153,17 @@ def crear_variacion(app, nombre_base: str, etiqueta_etapa: str):
     if variacion is None:
         raise RuntimeError(f'no se pudo crear la variación {nombre}')
     caso = app.GetActiveStudyCase()
-    instante = fecha_de_etapa_nueva(carpeta, int(getattr(caso, 'iStudyTime', 0) or 0))
+    hora = int(getattr(caso, 'iStudyTime', 0) or 0)
+    instante = fecha_de_etapa_nueva(carpeta, hora)
     nombre_etapa = nombre_pf(f'Etapa_{etiqueta_etapa}')
     # NewStage(…, 1) activa la variación y deja la etapa grabando; devuelve un entero.
     variacion.NewStage(nombre_etapa, instante, 1)
+    # Y lleva la hora del caso a la de la etapa: con la fecha propia de RF-74, cada carga
+    # nueva la retrasaba y las etapas anteriores quedaban después de la hora del estudio,
+    # inactivas aunque su variación lo estuviera (IN111 + TA225, 2026-10-15: 29 etapas
+    # retrasaron «Con proyecto» 335 días y el nodo del enlace no existía).
+    if caso is not None and int(getattr(caso, 'iStudyTime', 0) or 0) != hora:
+        caso.iStudyTime = hora
     etapa = next((s for s in variacion.GetContents('*.IntSstage') if s.loc_name == nombre_etapa), None)
     if etapa is not None and not _misma(app.GetRecordingStage(), etapa):
         etapa.Activate(1)
@@ -1443,6 +1457,7 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
     # tiene el suyo, y se apaga el del caso en que se escribe.
     inicial = app.GetActiveStudyCase()
     apagados: list = []
+    esc_con = None
 
     def entrar(caso):
         if caso is not None:
@@ -1523,12 +1538,15 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
                            if v.loc_name not in duplicadas or v.loc_name in activas_con_antes]
             for v in previas_con:
                 v.Deactivate()
+        esc_con = next((e for c, e in apagados if casos and c is casos['con']), None)
         if con_cargas and not informe['cancelado']:
-            sin = medir_estado(app, alims, con_cargas)          # RF-32: una vez, como referencia
+            with _con_escenario(esc_con):
+                sin = medir_estado(app, alims, con_cargas)      # RF-32: una vez, como referencia
             informe['sin_proyecto'] = sin
             typ_folder = app.GetProjectFolder('equip') or proyecto
             diagrama = Diagrama(proyecto)
             usados: set[str] = set()
+            tramos: dict = {}                     # 016:RF-77: tramo → variaciones que lo parten
             for feeder in con_cargas:
                 for r in resueltas[feeder]:
                     if cancelado():
@@ -1537,7 +1555,7 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
                         break
                     creada = _una_carga(app, plan, alims, proyecto, typ_folder, diagrama, feeder, r,
                                         nombre_de_carga(carpeta, r['fila']['sed'], feeder, stamp, usados),
-                                        sin, de_cargas)
+                                        sin, de_cargas, tramos, esc_con)
                     if creada.get('error'):
                         por_feeder[feeder]['fallos'].append({'sed': r['fila']['sed'], 'error': creada['error']})
                         continue
@@ -1550,8 +1568,10 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
                 if informe['cancelado']:
                     break
             print(f"  cargas nuevas: {len(informe['cargas'])}, cada una en su variación")
-        # El flujo que queda: la base y las demandas, sin ninguna carga nueva (RF-17).
-        informe['flujo'] = flujo_de_carga(app)
+        # El flujo que queda: la base y las demandas, sin ninguna carga nueva (RF-17), con
+        # el escenario que guarda las demandas calibradas (016:RF-79).
+        with _con_escenario(esc_con):
+            informe['flujo'] = flujo_de_carga(app)
         # Solo las que se escribieron bien en la variación: la que falló, falla igual.
         bien = {(f, x['sed']) for f in empezados for x in por_feeder[f]['actualizadas']}
         actualizadas = [(fila['sed'], obj, float(fila['plini_mw']), float(fila['qlini_mvar']))
@@ -1620,8 +1640,60 @@ def _demandas_al_escenario(app, casos, apagados, filas) -> list[dict]:
     return grabados
 
 
-def _una_carga(app, plan, alims, proyecto, typ_folder, diagrama, feeder, r, nombre, sin, de_cargas) -> dict:
-    """Una carga en su variación: crear, medir con proyecto, evaluar y desactivar (RF-11 a RF-15, RF-22)."""
+@contextmanager
+def _con_escenario(escenario):
+    """Mide con el escenario de operación encendido y lo vuelve a apagar sin guardar.
+
+    Se apaga para que lo escrito vaya a la variación, pero las demandas calibradas están
+    en él: sin él, «Con proyecto» de IN111 + TA225 sumaba 45,8 MW de datos del elemento en
+    vez de 13,7 calibrados y no convergía, y todas las medidas de las cargas salían sin
+    flujo (2026-10-15).
+    """
+    if escenario is not None:
+        escenario.Activate()
+    try:
+        yield
+    finally:
+        if escenario is not None:
+            escenario.Deactivate(0)
+
+
+def _reubicar(alims, feeder: str, r: dict, nodos: list) -> dict:
+    """La conexión de ``r`` cuando una carga anterior de la tanda ya partió su tramo.
+
+    No se parte otra vez un trozo creado por otra variación: DIgSILENT no resolvía la
+    referencia y el flujo no se ejecutaba («Cubicle/Feeder Not found» en NODE_T_IC_12,
+    IN111 + TA225, 2026-10-15). La carga se conecta en el nodo de esas cargas más cercano a
+    sus coordenadas, con su propia línea hasta su punto (016:RF-77).
+    """
+    fila = r['fila']
+    punto = (float(fila['lat']), float(fila['lon']))
+    con_gps = [(distancia_m(gps_de(b), punto), b) for b in nodos if gps_de(b)]
+    if not con_gps:
+        raise RuntimeError(f"los nodos de las cargas que partieron {r['partir']['tramo']} no "
+                           'tienen coordenadas')
+    dist, barra = min(con_gps, key=lambda x: x[0])
+    return {**r, 'partir': None, 'barra': barra, 'distancia_m': dist,
+            'criterio': f"nodo de la carga anterior en {r['partir']['tramo']}"}
+
+
+def _una_carga(app, plan, alims, proyecto, typ_folder, diagrama, feeder, r, nombre, sin, de_cargas,
+               tramos=None, escenario=None) -> dict:
+    """Una carga en su variación: crear, medir con proyecto, evaluar y desactivar (RF-11 a RF-15, RF-22).
+
+    016:RF-77: si una carga anterior de la tanda ya partió su tramo, esta parte el trozo
+    donde cae su punto, con las variaciones de esas cargas activas, y se mide con ellas.
+    Cada una partía el tramo original en su variación, y juntas en «Con proyecto» lo
+    dejaban partido dos veces sobre la misma línea: IN111 + TA225 (2026-10-15), IC_11,
+    IC_12, IC_15 e IC_17 en SEC_1091_815724, y el flujo no convergía con tres.
+    """
+    tramos = {} if tramos is None else tramos
+    p = r.get('partir')
+    previas = [v for v, _ in tramos.get(p['tramo'], [])] if p else []
+    for v in previas:
+        v.Activate()
+    if previas:
+        r = _reubicar(alims, feeder, r, [n for _, n in tramos[p['tramo']]])
     variacion, etapa = crear_variacion(app, nombre, plan.get('stamp') or '')
     de_cargas.append(variacion)
     try:
@@ -1633,8 +1705,19 @@ def _una_carga(app, plan, alims, proyecto, typ_folder, diagrama, feeder, r, nomb
             variacion.Delete()
         except Exception:  # noqa: BLE001, S110
             pass
+        for v in previas:
+            v.Deactivate()
         return {'error': f'{type(exc).__name__}: {exc}'}
-    creada.update(variacion=variacion.loc_name, nota=r.get('nota'))
+    if p and r.get('partir') is not None:
+        tramos.setdefault(p['tramo'], []).append((variacion, r['partir'].get('barra_nueva')))
+    elif p:
+        tramos[p['tramo']].append((variacion, r['barra']))
+    nota = r.get('nota')
+    if previas:
+        nota = ((nota + ' ') if nota else '') + (
+            f"Se conecta en el nodo que dejaron {', '.join(v.loc_name for v in previas)} en el tramo "
+            f"{p['tramo']}: se mide con ellas activas.")
+    creada.update(variacion=variacion.loc_name, nota=nota)
     if plan.get('costos'):
         from igea_dgs.economia import CostosUnitarios, datos_etapa
 
@@ -1644,12 +1727,15 @@ def _una_carga(app, plan, alims, proyecto, typ_folder, diagrama, feeder, r, nomb
         for attr in ('InvCosts', 'OrigVal', 'ScrVal', 'AddCosts', 'LifeSpan'):
             etapa.SetAttribute(attr, eco[attr])
         creada['economia'] = eco
-    con = medir_estado(app, alims, [feeder])                # RF-13: base + esta carga
-    creada['con_proyecto'] = con
-    creada['delta'] = diferencia(con, sin, feeder)        # RF-33
-    if plan.get('tec'):
-        creada['tecnico_economico'] = tecnico_economico(app, plan['tec'])   # RF-22, RF-23
+    with _con_escenario(escenario):
+        con = medir_estado(app, alims, [feeder])            # RF-13: base + esta carga
+        creada['con_proyecto'] = con
+        creada['delta'] = diferencia(con, sin, feeder)    # RF-33
+        if plan.get('tec'):
+            creada['tecnico_economico'] = tecnico_economico(app, plan['tec'])   # RF-22, RF-23
     variacion.Deactivate()                                # RF-12: la siguiente no la ve
+    for v in previas:
+        v.Deactivate()
     print(f"  {creada['sed']} → {creada['barra']} en {variacion.loc_name}")
     return creada
 

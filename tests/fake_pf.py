@@ -416,6 +416,11 @@ class Variacion(Obj):
         etapa = self.CreateObject('IntSstage', nombre)
         etapa.tAcTime = _instante
         if activar:
+            # Como DIgSILENT (IN111 + TA225, 2026-10-15): activar la etapa nueva lleva la hora
+            # del caso de estudio a su fecha.
+            caso = getattr(self._app, 'caso', None)
+            if caso is not None:
+                caso.iStudyTime = _instante
             self.Activate()
             if not etapa._empatada():
                 self._app.grabando = etapa
