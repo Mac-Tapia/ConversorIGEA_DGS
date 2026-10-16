@@ -158,6 +158,27 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       MT 0,990 pu, ninguna barra fuera de 0,95–1,05, pérdidas 381 kW, cabecera 125 kvar; «Sin
       proyecto» sin cambios. La consigna de cabecera no es aún una clase de obra: queda para
       una spec.
+- [x] T26. PA217 (`20261016-094237_IGEA_PA217`, 22,9 kV), 2026-10-16: la calibración no
+      era válida (VALIDACION_FISICA). Con cargas PQ no convergía ni con las escaladas al
+      0,5 % de su kVA; solo con la adaptación automática del modelo, y entonces las fijas
+      escribían 7896 kW y consumían 6250 (SE30940, 3800 → 2535 kW a 0,817 pu). Causa: la
+      fija SE30940 (cliente 700064806, 3818 kVA) sobre 400 kVA (955 %), además de SE30642
+      (195 %), SE30480 (186 %) y SE30424 (119 %). Cambio manual pedido por el usuario, con
+      el criterio de la T22: la menor potencia de la NTP 370.400-2013 con la máxima ≤ 80 %,
+      aquí la Tabla 7 (17,5 < AT ≤ 36 kV), que llega a 630 kVA; por encima, unidades de
+      630 kVA en paralelo (`ntnum`), porque las fórmulas de la tabla no valen tan lejos (la
+      de Pc decrece desde unos 1600 kVA). SE30940 8 × 630, SE30480 3 × 630, SE30642 2 × 630
+      (Po 1486 W, Pc 8144 W, Io 1,15 %, uk 4 %) y SE30424 500 kVA (1221 W, 6464 W, 1,87 %,
+      4 %); tipos propios `TR_<kVA>kVA_NTP370400_22.9-220V_DYN5`, copiados del tipo de cada
+      SED, en «Sin proyecto», en la red y sin variación
+      (`output/spec015/T27_trafos_PA217_ntp.json`). Recalibrado
+      (`output/spec015/T27_ajuste_PA217.json`): 9505,3 kW frente a 9537,9 (−0,34 %) en 2
+      flujos, sin remedios y con `iopt_lev=0`; validación física correcta (fijas 7896,3 kW
+      escritos y consumidos, escaladas 984,4 kW), pérdidas 625 kW. En el código: `kva_en_pf`
+      cuenta las `ntnum` unidades (sin eso SE30940 se veía con 630 kVA al 606 %), y el aviso
+      de VALIDACION_FISICA dice que sin el ajuste del flujo no converge y nombra las fijas
+      sobre su transformador (RF-59). Pendiente: registrar la calibración en la web
+      (volver a pulsar el ajuste: ya cargado, la valida y la guarda).
 - [ ] T12. Prueba en DIgSILENT con CA101, sobre el proyecto existente y sin datos
       inventados: la verificación lista lo que falla; corregido, pasa; se crea
       «Sin proyecto»; la calibración solo cambia su escenario y el «Caso base» queda igual;

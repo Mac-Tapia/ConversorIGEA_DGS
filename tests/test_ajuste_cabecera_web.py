@@ -39,6 +39,17 @@ informe = {'modo': 'simular' if a.simular else 'aplicar', 'cuadrado': not a.simu
 if not a.simular:
     informe.update(sed=[{'sed': 'S1', 'despues': {'kw': 40.0, 'kvar': 9.0}}],
                    escenario='Sin proyecto')
+if plan['project'] == 'SOBRE':
+    # Spec 020: una fija sobrecargada con propuesta (S1) y otra sin ella (S2).
+    informe['fijas_sobre_su_transformador'] = [
+        {'sed': 'S1', 'carga_pct': 306.0, 'transformadores': [{'transformador': 'TR_S1'}],
+         'propuesta': {'kva': 400, 'unidades': 1, 'tipo_nuevo': 'TR_400kVA_X_10-380V_DYN11'}},
+        {'sed': 'S2', 'carga_pct': 150.0, 'transformadores': [],
+         'propuesta': {'kva': None, 'motivo': 'la SED no tiene transformador en DIgSILENT'}}]
+    if plan.get('transformadores'):
+        informe['transformadores_implementados'] = {'cambios': plan['transformadores'],
+                                                    'omitidas': []}
+        informe['fijas_sobre_su_transformador'] = informe['fijas_sobre_su_transformador'][1:]
 if plan['project'] == 'SIN_KVA':
     informe = {'error': '1 SED sin potencia instalada: S9. Corríjalas antes de ajustar.'}
 if plan['project'] == 'FALLA_A1' and plan['feeder'] == 'A1':
@@ -319,10 +330,11 @@ def test_la_web_muestra_la_validacion_fisica_y_el_balance():
     # 015:RF-63: los clientes compensados, con FP real y corregido.
     assert 'Clientes fijos compensados por su banco propio' in ajuste
     assert 'FP real (EA/ERI)' in ajuste and 'fijas_compensadas?: {' in tipos
-    # 015:RF-59 / 015:RF-60: clientes sobre su transformador y bancos instalados.
-    assert 'Clientes que piden más que el transformador de su SED' in ajuste
+    # 015:RF-59 / 015:RF-60: clientes sobre su transformador (desde la 020, al principio del
+    # resultado) y bancos instalados.
+    assert 'piden más que su potencia instalada' in ajuste
     assert 'Bancos de condensadores instalados en el proyecto' in ajuste
-    assert 'fijas_sobre_su_transformador?: {' in tipos and 'bancos?: {' in tipos
+    assert 'fijas_sobre_su_transformador?: SedSobrecargada[]' in tipos and 'bancos?: {' in tipos
     # 015:RF-56: de dónde sale el factor de potencia de fijas y escaladas.
     assert 'fijas: string; escaladas: number | null; escaladas_origen: string;' in tipos
     # 015:RF-44: el reparto de las escaladas por potencia instalada se dice.
@@ -508,3 +520,132 @@ def test_la_calibracion_guarda_las_fijas_con_fp_real_y_corregido(tmp_path):
     assert fija == {'sed': 'SE1', 'cliente': 'C1', 'p_kw': 100.0, 'fp_real': 0.43,
                     'fp_corregido': 0.98, 'q_real_kvar': 210.0, 'q_kvar': 20.3,
                     'compensado': True}
+
+
+# --------------------------------------------------------------------------- spec 020
+def test_el_plan_lleva_las_fichas_de_transformadores_del_perfil(client, tmp_path, monkeypatch):
+    """020:RF-6 / 020:RF-10 — con el perfil de Electro Dunas el plan lleva sus tablas de fichas;
+    sin perfil, ninguna (el guion lo dice sin propuesta)."""
+    import json as _json
+
+    from igea_dgs.perfil_empresa import VARIABLE_RUTA
+
+    wid, job = _maxima(client)
+    monkeypatch.setenv(VARIABLE_RUTA, str(tmp_path / 'no_existe.json'))
+    token = _plan(client, wid, job).json()['token']
+    ws = client.app.state.store.get(wid)
+    plan = json.loads(Path(ws.cargas_planes[token]['path']).read_text(encoding='utf-8'))
+    assert plan['transformadores_sed'] is None
+    perfil = tmp_path / 'perfil_empresa.json'
+    perfil.write_text(_json.dumps({'perfil': 'electro_dunas'}), encoding='utf-8')
+    monkeypatch.setenv(VARIABLE_RUTA, str(perfil))
+    token = _plan(client, wid, job).json()['token']
+    plan = json.loads(Path(ws.cargas_planes[token]['path']).read_text(encoding='utf-8'))
+    assert plan['transformadores_sed']['umbral_carga_pct'] == 80
+    assert len(plan['transformadores_sed']['tablas']) == 2
+
+
+def _simulado(client, proyecto='SOBRE'):
+    wid, job = _maxima(client)
+    token = client.post(f'/api/workspaces/{wid}/demanda/ajuste/plan',
+                        json={'project': proyecto, 'job_id': job}).json()['token']
+    estado = esperar_trabajo(client, client.post(
+        f'/api/workspaces/{wid}/demanda/ajuste/{token}/simular').json())
+    assert estado['status'] == 'done', estado
+    return wid, token
+
+
+def test_implementar_transformadores_en_el_carril_y_recalibra(client):
+    """020:RF-15 / 020:RF-25 / 020:RF-28 — el botón lanza un trabajo de DIgSILENT con la propuesta
+    del último ajuste (no la del navegador), que aplica y recalibra con el mismo plan; la
+    calibración queda registrada como la del alimentador."""
+    wid, token = _simulado(client)
+
+    r = client.post(f'/api/workspaces/{wid}/demanda/ajuste/{token}/transformadores',
+                    json={'feeder': 'A1', 'sed': ['S1']})
+
+    assert r.status_code == 202 and r.json()['lane'] == 'powerfactory'
+    assert r.json()['kind'] == 'ajuste_transformadores'
+    estado = esperar_trabajo(client, r.json())
+    assert estado['status'] == 'done', estado
+    informe = estado['result']['informe']
+    recibido = informe['recibido']
+    assert informe['modo'] == 'aplicar' and recibido['variacion'].startswith('Ajuste_A1_')
+    (c,) = recibido['transformadores']
+    assert c == {'sed': 'S1', 'transformador': 'TR_S1',
+                 'propuesta': {'kva': 400, 'unidades': 1,
+                               'tipo_nuevo': 'TR_400kVA_X_10-380V_DYN11'}}
+    assert informe['transformadores_implementados']['cambios'] == [c]
+    ws = client.app.state.store.get(wid)
+    assert ws.calibraciones['SOBRE']['A1']['sed'] == {'S1': [40.0, 9.0]}
+    assert (ws.out_dir / f'ajuste_cabecera_aplicacion_{token}.json').is_file()
+
+
+@pytest.mark.parametrize('sed, texto', [([], 'al menos una SED'), (['S2'], 'S2'),
+                                         (['S9'], 'S9')])
+def test_sin_sed_o_sin_propuesta_no_se_encola(client, sed, texto):
+    """020:RF-13 / 020:RF-14 — sin SED marcadas, o con una sin propuesta, se dice en el acto y no
+    hay trabajo."""
+    wid, token = _simulado(client)
+    r = client.post(f'/api/workspaces/{wid}/demanda/ajuste/{token}/transformadores',
+                    json={'feeder': 'A1', 'sed': sed})
+    assert r.status_code == 400 and texto in r.text
+
+
+def test_implementar_sin_ajuste_previo_se_rechaza(client):
+    """020:RF-13 — la propuesta sale del ajuste: sin simular ni aplicar no hay qué implementar."""
+    wid, job = _maxima(client)
+    token = client.post(f'/api/workspaces/{wid}/demanda/ajuste/plan',
+                        json={'project': 'SOBRE', 'job_id': job}).json()['token']
+    r = client.post(f'/api/workspaces/{wid}/demanda/ajuste/{token}/transformadores',
+                    json={'feeder': 'A1', 'sed': ['S1']})
+    assert r.status_code == 400 and 'simule o aplique' in r.text
+
+
+def test_la_web_avisa_de_las_sed_sobrecargadas_y_propone_transformadores():
+    """020:RF-3 / 020:RF-4 / 020:RF-9 / 020:RF-13 / 020:RF-14 — PA217, 2026-10-16: SE30940 al 955 % solo
+    se veía en un desplegable. Ahora va al principio del resultado, dice si es la causa
+    probable, enseña la propuesta por SED con su ficha y una casilla marcada, y el botón
+    queda desactivado sin casillas."""
+    from pathlib import Path
+
+    raiz = Path(__file__).resolve().parents[1] / 'frontend' / 'src'
+    ajuste = (raiz / 'components' / 'AjusteCabecera.tsx').read_text(encoding='utf-8')
+    tipos = (raiz / 'types.ts').read_text(encoding='utf-8')
+    api = (raiz / 'api.ts').read_text(encoding='utf-8')
+    cargas = (raiz / 'components' / 'CargasTab.tsx').read_text(encoding='utf-8')
+    # RF-3: al principio del resultado, antes del texto de la simulación y del de fallo.
+    pos = ajuste.index('<SedSobrecargadas inf={inf} token={token} />')
+    assert pos < ajuste.index('Nada se ha escrito en el proyecto')
+    assert pos < ajuste.index('La validación física en DIgSILENT no pasa')
+    # RF-4: la causa probable.
+    assert 'inf.sobrecarga_causa_probable' in ajuste and 'Es la causa probable' in ajuste
+    assert 'sobrecarga_causa_probable?: boolean' in tipos
+    # RF-9: la propuesta con su ficha y la carga prevista.
+    for texto in ('Propuesta', 'Po / Pc (W)', 'Io / uk (%)', 'Carga prevista', 'p!.norma',
+                  'Sin propuesta: {p?.motivo'):
+        assert texto in ajuste, texto
+    assert 'tipo_nuevo?: string' in tipos and 'carga_pct_prevista?: number' in tipos
+    # RF-13: una casilla por SED con propuesta, todas marcadas al principio.
+    assert 'new Set(conPropuesta.map((x) => x.sed))' in ajuste
+    assert 'type="checkbox"' in ajuste and 'Implementar transformadores' in ajuste
+    # RF-14: el botón sin casillas, desactivado.
+    assert "!marcadas.size ? 'Marque al menos una SED.'" in ajuste
+    assert 'disabled={Boolean(motivoBoton)}' in ajuste
+    # RF-15, RF-28: un trabajo; su resultado se ve y hace de base.
+    assert 'api.ajusteTransformadores(ws.id, token, inf.feeder, [...marcadas])' in ajuste
+    assert '/transformadores`' in api
+    assert "j.kind === 'ajuste_transformadores'" in ajuste
+    assert cargas.count("j.kind === 'ajuste_transformadores'") == 2
+
+
+def test_la_web_dice_lo_que_dejaron_los_transformadores():
+    """020:RF-24 / 020:RF-26 / 020:RF-32 — antes y después por SED y si la recalibración salió válida."""
+    from pathlib import Path
+
+    raiz = Path(__file__).resolve().parents[1] / 'frontend' / 'src'
+    ajuste = (raiz / 'components' / 'AjusteCabecera.tsx').read_text(encoding='utf-8')
+    assert '<TransformadoresImplementados inf={inf} />' in ajuste
+    assert 'La calibración salió válida con ellos.' in ajuste
+    assert 'Se quedan, pero no salió: ${r.motivos.join' in ajuste
+    assert 'falta calibrar' in ajuste

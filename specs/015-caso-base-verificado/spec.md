@@ -312,7 +312,9 @@ Compensación propia de los clientes fijos (cambio del 2026-10-15)
 
 ## Fuera de alcance
 
-- Corregir el modelo de forma automática: lo corrige el operador en DIgSILENT.
+- Corregir el modelo de forma automática: lo corrige el operador en DIgSILENT. Desde el
+  2026-10-16, los transformadores de las SED fijas sobrecargadas se cambian desde la web
+  con la confirmación del operador (spec 020).
 - La verificación de convergencia de la pestaña (008:RF-18), que mide lo que esté activo y
   sigue igual.
 - Las cargas nuevas de «Con proyecto» (specs 007 y 014).

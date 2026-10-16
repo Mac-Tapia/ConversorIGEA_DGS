@@ -937,6 +937,16 @@ export interface ValidacionNativa {
   balance?: BalanceCabecera | null;
 }
 
+/** Spec 020: una SED fija por encima de su potencia instalada, con su propuesta. */
+export interface SedSobrecargada {
+  sed: string; clientes: string[]; p_kw: number; kva_carga: number; kva: number; carga_pct: number;
+  transformadores?: { transformador: string; tipo: string | null; kva: number; unidades: number;
+    kv_at: number | null; v_bt: number | null; grupo: string | null }[];
+  propuesta?: { kva: number | null; motivo?: string; unidades?: number; po_w?: number; pc_w?: number;
+    io_pct?: number; uk_pct?: number; norma?: string; codigo?: string; carga_pct_prevista?: number;
+    tipo_nuevo?: string };
+}
+
 export interface AjusteInforme {
   project: string;
   feeder: string;
@@ -963,9 +973,23 @@ export interface AjusteInforme {
     q_ea_eri_kvar: number; q_escrita_kvar: number;
   }[];
   /** Spec 015, RF-59: fijas que piden más que la potencia instalada de su SED. */
-  fijas_sobre_su_transformador?: {
-    sed: string; clientes: string[]; p_kw: number; kva_carga: number; kva: number; carga_pct: number;
-  }[];
+  fijas_sobre_su_transformador?: SedSobrecargada[];
+  /** Spec 020, RF-10: las tablas de fichas del perfil, o por qué no hay. */
+  fichas_transformador_sed?: { umbral_carga_pct?: number; normas?: string[]; avisos?: string[]; falta?: string };
+  /** Spec 020, RF-4: la sobrecarga es la causa probable de que la calibración no salga. */
+  sobrecarga_causa_probable?: boolean;
+  /** Spec 020, RF-24: los transformadores cambiados en «Sin proyecto». */
+  transformadores_implementados?: {
+    cambios: { sed: string; transformador: string;
+      antes: { tipo: string | null; kva: number; unidades: number };
+      despues: { tipo: string; kva: number; unidades: number; norma?: string } }[];
+    omitidas: { sed: string; motivo: string }[];
+  };
+  /** Spec 020, RF-26, RF-32: lo que dejaron en la recalibración. */
+  resultado_transformadores?: {
+    status: 'VALIDO' | 'FALLO'; calibracion_valida: boolean; sobrecargadas: string[];
+    sobre_umbral: { sed: string; carga_pct: number; kva: number }[]; motivos: string[]; aviso: string | null;
+  };
   /** Spec 015, RF-49: la validación no pasó y las cargas volvieron a como estaban. */
   calibracion_revertida?: boolean;
   /** Spec 015, RF-47 a RF-52: lo que consumen las cargas en el flujo, después de calibrar. */
@@ -1058,6 +1082,8 @@ export interface AjusteResultado {
   /** Spec 008: uno por alimentador, en el orden del ajuste. */
   informes?: AjusteInforme[];
   reports?: string[];
+  /** Spec 020: el plan del ajuste, para implementar transformadores desde su resultado. */
+  token?: string;
 }
 
 /** Spec 008: verificación de la convergencia del proyecto con lo que tenga activo. */

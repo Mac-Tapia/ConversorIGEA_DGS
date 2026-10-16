@@ -2215,6 +2215,10 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
             # 015:RF-54: solo las escaladas; None deja la Q del archivo (RF-55).
             'factor_potencia_cargas': fp_cargas,
             'factor_potencia_minimo_fijas': fp_min_fijas,
+            # 020:RF-6 a RF-12: las fichas del perfil para proponer transformadores nuevos;
+            # el guion las valida con la misma lectura (020:RF-31).
+            'transformadores_sed': (datos_perfil().get('calibracion') or {}).get(
+                'transformadores_sed'),
             'caso_base_sin_verificar': {},
             # 014:RF-10: la demanda que dejó la última calibración, para ver lo manual.
             'ultima_calibracion': (ws.calibraciones.get(project.strip()) or {}).get(alimentador),
@@ -2277,6 +2281,43 @@ def _guardar_calibracion(ws: Workspace, project: str, feeder: str, informe: dict
         ws.save()
 
 
+def _correr_guion_ajuste(ws: Workspace, ctx: JobContext, project: str, feeder: str,
+                        path: str, report: Path, flag: Path, *, simular: bool) -> tuple[dict, int]:
+    """Una ejecución de ``tools/ajuste_cabecera_pf.py`` para un alimentador, con su informe.
+
+    La comparten el ajuste (spec 006) y los transformadores nuevos (020:RF-25), que
+    recalibran con el mismo guion: aplicando, la calibración que valga queda registrada.
+    """
+    pf_dir, interpreter = _require_pf()
+    report.parent.mkdir(parents=True, exist_ok=True)
+    report.unlink(missing_ok=True)
+    ctx.log(f"Proyecto de DIgSILENT: {project}  ·  alimentador {feeder}")
+    cmd = [str(interpreter), str(_script('ajuste_cabecera_pf.py')), '--plan', path,
+           '--output-json', str(report), '--cancel-file', str(flag)]
+    if simular:
+        cmd.append('--simular')
+    rc = ctx.run_process(cmd, env=pf_subprocess_env(pf_dir), cwd=str(project_root()),
+                         cancel_file=flag)
+    if rc == 3:
+        flag.unlink(missing_ok=True)
+        raise UserError('No se pudo conectar con DIgSILENT. Ábralo y reintente.')
+    try:
+        informe = json.loads(report.read_text(encoding='utf-8')) if report.is_file() else {}
+    except (OSError, ValueError):
+        informe = {}
+    if not informe:
+        informe = {'error': f'El guion terminó con el código {rc} sin dejar informe: vea el Registro.'}
+    informe.setdefault('feeder', feeder)
+    informe.setdefault('project', project)
+    if informe.get('error'):
+        ctx.log(f"{feeder}: {informe['error']}")
+    elif not simular and not informe.get('cuadrado'):
+        ctx.log(f"{feeder}: no cumple la tolerancia: {informe.get('motivo')}. Vea el diagnóstico.")
+    if not simular:
+        _guardar_calibracion(ws, project, feeder, informe)
+    return informe, rc
+
+
 def ajuste_ejecutar(ws: Workspace, ctx: JobContext, token: str, *, simular: bool) -> dict:
     """Simula o aplica el ajuste con ``tools/ajuste_cabecera_pf.py`` (RF-19 a RF-22).
 
@@ -2291,7 +2332,7 @@ def ajuste_ejecutar(ws: Workspace, ctx: JobContext, token: str, *, simular: bool
     paths = plan.get('paths') or [plan['path']]
     if not all(Path(p).is_file() for p in paths):
         raise UserError('El plan del ajuste ya no existe: vuelva a prepararlo.')
-    pf_dir, interpreter = _require_pf()
+    _require_pf()                     # sin DIgSILENT se dice antes de empezar
     modo = 'simulacion' if simular else 'aplicacion'
     flag = ws.plans_dir / f'cancelar_{token}.flag'
     flag.unlink(missing_ok=True)
@@ -2309,32 +2350,8 @@ def ajuste_ejecutar(ws: Workspace, ctx: JobContext, token: str, *, simular: bool
             ctx.progress(n, len(paths), feeder)
         sufijo = f'_{n + 1}' if varios else ''
         report = ws.out_dir / f'ajuste_cabecera_{modo}_{token}{sufijo}.json'
-        report.parent.mkdir(parents=True, exist_ok=True)
-        report.unlink(missing_ok=True)
-        ctx.log(f"Proyecto de DIgSILENT: {plan['project']}  ·  alimentador {feeder}")
-        cmd = [str(interpreter), str(_script('ajuste_cabecera_pf.py')), '--plan', path,
-               '--output-json', str(report), '--cancel-file', str(flag)]
-        if simular:
-            cmd.append('--simular')
-        rc = ctx.run_process(cmd, env=pf_subprocess_env(pf_dir), cwd=str(project_root()),
-                             cancel_file=flag)
-        if rc == 3:
-            flag.unlink(missing_ok=True)
-            raise UserError('No se pudo conectar con DIgSILENT. Ábralo y reintente.')
-        try:
-            informe = json.loads(report.read_text(encoding='utf-8')) if report.is_file() else {}
-        except (OSError, ValueError):
-            informe = {}
-        if not informe:
-            informe = {'error': f'El guion terminó con el código {rc} sin dejar informe: vea el Registro.'}
-        informe.setdefault('feeder', feeder)
-        informe.setdefault('project', plan['project'])
-        if informe.get('error'):
-            ctx.log(f"{feeder}: {informe['error']}")
-        elif not simular and not informe.get('cuadrado'):
-            ctx.log(f"{feeder}: no cumple la tolerancia: {informe.get('motivo')}. Vea el diagnóstico.")
-        if not simular:
-            _guardar_calibracion(ws, plan['project'], feeder, informe)
+        informe, rc = _correr_guion_ajuste(ws, ctx, plan['project'], feeder, path, report, flag,
+                                           simular=simular)
         informes.append(informe)
         reports.append(report.name)
         codigos.append(rc)
@@ -2346,8 +2363,89 @@ def ajuste_ejecutar(ws: Workspace, ctx: JobContext, token: str, *, simular: bool
     hechos = [i for i in informes if not i.get('no_empezado')]
     return {'returncode': max(codigos, default=0), 'modo': hechos[0].get('modo') if hechos else None,
             'report': reports[0] if reports else '', 'reports': reports,
-            'project': plan['project'], 'feeders': plan['feeders'],
+            'project': plan['project'], 'feeders': plan['feeders'], 'token': token,
             'informe': informes[0], 'informes': informes}
+
+
+def _plan_y_sufijo(plan: dict, feeder: str) -> tuple[str, str]:
+    paths = plan.get('paths') or [plan['path']]
+    if feeder not in plan['feeders']:
+        raise UserError(f'{feeder} no está en este ajuste: vuelva a prepararlo.')
+    n = plan['feeders'].index(feeder)
+    return paths[n], (f'_{n + 1}' if len(paths) > 1 else '')
+
+
+def ajuste_transformadores_pedido(ws: Workspace, token: str, feeder: str,
+                                  seds: list[str]) -> list[dict]:
+    """Las propuestas de las SED marcadas, tomadas del último informe del ajuste (020:RF-13).
+
+    No se acepta lo que mande el navegador: solo la propuesta que dio el guion para ese
+    plan y ese alimentador, al simular o al aplicar, la más reciente de las dos.
+    """
+    plan = ws.cargas_planes.get(token)
+    if plan is None or plan.get('kind') != 'ajuste_cabecera':
+        raise UserError('El plan del ajuste ya no existe: vuelva a prepararlo.')
+    if not seds:
+        raise UserError('Marque al menos una SED para implementar sus transformadores (020:RF-14).')
+    _, sufijo = _plan_y_sufijo(plan, feeder)
+    informes = [p for p in (ws.out_dir / f'ajuste_cabecera_{m}_{token}{sufijo}.json'
+                            for m in ('simulacion', 'aplicacion')) if p.is_file()]
+    if not informes:
+        raise UserError(f'{feeder}: simule o aplique el ajuste antes de implementar transformadores.')
+    ultimo = max(informes, key=lambda p: p.stat().st_mtime)
+    try:
+        informe = json.loads(ultimo.read_text(encoding='utf-8'))
+    except (OSError, ValueError) as exc:
+        raise UserError(f'No se pudo leer el informe del ajuste ({ultimo.name}): {exc}') from exc
+    propuestas = {x['sed']: x for x in informe.get('fijas_sobre_su_transformador') or []}
+    cambios, sin = [], []
+    for sed in dict.fromkeys(seds):
+        x = propuestas.get(sed)
+        p = (x or {}).get('propuesta') or {}
+        if not x or p.get('kva') is None or len(x.get('transformadores') or []) != 1:
+            sin.append(sed)
+            continue
+        cambios.append({'sed': sed, 'transformador': x['transformadores'][0]['transformador'],
+                        'propuesta': p})
+    if sin:
+        raise UserError(f"Sin propuesta de transformador en el último ajuste de {feeder}: "
+                        f"{', '.join(sin)}. Vuelva a simular.")
+    return cambios
+
+
+def ajuste_transformadores(ws: Workspace, ctx: JobContext, token: str, feeder: str,
+                           cambios: list[dict]) -> dict:
+    """Implementa los transformadores y recalibra «Sin proyecto» en el mismo trabajo (020:RF-15, RF-25).
+
+    Una copia del plan del ajuste con ``transformadores``; el informe sale como el de un
+    ajuste aplicado, así que la calibración válida queda registrada (RF-28) y es la base
+    de lo que siga (007:RF-40).
+    """
+    plan = ws.cargas_planes.get(token)
+    if plan is None or plan.get('kind') != 'ajuste_cabecera':
+        raise UserError('El plan del ajuste ya no existe: vuelva a prepararlo.')
+    path, sufijo = _plan_y_sufijo(plan, feeder)
+    try:
+        datos = json.loads(Path(path).read_text(encoding='utf-8'))
+    except (OSError, ValueError) as exc:
+        raise UserError('El plan del ajuste ya no existe: vuelva a prepararlo.') from exc
+    datos['transformadores'] = cambios
+    datos['ultima_calibracion'] = (ws.calibraciones.get(plan['project'].strip()) or {}).get(feeder)
+    copia = ws.plans_dir / f'ajuste_cabecera_{token}{sufijo}_transformadores.json'
+    copia.write_text(json.dumps(datos, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+    flag = ws.plans_dir / f'cancelar_{token}.flag'
+    flag.unlink(missing_ok=True)
+    ctx.log(f"{feeder}: transformadores nuevos para {', '.join(c['sed'] for c in cambios)}; "
+            'después se recalibra «Sin proyecto».')
+    report = ws.out_dir / f'ajuste_cabecera_aplicacion_{token}{sufijo}.json'
+    informe, rc = _correr_guion_ajuste(ws, ctx, plan['project'], feeder, str(copia), report,
+                                       flag, simular=False)
+    flag.unlink(missing_ok=True)
+    if informe.get('error') and not informe.get('transformadores_implementados'):
+        raise UserError(f"{feeder}: {informe['error']}")
+    return {'returncode': rc, 'modo': informe.get('modo'), 'report': report.name,
+            'reports': [report.name], 'project': plan['project'], 'feeders': [feeder],
+            'token': token, 'informe': informe, 'informes': [informe]}
 
 
 def ajuste_aplicado_en_disco(ws: Workspace, project: str | None,

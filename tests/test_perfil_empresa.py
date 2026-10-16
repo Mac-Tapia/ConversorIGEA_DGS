@@ -335,3 +335,73 @@ def test_fp_minimo_de_las_fijas_del_perfil():
     with pytest.raises(PerfilError, match='factor_potencia_minimo_fijas'):
         factor_potencia_cargas({'calibracion': {'factor_potencia_minimo_fijas': 2}},
                                'factor_potencia_minimo_fijas')
+
+
+# --------------------------------------------------------------------------- spec 020
+def _electro_dunas():
+    raiz = Path(__file__).resolve().parents[1] / 'config' / 'perfiles'
+    return json.loads((raiz / 'electro_dunas.json').read_text(encoding='utf-8'))
+
+
+def test_fichas_de_transformadores_del_perfil_de_electro_dunas():
+    """020:RF-29 / 020:RF-30 — Electro Dunas trae las Tablas 6 y 7 de FONAFE 2017 (NTP
+    370.400) por rango de tensión primaria, con Po, Pc, Io y uk por kVA, y el umbral del 80 %."""
+    from igea_dgs.perfil_empresa import transformadores_sed
+
+    t = transformadores_sed(_electro_dunas())
+    assert t['umbral_carga_pct'] == 80 and t['avisos'] == []
+    seis, siete = t['tablas']
+    assert (seis['kv_min'], seis['kv_max'], siete['kv_min'], siete['kv_max']) == (0, 17.5, 17.5, 36)
+    assert 'Tabla 6' in seis['norma'] and 'Tabla 7' in siete['norma'] and seis['codigo']
+    assert seis['fichas'][630] == (1411, 8136, 1.15, 4)
+    assert siete['fichas'][630] == (1486, 8144, 1.15, 4)
+    assert siete['fichas'][500] == (1221, 6464, 1.87, 4)
+    assert max(seis['fichas']) == max(siete['fichas']) == 630
+    assert 200 in seis['fichas'] and 200 not in siete['fichas']
+
+
+def test_sin_fichas_en_el_perfil_no_se_supone_ninguna():
+    """020:RF-29 — sin la sección, ninguna tabla (la 020:RF-10 lo dice en la web)."""
+    from igea_dgs.perfil_empresa import transformadores_sed
+
+    assert transformadores_sed({}) is None
+    assert transformadores_sed({'calibracion': {'factor_potencia_cargas': 0.98}}) is None
+
+
+@pytest.mark.parametrize('fila', [[374, 1920, 2.99], [374, 0, 2.99, 4], [374, 1920, -1, 4],
+                                  ['x', 1920, 2.99, 4], [374, 1920, True, 4], 'x'])
+def test_una_fila_imposible_se_descarta_y_se_nombra(fila):
+    """020:RF-31 — la fila incompleta o con un valor no positivo no se usa, y el aviso nombra
+    la fila, la tabla y el perfil; las demás filas siguen valiendo."""
+    from igea_dgs.perfil_empresa import transformadores_sed
+
+    datos = {'perfil': 'otra', 'calibracion': {'transformadores_sed': {
+        'umbral_carga_pct': 80, 'tablas': [{
+            'norma': 'Norma X', 'codigo': 'NX', 'kv_min': 0, 'kv_max': 20,
+            'fichas': {'50': [232, 1120, 3.57, 4], '100': fila}}]}}}
+    t = transformadores_sed(datos)
+    assert list(t['tablas'][0]['fichas']) == [50]
+    assert len(t['avisos']) == 1
+    assert '100' in t['avisos'][0] and 'Norma X' in t['avisos'][0] and 'otra' in t['avisos'][0]
+
+
+@pytest.mark.parametrize('umbral', [0, -5, 150, 'x', None, True])
+def test_umbral_de_carga_imposible_lo_nombra(umbral):
+    """020:RF-30 — el umbral tiene que estar entre 0 (sin incluirlo) y 100."""
+    from igea_dgs.perfil_empresa import transformadores_sed
+
+    datos = {'calibracion': {'transformadores_sed': {'umbral_carga_pct': umbral, 'tablas': []}}}
+    with pytest.raises(PerfilError, match='umbral_carga_pct'):
+        transformadores_sed(datos)
+
+
+def test_tabla_sin_rango_o_sin_filas_validas_se_descarta():
+    """020:RF-31 — una tabla sin rango de tensión válido o sin ninguna fila válida no se usa."""
+    from igea_dgs.perfil_empresa import transformadores_sed
+
+    datos = {'calibracion': {'transformadores_sed': {'umbral_carga_pct': 80, 'tablas': [
+        {'norma': 'A', 'codigo': 'A', 'kv_min': 20, 'kv_max': 10, 'fichas': {'50': [1, 1, 1, 1]}},
+        {'norma': 'B', 'codigo': 'B', 'kv_min': 0, 'kv_max': 10, 'fichas': {'50': [0, 1, 1, 1]}},
+    ]}}}
+    t = transformadores_sed(datos)
+    assert t['tablas'] == [] and any('A' in a for a in t['avisos']) and any('B' in a for a in t['avisos'])
