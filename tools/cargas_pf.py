@@ -57,6 +57,17 @@ RADIO_TIERRA_M = 6_371_000.0
 # Baja tensión hasta 1 kV (IEC 60038), en cualquier empresa: una carga nueva se engancha
 # en media, nunca en la barra de BT de una SED existente (RF-48).
 MAX_BT_KV = 1.0
+# 016:RF-88: la SED nueva cuelga del nodo de media si su punto queda a 25 m o menos; a
+# más, un cable desde el nodo hasta su punto, al lado de alta de la SED (usuario,
+# 2026-10-16). Antes se tendía cable con cualquier distancia, de 1 m incluso.
+CABLE_MINIMO_M = 25.0
+# DIgSILENT guarda lo que crea la etapa en una sola carpeta y renombra lo que repite
+# nombre: la SED «CH_9», su barra «CH_9(1)» y la carga «CH_9(2)» (PN107, 2026-10-16).
+SUFIJO_PF = re.compile(r'\(\d+\)$')
+# 014:RF-30: a esta distancia o menos de una carga nueva ya creada, la fila del libro es
+# esa misma carga aunque traiga otro nombre (usuario, 2026-10-16: «por el nombre y el
+# mismo punto de coordenadas»). El libro da el punto con 6 decimales, unos 0,1 m.
+MISMO_PUNTO_M = 1.0
 
 
 # =========================================================================== nombres
@@ -651,7 +662,12 @@ def indice_de_cargas_nuevas(app, feeders) -> dict[tuple[str, str], dict]:
             continue
         for etapa in v.GetContents('*.IntSstage'):
             for carga in etapa.GetContents('*.ElmLod', 1):
-                d = out.setdefault((feeder, carga.loc_name), {'variaciones': [], 'carga': carga})
+                # Por el nombre sin el sufijo que pone la etapa (014:RF-29): con «CH_9(2)»
+                # no se reconocía CH_9, se creaba otra que partía de nuevo el trozo de la
+                # primera y «Con proyecto» no ejecutaba el flujo («Cubicle/Feeder Not
+                # found» en NODE_T_CH_9, PN107, 2026-10-16).
+                nombre = SUFIJO_PF.sub('', carga.loc_name)
+                d = out.setdefault((feeder, nombre), {'variaciones': [], 'carga': carga})
                 if v.loc_name not in d['variaciones']:
                     d['variaciones'].append(v.loc_name)
     return out
@@ -668,7 +684,8 @@ def nombres_en_red(app, alims: Alimentadores, caso) -> set[str]:
         for clase in ('ElmLod', 'ElmSubstat'):
             objs = (list(elm.GetObjs(clase)) if elm is not None
                     else list(app.GetCalcRelevantObjects(f'*.{clase}')))
-            nombres.update(o.loc_name for o in objs)
+            # Sin el sufijo de la etapa: la carga activa de CH_9 se llama «CH_9(2)» (014:RF-29).
+            nombres.update(SUFIJO_PF.sub('', o.loc_name) for o in objs)
     if previo is not None and app.GetActiveStudyCase() is not previo:
         previo.Activate()
     return nombres
@@ -693,6 +710,14 @@ def _diferencias_con_la_fila(sed: str, carga, fila: dict) -> list[str]:
     return avisos
 
 
+def _en_el_punto(carga, punto: tuple[float, float]) -> bool:
+    """La carga ya creada está a :data:`MISMO_PUNTO_M` o menos de ``punto`` (014:RF-30)."""
+    lat, lon = getattr(carga, 'GPSlat', None), getattr(carga, 'GPSlon', None)
+    if not lat or not lon:
+        return False
+    return distancia_m((float(lat), float(lon)), punto) <= MISMO_PUNTO_M
+
+
 def ya_creada(fila: dict, candidatos: list[str], existentes: set[str], ya: dict | None):
     """La carga del libro ya existe: ``(no_creada, avisos)``, o ``None`` si hay que crearla.
 
@@ -705,15 +730,23 @@ def ya_creada(fila: dict, candidatos: list[str], existentes: set[str], ya: dict 
     indice = (ya or {}).get('indice') or {}
     en_red = (ya or {}).get('red')
     halladas = [indice[(f, nombre)] for f in candidatos if (f, nombre) in indice]
+    criterio = 'ya existe'
+    if not halladas and fila.get('lat') is not None:
+        punto = (float(fila['lat']), float(fila['lon']))
+        halladas = [d for (f, _n), d in sorted(indice.items(), key=lambda x: x[0])
+                    if f in candidatos and _en_el_punto(d['carga'], punto)]
+        if halladas:
+            otros = ', '.join(sorted({SUFIJO_PF.sub('', d['carga'].loc_name) for d in halladas}))
+            criterio = f'ya existe en el mismo punto, como {otros} (014:RF-30),'
     variaciones = sorted({v for d in halladas for v in d['variaciones']})
     if len(variaciones) > 1:
-        return ({'sed': sed, 'motivo': 'ya existe en varias variaciones de carga nueva: no se crea '
+        return ({'sed': sed, 'motivo': f'{criterio} en varias variaciones de carga nueva: no se crea '
                                        'otra ni se cambia cuál está activa (014:RF-26)',
                  'variaciones': variaciones},
                 [f"{sed}: está en {len(variaciones)} variaciones de carga nueva "
                  f"({', '.join(variaciones)}); revise cuál vale (014:RF-26)."])
     if variaciones:
-        return ({'sed': sed, 'motivo': f'ya existe en la variación {variaciones[0]}: se reutiliza, '
+        return ({'sed': sed, 'motivo': f'{criterio} en la variación {variaciones[0]}: se reutiliza, '
                                        'activa en «Con proyecto» (014:RF-24)',
                  'variacion': variaciones[0], 'reutilizada': True},
                 _diferencias_con_la_fila(sed, halladas[0]['carga'], fila))
@@ -881,7 +914,7 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict
             continue
         feeder, barra, dist, criterio = eleccion
         tipo, origen_tipo = None, ''
-        if dist:                                   # hace falta una línea de enlace
+        if con_cable(dist):                        # hace falta una línea de enlace (RF-88)
             if fila.get('tipo_linea') and fila['tipo_linea'] in tipos:
                 tipo, origen_tipo = tipos[fila['tipo_linea']], 'de la fila'
             elif conexion is not None:
@@ -970,6 +1003,11 @@ def _tipo_trafo(alims, feeder, typ_folder, kva: float, mt: float, bt: float, fre
     return nuevo, True, aviso
 
 
+def con_cable(distancia_m: float | None) -> bool:
+    """016:RF-88: cable hasta el punto de la carga solo a más de :data:`CABLE_MINIMO_M`."""
+    return (distancia_m or 0.0) > CABLE_MINIMO_M
+
+
 def crear_carga(alims, proyecto, typ_folder, diagrama, feeder, r) -> dict:
     """Crea la carga resuelta en la etapa que graba. Devuelve lo creado (RF-14).
 
@@ -988,7 +1026,7 @@ def crear_carga(alims, proyecto, typ_folder, diagrama, feeder, r) -> dict:
         partido = {'tramo': p['tramo'], 'fraccion': round(p.get('fraccion_tramo', p['fraccion']), 4)}
     mt, bt = r['tension_mt_kv'], r['tension_bt_kv']
     enganche, linea, nueva_barra = barra, None, None
-    if r['distancia_m']:
+    if con_cable(r['distancia_m']):                                      # 016:RF-88
         nueva_barra = contenedor.CreateObject('ElmTerm', nombre_pf(f'NODE_{sed}'))
         nueva_barra.uknom, nueva_barra.iUsage, nueva_barra.outserv = mt, 1, 0
         nueva_barra.GPSlat, nueva_barra.GPSlon = float(fila['lat']), float(fila['lon'])
@@ -996,6 +1034,10 @@ def crear_carga(alims, proyecto, typ_folder, diagrama, feeder, r) -> dict:
         linea.typ_id = r['tipo']
         linea.dline = max(r['distancia_m'] / 1000.0, 1e-6)
         linea.nlnum = 1
+        # 016:RF-89: el cable con su trazado, del nodo al punto; sin él los cables de
+        # IN111 + TA225 tenían 0 vértices (2026-10-16).
+        if gps_de(barra) is not None:
+            linea.SetAttribute('GPScoords', [list(gps_de(barra)), [float(fila['lat']), float(fila['lon'])]])
         for extremo, (term, lado) in enumerate(((barra, 0), (nueva_barra, 1)), start=1):
             cub = term.CreateObject('StaCubic', nombre_pf(f'Cub{extremo}_LNE_{sed}'))
             cub.obj_id, cub.obj_bus = linea, lado
@@ -1047,7 +1089,7 @@ def crear_carga(alims, proyecto, typ_folder, diagrama, feeder, r) -> dict:
         'kva_instalado': fila['kva_instalado'], 'kw': fila['kw'], 'kvar': fila['kvar'],
         'tipo_trafo': tipo_tr.loc_name, 'tipo_trafo_nuevo': tipo_nuevo,
         'aviso': aviso or None, 'error_relectura': error or None, 'dibujo': dibujo,
-        'tramo_partido': partido,
+        'tramo_partido': partido, 'cable': con_cable(r['distancia_m']),
     }
 
 
@@ -1056,6 +1098,7 @@ class Diagrama:
     """Símbolos ya dibujados del proyecto, para situar la carga nueva en el unifilar."""
 
     def __init__(self, proyecto):
+        self.proyecto = proyecto
         self.por_obj, self.tamanos = {}, {}
         for grfnet in proyecto.GetContents('*.IntGrfnet', 1):
             for grf in grfnet.GetContents('*.IntGrf'):
@@ -1128,6 +1171,114 @@ class Diagrama:
                     con.SetAttribute(attr, [float(v) for v in valores] + [-1.0] * (largo - 2))
         self._simbolo(grfnet, f'gnoT {sub.loc_name}', 'SecSubProd', sub, destino)
         return {'dibujada': True, 'x': destino[0], 'y': destino[1]}
+
+    def completar(self, app, *, simular: bool = False) -> dict:
+        """Dibuja lo que la red activa tiene con GPS y sin símbolo (016:RF-89).
+
+        ``SplitLine`` y la obra de enlace crean barras y líneas sin símbolo: en IN111 +
+        TA225 (2026-10-16) el enlace por la vía, de 6,3 km y 140 vértices, estaba en «Con
+        proyecto» y no se veía en el diagrama, ni la mitad nueva de cada tramo partido ni
+        su nodo. Se dibujan como el DGS (spec 010): la barra en su punto y la línea por su
+        trazado, con los extremos en sus barras. Los símbolos no van en la variación: en
+        los casos sin ella DIgSILENT los muestra sin datos. Las barras de dentro de una SED
+        y los tramos de 1 m o menos no se dibujan, como en el DGS.
+        """
+        hechos = {'barras': [], 'lineas': []}
+        for b in sorted(app.GetCalcRelevantObjects('*.ElmTerm') or [], key=lambda o: o.loc_name):
+            if clave_pf(b) in self.por_obj or _en_sed(b) or gps_de(b) is None:
+                continue
+            if simular or self._barra(b):
+                hechos['barras'].append(b.loc_name)
+        for ln in sorted(app.GetCalcRelevantObjects('*.ElmLne') or [], key=lambda o: o.loc_name):
+            if clave_pf(ln) in self.por_obj or float(getattr(ln, 'dline', 0) or 0) * 1000.0 <= 1.0:
+                continue
+            if simular or self._linea(ln):
+                hechos['lineas'].append(ln.loc_name)
+        return hechos
+
+    def _referencias(self):
+        """(GPS, posición, diagrama) de lo dibujado, leído una vez."""
+        if getattr(self, '_refs', None) is None:
+            self._refs = [(gps, (grf.rCenterX, grf.rCenterY), net)
+                          for grf, net, obj in self.por_obj.values()
+                          for gps in [gps_de(obj)] if gps is not None]
+        return self._refs
+
+    def _al_diagrama(self, punto):
+        """Terreno → diagrama alrededor de ``punto`` y el diagrama de lo más cercano."""
+        refs = self._referencias()
+        if not refs:
+            return None, None
+        net = min(refs, key=lambda r: distancia_m(r[0], punto))[2]
+        escala = self._escala(punto)
+        if escala is None:
+            return None, None
+        return (lambda q: escala(*a_metros(punto, q))), net
+
+    def _registrar(self, grf, net, obj):
+        self.por_obj[clave_pf(obj)] = (grf, net, obj)
+        gps = gps_de(obj)
+        if gps is not None and getattr(self, '_refs', None) is not None:
+            self._refs.append((gps, (grf.rCenterX, grf.rCenterY), net))
+
+    def _barra(self, barra) -> bool:
+        punto = gps_de(barra)
+        mapa, net = self._al_diagrama(punto)
+        if mapa is None:
+            return False
+        grf = self._simbolo(net, f'G_{barra.loc_name}', 'PointTerm', barra, mapa(punto))
+        self._registrar(grf, net, barra)
+        return True
+
+    def _linea(self, linea) -> bool:
+        from igea_dgs.dgs import PUNTOS_POR_CONECTOR_PF, _line_irot, _puntos_que_dan_la_forma
+
+        if hasattr(linea, 'bus1'):
+            cubiculos = [getattr(linea, 'bus1', None), getattr(linea, 'bus2', None)]
+        else:       # el doble de las pruebas: los cubículos del proyecto que la apuntan
+            cubiculos = sorted((c for c in self.proyecto.GetContents('*.StaCubic', 1)
+                                if getattr(c, 'obj_id', None) is linea),
+                               key=lambda c: getattr(c, 'obj_bus', 0))
+        extremos = [c.cterm for c in cubiculos if c is not None and getattr(c, 'cterm', None) is not None]
+        if len(extremos) != 2:
+            return False
+        trazado = list(trazado_de(linea)) or [g for g in map(gps_de, extremos) if g is not None]
+        if len(trazado) < 2:
+            return False
+        medio = trazado[len(trazado) // 2]
+        mapa, net = self._al_diagrama(medio)
+        if mapa is None:
+            return False
+        camino = [mapa(q) for q in trazado]
+        # Los extremos, en el símbolo de cada barra; el trazado puede ir de bus2 a bus1.
+        pos = [self._pos(b)[0] or mapa(gps_de(b) or trazado[0]) for b in extremos]
+        def d2(a, b):
+            return (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2
+        if d2(camino[0], pos[0]) + d2(camino[-1], pos[1]) > d2(camino[0], pos[1]) + d2(camino[-1], pos[0]):
+            pos.reverse()
+        camino[0], camino[-1] = pos[0], pos[1]
+        if len(camino) == 2:
+            camino.insert(1, ((camino[0][0] + camino[1][0]) / 2, (camino[0][1] + camino[1][1]) / 2))
+        mitad = len(camino) // 2
+        centro = camino[mitad]
+        grf = self._simbolo(net, f'G_{linea.loc_name}', 'd_lin', linea, centro, _line_irot(camino))
+        for nr, puntos in ((0, list(reversed(camino[:mitad + 1]))), (1, camino[mitad:])):
+            puntos = _puntos_que_dan_la_forma(puntos, PUNTOS_POR_CONECTOR_PF)
+            con = grf.CreateObject('IntGrfcon', nombre_pf(f'GCO_{nr + 1}_{linea.loc_name}'))
+            con.iDatConNr = nr
+            largo = con.GetAttributeLength('rX') or PUNTOS_POR_CONECTOR_PF
+            for attr, valores in (('rX', [p[0] for p in puntos]), ('rY', [p[1] for p in puntos])):
+                con.SetAttribute(attr, [float(v) for v in valores] + [-1.0] * (largo - len(valores)))
+        self._registrar(grf, net, linea)
+        return True
+
+
+def completar_diagrama(app, proyecto) -> dict:
+    """016:RF-89 con el caso activo; un fallo del dibujo no tumba lo que ya se creó."""
+    try:
+        return Diagrama(proyecto).completar(app)
+    except Exception as exc:  # noqa: BLE001 - sin dibujo la red calcula igual
+        return {'error': f'{type(exc).__name__}: {exc}'}
 
 
 # =========================================================================== variación
@@ -1346,7 +1497,8 @@ def _crearian(r: dict, variacion: str) -> dict:
     return {'sed': r['fila']['sed'], 'barra': r['barra'].loc_name, 'criterio': r['criterio'],
             'tramo': partir['tramo'] if partir else None, 'parte': bool(partir),
             'fraccion': round(partir['fraccion'], 4) if partir else None,
-            'distancia_m': r['distancia_m'], 'tipo_linea': getattr(r['tipo'], 'loc_name', None),
+            'distancia_m': r['distancia_m'], 'cable': con_cable(r['distancia_m']),
+            'tipo_linea': getattr(r['tipo'], 'loc_name', None),
             'origen_tipo_linea': r['origen_tipo'] or None, 'tension_mt_kv': r['tension_mt_kv'],
             'tension_bt_kv': r['tension_bt_kv'], 'variacion': variacion, 'nota': r.get('nota')}
 
@@ -1612,6 +1764,8 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
             # proyecto», también si no se creó ninguna otra.
             for v in reutilizadas:
                 v.Activate()
+            if informe['cargas'] or reutilizadas:
+                informe['dibujo'] = completar_diagrama(app, proyecto)       # 016:RF-89
             if inicial is not None:
                 inicial.Activate()
         informe['variaciones_activas_fin'] = variaciones_activas(app)

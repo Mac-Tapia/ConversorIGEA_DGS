@@ -245,7 +245,8 @@ def test_tipo_de_linea_de_la_fila_o_de_la_red(guion):
     la barra. Nunca un tipo nuevo con R y X a cero."""
     app = fake_pf.proyecto()
     b = next(x for x in app.proyecto.GetContents('*.ElmTerm', 1) if x.loc_name == 'F1_B1')
-    cerca = dict(lat=b.GPSlat + 0.0002, lon=b.GPSlon)
+    # A unos 44 m: a 25 m o menos no hay cable ni, por tanto, tipo de línea (016:RF-88).
+    cerca = dict(lat=b.GPSlat + 0.0004, lon=b.GPSlon)
     plan = _plan(['F1'], nuevas=[_nueva('N1', tipo_linea='AAAC_F2', **cerca),
                                  _nueva('N2', tipo_linea='NO_EXISTE', **cerca)])
     informe, rc = guion.ejecutar(app, plan, simular=False)
@@ -282,7 +283,7 @@ def test_carga_nueva_escrita_como_demanda_y_dibujada(guion):
     """004:RF-14 — P y cos φ de entrada (modo PC), releída, y en el diagrama de su barra."""
     app = fake_pf.proyecto()
     b = next(x for x in app.proyecto.GetContents('*.ElmTerm', 1) if x.loc_name == 'F1_B2')
-    plan = _plan(['F1'], nuevas=[_nueva('N1', kw=120, kvar=-40, lat=b.GPSlat + 0.0002, lon=b.GPSlon)])
+    plan = _plan(['F1'], nuevas=[_nueva('N1', kw=120, kvar=-40, lat=b.GPSlat + 0.0004, lon=b.GPSlon)])
     informe, rc = guion.ejecutar(app, plan, simular=False)
     assert rc == 0, informe
     _ver_cargas(app)

@@ -184,3 +184,45 @@ def test_las_cargas_se_miden_con_el_escenario_encendido(guion, monkeypatch):
     assert len(medidas) == 2 and medidas == ['Con proyecto', 'Con proyecto']
     assert flujos and flujos[-1] == 'Con proyecto'
     assert app.GetActiveScenario() is not None
+
+
+@pytest.mark.parametrize('dlat, cable', [(0.0005, True), (0.0001, False)])
+def test_cable_hasta_la_carga_solo_a_mas_de_25_m(guion, dlat, cable):
+    """016:RF-88 — la carga parte el tramo con su nodo de media; a unos 55 m de él lleva cable
+    hasta su punto, al lado de alta de la SED; a unos 11 m la SED cuelga del nodo, sin cable."""
+    app = _app(alimentadores=('F1',))
+    plan = _plan(['F1'], nuevas=[_nueva('N1', alimentador='F1', **_centro_de_l2(dlat))])
+    simulado, rc = guion.ejecutar(app, plan, simular=True)
+    assert rc == 0 and simulado['feeders'][0]['crearian'][0]['cable'] is cable
+    informe, rc = guion.ejecutar(app, plan, simular=False)
+    assert rc == 0, informe
+    (creada,) = informe['feeders'][0]['creadas']
+    assert creada['barra'] == 'NODE_T_N1' and creada['cable'] is cable
+    _ver(app, creada['variacion'])
+    assert ('LNE_N1' in _lineas(app)) is cable
+    nodo = _barra(app, 'NODE_N1' if cable else 'NODE_T_N1')
+    seccionador = [c.obj_id for c in nodo.GetContents('*.StaCubic') if c.loc_name == 'Cub1_SW_N1']
+    assert [s.loc_name for s in seccionador] == ['SW_N1']
+
+
+def test_lo_que_parte_la_carga_queda_dibujado(guion):
+    """016:RF-89 — la mitad nueva del tramo y su nodo, sin símbolo tras ``SplitLine``, quedan
+    dibujados en el diagrama con «Con proyecto» activo: la mitad por su trazado, con los
+    extremos en el símbolo de sus barras (IN111 + TA225, 2026-10-16: no se veían)."""
+    app = _app(alimentadores=('F1',))
+    informe, rc = guion.ejecutar(app, _plan(['F1'], nuevas=[_nueva('N1', alimentador='F1',
+                                                                    **_centro_de_l2())]),
+                                 simular=False)
+    assert rc == 0, informe
+    assert {'NODE_T_N1', 'F1_L2(1)'} <= set(informe['dibujo']['barras'] + informe['dibujo']['lineas'])
+    _ver(app, informe['feeders'][0]['creadas'][0]['variacion'])
+    simbolos = {g.pDataObj.loc_name: g for g in app.proyecto.GetContents('*.IntGrf', 1)
+                if getattr(g, 'pDataObj', None) is not None}
+    assert simbolos['NODE_T_N1'].sSymNam == 'PointTerm'
+    mitad = simbolos['F1_L2(1)']
+    assert mitad.sSymNam == 'd_lin'
+    fines = sorted((round(c.rX[[x for x in c.rX].index(-1.0) - 1 if -1.0 in c.rX else -1], 3))
+                   for c in mitad.GetContents('*.IntGrfcon'))
+    nodo, b2 = simbolos['NODE_T_N1'].rCenterX, simbolos['F1_B2'].rCenterX
+    assert fines == sorted([round(nodo, 3), round(b2, 3)])
+    assert nodo == pytest.approx((simbolos['F1_B1'].rCenterX + b2) / 2, abs=0.5)

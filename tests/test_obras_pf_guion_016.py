@@ -201,6 +201,34 @@ def test_enlace_parte_un_tramo_llega_a_una_barra_y_queda_abierto(semilla):
     assert _linea(app, 'F1_L2').dline == pytest.approx(1.0) and nueva not in _barras(app, 'F1')
 
 
+def test_el_enlace_queda_dibujado():
+    """016:RF-89 — el enlace, la mitad del tramo que parte y su nodo quedan dibujados en el
+    diagrama, con los extremos del enlace en el símbolo de sus barras (IN111 + TA225,
+    2026-10-16: el enlace estaba en «Con proyecto» y no se veía)."""
+    app, alims = _dos_alimentadores(61)
+    # El diagrama del doble no sigue al GPS entre alimentadores (Y crece hacia el sur); el
+    # del DGS sí, y de él sale la escala: 1 unidad por cada 10 m.
+    for g in app.proyecto.GetContents('*.IntGrf', 1):
+        b = getattr(g, 'pDataObj', None)
+        if b is not None and cargas.gps_de(b) is not None:
+            g.rCenterX, g.rCenterY = (v / 10.0 for v in cargas.a_metros((-14.0, -75.7), cargas.gps_de(b)))
+    informe, codigo = guion.aplicar(app, _plan(alims, obras=[_enlace()]))
+    assert codigo == 0, informe
+    nueva = informe['obras'][0]['enlace']['origen']['barra_final']
+    assert {'Enlace_F1_F2', 'F1_L2(1)'} <= set(informe['dibujo']['lineas'])
+    assert nueva in informe['dibujo']['barras']
+    _activas(app, CON)
+    simbolos = {g.pDataObj.loc_name: g for g in app.proyecto.GetContents('*.IntGrf', 1)
+                if getattr(g, 'pDataObj', None) is not None}
+    fines = set()
+    for con in simbolos['Enlace_F1_F2'].GetContents('*.IntGrfcon'):
+        xs = [x for x in con.rX if x != -1.0]
+        ys = [y for y in con.rY if y != -1.0]
+        fines.add((round(xs[-1], 3), round(ys[-1], 3)))
+    assert fines == {(round(simbolos[b].rCenterX, 3), round(simbolos[b].rCenterY, 3))
+                     for b in (nueva, 'F2_B2')}
+
+
 def test_el_origen_solo_donde_la_tension_lo_permite():
     """016:RF-26 — con F1_B2 por debajo del límite, los tramos que tocan esa barra no son
     candidatos: el enlace sale del punto válido más cercano, la barra F1_B1."""

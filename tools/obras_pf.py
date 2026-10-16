@@ -64,7 +64,7 @@ from typing import Any, Callable
 from ajuste_cabecera_pf import diagnostico
 from cargas_pf import (
     Alimentadores, activar_proyecto, cabecera_de, clave_pf, crear_variacion, error_inesperado, es_cable,
-    flujo_de_carga, gps_de, leer_red, medir_estado, nombre_libre, nombre_pf, partir_tramo,
+    completar_diagrama, flujo_de_carga, gps_de, leer_red, medir_estado, nombre_libre, nombre_pf, partir_tramo,
 )
 from casos_pf import (
     NOMBRES, casos_del_proyecto, crear_con_proyecto, es_de_carga_nueva,
@@ -1221,6 +1221,11 @@ def aplicar(app, plan: dict, *, simular: bool = False,
         informe['obras'] = [fila for _, (_, fila) in sorted(hechas, key=lambda h: h[0])]
         if antes['converged']:
             _comprobar_sin_proyecto(app, casos, alims, feeders, antes, informe)
+        if 'con' in casos and any(f.get('variacion') for f in informe['obras']):
+            # 016:RF-89: el enlace y las mitades de un tramo partido, en el diagrama; en
+            # «Con proyecto», que tiene también las obras de «Sin proyecto».
+            casos['con'].Activate()
+            informe['dibujo'] = completar_diagrama(app, proyecto)
     finally:
         if inicial is not None and app.GetActiveStudyCase() is not inicial:
             inicial.Activate()
