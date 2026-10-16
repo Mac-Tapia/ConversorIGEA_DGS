@@ -84,6 +84,9 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 - [ ] T14. Prueba en DIgSILENT: informe de factibilidad de una carga nueva del libro de
       cargas nuevas, con AD08 V4.
       Hecho cuando: el usuario da por bueno el `.docx`.
+      Pendiente aparte (usuario, 2026-10-16): es otro análisis, el punto de diseño de una
+      carga nueva ingresada sola en 3.2, no las del libro en bloque. La prueba de estudio
+      con IN111 + TA225 se cerró sin ella.
 - [ ] T15. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
       Hecho cuando: `grep -rnoE "017:RF-[0-9]+" tests | sort -u` lista todos los RF.
 
