@@ -67,11 +67,22 @@ trabajo:
 3. **3 · Integración de nuevas**: verificar que el flujo converge y, sobre esa red,
    integrar demandas en bloque, una carga nueva y cargas nuevas en bloque. Las cargas
    nuevas nacen solo en «Con proyecto», una variación por carga y sin duplicarlas al
-   repetir (specs 007 y 014). Las tres son optativas; aplicar exige que el último flujo
-   del proyecto haya convergido, y simular no escribe nada.
+   repetir (specs 007 y 014). Cada carga va en sus coordenadas UTM y se conecta en el
+   punto más cercano de la red de media de su alimentador, partiendo el tramo, con su
+   propia línea hasta su punto si queda lejos (spec 016, RF-77 y RF-78). Las tres son
+   optativas; aplicar exige que el último flujo del proyecto haya convergido, y simular
+   no escribe nada.
 4. **4 · Obras y estudios**: obras de mejora, estudios con los módulos nativos de
    DIgSILENT, guiones del operador y transferencia de carga entre dos alimentadores,
-   sobre «Sin proyecto» y «Con proyecto» (spec 011).
+   sobre «Sin proyecto» y «Con proyecto» (spec 011). Entre las obras: una terna más,
+   el enlace con otro alimentador (trazado por la vía pública con OpenStreetMap si el
+   perfil lo habilita) y la migración a otra tensión desde un nodo, que cierra el enlace
+   que llega a la parte que pasa (spec 016). Cada obra va en su variación, con fecha de
+   activación propia: DIgSILENT no aplica tres o más etapas de la misma fecha.
+5. **4.4 · Informes**: el informe de estudio, con las obras en etapas (bancos,
+   reguladores, conductor, refuerzo de la red con ternas y enlaces, migración), se arma
+   con lo ya ejecutado desde la web; el de factibilidad y punto de diseño es un análisis
+   aparte, de una carga nueva ingresada sola (spec 017).
 
 El detalle, con los guiones que hay detrás, está en `docs/MANUAL_COMANDOS.md` (7.ter).
 
@@ -84,6 +95,10 @@ los ejemplos de `config/` y se rellenan en local, fuera de git:
   DIgSILENT donde quedan los proyectos importados (spec 005).
 - `config/demanda_medida_alias.json`: otros nombres de columna de los libros de medición.
 - `config/line_type_aliases.json`: equivalencias de tipos de línea, revisadas a mano.
+- Clave `vias` del perfil: el enrutador con que el enlace se traza por la vía pública
+  (OSRM sobre OpenStreetMap en el perfil de Electro Dunas). Solo se envían las
+  coordenadas de los dos extremos del enlace; sin la clave, el enlace va en recta y no
+  sale nada del equipo (spec 016, RF-81 a RF-87).
 
 La spec 002 llevará al perfil de empresa también el CRS de origen, el patrón de las SED
 de medición y la escala del diagrama, que hoy todavía tienen un valor por defecto.
@@ -211,6 +226,8 @@ La fuente de verdad para cada conversión es:
 | Base de datos SQL/Access | No aplica — `BD_Equipo` es TXT |
 | Aceptación en PowerFactory | Requiere PF + importar el `.dgs` |
 | Cargas, calibración, estudios y obras en PowerFactory | Implementado (specs 004 a 008, 011, 014, 015); falta la prueba en DIgSILENT de varias specs |
+| Troncal, enlace, migración y cargas en un tramo (spec 016) | Cumplida: probada en DIgSILENT con IN111 + TA225 el 2026-10-16 («Con proyecto» converge con 9 cargas, enlace por la vía, migración y segunda terna) |
+| Informes de estudio y factibilidad (spec 017) | Estudio probado con IN111 y TA225; factibilidad pendiente, con otro alimentador |
 | Arquitectura por capas (spec 002) | Pendiente: aprobada, sin hacer |
 | Confiabilidad y capacidad (spec 012) | En curso: T1–T2 de 13 |
 

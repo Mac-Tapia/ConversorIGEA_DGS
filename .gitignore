@@ -85,3 +85,9 @@ config/perfil_empresa.json
 # empresa, viven en local. Se versionan solo los ``*.example.json``.
 config/line_type_aliases.json
 config/demanda_medida_alias.json
+
+# Instantáneas del navegador de las pruebas desde la web (Playwright).
+.playwright-mcp/
+# Informes y modelos de la distribuidora: no se suben (constitución P9).
+referencia/*.doc
+referencia/*.docx
