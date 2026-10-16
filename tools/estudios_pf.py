@@ -58,8 +58,8 @@ import traceback
 from pathlib import Path
 
 from cargas_pf import (
-    Alimentadores, _num, activar_proyecto, crear_variacion, error_inesperado, flujo_de_carga,
-    leer_cabecera, potencia, variaciones_activas,
+    Alimentadores, _num, activar_proyecto, cabecera_de, crear_variacion, error_inesperado,
+    flujo_de_carga, gps_de, leer_cabecera, potencia, trazado_de, variaciones_activas,
 )
 from casos_pf import NOMBRES, casos_del_proyecto
 
@@ -174,6 +174,40 @@ def medida(elm, app=None) -> dict:
                 if cab.kvar is not None:
                     out['perdidas_kvar'] = cab.kvar - sum(q for _, q in consumos)
     return out
+
+
+def geografia(elm, app=None) -> dict:
+    """Barras y tramos con su GPS y su resultado del flujo, para las imágenes del informe.
+
+    DIgSILENT sin ventana no dibuja (``WriteWMF`` vacío), así que el informe de estudio
+    dibuja el alimentador con esto (017:RF-11b): ``barras`` ``[nombre, lat, lon, u, kv]``
+    y ``tramos`` ``[nombre, [[lat, lon], ...], carga_%]``. Con ``app``, toda la red
+    calculable, como :func:`medida`.
+    """
+    def objetos(clase):
+        return list(app.GetCalcRelevantObjects(f'*.{clase}')) if app is not None else list(elm.GetObjs(clase))
+
+    barras = []
+    for b in objetos('ElmTerm'):
+        g = gps_de(b)
+        if g is not None:
+            u = _num(b, 'm:u')
+            barras.append([b.loc_name, round(g[0], 7), round(g[1], 7),
+                           None if u is None else round(u, 4), float(getattr(b, 'uknom', 0) or 0)])
+    tramos = []
+    for ln in objetos('ElmLne'):
+        puntos = trazado_de(ln)
+        if not puntos:
+            extremos = [gps_de(getattr(getattr(ln, c, None), 'cterm', None))
+                        for c in ('bus1', 'bus2')]
+            puntos = tuple(p for p in extremos if p is not None)
+        if len(puntos) >= 2:
+            carga = _num(ln, 'c:loading')
+            tramos.append([ln.loc_name, [[round(a, 7), round(o, 7)] for a, o in puntos],
+                           None if carga is None else round(carga, 2)])
+    cabecera = cabecera_de(elm) if elm is not None else None
+    return {'barras': sorted(barras), 'tramos': sorted(tramos, key=lambda t: t[0]),
+            'cabecera': getattr(cabecera, 'loc_name', None)}
 
 
 def medidas(alims: Alimentadores, feeders: list[str], converge: bool) -> dict:
@@ -445,6 +479,11 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
             informe['medidas'] = medidas(alims, feeders, flujo['converged'])
             if not flujo['converged']:
                 informe['avisos'].append('El flujo desequilibrado no converge.')
+        if estudio in ('flujo', 'flujo_desequilibrado') and flujo['converged']:
+            # 017:RF-11b: la geografía con los resultados, para las imágenes del informe.
+            todo = alims.app if len(alims.elm) == 1 else None
+            informe['geo'] = {f: geografia(alims.elm[f], todo) for f in feeders
+                              if alims.elm.get(f) is not None}
         elif estudio == 'contingencias':
             motivo = _contingencias(app, plan, alims, feeders, informe)
             informe['medidas'] = base

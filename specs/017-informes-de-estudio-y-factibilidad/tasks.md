@@ -17,10 +17,16 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 - [x] T3. `informes.py`: redacción de análisis, conclusiones, antecedentes, descripción y
       transformador. (RF-20 a RF-22, RF-50, RF-107, RF-108, RF-121, RF-122)
       Hecho cuando: `pytest -q tests/test_informes.py` en verde.
-- [ ] T4. Sonda en DIgSILENT (solo lectura, sobre un proyecto ya importado): exportar el
+- [x] T4. Sonda en DIgSILENT (solo lectura, sobre un proyecto ya importado): exportar el
       diagrama geográfico de CA101 a PNG con el coloreado por tensión y restaurar el
       coloreado. Anotar en el plan qué llamadas sirven. (RF-10, RF-11, RF-116)
       Hecho cuando: hay un PNG legible a 150 ppp y el plan lo anota.
+      Resultado (2026-10-15): con el motor sin ventana `WriteWMF` deja un fichero vacío,
+      así que no hay imagen de DIgSILENT que exportar (RF-11b). Las imágenes se dibujan con
+      `src/igea_dgs/mapa_informe.py` desde el GPS de barras y tramos y los resultados del
+      flujo que guarda `tools/estudios_pf.py` (`geo`), a 250 ppp con las bandas del perfil.
+      En CA101: 6 imágenes (ubicación, tensión y cargabilidad, actual y proyectado) en el
+      informe generado desde la web.
 - [ ] T5. `src/igea_dgs/libros_informe.py`: libro de pérdidas y tabla de costes, y
       `config/costes_referenciales.example.json` con precios de la web y su fuente. (RF-39b a
       RF-39e, RF-40c, RF-61 a RF-64)

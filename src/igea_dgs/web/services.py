@@ -3213,6 +3213,26 @@ def informe_estudio(ws: Workspace, ctx: JobContext | None, formulario: dict) -> 
                             destinatario=str(formulario.get('destinatario') or ''),
                             lugar=str(formulario.get('lugar') or ''))
     imagenes = formulario.get('imagenes') or {}
+    # 017:RF-11b: sin imágenes del formulario, las dibuja la web con la geografía y los
+    # resultados que guardó el flujo de cada caso (DIgSILENT sin ventana no dibuja).
+    from ..mapa_informe import MapaError, imagenes_del_estado
+
+    for clave, estudio, estado in (('actual', sin, 'estado actual'),
+                                   *(((etapas[0].clave, con, 'estado proyectado'),)
+                                     if etapas else ())):
+        geo = ((estudio or {}).get('geo') or {}).get(alimentador)
+        if clave in imagenes or not geo:
+            continue
+        try:
+            rutas = imagenes_del_estado(
+                geo, ws.out_dir / 'imagenes_informe', f'{nombre_seguro(alimentador)}_{clave}',
+                estado=estado, alimentador=alimentador,
+                bandas_tension=config.bandas_tension_pct, bandas_carga=config.bandas_cargabilidad_pct)
+        except MapaError as exc:
+            if ctx is not None:
+                ctx.log(f'Sin imágenes del {estado}: {exc}')
+            continue
+        imagenes[clave] = {k: str(v) for k, v in rutas.items()}
     datos = DatosEstudio(alimentadores=[alimentador], encabezado=encabezado, actual=actual, etapas=etapas,
                          imagenes={k: {i: Path(r) if r else None for i, r in v.items()}
                                    for k, v in imagenes.items()},

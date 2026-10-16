@@ -11,6 +11,8 @@
   "_comentario_informes": "Bandas del coloreado de sus informes (spec 017, RF-115), las del modelo EMAPICA: tensión en % de la nominal y cargabilidad en %. Los modelos .docx, el libro de pérdidas y el proyecto de transmisión van en el perfil local, porque son ficheros y proyectos de la máquina.",
   "_comentario_calibracion": "Factor de potencia de las SED escaladas al calibrar a la máxima de cabecera (spec 015, RF-54), pedido el 2026-10-15. Las fijas conservan el de su EA/ERI de la tabla cruzada (RF-53).",
   "_comentario_fijas": "Factor de potencia mínimo de los clientes fijos (spec 015, RF-62): por debajo, se suponen compensados por su banco propio hasta este valor; pedido el 2026-10-15.",
+  "_comentario_estudios": "Límites de los estudios y del informe (spec 011 y 017): NTCSE, ±5 % de la tensión nominal y cargabilidad hasta el 100 %.",
+  "estudios": {"tension_min_pu": 0.95, "tension_max_pu": 1.05, "cargabilidad_max_pct": 100},
   "calibracion": {"factor_potencia_cargas": 0.98, "factor_potencia_minimo_fijas": 0.98},
   "informes": {
     "bandas_tension_pct": [85, 90, 95, 105],
