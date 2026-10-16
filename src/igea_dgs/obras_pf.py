@@ -473,8 +473,10 @@ def resumen_tipo(clase: str, datos: Mapping[str, Any]) -> str:
 def mismos_datos(a: Mapping[str, Any], b: Mapping[str, Any]) -> bool:
     """Dos tipos son el mismo si tienen los mismos datos.
 
-    Los números se comparan con tolerancia relativa de 1e-9: DIgSILENT guarda en doble
-    precisión y una lectura puede no devolver el mismo último bit que se escribió.
+    Los números se comparan con tolerancia relativa de 1e-6: DIgSILENT guarda algunos en
+    simple precisión. IN111 + TA225 (2026-10-15): ``uline`` de un TypLne escrito a 22.9 se
+    leía 22.899999618…, y con 1e-9 la migración tomaba por distintos los tipos de 22,9 kV
+    ya importados, hacía copias «_2» y rechazaba la suya propia.
     """
     if set(a) != set(b):
         return False
@@ -482,7 +484,7 @@ def mismos_datos(a: Mapping[str, Any], b: Mapping[str, Any]) -> bool:
         y = b[clave]
         if isinstance(x, (int, float)) and isinstance(y, (int, float)) \
                 and not isinstance(x, bool) and not isinstance(y, bool):
-            if not math.isclose(x, y, rel_tol=1e-9, abs_tol=1e-9):
+            if not math.isclose(x, y, rel_tol=1e-6, abs_tol=1e-9):
                 return False
         elif x != y:
             return False

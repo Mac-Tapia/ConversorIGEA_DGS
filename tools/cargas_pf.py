@@ -1118,6 +1118,26 @@ class Diagrama:
 
 
 # =========================================================================== variación
+#: Las etapas del conversor van, en segundos, entre la hora del estudio menos esto y ella.
+VENTANA_ETAPAS_S = 1_000_000
+
+
+def fecha_de_etapa_nueva(carpeta, hora_estudio: int) -> int:
+    """La fecha de activación de una etapa nueva: la siguiente libre antes del estudio.
+
+    Con tres o más etapas activas de la misma fecha, DIgSILENT no aplica ninguna, y sin
+    avisar: IN111 + TA225 (2026-10-15, sonda en el proyecto), con las nueve cargas nuevas
+    de TA225 en la fecha del estudio, «Con proyecto» calculaba sin ninguna carga ni obra;
+    con dos, sí entraban. Cada etapa toma su segundo, en el orden en que se crea, de modo
+    que la más nueva (una obra sobre las cargas) se aplica la última, y todas antes de la
+    hora del estudio para que estén activas.
+    """
+    desde = hora_estudio - VENTANA_ETAPAS_S
+    usadas = [int(s.tAcTime) for v in (carpeta.GetContents('*.IntScheme', 1) if carpeta else [])
+              for s in v.GetContents('*.IntSstage') if desde <= int(s.tAcTime) < hora_estudio]
+    return min(max(usadas) + 1, hora_estudio - 1) if usadas else desde
+
+
 def crear_variacion(app, nombre_base: str, etiqueta_etapa: str):
     """Variación nueva con nombre libre y una etapa que **graba** (RF-3, RF-4)."""
     carpeta = app.GetProjectFolder('scheme')
@@ -1126,7 +1146,7 @@ def crear_variacion(app, nombre_base: str, etiqueta_etapa: str):
     if variacion is None:
         raise RuntimeError(f'no se pudo crear la variación {nombre}')
     caso = app.GetActiveStudyCase()
-    instante = int(getattr(caso, 'iStudyTime', 0) or 0)
+    instante = fecha_de_etapa_nueva(carpeta, int(getattr(caso, 'iStudyTime', 0) or 0))
     nombre_etapa = nombre_pf(f'Etapa_{etiqueta_etapa}')
     # NewStage(…, 1) activa la variación y deja la etapa grabando; devuelve un entero.
     variacion.NewStage(nombre_etapa, instante, 1)
@@ -1148,8 +1168,11 @@ def crear_variacion(app, nombre_base: str, etiqueta_etapa: str):
             v.Activate()
     if etapa is None or not _misma(app.GetRecordingStage(), etapa):
         # Activa y vacía, se sumaría a las etapas de la misma fecha que ya impidieron grabar
-        # y el siguiente intento fallaría igual.
+        # y el siguiente intento fallaría igual. Inactiva tampoco sirve: la obra de enlace
+        # de IN111 + TA225 (2026-10-15) se negaba a repetirse porque «ya hay una» con ese
+        # nombre; vacía no guarda nada del operador y se borra.
         variacion.Deactivate()
+        variacion.Delete()
         detalle = (': DIgSILENT no la deja grabar con estas variaciones activas en la misma '
                    'fecha; desactive las que no hagan falta y repita: '
                    + ', '.join(v.loc_name for v in otras)) if otras else ''

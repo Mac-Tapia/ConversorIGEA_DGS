@@ -909,7 +909,7 @@ def test_etapa_empatada_graba_con_las_demas_activas(guion):
     assert base in app.variaciones_activas and variacion in app.variaciones_activas
 
 
-def test_etapa_que_no_graba_nombra_las_variaciones(guion):
+def test_etapa_que_no_graba_nombra_las_variaciones(guion, monkeypatch):
     """006:RF-19 — si DIgSILENT sigue sin dejar grabar la etapa nueva, no se escribe nada, la
     variación vacía no se queda activa y el error nombra las variaciones con las que choca.
 
@@ -930,10 +930,29 @@ def test_etapa_que_no_graba_nombra_las_variaciones(guion):
         return r
 
     object.__setattr__(rebelde, 'Activate', activa)
+    # Con fechas escalonadas ya no empatan; se fuerza el empate para probar el error.
+    monkeypatch.setattr(cargas_pf, 'fecha_de_etapa_nueva', lambda *_a: 0)
     with pytest.raises(RuntimeError, match='Ajuste_F1_20261009_160119') as exc:
         cargas_pf.crear_variacion(app, 'Carga_N1_F1', 'n1')
     assert 'no quedó grabando' in str(exc.value)
     assert [v.loc_name for v in app.variaciones_activas] == ['Ajuste_F1_20261009_160119']
+
+
+def test_etapas_nuevas_con_fecha_propia_antes_del_estudio(guion):
+    """016:RF-74 — cada etapa nueva toma la siguiente fecha libre antes de la del estudio.
+
+    IN111 + TA225 (2026-10-15): con tres o más etapas activas de la misma fecha DIgSILENT
+    no aplica ninguna; con fechas propias entran todas y la más nueva se aplica la última.
+    """
+    import cargas_pf
+
+    app = _app()
+    app.caso.iStudyTime = 5_000_000
+    etapas = [cargas_pf.crear_variacion(app, f'Carga_N{i}_F1', f'n{i}')[1] for i in range(4)]
+    fechas = [e.tAcTime for e in etapas]
+    assert fechas == sorted(set(fechas)) and fechas[-1] < 5_000_000
+    assert fechas[0] == 5_000_000 - cargas_pf.VENTANA_ETAPAS_S
+    assert app.GetRecordingStage() is etapas[-1]
 
 
 def _con_escenario_que_manda(**kw):
