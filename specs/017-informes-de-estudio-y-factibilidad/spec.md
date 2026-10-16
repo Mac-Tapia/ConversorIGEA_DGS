@@ -143,7 +143,8 @@ el modelo no se incluyen.
 - RF-32: SI el estado actual no cumple la banda o el umbral, ENTONCES EL SISTEMA evaluará
   las obras en este orden, cada etapa sumada a las anteriores: (1) bancos de
   condensadores existentes, (2) bancos propuestos, (3) reguladores de tensión, (4) cambio
-  de conductor de la troncal, (5) migración a otra tensión.
+  de conductor de la troncal, (5) migración a otra tensión (cambia con RF-126: seis
+  etapas, con el refuerzo de la red entre la (4) y la (5)).
 - RF-33: CUANDO una etapa de RF-32 haga cumplir la banda y el umbral, EL SISTEMA la
   recomendará y no evaluará las siguientes, salvo que el operador pida evaluarlas todas.
 - RF-34: SI ninguna etapa hace cumplir la banda y el umbral, ENTONCES EL SISTEMA lo dirá y
@@ -403,6 +404,11 @@ Apartado 5.1 · Conexión de un cliente nuevo
   trabajo del carril `powerfactory`, antes de generar el informe.
 - RF-125: EL SISTEMA pedirá en 5.1 que el operador confirme si el predio está en el área de
   concesión (RF-122 a).
+- RF-126: EL SISTEMA evaluará como etapa «refuerzo de la red», entre el cambio de
+  conductor y la migración, las obras de una terna más y de enlace activas en «Con
+  proyecto» (usuario, 2026-10-16: «deben ser como etapa refuerzo»; cambia RF-32 y RF-83).
+- RF-127: EL SISTEMA describirá en el informe la terna con sus tramos y el enlace con su
+  largo, su conductor y sus dos extremos.
 
 Apartado 5.2 · Análisis eléctrico
 

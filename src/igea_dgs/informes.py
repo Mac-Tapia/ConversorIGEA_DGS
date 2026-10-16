@@ -317,12 +317,16 @@ class Caso:
 
 # --------------------------------------------------------------------------- etapas
 #: Etapas de obras del informe de estudio, en el orden de RF-32.
-ETAPAS = ('bancos_existentes', 'bancos_nuevos', 'reguladores', 'conductor', 'migracion')
+# RF-126 (usuario, 2026-10-16): la terna y el enlace son la etapa de refuerzo de la red,
+# entre el cambio de conductor y la migración.
+ETAPAS = ('bancos_existentes', 'bancos_nuevos', 'reguladores', 'conductor', 'refuerzo',
+          'migracion')
 NOMBRE_ETAPA = {
     'bancos_existentes': 'Bancos de condensadores existentes',
     'bancos_nuevos': 'Bancos de condensadores propuestos',
     'reguladores': 'Reguladores de tensión',
     'conductor': 'Cambio de conductor de la troncal',
+    'refuerzo': 'Refuerzo de la red (ternas y enlaces)',
     'migracion': 'Migración a otra tensión',
 }
 
@@ -610,15 +614,25 @@ def describir_obra(obra: Mapping[str, Any]) -> str:
         if obra.get('km') is None:
             return f'Renovar la troncal con conductor {obra["conductor"]}.'
         return f'Renovar {numero(obra["km"], 2)} km de la troncal con conductor {obra["conductor"]}.'
+    if tipo == 'terna':                                                    # RF-127
+        tramos = list(obra.get('tramos') or [])
+        donde = f'los tramos {", ".join(tramos)}' if tramos else 'toda la troncal'
+        return f'Tender una terna más en {donde} del alimentador {obra.get("alimentador", "")}.'
+    if tipo == 'enlace':
+        via = 'por la vía pública' if obra.get('por_via') else 'en recta (sin trazado por la vía)'
+        return (f'Construir el enlace de {numero(obra["km"], 2)} km con conductor '
+                f'{obra["conductor"]} entre {obra["desde"]} ({obra["recibe"]}) y {obra["hasta"]} '
+                f'({obra["cede"]}), {via}.')
     if tipo == 'migracion':
         return (f'Migrar la troncal a {_g(obra["kv"])} kV y acondicionar {obra["transformadores"]} '
                 f'transformadores de distribución para operar a {_g(obra["kv"])} kV.')
     return str(obra.get('descripcion') or obra)
 
 
-#: Etapa del informe (RF-32) de cada clase de obra de la spec 011; las que no son de
-#: calidad de tensión (reconectador, terna, enlace) no la cambian.
+#: Etapa del informe (RF-32) de cada clase de obra de la spec 011; el reconectador no la
+#: cambia. La terna y el enlace son el refuerzo de la red (RF-126).
 _ETAPA_DE_CLASE = {'condensador': 'bancos_nuevos', 'regulador': 'reguladores', 'seccion': 'conductor',
+                   'terna': 'refuerzo', 'enlace': 'refuerzo',
                    'tension': 'migracion', 'migracion': 'migracion',
                    # 019:RF-12: la consigna de cabecera es regulación de tensión.
                    'consigna': 'reguladores'}
@@ -638,6 +652,18 @@ def obra_para_informe(obra: Mapping[str, Any]) -> dict[str, Any]:
     if clase == 'consigna':
         return {'descripcion': f"Llevar la tensión de la barra de cabecera a "
                                f"{numero(float(obra.get('consigna_pu') or 0), 2)} p.u."}
+    if clase == 'terna':                                                   # RF-127
+        return {'tipo': 'terna', 'tramos': list(obra.get('tramos') or []),
+                'alimentador': obra.get('alimentador', '')}
+    if clase == 'enlace':
+        # El largo, los extremos y el trazado son los de la obra aplicada (017:RF-35).
+        e = obra.get('enlace') or {}
+        return {'tipo': 'enlace', 'km': float(e.get('largo_m') or 0) / 1000.0,
+                'conductor': (obra.get('tipo') or {}).get('nombre', ''),
+                'desde': (e.get('origen') or {}).get('barra_final', ''),
+                'hasta': (e.get('destino') or {}).get('barra_final', ''),
+                'recibe': obra.get('alimentador', ''), 'cede': obra.get('cede', ''),
+                'por_via': bool((e.get('trazado') or {}).get('por_via'))}
     if clase in ('tension', 'migracion'):
         return {'tipo': 'migracion', 'kv': float(obra.get('kv_destino') or 0),
                 'transformadores': obra.get('transformadores', 0)}

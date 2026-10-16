@@ -158,3 +158,9 @@ de RF-25 es el contrato entre las dos mitades.
 - AD08 abierto por otro usuario: RF-70 deja el hueco y el resto del informe sale.
 - Las etapas 4 y 5 necesitan las T6 a T8 de la 016. Hasta entonces, el informe de estudio
   sale con las etapas 1 a 3 y dice que las 4 y 5 no se evaluaron.
+
+## Etapa de refuerzo (RF-126, RF-127, 2026-10-16)
+
+- `src/igea_dgs/informes.py`: `ETAPAS` gana `refuerzo` entre `conductor` y `migracion`;
+  `_ETAPA_DE_CLASE` asigna a ella `terna` y `enlace`; `obra_para_informe` y
+  `describir_obra` describen la terna (tramos) y el enlace (largo, conductor, extremos).

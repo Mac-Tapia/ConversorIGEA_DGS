@@ -129,7 +129,7 @@ def test_troncal_sin_coordenadas(guion):
 
 
 def test_dos_cargas_en_el_mismo_tramo(guion):
-    """016:RF-47, RF-77 — dos cargas en el mismo tramo: la primera lo parte y la segunda se
+    """016:RF-47, 016:RF-77 — dos cargas en el mismo tramo: la primera lo parte y la segunda se
     conecta en su nodo, con su propia línea, sin partir otra vez, y se dice."""
     app = _app(alimentadores=('F1',))
     nuevas = [_nueva('N1', alimentador='F1', lat=LAT + 0.0005, lon=LON0 + 0.0013),
@@ -156,3 +156,31 @@ def test_el_plan_lleva_la_distancia_minima():
                       minima_m=5.0)['minima_m'] == 5.0
     with pytest.raises(LoadTemplateError, match='distancia mínima'):
         armar_plan(project='P', feeders=['A'], demandas=None, nuevas=nuevas, minima_m=-1)
+
+
+def test_las_cargas_se_miden_con_el_escenario_encendido(guion, monkeypatch):
+    """016:RF-79 — las cargas se escriben con el escenario apagado, pero cada medida (la
+    referencia, la de cada carga y el flujo final) se hace con el escenario del caso
+    encendido, que guarda las demandas calibradas; al terminar vuelve a estar activo."""
+    import fake_pf
+
+    app = fake_pf.proyecto(escenario=True)
+    medidas, flujos = [], []
+    medir, fluir = guion.medir_estado, guion.flujo_de_carga
+
+    def medir_con_registro(*a, **k):
+        medidas.append(getattr(app.GetActiveScenario(), 'loc_name', None))
+        return medir(*a, **k)
+
+    def fluir_con_registro(*a, **k):
+        flujos.append(getattr(app.GetActiveScenario(), 'loc_name', None))
+        return fluir(*a, **k)
+
+    monkeypatch.setattr(guion, 'medir_estado', medir_con_registro)
+    monkeypatch.setattr(guion, 'flujo_de_carga', fluir_con_registro)
+    informe, rc = guion.ejecutar(app, _plan(['F1'], nuevas=[_nueva('N1', barra='F1_B2')]),
+                                 simular=False)
+    assert rc == 0, informe
+    assert len(medidas) == 2 and medidas == ['Con proyecto', 'Con proyecto']
+    assert flujos and flujos[-1] == 'Con proyecto'
+    assert app.GetActiveScenario() is not None

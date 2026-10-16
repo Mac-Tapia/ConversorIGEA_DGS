@@ -9,7 +9,7 @@ import pytest
 
 import fake_pf
 from apoyo import cargar_herramienta
-from test_obras_pf_guion import CON, SIN, _activas, _calibrada, _elm, _linea, _plan
+from test_obras_pf_guion import CON, SIN, _activas, _barra, _calibrada, _elm, _linea, _plan
 
 guion = cargar_herramienta('obras_pf.py', 'obras_t6_016', tools_en_path=True)
 cargas = cargar_herramienta('cargas_pf.py', 'cargas_t6_016', tools_en_path=True)
@@ -177,11 +177,12 @@ def test_enlace_parte_un_tramo_llega_a_una_barra_y_queda_abierto(semilla):
     assert enlace['origen']['parte'] and enlace['origen']['tramo'] == 'F1_L2'
     assert enlace['origen']['fraccion'] == pytest.approx(0.5, abs=1e-3)
     assert not enlace['destino']['parte'] and enlace['destino']['barra_final'] == 'F2_B2'
-    assert enlace['largo_m'] == pytest.approx(331.6, abs=1.0)
+    # Haversine (016:RF-82): 0,003° de latitud son 333,6 m.
+    assert enlace['largo_m'] == pytest.approx(333.6, abs=1.0)
 
     _activas(app, CON)
     linea = _linea(app, 'Enlace_F1_F2')
-    assert linea.dline == pytest.approx(0.3316, abs=1e-3)
+    assert linea.dline == pytest.approx(0.3336, abs=1e-3)
     assert linea.typ_id.loc_name == 'AAAC_F1_10kV'          # a la tensión del que recibe (RF-38)
     nueva = enlace['origen']['barra_final']
     assert [tuple(p) for p in linea.GPScoords] == [pytest.approx((-14.0, -75.6985)),
@@ -245,6 +246,37 @@ def test_sin_coordenadas_en_el_que_cede_no_se_crea():
         ln.GPScoords = []
     informe, codigo = guion.aplicar(app, _plan(alims, obras=[_enlace()]))
     assert codigo == 2 and 'indique los dos puntos' in informe['obras'][0]['error']
+
+
+def test_enlace_por_la_via_con_el_enrutador_del_perfil(monkeypatch):
+    """016:RF-81, 016:RF-82, 016:RF-87 — con enrutador en el perfil, la línea del enlace
+    sigue la ruta de la vía (sus vértices en GPScoords) y su largo es el de la ruta con los
+    accesos; el informe de la obra dice el largo por la vía, la recta y el servicio."""
+    import functools
+    import json
+
+    from igea_dgs import vias
+
+    app, alims = _dos_alimentadores(71)
+    curva = [(-14.0, -75.6985), (-14.001, -75.6970), (-14.002, -75.6995), (-14.003, -75.6985)]
+
+    def pedir(_url, _t):
+        return json.dumps({'code': 'Ok', 'routes': [{'distance': 612.0, 'geometry': {
+            'coordinates': [[lon, lat] for lat, lon in curva]}}],
+            'waypoints': [{'distance': 1.0}, {'distance': 2.0}]}).encode()
+
+    monkeypatch.setattr(guion, 'datos_perfil', lambda: {'vias': {'servicio': 'osrm', 'url': 'x'}})
+    monkeypatch.setattr(guion, 'ruta_por_vias', functools.partial(vias.ruta_por_vias, pedir=pedir))
+    informe, codigo = guion.aplicar(app, _plan(alims, obras=[_enlace()]))
+    assert codigo == 0, informe
+    (fila,) = informe['obras']
+    assert fila['enlace']['largo_m'] == pytest.approx(615.0)
+    assert fila['enlace']['trazado']['por_via'] and fila['enlace']['trazado']['servicio'] == 'osrm'
+    assert fila['enlace']['trazado']['recta_m'] == pytest.approx(333.6, abs=1.0)
+    _activas(app, CON)
+    linea = _linea(app, 'Enlace_F1_F2')
+    assert linea.dline == pytest.approx(0.615)
+    assert [tuple(p) for p in linea.GPScoords] == [pytest.approx(p) for p in curva]
 
 
 def test_un_segundo_enlace_entre_los_mismos_no_se_crea():
@@ -316,6 +348,68 @@ def test_enlace_y_migracion_en_la_misma_tanda():
     assert _linea(app, 'F2_L2(1)').typ_id.loc_name == 'AAAC_F2_22_9kV'
     assert _linea(app, 'F2_L2').typ_id.loc_name == 'AAAC_F2_22_9kV'
     assert _linea(app, 'F2_L1').outserv == 1
+
+
+def _anillo(app, f, desde, hasta, nombre):
+    """Un tramo que cierra un anillo entre dos barras del alimentador ``f``."""
+    red = _barra(app, desde).GetParent()
+    ln = red.CreateObject('ElmLne', nombre)
+    ln.typ_id, ln.nlnum, ln.outserv, ln.dline = _linea(app, f'{f}_L1').typ_id, 1, 0, 0.3
+    for lado, b in ((0, _barra(app, desde)), (1, _barra(app, hasta))):
+        cub = b.CreateObject('StaCubic', f'c{lado}_{nombre}')
+        cub.obj_id, cub.obj_bus = ln, lado
+    _elm(app, f)._objs.append(ln)
+    return ln
+
+
+def test_enlace_entre_tensiones_distintas_y_migracion_que_lo_cierra():
+    """016:RF-76, 016:RF-80 — el enlace entre 22,9 kV (F1) y 10 kV (F2) se crea fuera de
+    servicio y se dice; la migración de F2 a 22,9 kV cambia también el tramo que cierra un
+    anillo en la parte que pasa, pone el enlace en servicio y cierra su seccionador."""
+    app, alims = _calibrada(random.Random(75), n_min=2, cargas_min=4)
+    _mover(app, 'F1_B2', -14.007, -75.6985)
+    for b in _elm(app, 'F1').GetObjs('ElmTerm'):
+        b.uknom = 22.9
+    _anillo(app, 'F2', 'F2_B2', 'F2_B4', 'F2_ANILLO')
+    informe, codigo = guion.aplicar(app, _plan(alims, obras=[_enlace(tipo={
+        'nombre': 'AAAC_F1', 'clase': 'TypLne'})]))
+    (enlace,) = informe['obras']
+    assert any('fuera de servicio' in a for a in enlace['avisos']), enlace
+    _activas(app, CON)
+    linea = _linea(app, 'Enlace_F1_F2')
+    assert linea.outserv == 1
+
+    nodo = enlace['enlace']['destino']['barra_final']
+    informe, codigo = guion.aplicar(app, _plan(alims, obras=[_migracion('F2', nodo)]))
+    (migra,) = informe['obras']
+    assert migra['variacion'], (migra.get('error'), migra.get('avisos'))
+    _activas(app, CON)
+    assert _linea(app, 'Enlace_F1_F2').outserv == 0
+    cubiculos = [c for c in app.proyecto.GetContents('*.StaCubic', 1) if c.obj_id is linea]
+    assert [s.on_off for c in cubiculos for s in c.GetContents('*.StaSwitch')] == [1]
+    assert any('cerrado' in a for a in migra['avisos'])
+    assert _uknom(app, 'F2_B2') == 22.9 and _uknom(app, 'F2_B4') == 22.9
+    assert _linea(app, 'F2_ANILLO').typ_id.loc_name.endswith('22_9kV')
+
+
+def test_obra_de_con_proyecto_con_las_cargas_nuevas_apartadas():
+    """016:RF-75 — la obra de «Con proyecto» se graba con las variaciones de cargas nuevas
+    apartadas y estas vuelven a quedar activas; la obra queda en su variación."""
+    app, alims = _calibrada(random.Random(76))
+    _activas(app, CON)
+    carpeta = app.carpetas['scheme']
+    cargas_nuevas = []
+    for k in range(3):
+        v = carpeta.CreateObject('IntScheme', f'Carga_N{k}_F1_20261016_000000')
+        v.NewStage(f'Etapa_N{k}', 1000 + k, 1)
+        cargas_nuevas.append(v.loc_name)
+    obra = {'clase': 'terna', 'alimentador': 'F1', 'casos': [CON], 'tramos': ['F1_L1']}
+    informe, codigo = guion.aplicar(app, _plan(alims, obras=[obra]))
+    assert codigo == 0, informe
+    (fila,) = informe['obras']
+    activas = _activas(app, CON)
+    assert set(cargas_nuevas) <= activas and fila['variacion'] in activas
+    assert _linea(app, 'F1_L1').nlnum == 2
 
 
 # --------------------------------------------------------------------------- T9: orden de los casos

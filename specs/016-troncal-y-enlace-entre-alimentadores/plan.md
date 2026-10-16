@@ -181,3 +181,19 @@ todo en la variación.
   inventadas.
 
 Cada prueba cita `016:RF-n`.
+
+## Trazado del enlace por la vía (RF-81 a RF-87, 2026-10-16)
+
+- `src/igea_dgs/vias.py`, sin DIgSILENT: `ruta_por_vias(a, b, config, pedir=…)` pide a un
+  servidor OSRM (`/route/v1/driving/lon,lat;lon,lat?overview=full&geometries=geojson`)
+  la ruta entre los dos extremos y devuelve los puntos (extremo, ruta, extremo), el largo
+  por la vía más los accesos, la recta, los metros fuera de vía (`waypoints[].distance`)
+  y el servicio. `pedir` se inyecta en las pruebas: ninguna sale a la red.
+- Configuración en el perfil de empresa, clave `vias`: `servicio` (`osrm`), `url`,
+  `perfil` (`driving`), `fuera_de_via_max_m` y `tiempo_max_s`. El de Electro Dunas apunta
+  al servidor público de OSRM sobre OpenStreetMap. Sin la clave, recta y nada sale (RF-86).
+- `tools/obras_pf.py`, `construir_enlace`: el `GPScoords` y el `dline` de la línea salen
+  de la ruta; fallo o sin ruta → recta y aviso (RF-85).
+- Descartado: Overpass para descargar las vías y enrutar en local. Envía igual la caja
+  de coordenadas y obliga a llevar un enrutador propio; OSRM ya devuelve la ruta y la
+  distancia de cada extremo a la vía.

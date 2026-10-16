@@ -418,3 +418,36 @@ def test_caso_desequilibrado_y_sin_convergencia_desde_la_medida():
     assert not Caso.desde_medida('x', {'converge': False}, LIMITES).converge
     sin_kvar = Caso.desde_medida('x', {**MEDIDA, 'perdidas_kvar': None}, LIMITES)
     assert sin_kvar.perdidas is None and sin_kvar.fuente is not None
+
+
+def test_terna_y_enlace_son_la_etapa_de_refuerzo():
+    """017:RF-126 — la terna y el enlace de «Con proyecto» son la etapa «refuerzo de la
+    red», entre el cambio de conductor y la migración."""
+    from igea_dgs.informes import ETAPAS, NOMBRE_ETAPA, etapa_de_obras
+
+    assert ETAPAS.index('conductor') < ETAPAS.index('refuerzo') < ETAPAS.index('migracion')
+    assert 'Refuerzo' in NOMBRE_ETAPA['refuerzo']
+    assert etapa_de_obras([{'clase': 'terna'}]) == 'refuerzo'
+    assert etapa_de_obras([{'clase': 'enlace'}]) == 'refuerzo'
+    assert etapa_de_obras([{'clase': 'terna'}, {'clase': 'seccion'}]) == 'refuerzo'
+    assert etapa_de_obras([{'clase': 'terna'}, {'clase': 'migracion'}]) == 'migracion'
+
+
+def test_descripcion_de_la_terna_y_del_enlace():
+    """017:RF-127 — la terna se describe con sus tramos y el enlace con su largo, su
+    conductor y sus dos extremos, como se aplicó."""
+    from igea_dgs.informes import describir_obra, obra_para_informe
+
+    terna = obra_para_informe({'clase': 'terna', 'alimentador': 'TA225',
+                               'tramos': ['SEC_1', 'SEC_2']})
+    assert 'SEC_1' in describir_obra(terna) and 'SEC_2' in describir_obra(terna)
+    assert 'terna' in describir_obra(terna)
+    enlace = obra_para_informe({
+        'clase': 'enlace', 'alimentador': 'TA225', 'cede': 'IN111',
+        'tipo': {'nombre': 'AA12003D_22_9kV'},
+        'enlace': {'largo_m': 3625.6, 'origen': {'barra_final': '15232'},
+                   'destino': {'barra_final': 'ENLACE_C_IN111'},
+                   'trazado': {'por_via': True, 'servicio': 'osrm'}}})
+    texto = describir_obra(enlace)
+    for parte in ('3,63 km', 'AA12003D_22_9kV', '15232', 'ENLACE_C_IN111', 'TA225', 'IN111', 'vía'):
+        assert parte in texto, (parte, texto)

@@ -86,3 +86,8 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: el usuario da por bueno el `.docx`.
 - [ ] T15. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
       Hecho cuando: `grep -rnoE "017:RF-[0-9]+" tests | sort -u` lista todos los RF.
+
+- [x] T16. Etapa «refuerzo de la red» con la terna y el enlace, y su descripción en el
+      informe. (RF-126, RF-127)
+      Hecho cuando: las pruebas que citan 017:RF-126 y RF-127 pasan y el informe de
+      estudio de TA225 en DIgSILENT trae la etapa.

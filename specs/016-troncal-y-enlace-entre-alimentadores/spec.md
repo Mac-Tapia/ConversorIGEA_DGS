@@ -280,6 +280,28 @@ Etapas de las variaciones (prueba en DIgSILENT con IN111 + TA225, 2026-10-15)
   (RF-58 abre el tramo de entrada) y sin el enlace cerrado queda sin servicio (cambia
   RF-62 para este caso).
 
+Trazado del enlace por la vía (usuario, 2026-10-16: «el trazo de la nueva ruta para el
+enlace debe ser por la vía con curvas […] para evitar DMS por el Procedimiento 228 de
+Osinergmin»; servicio elegido: OpenStreetMap)
+
+- RF-81: DONDE el perfil de empresa habilita un enrutador de vías, CUANDO se crea una obra
+  de enlace, EL SISTEMA trazará la línea por las vías públicas entre sus dos extremos,
+  con las curvas de la vía, en vez de en recta (cambia RF-34 y RF-35).
+- RF-82: EL SISTEMA dará a la línea del enlace el largo del recorrido por la vía más el de
+  los accesos de cada extremo a la vía.
+- RF-83: EL SISTEMA enviará al enrutador solo las coordenadas de los dos extremos, sin
+  nombres ni otro dato de la red (constitución P9; el usuario autorizó el envío de esas
+  coordenadas el 2026-10-16).
+- RF-84: SI un extremo queda más lejos de la vía que la distancia máxima del perfil,
+  ENTONCES EL SISTEMA avisará con el extremo y los metros fuera de vía, para revisar las
+  distancias mínimas de seguridad.
+- RF-85: SI el enrutador no responde o no halla ruta, ENTONCES EL SISTEMA trazará el enlace
+  en recta y lo dirá, sin dejar de crear la obra.
+- RF-86: SI el perfil de empresa no habilita ningún enrutador, ENTONCES EL SISTEMA trazará
+  el enlace en recta sin llamar a ningún servicio externo.
+- RF-87: EL SISTEMA dirá en el informe de la obra el largo por la vía, el de la recta, los
+  metros fuera de vía y el servicio usado.
+
 ## Requisitos no funcionales
 
 - Determinismo: con el mismo proyecto, la troncal, los puntos del enlace y el tramo de

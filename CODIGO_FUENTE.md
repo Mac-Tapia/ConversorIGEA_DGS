@@ -66,6 +66,7 @@ spec 001, RF-14 (DGS idéntico byte a byte); su diseño histórico está en
 | `src/igea_dgs/trafomix.py` | Equipos de medición en MT que la base registra como SED, con el patrón del perfil de empresa. | base, 002 (RF-33) |
 | `src/igea_dgs/transferencia_pf.py` | Transferencia de carga sin DIgSILENT: pasos del camino y carga transferida, viabilidad y elemento que limita, máximo por seccionador y por nodo, fichero, factor máximo por bisección y margen del enlace. | 011 (RF-110 a RF-117, RF-121, RF-123, RF-125, RF-129) |
 | `src/igea_dgs/troncal.py` | Troncal de las obras sin DIgSILENT: camino continuo más largo desde la cabecera sobre el árbol de caminos más cortos en metros (anillos cerrados avisados), lo que queda aguas abajo de un nodo, el punto de la troncal más cercano (partir el tramo o usar la barra según la distancia mínima), el corte del trazado y los dos extremos del enlace. | 016 (RF-1 a RF-5, RF-15, RF-18, RF-20, RF-27, RF-28, RF-45, RF-64, RF-65, RF-67) |
+| `src/igea_dgs/vias.py` | Trazado de una línea nueva por la vía pública con un enrutador OSRM (OpenStreetMap): ruta con sus curvas, largo con los accesos, metros fuera de vía y recta si no hay enrutador o no responde; solo envía las dos coordenadas. | 016 (RF-81 a RF-87) |
 | `src/igea_dgs/util.py` | SHA-256, JSON atómico y números: una sola implementación. | 001 (RF-4, RF-5) |
 | `src/igea_dgs/validate.py` | Validación del DGS escrito, con el trazado GPS de cada línea. | base, 010 (RF-5) |
 
