@@ -170,10 +170,33 @@ Bloque 4 · Central térmica
 
 Cierre
 
-- [ ] T14. DIgSILENT: NA203 + NA205 reimportado (sin grupos de puntos, SE50195 movida con
+- [x] T14. DIgSILENT: NA203 + NA205 reimportado (sin grupos de puntos, SE50195 movida con
       el cable unido, «Caso base» con el mismo flujo, transferencia con los mismos
       seccionadores) y NA205 calibrado con su central desde la web. (Todos)
       Hecho cuando: los criterios de finalización de la spec, comprobados en DIgSILENT.
+      Resultado del 2026-10-17:
+      · Diagrama: NA203 + NA205 reimportado a escala real («NA203_NA205_142712», borrado):
+        converge sin relajar con las mismas tensiones, idéntico al DGS, `PointTerm` de 1114
+        a 428 y pares de puntos pegados de 117 a 3; el operador movió SE50195 y el cable la
+        siguió.
+      · Central: la de «NA203 NA205v1» (GENERADOR NASCA en Terminal(80), entre «Llegada de
+        C. G.» y «Salida de C. G.») cae en el tramo SEC_1091_1046754 del proyecto del
+        conversor, 1,17 km aguas arriba de 1527 (= 982654P(1) de v1, a 0,8 m), donde no
+        hay nodo; con la barra 1720 el reparto de las zonas es el de v1 (2 775 kVA aguas
+        arriba, 16 304 aguas abajo). Desde la web, NA205 con su central: máxima de demanda
+        10 753,3 kW el 2026-08-20 16:45 (532 registros descartados) y su gráfica. El plan
+        de la web, en una copia de «20261016-160231_IGEA_NA203_NA205» (borrada): central
+        en 1720 con 9 605 kW / −593 kvar solo en «Sin proyecto» (el «Caso base» sin ella),
+        15 cargas aguas arriba y 88 aguas abajo, cuadrado en 3 flujos sin remedios
+        (−0,08 % y −0,01 %), validación nativa válida en las dos zonas, cabecera calculada
+        1 146,5 kW frente a 1 123,1 kW medidos.
+      · Pendiente fuera de esta spec: aplicarlo en el proyecto real necesita el libro de
+        clientes de agosto de 2026 (la máxima de demanda es de agosto y solo hay de enero a
+        julio: CLIENT_PERIOD_UNKNOWN, como ya pasaba con la máxima de cabecera) o la 013
+        RF-11 (máxima dentro del mes elegido). La transferencia con los seccionadores
+        plegados se probó con el doble (T4), no en DIgSILENT. Con la red sin cargar en el
+        espacio, el desplegable de la central ofrece todos los medidores del libro que no
+        son del proyecto (107), no solo los de la central.
 - [x] T15. Validación: cada RF citado por al menos una prueba y en verde; `CODIGO_FUENTE.md`
       al día. (Todos)
       Hecho cuando: `grep -rnoE "021:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-49 y
