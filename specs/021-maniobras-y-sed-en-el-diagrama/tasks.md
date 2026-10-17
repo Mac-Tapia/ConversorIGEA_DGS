@@ -83,10 +83,21 @@ Bloque 2 · SED unida a su barra
 
 Bloque 3 · Curvas de varios alimentadores
 
-- [ ] T8. Gráfica con varias series, leyenda con conmutador y arrastre común; un solo
+- [x] T8. Gráfica con varias series, leyenda con conmutador y arrastre común; un solo
       alimentador como antes. (RF-17 a RF-24)
       Hecho cuando: `pytest -q tests/test_curva_cabecera_front.py` en verde y
       `npm run build` sin errores.
+      Resultado del 2026-10-17: `CurvaCabecera` dibuja una lista de series (`SerieCurva`)
+      pedidas con `Promise.allSettled`, una por alimentador con el medidor elegido o el
+      primero; colores `--serie-0…7` con modo oscuro; leyenda con `aria-pressed` que oculta
+      sin volver a pedir; un alimentador sigue como en la 006. Probado en el navegador con
+      IN111 + TA225 (proyecto aceptado del 2026-10-15): las dos curvas con su máxima
+      (9 132 y 4 586 kW), ocultar TA225 sin petición nueva y arrastrar pide el mismo tramo
+      a las dos (1 033 registros). 15 pruebas del front en verde, `tsc` y `npm run build`
+      sin errores. En el camino se corrigió un fallo del lector que hacía fallar a veces
+      dos pruebas sorteadas: python-calamine lee el registro de las 00:00 como fecha sin
+      hora; la máxima a medianoche salía sin su hora (prueba fija nueva en
+      `test_demanda_medida.py`; 400 semillas sin fallos).
 
 Bloque 4 · Central térmica
 

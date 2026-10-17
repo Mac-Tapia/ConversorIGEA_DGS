@@ -94,7 +94,13 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados }: {
         <CurvaCabecera wsId={ws.id} jobId={maxima.id} inicial={medidores[0] || grupos[0].filas[0].medidor}
           opciones={grupos.flatMap((g) => g.filas.map((r) => ({
             medidor: r.medidor, etiqueta: `${g.alimentador || '—'} · ${r.medidor} · ${fmtNum(r.kw, 1)} kW`,
-          })))} />
+          })))}
+          // 021:RF-17, RF-22: con varios alimentadores, una curva por cada uno, con el
+          // medidor que el operador eligió como cabecera o, mientras no elija, el primero.
+          series={grupos.map((g, i) => {
+            const m = medidores[i] || g.filas[0].medidor;
+            return { clave: g.alimentador || m, etiqueta: `${g.alimentador || '—'} · ${m}`, medidor: m };
+          })} />
       )}
       <div className="row">
         <label className="field">

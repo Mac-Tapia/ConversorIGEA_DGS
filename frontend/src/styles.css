@@ -19,6 +19,15 @@
   --error-soft: #fdeaea;
   --info: #0e7490;
   --info-soft: #e3f5f8;
+  /* Una curva por alimentador en la gráfica de cabecera (spec 021, RF-18). */
+  --serie-0: #2563eb;
+  --serie-1: #d97706;
+  --serie-2: #059669;
+  --serie-3: #db2777;
+  --serie-4: #7c3aed;
+  --serie-5: #0891b2;
+  --serie-6: #65a30d;
+  --serie-7: #dc2626;
   --log-bg: #0f1720;
   --log-text: #d6dee8;
   --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .08);
@@ -48,6 +57,14 @@
     --error-soft: #3a1717;
     --info: #4cc3d9;
     --info-soft: #0f2d33;
+    --serie-0: #4c8dff;
+    --serie-1: #f0a541;
+    --serie-2: #34d399;
+    --serie-3: #f472b6;
+    --serie-4: #a78bfa;
+    --serie-5: #38bdf8;
+    --serie-6: #a3e635;
+    --serie-7: #f87171;
     --log-bg: #080b10;
     --shadow: 0 1px 2px rgba(0, 0, 0, .4);
     color-scheme: dark;
@@ -284,6 +301,17 @@ small.alert { display: block; margin: 4px 0 0; }
 .curva-muestra { display: inline-block; width: 14px; height: 2px; }
 .curva-muestra-kw { background: var(--primary); }
 .curva-muestra-kvar { background: var(--pf); margin-left: 6px; }
+.curva-serie { fill: none; stroke-width: 1.2; vector-effect: non-scaling-stroke; }
+.curva-serie-kvar { fill: none; stroke-width: 1; stroke-dasharray: 4 3; opacity: .75; vector-effect: non-scaling-stroke; }
+.curva-pico-serie { stroke: var(--surface); stroke-width: 2; }
+.curva-series { display: flex; flex-wrap: wrap; gap: 6px; }
+.curva-serie-btn {
+  display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: var(--surface);
+  color: var(--text); border-radius: 999px; padding: 2px 10px; font: inherit; font-size: 12.5px; cursor: pointer;
+}
+.curva-serie-btn[aria-pressed="false"] { color: var(--muted); opacity: .6; }
+.curva-serie-btn .curva-muestra { height: 3px; }
+.curva-serie-falta { color: var(--error); font-size: 12.5px; }
 .row { display: flex; gap: 6px; flex-wrap: wrap; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0; }
 .chip {

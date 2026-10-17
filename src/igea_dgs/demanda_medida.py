@@ -541,6 +541,14 @@ def _registros_hoja(filas: Sequence[Sequence[Any]], alias) -> tuple[list[Registr
         if fecha is None and not any(v is not None for v in valores.values()):
             continue
         registros.append(Registro(fecha, valores, fuente))
+    # python-calamine devuelve una fecha sin hora (``date``) para el registro de las 00:00
+    # y con hora para los demás: la máxima a medianoche salía sin su hora y, en un medidor
+    # partido en hojas, no casaba por fecha con la misma hora de otra hoja. En una hoja con
+    # hora, esa fecha es la medianoche de ese día.
+    if any(isinstance(r.fecha, datetime) for r in registros):
+        for r in registros:
+            if type(r.fecha) is date:
+                r.fecha = datetime(r.fecha.year, r.fecha.month, r.fecha.day)
     return registros, usadas
 
 
