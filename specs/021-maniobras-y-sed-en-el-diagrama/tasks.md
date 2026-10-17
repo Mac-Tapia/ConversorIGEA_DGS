@@ -129,9 +129,16 @@ Bloque 4 · Central térmica
       de la T9 sorteaba distinto con la central parada (86 de 300 semillas fallaban):
       corregida, 500 semillas sin fallos. Falta verlo en el navegador con NA205, que no
       está entre los proyectos de la carpeta de la web: queda para la T14.
-- [ ] T11. Objetivo y cuadre de dos zonas; sin central, igual que antes. (RF-33, RF-40,
+- [x] T11. Objetivo y cuadre de dos zonas; sin central, igual que antes. (RF-33, RF-40,
       RF-41, RF-43, RF-45, RF-46)
       Hecho cuando: `pytest -q tests/test_ajuste_cabecera.py` en verde.
+      Resultado del 2026-10-17: `ObjetivoZonas` y `objetivo_zonas_de` (de la máxima con
+      central de la web), `MedidaZonas` y `cuadrar_zonas`: un factor por zona, cada uno
+      con su secante sobre la medida de su zona en el mismo flujo, y los mismos pasos que
+      `cuadrar` si no converge; una zona con solo clientes fijos queda a factor 1 (sus P y
+      Q), se avisa y no decide; `CuadreZonas.resumen` para el informe. Cinco pruebas con
+      una red de juguete de dos zonas; `cuadrar` sin central, igual. Dos pruebas del front
+      que fijaban líneas cambiadas en la T10 (006 y 008) puestas al día: 195 en verde.
 - [ ] T12. La central en «Sin proyecto» y las zonas en el guion, con su informe. (RF-35 a
       RF-39, RF-42, RF-44)
       Hecho cuando: `pytest -q tests/test_ajuste_cabecera_guion.py` en verde.

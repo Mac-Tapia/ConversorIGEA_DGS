@@ -511,3 +511,212 @@ def cuadrar(
         # La red queda con el último reparto que convergió y con sus resultados (RF-18).
         res.medida = flujo(res.reparto)
     return res
+
+
+# =========================================================================== dos zonas
+@dataclass(frozen=True)
+class ObjetivoZonas:
+    """El objetivo de un alimentador con una central en su troncal (spec 021, RF-33).
+
+    En NA205 la cabecera solo ve lo que entra desde la SET: con la central generando, 1 123
+    kW de una demanda de 10 753 kW. Se calibra por zonas: aguas arriba de la central
+    (cabecera + llegada) y aguas abajo (la salida), cada una con su factor de escala, y
+    la central con la P y Q que medía en el mismo registro (RF-35).
+    """
+
+    arriba: Objetivo
+    abajo: Objetivo
+    generacion_kw: float
+    generacion_kvar: float
+    cabecera_kw: float | None = None
+    cabecera_kvar: float | None = None
+    alimentador: str = ''
+    fecha: str | None = None
+
+
+def objetivo_zonas_de(maxima: Mapping[str, Any]) -> ObjetivoZonas:
+    """El objetivo desde la máxima con central de la web (``MaximaConCentral.to_dict``)."""
+    alimentador = str(maxima.get('alimentador') or '')
+    if maxima.get('error'):
+        raise AjusteError(f'{alimentador}: sin máxima con central ({maxima["error"]}).')
+    valores = {k: numero(maxima.get(k)) for k in (
+        'arriba_kw', 'arriba_kvar', 'abajo_kw', 'abajo_kvar', 'generacion_kw', 'generacion_kvar',
+        'cabecera_kw', 'cabecera_kvar')}
+    for k in ('arriba_kw', 'abajo_kw', 'generacion_kw'):
+        if valores[k] is None:
+            raise AjusteError(f'{alimentador}: la máxima con central no trae {k}.')
+    for k, nombre in (('arriba_kw', 'aguas arriba'), ('abajo_kw', 'aguas abajo')):
+        if valores[k] <= 0:   # type: ignore[operator]
+            raise AjusteError(f'{alimentador}: la zona {nombre} no tiene demanda en la máxima '
+                              f'({valores[k]:,.1f} kW).')
+    fecha = maxima.get('fecha')
+
+    def zona(kw: str, kvar: str, nombre: str) -> Objetivo:
+        return Objetivo(kw=valores[kw], kvar=valores[kvar] or 0.0,  # type: ignore[arg-type]
+                        medidor=nombre, alimentador=alimentador, fecha=fecha)
+
+    return ObjetivoZonas(
+        arriba=zona('arriba_kw', 'arriba_kvar', 'aguas arriba de la central'),
+        abajo=zona('abajo_kw', 'abajo_kvar', 'aguas abajo de la central'),
+        generacion_kw=valores['generacion_kw'],  # type: ignore[arg-type]
+        generacion_kvar=valores['generacion_kvar'] or 0.0,
+        cabecera_kw=valores['cabecera_kw'], cabecera_kvar=valores['cabecera_kvar'],
+        alimentador=alimentador, fecha=fecha)
+
+
+@dataclass(frozen=True)
+class MedidaZonas:
+    """Lo que da el flujo en cada zona: aguas arriba, cabecera + llegada; aguas abajo, la
+    salida de la central. La cabecera se informa frente a la medida (RF-44)."""
+
+    converge: bool
+    arriba_kw: float | None = None
+    arriba_kvar: float | None = None
+    abajo_kw: float | None = None
+    abajo_kvar: float | None = None
+    cabecera_kw: float | None = None
+    cabecera_kvar: float | None = None
+    motivo: str = ''
+
+
+ZONAS = ('arriba', 'abajo')
+NOMBRE_ZONA = {'arriba': 'aguas arriba', 'abajo': 'aguas abajo'}
+
+
+@dataclass
+class CuadreZonas:
+    """Resultado del cuadre por zonas: los dos repartos que convergieron y su medida."""
+
+    cuadrado: bool
+    arriba: Reparto | None
+    abajo: Reparto | None
+    medida: MedidaZonas | None
+    objetivo: ObjetivoZonas
+    tolerancia: float
+    flujos: int = 0
+    remedios: list[dict[str, Any]] = field(default_factory=list)
+    historial: list[dict[str, Any]] = field(default_factory=list)
+    avisos: list[str] = field(default_factory=list)
+    motivo: str = ''
+    cancelado: bool = False
+    ajustables: tuple[str, ...] = ZONAS
+
+    def resumen(self) -> dict[str, Any]:
+        """Lo que va al informe de la calibración (021:RF-44)."""
+        m, o = self.medida, self.objetivo
+        return {
+            'factor_arriba': self.arriba.a if self.arriba else None,
+            'factor_abajo': self.abajo.a if self.abajo else None,
+            'arriba_kw': m.arriba_kw if m else None, 'arriba_objetivo_kw': o.arriba.kw,
+            'abajo_kw': m.abajo_kw if m else None, 'abajo_objetivo_kw': o.abajo.kw,
+            'cabecera_calculada_kw': m.cabecera_kw if m else None,
+            'cabecera_medida_kw': o.cabecera_kw,
+            'generacion_kw': o.generacion_kw, 'generacion_kvar': o.generacion_kvar,
+            'zonas_ajustadas': list(self.ajustables),
+        }
+
+
+def cuadrar_zonas(
+    arriba: Reparto,
+    abajo: Reparto,
+    objetivo: ObjetivoZonas,
+    flujo: Callable[[Reparto, Reparto], MedidaZonas],
+    *,
+    tolerancia: float = 0.01,
+    max_flujos: int = MAX_FLUJOS,
+    remedio: Callable[[str, dict[str, Any]], list[str]] = lambda nombre, ajustes: [],
+    cancelado: Callable[[], bool] = lambda: False,
+    progreso: Callable[[int, int, str], None] = lambda n, maximo, texto: None,
+) -> CuadreZonas:
+    """Ajusta el factor de cada zona hasta que dé su medida (021:RF-40, RF-41, RF-43).
+
+    Es :func:`cuadrar` con dos factores en el mismo flujo: cada uno sigue su secante con
+    la medida de su zona. Una zona sin cargas escaladas no se puede ajustar: sus fijas
+    quedan como están, se avisa y no decide el cuadre (RF-45). Si no converge, los mismos
+    pasos que :func:`cuadrar`: medio camino y luego los remedios de :data:`ESCALERA`.
+    """
+    repartos = {'arriba': arriba, 'abajo': abajo}
+    # Una zona con solo clientes fijos: ``reparto_inicial`` la pasa a «escalar todo»
+    # (006:RF-13), pero en una zona eso movería las fijas (RF-45). Factor 1: su P y Q.
+    for z, r in repartos.items():
+        if r.origen and all(o == 'cliente' for o in r.origen.values()):
+            repartos[z] = r.con_factores(1.0, 1.0)
+    objetivos = {'arriba': objetivo.arriba, 'abajo': objetivo.abajo}
+    pendiente = {z: (0.0 if all(o == 'cliente' for o in r.origen.values())
+                     else sum(p for p, _ in r.base.values())) for z, r in repartos.items()}
+    ajustables = tuple(z for z in ZONAS if pendiente[z] > 0)
+    res = CuadreZonas(cuadrado=False, arriba=None, abajo=None, medida=None, objetivo=objetivo,
+                      tolerancia=tolerancia, ajustables=ajustables,
+                      avisos=list(arriba.avisos) + list(abajo.avisos))
+    for z in ZONAS:
+        if z not in ajustables:
+            res.avisos.append(f'La zona {NOMBRE_ZONA[z]} de la central no tiene cargas escaladas: '
+                              'sus fijas quedan como están y no se puede ajustar.')
+    if not ajustables:
+        raise AjusteError('Ninguna de las dos zonas de la central tiene cargas que escalar.')
+
+    def medido(m: MedidaZonas, z: str) -> float | None:
+        return m.arriba_kw if z == 'arriba' else m.abajo_kw
+
+    puntos: dict[str, list[tuple[float, float]]] = {z: [] for z in ZONAS}
+    actual = meta = dict(repartos)
+    escalon = mitades = 0
+    ultimo: dict[str, Reparto] | None = None
+    while res.flujos < max_flujos:
+        if cancelado():
+            res.cancelado, res.motivo = True, 'cancelado por el operador'
+            break
+        m = flujo(actual['arriba'], actual['abajo'])
+        res.flujos += 1
+        ultimo = actual
+        res.historial.append({'flujo': res.flujos, 'a_arriba': actual['arriba'].a,
+                              'a_abajo': actual['abajo'].a, 'converge': m.converge,
+                              'arriba_kw': m.arriba_kw, 'abajo_kw': m.abajo_kw,
+                              'cabecera_kw': m.cabecera_kw, 'motivo': m.motivo})
+        progreso(res.flujos, max_flujos, f'flujo {res.flujos}: ' + (
+            f'{m.arriba_kw:,.1f} kW aguas arriba, {m.abajo_kw:,.1f} kW aguas abajo'
+            if m.converge and m.arriba_kw is not None and m.abajo_kw is not None
+            else 'no converge'))
+        if m.converge and all(medido(m, z) is not None for z in ajustables):
+            res.arriba, res.abajo, res.medida = actual['arriba'], actual['abajo'], m
+            if all(abs(_rel(medido(m, z), objetivos[z].kw)) <= tolerancia  # type: ignore[arg-type]
+                   for z in ajustables):
+                res.cuadrado = True
+                return res
+            nuevo = dict(actual)
+            for z in ajustables:
+                r, y = actual[z], medido(m, z)
+                puntos[z].append((r.a, y))  # type: ignore[arg-type]
+                a = _siguiente(r.a, y, objetivos[z].kw, puntos[z], pendiente[z])  # type: ignore[arg-type]
+                nuevo[z] = r.con_factores(a if a > 0 else r.a / 2)
+            actual = meta = nuevo
+            continue
+        if mitades < MITADES:
+            if not res.remedios:
+                res.remedios.append({'remedio': ESCALERA[0][0], 'cambios': []})
+            mitades += 1
+            nuevo = dict(actual)
+            for z in ajustables:
+                bueno = res.arriba if z == 'arriba' else res.abajo
+                a0 = bueno.a if bueno is not None else 0.0
+                b0 = bueno.b if bueno is not None else 0.0
+                nuevo[z] = actual[z].con_factores((a0 + actual[z].a) / 2, (b0 + actual[z].b) / 2)
+            actual = nuevo
+            continue
+        escalon += 1
+        if escalon >= len(ESCALERA):
+            break
+        nombre, ajustes = ESCALERA[escalon]
+        res.remedios.append({'remedio': nombre, 'cambios': list(remedio(nombre, ajustes))})
+        mitades = 0
+        actual = meta
+
+    if not res.cuadrado and not res.motivo:
+        res.motivo = (f'sin cuadrar las dos zonas al {tolerancia:.1%} tras {res.flujos} flujos'
+                      if res.arriba is not None else
+                      'el flujo de carga no converge con ningún reparto, ni con los remedios')
+    if (res.arriba is not None and res.abajo is not None and ultimo is not None
+            and (ultimo['arriba'] is not res.arriba or ultimo['abajo'] is not res.abajo)):
+        # La red queda con los últimos repartos que convergieron (006:RF-18).
+        res.medida = flujo(res.arriba, res.abajo)
+    return res

@@ -65,7 +65,9 @@ def test_medidores_por_alimentador_y_maxima_en_un_trabajo():
     a mano si no está, y la máxima de todos en un trabajo."""
     assert 'feeders.map((f) => api.demandaMedidores(ws.id, f))' in DEMANDA
     assert 'no está en el libro de medidores' in DEMANDA and 'anadir(f)' in DEMANDA
-    assert 'startJob(() => api.demandaCabecera(ws.id, elegidos))' in DEMANDA
+    # Los elegidos y, en el mismo trabajo, los medidores de cada central (spec 021, RF-25).
+    assert 'const aBuscar = [...elegidos, ' in DEMANDA
+    assert 'startJob(() => api.demandaCabecera(ws.id, aBuscar))' in DEMANDA
 
 
 def test_clientes_de_los_marcados():

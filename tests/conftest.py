@@ -28,6 +28,20 @@ def _sin_perfil_de_la_maquina(monkeypatch, tmp_path_factory):
     monkeypatch.setenv(VARIABLE_RUTA, str(vacio))
 
 
+@pytest.fixture(autouse=True)
+def _sin_turno_de_la_maquina(monkeypatch, tmp_path):
+    """Cada prueba con su propio turno de DIgSILENT (spec 019).
+
+    El turno es un fichero de la máquina, común a la web, el CLI y DIgSILENT abierto a
+    mano. Las pruebas de los guiones con el doble de PowerFactory lo tomaban de verdad: el
+    2026-10-17 la suite lo tuvo más de 10 minutos y una sonda real se quedó sin DIgSILENT
+    («ocupado por ajuste_cabecera_pf.py», que era pytest).
+    """
+    from igea_dgs.pf_arnes import VARIABLE_TURNO
+
+    monkeypatch.setenv(VARIABLE_TURNO, str(tmp_path / 'powerfactory.turno'))
+
+
 @pytest.fixture(scope='session')
 def perfil_real():
     """Perfil de empresa de los datos reales de las variables ``IGEA_*``.
