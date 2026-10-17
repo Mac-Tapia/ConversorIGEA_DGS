@@ -1,0 +1,105 @@
+# Tareas 021 — Maniobras y SED en el diagrama, curvas y central térmica
+
+Plan: `specs/021-maniobras-y-sed-en-el-diagrama/plan.md`. Una tarea cada vez, pruebas
+primero. Al terminarla: suite en verde, `- [x]`, y parar.
+
+Bloque 1 · Maniobras de los puentes
+
+- [x] T1. Plegar el equipo del puente en el cubículo de la línea vecina, con el lado de
+      aguas arriba si valen los dos. (RF-1, RF-2, RF-3, RF-5, RF-6)
+      Hecho cuando: `pytest -q tests/test_puentes.py` en verde.
+      Resultado del 2026-10-17: `puentes._plegar`, decidido sobre la red antes de plegar
+      (extremos fijados al empezar) y por `section_id`; una barra vale solo con el puente
+      y una línea (con una carga, SED, banco u otro puente no, para no dejarlos detrás
+      del fusible); el cubículo ocupado ya se respeta (las pruebas de RF-4 son la T2).
+      `InformePuentes.plegados` nuevo. Con los TXT reales, 96 alimentadores y 12 388
+      equipos plegados: maniobras, líneas y cargas iguales, una barra menos por equipo.
+      Línea base de la 001 (`output/linea_base_001.json`) regenerada a propósito: cambian
+      92 DGS; lote ok en TXT (96) y Access (101). 20 pruebas de puentes y la suite
+      sintética en verde (una intermitente de `test_demanda_medida`, que pasa sola).
+- [x] T2. Cubículo ocupado y fuente: queda `ElmCoup`. (RF-4)
+      Hecho cuando: `pytest -q tests/test_puentes.py` en verde.
+      Resultado del 2026-10-17: cuatro pruebas nuevas, sin cambiar el código de la T1:
+      ocupado por un lado pliega por el otro; ocupado a los dos lados queda `ElmCoup`; el
+      interruptor de cabecera en un puente de la fuente pasa a la primera línea en la
+      barra de la fuente, que conserva su nombre; mismo resultado con los tramos en otro
+      orden. 24 pruebas en verde.
+- [x] T3. Fusible del trafomix sin destino quitado y contado; completitud; `SIN_REGLAS`.
+      (RF-7, RF-8, RF-9, RF-10, RF-11)
+      Hecho cuando: `pytest -q tests/test_puentes.py tests/test_reglas*.py` en verde.
+      Resultado del 2026-10-17: `trafomix._quitar_maniobras_sin_destino` (solo barras de
+      un trafomix excluido que se quedan sin nada; con carga de MT conservada, el fusible
+      se queda) e `InformeTrafomix.maniobras_quitadas`; la completitud cuenta los
+      `ElmCoup` escritos en el DGS (menos uno por SED y los enlaces), no los del informe
+      de puentes, y suma los quitados. NA203 + NA205 por Access: de 550 `ElmCoup`, 88
+      barras muertas y 119 barras hechas solo de acopladores a 32, 0 y 0; 446 `StaSwitch`
+      + 32 `ElmCoup` + 92 quitados = 570 maniobras de la entrada. Línea base de la 001
+      regenerada otra vez (la herramienta usa el perfil de la máquina, con trafomix).
+      Suite con TXT y Access: 2276 en verde y las 3 de la línea base tras regenerarla.
+- [x] T4. Lectores de maniobras con el equipo en el cubículo: transferencia, oráculo e
+      informe de estudio. (RF-15, RF-16)
+      Hecho cuando: `pytest -q tests/test_transferencia_pf*.py tests/test_informes.py
+      tests/test_caso_base_verificado.py` en verde.
+      Resultado del 2026-10-17: sin cambios de código; los tres ya leían el equipo en el
+      extremo de su línea (`Red.interruptores` y `Camino` de la transferencia miran los
+      `StaSwitch` de los cubículos; el oráculo pone `model.devices` como maniobra de
+      línea; el trecho del informe une tramos por su barra común). Tres pruebas nuevas en
+      `test_puentes.py`: el seccionador plegado sale con `aUsage=dct` en el cubículo de
+      su línea y `es_seccionador` lo reconoce; abierto en el oráculo deja sin tensión lo
+      de detrás; dos tramos con barra común son un solo trecho. 167 pruebas en verde.
+- [x] T5. Datos reales: NA203 + NA205 por la vía Access y TXT en las dos disposiciones; DGS
+      idéntico con `workers=1` y `workers>1`. (RF-6, RF-10)
+      Hecho cuando: la suite con las variables `IGEA_*` e `IGEA_MDB` en verde.
+      Resultado del 2026-10-17: suite completa con TXT y Access en verde (T3); con el
+      código final del bloque, `test_linea_base_001` (TXT con 1 y 4 procesos y Access,
+      byte a byte), `test_export_layouts`, `test_reglas` (las dos disposiciones) y
+      `test_access_input`: 62 en verde. El plegado actúa sobre el modelo, después del
+      lector, así que las dos disposiciones dan el mismo resultado.
+
+Bloque 2 · SED unida a su barra
+
+- [ ] T6. Sonda en DIgSILENT sobre una copia de NA203_NA205 importado: dos variantes del
+      DGS de una SED y cuál sigue al mover la SED. Resuelve la duda abierta. (RF-12)
+      Hecho cuando: la variante elegida queda escrita en la spec, sin
+      `[NECESITA ACLARACIÓN]`, y la copia borrada.
+- [ ] T7. La SED unida a su barra en el DGS, con lo que dijo T6. (RF-12, RF-13, RF-14)
+      Hecho cuando: `pytest -q tests/test_dgs_v2.py tests/test_graphics_sed.py` en verde.
+
+Bloque 3 · Curvas de varios alimentadores
+
+- [ ] T8. Gráfica con varias series, leyenda con conmutador y arrastre común; un solo
+      alimentador como antes. (RF-17 a RF-24)
+      Hecho cuando: `pytest -q tests/test_curva_cabecera_front.py` en verde y
+      `npm run build` sin errores.
+
+Bloque 4 · Central térmica
+
+- [ ] T9. Medidas de la central: registros comunes, signos por balance, zonas, descarte por
+      3·IQR y máxima de demanda. (RF-28 a RF-34)
+      Hecho cuando: `pytest -q tests/test_demanda_medida.py` en verde; con
+      `IGEA_DEMANDA_DIR`, NA205 da el registro del 2026-08-20 16:45.
+- [ ] T10. Declaración de la central en la web y en el perfil; medidores sin alimentador de
+      la red ofrecidos. (RF-25, RF-26, RF-27)
+      Hecho cuando: `pytest -q tests/test_demanda_medida_web.py
+      tests/test_perfil_empresa.py tests/test_ajuste_cabecera_web.py` en verde.
+- [ ] T11. Objetivo y cuadre de dos zonas; sin central, igual que antes. (RF-33, RF-40,
+      RF-41, RF-43, RF-45, RF-46)
+      Hecho cuando: `pytest -q tests/test_ajuste_cabecera.py` en verde.
+- [ ] T12. La central en «Sin proyecto» y las zonas en el guion, con su informe. (RF-35 a
+      RF-39, RF-42, RF-44)
+      Hecho cuando: `pytest -q tests/test_ajuste_cabecera_guion.py` en verde.
+- [ ] T13. Curvas de la central en la gráfica, con las dos máximas marcadas. (RF-47, RF-48,
+      RF-49)
+      Hecho cuando: `pytest -q tests/test_curva_cabecera_front.py` en verde y
+      `npm run build` sin errores.
+
+Cierre
+
+- [ ] T14. DIgSILENT: NA203 + NA205 reimportado (sin grupos de puntos, SE50195 movida con
+      el cable unido, «Caso base» con el mismo flujo, transferencia con los mismos
+      seccionadores) y NA205 calibrado con su central desde la web. (Todos)
+      Hecho cuando: los criterios de finalización de la spec, comprobados en DIgSILENT.
+- [ ] T15. Validación: cada RF citado por al menos una prueba y en verde; `CODIGO_FUENTE.md`
+      al día. (Todos)
+      Hecho cuando: `grep -rnoE "021:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-49 y
+      `pytest -q tests/test_inventario.py` en verde.

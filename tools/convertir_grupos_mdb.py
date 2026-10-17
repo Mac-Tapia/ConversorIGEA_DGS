@@ -15,9 +15,10 @@ Qué hace con cada grupo:
    completa con el del mismo material y sección, y se informa.
 2. Construye cada alimentador en modo **estricto** con su geografía: longitudes y
    dibujo a escala real desde las coordenadas de la base.
-3. Funde los tramos puente ``DEFAULT`` (``igea_dgs.puentes``): los seccionadores pasan a
-   ``ElmCoup`` y las SED quedan en su barra. Ningún elemento de la base se pierde; el
-   cuadre elemento a elemento va en el informe.
+3. Funde los tramos puente ``DEFAULT`` (``igea_dgs.puentes``): los seccionadores pasan al
+   extremo de su línea (``StaSwitch``) o, sin línea al lado, a ``ElmCoup``, y las SED
+   quedan en su barra (spec 021). Ningún elemento de la base se pierde; el cuadre
+   elemento a elemento va en el informe.
 4. Une los alimentadores del grupo en una sola red (``combine``) y escribe el DGS.
 5. Con ``--importar``: lo importa en PowerFactory como proyecto nuevo, corre el flujo
    —solo opciones del *solver*, sin tocar el modelo— y comprueba que lo importado

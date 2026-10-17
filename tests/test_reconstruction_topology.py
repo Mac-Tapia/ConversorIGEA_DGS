@@ -196,6 +196,7 @@ def test_bridge_transformations_are_preserved_after_model_rules():
         'tramos': 2,
         'metros': 0.0,
         'fundidos': 1,
+        'plegados': 0,
         'interruptores': 1,
         'cargas_reubicadas': 0,
         'seds_reubicadas': 0,
