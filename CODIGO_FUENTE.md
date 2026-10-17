@@ -27,7 +27,7 @@ spec 001, RF-14 (DGS idéntico byte a byte); su diseño histórico está en
 | `src/igea_dgs/combine.py` | Une todos los alimentadores en una sola red. | base |
 | `src/igea_dgs/coordenadas.py` | Completa las coordenadas que faltan con el grafo de la red. | base |
 | `src/igea_dgs/dataset.py` | Lector de los TXT (RED, CARGA, BD_Equipo), en las dos disposiciones. | base |
-| `src/igea_dgs/demanda_medida.py` | Máxima de cabecera por medidor y clientes importantes con su SED; el registro de las 00:00 conserva su hora. | 004 (RF-22 a RF-45) |
+| `src/igea_dgs/demanda_medida.py` | Máxima de cabecera por medidor y clientes importantes con su SED; el registro de las 00:00 conserva su hora; máxima de demanda con una central en el troncal. | 004 (RF-22 a RF-45), 021 (RF-28 a RF-34) |
 | `src/igea_dgs/dgs.py` | Escritor DGS: tablas, FID, cubículos, maniobras, capa gráfica y trazado GPS de las líneas; la barra de una SED sola va dentro de ella. | base, 010 (RF-1 a RF-4), 011 (RF-128), 021 (RF-12) |
 | `src/igea_dgs/economia.py` | Datos de la evaluación técnico-económica (`ComTececo`). | 004 |
 | `src/igea_dgs/estudios_pf.py` | Estudios sobre los casos «Sin proyecto» y «Con proyecto», sin DIgSILENT: qué estudios se ofrecen, límites del perfil, violaciones, diferencia y ficheros de resultados. | 011 (RF-23, RF-24, RF-32 a RF-35, RF-37) |
@@ -45,7 +45,7 @@ spec 001, RF-14 (DGS idéntico byte a byte); su diseño histórico está en
 | `src/igea_dgs/native_action.py` | Contexto firmado fuente–proyecto–alimentadores y vocabulario común de resultados para toda acción nativa. | 004, 006, 011 |
 | `src/igea_dgs/obras_pf.py` | Obras de mejora sin DIgSILENT: modelo y validación de cada obra (lo de «Sin proyecto» pasa a «Con proyecto»; enlace y migración solo en «Con proyecto»), nombres de variación y de copias de tipo, datos e igualdad de tipos, resumen de cada tipo, plan de la simulación (sección de toda la troncal, enlace entre alimentadores, migración de lo que queda aguas abajo de un nodo) y comprobación de «Sin proyecto». | 011 (RF-56, RF-59, RF-61 a RF-65, RF-69, RF-85, RF-94); 016 (RF-6 a RF-9, RF-11, RF-13, RF-14, RF-23 a RF-25, RF-31, RF-38 a RF-41, RF-51 a RF-59, RF-61, RF-65, RF-66) |
 | `src/igea_dgs/oraculo.py` | Flujo independiente con pandapower antes de escribir el DGS. | base |
-| `src/igea_dgs/perfil_empresa.py` | Perfil de empresa: CRS de origen, patrón de las SED de medición, escala del diagrama y forma de los alimentadores, fuera del código; hereda de `config/perfiles/`; fichas de transformadores de SED. | 002 (RF-31 a RF-37), 020 (RF-29 a RF-31) |
+| `src/igea_dgs/perfil_empresa.py` | Perfil de empresa: CRS de origen, patrón de las SED de medición, escala del diagrama y forma de los alimentadores, fuera del código; hereda de `config/perfiles/`; fichas de transformadores de SED; centrales térmicas por alimentador. | 002 (RF-31 a RF-37), 020 (RF-29 a RF-31), 021 (RF-27) |
 | `src/igea_dgs/mapa_informe.py` | Imágenes del informe de estudio (ubicación, tensión, cargabilidad y detalle de las obras) con el GPS y los resultados del flujo de DIgSILENT; conductor nuevo y bancos resaltados con rótulos que no se pisan. | 017 (RF-11b, RF-116, RF-133) |
 | `src/igea_dgs/pf_arnes.py` | Arnés de DIgSILENT: turno del motor de la máquina, conexión común con reintento, caso restituido y proceso que se queda abierto. | 019 |
 | `src/igea_dgs/powerfactory_env.py` | Dónde está la API de PowerFactory y qué intérprete la carga; cierra los guiones de PowerFactory huérfanos y corta un guion con sus hijos. | base |
@@ -88,12 +88,12 @@ spec 001, RF-14 (DGS idéntico byte a byte); su diseño histórico está en
 | --- | --- | --- |
 | `src/igea_dgs/web/__init__.py` | Paquete de la interfaz web. | 001 |
 | `src/igea_dgs/web/__main__.py` | Arranca la web: `python -m igea_dgs.web` o `igea-dgs-web`; con el puerto ocupado reutiliza, reemplaza o cambia de puerto. | 001 (RF-15, RF-27, RF-28 a RF-32) |
-| `src/igea_dgs/web/app.py` | Rutas FastAPI sobre el motor. | 001, 004 a 008, 011 (RF-12, RF-25, RF-27, RF-28, RF-95, RF-104), 017 (RF-96, RF-103, RF-104) |
+| `src/igea_dgs/web/app.py` | Rutas FastAPI sobre el motor. | 001, 004 a 008, 011 (RF-12, RF-25, RF-27, RF-28, RF-95, RF-104), 017 (RF-96, RF-103, RF-104), 021 (RF-26, RF-28 a RF-34) |
 | `src/igea_dgs/web/jobs.py` | Trabajos largos en cola, con progreso, cancelación y límite de tiempo por guion (P7). | 001 (RF-8), 011 (RF-39, RF-40) |
 | `src/igea_dgs/web/readiness.py` | Puertas por alimentador antes de producir DGS. | 001 |
 | `src/igea_dgs/web/reconstruction_service.py` | Diagnóstico y reconstrucción como trabajos de la web. | 001 (RF-8, RF-9) |
 | `src/igea_dgs/web/runtime.py` | Comprobación del entorno que hace el lanzador de Windows y huella del código. | 001 (RF-27, RF-28) |
-| `src/igea_dgs/web/services.py` | Las acciones de la interfaz, sin interfaz. | 001, 004 a 008, 011 (RF-12 a RF-16, RF-25, RF-27 a RF-30, RF-39 a RF-41, RF-68, RF-95, RF-121), 017 (RF-47 a RF-53, RF-59, RF-60, RF-65 a RF-67b, RF-71, RF-82, RF-93, RF-94, RF-104), 020 (RF-6, RF-13, RF-15, RF-25, RF-28) |
+| `src/igea_dgs/web/services.py` | Las acciones de la interfaz, sin interfaz. | 001, 004 a 008, 011 (RF-12 a RF-16, RF-25, RF-27 a RF-30, RF-39 a RF-41, RF-68, RF-95, RF-121), 017 (RF-47 a RF-53, RF-59, RF-60, RF-65 a RF-67b, RF-71, RF-82, RF-93, RF-94, RF-104), 020 (RF-6, RF-13, RF-15, RF-25, RF-28), 021 (RF-26 a RF-34) |
 | `src/igea_dgs/web/source_runs.py` | Custodia inmutable de los ficheros de cada ejecución. | 001 |
 | `src/igea_dgs/web/source_scope.py` | Empresa y periodo de los paquetes VNR-GIS. | 001 (RF-2) |
 | `src/igea_dgs/web/sources/__init__.py` | Reexportación temporal de `igea_dgs.sources`. | 002 (RF-21 la retira) |
@@ -198,8 +198,8 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | --- | --- | --- |
 | `frontend/src/main.tsx` | Arranque de React. | 001 |
 | `frontend/src/App.tsx` | Marco de la página: paneles, pestañas, resúmenes de trabajos. | 001, 008 (RF-1, RF-2) |
-| `frontend/src/api.ts` | Cliente tipado de la API. | 001 (RF-12, RF-13), 011 (RF-42) |
-| `frontend/src/types.ts` | Tipos de las respuestas de la API. | 001, 011 |
+| `frontend/src/api.ts` | Cliente tipado de la API. | 001 (RF-12, RF-13), 011 (RF-42), 021 (RF-26, RF-34) |
+| `frontend/src/types.ts` | Tipos de las respuestas de la API. | 001, 011, 021 |
 | `frontend/src/clientesCatalogo.ts` | Estado del catálogo mensual de clientes: un solo libro activo e índice vigente antes de cruzar. | 004, 008 |
 | `frontend/src/projectBinding.ts` | Vínculo del proyecto de DIgSILENT con su ejecución de origen: separa los bloqueos de las advertencias por cambios manuales. | 005 |
 | `frontend/src/context.tsx` | Contexto común de la aplicación. | 001 |
@@ -211,7 +211,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `frontend/src/components/ReconstructionPanel.tsx` | Diagnóstico y reconstrucción. | 001 (RF-8, RF-9) |
 | `frontend/src/components/Modules.tsx` | Pestañas de resultados, catálogo y sistema completo. | 001 |
 | `frontend/src/components/CargasTab.tsx` | Pestaña «Cargas en DIgSILENT» en cuatro pasos; la distancia mínima de las cargas nuevas. | 004, 005, 008, 011 (RF-42, RF-98), 016 (RF-73) |
-| `frontend/src/components/DemandaMedida.tsx` | Paso 2: libros de medición, máxima de cabecera y clientes. | 004, 008 |
+| `frontend/src/components/DemandaMedida.tsx` | Paso 2: libros de medición, máxima de cabecera (con la central térmica de un alimentador) y clientes. | 004, 008, 021 (RF-25 a RF-27) |
 | `frontend/src/components/EstudiosPF.tsx` | Paso 4.2: estudios sobre la red calibrada, límites y resultados. | 011 (RF-24, RF-25, RF-35, RF-39, RF-68) |
 | `frontend/src/components/GuionesPF.tsx` | Paso 4.2: guiones DPL y Python del operador, sus parámetros y su salida por caso. | 011 (RF-27 a RF-30) |
 | `frontend/src/components/ObrasPF.tsx` | Paso 4.1: formulario de obras de mejora (también enlace, migración desde un nodo y sección de toda la troncal), bibliotecas de tipos, obras guardadas, simular y aplicar. | 011 (RF-56 a RF-95), 016 (RF-68 a RF-72) |

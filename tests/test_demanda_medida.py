@@ -678,3 +678,132 @@ def test_real_los_dos_formatos_de_clientes_cruzan():
         assert len(cruzados) + len(aparte) == len(clientes)
         assert len(cruzados) >= 0.5 * len(clientes), libro.name
         assert {c.cruzado_por for c in cruzados} <= {'actual', 'anterior'}
+
+
+# =========================================================================== central térmica
+def _central(rng, n: int = 400, *, signo_llegada: int = 1, signo_salida: int = 1,
+             raros: int = 0, parada_en: int | None = None, desfase: int = 0):
+    """Cuatro curvas ``(fecha, kW, kVAR)`` de un alimentador con una central en serie en su
+    troncal, como NA205: aguas arriba entre la SET y la central, aguas abajo tras ella.
+
+    Flujos que salen de la barra de la central, positivos: generación = salida + llegada.
+    El medidor exporta la llegada o la salida con ``signo_*``; ``raros`` registros llevan
+    una transferencia de carga aguas arriba (un salto que no es demanda); con
+    ``parada_en`` la central está parada (consumo de auxiliares) en ese registro.
+    """
+    cab, gen, lle, sal, esperado = [], [], [], [], {}
+    raro = set(rng.sample(range(n), raros)) if raros else set()
+    mejor = None
+    for i in range(n):
+        t = INICIO + timedelta(minutes=15 * i)
+        arriba = round(rng.uniform(600, 1100), 1) + (6000.0 if i in raro else 0.0)
+        abajo = round(rng.uniform(5000, 9500), 1)
+        # Se sortea siempre: saltarse el sorteo con la central parada cambiaba el resto de
+        # la serie y la máxima pasaba a otro registro (fallaba con 86 de 300 semillas).
+        g = round(rng.uniform(0, 9600), 1)
+        if i == parada_en:
+            g = -110.0
+        qa, qb, qg = round(arriba * 0.3, 1), round(abajo * 0.2, 1), round(-0.06 * g, 1)
+        llegada, q_lle = g - abajo, qg - qb
+        cab.append((t, arriba - llegada, qa - q_lle))
+        gen.append((t, g, qg))
+        lle.append((t + timedelta(minutes=15 * desfase), signo_llegada * llegada,
+                    signo_llegada * q_lle))
+        sal.append((t, signo_salida * abajo, signo_salida * qb))
+        if i not in raro and (mejor is None or arriba + abajo > mejor[0]):
+            mejor = (arriba + abajo, t, arriba, abajo, g)
+    esperado = {'fecha': mejor[1], 'demanda': mejor[0], 'arriba': mejor[2],
+                'abajo': mejor[3], 'generacion': mejor[4]}
+    return cab, gen, lle, sal, esperado
+
+
+def test_central_deduce_los_signos_por_el_balance():
+    """021:RF-28, RF-29 — sea cual sea el signo con que el medidor exporta la llegada y
+    la salida, el balance de la barra (generación = salida + llegada) los delata."""
+    for sl, ss in ((1, 1), (-1, 1), (1, -1), (-1, -1)):
+        rng = random.Random(SEMILLA)
+        cab, gen, lle, sal, esp = _central(rng, signo_llegada=sl, signo_salida=ss)
+        r = dm.demanda_con_central(cab, gen, lle, sal)
+        assert r.error is None, r
+        assert (r.signo_llegada, r.signo_salida) == (sl, ss)
+        assert r.desbalance_mediana_kw == pytest.approx(0.0, abs=1e-6)
+
+
+def test_central_sin_balance_no_calibra():
+    """021:RF-30 — si ninguna combinación cuadra el balance, se dice su mediana y no se usa."""
+    rng = random.Random(SEMILLA)
+    cab, gen, lle, sal, _ = _central(rng)
+    lle = [(t, rng.uniform(-9000, 9000), q) for t, _kw, q in lle]
+    r = dm.demanda_con_central(cab, gen, lle, sal)
+    assert r.error and 'balance' in r.error and 'mediana' in r.error
+    assert r.desbalance_mediana_kw > 0.05 * r.generacion_max_kw
+
+
+def test_central_zonas_y_maxima_de_demanda():
+    """021:RF-31, RF-33, RF-34 — aguas arriba = cabecera + llegada, aguas abajo = salida;
+    el objetivo es el registro de mayor demanda, con cada zona, la generación, la
+    cabecera y la máxima de cabecera de antes."""
+    rng = random.Random(SEMILLA)
+    cab, gen, lle, sal, esp = _central(rng, signo_llegada=-1)
+    r = dm.demanda_con_central(cab, gen, lle, sal)
+    assert r.error is None, r
+    assert r.fecha == esp['fecha'].isoformat(sep=' ')
+    assert r.demanda_kw == pytest.approx(esp['demanda'])
+    assert (r.arriba_kw, r.abajo_kw) == (pytest.approx(esp['arriba']), pytest.approx(esp['abajo']))
+    assert r.generacion_kw == pytest.approx(esp['generacion'])
+    fila = next(p for p in cab if p[0] == esp['fecha'])
+    assert r.cabecera_kw == pytest.approx(fila[1])
+    pico = max(cab, key=lambda p: p[1])
+    assert r.maxima_cabecera == {'fecha': pico[0].isoformat(sep=' '), 'kw': pico[1]}
+    assert r.arriba_kvar is not None and r.abajo_kvar is not None and r.generacion_kvar is not None
+    d = r.to_dict()
+    assert d['demanda_kw'] == r.demanda_kw and d['signo_llegada'] == -1
+
+
+def test_central_descarta_los_registros_raros_de_aguas_arriba():
+    """021:RF-32 — una transferencia de carga aguas arriba (un salto de 6 MW) no es la
+    máxima: se descarta por estar a más de 3 rangos intercuartílicos y se cuenta."""
+    rng = random.Random(SEMILLA)
+    cab, gen, lle, sal, esp = _central(rng, raros=5)
+    r = dm.demanda_con_central(cab, gen, lle, sal)
+    assert r.descartados == 5
+    assert r.fecha == esp['fecha'].isoformat(sep=' ')
+
+
+def test_central_parada_en_la_maxima():
+    """021 (casos límite) — con la central parada en el registro objetivo se usa lo medido
+    (sus auxiliares), sin dejar de calibrar por zonas."""
+    rng = random.Random(SEMILLA)
+    cab, gen, lle, sal, _ = _central(rng, n=50)
+    # El registro de mayor demanda, con la central parada.
+    i = max(range(50), key=lambda k: (cab[k][1] + (lle[k][1])) + sal[k][1])
+    rng = random.Random(SEMILLA)
+    cab, gen, lle, sal, esp = _central(rng, n=50, parada_en=i)
+    r = dm.demanda_con_central(cab, gen, lle, sal)
+    assert r.error is None and r.fecha == esp['fecha'].isoformat(sep=' ')
+    assert r.generacion_kw == -110.0
+
+
+def test_central_solo_con_los_registros_comunes():
+    """021 (casos límite) — fechas que no casan entre los cuatro medidores no se usan."""
+    rng = random.Random(SEMILLA)
+    cab, gen, lle, sal, _ = _central(rng, n=100, desfase=10)
+    r = dm.demanda_con_central(cab, gen, lle, sal)
+    assert r.registros_comunes == 90
+    assert r.registros_cabecera == 100
+
+
+@real
+def test_real_na205_con_su_central():
+    """021:RF-28 a RF-34 — NA205 con la central de Nasca: CT_BH4 NA (generación), CTNA_BH2
+    (llegada desde la SET) y CTNA_BH1 (salida a la carga). La máxima de demanda es la del
+    2026-08-20 16:45, con la central generando, no la de cabecera con ella parada."""
+    cab = dm.Cabecera([_sub('2.')])
+    curvas = {m: cab.maxima(m).curva for m in ('NA205', 'CT_BH4 NA', 'CTNA_BH2', 'CTNA_BH1')}
+    r = dm.demanda_con_central(curvas['NA205'], curvas['CT_BH4 NA'], curvas['CTNA_BH2'],
+                               curvas['CTNA_BH1'])
+    assert r.error is None, r
+    assert (r.signo_llegada, r.signo_salida) == (1, 1)
+    assert r.fecha == '2026-08-20 16:45:00'
+    assert r.generacion_kw > 9000 and r.descartados > 0
+    assert r.maxima_cabecera['fecha'].startswith('2026-08-21')

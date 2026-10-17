@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { api, fmtNum } from '../api';
 import { useApp } from '../context';
 import type {
-  AjusteInforme, AjustePlan, AjusteResultado, BalanceCabecera, ConsumoDistinto, Job, MaximaCabecera,
-  SedSobrecargada,
+  AjusteInforme, AjustePlan, AjusteResultado, BalanceCabecera, CentralTermica, ConsumoDistinto, Job,
+  MaximaCabecera, MaximaConCentral, SedSobrecargada,
 } from '../types';
 import { CurvaCabecera } from './CurvaCabecera';
 
@@ -18,8 +18,10 @@ const pct = (x: number | null | undefined) => (x == null ? '—' : `${x >= 0 ? '
  * RF-43, RF-44). Todo queda en el escenario de «Sin proyecto», sin variaciones. Con varios
  * alimentadores marcados se ajustan uno tras otro en un solo trabajo (spec 008, RF-12).
  */
-export function AjusteCabecera({ project, maxima, feeders, desconectados }: {
+export function AjusteCabecera({ project, maxima, feeders, desconectados, centrales = {} }: {
   project: string; maxima: Job | undefined; feeders: string[]; desconectados: Set<string>;
+  /** Spec 021: central térmica declarada en 2.2, por alimentador, con sus tres medidores. */
+  centrales?: Record<string, CentralTermica>;
 }) {
   const { ws, run, startJob, active, jobs } = useApp();
   const [elegido, setElegido] = useState<Record<string, string>>({});
@@ -42,6 +44,22 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados }: {
   // RF-13: con varios medidores en un alimentador hay que elegir el de su cabecera.
   const medidores = grupos.map((g) => (g.filas.length === 1 ? g.filas[0].medidor : elegido[g.alimentador] ?? ''));
   const sinElegir = grupos.filter((_g, i) => !medidores[i]).map((g) => g.alimentador || '—');
+  // Spec 021, RF-33 y RF-34: con central, la máxima de demanda de cada alimentador, de las
+  // curvas que ya leyó la máxima (memoria del servidor, sin volver a abrir los libros).
+  const [conCentral, setConCentral] = useState<Record<string, MaximaConCentral | string>>({});
+  const firmaCentrales = JSON.stringify(centrales);
+  useEffect(() => {
+    if (!maxima) { setConCentral({}); return; }
+    let vivo = true;
+    const pedidas = grupos.map((g, i) => ({ g, medidor: medidores[i] || g.filas[0].medidor }))
+      .filter(({ g }) => centrales[g.alimentador])
+      .map(({ g, medidor }) => api.demandaCentral(ws.id, maxima.id, g.alimentador, medidor, centrales[g.alimentador])
+        .then((r): [string, MaximaConCentral | string] => [g.alimentador, r])
+        .catch((e: Error): [string, MaximaConCentral | string] => [g.alimentador, e.message]));
+    Promise.all(pedidas).then((xs) => { if (vivo) setConCentral(Object.fromEntries(xs)); });
+    return () => { vivo = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ws.id, maxima?.id, firmaCentrales, medidores.join('|')]);
   const tol = Number(tolerancia.replace(',', '.')) / 100;
   const tolValida = Number.isFinite(tol) && tol >= 0.001 && tol <= 0.1;
 
@@ -102,6 +120,21 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados }: {
             return { clave: g.alimentador || m, etiqueta: `${g.alimentador || '—'} · ${m}`, medidor: m };
           })} />
       )}
+      {Object.entries(conCentral).map(([a, r]) => (
+        <div key={a} className={`alert ${typeof r === 'string' || r.error ? 'alert-warn' : 'alert-info'} central-resumen`}>
+          {typeof r === 'string' ? <><strong>{a}</strong>, central declarada: {r}</>
+            : r.error ? <><strong>{a}</strong>, central declarada: {r.error}.</>
+              : (
+                <>
+                  <strong>{a} con central</strong>: máxima de demanda <strong>{fmtNum(r.demanda_kw, 1)} kW</strong> el {r.fecha}
+                  {' '}= aguas arriba {fmtNum(r.arriba_kw, 1)} kW + aguas abajo {fmtNum(r.abajo_kw, 1)} kW; la central
+                  generaba {fmtNum(r.generacion_kw, 1)} kW y por la cabecera entraban {fmtNum(r.cabecera_kw, 1)} kW.
+                  {r.maxima_cabecera && <> La máxima de cabecera, {fmtNum(r.maxima_cabecera.kw, 1)} kW el {r.maxima_cabecera.fecha}, no es la de la demanda.</>}
+                  {r.descartados > 0 && <> {fmtNum(r.descartados)} registro(s) descartados: aguas arriba fuera de lo normal.</>}
+                </>
+              )}
+        </div>
+      ))}
       <div className="row">
         <label className="field">
           <span>Tolerancia (%)</span>

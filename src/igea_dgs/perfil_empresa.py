@@ -246,6 +246,40 @@ def transformadores_sed(datos: dict[str, Any]) -> dict[str, Any] | None:
     return {'umbral_carga_pct': umbral, 'tablas': tablas, 'avisos': avisos}
 
 
+#: Medidores de una central térmica en un tramo de un alimentador (021:RF-25, RF-27).
+CAMPOS_CENTRAL = ('generacion', 'llegada', 'salida')
+
+
+def centrales_termicas(datos: dict[str, Any]) -> dict[str, dict[str, str]]:
+    """La sección ``centrales_termicas`` del perfil: ``{alimentador: {generacion, llegada,
+    salida, nodo}}`` (021:RF-27), o vacía.
+
+    NA205 tiene en su troncal la central de Nasca, y el libro de medidores la trae como
+    tres «alimentadores» que no son de la red (CTBarra, CTLADOSET, CTLADOCARGA). Es un
+    dato de la red de la empresa, no una convención: va en el perfil local. ``nodo`` es
+    optativo: el nombre de la barra en DIgSILENT cambia con cada proyecto importado.
+    """
+    seccion = datos.get('centrales_termicas')
+    if seccion is None:
+        return {}
+    if not isinstance(seccion, dict):
+        raise PerfilError('centrales_termicas tiene que ser un objeto {alimentador: {generacion, '
+                          f'llegada, salida, nodo}}, no {seccion!r}.')
+    out = {}
+    for alimentador, central in seccion.items():
+        if not isinstance(central, dict):
+            raise PerfilError(f'centrales_termicas.{alimentador} tiene que ser un objeto, no {central!r}.')
+        faltan = [c for c in CAMPOS_CENTRAL if not str(central.get(c) or '').strip()]
+        if faltan:
+            raise PerfilError(f'centrales_termicas.{alimentador}: falta el medidor de '
+                              f'{", ".join(faltan)}.')
+        out[str(alimentador).strip()] = {
+            **{c: str(central[c]).strip() for c in CAMPOS_CENTRAL},
+            'nodo': str(central.get('nodo') or '').strip(),
+        }
+    return out
+
+
 def datos_perfil(ruta: Path | None = None, *, carpeta: Path | None = None) -> dict[str, Any]:
     """Todas las claves del perfil activo, con la herencia resuelta.
 

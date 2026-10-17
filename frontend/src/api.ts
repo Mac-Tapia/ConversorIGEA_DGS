@@ -1,5 +1,6 @@
 import type {
-  AjustePlan, AjusteResultado, CargasPlan, ClientesCruce, CurvaCabecera, DemandaMedidores, Economia, EstudiosCatalogo, EstudiosPlan,
+  AjustePlan, AjusteResultado, CargasPlan, CentralTermica, ClientesCruce, CurvaCabecera, DemandaMedidores,
+  MaximaConCentral, MedidoresExternos, Economia, EstudiosCatalogo, EstudiosPlan,
   FeederRow, Health, InformeEstudioForm, InformeFactibilidadForm, InformesContexto, Job, Limites, MaximaCabecera, Obra,
   ObraGuardada, Options, OutputFile, PfInventario, PowerFactoryStatus, ReconstructionReport, WorkspaceState,
 } from './types';
@@ -186,6 +187,15 @@ export const api = {
     if (hasta) q.set('hasta', hasta);
     return request<CurvaCabecera>(`${ws(id)}/demanda/cabecera/${enc(jobId)}/curva?${q}`);
   },
+  demandaMedidoresExternos: (id: string, red: string[]) => {
+    const q = new URLSearchParams();
+    red.forEach((r) => q.append('red', r));
+    return request<MedidoresExternos>(`${ws(id)}/demanda/medidores-externos?${q}`);
+  },
+  demandaCentral: (id: string, jobId: string, alimentador: string, cabecera: string, c: CentralTermica) =>
+    request<MaximaConCentral>(`${ws(id)}/demanda/cabecera/${enc(jobId)}/central?${new URLSearchParams({
+      alimentador, cabecera, generacion: c.generacion, llegada: c.llegada, salida: c.salida,
+    })}`),
   demandaAlimentadores: (id: string) =>
     request<{ alimentadores: string[] }>(`${ws(id)}/demanda/alimentadores`),
   // Spec 017, paso 4.4: lo que la web ya guardó para los informes, y su generación.

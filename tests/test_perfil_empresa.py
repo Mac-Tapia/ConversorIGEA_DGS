@@ -405,3 +405,16 @@ def test_tabla_sin_rango_o_sin_filas_validas_se_descarta():
     ]}}}
     t = transformadores_sed(datos)
     assert t['tablas'] == [] and any('A' in a for a in t['avisos']) and any('B' in a for a in t['avisos'])
+
+
+def test_centrales_del_perfil_validadas():
+    """021:RF-27 — la sección ``centrales_termicas``: tres medidores obligatorios y el nodo
+    optativo; sin sección, ninguna central supuesta."""
+    from igea_dgs.perfil_empresa import PerfilError, centrales_termicas
+
+    assert centrales_termicas({}) == {}
+    assert centrales_termicas({'centrales_termicas': {' A1 ': {
+        'generacion': 'G', 'llegada': 'L', 'salida': 'S', 'nodo': ' N1 '}}}) == {
+        'A1': {'generacion': 'G', 'llegada': 'L', 'salida': 'S', 'nodo': 'N1'}}
+    with pytest.raises(PerfilError, match='salida'):
+        centrales_termicas({'centrales_termicas': {'A1': {'generacion': 'G', 'llegada': 'L'}}})

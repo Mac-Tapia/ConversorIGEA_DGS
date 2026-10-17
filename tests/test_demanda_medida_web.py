@@ -436,3 +436,74 @@ def test_curva_reducida_conserva_la_maxima(client, monkeypatch):
     c = _curva(client, wid, estado['id'], medidor='M1').json()
     assert c['reducida'] is True and c['total'] == 8 and len(c['puntos']) <= 4
     assert max(p[1] for p in c['puntos']) == 107.0
+
+
+# ---------------------------------------------------------------- spec 021: central térmica
+def _libros_con_central(client, wid):
+    """A1 con una central en su troncal: CG (generación), CL (llegada) y CS (salida) en el
+    libro como «alimentadores» que no son de la red, igual que CTBarra en Electro Dunas."""
+    medidores = {'h': [['codigo alimentador', 'Medidor'], ['A1', 'M1'], ['A2', 'M3'],
+                       ['CTB', 'CG'], ['CTSET', 'CL'], ['CTCARGA', 'CS']]}
+    filas = {k: [['Local Time', 'kW tot', 'kVAR tot']] for k in ('M1', 'CG', 'CL', 'CS')}
+    for i in range(12):
+        t = T0 + timedelta(minutes=15 * i)
+        arriba, abajo, g = 800.0 + i, 5000.0 + 100 * i, 0.0 if i % 3 == 0 else 6000.0
+        llegada = g - abajo
+        filas['M1'].append([t, arriba - llegada, 10.0])
+        filas['CG'].append([t, g, -5.0])
+        filas['CL'].append([t, llegada, -3.0])
+        filas['CS'].append([t, abajo, 8.0])
+    _subir(client, wid, 'medidores', medidores)
+    _subir(client, wid, 'cabecera', filas)
+
+
+def test_medidores_que_no_son_de_la_red(client):
+    """021:RF-26 — se ofrecen los medidores cuyo alimentador no es de la red, sin mirar su
+    nombre: A1 y A2 son de la red (los del proyecto), CTB, CTSET y CTCARGA no."""
+    wid = _wid(client)
+    _libros_con_central(client, wid)
+    r = client.get(f'/api/workspaces/{wid}/demanda/medidores-externos', params={'red': ['A1', 'A2']})
+    assert r.status_code == 200, r.text
+    assert [m['medidor'] for m in r.json()['medidores']] == ['CG', 'CL', 'CS']
+
+
+def test_perfil_propone_la_central(client, tmp_path, monkeypatch):
+    """021:RF-27 — la central que guarda el perfil local se propone ya rellena."""
+    from igea_dgs.perfil_empresa import VARIABLE_RUTA
+
+    perfil = tmp_path / 'perfil.json'
+    perfil.write_text(json.dumps({'centrales_termicas': {
+        'A1': {'generacion': 'CG', 'llegada': 'CL', 'salida': 'CS'}}}), encoding='utf-8')
+    monkeypatch.setenv(VARIABLE_RUTA, str(perfil))
+    wid = _wid(client)
+    _libros_con_central(client, wid)
+    r = client.get(f'/api/workspaces/{wid}/demanda/medidores-externos', params={'red': ['A1']}).json()
+    assert r['centrales_perfil'] == {'A1': {'generacion': 'CG', 'llegada': 'CL', 'salida': 'CS', 'nodo': ''}}
+    assert r['aviso_perfil'] is None
+
+
+def test_maxima_con_central_de_la_ultima_busqueda(client):
+    """021:RF-25, RF-33, RF-34 — con los tres medidores de la central buscados junto a la
+    cabecera, la máxima es la de la demanda (aguas arriba + aguas abajo), con cada zona."""
+    wid = _wid(client)
+    _libros_con_central(client, wid)
+    estado = _buscar(client, wid, medidores=('M1', 'CG', 'CL', 'CS'))
+    r = client.get(f'/api/workspaces/{wid}/demanda/cabecera/{estado["id"]}/central', params={
+        'alimentador': 'A1', 'cabecera': 'M1', 'generacion': 'CG', 'llegada': 'CL', 'salida': 'CS'})
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert d['error'] is None and d['fecha'] == '2026-07-01 02:45:00'
+    assert d['demanda_kw'] == pytest.approx(811.0 + 6100.0)
+    assert (d['arriba_kw'], d['abajo_kw'], d['generacion_kw']) == (811.0, 6100.0, 6000.0)
+    # La de cabecera, con la central parada: el último registro con g = 0 (i = 9).
+    assert d['maxima_cabecera']['fecha'] == '2026-07-01 02:15:00'
+
+
+def test_maxima_con_central_sin_su_curva_es_404(client):
+    """021:RF-25 — sin buscar los medidores de la central, se pide buscarlos."""
+    wid = _wid(client)
+    _libros_con_central(client, wid)
+    estado = _buscar(client, wid, medidores=('M1',))
+    r = client.get(f'/api/workspaces/{wid}/demanda/cabecera/{estado["id"]}/central', params={
+        'alimentador': 'A1', 'cabecera': 'M1', 'generacion': 'CG', 'llegada': 'CL', 'salida': 'CS'})
+    assert r.status_code == 404 and 'CG' in r.json()['detail']

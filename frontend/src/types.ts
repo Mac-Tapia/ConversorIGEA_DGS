@@ -682,6 +682,47 @@ export interface MaximaCabecera {
 }
 
 /** Curva del registro de un medidor de cabecera, entera o un tramo (spec 006, RF-31 a RF-39). */
+/** Central térmica en un tramo de un alimentador: sus tres medidores (spec 021, RF-25). */
+export interface CentralTermica {
+  generacion: string;
+  llegada: string;
+  salida: string;
+  /** Barra del troncal en DIgSILENT; optativa al buscar la máxima. */
+  nodo: string;
+}
+
+/** Medidores que no son de un alimentador de la red y las centrales del perfil (021:RF-26, RF-27). */
+export interface MedidoresExternos {
+  medidores: { alimentador: string; medidor: string }[];
+  centrales_perfil: Record<string, CentralTermica>;
+  aviso_perfil: string | null;
+}
+
+/** Máxima de demanda de un alimentador con central (spec 021, RF-28 a RF-34). */
+export interface MaximaConCentral {
+  alimentador: string;
+  fecha: string | null;
+  demanda_kw: number | null;
+  arriba_kw: number | null;
+  arriba_kvar: number | null;
+  abajo_kw: number | null;
+  abajo_kvar: number | null;
+  generacion_kw: number | null;
+  generacion_kvar: number | null;
+  cabecera_kw: number | null;
+  cabecera_kvar: number | null;
+  signo_llegada: number;
+  signo_salida: number;
+  desbalance_mediana_kw: number | null;
+  generacion_max_kw: number | null;
+  descartados: number;
+  registros_comunes: number;
+  registros_cabecera: number;
+  maxima_cabecera: { fecha: string; kw: number } | null;
+  avisos: string[];
+  error: string | null;
+}
+
 export interface CurvaCabecera {
   medidor: string;
   /** Primer y último registro de la curva entera, aunque se pida un tramo. */
