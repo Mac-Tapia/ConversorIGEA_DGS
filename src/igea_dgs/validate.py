@@ -147,7 +147,12 @@ def validate_dgs(
     cubic_rows = tables['StaCubic']['rows_dict']
     switch_rows = tables['StaSwitch']['rows_dict']
 
-    if len(term_rows) != len(model.nodes) + 2 * len(model.seds):
+    from .dgs import seds_con_barra_propia
+
+    # Una SED con barra propia usa la del alimentador como barra de MT (021:RF-12): ni
+    # barra de MT aparte ni acoplador.
+    propias = len(seds_con_barra_propia(model))
+    if len(term_rows) != len(model.nodes) + 2 * len(model.seds) - propias:
         structural_errors.append(
             f'ElmTerm count {len(term_rows)} != source nodes {len(model.nodes)} '
             f'+ 2×SED buses {2 * len(model.seds)}'
@@ -180,7 +185,7 @@ def validate_dgs(
     combinado = getattr(model, 'combined', None)
     n_red_coups = len(getattr(model, 'couplers', ()) or ()) + len(
         getattr(combinado, 'ties', ()) or ())
-    if len(coup_rows) != len(model.seds) + n_red_coups:
+    if len(coup_rows) != len(model.seds) - propias + n_red_coups:
         structural_errors.append(
             f'ElmCoup count {len(coup_rows)} != source SEDs {len(model.seds)} '
             f'+ network switches {n_red_coups}')
@@ -362,10 +367,11 @@ def validate_dgs(
             connection_errors.append(f'{sed.code}: ElmSubstat missing MT ElmTerm')
         if len(bt_terms) < 1:
             connection_errors.append(f'{sed.code}: ElmSubstat missing BT ElmTerm')
-        # Coupler must bridge feeder TXT node ↔ internal MT bus.
+        # Coupler must bridge feeder TXT node ↔ internal MT bus, salvo que la barra del
+        # alimentador sea ya la barra de MT de la SED, dentro de ella (021:RF-12).
         expected_feeder = term_by_name.get(_loc(sed.node_id), {}).get('FID')
         mt_fids = {t.get('FID', '') for t in mt_terms}
-        linked = False
+        linked = expected_feeder in mt_fids
         for coup in coup_rows:
             if coup.get('fold_id') != sub_fid:
                 continue
@@ -477,6 +483,8 @@ def validate_dgs(
             visible_nodes.add(diagram_anchor_node(model, load.node_id, neighbors=neighbors))
         for sed in model.seds:
             visible_nodes.add(diagram_anchor_node(model, sed.node_id, neighbors=neighbors))
+        # La barra propia de una SED la dibuja su triángulo, sin PointTerm (021:RF-12).
+        visible_nodes -= set(seds_con_barra_propia(model).values())
         # Hoisted out of the comprehension below: nesting it there rebuilt the whole
         # set once per ElmTerm row (≈4.6M _loc calls on a 2k-section feeder).
         visible_node_locs = {_loc(n) for n in visible_nodes}

@@ -347,7 +347,9 @@ def test_micro_stub_tip_hides_pointterm_and_d_lin():
 
 
 def test_sed_load_nests_inside_triangle_like_na205(tmp_path: Path):
-    """ElmSubstat interior: MT+BT buses, Tr2, coupler to feeder, load on BT."""
+    """ElmSubstat interior: MT+BT buses, Tr2, load on BT. 021:RF-12, RF-13 — la barra del
+    alimentador es la barra de MT de la SED, dentro de ella y con su nombre, sin
+    acoplador ni punto aparte: la línea llega al triángulo, como en el NA205 de PF."""
     model = _toy_model(with_sed=True)
     geo = _toy_geography(model)
     out = tmp_path / 'toy_sed.dgs'
@@ -372,13 +374,22 @@ def test_sed_load_nests_inside_triangle_like_na205(tmp_path: Path):
     # Interior electrical (double-click triangle).
     assert len(tables['ElmTr2']['rows_dict']) == 1
     assert tables['ElmTr2']['rows_dict'][0]['fold_id'] == sub['FID']
-    assert len(tables['ElmCoup']['rows_dict']) == 1
-    assert tables['ElmCoup']['rows_dict'][0]['fold_id'] == sub['FID']
+    assert tables['ElmCoup']['rows_dict'] == []
     inner_terms = [r for r in tables['ElmTerm']['rows_dict'] if r.get('fold_id') == sub['FID']]
     assert len(inner_terms) == 2
     uk = sorted(float(r['uknom']) for r in inner_terms)
     assert uk[0] == NA205_SED_LV_KV
     assert uk[1] == model.nominal_kv
+    mt = next(r for r in inner_terms if float(r['uknom']) >= 1.0)
+    sed = model.seds[0]
+    assert mt['loc_name'] == sed.node_id, 'la barra conserva su nombre del alimentador'
+    lineas = {r['FID'] for r in tables['ElmLne']['rows_dict']}
+    assert any(c['fold_id'] == mt['FID'] and c['obj_id'] in lineas
+               for c in tables['StaCubic']['rows_dict']), 'la línea entra en la SED'
+    assert not any(r.get('pDataObj') == mt['FID'] for r in tables['IntGrf']['rows_dict'])
+    tr = tables['ElmTr2']['rows_dict'][0]
+    tr_cubs = {c['fold_id'] for c in tables['StaCubic']['rows_dict'] if c['obj_id'] == tr['FID']}
+    assert mt['FID'] in tr_cubs, "el transformador cuelga de esa barra"
     # Load cubicle on BT bus
     bt = next(r for r in inner_terms if float(r['uknom']) < 1.0)
     lod_cub = next(c for c in tables['StaCubic']['rows_dict'] if c.get('obj_id') == lod['FID'])

@@ -243,7 +243,8 @@ def test_dgs_con_interruptores_valida_sin_errores(tmp_path):
     assert rep['errors_total'] == 0, rep
     tablas = parse_dgs(out)
     coups = tablas['ElmCoup']['rows_dict']
-    assert len(coups) == len(m.seds) + len(m.couplers)
+    from igea_dgs.dgs import seds_con_barra_propia
+    assert len(coups) == len(m.seds) - len(seds_con_barra_propia(m)) + len(m.couplers)
     # 021:RF-3 — el seccionador plegado sale en el cubículo de L1 con su nombre y estado.
     [sw] = [r for r in tablas['StaSwitch']['rows_dict'] if r['loc_name'] == 'SW1']
     assert int(float(sw['on_off'])) == 1
@@ -486,6 +487,69 @@ def test_el_trecho_del_conductor_sigue_corrido_sin_acoples():
            'barras': [['CAB', -14.0, -75.7, 1, 10], ['N2', -14.002, -75.7, 1, 10]]}
     trechos = trechos_de_conductor(geo, ['L1', 'L2'], geo)
     assert [(t.desde, t.hasta, t.tramos) for t in trechos] == [('CAB', 'N2', ('L1', 'L2'))]
+
+
+def _sed_de_derivacion(dos_seds: bool = False) -> FeederModel:
+    """SE50195 con EQ_1080_875778 (NA203 + NA205): línea ─ fusible ─ SED.
+
+        S ─L1─ X ─P1(fusible)─ Y (SED)
+    """
+    nodos = {k: Node(k, float(i * 10), 0.0) for i, k in enumerate('SXY')}
+    lineas = [_linea('L1', 'S', 'X'), _linea('P1', 'X', 'Y', 'DEFAULT', 2.0)]
+    fus = SwitchingDevice('FUSE', 'P1', 'S', 0, 'X', 'F', 'FU1', 'ABC', 1, 0, 0)
+    seds = [Sed('SE1', 'SE1', 'Y', 250.0, 'P1', 'D1', ('P1', 'D1'))]
+    cargas = [Load('P1', 'D1', 'C1', '1', 'Y', 0.1, 0.02, 0.98, 100, 0, 'ABC', sed_code='SE1')]
+    if dos_seds:
+        seds.append(Sed('SE2', 'SE2', 'Y', 100.0, 'P1', 'D2', ('P1', 'D2')))
+        cargas.append(Load('P1', 'D2', 'C2', '1', 'Y', 0.05, 0.01, 0.98, 100, 0, 'ABC',
+                           sed_code='SE2'))
+    m = FeederModel(name='F1', network_id='NET_F1', nominal_kv=22.9, source_node='S',
+                    nodes=nodos, lines=lineas, loads=cargas, devices=[fus],
+                    line_types={'LINE:AA05003D': LineType('LINE:AA05003D', 'AA05003D', 'LINE',
+                                                          0.6755, 0.6755, 0.47, 1.4, 3.1, 0, 195)},
+                    seds=seds)
+    m.section_by_id = {ln.section_id: ln for ln in lineas}
+    return m
+
+
+def test_linea_fusible_y_sed_quedan_en_un_trazo_hasta_el_triangulo(tmp_path):
+    """021:RF-12, RF-14 — el fusible de derivación va en el extremo de L1, y ese extremo
+    es la barra de MT dentro de la SED: línea, fusible y triángulo sin barra suelta."""
+    pytest.importorskip('pyproj')
+    from igea_dgs.dgs import write_dgs
+    from igea_dgs.validate import parse_dgs, validate_dgs
+
+    m = _sed_de_derivacion()
+    fundir_puentes(m)
+    out = tmp_path / 'F1.dgs'
+    write_dgs(m, out)
+    assert validate_dgs(m, out)['errors_total'] == 0
+    t = parse_dgs(out)
+    sub = t['ElmSubstat']['rows_dict'][0]
+    [sw] = t['StaSwitch']['rows_dict']
+    cub = next(c for c in t['StaCubic']['rows_dict'] if c['FID'] == sw['fold_id'])
+    barra = next(r for r in t['ElmTerm']['rows_dict'] if r['FID'] == cub['fold_id'])
+    assert barra['fold_id'] == sub['FID'], 'el cubículo del fusible está en la barra de la SED'
+    assert t['ElmCoup']['rows_dict'] == []
+
+
+def test_dos_sed_en_una_barra_siguen_con_su_acoplador(tmp_path):
+    """021:RF-12, RF-13 — una barra no cabe en dos ElmSubstat: con dos SED en la misma,
+    cada una conserva su barra de MT y su acoplador a la barra del alimentador."""
+    pytest.importorskip('pyproj')
+    from igea_dgs.dgs import seds_con_barra_propia, write_dgs
+    from igea_dgs.validate import parse_dgs, validate_dgs
+
+    m = _sed_de_derivacion(dos_seds=True)
+    fundir_puentes(m)
+    assert seds_con_barra_propia(m) == {}
+    out = tmp_path / 'F1.dgs'
+    write_dgs(m, out)
+    assert validate_dgs(m, out)['errors_total'] == 0
+    t = parse_dgs(out)
+    assert len(t['ElmCoup']['rows_dict']) == 2
+    subs = {r['FID'] for r in t['ElmSubstat']['rows_dict']}
+    assert all(r['fold_id'] in subs for r in t['ElmCoup']['rows_dict'])
 
 
 @pytest.mark.parametrize('codigo', ['SE41608', 'SA50425', 'MI-1157078'])

@@ -215,11 +215,14 @@ def auditar_completitud(dataset, networks: Iterable[str], model, tablas: dict,
     kw_dgs = sum(float(r.get('plini') or 0) for r in tablas.get('ElmLod', {}).get('rows_dict', [])) * 1000
     kvar_dgs = sum(float(r.get('qlini') or 0) for r in tablas.get('ElmLod', {}).get('rows_dict', [])) * 1000
     # Los interruptores de red de un puente van como ElmCoup; los enlaces entre
-    # alimentadores también, pero esos no vienen de ningún dispositivo de la base, y cada
-    # SED lleva el suyo interno. Se cuentan los escritos en el DGS, no los que dice el
-    # informe de puentes: un ElmCoup que no llega al DGS es una pérdida (021:RF-9).
+    # alimentadores también, pero esos no vienen de ningún dispositivo de la base, y una
+    # SED sin barra propia lleva el suyo dentro. Se cuentan los escritos en el DGS fuera de
+    # las SED, no los que dice el informe de puentes: un ElmCoup que no llega al DGS es
+    # una pérdida (021:RF-9).
     enlaces = len(getattr(getattr(model, 'combined', None), 'ties', ()) or ())
-    interruptores = n('ElmCoup') - n('ElmSubstat') - enlaces
+    seds = {r.get('FID') for r in tablas.get('ElmSubstat', {}).get('rows_dict', [])}
+    interruptores = sum(1 for r in tablas.get('ElmCoup', {}).get('rows_dict', [])
+                        if r.get('fold_id') not in seds) - enlaces
 
     fallos = []
     if n('ElmLne') + puentes != len(secciones):

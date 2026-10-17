@@ -27,12 +27,16 @@ def test_writer_has_precise_cubicles_and_load_terminal(sample_model, tmp_path):
     tables = _parse(out)
     assert len(tables['ElmLne']['rows']) == len(sample_model.lines)
     assert len(tables['ElmLod']['rows']) == len(sample_model.loads)
-    # Per SED: Tr2 (2 cubicles) + ElmCoup (2 cubicles) = 4.
+    # Per SED: Tr2 (2 cubicles) + ElmCoup (2 cubicles) = 4; con barra propia, sin el
+    # ElmCoup (021:RF-12).
+    from igea_dgs.dgs import seds_con_barra_propia
+
     expected_cubics = (
         2 * len(sample_model.lines)
         + len(sample_model.loads)
         + 1  # source
         + 4 * len(sample_model.seds)
+        - 2 * len(seds_con_barra_propia(sample_model))
     )
     assert len(tables['StaCubic']['rows']) == expected_cubics
 
