@@ -145,6 +145,28 @@ def test_medidor_partido_en_hojas_se_une_por_fecha(tmp_path):
     assert res.kva == pytest.approx(esperado['kva'])
 
 
+def test_la_maxima_a_medianoche_conserva_su_hora(tmp_path):
+    """004:RF-25, RF-28 — python-calamine lee el registro de las 00:00 como fecha sin hora
+    (``date``) y los demás con hora: la máxima a medianoche salía «2026-07-01» y, partida
+    en hojas, no casaba con la misma fecha y hora de las otras. Con las semillas 116, 183,
+    299 y 309 la prueba sorteada caía justo ahí y fallaba solo a veces."""
+    rng = random.Random(SEMILLA)
+    completo, esperado = _medicion(rng, 40, {'kw': 'kW tot', 'kvar': 'kVAR tot', 'kva': 'kVA tot'},
+                                   pico=0)
+    assert esperado['fecha'] == INICIO
+    cab = completo[0]
+    partes = {}
+    for suf, col in (('v19', 'kW tot'), ('v20', 'kVAR tot'), ('v9', 'kVA tot')):
+        k = cab.index(col)
+        partes[f'M7_{suf}'] = [[r[0], r[1], r[k]] for r in completo]
+    _libro(tmp_path / 'c.xlsx', {'M8': completo, **partes})
+    for medidor in ('M8', 'M7'):
+        res = dm.maximas([tmp_path / 'c.xlsx'], [('', medidor)])[0]
+        assert res.error is None, res
+        assert res.fecha == '2026-07-01 00:00:00', medidor
+        assert (res.kw, res.kvar) == (esperado['kw'], esperado['kvar'])
+
+
 def test_hoja_con_su_nombre_sin_kw_usa_sus_partes(tmp_path):
     """004:RF-25 — como en Ica: la hoja del medidor trae otras magnitudes y el kW está en
     una parte ``<medidor>_<sufijo>``."""

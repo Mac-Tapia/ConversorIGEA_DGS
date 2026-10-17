@@ -327,11 +327,13 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument('--pf-carpeta', metavar='NOMBRE',
                    help='Carpeta de DIgSILENT donde queda el proyecto importado (spec 005). '
                         'Por defecto, la del perfil de empresa o «Conversor IGEA-DGS».')
+    # A escala real por defecto, como la web y las reglas del proyecto: con A0, un tramo
+    # de 18 m quedaba más corto que dos símbolos en el centro de NA203 + NA205 y el
+    # diagrama se amontonaba (2026-10-17).
     p.add_argument('--hoja', default='medida',
-                   help='Hoja del diagrama: «medida» (defecto), a escala real como la web y las '
-                        'reglas del proyecto; A0 … A4 solo si se pide. Con A0, un tramo de 18 m '
-                        'quedaba más corto que dos símbolos en el centro de NA203 + NA205 y el '
-                        'diagrama se amontonaba (2026-10-17).')
+                   help='Hoja del diagrama: «medida» (defecto), a escala real; A0 … A4 solo si '
+                        'se pide: con un formato fijo, los tramos cortos quedan más cortos que '
+                        'dos símbolos y el diagrama se amontona.')
     args = p.parse_args(argv)
 
     from igea_dgs.geography import exigir_crs_origen
