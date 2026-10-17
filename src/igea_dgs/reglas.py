@@ -157,14 +157,16 @@ def aplicar_reglas(model, reglas: Reglas = REGLAS_PROYECTO, *,
 
         p = fundir_puentes(model)
         informe['puentes'] = {'tramos': p.tramos, 'fundidos': p.fundidos,
-                              'interruptores': p.interruptores, 'texto': p.texto()}
+                              'plegados': p.plegados, 'interruptores': p.interruptores,
+                              'texto': p.texto()}
     if reglas.excluir_trafomix and reglas.patron_sed_medicion:
         from .trafomix import excluir_trafomix
 
         t = excluir_trafomix(model, reglas.patron_sed_medicion)
         informe['trafomix'] = {'excluidos': t.excluidos,
                                'cargas_nulas_quitadas': t.cargas_nulas_quitadas,
-                               'con_carga_en_mt': t.cargas_conservadas_mt}
+                               'con_carga_en_mt': t.cargas_conservadas_mt,
+                               'maniobras_quitadas': len(t.maniobras_quitadas)}
     if reglas.redimensionar_sed:
         from .sed_potencia import redimensionar_sobrecargadas
 
@@ -204,8 +206,8 @@ def auditar_completitud(dataset, networks: Iterable[str], model, tablas: dict,
     maniobras = sum(len(dataset.switching_by_feeder.get(n, ())) for n in nets)
 
     puentes = sum((i.get('puentes') or {}).get('tramos', 0) for i in informes)
-    interruptores = sum((i.get('puentes') or {}).get('interruptores', 0) for i in informes)
     nulas = sum((i.get('trafomix') or {}).get('cargas_nulas_quitadas', 0) for i in informes)
+    quitadas = sum((i.get('trafomix') or {}).get('maniobras_quitadas', 0) for i in informes)
 
     def n(cls: str) -> int:
         return len(tablas.get(cls, {}).get('rows_dict', []))
@@ -213,8 +215,11 @@ def auditar_completitud(dataset, networks: Iterable[str], model, tablas: dict,
     kw_dgs = sum(float(r.get('plini') or 0) for r in tablas.get('ElmLod', {}).get('rows_dict', [])) * 1000
     kvar_dgs = sum(float(r.get('qlini') or 0) for r in tablas.get('ElmLod', {}).get('rows_dict', [])) * 1000
     # Los interruptores de red de un puente van como ElmCoup; los enlaces entre
-    # alimentadores también, pero esos no vienen de ningún dispositivo de la base.
+    # alimentadores también, pero esos no vienen de ningún dispositivo de la base, y cada
+    # SED lleva el suyo interno. Se cuentan los escritos en el DGS, no los que dice el
+    # informe de puentes: un ElmCoup que no llega al DGS es una pérdida (021:RF-9).
     enlaces = len(getattr(getattr(model, 'combined', None), 'ties', ()) or ())
+    interruptores = n('ElmCoup') - n('ElmSubstat') - enlaces
 
     fallos = []
     if n('ElmLne') + puentes != len(secciones):
@@ -225,9 +230,10 @@ def auditar_completitud(dataset, networks: Iterable[str], model, tablas: dict,
         fallos.append(f'kW: entrada {kw:,.1f} ≠ DGS {kw_dgs:,.1f}')
     if abs(kvar_dgs - kvar) > max(0.5, 1e-4 * abs(kvar)):
         fallos.append(f'kvar: entrada {kvar:,.1f} ≠ DGS {kvar_dgs:,.1f}')
-    if n('StaSwitch') + interruptores != maniobras:
+    if n('StaSwitch') + interruptores + quitadas != maniobras:
         fallos.append(f'maniobras: entrada {maniobras} ≠ StaSwitch {n("StaSwitch")} '
-                      f'+ interruptores de puente {interruptores}')
+                      f'+ interruptores de puente {interruptores} '
+                      f'+ quitadas con su trafomix {quitadas}')
     # Un TypLne DEFAULT solo es legítimo si lo usa una línea real (> 10 m); si vale el
     # marcador de los puentes, algún puente se quedó sin fundir.
     from .puentes import es_puente
@@ -239,6 +245,7 @@ def auditar_completitud(dataset, networks: Iterable[str], model, tablas: dict,
                     'kvar': round(kvar, 3), 'maniobras': maniobras},
         'dgs': {'ElmLne': n('ElmLne'), 'ElmLod': n('ElmLod'), 'ElmSubstat': n('ElmSubstat'),
                 'StaSwitch': n('StaSwitch'), 'ElmCoup_red': interruptores + enlaces,
+                'maniobras_quitadas': quitadas,
                 'kW': round(kw_dgs, 3), 'kvar': round(kvar_dgs, 3)},
         'fallos': fallos,
     }

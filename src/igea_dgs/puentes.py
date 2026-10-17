@@ -17,9 +17,15 @@ se llena de trazos de 2 m sobre cada poste.
 
 Qué se hace con cada uno, sin perder ningún elemento de la base:
 
-* **Con seccionador o interruptor** → un :class:`~igea_dgs.model.Coupler` (``ElmCoup``)
-  entre sus dos barras, con el estado normal de la base. La maniobra sigue ahí y se
-  puede abrir en PowerFactory.
+* **Con seccionador o interruptor junto a una línea** → si un extremo del puente es una
+  barra a la que solo llega otra línea, el equipo pasa a esa línea, en su cubículo de
+  ese lado (``StaSwitch``), y las dos barras del puente se funden (spec 021). Es como
+  PowerFactory modela una maniobra en el extremo de una línea: el cable queda corrido.
+  En NA203 + NA205 (260924.mdb) una derivación con tres fusibles daba cuatro barras en
+  menos de 1 m (EQ_1080_320414/15/16).
+* **Con seccionador o interruptor sin línea al lado** → un
+  :class:`~igea_dgs.model.Coupler` (``ElmCoup``) entre sus dos barras, con el estado
+  normal de la base. La maniobra sigue ahí y se puede abrir en PowerFactory.
 * **Sin dispositivo** (puente puro, o bajada a SED) → sus dos barras se funden en una.
   La carga y la SED que colgaban de él quedan en la barra resultante.
 
@@ -49,6 +55,7 @@ class InformePuentes:
     tramos: int = 0
     metros: float = 0.0
     fundidos: int = 0
+    plegados: int = 0
     interruptores: int = 0
     cargas_reubicadas: int = 0
     seds_reubicadas: int = 0
@@ -58,7 +65,8 @@ class InformePuentes:
     def texto(self) -> str:
         return (
             f'Tramos puente ({"/".join(CODIGOS_PUENTE)}): {self.tramos} '
-            f'({self.metros:,.1f} m). Convertidos en interruptor: {self.interruptores}. '
+            f'({self.metros:,.1f} m). En el extremo de su línea: {self.plegados}. '
+            f'Convertidos en interruptor: {self.interruptores}. '
             f'Fundidos: {self.fundidos} ({self.barras_eliminadas} barras menos; '
             f'{self.cargas_reubicadas} cargas y {self.seds_reubicadas} SED en la barra '
             'resultante).'
@@ -121,6 +129,10 @@ def fundir_puentes(model: FeederModel, *, codigos=CODIGOS_PUENTE) -> InformePuen
             uniones.unir(ln.from_node, ln.to_node)
             informe.fundidos += 1
 
+    plegados = _plegar(model, con_equipo, equipos_por_tramo, ids_puente, uniones)
+    informe.plegados = len(plegados)
+    con_equipo = [ln for ln in con_equipo if ln.section_id not in plegados]
+
     raiz = uniones.raiz
     nuevos_nodos: dict[str, Node] = {}
     for node_id, node in model.nodes.items():
@@ -168,7 +180,7 @@ def fundir_puentes(model: FeederModel, *, codigos=CODIGOS_PUENTE) -> InformePuen
     model.devices = [
         replace(d, node_id=raiz(d.node_id)) if d.node_id else d
         for d in model.devices if d.section_id not in ids_puente
-    ]
+    ] + [replace(d, node_id=raiz(d.node_id)) for _sid, d in sorted(plegados.items())]
     nuevas_cargas = []
     for c in model.loads:
         if c.section_id in ids_puente:
@@ -196,3 +208,72 @@ def fundir_puentes(model: FeederModel, *, codigos=CODIGOS_PUENTE) -> InformePuen
     model.warnings.append(informe.texto())
     model.warnings.extend(informe.avisos)
     return informe
+
+
+def _plegar(model: FeederModel, con_equipo: list, equipos_por_tramo: dict, ids_puente: set,
+            uniones: _Uniones) -> dict:
+    """Equipos de puente que pasan al cubículo de la línea vecina (021:RF-1 a RF-6).
+
+    Un extremo del puente vale si es una barra a la que solo llegan el puente y una línea
+    real: nada más. Con una carga, una SED, un banco u otro puente en esa barra, plegar el
+    equipo en la línea dejaría eso detrás de la maniobra (al abrirla se desconectaría), y
+    se deja el ``ElmCoup``. La barra de la fuente nunca vale. Si valen los dos extremos,
+    el de aguas arriba (``FromNode``), que es donde la base pone el equipo (RF-5). El
+    cubículo de la línea no puede tener ya un equipo (RF-4).
+
+    Se decide sobre la red antes de plegar nada, recorriendo los puentes por
+    ``section_id``: el resultado no depende del orden de lectura (determinismo). Las
+    barras que se pliegan se unen en ``uniones``; devuelve ``{section_id: equipo}``.
+    """
+    raiz = uniones.raiz
+    lineas_en: dict[str, list] = {}
+    otros_en: dict[str, int] = {}
+
+    def otro(n: str | None) -> None:
+        if n:
+            otros_en[raiz(n)] = otros_en.get(raiz(n), 0) + 1
+
+    for ln in model.lines:
+        if ln.section_id in ids_puente:
+            if equipos_por_tramo.get(ln.section_id):
+                otro(ln.from_node)
+                otro(ln.to_node)
+            continue
+        for extremo in (ln.from_node, ln.to_node):
+            lineas_en.setdefault(raiz(extremo), []).append(ln)
+    for x in (*model.loads, *model.seds, *model.capacitors):
+        otro(getattr(x, 'node_id', None))
+    for c in model.couplers:
+        otro(c.node_a)
+        otro(c.node_b)
+    otro(model.source_node)
+    ocupados = {(d.section_id, d.terminal_side) for d in model.devices
+                if d.section_id not in ids_puente}
+
+    # Extremos vistos antes de plegar nada: con las uniones del bucle, el segundo fusible
+    # de una derivación veía la barra del primero como suya.
+    extremos = {ln.section_id: (raiz(ln.from_node), raiz(ln.to_node)) for ln in con_equipo}
+    plegados: dict = {}
+    for ln in con_equipo:
+        equipos = equipos_por_tramo[ln.section_id]
+        if len(equipos) != 1:
+            continue        # varios equipos en serie no caben en un cubículo
+        a, b = extremos[ln.section_id]
+        if a == b:
+            continue
+        for barra, resto in ((a, b), (b, a)):
+            vecinas = lineas_en.get(barra, [])
+            # El puente cuenta una vez en «otros»: solo él y una línea.
+            if len(vecinas) != 1 or otros_en.get(barra, 0) != 1:
+                continue
+            linea = vecinas[0]
+            lado = 0 if raiz(linea.from_node) == barra else 1
+            if (linea.section_id, lado) in ocupados:
+                continue
+            ocupados.add((linea.section_id, lado))
+            plegados[ln.section_id] = replace(
+                equipos[0], section_id=linea.section_id, terminal_side=lado, node_id=barra,
+                location='S' if lado == 0 else 'L')
+            uniones.unir(barra, resto)
+            break
+    return plegados
