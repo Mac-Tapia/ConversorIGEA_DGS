@@ -327,7 +327,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument('--pf-carpeta', metavar='NOMBRE',
                    help='Carpeta de DIgSILENT donde queda el proyecto importado (spec 005). '
                         'Por defecto, la del perfil de empresa o «Conversor IGEA-DGS».')
-    p.add_argument('--hoja', default='A0', help='Hoja del diagrama: A0 … A4 (defecto A0).')
+    p.add_argument('--hoja', default='medida',
+                   help='Hoja del diagrama: «medida» (defecto), a escala real como la web y las '
+                        'reglas del proyecto; A0 … A4 solo si se pide. Con A0, un tramo de 18 m '
+                        'quedaba más corto que dos símbolos en el centro de NA203 + NA205 y el '
+                        'diagrama se amontonaba (2026-10-17).')
     args = p.parse_args(argv)
 
     from igea_dgs.geography import exigir_crs_origen
@@ -338,7 +342,8 @@ def main(argv: list[str] | None = None) -> int:
     args.source_crs = exigir_crs_origen(args.source_crs or perfil.crs_origen)
     assert_metre_source_crs(args.source_crs)
     catalogo = Path(args.catalogo) if args.catalogo else catalogo_del_proyecto()
-    reglas = reglas_de_perfil(perfil, replace(REGLAS_PROYECTO, hoja=args.hoja))
+    hoja_reglas = None if args.hoja.strip().lower() == 'medida' else args.hoja
+    reglas = reglas_de_perfil(perfil, replace(REGLAS_PROYECTO, hoja=hoja_reglas))
     grupos = {}
     for g in args.grupo:
         nombre, _, lista = g.partition('=')
@@ -378,16 +383,18 @@ def main(argv: list[str] | None = None) -> int:
             'reglas_por_alimentador', 'entrada')}
         fallo |= man['status'] != 'ok'
         if args.importar and man['status'] == 'ok':
-            hoja = man['hoja']
-            ancho, alto = formato_hoja(hoja['formato'])
-            if hoja['orientacion'] == 'vertical':
-                ancho, alto = alto, ancho
-            hoja_ns = SimpleNamespace(formato=hoja['formato'], orientacion=hoja['orientacion'],
-                                      width=ancho, height=alto)
+            hoja = man['hoja'] or {}
+            hoja_ns = None
+            if hoja.get('formato'):
+                ancho, alto = formato_hoja(hoja['formato'])
+                if hoja['orientacion'] == 'vertical':
+                    ancho, alto = alto, ancho
+                hoja_ns = SimpleNamespace(formato=hoja['formato'], orientacion=hoja['orientacion'],
+                                          width=ancho, height=alto)
             en_dgs = {c: len(t.get('rows_dict', [])) for c, t in parse_dgs(man['dgs']).items()}
             print('  importando en PowerFactory…')
             pf = importar(Path(man['dgs']).resolve(), f'{nombre}_{time.strftime("%H%M%S")}',
-                          en_dgs, hoja=hoja_ns, grid_mm=hoja['cuadricula_mm'],
+                          en_dgs, hoja=hoja_ns, grid_mm=hoja.get('cuadricula_mm') or 0.0,
                           carpeta=args.pf_carpeta)
             grupo['powerfactory'] = pf
             ok = (pf['flujo']['pass'] and not pf['diferencias_con_dgs']

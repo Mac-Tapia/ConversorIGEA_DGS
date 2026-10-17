@@ -28,7 +28,7 @@ spec 001, RF-14 (DGS idéntico byte a byte); su diseño histórico está en
 | `src/igea_dgs/coordenadas.py` | Completa las coordenadas que faltan con el grafo de la red. | base |
 | `src/igea_dgs/dataset.py` | Lector de los TXT (RED, CARGA, BD_Equipo), en las dos disposiciones. | base |
 | `src/igea_dgs/demanda_medida.py` | Máxima de cabecera por medidor y clientes importantes con su SED. | 004 (RF-22 a RF-45) |
-| `src/igea_dgs/dgs.py` | Escritor DGS: tablas, FID, cubículos, maniobras, capa gráfica y trazado GPS de las líneas. | base, 010 (RF-1 a RF-4), 011 (RF-128) |
+| `src/igea_dgs/dgs.py` | Escritor DGS: tablas, FID, cubículos, maniobras, capa gráfica y trazado GPS de las líneas; la barra de una SED sola va dentro de ella. | base, 010 (RF-1 a RF-4), 011 (RF-128), 021 (RF-12) |
 | `src/igea_dgs/economia.py` | Datos de la evaluación técnico-económica (`ComTececo`). | 004 |
 | `src/igea_dgs/estudios_pf.py` | Estudios sobre los casos «Sin proyecto» y «Con proyecto», sin DIgSILENT: qué estudios se ofrecen, límites del perfil, violaciones, diferencia y ficheros de resultados. | 011 (RF-23, RF-24, RF-32 a RF-35, RF-37) |
 | `src/igea_dgs/export_tables.py` | DGS a Excel multihoja o TSV. | base |
@@ -69,7 +69,7 @@ spec 001, RF-14 (DGS idéntico byte a byte); su diseño histórico está en
 | `src/igea_dgs/troncal.py` | Troncal de las obras sin DIgSILENT: camino continuo más largo desde la cabecera sobre el árbol de caminos más cortos en metros (anillos cerrados avisados), lo que queda aguas abajo de un nodo, el punto de la troncal más cercano (partir el tramo o usar la barra según la distancia mínima), el corte del trazado y los dos extremos del enlace. | 016 (RF-1 a RF-5, RF-15, RF-18, RF-20, RF-27, RF-28, RF-45, RF-64, RF-65, RF-67) |
 | `src/igea_dgs/vias.py` | Trazado de una línea nueva por la vía pública con un enrutador OSRM (OpenStreetMap): ruta con sus curvas, largo con los accesos, metros fuera de vía y recta si no hay enrutador o no responde; solo envía las dos coordenadas. | 016 (RF-81 a RF-87) |
 | `src/igea_dgs/util.py` | SHA-256, JSON atómico y números: una sola implementación. | 001 (RF-4, RF-5) |
-| `src/igea_dgs/validate.py` | Validación del DGS escrito, con el trazado GPS de cada línea. | base, 010 (RF-5) |
+| `src/igea_dgs/validate.py` | Validación del DGS escrito, con el trazado GPS de cada línea. | base, 010 (RF-5), 021 (RF-12) |
 
 ### `src/igea_dgs/sources/` — adaptadores de entrada
 
@@ -175,7 +175,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `tools/estudios_pf.py` | Guion de DIgSILENT: un estudio en un caso, sin escalado por alimentador y sin aplicar lo que proponen los optimizadores; mide cada alimentador. Con `--guion`, lista o ejecuta los guiones DPL y Python del operador. En «Con proyecto», mide cada alternativa del informe con solo sus obras; guarda la geografía con barras, tipo y largo de cada tramo y los acoples, y el nodo de la red de cada banco. | 011 (RF-17, RF-20 a RF-22, RF-26, RF-27 a RF-30, RF-31, RF-33, RF-36, RF-38, RF-43 a RF-45, RF-49), 017 (RF-130, RF-131, RF-135) |
 | `tools/check_pf_license.py` | Qué módulos de PowerFactory permite la licencia. | 005, 011, 012 (RF-4) |
 | `tools/compare_schema.py` | Cabeceras de un DGS externo frente a un perfil de esquema. | base |
-| `tools/convertir_grupos_mdb.py` | Varios alimentadores de una base en un DGS, importado y con flujo. | base |
+| `tools/convertir_grupos_mdb.py` | Varios alimentadores de una base en un DGS, importado y con flujo, a escala real por defecto. | base, 021 |
 | `tools/fidelidad_seleccion.py` | Comprueba que una selección pasa entera del TXT al DGS. | 009 |
 | `tools/linea_base_dgs.py` | Línea base de DGS para comprobar que una reorganización no cambia nada. | 001 (RF-14), 002 (RF-20) |
 | `tools/obras_pf.py` | Guion de DIgSILENT de las obras de mejora: con `--bibliotecas`, alimentadores y tipos de las tres bibliotecas; copia de un tipo al proyecto; simular y aplicar con las reglas comunes (variación por obra, activación por caso, flujo, comprobación de «Sin proyecto»); banco de condensadores, reconectador, regulador, sección de cable, terna en la troncal y migración del alimentador a otra tensión; la troncal de las obras es la del camino más largo, leída en el caso de cada obra, sin `ComBbone`; enlace entre dos alimentadores en «Con proyecto» (tramos dentro de los límites con el flujo de antes, los dos puntos, partir tramos, línea recta con su trazado y seccionador abierto); migración a otra tensión de lo que queda aguas abajo de un nodo, calculado al construirla. | 011 (RF-56 a RF-60, RF-64 a RF-67, RF-69, RF-71 a RF-94, RF-96, RF-97, RF-99 a RF-103), 016 (RF-1, RF-2, RF-10 a RF-12, RF-26, RF-29, RF-30, RF-32 a RF-38, RF-40, RF-42, RF-43, RF-54 a RF-58, RF-60, RF-62) |

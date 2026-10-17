@@ -238,7 +238,8 @@ mismos seccionadores. NA205 calibrado con su central en DIgSILENT en el registro
 
 ## Dudas abiertas
 
-- [NECESITA ACLARACIÓN: cómo une PowerFactory el símbolo `SecSubProd` a una barra
-  exterior en el DGS (conector propio del `IntGrf` de la SED, o la línea entrando a la
-  barra de MT interior). Se resuelve con una sonda en DIgSILENT real, primera tarea del
-  plan, antes de escribir RF-12 en el código.]
+- Resuelta el 2026-10-17 (T6): en el NA205 que exporta PowerFactory el `SecSubProd` no
+  tiene conectores propios y la línea entra en la barra de MT de dentro de la SED (131
+  SED). RF-12 se cumple así: la barra de la que cuelga una SED sola pasa a ser su barra
+  de MT, dentro del `ElmSubstat`, con su nombre y sin el acoplador `SW_SE…`. Probado en
+  DIgSILENT con NA203 + NA205: al mover SE50195 el cable la sigue.

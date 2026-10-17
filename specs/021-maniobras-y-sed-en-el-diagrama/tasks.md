@@ -58,12 +58,28 @@ Bloque 1 · Maniobras de los puentes
 
 Bloque 2 · SED unida a su barra
 
-- [ ] T6. Sonda en DIgSILENT sobre una copia de NA203_NA205 importado: dos variantes del
+- [x] T6. Sonda en DIgSILENT sobre una copia de NA203_NA205 importado: dos variantes del
       DGS de una SED y cuál sigue al mover la SED. Resuelve la duda abierta. (RF-12)
       Hecho cuando: la variante elegida queda escrita en la spec, sin
       `[NECESITA ACLARACIÓN]`, y la copia borrada.
-- [ ] T7. La SED unida a su barra en el DGS, con lo que dijo T6. (RF-12, RF-13, RF-14)
+      Resultado del 2026-10-17: la variante sale del NA205 que exporta PowerFactory (131
+      SED sin conectores propios, la línea entra en la barra de MT interior; solo 4 con
+      barra fuera y acoplador). En vez de dos variantes se importó la elegida (T7) en
+      «Pruebas 021»; el operador movió SE50195 y el cable la siguió. Los dos proyectos de
+      prueba se borran al cerrar la tarea.
+- [x] T7. La SED unida a su barra en el DGS, con lo que dijo T6. (RF-12, RF-13, RF-14)
       Hecho cuando: `pytest -q tests/test_dgs_v2.py tests/test_graphics_sed.py` en verde.
+      Resultado del 2026-10-17: `dgs.seds_con_barra_propia` (una SED sola en su barra y
+      que no es la de una fuente) la escriben `dgs.py` y `validate.py`: la barra va dentro
+      del `ElmSubstat` con su nombre, sin barra de MT aparte, sin `SW_SE…` y sin
+      `PointTerm`; dos SED en una barra siguen con su acoplador. La completitud cuenta los
+      `ElmCoup` fuera de las SED. NA203 + NA205 en DIgSILENT a escala real
+      («NA203_NA205_142712»): converge sin relajar, mismas tensiones (0,924–1,000 pu),
+      idéntico al DGS; `PointTerm` de 1114 a 428 y pares de puntos pegados de 117 a 3.
+      `tools/convertir_grupos_mdb.py` importa ahora a escala real por defecto (A0 solo si
+      se pide): con A0 el centro de NA203 + NA205 se amontonaba. Línea base de la 001
+      regenerada. Fallo intermitente previo: dos pruebas de `test_demanda_medida` fallan
+      solo en la suite completa y pasan solas (ya antes de este bloque).
 
 Bloque 3 · Curvas de varios alimentadores
 

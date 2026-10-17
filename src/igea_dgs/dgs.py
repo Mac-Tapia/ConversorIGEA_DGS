@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Mapping
@@ -785,6 +785,27 @@ def _tr2_curmg_pct(design_kva: float, pfe_kw: float) -> float:
     return max(tipico if tipico is not None else 2.0, minimo * 1.05)
 
 
+def seds_con_barra_propia(model) -> dict[tuple[str, str], str]:
+    """SED cuya barra del alimentador pasa a ser su barra de MT: ``{clave: nodo}``.
+
+    Como en el NA205 que exporta PowerFactory (131 SED, sus líneas entran en la barra
+    interior). Con una barra fuera y un ElmCoup «SW_SE…» dentro, el triángulo no tenía
+    conexión dibujada con su barra: al mover SE50195 a mano en NA203 + NA205, el cable y
+    el fusible EQ_1080_875778 quedaban sueltos (021:RF-12). La barra conserva su nombre.
+    Varias SED en una barra, o la barra de una fuente, siguen con su barra aparte y su
+    acoplador: una barra no cabe en dos ElmSubstat.
+    """
+    combinado = getattr(model, 'combined', None)
+    fuentes = {model.source_node} | {
+        ref.source_node for ref in (getattr(combinado, 'feeders', None) or ())}
+    por_nodo = Counter(sed.node_id for sed in model.seds)
+    return {
+        (sed.section_id, sed.device_number): sed.node_id for sed in model.seds
+        if por_nodo[sed.node_id] == 1 and sed.node_id in model.nodes
+        and sed.node_id not in fuentes
+    }
+
+
 def write_dgs(
     model: FeederModel,
     path: Path | str,
@@ -861,11 +882,14 @@ def write_dgs(
             capacitor_issues.append(issue)
     sed_keys = sorted((sed.section_id, sed.device_number) for sed in model.seds)
     sed_fids = {key: reg.new() for key in sed_keys}
-    # NA205 triangle interior: MT bus + BT bus + Tr2 + coupler to feeder node.
-    sed_mt_fids = {key: reg.new() for key in sed_keys}
+    barra_propia = seds_con_barra_propia(model)
+    sed_de_barra = {nodo: key for key, nodo in barra_propia.items()}
+    # NA205 triangle interior: MT bus + BT bus + Tr2 (+ coupler to feeder node).
+    sed_mt_fids = {key: node_fids[barra_propia[key]] if key in barra_propia else reg.new()
+                   for key in sed_keys}
     sed_bt_fids = {key: reg.new() for key in sed_keys}
     sed_tr_fids = {key: reg.new() for key in sed_keys}
-    sed_coup_fids = {key: reg.new() for key in sed_keys}
+    sed_coup_fids = {key: reg.new() for key in sed_keys if key not in barra_propia}
     # One TypTr2 per distinct (strn, utrn_h, utrn_l).
     tr2_type_keys: dict[tuple[float, float, float], str] = {}
     for sed in model.seds:
@@ -909,9 +933,11 @@ def write_dgs(
     for node_id in sorted(model.nodes):
         gp = geography.nodes[node_id] if geography is not None else None
         kv = kv_de(node_id)
+        # La barra propia de una SED va dentro de su ElmSubstat (021:RF-12).
+        dentro = sed_fids[sed_de_barra[node_id]] if node_id in sed_de_barra else None
         rows['ElmTerm'].append(_make_row(
             schema, 'ElmTerm', FID=node_fids[node_id], OP='C', loc_name=_loc_name(node_id),
-            fold_id=network_fid, typ_id='', systype=0, iUsage=1,
+            fold_id=dentro or network_fid, typ_id='', systype=0, iUsage=0 if dentro else 1,
             uknom=kv, unknom=kv / math.sqrt(3.0), iminus=0, outserv=fuera(node_id),
             GPSlat=gp.lat if gp is not None else '', GPSlon=gp.lon if gp is not None else '', vtarget=1,
         ))
@@ -921,18 +947,19 @@ def write_dgs(
         sed = seds_by_key[key]
         gp = geography.nodes.get(sed.node_id) if geography is not None else None
         sub_fid = sed_fids[key]
-        rows['ElmTerm'].append(_make_row(
-            schema, 'ElmTerm', FID=sed_mt_fids[key], OP='C',
-            loc_name=_loc_name(sed.loc_name), fold_id=sub_fid, typ_id='',
-            # La barra MT de la SED está a la tensión de su nodo del alimentador, que
-            # en una red unida no tiene por qué ser la del modelo.
-            systype=0, iUsage=0, uknom=kv_de(sed.node_id),
-            unknom=kv_de(sed.node_id) / math.sqrt(3.0),
-            iminus=0, outserv=fuera(sed.node_id),
-            GPSlat=gp.lat if gp is not None else '',
-            GPSlon=gp.lon if gp is not None else '',
-            vtarget=1,
-        ))
+        if key not in barra_propia:
+            rows['ElmTerm'].append(_make_row(
+                schema, 'ElmTerm', FID=sed_mt_fids[key], OP='C',
+                loc_name=_loc_name(sed.loc_name), fold_id=sub_fid, typ_id='',
+                # La barra MT de la SED está a la tensión de su nodo del alimentador, que
+                # en una red unida no tiene por qué ser la del modelo.
+                systype=0, iUsage=0, uknom=kv_de(sed.node_id),
+                unknom=kv_de(sed.node_id) / math.sqrt(3.0),
+                iminus=0, outserv=fuera(sed.node_id),
+                GPSlat=gp.lat if gp is not None else '',
+                GPSlon=gp.lon if gp is not None else '',
+                vtarget=1,
+            ))
         rows['ElmTerm'].append(_make_row(
             schema, 'ElmTerm', FID=sed_bt_fids[key], OP='C',
             loc_name=_loc_name(f'{sed.loc_name}_BT'), fold_id=sub_fid, typ_id='',
@@ -1025,11 +1052,12 @@ def write_dgs(
             typ_id=tr2_type_keys[typ_key], ntnum=1, outserv=fuera(sed.node_id), nntap=0,
             i_auto=0, ntrcn=0, usetp=1, usp_low=0.99, usp_up=1.01, t2ldc=0,
         ))
-        rows['ElmCoup'].append(_make_row(
-            schema, 'ElmCoup', FID=sed_coup_fids[key], OP='C',
-            loc_name=_loc_name(f'SW_{sed.loc_name}'), fold_id=sed_fids[key],
-            typ_id='', on_off=1, aUsage='cbk', nphase=3, nneutral=0,
-        ))
+        if key in sed_coup_fids:
+            rows['ElmCoup'].append(_make_row(
+                schema, 'ElmCoup', FID=sed_coup_fids[key], OP='C',
+                loc_name=_loc_name(f'SW_{sed.loc_name}'), fold_id=sed_fids[key],
+                typ_id='', on_off=1, aUsage='cbk', nphase=3, nneutral=0,
+            ))
 
     loads_by_key = {(x.section_id, x.device_number): x for x in model.loads}
     # NA205 pattern: SED loads live *inside* ElmSubstat (module in the triangle),
@@ -1173,8 +1201,10 @@ def write_dgs(
             fold_id=sed_bt_fids[key], obj_bus=1, obj_id=sed_tr_fids[key],
             it2p1=0, it2p2=1, it2p3=2,
         ))
-        # Coupler: feeder TXT node ↔ internal MT bus
+        # Coupler: feeder TXT node ↔ internal MT bus (solo sin barra propia, 021:RF-12)
         sed = seds_by_key[key]
+        if key not in sed_coup_fids:
+            continue
         rows['StaCubic'].append(_make_row(
             schema, 'StaCubic', FID=reg.new(), OP='C',
             loc_name=_loc_name(f'Cub1_SW_{sed.loc_name}'),
@@ -1299,7 +1329,8 @@ def write_dgs(
 
         # Visible PointTerm only (electrical ElmTerm always exist).
         for node_id in sorted(visible_nodes):
-            if node_id not in node_xy:
+            # La barra propia de una SED es el triángulo: sin punto aparte (021:RF-12).
+            if node_id not in node_xy or node_id in sed_de_barra:
                 continue
             fid = reg.new(); graphic_fids[f'node:{node_id}'] = fid
             x, y = node_xy[node_id]
