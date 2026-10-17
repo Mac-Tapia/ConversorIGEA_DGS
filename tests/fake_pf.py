@@ -662,6 +662,69 @@ class Ventana:
         return list(self._app.salida)
 
 
+def _barra_mt(carga):
+    """La barra de media de una carga del doble: la de alta de su transformador."""
+    term = getattr(getattr(carga, 'bus1', None), 'cterm', None)
+    if term is None or float(getattr(term, 'uknom', 0) or 0) >= 1.0:
+        return term
+    for cub in term.GetContents('*.StaCubic'):
+        tr = getattr(cub, 'obj_id', None)
+        if tr is not None and tr._clase == 'ElmTr2' and getattr(tr, 'bushv', None) is not None:
+            return tr.bushv.cterm
+    return term
+
+
+def _flujos_por_rama(alim, raiz, cargas, gens):
+    """``m:Psum``/``m:Qsum`` de cada línea del alimentador, sin pérdidas (spec 021).
+
+    Lo que sale de una barra hacia una línea es la demanda neta de todo lo que cuelga tras
+    ella (cargas menos centrales); del otro extremo sale lo mismo con el signo cambiado.
+    """
+    neta: dict[int, list[float]] = {}
+    for c in cargas:
+        b = _barra_mt(c)
+        if b is not None:
+            v = neta.setdefault(id(b), [0.0, 0.0])
+            v[0] += c.plini * c.scale0
+            v[1] += c.qlini * c.scale0
+    for g in gens:
+        v = neta.setdefault(id(g.bus1.cterm), [0.0, 0.0])
+        v[0] -= float(getattr(g, 'pgini', 0.0) or 0.0)
+        v[1] -= float(getattr(g, 'qgini', 0.0) or 0.0)
+    vecinos: dict[int, list] = {}
+    for ln in alim.GetObjs('ElmLne'):
+        a, b = getattr(ln, 'bus1', None), getattr(ln, 'bus2', None)
+        if a is None or b is None or getattr(ln, 'outserv', 0):
+            continue
+        vecinos.setdefault(id(a.cterm), []).append((ln, 1, b.cterm))
+        vecinos.setdefault(id(b.cterm), []).append((ln, 2, a.cterm))
+
+    def bajar(barra, vista) -> tuple[float, float]:
+        p, q = neta.get(id(barra), [0.0, 0.0])
+        for ln, lado, otra in vecinos.get(id(barra), []):
+            if id(ln) in vista:
+                continue
+            vista.add(id(ln))
+            dp, dq = bajar(otra, vista)
+            object.__setattr__(ln, f'm_Psum:bus{lado}', dp)
+            object.__setattr__(ln, f'm_Qsum:bus{lado}', dq)
+            object.__setattr__(ln, f'm_Psum:bus{3 - lado}', -dp)
+            object.__setattr__(ln, f'm_Qsum:bus{3 - lado}', -dq)
+            p, q = p + dp, q + dq
+        return p, q
+
+    bajar(raiz, set())
+    # El transformador de cada SED entrega en alta lo que consume su carga.
+    for c in cargas:
+        cub = getattr(c, 'bus1', None)
+        baja = getattr(cub, 'cterm', None)
+        for cc in (baja.GetContents('*.StaCubic') if baja is not None else []):
+            tr = getattr(cc, 'obj_id', None)
+            if tr is not None and tr._clase == 'ElmTr2':
+                object.__setattr__(tr, 'm_Psum:bushv', c.plini * c.scale0)
+                object.__setattr__(tr, 'm_Qsum:bushv', c.qlini * c.scale0)
+
+
 class FlujoConPerdidas(Orden):
     """``ComLdf`` que calcula la cabecera de cada alimentador (spec 006).
 
@@ -722,6 +785,20 @@ class FlujoConPerdidas(Orden):
             for sh in alim.GetObjs('ElmShnt'):
                 object.__setattr__(sh, 'm_Psum:bus1', 0.0)
                 object.__setattr__(sh, 'm_Qsum:bus1', -float(getattr(sh, 'qcapn', 0.0) or 0.0))
+            # Spec 021: una central (``ElmGenstat``) en una barra del alimentador inyecta su
+            # P y Q; la cabecera ve la demanda neta y cada línea lo que cuelga tras ella.
+            barras_alim = {id(b) for b in alim.GetObjs('ElmTerm')}
+            gens = [g for g in app.proyecto.GetContents('*.ElmGenstat', 1)
+                    if not getattr(g, 'outserv', 0) and getattr(g, 'bus1', None) is not None
+                    and id(g.bus1.cterm) in barras_alim]
+            for g in gens:
+                object.__setattr__(g, 'm_Psum:bus1', float(getattr(g, 'pgini', 0.0) or 0.0))
+                object.__setattr__(g, 'm_Qsum:bus1', float(getattr(g, 'qgini', 0.0) or 0.0))
+            if gens:
+                _flujos_por_rama(alim, cub.cterm, cargas, gens)
+                p -= sum(float(getattr(g, 'pgini', 0.0) or 0.0) for g in gens)
+                q -= sum(float(getattr(g, 'qgini', 0.0) or 0.0) for g in gens)
+                s2 = p * p + q * q
             rama, lado = cub.obj_id, cub.obj_bus + 1
             object.__setattr__(rama, f'm_Psum:bus{lado}', p + self.rp * s2)
             object.__setattr__(rama, f'm_Qsum:bus{lado}', q + self.rq * s2 - self.cables)

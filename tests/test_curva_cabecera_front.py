@@ -73,7 +73,7 @@ def test_varios_alimentadores_en_una_grafica_con_el_mismo_eje():
     """021:RF-17 — con dos o más alimentadores, todas las curvas en una gráfica, con el
     mismo eje de tiempo (del primer al último registro de ellas)."""
     assert 'const varias = series.length > 1;' in CURVA
-    assert 'series={grupos.map((g, i) => {' in AJUSTE
+    assert 'series={grupos.flatMap((g, i) => {' in AJUSTE
     assert '.sort()[0]' in CURVA and '.sort().at(-1)' in CURVA
 
 
@@ -94,7 +94,8 @@ def test_la_maxima_de_cada_alimentador_con_su_color():
 def test_el_arrastre_amplia_todas_las_curvas():
     """021:RF-20 — el tramo arrastrado se pide para todas: un solo ``tramo`` para todas
     las peticiones."""
-    assert 'pedidas.map((s) => api.demandaCurva(wsId, jobId, s.medidor, tramo?.desde, tramo?.hasta))' in CURVA
+    assert 'api.demandaCurva(wsId, jobId, s.medidor, tramo?.desde, tramo?.hasta)' in CURVA
+    assert 'Promise.allSettled(pedidas.map((s) => (s.demanda' in CURVA
 
 
 def test_la_leyenda_oculta_sin_pedir_otra_vez():

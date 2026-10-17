@@ -507,3 +507,23 @@ def test_maxima_con_central_sin_su_curva_es_404(client):
     r = client.get(f'/api/workspaces/{wid}/demanda/cabecera/{estado["id"]}/central', params={
         'alimentador': 'A1', 'cabecera': 'M1', 'generacion': 'CG', 'llegada': 'CL', 'salida': 'CS'})
     assert r.status_code == 404 and 'CG' in r.json()['detail']
+
+
+def test_curva_de_la_demanda_con_central(client):
+    """021:RF-47, RF-48 — la curva de la demanda calculada, con la forma de la de un
+    medidor y la máxima de demanda (el objetivo) marcada; por tramo también."""
+    wid = _wid(client)
+    _libros_con_central(client, wid)
+    estado = _buscar(client, wid, medidores=('M1', 'CG', 'CL', 'CS'))
+    params = {'alimentador': 'A1', 'cabecera': 'M1', 'generacion': 'CG', 'llegada': 'CL',
+              'salida': 'CS'}
+    url = f'/api/workspaces/{wid}/demanda/cabecera/{estado["id"]}/central/curva'
+    r = client.get(url, params=params)
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert d['medidor'] == 'Demanda A1' and d['total'] == 12
+    assert d['maxima'] == {'fecha': '2026-07-01T02:45:00', 'kw': pytest.approx(6911.0)}
+    assert d['puntos'][0][1] == pytest.approx(800.0 + 5000.0)
+    tramo = client.get(url, params={**params, 'desde': '2026-07-01T01:00:00',
+                                    'hasta': '2026-07-01T02:00:00'}).json()
+    assert tramo['total'] == 5

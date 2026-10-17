@@ -130,6 +130,15 @@ class TransformadoresIn(BaseModel):
     sed: list[str] = Field(default_factory=list, max_length=2000)
 
 
+class CentralIn(BaseModel):
+    """Central térmica en el troncal de un alimentador (spec 021, RF-25)."""
+
+    generacion: str = Field(min_length=1)
+    llegada: str = Field(min_length=1)
+    salida: str = Field(min_length=1)
+    nodo: str = ''
+
+
 class AjusteIn(BaseModel):
     """Ajuste a la máxima de cabecera (spec 006): el trabajo de la máxima que se ve."""
 
@@ -143,6 +152,8 @@ class AjusteIn(BaseModel):
     desconectados: list[str] = Field(default_factory=list, max_length=20000)
     # 1 % por defecto; entre 0,1 % y 10 % (requisitos no funcionales de la spec 006).
     tolerancia: float = Field(0.01, ge=0.001, le=0.10)
+    # Spec 021: la central de cada alimentador que la tiene, declarada en 2.2.
+    centrales: dict[str, CentralIn] = Field(default_factory=dict)
 
 
 class VerificarIn(BaseModel):
@@ -1117,6 +1128,21 @@ def create_app(
         except LookupError as exc:
             raise HTTPException(404, str(exc)) from exc
 
+    @app.get('/api/workspaces/{wid}/demanda/cabecera/{job_id}/central/curva')
+    def demanda_curva_central(wid: str, job_id: str, alimentador: str = Query(...),
+                              cabecera: str = Query(...), generacion: str = Query(...),
+                              llegada: str = Query(...), salida: str = Query(...),
+                              desde: datetime | None = None, hasta: datetime | None = None) -> dict:
+        """Spec 021, RF-47 y RF-48: curva de la demanda de un alimentador con central."""
+        if desde is not None and hasta is not None and desde > hasta:
+            raise HTTPException(422, 'El inicio del tramo es posterior a su fin.')
+        try:
+            return services.demanda_curva_central(
+                ws_or_404(wid), job_id, alimentador=alimentador, cabecera=cabecera,
+                generacion=generacion, llegada=llegada, salida=salida, desde=desde, hasta=hasta)
+        except LookupError as exc:
+            raise HTTPException(404, str(exc)) from exc
+
     @app.post('/api/workspaces/{wid}/demanda/clientes/cruzar')
     def demanda_clientes(wid: str, body: DemandaClientesIn | None = None) -> dict:
         return services.demanda_clientes(ws_or_404(wid), body.alimentadores if body else None,
@@ -1133,7 +1159,8 @@ def create_app(
             raise HTTPException(409, 'La máxima de cabecera todavía no ha terminado.')
         return services.ajuste_plan(ws, body.project, job.result.get('resultados') or [],
                                     body.medidor, body.tolerancia, body.medidores,
-                                    body.desconectados)
+                                    body.desconectados, job_id=body.job_id,
+                                    centrales={a: c.model_dump() for a, c in body.centrales.items()})
 
     def _ajuste_job(wid: str, token: str, simular: bool) -> dict:
         ws = ws_or_404(wid)

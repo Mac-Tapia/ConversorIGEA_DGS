@@ -192,6 +192,13 @@ export const api = {
     red.forEach((r) => q.append('red', r));
     return request<MedidoresExternos>(`${ws(id)}/demanda/medidores-externos?${q}`);
   },
+  demandaCurvaCentral: (id: string, jobId: string, alimentador: string, cabecera: string, c: CentralTermica,
+    desde?: string, hasta?: string) => {
+    const q = new URLSearchParams({ alimentador, cabecera, generacion: c.generacion, llegada: c.llegada, salida: c.salida });
+    if (desde) q.set('desde', desde);
+    if (hasta) q.set('hasta', hasta);
+    return request<CurvaCabecera>(`${ws(id)}/demanda/cabecera/${enc(jobId)}/central/curva?${q}`);
+  },
   demandaCentral: (id: string, jobId: string, alimentador: string, cabecera: string, c: CentralTermica) =>
     request<MaximaConCentral>(`${ws(id)}/demanda/cabecera/${enc(jobId)}/central?${new URLSearchParams({
       alimentador, cabecera, generacion: c.generacion, llegada: c.llegada, salida: c.salida,
@@ -227,7 +234,7 @@ export const api = {
   demandaClientes: (id: string, alimentadores: string[], periodo?: string) =>
     request<ClientesCruce>(`${ws(id)}/demanda/clientes/cruzar`,
       json('POST', periodo ? { alimentadores, periodo } : { alimentadores })),
-  ajustePlan: (id: string, body: { project: string; job_id: string; medidor: string; medidores?: string[]; tolerancia: number; desconectados?: string[] }) =>
+  ajustePlan: (id: string, body: { project: string; job_id: string; medidor: string; medidores?: string[]; tolerancia: number; desconectados?: string[]; centrales?: Record<string, CentralTermica> }) =>
     request<AjustePlan>(`${ws(id)}/demanda/ajuste/plan`, json('POST', body)),
   ajusteSimular: (id: string, token: string) =>
     request<Job>(`${ws(id)}/demanda/ajuste/${enc(token)}/simular`, { method: 'POST' }),

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { api, fmtNum } from '../api';
-import type { CurvaCabecera as Curva } from '../types';
+import type { CentralTermica, CurvaCabecera as Curva } from '../types';
 
 // Coordenadas del viewBox: el SVG se escala al ancho de la caja y conserva la proporción.
 const W = 1000;
@@ -46,6 +46,9 @@ export interface SerieCurva {
   clave: string;
   etiqueta: string;
   medidor: string;
+  /** Spec 021, RF-47: la demanda de un alimentador con central, calculada en el servidor
+   * con todos los registros (aguas arriba + aguas abajo); ``medidor`` es su cabecera. */
+  demanda?: { alimentador: string; central: CentralTermica };
 }
 
 /** Colores de las series: tokens de styles.css, con su versión oscura. */
@@ -89,14 +92,16 @@ export function CurvaCabecera({ wsId, jobId, opciones, inicial, series = [] }: {
     () => (varias ? series : medidor ? [{ clave: medidor, etiqueta: medidor, medidor }] : []),
     [varias, series, medidor],
   );
-  const firma = pedidas.map((s) => `${s.clave}=${s.medidor}`).join('|');
+  const firma = pedidas.map((s) => `${s.clave}=${s.medidor}${s.demanda ? '+demanda' : ''}`).join('|');
 
   useEffect(() => {
     if (!pedidas.length) return;
     let vigente = true;
     setCargando(true);
     // RF-23: cada curva por su lado; la que falla queda con su error y las demás se ven.
-    Promise.allSettled(pedidas.map((s) => api.demandaCurva(wsId, jobId, s.medidor, tramo?.desde, tramo?.hasta)))
+    Promise.allSettled(pedidas.map((s) => (s.demanda
+      ? api.demandaCurvaCentral(wsId, jobId, s.demanda.alimentador, s.medidor, s.demanda.central, tramo?.desde, tramo?.hasta)
+      : api.demandaCurva(wsId, jobId, s.medidor, tramo?.desde, tramo?.hasta))))
       .then((res) => {
         if (!vigente) return;
         const ok: Record<string, Curva> = {};

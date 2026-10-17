@@ -80,6 +80,8 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados, centra
     if (!maxima || falta) return;
     const p = await run(() => api.ajustePlan(ws.id, {
       project, job_id: maxima.id, medidor: '', medidores, tolerancia: tol, desconectados: [...desconectados],
+      // Spec 021: la central de cada alimentador que la tiene; el guion calibra por zonas.
+      centrales,
     }));
     if (!p) return;
     setPlan(p);
@@ -115,9 +117,20 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados, centra
           })))}
           // 021:RF-17, RF-22: con varios alimentadores, una curva por cada uno, con el
           // medidor que el operador eligió como cabecera o, mientras no elija, el primero.
-          series={grupos.map((g, i) => {
+          series={grupos.flatMap((g, i) => {
             const m = medidores[i] || g.filas[0].medidor;
-            return { clave: g.alimentador || m, etiqueta: `${g.alimentador || '—'} · ${m}`, medidor: m };
+            const a = g.alimentador || m;
+            const cabecera = { clave: a, etiqueta: `${g.alimentador || '—'} · ${m}`, medidor: m };
+            const c = centrales[g.alimentador];
+            if (!c) return [cabecera];
+            // 021:RF-47, RF-48: con central, también la generación, la llegada, la salida y
+            // la demanda calculada; la máxima de demanda (el objetivo) y la de cabecera,
+            // cada una con su punto.
+            return [cabecera,
+              { clave: `${a}·demanda`, etiqueta: `${a} · demanda (objetivo)`, medidor: m, demanda: { alimentador: a, central: c } },
+              { clave: `${a}·generacion`, etiqueta: `${a} · generación ${c.generacion}`, medidor: c.generacion },
+              { clave: `${a}·llegada`, etiqueta: `${a} · llegada ${c.llegada}`, medidor: c.llegada },
+              { clave: `${a}·salida`, etiqueta: `${a} · salida ${c.salida}`, medidor: c.salida }];
           })} />
       )}
       {Object.entries(conCentral).map(([a, r]) => (

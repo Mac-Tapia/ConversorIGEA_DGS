@@ -14,7 +14,7 @@ spec 001, RF-14 (DGS idéntico byte a byte); su diseño histórico está en
 | --- | --- | --- |
 | `src/igea_dgs/__init__.py` | Paquete del motor y su versión. | base |
 | `src/igea_dgs/access.py` | Lector de la base Access de CYMDIST (`.mdb`), la segunda vía de entrada. | base, 001 |
-| `src/igea_dgs/ajuste_cabecera.py` | Reparto y cuadre de las demandas a la máxima de cabecera, sin DIgSILENT. | 006 |
+| `src/igea_dgs/ajuste_cabecera.py` | Reparto y cuadre de las demandas a la máxima de cabecera, sin DIgSILENT; por zonas con una central en el troncal. | 006, 021 (RF-33, RF-40 a RF-45) |
 | `src/igea_dgs/batch.py` | Conversión de uno, varios o todos los alimentadores, en serie o en paralelo. | base, 001 |
 | `src/igea_dgs/capacidades.py` | Capacidades, grupo de conexión y tensión de baja de transformadores y líneas del DGS original, y su comparación con lo leído en DIgSILENT. | 015 |
 | `src/igea_dgs/cargas_pf.py` | Lectura de los libros de demandas y cargas nuevas, y plan para DIgSILENT. | 004, 007, 008, 016 (RF-73) |
@@ -165,7 +165,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | Fichero | Qué hace | Spec |
 | --- | --- | --- |
 | `tools/accept_three_sources.py` | Aceptación universal y separada de MDB, TXT y VNR-GIS hasta ajuste, relectura y estudio nativos. | 001, 004, 006, 011 |
-| `tools/ajuste_cabecera_pf.py` | Guion de DIgSILENT: ajusta un alimentador a su máxima de cabecera, en el escenario de «Sin proyecto»; propone e implementa transformadores nuevos para las SED fijas sobrecargadas. | 006, 008, 011 (RF-18, RF-19, RF-51, RF-54), 014, 015, 020 |
+| `tools/ajuste_cabecera_pf.py` | Guion de DIgSILENT: ajusta un alimentador a su máxima de cabecera, en el escenario de «Sin proyecto»; propone e implementa transformadores nuevos para las SED fijas sobrecargadas; con una central, la crea en «Sin proyecto» y calibra por zonas. | 006, 008, 011 (RF-18, RF-19, RF-51, RF-54), 014, 015, 020, 021 (RF-35 a RF-44) |
 | `tools/apply_catalog_to_model.py` | Corrige las características eléctricas del modelo con el catálogo de fichas. | base |
 | `tools/base_scenario.py` | Escenario base (año 0): lo construye, lo hace converger y lo diagnostica. | 005 |
 | `tools/build_input_catalog.py` | Tabla de parámetros eléctricos en `input/` y auditoría de alimentadores. | base |
@@ -218,7 +218,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `frontend/src/components/TransferenciaPF.tsx` | Paso 4.3: transferencia de carga entre dos alimentadores. | 011 (RF-104 a RF-123) |
 | `frontend/src/components/InformesPF.tsx` | Paso 4.4: informe de estudio eléctrico y de factibilidad y punto de diseño con lo ya guardado por la web (flujos de 4.2, obras, cargas nuevas aplicadas, máxima de 2.2); formularios guardados en el servidor; libro de pérdidas subido o a mano; transformador de la SET a mano; huecos, descarga e informes generados. | 017 (RF-73 cambiado, RF-74 a RF-82, RF-89 a RF-94, RF-96, RF-100, RF-102 a RF-104, RF-125) |
 | `frontend/src/components/AjusteCabecera.tsx` | Paso 2.4: ajuste a la máxima de uno o varios alimentadores; SED fijas sobrecargadas con su propuesta y el botón de transformadores nuevos. | 006, 008, 020, 021 |
-| `frontend/src/components/CurvaCabecera.tsx` | Paso 2.4: curva del registro del medidor de cabecera, con el mes de la máxima sombreado y zoom por tramo; con varios alimentadores, una curva por cada uno en la misma gráfica. | 006 (RF-32 a RF-38), 021 (RF-17 a RF-24) |
+| `frontend/src/components/CurvaCabecera.tsx` | Paso 2.4: curva del registro del medidor de cabecera, con el mes de la máxima sombreado y zoom por tramo; con varios alimentadores, una curva por cada uno en la misma gráfica; con central, sus curvas y la de la demanda. | 006 (RF-32 a RF-38), 021 (RF-17 a RF-24, RF-47 a RF-49) |
 | `frontend/src/components/JobBar.tsx` | Barra de trabajos en curso. | 001 |
 | `frontend/src/components/LogPanel.tsx` | Registro. | 001 |
 | `frontend/src/components/ui.tsx` | Piezas comunes: modal, avisos, casillas, ficheros. | 001 |
