@@ -299,8 +299,9 @@ def test_ajuste_en_la_seccion_de_demanda_medida():
     ajuste = (src / 'AjusteCabecera.tsx').read_text(encoding='utf-8')
     # Spec 008, RF-7: con los alimentadores marcados en el paso 2.
     assert '<DemandaMedida project={project} feeders={order} />' in cargas
+    # Con la central térmica de cada alimentador (spec 021, RF-25).
     assert ('<AjusteCabecera project={project} maxima={ultimo} feeders={feeders} '
-            'desconectados={desconectados} />') in demanda
+            'desconectados={desconectados}\n        centrales={') in demanda
     assert 'api.ajustePlan' in ajuste and 'job_id: maxima.id' in ajuste
 
 

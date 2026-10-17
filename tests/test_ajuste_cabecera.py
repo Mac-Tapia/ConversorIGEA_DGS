@@ -8,6 +8,9 @@ import pytest
 
 from igea_dgs.ajuste_cabecera import (
     ESCALERA,
+    MedidaZonas,
+    cuadrar_zonas,
+    objetivo_zonas_de,
     MITADES,
     AjusteError,
     Medida,
@@ -438,3 +441,112 @@ def test_fija_con_fp_bajo_se_compensa_al_minimo_del_perfil():
     assert alto.kvar == pytest.approx(38.0) and 'compensado' not in alto.derivaciones[0]
     assert fijas_de([_cliente('BAJO', 'E1', 100.0, ea=1.0, eri=2.1)], o)['E1'].kvar \
         == pytest.approx(210.0), 'sin mínimo en el perfil, su EA/ERI'
+
+
+# ---------------------------------------------------------------- spec 021: dos zonas
+def _con_central(**kw):
+    """La máxima de demanda de un alimentador con central, como la da la web (021:RF-34)."""
+    base = {'alimentador': 'NA205', 'fecha': '2026-08-20 16:45:00', 'demanda_kw': 10753.0,
+            'arriba_kw': 1131.0, 'arriba_kvar': 380.0, 'abajo_kw': 9622.0, 'abajo_kvar': 2100.0,
+            'generacion_kw': 9605.0, 'generacion_kvar': -593.0, 'cabecera_kw': 1123.0,
+            'cabecera_kvar': 4199.0, 'error': None}
+    base.update(kw)
+    return base
+
+
+class RedDeDosZonas:
+    """Flujo de carga de mentira con una central en serie: cada zona con sus pérdidas
+    cuadráticas; la cabecera es lo de aguas arriba menos lo que la central exporta."""
+
+    def __init__(self, generacion_kw=9605.0, limite=math.inf, por_remedio=0.0):
+        self.g, self.limite, self.por_remedio = generacion_kw, limite, por_remedio
+        self.flujos = []
+
+    def flujo(self, arriba, abajo):
+        pa, qa = arriba.totales()
+        pb, qb = abajo.totales()
+        self.flujos.append((arriba.a, abajo.a))
+        if pa + pb > self.limite:
+            return MedidaZonas(False, motivo='Newton-Raphson no converge')
+        sa, sb = 3e-5 * (pa * pa + qa * qa), 2e-5 * (pb * pb + qb * qb)
+        llegada = self.g - (pb + sb)
+        return MedidaZonas(True, arriba_kw=pa + sa, arriba_kvar=qa, abajo_kw=pb + sb,
+                           abajo_kvar=qb, cabecera_kw=pa + sa - llegada, cabecera_kvar=qa)
+
+    def remedio(self, nombre, ajustes):
+        self.limite += self.por_remedio
+        return [nombre]
+
+
+def _zonas(n=30, seed=11, sin_escaladas_arriba=False):
+    rnd = random.Random(seed)
+    o = objetivo_zonas_de(_con_central())
+    kva = {f'S{i}': rnd.choice([50.0, 100.0, 160.0, 250.0, 630.0]) for i in range(n)}
+    cargas = {s: (k * 0.5, k * 0.1) for s, k in kva.items()}
+    corte = n // 5
+    de_arriba = {s: cargas[s] for s in list(cargas)[:corte]}
+    de_abajo = {s: cargas[s] for s in list(cargas)[corte:]}
+    fijas_arriba = fijas_de([_cliente('1', 'S0', 200.0, 1.0, 0.3)], o.arriba)
+    if sin_escaladas_arriba:
+        de_arriba = {'S0': de_arriba['S0']}
+    ra = reparto_inicial(o.arriba, fijas_arriba, de_arriba, kva)
+    rb = reparto_inicial(o.abajo, {}, de_abajo, kva)
+    return o, ra, rb
+
+
+def test_objetivo_de_dos_zonas():
+    """021:RF-33, RF-40, RF-41 — el objetivo con central: aguas arriba, aguas abajo y la
+    generación del mismo registro, el de la máxima de demanda."""
+    o = objetivo_zonas_de(_con_central())
+    assert (o.arriba.kw, o.arriba.kvar) == (1131.0, 380.0)
+    assert (o.abajo.kw, o.abajo.kvar) == (9622.0, 2100.0)
+    assert (o.generacion_kw, o.generacion_kvar) == (9605.0, -593.0)
+    assert o.fecha == '2026-08-20 16:45:00' and o.alimentador == 'NA205'
+    with pytest.raises(AjusteError, match='balance'):
+        objetivo_zonas_de(_con_central(error='el balance de la barra de la central no cuadra'))
+
+
+def test_cuadra_las_dos_zonas_con_un_factor_cada_una():
+    """021:RF-40, RF-41, RF-42, RF-43 — cada zona sube con su propio factor hasta su
+    medida; las fijas no se tocan; cuadrado solo con las dos dentro de la tolerancia."""
+    o, ra, rb = _zonas()
+    red = RedDeDosZonas()
+    res = cuadrar_zonas(ra, rb, o, red.flujo, tolerancia=0.01)
+    assert res.cuadrado, res.motivo
+    assert abs(res.medida.arriba_kw - o.arriba.kw) <= 0.01 * o.arriba.kw
+    assert abs(res.medida.abajo_kw - o.abajo.kw) <= 0.01 * o.abajo.kw
+    assert res.arriba.a != pytest.approx(res.abajo.a), 'un factor por zona'
+    assert res.arriba.demandas['S0'].kw == 200.0
+    d = res.resumen()
+    assert d['cabecera_calculada_kw'] == pytest.approx(res.medida.cabecera_kw)
+    assert d['cabecera_medida_kw'] == 1123.0
+    assert d['factor_arriba'] == res.arriba.a and d['factor_abajo'] == res.abajo.a
+
+
+def test_una_zona_sin_escaladas_se_avisa_y_no_decide():
+    """021:RF-45 — aguas arriba solo con un cliente fijo: sus fijas quedan como están, se
+    avisa y el cuadre lo decide la otra zona."""
+    o, ra, rb = _zonas(sin_escaladas_arriba=True)
+    res = cuadrar_zonas(ra, rb, o, RedDeDosZonas().flujo, tolerancia=0.01)
+    assert res.cuadrado
+    assert any('aguas arriba' in a and 'no se puede ajustar' in a for a in res.avisos)
+    assert res.arriba.demandas['S0'].kw == 200.0
+    assert abs(res.medida.abajo_kw - o.abajo.kw) <= 0.01 * o.abajo.kw
+
+
+def test_dos_zonas_sin_converger_usa_los_remedios():
+    """021:RF-43 — si el flujo no converge se acerca a medio camino y luego aplica los
+    remedios del flujo de carga, como el ajuste de una zona (006:RF-15, RF-16)."""
+    o, ra, rb = _zonas()
+    red = RedDeDosZonas(limite=9000.0, por_remedio=3000.0)
+    res = cuadrar_zonas(ra, rb, o, red.flujo, tolerancia=0.01, remedio=red.remedio)
+    assert res.cuadrado, res.motivo
+    assert [r['remedio'] for r in res.remedios][0] == ESCALERA[0][0]
+    assert len(res.remedios) >= 2
+
+
+def test_sin_central_el_ajuste_es_el_de_siempre():
+    """021:RF-46 — sin central, ``cuadrar`` con un solo objetivo de cabecera, sin zonas."""
+    o, _fijas, r = _caso()
+    res = cuadrar(r, o, RedDeJuguete().flujo)
+    assert res.cuadrado and not hasattr(res, 'arriba')
