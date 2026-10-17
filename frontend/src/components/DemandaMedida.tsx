@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, fmtNum, type DemandaTipo } from '../api';
 import { estadoCatalogoClientes } from '../clientesCatalogo';
 import { useApp } from '../context';
-import type { ClientesCruce, ClienteImportante, MaximaCabecera } from '../types';
+import type { CentralTermica, ClientesCruce, ClienteImportante, MaximaCabecera, MedidoresExternos } from '../types';
 import { AjusteCabecera } from './AjusteCabecera';
 import { FileDrop, useToast } from './ui';
 
@@ -114,6 +114,11 @@ const nombreMes = (mes: string) => {
 
 type Par = { alimentador: string; medidor: string };
 const clave = (p: Par) => `${p.alimentador}|${p.medidor}`;
+/** En la máxima, los medidores de una central van con este «alimentador»: no es uno de la
+ * red, así que el ajuste no los toma por medidores de cabecera (spec 021, RF-25). */
+export const alimentadorDeCentral = (f: string) => `Central ${f}`;
+const CENTRAL_VACIA: CentralTermica = { generacion: '', llegada: '', salida: '', nodo: '' };
+const centralCompleta = (c?: CentralTermica) => Boolean(c && c.generacion && c.llegada && c.salida);
 
 /**
  * Calibración (spec 004, RF-22 a RF-41; spec 008, RF-8 a RF-11): máxima de cabecera de
@@ -135,6 +140,10 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   const [filtro, setFiltro] = useState('');
   // Spec 013, RF-8 y RF-10: mes del libro de clientes, siempre elegido por el operador.
   const [periodo, setPeriodo] = useState('');
+  // Spec 021, RF-25 a RF-27: central térmica en un tramo, por alimentador, y los medidores
+  // del libro que no son de un alimentador de la red, donde se eligen los suyos.
+  const [externos, setExternos] = useState<MedidoresExternos | null>(null);
+  const [centrales, setCentrales] = useState<Record<string, CentralTermica>>({});
   const toast = useToast();
   const engineBusy = Boolean(active.engine);
   const estadoClientes = estadoCatalogoClientes(ws.demanda?.clientes, periodo);
@@ -159,6 +168,8 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
     setCruce(null);
     setDesconectados(new Set());
     setPeriodo('');
+    setExternos(null);
+    setCentrales({});
   }, [project, marcados]);
 
   // Desplegable de códigos del libro (spec 004, RF-42): se vuelve a leer al cambiar el libro.
@@ -195,6 +206,16 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
       });
       setPorAlim(mapa);
       setElegidos(pares);
+      // RF-26, RF-27: los medidores que no son de la red, y la central que guarda el perfil
+      // de cada alimentador marcado, ya rellena.
+      const ext = await run(() => api.demandaMedidoresExternos(ws.id, feeders));
+      if (ext) {
+        setExternos(ext);
+        if (ext.aviso_perfil) toast('error', 'Centrales del perfil', ext.aviso_perfil);
+        const delPerfil: Record<string, CentralTermica> = {};
+        feeders.forEach((f) => { if (ext.centrales_perfil[f]) delPerfil[f] = ext.centrales_perfil[f]; });
+        setCentrales(delPerfil);
+      }
     } finally {
       setBuscando(false);
     }
@@ -210,10 +231,24 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   const alternar = (par: Par) => setElegidos((xs) => (xs.some((x) => clave(x) === clave(par))
     ? xs.filter((x) => clave(x) !== clave(par)) : [...xs, par]));
   // RF-10: todos los medidores elegidos en un solo trabajo.
+  // Spec 021, RF-25: con los tres de cada central declarada, en el mismo trabajo.
+  const deCentrales: Par[] = feeders.filter((f) => centralCompleta(centrales[f])).flatMap((f) => {
+    const c = centrales[f];
+    return [c.generacion, c.llegada, c.salida].map((medidor) => ({ alimentador: alimentadorDeCentral(f), medidor }));
+  });
+  const aBuscar = [...elegidos, ...deCentrales.filter((p) => !elegidos.some((x) => x.medidor === p.medidor))];
   const maxima = () => {
     if (!elegidos.length) { toast('error', 'Elija al menos un medidor', ''); return; }
-    startJob(() => api.demandaCabecera(ws.id, elegidos));
+    startJob(() => api.demandaCabecera(ws.id, aBuscar));
   };
+  const ponerCentral = (f: string, campo: keyof CentralTermica, valor: string) =>
+    setCentrales((m) => ({ ...m, [f]: { ...(m[f] ?? CENTRAL_VACIA), [campo]: valor } }));
+  const quitarCentral = (f: string) => setCentrales((m) => {
+    const n = { ...m };
+    delete n[f];
+    return n;
+  });
+  const opcionesExternas = externos?.medidores ?? [];
   // RF-11: los clientes de los alimentadores marcados.
   const cruzar = async () => {
     const r = await run(() => api.demandaClientes(ws.id, feeders, periodo || undefined));
@@ -262,7 +297,8 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
       {buscados && (
         <div className="table-wrap table-short">
           <table className="table">
-            <thead><tr><th>Alimentador</th><th>Medidores (se buscan los marcados)</th><th>A mano</th></tr></thead>
+            <thead><tr><th>Alimentador</th><th>Medidores (se buscan los marcados)</th><th>A mano</th>
+              <th title="Central térmica en un tramo del alimentador (spec 021)">Central térmica</th></tr></thead>
             <tbody>{feeders.map((f) => (
               <tr key={f}>
                 <td className="strong">{f}</td>
@@ -294,6 +330,37 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
                     <button className="btn btn-sm btn-ghost" disabled={!(manual[f] ?? '').trim()} onClick={() => anadir(f)}>Añadir</button>
                   </span>
                 </td>
+                <td>
+                  {!centrales[f] ? (
+                    <button className="btn btn-sm btn-ghost" onClick={() => setCentrales((m) => ({ ...m, [f]: CENTRAL_VACIA }))}
+                      title="Si el alimentador tiene una central en su troncal, se calibra con su generación y en dos zonas">
+                      Declarar central</button>
+                  ) : (
+                    <div className="central-campos">
+                      {([['generacion', 'Generación'], ['llegada', 'Llegada (lado SET)'], ['salida', 'Salida (lado carga)']] as const).map(([campo, texto]) => (
+                        <label key={campo} className="field">
+                          <span>{texto}</span>
+                          <select value={centrales[f][campo]} onChange={(e) => ponerCentral(f, campo, e.target.value)}>
+                            <option value="">— medidor —</option>
+                            {opcionesExternas.map((m) => (
+                              <option key={`${m.alimentador}|${m.medidor}`} value={m.medidor}>{m.medidor} · {m.alimentador}</option>
+                            ))}
+                            {centrales[f][campo] && !opcionesExternas.some((m) => m.medidor === centrales[f][campo]) && (
+                              <option value={centrales[f][campo]}>{centrales[f][campo]}</option>
+                            )}
+                          </select>
+                        </label>
+                      ))}
+                      <label className="field">
+                        <span>Barra de la central en DIgSILENT</span>
+                        <input className="search" value={centrales[f].nodo} placeholder="nodo del troncal"
+                          onChange={(e) => ponerCentral(f, 'nodo', e.target.value)} />
+                      </label>
+                      <button className="btn btn-sm btn-ghost" onClick={() => quitarCentral(f)}>Quitar central</button>
+                      {!centralCompleta(centrales[f]) && <small className="muted">Elija los tres medidores.</small>}
+                    </div>
+                  )}
+                </td>
               </tr>
             ))}</tbody>
           </table>
@@ -301,7 +368,7 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
       )}
       <div className="row">
         <button className="btn btn-primary" disabled={!elegidos.length || !ws.demanda?.cabecera || engineBusy} onClick={maxima}>
-          Buscar la máxima ({elegidos.length} medidor{elegidos.length === 1 ? '' : 'es'})
+          Buscar la máxima ({aBuscar.length} medidor{aBuscar.length === 1 ? '' : 'es'})
         </button>
         {!ws.demanda?.cabecera && <small className="muted">Falta la medición de cabecera.</small>}
       </div>
@@ -372,7 +439,8 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
 
       {/* Spec 006: la máxima de arriba, repartida entre las SED del proyecto de DIgSILENT. */}
       <h4>2.4 · Escalar las demás cargas y ajustar</h4>
-      <AjusteCabecera project={project} maxima={ultimo} feeders={feeders} desconectados={desconectados} />
+      <AjusteCabecera project={project} maxima={ultimo} feeders={feeders} desconectados={desconectados}
+        centrales={Object.fromEntries(Object.entries(centrales).filter(([, c]) => centralCompleta(c)))} />
     </div>
   );
 }

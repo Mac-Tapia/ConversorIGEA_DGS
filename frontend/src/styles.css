@@ -312,6 +312,8 @@ small.alert { display: block; margin: 4px 0 0; }
 .curva-serie-btn[aria-pressed="false"] { color: var(--muted); opacity: .6; }
 .curva-serie-btn .curva-muestra { height: 3px; }
 .curva-serie-falta { color: var(--error); font-size: 12.5px; }
+.central-campos { display: grid; grid-template-columns: repeat(2, minmax(150px, 1fr)); gap: 4px 8px; align-items: end; }
+.central-resumen { margin: 4px 0; }
 .row { display: flex; gap: 6px; flex-wrap: wrap; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0; }
 .chip {

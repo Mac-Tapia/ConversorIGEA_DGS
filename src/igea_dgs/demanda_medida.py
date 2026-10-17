@@ -866,6 +866,140 @@ def _unir_canales(resultados: list[MaximaCabecera]) -> list[MaximaCabecera]:
     return out
 
 
+# =========================================================================== central térmica
+#: Desbalance de la barra de la central admitido, sobre su generación máxima (021:RF-30).
+DESBALANCE_MAXIMO = 0.05
+#: Rangos intercuartílicos fuera de los cuales un registro de aguas arriba no es demanda
+#: sino una maniobra o una transferencia de carga (021:RF-32).
+RANGOS_IQR = 3.0
+
+Curva = Sequence[tuple[datetime, float, 'float | None']]
+
+
+@dataclass
+class MaximaConCentral:
+    """La máxima de un alimentador con una central en serie en su troncal (spec 021).
+
+    NA205 tiene en su troncal la central de Nasca: la cabecera solo ve lo que entra
+    desde la SET, que con la central generando es casi nada (1 123 kW frente a una
+    demanda de 10 753 kW el 2026-08-20 16:45). La demanda son dos zonas: aguas arriba
+    de la central (cabecera + llegada) y aguas abajo (la salida).
+    """
+
+    fecha: str | None = None
+    demanda_kw: float | None = None
+    arriba_kw: float | None = None
+    arriba_kvar: float | None = None
+    abajo_kw: float | None = None
+    abajo_kvar: float | None = None
+    generacion_kw: float | None = None
+    generacion_kvar: float | None = None
+    cabecera_kw: float | None = None
+    cabecera_kvar: float | None = None
+    signo_llegada: int = 1
+    signo_salida: int = 1
+    desbalance_mediana_kw: float | None = None
+    generacion_max_kw: float | None = None
+    descartados: int = 0
+    registros_comunes: int = 0
+    registros_cabecera: int = 0
+    maxima_cabecera: dict[str, Any] | None = None
+    avisos: list[str] = field(default_factory=list)
+    error: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+def _por_fecha(curva: Curva) -> dict[datetime, tuple[float, float | None]]:
+    return {f: (kw, kvar) for f, kw, kvar in curva}
+
+
+def _mediana(xs: Sequence[float]) -> float:
+    s = sorted(xs)
+    n = len(s)
+    return s[n // 2] if n % 2 else (s[n // 2 - 1] + s[n // 2]) / 2
+
+
+def _cuartiles(xs: Sequence[float]) -> tuple[float, float]:
+    s = sorted(xs)
+    n = len(s)
+    return s[n // 4], s[(3 * n) // 4]
+
+
+def _suma(*xs: float | None) -> float | None:
+    return None if any(x is None for x in xs) else sum(xs)  # type: ignore[arg-type]
+
+
+def demanda_con_central(cabecera: Curva, generacion: Curva, llegada: Curva,
+                        salida: Curva) -> MaximaConCentral:
+    """Máxima de demanda de un alimentador con una central en su troncal (021:RF-28 a RF-34).
+
+    Las cuatro son curvas ``(fecha, kW, kVAR)``: la cabecera del alimentador, la
+    generación de la central, la llegada (el tramo hacia la SET) y la salida (hacia la
+    carga). Solo se usan los registros que están en las cuatro.
+
+    El balance de la barra de la central es generación = salida + llegada, con los
+    flujos que salen de ella positivos. Cada medidor exporta con su convención: en NA205
+    CTNA_BH2 (llegada) es negativo cuando la central está parada y la SET la alimenta.
+    Los signos son la combinación que deja la menor mediana de desbalance (RF-29); si ni
+    esa queda bajo el 5 % de la generación máxima, la central no se usa (RF-30).
+    """
+    res = MaximaConCentral()
+    cab, gen, lle, sal = (_por_fecha(c) for c in (cabecera, generacion, llegada, salida))
+    res.registros_cabecera = len(cab)
+    if cab:
+        f, kw = max(((f, v[0]) for f, v in cab.items()), key=lambda p: (p[1], -p[0].timestamp()))
+        res.maxima_cabecera = {'fecha': _iso(f), 'kw': kw}
+    comunes = sorted(set(cab) & set(gen) & set(lle) & set(sal))
+    res.registros_comunes = len(comunes)
+    if len(comunes) < FILAS_DATOS_MINIMAS:
+        res.error = (f'solo {len(comunes)} registro(s) con fecha y hora en los cuatro medidores '
+                     '(cabecera, generación, llegada y salida)')
+        return res
+
+    # RF-29: el orden fija el desempate (determinismo): primero los signos tal cual.
+    mejor = None
+    for sl, ss in ((1, 1), (-1, 1), (1, -1), (-1, -1)):
+        d = _mediana([abs(gen[t][0] - ss * sal[t][0] - sl * lle[t][0]) for t in comunes])
+        if mejor is None or d < mejor[0]:
+            mejor = (d, sl, ss)
+    desbalance, sl, ss = mejor  # type: ignore[misc]
+    res.signo_llegada, res.signo_salida = sl, ss
+    res.desbalance_mediana_kw = desbalance
+    res.generacion_max_kw = max(gen[t][0] for t in comunes)
+    if desbalance > DESBALANCE_MAXIMO * max(res.generacion_max_kw, 1.0):
+        res.error = (f'el balance de la barra de la central no cuadra: generación − salida − '
+                     f'llegada tiene una mediana de {desbalance:,.1f} kW, más del '
+                     f'{DESBALANCE_MAXIMO:.0%} de la generación máxima '
+                     f'({res.generacion_max_kw:,.1f} kW); se calibra sin la central')
+        return res
+
+    # RF-31: aguas arriba, lo que entra por la cabecera y por la llegada; aguas abajo, la salida.
+    arriba = {t: cab[t][0] + sl * lle[t][0] for t in comunes}
+    q1, q3 = _cuartiles(list(arriba.values()))
+    margen = RANGOS_IQR * (q3 - q1)
+    validos = [t for t in comunes if q1 - margen <= arriba[t] <= q3 + margen]
+    res.descartados = len(comunes) - len(validos)
+    if res.descartados:
+        res.avisos.append(f'{res.descartados} registro(s) con la zona aguas arriba a más de '
+                          f'{RANGOS_IQR:g} rangos intercuartílicos de su mediana '
+                          '(maniobras o transferencias de carga): no cuentan para la máxima')
+    if not validos:
+        res.error = 'ningún registro con la zona aguas arriba dentro de lo normal'
+        return res
+    # RF-33: el registro de mayor demanda; a igual demanda, el primero.
+    t = max(validos, key=lambda x: (arriba[x] + ss * sal[x][0], -x.timestamp()))
+    res.fecha = _iso(t)
+    res.arriba_kw, res.abajo_kw = arriba[t], ss * sal[t][0]
+    res.demanda_kw = res.arriba_kw + res.abajo_kw
+    res.arriba_kvar = _suma(cab[t][1], None if lle[t][1] is None else sl * lle[t][1])
+    res.abajo_kvar = None if sal[t][1] is None else ss * sal[t][1]
+    res.generacion_kw, res.generacion_kvar = gen[t]
+    res.cabecera_kw, res.cabecera_kvar = cab[t]
+    return res
+
+
 # =========================================================================== clientes
 @dataclass(frozen=True)
 class Suministro:

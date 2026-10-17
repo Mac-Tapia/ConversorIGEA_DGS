@@ -101,14 +101,34 @@ Bloque 3 · Curvas de varios alimentadores
 
 Bloque 4 · Central térmica
 
-- [ ] T9. Medidas de la central: registros comunes, signos por balance, zonas, descarte por
+- [x] T9. Medidas de la central: registros comunes, signos por balance, zonas, descarte por
       3·IQR y máxima de demanda. (RF-28 a RF-34)
       Hecho cuando: `pytest -q tests/test_demanda_medida.py` en verde; con
       `IGEA_DEMANDA_DIR`, NA205 da el registro del 2026-08-20 16:45.
-- [ ] T10. Declaración de la central en la web y en el perfil; medidores sin alimentador de
+      Resultado del 2026-10-17: `demanda_medida.demanda_con_central` sobre las cuatro
+      curvas `(fecha, kW, kVAR)` que ya guarda la máxima (`MaximaCabecera.curva`):
+      registros comunes, signos por la menor mediana de desbalance (desempate fijo),
+      rechazo por encima del 5 % de la generación máxima, zonas y descarte por 3·IQR;
+      `MaximaConCentral` con zonas, generación, cabecera y la máxima de cabecera de
+      antes. Seis pruebas sintéticas sorteadas y la real: NA205 con CT_BH4 NA, CTNA_BH2 y
+      CTNA_BH1 da 2026-08-20 16:45, signos (1, 1), central generando.
+- [x] T10. Declaración de la central en la web y en el perfil; medidores sin alimentador de
       la red ofrecidos. (RF-25, RF-26, RF-27)
       Hecho cuando: `pytest -q tests/test_demanda_medida_web.py
       tests/test_perfil_empresa.py tests/test_ajuste_cabecera_web.py` en verde.
+      Resultado del 2026-10-17: `perfil_empresa.centrales_termicas` (sección del perfil
+      local, porque es un dato de la red y no una convención); rutas
+      `demanda/medidores-externos` (los del libro cuyo alimentador no es del proyecto ni de
+      la entrada cargada, y las centrales del perfil) y `demanda/cabecera/{job}/central`
+      (la máxima con central sobre las curvas ya leídas). En 2.2, columna «Central
+      térmica» por alimentador: tres desplegables, la barra y «Quitar central»; sus
+      medidores van en el mismo trabajo de la máxima con el alimentador «Central …», que
+      el ajuste no toma por cabecera. 2.4 muestra la máxima de demanda frente a la de
+      cabecera (RF-34). Pruebas de la API, del perfil y del front en verde (121 con las de
+      la web y el inventario); `tsc` y `npm run build` sin errores. La generación de prueba
+      de la T9 sorteaba distinto con la central parada (86 de 300 semillas fallaban):
+      corregida, 500 semillas sin fallos. Falta verlo en el navegador con NA205, que no
+      está entre los proyectos de la carpeta de la web: queda para la T14.
 - [ ] T11. Objetivo y cuadre de dos zonas; sin central, igual que antes. (RF-33, RF-40,
       RF-41, RF-43, RF-45, RF-46)
       Hecho cuando: `pytest -q tests/test_ajuste_cabecera.py` en verde.

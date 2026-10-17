@@ -1896,6 +1896,59 @@ def demanda_curva(ws: Workspace, job_id: str, medidor: str, desde: datetime | No
             'fuera_de_curva': curvas[nombre]['fuera']}
 
 
+def demanda_medidores_externos(ws: Workspace, red: list[str]) -> dict:
+    """Medidores del libro cuyo alimentador no es de la red (021:RF-26), y las centrales
+    que guarda el perfil (021:RF-27).
+
+    La red son los alimentadores del proyecto (``red``) y, si hay una entrada cargada, los
+    de la entrada. En el libro de Electro Dunas la central de Nasca sale como CTBarra,
+    CTLADOSET y CTLADOCARGA: no se reconoce por el nombre, sino porque no es ninguno de
+    los alimentadores de la red.
+    """
+    from ..demanda_medida import DemandaError, clave_codigo, leer_medidores
+    from ..naming import feeder_short_name
+    from ..perfil_empresa import PerfilError, centrales_termicas, datos_perfil
+
+    de_la_red = {clave_codigo(a) for a in red if a.strip()}
+    if ws.dataset is not None:
+        de_la_red |= {clave_codigo(feeder_short_name(f)) for f in ws.dataset.feeder_ids()}
+    try:
+        filas = leer_medidores(_demanda_ruta(ws, 'medidores'), demanda_alias())
+    except DemandaError as exc:
+        raise UserError(str(exc)) from exc
+    externos = [{'alimentador': m.alimentador, 'medidor': m.medidor} for m in filas
+                if clave_codigo(m.alimentador) not in de_la_red]
+    try:
+        centrales, aviso = centrales_termicas(datos_perfil()), None
+    except PerfilError as exc:
+        centrales, aviso = {}, str(exc)
+    return {'medidores': externos, 'centrales_perfil': centrales, 'aviso_perfil': aviso}
+
+
+def demanda_central(ws: Workspace, job_id: str, *, alimentador: str, cabecera: str,
+                    generacion: str, llegada: str, salida: str) -> dict:
+    """Máxima de demanda de un alimentador con central, con las curvas de la última
+    máxima buscada (021:RF-28 a RF-34). Es memoria, no libros: una fracción de segundo.
+    ``LookupError`` si falta una curva: la API da 404."""
+    from ..demanda_medida import clave_codigo, demanda_con_central
+
+    with ws.lock:
+        curvas = ws.curvas_cabecera.get(job_id)
+    if curvas is None:
+        raise LookupError('La curva no es de la última máxima buscada: vuelva a buscarla.')
+
+    def curva(medidor: str) -> list:
+        nombre = next((m for m in curvas if clave_codigo(m) == clave_codigo(medidor)), None)
+        if nombre is None:
+            raise LookupError(f'El medidor {medidor} no está en la última máxima buscada: '
+                              'búsquela con los de la central.')
+        return curvas[nombre]['curva']
+
+    res = demanda_con_central(curva(cabecera), curva(generacion), curva(llegada), curva(salida))
+    return {'alimentador': alimentador, 'cabecera': cabecera, 'generacion': generacion,
+            'llegada': llegada, 'salida': salida, **res.to_dict()}
+
+
 def demanda_clientes(ws: Workspace, alimentadores: list[str] | None = None,
                      *, periodo: str | None = None) -> dict:
     """Clientes importantes cruzados con los suministros (RF-33 a RF-37); con

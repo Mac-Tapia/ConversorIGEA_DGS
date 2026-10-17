@@ -1100,6 +1100,23 @@ def create_app(
         except LookupError as exc:
             raise HTTPException(404, str(exc)) from exc
 
+    @app.get('/api/workspaces/{wid}/demanda/medidores-externos')
+    def demanda_medidores_externos(wid: str, red: list[str] = Query(default=[])) -> dict:
+        """Spec 021, RF-26 y RF-27: medidores que no son de un alimentador de la red."""
+        return services.demanda_medidores_externos(ws_or_404(wid), red)
+
+    @app.get('/api/workspaces/{wid}/demanda/cabecera/{job_id}/central')
+    def demanda_central(wid: str, job_id: str, alimentador: str = Query(...),
+                        cabecera: str = Query(...), generacion: str = Query(...),
+                        llegada: str = Query(...), salida: str = Query(...)) -> dict:
+        """Spec 021, RF-28 a RF-34: máxima de demanda de un alimentador con central."""
+        try:
+            return services.demanda_central(
+                ws_or_404(wid), job_id, alimentador=alimentador, cabecera=cabecera,
+                generacion=generacion, llegada=llegada, salida=salida)
+        except LookupError as exc:
+            raise HTTPException(404, str(exc)) from exc
+
     @app.post('/api/workspaces/{wid}/demanda/clientes/cruzar')
     def demanda_clientes(wid: str, body: DemandaClientesIn | None = None) -> dict:
         return services.demanda_clientes(ws_or_404(wid), body.alimentadores if body else None,
