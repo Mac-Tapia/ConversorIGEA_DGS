@@ -174,7 +174,10 @@ Cierre
       el cable unido, «Caso base» con el mismo flujo, transferencia con los mismos
       seccionadores) y NA205 calibrado con su central desde la web. (Todos)
       Hecho cuando: los criterios de finalización de la spec, comprobados en DIgSILENT.
-- [ ] T15. Validación: cada RF citado por al menos una prueba y en verde; `CODIGO_FUENTE.md`
+- [x] T15. Validación: cada RF citado por al menos una prueba y en verde; `CODIGO_FUENTE.md`
       al día. (Todos)
       Hecho cuando: `grep -rnoE "021:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-49 y
       `pytest -q tests/test_inventario.py` en verde.
+      Resultado del 2026-10-17: RF-1 a RF-49 citados por alguna prueba; suite completa
+      con TXT, Access y libros de demanda, 2333 en verde (inventario incluido). Queda la
+      T14, la prueba de punta a punta en DIgSILENT.
