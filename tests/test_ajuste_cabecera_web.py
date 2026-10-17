@@ -650,3 +650,65 @@ def test_la_web_dice_lo_que_dejaron_los_transformadores():
     assert 'La calibración salió válida con ellos.' in ajuste
     assert 'Se quedan, pero no salió: ${r.motivos.join' in ajuste
     assert 'falta calibrar' in ajuste
+
+
+# ---------------------------------------------------------------- spec 021: central térmica
+CENTRAL = {'generacion': 'CG', 'llegada': 'CL', 'salida': 'CS', 'nodo': 'B5'}
+
+
+def _maxima_con_central(client):
+    """A1 con su central: los tres medidores en el mismo trabajo de la máxima (021:RF-25)."""
+    from test_demanda_medida_web import _libros_con_central
+
+    wid = client.post('/api/workspaces').json()['id']
+    _libros_con_central(client, wid)
+    job = client.post(f'/api/workspaces/{wid}/demanda/cabecera/buscar', json={'medidores': [
+        {'alimentador': 'A1', 'medidor': 'M1'}] + [
+        {'alimentador': 'Central A1', 'medidor': m} for m in ('CG', 'CL', 'CS')]}).json()
+    estado = esperar_trabajo(client, job)
+    assert estado['status'] == 'done', estado
+    return wid, job['id']
+
+
+def _recibido(client, wid, token):
+    trabajo = client.post(f'/api/workspaces/{wid}/demanda/ajuste/{token}/simular')
+    estado = esperar_trabajo(client, trabajo.json())
+    assert estado['status'] == 'done', estado
+    return estado['result']['informe']['recibido']
+
+
+def test_el_plan_lleva_la_central_y_su_maxima_de_demanda(client):
+    """021:RF-25, RF-33, RF-35 — con la central declarada, el plan lleva su barra, sus
+    medidores y la máxima de demanda (zonas y generación), no la de cabecera."""
+    wid, job = _maxima_con_central(client)
+    r = _plan(client, wid, job, medidores=['M1'], centrales={'A1': CENTRAL})
+    assert r.status_code == 200, r.text
+    plan = _recibido(client, wid, r.json()['token'])
+    c = plan['central']
+    assert c['nodo'] == 'B5' and c['medidores'] == {'generacion': 'CG', 'llegada': 'CL', 'salida': 'CS'}
+    assert c['maxima']['fecha'] == '2026-07-01 02:45:00'
+    assert (c['maxima']['arriba_kw'], c['maxima']['abajo_kw']) == (811.0, 6100.0)
+    assert c['maxima']['generacion_kw'] == 6000.0
+
+
+def test_sin_la_barra_de_la_central_no_hay_plan(client):
+    """021:RF-25 — sin la barra de la central en DIgSILENT, se pide."""
+    wid, job = _maxima_con_central(client)
+    r = _plan(client, wid, job, medidores=['M1'], centrales={'A1': {**CENTRAL, 'nodo': ''}})
+    assert r.status_code == 400 and 'barra de la central' in r.json()['detail']
+
+
+def test_con_el_balance_roto_se_calibra_sin_la_central(client):
+    """021:RF-30 — si los medidores no cuadran el balance de la barra, se avisa y el plan
+    va sin la central."""
+    wid, job = _maxima_con_central(client)
+    r = _plan(client, wid, job, medidores=['M1'], centrales={'A1': {**CENTRAL, 'llegada': 'CS'}})
+    assert r.status_code == 200, r.text
+    assert any('central no usada' in a and 'balance' in a for a in r.json()['avisos'])
+    assert 'central' not in _recibido(client, wid, r.json()['token'])
+
+
+def test_sin_central_el_plan_no_cambia(client):
+    """021:RF-46 — sin centrales declaradas, el plan es el de siempre."""
+    wid, job = _maxima(client)
+    assert 'central' not in _recibido(client, wid, _plan(client, wid, job).json()['token'])

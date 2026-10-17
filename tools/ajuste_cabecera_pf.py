@@ -49,7 +49,7 @@ from cargas_pf import (
     medir_cabecera,
     potencia,
 )
-from casos_pf import NOMBRES, es_de_carga_nueva, preparar_sin
+from casos_pf import NOMBRES, casos_del_proyecto, es_de_carga_nueva, preparar_sin, sin_a_con_proyecto
 from casos_pf import caso as caso_del_sistema
 
 from igea_dgs.native_action import native_action_block_report
@@ -1025,6 +1025,357 @@ def sincronizar_con_proyecto(app, con, sin, cargas: dict, reparto, omitir, apaga
     return resultado
 
 
+
+# =========================================================================== central (spec 021)
+#: Prefijo del generador y de la variación de la central que crea el conversor (RF-36).
+PREFIJO_CENTRAL = 'Central_'
+
+
+def _misma_pf(a, b) -> bool:
+    try:
+        return a is not None and b is not None and a.GetFullName() == b.GetFullName()
+    except Exception:  # noqa: BLE001
+        return a is b
+
+
+def barra_de_la_central(app, elm, nodo: str):
+    """La barra ``nodo`` del troncal del alimentador y la parte aguas abajo (021:RF-38, RF-39).
+
+    El ``ElmFeeder`` da sus objetos según la última topología calculada: se corre un
+    flujo antes de leer la red. Devuelve ``(barra, subárbol)`` o lanza ``ValueError`` con
+    el nodo y el alimentador.
+    """
+    from cargas_pf import cabecera_de, leer_red
+
+    from igea_dgs.troncal import TroncalError, aguas_abajo
+    from igea_dgs.troncal import troncal as troncal_de
+
+    app.GetFromStudyCase('ComLdf').Execute()
+    cabecera = cabecera_de(elm)
+    if cabecera is None:
+        raise ValueError(f'{elm.loc_name}: el alimentador no dice su cabecera')
+    barras = {b.loc_name: b for b in elm.GetObjs('ElmTerm')}
+    barra = barras.get(nodo)
+    if barra is None:
+        raise ValueError(f'la barra {nodo!r} de la central no está en el alimentador {elm.loc_name}')
+    red = leer_red(elm, cabecera)
+    try:
+        tronco = troncal_de(red, cabecera.loc_name)
+        parte = aguas_abajo(red, cabecera.loc_name, nodo)
+    except TroncalError as exc:
+        raise ValueError(f'{elm.loc_name}: {exc}') from None
+    tramos = red.por_nombre()
+    en_troncal = {cabecera.loc_name} | {b for t in tronco.tramos
+                                        for b in (tramos[t].desde, tramos[t].hasta)}
+    if nodo not in en_troncal:
+        raise ValueError(f'la barra {nodo!r} de la central no está en el troncal de '
+                         f'{elm.loc_name}: la central va en serie en el troncal (021:RF-38)')
+    if parte.entrada is None:
+        raise ValueError(f'la barra {nodo!r} es la cabecera de {elm.loc_name}: ahí no hay zona '
+                         'aguas arriba')
+    return barra, parte
+
+
+def barra_mt_de(carga) -> str | None:
+    """La barra de media de una carga: la suya o, si cuelga de una SED, la de alta de su
+    transformador (con barra propia, la del alimentador; 021:RF-12)."""
+    term = getattr(getattr(carga, 'bus1', None), 'cterm', None)
+    if term is None:
+        return None
+    if float(getattr(term, 'uknom', 0) or 0) >= 1.0:
+        return term.loc_name
+    for cub in term.GetContents('*.StaCubic') or []:
+        tr = getattr(cub, 'obj_id', None)
+        if tr is not None and tr.GetClassName() == 'ElmTr2':
+            alta = getattr(getattr(tr, 'bushv', None), 'cterm', None)
+            if alta is not None:
+                padre = alta.GetParent()
+                # Sin barra propia, la de alta es la de dentro de la SED; su acoplador la une
+                # a la del alimentador, que es la que está en la red.
+                if padre is not None and padre.GetClassName() == 'ElmSubstat':
+                    for c in alta.GetContents('*.StaCubic') or []:
+                        acople = getattr(c, 'obj_id', None)
+                        if acople is not None and acople.GetClassName() == 'ElmCoup':
+                            for lado in ('bus1', 'bus2'):
+                                otra = getattr(getattr(acople, lado, None), 'cterm', None)
+                                if otra is not None and not _misma_pf(otra, alta):
+                                    return otra.loc_name
+                return alta.loc_name
+    return term.loc_name
+
+
+def cargas_por_zona(cargas: dict, aguas_abajo_barras) -> tuple[dict, dict]:
+    """Las cargas de aguas arriba y las de aguas abajo de la central (021:RF-39)."""
+    abajo = set(aguas_abajo_barras)
+    arriba_z, abajo_z = {}, {}
+    for sed, obj in cargas.items():
+        (abajo_z if barra_mt_de(obj) in abajo else arriba_z)[sed] = obj
+    return arriba_z, abajo_z
+
+
+def variacion_de_la_central(app, feeder: str):
+    """La variación de la central de ``feeder`` que creó el conversor, o ``None``."""
+    carpeta = app.GetProjectFolder('scheme')
+    nombre = f'{PREFIJO_CENTRAL}{feeder}'
+    return next((v for v in (carpeta.GetContents('*.IntScheme', 1) if carpeta else [])
+                 if v.loc_name == nombre or v.loc_name.startswith(nombre + '(')), None)
+
+
+def central_en_sin_proyecto(app, barra, feeder: str, p_kw: float, q_kvar: float) -> dict:
+    """El generador de la central en su barra, con la P y Q medidas (021:RF-35, RF-36).
+
+    Va en su variación ``Central_<alimentador>``, activa en «Sin proyecto» (y en «Con
+    proyecto», que es su copia, 014), nunca en el «Caso base» (RF-37). Si ya está, solo se
+    le escriben la P y la Q, en el escenario. Sonda del 2026-10-17 en una copia de NA203 +
+    NA205: un ``ElmGenstat`` con ``av_mode='constq'`` inyecta lo escrito (5,0 MW y −0,4
+    Mvar), y la etapa que lo crea sigue grabando aunque se desactive y active la
+    variación: por eso el ajuste escribe antes la marca fija o escalable (red) y después
+    crea la central.
+    """
+    from cargas_pf import crear_variacion, nombre_pf
+
+    nombre = nombre_pf(f'{PREFIJO_CENTRAL}{feeder}')
+    variacion = variacion_de_la_central(app, feeder)
+    if variacion is not None and variacion.loc_name not in {
+            v.loc_name for v in (app.GetActiveNetworkVariations() or [])}:
+        variacion.Activate()
+    gen = next((o for o in (app.GetCalcRelevantObjects('*.ElmGenstat') or [])
+                if o.loc_name == nombre), None)
+    creado = gen is None
+    if creado:
+        variacion, _etapa = crear_variacion(app, nombre, 'central')
+        red = barra.GetParent()
+        while red is not None and red.GetClassName() != 'ElmNet':
+            red = red.GetParent()
+        gen = (red or barra.GetParent()).CreateObject('ElmGenstat', nombre)
+        cub = barra.CreateObject('StaCubic', f'Cub_{nombre}')
+        gen.bus1 = cub
+        gen.sgn = max(1.2 * math.hypot(p_kw, q_kvar) / 1000.0, 0.1)
+        gen.av_mode = 'constq'
+        gen.ip_ctrl = 0
+        gen.mode_inp = 'PQ'
+    gen.pgini = p_kw / 1000.0
+    gen.qgini = q_kvar / 1000.0
+    return {'generador': gen.loc_name, 'barra': barra.loc_name, 'creado': creado,
+            'variacion': getattr(variacion, 'loc_name', None), 'p_kw': p_kw, 'q_kvar': q_kvar}
+
+
+def medir_zonas(app, elm, barra, entrada: str):
+    """Flujo y lo que da cada zona (021:RF-40, RF-41, RF-44).
+
+    Aguas arriba: lo que entra por la cabecera más lo que sale de la barra de la central
+    hacia la SET (la llegada); aguas abajo: lo que sale de ella por las demás ramas. En la
+    sonda, ``m:Psum:busN`` del extremo de cada línea en la barra es lo que sale de ella.
+    """
+    from igea_dgs.ajuste_cabecera import MedidaZonas
+
+    cab = medir_cabecera(app, elm)
+    if not cab.converge:
+        return MedidaZonas(False, motivo=cab.motivo)
+    llegada = [0.0, 0.0]
+    salida = [0.0, 0.0]
+    for cub in barra.GetContents('*.StaCubic') or []:
+        rama = getattr(cub, 'obj_id', None)
+        if rama is None or rama.GetClassName() not in ('ElmLne', 'ElmCoup', 'ElmTr2'):
+            continue
+        if rama.GetClassName() == 'ElmTr2':
+            # Una SED en la misma barra de la central: su transformador es una salida más.
+            lado = 'hv' if _misma_pf(getattr(rama, 'bushv', None), cub) else 'lv'
+        else:
+            lado = 1 if _misma_pf(getattr(rama, 'bus1', None), cub) else 2
+        p = _num(rama, f'm:Psum:bus{lado}')
+        q = _num(rama, f'm:Qsum:bus{lado}')
+        if p is None:
+            return MedidaZonas(False, motivo=f'sin resultados en {rama.loc_name}')
+        destino = llegada if rama.loc_name == entrada else salida
+        destino[0] += p * 1000.0
+        destino[1] += (q or 0.0) * 1000.0
+    return MedidaZonas(True, arriba_kw=cab.kw + llegada[0], arriba_kvar=cab.kvar + llegada[1],
+                       abajo_kw=salida[0], abajo_kvar=salida[1],
+                       cabecera_kw=cab.kw, cabecera_kvar=cab.kvar)
+
+
+def _ejecutar_con_central(app, plan: dict, informe: dict, *, alims, elm, feeder: str,
+                          cargas: dict, kva: dict, kva_origen: dict, fijas_libro: dict,
+                          fp_cargas, apagar: dict, manuales: list, ambiguas, sin, con,
+                          inicial, escenario, simular: bool, cancelado) -> tuple[dict, int]:
+    """El ajuste de un alimentador con una central en su troncal (spec 021, RF-35 a RF-45).
+
+    Las cargas se separan por la barra de la central: las de aguas arriba se ajustan a lo
+    que entra por la cabecera y por la llegada, y las de aguas abajo a la salida, cada
+    zona con su factor de escala (RF-40, RF-41). La central lleva la P y Q que medía en
+    el registro de la máxima de demanda (RF-35). Sin central, :func:`_ejecutar` sigue
+    como siempre (RF-46).
+    """
+    from igea_dgs.ajuste_cabecera import (
+        MAX_FLUJOS, AjusteError, Medida, cuadrar_zonas, objetivo_zonas_de, reparto_inicial)
+    from igea_dgs.demanda_medida import clave_codigo
+
+    central = plan['central']
+    try:
+        objetivo = objetivo_zonas_de(central['maxima'])
+    except AjusteError as exc:
+        return {**informe, 'error': str(exc)}, 2
+    try:
+        barra, parte = barra_de_la_central(app, elm, str(central.get('nodo') or '').strip())
+    except ValueError as exc:
+        return {**informe, 'error': str(exc)}, 2                                    # RF-38
+    arriba, abajo = cargas_por_zona(cargas, parte.barras)                          # RF-39
+    zonas = {'arriba': arriba, 'abajo': abajo}
+    # ``fijas_de`` las da por su código de SED tal como viene en el libro; se reparten por
+    # la zona de la carga con ese código.
+    fijas_z = {z: {k: f for k, f in fijas_libro.items()
+                   if any(clave_codigo(s) == clave_codigo(f.sed) for s in c)}
+               for z, c in zonas.items()}
+    fuera = [f.sed for k, f in fijas_libro.items()
+             if not any(k in fijas_z[z] for z in zonas)]
+    try:
+        repartos = {z: reparto_inicial(o, fijas_z[z], {s: potencia(c) for s, c in zonas[z].items()},
+                                       kva, fp=fp_cargas)
+                    for z, o in (('arriba', objetivo.arriba), ('abajo', objetivo.abajo))}
+    except AjusteError as exc:
+        return {**informe, 'error': f'{feeder} con central: {exc}'}, 2
+    fijas = {s: f for f in fijas_libro.values() for s in cargas
+             if clave_codigo(s) == clave_codigo(f.sed)}
+    tolerancia = float(plan.get('tolerancia', 0.01))
+    informe.update(
+        objetivo=plan['objetivo'], tolerancia=tolerancia, ambiguas=ambiguas,
+        central={'barra': barra.loc_name, 'entrada': parte.entrada,
+                 'generacion_kw': objetivo.generacion_kw,
+                 'generacion_kvar': objetivo.generacion_kvar, 'fecha': objetivo.fecha,
+                 'cargas_aguas_arriba': len(arriba), 'cargas_aguas_abajo': len(abajo)},
+        omitidas=[{'sed': s, 'motivo': 'no está en el alimentador del proyecto', 'clientes': ''}
+                  for s in fuera],
+        criterio_cuadre='ZONAS_DE_LA_CENTRAL')
+    informe['avisos'].append(
+        f'{feeder} con central en {barra.loc_name}: {len(arriba)} carga(s) aguas arriba y '
+        f'{len(abajo)} aguas abajo; se calibra cada zona con su factor de escala (021:RF-40, '
+        'RF-41).')
+    for r in repartos.values():
+        informe['avisos'] += [a for a in r.avisos if a not in informe['avisos']]
+    antes = {s: potencia_efectiva(o) for s, o in cargas.items()}
+    if simular:
+        informe['sed'] = (_por_sed(repartos['arriba'], arriba, kva_origen, antes, fijas)
+                          + _por_sed(repartos['abajo'], abajo, kva_origen, antes, fijas))
+        informe['zonas'] = {z: dict(zip(('kw', 'kvar'), r.totales())) for z, r in repartos.items()}
+        if inicial is not None and app.GetActiveStudyCase() is not inicial:
+            inicial.Activate()
+        return informe, 0
+
+    remedios = Remedios(app)
+    fallos: list[dict] = []
+    con_manual = {m['sed'] for m in manuales}
+    informe['escenario'] = escenario.loc_name
+    try:
+        # La marca fija o escalable es dato de red (015:RF-37): se escribe con la variación
+        # de la central apagada, para que no caiga en su etapa, que sigue grabando.
+        previa = variacion_de_la_central(app, feeder)
+        if previa is not None and previa.loc_name in {
+                v.loc_name for v in (app.GetActiveNetworkVariations() or [])}:
+            previa.Deactivate()
+        for z, r in repartos.items():
+            for sed in r.demandas:
+                zonas[z][sed].i_scale = 1 if sed in r.base else 0
+        for obj in apagar.values():
+            obj.outserv = 1
+        informe['central'].update(central_en_sin_proyecto(                     # RF-35, RF-36
+            app, barra, feeder, objetivo.generacion_kw, objetivo.generacion_kvar))
+
+        def flujo(rep_arriba, rep_abajo):
+            fallos.clear()
+            fallos.extend(escribir_reparto(arriba, rep_arriba, con_manual))
+            fallos.extend(escribir_reparto(abajo, rep_abajo, con_manual))
+            return medir_zonas(app, elm, barra, parte.entrada)
+
+        res = cuadrar_zonas(repartos['arriba'], repartos['abajo'], objetivo, flujo,
+                            tolerancia=tolerancia,
+                            max_flujos=int(plan.get('max_flujos') or MAX_FLUJOS),
+                            remedio=remedios.aplicar, cancelado=cancelado,
+                            progreso=lambda n, m, t: print(f'  {t}'))
+        m = res.medida
+        informe.update(
+            cuadrado=res.cuadrado, motivo=res.motivo or None, cancelado=res.cancelado,
+            flujos=res.flujos, remedios=res.remedios, historial=res.historial,
+            zonas=res.resumen(), fallos=list(fallos),
+            cabecera=({'kw': m.cabecera_kw, 'kvar': m.cabecera_kvar}
+                      if m is not None and m.converge else None))
+        informe['avisos'] += [a for a in res.avisos if a not in informe['avisos']]
+        if m is not None and m.converge and objetivo.cabecera_kw is not None:
+            informe['avisos'].append(
+                f'Cabecera calculada {m.cabecera_kw:,.1f} kW frente a {objetivo.cabecera_kw:,.1f} kW '
+                f'medidos el {objetivo.fecha}, con la central dando {objetivo.generacion_kw:,.1f} kW '
+                '(021:RF-44).')
+        # 015:RF-47 a RF-52, por zona: cada una contra lo que entra en ella.
+        validaciones = {}
+        for z, rep, kw, kvar, obj_z in (
+                ('arriba', res.arriba, m.arriba_kw if m else None, m.arriba_kvar if m else None,
+                 objetivo.arriba),
+                ('abajo', res.abajo, m.abajo_kw if m else None, m.abajo_kvar if m else None,
+                 objetivo.abajo)):
+            if rep is None or m is None or not m.converge or z not in res.ajustables:
+                continue
+            validaciones[z], _ = validar_cargas_nativas(
+                zonas[z], rep, Medida(True, kw, kvar), obj_z, tolerancia, apagar=apagar,
+                ajustes_flujo=ajustes_del_flujo(app),
+                fp_escaladas=None if rep.todo_escala else (fp_cargas or obj_z.fp))
+        informe['validacion_posterior_nativa'] = validaciones
+        invalida = [z for z, v in validaciones.items() if not v['correcta']]
+        if res.cuadrado and invalida:
+            informe['cuadrado'] = False
+            informe['status'] = 'FALLO_VALIDACION_NATIVA'
+            informe['avisos'].append('La validación de lo que consumen las cargas no es '
+                                     'correcta en la zona ' + ', '.join(invalida) + '.')
+        elif not res.cuadrado:
+            informe['status'] = ('NO_CONVERGE' if m is None or not m.converge
+                                 else 'VIOLACION_FISICA')
+            informe['avisos'].append(f'NO cumple el {tolerancia:.1%} en las dos zonas: '
+                                     f'{res.motivo}.')
+        else:
+            informe['status'] = 'OK'
+        if res.arriba is not None and res.abajo is not None:
+            informe['sed'] = (_por_sed(res.arriba, arriba, kva_origen, antes, fijas)
+                              + _por_sed(res.abajo, abajo, kva_origen, antes, fijas))
+            escenario.Save()
+            informe['escenarios'] = [{'escenario': escenario.loc_name,
+                                      'cargas': len(cargas) - len(con_manual), 'fallos': []}]
+            if con is not None:
+                # 014:RF-4 y RF-31: «Con proyecto» con la misma demanda, la misma central
+                # (su variación) y su P y Q en su escenario.
+                informe['sin_a_con'] = sin_a_con_proyecto(app, casos_del_proyecto(app))
+                informe['avisos'] += informe['sin_a_con']['avisos']
+                con.Activate()
+                esc_con = app.GetActiveScenario()
+                if esc_con is not None:
+                    fallos_con = (escribir_reparto(arriba, res.arriba, con_manual)
+                                  + escribir_reparto(abajo, res.abajo, con_manual))
+                    for obj in apagar.values():
+                        obj.outserv = 1
+                    gen = next((o for o in (app.GetCalcRelevantObjects('*.ElmGenstat') or [])
+                                if o.loc_name == informe['central']['generador']), None)
+                    if gen is not None:
+                        gen.pgini = objetivo.generacion_kw / 1000.0
+                        gen.qgini = objetivo.generacion_kvar / 1000.0
+                    else:
+                        informe['avisos'].append('«Con proyecto» no tiene la central: active su '
+                                                 f"variación {informe['central']['variacion']}.")
+                    esc_con.Save()
+                    informe['escenarios'].append({'escenario': esc_con.loc_name,
+                                                  'cargas': len(cargas) - len(con_manual),
+                                                  'fallos': fallos_con})
+                    informe['fallos'] = informe.get('fallos', []) + fallos_con
+                sin.Activate()
+    finally:
+        if sin is not None and remedios.originales and informe.get('cuadrado'):
+            informe['ajustes_del_flujo_conservados'] = remedios.aplicados()
+        else:
+            restituidos = remedios.restituir()
+            if restituidos:
+                informe['ajustes_restituidos'] = restituidos
+        if inicial is not None and app.GetActiveStudyCase() is not inicial:
+            inicial.Activate()
+    return informe, (0 if informe.get('cuadrado') and not informe.get('fallos') else 2)
+
+
 def _factor_minimo_sin_converger(historial) -> float | None:
     """El menor factor de las escaladas con el que el flujo no convergió antes del primero
     que sí, o ``None`` si convergió sin remedios."""
@@ -1225,6 +1576,13 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
             'quedan fijas con su valor y no se sobrescriben: ' + '; '.join(
                 f"{m['sed']} {m['manual']['kw']:.1f} kW (el ajuste dejó "
                 f"{m['ajuste']['kw']:.1f} kW)" for m in manuales[:50]))
+    if plan.get('central'):
+        # Spec 021: una central en el troncal; se calibra por zonas (RF-35 a RF-45).
+        return _ejecutar_con_central(
+            app, plan, informe, alims=alims, elm=elm, feeder=feeder, cargas=cargas, kva=kva,
+            kva_origen=kva_origen, fijas_libro=fijas_libro, fp_cargas=fp_cargas,
+            apagar=apagar, manuales=manuales, ambiguas=ambiguas, sin=sin, con=con,
+            inicial=inicial, escenario=escenario, simular=simular, cancelado=cancelado)
     try:
         reparto = reparto_inicial(objetivo, fijas_libro,
                                   {s: potencia(o) for s, o in cargas.items()}, kva,
@@ -1360,6 +1718,10 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
                     f"«Con proyecto» no tenía la demanda de «Sin proyecto» en "
                     f"{informe['con_proyecto']['corregidas']} carga(s): se le escribió "
                     '(014:RF-4).')
+            # 014:RF-31 a RF-34: y lo demás hecho en «Sin proyecto», como los bancos a su
+            # máxima capacidad (015:RF-66) o uno creado a mano.
+            informe['sin_a_con'] = sin_a_con_proyecto(app, casos_del_proyecto(app))
+            informe['avisos'] += informe['sin_a_con']['avisos']
         if inicial is not None and app.GetActiveStudyCase() is not inicial:
             inicial.Activate()
         return informe, 0 if not (informe.get('con_proyecto') or {}).get('fallos') else 2

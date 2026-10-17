@@ -56,3 +56,39 @@ def test_resumen_de_la_maxima_con_central():
                   'por la cabecera entraban', 'no es la de la demanda'):
         assert texto in AJUSTE
     assert 'centrales={Object.fromEntries(' in DEMANDA
+
+
+def test_el_plan_del_ajuste_lleva_las_centrales():
+    """021:RF-35 — el ajuste manda en su plan la central de cada alimentador."""
+    assert 'centrales?: Record<string, CentralTermica>' in API
+    plan = AJUSTE[AJUSTE.index('api.ajustePlan(ws.id, {'):]
+    assert 'centrales,' in plan[:400]
+    assert 'centrales: dict[str, CentralIn]' in APP_PY
+
+
+CURVA = (SRC / 'components' / 'CurvaCabecera.tsx').read_text(encoding='utf-8')
+
+
+def test_curvas_de_la_central_en_la_grafica():
+    """021:RF-47 — con central, además de la cabecera: generación, llegada, salida y la
+    demanda calculada (pedida a su ruta de la API)."""
+    assert "@app.get('/api/workspaces/{wid}/demanda/cabecera/{job_id}/central/curva')" in APP_PY
+    assert '/central/curva?${q}' in API
+    assert 'api.demandaCurvaCentral(wsId, jobId, s.demanda.alimentador, s.medidor' in CURVA
+    for serie in ('·demanda', '·generacion', '·llegada', '·salida'):
+        assert serie in AJUSTE
+
+
+def test_las_dos_maximas_marcadas():
+    """021:RF-48 — la máxima de demanda (el objetivo) y la de cabecera, cada una con su
+    punto y su fecha en la leyenda."""
+    assert 'demanda (objetivo)' in AJUSTE
+    assert 'className="curva-pico-serie"' in CURVA
+    assert '· máx. ${fmtNum(datos[s.clave].maxima.kw, 1)} kW el ${diaHora(new Date(datos[s.clave].maxima.fecha))}' in CURVA
+
+
+def test_las_curvas_de_la_central_con_el_mismo_tramo_y_leyenda():
+    """021:RF-49 — las curvas de la central son series más: el mismo tramo ampliado y la
+    misma leyenda para ocultarlas."""
+    assert 'pedidas.map((s) => (s.demanda' in CURVA and 'tramo?.desde, tramo?.hasta)' in CURVA
+    assert 'aria-pressed={!ocultas.has(s.clave)}' in CURVA

@@ -1949,6 +1949,39 @@ def demanda_central(ws: Workspace, job_id: str, *, alimentador: str, cabecera: s
             'llegada': llegada, 'salida': salida, **res.to_dict()}
 
 
+def demanda_curva_central(ws: Workspace, job_id: str, *, alimentador: str, cabecera: str,
+                          generacion: str, llegada: str, salida: str,
+                          desde: datetime | None = None, hasta: datetime | None = None) -> dict:
+    """Curva de la demanda de un alimentador con central (021:RF-47, RF-48), con la forma
+    de la de un medidor; la máxima es la de la demanda, el objetivo del ajuste."""
+    from ..demanda_medida import clave_codigo, curva_de_demanda, reducir_curva
+
+    with ws.lock:
+        curvas = ws.curvas_cabecera.get(job_id)
+    if curvas is None:
+        raise LookupError('La curva no es de la última máxima buscada: vuelva a buscarla.')
+
+    def curva(medidor: str) -> list:
+        nombre = next((m for m in curvas if clave_codigo(m) == clave_codigo(medidor)), None)
+        if nombre is None:
+            raise LookupError(f'El medidor {medidor} no está en la última máxima buscada.')
+        return curvas[nombre]['curva']
+
+    puntos, res = curva_de_demanda(curva(cabecera), curva(generacion), curva(llegada), curva(salida))
+    if not puntos:
+        raise LookupError(f'{alimentador}: sin demanda con la central ({res.error}).')
+    tramo = reducir_curva(puntos, desde, hasta, max_puntos=len(puntos) or 1)
+    reducidos = reducir_curva(tramo, max_puntos=CURVA_MAX_PUNTOS)
+    return {'medidor': f'Demanda {alimentador}', 'inicio': puntos[0][0].isoformat(),
+            'fin': puntos[-1][0].isoformat(),
+            # La máxima marcada es la del objetivo (RF-48), que descarta las transferencias.
+            'maxima': {'fecha': (res.fecha or '').replace(' ', 'T'), 'kw': res.demanda_kw}
+            if res.fecha else {'fecha': max(puntos, key=lambda p: p[1])[0].isoformat(),
+                               'kw': max(p[1] for p in puntos)},
+            'puntos': [[f.isoformat(), kw, kvar] for f, kw, kvar in reducidos],
+            'total': len(tramo), 'reducida': len(reducidos) < len(tramo), 'fuera_de_curva': 0}
+
+
 def demanda_clientes(ws: Workspace, alimentadores: list[str] | None = None,
                      *, periodo: str | None = None) -> dict:
     """Clientes importantes cruzados con los suministros (RF-33 a RF-37); con
@@ -2136,9 +2169,35 @@ def _medidores_del_ajuste(maximas: list[dict], medidor: str, medidores: list[str
     return filas
 
 
+def _central_del_plan(ws: Workspace, job_id: str, alimentador: str, cabecera: str,
+                      declarada: dict | None, avisos: list[str], pre: str) -> dict | None:
+    """La central de un alimentador para su plan (021:RF-25, RF-30, RF-33), o ``None``.
+
+    Sin la barra no se puede calibrar con ella (RF-25); con el balance de la barra roto,
+    se avisa y se calibra sin ella (RF-30).
+    """
+    if not declarada:
+        return None
+    nodo = str(declarada.get('nodo') or '').strip()
+    if not nodo:
+        raise UserError(f'{alimentador}: indique la barra de la central en DIgSILENT (021:RF-25).')
+    try:
+        maxima = demanda_central(ws, job_id, alimentador=alimentador, cabecera=cabecera,
+                                 generacion=declarada['generacion'], llegada=declarada['llegada'],
+                                 salida=declarada['salida'])
+    except LookupError as exc:
+        raise UserError(f'{alimentador}: {exc}') from exc
+    if maxima.get('error'):
+        avisos.append(f"{pre}central no usada: {maxima['error']} (021:RF-30).")
+        return None
+    return {'nodo': nodo, 'medidores': {k: declarada[k] for k in ('generacion', 'llegada', 'salida')},
+            'maxima': maxima}
+
+
 def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
                 tolerancia: float, medidores: list[str] | None = None,
-                desconectados: list[str] | None = None) -> dict:
+                desconectados: list[str] | None = None, *, job_id: str = '',
+                centrales: dict[str, dict] | None = None) -> dict:
     """Plan para ``tools/ajuste_cabecera_pf.py`` (spec 006, RF-1 a RF-3, RF-10).
 
     ``maximas`` es el resultado del trabajo de la máxima de cabecera que el operador ve
@@ -2197,7 +2256,11 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
         if not alimentador:
             raise UserError(f'{objetivo.medidor}: la máxima no dice de qué alimentador es.')
         pre = f'{alimentador}: ' if varios else ''
-        maximum_period = periodo_de_fecha(objetivo.fecha)
+        # Spec 021: con central, el objetivo es por zonas y en el registro de la máxima de
+        # demanda (RF-33); el mes de los clientes es el de ese registro.
+        central = _central_del_plan(ws, job_id, alimentador, objetivo.medidor,
+                                    (centrales or {}).get(alimentador), avisos, pre)
+        maximum_period = periodo_de_fecha(central['maxima']['fecha'] if central else objetivo.fecha)
         client_period = _periodo_clientes_para_maxima(ws, maximum_period)
         if client_period.status != 'NO_CLIENT_BOOK':
             if maximum_period is None:
@@ -2276,6 +2339,8 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
             # 014:RF-10: la demanda que dejó la última calibración, para ver lo manual.
             'ultima_calibracion': (ws.calibraciones.get(project.strip()) or {}).get(alimentador),
         }
+        if central:
+            plan['central'] = central
         nombre = (f'ajuste_cabecera_{token}.json' if not varios
                   else f'ajuste_cabecera_{token}_{len(paths) + 1}.json')
         path = ws.plans_dir / nombre

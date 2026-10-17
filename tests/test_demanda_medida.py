@@ -807,3 +807,15 @@ def test_real_na205_con_su_central():
     assert r.fecha == '2026-08-20 16:45:00'
     assert r.generacion_kw > 9000 and r.descartados > 0
     assert r.maxima_cabecera['fecha'].startswith('2026-08-21')
+
+
+def test_curva_de_demanda_registro_a_registro():
+    """021:RF-47 — la demanda de cada registro común, aguas arriba + aguas abajo, con los
+    signos del balance; su máxima es la del objetivo."""
+    rng = random.Random(SEMILLA)
+    cab, gen, lle, sal, esp = _central(rng, n=60, signo_llegada=-1)
+    puntos, res = dm.curva_de_demanda(cab, gen, lle, sal)
+    assert len(puntos) == 60 and res.error is None
+    fila = next(p for p in puntos if p[0] == esp['fecha'])
+    assert fila[1] == pytest.approx(esp['demanda'])
+    assert max(p[1] for p in puntos) == pytest.approx(res.demanda_kw)

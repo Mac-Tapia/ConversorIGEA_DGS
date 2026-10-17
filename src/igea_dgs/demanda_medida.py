@@ -1000,6 +1000,25 @@ def demanda_con_central(cabecera: Curva, generacion: Curva, llegada: Curva,
     return res
 
 
+def curva_de_demanda(cabecera: Curva, generacion: Curva, llegada: Curva,
+                     salida: Curva) -> tuple[list[tuple[datetime, float, float | None]], MaximaConCentral]:
+    """La demanda del alimentador registro a registro (aguas arriba + aguas abajo), con
+    los signos del balance (021:RF-47). Se calcula aquí, con todos los registros: las
+    curvas que ve la web van reducidas y sus puntos no caen en las mismas fechas."""
+    res = demanda_con_central(cabecera, generacion, llegada, salida)
+    if res.error and res.desbalance_mediana_kw is None:
+        return [], res
+    cab, lle, sal = (_por_fecha(c) for c in (cabecera, llegada, salida))
+    gen = _por_fecha(generacion)
+    sl, ss = res.signo_llegada, res.signo_salida
+    puntos = []
+    for t in sorted(set(cab) & set(gen) & set(lle) & set(sal)):
+        q = _suma(cab[t][1], None if lle[t][1] is None else sl * lle[t][1],
+                  None if sal[t][1] is None else ss * sal[t][1])
+        puntos.append((t, cab[t][0] + sl * lle[t][0] + ss * sal[t][0], q))
+    return puntos, res
+
+
 # =========================================================================== clientes
 @dataclass(frozen=True)
 class Suministro:

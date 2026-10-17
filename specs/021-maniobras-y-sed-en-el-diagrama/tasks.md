@@ -139,13 +139,34 @@ Bloque 4 · Central térmica
       Q), se avisa y no decide; `CuadreZonas.resumen` para el informe. Cinco pruebas con
       una red de juguete de dos zonas; `cuadrar` sin central, igual. Dos pruebas del front
       que fijaban líneas cambiadas en la T10 (006 y 008) puestas al día: 195 en verde.
-- [ ] T12. La central en «Sin proyecto» y las zonas en el guion, con su informe. (RF-35 a
+- [x] T12. La central en «Sin proyecto» y las zonas en el guion, con su informe. (RF-35 a
       RF-39, RF-42, RF-44)
       Hecho cuando: `pytest -q tests/test_ajuste_cabecera_guion.py` en verde.
-- [ ] T13. Curvas de la central en la gráfica, con las dos máximas marcadas. (RF-47, RF-48,
+      Resultado del 2026-10-17: sonda en una copia de NA203 + NA205 (borrada): un
+      `ElmGenstat` con `av_mode='constq'` inyecta la P y Q escritas, el flujo de cada
+      línea sale con `m:Psum` del lado de la barra, y la etapa de la variación sigue
+      grabando aunque se desactive y active (no hay llamada para dejar de grabar): el
+      guion escribe la marca fija o escalable con la variación de la central apagada y
+      después la crea o la reactiva, y en el cuadre solo escribe el escenario. En el
+      guion, `_ejecutar_con_central` (con `barra_de_la_central`, `cargas_por_zona`,
+      `central_en_sin_proyecto` y `medir_zonas`, que cuenta también el transformador de
+      una SED en esa barra), validación nativa por zona y «Con proyecto» con su P y Q. En
+      la web, `CentralIn` en el plan y `_central_del_plan` (barra obligatoria, balance
+      roto: aviso y sin central, mes de los clientes el de la máxima de demanda).
+      `fake_pf` calcula el flujo de cada línea y la inyección de la central. Pruebas en
+      `test_ajuste_central_guion.py` (7), `test_ajuste_cabecera_web.py` (4) y el front.
+      La prueba con NA205 en DIgSILENT desde la web queda para la T14.
+- [x] T13. Curvas de la central en la gráfica, con las dos máximas marcadas. (RF-47, RF-48,
       RF-49)
       Hecho cuando: `pytest -q tests/test_curva_cabecera_front.py` en verde y
       `npm run build` sin errores.
+      Resultado del 2026-10-17: la demanda registro a registro se calcula en el servidor
+      (`demanda_medida.curva_de_demanda`, ruta `demanda/cabecera/{job}/central/curva`)
+      porque las curvas reducidas de cada medidor no caen en las mismas fechas; su máxima
+      marcada es la del objetivo, que descarta las transferencias. En la gráfica, por
+      alimentador con central: cabecera, demanda (objetivo), generación, llegada y
+      salida, como series más (mismo tramo y leyenda, RF-49). Pruebas del lector, de la
+      API y del front en verde; `tsc` y `npm run build` sin errores.
 
 Cierre
 
