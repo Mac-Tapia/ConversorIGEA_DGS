@@ -195,6 +195,30 @@ def factor_potencia_cargas(datos: dict[str, Any],
     return float(valor)
 
 
+def bancos_kvar_por_tension(datos: dict[str, Any]) -> dict[float, float] | None:
+    """El tamaño de banco por tensión de ``calibracion.bancos_kvar_por_tension`` (021:RF-65).
+
+    Electro Dunas: 300 kvar en 10 kV y 450 kvar en 22,9 kV, los mismos de los bancos nuevos
+    del informe de estudio. Sin la clave, ``None``: no se supone ninguno (P13).
+    """
+    valor = (datos.get('calibracion') or {}).get('bancos_kvar_por_tension')
+    if valor is None:
+        return None
+    if not isinstance(valor, dict) or not valor:
+        raise PerfilError('calibracion.bancos_kvar_por_tension tiene que ser {"kV": kvar, ...}.')
+    out = {}
+    for kv, kvar in valor.items():
+        try:
+            tension = float(str(kv).replace(',', '.'))
+        except ValueError as exc:
+            raise PerfilError(f'calibracion.bancos_kvar_por_tension: {kv!r} no es una tensión en kV.') from exc
+        if tension <= 0 or not _positivo(kvar):
+            raise PerfilError(f'calibracion.bancos_kvar_por_tension: {kv!r} → {kvar!r} tiene que '
+                              'ser positivo.')
+        out[tension] = float(kvar)
+    return out
+
+
 def _positivo(v: Any) -> bool:
     return not isinstance(v, bool) and isinstance(v, (int, float)) and v > 0
 

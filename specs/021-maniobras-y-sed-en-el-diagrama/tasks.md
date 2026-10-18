@@ -225,6 +225,10 @@ Añadido el 2026-10-17 (calibrar NA203 y NA205 con su central en julio y a la ve
 - [x] T19. Tensión en la fuente (RF-61 a RF-63): campo en 2.4, plan, consigna de las redes
       externas en «Sin proyecto» y «Con proyecto» y fila en la tabla de cambios.
       Hecho cuando: pruebas del guion, de la web y del front en verde.
+- [x] T20. Bancos que faltan (RF-64 a RF-69): tamaño por tensión en el perfil, déficit y
+      posiciones en `ajuste_cabecera.py`, colocación en la troncal y recalibración en
+      `tools/ajuste_cabecera_pf.py`, casilla en 2.4.
+      Hecho cuando: pruebas del cálculo, del guion con `fake_pf`, de la web y del front en verde.
 - [ ] T17. Calibrar NA203 y NA205 con su central en «20261016-160231_IGEA_NA203_NA205»
       desde la web, en julio y en el instante de la máxima de NA203. (RF-50, RF-51)
       Hecho cuando: el ajuste aplicado cuadra en DIgSILENT y su informe lo dice.

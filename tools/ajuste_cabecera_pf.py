@@ -42,12 +42,16 @@ from cargas_pf import (
     Alimentadores,
     _num,
     activar_proyecto,
+    cabecera_de,
     detalle_cabecera,
     error_inesperado,
     error_relectura,
     escribir_carga,
     leer_cabecera,
+    leer_red,
     medir_cabecera,
+    nombre_libre,
+    nombre_pf,
     potencia,
 )
 from casos_pf import NOMBRES, casos_del_proyecto, es_de_carga_nueva, preparar_sin, sin_a_con_proyecto
@@ -481,6 +485,12 @@ def cambios_en_la_red(informe: dict) -> list[dict]:
                       'nuevo': {'descripcion': f"consigna de tensión {x['despues']:.3f} pu",
                                 'potencia': x['despues'], 'unidad': 'pu'},
                       'motivo': 'tensión en la fuente indicada por el operador (021:RF-61)'})
+    for b in informe.get('bancos_nuevos') or []:                         # 021:RF-69
+        filas.append({'sed': b.get('barra') or '', 'elemento': b['banco'], 'clase': 'banco',
+                      'original': {'descripcion': 'no existe', 'potencia': 0.0, 'unidad': 'kvar'},
+                      'nuevo': {'descripcion': f"banco nuevo de {b['kvar']:g} kvar en {b['kv']:g} kV",
+                                'potencia': b['kvar'], 'unidad': 'kvar'},
+                      'motivo': 'banco que faltaba para el kVAR medido (021:RF-64)'})
     for b in informe.get('bancos_puestos_a_maxima') or []:
         q = b.get('kvar_escalon')
         lados = {}
@@ -2095,20 +2105,158 @@ def ejecutar_proyecto(app, planes: list[dict], *, simular: bool = False,
     con lo que movió el segundo. Con un plan, o al simular (no hay flujos), cada uno como
     siempre (RF-60). Devuelve un ``(informe, código)`` por plan, en su orden.
     """
-    if len(planes) == 1 or simular:
+    bancos = any(p.get('completar_bancos') for p in planes)            # 021:RF-64
+    if simular or (len(planes) == 1 and not bancos):
         return [ejecutar(app, p, simular=simular, cancelado=cancelado) for p in planes]
     estado = {'apartadas': []}
     try:
+        if bancos:
+            return _con_bancos_que_faltan(app, planes, cancelado=cancelado, estado=estado)
         return _ejecutar_proyecto(app, planes, cancelado=cancelado, estado=estado)
     finally:
         _devolver_cargas_nuevas(app, estado)
+
+
+def _deficit(inf: dict, plan: dict) -> tuple[float | None, float | None]:
+    """(kVAR de la red, kVAR medido) del alimentador tras un cuadre (021:RF-64)."""
+    zonas = inf.get('zonas') or {}
+    if plan.get('central'):
+        m = (plan['central'] or {}).get('maxima') or {}
+        red = (None if zonas.get('arriba_kvar') is None or zonas.get('abajo_kvar') is None
+               else zonas['arriba_kvar'] + zonas['abajo_kvar'])
+        medido = (None if m.get('arriba_kvar') is None or m.get('abajo_kvar') is None
+                  else m['arriba_kvar'] + m['abajo_kvar'])
+        return red, medido
+    return (inf.get('cabecera') or {}).get('kvar'), (plan.get('objetivo') or {}).get('kvar')
+
+
+def barras_para_bancos(red, cabecera: str, n: int) -> list[str]:
+    """Las barras de la troncal más cercanas a 2k/(2n+1) de su largo (021:RF-66); una barra
+    no se repite."""
+    from igea_dgs.ajuste_cabecera import distancias_de_bancos
+    from igea_dgs.troncal import troncal as troncal_de
+
+    t = troncal_de(red, cabecera)
+    tramos = red.por_nombre()
+    puntos, d, actual = [], 0.0, cabecera
+    for nombre in t.tramos:
+        tramo = tramos[nombre]
+        actual = tramo.hasta if tramo.desde == actual else tramo.desde
+        d += tramo.largo_m
+        puntos.append((d, actual))
+    out: list[str] = []
+    for objetivo in distancias_de_bancos(t.largo_m, n):
+        libres = [(abs(x - objetivo), b) for x, b in puntos if b not in out]
+        if libres:
+            out.append(min(libres)[1])
+    return out
+
+
+def poner_bancos(app, alims, sin, base, con, pedidos: dict[str, tuple[int, float]]) -> list[dict]:
+    """Los bancos que faltan, en la troncal de cada alimentador (021:RF-66, RF-67).
+
+    Se crean en la red con las variaciones de las centrales apagadas, como los
+    transformadores (020:RF-17); en servicio en los escenarios de «Sin proyecto» y «Con
+    proyecto» y fuera de servicio en el del «Caso base», que sigue como se verificó.
+    """
+    sin.Activate()
+    activas = list(app.GetActiveNetworkVariations() or [])
+    centrales = [v for v in activas if v.loc_name.startswith(PREFIJO_CENTRAL)]
+    for v in centrales:
+        v.Deactivate()
+    creados: list[dict] = []
+    objetos = []
+    try:
+        if app.GetRecordingStage() is not None or len(centrales) < len(activas):
+            raise RuntimeError('«Sin proyecto» tiene variaciones activas o una etapa grabando: '
+                               'los bancos van en la red (020:RF-17).')
+        for feeder, (n, kvar) in pedidos.items():
+            elm = alims.elm[feeder]
+            cab = cabecera_de(elm)
+            barras = {b.loc_name: b for b in elm.GetObjs('ElmTerm')}
+            for k, nombre in enumerate(barras_para_bancos(leer_red(elm, cab), cab.loc_name, n), 1):
+                barra = barras[nombre]
+                red = barra.GetParent()
+                banco = red.CreateObject('ElmShnt', nombre_libre(red, 'ElmShnt', f'BC_CAL_{feeder}_{k}'))
+                cub = barra.CreateObject('StaCubic', nombre_pf(f'Cub_{banco.loc_name}'))
+                cub.obj_id, cub.obj_bus = banco, 0
+                banco.shtype = 2                               # condensador
+                banco.ushnm = float(barra.uknom)
+                banco.qcapn = kvar / 1000.0
+                banco.ncapx = banco.ncapa = 1
+                banco.i_cont, banco.iswitch = 0, 0
+                objetos.append(banco.loc_name)
+                creados.append({'feeder': feeder, 'banco': banco.loc_name, 'barra': nombre,
+                                'kv': float(barra.uknom), 'kvar': kvar})
+    finally:
+        for v in centrales:
+            v.Activate()
+    for caso, fuera in ((base, 1), (sin, 0), (con, 0)):
+        if caso is None:
+            continue
+        caso.Activate()
+        for o in app.GetCalcRelevantObjects('*.ElmShnt') or []:
+            if o.loc_name in objetos:
+                o.outserv = fuera
+        escenario = app.GetActiveScenario()
+        if escenario is not None:
+            escenario.Save()
+    sin.Activate()
+    return creados
+
+
+def _con_bancos_que_faltan(app, planes: list[dict], *, cancelado, estado: dict) -> list[tuple[dict, int]]:
+    """Calibra, pone los bancos que faltan y recalibra, en la misma ejecución (021:RF-64 a RF-68)."""
+    from igea_dgs.ajuste_cabecera import bancos_que_faltan, tamano_de_banco
+
+    primera = _ejecutar_proyecto(app, planes, cancelado=cancelado, estado=estado, solo_medir=True)
+    pedidos, avisos = {}, []
+    proyecto = activar_proyecto(app, planes[0]['project'], planes[0].get('folder'))
+    alims = Alimentadores(app, proyecto, [p['feeder'] for p in planes])
+    for plan, (inf, _rc) in zip(planes, primera):
+        f = plan['feeder']
+        if inf.get('error') or alims.elm.get(f) is None:
+            continue
+        q_red, q_medido = _deficit(inf, plan)
+        cab = cabecera_de(alims.elm[f])
+        kv = float(cab.uknom) if cab is not None else None
+        por_tension = {float(k): float(v) for k, v in (plan.get('bancos_kvar_por_tension') or {}).items()}
+        tamano = tamano_de_banco(por_tension, kv)
+        if tamano is None:
+            avisos.append(f'{f}: el perfil no trae tamaño de banco para {kv} kV; no se ponen (021:RF-65).')
+            continue
+        n = bancos_que_faltan(q_red, q_medido, tamano)
+        if q_red is None:
+            avisos.append(f'{f}: el flujo no convergió en la primera pasada; no se sabe qué falta.')
+        elif n:
+            pedidos[f] = (n, tamano)
+            avisos.append(f'{f}: la red da {q_red:,.0f} kVAR frente a {q_medido:,.0f} medidos: '
+                          f'{n} banco(s) de {tamano:g} kvar (021:RF-64, RF-65).')
+        else:
+            avisos.append(f'{f}: la red da {q_red:,.0f} kVAR frente a {q_medido:,.0f} medidos: '
+                          'no falta ningún banco.')
+    creados = []
+    if pedidos and not cancelado():
+        creados = poner_bancos(app, alims, caso_del_sistema(app, 'sin'), caso_del_sistema(app, 'base'),
+                               caso_del_sistema(app, 'con'), pedidos)
+    # RF-68: la calibración que vale, con los bancos y los ajustes del flujo restituidos.
+    segunda = _ejecutar_proyecto(app, planes, cancelado=cancelado, estado=estado)
+    for plan, (inf, _rc) in zip(planes, segunda):
+        inf['bancos_nuevos'] = [b for b in creados if b['feeder'] == plan['feeder']]
+        inf['avisos'] = avisos + inf['avisos']
+        cambios = cambios_en_la_red(inf)                                  # RF-69
+        if cambios:
+            inf['cambios_en_la_red'] = cambios
+    return segunda
 
 
 def _clave_zona(feeder: str, zona: str) -> str:
     return f'{feeder}|{zona}'
 
 
-def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict) -> list[tuple[dict, int]]:
+def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
+                       solo_medir: bool = False) -> list[tuple[dict, int]]:
+    """``solo_medir``: cuadra y mide sin guardar nada (la primera pasada de 021:RF-64)."""
     from igea_dgs.ajuste_cabecera import (
         MAX_FLUJOS, ZONAS, AjusteError, Medida, MedidaConjunta, avisos_de_zonas,
         cuadrar_conjunto, kvar_difference, preparar_zonas)
@@ -2207,6 +2355,8 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict) -> l
     for f in preps:
         inf = informes[f]
         inf['calibrado_con'] = [x for x in preps if x != f]                       # RF-59
+        if solo_medir:
+            inf['avisos'].append('Primera pasada para medir lo que falta: no se guarda.')
         inf['escenario'] = escenario.loc_name
         inf['decision_carga_nativa'] = {'status': 'REQUIERE_DISTRIBUCION',
                                         'accion': 'CUADRAR_EL_PROYECTO', 'bloquea': False}
@@ -2346,7 +2496,7 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict) -> l
                     _restaurar_cargas(p['cargas'], p['antes_nativo'], p['apagar'],
                                       p['antes_apagar'])
                     inf['calibracion_revertida'] = True
-        if res.repartos is not None and not invalidos:
+        if res.repartos is not None and not invalidos and not solo_medir:
             escenario.Save()
             guardado = res.cuadrado
             for f, p in preps.items():
@@ -2515,6 +2665,7 @@ def _cerrar_central_en_proyecto(app, feeder: str, p: dict, inf: dict, reps: dict
         'arriba_kw': mz.arriba_kw if mz else None, 'arriba_objetivo_kw': objetivo.arriba.kw,
         'abajo_kw': mz.abajo_kw if mz else None, 'abajo_objetivo_kw': objetivo.abajo.kw,
         'cabecera_calculada_kw': mz.cabecera_kw if mz else None,
+        'arriba_kvar': mz.arriba_kvar if mz else None, 'abajo_kvar': mz.abajo_kvar if mz else None,
         'cabecera_medida_kw': objetivo.cabecera_kw, 'generacion_kw': objetivo.generacion_kw,
         'generacion_kvar': objetivo.generacion_kvar,
         'zonas_ajustadas': [z for z in ('arriba', 'abajo')

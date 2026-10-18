@@ -156,3 +156,50 @@ def test_consigna_de_la_fuente_en_los_dos_casos(guion):
     assert fila['clase'] == 'fuente' and fila['original']['potencia'] == 1.0
     assert fila['nuevo']['potencia'] == 1.05 and fila['nuevo']['unidad'] == 'pu'
     assert guion.fijar_consigna_de_la_fuente(app, 1.05, [sin, None]) == []
+
+
+def test_pone_los_bancos_que_faltan_y_recalibra(guion, monkeypatch):
+    """021:RF-64 a RF-69 — tras una primera pasada sin guardar, los bancos del tamaño del
+    perfil en la troncal, en servicio en «Sin proyecto» y «Con proyecto» y fuera en el
+    «Caso base»; se recalibra y salen en la tabla de cambios."""
+    app = _app(escenario=True)
+    plan = {**_de(_plan(kvar=10.0), 'F1', 300.0), 'completar_bancos': True,
+            'bancos_kvar_por_tension': {'10': 2.0}}            # la red da 13,6 de 10 kVAR
+    pasadas = []
+    original = guion._ejecutar_proyecto
+
+    def contar(*a, **kw):
+        pasadas.append(kw.get('solo_medir', False))
+        return original(*a, **kw)
+
+    monkeypatch.setattr(guion, '_ejecutar_proyecto', contar)
+    [(inf, rc)] = guion.ejecutar_proyecto(app, [plan])
+    assert pasadas == [True, False]
+    assert inf['bancos_nuevos'], inf['avisos']
+    nombres = {b['banco'] for b in inf['bancos_nuevos']}
+    assert len(nombres) == 2 and all(b['kvar'] == 2.0 and b['feeder'] == 'F1' for b in inf['bancos_nuevos'])
+    # El doble no separa el ``outserv`` por escenario: se mira qué se escribió en cada uno.
+    escrito = {}
+    for o, attr, valor, etapa, escenario in app.escrituras:
+        if attr == 'outserv' and getattr(o, 'loc_name', '') in nombres and escenario is not None:
+            assert etapa is None, 'en la red, sin variación'
+            escrito.setdefault(escenario.loc_name, set()).add(valor)
+    assert escrito['Operador'] == {1}, 'fuera de servicio en el escenario del «Caso base»'
+    assert escrito['Sin proyecto'] == {0}
+    assert all(o.etapa_creacion is None for o in app.creados if o.loc_name in nombres)
+    filas = [c for c in inf['cambios_en_la_red'] if c['elemento'] in nombres]
+    assert filas and all(c['original']['potencia'] == 0.0 and c['nuevo']['potencia'] == 2.0
+                         for c in filas)
+    assert any('021:RF-64' in a for a in inf['avisos'])
+
+
+def test_barras_de_los_bancos_en_la_troncal(guion):
+    """021:RF-66 — las barras de la troncal más cercanas a 2k/(2n+1) de su largo, sin
+    repetir."""
+    from igea_dgs.troncal import Barra, Red, Tramo
+
+    barras = {f'B{i}': Barra(f'B{i}') for i in range(7)}
+    tramos = [Tramo(f'L{i}', f'B{i}', f'B{i + 1}', 1000.0) for i in range(6)]
+    red = Red(barras, tramos)
+    assert guion.barras_para_bancos(red, 'B0', 1) == ['B4']
+    assert guion.barras_para_bancos(red, 'B0', 2) == ['B2', 'B5']

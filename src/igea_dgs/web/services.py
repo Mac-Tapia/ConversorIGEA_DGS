@@ -2211,7 +2211,8 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
                 tolerancia: float, medidores: list[str] | None = None,
                 desconectados: list[str] | None = None, *, job_id: str = '',
                 centrales: dict[str, dict] | None = None,
-                tension_fuente_pu: float | None = None) -> dict:
+                tension_fuente_pu: float | None = None,
+                completar_bancos: bool = False) -> dict:
     """Plan para ``tools/ajuste_cabecera_pf.py`` (spec 006, RF-1 a RF-3, RF-10).
 
     ``maximas`` es el resultado del trabajo de la máxima de cabecera que el operador ve
@@ -2225,7 +2226,7 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
 
     from ..ajuste_cabecera import AjusteError, Objetivo, fijas_de, objetivo_de
     from ..demanda_medida import periodo_de_fecha
-    from ..perfil_empresa import PerfilError, datos_perfil, factor_potencia_cargas
+    from ..perfil_empresa import PerfilError, bancos_kvar_por_tension, datos_perfil, factor_potencia_cargas
     from ..powerfactory_binding import PowerFactoryProjectBinding, caso_base_verificado
 
     if not project.strip():
@@ -2236,6 +2237,8 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
         fp_cargas = factor_potencia_cargas(datos_perfil())
         # 015:RF-62: el mínimo de las fijas, por su banco propio.
         fp_min_fijas = factor_potencia_cargas(datos_perfil(), 'factor_potencia_minimo_fijas')
+        # 021:RF-65: el tamaño de los bancos que falten, por tensión.
+        por_tension = bancos_kvar_por_tension(datos_perfil()) if completar_bancos else None
     except PerfilError as exc:
         raise UserError(f'Perfil de empresa: {exc}') from exc
     requested_feeders = [str(row.get('alimentador') or '').strip() for row in filas]
@@ -2358,6 +2361,9 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
             'tolerancia': tolerancia,
             # 021:RF-61: la tensión en la fuente que indicó el operador, o None.
             'tension_fuente_pu': tension_fuente_pu,
+            # 021:RF-64, RF-65: poner los bancos que falten, con el tamaño de su tensión.
+            'completar_bancos': completar_bancos,
+            'bancos_kvar_por_tension': {str(k): v for k, v in (por_tension or {}).items()},
             # 015:RF-54: solo las escaladas; None deja la Q del archivo (RF-55).
             'factor_potencia_cargas': fp_cargas,
             'factor_potencia_minimo_fijas': fp_min_fijas,

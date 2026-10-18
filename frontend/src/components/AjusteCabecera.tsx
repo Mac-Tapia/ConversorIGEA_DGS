@@ -28,6 +28,8 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados, centra
   const [tolerancia, setTolerancia] = useState('1');
   // 021:RF-61: vacío, la fuente queda como está.
   const [tensionFuente, setTensionFuente] = useState('');
+  // 021:RF-64: los bancos que falten para el kVAR medido.
+  const [completarBancos, setCompletarBancos] = useState(false);
   const [plan, setPlan] = useState<AjustePlan | null>(null);
   const pfBusy = Boolean(active.powerfactory);
 
@@ -86,7 +88,7 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados, centra
     const p = await run(() => api.ajustePlan(ws.id, {
       project, job_id: maxima.id, medidor: '', medidores, tolerancia: tol, desconectados: [...desconectados],
       // Spec 021: la central de cada alimentador que la tiene; el guion calibra por zonas.
-      centrales, tension_fuente_pu: uFuente,
+      centrales, tension_fuente_pu: uFuente, completar_bancos: completarBancos,
     }));
     if (!p) return;
     setPlan(p);
@@ -165,6 +167,10 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados, centra
           <span>Tensión en la fuente (pu)</span>
           <input value={tensionFuente} inputMode="decimal" size={5} placeholder="actual"
             onChange={(e) => setTensionFuente(e.target.value)} />
+        </label>
+        <label className="check" title="Tras un primer cuadre, bancos del tamaño del perfil en la troncal para el kVAR medido; después recalibra">
+          <input type="checkbox" checked={completarBancos} onChange={(e) => setCompletarBancos(e.target.checked)} />
+          {' '}Poner los bancos que falten
         </label>
         <button className="btn" disabled={Boolean(falta) || pfBusy} onClick={() => lanzar(true)}
           title="El reparto por SED antes de las pérdidas, sin escribir en el proyecto">Simular</button>

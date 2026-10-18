@@ -160,6 +160,8 @@ class AjusteIn(BaseModel):
     centrales: dict[str, CentralIn] = Field(default_factory=dict)
     # Spec 021, RF-61: consigna de tensión de la fuente, en pu; vacío, la que tenga.
     tension_fuente_pu: float | None = Field(None, ge=0.9, le=1.1)
+    # Spec 021, RF-64: poner los bancos que falten para el kVAR medido y recalibrar.
+    completar_bancos: bool = False
 
 
 class VerificarIn(BaseModel):
@@ -1168,7 +1170,8 @@ def create_app(
                                     body.medidor, body.tolerancia, body.medidores,
                                     body.desconectados, job_id=body.job_id,
                                     centrales={a: c.model_dump() for a, c in body.centrales.items()},
-                                    tension_fuente_pu=body.tension_fuente_pu)
+                                    tension_fuente_pu=body.tension_fuente_pu,
+                                    completar_bancos=body.completar_bancos)
 
     def _ajuste_job(wid: str, token: str, simular: bool) -> dict:
         ws = ws_or_404(wid)
