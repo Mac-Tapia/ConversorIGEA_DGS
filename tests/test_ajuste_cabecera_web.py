@@ -712,3 +712,26 @@ def test_sin_central_el_plan_no_cambia(client):
     """021:RF-46 — sin centrales declaradas, el plan es el de siempre."""
     wid, job = _maxima(client)
     assert 'central' not in _recibido(client, wid, _plan(client, wid, job).json()['token'])
+
+
+def test_plan_coincidente_con_la_cabecera_negativa(client):
+    """021:RF-50, RF-51 — en el registro coincidente la cabecera de A1 es negativa (la
+    central exporta hacia la SET, como NA205 el 2026-07-23 10:00): el plan sigue, con la
+    demanda del alimentador como objetivo y las zonas de ese registro."""
+    from test_demanda_medida_web import _libros_con_central
+
+    wid = client.post('/api/workspaces').json()['id']
+    _libros_con_central(client, wid)
+    job = client.post(f'/api/workspaces/{wid}/demanda/cabecera/buscar', json={
+        'medidores': [{'alimentador': 'A1', 'medidor': 'M1'}] + [
+            {'alimentador': 'Central A1', 'medidor': m} for m in ('CG', 'CL', 'CS')],
+        'instante': '2026-07-01T00:15:00'}).json()
+    estado = esperar_trabajo(client, job)
+    fila = next(r for r in estado['result']['resultados'] if r['medidor'] == 'M1')
+    assert fila['kw'] < 0, 'la cabecera exporta en ese registro'
+    r = _plan(client, wid, job['id'], medidores=['M1'], centrales={'A1': CENTRAL})
+    assert r.status_code == 200, r.text
+    plan = _recibido(client, wid, r.json()['token'])
+    assert plan['objetivo']['kw'] == pytest.approx(801.0 + 5100.0)
+    assert plan['central']['maxima']['coincidente'] is True
+    assert plan['central']['maxima']['fecha'] == '2026-07-01 00:15:00'

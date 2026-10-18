@@ -204,3 +204,16 @@ Cierre
       Resultado del 2026-10-17: RF-1 a RF-49 citados por alguna prueba; suite completa
       con TXT, Access y libros de demanda, 2333 en verde (inventario incluido). Queda la
       T14, la prueba de punta a punta en DIgSILENT.
+
+Añadido el 2026-10-17 (calibrar NA203 y NA205 con su central en julio y a la vez)
+
+- [x] T16. Mes de análisis (013:RF-11) e instante coincidente (RF-50 a RF-53): lector, API
+      y paso 2.2 de la web. (RF-50 a RF-53)
+      Hecho cuando: pruebas del lector, de la API y del front en verde; `npm run build`.
+      Hecho el 2026-10-17: `periodo` e `instante` en `maximas` y `demanda_con_central`; la
+      búsqueda guarda su criterio y la central y el ajuste lo usan; con la cabecera negativa
+      en el coincidente, el objetivo es la demanda del alimentador; mes en 2.2, antes de
+      buscar, e instante entre las máximas de los marcados.
+- [ ] T17. Calibrar NA203 y NA205 con su central en «20261016-160231_IGEA_NA203_NA205»
+      desde la web, en julio y en el instante de la máxima de NA203. (RF-50, RF-51)
+      Hecho cuando: el ajuste aplicado cuadra en DIgSILENT y su informe lo dice.

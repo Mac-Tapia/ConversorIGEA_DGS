@@ -84,6 +84,8 @@ Mes de análisis (cambia 004:RF-27 y RF-43)
 - RF-10: EL SISTEMA dejará al operador elegir y cambiar la opción de periodo.
 - RF-11: MIENTRAS haya un mes elegido, EL SISTEMA buscará la máxima de cada alimentador
   marcado solo entre los registros de ese mes.
+  Implementado el 2026-10-17 (spec 021, T16), a petición del usuario: las máximas de
+  cabecera y de demanda con central, del mes elegido; la curva sigue entera.
 - RF-12: MIENTRAS haya un mes elegido, EL SISTEMA cruzará los clientes con el libro de ese
   mes.
 - RF-13: SI el mes elegido no tiene libro de clientes, ENTONCES EL SISTEMA lo dirá y

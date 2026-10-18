@@ -113,6 +113,10 @@ class DemandaMedidorIn(BaseModel):
 
 class DemandaMedidoresIn(BaseModel):
     medidores: list[DemandaMedidorIn] = Field(default_factory=list)
+    # Spec 013, RF-11: la máxima del mes elegido (AAAA-MM); vacío, la de todo el registro.
+    periodo: str | None = Field(None, pattern=r'^\d{4}-(0[1-9]|1[0-2])$')
+    # Spec 021, RF-50: en vez de la máxima, el registro de esta fecha y hora para todos.
+    instante: datetime | None = None
 
 
 class DemandaClientesIn(BaseModel):
@@ -1098,7 +1102,8 @@ def create_app(
         if not pares:
             raise HTTPException(422, 'Indique al menos un medidor.')
         return submit(ws, 'demanda_cabecera', f'Máxima de cabecera ({len(pares)} medidor(es))',
-                      lambda ctx: services.demanda_cabecera(ws, ctx, pares))
+                      lambda ctx: services.demanda_cabecera(ws, ctx, pares, periodo=body.periodo,
+                                                            instante=body.instante))
 
     @app.get('/api/workspaces/{wid}/demanda/cabecera/{job_id}/curva')
     def demanda_curva(wid: str, job_id: str, medidor: str = Query(...),

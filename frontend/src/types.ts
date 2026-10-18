@@ -719,6 +719,9 @@ export interface MaximaConCentral {
   registros_comunes: number;
   registros_cabecera: number;
   maxima_cabecera: { fecha: string; kw: number } | null;
+  /** Spec 021, RF-50: el registro coincidente con los demás alimentadores, no la máxima. */
+  coincidente: boolean;
+  periodo: string | null;
   avisos: string[];
   error: string | null;
 }
