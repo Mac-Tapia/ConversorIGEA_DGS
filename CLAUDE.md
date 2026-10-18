@@ -66,7 +66,9 @@ IGEA_EQUIPMENT="referencia/BD_Equipo_V261124 (1)(1).txt" .venv/Scripts/python.ex
 ```
 
 Sin las tres variables `IGEA_*`, la mayoría de las pruebas de integración se omiten en
-silencio y la suite «pasa» sin haber probado nada real. `IGEA_TXT_DIR` no basta.
+silencio y la suite «pasa» sin haber probado nada real. `IGEA_TXT_DIR` no basta. La suite se da
+por buena solo sin ninguna omitida: con las seis variables (las tres de los TXT, las dos
+de Access de abajo e `IGEA_DEMANDA_DIR="referencia"`) y `-rs` pasan todas.
 
 Para la vía Access (`tests/test_access_input.py`) hacen falta dos bases, porque la red
 más reciente no trae catálogo de equipos:
