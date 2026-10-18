@@ -42,7 +42,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]` y pa
       unir, botón con el zonal en la web, `--por-sistema` en el CLI, registro de tipo
       «sistema»; unir vuelve a no usar la estructura.
       Hecho cuando: pruebas del lote, la API, el CLI y el front en verde; `npm run build`.
-- [ ] T11. DIgSILENT: la entrega de Electro Dunas con su estructura, importada como un
+- [x] T11. DIgSILENT: la entrega de Electro Dunas con su estructura, importada como un
       proyecto; zonas, SET, flujo; NA203 + NA205 calibrados juntos en SET 51. (todos)
       Hecho cuando: importa, converge y el ajuste del proyecto cuadra.
       2026-10-18: la entrega de Electro Dunas (93 alimentadores) importada como
@@ -51,10 +51,19 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]` y pa
       sale verificado, con todos los conteos iguales. Arreglado por el camino: la red del
       zonal en la metadata y en las cargas sin SED, la aceptación con varias redes y el DGS
       en cp1252. Falta el ajuste de NA203 + NA205 en ese proyecto.
-- [ ] T11b. Calibración por sistema eléctrico: el plan del proyecto de tipo «sistema» con
+      2026-10-18: cerrada con el sistema Nasca desde la base Access («20261018-034959_IGEA_
+      SISTEMA_NASCA», 17 alimentadores) calibrado entero desde la web: NA203 9 190,9 kW frente
+      a 9 244 (−0,57 %, aviso de kVAR: la red da más que lo medido) y NA205 por zonas
+      (1 110,5/1 117,4 kW y 9 043,1/9 114,1 kW), ambos VÁLIDOS en 2 flujos y sin remedios. Por
+      el camino: la etapa de «Central_NA205» guardaba 167 cargas que DIgSILENT no borra con la
+      variación activa; se limpia desactivada y el reparto se escribe con las centrales
+      apagadas.
+- [x] T11b. Calibración por sistema eléctrico: el plan del proyecto de tipo «sistema» con
       todos sus alimentadores, los que no tienen medidor dichos y en los mismos flujos; la
       web los propone todos con la máxima por barra. (RF-52 a RF-54)
       Hecho cuando: pruebas de la API y del front en verde; el sistema Nasca calibrado en
       DIgSILENT desde la web.
+      2026-10-18: hecho; en Nasca no hay medidor de barra de SET (solo el de la central),
+      así que NA203 y NA205 van con su propia máxima (RF-42) y 15 sin medidor, dichos.
 - [ ] T12. Validación RF por RF e inventario. (todos)
       Hecho cuando: cada RF citado por una prueba y suite completa en verde.

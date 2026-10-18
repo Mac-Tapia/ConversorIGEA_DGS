@@ -243,6 +243,16 @@ def native_inventory_records(app: Any, feeders: Iterable[str]) -> list[dict[str,
     return [by_identity[key] for key in sorted(by_identity)]
 
 
+def alimentadores_de_rotulos(rotulos: Iterable[str]) -> set[str]:
+    """Los alimentadores de los rótulos del vínculo, con los de una barra de SET separados.
+
+    La red externa de una barra de SET la comparten sus alimentadores y se rotula con todos,
+    «PI101 + PI102 + PI103 + PI116» (022:RF-11). En el sistema Pisco (2026-10-18), PI101 y
+    SI114 solo salían en esos rótulos y el plan de la calibración se rechazaba.
+    """
+    return {parte.strip() for rotulo in rotulos for parte in str(rotulo).split(' + ')
+            if parte.strip()}
+
 def native_inventory_sha256(app: Any, feeders: Iterable[str]) -> str:
     digest, _manifest = native_inventory_evidence(app, feeders)
     return digest
@@ -479,7 +489,7 @@ def require_project_binding(
             'PROJECT_BINDING_SOURCE_MISMATCH',
             f'el vínculo pertenece a {binding.source_run_id!r} y la fuente activa es {active[0]!r}',
         )
-    if not requested or not requested.issubset(set(binding.feeders)):
+    if not requested or not requested.issubset(alimentadores_de_rotulos(binding.feeders)):
         raise ProjectBindingError(
             'PROJECT_BINDING_FEEDER_MISMATCH',
             f'{sorted(requested)} no es subconjunto de {list(binding.feeders)}',
@@ -506,7 +516,7 @@ def require_project_binding(
             raise ProjectBindingError(
                 'PROJECT_BINDING_NATIVE_UNREADABLE', native_warning,
             )
-        current_feeders = {str(item) for item in current.get('feeders') or []}
+        current_feeders = alimentadores_de_rotulos(current.get('feeders') or [])
         if not requested.issubset(current_feeders):
             raise ProjectBindingError(
                 'PROJECT_BINDING_FEEDER_MISMATCH',
