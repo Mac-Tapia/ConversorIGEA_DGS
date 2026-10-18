@@ -240,7 +240,7 @@ def main(argv=None) -> int:
                    help='Calibrar solo estos; los demás del sistema, con la demanda del archivo')
     args = p.parse_args(argv)
     try:
-        sys.stdout.reconfigure(line_buffering=True)
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace', line_buffering=True)
     except (AttributeError, ValueError):
         pass
     web = Web(args.url, args.espacio)
