@@ -206,7 +206,8 @@ def test_la_casilla_vnr_ofrece_lo_que_el_servidor_lee(client, tmp_path):
     ofrecidos = client.get('/api/health').json()['slots']['vnr_package']['extensiones']
     assert ofrecidos == list(FORMATOS_PAQUETE_VNR)
     assert {'.zip', '.rar', '.mdb', '.accdb', '.gpkg', '.geojson', '.sqlite', '.csv'} <= set(ofrecidos)
-    assert set(ofrecidos) == ({'.zip', '.rar'} | SUPPORTED_SOURCE_SUFFIXES) - {'.shp'}
+    # 023:RF-1: también la copia .bak de SQL Server.
+    assert set(ofrecidos) == ({'.zip', '.rar', '.bak'} | SUPPORTED_SOURCE_SUFFIXES) - {'.shp'}
 
     from vnr_etl.discovery.official import OfficialDiscoveryError, validate_vnr_package_file
 
