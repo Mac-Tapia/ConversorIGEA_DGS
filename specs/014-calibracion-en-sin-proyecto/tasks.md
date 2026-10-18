@@ -59,8 +59,13 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho el 2026-10-16: borrada la variación duplicada de CH_9 (14:05) y sus símbolos;
       reaplicada la tanda en DIgSILENT, CH_9 se reutiliza (Carga_CH_9_PN107_20261016_100306),
       no se crea ninguna y «Sin proyecto» y «Con proyecto» ejecutan el flujo.
-- [ ] T12. Lo hecho a mano en «Sin proyecto» pasa a «Con proyecto»: `sin_a_con_proyecto` en
+- [x] T12. Lo hecho a mano en «Sin proyecto» pasa a «Con proyecto»: `sin_a_con_proyecto` en
       `tools/casos_pf.py`, llamada desde cargas, obras, preparar, estudios, guiones del
       operador y ajuste. (RF-31 a RF-34)
       Hecho cuando: las pruebas que citan 014:RF-31 a RF-34 pasan y en PN107 el banco
       creado en «Sin proyecto» está en «Con proyecto» con sus datos de operación.
+      Hecho el 2026-10-17: en PN107 el banco PN107BC1 ya está en los tres casos con los mismos
+      datos y «Con proyecto» converge. En una copia de PN107 (borrada al terminar), el banco
+      fuera de servicio y sin escalones y un interruptor abierto a mano en «Sin proyecto»
+      pasaron a «Con proyecto» (3 datos, aviso 014:RF-32); el «Caso base» no cambió y la
+      segunda pasada no copió nada.
