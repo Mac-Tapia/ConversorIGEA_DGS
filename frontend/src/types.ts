@@ -1392,3 +1392,12 @@ export interface EstructuraResumen {
   sin_set?: string[];
   zonales: { nombre: string; sets: string[]; alimentadores: string[] }[];
 }
+
+/** 022:RF-52 a RF-54: el sistema eléctrico de un proyecto convertido por sistema. */
+export interface SistemaDelProyecto {
+  grupo: string;
+  alimentadores: string[];
+  medidores?: Record<string, string[]>;
+  calibrados?: string[];
+  sin_medidor?: string[];
+}

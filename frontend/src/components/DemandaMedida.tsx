@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, fmtNum, type DemandaTipo } from '../api';
 import { estadoCatalogoClientes } from '../clientesCatalogo';
 import { useApp } from '../context';
-import type { BarraDeSet, CentralTermica, ClientesCruce, ClienteImportante, MaximaCabecera, MedidoresExternos } from '../types';
+import type { BarraDeSet, CentralTermica, SistemaDelProyecto, ClientesCruce, ClienteImportante, MaximaCabecera, MedidoresExternos } from '../types';
 import { AjusteCabecera } from './AjusteCabecera';
 import { FileDrop, useToast } from './ui';
 
@@ -143,6 +143,8 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   const [periodo, setPeriodo] = useState('');
   // 022:RF-39 a RF-41: la máxima de cada barra de SET y sus alimentadores en esa fecha.
   const [porBarra, setPorBarra] = useState(false);
+  // 022:RF-52 a RF-54: un proyecto por sistema se calibra entero, con la máxima por barra.
+  const [sistema, setSistema] = useState<SistemaDelProyecto | null>(null);
   // Spec 021, RF-25 a RF-27: central térmica en un tramo, por alimentador, y los medidores
   // del libro que no son de un alimentador de la red, donde se eligen los suyos.
   const [externos, setExternos] = useState<MedidoresExternos | null>(null);
@@ -174,6 +176,17 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
     setExternos(null);
     setCentrales({});
   }, [project, marcados]);
+
+  useEffect(() => {
+    if (!project) { setSistema(null); return; }
+    let vivo = true;
+    api.demandaSistema(ws.id, project).then((r) => {
+      if (!vivo) return;
+      setSistema(r.sistema);
+      if (r.sistema) setPorBarra(true);
+    }).catch(() => setSistema(null));
+    return () => { vivo = false; };
+  }, [ws.id, project, ws.demanda?.medidores?.name]);
 
   // Desplegable de códigos del libro (spec 004, RF-42): se vuelve a leer al cambiar el libro.
   const libroMedidores = ws.demanda?.medidores?.name ?? '';
@@ -400,6 +413,16 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
         </label>
         {!ws.demanda?.cabecera && <small className="muted">Falta la medición de cabecera.</small>}
       </div>
+      {sistema && (() => {
+        const sin = sistema.alimentadores.filter((a) => !(sistema.medidores?.[a] ?? []).length);
+        return (
+          <p className="muted">
+            Proyecto por sistema eléctrico ({sistema.grupo}): sus {sistema.alimentadores.length} alimentadores
+            se calibran a la vez, con la máxima por barra de SET.
+            {sin.length > 0 && ` Sin medidor (quedan con la demanda del archivo, en los mismos flujos): ${sin.join(', ')}.`}
+          </p>
+        );
+      })()}
       {cabecera.length > 0 && (
         <div className="table-wrap table-short">
           <table className="table">

@@ -1121,6 +1121,11 @@ def create_app(
     def demanda_medidores(wid: str, alimentador: str = Query(...)) -> dict:
         return services.demanda_medidores(ws_or_404(wid), alimentador)
 
+    @app.get('/api/workspaces/{wid}/demanda/sistema')
+    def demanda_sistema(wid: str, project: str = Query(...)) -> dict:
+        # 022:RF-54: los alimentadores del sistema y sus medidores, para proponerlos todos.
+        return {'sistema': services.sistema_del_proyecto(ws_or_404(wid), project)}
+
     @app.get('/api/workspaces/{wid}/demanda/alimentadores')
     def demanda_alimentadores(wid: str) -> dict:
         return services.demanda_alimentadores(ws_or_404(wid))
