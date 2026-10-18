@@ -21,12 +21,13 @@ La geometría no viene como `geometry` de SQL Server sino por vértices con UTM 
 
 ## Módulos
 
-- `src/vnr_etl/connectors/sqlserver.py` (nuevo): `SqlServerBackup` — huella del `.bak`,
-  `RESTORE HEADERONLY/FILELISTONLY`, restauración con `WITH MOVE` en
-  `output/vnr_sqlserver/` con nombre `IGEA_VNR_<huella>`, reutiliza si existe (RF-3, RF-4);
+- `src/vnr_etl/connectors/sqlserver_vnr.py` (nuevo), restauración — huella del `.bak`,
+  `RESTORE FILELISTONLY`, restauración con `WITH MOVE` en la carpeta de datos del propio
+  motor (su cuenta de servicio siempre puede escribir) con nombre `IGEA_VNR_<huella>`,
+  reutiliza si existe (RF-3, RF-4);
   error claro sin motor (RF-5); conexión de solo lectura (RF-6). Lee `ConfigBD.config` si
-  está (RF-2). Motor y carpeta configurables (`IGEA_SQLSERVER`, perfil).
-- `src/vnr_etl/connectors/sqlserver_vnr.py` (nuevo): lectura semántica por campos (RF-7):
+  está (RF-2). Motor configurable (`IGEA_SQLSERVER`).
+- `src/vnr_etl/connectors/sqlserver_vnr.py`, lectura semántica por campos (RF-7):
   busca la tabla de tramos por `CodTramoMT`+`CodSalidaMT`, la de vértices por
   `CodTramoMT`+`SecVertice`, etc., con los alias de `discovery/schema.py`; arma el
   `CanonicalModel` de un alimentador: nodos por los extremos de la geometría y la
