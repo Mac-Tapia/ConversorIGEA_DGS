@@ -222,6 +222,9 @@ Añadido el 2026-10-17 (calibrar NA203 y NA205 con su central en julio y a la ve
       Hecho el 2026-10-17: `cuadrar_conjunto` (2, 3 y 7 alimentadores acoplados),
       `ejecutar_proyecto` con central y sin ella, y la web con un proceso por proyecto; los
       transformadores nuevos (020) recalibran el proyecto entero.
+- [x] T19. Tensión en la fuente (RF-61 a RF-63): campo en 2.4, plan, consigna de las redes
+      externas en «Sin proyecto» y «Con proyecto» y fila en la tabla de cambios.
+      Hecho cuando: pruebas del guion, de la web y del front en verde.
 - [ ] T17. Calibrar NA203 y NA205 con su central en «20261016-160231_IGEA_NA203_NA205»
       desde la web, en julio y en el instante de la máxima de NA203. (RF-50, RF-51)
       Hecho cuando: el ajuste aplicado cuadra en DIgSILENT y su informe lo dice.

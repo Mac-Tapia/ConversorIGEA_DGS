@@ -426,6 +426,34 @@ def _barra_y_sed(o) -> tuple[str | None, str | None]:
     return getattr(barra, 'loc_name', None), sed
 
 
+def fijar_consigna_de_la_fuente(app, pu: float, casos: list) -> list[dict]:
+    """La tensión en la fuente que indica el operador, en cada red externa (021:RF-61).
+
+    NA203 y NA205, de 22,9 kV (2026-10-17), no convergían con su carga fija: 0,906 pu en
+    SE50290 con la fuente a 1,0 pu; el usuario: «puede enviar desde la fuente con 1,05 pu».
+    Es dato de operación: va al escenario de cada caso (``casos``, el primero el que se
+    calibra) y se guarda. Deja activo el primero y devuelve lo que cambió en él.
+    """
+    cambios = []
+    for n, caso in enumerate(c for c in casos if c is not None):
+        caso.Activate()
+        for x in app.GetCalcRelevantObjects('*.ElmXnet') or []:
+            antes = _num(x, 'usetp')
+            if antes is not None and math.isclose(antes, pu, abs_tol=1e-6):
+                continue
+            x.usetp = pu
+            if n == 0:
+                barra, _sed = _barra_y_sed(x)
+                cambios.append({'fuente': x.loc_name, 'barra': barra, 'antes': antes, 'despues': pu})
+        escenario = app.GetActiveScenario()
+        if escenario is not None:
+            escenario.Save()
+    primero = next((c for c in casos if c is not None), None)
+    if primero is not None:
+        primero.Activate()
+    return cambios
+
+
 def cambios_en_la_red(informe: dict) -> list[dict]:
     """Cada elemento de la red que cambió la calibración, con lo original y lo nuevo (020:RF-60, RF-61).
 
@@ -445,6 +473,14 @@ def cambios_en_la_red(informe: dict) -> list[dict]:
                            'potencia': total, 'unidad': 'kVA'}
         filas.append({'sed': c['sed'], 'elemento': c['transformador'], 'clase': 'transformador',
                       **lados, 'motivo': 'transformador nuevo con su ficha (020:RF-16)'})
+    for x in informe.get('consigna_fuente') or []:                     # 021:RF-62
+        filas.append({'sed': x.get('barra') or '', 'elemento': x['fuente'], 'clase': 'fuente',
+                      'original': {'descripcion': 'consigna de tensión'
+                                   + ('' if x['antes'] is None else f" {x['antes']:.3f} pu"),
+                                   'potencia': x['antes'], 'unidad': 'pu'},
+                      'nuevo': {'descripcion': f"consigna de tensión {x['despues']:.3f} pu",
+                                'potencia': x['despues'], 'unidad': 'pu'},
+                      'motivo': 'tensión en la fuente indicada por el operador (021:RF-61)'})
     for b in informe.get('bancos_puestos_a_maxima') or []:
         q = b.get('kvar_escalon')
         lados = {}
@@ -1742,6 +1778,10 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
         informe['cargas_nuevas_apartadas'] = apartadas
         informe['avisos'].append('Cargas nuevas fuera del ajuste mientras se mide (vuelven al '
                                  'terminar): ' + ', '.join(apartadas))
+    if plan.get('tension_fuente_pu') and not simular:                     # 021:RF-61
+        informe['consigna_fuente'] = fijar_consigna_de_la_fuente(
+            app, float(plan['tension_fuente_pu']), [sin, con])
+        escenario = app.GetActiveScenario()
     p = _preparar_alimentador(app, plan, informe, alims=alims, feeder=feeder,
                               simular=simular, cancelado=cancelado)
     if isinstance(p, tuple):
@@ -2123,6 +2163,12 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict) -> l
         return todos(f"«{NOMBRES['sin']}» no tiene escenario de operación: la calibración se "
                      'graba en él (015:RF-26).')
     apartadas = _apartar_cargas_nuevas(app, estado)
+    pu = next((float(p['tension_fuente_pu']) for p in validos if p.get('tension_fuente_pu')), None)
+    consigna = fijar_consigna_de_la_fuente(app, pu, [sin, con]) if pu else []   # 021:RF-61
+    escenario = app.GetActiveScenario()
+    for f in feeders:
+        if pu:
+            informes[f]['consigna_fuente'] = consigna
     preps: dict[str, dict] = {}
     for plan in validos:
         f = plan['feeder']

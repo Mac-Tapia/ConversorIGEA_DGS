@@ -1363,8 +1363,8 @@ export interface GuionResultado {
 export interface CambioEnLaRed {
   sed: string;
   elemento: string;
-  clase: 'transformador' | 'banco';
-  original: { descripcion: string; potencia: number | null; unidad: 'kVA' | 'kvar' };
-  nuevo: { descripcion: string; potencia: number | null; unidad: 'kVA' | 'kvar' };
+  clase: 'transformador' | 'banco' | 'fuente';
+  original: { descripcion: string; potencia: number | null; unidad: 'kVA' | 'kvar' | 'pu' };
+  nuevo: { descripcion: string; potencia: number | null; unidad: 'kVA' | 'kvar' | 'pu' };
   motivo: string;
 }

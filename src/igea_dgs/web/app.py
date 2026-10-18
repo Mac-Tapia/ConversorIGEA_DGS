@@ -158,6 +158,8 @@ class AjusteIn(BaseModel):
     tolerancia: float = Field(0.01, ge=0.001, le=0.10)
     # Spec 021: la central de cada alimentador que la tiene, declarada en 2.2.
     centrales: dict[str, CentralIn] = Field(default_factory=dict)
+    # Spec 021, RF-61: consigna de tensión de la fuente, en pu; vacío, la que tenga.
+    tension_fuente_pu: float | None = Field(None, ge=0.9, le=1.1)
 
 
 class VerificarIn(BaseModel):
@@ -1165,7 +1167,8 @@ def create_app(
         return services.ajuste_plan(ws, body.project, job.result.get('resultados') or [],
                                     body.medidor, body.tolerancia, body.medidores,
                                     body.desconectados, job_id=body.job_id,
-                                    centrales={a: c.model_dump() for a, c in body.centrales.items()})
+                                    centrales={a: c.model_dump() for a, c in body.centrales.items()},
+                                    tension_fuente_pu=body.tension_fuente_pu)
 
     def _ajuste_job(wid: str, token: str, simular: bool) -> dict:
         ws = ws_or_404(wid)
