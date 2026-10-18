@@ -63,6 +63,7 @@ class VnrSourceAdapter:
         original = Path(snapshot.files['vnr_package'].source_path or bak)
         modelo, avisos, alcance = cargar_copia(bak, servidor=servidor,
                                                vecinas=[original.parent])
+        fichas = fichas_del_catalogo(modelo)
         bridge = canonical_to_cymdist(modelo, source_path=bak)
         source = provenance(snapshot)
         source.update({
@@ -72,6 +73,7 @@ class VnrSourceAdapter:
             'sqlserver': alcance,
             'canonical_counts': modelo.counts(),
             'vnr_avisos': avisos,
+            'fichas_del_catalogo': fichas,
             'bridge_issues': bridge.issues,
         })
         return SourceLoadResult(
@@ -80,3 +82,56 @@ class VnrSourceAdapter:
             readiness=bridge.readiness,
             provenance=source,
         )
+
+
+def fichas_del_catalogo(modelo, catalogo: Path | None = None) -> dict[str, int]:
+    """R, X y amperios de cada tipo de conductor del modelo, del catálogo del proyecto (023:RF-10).
+
+    VNR-GIS no trae parámetros eléctricos, solo la norma (material y sección). El catálogo
+    de parámetros del proyecto los tiene por el mismo código: la ficha si su estado lo
+    permite y, si no, el valor del modelo de la empresa. Sin catálogo, el resolvedor sigue
+    buscando por material y sección. Devuelve cuántos tipos se completaron y cuántos no.
+    """
+    from ..catalog import ESTADOS_QUE_CORRIGEN
+    from ..reglas import catalogo_del_proyecto
+
+    ruta = catalogo or catalogo_del_proyecto()
+    tipos = list(getattr(modelo, 'conductor_types', []) or [])
+    if ruta is None or not tipos:
+        return {'completados': 0, 'sin_ficha': len(tipos)}
+    from openpyxl import load_workbook
+
+    filas: dict[str, dict] = {}
+    wb = load_workbook(ruta, read_only=True, data_only=True)
+    for hoja in ('conductores_aereos', 'cables_subterraneos'):
+        if hoja not in wb.sheetnames:
+            continue
+        valores = list(wb[hoja].iter_rows(values_only=True))
+        if not valores:
+            continue
+        cabecera = [str(c or '') for c in valores[0]]
+        for v in valores[1:]:
+            fila = dict(zip(cabecera, v))
+            if fila.get('codigo'):
+                filas[str(fila['codigo']).strip()] = fila
+
+    def valor(fila, nombre, unidad):
+        ficha = fila.get(f'{nombre}_ficha_{unidad}')
+        if ficha is not None and str(fila.get('estado') or '') in ESTADOS_QUE_CORRIGEN:
+            return float(ficha)
+        modelo_ = fila.get(f'{nombre}_modelo_{unidad}')
+        return None if modelo_ is None else float(modelo_)
+
+    completados = 0
+    for tipo in tipos:
+        fila = filas.get(tipo.conductor_code)
+        if fila is None:
+            continue
+        tipo.r1_ohm_km = valor(fila, 'R1', 'ohm_km')
+        tipo.x1_ohm_km = valor(fila, 'X1', 'ohm_km')
+        tipo.r0_ohm_km = valor(fila, 'R0', 'ohm_km')
+        tipo.x0_ohm_km = valor(fila, 'X0', 'ohm_km')
+        tipo.ampacity_a = valor(fila, 'ampacidad', 'A')
+        completados += all(x is not None for x in (tipo.r1_ohm_km, tipo.x1_ohm_km,
+                                                   tipo.r0_ohm_km, tipo.x0_ohm_km))
+    return {'completados': completados, 'sin_ficha': len(tipos) - completados}

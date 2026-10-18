@@ -227,7 +227,9 @@ def test_modelo_canonico_de_una_salida():
     (banco,) = modelo.capacitors
     assert banco.kvar == 300.0
     tipos = {c.conductor_code: c for c in modelo.conductor_types}
-    assert (tipos['AA05003'].material, tipos['AA05003'].section_mm2) == ('AL', 50.0)
+    assert (tipos['AA05003D'].material, tipos['AA05003D'].section_mm2) == ('AL', 50.0), (
+        'la norma con la letra de tensión, como en las otras fuentes')
+    assert secciones['T1'].conductor_code == 'AA05003D'
     puente = canonical_to_cymdist(modelo, source_path=Path('red.bak'))
     assert [s['EqNumber'] for s in puente.dataset.switch_settings] == ['Q1']
     assert puente.dataset.switch_settings[0]['Status'] == '0'
@@ -267,3 +269,35 @@ def test_copia_real_de_vnr_gis():
     """023:RF-3 / 023:RF-9 — la copia real se restaura y da sus salidas con tramos y SED."""
     modelo, _avisos, alcance = sv.cargar_copia(os.environ['IGEA_VNR_BAK'])
     assert alcance['base_red'].startswith('IGEA_VNR_') and modelo.sections and modelo.loads
+
+
+def test_fichas_del_catalogo_del_proyecto(tmp_path):
+    """023:RF-10 — VNR-GIS no trae R ni X: se completan del catálogo de parámetros por el
+    mismo código; la ficha si su estado lo permite, si no el valor del modelo; lo que no
+    está en el catálogo se dice."""
+    from openpyxl import Workbook
+
+    from igea_dgs.sources.vnr import fichas_del_catalogo
+
+    wb = Workbook()
+    hoja = wb.active
+    hoja.title = 'conductores_aereos'
+    hoja.append(['codigo', 'R1_modelo_ohm_km', 'R1_ficha_ohm_km', 'X1_modelo_ohm_km',
+                 'X1_ficha_ohm_km', 'R0_modelo_ohm_km', 'R0_ficha_ohm_km', 'X0_modelo_ohm_km',
+                 'X0_ficha_ohm_km', 'ampacidad_modelo_A', 'ampacidad_ficha_A', 'estado'])
+    hoja.append(['AA05003D', 0.7, 0.6755, 0.47, None, 0.7, None, 0.47, None, 190, 195, 'ficha'])
+    hoja.append(['CU01601D', 1.2, 9.9, 0.5, None, 1.2, None, 0.5, None, 100, None, 'por_confirmar'])
+    ruta = tmp_path / 'catalogo.xlsx'
+    wb.save(ruta)
+    datos, _ = _datos()
+    tablas = _tablas()
+    modelo, _ = sv.modelo_canonico(datos)
+    modelo.conductor_types.append(type(modelo.conductor_types[0])(conductor_code='ZZ09903D'))
+    cuenta = fichas_del_catalogo(modelo, ruta)
+    tipos = {c.conductor_code: c for c in modelo.conductor_types}
+    assert tipos['AA05003D'].r1_ohm_km == 0.6755 and tipos['AA05003D'].ampacity_a == 195.0
+    assert tipos['AA05003D'].x1_ohm_km == 0.47, 'sin ficha de X1, la del modelo'
+    assert tipos['CU01601D'].r1_ohm_km == 1.2, 'por confirmar: la del modelo, no la ficha'
+    assert tipos['ZZ09903D'].r1_ohm_km is None
+    assert cuenta == {'completados': 2, 'sin_ficha': 1}
+    assert tablas
