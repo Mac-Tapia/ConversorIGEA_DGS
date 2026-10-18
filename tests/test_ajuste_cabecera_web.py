@@ -849,3 +849,18 @@ def test_medida_por_encima_de_lo_que_da_la_red_no_se_calibra(client, monkeypatch
     body = _plan(client, wid, job).json()
     assert body['feeders'] == ['A2']
     assert any(a.startswith('A1: su medidor da') and '022:RF-55' in a for a in body['avisos'])
+
+
+def test_transformadores_de_varios_alimentadores_en_un_trabajo(client):
+    """022:RF-62 — ``por_alimentador`` lleva las SED de cada alimentador y se recalibra una
+    sola vez; un alimentador sin nombre se rechaza."""
+    wid, token = _simulado(client)
+    r = client.post(f'/api/workspaces/{wid}/demanda/ajuste/{token}/transformadores',
+                    json={'por_alimentador': {'': ['S1']}})
+    assert r.status_code == 422
+    r = client.post(f'/api/workspaces/{wid}/demanda/ajuste/{token}/transformadores',
+                    json={'por_alimentador': {'A1': ['S1']}})
+    assert r.status_code == 202, r.text
+    estado = esperar_trabajo(client, r.json())
+    assert estado['status'] == 'done', estado
+    assert [c['sed'] for c in estado['result']['informe']['recibido']['transformadores']] == ['S1']
