@@ -246,3 +246,9 @@ Añadido el 2026-10-17 (calibrar NA203 y NA205 con su central en julio y a la ve
       `iopt_lev`, ni con las escaladas al 1,7 % de su kVA: lo impiden las 14 fijas de NA203
       (7 232 kW), con 0,906 pu en SE50290_BT. NA203 no tiene ningún banco en el modelo y la
       red da 2 656 kVAR frente a 1 560 medidos: falta compensación o la tensión de la SET.
+      Con la fuente a 1,05 pu (T19, las dos «External Grid» de 1,0 a 1,05) la mínima sube a
+      0,96 pu y sigue igual. Con los bancos que faltan (T20): NA203, 2 × 450 kvar en las
+      barras 8937 y 8781 de su troncal (1 744 kVAR frente a 1 560 medidos); NA205 no tiene
+      déficit (2 537 frente a 2 535). Los dos cuadran en kW, pero el flujo no converge desde
+      el primer intento sin `iopt_lev` ni con las escaladas al 1,7 %: no es la tensión ni la
+      compensación. Falta aislar qué isla (cada alimentador tiene su fuente) no converge.
