@@ -3,7 +3,7 @@
 - [x] T1. Explorar la copia real: restaurar `ELDU_VNR_24_APR.bak` en `.\SQLEXPRESS` y listar
       su esquema (sin valores). (duda abierta)
       Hecho cuando: el esquema está en el plan. 2026-10-18: 75 tablas, ver plan.
-- [x] T2. `sqlserver.py`: huella, cabecera, restauración con `WITH MOVE`, reutilizar, error
+- [x] T2. `sqlserver_vnr.py` (restauración): huella, cabecera, restauración con `WITH MOVE`, reutilizar, error
       sin motor, `ConfigBD.config`. (RF-2 a RF-6)
       Hecho cuando: pruebas con el doble del motor en verde.
 - [x] T3. `sqlserver_vnr.py`: tablas por campos y modelo canónico de un alimentador con su
