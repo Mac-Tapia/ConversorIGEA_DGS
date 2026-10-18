@@ -2270,21 +2270,22 @@ def demanda_excel(ws: Workspace, datos: dict) -> Path:
 
 
 def _kva_reconstruido(ws: Workspace, project: str, alimentador: str,
-                      kva: dict[str, float]) -> tuple[dict[str, float], bool]:
+                      kva: dict[str, float]) -> tuple[dict[str, float], set[str]]:
     """El kVA de un alimentador como quedó en el DGS por sistema reconstruido (022:RF-63).
 
     La reconstrucción por medida pasa SED de un alimentador a otro (TM106 recibió las de
     TM104 en Chincha, 2026-10-18); el kVA de la entrada original seguía dando a TM106 sus
     339 kW y no se calibraba. Las SED salen de la metadata del DGS; el kVA de cada una, de
     los alimentadores que intervinieron. Sin reconstrucción, el de la entrada tal cual.
-    Devuelve también si intervino: entonces un kVA vacío es una red que lo cedió todo.
+    Devuelve también los alimentadores que intervinieron (vacío si ninguno): entonces un
+    kVA vacío es una red que lo cedió todo.
     """
     sistema = sistema_del_proyecto(ws, project)
     if sistema is None:
-        return kva, False
+        return kva, set()
     grupo = ws.groups.get(sistema['grupo']) or {}
     if not grupo.get('dgs') or not grupo.get('feeder_metadata'):
-        return kva, False
+        return kva, set()
     dgs = Path(str(grupo['dgs']))
     manifest = dgs.with_name(f"{sistema['grupo']}_manifest.json")
     metadata = Path(str(grupo.get('feeder_metadata') or ''))
@@ -2292,21 +2293,21 @@ def _kva_reconstruido(ws: Workspace, project: str, alimentador: str,
         recs = (json.loads(manifest.read_text(encoding='utf-8')).get('estructura') or {}).get(
             'reconstrucciones') or []
     except (OSError, ValueError):
-        return kva, False
+        return kva, set()
     implicados = {r['alimentador'] for r in recs if r.get('cargas_pasadas')} | {
         r['donante'] for r in recs if r.get('cargas_pasadas')}
     if alimentador not in implicados:
-        return kva, False
+        return kva, set()
     try:
         asignadas = {a['substation'] for a in json.loads(metadata.read_text(encoding='utf-8'))
                      .get('assignments', [])
                      if a.get('class_name') == 'ElmSubstat' and a.get('feeder') == alimentador}
     except (OSError, ValueError):
-        return kva, False
+        return kva, set()
     todas: dict[str, float] = {}
     for f in sorted(implicados):
         todas.update(kva if f == alimentador else _kva_de_la_entrada(ws, f)[0])
-    return {sed: todas[sed] for sed in sorted(asignadas) if sed in todas}, True
+    return {sed: todas[sed] for sed in sorted(asignadas) if sed in todas}, implicados
 
 
 def _capacidad_de_la_red(kva_entrada: dict[str, float], fijas: dict, fp: float | None,
@@ -2317,6 +2318,10 @@ def _capacidad_de_la_red(kva_entrada: dict[str, float], fijas: dict, fp: float |
     su red a TM106 y su medidor de 31 kW quedaba en el plan sin ninguna carga."""
     if not kva_entrada and not reconstruido:
         return None
+    if reconstruido:
+        # Las fijas del libro de suministros van por su RADIAL de siempre: si su SED pasó a
+        # otro alimentador, ya no son de esta red (las de TM104 seguían sumando tras cederla).
+        fijas = {sed: f for sed, f in fijas.items() if sed in kva_entrada}
     escaladas = sum(kva for sed, kva in kva_entrada.items() if sed not in fijas)
     return sum(f.kw for f in fijas.values()) + escaladas * (fp or 1.0)
 
@@ -2591,11 +2596,21 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
             }
             if client_period.warning and client_period.warning not in avisos:
                 avisos.append(client_period.warning)
+        kva_entrada, aviso = _kva_de_la_entrada(ws, alimentador)
+        if aviso:
+            avisos.append(pre + aviso)
+        kva_entrada, implicados = _kva_reconstruido(ws, project, alimentador,
+                                                    kva_entrada)                # 022:RF-63
         clientes: list[dict] = []
         if ws.demanda.get('suministros') and ws.demanda.get('clientes'):
             clientes = demanda_clientes(
-                ws, [alimentador], periodo=maximum_period,
+                ws, sorted(implicados) or [alimentador], periodo=maximum_period,
             )['cruzados']
+            if implicados:
+                # 022:RF-63: el libro de suministros dice el alimentador de siempre (RADIAL);
+                # en una red reconstruida, los clientes son los de sus SED en el DGS: los
+                # fijos de TM104 pasan con su SED a TM106.
+                clientes = [c for c in clientes if str(c.get('sed') or '').strip() in kva_entrada]
         elif not paths:
             avisos.append('Sin libros de suministros y de clientes: todas las SED se reparten por kVA.')
         apagados = [c for c in clientes if str(c.get('codigo') or '').strip() in fuera]
@@ -2608,12 +2623,7 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
         } for item in fixed.values()]
         for item in fixed.values():
             avisos.extend(pre + warning for warning in item.avisos if pre + warning not in avisos)
-        kva_entrada, aviso = _kva_de_la_entrada(ws, alimentador)
-        if aviso:
-            avisos.append(pre + aviso)
-        kva_entrada, reconstruido = _kva_reconstruido(ws, project, alimentador,
-                                                      kva_entrada)              # 022:RF-63
-        capacidad = _capacidad_de_la_red(kva_entrada, fixed, fp_cargas, reconstruido)
+        capacidad = _capacidad_de_la_red(kva_entrada, fixed, fp_cargas, bool(implicados))
         if not central and capacidad is not None and objetivo.kw > capacidad:
             # 022:RF-55: Chincha (2026-10-18), TM106 medía 3 133 kW con unos 230 kVA: su
             # factor de escala de 13,7 hundía la tensión y el sistema entero no convergía.
