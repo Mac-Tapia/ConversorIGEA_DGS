@@ -222,6 +222,16 @@ hace de ese y dos o más se hacen de todas según el proyecto, no de forma indep
 - RF-60: MIENTRAS el ajuste sea de un solo alimentador, EL SISTEMA lo calibrará como hasta
   ahora.
 
+Tensión en la fuente (usuario, 2026-10-17, NA203 y NA205: «ambos alimentadores son de 22,9
+kV, puede enviar desde la fuente con 1,05 pu»)
+
+- RF-61: DONDE el operador indica una tensión en la fuente, en pu, EL SISTEMA la escribirá
+  como consigna de cada red externa del proyecto en los escenarios de «Sin proyecto» y
+  «Con proyecto», antes de calibrar.
+- RF-62: EL SISTEMA reportará cada consigna cambiada en la tabla de cambios en la red, con
+  la original y la nueva (020:RF-60).
+- RF-63: SI el operador no indica tensión, ENTONCES EL SISTEMA dejará la fuente como está.
+
 ## Requisitos no funcionales
 
 - Determinismo: el DGS sigue idéntico byte a byte con `workers=1` y `workers>1`.

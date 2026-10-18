@@ -123,3 +123,36 @@ def test_aviso_fisico_con_el_historial_del_proyecto(guion):
     assert guion._factor_minimo_sin_converger(historial, 'F1') == 0.4
     assert guion._factor_minimo_sin_converger(historial, 'F2') == 0.5
     assert guion._factor_minimo_sin_converger([{'a': 0.3, 'converge': False}]) == 0.3
+
+
+def test_consigna_de_la_fuente_en_los_dos_casos(guion):
+    """021:RF-61, 021:RF-62 — la tensión en la fuente va a cada red externa en «Sin
+    proyecto» y «Con proyecto», se guarda su escenario, vuelve el primero activo y sale en
+    la tabla de cambios con la original y la nueva; si ya la tiene, no es un cambio."""
+    from types import SimpleNamespace
+
+    class Caso(SimpleNamespace):
+        def Activate(self):
+            app.activo = self
+
+    class Esc:
+        guardado = 0
+
+        def Save(self):
+            self.guardado += 1
+
+    xnet = {'sin': SimpleNamespace(loc_name='Red_SET', usetp=1.0),
+            'con': SimpleNamespace(loc_name='Red_SET', usetp=1.0)}
+    esc = {'sin': Esc(), 'con': Esc()}
+    sin, con = Caso(rol='sin'), Caso(rol='con')
+    app = SimpleNamespace(activo=None)
+    app.GetCalcRelevantObjects = lambda _f: [xnet[app.activo.rol]]
+    app.GetActiveScenario = lambda: esc[app.activo.rol]
+    cambios = guion.fijar_consigna_de_la_fuente(app, 1.05, [sin, con])
+    assert xnet['sin'].usetp == xnet['con'].usetp == 1.05
+    assert esc['sin'].guardado == esc['con'].guardado == 1 and app.activo is sin
+    assert cambios == [{'fuente': 'Red_SET', 'barra': None, 'antes': 1.0, 'despues': 1.05}]
+    [fila] = guion.cambios_en_la_red({'consigna_fuente': cambios})
+    assert fila['clase'] == 'fuente' and fila['original']['potencia'] == 1.0
+    assert fila['nuevo']['potencia'] == 1.05 and fila['nuevo']['unidad'] == 'pu'
+    assert guion.fijar_consigna_de_la_fuente(app, 1.05, [sin, None]) == []

@@ -2210,7 +2210,8 @@ def _central_del_plan(ws: Workspace, job_id: str, alimentador: str, cabecera: st
 def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
                 tolerancia: float, medidores: list[str] | None = None,
                 desconectados: list[str] | None = None, *, job_id: str = '',
-                centrales: dict[str, dict] | None = None) -> dict:
+                centrales: dict[str, dict] | None = None,
+                tension_fuente_pu: float | None = None) -> dict:
     """Plan para ``tools/ajuste_cabecera_pf.py`` (spec 006, RF-1 a RF-3, RF-10).
 
     ``maximas`` es el resultado del trabajo de la máxima de cabecera que el operador ve
@@ -2355,6 +2356,8 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
                          'alimentador': alimentador, 'fecha': objetivo.fecha},
             'clientes': clientes, 'desconectados': apagados, 'kva_entrada': kva_entrada,
             'tolerancia': tolerancia,
+            # 021:RF-61: la tensión en la fuente que indicó el operador, o None.
+            'tension_fuente_pu': tension_fuente_pu,
             # 015:RF-54: solo las escaladas; None deja la Q del archivo (RF-55).
             'factor_potencia_cargas': fp_cargas,
             'factor_potencia_minimo_fijas': fp_min_fijas,

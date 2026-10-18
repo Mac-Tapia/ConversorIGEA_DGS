@@ -121,3 +121,12 @@ def test_cambios_en_la_red_y_nombre_del_cliente():
     assert 'cambios_en_la_red?: CambioEnLaRed[];' in TIPOS
     assert '<th>Nis / Suministro</th><th>Cliente</th>' in DEMANDA
     assert "{c.nombre || '—'}" in DEMANDA and 'nombre: string;' in TIPOS
+
+
+def test_tension_en_la_fuente_en_el_ajuste():
+    """021:RF-61, 021:RF-63 — campo «Tensión en la fuente (pu)» en 2.4; vacío, la fuente
+    queda como está; va en el plan."""
+    assert '<span>Tensión en la fuente (pu)</span>' in AJUSTE
+    assert 'centrales, tension_fuente_pu: uFuente,' in AJUSTE
+    assert "'La tensión en la fuente va de 0,90 a 1,10 pu.'" in AJUSTE
+    assert 'tension_fuente_pu?: number | null' in API

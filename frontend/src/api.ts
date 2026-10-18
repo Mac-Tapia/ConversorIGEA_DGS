@@ -239,7 +239,7 @@ export const api = {
   demandaClientes: (id: string, alimentadores: string[], periodo?: string) =>
     request<ClientesCruce>(`${ws(id)}/demanda/clientes/cruzar`,
       json('POST', periodo ? { alimentadores, periodo } : { alimentadores })),
-  ajustePlan: (id: string, body: { project: string; job_id: string; medidor: string; medidores?: string[]; tolerancia: number; desconectados?: string[]; centrales?: Record<string, CentralTermica> }) =>
+  ajustePlan: (id: string, body: { project: string; job_id: string; medidor: string; medidores?: string[]; tolerancia: number; desconectados?: string[]; centrales?: Record<string, CentralTermica>; tension_fuente_pu?: number | null }) =>
     request<AjustePlan>(`${ws(id)}/demanda/ajuste/plan`, json('POST', body)),
   ajusteSimular: (id: string, token: string) =>
     request<Job>(`${ws(id)}/demanda/ajuste/${enc(token)}/simular`, { method: 'POST' }),

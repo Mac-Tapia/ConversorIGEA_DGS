@@ -738,3 +738,13 @@ def test_plan_coincidente_con_la_cabecera_negativa(client):
     assert plan['objetivo']['kw'] == pytest.approx(801.0 + 5100.0)
     assert plan['central']['maxima']['coincidente'] is True
     assert plan['central']['maxima']['fecha'] == '2026-07-01 00:15:00'
+
+
+def test_tension_en_la_fuente_va_en_el_plan(client):
+    """021:RF-61, 021:RF-63 — la tensión en la fuente que indica el operador va en el plan;
+    sin ella, None; fuera de 0,9 a 1,1 pu, se rechaza."""
+    wid, job = _maxima(client)
+    token = _plan(client, wid, job, tension_fuente_pu=1.05).json()['token']
+    assert _recibido(client, wid, token)['tension_fuente_pu'] == 1.05
+    assert _recibido(client, wid, _plan(client, wid, job).json()['token'])['tension_fuente_pu'] is None
+    assert _plan(client, wid, job, tension_fuente_pu=1.2).status_code == 422

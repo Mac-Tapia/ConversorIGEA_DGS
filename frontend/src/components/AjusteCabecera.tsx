@@ -26,6 +26,8 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados, centra
   const { ws, run, startJob, active, jobs } = useApp();
   const [elegido, setElegido] = useState<Record<string, string>>({});
   const [tolerancia, setTolerancia] = useState('1');
+  // 021:RF-61: vacío, la fuente queda como está.
+  const [tensionFuente, setTensionFuente] = useState('');
   const [plan, setPlan] = useState<AjustePlan | null>(null);
   const pfBusy = Boolean(active.powerfactory);
 
@@ -62,6 +64,8 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados, centra
   }, [ws.id, maxima?.id, firmaCentrales, medidores.join('|')]);
   const tol = Number(tolerancia.replace(',', '.')) / 100;
   const tolValida = Number.isFinite(tol) && tol >= 0.001 && tol <= 0.1;
+  const uFuente = tensionFuente.trim() ? Number(tensionFuente.replace(',', '.')) : null;
+  const uValida = uFuente === null || (Number.isFinite(uFuente) && uFuente >= 0.9 && uFuente <= 1.1);
 
   const ultimo = Object.values(jobs)
     .filter((j) => (j.kind === 'ajuste_simular' || j.kind === 'ajuste_aplicar'
@@ -74,14 +78,15 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados, centra
     : !grupos.length ? 'Ningún alimentador marcado tiene máxima: no hay objetivo.'
       : sinElegir.length ? `Elija el medidor de la cabecera de ${sinElegir.join(', ')}.`
         : !project ? 'Elija el proyecto de DIgSILENT en el paso 1.'
-          : !tolValida ? 'La tolerancia va de 0,1 % a 10 %.' : '';
+          : !tolValida ? 'La tolerancia va de 0,1 % a 10 %.'
+            : !uValida ? 'La tensión en la fuente va de 0,90 a 1,10 pu.' : '';
 
   const lanzar = async (simular: boolean) => {
     if (!maxima || falta) return;
     const p = await run(() => api.ajustePlan(ws.id, {
       project, job_id: maxima.id, medidor: '', medidores, tolerancia: tol, desconectados: [...desconectados],
       // Spec 021: la central de cada alimentador que la tiene; el guion calibra por zonas.
-      centrales,
+      centrales, tension_fuente_pu: uFuente,
     }));
     if (!p) return;
     setPlan(p);
@@ -155,6 +160,11 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados, centra
         <label className="field">
           <span>Tolerancia (%)</span>
           <input value={tolerancia} inputMode="decimal" size={5} onChange={(e) => setTolerancia(e.target.value)} />
+        </label>
+        <label className="field" title="Consigna de la red externa en «Sin proyecto» y «Con proyecto»; vacío, la que tenga">
+          <span>Tensión en la fuente (pu)</span>
+          <input value={tensionFuente} inputMode="decimal" size={5} placeholder="actual"
+            onChange={(e) => setTensionFuente(e.target.value)} />
         </label>
         <button className="btn" disabled={Boolean(falta) || pfBusy} onClick={() => lanzar(true)}
           title="El reparto por SED antes de las pérdidas, sin escribir en el proyecto">Simular</button>
@@ -552,7 +562,7 @@ function SedSobrecargadas({ inf, token }: { inf: AjusteInforme; token: string | 
 
 /** Spec 020, RF-60 a RF-62: cada cambio en la red, lo original existente y lo nuevo. */
 function CambiosEnLaRed({ filas }: { filas: CambioEnLaRed[] }) {
-  const pot = (p: number | null, u: string) => (p === null ? '—' : `${fmtNum(p, 0)} ${u}`);
+  const pot = (p: number | null, u: string) => (p === null ? '—' : `${fmtNum(p, u === 'pu' ? 3 : 0)} ${u}`);
   return (
     <div className="table-wrap">
       <strong>Cambios en la red: {filas.length}</strong>
