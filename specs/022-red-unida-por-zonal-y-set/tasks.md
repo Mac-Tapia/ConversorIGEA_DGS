@@ -41,5 +41,11 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]` y pa
 - [ ] T11. DIgSILENT: la entrega de Electro Dunas con su estructura, importada como un
       proyecto; zonas, SET, flujo; NA203 + NA205 calibrados juntos en SET 51. (todos)
       Hecho cuando: importa, converge y el ajuste del proyecto cuadra.
+      2026-10-18: la entrega de Electro Dunas (93 alimentadores) importada como
+      «ELECTRODUNAS_POR_SET_4»: 4 zonales, 19 SET, 20 zonas, 35 fuentes (una por barra y una
+      por «Sin SET»: PA219, COH101, SC215), 52 aperturas; el flujo converge y el «Caso base»
+      sale verificado, con todos los conteos iguales. Arreglado por el camino: la red del
+      zonal en la metadata y en las cargas sin SED, la aceptación con varias redes y el DGS
+      en cp1252. Falta el ajuste de NA203 + NA205 en ese proyecto.
 - [ ] T12. Validación RF por RF e inventario. (todos)
       Hecho cuando: cada RF citado por una prueba y suite completa en verde.
