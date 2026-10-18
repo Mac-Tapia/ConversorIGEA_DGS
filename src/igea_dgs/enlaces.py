@@ -181,3 +181,168 @@ def _abrir(model: FeederModel, nombre: str, clase: str, arista, dist) -> None:
         kind='punto_abierto', section_id=nombre, location='', terminal_side=lado,
         node_id=lejos, eq_id=f'NA_{nombre}', eq_number=f'NA_{nombre}', phase=linea.phase,
         on_off=0, locked=0, eq_state=0, feeder=feeders[0] if feeders else ''))
+
+
+#: Distancia máxima entre la red de un alimentador y la de otro para reconstruir el tramo
+#: que falta (022:RF-57): TM106 quedaba a 78 m de TM104 y TM101 a 15 m de TM105.
+DISTANCIA_MAX_M = 100.0
+
+
+@dataclass(frozen=True)
+class Reconstruccion:
+    """Un alimentador unido por medida a la red de otro (022:RF-57 a RF-60)."""
+
+    alimentador: str
+    donante: str
+    nodo: str               # el del alimentador reconstruido
+    nodo_donante: str
+    distancia_m: float
+    tramo: str              # el tramo nuevo
+    abierto: str            # lo que se abrió: un elemento del donante o el tramo nuevo
+    medida_kw: float
+    medida_donante_kw: float
+    kva_pasado: float
+    kva_donante: float
+    cargas_pasadas: int
+
+    def texto(self) -> str:
+        if not self.cargas_pasadas:
+            return (f'{self.alimentador} reconstruido: tramo {self.tramo} de '
+                    f'{self.distancia_m:.0f} m hasta {self.donante}, abierto; activado sin carga '
+                    'pasada (022:RF-57, RF-59).')
+        return (f'{self.alimentador} reconstruido: tramo {self.tramo} de {self.distancia_m:.0f} m '
+                f'hasta la red de {self.donante}; abierto {self.abierto} y pasadas '
+                f'{self.cargas_pasadas} cargas ({self.kva_pasado:,.0f} de '
+                f'{self.kva_donante:,.0f} kVA), por sus medidas {self.medida_kw:,.0f} y '
+                f'{self.medida_donante_kw:,.0f} kW (022:RF-57, RF-58).')
+
+
+def _mas_cercano(model: FeederModel, receptor: str, distancia_max_m: float):
+    """(distancia, nodo propio, nodo de otro) más cercanos de la misma tensión, o None."""
+    import math
+
+    info = model.combined
+    barras = {b.node_id for b in info.barras_set} | {f.source_node for f in info.feeders}
+    # Ni la barra de SET ni las cabeceras: están juntas en la SET (en Chincha, la de TM106 a
+    # 4 m de la de TM103) y no son el final de ninguna red.
+    propios = sorted(n for n, fs in info.feeder_of_node.items() if receptor in fs
+                     and n not in barras)
+    kv = next((info.node_kv.get(n) for n in propios if n in info.node_kv), None)
+
+    def xy(nodo):
+        p = model.nodes.get(nodo)
+        if p is None or p.x is None or p.y is None or p.coord_inferida:
+            return None
+        return p.x, p.y
+
+    otros = [(m, xy(m)) for m, fs in sorted(info.feeder_of_node.items())
+             if receptor not in fs and m not in barras and info.node_kv.get(m) == kv]
+    otros = [(m, p) for m, p in otros if p is not None]
+    mejor = None
+    for n in propios:
+        a = xy(n)
+        if a is None:
+            continue
+        for m, b in otros:
+            clave = (math.hypot(a[0] - b[0], a[1] - b[1]), n, m)
+            if clave[0] <= distancia_max_m and (mejor is None or clave < mejor):
+                mejor = clave
+    return mejor, propios, kv
+
+
+def reconstruir_por_medida(model: FeederModel, pedidos: dict[str, float],
+                           medidas_kw: dict[str, float], *,
+                           distancia_max_m: float = DISTANCIA_MAX_M
+                           ) -> tuple[list[Reconstruccion], list[str]]:
+    """Une cada alimentador de ``pedidos`` (alimentador → su medida en kW) a la red de otro
+    por el tramo que falta y le pasa la parte que le toca (022:RF-57 a RF-60).
+
+    ``medidas_kw`` son las de los demás, para repartir con el donante. Va antes de
+    :func:`abrir_caminos_cerrados`: el tramo nuevo y el punto abierto dejan la red radial.
+    Devuelve las reconstrucciones y los avisos. Determinista: a igual distancia, el nombre.
+    """
+    info = model.combined
+    if info is None:
+        return [], ['La reconstrucción por medida necesita la red unida (022:RF-57).']
+    hechas: list[Reconstruccion] = []
+    avisos: list[str] = []
+    for receptor in sorted(pedidos):
+        medida = max(0.0, float(pedidos[receptor] or 0.0))
+        mejor, propios, kv = _mas_cercano(model, receptor, distancia_max_m)
+        if mejor is None:
+            avisos.append(f'{receptor}: ningún nodo de otro alimentador de su tensión a menos de '
+                          f'{distancia_max_m:g} m; se convierte como está (022:RF-60).'
+                          if kv else f'{receptor}: no está en la red unida (022:RF-60).')
+            continue
+        d, n, m = mejor
+        donante = sorted(f for f in info.feeder_of_node[m] if f != receptor)[0]
+        # El árbol antes del tramo nuevo: el camino de la cabecera del donante al nodo de unión.
+        aristas = _aristas(model)
+        dist, padre, _raiz, _en = _arbol(aristas, sorted(fuentes_de(model)))
+        hijos = defaultdict(list)
+        for v, (u, _i) in padre.items():
+            if u not in (None, _RAIZ):
+                hijos[u].append(v)
+
+        def aguas_abajo(v):
+            out, pila = set(), [v]
+            while pila:
+                x = pila.pop()
+                if x not in out:
+                    out.add(x)
+                    pila.extend(hijos.get(x, ()))
+            return out
+
+        kva_de = defaultdict(float)
+        for s in model.seds:
+            kva_de[s.node_id] += float(s.design_kva or 0.0)
+        if not model.seds:
+            for ld in model.loads:
+                kva_de[ld.node_id] += float(ld.connected_kva or 0.0)
+        kva_donante = sum(kva_de[x] for x, fs in info.feeder_of_node.items() if donante in fs)
+        medida_donante = max(0.0, float(medidas_kw.get(donante) or 0.0))
+        objetivo = (kva_donante * medida / (medida + medida_donante)
+                    if medida > 0 and medida + medida_donante > 0 else 0.0)
+        tramo_nuevo = f'REC_{receptor}_{m}'[:40]
+        # Del mismo tipo que el tramo que llega al nodo propio: es el que se cortó en la base.
+        plantilla = next(ln for ln in model.lines if n in (ln.from_node, ln.to_node))
+        linea = replace(plantilla, section_id=tramo_nuevo, from_node=n, to_node=m,
+                        length_m=round(d, 3), txt_length_m=None, length_source='georef')
+        model.lines.append(linea)
+        model.section_by_id[tramo_nuevo] = linea
+        candidatos = []
+        if objetivo > 0:
+            for i in _camino(padre, m):
+                nombre, clase, a, b, _l, _ab = aristas[i]
+                if clase == 'acoplador' and nombre.startswith('CAB_'):
+                    continue
+                hijo = a if padre.get(a, (None,))[0] == b else b
+                abajo = aguas_abajo(hijo)
+                kva = sum(kva_de[x] for x in abajo)
+                candidatos.append((abs(kva - objetivo), nombre, i, abajo, kva))
+        if not candidatos:
+            # RF-59: sin medida que pasar, el tramo nuevo queda abierto del lado del donante.
+            model.devices.append(SwitchingDevice(
+                kind='punto_abierto', section_id=tramo_nuevo, location='', terminal_side=1,
+                node_id=m, eq_id=f'NA_{tramo_nuevo}', eq_number=f'NA_{tramo_nuevo}',
+                phase=linea.phase, on_off=0, locked=0, eq_state=0, feeder=receptor))
+            hechas.append(Reconstruccion(receptor, donante, n, m, d, tramo_nuevo, tramo_nuevo,
+                                         medida, medida_donante, 0.0, kva_donante, 0))
+            continue
+        _err, nombre, i, abajo, kva = min(candidatos, key=lambda c: c[:2])
+        _abrir(model, nombre, aristas[i][1], aristas[i], dist)
+        red = next((f.network_id for f in info.feeders if f.name == receptor), '')
+        for x in abajo:
+            info.feeder_of_node[x] = [receptor if f == donante else f
+                                      for f in info.feeder_of_node.get(x, [])] or [receptor]
+        pasadas = 0
+        for k, ld in enumerate(model.loads):
+            if ld.node_id in abajo and ld.feeder == donante:
+                model.loads[k] = replace(ld, feeder=receptor, network_id=red or ld.network_id)
+                pasadas += 1
+        for k, s in enumerate(model.seds):
+            if s.node_id in abajo and s.feeder == donante:
+                model.seds[k] = replace(s, feeder=receptor, network_id=red or s.network_id)
+        hechas.append(Reconstruccion(receptor, donante, n, m, d, tramo_nuevo, nombre, medida,
+                                     medida_donante, kva, kva_donante, pasadas))
+    return hechas, avisos

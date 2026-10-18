@@ -101,9 +101,30 @@ def _resumen(estado: dict) -> tuple[int, int]:
     return validos, fallidos
 
 
+def medidas_de(maxima: dict) -> dict[str, float]:
+    """kW de cada alimentador en la máxima buscada (la de su barra o la suya)."""
+    out: dict[str, float] = {}
+    for x in maxima.get('resultados', []):
+        if not x.get('error') and x.get('alimentador') and x.get('kw') is not None:
+            out[x['alimentador']] = out.get(x['alimentador'], 0.0) + float(x['kw'])
+    return out
+
+
+def medida_de(alimentador: str, medidas: dict[str, float], barras: list[dict]) -> float:
+    """Su medida o, sin medidor, la de su barra menos las de los demás (022:RF-59)."""
+    if alimentador in medidas:
+        return medidas[alimentador]
+    barra = next((b for b in barras if alimentador in b.get('alimentadores', [])), None)
+    if barra is None:
+        return 0.0
+    return float(barra['kw']) - sum(medidas.get(a, 0.0) for a in barra['alimentadores']
+                                    if a != alimentador)
+
+
 def correr(web: Web, zonal: str, *, demanda_dir: Path, periodo: str | None,
            reconvertir: bool, transformadores: bool, tension_pu: float | None,
-           bancos: bool) -> int:
+           bancos: bool, solo: list[str] | None = None,
+           reconstruir: list[str] | None = None) -> int:
     for trabajo in [t for t in web.get('')['jobs'] if t['status'] not in TERMINADOS]:
         print(f"Esperando «{trabajo['title']}»…", flush=True)
         web.esperar(trabajo)
@@ -133,8 +154,12 @@ def correr(web: Web, zonal: str, *, demanda_dir: Path, periodo: str | None,
     if sistema is None:
         print(f'ERROR: {proyecto} no es un proyecto por sistema eléctrico.')
         return 2
+    # ``solo``: una parte del sistema, con el resto en los mismos flujos y la demanda del
+    # archivo, para aislar qué alimentador impide converger (Chincha, 2026-10-18).
+    elegidos = {a.upper() for a in solo or []}
     pares = [{'alimentador': a, 'medidor': m}
-             for a, ms in sistema['medidores'].items() for m in ms]
+             for a, ms in sistema['medidores'].items() for m in ms
+             if not elegidos or a.upper() in elegidos]
     print(f"{sistema['grupo']}: {len(sistema['alimentadores'])} alimentadores, "
           f"{len({p['alimentador'] for p in pares})} con medidor", flush=True)
     if not pares:
@@ -147,6 +172,25 @@ def correr(web: Web, zonal: str, *, demanda_dir: Path, periodo: str | None,
         print(f"  barra {b['clave']}: {b['kw']:,.1f} kW el {b['fecha']} "
               f"({', '.join(b['alimentadores'])})", flush=True)
     medidores = [x['medidor'] for x in res.get('resultados', []) if not x.get('error')]
+    if reconstruir:
+        # 022:RF-57 a RF-61: con las medidas de esta máxima, se reconvierte uniendo cada uno a
+        # la red de su vecino, se importa de nuevo y se calibra el proyecto nuevo.
+        medidas = medidas_de(res)
+        pedidos = {a: medida_de(a, medidas, res.get('barras', [])) for a in reconstruir}
+        print(f'Reconstruir por medida: {pedidos}', flush=True)
+        estado = web.esperar(web.post('/convert/sistema', json={
+            'zonales': [zonal], 'reconstruir': pedidos, 'medidas_kw': medidas}))
+        resultado = estado.get('result') or {}
+        if resultado.get('status') != 'ok':
+            print(f"ERROR: {resultado.get('error') or estado.get('error')}")
+            return 2
+        for r in ((resultado.get('estructura') or {}).get('reconstrucciones') or []):
+            print(f"  {r['texto']}", flush=True)
+        estado = web.esperar(web.post('/powerfactory/flow', json={'feeders': [resultado['group']]}))
+        print(f"DIgSILENT: {estado['status']} {(estado.get('result') or {}).get('lines')}", flush=True)
+        return correr(web, zonal, demanda_dir=demanda_dir, periodo=periodo, reconvertir=False,
+                      transformadores=transformadores, tension_pu=tension_pu, bancos=bancos,
+                      solo=solo)
     web.post('/demanda/clientes/cruzar', json={'alimentadores': sistema['alimentadores'],
                                                 'periodo': periodo})
     plan = web.post('/demanda/ajuste/plan', json={
@@ -189,6 +233,11 @@ def main(argv=None) -> int:
                    help='Cambiar antes los transformadores de las fijas sobrecargadas (spec 020)')
     p.add_argument('--tension-pu', type=float, help='Tensión en la fuente en p.u. (021:RF-61)')
     p.add_argument('--sin-bancos', action='store_true', help='No poner los bancos que faltan')
+    p.add_argument('--reconstruir', nargs='+', metavar='COD',
+                   help='Unir estos a la red vecina por el tramo que falta y repartir por medida '
+                        '(022:RF-57 a RF-61); reconvierte e importa de nuevo')
+    p.add_argument('--alimentadores', nargs='+', metavar='COD',
+                   help='Calibrar solo estos; los demás del sistema, con la demanda del archivo')
     args = p.parse_args(argv)
     try:
         sys.stdout.reconfigure(line_buffering=True)
@@ -199,7 +248,8 @@ def main(argv=None) -> int:
         return correr(web, args.zonal, demanda_dir=args.demanda_dir.resolve(),
                       periodo=args.periodo, reconvertir=args.reconvertir,
                       transformadores=args.transformadores, tension_pu=args.tension_pu,
-                      bancos=not args.sin_bancos)
+                      bancos=not args.sin_bancos, solo=args.alimentadores,
+                      reconstruir=args.reconstruir)
     except (RuntimeError, TimeoutError, requests.RequestException) as exc:
         print(f'ERROR: {exc}')
         return 2

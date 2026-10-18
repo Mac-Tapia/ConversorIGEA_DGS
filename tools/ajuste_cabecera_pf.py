@@ -2216,6 +2216,14 @@ def _deficit(inf: dict, plan: dict) -> tuple[float | None, float | None]:
     return (inf.get('cabecera') or {}).get('kvar'), (plan.get('objetivo') or {}).get('kvar')
 
 
+def _q_escrita(inf: dict) -> float | None:
+    """La Q escrita a las cargas del alimentador en la pasada (021:RF-70), o None."""
+    filas = inf.get('sed') or []
+    if not filas:
+        return None
+    return sum(float((x.get('despues') or {}).get('kvar') or 0.0) for x in filas)
+
+
 def _cuadro_en_kw(inf: dict, plan: dict) -> bool:
     """Si el alimentador quedó en su objetivo de kW tras la primera pasada (021:RF-64)."""
     tol = float(plan.get('tolerancia', 0.01))
@@ -2315,13 +2323,18 @@ def _con_bancos_que_faltan(app, planes: list[dict], *, cancelado, estado: dict) 
         f = plan['feeder']
         if inf.get('error') or alims.elm.get(f) is None:
             continue
+        q_escrita = None
         if inf.get('remedios'):
             # RF-70: con remedios del flujo (cargas como impedancia) el kVAR de la red no es
-            # el de lo escrito: Chincha (2026-10-18) puso 36 bancos sin converger.
-            avisos.append(f'{f}: la primera pasada necesitó remedios del flujo; no se calcula '
-                          'qué bancos faltan (021:RF-70).')
-            continue
-        if not _cuadro_en_kw(inf, plan):
+            # el de lo escrito: Chincha (2026-10-18) puso 36 bancos sin converger. La Q que
+            # se escribió a las cargas sí lo es, y sin bancos CA101 no converge nunca.
+            q_escrita = _q_escrita(inf)
+            if q_escrita is None or plan.get('central'):
+                avisos.append(f'{f}: la primera pasada necesitó remedios del flujo y no hay Q '
+                              'escrita con la que comparar; no se calcula qué bancos faltan '
+                              '(021:RF-70).')
+                continue
+        elif not _cuadro_en_kw(inf, plan):
             # Solo con el kW del alimentador en su objetivo el kVAR de la red dice lo que
             # falta: en NA205 del TXT (2026-10-18) no cuadraba y puso 10 bancos sin sentido.
             avisos.append(f'{f}: no cuadró en kW en la primera pasada; no se calcula qué '
@@ -2335,6 +2348,10 @@ def _con_bancos_que_faltan(app, planes: list[dict], *, cancelado, estado: dict) 
         if tamano is None:
             avisos.append(f'{f}: el perfil no trae tamaño de banco para {kv} kV; no se ponen (021:RF-65).')
             continue
+        if q_escrita is not None:
+            q_red = q_escrita
+            avisos.append(f'{f}: sin flujo que converja, los bancos se calculan con la Q escrita '
+                          f'de las cargas ({q_escrita:,.0f} kVAR), sin pérdidas (021:RF-70).')
         n = bancos_que_faltan(q_red, q_medido, tamano)
         if q_red is None:
             avisos.append(f'{f}: el flujo no convergió en la primera pasada; no se sabe qué falta.')

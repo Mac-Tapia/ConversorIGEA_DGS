@@ -754,7 +754,7 @@ API de DIgSILENT se busca en la instalación si no está en la ruta (spec 019, R
 Un sistema eléctrico entero, con la web abierta (spec 022, RF-56):
 
 ```bat
-> python tools\sistema_web.py --espacio <id> --zonal Pisco --demanda-dir referencia --periodo 2026-07 [--transformadores] [--tension-pu 1.05]
+> python tools\sistema_web.py --espacio <id> --zonal Pisco --demanda-dir referencia --periodo 2026-07 [--transformadores] [--tension-pu 1.05] [--alimentadores COD …] [--reconstruir TM106 TM101]
 ```
 
 Con `--deshacer`, `cargas_pf.py` borra lo que creó una aplicación anterior según su

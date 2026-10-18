@@ -204,6 +204,27 @@ sistema eléctrico»)
   convertirá, importará y calibrará un sistema eléctrico entero, retomará lo que el espacio
   ya tenga hecho y reintentará cuando la web corte una consulta mientras trabaja.
 
+Reconstrucción por medida (usuario, 2026-10-18: «revisa en los archivos originales los tres
+alimentadores; deberían estar completos; si no, debe reconstruirlos y activarlo». TM106 trae 4
+tramos y mide 3 133 kW: su red está en la de TM104, a 78 m y sin el tramo que los une; TM101,
+fuera de servicio y sin medidor, a 15 m de TM105)
+
+- RF-57: DONDE el operador pide reconstruir un alimentador al convertir por sistema
+  eléctrico, EL SISTEMA buscará el nodo de otro alimentador de la misma tensión más cercano
+  a su red, hasta 100 m, y añadirá el tramo que falta entre los dos, anotado como
+  reconstrucción.
+- RF-58: CUANDO la medida del alimentador reconstruido es mayor que cero, EL SISTEMA abrirá,
+  en el camino de la cabecera del otro al nodo de unión, el punto que deja aguas abajo la
+  parte de su potencia instalada en la proporción de las dos medidas, y pasará lo de aguas
+  abajo al reconstruido.
+- RF-59: SI el alimentador reconstruido no tiene medidor, ENTONCES su medida será la máxima
+  de su barra de SET menos las de los demás alimentadores de la barra en ese instante, y con
+  cero o menos el tramo nuevo quedará abierto: activado sin carga pasada.
+- RF-60: SI no hay nodo de otro alimentador de su tensión a menos de 100 m, ENTONCES EL
+  SISTEMA lo dirá y convertirá el alimentador como está.
+- RF-61: EL SISTEMA aceptará las reconstrucciones en la conversión por sistema de la web y
+  la herramienta de RF-56 las pedirá con sus medidas.
+
 Informe
 
 - RF-25b: EL SISTEMA omitirá una SET, un sistema eléctrico o un zonal de la estructura que

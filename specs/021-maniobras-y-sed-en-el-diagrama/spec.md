@@ -254,8 +254,10 @@ cada alimentador»; NA203 no tenía ninguno y la red daba 2 645 kVAR frente a 1 
 - RF-69: EL SISTEMA reportará cada banco nuevo en la tabla de cambios en la red: original
   «no existe», 0 kvar; nuevo, el banco con sus kvar (020:RF-60).
 - RF-70: SI la primera pasada de la calibración necesitó remedios del flujo, ENTONCES EL
-  SISTEMA no calculará los bancos que faltan, porque el kVAR de la red no es el de las cargas
-  escritas, y lo dirá (Chincha, 2026-10-18: 36 bancos con una calibración que no convergía).
+  SISTEMA no usará el kVAR de la red, que no es el de las cargas escritas (Chincha,
+  2026-10-18: 36 bancos con una calibración que no convergía), y calculará los bancos que
+  faltan con la Q escrita de las cargas frente a la medida, que no depende del flujo
+  (CA101: 5 316 kW con 13 kVAR medidos y ningún banco en la base: sin ellos no converge).
 
 ## Requisitos no funcionales
 

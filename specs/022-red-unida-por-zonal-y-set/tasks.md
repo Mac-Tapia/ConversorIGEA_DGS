@@ -78,6 +78,11 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]` y pa
 - [ ] T11d. `tools/sistema_web.py`: la cadena de un sistema por la web, que retoma y
       reintenta. (RF-56)
       Hecho cuando: `pytest -q tests/test_sistema_web.py` en verde y Chincha calibrado con ella.
+- [ ] T11e. Reconstrucción por medida: tramo que falta, punto abierto por la proporción de
+      las medidas, medida de barra para el que no tiene medidor; web y herramienta.
+      (RF-57 a RF-61)
+      Hecho cuando: pruebas de `enlaces`, del lote, de la API y de la herramienta en verde;
+      Chincha reconvertido con TM106 y TM101 reconstruidos, importado y calibrado.
 - [x] T12. Validación RF por RF e inventario. (todos)
       Hecho cuando: cada RF citado por una prueba y suite completa en verde.
       2026-10-18: los 56 RF citados por al menos una prueba; suite completa con las seis

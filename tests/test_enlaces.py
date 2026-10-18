@@ -83,3 +83,66 @@ def test_determinista():
     uno = en.abrir_caminos_cerrados(_red(('A_3', 'C_2'), ('A_3', 'A_1')))
     dos = en.abrir_caminos_cerrados(_red(('A_3', 'C_2'), ('A_3', 'A_1')))
     assert uno == dos
+
+
+def _donante_y_receptor(y_receptor=50.0):
+    """D: cabecera y cuatro SED de 100 kVA en línea; R: dos nodos, el último a ``y`` del
+    final de D (TM106 y TM104 en Chincha, 2026-10-18)."""
+    from dataclasses import replace
+
+    from igea_dgs.model import Load, Node, Sed
+
+    d = _alimentador('D', 10.0, ['D_H', 'D_1', 'D_2', 'D_3', 'D_4'])
+    for i, n in enumerate(['D_1', 'D_2', 'D_3', 'D_4'], start=1):
+        d.loads.append(Load(f'D_SECL{i}', f'X{i}', 'C', '1', n, 0.05, 0.01, 0.95, 100.0, 0.0,
+                            'ABC', sed_code=f'SE_D{i}', display_name=f'SE_D{i}', feeder='D',
+                            network_id='NET_D'))
+        d.seds.append(Sed(f'SE_D{i}', f'SE_D{i}', n, 100.0, f'D_SECL{i}', f'X{i}',
+                          (f'D_SECL{i}', f'X{i}'), feeder='D', network_id='NET_D'))
+    r = _alimentador('R', 10.0, ['R_H', 'R_1'])
+    r.nodes['R_H'] = Node('R_H', 0.0, 2000.0)
+    r.nodes['R_1'] = Node('R_1', 400.0, y_receptor)
+    e = estructura_de_dict({'zonales': [{'nombre': 'Z', 'sets': [
+        {'codigo': 'SET 1', 'nombre': 'Uno', 'alimentadores': ['D', 'R']}]}]})
+    red, _ = combine_models([d, r])
+    estructurar(red, e)
+    return red, replace
+
+
+def test_reconstruye_por_medida_y_pasa_la_parte_que_toca():
+    """022:RF-57 / 022:RF-58 — el tramo que falta entre R y la red de D, y abierto el punto
+    que deja aguas abajo la parte del kVA de D en la proporción de las medidas (300 y 100
+    kW de 400 kVA: 300 kVA, tres SED); la red sigue radial y las cargas pasan a R."""
+    red, _ = _donante_y_receptor()
+    hechas, avisos = en.reconstruir_por_medida(red, {'R': 300.0}, {'D': 100.0})
+    assert not avisos and len(hechas) == 1
+    h = hechas[0]
+    assert (h.alimentador, h.donante, h.nodo, h.nodo_donante) == ('R', 'D', 'R_1', 'D_4')
+    assert h.distancia_m == 50.0 and h.cargas_pasadas == 3 and h.kva_pasado == 300.0
+    assert any(ln.section_id == h.tramo and {ln.from_node, ln.to_node} == {'R_1', 'D_4'}
+               for ln in red.lines)
+    assert sorted(ld.node_id for ld in red.loads if ld.feeder == 'R') == ['D_2', 'D_3', 'D_4']
+    assert en.abrir_caminos_cerrados(red) == [], 'ya es radial'
+    assert _radial(red)
+    assert 'RF-58' in h.texto() and 'abierto D_SEC1' in h.texto()
+
+
+def test_sin_medida_queda_activado_y_abierto():
+    """022:RF-59 — con medida cero (barra menos los demás), el tramo nuevo queda abierto y
+    no se pasa carga: el alimentador queda activado."""
+    red, _ = _donante_y_receptor()
+    hechas, _ = en.reconstruir_por_medida(red, {'R': -66.0}, {'D': 100.0})
+    h = hechas[0]
+    assert h.cargas_pasadas == 0 and h.abierto == h.tramo
+    assert all(ld.feeder == 'D' for ld in red.loads)
+    assert any(getattr(d, 'section_id', '') == h.tramo and int(d.on_off) == 0 for d in red.devices)
+    assert _radial(red)
+
+
+def test_sin_red_cerca_se_dice_y_queda_como_esta():
+    """022:RF-60 — sin nodo de otro alimentador a menos de 100 m, se avisa y no se toca."""
+    red, _ = _donante_y_receptor(y_receptor=500.0)
+    lineas = len(red.lines)
+    hechas, avisos = en.reconstruir_por_medida(red, {'R': 300.0}, {'D': 100.0})
+    assert not hechas and len(red.lines) == lineas
+    assert avisos and '022:RF-60' in avisos[0]

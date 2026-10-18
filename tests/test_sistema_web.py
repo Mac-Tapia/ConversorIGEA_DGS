@@ -48,8 +48,9 @@ class WebFalsa:
         if trabajo['id'] == '/demanda/cabecera/buscar':
             return {'id': 'max', 'status': 'done', 'result': {
                 'barras': [{'clave': 'SET 31 10 kV', 'kw': 5456.3, 'fecha': '2026-07-21 18:45',
-                            'alimentadores': ['PI102']}],
-                'resultados': [{'medidor': 'L-PI102'}, {'medidor': 'L-PI141', 'error': 'sin dato'}]}}
+                            'alimentadores': ['PI101', 'PI102']}],
+                'resultados': [{'medidor': 'L-PI102', 'alimentador': 'PI102', 'kw': 1000.0},
+                               {'medidor': 'L-PI141', 'error': 'sin dato'}]}}
         if trabajo['id'].endswith('/aplicar'):
             return {'status': 'done', 'result': {
                 'sistema': {'sin_medidor': ['PI101']}, 'informes': self.informes}}
@@ -116,3 +117,54 @@ def test_la_web_que_corta_se_reintenta(herramienta, monkeypatch):
         (_ for _ in ()).throw(respuestas.pop(0)) if isinstance(respuestas[0], Exception)
         else respuestas.pop(0)))
     assert web.get('') == {'ok': 1}
+
+
+def test_solo_una_parte_del_sistema(herramienta):
+    """022:RF-56 — ``--alimentadores`` calibra solo esos, para aislar el que no deja converger;
+    sin medidores elegidos no hay qué calibrar."""
+    web = WebFalsa(proyecto='P', informes=[VALIDO])
+    assert herramienta.correr(web, 'Pisco', demanda_dir=Path('l'), periodo=None, reconvertir=False,
+                              transformadores=False, tension_pu=None, bancos=True,
+                              solo=['pi102']) == 0
+    web = WebFalsa(proyecto='P', informes=[VALIDO])
+    assert herramienta.correr(web, 'Pisco', demanda_dir=Path('l'), periodo=None, reconvertir=False,
+                              transformadores=False, tension_pu=None, bancos=True,
+                              solo=['PI101']) == 2
+    assert ('POST', '/demanda/ajuste/plan') not in web.llamadas
+
+
+def test_medida_para_reconstruir(herramienta):
+    """022:RF-59 — con medidor, la suya; sin medidor, la de su barra menos las de los demás
+    (TM101 en SET 22: 6 792 − 6 858 = −66 kW, que no pasa carga)."""
+    maxima = {'resultados': [
+        {'alimentador': 'TM105', 'kw': 3482.0}, {'alimentador': 'TM106', 'kw': 3133.0},
+        {'alimentador': 'TM104', 'kw': 31.0}, {'alimentador': 'TM103', 'kw': 97.0},
+        {'alimentador': 'TM102', 'kw': 115.0}, {'alimentador': 'X', 'error': 'sin dato'}]}
+    medidas = herramienta.medidas_de(maxima)
+    assert medidas['TM106'] == 3133.0 and 'X' not in medidas
+    barras = [{'kw': 6792.0,
+               'alimentadores': ['TM101', 'TM102', 'TM103', 'TM104', 'TM105', 'TM106']}]
+    assert herramienta.medida_de('TM106', medidas, barras) == 3133.0
+    assert herramienta.medida_de('TM101', medidas, barras) == pytest.approx(-66.0)
+    assert herramienta.medida_de('ZZ', medidas, barras) == 0.0
+
+
+def test_reconstruir_reconvierte_con_las_medidas(herramienta):
+    """022:RF-61 — ``--reconstruir`` manda los pedidos y las medidas a la conversión por
+    sistema, importa de nuevo y calibra el proyecto nuevo."""
+    web = WebFalsa(proyecto='P', informes=[VALIDO])
+    enviados = []
+    original = web.post
+
+    def post(ruta, **kw):
+        if ruta == '/convert/sistema':
+            enviados.append(kw['json'])
+        return original(ruta, **kw)
+
+    web.post = post
+    assert herramienta.correr(web, 'Pisco', demanda_dir=Path('l'), periodo=None,
+                              reconvertir=False, transformadores=False, tension_pu=None,
+                              bancos=True, reconstruir=['PI101']) == 0
+    assert enviados and enviados[0]['reconstruir'] == {'PI101': pytest.approx(4456.3)}
+    assert ('POST', '/powerfactory/flow') in web.llamadas
+    assert [r for _m, r in web.llamadas].count('/demanda/ajuste/plan') == 1

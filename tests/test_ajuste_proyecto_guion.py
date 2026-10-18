@@ -292,9 +292,12 @@ def test_sin_cuadrar_en_kw_no_se_ponen_bancos(guion):
                                               'abajo_kw': 300.0, 'abajo_objetivo_kw': 7177.9}}, central)
 
 
-def test_con_remedios_en_la_primera_pasada_no_se_ponen_bancos(guion, monkeypatch):
-    """021:RF-70 — si la primera pasada necesitó remedios del flujo, no se calcula qué bancos
-    faltan (Chincha, 2026-10-18: 36 bancos con una calibración que no convergía)."""
+@pytest.mark.parametrize('con_q', [True, False])
+def test_con_remedios_los_bancos_salen_de_la_q_escrita(guion, monkeypatch, con_q):
+    """021:RF-70 — si la primera pasada necesitó remedios del flujo, el kVAR de la red no
+    vale (Chincha, 2026-10-18: 36 bancos sin converger): los bancos salen de la Q escrita de
+    las cargas frente a la medida (CA101: 13 kVAR medidos y ningún banco en la base); sin Q
+    escrita, no se calculan y se dice."""
     app = _app(escenario=True)
     plan = {**_de(_plan(kvar=10.0), 'F1', 300.0), 'completar_bancos': True,
             'bancos_kvar_por_tension': {'10': 2.0}}
@@ -305,10 +308,18 @@ def test_con_remedios_en_la_primera_pasada_no_se_ponen_bancos(guion, monkeypatch
         if kw.get('solo_medir'):
             for inf, _rc in res:
                 inf['remedios'] = [{'remedio': 'adaptación automática del modelo'}]
+                inf['sed'] = ([{'sed': 'S1', 'despues': {'kw': 200.0, 'kvar': 14.0}},
+                               {'sed': 'S2', 'despues': {'kw': 100.0, 'kvar': 0.5}}]
+                              if con_q else [])
         return res
 
+    pedidos = []
     monkeypatch.setattr(guion, '_ejecutar_proyecto', con_remedios)
-    monkeypatch.setattr(guion, 'poner_bancos', lambda *a, **k: pytest.fail('no debe poner bancos'))
+    monkeypatch.setattr(guion, 'poner_bancos', lambda *a: pedidos.append(a[-1]) or [])
     [(inf, _rc)] = guion.ejecutar_proyecto(app, [plan])
-    assert not inf['bancos_nuevos']
-    assert any('021:RF-70' in a for a in inf['avisos'])
+    if con_q:
+        assert pedidos == [{'F1': (2, 2.0)}], '14,5 escritos frente a 10 medidos: dos de 2'
+        assert any('Q escrita' in a and '021:RF-70' in a for a in inf['avisos'])
+    else:
+        assert not pedidos and not inf['bancos_nuevos']
+        assert any('021:RF-70' in a for a in inf['avisos'])

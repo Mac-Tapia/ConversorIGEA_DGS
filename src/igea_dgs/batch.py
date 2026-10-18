@@ -14,7 +14,7 @@ import shutil
 import threading
 from collections import Counter
 from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, wait
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 from pathlib import Path
@@ -628,8 +628,13 @@ def convert_group(
     preview_backend: str = 'auto',
     perfil: PerfilEmpresa | None = None,
     estructura=None,
+    reconstruir: Mapping[str, Any] | None = None,
 ) -> dict:
     """Une los alimentadores elegidos en una sola red y escribe **un** DGS.
+
+    ``reconstruir`` (spec 022, RF-57 a RF-61), solo con ``estructura``:
+    ``{'pedidos': {alimentador: kW}, 'medidas_kw': {alimentador: kW}}``; cada pedido se une
+    por el tramo que falta a la red de otro alimentador y se le pasa la parte de su medida.
 
     Con ``estructura`` (spec 022), la red unida se cuelga de sus SET, se abren sus
     caminos cerrados y el oráculo calcula la red entera; el manifiesto trae el informe
@@ -697,7 +702,8 @@ def convert_group(
             modelos.append(m)
         combinado, informe_union = combine_models(modelos, name=nombre)
         if estructura is not None:
-            manifest['estructura'] = _por_set(combinado, estructura, [m.name for m in modelos])
+            manifest['estructura'] = _por_set(combinado, estructura, [m.name for m in modelos],
+                                              reconstruir)
         geography = (build_geography(dataset, combinado, source_crs=source_crs, target_crs=target_crs)
                      if include_geography else None)
         _clear_stage(stage)
@@ -774,15 +780,20 @@ def convert_group(
     return manifest
 
 
-def _por_set(combinado, estructura, alimentadores) -> dict[str, Any]:
-    """La red unida por zonal y SET y su informe (spec 022, RF-7 a RF-34)."""
+def _por_set(combinado, estructura, alimentadores, reconstruir=None) -> dict[str, Any]:
+    """La red unida por zonal y SET y su informe (spec 022, RF-7 a RF-34, RF-57 a RF-60)."""
     from .combine import estructurar
-    from .enlaces import abrir_caminos_cerrados, enlaces
+    from .enlaces import abrir_caminos_cerrados, enlaces, reconstruir_por_medida
     from .estructura import asignar
     from .oraculo import disponible, validar_unida
 
     asignacion = asignar(estructura, alimentadores)
     avisos = estructurar(combinado, estructura, asignacion)
+    reconstrucciones = []
+    if reconstruir and reconstruir.get('pedidos'):
+        reconstrucciones, av = reconstruir_por_medida(
+            combinado, dict(reconstruir['pedidos']), dict(reconstruir.get('medidas_kw') or {}))
+        avisos += av + [r.texto() for r in reconstrucciones]
     aperturas = abrir_caminos_cerrados(combinado)
     combinado.warnings.extend(avisos + [a.texto() for a in aperturas])
     info = combinado.combined
@@ -808,5 +819,7 @@ def _por_set(combinado, estructura, alimentadores) -> dict[str, Any]:
                        'alimentadores': list(a.alimentadores), 'sets': list(a.sets),
                        'texto': a.texto()} for a in aperturas],       # RF-34
         'oraculo': oraculo,                                           # RF-28, RF-32, RF-33
+        'reconstrucciones': [{**asdict(r), 'texto': r.texto()}
+                             for r in reconstrucciones],              # RF-57 a RF-60
         'avisos': avisos,
     }

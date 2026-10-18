@@ -1141,6 +1141,7 @@ def convert_group(
     requested_feeders: list[str] | None = None,
     estructura=None,
     tipo: str = 'unida',
+    reconstruir: dict | None = None,
 ) -> dict:
     import time
 
@@ -1192,6 +1193,7 @@ def convert_group(
         reglas=reglas_de(ws),
         catalogo=None if use_reconstruction else catalogo_del_proyecto(),
         on_progress=on_progress, cancel=ctx.cancel, estructura=estructura,
+        reconstruir=reconstruir,                                       # 022:RF-61
     )
     for linea in _informe_por_set(man.get('estructura')):            # 022:RF-25, RF-34
         ctx.log(linea)
