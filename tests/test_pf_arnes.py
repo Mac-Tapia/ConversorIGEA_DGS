@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 import textwrap
@@ -173,3 +174,79 @@ def test_ningun_guion_conecta_por_su_cuenta():
              if 'GetApplicationExt(' in p.read_text(encoding='utf-8', errors='replace')
              and p.name != 'pf_arnes.py']
     assert fuera == []
+
+
+def test_el_servidor_ocioso_cede_el_turno(turno, tmp_path, monkeypatch):
+    """019:RF-14 — con el servidor sin órdenes, el guion que espera le pide que se cierre;
+    con una orden en curso, no (2026-10-18: cada sonda esperaba sus 2 minutos)."""
+    cola = tmp_path / 'cola'
+    cola.mkdir()
+    monkeypatch.setenv(pf_arnes.VARIABLE_COLA, str(cola))
+    servidor = {'pid': 4242, 'guion': pf_arnes.SERVIDOR, 'desde': ''}
+    (cola / 'x.en_curso.json').write_text('{}')
+    assert not pf_arnes.pedir_cierre_si_ocioso(servidor), 'con una orden en curso no se toca'
+    (cola / 'x.en_curso.json').unlink()
+    assert not pf_arnes.pedir_cierre_si_ocioso({'pid': 1, 'guion': 'obras_pf.py'})
+    turno.write_text(json.dumps(servidor))
+    reloj, avisos = Reloj(), []
+
+    def dormir(s):
+        reloj.dormir(s)
+        if (cola / pf_arnes.CIERRE).exists():       # el servidor atiende el pedido
+            turno.unlink(missing_ok=True)
+
+    _tomar(vivo=lambda pid: True, reloj=reloj, dormir=dormir, aviso=avisos.append)
+    assert pf_arnes.leer_turno()['pid'] == os.getpid() and reloj.t < pf_arnes.INACTIVIDAD_S
+    assert any('019:RF-14' in a for a in avisos)
+
+
+def test_la_salida_va_linea_a_linea():
+    """019:RF-15 — redirigida a un fichero, la salida del guion no espera a llenar un bloque."""
+    codigo = textwrap.dedent('''
+        import sys, time
+        from igea_dgs import pf_arnes
+        pf_arnes.salida_sin_bufer()
+        print('primera')
+        time.sleep(30)
+    ''')
+    import tempfile
+    with tempfile.TemporaryFile(mode='w+', encoding='utf-8') as fichero:
+        proc = subprocess.Popen([sys.executable, '-c', codigo], stdout=fichero,
+                                env={**os.environ, 'PYTHONPATH': str(RAIZ / 'src')})
+        try:
+            import time
+            fin = time.monotonic() + 20
+            leido = ''
+            while time.monotonic() < fin and 'primera' not in leido:
+                time.sleep(0.2)
+                fichero.seek(0)
+                leido = fichero.read()
+            assert 'primera' in leido
+        finally:
+            proc.kill()
+            proc.wait()
+
+
+def test_la_api_se_busca_en_la_instalacion(tmp_path, monkeypatch):
+    """019:RF-16 — sin ``powerfactory`` en la ruta, se añade la carpeta de la instalación y
+    se vuelve a importar; si tampoco está, se dice dónde se buscó."""
+    monkeypatch.setattr(sys, 'path', list(sys.path))
+    llamadas = []
+
+    def importar(nombre):
+        llamadas.append(str(tmp_path) in sys.path)
+        if str(tmp_path) not in sys.path:
+            raise ImportError("No module named 'powerfactory'")
+        return 'api'
+
+    assert pf_arnes.importar_api(importar, lambda: tmp_path) == 'api'
+    assert llamadas == [False, True]
+    monkeypatch.setattr(sys, 'path', [p for p in sys.path if p != str(tmp_path)])
+
+    def nunca(nombre):
+        raise ImportError('no está')
+
+    with pytest.raises(PFNoDisponible, match=re.escape(str(tmp_path))):
+        pf_arnes.importar_api(nunca, lambda: tmp_path)
+    with pytest.raises(PFNoDisponible, match='no disponible'):
+        pf_arnes.importar_api(nunca, lambda: None)

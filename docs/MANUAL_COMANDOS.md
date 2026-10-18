@@ -747,6 +747,16 @@ sin órdenes (`IGEA_PF_SERVIDOR=0` lo apaga):
 > python tools\pf_cliente.py verificar_pf.py --plan plan.json --output-json informe.json
 ```
 
+Un guion suelto que encuentra ese proceso sin órdenes le pide que se cierre y entra sin
+esperar los 2 minutos; su salida va línea a línea aunque se redirija a un fichero, y la
+API de DIgSILENT se busca en la instalación si no está en la ruta (spec 019, RF-14 a RF-16).
+
+Un sistema eléctrico entero, con la web abierta (spec 022, RF-56):
+
+```bat
+> python tools\sistema_web.py --espacio <id> --zonal Pisco --demanda-dir referencia --periodo 2026-07 [--transformadores] [--tension-pu 1.05]
+```
+
 Con `--deshacer`, `cargas_pf.py` borra lo que creó una aplicación anterior según su
 informe (`runs/<id>/salida/cargas_pf_aplicacion_<token>.json`): las variaciones de sus
 cargas nuevas, sus símbolos del diagrama y los tipos de transformador que creó y ya no
@@ -959,6 +969,7 @@ se ejecutan con el intérprete de PowerFactory (Python 3.12 con `powerfactory.py
 | `run_one_study.py` | Trabajador de un estudio en su propio proceso (sección 8). | PF |
 | `run_powerfactory_gate.bat` | Atajo de `powerfactory_acceptance.py` con el intérprete de PF (sección 5.3). | PF |
 | `show_pf_diagram.py` | Abre en DIgSILENT el diagrama de un alimentador (`--feeder`). | PF |
+| `sistema_web.py` | Un sistema eléctrico de punta a punta por la web abierta: convierte por sistema, importa, busca la máxima por barra de SET y calibra el sistema entero; retoma lo hecho (spec 022, RF-56). | Web + PF |
 | `suggest_line_type_aliases.py` | Propone alias para tipos de línea sin ficha en el catálogo. | |
 | `verificar_pf.py` | Convergencia del proyecto con lo activo (paso 3.0 de 7.ter). | PF |
 

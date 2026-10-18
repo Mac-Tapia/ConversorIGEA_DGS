@@ -71,6 +71,13 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]` y pa
       máxima no tiene kW positivo), CHI201, PI101 y SI114, sin medidor. «…_SISTEMA_ICA» (30)
       calibra IN111 y TA225 en 3 flujos, VÁLIDOS; los otros 28 no tienen medidor en el libro.
       Arreglado: el vínculo reconoce cada alimentador del rótulo de su barra de SET.
+- [ ] T11c. Un alimentador cuya medida supera lo que su red puede dar no se calibra y se
+      dice; los bancos que faltan solo con una primera pasada sin remedios del flujo.
+      (RF-55; 021:RF-70)
+      Hecho cuando: pruebas de la API y del guion en verde; Chincha calibrado en DIgSILENT.
+- [ ] T11d. `tools/sistema_web.py`: la cadena de un sistema por la web, que retoma y
+      reintenta. (RF-56)
+      Hecho cuando: `pytest -q tests/test_sistema_web.py` en verde y Chincha calibrado con ella.
 - [x] T12. Validación RF por RF e inventario. (todos)
       Hecho cuando: cada RF citado por una prueba y suite completa en verde.
       2026-10-18: los 56 RF citados por al menos una prueba; suite completa con las seis

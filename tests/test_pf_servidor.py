@@ -198,3 +198,19 @@ def test_orden_cortada_cierra_el_servidor(tmp_path, monkeypatch):
                          limite_s=2)
     assert rc == TIEMPO_AGOTADO and cerrados == [1]
     assert any('Se cierra el proceso de DIgSILENT' in l for l in registro)
+
+
+def test_el_servidor_se_cierra_si_otro_pide_el_motor(cola, servidor):
+    """019:RF-14 — sin órdenes y con el pedido de cierre, el servidor termina enseguida y se
+    lo dice; un pedido viejo de antes de arrancar no lo cierra."""
+    reloj = Reloj()
+    (cola / pf_arnes.CIERRE).write_text('1')
+
+    def dormir(s):
+        reloj.dormir(s)
+        if reloj.t >= 5 and not (cola / pf_arnes.CIERRE).exists() and reloj.t < 6:
+            (cola / pf_arnes.CIERRE).write_text('2')
+
+    assert servidor.servir(120.0, reloj=reloj, dormir=dormir) == 0
+    assert 5 <= reloj.t < 120, 'no espera la inactividad'
+    assert not (cola / pf_arnes.CIERRE).exists()

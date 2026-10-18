@@ -18,6 +18,7 @@ import atexit
 import importlib
 import json
 import os
+import sys
 import tempfile
 import time
 from collections.abc import Callable, Iterator
@@ -113,6 +114,7 @@ def tomar_turno(guion: str, *, espera_s: float = ESPERA_S,
     ruta.parent.mkdir(parents=True, exist_ok=True)
     limite = reloj() + espera_s
     ultimo_aviso = None
+    cierre_pedido = False
     while True:
         try:
             fd = os.open(ruta, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
@@ -136,6 +138,12 @@ def tomar_turno(guion: str, *, espera_s: float = ESPERA_S,
                 raise PFNoDisponible(
                     f'DIgSILENT sigue ocupado por {quien} tras esperar {espera_s / 60:.0f} '
                     'min (019:RF-2).')
+            if not cierre_pedido and pedir_cierre_si_ocioso(dueno):
+                # RF-14: el servidor sin órdenes cede el motor en vez de esperar sus 2 min.
+                cierre_pedido = True
+                aviso(f'DIgSILENT lo tiene {quien} sin órdenes: se le pide que se cierre '
+                      '(019:RF-14).')
+                ultimo_aviso = reloj()
             if ultimo_aviso is None or reloj() - ultimo_aviso >= AVISO_S:
                 aviso(f'DIgSILENT ocupado por {quien}: esperando turno.')
                 ultimo_aviso = reloj()
@@ -184,11 +192,9 @@ def conectar(guion: str, *, espera_s: float = ESPERA_S, modulo: Any = None,
         print(f'Conectado a DIgSILENT como {usuario} (proceso que se queda abierto).',
               flush=True)
         return _APP_COMPARTIDA
+    salida_sin_bufer()                                                     # RF-15
     if modulo is None:
-        try:
-            modulo = importlib.import_module('powerfactory')
-        except ImportError as exc:
-            raise PFNoDisponible(f'API de DIgSILENT no disponible ({exc}).') from exc
+        modulo = importar_api()
     ruta = tomar_turno(guion, espera_s=espera_s, aviso=aviso, reloj=reloj, dormir=dormir,
                        **turno)
     atexit.register(soltar_turno, ruta)
@@ -212,6 +218,41 @@ def conectar(guion: str, *, espera_s: float = ESPERA_S, modulo: Any = None,
     # limitado y, si no llega, corta el guion (005:RF-21, 019:RF-6).
     print(f'Conectado a DIgSILENT como {usuario} ({reloj() - inicio:.0f} s).', flush=True)
     return app
+
+
+def salida_sin_bufer() -> None:
+    """La salida del guion línea a línea también cuando va a un fichero (RF-15).
+
+    Redirigida, Python la guarda en bloques: la limpieza de Chincha (2026-10-18) no mostró
+    nada en 10 minutos y no se sabía si esperaba turno o borraba.
+    """
+    for flujo in (sys.stdout, sys.stderr):
+        try:
+            flujo.reconfigure(line_buffering=True)
+        except (AttributeError, ValueError):
+            pass                       # un flujo sustituido (pruebas, servidor): ya va así
+
+
+def importar_api(importar: Callable[[str], Any] = importlib.import_module,
+                 carpeta: Callable[[], Path | None] | None = None) -> Any:
+    """El módulo ``powerfactory``, buscado también en la instalación de DIgSILENT (RF-16).
+
+    Cada sonda de esta sesión (2026-10-18) fallaba con «No module named 'powerfactory'»
+    hasta poner el ``PYTHONPATH`` a mano; la web ya lo ponía a sus guiones.
+    """
+    try:
+        return importar('powerfactory')
+    except ImportError as primero:
+        if carpeta is None:
+            from .powerfactory_env import pf_python_dir as carpeta
+        ruta = carpeta()
+        if ruta is None or str(ruta) in sys.path:
+            raise PFNoDisponible(f'API de DIgSILENT no disponible ({primero}).') from primero
+        sys.path.insert(0, str(ruta))
+        try:
+            return importar('powerfactory')
+        except ImportError as exc:
+            raise PFNoDisponible(f'API de DIgSILENT no disponible en {ruta} ({exc}).') from exc
 
 
 @contextmanager
@@ -264,6 +305,24 @@ def ruta_cola() -> Path:
     if os.environ.get(VARIABLE_COLA):
         return Path(os.environ[VARIABLE_COLA])
     return ruta_turno().parent / 'cola_pf'
+
+
+#: Fichero de la cola con el que se pide al servidor ocioso que se cierre (RF-14).
+CIERRE = 'cerrar.pedido'
+
+
+def pedir_cierre_si_ocioso(dueno: dict | None) -> bool:
+    """Pide al servidor que tiene el turno que se cierre si no tiene órdenes (RF-14).
+
+    Devuelve si lo pidió. Con una orden en curso o en fila no se toca: es trabajo de otro.
+    """
+    if not dueno or dueno.get('guion') != SERVIDOR:
+        return False
+    cola = ruta_cola()
+    if not cola.is_dir() or any(cola.glob('*.en_curso.json')) or any(cola.glob('*.orden.json')):
+        return False
+    (cola / CIERRE).write_text(str(os.getpid()), encoding='utf-8')
+    return True
 
 
 def servidor_vivo(ruta: Path | None = None) -> dict | None:
