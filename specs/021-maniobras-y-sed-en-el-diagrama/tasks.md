@@ -229,7 +229,7 @@ Añadido el 2026-10-17 (calibrar NA203 y NA205 con su central en julio y a la ve
       posiciones en `ajuste_cabecera.py`, colocación en la troncal y recalibración en
       `tools/ajuste_cabecera_pf.py`, casilla en 2.4.
       Hecho cuando: pruebas del cálculo, del guion con `fake_pf`, de la web y del front en verde.
-- [ ] T17. Calibrar NA203 y NA205 con su central en «20261016-160231_IGEA_NA203_NA205»
+- [x] T17. Calibrar NA203 y NA205 con su central en «20261016-160231_IGEA_NA203_NA205»
       desde la web, en julio y en el instante de la máxima de NA203. (RF-50, RF-51)
       Hecho cuando: el ajuste aplicado cuadra en DIgSILENT y su informe lo dice.
       2026-10-17, desde la web y por proyecto (T18), registro del 2026-07-23 10:00: los
@@ -252,3 +252,13 @@ Añadido el 2026-10-17 (calibrar NA203 y NA205 con su central en julio y a la ve
       déficit (2 537 frente a 2 535). Los dos cuadran en kW, pero el flujo no converge desde
       el primer intento sin `iopt_lev` ni con las escaladas al 1,7 %: no es la tensión ni la
       compensación. Falta aislar qué isla (cada alimentador tiene su fuente) no converge.
+      Aislada con los mensajes de DIgSILENT: NA203 solo converge en 3 iteraciones; la isla de
+      NA205 no, con el Newton estancado en SE50293_BT: un cliente fijo de 1 392 kW sobre 125
+      kVA, que no se avisaba porque con central no se miraban las fijas sobre su
+      transformador (arreglado, 020:RF-1). Con los 5 transformadores de NA205 con su ficha
+      (SE50293 3 × 630, SE50156 2 × 630, SE50100 2 × 630, SE50180 1 × 400, SE50184 1 × 500)
+      y sin el registro de una calibración no guardada (arreglado: solo se registra la que
+      queda en el escenario), cerrada el 2026-10-17 desde la web: los dos cuadran en el
+      mismo flujo, en 2 flujos y sin ningún remedio, con la validación física correcta.
+      NA203 9 190,9 de 9 244 kW (−0,57 %); NA205 aguas arriba 936,8 de 934,6 kW y aguas
+      abajo 7 145,1 de 7 177,9 kW, cabecera −1 570,0 frente a −1 520,8 medidos.
