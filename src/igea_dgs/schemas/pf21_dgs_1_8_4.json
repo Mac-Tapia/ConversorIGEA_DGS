@@ -15,7 +15,7 @@
     "ElmShnt": "$$ElmShnt;FID(a:40);OP(a:1);loc_name(a:40);fold_id(p);systp(i);ctech(i);shtype(i);ushnm(r);mode_inp(a:3);qcapn(r);ncapx(i);ncapa(i);outserv(i);qrean(r);qtotn(r);tandc(r);fres(r);greaf0(r);grea(r);bcap(r);xrea(r);rrea(r);gparac(r);iswitch(i);imldc(a:2);usetp_mx(r);usetp_mn(r);qsetp_mx(r);qsetp_mn(r);iQorient(i);ilcph(i)",
     "ElmSubstat": "$$ElmSubstat;FID(a:40);OP(a:1);loc_name(a:40);fold_id(p);sShort(a:6);sType(a:80);GPSlat(r);GPSlon(r)",
     "ElmSym": "$$ElmSym;FID(a:40);OP(a:1);loc_name(a:40);fold_id(p);typ_id(p);cCategory(a);ngnum(i);i_mot(i);pgini(r);qgini(r);cosgini(r);usetp(r);pf_recap(i);q_min(r);q_max(r);outserv(i);av_mode(a);phtech(i)",
-    "ElmTerm": "$$ElmTerm;FID(a:40);OP(a:1);loc_name(a:40);fold_id(p);typ_id(p);systype(i);iUsage(i);uknom(r);unknom(r);iminus(i);outserv(i);GPSlat(r);GPSlon(r);vtarget(r)",
+    "ElmTerm": "$$ElmTerm;FID(a:40);OP(a:1);loc_name(a:40);fold_id(p);typ_id(p);systype(i);iUsage(i);uknom(r);unknom(r);iminus(i);outserv(i);GPSlat(r);GPSlon(r);vtarget(r);cpZone(p)",
     "ElmTr2": "$$ElmTr2;FID(a:40);OP(a:1);loc_name(a:40);fold_id(p);typ_id(p);ntnum(i);outserv(i);nntap(i);i_auto(i);ntrcn(i);usetp(r);usp_low(r);usp_up(r);t2ldc(i)",
     "ElmTr3": "$$ElmTr3;FID(a:40);OP(a:1);loc_name(a:40);fold_id(p);nt3nm(i);typ_id(p);outserv(i);n3tap_h(i);n3tap_m(i);n3tap_l(i);i_auto_hl(i);ictrlside(i);ntrcn(i);t3ldc(i);usetp(r);usp_low(r);usp_up(r)",
     "ElmVoltreg": "$$ElmVoltreg;FID(a:40);OP(a:1);loc_name(a:40);fold_id(p);typ_id(p);outserv(i);i_pcReglim(i);igang(i);nntap1(i);nntap2(i);nntap3(i);ntrcn(i);i_cont(i);usetp(r);usp_low(r);usp_up(r)",
@@ -34,7 +34,8 @@
     "TypTr2": "$$TypTr2;FID(a:40);OP(a:1);loc_name(a:40);nt2ph(i);strn(r);frnom(r);utrn_h(r);utrn_l(r);uktr(r);pcutr(r);uk0tr(r);ur0tr(r);tr2cn_h(a:2);tr2cn_l(a:2);nt2ag(r);curmg(r);pfe(r);zx0hl_n(r);itapch(i);tap_side(i);dutap(r);phitr(r);nntap0(i);ntpmn(i);ntpmx(i);manuf(a:20)",
     "TypTr3": "$$TypTr3;FID(a:40);OP(a:1);loc_name(a:40);strn3_h(r);strn3_m(r);strn3_l(r);utrn3_h(r);utrn3_m(r);utrn3_l(r);uktr3_h(r);uktr3_m(r);uktr3_l(r);pcut3_h(r);pcut3_m(r);pcut3_l(r);uk0hm(r);uk0ml(r);uk0hl(r);ur0hm(r);ur0ml(r);ur0hl(r);tr3cn_h(a:2);tr3cn_m(a:2);tr3cn_l(a:2);nt3ag_h(r);nt3ag_m(r);nt3ag_l(r);curm3(r);pfe(r);du3tp_h(r);ph3tr_h(r);n3tp0_h(i);n3tmn_h(i);n3tmx_h(i);du3tp_m(r);ph3tr_m(r);n3tp0_m(i);n3tmn_m(i);n3tmx_m(i);du3tp_l(r);ph3tr_l(r);n3tp0_l(i);n3tmn_l(i);n3tmx_l(i);itapos(i);i3loc(i)",
     "Matrix": "$$Matrix;FID(a:40);MatColumn(i);MatRow(i);Val(r)",
-    "TypVoltreg": "$$TypVoltreg;FID(a:40);OP(a:1);loc_name(a:40);type(i);config(i);frnom(r);Un(r);In(r);pcReg(r);nntap0(i);ntapmin(i);ntapmax(i);uk(r);pcu(r)"
+    "TypVoltreg": "$$TypVoltreg;FID(a:40);OP(a:1);loc_name(a:40);type(i);config(i);frnom(r);Un(r);In(r);pcReg(r);nntap0(i);ntapmin(i);ntapmax(i);uk(r);pcu(r)",
+    "ElmZone": "$$ElmZone;FID(a:40);OP(a:1);loc_name(a:40);fold_id(p);icolor(i);desc(a:250)"
   },
   "table_order": [
     "General",
@@ -53,6 +54,7 @@
     "ElmTr3",
     "ElmVoltreg",
     "ElmXnet",
+    "ElmZone",
     "IntGrf",
     "IntGrfcon",
     "IntGrfnet",
