@@ -225,3 +225,11 @@ Añadido el 2026-10-17 (calibrar NA203 y NA205 con su central en julio y a la ve
 - [ ] T17. Calibrar NA203 y NA205 con su central en «20261016-160231_IGEA_NA203_NA205»
       desde la web, en julio y en el instante de la máxima de NA203. (RF-50, RF-51)
       Hecho cuando: el ajuste aplicado cuadra en DIgSILENT y su informe lo dice.
+      2026-10-17, desde la web y por proyecto (T18), registro del 2026-07-23 10:00: los
+      dos cuadran en kW en los mismos 18 flujos (NA203 9 242,9 de 9 244 kW; NA205 aguas
+      arriba 931,0 de 934,6 y aguas abajo 7 174,8 de 7 177,9; cabecera −1 546,1 frente a
+      −1 520,8 medidos), pero solo converge con «adaptación automática del modelo» y 78
+      cargas no consumen lo escrito: no es válida y vuelve a como estaba. Causa: 6 SED
+      fijas de NA203 por encima de su transformador (SE50290 396 %, SE50150 297 %, SE50162
+      232 %, SE50225 211 %, SE50307 108 %, SE50123 102 %). Falta implementar sus
+      transformadores (spec 020) o corregir el cruce y recalibrar.

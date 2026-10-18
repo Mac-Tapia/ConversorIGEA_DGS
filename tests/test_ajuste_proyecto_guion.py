@@ -112,3 +112,14 @@ def test_proyectos_distintos_no_se_mezclan(guion):
     otro['project'] = 'Q'
     res = guion.ejecutar_proyecto(_app(escenario=True), [_plan(), otro])
     assert all(rc == 2 and 'un mismo proyecto' in i['error'] for i, rc in res)
+
+
+def test_aviso_fisico_con_el_historial_del_proyecto(guion):
+    """021:RF-55 — el historial del proyecto lleva un factor por alimentador; el aviso de
+    015:RF-51 toma el de su alimentador (NA203 + NA205, 2026-10-17: ``TypeError``)."""
+    historial = [{'a': {'F1': 0.8, 'F2': 0.5}, 'converge': False},
+                 {'a': {'F1': 0.4, 'F2': 0.7}, 'converge': False},
+                 {'a': {'F1': 0.6, 'F2': 0.6}, 'converge': True}]
+    assert guion._factor_minimo_sin_converger(historial, 'F1') == 0.4
+    assert guion._factor_minimo_sin_converger(historial, 'F2') == 0.5
+    assert guion._factor_minimo_sin_converger([{'a': 0.3, 'converge': False}]) == 0.3

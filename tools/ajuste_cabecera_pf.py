@@ -1401,20 +1401,25 @@ def _ejecutar_con_central(app, plan: dict, informe: dict, *, alims, elm, feeder:
     return informe, (0 if informe.get('cuadrado') and not informe.get('fallos') else 2)
 
 
-def _factor_minimo_sin_converger(historial) -> float | None:
+def _factor_minimo_sin_converger(historial, clave: str | None = None) -> float | None:
     """El menor factor de las escaladas con el que el flujo no convergió antes del primero
-    que sí, o ``None`` si convergió sin remedios."""
+    que sí, o ``None`` si convergió sin remedios. En el ajuste de un proyecto el historial
+    lleva un factor por alimentador (021:RF-55): ``clave`` dice cuál; NA203 + NA205
+    (2026-10-17) acabó en un ``TypeError`` comparando los diccionarios."""
     menor = None
     for paso in historial or []:
         if paso.get('converge'):
             return menor
         a = paso.get('a')
+        if isinstance(a, dict):
+            a = a.get(clave)
         if a is not None and (menor is None or a < menor):
             menor = a
     return menor
 
 
-def aviso_consumo_fisico(validacion: dict, historial=None, sobre=None) -> str | None:
+def aviso_consumo_fisico(validacion: dict, historial=None, sobre=None,
+                         clave: str | None = None) -> str | None:
     """El aviso de 015:RF-49 a RF-51 para el operador, o ``None`` si todas consumen bien.
 
     Con el ``historial`` del cuadre y las fijas ``sobre`` su transformador (RF-59) dice
@@ -1439,7 +1444,7 @@ def aviso_consumo_fisico(validacion: dict, historial=None, sobre=None) -> str | 
                       f"{peor['p_consumida_kw']:,.1f} kW{tension})")
     if fallo.get('causa_probable'):
         partes.append('causa probable: ' + fallo['causa_probable'])
-    minimo = _factor_minimo_sin_converger(historial)
+    minimo = _factor_minimo_sin_converger(historial, clave)
     if fallo.get('causa_probable') and minimo is not None:
         partes.append(f'sin ese ajuste el flujo no converge ni con las escaladas al '
                       f'{minimo:.1%} de su kVA, así que lo impiden las fijas')
@@ -2126,6 +2131,7 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict) -> l
     fallos: dict[str, list] = {f: [] for f in preps}
     invalidos: list[str] = []
     res = None
+    guardado = False          # el escenario con la calibración válida, guardado
     try:
         # La marca fija o escalable es dato de red (015:RF-37): se escribe con todas las
         # variaciones de las centrales apagadas, para que la de NA203 no caiga en la etapa
@@ -2223,6 +2229,7 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict) -> l
                     inf['calibracion_revertida'] = True
         if res.repartos is not None and not invalidos:
             escenario.Save()
+            guardado = res.cuadrado
             for f, p in preps.items():
                 informes[f]['escenarios'] = [{'escenario': escenario.loc_name,
                                               'cargas': len(p['cargas']) - len(p['con_manual']),
@@ -2267,7 +2274,7 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict) -> l
                 sin.Activate()
     finally:
         # 015:RF-46: un solo ComLdf para el proyecto; sus ajustes se quedan si cuadró.
-        if res is not None and remedios.originales and res.cuadrado and not invalidos:
+        if remedios.originales and guardado:
             aplicados = remedios.aplicados()
             if con is not None:
                 con.Activate()
@@ -2337,7 +2344,7 @@ def _cerrar_alimentador_en_proyecto(app, alims, feeder: str, p: dict, inf: dict,
             inf['status'] = 'FALLO_VALIDACION_NATIVA'
             inf['resultado_carga_nativa'] = {'status': 'FALLO_VALIDACION_NATIVA', 'bloquea': True}
             aviso = aviso_consumo_fisico(validacion, res.historial,
-                                         inf.get('fijas_sobre_su_transformador'))
+                                         inf.get('fijas_sobre_su_transformador'), feeder)
             if aviso:
                 inf['avisos'].append(aviso)
             inf['fallos'].extend({'sed': x.get('sed'), 'error': f"validación nativa: {x.get('tipo')}",
