@@ -126,7 +126,8 @@ def test_aviso_fisico_con_el_historial_del_proyecto(guion):
 
 
 def test_consigna_de_la_fuente_en_los_dos_casos(guion):
-    """021:RF-61, 021:RF-62 — la tensión en la fuente va a cada red externa en «Sin
+    """021:RF-61, 021:RF-62, 022:RF-24 — la tensión en la fuente va a cada red externa (una por
+    barra de SET en la red unida) en «Sin
     proyecto» y «Con proyecto», se guarda su escenario, vuelve el primero activo y sale en
     la tabla de cambios con la original y la nueva; si ya la tiene, no es un cambio."""
     from types import SimpleNamespace
@@ -216,3 +217,35 @@ def test_con_central_tambien_avisa_la_fija_sobre_su_transformador(guion):
     informe, _rc = guion.ejecutar(app, plan, simular=True)
     [x] = informe['fijas_sobre_su_transformador']
     assert x['sed'] == 'F1_S2' and x['carga_pct'] > 100 and x['propuesta']['kva']
+
+
+def test_cabecera_en_el_interruptor_de_una_barra_de_set(guion):
+    """022:RF-22, 022:RF-23 — con el ElmFeeder en el interruptor de cabecera (barra de SET
+    compartida con una sola red externa), se mide ese interruptor y no la red externa, que
+    sumaría todos los alimentadores de la barra."""
+    from types import SimpleNamespace
+
+    class O(SimpleNamespace):
+        def GetClassName(self):
+            return self.clase
+
+        def GetParent(self):
+            return self.padre
+
+        def GetContents(self, _f):
+            return self.hijos
+
+    barra = O(clase='ElmTerm', loc_name='B_SET51_22p9kV', hijos=[])
+    cab_a = O(clase='ElmCoup', loc_name='CAB_NA203', outserv=0,
+              **{'m:Psum:bus1': 9.19, 'm:Qsum:bus1': 1.75})
+    cab_b = O(clase='ElmCoup', loc_name='CAB_NA205', outserv=0,
+              **{'m:Psum:bus1': -1.57, 'm:Qsum:bus1': 3.1})
+    xnet = O(clase='ElmXnet', loc_name='External Grid SET 51', outserv=0,
+             **{'m:Psum:bus1': -7.62, 'm:Qsum:bus1': -4.85})
+    cubs = [O(clase='StaCubic', loc_name=f'Cub1_{o.loc_name}', obj_id=o, obj_bus=0, padre=barra)
+            for o in (cab_a, cab_b, xnet)]
+    barra.hijos = cubs
+    elm = O(clase='ElmFeeder', obj_id=cubs[0], iorient=0)
+    m = guion.leer_cabecera(elm)
+    assert m.converge and m.kw == pytest.approx(9190.0) and m.kvar == pytest.approx(1750.0)
+    assert guion.detalle_cabecera(elm)['metodo'] == 'INTERRUPTOR_DE_CABECERA'
