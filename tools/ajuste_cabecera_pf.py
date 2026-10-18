@@ -406,8 +406,61 @@ def bancos_a_su_maxima_capacidad(alims: Alimentadores, feeder: str) -> list[dict
         despues = {'escalones': _num(o, 'ncapa'),
                    'en_servicio': not int(getattr(o, 'outserv', 0) or 0)}
         if despues != antes:
-            cambios.append({'banco': o.loc_name, 'antes': antes, 'despues': despues})
+            escalon = _num(o, 'qcapn')
+            barra, sed = _barra_y_sed(o)
+            cambios.append({'banco': o.loc_name, 'barra': barra, 'sed': sed,
+                            'kvar_escalon': None if escalon is None else escalon * 1000.0,
+                            'antes': antes, 'despues': despues})
     return cambios
+
+
+def _barra_y_sed(o) -> tuple[str | None, str | None]:
+    """La barra de un banco y la SED en la que está, si está dentro de una (021:RF-11)."""
+    try:
+        barra = o.bus1.cterm
+    except Exception:  # noqa: BLE001 - banco sin conectar
+        return None, None
+    padre = barra.GetParent() if hasattr(barra, 'GetParent') else None
+    sed = (padre.loc_name if padre is not None and getattr(padre, 'GetClassName', lambda: '')()
+           == 'ElmSubstat' else None)
+    return getattr(barra, 'loc_name', None), sed
+
+
+def cambios_en_la_red(informe: dict) -> list[dict]:
+    """Cada elemento de la red que cambió la calibración, con lo original y lo nuevo (020:RF-60, RF-61).
+
+    El usuario, el 2026-10-17, tras los 6 transformadores de NA203: «todos los cambios que
+    se hacen se deben reportar como original existente con su potencia instalada y el
+    valor de potencia cambiada con sus respectivos códigos SED». Un transformador, como
+    unidades × kVA y su total; un banco, como escalones conectados × kvar por escalón.
+    """
+    filas = []
+    for c in (informe.get('transformadores_implementados') or {}).get('cambios') or []:
+        lados = {}
+        for lado, x in (('original', c['antes']), ('nuevo', c['despues'])):
+            unidades, kva = x.get('unidades'), x.get('kva')
+            total = unidades * kva if unidades is not None and kva is not None else None
+            lados[lado] = {'descripcion': f"{unidades} × {kva:g} kVA ({x.get('tipo') or '—'})"
+                           if total is not None else (x.get('tipo') or '—'),
+                           'potencia': total, 'unidad': 'kVA'}
+        filas.append({'sed': c['sed'], 'elemento': c['transformador'], 'clase': 'transformador',
+                      **lados, 'motivo': 'transformador nuevo con su ficha (020:RF-16)'})
+    for b in informe.get('bancos_puestos_a_maxima') or []:
+        q = b.get('kvar_escalon')
+        lados = {}
+        for lado, x in (('original', b['antes']), ('nuevo', b['despues'])):
+            pasos = x.get('escalones')
+            servicio = '' if x.get('en_servicio') else ', fuera de servicio'
+            lados[lado] = {
+                'descripcion': (f'{pasos:g} escalón(es) × {q:g} kvar{servicio}' if pasos is not None
+                                and q is not None else f'{pasos} escalón(es){servicio}'),
+                'potencia': (pasos * q if pasos is not None and q is not None
+                             and x.get('en_servicio') else 0.0 if not x.get('en_servicio') else None),
+                'unidad': 'kvar'}
+        filas.append({'sed': b.get('sed') or b.get('barra') or '', 'elemento': b['banco'],
+                      'clase': 'banco', **lados,
+                      'motivo': 'banco existente a su máxima capacidad (015:RF-66)'})
+    return filas
 
 
 def _objetos_banco(alims: Alimentadores, feeder: str) -> list:
@@ -1478,9 +1531,13 @@ def ejecutar(app, plan: dict, *, simular: bool = False, cancelado=lambda: False)
     """Simula o aplica el ajuste. Devuelve (informe, código de salida)."""
     estado = {'apartadas': []}
     try:
-        return _ejecutar(app, plan, simular=simular, cancelado=cancelado, estado=estado)
+        informe, rc = _ejecutar(app, plan, simular=simular, cancelado=cancelado, estado=estado)
     finally:
         _devolver_cargas_nuevas(app, estado)
+    cambios = cambios_en_la_red(informe)                                # 020:RF-60
+    if cambios:
+        informe['cambios_en_la_red'] = cambios
+    return informe, rc
 
 
 def _preparar_alimentador(app, plan: dict, informe: dict, *, alims, feeder: str,
@@ -2311,6 +2368,10 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict) -> l
     for f in preps:
         inf = informes[f]
         salida[f] = (inf, 0 if inf.get('cuadrado') and not inf.get('fallos') else 2)
+    for inf, _rc in salida.values():
+        cambios = cambios_en_la_red(inf)                                # 020:RF-60
+        if cambios:
+            inf['cambios_en_la_red'] = cambios
     return [salida[f] for f in feeders]
 
 

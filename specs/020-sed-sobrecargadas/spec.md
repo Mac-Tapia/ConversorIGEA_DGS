@@ -125,6 +125,19 @@ Tabla de fichas en el perfil
 - RF-31: SI una fila de la tabla está incompleta o tiene un valor no positivo, ENTONCES EL
   SISTEMA no propondrá con esa fila y nombrará la fila y el perfil.
 
+Cambios en la red, lo original y lo nuevo (usuario, 2026-10-17: «todos los cambios que
+se hacen se deben reportar como original existente con su potencia instalada y el valor de
+potencia cambiada con sus respectivos códigos SED»)
+
+- RF-60: CUANDO la calibración cambia un elemento de la red (un transformador de RF-16, un
+  banco puesto a su máxima capacidad de 015:RF-66), EL SISTEMA lo reportará en una tabla
+  de cambios con el código de su SED (o la barra, si no es de una SED), el elemento, lo
+  original existente con su potencia instalada y lo nuevo con su potencia.
+- RF-61: EL SISTEMA dará la potencia instalada de un transformador como unidades × kVA y
+  su total en kVA, y la de un banco como escalones conectados × kvar por escalón.
+- RF-62: EL SISTEMA mostrará la tabla de cambios en el resultado del ajuste de la web y la
+  guardará en el informe del ajuste.
+
 ## Requisitos no funcionales
 
 - Ninguna norma, potencia ni umbral en el código: todo viene del perfil de empresa (P13).

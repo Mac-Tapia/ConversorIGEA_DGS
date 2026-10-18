@@ -752,6 +752,8 @@ export interface ClienteImportante {
   sed: string;
   radial: string;
   motivo: string;
+  /** 004:RF-56: vacío si el libro no trae nombre. */
+  nombre: string;
 }
 
 export interface ClientesCruce {
@@ -1029,6 +1031,8 @@ export interface AjusteInforme {
       despues: { tipo: string; kva: number; unidades: number; norma?: string } }[];
     omitidas: { sed: string; motivo: string }[];
   };
+  /** Spec 020, RF-60, RF-61: cada elemento cambiado, lo original existente y lo nuevo. */
+  cambios_en_la_red?: CambioEnLaRed[];
   /** Spec 020, RF-26, RF-32: lo que dejaron en la recalibración. */
   resultado_transformadores?: {
     status: 'VALIDO' | 'FALLO'; calibracion_valida: boolean; sobrecargadas: string[];
@@ -1354,3 +1358,13 @@ export interface GuionResultado {
   resultados: { caso: string; codigo_guion: number | null; salida: string[]; error: string | null; no_terminado: boolean }[];
 }
 
+
+/** Spec 020, RF-60: un elemento de la red que cambió la calibración. */
+export interface CambioEnLaRed {
+  sed: string;
+  elemento: string;
+  clase: 'transformador' | 'banco';
+  original: { descripcion: string; potencia: number | null; unidad: 'kVA' | 'kvar' };
+  nuevo: { descripcion: string; potencia: number | null; unidad: 'kVA' | 'kvar' };
+  motivo: string;
+}

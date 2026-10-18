@@ -640,8 +640,8 @@ def test_excel_de_salida(tmp_path):
     wb = openpyxl.load_workbook(destino)
     assert wb.sheetnames == ['Cabecera', 'Clientes', 'No cruzados']
     assert wb['Cabecera']['F2'].value == 5.0 and wb['Cabecera']['K2'].value == 'sí'
-    assert wb['Clientes']['E2'].value == 'E1'
-    assert wb['No cruzados']['J2'].value == 'no está'
+    assert wb['Clientes']['F2'].value == 'E1'
+    assert wb['No cruzados']['K2'].value == 'no está'
 
 
 # =========================================================================== datos reales
@@ -864,3 +864,18 @@ def test_central_en_el_instante_coincidente():
     assert r2.fecha == raro.isoformat(sep=' ') and any('fuera de lo normal' in a for a in r2.avisos)
     r3 = dm.demanda_con_central(cab, gen, lle, sal, periodo='2026-07')
     assert r3.fecha.startswith('2026-07')
+
+
+def test_nombre_del_cliente_en_el_cruce(tmp_path):
+    """004:RF-56, 004:RF-57 — el nombre de la columna «CLIENTE»; el formato antiguo no lo
+    trae y queda vacío; el Excel del cruce lleva la columna «Cliente»."""
+    from openpyxl import load_workbook
+
+    nuevos, _ = dm.leer_clientes(_libro(tmp_path / 'cn.xlsx', FORMATO_NUEVO))
+    assert [c.nombre for c in nuevos] == ['C1', 'C4']
+    antiguos, _ = dm.leer_clientes(_libro(tmp_path / 'ci.xlsx', FORMATO_ANTIGUO))
+    assert {c.nombre for c in antiguos} == {''}
+    destino = dm.escribir_excel(tmp_path / 'x.xlsx', clientes=[c.to_dict() for c in nuevos])
+    hoja = load_workbook(destino)['Clientes']
+    cabecera = [c.value for c in hoja[1]]
+    assert cabecera[1] == 'Cliente' and hoja.cell(2, 2).value == 'C1'

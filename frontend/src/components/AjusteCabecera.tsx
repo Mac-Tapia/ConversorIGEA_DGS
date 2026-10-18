@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { api, fmtNum } from '../api';
 import { useApp } from '../context';
 import type {
-  AjusteInforme, AjustePlan, AjusteResultado, BalanceCabecera, CentralTermica, ConsumoDistinto, Job,
+  AjusteInforme, AjustePlan, AjusteResultado, BalanceCabecera, CambioEnLaRed, CentralTermica, ConsumoDistinto, Job,
   MaximaCabecera, MaximaConCentral, SedSobrecargada,
 } from '../types';
 import { CurvaCabecera } from './CurvaCabecera';
@@ -233,6 +233,7 @@ function InformeAjuste({ inf, report, cancelado, token }: {
         <SedSobrecargadas inf={inf} token={token} />
       )}
       {inf.transformadores_implementados && <TransformadoresImplementados inf={inf} />}
+      {(inf.cambios_en_la_red ?? []).length > 0 && <CambiosEnLaRed filas={inf.cambios_en_la_red!} />}
       {simular && <p className="muted">Nada se ha escrito en el proyecto. Es el reparto antes de las pérdidas: al ajustar,
         las SED repartidas suben lo que pidan las pérdidas.</p>}
       {!simular && revertida && (
@@ -545,6 +546,28 @@ function SedSobrecargadas({ inf, token }: { inf: AjusteInforme; token: string | 
             existentes no se tocan. Después se vuelve a calibrar.</small>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Spec 020, RF-60 a RF-62: cada cambio en la red, lo original existente y lo nuevo. */
+function CambiosEnLaRed({ filas }: { filas: CambioEnLaRed[] }) {
+  const pot = (p: number | null, u: string) => (p === null ? '—' : `${fmtNum(p, 0)} ${u}`);
+  return (
+    <div className="table-wrap">
+      <strong>Cambios en la red: {filas.length}</strong>
+      <table className="small">
+        <thead><tr><th>SED</th><th>Elemento</th><th>Original existente</th><th>Potencia instalada</th>
+          <th>Nuevo</th><th>Potencia nueva</th><th>Motivo</th></tr></thead>
+        <tbody>{filas.map((f) => (
+          <tr key={`${f.clase}-${f.elemento}`}>
+            <td className="mono">{f.sed || '—'}</td><td className="mono">{f.elemento}</td>
+            <td>{f.original.descripcion}</td><td className="num">{pot(f.original.potencia, f.original.unidad)}</td>
+            <td>{f.nuevo.descripcion}</td><td className="num">{pot(f.nuevo.potencia, f.nuevo.unidad)}</td>
+            <td className="muted">{f.motivo}</td>
+          </tr>
+        ))}</tbody>
+      </table>
     </div>
   );
 }
