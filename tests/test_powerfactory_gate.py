@@ -591,3 +591,23 @@ def test_la_aceptacion_compara_el_trazado_de_cada_linea_con_el_manifiesto():
     assert r == {'with_path': 2, 'compared': 3, 'mismatches': 2,
                  'mismatch_sample': ['SEC_2', 'SEC_3']}
     assert mod.compare_line_gps(lineas[:1], manifest)['mismatches'] == 0
+
+
+def test_la_barra_renombrada_dentro_de_su_sed_sigue_siendo_interna():
+    """023:RF-9 — DIgSILENT renombra con «(n)» la barra de media de una SED que choca con
+    otro objeto suyo (SE42014 y SE42176 de SISTEMA_ICA desde VNR-GIS): sigue siendo interna
+    de la SED y no se cuenta como barra de la red."""
+    mod = _load_pf_mod()
+
+    class Obj(_ObjPF):
+        def GetClassName(self):
+            return self.clase
+
+    datos = Obj('Network Data')
+    red = Obj('Ica', datos, 'ElmNet')
+    sed = Obj('SE42014', red, 'ElmSubstat')
+    for nombre in ('SE42014(1)', 'SE42014_BT'):
+        Obj(nombre, sed, 'ElmTerm')
+    Obj('NODO_1', red, 'ElmTerm')
+    inventario = mod.inventory_network(red)
+    assert inventario['nodes_sed_internal'] == 2 and inventario['nodes'] == 1
