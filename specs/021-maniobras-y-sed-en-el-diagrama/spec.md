@@ -160,8 +160,11 @@ Central térmica en la calibración
   le escribirá la P y Q, sin crear otro.
 - RF-37: EL SISTEMA no tocará el «Caso base»: la central pasa a «Con proyecto» como parte de
   su copia (014).
-- RF-38: SI el nodo declarado no está en el troncal del alimentador en DIgSILENT, ENTONCES
-  EL SISTEMA rechazará el plan nombrando el nodo y el alimentador.
+- RF-38: SI el nodo declarado no está en el alimentador en DIgSILENT, ENTONCES EL SISTEMA
+  rechazará el plan nombrando el nodo y el alimentador; SI está pero fuera del camino más
+  largo (la troncal), ENTONCES lo dirá y calibrará por zonas con lo de aguas abajo de su
+  barra. (Cambiado el 2026-10-18: en el NA205 del TXT la central 1720 queda en serie en otra
+  rama que la del camino más largo.)
 - RF-39: EL SISTEMA separará las cargas del alimentador en las de aguas arriba y las de
   aguas abajo del nodo de la central.
 - RF-40: EL SISTEMA ajustará las cargas escaladas de aguas abajo con un factor de escala

@@ -1155,11 +1155,14 @@ def _misma_pf(a, b) -> bool:
 
 
 def barra_de_la_central(app, elm, nodo: str):
-    """La barra ``nodo`` del troncal del alimentador y la parte aguas abajo (021:RF-38, RF-39).
+    """La barra ``nodo`` del alimentador y la parte aguas abajo (021:RF-38, RF-39).
 
     El ``ElmFeeder`` da sus objetos según la última topología calculada: se corre un
-    flujo antes de leer la red. Devuelve ``(barra, subárbol)`` o lanza ``ValueError`` con
-    el nodo y el alimentador.
+    flujo antes de leer la red. Devuelve ``(barra, subárbol, aviso)`` o lanza
+    ``ValueError`` con el nodo y el alimentador. Fuera del camino más largo (la troncal)
+    no se rechaza: en el NA205 del TXT (sistema Nasca, 2026-10-18) ese camino va por otra
+    rama, a 37 km, y la central 1720 queda en serie en la suya, a 15 km; las zonas solo
+    piden lo de aguas abajo de su barra, que es lo que miden su llegada y su salida.
     """
     from cargas_pf import cabecera_de, leer_red
 
@@ -1183,13 +1186,13 @@ def barra_de_la_central(app, elm, nodo: str):
     tramos = red.por_nombre()
     en_troncal = {cabecera.loc_name} | {b for t in tronco.tramos
                                         for b in (tramos[t].desde, tramos[t].hasta)}
-    if nodo not in en_troncal:
-        raise ValueError(f'la barra {nodo!r} de la central no está en el troncal de '
-                         f'{elm.loc_name}: la central va en serie en el troncal (021:RF-38)')
+    aviso = (None if nodo in en_troncal else
+             f'la barra {nodo!r} de la central no está en el camino más largo de {elm.loc_name}: '
+             'se calibra por zonas con lo que tiene aguas abajo de ella (021:RF-38)')
     if parte.entrada is None:
         raise ValueError(f'la barra {nodo!r} es la cabecera de {elm.loc_name}: ahí no hay zona '
                          'aguas arriba')
-    return barra, parte
+    return barra, parte, aviso
 
 
 def barra_mt_de(carga) -> str | None:
@@ -1335,9 +1338,11 @@ def _preparar_central(app, plan: dict, informe: dict, *, elm, feeder: str, carga
     except AjusteError as exc:
         return {**informe, 'error': str(exc)}, 2
     try:
-        barra, parte = barra_de_la_central(app, elm, str(central.get('nodo') or '').strip())
+        barra, parte, aviso = barra_de_la_central(app, elm, str(central.get('nodo') or '').strip())
     except ValueError as exc:
         return {**informe, 'error': str(exc)}, 2                                    # RF-38
+    if aviso:
+        informe['avisos'].append(aviso)
     arriba, abajo = cargas_por_zona(cargas, parte.barras)                          # RF-39
     zonas = {'arriba': arriba, 'abajo': abajo}
     # ``fijas_de`` las da por su código de SED tal como viene en el libro; se reparten por

@@ -139,3 +139,18 @@ def test_sin_central_el_plan_de_siempre(guion):
     plan['objetivo']['kw'] = 300.0
     informe, _rc = guion.ejecutar(app, plan)
     assert _gens(app) == [] and 'zonas' not in informe
+
+
+def test_la_central_fuera_del_camino_mas_largo_avisa_y_calibra(guion, monkeypatch):
+    """021:RF-38 — la barra de la central en el alimentador pero fuera del camino más largo
+    (NA205 del TXT, 2026-10-18: la central 1720 en otra rama): se avisa y se calibra igual
+    por zonas."""
+    import igea_dgs.troncal as tr
+
+    original = tr.troncal
+    monkeypatch.setattr(tr, 'troncal', lambda red, cab: tr.Troncal(original(red, cab).tramos[:1], 1.0))
+    app = _app()
+    informe, rc = guion.ejecutar(app, _plan())
+    assert rc == 0, informe
+    assert any('camino más largo' in a and '021:RF-38' in a for a in informe['avisos'])
+    assert informe['zonas']['arriba_kw'] and informe['zonas']['abajo_kw']
