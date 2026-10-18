@@ -1756,3 +1756,32 @@ def test_cambios_en_la_red_original_y_nuevo(guion):
         ('SE1', 150.0, 450.0), ('B8', 0.0, 300.0)]
     assert all(f['clase'] == 'banco' and f['nuevo']['unidad'] == 'kvar' for f in filas)
     assert guion.cambios_en_la_red({}) == []
+
+
+def test_la_cambiada_a_mano_no_entra_en_el_factor_comun(guion):
+    """014:RF-10 / 015:RF-47 — una escalada cambiada a mano conserva su demanda y no lleva el
+    factor común: no hace «no proporcionales» a las demás (SE20027 de TM104 en Chincha,
+    2026-10-18, con su transformador nuevo, era la primera de la lista)."""
+    from types import SimpleNamespace as N
+
+    class Carga(N):
+        def GetAttribute(self, nombre):
+            return {'plini': self.plini, 'qlini': self.qlini}.get(nombre)
+
+    def carga(p):
+        return Carga(loc_name='x', plini=p / 1000, qlini=p / 5000, scale0=0.5, i_scale=1,
+                     outserv=0, mode_inp='PQ')
+
+    cargas = {'MANUAL': carga(100.0), 'A': carga(200.0), 'B': carga(300.0)}
+    cargas['MANUAL'].scale0 = 1.0
+    base = {s: (c.plini * 1000, c.qlini * 1000) for s, c in cargas.items()}
+    reparto = N(demandas={s: N(kw=v[0] * 0.5, kvar=v[1] * 0.5) for s, v in base.items()},
+                base=base, todo_escala=True, a=0.5, b=0.5, solo_kw=False,
+                con_factores=lambda a, b: None)
+    medida = N(converge=True, kw=None, kvar=None, motivo='', carga_kw=None, carga_kvar=None)
+    objetivo = N(kw=300.0, kvar=60.0, fp=0.98)
+    sin, _ = guion.validar_cargas_nativas(cargas, reparto, medida, objetivo, 0.01)
+    con, _ = guion.validar_cargas_nativas(cargas, reparto, medida, objetivo, 0.01,
+                                          manuales={'MANUAL'})
+    assert any(f['tipo'] == 'REPARTO_P_NO_PROPORCIONAL' for f in sin['fallos'])
+    assert not any(f['tipo'].startswith('REPARTO_') for f in con['fallos'])

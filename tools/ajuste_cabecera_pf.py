@@ -919,7 +919,8 @@ def _cerca(actual: float, esperado: float, *, rel: float = 1e-4,
 def validar_cargas_nativas(cargas: dict, reparto, medida, objetivo, tolerancia: float,
                            *, ambiguas=(), apagar=None,
                            ajustes_flujo: dict | None = None,
-                           fp_escaladas: float | None = None) -> tuple[dict, object | None]:
+                           fp_escaladas: float | None = None,
+                           manuales=frozenset()) -> tuple[dict, object | None]:
     """Demuestra si el reparto ya existe en la red efectiva sin escribirla.
 
     Las fijas deben coincidir con su P/Q calculada. Las escalables no se comparan contra
@@ -970,12 +971,15 @@ def validar_cargas_nativas(cargas: dict, reparto, medida, objetivo, tolerancia: 
             if abs(base_p) <= 1e-12:
                 if not _cerca(p_kw, 0.0):
                     errores.append(f'P={p_kw:.6f} kW con base P nula')
-            else:
+            elif sed not in manuales:
+                # 014:RF-10: la cambiada a mano conserva su demanda y no lleva el factor común;
+                # en Chincha (2026-10-18) SE20027, con su transformador nuevo, era la primera y
+                # hacía «no proporcionales» a las demás.
                 factores_p.append((sed, p_kw / base_p))
             if abs(base_q) <= 1e-12:
                 if not _cerca(q_kvar, 0.0):
                     errores.append(f'Q={q_kvar:.6f} kVAR con base Q nula')
-            else:
+            elif sed not in manuales:
                 factores_q.append((sed, q_kvar / base_q))
         else:
             if not _cerca(p_kw, demanda.kw):
@@ -1536,7 +1540,8 @@ def _ejecutar_con_central(app, plan: dict, informe: dict, *, alims, elm, feeder:
             validaciones[z], _ = validar_cargas_nativas(
                 zonas[z], rep, Medida(True, kw, kvar), obj_z, tolerancia, apagar=apagar,
                 ajustes_flujo=ajustes_del_flujo(app),
-                fp_escaladas=None if rep.todo_escala else (fp_cargas or obj_z.fp))
+                fp_escaladas=None if rep.todo_escala else (fp_cargas or obj_z.fp),
+                manuales=con_manual)
         informe['validacion_posterior_nativa'] = validaciones
         invalida = [z for z, v in validaciones.items() if not v['correcta']]
         if res.cuadrado and invalida:
@@ -2075,6 +2080,7 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
                 cargas, res.reparto, res.medida, objetivo, float(informe['tolerancia']),
                 ambiguas=ambiguas, apagar=apagar, ajustes_flujo=ajustes_del_flujo(app),
                 fp_escaladas=None if res.reparto.todo_escala else (fp_cargas or objetivo.fp),
+                manuales=con_manual,
             )
             informe['validacion_posterior_nativa'] = validacion_posterior
             if res.cuadrado and not informe['fallos'] and validacion_posterior['correcta']:
@@ -2815,7 +2821,8 @@ def _cerrar_alimentador_en_proyecto(app, alims, feeder: str, p: dict, inf: dict,
         validacion, _ = validar_cargas_nativas(
             p['cargas'], rep, med, objetivo, tolerancia, ambiguas=p['ambiguas'],
             apagar=p['apagar'], ajustes_flujo=ajustes_del_flujo(app),
-            fp_escaladas=None if rep.todo_escala else (p['fp_cargas'] or objetivo.fp))
+            fp_escaladas=None if rep.todo_escala else (p['fp_cargas'] or objetivo.fp),
+            manuales=p['con_manual'])
         inf['validacion_posterior_nativa'] = validacion
         if res.cuadrado and not validacion['correcta']:
             valido = False
@@ -2890,7 +2897,8 @@ def _cerrar_central_en_proyecto(app, feeder: str, p: dict, inf: dict, reps: dict
             validaciones[z], _ = validar_cargas_nativas(
                 zc['zonas'][z], rep[z], Medida(True, kw, kvar), obj_z, tolerancia,
                 apagar=p['apagar'], ajustes_flujo=ajustes_del_flujo(app),
-                fp_escaladas=None if rep[z].todo_escala else (p['fp_cargas'] or obj_z.fp))
+                fp_escaladas=None if rep[z].todo_escala else (p['fp_cargas'] or obj_z.fp),
+                manuales=p['con_manual'])
     inf['validacion_posterior_nativa'] = validaciones
     invalida = [z for z, v in validaciones.items() if not v['correcta']]
     if res.cuadrado and invalida:
