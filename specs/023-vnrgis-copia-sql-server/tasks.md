@@ -11,7 +11,13 @@
       Hecho cuando: pruebas sintéticas en verde.
 - [x] T4. Fuente VNR con `.bak` en el adaptador, la web y el CLI. (RF-1, RF-9)
       Hecho cuando: pruebas de la API y del CLI en verde; `CODIGO_FUENTE.md` al día.
-- [ ] T5. Real: un alimentador de la copia de Electro Dunas convertido, validado e importado
+- [x] T5. Real: un alimentador de la copia de Electro Dunas convertido, validado e importado
       en DIgSILENT. (todos)
       Hecho cuando: el DGS pasa validación e inventario y el flujo converge.
+      2026-10-18: IN111 desde ELDU_VNR_24_APR.bak importado en «VNR_BAK_IN111»: «Caso base»
+      VERIFICADO (GPS, trazado, conectividad, diagrama, capacidades, flujo), flujo converge;
+      699/699 tramos, 694 nodos, 364 cargas, 274 SED, 95 maniobras, 4 bancos y 1 483 puntos
+      intermedios iguales en DIgSILENT; GPS en 968/968 barras y 699/699 tramos, curvas del
+      diagrama iguales al mapa (máx. 0,96 m). Arreglado: tipos con la letra de tensión y sus
+      fichas del catálogo, y la aceptación con la API buscada en la instalación (019:RF-16).
 - [ ] T6. Validación RF por RF y suite completa sin omitidas. (todos)
