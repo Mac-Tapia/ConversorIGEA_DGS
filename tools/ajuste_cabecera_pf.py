@@ -1318,6 +1318,10 @@ def _limpiar_etapa_de_la_central(variacion, generador: str) -> int:
                 continue
             obj.Delete()
             quitados += 1
+    if quitados and variacion is not None:
+        # Activa, DIgSILENT sigue aplicando lo que tenía; se recalcula al reactivarla.
+        variacion.Deactivate()
+        variacion.Activate()
     return quitados
 
 
