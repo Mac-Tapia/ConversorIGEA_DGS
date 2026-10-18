@@ -860,11 +860,9 @@ def write_dgs(
         net_fids = {z: (network_fid if i == 0 else reg.new()) for i, z in enumerate(orden)}
         diag_fids = {z: (diagram_fid if i == 0 or geography is None else reg.new())
                      for i, z in enumerate(orden)}
-        for nodo, alims in sorted(combinado.feeder_of_node.items()):
-            if alims:
-                zonal_de_nodo[nodo] = combinado.zonal_de.get(alims[0], '') or 'Sin SET'
-        for b in barras_set:
-            zonal_de_nodo[b.node_id] = b.zonal
+        from .combine import zonal_de_nodos
+
+        zonal_de_nodo = zonal_de_nodos(model)
     primera = next(iter(net_fids))
 
     def net_of(node_id: str) -> str:
@@ -977,6 +975,8 @@ def write_dgs(
                 schema, 'ElmZone', FID=zona_fids[sist], OP='C', loc_name=_loc_name(nombre),
                 fold_id=red_zona, icolor=len(zona_fids) % 16 + 1, desc=desc,
             ))
+        if zona_fids:
+            schema = schema.con_zonas()
         barras_de_set = {b.node_id for b in barras_set}
         for nodo, alims in combinado.feeder_of_node.items():
             if alims and nodo not in barras_de_set:
@@ -1136,7 +1136,7 @@ def write_dgs(
         load = loads_by_key[key]
         apparent = math.hypot(load.p_mw, load.q_mvar)
         name = load.display_name or load.customer_number or load.device_number or load.section_id
-        fold = sed_fids[key] if key in nested_load_keys else network_fid
+        fold = sed_fids[key] if key in nested_load_keys else net_of(load.node_id)   # 022:RF-8
         # Fases reales de la carga. Escribir una monofásica como trifásica equilibrada
         # reparte su corriente entre tres conductores en lugar de uno: subestima la
         # caída de tensión de ese ramal y borra el desequilibrio, que el TdR del VAD

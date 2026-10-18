@@ -483,7 +483,7 @@ def test_perfil_propone_la_central(client, tmp_path, monkeypatch):
 
 
 def test_maxima_con_central_de_la_ultima_busqueda(client):
-    """021:RF-25, RF-33, RF-34 — con los tres medidores de la central buscados junto a la
+    """021:RF-25, 021:RF-33, 021:RF-34 — con los tres medidores de la central buscados junto a la
     cabecera, la máxima es la de la demanda (aguas arriba + aguas abajo), con cada zona."""
     wid = _wid(client)
     _libros_con_central(client, wid)
@@ -510,7 +510,7 @@ def test_maxima_con_central_sin_su_curva_es_404(client):
 
 
 def test_curva_de_la_demanda_con_central(client):
-    """021:RF-47, RF-48 — la curva de la demanda calculada, con la forma de la de un
+    """021:RF-47, 021:RF-48 — la curva de la demanda calculada, con la forma de la de un
     medidor y la máxima de demanda (el objetivo) marcada; por tramo también."""
     wid = _wid(client)
     _libros_con_central(client, wid)
@@ -530,7 +530,7 @@ def test_curva_de_la_demanda_con_central(client):
 
 
 def test_maxima_con_mes_e_instante(client):
-    """013:RF-11, 021:RF-50, RF-51 — la búsqueda con un instante da el registro de esa fecha
+    """013:RF-11, 021:RF-50, 021:RF-51 — la búsqueda con un instante da el registro de esa fecha
     y hora en cada medidor, y la central lo usa también."""
     wid = _wid(client)
     _libros_con_central(client, wid)

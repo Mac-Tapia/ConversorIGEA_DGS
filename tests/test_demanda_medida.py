@@ -718,7 +718,7 @@ def _central(rng, n: int = 400, *, signo_llegada: int = 1, signo_salida: int = 1
 
 
 def test_central_deduce_los_signos_por_el_balance():
-    """021:RF-28, RF-29 — sea cual sea el signo con que el medidor exporta la llegada y
+    """021:RF-28, 021:RF-29 — sea cual sea el signo con que el medidor exporta la llegada y
     la salida, el balance de la barra (generación = salida + llegada) los delata."""
     for sl, ss in ((1, 1), (-1, 1), (1, -1), (-1, -1)):
         rng = random.Random(SEMILLA)
@@ -740,7 +740,7 @@ def test_central_sin_balance_no_calibra():
 
 
 def test_central_zonas_y_maxima_de_demanda():
-    """021:RF-31, RF-33, RF-34 — aguas arriba = cabecera + llegada, aguas abajo = salida;
+    """021:RF-31, 021:RF-33, 021:RF-34 — aguas arriba = cabecera + llegada, aguas abajo = salida;
     el objetivo es el registro de mayor demanda, con cada zona, la generación, la
     cabecera y la máxima de cabecera de antes."""
     rng = random.Random(SEMILLA)
@@ -795,7 +795,7 @@ def test_central_solo_con_los_registros_comunes():
 
 @real
 def test_real_na205_con_su_central():
-    """021:RF-28 a RF-34 — NA205 con la central de Nasca: CT_BH4 NA (generación), CTNA_BH2
+    """021:RF-28, 021:RF-29, 021:RF-30, 021:RF-31, 021:RF-32, 021:RF-33, 021:RF-34 — NA205 con la central de Nasca: CT_BH4 NA (generación), CTNA_BH2
     (llegada desde la SET) y CTNA_BH1 (salida a la carga). La máxima de demanda es la del
     2026-08-20 16:45, con la central generando, no la de cabecera con ella parada."""
     cab = dm.Cabecera([_sub('2.')])
@@ -837,7 +837,7 @@ def test_la_maxima_del_mes_elegido(tmp_path):
 
 
 def test_el_registro_de_un_instante(tmp_path):
-    """021:RF-50, RF-53 — con un instante, el registro de esa fecha y hora, no la máxima; sin
+    """021:RF-50, 021:RF-53 — con un instante, el registro de esa fecha y hora, no la máxima; sin
     registro en ese instante, se dice."""
     rng = random.Random(SEMILLA)
     completo, _ = _medicion(rng, 50, {'kw': 'kW tot', 'kvar': 'kVAR tot'})

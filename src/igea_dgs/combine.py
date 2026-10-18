@@ -638,3 +638,21 @@ def estructurar(combinado: FeederModel, estructura, asignacion=None) -> list[str
                 feeder=r.name, network_id=r.network_id))
             info.cabeceras.append(Cabecera(r.name, codigo, barra, r.source_node, nombre))
     return avisos
+
+
+def zonal_de_nodos(model: FeederModel) -> dict[str, str]:
+    """Nodo → zonal de su red en el DGS unido por SET (022:RF-8); vacío sin estructura.
+
+    El de su primer alimentador, o «Sin SET»; las barras de SET, el de su SET. Lo usan el
+    escritor DGS y la metadata por alimentador, que nombra la red de cada objeto.
+    """
+    info = getattr(model, 'combined', None)
+    if info is None or not info.barras_set:
+        return {}
+    out: dict[str, str] = {}
+    for nodo, alims in sorted(info.feeder_of_node.items()):
+        if alims:
+            out[nodo] = info.zonal_de.get(alims[0], '') or 'Sin SET'
+    for b in info.barras_set:
+        out[b.node_id] = b.zonal
+    return out

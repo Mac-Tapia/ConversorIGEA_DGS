@@ -109,6 +109,8 @@ def validate_dgs(
             schema_errors.append(f'Missing required DGS table: {name}')
             continue
         esperada = schema.header(name)
+        if name == 'ElmTerm' and 'cpZone' in tables[name]['header']:
+            esperada = schema.con_zonas().header(name)          # 022:RF-15
         if name == 'IntGrfcon':
             # El escritor ensancha los puntos de los conectores al trazado más largo.
             n = sum(1 for parte in tables[name]['header'].split(';')

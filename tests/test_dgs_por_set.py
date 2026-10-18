@@ -95,3 +95,16 @@ def test_una_zona_por_sistema_electrico(tmp_path):
     assert terms['A_H']['cpZone'] == terms['C_H']['cpZone'] == zonas['SE01 Urbano']['FID']
     assert terms['B_H']['cpZone'] == zonas['SE02 Rural']['FID']
     assert all(r['cpZone'] == '' for n, r in terms.items() if n.startswith('B_SET') or n.startswith('X'))
+
+
+def test_la_carga_sin_sed_en_la_red_de_su_zonal(tmp_path):
+    """022:RF-8 — una carga sin SED va en la red del zonal de su nodo, no en la primera (en
+    la entrega completa, CUST_2010_330303_SEPALMAR de Nasca quedaba en Chincha)."""
+    from igea_dgs.model import Load
+
+    red = _red()
+    red.loads.append(Load('C_LIBRE', 'D9', 'C9', '1', 'C_H', 0.01, 0.002, 0.98, 10.0, 0.0, 'ABC'))
+    _out, t = _tablas(tmp_path, red)
+    redes = {r['loc_name']: r['FID'] for r in t['ElmNet']}
+    libre = next(r for r in t['ElmLod'] if r['loc_name'] == 'C9')
+    assert libre['fold_id'] == redes['Sur']

@@ -58,6 +58,13 @@ def assignments_from_model(model: Any, dgs_manifest: Any) -> list[FeederAssignme
     loads_by_key = {(load.section_id, load.device_number): load for load in model.loads}
     seds_by_key = {sed.load_key: sed for sed in model.seds}
     assignments: list[FeederAssignment] = []
+    # Spec 022: en la red unida por SET cada objeto está en la red de su zonal.
+    from .combine import zonal_de_nodos
+
+    zonales = zonal_de_nodos(model)
+
+    def grid(node_id: str) -> str:
+        return _loc_name(zonales.get(node_id) or model.name)
 
     for key, fid in dgs_manifest.load_fids.items():
         load = loads_by_key[key]
@@ -69,7 +76,7 @@ def assignments_from_model(model: Any, dgs_manifest: Any) -> list[FeederAssignme
             terminal=_loc_name(f'{sed.loc_name}_BT') if sed else _loc_name(load.node_id),
             substation=_loc_name(sed.loc_name) if sed else '',
             section_id=load.section_id, node_id=load.node_id,
-            grid=_loc_name(model.name),
+            grid=grid(load.node_id),
         ))
 
     for key, fid in dgs_manifest.sed_fids.items():
@@ -82,7 +89,7 @@ def assignments_from_model(model: Any, dgs_manifest: Any) -> list[FeederAssignme
             feeder=sed.feeder, network_id=sed.network_id,
             terminal='', substation=_loc_name(sed.loc_name),
             section_id=sed.section_id, node_id=sed.node_id,
-            grid=_loc_name(model.name),
+            grid=grid(sed.node_id),
         ))
 
     capacitors_by_key = {
@@ -96,7 +103,7 @@ def assignments_from_model(model: Any, dgs_manifest: Any) -> list[FeederAssignme
             class_name='ElmShnt', dgs_fid=fid, loc_name=_loc_name(bank.capacitor_id),
             feeder=bank.feeder, network_id=bank.network_id,
             terminal=_loc_name(bank.node_id), substation='', node_id=bank.node_id,
-            grid=_loc_name(model.name),
+            grid=grid(bank.node_id),
         ))
 
     combined = getattr(model, 'combined', None)
@@ -124,7 +131,7 @@ def assignments_from_model(model: Any, dgs_manifest: Any) -> list[FeederAssignme
             class_name='ElmXnet', dgs_fid=fid,
             loc_name=_loc_name(f'External Grid {fuente}'), feeder=feeder,
             network_id=network_id, terminal=_loc_name(node_id), substation='', node_id=node_id,
-            grid=_loc_name(model.name),
+            grid=grid(node_id),
         ))
 
     validate_assignments(assignments)
