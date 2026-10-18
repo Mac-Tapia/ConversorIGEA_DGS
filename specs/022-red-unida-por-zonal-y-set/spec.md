@@ -183,6 +183,19 @@ ser mezclado para nada los proyectos de conversión»)
 - RF-51: EL SISTEMA no mezclará un DGS ni un proyecto de DIgSILENT por sistema eléctrico con
   los de unir ni con los de un alimentador: su nombre, su registro y su proyecto son propios.
 
+Calibración por sistema eléctrico (usuario, 2026-10-18: «la calibración debe hacerse por
+sistema eléctrico»)
+
+- RF-52: CUANDO el operador calibra un proyecto por sistema eléctrico, EL SISTEMA calibrará
+  a la vez, en los mismos flujos, todos los alimentadores del sistema que tengan medidor
+  (021:RF-54), con la máxima de barra y su instante coincidente donde la barra tenga
+  medidor (RF-39 a RF-46).
+- RF-53: SI un alimentador del sistema no tiene medidor de alimentador ni de barra,
+  ENTONCES EL SISTEMA lo dirá en el plan y en el resultado, y lo dejará con la demanda del
+  archivo en los mismos flujos (Nasca, 2026-10-18: 15 de sus 17 alimentadores sin medidor).
+- RF-54: CUANDO el operador elige un proyecto por sistema eléctrico en la calibración, EL
+  SISTEMA propondrá todos los alimentadores del sistema y la máxima por barra de SET.
+
 Informe
 
 - RF-25b: EL SISTEMA omitirá una SET, un sistema eléctrico o un zonal de la estructura que

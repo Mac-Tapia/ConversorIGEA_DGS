@@ -51,5 +51,10 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]` y pa
       sale verificado, con todos los conteos iguales. Arreglado por el camino: la red del
       zonal en la metadata y en las cargas sin SED, la aceptación con varias redes y el DGS
       en cp1252. Falta el ajuste de NA203 + NA205 en ese proyecto.
+- [ ] T11b. Calibración por sistema eléctrico: el plan del proyecto de tipo «sistema» con
+      todos sus alimentadores, los que no tienen medidor dichos y en los mismos flujos; la
+      web los propone todos con la máxima por barra. (RF-52 a RF-54)
+      Hecho cuando: pruebas de la API y del front en verde; el sistema Nasca calibrado en
+      DIgSILENT desde la web.
 - [ ] T12. Validación RF por RF e inventario. (todos)
       Hecho cuando: cada RF citado por una prueba y suite completa en verde.

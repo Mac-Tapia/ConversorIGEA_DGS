@@ -1897,6 +1897,28 @@ def demanda_alimentadores(ws: Workspace) -> dict:
         raise UserError(str(exc)) from exc
 
 
+def sistema_del_proyecto(ws: Workspace, project: str) -> dict | None:
+    """El sistema eléctrico de un proyecto de DIgSILENT, si se convirtió por sistema (022:RF-52).
+
+    ``{'grupo', 'alimentadores', 'medidores'}``, con los medidores de alimentador de cada
+    uno en el libro (vacío si no tiene). ``None`` si el proyecto no es de tipo «sistema».
+    """
+    from ..demanda_medida import DemandaError, leer_medidores, medidores_de
+
+    proyecto = project.strip()
+    grupo = next((n for n, p in (ws.pf_projects or {}).items()
+                  if p == proyecto and (ws.groups.get(n) or {}).get('tipo') == 'sistema'), None)
+    if grupo is None:
+        return None
+    alimentadores = list(ws.groups[grupo].get('feeders') or [])
+    try:
+        filas = leer_medidores(_demanda_ruta(ws, 'medidores'), demanda_alias())
+    except (DemandaError, UserError):
+        filas = []                    # sin libro de medidores, ninguno tiene medidor
+    medidores = {a: medidores_de(filas, a) for a in alimentadores}
+    return {'grupo': grupo, 'alimentadores': alimentadores, 'medidores': medidores}
+
+
 def demanda_cabecera(ws: Workspace, ctx: JobContext, pares: list[tuple[str, str]], *,
                      periodo: str | None = None, instante: datetime | None = None,
                      por_barra: bool = False) -> dict:
@@ -2590,10 +2612,24 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
     if not ajustes:
         raise UserError('Ningún alimentador se puede calibrar. ' + ' '.join(avisos))
     feeders = [a['feeder'] for a in ajustes]
+    # 022:RF-52, RF-53: en un proyecto por sistema eléctrico, los que no tienen medidor se
+    # dicen y quedan con la demanda del archivo, en los mismos flujos que los calibrados.
+    sistema = sistema_del_proyecto(ws, project)
+    if sistema is not None:
+        calibrados = {f.upper() for f in feeders}
+        sistema['calibrados'] = feeders
+        sistema['sin_medidor'] = [a for a in sistema['alimentadores']
+                                  if a.upper() not in calibrados]
+        sistema.pop('medidores', None)
+        if sistema['sin_medidor']:
+            avisos.append(f"{sistema['grupo']}: {len(sistema['sin_medidor'])} de "
+                          f"{len(sistema['alimentadores'])} alimentadores sin medidor "
+                          f"({', '.join(sistema['sin_medidor'])}) quedan con la demanda del "
+                          'archivo, en los mismos flujos que los calibrados (022:RF-53).')
     with ws.lock:
         ws.cargas_planes[token] = {'path': paths[0], 'paths': paths, 'project': project.strip(),
                                    'feeders': feeders, 'applicable': True,
-                                   'kind': 'ajuste_cabecera'}
+                                   'kind': 'ajuste_cabecera', 'sistema': sistema}
     primero = ajustes[0]
     return {'token': token, 'project': project.strip(), 'feeder': primero['feeder'],
             'objetivo': primero['objetivo'], 'tolerancia': tolerancia,
@@ -2603,7 +2639,7 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
             'periodo': primero['periodo'], 'client_evidence': primero['client_evidence'],
             'source': plan['source'], 'project_binding': plan['project_binding'],
             'native_action_context': action_context,
-            'feeders': feeders, 'ajustes': ajustes, 'avisos': avisos}
+            'feeders': feeders, 'ajustes': ajustes, 'avisos': avisos, 'sistema': sistema}
 
 
 def _guardar_calibracion(ws: Workspace, project: str, feeder: str, informe: dict) -> None:
@@ -2719,7 +2755,8 @@ def ajuste_ejecutar(ws: Workspace, ctx: JobContext, token: str, *, simular: bool
     return {'returncode': rc, 'modo': informes[0].get('modo'),
             'report': reports[0].name, 'reports': [r.name for r in reports],
             'project': plan['project'], 'feeders': plan['feeders'], 'token': token,
-            'informe': informes[0], 'informes': informes}
+            'informe': informes[0], 'informes': informes,
+            'sistema': plan.get('sistema')}                                  # 022:RF-53
 
 
 def _plan_y_sufijo(plan: dict, feeder: str) -> tuple[str, str]:

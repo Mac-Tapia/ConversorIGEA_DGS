@@ -1,4 +1,4 @@
-import type { EstructuraResumen,
+import type { SistemaDelProyecto, EstructuraResumen,
   AjustePlan, AjusteResultado, CargasPlan, CentralTermica, ClientesCruce, CurvaCabecera, DemandaMedidores,
   MaximaConCentral, MedidoresExternos, Economia, EstudiosCatalogo, EstudiosPlan,
   FeederRow, Health, InformeEstudioForm, InformeFactibilidadForm, InformesContexto, Job, Limites, MaximaCabecera, Obra,
@@ -215,6 +215,10 @@ export const api = {
     })}`),
   demandaAlimentadores: (id: string) =>
     request<{ alimentadores: string[] }>(`${ws(id)}/demanda/alimentadores`),
+  // 022:RF-54: el sistema eléctrico del proyecto, si se convirtió por sistema.
+  demandaSistema: (id: string, project: string) =>
+    request<{ sistema: SistemaDelProyecto | null }>(
+      `${ws(id)}/demanda/sistema?project=${encodeURIComponent(project)}`),
   // Spec 017, paso 4.4: lo que la web ya guardó para los informes, y su generación.
   informesContexto: (id: string, project: string, feeders: string[], jobId?: string) => {
     const q = new URLSearchParams({ project });

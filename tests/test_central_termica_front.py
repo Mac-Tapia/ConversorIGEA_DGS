@@ -161,3 +161,12 @@ def test_conversion_por_sistema_electrico_aparte_de_unir():
     assert 'por_set' not in API and '/convert/sistema' in API
     assert "g.tipo === 'sistema'" in panel
     assert "tipo: 'estructura', titulo: 'Estructura zonal → SET (opcional)'" in DEMANDA
+
+
+def test_proyecto_por_sistema_en_la_calibracion():
+    """022:RF-54 — con un proyecto por sistema eléctrico, la web lee su sistema, marca la
+    máxima por barra de SET y dice qué alimentadores quedan sin medidor (022:RF-53)."""
+    assert 'api.demandaSistema(ws.id, project)' in DEMANDA
+    assert 'if (r.sistema) setPorBarra(true);' in DEMANDA
+    assert 'Sin medidor (quedan con la demanda del archivo, en los mismos flujos)' in DEMANDA
+    assert '/demanda/sistema?project=' in API and 'export interface SistemaDelProyecto' in TIPOS

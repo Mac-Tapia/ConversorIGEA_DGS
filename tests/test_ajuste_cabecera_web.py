@@ -806,3 +806,27 @@ def test_el_plan_lleva_la_barra_de_set_de_cada_alimentador(client, monkeypatch):
     assert planes['A1']['barra_set']['centrales'][0]['medidor'] == 'CT_X'
     assert planes['A1']['objetivo']['fecha'] == planes['A1']['barra_set']['fecha']
     assert planes['B1']['barra_set'] is None
+
+
+def test_proyecto_por_sistema_calibra_todos_y_dice_los_sin_medidor(client):
+    """022:RF-52 / 022:RF-53 / 022:RF-54 — en un proyecto convertido por sistema eléctrico,
+    los alimentadores con medidor se calibran a la vez y los que no tienen se dicen en el
+    plan y en el resultado (Nasca, 2026-10-18: 15 de 17 sin medidor)."""
+    wid, job = _maxima_dos(client)
+    ws = client.app.state.store.get(wid)
+    ws.groups['SISTEMA_X'] = {'tipo': 'sistema', 'feeders': ['A1', 'A2', 'B9'], 'status': 'ok'}
+    ws.pf_projects['SISTEMA_X'] = 'P'
+    sistema = client.get(f'/api/workspaces/{wid}/demanda/sistema', params={'project': 'P'}).json()
+    assert sistema['sistema']['grupo'] == 'SISTEMA_X'
+    assert sistema['sistema']['alimentadores'] == ['A1', 'A2', 'B9']
+    assert client.get(f'/api/workspaces/{wid}/demanda/sistema',
+                      params={'project': 'OTRO'}).json() == {'sistema': None}
+    body = _plan(client, wid, job).json()
+    assert body['feeders'] == ['A1', 'A2']
+    assert body['sistema']['calibrados'] == ['A1', 'A2']
+    assert body['sistema']['sin_medidor'] == ['B9']
+    assert any('B9' in a and '022:RF-53' in a for a in body['avisos'])
+    estado = esperar_trabajo(client, client.post(
+        f"/api/workspaces/{wid}/demanda/ajuste/{body['token']}/aplicar").json())
+    assert estado['status'] == 'done', estado
+    assert estado['result']['sistema']['sin_medidor'] == ['B9']
