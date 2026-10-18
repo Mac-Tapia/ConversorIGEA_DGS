@@ -170,7 +170,7 @@ def test_la_etapa_de_la_central_queda_solo_con_la_central(guion):
 
         def Delete(self):
             borrados.append(self.loc_name)
-            return 0
+            return 0 if 'desactivada' in borrados and 'activada' not in borrados else 1
 
         def GetContents(self, _patron, _rec=0):
             return self.hijos
@@ -186,7 +186,8 @@ def test_la_etapa_de_la_central_queda_solo_con_la_central(guion):
         O(clase='ElmLod', loc_name='SE50320'), O(clase='ElmLod', loc_name='SE50033')])
     variacion = O(clase='IntScheme', loc_name='Central_NA205', hijos=[etapa])
     assert guion._limpiar_etapa_de_la_central(variacion, 'Central_NA205') == 2
-    assert borrados == ['SE50320', 'SE50033', 'desactivada', 'activada'], 'se reactiva para recalcular'
+    assert borrados == ['desactivada', 'SE50320', 'SE50033', 'activada'], (
+        'DIgSILENT solo borra lo de la etapa con la variación desactivada')
 
 
 def test_la_marca_fija_se_restaura_con_las_centrales_apagadas(guion):
