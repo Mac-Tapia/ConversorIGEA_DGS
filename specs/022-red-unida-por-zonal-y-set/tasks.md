@@ -36,7 +36,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]` y pa
       con su medidor en esa fecha y hora; central de barra; siglas sin SET
       en barra suelta. (RF-37 a RF-46)
       Hecho cuando: pruebas del lector, del objetivo y del guion con `fake_pf` en verde.
-- [ ] T10. Web: tabla en Excel por espacio e informe por zonal y SET. (RF-4, RF-25)
+- [x] T10. Web: tabla en Excel por espacio e informe por zonal y SET. (RF-4, RF-25)
       Hecho cuando: pruebas de la API y del front en verde; `npm run build`.
 - [ ] T11. DIgSILENT: la entrega de Electro Dunas con su estructura, importada como un
       proyecto; zonas, SET, flujo; NA203 + NA205 calibrados juntos en SET 51. (todos)

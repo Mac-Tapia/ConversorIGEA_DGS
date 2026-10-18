@@ -1094,6 +1094,7 @@ def convert_group(
     nombre: str,
     *,
     requested_feeders: list[str] | None = None,
+    por_set: bool = False,
 ) -> dict:
     import time
 
@@ -1122,6 +1123,12 @@ def convert_group(
     reconstruction = reconstruction_evidence(ws) if use_reconstruction else None
     opts = ws.options
     ctx.log(f'--- Red unida {nombre}: {", ".join(feeders)} ---')
+    estructura = None
+    if por_set:                                                     # 022:RF-4, RF-7
+        estructura = estructura_del_espacio(ws)
+        if estructura is None:
+            raise UserError('Por zonal y SET necesita la estructura de la empresa: súbala en '
+                            'Excel en el paso de demanda o póngala en el perfil (022:RF-1).')
 
     def on_progress(network_id: str, index: int, total: int) -> None:
         name = feeder_short_name(network_id)
@@ -1144,8 +1151,10 @@ def convert_group(
         catalog_corrections=ws.catalog_corrections() or None,
         reglas=reglas_de(ws),
         catalogo=None if use_reconstruction else catalogo_del_proyecto(),
-        on_progress=on_progress, cancel=ctx.cancel,
+        on_progress=on_progress, cancel=ctx.cancel, estructura=estructura,
     )
+    for linea in _informe_por_set(man.get('estructura')):            # 022:RF-25, RF-34
+        ctx.log(linea)
     source = {
         'source_run_id': snapshot.run_id,
         'source_mode': snapshot.mode,
@@ -1662,10 +1671,12 @@ def cargas_ejecutar(ws: Workspace, ctx: JobContext, token: str, *, simular: bool
 # Demanda medida (spec 004, RF-22 a RF-39)
 # ---------------------------------------------------------------------------
 
-DEMANDA_TIPOS = ('medidores', 'cabecera', 'suministros', 'clientes')
+DEMANDA_TIPOS = ('medidores', 'cabecera', 'suministros', 'clientes', 'estructura')
 DEMANDA_ETIQUETAS = {
     'medidores': 'libro medidor por alimentador', 'cabecera': 'medición de cabecera',
     'suministros': 'libro de suministros', 'clientes': 'libro de clientes importantes',
+    # Spec 022, RF-4: la tabla zonal → SET → alimentador de la empresa.
+    'estructura': 'tabla de la estructura (zonal, SET y alimentadores)',
 }
 
 
@@ -1706,6 +1717,14 @@ def demanda_asignar(ws: Workspace, tipo: str, path: Path, origin: str) -> dict:
             raise UserError(f'{path.name}: el {DEMANDA_ETIQUETAS[tipo]} debe ser un libro '
                             + ', '.join(EXTENSIONES))
         meta = {'path': str(path), 'name': path.name, 'origin': origin, 'source_kind': 'file'}
+        if tipo == 'estructura':
+            # 022:RF-5: una tabla mal formada se rechaza al subirla, nombrando la fila.
+            from ..estructura import EstructuraError, leer_tabla_excel
+            try:
+                e = leer_tabla_excel(path)
+            except (EstructuraError, OSError, ValueError) as exc:
+                raise UserError(f'Estructura: {exc}') from exc
+            meta.update(zonales=len(e.zonales), sets=len(e.sets), alimentadores=len(e.alimentadores))
     with ws.lock:
         ws.demanda[tipo] = meta
         ws.save()
@@ -1877,6 +1896,25 @@ def demanda_cabecera(ws: Workspace, ctx: JobContext, pares: list[tuple[str, str]
     return {'resultados': [r.to_dict() for r in res],
             'cancelado': len(res) < len(pares),
             'periodo': periodo, 'instante': instante.isoformat(sep=' ') if instante else None}
+
+
+def _informe_por_set(e: dict | None) -> list[str]:
+    """El informe de la conversión por zonal y SET, para el Registro (022:RF-25, RF-34)."""
+    if not e:
+        return []
+    out = ['Por zonal y SET:']
+    for zonal, sets in e['zonales'].items():
+        out.append(f'  {zonal}: ' + '; '.join(
+            f"{s} ({', '.join(d['barras'])}): {', '.join(d['alimentadores'])}" for s, d in sets.items()))
+    if e['sin_set']:
+        out.append('  Sin SET (con su red externa): ' + ', '.join(e['sin_set']))
+    if e['faltan']:
+        out.append(f"  De la estructura y no de la entrega: {len(e['faltan'])}")
+    for a in e['aperturas']:
+        out.append('  ' + a['texto'])
+    ora = (e.get('oraculo') or {}).get('general') or {}
+    out.append('  Oráculo de la red unida: ' + (ora.get('resumen') or 'no disponible'))
+    return out
 
 
 def estructura_del_espacio(ws: Workspace):

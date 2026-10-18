@@ -52,7 +52,7 @@ function form(file: File, field = 'file'): RequestInit {
 const ws = (id: string) => `/api/workspaces/${encodeURIComponent(id)}`;
 const enc = encodeURIComponent;
 
-export type DemandaTipo = 'medidores' | 'cabecera' | 'suministros' | 'clientes';
+export type DemandaTipo = 'medidores' | 'cabecera' | 'suministros' | 'clientes' | 'estructura';
 
 export const api = {
   health: () => request<Health>('/api/health'),
@@ -101,8 +101,9 @@ export const api = {
     request<ReconstructionReport>(`${ws(id)}/files/reconstruction_report.json`),
   convert: (id: string, feeders: string[], all: boolean) =>
     request<Job>(`${ws(id)}/convert`, json('POST', { feeders, all })),
-  convertGroup: (id: string, feeders: string[], nombre: string) =>
-    request<Job>(`${ws(id)}/convert`, json('POST', { feeders, all: false, unir: true, nombre })),
+  // Spec 022: ``porSet``, la red unida colgada de sus SET y zonales.
+  convertGroup: (id: string, feeders: string[], nombre: string, porSet = false) =>
+    request<Job>(`${ws(id)}/convert`, json('POST', { feeders, all: false, unir: true, nombre, por_set: porSet })),
 
   cancelJob: (jobId: string) => request<Job>(`/api/jobs/${jobId}/cancel`, { method: 'POST' }),
 

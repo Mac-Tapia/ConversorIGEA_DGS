@@ -147,3 +147,60 @@ def test_la_red_unida_por_zonal_y_set(ds, tmp_path):
     assert isinstance(por_set['aperturas'], list)
     if por_set['oraculo'] is not None:
         assert por_set['oraculo']['islas']
+
+
+def test_web_une_por_zonal_y_set_con_la_tabla_subida(tmp_path, monkeypatch):
+    """022:RF-4, 022:RF-5, 022:RF-7, 022:RF-25 — la tabla de la estructura en Excel se sube al
+    espacio (una mal formada se rechaza nombrando la fila) y la conversión unida «Por zonal y
+    SET» la usa: el Registro trae el informe por zonal y SET."""
+    pytest.importorskip('fastapi')
+    import time
+
+    from fastapi.testclient import TestClient
+    from openpyxl import Workbook
+
+    from synthetic_export import write_export
+    from igea_dgs.web.app import create_app
+
+    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    red, carga, equipo = write_export(ExportSpec(feeders=3), tmp_path / 'e')
+    with TestClient(create_app(tmp_path / 'web', host='127.0.0.1')) as c:
+        wid = c.post('/api/workspaces').json()['id']
+        c.put(f'/api/workspaces/{wid}/options', json={'source_crs': CRS_SINTETICO})
+        for slot, path in (('red', red), ('loads', carga), ('equipment', equipo)):
+            c.post(f'/api/workspaces/{wid}/inputs/{slot}/path', json={'path': str(path)})
+
+        def esperar(job):
+            for _ in range(600):
+                j = c.get(f"/api/jobs/{job['id']}").json()
+                if j['status'] in ('done', 'failed', 'cancelled'):
+                    return j
+                time.sleep(0.05)
+            raise AssertionError('no terminó')
+
+        assert esperar(c.post(f'/api/workspaces/{wid}/load').json())['status'] == 'done'
+        nombres = [f['feeder'] for f in c.get(f'/api/workspaces/{wid}/feeders').json()['feeders']]
+
+        def tabla(filas, nombre):
+            wb = Workbook()
+            h = wb.active
+            h.append(['Zonal', 'Codigo SET', 'Codigo VNR Alimentador'])
+            for f in filas:
+                h.append(f)
+            ruta = tmp_path / nombre
+            wb.save(ruta)
+            return ruta
+
+        mala = tabla([['Z', 'SET 1 UNO', nombres[0]], ['Z', 'SET 2 DOS', nombres[0]]], 'mala.xlsx')
+        r = c.post(f'/api/workspaces/{wid}/demanda/estructura/path', json={'path': str(mala)})
+        assert r.status_code == 400 and 'fila 3' in r.json()['detail']
+        buena = tabla([['Z', 'SET 1 UNO', n] for n in nombres], 'buena.xlsx')
+        r = c.post(f'/api/workspaces/{wid}/demanda/estructura/path', json={'path': str(buena)})
+        assert r.status_code == 200, r.text
+        assert r.json()['demanda']['estructura']['alimentadores'] == len(nombres)
+        j = esperar(c.post(f'/api/workspaces/{wid}/convert', json={
+            'feeders': nombres, 'unir': True, 'nombre': 'RED SET', 'por_set': True}).json())
+        assert j['result']['status'] == 'ok', j['result']
+        textos = [e['data'].get('text') or '' for e in c.get(f'/api/workspaces/{wid}/events').json()]
+        assert any(t.startswith('Por zonal y SET') for t in textos)
+        assert any('SET 1 UNO' in t for t in textos)

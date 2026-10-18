@@ -71,6 +71,8 @@ export function FeedersPanel() {
   const { ws, feeders, selected, setSelected, active, startJob, run } = useApp();
   const confirm = useConfirm();
   const [filter, setFilter] = useState('');
+  // Spec 022: unir por zonal y SET con la estructura de la empresa.
+  const [porSet, setPorSet] = useState(false);
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'feeder', dir: 1 });
   const anchor = useRef<string | null>(null);
   const engineBusy = Boolean(active.engine);
@@ -143,7 +145,7 @@ export function FeedersPanel() {
       + 'seleccionados.\n\nNombre del DGS:',
       sugerido);
     if (nombre === null) return;
-    await startJob(() => api.convertGroup(ws.id, selected, nombre.trim() || sugerido));
+    await startJob(() => api.convertGroup(ws.id, selected, nombre.trim() || sugerido, porSet));
   };
 
   const pfFlow = async () => {
@@ -332,6 +334,10 @@ export function FeedersPanel() {
               title="Los alimentadores seleccionados en un solo DGS (red unida)">
               Unir {selected.length >= 2 ? selected.length : ''} en un solo DGS…
             </button>
+            <label className="check" title="Una red por zonal, cada SET con sus barras y una red externa por barra; enlaces y anillos abiertos y el oráculo de la red entera (spec 022)">
+              <input type="checkbox" checked={porSet} disabled={engineBusy} onChange={(e) => setPorSet(e.target.checked)} />
+              {' '}Por zonal y SET
+            </label>
             <a className={`btn ${converted ? '' : 'btn-disabled'}`}
               href={converted ? api.zipUrl(ws.id, selected.length ? selected : []) : undefined}
               aria-disabled={!converted}>

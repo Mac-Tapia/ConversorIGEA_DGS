@@ -103,7 +103,7 @@ class ServerPathIn(BaseModel):
 
 
 # Libros de la demanda medida (spec 004, RF-39).
-DemandaTipo = Literal['medidores', 'cabecera', 'suministros', 'clientes']
+DemandaTipo = Literal['medidores', 'cabecera', 'suministros', 'clientes', 'estructura']
 
 
 class DemandaMedidorIn(BaseModel):
@@ -350,6 +350,8 @@ class SelectionIn(BaseModel):
     # Unir la selección en UN solo DGS (red unida), con este nombre.
     unir: bool = False
     nombre: str = ''
+    # Spec 022: la red unida colgada de sus SET y zonales, con la estructura de la empresa.
+    por_set: bool = False
 
 
 class FeedersIn(BaseModel):
@@ -851,7 +853,8 @@ def create_app(
             requested = feeders if body.all else body.feeders
             return submit(ws, 'convert_group', f'Unir {len(feeders)} alimentadores en {nombre}.dgs',
                           lambda ctx: services.convert_group(
-                              ws, ctx, feeders, nombre, requested_feeders=requested))
+                              ws, ctx, feeders, nombre, requested_feeders=requested,
+                              por_set=body.por_set))
         n = len(ws.inventory['feeders']) if body.all and ws.inventory else len(body.feeders)
         title = f'Convertir {"TODOS" if body.all else ""} {n} alimentador(es) a DGS'.replace('  ', ' ')
         return submit(ws, 'convert', title,
