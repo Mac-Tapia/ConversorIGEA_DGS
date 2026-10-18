@@ -481,6 +481,8 @@ def validar_unida(model: FeederModel, consigna_pu: float = 1.0) -> InformeUnido:
             informe.v_min_pu = round(float(vm.min()), 4)
             informe.v_max_pu = round(float(vm.max()), 4)
             informe.barra_v_min = str(net.bus.at[vm.idxmin(), 'name'])
+        informe.p_fuente_mw = round(float(net.res_ext_grid.p_mw.sum()), 6)
+        informe.perdidas_mw = round(informe.p_fuente_mw - informe.p_carga_mw, 6)
         return resultado
     # Cada isla sola, con las demás fuentes fuera de servicio.
     activa = net.ext_grid.in_service.copy()

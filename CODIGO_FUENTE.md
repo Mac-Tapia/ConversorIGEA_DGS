@@ -15,7 +15,7 @@ spec 001, RF-14 (DGS idéntico byte a byte); su diseño histórico está en
 | `src/igea_dgs/__init__.py` | Paquete del motor y su versión. | base |
 | `src/igea_dgs/access.py` | Lector de la base Access de CYMDIST (`.mdb`), la segunda vía de entrada. | base, 001 |
 | `src/igea_dgs/ajuste_cabecera.py` | Reparto y cuadre de las demandas a la máxima de cabecera, sin DIgSILENT; por zonas con una central en el troncal; cuadre conjunto de los alimentadores de un proyecto en los mismos flujos; cuántos bancos faltan y dónde. | 006, 021 (RF-33, RF-40 a RF-45, RF-54 a RF-58, RF-64 a RF-66) |
-| `src/igea_dgs/batch.py` | Conversión de uno, varios o todos los alimentadores, en serie o en paralelo. | base, 001 |
+| `src/igea_dgs/batch.py` | Conversión de uno, varios o todos los alimentadores, en serie o en paralelo.; la red unida por zonal y SET con su informe, aperturas y oráculo | base, 001, 022 (RF-7, RF-25, RF-34) |
 | `src/igea_dgs/capacidades.py` | Capacidades, grupo de conexión y tensión de baja de transformadores y líneas del DGS original, y su comparación con lo leído en DIgSILENT. | 015 |
 | `src/igea_dgs/cargas_pf.py` | Lectura de los libros de demandas y cargas nuevas, y plan para DIgSILENT. | 004, 007, 008, 016 (RF-73) |
 | `src/igea_dgs/carpeta_pf.py` | Carpeta de DIgSILENT donde quedan los proyectos importados; buscar un proyecto sin activarlo. | 005, 011 (RF-91) |
@@ -23,7 +23,7 @@ spec 001, RF-14 (DGS idéntico byte a byte); su diseño histórico está en
 | `src/igea_dgs/catalog_data.py` | Datos de fabricante y de norma para los parámetros eléctricos. | base |
 | `src/igea_dgs/catalog_merge.py` | Completa el catálogo de equipos cuando el export llega incompleto. | base, 001 |
 | `src/igea_dgs/catalog_resolution.py` | Resolución de equipos por evidencia, sin renombrar los códigos de origen. | 001 (RF-18) |
-| `src/igea_dgs/cli.py` | Orden `igea-dgs`: `list`, `convert` y `web`. | 001 (RF-1, RF-2) |
+| `src/igea_dgs/cli.py` | Orden `igea-dgs`: `list`, `convert` y `web`.; `--por-set` y `--estructura` con `--unir` | 001 (RF-1, RF-2), 022 (RF-4, RF-7) |
 | `src/igea_dgs/combine.py` | Une todos los alimentadores en una sola red; con la estructura de la empresa, la cuelga de sus SET: barra por SET y tensión e interruptor de cabecera por alimentador. | base, 022 (RF-10 a RF-13, RF-17 a RF-19, RF-21) |
 | `src/igea_dgs/coordenadas.py` | Completa las coordenadas que faltan con el grafo de la red. | base |
 | `src/igea_dgs/dataset.py` | Lector de los TXT (RED, CARGA, BD_Equipo), en las dos disposiciones. | base |
@@ -34,7 +34,7 @@ spec 001, RF-14 (DGS idéntico byte a byte); su diseño histórico está en
 | `src/igea_dgs/estructura.py` | La estructura de la empresa: zonales, SET (con sus siglas) y alimentadores con su sistema eléctrico, sector típico y norma; del perfil o de la tabla en Excel; qué SET tiene cada alimentador de la entrega, los «Sin SET», los que faltan y lo que se omite sin redes. | 022 (RF-1 a RF-6, RF-19, RF-20, RF-25b) |
 | `src/igea_dgs/estudios_pf.py` | Estudios sobre los casos «Sin proyecto» y «Con proyecto», sin DIgSILENT: qué estudios se ofrecen, límites del perfil, violaciones, diferencia y ficheros de resultados. | 011 (RF-23, RF-24, RF-32 a RF-35, RF-37) |
 | `src/igea_dgs/export_tables.py` | DGS a Excel multihoja o TSV. | base |
-| `src/igea_dgs/feeder_metadata.py` | Procedencia por alimentador de los objetos de una red conjunta. | base |
+| `src/igea_dgs/feeder_metadata.py` | Procedencia por alimentador de los objetos de una red conjunta.; la red externa de una barra de SET, una vez con sus alimentadores | base, 022 (RF-11) |
 | `src/igea_dgs/geography.py` | Del CRS de origen a WGS84; geometría de nodos y tramos y su validación. | base, 001 (RF-6) |
 | `src/igea_dgs/identify.py` | Reconoce cada TXT por su contenido, no por su nombre. | base |
 | `src/igea_dgs/informe_docx.py` | Escribe en Word los informes de estudio eléctrico y de factibilidad como esquemas generales sobre el modelo de la empresa: de él solo la forma (primera sección con su cabecera, pie y estilos; cuerpo vaciado; n.º, referencia y total de páginas fijos sustituidos); orden de Casa Blanca y de EMAPICA, datos de la fuente, tensión por fase o trifásica, leyendas, figuras de DIgSILENT, obras por etapa o por alternativa (tabla de trechos del conductor, cuadro comparativo, bancos existentes por nodo), punto de diseño, pérdidas, transformador de la SET y conclusiones, con coma decimal; lo que falta queda vacío y su motivo en el JSON; escritura atómica. Abre modelos que Word dejó con imágenes rotas. | 017 (RF-2 a RF-9, RF-13, RF-15 a RF-25, RF-27, RF-31, RF-44 a RF-46, RF-50, RF-52, RF-59, RF-62, RF-106, RF-113, RF-114, RF-118, RF-120, RF-122, RF-128, RF-132 a RF-135) |
@@ -58,7 +58,7 @@ spec 001, RF-14 (DGS idéntico byte a byte); su diseño histórico está en
 | `src/igea_dgs/reconstruction.py` | Contrato de la reconstrucción auditable del dataset. | 001 (RF-17 a RF-22) |
 | `src/igea_dgs/reconstruction_pipeline.py` | Reconstrucción de una selección de alimentadores, sin estado de la web. | 001 (RF-8, RF-9) |
 | `src/igea_dgs/reconstruction_topology.py` | Reconstrucción determinista de la topología. | 001 (RF-17) |
-| `src/igea_dgs/reglas.py` | Reglas que se aplican a todo alimentador, venga de TXT o de base; patrón de SED de medición y escala del perfil de empresa. | base (P5), 002 (RF-33), 021 (RF-9) |
+| `src/igea_dgs/reglas.py` | Reglas que se aplican a todo alimentador, venga de TXT o de base; patrón de SED de medición y escala del perfil de empresa.; no cuenta como de la entrada los interruptores de cabecera ni los puntos abiertos | base (P5), 002 (RF-33), 021 (RF-9), 022 (RF-12, RF-31) |
 | `src/igea_dgs/schema.py` | Perfiles de esquema DGS versionados. | base |
 | `src/igea_dgs/source_contract.py` | Contrato canónico y evidencia de auditoría compartidos por TXT, MDB y VNR-GIS. | 001, 004, 006 |
 | `src/igea_dgs/schemas/pf21_dgs_1_8_4.json` | Perfil DGS genérico de PowerFactory. | base |
@@ -71,7 +71,7 @@ spec 001, RF-14 (DGS idéntico byte a byte); su diseño histórico está en
 | `src/igea_dgs/troncal.py` | Troncal de las obras sin DIgSILENT: camino continuo más largo desde la cabecera sobre el árbol de caminos más cortos en metros (anillos cerrados avisados), lo que queda aguas abajo de un nodo, el punto de la troncal más cercano (partir el tramo o usar la barra según la distancia mínima), el corte del trazado y los dos extremos del enlace. | 016 (RF-1 a RF-5, RF-15, RF-18, RF-20, RF-27, RF-28, RF-45, RF-64, RF-65, RF-67) |
 | `src/igea_dgs/vias.py` | Trazado de una línea nueva por la vía pública con un enrutador OSRM (OpenStreetMap): ruta con sus curvas, largo con los accesos, metros fuera de vía y recta si no hay enrutador o no responde; solo envía las dos coordenadas. | 016 (RF-81 a RF-87) |
 | `src/igea_dgs/util.py` | SHA-256, JSON atómico y números: una sola implementación. | 001 (RF-4, RF-5) |
-| `src/igea_dgs/validate.py` | Validación del DGS escrito, con el trazado GPS de cada línea. | base, 010 (RF-5), 021 (RF-12) |
+| `src/igea_dgs/validate.py` | Validación del DGS escrito, con el trazado GPS de cada línea.; reconoce la red por zonal y SET | base, 010 (RF-5), 021 (RF-12), 022 (RF-8 a RF-14) |
 
 ### `src/igea_dgs/sources/` — adaptadores de entrada
 

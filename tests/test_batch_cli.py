@@ -2,6 +2,8 @@ from pathlib import Path
 import json
 from types import SimpleNamespace
 
+import pytest
+
 from igea_dgs.batch import convert_group, convert_selection, load_aliases, sort_key_feeder
 from igea_dgs.naming import feeder_short_name
 
@@ -117,3 +119,28 @@ def test_unir_incluye_solo_los_alimentadores_seleccionados(ds, opciones_reales, 
     assert man['feeders'] == seleccion
     metadata = json.loads((tmp_path / 'UNIDOS_feeder_metadata.json').read_text(encoding='utf-8'))
     assert {a['feeder'] for a in metadata['assignments']} <= set(seleccion)
+
+
+def test_red_unida_por_set_con_datos_reales(ds, opciones_reales, tmp_path):
+    """022:RF-7, 022:RF-25, 022:RF-30, 022:RF-32 — alimentadores reales unidos por SET con la
+    estructura de Electro Dunas: valida, los anillos de la entrada se abren y el oráculo
+    calcula una isla por barra de SET. Con otra exportación, los que estén en la tabla."""
+    from igea_dgs.perfil_empresa import carpeta_perfiles, estructura_empresa
+
+    local = tmp_path / 'perfil.json'
+    local.write_text('{"perfil": "electro_dunas"}', encoding='utf-8')
+    e = estructura_empresa(local, carpeta=carpeta_perfiles())
+    nombres = sorted(n for n in (feeder_short_name(x) for x in ds.feeder_ids()) if n in e.alimentadores)
+    if len(nombres) < 2:
+        pytest.skip('la entrega no trae alimentadores de la estructura de Electro Dunas')
+    seleccion = nombres[:4]
+    man = convert_group(ds, seleccion, tmp_path / 'g', name='POR_SET', include_geography=False,
+                        estructura=e,
+                        **{k: v for k, v in opciones_reales.items() if k != 'source_crs'})
+    assert man['status'] == 'ok', man.get('error')
+    por_set = man['estructura']
+    assert sorted(f for z in por_set['zonales'].values() for s in z.values()
+                  for f in s['alimentadores']) == seleccion
+    if por_set['oraculo'] is not None:
+        assert len(por_set['oraculo']['islas']) == sum(len(s['barras']) for z in por_set['zonales'].values()
+                                                       for s in z.values())

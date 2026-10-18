@@ -135,8 +135,14 @@ def validate_dgs(
                        geographic_errors, graphic_errors, geography=geography)
 
     net_rows = tables['ElmNet']['rows_dict']
-    if len(net_rows) != 1:
-        structural_errors.append(f'ElmNet rows={len(net_rows)}, expected 1')
+    # Spec 022: con la estructura, una red por zonal y otra «Sin SET» si hace falta.
+    _comb = getattr(model, 'combined', None)
+    barras_set = list(getattr(_comb, 'barras_set', None) or [])
+    sin_set = list(getattr(_comb, 'sin_set', None) or [])
+    redes_esperadas = (len({b.zonal for b in barras_set}) + (1 if sin_set else 0)) if barras_set else 1
+    rotulos_set = {_loc(b.rotulo) for b in barras_set}
+    if len(net_rows) != redes_esperadas:
+        structural_errors.append(f'ElmNet rows={len(net_rows)}, expected {redes_esperadas}')
     network_fids = {r.get('FID','') for r in net_rows}
     term_rows = tables['ElmTerm']['rows_dict']
     type_rows = tables['TypLne']['rows_dict']
@@ -165,6 +171,8 @@ def validate_dgs(
         structural_errors.append(f'ElmLod count {len(load_rows)} != source loads {len(model.loads)}')
     # Una fuente por alimentador: una sola, salvo en una red unida (combine).
     fuentes_esperadas = len(getattr(getattr(model, 'combined', None), 'feeders', None) or ()) or 1
+    if barras_set:
+        fuentes_esperadas = len(barras_set) + len(sin_set)          # 022:RF-11, RF-19
     if len(source_rows) != fuentes_esperadas:
         structural_errors.append(f'ElmXnet count {len(source_rows)} != expected {fuentes_esperadas}')
     if len(shunt_rows) != len(expected_shunts):
@@ -173,7 +181,11 @@ def validate_dgs(
     if len(switch_rows) != len(model.devices):
         structural_errors.append(f'StaSwitch count {len(switch_rows)} != source devices {len(model.devices)}')
 
-    substat_rows = tables.get('ElmSubstat', {}).get('rows_dict', [])
+    substat_rows = [r for r in tables.get('ElmSubstat', {}).get('rows_dict', [])
+                    if r.get('loc_name', '') not in rotulos_set]      # las SET van aparte (022:RF-9)
+    if len({r.get('loc_name', '') for r in tables.get('ElmSubstat', {}).get('rows_dict', [])}
+           & rotulos_set) != len(rotulos_set):
+        structural_errors.append(f'ElmSubstat: faltan SET de {sorted(rotulos_set)}')
     if len(substat_rows) != len(model.seds):
         structural_errors.append(f'ElmSubstat count {len(substat_rows)} != source SEDs {len(model.seds)}')
     tr2_rows = tables.get('ElmTr2', {}).get('rows_dict', [])
@@ -204,7 +216,10 @@ def validate_dgs(
             if r.get('fold_id', '') not in network_fids:
                 connection_errors.append(f'{cls} {r.get("FID")} references missing ElmNet {r.get("fold_id")}')
     # Feeder buses under ElmNet; SED MT/BT buses under ElmSubstat (NA205 triangle interior).
-    allowed_term_folds = network_fids | sed_fids
+    # Spec 022: las barras de SET van dentro de la subestación de su SET.
+    set_fids = {r.get('FID', '') for r in tables.get('ElmSubstat', {}).get('rows_dict', [])
+                if r.get('loc_name', '') in rotulos_set}
+    allowed_term_folds = network_fids | sed_fids | set_fids
     for r in term_rows:
         if r.get('fold_id', '') not in allowed_term_folds:
             connection_errors.append(f'ElmTerm {r.get("FID")} fold_id {r.get("fold_id")} not ElmNet/ElmSubstat')
@@ -462,10 +477,10 @@ def validate_dgs(
         diagram_rows = tables.get('IntGrfnet', {}).get('rows_dict', [])
         graphic_rows = tables.get('IntGrf', {}).get('rows_dict', [])
         con_rows = tables.get('IntGrfcon', {}).get('rows_dict', [])
-        if len(diagram_rows) != 1:
-            graphic_errors.append(f'IntGrfnet rows={len(diagram_rows)}, expected 1')
-        diagram_fid = diagram_rows[0].get('FID','') if diagram_rows else ''
-        if net_rows and net_rows[0].get('pDiagram','') != diagram_fid:
+        if len(diagram_rows) != redes_esperadas:
+            graphic_errors.append(f'IntGrfnet rows={len(diagram_rows)}, expected {redes_esperadas}')
+        diagram_fids = {r.get('FID', '') for r in diagram_rows}
+        if any(r.get('pDiagram', '') not in diagram_fids for r in net_rows):
             graphic_errors.append('ElmNet.pDiagram does not reference the generated IntGrfnet')
 
         from .dgs import (
@@ -529,7 +544,7 @@ def validate_dgs(
         symbol_counts: Counter[str] = Counter()
         for r in graphic_rows:
             symbol_counts[r.get('sSymNam', '')] += 1
-            if r.get('fold_id','') != diagram_fid:
+            if r.get('fold_id','') not in diagram_fids:
                 graphic_errors.append(f'IntGrf {r.get("FID")} fold_id does not reference diagram')
             if r.get('pDataObj','') not in electrical_graphic_objects:
                 graphic_errors.append(f'IntGrf {r.get("FID")} references missing electrical object {r.get("pDataObj")}')
@@ -674,8 +689,11 @@ def validate_dgs(
 
     # ElmFeeder required always (DigSilent feeder colouring / Define Feeder).
     feeder_rows = tables.get('ElmFeeder', {}).get('rows_dict', [])
-    if len(feeder_rows) != fuentes_esperadas:
-        structural_errors.append(f'ElmFeeder rows={len(feeder_rows)}, expected {fuentes_esperadas}')
+    # Spec 022: con la estructura, un ElmFeeder por alimentador aunque compartan fuente.
+    feeders_esperados = (len(getattr(_comb, 'feeders', None) or ()) if barras_set
+                         else fuentes_esperadas)
+    if len(feeder_rows) != feeders_esperados:
+        structural_errors.append(f'ElmFeeder rows={len(feeder_rows)}, expected {feeders_esperados}')
     for fila in feeder_rows:
         if fila.get('obj_id', '') not in cubic_fids:
             structural_errors.append(f'ElmFeeder {fila.get("FID")} obj_id is not a StaCubic')

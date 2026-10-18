@@ -627,8 +627,13 @@ def convert_group(
     write_preview: bool = False,
     preview_backend: str = 'auto',
     perfil: PerfilEmpresa | None = None,
+    estructura=None,
 ) -> dict:
     """Une los alimentadores elegidos en una sola red y escribe **un** DGS.
+
+    Con ``estructura`` (spec 022), la red unida se cuelga de sus SET, se abren sus
+    caminos cerrados y el oráculo calcula la red entera; el manifiesto trae el informe
+    por zonal y SET (RF-25, RF-34). Un oráculo que no converge se dice y no bloquea.
 
     ``include_geography=False`` escribe la red sin GPS, como ``convert_selection``: un
     modelo VNR-GIS sin CRS conocido no se puede reproyectar, y negarse a exportarlo
@@ -691,6 +696,8 @@ def convert_group(
             informes[m.name] = aplicar_reglas(m, reglas, correcciones=catalog_corrections)
             modelos.append(m)
         combinado, informe_union = combine_models(modelos, name=nombre)
+        if estructura is not None:
+            manifest['estructura'] = _por_set(combinado, estructura, [m.name for m in modelos])
         geography = (build_geography(dataset, combinado, source_crs=source_crs, target_crs=target_crs)
                      if include_geography else None)
         _clear_stage(stage)
@@ -765,3 +772,41 @@ def convert_group(
         (out_dir / f'{nombre}_manifest.json').write_text(
             json.dumps(manifest, indent=2, ensure_ascii=False, default=str) + '\n', encoding='utf-8')
     return manifest
+
+
+def _por_set(combinado, estructura, alimentadores) -> dict[str, Any]:
+    """La red unida por zonal y SET y su informe (spec 022, RF-7 a RF-34)."""
+    from .combine import estructurar
+    from .enlaces import abrir_caminos_cerrados, enlaces
+    from .estructura import asignar
+    from .oraculo import disponible, validar_unida
+
+    asignacion = asignar(estructura, alimentadores)
+    avisos = estructurar(combinado, estructura, asignacion)
+    aperturas = abrir_caminos_cerrados(combinado)
+    combinado.warnings.extend(avisos + [a.texto() for a in aperturas])
+    info = combinado.combined
+    zonales: dict[str, dict[str, Any]] = {}
+    for b in info.barras_set:
+        z = zonales.setdefault(b.zonal, {})
+        st = z.setdefault(b.rotulo, {'barras': [], 'alimentadores': []})
+        st['barras'].append(f'{b.nominal_kv:g} kV')
+        st['alimentadores'] += list(b.feeders)
+    oraculo = validar_unida(combinado).as_dict() if disponible() else None
+    if oraculo is not None and not oraculo['general']['convergio']:
+        combinado.warnings.append('El oráculo de la red unida no converge: '
+                                  + '; '.join(h['texto'] for h in oraculo['general']['hallazgos']
+                                              if h['gravedad'] == 'error') + ' (022:RF-33).')
+    return {
+        'zonales': zonales,                                           # RF-25
+        'sin_set': list(info.sin_set),                                # RF-19
+        'faltan': list(asignacion.faltan),                            # RF-20
+        'omitidos': asignacion.omitidos,                              # RF-25b
+        'enlaces': [{**e, 'alimentadores': list(e['alimentadores']), 'sets': list(e['sets'])}
+                    for e in enlaces(combinado)],                     # RF-26, RF-27
+        'aperturas': [{'elemento': a.elemento, 'clase': a.clase, 'motivo': a.motivo,
+                       'alimentadores': list(a.alimentadores), 'sets': list(a.sets),
+                       'texto': a.texto()} for a in aperturas],       # RF-34
+        'oraculo': oraculo,                                           # RF-28, RF-32, RF-33
+        'avisos': avisos,
+    }
