@@ -46,6 +46,7 @@ import argparse
 import hashlib
 import json
 import math
+import re
 import shutil
 import sys
 import time
@@ -2377,7 +2378,9 @@ def inventory_network(net: Any) -> dict[str, int]:
         # propia, la de media, que se llama como la SED. La barra propia (021:RF-12)
         # conserva el nombre de su nodo y la de una SET (022:RF-9) es de la red: en la
         # entrega de Electro Dunas por SET se contaban 5 910 barras de menos.
-        nombre = _name(term)
+        # DIgSILENT renombra con «(n)» la barra que choca con otro objeto de la SED: en
+        # SISTEMA_ICA desde VNR-GIS (2026-10-18), SE42014 y SE42176 se contaban de la red.
+        nombre = re.sub(r'\(\d+\)$', '', _name(term))
         if parent_cls == 'ElmSubstat' and (nombre.endswith('_BT') or nombre == _name(parent)):
             sed_internal_terms += 1
         else:
