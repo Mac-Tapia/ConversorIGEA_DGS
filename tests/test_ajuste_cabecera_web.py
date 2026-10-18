@@ -28,39 +28,42 @@ GUION_FALSO = '''
 import argparse, json
 from pathlib import Path
 p = argparse.ArgumentParser()
-p.add_argument('--plan'); p.add_argument('--output-json'); p.add_argument('--simular', action='store_true')
-p.add_argument('--cancel-file')
+p.add_argument('--plan', action='append'); p.add_argument('--output-json', action='append')
+p.add_argument('--simular', action='store_true'); p.add_argument('--cancel-file')
 a = p.parse_args()
 # Como el guion real: la primera línea sale con DIgSILENT ya conectado (005:RF-21).
 print('Conectado a DIgSILENT como prueba.', flush=True)
-plan = json.loads(Path(a.plan).read_text(encoding='utf-8'))
-informe = {'modo': 'simular' if a.simular else 'aplicar', 'cuadrado': not a.simular,
-           'recibido': plan}
-if not a.simular:
-    informe.update(sed=[{'sed': 'S1', 'despues': {'kw': 40.0, 'kvar': 9.0}}],
-                   escenario='Sin proyecto')
-if plan['project'] == 'SOBRE':
-    # Spec 020: una fija sobrecargada con propuesta (S1) y otra sin ella (S2).
-    informe['fijas_sobre_su_transformador'] = [
-        {'sed': 'S1', 'carga_pct': 306.0, 'transformadores': [{'transformador': 'TR_S1'}],
-         'propuesta': {'kva': 400, 'unidades': 1, 'tipo_nuevo': 'TR_400kVA_X_10-380V_DYN11'}},
-        {'sed': 'S2', 'carga_pct': 150.0, 'transformadores': [],
-         'propuesta': {'kva': None, 'motivo': 'la SED no tiene transformador en DIgSILENT'}}]
-    if plan.get('transformadores'):
-        informe['transformadores_implementados'] = {'cambios': plan['transformadores'],
-                                                    'omitidas': []}
-        informe['fijas_sobre_su_transformador'] = informe['fijas_sobre_su_transformador'][1:]
-if plan['project'] == 'SIN_KVA':
-    informe = {'error': '1 SED sin potencia instalada: S9. Corríjalas antes de ajustar.'}
-if plan['project'] == 'FALLA_A1' and plan['feeder'] == 'A1':
-    informe = {'error': 'A1 no tiene ElmFeeder con cabecera en el proyecto.'}
-if plan['project'] == 'ESPERAR_CANCELACION':
-    import time
-    limite = time.time() + 20
-    while not Path(a.cancel_file).exists() and time.time() < limite:
-        time.sleep(0.05)
-    informe['cancelado'] = True
-Path(a.output_json).write_text(json.dumps(informe), encoding='utf-8')
+# 021:RF-54: un proceso con todos los planes del proyecto.
+for ruta_plan, ruta_salida in zip(a.plan, a.output_json):
+  plan = json.loads(Path(ruta_plan).read_text(encoding='utf-8'))
+  informe = {'modo': 'simular' if a.simular else 'aplicar', 'cuadrado': not a.simular,
+             'recibido': plan}
+  if not a.simular:
+      informe.update(sed=[{'sed': 'S1', 'despues': {'kw': 40.0, 'kvar': 9.0}}],
+                     escenario='Sin proyecto')
+  if plan['project'] == 'SOBRE':
+      # Spec 020: una fija sobrecargada con propuesta (S1) y otra sin ella (S2).
+      informe['fijas_sobre_su_transformador'] = [
+          {'sed': 'S1', 'carga_pct': 306.0, 'transformadores': [{'transformador': 'TR_S1'}],
+           'propuesta': {'kva': 400, 'unidades': 1, 'tipo_nuevo': 'TR_400kVA_X_10-380V_DYN11'}},
+          {'sed': 'S2', 'carga_pct': 150.0, 'transformadores': [],
+           'propuesta': {'kva': None, 'motivo': 'la SED no tiene transformador en DIgSILENT'}}]
+      if plan.get('transformadores'):
+          informe['transformadores_implementados'] = {'cambios': plan['transformadores'],
+                                                      'omitidas': []}
+          informe['fijas_sobre_su_transformador'] = informe['fijas_sobre_su_transformador'][1:]
+  if plan['project'] == 'SIN_KVA':
+      informe = {'error': '1 SED sin potencia instalada: S9. Corríjalas antes de ajustar.'}
+  if plan['project'] == 'FALLA_A1' and plan['feeder'] == 'A1':
+      informe = {'error': 'A1 no tiene ElmFeeder con cabecera en el proyecto.'}
+  if plan['project'] == 'ESPERAR_CANCELACION':
+      import time
+      limite = time.time() + 20
+      while not Path(a.cancel_file).exists() and time.time() < limite:
+          time.sleep(0.05)
+      informe['cancelado'] = True
+  Path(ruta_salida).write_text(json.dumps(informe), encoding='utf-8')
+  informe_listo = True
 '''
 
 SUMINISTROS = {'s': [['Suministro', 'Suministro Act', 'SED', 'RADIAL'], [11, 9011, 'E1', 'A1'],
@@ -377,8 +380,8 @@ def _maxima_dos(client, medidores=(('A1', 'M1'), ('A2', 'M3'))):
 
 
 def test_varios_alimentadores_en_un_trabajo(client):
-    """008:RF-10 / 008:RF-12 / 008:RF-16 — un plan por alimentador, ajustados uno tras otro en
-    un solo trabajo, cada uno en su variación, con un informe por alimentador."""
+    """008:RF-10 / 008:RF-16 / 021:RF-54 — un plan por alimentador, todos en una sola
+    ejecución del guion (calibrados a la vez), con un informe por alimentador."""
     wid, job = _maxima_dos(client)
     r = _plan(client, wid, job)
     assert r.status_code == 200, r.text
@@ -419,7 +422,7 @@ def test_un_medidor_sin_maxima_no_para_los_demas(client):
 
 
 def test_un_ajuste_que_falla_no_para_el_siguiente(client):
-    """008:RF-14 — el error de un alimentador queda en su informe y el siguiente se ajusta."""
+    """008:RF-14, 021:RF-57 — el error de un alimentador queda en su informe y el otro se ajusta."""
     wid, job = _maxima_dos(client)
     token = _plan(client, wid, job, project='FALLA_A1').json()['token']
     estado = esperar_trabajo(client, client.post(
@@ -430,8 +433,9 @@ def test_un_ajuste_que_falla_no_para_el_siguiente(client):
     assert 'error' not in a2 and a2['recibido']['feeder'] == 'A2'
 
 
-def test_cancelar_no_empieza_otro_alimentador(client):
-    """008:RF-15 — cancelar termina el alimentador en curso y no empieza el siguiente."""
+def test_cancelar_termina_el_proyecto(client):
+    """021:RF-58 (cambia 008:RF-15) — los dos alimentadores van en una sola ejecución:
+    cancelar la termina y los dos quedan cancelados con su informe."""
     import time
 
     wid, job = _maxima_dos(client)
@@ -451,8 +455,7 @@ def test_cancelar_no_empieza_otro_alimentador(client):
     estado = esperar_trabajo(client, trabajo)
     assert estado['status'] == 'cancelled'
     a1, a2 = estado['result']['informes']
-    assert a1['cancelado'] and 'recibido' in a1, 'A1 terminó con su informe'
-    assert a2['no_empezado'] and a2['feeder'] == 'A2'
+    assert a1['cancelado'] and a2['cancelado'] and 'recibido' in a2
 
 
 def test_sin_caso_base_verificado_no_se_calibra(client, monkeypatch):

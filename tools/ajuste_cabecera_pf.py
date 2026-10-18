@@ -46,6 +46,7 @@ from cargas_pf import (
     error_inesperado,
     error_relectura,
     escribir_carga,
+    leer_cabecera,
     medir_cabecera,
     potencia,
 )
@@ -1167,9 +1168,14 @@ def medir_zonas(app, elm, barra, entrada: str):
     hacia la SET (la llegada); aguas abajo: lo que sale de ella por las demás ramas. En la
     sonda, ``m:Psum:busN`` del extremo de cada línea en la barra es lo que sale de ella.
     """
+    return leer_zonas(medir_cabecera(app, elm), barra, entrada)
+
+
+def leer_zonas(cab, barra, entrada: str):
+    """Las zonas de :func:`medir_zonas` con el último flujo y la cabecera ya leída: en
+    el ajuste de un proyecto (021:RF-54) un flujo sirve a todos los alimentadores."""
     from igea_dgs.ajuste_cabecera import MedidaZonas
 
-    cab = medir_cabecera(app, elm)
     if not cab.converge:
         return MedidaZonas(False, motivo=cab.motivo)
     llegada = [0.0, 0.0]
@@ -1195,20 +1201,17 @@ def medir_zonas(app, elm, barra, entrada: str):
                        cabecera_kw=cab.kw, cabecera_kvar=cab.kvar)
 
 
-def _ejecutar_con_central(app, plan: dict, informe: dict, *, alims, elm, feeder: str,
-                          cargas: dict, kva: dict, kva_origen: dict, fijas_libro: dict,
-                          fp_cargas, apagar: dict, manuales: list, ambiguas, sin, con,
-                          inicial, escenario, simular: bool, cancelado) -> tuple[dict, int]:
-    """El ajuste de un alimentador con una central en su troncal (spec 021, RF-35 a RF-45).
+def _preparar_central(app, plan: dict, informe: dict, *, elm, feeder: str, cargas: dict,
+                      kva: dict, fijas_libro: dict, fp_cargas, ambiguas) -> dict | tuple[dict, int]:
+    """Las dos zonas de un alimentador con una central en su troncal (spec 021, RF-35 a RF-45).
 
     Las cargas se separan por la barra de la central: las de aguas arriba se ajustan a lo
     que entra por la cabecera y por la llegada, y las de aguas abajo a la salida, cada
     zona con su factor de escala (RF-40, RF-41). La central lleva la P y Q que medía en
-    el registro de la máxima de demanda (RF-35). Sin central, :func:`_ejecutar` sigue
-    como siempre (RF-46).
+    el registro de la máxima de demanda (RF-35). Devuelve lo que necesita el cuadre o
+    ``(informe, código)`` si no se puede.
     """
-    from igea_dgs.ajuste_cabecera import (
-        MAX_FLUJOS, AjusteError, Medida, cuadrar_zonas, objetivo_zonas_de, reparto_inicial)
+    from igea_dgs.ajuste_cabecera import AjusteError, objetivo_zonas_de, reparto_inicial
     from igea_dgs.demanda_medida import clave_codigo
 
     central = plan['central']
@@ -1237,9 +1240,9 @@ def _ejecutar_con_central(app, plan: dict, informe: dict, *, alims, elm, feeder:
         return {**informe, 'error': f'{feeder} con central: {exc}'}, 2
     fijas = {s: f for f in fijas_libro.values() for s in cargas
              if clave_codigo(s) == clave_codigo(f.sed)}
-    tolerancia = float(plan.get('tolerancia', 0.01))
     informe.update(
-        objetivo=plan['objetivo'], tolerancia=tolerancia, ambiguas=ambiguas,
+        objetivo=plan['objetivo'], tolerancia=float(plan.get('tolerancia', 0.01)),
+        ambiguas=ambiguas,
         central={'barra': barra.loc_name, 'entrada': parte.entrada,
                  'generacion_kw': objetivo.generacion_kw,
                  'generacion_kvar': objetivo.generacion_kvar, 'fecha': objetivo.fecha,
@@ -1253,6 +1256,28 @@ def _ejecutar_con_central(app, plan: dict, informe: dict, *, alims, elm, feeder:
         'RF-41).')
     for r in repartos.values():
         informe['avisos'] += [a for a in r.avisos if a not in informe['avisos']]
+    return {'objetivo': objetivo, 'barra': barra, 'parte': parte, 'zonas': zonas,
+            'repartos': repartos, 'fijas': fijas}
+
+
+def _ejecutar_con_central(app, plan: dict, informe: dict, *, alims, elm, feeder: str,
+                          cargas: dict, kva: dict, kva_origen: dict, fijas_libro: dict,
+                          fp_cargas, apagar: dict, manuales: list, ambiguas, sin, con,
+                          inicial, escenario, simular: bool, cancelado) -> tuple[dict, int]:
+    """El ajuste de un alimentador con una central en su troncal (spec 021, RF-35 a RF-45).
+
+    Sin central, :func:`_ejecutar` sigue como siempre (RF-46).
+    """
+    from igea_dgs.ajuste_cabecera import MAX_FLUJOS, Medida, cuadrar_zonas
+
+    zc = _preparar_central(app, plan, informe, elm=elm, feeder=feeder, cargas=cargas, kva=kva,
+                           fijas_libro=fijas_libro, fp_cargas=fp_cargas, ambiguas=ambiguas)
+    if isinstance(zc, tuple):
+        return zc
+    objetivo, barra, parte = zc['objetivo'], zc['barra'], zc['parte']
+    zonas, repartos, fijas = zc['zonas'], zc['repartos'], zc['fijas']
+    arriba, abajo = zonas['arriba'], zonas['abajo']
+    tolerancia = informe['tolerancia']
     antes = {s: potencia_efectiva(o) for s, o in cargas.items()}
     if simular:
         informe['sed'] = (_por_sed(repartos['arriba'], arriba, kva_origen, antes, fijas)
@@ -1437,62 +1462,18 @@ def ejecutar(app, plan: dict, *, simular: bool = False, cancelado=lambda: False)
         _devolver_cargas_nuevas(app, estado)
 
 
-def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tuple[dict, int]:
-    from igea_dgs.ajuste_cabecera import (
-        MAX_FLUJOS,
-        AjusteError,
-        Fija,
-        Objetivo,
-        cuadrar,
-        fijas_de,
-        kvar_difference,
-        reparto_inicial,
-        sed_desconectadas,
-    )
+def _preparar_alimentador(app, plan: dict, informe: dict, *, alims, feeder: str,
+                          simular: bool, cancelado) -> dict | tuple[dict, int]:
+    """Lo de un alimentador antes del cuadre: sus cargas, las fijas, las desconectadas, los
+    cambios manuales y el reparto inicial (o ``central``, para el de zonas).
+
+    La comparten el ajuste de un alimentador (:func:`_ejecutar`) y el de todos los de un
+    proyecto a la vez (:func:`ejecutar_proyecto`, 021:RF-54). Devuelve ``(informe,
+    código)`` si el alimentador no se puede calibrar.
+    """
+    from igea_dgs.ajuste_cabecera import AjusteError, Fija, Objetivo, fijas_de, reparto_inicial, sed_desconectadas
     from igea_dgs.demanda_medida import clave_codigo
 
-    feeder = plan['feeder']
-    informe = {'project': plan['project'], 'feeder': feeder,
-               'modo': 'simular' if simular else 'aplicar', 'avisos': [], 'cancelado': False}
-    proyecto = activar_proyecto(app, plan['project'], plan.get('folder'))
-    if proyecto is None:
-        return {**informe, 'error': f"no existe el proyecto {plan['project']!r} en la carpeta "
-                                    f"{plan.get('folder')!r} de DIgSILENT"}, 2
-    alims = Alimentadores(app, proyecto, [feeder])
-    elm = alims.elm.get(feeder)
-    if elm is None or getattr(elm, 'obj_id', None) is None:
-        return {**informe, 'error': f'{feeder} no tiene ElmFeeder con cabecera en el proyecto: '
-                                    'no se puede medir lo que entra por ella.'}, 2
-    # 015:RF-16, RF-17: se calibra en «Sin proyecto», la copia del «Caso base»
-    # verificado; si aún no existe se crea, y sin «Caso base» verificado no se calibra.
-    # Al simular no se crea nada: se lee en el caso activo.
-    inicial = app.GetActiveStudyCase()
-    sin = caso_del_sistema(app, 'sin')
-    if sin is None and not simular:
-        pedido = {'project': plan['project'], 'folder': plan.get('folder'), 'feeders': [feeder]}
-        if 'caso_base_sin_verificar' in plan:
-            pedido['caso_base_sin_verificar'] = plan['caso_base_sin_verificar']
-        preparado, rc = preparar_sin(app, pedido)
-        if rc:
-            return {**informe, 'error': preparado.get('error')}, 2
-        informe['casos_preparados'] = preparado.get('casos')
-        sin = caso_del_sistema(app, 'sin')
-        inicial = app.GetActiveStudyCase()
-    if sin is not None:
-        sin.Activate()
-        informe['caso'] = NOMBRES['sin']
-    con = caso_del_sistema(app, 'con')
-    escenario = app.GetActiveScenario()
-    if escenario is None and not simular:
-        # Sin escenario, lo escrito iría a la red que comparten los casos y cambiaría el
-        # «Caso base» (015:RF-19).
-        return {**informe, 'error': f"«{NOMBRES['sin']}» no tiene escenario de operación: "
-                                    'la calibración se graba en él (015:RF-26).'}, 2
-    apartadas = _apartar_cargas_nuevas(app, estado)
-    if apartadas:
-        informe['cargas_nuevas_apartadas'] = apartadas
-        informe['avisos'].append('Cargas nuevas fuera del ajuste mientras se mide (vuelven al '
-                                 'terminar): ' + ', '.join(apartadas))
     cargas, ambiguas = cargas_sed(alims, feeder)
     poblacion_nativa = dict(getattr(cargas_sed, 'last_audit', {}) or {
         'algoritmo': 'SELECCION_NATIVA_DEL_ALIMENTADOR',
@@ -1576,13 +1557,13 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
             'quedan fijas con su valor y no se sobrescriben: ' + '; '.join(
                 f"{m['sed']} {m['manual']['kw']:.1f} kW (el ajuste dejó "
                 f"{m['ajuste']['kw']:.1f} kW)" for m in manuales[:50]))
+    comun = dict(cargas=cargas, ambiguas=ambiguas, poblacion_nativa=poblacion_nativa,
+                 apagar=apagar, desconectadas=desconectadas, avisos_desc=avisos_desc, kva=kva,
+                 kva_origen=kva_origen, objetivo=objetivo, fp_cargas=fp_cargas,
+                 fijas_libro=fijas_libro, manuales=manuales)
     if plan.get('central'):
         # Spec 021: una central en el troncal; se calibra por zonas (RF-35 a RF-45).
-        return _ejecutar_con_central(
-            app, plan, informe, alims=alims, elm=elm, feeder=feeder, cargas=cargas, kva=kva,
-            kva_origen=kva_origen, fijas_libro=fijas_libro, fp_cargas=fp_cargas,
-            apagar=apagar, manuales=manuales, ambiguas=ambiguas, sin=sin, con=con,
-            inicial=inicial, escenario=escenario, simular=simular, cancelado=cancelado)
+        return {**comun, 'central': True}
     try:
         reparto = reparto_inicial(objetivo, fijas_libro,
                                   {s: potencia(o) for s, o in cargas.items()}, kva,
@@ -1630,6 +1611,75 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
                    todo_escala=reparto.todo_escala, solo_kw=reparto.solo_kw,
                    desconectadas=desconectadas)
     informe['avisos'] += avisos_desc + reparto.avisos
+    return {**comun, 'central': False, 'reparto': reparto, 'fijas': fijas, 'sobre': sobre,
+            'antes': antes, 'antes_nativo': antes_nativo, 'antes_apagar': antes_apagar}
+
+
+def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tuple[dict, int]:
+    from igea_dgs.ajuste_cabecera import (
+        MAX_FLUJOS,
+        cuadrar,
+        kvar_difference,
+    )
+
+    feeder = plan['feeder']
+    informe = {'project': plan['project'], 'feeder': feeder,
+               'modo': 'simular' if simular else 'aplicar', 'avisos': [], 'cancelado': False}
+    proyecto = activar_proyecto(app, plan['project'], plan.get('folder'))
+    if proyecto is None:
+        return {**informe, 'error': f"no existe el proyecto {plan['project']!r} en la carpeta "
+                                    f"{plan.get('folder')!r} de DIgSILENT"}, 2
+    alims = Alimentadores(app, proyecto, [feeder])
+    elm = alims.elm.get(feeder)
+    if elm is None or getattr(elm, 'obj_id', None) is None:
+        return {**informe, 'error': f'{feeder} no tiene ElmFeeder con cabecera en el proyecto: '
+                                    'no se puede medir lo que entra por ella.'}, 2
+    # 015:RF-16, RF-17: se calibra en «Sin proyecto», la copia del «Caso base»
+    # verificado; si aún no existe se crea, y sin «Caso base» verificado no se calibra.
+    # Al simular no se crea nada: se lee en el caso activo.
+    inicial = app.GetActiveStudyCase()
+    sin = caso_del_sistema(app, 'sin')
+    if sin is None and not simular:
+        pedido = {'project': plan['project'], 'folder': plan.get('folder'), 'feeders': [feeder]}
+        if 'caso_base_sin_verificar' in plan:
+            pedido['caso_base_sin_verificar'] = plan['caso_base_sin_verificar']
+        preparado, rc = preparar_sin(app, pedido)
+        if rc:
+            return {**informe, 'error': preparado.get('error')}, 2
+        informe['casos_preparados'] = preparado.get('casos')
+        sin = caso_del_sistema(app, 'sin')
+        inicial = app.GetActiveStudyCase()
+    if sin is not None:
+        sin.Activate()
+        informe['caso'] = NOMBRES['sin']
+    con = caso_del_sistema(app, 'con')
+    escenario = app.GetActiveScenario()
+    if escenario is None and not simular:
+        # Sin escenario, lo escrito iría a la red que comparten los casos y cambiaría el
+        # «Caso base» (015:RF-19).
+        return {**informe, 'error': f"«{NOMBRES['sin']}» no tiene escenario de operación: "
+                                    'la calibración se graba en él (015:RF-26).'}, 2
+    apartadas = _apartar_cargas_nuevas(app, estado)
+    if apartadas:
+        informe['cargas_nuevas_apartadas'] = apartadas
+        informe['avisos'].append('Cargas nuevas fuera del ajuste mientras se mide (vuelven al '
+                                 'terminar): ' + ', '.join(apartadas))
+    p = _preparar_alimentador(app, plan, informe, alims=alims, feeder=feeder,
+                              simular=simular, cancelado=cancelado)
+    if isinstance(p, tuple):
+        return p
+    if p['central']:
+        return _ejecutar_con_central(
+            app, plan, informe, alims=alims, elm=elm, feeder=feeder, cargas=p['cargas'],
+            kva=p['kva'], kva_origen=p['kva_origen'], fijas_libro=p['fijas_libro'],
+            fp_cargas=p['fp_cargas'], apagar=p['apagar'], manuales=p['manuales'],
+            ambiguas=p['ambiguas'], sin=sin, con=con, inicial=inicial, escenario=escenario,
+            simular=simular, cancelado=cancelado)
+    (cargas, ambiguas, poblacion_nativa, apagar, kva, kva_origen, objetivo, fp_cargas,
+     manuales, reparto, fijas, sobre, antes, antes_nativo, antes_apagar) = (
+        p[k] for k in ('cargas', 'ambiguas', 'poblacion_nativa', 'apagar', 'kva', 'kva_origen',
+                       'objetivo', 'fp_cargas', 'manuales', 'reparto', 'fijas', 'sobre',
+                       'antes', 'antes_nativo', 'antes_apagar'))
 
     if simular:
         informe['bancos'] = bancos_instalados(alims, feeder)
@@ -1916,20 +1966,491 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
     return informe, (0 if informe.get('cuadrado') and not informe.get('fallos') else 2)
 
 
+def ejecutar_proyecto(app, planes: list[dict], *, simular: bool = False,
+                      cancelado=lambda: False) -> list[tuple[dict, int]]:
+    """El ajuste de los alimentadores de un proyecto, todos a la vez (021:RF-54 a RF-60).
+
+    El usuario, el 2026-10-17, al ir a aplicar NA203 y después NA205: «la calibración se
+    debe hacer por proyecto en DIgSILENT; si es un alimentador se hace de ese y dos o más
+    se hacen de todas según el proyecto, no de forma independiente». Comparten la red
+    (la SET, la central de NA205, los enlaces): cuadrar uno y después otro deja al primero
+    con lo que movió el segundo. Con un plan, o al simular (no hay flujos), cada uno como
+    siempre (RF-60). Devuelve un ``(informe, código)`` por plan, en su orden.
+    """
+    if len(planes) == 1 or simular:
+        return [ejecutar(app, p, simular=simular, cancelado=cancelado) for p in planes]
+    estado = {'apartadas': []}
+    try:
+        return _ejecutar_proyecto(app, planes, cancelado=cancelado, estado=estado)
+    finally:
+        _devolver_cargas_nuevas(app, estado)
+
+
+def _clave_zona(feeder: str, zona: str) -> str:
+    return f'{feeder}|{zona}'
+
+
+def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict) -> list[tuple[dict, int]]:
+    from igea_dgs.ajuste_cabecera import (
+        MAX_FLUJOS, ZONAS, AjusteError, Medida, MedidaConjunta, avisos_de_zonas,
+        cuadrar_conjunto, kvar_difference, preparar_zonas)
+
+    feeders = [p['feeder'] for p in planes]
+    nombre = planes[0]['project']
+    informes = {f: {'project': nombre, 'feeder': f, 'modo': 'aplicar', 'avisos': [],
+                    'cancelado': False} for f in feeders}
+    salida: dict[str, tuple[dict, int]] = {}
+
+    def todos(error: str) -> list[tuple[dict, int]]:
+        return [salida.get(f) or ({**informes[f], 'error': error}, 2) for f in feeders]
+
+    if len({p['project'] for p in planes}) > 1 or len(set(feeders)) < len(feeders):
+        return todos('los planes no son de un mismo proyecto con alimentadores distintos: '
+                     'se calibra un proyecto cada vez (021:RF-54)')
+    proyecto = activar_proyecto(app, nombre, planes[0].get('folder'))
+    if proyecto is None:
+        return todos(f"no existe el proyecto {nombre!r} en la carpeta "
+                     f"{planes[0].get('folder')!r} de DIgSILENT")
+    alims = Alimentadores(app, proyecto, feeders)
+    for f in feeders:
+        elm = alims.elm.get(f)
+        if elm is None or getattr(elm, 'obj_id', None) is None:
+            salida[f] = ({**informes[f], 'error': f'{f} no tiene ElmFeeder con cabecera en el '
+                          'proyecto: no se puede medir lo que entra por ella.'}, 2)
+    validos = [p for p in planes if p['feeder'] not in salida]
+    if not validos:
+        return todos('ningún alimentador se puede calibrar')
+    # 015:RF-16, RF-17: en «Sin proyecto»; si aún no existe se crea, con todos.
+    inicial = app.GetActiveStudyCase()
+    sin = caso_del_sistema(app, 'sin')
+    if sin is None:
+        pedido = {'project': nombre, 'folder': planes[0].get('folder'),
+                  'feeders': [p['feeder'] for p in validos]}
+        sin_verificar = {}
+        for p in validos:
+            sin_verificar.update(p.get('caso_base_sin_verificar') or {})
+        if any('caso_base_sin_verificar' in p for p in validos):
+            pedido['caso_base_sin_verificar'] = sin_verificar
+        preparado, rc = preparar_sin(app, pedido)
+        if rc:
+            return todos(preparado.get('error') or '«Sin proyecto» no se pudo preparar')
+        for f in feeders:
+            informes[f]['casos_preparados'] = preparado.get('casos')
+        sin = caso_del_sistema(app, 'sin')
+        inicial = app.GetActiveStudyCase()
+    sin.Activate()
+    con = caso_del_sistema(app, 'con')
+    escenario = app.GetActiveScenario()
+    if escenario is None:
+        return todos(f"«{NOMBRES['sin']}» no tiene escenario de operación: la calibración se "
+                     'graba en él (015:RF-26).')
+    apartadas = _apartar_cargas_nuevas(app, estado)
+    preps: dict[str, dict] = {}
+    for plan in validos:
+        f = plan['feeder']
+        inf = informes[f]
+        inf['caso'] = NOMBRES['sin']
+        if apartadas:
+            inf['cargas_nuevas_apartadas'] = apartadas
+            inf['avisos'].append('Cargas nuevas fuera del ajuste mientras se mide (vuelven al '
+                                 'terminar): ' + ', '.join(apartadas))
+        p = _preparar_alimentador(app, plan, inf, alims=alims, feeder=f, simular=False,
+                                  cancelado=cancelado)
+        if isinstance(p, tuple):
+            salida[f] = p
+            continue
+        p.update(plan=plan, elm=alims.elm[f], con_manual={m['sed'] for m in p['manuales']})
+        if p['central']:
+            zc = _preparar_central(app, plan, inf, elm=p['elm'], feeder=f, cargas=p['cargas'],
+                                   kva=p['kva'], fijas_libro=p['fijas_libro'],
+                                   fp_cargas=p['fp_cargas'], ambiguas=p['ambiguas'])
+            if isinstance(zc, tuple):
+                salida[f] = zc
+                continue
+            try:
+                zc['repartos'], zc['quietas'] = preparar_zonas(zc['repartos']['arriba'],
+                                                               zc['repartos']['abajo'])
+            except AjusteError as exc:
+                salida[f] = ({**inf, 'error': f'{f} con central: {exc}'}, 2)
+                continue
+            inf['avisos'] += avisos_de_zonas(zc['quietas'])
+            p['zc'] = zc
+            p['antes'] = {s: potencia_efectiva(o) for s, o in p['cargas'].items()}
+        preps[f] = p
+    if not preps:
+        return todos('ningún alimentador se puede calibrar')
+    fuera = [f for f in feeders if f not in preps]
+    for f in preps:
+        inf = informes[f]
+        inf['calibrado_con'] = [x for x in preps if x != f]                       # RF-59
+        inf['escenario'] = escenario.loc_name
+        inf['decision_carga_nativa'] = {'status': 'REQUIERE_DISTRIBUCION',
+                                        'accion': 'CUADRAR_EL_PROYECTO', 'bloquea': False}
+        inf['avisos'].append('Calibrado a la vez que ' + ', '.join(inf['calibrado_con'])
+                             + ', en los mismos flujos de carga (021:RF-54).'
+                             if inf['calibrado_con'] else
+                             'Único alimentador del proyecto que se pudo calibrar.')
+        if fuera:
+            inf['avisos'].append('Fuera de la calibración del proyecto (vea su informe): '
+                                 + ', '.join(fuera) + ' (021:RF-57).')
+    viejos = sorted(v.loc_name for v in (app.GetActiveNetworkVariations() or [])
+                    if v.loc_name.startswith('Ajuste_'))
+    for f, p in preps.items():
+        inf = informes[f]
+        if viejos:
+            inf['variaciones_de_ajustes_previos'] = viejos
+            inf['avisos'].append('Ajustes de antes de la spec 015 activos en «Sin proyecto» (no '
+                                 'se tocan; la calibración va al escenario): ' + ', '.join(viejos))
+        if not p['central']:
+            al_maximo = bancos_a_su_maxima_capacidad(alims, f)                    # 015:RF-66
+            if al_maximo:
+                inf['bancos_puestos_a_maxima'] = al_maximo
+                inf['avisos'].append(
+                    'Bancos existentes puestos a su máxima capacidad (todos los escalones, en '
+                    'servicio): ' + ', '.join(c['banco'] for c in al_maximo) + ' (015:RF-66).')
+
+    # Un factor por alimentador, o por zona si tiene central (RF-55).
+    repartos, objetivos, quietas = {}, {}, set()
+    for f, p in preps.items():
+        if p['central']:
+            zc = p['zc']
+            for z in ZONAS:
+                repartos[_clave_zona(f, z)] = zc['repartos'][z]
+                objetivos[_clave_zona(f, z)] = getattr(zc['objetivo'], z)
+            quietas |= {_clave_zona(f, z) for z in zc['quietas']}
+        else:
+            repartos[f], objetivos[f] = p['reparto'], p['objetivo']
+    tolerancia = min(float(p['plan'].get('tolerancia', 0.01)) for p in preps.values())
+    max_flujos = max(int(p['plan'].get('max_flujos') or MAX_FLUJOS) for p in preps.values())
+    remedios = Remedios(app)
+    fallos: dict[str, list] = {f: [] for f in preps}
+    invalidos: list[str] = []
+    res = None
+    try:
+        # La marca fija o escalable es dato de red (015:RF-37): se escribe con todas las
+        # variaciones de las centrales apagadas, para que la de NA203 no caiga en la etapa
+        # de la central de NA205, que sigue grabando.
+        activas = {v.loc_name for v in (app.GetActiveNetworkVariations() or [])}
+        for f, p in preps.items():
+            previa = variacion_de_la_central(app, f) if p['central'] else None
+            if previa is not None and previa.loc_name in activas:
+                previa.Deactivate()
+        for f, p in preps.items():
+            if p['central']:
+                for z, r in p['zc']['repartos'].items():
+                    for sed in r.demandas:
+                        p['zc']['zonas'][z][sed].i_scale = 1 if sed in r.base else 0
+            else:
+                for sed in p['reparto'].demandas:
+                    p['cargas'][sed].i_scale = 1 if sed in p['reparto'].base else 0
+            for sed, obj in p['apagar'].items():                                   # 008:RF-26
+                try:
+                    obj.outserv = 1
+                except Exception as exc:  # noqa: BLE001 - una SED no tumba el ajuste
+                    fallos[f].append({'sed': sed, 'error': f'{type(exc).__name__}: {exc}'})
+        desc = {f: list(x) for f, x in fallos.items()}
+        for f, p in preps.items():
+            if p['central']:
+                o = p['zc']['objetivo']
+                informes[f]['central'].update(central_en_sin_proyecto(       # 021:RF-35, RF-36
+                    app, p['zc']['barra'], f, o.generacion_kw, o.generacion_kvar))
+
+        def flujo(reps):
+            for f, p in preps.items():
+                if p['central']:
+                    zs = p['zc']['zonas']
+                    fallos[f] = desc[f] + [x for z in ZONAS for x in escribir_reparto(
+                        zs[z], reps[_clave_zona(f, z)], p['con_manual'])]
+                else:
+                    fallos[f] = desc[f] + escribir_reparto(p['cargas'], reps[f], p['con_manual'])
+            rc = app.GetFromStudyCase('ComLdf').Execute()
+            if rc != 0 or not app.IsLdfValid():
+                return MedidaConjunta(False, motivo=f'el flujo de carga no converge (código {rc})')
+            kw, kvar, carga, extra = {}, {}, {}, {}
+            for f, p in preps.items():
+                cab = leer_cabecera(p['elm'])
+                if p['central']:
+                    mz = leer_zonas(cab, p['zc']['barra'], p['zc']['parte'].entrada)
+                    if not mz.converge:
+                        return MedidaConjunta(False, motivo=f'{f}: {mz.motivo}')
+                    extra[f] = mz
+                    for z in ZONAS:
+                        kw[_clave_zona(f, z)] = getattr(mz, f'{z}_kw')
+                        kvar[_clave_zona(f, z)] = getattr(mz, f'{z}_kvar')
+                    continue
+                if not cab.converge:
+                    return MedidaConjunta(False, motivo=f'{f}: {cab.motivo}')
+                ck, cq = consumo_nativo(p['cargas'])
+                if ck is not None and cq is not None:
+                    cab = replace(cab, carga_kw=ck, carga_kvar=cq)
+                extra[f], kw[f], kvar[f], carga[f] = cab, cab.kw, cab.kvar, cab.carga_kw
+            return MedidaConjunta(True, kw=kw, kvar=kvar, carga_kw=carga, extra=extra)
+
+        res = cuadrar_conjunto(repartos, objetivos, flujo, quietas=quietas,
+                               tolerancia=tolerancia, max_flujos=max_flujos,
+                               remedio=remedios.aplicar, cancelado=cancelado,
+                               progreso=lambda n, m, t: print(f'  {t}'))
+        medidas = res.medida.extra if res.medida is not None and res.medida.converge else {}
+        reps = res.repartos or {}
+        fallido = next((h for h in res.historial if not h['converge']), None)
+        for f, p in preps.items():
+            inf = informes[f]
+            inf.update(cuadrado=res.cuadrado, motivo=res.motivo or None,
+                       cancelado=res.cancelado, flujos=res.flujos, remedios=res.remedios,
+                       historial=res.historial, fallos=list(fallos[f]))
+            if p['central']:
+                ok = _cerrar_central_en_proyecto(app, f, p, inf, reps, medidas.get(f), res,
+                                                 tolerancia, Medida)
+            else:
+                ok = _cerrar_alimentador_en_proyecto(app, alims, f, p, inf, reps.get(f),
+                                                     medidas.get(f), res, tolerancia,
+                                                     fallido, kvar_difference)
+            if not ok:
+                invalidos.append(f)
+        if invalidos:
+            # Una calibración del proyecto: si lo que consume una no es lo escrito, no vale
+            # para ninguno y las cargas vuelven a como estaban (015:RF-49).
+            for f, p in preps.items():
+                inf = informes[f]
+                inf['cuadrado'] = False
+                if f not in invalidos:
+                    inf['status'] = 'FALLO_VALIDACION_NATIVA_EN_EL_PROYECTO'
+                    inf['avisos'].append('La calibración del proyecto no es válida por '
+                                         + ', '.join(invalidos) + ': vuelve a como estaba.')
+                if not p['central']:
+                    _restaurar_cargas(p['cargas'], p['antes_nativo'], p['apagar'],
+                                      p['antes_apagar'])
+                    inf['calibracion_revertida'] = True
+        if res.repartos is not None and not invalidos:
+            escenario.Save()
+            for f, p in preps.items():
+                informes[f]['escenarios'] = [{'escenario': escenario.loc_name,
+                                              'cargas': len(p['cargas']) - len(p['con_manual']),
+                                              'fallos': []}]
+            if con is not None:
+                # 014:RF-31: lo hecho a mano en «Sin proyecto», también en «Con proyecto».
+                sincronia = sin_a_con_proyecto(app, casos_del_proyecto(app))
+                # 014:RF-4: «Con proyecto» con la misma demanda y las mismas centrales.
+                con.Activate()
+                esc_con = app.GetActiveScenario()
+                fallos_con = {f: [] for f in preps}
+                if esc_con is not None:
+                    gens = {o.loc_name: o for o in (app.GetCalcRelevantObjects('*.ElmGenstat') or [])}
+                    for f, p in preps.items():
+                        if p['central']:
+                            zs = p['zc']['zonas']
+                            fallos_con[f] = [x for z in ZONAS for x in escribir_reparto(
+                                zs[z], reps[_clave_zona(f, z)], p['con_manual'])]
+                            o = p['zc']['objetivo']
+                            gen = gens.get(informes[f]['central'].get('generador'))
+                            if gen is not None:
+                                gen.pgini = o.generacion_kw / 1000.0
+                                gen.qgini = o.generacion_kvar / 1000.0
+                            else:
+                                informes[f]['avisos'].append(
+                                    '«Con proyecto» no tiene la central: active su variación '
+                                    f"{informes[f]['central'].get('variacion')}.")
+                        else:
+                            fallos_con[f] = escribir_reparto(p['cargas'], reps[f], p['con_manual'])
+                        for obj in p['apagar'].values():
+                            obj.outserv = 1
+                    esc_con.Save()
+                for f, p in preps.items():
+                    inf = informes[f]
+                    inf['sin_a_con'] = sincronia
+                    inf['avisos'] += sincronia['avisos']
+                    if esc_con is not None:
+                        inf['escenarios'].append({'escenario': esc_con.loc_name,
+                                                  'cargas': len(p['cargas']) - len(p['con_manual']),
+                                                  'fallos': fallos_con[f]})
+                        inf['fallos'] += fallos_con[f]
+                sin.Activate()
+    finally:
+        # 015:RF-46: un solo ComLdf para el proyecto; sus ajustes se quedan si cuadró.
+        if res is not None and remedios.originales and res.cuadrado and not invalidos:
+            aplicados = remedios.aplicados()
+            if con is not None:
+                con.Activate()
+                remedios.aplicar_en(app.GetFromStudyCase('ComLdf'), aplicados)
+            for f in preps:
+                informes[f]['ajustes_del_flujo_conservados'] = aplicados
+                informes[f]['avisos'].append(
+                    'Ajustes del flujo de carga que se quedan en «Sin proyecto»'
+                    + (' y «Con proyecto»' if con is not None else '') + ' para que converja: '
+                    + ', '.join(f'{k}={v}' for k, v in aplicados.items()) + ' (015:RF-46).')
+        else:
+            restituidos = remedios.restituir()
+            if restituidos:
+                for f in preps:
+                    informes[f]['ajustes_restituidos'] = restituidos
+        if inicial is not None and app.GetActiveStudyCase() is not inicial:
+            inicial.Activate()
+    for f in preps:
+        inf = informes[f]
+        salida[f] = (inf, 0 if inf.get('cuadrado') and not inf.get('fallos') else 2)
+    return [salida[f] for f in feeders]
+
+
+def _cerrar_alimentador_en_proyecto(app, alims, feeder: str, p: dict, inf: dict, rep, med,
+                                    res, tolerancia: float, fallido, kvar_difference) -> bool:
+    """El informe de un alimentador sin central tras el cuadre del proyecto (RF-59), como el
+    de :func:`_ejecutar`; ``False`` si lo que consumen sus cargas no es lo escrito."""
+    objetivo = p['objetivo']
+    inf['medicion_cabecera'] = detalle_cabecera(p['elm'])
+    inf['bancos'] = bancos_instalados(alims, feeder)                               # 015:RF-60
+    inf.update(criterio_cuadre='KW_ONLY', solo_kw=True,
+               reparto_solo_kw=(rep or p['reparto']).solo_kw)
+    if med is not None:
+        p_cargas = med.carga_kw if med.carga_kw is not None else rep.totales()[0]
+        q_cargas = med.carga_kvar if med.carga_kvar is not None else rep.totales()[1]
+        q_audit = kvar_difference(med, objetivo, tolerancia)
+        inf.update(
+            cabecera={'kw': med.kw, 'kvar': med.kvar},
+            perdidas={'kw': med.kw - p_cargas,
+                      'kvar': med.kvar - q_cargas if med.kvar is not None else None},
+            desvio={'kw': res.desvio(feeder), 'kvar': q_audit['diferencia_relativa']},
+            consumo_cargas_efectivo=({'kw': med.carga_kw, 'kvar': med.carga_kvar}
+                                     if med.carga_kw is not None else None),
+            perdidas_de=('RESULTADOS_CARGAS_NATIVAS' if med.carga_kw is not None
+                         else 'ENTRADAS_NOMINALES'))
+        if res.cuadrado:
+            inf['status'] = q_audit['status']
+            inf['kvar_no_bloqueante'] = q_audit
+            if q_audit['status'] == 'AVISO_KVAR':
+                inf['avisos'].append(
+                    'AVISO_KVAR: ajuste aceptado por kW; la red nativa DIgSILENT resulta '
+                    f"{q_audit['red_nativa_kvar']:,.2f} kVAR frente a {objetivo.kvar:,.2f} kVAR. "
+                    'La diferencia reactiva se informa y no bloquea.')
+    if not res.cuadrado:
+        inf['status'] = 'NO_CONVERGE' if med is None else 'VIOLACION_FISICA'
+        inf['avisos'].append(f'NO cumple el {tolerancia:.1%} en todo el proyecto: {res.motivo}. '
+                             'El escenario queda con el último reparto común que convergió.')
+    valido = True
+    if rep is not None and med is not None:
+        validacion, _ = validar_cargas_nativas(
+            p['cargas'], rep, med, objetivo, tolerancia, ambiguas=p['ambiguas'],
+            apagar=p['apagar'], ajustes_flujo=ajustes_del_flujo(app),
+            fp_escaladas=None if rep.todo_escala else (p['fp_cargas'] or objetivo.fp))
+        inf['validacion_posterior_nativa'] = validacion
+        if res.cuadrado and not validacion['correcta']:
+            valido = False
+            inf['status'] = 'FALLO_VALIDACION_NATIVA'
+            inf['resultado_carga_nativa'] = {'status': 'FALLO_VALIDACION_NATIVA', 'bloquea': True}
+            aviso = aviso_consumo_fisico(validacion, res.historial,
+                                         inf.get('fijas_sobre_su_transformador'))
+            if aviso:
+                inf['avisos'].append(aviso)
+            inf['fallos'].extend({'sed': x.get('sed'), 'error': f"validación nativa: {x.get('tipo')}",
+                                  'detalle': x} for x in validacion['fallos'])
+        elif res.cuadrado and not inf['fallos']:
+            inf['resultado_carga_nativa'] = {'status': 'APLICADO_Y_VALIDADO', 'bloquea': False}
+    if rep is not None:
+        inf['sed'] = _por_sed(rep, p['cargas'], p['kva_origen'], p['antes'], p['fijas'])
+        despues = _foto_cargas_nativas(p['cargas'])
+        inf['relectura_cargas_nativas'] = {
+            'status': ('FALLO_VALIDACION_NATIVA' if not valido else
+                       'VERIFICADO_PERSISTENCIA' if not inf['fallos'] else 'AVISO_RELECTURA'),
+            'antes': p['antes_nativo'], 'despues': despues, 'cantidad': len(despues),
+            'poblacion': p['poblacion_nativa']}
+    if fallido is not None or not res.cuadrado:
+        a = (fallido or {}).get('a', {}).get(feeder)
+        inf['diagnostico'] = diagnostico(alims, feeder, p['cargas'], p['kva'],
+                                         p['reparto'].con_factores(a) if a is not None else None)
+    if p['sobre'] and (not valido or not res.cuadrado):
+        inf['sobrecarga_causa_probable'] = True
+        inf['avisos'].append(aviso_sobrecarga(p['sobre']))
+    cambiados = (inf.get('transformadores_implementados') or {}).get('cambios') or []
+    if cambiados:
+        inf['resultado_transformadores'] = resultado_transformadores(
+            cambiados, p['sobre'], p['fijas'], p['cargas'],
+            p['plan'].get('transformadores_sed') or {},
+            calibracion_valida=bool(res.cuadrado and valido),
+            validacion=inf.get('validacion_posterior_nativa'), remedios=res.remedios,
+            motivo=res.motivo)
+        if inf['resultado_transformadores']['status'] != 'VALIDO':
+            inf['avisos'].append(inf['resultado_transformadores']['aviso'])
+    return valido
+
+
+def _cerrar_central_en_proyecto(app, feeder: str, p: dict, inf: dict, reps: dict, mz, res,
+                                tolerancia: float, Medida) -> bool:
+    """El informe de un alimentador con central tras el cuadre del proyecto (RF-59), como
+    el de :func:`_ejecutar_con_central`; ``False`` si una zona no consume lo escrito."""
+    zc = p['zc']
+    objetivo = zc['objetivo']
+    rep = {z: reps.get(_clave_zona(feeder, z)) for z in ('arriba', 'abajo')}
+    inf['zonas'] = {
+        'factor_arriba': rep['arriba'].a if rep['arriba'] else None,
+        'factor_abajo': rep['abajo'].a if rep['abajo'] else None,
+        'arriba_kw': mz.arriba_kw if mz else None, 'arriba_objetivo_kw': objetivo.arriba.kw,
+        'abajo_kw': mz.abajo_kw if mz else None, 'abajo_objetivo_kw': objetivo.abajo.kw,
+        'cabecera_calculada_kw': mz.cabecera_kw if mz else None,
+        'cabecera_medida_kw': objetivo.cabecera_kw, 'generacion_kw': objetivo.generacion_kw,
+        'generacion_kvar': objetivo.generacion_kvar,
+        'zonas_ajustadas': [z for z in ('arriba', 'abajo')
+                            if _clave_zona(feeder, z) in res.ajustables]}
+    inf['cabecera'] = {'kw': mz.cabecera_kw, 'kvar': mz.cabecera_kvar} if mz else None
+    if mz is not None and objetivo.cabecera_kw is not None:
+        inf['avisos'].append(
+            f'Cabecera calculada {mz.cabecera_kw:,.1f} kW frente a {objetivo.cabecera_kw:,.1f} kW '
+            f'medidos el {objetivo.fecha}, con la central dando {objetivo.generacion_kw:,.1f} kW '
+            '(021:RF-44).')
+    validaciones = {}
+    if mz is not None:
+        for z, kw, kvar, obj_z in (('arriba', mz.arriba_kw, mz.arriba_kvar, objetivo.arriba),
+                                   ('abajo', mz.abajo_kw, mz.abajo_kvar, objetivo.abajo)):
+            if rep[z] is None or _clave_zona(feeder, z) not in res.ajustables:
+                continue
+            validaciones[z], _ = validar_cargas_nativas(
+                zc['zonas'][z], rep[z], Medida(True, kw, kvar), obj_z, tolerancia,
+                apagar=p['apagar'], ajustes_flujo=ajustes_del_flujo(app),
+                fp_escaladas=None if rep[z].todo_escala else (p['fp_cargas'] or obj_z.fp))
+    inf['validacion_posterior_nativa'] = validaciones
+    invalida = [z for z, v in validaciones.items() if not v['correcta']]
+    if res.cuadrado and invalida:
+        inf['status'] = 'FALLO_VALIDACION_NATIVA'
+        inf['avisos'].append('La validación de lo que consumen las cargas no es correcta en la '
+                             'zona ' + ', '.join(invalida) + '.')
+    elif not res.cuadrado:
+        inf['status'] = 'NO_CONVERGE' if mz is None else 'VIOLACION_FISICA'
+        inf['avisos'].append(f'NO cumple el {tolerancia:.1%} en todo el proyecto: {res.motivo}.')
+    else:
+        inf['status'] = 'OK'
+    if rep['arriba'] is not None and rep['abajo'] is not None:
+        inf['sed'] = (_por_sed(rep['arriba'], zc['zonas']['arriba'], p['kva_origen'], p['antes'], zc['fijas'])
+                      + _por_sed(rep['abajo'], zc['zonas']['abajo'], p['kva_origen'], p['antes'], zc['fijas']))
+    return not (res.cuadrado and invalida)
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description='Ajuste de las demandas a la máxima de cabecera')
-    p.add_argument('--plan', required=True)
-    p.add_argument('--output-json', required=True)
+    # 021:RF-54: varios ``--plan`` (uno por alimentador del proyecto, cada uno con su
+    # ``--output-json`` en el mismo orden) se calibran a la vez.
+    p.add_argument('--plan', required=True, action='append')
+    p.add_argument('--output-json', required=True, action='append')
     p.add_argument('--simular', action='store_true', help='Reparto sin escribir (RF-20)')
     p.add_argument('--cancel-file', help='Si aparece, termina el flujo en curso (RF-22)')
     args = p.parse_args(argv)
-    plan = json.loads(Path(args.plan).read_text(encoding='utf-8'))
-    blocked = native_action_block_report(plan, 'ajuste')
-    if blocked:
-        Path(args.output_json).write_text(
-            json.dumps(blocked, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
-        print(blocked['error'])
-        return 2
+    if len(args.plan) != len(args.output_json):
+        p.error('un --output-json por cada --plan, en el mismo orden')
+
+    def escribir(ruta, informe) -> None:
+        Path(ruta).write_text(json.dumps(informe, indent=2, ensure_ascii=False, default=str)
+                              + '\n', encoding='utf-8')
+
+    planes, salidas, codigos = [], [], []
+    for ruta_plan, ruta_salida in zip(args.plan, args.output_json):
+        plan = json.loads(Path(ruta_plan).read_text(encoding='utf-8'))
+        blocked = native_action_block_report(plan, 'ajuste')
+        if blocked:
+            escribir(ruta_salida, blocked)
+            print(blocked['error'])
+            codigos.append(2)
+            continue
+        planes.append(plan)
+        salidas.append(ruta_salida)
+    if not planes:
+        return max(codigos)
     # 019:RF-1 a RF-6: turno del motor de la máquina, reintento con el motor ocupado y
     # primera línea al responder, comunes a todos los guiones.
     from igea_dgs.pf_arnes import PFNoDisponible, conectar
@@ -1941,17 +2462,18 @@ def main(argv=None) -> int:
         return 3
     flag = Path(args.cancel_file) if args.cancel_file else None
     try:
-        informe, codigo = ejecutar(app, plan, simular=args.simular,
-                                   cancelado=lambda: bool(flag and flag.exists()))
+        resultados = ejecutar_proyecto(app, planes, simular=args.simular,
+                                       cancelado=lambda: bool(flag and flag.exists()))
     except Exception as exc:  # noqa: BLE001 - el informe dice el error en vez de perderse
         # «Ajustar SI213 a la máxima» (2026-10-10) acabó con el código 1 y sin informe: la
         # web solo podía decir «vea el Registro». La traza sigue yendo al Registro.
         traceback.print_exc()
-        informe, codigo = error_inesperado(plan, args.simular, exc), 1
-    Path(args.output_json).write_text(
-        json.dumps(informe, indent=2, ensure_ascii=False, default=str) + '\n', encoding='utf-8')
-    print(f'Informe: {args.output_json}')
-    return codigo
+        resultados = [(error_inesperado(plan, args.simular, exc), 1) for plan in planes]
+    for ruta, (informe, codigo) in zip(salidas, resultados):
+        escribir(ruta, informe)
+        print(f'Informe: {ruta}')
+        codigos.append(codigo)
+    return max(codigos)
 
 
 if __name__ == '__main__':

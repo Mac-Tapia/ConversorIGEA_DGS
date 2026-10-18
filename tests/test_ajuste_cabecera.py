@@ -8,7 +8,9 @@ import pytest
 
 from igea_dgs.ajuste_cabecera import (
     ESCALERA,
+    MedidaConjunta,
     MedidaZonas,
+    cuadrar_conjunto,
     cuadrar_zonas,
     objetivo_zonas_de,
     MITADES,
@@ -550,3 +552,102 @@ def test_sin_central_el_ajuste_es_el_de_siempre():
     o, _fijas, r = _caso()
     res = cuadrar(r, o, RedDeJuguete().flujo)
     assert res.cuadrado and not hasattr(res, 'arriba')
+
+
+# --------------------------------------------------------------- 021:RF-54 a RF-58
+class RedDeVariosAlimentadores:
+    """Flujo de mentira de un proyecto: cada alimentador con sus pérdidas cuadráticas y un
+    acople por la tensión de la barra de la SET (lo que consume uno sube las pérdidas de
+    los demás), para que cuadrar uno y después otro descuadre al primero."""
+
+    def __init__(self, acople=2e-6, limite=math.inf, por_remedio=0.0):
+        self.acople, self.limite, self.por_remedio = acople, limite, por_remedio
+        self.flujos = 0
+
+    def medir(self, reps):
+        self.flujos += 1
+        p = {k: r.totales()[0] for k, r in reps.items()}
+        total = sum(p.values())
+        if total > self.limite:
+            return MedidaConjunta(False, motivo='Newton-Raphson no converge')
+        kw = {k: x + 2e-5 * x * x + self.acople * x * total for k, x in p.items()}
+        return MedidaConjunta(True, kw=kw, kvar={k: r.totales()[1] for k, r in reps.items()},
+                              carga_kw=p)
+
+    def remedio(self, nombre, ajustes):
+        self.limite += self.por_remedio
+        return [nombre]
+
+
+def _proyecto(n_alim, seed=5):
+    rnd = random.Random(seed)
+    repartos, objetivos = {}, {}
+    for i in range(n_alim):
+        kva = {f'A{i}_S{j}': rnd.choice([50.0, 100.0, 250.0, 630.0]) for j in range(rnd.randint(5, 40))}
+        o = objetivo_de(_maxima(alimentador=f'A{i}', medidor=f'M{i}',
+                                kw=rnd.uniform(800.0, 6000.0), kvar=rnd.uniform(100.0, 900.0)))
+        repartos[f'A{i}'] = reparto_inicial(o, {}, {s: (k * 0.5, k * 0.1) for s, k in kva.items()}, kva)
+        objetivos[f'A{i}'] = o
+    return repartos, objetivos
+
+
+@pytest.mark.parametrize('n_alim', [2, 3, 7])
+def test_cuadre_conjunto_todos_en_el_mismo_flujo(n_alim):
+    """021:RF-54, 021:RF-55 — un factor por alimentador, todos en los mismos flujos; cuadra
+    solo cuando todos cumplen en el mismo flujo, con el acople entre ellos."""
+    repartos, objetivos = _proyecto(n_alim, seed=n_alim)
+    red = RedDeVariosAlimentadores()
+    res = cuadrar_conjunto(repartos, objetivos, red.medir, tolerancia=0.001)
+    assert res.cuadrado, res.motivo
+    assert red.flujos == res.flujos <= 10
+    m = red.medir(res.repartos)
+    for k, o in objetivos.items():
+        assert abs(m.kw[k] - o.kw) / o.kw <= 0.001
+        assert res.desvio(k) == pytest.approx((res.medida.kw[k] - o.kw) / o.kw)
+    assert set(res.historial[0]['a']) == set(objetivos)
+
+
+def test_cuadre_conjunto_no_converge_remedios_una_vez():
+    """021:RF-56 — sin converger, medio camino y los remedios, una vez para el proyecto; la
+    red queda con el último reparto común que convergió."""
+    repartos, objetivos = _proyecto(2)
+    total = sum(o.kw for o in objetivos.values())
+    red = RedDeVariosAlimentadores(limite=total * 0.9, por_remedio=total)
+    res = cuadrar_conjunto(repartos, objetivos, red.medir, tolerancia=0.001, remedio=red.remedio)
+    assert res.cuadrado, res.motivo
+    assert [r['remedio'] for r in res.remedios] == [ESCALERA[0][0], ESCALERA[1][0]]
+    red = RedDeVariosAlimentadores(limite=total * 0.5)
+    vistos = []
+    res = cuadrar_conjunto(repartos, objetivos, lambda r: (vistos.append(r), red.medir(r))[1],
+                           tolerancia=0.001)
+    assert not res.cuadrado and res.repartos is not None
+    assert vistos[-1] == res.repartos, 'queda con el último reparto común que convergió'
+
+
+def test_cuadre_conjunto_cancelado_y_quietas():
+    """021:RF-58, 021:RF-45 — cancelar termina sin otro flujo; una clave quieta se escribe
+    pero no se ajusta ni decide; sin ninguna ajustable, error."""
+    repartos, objetivos = _proyecto(2)
+    llamadas = []
+    res = cuadrar_conjunto(repartos, objetivos, lambda r: llamadas.append(r) or
+                           RedDeVariosAlimentadores().medir(r), cancelado=lambda: len(llamadas) >= 2)
+    assert res.cancelado and len(llamadas) == 2
+    res = cuadrar_conjunto(repartos, objetivos, RedDeVariosAlimentadores().medir,
+                           quietas={'A1'}, tolerancia=0.001)
+    assert res.cuadrado and res.ajustables == ('A0',)
+    assert res.repartos['A1'].a == repartos['A1'].a
+    with pytest.raises(AjusteError):
+        cuadrar_conjunto(repartos, objetivos, RedDeVariosAlimentadores().medir, quietas={'A0', 'A1'})
+
+
+def test_cuadre_conjunto_perdidas_negativas():
+    """021:RF-55 — como en un alimentador solo: cuadrado con pérdidas negativas no vale."""
+    repartos, objetivos = _proyecto(2)
+
+    def medir(reps):
+        m = RedDeVariosAlimentadores(acople=0).medir(reps)
+        return MedidaConjunta(True, kw=m.kw, kvar=m.kvar,
+                              carga_kw={k: v * 1.5 for k, v in m.kw.items()})
+
+    res = cuadrar_conjunto(repartos, objetivos, medir, tolerancia=0.001)
+    assert not res.cuadrado and 'pérdidas activas negativas' in res.motivo

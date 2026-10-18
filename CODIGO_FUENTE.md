@@ -14,7 +14,7 @@ spec 001, RF-14 (DGS idéntico byte a byte); su diseño histórico está en
 | --- | --- | --- |
 | `src/igea_dgs/__init__.py` | Paquete del motor y su versión. | base |
 | `src/igea_dgs/access.py` | Lector de la base Access de CYMDIST (`.mdb`), la segunda vía de entrada. | base, 001 |
-| `src/igea_dgs/ajuste_cabecera.py` | Reparto y cuadre de las demandas a la máxima de cabecera, sin DIgSILENT; por zonas con una central en el troncal. | 006, 021 (RF-33, RF-40 a RF-45) |
+| `src/igea_dgs/ajuste_cabecera.py` | Reparto y cuadre de las demandas a la máxima de cabecera, sin DIgSILENT; por zonas con una central en el troncal; cuadre conjunto de los alimentadores de un proyecto en los mismos flujos. | 006, 021 (RF-33, RF-40 a RF-45, RF-54 a RF-58) |
 | `src/igea_dgs/batch.py` | Conversión de uno, varios o todos los alimentadores, en serie o en paralelo. | base, 001 |
 | `src/igea_dgs/capacidades.py` | Capacidades, grupo de conexión y tensión de baja de transformadores y líneas del DGS original, y su comparación con lo leído en DIgSILENT. | 015 |
 | `src/igea_dgs/cargas_pf.py` | Lectura de los libros de demandas y cargas nuevas, y plan para DIgSILENT. | 004, 007, 008, 016 (RF-73) |
@@ -93,7 +93,7 @@ spec 001, RF-14 (DGS idéntico byte a byte); su diseño histórico está en
 | `src/igea_dgs/web/readiness.py` | Puertas por alimentador antes de producir DGS. | 001 |
 | `src/igea_dgs/web/reconstruction_service.py` | Diagnóstico y reconstrucción como trabajos de la web. | 001 (RF-8, RF-9) |
 | `src/igea_dgs/web/runtime.py` | Comprobación del entorno que hace el lanzador de Windows y huella del código. | 001 (RF-27, RF-28) |
-| `src/igea_dgs/web/services.py` | Las acciones de la interfaz, sin interfaz. | 001, 004 a 008, 011 (RF-12 a RF-16, RF-25, RF-27 a RF-30, RF-39 a RF-41, RF-68, RF-95, RF-121), 017 (RF-47 a RF-53, RF-59, RF-60, RF-65 a RF-67b, RF-71, RF-82, RF-93, RF-94, RF-104), 020 (RF-6, RF-13, RF-15, RF-25, RF-28), 021 (RF-26 a RF-34, RF-50, RF-51) |
+| `src/igea_dgs/web/services.py` | Las acciones de la interfaz, sin interfaz. | 001, 004 a 008, 011 (RF-12 a RF-16, RF-25, RF-27 a RF-30, RF-39 a RF-41, RF-68, RF-95, RF-121), 017 (RF-47 a RF-53, RF-59, RF-60, RF-65 a RF-67b, RF-71, RF-82, RF-93, RF-94, RF-104), 020 (RF-6, RF-13, RF-15, RF-25, RF-28), 021 (RF-26 a RF-34, RF-50, RF-51, RF-54, RF-57) |
 | `src/igea_dgs/web/source_runs.py` | Custodia inmutable de los ficheros de cada ejecución. | 001 |
 | `src/igea_dgs/web/source_scope.py` | Empresa y periodo de los paquetes VNR-GIS. | 001 (RF-2) |
 | `src/igea_dgs/web/sources/__init__.py` | Reexportación temporal de `igea_dgs.sources`. | 002 (RF-21 la retira) |
@@ -165,7 +165,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | Fichero | Qué hace | Spec |
 | --- | --- | --- |
 | `tools/accept_three_sources.py` | Aceptación universal y separada de MDB, TXT y VNR-GIS hasta ajuste, relectura y estudio nativos. | 001, 004, 006, 011 |
-| `tools/ajuste_cabecera_pf.py` | Guion de DIgSILENT: ajusta un alimentador a su máxima de cabecera, en el escenario de «Sin proyecto»; propone e implementa transformadores nuevos para las SED fijas sobrecargadas; con una central, la crea en «Sin proyecto» y calibra por zonas. | 006, 008, 011 (RF-18, RF-19, RF-51, RF-54), 014, 015, 020, 021 (RF-35 a RF-44) |
+| `tools/ajuste_cabecera_pf.py` | Guion de DIgSILENT: ajusta un alimentador a su máxima de cabecera, en el escenario de «Sin proyecto»; propone e implementa transformadores nuevos para las SED fijas sobrecargadas; con una central, la crea en «Sin proyecto» y calibra por zonas; con varios `--plan`, calibra a la vez todos los alimentadores del proyecto. | 006, 008, 011 (RF-18, RF-19, RF-51, RF-54), 014, 015, 020, 021 (RF-35 a RF-44, RF-54 a RF-60) |
 | `tools/apply_catalog_to_model.py` | Corrige las características eléctricas del modelo con el catálogo de fichas. | base |
 | `tools/base_scenario.py` | Escenario base (año 0): lo construye, lo hace converger y lo diagnostica. | 005 |
 | `tools/build_input_catalog.py` | Tabla de parámetros eléctricos en `input/` y auditoría de alimentadores. | base |

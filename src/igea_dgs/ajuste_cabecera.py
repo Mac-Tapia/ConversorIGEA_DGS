@@ -630,35 +630,143 @@ def cuadrar_zonas(
 ) -> CuadreZonas:
     """Ajusta el factor de cada zona hasta que dé su medida (021:RF-40, RF-41, RF-43).
 
-    Es :func:`cuadrar` con dos factores en el mismo flujo: cada uno sigue su secante con
-    la medida de su zona. Una zona sin cargas escaladas no se puede ajustar: sus fijas
-    quedan como están, se avisa y no decide el cuadre (RF-45). Si no converge, los mismos
-    pasos que :func:`cuadrar`: medio camino y luego los remedios de :data:`ESCALERA`.
+    Es :func:`cuadrar_conjunto` con las dos zonas por claves. Una zona sin cargas escaladas
+    no se puede ajustar: sus fijas quedan como están, se avisa y no decide el cuadre (RF-45).
+    """
+    repartos, quietas = preparar_zonas(arriba, abajo)
+    medidas: list[MedidaZonas] = []
+
+    def f(reps: Mapping[str, Reparto]) -> MedidaConjunta:
+        m = flujo(reps['arriba'], reps['abajo'])
+        medidas.append(m)
+        return medida_de_zonas(m)
+
+    def fila(reps: Mapping[str, Reparto], _m: MedidaConjunta) -> dict[str, Any]:
+        mz = medidas[-1]
+        return {'a_arriba': reps['arriba'].a, 'a_abajo': reps['abajo'].a,
+                'arriba_kw': mz.arriba_kw, 'abajo_kw': mz.abajo_kw,
+                'cabecera_kw': mz.cabecera_kw}
+
+    res = cuadrar_conjunto(repartos, {'arriba': objetivo.arriba, 'abajo': objetivo.abajo}, f,
+                           quietas=quietas, tolerancia=tolerancia, max_flujos=max_flujos,
+                           remedio=remedio, cancelado=cancelado, progreso=progreso, fila=fila)
+    reps = res.repartos or {}
+    return CuadreZonas(
+        cuadrado=res.cuadrado, arriba=reps.get('arriba'), abajo=reps.get('abajo'),
+        medida=res.medida.extra if res.medida is not None else None, objetivo=objetivo,
+        tolerancia=tolerancia, flujos=res.flujos, remedios=res.remedios,
+        historial=res.historial,
+        avisos=list(arriba.avisos) + list(abajo.avisos) + avisos_de_zonas(quietas),
+        motivo=res.motivo.replace('sin cuadrar todos', 'sin cuadrar las dos zonas'),
+        cancelado=res.cancelado, ajustables=res.ajustables)
+
+
+def preparar_zonas(arriba: Reparto, abajo: Reparto) -> tuple[dict[str, Reparto], set[str]]:
+    """Los repartos de las dos zonas y las que no se ajustan (021:RF-45).
+
+    Una zona con solo clientes fijos: ``reparto_inicial`` la pasa a «escalar todo»
+    (006:RF-13), pero en una zona eso movería las fijas. Factor 1: su P y Q.
     """
     repartos = {'arriba': arriba, 'abajo': abajo}
-    # Una zona con solo clientes fijos: ``reparto_inicial`` la pasa a «escalar todo»
-    # (006:RF-13), pero en una zona eso movería las fijas (RF-45). Factor 1: su P y Q.
+    quietas = set()
     for z, r in repartos.items():
         if r.origen and all(o == 'cliente' for o in r.origen.values()):
             repartos[z] = r.con_factores(1.0, 1.0)
-    objetivos = {'arriba': objetivo.arriba, 'abajo': objetivo.abajo}
-    pendiente = {z: (0.0 if all(o == 'cliente' for o in r.origen.values())
-                     else sum(p for p, _ in r.base.values())) for z, r in repartos.items()}
-    ajustables = tuple(z for z in ZONAS if pendiente[z] > 0)
-    res = CuadreZonas(cuadrado=False, arriba=None, abajo=None, medida=None, objetivo=objetivo,
-                      tolerancia=tolerancia, ajustables=ajustables,
-                      avisos=list(arriba.avisos) + list(abajo.avisos))
-    for z in ZONAS:
-        if z not in ajustables:
-            res.avisos.append(f'La zona {NOMBRE_ZONA[z]} de la central no tiene cargas escaladas: '
-                              'sus fijas quedan como están y no se puede ajustar.')
-    if not ajustables:
+            quietas.add(z)
+    if len(quietas) == len(ZONAS):
         raise AjusteError('Ninguna de las dos zonas de la central tiene cargas que escalar.')
+    return repartos, quietas
 
-    def medido(m: MedidaZonas, z: str) -> float | None:
-        return m.arriba_kw if z == 'arriba' else m.abajo_kw
 
-    puntos: dict[str, list[tuple[float, float]]] = {z: [] for z in ZONAS}
+def avisos_de_zonas(quietas: Iterable[str]) -> list[str]:
+    quietas = set(quietas)
+    return [f'La zona {NOMBRE_ZONA[z]} de la central no tiene cargas escaladas: sus fijas '
+            'quedan como están y no se puede ajustar.' for z in ZONAS if z in quietas]
+
+
+def medida_de_zonas(m: MedidaZonas) -> MedidaConjunta:
+    return MedidaConjunta(m.converge, kw={'arriba': m.arriba_kw, 'abajo': m.abajo_kw},
+                          kvar={'arriba': m.arriba_kvar, 'abajo': m.abajo_kvar},
+                          motivo=m.motivo, extra=m)
+
+
+# =========================================================================== conjunto
+@dataclass(frozen=True)
+class MedidaConjunta:
+    """Lo que da un flujo en cada clave: un alimentador o una zona de su central.
+
+    ``carga_kw`` es el consumo efectivo de sus cargas, si el guion lo lee: con él se
+    comprueba que las pérdidas no salgan negativas (como en :func:`cuadrar`). ``extra``
+    guarda lo que el guion quiera del flujo (las medidas de cada alimentador).
+    """
+
+    converge: bool
+    kw: Mapping[str, float | None] = field(default_factory=dict)
+    kvar: Mapping[str, float | None] = field(default_factory=dict)
+    motivo: str = ''
+    carga_kw: Mapping[str, float | None] = field(default_factory=dict)
+    extra: Any = None
+
+
+@dataclass
+class CuadreConjunto:
+    """Resultado del cuadre conjunto: los repartos del último flujo común que convergió."""
+
+    cuadrado: bool
+    repartos: dict[str, Reparto] | None
+    medida: MedidaConjunta | None
+    objetivos: Mapping[str, Objetivo]
+    tolerancia: float
+    flujos: int = 0
+    remedios: list[dict[str, Any]] = field(default_factory=list)
+    historial: list[dict[str, Any]] = field(default_factory=list)
+    motivo: str = ''
+    cancelado: bool = False
+    ajustables: tuple[str, ...] = ()
+
+    def desvio(self, clave: str) -> float | None:
+        """Error relativo de kW de una clave en el último flujo común que convergió."""
+        m = self.medida
+        if m is None or not m.converge or m.kw.get(clave) is None:
+            return None
+        return _rel(m.kw[clave], self.objetivos[clave].kw)  # type: ignore[arg-type]
+
+
+def cuadrar_conjunto(
+    repartos: Mapping[str, Reparto],
+    objetivos: Mapping[str, Objetivo],
+    flujo: Callable[[Mapping[str, Reparto]], MedidaConjunta],
+    *,
+    quietas: Iterable[str] = (),
+    tolerancia: float = 0.01,
+    max_flujos: int = MAX_FLUJOS,
+    remedio: Callable[[str, dict[str, Any]], list[str]] = lambda nombre, ajustes: [],
+    cancelado: Callable[[], bool] = lambda: False,
+    progreso: Callable[[int, int, str], None] = lambda n, maximo, texto: None,
+    fila: Callable[[Mapping[str, Reparto], MedidaConjunta], dict[str, Any]] | None = None,
+) -> CuadreConjunto:
+    """Ajusta a la vez un factor por clave hasta que todas den su objetivo (021:RF-54 a RF-58).
+
+    Las claves son los alimentadores de un proyecto, o las zonas de uno con central: en el
+    proyecto de NA203 y NA205 (2026-10-17) se iba a calibrar uno y después el otro, y el
+    usuario pidió calibrar por proyecto, todos en el mismo flujo. ``flujo(repartos)``
+    escribe todas las demandas, ejecuta **un** flujo de carga y mide cada clave. Cada
+    factor sigue su secante con la medida de su clave; solo cuadra cuando todas cumplen en
+    el mismo flujo (RF-55). Si no converge, los pasos de :func:`cuadrar` para todas: medio
+    camino desde el último flujo común que convergió y luego los remedios de
+    :data:`ESCALERA`, una vez para el proyecto (RF-56). Una clave en ``quietas`` (una zona
+    solo con clientes fijos, 021:RF-45) se escribe pero no se ajusta ni decide.
+    """
+    quietas = set(quietas)
+    claves = tuple(repartos)
+    pendiente = {k: (0.0 if k in quietas else sum(p for p, _ in r.base.values()))
+                 for k, r in repartos.items()}
+    ajustables = tuple(k for k in claves if pendiente[k] > 0)
+    res = CuadreConjunto(cuadrado=False, repartos=None, medida=None, objetivos=objetivos,
+                         tolerancia=tolerancia, ajustables=ajustables)
+    if not ajustables:
+        raise AjusteError('Ninguno de los alimentadores tiene cargas que escalar.')
+    puntos: dict[str, list[tuple[float, float]]] = {k: [] for k in claves}
     actual = meta = dict(repartos)
     escalon = mitades = 0
     ultimo: dict[str, Reparto] | None = None
@@ -666,29 +774,40 @@ def cuadrar_zonas(
         if cancelado():
             res.cancelado, res.motivo = True, 'cancelado por el operador'
             break
-        m = flujo(actual['arriba'], actual['abajo'])
+        m = flujo(actual)
         res.flujos += 1
         ultimo = actual
-        res.historial.append({'flujo': res.flujos, 'a_arriba': actual['arriba'].a,
-                              'a_abajo': actual['abajo'].a, 'converge': m.converge,
-                              'arriba_kw': m.arriba_kw, 'abajo_kw': m.abajo_kw,
-                              'cabecera_kw': m.cabecera_kw, 'motivo': m.motivo})
+        res.historial.append({'flujo': res.flujos, 'converge': m.converge, 'motivo': m.motivo,
+                              **(fila(actual, m) if fila else {
+                                  'a': {k: r.a for k, r in actual.items()},
+                                  'kw': dict(m.kw), 'kvar': dict(m.kvar)})})
+        medido = m.converge and all(m.kw.get(k) is not None for k in ajustables)
         progreso(res.flujos, max_flujos, f'flujo {res.flujos}: ' + (
-            f'{m.arriba_kw:,.1f} kW aguas arriba, {m.abajo_kw:,.1f} kW aguas abajo'
-            if m.converge and m.arriba_kw is not None and m.abajo_kw is not None
+            ', '.join(f'{k} {m.kw[k]:,.1f} kW' for k in ajustables) if medido
             else 'no converge'))
-        if m.converge and all(medido(m, z) is not None for z in ajustables):
-            res.arriba, res.abajo, res.medida = actual['arriba'], actual['abajo'], m
-            if all(abs(_rel(medido(m, z), objetivos[z].kw)) <= tolerancia  # type: ignore[arg-type]
-                   for z in ajustables):
+        if medido:
+            res.repartos, res.medida = dict(actual), m
+            if all(abs(_rel(m.kw[k], objetivos[k].kw)) <= tolerancia  # type: ignore[arg-type]
+                   for k in ajustables):
+                negativas = [
+                    f'{k} ({m.kw[k] - m.carga_kw[k]:,.1f} kW)'  # type: ignore[operator]
+                    for k in ajustables if m.carga_kw.get(k) is not None
+                    and m.kw[k] - m.carga_kw[k] < -max(0.1, abs(objetivos[k].kw) * 1e-4)]  # type: ignore[operator]
+                if negativas:
+                    # Como en :func:`cuadrar`: una red pasiva no entrega menos de lo que
+                    # consumen sus cargas; la frontera de medición omite una troncal.
+                    res.motivo = ('pérdidas activas negativas en ' + ', '.join(negativas)
+                                  + ': la frontera de medición puede estar omitiendo una '
+                                  'troncal o parte de las cargas')
+                    return res
                 res.cuadrado = True
                 return res
             nuevo = dict(actual)
-            for z in ajustables:
-                r, y = actual[z], medido(m, z)
-                puntos[z].append((r.a, y))  # type: ignore[arg-type]
-                a = _siguiente(r.a, y, objetivos[z].kw, puntos[z], pendiente[z])  # type: ignore[arg-type]
-                nuevo[z] = r.con_factores(a if a > 0 else r.a / 2)
+            for k in ajustables:
+                r, y = actual[k], m.kw[k]
+                puntos[k].append((r.a, y))  # type: ignore[arg-type]
+                a = _siguiente(r.a, y, objetivos[k].kw, puntos[k], pendiente[k])  # type: ignore[arg-type]
+                nuevo[k] = r.con_factores(a if a > 0 else r.a / 2)
             actual = meta = nuevo
             continue
         if mitades < MITADES:
@@ -696,11 +815,11 @@ def cuadrar_zonas(
                 res.remedios.append({'remedio': ESCALERA[0][0], 'cambios': []})
             mitades += 1
             nuevo = dict(actual)
-            for z in ajustables:
-                bueno = res.arriba if z == 'arriba' else res.abajo
+            for k in ajustables:
+                bueno = (res.repartos or {}).get(k)
                 a0 = bueno.a if bueno is not None else 0.0
                 b0 = bueno.b if bueno is not None else 0.0
-                nuevo[z] = actual[z].con_factores((a0 + actual[z].a) / 2, (b0 + actual[z].b) / 2)
+                nuevo[k] = actual[k].con_factores((a0 + actual[k].a) / 2, (b0 + actual[k].b) / 2)
             actual = nuevo
             continue
         escalon += 1
@@ -712,11 +831,11 @@ def cuadrar_zonas(
         actual = meta
 
     if not res.cuadrado and not res.motivo:
-        res.motivo = (f'sin cuadrar las dos zonas al {tolerancia:.1%} tras {res.flujos} flujos'
-                      if res.arriba is not None else
+        res.motivo = (f'sin cuadrar todos al {tolerancia:.1%} tras {res.flujos} flujos'
+                      if res.repartos is not None else
                       'el flujo de carga no converge con ningún reparto, ni con los remedios')
-    if (res.arriba is not None and res.abajo is not None and ultimo is not None
-            and (ultimo['arriba'] is not res.arriba or ultimo['abajo'] is not res.abajo)):
-        # La red queda con los últimos repartos que convergieron (006:RF-18).
-        res.medida = flujo(res.arriba, res.abajo)
+    if (res.repartos is not None and ultimo is not None
+            and any(ultimo[k] is not res.repartos[k] for k in claves)):
+        # La red queda con los últimos repartos que convergieron (006:RF-18, RF-56).
+        res.medida = flujo(res.repartos)
     return res
