@@ -65,5 +65,13 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]` y pa
       DIgSILENT desde la web.
       2026-10-18: hecho; en Nasca no hay medidor de barra de SET (solo el de la central),
       así que NA203 y NA205 van con su propia máxima (RF-42) y 15 sin medidor, dichos.
-- [ ] T12. Validación RF por RF e inventario. (todos)
+      2026-10-18, Pisco y después Ica, cada uno en su proyecto: «…_SISTEMA_PISCO» (20
+      alimentadores; 6 barras de SET con medidor y sus alimentadores en el instante
+      coincidente) calibra 16 a la vez en 5 flujos, sin remedios, todos VÁLIDOS; AL107 (su
+      máxima no tiene kW positivo), CHI201, PI101 y SI114, sin medidor. «…_SISTEMA_ICA» (30)
+      calibra IN111 y TA225 en 3 flujos, VÁLIDOS; los otros 28 no tienen medidor en el libro.
+      Arreglado: el vínculo reconoce cada alimentador del rótulo de su barra de SET.
+- [x] T12. Validación RF por RF e inventario. (todos)
       Hecho cuando: cada RF citado por una prueba y suite completa en verde.
+      2026-10-18: los 56 RF citados por al menos una prueba; suite completa con las seis
+      variables: 2413 pasan, ninguna omitida.
