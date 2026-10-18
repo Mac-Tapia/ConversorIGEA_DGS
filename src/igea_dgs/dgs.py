@@ -10,7 +10,7 @@ from typing import Mapping
 import math
 
 from .model import FeederModel, Line, Sed, decode_phase, split_by_phase
-from .naming import nombre_con_tension
+from .naming import nombre_con_tension, sufijo_tension
 from .schema import DgsSchema, load_schema
 from .geography import GeographyManifest, GeoPoint
 
@@ -848,6 +848,31 @@ def write_dgs(
     general_fid = reg.new()
     network_fid = reg.new()
     diagram_fid = reg.new() if geography is not None else ''
+    # Spec 022: con la estructura de la empresa, una red (y su diagrama) por zonal, más una
+    # «Sin SET» si hay alimentadores fuera de ella (RF-8, RF-19); sin ella, una sola (RF-6).
+    barras_set = list(getattr(combinado, 'barras_set', None) or []) if combinado else []
+    sin_set = set(getattr(combinado, 'sin_set', None) or []) if combinado else set()
+    net_fids = {'': network_fid}
+    diag_fids = {'': diagram_fid}
+    zonal_de_nodo: dict[str, str] = {}
+    if barras_set:
+        orden = list(dict.fromkeys([b.zonal for b in barras_set] + (['Sin SET'] if sin_set else [])))
+        net_fids = {z: (network_fid if i == 0 else reg.new()) for i, z in enumerate(orden)}
+        diag_fids = {z: (diagram_fid if i == 0 or geography is None else reg.new())
+                     for i, z in enumerate(orden)}
+        for nodo, alims in sorted(combinado.feeder_of_node.items()):
+            if alims:
+                zonal_de_nodo[nodo] = combinado.zonal_de.get(alims[0], '') or 'Sin SET'
+        for b in barras_set:
+            zonal_de_nodo[b.node_id] = b.zonal
+    primera = next(iter(net_fids))
+
+    def net_of(node_id: str) -> str:
+        return net_fids.get(zonal_de_nodo.get(node_id, primera), network_fid)
+
+    def diag_of(node_id: str) -> str:
+        return diag_fids.get(zonal_de_nodo.get(node_id, primera), diagram_fid)
+
     type_fids = {key: reg.new() for key in sorted(model.line_types)}
     node_fids = {node_id: reg.new() for node_id in sorted(model.nodes)}
     line_fids = {line.section_id: reg.new() for line in sorted(model.lines, key=lambda x: x.section_id)}
@@ -907,15 +932,30 @@ def write_dgs(
 
     rows: dict[str, list[str]] = {name: [] for name in schema.tables}
     rows['General'].append(_make_row(schema, 'General', FID=general_fid, Descr='Version', Val=schema.general_version))
-    rows['ElmNet'].append(_make_row(
-        schema, 'ElmNet', FID=network_fid, OP='C', loc_name=_loc_name(model.name),
-        fold_id='', frnom=60, pDiagram=diagram_fid
-    ))
-    if geography is not None:
-        rows['IntGrfnet'].append(_make_row(
-            schema, 'IntGrfnet', FID=diagram_fid, OP='C', loc_name=_loc_name(model.name),
-            snap_on=0, grid_on=1, ortho_on=0, pDataFolder=network_fid,
+    for zonal, net_fid in net_fids.items():
+        nombre_red = zonal or model.name
+        rows['ElmNet'].append(_make_row(
+            schema, 'ElmNet', FID=net_fid, OP='C', loc_name=_loc_name(nombre_red),
+            fold_id='', frnom=60, pDiagram=diag_fids[zonal]
         ))
+        if geography is not None:
+            rows['IntGrfnet'].append(_make_row(
+                schema, 'IntGrfnet', FID=diag_fids[zonal], OP='C', loc_name=_loc_name(nombre_red),
+                snap_on=0, grid_on=1, ortho_on=0, pDataFolder=net_fid,
+            ))
+    # Spec 022: cada SET como subestación con sus barras de media dentro (RF-9, RF-10).
+    set_fids: dict[str, str] = {}
+    barra_en_set: dict[str, str] = {}
+    for b in barras_set:
+        if b.set_codigo not in set_fids:
+            set_fids[b.set_codigo] = reg.new()
+            gp = geography.nodes.get(b.node_id) if geography is not None else None
+            rows['ElmSubstat'].append(_make_row(
+                schema, 'ElmSubstat', FID=set_fids[b.set_codigo], OP='C',
+                loc_name=_loc_name(b.rotulo), fold_id=net_of(b.node_id), sShort='SET', sType='',
+                GPSlat=gp.lat if gp is not None else '', GPSlon=gp.lon if gp is not None else '',
+            ))
+        barra_en_set[b.node_id] = set_fids[b.set_codigo]
 
     seds_by_key = {(sed.section_id, sed.device_number): sed for sed in model.seds}
     for key in sed_keys:
@@ -923,7 +963,7 @@ def write_dgs(
         gp = geography.nodes.get(sed.node_id) if geography is not None else None
         rows['ElmSubstat'].append(_make_row(
             schema, 'ElmSubstat', FID=sed_fids[key], OP='C',
-            loc_name=_loc_name(sed.loc_name), fold_id=network_fid,
+            loc_name=_loc_name(sed.loc_name), fold_id=net_of(sed.node_id),
             sShort='T', sType=_sed_stype(sed),
             GPSlat=gp.lat if gp is not None else '',
             GPSlon=gp.lon if gp is not None else '',
@@ -935,9 +975,10 @@ def write_dgs(
         kv = kv_de(node_id)
         # La barra propia de una SED va dentro de su ElmSubstat (021:RF-12).
         dentro = sed_fids[sed_de_barra[node_id]] if node_id in sed_de_barra else None
+        dentro = dentro or barra_en_set.get(node_id)            # 022:RF-10
         rows['ElmTerm'].append(_make_row(
             schema, 'ElmTerm', FID=node_fids[node_id], OP='C', loc_name=_loc_name(node_id),
-            fold_id=dentro or network_fid, typ_id='', systype=0, iUsage=0 if dentro else 1,
+            fold_id=dentro or net_of(node_id), typ_id='', systype=0, iUsage=0 if dentro else 1,
             uknom=kv, unknom=kv / math.sqrt(3.0), iminus=0, outserv=fuera(node_id),
             GPSlat=gp.lat if gp is not None else '', GPSlon=gp.lon if gp is not None else '', vtarget=1,
         ))
@@ -1037,7 +1078,7 @@ def write_dgs(
                     schema, 'Matrix', FID=gps_fid, MatColumn=1, MatRow=fila, Val=punto.lon))
         rows['ElmLne'].append(_make_row(
             schema, 'ElmLne', FID=line_fids[line.section_id], OP='C',
-            loc_name=_loc_name(line.section_id), fold_id=network_fid,
+            loc_name=_loc_name(line.section_id), fold_id=net_of(line.from_node),
             typ_id=type_fids[line.type_key], dline=line.length_km, fline=1,
             GPScoords=gps_fid, nlnum=1, inAir=1 if line.overhead else 0,
         ))
@@ -1127,7 +1168,7 @@ def write_dgs(
         capacitor_banks.append(values)
         rows['ElmShnt'].append(_make_row(
             schema, 'ElmShnt', FID=fid, OP='C', loc_name=values['loc_name'],
-            fold_id=network_fid, systp=0, ctech=ctech, shtype=2,
+            fold_id=net_of(bank.node_id), systp=0, ctech=ctech, shtype=2,
             ushnm=nominal_kv, mode_inp='DEF', qcapn=values['qcapn'],
             ncapx=bank.steps, ncapa=bank.steps, outserv=values['outserv'],
             qrean=0, qtotn=values['total_effective_mvar'], tandc=0, fres=0,
@@ -1138,7 +1179,13 @@ def write_dgs(
     # Una red unida tiene una fuente por alimentador: cada uno viene de su propia barra
     # de subestación. Un modelo de un alimentador tiene una sola, y el bucle recorre esa.
     fuentes = [(model.name, model.source_node, source_fid)]
-    if combinado is not None and getattr(combinado, 'feeders', None):
+    if barras_set:
+        # 022:RF-11, RF-19: una por barra de SET; los «Sin SET», con la suya.
+        fuentes = [(f'{b.set_codigo} {sufijo_tension(b.nominal_kv)}', b.node_id,
+                    source_fid if i == 0 else reg.new()) for i, b in enumerate(barras_set)]
+        fuentes += [(ref.name, ref.source_node, reg.new())
+                    for ref in combinado.feeders if ref.name in sin_set]
+    elif combinado is not None and getattr(combinado, 'feeders', None):
         fuentes = [
             (ref.name, ref.source_node, source_fid if i == 0 else reg.new())
             for i, ref in enumerate(combinado.feeders)
@@ -1148,7 +1195,7 @@ def write_dgs(
         rows['ElmXnet'].append(_make_row(
             schema, 'ElmXnet', FID=fid_fuente, OP='C',
             loc_name=_loc_name(f'External Grid {nombre_fuente}'),
-            fold_id=network_fid, snss='', rntxn='', z2tz1='', snssmin='', rntxnmin='', z2tz1min='',
+            fold_id=net_of(_nodo_fuente), snss='', rntxn='', z2tz1='', snssmin='', rntxnmin='', z2tz1min='',
             chr_name='', bustp='SL', pgini=0, qgini=0, phiini=0, usetp=1,
             outserv=0, Kpf=0, K=0,
         ))
@@ -1230,7 +1277,7 @@ def write_dgs(
         tie_rows.append((enlace, coup_fid))
         rows['ElmCoup'].append(_make_row(
             schema, 'ElmCoup', FID=coup_fid, OP='C',
-            loc_name=_loc_name(enlace.name), fold_id=network_fid, typ_id='',
+            loc_name=_loc_name(enlace.name), fold_id=net_of(enlace.node_a), typ_id='',
             on_off=0, aUsage='swt', nphase=3, nneutral=0,
         ))
         for lado, nodo in ((0, enlace.node_a), (1, enlace.node_b)):
@@ -1245,6 +1292,7 @@ def write_dgs(
     # igea_dgs.puentes). Uno por dispositivo de la base, con su estado normal, entre
     # las dos barras que unía el puente. Van en la red, no en una SED.
     coupler_rows: list[tuple[object, str]] = []
+    coupler_cubic_fids: dict[tuple[str, int], str] = {}
     for acoplador in sorted(getattr(model, 'couplers', ()),
                             key=lambda c: (c.section_id, c.node_a, c.name)):
         if acoplador.node_a not in node_fids or acoplador.node_b not in node_fids:
@@ -1253,13 +1301,14 @@ def write_dgs(
         coupler_rows.append((acoplador, coup_fid))
         rows['ElmCoup'].append(_make_row(
             schema, 'ElmCoup', FID=coup_fid, OP='C',
-            loc_name=_loc_name(acoplador.name), fold_id=network_fid, typ_id='',
+            loc_name=_loc_name(acoplador.name), fold_id=net_of(acoplador.node_a), typ_id='',
             on_off=int(acoplador.on_off), aUsage=USO_POR_CLASE.get(acoplador.kind, 'swt'),
             nphase=3, nneutral=0,
         ))
         for lado, nodo in ((0, acoplador.node_a), (1, acoplador.node_b)):
+            coupler_cubic_fids[(acoplador.name, lado)] = cub_fid = reg.new()
             rows['StaCubic'].append(_make_row(
-                schema, 'StaCubic', FID=reg.new(), OP='C',
+                schema, 'StaCubic', FID=cub_fid, OP='C',
                 loc_name=_loc_name(f'Cub{lado + 1}_{acoplador.name}'),
                 fold_id=node_fids[nodo], obj_bus=lado, obj_id=coup_fid,
                 it2p1=0, it2p2=1, it2p3=2,
@@ -1279,6 +1328,8 @@ def write_dgs(
             fold_id=node_fids[nodo_fuente], obj_bus=0, obj_id=fid_fuente,
             it2p1=0, it2p2=1, it2p3=2,
         ))
+        if barras_set and nombre_fuente not in sin_set:
+            continue        # la barra de SET: sus ElmFeeder van en sus cabeceras, abajo
         # DigSilent ElmFeeder (NA205): colour/feeder tool anchored on a root StaCubic.
         # Prefer the first outgoing line cubicle at the SOURCE bus; else ElmXnet cubic.
         feeder_cubic_fid = source_cubic_fid
@@ -1294,6 +1345,18 @@ def write_dgs(
             loc_name=_loc_name(nombre_fuente),
             obj_id=feeder_cubic_fid,
             iorient=0, i_scale=0, Sset=0, icolor=NA205_FEEDER_ICOLOR, outserv=0,
+        ))
+
+    # 022:RF-14: con la estructura, el ElmFeeder de cada alimentador en el cubículo de su
+    # interruptor de cabecera del lado de la barra de SET, hacia el alimentador: la barra
+    # es de todos, y medir en su red externa sumaría todos sus alimentadores.
+    for cab in sorted(getattr(combinado, 'cabeceras', None) or [], key=lambda c: c.feeder) if barras_set else []:
+        cub = coupler_cubic_fids.get((cab.coupler, 0))
+        if cub is None:
+            continue
+        rows['ElmFeeder'].append(_make_row(
+            schema, 'ElmFeeder', FID=reg.new(), OP='C', loc_name=_loc_name(cab.feeder),
+            obj_id=cub, iorient=0, i_scale=0, Sset=0, icolor=NA205_FEEDER_ICOLOR, outserv=0,
         ))
 
     switch_fids: dict[tuple[str, str, str], str] = {}
@@ -1336,7 +1399,7 @@ def write_dgs(
             x, y = node_xy[node_id]
             rows['IntGrf'].append(_make_row(
                 schema, 'IntGrf', FID=fid, OP='C', loc_name=_loc_name(f'G_{node_id}'),
-                fold_id=diagram_fid, iCol=1, iVis=1, iLevel=1,
+                fold_id=diag_of(node_id), iCol=1, iVis=1, iLevel=1,
                 rCenterX=x, rCenterY=y, sSymNam='PointTerm', pDataObj=node_fids[node_id],
                 iRot=0, rSizeX=layout.tam('PointTerm'), rSizeY=layout.tam('PointTerm'),
             ))
@@ -1381,7 +1444,7 @@ def write_dgs(
             rows['IntGrf'].append(_make_row(
                 schema, 'IntGrf', FID=fid, OP='C',
                 loc_name=_loc_name(f'G_{line.section_id}'),
-                fold_id=diagram_fid, iCol=1, iVis=1, iLevel=1,
+                fold_id=diag_of(line.from_node), iCol=1, iVis=1, iLevel=1,
                 rCenterX=center[0], rCenterY=center[1], sSymNam='d_lin',
                 pDataObj=line_fids[line.section_id],
                 iRot=irot, rSizeX=layout.tam('d_lin'), rSizeY=layout.tam('d_lin'),
@@ -1413,7 +1476,7 @@ def write_dgs(
             rows['IntGrf'].append(_make_row(
                 schema, 'IntGrf', FID=fid, OP='C',
                 loc_name=_loc_name(f'G_{acoplador.name}'),
-                fold_id=diagram_fid, iCol=1, iVis=1, iLevel=1,
+                fold_id=diag_of(acoplador.node_a), iCol=1, iVis=1, iLevel=1,
                 rCenterX=center[0], rCenterY=center[1], sSymNam='d_couple',
                 pDataObj=coup_fid, iRot=_line_irot([a, center, b]),
                 rSizeX=layout.tam('d_couple'), rSizeY=layout.tam('d_couple'),
@@ -1438,7 +1501,7 @@ def write_dgs(
             graphic_fids[f'tie:{enlace.name}'] = fid
             rows['IntGrf'].append(_make_row(
                 schema, 'IntGrf', FID=fid, OP='C', loc_name=_loc_name(f'G_{enlace.name}'),
-                fold_id=diagram_fid, iCol=1, iVis=1, iLevel=1,
+                fold_id=diag_of(enlace.node_a), iCol=1, iVis=1, iLevel=1,
                 rCenterX=center[0], rCenterY=center[1], sSymNam='d_couple',
                 pDataObj=coup_fid, iRot=0,
                 rSizeX=layout.tam('d_couple'), rSizeY=layout.tam('d_couple'),
@@ -1467,7 +1530,7 @@ def write_dgs(
                 fid = reg.new(); graphic_fids[f'load:{key[0]}:{key[1]}'] = fid
                 rows['IntGrf'].append(_make_row(
                     schema, 'IntGrf', FID=fid, OP='C', loc_name=_loc_name(f'G_{load.display_name or load.device_number}'),
-                    fold_id=diagram_fid, iCol=1, iVis=1, iLevel=1,
+                    fold_id=diag_of(anchor_id), iCol=1, iVis=1, iLevel=1,
                     rCenterX=x, rCenterY=y, sSymNam='d_load', pDataObj=load_fids[key],
                     iRot=int(round(math.degrees(math.atan2(dy, dx)))) % 360,
                     rSizeX=layout.tam('d_load'), rSizeY=layout.tam('d_load'),
@@ -1495,7 +1558,7 @@ def write_dgs(
                 fid = reg.new(); graphic_fids[f'sed:{key[0]}:{key[1]}'] = fid
                 rows['IntGrf'].append(_make_row(
                     schema, 'IntGrf', FID=fid, OP='C', loc_name=_loc_name(f'gnoT {sed.loc_name}'),
-                    fold_id=diagram_fid, iCol=1, iVis=1, iLevel=1,
+                    fold_id=diag_of(anchor_id), iCol=1, iVis=1, iLevel=1,
                     rCenterX=x, rCenterY=y, sSymNam='SecSubProd', pDataObj=sed_fids[key],
                     iRot=0, rSizeX=layout.sed_size, rSizeY=layout.sed_size,
                 ))
@@ -1510,7 +1573,7 @@ def write_dgs(
             graphic_fids['source' if indice == 0 else f'source:{nombre_fuente}'] = src_graph_fid
             rows['IntGrf'].append(_make_row(
                 schema, 'IntGrf', FID=src_graph_fid, OP='C', loc_name=_loc_name(f'G_Source_{nombre_fuente}'),
-                fold_id=diagram_fid, iCol=1, iVis=1, iLevel=1,
+                fold_id=diag_of(nodo_fuente), iCol=1, iVis=1, iLevel=1,
                 rCenterX=sx, rCenterY=sy, sSymNam='d_net', pDataObj=fid_fuente,
                 iRot=0, rSizeX=layout.tam('d_net'), rSizeY=layout.tam('d_net'),
             ))

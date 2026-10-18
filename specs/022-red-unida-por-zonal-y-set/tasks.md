@@ -18,7 +18,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]` y pa
 - [x] T5. Oráculo de la red unida: flujo, veredicto por SET y zonal, isla y barra que no
       convergen. (RF-28, RF-32, RF-33)
       Hecho cuando: pruebas del oráculo en verde.
-- [ ] T6. Escritor DGS: `ElmNet` por zonal, `ElmSubstat` de SET, interruptores de cabecera,
+- [x] T6. Escritor DGS: `ElmNet` por zonal, `ElmSubstat` de SET, interruptores de cabecera,
       `ElmFeeder` en su cubículo, coordenadas. (RF-8, RF-9, RF-12, RF-14, RF-17, RF-18,
       RF-18b)
       Hecho cuando: pruebas del DGS en verde y DGS idéntico con `workers=1` y `workers>1`.
