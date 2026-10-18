@@ -270,7 +270,7 @@ def test_kva_de_respaldo_desde_la_entrada(client, monkeypatch):
             self.code, self.design_kva = code, kva
 
     class Modelo:
-        seds = [Sed('E1', 100.0), Sed('E2', 0.0)]
+        seds = [Sed('E1', 200.0), Sed('E2', 0.0)]
 
     class Dataset:
         def feeder_ids(self):
@@ -286,7 +286,7 @@ def test_kva_de_respaldo_desde_la_entrada(client, monkeypatch):
     estado = esperar_trabajo(client, client.post(
         f'/api/workspaces/{wid}/demanda/ajuste/{token}/simular').json())
     assert vistos == ['a-1'], 'el código del libro casa con el de la entrada sin guiones'
-    assert estado['result']['informe']['recibido']['kva_entrada'] == {'E1': 100.0}
+    assert estado['result']['informe']['recibido']['kva_entrada'] == {'E1': 200.0}
     assert json.dumps(estado['result']['informe'])
 
 
@@ -830,3 +830,22 @@ def test_proyecto_por_sistema_calibra_todos_y_dice_los_sin_medidor(client):
         f"/api/workspaces/{wid}/demanda/ajuste/{body['token']}/aplicar").json())
     assert estado['status'] == 'done', estado
     assert estado['result']['sistema']['sin_medidor'] == ['B9']
+
+
+def test_medida_por_encima_de_lo_que_da_la_red_no_se_calibra(client, monkeypatch):
+    """022:RF-55 — un alimentador cuyo medidor da más que sus fijas y su kVA instalado por el
+    FP no se calibra; con varios, se dice y se calibran los demás (Chincha, 2026-10-18:
+    TM106, 3 133 kW con unos 230 kVA)."""
+    def kva(_ws, alimentador):
+        return ({'S1': 50.0}, '') if alimentador == 'A1' else ({'S2': 900.0}, '')
+
+    monkeypatch.setattr(services, '_kva_de_la_entrada', kva)
+    assert services._capacidad_de_la_red({'S1': 50.0, 'S2': 100.0}, {}, 0.98) == pytest.approx(147.0)
+    assert services._capacidad_de_la_red({}, {}, 0.98) is None
+    wid, job = _maxima(client)
+    r = _plan(client, wid, job)
+    assert r.status_code == 400 and '022:RF-55' in r.json()['detail']
+    wid, job = _maxima_dos(client)
+    body = _plan(client, wid, job).json()
+    assert body['feeders'] == ['A2']
+    assert any(a.startswith('A1: su medidor da') and '022:RF-55' in a for a in body['avisos'])

@@ -1,6 +1,6 @@
 # Spec 022 — Red unida por zonal y SET
 
-Estado: aprobada (2026-10-17) · Fecha: 2026-10-17
+Estado: implementada (2026-10-18; T11c y T11d abiertas) · Fecha: 2026-10-17
 
 ## Contexto y objetivo
 
@@ -195,6 +195,14 @@ sistema eléctrico»)
   archivo en los mismos flujos (Nasca, 2026-10-18: 15 de sus 17 alimentadores sin medidor).
 - RF-54: CUANDO el operador elige un proyecto por sistema eléctrico en la calibración, EL
   SISTEMA propondrá todos los alimentadores del sistema y la máxima por barra de SET.
+- RF-55: SI la demanda medida de un alimentador supera lo que su red puede dar (sus fijas
+  más la potencia instalada de sus escaladas por el factor de potencia del perfil),
+  ENTONCES EL SISTEMA no lo calibrará, lo dirá con las dos cifras y calibrará los demás
+  (Chincha, 2026-10-18: TM106 medía 3 133 kW con unos 230 kVA instalados; su factor 13,7
+  impedía converger al sistema entero).
+- RF-56: EL SISTEMA dará una herramienta de línea de órdenes que, por la API de la web,
+  convertirá, importará y calibrará un sistema eléctrico entero, retomará lo que el espacio
+  ya tenga hecho y reintentará cuando la web corte una consulta mientras trabaja.
 
 Informe
 

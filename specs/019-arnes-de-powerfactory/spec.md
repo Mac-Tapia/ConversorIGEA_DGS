@@ -1,6 +1,6 @@
 # Spec 019 — Arnés de DIgSILENT: acceso exclusivo, conexión única y obras enchufables
 
-Estado: cumplida (2026-10-15) · Fecha: 2026-10-15
+Estado: implementada (RF-1 a RF-13 cumplidos el 2026-10-15; RF-14 a RF-16, T7 abierta) · Fecha: 2026-10-15
 
 ## Contexto y objetivo
 
@@ -62,6 +62,14 @@ Conexión y activación comunes
   y atiende una cola de órdenes.
 - RF-8: SI ese proceso no responde en el límite de RF-2 o muere, ENTONCES EL SISTEMA lo
   cerrará, avisará y la siguiente acción abrirá otro.
+- RF-14: SI el motor lo tiene ese proceso sin ninguna orden en curso, ENTONCES EL SISTEMA le
+  pedirá que se cierre y dará el turno al guion que espera, sin esperar los 2 min de
+  inactividad (2026-10-18: cada sonda suelta esperaba al servidor ocioso).
+- RF-15: EL SISTEMA escribirá la salida de cada guion de DIgSILENT línea a línea también
+  cuando va a un fichero (2026-10-18: la limpieza de Chincha no mostró nada en 10 min).
+- RF-16: SI un guion no encuentra la API de DIgSILENT en su ruta, ENTONCES EL SISTEMA la
+  buscará en la instalación de DIgSILENT antes de decir que no está (2026-10-18: cada sonda
+  pedía el ``PYTHONPATH`` a mano).
 
 Procesos que no quedan colgados
 

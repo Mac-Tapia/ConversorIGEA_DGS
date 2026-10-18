@@ -2315,6 +2315,12 @@ def _con_bancos_que_faltan(app, planes: list[dict], *, cancelado, estado: dict) 
         f = plan['feeder']
         if inf.get('error') or alims.elm.get(f) is None:
             continue
+        if inf.get('remedios'):
+            # RF-70: con remedios del flujo (cargas como impedancia) el kVAR de la red no es
+            # el de lo escrito: Chincha (2026-10-18) puso 36 bancos sin converger.
+            avisos.append(f'{f}: la primera pasada necesitó remedios del flujo; no se calcula '
+                          'qué bancos faltan (021:RF-70).')
+            continue
         if not _cuadro_en_kw(inf, plan):
             # Solo con el kW del alimentador en su objetivo el kVAR de la red dice lo que
             # falta: en NA205 del TXT (2026-10-18) no cuadraba y puso 10 bancos sin sentido.

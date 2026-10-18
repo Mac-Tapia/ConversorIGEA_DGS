@@ -2267,6 +2267,16 @@ def demanda_excel(ws: Workspace, datos: dict) -> Path:
 # ---------------------------------------------------------------------------
 
 
+def _capacidad_de_la_red(kva_entrada: dict[str, float], fijas: dict, fp: float | None) -> float | None:
+    """Lo más que puede dar la red de un alimentador en kW (022:RF-55): sus fijas con su
+    medida y las demás SED con su kVA instalado por el factor de potencia. ``None`` sin kVA
+    de la entrada, para no rechazar sin saber."""
+    if not kva_entrada:
+        return None
+    escaladas = sum(kva for sed, kva in kva_entrada.items() if sed not in fijas)
+    return sum(f.kw for f in fijas.values()) + escaladas * (fp or 1.0)
+
+
 def _kva_de_la_entrada(ws: Workspace, alimentador: str) -> tuple[dict[str, float], str]:
     """kVA de cada SED del alimentador en la entrada cargada (RF-10), y un aviso si no hay.
 
@@ -2557,6 +2567,18 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
         kva_entrada, aviso = _kva_de_la_entrada(ws, alimentador)
         if aviso:
             avisos.append(pre + aviso)
+        capacidad = _capacidad_de_la_red(kva_entrada, fixed, fp_cargas)
+        if not central and capacidad is not None and objetivo.kw > capacidad:
+            # 022:RF-55: Chincha (2026-10-18), TM106 medía 3 133 kW con unos 230 kVA: su
+            # factor de escala de 13,7 hundía la tensión y el sistema entero no convergía.
+            motivo = (f'{alimentador}: su medidor da {objetivo.kw:,.0f} kW y su red puede dar '
+                      f'{capacidad:,.0f} kW (fijas más kVA instalado de las escaladas por el FP); '
+                      'no se calibra: revise el medidor o si parte de su carga está en otro '
+                      'alimentador (022:RF-55).')
+            if not varios:
+                raise UserError(motivo)
+            avisos.append(motivo)
+            continue
         plan = {
             'schema': 'igea-dgs-ajuste-cabecera-v2', 'project': project.strip(),
             'folder': carpeta_pf(), 'feeder': alimentador, 'stamp': stamp,

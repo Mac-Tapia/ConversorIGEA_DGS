@@ -66,9 +66,16 @@ def servir(inactividad_s: float = pf_arnes.INACTIVIDAD_S, *,
     cola = pf_arnes.ruta_cola()
     cola.mkdir(parents=True, exist_ok=True)
     ultima = reloj()
+    (cola / pf_arnes.CIERRE).unlink(missing_ok=True)       # un pedido viejo no cierra este
     while reloj() - ultima < inactividad_s:
         ordenes = sorted(cola.glob('*.orden.json'))
         if not ordenes:
+            if (cola / pf_arnes.CIERRE).exists():
+                # 019:RF-14: un guion suelto espera el motor y no hay nada que atender.
+                (cola / pf_arnes.CIERRE).unlink(missing_ok=True)
+                print('Otro guion pide el motor y no hay órdenes: se cierra (019:RF-14).',
+                      flush=True)
+                return 0
             dormir(0.3)
             continue
         fichero = ordenes[0]

@@ -13,6 +13,10 @@
 - [x] T5. Prueba en DIgSILENT real: dos guiones a la vez, tres órdenes con una activación,
       consigna de cabecera en CA101. (Todos)
 - [x] T6. Validación: cada RF citado por al menos una prueba. (Todos)
+- [ ] T7. El servidor ocioso cede el turno, salida sin búfer y la API de DIgSILENT buscada
+      en su instalación. (RF-14, RF-15, RF-16)
+      Hecho cuando: `pytest -q tests/test_pf_arnes.py tests/test_pf_servidor.py` en verde y
+      una sonda suelta entra con el servidor ocioso sin esperar su inactividad.
 
 Resultado de T5 (2026-10-15, DIgSILENT real con CA101): tres órdenes `verificar_pf.py`
 por el servidor, 27 s la primera (conectar y activar) y 0 y 1 s las siguientes, sin volver

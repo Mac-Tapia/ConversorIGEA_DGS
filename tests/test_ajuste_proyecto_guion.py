@@ -290,3 +290,25 @@ def test_sin_cuadrar_en_kw_no_se_ponen_bancos(guion):
                                           'abajo_kw': 500.0, 'abajo_objetivo_kw': 501.0}}, central)
     assert not guion._cuadro_en_kw({'zonas': {'arriba_kw': 100.0, 'arriba_objetivo_kw': 100.5,
                                               'abajo_kw': 300.0, 'abajo_objetivo_kw': 7177.9}}, central)
+
+
+def test_con_remedios_en_la_primera_pasada_no_se_ponen_bancos(guion, monkeypatch):
+    """021:RF-70 — si la primera pasada necesitó remedios del flujo, no se calcula qué bancos
+    faltan (Chincha, 2026-10-18: 36 bancos con una calibración que no convergía)."""
+    app = _app(escenario=True)
+    plan = {**_de(_plan(kvar=10.0), 'F1', 300.0), 'completar_bancos': True,
+            'bancos_kvar_por_tension': {'10': 2.0}}
+    original = guion._ejecutar_proyecto
+
+    def con_remedios(*a, **kw):
+        res = original(*a, **kw)
+        if kw.get('solo_medir'):
+            for inf, _rc in res:
+                inf['remedios'] = [{'remedio': 'adaptación automática del modelo'}]
+        return res
+
+    monkeypatch.setattr(guion, '_ejecutar_proyecto', con_remedios)
+    monkeypatch.setattr(guion, 'poner_bancos', lambda *a, **k: pytest.fail('no debe poner bancos'))
+    [(inf, _rc)] = guion.ejecutar_proyecto(app, [plan])
+    assert not inf['bancos_nuevos']
+    assert any('021:RF-70' in a for a in inf['avisos'])
