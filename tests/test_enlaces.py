@@ -146,3 +146,15 @@ def test_sin_red_cerca_se_dice_y_queda_como_esta():
     hechas, avisos = en.reconstruir_por_medida(red, {'R': 300.0}, {'D': 100.0})
     assert not hechas and len(red.lines) == lineas
     assert avisos and '022:RF-60' in avisos[0]
+
+
+def test_con_casi_toda_la_medida_pasa_toda_la_red_por_la_cabecera():
+    """022:RF-58 — si la medida del reconstruido es casi toda (3 133 frente a 31 kW, TM106 y
+    TM104 en Chincha), el mejor corte es el interruptor de cabecera del donante: pasa toda
+    su red, aunque la unión cuelgue de una sola rama."""
+    red, _ = _donante_y_receptor()
+    hechas, _ = en.reconstruir_por_medida(red, {'R': 3133.0}, {'D': 31.0})
+    h = hechas[0]
+    assert h.abierto.startswith('CAB_') and h.cargas_pasadas == 4 and h.kva_pasado == 400.0
+    assert all(ld.feeder == 'R' for ld in red.loads)
+    assert _radial(red)
