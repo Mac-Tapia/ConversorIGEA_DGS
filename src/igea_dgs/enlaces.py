@@ -186,6 +186,8 @@ def _abrir(model: FeederModel, nombre: str, clase: str, arista, dist) -> None:
 #: Distancia máxima entre la red de un alimentador y la de otro para reconstruir el tramo
 #: que falta (022:RF-57): TM106 quedaba a 78 m de TM104 y TM101 a 15 m de TM105.
 DISTANCIA_MAX_M = 100.0
+#: Prefijo del tramo que añade la reconstrucción: no viene de la entrada (completitud).
+PREFIJO_RECONSTRUIDO = 'REC_'
 
 
 @dataclass(frozen=True)
@@ -303,7 +305,7 @@ def reconstruir_por_medida(model: FeederModel, pedidos: dict[str, float],
         medida_donante = max(0.0, float(medidas_kw.get(donante) or 0.0))
         objetivo = (kva_donante * medida / (medida + medida_donante)
                     if medida > 0 and medida + medida_donante > 0 else 0.0)
-        tramo_nuevo = f'REC_{receptor}_{m}'[:40]
+        tramo_nuevo = f'{PREFIJO_RECONSTRUIDO}{receptor}_{m}'[:40]
         # Del mismo tipo que el tramo que llega al nodo propio: es el que se cortó en la base.
         plantilla = next(ln for ln in model.lines if n in (ln.from_node, ln.to_node))
         linea = replace(plantilla, section_id=tramo_nuevo, from_node=n, to_node=m,

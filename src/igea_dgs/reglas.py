@@ -228,9 +228,15 @@ def auditar_completitud(dataset, networks: Iterable[str], model, tablas: dict,
     interruptores = sum(1 for r in tablas.get('ElmCoup', {}).get('rows_dict', [])
                         if r.get('fold_id') not in seds) - enlaces - cabeceras - abiertos
 
+    # 022:RF-57: los tramos que añade la reconstrucción por medida tampoco (TM106 y TM101 en
+    # Chincha, 2026-10-18: «entrada 8041 ≠ ElmLne 3247 + puentes 4796»).
+    from .enlaces import PREFIJO_RECONSTRUIDO
+
+    reconstruidos = sum(1 for ln in model.lines if ln.section_id.startswith(PREFIJO_RECONSTRUIDO))
     fallos = []
-    if n('ElmLne') + puentes != len(secciones):
-        fallos.append(f'tramos: entrada {len(secciones)} ≠ ElmLne {n("ElmLne")} + puentes {puentes}')
+    if n('ElmLne') - reconstruidos + puentes != len(secciones):
+        fallos.append(f'tramos: entrada {len(secciones)} ≠ ElmLne {n("ElmLne")} + puentes {puentes}'
+                      + (f' − reconstruidos {reconstruidos}' if reconstruidos else ''))
     if n('ElmLod') + nulas != len(cargas):
         fallos.append(f'cargas: entrada {len(cargas)} ≠ ElmLod {n("ElmLod")} + trafomix de 0 kW {nulas}')
     if abs(kw_dgs - kw) > max(0.5, 1e-4 * abs(kw)):
@@ -250,7 +256,8 @@ def auditar_completitud(dataset, networks: Iterable[str], model, tablas: dict,
     return {
         'entrada': {'tramos': len(secciones), 'cargas': len(cargas), 'kW': round(kw, 3),
                     'kvar': round(kvar, 3), 'maniobras': maniobras},
-        'dgs': {'ElmLne': n('ElmLne'), 'ElmLod': n('ElmLod'), 'ElmSubstat': n('ElmSubstat'),
+        'dgs': {'ElmLne': n('ElmLne'), 'ElmLne_reconstruidos': reconstruidos,
+                'ElmLod': n('ElmLod'), 'ElmSubstat': n('ElmSubstat'),
                 'StaSwitch': n('StaSwitch'), 'ElmCoup_red': interruptores + enlaces,
                 'maniobras_quitadas': quitadas,
                 'kW': round(kw_dgs, 3), 'kvar': round(kvar_dgs, 3)},
