@@ -108,3 +108,16 @@ def test_instante_coincidente_de_la_maxima_de_un_alimentador():
     assert 'Coincidente: la máxima de {x.alimentador} · {x.fecha}' in DEMANDA
     assert "onChange={(e) => maxima(e.target.value ? e.target.value.replace(' ', 'T') : '')}" in DEMANDA
     assert 'se calibra a la vez, no en la máxima de cada uno' in DEMANDA
+
+
+def test_cambios_en_la_red_y_nombre_del_cliente():
+    """020:RF-62, 004:RF-57 — el resultado del ajuste muestra cada cambio en la red con lo
+    original existente y lo nuevo, con su SED; la tabla del cruce, el nombre del cliente."""
+    ajuste = AJUSTE
+    assert '<CambiosEnLaRed filas={inf.cambios_en_la_red!} />' in ajuste
+    for th in ('<th>SED</th>', '<th>Original existente</th>', '<th>Potencia instalada</th>',
+               '<th>Nuevo</th>', '<th>Potencia nueva</th>'):
+        assert th in ajuste
+    assert 'cambios_en_la_red?: CambioEnLaRed[];' in TIPOS
+    assert '<th>Nis / Suministro</th><th>Cliente</th>' in DEMANDA
+    assert "{c.nombre || '—'}" in DEMANDA and 'nombre: string;' in TIPOS

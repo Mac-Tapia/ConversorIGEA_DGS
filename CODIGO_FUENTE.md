@@ -27,7 +27,7 @@ spec 001, RF-14 (DGS idéntico byte a byte); su diseño histórico está en
 | `src/igea_dgs/combine.py` | Une todos los alimentadores en una sola red. | base |
 | `src/igea_dgs/coordenadas.py` | Completa las coordenadas que faltan con el grafo de la red. | base |
 | `src/igea_dgs/dataset.py` | Lector de los TXT (RED, CARGA, BD_Equipo), en las dos disposiciones. | base |
-| `src/igea_dgs/demanda_medida.py` | Máxima de cabecera por medidor y clientes importantes con su SED; el registro de las 00:00 conserva su hora; máxima de demanda con una central en el troncal; la del mes de análisis o el registro de un instante coincidente. | 004 (RF-22 a RF-45), 013 (RF-11), 021 (RF-28 a RF-34, RF-50, RF-51, RF-53) |
+| `src/igea_dgs/demanda_medida.py` | Máxima de cabecera por medidor y clientes importantes con su SED; el registro de las 00:00 conserva su hora; máxima de demanda con una central en el troncal; la del mes de análisis o el registro de un instante coincidente; el nombre del cliente. | 004 (RF-22 a RF-45, RF-56, RF-57), 013 (RF-11), 021 (RF-28 a RF-34, RF-50, RF-51, RF-53) |
 | `src/igea_dgs/dgs.py` | Escritor DGS: tablas, FID, cubículos, maniobras, capa gráfica y trazado GPS de las líneas; la barra de una SED sola va dentro de ella. | base, 010 (RF-1 a RF-4), 011 (RF-128), 021 (RF-12) |
 | `src/igea_dgs/economia.py` | Datos de la evaluación técnico-económica (`ComTececo`). | 004 |
 | `src/igea_dgs/estudios_pf.py` | Estudios sobre los casos «Sin proyecto» y «Con proyecto», sin DIgSILENT: qué estudios se ofrecen, límites del perfil, violaciones, diferencia y ficheros de resultados. | 011 (RF-23, RF-24, RF-32 a RF-35, RF-37) |
@@ -165,7 +165,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | Fichero | Qué hace | Spec |
 | --- | --- | --- |
 | `tools/accept_three_sources.py` | Aceptación universal y separada de MDB, TXT y VNR-GIS hasta ajuste, relectura y estudio nativos. | 001, 004, 006, 011 |
-| `tools/ajuste_cabecera_pf.py` | Guion de DIgSILENT: ajusta un alimentador a su máxima de cabecera, en el escenario de «Sin proyecto»; propone e implementa transformadores nuevos para las SED fijas sobrecargadas; con una central, la crea en «Sin proyecto» y calibra por zonas; con varios `--plan`, calibra a la vez todos los alimentadores del proyecto. | 006, 008, 011 (RF-18, RF-19, RF-51, RF-54), 014, 015, 020, 021 (RF-35 a RF-44, RF-54 a RF-60) |
+| `tools/ajuste_cabecera_pf.py` | Guion de DIgSILENT: ajusta un alimentador a su máxima de cabecera, en el escenario de «Sin proyecto»; propone e implementa transformadores nuevos para las SED fijas sobrecargadas; con una central, la crea en «Sin proyecto» y calibra por zonas; con varios `--plan`, calibra a la vez todos los alimentadores del proyecto; tabla de cambios en la red, lo original y lo nuevo. | 006, 008, 011 (RF-18, RF-19, RF-51, RF-54), 014, 015, 020 (RF-60, RF-61), 021 (RF-35 a RF-44, RF-54 a RF-60) |
 | `tools/apply_catalog_to_model.py` | Corrige las características eléctricas del modelo con el catálogo de fichas. | base |
 | `tools/base_scenario.py` | Escenario base (año 0): lo construye, lo hace converger y lo diagnostica. | 005 |
 | `tools/build_input_catalog.py` | Tabla de parámetros eléctricos en `input/` y auditoría de alimentadores. | base |
@@ -211,13 +211,13 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `frontend/src/components/ReconstructionPanel.tsx` | Diagnóstico y reconstrucción. | 001 (RF-8, RF-9) |
 | `frontend/src/components/Modules.tsx` | Pestañas de resultados, catálogo y sistema completo. | 001 |
 | `frontend/src/components/CargasTab.tsx` | Pestaña «Cargas en DIgSILENT» en cuatro pasos; la distancia mínima de las cargas nuevas. | 004, 005, 008, 011 (RF-42, RF-98), 016 (RF-73) |
-| `frontend/src/components/DemandaMedida.tsx` | Paso 2: libros de medición, máxima de cabecera (con la central térmica de un alimentador, en el mes de análisis o en un instante coincidente) y clientes. | 004, 008, 013 (RF-11), 021 (RF-25 a RF-27, RF-50, RF-52) |
+| `frontend/src/components/DemandaMedida.tsx` | Paso 2: libros de medición, máxima de cabecera (con la central térmica de un alimentador, en el mes de análisis o en un instante coincidente) y clientes con su nombre. | 004 (RF-57), 008, 013 (RF-11), 021 (RF-25 a RF-27, RF-50, RF-52) |
 | `frontend/src/components/EstudiosPF.tsx` | Paso 4.2: estudios sobre la red calibrada, límites y resultados. | 011 (RF-24, RF-25, RF-35, RF-39, RF-68) |
 | `frontend/src/components/GuionesPF.tsx` | Paso 4.2: guiones DPL y Python del operador, sus parámetros y su salida por caso. | 011 (RF-27 a RF-30) |
 | `frontend/src/components/ObrasPF.tsx` | Paso 4.1: formulario de obras de mejora (también enlace, migración desde un nodo y sección de toda la troncal), bibliotecas de tipos, obras guardadas, simular y aplicar. | 011 (RF-56 a RF-95), 016 (RF-68 a RF-72) |
 | `frontend/src/components/TransferenciaPF.tsx` | Paso 4.3: transferencia de carga entre dos alimentadores. | 011 (RF-104 a RF-123) |
 | `frontend/src/components/InformesPF.tsx` | Paso 4.4: informe de estudio eléctrico y de factibilidad y punto de diseño con lo ya guardado por la web (flujos de 4.2, obras, cargas nuevas aplicadas, máxima de 2.2); formularios guardados en el servidor; libro de pérdidas subido o a mano; transformador de la SET a mano; huecos, descarga e informes generados. | 017 (RF-73 cambiado, RF-74 a RF-82, RF-89 a RF-94, RF-96, RF-100, RF-102 a RF-104, RF-125) |
-| `frontend/src/components/AjusteCabecera.tsx` | Paso 2.4: ajuste a la máxima de uno o varios alimentadores; SED fijas sobrecargadas con su propuesta y el botón de transformadores nuevos. | 006, 008, 020, 021 |
+| `frontend/src/components/AjusteCabecera.tsx` | Paso 2.4: ajuste a la máxima de uno o varios alimentadores; SED fijas sobrecargadas con su propuesta y el botón de transformadores nuevos; tabla de cambios en la red. | 006, 008, 020 (RF-62), 021 |
 | `frontend/src/components/CurvaCabecera.tsx` | Paso 2.4: curva del registro del medidor de cabecera, con el mes de la máxima sombreado y zoom por tramo; con varios alimentadores, una curva por cada uno en la misma gráfica; con central, sus curvas y la de la demanda. | 006 (RF-32 a RF-38), 021 (RF-17 a RF-24, RF-47 a RF-49) |
 | `frontend/src/components/JobBar.tsx` | Barra de trabajos en curso. | 001 |
 | `frontend/src/components/LogPanel.tsx` | Registro. | 001 |

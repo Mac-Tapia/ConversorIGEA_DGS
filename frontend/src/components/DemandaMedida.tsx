@@ -281,7 +281,7 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   const visibles = useMemo(() => {
     const f = filtro.trim().toLowerCase();
     const xs = cruce?.cruzados ?? [];
-    return f ? xs.filter((c) => [c.codigo, c.sed, c.radial].some((v) => v.toLowerCase().includes(f))) : xs;
+    return f ? xs.filter((c) => [c.codigo, c.nombre ?? '', c.sed, c.radial].some((v) => v.toLowerCase().includes(f))) : xs;
   }, [cruce, filtro]);
   const buscados = Object.keys(porAlim).length > 0;
   const cuales = feeders.length === 1 ? feeders[0] : `${feeders.length} alimentadores`;
@@ -495,14 +495,14 @@ function Cruce({ cruce, visibles, filtro, setFiltro, desconectados, conmutar }: 
       onChange={(e) => setFiltro(e.target.value)} />
     <div className="table-wrap table-short">
       <table className="table">
-        <thead><tr><th>Conectado</th><th>Nis / Suministro</th><th>Cruzado por</th><th>SED</th><th>Radial</th>
+        <thead><tr><th>Conectado</th><th>Nis / Suministro</th><th>Cliente</th><th>Cruzado por</th><th>SED</th><th>Radial</th>
           <th className="num">EA</th><th className="num">ERI</th><th className="num">Pot</th></tr></thead>
         <tbody>{visibles.map((c) => (
           <tr key={c.codigo} className={desconectados.has(c.codigo) ? 'muted' : undefined}>
             <td><input type="checkbox" checked={!desconectados.has(c.codigo)} onChange={() => conmutar(c.codigo)}
               aria-label={`Conectar ${c.codigo} en DIgSILENT`}
               title="Desmarcado: no suma a su SED y, si su SED se queda sin clientes conectados, su carga queda fuera de servicio en el ajuste" /></td>
-            <td className="mono">{c.codigo}</td><td className="small">{c.cruzado_por === 'actual' ? 'Suministro Act' : 'Suministro'}</td>
+            <td className="mono">{c.codigo}</td><td className="small">{c.nombre || '—'}</td><td className="small">{c.cruzado_por === 'actual' ? 'Suministro Act' : 'Suministro'}</td>
             <td className="strong">{c.sed}</td><td>{c.radial || '—'}</td><td className="num">{fmtNum(c.ea, 2)}</td>
             <td className="num">{fmtNum(c.eri, 2)}</td><td className="num">{fmtNum(c.pot, 2)}</td></tr>
         ))}</tbody>

@@ -227,6 +227,14 @@ demandas grabadas solo en la variación no se veían en la cabecera.
 - RF-55: MIENTRAS existan los tres casos de la spec 011, EL SISTEMA grabará las demandas
   también en el escenario de «Con proyecto» y no en el del «Caso base».
 
+Nombre del cliente en el cruce (usuario, 2026-10-17: «en la tabla matriz cruzada debe
+integrar una columna de nombre del cliente»)
+
+- RF-56: EL SISTEMA leerá el nombre del cliente de la columna «Cliente» (o «Nombre»,
+  «Razón social») de la hoja resumen de clientes importantes, si la tiene.
+- RF-57: EL SISTEMA mostrará el nombre del cliente en la tabla del cruce de la web y en su
+  Excel; SI el libro no trae nombre, ENTONCES la celda quedará vacía.
+
 ## Requisitos no funcionales
 
 - Universal (P13): ninguna tensión, frecuencia ni CRS de una empresa como valor fijo.

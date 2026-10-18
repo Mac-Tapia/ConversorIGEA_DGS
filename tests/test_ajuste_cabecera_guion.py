@@ -1731,3 +1731,28 @@ def test_la_variacion_de_una_central_no_bloquea_los_transformadores(guion):
                                               plan['transformadores'])
     assert 'Obra_del_operador' in hecho['error'] and 'Central_F2' not in hecho['error']
     assert {v.loc_name for v in activas} == {'Central_F2', 'Obra_del_operador'}
+
+
+def test_cambios_en_la_red_original_y_nuevo(guion):
+    """020:RF-60, 020:RF-61 — cada transformador cambiado con su SED, lo original
+    (unidades × kVA y su total) y lo nuevo; cada banco puesto a su máxima, con escalones ×
+    kvar por escalón (fuera de servicio, 0 kvar)."""
+    app = _app(n=3)
+    plan = _con_propuesta(guion, app, _sobrecargada(app))
+    informe, _rc = guion.ejecutar(app, plan)
+    [t] = [c for c in informe['cambios_en_la_red'] if c['clase'] == 'transformador']
+    h = informe['transformadores_implementados']['cambios'][0]
+    assert t['sed'] == h['sed'] == 'F1_S2' and t['elemento'] == h['transformador']
+    assert t['original']['potencia'] == h['antes']['unidades'] * h['antes']['kva']
+    assert t['nuevo']['potencia'] == h['despues']['unidades'] * h['despues']['kva']
+    assert t['original']['unidad'] == t['nuevo']['unidad'] == 'kVA'
+    assert f"{h['despues']['unidades']} × " in t['nuevo']['descripcion']
+    filas = guion.cambios_en_la_red({'bancos_puestos_a_maxima': [
+        {'banco': 'BC1', 'barra': 'B7', 'sed': 'SE1', 'kvar_escalon': 150.0,
+         'antes': {'escalones': 1.0, 'en_servicio': True}, 'despues': {'escalones': 3.0, 'en_servicio': True}},
+        {'banco': 'BC2', 'barra': 'B8', 'sed': None, 'kvar_escalon': 300.0,
+         'antes': {'escalones': 1.0, 'en_servicio': False}, 'despues': {'escalones': 1.0, 'en_servicio': True}}]})
+    assert [(f['sed'], f['original']['potencia'], f['nuevo']['potencia']) for f in filas] == [
+        ('SE1', 150.0, 450.0), ('B8', 0.0, 300.0)]
+    assert all(f['clase'] == 'banco' and f['nuevo']['unidad'] == 'kvar' for f in filas)
+    assert guion.cambios_en_la_red({}) == []

@@ -62,6 +62,9 @@ ALIAS: dict[str, tuple[str, ...]] = {
     'ea': ('ea', 'ea total', 'energia activa'),
     'eri': ('eri', 'eri total', 'energia reactiva inductiva'),
     'pot': ('pot max', 'pot', 'potencia maxima', 'potencia'),
+    # 004:RF-56: el nombre del cliente; en los libros de julio de 2026, «CLIENTE». Los de
+    # enero a abril no lo traen.
+    'cliente_nombre': ('cliente', 'nombre cliente', 'nombre del cliente', 'razon social', 'nombre'),
 }
 MAGNITUDES = ('kw', 'kvar', 'kva', 'fp')
 NOMBRE = {'kw': 'kW', 'kvar': 'kVAR', 'kva': 'kVA', 'fp': 'FP'}
@@ -1105,6 +1108,7 @@ class ClienteImportante:
     sed: str = ''
     radial: str = ''
     motivo: str = ''
+    nombre: str = ''                # 004:RF-56; vacío si el libro no lo trae
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -1118,7 +1122,8 @@ def leer_clientes(path: Path | str, alias=ALIAS) -> tuple[list[ClienteImportante
     if not hojas:
         raise DemandaError(f'{Path(path).name}: no tiene hoja «resumen».')
     filas = _filas(libro, hojas[0])
-    hallada = _buscar_cabecera(filas, ('cliente_codigo', 'ea', 'eri', 'pot'), alias, ('cliente_codigo',))
+    hallada = _buscar_cabecera(filas, ('cliente_codigo', 'ea', 'eri', 'pot', 'cliente_nombre'), alias,
+                               ('cliente_codigo',))
     if hallada is None:
         raise DemandaError(f'{Path(path).name} › {hojas[0]}: sin columna «Nis» ni «Suministro».')
     i, cols = hallada
@@ -1138,6 +1143,7 @@ def leer_clientes(path: Path | str, alias=ALIAS) -> tuple[list[ClienteImportante
         out.append(ClienteImportante(
             codigo=codigo, fila=n, ea=numero(_celda(fila, cols.get('ea'))),
             eri=numero(_celda(fila, cols.get('eri'))), pot=numero(_celda(fila, cols.get('pot'))),
+            nombre=_texto(fila, cols.get('cliente_nombre')) if 'cliente_nombre' in cols else '',
         ))
     return out, avisos
 
@@ -1202,7 +1208,7 @@ CABECERA_COLUMNAS = (
     ('error', 'Error'), ('avisos', 'Avisos'),
 )
 CLIENTE_COLUMNAS = (
-    ('codigo', 'Nis / Suministro'), ('cruzado_por', 'Cruzado por'),
+    ('codigo', 'Nis / Suministro'), ('nombre', 'Cliente'), ('cruzado_por', 'Cruzado por'),
     ('suministro_actual', 'Suministro Act'), ('suministro_anterior', 'Suministro'),
     ('sed', 'SED'), ('radial', 'Radial'), ('ea', 'EA'), ('eri', 'ERI'), ('pot', 'Pot'),
     ('motivo', 'Motivo'),
