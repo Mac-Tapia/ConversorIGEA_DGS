@@ -233,3 +233,9 @@ Añadido el 2026-10-17 (calibrar NA203 y NA205 con su central en julio y a la ve
       fijas de NA203 por encima de su transformador (SE50290 396 %, SE50150 297 %, SE50162
       232 %, SE50225 211 %, SE50307 108 %, SE50123 102 %). Falta implementar sus
       transformadores (spec 020) o corregir el cruce y recalibrar.
+      Después, a petición del usuario, los 6 transformadores con su ficha NTP desde la web
+      (la variación de la central de NA205 ya no lo bloquea, 020:RF-17) y recalibrado el
+      proyecto: siguen cuadrando en kW (NA203 9 243,2 kW) y sigue sin converger sin
+      `iopt_lev`, ni con las escaladas al 1,7 % de su kVA: lo impiden las 14 fijas de NA203
+      (7 232 kW), con 0,906 pu en SE50290_BT. NA203 no tiene ningún banco en el modelo y la
+      red da 2 656 kVAR frente a 1 560 medidos: falta compensación o la tensión de la SET.

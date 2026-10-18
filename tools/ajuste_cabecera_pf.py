@@ -516,6 +516,22 @@ def implementar_transformadores(app, cargas: dict, cambios: list[dict]) -> dict:
     del actual (tensiones, grupo, secuencia cero) con la ficha de la NTP, y ``ntnum``
     unidades en paralelo; ningún tipo existente se toca, porque lo comparten otras SED.
     """
+    # La variación de una central (021:RF-37) es del conversor y está activa en «Sin
+    # proyecto»: se apaga mientras se escriben y se vuelve a encender, como al marcar las
+    # cargas fijas o escalables. En NA203 + NA205 (2026-10-17) la de NA205 bloqueaba los
+    # transformadores de NA203.
+    activas = list(app.GetActiveNetworkVariations() or [])
+    centrales = [v for v in activas if v.loc_name.startswith(PREFIJO_CENTRAL)]
+    for v in centrales:
+        v.Deactivate()
+    try:
+        return _implementar_transformadores(app, cargas, cambios)
+    finally:
+        for v in centrales:
+            v.Activate()
+
+
+def _implementar_transformadores(app, cargas: dict, cambios: list[dict]) -> dict:
     from igea_dgs.demanda_medida import clave_codigo
     from igea_dgs.trafos_sed import nombre_tipo
 

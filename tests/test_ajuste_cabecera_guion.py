@@ -1702,3 +1702,32 @@ def test_la_sed_cambiada_por_encima_del_umbral_se_nombra(guion):
     assert [x['sed'] for x in r['sobre_umbral']] == ['F1_S2']
     assert r['sobre_umbral'][0]['carga_pct'] == pytest.approx(90.0)
     assert r['sobrecargadas'] == ['F1_S3'] and 'la comprobación no pasa' in r['aviso']
+
+
+def test_la_variacion_de_una_central_no_bloquea_los_transformadores(guion):
+    """020:RF-17, 021:RF-37 — la variación de la central (del conversor) se apaga mientras se
+    escriben los transformadores y se vuelve a encender; la de otro, sí bloquea. En NA203 +
+    NA205 (2026-10-17) la central de NA205 bloqueaba los transformadores de NA203."""
+    app = _app(n=3)
+    plan = _con_propuesta(guion, app, _sobrecargada(app))
+    activas = []
+
+    class Var(SimpleNamespace):
+        def Deactivate(self):
+            activas.remove(self)
+
+        def Activate(self):
+            activas.append(self)
+
+    central = Var(loc_name='Central_F2')
+    activas.append(central)
+    app.GetActiveNetworkVariations = lambda: list(activas)
+    hecho = guion.implementar_transformadores(app, {'F1_S2': _carga(app, 'F1_S2')},
+                                              plan['transformadores'])
+    assert 'error' not in hecho and [h['sed'] for h in hecho['cambios']] == ['F1_S2']
+    assert activas == [central], 'la central vuelve a quedar activa'
+    activas.append(Var(loc_name='Obra_del_operador'))
+    hecho = guion.implementar_transformadores(app, {'F1_S2': _carga(app, 'F1_S2')},
+                                              plan['transformadores'])
+    assert 'Obra_del_operador' in hecho['error'] and 'Central_F2' not in hecho['error']
+    assert {v.loc_name for v in activas} == {'Central_F2', 'Obra_del_operador'}
