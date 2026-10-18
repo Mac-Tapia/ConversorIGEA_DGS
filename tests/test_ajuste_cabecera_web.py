@@ -864,3 +864,27 @@ def test_transformadores_de_varios_alimentadores_en_un_trabajo(client):
     estado = esperar_trabajo(client, r.json())
     assert estado['status'] == 'done', estado
     assert [c['sed'] for c in estado['result']['informe']['recibido']['transformadores']] == ['S1']
+
+
+def test_kva_del_alimentador_reconstruido(client, monkeypatch, tmp_path):
+    """022:RF-63 — en un proyecto por sistema reconstruido, el kVA de cada alimentador es el
+    de las SED que le asigna el DGS: A1 recibe S2 de A2 y ya puede dar su medida (TM106 y
+    TM104 en Chincha, 2026-10-18)."""
+    kva = {'A1': {'S1': 50.0}, 'A2': {'S2': 900.0, 'S3': 10.0}}
+    monkeypatch.setattr(services, '_kva_de_la_entrada', lambda _ws, f: (dict(kva.get(f, {})), ''))
+    wid, job = _maxima(client)
+    ws = client.app.state.store.get(wid)
+    (tmp_path / 'S_manifest.json').write_text(json.dumps({'estructura': {'reconstrucciones': [
+        {'alimentador': 'A1', 'donante': 'A2', 'cargas_pasadas': 1}]}}), encoding='utf-8')
+    (tmp_path / 'S_meta.json').write_text(json.dumps({'assignments': [
+        {'class_name': 'ElmSubstat', 'substation': 'S1', 'feeder': 'A1'},
+        {'class_name': 'ElmSubstat', 'substation': 'S2', 'feeder': 'A1'},
+        {'class_name': 'ElmSubstat', 'substation': 'S3', 'feeder': 'A2'}]}), encoding='utf-8')
+    ws.groups['S'] = {'tipo': 'sistema', 'feeders': ['A1', 'A2'], 'status': 'ok',
+                      'dgs': str(tmp_path / 'S.dgs'), 'feeder_metadata': str(tmp_path / 'S_meta.json')}
+    ws.pf_projects['S'] = 'P'
+    assert services._kva_reconstruido(ws, 'P', 'A1', kva['A1']) == {'S1': 50.0, 'S2': 900.0}
+    assert services._kva_reconstruido(ws, 'P', 'A2', kva['A2']) == {'S3': 10.0}
+    assert services._kva_reconstruido(ws, 'OTRO', 'A1', kva['A1']) == {'S1': 50.0}
+    body = _plan(client, wid, job).json()
+    assert body.get('feeders') == ['A1'], body

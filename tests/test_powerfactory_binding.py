@@ -580,3 +580,18 @@ def test_alimentador_solo_en_el_rotulo_de_su_barra_de_set(tmp_path):
     assert require_project_binding(ws, 'Oct/IN111', ['IN111', 'PI101']).project == 'Oct/IN111'
     with pytest.raises(ProjectBindingError, match='PROJECT_BINDING_FEEDER_MISMATCH'):
         require_project_binding(ws, 'Oct/IN111', ['PI102'])
+
+
+def test_caso_base_de_un_alimentador_del_rotulo_de_su_barra(tmp_path):
+    """022:RF-52 — un alimentador sin cargas solo está en el rótulo de su barra de SET: toma
+    el estado del rótulo (CA103 y TM101 en Chincha, 2026-10-18, salían «sin verificar»)."""
+    from igea_dgs.powerfactory_binding import caso_base_verificado, record_project_binding
+
+    ws = _workspace(tmp_path)
+    verificado = {'status': 'VERIFICADO', 'fallos': []}
+    record_project_binding(ws, _binding(
+        feeders=('IN111', 'IN111 + PI101'),
+        native_reread={'status': 'VERIFICADO_PERSISTENCIA',
+                       'caso_base': {'IN111': verificado, 'IN111 + PI101': verificado}}))
+    assert caso_base_verificado(ws, 'Oct/IN111', ['IN111', 'PI101']) == {}
+    assert caso_base_verificado(ws, 'Oct/IN111', ['PI102']) == {'PI102': ['sin verificar']}

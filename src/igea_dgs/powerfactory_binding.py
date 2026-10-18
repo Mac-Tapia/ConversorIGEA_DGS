@@ -396,6 +396,12 @@ def caso_base_verificado(ws: Any, project: str, feeders: Iterable[str]) -> dict[
         # Registro ilegible: nada está verificado a ciencia cierta; se dice por qué.
         return {str(f).strip(): [exc.code] for f in feeders}
     estados = ((raw.get('native_reread') or {}).get('caso_base') or {})
+    # 022:RF-52: un alimentador sin cargas solo está en el rótulo de su barra de SET
+    # («CA101 + CA103 + …»); vale el estado de ese rótulo (CA103 y TM101 en Chincha,
+    # 2026-10-18, salían «sin verificar» con el sistema verificado).
+    for rotulo, estado in list(estados.items()):
+        for parte in alimentadores_de_rotulos([rotulo]):
+            estados.setdefault(parte, estado)
     out: dict[str, list[str]] = {}
     for feeder in feeders:
         estado = estados.get(str(feeder).strip()) or {}
