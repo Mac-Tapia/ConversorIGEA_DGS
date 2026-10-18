@@ -194,3 +194,36 @@ def test_la_cabecera_del_donante_se_parte_y_conserva_sus_ramas():
                for ln in red.lines)
     assert en.abrir_caminos_cerrados(red) == []
     assert _radial(red)
+
+
+def test_el_donante_conserva_una_rama_junto_a_su_cabecera():
+    """022:RF-58b — la cabecera tiene la rama de la unión y una rama grande; junto a ella
+    (a menos de 100 m) sale una sub-rama: el donante conserva la sub-rama que le basta para
+    su medida y el reconstruido recibe el resto, también la rama grande (TM104 conserva la
+    de 1 015 kVA a 44 m y TM106 recibe 8 400 kVA)."""
+    from igea_dgs.model import Line, Load, Node, Sed
+
+    red, _ = _donante_y_receptor()
+    t = _tipo()
+    # D_H → D_G (a 40 m) → D_G1 (600 kVA) y D_G2 (60 kVA).
+    nuevos = (('D_G', -40.0, None, 'D_H'), ('D_G1', -300.0, 600.0, 'D_G'),
+              ('D_G2', -300.0, 60.0, 'D_G'))
+    for nodo, x, kva, padre in nuevos:
+        red.nodes[nodo] = Node(nodo, x, -10.0)
+        red.combined.feeder_of_node[nodo] = ['D']
+        red.combined.node_kv[nodo] = 10.0
+        largo = 40.0 if padre == 'D_H' else 300.0
+        red.lines.append(Line(f'L_{nodo}', padre, nodo, 'ABC', t.key, t.code, largo, True))
+        if kva:
+            red.loads.append(Load(f'S_{nodo}', f'X{nodo}', 'C', '1', nodo, 0.05, 0.01, 0.95,
+                                  kva, 0.0, 'ABC', sed_code=f'SE_{nodo}', feeder='D',
+                                  network_id='NET_D'))
+            red.seds.append(Sed(f'SE_{nodo}', f'SE_{nodo}', nodo, kva, f'S_{nodo}', f'X{nodo}',
+                                (f'S_{nodo}', f'X{nodo}'), feeder='D', network_id='NET_D'))
+    # D: 400 (cadena con la unión) + 660 = 1 060 kVA; R mide 900 y D 50.
+    hechas, _ = en.reconstruir_por_medida(red, {'R': 900.0}, {'D': 50.0})
+    assert hechas[0].abierto == 'cabecera de D partida'
+    assert sorted(ld.node_id for ld in red.loads if ld.feeder == 'D') == ['D_G2']
+    assert any(ln.section_id == 'L_D_G2' and ln.from_node.endswith('_D') for ln in red.lines)
+    assert en.abrir_caminos_cerrados(red) == []
+    assert _radial(red)
