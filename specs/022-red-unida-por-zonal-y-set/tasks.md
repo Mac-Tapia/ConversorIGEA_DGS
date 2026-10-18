@@ -32,8 +32,8 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]` y pa
       RF-24)
       Hecho cuando: pruebas de los guiones con `fake_pf` en verde.
 - [ ] T9b. Medidores de barra: lectura de las filas «Barra», asignación por siglas y nivel,
-      objetivo por barra como máxima de la suma de sus transformadores, y cuadre por barra
-      en el ajuste del proyecto con un factor por barra; central de barra; siglas sin SET
+      máxima de la barra como suma de sus transformadores, y sus alimentadores calibrados
+      con su medidor en esa fecha y hora; central de barra; siglas sin SET
       en barra suelta. (RF-37 a RF-46)
       Hecho cuando: pruebas del lector, del objetivo y del guion con `fake_pf` en verde.
 - [ ] T10. Web: tabla en Excel por espacio e informe por zonal y SET. (RF-4, RF-25)
