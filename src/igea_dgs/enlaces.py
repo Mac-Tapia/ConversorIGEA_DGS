@@ -332,6 +332,15 @@ def reconstruir_por_medida(model: FeederModel, pedidos: dict[str, float],
                 abajo = aguas_abajo(hijo)
                 kva = sum(kva_de[x] for x in abajo)
                 candidatos.append((abs(kva - objetivo), nombre, i, abajo, kva))
+            # Toda la red del donante, abriendo su interruptor de cabecera: cuando la unión
+            # cuelga de una rama de la cabecera y la medida del reconstruido es casi toda
+            # (TM106 3 133 kW frente a TM104 31 kW, Chincha 2026-10-18), ningún corte del
+            # camino pasa más que esa rama.
+            cab = next((c for c in info.cabeceras if c.feeder == donante), None)
+            if cab is not None and cabecera in dist:
+                abajo = aguas_abajo(cabecera)
+                kva = sum(kva_de[x] for x in abajo)
+                candidatos.append((abs(kva - objetivo), cab.coupler, None, abajo, kva))
         if not candidatos:
             # RF-59: sin medida que pasar, el tramo nuevo queda abierto del lado del donante.
             model.devices.append(SwitchingDevice(
@@ -342,7 +351,10 @@ def reconstruir_por_medida(model: FeederModel, pedidos: dict[str, float],
                                          medida, medida_donante, 0.0, kva_donante, 0))
             continue
         _err, nombre, i, abajo, kva = min(candidatos, key=lambda c: c[:2])
-        _abrir(model, nombre, aristas[i][1], aristas[i], dist)
+        if i is None:
+            _abrir(model, nombre, 'acoplador', None, dist)
+        else:
+            _abrir(model, nombre, aristas[i][1], aristas[i], dist)
         red = next((f.network_id for f in info.feeders if f.name == receptor), '')
         for x in abajo:
             info.feeder_of_node[x] = [receptor if f == donante else f
