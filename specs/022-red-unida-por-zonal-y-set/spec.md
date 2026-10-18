@@ -224,6 +224,10 @@ fuera de servicio y sin medidor, a 15 m de TM105)
   SISTEMA lo dirá y convertirá el alimentador como está.
 - RF-61: EL SISTEMA aceptará las reconstrucciones en la conversión por sistema de la web y
   la herramienta de RF-56 las pedirá con sus medidas.
+- RF-62: CUANDO se implementan los transformadores de las fijas sobrecargadas de varios
+  alimentadores de un proyecto (020:RF-15), EL SISTEMA los cambiará todos y recalibrará el
+  proyecto una sola vez (Chincha, 2026-10-18: CA101, PE102 y PN103 no convergían por sus
+  fijas sobre transformadores pequeños; uno a uno, cada uno recalibraba el sistema).
 
 Informe
 

@@ -1,6 +1,6 @@
 # Spec 019 — Arnés de DIgSILENT: acceso exclusivo, conexión única y obras enchufables
 
-Estado: implementada (RF-1 a RF-13 cumplidos el 2026-10-15; RF-14 a RF-16, T7 abierta) · Fecha: 2026-10-15
+Estado: cumplida (2026-10-15; RF-14 a RF-16 el 2026-10-18) · Fecha: 2026-10-15
 
 ## Contexto y objetivo
 

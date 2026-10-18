@@ -2837,24 +2837,38 @@ def ajuste_transformadores(ws: Workspace, ctx: JobContext, token: str, feeder: s
     ajuste aplicado, así que la calibración válida queda registrada (RF-28) y es la base
     de lo que siga (007:RF-40).
     """
+    return ajuste_transformadores_varios(ws, ctx, token, {feeder: cambios})
+
+
+def ajuste_transformadores_varios(ws: Workspace, ctx: JobContext, token: str,
+                                  cambios_por: dict[str, list[dict]]) -> dict:
+    """Los transformadores de varios alimentadores y una sola recalibración (022:RF-62).
+
+    En Chincha (2026-10-18) las fijas sobre su transformador de CA101, PE102 y PN103 hundían
+    la tensión de su barra de BT; uno a uno, cada alimentador recalibraba el sistema entero.
+    """
     plan = ws.cargas_planes.get(token)
     if plan is None or plan.get('kind') != 'ajuste_cabecera':
         raise UserError('El plan del ajuste ya no existe: vuelva a prepararlo.')
-    path, sufijo = _plan_y_sufijo(plan, feeder)
-    try:
-        datos = json.loads(Path(path).read_text(encoding='utf-8'))
-    except (OSError, ValueError) as exc:
-        raise UserError('El plan del ajuste ya no existe: vuelva a prepararlo.') from exc
-    datos['transformadores'] = cambios
-    datos['ultima_calibracion'] = (ws.calibraciones.get(plan['project'].strip()) or {}).get(feeder)
-    copia = ws.plans_dir / f'ajuste_cabecera_{token}{sufijo}_transformadores.json'
-    copia.write_text(json.dumps(datos, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+    copias: dict[str, str] = {}
+    for feeder, cambios in cambios_por.items():
+        path, sufijo = _plan_y_sufijo(plan, feeder)
+        try:
+            datos = json.loads(Path(path).read_text(encoding='utf-8'))
+        except (OSError, ValueError) as exc:
+            raise UserError('El plan del ajuste ya no existe: vuelva a prepararlo.') from exc
+        datos['transformadores'] = cambios
+        datos['ultima_calibracion'] = (ws.calibraciones.get(plan['project'].strip()) or {}).get(feeder)
+        copia = ws.plans_dir / f'ajuste_cabecera_{token}{sufijo}_transformadores.json'
+        copia.write_text(json.dumps(datos, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+        copias[path] = str(copia)
+        ctx.log(f"{feeder}: transformadores nuevos para {', '.join(c['sed'] for c in cambios)}.")
+    feeder = next(iter(cambios_por))
     flag = ws.plans_dir / f'cancelar_{token}.flag'
     flag.unlink(missing_ok=True)
-    ctx.log(f"{feeder}: transformadores nuevos para {', '.join(c['sed'] for c in cambios)}; "
-            'después se recalibra «Sin proyecto».')
-    # 021:RF-54: se recalibra el proyecto entero, con los transformadores en el plan de este.
-    paths = [str(copia) if x == path else x for x in (plan.get('paths') or [plan['path']])]
+    ctx.log('Después se recalibra «Sin proyecto» una sola vez.')
+    # 021:RF-54: se recalibra el proyecto entero, con los transformadores en sus planes.
+    paths = [copias.get(x, x) for x in (plan.get('paths') or [plan['path']])]
     varios = len(paths) > 1
     reports = [ws.out_dir / f'ajuste_cabecera_aplicacion_{token}{f"_{n + 1}" if varios else ""}.json'
                for n in range(len(paths))]

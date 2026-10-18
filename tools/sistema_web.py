@@ -202,14 +202,19 @@ def correr(web: Web, zonal: str, *, demanda_dir: Path, periodo: str | None,
     token = plan['token']
     ultimo = None
     if transformadores:
+        # 022:RF-62: los de todos los alimentadores y una sola recalibración del proyecto.
         sim = web.esperar(web.post(f'/demanda/ajuste/{token}/simular'))
+        pedidos = {}
         for inf in (sim.get('result') or {}).get('informes', []):
             seds = [x['sed'] for x in inf.get('fijas_sobre_su_transformador') or []
-                    if (x.get('propuesta') or {}).get('kva')]
+                    if (x.get('propuesta') or {}).get('kva')
+                    and len(x.get('transformadores') or []) == 1]
             if seds:
+                pedidos[inf['feeder']] = seds
                 print(f"Transformadores nuevos en {inf['feeder']}: {', '.join(seds)}", flush=True)
-                ultimo = web.esperar(web.post(f'/demanda/ajuste/{token}/transformadores',
-                                              json={'feeder': inf['feeder'], 'sed': seds}))
+        if pedidos:
+            ultimo = web.esperar(web.post(f'/demanda/ajuste/{token}/transformadores',
+                                          json={'por_alimentador': pedidos}))
     if ultimo is None:
         ultimo = web.esperar(web.post(f'/demanda/ajuste/{token}/aplicar'))
     print(f"Calibración: {ultimo['status']} {ultimo.get('error') or ''}", flush=True)

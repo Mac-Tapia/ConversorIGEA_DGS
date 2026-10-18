@@ -130,10 +130,12 @@ class DemandaClientesIn(BaseModel):
 
 
 class TransformadoresIn(BaseModel):
-    """020:RF-13: las SED marcadas de un alimentador del ajuste."""
+    """020:RF-13: las SED marcadas de un alimentador del ajuste; 022:RF-62, las de varios
+    a la vez (``por_alimentador``), con una sola recalibración del proyecto."""
 
-    feeder: str
+    feeder: str = ''
     sed: list[str] = Field(default_factory=list, max_length=2000)
+    por_alimentador: dict[str, list[str]] = Field(default_factory=dict)
 
 
 class CentralIn(BaseModel):
@@ -1239,11 +1241,15 @@ def create_app(
         if plan is None or plan.get('kind') != 'ajuste_cabecera':
             raise HTTPException(404, 'El plan del ajuste ya no existe: vuelva a prepararlo.')
         # 020:RF-13, RF-14: se valida antes de encolar, para decirlo en el acto.
-        cambios = services.ajuste_transformadores_pedido(ws, token, body.feeder, body.sed)
+        pedidos = body.por_alimentador or {body.feeder: body.sed}
+        if '' in pedidos:
+            raise HTTPException(422, 'Indique el alimentador de las SED (020:RF-14).')
+        cambios = {f: services.ajuste_transformadores_pedido(ws, token, f, seds)
+                   for f, seds in pedidos.items()}
+        quien = next(iter(cambios)) if len(cambios) == 1 else f'{len(cambios)} alim.'
         return submit(ws, 'ajuste_transformadores',
-                      f"Transformadores nuevos y calibración de {body.feeder} · {plan['project']}",
-                      lambda ctx: services.ajuste_transformadores(ws, ctx, token, body.feeder,
-                                                                  cambios),
+                      f"Transformadores nuevos y calibración de {quien} · {plan['project']}",
+                      lambda ctx: services.ajuste_transformadores_varios(ws, ctx, token, cambios),
                       lane='powerfactory')
 
     def _ajuste_aplicado(wid: str, job_id: str | None) -> dict | None:

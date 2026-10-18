@@ -225,10 +225,15 @@ def _mas_cercano(model: FeederModel, receptor: str, distancia_max_m: float):
 
     info = model.combined
     barras = {b.node_id for b in info.barras_set} | {f.source_node for f in info.feeders}
-    # Ni la barra de SET ni las cabeceras: están juntas en la SET (en Chincha, la de TM106 a
-    # 4 m de la de TM103) y no son el final de ninguna red.
+    # Solo los extremos de su red (un tramo): lo que falta está al final. Ni la barra de SET
+    # ni las cabeceras, juntas en la SET; en Chincha (2026-10-18) un nodo de TM106 junto a la
+    # SET quedaba a 7 m de TM104 y pasaba 2 000 de los 9 000 kVA que tocaban; su final está a 78 m.
+    grado: dict[str, int] = defaultdict(int)
+    for ln in model.lines:
+        grado[ln.from_node] += 1
+        grado[ln.to_node] += 1
     propios = sorted(n for n, fs in info.feeder_of_node.items() if receptor in fs
-                     and n not in barras)
+                     and n not in barras and grado[n] == 1)
     kv = next((info.node_kv.get(n) for n in propios if n in info.node_kv), None)
 
     def xy(nodo):
