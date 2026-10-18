@@ -7,7 +7,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]` y pa
       RF-25b)
       Hecho cuando: `pytest tests/test_estructura.py` en verde (tablas sorteadas).
 - [ ] T2. Transcribir la tabla pública a `config/perfiles/electro_dunas_estructura.json` y
-      enlazarla desde el perfil de Electro Dunas. (RF-3)
+      enlazarla desde el perfil de Electro Dunas, con las siglas de cada SET. (RF-3, RF-46)
       Hecho cuando: el perfil carga 4 zonales y todos los alimentadores de la tabla.
 - [ ] T3. `estructurar` en `combine.py`: barras de SET por tensión, interruptor de cabecera
       cerrado para todos, una fuente por barra. (RF-10 a RF-13, RF-21)
@@ -33,7 +33,8 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]` y pa
       Hecho cuando: pruebas de los guiones con `fake_pf` en verde.
 - [ ] T9b. Medidores de barra: lectura de las filas «Barra», asignación por siglas y nivel,
       objetivo por barra como máxima de la suma de sus transformadores, y cuadre por barra
-      en el ajuste del proyecto con un factor por barra; central de barra. (RF-37 a RF-45)
+      en el ajuste del proyecto con un factor por barra; central de barra; siglas sin SET
+      en barra suelta. (RF-37 a RF-46)
       Hecho cuando: pruebas del lector, del objetivo y del guion con `fake_pf` en verde.
 - [ ] T10. Web: tabla en Excel por espacio e informe por zonal y SET. (RF-4, RF-25)
       Hecho cuando: pruebas de la API y del front en verde; `npm run build`.

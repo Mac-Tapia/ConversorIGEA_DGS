@@ -154,8 +154,12 @@ por ejemplo, la barra B-PA2T1, 22,9, PA, es la barra de 22,9 kV de la SET Paraca
 - RF-44: DONDE un medidor de barra es de una central («Barra CT», «CTBarra»: CT_PEDREG en la
   barra de 10 kV de Pedregal), EL SISTEMA pondrá la central en esa barra con la P y Q
   medidas en el registro objetivo de la barra, como la central de 021:RF-35.
-- RF-45: SI unas siglas del libro no están en la estructura, ENTONCES EL SISTEMA lo dirá
-  nombrando las siglas y su medidor, y no usará ese medidor.
+- RF-45: SI unas siglas del libro no están en la estructura, ENTONCES EL SISTEMA las tomará
+  como una barra suelta propia (alimentadores nuevos: CHN, PO y Chiribamba en Electro
+  Dunas, usuario 2026-10-17), con su red externa, a la que colgarán los alimentadores de la
+  entrega con esas siglas, calibrada con su medidor, y lo dirá.
+- RF-46: La estructura del perfil de Electro Dunas dará a SEIN las siglas SI (B-SI1T1 es su
+  barra de 10 kV).
 
 Informe
 
@@ -216,12 +220,7 @@ Informe
 
 ## Dudas abiertas
 
-- [NECESITA ACLARACIÓN: las siglas CHN (CHNB1T1, CHNB2T1, CHNB6T1), PO (PO_BARRA 10KV) y la
-  barra de Chiribamba (SE_CHIRIBAMBA, CHB2T1 de CHI201), ¿a qué SET de la tabla
-  corresponden?]
-- [NECESITA ACLARACIÓN: SI (B-SI1T1, «Barra ind»): los SI112, SI213 y SI114 están en la tabla
-  con SET «SEIN»; ¿es la barra de esa SET?]
-
-Resueltas el 2026-10-17: los alimentadores «fuera de servicio» de la tabla se integran
+Ninguna. Resueltas el 2026-10-17: los alimentadores «fuera de servicio» de la tabla se integran
 (RF-13); los anillos se abren (RF-30); las cabeceras en sus coordenadas UTM y las barras de
-SET en ellas (RF-17, RF-18); lo que no tiene redes se omite (RF-25b).
+SET en ellas (RF-17, RF-18); lo que no tiene redes se omite (RF-25b); siglas sin SET, barra suelta propia (RF-45); SI
+es SEIN (RF-46).
