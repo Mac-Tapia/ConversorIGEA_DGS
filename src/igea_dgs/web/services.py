@@ -2411,9 +2411,14 @@ def _guardar_calibracion(ws: Workspace, project: str, feeder: str, informe: dict
     """La demanda que dejó la calibración en cada SED (015, T8; 014:RF-10).
 
     Sin error y sin revertir: una calibración que no quedó en el escenario no es con la
-    que comparar lo que cambie el operador.
+    que comparar lo que cambie el operador. Solo cuenta si el guion guardó el escenario
+    (``escenarios``) o lo encontró ya calibrado: en NA205 (2026-10-17) se registró una que
+    no pasó la validación física y no se guardó, y en la siguiente las 93 cargas salían
+    «cambiadas a mano», fijas, y ninguna zona de la central quedaba para escalar.
     """
-    if informe.get('error') or informe.get('calibracion_revertida') or not informe.get('sed'):
+    ya = (informe.get('decision_carga_nativa') or {}).get('status') == 'YA_CARGADO_VALIDADO'
+    if (informe.get('error') or informe.get('calibracion_revertida') or not informe.get('sed')
+            or not (informe.get('escenarios') or ya)):
         return
     sed = {x['sed']: [(x.get('despues') or {}).get('kw'), (x.get('despues') or {}).get('kvar')]
            for x in informe['sed'] if (x.get('despues') or {}).get('kw') is not None}

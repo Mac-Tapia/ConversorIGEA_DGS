@@ -40,7 +40,7 @@ for ruta_plan, ruta_salida in zip(a.plan, a.output_json):
              'recibido': plan}
   if not a.simular:
       informe.update(sed=[{'sed': 'S1', 'despues': {'kw': 40.0, 'kvar': 9.0}}],
-                     escenario='Sin proyecto')
+                     escenario='Sin proyecto', escenarios=[{'escenario': 'Sin proyecto'}])
   if plan['project'] == 'SOBRE':
       # Spec 020: una fija sobrecargada con propuesta (S1) y otra sin ella (S2).
       informe['fijas_sobre_su_transformador'] = [
@@ -513,7 +513,8 @@ def test_la_calibracion_guarda_las_fijas_con_fp_real_y_corregido(tmp_path):
     from igea_dgs.web.workspace import Workspace
 
     ws = Workspace(id='w', root=tmp_path / 'ws')
-    informe = {'cuadrado': True, 'escenario': 'Sin proyecto', 'sed': [
+    informe = {'cuadrado': True, 'escenario': 'Sin proyecto',
+               'escenarios': [{'escenario': 'Sin proyecto'}], 'sed': [
         {'sed': 'SE1', 'despues': {'kw': 100.0, 'kvar': 20.3}, 'derivaciones': [
             {'cliente': 'C1', 'p_kw': 100.0, 'q_kvar': 20.3, 'fp': 0.98,
              'compensado': {'fp_ea_eri': 0.43, 'fp_escrito': 0.98, 'q_ea_eri_kvar': 210.0,
@@ -763,3 +764,20 @@ def test_poner_los_bancos_que_falten_va_en_el_plan(client, monkeypatch):
     assert plan['bancos_kvar_por_tension'] == {'10.0': 300.0, '22.9': 450.0}
     plan = _recibido(client, wid, _plan(client, wid, job).json()['token'])
     assert plan['completar_bancos'] is False and plan['bancos_kvar_por_tension'] == {}
+
+
+def test_solo_se_registra_la_calibracion_guardada(tmp_path):
+    """014:RF-10, 015:RF-49 — una calibración cuyo escenario no se guardó (no pasó la
+    validación física) no se registra: en NA205 (2026-10-17) dejó 93 cargas «cambiadas a
+    mano» en la siguiente."""
+    from igea_dgs.web.workspace import Workspace
+
+    ws = Workspace(id='w', root=tmp_path / 'ws')
+    sed = [{'sed': 'SE1', 'despues': {'kw': 100.0, 'kvar': 20.0}}]
+    services._guardar_calibracion(ws, 'P', 'A1', {'cuadrado': False, 'status': 'FALLO_VALIDACION_NATIVA',
+                                                  'escenario': 'Sin proyecto', 'sed': sed})
+    assert 'A1' not in ws.calibraciones.get('P', {})
+    services._guardar_calibracion(ws, 'P', 'A1', {
+        'cuadrado': True, 'sed': sed,
+        'decision_carga_nativa': {'status': 'YA_CARGADO_VALIDADO'}})
+    assert ws.calibraciones['P']['A1']['sed'] == {'SE1': [100.0, 20.0]}
