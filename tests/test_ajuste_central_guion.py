@@ -154,3 +154,55 @@ def test_la_central_fuera_del_camino_mas_largo_avisa_y_calibra(guion, monkeypatc
     assert rc == 0, informe
     assert any('camino más largo' in a and '021:RF-38' in a for a in informe['avisos'])
     assert informe['zonas']['arriba_kw'] and informe['zonas']['abajo_kw']
+
+
+def test_la_etapa_de_la_central_queda_solo_con_la_central(guion):
+    """021:RF-37 — lo que la etapa de la central haya grabado que no sea su generador y su
+    cubículo se quita (sistema Nasca, 2026-10-18: 167 cargas en «Central_NA205» pisaban la
+    marca fija de NA203)."""
+    from types import SimpleNamespace
+
+    borrados = []
+
+    class O(SimpleNamespace):
+        def GetClassName(self):
+            return self.clase
+
+        def Delete(self):
+            borrados.append(self.loc_name)
+            return 0
+
+        def GetContents(self, _patron, _rec=0):
+            return self.hijos
+
+    etapa = O(clase='IntSstage', loc_name='Etapa_central', hijos=[
+        O(clase='ElmGenstat', loc_name='Central_NA205'), O(clase='StaCubic', loc_name='Cub_Central_NA205'),
+        O(clase='ElmLod', loc_name='SE50320'), O(clase='ElmLod', loc_name='SE50033')])
+    variacion = O(clase='IntScheme', loc_name='Central_NA205', hijos=[etapa])
+    assert guion._limpiar_etapa_de_la_central(variacion, 'Central_NA205') == 2
+    assert borrados == ['SE50320', 'SE50033']
+
+
+def test_la_marca_fija_se_restaura_con_las_centrales_apagadas(guion):
+    """015:RF-37, 021:RF-37 — la restauración de las cargas (y toda marca fija o escalable)
+    se escribe con las variaciones de central apagadas, y se vuelven a encender."""
+    from types import SimpleNamespace
+
+    activas, registro = [], []
+
+    class V(SimpleNamespace):
+        def Deactivate(self):
+            activas.remove(self)
+            registro.append(('off', self.loc_name))
+
+        def Activate(self):
+            activas.append(self)
+            registro.append(('on', self.loc_name))
+
+    central, obra = V(loc_name='Central_NA205'), V(loc_name='Obra_X')
+    activas += [central, obra]
+    app = SimpleNamespace(GetActiveNetworkVariations=lambda: list(activas))
+    with guion._centrales_apagadas(app):
+        assert activas == [obra], 'solo las de central se apagan'
+    assert set(v.loc_name for v in activas) == {'Central_NA205', 'Obra_X'}
+    assert registro == [('off', 'Central_NA205'), ('on', 'Central_NA205')]
