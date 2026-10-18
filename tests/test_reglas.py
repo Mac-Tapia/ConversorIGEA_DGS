@@ -211,6 +211,19 @@ def test_web_convierte_por_sistema_electrico_con_la_tabla_subida(tmp_path, monke
         textos = [e['data'].get('text') or '' for e in c.get(f'/api/workspaces/{wid}/events').json()]
         assert any(t.startswith('Por zonal y SET') for t in textos)
         assert any('SET 1 UNO' in t for t in textos)
+        # 022:RF-61: la conversión por sistema acepta las reconstrucciones con sus medidas, y
+        # el informe dice qué hizo con cada una (unido o, sin vecino cerca, como estaba).
+        r = c.post(f'/api/workspaces/{wid}/convert/sistema',
+                   json={'zonales': [], 'reconstruir': 'TM106'})
+        assert r.status_code == 422
+        j = esperar(c.post(f'/api/workspaces/{wid}/convert/sistema', json={
+            'zonales': [], 'reconstruir': {nombres[0]: 100.0},
+            'medidas_kw': {n: 50.0 for n in nombres[1:]}}).json())
+        assert j['result']['status'] == 'ok', j['result']
+        man = json.loads(next((tmp_path / 'web').rglob('SISTEMA_ELECTRICO_manifest.json'))
+                         .read_text(encoding='utf-8'))
+        rec, avisos = man['estructura']['reconstrucciones'], man['estructura']['avisos']
+        assert rec or any(nombres[0] in a and 'RF-60' in a for a in avisos)
         # 022:RF-50: unir dos o más, con la estructura subida, sigue sin usarla.
         j = esperar(c.post(f'/api/workspaces/{wid}/convert', json={
             'feeders': nombres[:2], 'unir': True, 'nombre': 'DOS'}).json())

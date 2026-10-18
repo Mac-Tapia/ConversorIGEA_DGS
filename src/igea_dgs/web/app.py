@@ -353,9 +353,12 @@ class SelectionIn(BaseModel):
 
 
 class SistemaIn(BaseModel):
-    """Spec 022, RF-48: los zonales a convertir; vacío, todos."""
+    """Spec 022, RF-48: los zonales a convertir; vacío, todos. RF-61: los alimentadores a
+    reconstruir con su medida y las medidas de los demás, en kW."""
 
     zonales: list[str] = Field(default_factory=list)
+    reconstruir: dict[str, float] = Field(default_factory=dict)
+    medidas_kw: dict[str, float] = Field(default_factory=dict)
 
 
 class FeedersIn(BaseModel):
@@ -859,7 +862,9 @@ def create_app(
         return submit(ws, 'convert_group', f'Sistema eléctrico {nombre}.dgs ({len(feeders)} alimentadores)',
                       lambda ctx: services.convert_group(
                           ws, ctx, feeders, nombre, requested_feeders=feeders,
-                          estructura=estructura, tipo='sistema'))
+                          estructura=estructura, tipo='sistema',
+                          reconstruir=({'pedidos': body.reconstruir, 'medidas_kw': body.medidas_kw}
+                                       if body.reconstruir else None)))
 
     @app.post('/api/workspaces/{wid}/convert', status_code=202)
     def convert(wid: str, body: SelectionIn) -> dict:
