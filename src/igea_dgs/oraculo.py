@@ -144,8 +144,13 @@ def disponible() -> bool:
 
 # ---------------------------------------------------------------- construcción de la red
 
-def red_pandapower(model: FeederModel):
-    """La red del DGS en pandapower. Devuelve ``(net, barra_de_nodo, informe_parcial)``."""
+def red_pandapower(model: FeederModel, consigna_pu: float = 1.0):
+    """La red del DGS en pandapower. Devuelve ``(net, barra_de_nodo, informe_parcial)``.
+
+    Con la red unida (spec 022), cada barra a su tensión, una red externa por barra de SET
+    y por cada alimentador «Sin SET» (o por alimentador, sin estructura), con
+    ``consigna_pu``; los interruptores de cabecera y los enlaces como estén.
+    """
     import pandapower as pp
 
     from .dgs import NA205_SED_LV_KV, NA205_TR2_UK_PCT, _tr2_curmg_pct, _tr2_losses_kw, _tr2_strn_mva
@@ -155,9 +160,20 @@ def red_pandapower(model: FeederModel):
     net = pp.create_empty_network(name=model.name, f_hz=FRECUENCIA_HZ)
 
     nodos = sorted(model.nodes)
-    idx = pp.create_buses(net, len(nodos), vn_kv=kv, name=nodos)
+    info = getattr(model, 'combined', None)
+
+    def kv_de(n: str) -> float:
+        return float(info.node_kv.get(n, kv)) if info is not None else kv
+
+    idx = pp.create_buses(net, len(nodos), vn_kv=[kv_de(n) for n in nodos], name=nodos)
     barra = dict(zip(nodos, (int(i) for i in idx)))
-    pp.create_ext_grid(net, barra[model.source_node], vm_pu=1.0, name='FUENTE')
+    if info is not None:
+        from .enlaces import fuentes_de
+        for nodo, nombre in sorted(fuentes_de(model).items()):
+            if nodo in barra:
+                pp.create_ext_grid(net, barra[nodo], vm_pu=consigna_pu, name=nombre)
+    else:
+        pp.create_ext_grid(net, barra[model.source_node], vm_pu=consigna_pu, name='FUENTE')
 
     # --- tramos
     lineas = sorted(model.lines, key=lambda ln: ln.section_id)
@@ -233,7 +249,8 @@ def red_pandapower(model: FeederModel):
         pcu_kw, pfe_kw = _tr2_losses_kw(kva, uk_pct=NA205_TR2_UK_PCT)
         bt = int(pp.create_bus(net, vn_kv=NA205_SED_LV_KV, name=f'{sed.loc_name}_BT'))
         pp.create_transformer_from_parameters(
-            net, barra[sed.node_id], bt, sn_mva=strn, vn_hv_kv=kv, vn_lv_kv=NA205_SED_LV_KV,
+            net, barra[sed.node_id], bt, sn_mva=strn, vn_hv_kv=kv_de(sed.node_id),
+            vn_lv_kv=NA205_SED_LV_KV,
             vk_percent=NA205_TR2_UK_PCT, vkr_percent=pcu_kw / kva * 100.0, pfe_kw=pfe_kw,
             i0_percent=_tr2_curmg_pct(kva, pfe_kw), name=f'TR_{sed.loc_name}')
         lado_baja[sed.load_key] = bt
@@ -364,3 +381,153 @@ def validar(model: FeederModel) -> InformeOraculo:
                 f'pérdidas del {pct:.1f} % de la carga: delatan impedancias o longitudes '
                 'fuera de escala.'))
     return informe
+
+
+# ------------------------------------------------------------------- red unida (spec 022)
+
+@dataclass
+class VeredictoIsla:
+    """El flujo de la isla de una fuente: una barra de SET o un alimentador «Sin SET»."""
+
+    fuente: str
+    zonal: str = ''
+    convergio: bool = False
+    p_mw: float | None = None
+    v_min_pu: float | None = None
+    barra_v_min: str = ''
+    #: Si no converge: hasta qué fracción de su carga converge, y su barra más débil y su
+    #: transformador más cargado en ese punto (022:RF-33).
+    escala_converge: float | None = None
+    trafo_mas_cargado: str = ''
+    carga_trafo_pct: float | None = None
+
+
+@dataclass
+class InformeUnido:
+    general: InformeOraculo
+    islas: list[VeredictoIsla] = field(default_factory=list)
+
+    @property
+    def convergio(self) -> bool:
+        return self.general.convergio
+
+    def por_zonal(self) -> dict[str, dict[str, Any]]:
+        out: dict[str, dict[str, Any]] = {}
+        for i in self.islas:
+            z = out.setdefault(i.zonal or 'Sin SET', {'fuentes': 0, 'p_mw': 0.0, 'no_convergen': []})
+            z['fuentes'] += 1
+            z['p_mw'] += i.p_mw or 0.0
+            if not i.convergio:
+                z['no_convergen'].append(i.fuente)
+        return out
+
+    def as_dict(self) -> dict[str, Any]:
+        return {'general': self.general.as_dict(), 'islas': [asdict(i) for i in self.islas],
+                'por_zonal': self.por_zonal()}
+
+
+def _flujo(pp, net) -> bool:
+    try:
+        pp.runpp(net, algorithm='nr', init='auto', max_iteration=30,
+                 calculate_voltage_angles=False, numba=False)
+        return bool(net.converged)
+    except Exception:  # noqa: BLE001 - pandapower lanza varias clases al no converger
+        return False
+
+
+def _islas(net, topology) -> list[tuple[int, set]]:
+    grafo = topology.create_nxgraph(net, respect_switches=True)
+    out = []
+    for comp in topology.connected_components(grafo):
+        for eg in net.ext_grid.index[net.ext_grid.bus.isin(comp)]:
+            out.append((int(eg), set(comp)))
+    return sorted(out, key=lambda p: str(net.ext_grid.at[p[0], 'name']))
+
+
+def validar_unida(model: FeederModel, consigna_pu: float = 1.0) -> InformeUnido:
+    """El flujo de la red unida entera, por SET y zonal (022:RF-28, RF-32, RF-33).
+
+    Se calcula una vez. Si no converge, cada isla sola: la que no converge se nombra, con
+    la fracción de su carga con la que sí converge y, en ese punto, su barra más débil y
+    su transformador más cargado. En NA205 (2026-10-17) eso habría señalado SE50293: un
+    cliente de 1 392 kW en 125 kVA que estancaba el Newton.
+    """
+    if not disponible():
+        return InformeUnido(InformeOraculo(disponible=False,
+                                           motivo_no_disponible='pandapower no está instalado'))
+    import pandapower as pp
+    from pandapower import topology
+
+    net, _barra, informe = red_pandapower(model, consigna_pu)
+    resultado = InformeUnido(informe)
+    if informe.errores:
+        return resultado
+    info = model.combined
+    zonal_de_fuente: dict[str, str] = {}
+    if info is not None:
+        zonal_de_fuente = {b.set_codigo: b.zonal for b in info.barras_set}
+        zonal_de_fuente.update({f: info.zonal_de.get(f, '') for f in info.sin_set})
+    islas = _islas(net, topology)
+    for eg, _buses in islas:
+        nombre = str(net.ext_grid.at[eg, 'name'])
+        resultado.islas.append(VeredictoIsla(nombre, zonal_de_fuente.get(nombre, '')))
+    informe.convergio = _flujo(pp, net)
+    if informe.convergio:
+        for v, (eg, buses) in zip(resultado.islas, islas):
+            v.convergio = True
+            _medir_isla(net, eg, buses, v)
+        vm = net.res_bus.vm_pu.dropna()
+        if len(vm):
+            informe.v_min_pu = round(float(vm.min()), 4)
+            informe.v_max_pu = round(float(vm.max()), 4)
+            informe.barra_v_min = str(net.bus.at[vm.idxmin(), 'name'])
+        return resultado
+    # Cada isla sola, con las demás fuentes fuera de servicio.
+    activa = net.ext_grid.in_service.copy()
+    p0, q0 = net.load.p_mw.copy(), net.load.q_mvar.copy()
+    for v, (eg, buses) in zip(resultado.islas, islas):
+        net.ext_grid['in_service'] = False
+        net.ext_grid.at[eg, 'in_service'] = True
+        v.convergio = _flujo(pp, net)
+        if v.convergio:
+            _medir_isla(net, eg, buses, v)
+            continue
+        de_isla = net.load.bus.isin(buses)
+        bajo, alto = 0.0, 1.0
+        for _ in range(8):                      # la fracción de carga con la que converge
+            medio = (bajo + alto) / 2
+            net.load.loc[de_isla, 'p_mw'] = p0[de_isla] * medio
+            net.load.loc[de_isla, 'q_mvar'] = q0[de_isla] * medio
+            if _flujo(pp, net):
+                bajo = medio
+            else:
+                alto = medio
+        net.load.loc[de_isla, 'p_mw'] = p0[de_isla] * bajo
+        net.load.loc[de_isla, 'q_mvar'] = q0[de_isla] * bajo
+        if bajo > 0 and _flujo(pp, net):
+            v.escala_converge = round(bajo, 3)
+            _medir_isla(net, eg, buses, v)
+        net.load['p_mw'], net.load['q_mvar'] = p0, q0
+        detalle = (f'; converge con el {bajo:.0%} de su carga, con la barra más débil '
+                   f'{v.barra_v_min} ({v.v_min_pu} p.u.) y el transformador más cargado '
+                   f'{v.trafo_mas_cargado} ({v.carga_trafo_pct} %)'
+                   if v.escala_converge else '; ni con su carga reducida')
+        informe.hallazgos.append(Hallazgo(
+            'error', 'isla_no_converge', f'la isla de {v.fuente} no converge{detalle} (022:RF-33).',
+            v.fuente))
+    net.ext_grid['in_service'] = activa
+    return resultado
+
+
+def _medir_isla(net, eg: int, buses: set, v: VeredictoIsla) -> None:
+    v.p_mw = round(float(net.res_ext_grid.at[eg, 'p_mw']), 6)
+    vm = net.res_bus.vm_pu[net.res_bus.index.isin(buses)].dropna()
+    if len(vm):
+        v.v_min_pu = round(float(vm.min()), 4)
+        v.barra_v_min = str(net.bus.at[vm.idxmin(), 'name'])
+    if len(net.res_trafo):
+        de = net.trafo.hv_bus.isin(buses)
+        carga = net.res_trafo.loading_percent[de].dropna()
+        if len(carga):
+            v.carga_trafo_pct = round(float(carga.max()), 1)
+            v.trafo_mas_cargado = str(net.trafo.at[carga.idxmax(), 'name'])

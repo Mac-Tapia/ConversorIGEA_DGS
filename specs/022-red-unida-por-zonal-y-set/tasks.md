@@ -15,7 +15,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]` y pa
 - [x] T4. `enlaces.py`: puntos de enlace con sus SET, caminos cerrados (entre SET, entre
       alimentadores, anillos) y qué abrir. (RF-26, RF-27, RF-29 a RF-31, RF-34)
       Hecho cuando: `pytest tests/test_enlaces.py` en verde.
-- [ ] T5. Oráculo de la red unida: flujo, veredicto por SET y zonal, isla y barra que no
+- [x] T5. Oráculo de la red unida: flujo, veredicto por SET y zonal, isla y barra que no
       convergen. (RF-28, RF-32, RF-33)
       Hecho cuando: pruebas del oráculo en verde.
 - [ ] T6. Escritor DGS: `ElmNet` por zonal, `ElmSubstat` de SET, interruptores de cabecera,
