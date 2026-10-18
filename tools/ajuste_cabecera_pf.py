@@ -1475,6 +1475,8 @@ def _ejecutar_con_central(app, plan: dict, informe: dict, *, alims, elm, feeder:
         if res.arriba is not None and res.abajo is not None:
             informe['sed'] = (_por_sed(res.arriba, arriba, kva_origen, antes, fijas)
                               + _por_sed(res.abajo, abajo, kva_origen, antes, fijas))
+        # 015:RF-49: lo que no consume lo escrito no se guarda (como en el del proyecto).
+        if res.arriba is not None and res.abajo is not None and not (res.cuadrado and invalida):
             escenario.Save()
             informe['escenarios'] = [{'escenario': escenario.loc_name,
                                       'cargas': len(cargas) - len(con_manual), 'fallos': []}]
