@@ -43,7 +43,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field, replace
 from typing import Iterable, Sequence
 
-from .model import CapacitorBank, FeederModel, Line, LineType, Load, Node, Sed
+from .model import CapacitorBank, Coupler, FeederModel, Line, LineType, Load, Node, Sed
 from .naming import sufijo_tension
 
 
@@ -87,6 +87,38 @@ class TiePoint:
         return f'TIE_{self.feeder_a}_{self.feeder_b}_{self.original_node}'[:40]
 
 
+@dataclass(frozen=True)
+class BarraSet:
+    """La barra de una tensión de una SET en la red unida por SET (022:RF-10, RF-11).
+
+    De ella cuelgan, por su interruptor de cabecera, los alimentadores de esa SET y esa
+    tensión; lleva la única red externa de todos ellos.
+    """
+
+    set_codigo: str
+    set_nombre: str
+    zonal: str
+    nominal_kv: float
+    node_id: str
+    feeders: tuple[str, ...]
+
+    @property
+    def rotulo(self) -> str:
+        return f'{self.set_codigo} {self.set_nombre}'.strip()
+
+
+@dataclass(frozen=True)
+class Cabecera:
+    """El interruptor de cabecera de un alimentador entre la barra de su SET y su nodo de
+    cabecera (022:RF-12 a RF-14). Cerrado siempre: todos se integran (RF-13)."""
+
+    feeder: str
+    set_codigo: str
+    node_set: str
+    node_cabecera: str
+    coupler: str
+
+
 @dataclass
 class CombinedInfo:
     """Lo que solo tiene sentido cuando el modelo es la unión de varios alimentadores.
@@ -117,6 +149,21 @@ class CombinedInfo:
 
     feeder_of_node: dict[str, list[str]] = field(default_factory=dict)
     """Nodo → alimentadores en los que aparece. Para diagnóstico y para el diagrama."""
+
+    barras_set: list[BarraSet] = field(default_factory=list)
+    """Spec 022: las barras de SET, una por SET y tensión; vacío sin estructura (RF-6)."""
+
+    cabeceras: list[Cabecera] = field(default_factory=list)
+    """Spec 022: el interruptor de cabecera de cada alimentador con SET."""
+
+    zonal_de: dict[str, str] = field(default_factory=dict)
+    """Spec 022: alimentador → zonal, también el de los «Sin SET» (cadena vacía)."""
+
+    sistema_de: dict[str, str] = field(default_factory=dict)
+    """Spec 022: alimentador → código de su sistema eléctrico (RF-15)."""
+
+    sin_set: list[str] = field(default_factory=list)
+    """Spec 022: alimentadores de la entrega que no están en la estructura (RF-19)."""
 
     de_energised: set[str] = field(default_factory=set)
     """Nodos sin camino a ninguna fuente, que se escriben fuera de servicio.
@@ -518,3 +565,70 @@ def build_combined(
     combinado, informe = combine_models(modelos, name=name)
     informe.skipped = informe_parcial
     return combinado, informe
+
+
+def _nombre_barra(set_codigo: str, kv: float) -> str:
+    return f"B_{set_codigo.replace(' ', '')}_{sufijo_tension(kv)}"
+
+
+def estructurar(combinado: FeederModel, estructura, asignacion=None) -> list[str]:
+    """La red unida colgada de sus SET (022:RF-10 a RF-13, RF-17 a RF-19, RF-21).
+
+    Por cada SET y tensión de sus alimentadores en la entrega, una barra en las
+    coordenadas de sus cabeceras, que coinciden (RF-18; si no, las de la cabecera de menor
+    código, RF-18b); cada alimentador, de su barra a su nodo de cabecera por un interruptor
+    cerrado (RF-12, RF-13). Los que no están en la estructura quedan «Sin SET» con su red
+    externa propia (RF-19). Modifica el modelo unido y devuelve los avisos.
+    """
+    from .estructura import asignar
+
+    info = combinado.combined
+    if info is None:
+        raise ValueError('estructurar necesita la red unida de combine_models.')
+    asignacion = asignacion or asignar(estructura, (f.name for f in info.feeders))
+    avisos: list[str] = []
+    grupos: dict[tuple[str, float], list] = defaultdict(list)
+    for ref in info.feeders:
+        codigo = asignacion.set_de.get(ref.name.upper())
+        if codigo is None:
+            info.sin_set.append(ref.name)
+            info.zonal_de[ref.name] = ''
+            continue
+        grupos[(codigo, round(float(ref.nominal_kv), 6))].append(ref)
+        info.zonal_de[ref.name] = estructura.sets[codigo].zonal
+        info.sistema_de[ref.name] = estructura.alimentadores[ref.name.upper()].sistema
+    if info.sin_set:
+        avisos.append(f'{len(info.sin_set)} alimentador(es) sin SET en la estructura, con su '
+                      'red externa propia: ' + ', '.join(info.sin_set) + ' (022:RF-19).')
+    orden_zonal = {z: i for i, z in enumerate(estructura.zonales)}
+    for (codigo, kv), refs in sorted(grupos.items(),
+                                     key=lambda g: (orden_zonal[estructura.sets[g[0][0]].zonal],
+                                                    g[0][0], g[0][1])):
+        st = estructura.sets[codigo]
+        refs = sorted(refs, key=lambda r: r.name)
+        barra = _nombre_barra(codigo, kv)
+        puntos = {}
+        for r in refs:
+            n = combinado.nodes.get(r.source_node)
+            if n is not None and n.x is not None and n.y is not None:
+                puntos[r.name] = (n.x, n.y)
+        x = y = None
+        if puntos:
+            x, y = puntos[min(puntos)]
+            distintas = {(round(px, 1), round(py, 1)) for px, py in puntos.values()}
+            if len(distintas) > 1:
+                avisos.append(f'{st.rotulo} {kv:g} kV: sus cabeceras no tienen las mismas '
+                              f'coordenadas; la barra va en las de {min(puntos)} (022:RF-18b).')
+        combinado.nodes[barra] = Node(barra, x, y)
+        info.node_kv[barra] = kv
+        info.feeder_of_node[barra] = [r.name for r in refs]
+        info.barras_set.append(BarraSet(codigo, st.nombre, st.zonal, kv, barra,
+                                        tuple(r.name for r in refs)))
+        for r in refs:
+            nombre = f'CAB_{r.name}'
+            combinado.couplers.append(Coupler(
+                name=nombre, node_a=barra, node_b=r.source_node, on_off=1, kind='cabecera',
+                eq_id=nombre, eq_number=nombre, section_id=nombre, phase='ABC',
+                feeder=r.name, network_id=r.network_id))
+            info.cabeceras.append(Cabecera(r.name, codigo, barra, r.source_node, nombre))
+    return avisos

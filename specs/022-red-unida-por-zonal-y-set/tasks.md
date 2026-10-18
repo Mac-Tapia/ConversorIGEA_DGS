@@ -9,7 +9,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]` y pa
 - [x] T2. Transcribir la tabla pública a `config/perfiles/electro_dunas.estructura.json` y
       enlazarla desde el perfil de Electro Dunas, con las siglas de cada SET. (RF-3, RF-46)
       Hecho cuando: el perfil carga 4 zonales y todos los alimentadores de la tabla.
-- [ ] T3. `estructurar` en `combine.py`: barras de SET por tensión, interruptor de cabecera
+- [x] T3. `estructurar` en `combine.py`: barras de SET por tensión, interruptor de cabecera
       cerrado para todos, una fuente por barra. (RF-10 a RF-13, RF-21)
       Hecho cuando: pruebas sintéticas de la red unida estructurada en verde.
 - [ ] T4. `enlaces.py`: puntos de enlace con sus SET, caminos cerrados (entre SET, entre

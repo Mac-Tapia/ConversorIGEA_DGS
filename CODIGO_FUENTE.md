@@ -24,7 +24,7 @@ spec 001, RF-14 (DGS idéntico byte a byte); su diseño histórico está en
 | `src/igea_dgs/catalog_merge.py` | Completa el catálogo de equipos cuando el export llega incompleto. | base, 001 |
 | `src/igea_dgs/catalog_resolution.py` | Resolución de equipos por evidencia, sin renombrar los códigos de origen. | 001 (RF-18) |
 | `src/igea_dgs/cli.py` | Orden `igea-dgs`: `list`, `convert` y `web`. | 001 (RF-1, RF-2) |
-| `src/igea_dgs/combine.py` | Une todos los alimentadores en una sola red. | base |
+| `src/igea_dgs/combine.py` | Une todos los alimentadores en una sola red; con la estructura de la empresa, la cuelga de sus SET: barra por SET y tensión e interruptor de cabecera por alimentador. | base, 022 (RF-10 a RF-13, RF-17 a RF-19, RF-21) |
 | `src/igea_dgs/coordenadas.py` | Completa las coordenadas que faltan con el grafo de la red. | base |
 | `src/igea_dgs/dataset.py` | Lector de los TXT (RED, CARGA, BD_Equipo), en las dos disposiciones. | base |
 | `src/igea_dgs/demanda_medida.py` | Máxima de cabecera por medidor y clientes importantes con su SED; el registro de las 00:00 conserva su hora; máxima de demanda con una central en el troncal; la del mes de análisis o el registro de un instante coincidente; el nombre del cliente. | 004 (RF-22 a RF-45, RF-56, RF-57), 013 (RF-11), 021 (RF-28 a RF-34, RF-50, RF-51, RF-53) |
