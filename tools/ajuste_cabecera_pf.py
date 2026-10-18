@@ -1304,6 +1304,29 @@ def central_en_sin_proyecto(app, barra, feeder: str, p_kw: float, q_kvar: float)
             **({'cambios_ajenos_quitados': limpiados} if limpiados else {})}
 
 
+def _limpiar_mensajes(app) -> None:
+    try:
+        app.GetOutputWindow().Clear()
+    except Exception:  # noqa: BLE001, S110 - sin ventana de salida no hay mensajes
+        pass
+
+
+def _mensajes_del_flujo(app, tope: int = 8) -> str:
+    """Lo que dice DIgSILENT de un flujo que no converge: dónde está el problema.
+
+    El sistema Pisco (2026-10-18) no convergía en ningún flujo de la calibración y el
+    informe solo decía «código 1»; los mensajes nombran la barra o la isla.
+    """
+    try:
+        lineas = [str(x).strip() for x in (app.GetOutputWindow().GetContent() or [])]
+    except Exception:  # noqa: BLE001 - versiones sin ventana de salida
+        return ''
+    claves = ('error', 'not converge', 'no converge', 'isolated', 'aislad', 'exceed',
+              'max.', 'maximum', 'mismatch', 'singular', 'voltage', 'tensión')
+    utiles = [ln for ln in lineas if ln and any(k in ln.lower() for k in claves)]
+    return (': ' + ' | '.join(utiles[-tope:])) if utiles else ''
+
+
 def _limpiar_etapa_de_la_central(variacion, generador: str) -> int:
     """Deja en la etapa de la central solo su generador y su cubículo (021:RF-37, 015:RF-37).
 
@@ -2590,9 +2613,11 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
                     else:
                         fallos[f] = desc[f] + escribir_reparto(p['cargas'], reps[f],
                                                                p['con_manual'])
+            _limpiar_mensajes(app)
             rc = app.GetFromStudyCase('ComLdf').Execute()
             if rc != 0 or not app.IsLdfValid():
-                return MedidaConjunta(False, motivo=f'el flujo de carga no converge (código {rc})')
+                return MedidaConjunta(False, motivo=f'el flujo de carga no converge (código {rc})'
+                                      + _mensajes_del_flujo(app))
             kw, kvar, carga, extra = {}, {}, {}, {}
             for f, p in preps.items():
                 cab = leer_cabecera(p['elm'])
