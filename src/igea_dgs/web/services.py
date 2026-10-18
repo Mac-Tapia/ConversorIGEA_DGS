@@ -2270,20 +2270,21 @@ def demanda_excel(ws: Workspace, datos: dict) -> Path:
 
 
 def _kva_reconstruido(ws: Workspace, project: str, alimentador: str,
-                      kva: dict[str, float]) -> dict[str, float]:
+                      kva: dict[str, float]) -> tuple[dict[str, float], bool]:
     """El kVA de un alimentador como quedó en el DGS por sistema reconstruido (022:RF-63).
 
     La reconstrucción por medida pasa SED de un alimentador a otro (TM106 recibió las de
     TM104 en Chincha, 2026-10-18); el kVA de la entrada original seguía dando a TM106 sus
     339 kW y no se calibraba. Las SED salen de la metadata del DGS; el kVA de cada una, de
     los alimentadores que intervinieron. Sin reconstrucción, el de la entrada tal cual.
+    Devuelve también si intervino: entonces un kVA vacío es una red que lo cedió todo.
     """
     sistema = sistema_del_proyecto(ws, project)
     if sistema is None:
-        return kva
+        return kva, False
     grupo = ws.groups.get(sistema['grupo']) or {}
     if not grupo.get('dgs') or not grupo.get('feeder_metadata'):
-        return kva
+        return kva, False
     dgs = Path(str(grupo['dgs']))
     manifest = dgs.with_name(f"{sistema['grupo']}_manifest.json")
     metadata = Path(str(grupo.get('feeder_metadata') or ''))
@@ -2291,28 +2292,30 @@ def _kva_reconstruido(ws: Workspace, project: str, alimentador: str,
         recs = (json.loads(manifest.read_text(encoding='utf-8')).get('estructura') or {}).get(
             'reconstrucciones') or []
     except (OSError, ValueError):
-        return kva
+        return kva, False
     implicados = {r['alimentador'] for r in recs if r.get('cargas_pasadas')} | {
         r['donante'] for r in recs if r.get('cargas_pasadas')}
     if alimentador not in implicados:
-        return kva
+        return kva, False
     try:
         asignadas = {a['substation'] for a in json.loads(metadata.read_text(encoding='utf-8'))
                      .get('assignments', [])
                      if a.get('class_name') == 'ElmSubstat' and a.get('feeder') == alimentador}
     except (OSError, ValueError):
-        return kva
+        return kva, False
     todas: dict[str, float] = {}
     for f in sorted(implicados):
         todas.update(kva if f == alimentador else _kva_de_la_entrada(ws, f)[0])
-    return {sed: todas[sed] for sed in sorted(asignadas) if sed in todas}
+    return {sed: todas[sed] for sed in sorted(asignadas) if sed in todas}, True
 
 
-def _capacidad_de_la_red(kva_entrada: dict[str, float], fijas: dict, fp: float | None) -> float | None:
+def _capacidad_de_la_red(kva_entrada: dict[str, float], fijas: dict, fp: float | None,
+                         reconstruido: bool = False) -> float | None:
     """Lo más que puede dar la red de un alimentador en kW (022:RF-55): sus fijas con su
     medida y las demás SED con su kVA instalado por el factor de potencia. ``None`` sin kVA
-    de la entrada, para no rechazar sin saber."""
-    if not kva_entrada:
+    de la entrada, para no rechazar sin saber; reconstruido, vacío es cero: TM104 cedió toda
+    su red a TM106 y su medidor de 31 kW quedaba en el plan sin ninguna carga."""
+    if not kva_entrada and not reconstruido:
         return None
     escaladas = sum(kva for sed, kva in kva_entrada.items() if sed not in fijas)
     return sum(f.kw for f in fijas.values()) + escaladas * (fp or 1.0)
@@ -2608,8 +2611,9 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
         kva_entrada, aviso = _kva_de_la_entrada(ws, alimentador)
         if aviso:
             avisos.append(pre + aviso)
-        kva_entrada = _kva_reconstruido(ws, project, alimentador, kva_entrada)  # 022:RF-63
-        capacidad = _capacidad_de_la_red(kva_entrada, fixed, fp_cargas)
+        kva_entrada, reconstruido = _kva_reconstruido(ws, project, alimentador,
+                                                      kva_entrada)              # 022:RF-63
+        capacidad = _capacidad_de_la_red(kva_entrada, fixed, fp_cargas, reconstruido)
         if not central and capacidad is not None and objetivo.kw > capacidad:
             # 022:RF-55: Chincha (2026-10-18), TM106 medía 3 133 kW con unos 230 kVA: su
             # factor de escala de 13,7 hundía la tensión y el sistema entero no convergía.

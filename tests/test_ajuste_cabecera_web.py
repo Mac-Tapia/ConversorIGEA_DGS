@@ -883,8 +883,11 @@ def test_kva_del_alimentador_reconstruido(client, monkeypatch, tmp_path):
     ws.groups['S'] = {'tipo': 'sistema', 'feeders': ['A1', 'A2'], 'status': 'ok',
                       'dgs': str(tmp_path / 'S.dgs'), 'feeder_metadata': str(tmp_path / 'S_meta.json')}
     ws.pf_projects['S'] = 'P'
-    assert services._kva_reconstruido(ws, 'P', 'A1', kva['A1']) == {'S1': 50.0, 'S2': 900.0}
-    assert services._kva_reconstruido(ws, 'P', 'A2', kva['A2']) == {'S3': 10.0}
-    assert services._kva_reconstruido(ws, 'OTRO', 'A1', kva['A1']) == {'S1': 50.0}
+    assert services._kva_reconstruido(ws, 'P', 'A1', kva['A1']) == ({'S1': 50.0, 'S2': 900.0}, True)
+    assert services._kva_reconstruido(ws, 'P', 'A2', kva['A2']) == ({'S3': 10.0}, True)
+    assert services._kva_reconstruido(ws, 'OTRO', 'A1', kva['A1']) == ({'S1': 50.0}, False)
+    # El donante que lo cedió todo no puede dar nada: su medida no se calibra (TM104).
+    assert services._capacidad_de_la_red({}, {}, 0.98, reconstruido=True) == 0.0
+    assert services._capacidad_de_la_red({}, {}, 0.98) is None
     body = _plan(client, wid, job).json()
     assert body.get('feeders') == ['A1'], body
