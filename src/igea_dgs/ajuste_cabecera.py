@@ -839,3 +839,35 @@ def cuadrar_conjunto(
         # La red queda con los últimos repartos que convergieron (006:RF-18, RF-56).
         res.medida = flujo(res.repartos)
     return res
+
+
+# =========================================================================== bancos que faltan
+def bancos_que_faltan(q_red_kvar: float | None, q_medido_kvar: float | None,
+                      tamano_kvar: float | None) -> int:
+    """Cuántos bancos de ``tamano_kvar`` cubren el déficit reactivo (021:RF-64, RF-65).
+
+    El déficit es lo que da la red en la cabecera menos lo medido: en NA203 (2026-10-17)
+    2 645 kVAR frente a 1 560, sin ningún banco en el modelo; el usuario: «coloca los
+    bancos necesarios en cada alimentador». Sin déficit, sin tamaño o sin medida, ninguno.
+    """
+    if q_red_kvar is None or q_medido_kvar is None or not tamano_kvar or tamano_kvar <= 0:
+        return 0
+    return max(0, round((q_red_kvar - q_medido_kvar) / tamano_kvar))
+
+
+def distancias_de_bancos(largo_m: float, n: int) -> list[float]:
+    """Dónde poner ``n`` bancos en una troncal de ``largo_m`` (021:RF-66).
+
+    La regla de los 2k/(2n+1): con la carga repartida a lo largo de la troncal, las
+    pérdidas son mínimas con el banco k a 2k/(2n+1) del largo (2/3 con uno solo).
+    """
+    return [largo_m * 2 * k / (2 * n + 1) for k in range(1, n + 1)]
+
+
+def tamano_de_banco(por_tension: Mapping[float, float] | None, kv: float | None) -> float | None:
+    """El tamaño de banco del perfil para la tensión ``kv``: la entrada más cercana, si está
+    a menos del 10 % (22,9 kV no es 23); si no, ``None`` (021:RF-65, P13)."""
+    if not por_tension or not kv:
+        return None
+    tension, kvar = min(por_tension.items(), key=lambda par: abs(par[0] - kv))
+    return kvar if abs(tension - kv) <= 0.1 * kv else None

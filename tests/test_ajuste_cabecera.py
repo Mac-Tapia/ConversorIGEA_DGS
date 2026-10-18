@@ -651,3 +651,30 @@ def test_cuadre_conjunto_perdidas_negativas():
 
     res = cuadrar_conjunto(repartos, objetivos, medir, tolerancia=0.001)
     assert not res.cuadrado and 'pérdidas activas negativas' in res.motivo
+
+
+def test_bancos_que_faltan_y_donde():
+    """021:RF-64, 021:RF-65, 021:RF-66 — el déficit entre el tamaño, redondeado; sin
+    déficit, sin medida o sin tamaño, ninguno; los n bancos a 2k/(2n+1) del largo; el
+    tamaño de la tensión más cercana del perfil, si está a menos del 10 %."""
+    from igea_dgs.ajuste_cabecera import bancos_que_faltan, distancias_de_bancos, tamano_de_banco
+
+    assert bancos_que_faltan(2645.0, 1560.0, 450.0) == 2
+    assert bancos_que_faltan(3117.0, 3120.0, 450.0) == 0
+    assert bancos_que_faltan(None, 1560.0, 450.0) == bancos_que_faltan(2645.0, 1560.0, None) == 0
+    assert distancias_de_bancos(9000.0, 1) == [6000.0]
+    assert distancias_de_bancos(5000.0, 2) == [2000.0, 4000.0]
+    tamanos = {10.0: 300.0, 22.9: 450.0}
+    assert tamano_de_banco(tamanos, 22.9) == 450.0 and tamano_de_banco(tamanos, 10.0) == 300.0
+    assert tamano_de_banco(tamanos, 60.0) is None and tamano_de_banco(None, 22.9) is None
+
+
+def test_tamano_de_banco_en_el_perfil():
+    """021:RF-65 — ``calibracion.bancos_kvar_por_tension`` del perfil; sin él, None."""
+    from igea_dgs.perfil_empresa import PerfilError, bancos_kvar_por_tension
+
+    assert bancos_kvar_por_tension({'calibracion': {'bancos_kvar_por_tension': {'10': 300, '22.9': 450}}}) == {
+        10.0: 300.0, 22.9: 450.0}
+    assert bancos_kvar_por_tension({}) is None
+    with pytest.raises(PerfilError):
+        bancos_kvar_por_tension({'calibracion': {'bancos_kvar_por_tension': {'22.9': 0}}})

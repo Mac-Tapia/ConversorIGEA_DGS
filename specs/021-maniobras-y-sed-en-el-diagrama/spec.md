@@ -232,6 +232,25 @@ kV, puede enviar desde la fuente con 1,05 pu»)
   la original y la nueva (020:RF-60).
 - RF-63: SI el operador no indica tensión, ENTONCES EL SISTEMA dejará la fuente como está.
 
+Bancos que faltan (usuario, 2026-10-17, NA203 y NA205: «coloca los bancos necesarios en
+cada alimentador»; NA203 no tenía ninguno y la red daba 2 645 kVAR frente a 1 560 medidos)
+
+- RF-64: DONDE el operador marca «Poner los bancos que falten», EL SISTEMA calculará, tras
+  un cuadre del proyecto, el déficit reactivo de cada alimentador: el kVAR de la red en su
+  cabecera (o en sus dos zonas, con central) menos el medido en el registro objetivo.
+- RF-65: EL SISTEMA pondrá en cada alimentador tantos bancos como el déficit entre el
+  tamaño de banco de su tensión en el perfil de empresa (`calibracion.bancos_kvar_por_tension`),
+  redondeado; SI el perfil no trae tamaño para esa tensión, ENTONCES no pondrá ninguno y lo
+  dirá.
+- RF-66: EL SISTEMA colocará los n bancos de un alimentador en las barras de su troncal más
+  cercanas a 2k/(2n+1) de su largo, k = 1…n.
+- RF-67: EL SISTEMA creará cada banco en la red, en servicio en los escenarios de «Sin
+  proyecto» y «Con proyecto» y fuera de servicio en el del «Caso base».
+- RF-68: Después de poner los bancos, EL SISTEMA recalibrará el proyecto en la misma
+  ejecución, con los ajustes del flujo restituidos.
+- RF-69: EL SISTEMA reportará cada banco nuevo en la tabla de cambios en la red: original
+  «no existe», 0 kvar; nuevo, el banco con sus kvar (020:RF-60).
+
 ## Requisitos no funcionales
 
 - Determinismo: el DGS sigue idéntico byte a byte con `workers=1` y `workers>1`.

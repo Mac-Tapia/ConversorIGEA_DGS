@@ -748,3 +748,18 @@ def test_tension_en_la_fuente_va_en_el_plan(client):
     assert _recibido(client, wid, token)['tension_fuente_pu'] == 1.05
     assert _recibido(client, wid, _plan(client, wid, job).json()['token'])['tension_fuente_pu'] is None
     assert _plan(client, wid, job, tension_fuente_pu=1.2).status_code == 422
+
+
+def test_poner_los_bancos_que_falten_va_en_el_plan(client, monkeypatch):
+    """021:RF-64, 021:RF-65 — la casilla va en el plan con el tamaño por tensión del
+    perfil; sin marcarla, el plan no lo pide."""
+    monkeypatch.setattr(services, 'datos_perfil', lambda: {'calibracion': {
+        'bancos_kvar_por_tension': {'10': 300, '22.9': 450}}}, raising=False)
+    monkeypatch.setattr('igea_dgs.perfil_empresa.datos_perfil', lambda: {'calibracion': {
+        'bancos_kvar_por_tension': {'10': 300, '22.9': 450}}})
+    wid, job = _maxima(client)
+    plan = _recibido(client, wid, _plan(client, wid, job, completar_bancos=True).json()['token'])
+    assert plan['completar_bancos'] is True
+    assert plan['bancos_kvar_por_tension'] == {'10.0': 300.0, '22.9': 450.0}
+    plan = _recibido(client, wid, _plan(client, wid, job).json()['token'])
+    assert plan['completar_bancos'] is False and plan['bancos_kvar_por_tension'] == {}

@@ -130,3 +130,10 @@ def test_tension_en_la_fuente_en_el_ajuste():
     assert 'centrales, tension_fuente_pu: uFuente,' in AJUSTE
     assert "'La tensión en la fuente va de 0,90 a 1,10 pu.'" in AJUSTE
     assert 'tension_fuente_pu?: number | null' in API
+
+
+def test_casilla_de_los_bancos_que_falten():
+    """021:RF-64 — casilla «Poner los bancos que falten» en 2.4, que va en el plan."""
+    assert 'Poner los bancos que falten' in AJUSTE
+    assert 'completar_bancos: completarBancos,' in AJUSTE
+    assert 'completar_bancos?: boolean' in API
