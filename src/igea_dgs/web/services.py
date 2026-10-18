@@ -1836,18 +1836,25 @@ def demanda_alimentadores(ws: Workspace) -> dict:
         raise UserError(str(exc)) from exc
 
 
-def demanda_cabecera(ws: Workspace, ctx: JobContext, pares: list[tuple[str, str]]) -> dict:
+def demanda_cabecera(ws: Workspace, ctx: JobContext, pares: list[tuple[str, str]], *,
+                     periodo: str | None = None, instante: datetime | None = None) -> dict:
     """Máxima de cada medidor en la medición de cabecera (RF-24 a RF-32). Es un trabajo:
-    abrir los libros cuesta segundos (P7). Se cancela entre medidores."""
+    abrir los libros cuesta segundos (P7). Se cancela entre medidores.
+
+    ``periodo``: la máxima de ese mes (013:RF-11). ``instante``: el registro de esa fecha
+    y hora en todos los medidores, para calibrar a la vez (021:RF-50).
+    """
     from ..demanda_medida import DemandaError, maximas
 
     if not pares:
         raise UserError('Indique al menos un medidor.')
     ruta = _demanda_ruta(ws, 'cabecera')
     alias = demanda_alias()
-    ctx.log(f'Medición de cabecera: {ruta.name} · {len(pares)} medidor(es)')
+    ctx.log(f'Medición de cabecera: {ruta.name} · {len(pares)} medidor(es)'
+            + (f' · registro del {instante}' if instante else f' · máxima de {periodo}' if periodo else ''))
     try:
-        res = maximas([ruta], pares, alias=alias, cancelado=ctx.cancel.is_set,
+        res = maximas([ruta], pares, alias=alias, periodo=periodo, instante=instante,
+                      cancelado=ctx.cancel.is_set,
                       progreso=lambda i, n, m: ctx.progress(i, n, m))
     except DemandaError as exc:
         raise UserError(str(exc)) from exc
@@ -1863,8 +1870,10 @@ def demanda_cabecera(ws: Workspace, ctx: JobContext, pares: list[tuple[str, str]
     with ws.lock:
         ws.curvas_cabecera = {ctx.job.id: {r.medidor: {'curva': r.curva, 'fuera': r.fuera_de_curva}
                                            for r in res if r.curva}}
+        ws.criterio_cabecera = {ctx.job.id: {'periodo': periodo, 'instante': instante}}
     return {'resultados': [r.to_dict() for r in res],
-            'cancelado': len(res) < len(pares)}
+            'cancelado': len(res) < len(pares),
+            'periodo': periodo, 'instante': instante.isoformat(sep=' ') if instante else None}
 
 
 # Puntos de la curva que se envían a la web: con ~1 000 px de gráfica, más no se distinguen.
@@ -1944,7 +1953,9 @@ def demanda_central(ws: Workspace, job_id: str, *, alimentador: str, cabecera: s
                               'búsquela con los de la central.')
         return curvas[nombre]['curva']
 
-    res = demanda_con_central(curva(cabecera), curva(generacion), curva(llegada), curva(salida))
+    criterio = ws.criterio_cabecera.get(job_id) or {}
+    res = demanda_con_central(curva(cabecera), curva(generacion), curva(llegada), curva(salida),
+                              criterio.get('periodo'), criterio.get('instante'))
     return {'alimentador': alimentador, 'cabecera': cabecera, 'generacion': generacion,
             'llegada': llegada, 'salida': salida, **res.to_dict()}
 
@@ -1967,7 +1978,9 @@ def demanda_curva_central(ws: Workspace, job_id: str, *, alimentador: str, cabec
             raise LookupError(f'El medidor {medidor} no está en la última máxima buscada.')
         return curvas[nombre]['curva']
 
-    puntos, res = curva_de_demanda(curva(cabecera), curva(generacion), curva(llegada), curva(salida))
+    criterio = ws.criterio_cabecera.get(job_id) or {}
+    puntos, res = curva_de_demanda(curva(cabecera), curva(generacion), curva(llegada), curva(salida),
+                                   criterio.get('periodo'), criterio.get('instante'))
     if not puntos:
         raise LookupError(f'{alimentador}: sin demanda con la central ({res.error}).')
     tramo = reducir_curva(puntos, desde, hasta, max_puntos=len(puntos) or 1)
@@ -2209,7 +2222,7 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
     """
     import time as _time
 
-    from ..ajuste_cabecera import AjusteError, fijas_de, objetivo_de
+    from ..ajuste_cabecera import AjusteError, Objetivo, fijas_de, objetivo_de
     from ..demanda_medida import periodo_de_fecha
     from ..perfil_empresa import PerfilError, datos_perfil, factor_potencia_cargas
     from ..powerfactory_binding import PowerFactoryProjectBinding, caso_base_verificado
@@ -2244,8 +2257,26 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
                 raise UserError(motivo)
             avisos.append(motivo + ' No se calibra.')
             continue
+        alimentador = str(fila.get('alimentador') or '').strip()
+        pre = f'{alimentador}: ' if varios and alimentador else ''
+        # Spec 021: con central, el objetivo es por zonas y en el registro de la máxima de
+        # demanda (RF-33) o en el coincidente (RF-50); el mes de los clientes, el de ese
+        # registro. La cabecera puede ser negativa (NA205 el 2026-07-23 10:00: −1 520,8 kW,
+        # la central exporta hacia la SET): el objetivo del plan es la demanda del
+        # alimentador, aguas arriba + aguas abajo, y la cabecera queda como dato.
+        central = (_central_del_plan(ws, job_id, alimentador, str(fila.get('medidor') or ''),
+                                     (centrales or {}).get(alimentador), avisos, pre)
+                   if alimentador and not fila.get('error') else None)
         try:
-            objetivo = objetivo_de(fila)
+            if central:
+                m = central['maxima']
+                objetivo = Objetivo(
+                    kw=float(m['demanda_kw']),
+                    kvar=float((m.get('arriba_kvar') or 0.0) + (m.get('abajo_kvar') or 0.0)),
+                    medidor=str(fila.get('medidor') or ''), alimentador=alimentador,
+                    fecha=m.get('fecha'))
+            else:
+                objetivo = objetivo_de(fila)
         except AjusteError as exc:
             if not varios:
                 raise UserError(str(exc)) from exc
@@ -2256,10 +2287,6 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
         if not alimentador:
             raise UserError(f'{objetivo.medidor}: la máxima no dice de qué alimentador es.')
         pre = f'{alimentador}: ' if varios else ''
-        # Spec 021: con central, el objetivo es por zonas y en el registro de la máxima de
-        # demanda (RF-33); el mes de los clientes es el de ese registro.
-        central = _central_del_plan(ws, job_id, alimentador, objetivo.medidor,
-                                    (centrales or {}).get(alimentador), avisos, pre)
         maximum_period = periodo_de_fecha(central['maxima']['fecha'] if central else objetivo.fecha)
         client_period = _periodo_clientes_para_maxima(ws, maximum_period)
         if client_period.status != 'NO_CLIENT_BOOK':

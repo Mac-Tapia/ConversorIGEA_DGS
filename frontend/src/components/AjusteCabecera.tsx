@@ -139,11 +139,14 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados, centra
             : r.error ? <><strong>{a}</strong>, central declarada: {r.error}.</>
               : (
                 <>
-                  <strong>{a} con central</strong>: máxima de demanda <strong>{fmtNum(r.demanda_kw, 1)} kW</strong> el {r.fecha}
+                  <strong>{a} con central</strong>: {r.coincidente ? 'demanda en el registro coincidente' : 'máxima de demanda'}{' '}
+                  <strong>{fmtNum(r.demanda_kw, 1)} kW</strong> el {r.fecha}
                   {' '}= aguas arriba {fmtNum(r.arriba_kw, 1)} kW + aguas abajo {fmtNum(r.abajo_kw, 1)} kW; la central
                   generaba {fmtNum(r.generacion_kw, 1)} kW y por la cabecera entraban {fmtNum(r.cabecera_kw, 1)} kW.
-                  {r.maxima_cabecera && <> La máxima de cabecera, {fmtNum(r.maxima_cabecera.kw, 1)} kW el {r.maxima_cabecera.fecha}, no es la de la demanda.</>}
-                  {r.descartados > 0 && <> {fmtNum(r.descartados)} registro(s) descartados: aguas arriba fuera de lo normal.</>}
+                  {r.maxima_cabecera && !r.coincidente && <> La máxima de cabecera, {fmtNum(r.maxima_cabecera.kw, 1)} kW el {r.maxima_cabecera.fecha}, no es la de la demanda.</>}
+                  {r.coincidente && <> Se calibra en este registro, el mismo para todos los alimentadores (021:RF-50).</>}
+                  {r.descartados > 0 && !r.coincidente && <> {fmtNum(r.descartados)} registro(s) descartados: aguas arriba fuera de lo normal.</>}
+                  {r.avisos.map((x) => <span key={x}> Aviso: {x}.</span>)}
                 </>
               )}
         </div>

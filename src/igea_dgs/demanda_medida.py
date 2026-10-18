@@ -611,20 +611,40 @@ def _iso(fecha: Any) -> str | None:
     return None if fecha is None else str(fecha)
 
 
-def maxima_de_registros(registros: Sequence[Registro], resultado: MaximaCabecera) -> MaximaCabecera:
-    """kW máximo con su fecha; kVAR, kVA y FP del **mismo** registro (RF-27, RF-28, RF-30)."""
+def maxima_de_registros(registros: Sequence[Registro], resultado: MaximaCabecera,
+                        periodo: str | None = None,
+                        instante: datetime | None = None) -> MaximaCabecera:
+    """kW máximo con su fecha; kVAR, kVA y FP del **mismo** registro (RF-27, RF-28, RF-30).
+
+    Con ``periodo`` (``AAAA-MM``), la máxima de ese mes (013:RF-11): NA205 da la suya en
+    agosto de 2026 y la empresa solo tiene libros de clientes hasta julio; se calibra en el
+    mes que tiene libro. La curva sigue siendo la del registro entero (006:RF-32).
+
+    Con ``instante``, no la máxima sino el registro de esa fecha y hora (021:RF-50): con
+    varios alimentadores se calibra a la vez, en la máxima de uno de ellos (NA203 + NA205
+    y su central, 2026-10-17).
+    """
     mejor: Registro | None = None
     for r in registros:
         kw = r.valores.get('kw')
         if kw is None:
             continue                                    # RF-31: vacío o no numérico
+        if instante is not None:
+            if _como_datetime(r.fecha) == instante:
+                mejor = r
+                break
+            continue
+        if periodo and periodo_de_fecha(r.fecha) != periodo:
+            continue
         if (mejor is None or kw > mejor.valores['kw']
                 or (kw == mejor.valores['kw'] and _antes(r.fecha, mejor.fecha))):
             mejor = r
     resultado.registros = len(registros)
     resultado.curva, resultado.fuera_de_curva = curva_de_registros(registros)
     if mejor is None:
-        resultado.error = 'ningún registro con kW numérico'
+        resultado.error = (f'sin registro con kW numérico el {_iso(instante)}' if instante
+                           else f'ningún registro con kW numérico en {periodo}' if periodo
+                           else 'ningún registro con kW numérico')
         return resultado
     v = mejor.valores
     resultado.fecha = _iso(mejor.fecha)
@@ -757,7 +777,8 @@ class Cabecera:
         res.avisos.append(', '.join(de_donde) + ', del mismo registro que el kW máximo')
         return _unir_por_fecha(trozos)
 
-    def maxima(self, medidor: str, alimentador: str = '') -> MaximaCabecera:
+    def maxima(self, medidor: str, alimentador: str = '', periodo: str | None = None,
+               instante: datetime | None = None) -> MaximaCabecera:
         res = MaximaCabecera(medidor=medidor, alimentador=alimentador)
         hallados: list[tuple[Path, list[str], list[str]]] = []
         for path in self.libros:
@@ -770,7 +791,7 @@ class Cabecera:
             base = base_del_medidor(medidor)
             if base and any(any(hojas_del_medidor(self._libro(p).sheet_names, base))
                             for p in self.libros):
-                res = self.maxima(base, alimentador)
+                res = self.maxima(base, alimentador, periodo, instante)
                 res.medidor, res.canal_de = medidor, base
                 res.avisos.insert(0, f'no hay hoja {medidor}; se usa {base}, el medidor del que es canal')
                 return res
@@ -790,7 +811,7 @@ class Cabecera:
                 if 'kw' not in usadas:
                     res.error = f'{path.name} › {entera[0]}: sin columna de kW'
                     return res
-                return maxima_de_registros(self._completar(path, medidor, registros, res), res)
+                return maxima_de_registros(self._completar(path, medidor, registros, res), res, periodo, instante)
             res.avisos.append(f'{entera[0]}: sin columna de kW; se usan sus hojas por magnitud')
         trozos, completas = [], []
         for hoja in partes:
@@ -810,7 +831,7 @@ class Cabecera:
             hoja, registros, usadas = completas[0]
             res.hojas, res.columnas = [hoja], dict(usadas)
             res.avisos.append(f'sin hoja {medidor}: se usa {hoja}, la única con su código')
-            return maxima_de_registros(registros, res)
+            return maxima_de_registros(registros, res, periodo, instante)
         if 'kw' not in res.columnas and completas:
             res.error = (f'{path.name}: {medidor} tiene varias hojas completas ('
                          + ', '.join(h for h, _r, _u in completas)
@@ -819,10 +840,11 @@ class Cabecera:
         if 'kw' not in res.columnas:
             res.error = f'{path.name} › {", ".join(entera + partes)}: sin columna de kW'
             return res
-        return maxima_de_registros(_unir_por_fecha(trozos), res)
+        return maxima_de_registros(_unir_por_fecha(trozos), res, periodo, instante)
 
 
 def maximas(rutas: Iterable[Path | str], medidores: Sequence[tuple[str, str]], *, alias=ALIAS,
+            periodo: str | None = None, instante: datetime | None = None,
             cancelado: Callable[[], bool] = lambda: False,
             progreso: Callable[[int, int, str], None] = lambda *_a: None) -> list[MaximaCabecera]:
     """Máxima de cada ``(alimentador, medidor)``, por separado, sin sumar (RF-29, RF-32).
@@ -836,7 +858,7 @@ def maximas(rutas: Iterable[Path | str], medidores: Sequence[tuple[str, str]], *
             break
         progreso(n, len(medidores), medidor)
         try:
-            out.append(cabecera.maxima(medidor, alimentador))
+            out.append(cabecera.maxima(medidor, alimentador, periodo, instante))
         except DemandaError as exc:
             out.append(MaximaCabecera(medidor=medidor, alimentador=alimentador, error=str(exc)))
     return _unir_canales(out)
@@ -904,6 +926,9 @@ class MaximaConCentral:
     registros_comunes: int = 0
     registros_cabecera: int = 0
     maxima_cabecera: dict[str, Any] | None = None
+    # 021:RF-50: el registro es el coincidente con los demás alimentadores, no la máxima.
+    coincidente: bool = False
+    periodo: str | None = None
     avisos: list[str] = field(default_factory=list)
     error: str | None = None
 
@@ -932,7 +957,8 @@ def _suma(*xs: float | None) -> float | None:
 
 
 def demanda_con_central(cabecera: Curva, generacion: Curva, llegada: Curva,
-                        salida: Curva) -> MaximaConCentral:
+                        salida: Curva, periodo: str | None = None,
+                        instante: datetime | None = None) -> MaximaConCentral:
     """Máxima de demanda de un alimentador con una central en su troncal (021:RF-28 a RF-34).
 
     Las cuatro son curvas ``(fecha, kW, kVAR)``: la cabecera del alimentador, la
@@ -945,11 +971,13 @@ def demanda_con_central(cabecera: Curva, generacion: Curva, llegada: Curva,
     Los signos son la combinación que deja la menor mediana de desbalance (RF-29); si ni
     esa queda bajo el 5 % de la generación máxima, la central no se usa (RF-30).
     """
-    res = MaximaConCentral()
+    res = MaximaConCentral(coincidente=instante is not None, periodo=periodo)
     cab, gen, lle, sal = (_por_fecha(c) for c in (cabecera, generacion, llegada, salida))
     res.registros_cabecera = len(cab)
-    if cab:
-        f, kw = max(((f, v[0]) for f, v in cab.items()), key=lambda p: (p[1], -p[0].timestamp()))
+    # La de cabecera con la que se compara, del mismo mes de análisis (013:RF-11).
+    del_mes = {f: v for f, v in cab.items() if not periodo or periodo_de_fecha(f) == periodo}
+    if del_mes:
+        f, kw = max(((f, v[0]) for f, v in del_mes.items()), key=lambda p: (p[1], -p[0].timestamp()))
         res.maxima_cabecera = {'fecha': _iso(f), 'kw': kw}
     comunes = sorted(set(cab) & set(gen) & set(lle) & set(sal))
     res.registros_comunes = len(comunes)
@@ -985,8 +1013,21 @@ def demanda_con_central(cabecera: Curva, generacion: Curva, llegada: Curva,
         res.avisos.append(f'{res.descartados} registro(s) con la zona aguas arriba a más de '
                           f'{RANGOS_IQR:g} rangos intercuartílicos de su mediana '
                           '(maniobras o transferencias de carga): no cuentan para la máxima')
+    if instante is not None:
+        # 021:RF-51: el registro coincidente con los demás alimentadores, aunque sea raro.
+        if instante not in cab or instante not in comunes:
+            res.error = f'sin registro de los cuatro medidores el {_iso(instante)}'
+            return res
+        if instante not in validos:
+            res.avisos.append(f'el registro del {_iso(instante)} tiene la zona aguas arriba fuera '
+                              'de lo normal (posible transferencia); se usa por ser el coincidente')
+        validos = [instante]
+    elif periodo:
+        # 013:RF-11: la máxima del mes elegido; el balance y el rango normal, de todo el registro.
+        validos = [t for t in validos if periodo_de_fecha(t) == periodo]
     if not validos:
-        res.error = 'ningún registro con la zona aguas arriba dentro de lo normal'
+        res.error = ('ningún registro con la zona aguas arriba dentro de lo normal'
+                     + (f' en {periodo}' if periodo else ''))
         return res
     # RF-33: el registro de mayor demanda; a igual demanda, el primero.
     t = max(validos, key=lambda x: (arriba[x] + ss * sal[x][0], -x.timestamp()))
@@ -1000,12 +1041,12 @@ def demanda_con_central(cabecera: Curva, generacion: Curva, llegada: Curva,
     return res
 
 
-def curva_de_demanda(cabecera: Curva, generacion: Curva, llegada: Curva,
-                     salida: Curva) -> tuple[list[tuple[datetime, float, float | None]], MaximaConCentral]:
+def curva_de_demanda(cabecera: Curva, generacion: Curva, llegada: Curva, salida: Curva,
+                     periodo: str | None = None, instante: datetime | None = None) -> tuple[list[tuple[datetime, float, float | None]], MaximaConCentral]:
     """La demanda del alimentador registro a registro (aguas arriba + aguas abajo), con
     los signos del balance (021:RF-47). Se calcula aquí, con todos los registros: las
     curvas que ve la web van reducidas y sus puntos no caen en las mismas fechas."""
-    res = demanda_con_central(cabecera, generacion, llegada, salida)
+    res = demanda_con_central(cabecera, generacion, llegada, salida, periodo, instante)
     if res.error and res.desbalance_mediana_kw is None:
         return [], res
     cab, lle, sal = (_por_fecha(c) for c in (cabecera, llegada, salida))

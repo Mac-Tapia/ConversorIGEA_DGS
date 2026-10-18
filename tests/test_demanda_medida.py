@@ -819,3 +819,48 @@ def test_curva_de_demanda_registro_a_registro():
     fila = next(p for p in puntos if p[0] == esp['fecha'])
     assert fila[1] == pytest.approx(esp['demanda'])
     assert max(p[1] for p in puntos) == pytest.approx(res.demanda_kw)
+
+
+def test_la_maxima_del_mes_elegido(tmp_path):
+    """013:RF-11 — con un mes elegido, la máxima de ese mes; la curva sigue entera."""
+    rng = random.Random(SEMILLA)
+    n = 4 * 24 * 40                                   # 40 días: julio y parte de agosto
+    completo, esperado = _medicion(rng, n, {'kw': 'kW tot', 'kvar': 'kVAR tot'}, pico=n - 10)
+    assert esperado['fecha'].month == 8
+    _libro(tmp_path / 'c.xlsx', {'M1': completo})
+    todo = dm.maximas([tmp_path / 'c.xlsx'], [('', 'M1')])[0]
+    julio = dm.maximas([tmp_path / 'c.xlsx'], [('', 'M1')], periodo='2026-07')[0]
+    assert todo.fecha.startswith('2026-08') and julio.fecha.startswith('2026-07')
+    assert julio.kw < todo.kw and len(julio.curva) == len(todo.curva)
+    vacio = dm.maximas([tmp_path / 'c.xlsx'], [('', 'M1')], periodo='2026-03')[0]
+    assert vacio.error and '2026-03' in vacio.error
+
+
+def test_el_registro_de_un_instante(tmp_path):
+    """021:RF-50, RF-53 — con un instante, el registro de esa fecha y hora, no la máxima; sin
+    registro en ese instante, se dice."""
+    rng = random.Random(SEMILLA)
+    completo, _ = _medicion(rng, 50, {'kw': 'kW tot', 'kvar': 'kVAR tot'})
+    _libro(tmp_path / 'c.xlsx', {'M1': completo})
+    t = INICIO + timedelta(minutes=15 * 7)
+    fila = next(f for f in completo[1:] if f[0] == t)
+    r = dm.maximas([tmp_path / 'c.xlsx'], [('', 'M1')], instante=t)[0]
+    assert r.fecha == t.isoformat(sep=' ') and r.kw == fila[completo[0].index('kW tot')]
+    fuera = dm.maximas([tmp_path / 'c.xlsx'], [('', 'M1')], instante=t + timedelta(days=99))[0]
+    assert fuera.error and 'sin registro' in fuera.error
+
+
+def test_central_en_el_instante_coincidente():
+    """021:RF-51 — las zonas y la generación de la central, del registro coincidente; si es
+    un registro raro, se usa igual y se avisa."""
+    rng = random.Random(SEMILLA)
+    cab, gen, lle, sal, esp = _central(rng, n=80, raros=1)
+    t = cab[10][0]
+    r = dm.demanda_con_central(cab, gen, lle, sal, instante=t)
+    assert r.error is None and r.fecha == t.isoformat(sep=' ')
+    assert r.generacion_kw == gen[10][1]
+    raro = next(p[0] for p in cab if (p[1] + next(x[1] for x in lle if x[0] == p[0])) > 5000)
+    r2 = dm.demanda_con_central(cab, gen, lle, sal, instante=raro)
+    assert r2.fecha == raro.isoformat(sep=' ') and any('fuera de lo normal' in a for a in r2.avisos)
+    r3 = dm.demanda_con_central(cab, gen, lle, sal, periodo='2026-07')
+    assert r3.fecha.startswith('2026-07')

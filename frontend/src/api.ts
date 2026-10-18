@@ -179,8 +179,13 @@ export const api = {
     request<WorkspaceState>(`${ws(id)}/demanda/${tipo}`, { method: 'DELETE' }),
   demandaMedidores: (id: string, alimentador: string) =>
     request<DemandaMedidores>(`${ws(id)}/demanda/medidores?alimentador=${enc(alimentador)}`),
-  demandaCabecera: (id: string, medidores: { alimentador: string; medidor: string }[]) =>
-    request<Job>(`${ws(id)}/demanda/cabecera/buscar`, json('POST', { medidores })),
+  // Spec 013, RF-11: ``periodo``, la máxima de ese mes; spec 021, RF-50: ``instante``, el
+  // registro de esa fecha y hora en todos los medidores (calibración coincidente).
+  demandaCabecera: (id: string, medidores: { alimentador: string; medidor: string }[],
+    criterio: { periodo?: string; instante?: string } = {}) =>
+    request<Job>(`${ws(id)}/demanda/cabecera/buscar`, json('POST', {
+      medidores, periodo: criterio.periodo || null, instante: criterio.instante || null,
+    })),
   demandaCurva: (id: string, jobId: string, medidor: string, desde?: string, hasta?: string) => {
     const q = new URLSearchParams({ medidor });
     if (desde) q.set('desde', desde);

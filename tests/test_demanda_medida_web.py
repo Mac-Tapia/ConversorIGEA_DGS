@@ -527,3 +527,24 @@ def test_curva_de_la_demanda_con_central(client):
     tramo = client.get(url, params={**params, 'desde': '2026-07-01T01:00:00',
                                     'hasta': '2026-07-01T02:00:00'}).json()
     assert tramo['total'] == 5
+
+
+def test_maxima_con_mes_e_instante(client):
+    """013:RF-11, 021:RF-50, RF-51 — la búsqueda con un instante da el registro de esa fecha
+    y hora en cada medidor, y la central lo usa también."""
+    wid = _wid(client)
+    _libros_con_central(client, wid)
+    job = client.post(f'/api/workspaces/{wid}/demanda/cabecera/buscar', json={
+        'medidores': [{'alimentador': 'A1', 'medidor': m} for m in ('M1', 'CG', 'CL', 'CS')],
+        'instante': '2026-07-01T01:00:00'})
+    estado = esperar_trabajo(client, job.json())
+    assert estado['status'] == 'done', estado
+    assert estado['result']['instante'] == '2026-07-01 01:00:00'
+    assert {r['fecha'] for r in estado['result']['resultados']} == {'2026-07-01 01:00:00'}
+    d = client.get(f'/api/workspaces/{wid}/demanda/cabecera/{estado["id"]}/central', params={
+        'alimentador': 'A1', 'cabecera': 'M1', 'generacion': 'CG', 'llegada': 'CL',
+        'salida': 'CS'}).json()
+    assert d['fecha'] == '2026-07-01 01:00:00' and d['abajo_kw'] == 5400.0
+    mal = client.post(f'/api/workspaces/{wid}/demanda/cabecera/buscar', json={
+        'medidores': [{'alimentador': 'A1', 'medidor': 'M1'}], 'periodo': '2026-13'})
+    assert mal.status_code == 422

@@ -1,6 +1,6 @@
 # Spec 021 — Maniobras en el extremo de la línea, SED unidas a su barra, curvas de todos los alimentadores y central térmica en la calibración
 
-Estado: cumplida (2026-10-17) · Fecha: 2026-10-17
+Estado: aprobada (2026-10-17; RF-50 a RF-53 añadidos el mismo día) · Fecha: 2026-10-17
 
 ## Contexto y objetivo
 
@@ -187,6 +187,18 @@ Curvas de la central en la web
   cabecera, con su fecha.
 - RF-49: EL SISTEMA aplicará a las curvas de la central el mismo tramo ampliado (RF-20) y la
   misma leyenda para ocultar o mostrar (RF-21).
+
+Instante coincidente (añadido el 2026-10-17 a petición del usuario)
+
+- RF-50: CUANDO el operador elige un instante coincidente, EL SISTEMA tomará como objetivo de
+  cada alimentador marcado su registro en esa fecha y hora, no su máxima.
+- RF-51: MIENTRAS haya instante coincidente, EL SISTEMA tomará las zonas y la generación de
+  la central de ese mismo registro, y avisará si ese registro tiene la zona aguas arriba
+  fuera de lo normal.
+- RF-52: EL SISTEMA ofrecerá como instante coincidente la fecha y hora de la máxima de cada
+  alimentador marcado.
+- RF-53: SI un medidor no tiene registro en ese instante, ENTONCES EL SISTEMA lo dirá y ese
+  alimentador no tendrá objetivo.
 
 ## Requisitos no funcionales
 

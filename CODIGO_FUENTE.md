@@ -27,7 +27,7 @@ spec 001, RF-14 (DGS idéntico byte a byte); su diseño histórico está en
 | `src/igea_dgs/combine.py` | Une todos los alimentadores en una sola red. | base |
 | `src/igea_dgs/coordenadas.py` | Completa las coordenadas que faltan con el grafo de la red. | base |
 | `src/igea_dgs/dataset.py` | Lector de los TXT (RED, CARGA, BD_Equipo), en las dos disposiciones. | base |
-| `src/igea_dgs/demanda_medida.py` | Máxima de cabecera por medidor y clientes importantes con su SED; el registro de las 00:00 conserva su hora; máxima de demanda con una central en el troncal. | 004 (RF-22 a RF-45), 021 (RF-28 a RF-34) |
+| `src/igea_dgs/demanda_medida.py` | Máxima de cabecera por medidor y clientes importantes con su SED; el registro de las 00:00 conserva su hora; máxima de demanda con una central en el troncal; la del mes de análisis o el registro de un instante coincidente. | 004 (RF-22 a RF-45), 013 (RF-11), 021 (RF-28 a RF-34, RF-50, RF-51, RF-53) |
 | `src/igea_dgs/dgs.py` | Escritor DGS: tablas, FID, cubículos, maniobras, capa gráfica y trazado GPS de las líneas; la barra de una SED sola va dentro de ella. | base, 010 (RF-1 a RF-4), 011 (RF-128), 021 (RF-12) |
 | `src/igea_dgs/economia.py` | Datos de la evaluación técnico-económica (`ComTececo`). | 004 |
 | `src/igea_dgs/estudios_pf.py` | Estudios sobre los casos «Sin proyecto» y «Con proyecto», sin DIgSILENT: qué estudios se ofrecen, límites del perfil, violaciones, diferencia y ficheros de resultados. | 011 (RF-23, RF-24, RF-32 a RF-35, RF-37) |
@@ -93,7 +93,7 @@ spec 001, RF-14 (DGS idéntico byte a byte); su diseño histórico está en
 | `src/igea_dgs/web/readiness.py` | Puertas por alimentador antes de producir DGS. | 001 |
 | `src/igea_dgs/web/reconstruction_service.py` | Diagnóstico y reconstrucción como trabajos de la web. | 001 (RF-8, RF-9) |
 | `src/igea_dgs/web/runtime.py` | Comprobación del entorno que hace el lanzador de Windows y huella del código. | 001 (RF-27, RF-28) |
-| `src/igea_dgs/web/services.py` | Las acciones de la interfaz, sin interfaz. | 001, 004 a 008, 011 (RF-12 a RF-16, RF-25, RF-27 a RF-30, RF-39 a RF-41, RF-68, RF-95, RF-121), 017 (RF-47 a RF-53, RF-59, RF-60, RF-65 a RF-67b, RF-71, RF-82, RF-93, RF-94, RF-104), 020 (RF-6, RF-13, RF-15, RF-25, RF-28), 021 (RF-26 a RF-34) |
+| `src/igea_dgs/web/services.py` | Las acciones de la interfaz, sin interfaz. | 001, 004 a 008, 011 (RF-12 a RF-16, RF-25, RF-27 a RF-30, RF-39 a RF-41, RF-68, RF-95, RF-121), 017 (RF-47 a RF-53, RF-59, RF-60, RF-65 a RF-67b, RF-71, RF-82, RF-93, RF-94, RF-104), 020 (RF-6, RF-13, RF-15, RF-25, RF-28), 021 (RF-26 a RF-34, RF-50, RF-51) |
 | `src/igea_dgs/web/source_runs.py` | Custodia inmutable de los ficheros de cada ejecución. | 001 |
 | `src/igea_dgs/web/source_scope.py` | Empresa y periodo de los paquetes VNR-GIS. | 001 (RF-2) |
 | `src/igea_dgs/web/sources/__init__.py` | Reexportación temporal de `igea_dgs.sources`. | 002 (RF-21 la retira) |
@@ -171,7 +171,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `tools/build_input_catalog.py` | Tabla de parámetros eléctricos en `input/` y auditoría de alimentadores. | base |
 | `tools/build_system_grid.py` | Todos los alimentadores en una sola red, importada en PowerFactory. | base |
 | `tools/cargas_pf.py` | Guion de DIgSILENT: demandas y cargas nuevas en un proyecto existente; también el módulo común de los guiones: cabecera del alimentador, leer su red para la troncal y partir un tramo con `Application.SplitLine` en la variación que graba; las cargas nuevas se conectan en el punto más cercano de la troncal. | 004, 007, 008, 011 (RF-52 a RF-55), 016 (RF-2, RF-4, RF-16 a RF-19, RF-21, RF-22, RF-45 a RF-50) |
-| `tools/casos_pf.py` | Guion de DIgSILENT: los casos «Caso base», «Sin proyecto» y «Con proyecto», cada uno con su escenario y sus variaciones; «Sin proyecto» solo desde el «Caso base» verificado; «Con proyecto» como copia de «Sin proyecto», también para las obras. | 011 (RF-1 a RF-16, RF-46 a RF-50; casos para RF-51 a RF-54), 014, 015, 016 (RF-12) |
+| `tools/casos_pf.py` | Guion de DIgSILENT: los casos «Caso base», «Sin proyecto» y «Con proyecto», cada uno con su escenario y sus variaciones; «Sin proyecto» solo desde el «Caso base» verificado; «Con proyecto» como copia de «Sin proyecto», también para las obras; lo hecho a mano en «Sin proyecto» pasa a «Con proyecto». | 011 (RF-1 a RF-16, RF-46 a RF-50; casos para RF-51 a RF-54), 014, 015, 016 (RF-12) |
 | `tools/estudios_pf.py` | Guion de DIgSILENT: un estudio en un caso, sin escalado por alimentador y sin aplicar lo que proponen los optimizadores; mide cada alimentador. Con `--guion`, lista o ejecuta los guiones DPL y Python del operador. En «Con proyecto», mide cada alternativa del informe con solo sus obras; guarda la geografía con barras, tipo y largo de cada tramo y los acoples, y el nodo de la red de cada banco. | 011 (RF-17, RF-20 a RF-22, RF-26, RF-27 a RF-30, RF-31, RF-33, RF-36, RF-38, RF-43 a RF-45, RF-49), 017 (RF-130, RF-131, RF-135) |
 | `tools/check_pf_license.py` | Qué módulos de PowerFactory permite la licencia. | 005, 011, 012 (RF-4) |
 | `tools/compare_schema.py` | Cabeceras de un DGS externo frente a un perfil de esquema. | base |
@@ -211,7 +211,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `frontend/src/components/ReconstructionPanel.tsx` | Diagnóstico y reconstrucción. | 001 (RF-8, RF-9) |
 | `frontend/src/components/Modules.tsx` | Pestañas de resultados, catálogo y sistema completo. | 001 |
 | `frontend/src/components/CargasTab.tsx` | Pestaña «Cargas en DIgSILENT» en cuatro pasos; la distancia mínima de las cargas nuevas. | 004, 005, 008, 011 (RF-42, RF-98), 016 (RF-73) |
-| `frontend/src/components/DemandaMedida.tsx` | Paso 2: libros de medición, máxima de cabecera (con la central térmica de un alimentador) y clientes. | 004, 008, 021 (RF-25 a RF-27) |
+| `frontend/src/components/DemandaMedida.tsx` | Paso 2: libros de medición, máxima de cabecera (con la central térmica de un alimentador, en el mes de análisis o en un instante coincidente) y clientes. | 004, 008, 013 (RF-11), 021 (RF-25 a RF-27, RF-50, RF-52) |
 | `frontend/src/components/EstudiosPF.tsx` | Paso 4.2: estudios sobre la red calibrada, límites y resultados. | 011 (RF-24, RF-25, RF-35, RF-39, RF-68) |
 | `frontend/src/components/GuionesPF.tsx` | Paso 4.2: guiones DPL y Python del operador, sus parámetros y su salida por caso. | 011 (RF-27 a RF-30) |
 | `frontend/src/components/ObrasPF.tsx` | Paso 4.1: formulario de obras de mejora (también enlace, migración desde un nodo y sección de toda la troncal), bibliotecas de tipos, obras guardadas, simular y aplicar. | 011 (RF-56 a RF-95), 016 (RF-68 a RF-72) |

@@ -237,10 +237,17 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
     return [c.generacion, c.llegada, c.salida].map((medidor) => ({ alimentador: alimentadorDeCentral(f), medidor }));
   });
   const aBuscar = [...elegidos, ...deCentrales.filter((p) => !elegidos.some((x) => x.medidor === p.medidor))];
-  const maxima = () => {
+  // 013:RF-11: la máxima del mes de análisis (el de los clientes); 021:RF-50: con un
+  // instante, el registro de esa fecha y hora en todos, para calibrar a la vez.
+  const maxima = (instante = '') => {
     if (!elegidos.length) { toast('error', 'Elija al menos un medidor', ''); return; }
-    startJob(() => api.demandaCabecera(ws.id, aBuscar));
+    startJob(() => api.demandaCabecera(ws.id, aBuscar, { periodo, instante }));
   };
+  const instanteActual = (ultimo?.result?.instante as string | null | undefined) ?? '';
+  const periodoBuscado = (ultimo?.result?.periodo as string | null | undefined) ?? '';
+  // RF-52: el instante de la máxima de cada alimentador marcado, para elegirlo como común.
+  const instantes = cabecera.filter((r) => !r.error && r.fecha && feeders.includes(r.alimentador))
+    .map((r) => ({ alimentador: r.alimentador, fecha: r.fecha as string, kw: r.kw }));
   const ponerCentral = (f: string, campo: keyof CentralTermica, valor: string) =>
     setCentrales((m) => ({ ...m, [f]: { ...(m[f] ?? CENTRAL_VACIA), [campo]: valor } }));
   const quitarCentral = (f: string) => setCentrales((m) => {
@@ -366,8 +373,21 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
           </table>
         </div>
       )}
+      {estadoClientes.esCatalogo && estadoClientes.activos > 1 && (
+        <label className="row">
+          <span>Mes de análisis (máxima y clientes)</span>
+          <select value={periodo} disabled={engineBusy} onChange={(e) => elegirPeriodo(e.target.value)}>
+            <option value="">Todo el registro (elija un mes para cruzar clientes)</option>
+            {estadoClientes.meses.map(({ mes, libro }) => (
+              <option key={mes} value={mes}>
+                {nombreMes(mes)} · {libro}{mesesMaxima[mes] ? ` · máxima de ${mesesMaxima[mes].join(', ')}` : ''}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <div className="row">
-        <button className="btn btn-primary" disabled={!elegidos.length || !ws.demanda?.cabecera || engineBusy} onClick={maxima}>
+        <button className="btn btn-primary" disabled={!elegidos.length || !ws.demanda?.cabecera || engineBusy} onClick={() => maxima()}>
           Buscar la máxima ({aBuscar.length} medidor{aBuscar.length === 1 ? '' : 'es'})
         </button>
         {!ws.demanda?.cabecera && <small className="muted">Falta la medición de cabecera.</small>}
@@ -394,6 +414,27 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
               </tr>
             ))}</tbody>
           </table>
+          {instantes.length > 1 && (
+            <label className="row">
+              <span>Instante de la calibración</span>
+              <select value={instanteActual} disabled={engineBusy}
+                onChange={(e) => maxima(e.target.value ? e.target.value.replace(' ', 'T') : '')}>
+                <option value="">La máxima de cada alimentador{periodoBuscado ? ` en ${nombreMes(periodoBuscado)}` : ''}</option>
+                {instantes.map((x) => (
+                  <option key={x.alimentador} value={x.fecha}>
+                    Coincidente: la máxima de {x.alimentador} · {x.fecha}
+                  </option>
+                ))}
+                {instanteActual && !instantes.some((x) => x.fecha === instanteActual) && (
+                  <option value={instanteActual}>Coincidente: {instanteActual}</option>
+                )}
+              </select>
+            </label>
+          )}
+          {instanteActual && (
+            <small className="alert alert-info">Todos los medidores, también los de una central, en el
+              registro del {instanteActual}: se calibra a la vez, no en la máxima de cada uno (021:RF-50).</small>
+          )}
           <small className="muted">kVAR, kVA y FP son del mismo registro que el kW máximo. * calculado con kW y kVAR.
             {ultimo?.status === 'cancelled' ? ' Cancelado: faltan medidores.' : ''}</small>
         </div>
@@ -401,17 +442,7 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
 
       <h4>2.3 · Clientes importantes (demanda fija)</h4>
       {estadoClientes.esCatalogo && estadoClientes.activos > 1 && (
-        <label className="row">
-          <span>Mes de los clientes</span>
-          <select value={periodo} disabled={engineBusy} onChange={(e) => elegirPeriodo(e.target.value)}>
-            <option value="">Elija un mes…</option>
-            {estadoClientes.meses.map(({ mes, libro }) => (
-              <option key={mes} value={mes}>
-                {nombreMes(mes)} · {libro}{mesesMaxima[mes] ? ` · máxima de ${mesesMaxima[mes].join(', ')}` : ''}
-              </option>
-            ))}
-          </select>
-        </label>
+        <small className="muted">Mes de los clientes: {periodo ? nombreMes(periodo) : 'elíjalo en 2.2, «Mes de análisis»'}.</small>
       )}
       {otrosMesesMaxima.length > 0 && (
         <small className="alert alert-warn">

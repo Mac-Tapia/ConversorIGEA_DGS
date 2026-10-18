@@ -24,7 +24,7 @@ def test_campo_central_con_tres_medidores_y_su_nodo():
     for campo in ("'generacion', 'Generación'", "'llegada', 'Llegada (lado SET)'",
                   "'salida', 'Salida (lado carga)'", 'Barra de la central en DIgSILENT'):
         assert campo in DEMANDA
-    assert 'api.demandaCabecera(ws.id, aBuscar)' in DEMANDA
+    assert 'api.demandaCabecera(ws.id, aBuscar, { periodo, instante })' in DEMANDA
     assert 'alimentador: alimentadorDeCentral(f), medidor' in DEMANDA
     assert 'nodo: string;' in TIPOS
 
@@ -92,3 +92,19 @@ def test_las_curvas_de_la_central_con_el_mismo_tramo_y_leyenda():
     misma leyenda para ocultarlas."""
     assert 'pedidas.map((s) => (s.demanda' in CURVA and 'tramo?.desde, tramo?.hasta)' in CURVA
     assert 'aria-pressed={!ocultas.has(s.clave)}' in CURVA
+
+
+def test_mes_de_analisis_antes_de_buscar_la_maxima():
+    """013:RF-11 — el mes se elige en 2.2, antes de buscar la máxima, y la búsqueda lo lleva."""
+    assert DEMANDA.index('Mes de análisis (máxima y clientes)') < DEMANDA.index('Buscar la máxima (')
+    assert 'api.demandaCabecera(ws.id, aBuscar, { periodo, instante })' in DEMANDA
+    assert "periodo: criterio.periodo || null, instante: criterio.instante || null" in API
+
+
+def test_instante_coincidente_de_la_maxima_de_un_alimentador():
+    """021:RF-50, RF-52 — tras la búsqueda, se puede calibrar a todos en la máxima de uno:
+    se vuelve a buscar con ese instante y se avisa de que es coincidente."""
+    assert 'Instante de la calibración' in DEMANDA
+    assert 'Coincidente: la máxima de {x.alimentador} · {x.fecha}' in DEMANDA
+    assert "onChange={(e) => maxima(e.target.value ? e.target.value.replace(' ', 'T') : '')}" in DEMANDA
+    assert 'se calibra a la vez, no en la máxima de cada uno' in DEMANDA
