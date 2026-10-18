@@ -72,12 +72,15 @@ Paso 2 — Alimentadores y calibración
 - RF-11: EL SISTEMA cruzará los clientes importantes de los alimentadores marcados.
 - RF-12: CUANDO el operador ajusta, EL SISTEMA ajustará uno tras otro, en un solo
   trabajo, cada alimentador marcado que tenga máxima, cada uno en su propia variación.
+  Cambiado por 021:RF-54 (2026-10-17): los de un proyecto se calibran a la vez.
 - RF-13: SI un alimentador tiene más de un medidor con máxima, ENTONCES EL SISTEMA pedirá
   el medidor de su cabecera antes de ajustar.
 - RF-14: SI el ajuste de un alimentador falla o no cuadra, ENTONCES EL SISTEMA seguirá
   con el siguiente y lo informará en ese alimentador.
+  Cambiado por 021:RF-57: el que no se puede preparar queda fuera; los demás, juntos.
 - RF-15: SI el operador cancela el ajuste, ENTONCES EL SISTEMA terminará el alimentador
   en curso y no empezará otro.
+  Cambiado por 021:RF-58: cancelar termina la calibración del proyecto entero.
 - RF-16: EL SISTEMA mostrará el informe del ajuste por alimentador.
 - RF-17: SI un guion de DIgSILENT de esta pestaña termina por un error inesperado,
   ENTONCES EL SISTEMA escribirá un informe con el tipo y el mensaje del error, que la web

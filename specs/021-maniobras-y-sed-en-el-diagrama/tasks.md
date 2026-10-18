@@ -214,6 +214,14 @@ Añadido el 2026-10-17 (calibrar NA203 y NA205 con su central en julio y a la ve
       búsqueda guarda su criterio y la central y el ajuste lo usan; con la cabecera negativa
       en el coincidente, el objetivo es la demanda del alimentador; mes en 2.2, antes de
       buscar, e instante entre las máximas de los marcados.
+- [x] T18. Calibración por proyecto (RF-54 a RF-60): `cuadrar_conjunto` en
+      `ajuste_cabecera.py` (y `cuadrar_zonas` sobre él), `ejecutar_proyecto` en
+      `tools/ajuste_cabecera_pf.py` con varios `--plan`, y la web lanza un solo guion por
+      proyecto.
+      Hecho cuando: pruebas del cuadre conjunto, del guion con `fake_pf` y de la web en verde.
+      Hecho el 2026-10-17: `cuadrar_conjunto` (2, 3 y 7 alimentadores acoplados),
+      `ejecutar_proyecto` con central y sin ella, y la web con un proceso por proyecto; los
+      transformadores nuevos (020) recalibran el proyecto entero.
 - [ ] T17. Calibrar NA203 y NA205 con su central en «20261016-160231_IGEA_NA203_NA205»
       desde la web, en julio y en el instante de la máxima de NA203. (RF-50, RF-51)
       Hecho cuando: el ajuste aplicado cuadra en DIgSILENT y su informe lo dice.

@@ -2426,50 +2426,62 @@ def _guardar_calibracion(ws: Workspace, project: str, feeder: str, informe: dict
         ws.save()
 
 
-def _correr_guion_ajuste(ws: Workspace, ctx: JobContext, project: str, feeder: str,
-                        path: str, report: Path, flag: Path, *, simular: bool) -> tuple[dict, int]:
-    """Una ejecución de ``tools/ajuste_cabecera_pf.py`` para un alimentador, con su informe.
+def _correr_guion_ajuste(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
+                        paths: list[str], reports: list[Path], flag: Path, *,
+                        simular: bool) -> tuple[list[dict], int]:
+    """Una ejecución de ``tools/ajuste_cabecera_pf.py`` para los alimentadores de un
+    proyecto, con un informe por alimentador.
 
-    La comparten el ajuste (spec 006) y los transformadores nuevos (020:RF-25), que
-    recalibran con el mismo guion: aplicando, la calibración que valga queda registrada.
+    Todos a la vez, en los mismos flujos de carga (021:RF-54): el usuario, el 2026-10-17,
+    «la calibración se debe hacer por proyecto en DIgSILENT […], no de forma
+    independiente». La comparten el ajuste (spec 006) y los transformadores nuevos
+    (020:RF-25), que recalibran con el mismo guion: aplicando, la calibración que valga
+    queda registrada.
     """
     pf_dir, interpreter = _require_pf()
-    report.parent.mkdir(parents=True, exist_ok=True)
-    report.unlink(missing_ok=True)
-    ctx.log(f"Proyecto de DIgSILENT: {project}  ·  alimentador {feeder}")
-    cmd = [str(interpreter), str(_script('ajuste_cabecera_pf.py')), '--plan', path,
-           '--output-json', str(report), '--cancel-file', str(flag)]
+    cmd = [str(interpreter), str(_script('ajuste_cabecera_pf.py'))]
+    for path, report in zip(paths, reports):
+        report.parent.mkdir(parents=True, exist_ok=True)
+        report.unlink(missing_ok=True)
+        cmd += ['--plan', path, '--output-json', str(report)]
+    cmd += ['--cancel-file', str(flag)]
     if simular:
         cmd.append('--simular')
+    ctx.log(f"Proyecto de DIgSILENT: {project}  ·  "
+            + (f'alimentador {feeders[0]}' if len(feeders) == 1 else
+               f"alimentadores {', '.join(feeders)}, calibrados a la vez"))
     rc = ctx.run_process(cmd, env=pf_subprocess_env(pf_dir), cwd=str(project_root()),
                          cancel_file=flag)
     if rc == 3:
         flag.unlink(missing_ok=True)
         raise UserError('No se pudo conectar con DIgSILENT. Ábralo y reintente.')
-    try:
-        informe = json.loads(report.read_text(encoding='utf-8')) if report.is_file() else {}
-    except (OSError, ValueError):
-        informe = {}
-    if not informe:
-        informe = {'error': f'El guion terminó con el código {rc} sin dejar informe: vea el Registro.'}
-    informe.setdefault('feeder', feeder)
-    informe.setdefault('project', project)
-    if informe.get('error'):
-        ctx.log(f"{feeder}: {informe['error']}")
-    elif not simular and not informe.get('cuadrado'):
-        ctx.log(f"{feeder}: no cumple la tolerancia: {informe.get('motivo')}. Vea el diagnóstico.")
-    if not simular:
-        _guardar_calibracion(ws, project, feeder, informe)
-    return informe, rc
+    informes = []
+    for feeder, report in zip(feeders, reports):
+        try:
+            informe = json.loads(report.read_text(encoding='utf-8')) if report.is_file() else {}
+        except (OSError, ValueError):
+            informe = {}
+        if not informe:
+            informe = {'error': f'El guion terminó con el código {rc} sin dejar informe: vea el Registro.'}
+        informe.setdefault('feeder', feeder)
+        informe.setdefault('project', project)
+        if informe.get('error'):
+            ctx.log(f"{feeder}: {informe['error']}")
+        elif not simular and not informe.get('cuadrado'):
+            ctx.log(f"{feeder}: no cumple la tolerancia: {informe.get('motivo')}. Vea el diagnóstico.")
+        if not simular:
+            _guardar_calibracion(ws, project, feeder, informe)
+        informes.append(informe)
+    return informes, rc
 
 
 def ajuste_ejecutar(ws: Workspace, ctx: JobContext, token: str, *, simular: bool) -> dict:
     """Simula o aplica el ajuste con ``tools/ajuste_cabecera_pf.py`` (RF-19 a RF-22).
 
     Como las cargas: cancelar no mata el guion, se le avisa con un fichero y termina el
-    flujo en curso, dejando la variación con el último reparto que convergió (RF-22).
-    Con varios alimentadores (spec 008) se lanzan uno tras otro: el que falla queda en su
-    informe y se sigue con el siguiente (RF-14); cancelar no empieza otro (RF-15).
+    flujo en curso, dejando el escenario con el último reparto que convergió (RF-22). Con
+    varios alimentadores del proyecto, una sola ejecución que los calibra a la vez
+    (021:RF-54); el que no se puede preparar queda en su informe (RF-57).
     """
     plan = ws.cargas_planes.get(token)
     if plan is None or plan.get('kind') != 'ajuste_cabecera':
@@ -2482,32 +2494,17 @@ def ajuste_ejecutar(ws: Workspace, ctx: JobContext, token: str, *, simular: bool
     flag = ws.plans_dir / f'cancelar_{token}.flag'
     flag.unlink(missing_ok=True)
     varios = len(paths) > 1
-    informes, reports, codigos = [], [], []
-    for n, (path, feeder) in enumerate(zip(paths, plan['feeders'])):
-        if ctx.cancel.is_set() or flag.exists():
-            resto = plan['feeders'][n:]
-            ctx.log(f"Cancelado: no se empezó {', '.join(resto)}.")
-            informes += [{'project': plan['project'], 'feeder': f, 'cancelado': True,
-                          'no_empezado': True, 'avisos': ['Cancelado antes de empezar.']}
-                         for f in resto]
-            break
-        if varios:
-            ctx.progress(n, len(paths), feeder)
-        sufijo = f'_{n + 1}' if varios else ''
-        report = ws.out_dir / f'ajuste_cabecera_{modo}_{token}{sufijo}.json'
-        informe, rc = _correr_guion_ajuste(ws, ctx, plan['project'], feeder, path, report, flag,
-                                           simular=simular)
-        informes.append(informe)
-        reports.append(report.name)
-        codigos.append(rc)
+    reports = [ws.out_dir / f'ajuste_cabecera_{modo}_{token}{f"_{n + 1}" if varios else ""}.json'
+               for n in range(len(paths))]
+    informes, rc = _correr_guion_ajuste(ws, ctx, plan['project'], list(plan['feeders']),
+                                        list(paths), reports, flag, simular=simular)
     flag.unlink(missing_ok=True)
     errores = [i for i in informes if i.get('error')]
     if errores and len(errores) == len(informes):
         raise UserError(' · '.join(f"{i['feeder']}: {i['error']}" if varios else i['error']
                                    for i in errores))
-    hechos = [i for i in informes if not i.get('no_empezado')]
-    return {'returncode': max(codigos, default=0), 'modo': hechos[0].get('modo') if hechos else None,
-            'report': reports[0] if reports else '', 'reports': reports,
+    return {'returncode': rc, 'modo': informes[0].get('modo'),
+            'report': reports[0].name, 'reports': [r.name for r in reports],
             'project': plan['project'], 'feeders': plan['feeders'], 'token': token,
             'informe': informes[0], 'informes': informes}
 
@@ -2582,15 +2579,21 @@ def ajuste_transformadores(ws: Workspace, ctx: JobContext, token: str, feeder: s
     flag.unlink(missing_ok=True)
     ctx.log(f"{feeder}: transformadores nuevos para {', '.join(c['sed'] for c in cambios)}; "
             'después se recalibra «Sin proyecto».')
-    report = ws.out_dir / f'ajuste_cabecera_aplicacion_{token}{sufijo}.json'
-    informe, rc = _correr_guion_ajuste(ws, ctx, plan['project'], feeder, str(copia), report,
-                                       flag, simular=False)
+    # 021:RF-54: se recalibra el proyecto entero, con los transformadores en el plan de este.
+    paths = [str(copia) if x == path else x for x in (plan.get('paths') or [plan['path']])]
+    varios = len(paths) > 1
+    reports = [ws.out_dir / f'ajuste_cabecera_aplicacion_{token}{f"_{n + 1}" if varios else ""}.json'
+               for n in range(len(paths))]
+    informes, rc = _correr_guion_ajuste(ws, ctx, plan['project'], list(plan['feeders']), paths,
+                                        reports, flag, simular=False)
     flag.unlink(missing_ok=True)
+    n = plan['feeders'].index(feeder)
+    informe = informes[n]
     if informe.get('error') and not informe.get('transformadores_implementados'):
         raise UserError(f"{feeder}: {informe['error']}")
-    return {'returncode': rc, 'modo': informe.get('modo'), 'report': report.name,
-            'reports': [report.name], 'project': plan['project'], 'feeders': [feeder],
-            'token': token, 'informe': informe, 'informes': [informe]}
+    return {'returncode': rc, 'modo': informe.get('modo'), 'report': reports[n].name,
+            'reports': [r.name for r in reports], 'project': plan['project'],
+            'feeders': plan['feeders'], 'token': token, 'informe': informe, 'informes': informes}
 
 
 def ajuste_aplicado_en_disco(ws: Workspace, project: str | None,

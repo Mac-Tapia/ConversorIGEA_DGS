@@ -200,6 +200,28 @@ Instante coincidente (añadido el 2026-10-17 a petición del usuario)
 - RF-53: SI un medidor no tiene registro en ese instante, ENTONCES EL SISTEMA lo dirá y ese
   alimentador no tendrá objetivo.
 
+Calibración por proyecto (añadido el 2026-10-17; usuario, al ir a aplicar NA203 y luego
+NA205: «la calibración se debe hacer por proyecto en DIgSILENT; si es un alimentador se
+hace de ese y dos o más se hacen de todas según el proyecto, no de forma independiente»)
+
+- RF-54: CUANDO el operador aplica el ajuste de dos o más alimentadores de un mismo
+  proyecto, EL SISTEMA los calibrará en una sola ejecución de DIgSILENT, todos en los
+  mismos flujos de carga de «Sin proyecto» (cambia 008:RF-12).
+- RF-55: EL SISTEMA moverá en cada flujo el factor de escala de cada alimentador, o de cada
+  zona si tiene central (RF-40), con lo medido en su cabecera o en su zona, y dará la
+  calibración por cuadrada solo cuando todos cumplan la tolerancia en el mismo flujo.
+- RF-56: SI el flujo no converge, ENTONCES EL SISTEMA aplicará los remedios de 006:RF-16 una
+  vez para todo el proyecto y, si no cuadra, dejará todos los alimentadores con el último
+  reparto común que convergió.
+- RF-57: SI un alimentador no se puede preparar (sin cabecera, sin demanda que escalar),
+  ENTONCES EL SISTEMA lo dirá en su informe y calibrará juntos los demás (cambia 008:RF-14).
+- RF-58: SI el operador cancela, ENTONCES EL SISTEMA terminará el flujo en curso y dejará
+  todos los alimentadores con el último reparto común que convergió (cambia 008:RF-15).
+- RF-59: EL SISTEMA dará un informe por alimentador con lo medido en el flujo final común y
+  dirá con qué alimentadores se calibró.
+- RF-60: MIENTRAS el ajuste sea de un solo alimentador, EL SISTEMA lo calibrará como hasta
+  ahora.
+
 ## Requisitos no funcionales
 
 - Determinismo: el DGS sigue idéntico byte a byte con `workers=1` y `workers>1`.
