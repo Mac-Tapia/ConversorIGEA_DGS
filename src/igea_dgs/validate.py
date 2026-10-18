@@ -17,7 +17,9 @@ from .util import finite_or_none
 def parse_dgs(path: Path | str) -> dict[str, dict]:
     tables: dict[str, dict] = {}
     current: str | None = None
-    with Path(path).open('r', encoding='utf-8', errors='replace') as fh:
+    from .dgs import DGS_ENCODING
+
+    with Path(path).open('r', encoding=DGS_ENCODING, errors='replace') as fh:
         for raw in fh:
             line = raw.strip()
             if line.startswith('$$'):

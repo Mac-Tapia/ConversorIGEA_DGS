@@ -1916,6 +1916,49 @@ def apply_imported_feeder_metadata_and_restore(
 # Network finders / connectivity
 # ---------------------------------------------------------------------------
 
+class _RedesUnidas:
+    """Las redes de los zonales de un DGS unido por SET, vistas como una (spec 022, RF-8).
+
+    La aceptación inventaria, cuenta y dibuja sobre una sola red; con una por zonal,
+    su contenido es la suma del de todas, y su diagrama, el de todos sus diagramas.
+    """
+
+    def __init__(self, nombre: str, objetos: list[Any]) -> None:
+        self.loc_name = nombre
+        self.objetos = objetos
+
+    def GetContents(self, patron: str = '*', recursivo: int = 0) -> list[Any]:
+        out: list[Any] = []
+        for o in self.objetos:
+            out.extend(_contents(o, patron) if recursivo else list(o.GetContents(patron) or []))
+        return out
+
+    def GetClassName(self) -> str:
+        return _classname(self.objetos[0]) if self.objetos else 'ElmNet'
+
+    def GetAttribute(self, nombre: str):
+        if nombre == 'pDiagram':
+            diagramas = [d for d in (_attr(o, 'pDiagram') for o in self.objetos) if d is not None]
+            return _RedesUnidas(self.loc_name, diagramas) if diagramas else None
+        return _attr(self.objetos[0], nombre) if self.objetos else None
+
+    def GetFullName(self) -> str:
+        return self.loc_name
+
+
+def _find_networks(app: Any, nombres: list[str]):
+    """Las redes de los zonales (022:RF-8), juntas, o ``None`` si falta alguna."""
+    candidates: list[Any] = []
+    try:
+        candidates.extend(_contents(app.GetProjectFolder('netdat'), '*.ElmNet'))
+    except Exception:
+        pass
+    por_nombre = {_name(x): x for x in candidates}
+    if not nombres or any(n[:40] not in por_nombre for n in nombres):
+        return None
+    return _RedesUnidas(' + '.join(nombres), [por_nombre[n[:40]] for n in nombres])
+
+
 def _find_network(app: Any, feeder: str):
     candidates: list[Any] = []
     try:
@@ -2321,7 +2364,12 @@ def inventory_network(net: Any) -> dict[str, int]:
             parent_cls = _classname(parent) if parent is not None else ''
         except Exception:
             parent_cls = ''
-        if parent_cls == 'ElmSubstat':
+        # Dentro de una SED solo son internas su barra de baja (``<SED>_BT``) y, sin barra
+        # propia, la de media, que se llama como la SED. La barra propia (021:RF-12)
+        # conserva el nombre de su nodo y la de una SET (022:RF-9) es de la red: en la
+        # entrega de Electro Dunas por SET se contaban 5 910 barras de menos.
+        nombre = _name(term)
+        if parent_cls == 'ElmSubstat' and (nombre.endswith('_BT') or nombre == _name(parent)):
             sed_internal_terms += 1
         else:
             net_term_count += 1
@@ -2337,7 +2385,8 @@ def inventory_network(net: Any) -> dict[str, int]:
         'transformers': len(_contents(net, '*.ElmTr2')) + len(_contents(net, '*.ElmTr3')),
         'transformers_2w': len(_contents(net, '*.ElmTr2')),
         'transformers_3w': len(_contents(net, '*.ElmTr3')),
-        'substations_sed': len(_contents(net, '*.ElmSubstat')),
+        'substations_sed': len([s for s in _contents(net, '*.ElmSubstat')
+                                if str(_attr(s, 'sShort', '') or '') != 'SET']),
         'capacitors': len(_contents(net, '*.ElmShnt')),
         'regulators': len(_contents(net, '*.ElmVoltreg')),
         'feeders': len(_feeders_of(net)),
@@ -2671,7 +2720,8 @@ def run_acceptance(
     if manifest.get('equipment_scope_note'):
         warnings.append(str(manifest['equipment_scope_note']))
 
-    net = _find_network(app, feeder)
+    net = (_find_networks(app, list(manifest['redes'])) if manifest.get('redes')
+           else _find_network(app, feeder))
     if net is None:
         errors.append(f'ElmNet {feeder!r} not found in the active project/network data folder')
         return {
