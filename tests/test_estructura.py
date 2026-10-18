@@ -144,3 +144,80 @@ def test_la_estructura_de_electro_dunas_en_su_perfil(tmp_path):
     sin = tmp_path / 'otro.json'
     sin.write_text('{}', encoding='utf-8')
     assert estructura_empresa(sin, carpeta=carpeta) is None
+
+
+# --------------------------------------------------------------- 022:RF-37 a RF-46
+def _ed():
+    from pathlib import Path
+
+    from igea_dgs.perfil_empresa import estructura_empresa
+    carpeta = Path(__file__).resolve().parents[1] / 'config' / 'perfiles'
+    import tempfile
+    d = Path(tempfile.mkdtemp())
+    (d / 'p.json').write_text('{"perfil": "electro_dunas"}', encoding='utf-8')
+    return estructura_empresa(d / 'p.json', carpeta=carpeta)
+
+
+def test_medidores_de_barra_del_libro(tmp_path):
+    """022:RF-37 — las filas «Barra» del libro de medidores, con su nivel, sus siglas, si es
+    de central y la barra suelta de un alimentador («Barra/CHI201»)."""
+    from openpyxl import Workbook
+
+    from igea_dgs.demanda_medida import leer_medidores_de_barra
+
+    wb = Workbook()
+    h = wb.active
+    h.append(['codigo alimentador', 'Medidor', 'Nivel Tension', 'siglas'])
+    for fila in (['PA217', 'PA217', 22.9, 'PA'], ['Barra', 'B-PA2T1', 22.9, 'PA'],
+                 ['Barra', 'B-PA6T1', 60, 'PA'], ['Barra CT ', 'CT_PEDREG', 10, 'PE'],
+                 ['Barra/CHI201', 'CHB2T1', 22.9, None], ['Barra', 'B-PN1T2  ', 10, 'PN']):
+        h.append(fila)
+    wb.save(tmp_path / 'm.xlsx')
+    ms = leer_medidores_de_barra(tmp_path / 'm.xlsx')
+    assert [m.medidor for m in ms] == ['B-PA2T1', 'B-PA6T1', 'CT_PEDREG', 'CHB2T1', 'B-PN1T2']
+    ct = next(m for m in ms if m.medidor == 'CT_PEDREG')
+    assert ct.central and ct.siglas == 'PE' and ct.kv == 10
+    assert next(m for m in ms if m.medidor == 'CHB2T1').alimentador == 'CHI201'
+
+
+def test_barras_de_calibracion_con_la_estructura_de_electro_dunas():
+    """022:RF-38, 022:RF-42, 022:RF-43, 022:RF-44, 022:RF-45, 022:RF-46 — cada medidor a la
+    barra de su SET y nivel; los de 60 kV no; T1 y T2 de Pueblo Nuevo en la misma barra; la
+    central en su barra; SI es SEIN; CHN, barra suelta de sus alimentadores; sin medidor de
+    barra, el alimentador queda con su propia máxima."""
+    from igea_dgs.demanda_medida import MedidorBarra, barras_de_calibracion
+
+    M = lambda med, kv, sig, ct=False, al='': MedidorBarra(med, kv, sig, ct, 1, al)  # noqa: E731
+    medidores = [M('B-PA2T1', 22.9, 'PA'), M('B-PA1T1', 10.0, 'PA'), M('B-PA6T1', 60.0, 'PA'),
+                 M('B-PN1T1', 10.0, 'PN'), M('B-PN1T2', 10.0, 'PN'), M('B-PN2T2', 22.9, 'PN'),
+                 M('CT_PEDREG', 10.0, 'PE', True), M('B-PE1T1', 10.0, 'PE'), M('B-SI1T1', 10.0, 'SI'),
+                 M('CHNB1T1', 10.0, 'CHN'), M('CT_BH4 NA', 22.9, 'NA', True)]
+    kv = {'PA217': 22.9, 'PA111': 10.0, 'PN107': 10.0, 'PE103': 10.0, 'SI112': 10.0, 'NA203': 22.9,
+          'CHN101': 10.0}
+    barras, avisos = barras_de_calibracion(_ed(), medidores, list(kv), kv)
+    por = {b.clave: b for b in barras}
+    assert por['SET 32 22.9 kV'].alimentadores == ['PA217'] and por['SET 32 22.9 kV'].medidores == ['B-PA2T1']
+    assert por['SET 32 10 kV'].alimentadores == ['PA111']
+    assert por['SET 23 10 kV'].medidores == ['B-PN1T1', 'B-PN1T2']
+    assert por['SET 25 10 kV'].centrales == ['CT_PEDREG']
+    assert por['SEIN 10 kV'].alimentadores == ['SI112']
+    assert por['Suelta CHN 10 kV'].alimentadores == ['CHN101'] and por['Suelta CHN 10 kV'].suelta
+    assert not any('60' in b.clave for b in barras)
+    assert not any('NA203' in b.alimentadores for b in barras), 'SET 51 solo tiene la central'
+    assert any('CHN' in a and '022:RF-45' in a for a in avisos)
+
+
+def test_maxima_de_la_barra_suma_sus_transformadores():
+    """022:RF-39, 022:RF-40 — la máxima de la suma registro a registro, solo en las fechas
+    que tienen todos, y su fecha es el instante de sus alimentadores."""
+    from datetime import datetime, timedelta
+
+    from igea_dgs.demanda_medida import maxima_de_barra
+
+    t0 = datetime(2026, 7, 1)
+    t1 = [(t0 + timedelta(minutes=15 * i), 100.0 + i, 10.0) for i in range(10)]
+    t2 = [(t0 + timedelta(minutes=15 * i), 200.0 - 3 * i, 20.0) for i in range(1, 11)]
+    m = maxima_de_barra([t1, t2])
+    assert m['fecha'] == t0 + timedelta(minutes=15) and m['kw'] == pytest.approx(101 + 197)
+    assert m['registros'] == 9 and m['kvar'] == pytest.approx(30.0)
+    assert maxima_de_barra([t1, t2], periodo='2026-08') is None

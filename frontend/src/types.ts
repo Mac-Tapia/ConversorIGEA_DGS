@@ -1368,3 +1368,18 @@ export interface CambioEnLaRed {
   nuevo: { descripcion: string; potencia: number | null; unidad: 'kVA' | 'kvar' | 'pu' };
   motivo: string;
 }
+
+/** Spec 022, RF-39 a RF-44: una barra de SET con medidor, su máxima y sus alimentadores. */
+export interface BarraDeSet {
+  clave: string;
+  set: string;
+  kv: number;
+  suelta: boolean;
+  medidores: string[];
+  centrales: { medidor: string; kw: number | null; kvar: number | null }[];
+  alimentadores: string[];
+  fecha: string;
+  kw: number;
+  kvar: number;
+  registros: number;
+}

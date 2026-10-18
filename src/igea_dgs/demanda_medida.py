@@ -62,6 +62,9 @@ ALIAS: dict[str, tuple[str, ...]] = {
     'ea': ('ea', 'ea total', 'energia activa'),
     'eri': ('eri', 'eri total', 'energia reactiva inductiva'),
     'pot': ('pot max', 'pot', 'potencia maxima', 'potencia'),
+    # 022:RF-37: las filas de barra del libro de medidores, con su nivel y sus siglas.
+    'nivel': ('nivel tension', 'nivel de tension', 'tension kv', 'kv'),
+    'siglas': ('siglas',),
     # 004:RF-56: el nombre del cliente; en los libros de julio de 2026, «CLIENTE». Los de
     # enero a abril no lo traen.
     'cliente_nombre': ('cliente', 'nombre cliente', 'nombre del cliente', 'razon social', 'nombre'),
@@ -1240,3 +1243,135 @@ def escribir_excel(destino: Path | str, *, cabecera: Sequence[dict] = (),
     destino.parent.mkdir(parents=True, exist_ok=True)
     wb.save(destino)
     return destino
+
+
+# =========================================================================== barras de SET
+@dataclass(frozen=True)
+class MedidorBarra:
+    """Una fila «Barra» del libro de medidores por alimentador (022:RF-37).
+
+    En Electro Dunas: «Barra», B-PA2T1, 22,9, PA es la barra de 22,9 kV del transformador 1
+    de la SET Paracas; «Barra CT», CT_PEDREG, 10, PE, la central en la barra de 10 kV de
+    Pedregal (RF-44).
+    """
+
+    medidor: str
+    kv: float | None
+    siglas: str
+    central: bool
+    fila: int
+    alimentador: str = ''           # «Barra/CHI201»: la barra suelta de ese alimentador
+
+
+def leer_medidores_de_barra(path: Path | str, alias=ALIAS) -> list[MedidorBarra]:
+    """Las filas de barra del libro: las que en «código alimentador» dicen «Barra»."""
+    libro = _abrir(path)
+    for hoja in libro.sheet_names:
+        filas = _filas(libro, hoja)
+        hallada = _buscar_cabecera(filas, ('alimentador', 'medidor', 'nivel', 'siglas'), alias,
+                                   ('alimentador', 'medidor'))
+        if hallada is None:
+            continue
+        i, cols = hallada
+        out = []
+        for n, fila in enumerate(filas[i + 1:], start=i + 2):
+            crudo = _texto(fila, cols['alimentador'])
+            tipo = normalizar(crudo.split('/')[0])
+            med = ' '.join(_texto(fila, cols['medidor']).split())
+            if 'barra' not in tipo or not med:
+                continue
+            out.append(MedidorBarra(med, numero(_celda(fila, cols.get('nivel'))),
+                                    ' '.join(_texto(fila, cols.get('siglas')).split()).upper(),
+                                    'ct' in tipo.split() or tipo.startswith('ct'), n,
+                                    crudo.split('/', 1)[1].strip().upper() if '/' in crudo else ''))
+        return out
+    return []
+
+
+def maxima_de_barra(curvas: Sequence[Sequence[tuple[datetime, float, float | None]]],
+                    periodo: str | None = None) -> dict[str, Any] | None:
+    """La máxima de la suma, registro a registro, de los medidores de una barra (022:RF-39).
+
+    Solo cuentan las fechas que tienen todos (los dos transformadores de Pueblo Nuevo
+    suman a la vez); con ``periodo``, las de ese mes (013:RF-11).
+    """
+    por_fecha: list[dict[datetime, tuple[float, float | None]]] = [
+        {f: (kw, kvar) for f, kw, kvar in c if f is not None and kw is not None} for c in curvas]
+    if not por_fecha:
+        return None
+    comunes = set(por_fecha[0]).intersection(*por_fecha[1:])
+    if periodo:
+        comunes = {f for f in comunes if periodo_de_fecha(f) == periodo}
+    if not comunes:
+        return None
+    suma = {f: (sum(d[f][0] for d in por_fecha),
+                sum((d[f][1] or 0.0) for d in por_fecha)) for f in comunes}
+    fecha = max(suma, key=lambda f: (suma[f][0], -f.timestamp()))
+    return {'fecha': fecha, 'kw': suma[fecha][0], 'kvar': suma[fecha][1], 'registros': len(comunes)}
+
+
+#: Por encima de esta tensión un medidor de barra es de alta (60 kV, 220 kV): la SET entra
+#: sin su transformador de potencia y no se usa (022:RF-43).
+KV_MAX_MEDIA = 35.0
+
+
+@dataclass
+class BarraMedida:
+    """Una barra de SET (o suelta) con sus medidores y sus alimentadores (022:RF-38)."""
+
+    clave: str                      # «SET 32 22,9 kV», «Suelta CHN 10 kV»…
+    set_codigo: str
+    kv: float
+    medidores: list[str] = field(default_factory=list)
+    centrales: list[str] = field(default_factory=list)
+    alimentadores: list[str] = field(default_factory=list)
+    suelta: bool = False
+
+
+def barras_de_calibracion(estructura, medidores: Sequence[MedidorBarra],
+                          alimentadores: Sequence[str],
+                          kv_de: dict[str, float]) -> tuple[list[BarraMedida], list[str]]:
+    """Las barras con medidor y los alimentadores marcados de cada una (022:RF-38, RF-42 a RF-46).
+
+    Un medidor de barra va a la barra de su SET (por sus siglas) y de su nivel; uno de alta
+    tensión no se usa (RF-43); unas siglas sin SET son una barra suelta propia, de los
+    alimentadores con ese prefijo, y «Barra/CHI201», la de ese alimentador (RF-45). Cada
+    alimentador marcado va a la barra de su SET y su tensión; si su tensión no se sabe y
+    su SET tiene una sola barra con medidor, a esa. Los que no tienen barra con medidor no
+    salen: se calibran con su propia máxima (RF-42).
+    """
+    barras: dict[str, BarraMedida] = {}
+    avisos: list[str] = []
+    for m in medidores:
+        if m.kv is None or m.kv > KV_MAX_MEDIA:
+            continue
+        st = estructura.set_de_siglas(m.siglas) if m.siglas else None
+        if m.alimentador:
+            clave, codigo, suelta = f'Suelta {m.alimentador} {m.kv:g} kV', m.alimentador, True
+        elif st is not None:
+            clave, codigo, suelta = f'{st.codigo} {m.kv:g} kV', st.codigo, False
+        else:
+            clave, codigo, suelta = f'Suelta {m.siglas} {m.kv:g} kV', m.siglas, True
+            avisos.append(f'{m.medidor}: las siglas {m.siglas or "(vacías)"} no son de ninguna SET '
+                          'de la estructura; barra suelta propia (022:RF-45).')
+        b = barras.setdefault(clave, BarraMedida(clave, codigo, float(m.kv), suelta=suelta))
+        (b.centrales if m.central else b.medidores).append(m.medidor)
+    for f in alimentadores:
+        st = estructura.set_de(f)
+        candidatas = []
+        if st is not None:
+            candidatas = [b for b in barras.values() if not b.suelta and b.set_codigo == st.codigo
+                          and b.medidores]
+        if not candidatas:
+            candidatas = [b for b in barras.values() if b.suelta and b.medidores and (
+                b.set_codigo == f.upper() or (len(b.set_codigo) < len(f) and f.upper().startswith(b.set_codigo)))]
+        kv = kv_de.get(f)
+        if kv is not None:
+            candidatas = [b for b in candidatas if abs(b.kv - kv) <= 0.05 * kv]
+        elif len(candidatas) > 1:
+            avisos.append(f'{f}: no se sabe su tensión y su SET tiene varias barras con medidor; '
+                          'se calibra con su propia máxima.')
+            continue
+        if candidatas:
+            candidatas[0].alimentadores.append(f)
+    return [b for b in barras.values() if b.alimentadores], avisos

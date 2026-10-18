@@ -781,3 +781,28 @@ def test_solo_se_registra_la_calibracion_guardada(tmp_path):
         'cuadrado': True, 'sed': sed,
         'decision_carga_nativa': {'status': 'YA_CARGADO_VALIDADO'}})
     assert ws.calibraciones['P']['A1']['sed'] == {'SE1': [100.0, 20.0]}
+
+
+def test_el_plan_lleva_la_barra_de_set_de_cada_alimentador(client, monkeypatch):
+    """022:RF-41, 022:RF-41b, 022:RF-44 — con la máxima por barra, el plan de cada
+    alimentador lleva su barra de SET (medida, fecha y central) y su objetivo es el de esa
+    fecha; el que no tiene barra con medidor, ninguna."""
+    from test_demanda_medida_web import _libros_por_barra
+
+    wid = client.post('/api/workspaces').json()['id']
+    _libros_por_barra(client, wid, monkeypatch)
+    job = client.post(f'/api/workspaces/{wid}/demanda/cabecera/buscar', json={
+        'medidores': [{'alimentador': a, 'medidor': m} for a, m in (('A1', 'M1'), ('A2', 'M3'), ('B1', 'M4'))],
+        'por_barra': True}).json()
+    estado = esperar_trabajo(client, job)
+    assert estado['status'] == 'done', estado
+    r = _plan(client, wid, job['id'], medidores=['M1', 'M3', 'M4'])
+    assert r.status_code == 200, r.text
+    token = r.json()['token']
+    trabajo = client.post(f'/api/workspaces/{wid}/demanda/ajuste/{token}/simular').json()
+    informes = esperar_trabajo(client, trabajo)['result']['informes']
+    planes = {i['recibido']['feeder']: i['recibido'] for i in informes}
+    assert planes['A1']['barra_set']['clave'] == planes['A2']['barra_set']['clave'] == 'SET X 10 kV'
+    assert planes['A1']['barra_set']['centrales'][0]['medidor'] == 'CT_X'
+    assert planes['A1']['objetivo']['fecha'] == planes['A1']['barra_set']['fecha']
+    assert planes['B1']['barra_set'] is None

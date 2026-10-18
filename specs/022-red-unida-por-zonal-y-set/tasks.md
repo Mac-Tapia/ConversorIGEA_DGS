@@ -31,7 +31,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]` y pa
 - [x] T9. Guiones: medida en el interruptor de cabecera con barra compartida. (RF-22 a
       RF-24)
       Hecho cuando: pruebas de los guiones con `fake_pf` en verde.
-- [ ] T9b. Medidores de barra: lectura de las filas «Barra», asignación por siglas y nivel,
+- [x] T9b. Medidores de barra: lectura de las filas «Barra», asignación por siglas y nivel,
       máxima de la barra como suma de sus transformadores, y sus alimentadores calibrados
       con su medidor en esa fecha y hora; central de barra; siglas sin SET
       en barra suelta. (RF-37 a RF-46)
