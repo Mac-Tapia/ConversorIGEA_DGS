@@ -1,6 +1,6 @@
 # Spec 023 — VNR-GIS desde la copia de SQL Server de cualquier concesionaria
 
-Estado: borrador · Fecha: 2026-10-18
+Estado: aprobada (2026-10-18) · Fecha: 2026-10-18
 
 ## Contexto y objetivo
 
