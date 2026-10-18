@@ -32,7 +32,8 @@ SUPPORTED_SOURCE_SUFFIXES = frozenset({
 # (pasaba con .7z y .gdb) ni esconder uno que se lee (.mdb, .sqlite, .csv…). Un .shp
 # suelto no vale: necesita su .dbf y su .shx, así que va dentro de un ZIP o RAR.
 FORMATOS_PAQUETE_VNR = tuple(sorted(
-    ({'.zip', '.rar'} | SUPPORTED_SOURCE_SUFFIXES) - {'.shp'}
+    # Spec 023: la copia de SQL Server de VNR-GIS de cualquier concesionaria.
+    ({'.zip', '.rar', '.bak'} | SUPPORTED_SOURCE_SUFFIXES) - {'.shp'}
 ))
 
 

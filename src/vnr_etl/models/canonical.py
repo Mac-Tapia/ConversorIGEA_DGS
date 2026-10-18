@@ -86,6 +86,8 @@ class Load:
     source_id: str = ''
     feeder_id: str = ''
     lineage: Lineage | None = None
+    connected_kva: float | None = None
+    """Potencia instalada de la SED (VNR-GIS ``Sed.PotInstalada``, spec 023)."""
 
 
 @dataclass
@@ -109,6 +111,11 @@ class Switch:
     on_off: int = 1
     source_layer: str = ''
     source_id: str = ''
+    section_id: str = ''
+    """Tramo en el que está (spec 023); vacío si la fuente no lo dice."""
+    location: str = ''
+    """Lado del tramo: ``S`` el de la fuente, ``L`` el de la carga (como CYMDIST)."""
+    sectionalizer: bool = False
 
 
 @dataclass

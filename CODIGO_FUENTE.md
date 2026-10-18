@@ -127,6 +127,7 @@ Diseño completo en `VNR-GIS.md` (las «secciones» que citan los docstrings); o
 | `src/vnr_etl/connectors/databases.py` | Bases de datos y volcados SQL. | 001 |
 | `src/vnr_etl/connectors/delimited.py` | Texto delimitado (CSV/TXT) con codificación y separador deducidos. | 001 (RF-26) |
 | `src/vnr_etl/connectors/registry.py` | Registro de adaptadores de fuente. | 001 (RF-26) |
+| `src/vnr_etl/connectors/sqlserver_vnr.py` | Copia de SQL Server (`.bak`) de VNR-GIS de cualquier concesionaria: restaura con su huella, lee las tablas por sus campos y arma el modelo canónico (tramos por su padre, SED, maniobras, bancos, tensión y CRS de la propia copia). | 023 |
 | `src/vnr_etl/connectors/vector.py` | GeoJSON, Shapefile y GeoPackage. | 001 (RF-26) |
 | `src/vnr_etl/discovery/__init__.py` | Descubrimiento, huella, catálogo y descarga de fuentes. | 001 |
 | `src/vnr_etl/discovery/catalog.py` | Catálogo de publicaciones y empresas. | 001 |

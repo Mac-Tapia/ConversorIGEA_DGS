@@ -169,7 +169,8 @@ def canonical_to_cymdist(
             'ValueType': '2',
             'Value1': _text(load.kw),
             'Value2': _text(power_factor),
-            'ConnectedKVA': '',
+            # Spec 023: la potencia instalada de la SED, si la fuente la trae.
+            'ConnectedKVA': _text(getattr(load, 'connected_kva', None) or ''),
             'KWH': '',
             'Phase': load.phases,
             'NumberOfCustomer': '1',
@@ -207,6 +208,29 @@ def canonical_to_cymdist(
             'Amps': _text(conductor.ampacity_a),
         })
 
+    # Spec 023: las maniobras con su tramo y los vértices intermedios de cada tramo, que
+    # la copia de VNR-GIS trae y el puente no pasaba (líneas rectas, ninguna maniobra).
+    switch_settings, sectionalizer_settings = [], []
+    for switch in model.switches:
+        section = sections.get(getattr(switch, 'section_id', ''))
+        if section is None:
+            continue
+        row = {
+            'SectionID': section['SectionID'], 'EqID': switch.kind or 'SWITCH',
+            'EqNumber': switch.switch_id, 'EqPhase': section.get('Phase', ''),
+            'Location': getattr(switch, 'location', '') or 'L',
+            'Status': '1' if switch.on_off else '0', 'Locked': '0', 'EqState': '0',
+        }
+        (sectionalizer_settings if getattr(switch, 'sectionalizer', False)
+         else switch_settings).append(row)
+    intermediate_nodes = []
+    for section in model.sections:
+        if section.section_id not in sections or not section.geometry:
+            continue
+        for i, (x, y) in enumerate(section.geometry[1:-1], start=1):
+            intermediate_nodes.append({'SectionID': section.section_id, 'SeqNumber': str(i),
+                                       'CoordX': _text(x), 'CoordY': _text(y)})
+
     dataset = CymdistDataset(
         red_path=Path(source_path), loads_path=Path(source_path), equipment_path=Path(source_path),
         headnodes=headnodes,
@@ -216,7 +240,9 @@ def canonical_to_cymdist(
         sections=sections,
         section_owner=section_owner,
         feeders={feeder: tuple(section_ids) for feeder, section_ids in feeders.items()},
-        switch_settings=(), sectionalizer_settings=(), intermediate_nodes=(),
+        switch_settings=tuple(switch_settings),
+        sectionalizer_settings=tuple(sectionalizer_settings),
+        intermediate_nodes=tuple(intermediate_nodes),
         load_placements=load_placements,
         customer_loads=customer_loads,
         equipment_tables={'LINE': tuple(equipment_rows)},
