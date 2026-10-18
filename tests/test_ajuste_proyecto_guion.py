@@ -203,3 +203,16 @@ def test_barras_de_los_bancos_en_la_troncal(guion):
     red = Red(barras, tramos)
     assert guion.barras_para_bancos(red, 'B0', 1) == ['B4']
     assert guion.barras_para_bancos(red, 'B0', 2) == ['B2', 'B5']
+
+
+def test_con_central_tambien_avisa_la_fija_sobre_su_transformador(guion):
+    """020:RF-1, 015:RF-59 — un alimentador con central también avisa de la fija que pide más
+    que su transformador, con su propuesta: en NA205 (2026-10-17) SE50293 pedía 1 392 kW en
+    125 kVA, el flujo no convergía y no se decía."""
+    from test_ajuste_cabecera_guion import _fichas_plan, _sobrecargada
+
+    app = _app(escenario=True)
+    plan = {**_plan_central(clientes=_sobrecargada(app)), 'transformadores_sed': _fichas_plan()}
+    informe, _rc = guion.ejecutar(app, plan, simular=True)
+    [x] = informe['fijas_sobre_su_transformador']
+    assert x['sed'] == 'F1_S2' and x['carga_pct'] > 100 and x['propuesta']['kva']
