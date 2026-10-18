@@ -224,6 +224,9 @@ fuera de servicio y sin medidor, a 15 m de TM105)
   SISTEMA lo dirá y convertirá el alimentador como está.
 - RF-61: EL SISTEMA aceptará las reconstrucciones en la conversión por sistema de la web y
   la herramienta de RF-56 las pedirá con sus medidas.
+- RF-63: MIENTRAS un alimentador esté reconstruido por medida, EL SISTEMA calibrará con el
+  kVA de las SED que le asigna el DGS reconstruido, y no con el de la entrada original
+  (TM106 seguía con sus 339 kW de la entrada y no se calibraba).
 - RF-62: CUANDO se implementan los transformadores de las fijas sobrecargadas de varios
   alimentadores de un proyecto (020:RF-15), EL SISTEMA los cambiará todos y recalibrará el
   proyecto una sola vez (Chincha, 2026-10-18: CA101, PE102 y PN103 no convergían por sus

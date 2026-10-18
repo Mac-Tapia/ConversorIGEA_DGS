@@ -181,7 +181,8 @@ def attach_project_binding(
         return
     if evidence.get('status') != 'VERIFIED_BEFORE_MUTATION':
         return
-    from igea_dgs.powerfactory_binding import PowerFactoryProjectBinding, native_inventory_evidence
+    from igea_dgs.powerfactory_binding import (PowerFactoryProjectBinding, alimentadores_de_rotulos,
+                                               native_inventory_evidence)
 
     feeders = tuple(evidence.get('feeders') or [fallback_feeder])
     caso = report.get('caso_base') or {'status': 'NO_VERIFICADO', 'comprobaciones': {},
@@ -208,7 +209,9 @@ def attach_project_binding(
         native_inventory_sha256=native_hash,
         native_reread={
             'status': 'VERIFICADO_PERSISTENCIA' if verificado else 'CASO_BASE_NO_VERIFICADO',
-            'caso_base': {feeder: dict(estado) for feeder in feeders},
+            # 022:RF-52: también cada alimentador del rótulo de su barra de SET.
+            'caso_base': {feeder: dict(estado) for feeder in
+                          sorted(set(feeders) | alimentadores_de_rotulos(feeders))},
             'recorded_at': time.time(),
             'effective_reread': dict(report.get('effective_reread') or {}),
             'capacitor_reread': dict(report.get('capacitor_reread') or {}),

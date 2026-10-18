@@ -193,6 +193,9 @@ def correr(web: Web, zonal: str, *, demanda_dir: Path, periodo: str | None,
                       solo=solo)
     web.post('/demanda/clientes/cruzar', json={'alimentadores': sistema['alimentadores'],
                                                 'periodo': periodo})
+    # El vínculo exige que la última relectura de DIgSILENT vea el proyecto (spec 018): tras
+    # importar, Chincha (2026-10-18) dio PROJECT_BINDING_PROJECT_MISMATCH sin ella.
+    web.esperar(web.post('/powerfactory/projects'))
     plan = web.post('/demanda/ajuste/plan', json={
         'project': proyecto, 'job_id': maxima['id'], 'medidores': medidores,
         'completar_bancos': bancos, 'tension_fuente_pu': tension_pu})

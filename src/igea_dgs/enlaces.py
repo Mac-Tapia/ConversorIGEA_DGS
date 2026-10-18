@@ -283,9 +283,14 @@ def reconstruir_por_medida(model: FeederModel, pedidos: dict[str, float],
             continue
         d, n, m = mejor
         donante = sorted(f for f in info.feeder_of_node[m] if f != receptor)[0]
-        # El árbol antes del tramo nuevo: el camino de la cabecera del donante al nodo de unión.
-        aristas = _aristas(model)
-        dist, padre, _raiz, _en = _arbol(aristas, sorted(fuentes_de(model)))
+        # El árbol antes del tramo nuevo, solo en la red del donante y desde su cabecera: con
+        # toda la red, el nodo de unión de TM104 se alcanzaba por otro camino y el corte
+        # dejaba 2 000 de los 9 000 kVA que tocaban (Chincha, 2026-10-18).
+        nodos_donante = {x for x, fs in info.feeder_of_node.items() if donante in fs}
+        cabecera = next((f.source_node for f in info.feeders if f.name == donante), None)
+        aristas = [x for x in _aristas(model)
+                   if x[2] in nodos_donante and x[3] in nodos_donante]
+        dist, padre, _raiz, _en = _arbol(aristas, [cabecera] if cabecera else [])
         hijos = defaultdict(list)
         for v, (u, _i) in padre.items():
             if u not in (None, _RAIZ):
