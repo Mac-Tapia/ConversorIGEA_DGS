@@ -22,7 +22,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]` y pa
       `ElmFeeder` en su cubículo, coordenadas. (RF-8, RF-9, RF-12, RF-14, RF-17, RF-18,
       RF-18b)
       Hecho cuando: pruebas del DGS en verde y DGS idéntico con `workers=1` y `workers>1`.
-- [ ] T7. `ElmZone` por sistema eléctrico y `cpZone` en el esquema y el escritor. (RF-15,
+- [x] T7. `ElmZone` por sistema eléctrico y `cpZone` en el esquema y el escritor. (RF-15,
       RF-16)
       Hecho cuando: pruebas del esquema y del DGS en verde.
 - [ ] T8. Lote y CLI: la conversión unida estructurada y su informe. (RF-6, RF-7, RF-25,

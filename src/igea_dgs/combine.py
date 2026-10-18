@@ -165,6 +165,9 @@ class CombinedInfo:
     sin_set: list[str] = field(default_factory=list)
     """Spec 022: alimentadores de la entrega que no están en la estructura (RF-19)."""
 
+    sistemas: dict = field(default_factory=dict)
+    """Spec 022: código → :class:`~igea_dgs.estructura.Sistema` (nombre, sector, norma)."""
+
     de_energised: set[str] = field(default_factory=set)
     """Nodos sin camino a ninguna fuente, que se escriben fuera de servicio.
 
@@ -597,6 +600,9 @@ def estructurar(combinado: FeederModel, estructura, asignacion=None) -> list[str
         grupos[(codigo, round(float(ref.nominal_kv), 6))].append(ref)
         info.zonal_de[ref.name] = estructura.sets[codigo].zonal
         info.sistema_de[ref.name] = estructura.alimentadores[ref.name.upper()].sistema
+        sist = info.sistema_de[ref.name]
+        if sist in estructura.sistemas:
+            info.sistemas[sist] = estructura.sistemas[sist]
     if info.sin_set:
         avisos.append(f'{len(info.sin_set)} alimentador(es) sin SET en la estructura, con su '
                       'red externa propia: ' + ', '.join(info.sin_set) + ' (022:RF-19).')

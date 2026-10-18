@@ -956,6 +956,33 @@ def write_dgs(
                 GPSlat=gp.lat if gp is not None else '', GPSlon=gp.lon if gp is not None else '',
             ))
         barra_en_set[b.node_id] = set_fids[b.set_codigo]
+    # Spec 022: una zona de DIgSILENT por sistema eléctrico, con su sector típico y su norma
+    # (RF-15, RF-16), en la red del zonal de su primer alimentador; cada barra de un
+    # alimentador apunta a la de su sistema. Las barras de SET son de varios: sin zona.
+    zona_fids: dict[str, str] = {}
+    zona_de_nodo: dict[str, str] = {}
+    if barras_set:
+        sistemas = getattr(combinado, 'sistemas', None) or {}
+        por_sistema: dict[str, list[str]] = {}
+        for alim, sist in sorted(combinado.sistema_de.items()):
+            if sist:
+                por_sistema.setdefault(sist, []).append(alim)
+        for sist, alims in sorted(por_sistema.items()):
+            zona_fids[sist] = reg.new()
+            dato = sistemas.get(sist)
+            nombre = f'{sist} {dato.nombre}'.strip() if dato is not None else sist
+            desc = (f'sector típico {dato.sector}; {dato.norma}' if dato is not None else '')
+            red_zona = net_fids.get(combinado.zonal_de.get(alims[0], ''), network_fid)
+            rows['ElmZone'].append(_make_row(
+                schema, 'ElmZone', FID=zona_fids[sist], OP='C', loc_name=_loc_name(nombre),
+                fold_id=red_zona, icolor=len(zona_fids) % 16 + 1, desc=desc,
+            ))
+        barras_de_set = {b.node_id for b in barras_set}
+        for nodo, alims in combinado.feeder_of_node.items():
+            if alims and nodo not in barras_de_set:
+                sist = combinado.sistema_de.get(alims[0], '')
+                if sist in zona_fids:
+                    zona_de_nodo[nodo] = zona_fids[sist]
 
     seds_by_key = {(sed.section_id, sed.device_number): sed for sed in model.seds}
     for key in sed_keys:
@@ -981,6 +1008,7 @@ def write_dgs(
             fold_id=dentro or net_of(node_id), typ_id='', systype=0, iUsage=0 if dentro else 1,
             uknom=kv, unknom=kv / math.sqrt(3.0), iminus=0, outserv=fuera(node_id),
             GPSlat=gp.lat if gp is not None else '', GPSlon=gp.lon if gp is not None else '', vtarget=1,
+            cpZone=zona_de_nodo.get(node_id, ''),
         ))
 
     # Internal SED buses (folder children of ElmSubstat) — required for PF double-click SLD.
@@ -1603,6 +1631,10 @@ def write_dgs(
         used_tables.add('ElmShnt')
     if sed_keys:
         used_tables |= {'ElmSubstat', 'ElmTr2', 'TypTr2', 'ElmCoup'}
+    if rows['ElmZone']:
+        used_tables.add('ElmZone')                                   # 022:RF-15
+    if rows['ElmSubstat']:
+        used_tables.add('ElmSubstat')                                # 022:RF-9
     if rows['ElmCoup']:
         # Los enlaces entre alimentadores también son ElmCoup, y pueden existir en una
         # red sin ninguna SED. Atar la tabla solo a las SED los dejaba fuera del

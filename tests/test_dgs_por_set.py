@@ -9,8 +9,12 @@ from igea_dgs.validate import parse_dgs
 from test_combine import _alimentador
 
 E = estructura_de_dict({'zonales': [
-    {'nombre': 'Norte', 'sets': [{'codigo': 'SET 1', 'nombre': 'Uno', 'alimentadores': ['A', 'B']}]},
-    {'nombre': 'Sur', 'sets': [{'codigo': 'SET 2', 'nombre': 'Dos', 'alimentadores': ['C']}]}]})
+    {'nombre': 'Norte', 'sets': [{'codigo': 'SET 1', 'nombre': 'Uno', 'alimentadores': [
+        {'codigo': 'A', 'sistema': 'SE01'}, {'codigo': 'B', 'sistema': 'SE02'}]}]},
+    {'nombre': 'Sur', 'sets': [{'codigo': 'SET 2', 'nombre': 'Dos', 'alimentadores': [
+        {'codigo': 'C', 'sistema': 'SE01'}]}]}],
+    'sistemas': {'SE01': {'nombre': 'Urbano', 'sector': '2', 'norma': 'NTCSE'},
+                 'SE02': {'nombre': 'Rural', 'sector': '3', 'norma': 'NTCSER'}}})
 
 
 def _red():
@@ -78,3 +82,16 @@ def test_sin_estructura_como_antes_y_determinista(tmp_path):
     a, _ = _tablas(tmp_path, _red(), 'a.dgs')
     b, _ = _tablas(tmp_path, _red(), 'b.dgs')
     assert a.read_bytes() == b.read_bytes()
+
+
+def test_una_zona_por_sistema_electrico(tmp_path):
+    """022:RF-15, 022:RF-16 — una zona por sistema eléctrico con su sector típico y su norma;
+    cada barra de un alimentador en la zona de su sistema; las barras de SET, sin zona."""
+    _out, t = _tablas(tmp_path, _red())
+    zonas = {r['loc_name']: r for r in t['ElmZone']}
+    assert set(zonas) == {'SE01 Urbano', 'SE02 Rural'}
+    assert 'NTCSER' in zonas['SE02 Rural']['desc'] and 'sector típico 3' in zonas['SE02 Rural']['desc']
+    terms = {r['loc_name']: r for r in t['ElmTerm']}
+    assert terms['A_H']['cpZone'] == terms['C_H']['cpZone'] == zonas['SE01 Urbano']['FID']
+    assert terms['B_H']['cpZone'] == zonas['SE02 Rural']['FID']
+    assert all(r['cpZone'] == '' for n, r in terms.items() if n.startswith('B_SET') or n.startswith('X'))
