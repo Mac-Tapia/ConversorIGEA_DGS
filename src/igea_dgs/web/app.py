@@ -350,8 +350,12 @@ class SelectionIn(BaseModel):
     # Unir la selección en UN solo DGS (red unida), con este nombre.
     unir: bool = False
     nombre: str = ''
-    # Spec 022: la red unida colgada de sus SET y zonales, con la estructura de la empresa.
-    por_set: bool = False
+
+
+class SistemaIn(BaseModel):
+    """Spec 022, RF-48: los zonales a convertir; vacío, todos."""
+
+    zonales: list[str] = Field(default_factory=list)
 
 
 class FeedersIn(BaseModel):
@@ -839,6 +843,24 @@ def create_app(
                       lambda ctx: reconstruct_selection(
                           ws, body.feeders, all_feeders=body.all, ctx=ctx))
 
+    # Spec 022, RF-47 a RF-51: la conversión por sistema eléctrico, una opción propia.
+    @app.get('/api/workspaces/{wid}/estructura')
+    def estructura(wid: str) -> dict:
+        ws = ws_or_404(wid)
+        services.require_loaded(ws)
+        return services.estructura_resumen(ws)
+
+    @app.post('/api/workspaces/{wid}/convert/sistema', status_code=202)
+    def convert_sistema(wid: str, body: SistemaIn) -> dict:
+        ws = ws_or_404(wid)
+        services.check_ready(ws)
+        services.check_convert_options(ws)
+        feeders, nombre, estructura = services.sistema_seleccion(ws, body.zonales)
+        return submit(ws, 'convert_group', f'Sistema eléctrico {nombre}.dgs ({len(feeders)} alimentadores)',
+                      lambda ctx: services.convert_group(
+                          ws, ctx, feeders, nombre, requested_feeders=feeders,
+                          estructura=estructura, tipo='sistema'))
+
     @app.post('/api/workspaces/{wid}/convert', status_code=202)
     def convert(wid: str, body: SelectionIn) -> dict:
         ws = ws_or_404(wid)
@@ -853,8 +875,7 @@ def create_app(
             requested = feeders if body.all else body.feeders
             return submit(ws, 'convert_group', f'Unir {len(feeders)} alimentadores en {nombre}.dgs',
                           lambda ctx: services.convert_group(
-                              ws, ctx, feeders, nombre, requested_feeders=requested,
-                              por_set=body.por_set))
+                              ws, ctx, feeders, nombre, requested_feeders=requested))
         n = len(ws.inventory['feeders']) if body.all and ws.inventory else len(body.feeders)
         title = f'Convertir {"TODOS" if body.all else ""} {n} alimentador(es) a DGS'.replace('  ', ' ')
         return submit(ws, 'convert', title,

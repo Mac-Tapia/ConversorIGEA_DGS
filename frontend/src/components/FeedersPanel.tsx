@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { api, fmtNum } from '../api';
 import { useApp } from '../context';
-import type { FeederRow } from '../types';
+import type { EstructuraResumen, FeederRow } from '../types';
 import { Pill, Stat, useConfirm } from './ui';
 import { ReconstructionPanel } from './ReconstructionPanel';
 
@@ -39,11 +39,13 @@ function GroupsList() {
   return (
     <div className="table-wrap table-short" style={{ marginBottom: 10 }}>
       <table className="table">
-        <thead><tr><th>DGS unido</th><th>Alimentadores</th><th>Estado</th><th>Hoja</th><th /></tr></thead>
+        <thead><tr><th>DGS unido</th><th>Tipo</th><th>Alimentadores</th><th>Estado</th><th>Hoja</th><th /></tr></thead>
         <tbody>
           {grupos.map((g) => (
             <tr key={g.name}>
               <td className="strong">{g.name}.dgs</td>
+              {/* 022:RF-51: por sistema eléctrico y unida son conversiones distintas. */}
+              <td>{g.tipo === 'sistema' ? <Pill tone="info">sistema eléctrico</Pill> : <Pill tone="muted">unida</Pill>}</td>
               <td className="small">{g.feeders.join(', ')}</td>
               <td>{g.status === 'ok'
                 ? <Pill tone={g.completitud?.fallos?.length ? 'warn' : 'ok'}>completo</Pill>
@@ -71,8 +73,9 @@ export function FeedersPanel() {
   const { ws, feeders, selected, setSelected, active, startJob, run } = useApp();
   const confirm = useConfirm();
   const [filter, setFilter] = useState('');
-  // Spec 022: unir por zonal y SET con la estructura de la empresa.
-  const [porSet, setPorSet] = useState(false);
+  // Spec 022, RF-47 a RF-51: la conversión por sistema eléctrico, aparte de unir.
+  const [estructura, setEstructura] = useState<EstructuraResumen | null>(null);
+  const [zonal, setZonal] = useState('');
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'feeder', dir: 1 });
   const anchor = useRef<string | null>(null);
   const engineBusy = Boolean(active.engine);
@@ -145,7 +148,16 @@ export function FeedersPanel() {
       + 'seleccionados.\n\nNombre del DGS:',
       sugerido);
     if (nombre === null) return;
-    await startJob(() => api.convertGroup(ws.id, selected, nombre.trim() || sugerido, porSet));
+    await startJob(() => api.convertGroup(ws.id, selected, nombre.trim() || sugerido));
+  };
+
+  const cargarEstructura = async () => {
+    if (estructura) return;
+    const e = await run(() => api.estructura(ws.id));
+    if (e) setEstructura(e);
+  };
+  const convertirSistema = async () => {
+    await startJob(() => api.convertSistema(ws.id, zonal ? [zonal] : []));
   };
 
   const pfFlow = async () => {
@@ -334,10 +346,21 @@ export function FeedersPanel() {
               title="Los alimentadores seleccionados en un solo DGS (red unida)">
               Unir {selected.length >= 2 ? selected.length : ''} en un solo DGS…
             </button>
-            <label className="check" title="Una red por zonal, cada SET con sus barras y una red externa por barra; enlaces y anillos abiertos y el oráculo de la red entera (spec 022)">
-              <input type="checkbox" checked={porSet} disabled={engineBusy} onChange={(e) => setPorSet(e.target.checked)} />
-              {' '}Por zonal y SET
-            </label>
+          </div>
+          <div className="row">
+            <span>Por sistema eléctrico:</span>
+            <select value={zonal} disabled={engineBusy || !estructura?.zonales.length}
+              onFocus={cargarEstructura} onChange={(e) => setZonal(e.target.value)}>
+              <option value="">Todos los sistemas (SISTEMA_ELECTRICO)</option>
+              {(estructura?.zonales ?? []).map((z) => (
+                <option key={z.nombre} value={z.nombre}>{z.nombre} — {z.sets.length} SET, {z.alimentadores.length} alimentadores</option>
+              ))}
+            </select>
+            <button className="btn" disabled={engineBusy || !allReady} onClick={convertirSistema}
+              title="Un DGS por sistema eléctrico: una red por zonal, cada SET con sus barras y una red externa por barra; enlaces y anillos abiertos y el oráculo de la red entera. Aparte de unir: no se mezcla (spec 022)">
+              Convertir por sistema eléctrico
+            </button>
+            {estructura && !estructura.zonales.length && <small className="muted">Sin estructura de la empresa: súbala en el paso de demanda o póngala en el perfil.</small>}
             <a className={`btn ${converted ? '' : 'btn-disabled'}`}
               href={converted ? api.zipUrl(ws.id, selected.length ? selected : []) : undefined}
               aria-disabled={!converted}>

@@ -116,6 +116,8 @@ export interface GroupDgs {
   hoja: { formato: string; orientacion: string; escala_1_a: number; cuadricula_mm: number } | null;
   ties: number | null;
   completitud: { fallos: string[] } | null;
+  /** Spec 022, RF-49: «sistema» (por sistema eléctrico) o «unida» (dos o más). */
+  tipo?: 'sistema' | 'unida';
 }
 
 export interface SlotSpec {
@@ -1382,4 +1384,11 @@ export interface BarraDeSet {
   kw: number;
   kvar: number;
   registros: number;
+}
+
+/** Spec 022, RF-48: los zonales de la estructura con sus alimentadores en la entrega. */
+export interface EstructuraResumen {
+  origen: 'perfil' | 'excel' | null;
+  sin_set?: string[];
+  zonales: { nombre: string; sets: string[]; alimentadores: string[] }[];
 }

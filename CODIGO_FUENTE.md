@@ -23,7 +23,7 @@ spec 001, RF-14 (DGS idéntico byte a byte); su diseño histórico está en
 | `src/igea_dgs/catalog_data.py` | Datos de fabricante y de norma para los parámetros eléctricos. | base |
 | `src/igea_dgs/catalog_merge.py` | Completa el catálogo de equipos cuando el export llega incompleto. | base, 001 |
 | `src/igea_dgs/catalog_resolution.py` | Resolución de equipos por evidencia, sin renombrar los códigos de origen. | 001 (RF-18) |
-| `src/igea_dgs/cli.py` | Orden `igea-dgs`: `list`, `convert` y `web`.; `--por-set` y `--estructura` con `--unir` | 001 (RF-1, RF-2), 022 (RF-4, RF-7) |
+| `src/igea_dgs/cli.py` | Orden `igea-dgs`: `list`, `convert` y `web`.; `--por-sistema [ZONAL]` y `--estructura`, aparte de `--unir` | 001 (RF-1, RF-2), 022 (RF-4, RF-7, RF-47 a RF-49) |
 | `src/igea_dgs/combine.py` | Une todos los alimentadores en una sola red; con la estructura de la empresa, la cuelga de sus SET: barra por SET y tensión e interruptor de cabecera por alimentador. | base, 022 (RF-10 a RF-13, RF-17 a RF-19, RF-21) |
 | `src/igea_dgs/coordenadas.py` | Completa las coordenadas que faltan con el grafo de la red. | base |
 | `src/igea_dgs/dataset.py` | Lector de los TXT (RED, CARGA, BD_Equipo), en las dos disposiciones. | base |
@@ -90,12 +90,12 @@ spec 001, RF-14 (DGS idéntico byte a byte); su diseño histórico está en
 | --- | --- | --- |
 | `src/igea_dgs/web/__init__.py` | Paquete de la interfaz web. | 001 |
 | `src/igea_dgs/web/__main__.py` | Arranca la web: `python -m igea_dgs.web` o `igea-dgs-web`; con el puerto ocupado reutiliza, reemplaza o cambia de puerto. | 001 (RF-15, RF-27, RF-28 a RF-32) |
-| `src/igea_dgs/web/app.py` | Rutas FastAPI sobre el motor.; `por_set` en la conversión unida y la tabla de la estructura | 001, 004 a 008, 011 (RF-12, RF-25, RF-27, RF-28, RF-95, RF-104), 017 (RF-96, RF-103, RF-104), 021 (RF-26, RF-28 a RF-34), 022 (RF-4, RF-7) |
+| `src/igea_dgs/web/app.py` | Rutas FastAPI sobre el motor.; conversión por sistema eléctrico (`/convert/sistema`, `/estructura`) y la tabla de la estructura | 001, 004 a 008, 011 (RF-12, RF-25, RF-27, RF-28, RF-95, RF-104), 017 (RF-96, RF-103, RF-104), 021 (RF-26, RF-28 a RF-34), 022 (RF-4, RF-7, RF-47 a RF-49) |
 | `src/igea_dgs/web/jobs.py` | Trabajos largos en cola, con progreso, cancelación y límite de tiempo por guion (P7). | 001 (RF-8), 011 (RF-39, RF-40) |
 | `src/igea_dgs/web/readiness.py` | Puertas por alimentador antes de producir DGS. | 001 |
 | `src/igea_dgs/web/reconstruction_service.py` | Diagnóstico y reconstrucción como trabajos de la web. | 001 (RF-8, RF-9) |
 | `src/igea_dgs/web/runtime.py` | Comprobación del entorno que hace el lanzador de Windows y huella del código. | 001 (RF-27, RF-28) |
-| `src/igea_dgs/web/services.py` | Las acciones de la interfaz, sin interfaz.; máxima por barra de SET y sus alimentadores en esa fecha; estructura del espacio | 001, 004 a 008, 011 (RF-12 a RF-16, RF-25, RF-27 a RF-30, RF-39 a RF-41, RF-68, RF-95, RF-121), 017 (RF-47 a RF-53, RF-59, RF-60, RF-65 a RF-67b, RF-71, RF-82, RF-93, RF-94, RF-104), 020 (RF-6, RF-13, RF-15, RF-25, RF-28), 021 (RF-26 a RF-34, RF-50, RF-51, RF-54, RF-57, RF-61, RF-64), 022 (RF-4, RF-37 a RF-44) |
+| `src/igea_dgs/web/services.py` | Las acciones de la interfaz, sin interfaz; conversión por sistema eléctrico (022:RF-47 a RF-51).; máxima por barra de SET y sus alimentadores en esa fecha; estructura del espacio | 001, 004 a 008, 011 (RF-12 a RF-16, RF-25, RF-27 a RF-30, RF-39 a RF-41, RF-68, RF-95, RF-121), 017 (RF-47 a RF-53, RF-59, RF-60, RF-65 a RF-67b, RF-71, RF-82, RF-93, RF-94, RF-104), 020 (RF-6, RF-13, RF-15, RF-25, RF-28), 021 (RF-26 a RF-34, RF-50, RF-51, RF-54, RF-57, RF-61, RF-64), 022 (RF-4, RF-37 a RF-44) |
 | `src/igea_dgs/web/source_runs.py` | Custodia inmutable de los ficheros de cada ejecución. | 001 |
 | `src/igea_dgs/web/source_scope.py` | Empresa y periodo de los paquetes VNR-GIS. | 001 (RF-2) |
 | `src/igea_dgs/web/sources/__init__.py` | Reexportación temporal de `igea_dgs.sources`. | 002 (RF-21 la retira) |
@@ -200,7 +200,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | --- | --- | --- |
 | `frontend/src/main.tsx` | Arranque de React. | 001 |
 | `frontend/src/App.tsx` | Marco de la página: paneles, pestañas, resúmenes de trabajos. | 001, 008 (RF-1, RF-2) |
-| `frontend/src/api.ts` | Cliente tipado de la API.; unir por zonal y SET y máxima por barra | 001 (RF-12, RF-13), 011 (RF-42), 021 (RF-26, RF-34), 022 (RF-7, RF-39) |
+| `frontend/src/api.ts` | Cliente tipado de la API.; conversión por sistema eléctrico y máxima por barra | 001 (RF-12, RF-13), 011 (RF-42), 021 (RF-26, RF-34), 022 (RF-7, RF-39) |
 | `frontend/src/types.ts` | Tipos de las respuestas de la API. | 001, 011, 021 |
 | `frontend/src/clientesCatalogo.ts` | Estado del catálogo mensual de clientes: un solo libro activo e índice vigente antes de cruzar. | 004, 008 |
 | `frontend/src/projectBinding.ts` | Vínculo del proyecto de DIgSILENT con su ejecución de origen: separa los bloqueos de las advertencias por cambios manuales. | 005 |
@@ -209,7 +209,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `frontend/src/styles.css` | Tokens y estilos, modo claro y oscuro; paleta de las series de la curva. | 001, 021 |
 | `frontend/src/components/InputsPanel.tsx` | Entrada de datos: TXT, MDB y VNR-GIS. | 001 (RF-26) |
 | `frontend/src/components/OptionsPanel.tsx` | Opciones de conversión. | 001 |
-| `frontend/src/components/FeedersPanel.tsx` | Tabla de alimentadores y conversión.; unir por zonal y SET | 001, 022 (RF-7) |
+| `frontend/src/components/FeedersPanel.tsx` | Tabla de alimentadores y conversión.; conversión por sistema eléctrico con su zonal, aparte de unir, y el tipo de cada DGS unido | 001, 022 (RF-7) |
 | `frontend/src/components/ReconstructionPanel.tsx` | Diagnóstico y reconstrucción. | 001 (RF-8, RF-9) |
 | `frontend/src/components/Modules.tsx` | Pestañas de resultados, catálogo y sistema completo. | 001 |
 | `frontend/src/components/CargasTab.tsx` | Pestaña «Cargas en DIgSILENT» en cuatro pasos; la distancia mínima de las cargas nuevas. | 004, 005, 008, 011 (RF-42, RF-98), 016 (RF-73) |
