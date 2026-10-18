@@ -291,9 +291,15 @@ def _calc_objects(app: Any, pattern: str) -> list[Any]:
 
 def connect_powerfactory(*, start_engine: bool = True, command_line: str | None = None) -> Any:
     """Return PF Application; prefer running instance, else start engine."""
+    # 019:RF-16: la API se busca también en la instalación de DIgSILENT, como en los demás
+    # guiones; la aceptación lanzada a mano (VNR-GIS, 2026-10-18) no la encontraba.
+    from igea_dgs.pf_arnes import PFNoDisponible as _SinApi  # noqa: PLC0415
+    from igea_dgs.pf_arnes import importar_api, salida_sin_bufer  # noqa: PLC0415
+
+    salida_sin_bufer()
     try:
-        import powerfactory as pf  # noqa: PLC0415
-    except ImportError as exc:
+        pf = importar_api()
+    except _SinApi as exc:
         raise ImportError(
             'Módulo powerfactory no disponible. Añada a PYTHONPATH la carpeta '
             r'C:\Program Files\DIgSILENT\PowerFactory 2024\Python\3.12 '
