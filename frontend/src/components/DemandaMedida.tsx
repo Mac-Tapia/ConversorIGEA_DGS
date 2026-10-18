@@ -11,6 +11,7 @@ const LIBROS: { tipo: DemandaTipo; titulo: string; ayuda: string }[] = [
   { tipo: 'cabecera', titulo: 'Medición de cabecera', ayuda: 'Uno o varios libros (una hoja por medidor), o la carpeta que los contiene.' },
   { tipo: 'suministros', titulo: 'Suministros', ayuda: '«Suministro Act», «Suministro», «SED» y «RADIAL».' },
   { tipo: 'clientes', titulo: 'Clientes importantes mensuales', ayuda: 'Carpeta o libros con hoja «resumen»: Nis/EA/ERI/Pot o SUMINISTRO/EA_TOTAL/ERI_TOTAL/POT_MAX.' },
+  { tipo: 'estructura', titulo: 'Estructura zonal → SET (opcional)', ayuda: '«Zonal», «Código SET» y «Alimentador» (y sistema eléctrico, sector y siglas). Sin ella, la del perfil de empresa.' },
 ];
 const EXT = '.xls,.xlsx,.xlsb,.xlsm';
 

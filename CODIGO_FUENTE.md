@@ -90,7 +90,7 @@ spec 001, RF-14 (DGS idéntico byte a byte); su diseño histórico está en
 | --- | --- | --- |
 | `src/igea_dgs/web/__init__.py` | Paquete de la interfaz web. | 001 |
 | `src/igea_dgs/web/__main__.py` | Arranca la web: `python -m igea_dgs.web` o `igea-dgs-web`; con el puerto ocupado reutiliza, reemplaza o cambia de puerto. | 001 (RF-15, RF-27, RF-28 a RF-32) |
-| `src/igea_dgs/web/app.py` | Rutas FastAPI sobre el motor. | 001, 004 a 008, 011 (RF-12, RF-25, RF-27, RF-28, RF-95, RF-104), 017 (RF-96, RF-103, RF-104), 021 (RF-26, RF-28 a RF-34) |
+| `src/igea_dgs/web/app.py` | Rutas FastAPI sobre el motor.; `por_set` en la conversión unida y la tabla de la estructura | 001, 004 a 008, 011 (RF-12, RF-25, RF-27, RF-28, RF-95, RF-104), 017 (RF-96, RF-103, RF-104), 021 (RF-26, RF-28 a RF-34), 022 (RF-4, RF-7) |
 | `src/igea_dgs/web/jobs.py` | Trabajos largos en cola, con progreso, cancelación y límite de tiempo por guion (P7). | 001 (RF-8), 011 (RF-39, RF-40) |
 | `src/igea_dgs/web/readiness.py` | Puertas por alimentador antes de producir DGS. | 001 |
 | `src/igea_dgs/web/reconstruction_service.py` | Diagnóstico y reconstrucción como trabajos de la web. | 001 (RF-8, RF-9) |
@@ -200,7 +200,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | --- | --- | --- |
 | `frontend/src/main.tsx` | Arranque de React. | 001 |
 | `frontend/src/App.tsx` | Marco de la página: paneles, pestañas, resúmenes de trabajos. | 001, 008 (RF-1, RF-2) |
-| `frontend/src/api.ts` | Cliente tipado de la API. | 001 (RF-12, RF-13), 011 (RF-42), 021 (RF-26, RF-34) |
+| `frontend/src/api.ts` | Cliente tipado de la API.; unir por zonal y SET y máxima por barra | 001 (RF-12, RF-13), 011 (RF-42), 021 (RF-26, RF-34), 022 (RF-7, RF-39) |
 | `frontend/src/types.ts` | Tipos de las respuestas de la API. | 001, 011, 021 |
 | `frontend/src/clientesCatalogo.ts` | Estado del catálogo mensual de clientes: un solo libro activo e índice vigente antes de cruzar. | 004, 008 |
 | `frontend/src/projectBinding.ts` | Vínculo del proyecto de DIgSILENT con su ejecución de origen: separa los bloqueos de las advertencias por cambios manuales. | 005 |
@@ -209,7 +209,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `frontend/src/styles.css` | Tokens y estilos, modo claro y oscuro; paleta de las series de la curva. | 001, 021 |
 | `frontend/src/components/InputsPanel.tsx` | Entrada de datos: TXT, MDB y VNR-GIS. | 001 (RF-26) |
 | `frontend/src/components/OptionsPanel.tsx` | Opciones de conversión. | 001 |
-| `frontend/src/components/FeedersPanel.tsx` | Tabla de alimentadores y conversión. | 001 |
+| `frontend/src/components/FeedersPanel.tsx` | Tabla de alimentadores y conversión.; unir por zonal y SET | 001, 022 (RF-7) |
 | `frontend/src/components/ReconstructionPanel.tsx` | Diagnóstico y reconstrucción. | 001 (RF-8, RF-9) |
 | `frontend/src/components/Modules.tsx` | Pestañas de resultados, catálogo y sistema completo. | 001 |
 | `frontend/src/components/CargasTab.tsx` | Pestaña «Cargas en DIgSILENT» en cuatro pasos; la distancia mínima de las cargas nuevas. | 004, 005, 008, 011 (RF-42, RF-98), 016 (RF-73) |

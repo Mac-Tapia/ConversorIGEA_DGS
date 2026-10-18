@@ -148,3 +148,12 @@ def test_maxima_por_barra_de_set_en_la_web():
     assert '<th>Alimentadores (en esa fecha)</th>' in DEMANDA
     assert 'por_barra: Boolean(criterio.por_barra),' in API
     assert 'export interface BarraDeSet' in TIPOS
+
+
+def test_unir_por_zonal_y_set_y_tabla_de_estructura():
+    """022:RF-4, 022:RF-7 — casilla «Por zonal y SET» junto a «Unir», que va en la orden, y
+    ranura para subir la tabla de la estructura."""
+    panel = (SRC / 'components' / 'FeedersPanel.tsx').read_text(encoding='utf-8')
+    assert 'Por zonal y SET' in panel and 'nombre.trim() || sugerido, porSet)' in panel
+    assert "por_set: porSet" in API
+    assert "tipo: 'estructura', titulo: 'Estructura zonal → SET (opcional)'" in DEMANDA

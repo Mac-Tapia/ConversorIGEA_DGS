@@ -212,7 +212,7 @@ export interface WorkspaceState {
   /** Obras de mejora definidas y aún sin aplicar (spec 011, RF-95). */
   obras?: ObraGuardada[];
   /** Libros de la demanda medida guardados en el espacio (spec 004, RF-39). */
-  demanda?: Partial<Record<'medidores' | 'cabecera' | 'suministros' | 'clientes', DemandaLibro>>;
+  demanda?: Partial<Record<'medidores' | 'cabecera' | 'suministros' | 'clientes' | 'estructura', DemandaLibro>>;
   last_seq: number;
   jobs?: Job[];
   warning?: string;
