@@ -306,7 +306,8 @@ def modelo_canonico(datos: DatosVnr, salidas: Iterable[str] | None = None, *,
         if pedidas is not None and salida not in pedidas:
             continue
         fila = next(s for s in datos.salidas if _s(s, 'CodSalidaMT') == salida)
-        kv = kv_de.get(_s(fila, 'CodTenNomi').upper())
+        letra = _s(fila, 'CodTenNomi').upper()
+        kv = kv_de.get(letra)
         tramos = sorted(tramos_de.get(salida, []), key=lambda t: _s(t, 'CodTramoMT'))
         if not tramos:
             avisos.append({'code': 'SALIDA_SIN_TRAMOS', 'source_id': salida})
@@ -391,13 +392,17 @@ def modelo_canonico(datos: DatosVnr, salidas: Iterable[str] | None = None, *,
             usados |= {a, b}
             norma = _s(t, 'CodNorma')
             material, seccion, n_fases = norma_de(normas.get(norma, ''))
-            if norma and norma not in conductores:
-                conductores[norma] = ConductorType(
-                    conductor_code=norma, material=material, section_mm2=seccion,
+            # El tipo es la norma con la letra de tensión («AA05003D»): así lo forman los
+            # modelos de la misma red en las otras fuentes y los catálogos de la empresa.
+            # Con la norma sola no casaba ninguna ficha (IN111, 2026-10-18).
+            tipo = f'{norma}{_s(t, "CodTenNomi").upper() or letra}' if norma else ''
+            if tipo and tipo not in conductores:
+                conductores[tipo] = ConductorType(
+                    conductor_code=tipo, material=material, section_mm2=seccion,
                     nominal_kv=kv, source_layer='admCodigosNorma', source_id=norma)
             largo = sum(math.dist(p, q) for p, q in zip(geo[cod], geo[cod][1:]))
             modelo.sections.append(Section(
-                section_id=cod, from_node=a, to_node=b, conductor_code=norma,
+                section_id=cod, from_node=a, to_node=b, conductor_code=tipo,
                 phases=_fases(n_fases, norma), nominal_kv=kv, length_m=round(largo, 3),
                 geometry=puntos, source_layer='mtTramo', source_id=cod, feeder_id=salida))
             orientado[cod] = (a, b, puntos)
@@ -494,6 +499,7 @@ def leer_datos(cn_red, cn_param=None) -> DatosVnr:
     cols_red = columnas(cn_red)
     red = tablas_por_campos(cols_red)
     extra = {'salida': ('CodSisElectrico',), 'sed': ('MaxDemTotal',),
+             'tramo': ('CodTenNomi',),
              'equipo': ('CodNorma', 'UTMEste', 'UTMNorte')}
     for concepto, atributo in (('empresa', 'empresa'), ('salida', 'salidas'), ('set', 'sets'),
                                ('tramo', 'tramos'), ('vertice', 'vertices'), ('sed', 'seds'),
