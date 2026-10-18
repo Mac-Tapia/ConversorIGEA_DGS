@@ -20,4 +20,7 @@
       intermedios iguales en DIgSILENT; GPS en 968/968 barras y 699/699 tramos, curvas del
       diagrama iguales al mapa (máx. 0,96 m). Arreglado: tipos con la letra de tensión y sus
       fichas del catálogo, y la aceptación con la API buscada en la instalación (019:RF-16).
-- [ ] T6. Validación RF por RF y suite completa sin omitidas. (todos)
+- [x] T6. Validación RF por RF y suite completa sin omitidas. (todos)
+      2026-10-18: RF-1 a RF-10 citados por sus pruebas; suite con las siete variables y
+      `-rs`: 2450 pasan, ninguna omitida (línea base 001 regenerada con el catálogo de fichas).
+      Sistema Ica desde la copia: «Caso base» VERIFICADO tras corregir la aceptación.
