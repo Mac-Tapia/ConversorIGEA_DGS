@@ -160,7 +160,7 @@ def test_consigna_de_la_fuente_en_los_dos_casos(guion):
 
 
 def test_pone_los_bancos_que_faltan_y_recalibra(guion, monkeypatch):
-    """021:RF-64 a RF-69 — tras una primera pasada sin guardar, los bancos del tamaño del
+    """021:RF-64, 021:RF-65, 021:RF-66, 021:RF-67, 021:RF-68, 021:RF-69 — tras una primera pasada sin guardar, los bancos del tamaño del
     perfil en la troncal, en servicio en «Sin proyecto» y «Con proyecto» y fuera en el
     «Caso base»; se recalibra y salen en la tabla de cambios."""
     app = _app(escenario=True)

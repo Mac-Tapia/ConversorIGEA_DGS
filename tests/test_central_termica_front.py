@@ -102,7 +102,7 @@ def test_mes_de_analisis_antes_de_buscar_la_maxima():
 
 
 def test_instante_coincidente_de_la_maxima_de_un_alimentador():
-    """021:RF-50, RF-52 — tras la búsqueda, se puede calibrar a todos en la máxima de uno:
+    """021:RF-50, 021:RF-52 — tras la búsqueda, se puede calibrar a todos en la máxima de uno:
     se vuelve a buscar con ese instante y se avisa de que es coincidente."""
     assert 'Instante de la calibración' in DEMANDA
     assert 'Coincidente: la máxima de {x.alimentador} · {x.fecha}' in DEMANDA

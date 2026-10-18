@@ -43,6 +43,17 @@ class DgsSchema:
                 partes.append(parte)
         return replace(self, tables={**self.tables, 'IntGrfcon': ';'.join(partes)})
 
+    def con_zonas(self) -> 'DgsSchema':
+        """El mismo perfil con ``cpZone`` en ``ElmTerm``: la zona de cada barra (022:RF-15).
+
+        Solo en un DGS con zonas: en los demás la cabecera queda como estaba y el DGS es el
+        mismo byte a byte que antes de la spec 022 (RF-6, línea base de la 001).
+        """
+        cabecera = self.tables.get('ElmTerm', '')
+        if 'cpZone' in cabecera:
+            return self
+        return replace(self, tables={**self.tables, 'ElmTerm': cabecera + ';cpZone(p)'})
+
     def header(self, table: str) -> str:
         try:
             return self.tables[table]

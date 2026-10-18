@@ -682,7 +682,7 @@ def _recibido(client, wid, token):
 
 
 def test_el_plan_lleva_la_central_y_su_maxima_de_demanda(client):
-    """021:RF-25, RF-33, RF-35 — con la central declarada, el plan lleva su barra, sus
+    """021:RF-25, 021:RF-33, 021:RF-35 — con la central declarada, el plan lleva su barra, sus
     medidores y la máxima de demanda (zonas y generación), no la de cabecera."""
     wid, job = _maxima_con_central(client)
     r = _plan(client, wid, job, medidores=['M1'], centrales={'A1': CENTRAL})
@@ -719,7 +719,7 @@ def test_sin_central_el_plan_no_cambia(client):
 
 
 def test_plan_coincidente_con_la_cabecera_negativa(client):
-    """021:RF-50, RF-51 — en el registro coincidente la cabecera de A1 es negativa (la
+    """021:RF-50, 021:RF-51 — en el registro coincidente la cabecera de A1 es negativa (la
     central exporta hacia la SET, como NA205 el 2026-07-23 10:00): el plan sigue, con la
     demanda del alimentador como objetivo y las zonas de ese registro."""
     from test_demanda_medida_web import _libros_con_central

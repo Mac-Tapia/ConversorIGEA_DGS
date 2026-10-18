@@ -57,7 +57,7 @@ def test_ningun_tramo_default_llega_al_modelo():
 
 
 def test_el_seccionador_pasa_al_cubiculo_de_la_linea_vecina():
-    """021:RF-1, RF-2, RF-3, RF-5 — el seccionador del puente va como StaSwitch en el
+    """021:RF-1, 021:RF-2, 021:RF-3, 021:RF-5 — el seccionador del puente va como StaSwitch en el
     extremo de L1 (aguas arriba; B también valdría con L2), y A y B quedan en una barra."""
     m = _modelo()
     informe = fundir_puentes(m)
@@ -145,7 +145,7 @@ def test_cubiculos_ocupados_a_los_dos_lados_queda_elmcoup():
 
 
 def test_el_puente_de_la_fuente_pliega_sin_fundir_la_fuente():
-    """021:RF-1, RF-2 — un interruptor de cabecera en un puente S─A pasa a L1 en la barra
+    """021:RF-1, 021:RF-2 — un interruptor de cabecera en un puente S─A pasa a L1 en la barra
     de la fuente; la fuente conserva su nombre y A desaparece."""
     nodos = {k: Node(k, float(i), 0.0) for i, k in enumerate('SAB')}
     lineas = [_linea('P0', 'S', 'A', 'DEFAULT', 2.0), _linea('L1', 'A', 'B')]
@@ -355,7 +355,7 @@ def test_trafomix_con_carga_la_conserva_en_media_tension():
 
 
 def test_el_fusible_del_trafomix_excluido_se_quita_con_su_barra():
-    """021:RF-7, RF-8 — f3 llevaba a la barra del trafomix M50226; excluido, la barra se
+    """021:RF-7, 021:RF-8 — f3 llevaba a la barra del trafomix M50226; excluido, la barra se
     queda sin nada y no se escriben ni ella ni f3. El informe lo nombra."""
     from igea_dgs.trafomix import excluir_trafomix
 
@@ -513,7 +513,7 @@ def _sed_de_derivacion(dos_seds: bool = False) -> FeederModel:
 
 
 def test_linea_fusible_y_sed_quedan_en_un_trazo_hasta_el_triangulo(tmp_path):
-    """021:RF-12, RF-14 — el fusible de derivación va en el extremo de L1, y ese extremo
+    """021:RF-12, 021:RF-14 — el fusible de derivación va en el extremo de L1, y ese extremo
     es la barra de MT dentro de la SED: línea, fusible y triángulo sin barra suelta."""
     pytest.importorskip('pyproj')
     from igea_dgs.dgs import write_dgs
@@ -534,7 +534,7 @@ def test_linea_fusible_y_sed_quedan_en_un_trazo_hasta_el_triangulo(tmp_path):
 
 
 def test_dos_sed_en_una_barra_siguen_con_su_acoplador(tmp_path):
-    """021:RF-12, RF-13 — una barra no cabe en dos ElmSubstat: con dos SED en la misma,
+    """021:RF-12, 021:RF-13 — una barra no cabe en dos ElmSubstat: con dos SED en la misma,
     cada una conserva su barra de MT y su acoplador a la barra del alimentador."""
     pytest.importorskip('pyproj')
     from igea_dgs.dgs import seds_con_barra_propia, write_dgs

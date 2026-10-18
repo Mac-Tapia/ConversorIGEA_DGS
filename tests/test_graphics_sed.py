@@ -347,7 +347,7 @@ def test_micro_stub_tip_hides_pointterm_and_d_lin():
 
 
 def test_sed_load_nests_inside_triangle_like_na205(tmp_path: Path):
-    """ElmSubstat interior: MT+BT buses, Tr2, load on BT. 021:RF-12, RF-13 — la barra del
+    """ElmSubstat interior: MT+BT buses, Tr2, load on BT. 021:RF-12, 021:RF-13 — la barra del
     alimentador es la barra de MT de la SED, dentro de ella y con su nombre, sin
     acoplador ni punto aparte: la línea llega al triángulo, como en el NA205 de PF."""
     model = _toy_model(with_sed=True)

@@ -497,7 +497,7 @@ def _zonas(n=30, seed=11, sin_escaladas_arriba=False):
 
 
 def test_objetivo_de_dos_zonas():
-    """021:RF-33, RF-40, RF-41 — el objetivo con central: aguas arriba, aguas abajo y la
+    """021:RF-33, 021:RF-40, 021:RF-41 — el objetivo con central: aguas arriba, aguas abajo y la
     generación del mismo registro, el de la máxima de demanda."""
     o = objetivo_zonas_de(_con_central())
     assert (o.arriba.kw, o.arriba.kvar) == (1131.0, 380.0)
@@ -509,7 +509,7 @@ def test_objetivo_de_dos_zonas():
 
 
 def test_cuadra_las_dos_zonas_con_un_factor_cada_una():
-    """021:RF-40, RF-41, RF-42, RF-43 — cada zona sube con su propio factor hasta su
+    """021:RF-40, 021:RF-41, 021:RF-42, 021:RF-43 — cada zona sube con su propio factor hasta su
     medida; las fijas no se tocan; cuadrado solo con las dos dentro de la tolerancia."""
     o, ra, rb = _zonas()
     red = RedDeDosZonas()

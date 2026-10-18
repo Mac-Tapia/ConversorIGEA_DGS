@@ -15,7 +15,7 @@
     "ElmShnt": "$$ElmShnt;FID(a:40);OP(a:1);loc_name(a:40);fold_id(p);systp(i);ctech(i);shtype(i);ushnm(r);mode_inp(a:3);qcapn(r);ncapx(i);ncapa(i);outserv(i);qrean(r);qtotn(r);tandc(r);fres(r);greaf0(r);grea(r);bcap(r);xrea(r);rrea(r);gparac(r);iswitch(i);imldc(a:2);usetp_mx(r);usetp_mn(r);qsetp_mx(r);qsetp_mn(r);iQorient(i);ilcph(i)",
     "ElmSubstat": "$$ElmSubstat;FID(a:40);OP(a:1);loc_name(a:40);fold_id(p);sShort(a:6);sType(a:80);GPSlat(r);GPSlon(r)",
     "ElmSym": "$$ElmSym;FID(a:40);OP(a:1);loc_name(a:40);fold_id(p);typ_id(p);cCategory(a);ngnum(i);i_mot(i);pgini(r);qgini(r);cosgini(r);usetp(r);pf_recap(i);q_min(r);q_max(r);outserv(i);av_mode(a);phtech(i)",
-    "ElmTerm": "$$ElmTerm;FID(a:40);OP(a:1);loc_name(a:40);fold_id(p);typ_id(p);systype(i);iUsage(i);uknom(r);unknom(r);iminus(i);outserv(i);GPSlat(r);GPSlon(r);vtarget(r);cpZone(p)",
+    "ElmTerm": "$$ElmTerm;FID(a:40);OP(a:1);loc_name(a:40);fold_id(p);typ_id(p);systype(i);iUsage(i);uknom(r);unknom(r);iminus(i);outserv(i);GPSlat(r);GPSlon(r);vtarget(r)",
     "ElmTr2": "$$ElmTr2;FID(a:40);OP(a:1);loc_name(a:40);fold_id(p);typ_id(p);ntnum(i);outserv(i);nntap(i);i_auto(i);ntrcn(i);usetp(r);usp_low(r);usp_up(r);t2ldc(i)",
     "ElmTr3": "$$ElmTr3;FID(a:40);OP(a:1);loc_name(a:40);fold_id(p);nt3nm(i);typ_id(p);outserv(i);n3tap_h(i);n3tap_m(i);n3tap_l(i);i_auto_hl(i);ictrlside(i);ntrcn(i);t3ldc(i);usetp(r);usp_low(r);usp_up(r)",
     "ElmVoltreg": "$$ElmVoltreg;FID(a:40);OP(a:1);loc_name(a:40);fold_id(p);typ_id(p);outserv(i);i_pcReglim(i);igang(i);nntap1(i);nntap2(i);nntap3(i);ntrcn(i);i_cont(i);usetp(r);usp_low(r);usp_up(r)",

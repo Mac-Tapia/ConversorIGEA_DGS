@@ -55,7 +55,7 @@ def _visibles_en(app, caso):
 
 
 def test_crea_la_central_en_su_barra_con_la_p_y_q_medidas(guion):
-    """021:RF-35, RF-37 — un generador estático en la barra declarada, con la P y Q de la
+    """021:RF-35, 021:RF-37 — un generador estático en la barra declarada, con la P y Q de la
     generación del registro objetivo, en su propia variación; el «Caso base» no se toca."""
     app = _app()
     informe, rc = guion.ejecutar(app, _plan())
@@ -75,7 +75,7 @@ def test_crea_la_central_en_su_barra_con_la_p_y_q_medidas(guion):
 
 
 def test_cada_zona_cuadra_con_su_factor(guion):
-    """021:RF-39, RF-40, RF-41, RF-43, RF-44 — las cargas de B1 y B2 son de aguas arriba y
+    """021:RF-39, 021:RF-40, 021:RF-41, 021:RF-43, 021:RF-44 — las cargas de B1 y B2 son de aguas arriba y
     las de B3 a B6 de aguas abajo; cada zona cuadra con su factor de escala y el informe
     dice los factores, la cabecera calculada y la medida."""
     app = _app()
