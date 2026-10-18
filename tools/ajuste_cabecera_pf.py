@@ -1310,18 +1310,21 @@ def _limpiar_etapa_de_la_central(variacion, generador: str) -> int:
     Lo demás que haya grabado (las 167 cargas de «Central_NA205» del sistema Nasca,
     2026-10-18) no es de la central y pisaba la marca fija o escalable de la red.
     """
-    quitados = 0
-    for etapa in (variacion.GetContents('*.IntSstage', 1) or []) if variacion is not None else []:
-        for obj in etapa.GetContents('*', 1) or []:
-            clase = obj.GetClassName()
-            if (clase == 'ElmGenstat' and obj.loc_name == generador) or (
-                    clase == 'StaCubic' and obj.loc_name == f'Cub_{generador}'):
-                continue
-            obj.Delete()
-            quitados += 1
-    if quitados and variacion is not None:
-        # Activa, DIgSILENT sigue aplicando lo que tenía; se recalcula al reactivarla.
-        variacion.Deactivate()
+    if variacion is None:
+        return 0
+    ajenos = [obj for etapa in (variacion.GetContents('*.IntSstage', 1) or [])
+              for obj in (etapa.GetContents('*', 1) or [])
+              if not ((obj.GetClassName() == 'ElmGenstat' and obj.loc_name == generador) or (
+                  obj.GetClassName() == 'StaCubic' and obj.loc_name == f'Cub_{generador}'))]
+    if not ajenos:
+        return 0
+    # Con la variación activa, DIgSILENT no deja borrar lo de su etapa: ``Delete`` da 1 y
+    # el registro sigue (sonda en el sistema Nasca, 2026-10-18: «quitaba» 167 cargas en cada
+    # ajuste y seguían ahí). Desactivada, da 0; al reactivarla, recalcula con la red.
+    variacion.Deactivate()
+    try:
+        quitados = sum(1 for obj in ajenos if obj.Delete() == 0)
+    finally:
         variacion.Activate()
     return quitados
 
