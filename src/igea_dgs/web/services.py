@@ -1082,6 +1082,51 @@ def group_selection(ws: Workspace, feeders: list[str], all_feeders: bool) -> lis
     return feeders
 
 
+def estructura_resumen(ws: Workspace) -> dict:
+    """Los zonales de la estructura con sus alimentadores en la entrega (022:RF-48)."""
+    from ..estructura import asignar
+
+    e = estructura_del_espacio(ws)
+    if e is None:
+        return {'origen': None, 'zonales': []}
+    from .reconstruction_service import resolve_selection
+
+    entrega, _ids = resolve_selection(ws, [], all_feeders=True)
+    a = asignar(e, entrega)
+    origen = 'excel' if ((ws.demanda or {}).get('estructura') or {}).get('path') else 'perfil'
+    return {'origen': origen, 'sin_set': a.sin_set, 'zonales': [
+        {'nombre': z, 'sets': sorted({s for f, s in a.set_de.items() if e.sets[s].zonal == z}),
+         'alimentadores': sorted(f for f, s in a.set_de.items() if e.sets[s].zonal == z)}
+        for z in a.zonales]}
+
+
+def sistema_seleccion(ws: Workspace, zonales: list[str]) -> tuple[list[str], str, object]:
+    """Los alimentadores de la entrega de los zonales elegidos (o de todos), el nombre del
+    DGS y la estructura (022:RF-47 a RF-49)."""
+    from ..estructura import asignar
+
+    require_loaded(ws)
+    e = estructura_del_espacio(ws)
+    if e is None:
+        raise UserError('La conversión por sistema eléctrico necesita la estructura de la empresa: '
+                        'súbala en Excel en el paso de demanda o póngala en el perfil (022:RF-1).')
+    todos = group_selection(ws, [], True)
+    a = asignar(e, todos)
+    pedidos = [z for z in zonales if z]
+    desconocidos = [z for z in pedidos if z not in e.zonales]
+    if desconocidos:
+        raise UserError(f"Zonal(es) que no están en la estructura: {', '.join(desconocidos)}.")
+    por_nombre = {f.upper(): f for f in todos}
+    if pedidos:
+        elegidos = [por_nombre[f] for f, s in a.set_de.items() if e.sets[s].zonal in pedidos]
+    else:
+        elegidos = list(todos)                                       # RF-48: también «Sin SET»
+    if not elegidos:
+        raise UserError('Ningún alimentador de la entrega es de ' + ', '.join(pedidos) + '.')
+    nombre = nombre_seguro('SISTEMA_' + ('_'.join(pedidos) if pedidos else 'ELECTRICO'), maximo=60)
+    return sorted(elegidos), nombre.upper(), e
+
+
 def group_name(nombre: str, feeders: list[str]) -> str:
     base = (nombre or '').strip() or '_'.join(feeders[:4]) + ('_ETC' if len(feeders) > 4 else '')
     return nombre_seguro(base, maximo=60)
@@ -1094,7 +1139,8 @@ def convert_group(
     nombre: str,
     *,
     requested_feeders: list[str] | None = None,
-    por_set: bool = False,
+    estructura=None,
+    tipo: str = 'unida',
 ) -> dict:
     import time
 
@@ -1123,12 +1169,6 @@ def convert_group(
     reconstruction = reconstruction_evidence(ws) if use_reconstruction else None
     opts = ws.options
     ctx.log(f'--- Red unida {nombre}: {", ".join(feeders)} ---')
-    estructura = None
-    if por_set:                                                     # 022:RF-4, RF-7
-        estructura = estructura_del_espacio(ws)
-        if estructura is None:
-            raise UserError('Por zonal y SET necesita la estructura de la empresa: súbala en '
-                            'Excel en el paso de demanda o póngala en el perfil (022:RF-1).')
 
     def on_progress(network_id: str, index: int, total: int) -> None:
         name = feeder_short_name(network_id)
@@ -1200,6 +1240,8 @@ def convert_group(
         ws.groups[nombre]['xlsx'] = _rel(ws, man.get('xlsx'))
         ws.groups[nombre]['requested_feeders'] = list(requested_feeders or feeders)
         ws.groups[nombre]['converted_at'] = time.time() if man['status'] == 'ok' else None
+        # 022:RF-49, RF-51: «sistema» (por sistema eléctrico) o «unida» (dos o más).
+        ws.groups[nombre]['tipo'] = tipo
         ws.save()
     return {'group': nombre, 'status': man['status'], 'error': man.get('error'),
             'dgs': f'{nombre}.dgs' if man['status'] == 'ok' else None,

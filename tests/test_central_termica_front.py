@@ -150,10 +150,14 @@ def test_maxima_por_barra_de_set_en_la_web():
     assert 'export interface BarraDeSet' in TIPOS
 
 
-def test_unir_por_zonal_y_set_y_tabla_de_estructura():
-    """022:RF-4, 022:RF-7 — casilla «Por zonal y SET» junto a «Unir», que va en la orden, y
-    ranura para subir la tabla de la estructura."""
+def test_conversion_por_sistema_electrico_aparte_de_unir():
+    """022:RF-4, 022:RF-47, 022:RF-48, 022:RF-50, 022:RF-51 — botón propio «Convertir por
+    sistema eléctrico» con el zonal (o todos), aparte de «Unir», que ya no lleva la
+    estructura; la lista de DGS unidos dice el tipo; ranura para la tabla de la estructura."""
     panel = (SRC / 'components' / 'FeedersPanel.tsx').read_text(encoding='utf-8')
-    assert 'Por zonal y SET' in panel and 'nombre.trim() || sugerido, porSet)' in panel
-    assert "por_set: porSet" in API
+    assert 'Convertir por sistema eléctrico' in panel and 'api.convertSistema(ws.id, zonal ? [zonal] : [])' in panel
+    assert 'Todos los sistemas (SISTEMA_ELECTRICO)' in panel
+    assert 'api.convertGroup(ws.id, selected, nombre.trim() || sugerido))' in panel
+    assert 'por_set' not in API and '/convert/sistema' in API
+    assert "g.tipo === 'sistema'" in panel
     assert "tipo: 'estructura', titulo: 'Estructura zonal → SET (opcional)'" in DEMANDA

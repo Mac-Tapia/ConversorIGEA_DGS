@@ -113,13 +113,14 @@ def _parser() -> argparse.ArgumentParser:
         help='Unir los alimentadores elegidos en UN solo DGS con este nombre (red unida).',
     )
     conv.add_argument(
-        '--por-set', action='store_true',
-        help='Con --unir: colgar la red unida de sus SET y zonales con la estructura del '
-             'perfil de empresa (spec 022).',
+        '--por-sistema', nargs='*', metavar='ZONAL',
+        help='Conversión por sistema eléctrico (spec 022), aparte de --unir: todos los '
+             'alimentadores de la entrega de esos zonales (sin zonal, de todos) en un DGS '
+             'SISTEMA_<zonal>, colgados de sus SET con la estructura del perfil de empresa.',
     )
     conv.add_argument(
         '--estructura', metavar='TABLA',
-        help='Con --unir: la tabla zonal → SET → alimentador en Excel, en vez de la del perfil.',
+        help='Con --por-sistema: la tabla zonal → SET → alimentador en Excel, en vez de la del perfil.',
     )
     conv.add_argument(
         '--literal', action='store_true',
@@ -307,7 +308,7 @@ def main(argv=None) -> int:
     selectors = list(args.feeder) + list(args.network)
     if args.all and selectors:
         raise SystemExit('--all no se puede combinar con --feeder/--network')
-    if not args.all and not selectors:
+    if not args.all and not selectors and args.por_sistema is None:   # 022:RF-48
         raise SystemExit('Indique al menos un --feeder/--network, o use --all')
 
     try:
@@ -355,16 +356,17 @@ def main(argv=None) -> int:
                   f'de ficha aplicable.', flush=True)
             catalogo = ruta if not args.literal else None
 
-        if args.unir:
+        if args.unir and args.por_sistema is not None:
+            # 022:RF-47, RF-51: dos opciones distintas, que no se mezclan.
+            raise SystemExit('--unir y --por-sistema son conversiones distintas: use una.')
+        if args.unir or args.por_sistema is not None:
             from .batch import convert_group
 
-            if args.all:
-                selectors = [feeder_short_name(n) for n in dataset.feeder_ids() if dataset.feeders.get(n)]
-            if len(selectors) < 2:
-                raise SystemExit('--unir necesita al menos dos alimentadores (--feeder … --feeder …).')
             estructura = None
-            if args.estructura or args.por_set:
-                from .estructura import EstructuraError, leer_tabla_excel
+            nombre = args.unir
+            if args.por_sistema is not None:
+                from .estructura import EstructuraError, asignar, leer_tabla_excel
+                from .util import nombre_seguro
                 from .perfil_empresa import PerfilError, estructura_empresa
                 try:
                     estructura = (leer_tabla_excel(args.estructura) if args.estructura
@@ -372,10 +374,27 @@ def main(argv=None) -> int:
                 except (EstructuraError, PerfilError) as exc:
                     raise SystemExit(f'Estructura: {exc}') from exc
                 if estructura is None:
-                    raise SystemExit('--por-set: el perfil de empresa no trae estructura '
+                    raise SystemExit('--por-sistema: el perfil de empresa no trae estructura '
                                      '(022:RF-1); use --estructura TABLA.xlsx.')
+                todos = [feeder_short_name(n) for n in dataset.feeder_ids() if dataset.feeders.get(n)]
+                zonales = [z for z in args.por_sistema if z]
+                fuera = [z for z in zonales if z not in estructura.zonales]
+                if fuera:
+                    raise SystemExit(f"Zonal(es) que no están en la estructura: {', '.join(fuera)}")
+                a = asignar(estructura, todos)
+                selectors = ([f for f in todos if f.upper() in a.set_de
+                              and estructura.sets[a.set_de[f.upper()]].zonal in zonales]
+                             if zonales else todos)                     # 022:RF-48
+                nombre = nombre_seguro('SISTEMA_' + ('_'.join(zonales) if zonales else 'ELECTRICO'),
+                                       maximo=60).upper()               # 022:RF-49
+            elif args.all:
+                selectors = [feeder_short_name(n) for n in dataset.feeder_ids() if dataset.feeders.get(n)]
+            if len(selectors) < 2 and args.por_sistema is None:
+                raise SystemExit('--unir necesita al menos dos alimentadores (--feeder … --feeder …).')
+            if not selectors:
+                raise SystemExit('--por-sistema: ningún alimentador de la entrega es de esos zonales.')
             grupo = convert_group(
-                dataset, selectors, args.out_dir, name=args.unir, aliases=aliases,
+                dataset, selectors, args.out_dir, name=nombre, aliases=aliases,
                 strict=not args.non_strict, schema_profile=args.schema_profile,
                 include_geography=not args.no_geography,
                 source_crs=args.source_crs, target_crs=args.target_crs,
@@ -392,7 +411,7 @@ def main(argv=None) -> int:
                       f"{sum(len(z) for z in por_set['zonales'].values())} SET, "
                       f"{len(por_set['sin_set'])} sin SET, {len(por_set['aperturas'])} apertura(s); "
                       f"oráculo: {ora.get('resumen', 'no disponible')}")
-            print(f"Red unida {grupo['name']}: {grupo['status']} — "
+            print(f"{'Sistema eléctrico' if estructura is not None else 'Red unida'} {grupo['name']}: {grupo['status']} — "
                   f"{grupo.get('errors_total')} errores de validación, completitud "
                   f"{'OK' if not comp.get('fallos') else comp['fallos']}")
             if grupo.get('error'):

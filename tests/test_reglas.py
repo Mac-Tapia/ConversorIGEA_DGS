@@ -149,10 +149,12 @@ def test_la_red_unida_por_zonal_y_set(ds, tmp_path):
         assert por_set['oraculo']['islas']
 
 
-def test_web_une_por_zonal_y_set_con_la_tabla_subida(tmp_path, monkeypatch):
-    """022:RF-4, 022:RF-5, 022:RF-7, 022:RF-25 — la tabla de la estructura en Excel se sube al
-    espacio (una mal formada se rechaza nombrando la fila) y la conversión unida «Por zonal y
-    SET» la usa: el Registro trae el informe por zonal y SET."""
+def test_web_convierte_por_sistema_electrico_con_la_tabla_subida(tmp_path, monkeypatch):
+    """022:RF-4, 022:RF-5, 022:RF-7, 022:RF-25, 022:RF-47, 022:RF-48, 022:RF-49, 022:RF-50,
+    022:RF-51 — la tabla de la estructura en Excel se sube al espacio (una mal formada se
+    rechaza nombrando la fila); la conversión por sistema eléctrico es una opción propia que
+    la usa (SISTEMA_ELECTRICO, tipo «sistema», informe por zonal y SET en el Registro) y unir
+    dos o más sigue sin usarla (tipo «unida», una sola red)."""
     pytest.importorskip('fastapi')
     import time
 
@@ -198,9 +200,55 @@ def test_web_une_por_zonal_y_set_con_la_tabla_subida(tmp_path, monkeypatch):
         r = c.post(f'/api/workspaces/{wid}/demanda/estructura/path', json={'path': str(buena)})
         assert r.status_code == 200, r.text
         assert r.json()['demanda']['estructura']['alimentadores'] == len(nombres)
-        j = esperar(c.post(f'/api/workspaces/{wid}/convert', json={
-            'feeders': nombres, 'unir': True, 'nombre': 'RED SET', 'por_set': True}).json())
+        r = c.get(f'/api/workspaces/{wid}/estructura')
+        assert r.status_code == 200 and r.json()['origen'] == 'excel'
+        assert r.json()['zonales'][0]['nombre'] == 'Z'
+        assert sorted(r.json()['zonales'][0]['alimentadores']) == sorted(nombres)
+        r = c.post(f'/api/workspaces/{wid}/convert/sistema', json={'zonales': ['NO_EXISTE']})
+        assert r.status_code == 400
+        j = esperar(c.post(f'/api/workspaces/{wid}/convert/sistema', json={'zonales': []}).json())
         assert j['result']['status'] == 'ok', j['result']
         textos = [e['data'].get('text') or '' for e in c.get(f'/api/workspaces/{wid}/events').json()]
         assert any(t.startswith('Por zonal y SET') for t in textos)
         assert any('SET 1 UNO' in t for t in textos)
+        # 022:RF-50: unir dos o más, con la estructura subida, sigue sin usarla.
+        j = esperar(c.post(f'/api/workspaces/{wid}/convert', json={
+            'feeders': nombres[:2], 'unir': True, 'nombre': 'DOS'}).json())
+        assert j['result']['status'] == 'ok', j['result']
+        grupos = {g['name']: g for g in c.get(f'/api/workspaces/{wid}').json()['groups']}
+        assert grupos['SISTEMA_ELECTRICO']['tipo'] == 'sistema' and grupos['DOS']['tipo'] == 'unida'
+        dos = next((tmp_path / 'web').rglob('DOS.dgs'))
+        assert len(parse_dgs(dos)['ElmNet']['rows_dict']) == 1, 'unir no usa la estructura'
+        sis = next((tmp_path / 'web').rglob('SISTEMA_ELECTRICO.dgs'))
+        assert {r['loc_name'] for r in parse_dgs(sis)['ElmNet']['rows_dict']} == {'Z'}
+
+
+def test_cli_por_sistema_electrico(tmp_path):
+    """022:RF-47, 022:RF-48, 022:RF-49 — `--por-sistema ZONAL` convierte solo los de ese zonal
+    en SISTEMA_<ZONAL>, aparte de `--unir`, con el que no se mezcla."""
+    from openpyxl import Workbook
+
+    from synthetic_export import write_export
+    from igea_dgs.cli import main
+    from igea_dgs.naming import feeder_short_name
+
+    red, carga, equipo = write_export(ExportSpec(feeders=3), tmp_path / 'e')
+    nombres = sorted(f['feeder'] for f in convert_selection(
+        load_export(ExportSpec(feeders=3), tmp_path / 'e2'), None, tmp_path / 'x',
+        all_feeders=True, source_crs=CRS_SINTETICO)['feeders'])
+    wb = Workbook()
+    h = wb.active
+    h.append(['Zonal', 'Codigo SET', 'Codigo VNR Alimentador'])
+    h.append(['NORTE', 'SET 1 UNO', nombres[0]])
+    h.append(['NORTE', 'SET 1 UNO', nombres[1]])
+    h.append(['SUR', 'SET 2 DOS', nombres[2]])
+    wb.save(tmp_path / 't.xlsx')
+    base = ['convert', '--red', str(red), '--loads', str(carga), '--equipment', str(equipo),
+            '--source-crs', CRS_SINTETICO, '--out-dir', str(tmp_path / 'o'), '--no-geography']
+    assert main(base + ['--por-sistema', 'NORTE', '--estructura', str(tmp_path / 't.xlsx')]) == 0
+    tablas = parse_dgs(tmp_path / 'o' / 'SISTEMA_NORTE.dgs')
+    assert {r['loc_name'] for r in tablas['ElmNet']['rows_dict']} == {'NORTE'}
+    assert len(tablas['ElmFeeder']['rows_dict']) == 2
+    with pytest.raises(SystemExit, match='distintas'):
+        main(base + ['--por-sistema', '--unir', 'X', '--estructura', str(tmp_path / 't.xlsx')])
+    del feeder_short_name

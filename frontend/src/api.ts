@@ -1,4 +1,4 @@
-import type {
+import type { EstructuraResumen,
   AjustePlan, AjusteResultado, CargasPlan, CentralTermica, ClientesCruce, CurvaCabecera, DemandaMedidores,
   MaximaConCentral, MedidoresExternos, Economia, EstudiosCatalogo, EstudiosPlan,
   FeederRow, Health, InformeEstudioForm, InformeFactibilidadForm, InformesContexto, Job, Limites, MaximaCabecera, Obra,
@@ -101,9 +101,12 @@ export const api = {
     request<ReconstructionReport>(`${ws(id)}/files/reconstruction_report.json`),
   convert: (id: string, feeders: string[], all: boolean) =>
     request<Job>(`${ws(id)}/convert`, json('POST', { feeders, all })),
-  // Spec 022: ``porSet``, la red unida colgada de sus SET y zonales.
-  convertGroup: (id: string, feeders: string[], nombre: string, porSet = false) =>
-    request<Job>(`${ws(id)}/convert`, json('POST', { feeders, all: false, unir: true, nombre, por_set: porSet })),
+  convertGroup: (id: string, feeders: string[], nombre: string) =>
+    request<Job>(`${ws(id)}/convert`, json('POST', { feeders, all: false, unir: true, nombre })),
+  // Spec 022, RF-47 a RF-51: la conversión por sistema eléctrico, una opción propia.
+  estructura: (id: string) => request<EstructuraResumen>(`${ws(id)}/estructura`),
+  convertSistema: (id: string, zonales: string[]) =>
+    request<Job>(`${ws(id)}/convert/sistema`, json('POST', { zonales })),
 
   cancelJob: (jobId: string) => request<Job>(`/api/jobs/${jobId}/cancel`, { method: 'POST' }),
 
