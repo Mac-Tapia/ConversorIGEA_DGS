@@ -2110,7 +2110,8 @@ def ejecutar_proyecto(app, planes: list[dict], *, simular: bool = False,
     siempre (RF-60). Devuelve un ``(informe, código)`` por plan, en su orden.
     """
     bancos = any(p.get('completar_bancos') for p in planes)            # 021:RF-64
-    if simular or (len(planes) == 1 and not bancos):
+    barra = any(p.get('barra_set') for p in planes)                     # 022:RF-41b
+    if simular or (len(planes) == 1 and not bancos and not barra):
         return [ejecutar(app, p, simular=simular, cancelado=cancelado) for p in planes]
     estado = {'apartadas': []}
     try:
@@ -2252,6 +2253,72 @@ def _con_bancos_que_faltan(app, planes: list[dict], *, cancelado, estado: dict) 
         if cambios:
             inf['cambios_en_la_red'] = cambios
     return segunda
+
+
+def _nombre_barra_set(set_codigo: str, kv: float) -> str:
+    """El nombre de la barra de SET en el DGS unido por SET (``combine.estructurar``)."""
+    from igea_dgs.naming import sufijo_tension
+
+    return f"B_{set_codigo.replace(' ', '')}_{sufijo_tension(kv)}"
+
+
+def _centrales_de_barra(app, preps: dict, informes: dict) -> None:
+    """La central medida en una barra de SET, con su P y Q en el registro de la barra (022:RF-44).
+
+    CT_PEDREG en la barra de 10 kV de Pedregal: un generador estático en esa barra, como la
+    central de 021:RF-35. Una vez por barra, aunque la compartan varios alimentadores.
+    """
+    hechas = set()
+    terminales = None
+    for f, p in preps.items():
+        b = p['plan'].get('barra_set') or {}
+        centrales = [c for c in b.get('centrales') or [] if c.get('kw') is not None]
+        if not centrales or b.get('clave') in hechas:
+            continue
+        hechas.add(b.get('clave'))
+        if terminales is None:
+            terminales = {t.loc_name: t for t in (app.GetCalcRelevantObjects('*.ElmTerm') or [])}
+        nombre = _nombre_barra_set(b['set'], float(b['kv']))
+        barra = None if b.get('suelta') else terminales.get(nombre)
+        if barra is None:
+            informes[f]['avisos'].append(f"{b['clave']}: la barra {nombre} no está en el proyecto; "
+                                         'su central no se pone (022:RF-44).')
+            continue
+        for c in centrales:
+            hecho = central_en_sin_proyecto(app, barra, nombre.replace('B_', '', 1),
+                                            float(c['kw']), float(c.get('kvar') or 0.0))
+            for g in preps:
+                if (preps[g]['plan'].get('barra_set') or {}).get('clave') == b['clave']:
+                    informes[g].setdefault('centrales_de_barra', []).append(
+                        {'medidor': c['medidor'], 'kw': c['kw'], 'kvar': c.get('kvar'), **hecho})
+
+
+def _barras_frente_a_su_medidor(preps: dict, informes: dict) -> None:
+    """Lo que dan las cabeceras de cada barra de SET frente a su medidor (022:RF-41b)."""
+    por_barra: dict[str, list[str]] = {}
+    for f, p in preps.items():
+        b = p['plan'].get('barra_set')
+        if b:
+            por_barra.setdefault(b['clave'], []).append(f)
+    for clave, feeders in por_barra.items():
+        b = preps[feeders[0]]['plan']['barra_set']
+        cabeceras = [(informes[f].get('cabecera') or {}).get('kw') for f in feeders]
+        red = sum(cabeceras) if all(x is not None for x in cabeceras) else None
+        central = sum(float(c.get('kw') or 0.0) for c in b.get('centrales') or [])
+        fila = {'clave': clave, 'fecha': b.get('fecha'), 'medido_kw': b.get('kw'),
+                'alimentadores_en_la_barra': b.get('alimentadores'), 'calibrados': feeders,
+                'cabeceras_kw': red, 'central_kw': central or None,
+                'desvio': (None if red is None or not b.get('kw') else
+                           (red - central - float(b['kw'])) / abs(float(b['kw'])))}
+        for f in feeders:
+            informes[f]['barra_set'] = fila
+            if red is not None:
+                informes[f]['avisos'].append(
+                    f"{clave}: las cabeceras de {', '.join(feeders)} dan {red:,.1f} kW"
+                    + (f' menos {central:,.1f} kW de su central' if central else '')
+                    + f" frente a {float(b['kw']):,.1f} kW del medidor de barra el {b.get('fecha')}"
+                    + ('' if set(feeders) >= set(b.get('alimentadores') or []) else
+                       ' (no están todos sus alimentadores)') + ' (022:RF-41b).')
 
 
 def _clave_zona(feeder: str, zona: str) -> str:
@@ -2409,11 +2476,10 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
         # La marca fija o escalable es dato de red (015:RF-37): se escribe con todas las
         # variaciones de las centrales apagadas, para que la de NA203 no caiga en la etapa
         # de la central de NA205, que sigue grabando.
-        activas = {v.loc_name for v in (app.GetActiveNetworkVariations() or [])}
-        for f, p in preps.items():
-            previa = variacion_de_la_central(app, f) if p['central'] else None
-            if previa is not None and previa.loc_name in activas:
-                previa.Deactivate()
+        # También las de las centrales de barra (022:RF-44), que no son de un alimentador.
+        for v in list(app.GetActiveNetworkVariations() or []):
+            if v.loc_name.startswith(PREFIJO_CENTRAL):
+                v.Deactivate()
         for f, p in preps.items():
             if p['central']:
                 for z, r in p['zc']['repartos'].items():
@@ -2433,6 +2499,7 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
                 o = p['zc']['objetivo']
                 informes[f]['central'].update(central_en_sin_proyecto(       # 021:RF-35, RF-36
                     app, p['zc']['barra'], f, o.generacion_kw, o.generacion_kvar))
+        _centrales_de_barra(app, preps, informes)                        # 022:RF-44
 
         def flujo(reps):
             for f, p in preps.items():
@@ -2565,6 +2632,7 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
                     informes[f]['ajustes_restituidos'] = restituidos
         if inicial is not None and app.GetActiveStudyCase() is not inicial:
             inicial.Activate()
+    _barras_frente_a_su_medidor(preps, informes)                        # 022:RF-41b
     for f in preps:
         inf = informes[f]
         salida[f] = (inf, 0 if inf.get('cuadrado') and not inf.get('fallos') else 2)

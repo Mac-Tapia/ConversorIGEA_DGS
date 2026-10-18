@@ -117,6 +117,8 @@ class DemandaMedidoresIn(BaseModel):
     periodo: str | None = Field(None, pattern=r'^\d{4}-(0[1-9]|1[0-2])$')
     # Spec 021, RF-50: en vez de la máxima, el registro de esta fecha y hora para todos.
     instante: datetime | None = None
+    # Spec 022, RF-39 a RF-41: la máxima de cada barra de SET y sus alimentadores en esa fecha.
+    por_barra: bool = False
 
 
 class DemandaClientesIn(BaseModel):
@@ -1107,7 +1109,8 @@ def create_app(
             raise HTTPException(422, 'Indique al menos un medidor.')
         return submit(ws, 'demanda_cabecera', f'Máxima de cabecera ({len(pares)} medidor(es))',
                       lambda ctx: services.demanda_cabecera(ws, ctx, pares, periodo=body.periodo,
-                                                            instante=body.instante))
+                                                            instante=body.instante,
+                                                            por_barra=body.por_barra))
 
     @app.get('/api/workspaces/{wid}/demanda/cabecera/{job_id}/curva')
     def demanda_curva(wid: str, job_id: str, medidor: str = Query(...),
@@ -1171,7 +1174,8 @@ def create_app(
                                     body.desconectados, job_id=body.job_id,
                                     centrales={a: c.model_dump() for a, c in body.centrales.items()},
                                     tension_fuente_pu=body.tension_fuente_pu,
-                                    completar_bancos=body.completar_bancos)
+                                    completar_bancos=body.completar_bancos,
+                                    barras=job.result.get('barras'))
 
     def _ajuste_job(wid: str, token: str, simular: bool) -> dict:
         ws = ws_or_404(wid)

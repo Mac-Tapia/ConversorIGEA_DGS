@@ -548,3 +548,67 @@ def test_maxima_con_mes_e_instante(client):
     mal = client.post(f'/api/workspaces/{wid}/demanda/cabecera/buscar', json={
         'medidores': [{'alimentador': 'A1', 'medidor': 'M1'}], 'periodo': '2026-13'})
     assert mal.status_code == 422
+
+
+# --------------------------------------------------------------- 022:RF-37 a RF-46
+def _libros_por_barra(client, wid, monkeypatch):
+    """SET X con dos transformadores (B-X1T1 y B-X1T2) y una central en su barra (CT_X), con
+    A1 y A2; SET Y sin medidor de barra, con B1. La barra da su máxima en el registro 3 y
+    los alimentadores la suya en otros."""
+    from igea_dgs.estructura import estructura_de_dict
+    from igea_dgs.web import services
+
+    e = estructura_de_dict({'zonales': [{'nombre': 'Z', 'sets': [
+        {'codigo': 'SET X', 'nombre': 'Equis', 'siglas': ['X'], 'alimentadores': ['A1', 'A2', 'A3']},
+        {'codigo': 'SET Y', 'nombre': 'Ye', 'alimentadores': ['B1']}]}]})
+    monkeypatch.setattr(services, 'estructura_del_espacio', lambda _ws: e)
+    monkeypatch.setattr(services, '_kv_alimentadores', lambda _ws: {})
+    medidores = {'h': [['codigo alimentador', 'Medidor', 'Nivel Tension', 'siglas'],
+                       ['A1', 'M1', 10, 'X'], ['A2', 'M3', 10, 'X'], ['B1', 'M4', 10, 'Y'],
+                       ['A3', 'M5', 10, 'X'],
+                       ['Barra', 'B-X1T1', 10, 'X'], ['Barra', 'B-X1T2', 10, 'X'],
+                       ['Barra', 'B-X6T1', 60, 'X'], ['Barra CT', 'CT_X', 10, 'X']]}
+    filas = {k: [['Local Time', 'kW tot', 'kVAR tot']]
+             for k in ('M1', 'M3', 'M4', 'M5', 'B-X1T1', 'B-X1T2', 'B-X6T1', 'CT_X')}
+    for i in range(8):
+        t = T0 + timedelta(minutes=15 * i)
+        pico = 500.0 if i == 3 else 0.0
+        filas['M1'].append([t, 100.0 + 10 * i, 5.0])          # su máxima, el registro 7
+        filas['M3'].append([t, 300.0 - 10 * i, 5.0])          # la suya, el 0
+        filas['M4'].append([t, 50.0 + i, 1.0])
+        if i != 3:
+            filas['M5'].append([t, 20.0, 1.0])     # sin el registro de la barra
+        filas['B-X1T1'].append([t, 200.0 + pico, 20.0])
+        filas['B-X1T2'].append([t, 150.0 + i, 15.0])
+        filas['B-X6T1'].append([t, 9999.0, 1.0])
+        filas['CT_X'].append([t, 40.0 + i, -2.0])
+    _subir(client, wid, 'medidores', medidores)
+    _subir(client, wid, 'cabecera', filas)
+
+
+def test_maxima_por_barra_y_sus_alimentadores_en_esa_fecha(client, monkeypatch):
+    """022:RF-37, 022:RF-39, 022:RF-40, 022:RF-41, 022:RF-41c, 022:RF-42, 022:RF-43, 022:RF-44 — la
+    máxima de la barra de SET X es la de la suma de sus dos transformadores (registro 3); A1
+    y A2 se buscan en esa fecha y hora, no en su máxima; B1, sin medidor de barra, en la
+    suya; el de 60 kV no cuenta; la central de la barra, con su medida en ese registro."""
+    wid = _wid(client)
+    _libros_por_barra(client, wid, monkeypatch)
+    job = client.post(f'/api/workspaces/{wid}/demanda/cabecera/buscar', json={
+        'medidores': [{'alimentador': a, 'medidor': m}
+                      for a, m in (('A1', 'M1'), ('A2', 'M3'), ('B1', 'M4'), ('A3', 'M5'))],
+        'por_barra': True})
+    estado = esperar_trabajo(client, job.json())
+    assert estado['status'] == 'done', estado
+    res = estado['result']
+    t3 = (T0 + timedelta(minutes=45)).isoformat(sep=' ')
+    [b] = res['barras']
+    assert b['clave'] == 'SET X 10 kV' and b['medidores'] == ['B-X1T1', 'B-X1T2']
+    assert b['fecha'] == t3 and b['kw'] == pytest.approx(700.0 + 153.0)
+    assert b['centrales'] == [{'medidor': 'CT_X', 'kw': 43.0, 'kvar': -2.0}]
+    fechas = {r['medidor']: r['fecha'] for r in res['resultados']}
+    assert fechas['M1'] == fechas['M3'] == t3
+    assert fechas['M4'] == (T0 + timedelta(minutes=15 * 7)).isoformat(sep=' ')
+    kw = {r['medidor']: r['kw'] for r in res['resultados']}
+    assert kw['M1'] == pytest.approx(130.0) and kw['M3'] == pytest.approx(270.0)
+    m5 = next(r for r in res['resultados'] if r['medidor'] == 'M5')
+    assert m5['error'] and 'sin registro' in m5['error'], 'sin el registro de la barra, se dice'

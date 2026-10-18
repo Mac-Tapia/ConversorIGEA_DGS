@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, fmtNum, type DemandaTipo } from '../api';
 import { estadoCatalogoClientes } from '../clientesCatalogo';
 import { useApp } from '../context';
-import type { CentralTermica, ClientesCruce, ClienteImportante, MaximaCabecera, MedidoresExternos } from '../types';
+import type { BarraDeSet, CentralTermica, ClientesCruce, ClienteImportante, MaximaCabecera, MedidoresExternos } from '../types';
 import { AjusteCabecera } from './AjusteCabecera';
 import { FileDrop, useToast } from './ui';
 
@@ -140,6 +140,8 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   const [filtro, setFiltro] = useState('');
   // Spec 013, RF-8 y RF-10: mes del libro de clientes, siempre elegido por el operador.
   const [periodo, setPeriodo] = useState('');
+  // 022:RF-39 a RF-41: la máxima de cada barra de SET y sus alimentadores en esa fecha.
+  const [porBarra, setPorBarra] = useState(false);
   // Spec 021, RF-25 a RF-27: central térmica en un tramo, por alimentador, y los medidores
   // del libro que no son de un alimentador de la red, donde se eligen los suyos.
   const [externos, setExternos] = useState<MedidoresExternos | null>(null);
@@ -241,9 +243,10 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   // instante, el registro de esa fecha y hora en todos, para calibrar a la vez.
   const maxima = (instante = '') => {
     if (!elegidos.length) { toast('error', 'Elija al menos un medidor', ''); return; }
-    startJob(() => api.demandaCabecera(ws.id, aBuscar, { periodo, instante }));
+    startJob(() => api.demandaCabecera(ws.id, aBuscar, { periodo, instante, por_barra: porBarra && !instante }));
   };
   const instanteActual = (ultimo?.result?.instante as string | null | undefined) ?? '';
+  const barrasSet = (ultimo?.result?.barras as BarraDeSet[] | undefined) ?? [];
   const periodoBuscado = (ultimo?.result?.periodo as string | null | undefined) ?? '';
   // RF-52: el instante de la máxima de cada alimentador marcado, para elegirlo como común.
   const instantes = cabecera.filter((r) => !r.error && r.fecha && feeders.includes(r.alimentador))
@@ -390,6 +393,10 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
         <button className="btn btn-primary" disabled={!elegidos.length || !ws.demanda?.cabecera || engineBusy} onClick={() => maxima()}>
           Buscar la máxima ({aBuscar.length} medidor{aBuscar.length === 1 ? '' : 'es'})
         </button>
+        <label className="check" title="La máxima de la barra de SET (suma de sus transformadores) y cada alimentador de la barra con su kW y kVAR de esa fecha y hora">
+          <input type="checkbox" checked={porBarra} disabled={engineBusy} onChange={(e) => setPorBarra(e.target.checked)} />
+          {' '}Máxima por barra de SET
+        </label>
         {!ws.demanda?.cabecera && <small className="muted">Falta la medición de cabecera.</small>}
       </div>
       {cabecera.length > 0 && (
@@ -431,6 +438,7 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
               </select>
             </label>
           )}
+          {barrasSet.length > 0 && <BarrasDeSet barras={barrasSet} />}
           {instanteActual && (
             <small className="alert alert-info">Todos los medidores, también los de una central, en el
               registro del {instanteActual}: se calibra a la vez, no en la máxima de cada uno (021:RF-50).</small>
@@ -517,4 +525,26 @@ function Cruce({ cruce, visibles, filtro, setFiltro, desconectados, conmutar }: 
       </details>
     )}
   </>;
+}
+
+/** Spec 022, RF-39 a RF-44: cada barra de SET con su máxima y sus alimentadores en esa fecha. */
+function BarrasDeSet({ barras }: { barras: BarraDeSet[] }) {
+  return (
+    <div className="table-wrap">
+      <strong>Máxima por barra de SET</strong>
+      <table className="small">
+        <thead><tr><th>Barra</th><th>Medidores</th><th>Fecha y hora</th><th>kW</th><th>kVAR</th>
+          <th>Central</th><th>Alimentadores (en esa fecha)</th></tr></thead>
+        <tbody>{barras.map((b) => (
+          <tr key={b.clave}>
+            <td>{b.clave}{b.suelta ? ' (suelta)' : ''}</td><td className="mono">{b.medidores.join(' + ')}</td>
+            <td>{b.fecha}</td><td className="num">{fmtNum(b.kw, 1)}</td><td className="num">{fmtNum(b.kvar, 1)}</td>
+            <td>{b.centrales.map((c) => `${c.medidor} ${c.kw === null ? '—' : fmtNum(c.kw, 1)} kW`).join('; ') || '—'}</td>
+            <td>{b.alimentadores.join(', ')}</td>
+          </tr>
+        ))}</tbody>
+      </table>
+      <small className="muted">Cada alimentador de la barra se calibra con su kW y kVAR de esa fecha y hora, no con su máxima (022:RF-41).</small>
+    </div>
+  );
 }

@@ -24,7 +24,7 @@ def test_campo_central_con_tres_medidores_y_su_nodo():
     for campo in ("'generacion', 'Generación'", "'llegada', 'Llegada (lado SET)'",
                   "'salida', 'Salida (lado carga)'", 'Barra de la central en DIgSILENT'):
         assert campo in DEMANDA
-    assert 'api.demandaCabecera(ws.id, aBuscar, { periodo, instante })' in DEMANDA
+    assert 'api.demandaCabecera(ws.id, aBuscar, { periodo, instante, por_barra: porBarra && !instante })' in DEMANDA
     assert 'alimentador: alimentadorDeCentral(f), medidor' in DEMANDA
     assert 'nodo: string;' in TIPOS
 
@@ -97,7 +97,7 @@ def test_las_curvas_de_la_central_con_el_mismo_tramo_y_leyenda():
 def test_mes_de_analisis_antes_de_buscar_la_maxima():
     """013:RF-11 — el mes se elige en 2.2, antes de buscar la máxima, y la búsqueda lo lleva."""
     assert DEMANDA.index('Mes de análisis (máxima y clientes)') < DEMANDA.index('Buscar la máxima (')
-    assert 'api.demandaCabecera(ws.id, aBuscar, { periodo, instante })' in DEMANDA
+    assert 'api.demandaCabecera(ws.id, aBuscar, { periodo, instante, por_barra: porBarra && !instante })' in DEMANDA
     assert "periodo: criterio.periodo || null, instante: criterio.instante || null" in API
 
 
@@ -137,3 +137,14 @@ def test_casilla_de_los_bancos_que_falten():
     assert 'Poner los bancos que falten' in AJUSTE
     assert 'completar_bancos: completarBancos,' in AJUSTE
     assert 'completar_bancos?: boolean' in API
+
+
+def test_maxima_por_barra_de_set_en_la_web():
+    """022:RF-39, 022:RF-41, 022:RF-44 — casilla «Máxima por barra de SET» en 2.2, que va en
+    la búsqueda; la tabla de cada barra con su máxima, su central y sus alimentadores en esa
+    fecha."""
+    assert 'Máxima por barra de SET' in DEMANDA and 'por_barra: porBarra && !instante' in DEMANDA
+    assert '<BarrasDeSet barras={barrasSet} />' in DEMANDA
+    assert '<th>Alimentadores (en esa fecha)</th>' in DEMANDA
+    assert 'por_barra: Boolean(criterio.por_barra),' in API
+    assert 'export interface BarraDeSet' in TIPOS

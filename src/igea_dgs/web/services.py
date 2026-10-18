@@ -1837,7 +1837,8 @@ def demanda_alimentadores(ws: Workspace) -> dict:
 
 
 def demanda_cabecera(ws: Workspace, ctx: JobContext, pares: list[tuple[str, str]], *,
-                     periodo: str | None = None, instante: datetime | None = None) -> dict:
+                     periodo: str | None = None, instante: datetime | None = None,
+                     por_barra: bool = False) -> dict:
     """Máxima de cada medidor en la medición de cabecera (RF-24 a RF-32). Es un trabajo:
     abrir los libros cuesta segundos (P7). Se cancela entre medidores.
 
@@ -1848,6 +1849,8 @@ def demanda_cabecera(ws: Workspace, ctx: JobContext, pares: list[tuple[str, str]
 
     if not pares:
         raise UserError('Indique al menos un medidor.')
+    if por_barra and instante is None:
+        return _demanda_por_barra(ws, ctx, pares, periodo)            # 022:RF-37 a RF-46
     ruta = _demanda_ruta(ws, 'cabecera')
     alias = demanda_alias()
     ctx.log(f'Medición de cabecera: {ruta.name} · {len(pares)} medidor(es)'
@@ -1874,6 +1877,115 @@ def demanda_cabecera(ws: Workspace, ctx: JobContext, pares: list[tuple[str, str]
     return {'resultados': [r.to_dict() for r in res],
             'cancelado': len(res) < len(pares),
             'periodo': periodo, 'instante': instante.isoformat(sep=' ') if instante else None}
+
+
+def estructura_del_espacio(ws: Workspace):
+    """La estructura zonal → SET → alimentador del espacio (022:RF-4) o del perfil (RF-1)."""
+    from ..estructura import EstructuraError, leer_tabla_excel
+    from ..perfil_empresa import PerfilError, estructura_empresa
+
+    ruta = ((ws.demanda or {}).get('estructura') or {}).get('path')
+    try:
+        return leer_tabla_excel(ruta) if ruta else estructura_empresa()
+    except (EstructuraError, PerfilError) as exc:
+        raise UserError(f'Estructura de la empresa: {exc}') from exc
+
+
+def _kv_alimentadores(ws: Workspace) -> dict[str, float]:
+    """Tensión nominal de cada alimentador de la entrega (inventario de la ejecución)."""
+    ruta = ws.out_dir / 'dataset_inventory.json'
+    try:
+        datos = json.loads(ruta.read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return {}
+    out = {}
+    for f in datos.get('feeders') or []:
+        try:
+            out[str(f['feeder']).upper()] = float(f['nominal_kv'])
+        except (KeyError, TypeError, ValueError):
+            continue
+    return out
+
+
+def _demanda_por_barra(ws: Workspace, ctx: JobContext, pares: list[tuple[str, str]],
+                       periodo: str | None) -> dict:
+    """La máxima de cada barra de SET con medidor y sus alimentadores en esa fecha y hora
+    (022:RF-37 a RF-46). El usuario, el 2026-10-17: «cuando se identifique el máximo valor
+    en la barra, los alimentadores de la misma barra se deben calibrar con la misma fecha
+    del medidor de barra, con fecha coincidente». Los de una barra sin medidor, con su
+    propia máxima (RF-42).
+    """
+    from collections import defaultdict
+
+    from ..demanda_medida import (DemandaError, barras_de_calibracion, leer_medidores_de_barra,
+                                  maxima_de_barra, maximas)
+
+    estructura = estructura_del_espacio(ws)
+    if estructura is None:
+        raise UserError('La máxima por barra necesita la estructura de la empresa (022:RF-1): '
+                        'súbala en Excel o póngala en el perfil.')
+    ruta = _demanda_ruta(ws, 'cabecera')
+    alias = demanda_alias()
+
+    def duenio(a: str) -> str:
+        return a[len('Central '):].strip() if a.lower().startswith('central ') else a
+
+    try:
+        medidores = leer_medidores_de_barra(_demanda_ruta(ws, 'medidores'), alias)
+        alimentadores = sorted({duenio(a).upper() for a, _m in pares if a})
+        barras, avisos = barras_de_calibracion(estructura, medidores, alimentadores,
+                                               _kv_alimentadores(ws))
+        ctx.log(f'Máxima por barra de SET: {len(barras)} barra(s) con medidor para '
+                f'{len(alimentadores)} alimentador(es)' + (f' · {periodo}' if periodo else ''))
+        de_barra = maximas([ruta], [(b.clave, m) for b in barras for m in b.medidores + b.centrales],
+                           alias=alias, cancelado=ctx.cancel.is_set)
+    except DemandaError as exc:
+        raise UserError(str(exc)) from exc
+    curva_de = {(r.alimentador, r.medidor): r.curva for r in de_barra if r.curva}
+    instantes: dict[str, datetime] = {}
+    info = []
+    for b in barras:
+        curvas = [curva_de.get((b.clave, m)) for m in b.medidores]
+        mx = maxima_de_barra(curvas, periodo) if all(curvas) else None
+        if mx is None:
+            avisos.append(f'{b.clave}: sin registros comunes de {", ".join(b.medidores)}'
+                          + (f' en {periodo}' if periodo else '')
+                          + '; sus alimentadores, con su propia máxima (022:RF-42).')
+            continue
+        centrales = []
+        for m in b.centrales:
+            punto = next((x for x in curva_de.get((b.clave, m)) or [] if x[0] == mx['fecha']), None)
+            centrales.append({'medidor': m, 'kw': punto[1] if punto else None,
+                              'kvar': punto[2] if punto else None})
+        for f in b.alimentadores:
+            instantes[f] = mx['fecha']
+        info.append({'clave': b.clave, 'set': b.set_codigo, 'kv': b.kv, 'suelta': b.suelta,
+                     'medidores': b.medidores, 'centrales': centrales,
+                     'alimentadores': b.alimentadores, 'fecha': mx['fecha'].isoformat(sep=' '),
+                     'kw': mx['kw'], 'kvar': mx['kvar'], 'registros': mx['registros']})
+        ctx.log(f'  {b.clave}: {mx["kw"]:,.1f} kW el {mx["fecha"]} ({" + ".join(b.medidores)}); '
+                f'{", ".join(b.alimentadores)} en esa fecha y hora')
+    grupos: dict[Any, list[tuple[str, str]]] = defaultdict(list)
+    for a, m in pares:
+        grupos[instantes.get(duenio(a).upper())].append((a, m))
+    res = []
+    try:
+        for inst, ps in grupos.items():
+            res += maximas([ruta], ps, alias=alias, periodo=None if inst else periodo,
+                           instante=inst, cancelado=ctx.cancel.is_set)
+    except DemandaError as exc:
+        raise UserError(str(exc)) from exc
+    orden = {m: i for i, (_a, m) in enumerate(pares)}
+    res.sort(key=lambda r: orden.get(r.medidor, len(orden)))
+    for aviso in avisos:
+        ctx.log(f'  aviso: {aviso}')
+    with ws.lock:
+        ws.curvas_cabecera = {ctx.job.id: {r.medidor: {'curva': r.curva, 'fuera': r.fuera_de_curva}
+                                           for r in list(res) + list(de_barra) if r.curva}}
+        ws.criterio_cabecera = {ctx.job.id: {'periodo': periodo, 'instante': None,
+                                             'instantes': instantes}}
+    return {'resultados': [r.to_dict() for r in res], 'cancelado': False, 'periodo': periodo,
+            'instante': None, 'por_barra': True, 'barras': info, 'avisos': avisos}
 
 
 # Puntos de la curva que se envían a la web: con ~1 000 px de gráfica, más no se distinguen.
@@ -1954,8 +2066,10 @@ def demanda_central(ws: Workspace, job_id: str, *, alimentador: str, cabecera: s
         return curvas[nombre]['curva']
 
     criterio = ws.criterio_cabecera.get(job_id) or {}
+    # 022:RF-40: con la máxima por barra, el instante de la barra de su alimentador.
+    instante = (criterio.get('instantes') or {}).get(alimentador) or criterio.get('instante')
     res = demanda_con_central(curva(cabecera), curva(generacion), curva(llegada), curva(salida),
-                              criterio.get('periodo'), criterio.get('instante'))
+                              criterio.get('periodo'), instante)
     return {'alimentador': alimentador, 'cabecera': cabecera, 'generacion': generacion,
             'llegada': llegada, 'salida': salida, **res.to_dict()}
 
@@ -1979,8 +2093,9 @@ def demanda_curva_central(ws: Workspace, job_id: str, *, alimentador: str, cabec
         return curvas[nombre]['curva']
 
     criterio = ws.criterio_cabecera.get(job_id) or {}
+    instante = (criterio.get('instantes') or {}).get(alimentador) or criterio.get('instante')
     puntos, res = curva_de_demanda(curva(cabecera), curva(generacion), curva(llegada), curva(salida),
-                                   criterio.get('periodo'), criterio.get('instante'))
+                                   criterio.get('periodo'), instante)
     if not puntos:
         raise LookupError(f'{alimentador}: sin demanda con la central ({res.error}).')
     tramo = reducir_curva(puntos, desde, hasta, max_puntos=len(puntos) or 1)
@@ -2212,7 +2327,8 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
                 desconectados: list[str] | None = None, *, job_id: str = '',
                 centrales: dict[str, dict] | None = None,
                 tension_fuente_pu: float | None = None,
-                completar_bancos: bool = False) -> dict:
+                completar_bancos: bool = False,
+                barras: list[dict] | None = None) -> dict:
     """Plan para ``tools/ajuste_cabecera_pf.py`` (spec 006, RF-1 a RF-3, RF-10).
 
     ``maximas`` es el resultado del trabajo de la máxima de cabecera que el operador ve
@@ -2359,6 +2475,9 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
                          'alimentador': alimentador, 'fecha': objetivo.fecha},
             'clientes': clientes, 'desconectados': apagados, 'kva_entrada': kva_entrada,
             'tolerancia': tolerancia,
+            # 022:RF-41b, RF-44: la barra de SET con medidor del alimentador, si la tiene.
+            'barra_set': next((b for b in barras or []
+                               if alimentador.upper() in b.get('alimentadores', [])), None),
             # 021:RF-61: la tensión en la fuente que indicó el operador, o None.
             'tension_fuente_pu': tension_fuente_pu,
             # 021:RF-64, RF-65: poner los bancos que falten, con el tamaño de su tensión.

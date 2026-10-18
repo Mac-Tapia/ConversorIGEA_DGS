@@ -249,3 +249,30 @@ def test_cabecera_en_el_interruptor_de_una_barra_de_set(guion):
     m = guion.leer_cabecera(elm)
     assert m.converge and m.kw == pytest.approx(9190.0) and m.kvar == pytest.approx(1750.0)
     assert guion.detalle_cabecera(elm)['metodo'] == 'INTERRUPTOR_DE_CABECERA'
+
+
+def test_barra_de_set_central_y_medidor(guion):
+    """022:RF-41b, 022:RF-44 — con la máxima de la barra: la central de la barra en su barra
+    de SET con su P y Q de ese registro, y el informe compara lo que dan las cabeceras de la
+    barra (menos la central) con el medidor de barra."""
+    app = _app(escenario=True)
+    barra_pf = next(o for o in app.proyecto.GetContents('*.ElmTerm', 1) if o.loc_name == 'F1_B0')
+    object.__setattr__(barra_pf, 'loc_name', 'B_SET1_10kV')
+    barra = {'clave': 'SET 1 10 kV', 'set': 'SET 1', 'kv': 10.0, 'suelta': False, 'kw': 480.0,
+             'kvar': 100.0, 'fecha': '2026-07-23 10:00:00', 'alimentadores': ['F1', 'F2'],
+             'centrales': [{'medidor': 'CT_X', 'kw': 1.0, 'kvar': 0.0}]}
+    # En el doble la «barra de SET» es la cabecera de F1, aguas abajo de su medida: la
+    # central se queda pequeña para no tapar sus pérdidas (en la red va aguas arriba).
+    planes = [{**_de(_plan(), 'F1', 300.0), 'barra_set': barra},
+              {**_de(_plan(), 'F2', 220.0), 'barra_set': barra}]
+    (f1, rc1), (f2, rc2) = guion.ejecutar_proyecto(app, planes)
+    assert (rc1, rc2) == (0, 0), (f1, f2)
+    [c] = f1['centrales_de_barra']
+    assert c['medidor'] == 'CT_X' and c['creado']
+    gen = next(o for o in app.creados if o._clase == 'ElmGenstat')
+    assert gen.bus1.cterm.loc_name == 'B_SET1_10kV' and gen.pgini == pytest.approx(0.001)
+    b = f1['barra_set']
+    assert b['calibrados'] == ['F1', 'F2'] and b['central_kw'] == 1.0
+    assert b['cabeceras_kw'] == pytest.approx(f1['cabecera']['kw'] + f2['cabecera']['kw'])
+    assert b['desvio'] == pytest.approx((b['cabeceras_kw'] - 1.0 - 480.0) / 480.0)
+    assert any('022:RF-41b' in a for a in f2['avisos'])
