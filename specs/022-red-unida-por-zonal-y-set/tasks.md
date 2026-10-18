@@ -28,7 +28,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]` y pa
 - [x] T8. Lote y CLI: la conversión unida estructurada y su informe. (RF-6, RF-7, RF-25,
       RF-34)
       Hecho cuando: pruebas del lote en verde con las dos disposiciones.
-- [ ] T9. Guiones: medida en el interruptor de cabecera con barra compartida. (RF-22 a
+- [x] T9. Guiones: medida en el interruptor de cabecera con barra compartida. (RF-22 a
       RF-24)
       Hecho cuando: pruebas de los guiones con `fake_pf` en verde.
 - [ ] T9b. Medidores de barra: lectura de las filas «Barra», asignación por siglas y nivel,

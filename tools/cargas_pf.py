@@ -339,6 +339,13 @@ def medir_cabecera(app, elm):
 def _frontera_cabecera(elm):
     """Cubículo medido, método, troncales y fuentes activas de la barra de cabecera."""
     cub_feeder = elm.obj_id
+    rama = getattr(cub_feeder, 'obj_id', None)
+    if rama is not None and rama.GetClassName() == 'ElmCoup':
+        # 022:RF-22: en la red unida por SET el ElmFeeder está en el interruptor de
+        # cabecera, en la barra de la SET que comparten varios alimentadores. Lo que entra
+        # en este es lo que pasa por su interruptor; la red externa de la barra sumaría
+        # todos ellos (con «FUENTE_UNICA»).
+        return cub_feeder, 'INTERRUPTOR_DE_CABECERA', [], []
     try:
         barra = cub_feeder.GetParent()
         cubiculos = [c for c in barra.GetContents('*.StaCubic')
