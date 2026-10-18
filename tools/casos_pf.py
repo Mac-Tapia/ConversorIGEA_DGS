@@ -201,6 +201,116 @@ def operador_a_con_proyecto(app, casos: dict, variaciones=None) -> list[str]:
     return sorted(activadas)
 
 
+#: Datos de operación que el operador cambia a mano y que DIgSILENT guarda en el escenario
+#: del caso (014:RF-32). Las cargas no: su demanda la lleva el ajuste (014:RF-4).
+OPERACION = {
+    'ElmShnt': ('outserv', 'ncapa'),
+    'ElmCoup': ('outserv', 'on_off'),
+    'StaSwitch': ('on_off',),
+    'ElmTr2': ('outserv', 'nntap'),
+    'ElmLne': ('outserv',),
+}
+
+
+def _foto_operacion(app) -> dict[str, tuple[object, dict]]:
+    """Ruta → (objeto, datos de operación) de la red del caso activo."""
+    out = {}
+    for clase, attrs in OPERACION.items():
+        for o in app.GetCalcRelevantObjects(f'*.{clase}') or []:
+            datos = {}
+            for a in attrs:
+                try:
+                    datos[a] = o.GetAttribute(a)
+                except Exception:  # noqa: BLE001 - un atributo que la clase no tiene
+                    continue
+            out[o.GetFullName()] = (o, datos)
+    return out
+
+
+def _igual(a, b) -> bool:
+    try:
+        return abs(float(a) - float(b)) <= 1e-9 * max(1.0, abs(float(a)))
+    except (TypeError, ValueError):
+        return a == b
+
+
+def sin_a_con_proyecto(app, casos: dict) -> dict:
+    """Lo que el operador hizo a mano en «Sin proyecto», también en «Con proyecto».
+
+    014:RF-31 a RF-34. «Con proyecto» es «Sin proyecto» más las cargas nuevas y las obras,
+    pero se copia una vez y después cada caso va por su lado: en PN107 (2026-10-16) el
+    operador creó un banco en «Sin proyecto» y no estaba en «Con proyecto». Se activan las
+    variaciones del operador (RF-21) y, por cada dato de operación de :data:`OPERACION`
+    que «Sin proyecto» cambió respecto del «Caso base» y «Con proyecto» no, se escribe en
+    el escenario de «Con proyecto». Si los dos lo cambiaron distinto, manda «Con
+    proyecto» (una obra) y se avisa; lo que está en «Sin proyecto» y falta en «Con
+    proyecto» se lista. Deja activo el caso que lo estaba.
+    """
+    out = {'variaciones': [], 'copiados': [], 'conflictos': [], 'faltan': [], 'avisos': []}
+    if 'sin' not in casos or 'con' not in casos:
+        return out
+    previo = app.GetActiveStudyCase()
+    try:
+        out['variaciones'] = operador_a_con_proyecto(app, casos)
+        fotos = {}
+        for rol in ('base', 'sin', 'con'):
+            if rol in casos:
+                casos[rol].Activate()
+                fotos[rol] = _foto_operacion(app)
+        base, sin, con = fotos.get('base', {}), fotos['sin'], fotos['con']
+        cambios = []
+        for ruta, (obj_sin, datos) in sorted(sin.items()):
+            nombre = getattr(obj_sin, 'loc_name', ruta)
+            if ruta not in con:
+                out['faltan'].append(nombre)
+                continue
+            obj_con, en_con = con[ruta]
+            en_base = base.get(ruta, (None, {}))[1]
+            for attr, valor in datos.items():
+                if attr not in en_con or _igual(valor, en_con[attr]):
+                    continue
+                if attr in en_base and not _igual(en_base[attr], en_con[attr]):
+                    if not _igual(en_base[attr], valor):
+                        out['conflictos'].append({'objeto': nombre, 'dato': attr,
+                                                  'sin': valor, 'con': en_con[attr]})
+                    continue                     # lo cambió «Con proyecto» (una obra)
+                cambios.append((obj_con, nombre, attr, valor, en_con[attr]))
+        if cambios:
+            casos['con'].Activate()
+            escenario = app.GetActiveScenario()
+            if escenario is None:
+                out['avisos'].append('«Con proyecto» no tiene escenario activo: no se copian '
+                                     f'{len(cambios)} dato(s) de operación de «Sin proyecto».')
+            else:
+                for obj, nombre, attr, valor, antes in cambios:
+                    obj.SetAttribute(attr, valor)
+                    out['copiados'].append({'objeto': nombre, 'dato': attr,
+                                            'antes': antes, 'ahora': valor})
+                escenario.Save()
+        if out['variaciones']:
+            out['avisos'].append('Activadas en «Con proyecto» porque están activas en «Sin '
+                                 'proyecto»: ' + ', '.join(out['variaciones']))
+        if out['copiados']:
+            out['avisos'].append(
+                f"«Con proyecto» toma de «Sin proyecto» {len(out['copiados'])} dato(s) de "
+                'operación cambiados a mano: ' + ', '.join(
+                    f"{c['objeto']}.{c['dato']}" for c in out['copiados'][:10]) + ' (014:RF-32).')
+        if out['conflictos']:
+            out['avisos'].append(
+                'Cambiados distinto en «Sin proyecto» y en «Con proyecto»; se deja el de «Con '
+                'proyecto»: ' + ', '.join(f"{c['objeto']}.{c['dato']}" for c in out['conflictos'][:10])
+                + ' (014:RF-33).')
+        if out['faltan']:
+            out['avisos'].append(
+                'Están en «Sin proyecto» y no en «Con proyecto» (una variación de «Con proyecto» '
+                'los quita o la del operador está inactiva): ' + ', '.join(out['faltan'][:10])
+                + ' (014:RF-34).')
+    finally:
+        if previo is not None and app.GetActiveStudyCase() is not previo:
+            previo.Activate()
+    return out
+
+
 def _dejar_activas(app, caso, activas: list, inactivas: list) -> list[str]:
     """En ``caso``, activa ``activas`` y desactiva ``inactivas``; devuelve lo que queda activo."""
     caso.Activate()
@@ -363,7 +473,9 @@ def preparar_con(app, plan: dict) -> tuple[dict, int]:
             con = crear_con_proyecto(app, sin)
         escenario_con = _escenario_propio(app, con, 'con', _escenario_de(app, sin))
         _dejar_activas(app, con, grupos['cargas'], grupos['anteriores'])
-        del_operador = operador_a_con_proyecto(app, {'sin': sin, 'con': con})
+        sincronia = sin_a_con_proyecto(app, {**casos, 'con': con})     # 014:RF-31 a RF-34
+        del_operador = sincronia['variaciones']
+        informe['avisos'] += [a for a in sincronia['avisos'] if not a.startswith('Activadas')]
         con.Activate()
         activas = sorted(v.loc_name for v in (app.GetActiveNetworkVariations() or []))
         # Un informe de estudio no trae cliente nuevo: lo que distingue «Con proyecto» son

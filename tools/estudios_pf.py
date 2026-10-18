@@ -61,7 +61,7 @@ from cargas_pf import (
     Alimentadores, _num, activar_proyecto, cabecera_de, crear_variacion, error_inesperado,
     flujo_de_carga, gps_de, leer_cabecera, potencia, trazado_de, variaciones_activas,
 )
-from casos_pf import NOMBRES, casos_del_proyecto
+from casos_pf import NOMBRES, casos_del_proyecto, sin_a_con_proyecto
 
 from igea_dgs.obras_pf import PREFIJO_VARIACION
 from igea_dgs.native_action import native_action_block_report
@@ -559,7 +559,8 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
     proyecto = activar_proyecto(app, plan['project'], plan.get('folder'))
     if proyecto is None:
         return {**informe, 'error': f"no existe el proyecto {plan['project']!r} en DIgSILENT"}, 2
-    caso = casos_del_proyecto(app).get(rol)
+    casos = casos_del_proyecto(app)
+    caso = casos.get(rol)
     if caso is None:
         return {**informe, 'error': f'el proyecto no tiene el caso «{NOMBRES.get(rol, rol)}»: '
                                     'prepare los casos primero'}, 2
@@ -568,6 +569,9 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
     ldf = None                      # el del caso: se toma con el caso ya activo
     guardados: dict = {}
     try:
+        if rol == 'con':                                         # 014:RF-31 a RF-34
+            informe['sin_a_con'] = sin_a_con_proyecto(app, casos)
+            informe['avisos'] += informe['sin_a_con']['avisos']
         caso.Activate()
         ldf = app.GetFromStudyCase('ComLdf')
         # Los dos existen siempre en DIgSILENT, con 0 por defecto (sin escalado, equilibrado).
@@ -747,6 +751,9 @@ def ejecutar_guion(app, plan: dict) -> tuple[dict, int]:
     g = hallados[0]
     inicial = app.GetActiveStudyCase()
     try:
+        if rol == 'con':                                         # 014:RF-31 a RF-34
+            informe['sin_a_con'] = sin_a_con_proyecto(app, casos)
+            informe['avisos'] += informe['sin_a_con']['avisos']
         casos[rol].Activate()
         motivo = poner_parametros(app, g, plan.get('parametros') or {})
         if motivo:

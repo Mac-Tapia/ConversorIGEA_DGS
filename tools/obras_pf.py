@@ -67,7 +67,7 @@ from cargas_pf import (
     completar_diagrama, flujo_de_carga, gps_de, leer_red, medir_estado, nombre_libre, nombre_pf, partir_tramo,
 )
 from casos_pf import (
-    NOMBRES, casos_del_proyecto, crear_con_proyecto, es_de_carga_nueva,
+    NOMBRES, casos_del_proyecto, crear_con_proyecto, es_de_carga_nueva, sin_a_con_proyecto,
 )
 from estudios_pf import medida
 
@@ -1192,6 +1192,9 @@ def aplicar(app, plan: dict, *, simular: bool = False,
         if simular:                                                       # RF-69
             informe['obras'] = filas
             return informe, 2 if any(f['error'] for f in filas) else 0
+        if 'con' in casos:                                       # 014:RF-31 a RF-34
+            informe['sin_a_con'] = sin_a_con_proyecto(app, casos)
+            informe['avisos'] += informe['sin_a_con']['avisos']
         for fila in filas:
             if not fila['error'] and fila['clase'] not in CONSTRUCTORES:
                 fila['error'] = f"las obras de clase {fila['clase']} todavía no se pueden aplicar"

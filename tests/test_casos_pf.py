@@ -478,3 +478,76 @@ def test_preparar_conserva_al_operador_y_lo_lleva_a_con_proyecto(semilla):
     assert otra.loc_name in activas_con and apagada.loc_name not in activas_con
     activas_base, _ = _activas_en(app, _caso(app, 'Caso base'))
     assert otra.loc_name not in activas_base
+
+
+# --------------------------------------------------------------- 014:RF-31 a RF-34
+class _Obj:
+    def __init__(self, nombre):
+        self.loc_name, self.escrito = nombre, {}
+
+    def SetAttribute(self, attr, valor):
+        self.escrito[attr] = valor
+
+
+class _Esc:
+    guardado = 0
+
+    def Save(self):
+        self.guardado += 1
+
+
+class _Caso:
+    def __init__(self, app, rol):
+        self.app, self.rol = app, rol
+
+    def Activate(self):
+        self.app.activo = self
+
+
+class _App:
+    def __init__(self):
+        self.escenario = _Esc()
+        self.casos = {r: _Caso(self, r) for r in ('base', 'sin', 'con')}
+        self.activo = self.casos['base']
+
+    def GetActiveStudyCase(self):
+        return self.activo
+
+    def GetActiveScenario(self):
+        return self.escenario
+
+
+def test_lo_hecho_a_mano_en_sin_proyecto_pasa_a_con_proyecto(monkeypatch):
+    """014:RF-31, 014:RF-32, 014:RF-33, 014:RF-34 — PN107 (2026-10-16): un banco creado a
+    mano en «Sin proyecto» no estaba en «Con proyecto». Se activan las variaciones del
+    operador; un dato de operación que solo cambió «Sin proyecto» se copia al escenario de
+    «Con proyecto»; uno que cambió también «Con proyecto» (una obra) se deja y se avisa; lo
+    que falta en «Con proyecto» se lista; nada más se toca y vuelve el caso del principio."""
+    app = _App()
+    banco, sw, obra, igual = _Obj('BC_1'), _Obj('SW_1'), _Obj('SW_2'), _Obj('SW_3')
+    R = 'P/Red/'                   # la ruta solo sirve de clave; el nombre va tras la última
+    fotos = {
+        'base': {R + 'BC_1': (banco, {'outserv': 1, 'ncapa': 0}), R + 'SW_1': (sw, {'on_off': 1}),
+                 R + 'SW_2': (obra, {'on_off': 1}), R + 'SW_3': (igual, {'on_off': 1})},
+        'sin': {R + 'BC_1': (banco, {'outserv': 0, 'ncapa': 3}), R + 'SW_1': (sw, {'on_off': 0}),
+                R + 'SW_2': (obra, {'on_off': 0}), R + 'SW_3': (igual, {'on_off': 1}),
+                R + 'BC_2': (_Obj('BC_2'), {'outserv': 0})},
+        'con': {R + 'BC_1': (banco, {'outserv': 1, 'ncapa': 0}), R + 'SW_1': (sw, {'on_off': 1}),
+                R + 'SW_2': (obra, {'on_off': 2}), R + 'SW_3': (igual, {'on_off': 1})},
+    }
+    monkeypatch.setattr(casos_pf, '_foto_operacion', lambda a: fotos[a.activo.rol])
+    monkeypatch.setattr(casos_pf, 'operador_a_con_proyecto', lambda a, c: ['Banco_del_operador'])
+    inicial = app.casos['sin']
+    inicial.Activate()
+
+    out = casos_pf.sin_a_con_proyecto(app, app.casos)
+
+    assert out['variaciones'] == ['Banco_del_operador']
+    assert banco.escrito == {'outserv': 0, 'ncapa': 3} and sw.escrito == {'on_off': 0}
+    assert {(c['objeto'], c['dato']) for c in out['copiados']} == {
+        ('BC_1', 'outserv'), ('BC_1', 'ncapa'), ('SW_1', 'on_off')}
+    assert obra.escrito == {} and out['conflictos'] == [
+        {'objeto': 'SW_2', 'dato': 'on_off', 'sin': 0, 'con': 2}]
+    assert igual.escrito == {} and out['faltan'] == ['BC_2']
+    assert app.escenario.guardado == 1 and app.activo is inicial
+    assert any('014:RF-32' in a for a in out['avisos']) and any('014:RF-34' in a for a in out['avisos'])
