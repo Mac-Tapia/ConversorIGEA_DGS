@@ -253,13 +253,17 @@ def canonical_to_cymdist(
     readiness: dict[str, dict[str, Any]] = {}
     for feeder, section_ids in dataset.feeders.items():
         blocking: list[str] = []
+        avisos: list[str] = []
         source = sources.get(feeder)
         if source is None:
             blocking.append('MISSING_SOURCE')
         elif not source.get('DesiredVoltage'):
             blocking.append('MISSING_NOMINAL_VOLTAGE')
         if not mapped_loads.get(feeder):
-            blocking.append('MISSING_LOADS')
+            # Una red sin cargas se convierte igual, como en la vía TXT (alimentadores
+            # fuera de servicio o vacíos: SC215, SI114 y TM101 de la copia de Electro
+            # Dunas, 2026-10-18); se dice, no bloquea (023:RF-10).
+            avisos.append('MISSING_LOADS')
         codes = {
             line_configurations[sid].get('LineCableID', '') for sid in section_ids
         }
@@ -285,5 +289,6 @@ def canonical_to_cymdist(
             'network_id': feeder,
             'status': 'CONVERSION_READY' if not blocking else 'INVENTORY_ONLY',
             'blocking_codes': blocking,
+            'warning_codes': avisos,
         }
     return BridgeResult(dataset=dataset, readiness=readiness, issues=issues)

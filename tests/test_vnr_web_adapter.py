@@ -122,9 +122,10 @@ def test_bridge_enumera_pero_bloquea_vnr_sin_fuente_ni_cargas():
     assert set(result.dataset.feeders) == {'IN111', 'AL209'}
     for readiness in result.readiness.values():
         assert readiness['status'] == 'INVENTORY_ONLY'
-        assert {'MISSING_SOURCE', 'MISSING_LOADS', 'MISSING_CONDUCTOR_CATALOG'} <= set(
-            readiness['blocking_codes']
-        )
+        assert {'MISSING_SOURCE', 'MISSING_CONDUCTOR_CATALOG'} <= set(readiness['blocking_codes'])
+        # 023:RF-10: sin cargas se avisa y se convierte; no bloquea.
+        assert 'MISSING_LOADS' not in readiness['blocking_codes']
+        assert 'MISSING_LOADS' in readiness['warning_codes']
 
 
 def test_vnr_adapter_respeta_empresa_y_periodo_explicitos(tmp_path):
