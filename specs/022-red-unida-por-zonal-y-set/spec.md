@@ -167,6 +167,22 @@ por ejemplo, la barra B-PA2T1, 22,9, PA, es la barra de 22,9 kV de la SET Paraca
 - RF-46: La estructura del perfil de Electro Dunas dará a SEIN las siglas SI (B-SI1T1 es su
   barra de 10 kV).
 
+Una opción propia, sin mezclas (usuario, 2026-10-18: «este es otra opción, por sistema
+eléctrico la conversión unida; dos o más son otras opciones de conversión en DGS; no debe
+ser mezclado para nada los proyectos de conversión»)
+
+- RF-47: EL SISTEMA ofrecerá la conversión por sistema eléctrico como una opción propia, aparte
+  de unir dos o más alimentadores y de convertir por alimentador.
+- RF-48: CUANDO el operador convierte por sistema eléctrico, elegirá un zonal o todos, y EL
+  SISTEMA convertirá todos los alimentadores de la entrega de ese zonal (con todos, también
+  los «Sin SET»).
+- RF-49: EL SISTEMA nombrará el DGS por sistema eléctrico «SISTEMA_<zonal>», o
+  «SISTEMA_ELECTRICO» con todos, y lo registrará como de tipo «sistema».
+- RF-50: MIENTRAS el operador une dos o más alimentadores, EL SISTEMA no usará la estructura:
+  la red unida queda como antes (RF-6).
+- RF-51: EL SISTEMA no mezclará un DGS ni un proyecto de DIgSILENT por sistema eléctrico con
+  los de unir ni con los de un alimentador: su nombre, su registro y su proyecto son propios.
+
 Informe
 
 - RF-25b: EL SISTEMA omitirá una SET, un sistema eléctrico o un zonal de la estructura que

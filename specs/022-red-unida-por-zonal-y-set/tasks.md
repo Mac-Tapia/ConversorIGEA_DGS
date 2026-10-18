@@ -38,6 +38,10 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]` y pa
       Hecho cuando: pruebas del lector, del objetivo y del guion con `fake_pf` en verde.
 - [x] T10. Web: tabla en Excel por espacio e informe por zonal y SET. (RF-4, RF-25)
       Hecho cuando: pruebas de la API y del front en verde; `npm run build`.
+- [ ] T10b. Opción propia «por sistema eléctrico» (RF-47 a RF-51): servicio y API aparte de
+      unir, botón con el zonal en la web, `--por-sistema` en el CLI, registro de tipo
+      «sistema»; unir vuelve a no usar la estructura.
+      Hecho cuando: pruebas del lote, la API, el CLI y el front en verde; `npm run build`.
 - [ ] T11. DIgSILENT: la entrega de Electro Dunas con su estructura, importada como un
       proyecto; zonas, SET, flujo; NA203 + NA205 calibrados juntos en SET 51. (todos)
       Hecho cuando: importa, converge y el ajuste del proyecto cuadra.
