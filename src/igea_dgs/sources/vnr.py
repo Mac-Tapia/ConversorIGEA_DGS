@@ -122,9 +122,17 @@ def fichas_del_catalogo(modelo, catalogo: Path | None = None) -> dict[str, int]:
         modelo_ = fila.get(f'{nombre}_modelo_{unidad}')
         return None if modelo_ is None else float(modelo_)
 
+    # R, X y amperios dependen del material y la sección, no de la tensión ni de las fases:
+    # en la norma VNR son sus cinco primeros caracteres («AA050», «CU016», «N2035»). El
+    # catálogo de Electro Dunas pone «D» también a las redes de 22,9 kV, así que «AA05003G»
+    # (o el monofásico «AA05001D») toma la ficha de «AA05003D» (Ica, 2026-10-18).
+    por_familia: dict[str, dict] = {}
+    for codigo in sorted(filas):
+        por_familia.setdefault(codigo[:5], filas[codigo])
     completados = 0
     for tipo in tipos:
-        fila = filas.get(tipo.conductor_code)
+        codigo = tipo.conductor_code
+        fila = filas.get(codigo) or filas.get(codigo[:-1]) or por_familia.get(codigo[:5])
         if fila is None:
             continue
         tipo.r1_ohm_km = valor(fila, 'R1', 'ohm_km')

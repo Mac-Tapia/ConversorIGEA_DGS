@@ -6,6 +6,7 @@ regulador, iguales para toda empresa. La copia real se prueba con ``IGEA_VNR_BAK
 from __future__ import annotations
 
 import os
+from collections import defaultdict
 from pathlib import Path
 
 import pytest
@@ -293,11 +294,44 @@ def test_fichas_del_catalogo_del_proyecto(tmp_path):
     tablas = _tablas()
     modelo, _ = sv.modelo_canonico(datos)
     modelo.conductor_types.append(type(modelo.conductor_types[0])(conductor_code='ZZ09903D'))
+    # Otra tensión u otras fases, mismo material y sección: la misma ficha.
+    modelo.conductor_types.append(type(modelo.conductor_types[0])(conductor_code='AA05001G'))
     cuenta = fichas_del_catalogo(modelo, ruta)
     tipos = {c.conductor_code: c for c in modelo.conductor_types}
     assert tipos['AA05003D'].r1_ohm_km == 0.6755 and tipos['AA05003D'].ampacity_a == 195.0
     assert tipos['AA05003D'].x1_ohm_km == 0.47, 'sin ficha de X1, la del modelo'
     assert tipos['CU01601D'].r1_ohm_km == 1.2, 'por confirmar: la del modelo, no la ficha'
     assert tipos['ZZ09903D'].r1_ohm_km is None
-    assert cuenta == {'completados': 2, 'sin_ficha': 1}
+    assert tipos['AA05001G'].r1_ohm_km == 0.6755, 'misma familia AA050'
+    assert cuenta == {'completados': 3, 'sin_ficha': 1}
     assert tablas
+
+
+def test_una_isla_se_une_a_la_red_y_se_anota():
+    """023:RF-10 — una parte cuya cadena de padres no llega a la cabecera (T4 y T5 son padre
+    uno del otro, como SM117) se une a la red por su par de nodos más cercano y se anota."""
+    tablas = _tablas()
+    tablas['mtTramo'] += [
+        {'CodTramoMT': 'T4', 'CodSalidaMT': 'F1', 'CodTramoMTPadre': 'T5', 'CodNorma': 'AA05003'},
+        {'CodTramoMT': 'T5', 'CodSalidaMT': 'F1', 'CodTramoMTPadre': 'T4', 'CodNorma': 'AA05003'}]
+    tablas['verTramoMT'] += [
+        {'CodTramoMT': 'T4', 'SecVertice': 1, 'UTMEste': 310.0, 'UTMNorte': 1.0},
+        {'CodTramoMT': 'T4', 'SecVertice': 2, 'UTMEste': 400.0, 'UTMNorte': 1.0},
+        {'CodTramoMT': 'T5', 'SecVertice': 1, 'UTMEste': 400.0, 'UTMNorte': 1.0},
+        {'CodTramoMT': 'T5', 'SecVertice': 2, 'UTMEste': 500.0, 'UTMNorte': 1.0}]
+    datos, _ = _datos(tablas)
+    modelo, avisos = sv.modelo_canonico(datos)
+    (isla,) = [a for a in avisos if a['code'] == 'ISLA_UNIDA']
+    assert isla['distancia_m'] == 10.0
+    secciones = {s.section_id: s for s in modelo.sections}
+    adyacentes = defaultdict(set)
+    for s in modelo.sections:
+        adyacentes[s.from_node].add(s.to_node)
+        adyacentes[s.to_node].add(s.from_node)
+    vistos, pila = set(), [modelo.sources[0].node_id]
+    while pila:
+        n = pila.pop()
+        if n not in vistos:
+            vistos.add(n)
+            pila.extend(adyacentes[n])
+    assert {secciones['T5'].to_node, secciones['T4'].from_node} <= vistos
