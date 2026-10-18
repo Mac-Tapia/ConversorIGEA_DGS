@@ -562,3 +562,21 @@ def test_018_rf12_verificar_compara_con_el_manifiesto_sin_la_red_en_memoria(tmp_
     assert evidencia['source_run_id'] == _RID and evidencia['targets'][0]['dgs'] == dgs.name
     with pytest.raises(services.UserError, match='SOURCE_RUN_MISMATCH'):
         services.check_powerfactory_source_run(ws, ['IN111'])
+
+
+def test_alimentador_solo_en_el_rotulo_de_su_barra_de_set(tmp_path):
+    """022:RF-52 — el rótulo de la red externa de una barra de SET junta a sus alimentadores
+    («PI101 + PI102»); cada uno vale para el vínculo (sistema Pisco, 2026-10-18: PI101 y
+    SI114 solo salían ahí y la calibración del sistema se rechazaba)."""
+    from igea_dgs.powerfactory_binding import (
+        ProjectBindingError, alimentadores_de_rotulos, record_project_binding,
+        require_project_binding,
+    )
+
+    assert alimentadores_de_rotulos(['PI102', 'PI101 + PI102 + PI116']) == {'PI101', 'PI102', 'PI116'}
+    ws = _workspace(tmp_path)
+    record_project_binding(ws, _binding(feeders=('IN111 + PI101', 'IN111')))
+    ws.pf_inventory['projects'][0]['feeders'] = ['IN111 + PI101', 'IN111']
+    assert require_project_binding(ws, 'Oct/IN111', ['IN111', 'PI101']).project == 'Oct/IN111'
+    with pytest.raises(ProjectBindingError, match='PROJECT_BINDING_FEEDER_MISMATCH'):
+        require_project_binding(ws, 'Oct/IN111', ['PI102'])
