@@ -35,6 +35,7 @@ import argparse
 import json
 import math
 import traceback
+from contextlib import contextmanager
 from dataclasses import replace
 from pathlib import Path
 
@@ -308,6 +309,27 @@ def cambios_manuales(cargas: dict, ultima: dict | None) -> tuple[list[dict], str
                     'manual': {'kw': ahora[0], 'kvar': ahora[1]},
                     'ajuste': {'kw': antes[0], 'kvar': antes[1]}})
     return out, nombre
+
+
+@contextmanager
+def _centrales_apagadas(app):
+    """Las variaciones de central apagadas mientras se escribe dato de red (015:RF-37).
+
+    Su etapa sigue grabando aunque se desactive y se vuelva a activar (sonda del
+    2026-10-17): una marca fija o escalable escrita con ella activa queda dentro de la
+    variación y la pisa cada vez que se activa. En el sistema Nasca (2026-10-18), la
+    restauración de una pasada no válida dejó 167 cargas en «Central_NA205» y las fijas de
+    NA203 salían escalables en la validación.
+    """
+    activas = [v for v in (app.GetActiveNetworkVariations() or [])
+               if v.loc_name.startswith(PREFIJO_CENTRAL)]
+    for v in activas:
+        v.Deactivate()
+    try:
+        yield
+    finally:
+        for v in activas:
+            v.Activate()
 
 
 def _restaurar_cargas(cargas: dict, fotos: list[dict], apagar: dict, antes_apagar: dict) -> None:
@@ -1275,8 +1297,28 @@ def central_en_sin_proyecto(app, barra, feeder: str, p_kw: float, q_kvar: float)
         gen.mode_inp = 'PQ'
     gen.pgini = p_kw / 1000.0
     gen.qgini = q_kvar / 1000.0
+    limpiados = _limpiar_etapa_de_la_central(variacion, gen.loc_name)
     return {'generador': gen.loc_name, 'barra': barra.loc_name, 'creado': creado,
-            'variacion': getattr(variacion, 'loc_name', None), 'p_kw': p_kw, 'q_kvar': q_kvar}
+            'variacion': getattr(variacion, 'loc_name', None), 'p_kw': p_kw, 'q_kvar': q_kvar,
+            **({'cambios_ajenos_quitados': limpiados} if limpiados else {})}
+
+
+def _limpiar_etapa_de_la_central(variacion, generador: str) -> int:
+    """Deja en la etapa de la central solo su generador y su cubículo (021:RF-37, 015:RF-37).
+
+    Lo demás que haya grabado (las 167 cargas de «Central_NA205» del sistema Nasca,
+    2026-10-18) no es de la central y pisaba la marca fija o escalable de la red.
+    """
+    quitados = 0
+    for etapa in (variacion.GetContents('*.IntSstage', 1) or []) if variacion is not None else []:
+        for obj in etapa.GetContents('*', 1) or []:
+            clase = obj.GetClassName()
+            if (clase == 'ElmGenstat' and obj.loc_name == generador) or (
+                    clase == 'StaCubic' and obj.loc_name == f'Cub_{generador}'):
+                continue
+            obj.Delete()
+            quitados += 1
+    return quitados
 
 
 def medir_zonas(app, elm, barra, entrada: str):
@@ -1926,8 +1968,9 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
         # RF-18, RF-19 de la 011 y 015:RF-37: fija o escalable. DIgSILENT guarda la marca en
         # la red que comparten los casos, no en el escenario (sonda T1 de la 015); el
         # «Caso base» la ve, pero conserva su demanda porque en él no se calibra.
-        for sed in reparto.demandas:
-            cargas[sed].i_scale = 1 if sed in reparto.base else 0
+        with _centrales_apagadas(app):                                  # 015:RF-37
+            for sed in reparto.demandas:
+                cargas[sed].i_scale = 1 if sed in reparto.base else 0
         # RF-26: en el escenario, como la demanda.
         for sed, obj in apagar.items():
             try:
@@ -2024,7 +2067,8 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
                 } for fallo in validacion_posterior['fallos'])
                 # Una cabecera cuadrada no compensa una carga que la relectura nativa no
                 # conservó: las cargas vuelven a como estaban y no queda nada para estudios.
-                _restaurar_cargas(cargas, antes_nativo, apagar, antes_apagar)
+                with _centrales_apagadas(app):
+                    _restaurar_cargas(cargas, antes_nativo, apagar, antes_apagar)
                 informe['calibracion_revertida'] = True
         if res.reparto is not None:
             informe['sed'] = _por_sed(res.reparto, cargas, kva_origen, antes, fijas)
@@ -2587,7 +2631,8 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
                     inf['avisos'].append('La calibración del proyecto no es válida por '
                                          + ', '.join(invalidos) + ': vuelve a como estaba.')
                 if not p['central']:
-                    _restaurar_cargas(p['cargas'], p['antes_nativo'], p['apagar'],
+                    with _centrales_apagadas(app):
+                        _restaurar_cargas(p['cargas'], p['antes_nativo'], p['apagar'],
                                       p['antes_apagar'])
                     inf['calibracion_revertida'] = True
         if res.repartos is not None and not invalidos and not solo_medir:
