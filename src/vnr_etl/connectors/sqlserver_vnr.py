@@ -372,6 +372,8 @@ def modelo_canonico(datos: DatosVnr, salidas: Iterable[str] | None = None, *,
                            'distancia_m': round(d, 2)})
             nodos.unir(extremos[c][i], n)
             origen[c] = i
+        _unir_islas(nodos, extremos, cabecera, avisos)
+        cabecera = nodos.raiz(cabecera)
         modelo.sources.append(Source(source_id=f'SRC_{salida}', node_id=cabecera,
                                      nominal_kv=kv, feeder_id=salida,
                                      source_layer='mtSalida', source_sid=salida))
@@ -580,3 +582,40 @@ def cargar_copia(bak: Path | str, *, servidor: str = SERVIDOR,
     if param_bak is None:
         avisos.append({'code': 'SIN_BASE_DE_PARAMETROS', 'source_id': bak.name})
     return modelo, avisos, alcance
+
+
+def _unir_islas(nodos: _Nodos, extremos: Mapping[str, tuple[str, str]], cabecera: str,
+                avisos: list[dict]) -> None:
+    """Une a la red de la cabecera cada parte que quedó suelta, por su par de nodos más
+    cercano, y anota el hueco (RF-10: se reconstruye, no se bloquea).
+
+    Una cadena de padres que no llega a la cabecera deja una isla: SM117 en la copia de
+    Electro Dunas (2026-10-18) tenía 257 tramos y 122 SED sin camino a su SET.
+    """
+    while True:
+        vecinos: dict[str, set[str]] = defaultdict(set)
+        for a, b in extremos.values():
+            ra, rb = nodos.raiz(a), nodos.raiz(b)
+            vecinos[ra].add(rb)
+            vecinos[rb].add(ra)
+        alcanzados, pila = set(), [nodos.raiz(cabecera)]
+        while pila:
+            n = pila.pop()
+            if n not in alcanzados:
+                alcanzados.add(n)
+                pila.extend(vecinos.get(n, ()))
+        sueltos = sorted(set(vecinos) - alcanzados)
+        if not sueltos:
+            return
+        # La isla del primer nodo suelto, entera, y su par más cercano con la red.
+        isla, pila = set(), [sueltos[0]]
+        while pila:
+            n = pila.pop()
+            if n not in isla:
+                isla.add(n)
+                pila.extend(vecinos.get(n, ()))
+        d, a, b = min((math.dist(nodos.xy[a], nodos.xy[b]), a, b)
+                      for a in sorted(isla) for b in sorted(alcanzados))
+        avisos.append({'code': 'ISLA_UNIDA', 'source_id': a, 'nodo_red': b,
+                       'distancia_m': round(d, 2), 'nodos': len(isla)})
+        nodos.unir(a, b)
