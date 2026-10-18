@@ -276,3 +276,17 @@ def test_barra_de_set_central_y_medidor(guion):
     assert b['cabeceras_kw'] == pytest.approx(f1['cabecera']['kw'] + f2['cabecera']['kw'])
     assert b['desvio'] == pytest.approx((b['cabeceras_kw'] - 1.0 - 480.0) / 480.0)
     assert any('022:RF-41b' in a for a in f2['avisos'])
+
+
+def test_sin_cuadrar_en_kw_no_se_ponen_bancos(guion):
+    """021:RF-64 — los bancos que faltan solo se calculan con el alimentador en su objetivo
+    de kW tras la primera pasada (NA205 del TXT, 2026-10-18: sin cuadrar puso 10)."""
+    plan = {'tolerancia': 0.01}
+    assert guion._cuadro_en_kw({'desvio': {'kw': 0.004}}, plan)
+    assert not guion._cuadro_en_kw({'desvio': {'kw': 0.2}}, plan)
+    assert not guion._cuadro_en_kw({'desvio': None}, plan)
+    central = {**plan, 'central': {'nodo': '1720'}}
+    assert guion._cuadro_en_kw({'zonas': {'arriba_kw': 100.0, 'arriba_objetivo_kw': 100.5,
+                                          'abajo_kw': 500.0, 'abajo_objetivo_kw': 501.0}}, central)
+    assert not guion._cuadro_en_kw({'zonas': {'arriba_kw': 100.0, 'arriba_objetivo_kw': 100.5,
+                                              'abajo_kw': 300.0, 'abajo_objetivo_kw': 7177.9}}, central)

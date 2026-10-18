@@ -2140,6 +2140,18 @@ def _deficit(inf: dict, plan: dict) -> tuple[float | None, float | None]:
     return (inf.get('cabecera') or {}).get('kvar'), (plan.get('objetivo') or {}).get('kvar')
 
 
+def _cuadro_en_kw(inf: dict, plan: dict) -> bool:
+    """Si el alimentador quedó en su objetivo de kW tras la primera pasada (021:RF-64)."""
+    tol = float(plan.get('tolerancia', 0.01))
+    zonas = inf.get('zonas') or {}
+    if plan.get('central'):
+        pares = [(zonas.get('arriba_kw'), zonas.get('arriba_objetivo_kw')),
+                 (zonas.get('abajo_kw'), zonas.get('abajo_objetivo_kw'))]
+        return all(m is not None and o and abs(m - o) <= tol * abs(o) for m, o in pares)
+    desvio = (inf.get('desvio') or {}).get('kw')
+    return desvio is not None and abs(desvio) <= tol
+
+
 def barras_para_bancos(red, cabecera: str, n: int) -> list[str]:
     """Las barras de la troncal más cercanas a 2k/(2n+1) de su largo (021:RF-66); una barra
     no se repite."""
@@ -2226,6 +2238,12 @@ def _con_bancos_que_faltan(app, planes: list[dict], *, cancelado, estado: dict) 
     for plan, (inf, _rc) in zip(planes, primera):
         f = plan['feeder']
         if inf.get('error') or alims.elm.get(f) is None:
+            continue
+        if not _cuadro_en_kw(inf, plan):
+            # Solo con el kW del alimentador en su objetivo el kVAR de la red dice lo que
+            # falta: en NA205 del TXT (2026-10-18) no cuadraba y puso 10 bancos sin sentido.
+            avisos.append(f'{f}: no cuadró en kW en la primera pasada; no se calcula qué '
+                          'bancos faltan (021:RF-64).')
             continue
         q_red, q_medido = _deficit(inf, plan)
         cab = cabecera_de(alims.elm[f])
