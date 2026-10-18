@@ -247,6 +247,13 @@ def geography_to_dict(geo: GeographyManifest, model: FeederModel | None = None) 
     # Una fuente por alimentador: en una red unida (combine) hay tantas como alimentadores.
     combinado = getattr(model, 'combined', None) if model is not None else None
     fuentes = len(getattr(combinado, 'feeders', None) or ()) or 1
+    # Spec 022: una por barra de SET y una por alimentador «Sin SET»; y una red por zonal.
+    barras_set = list(getattr(combinado, 'barras_set', None) or []) if combinado is not None else []
+    redes: list[str] = []
+    if barras_set:
+        fuentes = len(barras_set) + len(combinado.sin_set)
+        redes = list(dict.fromkeys([b.zonal for b in barras_set]
+                                   + (['Sin SET'] if combinado.sin_set else [])))
     from .model import capacitor_resolution_issue, resolve_capacitor_capacity
 
     combined_node_kv = getattr(combinado, 'node_kv', {}) if combinado is not None else {}
@@ -276,6 +283,7 @@ def geography_to_dict(geo: GeographyManifest, model: FeederModel | None = None) 
     return {
         'format': 'igea-dgs-geography-v1',
         'feeder': geo.feeder,
+        **({'redes': redes} if redes else {}),
         'network_id': geo.network_id,
         'source_node': geo.source_node,
         'expected_counts': expected,

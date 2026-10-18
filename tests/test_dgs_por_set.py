@@ -108,3 +108,20 @@ def test_la_carga_sin_sed_en_la_red_de_su_zonal(tmp_path):
     redes = {r['loc_name']: r['FID'] for r in t['ElmNet']}
     libre = next(r for r in t['ElmLod'] if r['loc_name'] == 'C9')
     assert libre['fold_id'] == redes['Sur']
+
+
+def test_los_nombres_con_tilde_llegan_a_digsilent(tmp_path):
+    """022:RF-9, 022:RF-15 — el DGS va en la página de códigos de DIgSILENT (cp1252): «SET 46
+    Señor de Luren» y «Huaytará» no llegan como «SeÃ±or»; con nombres ASCII, el mismo
+    fichero de siempre."""
+    from igea_dgs.estructura import estructura_de_dict
+
+    e = estructura_de_dict({'zonales': [{'nombre': 'Ica', 'sets': [
+        {'codigo': 'SET 46', 'nombre': 'Señor de Luren', 'alimentadores': [{'codigo': 'A', 'sistema': 'SE0051'}]}]}],
+        'sistemas': {'SE0051': {'nombre': 'Huaytará - Chocorvos', 'sector': '4', 'norma': 'NTCSER'}}})
+    red, _ = combine_models([_alimentador('A', 10.0, ['A_H', 'A_1'], con_carga='A_1')])
+    estructurar(red, e)
+    out, t = _tablas(tmp_path, red)
+    assert 'SET 46 Señor de Luren' in {r['loc_name'] for r in t['ElmSubstat']}
+    assert 'SE0051 Huaytará - Chocorvos' in {r['loc_name'] for r in t['ElmZone']}
+    assert 'Señor'.encode('cp1252') in out.read_bytes()

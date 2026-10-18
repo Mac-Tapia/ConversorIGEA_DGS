@@ -85,6 +85,10 @@ def _fmt(value) -> str:
     return str(value).replace(';', ',').replace('\r', ' ').replace('\n', ' ').strip()
 
 
+#: Codificación del DGS: la que usa DIgSILENT al importarlo (022:RF-9).
+DGS_ENCODING = 'cp1252'
+
+
 def _loc_name(value: str) -> str:
     return _fmt(value)[:40]
 
@@ -1650,7 +1654,10 @@ def write_dgs(
         output.append(schema.header(table))
         output.extend(rows[table])
         output.extend(['', ''])
-    path.write_text('\n'.join(output), encoding='utf-8')
+    # DIgSILENT lee el DGS con la página de códigos ANSI (cp1252): en UTF-8, «SET 46 Señor de
+    # Luren» llegaba como «SeÃ±or» (Electro Dunas por SET, 2026-10-18). Con nombres ASCII el
+    # fichero es el mismo byte a byte.
+    path.write_text('\n'.join(output), encoding=DGS_ENCODING, errors='replace')
 
     return DgsManifest(
         network_fid=network_fid,
