@@ -69,6 +69,17 @@ Estado: borrador · Fecha: 2026-10-17 · Spec: [spec.md](spec.md)
      «FUENTE_UNICA» sumaría todos los alimentadores de la SET.
    - La consigna de 021:RF-61 ya recorre todas las redes externas: vale por barra de SET.
 
+8. **Calibración por barra de SET** — `demanda_medida.py`, `ajuste_cabecera.py`,
+   `web/services.py` y `tools/ajuste_cabecera_pf.py`. (RF-37 a RF-45)
+   - `leer_medidores` distingue las filas «Barra» (medidor, nivel, siglas); la estructura
+     trae las siglas de cada SET.
+   - Objetivo de la barra: la suma, registro a registro, de sus medidores de la misma
+     tensión (T1 + T2) y su máxima (o el instante coincidente de 021:RF-50).
+   - En `ejecutar_proyecto`, una clave por barra de SET con medidor: su medida es la P que
+     entra por su red externa; su reparto, todas las SED escaladas de sus alimentadores con
+     un factor; los alimentadores de barras sin medidor siguen con su clave propia (RF-42).
+   - Central de barra (RF-44) con `central_en_sin_proyecto` en la barra de SET.
+
 ## Pruebas
 
 - Sintéticas sorteadas (semilla) con un número variable de zonales, SET y alimentadores;

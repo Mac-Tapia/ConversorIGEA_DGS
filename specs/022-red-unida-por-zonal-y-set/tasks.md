@@ -31,6 +31,10 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]` y pa
 - [ ] T9. Guiones: medida en el interruptor de cabecera con barra compartida. (RF-22 a
       RF-24)
       Hecho cuando: pruebas de los guiones con `fake_pf` en verde.
+- [ ] T9b. Medidores de barra: lectura de las filas «Barra», asignación por siglas y nivel,
+      objetivo por barra como máxima de la suma de sus transformadores, y cuadre por barra
+      en el ajuste del proyecto con un factor por barra; central de barra. (RF-37 a RF-45)
+      Hecho cuando: pruebas del lector, del objetivo y del guion con `fake_pf` en verde.
 - [ ] T10. Web: tabla en Excel por espacio e informe por zonal y SET. (RF-4, RF-25)
       Hecho cuando: pruebas de la API y del front en verde; `npm run build`.
 - [ ] T11. DIgSILENT: la entrega de Electro Dunas con su estructura, importada como un

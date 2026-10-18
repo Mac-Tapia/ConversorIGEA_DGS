@@ -128,6 +128,35 @@ oráculo»)
 - RF-34: EL SISTEMA dejará en el informe de la conversión cada punto de enlace abierto, con
   su motivo (RF-27, RF-30 o RF-31).
 
+Calibración del sistema por barra de SET (usuario, 2026-10-17: «para hacer la calibración
+de los sistemas se debe usar el máximo valor del Excel medidoralimentador en la columna
+código alimentador Barra, con su medidor, su nivel de tensión y siglas: AL es Alto la Luna;
+por ejemplo, la barra B-PA2T1, 22,9, PA, es la barra de 22,9 kV de la SET Paracas»)
+
+- RF-37: EL SISTEMA leerá del libro de medidores por alimentador las filas de barra: las
+  que en «código alimentador» dicen «Barra», con su medidor, su nivel de tensión y sus
+  siglas.
+- RF-38: EL SISTEMA asignará cada medidor de barra a la barra de la SET de sus siglas y su
+  nivel de tensión, con las siglas de cada SET de la estructura del perfil (AL → SET 33 Alto
+  la Luna, PA → SET 32 Paracas…).
+- RF-39: CUANDO el operador calibra un proyecto unido por SET, EL SISTEMA tomará como
+  objetivo de cada barra de SET con medidor la máxima, registro a registro, de la suma de
+  sus medidores de esa tensión (los de cada transformador, T1 y T2).
+- RF-40: EL SISTEMA medirá en la red lo que entra en la barra de SET desde su red externa y
+  lo cuadrará con su objetivo de RF-39.
+- RF-41: EL SISTEMA repartirá el objetivo de una barra de SET entre todos sus alimentadores
+  con un solo factor de escala para sus SED escaladas, con las fijas de cada alimentador
+  con su EA/ERI (015:RF-53, RF-44).
+- RF-42: SI una barra de SET no tiene medidor de barra, ENTONCES EL SISTEMA calibrará cada
+  alimentador de esa barra con la máxima de su propio medidor, como hasta ahora.
+- RF-43: EL SISTEMA no usará los medidores de barra de alta tensión (60 kV, 220 kV): la SET
+  entra sin su transformador de potencia.
+- RF-44: DONDE un medidor de barra es de una central («Barra CT», «CTBarra»: CT_PEDREG en la
+  barra de 10 kV de Pedregal), EL SISTEMA pondrá la central en esa barra con la P y Q
+  medidas en el registro objetivo de la barra, como la central de 021:RF-35.
+- RF-45: SI unas siglas del libro no están en la estructura, ENTONCES EL SISTEMA lo dirá
+  nombrando las siglas y su medidor, y no usará ese medidor.
+
 Informe
 
 - RF-25b: EL SISTEMA omitirá una SET, un sistema eléctrico o un zonal de la estructura que
@@ -172,6 +201,8 @@ Informe
 - Los clientes por alimentador de la tabla (columnas por fecha): no se usan en la red.
 - Migrar los proyectos ya importados en DIgSILENT: hay que importar el DGS nuevo.
 - Las transferencias entre SET o zonales distintos.
+- Asignar cada alimentador al transformador T1 o T2 de su SET: la barra de cada tensión
+  suma los medidores de sus transformadores (RF-39).
 - Un DGS por zonal además del unido.
 
 ## Criterios de finalización
@@ -185,6 +216,12 @@ Informe
 
 ## Dudas abiertas
 
-Ninguna. Resueltas el 2026-10-17: los alimentadores «fuera de servicio» de la tabla se
-integran (RF-13); los anillos se abren (RF-30); las cabeceras en sus coordenadas UTM y las
-barras de SET en ellas (RF-17, RF-18); lo que no tiene redes se omite (RF-25b).
+- [NECESITA ACLARACIÓN: las siglas CHN (CHNB1T1, CHNB2T1, CHNB6T1), PO (PO_BARRA 10KV) y la
+  barra de Chiribamba (SE_CHIRIBAMBA, CHB2T1 de CHI201), ¿a qué SET de la tabla
+  corresponden?]
+- [NECESITA ACLARACIÓN: SI (B-SI1T1, «Barra ind»): los SI112, SI213 y SI114 están en la tabla
+  con SET «SEIN»; ¿es la barra de esa SET?]
+
+Resueltas el 2026-10-17: los alimentadores «fuera de servicio» de la tabla se integran
+(RF-13); los anillos se abren (RF-30); las cabeceras en sus coordenadas UTM y las barras de
+SET en ellas (RF-17, RF-18); lo que no tiene redes se omite (RF-25b).
