@@ -142,11 +142,17 @@ por ejemplo, la barra B-PA2T1, 22,9, PA, es la barra de 22,9 kV de la SET Paraca
 - RF-39: CUANDO el operador calibra un proyecto unido por SET, EL SISTEMA tomará como
   objetivo de cada barra de SET con medidor la máxima, registro a registro, de la suma de
   sus medidores de esa tensión (los de cada transformador, T1 y T2).
-- RF-40: EL SISTEMA medirá en la red lo que entra en la barra de SET desde su red externa y
-  lo cuadrará con su objetivo de RF-39.
-- RF-41: EL SISTEMA repartirá el objetivo de una barra de SET entre todos sus alimentadores
-  con un solo factor de escala para sus SED escaladas, con las fijas de cada alimentador
-  con su EA/ERI (015:RF-53, RF-44).
+- RF-40: EL SISTEMA tomará la fecha y hora del registro de RF-39 como el instante
+  coincidente de todos los alimentadores de esa barra.
+- RF-41: CUANDO se identifica la máxima de una barra de SET, EL SISTEMA calibrará cada
+  alimentador de esa barra con su propio medidor en la misma fecha y hora de esa máxima,
+  coincidente con el medidor de barra (021:RF-50), cada uno con su factor de escala y sus
+  fijas con su EA/ERI (usuario, 2026-10-17: «los alimentadores de la misma barra se deben
+  calibrar con la misma fecha del medidor de barra, con fecha coincidente»).
+- RF-41b: EL SISTEMA dará en el informe, por barra de SET, lo que entra desde su red externa
+  frente al medidor de barra en ese registro.
+- RF-41c: SI un alimentador de la barra no tiene registro en esa fecha y hora, ENTONCES EL
+  SISTEMA lo dirá y no lo calibrará (021:RF-53).
 - RF-42: SI una barra de SET no tiene medidor de barra, ENTONCES EL SISTEMA calibrará cada
   alimentador de esa barra con la máxima de su propio medidor, como hasta ahora.
 - RF-43: EL SISTEMA no usará los medidores de barra de alta tensión (60 kV, 220 kV): la SET

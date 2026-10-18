@@ -75,9 +75,10 @@ Estado: borrador · Fecha: 2026-10-17 · Spec: [spec.md](spec.md)
      trae las siglas de cada SET.
    - Objetivo de la barra: la suma, registro a registro, de sus medidores de la misma
      tensión (T1 + T2) y su máxima (o el instante coincidente de 021:RF-50).
-   - En `ejecutar_proyecto`, una clave por barra de SET con medidor: su medida es la P que
-     entra por su red externa; su reparto, todas las SED escaladas de sus alimentadores con
-     un factor; los alimentadores de barras sin medidor siguen con su clave propia (RF-42).
+   - La fecha y hora de la máxima de la barra es el instante coincidente (021:RF-50) de los
+     medidores de sus alimentadores: cada uno conserva su clave y su factor en
+     `ejecutar_proyecto`, con el objetivo de su medidor en ese registro (RF-40, RF-41); el
+     informe compara la P de la red externa de la barra con su medidor (RF-41b).
    - Central de barra (RF-44) con `central_en_sin_proyecto` en la barra de SET.
 
 ## Pruebas
