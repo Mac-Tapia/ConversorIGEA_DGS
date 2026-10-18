@@ -1,0 +1,190 @@
+# Spec 022 — Red unida por zonal y SET
+
+Estado: aprobada (2026-10-17) · Fecha: 2026-10-17
+
+## Contexto y objetivo
+
+Hoy la red unida pone una red externa por alimentador: cada uno es una isla con su fuente.
+En NA203 + NA205 (2026-10-17) cada «External Grid» alimentaba su isla, y la calibración por
+proyecto (021:RF-54) no tenía nada que acoplar. Los alimentadores de una misma SET comparten
+su barra de media tensión, y la empresa los agrupa en zonales y sistemas eléctricos con su
+sector típico y su norma (NTCSE, NTCSER). El usuario, el 2026-10-17, con la tabla pública
+«Sistemas eléctricos Electrodunas» (4 zonales: Chincha, Pisco, Ica y Nasca; cada SET con sus
+alimentadores): «propón la conversión por sistema eléctrico y SET en un solo DGS unido por
+sistemas eléctricos y SET». El objetivo es un DGS con todos los alimentadores de la entrega
+colgados de la barra de su SET y agrupados por zonal y sistema eléctrico, sin suponer nada
+de una empresa en el código (constitución 13).
+
+## Usuarios / actores
+
+- Ingeniero de planificación desde la web: convierte la entrega entera y la importa en
+  DIgSILENT como un proyecto.
+- CLI en lote: la misma conversión.
+- Los guiones de DIgSILENT (cargas, ajuste, obras, estudios) sobre ese proyecto.
+
+## Historias de usuario
+
+- H1: Como planificador quiero un solo DGS con todos los alimentadores en su SET y su zonal
+  para estudiar la red como la opera la empresa.
+- H2: Como planificador quiero que los alimentadores de una SET compartan su barra para que
+  la calibración y las transferencias vean su acople.
+- H3: Como planificador quiero agrupar resultados por sistema eléctrico para leer pérdidas y
+  tensiones con su norma.
+- H4: Como planificador quiero actualizar la tabla de la empresa cuando cambie sin tocar
+  código.
+
+## Requisitos funcionales (EARS)
+
+Estructura de la empresa
+
+- RF-1: DONDE el perfil de empresa trae una estructura, EL SISTEMA la leerá como zonales,
+  cada zonal con sus SET, cada SET con sus alimentadores.
+- RF-2: EL SISTEMA leerá de cada alimentador de la estructura su código, su SET, su
+  sistema eléctrico (código y nombre), su sector típico y su norma.
+- RF-3: El perfil de Electro Dunas traerá la estructura de la tabla pública «Sistemas
+  eléctricos Electrodunas» (zonales Chincha, Pisco, Ica y Nasca).
+- RF-4: CUANDO el operador sube en la web la tabla de la estructura en Excel, EL SISTEMA la
+  usará en lugar de la del perfil para ese espacio.
+- RF-5: SI la tabla subida tiene un alimentador sin SET, una SET sin zonal o un código
+  repetido, ENTONCES EL SISTEMA la rechazará nombrando la fila.
+- RF-6: MIENTRAS no haya estructura, EL SISTEMA convertirá la red unida como hasta ahora,
+  con una red externa por alimentador.
+
+Conversión unida por zonal y SET
+
+- RF-7: DONDE hay estructura, EL SISTEMA escribirá en un solo DGS todos los alimentadores
+  de la entrega.
+- RF-8: EL SISTEMA pondrá una red (`ElmNet`) por zonal, con las SET y los alimentadores de
+  ese zonal.
+- RF-9: EL SISTEMA escribirá cada SET como una subestación con su código y su nombre («SET
+  21 El Carmen»).
+- RF-10: EL SISTEMA pondrá en cada SET una barra por cada tensión de media de sus
+  alimentadores en la entrega (10 kV y 22,9 kV en Electro Dunas).
+- RF-11: EL SISTEMA pondrá una red externa por barra de SET, con la consigna de tensión del
+  perfil o 1,0 pu sin ella.
+- RF-12: EL SISTEMA unirá la cabecera de cada alimentador a la barra de su SET y tensión
+  con un interruptor de cabecera, en lugar de su red externa propia.
+- RF-13: EL SISTEMA integrará en servicio, con su interruptor de cabecera cerrado, todo
+  alimentador de la entrega, también los que la tabla marca «fuera de servicio» (usuario,
+  2026-10-17: «no deberían estar fuera de servicio, tienes que integrarlo»).
+- RF-14: EL SISTEMA definirá cada `ElmFeeder` en el cubículo de su interruptor de
+  cabecera, hacia el alimentador.
+- RF-15: EL SISTEMA escribirá cada sistema eléctrico como una zona de DIgSILENT con su
+  código y su nombre, y asignará a ella los elementos de sus alimentadores.
+- RF-16: EL SISTEMA guardará en cada zona su sector típico y su norma.
+- RF-17: EL SISTEMA dibujará la cabecera de cada alimentador en sus coordenadas UTM de la
+  entrega, en el mapa y en el diagrama.
+- RF-18: EL SISTEMA situará la barra de cada tensión de una SET en las coordenadas de las
+  cabeceras que cuelgan de ella, que coinciden (usuario, 2026-10-17: «cada cabecera
+  coincide con la barra de 10 kV y 22,9 kV de la misma SET»).
+- RF-18b: SI las cabeceras de una misma barra de SET no tienen las mismas coordenadas,
+  ENTONCES EL SISTEMA pondrá la barra en las de la cabecera de menor código y lo avisará
+  nombrando la SET.
+
+Lo que no casa
+
+- RF-19: SI un alimentador de la entrega no está en la estructura, ENTONCES EL SISTEMA lo
+  pondrá en un grupo «Sin SET» con su red externa propia y lo avisará, sin bloquear.
+- RF-20: SI un alimentador de la estructura no está en la entrega, ENTONCES EL SISTEMA lo
+  listará en el informe de la conversión.
+- RF-21: SI la tensión de la cabecera de un alimentador no casa con ninguna barra de su
+  SET, ENTONCES EL SISTEMA creará la barra de esa tensión en la SET y lo avisará.
+
+Medida por alimentador en la barra compartida
+
+- RF-22: MIENTRAS varios alimentadores cuelgan de la misma barra de SET, EL SISTEMA medirá
+  lo que entra en cada uno en su interruptor de cabecera, no en la red externa de la barra.
+- RF-23: EL SISTEMA aplicará la medida de RF-22 en el ajuste a la máxima, en las cargas,
+  en las obras y en los estudios.
+- RF-24: CUANDO el operador calibra un proyecto unido por SET, EL SISTEMA calibrará juntos
+  los alimentadores marcados (021:RF-54), con la consigna de tensión en la red externa de
+  cada barra de SET (021:RF-61).
+
+Puntos de enlace y oráculo de la red unida (usuario, 2026-10-17: «lo que debe identificar
+son los puntos de enlace y abrirlos para ejecutar el flujo de potencia; ahí debe trabajar el
+oráculo»)
+
+- RF-26: EL SISTEMA identificará los puntos de enlace de la red unida: los nodos que
+  comparten alimentadores distintos, de la misma SET o de SET distintas.
+- RF-27: EL SISTEMA escribirá cada punto de enlace como un interruptor abierto entre los dos
+  alimentadores, con su nombre, los dos alimentadores y sus dos SET.
+- RF-28: CUANDO la red unida está armada, EL SISTEMA ejecutará el oráculo sobre ella entera
+  (barras de SET, redes externas, interruptores de cabecera y enlaces abiertos) antes de
+  escribir el DGS.
+- RF-29: EL oráculo comprobará que cada barra alimentada lo está desde una sola barra de SET
+  por los tramos y maniobras cerrados.
+- RF-30: SI el oráculo encuentra un camino cerrado entre dos barras de SET, entre dos
+  alimentadores o dentro de un mismo alimentador (un anillo), ENTONCES EL SISTEMA abrirá el
+  punto de enlace de ese camino y lo dirá (usuario, 2026-10-17: los anillos «debe
+  abrirlos»).
+- RF-31: SI el camino cerrado de RF-30 no pasa por ningún punto de enlace, ENTONCES EL
+  SISTEMA abrirá la maniobra o el tramo del camino más lejano de la barra de SET (el
+  límite entre los dos alimentadores, o el punto del anillo más alejado de su cabecera) y
+  lo dirá con su nombre.
+- RF-32: EL oráculo calculará el flujo de potencia de la red unida con los enlaces abiertos
+  y dará su veredicto por SET y por zonal.
+- RF-33: SI el flujo del oráculo no converge, ENTONCES EL SISTEMA nombrará la SET cuya isla
+  no converge y la barra de mayor error, y no lo dará por bueno.
+- RF-34: EL SISTEMA dejará en el informe de la conversión cada punto de enlace abierto, con
+  su motivo (RF-27, RF-30 o RF-31).
+
+Informe
+
+- RF-25b: EL SISTEMA omitirá una SET, un sistema eléctrico o un zonal de la estructura que
+  no tenga ningún alimentador en la entrega, y escribirá todo el que tenga alguno
+  (usuario, 2026-10-17: «si no existen, los SER deben omitirse, pero si tienen sus redes no
+  se deben omitir»).
+- RF-25: EL SISTEMA dará en el informe de la conversión, por zonal y SET, sus alimentadores
+  convertidos, los que faltan y los que quedaron «Sin SET».
+
+## Requisitos no funcionales
+
+- Determinismo: el DGS es idéntico byte a byte con `workers=1` y `workers>1`; el orden de
+  zonales, SET y alimentadores es el de sus códigos.
+- Escala: ninguna regla depende del número de alimentadores, SET ni zonales; la estructura
+  se indexa una vez, no se recorre por alimentador.
+- Universal (constitución 13): zonales, SET, sistemas eléctricos y normas vienen del perfil
+  o de la tabla subida; el código no conoce ningún nombre de Electro Dunas.
+- Las fuentes son independientes: TXT, MDB y VNR-GIS se convierten igual con la estructura.
+- Idioma: español.
+
+## Casos límite
+
+- Disposición reducida y completa del TXT: el resultado es el mismo.
+- Una SET con alimentadores de 10 kV y de 22,9 kV: dos barras y dos redes externas.
+- Un alimentador partido en varias redes en la base (PE104 en 260924.mdb): todas sus
+  partes cuelgan de la misma barra.
+- Una SET, un sistema eléctrico (SER Chincha, SER Nasca) o un zonal sin alimentadores en
+  la entrega: no se escribe (RF-25b).
+- Una entrega de un solo zonal: un solo `ElmNet`.
+- Enlaces entre alimentadores (`ElmCoup` abiertos) entre SET o zonales distintos: siguen
+  abiertos y se dibujan.
+- Un alimentador que aparece con dos SET en la tabla: error de RF-5.
+- Dos alimentadores de SET distintas unidos por un tramo cerrado en el GIS: el camino se
+  abre en su punto de enlace (RF-30) y el flujo corre con cada SET por su lado.
+- Un punto de enlace entre tensiones distintas (10 y 22,9 kV): abierto, como en 016.
+- La central térmica de un alimentador (spec 021): sigue en su variación de «Sin proyecto».
+
+## Fuera de alcance
+
+- El transformador de potencia AT/MT de cada SET y la red de transmisión: la SET entra con
+  barras de media y red externa (el usuario, 2026-10-17).
+- Los clientes por alimentador de la tabla (columnas por fecha): no se usan en la red.
+- Migrar los proyectos ya importados en DIgSILENT: hay que importar el DGS nuevo.
+- Las transferencias entre SET o zonales distintos.
+- Un DGS por zonal además del unido.
+
+## Criterios de finalización
+
+- Cada RF citado por al menos una prueba (`grep -rnoE "022:RF-[0-9]+" tests`).
+- Suite en verde con los TXT, la MDB y VNR-GIS reales, y DGS idéntico con `workers=1` y
+  `workers>1`.
+- Probado en DIgSILENT: la entrega de Electro Dunas importada como un proyecto, con los
+  cuatro zonales, sus SET y un flujo que converge; NA203 + NA205 calibrados juntos en SET
+  51 Nasca.
+
+## Dudas abiertas
+
+Ninguna. Resueltas el 2026-10-17: los alimentadores «fuera de servicio» de la tabla se
+integran (RF-13); los anillos se abren (RF-30); las cabeceras en sus coordenadas UTM y las
+barras de SET en ellas (RF-17, RF-18); lo que no tiene redes se omite (RF-25b).
