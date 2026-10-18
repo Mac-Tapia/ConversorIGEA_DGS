@@ -1153,7 +1153,8 @@ def sincronizar_con_proyecto(app, con, sin, cargas: dict, reparto, omitir, apaga
     fallos = []
     if distintas and escenario is not None:
         iguales = set(reparto.demandas) - set(distintas)
-        fallos = escribir_reparto(cargas, reparto, set(omitir) | iguales)
+        with _centrales_apagadas(app):                                  # 015:RF-37
+            fallos = escribir_reparto(cargas, reparto, set(omitir) | iguales)
         for obj in apagar.values():
             obj.outserv = 1
         escenario.Save()
@@ -1474,8 +1475,9 @@ def _ejecutar_con_central(app, plan: dict, informe: dict, *, alims, elm, feeder:
 
         def flujo(rep_arriba, rep_abajo):
             fallos.clear()
-            fallos.extend(escribir_reparto(arriba, rep_arriba, con_manual))
-            fallos.extend(escribir_reparto(abajo, rep_abajo, con_manual))
+            with _centrales_apagadas(app):                              # 015:RF-37
+                fallos.extend(escribir_reparto(arriba, rep_arriba, con_manual))
+                fallos.extend(escribir_reparto(abajo, rep_abajo, con_manual))
             return medir_zonas(app, elm, barra, parte.entrada)
 
         res = cuadrar_zonas(repartos['arriba'], repartos['abajo'], objetivo, flujo,
@@ -2573,13 +2575,18 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
         _centrales_de_barra(app, preps, informes)                        # 022:RF-44
 
         def flujo(reps):
-            for f, p in preps.items():
-                if p['central']:
-                    zs = p['zc']['zonas']
-                    fallos[f] = desc[f] + [x for z in ZONAS for x in escribir_reparto(
-                        zs[z], reps[_clave_zona(f, z)], p['con_manual'])]
-                else:
-                    fallos[f] = desc[f] + escribir_reparto(p['cargas'], reps[f], p['con_manual'])
+            # Con la central activa, la carga escrita se grababa entera en su etapa, con la
+            # marca escalable de otra pasada: 14 fijas de NA203 en «Central_NA205» (sistema
+            # Nasca, 2026-10-18). Se escribe con las centrales apagadas (015:RF-37).
+            with _centrales_apagadas(app):
+                for f, p in preps.items():
+                    if p['central']:
+                        zs = p['zc']['zonas']
+                        fallos[f] = desc[f] + [x for z in ZONAS for x in escribir_reparto(
+                            zs[z], reps[_clave_zona(f, z)], p['con_manual'])]
+                    else:
+                        fallos[f] = desc[f] + escribir_reparto(p['cargas'], reps[f],
+                                                               p['con_manual'])
             rc = app.GetFromStudyCase('ComLdf').Execute()
             if rc != 0 or not app.IsLdfValid():
                 return MedidaConjunta(False, motivo=f'el flujo de carga no converge (código {rc})')
@@ -2658,8 +2665,9 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
                     for f, p in preps.items():
                         if p['central']:
                             zs = p['zc']['zonas']
-                            fallos_con[f] = [x for z in ZONAS for x in escribir_reparto(
-                                zs[z], reps[_clave_zona(f, z)], p['con_manual'])]
+                            with _centrales_apagadas(app):              # 015:RF-37
+                                fallos_con[f] = [x for z in ZONAS for x in escribir_reparto(
+                                    zs[z], reps[_clave_zona(f, z)], p['con_manual'])]
                             o = p['zc']['objetivo']
                             gen = gens.get(informes[f]['central'].get('generador'))
                             if gen is not None:
@@ -2670,7 +2678,9 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
                                     '«Con proyecto» no tiene la central: active su variación '
                                     f"{informes[f]['central'].get('variacion')}.")
                         else:
-                            fallos_con[f] = escribir_reparto(p['cargas'], reps[f], p['con_manual'])
+                            with _centrales_apagadas(app):              # 015:RF-37
+                                fallos_con[f] = escribir_reparto(p['cargas'], reps[f],
+                                                                 p['con_manual'])
                         for obj in p['apagar'].values():
                             obj.outserv = 1
                     esc_con.Save()
