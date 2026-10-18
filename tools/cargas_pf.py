@@ -1560,6 +1560,11 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
         if any((preparados.get('casos') or {}).get(r, {}).get('creado') for r in ('sin', 'con')):
             informe['casos_preparados'] = preparados.get('casos')
         casos = c011.tres_casos(app)
+    if casos and not simular:
+        # 014:RF-31 a RF-34: lo hecho a mano en «Sin proyecto», también en «Con proyecto»,
+        # antes de apagar ningún escenario para escribir.
+        informe['sin_a_con'] = c011.sin_a_con_proyecto(app, casos)
+        informe['avisos'] += informe['sin_a_con']['avisos']
     # 014:RF-23: una vez por trabajo, no por carga.
     ya = {'indice': indice_de_cargas_nuevas(app, alims.elegidos),
           'red': nombres_en_red(app, alims, casos['con']) if casos else None}
@@ -1680,11 +1685,9 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
             # de otras aplicaciones se apagan mientras tanto: la referencia sin proyecto
             # de cada carga es la base (007:RF-32), y se vuelven a encender al final.
             # 014:RF-21, RF-22: antes, lo que el operador tiene activo en «Sin proyecto».
-            informe['variaciones_operador_activadas'] = c011.operador_a_con_proyecto(app, casos)
-            if informe['variaciones_operador_activadas']:
-                informe['avisos'].append(
-                    'Activadas en «Con proyecto» porque están activas en «Sin proyecto»: '
-                    + ', '.join(informe['variaciones_operador_activadas']))
+            # (sin_a_con_proyecto, al empezar, ya las activó y lo dijo)
+            informe['variaciones_operador_activadas'] = (informe.get('sin_a_con') or {}).get(
+                'variaciones', [])
             entrar(casos['con'])
             for v in variaciones_base + ([dem_var] if dem_var is not None else []):
                 v.Activate()

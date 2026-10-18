@@ -186,8 +186,9 @@ def test_escenario_y_variaciones_del_caso():
 
 
 def test_el_informe_lista_las_obras_activas_en_cada_caso():
-    """011:RF-68 — el informe de cada estudio lista las obras activas en su caso: una obra
-    solo de «Con proyecto» sale en ese y no en «Sin proyecto»; las demás variaciones activas
+    """011:RF-68, 014:RF-31 — el informe de cada estudio lista las obras activas en su caso:
+    una obra solo de «Con proyecto» sale en ese y no en «Sin proyecto»; la de «Sin proyecto»
+    pasa también a «Con proyecto» al estudiarlo (016:RF-12); las demás variaciones activas
     no son obras."""
     app, feeders = _red()
     casos = casos_pf.casos_del_proyecto(app)
@@ -200,7 +201,8 @@ def test_el_informe_lista_las_obras_activas_en_cada_caso():
     con, rc = guion.ejecutar(app, _plan(feeders, caso='con'))
     assert rc == 0, con
     assert sin['obras_activas'] == [f'Obra_condensador_{feeders[0]}']
-    assert con['obras_activas'] == [f'Obra_terna_{feeders[0]}']
+    assert con['obras_activas'] == sorted([f'Obra_condensador_{feeders[0]}', f'Obra_terna_{feeders[0]}'])
+    assert con['sin_a_con']['variaciones'] == [f'Obra_condensador_{feeders[0]}']
     assert all(not a.startswith('Obra_') for a in (AJUSTE.format(f=f) for f in feeders))
 
 

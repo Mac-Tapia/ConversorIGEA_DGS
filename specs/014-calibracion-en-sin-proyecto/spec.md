@@ -137,6 +137,22 @@ Inserción sin duplicados
   motivo dice con qué nombre está (usuario, 2026-10-16: «la comparación podría ser por el
   nombre y el mismo punto de coordenadas»).
 
+Lo hecho a mano en «Sin proyecto» pasa a «Con proyecto» (usuario, 2026-10-16: en PN107 se
+creó un banco de condensadores en «Sin proyecto» y no estaba en «Con proyecto»)
+
+- RF-31: ANTES de insertar cargas nuevas, aplicar obras, preparar los casos, estudiar
+  «Con proyecto» o ejecutar en él un guion del operador, y DESPUÉS de cada ajuste, EL
+  SISTEMA activará en «Con proyecto» las variaciones del operador activas en «Sin
+  proyecto» (RF-21) y comparará los datos de operación de los tres casos.
+- RF-32: SI un dato de operación (en servicio de bancos, interruptores, transformadores y
+  líneas; escalones de un banco; estado de un interruptor; tap de un transformador)
+  difiere en «Sin proyecto» del «Caso base» y «Con proyecto» lo tiene como el «Caso
+  base», ENTONCES EL SISTEMA lo escribirá en el escenario de «Con proyecto» y lo dirá.
+- RF-33: SI «Sin proyecto» y «Con proyecto» cambiaron el mismo dato y lo tienen distinto,
+  ENTONCES EL SISTEMA dejará el de «Con proyecto» (una obra) y avisará de cada uno.
+- RF-34: SI un elemento está en la red de «Sin proyecto» y no en la de «Con proyecto»
+  después de RF-31, ENTONCES EL SISTEMA lo listará en un aviso.
+
 ## Requisitos que esta spec cambia
 
 | Requisito | Antes | Ahora |
