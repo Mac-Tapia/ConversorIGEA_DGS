@@ -1685,15 +1685,6 @@ def _preparar_alimentador(app, plan: dict, informe: dict, *, alims, feeder: str,
                  apagar=apagar, desconectadas=desconectadas, avisos_desc=avisos_desc, kva=kva,
                  kva_origen=kva_origen, objetivo=objetivo, fp_cargas=fp_cargas,
                  fijas_libro=fijas_libro, manuales=manuales)
-    if plan.get('central'):
-        # Spec 021: una central en el troncal; se calibra por zonas (RF-35 a RF-45).
-        return {**comun, 'central': True}
-    try:
-        reparto = reparto_inicial(objetivo, fijas_libro,
-                                  {s: potencia(o) for s, o in cargas.items()}, kva,
-                                  fp=fp_cargas)
-    except AjusteError as exc:
-        return {**informe, 'error': str(exc), 'ambiguas': ambiguas}, 2
     fijas = {s: f for f in fijas_libro.values() for s in cargas
              if clave_codigo(s) == clave_codigo(f.sed)}
     # 015:RF-59: un cliente que pide más que el transformador de su SED, nombrado.
@@ -1722,6 +1713,17 @@ def _preparar_alimentador(app, plan: dict, informe: dict, *, alims, feeder: str,
                 f"{x['sed']} ({', '.join(x['clientes']) or 'cambio manual'}) "
                 f"{x['kva_carga']:,.0f} kVA en {x['kva']:,.0f} kVA ({x['carga_pct']:,.0f} %)"
                 for x in sobre))
+    if plan.get('central'):
+        # Spec 021: una central en el troncal; se calibra por zonas (RF-35 a RF-45). Las fijas
+        # sobre su transformador se miran antes, también con central: en NA205 (2026-10-17)
+        # SE50293 pedía 1 392 kW en 125 kVA, el flujo no convergía y no se avisaba (020:RF-1).
+        return {**comun, 'central': True, 'fijas': fijas, 'sobre': sobre}
+    try:
+        reparto = reparto_inicial(objetivo, fijas_libro,
+                                  {s: potencia(o) for s, o in cargas.items()}, kva,
+                                  fp=fp_cargas)
+    except AjusteError as exc:
+        return {**informe, 'error': str(exc), 'ambiguas': ambiguas}, 2
     antes = {s: potencia_efectiva(o) for s, o in cargas.items()}
     antes_nativo = _foto_cargas_nativas(cargas)
     antes_apagar = {s: int(getattr(o, 'outserv', 0) or 0) for s, o in apagar.items()}
