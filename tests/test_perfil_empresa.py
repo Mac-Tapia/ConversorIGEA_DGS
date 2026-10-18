@@ -269,7 +269,11 @@ def test_electro_dunas_es_un_perfil_mas():
         # 015:RF-54: el factor de potencia de las escaladas también es una convención.
         'patron_libro_clientes', 'informes', 'calibracion', 'estudios',
         # 016:RF-81: el enrutador de vías del enlace lo elige cada empresa.
-        'vias'}
+        'vias',
+        # 022:RF-3: la estructura zonal → SET → alimentadores, en un JSON aparte.
+        'estructura'}
+    assert perfiles_disponibles() == sorted(set(perfiles_disponibles())), 'la estructura no es un perfil'
+    assert 'electro_dunas.estructura' not in perfiles_disponibles()
 
 
 # --------------------------------------------------------------------------- RF-36

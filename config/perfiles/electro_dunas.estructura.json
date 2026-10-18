@@ -1,0 +1,104 @@
+{
+  "_comentario": "Tabla pública «Sistemas eléctricos Electrodunas» (referencia/SISTEMAS ELECTRICOS ELECTRODUNAS 1.pdf, 2026). Spec 022: zonal → SET → alimentadores con su sistema eléctrico. Todos se integran, también los que la tabla marca fuera de servicio (RF-13). Las siglas son las de los medidores de barra de medidoralimentador.xlsx (RF-38); SI es SEIN (RF-46).",
+  "sistemas": {
+    "SE0043": {"nombre": "Chincha", "sector": "2", "norma": "NTCSE"},
+    "SE1043": {"nombre": "Chincha Baja Densidad", "sector": "2", "norma": "NTCSE"},
+    "SE0046": {"nombre": "Pisco", "sector": "2", "norma": "NTCSE"},
+    "SE2046": {"nombre": "Paracas", "sector": "2", "norma": "NTCSE"},
+    "SE0044": {"nombre": "Ica", "sector": "2", "norma": "NTCSE"},
+    "SE2044": {"nombre": "Santa Margarita", "sector": "2", "norma": "NTCSE"},
+    "SE1045": {"nombre": "Nasca", "sector": "2", "norma": "NTCSE"},
+    "SE1046": {"nombre": "Pisco Urbano Rural", "sector": "3", "norma": "NTCSER"},
+    "SE3044": {"nombre": "Tacama", "sector": "3", "norma": "NTCSER"},
+    "SE2045": {"nombre": "Nasca Rural", "sector": "3", "norma": "NTCSER"},
+    "SE3045": {"nombre": "Palpa", "sector": "3", "norma": "NTCSER"},
+    "SE0246": {"nombre": "Palpa Rural", "sector": "3", "norma": "NTCSER"},
+    "SE4045": {"nombre": "Puquio", "sector": "3", "norma": "NTCSER"},
+    "SE0047": {"nombre": "Coracora", "sector": "3", "norma": "NTCSER"},
+    "SE0049": {"nombre": "Pausa", "sector": "3", "norma": "NTCSER"},
+    "SE0051": {"nombre": "Huaytará - Chocorvos", "sector": "4", "norma": "NTCSER"},
+    "SE0247": {"nombre": "Puquio Rural", "sector": "4", "norma": "NTCSER"},
+    "SE0056": {"nombre": "Tambo Quemado", "sector": "4", "norma": "NTCSER"},
+    "SE0053": {"nombre": "Chaviña", "sector": "4", "norma": "NTCSER"},
+    "SE0054": {"nombre": "Incuyo", "sector": "4", "norma": "NTCSER"},
+    "SE0040": {"nombre": "SER Chincha", "sector": "9", "norma": "NTCSER"},
+    "SE0041": {"nombre": "SER Nasca", "sector": "9", "norma": "NTCSER"}
+  },
+  "zonales": [
+    {"nombre": "Chincha", "sets": [
+      {"codigo": "SET 21", "nombre": "El Carmen", "siglas": ["CA"], "alimentadores": [
+        {"codigo": "CA101", "sistema": "SE1043"}, {"codigo": "CA103", "sistema": "SE1043"},
+        {"codigo": "CA104", "sistema": "SE1043"}, {"codigo": "CA105", "sistema": "SE1043"},
+        {"codigo": "CA206", "sistema": "SE1043"}]},
+      {"codigo": "SET 22", "nombre": "Tambo de Mora", "siglas": ["TM"], "alimentadores": [
+        {"codigo": "TM101", "sistema": "SE1043"}, {"codigo": "TM102", "sistema": "SE1043"},
+        {"codigo": "TM103", "sistema": "SE1043"}, {"codigo": "TM104", "sistema": "SE1043"},
+        {"codigo": "TM105", "sistema": "SE1043"}, {"codigo": "TM106", "sistema": "SE1043"}]},
+      {"codigo": "SET 23", "nombre": "Pueblo Nuevo", "siglas": ["PN"], "alimentadores": [
+        {"codigo": "PN101", "sistema": "SE0043"}, {"codigo": "PN102", "sistema": "SE0043"},
+        {"codigo": "PN103", "sistema": "SE0043"}, {"codigo": "PN104", "sistema": "SE0043"},
+        {"codigo": "PN105", "sistema": "SE0043"}, {"codigo": "PN106", "sistema": "SE0043"},
+        {"codigo": "PN107", "sistema": "SE0043"}, {"codigo": "PN208", "sistema": "SE0043"},
+        {"codigo": "PN209", "sistema": "SE0043"}]},
+      {"codigo": "SET 25", "nombre": "Pedregal", "siglas": ["PE"], "alimentadores": [
+        {"codigo": "PE101", "sistema": "SE1043"}, {"codigo": "PE102", "sistema": "SE1043"},
+        {"codigo": "PE103", "sistema": "SE0043"}, {"codigo": "PE104", "sistema": "SE0043"},
+        {"codigo": "PE105", "sistema": "SE0043"}, {"codigo": "PE106", "sistema": "SE1043"}]}]},
+    {"nombre": "Pisco", "sets": [
+      {"codigo": "SET 31", "nombre": "Pisco", "siglas": ["PI"], "alimentadores": [
+        {"codigo": "PI101", "sistema": "SE0046"}, {"codigo": "PI102", "sistema": "SE0046"},
+        {"codigo": "PI103", "sistema": "SE0046"}, {"codigo": "PI116", "sistema": "SE0046"}]},
+      {"codigo": "SET 33", "nombre": "Alto la Luna", "siglas": ["AL"], "alimentadores": [
+        {"codigo": "AL104", "sistema": "SE0046"}, {"codigo": "AL105", "sistema": "SE0046"},
+        {"codigo": "AL106", "sistema": "SE0046"}, {"codigo": "AL107", "sistema": "SE0046"},
+        {"codigo": "AL108", "sistema": "SE0046"}, {"codigo": "AL209", "sistema": "SE0046"}]},
+      {"codigo": "SET 32", "nombre": "Paracas", "siglas": ["PA"], "alimentadores": [
+        {"codigo": "PA108", "sistema": "SE2046"}, {"codigo": "PA109", "sistema": "SE2046"},
+        {"codigo": "PA110", "sistema": "SE2046"}, {"codigo": "PA111", "sistema": "SE2046"},
+        {"codigo": "PA217", "sistema": "SE2046"}, {"codigo": "PA218", "sistema": "SE2046"}]},
+      {"codigo": "SEIN", "nombre": "", "siglas": ["SI"], "alimentadores": [
+        {"codigo": "SI112", "sistema": "SE1046"}, {"codigo": "SI213", "sistema": "SE1046"},
+        {"codigo": "SI114", "sistema": "SE1046"}]},
+      {"codigo": "SET 34", "nombre": "", "siglas": [], "alimentadores": [
+        {"codigo": "CHI201", "sistema": "SE0051"}]}]},
+    {"nombre": "Ica", "sets": [
+      {"codigo": "SEICA", "nombre": "", "siglas": [], "alimentadores": [
+        {"codigo": "IC103", "sistema": "SE0044"}, {"codigo": "IC104", "sistema": "SE0044"},
+        {"codigo": "IC105", "sistema": "SE0044"}, {"codigo": "IC106", "sistema": "SE0044"},
+        {"codigo": "IC107", "sistema": "SE2044"}]},
+      {"codigo": "SET 44", "nombre": "Ica Norte", "siglas": [], "alimentadores": [
+        {"codigo": "IN110", "sistema": "SE0044"}, {"codigo": "IN111", "sistema": "SE0044"},
+        {"codigo": "IN112", "sistema": "SE0044"}, {"codigo": "IN113", "sistema": "SE0044"},
+        {"codigo": "IN114", "sistema": "SE0044"}, {"codigo": "IN215", "sistema": "SE0044"},
+        {"codigo": "IN216", "sistema": "SE0044"}]},
+      {"codigo": "SET 42", "nombre": "Santa Margarita", "siglas": [], "alimentadores": [
+        {"codigo": "SM115", "sistema": "SE2044"}, {"codigo": "SM116", "sistema": "SE2044"},
+        {"codigo": "SM117", "sistema": "SE2044"}, {"codigo": "SM218", "sistema": "SE2044"},
+        {"codigo": "SM119", "sistema": "SE2044"}, {"codigo": "SM220", "sistema": "SE2044"}]},
+      {"codigo": "SET 41", "nombre": "Tacama", "siglas": [], "alimentadores": [
+        {"codigo": "TA121", "sistema": "SE0044"}, {"codigo": "TA122", "sistema": "SE3044"},
+        {"codigo": "TA123", "sistema": "SE3044"}, {"codigo": "TA124", "sistema": "SE3044"},
+        {"codigo": "TA225", "sistema": "SE0044"}]},
+      {"codigo": "SET 46", "nombre": "Señor de Luren", "siglas": [], "alimentadores": [
+        {"codigo": "SL141", "sistema": "SE0044"}, {"codigo": "SL142", "sistema": "SE0044"},
+        {"codigo": "SL143", "sistema": "SE0044"}, {"codigo": "SL144", "sistema": "SE2044"},
+        {"codigo": "SL145", "sistema": "SE2044"}, {"codigo": "SL146", "sistema": "SE0044"},
+        {"codigo": "SL201", "sistema": "SE0044"}]}]},
+    {"nombre": "Nasca", "sets": [
+      {"codigo": "SET 51", "nombre": "Nasca", "siglas": ["NA"], "alimentadores": [
+        {"codigo": "NA101", "sistema": "SE1045"}, {"codigo": "NA102", "sistema": "SE1045"},
+        {"codigo": "NA203", "sistema": "SE2045"}, {"codigo": "NA104", "sistema": "SE2045"},
+        {"codigo": "NA205", "sistema": "SE2045"}]},
+      {"codigo": "SET 52", "nombre": "Llipata", "siglas": [], "alimentadores": [
+        {"codigo": "LL101", "sistema": "SE3045"}, {"codigo": "LL202", "sistema": "SE0246"},
+        {"codigo": "LL203", "sistema": "SE0246"}, {"codigo": "LL204", "sistema": "SE0246"}]},
+      {"codigo": "SET 53", "nombre": "Puquio", "siglas": [], "alimentadores": [
+        {"codigo": "PU101", "sistema": "SE4045"}, {"codigo": "PU202", "sistema": "SE0247"},
+        {"codigo": "PU203", "sistema": "SE0247"}]},
+      {"codigo": "SET 55", "nombre": "", "siglas": [], "alimentadores": [
+        {"codigo": "CH101", "sistema": "SE0053"}, {"codigo": "PAU201", "sistema": "SE0049"},
+        {"codigo": "CO101", "sistema": "SE0047"}, {"codigo": "INC201", "sistema": "SE0054"}]},
+      {"codigo": "SET 56", "nombre": "", "siglas": [], "alimentadores": [
+        {"codigo": "TQ201", "sistema": "SE0056"}]}]}
+  ]
+}
