@@ -175,12 +175,18 @@ def test_la_etapa_de_la_central_queda_solo_con_la_central(guion):
         def GetContents(self, _patron, _rec=0):
             return self.hijos
 
+        def Deactivate(self):
+            borrados.append('desactivada')
+
+        def Activate(self):
+            borrados.append('activada')
+
     etapa = O(clase='IntSstage', loc_name='Etapa_central', hijos=[
         O(clase='ElmGenstat', loc_name='Central_NA205'), O(clase='StaCubic', loc_name='Cub_Central_NA205'),
         O(clase='ElmLod', loc_name='SE50320'), O(clase='ElmLod', loc_name='SE50033')])
     variacion = O(clase='IntScheme', loc_name='Central_NA205', hijos=[etapa])
     assert guion._limpiar_etapa_de_la_central(variacion, 'Central_NA205') == 2
-    assert borrados == ['SE50320', 'SE50033']
+    assert borrados == ['SE50320', 'SE50033', 'desactivada', 'activada'], 'se reactiva para recalcular'
 
 
 def test_la_marca_fija_se_restaura_con_las_centrales_apagadas(guion):
