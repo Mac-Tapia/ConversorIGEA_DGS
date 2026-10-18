@@ -221,8 +221,12 @@ def auditar_completitud(dataset, networks: Iterable[str], model, tablas: dict,
     # una pérdida (021:RF-9).
     enlaces = len(getattr(getattr(model, 'combined', None), 'ties', ()) or ())
     seds = {r.get('FID') for r in tablas.get('ElmSubstat', {}).get('rows_dict', [])}
+    # Spec 022: los interruptores de cabecera y los puntos abiertos por el oráculo no
+    # vienen de la entrada.
+    cabeceras = len(getattr(getattr(model, 'combined', None), 'cabeceras', ()) or ())
+    abiertos = sum(1 for d in model.devices if getattr(d, 'kind', '') == 'punto_abierto')
     interruptores = sum(1 for r in tablas.get('ElmCoup', {}).get('rows_dict', [])
-                        if r.get('fold_id') not in seds) - enlaces
+                        if r.get('fold_id') not in seds) - enlaces - cabeceras - abiertos
 
     fallos = []
     if n('ElmLne') + puentes != len(secciones):

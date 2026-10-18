@@ -119,3 +119,31 @@ def test_web_une_en_un_dgs(tmp_path, monkeypatch):
         assert estado['groups'][0]['requested_feeders'] == nombres
         assert estado['groups'][0]['feeder_metadata'].endswith('RED_feeder_metadata.json')
         assert estado['options']['hoja'] is None
+
+
+def test_la_red_unida_por_zonal_y_set(ds, tmp_path):
+    """022:RF-6, 022:RF-7, 022:RF-25, 022:RF-34 — con la estructura, un DGS con una red por
+    zonal y una fuente por barra de SET, en las dos disposiciones; el manifiesto trae el
+    informe por zonal y SET, los «Sin SET», las aperturas y el oráculo."""
+    from igea_dgs.estructura import estructura_de_dict
+
+    nombres = [f['feeder'] for f in convert_selection(
+        ds, None, tmp_path / 'x', all_feeders=True, source_crs=CRS_SINTETICO)['feeders']]
+    e = estructura_de_dict({'zonales': [
+        {'nombre': 'Norte', 'sets': [{'codigo': 'SET 1', 'nombre': 'Uno', 'alimentadores': nombres[:2]}]},
+        {'nombre': 'Sur', 'sets': [{'codigo': 'SET 2', 'nombre': 'Dos', 'alimentadores': ['NO_VIENE']}]}]})
+    man = convert_group(ds, nombres, tmp_path / 'g', name='POR SET', source_crs=CRS_SINTETICO,
+                        estructura=e)
+    assert man['status'] == 'ok', man.get('error')
+    tablas = parse_dgs(man['dgs'])
+    assert {r['loc_name'] for r in tablas['ElmNet']['rows_dict']} == {'Norte', 'Sin SET'}
+    xnets = [r['loc_name'] for r in tablas['ElmXnet']['rows_dict']]
+    assert len(xnets) == 1 + len(nombres) - 2, 'una por barra de SET y una por «Sin SET»'
+    por_set = man['estructura']
+    assert set(por_set['zonales']) == {'Norte'}
+    assert sorted(por_set['zonales']['Norte']['SET 1 Uno']['alimentadores']) == sorted(nombres[:2])
+    assert por_set['sin_set'] == sorted(nombres[2:]) and por_set['faltan'] == ['NO_VIENE']
+    assert por_set['omitidos']['zonales'] == ['Sur']
+    assert isinstance(por_set['aperturas'], list)
+    if por_set['oraculo'] is not None:
+        assert por_set['oraculo']['islas']

@@ -101,17 +101,28 @@ def assignments_from_model(model: Any, dgs_manifest: Any) -> list[FeederAssignme
 
     combined = getattr(model, 'combined', None)
     feeder_refs = getattr(combined, 'feeders', ()) if combined is not None else ()
-    if feeder_refs:
-        sources = [(ref.name, ref.network_id, ref.source_node) for ref in feeder_refs]
+    barras = list(getattr(combined, 'barras_set', None) or []) if combined is not None else []
+    if barras:
+        # Spec 022: la red externa es de la barra de SET y la comparten sus alimentadores:
+        # se registra una vez, con todos ellos y la SET como red (RF-11).
+        from .naming import sufijo_tension
+
+        sin_set = set(combined.sin_set)
+        sources = [(f'{b.set_codigo} {sufijo_tension(b.nominal_kv)}', ' + '.join(b.feeders),
+                    b.set_codigo, b.node_id) for b in barras]
+        sources += [(ref.name, ref.name, ref.network_id, ref.source_node)
+                    for ref in feeder_refs if ref.name in sin_set]
+    elif feeder_refs:
+        sources = [(ref.name, ref.name, ref.network_id, ref.source_node) for ref in feeder_refs]
     else:
-        sources = [(model.name, model.network_id, model.source_node)]
-    for feeder, network_id, node_id in sources:
-        fid = dgs_manifest.source_fids.get(feeder)
+        sources = [(model.name, model.name, model.network_id, model.source_node)]
+    for fuente, feeder, network_id, node_id in sources:
+        fid = dgs_manifest.source_fids.get(fuente)
         if not fid:
-            raise ValueError(f'FID de ElmXnet ausente para {feeder!r}')
+            raise ValueError(f'FID de ElmXnet ausente para {fuente!r}')
         assignments.append(FeederAssignment(
             class_name='ElmXnet', dgs_fid=fid,
-            loc_name=_loc_name(f'External Grid {feeder}'), feeder=feeder,
+            loc_name=_loc_name(f'External Grid {fuente}'), feeder=feeder,
             network_id=network_id, terminal=_loc_name(node_id), substation='', node_id=node_id,
             grid=_loc_name(model.name),
         ))

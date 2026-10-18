@@ -113,6 +113,15 @@ def _parser() -> argparse.ArgumentParser:
         help='Unir los alimentadores elegidos en UN solo DGS con este nombre (red unida).',
     )
     conv.add_argument(
+        '--por-set', action='store_true',
+        help='Con --unir: colgar la red unida de sus SET y zonales con la estructura del '
+             'perfil de empresa (spec 022).',
+    )
+    conv.add_argument(
+        '--estructura', metavar='TABLA',
+        help='Con --unir: la tabla zonal → SET → alimentador en Excel, en vez de la del perfil.',
+    )
+    conv.add_argument(
         '--literal', action='store_true',
         help='Convertir sin las reglas del proyecto (sin fundir puentes, con las SED de '
              'medición, sin redimensionar SED, escala del motor). Solo para comparar con la entrada.',
@@ -353,6 +362,18 @@ def main(argv=None) -> int:
                 selectors = [feeder_short_name(n) for n in dataset.feeder_ids() if dataset.feeders.get(n)]
             if len(selectors) < 2:
                 raise SystemExit('--unir necesita al menos dos alimentadores (--feeder … --feeder …).')
+            estructura = None
+            if args.estructura or args.por_set:
+                from .estructura import EstructuraError, leer_tabla_excel
+                from .perfil_empresa import PerfilError, estructura_empresa
+                try:
+                    estructura = (leer_tabla_excel(args.estructura) if args.estructura
+                                  else estructura_empresa())
+                except (EstructuraError, PerfilError) as exc:
+                    raise SystemExit(f'Estructura: {exc}') from exc
+                if estructura is None:
+                    raise SystemExit('--por-set: el perfil de empresa no trae estructura '
+                                     '(022:RF-1); use --estructura TABLA.xlsx.')
             grupo = convert_group(
                 dataset, selectors, args.out_dir, name=args.unir, aliases=aliases,
                 strict=not args.non_strict, schema_profile=args.schema_profile,
@@ -361,9 +382,16 @@ def main(argv=None) -> int:
                 catalog_corrections=correcciones_catalogo, reglas=reglas, catalogo=catalogo,
                 perfil=perfil, export_xlsx=args.export_xlsx, export_tsv=args.export_tsv,
                 write_preview=args.preview, preview_backend=args.preview_backend,
-                on_progress=_progress,
+                on_progress=_progress, estructura=estructura,
             )
             comp = grupo.get('completitud') or {}
+            por_set = grupo.get('estructura')
+            if por_set:
+                ora = (por_set.get('oraculo') or {}).get('general') or {}
+                print(f"Por zonal y SET: {len(por_set['zonales'])} zonal(es), "
+                      f"{sum(len(z) for z in por_set['zonales'].values())} SET, "
+                      f"{len(por_set['sin_set'])} sin SET, {len(por_set['aperturas'])} apertura(s); "
+                      f"oráculo: {ora.get('resumen', 'no disponible')}")
             print(f"Red unida {grupo['name']}: {grupo['status']} — "
                   f"{grupo.get('errors_total')} errores de validación, completitud "
                   f"{'OK' if not comp.get('fallos') else comp['fallos']}")
