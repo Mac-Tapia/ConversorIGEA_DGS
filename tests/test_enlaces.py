@@ -148,13 +148,49 @@ def test_sin_red_cerca_se_dice_y_queda_como_esta():
     assert avisos and '022:RF-60' in avisos[0]
 
 
-def test_con_casi_toda_la_medida_pasa_toda_la_red_por_la_cabecera():
-    """022:RF-58 — si la medida del reconstruido es casi toda (3 133 frente a 31 kW, TM106 y
-    TM104 en Chincha), el mejor corte es el interruptor de cabecera del donante: pasa toda
-    su red, aunque la unión cuelgue de una sola rama."""
+def test_el_donante_con_medida_no_se_queda_sin_red():
+    """022:RF-58b — con casi toda la medida en el reconstruido (3 133 frente a 31 kW, TM106 y
+    TM104 en Chincha), el donante que mide algo conserva parte de su red: no se le pasa
+    toda; solo sin medida se abre su cabecera entera."""
     red, _ = _donante_y_receptor()
     hechas, _ = en.reconstruir_por_medida(red, {'R': 3133.0}, {'D': 31.0})
     h = hechas[0]
-    assert h.abierto.startswith('CAB_') and h.cargas_pasadas == 4 and h.kva_pasado == 400.0
-    assert all(ld.feeder == 'R' for ld in red.loads)
+    assert h.cargas_pasadas == 3 and h.kva_pasado == 300.0
+    assert [ld.node_id for ld in red.loads if ld.feeder == 'D'] == ['D_1']
+    assert _radial(red)
+    red, _ = _donante_y_receptor()
+    hechas, _ = en.reconstruir_por_medida(red, {'R': 3133.0}, {'D': 0.0})
+    assert hechas[0].abierto.startswith('CAB_') and hechas[0].cargas_pasadas == 4
+
+
+def test_la_cabecera_del_donante_se_parte_y_conserva_sus_ramas():
+    """022:RF-58b — la unión cuelga de una rama de la cabecera del donante (como TM104): el
+    donante conserva con su interruptor la rama más cercana a su parte y el reconstruido
+    recibe las demás por la cabecera de siempre; la red sigue radial."""
+    from igea_dgs.model import Line, Load, Node, Sed
+
+    red, _ = _donante_y_receptor()
+    t = _tipo()
+    # Dos ramas más en la cabecera D_H: P (50 kVA) y Q (300 kVA).
+    for rama, kva, x in (('P', 50.0, -100.0), ('Q', 300.0, -200.0)):
+        nodo = f'D_{rama}'
+        red.nodes[nodo] = Node(nodo, x, -100.0)
+        red.combined.feeder_of_node[nodo] = ['D']
+        red.combined.node_kv[nodo] = 10.0
+        red.lines.append(Line(f'D_SEC_{rama}', 'D_H', nodo, 'ABC', t.key, t.code, 100.0, True))
+        red.loads.append(Load(f'D_SECL_{rama}', f'X{rama}', 'C', '1', nodo, 0.05, 0.01, 0.95,
+                              kva, 0.0, 'ABC', sed_code=f'SE_{rama}', feeder='D',
+                              network_id='NET_D'))
+        red.seds.append(Sed(f'SE_{rama}', f'SE_{rama}', nodo, kva, f'D_SECL_{rama}', f'X{rama}',
+                            (f'D_SECL_{rama}', f'X{rama}'), feeder='D', network_id='NET_D'))
+    # 750 kVA en total; la medida 3 133 frente a 31 kW deja al donante ~7 kVA: la rama P.
+    hechas, _ = en.reconstruir_por_medida(red, {'R': 3133.0}, {'D': 31.0})
+    h = hechas[0]
+    assert h.abierto == 'cabecera de D partida'
+    assert sorted(ld.node_id for ld in red.loads if ld.feeder == 'D') == ['D_P']
+    cab = next(c for c in red.combined.cabeceras if c.feeder == 'D')
+    assert cab.node_cabecera != 'D_H' and red.nodes[cab.node_cabecera].x == red.nodes['D_H'].x
+    assert any(ln.section_id == 'D_SEC_P' and cab.node_cabecera in (ln.from_node, ln.to_node)
+               for ln in red.lines)
+    assert en.abrir_caminos_cerrados(red) == []
     assert _radial(red)

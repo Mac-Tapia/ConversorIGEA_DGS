@@ -286,7 +286,11 @@ def reconstruir_por_medida(model: FeederModel, pedidos: dict[str, float],
         # El árbol antes del tramo nuevo, solo en la red del donante y desde su cabecera: con
         # toda la red, el nodo de unión de TM104 se alcanzaba por otro camino y el corte
         # dejaba 2 000 de los 9 000 kVA que tocaban (Chincha, 2026-10-18).
-        nodos_donante = {x for x, fs in info.feeder_of_node.items() if donante in fs}
+        # Sin la barra de SET: es de todos sus alimentadores y por ella el árbol del donante
+        # seguía a la red de los demás.
+        barras_set = {b.node_id for b in info.barras_set}
+        nodos_donante = {x for x, fs in info.feeder_of_node.items()
+                         if donante in fs and x not in barras_set}
         cabecera = next((f.source_node for f in info.feeders if f.name == donante), None)
         aristas = [x for x in _aristas(model)
                    if x[2] in nodos_donante and x[3] in nodos_donante]
@@ -332,15 +336,29 @@ def reconstruir_por_medida(model: FeederModel, pedidos: dict[str, float],
                 abajo = aguas_abajo(hijo)
                 kva = sum(kva_de[x] for x in abajo)
                 candidatos.append((abs(kva - objetivo), nombre, i, abajo, kva))
-            # Toda la red del donante, abriendo su interruptor de cabecera: cuando la unión
-            # cuelga de una rama de la cabecera y la medida del reconstruido es casi toda
-            # (TM106 3 133 kW frente a TM104 31 kW, Chincha 2026-10-18), ningún corte del
-            # camino pasa más que esa rama.
             cab = next((c for c in info.cabeceras if c.feeder == donante), None)
             if cab is not None and cabecera in dist:
-                abajo = aguas_abajo(cabecera)
-                kva = sum(kva_de[x] for x in abajo)
-                candidatos.append((abs(kva - objetivo), cab.coupler, None, abajo, kva))
+                todo = aguas_abajo(cabecera)
+                if medida_donante <= 0:
+                    # Toda la red del donante, abriendo su cabecera: solo si no mide nada.
+                    candidatos.append((abs(sum(kva_de[x] for x in todo) - objetivo),
+                                       cab.coupler, None, todo,
+                                       sum(kva_de[x] for x in todo)))
+                else:
+                    # RF-58b: el donante conserva las ramas de su cabecera más cercanas a su
+                    # parte; el reconstruido, las demás. Cuando la unión cuelga de una rama de
+                    # la cabecera, ningún corte del camino pasa más que esa rama (TM106 y
+                    # TM104 en Chincha, 2026-10-18: TM104 mide 31 kW y no puede quedar fuera).
+                    partida = _partir_cabecera(hijos, aguas_abajo, kva_de, cabecera, m,
+                                               kva_donante - objetivo)
+                    if partida is not None:
+                        quedan, abajo = partida
+                        kva = sum(kva_de[x] for x in abajo)
+                        candidatos.append((abs(kva - objetivo), cab.coupler, ('partir', quedan),
+                                           abajo, kva))
+        if medida_donante > 0:
+            # RF-58b: con medida, el donante conserva algo de su red.
+            candidatos = [c for c in candidatos if c[4] < kva_donante - 1e-9]
         if not candidatos:
             # RF-59: sin medida que pasar, el tramo nuevo queda abierto del lado del donante.
             model.devices.append(SwitchingDevice(
@@ -350,9 +368,11 @@ def reconstruir_por_medida(model: FeederModel, pedidos: dict[str, float],
             hechas.append(Reconstruccion(receptor, donante, n, m, d, tramo_nuevo, tramo_nuevo,
                                          medida, medida_donante, 0.0, kva_donante, 0))
             continue
-        _err, nombre, i, abajo, kva = min(candidatos, key=lambda c: c[:2])
+        _err, nombre, i, abajo, kva = min(candidatos, key=lambda c: (c[0], c[1]))
         if i is None:
             _abrir(model, nombre, 'acoplador', None, dist)
+        elif isinstance(i, tuple):
+            nombre = _cabecera_partida(model, donante, cabecera, i[1], padre, aristas)
         else:
             _abrir(model, nombre, aristas[i][1], aristas[i], dist)
         red = next((f.network_id for f in info.feeders if f.name == receptor), '')
@@ -370,3 +390,74 @@ def reconstruir_por_medida(model: FeederModel, pedidos: dict[str, float],
         hechas.append(Reconstruccion(receptor, donante, n, m, d, tramo_nuevo, nombre, medida,
                                      medida_donante, kva, kva_donante, pasadas))
     return hechas, avisos
+
+
+def _partir_cabecera(hijos, aguas_abajo, kva_de, cabecera: str, union: str,
+                     kva_que_queda: float):
+    """Ramas de la cabecera que conserva el donante (RF-58b) y nodos que pasan al otro.
+
+    Las ramas son los hijos de la cabecera en su árbol; la de la unión pasa siempre. Se
+    elige el grupo de las demás cuyo kVA se acerca más a ``kva_que_queda``, con al menos
+    una (el donante mide algo). ``None`` si la cabecera no tiene otra rama que la de la unión.
+    """
+    ramas = sorted(hijos.get(cabecera, ()))
+    de_rama = {r: aguas_abajo(r) for r in ramas}
+    con_union = next((r for r in ramas if union in de_rama[r]), None)
+    otras = [r for r in ramas if r != con_union]
+    if not otras:
+        return None
+    kva = {r: sum(kva_de[x] for x in de_rama[r]) for r in otras}
+    if len(otras) <= 14:
+        from itertools import combinations
+
+        grupos = (g for k in range(1, len(otras) + 1) for g in combinations(otras, k))
+    else:
+        # Muchas ramas: de mayor a menor, mientras acerque.
+        orden, grupo, grupos = sorted(otras, key=lambda r: (-kva[r], r)), [], []
+        for r in orden:
+            if sum(kva[x] for x in grupo) + kva[r] <= kva_que_queda or not grupo:
+                grupo.append(r)
+        grupos = [tuple(grupo)]
+    quedan = min(grupos, key=lambda g: (abs(sum(kva[r] for r in g) - kva_que_queda), g))
+    conservados = set().union(*(de_rama[r] for r in quedan))
+    return tuple(quedan), aguas_abajo(cabecera) - conservados
+
+
+def _cabecera_partida(model: FeederModel, donante: str, cabecera: str, quedan, padre,
+                      aristas) -> str:
+    """Un nodo de cabecera nuevo para el donante, con su interruptor y sus ramas (RF-58b).
+
+    La cabecera de siempre pasa al reconstruido con las demás ramas. Devuelve el nombre de
+    la cabecera nueva.
+    """
+    info = model.combined
+    nueva = f'{cabecera}_{donante}'[:60]
+    model.nodes[nueva] = replace(model.nodes[cabecera], node_id=nueva)
+    info.node_kv[nueva] = info.node_kv.get(cabecera)
+    info.feeder_of_node[nueva] = [donante]
+    for rama in quedan:
+        _u, i = padre[rama]
+        nombre, clase, *_ = aristas[i]
+        if clase == 'acoplador':
+            model.couplers[:] = [
+                replace(c, node_a=nueva if c.node_a == cabecera else c.node_a,
+                        node_b=nueva if c.node_b == cabecera else c.node_b)
+                if c.name == nombre else c for c in model.couplers]
+            continue
+        for k, ln in enumerate(model.lines):
+            if ln.section_id == nombre:
+                ln = replace(ln, from_node=nueva if ln.from_node == cabecera else ln.from_node,
+                             to_node=nueva if ln.to_node == cabecera else ln.to_node)
+                model.lines[k] = ln
+                model.section_by_id[nombre] = ln
+        model.devices[:] = [
+            replace(d, node_id=nueva) if getattr(d, 'section_id', '') == nombre
+            and getattr(d, 'node_id', '') == cabecera else d for d in model.devices]
+    cab = next(c for c in info.cabeceras if c.feeder == donante)
+    model.couplers[:] = [replace(c, node_b=nueva) if c.name == cab.coupler else c
+                         for c in model.couplers]
+    info.cabeceras[:] = [replace(c, node_cabecera=nueva) if c.feeder == donante else c
+                         for c in info.cabeceras]
+    info.feeders[:] = [replace(f, source_node=nueva) if f.name == donante else f
+                       for f in info.feeders]
+    return f'cabecera de {donante} partida'

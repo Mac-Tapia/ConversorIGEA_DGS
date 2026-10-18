@@ -217,6 +217,11 @@ fuera de servicio y sin medidor, a 15 m de TM105)
   en el camino de la cabecera del otro al nodo de unión, el punto que deja aguas abajo la
   parte de su potencia instalada en la proporción de las dos medidas, y pasará lo de aguas
   abajo al reconstruido.
+- RF-58b: SI el donante tiene medida, ENTONCES EL SISTEMA no le quitará toda su red: cuando
+  ningún corte del camino deja la proporción, partirá su cabecera, de modo que el donante
+  conserve con su interruptor las ramas de la cabecera cuya potencia instalada se acerque a
+  su parte y el reconstruido reciba las demás (usuario, 2026-10-18: «TM104 sí existe, tiene
+  su medidor; no puede quedar afuera para nada»; TM104 mide 31 kW, máxima propia 224 kW).
 - RF-59: SI el alimentador reconstruido no tiene medidor, ENTONCES su medida será la máxima
   de su barra de SET menos las de los demás alimentadores de la barra en ese instante, y con
   cero o menos el tramo nuevo quedará abierto: activado sin carga pasada.
