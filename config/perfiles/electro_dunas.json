@@ -14,6 +14,8 @@
   "_comentario_estudios": "Límites de los estudios y del informe (spec 011 y 017): NTCSE, ±5 % de la tensión nominal y cargabilidad hasta el 100 %.",
   "estudios": {"tension_min_pu": 0.95, "tension_max_pu": 1.05, "cargabilidad_max_pct": 100},
   "_comentario_transformadores_sed": "Fichas para los transformadores nuevos de las SED fijas sobrecargadas (spec 020, RF-29, RF-30), pedidas el 2026-10-16: NTP 370.400-2013 según las especificaciones técnicas de FONAFE (2017, rev. 2, cap. 3), Tablas 6 y 7, de 15 a 630 kVA; por kVA, [Po W, Pc W, Io %, uk %]. Umbral de dimensionado: la máxima al 80 % o menos (criterio de la T22 de la 015).",
+  "_comentario_estructura": "Spec 022: zonales, SET y alimentadores de la tabla pública, en un JSON aparte.",
+  "estructura": "electro_dunas.estructura.json",
   "calibracion": {
     "factor_potencia_cargas": 0.98, "factor_potencia_minimo_fijas": 0.98,
     "bancos_kvar_por_tension": {"10": 300, "22.9": 450},

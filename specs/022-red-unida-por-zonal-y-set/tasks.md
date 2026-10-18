@@ -6,7 +6,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]` y pa
       `asignar` con «Sin SET», faltantes y omitidos. (RF-1, RF-2, RF-4, RF-5, RF-19, RF-20,
       RF-25b)
       Hecho cuando: `pytest tests/test_estructura.py` en verde (tablas sorteadas).
-- [ ] T2. Transcribir la tabla pública a `config/perfiles/electro_dunas_estructura.json` y
+- [x] T2. Transcribir la tabla pública a `config/perfiles/electro_dunas.estructura.json` y
       enlazarla desde el perfil de Electro Dunas, con las siglas de cada SET. (RF-3, RF-46)
       Hecho cuando: el perfil carga 4 zonales y todos los alimentadores de la tabla.
 - [ ] T3. `estructurar` en `combine.py`: barras de SET por tensión, interruptor de cabecera

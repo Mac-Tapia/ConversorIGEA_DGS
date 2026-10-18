@@ -323,3 +323,26 @@ def datos_perfil(ruta: Path | None = None, *, carpeta: Path | None = None) -> di
     carpeta = carpeta_perfiles() if carpeta is None else Path(carpeta)
     heredados = _leer_json(carpeta / f'{base}.json')
     return {**heredados, **datos}
+
+
+def estructura_empresa(ruta: Path | None = None, *, carpeta: Path | None = None):
+    """La estructura zonal → SET → alimentadores del perfil activo, o ``None`` (022:RF-1, RF-6).
+
+    El JSON aparte que nombra ``estructura`` se busca junto al perfil activo y, si no está,
+    junto a los perfiles con nombre: el local de Electro Dunas solo dice
+    ``{"perfil": "electro_dunas"}`` y la tabla va en ``config/perfiles``.
+    """
+    from .estructura import EstructuraError, estructura_de_perfil
+
+    datos = datos_perfil(ruta, carpeta=carpeta)
+    valor = datos.get('estructura')
+    if valor is None:
+        return None
+    activo = ruta_perfil_activo() if ruta is None else Path(ruta)
+    base = carpeta_perfiles() if carpeta is None else Path(carpeta)
+    if isinstance(valor, str) and not (activo.parent / valor).is_file():
+        activo = base / 'x.json'
+    try:
+        return estructura_de_perfil(datos, activo.parent)
+    except EstructuraError as exc:
+        raise PerfilError(str(exc)) from exc

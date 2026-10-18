@@ -124,3 +124,23 @@ def test_asignar_la_entrega():
     assert all(e.sets[s].zonal in a.zonales for s in a.sets)
     assert not set(a.zonales) & set(a.omitidos['zonales'])
     assert set(a.sistemas) == {e.alimentadores[x].sistema for x in a.set_de}
+
+
+def test_la_estructura_de_electro_dunas_en_su_perfil(tmp_path):
+    """022:RF-3, 022:RF-46 — el perfil local que hereda de Electro Dunas trae la estructura
+    de la tabla pública: 4 zonales, NA205 en SET 51 Nasca, siglas SI → SEIN, PA → Paracas."""
+    from pathlib import Path
+
+    from igea_dgs.perfil_empresa import estructura_empresa
+
+    local = tmp_path / 'perfil_empresa.json'
+    local.write_text('{"perfil": "electro_dunas"}', encoding='utf-8')
+    carpeta = Path(__file__).resolve().parents[1] / 'config' / 'perfiles'
+    e = estructura_empresa(local, carpeta=carpeta)
+    assert e.zonales == ['Chincha', 'Pisco', 'Ica', 'Nasca']
+    assert e.set_de('NA205').rotulo == 'SET 51 Nasca'
+    assert e.set_de_siglas('SI').codigo == 'SEIN' and e.set_de_siglas('PA').nombre == 'Paracas'
+    assert e.sistemas[e.alimentadores['TA122'].sistema].norma == 'NTCSER'
+    sin = tmp_path / 'otro.json'
+    sin.write_text('{}', encoding='utf-8')
+    assert estructura_empresa(sin, carpeta=carpeta) is None

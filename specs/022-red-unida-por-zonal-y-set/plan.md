@@ -8,7 +8,7 @@ Estado: borrador · Fecha: 2026-10-17 · Spec: [spec.md](spec.md)
    - `Estructura` (zonales → SET → alimentadores, con sistema eléctrico, sector y norma),
      indexada por código de alimentador una vez (escala).
    - `estructura_de_perfil(datos)` lee `estructura` del perfil, que puede apuntar a un
-     JSON aparte (`config/perfiles/electro_dunas_estructura.json`, transcrito de la tabla
+     JSON aparte (`config/perfiles/electro_dunas.estructura.json`, transcrito de la tabla
      pública; RF-3). `leer_tabla_excel(ruta)` lee la misma tabla en Excel (RF-4) con alias
      de columnas como `demanda_medida`, y rechaza filas mal formadas nombrándolas (RF-5).
    - `asignar(estructura, alimentadores_de_la_entrega)`: SET y zonal de cada uno, los
