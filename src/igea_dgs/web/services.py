@@ -1282,12 +1282,20 @@ def pf_projects(ws: Workspace, ctx: JobContext) -> dict:
     out = ws.out_dir / 'pf_proyectos.json'
     out.parent.mkdir(parents=True, exist_ok=True)
     out.unlink(missing_ok=True)
-    rc = ctx.run_process(
-        [str(interpreter), str(_script('pf_proyectos.py')), '--output-json', str(out),
-         '--carpeta', carpeta],
-        env=pf_subprocess_env(pf_dir), cwd=str(project_root()),
-        limite_arranque_s=LIMITE_ARRANQUE_PF_S,
-    )
+    for intento in (1, 2):
+        rc = ctx.run_process(
+            [str(interpreter), str(_script('pf_proyectos.py')), '--output-json', str(out),
+             '--carpeta', carpeta],
+            env=pf_subprocess_env(pf_dir), cwd=str(project_root()),
+            limite_arranque_s=LIMITE_ARRANQUE_PF_S,
+        )
+        if rc != TIEMPO_AGOTADO or intento == 2:
+            break
+        # 019:RF-18: con el límite pedido aquí, ``run_process`` no reintenta solo como con
+        # los demás guiones. 2026-10-19: tras importar CA101_PE104, el servidor que arrancó
+        # 11 s después no conectó en 180 s; el siguiente conectó en 20 s.
+        ctx.log('Se reintenta una vez: DIgSILENT a veces no entrega el usuario a la primera.')
+        ctx.check_cancel()
     if rc == TIEMPO_AGOTADO:
         raise UserError(
             f'PowerFactory no responde: en {LIMITE_ARRANQUE_PF_S:g} s no entregó el usuario '

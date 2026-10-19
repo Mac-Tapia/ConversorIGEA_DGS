@@ -83,6 +83,96 @@ def test_dueno_muerto_se_libera_solo(turno):
     assert any('sonda.py' in a and 'liberado' in a for a in avisos)
 
 
+def test_al_salir_el_turno_sigue_suyo_hasta_que_muere(turno):
+    """019:RF-19 — soltado en ``atexit``, el motor aún se cierra: el siguiente espera a que
+    el proceso muera, y pasado ``CIERRE_S`` entra igual."""
+    pf_arnes.tomar_turno('powerfactory_acceptance.py', abierto=lambda: [])
+    pf_arnes.soltar_turno(al_salir=True)
+    dueno = pf_arnes.leer_turno()
+    assert dueno['pid'] == os.getpid() and dueno['liberado'] > 0
+    assert pf_arnes.servidor_vivo() is None
+    # Lo «tiene» otro proceso (4242) que se despidió y sigue vivo: se espera hasta que muere.
+    turno.write_text(json.dumps({**dueno, 'pid': 4242, 'inicio': None}))
+    reloj, avisos, estado = Reloj(), [], {'vivo': True}
+
+    def dormir(s):
+        reloj.dormir(s)
+        if reloj.t >= 6:
+            estado['vivo'] = False
+
+    _tomar(vivo=lambda pid: estado['vivo'], reloj=reloj, dormir=dormir, aviso=avisos.append,
+           ahora=lambda: dueno['liberado'] + reloj.t)
+    assert 6 <= reloj.t < 10 and pf_arnes.leer_turno()['pid'] == os.getpid()
+    assert any('cerrando DIgSILENT' in a for a in avisos)
+    # Sigue vivo más de ``CIERRE_S`` tras despedirse: se le toma el turno.
+    turno.write_text(json.dumps({'pid': 4242, 'guion': 'x.py', 'desde': '', 'liberado': 0.0}))
+    avisos.clear()
+    _tomar(vivo=lambda pid: True, aviso=avisos.append, ahora=lambda: pf_arnes.CIERRE_S + 1)
+    assert pf_arnes.leer_turno()['pid'] == os.getpid()
+    assert any('no terminó de cerrarse' in a for a in avisos)
+
+
+def test_pid_reutilizado_no_es_el_dueno(turno):
+    """019:RF-19 — mismo pid con otro inicio: el dueño murió y Windows dio su número a otro."""
+    dueno = {'pid': 4242, 'inicio': 111, 'guion': 'obras_pf.py'}
+    assert not pf_arnes.dueno_vivo(dueno, lambda pid: True, lambda pid: 222)
+    assert pf_arnes.dueno_vivo(dueno, lambda pid: True, lambda pid: 111)
+    assert pf_arnes.dueno_vivo({'pid': 4242}, lambda pid: True, lambda pid: 222)
+    propio = pf_arnes.inicio_proceso(os.getpid())
+    assert propio is not None and propio == pf_arnes.inicio_proceso(os.getpid())
+    turno.write_text(json.dumps(dueno))
+    _tomar(vivo=lambda pid: True, inicio=lambda pid: 222, aviso=lambda m: None)
+    assert pf_arnes.leer_turno()['pid'] == os.getpid()
+
+
+def test_liberar_un_muerto_no_borra_el_turno_de_otro(turno):
+    """019:RF-19 — quien llega tarde a liberar al muerto no borra el turno ya tomado."""
+    muerto = {'pid': 4242, 'guion': 'sonda.py'}
+    nuevo = {'pid': 5151, 'guion': 'obras_pf.py'}
+    turno.write_text(json.dumps(nuevo))
+    pf_arnes._borrar_si_sigue(turno, muerto)
+    assert pf_arnes.leer_turno() == nuevo
+    pf_arnes._borrar_si_sigue(turno, nuevo)
+    assert not turno.exists()
+
+
+def test_cerrar_servidor_solo_por_su_orden(turno, tmp_path, monkeypatch):
+    """019:RF-20 — el corte retira su orden de la cola; cierra el servidor si la atendía o si
+    no llegó a conectar, y no si atiende la de otro."""
+    from igea_dgs import powerfactory_env
+
+    cola = tmp_path / 'cola'
+    cola.mkdir()
+    monkeypatch.setenv(pf_arnes.VARIABLE_COLA, str(cola))
+    cerrados = []
+    monkeypatch.setattr(powerfactory_env, 'terminar_arbol', cerrados.append)
+    servidor = {'pid': os.getpid(), 'inicio': pf_arnes.inicio_proceso(os.getpid()),
+                'guion': pf_arnes.SERVIDOR, 'conectado': True}
+
+    turno.write_text(json.dumps(servidor))
+    (cola / 'mia.orden.json').write_text('{}')
+    (cola / 'otra.en_curso.json').write_text('{}')
+    assert pf_arnes.cerrar_servidor('mia') is None and cerrados == []
+    assert not (cola / 'mia.orden.json').exists() and turno.exists()
+
+    (cola / 'mia.en_curso.json').write_text('{}')
+    assert pf_arnes.cerrar_servidor('mia') and cerrados == [os.getpid()]
+    assert not turno.exists()
+
+    turno.write_text(json.dumps({**servidor, 'conectado': None}))
+    (cola / 'mia.en_curso.json').unlink()
+    assert pf_arnes.cerrar_servidor('mia'), 'colgado al conectar: no atiende a nadie'
+    assert len(cerrados) == 2
+
+
+def test_conectar_anota_que_ya_conecto(turno):
+    """019:RF-20 — tras responder DIgSILENT, el turno dice ``conectado``."""
+    modulo, _estado = _modulo()
+    pf_arnes.conectar('a.py', modulo=modulo, aviso=lambda m: None, abierto=lambda: [])
+    assert pf_arnes.leer_turno()['conectado'] is True
+    pf_arnes.soltar_turno()
+
+
 def test_digsilent_abierto_a_mano_no_se_lanza():
     """019:RF-13 — con DIgSILENT abierto a mano se avisa y no se toma el turno."""
     with pytest.raises(PFNoDisponible, match='abierto a mano.*1234'):

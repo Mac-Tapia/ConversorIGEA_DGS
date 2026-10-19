@@ -318,7 +318,8 @@ def connect_powerfactory(*, start_engine: bool = True, command_line: str | None 
                             **({} if start_engine else {'abierto': lambda: []}))
     except PFNoDisponible as exc:
         raise RuntimeError(str(exc)) from exc
-    atexit.register(soltar_turno, turno)
+    # 019:RF-19: al salir el motor aún se cierra; el turno sigue suyo hasta que muera.
+    atexit.register(lambda: soltar_turno(turno, al_salir=True))
 
     app = pf.GetApplication()
     if app is not None:

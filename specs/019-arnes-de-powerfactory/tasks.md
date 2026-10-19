@@ -20,6 +20,18 @@
       2026-10-18, DIgSILENT real: tras una lectura de la web, la sonda pidió el cierre al
       servidor ocioso y entró a los 3 s (su inactividad es de 120 s), sin `PYTHONPATH`; la
       limpieza de Chincha conectó igual y escribió cada línea al momento.
+- [x] T8. Órdenes huérfanas descartadas y reintento de «Leer proyectos». (RF-17, RF-18)
+      Hecho cuando: `pytest -q tests/test_pf_servidor.py tests/test_carpeta_pf.py` en verde
+      y «Leer proyectos» de la web lista los proyectos tras importar.
+- [x] T9. Turno hasta la muerte del proceso, identidad por pid e inicio, corte dirigido,
+      servidor fuera del árbol del cliente, registro con horas, cola limpia y relanzamiento.
+      (RF-19 a RF-22)
+      Hecho cuando: `pytest -q tests/test_pf_arnes.py tests/test_pf_servidor.py` en verde y,
+      en DIgSILENT real, un proceso con DIgSILENT que sale y «Leer proyectos» seguidos
+      desde la web sin error.
+      2026-10-19, DIgSILENT real: una sonda activó CA101_PE104 y salió; «Leer proyectos»
+      lanzado al instante esperó a que muriera, conectó en 27 s y listó los 17 proyectos
+      (255 s la lectura), con cada paso y su hora en `servidor.log`.
 
 Resultado de T5 (2026-10-15, DIgSILENT real con CA101): tres órdenes `verificar_pf.py`
 por el servidor, 27 s la primera (conectar y activar) y 0 y 1 s las siguientes, sin volver
