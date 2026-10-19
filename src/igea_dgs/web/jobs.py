@@ -230,21 +230,27 @@ class JobContext:
         # 019:RF-7: un guion de DIgSILENT va al proceso que se queda abierto, por medio de
         # ``tools/pf_cliente.py``, que reescribe su salida y devuelve su código: lo demás
         # (primera línea, cancelación, límites) sigue igual. ``IGEA_PF_SERVIDOR=0`` lo apaga.
-        por_servidor = False
+        # El reintento parte de la orden tal como llegó: reescrita al cliente, ya no se
+        # reconocía como guion servible y el segundo corte dejaba el servidor colgado.
+        original = cmd
+        orden = None
         if es_pf and full_env.get('IGEA_PF_SERVIDOR', '1') != '0' and len(cmd) > 1:
-            from ..pf_arnes import GUIONES_SERVIBLES
+            from ..pf_arnes import GUIONES_SERVIBLES, VARIABLE_ORDEN
 
             if Path(cmd[1]).name in GUIONES_SERVIBLES:
                 cmd = [cmd[0], str(Path(cmd[1]).with_name('pf_cliente.py')), *cmd[1:]]
-                por_servidor = True
+                # 019:RF-20: la orden lleva un nombre conocido para cortar solo la suya.
+                orden = uuid.uuid4().hex[:12]
+                full_env[VARIABLE_ORDEN] = orden
 
         def cortar() -> None:
             self._terminar(proc)
-            if por_servidor:
-                # 019:RF-8, RF-9: la orden cortada sigue en el servidor; se cierra.
+            if orden is not None:
+                # 019:RF-8, RF-9, RF-20: se retira la orden de la cola y, si el servidor la
+                # atendía o sigue sin conectar, se cierra; si atiende la de otro, sigue.
                 from ..pf_arnes import cerrar_servidor
 
-                if cerrar_servidor():
+                if cerrar_servidor(orden):
                     self.log('Se cierra el proceso de DIgSILENT que atendía la orden.')
 
         self.log('$ ' + ' '.join(cmd))
@@ -289,7 +295,7 @@ class JobContext:
                     self.log('Se reintenta una vez: DIgSILENT a veces no entrega el '
                              'usuario a la primera.')
                     self.check_cancel()
-                    return self.run_process(cmd, env=env, cwd=cwd, cancel_file=cancel_file,
+                    return self.run_process(original, env=env, cwd=cwd, cancel_file=cancel_file,
                                             limite_s=limite_s, _reintento=True)
                 if limite_implicito and sin_arrancar:
                     raise PowerFactorySinRespuesta(

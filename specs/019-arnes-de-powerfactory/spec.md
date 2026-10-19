@@ -1,6 +1,6 @@
 # Spec 019 — Arnés de DIgSILENT: acceso exclusivo, conexión única y obras enchufables
 
-Estado: cumplida (2026-10-15; RF-14 a RF-16 el 2026-10-18) · Fecha: 2026-10-15
+Estado: cumplida (2026-10-15; RF-14 a RF-16 el 2026-10-18; RF-17 a RF-22 el 2026-10-19) · Fecha: 2026-10-15
 
 ## Contexto y objetivo
 
@@ -70,6 +70,31 @@ Conexión y activación comunes
 - RF-16: SI un guion no encuentra la API de DIgSILENT en su ruta, ENTONCES EL SISTEMA la
   buscará en la instalación de DIgSILENT antes de decir que no está (2026-10-18: cada sonda
   pedía el ``PYTHONPATH`` a mano).
+- RF-17: SI una orden de la cola es de un cliente que ya no vive, ENTONCES EL SISTEMA la
+  descartará sin ejecutarla y lo dirá (2026-10-19: tras importar CA101_PE104, el servidor
+  hizo la lectura de proyectos de un cliente ya cortado y la del operador agotó sus 180 s
+  esperando detrás).
+- RF-18: SI «Leer proyectos» no recibe la primera línea en el tiempo de arranque, ENTONCES
+  EL SISTEMA lo reintentará una vez, como los demás guiones, antes de avisar (2026-10-19: el
+  servidor que arrancó 11 s después de la importación no conectó en 180 s; el siguiente
+  conectó en 20 s).
+- RF-19: CUANDO un proceso suelta el turno al salir, EL SISTEMA lo seguirá dando por dueño
+  del motor hasta que muera, o hasta 120 s después; un turno cuyo proceso ya no es el que
+  lo tomó (mismo pid, otro inicio) se dará por libre, y dos procesos que liberan a la vez el
+  turno de un muerto no entrarán los dos (2026-10-19: medido en DIgSILENT, el proceso sigue
+  vivo tras soltarlo en ``atexit``, y el siguiente se colgó al conectar).
+- RF-20: SI la web corta una orden servida, ENTONCES EL SISTEMA la retirará de la cola y
+  cerrará el servidor solo si atendía esa orden o seguía sin conectar; el servidor no
+  dependerá del cliente que lo arrancó, y el reintento de la web volverá a pasar por él
+  (2026-10-19: el corte de un cliente tumbaba con ``taskkill /T`` al servidor que atendía
+  la orden de otro espacio, y el reintento iba directo al cliente sin poder cerrarlo).
+- RF-21: EL SISTEMA anotará con su hora cada paso del servidor (conectar, orden, fin) y, al
+  arrancar, cerrará con código 3 las órdenes que dejó a medias el anterior y borrará los
+  restos de más de un día (2026-10-19: el registro sin horas no permitió reconstruir el
+  fallo; la cola tenía restos del 15 y el 16).
+- RF-22: SI el servidor se cierra con la orden aún en la cola, ENTONCES EL SISTEMA arrancará
+  otro en vez de fallar; y MIENTRAS la orden espera detrás de la de otro cliente, lo dirá
+  en el Registro.
 
 Procesos que no quedan colgados
 

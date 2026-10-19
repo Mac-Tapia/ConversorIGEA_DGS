@@ -18,6 +18,7 @@ import atexit
 import importlib
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import time
@@ -37,6 +38,9 @@ AVISO_S = 30.0
 VARIABLE_TURNO = 'IGEA_PF_TURNO'
 #: Código de PowerFactory cuando otro proceso tiene el motor.
 MOTOR_OCUPADO = '4002'
+#: Lo que se espera a un proceso que soltó el turno al salir y aún cierra DIgSILENT
+#: (019:RF-19); pasado, se le toma el turno igual.
+CIERRE_S = 120.0
 
 
 class PFNoDisponible(RuntimeError):
@@ -79,12 +83,97 @@ def pid_vivo(pid: int) -> bool:
     return True
 
 
+def inicio_proceso(pid: int) -> int | None:
+    """Instante de creación del proceso ``pid`` (unidades del sistema), o ``None``.
+
+    El par (pid, inicio) identifica un proceso aunque Windows reutilice su número: un
+    turno de un proceso muerto cuyo pid tomó otro no debe parecer vivo (esperas de 10 min)
+    ni llevar a cerrar un proceso ajeno (019:RF-19).
+    """
+    if pid <= 0:
+        return None
+    if os.name == 'nt':
+        import ctypes
+        from ctypes import wintypes
+
+        kernel = ctypes.windll.kernel32
+        handle = kernel.OpenProcess(0x1000, False, pid)   # PROCESS_QUERY_LIMITED_INFORMATION
+        if not handle:
+            return None
+        try:
+            tiempos = [wintypes.FILETIME() for _ in range(4)]
+            if not kernel.GetProcessTimes(handle, *(ctypes.byref(t) for t in tiempos)):
+                return None
+            creado = tiempos[0]
+            return (creado.dwHighDateTime << 32) | creado.dwLowDateTime
+        finally:
+            kernel.CloseHandle(handle)
+    try:
+        campos = Path(f'/proc/{pid}/stat').read_text().rsplit(')', 1)[1].split()
+        return int(campos[19])
+    except (OSError, IndexError, ValueError):
+        return None
+
+
+def dueno_vivo(dueno: dict | None, vivo: Callable[[int], bool] = pid_vivo,
+               inicio: Callable[[int], int | None] = inicio_proceso) -> bool:
+    """Si el proceso que escribió ``dueno`` sigue vivo: su pid y, si se anotó, su inicio."""
+    if not dueno:
+        return False
+    pid = int(dueno.get('pid') or 0)
+    if not vivo(pid):
+        return False
+    anotado = dueno.get('inicio')
+    if anotado is None:
+        return True
+    actual = inicio(pid)
+    return actual is None or actual == anotado
+
+
 def leer_turno(ruta: Path | None = None) -> dict | None:
-    """Quién tiene el motor: ``{pid, guion, desde}``, o ``None`` si nadie."""
+    """Quién tiene el motor: ``{pid, inicio, guion, desde}``, o ``None`` si nadie."""
     try:
         return json.loads((ruta or ruta_turno()).read_text(encoding='utf-8'))
     except (OSError, ValueError):
         return None
+
+
+def _escribir_turno(ruta: Path, datos: dict) -> None:
+    """Reescribe el turno de golpe: quien lo lee nunca ve un fichero a medias."""
+    tmp = ruta.with_name(f'{ruta.name}.{os.getpid()}.tmp')
+    tmp.write_text(json.dumps(datos), encoding='utf-8')
+    # En Windows ``os.replace`` falla con «acceso denegado» si otro proceso lee el turno
+    # en ese instante: se reintenta unas veces antes de rendirse.
+    for intento in range(20):
+        try:
+            os.replace(tmp, ruta)
+            return
+        except PermissionError:
+            if intento == 19:
+                tmp.unlink(missing_ok=True)
+                raise
+            time.sleep(0.05)
+
+
+def marcar_turno(ruta: Path | None = None, **campos: Any) -> None:
+    """Añade ``campos`` al turno si es de este proceso (p. ej. ``conectado``)."""
+    ruta = ruta or ruta_turno()
+    dueno = leer_turno(ruta)
+    if dueno and int(dueno.get('pid') or 0) == os.getpid():
+        _escribir_turno(ruta, {**dueno, **campos})
+
+
+def _borrar_si_sigue(ruta: Path, dueno: dict) -> None:
+    """Borra el turno solo si sigue siendo ``dueno``.
+
+    Dos procesos que ven a la vez un dueño muerto lo borraban los dos: el segundo
+    borraba el turno recién tomado por el primero y entraban ambos (019:RF-19).
+    """
+    if leer_turno(ruta) == dueno:
+        try:
+            ruta.unlink()
+        except FileNotFoundError:
+            pass
 
 
 def _abierto_a_mano() -> list[int]:
@@ -98,12 +187,16 @@ def tomar_turno(guion: str, *, espera_s: float = ESPERA_S,
                 vivo: Callable[[int], bool] = pid_vivo,
                 abierto: Callable[[], list[int]] = _abierto_a_mano,
                 reloj: Callable[[], float] = time.monotonic,
-                dormir: Callable[[float], None] = time.sleep) -> Path:
+                dormir: Callable[[float], None] = time.sleep,
+                inicio: Callable[[int], int | None] = inicio_proceso,
+                ahora: Callable[[], float] = time.time) -> Path:
     """Toma el turno del motor para este proceso o lanza :class:`PFNoDisponible`.
 
     RF-13: con DIgSILENT abierto a mano no se lanza nada (usuario, 2026-10-15: «avisas»).
     RF-2: si otro proceso lo tiene, se espera hasta ``espera_s`` diciendo quién.
     RF-4: si su dueño ya no vive, se libera y se sigue.
+    RF-19: un dueño que soltó el turno al salir sigue con el motor hasta morir; se le
+    espera hasta ``CIERRE_S``.
     """
     manuales = abierto()
     if manuales:
@@ -120,20 +213,34 @@ def tomar_turno(guion: str, *, espera_s: float = ESPERA_S,
             fd = os.open(ruta, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
         except FileExistsError:
             dueno = leer_turno(ruta)
-            if dueno is None or not vivo(int(dueno.get('pid') or 0)):
+            if dueno is None and ruta.exists():
+                dormir(0.05)          # se está reescribiendo (``_escribir_turno``)
+                dueno = leer_turno(ruta)
+            muerto = dueno is None or not dueno_vivo(dueno, vivo, inicio)
+            cerrado = (dueno is not None and dueno.get('liberado') is not None
+                       and ahora() - float(dueno['liberado']) > CIERRE_S)
+            if muerto or cerrado:
                 # RF-4: el dueño murió sin soltarlo (una sonda cortada, un guion matado).
-                try:
-                    ruta.unlink()
-                except FileNotFoundError:
-                    pass
-                if dueno:
+                # RF-19: o soltó al salir y lleva más de ``CIERRE_S`` sin acabar de cerrarse.
+                if dueno is None:
+                    try:
+                        ruta.unlink()
+                    except FileNotFoundError:
+                        pass
+                else:
+                    _borrar_si_sigue(ruta, dueno)
                     aviso(f"Turno de DIgSILENT liberado: {dueno.get('guion')} (proceso "
-                          f"{dueno.get('pid')}) ya no estaba vivo.")
+                          f"{dueno.get('pid')}) "
+                          + ('ya no estaba vivo.' if muerto else
+                             f'no terminó de cerrarse en {CIERRE_S:g} s.'))
                 continue
+            assert dueno is not None
             if int(dueno['pid']) == os.getpid():
                 return ruta
             quien = (f"{dueno.get('guion')} (proceso {dueno.get('pid')}, desde "
                      f"{dueno.get('desde')})")
+            if dueno.get('liberado') is not None:
+                quien += ', cerrando DIgSILENT'
             if reloj() >= limite:
                 raise PFNoDisponible(
                     f'DIgSILENT sigue ocupado por {quien} tras esperar {espera_s / 60:.0f} '
@@ -150,20 +257,35 @@ def tomar_turno(guion: str, *, espera_s: float = ESPERA_S,
             dormir(PAUSA_S)
             continue
         with os.fdopen(fd, 'w', encoding='utf-8') as f:
-            json.dump({'pid': os.getpid(), 'guion': guion,
+            json.dump({'pid': os.getpid(), 'inicio': inicio(os.getpid()), 'guion': guion,
                        'desde': datetime.now().isoformat(timespec='seconds')}, f)
         return ruta
 
 
-def soltar_turno(ruta: Path | None = None) -> None:
-    """Suelta el turno si es de este proceso."""
+def soltar_turno(ruta: Path | None = None, *, al_salir: bool = False) -> None:
+    """Suelta el turno si es de este proceso.
+
+    Con ``al_salir`` (``atexit``, final del servidor) el motor de DIgSILENT aún se está
+    cerrando dentro del proceso: se anota la hora y el turno sigue suyo hasta que muera
+    (019:RF-19). 2026-10-19: tras importar CA101_PE104 el turno quedó libre antes de que
+    el motor terminase de cerrarse, y el servidor que entró 11 s después no conectó en
+    180 s; medido en DIgSILENT, un proceso sigue vivo tras soltarlo.
+    """
     ruta = ruta or ruta_turno()
     dueno = leer_turno(ruta)
-    if dueno and int(dueno.get('pid') or 0) == os.getpid():
-        try:
-            ruta.unlink()
-        except FileNotFoundError:
-            pass
+    if not dueno or int(dueno.get('pid') or 0) != os.getpid():
+        return
+    if al_salir:
+        _escribir_turno(ruta, {**dueno, 'liberado': time.time()})
+        return
+    try:
+        ruta.unlink()
+    except FileNotFoundError:
+        pass
+
+
+def _soltar_al_salir(ruta: Path) -> None:
+    soltar_turno(ruta, al_salir=True)
 
 
 @contextmanager
@@ -197,7 +319,7 @@ def conectar(guion: str, *, espera_s: float = ESPERA_S, modulo: Any = None,
         modulo = importar_api()
     ruta = tomar_turno(guion, espera_s=espera_s, aviso=aviso, reloj=reloj, dormir=dormir,
                        **turno)
-    atexit.register(soltar_turno, ruta)
+    atexit.register(_soltar_al_salir, ruta)                               # RF-19
     limite = reloj() + espera_s
     inicio = reloj()
     while True:
@@ -214,6 +336,8 @@ def conectar(guion: str, *, espera_s: float = ESPERA_S, modulo: Any = None,
             soltar_turno(ruta)
             raise PFNoDisponible(f'no se pudo conectar a DIgSILENT: {exc}') from exc
     usuario = getattr(app.GetCurrentUser(), 'loc_name', '?')
+    # RF-20: quien corta una orden distingue un servidor que conecta de uno que atiende.
+    marcar_turno(ruta, conectado=True)
     # Primera línea solo con DIgSILENT ya respondiendo: la web la espera un tiempo
     # limitado y, si no llega, corta el guion (005:RF-21, 019:RF-6).
     print(f'Conectado a DIgSILENT como {usuario} ({reloj() - inicio:.0f} s).', flush=True)
@@ -326,26 +450,45 @@ def pedir_cierre_si_ocioso(dueno: dict | None) -> bool:
 
 
 def servidor_vivo(ruta: Path | None = None) -> dict | None:
-    """El servidor que tiene el turno, si está vivo: ``{pid, guion, desde}``."""
+    """El servidor que tiene el turno y atiende órdenes: ``{pid, guion, desde, ...}``.
+
+    Uno que ya se despidió (``liberado``) no atiende nada aunque su proceso siga vivo
+    mientras cierra DIgSILENT (019:RF-19).
+    """
     dueno = leer_turno(ruta)
-    if dueno and dueno.get('guion') == SERVIDOR and pid_vivo(int(dueno.get('pid') or 0)):
+    if (dueno and dueno.get('guion') == SERVIDOR and dueno.get('liberado') is None
+            and dueno_vivo(dueno)):
         return dueno
     return None
 
 
-def cerrar_servidor() -> dict | None:
-    """Cierra el servidor y libera el turno (019:RF-8, RF-9); devuelve el que cerró."""
+#: Variable con la que la web da al cliente el identificador de su orden (019:RF-20).
+VARIABLE_ORDEN = 'IGEA_PF_ORDEN'
+
+
+def cerrar_servidor(orden: str | None = None) -> dict | None:
+    """Cierra el servidor y libera el turno (019:RF-8, RF-9); devuelve el que cerró.
+
+    Con ``orden`` (019:RF-20) solo se cierra si el corte es suyo: si atiende esa orden, o
+    si sigue sin conectar (colgado en DIgSILENT, no atiende a nadie). Si la orden aún
+    espera en la cola, se retira. Antes se cerraba siempre: el corte de una acción de un
+    espacio tumbaba la orden que el servidor atendía para otro.
+    """
+    cola = ruta_cola()
     dueno = servidor_vivo()
+    if orden is not None:
+        (cola / f'{orden}.orden.json').unlink(missing_ok=True)
+        if dueno is None:
+            return None
+        if dueno.get('conectado') and not (cola / f'{orden}.en_curso.json').exists():
+            return None
     if dueno is None:
         return None
     from .powerfactory_env import terminar_arbol
 
     try:
         terminar_arbol(int(dueno['pid']))
-    except OSError:
+    except (OSError, subprocess.SubprocessError):
         pass
-    try:
-        ruta_turno().unlink()
-    except FileNotFoundError:
-        pass
+    _borrar_si_sigue(ruta_turno(), dueno)
     return dueno

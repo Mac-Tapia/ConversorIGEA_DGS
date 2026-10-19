@@ -762,6 +762,25 @@ def test_web_avisa_si_powerfactory_no_responde(web):
     with pytest.raises(web.services.UserError, match='PowerFactory no responde'):
         web.services.pf_projects(web.ws, web.ctx)
     assert opciones[0]['limite_arranque_s'] == web.services.LIMITE_ARRANQUE_PF_S
+    assert len(opciones) == 2, '019:RF-18: un reintento antes de avisar'
+
+
+def test_leer_proyectos_reintenta_si_digsilent_no_conecta_a_la_primera(web):
+    """019:RF-18 — tras importar, el primer servidor no conectó en 180 s y el segundo sí:
+    la lectura se reintenta una vez y lista los proyectos."""
+    from igea_dgs.web.jobs import TIEMPO_AGOTADO
+
+    leer = web.ctx.run_process
+    intentos: list[int] = []
+
+    def primero_colgado(orden, **kw):
+        intentos.append(1)
+        return TIEMPO_AGOTADO if len(intentos) == 1 else leer(orden, **kw)
+
+    web.ctx.run_process = primero_colgado
+    datos = web.services.pf_projects(web.ws, web.ctx)
+    assert len(intentos) == 2 and datos['projects'][0]['path'] == 'Oct/SI213'
+    assert any('Se reintenta una vez' in linea for linea in web.logs)
 
 
 def test_guion_de_pf_huerfano_se_reconoce_y_el_de_consola_no():
