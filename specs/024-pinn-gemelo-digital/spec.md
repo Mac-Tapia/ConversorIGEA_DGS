@@ -1,6 +1,6 @@
 # Spec 024 — PINN como oráculo y gemelo digital de la red calibrada
 
-Estado: aprobada el 2026-10-21; plan y tareas de la primera entrega (búfer de episodios) escritos, pendientes de aprobar · Fecha: 2026-10-21
+Estado: aprobada el 2026-10-21, con el cambio del mismo día (RF-39 a RF-53: aprendizaje autónomo, propuestas e implementación propias, diagnóstico y plan por etapas); plan y tareas de la primera entrega (búfer de episodios) aprobados · Fecha: 2026-10-21
 
 ## Contexto y objetivo
 
@@ -36,8 +36,10 @@ gemelo digital.
    por sí sola no permite generalizar.
 5. **Fallar cerrado.** Datos ambiguos, topología no identificada, flujo inválido, deriva o entrada
    fuera de distribución impiden usar la predicción.
-6. **Aprendizaje local y promovido.** El búfer puede crecer automáticamente; un modelo nuevo no
-   pasa a producción hasta superar las puertas nativas y de calidad.
+6. **Aprendizaje autónomo con puertas.** Los modelos aprenden solos de cada trabajo, eligen qué
+   más necesitan aprender y se reentrenan sin que nadie lo pida; un modelo nuevo se promueve
+   solo si supera las puertas nativas y de calidad, y todo cambio queda registrado y se puede
+   deshacer.
 
 ## Usuarios y actores
 
@@ -283,7 +285,62 @@ cumple con margen de sobra pierde frente a otra más barata que también cumple.
 - RF-16: SI las métricas contra PowerFactory o los residuos físicos superan el perfil, ENTONCES
   EL SISTEMA rechazará la promoción del modelo.
 - RF-17: CUANDO llegue nueva evidencia, EL SISTEMA entrenará un candidato con repetición del
-  búfer histórico; nunca modificará silenciosamente el modelo promovido.
+  búfer histórico; el modelo promovido solo cambia por la promoción de RF-42, registrada.
+
+### Aprendizaje autónomo y propuestas propias
+
+Usuario, 2026-10-21: «necesito que los modelos sean autodidactas, autoaprendizaje, que sean
+escalables, autoadaptables, cada vez aprendan más y sean capaces de proponer proyectos u obras
+por su propia cuenta».
+
+- RF-39: CUANDO se registre un episodio entrenable nuevo, EL SISTEMA programará por sí mismo el
+  reentrenamiento del candidato, sin que el operador lo pida.
+- RF-40: EL SISTEMA elegirá por sí mismo los escenarios donde su incertidumbre, su residuo físico
+  o su error frente a DIgSILENT sean mayores, los construirá y simulará en DIgSILENT sobre una
+  copia del proyecto y los añadirá al búfer como episodios `counterfactual` (aprendizaje activo).
+- RF-41: MIENTRAS el aprendizaje activo use DIgSILENT, EL SISTEMA respetará el presupuesto de
+  licencia del perfil y cederá el turno a cualquier trabajo del operador (spec 019).
+- RF-42: CUANDO un candidato supere las puertas frente a DIgSILENT sin empeorar los casos dorados,
+  EL SISTEMA lo promoverá solo, registrará qué cambió y con qué episodios, y conservará el modelo
+  anterior para volver a él.
+- RF-43: SI EL SISTEMA detecta deriva (medidas nuevas que no reproduce, topología nunca vista o
+  demanda fuera de lo aprendido), ENTONCES se adaptará con un ajuste sobre lo nuevo y repetición
+  del histórico, sin reentrenar desde cero.
+- RF-44: EL SISTEMA aprenderá de cualquier número de alimentadores, sistemas eléctricos y
+  empresas con los mismos modelos, que generalizan a topologías nuevas por la estructura del
+  grafo y no por un modelo por red.
+- RF-45: EL SISTEMA buscará por sí mismo, en «Sin proyecto» y con la demanda proyectada,
+  incumplimientos de la norma, pérdidas y confiabilidad, y propondrá proyectos u obras del PIDE
+  (alternativa, ubicación y dimensión) ordenados por coste total, sin que el operador los pida.
+- RF-46: EL SISTEMA construirá y verificará cada propuesta propia en DIgSILENT sobre una copia
+  del proyecto antes de mostrarla al operador, con su evidencia (norma, pérdidas, confiabilidad,
+  coste e indicadores del Anexo N.º 6).
+- RF-47: CUANDO una propuesta propia quede verificada en la copia (RF-46), EL SISTEMA la
+  implementará solo en «Con proyecto» del proyecto real, en una variación propia marcada como
+  autónoma, sin esperar aprobación (usuario, 2026-10-21: «la implementa sola»).
+- RF-47b: EL SISTEMA no modificará el «Caso base» ni lo hecho por el operador en «Sin proyecto» o
+  en «Con proyecto» al implementar una propuesta propia; ante un conflicto con un cambio manual,
+  gana el manual y la propuesta queda sin implementar, con aviso.
+- RF-47c: EL SISTEMA avisará al operador de cada implementación autónoma con su evidencia y le
+  permitirá deshacerla desactivando o borrando su variación.
+- RF-48: CUANDO el operador acepte, rechace o modifique una propuesta, EL SISTEMA guardará esa
+  decisión como episodio y aprenderá de ella.
+
+Usuario, 2026-10-21: «además debe ser capaz de diagnosticar la situación actual de las redes y
+pensar cómo planificar».
+
+- RF-49: EL SISTEMA diagnosticará por sí mismo la situación actual de cada red («Caso base» y
+  «Sin proyecto»): tensiones, cargabilidad, pérdidas y confiabilidad frente a la norma de su
+  sistema, con la ubicación de cada problema.
+- RF-50: EL SISTEMA explicará la causa probable de cada problema del diagnóstico (conductor
+  insuficiente, factor de potencia bajo, longitud del alimentador, transformador sobrecargado,
+  falta de enlace o de fuente) con la evidencia del flujo que la sostiene.
+- RF-51: EL SISTEMA proyectará la demanda en el horizonte del plan del perfil y determinará en
+  qué año cada red deja de cumplir la norma.
+- RF-52: EL SISTEMA propondrá un plan por etapas: qué obra del PIDE hace falta, dónde y en qué año,
+  de modo que cada año cumpla la norma con el menor coste total del horizonte, sin adelantar obras
+  que aún no hacen falta.
+- RF-53: EL SISTEMA verificará en DIgSILENT cada año del plan propuesto antes de mostrarlo.
 
 ### Oráculo y gemelo digital
 
@@ -347,8 +404,7 @@ converge con subtensión; deriva temporal; búfer insuficiente o desbalanceado.
 ## Fuera de alcance
 
 Sustituir PowerFactory en cortocircuito, N-1, confiabilidad o aceptación; control autónomo en
-tiempo real; aprendizaje en línea que cambie el modelo productivo; escribir maniobras sin
-aprobación; predicción de demanda de largo plazo; enviar datos a servicios externos.
+tiempo real de la red en operación; promover un modelo sin pasar las puertas (RF-42); predicción de demanda de largo plazo; enviar datos a servicios externos.
 
 ## Criterios de finalización
 
