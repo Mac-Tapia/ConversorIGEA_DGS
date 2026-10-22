@@ -840,6 +840,10 @@ importado y calibrado, de uno o de varios alimentadores):
 Además, cada acción de DIgSILENT desde la web (cargas, ajuste, verificación, obras,
 estudios, transferencia, guiones) deja su episodio en el búfer local
 (`output/web/_digital_twin`), que se consulta con `tools/digital_twin_buffer.py`.
+La lectura de cada episodio tiene su propio límite, 5 minutos por defecto
+(`gemelo.lectura_s` en el perfil): si DIgSILENT no responde a tiempo, el episodio va a
+cuarentena con su motivo y la acción del operador sigue. `gemelo.captura: false` en el
+perfil (o `IGEA_TWIN_CAPTURA=0`) apaga la captura.
 
 Lo que el perfil de empresa necesita (`planificacion` en `config/perfiles/<empresa>.json`):
 la tasa de crecimiento de la demanda (`crecimiento_demanda_anual`; sin ella solo se
@@ -985,7 +989,7 @@ se ejecutan con el intérprete de PowerFactory (Python 3.12 con `powerfactory.py
 | `cargas_pf.py` | Demandas y cargas nuevas en un proyecto existente (sección 7.ter). | PF |
 | `casos_pf.py` | Deja los casos «Caso base», «Sin proyecto» y «Con proyecto» sobre la red calibrada, cada uno con su escenario (spec 011; sección 7.ter). | PF |
 | `digital_twin_buffer.py` | Búfer de episodios del gemelo digital: `list` con filtros, `show`, `validate`, `register` y `rebuild-index`, sin DIgSILENT (spec 024, T7). | |
-| `digital_twin_entrenar.py` | Entrena el oráculo PINN/GNN del gemelo en su propio proceso, en la GPU si la hay (y si falla, en la CPU); `--forzar` entrena aunque no haya episodios nuevos. La web lo lanza tras «Aprender» (spec 024, T11). | |
+| `digital_twin_entrenar.py` | Entrena el oráculo PINN/GNN del gemelo en su propio proceso, solo en la GPU (CUDA): sin ella se detiene con su motivo; `--forzar` entrena aunque no haya episodios nuevos. La web lo lanza tras «Aprender» (spec 024, T11). | |
 | `digital_twin_snapshot_pf.py` | Lectura de solo lectura tras una acción: reabre el proyecto, activa el caso y devuelve flujo, islas, frontera y huellas del trazado; la web la lanza sola tras cada acción (spec 024, T5). | PF |
 | `escenarios_pf.py` | Escenarios del gemelo digital en una copia del proyecto que se borra al terminar: demanda escalada y tramos abiertos, con el grafo eléctrico para la PINN. La web lo lanza desde `POST /api/workspaces/{id}/digital-twin/aprender`, que después entrena si toca (spec 024, T10 y T11). | PF |
 | `estudios_pf.py` | Un estudio de la spec 011 en «Sin proyecto» o «Con proyecto», sin aplicar las propuestas de los optimizadores (sección 7.ter). | PF |

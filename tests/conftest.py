@@ -37,9 +37,13 @@ def _sin_turno_de_la_maquina(monkeypatch, tmp_path):
     2026-10-17 la suite lo tuvo más de 10 minutos y una sonda real se quedó sin DIgSILENT
     («ocupado por ajuste_cabecera_pf.py», que era pytest).
     """
+    from igea_dgs import powerfactory_env
     from igea_dgs.pf_arnes import VARIABLE_TURNO
 
     monkeypatch.setenv(VARIABLE_TURNO, str(tmp_path / 'powerfactory.turno'))
+    # Tampoco miran el DIgSILENT de la máquina: el 2026-10-22 el operador lo abrió a mano
+    # para calibrar y los guiones con el doble se negaron a correr (019:RF-13).
+    monkeypatch.setattr(powerfactory_env, 'powerfactory_abierto', lambda lista=None: [])
 
 
 @pytest.fixture(autouse=True)
