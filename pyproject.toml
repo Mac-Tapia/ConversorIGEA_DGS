@@ -33,6 +33,10 @@ validate = ["pandapower>=3.0"]
 preview = ["geopandas>=0.14", "leafmap>=0.30", "pyproj>=3.6"]
 # Interfaz web: API FastAPI que sirve el front React compilado (frontend/dist).
 web = ["fastapi>=0.115", "uvicorn[standard]>=0.30", "python-multipart>=0.0.9"]
+# Gemelo digital (spec 024, T11 y T12): la PINN/GNN y la GRU. Sin él, el oráculo radial y el
+# temporal estacional cumplen el mismo contrato. Con GPU NVIDIA, instalar el de CUDA:
+# pip install torch --index-url https://download.pytorch.org/whl/cu126
+ml = ["torch>=2.4", "numpy>=1.26"]
 all = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",

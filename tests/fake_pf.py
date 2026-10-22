@@ -561,6 +561,14 @@ class Alimentador(Obj):
         super().__init__(app, 'ElmFeeder', nombre, padre)
         object.__setattr__(self, '_objs', [])
 
+    def _copia(self, padre, nombre):
+        """Copia del alimentador al copiar el proyecto entero (024, T10: escenarios en una
+        copia). En este doble la red calculable sigue siendo la del original."""
+        nuevo = Alimentador(self._app, nombre, padre)
+        object.__setattr__(nuevo, 'obj_id', getattr(self, 'obj_id', None))
+        object.__setattr__(nuevo, '_objs', list(self._objs))
+        return nuevo
+
     def GetObjs(self, clase):
         return [o for o in self._objs + self._nuevos() if o._clase == clase and o.en_red]
 

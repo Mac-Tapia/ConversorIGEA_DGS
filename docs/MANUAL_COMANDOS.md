@@ -819,6 +819,35 @@ o con fallos parciales, `3` sin API de DIgSILENT.
 
 ---
 
+### Paso 5 · Planificación PIDE y gemelo digital (spec 024)
+
+Con el proyecto del paso 1 y los alimentadores marcados en el paso 2 (cualquier proyecto
+importado y calibrado, de uno o de varios alimentadores):
+
+1. **Planificar.** Diagnostica «Sin proyecto» en DIgSILENT para el año 00 y los años del
+   horizonte (04, 08, 12, 16 y 20), con la demanda escalada por la tasa del perfil; arma las
+   obras por rubro, las evalúa (art. 14: anualidad del CI + COyM + CP; flujo privado con el
+   pliego tarifario) y las prioriza (art. 15). Con «Aplicar solas las obras que funcionan»,
+   los bancos y las ternas se simulan y, si funcionan, se aplican en «Con proyecto», cada uno
+   en su variación (para deshacerlo, desactívela o bórrela en DIgSILENT). El resto queda
+   propuesto con su motivo. Descarga: los formatos 01 a 15 de la norma en un Excel.
+2. **Decidir.** Cada obra admite «aceptada», «rechazada» o «modificada»: el gemelo aprende
+   de esa decisión.
+3. **Aprender.** Simula escenarios (demanda y un tramo fuera de servicio) en una copia del
+   proyecto que se borra al terminar, los guarda como episodios y reentrena la PINN si hay
+   suficientes nuevos (en la GPU si la hay; `pip install -r requirements.txt` y el extra `ml`).
+
+Además, cada acción de DIgSILENT desde la web (cargas, ajuste, verificación, obras,
+estudios, transferencia, guiones) deja su episodio en el búfer local
+(`output/web/_digital_twin`), que se consulta con `tools/digital_twin_buffer.py`.
+
+Lo que el perfil de empresa necesita (`planificacion` en `config/perfiles/<empresa>.json`):
+la tasa de crecimiento de la demanda (`crecimiento_demanda_anual`; sin ella solo se
+diagnostica el año 00), el factor de carga y el precio de compra de energía (`factor_carga`,
+`precio_compra_kwh`; sin ellos la evaluación privada se omite y se avisa), las tarifas, las
+tasas, la vida útil y los nombres de hoja y columnas del libro CAPEX. Los límites de cada
+sistema salen de su norma (NTCSE o NTCSER) en `estudios` y `normas`.
+
 ## 8. La red completa y el año 0 del PIDE
 
 Todo lo de esta sección se puede lanzar desde la interfaz, pestaña **«Sistema completo»**,
@@ -956,7 +985,9 @@ se ejecutan con el intérprete de PowerFactory (Python 3.12 con `powerfactory.py
 | `cargas_pf.py` | Demandas y cargas nuevas en un proyecto existente (sección 7.ter). | PF |
 | `casos_pf.py` | Deja los casos «Caso base», «Sin proyecto» y «Con proyecto» sobre la red calibrada, cada uno con su escenario (spec 011; sección 7.ter). | PF |
 | `digital_twin_buffer.py` | Búfer de episodios del gemelo digital: `list` con filtros, `show`, `validate`, `register` y `rebuild-index`, sin DIgSILENT (spec 024, T7). | |
+| `digital_twin_entrenar.py` | Entrena el oráculo PINN/GNN del gemelo en su propio proceso, en la GPU si la hay (y si falla, en la CPU); `--forzar` entrena aunque no haya episodios nuevos. La web lo lanza tras «Aprender» (spec 024, T11). | |
 | `digital_twin_snapshot_pf.py` | Lectura de solo lectura tras una acción: reabre el proyecto, activa el caso y devuelve flujo, islas, frontera y huellas del trazado; la web la lanza sola tras cada acción (spec 024, T5). | PF |
+| `escenarios_pf.py` | Escenarios del gemelo digital en una copia del proyecto que se borra al terminar: demanda escalada y tramos abiertos, con el grafo eléctrico para la PINN. La web lo lanza desde `POST /api/workspaces/{id}/digital-twin/aprender`, que después entrena si toca (spec 024, T10 y T11). | PF |
 | `estudios_pf.py` | Un estudio de la spec 011 en «Sin proyecto» o «Con proyecto», sin aplicar las propuestas de los optimizadores (sección 7.ter). | PF |
 | `obras_pf.py` | Obras de mejora de la spec 011: con `--bibliotecas`, alimentadores y tipos de las tres bibliotecas para el formulario; sin él, simula o aplica las obras en sus casos (sección 7.ter). | PF |
 | `transferencia_pf.py` | Transferencia de carga entre dos alimentadores por su enlace, en los dos sentidos, sin dejar nada en el proyecto (spec 011; sección 7.ter). | PF |

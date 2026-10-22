@@ -2,8 +2,7 @@ import type { SistemaDelProyecto, EstructuraResumen,
   AjustePlan, AjusteResultado, CargasPlan, CentralTermica, ClientesCruce, CurvaCabecera, DemandaMedidores,
   MaximaConCentral, MedidoresExternos, Economia, EstudiosCatalogo, EstudiosPlan,
   FeederRow, Health, InformeEstudioForm, InformeFactibilidadForm, InformesContexto, Job, Limites, MaximaCabecera, Obra,
-  ObraGuardada, Options, OutputFile, PfInventario, PowerFactoryStatus, ReconstructionReport, WorkspaceState,
-} from './types';
+  ObraGuardada, Options, OutputFile, PfInventario, PowerFactoryStatus, ReconstructionReport, WorkspaceState, EpisodioResumen } from './types';
 
 export class ApiError extends Error {
   status: number;
@@ -281,6 +280,16 @@ export const api = {
   guionEjecutar: (id: string, body: {
     project: string; nombre: string; origen: 'caso' | 'proyecto'; parametros: Record<string, string>; casos: string[];
   }) => request<Job>(`${ws(id)}/pf/guiones/ejecutar`, json('POST', body)),
+  // Spec 024: PIDE, gemelo digital y decisiones del operador.
+  pide: (id: string, body: { project: string; feeders: string[]; capex: string | null; implementar: boolean }) =>
+    request<Job>(`${ws(id)}/pide`, json('POST', body)),
+  pideDecision: (id: string, body: { project: string; codigo: string; decision: string; comentario?: string }) =>
+    request<Record<string, unknown>>(`${ws(id)}/pide/decision`, json('POST', body)),
+  gemeloAprender: (id: string, body: { project: string; feeders: string[]; n: number }) =>
+    request<Job>(`${ws(id)}/digital-twin/aprender`, json('POST', body)),
+  gemeloEpisodios: (id: string, filtros: { proyecto?: string; caso?: string; clase?: string }) =>
+    request<EpisodioResumen[]>(`${ws(id)}/digital-twin/episodes?${new URLSearchParams(
+      Object.entries(filtros).filter(([, v]) => v) as [string, string][])}`),
   transferencia: (id: string, body: { project: string; feeders: string[]; casos: string[] }) =>
     request<Job>(`${ws(id)}/pf/transferencia`, json('POST', body)),
 
