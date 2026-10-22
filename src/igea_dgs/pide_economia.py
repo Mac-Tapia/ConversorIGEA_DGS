@@ -13,7 +13,6 @@ criterios del art. 15.3 con los pesos del perfil. Puro: no lee DIgSILENT.
 """
 from __future__ import annotations
 
-import math
 import re
 import unicodedata
 from collections.abc import Iterable, Mapping, Sequence
@@ -23,6 +22,7 @@ from statistics import median
 from typing import Any
 
 from .pide import RUBRO_DE_ALTERNATIVA
+from .util import finite_or_none
 
 #: Palabras de la denominación de una obra del CAPEX → alternativa del PIDE (RF-54).
 #: Se prueban en este orden: «transformador de potencia» es de una SET, no de una SED.
@@ -71,12 +71,6 @@ def alternativa_de(*textos: str) -> str | None:
     return None
 
 
-def _num(v: Any) -> float | None:
-    try:
-        x = float(v)
-    except (TypeError, ValueError):
-        return None
-    return x if math.isfinite(x) else None
 
 
 def leer_capex(ruta: Path | str, config: Mapping[str, Any]) -> tuple[list[ObraCapex], list[str]]:
@@ -121,8 +115,8 @@ def leer_capex(ruta: Path | str, config: Mapping[str, Any]) -> tuple[list[ObraCa
         textos = [str(celda(fila, k) or '') for k in ('nombre', 'objetivo', 'descripcion')]
         obras.append(ObraCapex(str(nombre).strip(), str(celda(fila, 'zona') or ''),
                                str(celda(fila, 'objetivo') or ''), str(celda(fila, 'descripcion') or ''),
-                               str(celda(fila, 'unidad') or ''), _num(celda(fila, 'cantidad')),
-                               _num(celda(fila, 'costo_unitario')), _num(celda(fila, 'inversion')),
+                               str(celda(fila, 'unidad') or ''), finite_or_none(celda(fila, 'cantidad')),
+                               finite_or_none(celda(fila, 'costo_unitario')), finite_or_none(celda(fila, 'inversion')),
                                alternativa_de(*textos)))
     libro.close()
     sin = sorted(set(RUBRO_DE_ALTERNATIVA) - {o.alternativa for o in obras if o.alternativa})

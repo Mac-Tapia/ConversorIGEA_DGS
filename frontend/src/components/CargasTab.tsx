@@ -13,6 +13,7 @@ import { ObrasPF } from './ObrasPF';
 import { PfWarning } from './Modules';
 import { InformesPF } from './InformesPF';
 import { TransferenciaPF } from './TransferenciaPF';
+import { GemeloPIDE } from './GemeloPIDE';
 import { FileDrop, Modal, Toggle, useToast } from './ui';
 
 const ANIO = new Date().getFullYear();
@@ -533,6 +534,13 @@ export function CargasTab() {
             <h4>4.4 · Informes</h4>
             <InformesPF project={project} feeders={order} />
           </>}
+      </div>
+
+      {/* Spec 024: el PIDE y el gemelo digital, con el mismo proyecto y alimentadores. */}
+      <div className="step-box">
+        <h3>5 · Planificación PIDE y gemelo digital</h3>
+        {!current ? <p className="muted">Elija un proyecto en el paso 1.</p>
+          : <GemeloPIDE project={project} feeders={order} />}
       </div>
       </fieldset>
 

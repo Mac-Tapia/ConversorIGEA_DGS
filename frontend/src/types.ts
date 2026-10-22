@@ -1401,3 +1401,46 @@ export interface SistemaDelProyecto {
   calibrados?: string[];
   sin_medidor?: string[];
 }
+
+/** Spec 024: una obra propuesta por el PIDE, con su evaluación y su estado. */
+export interface ObraPIDE {
+  codigo: string;
+  anio: number;
+  alternativa: string;
+  rubro: string;
+  caracter: string;
+  alimentador: string | null;
+  elemento: string;
+  causa: string;
+  denominacion: string | null;
+  ci: number;
+  prioridad: number;
+  sobredimensionada: boolean;
+  descartada: string | null;
+  motivo_sin_obra: string | null;
+  variacion_autonoma?: string;
+  regulada: { anualidad?: number; costo_anual?: number } | null;
+  privada: { van: number; tir: number | null } | null;
+}
+
+export interface PideResultado {
+  project: string;
+  feeders: string[];
+  formatos: string;
+  anios: { anio: number; factor: number; converge: boolean; vm_min?: number | null; problemas: number }[];
+  obras: ObraPIDE[];
+  implementadas: { codigo: string; alternativa: string; variacion: string; aviso: string }[];
+  avisos: string[];
+}
+
+export interface EpisodioResumen {
+  episode_id: string;
+  clase: string;
+  caso: string;
+  creado: string;
+  project: string;
+  feeders: string[];
+  accion: string | null;
+  bloqueos: string[];
+  violaciones: string[];
+}

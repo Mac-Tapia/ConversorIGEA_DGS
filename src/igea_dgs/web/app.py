@@ -1290,6 +1290,36 @@ def create_app(
                                                          implementar=bool(body.get('implementar', True))),
                       lane='powerfactory')
 
+    @app.post('/api/workspaces/{wid}/digital-twin/aprender', status_code=202)
+    def gemelo_aprender(wid: str, body: dict[str, Any]) -> dict:
+        """Aprendizaje activo en una copia del proyecto (spec 024, T10)."""
+        ws = ws_or_404(wid)
+        project = str(body.get('project') or '').strip()
+        if not project:
+            raise HTTPException(422, 'Elija el proyecto de DIgSILENT.')
+        return submit(ws, 'gemelo_aprender', f'Gemelo · aprender · {project}',
+                      lambda ctx: services.gemelo_aprender(
+                          ws, ctx, project, [str(f) for f in body.get('feeders') or []],
+                          n=int(body.get('n') or 20), segundos=body.get('segundos'),
+                          caso=str(body.get('caso') or 'sin_proyecto')),
+                      lane='powerfactory')
+
+    @app.post('/api/workspaces/{wid}/digital-twin/temporal', status_code=202)
+    def gemelo_temporal(wid: str, body: dict[str, Any]) -> dict:
+        """Gemelo temporal del mes con las curvas de cabecera (spec 024, T12)."""
+        ws = ws_or_404(wid)
+        alimentadores = {str(k): str(v) for k, v in (body.get('alimentadores') or {}).items()}
+        if not body.get('job_id') or not alimentadores:
+            raise HTTPException(422, 'Indique la búsqueda de la máxima y los medidores de los alimentadores.')
+        return submit(ws, 'gemelo_temporal', 'Gemelo temporal del mes',
+                      lambda ctx: services.gemelo_temporal(
+                          ws, ctx, str(body['job_id']), alimentadores, barra=body.get('barra'),
+                          sin_medidor={str(k): float(v) for k, v in (body.get('sin_medidor') or {}).items()},
+                          fijas_kw={str(k): float(v) for k, v in (body.get('fijas_kw') or {}).items()},
+                          perdidas_pct=float(body.get('perdidas_pct') or 0.0),
+                          umbral_pct=float(body.get('umbral_pct') or 10.0)),
+                      lane='engine')
+
     @app.post('/api/workspaces/{wid}/pide/decision')
     def pide_decision(wid: str, body: dict[str, Any]) -> dict:
         """Lo que decide el operador sobre una propuesta, para aprender de ello (024:RF-48)."""

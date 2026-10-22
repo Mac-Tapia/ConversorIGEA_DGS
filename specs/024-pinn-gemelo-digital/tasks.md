@@ -60,15 +60,23 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 
 ## Entregas siguientes (plan en plan.md, 2026-10-22)
 
-- [ ] T10. Generador de escenarios y aprendizaje activo en copias del proyecto, con presupuesto
+- [x] T10. Generador de escenarios y aprendizaje activo en copias del proyecto, con presupuesto
       de licencia. (RF-11, RF-12, RF-40, RF-41)
       Hecho cuando: `pytest -q tests/test_digital_twin_escenarios.py en verde`.
+      Hecho el 2026-10-22: probado en DIgSILENT desde la web con IN111–TA225, 24 escenarios en una copia
+      borrada al terminar; el grafo trae los acopladores (sin ellos solo 91 de 2470 nodos tenían fuente).
 - [ ] T11. Oráculo PINN/GNN del estado eléctrico con incertidumbre, entrenamiento, registro y
       promoción automática con puertas; ordenar y proponer con el oráculo. (RF-13 a RF-19, RF-23,
       RF-35, RF-36, RF-38, RF-39, RF-42 a RF-44)
       Hecho cuando: `pytest -q tests/test_digital_twin_oraculo.py en verde, en GPU si la hay`.
-- [ ] T12. Gemelo temporal (RNN) con las curvas del mes y pseudo-medidas. (RF-20 a RF-22, RF-37)
+      Pendiente (el usuario, 2026-10-22: «déjalo como pendiente para después»): código y pruebas en verde,
+      solo en la GPU, híbrido barrido físico + GNN y modelo de carga elegido con los datos (impedancia
+      constante en IN111–TA225: el barrido se aparta 0,019 p.u. frente a 0,050 con potencia constante).
+      Con los 24 escenarios reales el modelo aún no pasa las puertas (0,057 p.u. sobre 0,005), así
+      que no se usa; falta reentrenar con el modelo de carga elegido y más escenarios.
+- [x] T12. Gemelo temporal (RNN) con las curvas del mes y pseudo-medidas. (RF-20 a RF-22, RF-37)
       Hecho cuando: `pytest -q tests/test_digital_twin_temporal.py en verde`.
+      Hecho el 2026-10-22: GRU en la GPU; pruebas con curvas sintéticas y la ruta de la web.
 - [x] T13. Diagnóstico, mercado y plan por etapas de la norma del PIDE. (RF-49 a RF-53, RF-60 a
       RF-63)
       Hecho cuando: `pytest -q tests/test_pide.py tests/test_pide_pf.py en verde`.

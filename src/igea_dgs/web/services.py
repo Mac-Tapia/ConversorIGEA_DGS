@@ -3507,6 +3507,154 @@ def _pide_implementar(ws: Workspace, ctx: JobContext, project: str, feeders: lis
     return out
 
 
+def gemelo_aprender(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *,
+                    n: int = 20, segundos: float | None = None, caso: str = 'sin_proyecto') -> dict:
+    """Aprendizaje activo: escenarios simulados en una copia del proyecto (spec 024, T10).
+
+    Lee los tramos, arma la matriz (demanda escalada y N-1), elige los que más enseñan
+    (los de mayor incertidumbre del oráculo promovido o, sin él, los más distintos) entre
+    los que aún no hay, los simula en DIgSILENT dentro del presupuesto de licencia del
+    perfil y los guarda como ``counterfactual`` (RF-11, RF-40, RF-41). Después entrena si
+    toca (RF-39).
+    """
+    from dataclasses import asdict
+    from datetime import UTC, datetime
+
+    from ..digital_twin.buffer import BuferEpisodios, Consulta
+    from ..digital_twin.capture import artefacto_de, construir_episodio
+    from ..digital_twin.episode import Caso
+    from ..digital_twin.escenarios import Escenario, elegir, matriz
+    from ..digital_twin.integration import limites_combinados, normas_de
+    from ..perfil_empresa import datos_perfil, estructura_empresa
+
+    project = project.strip()
+    contexto = native_action_context(ws, project, feeders, 'gemelo_escenarios')
+    perfil = datos_perfil()
+    ajustes = dict(perfil.get('gemelo') or {})
+    segundos = float(segundos or ajustes.get('licencia_s') or 600)
+    feeders = list(contexto['feeders'])
+    base = {'project': project, 'folder': carpeta_pf(), 'feeders': feeders, 'case': caso,
+            'native_action_context': contexto}
+    _rc, tramos, _r = _guion_pf(ws, ctx, 'escenarios_pf.py', {**base, 'solo_tramos': True},
+                                nombre='gemelo_tramos', cancelable=False, limite_s=segundos)
+    if tramos.get('error'):
+        raise UserError(tramos['error'])
+    bufer = BuferEpisodios()
+    hechos = {Escenario(float(e.accion['escenario']['factor_carga']),
+                        tuple(e.accion['escenario'].get('tramos_abiertos') or ())).clave
+              for e in bufer.consultar(Consulta(proyecto=project)) if e.accion.get('escenario')}
+    incertidumbre = None
+    try:
+        from ..digital_twin.oraculo import incertidumbre_de_escenarios
+
+        incertidumbre = incertidumbre_de_escenarios(tramos.get('grafo') or {})
+    except ImportError:
+        pass
+    elegidos = elegir(matriz(tramos.get('tramos') or [], semilla=int(ajustes.get('semilla') or 0)),
+                      int(n), incertidumbre, hechos)
+    if not elegidos:
+        return {'project': project, 'simulados': 0, 'avisos': ['no quedan escenarios por simular']}
+    ctx.log(f'Gemelo: {len(elegidos)} escenario(s) en una copia de {project} '
+            f'({"por incertidumbre" if incertidumbre else "por diversidad"})…')
+    _rc, informe, report = _guion_pf(
+        ws, ctx, 'escenarios_pf.py', {**base, 'escenarios': [asdict(e) for e in elegidos],
+                                      'limite_s': segundos},
+        nombre='gemelo_escenarios', cancelable=True, limite_s=segundos + 300)
+    if informe.get('error') and not informe.get('escenarios'):
+        raise UserError(informe['error'])
+    limites = limites_combinados(perfil, normas_de(estructura_empresa(), feeders))
+    clases: dict[str, int] = {}
+    for fila in informe.get('escenarios') or []:
+        e = construir_episodio(base, {'status': 'OK' if fila['converge'] else 'NO_CONVERGE',
+                                      'converged': fila['converge'], 'aplicada': False,
+                                      'escenario': fila['escenario']},
+                               fila.get('lectura'), [artefacto_de(report, 'escenarios', ws.out_dir)],
+                               caso=Caso(caso), limites=limites, referencia=None, calibracion_cuadra=True,
+                               creado=datetime.now(UTC).isoformat(timespec='seconds'))
+        bufer.guardar(e)
+        clases[e.clase.value] = clases.get(e.clase.value, 0) + 1
+    out = {'project': project, 'simulados': sum(clases.values()), 'clases': clases,
+           'avisos': list(informe.get('avisos') or [])}
+    out['entrenamiento'] = gemelo_entrenar(ws, ctx)
+    return out
+
+
+def gemelo_entrenar(ws: Workspace, ctx: JobContext, *, forzar: bool = False) -> dict:
+    """Entrena el oráculo en otro proceso (``tools/digital_twin_entrenar.py``, RF-39).
+
+    Un fallo de memoria o de la GPU cae ese proceso, no la web: el 2026-10-22, entrenando
+    dentro de la web con IN111–TA225 y 1,3 GB de RAM libre, la web se cayó.
+    """
+    import sys
+
+    from ..digital_twin.buffer import raiz_buffer
+
+    report = ws.out_dir / f'gemelo_entrenamiento_{uuid.uuid4().hex[:8]}.json'
+    report.parent.mkdir(parents=True, exist_ok=True)
+    cmd = [sys.executable, str(_script('digital_twin_entrenar.py')), '--output-json', str(report),
+           '--raiz', str(raiz_buffer())]
+    if forzar:
+        cmd.append('--forzar')
+    rc = ctx.run_process(cmd, cwd=str(project_root()))
+    try:
+        r = json.loads(report.read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        r = {'entrenado': False, 'error': f'el entrenamiento terminó con el código {rc} sin informe'}
+    if r.get('error'):
+        ctx.log(f"Gemelo: el entrenamiento falló ({str(r['error'])[:200]}); la web sigue.")
+    return {k: v for k, v in r.items() if k != 'traza'}
+
+
+def gemelo_temporal(ws: Workspace, ctx: JobContext, job_id: str, alimentadores: dict[str, str], *,
+                    barra: str | None = None, sin_medidor: dict[str, float] | None = None,
+                    fijas_kw: dict[str, float] | None = None, perdidas_pct: float = 0.0,
+                    umbral_pct: float = 10.0) -> dict:
+    """Gemelo temporal del mes con las curvas de la última máxima buscada (spec 024, T12).
+
+    ``alimentadores``: alimentador → medidor. Entrena una GRU por cabecera con el 70 % del
+    mes y reproduce el resto (RF-20, RF-37), localiza las desviaciones (RF-21), da el
+    instante crítico coincidente (RF-37) y, con la barra, las pseudo-medidas de los
+    alimentadores sin medidor por su kVA (RF-22).
+    """
+    from ..digital_twin.temporal import (
+        desviaciones,
+        instante_critico,
+        metricas,
+        modelo_temporal,
+        pseudo_medidas,
+    )
+
+    with ws.lock:
+        curvas = ws.curvas_cabecera.get(job_id)
+    if curvas is None:
+        raise UserError('Las curvas no son de la última máxima buscada: vuelva a buscarla.')
+    faltan = [m for m in [*alimentadores.values(), *([barra] if barra else [])] if m not in curvas]
+    if faltan:
+        raise UserError(f"No hay curva de {', '.join(faltan)} en la última máxima buscada.")
+    series = {a: curvas[m]['curva'] for a, m in alimentadores.items()}
+    largo = min(len(c) for c in series.values())
+    instantes = [p[0] for p in next(iter(series.values()))[:largo]]
+    medidas = {a: [p[1] for p in c[:largo]] for a, c in series.items()}
+    reproducidas, resultado = {}, {}
+    for a, s in medidas.items():
+        modelo = modelo_temporal()
+        corte = int(0.7 * len(s))
+        if hasattr(modelo, 'entrenar'):
+            modelo.entrenar(s[:corte])
+        r = modelo.reproducir(s)
+        reproducidas[a] = r
+        resultado[a] = {'modelo': modelo.nombre, **metricas(s[corte:], r[corte:])}
+        ctx.log(f"Gemelo temporal {a}: {resultado[a]['modelo']}, error {resultado[a]['mape_pct']:.1f} %")
+    out = {'alimentadores': resultado,
+           'desviaciones': desviaciones(medidas, reproducidas, instantes, umbral_pct)[:200],
+           'instante_critico': instante_critico(medidas, instantes)}
+    if barra and sin_medidor:
+        b = [p[1] for p in curvas[barra]['curva'][:largo]]
+        est = pseudo_medidas(b, medidas, sin_medidor, fijas_kw=fijas_kw, perdidas_pct=perdidas_pct)
+        out['pseudo_medidas'] = {a: {**e, 'kw_max': max(e['kw']) if e['kw'] else 0.0} for a, e in est.items()}
+    return out
+
+
 def pide_decision(ws: Workspace, project: str, codigo: str, decision: str, comentario: str = '') -> dict:
     """Lo que decidió el operador sobre una propuesta, para que el gemelo aprenda (RF-48)."""
     from ..digital_twin.buffer import BuferEpisodios

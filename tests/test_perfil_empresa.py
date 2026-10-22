@@ -270,6 +270,8 @@ def test_electro_dunas_es_un_perfil_mas():
         'patron_libro_clientes', 'informes', 'calibracion', 'estudios',
         # 016:RF-81: el enrutador de vías del enlace lo elige cada empresa.
         'vias',
+        # 024:RF-31, RF-58c: normas de calidad de sus sistemas, tasas, tarifas y libro CAPEX.
+        'normas', 'planificacion',
         # 022:RF-3: la estructura zonal → SET → alimentadores, en un JSON aparte.
         'estructura'}
     assert perfiles_disponibles() == sorted(set(perfiles_disponibles())), 'la estructura no es un perfil'

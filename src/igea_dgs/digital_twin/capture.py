@@ -113,7 +113,9 @@ def construir_episodio(plan: Mapping[str, Any], resultado: Mapping[str, Any],
             'reopen_verified': bool(lectura.get('reopen_verified')) and not bloqueos,
         },
         'accion': {'tipo': contexto['action'], 'aplicada': aplicada,
-                   'context_sha256': contexto['context_sha256']},
+                   'context_sha256': contexto['context_sha256'],
+                   # La variante simulada (T10): su familia decide la partición (RF-12).
+                   **({'escenario': dict(resultado['escenario'])} if resultado.get('escenario') else {})},
         'topologia': dict(lectura.get('topologia') or {}),
         'flujo': dict(flujo) if flujo else _flujo_ausente(
             bloqueos[0] if bloqueos else 'la lectura no trae resultados del flujo'),
