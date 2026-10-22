@@ -1444,7 +1444,7 @@ def create_app(
         if not _server_paths_allowed(host):
             raise HTTPException(403, 'Este servidor no admite rutas locales: suba el fichero.')
         path = Path(body.path.strip().strip('"'))
-        if not (path.is_file() or (tipo in {'cabecera', 'clientes'} and path.is_dir())):
+        if not (path.is_file() or (tipo in {'cabecera', 'suministros', 'clientes'} and path.is_dir())):
             raise HTTPException(400, f'No existe: {path}')
         return services.demanda_asignar(ws, tipo, path, 'server')
 
@@ -1456,9 +1456,9 @@ def create_app(
 
     @app.post('/api/workspaces/{wid}/demanda/{tipo}')
     def demanda_subir(wid: str, tipo: DemandaTipo, files: list[UploadFile] = File(...)) -> dict:
-        """Subida de libros. Cabecera y clientes admiten varios, guardados en una carpeta."""
+        """Subida de libros. Cabecera, suministros y clientes admiten varios."""
         ws = ws_or_404(wid)
-        if tipo not in {'cabecera', 'clientes'} and len(files) != 1:
+        if tipo not in {'cabecera', 'suministros', 'clientes'} and len(files) != 1:
             raise HTTPException(422, 'Suba un solo libro.')
         carpeta = services.demanda_carpeta(ws, tipo)
         if tipo != 'cabecera':
@@ -1469,7 +1469,7 @@ def create_app(
             destino = carpeta / safe_filename(f.filename or f'{tipo}.xlsx')
             _save_upload(destino, f)
             destinos.append(destino)
-        fuente = carpeta if tipo == 'cabecera' or (tipo == 'clientes' and len(destinos) > 1) else destinos[0]
+        fuente = carpeta if tipo in {'cabecera', 'suministros'} or (tipo == 'clientes' and len(destinos) > 1) else destinos[0]
         return services.demanda_asignar(ws, tipo, fuente, 'upload')
 
     @app.delete('/api/workspaces/{wid}/demanda/{tipo}')

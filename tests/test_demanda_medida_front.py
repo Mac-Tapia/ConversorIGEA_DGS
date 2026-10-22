@@ -38,3 +38,10 @@ def test_cabecera_es_un_trabajo_y_cada_ruta_existe():
     for llamada in llamadas:
         ruta = '/api/workspaces/{}' + re.sub(r'\$\{[^}]+\}', '{}', llamada)
         assert ruta in rutas, f'{ruta} no existe en la API'
+
+
+def test_suministros_admite_varios_libros_y_carpeta():
+    """004:RF-61 — el front ofrece para suministros lo mismo que la API: varios libros
+    o una carpeta, sin nombre convencional."""
+    assert "tipo === 'suministros'" in DEMANDA.split('multiple=')[1].split('onFiles')[0]
+    assert "'cabecera', 'suministros', 'clientes'" in APP

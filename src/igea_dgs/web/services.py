@@ -1747,8 +1747,14 @@ def demanda_carpeta(ws: Workspace, tipo: str) -> Path:
 
 
 def demanda_asignar(ws: Workspace, tipo: str, path: Path, origin: str) -> dict:
-    """Guarda en el espacio la fuente de ``tipo``; cabecera y clientes admiten carpeta."""
-    from ..demanda_medida import EXTENSIONES, libros_de_cabecera
+    """Guarda la fuente; cabecera, suministros y clientes admiten carpeta."""
+    from ..demanda_medida import (
+        EXTENSIONES,
+        DemandaError,
+        descubrir_libro_suministros,
+        libros_de_cabecera,
+        libros_de_suministros,
+    )
 
     if tipo == 'cabecera':
         try:
@@ -1758,6 +1764,24 @@ def demanda_asignar(ws: Workspace, tipo: str, path: Path, origin: str) -> dict:
         meta = {'path': str(path), 'name': path.name, 'origin': origin,
                 'source_kind': 'folder' if path.is_dir() else 'file',
                 'libros': [p.name for p in libros]}
+    elif tipo == 'suministros':
+        # Cada libro de la carpeta se lee una sola vez: la lista y la elección salen
+        # del mismo puntaje (004:RF-58/RF-59).
+        try:
+            if path.is_dir():
+                candidatos = libros_de_suministros(path, demanda_alias())
+                if not candidatos:
+                    raise DemandaError(f'No hay un libro de suministros compatible en {path}.')
+                elegido = max(candidatos, key=candidatos.__getitem__)
+                libros = [p.name for p in candidatos]
+            else:
+                elegido = descubrir_libro_suministros(path, demanda_alias())
+                libros = [path.name]
+        except (DemandaError, OSError, ValueError) as exc:
+            raise UserError(str(exc)) from exc
+        meta = {'path': str(path), 'name': path.name, 'origin': origin,
+                'source_kind': 'folder' if path.is_dir() else 'file',
+                'libros': libros, 'seleccion': elegido.name}
     elif tipo == 'clientes' and path.is_dir():
         # El índice se construye en un trabajo aparte: un nombre no reconocido puede
         # obligar a abrir un libro grande para buscar una fecha interna (013:RF-4).
@@ -1864,6 +1888,12 @@ def _demanda_ruta(ws: Workspace, tipo: str, *, periodo: str | None = None) -> Pa
     if not meta or not Path(meta['path']).exists():
         raise UserError(f'Falta el {DEMANDA_ETIQUETAS[tipo]}: súbalo o indique su ruta.')
     path = Path(meta['path'])
+    if tipo == 'suministros':
+        from ..demanda_medida import DemandaError, descubrir_libro_suministros
+        try:
+            return descubrir_libro_suministros(path, demanda_alias())
+        except DemandaError as exc:
+            raise UserError(str(exc)) from exc
     if tipo == 'clientes' and path.is_dir():
         if not meta.get('vigente'):
             raise UserError('Actualice el índice de clientes importantes antes de usar la carpeta.')

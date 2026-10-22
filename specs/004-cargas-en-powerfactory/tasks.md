@@ -75,3 +75,9 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde y `- [x]`.
       Hecho cuando: `pytest -q tests/test_cargas_pf_guion.py tests/test_casos_pf.py` en verde.
       Hecho el 2026-10-12. Falta comprobarlo en DIgSILENT: una demanda en bloque se ve en la
       cabecera con el escenario activo.
+- [x] T15. Descubrimiento universal del libro de suministros por contenido, con selección
+      automática no bloqueante entre varios candidatos, opción explícita y una sola regla
+      compartida por núcleo, API, interfaz y `tools/sistema_web.py`. (RF-58 a RF-61)
+      Hecho cuando: las pruebas sintéticas con nombres arbitrarios y múltiples candidatos,
+      las pruebas de API, el front, Ruff y la suite completa con datos reales están en verde.
+      Hecho el 2026-10-21: suite con las siete variables, 2469 pasan, ninguna omitida.

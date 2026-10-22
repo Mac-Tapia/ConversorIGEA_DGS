@@ -1,6 +1,6 @@
 # Spec 004 — Cargas en un proyecto existente de DIgSILENT
 
-Estado: cumplida (2026-10-14, verificación RF por RF); aprobada el 2026-10-08; cambio «Demanda medida» (RF-22 a RF-41) aprobado el 2026-10-08 · Fecha: 2026-10-08 · Origen: revisión del módulo de cargas del 2026-10-08
+Estado: cumplida (2026-10-14, verificación RF por RF; RF-58 a RF-61 el 2026-10-21); aprobada el 2026-10-08; cambio «Demanda medida» (RF-22 a RF-41) aprobado el 2026-10-08 · Fecha: 2026-10-08 · Origen: revisión del módulo de cargas del 2026-10-08
 
 ## Contexto y objetivo
 
@@ -235,6 +235,18 @@ integrar una columna de nombre del cliente»)
 - RF-57: EL SISTEMA mostrará el nombre del cliente en la tabla del cruce de la web y en su
   Excel; SI el libro no trae nombre, ENTONCES la celda quedará vacía.
 
+Descubrimiento universal del libro de suministros (usuario, 2026-10-21: «nada debe estar
+fijado como el anterior; debe ser flexible y adaptable»)
+
+- RF-58: CUANDO el operador indique una carpeta de suministros, EL SISTEMA identificará los
+  libros compatibles por su contenido y extensión, sin depender del nombre del archivo.
+- RF-59: SI la carpeta contiene varios libros compatibles, ENTONCES EL SISTEMA elegirá sin
+  bloquear el que tenga más suministros actuales; en empate, más registros y el más reciente.
+- RF-60: DONDE el operador indique un libro de suministros explícito, EL SISTEMA usará ese
+  libro durante toda la operación, incluidas las reconstrucciones recursivas.
+- RF-61: EL SISTEMA aplicará la misma regla de descubrimiento en el núcleo, la API web, la
+  interfaz y el guion de calibración por sistema.
+
 ## Requisitos no funcionales
 
 - Universal (P13): ninguna tensión, frecuencia ni CRS de una empresa como valor fijo.
@@ -279,7 +291,7 @@ integrar una columna de nombre del cliente»)
 
 ## Criterios de finalización
 
-- `grep -rnoE "004:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-55.
+- `grep -rnoE "004:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-61.
 - Suite completa en verde y RF-14 de la spec 001 sin cambios.
 - `npx tsc --noEmit -p .` (en `frontend/`) y `npm run build` correctos.
 - Prueba real en DIgSILENT, a cargo del usuario.
