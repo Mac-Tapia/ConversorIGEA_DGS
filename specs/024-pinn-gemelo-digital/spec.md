@@ -1,6 +1,6 @@
 # Spec 024 — PINN como oráculo y gemelo digital de la red calibrada
 
-Estado: revisada, pendiente de aprobación final · Fecha: 2026-10-21
+Estado: aprobada el 2026-10-21; plan y tareas de la primera entrega (búfer de episodios) escritos, pendientes de aprobar · Fecha: 2026-10-21
 
 ## Contexto y objetivo
 
@@ -111,6 +111,23 @@ rama, pérdidas, cargabilidad e incertidumbre. La función de pérdida combina:
 Se permite una GNN informada por la física cuando el tamaño o la variación topológica hagan
 inadecuada una red densa. “PINN” designa aquí el contrato físico, no una arquitectura única.
 
+### D2. Qué aprende cada modelo
+
+Usuario, 2026-10-21: «eso es lo que debe aprender la RNN, PINN y, si es posible, se debe
+implementar otro modelo si se requiere». Lo que se aprende es la planificación del PIDE completa,
+no solo el flujo. Cada tarea tiene el modelo que le conviene; todos comparten el búfer y ninguno
+sustituye a DIgSILENT:
+
+| Tarea | Modelo | Aprende de | Entrega |
+| --- | --- | --- | --- |
+| Estado eléctrico de una topología | PINN/GNN (D) | flujos nativos de los tres casos | tensiones, flujos, pérdidas, cargabilidad e incertidumbre |
+| Evolución en el tiempo | RNN (LSTM o GRU) informada por la física | curvas de cabecera, barra y alimentador del mes | demanda y estado hora a hora o cada 15 min; pseudo-medidas (RF-20 a RF-22) |
+| Elección de alternativas del PIDE | modelo de ordenamiento sobre las alternativas, con el PINN como evaluador rápido dentro de un optimizador | episodios de «Con proyecto» con su alternativa, coste y cumplimiento (RF-32 a RF-34) | alternativas candidatas ordenadas por cumplimiento y coste total |
+| Confiabilidad | modelo de regresión sobre los índices nativos (spec 012) | índices de los episodios | estimación previa de SAIFI y SAIDI por alternativa |
+
+El tipo concreto de cada modelo se fija en su plan y se cambia si las métricas lo piden: el
+contrato es la tarea, su entrada, su salida y sus puertas, no la arquitectura.
+
 ### E. Entrenador y registro de modelos
 
 El entrenamiento es offline, local, reproducible y cancelable. PyTorch será una dependencia
@@ -144,6 +161,54 @@ Cada episodio tendrá, como mínimo:
 Una variación, una respuesta web o un nombre de proyecto no bastan como etiqueta. Sin reapertura
 y relectura, el episodio no puede ser `accepted`.
 
+## Evaluación por caso
+
+Usuario, 2026-10-21: «en todas se evalúa flujos de potencia, de ahí salen los balances,
+cargabilidad, índices de confiabilidad»; «caso base debe ser como está el sistema, sin proyecto
+acepta las modificaciones manuales o automáticas, con proyecto sí se debe tener en cuenta el
+cumplimiento de la norma, pérdidas, confiabilidad, con nuevas obras».
+
+Lo que se mide es igual en los tres casos: el flujo de potencia nativo y, de él, el balance de
+potencia y energía (pérdidas), la cargabilidad de conductores y transformadores, las tensiones y
+los índices de confiabilidad (spec 012). Lo que cambia es qué se exige al resultado:
+
+| Caso | Qué representa | Episodio aceptado si | Fuera de norma |
+| --- | --- | --- | --- |
+| «Caso base» | La red tal como está, igual al archivo de origen (spec 015) | verificado frente al origen, flujo convergido, reabierto y releído | diagnóstico del estado real; no rechaza |
+| «Sin proyecto» | Caso base calibrado con los cambios manuales del operador y los automáticos (calibración, transformadores NTP, bancos, obras de «Sin proyecto») | además, cuadra con la medida de cabecera o barra | diagnóstico; un cambio manual es intencional y no rechaza |
+| «Con proyecto» | «Sin proyecto» con cargas nuevas y obras | además, cumple la norma de calidad de su sistema y no empeora pérdidas ni confiabilidad frente a «Sin proyecto» | `converged_with_violations` |
+
+La norma de cada sistema (NTCSE o NTCSER) y sus límites salen de la estructura y del perfil de la
+empresa (P13); la cargabilidad de transformadores, de la NTP 370.400 del perfil (≤ 80 %).
+
+### «Con proyecto»: planificación según el PIDE
+
+Usuario, 2026-10-21: «con proyecto debe cumplir criterios y metodología de planificación en redes
+eléctricas PIDE […] todo esto se debe implementar según el anexo y criterios de priorización de
+alternativas de solución para cumplir las normas sin exceder; se debe optimizar».
+
+El PIDE es el Plan de Inversiones en Distribución Eléctrica que la concesionaria presenta a
+Osinergmin; sus criterios están en los Términos de Referencia del VAD (R033-2026-OS-CD, Anexo
+N.º 6), resumidos en `docs/superpowers/plans/2026-09-23-plataforma-planificacion-pide.md`.
+Las alternativas de solución, de menor a mayor intervención, son:
+
+| Orden | Alternativa | Spec que la construye en DIgSILENT |
+| --- | --- | --- |
+| 1 | Bancos de condensadores | 011, 017 |
+| 2 | Reguladores de tensión | 011, 017 |
+| 3 | Cambio de sección del conductor | 011, 017 |
+| 4 | Nueva terna (refuerzo en paralelo) | 016, 017 |
+| 5 | Refuerzo de red: enlace, transferencia, migración de tensión | 016 |
+| 6 | Nueva SED o cambio de transformador | 020 |
+| 7 | Nuevo alimentador | por especificar |
+| 8 | Nueva SET o transformador de SET | por especificar |
+
+El orden y los parámetros económicos van en el perfil, no en el código. Optimizar es elegir la
+combinación que cumple la norma con el menor coste total capitalizado: inversión más valor presente
+de pérdidas y de energía no suministrada, con la tasa, el valor de la ENS y la vida útil del Anexo
+N.º 6 tomados del perfil. «Sin exceder» quiere decir que no se sobredimensiona: una alternativa que
+cumple con margen de sobra pierde frente a otra más barata que también cumple.
+
 ## Requisitos funcionales (EARS)
 
 ### Captura universal
@@ -156,8 +221,39 @@ y relectura, el episodio no puede ser `accepted`.
   una diferencia no autorizada bloqueará el episodio positivo.
 - RF-4: SI una acción se revierte, no converge o no persiste al reabrir, ENTONCES EL SISTEMA la
   clasificará como `rejected` y conservará la causa y la restauración.
-- RF-5: SI converge pero viola límites, ENTONCES EL SISTEMA la clasificará como
-  `converged_with_violations`, nunca como aceptación operativa.
+- RF-5: SI un episodio de «Con proyecto» converge pero viola los límites de la norma de su
+  sistema o empeora pérdidas o confiabilidad frente a «Sin proyecto», ENTONCES EL SISTEMA lo
+  clasificará como `converged_with_violations`, nunca como aceptación operativa.
+- RF-32: CUANDO un episodio de «Con proyecto» incluya obras, EL SISTEMA registrará la alternativa
+  del PIDE de cada obra (tabla de «Con proyecto»), su tramo o equipo, su coste y los indicadores
+  que pide el Anexo N.º 6 (VAN, TIR y período de retorno) tomados de la evaluación nativa.
+- RF-33: EL SISTEMA ordenará las alternativas de solución por el criterio del perfil: primero la
+  que cumple la norma; entre las que cumplen, la de menor coste total capitalizado (inversión,
+  pérdidas y energía no suministrada en valor presente).
+- RF-34: SI dos alternativas cumplen la norma, ENTONCES EL SISTEMA marcará como sobredimensionada la
+  de mayor coste; un episodio con una obra sobredimensionada no será objetivo positivo del oráculo.
+- RF-35: EL SISTEMA podrá proponer con el oráculo alternativas candidatas en ese orden, pero cada
+  una se construirá y confirmará en DIgSILENT antes de aceptarse (principio 1, RF-23).
+- RF-36: EL SISTEMA aprenderá, a partir de los episodios de «Con proyecto», a proponer la
+  alternativa del PIDE que cumple la norma con el menor coste total, y la confirmará en DIgSILENT
+  antes de darla por buena (RF-35).
+- RF-37: EL SISTEMA tendrá un modelo temporal (RNN) que reproduzca la demanda y el estado de la
+  red en el mes de análisis, para evaluar las alternativas en el instante crítico y no solo en la
+  máxima.
+- RF-38: DONDE una tarea no se resuelva con la PINN o la RNN con las métricas del perfil, EL
+  SISTEMA admitirá otro modelo con el mismo contrato de tarea, entrada, salida, puertas y registro
+  (E), sin cambiar el búfer.
+- RF-28: EN todos los casos, EL SISTEMA guardará en el episodio el flujo de potencia nativo y lo
+  que sale de él: balance de potencia y energía con sus pérdidas, cargabilidad de conductores y
+  transformadores, tensiones e índices de confiabilidad (spec 012), con la misma definición.
+- RF-29: CUANDO el episodio sea del «Caso base» o de «Sin proyecto», EL SISTEMA guardará las
+  violaciones de la norma como diagnóstico del estado real y no lo rechazará por ellas; un cambio
+  manual del operador en «Sin proyecto» se aceptará siempre como intencional.
+- RF-30: CUANDO el episodio sea de «Sin proyecto», EL SISTEMA exigirá además que la calibración
+  cuadre con la medida de cabecera o de barra para clasificarlo `accepted`.
+- RF-31: CUANDO el episodio sea de «Con proyecto», EL SISTEMA evaluará la norma de calidad del
+  sistema eléctrico (NTCSE o NTCSER, de la estructura) con sus límites del perfil, y comparará
+  pérdidas e índices de confiabilidad con el «Sin proyecto» del mismo proyecto.
 
 ### Búfer
 
@@ -272,8 +368,13 @@ aprobación; predicción de demanda de largo plazo; enviar datos a servicios ext
 ## Decisiones pendientes para el plan
 
 - Tamaño inicial de la matriz de escenarios por familia topológica y presupuesto de licencia.
-- Umbrales por perfil para MAE de tensión, error de flujo, residuo físico, calibración de
-  incertidumbre y detección fuera de distribución.
+- Umbrales del modelo frente a DIgSILENT: se propone que el error de tensión no supere la décima
+  parte de la banda de la norma del sistema (±0,005 p.u. con ±5 %); los límites eléctricos no se
+  deciden aquí, salen de la norma (RF-31).
+- Tolerancia de tensión de la NTCSER en el perfil de Electro Dunas (hoy solo la de la NTCSE).
+- Parámetros económicos del Anexo N.º 6 en el perfil (tasa, valor de la ENS, vida útil, costes
+  unitarios por alternativa), comprobados contra el texto vigente de R033-2026-OS-CD.
+- Nuevo alimentador y nueva SET: hoy ninguna spec los construye; quedan para una spec propia.
 - Formato binario final de matrices y política de retención/copia de seguridad del búfer.
 - Sistemas dorados adicionales a IN111–TA225 y orden de incorporación.
 
