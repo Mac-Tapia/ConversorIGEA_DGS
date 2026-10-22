@@ -28,6 +28,8 @@ spec 001, RF-14 (DGS idéntico byte a byte); su diseño histórico está en
 | `src/igea_dgs/coordenadas.py` | Completa las coordenadas que faltan con el grafo de la red. | base |
 | `src/igea_dgs/dataset.py` | Lector de los TXT (RED, CARGA, BD_Equipo), en las dos disposiciones. | base |
 | `src/igea_dgs/demanda_medida.py` | Máxima de cabecera por medidor y clientes importantes con su SED; el registro de las 00:00 conserva su hora; máxima de demanda con una central en el troncal; la del mes de análisis o el registro de un instante coincidente; el nombre del cliente.; medidores de barra, sus barras de SET y la máxima de la suma de sus transformadores | 004 (RF-22 a RF-45, RF-56, RF-57), 013 (RF-11), 021 (RF-28 a RF-34, RF-50, RF-51, RF-53), 022 (RF-37 a RF-46) |
+| `src/igea_dgs/digital_twin/__init__.py` | Paquete del gemelo digital: episodios, búfer y captura, sin PowerFactory ni PyTorch. | 024 |
+| `src/igea_dgs/digital_twin/episode.py` | Contrato del episodio: clase y caso, fuente y proyecto, resultados del flujo (balance, pérdidas, cargabilidad, tensiones, confiabilidad, o el motivo de su ausencia), obras con su alternativa del PIDE e indicadores, artefactos; JSON canónico, huella SHA-256 y validación con la ruta del campo que falla. | 024 (RF-1, RF-2, RF-4, RF-6, RF-7, RF-9, RF-28, RF-32) |
 | `src/igea_dgs/dgs.py` | Escritor DGS: tablas, FID, cubículos, maniobras, capa gráfica y trazado GPS de las líneas; la barra de una SED sola va dentro de ella.; con la estructura, una red y un diagrama por zonal, la SET como subestación con sus barras, una red externa por barra y el ElmFeeder en el interruptor de cabecera | base, 010 (RF-1 a RF-4), 011 (RF-128), 021 (RF-12), 022 (RF-6 a RF-16) |
 | `src/igea_dgs/economia.py` | Datos de la evaluación técnico-económica (`ComTececo`). | 004 |
 | `src/igea_dgs/enlaces.py` | Puntos de enlace de la red unida con sus SET y caminos cerrados (entre SET, entre alimentadores, anillos): abre la maniobra más lejana de su fuente o, si no hay, un punto abierto en el tramo más lejano, hasta dejarla radial. | 022 (RF-26, RF-27, RF-29 a RF-31, RF-34) |
@@ -61,6 +63,7 @@ spec 001, RF-14 (DGS idéntico byte a byte); su diseño histórico está en
 | `src/igea_dgs/reglas.py` | Reglas que se aplican a todo alimentador, venga de TXT o de base; patrón de SED de medición y escala del perfil de empresa.; no cuenta como de la entrada los interruptores de cabecera ni los puntos abiertos | base (P5), 002 (RF-33), 021 (RF-9), 022 (RF-12, RF-31) |
 | `src/igea_dgs/schema.py` | Perfiles de esquema DGS versionados. | base |
 | `src/igea_dgs/source_contract.py` | Contrato canónico y evidencia de auditoría compartidos por TXT, MDB y VNR-GIS. | 001, 004, 006 |
+| `src/igea_dgs/schemas/digital_twin_episode_v1.schema.json` | Esquema JSON publicado del episodio del gemelo digital, igual al contrato de `digital_twin/episode.py`. | 024 (RF-7) |
 | `src/igea_dgs/schemas/pf21_dgs_1_8_4.json` | Perfil DGS genérico de PowerFactory. | base |
 | `src/igea_dgs/sed_potencia.py` | Lleva al tamaño normalizado las SED cuya carga supera su transformador. | base |
 | `src/igea_dgs/studies.py` | Qué estudios de PowerFactory se pueden correr y qué dato falta para cada uno. | base |

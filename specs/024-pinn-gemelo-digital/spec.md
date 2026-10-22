@@ -229,9 +229,10 @@ cumple con margen de sobra pierde frente a otra más barata que también cumple.
 - RF-32: CUANDO un episodio de «Con proyecto» incluya obras, EL SISTEMA registrará la alternativa
   del PIDE de cada obra (tabla de «Con proyecto»), su tramo o equipo, su coste y los indicadores
   que pide el Anexo N.º 6 (VAN, TIR y período de retorno) tomados de la evaluación nativa.
-- RF-33: EL SISTEMA ordenará las alternativas de solución por el criterio del perfil: primero la
-  que cumple la norma; entre las que cumplen, la de menor coste total capitalizado (inversión,
-  pérdidas y energía no suministrada en valor presente).
+- RF-33: EL SISTEMA descartará primero las alternativas de solución que no cumplen la norma;
+  entre las que cumplen, el orden lo dará la fórmula de priorización del PIDE (RF-57), con el
+  coste total capitalizado (inversión, pérdidas y energía no suministrada en valor presente)
+  calculado con los costos del libro CAPEX (RF-54).
 - RF-34: SI dos alternativas cumplen la norma, ENTONCES EL SISTEMA marcará como sobredimensionada la
   de mayor coste; un episodio con una obra sobredimensionada no será objetivo positivo del oráculo.
 - RF-35: EL SISTEMA podrá proponer con el oráculo alternativas candidatas en ese orden, pero cada
@@ -245,6 +246,35 @@ cumple con margen de sobra pierde frente a otra más barata que también cumple.
 - RF-38: DONDE una tarea no se resuelva con la PINN o la RNN con las métricas del perfil, EL
   SISTEMA admitirá otro modelo con el mismo contrato de tarea, entrada, salida, puertas y registro
   (E), sin cambiar el búfer.
+- RF-54: EL SISTEMA tomará del libro de presupuesto de inversiones de la empresa (CAPEX; en
+  Electro Dunas, «RESUMEN PROP CAPEX») la denominación, el nombre, la categoría, el objetivo, la
+  unidad y el costo unitario de cada tipo de obra, para nombrar y costear las obras que proponga
+  o implemente (usuario, 2026-10-21: «de ahí también salen las obras con sus denominaciones y
+  nombres»).
+- RF-55: EL SISTEMA buscará las hojas y columnas del libro CAPEX por los nombres que indique el
+  perfil, nunca por posiciones fijas, y avisará de cada tipo de obra del PIDE que no encuentre.
+- RF-56: EL SISTEMA no copiará al búfer ni a los modelos los datos personales del libro CAPEX
+  (responsables, líderes, contratos); solo denominación, categoría, unidad y costo.
+- RF-57: EL SISTEMA evaluará económicamente cada alternativa factible técnicamente según el art. 14
+  de la «Norma Criterios y Metodología de Planificación para la Elaboración del Plan de Inversión
+  en Distribución Eléctrica (PIDE)» (prepublicada con la RM 428-2017-MEM/DM; usuario, 2026-10-21:
+  «revisar el artículo 14 y 15 […] eso debe aplicar»): costo de inversión (CI) desglosado en
+  línea primaria, red primaria, reforzamiento, equipos de protección y seccionamiento, SED, red
+  secundaria SP y AP, equipos AP y conexiones; costo de operación y mantenimiento (COyM); costo
+  de pérdidas de energía y potencia (CP).
+- RF-58: EL SISTEMA calculará el costo anual de cada alternativa como anualidad del CI más COyM más
+  CP, con la anualidad a 30 años de vida útil y la tasa del art. 79 de la LCE tomada del perfil,
+  y su VAN y TIR con los mismos parámetros (art. 14.4).
+- RF-58b: EL SISTEMA priorizará según el art. 15: entre las alternativas factibles técnica y
+  económicamente, primero las de menor costo/kW, costo/kW.h, costo/usuario y costo/km con
+  rentabilidad aceptable; después, los criterios del art. 15.3 (incremento de ventas,
+  crecimiento de la demanda, subsanación de deficiencias de calidad, renovación por vida útil,
+  remodelación por estado) con los pesos del perfil; y descartará por elevado costo las que se
+  aparten de los indicadores de proyectos ejecutados (art. 14.3).
+- RF-59: EL SISTEMA clasificará cada obra en un rubro del PIDE (ampliación y reforzamiento,
+  mejoramiento, remodelación, innovación tecnológica y eficiencia energética, seguridad eléctrica
+  y de suministro) y la dará con los indicadores del Formato N.º 09 (costo total, costo/kW,
+  costo/kW.h, costo/usuario, costo/km, VAN, costo anual y TIR).
 - RF-28: EN todos los casos, EL SISTEMA guardará en el episodio el flujo de potencia nativo y lo
   que sale de él: balance de potencia y energía con sus pérdidas, cargabilidad de conductores y
   transformadores, tensiones e índices de confiabilidad (spec 012), con la misma definición.
@@ -327,7 +357,26 @@ por su propia cuenta».
   decisión como episodio y aprenderá de ella.
 
 Usuario, 2026-10-21: «además debe ser capaz de diagnosticar la situación actual de las redes y
-pensar cómo planificar».
+pensar cómo planificar»; «toda la metodología se debe aplicar desde el diagnóstico». La
+metodología es la de la norma del PIDE, artículos 7 a 17, en su orden: análisis del mercado,
+diagnóstico, formulación de alternativas, evaluación técnica, evaluación económica, priorización
+y selección, propuesta.
+
+- RF-60: EL SISTEMA analizará el mercado eléctrico según el art. 7: evolución y proyección de
+  energía y demanda por sistema eléctrico, pérdidas y factor de carga, grandes consumidores, y la
+  distribución geográfica de la carga en cuadrículas UTM con los rangos de densidad de la Tabla
+  N.º 2.
+- RF-61: EL SISTEMA hará el diagnóstico con todos los análisis del art. 8.4: tensión frente a la
+  norma técnica, perfiles de carga y compensación reactiva, pérdidas frente a las reconocidas en
+  el VAD, configuración y balance de alimentadores, enlaces entre alimentadores y con otra SET,
+  protección y seccionamiento, remodelación por obsolescencia, interrupciones y confiabilidad
+  (SAIFI, SAIDI, N y D), en condiciones normales y de contingencia.
+- RF-62: EL SISTEMA formulará las alternativas por rubro (art. 9 y 12) y con carácter general o
+  específico, y descartará antes de evaluarlas en detalle las inviables técnicamente (art. 13).
+- RF-63: EL SISTEMA dará los resultados en los formatos de la norma (N.º 01 a N.º 15): proyección,
+  metrados, tensión en MT y BT, pérdidas, calidad de suministro, formulación, evaluación
+  económica, propuesta por empresa, sistema, rubro, año y proyecto, ficha técnica y ficha
+  económica de cada proyecto.
 
 - RF-49: EL SISTEMA diagnosticará por sí mismo la situación actual de cada red («Caso base» y
   «Sin proyecto»): tensiones, cargabilidad, pérdidas y confiabilidad frente a la norma de su
@@ -335,9 +384,10 @@ pensar cómo planificar».
 - RF-50: EL SISTEMA explicará la causa probable de cada problema del diagnóstico (conductor
   insuficiente, factor de potencia bajo, longitud del alimentador, transformador sobrecargado,
   falta de enlace o de fuente) con la evidencia del flujo que la sostiene.
-- RF-51: EL SISTEMA proyectará la demanda en el horizonte del plan del perfil y determinará en
-  qué año cada red deja de cumplir la norma.
-- RF-52: EL SISTEMA propondrá un plan por etapas: qué obra del PIDE hace falta, dónde y en qué año,
+- RF-51: EL SISTEMA proyectará la demanda en el horizonte de planificación de 20 años de la norma
+  del PIDE (años 04, 08, 12, 16 y 20) y determinará en qué año cada red deja de cumplir la norma.
+- RF-52: EL SISTEMA propondrá un plan por etapas, con detalle en los 4 años del periodo de fijación
+  (años 04 a 07): qué obra del PIDE hace falta, dónde y en qué año,
   de modo que cada año cumpla la norma con el menor coste total del horizonte, sin adelantar obras
   que aún no hacen falta.
 - RF-53: EL SISTEMA verificará en DIgSILENT cada año del plan propuesto antes de mostrarlo.
