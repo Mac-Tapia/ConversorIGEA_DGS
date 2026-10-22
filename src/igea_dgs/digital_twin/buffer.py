@@ -100,6 +100,27 @@ class BuferEpisodios:
             raise KeyError(f'No hay episodio {episode_id} en {self.raiz}')
         return leer_episodio(json.loads(ruta.read_text(encoding='utf-8')))
 
+    def registrar_decision(self, decision: dict) -> dict:
+        """Añade lo que decidió el operador sobre una propuesta (RF-48), con su fecha.
+
+        Solo se añade, como los episodios: una decisión posterior no borra la anterior, y el
+        entrenamiento las lee todas en orden.
+        """
+        from datetime import UTC, datetime
+
+        fila = {**decision, 'fecha': datetime.now(UTC).isoformat(timespec='seconds')}
+        with open(self.raiz / 'decisiones.jsonl', 'a', encoding='utf-8', newline='\n') as f:
+            f.write(json.dumps(fila, ensure_ascii=False, sort_keys=True) + '\n')
+            f.flush()
+            os.fsync(f.fileno())
+        return fila
+
+    def decisiones(self) -> list[dict]:
+        ruta = self.raiz / 'decisiones.jsonl'
+        if not ruta.is_file():
+            return []
+        return [json.loads(x) for x in ruta.read_text(encoding='utf-8').splitlines() if x.strip()]
+
     def cuarentena(self) -> list[Path]:
         """Manifiestos que no se pudieron leer al reconstruir, conservados tal cual."""
         return sorted((self.raiz / 'cuarentena').glob('*.json'))

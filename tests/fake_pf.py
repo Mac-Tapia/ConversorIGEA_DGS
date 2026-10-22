@@ -767,6 +767,10 @@ class FlujoConPerdidas(Orden):
             # Lo que consumen: lo escrito por su factor de escala (015:RF-44).
             p = sum(c.plini * c.scale0 for c in cargas)
             q = sum(c.qlini * c.scale0 for c in cargas)
+            # Factor de escala de cargas del ``ComLdf`` en %, como DIgSILENT (024:RF-53: cada
+            # año del horizonte del PIDE se verifica escalando la demanda).
+            escala = float(getattr(self, 'scLoadFac', 100.0)) / 100.0
+            p, q = p * escala, q * escala
             if p > self.limite_efectivo():
                 app.ldf_valido = False
                 for o in app.proyecto.GetContents('*.ElmTerm', 1):

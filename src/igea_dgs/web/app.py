@@ -1276,6 +1276,27 @@ def create_app(
         return job.result
 
     # ------------------------------------------------------------ obras y estudios (spec 011)
+    @app.post('/api/workspaces/{wid}/pide', status_code=202)
+    def pide_ejecutar(wid: str, body: dict[str, Any]) -> dict:
+        """Metodología del PIDE sobre el proyecto, con obras propias (spec 024, T13 y T14)."""
+        ws = ws_or_404(wid)
+        project = str(body.get('project') or '').strip()
+        if not project:
+            raise HTTPException(422, 'Elija el proyecto de DIgSILENT.')
+        feeders = [str(f) for f in body.get('feeders') or []]
+        return submit(ws, 'pide', f'PIDE · {project}',
+                      lambda ctx: services.pide_ejecutar(ws, ctx, project, feeders,
+                                                         capex=body.get('capex'),
+                                                         implementar=bool(body.get('implementar', True))),
+                      lane='powerfactory')
+
+    @app.post('/api/workspaces/{wid}/pide/decision')
+    def pide_decision(wid: str, body: dict[str, Any]) -> dict:
+        """Lo que decide el operador sobre una propuesta, para aprender de ello (024:RF-48)."""
+        return services.pide_decision(ws_or_404(wid), str(body.get('project') or ''),
+                                      str(body.get('codigo') or ''), str(body.get('decision') or ''),
+                                      str(body.get('comentario') or ''))
+
     @app.get('/api/workspaces/{wid}/digital-twin/episodes')
     def gemelo_episodios(wid: str, proyecto: str | None = None, alimentador: str | None = None,
                          caso: str | None = None, clase: str | None = None,
