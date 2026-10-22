@@ -40,10 +40,13 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       restaurado en el informe y en la web, con aviso si no coincide. (RF-27 a RF-30)
       Hecho cuando: `pytest -q tests/test_ajuste_cabecera_guion.py tests/test_casos_pf.py`
       en verde y `npm run build` correcto. Hecho el 2026-10-12.
-- [ ] T8. Prueba real en DIgSILENT con un alimentador, a cargo del usuario: comprobar el
+- [x] T8. Prueba real en DIgSILENT con un alimentador, a cargo del usuario: comprobar el
       signo y el lado de lo medido en la cabecera y que cuadra al 1 %. Y que, con el
       «Operation Scenario» activo, «Verificar la convergencia» da la cabecera ajustada
       (RF-27): SI213 daba 229,2 kW antes del cambio, con el ajuste en 1.621,8 kW.
+      Hecho el 2026-10-22 con CA101 desde cero por la web (espacio 66fdc0868df54784): máxima de
+      septiembre 4994 kW (L-CA131), calibrado tras los transformadores NTP de 4 SED fijas (spec 020),
+      cuadrado a −0,00015 kW; «Verificar la convergencia» con «Sin proyecto» activo da 4993,2 kW.
 - [x] T11. `demanda_medida.py`: `MaximaCabecera.curva` y `fuera_de_curva`, fuera de
       `to_dict`, y `reducir_curva` mín./máx. por intervalo. (RF-31, RF-37, RF-39)
       Hecho cuando: `pytest -q tests/test_demanda_medida.py` en verde. Hecho el 2026-10-12.
