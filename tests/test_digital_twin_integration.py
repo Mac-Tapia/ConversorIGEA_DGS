@@ -168,3 +168,36 @@ def test_gemelo_de_la_web_con_la_lectura_del_guion(tmp_path, monkeypatch):
     assert BuferEpisodios().leer(out['episode_id']).caso is Caso.SIN_PROYECTO
     assert json.loads(json.dumps(out))
     assert _flujo()  # el mismo flujo de prueba que la captura
+
+
+@pytest.mark.parametrize(('ajustes', 'limite'), [({}, 300.0), ({'lectura_s': 60}, 60.0)])
+def test_lectura_del_gemelo_con_su_limite_propio(tmp_path, monkeypatch, ajustes, limite):
+    """024:RF-1 — la lectura del gemelo no hereda el límite de un estudio (PA217 esperó 26 min
+    a DIgSILENT): 5 min por defecto o ``gemelo.lectura_s`` del perfil; ``gemelo.captura: false``
+    la apaga sin llamar a DIgSILENT."""
+    from igea_dgs import perfil_empresa
+    from igea_dgs.web import services
+
+    monkeypatch.setenv(it.VARIABLE_CAPTURA, '1')
+    monkeypatch.setattr(perfil_empresa, 'datos_perfil', lambda: {**PERFIL, 'gemelo': ajustes})
+    limites = []
+
+    def guion(_ws, _ctx, _script, _plan, **kw):
+        limites.append(kw['limite_s'])
+        return 0, _lectura(), tmp_path / 'lectura.json'
+
+    monkeypatch.setattr(services, '_guion_pf', guion)
+
+    class Ctx:
+        def log(self, _m):
+            pass
+
+    class Ws:
+        out_dir = tmp_path
+
+    informe = {'status': 'OK', 'converged': True, 'cuadrado': True}
+    services._gemelo(Ws(), Ctx(), _plan(), informe, caso='sin_proyecto', rutas={})
+    assert limites == [limite]
+    monkeypatch.setattr(perfil_empresa, 'datos_perfil', lambda: {'gemelo': {'captura': False}})
+    assert services._gemelo(Ws(), Ctx(), _plan(), informe, caso='sin_proyecto', rutas={}) is None
+    assert limites == [limite]

@@ -3348,6 +3348,7 @@ def run_system(ws: Workspace, ctx: JobContext, action: str) -> dict:
 #: Límite de cada estudio en cada caso si el operador no da otro (RF-39). Cada estudio va
 #: en su proceso: un contingencias colgado cuesta ese estudio y no el resto (RF-40).
 LIMITE_ESTUDIO_S = 1800.0
+LIMITE_GEMELO_S = 300.0
 
 
 def _gemelo(ws: Workspace, ctx: JobContext, plan: dict, informe: dict, *, caso: str,
@@ -3362,8 +3363,16 @@ def _gemelo(ws: Workspace, ctx: JobContext, plan: dict, informe: dict, *, caso: 
     from ..digital_twin.integration import captura_activa, capturar_accion
     from ..perfil_empresa import datos_perfil, estructura_empresa
 
-    if not captura_activa():
+    try:
+        perfil = datos_perfil()
+    except Exception:  # noqa: BLE001 - sin perfil, el episodio de «Con proyecto» va a cuarentena
+        perfil = {}
+    ajustes = perfil.get('gemelo') or {}
+    if not captura_activa() or ajustes.get('captura') is False:
         return None
+    # La captura nunca retiene al operador: con PA217 (2026-10-22) la lectura esperó 26 min a
+    # DIgSILENT con el límite de un estudio. Pasado el suyo, el episodio va a cuarentena.
+    limite = float(ajustes.get('lectura_s') or LIMITE_GEMELO_S)
     contexto = plan.get('native_action_context') or {}
     firmados = list(contexto.get('feeders') or [])
     propios = [f for f in plan.get('feeders') or [] if f]
@@ -3376,13 +3385,9 @@ def _gemelo(ws: Workspace, ctx: JobContext, plan: dict, informe: dict, *, caso: 
     def leer(plan_lectura: dict) -> dict:
         _rc, lectura, _report = _guion_pf(ws, ctx, 'digital_twin_snapshot_pf.py', plan_lectura,
                                           nombre='gemelo_lectura', cancelable=False,
-                                          limite_s=LIMITE_ESTUDIO_S)
+                                          limite_s=limite)
         return lectura
 
-    try:
-        perfil = datos_perfil()
-    except Exception:  # noqa: BLE001 - sin perfil, el episodio de «Con proyecto» va a cuarentena
-        perfil = {}
     try:
         estructura = estructura_empresa()
     except Exception:  # noqa: BLE001 - sin estructura no hay norma por sistema
