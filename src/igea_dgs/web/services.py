@@ -1715,8 +1715,15 @@ def cargas_ejecutar(ws: Workspace, ctx: JobContext, token: str, *, simular: bool
         raise UserError(informe['error'])
     if rc == 2:
         ctx.log('Hubo cargas que no se pudieron escribir o crear: vea «fallos» en el informe.')
-    return {'returncode': rc, 'modo': informe.get('modo'), 'report': report.name,
-            'project': plan['project'], 'informe': informe}
+    resultado = {'returncode': rc, 'modo': informe.get('modo'), 'report': report.name,
+                 'project': plan['project'], 'informe': informe}
+    if not simular:
+        # 024:RF-1: las cargas nuevas se crean en «Con proyecto» (spec 007).
+        plan_json = json.loads(Path(plan['path']).read_text(encoding='utf-8'))
+        resultado['digital_twin_episode'] = _gemelo(
+            ws, ctx, plan_json, informe, caso='con_proyecto',
+            rutas={'plan': Path(plan['path']), 'resultado': report})
+    return resultado
 
 
 # ---------------------------------------------------------------------------
@@ -2837,6 +2844,15 @@ def _correr_guion_ajuste(ws: Workspace, ctx: JobContext, project: str, feeders: 
         if not simular:
             _guardar_calibracion(ws, project, feeder, informe)
         informes.append(informe)
+    if not simular and paths:
+        # 024:RF-1 / RF-30: un episodio de «Sin proyecto» por proyecto, aceptado solo si
+        # todos sus alimentadores cuadran con la medida.
+        fallos = any(i.get('error') for i in informes)
+        plan_json = json.loads(Path(paths[0]).read_text(encoding='utf-8'))
+        _gemelo(ws, ctx, {**plan_json, 'project': project, 'feeders': list(feeders)},
+                {'status': 'BLOQUEADO_DATOS' if fallos else 'OK', 'converged': not fallos,
+                 'cuadrado': all(i.get('cuadrado') for i in informes)},
+                caso='sin_proyecto', rutas={'plan': Path(paths[0]), 'resultado': reports[0]})
     return informes, rc
 
 
@@ -3123,6 +3139,16 @@ def pf_verificar_base(ws: Workspace, ctx: JobContext, project: str, feeders: lis
                            'transformadores_corregidos': caso.get('transformadores_corregidos') or [],
                            'report': report.name})
     ctx.progress(len(jobs), len(jobs), 'listo')
+    verificados = [r['feeder'] for r in resultados if r['status'] == 'VERIFICADO']
+    if verificados:
+        # 024:RF-1 / RF-29: el «Caso base» verificado es la red tal como está.
+        from ..native_action import build_native_action_context
+
+        contexto = build_native_action_context(binding, project, verificados, 'verificar_base')
+        _gemelo(ws, ctx, {'project': project, 'folder': carpeta_pf(), 'feeders': verificados,
+                          'native_action_context': contexto},
+                {'status': 'OK', 'converged': True}, caso='caso_base',
+                rutas={f'caso_base_{f}': ws.out_dir / f'{f}_caso_base.json' for f in verificados})
     return {'project': project, 'feeders': resultados}
 
 
@@ -3324,6 +3350,88 @@ def run_system(ws: Workspace, ctx: JobContext, action: str) -> dict:
 LIMITE_ESTUDIO_S = 1800.0
 
 
+def _gemelo(ws: Workspace, ctx: JobContext, plan: dict, informe: dict, *, caso: str,
+            rutas: dict[str, Path | None], manual: bool = False) -> dict | None:
+    """Episodio del gemelo digital tras una acción nativa ya terminada (024:RF-1).
+
+    Relee el proyecto en otro proceso con ``tools/digital_twin_snapshot_pf.py`` y guarda el
+    episodio en el búfer local. Lo que falle aquí queda como aviso en el Registro: la
+    acción ya hecha no se repite ni se deshace.
+    """
+    from ..digital_twin.episode import Caso
+    from ..digital_twin.integration import captura_activa, capturar_accion
+    from ..perfil_empresa import datos_perfil, estructura_empresa
+
+    if not captura_activa():
+        return None
+    contexto = plan.get('native_action_context') or {}
+    firmados = list(contexto.get('feeders') or [])
+    propios = [f for f in plan.get('feeders') or [] if f]
+    plan_captura = {'project': plan.get('project'), 'folder': plan.get('folder'),
+                    # El orden del plan expresa la orientación (RF-2); el contexto los ordena.
+                    'feeders': propios if sorted(propios) == firmados else firmados,
+                    'native_action_context': contexto or None,
+                    'huellas_gps_esperadas': plan.get('huellas_gps_esperadas') or {}}
+
+    def leer(plan_lectura: dict) -> dict:
+        _rc, lectura, _report = _guion_pf(ws, ctx, 'digital_twin_snapshot_pf.py', plan_lectura,
+                                          nombre='gemelo_lectura', cancelable=False,
+                                          limite_s=LIMITE_ESTUDIO_S)
+        return lectura
+
+    try:
+        perfil = datos_perfil()
+    except Exception:  # noqa: BLE001 - sin perfil, el episodio de «Con proyecto» va a cuarentena
+        perfil = {}
+    try:
+        estructura = estructura_empresa()
+    except Exception:  # noqa: BLE001 - sin estructura no hay norma por sistema
+        estructura = None
+    return capturar_accion(plan_captura, informe, caso=Caso(caso), rutas=rutas, base=ws.out_dir,
+                           leer=leer, perfil=perfil, estructura=estructura, log=ctx.log,
+                           manual=manual)
+
+
+def gemelo_episodios(ws: Workspace, filtros: dict[str, str | None]) -> list[dict]:
+    """Episodios del búfer de los proyectos vinculados en este espacio (024:RF-8).
+
+    Se ve lo de un proyecto que el espacio tiene vinculado, en el registro compartido de la
+    spec 018: el mismo proyecto vinculado en otro espacio con la misma fuente también vale.
+    """
+    from ..digital_twin.buffer import BuferEpisodios, Consulta
+    from ..powerfactory_binding import alimentadores_vinculados
+
+    consulta = Consulta(**{k: v for k, v in filtros.items() if v})
+    visibles: dict[str, bool] = {}
+    out = []
+    for e in BuferEpisodios().consultar(consulta):
+        proyecto = e.nativo['project']
+        if proyecto not in visibles:
+            visibles[proyecto] = bool(alimentadores_vinculados(ws, proyecto))
+        if visibles[proyecto]:
+            out.append({'episode_id': e.episode_id, 'clase': e.clase.value, 'caso': e.caso.value,
+                        'creado': e.creado, 'project': proyecto, 'feeders': e.nativo['feeders'],
+                        'accion': e.accion.get('tipo'),
+                        'bloqueos': list(e.aceptacion.get('bloqueos') or []),
+                        'violaciones': list(e.aceptacion.get('violaciones') or [])})
+    return out
+
+
+def gemelo_episodio(ws: Workspace, episode_id: str) -> dict:
+    """El manifiesto de un episodio, si su proyecto está vinculado aquí; si no, ``KeyError``.
+
+    Solo huellas y rutas de la evidencia: nunca el contenido de los ficheros de la empresa.
+    """
+    from ..digital_twin.buffer import BuferEpisodios
+    from ..digital_twin.episode import episodio_a_dict
+    from ..powerfactory_binding import alimentadores_vinculados
+
+    e = BuferEpisodios().leer(episode_id)
+    if not alimentadores_vinculados(ws, e.nativo['project']):
+        raise KeyError(episode_id)
+    return episodio_a_dict(e)
+
+
 def _guion_pf(ws: Workspace, ctx: JobContext, script: str, plan: dict, *, nombre: str,
               args: tuple[str, ...] = (), cancelable: bool = True,
               limite_s: float | None = None) -> tuple[int, dict, Path]:
@@ -3469,6 +3577,11 @@ def obras_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
                                             {**elegidas[n - 1], **hecho})
             ws.obras = [o for o in ws.obras if o['id'] not in aplicadas]
             ws.save()
+        # 024:RF-1 / RF-32: las obras pasan a «Con proyecto» con su alternativa del PIDE.
+        from ..digital_twin.integration import obras_pide
+
+        _gemelo(ws, ctx, plan, {**informe, 'obras': obras_pide(plan['obras'], informe.get('obras') or [])},
+                caso='con_proyecto', rutas={'resultado': report})
     return {'returncode': rc, 'report': report.name, 'project': plan['project'],
             'informe': informe, 'aplicadas': aplicadas}
 
@@ -3615,6 +3728,11 @@ def estudios_ejecutar(ws: Workspace, ctx: JobContext, token: str) -> dict:
                                             limite_s=plan['limite_s'])
                 if inf.get('no_terminado'):
                     ctx.log(f'{estudio} en «{nombres[rol]}»: {inf["error"]}; se sigue con el siguiente.')
+                elif estudio == 'flujo' and not inf.get('error'):
+                    # 024:RF-1 / RF-28: el estado de cada caso, observado con su flujo.
+                    _gemelo(ws, ctx, sub, inf, caso={'base': 'caso_base', 'sin': 'sin_proyecto',
+                                                     'con': 'con_proyecto'}[rol],
+                            rutas={'resultado': report})
                 informes.append({'caso': nombres[rol], 'estudio': estudio, 'returncode': rc,
                                  'report': report.name, 'error': inf.get('error'),
                                  'no_terminado': bool(inf.get('no_terminado')),
@@ -3685,8 +3803,15 @@ def transferencia_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders
                                     args=('--fichero', str(fichero)))
     if informe.get('error') and not informe.get('resultados'):
         raise UserError(informe['error'])
+    from ..estudios_pf import CON_PROYECTO
+
+    # 024:RF-1: la transferencia no cambia el proyecto; queda el estado del caso en que corrió.
+    episodio = _gemelo(ws, ctx, plan, informe,
+                       caso='con_proyecto' if CON_PROYECTO in casos else 'sin_proyecto',
+                       rutas={'resultado': report})
     return {'returncode': rc, 'report': report.name, 'project': plan['project'],
-            'fichero': fichero.name if fichero.is_file() else None, 'informe': informe}
+            'fichero': fichero.name if fichero.is_file() else None, 'informe': informe,
+            'digital_twin_episode': episodio}
 
 
 # ------------------------------------------------------------------ guiones del operador
@@ -3743,6 +3868,10 @@ def guion_ejecutar(ws: Workspace, ctx: JobContext, project: str, nombre: str, or
                                         limite_s=limite_s or LIMITE_ESTUDIO_S)
             if inf.get('error'):
                 ctx.log(f'{nombre} en «{caso}»: {inf["error"]}; se sigue.')
+            else:
+                # 024:RF-1 / RF-29: lo que hace un guion del operador es intencional.
+                _gemelo(ws, ctx, plan, inf, caso=f"{plan['caso']}_proyecto", rutas={'resultado': report},
+                        manual=True)
             resultados.append({'caso': caso, 'returncode': rc, 'report': report.name,
                                'codigo_guion': inf.get('codigo_guion'), 'salida': inf.get('salida') or [],
                                'error': inf.get('error'), 'no_terminado': bool(inf.get('no_terminado'))})

@@ -1,0 +1,16 @@
+{
+  "_comentario": "Caso dorado de la spec 024 (RF-24 a RF-27): hechos medidos en DIgSILENT tras guardar y reabrir. Sin coordenadas ni datos de clientes.",
+  "project": "20261015-170359_IGEA_IN111_TA225",
+  "folder": "sistemaeletricoELD",
+  "feeders": ["IN111", "TA225"],
+  "case": "con_proyecto",
+  "nodos": {"origen": "3091", "transferido": "3092"},
+  "kv_origen": 10.0,
+  "kv_transferido": 22.9,
+  "enlace": "Enlace_TA225_IN111",
+  "frontera_cerrada": "SEC_1091_1055021(1)",
+  "tensiones_pu": {"3091": 0.9521694512, "3092": 0.9604280727},
+  "minima": {"barra": "SE41154_BT", "pu": 0.8683284313},
+  "tolerancia_pu": 0.002,
+  "clase": "converged_with_violations"
+}

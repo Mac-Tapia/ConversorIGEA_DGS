@@ -42,6 +42,19 @@ def _sin_turno_de_la_maquina(monkeypatch, tmp_path):
     monkeypatch.setenv(VARIABLE_TURNO, str(tmp_path / 'powerfactory.turno'))
 
 
+@pytest.fixture(autouse=True)
+def _sin_gemelo_de_la_maquina(monkeypatch, tmp_path):
+    """Cada prueba con su búfer del gemelo y sin captura tras las acciones (spec 024).
+
+    La captura lanza la lectura nativa después de cada acción de DIgSILENT; en las pruebas
+    de la web sería un proceso más que no esperan. Las pruebas del gemelo la encienden.
+    """
+    from igea_dgs.digital_twin.integration import VARIABLE_CAPTURA
+
+    monkeypatch.setenv('IGEA_TWIN_DATA', str(tmp_path / '_digital_twin'))
+    monkeypatch.setenv(VARIABLE_CAPTURA, '0')
+
+
 @pytest.fixture(scope='session')
 def perfil_real():
     """Perfil de empresa de los datos reales de las variables ``IGEA_*``.

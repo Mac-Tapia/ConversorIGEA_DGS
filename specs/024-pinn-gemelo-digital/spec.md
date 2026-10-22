@@ -1,6 +1,6 @@
 # Spec 024 — PINN como oráculo y gemelo digital de la red calibrada
 
-Estado: aprobada el 2026-10-21, con el cambio del mismo día (RF-39 a RF-53: aprendizaje autónomo, propuestas e implementación propias, diagnóstico y plan por etapas); plan y tareas de la primera entrega (búfer de episodios) aprobados · Fecha: 2026-10-21
+Estado: aprobada el 2026-10-21, con el cambio del mismo día (RF-39 a RF-53: aprendizaje autónomo, propuestas e implementación propias, diagnóstico y plan por etapas); primera entrega (búfer de episodios, T1 a T9) implementada el 2026-10-22 y probada en DIgSILENT con IN111–TA225; T10 a T14, sin empezar · Fecha: 2026-10-21
 
 ## Contexto y objetivo
 
@@ -265,6 +265,17 @@ cumple con margen de sobra pierde frente a otra más barata que también cumple.
 - RF-58: EL SISTEMA calculará el costo anual de cada alternativa como anualidad del CI más COyM más
   CP, con la anualidad a 30 años de vida útil y la tasa del art. 79 de la LCE tomada del perfil,
   y su VAN y TIR con los mismos parámetros (art. 14.4).
+- RF-58c: EL SISTEMA incluirá en la evaluación económica los ingresos por la energía vendida a los
+  clientes nuevos con la potencia nueva instalada, valorada con las tarifas vigentes del perfil
+  (cargos de energía y de potencia por opción tarifaria), año a año durante el horizonte de 20
+  años (usuario, 2026-10-21: «se deben incluir las tarifas, costos de energía vendida por la
+  potencia nueva instalada de nuevos clientes para un horizonte de 20 años, tasa a privados»).
+- RF-58d: EL SISTEMA construirá para cada alternativa el flujo de caja de 20 años (ingresos por
+  energía y potencia vendidas menos inversión, COyM, pérdidas y compra de energía) y calculará su
+  VAN, TIR, relación beneficio/costo y período de recuperación con la tasa de descuento privada
+  del perfil, aparte de la evaluación regulada del art. 14 (RF-58).
+- RF-58e: SI el perfil no trae tarifas, precio de compra de energía o tasa privada, ENTONCES EL
+  SISTEMA no inventará el valor: hará la evaluación regulada sola y avisará de lo que falta.
 - RF-58b: EL SISTEMA priorizará según el art. 15: entre las alternativas factibles técnica y
   económicamente, primero las de menor costo/kW, costo/kW.h, costo/usuario y costo/km con
   rentabilidad aceptable; después, los criterios del art. 15.3 (incremento de ventas,

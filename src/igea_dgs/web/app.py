@@ -1276,6 +1276,23 @@ def create_app(
         return job.result
 
     # ------------------------------------------------------------ obras y estudios (spec 011)
+    @app.get('/api/workspaces/{wid}/digital-twin/episodes')
+    def gemelo_episodios(wid: str, proyecto: str | None = None, alimentador: str | None = None,
+                         caso: str | None = None, clase: str | None = None,
+                         accion: str | None = None) -> list[dict]:
+        """Episodios del gemelo digital de los proyectos vinculados (024:RF-8)."""
+        return services.gemelo_episodios(ws_or_404(wid), {
+            'proyecto': proyecto, 'alimentador': alimentador, 'caso': caso, 'clase': clase,
+            'accion': accion})
+
+    @app.get('/api/workspaces/{wid}/digital-twin/episodes/{episode_id}')
+    def gemelo_episodio(wid: str, episode_id: str) -> dict:
+        ws = ws_or_404(wid)
+        try:
+            return services.gemelo_episodio(ws, episode_id)
+        except KeyError:
+            raise HTTPException(404, 'No existe ese episodio en los proyectos de este espacio.') from None
+
     @app.get('/api/workspaces/{wid}/obras')
     def obras_listar(wid: str) -> list[dict]:
         return list(ws_or_404(wid).obras)
