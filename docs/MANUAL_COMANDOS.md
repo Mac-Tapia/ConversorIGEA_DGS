@@ -947,6 +947,7 @@ se ejecutan con el intérprete de PowerFactory (Python 3.12 con `powerfactory.py
 | Herramienta | Para qué | PF |
 | --- | --- | --- |
 | `accept_three_sources.py` | Aceptación universal TXT/MDB/VNR-GIS hasta ajuste y estudio nativos (`docs/runbooks/universal-native-load-acceptance.md`). | opcional |
+| `accept_digital_twin_in111_ta225.py` | Aceptación nativa del caso dorado del gemelo digital: dos lecturas en procesos nuevos, hechos del JSON `--esperado` (`tests/fixtures/digital_twin/in111_ta225_topology_episode.json` para IN111–TA225) y su episodio en el búfer. Solo lee; no entrena ningún modelo (spec 024, T8). | PF |
 | `ajuste_cabecera_pf.py` | Ajusta un alimentador a su máxima de cabecera (sección 7.ter). | PF |
 | `apply_catalog_to_model.py` | Corrige impedancias y ampacidades del modelo con el catálogo de fichas (sección 7.bis). | |
 | `base_scenario.py` | Escenario base (año 0): construye, hace converger y diagnostica (sección 8). | PF |
@@ -954,6 +955,8 @@ se ejecutan con el intérprete de PowerFactory (Python 3.12 con `powerfactory.py
 | `build_system_grid.py` | Todos los alimentadores en una sola red, importada en PowerFactory (sección 8). | PF |
 | `cargas_pf.py` | Demandas y cargas nuevas en un proyecto existente (sección 7.ter). | PF |
 | `casos_pf.py` | Deja los casos «Caso base», «Sin proyecto» y «Con proyecto» sobre la red calibrada, cada uno con su escenario (spec 011; sección 7.ter). | PF |
+| `digital_twin_buffer.py` | Búfer de episodios del gemelo digital: `list` con filtros, `show`, `validate`, `register` y `rebuild-index`, sin DIgSILENT (spec 024, T7). | |
+| `digital_twin_snapshot_pf.py` | Lectura de solo lectura tras una acción: reabre el proyecto, activa el caso y devuelve flujo, islas, frontera y huellas del trazado; la web la lanza sola tras cada acción (spec 024, T5). | PF |
 | `estudios_pf.py` | Un estudio de la spec 011 en «Sin proyecto» o «Con proyecto», sin aplicar las propuestas de los optimizadores (sección 7.ter). | PF |
 | `obras_pf.py` | Obras de mejora de la spec 011: con `--bibliotecas`, alimentadores y tipos de las tres bibliotecas para el formulario; sin él, simula o aplica las obras en sus casos (sección 7.ter). | PF |
 | `transferencia_pf.py` | Transferencia de carga entre dos alimentadores por su enlace, en los dos sentidos, sin dejar nada en el proyecto (spec 011; sección 7.ter). | PF |
