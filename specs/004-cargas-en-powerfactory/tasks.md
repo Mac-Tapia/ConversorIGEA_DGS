@@ -81,3 +81,11 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde y `- [x]`.
       Hecho cuando: las pruebas sintéticas con nombres arbitrarios y múltiples candidatos,
       las pruebas de API, el front, Ruff y la suite completa con datos reales están en verde.
       Hecho el 2026-10-21: suite con las siete variables, 2469 pasan, ninguna omitida.
+- [x] T16. Cada libro en su hueco: los de clientes importantes (hoja «resumen» con código
+      de cliente) fuera de los candidatos de suministros, con aviso en el hueco; sin ningún
+      libro de suministros el hueco se guarda sin elección, sin rechazar; en el índice de
+      clientes, un libro sin «resumen» no se activa. (RF-62 a RF-65)
+      Hecho cuando: pruebas sintéticas y de API en verde, `tsc` y `build` correctos, y con
+      `IGEA_DEMANDA_DIR` la carpeta de clientes no da candidatos de suministros.
+      Hecho el 2026-10-22: `referencia/4.-clientesimportantes` da 0 candidatos (5 libros de
+      clientes avisados) y `3.-suministrocliente` elige «0926 Clientes_spl.xlsx».

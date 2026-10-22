@@ -1739,6 +1739,17 @@ DEMANDA_ETIQUETAS = {
 }
 
 
+SIN_SUMINISTROS = ('Ningún libro de suministros en este hueco: sin él, todas las SED se escalan '
+                   'con el factor de escala.')
+
+
+def hay_suministros(ws: Workspace) -> bool:
+    """Hueco de suministros con un libro elegido (004:RF-64); los guardados antes de la
+    RF-64 no traen «seleccion» y valen como antes."""
+    meta = ws.demanda.get('suministros')
+    return bool(meta) and meta.get('seleccion', meta.get('name')) is not None
+
+
 def demanda_alias():
     """Alias genéricos y, delante, los de la empresa en ``config/demanda_medida_alias.json``."""
     from ..demanda_medida import DemandaError, cargar_alias
@@ -1758,6 +1769,7 @@ def demanda_asignar(ws: Workspace, tipo: str, path: Path, origin: str) -> dict:
     from ..demanda_medida import (
         EXTENSIONES,
         DemandaError,
+        aviso_libros_de_clientes,
         descubrir_libro_suministros,
         libros_de_cabecera,
         libros_de_suministros,
@@ -1774,21 +1786,29 @@ def demanda_asignar(ws: Workspace, tipo: str, path: Path, origin: str) -> dict:
     elif tipo == 'suministros':
         # Cada libro de la carpeta se lee una sola vez: la lista y la elección salen
         # del mismo puntaje (004:RF-58/RF-59).
+        # 004:RF-64: nada se rechaza. Sin libro de suministros el hueco queda guardado sin
+        # elección y con su aviso; el cruce lo trata como si faltaran los suministros.
+        avisos: list[str] = []
+        nombres: list[str] = []
+        elegido: Path | None = None
         try:
             if path.is_dir():
-                candidatos = libros_de_suministros(path, demanda_alias())
-                if not candidatos:
-                    raise DemandaError(f'No hay un libro de suministros compatible en {path}.')
-                elegido = max(candidatos, key=candidatos.__getitem__)
-                libros = [p.name for p in candidatos]
+                candidatos, de_clientes = libros_de_suministros(path, demanda_alias())
+                if de_clientes:
+                    avisos.append(aviso_libros_de_clientes(de_clientes))
+                if candidatos:
+                    elegido = max(candidatos, key=candidatos.__getitem__)
+                    nombres = [p.name for p in candidatos]
+                else:
+                    avisos.append(SIN_SUMINISTROS)
             else:
                 elegido = descubrir_libro_suministros(path, demanda_alias())
-                libros = [path.name]
+                nombres = [path.name]
         except (DemandaError, OSError, ValueError) as exc:
-            raise UserError(str(exc)) from exc
+            avisos += [str(exc), SIN_SUMINISTROS]
         meta = {'path': str(path), 'name': path.name, 'origin': origin,
                 'source_kind': 'folder' if path.is_dir() else 'file',
-                'libros': libros, 'seleccion': elegido.name}
+                'libros': nombres, 'seleccion': elegido.name if elegido else None, 'avisos': avisos}
     elif tipo == 'clientes' and path.is_dir():
         # El índice se construye en un trabajo aparte: un nombre no reconocido puede
         # obligar a abrir un libro grande para buscar una fecha interna (013:RF-4).
@@ -1897,6 +1917,8 @@ def _demanda_ruta(ws: Workspace, tipo: str, *, periodo: str | None = None) -> Pa
     path = Path(meta['path'])
     if tipo == 'suministros':
         from ..demanda_medida import DemandaError, descubrir_libro_suministros
+        if not hay_suministros(ws):
+            raise UserError(' '.join(meta.get('avisos') or [SIN_SUMINISTROS]))
         try:
             return descubrir_libro_suministros(path, demanda_alias())
         except DemandaError as exc:
@@ -2647,7 +2669,7 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
         kva_entrada, implicados = _kva_reconstruido(ws, project, alimentador,
                                                     kva_entrada)                # 022:RF-63
         clientes: list[dict] = []
-        if ws.demanda.get('suministros') and ws.demanda.get('clientes'):
+        if hay_suministros(ws) and ws.demanda.get('clientes'):
             clientes = demanda_clientes(
                 ws, sorted(implicados) or [alimentador], periodo=maximum_period,
             )['cruzados']

@@ -75,6 +75,8 @@ function Libro({ tipo, titulo, ayuda }: (typeof LIBROS)[number]) {
       {tipo === 'clientes' && meta && (
         <CatalogoClientes meta={meta} indexando={indexando} bloqueado={engineBusy} actualizar={indexar} />
       )}
+      {/* 004:RF-63: libros de clientes subidos en «Suministros», nombrados en su hueco. */}
+      {tipo !== 'clientes' && meta?.avisos?.map((aviso) => <p className="alert alert-warn" key={aviso}>{aviso}</p>)}
       <small className="muted">{ayuda}</small>
     </div>
   );
@@ -100,7 +102,9 @@ function CatalogoClientes({ meta, indexando, bloqueado, actualizar }: {
       <thead><tr><th>Libro</th><th>Mes</th><th>Origen</th><th>Estado</th></tr></thead>
       <tbody>{catalogo.map((libro) => <tr key={libro.nombre}>
         <td className="mono">{libro.nombre}</td><td>{libro.mes ?? 'Sin mes'}</td>
-        <td>{libro.origen_mes}</td><td>{libro.activo ? 'Activo' : 'No usado'}</td>
+        <td>{libro.origen_mes}</td><td>{libro.activo ? 'Activo' : 'No usado'}
+          {/* 004:RF-65: por qué no se usa (p. ej., sin hoja «resumen»). */}
+          {!libro.activo && libro.avisos?.map((a) => <div className="muted small" key={a}>{a}</div>)}</td>
       </tr>)}</tbody>
     </table></div>}
   </div>;
@@ -300,6 +304,26 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
     const xs = cruce?.cruzados ?? [];
     return f ? xs.filter((c) => [c.codigo, c.nombre ?? '', c.sed, c.radial].some((v) => v.toLowerCase().includes(f))) : xs;
   }, [cruce, filtro]);
+  // Un solo selector, en 2.3 junto al cruce (013:RF-12); cada mes dice qué alimentadores
+  // tienen ahí su máxima de 2.2, para elegir el mismo (RF-15).
+  const selectorMes = estadoClientes.esCatalogo && estadoClientes.activos > 1 && (
+    <label className="row">
+      <span>Mes de los clientes</span>
+      <select value={periodo} disabled={engineBusy} onChange={(e) => elegirPeriodo(e.target.value)}>
+        <option value="">Todo el registro (elija un mes para cruzar clientes)</option>
+        {estadoClientes.meses.map(({ mes, libro }) => (
+          <option key={mes} value={mes}>
+            {nombreMes(mes)} · {libro}{mesesMaxima[mes] ? ` · máxima de ${mesesMaxima[mes].join(', ')}` : ''}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+  // Se nombra el libro que falta: «los suministros o los clientes» no decía cuál asignar.
+  // 004:RF-64: un hueco de suministros con solo libros de clientes queda guardado sin elección.
+  const haySuministros = Boolean(ws.demanda?.suministros) && ws.demanda?.suministros?.seleccion !== null;
+  const librosFaltan = [!haySuministros && 'el libro de suministros',
+    !ws.demanda?.clientes && 'el de clientes importantes'].filter(Boolean) as string[];
   const buscados = Object.keys(porAlim).length > 0;
   const cuales = feeders.length === 1 ? feeders[0] : `${feeders.length} alimentadores`;
 
@@ -390,19 +414,7 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
           </table>
         </div>
       )}
-      {estadoClientes.esCatalogo && estadoClientes.activos > 1 && (
-        <label className="row">
-          <span>Mes de análisis (máxima y clientes)</span>
-          <select value={periodo} disabled={engineBusy} onChange={(e) => elegirPeriodo(e.target.value)}>
-            <option value="">Todo el registro (elija un mes para cruzar clientes)</option>
-            {estadoClientes.meses.map(({ mes, libro }) => (
-              <option key={mes} value={mes}>
-                {nombreMes(mes)} · {libro}{mesesMaxima[mes] ? ` · máxima de ${mesesMaxima[mes].join(', ')}` : ''}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
+      {periodo && <small className="muted">La máxima se busca en {nombreMes(periodo)}, el mes elegido en 2.3.</small>}
       <div className="row">
         <button className="btn btn-primary" disabled={!elegidos.length || !ws.demanda?.cabecera || engineBusy} onClick={() => maxima()}>
           Buscar la máxima ({aBuscar.length} medidor{aBuscar.length === 1 ? '' : 'es'})
@@ -473,9 +485,7 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
       )}
 
       <h4>2.3 · Clientes importantes (demanda fija)</h4>
-      {estadoClientes.esCatalogo && estadoClientes.activos > 1 && (
-        <small className="muted">Mes de los clientes: {periodo ? nombreMes(periodo) : 'elíjalo en 2.2, «Mes de análisis»'}.</small>
-      )}
+      {selectorMes}
       {otrosMesesMaxima.length > 0 && (
         <small className="alert alert-warn">
           {otrosMesesMaxima.map(([mes, alims]) => `${alims.join(', ')} tiene su máxima en ${nombreMes(mes)}`).join('; ')}:
@@ -483,12 +493,13 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
         </small>
       )}
       <div className="row">
-        <button className="btn" disabled={!feeders.length || !ws.demanda?.suministros || !ws.demanda?.clientes
+        <button className="btn" disabled={!feeders.length || !haySuministros || !ws.demanda?.clientes
           || !estadoClientes.listoParaCruzar || engineBusy} onClick={cruzar}>
           Cruzar clientes de {cuales}
         </button>
-        {(!ws.demanda?.suministros || !ws.demanda?.clientes) && (
-          <small className="muted">Faltan los suministros o los clientes: sin ellos todas las SED se escalan con el factor de escala.</small>)}
+        {librosFaltan.length > 0 && (
+          <small className="muted">Falta {librosFaltan.join(' y ')} (2.1): sin {librosFaltan.length > 1 ? 'ellos' : 'él'} todas
+            las SED se escalan con el factor de escala.</small>)}
         {ws.demanda?.clientes && estadoClientes.motivo && <small className="muted">{estadoClientes.motivo}</small>}
       </div>
       {cruce && <Cruce cruce={cruce} visibles={visibles} filtro={filtro} setFiltro={setFiltro}

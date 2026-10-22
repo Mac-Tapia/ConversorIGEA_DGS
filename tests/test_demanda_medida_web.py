@@ -195,6 +195,39 @@ def test_suministros_admite_varios_archivos_subidos(client):
     assert meta['seleccion'] == 'vigente.xlsx'
 
 
+def test_suministros_subidos_con_libros_de_clientes_avisa_en_el_hueco(client):
+    """004:RF-63 — desde la interfaz: los libros de clientes subidos en «Suministros» no son
+    candidatos y el hueco los nombra."""
+    clientes = {'Resumen': [['SUMINISTRO', 'EA_TOTAL', 'ERI_TOTAL', 'POT_MAX'], ['9011', 1.0, 1.0, 1.0]],
+                'detalle': [['SUMINISTRO', 'SED'], ['9011', 'E1'], ['9012', 'E2']]}
+    wid = _wid(client)
+    respuesta = client.post(f'/api/workspaces/{wid}/demanda/suministros', files=[
+        ('files', ('0926clientesImportantes.xlsx', _xlsx(clientes))),
+        ('files', ('0926 Clientes_spl.xlsx', _xlsx({'datos': [['Suministro Act', 'SED'], ['1', 'E1']]}))),
+    ])
+    assert respuesta.status_code == 200, respuesta.text
+    meta = respuesta.json()['demanda']['suministros']
+    assert meta['seleccion'] == '0926 Clientes_spl.xlsx'
+    assert meta['libros'] == ['0926 Clientes_spl.xlsx']
+    assert any('0926clientesImportantes.xlsx' in a and 'Clientes importantes' in a for a in meta['avisos'])
+
+    # 004:RF-64 — solo libros de clientes: no se rechaza; el hueco queda sin libro elegido,
+    # con el aviso, y el cruce lo trata como si faltaran los suministros.
+    wid = _wid(client)
+    solo = client.post(f'/api/workspaces/{wid}/demanda/suministros', files=[
+        ('files', ('0526clientesImportantes.xlsx', _xlsx(clientes))),
+        ('files', ('0626clientesImportantes.xlsx', _xlsx(clientes))),
+    ])
+    assert solo.status_code == 200, solo.text
+    meta = solo.json()['demanda']['suministros']
+    assert meta['seleccion'] is None and meta['libros'] == []
+    assert any('Clientes importantes' in a for a in meta['avisos'])
+    assert any('factor de escala' in a for a in meta['avisos'])
+    _subir(client, wid, 'clientes', clientes, 'ci.xlsx')
+    cruce = client.post(f'/api/workspaces/{wid}/demanda/clientes/cruzar', json={})
+    assert cruce.status_code == 400 and 'Ningún libro de suministros' in cruce.json()['detail']
+
+
 def test_clientes_por_carpeta_publica_catalogo_mensual_sin_rutas(client, tmp_path, monkeypatch):
     """013:RF-1 / 013:RF-2 — la carpeta queda elegida y todos sus libros aparecen en el catálogo."""
     _perfil_clientes_mensuales(tmp_path, monkeypatch)

@@ -353,14 +353,22 @@ def catalogar_libros_clientes(carpeta: Path | str, patron: str | None,
         else:
             mes = mes_de_nombre(path.name, patron)
             origen = 'nombre' if mes else 'sin_mes'
-            if mes is None:
+        avisos: tuple[str, ...] = ()
+        if mes is None and manual is None:
+            # Sin mes en el nombre el libro se abre de todos modos: «0926 Clientes_spl.xlsx»
+            # (el de suministros) tiene fechas de septiembre y se activaba como clientes de
+            # ese mes. Sin hoja «resumen» no es de clientes (004:RF-65).
+            if not _hojas_resumen(_abrir(path).sheet_names):
+                avisos = ('sin hoja «resumen»: no es un libro de clientes importantes '
+                          '(¿es el de suministros?); no se usa.',)
+            else:
                 internos = meses_de_contenido(path, alias)
                 if len(internos) == 1:
                     mes, origen = next(iter(internos)), 'contenido'
         stat = path.stat()
         catalogo.append(LibroClientesMes(
             path=str(path), nombre=path.name, mes=mes, origen_mes=origen,
-            mtime_ns=stat.st_mtime_ns, size=stat.st_size, activo=mes is not None,
+            mtime_ns=stat.st_mtime_ns, size=stat.st_size, activo=mes is not None, avisos=avisos,
         ))
 
     por_mes: dict[str, list[int]] = {}
@@ -1100,14 +1108,16 @@ def leer_suministros(path: Path | str, alias=ALIAS) -> tuple[list[Suministro], l
     raise DemandaError(f'{Path(path).name}: ninguna hoja tiene «Suministro Act» o «Suministro» y «SED».')
 
 
-def libros_de_suministros(carpeta: Path | str, alias=ALIAS) -> dict[Path, tuple]:
-    """Libros compatibles de una carpeta, por nombre, con su puntaje (004:RF-58/RF-59).
+def libros_de_suministros(carpeta: Path | str, alias=ALIAS) -> tuple[dict[Path, tuple], list[str]]:
+    """Libros compatibles de una carpeta, por nombre, con su puntaje (004:RF-58/RF-59), y
+    los de clientes importantes que había en ella (RF-62/RF-63).
 
     Los nombres no forman parte del contrato: el guion fijaba «ML_1225.xlsx» y dejaba de
     encontrar la entrega en cuanto cambiaba de mes. Puntaje: códigos actuales, registros
     y, a igual cobertura, el modificado más recientemente.
     """
     candidatos: dict[Path, tuple] = {}
+    de_clientes: list[str] = []
     for libro in sorted(Path(carpeta).iterdir(), key=lambda p: (p.name.casefold(), p.name)):
         if (not libro.is_file() or libro.name.startswith('~$')
                 or libro.suffix.lower() not in EXTENSIONES):
@@ -1116,27 +1126,42 @@ def libros_de_suministros(carpeta: Path | str, alias=ALIAS) -> dict[Path, tuple]
             suministros, _avisos = leer_suministros(libro, alias)
         except (DemandaError, OSError, ValueError):
             continue
+        # Los de clientes de mayo a septiembre traen SUMINISTRO y SED en una hoja de
+        # detalle: subidos aquí, uno ganaba como tabla de suministros (RF-62).
+        if es_libro_clientes(libro, alias):
+            de_clientes.append(libro.name)
+            continue
         actuales = sum(bool(suministro.actual) for suministro in suministros)
         candidatos[libro] = (actuales, len(suministros), libro.stat().st_mtime_ns,
                              libro.name.casefold())
-    return candidatos
+    return candidatos, de_clientes
+
+
+def aviso_libros_de_clientes(nombres: Sequence[str]) -> str:
+    """El aviso del hueco de suministros con libros de clientes (004:RF-63)."""
+    return (f'{", ".join(nombres)}: libro(s) de clientes importantes (hoja «resumen»); '
+            'no se usan como suministros: van en «Clientes importantes».')
 
 
 def descubrir_libro_suministros(fuente: Path | str, alias=ALIAS) -> Path:
-    """Elige por contenido el libro de suministros vigente (004:RF-58 a RF-61).
+    """Elige por contenido el libro de suministros vigente (004:RF-58 a RF-64).
 
     Un archivo explícito se valida y se conserva (RF-60); en una carpeta gana el de
     mayor puntaje de ``libros_de_suministros``, sin bloquear con varios candidatos.
     """
     path = Path(fuente)
     if path.is_file():
+        if es_libro_clientes(path, alias):
+            raise DemandaError(f'{path.name} es un libro de clientes importantes (hoja «resumen»): '
+                               'va en «Clientes importantes», no en «Suministros».')
         leer_suministros(path, alias)
         return path
     if not path.is_dir():
         raise DemandaError(f'No existe la fuente de suministros: {path}')
-    candidatos = libros_de_suministros(path, alias)
+    candidatos, de_clientes = libros_de_suministros(path, alias)
     if not candidatos:
-        raise DemandaError(f'No hay un libro de suministros compatible en {path}.')
+        detalle = f' {aviso_libros_de_clientes(de_clientes)}' if de_clientes else ''
+        raise DemandaError(f'No hay un libro de suministros compatible en {path.name}.{detalle}')
     return max(candidatos, key=candidatos.__getitem__)
 
 
@@ -1159,11 +1184,27 @@ class ClienteImportante:
         return asdict(self)
 
 
+def _hojas_resumen(nombres: Sequence[str]) -> list[str]:
+    """Hojas «resumen» de un libro de clientes: la exacta primero (RF-34)."""
+    hojas = [h for h in nombres if normalizar(h) == 'resumen']
+    return hojas + [h for h in nombres if 'resumen' in normalizar(h) and h not in hojas]
+
+
+def es_libro_clientes(path: Path | str, alias=ALIAS) -> bool:
+    """Hoja «resumen» con el código del cliente: es de clientes importantes (004:RF-62)."""
+    try:
+        libro = _abrir(path)
+        hojas = _hojas_resumen(libro.sheet_names)
+        return bool(hojas) and _buscar_cabecera(
+            _filas(libro, hojas[0]), ('cliente_codigo',), alias, ('cliente_codigo',)) is not None
+    except (DemandaError, OSError, ValueError):
+        return False
+
+
 def leer_clientes(path: Path | str, alias=ALIAS) -> tuple[list[ClienteImportante], list[str]]:
     """Hoja resumen de clientes importantes, en cualquiera de sus dos formatos (RF-34)."""
     libro = _abrir(path)
-    hojas = [h for h in libro.sheet_names if normalizar(h) == 'resumen']
-    hojas += [h for h in libro.sheet_names if 'resumen' in normalizar(h) and h not in hojas]
+    hojas = _hojas_resumen(libro.sheet_names)
     if not hojas:
         raise DemandaError(f'{Path(path).name}: no tiene hoja «resumen».')
     filas = _filas(libro, hojas[0])

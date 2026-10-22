@@ -95,8 +95,12 @@ def test_las_curvas_de_la_central_con_el_mismo_tramo_y_leyenda():
 
 
 def test_mes_de_analisis_antes_de_buscar_la_maxima():
-    """013:RF-11 — el mes se elige en 2.2, antes de buscar la máxima, y la búsqueda lo lleva."""
-    assert DEMANDA.index('Mes de análisis (máxima y clientes)') < DEMANDA.index('Buscar la máxima (')
+    """013:RF-11 — la búsqueda de la máxima lleva el mes elegido. Usuario, 2026-10-22: el
+    selector va una sola vez, en 2.3, junto al cruce de clientes; 2.2 dice qué mes usa."""
+    seccion_clientes = DEMANDA.index('<h4>2.3 · Clientes importantes')
+    assert DEMANDA.count('{selectorMes}') == 1
+    assert seccion_clientes < DEMANDA.index('{selectorMes}') < DEMANDA.index('Cruzar clientes de {cuales}')
+    assert 'La máxima se busca en {nombreMes(periodo)}, el mes elegido en 2.3.' in DEMANDA
     assert 'api.demandaCabecera(ws.id, aBuscar, { periodo, instante, por_barra: porBarra && !instante })' in DEMANDA
     assert "periodo: criterio.periodo || null, instante: criterio.instante || null" in API
 

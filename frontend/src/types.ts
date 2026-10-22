@@ -642,6 +642,8 @@ export interface DemandaLibro {
   source_kind?: 'file' | 'folder';
   /** Cabecera o clientes: los libros de la carpeta. */
   libros?: string[];
+  /** Suministros: el libro elegido; null si el hueco no tiene ninguno (004:RF-64). */
+  seleccion?: string | null;
   catalogo?: LibroClientesMes[];
   vigente?: boolean;
   avisos?: string[];
