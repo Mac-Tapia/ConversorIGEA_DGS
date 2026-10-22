@@ -133,8 +133,66 @@ def test_cabecera_por_ruta_de_carpeta(client, tmp_path):
     assert r.status_code == 200, r.text
     assert r.json()['demanda']['cabecera']['libros'] == ['SISTEMA A.xlsx']
     assert 'path' not in r.json()['demanda']['cabecera']
-    r = client.post(f'/api/workspaces/{wid}/demanda/suministros/path', json={'path': str(carpeta)})
-    assert r.status_code == 400, 'solo cabecera y clientes admiten carpeta'
+
+
+def test_suministros_por_carpeta_descubre_el_vigente(client, tmp_path):
+    """004:RF-58/RF-61 — API acepta carpeta y publica la selección universal."""
+    carpeta = tmp_path / 'entregas-comerciales'
+    carpeta.mkdir()
+    (carpeta / 'entrega-inicial.xlsx').write_bytes(_xlsx({'datos': [
+        ['Suministro Act', 'SED'], ['1', 'E1'],
+    ]}))
+    vigente = carpeta / 'nombre-libre.xlsx'
+    vigente.write_bytes(_xlsx({'control': [
+        ['NIS [act]', 'Subestacion'], ['1', 'E1'], ['2', 'E2'],
+    ]}))
+    (carpeta / 'notas.xlsx').write_bytes(_xlsx({'hoja': [['sin contrato']]}))
+    wid = _wid(client)
+
+    respuesta = client.post(
+        f'/api/workspaces/{wid}/demanda/suministros/path', json={'path': str(carpeta)})
+
+    assert respuesta.status_code == 200, respuesta.text
+    meta = respuesta.json()['demanda']['suministros']
+    assert meta['source_kind'] == 'folder'
+    assert meta['seleccion'] == vigente.name
+    assert meta['libros'] == ['entrega-inicial.xlsx', 'nombre-libre.xlsx']
+
+
+
+def test_suministros_libro_explicito_se_conserva(client, tmp_path):
+    """004:RF-60 — un libro indicado por el operador se usa tal cual, aunque a su lado
+    haya otro más completo."""
+    (tmp_path / 'mas-completo.xlsx').write_bytes(_xlsx({'datos': [
+        ['Suministro Act', 'SED'], ['1', 'E1'], ['2', 'E2'], ['3', 'E3'],
+    ]}))
+    elegido = tmp_path / 'del-operador.xlsx'
+    elegido.write_bytes(_xlsx({'datos': [['Suministro Act', 'SED'], ['1', 'E1']]}))
+    wid = _wid(client)
+
+    respuesta = client.post(
+        f'/api/workspaces/{wid}/demanda/suministros/path', json={'path': str(elegido)})
+
+    assert respuesta.status_code == 200, respuesta.text
+    meta = respuesta.json()['demanda']['suministros']
+    assert meta['source_kind'] == 'file' and meta['seleccion'] == elegido.name
+
+def test_suministros_admite_varios_archivos_subidos(client):
+    """004:RF-59/RF-61 — múltiples candidatos no bloquean: se elige el más completo."""
+    wid = _wid(client)
+    respuesta = client.post(f'/api/workspaces/{wid}/demanda/suministros', files=[
+        ('files', ('inicial.xlsx', _xlsx({'datos': [
+            ['Suministro Act', 'SED'], ['1', 'E1'],
+        ]}))),
+        ('files', ('vigente.xlsx', _xlsx({'datos': [
+            ['Suministro Act', 'SED'], ['1', 'E1'], ['2', 'E2'],
+        ]}))),
+    ])
+
+    assert respuesta.status_code == 200, respuesta.text
+    meta = respuesta.json()['demanda']['suministros']
+    assert meta['source_kind'] == 'folder'
+    assert meta['seleccion'] == 'vigente.xlsx'
 
 
 def test_clientes_por_carpeta_publica_catalogo_mensual_sin_rutas(client, tmp_path, monkeypatch):

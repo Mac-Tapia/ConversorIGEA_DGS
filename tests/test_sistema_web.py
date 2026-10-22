@@ -4,8 +4,8 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
 from apoyo import cargar_herramienta
+from openpyxl import Workbook
 
 
 @pytest.fixture(scope='module')
@@ -60,7 +60,31 @@ class WebFalsa:
 def _correr(herramienta, web, **kw):
     return herramienta.correr(web, 'Pisco', demanda_dir=Path('libros'), periodo='2026-07',
                               reconvertir=kw.get('reconvertir', False), transformadores=False,
-                              tension_pu=None, bancos=True)
+                              tension_pu=None, bancos=True,
+                              libro_suministros=Path('libros/cualquier-nombre.xlsx'))
+
+
+def _libro_suministros(path: Path, cantidad: int) -> None:
+    libro = Workbook()
+    hoja = libro.active
+    hoja.append(['Suministro Act', 'SED', 'RADIAL'])
+    for indice in range(cantidad):
+        hoja.append([f'NIS-{indice}', f'SED-{indice}', f'AL-{indice}'])
+    libro.save(path)
+
+
+def test_el_libro_de_suministros_se_descubre_por_contenido(herramienta, tmp_path):
+    """004:RF-58/RF-59 — cualquier nombre sirve y, con varios compatibles, se usa el que contiene
+    más suministros actuales en vez de fijar un nombre o bloquear la ejecución."""
+    carpeta = tmp_path / '3.-suministrocliente'
+    carpeta.mkdir()
+    _libro_suministros(carpeta / 'copia-con-nombre-arbitrario.xlsx', 1)
+    vigente = carpeta / 'entrega-sin-fecha.xlsx'
+    _libro_suministros(vigente, 3)
+    libro_invalido = Workbook()
+    libro_invalido.save(carpeta / 'notas.xlsx')
+
+    assert herramienta.resolver_libro_suministros(tmp_path) == vigente
 
 
 VALIDO = {'feeder': 'PI102', 'cuadrado': True, 'status': 'OK', 'flujos': 5,
@@ -125,11 +149,11 @@ def test_solo_una_parte_del_sistema(herramienta):
     web = WebFalsa(proyecto='P', informes=[VALIDO])
     assert herramienta.correr(web, 'Pisco', demanda_dir=Path('l'), periodo=None, reconvertir=False,
                               transformadores=False, tension_pu=None, bancos=True,
-                              solo=['pi102']) == 0
+                              solo=['pi102'], libro_suministros=Path('l/s.xlsx')) == 0
     web = WebFalsa(proyecto='P', informes=[VALIDO])
     assert herramienta.correr(web, 'Pisco', demanda_dir=Path('l'), periodo=None, reconvertir=False,
                               transformadores=False, tension_pu=None, bancos=True,
-                              solo=['PI101']) == 2
+                              solo=['PI101'], libro_suministros=Path('l/s.xlsx')) == 2
     assert ('POST', '/demanda/ajuste/plan') not in web.llamadas
 
 
@@ -150,21 +174,26 @@ def test_medida_para_reconstruir(herramienta):
 
 
 def test_reconstruir_reconvierte_con_las_medidas(herramienta):
-    """022:RF-61 — ``--reconstruir`` manda los pedidos y las medidas a la conversión por
+    """022:RF-61, 004:RF-60 — ``--reconstruir`` manda los pedidos y las medidas a la conversión por
     sistema, importa de nuevo y calibra el proyecto nuevo."""
     web = WebFalsa(proyecto='P', informes=[VALIDO])
-    enviados = []
+    enviados, suministros = [], []
     original = web.post
 
     def post(ruta, **kw):
         if ruta == '/convert/sistema':
             enviados.append(kw['json'])
+        if ruta == '/demanda/suministros/path':
+            suministros.append(kw['json']['path'])
         return original(ruta, **kw)
 
     web.post = post
     assert herramienta.correr(web, 'Pisco', demanda_dir=Path('l'), periodo=None,
                               reconvertir=False, transformadores=False, tension_pu=None,
-                              bancos=True, reconstruir=['PI101']) == 0
+                              bancos=True, reconstruir=['PI101'],
+                              libro_suministros=Path('l/s.xlsx')) == 0
     assert enviados and enviados[0]['reconstruir'] == {'PI101': pytest.approx(4456.3)}
+    # 004:RF-60 — el libro explícito sigue en la vuelta tras reconvertir.
+    assert suministros == [str(Path('l') / 'l' / 's.xlsx')] * 2
     assert ('POST', '/powerfactory/flow') in web.llamadas
     assert [r for _m, r in web.llamadas].count('/demanda/ajuste/plan') == 1

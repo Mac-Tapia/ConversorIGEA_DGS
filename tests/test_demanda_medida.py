@@ -464,6 +464,33 @@ def test_suministros(tmp_path):
         ('9011', '11', 'E100', 'A101'), ('9012', '12', 'E200', 'A102')]
 
 
+def test_descubre_libro_suministros_por_contenido_y_no_por_nombre(tmp_path):
+    """004:RF-58/RF-59 — cualquier nombre sirve y gana el contenido más completo."""
+    _libro(tmp_path / 'primera-entrega.xlsx', {'datos': [
+        ['Suministro Act', 'SED'], ['1', 'E1'],
+    ]})
+    vigente = _libro(tmp_path / 'archivo-totalmente-distinto.xlsx', {'control': [
+        ['NIS [act]', 'Subestacion'], ['1', 'E1'], ['2', 'E2'], ['3', 'E3'],
+    ]})
+    _libro(tmp_path / 'notas.xlsx', {'hoja': [['texto'], ['sin contrato']]} )
+
+    assert dm.descubrir_libro_suministros(tmp_path) == vigente
+
+
+def test_descubre_libro_suministros_desempata_por_actualizacion(tmp_path):
+    """004:RF-59 — a igual cobertura, el archivo actualizado más recientemente gana."""
+    anterior = _libro(tmp_path / 'a.xlsx', {'datos': [
+        ['Suministro Act', 'SED'], ['1', 'E1'],
+    ]})
+    actual = _libro(tmp_path / 'b.xlsx', {'datos': [
+        ['Suministro Act', 'SED'], ['1', 'E1'],
+    ]})
+    os.utime(anterior, ns=(1_000_000_000, 1_000_000_000))
+    os.utime(actual, ns=(2_000_000_000, 2_000_000_000))
+
+    assert dm.descubrir_libro_suministros(tmp_path) == actual
+
+
 FORMATO_ANTIGUO = {'portada': [['x']], 'resumen': [
     ['Clientes importantes'],
     ['Bitácora', 'Ítem', 'Suministrador', 'Inicio', 'Nis', 'EA', 'ERI', 'ERC', 'Pot', 'MDHP'],

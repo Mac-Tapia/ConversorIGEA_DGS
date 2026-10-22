@@ -24,16 +24,16 @@ Códigos de salida: 0 calibrado y válido, 1 calibrado con fallos, 2 no se pudo 
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 import time
 from pathlib import Path
 
 import requests
 
+from igea_dgs.demanda_medida import descubrir_libro_suministros
+
 LIBROS = (('medidores', '1.-medidoralimentador/medidoralimentador.xlsx'),
           ('cabecera', '2.-medicioncabecera'),
-          ('suministros', '3.-suministrocliente/ML_1225.xlsx'),
           ('clientes', '4.-clientesimportantes'))
 TERMINADOS = ('done', 'failed', 'cancelled')
 
@@ -121,10 +121,16 @@ def medida_de(alimentador: str, medidas: dict[str, float], barras: list[dict]) -
                                     if a != alimentador)
 
 
+def resolver_libro_suministros(demanda_dir: Path) -> Path:
+    """Elige por contenido el libro vigente, sin depender de nombres de empresa o periodo."""
+    return descubrir_libro_suministros(demanda_dir / '3.-suministrocliente')
+
+
 def correr(web: Web, zonal: str, *, demanda_dir: Path, periodo: str | None,
            reconvertir: bool, transformadores: bool, tension_pu: float | None,
            bancos: bool, solo: list[str] | None = None,
-           reconstruir: list[str] | None = None) -> int:
+           reconstruir: list[str] | None = None,
+           libro_suministros: Path | None = None) -> int:
     for trabajo in [t for t in web.get('')['jobs'] if t['status'] not in TERMINADOS]:
         print(f"Esperando «{trabajo['title']}»…", flush=True)
         web.esperar(trabajo)
@@ -147,7 +153,9 @@ def correr(web: Web, zonal: str, *, demanda_dir: Path, periodo: str | None,
             print(f"ERROR: la importación no dejó proyecto: {estado.get('error')}")
             return 2
     print(f'Proyecto: {proyecto}', flush=True)
-    for tipo, ruta in LIBROS:
+    suministro = libro_suministros or resolver_libro_suministros(demanda_dir)
+    libros = (*LIBROS[:2], ('suministros', suministro), LIBROS[2])
+    for tipo, ruta in libros:
         web.post(f'/demanda/{tipo}/path', json={'path': str(demanda_dir / ruta)})
     web.esperar(web.post('/demanda/clientes/indexar'))
     sistema = web.get('/demanda/sistema', params={'project': proyecto})['sistema']
@@ -190,7 +198,7 @@ def correr(web: Web, zonal: str, *, demanda_dir: Path, periodo: str | None,
         print(f"DIgSILENT: {estado['status']} {(estado.get('result') or {}).get('lines')}", flush=True)
         return correr(web, zonal, demanda_dir=demanda_dir, periodo=periodo, reconvertir=False,
                       transformadores=transformadores, tension_pu=tension_pu, bancos=bancos,
-                      solo=solo)
+                      solo=solo, libro_suministros=suministro)
     web.post('/demanda/clientes/cruzar', json={'alimentadores': sistema['alimentadores'],
                                                 'periodo': periodo})
     # El vínculo exige que la última relectura de DIgSILENT vea el proyecto (spec 018): tras
@@ -233,6 +241,8 @@ def main(argv=None) -> int:
     p.add_argument('--zonal', required=True, help='Zonal de la estructura (Nasca, Pisco…)')
     p.add_argument('--demanda-dir', type=Path, required=True,
                    help='Carpeta con los cuatro libros de demanda (medidores, cabecera…)')
+    p.add_argument('--suministros', type=Path,
+                   help='Libro de suministros; sin esta opción se descubre por contenido')
     p.add_argument('--periodo', help='Mes de análisis AAAA-MM')
     p.add_argument('--url', default='http://127.0.0.1:8765', help='Dirección de la web')
     p.add_argument('--reconvertir', action='store_true',
@@ -253,11 +263,15 @@ def main(argv=None) -> int:
         pass
     web = Web(args.url, args.espacio)
     try:
-        return correr(web, args.zonal, demanda_dir=args.demanda_dir.resolve(),
+        demanda_dir = args.demanda_dir.resolve()
+        libro_suministros = args.suministros
+        if libro_suministros is not None and not libro_suministros.is_absolute():
+            libro_suministros = demanda_dir / libro_suministros
+        return correr(web, args.zonal, demanda_dir=demanda_dir,
                       periodo=args.periodo, reconvertir=args.reconvertir,
                       transformadores=args.transformadores, tension_pu=args.tension_pu,
                       bancos=not args.sin_bancos, solo=args.alimentadores,
-                      reconstruir=args.reconstruir)
+                      reconstruir=args.reconstruir, libro_suministros=libro_suministros)
     except (RuntimeError, TimeoutError, requests.RequestException) as exc:
         print(f'ERROR: {exc}')
         return 2

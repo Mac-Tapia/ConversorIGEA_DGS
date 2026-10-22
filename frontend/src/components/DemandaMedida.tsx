@@ -9,7 +9,7 @@ import { FileDrop, useToast } from './ui';
 const LIBROS: { tipo: DemandaTipo; titulo: string; ayuda: string }[] = [
   { tipo: 'medidores', titulo: 'Medidor por alimentador', ayuda: 'Columnas «codigo alimentador» y «Medidor».' },
   { tipo: 'cabecera', titulo: 'Medición de cabecera', ayuda: 'Uno o varios libros (una hoja por medidor), o la carpeta que los contiene.' },
-  { tipo: 'suministros', titulo: 'Suministros', ayuda: '«Suministro Act», «Suministro», «SED» y «RADIAL».' },
+  { tipo: 'suministros', titulo: 'Suministros', ayuda: 'Uno o varios libros, o una carpeta. Se descubre el vigente por contenido; el nombre es libre.' },
   { tipo: 'clientes', titulo: 'Clientes importantes mensuales', ayuda: 'Carpeta o libros con hoja «resumen»: Nis/EA/ERI/Pot o SUMINISTRO/EA_TOTAL/ERI_TOTAL/POT_MAX.' },
   { tipo: 'estructura', titulo: 'Estructura zonal → SET (opcional)', ayuda: '«Zonal», «Código SET» y «Alimentador» (y sistema eléctrico, sector y siglas). Sin ella, la del perfil de empresa.' },
 ];
@@ -60,12 +60,12 @@ function Libro({ tipo, titulo, ayuda }: (typeof LIBROS)[number]) {
         </div>
       ) : (
         <>
-          <FileDrop compact accept={EXT} multiple={tipo === 'cabecera' || tipo === 'clientes'} onFiles={subir}>
-            <span>Soltar o <u>elegir</u>{tipo === 'cabecera' || tipo === 'clientes' ? ' (varios)' : ''}</span>
+          <FileDrop compact accept={EXT} multiple={tipo === 'cabecera' || tipo === 'suministros' || tipo === 'clientes'} onFiles={subir}>
+            <span>Soltar o <u>elegir</u>{tipo === 'cabecera' || tipo === 'suministros' || tipo === 'clientes' ? ' (varios)' : ''}</span>
           </FileDrop>
           {health.server_paths && (
             <div className="row">
-              <input className="search" placeholder={tipo === 'cabecera' || tipo === 'clientes' ? 'o ruta de la carpeta en el servidor' : 'o ruta en el servidor'}
+              <input className="search" placeholder={tipo === 'cabecera' || tipo === 'suministros' || tipo === 'clientes' ? 'o ruta de la carpeta en el servidor' : 'o ruta en el servidor'}
                 value={ruta} onChange={(e) => setRuta(e.target.value)} />
               <button className="btn btn-sm" disabled={!ruta.trim()} onClick={porRuta}>Usar ruta</button>
             </div>

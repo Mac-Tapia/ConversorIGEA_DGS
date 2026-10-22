@@ -54,7 +54,9 @@ ALIAS: dict[str, tuple[str, ...]] = {
     # valor cabe en un FP (ver ``fp_decimal``); si no, el FP se calcula.
     'fp': ('pf lag mean', 'pf lead mean', 'fp', 'factor de potencia', 'pf', 'pf tot',
            'pf sign tot', 'pf sign tot us'),
-    'suministro_act': ('suministro act', 'suministro actual', 'sum act', 'nis actual'),
+    'suministro_act': (
+        'suministro act', 'suministro actual', 'sum act', 'nis actual', 'nis act', 'nis [act]',
+    ),
     'suministro': ('suministro', 'suministro anterior', 'nis anterior'),
     'sed': ('sed', 'subestacion', 'subestacion de distribucion'),
     'radial': ('radial', 'alimentador'),
@@ -1096,6 +1098,46 @@ def leer_suministros(path: Path | str, alias=ALIAS) -> tuple[list[Suministro], l
                                       _texto(fila, cols.get('radial')), n))
         return out, avisos
     raise DemandaError(f'{Path(path).name}: ninguna hoja tiene «Suministro Act» o «Suministro» y «SED».')
+
+
+def libros_de_suministros(carpeta: Path | str, alias=ALIAS) -> dict[Path, tuple]:
+    """Libros compatibles de una carpeta, por nombre, con su puntaje (004:RF-58/RF-59).
+
+    Los nombres no forman parte del contrato: el guion fijaba «ML_1225.xlsx» y dejaba de
+    encontrar la entrega en cuanto cambiaba de mes. Puntaje: códigos actuales, registros
+    y, a igual cobertura, el modificado más recientemente.
+    """
+    candidatos: dict[Path, tuple] = {}
+    for libro in sorted(Path(carpeta).iterdir(), key=lambda p: (p.name.casefold(), p.name)):
+        if (not libro.is_file() or libro.name.startswith('~$')
+                or libro.suffix.lower() not in EXTENSIONES):
+            continue
+        try:
+            suministros, _avisos = leer_suministros(libro, alias)
+        except (DemandaError, OSError, ValueError):
+            continue
+        actuales = sum(bool(suministro.actual) for suministro in suministros)
+        candidatos[libro] = (actuales, len(suministros), libro.stat().st_mtime_ns,
+                             libro.name.casefold())
+    return candidatos
+
+
+def descubrir_libro_suministros(fuente: Path | str, alias=ALIAS) -> Path:
+    """Elige por contenido el libro de suministros vigente (004:RF-58 a RF-61).
+
+    Un archivo explícito se valida y se conserva (RF-60); en una carpeta gana el de
+    mayor puntaje de ``libros_de_suministros``, sin bloquear con varios candidatos.
+    """
+    path = Path(fuente)
+    if path.is_file():
+        leer_suministros(path, alias)
+        return path
+    if not path.is_dir():
+        raise DemandaError(f'No existe la fuente de suministros: {path}')
+    candidatos = libros_de_suministros(path, alias)
+    if not candidatos:
+        raise DemandaError(f'No hay un libro de suministros compatible en {path}.')
+    return max(candidatos, key=candidatos.__getitem__)
 
 
 @dataclass
