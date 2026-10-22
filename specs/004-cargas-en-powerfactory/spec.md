@@ -247,6 +247,25 @@ fijado como el anterior; debe ser flexible y adaptable»)
 - RF-61: EL SISTEMA aplicará la misma regla de descubrimiento en el núcleo, la API web, la
   interfaz y el guion de calibración por sistema.
 
+Cada libro en su hueco (usuario, 2026-10-22: los libros de clientes importantes de mayo a
+septiembre, subidos en «Suministros», se tomaban por libros de suministros porque una de sus
+hojas trae SUMINISTRO y SED, y el cruce elegía uno de ellos como tabla de suministros)
+
+- RF-62: EL SISTEMA reconocerá como libro de clientes importantes el que tenga una hoja
+  «resumen» con la columna del código del cliente, y no lo tomará como libro de suministros
+  aunque tenga columnas de suministro y SED.
+- RF-63: SI una carpeta o una subida de suministros contiene libros de clientes importantes,
+  ENTONCES EL SISTEMA los dejará fuera de los candidatos y lo dirá en el hueco de
+  suministros, nombrándolos y diciendo que van en «Clientes importantes».
+- RF-64: SI en el hueco de suministros no queda ningún libro de suministros (solo de
+  clientes, o uno que no se puede leer), ENTONCES EL SISTEMA no rechazará la subida ni la
+  ruta: guardará el hueco sin libro elegido, con el aviso, y lo tratará como si faltaran los
+  suministros (las SED se escalan con el factor de escala). Usuario, 2026-10-22: «no
+  debería rechazar por nada».
+- RF-65: SI en la fuente de clientes importantes hay un libro cuyo mes no sale del nombre y
+  que no tiene hoja «resumen», ENTONCES EL SISTEMA no lo activará para ningún mes y lo dirá
+  en su fila del índice; los libros cuyo mes sale del nombre siguen sin abrirse (013:RF-2).
+
 ## Requisitos no funcionales
 
 - Universal (P13): ninguna tensión, frecuencia ni CRS de una empresa como valor fijo.

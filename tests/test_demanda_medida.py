@@ -509,6 +509,58 @@ FORMATO_NUEVO = {'Resumen': [
 ]}
 
 
+def test_libro_de_clientes_no_es_candidato_de_suministros(tmp_path):
+    """004:RF-62 / 004:RF-63 — los libros de clientes de mayo a septiembre traen una hoja con
+    SUMINISTRO y SED; subidos en «Suministros», uno de ellos se tomaba por la tabla de
+    suministros. Se reconocen por su hoja «resumen» y quedan fuera, nombrados."""
+    clientes = dict(FORMATO_NUEVO)
+    clientes['detalle'] = [['SUMINISTRO', 'SED', 'ALIMENTADOR'], ['9011', 'E1', 'A101'],
+                           ['9012', 'E2', 'A101'], ['9013', 'E3', 'A101']]
+    _libro(tmp_path / '0926clientes.xlsx', clientes)
+    vigente = _libro(tmp_path / 'tabla.xlsx', {'datos': [['Suministro Act', 'SED'], ['1', 'E1']]})
+
+    candidatos, de_clientes = dm.libros_de_suministros(tmp_path)
+
+    assert list(candidatos) == [vigente]
+    assert de_clientes == ['0926clientes.xlsx']
+    assert dm.es_libro_clientes(tmp_path / '0926clientes.xlsx')
+    assert not dm.es_libro_clientes(vigente)
+    assert dm.descubrir_libro_suministros(tmp_path) == vigente
+
+
+def test_carpeta_solo_de_clientes_no_da_suministros_y_lo_dice(tmp_path):
+    """004:RF-63 — sin candidatos, el error dice que esos libros van en «Clientes importantes»."""
+    clientes = dict(FORMATO_NUEVO)
+    clientes['detalle'] = [['SUMINISTRO', 'SED'], ['9011', 'E1']]
+    _libro(tmp_path / 'ci.xlsx', clientes)
+    with pytest.raises(dm.DemandaError, match='ci.xlsx.*Clientes importantes'):
+        dm.descubrir_libro_suministros(tmp_path)
+
+
+def test_libro_explicito_de_clientes_se_rechaza_como_suministros(tmp_path):
+    """004:RF-64 — el libro indicado a mano también se comprueba por su contenido."""
+    clientes = dict(FORMATO_NUEVO)
+    clientes['detalle'] = [['SUMINISTRO', 'SED'], ['9011', 'E1']]
+    path = _libro(tmp_path / 'ci.xlsx', clientes)
+    with pytest.raises(dm.DemandaError, match='Clientes importantes'):
+        dm.descubrir_libro_suministros(path)
+
+
+def test_indice_de_clientes_no_activa_un_libro_sin_resumen(tmp_path):
+    """004:RF-65 — «0926 Clientes_spl.xlsx» (el de suministros) no casa con el patrón y su
+    contenido tiene fechas: sin hoja «resumen» no se activa para ningún mes."""
+    _libro(tmp_path / 'tabla de suministros.xlsx', {'datos': [
+        ['Suministro Act', 'SED', 'Fecha'], ['1', 'E1', datetime(2026, 9, 1)]]})
+    _libro(tmp_path / 'unico.xlsx', {'Resumen': [['Nis', 'Fecha', 'EA'], [11, datetime(2026, 5, 2), 10]]})
+
+    por_nombre = {x.nombre: x for x in dm.catalogar_libros_clientes(tmp_path, None, {}, dm.ALIAS)}
+
+    sin = por_nombre['tabla de suministros.xlsx']
+    assert (sin.mes, sin.activo) == (None, False)
+    assert 'resumen' in ' '.join(sin.avisos)
+    assert por_nombre['unico.xlsx'].activo
+
+
 def test_mes_del_nombre_sale_del_patron_del_perfil():
     """013:RF-3 — el código interpreta los grupos del patrón recibido, no un nombre de
     Electro Dunas incrustado."""
