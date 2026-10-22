@@ -3392,6 +3392,131 @@ def _gemelo(ws: Workspace, ctx: JobContext, plan: dict, informe: dict, *, caso: 
                            manual=manual)
 
 
+def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *,
+                  capex: str | None = None, implementar: bool = True) -> dict:
+    """Metodología del PIDE sobre el proyecto, de punta a punta (spec 024, T13 y T14).
+
+    Diagnostica cada año del horizonte en DIgSILENT (``tools/pide_pf.py``), arma las obras
+    con el libro CAPEX y las prioriza por el art. 15; las que se construyen solas (bancos,
+    ternas) del periodo del PIDE se simulan y, si funcionan, se aplican en «Con proyecto»
+    sin esperar aprobación (RF-45 a RF-47, el usuario el 2026-10-21: «la implementa sola»).
+    Deja los formatos 01 a 15 en Excel (RF-63).
+    """
+    from ..digital_twin.integration import limites_combinados, normas_de
+    from ..perfil_empresa import bancos_kvar_por_tension, datos_perfil, estructura_empresa
+    from ..pide import escribir_formatos
+    from ..pide_economia import EconomiaPideError, costos_por_alternativa, leer_capex, propuesta_pide
+
+    project = project.strip()
+    if not project:
+        raise UserError('Elija el proyecto de DIgSILENT.')
+    contexto = native_action_context(ws, project, feeders, 'pide')
+    perfil = datos_perfil()
+    plan_pide = dict(perfil.get('planificacion') or {})
+    if not plan_pide:
+        raise UserError('El perfil de empresa no tiene «planificacion» (tasas, vida útil, horizonte).')
+    feeders = list(contexto['feeders'])
+    limites = limites_combinados(perfil, normas_de(estructura_empresa(), feeders))
+    if limites is None:
+        raise UserError('Faltan en el perfil los límites de la norma de estos alimentadores.')
+    avisos: list[str] = []
+    tasa = plan_pide.get('crecimiento_demanda_anual')
+    anios = [0] + list(plan_pide.get('anios_horizonte') or []) if tasa is not None else [0]
+    if tasa is None:
+        avisos.append('sin tasa de crecimiento de la demanda en el perfil: solo el diagnóstico del '
+                      'año 00 (RF-51)')
+    plan = {'project': project, 'folder': carpeta_pf(), 'feeders': feeders, 'case': 'sin_proyecto',
+            'tasa': tasa if tasa is not None else 0.0, 'anios': anios,
+            'limites': {'tension_min_pu': limites.tension_min_pu, 'tension_max_pu': limites.tension_max_pu,
+                        'cargabilidad_max_pct': limites.cargabilidad_max_pct,
+                        'transformador_max_pct': limites.transformador_max_pct},
+            'native_action_context': contexto}
+    ctx.log(f'PIDE de {project}: diagnóstico de los años {anios} en DIgSILENT…')
+    _rc, informe, report = _guion_pf(ws, ctx, 'pide_pf.py', plan, nombre='pide', cancelable=False,
+                                     limite_s=LIMITE_ESTUDIO_S)
+    if informe.get('error'):
+        raise UserError(informe['error'])
+    costos: dict = {}
+    if capex:
+        try:
+            obras_capex, avisos_capex = leer_capex(Path(capex.strip().strip('"')), plan_pide.get('capex') or {})
+        except (EconomiaPideError, OSError, ValueError) as exc:
+            raise UserError(f'Libro CAPEX: {exc}') from exc
+        costos = costos_por_alternativa(obras_capex)
+        avisos += avisos_capex
+    propuesta = propuesta_pide(informe, plan_pide, costos=costos,
+                               bancos_kvar=bancos_kvar_por_tension(perfil),
+                               factor_carga=plan_pide.get('factor_carga'),
+                               precio_compra_kwh=plan_pide.get('precio_compra_kwh'))
+    avisos += propuesta['avisos']
+    implementadas: list[dict] = []
+    if implementar:
+        implementadas = _pide_implementar(ws, ctx, project, feeders, propuesta['obras'],
+                                          set(plan_pide.get('anios_pide') or []))
+    token = uuid.uuid4().hex[:8]
+    libro = escribir_formatos(ws.out_dir / f'pide_{token}.xlsx', propuesta['formatos'])
+    ctx.log(f"PIDE: {len(propuesta['obras'])} obra(s) propuesta(s), {len(implementadas)} aplicada(s) "
+            f'solas en «Con proyecto»; formatos en {libro.name}.')
+    return {'project': project, 'feeders': feeders, 'report': report.name, 'formatos': libro.name,
+            'anios': [{k: v for k, v in a.items() if k != 'problemas'} | {'problemas': len(a.get('problemas') or [])}
+                      for a in informe.get('anios') or []],
+            'obras': propuesta['obras'], 'implementadas': implementadas, 'avisos': avisos}
+
+
+def _pide_implementar(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
+                      obras: list[dict], anios_pide: set[int]) -> list[dict]:
+    """Simula las obras propias que se construyen solas y aplica las que funcionan (RF-46,
+    RF-47). Lo que choca con un cambio manual lo dice ``obras_pf`` y queda sin aplicar
+    (RF-47b); cada aplicada se informa con su variación para deshacerla (RF-47c)."""
+    elegibles = [o for o in obras if o.get('obra_011') and not o.get('descartada')
+                 and not o.get('sobredimensionada') and (not anios_pide or o['anio'] <= max(anios_pide))]
+    if not elegibles:
+        return []
+    ids = {}
+    for o in elegibles:
+        try:
+            ids[obra_anadir(ws, o['obra_011'])['id']] = o
+        except UserError as exc:
+            o['motivo_sin_obra'] = str(exc)
+    if not ids:
+        return []
+    ctx.log(f'PIDE: simulando {len(ids)} obra(s) propia(s) antes de aplicarlas (RF-46)…')
+    sim = obras_ejecutar(ws, ctx, project, feeders, list(ids), '', simular=True)
+    filas = (sim.get('informe') or {}).get('obras') or []
+    lista = list(ids)
+    buenas = [lista[int(f['obra']) - 1] for f in filas
+              if 1 <= int(f.get('obra') or 0) <= len(lista) and not f.get('error')]
+    for i in set(lista) - set(buenas):
+        ids[i]['motivo_sin_obra'] = 'la simulación en DIgSILENT no la dio por buena'
+    with ws.lock:
+        ws.obras = [o for o in ws.obras if o['id'] not in set(lista) - set(buenas)]
+        ws.save()
+    if not buenas:
+        return []
+    ctx.log(f'PIDE: aplicando {len(buenas)} obra(s) en «Con proyecto» (RF-47)…')
+    hecho = obras_ejecutar(ws, ctx, project, feeders, buenas, '', simular=False)
+    out = []
+    for f in (hecho.get('informe') or {}).get('obras') or []:
+        n = int(f.get('obra') or 0)
+        if 1 <= n <= len(buenas) and f.get('variacion') and not f.get('error'):
+            o = ids[buenas[n - 1]]
+            o['variacion_autonoma'] = f['variacion']
+            out.append({'codigo': o['codigo'], 'alternativa': o['alternativa'], 'variacion': f['variacion'],
+                        'aviso': f"aplicada sola en «Con proyecto»; para deshacerla, desactive o borre "
+                                 f"la variación {f['variacion']} (RF-47c)"})
+    return out
+
+
+def pide_decision(ws: Workspace, project: str, codigo: str, decision: str, comentario: str = '') -> dict:
+    """Lo que decidió el operador sobre una propuesta, para que el gemelo aprenda (RF-48)."""
+    from ..digital_twin.buffer import BuferEpisodios
+
+    if decision not in ('aceptada', 'rechazada', 'modificada'):
+        raise UserError('La decisión es «aceptada», «rechazada» o «modificada».')
+    return BuferEpisodios().registrar_decision({'project': project.strip(), 'codigo': codigo.strip(),
+                                                'decision': decision, 'comentario': comentario.strip()})
+
+
 def gemelo_episodios(ws: Workspace, filtros: dict[str, str | None]) -> list[dict]:
     """Episodios del búfer de los proyectos vinculados en este espacio (024:RF-8).
 

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import traceback
 from pathlib import Path
 
@@ -141,6 +142,15 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
         lectura['flujo'] = None
         lectura['avisos'].append('el flujo no converge tras reabrir')
         return lectura, 2
+    lectura['flujo'] = resultados(app, proyecto, raiz, lectura['feeders'])
+    return lectura, 0
+
+
+def resultados(app, proyecto, raiz: str, feeders: list[str]) -> dict:
+    """El flujo ya calculado, con unidades, en la forma del episodio (RF-28).
+
+    La usa también ``tools/pide_pf.py`` en cada año del horizonte (RF-53).
+    """
     # Una barra a 0 p.u. no tiene subtensión: está en una isla sin fuente. En la copia de
     # IN111–TA225 (2026-10-21) eran 392 de 2470 barras y la mínima salía «0,0 p.u.».
     tensiones, sin_tension = {}, []
@@ -156,25 +166,28 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
         for o in app.GetCalcRelevantObjects(f'*.{clase}'):
             if (pct := _num(o, 'c:loading')) is not None:
                 carga[grupo][identidad_nativa(clase, clave_pf(o), raiz)] = pct
-    cabeceras, perdidas = {}, 0.0
+    cabeceras, fps, perdidas = {}, {}, 0.0
     elms = {f.loc_name: f for f in proyecto.GetContents('*.ElmFeeder', 1)}
-    for feeder in lectura['feeders']:
+    for feeder in feeders:
         elm = elms.get(feeder)
-        m = medida(elm, app if len(lectura['feeders']) == 1 else None) if elm is not None else {}
+        m = medida(elm, app if len(feeders) == 1 else None) if elm is not None else {}
         cabeceras[feeder] = m.get('cabecera_kw')
+        kw, kvar = m.get('cabecera_kw'), m.get('cabecera_kvar')
+        # El FP de cabecera dice si una caída es de compensación reactiva (RF-50).
+        fps[feeder] = (abs(kw) / math.hypot(kw, kvar)
+                       if kw is not None and kvar is not None and (kw or kvar) else None)
         if perdidas is not None and m.get('perdidas_kw') is not None:
             perdidas += m['perdidas_kw']
         else:
             perdidas = None
-    lectura['flujo'] = {
-        'balance': {'unidad': 'kW', 'valores': {'cabeceras': cabeceras}},
+    return {
+        'balance': {'unidad': 'kW', 'valores': {'cabeceras': cabeceras}, 'fp_cabeceras': fps},
         'perdidas': ({'unidad': 'kW', 'valores': {'total': perdidas}} if perdidas is not None
                      else {'ausente': 'falta la cabecera o el consumo de algún alimentador'}),
         'cargabilidad': {'unidad': '%', 'valores': carga},
         'tensiones': {'unidad': 'p.u.', 'valores': tensiones, 'sin_tension': sorted(sin_tension)},
         'confiabilidad': {'ausente': 'la lectura no calcula confiabilidad (spec 012)'},
     }
-    return lectura, 0
 
 
 def main(argv=None) -> int:

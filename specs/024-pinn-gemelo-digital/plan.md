@@ -94,3 +94,30 @@ alternativas del PIDE (RF-32) que entraron en la spec al aprobarla.
 - Un cambio en los estados de `native_action.py` rompería la puerta del proyecto nativo: solo se
   añaden helpers y `test_native_project_gate.py` corre en cada tarea que lo toque.
 - El búfer crece sin límite: retención sin borrado decidida en la spec; se informa el tamaño.
+
+---
+
+# Plan — entregas siguientes (T10 a T14)
+
+Usuario, 2026-10-22: «has lo que falta, nada debe quedar pendiente»; «seguir sin parar»,
+PyTorch con GPU (RTX 4060, CUDA 12.6), datos buscados en la web y tasa del 12 %. Orden:
+T13 → T14 → T10 → T11 → T12, porque el plan del PIDE y su economía no dependen de los
+modelos y los modelos necesitan los escenarios.
+
+| Parte | Ficheros | Cubre |
+| --- | --- | --- |
+| T13. Metodología del PIDE | `src/igea_dgs/pide.py` (puro): mercado y densidad por cuadrículas, diagnóstico con causa, año de incumplimiento, plan por etapas, formatos 01 a 15 en Excel; `tools/pide_pf.py`: cada año del horizonte en DIgSILENT con el factor de escala de cargas del `ComLdf`, restituido al terminar | RF-49 a RF-53, RF-60 a RF-63 |
+| T14. Economía y priorización | `src/igea_dgs/pide_economia.py` (puro): libro CAPEX por nombres del perfil, CI por componente, anualidad, costo anual, VAN y TIR regulados, flujo de caja privado con tarifas, indicadores, priorización del art. 15, sobredimensionadas, rubros; `services`: propuestas propias verificadas y aplicadas con las obras de la 011 | RF-23, RF-33 a RF-36, RF-38, RF-45 a RF-48, RF-54 a RF-59 |
+| T10. Escenarios y aprendizaje activo | `src/igea_dgs/digital_twin/escenarios.py` (puro: matriz, partición por familia, elección por incertidumbre); `tools/escenarios_pf.py`: copia del proyecto, escala y tramos abiertos, lectura y episodio `counterfactual`, copia borrada | RF-11, RF-12, RF-40, RF-41 |
+| T11. Oráculo PINN/GNN | `src/igea_dgs/digital_twin/oraculo.py` (PyTorch opcional): grafo con impedancias, GNN con pérdida física de balance nodal, conjunto de modelos para la incertidumbre, fuera de distribución, registro y promoción con puertas | RF-13 a RF-19, RF-39, RF-42 a RF-44 |
+| T12. Gemelo temporal | `src/igea_dgs/digital_twin/temporal.py`: GRU sobre las curvas de cabecera del mes, pseudo-medidas de los alimentadores sin medidor con la barra de su SET | RF-20 a RF-22, RF-37 |
+
+Decisiones:
+- Los años se verifican escalando las cargas con el `ComLdf` y no con variaciones: no deja
+  nada en el proyecto. Descartado: una variación por año, que el operador tendría que borrar.
+- Los escenarios se simulan en una copia del proyecto que se borra al terminar (memoria
+  «no probar con datos inventados»: nunca SED inventadas, solo escala y maniobras).
+- Pesos del art. 15.3 iguales mientras el perfil no diga otros; la norma no los fija.
+- COyM como fracción del CI del perfil; sin ella, el costo anual se da sin COyM y se avisa.
+- PyTorch es el extra `ml`: sin él, el oráculo y el gemelo temporal dicen que falta y el
+  resto funciona (RNF «Compatible»).

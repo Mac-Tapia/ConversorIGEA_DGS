@@ -58,15 +58,26 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `grep -rnoE "024:RF-[0-9]+" tests | sort -u` lista los RF de esta entrega.
       Hecho el 2026-10-22: RF-1 a RF-10 y RF-24 a RF-32 citados por pruebas en verde.
 
-## Entregas siguientes (cada una con su plan, sin empezar)
+## Entregas siguientes (plan en plan.md, 2026-10-22)
 
 - [ ] T10. Generador de escenarios y aprendizaje activo en copias del proyecto, con presupuesto
       de licencia. (RF-11, RF-12, RF-40, RF-41)
+      Hecho cuando: `pytest -q tests/test_digital_twin_escenarios.py en verde`.
 - [ ] T11. Oráculo PINN/GNN del estado eléctrico con incertidumbre, entrenamiento, registro y
-      promoción automática con puertas. (RF-13 a RF-19, RF-39, RF-42 a RF-44)
+      promoción automática con puertas; ordenar y proponer con el oráculo. (RF-13 a RF-19, RF-23,
+      RF-35, RF-36, RF-38, RF-39, RF-42 a RF-44)
+      Hecho cuando: `pytest -q tests/test_digital_twin_oraculo.py en verde, en GPU si la hay`.
 - [ ] T12. Gemelo temporal (RNN) con las curvas del mes y pseudo-medidas. (RF-20 a RF-22, RF-37)
-- [ ] T13. Diagnóstico, mercado y plan por etapas de la norma del PIDE. (RF-49 a RF-53, RF-60 a
+      Hecho cuando: `pytest -q tests/test_digital_twin_temporal.py en verde`.
+- [x] T13. Diagnóstico, mercado y plan por etapas de la norma del PIDE. (RF-49 a RF-53, RF-60 a
       RF-63)
-- [ ] T14. Evaluación económica (art. 14, tarifas, tasa privada), priorización del art. 15,
-      libro CAPEX y propuestas e implementación propias. (RF-23, RF-33 a RF-36, RF-38, RF-45 a
-      RF-48, RF-54 a RF-59)
+      Hecho cuando: `pytest -q tests/test_pide.py tests/test_pide_pf.py en verde`.
+      Hecho el 2026-10-22: probado en DIgSILENT con IN111–TA225 («Sin proyecto», años 00, 04 y 08 al 3 %
+      de prueba): la mínima baja de 0,765 a 0,632 p.u. y el factor del `ComLdf` se restituye.
+- [x] T14. Evaluación económica (art. 14, tarifas, tasa privada), priorización del art. 15,
+      libro CAPEX y propuestas e implementación propias. (RF-33, RF-34, RF-45 a RF-48, RF-54 a
+      RF-59)
+      Hecho cuando: `pytest -q tests/test_pide_economia.py tests/test_pide_web.py en verde`.
+      Hecho el 2026-10-22: pliego de Electro Dunas del 2026-10-04 y NTCSER en el perfil; bancos y ternas
+      se aplican solos tras simularlos; el resto queda propuesto con su motivo. Faltan en el perfil
+      `crecimiento_demanda_anual`, `factor_carga` y `precio_compra_kwh`: sin ellos se avisa (RF-58e).
