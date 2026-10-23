@@ -1,5 +1,5 @@
 {
-  "_comentario": "Tabla pública «Sistemas eléctricos Electrodunas» (referencia/SISTEMAS ELECTRICOS ELECTRODUNAS 1.pdf, 2026). Spec 022: zonal → SET → alimentadores con su sistema eléctrico. Todos se integran, también los que la tabla marca fuera de servicio (RF-13). Las siglas son las de los medidores de barra de medidoralimentador.xlsx (RF-38); SI es SEIN (RF-46). La SET 35 Pampa de Ocas (PO101) es nueva y la tabla de 2026 aún no la trae: la dio el operador el 2026-10-23, sin sistema eléctrico hasta que la tabla lo asigne.",
+  "_comentario": "Tabla pública «Sistemas eléctricos Electrodunas» (referencia/SISTEMAS ELECTRICOS ELECTRODUNAS 1.pdf, 2026). Spec 022: zonal → SET → alimentadores con su sistema eléctrico. Todos se integran, también los que la tabla marca fuera de servicio (RF-13). Las siglas son las de los medidores de barra de medidoralimentador.xlsx (RF-38); SI es SEIN (RF-46). La SET 35 Pampa de Ocas (PO101, sistema Pisco) y la SET Chincha Nueva (CN101 a CN201, sistema Chincha; llega en la entrega RED_231026) son nuevas y la tabla de 2026 aún no las trae: las dio el operador el 2026-10-23 (022:RF-79, RF-80).",
   "sistemas": {
     "SE0043": {"nombre": "Chincha", "sector": "2", "norma": "NTCSE"},
     "SE1043": {"nombre": "Chincha Baja Densidad", "sector": "2", "norma": "NTCSE"},
@@ -43,7 +43,10 @@
       {"codigo": "SET 25", "nombre": "Pedregal", "siglas": ["PE"], "alimentadores": [
         {"codigo": "PE101", "sistema": "SE1043"}, {"codigo": "PE102", "sistema": "SE1043"},
         {"codigo": "PE103", "sistema": "SE0043"}, {"codigo": "PE104", "sistema": "SE0043"},
-        {"codigo": "PE105", "sistema": "SE0043"}, {"codigo": "PE106", "sistema": "SE1043"}]}]},
+        {"codigo": "PE105", "sistema": "SE0043"}, {"codigo": "PE106", "sistema": "SE1043"}]},
+      {"codigo": "SET CHN", "nombre": "Chincha Nueva", "siglas": ["CN"], "alimentadores": [
+        {"codigo": "CN101", "sistema": "SE0043"}, {"codigo": "CN102", "sistema": "SE0043"},
+        {"codigo": "CN103", "sistema": "SE0043"}, {"codigo": "CN201", "sistema": "SE0043"}]}]},
     {"nombre": "Pisco", "sets": [
       {"codigo": "SET 31", "nombre": "Pisco", "siglas": ["PI"], "alimentadores": [
         {"codigo": "PI101", "sistema": "SE0046"}, {"codigo": "PI102", "sistema": "SE0046"},
@@ -62,7 +65,7 @@
       {"codigo": "SET 34", "nombre": "", "siglas": [], "alimentadores": [
         {"codigo": "CHI201", "sistema": "SE0051"}]},
       {"codigo": "SET 35", "nombre": "Pampa de Ocas", "siglas": ["PO"], "alimentadores": [
-        {"codigo": "PO101", "sistema": ""}]}]},
+        {"codigo": "PO101", "sistema": "SE0046"}]}]},
     {"nombre": "Ica", "sets": [
       {"codigo": "SEICA", "nombre": "", "siglas": [], "alimentadores": [
         {"codigo": "IC103", "sistema": "SE0044"}, {"codigo": "IC104", "sistema": "SE0044"},

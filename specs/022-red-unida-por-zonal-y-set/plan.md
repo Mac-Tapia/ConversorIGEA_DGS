@@ -99,6 +99,27 @@ Estado: borrador · Fecha: 2026-10-17 · Spec: [spec.md](spec.md)
    - Descartado: un DGS por SET. Rompe el proyecto único y la calibración por sistema
      (RF-51, RF-52); con redes en un solo proyecto, guiones e importación no cambian (RF-69).
 
+10. **SET y alimentadores nuevos de la entrega** (2026-10-23) — `estructura.py`,
+    `inventory.py`, `web/services.py`, `cli.py` y la estructura del perfil. (RF-71 a RF-80)
+   - `estructura.completar(estructura, cabeceras)` devuelve una `Estructura` nueva con los
+     alimentadores de la entrega que faltaban, colocados por siglas (RF-71, RF-72) o en una
+     SET deducida (RF-73) del zonal de la cabecera conocida más cercana (RF-74), y
+     `Estructura.deducidos` (alimentador → regla) para el aviso (RF-78). La de entrada no
+     cambia. Una pasada por la entrega y una por la estructura (escala); el orden, el de
+     los códigos (determinismo).
+   - La cercanía de RF-74 compara distancias en las unidades de la fuente, sin umbral:
+     vale igual en UTM que en grados, y no hace falta el CRS.
+   - Las cabeceras salen del inventario: `build_dataset_inventory` añade a cada fila
+     `cabecera_xy` (CoordX, CoordY del nodo de la fuente), común a TXT, MDB y VNR-GIS, que
+     llegan todas como `CymdistDataset` (RF-77).
+   - Web: `estructura_del_espacio` completa la estructura con el inventario del espacio; la
+     usan el resumen, la selección por zonal, la conversión y la calibración. CLI: igual
+     con el dataset leído. Lo que todos ven es ya la estructura completada, así que `asignar`,
+     `estructurar`, el DGS y el oráculo no cambian.
+   - Descartado: un umbral en metros para unir un alimentador a la SET más cercana. Sin CRS
+     las unidades no se saben (constitución 13), y la cabecera de CN101 está a 6,5 km de la
+     de El Carmen pero es otra SET: la distancia no distingue SET; las siglas sí.
+
 ## Pruebas
 
 - Sintéticas sorteadas (semilla) con un número variable de zonales, SET y alimentadores;

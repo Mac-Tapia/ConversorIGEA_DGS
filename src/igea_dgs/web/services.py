@@ -1094,7 +1094,9 @@ def estructura_resumen(ws: Workspace) -> dict:
     entrega, _ids = resolve_selection(ws, [], all_feeders=True)
     a = asignar(e, entrega)
     origen = 'excel' if ((ws.demanda or {}).get('estructura') or {}).get('path') else 'perfil'
-    return {'origen': origen, 'sin_set': a.sin_set, 'zonales': [
+    deducidos = [{'alimentador': f, 'set': e.set_de(f).codigo, 'zonal': e.set_de(f).zonal,
+                  'regla': e.deducidos[f]} for f in sorted(a.set_de) if f in e.deducidos]
+    return {'origen': origen, 'sin_set': a.sin_set, 'deducidos': deducidos, 'zonales': [
         {'nombre': z, 'sets': sorted({s for f, s in a.set_de.items() if e.sets[s].zonal == z}),
          'alimentadores': sorted(f for f, s in a.set_de.items() if e.sets[s].zonal == z)}
         for z in a.zonales]}
@@ -2055,11 +2057,18 @@ def estructura_del_espacio(ws: Workspace):
     from ..estructura import EstructuraError, leer_tabla_excel
     from ..perfil_empresa import PerfilError, estructura_empresa
 
+    from ..estructura import cabeceras_de_inventario, completar
+
     ruta = ((ws.demanda or {}).get('estructura') or {}).get('path')
     try:
-        return leer_tabla_excel(ruta) if ruta else estructura_empresa()
+        e = leer_tabla_excel(ruta) if ruta else estructura_empresa()
     except (EstructuraError, PerfilError) as exc:
         raise UserError(f'Estructura de la empresa: {exc}') from exc
+    # 022:RF-77: con los alimentadores de la entrega que la tabla aún no trae (Chincha
+    # Nueva en RED_231026); un espacio cargado antes de RF-74 no tiene sus cabeceras y
+    # solo coloca los de siglas conocidas hasta que se vuelve a cargar.
+    filas = (ws.inventory or {}).get('feeders') or []
+    return completar(e, cabeceras_de_inventario(filas)) if e is not None and filas else e
 
 
 def _kv_alimentadores(ws: Workspace) -> dict[str, float]:
