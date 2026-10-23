@@ -58,10 +58,11 @@ def assignments_from_model(model: Any, dgs_manifest: Any) -> list[FeederAssignme
     loads_by_key = {(load.section_id, load.device_number): load for load in model.loads}
     seds_by_key = {sed.load_key: sed for sed in model.seds}
     assignments: list[FeederAssignment] = []
-    # Spec 022: en la red unida por SET cada objeto está en la red de su zonal.
-    from .combine import zonal_de_nodos
+    # Spec 022: en la red unida por SET cada objeto está en la red de su zonal, o de su SET
+    # en un zonal dividido (RF-64, RF-69).
+    from .combine import red_de_nodos
 
-    zonales = zonal_de_nodos(model)
+    zonales = red_de_nodos(model)
 
     def grid(node_id: str) -> str:
         return _loc_name(zonales.get(node_id) or model.name)

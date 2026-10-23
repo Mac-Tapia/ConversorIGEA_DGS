@@ -101,6 +101,9 @@ class BarraSet:
     nominal_kv: float
     node_id: str
     feeders: tuple[str, ...]
+    red: str = ''
+    """La red (``ElmNet``) en la que va: su zonal, o «zonal + SET» en un zonal dividido
+    por SET (022:RF-64, RF-66)."""
 
     @property
     def rotulo(self) -> str:
@@ -161,6 +164,9 @@ class CombinedInfo:
 
     sistema_de: dict[str, str] = field(default_factory=dict)
     """Spec 022: alimentador → código de su sistema eléctrico (RF-15)."""
+
+    red_de: dict[str, str] = field(default_factory=dict)
+    """Spec 022: alimentador → nombre de su red, el de la barra de su SET (RF-64)."""
 
     sin_set: list[str] = field(default_factory=list)
     """Spec 022: alimentadores de la entrega que no están en la estructura (RF-19)."""
@@ -628,9 +634,12 @@ def estructurar(combinado: FeederModel, estructura, asignacion=None) -> list[str
         combinado.nodes[barra] = Node(barra, x, y)
         info.node_kv[barra] = kv
         info.feeder_of_node[barra] = [r.name for r in refs]
+        # 022:RF-64, RF-66, RF-67: en un zonal dividido, la red de su SET; si no, la del zonal.
+        red = f'{st.zonal} {st.rotulo}' if st.zonal in estructura.zonales_por_set else st.zonal
         info.barras_set.append(BarraSet(codigo, st.nombre, st.zonal, kv, barra,
-                                        tuple(r.name for r in refs)))
+                                        tuple(r.name for r in refs), red))
         for r in refs:
+            info.red_de[r.name] = red
             nombre = f'CAB_{r.name}'
             combinado.couplers.append(Coupler(
                 name=nombre, node_a=barra, node_b=r.source_node, on_off=1, kind='cabecera',
@@ -640,19 +649,33 @@ def estructurar(combinado: FeederModel, estructura, asignacion=None) -> list[str
     return avisos
 
 
-def zonal_de_nodos(model: FeederModel) -> dict[str, str]:
-    """Nodo → zonal de su red en el DGS unido por SET (022:RF-8); vacío sin estructura.
-
-    El de su primer alimentador, o «Sin SET»; las barras de SET, el de su SET. Lo usan el
-    escritor DGS y la metadata por alimentador, que nombra la red de cada objeto.
-    """
+def redes_en_orden(model: FeederModel) -> list[str]:
+    """Las redes del DGS unido por SET, en el orden zonal → SET → tensión, y «Sin SET» al
+    final si hace falta (022:RF-8, RF-19, RF-64); vacío sin estructura (RF-6)."""
     info = getattr(model, 'combined', None)
     if info is None or not info.barras_set:
+        return []
+    return list(dict.fromkeys([b.red or b.zonal for b in info.barras_set]
+                              + (['Sin SET'] if info.sin_set else [])))
+
+
+def red_de_nodos(model: FeederModel) -> dict[str, str]:
+    """Nodo → nombre de su red en el DGS unido por SET (022:RF-8, RF-64); vacío sin
+    estructura.
+
+    La de su alimentador, o «Sin SET»; las barras de SET, la de su SET. Un nodo de varios
+    alimentadores va en la red que va antes (RF-68): la de la SET de menor código. Lo usan
+    el escritor DGS y la metadata por alimentador, que nombra la red de cada objeto.
+    """
+    orden = {r: i for i, r in enumerate(redes_en_orden(model))}
+    if not orden:
         return {}
+    info = model.combined
     out: dict[str, str] = {}
     for nodo, alims in sorted(info.feeder_of_node.items()):
         if alims:
-            out[nodo] = info.zonal_de.get(alims[0], '') or 'Sin SET'
+            out[nodo] = min((info.red_de.get(a, '') or 'Sin SET' for a in alims),
+                            key=lambda r: orden.get(r, len(orden)))
     for b in info.barras_set:
-        out[b.node_id] = b.zonal
+        out[b.node_id] = b.red or b.zonal
     return out

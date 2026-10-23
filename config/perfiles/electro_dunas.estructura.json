@@ -1,5 +1,5 @@
 {
-  "_comentario": "Tabla pública «Sistemas eléctricos Electrodunas» (referencia/SISTEMAS ELECTRICOS ELECTRODUNAS 1.pdf, 2026). Spec 022: zonal → SET → alimentadores con su sistema eléctrico. Todos se integran, también los que la tabla marca fuera de servicio (RF-13). Las siglas son las de los medidores de barra de medidoralimentador.xlsx (RF-38); SI es SEIN (RF-46).",
+  "_comentario": "Tabla pública «Sistemas eléctricos Electrodunas» (referencia/SISTEMAS ELECTRICOS ELECTRODUNAS 1.pdf, 2026). Spec 022: zonal → SET → alimentadores con su sistema eléctrico. Todos se integran, también los que la tabla marca fuera de servicio (RF-13). Las siglas son las de los medidores de barra de medidoralimentador.xlsx (RF-38); SI es SEIN (RF-46). La SET 35 Pampa de Ocas (PO101) es nueva y la tabla de 2026 aún no la trae: la dio el operador el 2026-10-23, sin sistema eléctrico hasta que la tabla lo asigne.",
   "sistemas": {
     "SE0043": {"nombre": "Chincha", "sector": "2", "norma": "NTCSE"},
     "SE1043": {"nombre": "Chincha Baja Densidad", "sector": "2", "norma": "NTCSE"},
@@ -60,7 +60,9 @@
         {"codigo": "SI112", "sistema": "SE1046"}, {"codigo": "SI213", "sistema": "SE1046"},
         {"codigo": "SI114", "sistema": "SE1046"}]},
       {"codigo": "SET 34", "nombre": "", "siglas": [], "alimentadores": [
-        {"codigo": "CHI201", "sistema": "SE0051"}]}]},
+        {"codigo": "CHI201", "sistema": "SE0051"}]},
+      {"codigo": "SET 35", "nombre": "Pampa de Ocas", "siglas": ["PO"], "alimentadores": [
+        {"codigo": "PO101", "sistema": ""}]}]},
     {"nombre": "Ica", "sets": [
       {"codigo": "SEICA", "nombre": "", "siglas": [], "alimentadores": [
         {"codigo": "IC103", "sistema": "SE0044"}, {"codigo": "IC104", "sistema": "SE0044"},
@@ -84,7 +86,7 @@
         {"codigo": "SL143", "sistema": "SE0044"}, {"codigo": "SL144", "sistema": "SE2044"},
         {"codigo": "SL145", "sistema": "SE2044"}, {"codigo": "SL146", "sistema": "SE0044"},
         {"codigo": "SL201", "sistema": "SE0044"}]}]},
-    {"nombre": "Nasca", "sets": [
+    {"nombre": "Nasca", "dividir_por_set": true, "sets": [
       {"codigo": "SET 51", "nombre": "Nasca", "siglas": ["NA"], "alimentadores": [
         {"codigo": "NA101", "sistema": "SE1045"}, {"codigo": "NA102", "sistema": "SE1045"},
         {"codigo": "NA203", "sistema": "SE2045"}, {"codigo": "NA104", "sistema": "SE2045"},

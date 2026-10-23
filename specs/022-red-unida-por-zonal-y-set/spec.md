@@ -237,6 +237,26 @@ fuera de servicio y sin medidor, a 15 m de TM105)
   proyecto una sola vez (Chincha, 2026-10-18: CA101, PE102 y PN103 no convergían por sus
   fijas sobre transformadores pequeños; uno a uno, cada uno recalibraba el sistema).
 
+Una red por SET en un zonal grande (usuario, 2026-10-23: «el sistema eléctrico Nasca hay que
+dividirlo por sus SET; la hoja en DIgSILENT no alcanza; mejor por SET». El zonal Nasca va de
+la costa a la sierra, de SET 51 Nasca a SET 56, y su diagrama único no cabe en la hoja)
+
+- RF-64: DONDE la estructura marca un zonal como dividido por SET, EL SISTEMA pondrá en ese
+  zonal una red (`ElmNet`) por cada SET con alimentadores en la entrega, en lugar de la red
+  del zonal de RF-8.
+- RF-65: EL SISTEMA dará a cada red de RF-64 su propio diagrama, con la hoja a la medida de
+  esa SET y sus alimentadores.
+- RF-66: EL SISTEMA nombrará cada red de RF-64 con su zonal y su SET («Nasca SET 52
+  Llipata»).
+- RF-67: MIENTRAS un zonal no esté marcado como dividido por SET, EL SISTEMA mantendrá una
+  sola red para todo el zonal (RF-8).
+- RF-68: EL SISTEMA pondrá cada punto de enlace entre dos SET de un zonal dividido en la red
+  de la SET de menor código, abierto (RF-27) y dibujado en su diagrama.
+- RF-69: EL SISTEMA importará, verificará el «Caso base» y calibrará por sistema eléctrico un
+  proyecto con redes por SET igual que uno con una red por zonal.
+- RF-70: La estructura del perfil de Electro Dunas marcará el zonal Nasca como dividido por
+  SET.
+
 Informe
 
 - RF-25b: EL SISTEMA omitirá una SET, un sistema eléctrico o un zonal de la estructura que
@@ -284,6 +304,9 @@ Informe
 - Asignar cada alimentador al transformador T1 o T2 de su SET: la barra de cada tensión
   suma los medidores de sus transformadores (RF-39).
 - Un DGS por zonal además del unido.
+- Marcar un zonal como dividido por SET desde la tabla de Excel subida en la web: la marca
+  va en la estructura del perfil.
+- Dividir por SET el proyecto ya importado: hay que importar el DGS nuevo.
 
 ## Criterios de finalización
 

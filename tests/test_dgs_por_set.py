@@ -1,6 +1,10 @@
 """Spec 022, T6: el DGS de la red unida por zonal y SET."""
 from __future__ import annotations
 
+import os
+import random
+from dataclasses import replace
+
 from igea_dgs.combine import combine_models, estructurar
 from igea_dgs.dgs import write_dgs
 from igea_dgs.enlaces import abrir_caminos_cerrados
@@ -125,3 +129,140 @@ def test_los_nombres_con_tilde_llegan_a_digsilent(tmp_path):
     assert 'SET 46 Señor de Luren' in {r['loc_name'] for r in t['ElmSubstat']}
     assert 'SE0051 Huaytará - Chocorvos' in {r['loc_name'] for r in t['ElmZone']}
     assert 'Señor'.encode('cp1252') in out.read_bytes()
+
+
+# --------------------------------------------------------------- 022:RF-64 a RF-70
+SEMILLA = int(os.environ.get('IGEA_SCALE_SEED', random.randrange(1 << 30)))
+
+
+def _dividida(rng):
+    """Un zonal «Norte» dividido por SET, con un número sorteado de SET y alimentadores,
+    y otro «Sur» sin dividir con dos SET. Devuelve la estructura y los alimentadores por SET."""
+    por_set = {f'SET {i}': [f'N{i}{j}' for j in range(rng.randint(1, 3))]
+               for i in range(1, rng.randint(2, 5) + 1)}
+    por_set.update({'SET 8': ['S1'], 'SET 9': ['S2']})
+    e = estructura_de_dict({'zonales': [
+        {'nombre': 'Norte', 'dividir_por_set': True, 'sets': [
+            {'codigo': s, 'nombre': f'Nombre{s[-1]}', 'alimentadores': [{'codigo': a} for a in alims]}
+            for s, alims in por_set.items() if s not in ('SET 8', 'SET 9')]},
+        {'nombre': 'Sur', 'sets': [
+            {'codigo': s, 'nombre': '', 'alimentadores': [{'codigo': a} for a in por_set[s]]}
+            for s in ('SET 8', 'SET 9')]}]})
+    return e, por_set
+
+
+def _geografia(red):
+    """El mapa de la red unida, de las coordenadas de sus nodos: hace falta para escribir
+    los diagramas."""
+    from igea_dgs.geography import GeoLine, GeoPoint, GeographyManifest
+
+    def punto(n):
+        nodo = red.nodes[n]
+        return GeoPoint(-13.0 + nodo.y / 1e5, -76.0 + nodo.x / 1e5, nodo.x, nodo.y)
+
+    nodos = {n: punto(n) for n in red.nodes}
+    lineas = {ln.section_id: GeoLine(ln.section_id, ln.from_node, ln.to_node,
+                                     (nodos[ln.from_node], nodos[ln.to_node])) for ln in red.lines}
+    lat = [p.lat for p in nodos.values()]
+    lon = [p.lon for p in nodos.values()]
+    return GeographyManifest(red.name, red.network_id, red.source_node, 'EPSG:32718', 'EPSG:4326',
+                             nodos, lineas, (0, 0, 0, 0), (min(lon), min(lat), max(lon), max(lat)), 0, 0)
+
+
+def _red_dividida(rng):
+    e, por_set = _dividida(rng)
+    modelos = []
+    for k, a in enumerate(a for alims in por_set.values() for a in alims):
+        # Cada alimentador lejos de los demás: el diagrama de cada SET tiene su recuadro.
+        m = _alimentador(a, 10.0, [f'{a}_H', f'{a}_1'], con_carga=f'{a}_1')
+        # Con su alimentador en la carga y la SED, como los deja el lector: la metadata lo exige.
+        de = {'feeder': a, 'network_id': m.network_id}
+        modelos.append(replace(m, nodes={i: replace(n, y=10_000.0 * k) for i, n in m.nodes.items()},
+                               loads=[replace(x, **de) for x in m.loads],
+                               seds=[replace(x, **de) for x in m.seds]))
+    red, _ = combine_models(modelos)
+    estructurar(red, e)
+    abrir_caminos_cerrados(red)
+    return red, por_set
+
+
+def _nombre_red(s):
+    return 'Sur' if s in ('SET 8', 'SET 9') else f'Norte {s} Nombre{s[-1]}'
+
+
+def test_un_zonal_dividido_tiene_una_red_por_set(tmp_path):
+    """022:RF-64, 022:RF-66, 022:RF-67 — el zonal marcado tiene una red por SET, con su zonal y
+    su SET en el nombre; el que no, una sola; cada SET y cada alimentador, en la suya."""
+    red, por_set = _red_dividida(random.Random(SEMILLA))
+    _out, t = _tablas(tmp_path, red)
+    redes = {r['loc_name']: r['FID'] for r in t['ElmNet']}
+    assert set(redes) == {_nombre_red(s) for s in por_set}, f'semilla {SEMILLA}'
+    sets = {r['loc_name']: r for r in t['ElmSubstat'] if r['loc_name'].startswith('SET')}
+    terms = {r['loc_name']: r for r in t['ElmTerm']}
+    for s, alims in por_set.items():
+        rotulo = s if s in ('SET 8', 'SET 9') else f'{s} Nombre{s[-1]}'
+        assert sets[rotulo]['fold_id'] == redes[_nombre_red(s)]
+        for a in alims:
+            assert terms[f'{a}_H']['fold_id'] == redes[_nombre_red(s)], (a, f'semilla {SEMILLA}')
+
+
+def test_cada_red_por_set_con_su_diagrama(tmp_path):
+    """022:RF-65 — cada red tiene su diagrama, y cada cabecera se dibuja en el de su red:
+    DIgSILENT dimensiona cada hoja con el recuadro de sus gráficos, a la medida de su SET."""
+    red, _por_set = _red_dividida(random.Random(SEMILLA))
+    out = tmp_path / 'g.dgs'
+    write_dgs(red, out, geography=_geografia(red))
+    t = {k: v['rows_dict'] for k, v in parse_dgs(out).items()}
+    redes = {r['FID']: r for r in t['ElmNet']}
+    diagramas = {r['FID']: r for r in t['IntGrfnet']}
+    assert len(diagramas) == len(redes)
+    assert {r['pDiagram'] for r in redes.values()} == set(diagramas)
+    assert {d['pDataFolder'] for d in diagramas.values()} == set(redes)
+    terms = {r['FID']: r for r in t['ElmTerm']}
+    for g in t['IntGrf']:
+        term = terms.get(g['pDataObj'])
+        if term is not None and term['loc_name'].endswith('_H'):
+            assert diagramas[g['fold_id']]['pDataFolder'] == term['fold_id'], f'semilla {SEMILLA}'
+
+
+def test_el_enlace_entre_dos_set_va_en_la_de_menor_codigo(tmp_path):
+    """022:RF-68 — un enlace entre alimentadores de dos SET de un zonal dividido va abierto en
+    la red de la SET de menor código y en su diagrama, sea cual sea el orden de la unión."""
+    e = estructura_de_dict({'zonales': [{'nombre': 'Norte', 'dividir_por_set': True, 'sets': [
+        {'codigo': 'SET 1', 'nombre': 'Uno', 'alimentadores': [{'codigo': 'A'}]},
+        {'codigo': 'SET 2', 'nombre': 'Dos', 'alimentadores': [{'codigo': 'B'}]}]}]})
+    for orden in (['B', 'A'], ['A', 'B']):
+        modelos = {'A': _alimentador('A', 10.0, ['A_H', 'A_1', 'T']),
+                   'B': _alimentador('B', 10.0, ['B_H', 'B_1', 'T'])}
+        red, _ = combine_models([modelos[a] for a in orden])
+        estructurar(red, e)
+        abrir_caminos_cerrados(red)
+        assert red.combined.ties, 'el nodo compartido es un punto de enlace'
+        out = tmp_path / f'{"".join(orden)}.dgs'
+        write_dgs(red, out, geography=_geografia(red))
+        t = {k: v['rows_dict'] for k, v in parse_dgs(out).items()}
+        redes = {r['loc_name']: r['FID'] for r in t['ElmNet']}
+        assert set(redes) == {'Norte SET 1 Uno', 'Norte SET 2 Dos'}
+        enlace = next(r for r in t['ElmCoup'] if r['loc_name'] == red.combined.ties[0].name)
+        assert enlace['fold_id'] == redes['Norte SET 1 Uno'] and enlace['on_off'] == '0', orden
+        diag = {r['FID']: r['pDataFolder'] for r in t['IntGrfnet']}
+        g = next(r for r in t['IntGrf'] if r['pDataObj'] == enlace['FID'])
+        assert diag[g['fold_id']] == redes['Norte SET 1 Uno'], orden
+
+
+def test_la_metadata_y_el_manifiesto_nombran_la_red_de_su_set(tmp_path):
+    """022:RF-69 — la importación, la verificación y la calibración buscan las redes por el
+    manifiesto y cada objeto por la red de su metadata: los dos nombran la red de su SET."""
+    from igea_dgs.feeder_metadata import assignments_from_model
+    from igea_dgs.geography import geography_to_dict
+
+    red, por_set = _red_dividida(random.Random(SEMILLA))
+    out = tmp_path / 'm.dgs'
+    geo = _geografia(red)
+    manifiesto = write_dgs(red, out, geography=geo)
+    redes = {r['loc_name'] for r in parse_dgs(out)['ElmNet']['rows_dict']}
+    assert set(geography_to_dict(geo, red)['redes']) == redes
+    grid = {a.feeder: a.grid for a in assignments_from_model(red, manifiesto) if a.class_name == 'ElmLod'}
+    for s, alims in por_set.items():
+        for a in alims:
+            assert grid[a] == _nombre_red(s), (a, f'semilla {SEMILLA}')
