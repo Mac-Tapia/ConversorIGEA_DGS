@@ -131,7 +131,7 @@ const centralCompleta = (c?: CentralTermica) => Boolean(c && c.generacion && c.l
  * el ajuste de las demandas a la máxima (spec 006) va aparte, en ``AjusteCabecera``.
  */
 export function DemandaMedida({ project, feeders }: { project: string; feeders: string[] }) {
-  const { ws, run, startJob, active, jobs } = useApp();
+  const { ws, run, startJob, active, jobs, refresh } = useApp();
   // Medidores del libro por alimentador marcado; ``null``: no está en el libro (RF-9).
   const [porAlim, setPorAlim] = useState<Record<string, string[] | null>>({});
   const [elegidos, setElegidos] = useState<Par[]>([]);
@@ -139,6 +139,7 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   const [otroCodigo, setOtroCodigo] = useState<Record<string, string>>({});
   const [lista, setLista] = useState<string[]>([]);
   const [buscando, setBuscando] = useState(false);
+  const [cruzando, setCruzando] = useState(false);
   const [cruce, setCruce] = useState<ClientesCruce | null>(null);
   // Spec 006, RF-25/RF-26: Nis desmarcados en la tabla del cruce; vacío, todos conectados.
   const [desconectados, setDesconectados] = useState<Set<string>>(new Set());
@@ -278,9 +279,17 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   });
   const opcionesExternas = externos?.medidores ?? [];
   // RF-11: los clientes de los alimentadores marcados.
+  // Abrir libros de 50 a 150 MB tarda; sin «Cruzando…» el botón parecía no hacer nada.
   const cruzar = async () => {
-    const r = await run(() => api.demandaClientes(ws.id, feeders, periodo || undefined));
-    if (r) { setCruce(r); setDesconectados(new Set()); }
+    setCruzando(true);
+    try {
+      const r = await run(() => api.demandaClientes(ws.id, feeders, periodo || undefined));
+      if (r) { setCruce(r); setDesconectados(new Set()); }
+      // 004:RF-64: un fallo puede dejar el hueco de suministros sin libro y con su aviso.
+      else await refresh().catch(() => undefined);
+    } finally {
+      setCruzando(false);
+    }
   };
   // Los clientes de otro mes son otros: el cruce mostrado deja de valer.
   const elegirPeriodo = (mes: string) => {
@@ -494,8 +503,8 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
       )}
       <div className="row">
         <button className="btn" disabled={!feeders.length || !haySuministros || !ws.demanda?.clientes
-          || !estadoClientes.listoParaCruzar || engineBusy} onClick={cruzar}>
-          Cruzar clientes de {cuales}
+          || !estadoClientes.listoParaCruzar || engineBusy || cruzando} onClick={cruzar}>
+          {cruzando ? `Cruzando clientes de ${cuales}…` : `Cruzar clientes de ${cuales}`}
         </button>
         {librosFaltan.length > 0 && (
           <small className="muted">Falta {librosFaltan.join(' y ')} (2.1): sin {librosFaltan.length > 1 ? 'ellos' : 'él'} todas

@@ -114,6 +114,16 @@ def test_el_servidor_solo_atiende_sus_guiones(servidor):
         servidor._cargar('powerfactory_acceptance.py')
 
 
+def test_todo_guion_que_conecta_va_por_el_servidor():
+    """019:RF-7 — un guion con ``conectar`` y ``main`` fuera de la lista cierra el servidor y
+    abre DIgSILENT por su cuenta (2026-10-23: la lectura del gemelo tras cada ajuste de
+    AL105 + AL108 sumaba 2,5 min, y la acción siguiente volvía a esperar 73 s de conexión)."""
+    con_conexion = {p.name for p in (RAIZ / 'tools').glob('*.py')
+                    if "conectar('" in (texto := p.read_text(encoding='utf-8'))
+                    and 'def main(' in texto}
+    assert con_conexion - pf_arnes.GUIONES_SERVIBLES == set()
+
+
 def test_el_cliente_reescribe_la_salida_y_devuelve_el_codigo(cola, cliente, servidor, monkeypatch):
     """019:RF-7 — la web ve la salida del guion línea a línea y su código, como si lo lanzara."""
     monkeypatch.setattr(pf_arnes, 'servidor_vivo', lambda ruta=None: {'pid': 1})

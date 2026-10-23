@@ -412,9 +412,13 @@ INACTIVIDAD_S = 120.0
 VARIABLE_COLA = 'IGEA_PF_COLA'
 #: Guiones que el servidor puede atender: los que conectan con :func:`conectar`. La
 #: aceptación (importa DGS y cambia de proyecto) sigue en su propio proceso.
+# Los de la spec 024 también: fuera de la lista, la lectura del gemelo tras cada acción
+# cerraba el servidor y abría DIgSILENT por su cuenta (AL105 + AL108, 2026-10-23: 2,5 min
+# más por ajuste y 73 s de conexión en la acción siguiente).
 GUIONES_SERVIBLES = frozenset({
-    'ajuste_cabecera_pf.py', 'cargas_pf.py', 'casos_pf.py', 'estudios_pf.py', 'obras_pf.py',
-    'pf_proyectos.py', 'transferencia_pf.py', 'transformador_set_pf.py', 'verificar_pf.py'})
+    'ajuste_cabecera_pf.py', 'cargas_pf.py', 'casos_pf.py', 'digital_twin_snapshot_pf.py',
+    'escenarios_pf.py', 'estudios_pf.py', 'obras_pf.py', 'pf_proyectos.py', 'pide_pf.py',
+    'transferencia_pf.py', 'transformador_set_pf.py', 'verificar_pf.py'})
 
 _APP_COMPARTIDA: Any = None
 
