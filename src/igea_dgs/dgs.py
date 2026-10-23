@@ -860,20 +860,30 @@ def write_dgs(
     diag_fids = {'': diagram_fid}
     zonal_de_nodo: dict[str, str] = {}
     if barras_set:
-        orden = list(dict.fromkeys([b.zonal for b in barras_set] + (['Sin SET'] if sin_set else [])))
+        from .combine import red_de_nodos, redes_en_orden
+
+        # 022:RF-64: en un zonal dividido, una red y un diagrama por SET.
+        orden = redes_en_orden(model)
         net_fids = {z: (network_fid if i == 0 else reg.new()) for i, z in enumerate(orden)}
         diag_fids = {z: (diagram_fid if i == 0 or geography is None else reg.new())
                      for i, z in enumerate(orden)}
-        from .combine import zonal_de_nodos
-
-        zonal_de_nodo = zonal_de_nodos(model)
+        zonal_de_nodo = red_de_nodos(model)
     primera = next(iter(net_fids))
+    posicion = {z: i for i, z in enumerate(net_fids)}
+
+    def red_de(node_id: str) -> str:
+        return zonal_de_nodo.get(node_id, primera)
 
     def net_of(node_id: str) -> str:
-        return net_fids.get(zonal_de_nodo.get(node_id, primera), network_fid)
+        return net_fids.get(red_de(node_id), network_fid)
 
     def diag_of(node_id: str) -> str:
-        return diag_fids.get(zonal_de_nodo.get(node_id, primera), diagram_fid)
+        return diag_fids.get(red_de(node_id), diagram_fid)
+
+    def red_del_par(a: str, b: str) -> str:
+        # 022:RF-68: un enlace entre dos redes, en la que va antes (la SET de menor código),
+        # sea cual sea el lado que la unión dejó como node_a.
+        return min(red_de(a), red_de(b), key=lambda z: posicion.get(z, len(posicion)))
 
     type_fids = {key: reg.new() for key in sorted(model.line_types)}
     node_fids = {node_id: reg.new() for node_id in sorted(model.nodes)}
@@ -974,7 +984,7 @@ def write_dgs(
             dato = sistemas.get(sist)
             nombre = f'{sist} {dato.nombre}'.strip() if dato is not None else sist
             desc = (f'sector típico {dato.sector}; {dato.norma}' if dato is not None else '')
-            red_zona = net_fids.get(combinado.zonal_de.get(alims[0], ''), network_fid)
+            red_zona = net_fids.get(combinado.red_de.get(alims[0], ''), network_fid)
             rows['ElmZone'].append(_make_row(
                 schema, 'ElmZone', FID=zona_fids[sist], OP='C', loc_name=_loc_name(nombre),
                 fold_id=red_zona, icolor=len(zona_fids) % 16 + 1, desc=desc,
@@ -1309,7 +1319,8 @@ def write_dgs(
         tie_rows.append((enlace, coup_fid))
         rows['ElmCoup'].append(_make_row(
             schema, 'ElmCoup', FID=coup_fid, OP='C',
-            loc_name=_loc_name(enlace.name), fold_id=net_of(enlace.node_a), typ_id='',
+            loc_name=_loc_name(enlace.name),
+            fold_id=net_fids.get(red_del_par(enlace.node_a, enlace.node_b), network_fid), typ_id='',
             on_off=0, aUsage='swt', nphase=3, nneutral=0,
         ))
         for lado, nodo in ((0, enlace.node_a), (1, enlace.node_b)):
@@ -1333,8 +1344,9 @@ def write_dgs(
         coupler_rows.append((acoplador, coup_fid))
         rows['ElmCoup'].append(_make_row(
             schema, 'ElmCoup', FID=coup_fid, OP='C',
-            loc_name=_loc_name(acoplador.name), fold_id=net_of(acoplador.node_a), typ_id='',
-            on_off=int(acoplador.on_off), aUsage=USO_POR_CLASE.get(acoplador.kind, 'swt'),
+            loc_name=_loc_name(acoplador.name),
+            fold_id=net_fids.get(red_del_par(acoplador.node_a, acoplador.node_b), network_fid),
+            typ_id='', on_off=int(acoplador.on_off), aUsage=USO_POR_CLASE.get(acoplador.kind, 'swt'),
             nphase=3, nneutral=0,
         ))
         for lado, nodo in ((0, acoplador.node_a), (1, acoplador.node_b)):
@@ -1508,7 +1520,8 @@ def write_dgs(
             rows['IntGrf'].append(_make_row(
                 schema, 'IntGrf', FID=fid, OP='C',
                 loc_name=_loc_name(f'G_{acoplador.name}'),
-                fold_id=diag_of(acoplador.node_a), iCol=1, iVis=1, iLevel=1,
+                fold_id=diag_fids.get(red_del_par(acoplador.node_a, acoplador.node_b), diagram_fid),
+                iCol=1, iVis=1, iLevel=1,
                 rCenterX=center[0], rCenterY=center[1], sSymNam='d_couple',
                 pDataObj=coup_fid, iRot=_line_irot([a, center, b]),
                 rSizeX=layout.tam('d_couple'), rSizeY=layout.tam('d_couple'),
@@ -1533,7 +1546,8 @@ def write_dgs(
             graphic_fids[f'tie:{enlace.name}'] = fid
             rows['IntGrf'].append(_make_row(
                 schema, 'IntGrf', FID=fid, OP='C', loc_name=_loc_name(f'G_{enlace.name}'),
-                fold_id=diag_of(enlace.node_a), iCol=1, iVis=1, iLevel=1,
+                fold_id=diag_fids.get(red_del_par(enlace.node_a, enlace.node_b), diagram_fid),
+                iCol=1, iVis=1, iLevel=1,
                 rCenterX=center[0], rCenterY=center[1], sSymNam='d_couple',
                 pDataObj=coup_fid, iRot=0,
                 rSizeX=layout.tam('d_couple'), rSizeY=layout.tam('d_couple'),

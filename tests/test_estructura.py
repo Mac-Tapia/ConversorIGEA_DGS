@@ -141,6 +141,11 @@ def test_la_estructura_de_electro_dunas_en_su_perfil(tmp_path):
     assert e.set_de('NA205').rotulo == 'SET 51 Nasca'
     assert e.set_de_siglas('SI').codigo == 'SEIN' and e.set_de_siglas('PA').nombre == 'Paracas'
     assert e.sistemas[e.alimentadores['TA122'].sistema].norma == 'NTCSER'
+    # SET nueva que la tabla pública aún no trae: PO101 sale de su SET, no de Alto la Luna.
+    assert e.set_de('PO101').rotulo == 'SET 35 Pampa de Ocas'
+    assert e.set_de_siglas('PO').zonal == 'Pisco' and e.alimentadores['PO101'].sistema == ''
+    # 022:RF-70: el zonal Nasca no cabe en una hoja; los demás siguen con una red.
+    assert e.zonales_por_set == {'Nasca'}
     sin = tmp_path / 'otro.json'
     sin.write_text('{}', encoding='utf-8')
     assert estructura_empresa(sin, carpeta=carpeta) is None

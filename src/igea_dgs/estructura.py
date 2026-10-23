@@ -53,6 +53,9 @@ class Estructura:
     sets: dict[str, SetElectrica]
     alimentadores: dict[str, AlimentadorEstructura]
     sistemas: dict[str, Sistema] = field(default_factory=dict)
+    zonales_por_set: set[str] = field(default_factory=set)
+    """Zonales con una red por SET (022:RF-64): el de Nasca va de la costa a la sierra y su
+    diagrama único no cabía en la hoja de DIgSILENT (usuario, 2026-10-23)."""
 
     def set_de(self, alimentador: str) -> SetElectrica | None:
         a = self.alimentadores.get(clave(alimentador))
@@ -70,8 +73,9 @@ def clave(codigo: Any) -> str:
 
 # =========================================================================== lectura
 def estructura_de_dict(datos: Mapping[str, Any], origen: str = 'estructura') -> Estructura:
-    """La estructura del perfil: ``{"zonales": [{"nombre", "sets": [{"codigo", "nombre",
-    "siglas", "alimentadores": [{"codigo", "sistema"}]}]}], "sistemas": {...}}``."""
+    """La estructura del perfil: ``{"zonales": [{"nombre", "dividir_por_set", "sets":
+    [{"codigo", "nombre", "siglas", "alimentadores": [{"codigo", "sistema"}]}]}],
+    "sistemas": {...}}``."""
     if not isinstance(datos, Mapping) or not isinstance(datos.get('zonales'), list):
         raise EstructuraError(f'{origen}: falta la lista «zonales».')
     sistemas = {}
@@ -92,7 +96,10 @@ def estructura_de_dict(datos: Mapping[str, Any], origen: str = 'estructura') -> 
             if not st.get('alimentadores'):
                 filas.append({'zonal': zonal, 'set': st.get('codigo'), 'set_nombre': st.get('nombre'),
                               'siglas': st.get('siglas') or [], 'alimentador': None, 'sistema': None})
-    return _construir(filas, sistemas, origen)
+    e = _construir(filas, sistemas, origen)
+    e.zonales_por_set = {str(z.get('nombre') or '').strip() for z in datos['zonales']
+                         if isinstance(z, Mapping) and z.get('dividir_por_set') is True}
+    return e
 
 
 def _construir(filas: Iterable[Mapping[str, Any]], sistemas: dict[str, Sistema],

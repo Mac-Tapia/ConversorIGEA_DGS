@@ -139,11 +139,11 @@ def validate_dgs(
                        geographic_errors, graphic_errors, geography=geography)
 
     net_rows = tables['ElmNet']['rows_dict']
-    # Spec 022: con la estructura, una red por zonal y otra «Sin SET» si hace falta.
+    # Spec 022: con la estructura, una red por zonal (o por SET, RF-64) y otra «Sin SET».
     _comb = getattr(model, 'combined', None)
     barras_set = list(getattr(_comb, 'barras_set', None) or [])
     sin_set = list(getattr(_comb, 'sin_set', None) or [])
-    redes_esperadas = (len({b.zonal for b in barras_set}) + (1 if sin_set else 0)) if barras_set else 1
+    redes_esperadas = (len({b.red or b.zonal for b in barras_set}) + (1 if sin_set else 0)) if barras_set else 1
     rotulos_set = {_loc(b.rotulo) for b in barras_set}
     if len(net_rows) != redes_esperadas:
         structural_errors.append(f'ElmNet rows={len(net_rows)}, expected {redes_esperadas}')

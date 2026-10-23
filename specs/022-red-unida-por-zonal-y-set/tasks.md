@@ -102,3 +102,17 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]` y pa
       Hecho cuando: cada RF citado por una prueba y suite completa en verde.
       2026-10-18: los 56 RF citados por al menos una prueba; suite completa con las seis
       variables: 2413 pasan, ninguna omitida.
+- [x] T13. Una red por SET en un zonal marcado: marca en la estructura, red de cada barra
+      de SET y alimentador, `ElmNet` y diagrama por red, enlaces en la red de menor SET,
+      Nasca marcado en el perfil. (RF-64 a RF-68, RF-70)
+      Hecho cuando: `pytest -q tests/test_estructura.py tests/test_dgs_por_set.py` en verde
+      con una estructura sorteada que divide un zonal y otra que no; DGS idéntico con
+      `workers=1` y `workers>1`.
+      2026-10-23: en verde con tres semillas; suite completa con las siete variables, 2657
+      pasan y 4 fallan por causas ajenas: `referencia/2.-medicioncabecera` y
+      `4.-clientesimportantes` pasaron a subcarpetas por año (3 pruebas de datos reales) y
+      `DemandaMedida.tsx` tiene cambios sin commit («Cruzando…», 1 prueba del front).
+- [ ] T14. Sistema Nasca por SET en DIgSILENT: convertido, importado, «Caso base» VERIFICADO
+      y calibrado por la web con `tools/sistema_web.py --zonal Nasca`. (RF-65, RF-69)
+      Hecho cuando: una red y un diagrama por SET en el proyecto, cada hoja a la medida de
+      su SET, y el sistema calibrado como con una red por zonal.

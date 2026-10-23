@@ -81,6 +81,24 @@ Estado: borrador · Fecha: 2026-10-17 · Spec: [spec.md](spec.md)
      informe compara la P de la red externa de la barra con su medidor (RF-41b).
    - Central de barra (RF-44) con `central_en_sin_proyecto` en la barra de SET.
 
+9. **Una red por SET en un zonal marcado** (2026-10-23) — `estructura.py`, `combine.py`,
+   `dgs.py`, `geography.py`, `validate.py`, `feeder_metadata.py` y la estructura del perfil.
+   (RF-64 a RF-70)
+   - La estructura lee `"dividir_por_set": true` en un zonal del JSON (`Estructura.
+     zonales_por_set`); el Excel subido no lo trae (fuera de alcance).
+   - `estructurar` da a cada `BarraSet` su `red`: el zonal (RF-67) o «zonal + SET» en un
+     zonal marcado (RF-66), y a cada alimentador la suya en `CombinedInfo.red_de`; los «Sin
+     SET», «Sin SET».
+   - `red_de_nodos` (antes `zonal_de_nodos`) devuelve la red de cada nodo; el escritor DGS,
+     el manifiesto (`redes`), la validación y la metadata la usan en lugar del zonal: una
+     `ElmNet` y un `IntGrfnet` por red (RF-64, RF-65). La hoja sale a la medida: DIgSILENT
+     la dimensiona con el recuadro de los gráficos de cada diagrama.
+   - Un nodo de varios alimentadores, un enlace o un interruptor entre dos redes van en la
+     red que va antes en el orden zonal → SET (la de menor código), en el DGS y en su
+     diagrama (RF-68).
+   - Descartado: un DGS por SET. Rompe el proyecto único y la calibración por sistema
+     (RF-51, RF-52); con redes en un solo proyecto, guiones e importación no cambian (RF-69).
+
 ## Pruebas
 
 - Sintéticas sorteadas (semilla) con un número variable de zonales, SET y alimentadores;
