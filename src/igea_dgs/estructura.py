@@ -10,6 +10,9 @@ en el código (constitución 13): sin estructura, la red unida sigue como antes 
 from __future__ import annotations
 
 import json
+import math
+import re
+from collections import defaultdict
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -56,6 +59,9 @@ class Estructura:
     zonales_por_set: set[str] = field(default_factory=set)
     """Zonales con una red por SET (022:RF-64): el de Nasca va de la costa a la sierra y su
     diagrama único no cabía en la hoja de DIgSILENT (usuario, 2026-10-23)."""
+    deducidos: dict[str, str] = field(default_factory=dict)
+    """Alimentadores de la entrega que la estructura no traía, con la regla que los colocó
+    (022:RF-71 a RF-74, RF-78): la tabla de la empresa va por detrás de las entregas."""
 
     def set_de(self, alimentador: str) -> SetElectrica | None:
         a = self.alimentadores.get(clave(alimentador))
@@ -213,6 +219,91 @@ def _partir_set(codigo: str, nombre: str) -> tuple[str, str]:
     if not nombre and len(partes) > 2 and partes[0].upper() == 'SET':
         return ' '.join(partes[:2]), ' '.join(partes[2:])
     return codigo, nombre
+
+
+# =========================================================================== nuevos
+def siglas_de(codigo: Any) -> str:
+    """Las letras del código antes del número: «PA» de PA219, «CHI» de CHI201 (022:RF-71)."""
+    m = re.match(r'([A-Z]+)\d', clave(codigo))
+    return m.group(1) if m else ''
+
+
+def cabeceras_de_inventario(filas: Iterable[Mapping[str, Any]]) -> dict[str, tuple[float, float] | None]:
+    """Alimentador → coordenadas de su cabecera, de las filas del inventario (022:RF-77)."""
+    out: dict[str, tuple[float, float] | None] = {}
+    for f in filas:
+        xy = f.get('cabecera_xy')
+        out[clave(f.get('feeder'))] = (float(xy[0]), float(xy[1])) if xy else None
+    return out
+
+
+def completar(estructura: Estructura,
+              cabeceras: Mapping[str, tuple[float, float] | None]) -> Estructura:
+    """La estructura con los alimentadores de la entrega que no traía (022:RF-71 a RF-76).
+
+    La tabla de la empresa va por detrás de las entregas: RED_231026 trajo la SET Chincha
+    Nueva (CN101 a CN201), PA219, COH101 y SC215, y quedaban «Sin SET», fuera de la
+    conversión por zonal. Las siglas dicen la SET (PA219 → Paracas); si no llevan a
+    ninguna, los de unas mismas siglas forman una SET deducida en el zonal de la cabecera
+    conocida más cercana. La distancia solo elige el zonal, sin umbral: no hace falta el
+    CRS, y no distingue SET (CN101 está a 6,5 km de El Carmen y es otra SET). La de entrada
+    no cambia.
+    """
+    nuevos = sorted({clave(a) for a in cabeceras} - set(estructura.alimentadores) - {''})
+    if not nuevos:
+        return estructura
+    xy = {clave(a): p for a, p in cabeceras.items() if p and any(p)}
+    por_siglas_set = {s: st.codigo for st in estructura.sets.values() for s in st.siglas}
+    sets_de_siglas: dict[str, set[str]] = defaultdict(set)
+    sistemas_de_set: dict[str, set[str]] = defaultdict(set)
+    for a in estructura.alimentadores.values():
+        sets_de_siglas[siglas_de(a.codigo)].add(a.set_codigo)
+        sistemas_de_set[a.set_codigo].add(a.sistema)
+    sets = dict(estructura.sets)
+    alimentadores = dict(estructura.alimentadores)
+    deducidos = dict(estructura.deducidos)
+    grupos: dict[str, list[str]] = defaultdict(list)
+    for n in nuevos:
+        s = siglas_de(n)
+        if s in por_siglas_set:
+            codigo, regla = por_siglas_set[s], f'siglas {s} de la SET'
+        elif len(sets_de_siglas.get(s, ())) == 1:
+            codigo, regla = next(iter(sets_de_siglas[s])), f'siglas {s} de sus alimentadores'
+        else:
+            if s:
+                grupos[s].append(n)
+            continue
+        sistemas = sistemas_de_set[codigo]
+        alimentadores[n] = AlimentadorEstructura(n, codigo, next(iter(sistemas)) if len(sistemas) == 1 else '')
+        deducidos[n] = f'{regla} → {codigo}'
+    conocidos = sorted((a, xy[a]) for a in estructura.alimentadores if a in xy)
+    for s, miembros in sorted(grupos.items()):
+        cerca = min(((math.dist(xy[m], p), a) for m in miembros if m in xy for a, p in conocidos),
+                    default=None)
+        if cerca is None:
+            continue                                                       # RF-75
+        zonal = estructura.sets[estructura.alimentadores[cerca[1]].set_codigo].zonal
+        codigo = clave(f'SET {s}')
+        while codigo in sets:
+            codigo += '*'
+        sets[codigo] = SetElectrica(codigo, '', zonal, (s,))
+        for m in miembros:
+            alimentadores[m] = AlimentadorEstructura(m, codigo, '')
+            deducidos[m] = f'SET deducida por sus siglas, zonal {zonal} por la cabecera de {cerca[1]}'
+    return Estructura(list(estructura.zonales), sets, alimentadores, dict(estructura.sistemas),
+                      set(estructura.zonales_por_set), deducidos)
+
+
+def aviso_deducidos(estructura: Estructura, alimentadores: Iterable[str]) -> str:
+    """El aviso de los alimentadores colocados sin estar en la tabla (022:RF-78), o vacío."""
+    lineas = []
+    for a in sorted({clave(x) for x in alimentadores} & set(estructura.deducidos)):
+        st = estructura.set_de(a)
+        lineas.append(f'{a} en {st.rotulo} ({st.zonal}): {estructura.deducidos[a]}')
+    if not lineas:
+        return ''
+    return (f'{len(lineas)} alimentador(es) que la estructura no traía, colocados por la '
+            'entrega (022:RF-78): ' + '; '.join(lineas) + '.')
 
 
 # =========================================================================== asignación

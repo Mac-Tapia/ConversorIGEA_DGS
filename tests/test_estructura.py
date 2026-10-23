@@ -143,7 +143,13 @@ def test_la_estructura_de_electro_dunas_en_su_perfil(tmp_path):
     assert e.sistemas[e.alimentadores['TA122'].sistema].norma == 'NTCSER'
     # SET nueva que la tabla pública aún no trae: PO101 sale de su SET, no de Alto la Luna.
     assert e.set_de('PO101').rotulo == 'SET 35 Pampa de Ocas'
-    assert e.set_de_siglas('PO').zonal == 'Pisco' and e.alimentadores['PO101'].sistema == ''
+    # 022:RF-80: PO101 es del sistema Pisco (operador, 2026-10-23).
+    assert e.set_de_siglas('PO').zonal == 'Pisco' and e.alimentadores['PO101'].sistema == 'SE0046'
+    # 022:RF-79: la SET Chincha Nueva, nueva en RED_231026, en Chincha y su sistema.
+    for a in ('CN101', 'CN102', 'CN103', 'CN201'):
+        assert e.set_de(a).rotulo == 'SET CHN Chincha Nueva' and e.set_de(a).zonal == 'Chincha'
+        assert e.sistemas[e.alimentadores[a].sistema].nombre == 'Chincha'
+    assert e.set_de_siglas('CN').codigo == 'SET CHN'
     # 022:RF-70: el zonal Nasca no cabe en una hoja; los demás siguen con una red.
     assert e.zonales_por_set == {'Nasca'}
     sin = tmp_path / 'otro.json'

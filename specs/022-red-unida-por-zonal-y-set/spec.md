@@ -257,6 +257,41 @@ la costa a la sierra, de SET 51 Nasca a SET 56, y su diagrama único no cabe en 
 - RF-70: La estructura del perfil de Electro Dunas marcará el zonal Nasca como dividido por
   SET.
 
+SET y alimentadores nuevos de la entrega (usuario, 2026-10-23: «en los TXT cargados existe
+una nueva SET que no está en el sistema eléctrico y no carga para conversión, SET Chincha
+Nueva (CHN); sus alimentadores deben considerarse, y otros que existan, cada vez que se
+cargan archivos nuevos, TXT, MDB y VNR-GIS». La entrega RED_231026 trae 101 alimentadores y
+siete no estaban en la tabla de la empresa: CN101, CN102, CN103 y CN201, de la SET nueva;
+PA219, junto a las cabeceras de Paracas; COH101 y SC215. Quedaban «Sin SET» y la conversión
+por zonal los dejaba fuera)
+
+- RF-71: CUANDO un alimentador de la entrega no está en la estructura y sus siglas (las
+  letras de su código antes del número: «PA» de PA219) son las de una SET de la estructura,
+  EL SISTEMA lo pondrá en esa SET.
+- RF-72: CUANDO un alimentador de la entrega no está en la estructura y sus siglas son las
+  de alimentadores de la estructura que están todos en una misma SET, EL SISTEMA lo pondrá
+  en esa SET.
+- RF-73: SI las siglas de un alimentador nuevo no llevan a ninguna SET (RF-71, RF-72),
+  ENTONCES EL SISTEMA creará una SET deducida, con código «SET» y sus siglas, que reúna a
+  todos los alimentadores nuevos con esas siglas.
+- RF-74: EL SISTEMA pondrá cada SET deducida de RF-73 en el zonal del alimentador de la
+  estructura cuya cabecera esté más cerca de la de alguno de sus alimentadores.
+- RF-75: SI ningún alimentador de una SET deducida tiene coordenadas en su cabecera,
+  ENTONCES EL SISTEMA lo dejará «Sin SET» (RF-19).
+- RF-76: EL SISTEMA dará a un alimentador colocado por RF-71 o RF-72 el sistema eléctrico
+  que comparten los alimentadores de su SET, y ninguno si no comparten uno; a los de una
+  SET deducida, ninguno.
+- RF-77: EL SISTEMA aplicará RF-71 a RF-75 a toda entrega que se cargue, sea TXT, MDB o
+  VNR-GIS, y con la estructura del perfil o la subida en Excel, en la web y en el CLI.
+- RF-78: EL SISTEMA avisará de cada alimentador colocado por RF-71 a RF-74, con su SET, su
+  zonal y la regla que lo colocó, en el resumen de la estructura y en el informe de la
+  conversión, sin bloquear.
+- RF-79: La estructura del perfil de Electro Dunas tendrá la SET Chincha Nueva (siglas CN),
+  en el zonal Chincha, con CN101, CN102, CN103 y CN201 en el sistema eléctrico SE0043
+  Chincha (usuario, 2026-10-23).
+- RF-80: La estructura del perfil de Electro Dunas pondrá PO101, de la SET 35 Pampa de
+  Ocas, en el sistema eléctrico SE0046 Pisco (usuario, 2026-10-23).
+
 Informe
 
 - RF-25b: EL SISTEMA omitirá una SET, un sistema eléctrico o un zonal de la estructura que
@@ -307,6 +342,9 @@ Informe
 - Marcar un zonal como dividido por SET desde la tabla de Excel subida en la web: la marca
   va en la estructura del perfil.
 - Dividir por SET el proyecto ya importado: hay que importar el DGS nuevo.
+- Guardar en el perfil las SET deducidas (RF-73): se deducen de nuevo con cada entrega; la
+  que se confirme se escribe a mano en la estructura, como Chincha Nueva (RF-79).
+- Deducir el nombre o el sistema eléctrico de una SET deducida.
 
 ## Criterios de finalización
 

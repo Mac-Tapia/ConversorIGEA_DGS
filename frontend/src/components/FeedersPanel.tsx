@@ -361,6 +361,13 @@ export function FeedersPanel() {
               Convertir por sistema eléctrico
             </button>
             {estructura && !estructura.zonales.length && <small className="muted">Sin estructura de la empresa: súbala en el paso de demanda o póngala en el perfil.</small>}
+            {!!estructura?.deducidos?.length && (
+              <small className="muted"
+                title={estructura.deducidos.map((d) => `${d.alimentador} → ${d.set} (${d.zonal}): ${d.regla}`).join('\n')}>
+                {estructura.deducidos.length} alimentador(es) que la tabla de la empresa no trae, colocados por la entrega:{' '}
+                {estructura.deducidos.map((d) => `${d.alimentador} en ${d.set}`).join(', ')}
+              </small>
+            )}
             <a className={`btn ${converted ? '' : 'btn-disabled'}`}
               href={converted ? api.zipUrl(ws.id, selected.length ? selected : []) : undefined}
               aria-disabled={!converted}>

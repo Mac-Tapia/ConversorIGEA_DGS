@@ -10,6 +10,22 @@ from .dataset import TABLAS_TIPOS_LINEA,  CymdistDataset
 from .naming import feeder_short_name, sort_key_feeder
 
 
+def cabecera_xy(dataset: CymdistDataset, network_id: str) -> list[float] | None:
+    """Coordenadas del nodo de la fuente del alimentador, en las unidades de la entrega.
+
+    Con ellas la estructura coloca en su zonal la SET que la tabla de la empresa aún no
+    trae (022:RF-74: Chincha Nueva en RED_231026). ``None`` si el nodo no las tiene.
+    """
+    from .reconstruction_topology import _source_node
+
+    nodo = dataset.nodes.get(_source_node(dataset, network_id)) or {}
+    try:
+        x, y = float(nodo.get('CoordX') or ''), float(nodo.get('CoordY') or '')
+    except ValueError:
+        return None
+    return [x, y] if (x or y) else None
+
+
 def build_dataset_inventory(
     dataset: CymdistDataset,
     aliases: dict[str, str] | None = None,
@@ -117,6 +133,7 @@ def build_dataset_inventory(
             'network_id': network_id,
             'nominal_kv': source.get('DesiredVoltage', ''),
             'source_node': source.get('NodeID', ''),
+            'cabecera_xy': cabecera_xy(dataset, network_id),                # 022:RF-74
             'sections': n_sec,
             'loads': n_loads,
             'switches': n_sw,

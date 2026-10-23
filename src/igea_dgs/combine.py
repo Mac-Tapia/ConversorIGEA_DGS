@@ -589,7 +589,7 @@ def estructurar(combinado: FeederModel, estructura, asignacion=None) -> list[str
     cerrado (RF-12, RF-13). Los que no están en la estructura quedan «Sin SET» con su red
     externa propia (RF-19). Modifica el modelo unido y devuelve los avisos.
     """
-    from .estructura import asignar
+    from .estructura import asignar, aviso_deducidos
 
     info = combinado.combined
     if info is None:
@@ -612,6 +612,8 @@ def estructurar(combinado: FeederModel, estructura, asignacion=None) -> list[str
     if info.sin_set:
         avisos.append(f'{len(info.sin_set)} alimentador(es) sin SET en la estructura, con su '
                       'red externa propia: ' + ', '.join(info.sin_set) + ' (022:RF-19).')
+    if aviso := aviso_deducidos(estructura, (f.name for f in info.feeders)):
+        avisos.append(aviso)                                                    # RF-78
     orden_zonal = {z: i for i, z in enumerate(estructura.zonales)}
     for (codigo, kv), refs in sorted(grupos.items(),
                                      key=lambda g: (orden_zonal[estructura.sets[g[0][0]].zonal],

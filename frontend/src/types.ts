@@ -1392,6 +1392,8 @@ export interface BarraDeSet {
 export interface EstructuraResumen {
   origen: 'perfil' | 'excel' | null;
   sin_set?: string[];
+  /** 022:RF-78: los de la entrega que la tabla no traía, con la regla que los colocó. */
+  deducidos?: { alimentador: string; set: string; zonal: string; regla: string }[];
   zonales: { nombre: string; sets: string[]; alimentadores: string[] }[];
 }
 

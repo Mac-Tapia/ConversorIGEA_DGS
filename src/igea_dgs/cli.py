@@ -365,7 +365,9 @@ def main(argv=None) -> int:
             estructura = None
             nombre = args.unir
             if args.por_sistema is not None:
-                from .estructura import EstructuraError, asignar, leer_tabla_excel
+                from .estructura import (EstructuraError, asignar, aviso_deducidos, completar,
+                                         leer_tabla_excel)
+                from .inventory import cabecera_xy
                 from .util import nombre_seguro
                 from .perfil_empresa import PerfilError, estructura_empresa
                 try:
@@ -377,6 +379,12 @@ def main(argv=None) -> int:
                     raise SystemExit('--por-sistema: el perfil de empresa no trae estructura '
                                      '(022:RF-1); use --estructura TABLA.xlsx.')
                 todos = [feeder_short_name(n) for n in dataset.feeder_ids() if dataset.feeders.get(n)]
+                # 022:RF-77: los de la entrega que la tabla aún no trae, como en la web.
+                estructura = completar(estructura, {
+                    feeder_short_name(n): (xy[0], xy[1]) if (xy := cabecera_xy(dataset, n)) else None
+                    for n in dataset.feeder_ids()})
+                if aviso := aviso_deducidos(estructura, todos):
+                    print(aviso)
                 zonales = [z for z in args.por_sistema if z]
                 fuera = [z for z in zonales if z not in estructura.zonales]
                 if fuera:

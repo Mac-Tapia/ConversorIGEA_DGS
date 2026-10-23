@@ -116,3 +116,15 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]` y pa
       y calibrado por la web con `tools/sistema_web.py --zonal Nasca`. (RF-65, RF-69)
       Hecho cuando: una red y un diagrama por SET en el proyecto, cada hoja a la medida de
       su SET, y el sistema calibrado como con una red por zonal.
+- [x] T15. SET y alimentadores nuevos: `completar` en la estructura, `cabecera_xy` en el
+      inventario, web y CLI con la estructura completada, aviso, Chincha Nueva y PO101 en el
+      perfil. (RF-71 a RF-80)
+      Hecho cuando: `pytest -q tests/test_estructura.py tests/test_estructura_nuevos.py` en
+      verde con entregas sorteadas, y con RED_231026 CN101 a CN201 en Chincha y PA219 en SET
+      32 Paracas en la conversión por sistema de la web.
+      2026-10-23: 24 en verde, con cinco semillas. RED_231026 (101 alimentadores) por la
+      estructura del espacio: ninguno «Sin SET»; CN101 a CN201 en SET CHN Chincha Nueva
+      (SE0043), PA219 en SET 32 por sus siglas, SC215 en «SET SC» deducida en Pisco y COH101
+      en «SET COH» deducida en Nasca. `igea-dgs convert --por-sistema Chincha`: 27
+      alimentadores en 5 SET, la CHN con barras de 10 y 22,9 kV, oráculo converge, 0 errores
+      (CN103 no tiene tramos y queda fuera, como todo alimentador sin red).
