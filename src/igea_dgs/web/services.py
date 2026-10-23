@@ -1924,6 +1924,12 @@ def _demanda_ruta(ws: Workspace, tipo: str, *, periodo: str | None = None) -> Pa
         try:
             return descubrir_libro_suministros(path, demanda_alias())
         except DemandaError as exc:
+            # 004:RF-64 en un hueco guardado antes de ella: la carpeta de clientes subida en
+            # «Suministros» (2026-10-22) quedó con uno de sus libros elegido, y «Cruzar
+            # clientes» seguía activo y fallaba en cada pulsación sin aviso en el hueco.
+            with ws.lock:
+                meta.update(seleccion=None, libros=[], avisos=[str(exc), SIN_SUMINISTROS])
+                ws.save()
             raise UserError(str(exc)) from exc
     if tipo == 'clientes' and path.is_dir():
         if not meta.get('vigente'):

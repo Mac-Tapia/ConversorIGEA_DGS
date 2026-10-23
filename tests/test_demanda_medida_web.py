@@ -228,6 +228,32 @@ def test_suministros_subidos_con_libros_de_clientes_avisa_en_el_hueco(client):
     assert cruce.status_code == 400 and 'Ningún libro de suministros' in cruce.json()['detail']
 
 
+def test_hueco_de_suministros_anterior_a_rf64_se_pone_al_dia_en_el_cruce(client):
+    """004:RF-64 — un hueco guardado antes de la RF-64 conserva como elegido un libro de
+    clientes (usuario, 2026-10-23: la carpeta 4.-clientesimportantes subida en «Suministros»
+    dejó «Cruzar clientes» activo y cada pulsación tardaba 32 s en fallar sin aviso en el
+    hueco). El primer cruce que lo descubre deja el hueco sin elección y con su aviso."""
+    clientes = {'Resumen': [['SUMINISTRO', 'EA_TOTAL', 'ERI_TOTAL', 'POT_MAX'], ['9011', 1.0, 1.0, 1.0]],
+                'detalle': [['SUMINISTRO', 'SED'], ['9011', 'E1'], ['9012', 'E2']]}
+    wid = _wid(client)
+    _subir(client, wid, 'suministros', clientes, '0926clientesImportantes.xlsx')
+    _subir(client, wid, 'clientes', clientes, 'ci.xlsx')
+    ws = client.app.state.store.get(wid)
+    with ws.lock:
+        meta = ws.demanda['suministros']
+        meta.update(seleccion='0926clientesImportantes.xlsx', libros=['0926clientesImportantes.xlsx'],
+                    avisos=[])
+        ws.save()
+
+    cruce = client.post(f'/api/workspaces/{wid}/demanda/clientes/cruzar', json={})
+
+    assert cruce.status_code == 400
+    meta = client.get(f'/api/workspaces/{wid}').json()['demanda']['suministros']
+    assert meta['seleccion'] is None and meta['libros'] == []
+    assert any('Clientes importantes' in a for a in meta['avisos'])
+    assert any('factor de escala' in a for a in meta['avisos'])
+
+
 def test_clientes_por_carpeta_publica_catalogo_mensual_sin_rutas(client, tmp_path, monkeypatch):
     """013:RF-1 / 013:RF-2 — la carpeta queda elegida y todos sus libros aparecen en el catálogo."""
     _perfil_clientes_mensuales(tmp_path, monkeypatch)
