@@ -390,6 +390,8 @@ def elegir(evaluadas: Sequence[Mapping[str, Any]], p: Parametros) -> dict[str, A
             motivo = ''
         elif cumple_tec:
             motivo = 'cumple, pero sin costo: ' + str(e.get('sin_costo') or 'falta su costo unitario')
+        elif e.get('maxima') and e.get('fraccion') is None:
+            motivo = 'cumple con la máxima; ' + str(e.get('sin_sortear') or 'no se sorteó')    # RF-71
         elif not e.get('maxima'):
             motivo = 'no cumple con la máxima: ' + '; '.join(e.get('motivos') or [])
         else:

@@ -1559,37 +1559,19 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
                     return informe, 2
                 s.escalar(sorteo['factores'])
                 sin_sorteos.append(medida_para_criterio(app, alims, feeders))
-        for v in plan.get('variantes') or []:
-            if cancelado():
-                informe['cancelado'] = True
-                break
-            fila = {'nombre': v['nombre'], 'maxima': False, 'motivos': [], 'fraccion': None,
-                    'perdidas_kw': None, 'error': None}
-            sub = {**plan, 'obras': v['obras'], 'evaluando': True}
-            hecho, _rc = aplicar(app, sub)
+        def con_variante(v, medir):
+            """Crea las obras de ``v``, mide con ``medir()`` y las borra (RF-54); ``None`` y el
+            error si no se pudieron crear."""
+            hecho, _rc = aplicar(app, {**plan, 'obras': v['obras'], 'evaluando': True})
             creadas = [o['variacion'] for o in hecho.get('obras') or [] if o.get('variacion')]
             errores = [o['error'] for o in hecho.get('obras') or [] if o.get('error')] + (
                 [hecho['error']] if hecho.get('error') else [])
             try:
                 if errores:
-                    fila['error'] = '; '.join(errores)
-                    continue
+                    return None, '; '.join(errores)
                 casos['con'].Activate()
-                con_max = medida_para_criterio(app, alims, feeders)
-                fila['perdidas_kw'] = con_max['perdidas_kw']
-                fila['maxima'], fila['motivos'] = cumple(sin_max, con_max, barras, p)
-                if fila['maxima'] and sorteos:                                  # RF-52b
-                    ok = 0
-                    with _Sorteo(app, alims, feeders, existentes) as s:
-                        for sorteo, sin_i in zip(sorteos, sin_sorteos):
-                            s.escalar(sorteo['factores'])
-                            ok += cumple(sin_i, medida_para_criterio(app, alims, feeders), barras, p)[0]
-                    fila['fraccion'] = ok / len(sorteos)
-                print(f"  {v['nombre']}: máxima {'cumple' if fila['maxima'] else 'no cumple'}"
-                      + (f", sorteos {100 * fila['fraccion']:.0f} %" if fila['fraccion'] is not None else ''),
-                      flush=True)
+                return medir(), None
             finally:
-                # RF-54: ninguna obra de una variante queda en el proyecto al evaluarla.
                 carpeta = app.GetProjectFolder('scheme')
                 por_nombre = {x.loc_name: x for x in (carpeta.GetContents('*.IntScheme', 1) if carpeta else [])}
                 for n in creadas:
@@ -1599,7 +1581,63 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
                             casos[rol].Activate()
                             var.Deactivate()
                         var.Delete()
-                informe['variantes'].append(fila)
+
+        def sortear():
+            """Fracción de sorteos que cumplen; deja de sortear en cuanto ya no puede llegar a la
+            del perfil (RF-72)."""
+            admite = int((1 - p.cumplimiento) * len(sorteos) + 1e-9)
+            fallos = 0
+            with _Sorteo(app, alims, feeders, existentes) as s:
+                for sorteo, sin_i in zip(sorteos, sin_sorteos):
+                    s.escalar(sorteo['factores'])
+                    fallos += not cumple(sin_i, medida_para_criterio(app, alims, feeders), barras, p)[0]
+                    if fallos > admite:
+                        break
+            return (len(sorteos) - fallos) / len(sorteos)
+
+        # Fase 1: todas con la máxima (RF-52b); con eso ya se sabe su costo anual entero.
+        variantes = list(plan.get('variantes') or [])
+        filas = []
+        for v in variantes:
+            if cancelado():
+                informe['cancelado'] = True
+                break
+            fila = {'nombre': v['nombre'], 'maxima': False, 'motivos': [], 'fraccion': None,
+                    'perdidas_kw': None, 'error': None, 'sin_sortear': None}
+            con_max, fila['error'] = con_variante(v, lambda: medida_para_criterio(app, alims, feeders))
+            if con_max is not None:
+                fila['perdidas_kw'] = con_max['perdidas_kw']
+                fila['maxima'], fila['motivos'] = cumple(sin_max, con_max, barras, p)
+            print(f"  {v['nombre']}: máxima {'cumple' if fila['maxima'] else 'no cumple'}", flush=True)
+            filas.append((v, fila))
+        # Fase 2 (RF-71): de la más barata a la más cara, hasta la primera que cumple en los sorteos.
+        k = float(plan.get('costo_por_kw_perdido') or 0.0)
+
+        def costo(v, fila):
+            return float(v['costo_base']) + k * float(fila['perdidas_kw'] or 0.0)
+
+        candidatas = sorted(((v, f) for v, f in filas if f['maxima'] and v.get('costo_base') is not None),
+                            key=lambda vf: (costo(*vf), vf[1]['nombre']))
+        for v, fila in filas:
+            if fila['maxima'] and v.get('costo_base') is None:
+                fila['sin_sortear'] = 'sin costo: no se puede elegir, no se sortea'
+        ganadora = None
+        for v, fila in candidatas:
+            if informe['cancelado'] or cancelado():
+                informe['cancelado'] = True
+                break
+            if ganadora is not None:
+                fila['sin_sortear'] = f"no se sortea: «{ganadora}» cuesta menos y ya cumple"
+                continue
+            if not sorteos:
+                fila['fraccion'] = 1.0
+            else:
+                fila['fraccion'], error = con_variante(v, sortear)
+                fila['error'] = fila['error'] or error
+            print(f"  {v['nombre']}: sorteos {100 * (fila['fraccion'] or 0):.0f} %", flush=True)
+            if (fila['fraccion'] or 0) >= p.cumplimiento:
+                ganadora = fila['nombre']
+        informe['variantes'] = [f for _v, f in filas]
     finally:
         if ajenas:
             casos['con'].Activate()

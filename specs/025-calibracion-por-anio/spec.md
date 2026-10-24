@@ -266,6 +266,13 @@ nueva por su factor de uso; vale si cumple en el 95 % de 200 sorteos)
   aplicada), y apartará un momento las de los demás, para volver a activarlas al terminar.
   (Pisco, 2026-10-24: con las cargas de PA217 activas «Con proyecto 2025» no convergía, y
   todas las variantes de SI213 salían «no converge» aunque el problema no fuera suyo.)
+- RF-71: EL SISTEMA medirá primero todas las variantes con la máxima y sorteará solo las
+  que cumplen y tienen costo, de la de menor costo anual a la de mayor, hasta la primera que
+  cumple en la fracción de sorteos del perfil: las más caras ya no pueden ganar y se dicen
+  sin sortear. (Pisco, 2026-10-24: con 200 sorteos para cada variante que cumplía con la
+  máxima, SI213 llevaba media hora y PA217 iba detrás; usuario: «sé eficiente».)
+- RF-72: EL SISTEMA dejará de sortear una variante en cuanto los sorteos que no cumplen
+  pasen de los que admite la fracción del perfil, porque ya no puede alcanzarla.
 - RF-70: EL SISTEMA calculará las pérdidas de cada variante como lo que entra por la
   cabecera menos lo que consumen sus cargas en el flujo, no su potencia nominal. (Pisco,
   2026-10-24: con tensiones de 0,88 p.u. las cargas consumían menos que su nominal y las
