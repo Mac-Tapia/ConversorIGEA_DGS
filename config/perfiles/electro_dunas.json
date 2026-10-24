@@ -41,6 +41,10 @@
   "_comentario_vias": "Enrutador de vías para trazar el enlace por la vía pública (spec 016, RF-81 a RF-87), elegido por el usuario el 2026-10-16: OSRM sobre OpenStreetMap. Solo salen las coordenadas de los dos extremos.",
   "vias": {"servicio": "osrm", "url": "https://router.project-osrm.org", "perfil": "driving", "fuera_de_via_max_m": 50, "tiempo_max_s": 10},
   "_comentario_normas": "Normas de calidad distintas de la principal (spec 024, RF-31). NTCSER (RD 016-2008-EM/DGE, numeral 4.1.2): ±6 % en media tensión y ±7,5 % en baja; buscado por el usuario el 2026-10-21.",
+  "_comentario_escalera": "Escalera optimizada de obras (spec 025, RF-49 a RF-58): una variante vale si cumple en «Con proyecto» con la máxima y en el 95 % de 200 sorteos de la curva de cabecera del año (usuario, 2026-10-24); tolerancias de «no empeorar» propuestas el mismo día. Sin precio de pérdidas ni COyM, el costo anual va sin ellos y lo dice.",
+  "escalera": {"cumplimiento": 0.95, "sorteos": 200, "semilla": 2025, "tolerancia_pu": 0.005,
+               "tolerancia_carga_pct": 1.0, "max_variantes": 40, "precio_perdidas_kwh": null,
+               "coym_pct_anual": null},
   "normas": {"NTCSER": {"tension_min_pu": 0.94, "tension_max_pu": 1.06, "tension_bt_pct": 7.5}},
   "_comentario_planificacion": "Planificación del PIDE (spec 024, RF-51 a RF-59): norma prepublicada con la RM 428-2017-MEM/DM. Tasa 12 % (art. 79 de la LCE y la privada, pedida por el usuario el 2026-10-21), vida útil 30 años (art. 14.4), horizonte 20 años y PIDE de 4 (años 04 a 07). Los pesos del art. 15.3 son iguales y provisionales: la norma solo dice «ponderados o valorados adecuadamente». Tarifas: pliego de Electro Dunas (Ica) de Osinergmin vigente desde el 2026-10-04, sin IGV. CAPEX: hoja y columnas del libro «RESUMEN PROP CAPEX» de la empresa.",
   "planificacion": {

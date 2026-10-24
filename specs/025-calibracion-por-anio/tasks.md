@@ -139,9 +139,12 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       lectura, 25 comprobaciones, 0 fallos): los 16 reguladores con los datos del catálogo,
       los casos de 2025 con su marca, «Cargas nuevas 2025» con su escenario, sin obras y
       convergido, y «Sin proyecto 2025» con la misma calibración.
-- [ ] T18. Variantes, criterio por sorteo, sorteos con semilla, costo anual y elección,
+- [x] T18. Variantes, criterio por sorteo, sorteos con semilla, costo anual y elección,
       puros. (RF-44, RF-49, RF-50, RF-51, RF-53, RF-55 a RF-58, RF-60)
       Hecho cuando: `pytest -q tests/test_escalera_optima.py` en verde.
+      Hecho el 2026-10-24: `escalera_optima.py` (18 pruebas); parámetros en el bloque
+      `escalera` del perfil (95 %, 200 sorteos, tolerancias 0,005 p.u. y 1 %); sin precio de
+      pérdidas ni COyM en el perfil, el costo anual va sin ellos y lo dice.
 - [ ] T19. Evaluación en DIgSILENT (`--evaluar`): máxima, sorteos, escenario temporal y
       limpieza. (RF-44b, RF-50, RF-51, RF-52, RF-52b)
       Hecho cuando: prueba con `fake_pf` en verde.

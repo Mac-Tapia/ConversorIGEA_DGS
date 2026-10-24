@@ -272,8 +272,10 @@ def test_electro_dunas_es_un_perfil_mas():
         'vias',
         # 024:RF-31, RF-58c: normas de calidad de sus sistemas, tasas, tarifas y libro CAPEX.
         'normas', 'planificacion',
-        # 022:RF-3: la estructura zonal → SET → alimentadores, en un JSON aparte.
-        'estructura'}
+            # 022:RF-3: la estructura zonal → SET → alimentadores, en un JSON aparte.
+            'estructura',
+            # 025:RF-50, RF-57: fracción, sorteos y tolerancias de la escalera optimizada.
+            'escalera'}
     assert perfiles_disponibles() == sorted(set(perfiles_disponibles())), 'la estructura no es un perfil'
     assert 'electro_dunas.estructura' not in perfiles_disponibles()
 
