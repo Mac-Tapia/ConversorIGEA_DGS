@@ -4142,13 +4142,16 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
     except PerfilError:
         kvar = {}
     lectura = obras_bibliotecas(ws, ctx, project, feeders)['informe']
-    contexto = native_action_context(ws, project, feeders, 'obras')
-    comun = {'project': project.strip(), 'folder': carpeta_pf(), 'anio_casos': anio_casos,
-             'native_action_context': contexto}
 
-    resultado = []
+    resultado, resueltos = [], []
     for f in con_cargas:
         ctx.check_cancel()
+        # El guion compara los alimentadores del plan con los del contexto firmado: cada
+        # alimentador va con el suyo (Pisco, 2026-10-24: «BLOQUEADO_DATOS» con el de los dos).
+        # 025:RF-69: activas solo sus cargas nuevas y las de los ya resueltos.
+        comun = {'project': project.strip(), 'folder': carpeta_pf(), 'anio_casos': anio_casos,
+                 'native_action_context': native_action_context(ws, project, [f], 'obras'),
+                 'apartar_cargas_de': [g for g in con_cargas if g != f and g not in resueltos]}
         de_f = [c for c in cargas if clave_codigo(c.get('alimentador')) == clave_codigo(f)]
         barras = list(dict.fromkeys(str(c['barra']) for c in de_f if c.get('barra')))
         rc, datos, _rep = _guion_pf(ws, ctx, 'obras_pf.py', {
@@ -4205,6 +4208,7 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             hecho = obras_ejecutar(ws, ctx, project, feeders, ids, eo.BIBLIOTECA_TIPOS, simular=False,
                                    anio_casos=anio_casos)
             fila['aplicada'] = [o.get('variacion') for o in (hecho.get('informe') or {}).get('obras') or []]
+            resueltos.append(f)
         else:                                                                    # RF-56
             fila['avisos'].append(f"{f}: ninguna variante cumple; la más cercana es «{decision['mas_cercana']}», "
                                   'y no se aplica nada (025:RF-56).')

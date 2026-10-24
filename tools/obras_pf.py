@@ -64,8 +64,8 @@ from typing import Any, Callable
 from ajuste_cabecera_pf import diagnostico
 from cargas_pf import (
     Alimentadores, activar_proyecto, cabecera_de, clave_pf, crear_variacion, error_inesperado, es_cable,
-    completar_diagrama, distancia_m, flujo_de_carga, gps_de, leer_red, medir_estado, nombre_libre, nombre_pf,
-    partir_tramo,
+    completar_diagrama, distancia_m, flujo_de_carga, gps_de, leer_cabecera, leer_red, medir_estado,
+    nombre_libre, nombre_pf, partir_tramo,
 )
 from casos_pf import (
     NOMBRES, anio_del_plan, casos_del_proyecto, crear_con_proyecto, es_de_carga_nueva,
@@ -1365,8 +1365,10 @@ def datos_escalera(app, plan: dict) -> tuple[dict, int]:
     troncales: dict[str, list[dict]] = {}
     extremos: dict[str, list[tuple]] = {}             # nombres de las dos barras de cada tramo
     posiciones: dict[str, list[list]] = {}            # y su posición GPS
+    ajenas: list = []
     try:
         casos['con'].Activate()
+        ajenas = _apartar_cargas_de(app, list(plan.get('apartar_cargas_de') or []))   # RF-69
         apartadas = _apartar_cargas_nuevas(app)
         try:
             flujo_de_carga(app)          # el ElmFeeder da sus objetos según la última topología
@@ -1414,6 +1416,10 @@ def datos_escalera(app, plan: dict) -> tuple[dict, int]:
                                              'la troncal para su terna o su sección.')
             informe['alimentadores'][f] = {'troncal': troncal, 'fuera_desde': fuera, 'indices': indices}
     finally:
+        if ajenas:
+            casos['con'].Activate()
+            for v in ajenas:
+                v.Activate()
         if inicial is not None and app.GetActiveStudyCase() is not inicial:
             inicial.Activate()
     return informe, 0
@@ -1438,10 +1444,31 @@ def medida_para_criterio(app, alims, feeders: list[str]) -> dict[str, Any]:
                 out['carga'][ln.loc_name] = float(ln.GetAttribute('c:loading'))
             except Exception:  # noqa: BLE001, S110
                 pass
-    estado = medir_estado(app, alims, feeders)
-    perdidas = [(estado.get('feeders') or {}).get(f, {}).get('perdidas_kw') for f in feeders]
-    out['perdidas_kw'] = sum(x for x in perdidas if x is not None) if any(x is not None for x in perdidas) else None
+    # 025:RF-70: lo que entra por la cabecera menos lo que consumen las cargas en el flujo; con
+    # su potencia nominal, a 0,88 p.u. las pérdidas de SI213 salían −2044 kW (2026-10-24).
+    perdidas = []
+    for f in feeders:
+        elm = alims.elm.get(f)
+        cab = leer_cabecera(elm) if elm is not None else None
+        if cab is None or not cab.converge or cab.kw is None:
+            continue
+        consumo = [_resultado(c, 'm:Psum:bus1') for c in elm.GetObjs('ElmLod') if not getattr(c, 'outserv', 0)]
+        if any(x is None for x in consumo):
+            continue
+        perdidas.append(cab.kw - 1000 * sum(consumo))
+    out['perdidas_kw'] = sum(perdidas) if perdidas else None
     return out
+
+
+def _apartar_cargas_de(app, feeders: list[str]) -> list:
+    """Desactiva en el caso activo las variaciones de cargas nuevas de ``feeders`` y las
+    devuelve, para volver a activarlas (025:RF-69). Una carga es ``Carga_<SED>_<alim>_…``."""
+    tokens = [f'_{nombre_pf(f)}_' for f in feeders]
+    apartadas = [v for v in (app.GetActiveNetworkVariations() or [])
+                 if es_de_carga_nueva(v) and any(t in v.loc_name[len('Carga_'):] for t in tokens)]
+    for v in apartadas:
+        v.Deactivate()
+    return apartadas
 
 
 class _Sorteo:
@@ -1516,6 +1543,8 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
     barras = list(plan.get('barras_cargas') or [])
     sorteos = list(plan.get('sorteos') or [])
     inicial = app.GetActiveStudyCase()
+    casos['con'].Activate()
+    ajenas = _apartar_cargas_de(app, list(plan.get('apartar_cargas_de') or []))         # RF-69
     try:
         # «Sin proyecto» con la máxima y con cada sorteo, una sola vez (RF-50).
         casos['sin'].Activate()
@@ -1572,6 +1601,10 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
                         var.Delete()
                 informe['variantes'].append(fila)
     finally:
+        if ajenas:
+            casos['con'].Activate()
+            for v in ajenas:
+                v.Activate()
         if inicial is not None and app.GetActiveStudyCase() is not inicial:
             inicial.Activate()
     return informe, 0

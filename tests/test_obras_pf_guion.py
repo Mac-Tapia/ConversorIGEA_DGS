@@ -1111,3 +1111,49 @@ def test_datos_de_la_escalera_troncal_corriente_y_tramo_de_cada_carga():
     if con_gps:
         assert set(d['indices']) == set(con_gps[-1:]) and 0 <= d['indices'][con_gps[-1]] < len(esperada)
     assert _activas(app, CON) == antes
+
+def test_al_evaluar_un_alimentador_se_apartan_las_cargas_de_los_otros(monkeypatch):
+    """025:RF-69 — mientras se evalúa F1, las cargas nuevas de F2 (sin resolver) están apartadas
+    en «Con proyecto»; al terminar vuelven a estar activas."""
+    from test_casos_pf import cargas_guion
+    from test_cargas_pf_guion import _nueva, _plan as _plan_cargas
+
+    app, alims = _calibrada_con_escenario(random.Random(21))
+    f1, f2 = alims[0], alims[1]
+    nuevas = [_nueva('N1', barra=f'{f1}_B2', tension_bt_kv=0.38), _nueva('N2', barra=f'{f2}_B2', tension_bt_kv=0.38)]
+    base = {'variaciones': [], 'feeders': list(alims), 'excluidos': [],
+            'ajustes': [{'feeder': f, 'cuadrado': True} for f in alims]}
+    informe, rc = cargas_guion.ejecutar(app, {**_plan_cargas(list(alims), nuevas=nuevas), 'base': base}, simular=False)
+    assert rc == 0, informe
+    de_f2 = next(c['variacion'] for c in informe['cargas'] if c['sed'] == 'N2')
+    monkeypatch.setitem(guion.CONSTRUCTORES, 'terna', _terna)
+    vistas = []
+    medir = guion.medida_para_criterio
+
+    def registrar(app_, alims_, feeders):
+        vistas.append({v.loc_name for v in app_.GetActiveNetworkVariations() or []})
+        return medir(app_, alims_, feeders)
+
+    monkeypatch.setattr(guion, 'medida_para_criterio', registrar)
+    plan = _plan([f1], variantes=[{'nombre': 'terna', 'obras': [_obra_terna(f1, [CON])]}], sorteos=[],
+                 barras_cargas=[], parametros=PERFIL_ESCALERA, apartar_cargas_de=[f2])
+    resultado, codigo = guion.evaluar(app, plan)
+    assert codigo == 0, resultado
+    assert vistas and all(de_f2 not in v for v in vistas)
+    assert de_f2 in _activas(app, CON)
+
+
+def test_perdidas_con_lo_que_consumen_las_cargas_en_el_flujo(monkeypatch):
+    """025:RF-70 — pérdidas = lo que entra por la cabecera − lo que consumen las cargas en el
+    flujo (``m:Psum:bus1``), no su potencia nominal."""
+    from types import SimpleNamespace
+
+    from igea_dgs.ajuste_cabecera import Medida
+
+    cargas = [SimpleNamespace(outserv=0, plini=9.0, GetAttribute=lambda a, p=p: p) for p in (0.4, 0.5)]
+    elm = SimpleNamespace(GetObjs=lambda clase: cargas if clase == 'ElmLod' else [])
+    alims = SimpleNamespace(elm={'F1': elm}, objetos=lambda f, clase: [])
+    monkeypatch.setattr(guion, 'flujo_de_carga', lambda app: {'converged': True})
+    monkeypatch.setattr(guion, 'leer_cabecera', lambda e: Medida(True, 950.0, 300.0))
+    m = guion.medida_para_criterio(None, alims, ['F1'])
+    assert m['perdidas_kw'] == pytest.approx(950.0 - 900.0)
