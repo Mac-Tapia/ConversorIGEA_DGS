@@ -186,11 +186,10 @@ def native_action_context(
         normalized = sorted(set(alimentadores_vinculados(ws, project)))
     try:
         binding = require_project_binding(ws, project, normalized)
-        aviso = usar_ejecucion_del_vinculo(ws, project, binding, normalized)          # 018:RF-15
         comprobar_dgs_vinculados(ws, binding.dgs_sha256, normalized)
     except ProjectBindingError as exc:
         raise UserError(str(exc)) from exc
-    warnings = project_binding_warnings(ws, project, normalized) + ([aviso] if aviso else [])
+    warnings = project_binding_warnings(ws, project, normalized)
     return build_native_action_context(
         binding, project, normalized, action, warnings=warnings,
     )
@@ -5514,7 +5513,9 @@ def _asistente_respuesta(ws: Workspace, plan, trabajos: list[dict]) -> dict:
     if t == 'pregunta':
         return asistente_pregunta(str(datos.get('texto') or plan.texto))
     if t == 'clasificar_informe':
-        return asistente_clasificar(str(datos.get('texto') or plan.texto))
+        # La orden entera: el trozo marcado se quedaba en «suministro para 800 kW» y perdía
+        # «solicitud de factibilidad», que es lo que dice el tipo (2026-10-24).
+        return asistente_clasificar(plan.texto)
     if t == 'buscar_internet':
         return asistente_buscar(ws, str(datos.get('texto') or plan.texto))
     raise UserError(f'La tarea {t} no es una consulta.')
@@ -5535,6 +5536,7 @@ def asistente_orden(ws: Workspace, texto: str, trabajos: list[dict] | None = Non
     interp = interpretar(texto, transformer=transformer, ollama=ollama)
     plan = resolver(interp, asistente_vocabulario(ws))
     extras = _asistente_extras(ws, plan, trabajos or [])
+    _asistente_requisitos(ws, plan, extras)
     if plan.tarea in ('informe_estudio', 'informe_factibilidad'):
         if not plan.datos.get('subtipo'):
             c = _asistente_clasificador()
@@ -5558,6 +5560,32 @@ def asistente_orden(ws: Workspace, texto: str, trabajos: list[dict] | None = Non
     if plan.listo and plan.modo == 'consulta':
         out['respuesta'] = _asistente_respuesta(ws, plan, trabajos or [])
     return out
+
+
+#: Tareas que necesitan la fuente del espacio (RED, CARGA y EQUIPOS, una .mdb o un VNR-GIS).
+_NECESITAN_FUENTE = ('cargar_fuente', 'convertir', 'unir', 'convertir_sistema', 'sistema_completo')
+
+
+def _asistente_requisitos(ws: Workspace, plan, extras: dict) -> None:
+    """Lo que la tarea necesita del espacio, comprobado con la misma validación de la web
+    antes de ofrecer confirmar (026:RF-6).
+
+    «carga la fuente» en un espacio sin entradas se ofrecía para confirmar y fallaba después
+    en la ruta con «Faltan entradas: RED…» (2026-10-24): lo que falta se dice en el plan. Con
+    las entradas puestas y la fuente sin cargar, convertir empieza por cargarla.
+    """
+    if plan.tarea not in _NECESITAN_FUENTE or (plan.tarea != 'cargar_fuente' and ws.dataset is not None):
+        return
+    try:
+        check_ready(ws)
+    except UserError as exc:
+        plan.faltan.append(f'las entradas del espacio. {exc} Súbalas en «Entradas» (RED, CARGA y EQUIPOS, '
+                           'una base .mdb o un paquete VNR-GIS) y repita la orden; para un proyecto ya '
+                           'importado, use la fuente de su vínculo en «Cargas en DIgSILENT».')
+        return
+    if plan.tarea in ('convertir', 'unir', 'convertir_sistema'):
+        extras['cargar_antes'] = True
+        plan.razonamiento.append('La fuente del espacio no está cargada: primero se carga, con sus entradas.')
 
 
 def _asistente_extras(ws: Workspace, plan, trabajos: list[dict]) -> dict:
@@ -5695,7 +5723,8 @@ def asistente_corregir(ws: Workspace, plan_id: str, *, tarea: str | None = None,
 
         tipo = tipo_informe or ('factibilidad' if tarea == 'informe_factibilidad' else 'estudio')
         clasificador.registrar(previo.texto, tipo, subtipo or plan.datos.get('subtipo') or '', 'corregido')
-    extras = guardado['extras'] if tarea == previo.tarea else {}
+    extras = dict(guardado['extras']) if tarea == previo.tarea else {}
+    _asistente_requisitos(ws, plan, extras)
     with _ASISTENTE_CERROJO:
         _ASISTENTE_PLANES.setdefault(ws.id, {})[plan.id] = {'plan': plan, 'interp': interp, 'extras': extras}
     return {'plan': plan.publico()}

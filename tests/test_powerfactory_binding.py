@@ -481,6 +481,26 @@ def test_018_rf15_misma_fuente_sin_el_dgs_aceptado_usa_la_ejecucion_del_vinculo(
     assert (aviso is not None and '018:RF-15' in aviso) is adopta
 
 
+def test_018_rf15_las_acciones_nativas_no_cambian_la_ejecucion_activa(tmp_path, monkeypatch):
+    """018:RF-15 — una acción nativa trabaja sobre el proyecto ya importado: aunque falte el
+    DGS en la ejecución activa, no la cambia (Chincha, 2026-10-24)."""
+    from types import SimpleNamespace
+
+    from igea_dgs import powerfactory_binding
+    from igea_dgs.web import services
+
+    ws = _workspace(tmp_path)
+    binding = SimpleNamespace(dgs_sha256={}, source_run_id='vieja')
+    monkeypatch.setattr(powerfactory_binding, 'require_project_binding', lambda *_a: binding)
+    monkeypatch.setattr(powerfactory_binding, 'project_binding_warnings', lambda *_a: [])
+    monkeypatch.setattr(services, 'comprobar_dgs_vinculados', lambda *_a: None)
+    monkeypatch.setattr(services, 'usar_ejecucion_del_vinculo',
+                        lambda *_a: pytest.fail('una acción nativa no cambia la ejecución activa'))
+    monkeypatch.setattr('igea_dgs.native_action.build_native_action_context',
+                        lambda b, p, f, a, warnings: {'feeders': f, 'warnings': warnings})
+    assert services.native_action_context(ws, 'P', ['PN107'], 'obras')['feeders'] == ['PN107']
+
+
 def test_018_rf6_dgs_distinto_del_aceptado_bloquea_y_sin_huella_no_bloquea(tmp_path, monkeypatch):
     """018:RF-6 — un DGS distinto del aceptado bloquea; un alimentador sin huella, no."""
     from igea_dgs.web import services
