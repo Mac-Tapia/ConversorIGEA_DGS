@@ -100,6 +100,24 @@ def trabajos_en_curso(url: str, salud: dict) -> int | None:
         return None
 
 
+def esperar_respuesta(url: str, segundos: float) -> dict | None:
+    """La salud del Conversor de ``url`` en cuanto responda, o None si no lo hace a tiempo."""
+    limite = time.monotonic() + segundos
+    while time.monotonic() < limite:
+        salud = conversor_en(url, timeout=min(10.0, max(1.0, limite - time.monotonic())))
+        if salud is not None:
+            return salud
+        time.sleep(1.0)
+    return None
+
+
+def carpeta_registro() -> str:
+    """Donde los servidores anotan sus trabajos en curso para el lanzador (RF-34)."""
+    import tempfile
+
+    return os.path.join(os.environ.get('LOCALAPPDATA') or tempfile.gettempdir(), 'igea_dgs', 'trabajos_web')
+
+
 def pedir_cierre(url: str) -> bool:
     """Pide al Conversor de ``url`` que se cierre; True si lo acepta."""
     from .app import CABECERA_LANZADOR
@@ -181,8 +199,24 @@ def resolver_puerto(host: str, port: int, abrir: bool) -> tuple[str, int]:
     from .app import frontend_dist
     from .runtime import huella_del_codigo
 
+    from .jobs import trabajos_anotados
+
     url = f'http://{_destino(host)}:{port}/'
     salud = conversor_en(url) or conversor_en(url)
+    if salud is None:
+        ocupante = quien_escucha(port)
+        if (ocupante and ocupante[0] != os.getpid() and es_conversor(ocupante[1])
+                and (trabajos_anotados(ocupante[0]) or 0) > 0):
+            # RF-34: ocupado con un trabajo largo no es colgado; se le da un minuto.
+            print(f'El Conversor del puerto {port} (proceso {ocupante[0]}) tiene trabajos en curso '
+                  'y tarda en responder: se espera.')
+            salud = esperar_respuesta(url, 60.0)
+            if salud is None:
+                print(f'El Conversor de {url} sigue sin responder con trabajos en curso: no se cierra '
+                      'para no perderlos y se muestra en el navegador.', file=sys.stderr)
+                if abrir:
+                    webbrowser.open(url)
+                return 'salir', SALIDA_OTRA_VERSION
     if salud is not None:
         servidor = salud.get('servidor') if isinstance(salud.get('servidor'), dict) else {}
         if servidor.get('huella') == huella_del_codigo(frontend_dist()):
@@ -261,6 +295,9 @@ def main(argv: list[str] | None = None) -> int:
     # factory=True no recibe argumentos, así que va por el entorno, que hereda también
     # el proceso de recarga.
     os.environ['IGEA_WEB_HOST'] = args.host
+    from .jobs import VARIABLE_REGISTRO, registro_de_trabajos
+
+    os.environ.setdefault(VARIABLE_REGISTRO, carpeta_registro())       # RF-34
 
     from .app import al_pedir_cierre, frontend_dist
 
@@ -298,6 +335,10 @@ def main(argv: list[str] | None = None) -> int:
         # uvicorn vuelve a lanzar el Ctrl+C tras cerrar limpio; sin esto salía con traza
         # y código 1, y run_gui.bat decía «si faltan librerías» y pedía una tecla (RF-32).
         pass
+    finally:
+        registro = registro_de_trabajos(os.getpid())
+        if registro is not None:
+            registro.unlink(missing_ok=True)
     return 0
 
 

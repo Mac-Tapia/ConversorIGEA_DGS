@@ -87,9 +87,10 @@ def _salud(**servidor) -> dict:
 
 
 @pytest.fixture
-def uvicorn_falso(monkeypatch):
+def uvicorn_falso(monkeypatch, tmp_path):
     """Sustituye uvicorn: anota en qué puerto arrancaría el servidor, sin arrancarlo."""
     arranques: list[dict] = []
+    monkeypatch.setenv('IGEA_REGISTRO_TRABAJOS', str(tmp_path / 'trabajos_web'))
 
     class Servidor:
         def __init__(self, config):
@@ -162,6 +163,65 @@ def test_conversor_colgado_se_termina(uvicorn_falso, monkeypatch):
     assert lanzador.main(['--port', str(port), '--no-browser']) == 0
     assert terminados == [999_999]
     assert [a['port'] for a in uvicorn_falso] == [port]
+
+
+def _colgado_con_trabajos(monkeypatch, tmp_path, respuesta):
+    """Un puerto ocupado por un Conversor que no responde y que anotó un trabajo en curso."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(('127.0.0.1', 0))
+    s.listen(8)
+    registro = tmp_path / 'trabajos_web'
+    registro.mkdir(exist_ok=True)
+    (registro / '999999.json').write_text(json.dumps({'pid': 999_999, 'en_curso': 1, 'hora': 0}))
+    terminados = []
+    monkeypatch.setattr(lanzador, 'conversor_en', lambda *_a, **_k: None)
+    monkeypatch.setattr(lanzador, 'esperar_respuesta', lambda url, segundos: respuesta)
+    monkeypatch.setattr(lanzador, 'quien_escucha',
+                        lambda _p: (999_999, 'python.exe -m igea_dgs.web'))
+    monkeypatch.setattr(lanzador, '_terminar', lambda pid: (terminados.append(pid), s.close()))
+    return s, terminados
+
+
+def test_conversor_ocupado_con_trabajos_no_se_termina(uvicorn_falso, monkeypatch, tmp_path, capsys):
+    """001:RF-34 — un Conversor que no responde pero anotó trabajos en curso no se termina: se
+    espera y, si sigue sin responder, se muestra en el navegador y se sale con 3."""
+    s, terminados = _colgado_con_trabajos(monkeypatch, tmp_path, None)
+    try:
+        assert lanzador.main(['--port', str(s.getsockname()[1]), '--no-browser']) == lanzador.SALIDA_OTRA_VERSION
+    finally:
+        s.close()
+    assert terminados == [] and uvicorn_falso == []
+    assert 'trabajos en curso' in capsys.readouterr().err
+
+
+def test_conversor_ocupado_que_responde_al_esperar_se_reutiliza(uvicorn_falso, monkeypatch, tmp_path):
+    """001:RF-34 — si al esperar responde y es el mismo código, se reutiliza como siempre."""
+    s, terminados = _colgado_con_trabajos(
+        monkeypatch, tmp_path, _salud(pid=999_999, huella=_huella_actual(), trabajos_en_curso=1))
+    try:
+        assert lanzador.main(['--port', str(s.getsockname()[1]), '--no-browser']) == 0
+    finally:
+        s.close()
+    assert terminados == [] and uvicorn_falso == []
+
+
+def test_el_servidor_anota_sus_trabajos_en_curso(tmp_path, monkeypatch):
+    """001:RF-34 — el registro del proceso dice cuántos trabajos tiene sin terminar."""
+    from igea_dgs.web import jobs
+
+    monkeypatch.setenv(jobs.VARIABLE_REGISTRO, str(tmp_path))
+    gestor = jobs.JobManager(lambda *_a: None)
+    suelta = threading.Event()
+    job = gestor.submit('w', 'k', 't', lambda ctx: suelta.wait(5))
+    assert jobs.trabajos_anotados(os.getpid()) == 1
+    suelta.set()
+    for _ in range(100):
+        if job.status in jobs.FINISHED:
+            break
+        time.sleep(0.05)
+    assert jobs.trabajos_anotados(os.getpid()) == 0
+    monkeypatch.delenv(jobs.VARIABLE_REGISTRO)
+    assert jobs.trabajos_anotados(os.getpid()) is None
 
 
 def test_otro_programa_en_el_puerto_se_usa_el_siguiente(uvicorn_falso, monkeypatch, capsys):
