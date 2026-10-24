@@ -467,7 +467,10 @@ def principio_del_tramo(elm, linea) -> tuple:
     while cola:
         barra = cola.pop(0)
         for cub in cubiculos.get(clave_pf(barra), []):
-            for otra, _ in extremos.get(clave_pf(getattr(cub, 'obj_id', None)), []):
+            elemento = getattr(cub, 'obj_id', None)
+            if elemento is None:                     # cubículo vacío: no lleva a ninguna barra
+                continue
+            for otra, _ in extremos.get(clave_pf(elemento), []):
                 if clave_pf(otra) not in distancia:
                     distancia[clave_pf(otra)] = distancia[clave_pf(barra)] + 1
                     cola.append(otra)
@@ -553,7 +556,23 @@ def construir_regulador(ctx) -> None:
         if getattr(origen, atributo, None) is not None:
             setattr(nueva, atributo, getattr(origen, atributo))
     if nueva.Move(cub) != 0:
-        raise RuntimeError(f'DIgSILENT no dejó pasar el cubículo del tramo {o.tramo} a la barra nueva')
+        # 025:RF-76: grabando en una variación DIgSILENT no deja mover el cubículo (PN107 y
+        # SI213, 2026-10-24); el tramo pasa a un cubículo nuevo de la barra nueva, por el
+        # mismo lado, como conecta la línea la obra de enlace.
+        # La API da un envoltorio nuevo en cada acceso: se compara por nombre completo.
+        cabeza = getattr(ctx.elm, 'obj_id', None)
+        if cabeza is not None and clave_pf(cabeza) == clave_pf(cub):
+            # Vaciar el cubículo de la cabecera dejaría el alimentador sin su principio.
+            raise RuntimeError(f'el tramo {o.tramo} sale de la cabecera: el regulador va en uno '
+                               'posterior de la troncal')
+        linea = ctx.objeto('ElmLne', o.tramo)
+        lado = int(getattr(cub, 'obj_bus', 0) or 0)
+        cub.obj_id = None
+        nuevo = nueva.CreateObject('StaCubic', nombre_pf(f'Cub_{o.tramo}_REG'))
+        nuevo.obj_id, nuevo.obj_bus = linea, lado
+        conectado = getattr(nuevo, 'obj_id', None)
+        if conectado is None or clave_pf(conectado) != clave_pf(linea):
+            raise RuntimeError(f'DIgSILENT no dejó pasar el tramo {o.tramo} a la barra nueva')
     regulador = red.CreateObject('ElmVoltreg', nombre_libre(red, 'ElmVoltreg', f'Regulador_{o.tramo}'))
     regulador.typ_id = ctx.tipo('TypVoltreg', ctx.fila['tipo'])
     # Lado S en la barra de origen (la fuente), lado L en la nueva (el tramo).
@@ -1462,14 +1481,27 @@ def medida_para_criterio(app, alims, feeders: list[str]) -> dict[str, Any]:
     out: dict[str, Any] = {'converge': bool(flujo['converged']), 'u': {}, 'carga': {}, 'perdidas_kw': None}
     if not out['converge']:
         return out
+
+    def objetos(f, clase):
+        # 025:RF-75: los del alimentador en este caso y con esta variante; la lista guardada de
+        # ``alims`` es la de «Sin proyecto», sin la barra de la carga nueva (NODE_T_CH_9 de
+        # PN107 salía «a ? p.u.», 2026-10-24).
+        elm = alims.elm.get(f)
+        if elm is None:
+            return alims.objetos(f, clase)
+        try:
+            return list(elm.GetObjs(clase))
+        except Exception:  # noqa: BLE001 - se usa la lista guardada
+            return alims.objetos(f, clase)
+
     for f in feeders:
-        for b in alims.objetos(f, 'ElmTerm'):
+        for b in objetos(f, 'ElmTerm'):
             try:
                 if float(getattr(b, 'uknom', 0) or 0) >= 1.0 and b.HasResults():
                     out['u'][b.loc_name] = float(b.GetAttribute('m:u'))
             except Exception:  # noqa: BLE001, S110 - sin resultado, no cuenta
                 pass
-        for ln in alims.objetos(f, 'ElmLne'):
+        for ln in objetos(f, 'ElmLne'):
             try:
                 out['carga'][ln.loc_name] = float(ln.GetAttribute('c:loading'))
             except Exception:  # noqa: BLE001, S110

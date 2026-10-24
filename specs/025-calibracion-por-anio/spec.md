@@ -286,6 +286,14 @@ nueva por su factor de uso; vale si cumple en el 95 % de 200 sorteos)
   (proyecto, año, variantes, sorteos, cargas apartadas, parámetros y variaciones activas en
   «Con proyecto <año>») en las últimas 24 h, ENTONCES EL SISTEMA la reutilizará sin volver a
   medir, y lo dirá en el registro.
+- RF-75: EL SISTEMA medirá en cada flujo las barras y los tramos que el alimentador tiene en
+  ese caso y con esa variante, no los de «Sin proyecto»: la barra de una carga nueva y los
+  tramos que crean las obras solo existen en «Con proyecto». (Chincha y Pisco, 2026-10-24:
+  NODE_T_CH_9 de PN107 y NODE_T_PI_1 de PA217 salían «a ? p.u.» y ninguna variante cumplía.)
+- RF-76: SI DIgSILENT no deja mover el cubículo del tramo a la barra nueva del regulador,
+  ENTONCES EL SISTEMA conectará el tramo a un cubículo nuevo de esa barra, por el mismo lado.
+  (PN107 y SI213, 2026-10-24: grabando en la variación, todos los reguladores fallaban con
+  «DIgSILENT no dejó pasar el cubículo del tramo a la barra nueva».)
 - RF-74: ANTES de probar las variantes de un alimentador, EL SISTEMA medirá «Con proyecto
   <año>» tal como está; SI ya cumple con la máxima y en los sorteos, ENTONCES no aplicará
   nada, lo dirá y lo dará por resuelto. (Pisco, 2026-10-24: volver a pedir la escalera con la
