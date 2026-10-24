@@ -79,6 +79,11 @@ cargada en memoria, que no hace falta para comparar el DGS y su sidecar.
   espacio o, si el espacio no tiene ninguna, la más reciente de la misma carpeta de DIgSILENT
   en otro espacio, con el vínculo recalculado, sin abrir DIgSILENT; «Volver a leer
   proyectos» la actualiza.
+- RF-14: Cuando una acción sobre un proyecto de DIgSILENT (verificar el «Caso base» y toda
+  acción nativa) reciba el nombre de una red unida o por sistema del espacio (`SISTEMA_NASCA`),
+  el sistema deberá tomarlo como sus alimentadores antes de comprobar el vínculo. (Nasca,
+  2026-10-24: verificar el «Caso base» con `['SISTEMA_NASCA']` falló con
+  `PROJECT_BINDING_FEEDER_MISMATCH`, aunque el vínculo tenía todos sus alimentadores.)
 
 ## Fuera de alcance
 
