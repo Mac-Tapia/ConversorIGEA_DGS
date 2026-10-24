@@ -294,6 +294,11 @@ nueva por su factor de uso; vale si cumple en el 95 % de 200 sorteos)
   ENTONCES EL SISTEMA conectará el tramo a un cubículo nuevo de esa barra, por el mismo lado.
   (PN107 y SI213, 2026-10-24: grabando en la variación, todos los reguladores fallaban con
   «DIgSILENT no dejó pasar el cubículo del tramo a la barra nueva».)
+- RF-77: EL SISTEMA pasará los costos del libro CAPEX a la moneda de trabajo con la escala
+  del perfil (`escalera.escala_capex`); SI el libro trae costos y el perfil no da la escala,
+  ENTONCES lo dirá y no costeará con ellos. (Electro Dunas, 2026-10-24: el libro está en miles
+  de dólares y se tomaba en dólares; la terna salía a 60,9 USD/km y en SI213 ganó terna y
+  sección solo por las pérdidas.)
 - RF-74: ANTES de probar las variantes de un alimentador, EL SISTEMA medirá «Con proyecto
   <año>» tal como está; SI ya cumple con la máxima y en los sorteos, ENTONCES no aplicará
   nada, lo dirá y lo dará por resuelto. (Pisco, 2026-10-24: volver a pedir la escalera con la
