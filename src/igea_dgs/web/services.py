@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import sys
+import threading
 import time
 import uuid
 from datetime import datetime
@@ -135,6 +136,19 @@ def comprobar_dgs_vinculados(ws: Workspace, aceptados: dict[str, str], feeders: 
             )
 
 
+def alimentadores_pedidos(ws: Workspace, nombres: list[str]) -> list[str]:
+    """Los alimentadores de lo pedido: el nombre de una red unida o por sistema del espacio
+    vale por sus alimentadores (018:RF-14). Nasca, 2026-10-24: el «Caso base» pedido con
+    ``SISTEMA_NASCA`` no era subconjunto de los alimentadores del vínculo."""
+    salida: list[str] = []
+    for nombre in nombres:
+        nombre = str(nombre).strip()
+        grupo = (ws.groups or {}).get(nombre) if nombre else None
+        miembros = list((grupo or {}).get('feeders') or []) if isinstance(grupo, dict) else []
+        salida += miembros or ([nombre] if nombre else [])
+    return list(dict.fromkeys(salida))
+
+
 def native_action_context(
     ws: Workspace, project: str, feeders: list[str], action: str,
 ) -> dict[str, Any]:
@@ -146,7 +160,7 @@ def native_action_context(
     )
 
     project = str(project or '').strip()
-    normalized = sorted({str(feeder).strip() for feeder in feeders if str(feeder).strip()})
+    normalized = sorted(set(alimentadores_pedidos(ws, list(feeders))))           # 018:RF-14
     if not normalized:
         normalized = sorted(set(alimentadores_vinculados(ws, project)))
     try:
@@ -3321,7 +3335,7 @@ def pf_verificar_base(ws: Workspace, ctx: JobContext, project: str, feeders: lis
     from ..powerfactory_binding import require_project_binding
 
     bound = alimentadores_vinculados(ws, project)
-    pedidos = list(dict.fromkeys(f.strip() for f in feeders if f.strip())) or list(bound)
+    pedidos = alimentadores_pedidos(ws, feeders) or list(bound)                     # 018:RF-14
     if not pedidos:
         raise UserError('Elija los alimentadores cuyo «Caso base» quiere verificar.')
     # Spec 018, RF-5: la exigencia va en el servidor, no solo en la interfaz. Sin vínculo se
@@ -5366,3 +5380,409 @@ def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict
     return {'informe': destino.name, 'json': destino.with_suffix('.json').name, 'huecos': huecos,
             'estudios': [sin['_fichero'], con['_fichero']], 'factible': resumen.get('factible'),
             'excesos': resumen.get('excesos') or [], 'punto_diseno': punto, 'carga': carga}
+
+
+# ---------------------------------------------------------------------------
+# Asistente de órdenes (spec 026)
+# ---------------------------------------------------------------------------
+
+#: Planes a la espera de confirmación, por espacio: viven en memoria como los de cargas.
+_ASISTENTE_PLANES: dict[str, dict[str, dict]] = {}
+_ASISTENTE_CERROJO = threading.Lock()
+
+
+def gemelo_evaluar(ws: Workspace, ctx: JobContext) -> dict:
+    """Cuánto se apartan de DIgSILENT el modelo del gemelo y la física (024:RF-74), en otro proceso."""
+    import sys
+
+    from ..digital_twin.buffer import raiz_buffer
+
+    report = ws.out_dir / f'gemelo_evaluacion_{uuid.uuid4().hex[:8]}.json'
+    report.parent.mkdir(parents=True, exist_ok=True)
+    rc = ctx.run_process([sys.executable, str(_script('digital_twin_entrenar.py')), '--evaluar',
+                          '--output-json', str(report), '--raiz', str(raiz_buffer())], cwd=str(project_root()))
+    try:
+        r = json.loads(report.read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        raise UserError(f'La evaluación del gemelo terminó con el código {rc} sin informe.') from None
+    return {'modelo': r.get('modelo'), 'por_particion': r.get('por_particion'), 'informe': report.name}
+
+
+def asistente_vocabulario(ws: Workspace) -> dict[str, list[str]]:
+    """Lo que existe y contra lo que se contrastan los datos de una orden (026:RF-6)."""
+    vocab: dict[str, list[str]] = {
+        'alimentadores': [r['network_id'] for r in feeder_rows(ws)],
+        'proyecto': [str(p.get('name')) for p in pf_proyectos_guardados(ws).get('projects') or [] if p.get('name')],
+    }
+    try:
+        e = estructura_del_espacio(ws)
+    except (UserError, ValueError, OSError):
+        e = None
+    vocab['sistema'] = list(e.zonales) if e is not None else []
+    if not vocab['alimentadores'] and e is not None:
+        # Sin fuente cargada, los de la estructura de la empresa: tras reiniciar la web ningún
+        # espacio tenía su inventario en memoria y el asistente no reconocía ni IN111 (2026-10-24).
+        vocab['alimentadores'] = sorted(a.codigo for a in e.alimentadores.values())
+    from ..asistente.clasificador import subtipos_del_perfil
+
+    vocab['subtipo'] = subtipos_del_perfil()
+    return vocab
+
+
+def _asistente_modelos() -> tuple[Any, Any]:
+    """El Transformer promovido y el cliente de Ollama, o ``None`` el que no esté (RNF «Compatible»)."""
+    try:
+        from ..asistente import transformer
+
+        modelo = transformer.cargar()
+    except (ImportError, RuntimeError, OSError, ValueError, KeyError):
+        modelo = None
+    from ..asistente.ollama import cliente_configurado
+
+    return modelo, cliente_configurado()
+
+
+def _asistente_clasificador():
+    try:
+        from ..asistente import clasificador
+
+        return clasificador.cargar()
+    except (ImportError, RuntimeError, OSError, ValueError, KeyError):
+        return None
+
+
+def _asistente_respuesta(ws: Workspace, plan, trabajos: list[dict]) -> dict:
+    """Las consultas se responden en la misma petición con lo que ya hay (026:RF-9)."""
+    t, datos = plan.tarea, plan.datos
+    if t == 'estado':
+        filas = feeder_rows(ws)
+        salidas = [p for p in ws.out_dir.rglob('*') if p.is_file()] if ws.out_dir.is_dir() else []
+        en_curso = [j for j in trabajos if j.get('status') not in ('done', 'failed', 'cancelled')]
+        texto = (f"{'Fuente cargada' if ws.dataset is not None else 'Sin fuente cargada'}; {len(filas)} "
+                 f'alimentador(es); {len(en_curso)} trabajo(s) en curso; {len(salidas)} fichero(s) de salida.')
+        return {'texto': texto, 'trabajos': [{'titulo': j['title'], 'estado': j['status']} for j in en_curso]}
+    if t == 'proyectos':
+        nombres = [p.get('name') for p in pf_proyectos_guardados(ws).get('projects') or []]
+        return {'texto': f'{len(nombres)} proyecto(s) conocidos.' if nombres else
+                'La web aún no leyó los proyectos de DIgSILENT: pida «lee los proyectos de DIgSILENT».',
+                'proyectos': nombres}
+    if t == 'resultados_pide':
+        hechos = [j for j in trabajos if j.get('kind') == 'pide' and j.get('status') == 'done'
+                  and (not datos.get('proyecto') or (j.get('result') or {}).get('project') == datos['proyecto'])]
+        if not hechos:
+            return {'texto': 'No hay ningún PIDE terminado en este espacio' +
+                    (f" para {datos['proyecto']}" if datos.get('proyecto') else '') + '.'}
+        r = hechos[-1]['result']
+        obras = [{k: o.get(k) for k in ('codigo', 'prioridad', 'anio', 'alternativa', 'alimentador', 'elemento',
+                                        'ci', 'sobredimensionada', 'descartada')} for o in r.get('obras') or []]
+        return {'texto': f"PIDE de {r.get('project')}: {len(obras)} obra(s), "
+                         f"{len(r.get('implementadas') or [])} aplicada(s) solas; formatos en {r.get('formatos')}.",
+                'obras': obras, 'entregables': [r.get('formatos')] if r.get('formatos') else [],
+                'avisos': r.get('avisos') or []}
+    if t == 'episodios':
+        filas = gemelo_episodios(ws, {'proyecto': datos.get('proyecto')})
+        cuenta: dict[str, int] = {}
+        for f in filas:
+            clave = f"{f.get('clase')} · {f.get('caso')}"
+            cuenta[clave] = cuenta.get(clave, 0) + 1
+        return {'texto': f'{len(filas)} episodio(s) en el búfer del gemelo.', 'por_clase': cuenta}
+    if t == 'pregunta':
+        return asistente_pregunta(str(datos.get('texto') or plan.texto))
+    if t == 'clasificar_informe':
+        return asistente_clasificar(str(datos.get('texto') or plan.texto))
+    if t == 'buscar_internet':
+        return asistente_buscar(ws, str(datos.get('texto') or plan.texto))
+    raise UserError(f'La tarea {t} no es una consulta.')
+
+
+def asistente_orden(ws: Workspace, texto: str, trabajos: list[dict] | None = None) -> dict:
+    """Interpreta la orden, arma el plan y, si es una consulta, la responde (026:RF-2 a RF-9)."""
+    from ..asistente import almacen
+    from ..asistente.interprete import interpretar
+    from ..asistente.plan import resolver
+
+    texto = (texto or '').strip()
+    if not texto:
+        raise UserError('Escriba la orden.')
+    if len(texto) > 2000:
+        raise UserError('La orden es demasiado larga (máximo 2000 caracteres).')
+    transformer, ollama = _asistente_modelos()
+    interp = interpretar(texto, transformer=transformer, ollama=ollama)
+    plan = resolver(interp, asistente_vocabulario(ws))
+    extras = _asistente_extras(ws, plan, trabajos or [])
+    if plan.tarea in ('informe_estudio', 'informe_factibilidad'):
+        if not plan.datos.get('subtipo'):
+            c = _asistente_clasificador()
+            if c is not None:
+                r = c.clasificar(texto)
+                plan.datos['subtipo'] = r['subtipo']
+                plan.razonamiento.append(f"subtipo de estudio: {r['subtipo']} según el clasificador "
+                                         f"({r['confianza_subtipo']:.0%}, 026:RF-14).")
+        if not extras.get('formulario') and plan.datos.get('proyecto'):
+            plan.faltan.append('el formulario del informe: rellénelo una vez en el paso 4.4 de la web')
+    from ..asistente.ejecutor import describir
+
+    publico = plan.publico()
+    if plan.tarea and plan.modo == 'trabajo':
+        publico['pasos'] = describir(plan.tarea, plan.datos, extras)
+    with _ASISTENTE_CERROJO:
+        _ASISTENTE_PLANES.setdefault(ws.id, {})[plan.id] = {'plan': plan, 'interp': interp, 'extras': extras}
+    almacen.anotar('ordenes', {'espacio': ws.id, 'plan': plan.id, 'texto': texto, 'tarea': plan.tarea,
+                               'modelo': plan.interpretado_por, 'confianza': plan.confianza, 'listo': plan.listo})
+    out = {'plan': publico}
+    if plan.listo and plan.modo == 'consulta':
+        out['respuesta'] = _asistente_respuesta(ws, plan, trabajos or [])
+    return out
+
+
+def _asistente_extras(ws: Workspace, plan, trabajos: list[dict]) -> dict:
+    """Lo que la web sabe y la orden no dice: la última máxima y el formulario guardado del informe."""
+    extras: dict[str, Any] = {}
+    maximas = [j for j in trabajos if j.get('kind') == 'demanda_cabecera' and j.get('status') == 'done']
+    if maximas:
+        extras['ultima_maxima'] = maximas[-1]
+    if plan.tarea in ('informe_estudio', 'informe_factibilidad') and plan.datos.get('proyecto'):
+        tipo = 'estudio' if plan.tarea == 'informe_estudio' else 'factibilidad'
+        extras['formulario'] = ((ws.informes.get('formularios') or {}).get(plan.datos['proyecto']) or {}).get(tipo)
+    return extras
+
+
+def asistente_plan(ws: Workspace, plan_id: str) -> dict:
+    with _ASISTENTE_CERROJO:
+        guardado = (_ASISTENTE_PLANES.get(ws.id) or {}).get(plan_id)
+    if guardado is None:
+        raise UserError('El plan ya no existe: vuelva a escribir la orden.')
+    return guardado
+
+
+def _ejemplo_de(texto: str, tarea: str, datos: dict) -> dict:
+    """La orden como ejemplo de entrenamiento: cada dato con su posición en el texto (026:RF-19)."""
+    from ..asistente.sinteticos import normalizar
+    from ..asistente.tareas import TAREAS
+
+    t = normalizar(texto)
+    trozos = []
+    for d in TAREAS[tarea].datos:
+        valor = datos.get(d.nombre)
+        for v in (valor if isinstance(valor, list) else [valor]):
+            if v in (None, '') or not isinstance(v, (str, int)):
+                continue
+            i = t.find(normalizar(str(v)))
+            if i >= 0 and not any(a < i + len(str(v)) and i < b for a, b, _ in trozos):
+                trozos.append((i, i + len(str(v)), d.tipo))
+    return {'texto': texto, 'tarea': tarea, 'datos': sorted(trozos)}
+
+
+def asistente_ejecutar(ws: Workspace, ctx: JobContext, plan_id: str, base: str, http: Any = None) -> dict:
+    """El plan confirmado, por las rutas y trabajos de la web (026:RF-10, RF-12); la orden queda
+    como ejemplo confirmado (026:RF-19)."""
+    from ..asistente import almacen
+    from ..asistente.ejecutor import ClienteWeb, PasoFallido, ejecutar, entregables, pasos
+
+    guardado = asistente_plan(ws, plan_id)
+    plan = guardado['plan']
+    if not plan.listo:
+        raise UserError('El plan no está completo: ' + '; '.join(plan.faltan))
+    almacen.anotar('ejemplos', {**_ejemplo_de(plan.texto, plan.tarea, plan.datos), 'origen': 'confirmado'})
+    almacen.anotar('decisiones', {'plan': plan.id, 'tarea': plan.tarea, 'datos': plan.datos, 'decision': 'confirmada'})
+    if plan.modo == 'proceso':
+        return _asistente_proceso(ws, ctx, plan)
+    if http is None:
+        import requests
+
+        http = requests.Session()
+    cliente = ClienteWeb(http, base.rstrip('/'), ws.id, cancelado=ctx.cancel.is_set)
+    try:
+        resultado = ejecutar(pasos(plan.tarea, plan.datos, guardado['extras']), cliente, ctx.log)
+    except PasoFallido as exc:
+        raise UserError(f'El asistente paró: {exc}') from exc
+    if plan.tarea in ('informe_estudio', 'informe_factibilidad'):
+        resultado['clasificacion'] = _asistente_clasificar_generado(ws, plan, entregables(resultado.get('resultado')))
+    ctx.log(f"Asistente: «{plan.tarea}» terminado; {len(resultado.get('entregables') or [])} entregable(s).")
+    return {'plan': plan.id, 'tarea': plan.tarea, **resultado}
+
+
+def _asistente_proceso(ws: Workspace, ctx: JobContext, plan) -> dict:
+    """Las tareas que son herramientas de tools/ (sistema completo, reentrenar el asistente)."""
+    import sys
+
+    if plan.tarea == 'entrenar_asistente':
+        return asistente_entrenar(ws, ctx)
+    cmd = [sys.executable, str(_script('sistema_web.py')), '--espacio', ws.id, '--zonal', plan.datos['sistema'],
+           '--periodo', plan.datos['periodo']]
+    if plan.datos.get('ruta'):
+        cmd += ['--demanda-dir', plan.datos['ruta']]
+    rc = ctx.run_process(cmd, cwd=str(project_root()))
+    if rc not in (0, 1):
+        raise UserError(f'El sistema {plan.datos["sistema"]} no se pudo llevar hasta el final (código {rc}).')
+    return {'plan': plan.id, 'tarea': plan.tarea, 'codigo': rc,
+            'texto': 'calibrado y válido' if rc == 0 else 'calibrado con fallos: vea el registro'}
+
+
+def _asistente_clasificar_generado(ws: Workspace, plan, nombres: list[str]) -> dict | None:
+    """El informe recién escrito, clasificado y guardado como ejemplo (026:RF-14)."""
+    from ..asistente import clasificador
+
+    docx = next((ws.out_dir / n for n in nombres if n.endswith('.docx') and (ws.out_dir / n).is_file()), None)
+    if docx is None:
+        return None
+    texto = clasificador.texto_de_docx(docx)
+    if not texto:
+        return None
+    tipo = 'estudio' if plan.tarea == 'informe_estudio' else 'factibilidad'
+    c = _asistente_clasificador()
+    r = c.clasificar(texto) if c is not None else None
+    subtipo = plan.datos.get('subtipo') or (r or {}).get('subtipo')
+    if subtipo:
+        clasificador.registrar(texto, tipo, subtipo, 'generado')
+    return {'tipo': tipo, 'subtipo': subtipo, 'clasificador': r}
+
+
+def asistente_corregir(ws: Workspace, plan_id: str, *, tarea: str | None = None, datos: dict | None = None,
+                       tipo_informe: str | None = None, subtipo: str | None = None) -> dict:
+    """La corrección del operador: un plan nuevo y un ejemplo corregido para aprender (026:RF-15, RF-19)."""
+    from ..asistente import almacen
+    from ..asistente.interprete import Interpretacion
+    from ..asistente.plan import resolver
+    from ..asistente.tareas import TAREAS
+
+    guardado = asistente_plan(ws, plan_id)
+    previo = guardado['plan']
+    tarea = tarea or previo.tarea
+    if tarea not in TAREAS:
+        raise UserError(f'Tarea desconocida: {tarea}.')
+    datos = {**previo.datos, **(datos or {})}
+    por_tipo: dict[str, list[dict]] = {}
+    for d in TAREAS[tarea].datos:
+        v = datos.get(d.nombre)
+        for x in (v if isinstance(v, list) else [v]):
+            if x not in (None, ''):
+                por_tipo.setdefault(d.tipo, []).append({'valor': str(x), 'confianza': 1.0})
+    interp = Interpretacion(previo.texto, tarea, 1.0, 'operador', por_tipo, [], ['corrección del operador'])
+    plan = resolver(interp, asistente_vocabulario(ws))
+    if subtipo:
+        plan.datos['subtipo'] = subtipo
+    almacen.anotar('ejemplos', {**_ejemplo_de(previo.texto, tarea, plan.datos), 'origen': 'corregido'})
+    almacen.anotar('decisiones', {'plan': previo.id, 'nuevo': plan.id, 'decision': 'corregida', 'tarea_antes':
+                                  previo.tarea, 'tarea': tarea})
+    if subtipo or tipo_informe:
+        from ..asistente import clasificador
+
+        tipo = tipo_informe or ('factibilidad' if tarea == 'informe_factibilidad' else 'estudio')
+        clasificador.registrar(previo.texto, tipo, subtipo or plan.datos.get('subtipo') or '', 'corregido')
+    extras = guardado['extras'] if tarea == previo.tarea else {}
+    with _ASISTENTE_CERROJO:
+        _ASISTENTE_PLANES.setdefault(ws.id, {})[plan.id] = {'plan': plan, 'interp': interp, 'extras': extras}
+    return {'plan': plan.publico()}
+
+
+def asistente_pregunta(texto: str) -> dict:
+    """Cómo funciona el conversor, con cita de ficheros, funciones y RF (026:RF-17, RF-18)."""
+    from ..asistente import indice
+    from ..asistente.ollama import cliente_configurado
+
+    ollama = cliente_configurado()
+    if ollama.modelos() is None:
+        ollama = None
+    i = indice.cargar_o_construir(project_root(), ollama)
+    r = indice.responder(i, texto, ollama)
+    return {'texto': r['respuesta'], 'citas': r['citas'], 'sabe': r['sabe']}
+
+
+def asistente_clasificar(texto: str) -> dict:
+    """El tipo y el subtipo de estudio de un texto o un pedido (026:RF-14)."""
+    c = _asistente_clasificador()
+    if c is None:
+        return {'texto': 'El clasificador de informes aún no está entrenado: pida «reentrena el asistente».'}
+    r = c.clasificar(texto)
+    return {'texto': f"{r['tipo']} · {r['subtipo']} ({r['confianza_subtipo']:.0%})", **r}
+
+
+def asistente_buscar(ws: Workspace, texto: str) -> dict:
+    """GitHub y arXiv con una consulta sin datos de la red (026:RF-29 a RF-31)."""
+    from ..asistente.internet import Buscador
+
+    vocab = asistente_vocabulario(ws)
+    b = Buscador([*vocab['alimentadores'], *vocab['proyecto'], *vocab['sistema']])
+    r = b.buscar(texto, motivo='orden del operador')
+    if r['bloqueada']:
+        return {'texto': f"No se buscó: la consulta {r['bloqueada']} (P9). Escríbala solo con términos técnicos.",
+                **r}
+    return {'texto': f"{len(r['github'])} repositorio(s) y {len(r['arxiv'])} artículo(s).", **r}
+
+
+def asistente_proponer_libreria(ws: Workspace, ctx: JobContext, paquete: str, motivo: str) -> dict:
+    """Ficha de una librería en una rama aparte, con su suite, para que el operador decida (026:RF-32)."""
+    from ..asistente import mejoras
+    from ..asistente.internet import Buscador
+
+    vocab = asistente_vocabulario(ws)
+    b = Buscador([*vocab['alimentadores'], *vocab['proyecto'], *vocab['sistema']])
+    r = b.pypi(paquete.strip(), motivo)
+    if r['bloqueada'] or not r['resultados']:
+        raise UserError(f"No se pudo consultar {paquete}: {r['bloqueada'] or r.get('error') or 'no existe en PyPI'}.")
+    ctx.log(f'Asistente: preparando la rama con la propuesta de {paquete}…')
+    return mejoras.preparar_rama(project_root(), mejoras.propuesta_de_libreria(r['resultados'][0], motivo),
+                                 suite=('-q', '-x', '-p', 'no:cacheprovider', 'tests/test_inventario.py'))
+
+
+def asistente_decision_mejora(propuesta_id: str, decision: str, comentario: str = '') -> dict:
+    from ..asistente import mejoras
+
+    try:
+        return mejoras.registrar_decision(propuesta_id, decision, comentario)
+    except ValueError as exc:
+        raise UserError(str(exc)) from exc
+
+
+def asistente_registro() -> dict:
+    """Lo que el asistente hizo y decidió, para auditarlo (026:RF-28, RF-31)."""
+    from ..asistente import almacen, mejoras
+
+    return {'ordenes': almacen.leer('ordenes', 50), 'decisiones': almacen.leer('decisiones', 50),
+            'mejoras': mejoras.historial(), 'internet': almacen.leer('internet', 50),
+            'suite': almacen.leer('suite', 10), 'avisos': almacen.leer('avisos', 50)}
+
+
+def asistente_nuevos() -> tuple[int, int]:
+    """Episodios del gemelo y órdenes del operador desde el último reentrenamiento que lanzó la
+    vigilancia, contando ficheros y líneas sin abrir los episodios (026:RF-23)."""
+    from ..asistente import almacen
+    from ..digital_twin.buffer import raiz_buffer
+
+    objetos = raiz_buffer() / 'objetos'
+    episodios = sum(1 for _ in objetos.rglob('*.json')) if objetos.is_dir() else 0
+    ordenes = len(almacen.leer('ejemplos'))
+    antes = almacen.leer_json('vigilancia') or {}
+    return episodios - int(antes.get('episodios', episodios)), ordenes - int(antes.get('ordenes', 0))
+
+
+def asistente_marcar_entrenado(gemelo: bool) -> None:
+    """Lo que ya se usó para reentrenar, para no volver a lanzarlo cada minuto."""
+    from ..asistente import almacen
+    from ..digital_twin.buffer import raiz_buffer
+
+    antes = almacen.leer_json('vigilancia') or {}
+    objetos = raiz_buffer() / 'objetos'
+    if gemelo:
+        antes['episodios'] = sum(1 for _ in objetos.rglob('*.json')) if objetos.is_dir() else 0
+    else:
+        antes['ordenes'] = len(almacen.leer('ejemplos'))
+    almacen.guardar_json('vigilancia', antes)
+
+
+def asistente_entrenar(ws: Workspace, ctx: JobContext) -> dict:
+    """Reentrena el Transformer y el clasificador en otro proceso (026:RF-20), con el vocabulario del espacio."""
+    import sys
+
+    from ..asistente import almacen
+
+    vocab = almacen.guardar_json('vocabulario', asistente_vocabulario(ws))
+    report = ws.out_dir / f'asistente_entrenamiento_{uuid.uuid4().hex[:8]}.json'
+    report.parent.mkdir(parents=True, exist_ok=True)
+    rc = ctx.run_process([sys.executable, str(_script('asistente_entrenar.py')), '--vocabulario', str(vocab),
+                          '--output-json', str(report)], cwd=str(project_root()))
+    try:
+        return json.loads(report.read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        raise UserError(f'El entrenamiento del asistente terminó con el código {rc} sin informe.') from None

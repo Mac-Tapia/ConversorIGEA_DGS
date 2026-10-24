@@ -431,6 +431,30 @@ def test_018_rf5_verificar_caso_base_exige_vinculo_en_el_servidor(tmp_path):
         services.pf_verificar_base(ws, _CtxSinEjecutar(), 'Oct/IN111', ['IN111'])
 
 
+def test_018_rf14_el_nombre_de_la_red_por_sistema_vale_por_sus_alimentadores(tmp_path, monkeypatch):
+    """018:RF-14 — verificar el «Caso base» o una acción nativa con ``SISTEMA_NASCA`` pide al
+    vínculo sus alimentadores, no el nombre del DGS; un alimentador suelto sigue igual."""
+    from igea_dgs import powerfactory_binding
+    from igea_dgs.web import services
+
+    ws = _workspace(tmp_path)
+    ws.groups = {'SISTEMA_NASCA': {'feeders': ['NA203', 'NA205', 'PU101'], 'status': 'ok'}}
+    assert services.alimentadores_pedidos(ws, ['SISTEMA_NASCA', 'NA203', 'IN111', ' ']) == [
+        'NA203', 'NA205', 'PU101', 'IN111']
+    pedidos = []
+
+    def exigir(ws_, project, feeders):
+        pedidos.append(sorted(feeders))
+        raise powerfactory_binding.ProjectBindingError('PARADA', 'basta con ver lo pedido')
+
+    monkeypatch.setattr(powerfactory_binding, 'require_project_binding', exigir)
+    with pytest.raises(services.UserError, match='PARADA'):
+        services.pf_verificar_base(ws, _CtxSinEjecutar(), 'P/SISTEMA_NASCA', ['SISTEMA_NASCA'])
+    with pytest.raises(services.UserError, match='PARADA'):
+        services.native_action_context(ws, 'P/SISTEMA_NASCA', ['SISTEMA_NASCA'], 'obras')
+    assert pedidos == [['NA203', 'NA205', 'PU101']] * 2
+
+
 def test_018_rf6_dgs_distinto_del_aceptado_bloquea_y_sin_huella_no_bloquea(tmp_path, monkeypatch):
     """018:RF-6 — un DGS distinto del aceptado bloquea; un alimentador sin huella, no."""
     from igea_dgs.web import services
