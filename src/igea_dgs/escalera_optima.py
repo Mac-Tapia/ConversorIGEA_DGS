@@ -51,6 +51,7 @@ class Parametros:
     tension_max_pu: float
     cargabilidad_max_pct: float
     precio_perdidas_kwh: float | None = None
+    precio_perdidas_kw_mes: float | None = None
     coym_pct_anual: float | None = None
 
     @property
@@ -86,6 +87,7 @@ def parametros(perfil: Mapping[str, Any]) -> Parametros:
         tension_max_pu=float(lim['tension_max_pu']),
         cargabilidad_max_pct=float(lim['cargabilidad_max_pct']),
         precio_perdidas_kwh=_opcional(esc.get('precio_perdidas_kwh')),
+        precio_perdidas_kw_mes=_opcional(esc.get('precio_perdidas_kw_mes')),
         coym_pct_anual=_opcional(esc.get('coym_pct_anual')))
 
 
@@ -324,7 +326,10 @@ def costo(v: Variante, costos_alternativa: Mapping[str, Mapping[str, Any]], p: P
             raise EscaleraError(f'el libro CAPEX no tiene costo de «{alt}» para {escalon} (025:RF-57)')
         ci += _cantidad_en(c.get('unidad') or '', cantidad, escalon) * float(c['costo_unitario'])
     coym = ci * p.coym_pct_anual / 100 if p.coym_pct_anual is not None else None
+    # Energía perdida en el año (kW de la máxima por el factor de pérdidas) a su precio, y la
+    # potencia de la máxima a su precio por mes (precios en barra del perfil).
     cp = (perdidas_kw * factor_perdidas * HORAS_ANIO * p.precio_perdidas_kwh
+          + perdidas_kw * 12 * (p.precio_perdidas_kw_mes or 0.0)
           if None not in (perdidas_kw, factor_perdidas, p.precio_perdidas_kwh) else None)
     if coym is None:
         avisos.append('sin COyM (escalera.coym_pct_anual del perfil)')
