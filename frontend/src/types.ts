@@ -601,6 +601,25 @@ export interface CargasInforme {
   sin_proyecto?: EstadoRed;
   cargas?: CargaIntegrada[];
   calibradas_cambiadas?: CalibradaCambiada[];
+  // Spec 025
+  casos?: { demandas: string; cargas: string };
+  anio_casos?: number | null;
+  /** RF-43: las cargas nuevas con las que «Con proyecto» no converge, probadas una a una. */
+  no_convergen_juntas?: {
+    caso: string; cargas: string[]; solas_que_no_convergen: string[]; basta_quitar_una_de: string[];
+  };
+}
+
+/** Spec 025, RF-44: la escalera de obras de cada alimentador y el escalón que converge. */
+export interface EscaleraResultado {
+  project: string;
+  anio_casos: number | null;
+  alimentadores: {
+    alimentador: string;
+    avisos: string[];
+    obra: string | null;
+    intentos: { escalon: string; converge: boolean; variaciones: string[]; errores: string[] }[];
+  }[];
 }
 
 export interface CargasResultado {
@@ -645,13 +664,28 @@ export interface DemandaLibro {
   /** Suministros: el libro elegido; null si el hueco no tiene ninguno (004:RF-64). */
   seleccion?: string | null;
   catalogo?: LibroClientesMes[];
+  /** Spec 025, RF-4: años con libro (subcarpetas de cuatro cifras). */
+  anios?: number[];
+  /** Spec 025, RF-28: índice de la cabecera, un libro por fila. */
+  indice?: LibroCabeceraIndice[];
   vigente?: boolean;
   avisos?: string[];
   indexado_en?: number;
 }
 
+/** Un libro de la medición de cabecera en el índice por año (025:RF-28, RF-29). */
+export interface LibroCabeceraIndice {
+  relativa: string;
+  anio: number | null;
+  hojas: string[];
+  meses: string[];
+  error: string | null;
+}
+
 export interface LibroClientesMes {
   nombre: string;
+  /** Spec 025, RF-1: año de su carpeta, o null si está suelto. */
+  anio?: number | null;
   mes: string | null;
   origen_mes: 'nombre' | 'contenido' | 'manual' | 'sin_mes';
   activo: boolean;
@@ -937,6 +971,10 @@ export interface AjustePlan {
   feeders?: string[];
   ajustes?: AjusteResumenAlimentador[];
   avisos: string[];
+  /** Spec 025, RF-24: año de la medición y caso en que se graba la calibración. */
+  anio_medicion?: number | null;
+  anio_casos?: number | null;
+  caso?: string;
 }
 
 export interface AjusteSed {

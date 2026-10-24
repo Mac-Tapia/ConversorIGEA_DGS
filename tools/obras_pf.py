@@ -67,7 +67,8 @@ from cargas_pf import (
     completar_diagrama, flujo_de_carga, gps_de, leer_red, medir_estado, nombre_libre, nombre_pf, partir_tramo,
 )
 from casos_pf import (
-    NOMBRES, casos_del_proyecto, crear_con_proyecto, es_de_carga_nueva, sin_a_con_proyecto,
+    NOMBRES, anio_del_plan, casos_del_proyecto, crear_con_proyecto, es_de_carga_nueva,
+    nombre_caso, sin_a_con_proyecto,
 )
 from estudios_pf import medida
 
@@ -1128,9 +1129,10 @@ def _crear_con_proyecto(app, proyecto, casos, aplicadas, informe) -> None:
     activas de «Sin proyecto», y con ellas las obras; aquí se comprueba que están activas
     y se ejecuta el flujo de «Con proyecto» con cada una.
     """
-    casos['con'] = crear_con_proyecto(app, casos['sin'])
-    informe['avisos'].append('El proyecto no tenía «Con proyecto»: se creó como copia de «Sin '
-                             'proyecto» después de aplicar sus obras.')
+    anio = informe.get('anio_casos')                                    # 025:RF-41
+    casos['con'] = crear_con_proyecto(app, casos['sin'], anio)
+    informe['avisos'].append(f"El proyecto no tenía «{nombre_caso('con', anio)}»: se creó como "
+                             f"copia de «{nombre_caso('sin', anio)}» después de aplicar sus obras.")
     carpeta = app.GetProjectFolder('scheme')
     por_nombre = {v.loc_name: v for v in (carpeta.GetContents('*.IntScheme', 1) if carpeta else [])}
     for obra, fila in aplicadas:
@@ -1173,10 +1175,13 @@ def aplicar(app, plan: dict, *, simular: bool = False,
     proyecto = activar_proyecto(app, plan['project'], plan.get('folder'))
     if proyecto is None:
         return {**informe, 'error': f"no existe el proyecto {plan['project']!r} en DIgSILENT"}, 2
-    casos = casos_del_proyecto(app)
+    # 025:RF-41: con ``anio_casos``, las obras van a los casos de ese año; los de otro año
+    # no se tocan. Las obras siguen nombrando su caso por su papel («Sin/Con proyecto»).
+    anio = informe['anio_casos'] = anio_del_plan(plan)
+    casos = casos_del_proyecto(app, anio)
     if 'base' not in casos or 'sin' not in casos:
-        return {**informe, 'error': 'el proyecto no tiene los casos «Caso base» y «Sin proyecto»: '
-                                    'prepare los casos primero'}, 2
+        return {**informe, 'error': f"el proyecto no tiene los casos «Caso base» y "
+                                    f"«{nombre_caso('sin', anio)}»: prepare los casos primero"}, 2
 
     feeders = sorted({o.alimentador for o in obras} | {o.cede for o in obras if o.cede}
                      | set(plan.get('feeders') or []))

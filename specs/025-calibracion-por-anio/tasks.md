@@ -1,0 +1,116 @@
+# Tareas — Spec 025
+
+Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y parar.
+
+- [x] T1. Árbol de libros por año (`libros_por_anio.py`) y periodo `AAAA` en la máxima.
+      (RF-1, RF-2, RF-3, RF-7, RF-26, RF-27)
+      Hecho cuando: `pytest -q tests/test_libros_por_anio.py` en verde.
+      Hecho el 2026-10-23: suite con las siete variables, 2676 pasan, ninguna omitida;
+      `libros_de_cabecera` recorre las subcarpetas de año.
+- [x] T2. Mes por nombre universal y lista de patrones del perfil; catálogo de clientes sobre
+      el árbol con ruta relativa y año. (RF-4, RF-5, RF-6, RF-6b, RF-11)
+      Hecho cuando: `pytest -q tests/test_libros_por_anio.py tests/test_demanda_medida.py` en verde.
+      Hecho el 2026-10-23: los 21 libros reales (12 de 2025, 9 de 2026) con su mes por la
+      regla general, sin patrón; el catálogo publica el año. RF-11 se prueba en T5 (cruce).
+- [x] T3. Medidor → hoja por código del alimentador, ambigüedades y libro más reciente del
+      año. (RF-12, RF-12b, RF-13, RF-30)
+      Hecho cuando: `pytest -q tests/test_libros_por_anio.py` en verde.
+      Hecho el 2026-10-23: con los libros reales, los 7 alimentadores de 2025 dan su máxima
+      (SI213, PN107, TM105 y PA217 por el código del alimentador, con aviso).
+- [x] T4. Índice de cabecera como trabajo (reutiliza por tamaño y fecha, motivo por libro,
+      foto recursiva, todo o nada al cancelar); clientes con foto recursiva.
+      (RF-28, RF-29, RF-31, RF-32, RF-33)
+      Hecho cuando: `pytest -q tests/test_demanda_medida_web.py` en verde.
+      Hecho el 2026-10-23: `POST /demanda/cabecera/indexar` (carril del motor) y
+      `tests/test_libros_por_anio_web.py`.
+- [x] T5. Búsqueda de la máxima y cruce por periodo con los libros de su año.
+      (RF-8, RF-9, RF-10)
+      Hecho cuando: `pytest -q tests/test_demanda_medida_web.py` en verde.
+      Hecho el 2026-10-23: también RF-11 (mes sin libro → por kVA, sin bloquear) y RF-29 al
+      buscar (un libro roto se salta y se avisa).
+- [x] T6. Casos por año en `casos_pf.py` y `ajuste_cabecera_pf.py` (doble `fake_pf`).
+      (RF-14, RF-15, RF-16, RF-17, RF-18, RF-21)
+      Hecho cuando: `pytest -q tests/test_casos_pf.py tests/test_ajuste_cabecera_pf.py` en verde.
+      Hecho el 2026-10-23: `tests/test_casos_por_anio.py` (9) y los guiones de ajuste,
+      cargas y obras con `fake_pf` (320) en verde. El año va como parámetro y nunca como
+      estado del módulo: el servidor de DIgSILENT conserva `casos_pf` entre órdenes.
+- [x] T7. Plan y registro de la calibración por año; migración de `calibraciones`.
+      (RF-19, RF-20, RF-24)
+      Hecho cuando: `pytest -q tests/test_demanda_medida_web.py tests/test_ajuste_cabecera.py` en verde.
+      Hecho el 2026-10-23: `anio_medicion`, `anio_casos` y `caso` en el plan; registro por
+      `<proyecto>@<año>`; `ws.anios_casos` guarda el año de los casos sin año (un proyecto
+      calibrado antes se toma del año más reciente de la cabecera, con aviso). No hace
+      falta migrar: la clave antigua sigue siendo la de los casos sin año. RF-19 sale de
+      RF-15 (copia del «Caso base»), probado en T6.
+- [x] T8. Tipos de libro por contenido y `sistema_web.py` sin nombres de carpeta.
+      (RF-25, RF-25b, RF-25c)
+      Hecho cuando: `pytest -q tests/test_sistema_web.py` en verde y `--help` sin DIgSILENT.
+      Hecho el 2026-10-23: `clasificar_carpeta_demanda` mira solo la cabecera de las hojas
+      (`nrows`); con `referencia/` reconoce los cuatro en 1,7 s y no se confunde con los
+      libros sueltos (CAPEX, pérdidas). `--medidores/--cabecera/--clientes/--suministros`
+      mandan sobre lo reconocido.
+- [x] T9. Web: selector de año, meses del año, panel de libros por año, dónde dejar un año
+      nuevo, año y caso en el resultado. (RF-22, RF-23, RF-24, RF-34, RF-35)
+      Hecho cuando: `npm run build` sin errores y prueba de la API del panel en verde.
+      Hecho el 2026-10-23: `tsc` y `npm run build` sin errores; `tests/test_libros_por_anio_front.py`.
+      La cabecera en carpeta se indexa sola al asignarla, como los clientes.
+- [x] T10. Datos reales: 7 alimentadores de 2025 con hoja, 21 libros de clientes con mes,
+      suite con las siete variables sin omitidas; `CODIGO_FUENTE.md` y `CLAUDE.md` al día.
+      (Todos)
+      Hecho cuando: suite completa `-rs` en verde, ninguna omitida.
+      Hecho el 2026-10-23: 2750 pasan, ninguna omitida (10 min 19 s).
+- [x] T11. DIgSILENT: Chincha, Pisco e Ica con `tools/sistema_web.py --periodo 2025`;
+      «Sin proyecto 2025» válido y «Sin proyecto» (2026) con el mismo flujo antes y después.
+      (RF-14 a RF-19, RF-24, RF-25)
+      Hecho cuando: los tres sistemas calibrados y la comparación anotada aquí.
+      Hecho el 2026-10-23, solo los alimentadores que pidió el usuario, cada uno en su
+      proyecto y con `--sin-bancos` (los bancos que faltan se crean en la red común):
+      Pisco SI213 −0,00 % y PA217 −0,01 %; Chincha PN107 −0,04 % y TM105 −0,00 %; el
+      unido IN111 + TA225 (`20261015-170359_IGEA_IN111_TA225`) IN111 −0,89 % y TA225
+      −0,08 %; los seis VALIDO, con AVISO_KVAR (sin bancos, la red da menos kVAR que el
+      medidor). Foto de cada carga (P, Q, scale0) y del flujo antes y después: «Caso base»,
+      «Sin proyecto» y «Con proyecto» de 2026, IGUAL en los cuatro proyectos. IN111 en
+      2025 no tiene hojas de sus canales: los dos se leen como IN111 y quedan en una fila.
+      El sistema Ica se empezó y se canceló (el usuario lo quería en el unido): dejó un
+      «Sin proyecto 2025» en `SISTEMA_ICA`, sin tocar 2026.
+- [x] T13. Cargas nuevas y demandas en bloque en los casos del año de su base: el plan
+      lleva `anio_casos` sacado del caso de la calibración base; `tools/cargas_pf.py` usa
+      los casos de ese año. (RF-36, RF-37, RF-38)
+      Hecho cuando: `pytest -q tests/test_casos_por_anio.py tests/test_cargas_pf_guion.py` en
+      verde y `NuevosclientesMayoresv1.xlsx` insertado en DIgSILENT sobre los proyectos
+      recalibrados con 2025.
+      Hecho el 2026-10-23 desde la web, con `anio_casos` 2025 en el plan: Pisco (PI_7 en
+      SI213; PI_1, PI_8 a PI_11 en PA217), Chincha (CH_9 en PN107; CH_3, CH_5 y CH_8 en
+      TM105) y el unido IN111 + TA225 (sus 9 de TA225), en «Con proyecto 2025»; las demandas
+      en «Sin proyecto 2025». Cerrada el 2026-10-24 con las pruebas en verde.
+- [x] T14. Obras por año y obras de las cargas reutilizadas; campos de la web habilitados
+      para reemplazar. (RF-39 a RF-43)
+      Hecho cuando: `pytest -q tests/test_casos_por_anio.py tests/test_libros_por_anio_front.py`
+      en verde y el unido IN111 + TA225 converge en «Con proyecto 2025».
+      Avance del 2026-10-23: código y pruebas hechos; en DIgSILENT, el unido converge en
+      «Con proyecto 2025» con sus 9 cargas de TA225 y las 4 obras de 2026 activadas (RF-42);
+      «Con proyecto» (2026), igual. Pisco (PI_1 con PI_8, PA217) y Chincha (CH_3 con CH_5,
+      TM105) no convergen juntas; cada carga sola, sí (RF-43, sonda). Falta reiniciar la web
+      (obras con año en la API) y la suite completa.
+      Cerrada el 2026-10-24: suite con las siete variables, 2770 pasan, ninguna omitida (11 min
+      15 s; la cuenta de flujos de 007 suma el de RF-43). Las obras de la escalera del 23 ya
+      llegaron con `anio_casos` 2025 por la API.
+- [ ] T15. Obras en escalera sobre «Con proyecto <año>» que no converge (RF-44), con la 017
+      (T8, T9): bancos, regulador, sección, terna; la primera que converge, en su variación.
+      Hecho cuando: Pisco y Chincha convergen en «Con proyecto 2025» y el informe dice la obra.
+      Avance del 2026-10-23: `obras_pf.escalera_de_obras` y `POST /pf/obras/escalera` con
+      bancos, sección de toda la troncal y terna (sin regulador). En DIgSILENT, con año 2025:
+      PA217 converge con la terna (bancos y sección no bastan); TM105, con la sección. Los
+      bancos se intentaron en NODE_T_PI_1 y NODE_T_PI_11, nodos que crea la variación de la
+      carga; ya se excluyen por el criterio de conexión. Del 2026-10-24: el informe de cargas
+      dice qué cargas no convergen juntas y ofrece «Proponer obras en escalera» (antes solo
+      por la API). Falta decidir el escalón del regulador que nombra RF-44.
+- [x] T16. Cargas nuevas incompletas e independientes. (RF-45, RF-46, RF-47, RF-48)
+      Hecho cuando: `pytest -q tests/test_cargas_pf.py tests/test_cargas_pf_web.py
+      tests/test_cargas_pf_guion_016.py tests/test_cargas_tres_pasos_front.py` en verde.
+      Hecho el 2026-10-23 (código) y el 2026-10-24 (pruebas de RF-46 en la web y en el plan,
+      y de RF-48: cada carga se mide con las variaciones de las demás inactivas).
+- [x] T12. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
+      Hecho cuando: `grep -rnoE "025:RF-[0-9]+[b-c]?" tests | sort -u` lista todos los RF.
+      Hecho el 2026-10-24: los 48 RF (y RF-6b, RF-12b, RF-25b, RF-25c, RF-42b) citados con la
+      forma `025:RF-n` que cuenta `test_inventario`; RF-46 y RF-48 con prueba propia nueva.

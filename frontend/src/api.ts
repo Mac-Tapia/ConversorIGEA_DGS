@@ -178,6 +178,9 @@ export const api = {
     request<WorkspaceState>(`${ws(id)}/demanda/${tipo}/path`, json('POST', { path })),
   demandaClientesIndexar: (id: string) =>
     request<Job>(`${ws(id)}/demanda/clientes/indexar`, { method: 'POST' }),
+  // Spec 025, RF-28 y RF-32: el índice por año de la medición de cabecera, como trabajo.
+  demandaCabeceraIndexar: (id: string) =>
+    request<Job>(`${ws(id)}/demanda/cabecera/indexar`, { method: 'POST' }),
   demandaQuitar: (id: string, tipo: DemandaTipo) =>
     request<WorkspaceState>(`${ws(id)}/demanda/${tipo}`, { method: 'DELETE' }),
   demandaMedidores: (id: string, alimentador: string) =>
@@ -269,6 +272,9 @@ export const api = {
     request<Job>(`${ws(id)}/pf/obras/simular`, json('POST', body)),
   obrasAplicar: (id: string, body: { project: string; feeders: string[]; otro_proyecto: string }) =>
     request<Job>(`${ws(id)}/pf/obras/aplicar`, json('POST', body)),
+  // Spec 025, RF-44: bancos, sección y terna hasta que «Con proyecto <año>» converja.
+  obrasEscalera: (id: string, body: { project: string; feeders: string[]; anio_casos: number | null }) =>
+    request<Job>(`${ws(id)}/pf/obras/escalera`, json('POST', body)),
   estudiosCatalogo: () => request<EstudiosCatalogo>('/api/pf/estudios'),
   estudiosPlan: (id: string, body: {
     project: string; feeders: string[]; estudios: string[]; ajuste_job_id: string | null;

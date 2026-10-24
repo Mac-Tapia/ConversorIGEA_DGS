@@ -278,7 +278,8 @@ def test_clientes_por_carpeta_publica_catalogo_mensual_sin_rutas(client, tmp_pat
         ('0126clientesImportantes.xlsb', '2026-01', 'nombre', True),
         ('0726clientesImportantes.xlsx', '2026-07', 'nombre', True),
     ]
-    assert all(set(x) == {'nombre', 'mes', 'origen_mes', 'activo', 'avisos'}
+    # 025:RF-4: también el año de su carpeta (aquí ninguna), nunca la ruta absoluta.
+    assert all(set(x) == {'nombre', 'anio', 'mes', 'origen_mes', 'activo', 'avisos'}
                for x in meta['catalogo'])
     assert str(carpeta) not in json.dumps(meta)
 

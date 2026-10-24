@@ -311,6 +311,10 @@ def leer_hoja_nuevas(
             malo = 'CoordX/CoordY sin CRS del perfil: use Lat/Lon o configure el CRS'
         if not malo and not texto.get('barra') and lat is None and not tiene_xy:
             malo = 'sin barra ni coordenadas: indique la barra o Lat/Lon (o CoordX/CoordY)'
+        if not malo and not texto.get('alimentador'):
+            # 025:RF-45 (usuario, 2026-10-23): una carga sin los datos necesarios se rechaza
+            # y se dice, en vez de deducir de qué alimentador es por su barra.
+            malo = 'sin alimentador (TRONCAL): indique a qué alimentador pertenece'
         if malo:
             errores.append(f'{donde}: {malo}')
             continue

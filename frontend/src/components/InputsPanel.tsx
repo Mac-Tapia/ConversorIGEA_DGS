@@ -107,13 +107,15 @@ function Slot({ slot }: { slot: string }) {
           }}>Quitar</button>
         )}
       </div>
-      {meta ? (
+      {meta && (
         <div className="slot-file">
           <span className="slot-name" title={meta.path}>{meta.name}</span>
           <span className="muted">{fmtBytes(meta.size)} · {meta.origin === 'server' ? 'ruta local' : 'subido'}</span>
           {meta.warning && <Pill tone="warn" title={meta.warning}>no encaja</Pill>}
         </div>
-      ) : pathMode ? (
+      )}
+      {/* Spec 025, RF-39: con un fichero ya asignado se reemplaza directamente, sin quitarlo. */}
+      {pathMode ? (
         <div className="slot-path">
           <input value={path} autoFocus placeholder="D:\ruta\al\fichero" onChange={(e) => setPath(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && assignPath()} />
@@ -125,15 +127,18 @@ function Slot({ slot }: { slot: string }) {
           disabled={locked || uploading !== null} compact>
           {uploading !== null
             ? <span>Subiendo {fmtBytes(uploading)}…</span>
-            : <span>Soltar el fichero o <u>elegir</u></span>}
+            : meta ? <span>Reemplazar: soltar otro fichero o <u>elegir</u></span>
+              : <span>Soltar el fichero o <u>elegir</u></span>}
         </FileDrop>
       )}
       {!meta && spec.extensiones && (
         <p className="muted small">Admite {spec.extensiones.join(' ')}. Un shapefile, dentro de un ZIP o RAR.</p>
       )}
-      {!meta && !pathMode && health.server_paths && (
-        <button className="link small" onClick={() => setPathMode(true)}>…o indicar una ruta de este equipo</button>
+      {!pathMode && health.server_paths && (
+        <button className="link small" disabled={locked} onClick={() => setPathMode(true)}>
+          {meta ? '…o reemplazarlo por una ruta de este equipo' : '…o indicar una ruta de este equipo'}</button>
       )}
+      {locked && <p className="muted small">Mientras corre la conversión o la carga, las entradas no se cambian.</p>}
     </div>
   );
 }

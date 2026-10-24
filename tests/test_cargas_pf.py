@@ -67,6 +67,7 @@ def test_nuevas_con_barra_latlon_o_coordenadas_proyectadas():
     header = list(NUEVA_COLUMNS)
 
     def fila(**v):
+        v = {'alimentador': 'A', **v}         # 025:RF-45: el alimentador es obligatorio
         return [v.get(c, '') for c in header]
 
     filas, errores = leer_hoja_nuevas(header, [
@@ -115,11 +116,23 @@ def test_kva_instalado_deducido_es_el_normalizado_que_cubre_la_demanda(kva, espe
     """004:RF-52 — la menor potencia de la serie R10 que cubre la demanda, anotada."""
     assert kva_normalizado(kva) == esperado
     avisos: list[str] = []
-    filas, _ = leer_hoja_nuevas(['SED', 'Kw', 'barra'], [['N1', kva, 'B1']], 'A', avisos=avisos)
+    filas, _ = leer_hoja_nuevas(['SED', 'Kw', 'barra', 'alimentador'], [['N1', kva, 'B1', 'A']], 'A',
+                                  avisos=avisos)
     assert filas[0].kva_instalado == esperado and 'RF-52' in avisos[0]
     plan = armar_plan(project='P', feeders=['A'], demandas=None,
                       nuevas=type('L', (), {'filas': filas, 'errores': [], 'avisos': avisos})())
     assert avisos[0] in plan['avisos']
+
+
+def test_carga_nueva_sin_alimentador_se_rechaza_y_se_dice():
+    """025:RF-45, 025:RF-46 — sin alimentador (TRONCAL) la fila sale con su motivo y no se deduce
+    de la barra; las demás siguen."""
+    filas, errores = leer_hoja_nuevas(
+        ['SED', 'barra', 'Kw', 'kVA_instalado', 'TRONCAL'],
+        [['N1', 'B1', 10, 50, ''], ['N2', 'B2', 10, 50, 'F7']], 'HOJA')
+    assert [f.sed for f in filas] == ['N2'] and filas[0].alimentador == 'F7'
+    assert len(errores) == 1 and 'N1' in errores[0] and 'HOJA' in errores[0]
+    assert 'sin alimentador (TRONCAL)' in errores[0]
 
 
 def test_coordenadas_proyectadas_sin_crs_del_perfil_es_error_de_fila():

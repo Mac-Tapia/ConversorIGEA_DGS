@@ -1596,6 +1596,17 @@ def base_del_ajuste(ajuste: dict, project: str) -> dict:
     if not base['feeders']:
         raise UserError('Ningún alimentador del ajuste quedó calibrado: no hay base. Quite la '
                         'base o vuelva a ajustar.')
+    # 025:RF-37: las cargas van a los casos del año de su calibración («Sin proyecto 2025»
+    # → 2025); la de los casos sin año, a los de siempre.
+    import re
+
+    anios = {int(m.group(1)) for inf in informes
+             if (m := re.search(r'\s(\d{4})$', str(inf.get('caso') or '')))
+             and (inf.get('feeder') or '') in base['feeders']}
+    if len(anios) > 1:
+        raise UserError('El ajuste base tiene calibraciones de años distintos: '
+                        + ', '.join(map(str, sorted(anios))) + '.')
+    base['anio_casos'] = next(iter(anios), None)
     return base
 
 
@@ -1644,6 +1655,8 @@ def cargas_plan(
             carpeta=carpeta_pf(), base=base, minima_m=minima_m,
         )
         plan['native_action_context'] = action_context
+        # 025:RF-36, RF-37: en los casos del año de la calibración base.
+        plan['anio_casos'] = (base or {}).get('anio_casos')
         # 015:RF-17: «Sin» y «Con proyecto» solo se crean con el «Caso base» verificado.
         from ..powerfactory_binding import caso_base_verificado
 
@@ -1778,13 +1791,18 @@ def demanda_asignar(ws: Workspace, tipo: str, path: Path, origin: str) -> dict:
     )
 
     if tipo == 'cabecera':
+        from ..libros_por_anio import anios_de, arbol_de_libros
         try:
             libros = libros_de_cabecera([path])
+            # 025:RF-3, RF-4: cada libro por su ruta relativa y los años; solo se lista,
+            # sin abrir ninguno (P7): el índice con sus hojas es un trabajo aparte.
+            arbol = arbol_de_libros(path) if path.is_dir() else []
         except Exception as exc:  # noqa: BLE001 - DemandaError o de E/S: error de usuario
             raise UserError(str(exc)) from exc
         meta = {'path': str(path), 'name': path.name, 'origin': origin,
                 'source_kind': 'folder' if path.is_dir() else 'file',
-                'libros': [p.name for p in libros]}
+                'libros': [x.relativa for x in arbol] if arbol else [p.name for p in libros],
+                'anios': anios_de(arbol), 'indice': [], 'vigente': False, 'avisos': []}
     elif tipo == 'suministros':
         # Cada libro de la carpeta se lee una sola vez: la lista y la elección salen
         # del mismo puntaje (004:RF-58/RF-59).
@@ -1837,20 +1855,21 @@ def demanda_asignar(ws: Workspace, tipo: str, path: Path, origin: str) -> dict:
 
 
 def _foto_fuente_clientes(path: Path) -> tuple[tuple[str, int, int], ...]:
-    """Identidad observable del fichero/carpeta para detectar cambios durante el índice."""
+    """Identidad observable del fichero/carpeta para detectar cambios durante el índice.
+
+    Con sus subcarpetas de año (025:RF-1, RF-31): un libro nuevo en ``2025/`` también
+    cambia la foto.
+    """
     from ..demanda_medida import EXTENSIONES
+    from ..libros_por_anio import arbol_de_libros
 
     if path.is_file():
-        rutas = [path] if path.suffix.lower() in EXTENSIONES else []
+        rutas = [(path, path.name)] if path.suffix.lower() in EXTENSIONES else []
     elif path.is_dir():
-        rutas = sorted(
-            (p for p in path.iterdir()
-             if p.is_file() and p.suffix.lower() in EXTENSIONES and not p.name.startswith('~$')),
-            key=lambda p: (p.name.casefold(), p.name),
-        )
+        rutas = [(x.ruta, x.relativa) for x in arbol_de_libros(path)]
     else:
         return ()
-    return tuple((p.name, p.stat().st_size, p.stat().st_mtime_ns) for p in rutas)
+    return tuple((rel, p.stat().st_size, p.stat().st_mtime_ns) for p, rel in rutas)
 
 
 def demanda_clientes_indexar(ws: Workspace, ctx: JobContext) -> dict:
@@ -1880,11 +1899,14 @@ def demanda_clientes_indexar(ws: Workspace, ctx: JobContext) -> dict:
     ]
     publico = [{
         'nombre': libro.nombre,
+        'anio': libro.anio,
         'mes': libro.mes,
         'origen_mes': libro.origen_mes,
         'activo': libro.activo,
         'avisos': list(libro.avisos),
     } for libro in catalogo]
+    # 025:RF-4: los años con libro, para el selector del paso 2.
+    anios = sorted({libro.anio for libro in catalogo if libro.anio is not None})
 
     with ws.lock:
         actual = ws.demanda.get('clientes') or {}
@@ -1893,13 +1915,73 @@ def demanda_clientes_indexar(ws: Workspace, ctx: JobContext) -> dict:
         actual.update({
             'libros': [libro.nombre for libro in catalogo],
             'catalogo': publico,
+            'anios': anios,
             'vigente': vigente,
             'avisos': avisos,
             'indexado_en': time.time(),
         })
         ws.save()
     ctx.progress(len(catalogo), len(catalogo), f'{len(catalogo)} libro(s)')
-    return {'catalogo': publico, 'vigente': vigente, 'avisos': avisos}
+    return {'catalogo': publico, 'anios': anios, 'vigente': vigente, 'avisos': avisos}
+
+
+def demanda_cabecera_indexar(ws: Workspace, ctx: JobContext) -> dict:
+    """Índice de la medición de cabecera por año (025:RF-28 a RF-33).
+
+    Qué trae cada libro (año, hojas de medición, meses con registro) para que el operador
+    vea cómo entró cada uno y elija el año. Seguirán llegando años, libros y hojas: solo se
+    abren los libros nuevos o cambiados (por tamaño y fecha de modificación). Se publica al
+    final, todo de una vez: cancelado o con un fallo, queda el índice anterior entero.
+    """
+    from .. import demanda_medida as dm
+    from ..libros_por_anio import anios_de, arbol_de_libros
+
+    with ws.lock:
+        meta = dict(ws.demanda.get('cabecera') or {})
+    if not meta:
+        raise UserError('Falta la medición de cabecera: indique un libro o una carpeta.')
+    fuente = Path(meta.get('path', ''))
+    foto_inicial = _foto_fuente_clientes(fuente)
+    if not foto_inicial:
+        raise UserError('No hay libros de medición de cabecera en la fuente elegida.')
+    if fuente.is_dir():
+        libros = [(x.ruta, x.relativa, x.anio) for x in arbol_de_libros(fuente)]
+    else:
+        libros = [(fuente, fuente.name, None)]
+    anterior = {x.get('relativa'): x for x in meta.get('indice') or []}
+    alias = demanda_alias()
+    indice = []
+    for n, (path, relativa, anio) in enumerate(libros, start=1):
+        ctx.check_cancel()
+        ctx.progress(n, len(libros), relativa)
+        stat = path.stat()
+        previo = anterior.get(relativa)
+        if (previo and previo.get('size') == stat.st_size
+                and previo.get('mtime_ns') == stat.st_mtime_ns and previo.get('anio') == anio):
+            indice.append(previo)
+            continue
+        datos = dm.indexar_libro_cabecera(path, alias)
+        if datos['error']:
+            ctx.log(f'  {relativa}: {datos["error"]}')
+        indice.append({'relativa': relativa, 'anio': anio, 'size': stat.st_size,
+                       'mtime_ns': stat.st_mtime_ns, **datos})
+    ctx.check_cancel()
+    vigente = _foto_fuente_clientes(fuente) == foto_inicial
+    avisos = [] if vigente else [
+        'La carpeta cambió mientras se construía el índice; pulse «Actualizar índice» antes '
+        'de buscar la máxima.']
+    anios = anios_de(x for x in arbol_de_libros(fuente)) if fuente.is_dir() else []
+    with ws.lock:
+        actual = ws.demanda.get('cabecera') or {}
+        if actual.get('path') != str(fuente):
+            raise UserError('La medición de cabecera cambió durante el índice; vuelva a actualizarla.')
+        actual.update({'libros': [x['relativa'] for x in indice], 'indice': indice,
+                       'anios': anios, 'vigente': vigente, 'avisos': avisos,
+                       'indexado_en': time.time()})
+        ws.save()
+    utiles = sum(1 for x in indice if not x.get('error'))
+    ctx.progress(len(indice), len(indice), f'{utiles} de {len(indice)} libro(s) con medición')
+    return {'indice': indice, 'anios': anios, 'vigente': vigente, 'avisos': avisos}
 
 
 def demanda_quitar(ws: Workspace, tipo: str) -> dict:
@@ -1996,6 +2078,31 @@ def sistema_del_proyecto(ws: Workspace, project: str) -> dict | None:
     return {'grupo': grupo, 'alimentadores': alimentadores, 'medidores': medidores}
 
 
+def _libros_de_cabecera(ws: Workspace, periodo: str | None) -> list[Path]:
+    """Los libros de cabecera en que se busca la máxima del periodo (025:RF-8, RF-9, RF-31).
+
+    Con carpetas de año, solo los del año del periodo y los sueltos: la máxima de 2025 no
+    puede salir de un libro de 2026. Sin periodo, con años, no se busca: se mezclarían.
+    """
+    from ..demanda_medida import DemandaError
+    from ..libros_por_anio import arbol_de_libros, libros_del_periodo
+
+    ruta = _demanda_ruta(ws, 'cabecera')
+    if not ruta.is_dir():
+        return [ruta]
+    meta = ws.demanda.get('cabecera') or {}
+    if meta.get('indice') and not meta.get('vigente'):
+        raise UserError('El índice de la medición de cabecera no está al día: pulse '
+                        '«Actualizar índice» antes de buscar la máxima.')
+    try:
+        libros = libros_del_periodo(arbol_de_libros(ruta), periodo)
+    except DemandaError as exc:
+        raise UserError(str(exc)) from exc
+    if not libros:
+        raise UserError(f'No hay libros de medición de cabecera de {periodo}.')
+    return [x.ruta for x in libros]
+
+
 def demanda_cabecera(ws: Workspace, ctx: JobContext, pares: list[tuple[str, str]], *,
                      periodo: str | None = None, instante: datetime | None = None,
                      por_barra: bool = False) -> dict:
@@ -2011,12 +2118,13 @@ def demanda_cabecera(ws: Workspace, ctx: JobContext, pares: list[tuple[str, str]
         raise UserError('Indique al menos un medidor.')
     if por_barra and instante is None:
         return _demanda_por_barra(ws, ctx, pares, periodo)            # 022:RF-37 a RF-46
-    ruta = _demanda_ruta(ws, 'cabecera')
+    # Con un instante, el año es el suyo (021:RF-50): sus libros, no todos.
+    libros = _libros_de_cabecera(ws, periodo or (instante.strftime('%Y') if instante else None))
     alias = demanda_alias()
-    ctx.log(f'Medición de cabecera: {ruta.name} · {len(pares)} medidor(es)'
+    ctx.log(f'Medición de cabecera: {", ".join(p.name for p in libros)} · {len(pares)} medidor(es)'
             + (f' · registro del {instante}' if instante else f' · máxima de {periodo}' if periodo else ''))
     try:
-        res = maximas([ruta], pares, alias=alias, periodo=periodo, instante=instante,
+        res = maximas(libros, pares, alias=alias, periodo=periodo, instante=instante,
                       cancelado=ctx.cancel.is_set,
                       progreso=lambda i, n, m: ctx.progress(i, n, m))
     except DemandaError as exc:
@@ -2110,7 +2218,7 @@ def _demanda_por_barra(ws: Workspace, ctx: JobContext, pares: list[tuple[str, st
     if estructura is None:
         raise UserError('La máxima por barra necesita la estructura de la empresa (022:RF-1): '
                         'súbala en Excel o póngala en el perfil.')
-    ruta = _demanda_ruta(ws, 'cabecera')
+    libros = _libros_de_cabecera(ws, periodo)                          # 025:RF-8
     alias = demanda_alias()
 
     def duenio(a: str) -> str:
@@ -2123,7 +2231,7 @@ def _demanda_por_barra(ws: Workspace, ctx: JobContext, pares: list[tuple[str, st
                                                _kv_alimentadores(ws))
         ctx.log(f'Máxima por barra de SET: {len(barras)} barra(s) con medidor para '
                 f'{len(alimentadores)} alimentador(es)' + (f' · {periodo}' if periodo else ''))
-        de_barra = maximas([ruta], [(b.clave, m) for b in barras for m in b.medidores + b.centrales],
+        de_barra = maximas(libros, [(b.clave, m) for b in barras for m in b.medidores + b.centrales],
                            alias=alias, cancelado=ctx.cancel.is_set)
     except DemandaError as exc:
         raise UserError(str(exc)) from exc
@@ -2157,7 +2265,7 @@ def _demanda_por_barra(ws: Workspace, ctx: JobContext, pares: list[tuple[str, st
     res = []
     try:
         for inst, ps in grupos.items():
-            res += maximas([ruta], ps, alias=alias, periodo=None if inst else periodo,
+            res += maximas(libros, ps, alias=alias, periodo=None if inst else periodo,
                            instante=inst, cancelado=ctx.cancel.is_set)
     except DemandaError as exc:
         raise UserError(str(exc)) from exc
@@ -2468,6 +2576,17 @@ def periodo_clientes_activo(ws: Workspace, periodo: str | None = None):
                 sheet='resumen', fingerprint=None, period_origin=None, warning=str(exc),
             )
     active = [item for item in catalog if item.get('activo')]
+    if periodo and source.is_dir() and len(active) > 1 and not any(
+            str(item.get('mes') or '').strip() == periodo for item in active):
+        # 025:RF-11 (013:RF-13): una carpeta de libros mensuales sin el del mes de la
+        # máxima. Con la de 2025, la máxima de un alimentador puede caer en un mes cuyo
+        # libro no llegó: se dice y sus SED se reparten por kVA, sin bloquear a los demás.
+        return ClientPeriodEvidence(
+            status='NO_CLIENT_BOOK', period=None, file=None, sheet=None,
+            fingerprint=None, period_origin=None,
+            warning=(f'Sin libro de clientes importantes de {periodo} en {source.name}: '
+                     'sus SED se reparten por kVA.'),
+        )
     if periodo:
         matching = [item for item in active if str(item.get('mes') or '').strip() == periodo]
         # Con un único libro conservamos su mes real para emitir MISMATCH; con una
@@ -2591,6 +2710,13 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
     if not project.strip():
         raise UserError('Elija el proyecto de DIgSILENT.')
     filas = _medidores_del_ajuste(maximas, medidor, medidores)
+    # 025:RF-18: un año cada vez; antes que nada, para que el motivo sea este.
+    anios_medidos = {int(str(f['fecha'])[:4]) for f in filas
+                     if f.get('fecha') and not f.get('error') and str(f['fecha'])[:4].isdigit()}
+    if len(anios_medidos) > 1:
+        raise UserError('Las máximas son de años distintos (' + ', '.join(map(str, sorted(anios_medidos)))
+                        + '): se calibra un año cada vez; busque la máxima con un solo año.')
+    anio_medicion = next(iter(anios_medidos), None)
     # 015:RF-54, RF-57: el factor de potencia de las escaladas, del perfil de empresa.
     try:
         fp_cargas = factor_potencia_cargas(datos_perfil())
@@ -2609,6 +2735,17 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
     token = uuid.uuid4().hex[:12]
     fuera = {str(c).strip() for c in desconectados or [] if str(c).strip()}
     ajustes, avisos, paths = [], [], []
+    # 025:RF-14, RF-17, RF-18: el año de la medición decide en qué casos se calibra. Los
+    # casos sin año son los del año con que se calibraron; otro año va a «Sin proyecto
+    # <año>», copia del «Caso base», sin mezclarse con el otro (usuario, 2026-10-23).
+    from ..estudios_pf import SIN_PROYECTO
+    anio_base, aviso_anio = anio_de_los_casos(ws, project)
+    anio_casos = (anio_medicion if anio_medicion and anio_base and anio_medicion != anio_base
+                  else None)
+    if aviso_anio:
+        avisos.append(aviso_anio)
+    # El mismo nombre que da ``tools/casos_pf.nombre_caso``; el guion lo confirma en su informe.
+    caso_calibracion = f'{SIN_PROYECTO} {anio_casos}' if anio_casos else SIN_PROYECTO
     # 015:RF-13, RF-15: sin «Caso base» verificado no se calibra; con varios, los demás sí.
     sin_verificar = caso_base_verificado(ws, project, requested_feeders)
     for fila in filas:
@@ -2684,7 +2821,9 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
         kva_entrada, implicados = _kva_reconstruido(ws, project, alimentador,
                                                     kva_entrada)                # 022:RF-63
         clientes: list[dict] = []
-        if hay_suministros(ws) and ws.demanda.get('clientes'):
+        # 025:RF-11: sin libro del mes de su máxima, todas sus SED por kVA.
+        if (hay_suministros(ws) and ws.demanda.get('clientes')
+                and client_period.status != 'NO_CLIENT_BOOK'):
             clientes = demanda_clientes(
                 ws, sorted(implicados) or [alimentador], periodo=maximum_period,
             )['cruzados']
@@ -2753,8 +2892,12 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
             'transformadores_sed': (datos_perfil().get('calibracion') or {}).get(
                 'transformadores_sed'),
             'caso_base_sin_verificar': {},
-            # 014:RF-10: la demanda que dejó la última calibración, para ver lo manual.
-            'ultima_calibracion': (ws.calibraciones.get(project.strip()) or {}).get(alimentador),
+            # 025:RF-14, RF-24: el año de la medición y el de los casos en que se graba.
+            'anio_medicion': anio_medicion, 'anio_casos': anio_casos, 'caso': caso_calibracion,
+            # 014:RF-10: la demanda que dejó la última calibración, para ver lo manual; la
+            # de los casos de este año (025:RF-20).
+            'ultima_calibracion': (ws.calibraciones.get(clave_calibracion(project, anio_casos))
+                                   or {}).get(alimentador),
         }
         if central:
             plan['central'] = central
@@ -2789,7 +2932,8 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
     with ws.lock:
         ws.cargas_planes[token] = {'path': paths[0], 'paths': paths, 'project': project.strip(),
                                    'feeders': feeders, 'applicable': True,
-                                   'kind': 'ajuste_cabecera', 'sistema': sistema}
+                                   'kind': 'ajuste_cabecera', 'sistema': sistema,
+                                   'anio_casos': anio_casos}
     primero = ajustes[0]
     return {'token': token, 'project': project.strip(), 'feeder': primero['feeder'],
             'objetivo': primero['objetivo'], 'tolerancia': tolerancia,
@@ -2799,11 +2943,44 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
             'periodo': primero['periodo'], 'client_evidence': primero['client_evidence'],
             'source': plan['source'], 'project_binding': plan['project_binding'],
             'native_action_context': action_context,
-            'feeders': feeders, 'ajustes': ajustes, 'avisos': avisos, 'sistema': sistema}
+            'feeders': feeders, 'ajustes': ajustes, 'avisos': avisos, 'sistema': sistema,
+            'anio_medicion': anio_medicion, 'anio_casos': anio_casos, 'caso': caso_calibracion}
 
 
-def _guardar_calibracion(ws: Workspace, project: str, feeder: str, informe: dict) -> None:
+def clave_calibracion(project: str, anio_casos: int | None) -> str:
+    """Clave de ``ws.calibraciones``: el proyecto, o ``<proyecto>@<año>`` para los casos de
+    un año aparte (025:RF-20). La de 2025 no se compara con lo que dejó la de 2026."""
+    p = project.strip()
+    return f'{p}@{anio_casos}' if anio_casos else p
+
+
+def anio_de_los_casos(ws: Workspace, project: str) -> tuple[int | None, str | None]:
+    """Año de medición de los casos sin año del proyecto, y un aviso si se dedujo (025:RF-17).
+
+    Se registra en la primera calibración que lo sabe. Un proyecto calibrado antes de esta
+    spec no lo guardó: sus casos se toman como del año más reciente de la medición de
+    cabecera (en Electro Dunas, los proyectos de 2026 calibrados con la de 2026), y se dice.
+    """
+    p = project.strip()
+    if p in ws.anios_casos:
+        return int(ws.anios_casos[p]), None
+    registros = ws.calibraciones.get(p) or {}
+    anios = {int(r['anio']) for r in registros.values() if isinstance(r, dict) and r.get('anio')}
+    if len(anios) == 1:
+        return anios.pop(), None
+    reciente = max((ws.demanda.get('cabecera') or {}).get('anios') or [], default=None)
+    if registros and reciente:
+        return int(reciente), (
+            f'«{p}» se calibró sin guardar el año de la medición: sus «Sin proyecto» y «Con '
+            f'proyecto» se toman como de {reciente}, el año más reciente de la cabecera (025:RF-17).')
+    return None, None
+
+
+def _guardar_calibracion(ws: Workspace, project: str, feeder: str, informe: dict, *,
+                         anio_casos: int | None = None, anio_medicion: int | None = None) -> None:
     """La demanda que dejó la calibración en cada SED (015, T8; 014:RF-10).
+
+    Por proyecto y año de los casos (025:RF-20), con el año de la medición.
 
     Sin error y sin revertir: una calibración que no quedó en el escenario no es con la
     que comparar lo que cambie el operador. Solo cuenta si el guion guardó el escenario
@@ -2828,10 +3005,14 @@ def _guardar_calibracion(ws: Workspace, project: str, feeder: str, informe: dict
                 'q_real_kvar': comp.get('q_ea_eri_kvar', d.get('q_kvar')),
                 'q_kvar': d.get('q_kvar'), 'compensado': bool(comp)})
     with ws.lock:
-        ws.calibraciones.setdefault(project.strip(), {})[feeder] = {
+        ws.calibraciones.setdefault(clave_calibracion(project, anio_casos), {})[feeder] = {
             'nombre': f"la calibración del {informe.get('stamp') or time.strftime('%Y-%m-%d %H:%M')}",
             'sed': sed, 'fijas': fijas, 'cuadrado': bool(informe.get('cuadrado')),
-            'escenario': informe.get('escenario'), 'recorded_at': time.time()}
+            'escenario': informe.get('escenario'), 'recorded_at': time.time(),
+            'anio': anio_medicion, 'caso': informe.get('caso')}
+        if anio_medicion and not anio_casos:
+            # 025:RF-17: desde ahora los casos sin año son de este año.
+            ws.anios_casos.setdefault(project.strip(), int(anio_medicion))
         ws.save()
 
 
@@ -2865,6 +3046,12 @@ def _correr_guion_ajuste(ws: Workspace, ctx: JobContext, project: str, feeders: 
         flag.unlink(missing_ok=True)
         raise UserError('No se pudo conectar con DIgSILENT. Ábralo y reintente.')
     informes = []
+    # 025:RF-20: el año de los casos y de la medición, del plan que se ejecutó.
+    try:
+        primero = json.loads(Path(paths[0]).read_text(encoding='utf-8')) if paths else {}
+    except (OSError, ValueError):
+        primero = {}
+    anios = {'anio_casos': primero.get('anio_casos'), 'anio_medicion': primero.get('anio_medicion')}
     for feeder, report in zip(feeders, reports):
         try:
             informe = json.loads(report.read_text(encoding='utf-8')) if report.is_file() else {}
@@ -2879,7 +3066,7 @@ def _correr_guion_ajuste(ws: Workspace, ctx: JobContext, project: str, feeders: 
         elif not simular and not informe.get('cuadrado'):
             ctx.log(f"{feeder}: no cumple la tolerancia: {informe.get('motivo')}. Vea el diagnóstico.")
         if not simular:
-            _guardar_calibracion(ws, project, feeder, informe)
+            _guardar_calibracion(ws, project, feeder, informe, **anios)
         informes.append(informe)
     if not simular and paths:
         # 024:RF-1 / RF-30: un episodio de «Sin proyecto» por proyecto, aceptado solo si
@@ -3003,7 +3190,8 @@ def ajuste_transformadores_varios(ws: Workspace, ctx: JobContext, token: str,
         except (OSError, ValueError) as exc:
             raise UserError('El plan del ajuste ya no existe: vuelva a prepararlo.') from exc
         datos['transformadores'] = cambios
-        datos['ultima_calibracion'] = (ws.calibraciones.get(plan['project'].strip()) or {}).get(feeder)
+        datos['ultima_calibracion'] = (ws.calibraciones.get(clave_calibracion(
+            plan['project'], plan.get('anio_casos'))) or {}).get(feeder)            # 025:RF-20
         copia = ws.plans_dir / f'ajuste_cabecera_{token}{sufijo}_transformadores.json'
         copia.write_text(json.dumps(datos, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
         copias[path] = str(copia)
@@ -3040,7 +3228,13 @@ def ajuste_aplicado_en_disco(ws: Workspace, project: str | None,
     """
     project = str(project or '').strip()
     grupos: dict[str, list[tuple[int, Path, dict]]] = {}
-    for path in ws.out_dir.glob('ajuste_cabecera_aplicacion_*.json'):
+    rutas = list(ws.out_dir.glob('ajuste_cabecera_aplicacion_*.json'))
+    if token and not any(p.name.startswith(f'ajuste_cabecera_aplicacion_{token}_') for p in rutas):
+        # 025:RF-37: pedido por su token, también en otra ejecución del espacio. Al volver a
+        # cargar la fuente hay una ejecución nueva y la calibración de 2025 de Pisco quedó
+        # en la anterior (2026-10-23): las cargas no encontraban su base.
+        rutas = sorted(ws.root.glob(f'runs/*/salida/ajuste_cabecera_aplicacion_{token}_*.json'))
+    for path in rutas:
         resto = path.stem.removeprefix('ajuste_cabecera_aplicacion_')
         clave, _, n = resto.partition('_')
         if token and clave != token:
@@ -3836,6 +4030,58 @@ def obras_bibliotecas(ws: Workspace, ctx: JobContext, project: str, feeders: lis
     return {'returncode': rc, 'report': report.name, 'informe': informe}
 
 
+def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *,
+                   anio_casos: int | None = None) -> dict:
+    """Obras en escalera para que «Con proyecto» converja con sus cargas nuevas (025:RF-44).
+
+    Usuario, 2026-10-23: en PA217 y TM105 dos cargas nuevas grandes juntas no convergen en
+    «Con proyecto 2025»; «escalera automática». Por alimentador: bancos, sección de toda la
+    troncal, terna (``obras_pf.escalera_de_obras``), cada escalón aplicado por el paso de
+    obras normal, en su variación y solo en «Con proyecto» del año; el primero que converge
+    se queda. Uno que no converge queda inactivo y se conserva, como cualquier obra (011:RF-67).
+    """
+    from ..demanda_medida import clave_codigo
+    from ..obras_pf import CON_PROYECTO, escalera_de_obras
+    from ..perfil_empresa import PerfilError, bancos_kvar_por_tension, datos_perfil
+
+    lectura = obras_bibliotecas(ws, ctx, project, feeders)['informe']
+    try:
+        kvar = bancos_kvar_por_tension(datos_perfil()) or {}
+    except PerfilError:
+        kvar = {}
+    cargas = _cargas_nuevas_aplicadas(ws, project)
+    resultado = []
+    for f in feeders:
+        kv = (lectura.get('alimentadores', {}).get(f) or {}).get('kv')
+        banco = (min(kvar.items(), key=lambda par: abs(float(par[0]) - float(kv)))[1]
+                 if kvar and kv else None)
+        de_f = [c for c in cargas if clave_codigo(c.get('alimentador')) == clave_codigo(f)]
+        escalones, avisos = escalera_de_obras(f, kv, lectura.get('tipos') or [], de_f, banco_kvar=banco)
+        fila: dict[str, Any] = {'alimentador': f, 'avisos': avisos, 'intentos': [], 'obra': None}
+        for nombre, obras in escalones:
+            ctx.check_cancel()
+            ids = [obra_anadir(ws, o)['id'] for o in obras]
+            ctx.log(f'{f}: escalón «{nombre}» ({len(ids)} obra(s)) en «Con proyecto»…')
+            hecho = obras_ejecutar(ws, ctx, project, feeders, ids, '', simular=False,
+                                   anio_casos=anio_casos)
+            filas = (hecho.get('informe') or {}).get('obras') or []
+            converge = bool(filas) and all(((x.get('flujo') or {}).get(CON_PROYECTO) or {}).get('converge')
+                                           for x in filas if not x.get('error'))
+            converge = converge and not all(x.get('error') for x in filas)
+            fila['intentos'].append({'escalon': nombre, 'converge': converge,
+                                     'variaciones': [x.get('variacion') for x in filas if x.get('variacion')],
+                                     'errores': [x['error'] for x in filas if x.get('error')]})
+            with ws.lock:
+                ws.obras = [o for o in ws.obras if o['id'] not in ids]
+                ws.save()
+            ctx.log(f"{f}: «{nombre}» {'converge' if converge else 'no basta'}.")
+            if converge:
+                fila['obra'] = nombre
+                break
+        resultado.append(fila)
+    return {'project': project.strip(), 'anio_casos': anio_casos, 'alimentadores': resultado}
+
+
 def registrar_obra_aplicada(ws: Workspace, project: str, variacion: str, obra: dict) -> None:
     """Una obra aplicada en DIgSILENT, con su proyecto y su variación (017:RF-35).
 
@@ -3851,7 +4097,8 @@ def registrar_obra_aplicada(ws: Workspace, project: str, variacion: str, obra: d
 
 
 def obras_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
-                   ids: list[str] | None, otro_proyecto: str, *, simular: bool) -> dict:
+                   ids: list[str] | None, otro_proyecto: str, *, simular: bool,
+                   anio_casos: int | None = None) -> dict:
     """Simula o aplica las obras guardadas con ``tools/obras_pf.py`` (RF-56 a RF-87).
 
     Al aplicar, las obras que quedaron creadas en el proyecto salen del espacio (RF-95):
@@ -3868,7 +4115,8 @@ def obras_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             'feeders': action_context['feeders'],
             'obras': [{k: v for k, v in o.items() if k != 'id'} for o in elegidas],
             'otro_proyecto': otro_proyecto.strip(),
-            'native_action_context': action_context}
+            'native_action_context': action_context,
+            'anio_casos': anio_casos}                                   # 025:RF-41
     modo = 'simulacion' if simular else 'aplicacion'
     ctx.log(f"Proyecto de DIgSILENT: {plan['project']}  ·  {len(elegidas)} obra(s)")
     rc, informe, report = _guion_pf(ws, ctx, 'obras_pf.py', plan, nombre=f'obras_{modo}',
@@ -4477,6 +4725,8 @@ def _cargas_nuevas_aplicadas(ws: Workspace, project: str) -> list[dict]:
             fila = filas.get(clave_codigo(c.get('sed')), {})
             vistas[(clave_codigo(c.get('alimentador')), clave_codigo(c.get('sed')))] = {
                 'sed': c.get('sed'), 'alimentador': c.get('alimentador'), 'barra': c.get('barra'),
+                # 025:RF-44: si la barra ya existía o la crea la variación de la carga.
+                'criterio': c.get('criterio'),
                 'variacion': c.get('variacion'), 'distancia_m': c.get('distancia_m'),
                 'kw': fila.get('kw'), 'kvar': fila.get('kvar'), 'kva_instalado': fila.get('kva_instalado'),
                 # 008:RF-24: la del formulario lleva la hoja «formulario»; las del libro, la suya.

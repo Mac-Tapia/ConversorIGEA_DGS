@@ -49,26 +49,34 @@ class PerfilEmpresa:
     escala_diagrama: float | None = None
     #: Expresión regular que deben cumplir los nombres de alimentador; solo avisa.
     forma_alimentador: str | None = None
-    #: Expresión regular con grupos «mes» y «anio» para los libros de clientes.
-    patron_libro_clientes: str | None = None
+    #: Expresión regular con grupos «mes» y «anio» para los libros de clientes, o varias
+    #: (025:RF-6b): la empresa que cambia la forma del nombre de un año a otro.
+    patron_libro_clientes: str | tuple[str, ...] | list[str] | None = None
 
     def __post_init__(self) -> None:
+        if isinstance(self.patron_libro_clientes, list):
+            # Del JSON llega una lista; la dataclass es inmutable y se guarda como tupla.
+            object.__setattr__(self, 'patron_libro_clientes', tuple(self.patron_libro_clientes))
         for clave in ('patron_sed_medicion', 'forma_alimentador', 'patron_libro_clientes'):
-            patron = getattr(self, clave)
-            if patron is None:
+            valor = getattr(self, clave)
+            if valor is None:
                 continue
-            if not isinstance(patron, str) or not patron.strip():
-                raise PerfilError(f'{clave} tiene que ser una expresión regular, no {patron!r}.')
-            try:
-                compilado = re.compile(patron)
-            except re.error as exc:
-                raise PerfilError(f'{clave} no es una expresión regular válida ({exc}): {patron!r}.') from exc
-            if clave == 'patron_libro_clientes':
-                faltan = {'mes', 'anio'} - set(compilado.groupindex)
-                if faltan:
-                    raise PerfilError(
-                        f'{clave} debe tener grupos nombrados «mes» y «anio» '
-                        f'(faltan: {", ".join(sorted(faltan))}).')
+            patrones = valor if clave == 'patron_libro_clientes' and isinstance(valor, tuple) else (valor,)
+            if not patrones:
+                raise PerfilError(f'{clave} no puede ser una lista vacía.')
+            for patron in patrones:
+                if not isinstance(patron, str) or not patron.strip():
+                    raise PerfilError(f'{clave} tiene que ser una expresión regular, no {patron!r}.')
+                try:
+                    compilado = re.compile(patron)
+                except re.error as exc:
+                    raise PerfilError(f'{clave} no es una expresión regular válida ({exc}): {patron!r}.') from exc
+                if clave == 'patron_libro_clientes':
+                    faltan = {'mes', 'anio'} - set(compilado.groupindex)
+                    if faltan:
+                        raise PerfilError(
+                            f'{clave} debe tener grupos nombrados «mes» y «anio» '
+                            f'(faltan: {", ".join(sorted(faltan))}): {patron!r}.')
         if self.crs_origen is not None and (not isinstance(self.crs_origen, str)
                                             or not self.crs_origen.strip()):
             raise PerfilError(f'crs_origen tiene que ser un código como «EPSG:xxxxx», no {self.crs_origen!r}.')

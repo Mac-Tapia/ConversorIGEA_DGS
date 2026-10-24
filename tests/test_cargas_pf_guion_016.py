@@ -129,8 +129,9 @@ def test_troncal_sin_coordenadas(guion):
 
 
 def test_dos_cargas_en_el_mismo_tramo(guion):
-    """016:RF-47, 016:RF-77 — dos cargas en el mismo tramo: la primera lo parte y la segunda se
-    conecta en su nodo, con su propia línea, sin partir otra vez, y se dice."""
+    """016:RF-47, 025:RF-47 — dos cargas en el mismo tramo: la primera lo parte y la segunda se
+    conecta en el extremo existente del tramo más cercano, con su propia línea, sin partir
+    otra vez ni colgar del nodo de la primera; desactivar la primera no la deja sin red."""
     app = _app(alimentadores=('F1',))
     nuevas = [_nueva('N1', alimentador='F1', lat=LAT + 0.0005, lon=LON0 + 0.0013),
               _nueva('N2', alimentador='F1', lat=LAT + 0.0005, lon=LON0 + 0.0017)]
@@ -139,9 +140,54 @@ def test_dos_cargas_en_el_mismo_tramo(guion):
     creadas = informe['feeders'][0]['creadas']
     assert creadas[0]['tramo_partido']['tramo'] == 'F1_L2'
     assert creadas[0]['tramo_partido']['fraccion'] == pytest.approx(0.3, abs=1e-3)
-    assert creadas[1]['tramo_partido'] is None and creadas[1]['barra'] == creadas[0]['barra']
-    assert any('N1, N2' in a and 'F1_L2' in a for a in informe['avisos'])
+    # F1_L2 va de F1_B1 (LON0 + 0,001) a F1_B2 (LON0 + 0,002): N2 está más cerca de F1_B2.
+    assert creadas[1]['tramo_partido'] is None and creadas[1]['barra'] == 'F1_B2'
+    assert creadas[1]['criterio'].startswith('extremo existente de F1_L2')
+    assert any('N1, N2' in a and 'F1_L2' in a and '025:RF-47' in a for a in informe['avisos'])
     assert creadas[0]['nota'] is None and 'Carga_N1_F1' in creadas[1]['nota']
+    # Independiente: N2 solo graba objetos suyos, y su barra existe sin la variación de N1.
+    import casos_pf
+    variaciones = {v.loc_name: v for v in app.carpetas['scheme'].GetContents('*.IntScheme')}
+    de_n1 = set(casos_pf.objetos_de_variacion(variaciones[creadas[0]['variacion']]))
+    de_n2 = set(casos_pf.objetos_de_variacion(variaciones[creadas[1]['variacion']]))
+    assert not {o for o in de_n1 & de_n2 if o[0] == 'ElmLne'}
+    variaciones[creadas[0]['variacion']].Deactivate()
+    assert _barra(app, 'F1_B2') is not None
+
+
+def test_cada_carga_se_mide_con_las_demas_inactivas(guion, monkeypatch):
+    """025:RF-48 — al medir cada carga nueva, ninguna variación de otra carga nueva está
+    activa, tampoco la de la que ya partió su tramo."""
+    app = _app(alimentadores=('F1',))
+    vistas: list[set[str]] = []
+    medir = guion.medir_estado
+
+    def medir_con_registro(*a, **k):
+        vistas.append({v.loc_name for v in app.GetActiveNetworkVariations()
+                       if v.loc_name.startswith('Carga_')})
+        return medir(*a, **k)
+
+    monkeypatch.setattr(guion, 'medir_estado', medir_con_registro)
+    nuevas = [_nueva('N1', alimentador='F1', lat=LAT + 0.0005, lon=LON0 + 0.0013),
+              _nueva('N2', alimentador='F1', lat=LAT + 0.0005, lon=LON0 + 0.0017)]
+    informe, rc = guion.ejecutar(app, _plan(['F1'], nuevas=nuevas), simular=False)
+    assert rc == 0, informe
+    propias = [c['variacion'] for c in informe['feeders'][0]['creadas']]
+    con_carga = [v for v in vistas if v]
+    assert con_carga == [{propias[0]}, {propias[1]}], vistas
+
+
+def test_carga_de_otra_tanda_en_un_tramo_ya_partido(guion):
+    """025:RF-47 — una carga nueva de otra tanda que cae en un tramo que ya parte una carga
+    anterior va a su extremo, sin partirlo otra vez."""
+    app = _app(alimentadores=('F1',))
+    primera = [_nueva('N1', alimentador='F1', lat=LAT + 0.0005, lon=LON0 + 0.0013)]
+    assert guion.ejecutar(app, _plan(['F1'], nuevas=primera), simular=False)[1] == 0
+    segunda = [_nueva('N2', alimentador='F1', lat=LAT + 0.0005, lon=LON0 + 0.0017)]
+    informe, rc = guion.ejecutar(app, _plan(['F1'], nuevas=segunda), simular=False)
+    assert rc == 0, informe
+    (creada,) = informe['feeders'][0]['creadas']
+    assert creada['tramo_partido'] is None and creada['barra'] == 'F1_B2'
 
 
 def test_el_plan_lleva_la_distancia_minima():

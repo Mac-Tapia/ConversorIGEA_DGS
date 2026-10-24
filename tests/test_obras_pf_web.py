@@ -122,3 +122,25 @@ def test_sin_obras_no_hay_nada_que_aplicar(client):
     estado = _trabajo(client, client.post(f'/api/workspaces/{wid}/pf/obras/aplicar',
                                           json={'project': 'P'}))
     assert estado['status'] == 'failed' and 'defina alguna' in estado['error']
+
+
+def test_escalera_es_un_trabajo_de_digsilent_con_su_anio(client, monkeypatch):
+    """025:RF-44 — la escalera va al carril de DIgSILENT con el año de los casos; un año
+    fuera de rango se rechaza antes de empezar."""
+    from igea_dgs.web import services
+
+    vistos = []
+
+    def escalera(ws, ctx, project, feeders, *, anio_casos=None):
+        vistos.append((project, feeders, anio_casos))
+        return {'project': project, 'anio_casos': anio_casos, 'alimentadores': []}
+
+    monkeypatch.setattr(services, 'obras_escalera', escalera)
+    wid = _espacio(client)
+    url = f'/api/workspaces/{wid}/pf/obras/escalera'
+    assert client.post(url, json={'project': 'P', 'feeders': ['A1'], 'anio_casos': 99999}).status_code == 422
+    r = client.post(url, json={'project': 'P', 'feeders': ['A1'], 'anio_casos': 2025})
+    assert r.json()['lane'] == 'powerfactory'
+    estado = _trabajo(client, r)
+    assert estado['status'] == 'done', estado
+    assert vistos == [('P', ['A1'], 2025)] and estado['result']['anio_casos'] == 2025

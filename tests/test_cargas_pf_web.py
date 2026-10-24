@@ -114,6 +114,19 @@ def test_plan_sin_entradas_cargadas(client):
     assert len(body['row_errors']) == 1 and 'fila 4' in body['row_errors'][0]
 
 
+def test_carga_nueva_sin_alimentador_sale_en_el_plan_y_las_demas_siguen(client):
+    """025:RF-45, 025:RF-46 — la fila sin alimentador (TRONCAL) llega al plan con su SED y su
+    motivo; la otra se aplica."""
+    wid = _wid(client)
+    r = _plan(client, wid, nuevas=[['SED', 'barra', 'Kw', 'kVA_instalado', 'TRONCAL'],
+                                   ['N1', 'B1', 10, 50, ''], ['N2', 'B2', 10, 50, 'A1']])
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert [n['sed'] for n in body['nuevas']] == ['N2'] and body['applicable'] is True
+    assert len(body['row_errors']) == 1
+    assert 'N1' in body['row_errors'][0] and 'sin alimentador (TRONCAL)' in body['row_errors'][0]
+
+
 def test_uno_o_varios_alimentadores_en_el_orden_elegido(client):
     """004:RF-5 — el mismo plan para uno que para varios, en el orden de la selección."""
     wid = _wid(client)
@@ -127,15 +140,16 @@ def test_uno_o_varios_alimentadores_en_el_orden_elegido(client):
 def test_carga_nueva_del_formulario_pasa_por_el_mismo_lector(client):
     """004:RF-41 — la carga nueva sola (formulario) y el libro en bloque comparten reglas."""
     wid = _wid(client)
-    buena = {'SED': 'N1', 'barra': 'B7', 'kVA_instalado': 100, 'Kw': 40, 'FP': 0.95}
+    buena = {'SED': 'N1', 'barra': 'B7', 'kVA_instalado': 100, 'Kw': 40, 'FP': 0.95,
+             'alimentador': 'A1'}       # 025:RF-45: obligatorio
     r = _plan(client, wid, nueva=buena)
     assert r.status_code == 200, r.text
     assert [n['sed'] for n in r.json()['nuevas']] == ['N1']
-    mala = _plan(client, wid, nueva={'SED': 'N2', 'kVA_instalado': 100, 'Kw': 40}).json()
+    mala = _plan(client, wid, nueva={'SED': 'N2', 'kVA_instalado': 100, 'Kw': 40, 'alimentador': 'A1'}).json()
     assert mala['applicable'] is False
     assert 'sin barra ni coordenadas' in mala['row_errors'][0]
     # 004:RF-52: sin kVA_instalado se deduce y el aviso llega al plan.
-    deducida = _plan(client, wid, nueva={'SED': 'N3', 'barra': 'B7', 'Kw': 40}).json()
+    deducida = _plan(client, wid, nueva={'SED': 'N3', 'barra': 'B7', 'Kw': 40, 'alimentador': 'A1'}).json()
     assert deducida['nuevas'][0]['kva_instalado'] == 40
     assert any('RF-52' in a for a in deducida['avisos'])
     libro = _plan(client, wid, nuevas=[list(buena), list(buena.values())], nueva=buena | {'SED': 'N9'})
@@ -246,7 +260,7 @@ def test_el_plan_lleva_la_ruta_y_la_carpeta(client):
 def test_formulario_delante_del_libro(client):
     """008:RF-24 — la carga del formulario se aplica antes que las del libro."""
     wid = _wid(client)
-    fila = {'SED': 'L1', 'barra': 'B1', 'kVA_instalado': 50, 'Kw': 20, 'FP': 0.9}
+    fila = {'SED': 'L1', 'barra': 'B1', 'kVA_instalado': 50, 'Kw': 20, 'FP': 0.9, 'alimentador': 'A1'}
     libro = [list(fila), list(fila.values()), list((fila | {'SED': 'L2'}).values())]
     r = _plan(client, wid, nuevas=libro, nueva=fila | {'SED': 'FORM'}, demandas=DEMANDAS)
     assert [n['sed'] for n in r.json()['nuevas']] == ['FORM', 'L1', 'L2']

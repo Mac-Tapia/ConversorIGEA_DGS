@@ -100,7 +100,9 @@ def test_mes_de_analisis_antes_de_buscar_la_maxima():
     seccion_clientes = DEMANDA.index('<h4>2.3 · Clientes importantes')
     assert DEMANDA.count('{selectorMes}') == 1
     assert seccion_clientes < DEMANDA.index('{selectorMes}') < DEMANDA.index('`Cruzar clientes de ${cuales}`')
-    assert 'La máxima se busca en {nombreMes(periodo)}, el mes elegido en 2.3.' in DEMANDA
+    # 025:RF-7: el mismo aviso dice también «todo el año» cuando el periodo es un año.
+    assert 'La máxima se busca en {periodo.length === 4 ? `todo ${periodo}` : nombreMes(periodo)}' in DEMANDA
+    assert "', el mes elegido en 2.3'" in DEMANDA
     assert 'api.demandaCabecera(ws.id, aBuscar, { periodo, instante, por_barra: porBarra && !instante })' in DEMANDA
     assert "periodo: criterio.periodo || null, instante: criterio.instante || null" in API
 

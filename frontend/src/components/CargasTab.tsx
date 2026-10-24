@@ -3,7 +3,7 @@ import { api, download, fmtNum } from '../api';
 import { useApp } from '../context';
 import type {
   AjusteInforme, AjusteResultado, CalibradaCambiada, CasoBaseEstado, CasoBaseResultado, CargaConectada, CargaIntegrada, CargasFeederInforme,
-  CargasInforme, CargasMotivo, CargasPlan, CargasResultado, Economia, Job, PfInventario, PfProject,
+  CargasInforme, CargasMotivo, CargasPlan, CargasResultado, Economia, EscaleraResultado, Job, PfInventario, PfProject,
   VerificarInforme, VerificarResultado,
 } from '../types';
 import { estadoVinculoProyecto, textoCausaVinculo, usoDeLaFuente } from '../projectBinding';
@@ -54,7 +54,8 @@ const NUEVA_CAMPOS: { key: string; label: string; help?: string; required?: bool
   { key: 'CoordX', label: 'CoordX', mas: true, help: 'En el CRS del perfil de empresa, en lugar de Lat/Lon.' },
   { key: 'CoordY', label: 'CoordY', mas: true },
   { key: 'barra', label: 'Barra de conexión', mas: true, help: 'Solo para forzar una barra; si no, la más cercana.' },
-  { key: 'alimentador', label: 'Alimentador', mas: true, help: 'En blanco: el que tenga la barra.' },
+  // Spec 025, RF-45: obligatorio; sin él la carga se rechaza y se dice.
+  { key: 'alimentador', label: 'Alimentador', required: true },
   { key: 'tipo_linea', label: 'Tipo de línea del enlace', mas: true, help: 'En blanco o si no existe: el de la red.' },
   { key: 'tension_bt_kv', label: 'Tensión de baja (kV)', mas: true, help: 'En blanco: la de un transformador del alimentador.' },
 ];
@@ -170,6 +171,10 @@ export function CargasTab() {
     .filter((j) => (j.kind === 'cargas_simular' || j.kind === 'cargas_aplicar') && j.result)
     .pop();
   const resultado = (lastRun?.result ?? null) as CargasResultado | null;
+  // Spec 025, RF-44: la última escalera de obras sobre el proyecto de ese informe.
+  const lastEscalera = todos.filter((j) => j.kind === 'obras_escalera' && j.result
+    && (j.result as EscaleraResultado).project === resultado?.informe.project).pop();
+  const escalera = (lastEscalera?.result ?? null) as EscaleraResultado | null;
   const flujo = estadoFlujo(todos, project);
   const lastCheck = todos.filter((j) => j.kind === 'pf_verificar' && j.result?.project === project).pop();
   const verificado = (lastCheck?.result ?? null) as VerificarResultado | null;
@@ -517,7 +522,10 @@ export function CargasTab() {
         </>}
       </div>
 
-      {resultado && <Informe resultado={resultado} cancelado={lastRun?.status === 'cancelled'} />}
+      {resultado && <Informe resultado={resultado} cancelado={lastRun?.status === 'cancelled'}
+        escalera={escalera} ocupado={pfBusy}
+        onEscalera={(feeders) => startJob(() => api.obrasEscalera(ws.id, {
+          project: resultado.informe.project, feeders, anio_casos: resultado.informe.anio_casos ?? null }))} />}
 
       {/* Spec 011, RF-42 y RF-98: con el mismo proyecto y los mismos alimentadores marcados. */}
       <div className="step-box">
@@ -786,9 +794,15 @@ function conexion(c: CargaConectada) {
 }
 
 /** Informe del guion por alimentador: lo que se actualizó o se crearía, y lo omitido (RF-20). */
-function Informe({ resultado, cancelado }: { resultado: CargasResultado; cancelado: boolean }) {
+function Informe({ resultado, cancelado, escalera, ocupado, onEscalera }: {
+  resultado: CargasResultado; cancelado: boolean; escalera: EscaleraResultado | null; ocupado: boolean;
+  onEscalera: (feeders: string[]) => void;
+}) {
   const inf: CargasInforme = resultado.informe;
   const simular = inf.modo === 'simular';
+  const juntas = inf.no_convergen_juntas;
+  const conCargas = inf.feeders.filter((f) => (f.creadas ?? []).length > 0).map((f) => f.feeder);
+  const feedersEscalera = conCargas.length ? conCargas : inf.feeders.map((f) => f.feeder);
   return (
     <div className="step-box">
       <h3>{simular ? 'Simulación' : 'Aplicación'} en {inf.project}{inf.variacion ? ` · variación ${inf.variacion}` : ''}</h3>
@@ -806,6 +820,26 @@ function Informe({ resultado, cancelado }: { resultado: CargasResultado; cancela
         <small className="muted">Variaciones activas al empezar: {(inf.variaciones_activas_inicio ?? []).join(', ') || 'ninguna'}
           {' '}· al terminar: {(inf.variaciones_activas_fin ?? []).join(', ') || 'ninguna'}.</small>
       )}
+      {juntas && !simular && (
+        <div className="alert alert-error">
+          <strong>«{juntas.caso}» no converge con sus {juntas.cargas.length} cargas nuevas.</strong>{' '}
+          {juntas.solas_que_no_convergen.length
+            ? <>Solas tampoco: {lista(juntas.solas_que_no_convergen)}.</>
+            : <>Cada una sola, sí.</>}
+          {juntas.basta_quitar_una_de.length > 0 && <> Basta quitar una de: {lista(juntas.basta_quitar_una_de)}.</>}
+          <div className="row">
+            <button className="btn btn-sm" disabled={ocupado} onClick={() => onEscalera(feedersEscalera)}>
+              Proponer obras en escalera
+            </button>
+            <small className="muted">
+              Bancos, sección de la troncal y terna en {lista(feedersEscalera)}, en ese orden y cada una en su
+              variación de «{juntas.caso}»; se queda la primera que converge.
+              {ocupado ? ' Espere a que termine el trabajo de DIgSILENT en curso.' : ''}
+            </small>
+          </div>
+        </div>
+      )}
+      {escalera && <Escalera r={escalera} />}
       {(inf.cargas ?? []).length > 0 && <PorCarga cargas={inf.cargas!} sin={inf.sin_proyecto} />}
       {(inf.calibradas_cambiadas ?? []).length > 0 && <Calibradas xs={inf.calibradas_cambiadas!} />}
       {inf.tecnico_economico && (
@@ -826,6 +860,24 @@ function Informe({ resultado, cancelado }: { resultado: CargasResultado; cancela
         <p className="muted">{inf.plan_errores_de_fila!.length} fila(s) con error en los libros no se enviaron.</p>
       )}
       <small className="muted">Informe completo: {resultado.report}, en «Resultados».</small>
+    </div>
+  );
+}
+
+/** Spec 025, RF-44: cada escalón probado por alimentador y el que hizo converger el caso. */
+function Escalera({ r }: { r: EscaleraResultado }) {
+  return (
+    <div className="step-box">
+      <h4>Obras en escalera{r.anio_casos ? ` · casos de ${r.anio_casos}` : ''}</h4>
+      <ul className="small">{r.alimentadores.map((a) => (
+        <li key={a.alimentador}>
+          <strong>{a.alimentador}</strong>:{' '}
+          {a.obra ? <>converge con «{a.obra}»</> : <span className="badge err">ningún escalón converge</span>}
+          {a.intentos.length > 0 && <> · probados: {a.intentos.map((i) =>
+            `${i.escalon} (${i.converge ? 'converge' : 'no basta'}${i.errores.length ? `; ${i.errores.join('; ')}` : ''})`).join(', ')}</>}
+          {a.avisos.map((x) => <div key={x} className="muted">{x}</div>)}
+        </li>
+      ))}</ul>
     </div>
   );
 }
