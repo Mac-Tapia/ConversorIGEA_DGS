@@ -135,7 +135,10 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       tramo al 301 %); el unido sin IC_11, IC_12, IC_15 e IC_17 (su línea queda entre 22,9 y
       10 kV sin la migración de IN111, que es obra de «Con proyecto»). De paso, la base de
       las cargas se busca en todas las ejecuciones también sin token: tras reiniciar la web,
-      la de Pisco no aparecía.
+      la de Pisco no aparecía. Comprobado en DIgSILENT nativo el mismo día (sonda de solo
+      lectura, 25 comprobaciones, 0 fallos): los 16 reguladores con los datos del catálogo,
+      los casos de 2025 con su marca, «Cargas nuevas 2025» con su escenario, sin obras y
+      convergido, y «Sin proyecto 2025» con la misma calibración.
 - [ ] T18. Variantes, criterio por sorteo, sorteos con semilla, costo anual y elección,
       puros. (RF-44, RF-49, RF-50, RF-51, RF-53, RF-55 a RF-58, RF-60)
       Hecho cuando: `pytest -q tests/test_escalera_optima.py` en verde.

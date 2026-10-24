@@ -102,6 +102,15 @@ Procesos que no quedan colgados
   DIgSILENT y sus hijos, y lo dirá en el Registro.
 - RF-10: EL SISTEMA no dejará al terminar ninguna copia de proyecto creada para sondear ni
   ningún caso distinto del que estaba activo.
+- RF-23: SI DIgSILENT no responde a la conexión en el plazo del arnés, ENTONCES EL SISTEMA,
+  desde un proceso vigía aparte, escribirá en la salida del guion que DIgSILENT no respondió
+  al conectar, terminará ese proceso con un código propio y soltará su turno, también fuera
+  de la web. (2026-10-24: dos sondas quedaron paradas en la conexión, sin CPU, 6 y 25 min,
+  con el turno tomado y la web bloqueada; relanzadas, conectaron en 13 s.)
+- RF-24: EL SISTEMA usará para RF-23 un plazo menor que el de la primera línea de la web
+  (005:RF-21), para que el motivo lo diga el arnés y no un corte sin explicación.
+- RF-25: SI un guion lanzado por la web termina con el código de RF-23, ENTONCES EL SISTEMA lo
+  repetirá una vez antes de dar el error, como con un guion que no escribe nada.
 
 Obras enchufables
 
