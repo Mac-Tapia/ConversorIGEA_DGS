@@ -1286,6 +1286,12 @@ def aplicar(app, plan: dict, *, simular: bool = False,
                      | set(plan.get('feeders') or []))
     alims = Alimentadores(app, proyecto, feeders)
     inicial = app.GetActiveStudyCase()
+    # 025:RF-69: la obra elegida por la escalera se comprueba con las cargas nuevas de los
+    # alimentadores sin resolver apartadas, como se evaluó; vuelven al terminar.
+    ajenas = []
+    if 'con' in casos and plan.get('apartar_cargas_de'):
+        casos['con'].Activate()
+        ajenas = _apartar_cargas_de(app, list(plan['apartar_cargas_de']))
     try:
         casos['sin'].Activate()
         redes, tipos, avisos = _leer(app, plan, alims, feeders, obras, casos)
@@ -1337,6 +1343,10 @@ def aplicar(app, plan: dict, *, simular: bool = False,
             casos['con'].Activate()
             informe['dibujo'] = completar_diagrama(app, proyecto)
     finally:
+        if ajenas:
+            casos['con'].Activate()
+            for v in ajenas:
+                v.Activate()
         if inicial is not None and app.GetActiveStudyCase() is not inicial:
             inicial.Activate()
 

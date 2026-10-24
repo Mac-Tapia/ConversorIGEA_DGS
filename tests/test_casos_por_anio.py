@@ -468,7 +468,7 @@ def _perfil_escalera(costos):
             'estudios': {'tension_min_pu': 0.95, 'tension_max_pu': 1.05, 'cargabilidad_max_pct': 100}}
 
 
-def _escalera_falsa(tmp_path, monkeypatch, evaluar, costos):
+def _escalera_falsa(tmp_path, monkeypatch, evaluar, costos, *, alimentadores=('F1',), activa=True):
     """El servicio de la escalera con DIgSILENT, los libros y el perfil sustituidos."""
     from datetime import datetime, timedelta
 
@@ -480,14 +480,16 @@ def _escalera_falsa(tmp_path, monkeypatch, evaluar, costos):
     monkeypatch.setattr(perfil_empresa, 'datos_perfil', lambda: _perfil_escalera(costos))
     monkeypatch.setattr(perfil_empresa, 'bancos_kvar_por_tension', lambda _d: {10.0: 300})
     monkeypatch.setattr(services, 'ajuste_aplicado_en_disco', lambda *_a, **_k: {'informes': [
-        {'feeder': 'F1', 'caso': f'Sin proyecto {ANIO}', 'objetivo': {'kw': 1000.0, 'medidor': 'M1'}}]})
+        {'feeder': f, 'caso': f'Sin proyecto {ANIO}', 'objetivo': {'kw': 1000.0, 'medidor': 'M1'}}
+        for f in alimentadores]})
     t0 = datetime(ANIO, 1, 1)
     monkeypatch.setattr(services, '_curva_del_anio', lambda *_a, **_k: {
-        'F1': [(t0 + timedelta(hours=h), 500.0 + (h % 24) * 20) for h in range(24 * 30)]})
+        f: [(t0 + timedelta(hours=h), 500.0 + (h % 24) * 20) for h in range(24 * 30)] for f in alimentadores})
     monkeypatch.setattr(services, 'obras_bibliotecas', lambda *a, **k: {'informe': {
-        'alimentadores': {'F1': {'kv': 10.0}}, 'tipos': [_tipo_linea('AAAC 240', 10, 0.55)]}})
+        'alimentadores': {f: {'kv': 10.0} for f in alimentadores}, 'tipos': [_tipo_linea('AAAC 240', 10, 0.55)]}})
     monkeypatch.setattr(services, '_cargas_nuevas_aplicadas', lambda *_a: [
-        {'sed': 'Q1', 'alimentador': 'F1', 'barra': 'F1_B4', 'criterio': 'barra de la troncal más cercana'}])
+        {'sed': f'Q{f}', 'alimentador': f, 'barra': f'{f}_B4', 'criterio': 'barra de la troncal más cercana'}
+        for f in alimentadores])
     # El contexto firmado lleva los alimentadores del plan, uno por alimentador.
     monkeypatch.setattr(services, 'native_action_context', lambda ws_, p_, feeders, accion: {'feeders': list(feeders)})
     planes = []
@@ -496,17 +498,22 @@ def _escalera_falsa(tmp_path, monkeypatch, evaluar, costos):
         assert plan['native_action_context']['feeders'] == plan['feeders'], 'contexto de otro alimentador'
         planes.append((args, plan))
         if '--escalera-datos' in args:
-            return 0, {'alimentadores': {'F1': {
+            (f,) = plan['feeders']
+            return 0, {'alimentadores': {f: {
                 'troncal': [{'nombre': f'T{i}', 'largo_m': 1000.0, 'corriente_a': 100.0} for i in range(3)],
-                'fuera_desde': None, 'indices': {'F1_B4': 2}}}}, None
+                'fuera_desde': None, 'indices': {f'{f}_B4': 2}}}}, None
         return 0, {'variantes': [evaluar(v['nombre']) for v in plan['variantes']]}, None
 
     monkeypatch.setattr(services, '_guion_pf', guion)
     aplicadas = []
 
-    def ejecutar(ws_, ctx, project, feeders, ids, otro, *, simular, anio_casos=None):
+    def ejecutar(ws_, ctx, project, feeders, ids, otro, *, simular, anio_casos=None, apartar_cargas_de=None):
         aplicadas.append(([o['clase'] for o in ws_.obras if o['id'] in ids], otro, anio_casos))
-        return {'informe': {'obras': [{'variacion': 'Obra_x'}]}}
+        ejecutar.apartadas.append(list(apartar_cargas_de or []))
+        return {'informe': {'obras': [{'variacion': 'Obra_x',
+                                       'casos_activos': [f'Con proyecto {ANIO}'] if activa else []}]}}
+
+    ejecutar.apartadas = []
 
     monkeypatch.setattr(services, 'obras_ejecutar', ejecutar)
 
@@ -517,7 +524,7 @@ def _escalera_falsa(tmp_path, monkeypatch, evaluar, costos):
         def check_cancel(self):
             pass
 
-    return services, ws, Ctx(), planes, aplicadas
+    return services, ws, Ctx(), planes, aplicadas, ejecutar.apartadas
 
 
 def test_la_escalera_elige_la_mas_barata_que_cumple_y_aplica_solo_esa(tmp_path, monkeypatch):
@@ -529,7 +536,7 @@ def test_la_escalera_elige_la_mas_barata_que_cumple_y_aplica_solo_esa(tmp_path, 
         return {'nombre': nombre, 'maxima': cumple, 'fraccion': 1.0 if cumple else None,
                 'perdidas_kw': 10.0, 'motivos': [] if cumple else ['no converge']}
 
-    services, ws, ctx, planes, aplicadas = _escalera_falsa(
+    services, ws, ctx, planes, aplicadas, _apartadas = _escalera_falsa(
         tmp_path, monkeypatch, evaluar, {'bancos': 9000, 'nueva_terna': 40000, 'cambio_seccion': 30000})
     r = services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=ANIO)
     assert all(p['apartar_cargas_de'] == [] for _a, p in planes)        # 025:RF-69, solo F1
@@ -550,10 +557,32 @@ def test_la_escalera_sin_ninguna_que_cumpla_no_aplica_nada(tmp_path, monkeypatch
         return {'nombre': nombre, 'maxima': nombre.startswith('terna'), 'fraccion': 0.5,
                 'perdidas_kw': None, 'motivos': ['no converge']}
 
-    services, ws, ctx, _planes, aplicadas = _escalera_falsa(tmp_path, monkeypatch, evaluar, {'nueva_terna': 40000})
+    services, ws, ctx, _planes, aplicadas, _apartadas = _escalera_falsa(
+        tmp_path, monkeypatch, evaluar, {'nueva_terna': 40000})
     (f1,) = services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=ANIO)['alimentadores']
     assert f1['elegida'] is None and f1['mas_cercana'].startswith('terna') and aplicadas == []
     assert any('025:RF-56' in a for a in f1['avisos'])
+
+
+@pytest.mark.parametrize('activa', [True, False])
+def test_la_elegida_se_aplica_con_las_mismas_cargas_apartadas_y_solo_activa_resuelve(
+        tmp_path, monkeypatch, activa):
+    """025:RF-69 — la elegida de F1 se aplica con las cargas nuevas de F2 apartadas, como se
+    evaluó; F1 cuenta como resuelto para F2 solo si su obra quedó activa en «Con proyecto»
+    (Pisco, 2026-10-24: la de SI213 quedó inactiva y PA217 se evaluó como si estuviera resuelto)."""
+    def evaluar(nombre):
+        cumple = nombre.startswith('terna') and '+' not in nombre
+        return {'nombre': nombre, 'maxima': cumple, 'fraccion': 1.0 if cumple else None,
+                'perdidas_kw': 10.0, 'motivos': [] if cumple else ['no converge']}
+
+    services, ws, ctx, planes, _aplicadas, apartadas = _escalera_falsa(
+        tmp_path, monkeypatch, evaluar, {'nueva_terna': 40000}, alimentadores=('F1', 'F2'), activa=activa)
+    r = services.obras_escalera(ws, ctx, 'P', ['F1', 'F2'], anio_casos=ANIO)
+    assert apartadas[0] == ['F2']
+    de_f2 = [p for _a, p in planes if p['feeders'] == ['F2']]
+    assert all(p['apartar_cargas_de'] == ([] if activa else ['F1']) for p in de_f2)
+    f1 = r['alimentadores'][0]
+    assert any('025:RF-69' in a for a in f1['avisos']) is (not activa)
 
 def test_la_base_de_las_cargas_se_encuentra_en_otra_ejecucion(tmp_path):
     """025:RF-37 (007:RF-40) — la calibración de 2025 quedó en la ejecución anterior; al
@@ -578,6 +607,30 @@ def test_la_base_de_las_cargas_se_encuentra_en_otra_ejecucion(tmp_path):
     (tmp_path / 'runs' / 'r2' / 'salida' / 'ajuste_cabecera_aplicacion_nuevo_1.json').write_text(
         json.dumps({'project': 'P', 'feeder': 'A1', 'caso': 'Sin proyecto'}), encoding='utf-8')
     assert services.ajuste_aplicado_en_disco(ws, 'P')['id'] == 'disco:nuevo'
+
+
+def test_la_base_de_un_solo_alimentador_se_encuentra_por_su_token(tmp_path):
+    """025:RF-37 (007:RF-40) — la calibración de un proyecto de un solo alimentador deja su
+    informe sin ``_n`` (``…_<token>.json``); pedida por su token, en la ejecución activa o en
+    otra, se encuentra igual (CA101, 2026-10-24: «No se encuentra el ajuste de la base»)."""
+    import json
+    from igea_dgs.web import services
+    from igea_dgs.web.workspace import Workspace
+
+    ws = Workspace(id='w', root=tmp_path)
+    activa = tmp_path / 'runs' / 'r1' / 'salida'
+    activa.mkdir(parents=True)
+    ws.active_run_id = 'r1'
+    (activa / 'ajuste_cabecera_aplicacion_tok1.json').write_text(json.dumps(
+        {'project': 'P', 'feeder': 'CA101', 'caso': 'Sin proyecto'}), encoding='utf-8')
+    (activa / 'ajuste_cabecera_aplicacion_tok10_1.json').write_text(json.dumps(
+        {'project': 'P', 'feeder': 'OTRO', 'caso': 'Sin proyecto'}), encoding='utf-8')
+    hallado = services.ajuste_aplicado_en_disco(ws, None, 'tok1')
+    assert hallado and hallado['id'] == 'disco:tok1' and hallado['feeders'] == ['CA101']
+    ws.active_run_id = 'r2'
+    (tmp_path / 'runs' / 'r2' / 'salida').mkdir(parents=True)
+    hallado = services.ajuste_aplicado_en_disco(ws, None, 'tok1')
+    assert hallado and hallado['feeders'] == ['CA101']
 
 
 def test_volver_a_calibrar_el_anio_reutiliza_sus_casos():

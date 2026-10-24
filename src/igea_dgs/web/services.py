@@ -3228,11 +3228,12 @@ def ajuste_aplicado_en_disco(ws: Workspace, project: str | None,
     """
     project = str(project or '').strip()
     rutas = list(ws.out_dir.glob('ajuste_cabecera_aplicacion_*.json'))
-    if token and not any(p.name.startswith(f'ajuste_cabecera_aplicacion_{token}_') for p in rutas):
+    if token and not any(_informe_del_token(p, token) for p in rutas):
         # 025:RF-37: pedido por su token, también en otra ejecución del espacio. Al volver a
         # cargar la fuente hay una ejecución nueva y la calibración de 2025 de Pisco quedó
         # en la anterior (2026-10-23): las cargas no encontraban su base.
-        rutas = sorted(ws.root.glob(f'runs/*/salida/ajuste_cabecera_aplicacion_{token}_*.json'))
+        rutas = sorted(p for p in ws.root.glob(f'runs/*/salida/ajuste_cabecera_aplicacion_{token}*.json')
+                       if _informe_del_token(p, token))
     grupos = _ajustes_por_token(rutas, project, token)
     if not grupos and not token:
         # 025:RF-37, también sin token: tras reiniciar la web, la base de Pisco no aparecía en
@@ -3250,6 +3251,13 @@ def ajuste_aplicado_en_disco(ws: Workspace, project: str | None,
             'reports': [p.name for _, p, _ in filas], 'returncode': 0,
             'informe': informes[0], 'informes': informes,
             'finished_at': max(p.stat().st_mtime for _, p, _ in filas)}
+
+
+def _informe_del_token(path: Path, token: str) -> bool:
+    """Si ``path`` es un informe de la calibración ``token``: ``…_<token>_<n>.json`` con
+    varios alimentadores, ``…_<token>.json`` con uno solo (CA101, 2026-10-24)."""
+    resto = path.stem.removeprefix('ajuste_cabecera_aplicacion_')
+    return resto == token or resto.startswith(f'{token}_')
 
 
 def _ajustes_por_token(rutas, project: str, token: str | None) -> dict[str, list[tuple[int, Path, dict]]]:
@@ -3696,6 +3704,7 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
                                factor_carga=plan_pide.get('factor_carga'),
                                precio_compra_kwh=plan_pide.get('precio_compra_kwh'))
     avisos += propuesta['avisos']
+    avisos += _pide_optimizar(project, propuesta['obras'], limites, perfil, plan_pide, costos, ctx)
     implementadas: list[dict] = []
     if implementar:
         implementadas = _pide_implementar(ws, ctx, project, feeders, propuesta['obras'],
@@ -3710,6 +3719,41 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
             'obras': propuesta['obras'], 'implementadas': implementadas, 'avisos': avisos}
 
 
+def _pide_optimizar(project: str, obras: list[dict], limites, perfil: dict, plan_pide: dict,
+                    costos: dict, ctx: JobContext) -> list[str]:
+    """Ubicación y tamaño de los bancos del PIDE con el algoritmo genético y NSGA-II sobre la
+    red del gemelo de este proyecto (024:RF-73). Sin red del gemelo, quedan los del
+    diagnóstico; cada banco se simula después en DIgSILENT antes de aplicarse (RF-46)."""
+    if not any((o.get('obra_011') or {}).get('clase') == 'condensador' for o in obras):
+        return []
+    try:
+        from ..digital_twin.buffer import BuferEpisodios, Consulta
+        from ..digital_twin.evolutivo import afinar_bancos_pide, red_del_gemelo
+    except ImportError as exc:
+        return [f'los bancos no se optimizan: falta {exc.name} (extra «ml»)']
+    from ..perfil_empresa import bancos_kvar_por_tension
+    from ..pide_economia import valor_kw_perdidas
+
+    grafo = red_del_gemelo(BuferEpisodios().consultar(Consulta(proyecto=project, caso='sin_proyecto')))
+    if grafo is None:
+        return ['los bancos no se optimizan: el gemelo aún no tiene la red de este proyecto '
+                '(«Aprender» en el paso del gemelo)']
+    costo = (costos.get('bancos') or {}).get('costo_unitario')
+    valor = valor_kw_perdidas(plan_pide, factor_carga=plan_pide.get('factor_carga'),
+                              precio_compra_kwh=plan_pide.get('precio_compra_kwh'))
+    ctx.log('PIDE: ubicación y tamaño de los bancos con el algoritmo genético y NSGA-II…')
+    avisos = afinar_bancos_pide(obras, grafo, tension_min_pu=limites.tension_min_pu,
+                                tension_max_pu=limites.tension_max_pu, bancos_kvar=bancos_kvar_por_tension(perfil),
+                                tasa_demanda=float(plan_pide.get('crecimiento_demanda_anual') or 0.0),
+                                costo_modulo=float(costo) if costo is not None else None,
+                                valor_kw_perdidas=valor,
+                                semilla=int((perfil.get('gemelo') or {}).get('semilla') or 0))
+    if valor is None:
+        avisos.append('sin factor de carga o precio de compra en el perfil, las pérdidas solo desempatan '
+                      'entre bancos (024:RF-70)')
+    return avisos
+
+
 def _pide_implementar(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
                       obras: list[dict], anios_pide: set[int]) -> list[dict]:
     """Simula las obras propias que se construyen solas y aplica las que funcionan (RF-46,
@@ -3721,10 +3765,12 @@ def _pide_implementar(ws: Workspace, ctx: JobContext, project: str, feeders: lis
         return []
     ids = {}
     for o in elegibles:
-        try:
-            ids[obra_anadir(ws, o['obra_011'])['id']] = o
-        except UserError as exc:
-            o['motivo_sin_obra'] = str(exc)
+        # El algoritmo genético puede repartir el banco de una obra en varias barras (024:RF-73).
+        for obra in [o['obra_011'], *(o.get('obras_011_extra') or [])]:
+            try:
+                ids[obra_anadir(ws, obra)['id']] = o
+            except UserError as exc:
+                o['motivo_sin_obra'] = str(exc)
     if not ids:
         return []
     ctx.log(f'PIDE: simulando {len(ids)} obra(s) propia(s) antes de aplicarlas (RF-46)…')
@@ -4217,9 +4263,17 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             ids = [obra_anadir(ws, o)['id'] for o in por_nombre[decision['elegida']].obras]
             ctx.log(f"{f}: se aplica «{decision['elegida']}» en «Con proyecto»…")
             hecho = obras_ejecutar(ws, ctx, project, feeders, ids, eo.BIBLIOTECA_TIPOS, simular=False,
-                                   anio_casos=anio_casos)
-            fila['aplicada'] = [o.get('variacion') for o in (hecho.get('informe') or {}).get('obras') or []]
-            resueltos.append(f)
+                                   anio_casos=anio_casos, apartar_cargas_de=comun['apartar_cargas_de'])
+            hechas = (hecho.get('informe') or {}).get('obras') or []
+            fila['aplicada'] = [o.get('variacion') for o in hechas]
+            # 025:RF-69: resuelto solo si su obra quedó activa en «Con proyecto <año>»; si no,
+            # sus cargas siguen apartadas para los siguientes.
+            if hechas and all(any(str(c).startswith('Con proyecto') for c in o.get('casos_activos') or [])
+                              for o in hechas):
+                resueltos.append(f)
+            else:
+                fila['avisos'].append(f"{f}: «{decision['elegida']}» se creó pero no quedó activa en "
+                                      '«Con proyecto»: su flujo no converge al aplicarla (025:RF-69).')
         else:                                                                    # RF-56
             fila['avisos'].append(f"{f}: ninguna variante cumple; la más cercana es «{decision['mas_cercana']}», "
                                   'y no se aplica nada (025:RF-56).')
@@ -4244,7 +4298,8 @@ def registrar_obra_aplicada(ws: Workspace, project: str, variacion: str, obra: d
 
 def obras_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
                    ids: list[str] | None, otro_proyecto: str, *, simular: bool,
-                   anio_casos: int | None = None) -> dict:
+                   anio_casos: int | None = None,
+                   apartar_cargas_de: list[str] | None = None) -> dict:
     """Simula o aplica las obras guardadas con ``tools/obras_pf.py`` (RF-56 a RF-87).
 
     Al aplicar, las obras que quedaron creadas en el proyecto salen del espacio (RF-95):
@@ -4263,6 +4318,8 @@ def obras_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             'otro_proyecto': otro_proyecto.strip(),
             'native_action_context': action_context,
             'anio_casos': anio_casos}                                   # 025:RF-41
+    if apartar_cargas_de:
+        plan['apartar_cargas_de'] = list(apartar_cargas_de)            # 025:RF-69
     modo = 'simulacion' if simular else 'aplicacion'
     ctx.log(f"Proyecto de DIgSILENT: {plan['project']}  ·  {len(elegidas)} obra(s)")
     rc, informe, report = _guion_pf(ws, ctx, 'obras_pf.py', plan, nombre=f'obras_{modo}',

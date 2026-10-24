@@ -1143,6 +1143,37 @@ def test_al_evaluar_un_alimentador_se_apartan_las_cargas_de_los_otros(monkeypatc
     assert de_f2 in _activas(app, CON)
 
 
+@pytest.mark.parametrize('apartar', [True, False])
+def test_la_elegida_se_comprueba_con_las_cargas_de_los_otros_apartadas(monkeypatch, apartar):
+    """025:RF-69 — al aplicar la elegida de F1 su flujo se comprueba con las cargas nuevas de F2
+    apartadas, y la obra queda activa en «Con proyecto» aunque con las de F2 no converja; al
+    terminar, las de F2 vuelven a estar activas. Sin apartarlas, la obra queda inactiva."""
+    from test_casos_pf import cargas_guion
+    from test_cargas_pf_guion import _nueva, _plan as _plan_cargas
+
+    app, alims = _calibrada_con_escenario(random.Random(22))
+    f1, f2 = alims[0], alims[1]
+    nuevas = [_nueva('N1', barra=f'{f1}_B2', tension_bt_kv=0.38), _nueva('N2', barra=f'{f2}_B2', tension_bt_kv=0.38)]
+    base = {'variaciones': [], 'feeders': list(alims), 'excluidos': [],
+            'ajustes': [{'feeder': f, 'cuadrado': True} for f in alims]}
+    informe, rc = cargas_guion.ejecutar(app, {**_plan_cargas(list(alims), nuevas=nuevas), 'base': base}, simular=False)
+    assert rc == 0, informe
+    de_f2 = next(c['variacion'] for c in informe['cargas'] if c['sed'] == 'N2')
+    monkeypatch.setitem(guion.CONSTRUCTORES, 'terna', _terna)
+    flujo = guion.flujo_de_carga
+
+    def sin_converger_con_f2(app_):
+        activas = {v.loc_name for v in app_.GetActiveNetworkVariations() or []}
+        return {**flujo(app_), 'converged': False} if de_f2 in activas else flujo(app_)
+
+    monkeypatch.setattr(guion, 'flujo_de_carga', sin_converger_con_f2)
+    plan = _plan([f1], obras=[_obra_terna(f1, [CON])], **({'apartar_cargas_de': [f2]} if apartar else {}))
+    informe, _codigo = guion.aplicar(app, plan)
+    (obra,) = informe['obras']
+    assert (CON in obra['casos_activos']) is apartar
+    assert de_f2 in _activas(app, CON)
+
+
 def test_perdidas_con_lo_que_consumen_las_cargas_en_el_flujo(monkeypatch):
     """025:RF-70 — pérdidas = lo que entra por la cabecera − lo que consumen las cargas en el
     flujo (``m:Psum:bus1``), no su potencia nominal."""
