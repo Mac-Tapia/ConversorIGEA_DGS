@@ -79,9 +79,23 @@ ATRIBUTOS_TIPO = {
 RESUMEN_TIPO = {
     'TypLne': (('uline', 'kV'), ('sline', 'kA'), ('qurs', 'mm²')),
     'TypTr2': (('strn', 'MVA'), ('utrn_h', 'kV'), ('utrn_l', 'kV')),
-    'TypVoltreg': (('Un', 'kV'), ('In', 'kA'), ('pcReg', '%'), ('ntapmax', 'pasos')),
+    'TypVoltreg': (('Un', 'kV'), ('In', 'A'), ('pcReg', '%'), ('ntapmax', 'pasos')),
     'TypRecl': (),
 }
+#: ``config`` de un ``TypVoltreg`` en estrella: el valor que trae uno nuevo, con ``Un`` =
+#: 7,62 kV = 13,2/√3 (sonda en DIgSILENT, 2026-10-24).
+CONFIG_ESTRELLA = 2
+
+
+def tension_de_unidad(kv_linea: float, config: Any = CONFIG_ESTRELLA) -> float:
+    """``Un`` de un ``TypVoltreg``: la de cada unidad monofásica (DIgSILENT: «Rated values
+    for single-phase unit»). En estrella, la de fase; en otra conexión, la de línea.
+
+    Antes se ponía la de línea: un regulador de 22,9 kV quedaba con unidades de 22,9 kV en
+    estrella, √3 veces la tensión que ven.
+    """
+    estrella = config is None or int(config) == CONFIG_ESTRELLA
+    return float(kv_linea) / math.sqrt(3) if estrella else float(kv_linea)
 
 
 class ObrasError(ValueError):
@@ -654,7 +668,8 @@ def _regulador(p: _Plan) -> None:
     base = p.traer(o.tipo)
     # Los pasos son a cada lado de la toma central (usuario, 2026-10-12), como el rango de
     # ``pcReg``, que DIgSILENT da en «+/-»: la toma neutra es la 0.
-    datos = {**base.datos, 'Un': p.estado.kv, 'pcReg': o.rango_pct,
+    datos = {**base.datos, 'Un': tension_de_unidad(p.estado.kv, base.datos.get('config')),
+             'pcReg': o.rango_pct,
              'ntapmax': o.pasos, 'ntapmin': -o.pasos, 'nntap0': 0}
     tipo = p.con_datos(base, datos, nombre_copia(base.nombre, cambio=f'{o.rango_pct:g}pct_{o.pasos}p'))
     p.extra['tipo'] = tipo

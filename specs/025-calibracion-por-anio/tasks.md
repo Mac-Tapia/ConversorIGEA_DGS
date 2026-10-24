@@ -105,6 +105,36 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       carga; ya se excluyen por el criterio de conexión. Del 2026-10-24: el informe de cargas
       dice qué cargas no convergen juntas y ofrece «Proponer obras en escalera» (antes solo
       por la API). Falta decidir el escalón del regulador que nombra RF-44.
+      Comprobado en DIgSILENT el 2026-10-24 (sonda de solo lectura): «Sin proyecto 2025»
+      converge y cuadra con la máxima de 2025 en PA217 −0,005 %, SI213 −0,00 %, PN107
+      −0,04 %, TM105 −0,00 %, IN111 −0,89 % y TA225 −0,08 % (unido); «Con proyecto 2025»
+      converge en los tres con sus cargas y su obra. El regulador no se pudo probar: no hay
+      ningún `TypVoltreg` en la biblioteca global ni en los proyectos; hace falta su ficha.
+      Del 2026-10-24: sustituida por T17 a T22 (escalera optimizada, RF-44 cambiado).
+- [x] T17. Catálogo Eaton VR-32 de 50 Hz y creación de sus `TypVoltreg` en la biblioteca
+      global. (RF-59)
+      Hecho el 2026-10-24: `catalogo_reguladores.py` y `obras_pf.py --tipos-regulador`; en
+      DIgSILENT, 16 tipos (9 de 10 kV, 50 a 668 A; 7 de 22,9 kV, 50 a 500 A) en el proyecto
+      `IGEA_Biblioteca_tipos` de la carpeta del usuario (elegido por el usuario: la global no
+      deja escribir), creado con `Application.CreateProject`. La obra «regulador» pone ya
+      `Un` de unidad monofásica (de fase en estrella) e `In` se muestra en amperios.
+      Hecho cuando: prueba con `fake_pf` en verde y los tipos en DIgSILENT.
+      Sondas del 2026-10-24: `\Lib` y sus subcarpetas no dejan crear objetos a este usuario
+      (`CreateObject` devuelve nada); su carpeta de usuario, sí. Un `TypVoltreg` nuevo trae
+      `type`=1, `config`=2, `Un`=7,62 kV, `In`=437 (amperios, no kA como dice
+      `RESUMEN_TIPO`), `pcReg`=10 %, `ntapmax`=16.
+- [ ] T18. Variantes, criterio por sorteo, sorteos con semilla, costo anual y elección,
+      puros. (RF-44, RF-49, RF-50, RF-51, RF-53, RF-55 a RF-58, RF-60)
+      Hecho cuando: `pytest -q tests/test_escalera_optima.py` en verde.
+- [ ] T19. Evaluación en DIgSILENT (`--evaluar`): máxima, sorteos, escenario temporal y
+      limpieza. (RF-44b, RF-50, RF-51, RF-52, RF-52b)
+      Hecho cuando: prueba con `fake_pf` en verde.
+- [ ] T20. Servicio y web: elegir, aplicar la elegida y la tabla de variantes. (RF-54, RF-55)
+      Hecho cuando: pruebas de la API y del front en verde y `npm run build`.
+- [ ] T21. DIgSILENT: PA217 (Pisco) y TM105 (Chincha) en «Con proyecto 2025» desde la web,
+      con la obra elegida en DIgSILENT nativo y «Sin proyecto 2025» calibrado igual que antes.
+      Hecho cuando: los dos con su variante elegida o con la más cercana dicha (RF-56).
+- [ ] T22. Validación de RF-44 a RF-60 y suite completa sin omitidas.
 - [x] T16. Cargas nuevas incompletas e independientes. (RF-45, RF-46, RF-47, RF-48)
       Hecho cuando: `pytest -q tests/test_cargas_pf.py tests/test_cargas_pf_web.py
       tests/test_cargas_pf_guion_016.py tests/test_cargas_tres_pasos_front.py` en verde.

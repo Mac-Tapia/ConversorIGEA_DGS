@@ -5,6 +5,7 @@ de un tipo a la biblioteca del proyecto. La prueba real la hace el usuario (T19)
 """
 from __future__ import annotations
 
+import math
 import random
 
 import pytest
@@ -80,7 +81,7 @@ def test_biblioteca_del_proyecto_y_global_con_sus_datos(semilla):
     rng = random.Random(semilla)
     app, alims = _red(rng)
     equip = app.carpetas['equip']
-    _tipo(equip, 'TypVoltreg', 'VR_PRJ', Un=10.0, In=0.2, pcReg=10.0, ntapmin=-16, ntapmax=16)
+    _tipo(equip, 'TypVoltreg', 'VR_PRJ', Un=10.0, In=200.0, pcReg=10.0, ntapmin=-16, ntapmax=16)
     glob = app.GetGlobalLibrary()
     sub = glob.CreateObject('IntFolder', 'Lineas')          # la global tiene subcarpetas
     secciones = sorted(rng.sample([35, 70, 120, 240], rng.randint(1, 4)))
@@ -95,7 +96,8 @@ def test_biblioteca_del_proyecto_y_global_con_sus_datos(semilla):
     for f in alims:
         assert ('proyecto', 'TypLne', f'AAAC_{f}') in por
         assert por[('proyecto', 'TypTr2', f'TR100_{f}')]['resumen'] == '0.1 MVA · 10 kV · 0.38 kV'
-    assert por[('proyecto', 'TypVoltreg', 'VR_PRJ')]['resumen'] == '10 kV · 0.2 kA · 10 % · 16 pasos'
+    # 025:RF-59: en DIgSILENT, ``In`` de un TypVoltreg va en amperios.
+    assert por[('proyecto', 'TypVoltreg', 'VR_PRJ')]['resumen'] == '10 kV · 200 A · 10 % · 16 pasos'
     for s in secciones:
         t = por[('global', 'TypLne', f'AAAC_{s}')]
         assert t['datos']['qurs'] == s and t['resumen'].endswith(f'{s} mm²')
@@ -623,7 +625,9 @@ def test_regulador_intercalado_al_principio_del_tramo(semilla):
     assert (reg.usp_low, reg.usp_up) == pytest.approx((consigna - 0.01, consigna + 0.01))
     tipo = reg.typ_id
     assert tipo.GetParent() is app.carpetas['equip']
-    assert (tipo.Un, tipo.pcReg, tipo.ntapmax, tipo.ntapmin, tipo.nntap0) == (10.0, rango, pasos, -pasos, 0)
+    # 025:RF-59: ``Un`` es la de cada unidad monofásica; en estrella, la de fase.
+    assert tipo.Un == pytest.approx(10.0 / math.sqrt(3))
+    assert (tipo.pcReg, tipo.ntapmax, tipo.ntapmin, tipo.nntap0) == (rango, pasos, -pasos, 0)
 
 
 def test_regulador_usa_el_tipo_del_proyecto_si_ya_tiene_los_datos():
@@ -631,8 +635,8 @@ def test_regulador_usa_el_tipo_del_proyecto_si_ya_tiene_los_datos():
     se asigna ese y no se copia ninguno."""
     app, alims = _calibrada(random.Random(27))
     equip = app.carpetas['equip']
-    vr = _tipo(equip, 'TypVoltreg', 'VR_10kV', Un=10.0, In=0.2, pcReg=10.0, ntapmin=-16,
-               ntapmax=16, nntap0=0)
+    vr = _tipo(equip, 'TypVoltreg', 'VR_10kV', Un=10.0 / math.sqrt(3), In=200.0, pcReg=10.0,
+               ntapmin=-16, ntapmax=16, nntap0=0)
     antes = len(equip.GetContents('*.TypVoltreg'))
     f = alims[0]
     obra = {'clase': 'regulador', 'alimentador': f, 'casos': [SIN, CON], 'tramo': f'{f}_L1',

@@ -18,6 +18,7 @@ spec 001, RF-14 (DGS idéntico byte a byte); su diseño histórico está en
 | `src/igea_dgs/batch.py` | Conversión de uno, varios o todos los alimentadores, en serie o en paralelo.; la red unida por zonal y SET con su informe, aperturas y oráculo | base, 001, 022 (RF-7, RF-25, RF-34) |
 | `src/igea_dgs/capacidades.py` | Capacidades, grupo de conexión y tensión de baja de transformadores y líneas del DGS original, y su comparación con lo leído en DIgSILENT. | 015 |
 | `src/igea_dgs/cargas_pf.py` | Lectura de los libros de demandas y cargas nuevas, y plan para DIgSILENT. | 004, 007, 008, 016 (RF-73) |
+| `src/igea_dgs/catalogo_reguladores.py` | Reguladores de tensión de catálogo (Eaton VR-32, 50 Hz): unidad por tensión del sistema y por corriente, y los datos de su `TypVoltreg`. | 025 (RF-59, RF-60) |
 | `src/igea_dgs/carpeta_pf.py` | Carpeta de DIgSILENT donde quedan los proyectos importados; buscar un proyecto sin activarlo. | 005, 011 (RF-91) |
 | `src/igea_dgs/catalog.py` | Catálogo de parámetros eléctricos: tabla de entrada y auditoría del modelo. | base |
 | `src/igea_dgs/catalog_data.py` | Datos de fabricante y de norma para los parámetros eléctricos. | base |
