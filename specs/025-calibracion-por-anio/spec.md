@@ -266,6 +266,11 @@ nueva por su factor de uso; vale si cumple en el 95 % de 200 sorteos)
   aplicada), y apartará un momento las de los demás, para volver a activarlas al terminar.
   (Pisco, 2026-10-24: con las cargas de PA217 activas «Con proyecto 2025» no convergía, y
   todas las variantes de SI213 salían «no converge» aunque el problema no fuera suyo.)
+  Lo mismo al aplicar la variante elegida: su flujo se comprueba con esas cargas apartadas, y
+  un alimentador solo cuenta como resuelto si su obra quedó activa en «Con proyecto <año>».
+  (Pisco, 2026-10-24: la terna y la sección elegidas para SI213 quedaron inactivas porque la
+  aplicación normal comprobó el flujo con las cargas de PA217, y PA217 se evaluó como si SI213
+  estuviera resuelto.)
 - RF-71: EL SISTEMA medirá primero todas las variantes con la máxima y sorteará solo las
   que cumplen y tienen costo, de la de menor costo anual a la de mayor, hasta la primera que
   cumple en la fracción de sorteos del perfil: las más caras ya no pueden ganar y se dicen
