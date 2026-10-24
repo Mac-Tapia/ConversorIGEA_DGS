@@ -191,6 +191,12 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados, centra
             <span>Huella fuente</span><code>{plan.source.source_fingerprint.slice(0, 12)}…</code>
             <span>Proyecto nativo vinculado</span>
             <span>{plan.project_binding.native_reread.status} · {plan.project_binding.native_inventory_sha256.slice(0, 12)}…</span>
+            {/* Spec 025, RF-24: en qué año y en qué caso queda esta calibración. */}
+            {plan.caso && <>
+              <span>Se calibra en</span>
+              <span>«{plan.caso}»{plan.anio_medicion ? ` con la medición de ${plan.anio_medicion}` : ''}
+                {plan.anio_casos ? '; los casos de otro año no se tocan' : ''}</span>
+            </>}
             {(plan.ajustes ?? []).map((x) => (
               <div style={{ display: 'contents' }} key={x.feeder}>
                 <span>{x.feeder}: período</span>

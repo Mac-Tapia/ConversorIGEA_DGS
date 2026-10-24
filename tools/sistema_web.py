@@ -13,10 +13,16 @@ Chincha (2026-10-18) se probaron así, uno tras otro y cada uno en su proyecto:
 4. aplica la calibración del sistema entero (``--transformadores`` antes simula y cambia
    los transformadores de las fijas sobrecargadas).
 
+Qué carpeta es cada libro (medidores, cabecera, clientes, suministros) se reconoce por su
+contenido, no por su nombre (025:RF-25b): cada empresa organiza sus carpetas a su manera.
+Cualquiera se puede dar por opción. ``--periodo`` es un mes (``2026-07``) o un año entero
+(``2025``, 025:RF-25): la calibración de otro año va a sus propios casos («Sin proyecto
+2025»), sin tocar los de siempre.
+
 Un corte de la conexión con la web mientras trabaja no la corta: se reintenta.
 
     python tools/sistema_web.py --espacio 47a003aac1f84cc6 --zonal Pisco \\
-        --demanda-dir referencia --periodo 2026-07
+        --demanda-dir referencia --periodo 2025
 
 Códigos de salida: 0 calibrado y válido, 1 calibrado con fallos, 2 no se pudo llegar.
 """
@@ -30,12 +36,12 @@ from pathlib import Path
 
 import requests
 
-from igea_dgs.demanda_medida import descubrir_libro_suministros
+from igea_dgs.demanda_medida import (TIPOS_DEMANDA, DemandaError, clasificar_carpeta_demanda,
+                                     descubrir_libro_suministros)
 
-LIBROS = (('medidores', '1.-medidoralimentador/medidoralimentador.xlsx'),
-          ('cabecera', '2.-medicioncabecera'),
-          ('clientes', '4.-clientesimportantes'))
 TERMINADOS = ('done', 'failed', 'cancelled')
+#: Sin estos dos no hay calibración; sin clientes o suministros, todo por kVA (013:RF-13).
+NECESARIOS = ('medidores', 'cabecera')
 
 
 class Web:
@@ -123,14 +129,41 @@ def medida_de(alimentador: str, medidas: dict[str, float], barras: list[dict]) -
 
 def resolver_libro_suministros(demanda_dir: Path) -> Path:
     """Elige por contenido el libro vigente, sin depender de nombres de empresa o periodo."""
-    return descubrir_libro_suministros(demanda_dir / '3.-suministrocliente')
+    tipos, avisos = clasificar_carpeta_demanda(demanda_dir)
+    if 'suministros' not in tipos:
+        raise DemandaError(' '.join(a for a in avisos if '(suministros)' in a))
+    return descubrir_libro_suministros(tipos['suministros'])
+
+
+def libros_de_la_demanda(demanda_dir: Path, dados: dict[str, Path | None] | None = None
+                         ) -> tuple[dict[str, Path], list[str]]:
+    """Los libros de la demanda: los dados por opción y, los demás, por su contenido
+    (025:RF-25b, RF-25c). Sin medidores o sin cabecera no se sigue."""
+    dados = {t: p for t, p in (dados or {}).items() if p}
+    tipos, avisos = clasificar_carpeta_demanda(demanda_dir) if demanda_dir.is_dir() else ({}, [])
+    libros = {**tipos, **dados}
+    avisos = [a for a in avisos if not any(f'({t})' in a for t in libros)]
+    faltan = [t for t in NECESARIOS if t not in libros]
+    if faltan:
+        raise DemandaError(' '.join(avisos) or ('Faltan: ' + ', '.join(TIPOS_DEMANDA[t] for t in faltan)))
+    if libros.get('suministros') and libros['suministros'].is_dir():
+        libros['suministros'] = descubrir_libro_suministros(libros['suministros'])
+    return libros, avisos
 
 
 def correr(web: Web, zonal: str, *, demanda_dir: Path, periodo: str | None,
            reconvertir: bool, transformadores: bool, tension_pu: float | None,
            bancos: bool, solo: list[str] | None = None,
            reconstruir: list[str] | None = None,
-           libro_suministros: Path | None = None) -> int:
+           libros: dict[str, Path] | None = None) -> int:
+    if libros is None:
+        try:
+            libros, avisos = libros_de_la_demanda(demanda_dir)
+        except DemandaError as exc:
+            print(f'ERROR: {exc}')
+            return 2
+        for aviso in avisos:
+            print(f'  aviso: {aviso}', flush=True)
     for trabajo in [t for t in web.get('')['jobs'] if t['status'] not in TERMINADOS]:
         print(f"Esperando «{trabajo['title']}»…", flush=True)
         web.esperar(trabajo)
@@ -153,11 +186,14 @@ def correr(web: Web, zonal: str, *, demanda_dir: Path, periodo: str | None,
             print(f"ERROR: la importación no dejó proyecto: {estado.get('error')}")
             return 2
     print(f'Proyecto: {proyecto}', flush=True)
-    suministro = libro_suministros or resolver_libro_suministros(demanda_dir)
-    libros = (*LIBROS[:2], ('suministros', suministro), LIBROS[2])
-    for tipo, ruta in libros:
-        web.post(f'/demanda/{tipo}/path', json={'path': str(demanda_dir / ruta)})
-    web.esperar(web.post('/demanda/clientes/indexar'))
+    for tipo in TIPOS_DEMANDA:
+        if tipo in libros:
+            print(f'  {TIPOS_DEMANDA[tipo]}: {libros[tipo]}', flush=True)
+            web.post(f'/demanda/{tipo}/path', json={'path': str(libros[tipo])})
+    # 025:RF-28, RF-34: el índice por año de la cabecera, el mismo que ve el operador.
+    web.esperar(web.post('/demanda/cabecera/indexar'))
+    if 'clientes' in libros:
+        web.esperar(web.post('/demanda/clientes/indexar'))
     sistema = web.get('/demanda/sistema', params={'project': proyecto})['sistema']
     if sistema is None:
         print(f'ERROR: {proyecto} no es un proyecto por sistema eléctrico.')
@@ -198,9 +234,12 @@ def correr(web: Web, zonal: str, *, demanda_dir: Path, periodo: str | None,
         print(f"DIgSILENT: {estado['status']} {(estado.get('result') or {}).get('lines')}", flush=True)
         return correr(web, zonal, demanda_dir=demanda_dir, periodo=periodo, reconvertir=False,
                       transformadores=transformadores, tension_pu=tension_pu, bancos=bancos,
-                      solo=solo, libro_suministros=suministro)
-    web.post('/demanda/clientes/cruzar', json={'alimentadores': sistema['alimentadores'],
-                                                'periodo': periodo})
+                      solo=solo, libros=libros)
+    if 'clientes' in libros and 'suministros' in libros and (not periodo or len(periodo) == 7):
+        # Con un año entero no hay un mes que cruzar aquí: el plan cruza cada alimentador
+        # con el libro del mes de su máxima (025:RF-10).
+        web.post('/demanda/clientes/cruzar', json={'alimentadores': sistema['alimentadores'],
+                                                    'periodo': periodo})
     # El vínculo exige que la última relectura de DIgSILENT vea el proyecto (spec 018): tras
     # importar, Chincha (2026-10-18) dio PROJECT_BINDING_PROJECT_MISMATCH sin ella.
     web.esperar(web.post('/powerfactory/projects'))
@@ -236,14 +275,16 @@ def correr(web: Web, zonal: str, *, demanda_dir: Path, periodo: str | None,
 
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description='Convierte, importa y calibra un sistema eléctrico '
-                                            'entero por la web (spec 022)')
+                                            'entero por la web (spec 022 y 025)')
     p.add_argument('--espacio', required=True, help='Id del espacio de trabajo de la web')
     p.add_argument('--zonal', required=True, help='Zonal de la estructura (Nasca, Pisco…)')
     p.add_argument('--demanda-dir', type=Path, required=True,
-                   help='Carpeta con los cuatro libros de demanda (medidores, cabecera…)')
-    p.add_argument('--suministros', type=Path,
-                   help='Libro de suministros; sin esta opción se descubre por contenido')
-    p.add_argument('--periodo', help='Mes de análisis AAAA-MM')
+                   help='Carpeta con los libros de demanda; cada uno se reconoce por su contenido')
+    p.add_argument('--medidores', type=Path, help='Libro de medidores por alimentador')
+    p.add_argument('--cabecera', type=Path, help='Libro o carpeta (con sus años) de la cabecera')
+    p.add_argument('--clientes', type=Path, help='Libro o carpeta de los clientes importantes')
+    p.add_argument('--suministros', type=Path, help='Libro o carpeta de suministros')
+    p.add_argument('--periodo', help='Mes AAAA-MM o año entero AAAA de la medición (025:RF-25)')
     p.add_argument('--url', default='http://127.0.0.1:8765', help='Dirección de la web')
     p.add_argument('--reconvertir', action='store_true',
                    help='Convertir e importar aunque el espacio ya tenga el proyecto')
@@ -264,15 +305,18 @@ def main(argv=None) -> int:
     web = Web(args.url, args.espacio)
     try:
         demanda_dir = args.demanda_dir.resolve()
-        libro_suministros = args.suministros
-        if libro_suministros is not None and not libro_suministros.is_absolute():
-            libro_suministros = demanda_dir / libro_suministros
+        dados = {t: (p if p.is_absolute() else demanda_dir / p)
+                 for t, p in (('medidores', args.medidores), ('cabecera', args.cabecera),
+                              ('clientes', args.clientes), ('suministros', args.suministros)) if p}
+        libros, avisos = libros_de_la_demanda(demanda_dir, dados)
+        for aviso in avisos:
+            print(f'  aviso: {aviso}', flush=True)
         return correr(web, args.zonal, demanda_dir=demanda_dir,
                       periodo=args.periodo, reconvertir=args.reconvertir,
                       transformadores=args.transformadores, tension_pu=args.tension_pu,
                       bancos=not args.sin_bancos, solo=args.alimentadores,
-                      reconstruir=args.reconstruir, libro_suministros=libro_suministros)
-    except (RuntimeError, TimeoutError, requests.RequestException) as exc:
+                      reconstruir=args.reconstruir, libros=libros)
+    except (RuntimeError, TimeoutError, DemandaError, requests.RequestException) as exc:
         print(f'ERROR: {exc}')
         return 2
 

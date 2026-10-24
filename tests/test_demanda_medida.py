@@ -749,13 +749,18 @@ def test_real_casi_todos_los_medidores_tienen_su_maxima():
 
 @real
 def test_real_los_dos_formatos_de_clientes_cruzan():
-    """004:RF-34 a RF-37 — cada libro de clientes cruza casi entero con el de suministros."""
+    """004:RF-34 a RF-37, 025:RF-1 — cada libro de clientes, de cada año, cruza casi entero
+    con el de suministros."""
+    from igea_dgs.libros_por_anio import arbol_de_libros
+
     sums, _ = dm.leer_suministros(next(_sub('3.').iterdir()))
-    for libro in sorted(_sub('4.').iterdir()):
-        clientes, _ = dm.leer_clientes(libro)
+    libros = arbol_de_libros(_sub('4.'))
+    assert libros
+    for libro in libros:
+        clientes, _ = dm.leer_clientes(libro.ruta)
         cruzados, aparte = dm.cruzar(clientes, sums)
         assert len(cruzados) + len(aparte) == len(clientes)
-        assert len(cruzados) >= 0.5 * len(clientes), libro.name
+        assert len(cruzados) >= 0.5 * len(clientes), libro.relativa
         assert {c.cruzado_por for c in cruzados} <= {'actual', 'anterior'}
 
 

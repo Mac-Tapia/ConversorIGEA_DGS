@@ -31,7 +31,7 @@ from __future__ import annotations
 import math
 import re
 from dataclasses import asdict, dataclass, field
-from typing import Any, Callable, Iterable, Mapping
+from typing import Any, Callable, Iterable, Mapping, Sequence
 
 from .estudios_pf import CASO_BASE, CON_PROYECTO, SIN_PROYECTO
 from .naming import feeder_short_name, nombre_con_tension, sufijo_tension
@@ -1023,3 +1023,72 @@ def diferencias_sin_proyecto(antes: Mapping[str, Any], despues: Mapping[str, Any
             if x is None or y is None or abs(x - y) > tolerancia:
                 out.append({'alimentador': feeder, 'medida': medida, 'antes': x, 'despues': y})
     return out
+
+
+# --------------------------------------------------------------------------- escalera
+#: Orden de la escalera de obras (025:RF-44): de la más barata a la más cara.
+ESCALONES = ('bancos', 'seccion', 'terna')
+
+
+def _conductor_mayor(tipos: Sequence[Mapping[str, Any]], kv: float) -> Mapping[str, Any] | None:
+    """El conductor aéreo de la tensión del alimentador (±10 %) con más corriente nominal."""
+    candidatos = []
+    for t in tipos:
+        datos = t.get('datos') or {}
+        uline, sline = datos.get('uline'), datos.get('sline')
+        if (t.get('clase') != 'TypLne' or not isinstance(uline, (int, float))
+                or not isinstance(sline, (int, float)) or datos.get('cohl_') != 1):
+            continue
+        if abs(float(uline) - kv) <= 0.1 * kv:
+            candidatos.append(t)
+    return max(candidatos, key=lambda t: (t['datos']['sline'], t['nombre']), default=None)
+
+
+def escalera_de_obras(alimentador: str, kv: float | None, tipos: Sequence[Mapping[str, Any]],
+                      cargas: Sequence[Mapping[str, Any]], *, banco_kvar: float | None
+                      ) -> tuple[list[tuple[str, list[dict[str, Any]]]], list[str]]:
+    """Las obras de cada escalón para que «Con proyecto» converja con sus cargas nuevas
+    (025:RF-44), solo en «Con proyecto» y en el orden de :data:`ESCALONES`.
+
+    PA217 y TM105 (2026-10-23): dos cargas nuevas grandes juntas no convergen en «Con
+    proyecto 2025»; cada una sola, sí. Bancos en la barra de cada carga que existe sin
+    ella: la que crea su variación (al partir un tramo) solo existe con ella, y un banco
+    ahí dependería de la carga, que tiene que poder desactivarse sola. Luego la sección de
+    toda la troncal al conductor aéreo de su tensión con más corriente, y la terna.
+    """
+    avisos: list[str] = []
+    escalones: list[tuple[str, list[dict[str, Any]]]] = []
+    casos = [CON_PROYECTO]
+    barras, de_variacion = [], []
+    for c in cargas:
+        barra = str(c.get('barra') or '').strip()
+        if not barra:
+            continue
+        # «barra de la troncal más cercana»: ya existía. «punto de la troncal…» o «nodo de la
+        # carga anterior…»: el nodo lo crea una variación de carga (007, 016:RF-78).
+        criterio = str(c.get('criterio') or '')
+        existe = criterio.startswith('barra') if criterio else not c.get('tramo_partido')
+        (barras if existe else de_variacion).append((barra, c.get('sed')))
+    for barra, sed in de_variacion:
+        avisos.append(f'{alimentador}: la carga {sed} se conecta en {barra}, que crea su variación al '
+                      'partir el tramo: no se le pone banco, para no ligarlo a la carga.')
+    unicas = list(dict.fromkeys(b for b, _ in barras))
+    if unicas and banco_kvar:
+        escalones.append(('bancos', [{'clase': 'condensador', 'alimentador': alimentador,
+                                       'casos': casos, 'barra': b, 'q_kvar': banco_kvar,
+                                       'escalones': 1} for b in unicas]))
+    else:
+        avisos.append(f'{alimentador}: sin barras existentes de las cargas nuevas o sin tamaño de '
+                      'banco en el perfil: no hay escalón de bancos.')
+    tipo = _conductor_mayor(tipos, float(kv)) if kv else None
+    if tipo is not None:
+        escalones.append(('seccion', [{'clase': 'seccion', 'alimentador': alimentador, 'casos': casos,
+                                        'toda_troncal': True,
+                                        'tipo': {'nombre': tipo['nombre'], 'clase': 'TypLne',
+                                                 'origen': tipo.get('origen') or 'proyecto',
+                                                 'proyecto': tipo.get('proyecto') or ''}}]))
+    else:
+        avisos.append(f'{alimentador}: no hay en las bibliotecas un conductor aéreo de {kv} kV: '
+                      'no hay escalón de sección.')
+    escalones.append(('terna', [{'clase': 'terna', 'alimentador': alimentador, 'casos': casos}]))
+    return escalones, avisos

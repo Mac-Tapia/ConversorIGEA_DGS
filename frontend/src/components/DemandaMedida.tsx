@@ -21,21 +21,26 @@ function Libro({ tipo, titulo, ayuda }: (typeof LIBROS)[number]) {
   const [ruta, setRuta] = useState('');
   const meta = ws.demanda?.[tipo];
   const autoIndexado = useRef('');
-  const indexando = Object.values(jobs).some((j) => j.kind === 'demanda_clientes_index'
+  // Spec 025, RF-28 y RF-32: la cabecera en carpeta también tiene su índice por año.
+  const conIndice = tipo === 'clientes' || (tipo === 'cabecera' && meta?.source_kind === 'folder');
+  const tipoTrabajo = tipo === 'clientes' ? 'demanda_clientes_index' : 'demanda_cabecera_index';
+  const indexando = Object.values(jobs).some((j) => j.kind === tipoTrabajo
     && (j.status === 'queued' || j.status === 'running'));
   const engineBusy = Boolean(active.engine);
-  const indexar = () => startJob(() => api.demandaClientesIndexar(ws.id));
+  const indexar = () => startJob(() => (tipo === 'clientes'
+    ? api.demandaClientesIndexar(ws.id) : api.demandaCabeceraIndexar(ws.id)));
 
-  // Al elegir o volver a abrir una fuente de clientes se reescanea la misma carpeta.
+  // Al elegir o volver a abrir una fuente se reescanea la misma carpeta.
   useEffect(() => {
-    if (tipo !== 'clientes' || !meta || indexando || engineBusy) return;
+    if (!conIndice || !meta || indexando || engineBusy) return;
     const clave = `${ws.id}:${meta.origin}:${meta.name}`;
     if (autoIndexado.current === clave) return;
     autoIndexado.current = clave;
-    void startJob(() => api.demandaClientesIndexar(ws.id)).then((job) => {
+    void startJob(() => (tipo === 'clientes'
+      ? api.demandaClientesIndexar(ws.id) : api.demandaCabeceraIndexar(ws.id))).then((job) => {
       if (!job) autoIndexado.current = '';
     });
-  }, [engineBusy, indexando, meta, startJob, tipo, ws.id]);
+  }, [conIndice, engineBusy, indexando, meta, startJob, tipo, ws.id]);
   const subir = async (files: File[]) => {
     const r = await run(() => api.demandaSubir(ws.id, tipo, files));
     if (r) { autoIndexado.current = ''; setWs(r); }
@@ -51,29 +56,33 @@ function Libro({ tipo, titulo, ayuda }: (typeof LIBROS)[number]) {
   return (
     <div className="field">
       <span>{titulo}</span>
-      {meta ? (
+      {meta && (
         <div className="row">
           <strong>{meta.name}</strong>
-          {meta.libros && <span className="muted small">({meta.libros.length} libro(s): {meta.libros.join(', ')})</span>}
+          {meta.libros && !conIndice && <span className="muted small">({meta.libros.length} libro(s): {meta.libros.join(', ')})</span>}
           <span className="muted small">{meta.origin === 'server' ? 'ruta del servidor' : 'subido'}</span>
-          <button className="btn btn-ghost btn-sm" onClick={quitar}>Quitar</button>
+          <button className="btn btn-ghost btn-sm" disabled={engineBusy} onClick={quitar}>Quitar</button>
         </div>
-      ) : (
-        <>
-          <FileDrop compact accept={EXT} multiple={tipo === 'cabecera' || tipo === 'suministros' || tipo === 'clientes'} onFiles={subir}>
-            <span>Soltar o <u>elegir</u>{tipo === 'cabecera' || tipo === 'suministros' || tipo === 'clientes' ? ' (varios)' : ''}</span>
-          </FileDrop>
-          {health.server_paths && (
-            <div className="row">
-              <input className="search" placeholder={tipo === 'cabecera' || tipo === 'suministros' || tipo === 'clientes' ? 'o ruta de la carpeta en el servidor' : 'o ruta en el servidor'}
-                value={ruta} onChange={(e) => setRuta(e.target.value)} />
-              <button className="btn btn-sm" disabled={!ruta.trim()} onClick={porRuta}>Usar ruta</button>
-            </div>
-          )}
-        </>
       )}
-      {tipo === 'clientes' && meta && (
-        <CatalogoClientes meta={meta} indexando={indexando} bloqueado={engineBusy} actualizar={indexar} />
+      {/* Spec 025, RF-39 y RF-40: siempre se puede subir otro libro o indicar otra carpeta
+          (un año nuevo, una entrega corregida) sin quitar antes el actual. */}
+      <FileDrop compact accept={EXT} disabled={engineBusy}
+        multiple={tipo === 'cabecera' || tipo === 'suministros' || tipo === 'clientes'} onFiles={subir}>
+        <span>{meta ? 'Reemplazar: soltar' : 'Soltar'} o <u>elegir</u>{tipo === 'cabecera' || tipo === 'suministros' || tipo === 'clientes' ? ' (varios)' : ''}</span>
+      </FileDrop>
+      {health.server_paths && (
+        <div className="row">
+          <input className="search" disabled={engineBusy}
+            placeholder={tipo === 'cabecera' || tipo === 'suministros' || tipo === 'clientes'
+              ? `o ruta de la carpeta en el servidor${meta ? ' (reemplaza la actual)' : ''}`
+              : `o ruta en el servidor${meta ? ' (reemplaza la actual)' : ''}`}
+            value={ruta} onChange={(e) => setRuta(e.target.value)} />
+          <button className="btn btn-sm" disabled={!ruta.trim() || engineBusy} onClick={porRuta}>Usar ruta</button>
+        </div>
+      )}
+      {engineBusy && <small className="muted">Hay un trabajo del motor en curso: al terminar se pueden cambiar los libros.</small>}
+      {conIndice && meta && (
+        <LibrosPorAnio meta={meta} tipo={tipo} indexando={indexando} bloqueado={engineBusy} actualizar={indexar} />
       )}
       {/* 004:RF-63: libros de clientes subidos en «Suministros», nombrados en su hueco. */}
       {tipo !== 'clientes' && meta?.avisos?.map((aviso) => <p className="alert alert-warn" key={aviso}>{aviso}</p>)}
@@ -82,31 +91,61 @@ function Libro({ tipo, titulo, ayuda }: (typeof LIBROS)[number]) {
   );
 }
 
-function CatalogoClientes({ meta, indexando, bloqueado, actualizar }: {
-  meta: NonNullable<ReturnType<typeof useApp>['ws']['demanda']>['clientes'];
+/** Una fila del panel por año: un libro de clientes o de cabecera, como entró. */
+interface FilaLibro { libro: string; anio: number | null; meses: string[]; detalle: string; usado: boolean; motivos: string[] }
+
+const ORIGEN_MES: Record<string, string> = {
+  nombre: 'del nombre', contenido: 'de una fecha del libro', manual: 'asignado a mano', sin_mes: 'sin mes',
+};
+
+const rangoMeses = (meses: string[]) => (meses.length === 0 ? '—'
+  : meses.length === 1 ? nombreMes(meses[0]) : `${nombreMes(meses[0])} a ${nombreMes(meses[meses.length - 1])}`);
+
+/**
+ * Spec 025, RF-34 y RF-35: cómo entró cada libro, por año. Llegarán años, libros y hojas:
+ * cada uno se ve con su ruta, sus meses y si se usa; y se dice dónde dejar uno nuevo.
+ */
+function LibrosPorAnio({ meta, tipo, indexando, bloqueado, actualizar }: {
+  meta: NonNullable<NonNullable<ReturnType<typeof useApp>['ws']['demanda']>['clientes']>;
+  tipo: DemandaTipo;
   indexando: boolean;
   bloqueado: boolean;
   actualizar: () => unknown;
 }) {
-  if (!meta) return null;
-  const catalogo = meta.catalogo ?? [];
+  const filas: FilaLibro[] = tipo === 'clientes'
+    ? (meta.catalogo ?? []).map((l) => ({
+      libro: l.nombre, anio: l.anio ?? null, meses: l.mes ? [l.mes] : [],
+      detalle: `mes ${ORIGEN_MES[l.origen_mes] ?? l.origen_mes}`, usado: l.activo,
+      // 004:RF-65: por qué no se usa (p. ej., sin hoja «resumen»).
+      motivos: l.activo ? [] : l.avisos ?? [] }))
+    : (meta.indice ?? []).map((l) => ({
+      libro: l.relativa, anio: l.anio, meses: l.meses,
+      detalle: `${l.hojas.length} hoja(s) de medición`, usado: !l.error, motivos: l.error ? [l.error] : [] }));
+  const anios = [...new Set(filas.map((f) => f.anio))].sort((a, b) => (a ?? 0) - (b ?? 0));
   return <div className="stack compact">
     <div className="row">
       <button className="btn btn-sm" disabled={bloqueado} onClick={actualizar}>
         {indexando ? 'Actualizando índice…' : 'Actualizar índice'}
       </button>
-      {meta.indexado_en && <small className="muted">{catalogo.length} libro(s) indexado(s)</small>}
+      {meta.indexado_en && <small className="muted">{filas.length} libro(s) indexado(s)
+        {meta.anios?.length ? `, de ${meta.anios.join(', ')}` : ''}</small>}
     </div>
     {meta.avisos?.map((aviso) => <p className="alert alert-warn" key={aviso}>{aviso}</p>)}
-    {catalogo.length > 0 && <div className="table-wrap table-short"><table className="table">
-      <thead><tr><th>Libro</th><th>Mes</th><th>Origen</th><th>Estado</th></tr></thead>
-      <tbody>{catalogo.map((libro) => <tr key={libro.nombre}>
-        <td className="mono">{libro.nombre}</td><td>{libro.mes ?? 'Sin mes'}</td>
-        <td>{libro.origen_mes}</td><td>{libro.activo ? 'Activo' : 'No usado'}
-          {/* 004:RF-65: por qué no se usa (p. ej., sin hoja «resumen»). */}
-          {!libro.activo && libro.avisos?.map((a) => <div className="muted small" key={a}>{a}</div>)}</td>
-      </tr>)}</tbody>
+    {filas.length > 0 && <div className="table-wrap table-short"><table className="table">
+      <thead><tr><th>Año</th><th>Libro</th><th>Meses</th><th>Qué trae</th><th>Estado</th></tr></thead>
+      <tbody>{anios.flatMap((anio) => filas.filter((f) => f.anio === anio).map((f, i) => (
+        <tr key={f.libro}>
+          <td className="strong">{i === 0 ? (anio ?? 'Sin año') : ''}</td>
+          <td className="mono">{f.libro}</td><td>{rangoMeses(f.meses)}</td><td>{f.detalle}</td>
+          <td>{f.usado ? 'Se usa' : 'No se usa'}
+            {f.motivos.map((a) => <div className="muted small" key={a}>{a}</div>)}</td>
+        </tr>
+      )))}</tbody>
     </table></div>}
+    {meta.source_kind === 'folder' && (
+      <small className="muted">Para otro año, deje sus libros en «{meta.name}/AAAA/» (con las
+        subcarpetas que quiera) y pulse «Actualizar índice»: solo se abren los nuevos o cambiados.</small>
+    )}
   </div>;
 }
 
@@ -146,6 +185,9 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   const [filtro, setFiltro] = useState('');
   // Spec 013, RF-8 y RF-10: mes del libro de clientes, siempre elegido por el operador.
   const [periodo, setPeriodo] = useState('');
+  // Spec 025, RF-22: el año de las mediciones, siempre elegido por el operador; con él,
+  // ``periodo`` es «AAAA» (todo el año) o uno de sus meses.
+  const [anio, setAnio] = useState('');
   // 022:RF-39 a RF-41: la máxima de cada barra de SET y sus alimentadores en esa fecha.
   const [porBarra, setPorBarra] = useState(false);
   // 022:RF-52 a RF-54: un proyecto por sistema se calibra entero, con la máxima por barra.
@@ -156,7 +198,12 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   const [centrales, setCentrales] = useState<Record<string, CentralTermica>>({});
   const toast = useToast();
   const engineBusy = Boolean(active.engine);
-  const estadoClientes = estadoCatalogoClientes(ws.demanda?.clientes, periodo);
+  const estadoClientes = estadoCatalogoClientes(ws.demanda?.clientes, periodo, anio);
+  // 025:RF-4: los años de la cabecera y de los clientes; sin carpetas de año, ninguno.
+  const anios = useMemo(() => [...new Set([...(ws.demanda?.cabecera?.anios ?? []),
+    ...(ws.demanda?.clientes?.anios ?? [])])].sort((a, b) => a - b).map(String),
+  [ws.demanda?.cabecera?.anios, ws.demanda?.clientes?.anios]);
+  const faltaAnio = anios.length > 0 && !periodo;
 
   const ultimo = Object.values(jobs).filter((j) => j.kind === 'demanda_cabecera' && j.result).pop();
   const cabecera = (ultimo?.result?.resultados ?? []) as MaximaCabecera[];
@@ -178,6 +225,7 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
     setCruce(null);
     setDesconectados(new Set());
     setPeriodo('');
+    setAnio('');
     setExternos(null);
     setCentrales({});
   }, [project, marcados]);
@@ -297,8 +345,13 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
     setCruce(null);
     setDesconectados(new Set());
   };
-  const otrosMesesMaxima = periodo
+  // Con todo el año, cada máxima va con su mes (025:RF-10): no hay otro mes que avisar.
+  const otrosMesesMaxima = periodo.length === 7
     ? Object.entries(mesesMaxima).filter(([mes]) => mes !== periodo) : [];
+  const elegirAnio = (a: string) => {
+    setAnio(a);
+    elegirPeriodo(a);                  // 025:RF-23: al elegir el año, todo el año
+  };
   const conmutar = (codigo: string) => setDesconectados((s) => {
     const n = new Set(s);
     if (!n.delete(codigo)) n.add(codigo);
@@ -315,11 +368,13 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   }, [cruce, filtro]);
   // Un solo selector, en 2.3 junto al cruce (013:RF-12); cada mes dice qué alimentadores
   // tienen ahí su máxima de 2.2, para elegir el mismo (RF-15).
-  const selectorMes = estadoClientes.esCatalogo && estadoClientes.activos > 1 && (
+  const selectorMes = ((estadoClientes.esCatalogo && estadoClientes.activos > 1) || anio) && (
     <label className="row">
       <span>Mes de los clientes</span>
-      <select value={periodo} disabled={engineBusy} onChange={(e) => elegirPeriodo(e.target.value)}>
-        <option value="">Todo el registro (elija un mes para cruzar clientes)</option>
+      <select value={periodo} disabled={engineBusy || faltaAnio} onChange={(e) => elegirPeriodo(e.target.value)}>
+        {anio
+          ? <option value={anio}>Todo {anio} (cada alimentador con el mes de su máxima)</option>
+          : <option value="">Todo el registro (elija un mes para cruzar clientes)</option>}
         {estadoClientes.meses.map(({ mes, libro }) => (
           <option key={mes} value={mes}>
             {nombreMes(mes)} · {libro}{mesesMaxima[mes] ? ` · máxima de ${mesesMaxima[mes].join(', ')}` : ''}
@@ -423,9 +478,23 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
           </table>
         </div>
       )}
-      {periodo && <small className="muted">La máxima se busca en {nombreMes(periodo)}, el mes elegido en 2.3.</small>}
+      {anios.length > 0 && (
+        <label className="row" title="Cada año se calibra aparte, en sus propios casos de DIgSILENT (spec 025)">
+          <span>Año de las mediciones</span>
+          <select value={anio} disabled={engineBusy} onChange={(e) => elegirAnio(e.target.value)}>
+            <option value="">— elija el año —</option>
+            {anios.map((a) => <option key={a} value={a}>{a}</option>)}
+          </select>
+          {anio && <small className="muted">Se calibra en «Sin proyecto {anio}» si los casos sin año son de otro
+            año; los de otro año no se tocan.</small>}
+        </label>
+      )}
+      {periodo && <small className="muted">La máxima se busca en {periodo.length === 4 ? `todo ${periodo}` : nombreMes(periodo)}
+        {periodo.length === 7 ? ', el mes elegido en 2.3' : ''}, solo con los libros de ese año.</small>}
+      {faltaAnio && <small className="muted">Hay mediciones de {anios.join(', ')}: elija el año antes de buscar la
+        máxima, para no mezclar años.</small>}
       <div className="row">
-        <button className="btn btn-primary" disabled={!elegidos.length || !ws.demanda?.cabecera || engineBusy} onClick={() => maxima()}>
+        <button className="btn btn-primary" disabled={!elegidos.length || !ws.demanda?.cabecera || engineBusy || faltaAnio} onClick={() => maxima()}>
           Buscar la máxima ({aBuscar.length} medidor{aBuscar.length === 1 ? '' : 'es'})
         </button>
         <label className="check" title="La máxima de la barra de SET (suma de sus transformadores) y cada alimentador de la barra con su kW y kVAR de esa fecha y hora">

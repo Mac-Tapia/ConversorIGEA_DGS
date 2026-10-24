@@ -113,8 +113,9 @@ class DemandaMedidorIn(BaseModel):
 
 class DemandaMedidoresIn(BaseModel):
     medidores: list[DemandaMedidorIn] = Field(default_factory=list)
-    # Spec 013, RF-11: la máxima del mes elegido (AAAA-MM); vacío, la de todo el registro.
-    periodo: str | None = Field(None, pattern=r'^\d{4}-(0[1-9]|1[0-2])$')
+    # Spec 013, RF-11: la máxima del mes elegido (AAAA-MM); 025:RF-7, la del año (AAAA);
+    # vacío, la de todo el registro (solo sin carpetas de año, 025:RF-9).
+    periodo: str | None = Field(None, pattern=r'^\d{4}(-(0[1-9]|1[0-2]))?$')
     # Spec 021, RF-50: en vez de la máxima, el registro de esta fecha y hora para todos.
     instante: datetime | None = None
     # Spec 022, RF-39 a RF-41: la máxima de cada barra de SET y sus alimentadores en esa fecha.
@@ -199,6 +200,8 @@ class ObrasIn(BaseModel):
     feeders: list[str] = Field(default_factory=list, max_length=2000)
     ids: list[str] = Field(default_factory=list)
     otro_proyecto: str = ''
+    # Spec 025, RF-41: las obras de los casos de ese año («Sin/Con proyecto 2025»).
+    anio_casos: int | None = Field(None, ge=1900, le=2200)
 
 
 class EstudiosIn(BaseModel):
@@ -1375,7 +1378,8 @@ def create_app(
                       f'{verbo} obras · {body.project.strip()}',
                       lambda ctx: services.obras_ejecutar(ws, ctx, body.project, body.feeders,
                                                           body.ids, body.otro_proyecto,
-                                                          simular=simular),
+                                                          simular=simular,
+                                                          anio_casos=body.anio_casos),
                       lane='powerfactory')
 
     @app.post('/api/workspaces/{wid}/pf/obras/simular', status_code=202)
@@ -1385,6 +1389,15 @@ def create_app(
     @app.post('/api/workspaces/{wid}/pf/obras/aplicar', status_code=202)
     def obras_aplicar(wid: str, body: ObrasIn) -> dict:
         return _obras_job(wid, body, False)
+
+    @app.post('/api/workspaces/{wid}/pf/obras/escalera', status_code=202)
+    def obras_escalera(wid: str, body: ObrasIn) -> dict:
+        """025:RF-44: bancos, sección y terna hasta que «Con proyecto» converja."""
+        ws = ws_or_404(wid)
+        return submit(ws, 'obras_escalera', f'Obras en escalera · {body.project.strip()}',
+                      lambda ctx: services.obras_escalera(ws, ctx, body.project, body.feeders,
+                                                          anio_casos=body.anio_casos),
+                      lane='powerfactory')
 
     @app.get('/api/pf/estudios')
     def estudios_catalogo() -> dict:
@@ -1521,6 +1534,13 @@ def create_app(
         ws = ws_or_404(wid)
         return submit(ws, 'demanda_clientes_index', 'Actualizar libros de clientes',
                       lambda ctx: services.demanda_clientes_indexar(ws, ctx), lane='engine')
+
+    @app.post('/api/workspaces/{wid}/demanda/cabecera/indexar', status_code=202)
+    def demanda_cabecera_indexar(wid: str) -> dict:
+        """025:RF-28, RF-32: el índice por año abre libros de cientos de MB; es un trabajo."""
+        ws = ws_or_404(wid)
+        return submit(ws, 'demanda_cabecera_index', 'Actualizar libros de cabecera',
+                      lambda ctx: services.demanda_cabecera_indexar(ws, ctx), lane='engine')
 
     @app.post('/api/workspaces/{wid}/demanda/{tipo}')
     def demanda_subir(wid: str, tipo: DemandaTipo, files: list[UploadFile] = File(...)) -> dict:

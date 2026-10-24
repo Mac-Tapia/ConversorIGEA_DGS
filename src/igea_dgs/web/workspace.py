@@ -134,6 +134,9 @@ class Workspace:
     # La calibración ya no deja variación en DIgSILENT donde leerla, y sin ella no se ve
     # qué cambió el operador a mano (014:RF-10).
     calibraciones: dict[str, dict[str, Any]] = field(default_factory=dict)
+    # Spec 025, RF-17: año de medición de los casos sin año («Sin proyecto», «Con
+    # proyecto») de cada proyecto; otro año se calibra en «Sin proyecto <año>».
+    anios_casos: dict[str, int] = field(default_factory=dict)
     # Último inventario leído directamente de PowerFactory; su identidad invalida
     # planes de carga revisados si el proyecto cambia antes de aplicar.
     pf_inventory: dict[str, Any] = field(default_factory=dict)
@@ -211,6 +214,7 @@ class Workspace:
             'pf_projects': self.pf_projects,
             'pf_project_bindings': self.pf_project_bindings,
             'calibraciones': self.calibraciones,
+            'anios_casos': self.anios_casos,
             'pf_inventory': self.pf_inventory,
             'active_run_id': self.active_run_id,
             'demanda': self.demanda,
@@ -243,6 +247,7 @@ class Workspace:
         ws.pf_projects = dict(data.get('pf_projects') or {})
         ws.pf_project_bindings = dict(data.get('pf_project_bindings') or {})
         ws.calibraciones = dict(data.get('calibraciones') or {})
+        ws.anios_casos = {str(k): int(v) for k, v in (data.get('anios_casos') or {}).items()}
         ws.pf_inventory = dict(data.get('pf_inventory') or {})
         # Igual que las entradas: un libro o una carpeta que ya no está no se restaura.
         ws.demanda = {tipo: meta for tipo, meta in (data.get('demanda') or {}).items()

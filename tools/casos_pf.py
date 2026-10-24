@@ -47,6 +47,28 @@ NOMBRES = {'base': 'Caso base', 'sin': 'Sin proyecto', 'con': 'Con proyecto'}
 MARCA = 'igea-dgs:011:'
 
 
+def nombre_caso(rol: str, anio: int | None = None) -> str:
+    """Nombre del caso de un rol y un año de medición (025:RF-14, RF-17).
+
+    Sin año, los de siempre: son los que ya tienen los proyectos (calibrados con 2026).
+    Otro año tiene su «Sin proyecto <año>» y su «Con proyecto <año>»; el «Caso base», la
+    red tal como vino, es el mismo para todos (usuario, 2026-10-23: 2025 aparte de 2026,
+    sin mezclarse).
+    """
+    return f'{NOMBRES[rol]} {anio}' if anio and rol != 'base' else NOMBRES[rol]
+
+
+def _clave(rol: str, anio: int | None) -> str:
+    """La marca del rol: ``sin@2025``, para que un «Sin proyecto 2025» ajeno no pase por suyo."""
+    return f'{rol}@{anio}' if anio and rol != 'base' else rol
+
+
+def anio_del_plan(plan: dict) -> int | None:
+    """El año de los casos que pide el plan (``anio_casos``); ninguno, los de siempre."""
+    anio = plan.get('anio_casos')
+    return int(anio) if anio else None
+
+
 # =========================================================================== marcas
 def _desc(obj) -> list[str]:
     """``desc`` es un vector de cadenas en DIgSILENT; en un objeto nuevo puede faltar."""
@@ -68,24 +90,28 @@ def _marcar(caso, rol: str) -> None:
     caso.desc = [x for x in _desc(caso) if not x.startswith(MARCA)] + [MARCA + rol]
 
 
-def casos_del_proyecto(app) -> dict[str, object]:
-    """Rol → caso, de los que el sistema ya dejó en el proyecto (RF-51 a RF-54 los usan)."""
+def casos_del_proyecto(app, anio: int | None = None) -> dict[str, object]:
+    """Rol → caso, de los que el sistema ya dejó en el proyecto (RF-51 a RF-54 los usan).
+
+    Con ``anio``, el «Caso base» y los de ese año (025:RF-17); sin él, los de siempre.
+    """
     carpeta = app.GetProjectFolder('study')
+    claves = {_clave(rol, anio): rol for rol in NOMBRES}
     out = {}
     for caso in (carpeta.GetContents('*.IntCase') if carpeta else []):
-        rol = rol_de(caso)
-        if rol in NOMBRES and caso.loc_name == NOMBRES[rol]:
+        rol = claves.get(rol_de(caso))
+        if rol is not None and caso.loc_name == nombre_caso(rol, anio):
             out[rol] = caso
     return out
 
 
-def tres_casos(app) -> dict[str, object]:
+def tres_casos(app, anio: int | None = None) -> dict[str, object]:
     """Los tres casos si el sistema ya los dejó todos; si falta alguno, vacío.
 
     Es la condición de RF-51 a RF-54: mientras no existan los tres, el ajuste y las
     cargas trabajan en el caso activo, como antes de esta spec.
     """
-    casos = casos_del_proyecto(app)
+    casos = casos_del_proyecto(app, anio)
     return casos if len(casos) == len(NOMBRES) else {}
 
 
@@ -173,6 +199,61 @@ def clasificar(variaciones, feeders: list[str], base: list[str], demandas: str |
     for k in out:
         out[k].sort(key=lambda v: v.loc_name)
     return out
+
+
+def obras_del_con_proyecto_sin_anio(app) -> list:
+    """Las obras activas en «Con proyecto» sin año: ni cargas nuevas ni ajustes puros (025:RF-42).
+
+    Las cargas nuevas reutilizadas de otro año se crearon sobre ellas: las nueve de TA225 en
+    IN111 + TA225 (2026-10-23) partían tramos que solo existen con el enlace, la migración y
+    la terna de 2026, y sin ellas «Con proyecto 2025» unía 10 kV con 22,9 kV. Deja activo el
+    caso que lo estaba.
+    """
+    con = caso(app, 'con')
+    if con is None:
+        return []
+    previo = app.GetActiveStudyCase()
+    con.Activate()
+    obras = [v for v in (app.GetActiveNetworkVariations() or []) if es_del_operador(v)]
+    if previo is not None:
+        previo.Activate()
+    return obras
+
+
+def cargas_que_no_convergen_juntas(app, caso, converge) -> dict | None:
+    """Si el caso no converge con sus cargas nuevas, cuáles no caben juntas (025:RF-43).
+
+    PA217 y TM105 en «Con proyecto 2025» (2026-10-23): ningún flujo convergía con todas, y
+    cada carga sola sí; quitar PI_1 o PI_8 (CH_3 o CH_5) bastaba. Se prueba cada carga sola
+    y el caso sin cada una, y todo queda como estaba. ``converge(app)`` corre el flujo del
+    caso activo. ``None`` si converge con todas.
+    """
+    caso.Activate()
+    cargas = [v for v in (app.GetActiveNetworkVariations() or []) if es_de_carga_nueva(v)]
+    if not cargas or converge(app):
+        return None
+    solas_no, basta_quitar = [], []
+    try:
+        for v in cargas:
+            for w in cargas:
+                if w is not v:
+                    w.Deactivate()
+            if not converge(app):
+                solas_no.append(v.loc_name)
+            for w in cargas:
+                w.Activate()
+        for v in cargas:
+            v.Deactivate()
+            if converge(app):
+                basta_quitar.append(v.loc_name)
+            v.Activate()
+    finally:
+        activas = {v.loc_name for v in (app.GetActiveNetworkVariations() or [])}
+        for v in cargas:
+            if v.loc_name not in activas:
+                v.Activate()
+    return {'caso': caso.loc_name, 'cargas': sorted(v.loc_name for v in cargas),
+            'solas_que_no_convergen': sorted(solas_no), 'basta_quitar_una_de': sorted(basta_quitar)}
 
 
 def operador_a_con_proyecto(app, casos: dict, variaciones=None) -> list[str]:
@@ -311,6 +392,81 @@ def sin_a_con_proyecto(app, casos: dict) -> dict:
     return out
 
 
+def operacion_de_las_obras(app, casos_anio: dict) -> dict:
+    """La operación que las obras de «Con proyecto» dejaron en su escenario, también en «Con
+    proyecto <año>» (025:RF-42b).
+
+    IN111 + TA225 (2026-10-23): activas las variaciones del enlace y de la migración, «Con
+    proyecto 2025» convergía, pero el enlace seguía fuera de servicio y el tramo que la
+    migración abre, en servicio: el ``outserv`` de una línea es dato del escenario, y el de
+    2025 es copia del de «Sin proyecto 2025». IC_11, IC_12, IC_15 e IC_17 quedaban sin
+    tensión (0 kW en el flujo). Por cada dato de :data:`OPERACION` que «Con proyecto»
+    cambió respecto de «Sin proyecto» (lo que hacen sus obras), si «Con proyecto <año>» aún
+    tiene el de «Sin proyecto <año>», se escribe en su escenario. Si el año lo cambió por su
+    cuenta (una obra suya, el operador), manda el año y se avisa. Deja activo el caso que lo
+    estaba.
+    """
+    out = {'copiados': [], 'conflictos': [], 'faltan': [], 'avisos': []}
+    sin0, con0 = caso(app, 'sin'), caso(app, 'con')
+    if sin0 is None or con0 is None or 'sin' not in casos_anio or 'con' not in casos_anio:
+        return out
+    previo = app.GetActiveStudyCase()
+    try:
+        fotos = {}
+        for clave, c in (('sin0', sin0), ('con0', con0), ('sin', casos_anio['sin']),
+                         ('con', casos_anio['con'])):
+            c.Activate()
+            fotos[clave] = _foto_operacion(app)
+        cambios = []
+        for ruta, (_obj, datos) in sorted(fotos['con0'].items()):
+            en_sin0 = fotos['sin0'].get(ruta, (None, {}))[1]
+            for attr, valor in datos.items():
+                if attr in en_sin0 and _igual(en_sin0[attr], valor):
+                    continue                            # las obras no lo cambiaron
+                if ruta not in fotos['con']:
+                    out['faltan'].append(getattr(_obj, 'loc_name', ruta))
+                    break
+                obj, en_con = fotos['con'][ruta]
+                if attr not in en_con or _igual(en_con[attr], valor):
+                    continue
+                en_sin = fotos['sin'].get(ruta, (None, {}))[1]
+                if attr in en_sin and not _igual(en_sin[attr], en_con[attr]):
+                    out['conflictos'].append({'objeto': obj.loc_name, 'dato': attr,
+                                              'con': valor, 'anio': en_con[attr]})
+                    continue                            # lo cambió el caso del año
+                cambios.append((obj, attr, valor, en_con[attr]))
+        if cambios:
+            casos_anio['con'].Activate()
+            escenario = app.GetActiveScenario()
+            if escenario is None:
+                out['avisos'].append(f'«{casos_anio["con"].loc_name}» no tiene escenario activo: '
+                                     f'no se copian {len(cambios)} dato(s) de operación de las obras.')
+            else:
+                for obj, attr, valor, antes in cambios:
+                    obj.SetAttribute(attr, valor)
+                    out['copiados'].append({'objeto': obj.loc_name, 'dato': attr,
+                                            'antes': antes, 'ahora': valor})
+                escenario.Save()
+        nombre = getattr(casos_anio['con'], 'loc_name', nombre_caso('con'))
+        if out['copiados']:
+            out['avisos'].append(
+                f"«{nombre}» toma de «{NOMBRES['con']}» la operación de sus obras: " + ', '.join(
+                    f"{c['objeto']}.{c['dato']}" for c in out['copiados'][:10]) + ' (025:RF-42b).')
+        if out['conflictos']:
+            out['avisos'].append(
+                f'Cambiados distinto por las obras de «{NOMBRES["con"]}» y en «{nombre}»; se deja '
+                'el del año: ' + ', '.join(f"{c['objeto']}.{c['dato']}" for c in out['conflictos'][:10])
+                + ' (025:RF-42b).')
+        if out['faltan']:
+            out['avisos'].append(
+                f'Las obras de «{NOMBRES["con"]}» cambian objetos que no están en «{nombre}»: '
+                + ', '.join(out['faltan'][:10]) + ' (025:RF-42b).')
+    finally:
+        if previo is not None and app.GetActiveStudyCase() is not previo:
+            previo.Activate()
+    return out
+
+
 def _dejar_activas(app, caso, activas: list, inactivas: list) -> list[str]:
     """En ``caso``, activa ``activas`` y desactiva ``inactivas``; devuelve lo que queda activo."""
     caso.Activate()
@@ -322,39 +478,42 @@ def _dejar_activas(app, caso, activas: list, inactivas: list) -> list[str]:
 
 
 # =========================================================================== escenarios
-def _escenario_propio(app, caso, rol: str, origen) -> str:
+def _escenario_propio(app, caso, rol: str, origen, anio: int | None = None) -> str:
     """Deja en ``caso`` un escenario con su nombre: copia del de ``origen`` o uno nuevo.
 
     Un caso reutilizado que ya tiene escenario lo conserva: puede haberlo cambiado el
-    operador en DIgSILENT, y no se sobrescribe (casos límite de la spec).
+    operador en DIgSILENT, y no se sobrescribe (casos límite de la spec). Con ``anio``, el
+    escenario lleva el nombre del caso de ese año (025:RF-15).
     """
+    nombre = nombre_caso(rol, anio)
     caso.Activate()
     actual = app.GetActiveScenario()
-    if actual is not None and actual.loc_name == NOMBRES[rol]:
+    if actual is not None and actual.loc_name == nombre:
         return actual.loc_name
     carpeta = app.GetProjectFolder('scen', 1)
     existente = next((e for e in carpeta.GetContents('*.IntScenario')
-                      if e.loc_name == NOMBRES[rol]), None)
+                      if e.loc_name == nombre), None)
     if existente is not None:
         nuevo = existente
     elif origen is not None:
-        nuevo = carpeta.AddCopy(origen, NOMBRES[rol])
+        nuevo = carpeta.AddCopy(origen, nombre)
     else:
-        nuevo = carpeta.CreateObject('IntScenario', NOMBRES[rol])
+        nuevo = carpeta.CreateObject('IntScenario', nombre)
     nuevo.Activate()
     return nuevo.loc_name
 
 
-def crear_con_proyecto(app, sin):
+def crear_con_proyecto(app, sin, anio: int | None = None):
     """«Con proyecto» como copia de «Sin proyecto», con sus variaciones activas (014:RF-18).
 
     Lo usan la preparación de los casos y las obras: lo que se hizo en «Sin proyecto»
     pasa a «Con proyecto» porque la copia se hace después (016:RF-12). Devuelve el caso,
-    marcado y con su escenario, copia del de «Sin proyecto».
+    marcado y con su escenario, copia del de «Sin proyecto». Con ``anio``, el de ese año,
+    copia de su «Sin proyecto <año>» (025:RF-16).
     """
-    con = app.GetProjectFolder('study').AddCopy(sin, NOMBRES['con'])
-    _marcar(con, 'con')
-    _escenario_propio(app, con, 'con', _escenario_de(app, sin))
+    con = app.GetProjectFolder('study').AddCopy(sin, nombre_caso('con', anio))
+    _marcar(con, _clave('con', anio))
+    _escenario_propio(app, con, 'con', _escenario_de(app, sin), anio)
     return con
 
 
@@ -371,16 +530,17 @@ def _sin_verificar(plan: dict, feeders: list[str]) -> list[str]:
     return [f for f in feeders if f in fuera]
 
 
-def caso(app, rol: str):
-    """El caso del sistema con ese rol, o ``None``."""
-    return casos_del_proyecto(app).get(rol)
+def caso(app, rol: str, anio: int | None = None):
+    """El caso del sistema con ese rol (y año, 025:RF-14), o ``None``."""
+    return casos_del_proyecto(app, anio).get(rol)
 
 
-def _ajenos(app) -> list[str]:
+def _ajenos(app, anio: int | None = None) -> list[str]:
     carpeta = app.GetProjectFolder('study')
-    casos = casos_del_proyecto(app)
+    casos = casos_del_proyecto(app, anio)
+    nombres = {nombre_caso(rol, anio) for rol in NOMBRES}
     return [c.loc_name for c in carpeta.GetContents('*.IntCase')
-            if c.loc_name in NOMBRES.values() and c not in casos.values()]
+            if c.loc_name in nombres and c not in casos.values()]
 
 
 def _de_carga_nueva(app) -> list:
@@ -396,7 +556,12 @@ def preparar_sin(app, plan: dict) -> tuple[dict, int]:
     «Caso base»; «Sin proyecto» sale de él con una copia de su escenario de operación y
     sin activar ninguna variación: las modificaciones del operador se graban en la red
     (RF-27). Una vez creado, el «Caso base» no se vuelve a tocar (RF-19).
+
+    Con ``anio_casos`` en el plan, «Sin proyecto <año>», también copia del «Caso base» y
+    nunca del «Sin proyecto» de otro año (025:RF-15): los alimentadores sin medición de ese
+    año quedan con la demanda del archivo y nada de la otra calibración pasa a este.
     """
+    anio = anio_del_plan(plan)
     informe = {'project': plan.get('project'), 'avisos': [], 'casos': {}}
     proyecto = activar_proyecto(app, plan['project'], plan.get('folder'))
     if proyecto is None:
@@ -404,15 +569,15 @@ def preparar_sin(app, plan: dict) -> tuple[dict, int]:
     fuera = _sin_verificar(plan, list(plan.get('feeders') or []))
     if fuera:
         return {**informe, 'error': 'El «Caso base» de ' + ', '.join(fuera) + ' no está '
-                                    'verificado: verifíquelo (paso 1.1) antes de crear «Sin '
-                                    'proyecto» (015:RF-17).'}, 2
-    ajenos = _ajenos(app)
+                                    f"verificado: verifíquelo (paso 1.1) antes de crear «{nombre_caso('sin', anio)}» "
+                                    '(015:RF-17).'}, 2
+    ajenos = _ajenos(app, anio)
     if ajenos:
         return {**informe, 'error': 'Hay en el proyecto un caso de estudio que no creó el sistema '
                                     'con el nombre ' + ', '.join(f'«{n}»' for n in ajenos)
                                     + ': renómbrelo en DIgSILENT y vuelva a preparar.'}, 2
     carpeta = app.GetProjectFolder('study')
-    casos = casos_del_proyecto(app)
+    casos = casos_del_proyecto(app, anio)
     inicial = app.GetActiveStudyCase()
     try:
         caso_base = casos.get('base') or inicial
@@ -428,8 +593,8 @@ def preparar_sin(app, plan: dict) -> tuple[dict, int]:
                 v.Deactivate()
             if app.GetActiveScenario() is None:
                 _escenario_propio(app, caso_base, 'base', None)
-            sin = carpeta.AddCopy(caso_base, NOMBRES['sin'])
-            _marcar(sin, 'sin')
+            sin = carpeta.AddCopy(caso_base, nombre_caso('sin', anio))
+            _marcar(sin, _clave('sin', anio))
         caso_base.Activate()
         activas_base = sorted(v.loc_name for v in (app.GetActiveNetworkVariations() or []))
         esc_base = app.GetActiveScenario()
@@ -442,7 +607,7 @@ def preparar_sin(app, plan: dict) -> tuple[dict, int]:
                                      + ', '.join(activas_base))
         informe['casos']['sin'] = {
             'nombre': sin.loc_name, 'creado': 'sin' not in casos,
-            'escenario': _escenario_propio(app, sin, 'sin', esc_base),
+            'escenario': _escenario_propio(app, sin, 'sin', esc_base, anio),
             'variaciones': sorted(v.loc_name for v in (app.GetActiveNetworkVariations() or [])),
             'estudiable': True}
     finally:
@@ -461,7 +626,8 @@ def preparar_con(app, plan: dict) -> tuple[dict, int]:
     informe, rc = preparar_sin(app, plan)
     if rc:
         return informe, rc
-    casos = casos_del_proyecto(app)
+    anio = anio_del_plan(plan)                                          # 025:RF-16
+    casos = casos_del_proyecto(app, anio)
     sin = casos['sin']
     carpeta_var = app.GetProjectFolder('scheme')
     todas = carpeta_var.GetContents('*.IntScheme', 1) if carpeta_var else []
@@ -470,8 +636,8 @@ def preparar_con(app, plan: dict) -> tuple[dict, int]:
     try:
         con = casos.get('con')
         if con is None:
-            con = crear_con_proyecto(app, sin)
-        escenario_con = _escenario_propio(app, con, 'con', _escenario_de(app, sin))
+            con = crear_con_proyecto(app, sin, anio)
+        escenario_con = _escenario_propio(app, con, 'con', _escenario_de(app, sin), anio)
         _dejar_activas(app, con, grupos['cargas'], grupos['anteriores'])
         sincronia = sin_a_con_proyecto(app, {**casos, 'con': con})     # 014:RF-31 a RF-34
         del_operador = sincronia['variaciones']

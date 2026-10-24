@@ -1,6 +1,7 @@
 """022:RF-56 — ``tools/sistema_web.py``: un sistema eléctrico de punta a punta por la web."""
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -57,11 +58,55 @@ class WebFalsa:
         return {'status': 'done', 'result': {}}
 
 
+LIBROS = {'medidores': Path('libros/m.xlsx'), 'cabecera': Path('libros/cab'),
+          'clientes': Path('libros/cli'), 'suministros': Path('libros/cualquier-nombre.xlsx')}
+T_2025 = datetime(2025, 3, 1, 10, 15)
+
+
 def _correr(herramienta, web, **kw):
-    return herramienta.correr(web, 'Pisco', demanda_dir=Path('libros'), periodo='2026-07',
+    return herramienta.correr(web, 'Pisco', demanda_dir=Path('libros'),
+                              periodo=kw.get('periodo', '2026-07'),
                               reconvertir=kw.get('reconvertir', False), transformadores=False,
-                              tension_pu=None, bancos=True,
-                              libro_suministros=Path('libros/cualquier-nombre.xlsx'))
+                              tension_pu=None, bancos=True, libros=LIBROS)
+
+
+def test_con_un_anio_entero_no_cruza_un_mes_y_sube_cada_libro(herramienta):
+    """025:RF-25 — ``--periodo 2025``: la máxima del año; el cruce del plan va por el mes de
+    cada máxima, así que no se manda un cruce de mes; cada libro va a su hueco y la
+    cabecera se indexa por año."""
+    web = WebFalsa(informes=[VALIDO])
+    assert _correr(herramienta, web, periodo='2025') == 0
+    rutas = [r for _m, r in web.llamadas]
+    assert '/demanda/clientes/cruzar' not in rutas
+    assert all(f'/demanda/{t}/path' in rutas for t in LIBROS)
+    assert '/demanda/cabecera/indexar' in rutas
+
+
+def test_los_libros_se_reconocen_por_su_contenido(herramienta, tmp_path):
+    """025:RF-25b, RF-25c — sin nombres de carpeta de ninguna empresa; lo dado por opción
+    manda; sin medición de cabecera no se sigue."""
+    def libro(path, filas):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        wb = Workbook()
+        for f in filas:
+            wb.active.append(f)
+        wb.save(path)
+
+    libro(tmp_path / 'x' / 'rel.xlsx', [['Codigo Alimentador', 'Medidor'], ['F1', 'M1']])
+    libro(tmp_path / 'y' / '2025' / 'm.xlsx', [['Local Time', 'kW tot'], [T_2025, 1.0]])
+    (tmp_path / 'z').mkdir()
+    _libro_suministros(tmp_path / 'z' / 'padron.xlsx', 2)
+    libros, _avisos = herramienta.libros_de_la_demanda(tmp_path)
+    assert libros['medidores'] == tmp_path / 'x' / 'rel.xlsx'
+    assert libros['cabecera'] == tmp_path / 'y'
+    assert libros['suministros'] == tmp_path / 'z' / 'padron.xlsx'
+    otro = tmp_path / 'otra cabecera'
+    libros, _ = herramienta.libros_de_la_demanda(tmp_path, {'cabecera': otro})
+    assert libros['cabecera'] == otro
+    vacia = tmp_path / 'vacia'
+    vacia.mkdir()
+    with pytest.raises(herramienta.DemandaError, match='medición de cabecera'):
+        herramienta.libros_de_la_demanda(vacia)
 
 
 def _libro_suministros(path: Path, cantidad: int) -> None:
@@ -149,11 +194,11 @@ def test_solo_una_parte_del_sistema(herramienta):
     web = WebFalsa(proyecto='P', informes=[VALIDO])
     assert herramienta.correr(web, 'Pisco', demanda_dir=Path('l'), periodo=None, reconvertir=False,
                               transformadores=False, tension_pu=None, bancos=True,
-                              solo=['pi102'], libro_suministros=Path('l/s.xlsx')) == 0
+                              solo=['pi102'], libros={**LIBROS, 'suministros': Path('l/s.xlsx')}) == 0
     web = WebFalsa(proyecto='P', informes=[VALIDO])
     assert herramienta.correr(web, 'Pisco', demanda_dir=Path('l'), periodo=None, reconvertir=False,
                               transformadores=False, tension_pu=None, bancos=True,
-                              solo=['PI101'], libro_suministros=Path('l/s.xlsx')) == 2
+                              solo=['PI101'], libros={**LIBROS, 'suministros': Path('l/s.xlsx')}) == 2
     assert ('POST', '/demanda/ajuste/plan') not in web.llamadas
 
 
@@ -191,9 +236,9 @@ def test_reconstruir_reconvierte_con_las_medidas(herramienta):
     assert herramienta.correr(web, 'Pisco', demanda_dir=Path('l'), periodo=None,
                               reconvertir=False, transformadores=False, tension_pu=None,
                               bancos=True, reconstruir=['PI101'],
-                              libro_suministros=Path('l/s.xlsx')) == 0
+                              libros={**LIBROS, 'suministros': Path('l/s.xlsx')}) == 0
     assert enviados and enviados[0]['reconstruir'] == {'PI101': pytest.approx(4456.3)}
     # 004:RF-60 — el libro explícito sigue en la vuelta tras reconvertir.
-    assert suministros == [str(Path('l') / 'l' / 's.xlsx')] * 2
+    assert suministros == [str(Path('l/s.xlsx'))] * 2
     assert ('POST', '/powerfactory/flow') in web.llamadas
     assert [r for _m, r in web.llamadas].count('/demanda/ajuste/plan') == 1

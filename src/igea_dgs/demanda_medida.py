@@ -203,6 +203,7 @@ class LibroClientesMes:
     """Un libro mensual indexado, incluida la evidencia de cómo se obtuvo su mes."""
 
     path: str
+    #: Ruta relativa a la carpeta elegida («2025/0125 Pulso e.xlsx», 025:RF-3).
     nombre: str
     mes: str | None
     origen_mes: Literal['nombre', 'contenido', 'manual', 'sin_mes']
@@ -210,6 +211,8 @@ class LibroClientesMes:
     size: int
     activo: bool
     avisos: tuple[str, ...] = ()
+    #: Año de su carpeta, o None si está suelto (025:RF-1).
+    anio: int | None = None
 
 
 @dataclass(frozen=True)
@@ -249,6 +252,20 @@ def periodo_de_fecha(value: Any) -> str | None:
     return None
 
 
+def en_periodo(fecha: Any, periodo: str | None) -> bool:
+    """La fecha está en el periodo: un mes ``AAAA-MM`` o un año ``AAAA`` (025:RF-7).
+
+    Sin periodo, cualquier fecha. El año entero es para calibrar con la máxima de un año
+    de medición (2025, junto a la de 2026) sin elegir un mes.
+    """
+    if not periodo:
+        return True
+    mes = periodo_de_fecha(fecha)
+    if mes is None:
+        return False
+    return mes[:4] == periodo if len(periodo) == 4 else mes == periodo
+
+
 def _mes_valido(valor: str) -> str:
     mes = str(valor).strip()
     if not _MES_VALIDO.fullmatch(mes):
@@ -256,10 +273,22 @@ def _mes_valido(valor: str) -> str:
     return mes
 
 
-def mes_de_nombre(nombre: str, patron: str | None) -> str | None:
-    """Mes AAAA-MM extraído con los grupos mes y anio del perfil."""
+def mes_de_nombre(nombre: str, patron: str | Sequence[str] | None) -> str | None:
+    """Mes AAAA-MM extraído con los grupos mes y anio del perfil.
+
+    El perfil puede dar varios patrones (025:RF-6b): la empresa que cambia la forma del
+    nombre de un año a otro. Vale el primero que casa.
+    """
     if not patron:
         return None
+    for uno in ([patron] if isinstance(patron, str) else list(patron)):
+        mes = _mes_de_un_patron(nombre, uno)
+        if mes:
+            return mes
+    return None
+
+
+def _mes_de_un_patron(nombre: str, patron: str) -> str | None:
     try:
         expresion = re.compile(patron)
     except re.error as exc:
@@ -277,6 +306,62 @@ def mes_de_nombre(nombre: str, patron: str | None) -> str | None:
     elif len(anio) != 4:
         return None
     return f'{int(anio):04d}-{int(mes):02d}'
+
+
+#: Nombres de mes que se reconocen en un nombre de libro (025:RF-6): enteros y abreviados,
+#: en español y en inglés; «set» es la abreviatura de septiembre en Perú.
+_NOMBRES_MES: dict[str, int] = {}
+for _n, (_es, _en) in enumerate(zip(
+        ('enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto',
+         'septiembre', 'octubre', 'noviembre', 'diciembre'),
+        ('january', 'february', 'march', 'april', 'may', 'june', 'july', 'august',
+         'september', 'october', 'november', 'december')), start=1):
+    for _clave in (_es, _es[:3], _en, _en[:3]):
+        _NOMBRES_MES[_clave] = _n
+_NOMBRES_MES.update({'setiembre': 9, 'set': 9, 'sept': 9})
+
+
+def mes_generico(nombre: str, anio: int) -> str | None:
+    """Mes ``AAAA-MM`` del nombre de un libro de la carpeta de ``anio`` (025:RF-6).
+
+    Sin patrón de la empresa: Electro Dunas pasó de «0126clientesImportantes» en 2026 a
+    «0125 Pulso e» en 2025, y otra empresa nombrará de otra forma. Se aceptan ``MMAA``,
+    ``AAMM``, ``AAAAMM``, ``MMAAAA``, ``AAAA-MM``, ``MM-AAAA`` y el nombre del mes, solo
+    del año de la carpeta. Con ningún mes o con dos distintos no se supone nada: queda
+    la fecha dentro del libro (013:RF-4).
+    """
+    base = Path(nombre).stem.casefold()
+    corto = anio % 100
+    meses: set[int] = set()
+
+    def poner(mes: int) -> None:
+        if 1 <= mes <= 12:
+            meses.add(mes)
+
+    for m in re.finditer(r'(?<!\d)(\d{4})[-_. ](\d{1,2})(?!\d)', base):          # AAAA-MM
+        if int(m.group(1)) == anio:
+            poner(int(m.group(2)))
+    for m in re.finditer(r'(?<!\d)(\d{1,2})[-_. ](\d{4})(?!\d)', base):          # MM-AAAA
+        if int(m.group(2)) == anio:
+            poner(int(m.group(1)))
+    for m in re.finditer(r'(?<!\d)(\d{6})(?!\d)', base):                         # AAAAMM, MMAAAA
+        t = m.group(1)
+        if int(t[:4]) == anio:
+            poner(int(t[4:]))
+        if int(t[2:]) == anio:
+            poner(int(t[:2]))
+    for m in re.finditer(r'(?<!\d)(\d{4})(?!\d)', base):                         # MMAA, AAMM
+        t = m.group(1)
+        if int(t[2:]) == corto:
+            poner(int(t[:2]))
+        if int(t[:2]) == corto:
+            poner(int(t[2:]))
+    for palabra in re.findall(r'[^\W\d_]+', base):
+        if palabra in _NOMBRES_MES:
+            poner(_NOMBRES_MES[palabra])
+    if len(meses) != 1:
+        return None
+    return f'{anio:04d}-{next(iter(meses)):02d}'
 
 
 def _mes_de_valor(valor: Any, *, columna_fecha: bool) -> str | None:
@@ -325,33 +410,38 @@ def meses_de_contenido(path: Path | str, alias=ALIAS) -> set[str]:
     return meses
 
 
-def catalogar_libros_clientes(carpeta: Path | str, patron: str | None,
+def catalogar_libros_clientes(carpeta: Path | str, patron: str | Sequence[str] | None,
                               asignaciones: dict[str, str] | None = None,
                               alias=ALIAS) -> list[LibroClientesMes]:
-    """Indexa una carpeta o un libro y activa uno solo por mes (013:RF-1 a RF-5)."""
+    """Indexa una carpeta o un libro y activa uno solo por mes (013:RF-1 a RF-5).
+
+    Una carpeta se recorre con sus subcarpetas de año (025:RF-1): cada libro lleva su ruta
+    relativa y su año, y su mes sale del patrón del perfil, de la regla general del nombre
+    dentro de su año (025:RF-6) o de la fecha de dentro (013:RF-4).
+    """
+    from .libros_por_anio import arbol_de_libros
+
     fuente = Path(carpeta)
     if fuente.is_file():
-        rutas = [fuente] if fuente.suffix.lower() in EXTENSIONES else []
+        if fuente.suffix.lower() not in EXTENSIONES:
+            raise DemandaError(f'{fuente.name}: extensión no soportada; use ' + ', '.join(EXTENSIONES))
+        rutas = [(fuente, fuente.name, None)]
     elif fuente.is_dir():
-        rutas = sorted(
-            (p for p in fuente.iterdir()
-             if p.is_file() and p.suffix.lower() in EXTENSIONES and not p.name.startswith('~$')),
-            key=lambda p: (p.name.casefold(), p.name),
-        )
+        rutas = [(x.ruta, x.relativa, x.anio) for x in arbol_de_libros(fuente)]
     else:
         raise DemandaError(f'No se encuentra la fuente de clientes: {fuente}')
-    if fuente.is_file() and not rutas:
-        raise DemandaError(f'{fuente.name}: extensión no soportada; use ' + ', '.join(EXTENSIONES))
 
     manuales = asignaciones or {}
     catalogo: list[LibroClientesMes] = []
-    for path in rutas:
-        manual = next((manuales[k] for k in (str(path), path.as_posix(), path.name)
+    for path, relativa, anio in rutas:
+        manual = next((manuales[k] for k in (str(path), path.as_posix(), relativa, path.name)
                        if k in manuales), None)
         if manual is not None:
             mes, origen = _mes_valido(manual), 'manual'
         else:
             mes = mes_de_nombre(path.name, patron)
+            if mes is None and anio is not None:
+                mes = mes_generico(path.name, anio)
             origen = 'nombre' if mes else 'sin_mes'
         avisos: tuple[str, ...] = ()
         if mes is None and manual is None:
@@ -365,15 +455,23 @@ def catalogar_libros_clientes(carpeta: Path | str, patron: str | None,
                 internos = meses_de_contenido(path, alias)
                 if len(internos) == 1:
                     mes, origen = next(iter(internos)), 'contenido'
+        activo = mes is not None
+        if (mes is not None and anio is not None and origen != 'manual'
+                and mes[:4] != f'{anio:04d}'):
+            # 025:RF-5: un libro de 2026 dejado en la carpeta de 2025 mezclaría los años.
+            activo = False
+            avisos = (*avisos, f'su mes es {mes} y está en la carpeta {anio}: no se usa; '
+                               'muévalo a la carpeta de su año o asígnele el mes.')
         stat = path.stat()
         catalogo.append(LibroClientesMes(
-            path=str(path), nombre=path.name, mes=mes, origen_mes=origen,
-            mtime_ns=stat.st_mtime_ns, size=stat.st_size, activo=mes is not None, avisos=avisos,
+            path=str(path), nombre=relativa, mes=mes, origen_mes=origen,
+            mtime_ns=stat.st_mtime_ns, size=stat.st_size, activo=activo, avisos=avisos,
+            anio=anio,
         ))
 
     por_mes: dict[str, list[int]] = {}
     for i, libro in enumerate(catalogo):
-        if libro.mes:
+        if libro.mes and libro.activo:
             por_mes.setdefault(libro.mes, []).append(i)
     for mes, indices in por_mes.items():
         if len(indices) < 2:
@@ -462,13 +560,18 @@ def medidores_de(medidores: Sequence[Medidor], alimentador: str) -> list[str]:
 
 # =========================================================================== cabecera
 def libros_de_cabecera(rutas: Iterable[Path | str]) -> list[Path]:
-    """Ficheros de cabecera: cada ruta es un libro o una carpeta con libros (RF-39)."""
+    """Ficheros de cabecera: cada ruta es un libro o una carpeta con libros (RF-39).
+
+    Una carpeta se recorre entera, con sus subcarpetas de año (025:RF-1): elegir los del
+    año de la máxima es de quien busca (``libros_por_anio.libros_del_periodo``).
+    """
+    from .libros_por_anio import arbol_de_libros
+
     out: list[Path] = []
     for ruta in rutas:
         p = Path(ruta)
         if p.is_dir():
-            out += sorted(f for f in p.iterdir()
-                          if f.is_file() and f.suffix.lower() in EXTENSIONES and not f.name.startswith('~$'))
+            out += [x.ruta for x in arbol_de_libros(p)]
         elif p.is_file():
             out.append(p)
         else:
@@ -492,6 +595,42 @@ def hojas_del_medidor(hojas: Sequence[str], medidor: str) -> tuple[list[str], li
                         + r'[\s_\-.]+\S', re.I)
     partes = [h for h in hojas if patron.match(h) and h not in enteras]
     return enteras[:1], partes
+
+
+def indexar_libro_cabecera(path: Path | str, alias=ALIAS) -> dict[str, Any]:
+    """Hojas de medición de un libro y los meses con registro (025:RF-28, RF-29).
+
+    Para el índice por año de la web: qué trae cada libro, sin buscar ninguna máxima. Un
+    libro que no se abre o sin ninguna hoja con fecha y kW no se rechaza: queda con su
+    motivo, y los demás siguen.
+    """
+    try:
+        libro = _abrir(path)
+        hojas, meses = [], set()
+        for hoja in libro.sheet_names:
+            registros, usadas = _registros_hoja(_filas(libro, hoja), alias)
+            if 'kw' not in usadas or not registros:
+                continue
+            hojas.append(hoja)
+            meses.update(m for m in (periodo_de_fecha(r.fecha) for r in registros) if m)
+    except Exception as exc:  # noqa: BLE001 - calamine da errores propios; no se calla: es el motivo (RF-29)
+        return {'hojas': [], 'meses': [], 'error': str(exc) or exc.__class__.__name__}
+    error = None if hojas else 'ninguna hoja tiene columnas de fecha y kW: no es una medición de cabecera'
+    return {'hojas': hojas, 'meses': sorted(meses), 'error': error}
+
+
+def hojas_del_alimentador(hojas: Sequence[str], alimentador: str) -> list[str]:
+    """Hojas que se llaman como el alimentador, solo o tras un prefijo separado (025:RF-12).
+
+    «L-PA217», «ALIM PA217» o «PA217»; no «PA2170» ni «PA217_kW»: el código va al final y
+    entero. Sin prefijos de una empresa: cualquiera separado por guion, espacio, punto o
+    subrayado.
+    """
+    codigo = alimentador.strip()
+    if not codigo:
+        return []
+    patron = re.compile(r'^(?:.*[\s_\-.])?' + re.escape(codigo) + r'\s*$', re.I)
+    return [h for h in hojas if patron.match(h.strip())]
 
 
 def base_del_medidor(medidor: str) -> str | None:
@@ -632,7 +771,8 @@ def maxima_de_registros(registros: Sequence[Registro], resultado: MaximaCabecera
                         instante: datetime | None = None) -> MaximaCabecera:
     """kW máximo con su fecha; kVAR, kVA y FP del **mismo** registro (RF-27, RF-28, RF-30).
 
-    Con ``periodo`` (``AAAA-MM``), la máxima de ese mes (013:RF-11): NA205 da la suya en
+    Con ``periodo`` (``AAAA-MM``, o ``AAAA`` para el año entero, 025:RF-7), la máxima de
+    ese mes o año (013:RF-11): NA205 da la suya en
     agosto de 2026 y la empresa solo tiene libros de clientes hasta julio; se calibra en el
     mes que tiene libro. La curva sigue siendo la del registro entero (006:RF-32).
 
@@ -650,7 +790,7 @@ def maxima_de_registros(registros: Sequence[Registro], resultado: MaximaCabecera
                 mejor = r
                 break
             continue
-        if periodo and periodo_de_fecha(r.fecha) != periodo:
+        if not en_periodo(r.fecha, periodo):
             continue
         if (mejor is None or kw > mejor.valores['kw']
                 or (kw == mejor.valores['kw'] and _antes(r.fecha, mejor.fecha))):
@@ -745,11 +885,24 @@ class Cabecera:
         self.libros = libros_de_cabecera(rutas)
         self.alias = alias
         self._abiertos: dict[Path, Any] = {}
+        #: Libros que no se pudieron abrir, con el motivo (025:RF-29): uno roto en la carpeta
+        #: del año no impide buscar en los demás.
+        self.rotos: dict[Path, str] = {}
 
     def _libro(self, path: Path):
         if path not in self._abiertos:
             self._abiertos[path] = _abrir(path)
         return self._abiertos[path]
+
+    def _hojas(self, path: Path) -> list[str]:
+        """Las hojas del libro, o ninguna si no se abre (queda en ``rotos``)."""
+        if path in self.rotos:
+            return []
+        try:
+            return list(self._libro(path).sheet_names)
+        except DemandaError as exc:
+            self.rotos[path] = str(exc)
+            return []
 
     def _completar(self, path: Path, medidor: str, registros: list[Registro],
                    res: MaximaCabecera) -> list[Registro]:
@@ -763,7 +916,7 @@ class Cabecera:
         faltan = [m for m in ('kvar', 'kva') if m not in res.columnas]
         if not faltan:
             return registros
-        hojas = self._libro(path).sheet_names
+        hojas = self._hojas(path)
         candidatas = hojas_del_medidor(hojas, medidor)[1]
         base = base_del_medidor(medidor)
         if base:
@@ -793,28 +946,58 @@ class Cabecera:
         res.avisos.append(', '.join(de_donde) + ', del mismo registro que el kW máximo')
         return _unir_por_fecha(trozos)
 
+    def _por_alimentador(self, res: MaximaCabecera, medidor: str, alimentador: str,
+                         periodo: str | None, instante: datetime | None) -> MaximaCabecera:
+        """La hoja con el código del alimentador, si la del medidor no está (025:RF-12).
+
+        En la cabecera de 2025 de Electro Dunas, cuatro hojas se llaman como su alimentador
+        («L-PA217») y no como el medidor que da el libro de medidores («L-PA235»).
+        """
+        if alimentador:
+            casan = [(p, h) for p in self.libros
+                     for h in hojas_del_alimentador(self._hojas(p), alimentador)]
+            if len(casan) > 1:
+                res.error = (f'sin hoja {medidor}; varias hojas con el código {alimentador} ('
+                             + ', '.join(f'{p.name} › {h}' for p, h in casan)
+                             + '): escriba como medidor el nombre de la que quiere (025:RF-12b)')
+                return res
+            if casan:
+                path, hoja = casan[0]
+                res.libro = path.name
+                registros, usadas = _registros_hoja(_filas(self._libro(path), hoja), self.alias)
+                res.hojas, res.columnas = [hoja], dict(usadas)
+                res.avisos.append(f'no hay hoja {medidor}; se usa {hoja}, la del código del '
+                                  f'alimentador {alimentador} (025:RF-12)')
+                if 'kw' not in usadas:
+                    res.error = f'{path.name} › {hoja}: sin columna de kW'
+                    return res
+                return maxima_de_registros(registros, res, periodo, instante)
+        res.error = (f'el medidor {medidor} no está en ningún libro de cabecera'
+                     + (f', ni una hoja con el código {alimentador}' if alimentador else ''))
+        return res
+
     def maxima(self, medidor: str, alimentador: str = '', periodo: str | None = None,
                instante: datetime | None = None) -> MaximaCabecera:
         res = MaximaCabecera(medidor=medidor, alimentador=alimentador)
         hallados: list[tuple[Path, list[str], list[str]]] = []
         for path in self.libros:
-            entera, partes = hojas_del_medidor(self._libro(path).sheet_names, medidor)
+            entera, partes = hojas_del_medidor(self._hojas(path), medidor)
             if entera or partes:
                 hallados.append((path, entera, partes))
         if not hallados:
             # «IN111_V119» en el libro de medidores, sin hoja: es un canal de IN111, que sí
             # está (RF-45). Se lee IN111; ``maximas`` lo junta con IN111_V18 si también se pidió.
             base = base_del_medidor(medidor)
-            if base and any(any(hojas_del_medidor(self._libro(p).sheet_names, base))
+            if base and any(any(hojas_del_medidor(self._hojas(p), base))
                             for p in self.libros):
                 res = self.maxima(base, alimentador, periodo, instante)
                 res.medidor, res.canal_de = medidor, base
                 res.avisos.insert(0, f'no hay hoja {medidor}; se usa {base}, el medidor del que es canal')
                 return res
-            res.error = f'el medidor {medidor} no está en ningún libro de cabecera'
-            return res
-        # Mejor el libro con la hoja de su nombre; entre iguales, el primero por nombre.
-        hallados.sort(key=lambda h: not h[1])
+            return self._por_alimentador(res, medidor, alimentador, periodo, instante)
+        # Mejor el libro con la hoja de su nombre; entre iguales, el modificado más tarde
+        # (025:RF-30: un año con un libro corregido junto al primero) y luego por nombre.
+        hallados.sort(key=lambda h: (not h[1], -h[0].stat().st_mtime_ns))
         path, entera, partes = hallados[0]
         if len(hallados) > 1:
             res.avisos.append('también está en ' + ', '.join(p.name for p, _e, _x in hallados[1:])
@@ -877,6 +1060,11 @@ def maximas(rutas: Iterable[Path | str], medidores: Sequence[tuple[str, str]], *
             out.append(cabecera.maxima(medidor, alimentador, periodo, instante))
         except DemandaError as exc:
             out.append(MaximaCabecera(medidor=medidor, alimentador=alimentador, error=str(exc)))
+    if cabecera.rotos:
+        # 025:RF-29: se busca en los demás, y cada resultado dice qué libros no se leyeron.
+        aviso = 'no se pudo abrir ' + '; '.join(cabecera.rotos.values())
+        for r in out:
+            r.avisos.append(aviso)
     return _unir_canales(out)
 
 
@@ -897,6 +1085,13 @@ def _unir_canales(resultados: list[MaximaCabecera]) -> list[MaximaCabecera]:
         if r.canal_de and r.error is None:
             otro = next((s for s in resultados if s is not r and s.libro == r.libro and da(s, r.canal_de)
                          and clave_codigo(s.alimentador) == clave_codigo(r.alimentador)), None)
+            if otro is None:
+                # 025: en el libro de 2025 de IN111 ningún canal tiene hoja; los dos se leen
+                # como IN111, y el segundo es la misma fila que el primero.
+                otro = next((s for s in out if s.canal_de and s.error is None
+                             and clave_codigo(s.canal_de) == clave_codigo(r.canal_de)
+                             and s.libro == r.libro
+                             and clave_codigo(s.alimentador) == clave_codigo(r.alimentador)), None)
         if otro is None:
             out.append(r)
         else:
@@ -1201,6 +1396,92 @@ def es_libro_clientes(path: Path | str, alias=ALIAS) -> bool:
         return False
 
 
+#: Los cuatro libros de la demanda medida y cómo se nombran en un aviso (025:RF-25b).
+TIPOS_DEMANDA = {'medidores': 'libro de medidores por alimentador',
+                 'cabecera': 'medición de cabecera', 'clientes': 'clientes importantes',
+                 'suministros': 'libro de suministros'}
+_HOJAS_A_MIRAR = 3          # hojas de un libro que se miran para saber de qué es
+
+
+def tipo_de_libro(path: Path | str, alias=ALIAS) -> str | None:
+    """De qué es un libro por su contenido: medidores, cabecera, clientes o suministros.
+
+    Solo la cabecera de sus primeras hojas (``nrows``): un libro de cabecera de 400 MB no
+    se lee entero para saber qué es. ``None`` si no se abre o no es de ninguno.
+    """
+    try:
+        libro = _abrir(path)
+    except DemandaError:
+        return None
+    if _hojas_resumen(libro.sheet_names):
+        return 'clientes'
+    for hoja in libro.sheet_names[:_HOJAS_A_MIRAR]:
+        try:
+            filas = libro.get_sheet_by_name(hoja).to_python(
+                skip_empty_area=False, nrows=FILAS_CABECERA + FILAS_DATOS_MINIMAS)
+        except Exception:  # noqa: BLE001 - una hoja ilegible no dice de qué es el libro
+            continue
+        if _buscar_cabecera(filas, ('alimentador', 'medidor'), alias, ('alimentador', 'medidor')):
+            return 'medidores'
+        hallada = _buscar_cabecera(filas, ('suministro_act', 'suministro', 'sed'), alias, ('sed',))
+        if hallada and {'suministro_act', 'suministro'} & set(hallada[1]):
+            return 'suministros'
+        for fila in filas[:FILAS_CABECERA]:
+            if 'kw' in columnas(fila, MAGNITUDES, alias) and any(
+                    normalizar(c) in alias['fecha'] for c in fila):
+                return 'cabecera'
+    return None
+
+
+def clasificar_carpeta_demanda(carpeta: Path | str, alias=ALIAS) -> tuple[dict[str, Path], list[str]]:
+    """Qué es cada carpeta (o libro suelto) de la carpeta de demanda, por su contenido
+    (025:RF-25b, RF-25c).
+
+    Cada empresa, y el mismo usuario, organiza las carpetas a su manera: en Electro Dunas
+    son «1.-medidoralimentador», «2.-medicioncabecera»…, y nada en el código puede contar
+    con esos nombres. De cada carpeta se mira un libro de cada año (o el primero). El de
+    medidores es un libro; los demás, su carpeta, con sus años. Un tipo en dos sitios, o en
+    ninguno, no se elige: se dice.
+    """
+    from .libros_por_anio import arbol_de_libros, es_libro
+
+    raiz = Path(carpeta)
+    if not raiz.is_dir():
+        raise DemandaError(f'No existe la carpeta de demanda: {raiz}')
+    halladas: dict[str, list[Path]] = {}
+    for hijo in sorted(raiz.iterdir(), key=lambda p: (p.name.casefold(), p.name)):
+        if hijo.is_dir():
+            libros = arbol_de_libros(hijo)
+            muestra = list({x.anio: x for x in reversed(libros)}.values()) or libros[:1]
+            tipos = {t for t in (tipo_de_libro(x.ruta, alias) for x in muestra) if t}
+            if len(tipos) != 1:
+                continue
+            tipo = tipos.pop()
+            destino = hijo
+            if tipo == 'medidores':
+                # El de medidores es uno: el más reciente si la carpeta trae varios.
+                destino = max((x.ruta for x in libros), key=lambda p: p.stat().st_mtime_ns)
+        elif es_libro(hijo):
+            tipo, destino = tipo_de_libro(hijo, alias), hijo
+            if tipo is None:
+                continue
+        else:
+            continue
+        halladas.setdefault(tipo, []).append(destino)
+    out, avisos = {}, []
+    for tipo, nombre in TIPOS_DEMANDA.items():
+        sitios = halladas.get(tipo, [])
+        if len(sitios) == 1:
+            out[tipo] = sitios[0]
+        elif sitios:
+            avisos.append(f'{nombre} ({tipo}) en varias carpetas: '
+                          + ', '.join(p.relative_to(raiz).parts[0] for p in sitios)
+                          + '; indique cuál por opción.')
+        else:
+            avisos.append(f'Ninguna carpeta trae {nombre} ({tipo}).')
+    return out, avisos
+
+
 def leer_clientes(path: Path | str, alias=ALIAS) -> tuple[list[ClienteImportante], list[str]]:
     """Hoja resumen de clientes importantes, en cualquiera de sus dos formatos (RF-34)."""
     libro = _abrir(path)
@@ -1384,7 +1665,7 @@ def maxima_de_barra(curvas: Sequence[Sequence[tuple[datetime, float, float | Non
         return None
     comunes = set(por_fecha[0]).intersection(*por_fecha[1:])
     if periodo:
-        comunes = {f for f in comunes if periodo_de_fecha(f) == periodo}
+        comunes = {f for f in comunes if en_periodo(f, periodo)}
     if not comunes:
         return None
     suma = {f: (sum(d[f][0] for d in por_fecha),

@@ -56,6 +56,7 @@ from cargas_pf import (
     potencia,
 )
 from casos_pf import NOMBRES, casos_del_proyecto, es_de_carga_nueva, preparar_sin, sin_a_con_proyecto
+from casos_pf import anio_del_plan, nombre_caso
 from casos_pf import caso as caso_del_sistema
 
 from igea_dgs.native_action import native_action_block_report
@@ -662,7 +663,9 @@ def _implementar_transformadores(app, cargas: dict, cambios: list[dict]) -> dict
         # 020:RF-17: lo escrito iría a esa variación y no a la red que se calibra.
         que = (f"las variaciones activas {', '.join(variaciones)}" if variaciones
                else f"la etapa {etapa.loc_name} grabando")
-        return {'error': f"«{NOMBRES['sin']}» tiene {que}: los transformadores se escriben en "
+        activo = app.GetActiveStudyCase()                  # el de su año (025:RF-24)
+        caso = activo.loc_name if activo is not None else NOMBRES['sin']
+        return {'error': f"«{caso}» tiene {que}: los transformadores se escriben en "
                          'la red, sin variación; desactívelas y vuelva a implementar '
                          '(020:RF-17).', 'cambios': [], 'omitidas': []}
     equip = app.GetProjectFolder('equip')
@@ -715,7 +718,8 @@ def _implementar_transformadores(app, cargas: dict, cambios: list[dict]) -> dict
 
 def resultado_transformadores(cambiados: list[dict], sobre: list[dict], fijas: dict,
                               cargas: dict, fichas: dict, *, calibracion_valida: bool,
-                              validacion: dict | None, remedios, motivo) -> dict:
+                              validacion: dict | None, remedios, motivo,
+                              caso: str = NOMBRES['sin']) -> dict:
     """Lo que dejan los transformadores nuevos en la recalibración (020:RF-26, RF-32).
 
     La sobrecarga era lo que no dejaba converger ni validar (PA217, 2026-10-16: válida a
@@ -756,7 +760,7 @@ def resultado_transformadores(cambiados: list[dict], sobre: list[dict], fijas: d
     status = 'VALIDO' if not motivos else 'FALLO'
     aviso = None
     if status == 'FALLO':
-        aviso = (f"TRANSFORMADORES: {len(cambiados)} cambiado(s) en «{NOMBRES['sin']}», que se "
+        aviso = (f"TRANSFORMADORES: {len(cambiados)} cambiado(s) en «{caso}», que se "
                  'quedan, pero ' + ('la calibración no es válida' if not calibracion_valida
                                     else 'la comprobación no pasa')
                  + '; la sobrecarga ya no es la causa. Sigue fallando: ' + '; '.join(motivos)
@@ -1567,7 +1571,7 @@ def _ejecutar_con_central(app, plan: dict, informe: dict, *, alims, elm, feeder:
             if con is not None:
                 # 014:RF-4 y RF-31: «Con proyecto» con la misma demanda, la misma central
                 # (su variación) y su P y Q en su escenario.
-                informe['sin_a_con'] = sin_a_con_proyecto(app, casos_del_proyecto(app))
+                informe['sin_a_con'] = sin_a_con_proyecto(app, casos_del_proyecto(app, anio_del_plan(plan)))
                 informe['avisos'] += informe['sin_a_con']['avisos']
                 con.Activate()
                 esc_con = app.GetActiveScenario()
@@ -1700,7 +1704,7 @@ def _preparar_alimentador(app, plan: dict, informe: dict, *, alims, feeder: str,
             informe['avisos'].append(f"{o['sed']}: transformador no cambiado: {o['motivo']}.")
         if hecho['cambios']:
             informe['avisos'].append(
-                f"{len(hecho['cambios'])} transformador(es) nuevo(s) en «{NOMBRES['sin']}», en la "
+                f"{len(hecho['cambios'])} transformador(es) nuevo(s) en «{nombre_caso('sin', anio_del_plan(plan))}», en la "
                 'red: ' + '; '.join(
                     f"{h['sed']} {h['antes']['unidades']} × {h['antes']['kva']:,.0f} kVA → "
                     f"{h['despues']['unidades']} × {h['despues']['kva']:g} kVA "
@@ -1850,27 +1854,30 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
     # verificado; si aún no existe se crea, y sin «Caso base» verificado no se calibra.
     # Al simular no se crea nada: se lee en el caso activo.
     inicial = app.GetActiveStudyCase()
-    sin = caso_del_sistema(app, 'sin')
+    # 025:RF-14, RF-18: con ``anio_casos``, en «Sin proyecto <año>» y solo en sus casos.
+    anio = anio_del_plan(plan)
+    sin = caso_del_sistema(app, 'sin', anio)
     if sin is None and not simular:
-        pedido = {'project': plan['project'], 'folder': plan.get('folder'), 'feeders': [feeder]}
+        pedido = {'project': plan['project'], 'folder': plan.get('folder'), 'feeders': [feeder],
+                  'anio_casos': anio}
         if 'caso_base_sin_verificar' in plan:
             pedido['caso_base_sin_verificar'] = plan['caso_base_sin_verificar']
         preparado, rc = preparar_sin(app, pedido)
         if rc:
             return {**informe, 'error': preparado.get('error')}, 2
         informe['casos_preparados'] = preparado.get('casos')
-        sin = caso_del_sistema(app, 'sin')
+        sin = caso_del_sistema(app, 'sin', anio)
         inicial = app.GetActiveStudyCase()
     if sin is not None:
         sin.Activate()
-        informe['caso'] = NOMBRES['sin']
-    con = caso_del_sistema(app, 'con')
+        informe['caso'] = nombre_caso('sin', anio)
+    con = caso_del_sistema(app, 'con', anio)
     escenario = app.GetActiveScenario()
     if escenario is None and not simular:
         # Sin escenario, lo escrito iría a la red que comparten los casos y cambiaría el
         # «Caso base» (015:RF-19).
-        return {**informe, 'error': f"«{NOMBRES['sin']}» no tiene escenario de operación: "
-                                    'la calibración se graba en él (015:RF-26).'}, 2
+        return {**informe, 'error': f"«{nombre_caso('sin', anio)}» no tiene escenario de "
+                                    'operación: la calibración se graba en él (015:RF-26).'}, 2
     apartadas = _apartar_cargas_nuevas(app, estado)
     if apartadas:
         informe['cargas_nuevas_apartadas'] = apartadas
@@ -1986,7 +1993,7 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
                     '(014:RF-4).')
             # 014:RF-31 a RF-34: y lo demás hecho en «Sin proyecto», como los bancos a su
             # máxima capacidad (015:RF-66) o uno creado a mano.
-            informe['sin_a_con'] = sin_a_con_proyecto(app, casos_del_proyecto(app))
+            informe['sin_a_con'] = sin_a_con_proyecto(app, casos_del_proyecto(app, anio_del_plan(plan)))
             informe['avisos'] += informe['sin_a_con']['avisos']
         if inicial is not None and app.GetActiveStudyCase() is not inicial:
             inicial.Activate()
@@ -2138,7 +2145,8 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
                 cambiados, sobre, fijas, cargas, plan.get('transformadores_sed') or {},
                 calibracion_valida=bool(res.cuadrado and not fallo_validacion_nativa),
                 validacion=informe.get('validacion_posterior_nativa'),
-                remedios=res.remedios, motivo=res.motivo)
+                remedios=res.remedios, motivo=res.motivo,
+                caso=nombre_caso('sin', anio_del_plan(plan)))
             if informe['resultado_transformadores']['status'] != 'VALIDO':
                 informe['avisos'].append(informe['resultado_transformadores']['aviso'])
         if res.reparto is not None and not fallo_validacion_nativa:
@@ -2370,8 +2378,10 @@ def _con_bancos_que_faltan(app, planes: list[dict], *, cancelado, estado: dict) 
                           'no falta ningún banco.')
     creados = []
     if pedidos and not cancelado():
-        creados = poner_bancos(app, alims, caso_del_sistema(app, 'sin'), caso_del_sistema(app, 'base'),
-                               caso_del_sistema(app, 'con'), pedidos)
+        anio = anio_del_plan(planes[0])                                  # 025:RF-18
+        creados = poner_bancos(app, alims, caso_del_sistema(app, 'sin', anio),
+                               caso_del_sistema(app, 'base'), caso_del_sistema(app, 'con', anio),
+                               pedidos)
     # RF-68: la calibración que vale, con los bancos y los ajustes del flujo restituidos.
     segunda = _ejecutar_proyecto(app, planes, cancelado=cancelado, estado=estado)
     for plan, (inf, _rc) in zip(planes, segunda):
@@ -2485,12 +2495,18 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
     validos = [p for p in planes if p['feeder'] not in salida]
     if not validos:
         return todos('ningún alimentador se puede calibrar')
-    # 015:RF-16, RF-17: en «Sin proyecto»; si aún no existe se crea, con todos.
+    # 015:RF-16, RF-17: en «Sin proyecto»; si aún no existe se crea, con todos. 025:RF-18:
+    # todos los planes de un proyecto son del mismo año; si no, no se calibra.
+    anios = {anio_del_plan(p) for p in validos}
+    if len(anios) > 1:
+        return todos('los planes son de años distintos (' + ', '.join(
+            str(a or 'sin año') for a in sorted(anios, key=str)) + '): se calibra un año cada vez')
+    anio = next(iter(anios))
     inicial = app.GetActiveStudyCase()
-    sin = caso_del_sistema(app, 'sin')
+    sin = caso_del_sistema(app, 'sin', anio)
     if sin is None:
         pedido = {'project': nombre, 'folder': planes[0].get('folder'),
-                  'feeders': [p['feeder'] for p in validos]}
+                  'feeders': [p['feeder'] for p in validos], 'anio_casos': anio}
         sin_verificar = {}
         for p in validos:
             sin_verificar.update(p.get('caso_base_sin_verificar') or {})
@@ -2498,17 +2514,17 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
             pedido['caso_base_sin_verificar'] = sin_verificar
         preparado, rc = preparar_sin(app, pedido)
         if rc:
-            return todos(preparado.get('error') or '«Sin proyecto» no se pudo preparar')
+            return todos(preparado.get('error') or f"«{nombre_caso('sin', anio)}» no se pudo preparar")
         for f in feeders:
             informes[f]['casos_preparados'] = preparado.get('casos')
-        sin = caso_del_sistema(app, 'sin')
+        sin = caso_del_sistema(app, 'sin', anio)
         inicial = app.GetActiveStudyCase()
     sin.Activate()
-    con = caso_del_sistema(app, 'con')
+    con = caso_del_sistema(app, 'con', anio)
     escenario = app.GetActiveScenario()
     if escenario is None:
-        return todos(f"«{NOMBRES['sin']}» no tiene escenario de operación: la calibración se "
-                     'graba en él (015:RF-26).')
+        return todos(f"«{nombre_caso('sin', anio)}» no tiene escenario de operación: la "
+                     'calibración se graba en él (015:RF-26).')
     apartadas = _apartar_cargas_nuevas(app, estado)
     pu = next((float(p['tension_fuente_pu']) for p in validos if p.get('tension_fuente_pu')), None)
     consigna = fijar_consigna_de_la_fuente(app, pu, [sin, con]) if pu else []   # 021:RF-61
@@ -2520,7 +2536,7 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
     for plan in validos:
         f = plan['feeder']
         inf = informes[f]
-        inf['caso'] = NOMBRES['sin']
+        inf['caso'] = nombre_caso('sin', anio)
         if apartadas:
             inf['cargas_nuevas_apartadas'] = apartadas
             inf['avisos'].append('Cargas nuevas fuera del ajuste mientras se mide (vuelven al '
@@ -2712,7 +2728,7 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
                                               'fallos': []}]
             if con is not None:
                 # 014:RF-31: lo hecho a mano en «Sin proyecto», también en «Con proyecto».
-                sincronia = sin_a_con_proyecto(app, casos_del_proyecto(app))
+                sincronia = sin_a_con_proyecto(app, casos_del_proyecto(app, anio))
                 # 014:RF-4: «Con proyecto» con la misma demanda y las mismas centrales.
                 con.Activate()
                 esc_con = app.GetActiveScenario()
@@ -2858,7 +2874,7 @@ def _cerrar_alimentador_en_proyecto(app, alims, feeder: str, p: dict, inf: dict,
             p['plan'].get('transformadores_sed') or {},
             calibracion_valida=bool(res.cuadrado and valido),
             validacion=inf.get('validacion_posterior_nativa'), remedios=res.remedios,
-            motivo=res.motivo)
+            motivo=res.motivo, caso=nombre_caso('sin', anio_del_plan(p['plan'])))
         if inf['resultado_transformadores']['status'] != 'VALIDO':
             inf['avisos'].append(inf['resultado_transformadores']['aviso'])
     return valido

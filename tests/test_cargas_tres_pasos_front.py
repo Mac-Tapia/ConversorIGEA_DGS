@@ -134,11 +134,21 @@ def test_carga_nueva_con_kw_y_fp():
 
 
 def test_carga_nueva_ubicada_por_coordenadas():
-    """004:RF-47 — Lat/Lon a la vista; CoordX/CoordY, barra, alimentador, línea y BT plegados."""
+    """004:RF-47, 025:RF-45 — Lat/Lon y el alimentador (obligatorio) a la vista; CoordX/CoordY,
+    barra, línea y BT plegados."""
     campos = _campos_nueva()
-    for clave in ('Lat', 'Lon'):
+    for clave in ('Lat', 'Lon', 'alimentador'):
         assert re.search(rf"key: '{clave}'(?![^}}]*mas: true)[^}}]*}}", campos), clave
-    for clave in ('CoordX', 'CoordY', 'barra', 'alimentador', 'tipo_linea', 'tension_bt_kv'):
+    assert re.search(r"key: 'alimentador'[^}]*required: true", campos)
+    for clave in ('CoordX', 'CoordY', 'barra', 'tipo_linea', 'tension_bt_kv'):
         assert re.search(rf"key: '{clave}'[^}}]*mas: true", campos), clave
     assert 'NUEVA_CAMPOS.filter((c) => !c.mas).map(campoNueva)' in CARGAS
     assert '<summary>Más opciones' in CARGAS
+
+
+def test_cargas_rechazadas_con_su_motivo_en_el_plan():
+    """025:RF-46 — el paso de cargas lista cada fila rechazada con su motivo y dice que el
+    resto se aplica."""
+    lista, aviso = _pos(CARGAS, 'plan.row_errors.slice(0, 30).map((e) => <li key={e}>{e}</li>)',
+                        'fila(s) con error: se omiten, el resto se aplica.')
+    assert abs(lista - aviso) < 400

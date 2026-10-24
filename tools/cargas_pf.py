@@ -963,8 +963,9 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict
                 por_tramo.setdefault(r['partir']['tramo'], []).append(r['fila']['sed'])
         for tramo, seds in sorted(por_tramo.items()):
             if len(seds) > 1:
-                avisos.append(f"{', '.join(seds)} parten el mismo tramo {tramo}, una tras otra: "
-                              'cada una se mide con las anteriores de ese tramo activas.')
+                avisos.append(f"{', '.join(seds)} caen en el mismo tramo {tramo}: la primera lo "
+                              'parte y las demás se conectan en un extremo existente del tramo, '
+                              'cada una independiente (025:RF-47).')
     if de_otros:
         total = sum(de_otros.values())
         detalle = ', '.join(f'{f} ({n})' for f, n in sorted(de_otros.items()))
@@ -1555,10 +1556,14 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
     # proyecto», que se crean si faltan, solo con el «Caso base» verificado (014:RF-19).
     # Al simular no se crea nada.
     c011 = _casos_011()
-    casos = c011.tres_casos(app)
+    # 025:RF-36, RF-38: con la base calibrada en un año, en los casos de ese año; los de
+    # otro año no se tocan.
+    anio = c011.anio_del_plan(plan)
+    nombre_sin, nombre_con = c011.nombre_caso('sin', anio), c011.nombre_caso('con', anio)
+    casos = c011.tres_casos(app, anio)
     if not simular and not casos and (plan.get('nuevas') or plan.get('demandas')):
         pedido = {'project': plan['project'], 'folder': plan.get('folder'),
-                  'feeders': list(plan['feeders'])}
+                  'feeders': list(plan['feeders']), 'anio_casos': anio}
         if 'caso_base_sin_verificar' in plan:
             pedido['caso_base_sin_verificar'] = plan['caso_base_sin_verificar']
         preparados, rc = c011.preparar_con(app, pedido)
@@ -1566,7 +1571,7 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
             return {**informe, 'error': preparados.get('error')}, 2
         if any((preparados.get('casos') or {}).get(r, {}).get('creado') for r in ('sin', 'con')):
             informe['casos_preparados'] = preparados.get('casos')
-        casos = c011.tres_casos(app)
+        casos = c011.tres_casos(app, anio)
     if casos and not simular:
         # 014:RF-31 a RF-34: lo hecho a mano en «Sin proyecto», también en «Con proyecto»,
         # antes de apagar ningún escenario para escribir.
@@ -1593,7 +1598,7 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
         usados: set[str] = set()
         if any(asignadas.values()):
             # 015:RF-27: las demandas, en el escenario de «Sin proyecto», sin variación.
-            informe['demandas_en'] = c011.NOMBRES['sin']
+            informe['demandas_en'] = nombre_sin
         for feeder in alims.elegidos:
             informe['feeders'].append({
                 'feeder': feeder,
@@ -1613,6 +1618,7 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
             # proyecto» igualmente.
             previo = app.GetActiveStudyCase()
             casos['con'].Activate()
+            _obras_de_las_reutilizadas(app, c011, anio, casos, informe)
             for v in reutilizadas:
                 v.Activate()
             if previo is not None:
@@ -1638,7 +1644,8 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
             apagados.append((caso, esc))
 
     if casos:
-        informe['casos'] = {'demandas': c011.NOMBRES['sin'], 'cargas': c011.NOMBRES['con']}
+        informe['casos'] = {'demandas': nombre_sin, 'cargas': nombre_con}
+        informe['anio_casos'] = anio            # 025:RF-44: la escalera, en los casos de ese año
         # 015:RF-27: en «Sin proyecto» las demandas se escriben con su escenario activo,
         # que es donde quedan; ninguna variación graba allí.
         casos['sin'].Activate()
@@ -1663,7 +1670,7 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
             dem_var = variacion
             informe['variacion'] = informe['variacion_demandas'] = variacion.loc_name
         elif any(asignadas.values()):
-            informe['demandas_en'] = c011.NOMBRES['sin']
+            informe['demandas_en'] = nombre_sin
         for feeder in alims.elegidos:
             if cancelado():
                 informe['cancelado'] = True
@@ -1715,6 +1722,14 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
             diagrama = Diagrama(proyecto)
             usados: set[str] = set()
             tramos: dict = {}                     # 016:RF-77: tramo → variaciones que lo parten
+            # 025:RF-47: también las cargas nuevas de otra tanda que ya parten un tramo; una
+            # nueva en ese tramo va a su extremo, no lo parte otra vez.
+            carpeta_var = app.GetProjectFolder('scheme')
+            for v in (carpeta_var.GetContents('*.IntScheme', 1) if carpeta_var else []):
+                if c011.es_de_carga_nueva(v):
+                    for clase, n in c011.objetos_de_variacion(v):
+                        if clase == 'ElmLne':
+                            tramos.setdefault(n, []).append((v, None))
             for feeder in con_cargas:
                 for r in resueltas[feeder]:
                     if cancelado():
@@ -1772,10 +1787,24 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
                 v.Activate()
             # 014:RF-24: la variación de una carga que ya existía queda activa en «Con
             # proyecto», también si no se creó ninguna otra.
+            if reutilizadas:
+                _obras_de_las_reutilizadas(app, c011, anio, casos, informe)
             for v in reutilizadas:
                 v.Activate()
             if informe['cargas'] or reutilizadas:
                 informe['dibujo'] = completar_diagrama(app, proyecto)       # 016:RF-89
+                # 025:RF-43: si no converge con todas, qué cargas no caben juntas.
+                juntas = c011.cargas_que_no_convergen_juntas(
+                    app, casos['con'], lambda a: bool(flujo_de_carga(a).get('converged')))
+                if juntas:
+                    informe['no_convergen_juntas'] = juntas
+                    solas = juntas['solas_que_no_convergen']
+                    informe['avisos'].append(
+                        f"«{juntas['caso']}» no converge con sus {len(juntas['cargas'])} cargas nuevas"
+                        + (f"; solas tampoco: {', '.join(solas)}" if solas else '; cada una sola, sí')
+                        + (f"; basta quitar una de: {', '.join(juntas['basta_quitar_una_de'])}"
+                           if juntas['basta_quitar_una_de'] else '')
+                        + '. Hacen falta obras: la escalera de obras (025:RF-44).')
             if inicial is not None:
                 inicial.Activate()
         informe['variaciones_activas_fin'] = variaciones_activas(app)
@@ -1783,6 +1812,34 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
     fallos = sum(len(f['fallos']) for f in informe['feeders'])
     print(f'  fallos {fallos}')
     return informe, (2 if fallos else 0)
+
+
+def _obras_de_las_reutilizadas(app, c011, anio, casos, informe) -> None:
+    """Con el caso «Con proyecto <año>» activo, las obras sobre las que se crearon las cargas
+    reutilizadas de los casos sin año, activas también aquí (025:RF-42), con la operación
+    que dejaron en el escenario de «Con proyecto» (025:RF-42b). Sin año, nada: son del
+    mismo «Con proyecto»."""
+    if not anio:
+        return
+    activo = app.GetActiveStudyCase()
+    obras = c011.obras_del_con_proyecto_sin_anio(app)
+    if activo is not None:
+        activo.Activate()
+    ya = {v.loc_name for v in (app.GetActiveNetworkVariations() or [])}
+    nuevas = [v for v in obras if v.loc_name not in ya]
+    for v in nuevas:
+        v.Activate()
+    informe['obras_activadas'] = sorted(v.loc_name for v in nuevas)
+    if nuevas:
+        informe['avisos'].append(
+            f"Las cargas reutilizadas se crearon sobre obras de «{c011.NOMBRES['con']}»; activas "
+            f"también en «{c011.nombre_caso('con', anio)}»: " + ', '.join(informe['obras_activadas'])
+            + ' (025:RF-42).')
+    if obras and casos:
+        # También si ya estaban activas: la operación del escenario no la trae la variación.
+        operacion = c011.operacion_de_las_obras(app, casos)
+        informe['operacion_de_las_obras'] = operacion
+        informe['avisos'] += operacion['avisos']
 
 
 def _demandas_al_escenario(app, casos, apagados, filas) -> list[dict]:
@@ -1828,42 +1885,52 @@ def _con_escenario(escenario):
             escenario.Deactivate(0)
 
 
-def _reubicar(alims, feeder: str, r: dict, nodos: list) -> dict:
-    """La conexión de ``r`` cuando una carga anterior de la tanda ya partió su tramo.
+def _a_un_extremo(r: dict, quien: str) -> dict:
+    """La conexión de ``r`` cuando otra carga nueva ya parte su tramo (025:RF-47).
 
-    No se parte otra vez un trozo creado por otra variación: DIgSILENT no resolvía la
-    referencia y el flujo no se ejecutaba («Cubicle/Feeder Not found» en NODE_T_IC_12,
-    IN111 + TA225, 2026-10-15). La carga se conecta en el nodo de esas cargas más cercano a
-    sus coordenadas, con su propia línea hasta su punto (016:RF-77).
+    Usuario, 2026-10-23: «cada carga debe ser totalmente independiente». Antes se conectaba
+    en el nodo que dejó la otra carga (016:RF-77), y CH_8 de TM105 colgaba de NODE_T_CH_3:
+    al desactivar CH_3, CH_8 se quedaba sin conexión. Partir otra vez el mismo tramo en otra
+    variación tampoco vale: juntas lo dejaban partido dos veces sobre la misma línea y el
+    flujo no se ejecutaba (IN111 + TA225, 2026-10-15). Se conecta en la barra existente más
+    cercana de los dos extremos del tramo original, con su propia línea hasta su punto: no
+    toca nada que cree otra variación.
     """
-    fila = r['fila']
+    p = r['partir']
+    linea, fila = p['linea'], r['fila']
+    extremos = [t for t in (getattr(getattr(linea, lado, None), 'cterm', None) for lado in ('bus1', 'bus2'))
+                if t is not None]
+    if not extremos:
+        raise RuntimeError(f"el tramo {p['tramo']} no tiene barras en sus extremos")
     punto = (float(fila['lat']), float(fila['lon']))
-    con_gps = [(distancia_m(gps_de(b), punto), b) for b in nodos if gps_de(b)]
-    if not con_gps:
-        raise RuntimeError(f"los nodos de las cargas que partieron {r['partir']['tramo']} no "
-                           'tienen coordenadas')
-    dist, barra = min(con_gps, key=lambda x: x[0])
-    return {**r, 'partir': None, 'barra': barra, 'distancia_m': dist,
-            'criterio': f"nodo de la carga anterior en {r['partir']['tramo']}"}
+    con_gps = [(distancia_m(gps_de(t), punto), t) for t in extremos if gps_de(t)]
+    if con_gps:
+        dist, barra = min(con_gps, key=lambda x: x[0])
+    else:
+        dist, barra = r['distancia_m'], extremos[0 if p.get('fraccion', 0) < 0.5 else -1]
+    tipo = r.get('tipo') or getattr(linea, 'typ_id', None)
+    return {**r, 'partir': None, 'barra': barra, 'distancia_m': dist, 'tipo': tipo,
+            'origen_tipo': r.get('origen_tipo') or 'del tramo que se parte',
+            'criterio': f"extremo existente de {p['tramo']} (ese tramo ya lo parte {quien})"}
 
 
 def _una_carga(app, plan, alims, proyecto, typ_folder, diagrama, feeder, r, nombre, sin, de_cargas,
                tramos=None, escenario=None) -> dict:
     """Una carga en su variación: crear, medir con proyecto, evaluar y desactivar (RF-11 a RF-15, RF-22).
 
-    016:RF-77: si una carga anterior de la tanda ya partió su tramo, esta parte el trozo
-    donde cae su punto, con las variaciones de esas cargas activas, y se mide con ellas.
-    Cada una partía el tramo original en su variación, y juntas en «Con proyecto» lo
-    dejaban partido dos veces sobre la misma línea: IN111 + TA225 (2026-10-15), IC_11,
-    IC_12, IC_15 e IC_17 en SEC_1091_815724, y el flujo no convergía con tres.
+    025:RF-47 y RF-48 (cambian 016:RF-77): si otra carga nueva ya partió su tramo, esta va a
+    un extremo existente (:func:`_a_un_extremo`) y se mide con las variaciones de las demás
+    cargas inactivas. Colgar del nodo de otra dejaba a CH_8 de TM105 sin red al desactivar
+    CH_3 (2026-10-23); partir otra vez el tramo original lo dejaba partido dos veces en
+    «Con proyecto» (IN111 + TA225, 2026-10-15) y el flujo no convergía.
     """
     tramos = {} if tramos is None else tramos
     p = r.get('partir')
-    previas = [v for v, _ in tramos.get(p['tramo'], [])] if p else []
-    for v in previas:
-        v.Activate()
-    if previas:
-        r = _reubicar(alims, feeder, r, [n for _, n in tramos[p['tramo']]])
+    # 025:RF-47: con el tramo ya partido por otra carga, esta va a un extremo existente y no
+    # se activa ninguna variación ajena: cada carga se mide y se desactiva sola.
+    otras = [v for v, _ in tramos.get(p['tramo'], [])] if p else []
+    if otras:
+        r = _a_un_extremo(r, ', '.join(v.loc_name for v in otras))
     variacion, etapa = crear_variacion(app, nombre, plan.get('stamp') or '')
     de_cargas.append(variacion)
     try:
@@ -1875,18 +1942,17 @@ def _una_carga(app, plan, alims, proyecto, typ_folder, diagrama, feeder, r, nomb
             variacion.Delete()
         except Exception:  # noqa: BLE001, S110
             pass
-        for v in previas:
-            v.Deactivate()
         return {'error': f'{type(exc).__name__}: {exc}'}
     if p and r.get('partir') is not None:
         tramos.setdefault(p['tramo'], []).append((variacion, r['partir'].get('barra_nueva')))
     elif p:
         tramos[p['tramo']].append((variacion, r['barra']))
     nota = r.get('nota')
-    if previas:
+    if otras:
         nota = ((nota + ' ') if nota else '') + (
-            f"Se conecta en el nodo que dejaron {', '.join(v.loc_name for v in previas)} en el tramo "
-            f"{p['tramo']}: se mide con ellas activas.")
+            f"El tramo {p['tramo']} ya lo parte {', '.join(v.loc_name for v in otras)}: se conecta "
+            f"en su extremo {getattr(r['barra'], 'loc_name', r['barra'])}, independiente de esa "
+            'carga (025:RF-47).')
     creada.update(variacion=variacion.loc_name, nota=nota)
     if plan.get('costos'):
         from igea_dgs.economia import CostosUnitarios, datos_etapa
@@ -1904,8 +1970,6 @@ def _una_carga(app, plan, alims, proyecto, typ_folder, diagrama, feeder, r, nomb
         if plan.get('tec'):
             creada['tecnico_economico'] = tecnico_economico(app, plan['tec'])   # RF-22, RF-23
     variacion.Deactivate()                                # RF-12: la siguiente no la ve
-    for v in previas:
-        v.Deactivate()
     print(f"  {creada['sed']} → {creada['barra']} en {variacion.loc_name}")
     return creada
 

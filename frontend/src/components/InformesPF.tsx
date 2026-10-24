@@ -433,7 +433,7 @@ function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, 
           </label>
           <div className="field span-2">
             <span>Libro de pérdidas de la empresa</span>
-            {libro ? <>
+            {libro && <>
               <div className="row"><strong>{libro.name}</strong>
                 <button className="btn btn-ghost btn-sm" onClick={quitarLibro}>Quitar</button></div>
               {libro.error ? <small className="alert alert-warn">{libro.error}</small>
@@ -441,15 +441,16 @@ function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, 
                   reconocidas {lectura.reconocido_kw_pct ?? '—'} % en kW y {lectura.reconocido_kwh_pct ?? '—'} % en kWh,
                   precio {lectura.precio_compra ?? '—'}{lectura.faltan.length ? ` · falta: ${lectura.faltan.join(', ')}` : ''}.
                   Se usa si deja en blanco los campos de abajo.</small>}
-            </> : <>
-              <FileDrop compact accept=".xlsx,.xlsm" onFiles={subirLibro}><span>Soltar o <u>elegir</u></span></FileDrop>
-              {health.server_paths && <div className="row">
-                <input className="search" placeholder="o ruta en el servidor" value={ruta}
-                  onChange={(e) => setRuta(e.target.value)} />
-                <button className="btn btn-sm" disabled={!ruta.trim()} onClick={libroPorRuta}>Usar ruta</button>
-              </div>}
-              <small className="muted">Sin libro, escriba lo reconocido abajo; si falta, queda señalado en el Word.</small>
             </>}
+            {/* Spec 025, RF-39: otro libro se sube o se indica sin quitar antes el actual. */}
+            <FileDrop compact accept=".xlsx,.xlsm" onFiles={subirLibro}>
+              <span>{libro ? 'Reemplazar: soltar' : 'Soltar'} o <u>elegir</u></span></FileDrop>
+            {health.server_paths && <div className="row">
+              <input className="search" placeholder={`o ruta en el servidor${libro ? ' (reemplaza la actual)' : ''}`} value={ruta}
+                onChange={(e) => setRuta(e.target.value)} />
+              <button className="btn btn-sm" disabled={!ruta.trim()} onClick={libroPorRuta}>Usar ruta</button>
+            </div>}
+            {!libro && <small className="muted">Sin libro, escriba lo reconocido abajo; si falta, queda señalado en el Word.</small>}
           </div>
           <Campos campos={PERDIDAS} valores={perd} fijar={(k, v) => setPerd((p) => ({ ...p, [k]: v }))} />
         </div>
