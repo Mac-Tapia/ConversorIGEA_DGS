@@ -488,10 +488,12 @@ def _escalera_falsa(tmp_path, monkeypatch, evaluar, costos):
         'alimentadores': {'F1': {'kv': 10.0}}, 'tipos': [_tipo_linea('AAAC 240', 10, 0.55)]}})
     monkeypatch.setattr(services, '_cargas_nuevas_aplicadas', lambda *_a: [
         {'sed': 'Q1', 'alimentador': 'F1', 'barra': 'F1_B4', 'criterio': 'barra de la troncal más cercana'}])
-    monkeypatch.setattr(services, 'native_action_context', lambda *a, **k: {})
+    # El contexto firmado lleva los alimentadores del plan, uno por alimentador.
+    monkeypatch.setattr(services, 'native_action_context', lambda ws_, p_, feeders, accion: {'feeders': list(feeders)})
     planes = []
 
     def guion(ws_, ctx, script, plan, *, nombre, args=(), **_k):
+        assert plan['native_action_context']['feeders'] == plan['feeders'], 'contexto de otro alimentador'
         planes.append((args, plan))
         if '--escalera-datos' in args:
             return 0, {'alimentadores': {'F1': {
@@ -530,6 +532,7 @@ def test_la_escalera_elige_la_mas_barata_que_cumple_y_aplica_solo_esa(tmp_path, 
     services, ws, ctx, planes, aplicadas = _escalera_falsa(
         tmp_path, monkeypatch, evaluar, {'bancos': 9000, 'nueva_terna': 40000, 'cambio_seccion': 30000})
     r = services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=ANIO)
+    assert all(p['apartar_cargas_de'] == [] for _a, p in planes)        # 025:RF-69, solo F1
     (f1,) = r['alimentadores']
     assert f1['elegida'].startswith('sección') and r['sorteos'] == 20
     assert aplicadas == [(['seccion'], 'IGEA_Biblioteca_tipos', ANIO)]

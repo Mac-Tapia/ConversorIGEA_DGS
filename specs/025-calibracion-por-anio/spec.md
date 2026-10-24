@@ -261,6 +261,15 @@ nueva por su factor de uso; vale si cumple en el 95 % de 200 sorteos)
   por la web»).
 - RF-68: SI los precios de pérdidas están en otra moneda y el operador no da el tipo de
   cambio, ENTONCES EL SISTEMA no empezará la escalera y lo dirá en la web.
+- RF-69: MIENTRAS evalúa la escalera de un alimentador, EL SISTEMA tendrá activas en «Con
+  proyecto <año>» solo sus cargas nuevas y las de los alimentadores ya resueltos (con su obra
+  aplicada), y apartará un momento las de los demás, para volver a activarlas al terminar.
+  (Pisco, 2026-10-24: con las cargas de PA217 activas «Con proyecto 2025» no convergía, y
+  todas las variantes de SI213 salían «no converge» aunque el problema no fuera suyo.)
+- RF-70: EL SISTEMA calculará las pérdidas de cada variante como lo que entra por la
+  cabecera menos lo que consumen sus cargas en el flujo, no su potencia nominal. (Pisco,
+  2026-10-24: con tensiones de 0,88 p.u. las cargas consumían menos que su nominal y las
+  pérdidas salían negativas, −2044 kW en SI213.)
 
 Caso de diagnóstico con las cargas nuevas (usuario, 2026-10-24: «debes hacer una copia al
 caso sin proyecto y su escenario de operación de sin proyecto y ahí debes integrar las
