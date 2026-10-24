@@ -128,3 +128,9 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]` y pa
       en «SET COH» deducida en Nasca. `igea-dgs convert --por-sistema Chincha`: 27
       alimentadores en 5 SET, la CHN con barras de 10 y 22,9 kV, oráculo converge, 0 errores
       (CN103 no tiene tramos y queda fuera, como todo alimentador sin red).
+- [ ] T16. Cada diagrama con su origen: gráficos y conectores de cada `IntGrfnet` desplazados
+      al margen, la hoja del manifiesto desde (0, 0), y lo que dibujan los guiones situado
+      con las barras de su diagrama; línea base de la 001 regenerada. (RF-65)
+      Hecho cuando: `pytest -q tests/test_dgs_por_set.py tests/test_diagram_topology_coverage.py
+      tests/test_cargas_pf_guion_016.py` en verde, suite completa con las siete variables sin
+      omitidas y, en DIgSILENT, la sonda de T14 da cada hoja con todos sus gráficos dentro.

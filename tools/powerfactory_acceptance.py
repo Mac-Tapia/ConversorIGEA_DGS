@@ -2311,6 +2311,23 @@ def separacion_curvas(grid: dict[str, list[tuple[float, float]]],
             'muestra': [f'{n} ({d:.1f} m)' for d, n in distintas[:10]]}
 
 
+def separacion_por_diagrama(curvas: list[dict[str, list[tuple[float, float]]]],
+                            gps: dict[str, list[tuple[float, float]]]) -> dict[str, Any]:
+    """``separacion_curvas`` con un ajuste por diagrama, sumado.
+
+    Cada diagrama tiene su propio origen (022:RF-65): con un solo ajuste para todos, Nasca
+    por SET (2026-10-24) daba las 2794 líneas distintas, hasta 145 km, con el mapa bien.
+    """
+    medidos = [p for p in (separacion_curvas(c, gps) for c in curvas) if p['compared']]
+    if not medidos:
+        return {'compared': 0, 'distintas': 0, 'max_m': None, 'muestra': []}
+    return {'compared': sum(p['compared'] for p in medidos),
+            'distintas': sum(p['distintas'] for p in medidos),
+            'max_m': max(p['max_m'] for p in medidos),
+            'unidades_por_metro': medidos[0].get('unidades_por_metro'),
+            'muestra': [m for p in medidos for m in p['muestra']][:10]}
+
+
 def curvas_de_la_grid(diagram: Any) -> dict[str, list[tuple[float, float]]]:
     """Polilínea de cada ``ElmLne`` en la grid: sus dos ``IntGrfcon`` unidos por el centro."""
     curvas: dict[str, list[tuple[float, float]]] = {}
@@ -2936,7 +2953,8 @@ def run_acceptance(
         try:
             gps_lineas = {_name(l): [tuple(float(x) for x in fila)[:2]
                                      for fila in (_attr(l, 'GPScoords') or [])] for l in lines}
-            curvas = separacion_curvas(curvas_de_la_grid(diagram), gps_lineas)
+            diagramas = diagram.objetos if isinstance(diagram, _RedesUnidas) else [diagram]
+            curvas = separacion_por_diagrama([curvas_de_la_grid(d) for d in diagramas], gps_lineas)
         except Exception as exc:  # noqa: BLE001 - se informa, no se adivina
             curvas = {'error': str(exc)}
             warnings.append(f'No se pudo comparar la grid con el mapa geográfico: {exc}')

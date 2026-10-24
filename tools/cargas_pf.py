@@ -1124,10 +1124,17 @@ class Diagrama:
         hallado = self.por_obj.get(clave_pf(obj))
         return ((hallado[0].rCenterX, hallado[0].rCenterY), hallado[1]) if hallado else (None, None)
 
-    def _escala(self, punto):
-        """Terreno (m) → diagrama por mínimos cuadrados con las barras dibujadas más cercanas."""
+    def _escala(self, punto, diagrama=None):
+        """Terreno (m) → diagrama por mínimos cuadrados con las barras dibujadas más cercanas.
+
+        Solo con las de ``diagrama``: cada diagrama tiene su propio origen (022:RF-65), y una
+        barra de la SET vecina daría la posición en el marco de otra hoja.
+        """
         refs = []
-        for grf, _net, obj in self.por_obj.values():
+        propio = clave_pf(diagrama) if diagrama is not None else None
+        for grf, net, obj in self.por_obj.values():
+            if propio is not None and clave_pf(net) != propio:
+                continue
             gps = gps_de(obj)
             if gps is not None:
                 refs.append((distancia_m(gps, punto), gps, (grf.rCenterX, grf.rCenterY)))
@@ -1160,7 +1167,7 @@ class Diagrama:
         fila = r['fila']
         destino = None
         if fila.get('lat') is not None:
-            escala = self._escala((fila['lat'], fila['lon']))
+            escala = self._escala((fila['lat'], fila['lon']), grfnet)
             if escala is not None:
                 destino = escala(0.0, 0.0)
         if destino is None:
@@ -1218,7 +1225,7 @@ class Diagrama:
         if not refs:
             return None, None
         net = min(refs, key=lambda r: distancia_m(r[0], punto))[2]
-        escala = self._escala(punto)
+        escala = self._escala(punto, net)
         if escala is None:
             return None, None
         return (lambda q: escala(*a_metros(punto, q))), net

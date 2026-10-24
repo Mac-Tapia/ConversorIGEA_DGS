@@ -274,3 +274,33 @@ def test_lo_que_parte_la_carga_queda_dibujado(guion):
     nodo, b2 = simbolos['NODE_T_N1'].rCenterX, simbolos['F1_B2'].rCenterX
     assert fines == sorted([round(nodo, 3), round(b2, 3)])
     assert nodo == pytest.approx((simbolos['F1_B1'].rCenterX + b2) / 2, abs=0.5)
+
+
+def test_lo_nuevo_se_situa_con_las_barras_de_su_diagrama(guion):
+    """022:RF-65 — cada diagrama tiene su propio origen: lo nuevo se sitúa solo con las
+    barras de su diagrama, aunque las de otra SET estén más cerca del punto."""
+    class Obj:
+        def __init__(self, nombre, **kw):
+            self.nombre = nombre
+            self.__dict__.update(kw)
+
+        def GetFullName(self):
+            return self.nombre
+
+        def GetContents(self, _patron, *_a):
+            return self.__dict__.get('hijos', [])
+
+    def barra(nombre, lat, lon, x, y):
+        return Obj(f'G_{nombre}', pDataObj=Obj(nombre, GPSlat=lat, GPSlon=lon),
+                   rCenterX=x, rCenterY=y, sSymNam='PointTerm', rSizeX=1.0, rSizeY=1.0)
+
+    # El mismo terreno en las dos hojas; la de B, con el origen 10 000 más allá y sus
+    # barras algo más cerca del punto.
+    puntos = [(LAT, LON0), (LAT + 0.001, LON0), (LAT, LON0 + 0.001)]
+    hoja_a = Obj('A.IntGrfnet', hijos=[barra(f'A{i}', la, lo, 100.0 * i, 50.0 * i)
+                                       for i, (la, lo) in enumerate(puntos)])
+    hoja_b = Obj('B.IntGrfnet', hijos=[barra(f'B{i}', la + 0.0001, lo, 10_000.0 + 100.0 * i, 50.0 * i)
+                                       for i, (la, lo) in enumerate(puntos)])
+    diagrama = guion.Diagrama(Obj('P', hijos=[hoja_a, hoja_b]))
+    x, _y = diagrama._escala((LAT + 0.0002, LON0 + 0.0002), hoja_a)(0.0, 0.0)
+    assert x < 1_000.0, 'en el marco de la hoja A, no en el de B'

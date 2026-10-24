@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from collections import Counter, defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Mapping
 import math
@@ -707,6 +707,48 @@ def _connector_values(points: list[tuple[float, float]]) -> dict[str, object]:
         values[f'rX:{i}'] = x
         values[f'rY:{i}'] = y
     return values
+
+
+def _al_origen_de_cada_diagrama(graficos: list[dict[str, object]],
+                                conectores: list[dict[str, object]],
+                                hoja: DiagramSheet, diagrama_principal: str,
+                                margen: float = DIAGRAM_SHEET_MARGIN_DU) -> DiagramSheet:
+    """Lleva cada diagrama a su origen: su gráfico más bajo y el más a la izquierda, al margen.
+
+    DIgSILENT dimensiona la hoja de un diagrama importado desde (0, 0) hasta el mayor de sus
+    gráficos: lo que cae en negativo queda fuera. Las coordenadas salen del centro del mapa
+    de toda la red, y Pisco tenía un cuarto del dibujo fuera de su hoja; en Nasca por SET
+    (2026-10-24) cada diagrama seguía en el marco del zonal, la SET 51 se quedó en A4 y la
+    55 con una hoja de alto negativo (022:RF-65). Desplazar no cambia la escala ni el
+    recorrido de las líneas, y el GPS de barras y líneas no se toca. Devuelve la hoja del
+    diagrama principal.
+    """
+    diagrama_de = {g['FID']: g['fold_id'] for g in graficos}
+    xs: dict[object, list[float]] = defaultdict(list)
+    ys: dict[object, list[float]] = defaultdict(list)
+    for g in graficos:
+        xs[g['fold_id']].append(float(g['rCenterX']))
+        ys[g['fold_id']].append(float(g['rCenterY']))
+    for c in conectores:
+        d = diagrama_de[c['fold_id']]
+        for i in range(int(c['rX:SIZEROW'])):
+            xs[d].append(float(c[f'rX:{i}']))
+            ys[d].append(float(c[f'rY:{i}']))
+    paso = {d: (margen - min(xs[d]), margen - min(ys[d])) for d in xs}
+    for g in graficos:
+        dx, dy = paso[g['fold_id']]
+        g['rCenterX'] = float(g['rCenterX']) + dx
+        g['rCenterY'] = float(g['rCenterY']) + dy
+    for c in conectores:
+        dx, dy = paso[diagrama_de[c['fold_id']]]
+        for i in range(int(c['rX:SIZEROW'])):
+            c[f'rX:{i}'] = float(c[f'rX:{i}']) + dx
+            c[f'rY:{i}'] = float(c[f'rY:{i}']) + dy
+    if diagrama_principal not in paso:
+        return hoja
+    dx, dy = paso[diagrama_principal]
+    return replace(hoja, xmin=0.0, ymin=0.0, xmax=max(xs[diagrama_principal]) + dx + margen,
+                   ymax=max(ys[diagrama_principal]) + dy + margen)
 
 
 def _radial_offsets(count: int, radius: float) -> list[tuple[float, float]]:
@@ -1417,6 +1459,10 @@ def write_dgs(
     graphic_fids: dict[str, str] = {}
     visible_nodes: set[str] = set()
     diagram_sheet: DiagramSheet | None = None
+    # Valores de cada IntGrf e IntGrfcon, en el orden en que se escriben: se llevan al origen
+    # de su diagrama al final (022:RF-65).
+    graficos: list[dict[str, object]] = []
+    conectores: list[dict[str, object]] = []
     if geography is not None:
         # Build the adjacency index and the drawn-section set once for the whole
         # graphic layer; every helper below reuses them.
@@ -1441,8 +1487,8 @@ def write_dgs(
                 continue
             fid = reg.new(); graphic_fids[f'node:{node_id}'] = fid
             x, y = node_xy[node_id]
-            rows['IntGrf'].append(_make_row(
-                schema, 'IntGrf', FID=fid, OP='C', loc_name=_loc_name(f'G_{node_id}'),
+            graficos.append(dict(
+                FID=fid, OP='C', loc_name=_loc_name(f'G_{node_id}'),
                 fold_id=diag_of(node_id), iCol=1, iVis=1, iLevel=1,
                 rCenterX=x, rCenterY=y, sSymNam='PointTerm', pDataObj=node_fids[node_id],
                 iRot=0, rSizeX=layout.tam('PointTerm'), rSizeY=layout.tam('PointTerm'),
@@ -1485,8 +1531,8 @@ def write_dgs(
             fid = reg.new()
             graphic_fids[f'line:{line.section_id}'] = fid
             irot = _line_irot(augmented)
-            rows['IntGrf'].append(_make_row(
-                schema, 'IntGrf', FID=fid, OP='C',
+            graficos.append(dict(
+                FID=fid, OP='C',
                 loc_name=_loc_name(f'G_{line.section_id}'),
                 fold_id=diag_of(line.from_node), iCol=1, iVis=1, iLevel=1,
                 rCenterX=center[0], rCenterY=center[1], sSymNam='d_lin',
@@ -1502,8 +1548,8 @@ def write_dgs(
             right[-1] = node_xy[line.to_node]
             for con_nr, con_points in ((0, left), (1, right)):
                 con_fid = reg.new()
-                rows['IntGrfcon'].append(_make_row(
-                    schema, 'IntGrfcon', FID=con_fid, OP='C',
+                conectores.append(dict(
+                    FID=con_fid, OP='C',
                     loc_name=_loc_name(f'GCO_{con_nr + 1}_{line.section_id}'),
                     fold_id=fid, iDatConNr=con_nr, **_connector_values(con_points),
                 ))
@@ -1517,8 +1563,8 @@ def write_dgs(
             center = ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)
             fid = reg.new()
             graphic_fids[f'coupler:{acoplador.section_id}:{acoplador.name}'] = fid
-            rows['IntGrf'].append(_make_row(
-                schema, 'IntGrf', FID=fid, OP='C',
+            graficos.append(dict(
+                FID=fid, OP='C',
                 loc_name=_loc_name(f'G_{acoplador.name}'),
                 fold_id=diag_fids.get(red_del_par(acoplador.node_a, acoplador.node_b), diagram_fid),
                 iCol=1, iVis=1, iLevel=1,
@@ -1527,8 +1573,8 @@ def write_dgs(
                 rSizeX=layout.tam('d_couple'), rSizeY=layout.tam('d_couple'),
             ))
             for con_nr, extremo in ((0, a), (1, b)):
-                rows['IntGrfcon'].append(_make_row(
-                    schema, 'IntGrfcon', FID=reg.new(), OP='C',
+                conectores.append(dict(
+                    FID=reg.new(), OP='C',
                     loc_name=_loc_name(f'GCO_{con_nr + 1}_{acoplador.name}'),
                     fold_id=fid, iDatConNr=con_nr,
                     **_connector_values([center, extremo]),
@@ -1544,8 +1590,8 @@ def write_dgs(
             center = (a[0] + layout.source_offset / 2, a[1] + layout.source_offset / 2)
             fid = reg.new()
             graphic_fids[f'tie:{enlace.name}'] = fid
-            rows['IntGrf'].append(_make_row(
-                schema, 'IntGrf', FID=fid, OP='C', loc_name=_loc_name(f'G_{enlace.name}'),
+            graficos.append(dict(
+                FID=fid, OP='C', loc_name=_loc_name(f'G_{enlace.name}'),
                 fold_id=diag_fids.get(red_del_par(enlace.node_a, enlace.node_b), diagram_fid),
                 iCol=1, iVis=1, iLevel=1,
                 rCenterX=center[0], rCenterY=center[1], sSymNam='d_couple',
@@ -1553,8 +1599,8 @@ def write_dgs(
                 rSizeX=layout.tam('d_couple'), rSizeY=layout.tam('d_couple'),
             ))
             for con_nr, extremo in ((0, a), (1, b)):
-                rows['IntGrfcon'].append(_make_row(
-                    schema, 'IntGrfcon', FID=reg.new(), OP='C',
+                conectores.append(dict(
+                    FID=reg.new(), OP='C',
                     loc_name=_loc_name(f'GCO_{con_nr + 1}_{enlace.name}'),
                     fold_id=fid, iDatConNr=con_nr,
                     **_connector_values([center, extremo]),
@@ -1574,16 +1620,16 @@ def write_dgs(
                 load = loads_by_key[key]
                 x, y = node_x + dx, node_y + dy
                 fid = reg.new(); graphic_fids[f'load:{key[0]}:{key[1]}'] = fid
-                rows['IntGrf'].append(_make_row(
-                    schema, 'IntGrf', FID=fid, OP='C', loc_name=_loc_name(f'G_{load.display_name or load.device_number}'),
+                graficos.append(dict(
+                    FID=fid, OP='C', loc_name=_loc_name(f'G_{load.display_name or load.device_number}'),
                     fold_id=diag_of(anchor_id), iCol=1, iVis=1, iLevel=1,
                     rCenterX=x, rCenterY=y, sSymNam='d_load', pDataObj=load_fids[key],
                     iRot=int(round(math.degrees(math.atan2(dy, dx)))) % 360,
                     rSizeX=layout.tam('d_load'), rSizeY=layout.tam('d_load'),
                 ))
                 con_fid = reg.new()
-                rows['IntGrfcon'].append(_make_row(
-                    schema, 'IntGrfcon', FID=con_fid, OP='C',
+                conectores.append(dict(
+                    FID=con_fid, OP='C',
                     loc_name=_loc_name(f'GCO_{load.device_number}'), fold_id=fid,
                     iDatConNr=0, **_connector_values([(x, y), (node_x, node_y)]),
                 ))
@@ -1602,8 +1648,8 @@ def write_dgs(
                 sed = seds_by_key[key]
                 x, y = node_x + dx, node_y + dy
                 fid = reg.new(); graphic_fids[f'sed:{key[0]}:{key[1]}'] = fid
-                rows['IntGrf'].append(_make_row(
-                    schema, 'IntGrf', FID=fid, OP='C', loc_name=_loc_name(f'gnoT {sed.loc_name}'),
+                graficos.append(dict(
+                    FID=fid, OP='C', loc_name=_loc_name(f'gnoT {sed.loc_name}'),
                     fold_id=diag_of(anchor_id), iCol=1, iVis=1, iLevel=1,
                     rCenterX=x, rCenterY=y, sSymNam='SecSubProd', pDataObj=sed_fids[key],
                     iRot=0, rSizeX=layout.sed_size, rSizeY=layout.sed_size,
@@ -1617,17 +1663,23 @@ def write_dgs(
             sx, sy = src_x - layout.source_offset, src_y + layout.source_offset
             src_graph_fid = reg.new()
             graphic_fids['source' if indice == 0 else f'source:{nombre_fuente}'] = src_graph_fid
-            rows['IntGrf'].append(_make_row(
-                schema, 'IntGrf', FID=src_graph_fid, OP='C', loc_name=_loc_name(f'G_Source_{nombre_fuente}'),
+            graficos.append(dict(
+                FID=src_graph_fid, OP='C', loc_name=_loc_name(f'G_Source_{nombre_fuente}'),
                 fold_id=diag_of(nodo_fuente), iCol=1, iVis=1, iLevel=1,
                 rCenterX=sx, rCenterY=sy, sSymNam='d_net', pDataObj=fid_fuente,
                 iRot=0, rSizeX=layout.tam('d_net'), rSizeY=layout.tam('d_net'),
             ))
             src_con_fid = reg.new()
-            rows['IntGrfcon'].append(_make_row(
-                schema, 'IntGrfcon', FID=src_con_fid, OP='C', loc_name=_loc_name(f'GCO_Source_{nombre_fuente}'),
+            conectores.append(dict(
+                FID=src_con_fid, OP='C', loc_name=_loc_name(f'GCO_Source_{nombre_fuente}'),
                 fold_id=src_graph_fid, iDatConNr=0, **_connector_values([(sx, sy), (src_x, src_y)]),
             ))
+
+        if not diagram_sheet.formato:
+            diagram_sheet = _al_origen_de_cada_diagrama(graficos, conectores, diagram_sheet,
+                                                        diagram_fid)
+        rows['IntGrf'].extend(_make_row(schema, 'IntGrf', **v) for v in graficos)
+        rows['IntGrfcon'].extend(_make_row(schema, 'IntGrfcon', **v) for v in conectores)
 
     preamble = [
         '*' * 80,

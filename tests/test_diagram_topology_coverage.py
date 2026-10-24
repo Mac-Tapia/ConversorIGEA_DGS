@@ -143,6 +143,11 @@ def test_diagram_sheet_covers_full_network_and_map(ds, sample_model, tmp_path):
     tables = parse_dgs(out)
     xs, ys = _all_graphic_xy(tables)
     assert xs and ys
+    # 022:RF-65: DIgSILENT dimensiona la hoja desde (0, 0); el dibujo empieza en el margen.
+    sheet = manifest.diagram_sheet
+    assert (sheet.xmin, sheet.ymin) == (0.0, 0.0)
+    assert min(xs) == pytest.approx(DIAGRAM_SHEET_MARGIN_DU)
+    assert min(ys) == pytest.approx(DIAGRAM_SHEET_MARGIN_DU)
     assert min(xs) >= sheet.xmin - 1e-6
     assert max(xs) <= sheet.xmax + 1e-6
     assert min(ys) >= sheet.ymin - 1e-6

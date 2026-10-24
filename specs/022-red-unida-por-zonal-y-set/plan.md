@@ -93,6 +93,17 @@ Estado: borrador · Fecha: 2026-10-17 · Spec: [spec.md](spec.md)
      el manifiesto (`redes`), la validación y la metadata la usan en lugar del zonal: una
      `ElmNet` y un `IntGrfnet` por red (RF-64, RF-65). La hoja sale a la medida: DIgSILENT
      la dimensiona con el recuadro de los gráficos de cada diagrama.
+   - Corregido el 2026-10-24 (T16), tras la sonda de T14: DIgSILENT dimensiona la hoja
+     desde (0, 0) hasta el mayor de los gráficos, no con su recuadro. Con el marco del
+     zonal, la SET 51 se quedó en A4 y la 55 y la 56 con hojas de alto negativo; Pisco, con
+     una sola red, tenía un cuarto del dibujo fuera de la suya. El escritor junta los
+     gráficos de cada diagrama y los desplaza para que el más bajo y el más a la izquierda
+     queden en el margen (`dgs._al_origen_de_cada_diagrama`); escala, trazado y GPS no
+     cambian. Lo que dibujan después los guiones (`cargas_pf.Diagrama`) se sitúa solo con
+     las barras de su diagrama. Cambia las coordenadas de todos los DGS con geografía: la
+     línea base de la 001 se regenera tras comprobar que solo cambian `IntGrf` e
+     `IntGrfcon`. Descartado: fijar la hoja con `cDrawFormat` tras importar, porque el DGS
+     importado a mano quedaría igual de mal.
    - Un nodo de varios alimentadores, un enlace o un interruptor entre dos redes van en la
      red que va antes en el orden zonal → SET (la de menor código), en el DGS y en su
      diagrama (RF-68).
