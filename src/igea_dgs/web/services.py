@@ -4042,7 +4042,7 @@ def obras_bibliotecas(ws: Workspace, ctx: JobContext, project: str, feeders: lis
 
 
 def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *,
-                   anio_casos: int | None = None) -> dict:
+                   anio_casos: int | None = None, tipo_cambio: float | None = None) -> dict:
     """Obras en escalera para que «Con proyecto» converja con sus cargas nuevas (025:RF-44).
 
     Usuario, 2026-10-23: en PA217 y TM105 dos cargas nuevas grandes juntas no convergen en
@@ -4052,9 +4052,16 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
     se queda. Uno que no converge queda inactivo y se conserva, como cualquier obra (011:RF-67).
     """
     from ..demanda_medida import clave_codigo
+    from ..escalera_optima import EscaleraError, parametros
     from ..obras_pf import CON_PROYECTO, escalera_de_obras
     from ..perfil_empresa import PerfilError, bancos_kvar_por_tension, datos_perfil
 
+    # 025:RF-67, RF-68: antes de tocar DIgSILENT, el perfil y el tipo de cambio que escribió
+    # el operador tienen que bastar para costear.
+    try:
+        parametros(datos_perfil(), tipo_cambio)
+    except (EscaleraError, PerfilError) as exc:
+        raise UserError(str(exc)) from exc
     lectura = obras_bibliotecas(ws, ctx, project, feeders)['informe']
     try:
         kvar = bancos_kvar_por_tension(datos_perfil()) or {}

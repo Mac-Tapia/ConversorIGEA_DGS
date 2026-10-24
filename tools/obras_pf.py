@@ -1415,7 +1415,7 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
     informe: dict[str, Any] = {'project': plan.get('project'), 'modo': 'evaluar', 'variantes': [],
                                'avisos': [], 'cancelado': False}
     try:
-        p = parametros(plan.get('parametros') or {})
+        p = parametros(plan.get('parametros') or {}, plan.get('tipo_cambio'))       # 025:RF-67
     except ValueError as exc:
         return {**informe, 'error': str(exc)}, 2
     proyecto = activar_proyecto(app, plan['project'], plan.get('folder'))

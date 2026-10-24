@@ -524,8 +524,9 @@ export function CargasTab() {
 
       {resultado && <Informe resultado={resultado} cancelado={lastRun?.status === 'cancelled'}
         escalera={escalera} ocupado={pfBusy}
-        onEscalera={(feeders) => startJob(() => api.obrasEscalera(ws.id, {
-          project: resultado.informe.project, feeders, anio_casos: resultado.informe.anio_casos ?? null }))} />}
+        onEscalera={(feeders, tipoCambio) => startJob(() => api.obrasEscalera(ws.id, {
+          project: resultado.informe.project, feeders, anio_casos: resultado.informe.anio_casos ?? null,
+          tipo_cambio: tipoCambio }))} />}
 
       {/* Spec 011, RF-42 y RF-98: con el mismo proyecto y los mismos alimentadores marcados. */}
       <div className="step-box">
@@ -796,8 +797,12 @@ function conexion(c: CargaConectada) {
 /** Informe del guion por alimentador: lo que se actualizó o se crearía, y lo omitido (RF-20). */
 function Informe({ resultado, cancelado, escalera, ocupado, onEscalera }: {
   resultado: CargasResultado; cancelado: boolean; escalera: EscaleraResultado | null; ocupado: boolean;
-  onEscalera: (feeders: string[]) => void;
+  onEscalera: (feeders: string[], tipoCambio: number | null) => void;
 }) {
+  // Spec 025, RF-67: el tipo de cambio lo escribe el operador; no sale del perfil.
+  const [tipoCambio, setTipoCambio] = useState('');
+  const tc = Number(tipoCambio.replace(',', '.'));
+  const tcValido = tipoCambio.trim() !== '' && Number.isFinite(tc) && tc > 0;
   const inf: CargasInforme = resultado.informe;
   const simular = inf.modo === 'simular';
   const juntas = inf.no_convergen_juntas;
@@ -828,12 +833,22 @@ function Informe({ resultado, cancelado, escalera, ocupado, onEscalera }: {
             : <>Cada una sola, sí.</>}
           {juntas.basta_quitar_una_de.length > 0 && <> Basta quitar una de: {lista(juntas.basta_quitar_una_de)}.</>}
           <div className="row">
-            <button className="btn btn-sm" disabled={ocupado} onClick={() => onEscalera(feedersEscalera)}>
+            <label className="small">Tipo de cambio{' '}
+              <input type="text" inputMode="decimal" size={7} value={tipoCambio} placeholder="p. ej. 3,495"
+                aria-label="Tipo de cambio de los precios de pérdidas a la moneda del costo"
+                onChange={(e) => setTipoCambio(e.target.value)} />
+            </label>
+            <button className="btn btn-sm" disabled={ocupado || (tipoCambio.trim() !== '' && !tcValido)}
+              onClick={() => onEscalera(feedersEscalera, tcValido ? tc : null)}>
               Proponer obras en escalera
             </button>
             <small className="muted">
-              Bancos, sección de la troncal y terna en {lista(feedersEscalera)}, en ese orden y cada una en su
-              variación de «{juntas.caso}»; se queda la primera que converge.
+              Bancos, regulador, terna y cambio de sección en {lista(feedersEscalera)}, varias variantes y sus
+              combinaciones en «{juntas.caso}»; gana la de menor costo anual entre las que cumplen. El tipo de
+              cambio pasa los precios de pérdidas (en la moneda de su publicación) a la del costo
+              (la del libro CAPEX): unidades de la primera por una de la segunda.
+              {tipoCambio.trim() !== '' && !tcValido ? ' El tipo de cambio tiene que ser un número mayor que 0.'
+                : !tcValido ? ' Si los precios de pérdidas están en otra moneda, el servidor lo pedirá.' : ''}
               {ocupado ? ' Espere a que termine el trabajo de DIgSILENT en curso.' : ''}
             </small>
           </div>

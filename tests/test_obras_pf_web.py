@@ -131,16 +131,37 @@ def test_escalera_es_un_trabajo_de_digsilent_con_su_anio(client, monkeypatch):
 
     vistos = []
 
-    def escalera(ws, ctx, project, feeders, *, anio_casos=None):
-        vistos.append((project, feeders, anio_casos))
+    def escalera(ws, ctx, project, feeders, *, anio_casos=None, tipo_cambio=None):
+        vistos.append((project, feeders, anio_casos, tipo_cambio))
         return {'project': project, 'anio_casos': anio_casos, 'alimentadores': []}
 
     monkeypatch.setattr(services, 'obras_escalera', escalera)
     wid = _espacio(client)
     url = f'/api/workspaces/{wid}/pf/obras/escalera'
     assert client.post(url, json={'project': 'P', 'feeders': ['A1'], 'anio_casos': 99999}).status_code == 422
-    r = client.post(url, json={'project': 'P', 'feeders': ['A1'], 'anio_casos': 2025})
+    # 025:RF-67: el tipo de cambio lo escribe el operador; uno no positivo se rechaza.
+    assert client.post(url, json={'project': 'P', 'feeders': ['A1'], 'tipo_cambio': 0}).status_code == 422
+    r = client.post(url, json={'project': 'P', 'feeders': ['A1'], 'anio_casos': 2025, 'tipo_cambio': 3.495})
     assert r.json()['lane'] == 'powerfactory'
     estado = _trabajo(client, r)
     assert estado['status'] == 'done', estado
-    assert vistos == [('P', ['A1'], 2025)] and estado['result']['anio_casos'] == 2025
+    assert vistos == [('P', ['A1'], 2025, 3.495)] and estado['result']['anio_casos'] == 2025
+
+
+def test_escalera_sin_tipo_de_cambio_no_empieza(client, monkeypatch):
+    """025:RF-68 — precios de pérdidas en otra moneda y sin tipo de cambio: la escalera no
+    toca DIgSILENT y el trabajo dice qué falta."""
+    from igea_dgs.web import services
+
+    perfil = {'escalera': {'cumplimiento': 0.95, 'sorteos': 10, 'tolerancia_pu': 0.005,
+                           'tolerancia_carga_pct': 1, 'moneda': 'USD', 'moneda_precios_perdidas': 'PEN',
+                           'precio_perdidas_kwh': 0.14},
+              'planificacion': {'tasa_regulada': 0.12, 'vida_util_anios': 30},
+              'estudios': {'tension_min_pu': 0.95, 'tension_max_pu': 1.05, 'cargabilidad_max_pct': 100}}
+    monkeypatch.setattr('igea_dgs.perfil_empresa.datos_perfil', lambda *a, **k: perfil)
+    tocado = []
+    monkeypatch.setattr(services, 'obras_bibliotecas', lambda *a, **k: tocado.append(1) or {'informe': {}})
+    wid = _espacio(client)
+    estado = _trabajo(client, client.post(f'/api/workspaces/{wid}/pf/obras/escalera',
+                                          json={'project': 'P', 'feeders': ['A1']}))
+    assert estado['status'] == 'failed' and 'tipo de cambio' in estado['error'] and not tocado

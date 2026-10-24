@@ -81,8 +81,11 @@ def test_la_escalera_se_pide_desde_el_informe_de_cargas():
     de DIgSILENT bloqueado mientras corre otro; su resultado dice el escalón que converge."""
     informe = CARGAS[CARGAS.index('function Informe('):CARGAS.index('function Escalera(')]
     assert 'inf.no_convergen_juntas' in informe and '!simular' in informe
-    assert 'Proponer obras en escalera' in informe and 'disabled={ocupado}' in informe
+    assert 'Proponer obras en escalera' in informe and 'disabled={ocupado ||' in informe
     assert 'anio_casos: resultado.informe.anio_casos ?? null' in CARGAS
+    # 025:RF-67: el tipo de cambio lo escribe el operador en la web y viaja con la petición.
+    assert 'aria-label="Tipo de cambio' in informe and 'tipo_cambio: tipoCambio' in CARGAS
+    assert 'tipo_cambio: number | null' in API
     assert 'startJob(() => api.obrasEscalera(' in CARGAS
     assert '/pf/obras/escalera' in API and "'/api/workspaces/{wid}/pf/obras/escalera'" in APP
     assert "j.kind === 'obras_escalera'" in CARGAS and 'converge con «{a.obra}»' in CARGAS

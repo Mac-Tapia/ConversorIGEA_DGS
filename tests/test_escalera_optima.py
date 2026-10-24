@@ -169,3 +169,31 @@ def test_ninguna_cumple_dice_la_mas_cercana():
     r = eo.elegir([_evaluada('a', True, 0.5, 1), _evaluada('b', True, 0.9, 2),
                    _evaluada('c', False, None, 0)], P)
     assert r['elegida'] is None and r['mas_cercana'] == 'b'
+
+
+def test_precios_de_perdidas_a_la_moneda_de_trabajo():
+    """025:RF-67, 025:RF-68 — los precios de pérdidas, publicados en soles, pasan a dólares con
+    el tipo de cambio que da el operador, no el perfil; sin él, se dice que falta."""
+    esc = {**PERFIL['escalera'], 'moneda': 'USD', 'moneda_precios_perdidas': 'PEN',
+           'precio_perdidas_kwh': 0.1443, 'precio_perdidas_kw_mes': 22.06,
+           'tipo_cambio_precios_perdidas': 9.99}                       # del perfil: no cuenta
+    p = eo.parametros({**PERFIL, 'escalera': esc}, tipo_cambio=3.495)
+    assert p.moneda == 'USD' and p.precio_perdidas_kwh == pytest.approx(0.1443 / 3.495)
+    assert p.precio_perdidas_kw_mes == pytest.approx(22.06 / 3.495)
+    for tc in (None, 0):
+        with pytest.raises(eo.EscaleraError, match='tipo de cambio.*RF-68'):
+            eo.parametros({**PERFIL, 'escalera': esc}, tipo_cambio=tc)
+
+
+def test_costos_que_el_libro_no_tiene_vienen_del_perfil_y_sin_ellos_no_se_elige():
+    """025:RF-53, 025:RF-56, 025:RF-57 — bancos y reguladores sin costo en el CAPEX: los da el
+    perfil si los tiene; sin ninguno, la variante que cumple no se elige y dice por qué."""
+    p = eo.parametros({**PERFIL, 'escalera': {**PERFIL['escalera'], 'costos_unitarios': {'bancos': 9000, 'reguladores': None}}})
+    costos = eo.costos_de_alternativas({'nueva_terna': {'costo_unitario': 40000, 'unidad': 'km'}}, p)
+    assert costos['bancos']['costo_unitario'] == 9000 and costos['bancos']['origen'] == 'perfil'
+    assert 'reguladores' not in costos and costos['nueva_terna']['costo_unitario'] == 40000
+    r = eo.elegir([{'nombre': 'reg', 'maxima': True, 'fraccion': 1.0, 'costo': None,
+                    'sin_costo': 'el libro CAPEX no tiene costo de «reguladores»'},
+                   {'nombre': 'terna', 'maxima': True, 'fraccion': 0.99, 'costo': {'costo_anual': 5.0}}], p)
+    assert r['elegida'] == 'terna'
+    assert 'sin costo' in next(t['motivo'] for t in r['tabla'] if t['nombre'] == 'reg')

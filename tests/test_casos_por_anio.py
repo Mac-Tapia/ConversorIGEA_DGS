@@ -504,7 +504,11 @@ def test_la_escalera_se_detiene_en_la_primera_que_converge(tmp_path, monkeypatch
     from igea_dgs import perfil_empresa
 
     ws = Workspace(id='w', root=tmp_path)
-    monkeypatch.setattr(perfil_empresa, 'datos_perfil', lambda: {})
+    # 025:RF-67: lo que pide la escalera para costear, en una sola moneda (sin tipo de cambio).
+    monkeypatch.setattr(perfil_empresa, 'datos_perfil', lambda: {
+        'escalera': {'cumplimiento': 0.95, 'sorteos': 10, 'tolerancia_pu': 0.005, 'tolerancia_carga_pct': 1},
+        'planificacion': {'tasa_regulada': 0.12, 'vida_util_anios': 30},
+        'estudios': {'tension_min_pu': 0.95, 'tension_max_pu': 1.05, 'cargabilidad_max_pct': 100}})
     monkeypatch.setattr(perfil_empresa, 'bancos_kvar_por_tension', lambda _d: {10.0: 300, 22.9: 450})
     monkeypatch.setattr(services, 'obras_bibliotecas', lambda *a, **k: {'informe': {
         'alimentadores': {'F1': {'kv': 10.0}}, 'tipos': [_tipo_linea('AAAC 240', 10, 0.55)]}})
