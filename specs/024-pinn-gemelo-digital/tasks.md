@@ -65,7 +65,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `pytest -q tests/test_digital_twin_escenarios.py en verde`.
       Hecho el 2026-10-22: probado en DIgSILENT desde la web con IN111–TA225, 24 escenarios en una copia
       borrada al terminar; el grafo trae los acopladores (sin ellos solo 91 de 2470 nodos tenían fuente).
-- [ ] T11. Oráculo PINN/GNN del estado eléctrico con incertidumbre, entrenamiento, registro y
+- [x] T11. Oráculo PINN/GNN del estado eléctrico con incertidumbre, entrenamiento, registro y
       promoción automática con puertas; ordenar y proponer con el oráculo. (RF-13 a RF-19, RF-23,
       RF-35, RF-36, RF-38, RF-39, RF-42 a RF-44)
       Hecho cuando: `pytest -q tests/test_digital_twin_oraculo.py en verde, en GPU si la hay`.
@@ -74,6 +74,10 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       constante en IN111–TA225: el barrido se aparta 0,019 p.u. frente a 0,050 con potencia constante).
       Con los 24 escenarios reales el modelo aún no pasa las puertas (0,057 p.u. sobre 0,005), así
       que no se usa; falta reentrenar con el modelo de carga elegido y más escenarios.
+      Cerrada el 2026-10-24 con T15: la causa era el barrido radial (descartaba los 3 lazos) y los
+      acopladores en el residuo físico. Con la física mallada, la potencia constante y el peso
+      físico 10⁻⁴, el candidato 20261024-112255-dd63 pasó las puertas y quedó promovido: en la
+      partición de prueba se aparta 0,00045 p.u. de DIgSILENT (la física sola, 0,0032).
 - [x] T12. Gemelo temporal (RNN) con las curvas del mes y pseudo-medidas. (RF-20 a RF-22, RF-37)
       Hecho cuando: `pytest -q tests/test_digital_twin_temporal.py en verde`.
       Hecho el 2026-10-22: GRU en la GPU; pruebas con curvas sintéticas y la ruta de la web.
@@ -87,5 +91,23 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       RF-59)
       Hecho cuando: `pytest -q tests/test_pide_economia.py tests/test_pide_web.py en verde`.
       Hecho el 2026-10-22: pliego de Electro Dunas del 2026-10-04 y NTCSER en el perfil; bancos y ternas
-      se aplican solos tras simularlos; el resto queda propuesto con su motivo. Faltan en el perfil
+      se aplican solos tras simularlos; el resto queda propuesto con su motivo.       Faltan en el perfil
       `crecimiento_demanda_anual`, `factor_carga` y `precio_compra_kwh`: sin ellos se avisa (RF-58e).
+
+## Del 2026-10-24: física mallada, evolutivos y evaluación (RF-64 a RF-74)
+
+- [x] T15. Flujo físico por matriz de admitancias con lazos (`digital_twin/flujo.py`,
+      `ModeloMallado`), acopladores como una barra y residuo por barra eléctrica; la PINN lo usa
+      como base y elige con él el modelo de carga; peso físico 10⁻⁴ elegido con los datos.
+      (RF-64, RF-65, RF-66)
+      Hecho cuando: `pytest -q tests/test_digital_twin_flujo.py tests/test_digital_twin_oraculo.py` en verde.
+      Hecho el 2026-10-24: coincide con pandapower en redes con lazos; en IN111–TA225 la física
+      sola se aparta 0,0032 p.u. (el barrido, 0,019) y la potencia constante es el modelo de carga.
+- [x] T16. Algoritmo genético, NSGA-II y jDE (`digital_twin/evolutivo.py`); bancos con frente
+      y sobredimensionadas, reconfiguración radial y consigna; bancos del PIDE afinados en la web
+      con la red del gemelo (`services._pide_optimizar`). (RF-67 a RF-73)
+      Hecho cuando: `pytest -q tests/test_digital_twin_evolutivo.py` en verde.
+      Hecho el 2026-10-24.
+- [x] T17. Evaluación del aprendizaje (`oraculo.evaluar`, `tools/digital_twin_entrenar.py --evaluar`). (RF-74)
+      Hecho cuando: `pytest -q tests/test_digital_twin_oraculo.py` en verde y la evaluación con los
+      episodios reales de IN111–TA225 dice el error de la partición de prueba.

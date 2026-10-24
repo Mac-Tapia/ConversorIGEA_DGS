@@ -68,8 +68,9 @@ class Muestra:
     mascara: np.ndarray | None = None  # nodos con tensión medida
     familia: str = ''
     alimentado: np.ndarray | None = None  # nodos a los que llega una fuente
-    base: np.ndarray | None = None        # V y θ del barrido físico (``_con_base``)
-    base_exponente: float | None = None
+    base: np.ndarray | None = None        # V y θ de la física (``_con_base``)
+    base_clave: tuple | None = None       # (física, exponente) con que se calculó ``base``
+    sistema: Any = None                   # ``flujo.SistemaMallado`` factorizado, una vez
 
 
 def muestra(grafo: Mapping[str, Any], tensiones: Mapping[str, float] | None = None,
@@ -134,19 +135,37 @@ def muestra_de_episodio(e: Episodio) -> Muestra | None:
 
 
 # ------------------------------------------------------------------ física
+def barras_electricas(m: Muestra) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Barra eléctrica de cada nodo (los unidos por acopladores son una), las ramas que no
+    son acopladores y qué barras eléctricas deben cumplir el balance.
+
+    Un acoplador es una rama de 10⁻⁶ p.u.: en el balance por nodo, una diferencia de tensión
+    mínima entre sus dos barras daba corrientes enormes. La PINN de IN111–TA225 (1221
+    acopladores) empezaba con una pérdida de 1,7·10⁷ y acababa peor que la física sola
+    (0,0072 p.u. frente a 0,0032, 2026-10-24).
+    """
+    from .flujo import Z_ACOPLADOR
+
+    sis = sistema_de(m)
+    exigir = np.zeros(sis.n, dtype=bool)
+    exigir[sis.libres] = True
+    return sis.indice, np.abs(m.z) >= Z_ACOPLADOR, exigir, sis.n
+
+
 def residuo(m: Muestra, v: np.ndarray, theta: np.ndarray, exponente: float = 0.0) -> np.ndarray:
-    """Desbalance de potencia de cada nodo (pu) con la tensión dada; 0 en las fuentes.
+    """Desbalance de potencia (pu) de la barra eléctrica de cada nodo; 0 en las fuentes.
 
     Las cargas consumen S0·|V|^exponente: 0 potencia, 1 corriente, 2 impedancia constante.
     """
+    grupo, real, exigir, n = barras_electricas(m)
     vc = v * np.exp(1j * theta)
-    a, b = m.aristas
+    a, b = m.aristas[:, real]
     corriente = np.zeros(len(m.ids), dtype=complex)
-    np.add.at(corriente, a, (vc[a] - vc[b]) / m.z)
-    s_calc = vc * np.conj(corriente)          # lo que sale del nodo hacia la red
-    r = np.abs(s_calc + m.s_carga * np.abs(v) ** exponente)   # sale + carga = 0
-    r[m.fuente | ~m.alimentado] = 0.0
-    return r
+    np.add.at(corriente, a, (vc[a] - vc[b]) / m.z[real])
+    s_nodo = vc * np.conj(corriente) + m.s_carga * np.abs(v) ** exponente   # sale + carga = 0
+    s_barra = np.zeros(n, dtype=complex)
+    np.add.at(s_barra, grupo, s_nodo)
+    return np.where(exigir, np.abs(s_barra), 0.0)[grupo]
 
 
 @dataclass
@@ -199,6 +218,43 @@ class ModeloRadial:
         return {'ids': m.ids, 'v': v, 'theta': np.where(visto, np.angle(vc), 0.0),
                 'incertidumbre': np.zeros(n), 'residuo': residuo(m, v, np.angle(vc), self.exponente),
                 'fuera_de_dominio': False, 'modelo': self.nombre}
+
+
+def sistema_de(m: Muestra):
+    """La red de la muestra factorizada para el flujo mallado, construida una sola vez."""
+    if m.sistema is None:
+        from .flujo import SistemaMallado
+
+        m.sistema = SistemaMallado(m.aristas, m.z, m.fuente, m.x[:, 4], m.alimentado)
+    return m.sistema
+
+
+@dataclass
+class ModeloMallado:
+    """Flujo de carga por matriz de admitancias, con los lazos de la red (RF-38, RF-64).
+
+    Es la física de la PINN y el evaluador de los algoritmos evolutivos. A diferencia del
+    barrido radial, respeta las ramas que cierran un lazo: IN111–TA225 tiene 3 y el barrido
+    se apartaba 0,019 p.u. de DIgSILENT frente a 0,0032 de este (2026-10-24).
+    """
+
+    nombre: str = 'mallado'
+    exponente: float = 0.0
+
+    def predecir_muestra(self, m: Muestra) -> dict[str, Any]:
+        sol = sistema_de(m).resolver(m.s_carga, exponente=self.exponente)
+        v, th = (sol.v, sol.theta) if sol.convergio else (np.zeros(len(m.ids)), np.zeros(len(m.ids)))
+        return {'ids': m.ids, 'v': v, 'theta': th, 'incertidumbre': np.zeros(len(m.ids)),
+                'residuo': residuo(m, v, th, self.exponente), 'fuera_de_dominio': not sol.convergio,
+                'motivos': [] if sol.convergio else ['el flujo físico no converge'],
+                'convergio': sol.convergio, 'perdidas_mw': sol.perdidas_pu * S_BASE, 'modelo': self.nombre}
+
+    def predecir(self, grafo: Mapping[str, Any]) -> dict[str, Any]:
+        return self.predecir_muestra(muestra(grafo))
+
+
+#: Física de la base de la PINN, por nombre (se guarda con cada modelo entrenado).
+FISICAS = {'mallado': ModeloMallado, 'radial': ModeloRadial}
 
 
 # ------------------------------------------------------------------ red de grafos
@@ -260,19 +316,20 @@ def _red(ocultas: int = 64, pasos: int = 8):
     return Red()
 
 
-def _con_base(m: Muestra, exponente: float = 0.0) -> np.ndarray:
-    """Las entradas del nodo con la tensión y el ángulo del barrido físico, calculados una vez."""
-    if m.base is None or m.base_exponente != exponente:
-        p = ModeloRadial(exponente=exponente).predecir(_grafo_de_muestra(m))
+def _con_base(m: Muestra, exponente: float = 0.0, fisica: str = 'mallado') -> np.ndarray:
+    """Las entradas del nodo con la tensión y el ángulo de la física, calculados una vez."""
+    if m.base is None or m.base_clave != (fisica, exponente):
+        modelo = FISICAS[fisica](exponente=exponente)
+        p = modelo.predecir_muestra(m) if fisica == 'mallado' else modelo.predecir(_grafo_de_muestra(m))
         m.base = np.stack([p['v'], p['theta']], axis=1)
-        m.base_exponente = exponente
+        m.base_clave = (fisica, exponente)
     return np.concatenate([m.x, m.base], axis=1)
 
 
-def _tensores(m: Muestra, disp, exponente: float = 0.0):
+def _tensores(m: Muestra, disp, exponente: float = 0.0, fisica: str = 'mallado'):
     torch = _torch()
     e = np.stack([np.log10(np.abs(m.z) + 1e-9), np.angle(m.z), np.log10(m.inom + 1e-6)], axis=1)
-    return (torch.tensor(_con_base(m, exponente), dtype=torch.float32, device=disp),
+    return (torch.tensor(_con_base(m, exponente, fisica), dtype=torch.float32, device=disp),
             torch.tensor(m.aristas, dtype=torch.long, device=disp),
             torch.tensor(e, dtype=torch.float32, device=disp))
 
@@ -284,15 +341,19 @@ def _fisica(m: Muestra, disp, exponente: float = 0.0) -> dict:
     error: Memory allocation failure» con 1,3 GB de RAM libre) y tumbó la web.
     """
     torch = _torch()
-    return {'a': torch.tensor(m.aristas[0], device=disp), 'b': torch.tensor(m.aristas[1], device=disp),
-            'zr': torch.tensor(m.z.real, dtype=torch.float32, device=disp),
-            'zi': torch.tensor(m.z.imag, dtype=torch.float32, device=disp),
+    grupo, real, exigir, n = barras_electricas(m)
+    z = m.z[real]
+    return {'a': torch.tensor(m.aristas[0][real], device=disp), 'b': torch.tensor(m.aristas[1][real], device=disp),
+            'zr': torch.tensor(z.real, dtype=torch.float32, device=disp),
+            'zi': torch.tensor(z.imag, dtype=torch.float32, device=disp),
             'sp': torch.tensor(m.s_carga.real, dtype=torch.float32, device=disp),
             'sq': torch.tensor(m.s_carga.imag, dtype=torch.float32, device=disp),
-            'exigir': torch.tensor(~m.fuente & m.alimentado, device=disp), 'exponente': exponente}
+            'grupo': torch.tensor(grupo, dtype=torch.long, device=disp), 'n': n,
+            'exigir': torch.tensor(exigir, device=disp), 'exponente': exponente}
 
 
 def _residuo_torch(f: dict, v, theta):
+    """El balance de cada barra eléctrica (``barras_electricas``), al cuadrado."""
     torch = _torch()
     a, b, zr, zi = f['a'], f['b'], f['zr'], f['zi']
     vr, vi = v * torch.cos(theta), v * torch.sin(theta)
@@ -301,22 +362,29 @@ def _residuo_torch(f: dict, v, theta):
     ir, ii = (dr * zr + di * zi) / den, (di * zr - dr * zi) / den
     i_r = torch.zeros_like(v).index_add_(0, a, ir)
     i_i = torch.zeros_like(v).index_add_(0, a, ii)
-    p = vr * i_r + vi * i_i
-    q = vi * i_r - vr * i_i
     e = v.abs() ** f['exponente']
-    return ((p + f['sp'] * e) ** 2 + (q + f['sq'] * e) ** 2)[f['exigir']]
+    p = vr * i_r + vi * i_i + f['sp'] * e
+    q = vi * i_r - vr * i_i + f['sq'] * e
+    pb = torch.zeros(f['n'], dtype=v.dtype, device=v.device).index_add_(0, f['grupo'], p)
+    qb = torch.zeros(f['n'], dtype=v.dtype, device=v.device).index_add_(0, f['grupo'], q)
+    return (pb ** 2 + qb ** 2)[f['exigir']]
 
 
 @dataclass
 class Entrenamiento:
     epocas: int = 300
     lr: float = 3e-3
-    peso_fisico: float = 1.0
+    peso_fisico: float = 1e-4
+    """La física de la base no tiene la capacidad de las líneas ni las tomas: con peso 1 la red
+    se quedaba en ella (0,0032 p.u. en IN111–TA225); con 10⁻⁴ aprende lo que le falta de
+    DIgSILENT (0,00046 p.u. en escenarios no vistos, residuo 0,011; 2026-10-24)."""
     ocultas: int = 64
     pasos: int = 8
     semilla: int = 0
     exponente_carga: float = 0.0
     """Modelo de carga de la física, elegido con los datos (``elegir_exponente``)."""
+    fisica: str = 'mallado'
+    """Física de la base (``FISICAS``): los pesos solo valen sobre la base con que se entrenaron."""
 
 
 def entrenar_miembro(muestras: Sequence[Muestra], cfg: Entrenamiento, inicial: dict | None = None,
@@ -338,7 +406,7 @@ def _entrenar_en(muestras: Sequence[Muestra], cfg: Entrenamiento, inicial: dict 
     if inicial:
         red.load_state_dict(inicial)
     opt = torch.optim.Adam(red.parameters(), lr=cfg.lr)
-    datos = [(_fisica(m, disp, cfg.exponente_carga), *_tensores(m, disp, cfg.exponente_carga),
+    datos = [(_fisica(m, disp, cfg.exponente_carga), *_tensores(m, disp, cfg.exponente_carga, cfg.fisica),
               torch.tensor(m.v, dtype=torch.float32, device=disp),
               torch.tensor(m.mascara, device=disp)) for m in muestras]
     for epoca in range(cfg.epocas):
@@ -393,7 +461,7 @@ class OraculoPINN:
         torch = _torch()
         m = muestra(grafo)
         redes, disp = self._redes()
-        x, ar, e = _tensores(m, disp, self.cfg.exponente_carga)
+        x, ar, e = _tensores(m, disp, self.cfg.exponente_carga, self.cfg.fisica)
         with torch.no_grad():
             salidas = [red(x, ar, e) for red in redes]
         vs = np.stack([s[0].cpu().numpy() for s in salidas])
@@ -492,7 +560,9 @@ def cargar(bufer: BuferEpisodios, version: str | None = None) -> OraculoPINN | N
     carpeta = raiz / version
     meta = json.loads((carpeta / 'modelo.json').read_text(encoding='utf-8'))
     estados = [torch.load(carpeta / f'miembro_{i}.pt', weights_only=True) for i in range(meta['miembros'])]
-    return OraculoPINN(estados, Entrenamiento(**meta['cfg']), meta['dominio'], version=version)
+    # Los modelos de antes del 2026-10-24 se entrenaron sobre el barrido radial.
+    cfg = Entrenamiento(**{'fisica': 'radial', **meta['cfg']})
+    return OraculoPINN(estados, cfg, meta['dominio'], version=version)
 
 
 def promover(bufer: BuferEpisodios, version: str, motivo: str) -> None:
@@ -542,17 +612,20 @@ def _muestras(bufer: BuferEpisodios, consulta: Consulta) -> tuple[list[Muestra],
     return muestras, ids
 
 
-def elegir_exponente(muestras: Sequence[Muestra], candidatos: Sequence[float] = (0.0, 1.0, 2.0)) -> float:
-    """El modelo de carga que mejor reproduce a DIgSILENT con el barrido físico.
+def elegir_exponente(muestras: Sequence[Muestra], candidatos: Sequence[float] = (0.0, 1.0, 2.0),
+                     fisica: str = 'mallado') -> float:
+    """El modelo de carga que mejor reproduce a DIgSILENT con la física de la base.
 
-    DIgSILENT calcula estas cargas según la tensión: con potencia constante el barrido se
-    apartaba 0,050 p.u. de IN111–TA225 y con impedancia constante 0,019 (2026-10-22). No se
-    fija en el código porque otra empresa o versión puede modelarlas de otro modo.
+    No se fija en el código porque otra empresa o versión puede modelar las cargas de otro
+    modo. Con el barrido radial salía impedancia constante (0,019 p.u. frente a 0,050), pero
+    era el barrido el que fallaba: con el flujo mallado gana la potencia constante, con
+    0,0032 p.u. frente a 0,016 (IN111–TA225, 2026-10-24).
     """
     def error(x: float) -> float:
         errores = []
         for m in muestras[:8]:
-            p = ModeloRadial(exponente=x).predecir(_grafo_de_muestra(m))
+            modelo = FISICAS[fisica](exponente=x)
+            p = modelo.predecir_muestra(m) if fisica == 'mallado' else modelo.predecir(_grafo_de_muestra(m))
             errores.append(float(np.mean(np.abs(p['v'][m.mascara] - m.v[m.mascara]))))
         return float(np.mean(errores)) if errores else 0.0
     return min(candidatos, key=error)
@@ -578,9 +651,13 @@ def entrenar(bufer: BuferEpisodios, *, consulta: Consulta | None = None, cfg: En
     actual = cargar(bufer)
     # Sin configuración, la del modelo en uso; sus pesos solo valen con la misma arquitectura.
     cfg = cfg or (actual.cfg if actual else Entrenamiento())
-    cfg = Entrenamiento(**{**cfg.__dict__, 'exponente_carga': elegir_exponente(grupos['entrenamiento'])})
-    log(f'Gemelo: modelo de carga de la física, S0·|V|^{cfg.exponente_carga:g}')
-    compatible = actual is not None and (actual.cfg.ocultas, actual.cfg.pasos) == (cfg.ocultas, cfg.pasos)
+    # Un modelo en uso sobre el barrido radial no fija la física del candidato: la mallada lo sustituye.
+    cfg = Entrenamiento(**{**cfg.__dict__, 'fisica': 'mallado'})
+    cfg = Entrenamiento(**{**cfg.__dict__,
+                           'exponente_carga': elegir_exponente(grupos['entrenamiento'], fisica=cfg.fisica)})
+    log(f'Gemelo: física {cfg.fisica}, modelo de carga S0·|V|^{cfg.exponente_carga:g}')
+    compatible = actual is not None and (actual.cfg.ocultas, actual.cfg.pasos, actual.cfg.fisica) == \
+        (cfg.ocultas, cfg.pasos, cfg.fisica)
     x_all = np.concatenate([m.x for m in grupos['entrenamiento']])
     dominio = {'x_min': x_all.min(axis=0).tolist(), 'x_max': x_all.max(axis=0).tolist(),
                'nodos': [min(len(m.ids) for m in grupos['entrenamiento']),
@@ -616,6 +693,30 @@ def entrenar(bufer: BuferEpisodios, *, consulta: Consulta | None = None, cfg: En
     log(f"Gemelo: candidato {candidato.version}: {'promovido' if not fallos else 'no promovido: ' + '; '.join(fallos)}")
     return {'entrenado': True, 'version': candidato.version, 'carpeta': str(carpeta),
             'promovido': not fallos, 'fallos': fallos, **{k: meta[k] for k in ('mae_v', 'residuo_medio', 'particiones')}}
+
+
+def evaluar(bufer: BuferEpisodios, consulta: Consulta | None = None) -> dict[str, Any]:
+    """Si el oráculo aprendió: cuánto se apartan de DIgSILENT el modelo promovido y la física
+    sola en cada episodio entrenable, y la media por partición (RF-74). Lo que importa es la
+    partición de prueba, con familias que el modelo no vio al entrenar (RF-12)."""
+    muestras, ids = _muestras(bufer, consulta or Consulta())
+    actual = cargar(bufer) if muestras else None
+    fisica = ModeloMallado(exponente=actual.cfg.exponente_carga if actual else 0.0)
+    filas = []
+    for m, i in zip(muestras, ids, strict=True):
+        fila = {'episodio': i, 'particion': particion(m.familia or 'x'), 'nodos': len(m.ids),
+                'mae_fisica': mae(fisica, [m])}
+        if actual is not None:
+            fila['mae_modelo'] = mae(actual, [m])
+        filas.append(fila)
+    resumen: dict[str, dict[str, float]] = {}
+    for parte in ('entrenamiento', 'validacion', 'prueba'):
+        sel = [f for f in filas if f['particion'] == parte]
+        if sel:
+            resumen[parte] = {'episodios': len(sel), 'mae_fisica': float(np.mean([f['mae_fisica'] for f in sel]))}
+            if actual is not None:
+                resumen[parte]['mae_modelo'] = float(np.mean([f['mae_modelo'] for f in sel]))
+    return {'modelo': actual.version if actual else None, 'por_particion': resumen, 'episodios': filas}
 
 
 def deriva(bufer: BuferEpisodios, nuevos: Sequence[str], puertas: Puertas | None = None) -> bool:

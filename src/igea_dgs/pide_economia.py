@@ -157,6 +157,20 @@ def costo_anual(ci: float, coym: float | None, cp: float | None, *, tasa: float,
             'completo': coym is not None and cp is not None}
 
 
+def valor_kw_perdidas(plan: Mapping[str, Any], *, factor_carga: float | None,
+                      precio_compra_kwh: float | None) -> float | None:
+    """Lo que vale evitar 1 kW de pérdidas en la máxima, en valor presente de la vida útil.
+
+    La energía perdida sale del factor de pérdidas de Buller y Woodrow (0,3·fc + 0,7·fc²)
+    con el factor de carga del perfil, y se valora a su precio de compra. Sin factor de
+    carga o sin precio no hay valor: no se inventa (RF-58e, 024:RF-70).
+    """
+    if factor_carga is None or precio_compra_kwh is None:
+        return None
+    perdidas = 0.3 * factor_carga + 0.7 * factor_carga ** 2
+    return 8760 * perdidas * precio_compra_kwh / frc(float(plan['tasa_regulada']), int(plan['vida_util_anios']))
+
+
 def van(flujos: Sequence[float], tasa: float) -> float:
     """Valor actual neto de flujos anuales desde el año 0."""
     return sum(f / (1 + tasa) ** t for t, f in enumerate(flujos))

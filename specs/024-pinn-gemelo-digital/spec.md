@@ -1,6 +1,6 @@
 # Spec 024 — PINN como oráculo y gemelo digital de la red calibrada
 
-Estado: aprobada el 2026-10-21, con el cambio del mismo día (RF-39 a RF-53: aprendizaje autónomo, propuestas e implementación propias, diagnóstico y plan por etapas); primera entrega (búfer de episodios, T1 a T9) implementada el 2026-10-22 y probada en DIgSILENT con IN111–TA225; T10 a T14, sin empezar · Fecha: 2026-10-21
+Estado: aprobada el 2026-10-21, con el cambio del mismo día (RF-39 a RF-53: aprendizaje autónomo, propuestas e implementación propias, diagnóstico y plan por etapas); primera entrega (búfer de episodios, T1 a T9) implementada el 2026-10-22 y probada en DIgSILENT con IN111–TA225; T10, T12 a T14 hechas el 2026-10-22; del 2026-10-24, RF-64 a RF-74 (física mallada, algoritmos genéticos y evolutivos, evaluación del aprendizaje; T15 a T17) y T11 cerrada con la PINN de IN111–TA225 promovida · Fecha: 2026-10-21
 
 ## Contexto y objetivo
 
@@ -418,6 +418,42 @@ y selección, propuesta.
   barra; las marcará siempre como estimadas.
 - RF-23: EL SISTEMA podrá ordenar candidatos de reconstrucción o reconfiguración por residuo,
   incertidumbre y violaciones; no escribirá una maniobra recomendada sin simulación y aceptación.
+
+### Física de la base y optimización evolutiva
+
+Usuario, 2026-10-24: «completa la implementación de Digital twin, algoritmos genéticos,
+algoritmos evolutivos avanzados y PINN, entrénalo y debemos hacer las pruebas para ver si
+aprendió». La PINN no pasaba las puertas porque su física era un barrido radial que descartaba
+los lazos de la red (IN111–TA225 tiene 3): se apartaba 0,019 p.u. de DIgSILENT, más que la
+puerta. Con un flujo por matriz de admitancias se aparta 0,0032 p.u.
+
+- RF-64: EL SISTEMA calculará la física de la base del oráculo y de los optimizadores con un
+  flujo de carga que respete los lazos cerrados de la red; un barrido sobre un árbol no será
+  la base.
+- RF-65: EL SISTEMA tratará como una sola barra eléctrica las que une un acoplador cerrado, en
+  el flujo y en el residuo físico, y dejará a 0 p.u. las barras sin camino a una fuente.
+- RF-66: SI el flujo físico no converge, ENTONCES EL SISTEMA lo dirá y no dará sus tensiones
+  como resultado; el modelo de carga de la física se elegirá con los datos y con esta misma física.
+- RF-67: EL SISTEMA tendrá un algoritmo genético, un NSGA-II y una evolución diferencial
+  autoadaptativa, deterministas con su semilla, para elegir obras con el flujo físico o el
+  oráculo como evaluador.
+- RF-68: EL SISTEMA elegirá con el algoritmo genético la ubicación y el número de módulos de
+  los bancos de condensadores que cumplen la norma al menor coste; si ninguno la cumple, lo dirá.
+- RF-69: EL SISTEMA dará el frente de Pareto entre inversión y pérdidas con la norma como
+  restricción, y marcará como sobredimensionadas las soluciones que cumplen con más inversión
+  que la elegida (RF-34).
+- RF-70: SI el perfil no trae el costo de la obra o el valor de las pérdidas, ENTONCES EL SISTEMA
+  no los inventará: optimizará la menor intervención y usará las pérdidas solo para desempatar.
+- RF-71: EL SISTEMA propondrá con el algoritmo genético qué maniobras abrir y cerrar para
+  reducir pérdidas sin crear lazos ni dejar cargas sin fuente.
+- RF-72: EL SISTEMA propondrá con la evolución diferencial la consigna de cada fuente que cumple
+  la norma con las menores pérdidas, dentro de su banda.
+- RF-73: CUANDO el PIDE proponga bancos y el gemelo tenga la red de ese proyecto, EL SISTEMA
+  sustituirá su ubicación y tamaño por los del optimizador, con la demanda del año de la obra, y
+  cada banco se simulará en DIgSILENT antes de aplicarse (RF-46); si el optimizador no cumple la
+  norma o no reconoce la barra, quedará el banco del diagnóstico con el motivo.
+- RF-74: EL SISTEMA dirá, por episodio y por partición, cuánto se apartan de DIgSILENT el modelo
+  promovido y la física sola, para comprobar si el oráculo aprendió.
 
 ### Caso dorado IN111–TA225
 
