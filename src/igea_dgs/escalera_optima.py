@@ -55,6 +55,7 @@ class Parametros:
     coym_pct_anual: float | None = None
     moneda: str = ''
     costos_unitarios: dict = field(default_factory=dict)       # alternativa → costo en ``moneda``
+    escala_capex: float | None = None                          # ``moneda`` por unidad del libro CAPEX
 
     @property
     def consigna_regulador_pu(self) -> float:
@@ -108,7 +109,8 @@ def parametros(perfil: Mapping[str, Any], tipo_cambio: float | None = None) -> P
         precio_perdidas_kwh=_opcional(esc.get('precio_perdidas_kwh')),
         precio_perdidas_kw_mes=_opcional(esc.get('precio_perdidas_kw_mes')),
         coym_pct_anual=_opcional(esc.get('coym_pct_anual')), moneda=moneda,
-        costos_unitarios={k: float(v) for k, v in (esc.get('costos_unitarios') or {}).items() if v is not None})
+        costos_unitarios={k: float(v) for k, v in (esc.get('costos_unitarios') or {}).items() if v is not None},
+        escala_capex=_opcional(esc.get('escala_capex')))
 
 
 def _opcional(x) -> float | None:
@@ -121,8 +123,20 @@ def _en(precio, tipo_cambio: float) -> float | None:
 
 def costos_de_alternativas(capex: Mapping[str, Mapping[str, Any]], p: Parametros) -> dict[str, dict[str, Any]]:
     """Los del libro CAPEX, y los que el perfil da para las alternativas que el libro no tiene
-    (bancos y reguladores en Electro Dunas); el libro manda si tiene la alternativa."""
-    out = {k: dict(v) for k, v in capex.items()}
+    (bancos y reguladores en Electro Dunas); el libro manda si tiene la alternativa.
+
+    RF-77: el libro se pasa a la moneda de trabajo con ``escalera.escala_capex``. El de Electro
+    Dunas está en miles de dólares y la escalera lo tomaba en dólares: la terna salía a 60,9 por
+    km y SI213 eligió terna y sección por las pérdidas (2026-10-24).
+    """
+    if any(v.get('costo_unitario') for v in capex.values()) and not p.escala_capex:
+        raise EscaleraError('el perfil no dice en qué escala está el libro CAPEX respecto de la moneda '
+                            f'de trabajo ({p.moneda}): escalera.escala_capex, p. ej. 1000 si está en miles '
+                            '(025:RF-77)')
+    out = {k: {**v, 'costo_unitario': (float(v['costo_unitario']) * p.escala_capex
+                                       if v.get('costo_unitario') else v.get('costo_unitario')),
+               'origen': v.get('origen') or 'capex'}
+           for k, v in capex.items()}
     for alt, costo_u in p.costos_unitarios.items():
         if alt not in out or not out[alt].get('costo_unitario'):
             out[alt] = {'costo_unitario': costo_u, 'unidad': 'Und' if alt in ('bancos', 'reguladores') else 'km',

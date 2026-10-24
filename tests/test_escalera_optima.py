@@ -188,7 +188,8 @@ def test_precios_de_perdidas_a_la_moneda_de_trabajo():
 def test_costos_que_el_libro_no_tiene_vienen_del_perfil_y_sin_ellos_no_se_elige():
     """025:RF-53, 025:RF-56, 025:RF-57 — bancos y reguladores sin costo en el CAPEX: los da el
     perfil si los tiene; sin ninguno, la variante que cumple no se elige y dice por qué."""
-    p = eo.parametros({**PERFIL, 'escalera': {**PERFIL['escalera'], 'costos_unitarios': {'bancos': 9000, 'reguladores': None}}})
+    p = eo.parametros({**PERFIL, 'escalera': {**PERFIL['escalera'], 'escala_capex': 1,
+                                               'costos_unitarios': {'bancos': 9000, 'reguladores': None}}})
     costos = eo.costos_de_alternativas({'nueva_terna': {'costo_unitario': 40000, 'unidad': 'km'}}, p)
     assert costos['bancos']['costo_unitario'] == 9000 and costos['bancos']['origen'] == 'perfil'
     assert 'reguladores' not in costos and costos['nueva_terna']['costo_unitario'] == 40000
@@ -197,3 +198,18 @@ def test_costos_que_el_libro_no_tiene_vienen_del_perfil_y_sin_ellos_no_se_elige(
                    {'nombre': 'terna', 'maxima': True, 'fraccion': 0.99, 'costo': {'costo_anual': 5.0}}], p)
     assert r['elegida'] == 'terna'
     assert 'sin costo' in next(t['motivo'] for t in r['tabla'] if t['nombre'] == 'reg')
+
+
+def test_el_libro_capex_pasa_a_la_moneda_de_trabajo_con_su_escala():
+    """025:RF-77 — un libro en miles (kUSD) se multiplica por la escala del perfil; los costos del
+    perfil no se tocan; sin escala, con costos en el libro, se dice y no se costea."""
+    libro = {'nueva_terna': {'costo_unitario': 60.9, 'unidad': 'KM'}}
+    p = eo.parametros({**PERFIL, 'escalera': {**PERFIL['escalera'], 'escala_capex': 1000,
+                                               'costos_unitarios': {'bancos': 8000}}})
+    costos = eo.costos_de_alternativas(libro, p)
+    assert costos['nueva_terna']['costo_unitario'] == pytest.approx(60900)
+    assert costos['bancos']['costo_unitario'] == 8000
+    sin = eo.parametros({**PERFIL, 'escalera': {k: v for k, v in PERFIL['escalera'].items() if k != 'escala_capex'}})
+    with pytest.raises(eo.EscaleraError, match='escala_capex'):
+        eo.costos_de_alternativas(libro, sin)
+    assert eo.costos_de_alternativas({}, sin) == {}
