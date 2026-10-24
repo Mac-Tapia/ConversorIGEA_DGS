@@ -188,8 +188,21 @@ def copiar_tipo(app, original, nombre: str, cambios: dict | None = None) -> tupl
     else:
         error, nuevo = local.PasteCopy(original)
         if error or nuevo is None:
-            raise RuntimeError(f'DIgSILENT no dejó copiar el tipo {original.loc_name!r} '
-                               f'al proyecto (código {error})')
+            # Desde el proyecto biblioteca de los reguladores (025:RF-59), sin activar,
+            # PasteCopy daba código 1 (Pisco, 2026-10-24): AddCopy y, si tampoco, un tipo nuevo
+            # de la clase con los datos del original, que se comprueban abajo.
+            try:
+                nuevo = local.AddCopy(original, final)
+            except Exception:  # noqa: BLE001 - se prueba la siguiente forma
+                nuevo = None
+            if nuevo is None:
+                nuevo = local.CreateObject(clase, final)
+                if nuevo is not None:
+                    for atributo, valor in datos_tipo(original).items():
+                        setattr(nuevo, atributo, valor)
+            if nuevo is None:
+                raise RuntimeError(f'DIgSILENT no dejó copiar el tipo {original.loc_name!r} '
+                                   f'al proyecto (código {error})')
         nuevo.loc_name = final
     for atributo, valor in (cambios or {}).items():
         setattr(nuevo, atributo, valor)
@@ -1588,7 +1601,10 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
             admite = int((1 - p.cumplimiento) * len(sorteos) + 1e-9)
             fallos = 0
             with _Sorteo(app, alims, feeders, existentes) as s:
-                for sorteo, sin_i in zip(sorteos, sin_sorteos):
+                for i, (sorteo, sin_i) in enumerate(zip(sorteos, sin_sorteos)):
+                    if i % 10 == 0 and cancelado():          # una variante puede llevar minutos
+                        informe['cancelado'] = True
+                        return None
                     s.escalar(sorteo['factores'])
                     fallos += not cumple(sin_i, medida_para_criterio(app, alims, feeders), barras, p)[0]
                     if fallos > admite:
