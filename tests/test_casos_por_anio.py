@@ -373,6 +373,88 @@ def test_dice_que_cargas_no_convergen_juntas(monkeypatch):
     assert set(j['cargas']) <= _activas_por_nombre(app, f'Con proyecto {ANIO}')
 
 
+# =========================================================================== T23: «Cargas nuevas»
+def _caso_por_nombre(app, nombre):
+    return next(c for c in app.carpetas['study'].GetContents('*.IntCase') if c.loc_name == nombre)
+
+
+def test_cargas_nuevas_es_copia_del_sin_proyecto_con_sus_cargas():
+    """025:RF-61, 025:RF-62, 025:RF-63, 025:RF-64 — «Cargas nuevas <año>», copia de «Sin
+    proyecto <año>» con un escenario propio copia del suyo y con las variaciones de las cargas
+    nuevas, cada una la suya, sin ninguna obra; converge."""
+    from test_casos_pf import cargas_guion
+    from test_cargas_pf_guion import _nueva, _plan as _plan_cargas
+
+    app, base = _red_calibrada(escenario=True)
+    nuevas = [_nueva('N1', barra='F1_B2', tension_bt_kv=0.38),
+              _nueva('N2', barra='F1_B3', tension_bt_kv=0.38)]
+    informe, rc = cargas_guion.ejecutar(
+        app, {**_plan_cargas(['F1'], nuevas=nuevas), 'base': base, 'anio_casos': ANIO}, simular=False)
+    assert rc == 0, informe
+    nombre = f'Cargas nuevas {ANIO}'
+    caso = _caso_por_nombre(app, nombre)
+    assert casos_pf.rol_de(caso) == f'cargas@{ANIO}'
+    propias = [c['variacion'] for c in informe['cargas']]
+    activas, escenario = _activas_en(app, caso)
+    assert sorted(propias) == activas and not any(v.startswith('Obra_') for v in activas)
+    sin = casos_pf.caso(app, 'sin', ANIO)
+    assert escenario.loc_name == nombre and escenario is not _activas_en(app, sin)[1]
+    assert _activas_en(app, sin)[0] == []
+    assert informe['cargas_nuevas']['converge'] and informe['cargas_nuevas']['activas'] == propias
+    assert len(casos_pf.casos_del_proyecto(app, ANIO)) == 3          # los de la 011, aparte
+
+
+def test_cargas_nuevas_una_a_una_hasta_donde_converge(monkeypatch):
+    """025:RF-65, 025:RF-66 — la carga que ya no deja converger queda inactiva en «Cargas nuevas
+    <año>» con su motivo para la web, la siguiente se sigue probando y el caso queda
+    convergido; «Con proyecto <año>» sigue con todas."""
+    from test_casos_pf import cargas_guion
+    from test_cargas_pf_guion import _nueva, _plan as _plan_cargas
+
+    app, base = _red_calibrada(escenario=True)
+    real = cargas_guion.flujo_de_carga
+
+    def flujo(app_, *a, **k):
+        activas = {v.loc_name for v in (app_.GetActiveNetworkVariations() or [])}
+        n2 = any(n.startswith('Carga_N2_') for n in activas)
+        otras = any(n.startswith(('Carga_N1_', 'Carga_N3_')) for n in activas)
+        return {**real(app_, *a, **k), 'converged': not (n2 and otras)}
+
+    monkeypatch.setattr(cargas_guion, 'flujo_de_carga', flujo)
+    nuevas = [_nueva(f'N{i}', barra=f'F1_B{i + 1}', tension_bt_kv=0.38) for i in (1, 2, 3)]
+    informe, rc = cargas_guion.ejecutar(
+        app, {**_plan_cargas(['F1'], nuevas=nuevas), 'base': base, 'anio_casos': ANIO}, simular=False)
+    d = informe['cargas_nuevas']
+    var = {c['sed']: c['variacion'] for c in informe['cargas']}
+    assert d['activas'] == [var['N1'], var['N3']] and d['converge'] is True
+    (fuera,) = d['no_convergen']
+    assert fuera['variacion'] == var['N2'] and fuera['sed'] == 'N2'
+    assert 'N2' in fuera['texto'] and 'ya no converge' in fuera['texto']
+    assert any('025:RF-66' in a and 'N2' in a for a in informe['avisos'])
+    assert _activas_en(app, _caso_por_nombre(app, f'Cargas nuevas {ANIO}'))[0] == sorted([var['N1'], var['N3']])
+    assert set(var.values()) <= _activas_por_nombre(app, f'Con proyecto {ANIO}')
+
+
+def test_cargas_nuevas_sin_las_obras_de_con_proyecto():
+    """025:RF-64 — las obras que «Con proyecto <año>» activa para las cargas reutilizadas
+    (RF-42) no pasan a «Cargas nuevas <año>»."""
+    from test_casos_pf import _variacion, cargas_guion
+    from test_cargas_pf_guion import _nueva, _plan as _plan_cargas
+
+    app, base = _red_calibrada(escenario=True)
+    casos_pf.caso(app, 'con').Activate()
+    obra = _variacion(app, 'Obra_enlace_F1_F2')
+    nueva = [_nueva('N1', barra='F1_B2', tension_bt_kv=0.38)]
+    assert cargas_guion.ejecutar(app, {**_plan_cargas(['F1'], nuevas=nueva), 'base': base},
+                                 simular=False)[1] == 0
+    informe, rc = cargas_guion.ejecutar(
+        app, {**_plan_cargas(['F1'], nuevas=nueva), 'base': base, 'anio_casos': ANIO}, simular=False)
+    assert rc == 0, informe
+    assert obra.loc_name in _activas_por_nombre(app, f'Con proyecto {ANIO}')
+    activas = _activas_por_nombre(app, f'Cargas nuevas {ANIO}')
+    assert obra.loc_name not in activas and informe['reutilizadas'][0]['variacion'] in activas
+
+
 # =========================================================================== T15: escalera
 def _tipo_linea(nombre, kv, ka, aereo=True, origen='proyecto'):
     return {'nombre': nombre, 'clase': 'TypLne', 'origen': origen, 'proyecto': '',
@@ -457,7 +539,8 @@ def test_la_escalera_se_detiene_en_la_primera_que_converge(tmp_path, monkeypatch
 def test_la_base_de_las_cargas_se_encuentra_en_otra_ejecucion(tmp_path):
     """025:RF-37 (007:RF-40) — la calibración de 2025 quedó en la ejecución anterior; al
     volver a cargar la fuente hay otra, y la base pedida por su token se sigue encontrando.
-    Sin token, solo la ejecución activa, como antes."""
+    Sin token también (2026-10-24: tras reiniciar la web, el paso de cargas de Pisco no
+    encontraba su base); si la ejecución activa tiene una del proyecto, manda esa."""
     import json
     from igea_dgs.web import services
     from igea_dgs.web.workspace import Workspace
@@ -471,7 +554,11 @@ def test_la_base_de_las_cargas_se_encuentra_en_otra_ejecucion(tmp_path):
     (tmp_path / 'runs' / 'r2' / 'salida').mkdir(parents=True)
     hallado = services.ajuste_aplicado_en_disco(ws, None, 'tok123')
     assert hallado and hallado['id'] == 'disco:tok123' and hallado['feeders'] == ['A1']
-    assert services.ajuste_aplicado_en_disco(ws, 'P') is None
+    assert services.ajuste_aplicado_en_disco(ws, 'P')['id'] == 'disco:tok123'
+    assert services.ajuste_aplicado_en_disco(ws, 'OTRO') is None
+    (tmp_path / 'runs' / 'r2' / 'salida' / 'ajuste_cabecera_aplicacion_nuevo_1.json').write_text(
+        json.dumps({'project': 'P', 'feeder': 'A1', 'caso': 'Sin proyecto'}), encoding='utf-8')
+    assert services.ajuste_aplicado_en_disco(ws, 'P')['id'] == 'disco:nuevo'
 
 
 def test_volver_a_calibrar_el_anio_reutiliza_sus_casos():

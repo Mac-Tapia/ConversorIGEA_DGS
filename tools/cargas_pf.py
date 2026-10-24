@@ -1390,6 +1390,109 @@ def flujo_de_carga(app) -> dict:
     return out
 
 
+def flujo_con_mensajes(app) -> tuple[bool, list[str]]:
+    """El flujo del caso activo y, si no converge, lo que dice DIgSILENT en su ventana de
+    salida (errores y advertencias), para decir por qué (025:RF-66)."""
+    ventana = None
+    try:
+        ventana = app.GetOutputWindow()
+        ventana.Clear()
+    except Exception:  # noqa: BLE001, S110 - sin ventana, solo el código del flujo
+        ventana = None
+    flujo = flujo_de_carga(app)
+    if flujo['converged']:
+        return True, []
+    lineas = []
+    if ventana is not None:
+        try:
+            lineas = [str(x).strip() for x in (ventana.GetContent() or [])]
+        except Exception:  # noqa: BLE001, S110
+            lineas = []
+    # DIgSILENT marca sus líneas con «err  -» y «warn -»; un flujo que no arranca (código 1,
+    # IC_11 de TA225 sin su obra, 2026-10-24) no dice «error» ni «converg».
+    utiles = [x for x in lineas if re.match(r'(?i)(err|warn)\b', x)
+              or re.search(r'(?i)error|converg|iteration|iteraci', x)]
+    return False, (utiles[-5:] or [f"el flujo no converge (código {flujo['return_code']})"])
+
+
+def estado_del_alimentador(alims, feeder: str) -> dict:
+    """Tensión mínima de media y tramos sobre el 100 % con el último flujo que convergió."""
+    tensiones = []
+    for b in alims.objetos(feeder, 'ElmTerm'):
+        try:
+            if float(getattr(b, 'uknom', 0) or 0) >= 1.0 and b.HasResults():
+                tensiones.append((float(b.GetAttribute('m:u')), b.loc_name))
+        except Exception:  # noqa: BLE001, S110
+            pass
+    sobre = []
+    for ln in alims.objetos(feeder, 'ElmLne'):
+        try:
+            c = float(ln.GetAttribute('c:loading'))
+        except Exception:  # noqa: BLE001, S110
+            continue
+        if c > 100.0:
+            sobre.append((c, ln.loc_name))
+    sobre.sort(reverse=True)
+    return {'tension_minima': min(tensiones) if tensiones else None,
+            'sobrecargados': len(sobre), 'peor_tramo': sobre[0] if sobre else None}
+
+
+def _num_es(x: float, decimales: int) -> str:
+    return f'{x:,.{decimales}f}'.replace(',', ' ').replace('.', ',')
+
+
+def motivo_de_carga(sed: str, feeder: str | None, kw: float | None, antes: dict,
+                    mensajes: list[str]) -> dict:
+    """Con qué carga deja de converger «Cargas nuevas» y por qué, para la web (025:RF-66)."""
+    partes = [f'con {sed}' + (f' ({feeder}' + (f', {_num_es(kw, 0)} kW' if kw else '') + ')' if feeder else '')
+              + ' el flujo ya no converge; queda inactiva']
+    u = antes.get('tension_minima')
+    if u:
+        partes.append(f'justo antes, la tensión mínima de {feeder} era {_num_es(u[0], 3)} p.u. en {u[1]}')
+    if antes.get('sobrecargados'):
+        c, n = antes['peor_tramo']
+        partes.append(f"{antes['sobrecargados']} tramos sobre el 100 % (el peor, {n}, al {_num_es(c, 0)} %)")
+    if mensajes:
+        partes.append('DIgSILENT: ' + ' | '.join(mensajes[-3:]))
+    return {'sed': sed, 'alimentador': feeder, 'kw': kw, 'antes': antes, 'mensajes': mensajes,
+            'texto': '; '.join(partes) + '.'}
+
+
+def _a_cargas_nuevas(app, c011, casos, anio, alims, plan, informe, variaciones) -> None:
+    """«Cargas nuevas <año>» con estas variaciones de carga, una a una (025:RF-61 a RF-66)."""
+    filas = {nombre_pf(str(n.get('sed') or '')): n for n in plan.get('nuevas') or []}
+
+    def de(v):
+        """SED, alimentador y kW de una variación ``Carga_<SED>_<alim>_…``."""
+        for clave in sorted(filas, key=len, reverse=True):
+            if clave and v.loc_name.startswith(f'Carga_{clave}_'):
+                f = filas[clave]
+                kw = f.get('kw')
+                return str(f.get('sed')), f.get('alimentador') or None, float(kw) if kw is not None else None
+        return v.loc_name, None, None
+
+    def antes(_app, v):
+        _sed, feeder, _kw = de(v)
+        return estado_del_alimentador(alims, feeder) if feeder in alims.elm else {}
+
+    def explicar(v, previo, mensajes):
+        sed, feeder, kw = de(v)
+        return motivo_de_carga(sed, feeder, kw, previo, mensajes)
+
+    # RF-63: las mismas cargas que «Con proyecto <año>»: primero las de esta inserción, en su
+    # orden, y después las de otras inserciones que allí están activas.
+    casos['con'].Activate()
+    en_con = [v for v in (app.GetActiveNetworkVariations() or []) if c011.es_de_carga_nueva(v)]
+    nombres = {v.loc_name for v in en_con}
+    variaciones = [v for v in variaciones if v.loc_name in nombres]
+    vistas = {v.loc_name for v in variaciones}
+    variaciones += sorted((v for v in en_con if v.loc_name not in vistas), key=lambda v: v.loc_name)
+    out = c011.cargas_nuevas(app, casos['sin'], anio, variaciones, flujo_con_mensajes,
+                             antes=antes, explicar=explicar)
+    informe['cargas_nuevas'] = out
+    informe['avisos'] += out['avisos']
+
+
 def tecnico_economico(app, tec: dict) -> dict:
     """``ComTececo`` sobre las variaciones activas del caso, como hacía el lote.
 
@@ -1621,6 +1724,7 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
             _obras_de_las_reutilizadas(app, c011, anio, casos, informe)
             for v in reutilizadas:
                 v.Activate()
+            _a_cargas_nuevas(app, c011, casos, anio, alims, plan, informe, reutilizadas)  # 025:RF-61
             if previo is not None:
                 previo.Activate()
         # Sin esto la web decía «al terminar: ninguna» con el ajuste aún activo (2026-10-13).
@@ -1805,6 +1909,9 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
                         + (f"; basta quitar una de: {', '.join(juntas['basta_quitar_una_de'])}"
                            if juntas['basta_quitar_una_de'] else '')
                         + '. Hacen falta obras: la escalera de obras (025:RF-44).')
+                # 025:RF-61 a RF-66: la situación real con las cargas nuevas y sin obras.
+                _a_cargas_nuevas(app, c011, casos, anio, alims, plan, informe,
+                                 previas_con + de_cargas + reutilizadas)
             if inicial is not None:
                 inicial.Activate()
         informe['variaciones_activas_fin'] = variaciones_activas(app)

@@ -839,6 +839,7 @@ function Informe({ resultado, cancelado, escalera, ocupado, onEscalera }: {
           </div>
         </div>
       )}
+      {inf.cargas_nuevas && <CargasNuevasCaso c={inf.cargas_nuevas} />}
       {escalera && <Escalera r={escalera} />}
       {(inf.cargas ?? []).length > 0 && <PorCarga cargas={inf.cargas!} sin={inf.sin_proyecto} />}
       {(inf.calibradas_cambiadas ?? []).length > 0 && <Calibradas xs={inf.calibradas_cambiadas!} />}
@@ -860,6 +861,22 @@ function Informe({ resultado, cancelado, escalera, ocupado, onEscalera }: {
         <p className="muted">{inf.plan_errores_de_fila!.length} fila(s) con error en los libros no se enviaron.</p>
       )}
       <small className="muted">Informe completo: {resultado.report}, en «Resultados».</small>
+    </div>
+  );
+}
+
+/** Spec 025, RF-61 a RF-66: la situación real con las cargas nuevas y sin obras. */
+function CargasNuevasCaso({ c }: { c: NonNullable<CargasInforme['cargas_nuevas']> }) {
+  const fuera = c.no_convergen;
+  return (
+    <div className={`alert ${fuera.length ? 'alert-warn' : ''}`}>
+      <strong>«{c.caso}»</strong>: copia de «Sin proyecto» con las cargas nuevas, sin obras.{' '}
+      {c.converge === false
+        ? 'No converge ni sin cargas nuevas.'
+        : <>Converge con {c.activas.length} carga(s) nueva(s){fuera.length ? `; ${fuera.length} quedan inactivas porque con ellas ya no converge` : ''}.</>}
+      {fuera.length > 0 && (
+        <ul className="small">{fuera.map((x) => <li key={x.variacion}>{x.texto ?? x.variacion}</li>)}</ul>
+      )}
     </div>
   );
 }

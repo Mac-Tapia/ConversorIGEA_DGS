@@ -284,8 +284,9 @@ def test_cada_carga_se_mide_sin_las_anteriores(guion):
     con = informe['cargas'][0]['con_proyecto']
     assert con['converged'] and con['feeders']['F1']['cabecera']['kw'] > sin['cabecera']['kw']
     # Un flujo sin proyecto, uno por carga, el final con la base sola y el de «Con proyecto»
-    # con todas, que dice si caben juntas (025:RF-43).
-    assert app.ldf.ejecuciones == 1 + len(nuevas) + 1 + 1
+    # con todas, que dice si caben juntas (025:RF-43); en «Cargas nuevas», el de partida,
+    # uno por carga y el final (025:RF-65).
+    assert app.ldf.ejecuciones == (1 + len(nuevas) + 1 + 1) + (1 + len(nuevas) + 1)
 
 
 def test_no_se_reajusta_tras_conectar(guion):

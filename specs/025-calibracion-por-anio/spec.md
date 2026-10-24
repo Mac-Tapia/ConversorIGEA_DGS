@@ -255,6 +255,32 @@ nueva por su factor de uso; vale si cumple en el 95 % de 200 sorteos)
 - RF-58: CUANDO se repite la escalera con la misma red, las mismas cargas y la misma
   semilla, EL SISTEMA sorteará lo mismo y elegirá la misma variante.
 
+Caso de diagnóstico con las cargas nuevas (usuario, 2026-10-24: «debes hacer una copia al
+caso sin proyecto y su escenario de operación de sin proyecto y ahí debes integrar las
+nuevas cargas, cada uno con variación independiente como en con proyecto, y dejarlo
+convergido sin hacer nada de cambios»; «solo crear ese caso, nada se evalúa, es para saber
+la situación real con cargas nuevas; los cambios con escalera y proyectos nuevos van en con
+proyecto»; nombre «Cargas nuevas <año>»; si no converge, se deja y se dice)
+
+- RF-61: CUANDO se insertan cargas nuevas en los casos de un año (o en los sin año), EL
+  SISTEMA creará o reutilizará el caso «Cargas nuevas <año>» («Cargas nuevas» sin año),
+  copia de «Sin proyecto <año>», con la marca del sistema.
+- RF-62: EL SISTEMA dará a «Cargas nuevas <año>» un escenario de operación propio, copia del
+  de «Sin proyecto <año>» en ese momento, cada vez que se insertan cargas.
+- RF-63: EL SISTEMA activará en «Cargas nuevas <año>» las variaciones de las cargas nuevas de
+  los alimentadores marcados, las mismas que en «Con proyecto <año>», cada una la suya.
+- RF-64: EL SISTEMA no pondrá en «Cargas nuevas <año>» ninguna obra, ningún ajuste del flujo
+  ni ningún cambio de red o de demanda que no tenga «Sin proyecto <año>».
+- RF-65: EL SISTEMA activará las cargas nuevas en «Cargas nuevas <año>» una a una, con un
+  flujo después de cada una, y dejará activas solo las que lo dejan converger, de modo que
+  el caso quede siempre convergido (usuario, 2026-10-24: «debe insertar uno por uno las
+  cargas hasta donde la carga converge … y siempre debe dejar convergido en cualquier
+  caso»; cambia lo acordado antes, dejar todas activas aunque no convergiera).
+- RF-66: SI una carga nueva no deja converger «Cargas nuevas <año>», ENTONCES EL SISTEMA la
+  dejará inactiva allí y dirá en la web con qué carga deja de converger y por qué: su
+  alimentador, su potencia, la tensión mínima y los tramos sobrecargados del alimentador
+  justo antes de ella, y lo que informa DIgSILENT del flujo que no convergió.
+
 Cargas nuevas incompletas (usuario, 2026-10-23: «las cargas nuevas que no tienen datos
 completos necesarios se rechazan y se deja un mensaje en la web»; obligatorios: barra o
 coordenadas, y alimentador; para toda inserción desde ahora, sin tocar las ya insertadas)

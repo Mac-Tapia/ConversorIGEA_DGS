@@ -123,6 +123,19 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       (`CreateObject` devuelve nada); su carpeta de usuario, sí. Un `TypVoltreg` nuevo trae
       `type`=1, `config`=2, `Un`=7,62 kV, `In`=437 (amperios, no kA como dice
       `RESUMEN_TIPO`), `pcReg`=10 %, `ntapmax`=16.
+- [x] T23. «Cargas nuevas <año>»: copia de «Sin proyecto <año>» y de su escenario con las
+      variaciones de las cargas nuevas, una a una, solo las que lo dejan converger, sin obras
+      ni cambios; las que no, inactivas y con su motivo en la web. (RF-61 a RF-66)
+      Hecho cuando: `pytest -q tests/test_casos_por_anio.py` en verde y el caso en DIgSILENT
+      en Pisco, Chincha y el unido IN111 + TA225, con 2025, insertando desde la web.
+      Hecho el 2026-10-24, insertando `NuevosclientesMayoresv1.xlsx` por la web con la base de
+      2025 (las cargas ya existían y se reutilizan). «Cargas nuevas 2025» convergido en los
+      tres: Pisco con PI_1, PI_7 y PI_8 (fuera PI_9, PI_10 y PI_11: PA217 ya a 0,647 p.u. y
+      72 tramos sobre el 100 %, Newton estancado); Chincha sin CH_5 (TM105 a 0,832 p.u., un
+      tramo al 301 %); el unido sin IC_11, IC_12, IC_15 e IC_17 (su línea queda entre 22,9 y
+      10 kV sin la migración de IN111, que es obra de «Con proyecto»). De paso, la base de
+      las cargas se busca en todas las ejecuciones también sin token: tras reiniciar la web,
+      la de Pisco no aparecía.
 - [ ] T18. Variantes, criterio por sorteo, sorteos con semilla, costo anual y elección,
       puros. (RF-44, RF-49, RF-50, RF-51, RF-53, RF-55 a RF-58, RF-60)
       Hecho cuando: `pytest -q tests/test_escalera_optima.py` en verde.

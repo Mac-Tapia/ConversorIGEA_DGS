@@ -608,6 +608,11 @@ export interface CargasInforme {
   no_convergen_juntas?: {
     caso: string; cargas: string[]; solas_que_no_convergen: string[]; basta_quitar_una_de: string[];
   };
+  /** RF-61 a RF-66: «Cargas nuevas <año>», las cargas una a una hasta donde converge. */
+  cargas_nuevas?: {
+    caso: string; escenario?: string; converge: boolean | null; activas: string[];
+    no_convergen: { variacion: string; sed?: string; alimentador?: string | null; kw?: number | null; texto?: string }[];
+  };
 }
 
 /** Spec 025, RF-44: la escalera de obras de cada alimentador y el escalón que converge. */
