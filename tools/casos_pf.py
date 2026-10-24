@@ -517,6 +517,106 @@ def crear_con_proyecto(app, sin, anio: int | None = None):
     return con
 
 
+# =========================================================================== cargas nuevas
+#: Caso de diagnóstico con las cargas nuevas y sin obras (025:RF-61). No está en ``NOMBRES``:
+#: los tres casos de la spec 011 siguen siendo los que decide ``tres_casos``.
+NOMBRE_CARGAS = 'Cargas nuevas'
+ROL_CARGAS = 'cargas'
+
+
+def nombre_cargas_nuevas(anio: int | None = None) -> str:
+    return f'{NOMBRE_CARGAS} {anio}' if anio else NOMBRE_CARGAS
+
+
+def _escenario_renovado(app, caso, nombre: str, origen) -> str:
+    """El escenario de ``caso``, copia nueva de ``origen`` (025:RF-62).
+
+    Se renueva en cada inserción: es un caso de diagnóstico que nadie toca a mano, y tiene
+    que mostrar la demanda de «Sin proyecto» de ese momento, también tras recalibrarlo.
+    """
+    caso.Activate()
+    carpeta = app.GetProjectFolder('scen', 1)
+    actual = app.GetActiveScenario()
+    if actual is not None:
+        actual.Deactivate(0)
+    for e in carpeta.GetContents('*.IntScenario'):
+        if e.loc_name == nombre:
+            e.Delete()
+    nuevo = carpeta.AddCopy(origen, nombre) if origen is not None else carpeta.CreateObject('IntScenario', nombre)
+    nuevo.Activate()
+    return nuevo.loc_name
+
+
+def cargas_nuevas(app, sin, anio: int | None, variaciones: list, flujo,
+                  antes=lambda _app, _v: {}, explicar=lambda v, _antes, _mensajes: {'texto': v.loc_name}) -> dict:
+    """«Cargas nuevas <año>»: copia de «Sin proyecto <año>» y de su escenario, con las cargas
+    nuevas activadas una a una (025:RF-61 a RF-66).
+
+    ``flujo(app)`` ejecuta el flujo del caso activo y devuelve ``(converge, mensajes)``.
+    ``antes(app, v)`` lee el estado con el último flujo que convergió, antes de activar
+    ``v``: al cambiar la red, DIgSILENT puede borrar esos resultados. ``explicar(v, antes,
+    mensajes)`` arma el motivo de una carga que no deja converger; se desactiva y se sigue
+    con la siguiente, y el caso queda siempre convergido (RF-65, RF-66).
+    """
+    nombre = nombre_cargas_nuevas(anio)
+    carpeta = app.GetProjectFolder('study')
+    clave = _clave(ROL_CARGAS, anio)
+    caso = next((c for c in carpeta.GetContents('*.IntCase')
+                 if c.loc_name == nombre and rol_de(c) == clave), None)
+    informe: dict = {'caso': nombre, 'creado': caso is None, 'activas': [], 'no_convergen': [],
+                     'avisos': []}
+    if caso is None:
+        if any(c.loc_name == nombre for c in carpeta.GetContents('*.IntCase')):
+            informe['avisos'].append(f'Hay un caso «{nombre}» que no creó el sistema: no se toca; '
+                                     'renómbrelo en DIgSILENT para tener el de diagnóstico (025:RF-61).')
+            informe['converge'] = None
+            return informe
+        caso = carpeta.AddCopy(sin, nombre)
+        _marcar(caso, clave)
+    previo = app.GetActiveStudyCase()
+    try:
+        # RF-64: lo de «Sin proyecto», nada más: sus variaciones activas, ninguna de cargas.
+        sin.Activate()
+        de_sin = {v.loc_name for v in (app.GetActiveNetworkVariations() or []) if not es_de_carga_nueva(v)}
+        esc_sin = app.GetActiveScenario()
+        informe['escenario'] = _escenario_renovado(app, caso, nombre, esc_sin)
+        for v in list(app.GetActiveNetworkVariations() or []):
+            if es_de_carga_nueva(v) or v.loc_name not in de_sin:
+                v.Deactivate()
+        carpeta_var = app.GetProjectFolder('scheme')
+        for v in (carpeta_var.GetContents('*.IntScheme', 1) if carpeta_var else []):
+            if v.loc_name in de_sin and v not in (app.GetActiveNetworkVariations() or []):
+                v.Activate()
+        converge, mensajes = flujo(app)
+        if not converge:
+            informe['avisos'].append(f'«{nombre}» no converge ni sin cargas nuevas, como «Sin proyecto»: '
+                                     'no se activa ninguna (025:RF-65). DIgSILENT: ' + '; '.join(mensajes[-3:]))
+            informe['converge'] = False
+            return informe
+        vistas: set[str] = set()
+        for v in variaciones:
+            if v.loc_name in vistas:
+                continue
+            vistas.add(v.loc_name)
+            previo_estado = antes(app, v)
+            v.Activate()
+            converge, mensajes = flujo(app)
+            if converge:
+                informe['activas'].append(v.loc_name)
+                continue
+            v.Deactivate()                                                 # RF-65, RF-66
+            informe['no_convergen'].append({'variacion': v.loc_name,
+                                            **explicar(v, previo_estado, mensajes)})
+            flujo(app)                       # resultados convergidos para leer la siguiente
+        informe['converge'] = bool(flujo(app)[0])
+        for x in informe['no_convergen']:
+            informe['avisos'].append(f'«{nombre}»: {x.get("texto") or x["variacion"]} (025:RF-66).')
+    finally:
+        if previo is not None and app.GetActiveStudyCase() is not previo:
+            previo.Activate()
+    return informe
+
+
 # =========================================================================== preparar
 def _sin_verificar(plan: dict, feeders: list[str]) -> list[str]:
     """Alimentadores de ``feeders`` cuyo «Caso base» no está verificado (015:RF-17).

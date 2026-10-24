@@ -228,7 +228,9 @@ def test_las_cargas_se_miden_con_el_escenario_encendido(guion, monkeypatch):
                                  simular=False)
     assert rc == 0, informe
     assert len(medidas) == 2 and medidas == ['Con proyecto', 'Con proyecto']
-    assert flujos and flujos[-1] == 'Con proyecto'
+    # Después van los de «Cargas nuevas», con su propio escenario (025:RF-62, RF-65).
+    de_con = [f for f in flujos if f != 'Cargas nuevas']
+    assert de_con and de_con[-1] == 'Con proyecto' and flujos[-1] == 'Cargas nuevas'
     assert app.GetActiveScenario() is not None
 
 

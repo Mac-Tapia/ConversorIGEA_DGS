@@ -3227,13 +3227,34 @@ def ajuste_aplicado_en_disco(ws: Workspace, project: str | None,
     ``token`` y sin ``project`` vale el proyecto que diga el informe.
     """
     project = str(project or '').strip()
-    grupos: dict[str, list[tuple[int, Path, dict]]] = {}
     rutas = list(ws.out_dir.glob('ajuste_cabecera_aplicacion_*.json'))
     if token and not any(p.name.startswith(f'ajuste_cabecera_aplicacion_{token}_') for p in rutas):
         # 025:RF-37: pedido por su token, también en otra ejecución del espacio. Al volver a
         # cargar la fuente hay una ejecución nueva y la calibración de 2025 de Pisco quedó
         # en la anterior (2026-10-23): las cargas no encontraban su base.
         rutas = sorted(ws.root.glob(f'runs/*/salida/ajuste_cabecera_aplicacion_{token}_*.json'))
+    grupos = _ajustes_por_token(rutas, project, token)
+    if not grupos and not token:
+        # 025:RF-37, también sin token: tras reiniciar la web, la base de Pisco no aparecía en
+        # el paso de cargas: su calibración de 2025 estaba en la ejecución anterior (2026-10-24).
+        grupos = _ajustes_por_token(sorted(ws.root.glob('runs/*/salida/ajuste_cabecera_aplicacion_*.json')),
+                                    project, None)
+    if not grupos:
+        return None
+    clave, filas = max(grupos.items(), key=lambda kv: max(p.stat().st_mtime for _, p, _ in kv[1]))
+    filas.sort(key=lambda fila: fila[0])
+    informes = [informe for _, _, informe in filas]
+    return {'id': f'disco:{clave}', 'project': project or str(informes[0].get('project') or ''),
+            'feeders': [str(i.get('feeder') or '') for i in informes],
+            'modo': informes[0].get('modo'), 'report': filas[0][1].name,
+            'reports': [p.name for _, p, _ in filas], 'returncode': 0,
+            'informe': informes[0], 'informes': informes,
+            'finished_at': max(p.stat().st_mtime for _, p, _ in filas)}
+
+
+def _ajustes_por_token(rutas, project: str, token: str | None) -> dict[str, list[tuple[int, Path, dict]]]:
+    """Los informes de calibración de ``rutas`` del proyecto, agrupados por su token."""
+    grupos: dict[str, list[tuple[int, Path, dict]]] = {}
     for path in rutas:
         resto = path.stem.removeprefix('ajuste_cabecera_aplicacion_')
         clave, _, n = resto.partition('_')
@@ -3247,17 +3268,7 @@ def ajuste_aplicado_en_disco(ws: Workspace, project: str | None,
                 project and str(informe.get('project') or '').strip() != project):
             continue
         grupos.setdefault(clave, []).append((int(n) if n.isdigit() else 0, path, informe))
-    if not grupos:
-        return None
-    clave, filas = max(grupos.items(), key=lambda kv: max(p.stat().st_mtime for _, p, _ in kv[1]))
-    filas.sort(key=lambda fila: fila[0])
-    informes = [informe for _, _, informe in filas]
-    return {'id': f'disco:{clave}', 'project': project or str(informes[0].get('project') or ''),
-            'feeders': [str(i.get('feeder') or '') for i in informes],
-            'modo': informes[0].get('modo'), 'report': filas[0][1].name,
-            'reports': [p.name for _, p, _ in filas], 'returncode': 0,
-            'informe': informes[0], 'informes': informes,
-            'finished_at': max(p.stat().st_mtime for _, p, _ in filas)}
+    return grupos
 
 
 def _registrar_vinculo(ws: Workspace, acceptance: dict, proyecto: str) -> None:

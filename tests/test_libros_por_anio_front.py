@@ -86,3 +86,10 @@ def test_la_escalera_se_pide_desde_el_informe_de_cargas():
     assert 'startJob(() => api.obrasEscalera(' in CARGAS
     assert '/pf/obras/escalera' in API and "'/api/workspaces/{wid}/pf/obras/escalera'" in APP
     assert "j.kind === 'obras_escalera'" in CARGAS and 'converge con «{a.obra}»' in CARGAS
+
+def test_el_informe_de_cargas_dice_el_caso_cargas_nuevas():
+    """025:RF-65, 025:RF-66 — el informe de cargas muestra «Cargas nuevas <año>»: con cuántas
+    cargas converge y, de cada una que quedó inactiva, con cuál ya no converge y por qué."""
+    bloque = CARGAS[CARGAS.index('function CargasNuevasCaso('):CARGAS.index('function Escalera(')]
+    assert 'c.no_convergen' in bloque and '{x.texto ?? x.variacion}' in bloque
+    assert 'ya no converge' in bloque and '<CargasNuevasCaso c={inf.cargas_nuevas} />' in CARGAS
