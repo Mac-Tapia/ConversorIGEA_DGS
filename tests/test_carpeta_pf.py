@@ -883,3 +883,21 @@ def test_los_guiones_de_pf_avisan_al_conectar():
         texto = guion.read_text(encoding='utf-8')
         if 'GetApplicationExt()' in texto or 'connect_powerfactory(\n' in texto:
             assert 'Conectado a DIgSILENT como' in texto, guion.name
+
+
+def test_guion_que_el_vigia_termino_se_reintenta_una_vez(monkeypatch, tmp_path):
+    """019:RF-25 — un guion terminado por el vigía (DIgSILENT no respondió al conectar) se
+    repite una vez; si vuelve a pasar, el error lo dice."""
+    from igea_dgs.pf_arnes import SIN_RESPUESTA
+    from igea_dgs.web.jobs import PowerFactorySinRespuesta
+
+    ctx, registro, env = _contexto_pf(monkeypatch, 60)
+    with pytest.raises(PowerFactorySinRespuesta, match='no respondió al conectar'):
+        ctx.run_process([sys.executable, '-c', f'import sys; print("x"); sys.exit({SIN_RESPUESTA})'],
+                        env=env)
+    assert sum('Se reintenta una vez' in linea for linea in registro) == 1
+    veces = tmp_path / 'veces'
+    a_la_segunda = (f'import pathlib, sys; p = pathlib.Path({str(veces)!r}); n = int(p.read_text()) if p.exists() else 0; '
+                    f'p.write_text(str(n + 1)); print("x"); sys.exit({SIN_RESPUESTA} if n == 0 else 0)')
+    assert ctx.run_process([sys.executable, '-c', a_la_segunda], env=env) == 0
+    assert veces.read_text() == '2'

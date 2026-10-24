@@ -41,10 +41,103 @@ MOTOR_OCUPADO = '4002'
 #: Lo que se espera a un proceso que soltó el turno al salir y aún cierra DIgSILENT
 #: (019:RF-19); pasado, se le toma el turno igual.
 CIERRE_S = 120.0
+#: Plazo para que ``GetApplicationExt`` responda (RF-23). Menor que el de la primera línea
+#: de la web (180 s, ``jobs.LIMITE_ARRANQUE_PF_S``) para que el motivo lo dé el arnés
+#: (RF-24); las conexiones normales tardan de 12 a 55 s (2026-10-24).
+CONEXION_S = 150.0
+#: Código de salida de un guion que el vigía terminó porque DIgSILENT no respondió (RF-23);
+#: el de «fallo temporal, reintente» de ``sysexits.h``.
+SIN_RESPUESTA = 75
+#: Cada cuánto mira el vigía si ya conectó.
+VIGIA_PAUSA_S = 0.25
 
 
 class PFNoDisponible(RuntimeError):
     """No se puede hablar con DIgSILENT: sin API, ocupado más del límite o abierto a mano."""
+
+
+def _terminar_proceso(pid: int, codigo: int) -> None:
+    """Termina ``pid`` con ``codigo``: en Windows con ``TerminateProcess``, que lo deja como
+    código de salida; en otro sistema, con ``SIGKILL``."""
+    if os.name == 'nt':
+        import ctypes
+
+        k32 = ctypes.windll.kernel32
+        h = k32.OpenProcess(0x0001, False, int(pid))                     # PROCESS_TERMINATE
+        if h:
+            k32.TerminateProcess(h, int(codigo))
+            k32.CloseHandle(h)
+        return
+    import signal
+
+    os.kill(int(pid), signal.SIGKILL)
+
+
+def vigilar_conexion(pid: int, plazo_s: float, marca: str | Path, turno: str | Path, *,
+                     reloj: Callable[[], float] = time.monotonic,
+                     dormir: Callable[[float], None] = time.sleep,
+                     vivo: Callable[[int], bool] | None = None,
+                     terminar: Callable[[int, int], None] = _terminar_proceso,
+                     salida=None) -> bool:
+    """El vigía de una conexión (RF-23), en un proceso aparte del guion.
+
+    Corre fuera porque una llamada colgada a DIgSILENT puede retener el intérprete del
+    guion, y entonces ningún hilo suyo llega a actuar. ``conectar`` escribe en ``marca``
+    cada vez que DIgSILENT responde (un 4002 que se reintenta, RF-3, vuelve a contar el
+    plazo) y «fin» al terminar de conectar. Si pasan ``plazo_s`` sin respuesta y el guion
+    sigue vivo, escribe el motivo en la salida que comparten, lo termina con
+    :data:`SIN_RESPUESTA` y suelta su turno. Devuelve si tuvo que terminarlo.
+    """
+    vivo = pid_vivo if vivo is None else vivo
+    marca = Path(marca)
+
+    def leida() -> tuple[str, float] | None:
+        try:
+            return marca.read_text(encoding='utf-8').strip(), marca.stat().st_mtime
+        except OSError:
+            return None
+
+    ultima, limite = leida(), reloj() + plazo_s
+    while True:
+        actual = leida()
+        if (actual and actual[0] == 'fin') or not vivo(pid):
+            return False
+        if actual != ultima:
+            ultima, limite = actual, reloj() + plazo_s                    # respondió: otra vez
+        if reloj() >= limite:
+            break
+        dormir(VIGIA_PAUSA_S)
+    print(f'ERROR: DIgSILENT no respondió al conectar en {plazo_s:g} s (proceso {pid}): se termina '
+          'el guion y se suelta su turno. Suele pasar justo después de cerrarse otro proceso de '
+          'DIgSILENT; reintente (019:RF-23).', file=salida or sys.stdout, flush=True)
+    terminar(pid, SIN_RESPUESTA)
+    ruta = Path(turno)
+    dueno = leer_turno(ruta)
+    if dueno and int(dueno.get('pid') or 0) == int(pid):
+        _borrar_si_sigue(ruta, dueno)
+    return True
+
+
+def _anotar(marca: Path, texto: str) -> None:
+    try:
+        marca.parent.mkdir(parents=True, exist_ok=True)
+        marca.write_text(texto, encoding='utf-8')
+    except OSError:
+        pass
+
+
+def _lanzar_vigia(plazo_s: float, marca: Path, turno: Path):
+    """El vigía en su propio intérprete, con la salida del guion para que el motivo llegue
+    al Registro de la web o a la consola."""
+    src = str(Path(__file__).resolve().parents[1])
+    codigo = (f'import sys; sys.path.insert(0, {src!r}); from igea_dgs.pf_arnes import vigilar_conexion; '
+              f'vigilar_conexion({os.getpid()}, {float(plazo_s)!r}, {str(marca)!r}, {str(turno)!r})')
+    banderas = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
+    try:
+        return subprocess.Popen([sys.executable, '-c', codigo], stdin=subprocess.DEVNULL,
+                                creationflags=banderas)
+    except OSError:
+        return None                       # sin vigía, la conexión sigue como antes
 
 
 def ruta_turno() -> Path:
@@ -301,12 +394,15 @@ def turno_del_motor(guion: str, **kw: Any) -> Iterator[Path]:
 def conectar(guion: str, *, espera_s: float = ESPERA_S, modulo: Any = None,
              aviso: Callable[[str], None] = print,
              reloj: Callable[[], float] = time.monotonic,
-             dormir: Callable[[float], None] = time.sleep, **turno: Any) -> Any:
+             dormir: Callable[[float], None] = time.sleep,
+             plazo_conexion_s: float = CONEXION_S, vigia: Callable | None = None,
+             **turno: Any) -> Any:
     """Turno + conexión a DIgSILENT: la única llamada a ``GetApplicationExt`` (RF-5).
 
     El turno se suelta al salir el proceso; si muere sin soltarlo, el siguiente lo libera
     (RF-4). Lanza :class:`PFNoDisponible` sin API, con el motor ocupado más del límite o
-    con DIgSILENT abierto a mano.
+    con DIgSILENT abierto a mano. Un vigía en otro proceso termina este si DIgSILENT no
+    responde en ``plazo_conexion_s`` (RF-23); ``vigia`` lo cambia en las pruebas.
     """
     if _APP_COMPARTIDA is not None:
         # 019:RF-7: dentro del servidor, la conexión y el turno ya son suyos.
@@ -322,19 +418,32 @@ def conectar(guion: str, *, espera_s: float = ESPERA_S, modulo: Any = None,
     atexit.register(_soltar_al_salir, ruta)                               # RF-19
     limite = reloj() + espera_s
     inicio = reloj()
-    while True:
-        try:
-            app = modulo.GetApplicationExt()
-            break
-        except Exception as exc:  # noqa: BLE001 - PowerFactory lanza su propio ExitError
-            # RF-3: otro proceso de fuera del turno (DIgSILENT recién cerrado, un guion
-            # de una versión anterior) aún tiene el motor: se reintenta hasta el límite.
-            if MOTOR_OCUPADO in str(exc) and reloj() < limite:
-                aviso(f'DIgSILENT aún ocupado ({exc}); reintento.')
-                dormir(PAUSA_S)
-                continue
-            soltar_turno(ruta)
-            raise PFNoDisponible(f'no se pudo conectar a DIgSILENT: {exc}') from exc
+    marca = ruta.with_name(f'{ruta.stem}.conexion_{os.getpid()}')
+    _anotar(marca, 'conectando')
+    proc_vigia = (vigia or _lanzar_vigia)(plazo_conexion_s, marca, ruta)   # RF-23
+    try:
+        while True:
+            try:
+                app = modulo.GetApplicationExt()
+                break
+            except Exception as exc:  # noqa: BLE001 - PowerFactory lanza su propio ExitError
+                # RF-3: otro proceso de fuera del turno (DIgSILENT recién cerrado, un guion
+                # de una versión anterior) aún tiene el motor: se reintenta hasta el límite.
+                if MOTOR_OCUPADO in str(exc) and reloj() < limite:
+                    _anotar(marca, f'reintento {reloj():.1f}')
+                    aviso(f'DIgSILENT aún ocupado ({exc}); reintento.')
+                    dormir(PAUSA_S)
+                    continue
+                soltar_turno(ruta)
+                raise PFNoDisponible(f'no se pudo conectar a DIgSILENT: {exc}') from exc
+    finally:
+        _anotar(marca, 'fin')
+        if proc_vigia is not None:
+            try:
+                proc_vigia.wait(timeout=5)
+                marca.unlink(missing_ok=True)
+            except Exception:  # noqa: BLE001, S110 - si sigue vivo, aún tiene que ver el «fin»
+                pass
     usuario = getattr(app.GetCurrentUser(), 'loc_name', '?')
     # RF-20: quien corta una orden distingue un servidor que conecta de uno que atiende.
     marcar_turno(ruta, conectado=True)

@@ -340,3 +340,79 @@ def test_la_api_se_busca_en_la_instalacion(tmp_path, monkeypatch):
         pf_arnes.importar_api(nunca, lambda: tmp_path)
     with pytest.raises(PFNoDisponible, match='no disponible'):
         pf_arnes.importar_api(nunca, lambda: None)
+
+
+# --------------------------------------------------------------------------- vigía (T10)
+def test_vigia_termina_el_guion_sin_respuesta_y_suelta_su_turno(turno, tmp_path):
+    """019:RF-23 — sin respuesta de DIgSILENT en el plazo, el vigía lo dice, termina el guion
+    con su código propio y suelta el turno de ese proceso."""
+    turno.write_text(json.dumps({'pid': 4242, 'guion': 'a.py', 'desde': '08:00'}))
+    marca = tmp_path / 'marca'
+    marca.write_text('conectando', encoding='utf-8')
+    reloj, terminados, salida = Reloj(), [], []
+    escrito = SimpleNamespace(write=salida.append, flush=lambda: None)
+    assert pf_arnes.vigilar_conexion(4242, 10, marca, turno, reloj=reloj, dormir=reloj.dormir,
+                                     vivo=lambda pid: True, terminar=lambda p, c: terminados.append((p, c)),
+                                     salida=escrito)
+    assert terminados == [(4242, pf_arnes.SIN_RESPUESTA)] and reloj.t >= 10
+    assert 'no respondió al conectar' in ''.join(salida) and not turno.exists()
+
+
+def test_vigia_cuenta_desde_la_ultima_respuesta_y_para_con_fin(tmp_path, turno):
+    """019:RF-23 — un 4002 que se reintenta vuelve a contar el plazo; con «fin», el vigía se
+    va sin tocar nada."""
+    marca = tmp_path / 'marca'
+    marca.write_text('conectando', encoding='utf-8')
+    reloj, terminados, hechos = Reloj(), [], set()
+
+    def dormir(s):
+        reloj.dormir(s)
+        for t in (7, 14):                     # sin volver a contar, cortaría en el segundo 10
+            if reloj.t >= t and t not in hechos:
+                hechos.add(t)
+                marca.write_text(f'reintento {t}', encoding='utf-8')
+        if reloj.t >= 22:
+            marca.write_text('fin', encoding='utf-8')
+
+    assert not pf_arnes.vigilar_conexion(1, 10, marca, turno, reloj=reloj, dormir=dormir,
+                                         vivo=lambda pid: True,
+                                         terminar=lambda p, c: terminados.append(p))
+    assert terminados == [] and reloj.t >= 22
+
+
+def test_conexion_colgada_de_verdad_termina_con_su_codigo(turno, tmp_path):
+    """019:RF-23 / 019:RF-24 — un proceso real que se queda en ``GetApplicationExt``: el vigía,
+    en otro proceso, lo termina con su código, lo dice en su salida y el turno queda libre."""
+    codigo = textwrap.dedent(f"""
+        import sys, time
+        from types import SimpleNamespace
+        sys.path.insert(0, {str(RAIZ / 'src')!r})
+        from igea_dgs import pf_arnes
+        colgado = SimpleNamespace(GetApplicationExt=lambda: time.sleep(600))
+        pf_arnes.conectar('colgado.py', modulo=colgado, aviso=lambda m: None, abierto=lambda: [],
+                          plazo_conexion_s=2)
+    """)
+    guion = tmp_path / 'colgado.py'
+    guion.write_text(codigo, encoding='utf-8')
+    env = {**os.environ, pf_arnes.VARIABLE_TURNO: str(turno), 'PYTHONIOENCODING': 'utf-8'}
+    r = subprocess.run([sys.executable, str(guion)], capture_output=True, text=True, env=env,
+                       timeout=60, encoding='utf-8')
+    assert r.returncode == pf_arnes.SIN_RESPUESTA, (r.returncode, r.stdout, r.stderr)
+    assert 'no respondió al conectar' in r.stdout
+    assert not turno.exists()
+
+
+def test_conectar_avisa_al_vigia_al_responder(turno):
+    """019:RF-23 — al conectar, la marca dice «fin»: el vigía se va y no termina nada."""
+    lanzados = []
+
+    def vigia(plazo, marca, ruta):
+        lanzados.append((plazo, marca, ruta))
+        return None
+
+    modulo, _estado = _modulo()
+    pf_arnes.conectar('a.py', modulo=modulo, aviso=lambda m: None, abierto=lambda: [], vigia=vigia)
+    (plazo, marca, ruta), = lanzados
+    assert plazo == pf_arnes.CONEXION_S < 180 and ruta == turno
+    assert marca.read_text(encoding='utf-8') == 'fin'
+    pf_arnes.soltar_turno()

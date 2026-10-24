@@ -39,3 +39,10 @@ a activar; un `verificar_pf.py` directo a la vez esperó diciendo «ocupado por
 pf_servidor.py» y entró cuando el servidor se cerró solo a los 120 s sin órdenes; la obra
 `consigna` 1,05 p.u. quedó en `Obra_consigna_CA101`, solo en «Con proyecto», converge y
 «Sin proyecto» sin diferencias.
+- [x] T10. Vigía de la conexión: plazo, código propio, turno suelto y reintento de la web.
+      (RF-23, RF-24, RF-25)
+      Hecho cuando: `pytest -q tests/test_pf_arnes.py` en verde, con un proceso real que se
+      queda en la conexión y el vigía lo termina.
+      Hecho el 2026-10-24: `vigilar_conexion` en otro intérprete, plazo de 150 s desde la
+      última respuesta de DIgSILENT (un 4002 reintentado vuelve a contar), código 75, turno
+      suelto; la web repite una vez el guion con ese código.

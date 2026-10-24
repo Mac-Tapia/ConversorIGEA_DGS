@@ -320,6 +320,20 @@ class JobContext:
                 raise JobCancelled()
             time.sleep(0.2)
         reader.join(timeout=5)
+        from ..pf_arnes import SIN_RESPUESTA
+
+        if es_pf and proc.returncode == SIN_RESPUESTA:
+            # 019:RF-25: el vigía lo terminó porque DIgSILENT no respondió al conectar; sin
+            # conectar no hizo nada, y repetirlo es seguro, como sin primera línea.
+            if not _reintento:
+                self.log('Se reintenta una vez: DIgSILENT no respondió al conectar (019:RF-23).')
+                self.check_cancel()
+                return self.run_process(original, env=env, cwd=cwd, cancel_file=cancel_file,
+                                        limite_s=limite_s, limite_arranque_s=None if limite_implicito
+                                        else limite_arranque_s, _reintento=True)
+            raise PowerFactorySinRespuesta(
+                'DIgSILENT no respondió al conectar, tampoco al reintentar. Cierre la ventana de '
+                'PowerFactory si está abierta o compruebe la licencia, y reintente.')
         return proc.returncode
 
     @staticmethod
