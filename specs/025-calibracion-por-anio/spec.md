@@ -193,10 +193,67 @@ enlace, su migración y su terna.
 - RF-43: SI «Con proyecto <año>» no converge con sus cargas nuevas, ENTONCES EL SISTEMA dirá
   qué cargas no convergen juntas (cada una sola sí), probando una a una sus variaciones, y
   las dejará como estaban.
-- RF-44: CUANDO «Con proyecto <año>» no converge con sus cargas nuevas, EL SISTEMA propondrá
-  obras en escalera sobre los alimentadores de esas cargas (bancos, regulador, sección del
-  conductor, terna) y aplicará la primera que lo haga converger, cada una en su variación.
-  [Por diseñar con la 017 (T8, T9); hasta entonces, RF-43 dice qué falta.]
+- RF-44: CUANDO «Con proyecto <año>» no converge con sus cargas nuevas, o converge fuera de
+  los límites de tensión o de cargabilidad del perfil, EL SISTEMA probará obras sobre los
+  alimentadores de esas cargas en este orden: bancos de condensadores, regulador de tensión,
+  nueva terna y cambio de sección del conductor, cada obra en su variación. (Cambia el
+  2026-10-24, usuario: «primero se debe probar bancos, después nueva terna, cambio de
+  sección de cable»; antes, bancos, sección y terna, y se aplicaba la primera que
+  convergía. El regulador, tras analizar si hace falta: en «Sin proyecto 2025» PA217 tiene
+  403 de 550 barras de media bajo 0,95 sin ningún tramo sobre el 100 %, un problema solo de
+  tensión.)
+- RF-44b: EL SISTEMA no corregirá nada en «Sin proyecto <año>»: allí solo se calibra y se
+  hace converger; las obras de la escalera van solo en «Con proyecto <año>» (usuario,
+  2026-10-24: «en el caso sin proyecto no debes corregir nada, solo calibrar y hacer
+  converger»).
+
+Escalera optimizada (usuario, 2026-10-24: «se debe iterar varias veces hasta obtener la
+mejor solución según la optimización y cálculos estocásticos»; la mejor, la de menor costo
+anual; se sortea la demanda existente por la curva de cabecera del año y la de cada carga
+nueva por su factor de uso; vale si cumple en el 95 % de 200 sorteos)
+
+- RF-49: EL SISTEMA probará varias variantes de cada obra de la escalera (bancos: barras y
+  tamaño; nueva terna: tramos desde la cabecera; cambio de sección: tramos y conductor de
+  las bibliotecas) y sus combinaciones en el orden de RF-44, en vez de quedarse con la
+  primera que converge.
+- RF-50: EL SISTEMA dará por factible una variante solo si, en al menos la fracción de
+  sorteos del perfil, el flujo converge, la barra de media de cada carga nueva queda entre
+  los límites de tensión del perfil y el resto del alimentador no queda peor que en «Sin
+  proyecto <año>» con el mismo sorteo: una barra o un tramo dentro de los límites sigue
+  dentro, y uno que ya estaba fuera no empeora más que la tolerancia del perfil.
+  (Usuario, 2026-10-24: la red existente ya incumple en la máxima de 2025 y no se corrige
+  en «Sin proyecto».)
+- RF-51: EL SISTEMA tomará en cada sorteo la demanda existente de un punto medido de la
+  curva de cabecera del año de los casos, escalando las cargas calibradas por la razón
+  entre ese punto y la máxima calibrada.
+- RF-52: EL SISTEMA tomará cada carga nueva con su demanda declarada, sumada a la demanda
+  existente, sin sortearla: «Con proyecto <año>» es la máxima calibrada más las cargas
+  nuevas (usuario, 2026-10-24: «ahí suman a la máxima demanda hasta donde no converge sin
+  incluir las obras; eso ya es el escenario con proyecto»).
+- RF-52b: EL SISTEMA dará por factible una variante solo si además cumple los límites de
+  RF-50 en «Con proyecto <año>» con la máxima calibrada; los sorteos de RF-51 se hacen solo
+  sobre las variantes que pasan este primer filtro.
+- RF-53: Entre las variantes factibles, EL SISTEMA elegirá la de menor costo anual:
+  anualidad de la inversión con los costos unitarios del libro CAPEX, más operación y
+  mantenimiento, más el costo de las pérdidas (art. 14 y 15 del PIDE, 024:RF-57).
+- RF-54: EL SISTEMA aplicará en «Con proyecto <año>» solo las obras de la variante elegida,
+  cada una en su variación, y no dejará creadas las demás.
+- RF-55: EL SISTEMA informará cada variante probada con la fracción de sorteos que cumple,
+  su inversión, su costo anual y por qué no se eligió.
+- RF-56: SI ninguna variante es factible, ENTONCES EL SISTEMA lo dirá con la que más se
+  acerca (mayor fracción de sorteos que cumple) y no aplicará ninguna.
+- RF-59: EL SISTEMA creará en la biblioteca global de DIgSILENT los tipos de regulador de un
+  catálogo de fabricante guardado en el repositorio (tensión, corriente, rango, pasos y
+  fuente), sin duplicar los que ya existan con ese nombre. (Usuario, 2026-10-24: «busca
+  fichas técnicas en la web de regulador y créalos en las librerías»; Eaton VR-32 de 50 Hz,
+  catálogo CA225001EN de agosto de 2025.)
+- RF-60: EL SISTEMA pondrá el regulador en un tramo de la troncal aguas arriba de las barras
+  que quedan fuera de límites, cuya corriente con proyecto no supere la del tipo elegido.
+- RF-57: SI falta en el perfil la fracción de sorteos, el número de sorteos, la tolerancia,
+  la tasa o la vida útil, o en el libro CAPEX el costo de una alternativa, ENTONCES
+  EL SISTEMA dirá cuál falta y no supondrá un valor (P13).
+- RF-58: CUANDO se repite la escalera con la misma red, las mismas cargas y la misma
+  semilla, EL SISTEMA sorteará lo mismo y elegirá la misma variante.
 
 Cargas nuevas incompletas (usuario, 2026-10-23: «las cargas nuevas que no tienen datos
 completos necesarios se rechazan y se deja un mensaje en la web»; obligatorios: barra o

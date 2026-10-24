@@ -282,6 +282,91 @@ def bibliotecas(app, plan: dict) -> tuple[dict, int]:
     return informe, 0
 
 
+#: Proyecto de DIgSILENT, en la carpeta del usuario, con los tipos de catálogo (025:RF-59).
+#: La biblioteca global no deja escribir al usuario (sonda del 2026-10-24: ``CreateObject``
+#: en ``\Lib`` y sus carpetas devuelve nada); las obras lo leen como «otro proyecto».
+BIBLIOTECA_TIPOS = 'IGEA_Biblioteca_tipos'
+
+
+def _proyecto_biblioteca(app, nombre: str, avisos: list[str]):
+    """El proyecto biblioteca y su carpeta de tipos; se crean si faltan."""
+    usuario = app.GetCurrentUser()
+    proyecto = next((p for p in usuario.GetContents('*.IntPrj') or [] if p.loc_name == nombre), None)
+    if proyecto is not None and biblioteca_de_otro(proyecto) is None and not proyecto.GetContents('*'):
+        # Uno vacío, de un intento con ``CreateObject('IntPrj')``: DIgSILENT no deja crearle
+        # carpetas así (2026-10-24), y vacío no guarda nada.
+        proyecto.Delete()
+        proyecto = None
+    if proyecto is None:
+        if hasattr(app, 'CreateProject'):
+            proyecto = app.CreateProject(nombre, 'Red')
+        else:
+            proyecto = usuario.CreateObject('IntPrj', nombre)
+            lib = proyecto.CreateObject('IntPrjfolder', 'Library')
+            lib.iopt_typ = 'lib'
+            lib.CreateObject('IntPrjfolder', 'Equipment Type Library').iopt_typ = 'equip'
+        if proyecto is None:
+            raise RuntimeError(f'DIgSILENT no dejó crear el proyecto {nombre!r} en la carpeta del usuario')
+        avisos.append(f'Se creó el proyecto {nombre!r} en la carpeta del usuario para los tipos de catálogo.')
+    equip = biblioteca_de_otro(proyecto)
+    if equip is None:
+        proyecto.Activate()
+        equip = app.GetProjectFolder('equip', 1)
+    if equip is None:
+        raise RuntimeError(f'el proyecto {nombre!r} no tiene biblioteca de tipos')
+    return proyecto, equip
+
+
+def _iguales(leidos: dict, pedidos: dict) -> bool:
+    """DIgSILENT guarda en coma flotante simple: 22,9/√3 vuelve como 13,2213…"""
+    return all(isinstance(leidos.get(k), (int, float)) and math.isclose(float(leidos[k]), float(v), rel_tol=1e-5)
+               for k, v in pedidos.items())
+
+
+def crear_tipos_regulador(app, plan: dict) -> tuple[dict, int]:
+    """Los ``TypVoltreg`` del catálogo para cada tensión del plan, en el proyecto biblioteca
+    (025:RF-59). Los que ya existen con ese nombre no se tocan ni se duplican."""
+    from igea_dgs.catalogo_reguladores import CatalogoError, FABRICANTE, unidades_para
+
+    nombre = plan.get('biblioteca') or BIBLIOTECA_TIPOS
+    informe: dict[str, Any] = {'biblioteca': nombre, 'fabricante': FABRICANTE,
+                               'creados': [], 'existentes': [], 'avisos': []}
+    try:
+        _proyecto, equip = _proyecto_biblioteca(app, nombre, informe['avisos'])
+    except RuntimeError as exc:
+        return {**informe, 'error': str(exc)}, 2
+    existentes = {o.loc_name.lower() for o in _tipos_en(equip, 'TypVoltreg')}
+    for kv in sorted({float(k) for k in plan.get('tensiones_kv') or []}):
+        try:
+            unidades = unidades_para(kv)
+        except CatalogoError as exc:
+            informe['avisos'].append(str(exc))
+            continue
+        for u in unidades:
+            if u.nombre.lower() in existentes:
+                informe['existentes'].append(u.nombre)
+                continue
+            tipo = equip.CreateObject('TypVoltreg', u.nombre)
+            if tipo is None:
+                return {**informe, 'error': f'DIgSILENT no dejó crear el tipo {u.nombre!r}'}, 2
+            for atributo, valor in u.datos_tipo().items():
+                setattr(tipo, atributo, valor)
+            try:
+                tipo.desc = [u.descripcion()]
+            except Exception:  # noqa: BLE001, S110 - la descripción no decide nada
+                pass
+            leidos = {a: getattr(tipo, a, None) for a in u.datos_tipo()}
+            if not _iguales(leidos, u.datos_tipo()):
+                tipo.Delete()
+                return {**informe, 'error': f'el tipo {u.nombre!r} no quedó con los datos del catálogo: {leidos}'}, 2
+            existentes.add(u.nombre.lower())
+            informe['creados'].append({'nombre': u.nombre, 'kv': kv, 'corriente_a': u.corriente_a,
+                                       'unidad_v': u.tension_unidad_v})
+    print(f"Tipos de regulador: {len(informe['creados'])} creados, "
+          f"{len(informe['existentes'])} ya estaban, en {nombre}.")
+    return informe, 0
+
+
 # =========================================================================== aplicar
 class Contexto:
     """Lo que recibe el constructor de una obra, con su variación ya grabando.
@@ -1253,9 +1338,12 @@ def main(argv=None) -> int:
     p.add_argument('--simular', action='store_true',
                    help='Decir lo que haría cada obra sin escribir en el proyecto')
     p.add_argument('--cancel-file', help='Si este fichero aparece, para entre obras')
+    p.add_argument('--tipos-regulador', action='store_true',
+                   help='Crear los reguladores del catálogo en el proyecto biblioteca (025:RF-59)')
     args = p.parse_args(argv)
     plan = json.loads(Path(args.plan).read_text(encoding='utf-8'))
-    blocked = native_action_block_report(plan, ('obras', 'obras_bibliotecas'))
+    # Crear tipos de catálogo no toca ninguna red convertida: no lleva contexto de acción.
+    blocked = None if args.tipos_regulador else native_action_block_report(plan, ('obras', 'obras_bibliotecas'))
     if blocked:
         Path(args.output_json).write_text(
             json.dumps(blocked, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
@@ -1275,7 +1363,9 @@ def main(argv=None) -> int:
         return bool(args.cancel_file) and Path(args.cancel_file).exists()
 
     try:
-        if args.bibliotecas:
+        if args.tipos_regulador:
+            informe, codigo = crear_tipos_regulador(app, plan)
+        elif args.bibliotecas:
             informe, codigo = bibliotecas(app, plan)
         else:
             informe, codigo = aplicar(app, plan, simular=args.simular, cancelado=cancelado)
