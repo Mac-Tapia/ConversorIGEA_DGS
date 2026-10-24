@@ -524,9 +524,9 @@ export function CargasTab() {
 
       {resultado && <Informe resultado={resultado} cancelado={lastRun?.status === 'cancelled'}
         escalera={escalera} ocupado={pfBusy}
-        onEscalera={(feeders, tipoCambio) => startJob(() => api.obrasEscalera(ws.id, {
+        onEscalera={(feeders, tipoCambio, capex) => startJob(() => api.obrasEscalera(ws.id, {
           project: resultado.informe.project, feeders, anio_casos: resultado.informe.anio_casos ?? null,
-          tipo_cambio: tipoCambio }))} />}
+          tipo_cambio: tipoCambio, capex }))} />}
 
       {/* Spec 011, RF-42 y RF-98: con el mismo proyecto y los mismos alimentadores marcados. */}
       <div className="step-box">
@@ -797,10 +797,12 @@ function conexion(c: CargaConectada) {
 /** Informe del guion por alimentador: lo que se actualizó o se crearía, y lo omitido (RF-20). */
 function Informe({ resultado, cancelado, escalera, ocupado, onEscalera }: {
   resultado: CargasResultado; cancelado: boolean; escalera: EscaleraResultado | null; ocupado: boolean;
-  onEscalera: (feeders: string[], tipoCambio: number | null) => void;
+  onEscalera: (feeders: string[], tipoCambio: number | null, capex: string) => void;
 }) {
   // Spec 025, RF-67: el tipo de cambio lo escribe el operador; no sale del perfil.
   const [tipoCambio, setTipoCambio] = useState('');
+  // RF-53: el libro CAPEX de la empresa, por su ruta en este equipo.
+  const [capex, setCapex] = useState('');
   const tc = Number(tipoCambio.replace(',', '.'));
   const tcValido = tipoCambio.trim() !== '' && Number.isFinite(tc) && tc > 0;
   const inf: CargasInforme = resultado.informe;
@@ -838,8 +840,12 @@ function Informe({ resultado, cancelado, escalera, ocupado, onEscalera }: {
                 aria-label="Tipo de cambio de los precios de pérdidas a la moneda del costo"
                 onChange={(e) => setTipoCambio(e.target.value)} />
             </label>
+            <label className="small">Libro CAPEX{' '}
+              <input type="text" size={34} value={capex} placeholder="ruta del .xlsx en este equipo"
+                aria-label="Ruta del libro CAPEX de la empresa" onChange={(e) => setCapex(e.target.value)} />
+            </label>
             <button className="btn btn-sm" disabled={ocupado || (tipoCambio.trim() !== '' && !tcValido)}
-              onClick={() => onEscalera(feedersEscalera, tcValido ? tc : null)}>
+              onClick={() => onEscalera(feedersEscalera, tcValido ? tc : null, capex.trim())}>
               Proponer obras en escalera
             </button>
             <small className="muted">
@@ -896,20 +902,41 @@ function CargasNuevasCaso({ c }: { c: NonNullable<CargasInforme['cargas_nuevas']
   );
 }
 
-/** Spec 025, RF-44: cada escalón probado por alimentador y el que hizo converger el caso. */
+/** Spec 025, RF-54 a RF-56: cada variante probada, la elegida y por qué no las demás. */
 function Escalera({ r }: { r: EscaleraResultado }) {
+  const dinero = (x: number | null) => (x == null ? '—' : `${fmtNum(x, 0)} ${r.moneda}`);
   return (
     <div className="step-box">
-      <h4>Obras en escalera{r.anio_casos ? ` · casos de ${r.anio_casos}` : ''}</h4>
-      <ul className="small">{r.alimentadores.map((a) => (
-        <li key={a.alimentador}>
-          <strong>{a.alimentador}</strong>:{' '}
-          {a.obra ? <>converge con «{a.obra}»</> : <span className="badge err">ningún escalón converge</span>}
-          {a.intentos.length > 0 && <> · probados: {a.intentos.map((i) =>
-            `${i.escalon} (${i.converge ? 'converge' : 'no basta'}${i.errores.length ? `; ${i.errores.join('; ')}` : ''})`).join(', ')}</>}
-          {a.avisos.map((x) => <div key={x} className="muted">{x}</div>)}
-        </li>
-      ))}</ul>
+      <h4>Obras en escalera{r.anio_casos ? ` · casos de ${r.anio_casos}` : ''} · {r.sorteos} sorteos
+        {r.tipo_cambio ? ` · tipo de cambio ${fmtNum(r.tipo_cambio, 3)}` : ''}</h4>
+      {r.avisos.map((x) => <p key={x} className="muted small">{x}</p>)}
+      {r.alimentadores.map((a) => (
+        <div key={a.alimentador}>
+          <p><strong>{a.alimentador}</strong>:{' '}
+            {a.elegida ? <>se aplica «{a.elegida}»</>
+              : <span className="badge err">ninguna cumple{a.mas_cercana ? `; la más cercana, «${a.mas_cercana}»` : ''}</span>}
+          </p>
+          {a.avisos.map((x) => <div key={x} className="muted small">{x}</div>)}
+          {a.tabla.length > 0 && (
+            <div className="table-wrap table-short">
+              <table className="table">
+                <thead><tr><th>Variante</th><th>Con la máxima</th><th className="num">Sorteos que cumplen</th>
+                  <th className="num">Inversión</th><th className="num">Costo anual</th><th>Por qué no</th></tr></thead>
+                <tbody>{a.tabla.map((v) => (
+                  <tr key={v.nombre} className={v.nombre === a.elegida ? 'strong' : ''}>
+                    <td>{v.nombre}</td>
+                    <td>{v.error ? <span className="badge err">error</span> : v.maxima ? 'cumple' : 'no cumple'}</td>
+                    <td className="num">{v.fraccion == null ? '—' : `${fmtNum(100 * v.fraccion, 0)} %`}</td>
+                    <td className="num">{dinero(v.inversion)}</td>
+                    <td className="num">{dinero(v.costo_anual)}</td>
+                    <td className="small">{v.error ?? v.motivo}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      ))}
     </div>
   );
 }

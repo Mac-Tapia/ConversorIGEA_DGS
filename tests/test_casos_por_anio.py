@@ -461,68 +461,50 @@ def _tipo_linea(nombre, kv, ka, aereo=True, origen='proyecto'):
             'datos': {'uline': kv, 'sline': ka, 'cohl_': 1 if aereo else 0}}
 
 
-def test_escalera_bancos_seccion_y_terna_en_ese_orden():
-    """025:RF-44 — los escalones en orden: bancos en las barras que existen sin la carga,
-    sección de toda la troncal al conductor aéreo de su tensión con más corriente, terna;
-    todo solo en «Con proyecto»."""
-    from igea_dgs.obras_pf import escalera_de_obras, validar_obra
-
-    tipos = [_tipo_linea('AAAC 35', 10, 0.17), _tipo_linea('AAAC 240', 10, 0.55),
-             _tipo_linea('Cable 400', 10, 0.70, aereo=False), _tipo_linea('AAAC 500', 22.9, 0.9)]
-    cargas = [{'sed': 'Q1', 'barra': 'F1_B4', 'criterio': 'barra de la troncal más cercana'},
-              {'sed': 'Q2', 'barra': 'NODE_T_Q2', 'criterio': 'punto de la troncal más cercano'},
-              {'sed': 'Q3', 'barra': 'NODE_T_Q2', 'criterio': 'nodo de la carga anterior en F1_L3'}]
-    escalones, avisos = escalera_de_obras('F1', 10.0, tipos, cargas, banco_kvar=300)
-    assert [e for e, _ in escalones] == ['bancos', 'seccion', 'terna']
-    obras = {e: o for e, o in escalones}
-    assert [o['barra'] for o in obras['bancos']] == ['F1_B4']
-    assert obras['bancos'][0]['q_kvar'] == 300
-    assert obras['seccion'][0]['tipo']['nombre'] == 'AAAC 240' and obras['seccion'][0]['toda_troncal']
-    assert any('Q2' in a and 'NODE_T_Q2' in a for a in avisos)
-    for _e, os_ in escalones:
-        for o in os_:
-            assert validar_obra(o).casos == ('Con proyecto',)
+def _perfil_escalera(costos):
+    return {'escalera': {'cumplimiento': 0.95, 'sorteos': 20, 'semilla': 1, 'tolerancia_pu': 0.005,
+                         'tolerancia_carga_pct': 1, 'max_variantes': 100, 'costos_unitarios': costos},
+            'planificacion': {'tasa_regulada': 0.12, 'vida_util_anios': 30},
+            'estudios': {'tension_min_pu': 0.95, 'tension_max_pu': 1.05, 'cargabilidad_max_pct': 100}}
 
 
-def test_escalera_sin_conductor_de_su_tension_lo_dice():
-    """025:RF-44 — sin un conductor aéreo de la tensión del alimentador, no hay escalón de
-    sección y se dice; los demás siguen."""
-    from igea_dgs.obras_pf import escalera_de_obras
+def _escalera_falsa(tmp_path, monkeypatch, evaluar, costos):
+    """El servicio de la escalera con DIgSILENT, los libros y el perfil sustituidos."""
+    from datetime import datetime, timedelta
 
-    escalones, avisos = escalera_de_obras('F1', 10.0, [_tipo_linea('AAAC 500', 22.9, 0.9)], [],
-                                          banco_kvar=300)
-    assert [e for e, _ in escalones] == ['terna']
-    assert any('sección' in a for a in avisos) and any('banco' in a for a in avisos)
-
-
-def test_la_escalera_se_detiene_en_la_primera_que_converge(tmp_path, monkeypatch):
-    """025:RF-44 — se aplica escalón a escalón, cada obra en su variación y con el año de los
-    casos; el primero que converge en «Con proyecto» se queda y no se prueban los demás."""
+    from igea_dgs import perfil_empresa
     from igea_dgs.web import services
     from igea_dgs.web.workspace import Workspace
 
-    from igea_dgs import perfil_empresa
-
     ws = Workspace(id='w', root=tmp_path)
-    # 025:RF-67: lo que pide la escalera para costear, en una sola moneda (sin tipo de cambio).
-    monkeypatch.setattr(perfil_empresa, 'datos_perfil', lambda: {
-        'escalera': {'cumplimiento': 0.95, 'sorteos': 10, 'tolerancia_pu': 0.005, 'tolerancia_carga_pct': 1},
-        'planificacion': {'tasa_regulada': 0.12, 'vida_util_anios': 30},
-        'estudios': {'tension_min_pu': 0.95, 'tension_max_pu': 1.05, 'cargabilidad_max_pct': 100}})
-    monkeypatch.setattr(perfil_empresa, 'bancos_kvar_por_tension', lambda _d: {10.0: 300, 22.9: 450})
+    monkeypatch.setattr(perfil_empresa, 'datos_perfil', lambda: _perfil_escalera(costos))
+    monkeypatch.setattr(perfil_empresa, 'bancos_kvar_por_tension', lambda _d: {10.0: 300})
+    monkeypatch.setattr(services, 'ajuste_aplicado_en_disco', lambda *_a, **_k: {'informes': [
+        {'feeder': 'F1', 'caso': f'Sin proyecto {ANIO}', 'objetivo': {'kw': 1000.0, 'medidor': 'M1'}}]})
+    t0 = datetime(ANIO, 1, 1)
+    monkeypatch.setattr(services, '_curva_del_anio', lambda *_a, **_k: {
+        'F1': [(t0 + timedelta(hours=h), 500.0 + (h % 24) * 20) for h in range(24 * 30)]})
     monkeypatch.setattr(services, 'obras_bibliotecas', lambda *a, **k: {'informe': {
         'alimentadores': {'F1': {'kv': 10.0}}, 'tipos': [_tipo_linea('AAAC 240', 10, 0.55)]}})
     monkeypatch.setattr(services, '_cargas_nuevas_aplicadas', lambda *_a: [
         {'sed': 'Q1', 'alimentador': 'F1', 'barra': 'F1_B4', 'criterio': 'barra de la troncal más cercana'}])
-    llamadas = []
+    monkeypatch.setattr(services, 'native_action_context', lambda *a, **k: {})
+    planes = []
+
+    def guion(ws_, ctx, script, plan, *, nombre, args=(), **_k):
+        planes.append((args, plan))
+        if '--escalera-datos' in args:
+            return 0, {'alimentadores': {'F1': {
+                'troncal': [{'nombre': f'T{i}', 'largo_m': 1000.0, 'corriente_a': 100.0} for i in range(3)],
+                'fuera_desde': None, 'indices': {'F1_B4': 2}}}}, None
+        return 0, {'variantes': [evaluar(v['nombre']) for v in plan['variantes']]}, None
+
+    monkeypatch.setattr(services, '_guion_pf', guion)
+    aplicadas = []
 
     def ejecutar(ws_, ctx, project, feeders, ids, otro, *, simular, anio_casos=None):
-        obras = [o for o in ws_.obras if o['id'] in ids]
-        llamadas.append(([o['clase'] for o in obras], anio_casos, simular))
-        converge = obras[0]['clase'] == 'seccion'
-        return {'informe': {'obras': [{'obra': i + 1, 'variacion': f"Obra_{o['clase']}_{i}",
-                                       'error': None, 'flujo': {'Con proyecto': {'converge': converge}}}
-                                      for i, o in enumerate(obras)]}}
+        aplicadas.append(([o['clase'] for o in ws_.obras if o['id'] in ids], otro, anio_casos))
+        return {'informe': {'obras': [{'variacion': 'Obra_x'}]}}
 
     monkeypatch.setattr(services, 'obras_ejecutar', ejecutar)
 
@@ -533,12 +515,42 @@ def test_la_escalera_se_detiene_en_la_primera_que_converge(tmp_path, monkeypatch
         def check_cancel(self):
             pass
 
-    r = services.obras_escalera(ws, Ctx(), 'P', ['F1'], anio_casos=ANIO)
-    assert llamadas == [(['condensador'], ANIO, False), (['seccion'], ANIO, False)]
-    (f1,) = r['alimentadores']
-    assert f1['obra'] == 'seccion' and [i['escalon'] for i in f1['intentos']] == ['bancos', 'seccion']
-    assert ws.obras == []
+    return services, ws, Ctx(), planes, aplicadas
 
+
+def test_la_escalera_elige_la_mas_barata_que_cumple_y_aplica_solo_esa(tmp_path, monkeypatch):
+    """025:RF-49, 025:RF-53, 025:RF-54, 025:RF-55, 025:RF-52b — se miden todas las variantes con los
+    sorteos de la curva del año; gana la de menor costo anual entre las que cumplen y solo esa se
+    aplica, en «Con proyecto» del año; la que cumple sin costo y la que no cumple dicen por qué."""
+    def evaluar(nombre):
+        cumple = not nombre.startswith('bancos') and '+' not in nombre
+        return {'nombre': nombre, 'maxima': cumple, 'fraccion': 1.0 if cumple else None,
+                'perdidas_kw': 10.0, 'motivos': [] if cumple else ['no converge']}
+
+    services, ws, ctx, planes, aplicadas = _escalera_falsa(
+        tmp_path, monkeypatch, evaluar, {'bancos': 9000, 'nueva_terna': 40000, 'cambio_seccion': 30000})
+    r = services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=ANIO)
+    (f1,) = r['alimentadores']
+    assert f1['elegida'].startswith('sección') and r['sorteos'] == 20
+    assert aplicadas == [(['seccion'], 'IGEA_Biblioteca_tipos', ANIO)]
+    (_args, ev), = [x for x in planes if '--evaluar' in x[0]]
+    assert len(ev['sorteos']) == 20 and ev['anio_casos'] == ANIO and ev['barras_cargas'] == ['F1_B4']
+    motivos = {t['nombre']: t['motivo'] for t in f1['tabla']}
+    assert any(n.startswith('regulador') and 'sin costo' in m for n, m in motivos.items())
+    assert any(n.startswith('bancos') and 'no cumple con la máxima' in m for n, m in motivos.items())
+    assert any(n.startswith('terna') and 'cuesta más' in m for n, m in motivos.items())
+
+
+def test_la_escalera_sin_ninguna_que_cumpla_no_aplica_nada(tmp_path, monkeypatch):
+    """025:RF-56 — si ninguna variante cumple, no se aplica ninguna y se dice la más cercana."""
+    def evaluar(nombre):
+        return {'nombre': nombre, 'maxima': nombre.startswith('terna'), 'fraccion': 0.5,
+                'perdidas_kw': None, 'motivos': ['no converge']}
+
+    services, ws, ctx, _planes, aplicadas = _escalera_falsa(tmp_path, monkeypatch, evaluar, {'nueva_terna': 40000})
+    (f1,) = services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=ANIO)['alimentadores']
+    assert f1['elegida'] is None and f1['mas_cercana'].startswith('terna') and aplicadas == []
+    assert any('025:RF-56' in a for a in f1['avisos'])
 
 def test_la_base_de_las_cargas_se_encuentra_en_otra_ejecucion(tmp_path):
     """025:RF-37 (007:RF-40) — la calibración de 2025 quedó en la ejecución anterior; al

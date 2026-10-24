@@ -4041,63 +4041,176 @@ def obras_bibliotecas(ws: Workspace, ctx: JobContext, project: str, feeders: lis
     return {'returncode': rc, 'report': report.name, 'informe': informe}
 
 
-def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *,
-                   anio_casos: int | None = None, tipo_cambio: float | None = None) -> dict:
-    """Obras en escalera para que «Con proyecto» converja con sus cargas nuevas (025:RF-44).
+def _curva_del_anio(ws: Workspace, ctx: JobContext, anio: int, medidores: dict[str, str]) -> dict:
+    """``{alimentador: [(instante, kW), …]}`` de la medición de cabecera del año (025:RF-51).
 
-    Usuario, 2026-10-23: en PA217 y TM105 dos cargas nuevas grandes juntas no convergen en
-    «Con proyecto 2025»; «escalera automática». Por alimentador: bancos, sección de toda la
-    troncal, terna (``obras_pf.escalera_de_obras``), cada escalón aplicado por el paso de
-    obras normal, en su variación y solo en «Con proyecto» del año; el primero que converge
-    se queda. Uno que no converge queda inactivo y se conserva, como cualquier obra (011:RF-67).
+    Con sus propios libros del año, sin tocar la máxima que el operador buscó en la web.
     """
+    from ..demanda_medida import DemandaError, maximas
+
+    libros = _libros_de_cabecera(ws, str(anio))
+    try:
+        res = maximas(libros, list(medidores.items()), alias=demanda_alias(), periodo=str(anio),
+                      cancelado=ctx.cancel.is_set)
+    except DemandaError as exc:
+        raise UserError(str(exc)) from exc
+    por_medidor = {r.medidor: r for r in res}
+    out = {}
+    for f, medidor in medidores.items():
+        r = por_medidor.get(medidor)
+        if r is None or r.error or not r.curva:
+            raise UserError(f'{f}: el medidor {medidor} no tiene curva de {anio} en la cabecera '
+                            '(025:RF-51)' + (f': {r.error}' if r is not None and r.error else ''))
+        out[f] = [(t, kw) for t, kw, *_ in r.curva if kw is not None]
+    return out
+
+
+def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *,
+                   anio_casos: int | None = None, tipo_cambio: float | None = None,
+                   capex: str | None = None) -> dict:
+    """Escalera optimizada de obras sobre «Con proyecto <año>» (025:RF-44, RF-49 a RF-60, RF-67).
+
+    Usuario, 2026-10-24: «primero se debe probar bancos, después nueva terna, cambio de
+    sección de cable, donde se debe iterar varias veces hasta obtener la mejor solución según
+    la optimización y cálculos estocásticos». Por alimentador con cargas nuevas, uno tras
+    otro: lee la troncal y sus corrientes (``obras_pf.py --escalera-datos``), arma las
+    variantes (``escalera_optima.variantes``), las mide con la máxima y en los sorteos de la
+    curva de cabecera del año (``--evaluar``, que no deja ninguna), las costea con el CAPEX
+    en la moneda del perfil y aplica solo la de menor costo anual entre las que cumplen.
+    """
+    import re
+
     from ..demanda_medida import clave_codigo
-    from ..escalera_optima import EscaleraError, parametros
-    from ..obras_pf import CON_PROYECTO, escalera_de_obras
+    from .. import escalera_optima as eo
+    from ..informes import factor_de_carga, factor_de_perdidas
+    from ..pide_economia import EconomiaPideError, costos_por_alternativa, leer_capex
     from ..perfil_empresa import PerfilError, bancos_kvar_por_tension, datos_perfil
 
-    # 025:RF-67, RF-68: antes de tocar DIgSILENT, el perfil y el tipo de cambio que escribió
-    # el operador tienen que bastar para costear.
+    # 025:RF-57, RF-67, RF-68: antes de tocar DIgSILENT, el perfil y el tipo de cambio que
+    # escribió el operador tienen que bastar para costear.
     try:
-        parametros(datos_perfil(), tipo_cambio)
-    except (EscaleraError, PerfilError) as exc:
+        perfil = datos_perfil()
+        p = eo.parametros(perfil, tipo_cambio)
+    except (eo.EscaleraError, PerfilError) as exc:
         raise UserError(str(exc)) from exc
-    lectura = obras_bibliotecas(ws, ctx, project, feeders)['informe']
+    base = ajuste_aplicado_en_disco(ws, project)
+    if not base:
+        raise UserError('El proyecto no tiene calibración: calibre antes de la escalera (paso 2).')
+    objetivos = {str(i.get('feeder')): i.get('objetivo') or {} for i in base.get('informes') or []}
+    if anio_casos is None:
+        anio_casos = next((int(m.group(1)) for i in base.get('informes') or []
+                           if (m := re.search(r'(\d{4})$', str(i.get('caso') or '')))), None)
+    cargas = _cargas_nuevas_aplicadas(ws, project)
+    con_cargas = [f for f in feeders if any(clave_codigo(c.get('alimentador')) == clave_codigo(f) for c in cargas)]
+    if not con_cargas:
+        raise UserError('Ningún alimentador marcado tiene cargas nuevas aplicadas: no hay escalera que hacer.')
+    faltan = [f for f in feeders if not (objetivos.get(f) or {}).get('kw') or not (objetivos.get(f) or {}).get('medidor')]
+    if faltan:
+        raise UserError('Sin máxima ni medidor de su calibración: ' + ', '.join(faltan) + ' (025:RF-51)')
+    anio_curva = anio_casos or datetime.now().year
+    curvas = _curva_del_anio(ws, ctx, anio_curva, {f: str(objetivos[f]['medidor']) for f in feeders})
+    instantes: dict[Any, dict[str, float]] = {}
+    for f, curva in curvas.items():
+        for t, kw in curva:
+            instantes.setdefault(t, {})[f] = kw
     try:
-        kvar = bancos_kvar_por_tension(datos_perfil()) or {}
+        sorteos = eo.sorteos(sorted(instantes.items(), key=lambda x: x[0]),
+                             {f: float(objetivos[f]['kw']) for f in feeders}, p.sorteos, p.semilla)
+    except eo.EscaleraError as exc:
+        raise UserError(str(exc)) from exc
+    perdidas = {}
+    for f, curva in curvas.items():
+        fc = factor_de_carga([(t, kw, None) for t, kw in curva])
+        perdidas[f] = factor_de_perdidas(fc) if fc else None
+    ctx.log(f'Escalera de {project.strip()} en «Con proyecto{f" {anio_casos}" if anio_casos else ""}»: '
+            f'{len(sorteos)} sorteos de la curva de {anio_curva}, costo en {p.moneda or "la moneda del perfil"}.')
+
+    costos_capex, avisos = {}, []
+    if capex and capex.strip():
+        try:
+            obras_capex, avisos_capex = leer_capex(Path(capex.strip().strip('"')),
+                                                   (perfil.get('planificacion') or {}).get('capex') or {})
+        except (EconomiaPideError, OSError) as exc:
+            raise UserError(f'Libro CAPEX: {exc}') from exc
+        costos_capex = costos_por_alternativa(obras_capex)
+        avisos += avisos_capex
+    else:
+        avisos.append('Sin libro CAPEX: solo se costean las alternativas que da el perfil (025:RF-57).')
+    costos = eo.costos_de_alternativas(costos_capex, p)
+    try:
+        kvar = bancos_kvar_por_tension(perfil) or {}
     except PerfilError:
         kvar = {}
-    cargas = _cargas_nuevas_aplicadas(ws, project)
+    lectura = obras_bibliotecas(ws, ctx, project, feeders)['informe']
+    contexto = native_action_context(ws, project, feeders, 'obras')
+    comun = {'project': project.strip(), 'folder': carpeta_pf(), 'anio_casos': anio_casos,
+             'native_action_context': contexto}
+
     resultado = []
-    for f in feeders:
+    for f in con_cargas:
+        ctx.check_cancel()
+        de_f = [c for c in cargas if clave_codigo(c.get('alimentador')) == clave_codigo(f)]
+        barras = list(dict.fromkeys(str(c['barra']) for c in de_f if c.get('barra')))
+        rc, datos, _rep = _guion_pf(ws, ctx, 'obras_pf.py', {
+            **comun, 'feeders': [f], 'barras': {f: barras}, 'tension_min_pu': p.tension_min_pu},
+            nombre='escalera_datos', args=('--escalera-datos',))
+        d = (datos.get('alimentadores') or {}).get(f)
+        fila: dict[str, Any] = {'alimentador': f, 'avisos': list(datos.get('avisos') or []),
+                                'elegida': None, 'mas_cercana': None, 'tabla': [], 'aplicada': None}
+        if rc or not d:
+            fila['avisos'].append(datos.get('error') or f'{f}: no se pudo leer su troncal en DIgSILENT.')
+            resultado.append(fila)
+            continue
         kv = (lectura.get('alimentadores', {}).get(f) or {}).get('kv')
         banco = (min(kvar.items(), key=lambda par: abs(float(par[0]) - float(kv)))[1]
                  if kvar and kv else None)
-        de_f = [c for c in cargas if clave_codigo(c.get('alimentador')) == clave_codigo(f)]
-        escalones, avisos = escalera_de_obras(f, kv, lectura.get('tipos') or [], de_f, banco_kvar=banco)
-        fila: dict[str, Any] = {'alimentador': f, 'avisos': avisos, 'intentos': [], 'obra': None}
-        for nombre, obras in escalones:
-            ctx.check_cancel()
-            ids = [obra_anadir(ws, o)['id'] for o in obras]
-            ctx.log(f'{f}: escalón «{nombre}» ({len(ids)} obra(s)) en «Con proyecto»…')
-            hecho = obras_ejecutar(ws, ctx, project, feeders, ids, '', simular=False,
+        cargas_f = [{'barra': c['barra'], 'existe': str(c.get('criterio') or '').startswith('barra'),
+                     'indice_troncal': d['indices'].get(str(c['barra']))} for c in de_f if c.get('barra')]
+        vs, av = eo.variantes(f, float(kv or 0), d['troncal'], cargas_f, lectura.get('tipos') or [], p,
+                              banco_kvar=banco, fuera_desde=d.get('fuera_desde'))
+        fila['avisos'] += av
+        if not vs:
+            fila['avisos'].append(f'{f}: ninguna variante que probar.')
+            resultado.append(fila)
+            continue
+        ctx.log(f'{f}: {len(vs)} variantes en el orden bancos, regulador, terna y sección…')
+        rc, ev, _rep = _guion_pf(ws, ctx, 'obras_pf.py', {
+            **comun, 'feeders': [f], 'variantes': [{'nombre': v.nombre, 'obras': v.obras} for v in vs],
+            'barras_cargas': barras, 'sorteos': sorteos, 'parametros': perfil, 'tipo_cambio': tipo_cambio,
+            'otro_proyecto': eo.BIBLIOTECA_TIPOS}, nombre='escalera_evaluar', args=('--evaluar',))
+        if ev.get('error'):
+            raise UserError(ev['error'])
+        por_nombre = {v.nombre: v for v in vs}
+        evaluadas = []
+        for x in ev.get('variantes') or []:
+            v = por_nombre.get(x['nombre'])
+            e = {**x, 'costo': None}
+            if v is not None:
+                try:
+                    e['costo'] = eo.costo(v, costos, p, perdidas_kw=x.get('perdidas_kw'),
+                                          factor_perdidas=perdidas.get(f))
+                except eo.EscaleraError as exc:
+                    e['sin_costo'] = str(exc)
+            evaluadas.append(e)
+        decision = eo.elegir(evaluadas, p)
+        fila.update(elegida=decision['elegida'], mas_cercana=decision['mas_cercana'],
+                    tabla=[{k: t.get(k) for k in ('nombre', 'maxima', 'fraccion', 'motivos', 'motivo',
+                                                  'factible', 'perdidas_kw', 'error')}
+                           | {'inversion': (t.get('costo') or {}).get('inversion'),
+                              'costo_anual': (t.get('costo') or {}).get('costo_anual')}
+                           for t in decision['tabla']])
+        if decision['elegida']:                                                  # RF-54
+            ids = [obra_anadir(ws, o)['id'] for o in por_nombre[decision['elegida']].obras]
+            ctx.log(f"{f}: se aplica «{decision['elegida']}» en «Con proyecto»…")
+            hecho = obras_ejecutar(ws, ctx, project, feeders, ids, eo.BIBLIOTECA_TIPOS, simular=False,
                                    anio_casos=anio_casos)
-            filas = (hecho.get('informe') or {}).get('obras') or []
-            converge = bool(filas) and all(((x.get('flujo') or {}).get(CON_PROYECTO) or {}).get('converge')
-                                           for x in filas if not x.get('error'))
-            converge = converge and not all(x.get('error') for x in filas)
-            fila['intentos'].append({'escalon': nombre, 'converge': converge,
-                                     'variaciones': [x.get('variacion') for x in filas if x.get('variacion')],
-                                     'errores': [x['error'] for x in filas if x.get('error')]})
-            with ws.lock:
-                ws.obras = [o for o in ws.obras if o['id'] not in ids]
-                ws.save()
-            ctx.log(f"{f}: «{nombre}» {'converge' if converge else 'no basta'}.")
-            if converge:
-                fila['obra'] = nombre
-                break
+            fila['aplicada'] = [o.get('variacion') for o in (hecho.get('informe') or {}).get('obras') or []]
+        else:                                                                    # RF-56
+            fila['avisos'].append(f"{f}: ninguna variante cumple; la más cercana es «{decision['mas_cercana']}», "
+                                  'y no se aplica nada (025:RF-56).')
         resultado.append(fila)
-    return {'project': project.strip(), 'anio_casos': anio_casos, 'alimentadores': resultado}
+    return {'project': project.strip(), 'anio_casos': anio_casos, 'moneda': p.moneda, 'tipo_cambio': tipo_cambio,
+            'sorteos': len(sorteos), 'avisos': avisos, 'alimentadores': resultado}
 
 
 def registrar_obra_aplicada(ws: Workspace, project: str, variacion: str, obra: dict) -> None:

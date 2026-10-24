@@ -1092,3 +1092,22 @@ def test_los_sorteos_escalan_solo_las_cargas_existentes_y_se_restituyen(monkeypa
     en_sorteo = [(e, p) for e, p in vistos if e.startswith('IGEA_sorteo_escalera')]
     assert [round(p / p0, 6) for _, p in en_sorteo] == [0.5, 0.8, 0.5, 0.8]
     assert float(carga.plini) == p0
+
+def test_datos_de_la_escalera_troncal_corriente_y_tramo_de_cada_carga():
+    """025:RF-49, 025:RF-60 — en «Con proyecto», la troncal de cada alimentador desde la
+    cabecera, como la lee la obra, con su largo y una corriente por tramo, y el tramo de la
+    troncal donde cae cada barra pedida; las cargas nuevas vuelven a quedar activas."""
+    app, alims = _calibrada_con_escenario(random.Random(12))
+    f = alims[0]
+    antes = _activas(app, CON)
+    elm = next(e for e in app.proyecto.GetContents('*.ElmFeeder', 1) if e.loc_name == f)
+    esperada = guion.leer_troncal(elm, f)[0]
+    con_gps = [b.loc_name for b in elm.GetObjs('ElmTerm') if guion.gps_de(b)]
+    informe, codigo = guion.datos_escalera(app, _plan(alims, barras={f: con_gps[-1:]}, tension_min_pu=0.95))
+    assert codigo == 0, informe
+    d = informe['alimentadores'][f]
+    assert [t['nombre'] for t in d['troncal']] == list(esperada)
+    assert all(t['largo_m'] >= 0 and 'corriente_a' in t for t in d['troncal'])
+    if con_gps:
+        assert set(d['indices']) == set(con_gps[-1:]) and 0 <= d['indices'][con_gps[-1]] < len(esperada)
+    assert _activas(app, CON) == antes
