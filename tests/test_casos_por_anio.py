@@ -564,6 +564,55 @@ def test_la_escalera_sin_ninguna_que_cumpla_no_aplica_nada(tmp_path, monkeypatch
     assert any('025:RF-56' in a for a in f1['avisos'])
 
 
+def test_la_evaluacion_terminada_con_el_mismo_plan_se_reutiliza(tmp_path):
+    """025:RF-73 — una evaluación terminada con el mismo plan (salvo el contexto firmado) se
+    reutiliza; con otros sorteos, con error o de hace más de 24 h, no."""
+    import json
+    import os
+    import time
+
+    from igea_dgs.web import services
+    from igea_dgs.web.workspace import Workspace
+
+    ws = Workspace(id='w', root=tmp_path)
+    ws.plans_dir.mkdir(parents=True, exist_ok=True)
+    ws.out_dir.mkdir(parents=True, exist_ok=True)
+    plan = {'project': 'P', 'feeders': ['F1'], 'sorteos': [{'F1': 0.5}], 'apartar_cargas_de': ['F2'],
+            'native_action_context': {'firma': 'a'}}
+    informe = {'variantes': [{'nombre': 'terna', 'maxima': True}]}
+
+    def guardar(nombre, p, datos, edad_s=0.0):
+        (ws.plans_dir / nombre).write_text(json.dumps(p), encoding='utf-8')
+        ruta = ws.out_dir / nombre
+        ruta.write_text(json.dumps(datos), encoding='utf-8')
+        os.utime(ruta, (time.time() - edad_s, time.time() - edad_s))
+
+    guardar('escalera_evaluar_a.json', plan, informe)
+    assert services._evaluacion_hecha(ws, {**plan, 'native_action_context': {'firma': 'b'}}) == informe
+    assert services._evaluacion_hecha(ws, {**plan, 'sorteos': [{'F1': 0.6}]}) is None
+    assert services._evaluacion_hecha(ws, {**plan, 'apartar_cargas_de': []}) is None
+    guardar('escalera_evaluar_a.json', plan, {'error': 'no converge', 'variantes': []})
+    assert services._evaluacion_hecha(ws, plan) is None
+    guardar('escalera_evaluar_a.json', plan, informe, edad_s=services.VIGENCIA_EVALUACION_S + 60)
+    assert services._evaluacion_hecha(ws, plan) is None
+
+
+def test_la_escalera_no_vuelve_a_medir_lo_ya_evaluado(tmp_path, monkeypatch):
+    """025:RF-73 — con la evaluación de F1 ya hecha, el servicio no llama al guion para medirla."""
+    def evaluar(nombre):
+        cumple = nombre.startswith('terna') and '+' not in nombre
+        return {'nombre': nombre, 'maxima': cumple, 'fraccion': 1.0 if cumple else None,
+                'perdidas_kw': 10.0, 'motivos': [] if cumple else ['no converge']}
+
+    services, ws, ctx, planes, aplicadas, _apartadas = _escalera_falsa(
+        tmp_path, monkeypatch, evaluar, {'nueva_terna': 40000})
+    monkeypatch.setattr(services, '_evaluacion_hecha',
+                        lambda ws_, plan: {'variantes': [evaluar(v['nombre']) for v in plan['variantes']]})
+    (f1,) = services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=ANIO)['alimentadores']
+    assert not [a for a, _p in planes if '--evaluar' in a]
+    assert f1['elegida'].startswith('terna') and len(aplicadas) == 1
+
+
 @pytest.mark.parametrize('activa', [True, False])
 def test_la_elegida_se_aplica_con_las_mismas_cargas_apartadas_y_solo_activa_resuelve(
         tmp_path, monkeypatch, activa):

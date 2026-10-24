@@ -4233,11 +4233,17 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
 
         por_kw = ((p.precio_perdidas_kwh or 0.0) * (perdidas.get(f) or 0.0) * eo.HORAS_ANIO
                   + 12 * (p.precio_perdidas_kw_mes or 0.0))
-        rc, ev, _rep = _guion_pf(ws, ctx, 'obras_pf.py', {
+        plan_ev = {
             **comun, 'feeders': [f], 'costo_por_kw_perdido': por_kw,
             'variantes': [{'nombre': v.nombre, 'obras': v.obras, 'costo_base': costo_base(v)} for v in vs],
             'barras_cargas': barras, 'sorteos': sorteos, 'parametros': perfil, 'tipo_cambio': tipo_cambio,
-            'otro_proyecto': eo.BIBLIOTECA_TIPOS}, nombre='escalera_evaluar', args=('--evaluar',))
+            'otro_proyecto': eo.BIBLIOTECA_TIPOS}
+        ev = _evaluacion_hecha(ws, plan_ev)                                     # 025:RF-73
+        if ev is not None:
+            ctx.log(f'{f}: se reutiliza su evaluación ya terminada con los mismos datos (025:RF-73).')
+        else:
+            rc, ev, _rep = _guion_pf(ws, ctx, 'obras_pf.py', plan_ev, nombre='escalera_evaluar',
+                                     args=('--evaluar',))
         if ev.get('error'):
             raise UserError(ev['error'])
         por_nombre = {v.nombre: v for v in vs}
@@ -4280,6 +4286,35 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
         resultado.append(fila)
     return {'project': project.strip(), 'anio_casos': anio_casos, 'moneda': p.moneda, 'tipo_cambio': tipo_cambio,
             'sorteos': len(sorteos), 'avisos': avisos, 'alimentadores': resultado}
+
+
+VIGENCIA_EVALUACION_S = 24 * 3600
+
+
+def _evaluacion_hecha(ws: Workspace, plan: dict) -> dict | None:
+    """El informe de una evaluación de la escalera ya terminada con el mismo plan (025:RF-73).
+
+    El contexto firmado cambia en cada petición y no cuenta; el resto del plan es lo que se
+    midió. Solo vale un informe sin error, con variantes y de las últimas 24 h.
+    """
+    def clave(p: dict) -> str:
+        return json.dumps({k: v for k, v in p.items() if k != 'native_action_context'},
+                          sort_keys=True, ensure_ascii=False, default=str)
+
+    buscada = clave(json.loads(json.dumps(plan, ensure_ascii=False, default=str)))
+    limite = time.time() - VIGENCIA_EVALUACION_S
+    for ruta in sorted(ws.plans_dir.glob('escalera_evaluar_*.json'), key=lambda p: p.stat().st_mtime,
+                       reverse=True):
+        informe = ws.out_dir / ruta.name
+        try:
+            if informe.stat().st_mtime < limite or clave(json.loads(ruta.read_text(encoding='utf-8'))) != buscada:
+                continue
+            datos = json.loads(informe.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            continue
+        if isinstance(datos, dict) and datos.get('variantes') and not datos.get('error'):
+            return datos
+    return None
 
 
 def registrar_obra_aplicada(ws: Workspace, project: str, variacion: str, obra: dict) -> None:
