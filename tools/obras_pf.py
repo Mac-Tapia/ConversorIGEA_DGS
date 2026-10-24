@@ -1391,6 +1391,9 @@ def datos_escalera(app, plan: dict) -> tuple[dict, int]:
     ajenas: list = []
     try:
         casos['con'].Activate()
+        # 025:RF-73: el estado de «Con proyecto» con el que se medirá; una evaluación anterior
+        # solo se reutiliza si es el mismo.
+        informe['variaciones_activas'] = sorted(v.loc_name for v in app.GetActiveNetworkVariations() or [])
         ajenas = _apartar_cargas_de(app, list(plan.get('apartar_cargas_de') or []))   # RF-69
         apartadas = _apartar_cargas_nuevas(app)
         try:
@@ -1620,6 +1623,19 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
                     if fallos > admite:
                         break
             return (len(sorteos) - fallos) / len(sorteos)
+
+        # RF-74: con lo que ya tiene «Con proyecto» (una obra de una escalera anterior), si
+        # cumple no se prueba ninguna variante.
+        casos['con'].Activate()
+        con_actual = medida_para_criterio(app, alims, feeders)
+        if cumple(sin_max, con_actual, barras, p)[0]:
+            fraccion = sortear() if sorteos else 1.0
+            if fraccion is None:
+                return informe, 2
+            if fraccion >= p.cumplimiento:
+                informe['ya_cumple'] = {'fraccion': fraccion, 'perdidas_kw': con_actual['perdidas_kw']}
+                print(f'  «Con proyecto» ya cumple: sorteos {100 * fraccion:.0f} %', flush=True)
+                return informe, 0
 
         # Fase 1: todas con la máxima (RF-52b); con eso ya se sabe su costo anual entero.
         variantes = list(plan.get('variantes') or [])

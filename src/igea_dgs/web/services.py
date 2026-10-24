@@ -4237,8 +4237,10 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             **comun, 'feeders': [f], 'costo_por_kw_perdido': por_kw,
             'variantes': [{'nombre': v.nombre, 'obras': v.obras, 'costo_base': costo_base(v)} for v in vs],
             'barras_cargas': barras, 'sorteos': sorteos, 'parametros': perfil, 'tipo_cambio': tipo_cambio,
-            'otro_proyecto': eo.BIBLIOTECA_TIPOS}
-        ev = _evaluacion_hecha(ws, plan_ev)                                     # 025:RF-73
+            'otro_proyecto': eo.BIBLIOTECA_TIPOS,
+            'estado_con_proyecto': datos.get('variaciones_activas')}
+        # 025:RF-73: sin el estado de «Con proyecto» no se sabe si es la misma red: se mide.
+        ev = _evaluacion_hecha(ws, plan_ev) if datos.get('variaciones_activas') is not None else None
         if ev is not None:
             ctx.log(f'{f}: se reutiliza su evaluación ya terminada con los mismos datos (025:RF-73).')
         else:
@@ -4246,6 +4248,13 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
                                      args=('--evaluar',))
         if ev.get('error'):
             raise UserError(ev['error'])
+        if ev.get('ya_cumple'):                                                  # 025:RF-74
+            fila['avisos'].append(f"{f}: «Con proyecto» ya cumple con lo que tiene (sorteos "
+                                  f"{100 * float(ev['ya_cumple'].get('fraccion') or 0):.0f} %): no se aplica "
+                                  'nada (025:RF-74).')
+            resueltos.append(f)
+            resultado.append(fila)
+            continue
         por_nombre = {v.nombre: v for v in vs}
         evaluadas = []
         for x in ev.get('variantes') or []:
@@ -4295,7 +4304,9 @@ def _evaluacion_hecha(ws: Workspace, plan: dict) -> dict | None:
     """El informe de una evaluación de la escalera ya terminada con el mismo plan (025:RF-73).
 
     El contexto firmado cambia en cada petición y no cuenta; el resto del plan es lo que se
-    midió. Solo vale un informe sin error, con variantes y de las últimas 24 h.
+    midió, con las variaciones activas en «Con proyecto». Solo vale un informe terminado (sin
+    error ni cancelación), con variantes y de las últimas 24 h. (Pisco, 2026-10-24: se
+    reutilizó para PA217 una evaluación cancelada y medida con la obra de SI213 inactiva.)
     """
     def clave(p: dict) -> str:
         return json.dumps({k: v for k, v in p.items() if k != 'native_action_context'},
@@ -4312,7 +4323,8 @@ def _evaluacion_hecha(ws: Workspace, plan: dict) -> dict | None:
             datos = json.loads(informe.read_text(encoding='utf-8'))
         except (OSError, ValueError):
             continue
-        if isinstance(datos, dict) and datos.get('variantes') and not datos.get('error'):
+        if (isinstance(datos, dict) and datos.get('variantes') and not datos.get('error')
+                and not datos.get('cancelado')):
             return datos
     return None
 

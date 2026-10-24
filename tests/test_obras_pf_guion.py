@@ -1043,6 +1043,40 @@ def _calibrada_con_escenario(rng):
     return app, list(alims)
 
 
+def _actual_no_cumple(monkeypatch):
+    """«Con proyecto» tal como está no cumple (en la red real lo impiden las cargas nuevas):
+    la primera comparación, la del estado actual (025:RF-74), sale que no."""
+    from igea_dgs import escalera_optima
+
+    original = escalera_optima.cumple
+    llamadas = []
+
+    def cumple(sin, con, barras, p):
+        llamadas.append(1)
+        return (False, ['sin obra']) if len(llamadas) == 1 else original(sin, con, barras, p)
+
+    monkeypatch.setattr(escalera_optima, 'cumple', cumple)
+
+
+def test_si_con_proyecto_ya_cumple_no_se_prueba_ninguna_variante(monkeypatch):
+    """025:RF-74 — con «Con proyecto» cumpliendo tal como está (la obra de una escalera anterior),
+    no se crea ninguna variante y se dice que ya cumple."""
+    app, alims = _calibrada_con_escenario(random.Random(41))
+    monkeypatch.setitem(guion.CONSTRUCTORES, 'terna', _terna)
+    f = alims[0]
+    antes = (_activas(app, SIN), _activas(app, CON), _variaciones(app))
+    creadas = []
+    aplicar = guion.aplicar
+    monkeypatch.setattr(guion, 'aplicar', lambda *a, **k: (creadas.append(1), aplicar(*a, **k))[1])
+    sorteos = [{'factores': {a: 0.9 for a in alims}} for _ in range(3)]
+    plan = _plan(alims, variantes=[{'nombre': 'terna', 'obras': [_obra_terna(f, [CON])], 'costo_base': 1.0}],
+                 sorteos=sorteos, barras_cargas=[], parametros=PERFIL_ESCALERA)
+    informe, codigo = guion.evaluar(app, plan)
+    assert codigo == 0, informe
+    assert informe['ya_cumple']['fraccion'] == 1.0 and informe['variantes'] == [] and creadas == []
+    assert (_activas(app, SIN), _activas(app, CON), _variaciones(app)) == antes
+
+
 @pytest.mark.parametrize('semilla', SEMILLAS)
 def test_evaluar_variantes_sin_dejar_nada(semilla, monkeypatch):
     """025:RF-50, 025:RF-52b, 025:RF-44b — cada variante en «Con proyecto»: con la máxima y, si
@@ -1050,6 +1084,7 @@ def test_evaluar_variantes_sin_dejar_nada(semilla, monkeypatch):
     ni el escenario temporal, y «Sin proyecto» y «Con proyecto» siguen como estaban."""
     rng = random.Random(semilla)
     app, alims = _calibrada_con_escenario(rng)
+    _actual_no_cumple(monkeypatch)
     monkeypatch.setitem(guion.CONSTRUCTORES, 'terna', _terna)
     monkeypatch.setitem(guion.CONSTRUCTORES, 'condensador', _sobrecarga)
     f = alims[0]
@@ -1111,6 +1146,7 @@ def test_datos_de_la_escalera_troncal_corriente_y_tramo_de_cada_carga():
     if con_gps:
         assert set(d['indices']) == set(con_gps[-1:]) and 0 <= d['indices'][con_gps[-1]] < len(esperada)
     assert _activas(app, CON) == antes
+    assert informe['variaciones_activas'] == sorted(antes)                    # 025:RF-73
 
 def test_al_evaluar_un_alimentador_se_apartan_las_cargas_de_los_otros(monkeypatch):
     """025:RF-69 — mientras se evalúa F1, las cargas nuevas de F2 (sin resolver) están apartadas
@@ -1209,6 +1245,8 @@ def test_sorteos_de_la_mas_barata_a_la_mas_cara_hasta_la_primera_que_cumple(monk
         return {'converge': True, 'u': {}, 'carga': {}, 'perdidas_kw': 10.0}
 
     def cumple(sin, con, barras, p):
+        if 'v' not in actual:                          # «Con proyecto» sin obra (025:RF-74)
+            return (False, ['sin obra'])
         return (actual.get('en_sorteo') != 'barata', [])
 
     class Sorteo:

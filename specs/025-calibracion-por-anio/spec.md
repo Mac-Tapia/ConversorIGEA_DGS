@@ -282,9 +282,15 @@ nueva por su factor de uso; vale si cumple en el 95 % de 200 sorteos)
   cabecera menos lo que consumen sus cargas en el flujo, no su potencia nominal. (Pisco,
   2026-10-24: con tensiones de 0,88 p.u. las cargas consumían menos que su nominal y las
   pérdidas salían negativas, −2044 kW en SI213.)
-- RF-73: SI la evaluación de un alimentador ya terminó con el mismo plan (proyecto, año,
-  variantes, sorteos, cargas apartadas y parámetros) en las últimas 24 h, ENTONCES EL SISTEMA
-  la reutilizará sin volver a medir, y lo dirá en el registro. (Pisco, 2026-10-24: la web se
+- RF-73: SI la evaluación de un alimentador ya terminó, sin cancelarse, con el mismo plan
+  (proyecto, año, variantes, sorteos, cargas apartadas, parámetros y variaciones activas en
+  «Con proyecto <año>») en las últimas 24 h, ENTONCES EL SISTEMA la reutilizará sin volver a
+  medir, y lo dirá en el registro.
+- RF-74: ANTES de probar las variantes de un alimentador, EL SISTEMA medirá «Con proyecto
+  <año>» tal como está; SI ya cumple con la máxima y en los sorteos, ENTONCES no aplicará
+  nada, lo dirá y lo dará por resuelto. (Pisco, 2026-10-24: volver a pedir la escalera con la
+  obra de SI213 ya aplicada habría creado otra obra encima.)
+  (RF-73, Pisco, 2026-10-24: la web se
   reinició dos veces a mitad de la escalera y cada vez se repetían 20 min de evaluación de
   SI213 que DIgSILENT ya había terminado.)
 
