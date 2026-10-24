@@ -1214,3 +1214,16 @@ def test_sorteos_de_la_mas_barata_a_la_mas_cara_hasta_la_primera_que_cumple(monk
     assert medidas['n'] < 1 + 40 + 4 + 40 + 40
     assert 'cuesta menos' in filas['cara']['sin_sortear'] and filas['cara']['fraccion'] is None
     assert 'sin costo' in filas['sin']['sin_sortear']
+
+def test_tipo_de_otro_proyecto_que_no_se_deja_pegar_se_copia_igual():
+    """025:RF-59 — si DIgSILENT no deja pegar el tipo del proyecto biblioteca (``PasteCopy``
+    con código 1, Pisco 2026-10-24), se copia de otra forma, con los mismos datos."""
+    app, alims = _calibrada(random.Random(5))
+    _prj, equip_otro = _otro_proyecto(app, 'IGEA_Biblioteca_tipos')
+    original = _tipo(equip_otro, 'TypVoltreg', 'VR32_22_9kV_300A', Un=13.2213, In=300.0, pcReg=10.0,
+                     ntapmin=-16, ntapmax=16, nntap0=0)
+    local = app.GetLocalLibrary('TypVoltreg')
+    object.__setattr__(local, 'PasteCopy', lambda _o: (1, None))
+    copia, reutiliza, _aviso = guion.copiar_tipo(app, original, 'VR32_22_9kV_300A')
+    assert not reutiliza and copia.GetParent() is local
+    assert (copia.Un, copia.In, copia.ntapmax) == (13.2213, 300.0, 16)
