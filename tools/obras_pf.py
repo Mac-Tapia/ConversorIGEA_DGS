@@ -1282,15 +1282,18 @@ def aplicar(app, plan: dict, *, simular: bool = False,
         if simular:                                                       # RF-69
             informe['obras'] = filas
             return informe, 2 if any(f['error'] for f in filas) else 0
-        if 'con' in casos:                                       # 014:RF-31 a RF-34
+        # 025:RF-49: al evaluar variantes de la escalera, sus obras se miden y se borran: ni
+        # sincronizar, ni comprobar «Sin proyecto», que no tocan, ni dibujarlas.
+        evaluando = bool(plan.get('evaluando'))
+        if 'con' in casos and not evaluando:                     # 014:RF-31 a RF-34
             informe['sin_a_con'] = sin_a_con_proyecto(app, casos)
             informe['avisos'] += informe['sin_a_con']['avisos']
         for fila in filas:
             if not fila['error'] and fila['clase'] not in CONSTRUCTORES:
                 fila['error'] = f"las obras de clase {fila['clase']} todavía no se pueden aplicar"
 
-        antes = medir_estado(app, alims, feeders)                         # RF-64
-        if not antes['converged']:
+        antes = {'converged': False} if evaluando else medir_estado(app, alims, feeders)  # RF-64
+        if not antes['converged'] and not evaluando:
             informe['avisos'].append('«Sin proyecto» no converge antes de las obras: no se puede '
                                      'comprobar después que no cambió.')
         # Sin «Con proyecto», primero las obras de «Sin proyecto»; después se crea «Con
@@ -1314,7 +1317,7 @@ def aplicar(app, plan: dict, *, simular: bool = False,
         informe['obras'] = [fila for _, (_, fila) in sorted(hechas, key=lambda h: h[0])]
         if antes['converged']:
             _comprobar_sin_proyecto(app, casos, alims, feeders, antes, informe)
-        if 'con' in casos and any(f.get('variacion') for f in informe['obras']):
+        if 'con' in casos and not evaluando and any(f.get('variacion') for f in informe['obras']):
             # 016:RF-89: el enlace y las mitades de un tramo partido, en el diagrama; en
             # «Con proyecto», que tiene también las obras de «Sin proyecto».
             casos['con'].Activate()
@@ -1329,6 +1332,165 @@ def aplicar(app, plan: dict, *, simular: bool = False,
     return informe, 2 if fallos or diferencias or informe['cancelado'] else 0
 
 
+# =========================================================================== escalera optimizada
+def medida_para_criterio(app, alims, feeders: list[str]) -> dict[str, Any]:
+    """Lo que juzga ``escalera_optima.cumple``: si converge, la tensión de cada barra de media
+    y la carga de cada tramo de los alimentadores, y sus pérdidas (025:RF-50, RF-53)."""
+    flujo = flujo_de_carga(app)
+    out: dict[str, Any] = {'converge': bool(flujo['converged']), 'u': {}, 'carga': {}, 'perdidas_kw': None}
+    if not out['converge']:
+        return out
+    for f in feeders:
+        for b in alims.objetos(f, 'ElmTerm'):
+            try:
+                if float(getattr(b, 'uknom', 0) or 0) >= 1.0 and b.HasResults():
+                    out['u'][b.loc_name] = float(b.GetAttribute('m:u'))
+            except Exception:  # noqa: BLE001, S110 - sin resultado, no cuenta
+                pass
+        for ln in alims.objetos(f, 'ElmLne'):
+            try:
+                out['carga'][ln.loc_name] = float(ln.GetAttribute('c:loading'))
+            except Exception:  # noqa: BLE001, S110
+                pass
+    estado = medir_estado(app, alims, feeders)
+    perdidas = [(estado.get('feeders') or {}).get(f, {}).get('perdidas_kw') for f in feeders]
+    out['perdidas_kw'] = sum(x for x in perdidas if x is not None) if any(x is not None for x in perdidas) else None
+    return out
+
+
+class _Sorteo:
+    """Escenario temporal, copia del del caso, donde se escalan las cargas existentes por el
+    factor de su alimentador; se borra al salir y vuelve el escenario del caso (025:RF-51)."""
+
+    def __init__(self, app, alims, feeders, existentes: set[str]):
+        self.app, self.alims, self.feeders, self.existentes = app, alims, feeders, existentes
+
+    def __enter__(self):
+        app = self.app
+        self.original = app.GetActiveScenario()
+        if self.original is None:
+            # Sin escenario, escribir la demanda cambiaría la red del caso, no un escenario.
+            raise RuntimeError(f'«{app.GetActiveStudyCase().loc_name}» no tiene escenario de '
+                               'operación: no se sortea sobre él (025:RF-51)')
+        carpeta = app.GetProjectFolder('scen', 1)
+        nombre = nombre_libre(carpeta, 'IntScenario', 'IGEA_sorteo_escalera')
+        self.temporal = carpeta.AddCopy(self.original, nombre)
+        self.original.Deactivate(0)
+        self.temporal.Activate()
+        self.base = {}
+        for f in self.feeders:
+            for c in self.alims.objetos(f, 'ElmLod'):
+                if c.loc_name in self.existentes:
+                    self.base[id(c)] = (c, f, float(c.plini or 0.0), float(c.qlini or 0.0))
+        return self
+
+    def escalar(self, factores: dict[str, float]) -> None:
+        for c, f, p, q in self.base.values():
+            k = float(factores.get(f, 1.0))
+            c.plini, c.qlini = p * k, q * k
+
+    def __exit__(self, *exc):
+        try:
+            for c, _f, p, q in self.base.values():                  # todavía en el temporal
+                c.plini, c.qlini = p, q
+            self.temporal.Deactivate(0)
+        finally:
+            self.original.Activate()
+            self.temporal.Delete()
+        return False
+
+
+def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
+    """Cada variante de la escalera en «Con proyecto <año>»: con la máxima y, si cumple, en los
+    sorteos; sin dejar ninguna obra ni el escenario temporal (025:RF-50 a RF-52b, RF-44b).
+
+    ``plan``: ``project``, ``anio_casos``, ``feeders``, ``variantes`` (``nombre`` y ``obras``),
+    ``barras_cargas`` (las barras de media de las cargas nuevas), ``sorteos`` (``factores``
+    por alimentador) y ``parametros`` (el perfil con ``escalera``, ``planificacion`` y
+    ``estudios``). Devuelve por variante si cumple con la máxima, la fracción de sorteos que
+    cumplen y sus pérdidas con la máxima.
+    """
+    from igea_dgs.escalera_optima import cumple, parametros
+
+    informe: dict[str, Any] = {'project': plan.get('project'), 'modo': 'evaluar', 'variantes': [],
+                               'avisos': [], 'cancelado': False}
+    try:
+        p = parametros(plan.get('parametros') or {})
+    except ValueError as exc:
+        return {**informe, 'error': str(exc)}, 2
+    proyecto = activar_proyecto(app, plan['project'], plan.get('folder'))
+    if proyecto is None:
+        return {**informe, 'error': f"no existe el proyecto {plan['project']!r} en DIgSILENT"}, 2
+    anio = informe['anio_casos'] = anio_del_plan(plan)
+    casos = casos_del_proyecto(app, anio)
+    if 'sin' not in casos or 'con' not in casos:
+        return {**informe, 'error': f"faltan «{nombre_caso('sin', anio)}» o «{nombre_caso('con', anio)}»"}, 2
+    feeders = list(plan.get('feeders') or [])
+    alims = Alimentadores(app, proyecto, feeders)
+    barras = list(plan.get('barras_cargas') or [])
+    sorteos = list(plan.get('sorteos') or [])
+    inicial = app.GetActiveStudyCase()
+    try:
+        # «Sin proyecto» con la máxima y con cada sorteo, una sola vez (RF-50).
+        casos['sin'].Activate()
+        existentes = {c.loc_name for f in feeders for c in alims.objetos(f, 'ElmLod')}
+        sin_max = medida_para_criterio(app, alims, feeders)
+        informe['sin_proyecto'] = {'converge': sin_max['converge'], 'perdidas_kw': sin_max['perdidas_kw']}
+        sin_sorteos = []
+        with _Sorteo(app, alims, feeders, existentes) as s:
+            for i, sorteo in enumerate(sorteos):
+                if i % 10 == 0 and cancelado():
+                    informe['cancelado'] = True
+                    return informe, 2
+                s.escalar(sorteo['factores'])
+                sin_sorteos.append(medida_para_criterio(app, alims, feeders))
+        for v in plan.get('variantes') or []:
+            if cancelado():
+                informe['cancelado'] = True
+                break
+            fila = {'nombre': v['nombre'], 'maxima': False, 'motivos': [], 'fraccion': None,
+                    'perdidas_kw': None, 'error': None}
+            sub = {**plan, 'obras': v['obras'], 'evaluando': True}
+            hecho, _rc = aplicar(app, sub)
+            creadas = [o['variacion'] for o in hecho.get('obras') or [] if o.get('variacion')]
+            errores = [o['error'] for o in hecho.get('obras') or [] if o.get('error')] + (
+                [hecho['error']] if hecho.get('error') else [])
+            try:
+                if errores:
+                    fila['error'] = '; '.join(errores)
+                    continue
+                casos['con'].Activate()
+                con_max = medida_para_criterio(app, alims, feeders)
+                fila['perdidas_kw'] = con_max['perdidas_kw']
+                fila['maxima'], fila['motivos'] = cumple(sin_max, con_max, barras, p)
+                if fila['maxima'] and sorteos:                                  # RF-52b
+                    ok = 0
+                    with _Sorteo(app, alims, feeders, existentes) as s:
+                        for sorteo, sin_i in zip(sorteos, sin_sorteos):
+                            s.escalar(sorteo['factores'])
+                            ok += cumple(sin_i, medida_para_criterio(app, alims, feeders), barras, p)[0]
+                    fila['fraccion'] = ok / len(sorteos)
+                print(f"  {v['nombre']}: máxima {'cumple' if fila['maxima'] else 'no cumple'}"
+                      + (f", sorteos {100 * fila['fraccion']:.0f} %" if fila['fraccion'] is not None else ''),
+                      flush=True)
+            finally:
+                # RF-54: ninguna obra de una variante queda en el proyecto al evaluarla.
+                carpeta = app.GetProjectFolder('scheme')
+                por_nombre = {x.loc_name: x for x in (carpeta.GetContents('*.IntScheme', 1) if carpeta else [])}
+                for n in creadas:
+                    var = por_nombre.get(n)
+                    if var is not None:
+                        for rol in ('sin', 'con'):
+                            casos[rol].Activate()
+                            var.Deactivate()
+                        var.Delete()
+                informe['variantes'].append(fila)
+    finally:
+        if inicial is not None and app.GetActiveStudyCase() is not inicial:
+            inicial.Activate()
+    return informe, 0
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description='Obras de mejora de la spec 011 en DIgSILENT')
     p.add_argument('--plan', required=True, help='Plan JSON preparado por la web')
@@ -1340,6 +1502,8 @@ def main(argv=None) -> int:
     p.add_argument('--cancel-file', help='Si este fichero aparece, para entre obras')
     p.add_argument('--tipos-regulador', action='store_true',
                    help='Crear los reguladores del catálogo en el proyecto biblioteca (025:RF-59)')
+    p.add_argument('--evaluar', action='store_true',
+                   help='Medir las variantes de la escalera con la máxima y los sorteos, sin dejarlas (025:RF-50)')
     args = p.parse_args(argv)
     plan = json.loads(Path(args.plan).read_text(encoding='utf-8'))
     # Crear tipos de catálogo no toca ninguna red convertida: no lleva contexto de acción.
@@ -1365,6 +1529,8 @@ def main(argv=None) -> int:
     try:
         if args.tipos_regulador:
             informe, codigo = crear_tipos_regulador(app, plan)
+        elif args.evaluar:
+            informe, codigo = evaluar(app, plan, cancelado=cancelado)
         elif args.bibliotecas:
             informe, codigo = bibliotecas(app, plan)
         else:

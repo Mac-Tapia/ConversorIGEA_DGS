@@ -145,9 +145,13 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho el 2026-10-24: `escalera_optima.py` (18 pruebas); parámetros en el bloque
       `escalera` del perfil (95 %, 200 sorteos, tolerancias 0,005 p.u. y 1 %); sin precio de
       pérdidas ni COyM en el perfil, el costo anual va sin ellos y lo dice.
-- [ ] T19. Evaluación en DIgSILENT (`--evaluar`): máxima, sorteos, escenario temporal y
+- [x] T19. Evaluación en DIgSILENT (`--evaluar`): máxima, sorteos, escenario temporal y
       limpieza. (RF-44b, RF-50, RF-51, RF-52, RF-52b)
       Hecho cuando: prueba con `fake_pf` en verde.
+      Hecho el 2026-10-24: `obras_pf.py --evaluar`: «Sin proyecto» medido una vez por sorteo;
+      cada variante con `aplicar` (opción `evaluando`: sin sincronizar, comprobar ni dibujar),
+      la máxima y, si cumple, los sorteos en un escenario temporal que escala solo las cargas
+      existentes; al terminar se borran sus variaciones y el temporal. Sin escenario, no sortea.
 - [ ] T20. Servicio y web: elegir, aplicar la elegida y la tabla de variantes. (RF-54, RF-55)
       Hecho cuando: pruebas de la API y del front en verde y `npm run build`.
 - [ ] T21. DIgSILENT: PA217 (Pisco) y TM105 (Chincha) en «Con proyecto 2025» desde la web,
