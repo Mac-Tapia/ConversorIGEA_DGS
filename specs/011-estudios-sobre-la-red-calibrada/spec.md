@@ -305,7 +305,12 @@ Banco de condensadores
 Reconectador
 
 - RF-73: CUANDO la obra es un reconectador, EL SISTEMA creará un interruptor cerrado al
-  principio del tramo indicado, con un relé de tipo reconectador.
+  principio del tramo indicado, marcado con protección y reenganche, sin relé. (Cambiado el
+  2026-10-24 en la prueba real, T19: el relé sin su tipo de relé de DIgSILENT, `TypRelay`,
+  deja el flujo sin calcular, «missing type»; la confiabilidad y la ubicación de
+  reconectadores leen las marcas del interruptor, spec 012.)
+- RF-73b: SI el operador elige un tipo de reenganche, ENTONCES EL SISTEMA no creará el relé
+  y lo dirá en el informe, porque elegir el tipo de relé es de las protecciones (RF-74).
 - RF-74: EL SISTEMA dirá en el informe que el reconectador no cambia el flujo de carga ni
   los estudios de esta iteración, porque su efecto está en la fiabilidad y las
   protecciones, que hoy no son defendibles (faltan tasas de falla y curvas).

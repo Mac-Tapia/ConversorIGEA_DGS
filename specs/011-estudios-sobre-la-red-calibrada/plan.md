@@ -118,6 +118,12 @@ de PF 2024 (2026-10-12), y cómo cambia el plan:
   DIgSILENT real con la spec 012). El guion pone el interruptor con esas marcas y, en su
   cubículo, un `ElmRelay` con un `RelRecl` del `TypRecl` elegido. Que DIgSILENT acepte un
   relé sin `TypRelay` con ese bloque lo confirma la prueba real (T19).
+  Resultado de T19 (2026-10-24, Nasca por sistema, NA203): DIgSILENT deja crearlo, pero el
+  flujo no se calcula («`ElmRelay`: missing type», «`RelRecl`: missing type», «Calculation
+  not possible»), y «Con proyecto» quedaba sin converger. El guion deja solo el interruptor
+  con sus marcas (RF-73 cambiado) y, si el operador eligió un tipo de reenganche, dice que el
+  relé no se crea (RF-73b). Lo mismo confirmó que `aUsage='cbk'` del `StaSwitch` queda como
+  `iUse=1` en PF 2024.
 - **«Al principio del tramo»** es el extremo más cercano a la cabecera por la red del
   alimentador, no el cubículo con `obj_bus=0`: un tramo dibujado al revés en el export
   dejaría el reconectador o el regulador aguas abajo.
