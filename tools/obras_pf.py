@@ -517,12 +517,13 @@ def construir_condensador(ctx) -> None:
 
 
 def construir_reconectador(ctx) -> None:
-    """Interruptor con protección y reenganche al principio del tramo, y su relé (RF-73).
+    """Interruptor con protección y reenganche al principio del tramo, sin relé (RF-73).
 
     Lo que usan la confiabilidad y la ubicación de reconectadores de DIgSILENT son las
     marcas del interruptor (``rel_hasProt``, ``rel_hasRecl``; comprobado en DIgSILENT real
-    con la spec 012). El relé lleva un bloque de reenganche ``RelRecl``, que es el que
-    tiene tipo ``TypRecl``; los ajustes y curvas de protección quedan fuera (spec 011).
+    con la spec 012). El relé con su bloque ``RelRecl`` no se crea: sin su ``TypRelay``,
+    DIgSILENT no calcula el flujo («missing type», NA203, 2026-10-24), y ese tipo es de las
+    protecciones (RF-73b).
     """
     o = ctx.obra
     cub, _barra = principio_del_tramo(ctx.elm, ctx.objeto('ElmLne', o.tramo))
@@ -535,10 +536,6 @@ def construir_reconectador(ctx) -> None:
                                   f'{interruptor.loc_name}: pasa a ser el reconectador.')
     interruptor.aUsage, interruptor.on_off = 'cbk', 1
     interruptor.rel_hasProt, interruptor.rel_hasRecl = 1, 1
-    rele = cub.CreateObject('ElmRelay', nombre_pf(f'Rele_{o.tramo}'))
-    bloque = rele.CreateObject('RelRecl', 'Reenganche')
-    if ctx.fila.get('tipo'):
-        bloque.typ_id = ctx.tipo('TypRecl', ctx.fila['tipo'])
 
 
 def construir_regulador(ctx) -> None:

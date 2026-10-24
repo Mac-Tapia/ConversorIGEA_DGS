@@ -504,7 +504,8 @@ def test_condensador_regulando_su_consigna():
 @pytest.mark.parametrize('semilla', SEMILLAS)
 def test_reconectador_al_principio_del_tramo(semilla):
     """011:RF-73 — un interruptor cerrado, con protección y reenganche, en el cubículo del
-    extremo del tramo más cercano a la cabecera, con un relé y su bloque de reenganche."""
+    extremo del tramo más cercano a la cabecera, sin relé: sin su tipo de relé, DIgSILENT no
+    calcula el flujo (Nasca, 2026-10-24)."""
     rng = random.Random(semilla)
     app, alims = _calibrada(rng)
     f = rng.choice(alims)
@@ -516,15 +517,14 @@ def test_reconectador_al_principio_del_tramo(semilla):
     cub = _cubiculo_de(app, _linea(app, f'{f}_L{k}'), _barra(app, f'{f}_B{k - 1}'))
     (sw,) = cub.GetContents('*.StaSwitch')
     assert (sw.aUsage, sw.on_off, sw.rel_hasProt, sw.rel_hasRecl) == ('cbk', 1, 1, 1)
-    (rele,) = cub.GetContents('*.ElmRelay')
-    assert [b.GetClassName() for b in rele.GetContents()] == ['RelRecl']
+    assert cub.GetContents('*.ElmRelay') == []
     lejos = _cubiculo_de(app, _linea(app, f'{f}_L{k}'), _barra(app, f'{f}_B{k}'))
     assert lejos.GetContents('*.StaSwitch') == []
 
 
-def test_reconectador_con_tipo_de_reenganche_de_la_global():
-    """011:RF-73, 011:RF-92 — el tipo de reenganche elegido en la global se copia al proyecto
-    y es el del bloque del relé."""
+def test_reconectador_con_tipo_de_reenganche_no_crea_el_rele():
+    """011:RF-73b — con un tipo de reenganche elegido, el relé no se crea y se dice por qué;
+    el interruptor queda con sus marcas y el tipo no se copia al proyecto."""
     app, alims = _calibrada(random.Random(23))
     _tipo(app.GetGlobalLibrary(), 'TypRecl', 'Recl_3_disparos', roplockout=3)
     f = alims[0]
@@ -534,9 +534,11 @@ def test_reconectador_con_tipo_de_reenganche_de_la_global():
     assert codigo == 0, informe
     _activas(app, SIN)
     cub = _cubiculo_de(app, _linea(app, f'{f}_L1'), _barra(app, f'{f}_B0'))
-    (bloque,) = cub.GetContents('*.ElmRelay')[0].GetContents()
-    assert bloque.typ_id.GetParent() is app.carpetas['equip']
-    assert bloque.typ_id.loc_name == 'Recl_3_disparos'
+    assert cub.GetContents('*.ElmRelay') == []
+    (sw,) = cub.GetContents('*.StaSwitch')
+    assert (sw.rel_hasProt, sw.rel_hasRecl) == (1, 1)
+    assert any('011:RF-73b' in a for a in informe['obras'][0]['avisos'])
+    assert not any(t.loc_name == 'Recl_3_disparos' for t in app.carpetas['equip'].GetContents('*.TypRecl'))
 
 
 def test_reconectador_en_un_cubiculo_con_interruptor_lo_reutiliza():

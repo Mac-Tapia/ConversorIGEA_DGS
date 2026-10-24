@@ -647,17 +647,22 @@ def _consigna(p: _Plan) -> None:
                f'usetp → {p.obra.consigna_pu:g} p.u. (escenario de «{CON_PROYECTO}»)')
 
 
+#: 011:RF-73b: un relé sin su ``TypRelay`` deja el flujo sin calcular («missing type», Nasca,
+#: 2026-10-24), y elegir el tipo de relé es de las protecciones, fuera de esta spec (RF-74).
+AVISO_SIN_RELE = ('El tipo de reenganche {tipo} no se usa: el relé no se crea, porque sin su '
+                  'tipo de relé DIgSILENT no calcula el flujo, y ese tipo es de las '
+                  'protecciones (011:RF-73b). El interruptor queda marcado con protección y '
+                  'reenganche, que es lo que leen la confiabilidad y la ubicación de '
+                  'reconectadores.')
+
+
 def _reconectador(p: _Plan) -> None:
     o = p.obra
     tramo = p.tramo(o.tramo)
     p.elemento(f'Reconectador en {tramo}', 'StaSwitch',
                'nuevo, cerrado, al principio del tramo, con protección y reenganche')
-    rele = 'nuevo, en el cubículo del interruptor, con un bloque de reenganche'
     if o.tipo:
-        base = p.traer(o.tipo)
-        p.extra['tipo'] = p.con_datos(base, base.datos, base.nombre)
-        rele += f" de tipo {p.extra['tipo']}"
-    p.elemento(f'Relé de {tramo}', 'ElmRelay', rele)
+        p.avisos.append(AVISO_SIN_RELE.format(tipo=o.tipo.nombre))
     p.avisos.append('El reconectador no cambia el flujo de carga ni los estudios de esta '
                     'iteración: su efecto está en la fiabilidad y las protecciones.')
 

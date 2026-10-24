@@ -234,7 +234,7 @@ def test_simulacion_dice_elementos_tipos_y_variacion_de_cada_obra(semilla):
     cond, rec, reg, terna = plan
     assert [e['clase'] for e in cond['elementos']] == ['ElmShnt'] and not cond['tipos']
     assert barra in cond['elementos'][0]['elemento']
-    assert {e['clase'] for e in rec['elementos']} == {'StaSwitch', 'ElmRelay'}
+    assert {e['clase'] for e in rec['elementos']} == {'StaSwitch'}            # 011:RF-73
     assert {e['clase'] for e in reg['elementos']} == {'ElmTerm', 'ElmVoltreg', 'StaCubic'}
     # El regulador global se copia al proyecto con el rango y los pasos pedidos (RF-76, RF-92).
     assert len(reg['tipos']) == 1 and reg['tipos'][0]['datos']['ntapmax'] == 32
