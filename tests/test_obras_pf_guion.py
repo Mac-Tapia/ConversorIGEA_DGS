@@ -1022,3 +1022,73 @@ def test_consigna_de_cabecera_en_su_variacion_de_con_proyecto():
     _activas(app, CON)
     fuentes = guion._fuentes_en(guion.cabecera_de(_elm(app, f)))
     assert fuentes and all(x.usetp == pytest.approx(1.05) for x in fuentes)
+
+
+# =========================================================================== 025, T19: evaluar
+PERFIL_ESCALERA = {
+    'escalera': {'cumplimiento': 0.95, 'sorteos': 5, 'tolerancia_pu': 0.005, 'tolerancia_carga_pct': 1.0},
+    'planificacion': {'tasa_regulada': 0.12, 'vida_util_anios': 30},
+    'estudios': {'tension_min_pu': 0.5, 'tension_max_pu': 1.5, 'cargabilidad_max_pct': 1000},
+}
+
+
+def _calibrada_con_escenario(rng):
+    alims = tuple(f'F{i}' for i in range(1, rng.randint(2, 3) + 1))
+    app = fake_pf.proyecto(alimentadores=alims, cargas_por_alim=3, bt=True, flujo=True, escenario=True)
+    base = {'variaciones': [], 'feeders': list(alims), 'excluidos': [],
+            'ajustes': [{'feeder': f, 'cuadrado': True} for f in alims]}
+    informe, codigo = casos_pf.preparar(app, {'project': 'P', 'feeders': list(alims), 'base': base,
+                                              'caso_base_sin_verificar': {}})
+    assert codigo == 0, informe
+    return app, list(alims)
+
+
+@pytest.mark.parametrize('semilla', SEMILLAS)
+def test_evaluar_variantes_sin_dejar_nada(semilla, monkeypatch):
+    """025:RF-50, 025:RF-52b, 025:RF-44b — cada variante en «Con proyecto»: con la máxima y, si
+    cumple, en los sorteos; la que no converge no se sortea. Al terminar no queda ninguna obra,
+    ni el escenario temporal, y «Sin proyecto» y «Con proyecto» siguen como estaban."""
+    rng = random.Random(semilla)
+    app, alims = _calibrada_con_escenario(rng)
+    monkeypatch.setitem(guion.CONSTRUCTORES, 'terna', _terna)
+    monkeypatch.setitem(guion.CONSTRUCTORES, 'condensador', _sobrecarga)
+    f = alims[0]
+    antes = (_activas(app, SIN), _activas(app, CON), _variaciones(app))
+    escenarios = {e.loc_name for e in app.GetProjectFolder('scen', 1).GetContents('*.IntScenario')}
+    sorteos = [{'factores': {a: rng.uniform(0.5, 1.0) for a in alims}} for _ in range(5)]
+    plan = _plan(alims, variantes=[{'nombre': 'terna', 'obras': [_obra_terna(f, [CON])]},
+                                   {'nombre': 'no converge', 'obras': [_banco(f, [CON])]}],
+                 sorteos=sorteos, barras_cargas=[], parametros=PERFIL_ESCALERA)
+    informe, codigo = guion.evaluar(app, plan)
+    assert codigo == 0, informe
+    filas = {v['nombre']: v for v in informe['variantes']}
+    assert filas['terna']['maxima'] and filas['terna']['fraccion'] == 1.0, filas['terna']
+    assert not filas['no converge']['maxima'] and filas['no converge']['fraccion'] is None
+    assert (_activas(app, SIN), _activas(app, CON), _variaciones(app)) == antes
+    assert {e.loc_name for e in app.GetProjectFolder('scen', 1).GetContents('*.IntScenario')} == escenarios
+
+
+def test_los_sorteos_escalan_solo_las_cargas_existentes_y_se_restituyen(monkeypatch):
+    """025:RF-51, 025:RF-52 — en cada sorteo, la demanda de cada carga existente por el factor
+    de su alimentador, en un escenario temporal; al terminar, la de siempre."""
+    app, alims = _calibrada_con_escenario(random.Random(9))
+    monkeypatch.setitem(guion.CONSTRUCTORES, 'terna', _terna)
+    f = alims[0]
+    carga = next(c for c in app.proyecto.GetContents('*.ElmLod', 1) if c.loc_name.startswith(f))
+    p0 = float(carga.plini)
+    vistos = []
+    medir = guion.medida_para_criterio
+
+    def registrar(app_, alims_, feeders):
+        vistos.append((getattr(app_.GetActiveScenario(), 'loc_name', ''), float(carga.plini)))
+        return medir(app_, alims_, feeders)
+
+    monkeypatch.setattr(guion, 'medida_para_criterio', registrar)
+    sorteos = [{'factores': {a: 0.5 for a in alims}}, {'factores': {a: 0.8 for a in alims}}]
+    plan = _plan(alims, variantes=[{'nombre': 'terna', 'obras': [_obra_terna(f, [CON])]}],
+                 sorteos=sorteos, barras_cargas=[], parametros=PERFIL_ESCALERA)
+    informe, codigo = guion.evaluar(app, plan)
+    assert codigo == 0, informe
+    en_sorteo = [(e, p) for e, p in vistos if e.startswith('IGEA_sorteo_escalera')]
+    assert [round(p / p0, 6) for _, p in en_sorteo] == [0.5, 0.8, 0.5, 0.8]
+    assert float(carga.plini) == p0
