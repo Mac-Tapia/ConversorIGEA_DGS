@@ -113,6 +113,13 @@ Lanzador (acceso directo)
   fijo, y un Ctrl+C cerrará el servidor sin error.
 - RF-33: EL SISTEMA solo aceptará la petición de cierre desde la propia máquina y con la
   cabecera del lanzador, y la rechazará con trabajos en curso.
+- RF-34: MIENTRAS el servidor tenga trabajos en curso, EL SISTEMA lo anotará en un registro
+  local por proceso; SI el Conversor del puerto no responde y su registro dice que tiene
+  trabajos en curso, ENTONCES EL SISTEMA no lo terminará: esperará hasta un minuto a que
+  responda y, si no, abrirá el navegador en él, avisará y la ventana se cerrará sola.
+  (Pisco, 2026-10-24: al empezar la escalera de obras la web tardó más de 4 s en contestar a
+  `/api/health`, el acceso directo abierto de nuevo la dio por colgada y la terminó con el
+  trabajo dentro.)
 
 Seguridad
 

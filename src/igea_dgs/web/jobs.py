@@ -20,6 +20,8 @@ módulo es el que se sustituye por Redis/RQ sin tocar las rutas de la API.
 from __future__ import annotations
 
 import itertools
+import json
+import os
 import queue
 import subprocess
 import threading
@@ -351,6 +353,29 @@ class JobContext:
             proc.kill()
 
 
+VARIABLE_REGISTRO = 'IGEA_REGISTRO_TRABAJOS'
+
+
+def registro_de_trabajos(pid: int) -> Path | None:
+    """El fichero donde el servidor ``pid`` anota sus trabajos en curso (spec 001, RF-34).
+
+    Solo lo tiene el servidor que arranca el lanzador (``IGEA_REGISTRO_TRABAJOS`` con la
+    carpeta): las pruebas que crean la app no escriben en la del operador.
+    """
+    carpeta = os.environ.get(VARIABLE_REGISTRO)
+    return Path(carpeta) / f'{pid}.json' if carpeta else None
+
+
+def trabajos_anotados(pid: int) -> int | None:
+    """Los trabajos en curso que anotó el servidor ``pid``, o None si no anotó nada."""
+    ruta = registro_de_trabajos(pid)
+    try:
+        datos = json.loads(ruta.read_text(encoding='utf-8')) if ruta else None
+    except (OSError, ValueError):
+        return None
+    return datos.get('en_curso') if isinstance(datos, dict) and datos.get('pid') == pid else None
+
+
 class JobManager:
     def __init__(self, emit: Emit) -> None:
         self._emit = emit
@@ -393,9 +418,24 @@ class JobManager:
         with self._lock:
             self._jobs[job.id] = job
             self._ensure_worker(lane)
+        self._anotar()
         self._emit(workspace_id, 'job', job.public())
         self._queues[lane].put(job)
         return job
+
+    def _anotar(self) -> None:
+        """Los trabajos en curso, en el registro que lee el lanzador (spec 001, RF-34)."""
+        ruta = registro_de_trabajos(os.getpid())
+        if ruta is None:
+            return
+        try:
+            ruta.parent.mkdir(parents=True, exist_ok=True)
+            tmp = ruta.with_suffix('.tmp')
+            tmp.write_text(json.dumps({'pid': os.getpid(), 'en_curso': self.en_curso(),
+                                       'hora': time.time()}), encoding='utf-8')
+            os.replace(tmp, ruta)
+        except OSError:
+            pass
 
     def cancel(self, job_id: str) -> Job | None:
         job = self._jobs.get(job_id)
@@ -471,4 +511,5 @@ class JobManager:
     def _finish(self, job: Job, status: str) -> None:
         job.status = status
         job.finished_at = time.time()
+        self._anotar()
         self._emit(job.workspace_id, 'job', job.public())
