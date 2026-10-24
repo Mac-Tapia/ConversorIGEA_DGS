@@ -179,7 +179,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       de VALIDACION_FISICA dice que sin el ajuste del flujo no converge y nombra las fijas
       sobre su transformador (RF-59). Pendiente: registrar la calibración en la web
       (volver a pulsar el ajuste: ya cargado, la valida y la guarda).
-- [ ] T12. Prueba en DIgSILENT con CA101, sobre el proyecto existente y sin datos
+- [x] T12. Prueba en DIgSILENT con CA101, sobre el proyecto existente y sin datos
       inventados: la verificación lista lo que falla; corregido, pasa; se crea
       «Sin proyecto»; la calibración solo cambia su escenario y el «Caso base» queda igual;
       una inserción crea «Con proyecto» y una variación por carga. (Criterios de finalización)
@@ -227,6 +227,15 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       del 13/10 de CA101 se apartaron a `output/_historico/2026-10-13_ca101/`.
       Pendiente, a cargo del usuario: una inserción de cargas nuevas que cree «Con
       proyecto» con una variación por carga.
+      Cerrada el 2026-10-24 desde la web, en `20261022-134643_IGEA_CA101` (CA101 desde cero,
+      como pidió el usuario, calibrado el 22/10), con la carga de CA101 del libro de la empresa
+      `NuevosclientesMayoresv1.xlsx` (CH_7) y la base de esa calibración
+      (`output/pruebas_pf/20261024-130319_cargas_aplicacion.json`): se creó «Con proyecto»
+      como copia de «Sin proyecto», con su escenario, y una sola variación, la de su carga
+      (`Carga_CH_7_CA101_20261024_125011`), dibujada en el unifilar; «Caso base» y «Sin
+      proyecto» sin ninguna variación; los dos convergen, y «Cargas nuevas» también. De paso:
+      la base de un proyecto de un solo alimentador no se encontraba por su token (su informe
+      no lleva `_n`), arreglado con su prueba (025:RF-37).
 - [x] T13. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
       Hecho cuando: `grep -rnoE "015:RF-[0-9]+" tests | sort -u` lista los 46 RF y la suite
       con las variables `IGEA_*` pasa.
