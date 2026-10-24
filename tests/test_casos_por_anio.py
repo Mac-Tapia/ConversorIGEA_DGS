@@ -499,11 +499,12 @@ def _escalera_falsa(tmp_path, monkeypatch, evaluar, costos, *, alimentadores=('F
         planes.append((args, plan))
         if '--escalera-datos' in args:
             (f,) = plan['feeders']
-            return 0, {'alimentadores': {f: {
+            return 0, {'variaciones_activas': guion.variaciones, 'alimentadores': {f: {
                 'troncal': [{'nombre': f'T{i}', 'largo_m': 1000.0, 'corriente_a': 100.0} for i in range(3)],
                 'fuera_desde': None, 'indices': {f'{f}_B4': 2}}}}, None
         return 0, {'variantes': [evaluar(v['nombre']) for v in plan['variantes']]}, None
 
+    guion.variaciones = ['Carga_Q']
     monkeypatch.setattr(services, '_guion_pf', guion)
     aplicadas = []
 
@@ -591,7 +592,10 @@ def test_la_evaluacion_terminada_con_el_mismo_plan_se_reutiliza(tmp_path):
     assert services._evaluacion_hecha(ws, {**plan, 'native_action_context': {'firma': 'b'}}) == informe
     assert services._evaluacion_hecha(ws, {**plan, 'sorteos': [{'F1': 0.6}]}) is None
     assert services._evaluacion_hecha(ws, {**plan, 'apartar_cargas_de': []}) is None
+    assert services._evaluacion_hecha(ws, {**plan, 'estado_con_proyecto': ['Obra_terna_F1']}) is None
     guardar('escalera_evaluar_a.json', plan, {'error': 'no converge', 'variantes': []})
+    assert services._evaluacion_hecha(ws, plan) is None
+    guardar('escalera_evaluar_a.json', plan, {**informe, 'cancelado': True})
     assert services._evaluacion_hecha(ws, plan) is None
     guardar('escalera_evaluar_a.json', plan, informe, edad_s=services.VIGENCIA_EVALUACION_S + 60)
     assert services._evaluacion_hecha(ws, plan) is None
@@ -606,11 +610,52 @@ def test_la_escalera_no_vuelve_a_medir_lo_ya_evaluado(tmp_path, monkeypatch):
 
     services, ws, ctx, planes, aplicadas, _apartadas = _escalera_falsa(
         tmp_path, monkeypatch, evaluar, {'nueva_terna': 40000})
-    monkeypatch.setattr(services, '_evaluacion_hecha',
-                        lambda ws_, plan: {'variantes': [evaluar(v['nombre']) for v in plan['variantes']]})
+    vistos = []
+
+    def hecha(ws_, plan):
+        vistos.append(plan['estado_con_proyecto'])
+        return {'variantes': [evaluar(v['nombre']) for v in plan['variantes']]}
+
+    monkeypatch.setattr(services, '_evaluacion_hecha', hecha)
     (f1,) = services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=ANIO)['alimentadores']
     assert not [a for a, _p in planes if '--evaluar' in a]
     assert f1['elegida'].startswith('terna') and len(aplicadas) == 1
+    assert vistos == [['Carga_Q']]
+
+
+def test_si_con_proyecto_ya_cumple_no_se_aplica_nada_y_queda_resuelto(tmp_path, monkeypatch):
+    """025:RF-74 — si «Con proyecto» ya cumple, no se elige ni se aplica nada, se dice, y el
+    alimentador cuenta como resuelto para los siguientes."""
+    services, ws, ctx, planes, aplicadas, _apartadas = _escalera_falsa(
+        tmp_path, monkeypatch, lambda n: {'nombre': n}, {'nueva_terna': 40000}, alimentadores=('F1', 'F2'))
+    falso = services._guion_pf
+
+    def guion(ws_, ctx_, script, plan, *, nombre, args=(), **k):
+        if '--evaluar' in args:
+            planes.append((args, plan))
+            return 0, {'variantes': [], 'ya_cumple': {'fraccion': 1.0, 'perdidas_kw': 5.0}}, None
+        return falso(ws_, ctx_, script, plan, nombre=nombre, args=args, **k)
+
+    monkeypatch.setattr(services, '_guion_pf', guion)
+    r = services.obras_escalera(ws, ctx, 'P', ['F1', 'F2'], anio_casos=ANIO)
+    assert aplicadas == []
+    assert all(f['elegida'] is None and any('025:RF-74' in a for a in f['avisos']) for f in r['alimentadores'])
+    de_f2 = [p for a, p in planes if p['feeders'] == ['F2']]
+    assert de_f2 and all(p['apartar_cargas_de'] == [] for p in de_f2)
+
+
+def test_sin_el_estado_de_con_proyecto_se_vuelve_a_medir(tmp_path, monkeypatch):
+    """025:RF-73 — si la lectura no dice qué variaciones están activas, no se reutiliza nada."""
+    def evaluar(nombre):
+        return {'nombre': nombre, 'maxima': False, 'fraccion': None, 'perdidas_kw': None,
+                'motivos': ['no converge']}
+
+    services, ws, ctx, planes, _aplicadas, _apartadas = _escalera_falsa(
+        tmp_path, monkeypatch, evaluar, {'nueva_terna': 40000})
+    services._guion_pf.variaciones = None
+    monkeypatch.setattr(services, '_evaluacion_hecha', lambda *_a: pytest.fail('no debe reutilizar'))
+    services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=ANIO)
+    assert [a for a, _p in planes if '--evaluar' in a]
 
 
 @pytest.mark.parametrize('activa', [True, False])
