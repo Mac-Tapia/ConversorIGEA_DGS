@@ -4177,8 +4177,19 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             resultado.append(fila)
             continue
         ctx.log(f'{f}: {len(vs)} variantes en el orden bancos, regulador, terna y sección…')
+        # 025:RF-71: el guion sortea de la más barata a la más cara; para ordenar, el costo anual
+        # sin pérdidas de cada variante y lo que cuesta al año cada kW perdido en la máxima.
+        def costo_base(v):
+            try:
+                return eo.costo(v, costos, p, perdidas_kw=0.0, factor_perdidas=perdidas.get(f))['costo_anual']
+            except eo.EscaleraError:
+                return None
+
+        por_kw = ((p.precio_perdidas_kwh or 0.0) * (perdidas.get(f) or 0.0) * eo.HORAS_ANIO
+                  + 12 * (p.precio_perdidas_kw_mes or 0.0))
         rc, ev, _rep = _guion_pf(ws, ctx, 'obras_pf.py', {
-            **comun, 'feeders': [f], 'variantes': [{'nombre': v.nombre, 'obras': v.obras} for v in vs],
+            **comun, 'feeders': [f], 'costo_por_kw_perdido': por_kw,
+            'variantes': [{'nombre': v.nombre, 'obras': v.obras, 'costo_base': costo_base(v)} for v in vs],
             'barras_cargas': barras, 'sorteos': sorteos, 'parametros': perfil, 'tipo_cambio': tipo_cambio,
             'otro_proyecto': eo.BIBLIOTECA_TIPOS}, nombre='escalera_evaluar', args=('--evaluar',))
         if ev.get('error'):
@@ -4198,7 +4209,7 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
         decision = eo.elegir(evaluadas, p)
         fila.update(elegida=decision['elegida'], mas_cercana=decision['mas_cercana'],
                     tabla=[{k: t.get(k) for k in ('nombre', 'maxima', 'fraccion', 'motivos', 'motivo',
-                                                  'factible', 'perdidas_kw', 'error')}
+                                                  'factible', 'perdidas_kw', 'error', 'sin_sortear')}
                            | {'inversion': (t.get('costo') or {}).get('inversion'),
                               'costo_anual': (t.get('costo') or {}).get('costo_anual')}
                            for t in decision['tabla']])

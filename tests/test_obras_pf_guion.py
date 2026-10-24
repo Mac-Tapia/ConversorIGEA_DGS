@@ -1056,8 +1056,8 @@ def test_evaluar_variantes_sin_dejar_nada(semilla, monkeypatch):
     antes = (_activas(app, SIN), _activas(app, CON), _variaciones(app))
     escenarios = {e.loc_name for e in app.GetProjectFolder('scen', 1).GetContents('*.IntScenario')}
     sorteos = [{'factores': {a: rng.uniform(0.5, 1.0) for a in alims}} for _ in range(5)]
-    plan = _plan(alims, variantes=[{'nombre': 'terna', 'obras': [_obra_terna(f, [CON])]},
-                                   {'nombre': 'no converge', 'obras': [_banco(f, [CON])]}],
+    plan = _plan(alims, variantes=[{'nombre': 'terna', 'obras': [_obra_terna(f, [CON])], 'costo_base': 1.0},
+                                   {'nombre': 'no converge', 'obras': [_banco(f, [CON])], 'costo_base': 1.0}],
                  sorteos=sorteos, barras_cargas=[], parametros=PERFIL_ESCALERA)
     informe, codigo = guion.evaluar(app, plan)
     assert codigo == 0, informe
@@ -1085,7 +1085,7 @@ def test_los_sorteos_escalan_solo_las_cargas_existentes_y_se_restituyen(monkeypa
 
     monkeypatch.setattr(guion, 'medida_para_criterio', registrar)
     sorteos = [{'factores': {a: 0.5 for a in alims}}, {'factores': {a: 0.8 for a in alims}}]
-    plan = _plan(alims, variantes=[{'nombre': 'terna', 'obras': [_obra_terna(f, [CON])]}],
+    plan = _plan(alims, variantes=[{'nombre': 'terna', 'obras': [_obra_terna(f, [CON])], 'costo_base': 1.0}],
                  sorteos=sorteos, barras_cargas=[], parametros=PERFIL_ESCALERA)
     informe, codigo = guion.evaluar(app, plan)
     assert codigo == 0, informe
@@ -1157,3 +1157,60 @@ def test_perdidas_con_lo_que_consumen_las_cargas_en_el_flujo(monkeypatch):
     monkeypatch.setattr(guion, 'leer_cabecera', lambda e: Medida(True, 950.0, 300.0))
     m = guion.medida_para_criterio(None, alims, ['F1'])
     assert m['perdidas_kw'] == pytest.approx(950.0 - 900.0)
+
+def test_sorteos_de_la_mas_barata_a_la_mas_cara_hasta_la_primera_que_cumple(monkeypatch):
+    """025:RF-71, 025:RF-72 — se sortean solo las que cumplen con la máxima y tienen costo, de la
+    más barata a la más cara; la que no llega deja de sortearse en cuanto ya no puede, y tras la
+    primera que cumple las más caras no se sortean; la que no tiene costo tampoco."""
+    import contextlib
+
+    from igea_dgs import escalera_optima
+
+    app, alims = _calibrada_con_escenario(random.Random(31))
+    actual, sorteadas, medidas = {}, [], {'n': 0}
+
+    def aplicar(app_, sub):
+        actual['v'] = sub['obras'][0]['tramos'][0]
+        return {'obras': [{'variacion': None}]}, 0
+
+    def medir(app_, alims_, feeders):
+        medidas['n'] += 1
+        return {'converge': True, 'u': {}, 'carga': {}, 'perdidas_kw': 10.0}
+
+    def cumple(sin, con, barras, p):
+        return (actual.get('en_sorteo') != 'barata', [])
+
+    class Sorteo:
+        def __init__(self, *a):
+            pass
+
+        def __enter__(self):
+            actual['en_sorteo'] = actual.get('v', 'sin proyecto')
+            sorteadas.append(actual['en_sorteo'])
+            return self
+
+        def escalar(self, factores):
+            pass
+
+        def __exit__(self, *e):
+            actual['en_sorteo'] = None
+            return False
+
+    monkeypatch.setattr(guion, 'aplicar', aplicar)
+    monkeypatch.setattr(guion, 'medida_para_criterio', medir)
+    monkeypatch.setattr(guion, '_Sorteo', Sorteo)
+    monkeypatch.setattr(escalera_optima, 'cumple', cumple)
+    f = alims[0]
+    variantes = [{'nombre': n, 'obras': [{'clase': 'terna', 'alimentador': f, 'casos': [CON], 'tramos': [n]}],
+                  'costo_base': c} for n, c in (('cara', 300.0), ('barata', 100.0), ('media', 200.0), ('sin', None))]
+    sorteos = [{'factores': {a: 1.0 for a in alims}} for _ in range(40)]
+    informe, codigo = guion.evaluar(app, _plan(alims, variantes=variantes, sorteos=sorteos, barras_cargas=[],
+                                               parametros=PERFIL_ESCALERA, costo_por_kw_perdido=1.0))
+    assert codigo == 0, informe
+    assert sorteadas[1:] == ['barata', 'media']             # el primero es el de «Sin proyecto»
+    filas = {v['nombre']: v for v in informe['variantes']}
+    assert filas['media']['fraccion'] == 1.0 and filas['barata']['fraccion'] < 0.95
+    # RF-72: la barata dejó de sortearse al pasar los 2 fallos que admite el 95 % de 40.
+    assert medidas['n'] < 1 + 40 + 4 + 40 + 40
+    assert 'cuesta menos' in filas['cara']['sin_sortear'] and filas['cara']['fraccion'] is None
+    assert 'sin costo' in filas['sin']['sin_sortear']
