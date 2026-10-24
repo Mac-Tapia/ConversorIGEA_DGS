@@ -84,6 +84,11 @@ cargada en memoria, que no hace falta para comparar el DGS y su sidecar.
   el sistema deberá tomarlo como sus alimentadores antes de comprobar el vínculo. (Nasca,
   2026-10-24: verificar el «Caso base» con `['SISTEMA_NASCA']` falló con
   `PROJECT_BINDING_FEEDER_MISMATCH`, aunque el vínculo tenía todos sus alimentadores.)
+- RF-15: Cuando la ejecución activa tenga la misma fuente (modo y huella) que la del vínculo
+  pero no el DGS aceptado, el sistema deberá usar sola la ejecución del vínculo, como con
+  «Usar la fuente del vínculo» (RF-10), y decirlo, en vez de pedir DGS que nunca se
+  importaron. (Nasca, 2026-10-24: tras importar `SISTEMA_NASCA` se volvió a cargar la misma
+  fuente; la verificación pedía `CH101.dgs` y los demás de la ejecución nueva.)
 
 ## Fuera de alcance
 

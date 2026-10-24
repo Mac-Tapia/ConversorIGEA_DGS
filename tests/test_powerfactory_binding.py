@@ -455,6 +455,32 @@ def test_018_rf14_el_nombre_de_la_red_por_sistema_vale_por_sus_alimentadores(tmp
     assert pedidos == [['NA203', 'NA205', 'PU101']] * 2
 
 
+@pytest.mark.parametrize('caso, adopta', [
+    ('misma fuente, otra ejecución, sin su DGS', True),
+    ('otra huella', False),
+    ('misma ejecución', False),
+    ('con su DGS', False),
+])
+def test_018_rf15_misma_fuente_sin_el_dgs_aceptado_usa_la_ejecucion_del_vinculo(tmp_path, monkeypatch, caso, adopta):
+    """018:RF-15 — la activa es de la misma fuente pero no tiene el DGS aceptado: se usa sola
+    la ejecución del vínculo y se dice; con otra huella, la misma ejecución o el DGS, nada."""
+    from types import SimpleNamespace
+
+    from igea_dgs.web import services
+
+    ws = _workspace(tmp_path)
+    activa = SimpleNamespace(run_id='nueva' if caso != 'misma ejecución' else 'vieja', mode='txt',
+                             fingerprint='h' if caso != 'otra huella' else 'otra')
+    monkeypatch.setattr(type(ws), 'active_run', lambda self: activa)
+    binding = SimpleNamespace(source_run_id='vieja', source_mode='txt', source_fingerprint='h')
+    monkeypatch.setattr(services, 'dgs_jobs', lambda ws_, f: ([], [] if caso == 'con su DGS' else ['NA203']))
+    adoptados = []
+    monkeypatch.setattr(services, 'adoptar_fuente_del_vinculo', lambda ws_, p: adoptados.append(p))
+    aviso = services.usar_ejecucion_del_vinculo(ws, 'P/SISTEMA_NASCA', binding, ['NA203'])
+    assert (adoptados == ['P/SISTEMA_NASCA']) is adopta
+    assert (aviso is not None and '018:RF-15' in aviso) is adopta
+
+
 def test_018_rf6_dgs_distinto_del_aceptado_bloquea_y_sin_huella_no_bloquea(tmp_path, monkeypatch):
     """018:RF-6 — un DGS distinto del aceptado bloquea; un alimentador sin huella, no."""
     from igea_dgs.web import services
