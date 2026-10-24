@@ -5,6 +5,8 @@ import os
 import random
 from dataclasses import replace
 
+import pytest
+
 from igea_dgs.combine import combine_models, estructurar
 from igea_dgs.dgs import write_dgs
 from igea_dgs.enlaces import abrir_caminos_cerrados
@@ -223,6 +225,43 @@ def test_cada_red_por_set_con_su_diagrama(tmp_path):
         term = terms.get(g['pDataObj'])
         if term is not None and term['loc_name'].endswith('_H'):
             assert diagramas[g['fold_id']]['pDataFolder'] == term['fold_id'], f'semilla {SEMILLA}'
+
+
+def _puntos_por_diagrama(t):
+    """Centros de los gráficos y vértices de sus conectores, por diagrama."""
+    from collections import defaultdict
+
+    diagrama_de = {g['FID']: g['fold_id'] for g in t['IntGrf']}
+    puntos = defaultdict(list)
+    for g in t['IntGrf']:
+        puntos[g['fold_id']].append((float(g['rCenterX']), float(g['rCenterY'])))
+    for c in t['IntGrfcon']:
+        n = int(c.get('rX:SIZEROW') or 0)
+        puntos[diagrama_de[c['fold_id']]].extend(
+            (float(c[f'rX:{i}']), float(c[f'rY:{i}'])) for i in range(n))
+    return puntos
+
+
+def test_cada_hoja_empieza_en_su_origen(tmp_path):
+    """022:RF-65 — DIgSILENT dimensiona cada hoja desde (0, 0) hasta el mayor de sus gráficos:
+    cada diagrama empieza en el margen, con su propio origen, y no en el del zonal (Nasca por
+    SET, 2026-10-24: la SET 51 se quedó en A4 y la 55 con la hoja de alto negativo)."""
+    from igea_dgs.dgs import DIAGRAM_SHEET_MARGIN_DU
+
+    red, _por_set = _red_dividida(random.Random(SEMILLA))
+    out = tmp_path / 'o.dgs'
+    manifiesto = write_dgs(red, out, geography=_geografia(red))
+    t = {k: v['rows_dict'] for k, v in parse_dgs(out).items()}
+    puntos = _puntos_por_diagrama(t)
+    assert len(puntos) == len(t['IntGrfnet']) > 1
+    for pts in puntos.values():
+        assert min(x for x, _ in pts) == pytest.approx(DIAGRAM_SHEET_MARGIN_DU), f'semilla {SEMILLA}'
+        assert min(y for _, y in pts) == pytest.approx(DIAGRAM_SHEET_MARGIN_DU), f'semilla {SEMILLA}'
+    hoja = manifiesto.diagram_sheet
+    pts = puntos[manifiesto.diagram_fid]
+    assert (hoja.xmin, hoja.ymin) == (0.0, 0.0)
+    assert hoja.xmax == pytest.approx(max(x for x, _ in pts) + DIAGRAM_SHEET_MARGIN_DU)
+    assert hoja.ymax == pytest.approx(max(y for _, y in pts) + DIAGRAM_SHEET_MARGIN_DU)
 
 
 def test_el_enlace_entre_dos_set_va_en_la_de_menor_codigo(tmp_path):

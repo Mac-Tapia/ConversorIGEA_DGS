@@ -256,3 +256,25 @@ def test_curva_distinta_entre_grid_y_mapa_se_detecta():
     r = separacion_curvas(recortada, gps)
     assert r['distintas'] == 1 and r['max_m'] > TOLERANCIA_CURVA_M
     assert r['muestra'][0].startswith('CURVA')
+
+
+def test_cada_diagrama_se_compara_con_el_mapa_con_su_origen():
+    """022:RF-65 — cada diagrama tiene su propio origen: la grid se compara con el mapa con un
+    ajuste por diagrama, y dos SET bien dibujadas no salen distintas (Nasca, 2026-10-24)."""
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
+    from powerfactory_acceptance import separacion_curvas, separacion_por_diagrama
+
+    def a_grid(lat, lon, origen):
+        return (lon * 111320.0 * math.cos(math.radians(-14.0)) * 2.08 + origen,
+                lat * 110574.0 * 2.08 - origen)
+
+    gps = {'A1': [(-14.0, -75.0), (-14.0, -74.99)], 'A2': [(-14.01, -75.0), (-14.0095, -74.99)],
+           'B1': [(-14.5, -74.5), (-14.49, -74.5)], 'B2': [(-14.51, -74.51), (-14.5, -74.49)]}
+    hoja_a = {n: [a_grid(*p, 0.0) for p in gps[n]] for n in ('A1', 'A2')}
+    hoja_b = {n: [a_grid(*p, 90_000.0) for p in gps[n]] for n in ('B1', 'B2')}
+    r = separacion_por_diagrama([hoja_a, hoja_b], gps)
+    assert r['compared'] == 4 and r['distintas'] == 0
+    assert separacion_curvas({**hoja_a, **hoja_b}, gps)['distintas'] > 0, 'un solo ajuste no vale'
