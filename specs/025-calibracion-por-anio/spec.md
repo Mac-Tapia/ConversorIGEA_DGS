@@ -282,6 +282,11 @@ nueva por su factor de uso; vale si cumple en el 95 % de 200 sorteos)
   cabecera menos lo que consumen sus cargas en el flujo, no su potencia nominal. (Pisco,
   2026-10-24: con tensiones de 0,88 p.u. las cargas consumían menos que su nominal y las
   pérdidas salían negativas, −2044 kW en SI213.)
+- RF-73: SI la evaluación de un alimentador ya terminó con el mismo plan (proyecto, año,
+  variantes, sorteos, cargas apartadas y parámetros) en las últimas 24 h, ENTONCES EL SISTEMA
+  la reutilizará sin volver a medir, y lo dirá en el registro. (Pisco, 2026-10-24: la web se
+  reinició dos veces a mitad de la escalera y cada vez se repetían 20 min de evaluación de
+  SI213 que DIgSILENT ya había terminado.)
 
 Caso de diagnóstico con las cargas nuevas (usuario, 2026-10-24: «debes hacer una copia al
 caso sin proyecto y su escenario de operación de sin proyecto y ahí debes integrar las
