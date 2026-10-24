@@ -53,6 +53,8 @@ class Parametros:
     precio_perdidas_kwh: float | None = None
     precio_perdidas_kw_mes: float | None = None
     coym_pct_anual: float | None = None
+    moneda: str = ''
+    costos_unitarios: dict = field(default_factory=dict)       # alternativa → costo en ``moneda``
 
     @property
     def consigna_regulador_pu(self) -> float:
@@ -60,8 +62,12 @@ class Parametros:
         return (self.tension_min_pu + self.tension_max_pu) / 2
 
 
-def parametros(perfil: Mapping[str, Any]) -> Parametros:
-    """Los de la escalera, de ``escalera``, ``planificacion`` y ``estudios`` del perfil (RF-57)."""
+def parametros(perfil: Mapping[str, Any], tipo_cambio: float | None = None) -> Parametros:
+    """Los de la escalera, de ``escalera``, ``planificacion`` y ``estudios`` del perfil (RF-57).
+
+    ``tipo_cambio``: unidades de la moneda de los precios de pérdidas por una de la moneda de
+    trabajo, el que escribe el operador en la web (RF-67); no sale del perfil.
+    """
     esc = dict(perfil.get('escalera') or {})
     plan = dict(perfil.get('planificacion') or {})
     lim = dict(perfil.get('estudios') or {})
@@ -78,6 +84,19 @@ def parametros(perfil: Mapping[str, Any]) -> Parametros:
         raise EscaleraError('el perfil de empresa no da ' + ', '.join(faltan) + ' (025:RF-57)')
     if not 0 < float(esc['cumplimiento']) <= 1 or int(esc['sorteos']) < 1:
         raise EscaleraError('escalera.cumplimiento va entre 0 y 1 y escalera.sorteos es al menos 1')
+    # Los precios de pérdidas, en la moneda en que se publican; el costo, en la de trabajo
+    # (usuario, 2026-10-24: «trabaja en dólares»), con el tipo de cambio que escribe el
+    # operador en la web («la tasa de cambio de dólar debe ingresar por la web»).
+    moneda = str(esc.get('moneda') or '')
+    de = str(esc.get('moneda_precios_perdidas') or moneda)
+    tc = 1.0
+    if de != moneda and (esc.get('precio_perdidas_kwh') is not None or esc.get('precio_perdidas_kw_mes') is not None):
+        if not tipo_cambio or float(tipo_cambio) <= 0:
+            raise EscaleraError(f'los precios de pérdidas están en {de} y se trabaja en {moneda}: escriba en '
+                                f'la web el tipo de cambio ({de} por {moneda}) (025:RF-68)')
+        tc = float(tipo_cambio)
+    esc = {**esc, 'precio_perdidas_kwh': _en(esc.get('precio_perdidas_kwh'), tc),
+           'precio_perdidas_kw_mes': _en(esc.get('precio_perdidas_kw_mes'), tc)}
     return Parametros(
         cumplimiento=float(esc['cumplimiento']), sorteos=int(esc['sorteos']),
         semilla=int(esc.get('semilla') or 0), tolerancia_pu=float(esc['tolerancia_pu']),
@@ -88,11 +107,27 @@ def parametros(perfil: Mapping[str, Any]) -> Parametros:
         cargabilidad_max_pct=float(lim['cargabilidad_max_pct']),
         precio_perdidas_kwh=_opcional(esc.get('precio_perdidas_kwh')),
         precio_perdidas_kw_mes=_opcional(esc.get('precio_perdidas_kw_mes')),
-        coym_pct_anual=_opcional(esc.get('coym_pct_anual')))
+        coym_pct_anual=_opcional(esc.get('coym_pct_anual')), moneda=moneda,
+        costos_unitarios={k: float(v) for k, v in (esc.get('costos_unitarios') or {}).items() if v is not None})
 
 
 def _opcional(x) -> float | None:
     return None if x is None else float(x)
+
+
+def _en(precio, tipo_cambio: float) -> float | None:
+    return None if precio is None else float(precio) / tipo_cambio
+
+
+def costos_de_alternativas(capex: Mapping[str, Mapping[str, Any]], p: Parametros) -> dict[str, dict[str, Any]]:
+    """Los del libro CAPEX, y los que el perfil da para las alternativas que el libro no tiene
+    (bancos y reguladores en Electro Dunas); el libro manda si tiene la alternativa."""
+    out = {k: dict(v) for k, v in capex.items()}
+    for alt, costo_u in p.costos_unitarios.items():
+        if alt not in out or not out[alt].get('costo_unitario'):
+            out[alt] = {'costo_unitario': costo_u, 'unidad': 'Und' if alt in ('bancos', 'reguladores') else 'km',
+                        'origen': 'perfil'}
+    return out
 
 
 # --------------------------------------------------------------------------- variantes
@@ -348,9 +383,13 @@ def elegir(evaluadas: Sequence[Mapping[str, Any]], p: Parametros) -> dict[str, A
     """
     tabla = []
     for e in evaluadas:
-        factible = bool(e.get('maxima')) and (e.get('fraccion') or 0) >= p.cumplimiento
+        cumple_tec = bool(e.get('maxima')) and (e.get('fraccion') or 0) >= p.cumplimiento
+        con_costo = (e.get('costo') or {}).get('costo_anual') is not None
+        factible = cumple_tec and con_costo
         if factible:
             motivo = ''
+        elif cumple_tec:
+            motivo = 'cumple, pero sin costo: ' + str(e.get('sin_costo') or 'falta su costo unitario')
         elif not e.get('maxima'):
             motivo = 'no cumple con la máxima: ' + '; '.join(e.get('motivos') or [])
         else:

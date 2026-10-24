@@ -273,7 +273,8 @@ export const api = {
   obrasAplicar: (id: string, body: { project: string; feeders: string[]; otro_proyecto: string }) =>
     request<Job>(`${ws(id)}/pf/obras/aplicar`, json('POST', body)),
   // Spec 025, RF-44: bancos, sección y terna hasta que «Con proyecto <año>» converja.
-  obrasEscalera: (id: string, body: { project: string; feeders: string[]; anio_casos: number | null }) =>
+  obrasEscalera: (id: string, body: { project: string; feeders: string[]; anio_casos: number | null;
+    tipo_cambio: number | null }) =>
     request<Job>(`${ws(id)}/pf/obras/escalera`, json('POST', body)),
   estudiosCatalogo: () => request<EstudiosCatalogo>('/api/pf/estudios'),
   estudiosPlan: (id: string, body: {

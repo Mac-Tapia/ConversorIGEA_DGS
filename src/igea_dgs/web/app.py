@@ -202,6 +202,9 @@ class ObrasIn(BaseModel):
     otro_proyecto: str = ''
     # Spec 025, RF-41: las obras de los casos de ese año («Sin/Con proyecto 2025»).
     anio_casos: int | None = Field(None, ge=1900, le=2200)
+    # Spec 025, RF-67: el tipo de cambio de los precios de pérdidas a la moneda del costo,
+    # que escribe el operador; no sale del perfil.
+    tipo_cambio: float | None = Field(None, gt=0, le=100_000)
 
 
 class EstudiosIn(BaseModel):
@@ -1396,7 +1399,8 @@ def create_app(
         ws = ws_or_404(wid)
         return submit(ws, 'obras_escalera', f'Obras en escalera · {body.project.strip()}',
                       lambda ctx: services.obras_escalera(ws, ctx, body.project, body.feeders,
-                                                          anio_casos=body.anio_casos),
+                                                          anio_casos=body.anio_casos,
+                                                          tipo_cambio=body.tipo_cambio),
                       lane='powerfactory')
 
     @app.get('/api/pf/estudios')

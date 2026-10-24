@@ -254,6 +254,13 @@ nueva por su factor de uso; vale si cumple en el 95 % de 200 sorteos)
   EL SISTEMA dirá cuál falta y no supondrá un valor (P13).
 - RF-58: CUANDO se repite la escalera con la misma red, las mismas cargas y la misma
   semilla, EL SISTEMA sorteará lo mismo y elegirá la misma variante.
+- RF-67: EL SISTEMA costeará la escalera en la moneda de trabajo del perfil (Electro Dunas:
+  dólares, como su libro CAPEX) y pasará a ella los precios de pérdidas con el tipo de
+  cambio que el operador escriba en la web al pedir la escalera, sin tomarlo del perfil
+  (usuario, 2026-10-24: «trabaja en dólares»; «la tasa de cambio de dólar debe ingresar
+  por la web»).
+- RF-68: SI los precios de pérdidas están en otra moneda y el operador no da el tipo de
+  cambio, ENTONCES EL SISTEMA no empezará la escalera y lo dirá en la web.
 
 Caso de diagnóstico con las cargas nuevas (usuario, 2026-10-24: «debes hacer una copia al
 caso sin proyecto y su escenario de operación de sin proyecto y ahí debes integrar las
