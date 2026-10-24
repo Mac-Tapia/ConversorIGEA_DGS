@@ -990,6 +990,30 @@ def test_migracion_con_la_cabecera_compartida_se_rechaza():
     assert not any(n.startswith('Obra_') for n in _variaciones(app))
 
 
+def test_la_cabecera_compartida_se_reconoce_con_otro_envoltorio(monkeypatch):
+    """011:RF-102 — DIgSILENT da un objeto Python nuevo en cada acceso: dos alimentadores que
+    salen de la misma barra de SET por cubículos distintos la comparten aunque la barra no sea
+    el mismo objeto (Nasca por sistema, 2026-10-24: la migración de NA203 a 10 kV iba a pasar
+    también la barra de la SET 51, de la que salen NA205 y los demás)."""
+    app, alims = _calibrada(random.Random(47))
+    f, otro = alims[0], alims[1]
+    barra = guion.cabecera_de(_elm(app, f))
+
+    class Envoltorio:
+        def __init__(self, obj):
+            self._obj = obj
+
+        def __getattr__(self, nombre):
+            return getattr(self._obj, nombre)
+
+    original = guion.cabecera_de
+    monkeypatch.setattr(guion, 'cabecera_de', lambda elm: (
+        Envoltorio(barra) if elm.loc_name == otro else original(elm)))
+    informe, codigo = guion.aplicar(app, _plan(alims, obras=[_migracion(f, 22.9)]))
+    assert codigo == 2
+    assert otro in informe['obras'][0]['error'] and 'no se migra' in informe['obras'][0]['error']
+
+
 def test_migracion_cambia_la_cabecera_aunque_el_alimentador_no_la_liste():
     """011:RF-86 — la barra de cabecera pasa a la tensión nueva aunque ``ElmFeeder.GetObjs``
     no la devuelva entre sus barras: se toma del cubículo que define el alimentador."""

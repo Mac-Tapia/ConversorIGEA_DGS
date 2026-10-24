@@ -1095,11 +1095,15 @@ def _leer_grupo(grupo, alims, con_troncal, redes, avisos) -> None:
             continue
         leido = leer_alimentador(elm)
         # RF-102: si otro alimentador sale de la misma barra, comparte barra y fuente, y
-        # migrar esa barra lo cambiaría también a él.
+        # migrar esa barra lo cambiaría también a él. Por su clave y no con ``is``: la API da
+        # un objeto nuevo en cada acceso, y la barra de la SET 51 de Nasca, de la que salen
+        # NA203, NA205 y los demás, no se veía compartida (2026-10-24).
         cabecera = cabecera_de(elm)
+        propia = clave_pf(cabecera) if cabecera is not None else None
         leido['cabecera_compartida_con'] = sorted(
             g for g, otro in alims.elm.items()
-            if g != f and cabecera is not None and cabecera_de(otro) is cabecera)
+            if g != f and propia is not None and (c := cabecera_de(otro)) is not None
+            and clave_pf(c) == propia)
         troncal, topologia, nombre_cabecera = (), None, ''
         if f in con_troncal:
             troncal, topologia, nombre_cabecera, avisos_troncal = leer_troncal(elm, f)
