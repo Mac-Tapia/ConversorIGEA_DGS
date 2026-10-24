@@ -650,20 +650,27 @@ def test_regulador_usa_el_tipo_del_proyecto_si_ya_tiene_los_datos():
     assert len(equip.GetContents('*.TypVoltreg')) == antes
 
 
-def test_regulador_que_no_puede_mover_el_cubiculo_no_deja_nada():
-    """011:RF-75 — si DIgSILENT no deja pasar el cubículo a la barra nueva, la obra no queda a
-    medias: su variación se borra y el informe lo dice."""
+def test_regulador_sin_mover_el_cubiculo_conecta_el_tramo_a_uno_nuevo():
+    """025:RF-76 (011:RF-75) — si DIgSILENT no deja mover el cubículo a la barra nueva, el tramo
+    pasa a un cubículo nuevo de esa barra, por el mismo lado, y la obra queda hecha."""
     app, alims = _calibrada(random.Random(28))
     app.fallar_mover = True
     _tipo(app.carpetas['equip'], 'TypVoltreg', 'VR', Un=10.0, pcReg=10.0, ntapmin=-16,
           ntapmax=16, nntap0=0)
     f = alims[0]
-    obra = {'clase': 'regulador', 'alimentador': f, 'casos': [SIN, CON], 'tramo': f'{f}_L1',
+    obra = {'clase': 'regulador', 'alimentador': f, 'casos': [CON], 'tramo': f'{f}_L2',
             'consigna_pu': 1.0, 'rango_pct': 10, 'pasos': 16,
             'tipo': {'nombre': 'VR', 'clase': 'TypVoltreg'}}
     informe, codigo = guion.aplicar(app, _plan(alims, obras=[obra]))
-    assert codigo == 2 and 'cubículo' in informe['obras'][0]['error']
-    assert not any(n.startswith('Obra_regulador') for n in _variaciones(app))
+    assert codigo == 0, informe
+    _activas(app, CON)
+    linea, origen = _linea(app, f'{f}_L2'), _barra(app, f'{f}_B1')
+    nueva = next(b for b in _elm(app, f).GetObjs('ElmTerm') if b.loc_name == f'{f}_L2_REG')
+    assert _cubiculo_de(app, linea, nueva) is not None
+    assert not any(c.obj_id is linea for c in origen.GetContents('*.StaCubic'))
+    # En el primer tramo vaciaría el cubículo de la cabecera: se dice y no queda nada.
+    informe, codigo = guion.aplicar(app, _plan(alims, obras=[{**obra, 'tramo': f'{f}_L1'}]))
+    assert codigo == 2 and 'cabecera' in informe['obras'][0]['error']
 
 
 # =========================================================================== T14
@@ -1248,6 +1255,25 @@ def test_perdidas_con_lo_que_consumen_las_cargas_en_el_flujo(monkeypatch):
     monkeypatch.setattr(guion, 'leer_cabecera', lambda e: Medida(True, 950.0, 300.0))
     m = guion.medida_para_criterio(None, alims, ['F1'])
     assert m['perdidas_kw'] == pytest.approx(950.0 - 900.0)
+
+
+def test_se_miden_las_barras_y_tramos_del_caso_no_los_de_sin_proyecto(monkeypatch):
+    """025:RF-75 — la barra de la carga nueva y el tramo que crea la obra solo están en «Con
+    proyecto»: se miden aunque la lista guardada (la de «Sin proyecto») no los tenga."""
+    from types import SimpleNamespace
+
+    def barra(n, u):
+        return SimpleNamespace(loc_name=n, uknom=10.0, HasResults=lambda: True, GetAttribute=lambda a: u)
+
+    vieja, nueva = barra('B1', 0.99), barra('NODE_T_CH_9', 0.96)
+    tramo = SimpleNamespace(loc_name='L_nuevo', GetAttribute=lambda a: 40.0)
+    actuales = {'ElmTerm': [vieja, nueva], 'ElmLne': [tramo], 'ElmLod': []}
+    elm = SimpleNamespace(GetObjs=lambda clase: actuales.get(clase, []))
+    alims = SimpleNamespace(elm={'F1': elm}, objetos=lambda f, clase: [vieja] if clase == 'ElmTerm' else [])
+    monkeypatch.setattr(guion, 'flujo_de_carga', lambda app: {'converged': True})
+    monkeypatch.setattr(guion, 'leer_cabecera', lambda e: None)
+    m = guion.medida_para_criterio(None, alims, ['F1'])
+    assert m['u'] == {'B1': 0.99, 'NODE_T_CH_9': 0.96} and m['carga'] == {'L_nuevo': 40.0}
 
 def test_sorteos_de_la_mas_barata_a_la_mas_cara_hasta_la_primera_que_cumple(monkeypatch):
     """025:RF-71, 025:RF-72 — se sortean solo las que cumplen con la máxima y tienen costo, de la
