@@ -8,6 +8,9 @@ se cayó entrenando dentro de su proceso). Reentrena solo si toca (RF-39) o, con
 
     python tools/digital_twin_entrenar.py --output-json entrenamiento.json [--raiz carpeta]
 
+Con ``--evaluar`` no entrena: dice cuánto se apartan de DIgSILENT el modelo promovido y la
+física sola en cada episodio, con la media de entrenamiento, validación y prueba (RF-74).
+
 Códigos de salida: 0 hecho (entrenado o no hacía falta), 2 sin PyTorch, 1 error.
 """
 from __future__ import annotations
@@ -25,6 +28,8 @@ def main(argv=None) -> int:
     p.add_argument('--raiz', type=Path, help='Búfer del gemelo (por defecto, el de la web)')
     p.add_argument('--forzar', action='store_true', help='Entrenar aunque no haya episodios nuevos')
     p.add_argument('--minimo', type=int, default=10, help='Episodios nuevos para reentrenar')
+    p.add_argument('--evaluar', action='store_true',
+                   help='No entrenar: comparar el modelo promovido y la física con DIgSILENT')
     args = p.parse_args(argv)
     salida = Path(args.output_json)
 
@@ -40,6 +45,13 @@ def main(argv=None) -> int:
         return 2
     bufer = BuferEpisodios(args.raiz)
     try:
+        if args.evaluar:
+            r = oraculo.evaluar(bufer)
+            for parte, d in r['por_particion'].items():
+                modelo = f", modelo {d['mae_modelo']:.5f}" if 'mae_modelo' in d else ''
+                print(f"{parte}: {d['episodios']} episodio(s), física {d['mae_fisica']:.5f} p.u.{modelo}")
+            salida.write_text(json.dumps(r, ensure_ascii=False, default=str), encoding='utf-8')
+            return 0
         if args.forzar:
             r = oraculo.entrenar(bufer, log=lambda m: print(m, flush=True))
         else:

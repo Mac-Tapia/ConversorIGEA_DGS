@@ -163,6 +163,22 @@ def test_deriva_cuando_el_modelo_ya_no_reproduce(entrenado):
     assert orc.deriva(bufer, [e.episode_id], orc.Puertas(mae_v_max=0.01))
 
 
+def test_evaluar_si_aprendio(entrenado):
+    """024:RF-74 — la evaluación dice, por episodio y por partición, cuánto se apartan de
+    DIgSILENT el modelo promovido y la física sola."""
+    bufer, r = entrenado
+    e = orc.evaluar(bufer)
+    assert e['modelo'] == orc.cargar(bufer).version and len(e['episodios']) >= 24
+    assert set(e['por_particion']) <= {'entrenamiento', 'validacion', 'prueba'}
+    assert all(d['episodios'] > 0 and 'mae_modelo' in d for d in e['por_particion'].values())
+    # Otras pruebas del módulo guardan a propósito episodios con tensiones falsas (deriva):
+    # la evaluación tiene que dejarlos a la vista, no esconderlos en la media.
+    reales = [f for f in e['episodios'] if f['mae_fisica'] < 1e-6]
+    assert len(reales) >= 24 and all(f['mae_modelo'] < 0.03 for f in reales)
+    falsos = [f for f in e['episodios'] if f['mae_fisica'] >= 1e-6]
+    assert all(f['mae_fisica'] > 0.1 for f in falsos)
+
+
 def test_violaciones_no_son_objetivo(tmp_path):
     """024:RF-14 — las violaciones y rechazos no entran como objetivo de tensión."""
     bufer = BuferEpisodios(tmp_path / 't')

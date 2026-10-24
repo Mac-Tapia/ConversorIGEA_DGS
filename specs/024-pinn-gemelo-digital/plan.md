@@ -121,3 +121,21 @@ Decisiones:
 - COyM como fracción del CI del perfil; sin ella, el costo anual se da sin COyM y se avisa.
 - PyTorch es el extra `ml`: sin él, el oráculo y el gemelo temporal dicen que falta y el
   resto funciona (RNF «Compatible»).
+
+# Plan — física mallada, evolutivos y evaluación (T15 a T17, 2026-10-24)
+
+| Parte | Ficheros | Cubre |
+| --- | --- | --- |
+| T15. Física mallada | `digital_twin/flujo.py` (`SistemaMallado`: Y-bus disperso, acopladores fusionados, LU una vez, punto fijo Z-bus); `oraculo.py`: `ModeloMallado`, `sistema_de`, `barras_electricas`, base de la PINN y residuo por barra eléctrica, `fisica` en la configuración del modelo | RF-64 a RF-66 |
+| T16. Evolutivos | `digital_twin/evolutivo.py`: `algoritmo_genetico`, `nsga2`, `evolucion_diferencial` (jDE); `optimizar_bancos`, `reconfigurar`, `optimizar_consigna`, `afinar_bancos_pide`, `red_del_gemelo`; `pide_economia.valor_kw_perdidas`; `services._pide_optimizar` en `pide_ejecutar` | RF-67 a RF-73 |
+| T17. Evaluación | `oraculo.evaluar`, `tools/digital_twin_entrenar.py --evaluar` | RF-74 |
+
+Decisiones:
+- Los optimizadores son propios, con numpy, y no DEAP ni pymoo: el conversor no añade
+  dependencias para tres algoritmos cortos y así son deterministas con su semilla.
+- El evaluador por defecto es el flujo mallado y no la PINN: la PINN corrige 0,003 p.u., y
+  en una obra lo que decide es si la red cumple; cada propuesta se confirma en DIgSILENT.
+- Factibilidad primero (regla de Deb): una solución que incumple siempre pierde frente a otra
+  que cumple, y entre las que incumplen gana la que menos se aparta.
+- El peso de la pérdida física se eligió con los datos: con 1 la PINN se quedaba en la física
+  (0,0032 p.u.); con 10⁻⁴ baja a 0,00046 en escenarios no vistos.
