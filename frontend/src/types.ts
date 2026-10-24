@@ -615,15 +615,34 @@ export interface CargasInforme {
   };
 }
 
-/** Spec 025, RF-44: la escalera de obras de cada alimentador y el escalón que converge. */
+/** Spec 025, RF-49 a RF-58: cada variante probada, con su fracción de sorteos y su costo. */
+export interface EscaleraVariante {
+  nombre: string;
+  maxima: boolean;
+  fraccion: number | null;
+  factible: boolean;
+  motivo: string;
+  inversion: number | null;
+  costo_anual: number | null;
+  perdidas_kw: number | null;
+  error: string | null;
+}
+
+/** Spec 025, RF-44, RF-54 a RF-56: la escalera optimizada de cada alimentador. */
 export interface EscaleraResultado {
   project: string;
   anio_casos: number | null;
+  moneda: string;
+  tipo_cambio: number | null;
+  sorteos: number;
+  avisos: string[];
   alimentadores: {
     alimentador: string;
     avisos: string[];
-    obra: string | null;
-    intentos: { escalon: string; converge: boolean; variaciones: string[]; errores: string[] }[];
+    elegida: string | null;
+    mas_cercana: string | null;
+    aplicada: string[] | null;
+    tabla: EscaleraVariante[];
   }[];
 }
 

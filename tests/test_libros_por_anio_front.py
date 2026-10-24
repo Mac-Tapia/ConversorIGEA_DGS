@@ -88,7 +88,18 @@ def test_la_escalera_se_pide_desde_el_informe_de_cargas():
     assert 'tipo_cambio: number | null' in API
     assert 'startJob(() => api.obrasEscalera(' in CARGAS
     assert '/pf/obras/escalera' in API and "'/api/workspaces/{wid}/pf/obras/escalera'" in APP
-    assert "j.kind === 'obras_escalera'" in CARGAS and 'converge con «{a.obra}»' in CARGAS
+    assert "j.kind === 'obras_escalera'" in CARGAS
+
+
+def test_la_escalera_muestra_cada_variante_su_costo_y_por_que_no():
+    """025:RF-55, 025:RF-56, 025:RF-53 — la tabla de la escalera dice de cada variante si cumple
+    con la máxima, qué parte de los sorteos, su inversión y su costo anual en la moneda del
+    perfil, y por qué no se eligió; sin ninguna, la más cercana. El libro CAPEX va por ruta."""
+    tabla = CARGAS[CARGAS.index('function Escalera('):CARGAS.index('function FilaFeeder(')]
+    for pieza in ('Sorteos que cumplen', 'Inversión', 'Costo anual', 'Por qué no', 'v.motivo',
+                  'r.moneda', 'a.mas_cercana', 'se aplica «{a.elegida}»'):
+        assert pieza in tabla, pieza
+    assert 'aria-label="Ruta del libro CAPEX' in CARGAS and 'capex: string' in API
 
 def test_el_informe_de_cargas_dice_el_caso_cargas_nuevas():
     """025:RF-65, 025:RF-66 — el informe de cargas muestra «Cargas nuevas <año>»: con cuántas

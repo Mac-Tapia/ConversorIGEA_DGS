@@ -131,8 +131,8 @@ def test_escalera_es_un_trabajo_de_digsilent_con_su_anio(client, monkeypatch):
 
     vistos = []
 
-    def escalera(ws, ctx, project, feeders, *, anio_casos=None, tipo_cambio=None):
-        vistos.append((project, feeders, anio_casos, tipo_cambio))
+    def escalera(ws, ctx, project, feeders, *, anio_casos=None, tipo_cambio=None, capex=''):
+        vistos.append((project, feeders, anio_casos, tipo_cambio, capex))
         return {'project': project, 'anio_casos': anio_casos, 'alimentadores': []}
 
     monkeypatch.setattr(services, 'obras_escalera', escalera)
@@ -141,11 +141,13 @@ def test_escalera_es_un_trabajo_de_digsilent_con_su_anio(client, monkeypatch):
     assert client.post(url, json={'project': 'P', 'feeders': ['A1'], 'anio_casos': 99999}).status_code == 422
     # 025:RF-67: el tipo de cambio lo escribe el operador; uno no positivo se rechaza.
     assert client.post(url, json={'project': 'P', 'feeders': ['A1'], 'tipo_cambio': 0}).status_code == 422
-    r = client.post(url, json={'project': 'P', 'feeders': ['A1'], 'anio_casos': 2025, 'tipo_cambio': 3.495})
+    r = client.post(url, json={'project': 'P', 'feeders': ['A1'], 'anio_casos': 2025, 'tipo_cambio': 3.495,
+                               'capex': 'D:/libros/capex.xlsx'})
     assert r.json()['lane'] == 'powerfactory'
     estado = _trabajo(client, r)
     assert estado['status'] == 'done', estado
-    assert vistos == [('P', ['A1'], 2025, 3.495)] and estado['result']['anio_casos'] == 2025
+    # 025:RF-53: el libro CAPEX llega por su ruta.
+    assert vistos == [('P', ['A1'], 2025, 3.495, 'D:/libros/capex.xlsx')] and estado['result']['anio_casos'] == 2025
 
 
 def test_escalera_sin_tipo_de_cambio_no_empieza(client, monkeypatch):

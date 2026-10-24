@@ -64,7 +64,8 @@ from typing import Any, Callable
 from ajuste_cabecera_pf import diagnostico
 from cargas_pf import (
     Alimentadores, activar_proyecto, cabecera_de, clave_pf, crear_variacion, error_inesperado, es_cable,
-    completar_diagrama, flujo_de_carga, gps_de, leer_red, medir_estado, nombre_libre, nombre_pf, partir_tramo,
+    completar_diagrama, distancia_m, flujo_de_carga, gps_de, leer_red, medir_estado, nombre_libre, nombre_pf,
+    partir_tramo,
 )
 from casos_pf import (
     NOMBRES, anio_del_plan, casos_del_proyecto, crear_con_proyecto, es_de_carga_nueva,
@@ -1333,6 +1334,91 @@ def aplicar(app, plan: dict, *, simular: bool = False,
 
 
 # =========================================================================== escalera optimizada
+def _resultado(obj, atributo: str) -> float | None:
+    try:
+        v = obj.GetAttribute(atributo)
+    except Exception:  # noqa: BLE001 - sin resultado del flujo
+        return None
+    return float(v) if isinstance(v, (int, float)) and math.isfinite(float(v)) else None
+
+
+def datos_escalera(app, plan: dict) -> tuple[dict, int]:
+    """Lo que necesita armar las variantes de la escalera, en «Con proyecto <año>» (025:RF-49,
+    RF-60): la troncal de cada alimentador desde la cabecera, leída sin las cargas nuevas
+    (sobre esa red graban las obras), con el largo de cada tramo; su corriente y su tensión con
+    todas las cargas; el primer tramo que queda bajo ``tension_min_pu``, y en qué tramo de la
+    troncal cae cada barra de ``barras`` (por su posición GPS).
+    """
+    informe: dict[str, Any] = {'project': plan.get('project'), 'modo': 'datos_escalera',
+                               'alimentadores': {}, 'avisos': []}
+    proyecto = activar_proyecto(app, plan['project'], plan.get('folder'))
+    if proyecto is None:
+        return {**informe, 'error': f"no existe el proyecto {plan['project']!r} en DIgSILENT"}, 2
+    anio = informe['anio_casos'] = anio_del_plan(plan)
+    casos = casos_del_proyecto(app, anio)
+    if 'con' not in casos:
+        return {**informe, 'error': f"falta «{nombre_caso('con', anio)}»"}, 2
+    feeders = list(plan.get('feeders') or [])
+    alims = Alimentadores(app, proyecto, feeders)
+    vmin = float(plan.get('tension_min_pu') or 0)
+    inicial = app.GetActiveStudyCase()
+    troncales: dict[str, list[dict]] = {}
+    extremos: dict[str, list[tuple]] = {}             # nombres de las dos barras de cada tramo
+    posiciones: dict[str, list[list]] = {}            # y su posición GPS
+    try:
+        casos['con'].Activate()
+        apartadas = _apartar_cargas_nuevas(app)
+        try:
+            flujo_de_carga(app)          # el ElmFeeder da sus objetos según la última topología
+            for f in feeders:
+                elm = alims.elm.get(f)
+                if elm is None:
+                    informe['avisos'].append(f'{f}: no está en el proyecto.')
+                    continue
+                tramos, red, _cab, av = leer_troncal(elm, f)
+                informe['avisos'] += av
+                por = red.por_nombre() if red is not None else {}
+                troncales[f] = [{'nombre': n, 'largo_m': float(por[n].largo_m) if n in por else 0.0}
+                                for n in tramos]
+                extremos[f] = [((por[n].desde, por[n].hasta) if n in por else ()) for n in tramos]
+                posiciones[f] = [[red.barras[b].gps for b in ext if b in red.barras and red.barras[b].gps]
+                                 for ext in extremos[f]]
+        finally:
+            for v in apartadas:
+                v.Activate()
+        flujo = flujo_de_carga(app)                                   # con todas las cargas
+        informe['converge'] = bool(flujo['converged'])
+        for f, troncal in troncales.items():
+            elm = alims.elm[f]
+            lineas = {ln.loc_name: ln for ln in elm.GetObjs('ElmLne')}
+            barras = {b.loc_name: b for b in elm.GetObjs('ElmTerm')}
+            corriente, fuera = None, None
+            for i, (t, ext) in enumerate(zip(troncal, extremos[f])):
+                ln = lineas.get(t['nombre'])
+                c = _resultado(ln, 'm:I:bus1') if ln is not None and flujo['converged'] else None
+                corriente = c * 1000 if c is not None else corriente  # partido por una carga: el anterior
+                t['corriente_a'] = corriente
+                us = [u for u in (_resultado(barras[b], 'm:u') for b in ext if b in barras) if u]
+                if fuera is None and vmin and us and min(us) < vmin:
+                    fuera = i
+            puntos = posiciones[f]
+            indices = {}
+            for nombre in (plan.get('barras') or {}).get(f, []):
+                barra = barras.get(nombre)
+                g = gps_de(barra) if barra is not None else None
+                candidatos = [(distancia_m(g, q), i) for i, ps in enumerate(puntos) for q in ps if q] if g else []
+                if candidatos:
+                    indices[nombre] = min(candidatos)[1]
+                else:
+                    informe['avisos'].append(f'{f}: la barra {nombre} no tiene posición GPS; sin tramo de '
+                                             'la troncal para su terna o su sección.')
+            informe['alimentadores'][f] = {'troncal': troncal, 'fuera_desde': fuera, 'indices': indices}
+    finally:
+        if inicial is not None and app.GetActiveStudyCase() is not inicial:
+            inicial.Activate()
+    return informe, 0
+
+
 def medida_para_criterio(app, alims, feeders: list[str]) -> dict[str, Any]:
     """Lo que juzga ``escalera_optima.cumple``: si converge, la tensión de cada barra de media
     y la carga de cada tramo de los alimentadores, y sus pérdidas (025:RF-50, RF-53)."""
@@ -1504,6 +1590,8 @@ def main(argv=None) -> int:
                    help='Crear los reguladores del catálogo en el proyecto biblioteca (025:RF-59)')
     p.add_argument('--evaluar', action='store_true',
                    help='Medir las variantes de la escalera con la máxima y los sorteos, sin dejarlas (025:RF-50)')
+    p.add_argument('--escalera-datos', action='store_true',
+                   help='Troncal, corrientes y tramo de cada carga nueva para la escalera (025:RF-49)')
     args = p.parse_args(argv)
     plan = json.loads(Path(args.plan).read_text(encoding='utf-8'))
     # Crear tipos de catálogo no toca ninguna red convertida: no lleva contexto de acción.
@@ -1531,6 +1619,8 @@ def main(argv=None) -> int:
             informe, codigo = crear_tipos_regulador(app, plan)
         elif args.evaluar:
             informe, codigo = evaluar(app, plan, cancelado=cancelado)
+        elif args.escalera_datos:
+            informe, codigo = datos_escalera(app, plan)
         elif args.bibliotecas:
             informe, codigo = bibliotecas(app, plan)
         else:

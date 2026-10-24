@@ -205,6 +205,8 @@ class ObrasIn(BaseModel):
     # Spec 025, RF-67: el tipo de cambio de los precios de pérdidas a la moneda del costo,
     # que escribe el operador; no sale del perfil.
     tipo_cambio: float | None = Field(None, gt=0, le=100_000)
+    # Spec 025, RF-53: el libro CAPEX de la empresa, por su ruta en este equipo.
+    capex: str = Field('', max_length=1000)
 
 
 class EstudiosIn(BaseModel):
@@ -1400,7 +1402,8 @@ def create_app(
         return submit(ws, 'obras_escalera', f'Obras en escalera · {body.project.strip()}',
                       lambda ctx: services.obras_escalera(ws, ctx, body.project, body.feeders,
                                                           anio_casos=body.anio_casos,
-                                                          tipo_cambio=body.tipo_cambio),
+                                                          tipo_cambio=body.tipo_cambio,
+                                                          capex=body.capex),
                       lane='powerfactory')
 
     @app.get('/api/pf/estudios')

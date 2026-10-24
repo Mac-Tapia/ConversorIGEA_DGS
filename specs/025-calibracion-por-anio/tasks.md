@@ -152,12 +152,16 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       cada variante con `aplicar` (opción `evaluando`: sin sincronizar, comprobar ni dibujar),
       la máxima y, si cumple, los sorteos en un escenario temporal que escala solo las cargas
       existentes; al terminar se borran sus variaciones y el temporal. Sin escenario, no sortea.
-- [ ] T20. Servicio y web: elegir, aplicar la elegida y la tabla de variantes. (RF-54, RF-55)
+- [x] T20. Servicio y web: elegir, aplicar la elegida y la tabla de variantes. (RF-54, RF-55)
       Hecho cuando: pruebas de la API y del front en verde y `npm run build`.
       Avance del 2026-10-24: se trabaja en dólares (moneda del perfil y del libro CAPEX) y el
       tipo de cambio de los precios de pérdidas lo escribe el operador junto al botón de la
       escalera (RF-67); sin él, con monedas distintas, no empieza (RF-68). Bancos y reguladores
       no están en el CAPEX: sin su costo, esas variantes se evalúan pero no se eligen.
+      Hecho el 2026-10-24: `services.obras_escalera` (base y curva del año en disco, `--escalera-datos`,
+      variantes, `--evaluar`, costo con el CAPEX por ruta y el perfil, elección y solo la elegida
+      aplicada); la escalera antigua (`obras_pf.escalera_de_obras`) retirada; tabla de variantes en el
+      informe de cargas con su costo y por qué no.
 - [ ] T21. DIgSILENT: PA217 (Pisco) y TM105 (Chincha) en «Con proyecto 2025» desde la web,
       con la obra elegida en DIgSILENT nativo y «Sin proyecto 2025» calibrado igual que antes.
       Hecho cuando: los dos con su variante elegida o con la más cercana dicha (RF-56).

@@ -274,7 +274,7 @@ export const api = {
     request<Job>(`${ws(id)}/pf/obras/aplicar`, json('POST', body)),
   // Spec 025, RF-44: bancos, sección y terna hasta que «Con proyecto <año>» converja.
   obrasEscalera: (id: string, body: { project: string; feeders: string[]; anio_casos: number | null;
-    tipo_cambio: number | null }) =>
+    tipo_cambio: number | null; capex: string }) =>
     request<Job>(`${ws(id)}/pf/obras/escalera`, json('POST', body)),
   estudiosCatalogo: () => request<EstudiosCatalogo>('/api/pf/estudios'),
   estudiosPlan: (id: string, body: {
