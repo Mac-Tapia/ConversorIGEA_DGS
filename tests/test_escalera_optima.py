@@ -131,9 +131,11 @@ def test_costo_con_el_capex_y_el_art_14():
     assert c['inversion'] == pytest.approx(2 * 40000 + 1500 * 30)
     assert c['costo_anual'] == pytest.approx(c['anualidad']) and len(c['avisos']) == 2
     con_todo = eo.parametros({**PERFIL, 'escalera': {**PERFIL['escalera'], 'precio_perdidas_kwh': 0.1,
-                                                     'coym_pct_anual': 2}})
+                                                     'precio_perdidas_kw_mes': 22, 'coym_pct_anual': 2}})
     c2 = eo.costo(v, COSTOS, con_todo, perdidas_kw=100, factor_perdidas=0.4)
-    assert c2['costo_anual'] == pytest.approx(c['anualidad'] + 0.02 * c['inversion'] + 100 * 0.4 * 8760 * 0.1)
+    assert c2['costo_anual'] == pytest.approx(c['anualidad'] + 0.02 * c['inversion']
+                                              + 100 * 0.4 * 8760 * 0.1 + 100 * 12 * 22)
+    assert c2['avisos'] == []
 
 
 def test_falta_un_dato_se_dice_y_no_se_supone():
