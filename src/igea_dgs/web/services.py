@@ -149,6 +149,27 @@ def alimentadores_pedidos(ws: Workspace, nombres: list[str]) -> list[str]:
     return list(dict.fromkeys(salida))
 
 
+def usar_ejecucion_del_vinculo(ws: Workspace, project: str, binding: Any, pedidos: list[str]) -> str | None:
+    """Activa la ejecución del vínculo si la activa es de la misma fuente y no tiene el DGS
+    aceptado (018:RF-15); devuelve el aviso, o None si no hizo falta.
+
+    Nasca, 2026-10-24: tras importar ``SISTEMA_NASCA`` se volvió a cargar la misma fuente y la
+    verificación del «Caso base» pedía ``CH101.dgs`` y los demás de la ejecución nueva.
+    """
+    activa = ws.active_run()
+    if activa is None or not getattr(binding, 'source_run_id', None):
+        return None
+    if activa.run_id == binding.source_run_id:
+        return None
+    if (activa.mode, activa.fingerprint) != (binding.source_mode, binding.source_fingerprint):
+        return None
+    if not dgs_jobs(ws, pedidos)[1]:
+        return None
+    adoptar_fuente_del_vinculo(ws, project)
+    return (f'Se usa la ejecución {binding.source_run_id}, con la que se aceptó {project}: la activa '
+            f'({activa.run_id}) es de la misma fuente pero no tiene su DGS (018:RF-15).')
+
+
 def native_action_context(
     ws: Workspace, project: str, feeders: list[str], action: str,
 ) -> dict[str, Any]:
@@ -165,10 +186,11 @@ def native_action_context(
         normalized = sorted(set(alimentadores_vinculados(ws, project)))
     try:
         binding = require_project_binding(ws, project, normalized)
+        aviso = usar_ejecucion_del_vinculo(ws, project, binding, normalized)          # 018:RF-15
         comprobar_dgs_vinculados(ws, binding.dgs_sha256, normalized)
     except ProjectBindingError as exc:
         raise UserError(str(exc)) from exc
-    warnings = project_binding_warnings(ws, project, normalized)
+    warnings = project_binding_warnings(ws, project, normalized) + ([aviso] if aviso else [])
     return build_native_action_context(
         binding, project, normalized, action, warnings=warnings,
     )
@@ -3345,6 +3367,9 @@ def pf_verificar_base(ws: Workspace, ctx: JobContext, project: str, feeders: lis
         binding = require_project_binding(ws, project, pedidos)
     except ProjectBindingError as exc:
         raise UserError(str(exc)) from exc
+    aviso = usar_ejecucion_del_vinculo(ws, project, binding, pedidos)                  # 018:RF-15
+    if aviso:
+        ctx.log(aviso)
     jobs, missing = dgs_jobs(ws, pedidos)
     if not jobs:
         raise UserError('Para verificar hace falta el DGS convertido de cada alimentador. Faltan: '
