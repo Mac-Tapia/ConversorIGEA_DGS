@@ -1,6 +1,6 @@
 # Spec 026 — Asistente de órdenes en lenguaje natural que conoce, vigila y mejora el conversor
 
-Estado: aprobada el 2026-10-24 (32 RF), con las dudas resueltas por el usuario el mismo día · Fecha: 2026-10-24
+Estado: aprobada el 2026-10-24 (32 RF), con las dudas resueltas por el usuario el mismo día; T1 a T11 implementadas el mismo día, los 32 RF citados por pruebas en verde; T12 (aceptación en DIgSILENT de las tareas que lo usan) pendiente · Fecha: 2026-10-24
 
 ## Contexto y objetivo
 

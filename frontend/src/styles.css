@@ -315,6 +315,10 @@ small.alert { display: block; margin: 4px 0 0; }
 .central-campos { display: grid; grid-template-columns: repeat(2, minmax(150px, 1fr)); gap: 4px 8px; align-items: end; }
 .central-resumen { margin: 4px 0; }
 .row { display: flex; gap: 6px; flex-wrap: wrap; }
+/* Spec 026: la consola del asistente apila sus bloques y nombra la caja de la orden sin mostrar la etiqueta. */
+.stack { display: flex; flex-direction: column; gap: 8px; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0; }
 .chip {
   border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); border-radius: 999px;

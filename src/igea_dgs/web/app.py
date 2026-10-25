@@ -15,6 +15,7 @@ import asyncio
 import json
 import os
 import shutil
+import sys
 import tempfile
 import threading
 import zipfile
@@ -44,6 +45,57 @@ from .workspace import (
 
 
 LOOPBACK_HOSTS = frozenset({'127.0.0.1', 'localhost', '::1'})
+
+
+def _cerrar_entrenamiento_vigilado(proceso, gemelo: bool, herramienta: str) -> None:
+    """Avanza el corte de datos solo si el entrenamiento en segundo plano terminó bien."""
+    from ..asistente import almacen
+
+    codigo = proceso.wait()
+    if codigo == 0:
+        services.asistente_marcar_entrenado(gemelo)
+        return
+    almacen.anotar('avisos', {
+        'clave': f'entrenamiento:{herramienta}',
+        'nivel': 'error',
+        'texto': f'{herramienta} terminó con código {codigo}; los datos nuevos quedan pendientes.',
+    })
+
+
+def arrancar_vigilancia(jobs: JobManager):
+    """La vigilancia del asistente mientras la web está abierta (026:RF-22 a RF-25)."""
+    import subprocess
+
+    from ..asistente import almacen
+    from ..asistente.vigilancia import Vigilante
+    from ..powerfactory_env import tools_dir
+
+    def reintentar(job_id: str) -> None:
+        j = jobs.get(job_id)
+        if j is not None:
+            jobs.submit(j.workspace_id, j.kind, f'{j.title} (reintento)', j.fn, lane=j.lane)
+
+    def lanzar(herramienta: str, gemelo: bool) -> None:
+        # En su propio proceso, como desde la web (024): un fallo de la GPU no tumba el servidor.
+        salida = almacen.raiz() / f'vigilancia_{herramienta}.json'
+        salida.parent.mkdir(parents=True, exist_ok=True)
+        proceso = subprocess.Popen(
+            [sys.executable, str(tools_dir() / f'{herramienta}.py'), '--output-json', str(salida)],
+            cwd=str(project_root()), creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0),
+        )
+        threading.Thread(
+            target=_cerrar_entrenamiento_vigilado,
+            args=(proceso, gemelo, herramienta),
+            name=f'igea-{herramienta}',
+            daemon=True,
+        ).start()
+
+    v = Vigilante(listar_trabajos=lambda: [j.public() for j in jobs.list()], reintentar=reintentar,
+                  entrenar_gemelo=lambda: lanzar('digital_twin_entrenar', True),
+                  entrenar_asistente=lambda: lanzar('asistente_entrenar', False),
+                  contar_nuevos=services.asistente_nuevos, repo=project_root())
+    v.arrancar()
+    return v
 
 
 def _server_paths_allowed(host: str | None) -> bool:
@@ -345,6 +397,31 @@ class GuionIn(BaseModel):
     limite_s: float | None = Field(None, ge=10, le=86400)
 
 
+class AsistenteOrdenIn(BaseModel):
+    """Spec 026, RF-1: la orden escrita."""
+
+    texto: str = Field(min_length=1, max_length=2000)
+
+
+class AsistenteCorregirIn(BaseModel):
+    """Spec 026, RF-15: lo que el operador corrige del plan."""
+
+    tarea: str | None = None
+    datos: dict[str, Any] = Field(default_factory=dict)
+    tipo_informe: Literal['estudio', 'factibilidad'] | None = None
+    subtipo: str | None = Field(None, max_length=200)
+
+
+class AsistenteLibreriaIn(BaseModel):
+    paquete: str = Field(min_length=1, max_length=100, pattern=r'^[A-Za-z0-9._-]+$')
+    motivo: str = Field(min_length=1, max_length=1000)
+
+
+class AsistenteDecisionIn(BaseModel):
+    decision: Literal['aceptada', 'rechazada', 'modificada']
+    comentario: str = Field('', max_length=2000)
+
+
 class VnrDownloadIn(BaseModel):
     publication_id: str
 
@@ -405,7 +482,12 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
+        # Solo el servidor real (``__main__`` pone la variable): las pruebas crean la app a
+        # cientos y no deben vigilar ni correr la suite de noche.
+        vigilante = arrancar_vigilancia(jobs) if os.environ.get('IGEA_ASISTENTE_VIGILANCIA') == '1' else None
         yield
+        if vigilante is not None:
+            vigilante.parar()
         await asyncio.to_thread(jobs.shutdown)
 
     app = FastAPI(title='Conversor IGEA/CYMDIST → DGS', version=__version__, lifespan=lifespan)
@@ -1327,6 +1409,77 @@ def create_app(
                           perdidas_pct=float(body.get('perdidas_pct') or 0.0),
                           umbral_pct=float(body.get('umbral_pct') or 10.0)),
                       lane='engine')
+
+    @app.post('/api/workspaces/{wid}/digital-twin/entrenar', status_code=202)
+    def gemelo_entrenar(wid: str, body: dict[str, Any] | None = None) -> dict:
+        """024:RF-39: reentrenar la PINN en otro proceso, también desde el asistente."""
+        ws = ws_or_404(wid)
+        forzar = bool((body or {}).get('forzar'))
+        return submit(ws, 'gemelo_entrenar', 'Gemelo · reentrenar la PINN',
+                      lambda ctx: services.gemelo_entrenar(ws, ctx, forzar=forzar))
+
+    @app.post('/api/workspaces/{wid}/digital-twin/evaluar', status_code=202)
+    def gemelo_evaluar(wid: str) -> dict:
+        """024:RF-74: cuánto se apartan de DIgSILENT el modelo y la física."""
+        ws = ws_or_404(wid)
+        return submit(ws, 'gemelo_evaluar', 'Gemelo · evaluar', lambda ctx: services.gemelo_evaluar(ws, ctx))
+
+    # ------------------------------------------------------------ asistente (spec 026)
+    def _asistente_job(ws: Workspace, plan_id: str, request: Request) -> dict:
+        base = str(request.base_url).rstrip('/')
+        http = getattr(app.state, 'asistente_http', None)
+        plan = services.asistente_plan(ws, plan_id)['plan']
+        return submit(ws, 'asistente', f'Asistente · {plan.tarea}',
+                      lambda ctx: services.asistente_ejecutar(ws, ctx, plan_id, base, http), lane='asistente')
+
+    @app.post('/api/workspaces/{wid}/asistente/orden')
+    def asistente_orden(wid: str, body: AsistenteOrdenIn, request: Request) -> dict:
+        """026:RF-1 a RF-9: interpretar la orden; las consultas se responden y lo que solo lee
+        se lanza; lo que escribe espera la confirmación."""
+        ws = ws_or_404(wid)
+        r = services.asistente_orden(ws, body.texto, [j.public() for j in jobs.list(ws.id)])
+        plan = r['plan']
+        if plan['listo'] and plan['modo'] != 'consulta' and not plan['escribe']:
+            r['trabajo'] = _asistente_job(ws, plan['id'], request)
+        return r
+
+    @app.post('/api/workspaces/{wid}/asistente/{plan_id}/confirmar', status_code=202)
+    def asistente_confirmar(wid: str, plan_id: str, request: Request) -> dict:
+        """026:RF-8, RF-10: el plan confirmado, por las rutas y trabajos de la web."""
+        ws = ws_or_404(wid)
+        plan = services.asistente_plan(ws, plan_id)['plan']
+        if not plan.listo:
+            raise HTTPException(422, 'El plan no está completo: ' + '; '.join(plan.faltan))
+        return _asistente_job(ws, plan_id, request)
+
+    @app.post('/api/workspaces/{wid}/asistente/{plan_id}/corregir')
+    def asistente_corregir(wid: str, plan_id: str, body: AsistenteCorregirIn) -> dict:
+        """026:RF-15, RF-19: la corrección es un plan nuevo y un ejemplo para aprender."""
+        return services.asistente_corregir(ws_or_404(wid), plan_id, tarea=body.tarea, datos=body.datos,
+                                           tipo_informe=body.tipo_informe, subtipo=body.subtipo)
+
+    @app.get('/api/asistente/registro')
+    def asistente_registro() -> dict:
+        """026:RF-28, RF-31: órdenes, decisiones, mejoras, consultas a internet, suite y avisos."""
+        return services.asistente_registro()
+
+    @app.post('/api/workspaces/{wid}/asistente/entrenar', status_code=202)
+    def asistente_entrenar(wid: str) -> dict:
+        ws = ws_or_404(wid)
+        return submit(ws, 'asistente_entrenar', 'Asistente · reentrenar',
+                      lambda ctx: services.asistente_entrenar(ws, ctx))
+
+    @app.post('/api/workspaces/{wid}/asistente/mejoras/libreria', status_code=202)
+    def asistente_libreria(wid: str, body: AsistenteLibreriaIn) -> dict:
+        """026:RF-32: la ficha de una librería en una rama aparte, que nunca se fusiona sola."""
+        ws = ws_or_404(wid)
+        return submit(ws, 'asistente_mejora', f'Asistente · propuesta de {body.paquete}',
+                      lambda ctx: services.asistente_proponer_libreria(ws, ctx, body.paquete, body.motivo))
+
+    @app.post('/api/asistente/mejoras/{propuesta_id}/decision')
+    def asistente_decision(propuesta_id: str, body: AsistenteDecisionIn) -> dict:
+        """026:RF-28: lo que el operador decidió de una propuesta."""
+        return services.asistente_decision_mejora(propuesta_id, body.decision, body.comentario)
 
     @app.post('/api/workspaces/{wid}/pide/decision')
     def pide_decision(wid: str, body: dict[str, Any]) -> dict:
