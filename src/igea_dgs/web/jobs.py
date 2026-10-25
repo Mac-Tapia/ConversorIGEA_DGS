@@ -33,7 +33,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
 
-LANES = ('engine', 'powerfactory')
+#: «asistente» (spec 026) solo espera: sus pasos encolan en los otros dos carriles, así que
+#: no compite con ellos por el motor ni por DIgSILENT.
+LANES = ('engine', 'powerfactory', 'asistente')
 
 QUEUED = 'queued'
 RUNNING = 'running'

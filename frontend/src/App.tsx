@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { api } from './api';
 import { Ctx, type AppCtx } from './context';
+import { Asistente } from './components/Asistente';
 import { CargasTab } from './components/CargasTab';
 import { FeedersPanel } from './components/FeedersPanel';
 import { InputsPanel } from './components/InputsPanel';
@@ -19,6 +20,8 @@ const TABS = [
   { id: 'cargas', label: 'Cargas en DIgSILENT', el: <CargasTab />, entradas: false },
   { id: 'catalog', label: 'Catálogo de parámetros', el: <CatalogTab />, entradas: true },
   { id: 'system', label: 'Sistema completo', el: <SystemTab />, entradas: true },
+  // Spec 026: la consola de órdenes no necesita la entrega cargada (puede pedir que se cargue).
+  { id: 'asistente', label: 'Asistente', el: <Asistente />, entradas: false },
 ] as const;
 
 const LOG_KEY = 'igea-dgs.log-height';
@@ -161,7 +164,7 @@ export default function App() {
     ws: w.state, setWs: w.setState, health, pf, feeders: w.feeders, outputs: w.outputs, jobs: w.jobs,
     selected, setSelected, active, run, startJob, refresh: w.refresh,
   };
-  const running = [active.engine, active.powerfactory].filter(Boolean) as Job[];
+  const running = [active.engine, active.powerfactory, active.asistente].filter(Boolean) as Job[];
   // RF-2: sin entradas, solo las pestañas que no las necesitan.
   const tabs = TABS.filter((t) => w.state!.loaded || !t.entradas);
   const actual = tabs.find((t) => t.id === tab) ?? tabs[0];

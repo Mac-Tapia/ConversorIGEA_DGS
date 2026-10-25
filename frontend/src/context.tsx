@@ -12,7 +12,7 @@ export interface AppCtx {
   selected: string[];
   setSelected: (s: string[]) => void;
   /** Trabajo activo por carril, si lo hay. */
-  active: { engine?: Job; powerfactory?: Job };
+  active: { engine?: Job; powerfactory?: Job; asistente?: Job };
   /** Ejecuta una llamada mostrando el error del servidor como aviso. */
   run: <T>(fn: () => Promise<T>) => Promise<T | undefined>;
   /** Encola un trabajo y lo sigue en el Registro. */

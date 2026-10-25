@@ -218,3 +218,6 @@ Spec aprobada el 2026-10-08.
       Hecho el 2026-10-15 con procesos reales en 8797 a 8799: el mismo código se reutiliza
       (sale con 0 al momento), otra versión sin trabajos se cierra por petición y el nuevo
       toma su puerto, y con `http.server` en el puerto arranca en el siguiente.
+- [x] T27. RF-34: el servidor anota sus trabajos en curso en `igea_dgs/trabajos_web/<pid>.json`
+      (`jobs.py`) y el lanzador no termina al que no responde si los tiene: espera un minuto.
+      Hecho el 2026-10-24 tras perder la escalera de Pisco al reabrir el acceso directo.

@@ -259,7 +259,7 @@ export interface Job {
   kind: string;
   title: string;
   workspace_id: string;
-  lane: 'engine' | 'powerfactory';
+  lane: 'engine' | 'powerfactory' | 'asistente';
   status: JobStatus;
   progress: { index: number; total: number; label: string } | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1497,6 +1497,32 @@ export interface PideResultado {
   obras: ObraPIDE[];
   implementadas: { codigo: string; alternativa: string; variacion: string; aviso: string }[];
   avisos: string[];
+}
+
+/** Spec 026: el plan que arma el asistente a partir de una orden escrita. */
+export interface AsistentePlan {
+  id: string;
+  texto: string;
+  tarea: string | null;
+  descripcion: string;
+  escribe: boolean;
+  modo: 'consulta' | 'trabajo' | 'proceso' | '';
+  datos: Record<string, unknown>;
+  faltan: string[];
+  dudas: string[];
+  razonamiento: string[];
+  interpretado_por: string;
+  confianza: number;
+  alternativas: [string, number][];
+  listo: boolean;
+  pasos?: string[];
+}
+
+export interface AsistenteRespuesta {
+  plan: AsistentePlan;
+  respuesta?: { texto: string; citas?: { n: number; fuente: string; texto: string }[]; entregables?: string[];
+    [k: string]: unknown };
+  trabajo?: Job;
 }
 
 export interface EpisodioResumen {

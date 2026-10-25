@@ -21,6 +21,18 @@ import traceback
 from pathlib import Path
 
 
+def _log(mensaje: str) -> None:
+    """El avance a quien escuche; si la web que lo lanzó ya no está, se entrena igual.
+
+    2026-10-24: con la web parada a mitad, el primer ``print`` dio «OSError 22» en la salida
+    rota y el entrenamiento se perdió aunque la GPU seguía libre.
+    """
+    try:
+        print(mensaje, flush=True)
+    except OSError:
+        pass
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description='Entrena el oráculo PINN/GNN del gemelo digital en su '
                                             'propio proceso (spec 024)')
@@ -44,6 +56,11 @@ def main(argv=None) -> int:
         print(f'ERROR: {exc}')
         return 2
     bufer = BuferEpisodios(args.raiz)
+    if not args.evaluar:
+        # 026: la GPU de 8 GB la comparte con Ollama, que retiene su modelo tras responder.
+        from igea_dgs.asistente.ollama import liberar_gpu_para_entrenar
+
+        liberar_gpu_para_entrenar()
     try:
         if args.evaluar:
             r = oraculo.evaluar(bufer)
@@ -53,14 +70,14 @@ def main(argv=None) -> int:
             salida.write_text(json.dumps(r, ensure_ascii=False, default=str), encoding='utf-8')
             return 0
         if args.forzar:
-            r = oraculo.entrenar(bufer, log=lambda m: print(m, flush=True))
+            r = oraculo.entrenar(bufer, log=_log)
         else:
-            r = oraculo.entrenar_si_toca(bufer, minimo=args.minimo, log=lambda m: print(m, flush=True))
+            r = oraculo.entrenar_si_toca(bufer, minimo=args.minimo, log=_log)
         codigo = 0
     except Exception as exc:  # noqa: BLE001 - el informe queda siempre escrito
         r, codigo = {'entrenado': False, 'error': repr(exc), 'traza': traceback.format_exc()}, 1
     salida.write_text(json.dumps(r, ensure_ascii=False, default=str), encoding='utf-8')
-    print(f"Entrenamiento: {r.get('motivo') or ('promovido' if r.get('promovido') else r.get('fallos') or r.get('error'))}")
+    _log(f"Entrenamiento: {r.get('motivo') or ('promovido' if r.get('promovido') else r.get('fallos') or r.get('error'))}")
     return codigo
 
 

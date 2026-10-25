@@ -1,4 +1,4 @@
-import type { SistemaDelProyecto, EstructuraResumen,
+import type { AsistenteRespuesta, SistemaDelProyecto, EstructuraResumen,
   AjustePlan, AjusteResultado, CargasPlan, CentralTermica, ClientesCruce, CurvaCabecera, DemandaMedidores,
   MaximaConCentral, MedidoresExternos, Economia, EstudiosCatalogo, EstudiosPlan,
   FeederRow, Health, InformeEstudioForm, InformeFactibilidadForm, InformesContexto, Job, Limites, MaximaCabecera, Obra,
@@ -299,6 +299,17 @@ export const api = {
       Object.entries(filtros).filter(([, v]) => v) as [string, string][])}`),
   transferencia: (id: string, body: { project: string; feeders: string[]; casos: string[] }) =>
     request<Job>(`${ws(id)}/pf/transferencia`, json('POST', body)),
+
+  // Spec 026: asistente de órdenes.
+  asistenteOrden: (id: string, texto: string) =>
+    request<AsistenteRespuesta>(`${ws(id)}/asistente/orden`, json('POST', { texto })),
+  asistenteConfirmar: (id: string, planId: string) =>
+    request<Job>(`${ws(id)}/asistente/${enc(planId)}/confirmar`, { method: 'POST' }),
+  asistenteCorregir: (id: string, planId: string, body: { tarea?: string; datos?: Record<string, unknown>;
+    tipo_informe?: 'estudio' | 'factibilidad'; subtipo?: string }) =>
+    request<AsistenteRespuesta>(`${ws(id)}/asistente/${enc(planId)}/corregir`, json('POST', body)),
+  asistenteEntrenar: (id: string) => request<Job>(`${ws(id)}/asistente/entrenar`, { method: 'POST' }),
+  asistenteRegistro: () => request<Record<string, unknown[]>>('/api/asistente/registro'),
 
   system: (id: string, action: 'grid' | 'base' | 'missing-data') =>
     request<Job>(`${ws(id)}/system/${action}`, { method: 'POST' }),
