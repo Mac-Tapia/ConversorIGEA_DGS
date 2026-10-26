@@ -46,6 +46,7 @@ cumplimiento de límites en DIgSILENT PowerFactory.
 | PINN/GNN | Conjunto de 3 miembros promovido | Hay 86 episodios en el búfer, pero la versión activa aprendió de 24 muestras útiles (20/2/2), `mae_v=0,000954`, una sola dimensión topológica de 2 470 nodos y `mae_dorados=null`. |
 | GRU temporal | Implementación en memoria | Entrena y predice, pero no guarda pesos, dataset, particiones, métricas, versión promovida ni reversión. |
 | Recuperador de embeddings | Ruta opcional | El índice usa BM25 y solo usa `nomic-embed-text` si está instalado; no existe dataset contrastivo ni registro de un recuperador ajustado. |
+| Optimizadores evolutivos | Implementados y consumidos | `digital_twin/evolutivo.py` contiene algoritmo genético, NSGA-II y evolución diferencial jDE; la web los consume en `_pide_optimizar`. Sus 27 pruebas matemáticas y sintéticas pasan el 2026-10-25, pero falta registrarlos en el coordinador integral, medir robustez multisemilla y cerrar validación sobre redes reales con confirmación nativa. |
 
 Los modelos físicos radial/mallado y la línea base estacional no se «reentrenan»: son referencias
 analíticas. Permanecerán como oráculos comparativos obligatorios.
@@ -56,7 +57,8 @@ analíticas. Permanecerán como oráculos comparativos obligatorios.
 
 1. Congelar datasets por huella SHA-256 y separar `gold_human`, `gold_native`,
    `silver_deterministic`, `silver_teacher_verified`, `context` y `quarantine`.
-2. Reentrenar secuencialmente Transformer, clasificador, PINN, GRU, recuperador y adaptador LLM.
+2. Reentrenar secuencialmente Transformer, clasificador, PINN, GRU, recuperador y adaptador LLM;
+   recalibrar y validar los optimizadores genético, NSGA-II y jDE.
 3. Optimizar hiperparámetros dentro de presupuestos reproducibles, sin usar el conjunto de prueba.
 4. Evaluar por tarea, documento, alimentador, SET, familia topológica y periodo temporal.
 5. Registrar código, configuración, semilla, dependencias, hardware, datos, métricas y pesos.
@@ -128,8 +130,9 @@ Un coordinador local ejecutará fases reanudables:
 7. `reload`: proceso nuevo que reabre el candidato y reproduce una batería fija.
 8. `report`: informe consolidado por modelo y estado terminal.
 
-El orden de GPU será: Transformer → clasificador → GRU → PINN → embeddings → QLoRA. Antes de cada
-fase se descargará Ollama de VRAM; al terminar se liberará CUDA. Un archivo de bloqueo con PID,
+El orden será: Transformer → clasificador → GRU → PINN → optimizadores evolutivos → embeddings →
+QLoRA. Los evolutivos no se «entrenan»: consumen el flujo/oráculo ya fijado, y se validan antes de
+servir como optimizador. Antes de cada fase GPU se descargará Ollama de VRAM; al terminar se liberará CUDA. Un archivo de bloqueo con PID,
 inicio y modelo impedirá entrenamientos simultáneos y podrá recuperarse solo si el PID ya no existe.
 
 ### 5.3 Contrato común de registro
@@ -294,6 +297,34 @@ intervalos de confianza, no solo el conteo, determinarán si la evidencia es con
   mediante un backend explícito. Escribir un adaptador Hugging Face sin conectarlo a inferencia no
   cuenta como integración.
 
+### 6.7 Algoritmos genéticos y evolutivos
+
+Estos componentes ya existen y tienen consumidores reales. El algoritmo genético selecciona
+bancos y maniobras, NSGA-II construye el frente inversión–pérdidas y jDE optimiza consignas. No
+aprenden pesos de un dataset; su equivalente operativo al reentrenamiento es **calibrar parámetros,
+comparar configuraciones y validar robustez** contra funciones y redes no usadas para afinarlos.
+
+- Cada ejecución congelará versión del algoritmo, grafo/oráculo, semilla, población,
+  generaciones, operadores, límites, costes, función objetivo, restricciones y presupuesto de
+  evaluaciones. Los costes o límites ausentes no se inventarán.
+- La validación matemática conservará problemas de óptimo conocido —objetivo entero exacto,
+  Schaffer restringido y Rosenbrock— y añadirá comparación con enumeración/exacto en redes pequeñas.
+- La validación eléctrica abarcará bancos, reconfiguración y consignas en familias radiales y
+  malladas separadas del ajuste. Toda solución deberá converger, respetar tensión/cargabilidad,
+  mantener suministro y, cuando aplique, radialidad; una penalización no convierte una solución
+  físicamente inválida en factible.
+- No bastará una semilla. Se ejecutarán al menos 20 semillas por configuración y se publicarán
+  tasa de factibilidad, brecha al óptimo/baseline, hipervolumen y cobertura del frente para
+  NSGA-II, pérdidas/coste, evaluaciones, tiempo y dispersión con intervalos bootstrap del 95 %.
+- Se comparará contra la configuración activa, búsqueda exhaustiva en casos pequeños y una
+  heurística determinista. Una mejora promedio no podrá compensar islas, lazos no permitidos,
+  violaciones o una peor tasa de factibilidad.
+- El resultado seguirá siendo una propuesta. Antes de aplicarlo en PIDE/PowerFactory se simulará
+  en una variación temporal y deberá superar guardado, reapertura, relectura, convergencia y
+  límites. Ningún optimizador escribirá por sí solo en la red nativa.
+- La configuración validada se registrará y reabrirá como los modelos; el código activo anterior
+  permanecerá disponible para reversión si el candidato queda `RECHAZADO` o `ERROR_ENTORNO`.
+
 ## 7. Supervisor y aprendizaje continuo
 
 El supervisor compara Transformer, LLM y reglas deterministas. Registra desacuerdos, pero no los
@@ -390,6 +421,12 @@ informe distinguirá aceptación del modelo de ML y aceptación eléctrica nativ
 - La tesis doctoral de Lippmann (2026) estudia datos sintéticos robustos y la tesis de maestría de
   Smith (2026) examina la internalización de instrucciones; ambas refuerzan separar generación,
   verificación y evaluación independiente.
+- NSGA-II fundamenta la selección elitista y la diversidad del frente de Pareto; jDE fundamenta
+  la autoadaptación de parámetros de evolución diferencial (Deb et al., 2002; Brest et al., 2006).
+- La reconfiguración eléctrica mediante algoritmos genéticos exige conservar radialidad,
+  suministro y restricciones operativas, y medir pérdidas sobre flujo eléctrico (Zhu, 2002;
+  Čađenović et al., 2018). La tesis doctoral de Ghaweta (2019) y la tesis de maestría de Touati
+  (2025) respaldan evaluar técnicas inteligentes/heurísticas en reconfiguración de distribución.
 - La predicción de carga en distribución exige datos operativos y evaluación fuera de muestra;
   Almalaq (2019) lo desarrolla en tesis doctoral, Guo (2025) en tesis de maestría y Lin (2023)
   aplica GRU bidireccional a carga de transformadores de distribución.
@@ -399,6 +436,15 @@ informe distinguirá aceptación del modelo de ML y aceptación eléctrica nativ
 Almalaq, A. S. (2019). *Distribution level building load prediction using deep learning*
 [Doctoral dissertation, University of Denver]. Digital Commons.
 https://digitalcommons.du.edu/etd/1641/
+
+Brest, J., Greiner, S., Bošković, B., Mernik, M., & Žumer, V. (2006). Self-adapting control
+parameters in differential evolution: A comparative study on numerical benchmark problems.
+*IEEE Transactions on Evolutionary Computation, 10*(6), 646–657.
+https://doi.org/10.1109/TEVC.2006.872133
+
+Čađenović, R., Jakus, D., Sarajčev, P., & Vasilj, J. (2018). Optimal distribution network
+reconfiguration through integration of cycle-break and genetic algorithms. *Energies, 11*(5),
+1278. https://doi.org/10.3390/en11051278
 
 Christofidellis, D. (2023). *Accelerating scientific discovery using domain adaptive language
 modelling* [Doctoral thesis, Queen's University Belfast]. Queen's Research Portal.
@@ -412,6 +458,10 @@ Dettmers, T., Pagnoni, A., Holtzman, A., & Zettlemoyer, L. (2023). QLoRA: Effici
 quantized LLMs. *Advances in Neural Information Processing Systems, 36*.
 https://papers.neurips.cc/paper_files/paper/2023/file/1feb87871436031bdc0f2beaa62a049b-Paper-Conference.pdf
 
+Deb, K., Pratap, A., Agarwal, S., & Meyarivan, T. (2002). A fast and elitist multiobjective
+genetic algorithm: NSGA-II. *IEEE Transactions on Evolutionary Computation, 6*(2), 182–197.
+https://doi.org/10.1109/4235.996017
+
 FitzGerald, J., Hench, C., Peris, C., Mackie, S., Rottmann, K., Sanchez, A., Nash, A., Urbach, L.,
 Kakarala, V., Singh, R., Ranganath, S., Crist, L., & Britan, M. (2022). MASSIVE: A 1M-example
 multilingual natural language understanding dataset with 51 typologically-diverse languages.
@@ -419,6 +469,10 @@ multilingual natural language understanding dataset with 51 typologically-divers
 
 Guo, H. (2025). *Load forecasting and modeling for power system* [Master's thesis, Southern
 Methodist University]. SMU Scholar. https://scholar.smu.edu/engineering_electrical_etds/84/
+
+Ghaweta, A. (2019). *Optimal distribution feeder reconfiguration with distributed generation
+using intelligent techniques* [Doctoral dissertation, University of Kentucky]. UKnowledge.
+https://uknowledge.uky.edu/ece_etds/134/
 
 Hardalov, M., Koychev, I., & Nakov, P. (2023). Enriched pre-trained Transformers for joint slot
 filling and intent detection. In *Proceedings of RANLP 2023* (pp. 480–493). INCOMA.
@@ -458,6 +512,10 @@ Thakur, N., Reimers, N., Rücklé, A., Srivastava, A., & Gurevych, I. (2021). BE
 benchmark for zero-shot evaluation of information retrieval models. *arXiv*.
 https://arxiv.org/abs/2104.08663
 
+Touati, M. K. (2025). *Heuristic methods and machine learning for distribution network
+reconfiguration* [Master's thesis, University of Liège]. MatheO.
+https://matheo.uliege.be/handle/2268.2/23274
+
 Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A. N., Kaiser, Ł., &
 Polosukhin, I. (2017). Attention is all you need. *Advances in Neural Information Processing
 Systems, 30*. https://arxiv.org/abs/1706.03762
@@ -470,6 +528,10 @@ Wang, Y., Kordi, Y., Mishra, S., Liu, A., Smith, N. A., Khashabi, D., & Hajishir
 Self-Instruct: Aligning language models with self-generated instructions. In *Proceedings of ACL
 2023* (pp. 13484–13508). Association for Computational Linguistics.
 https://aclanthology.org/2023.acl-long.754/
+
+Zhu, J. Z. (2002). Optimal reconfiguration of electrical distribution network using the refined
+genetic algorithm. *Electric Power Systems Research, 62*(1), 37–42.
+https://doi.org/10.1016/S0378-7796(02)00041-X
 
 ## 11. Criterio de cierre
 

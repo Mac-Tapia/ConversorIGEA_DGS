@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Construir, conectar y ejecutar un flujo local y auditable que prepare datos sin fuga, ajuste todos los componentes aprendibles, promueva sólo mejoras demostradas y mantenga funcional el asistente cuando un candidato quede bloqueado.
+**Goal:** Construir, conectar y ejecutar un flujo local y auditable que prepare datos sin fuga, ajuste todos los componentes aprendibles, calibre y valide los optimizadores evolutivos, promueva sólo mejoras demostradas y mantenga funcional el asistente cuando un candidato quede bloqueado.
 
 **Architecture:** Un dataset común conserva procedencia y seis niveles de calidad; cada familia de modelo consume una vista propia y publica artefactos bajo un registro atómico común. Un coordinador secuencial arbitra GPU y ejecuta datos → entrenamiento → evaluación → promoción → reapertura. El asistente combina clasificación, recuperación híbrida y herramientas, y solicita una aclaración cuando falta evidencia.
 
@@ -22,6 +22,7 @@
 - QLoRA inicial: `Qwen/Qwen3-4B`, NF4, doble cuantización, `r=16`, `alpha=32`, dropout `0.05`, longitud 512, lote 1 y acumulación 16.
 - Toda promoción exige reapertura en otro proceso, hashes, métricas por grupo, intervalos del 95 % y ausencia de regresión crítica.
 - La aceptación de ML no sustituye guardado, reapertura, relectura, convergencia ni límites eléctricos nativos.
+- Algoritmo genético, NSGA-II y jDE son optimizadores ya integrados, no redes entrenables: se registran y validan con al menos 20 semillas, baselines exactos/heurísticos y confirmación eléctrica nativa antes de aplicar propuestas.
 - La justificación científica es la del diseño: Self-Instruct, E5, BEIR, MTEB, MTOP, MASSIVE, LoRA/QLoRA, FELM, tesis doctoral de Lippmann y tesis de maestría de Smith.
 
 ## Review Focus
@@ -31,6 +32,7 @@
 - Una consulta con identificador exacto debe conservar el resultado BM25 aunque el embedding prefiera un fragmento semántico incorrecto; Task 3 lo prueba con `CA101`/`CA104`.
 - Un adaptador con JSON mejor pero más campos inventados o una omisión de confirmación nunca se promueve; Task 4 lo prueba contra la base.
 - Un fallo, OOM o proceso muerto durante promoción deja el puntero anterior reabrible; Task 5 lo prueba con procesos reales pequeños y escritura interrumpida.
+- Una configuración evolutiva que mejora el promedio pero produce una isla, lazo prohibido o menor tasa de factibilidad debe rechazarse; Task 8 lo prueba por familia y multisemilla.
 
 ---
 
@@ -210,7 +212,7 @@
 
 - [ ] **Step 1: Escribir pruebas de estados, atomicidad, bloqueo y reanudación**
 
-  Probar `PROMOVIDO`, `RECHAZADO`, `BLOQUEADO_POR_DATOS`, `ERROR_ENTORNO`; PID vivo/muerto; dos procesos reales compitiendo por lock; fallo entre candidato y puntero; reapertura en subproceso; y orden Transformer→clasificador→GRU→PINN→embeddings→QLoRA.
+  Probar `PROMOVIDO`, `RECHAZADO`, `BLOQUEADO_POR_DATOS`, `ERROR_ENTORNO`; PID vivo/muerto; dos procesos reales compitiendo por lock; fallo entre candidato y puntero; reapertura en subproceso; y orden Transformer→clasificador→GRU→PINN→evolutivos→embeddings→QLoRA.
 
 - [ ] **Step 2: Ejecutar RED**
 
@@ -307,7 +309,53 @@
 
   `git commit -m "feat: registra gru y endurece puertas del gemelo"`
 
-### Task 8: Integración web/CLI, ejecución real y aceptación integral
+### Task 8: Registrar y validar algoritmo genético, NSGA-II y jDE
+
+**Files:**
+- Modify: `src/igea_dgs/digital_twin/evolutivo.py`
+- Modify: `src/igea_dgs/web/services.py`
+- Create: `src/igea_dgs/digital_twin/evaluacion_evolutiva.py`
+- Create: `tools/evaluar_evolutivos.py`
+- Modify: `tests/test_digital_twin_evolutivo.py`
+- Create: `tests/test_digital_twin_evolutivo_registry.py`
+
+**Interfaces:**
+- Consumes: flujo/oráculo fijado por Task 7, familias de grafos, perfiles económicos y `RegistroModelo`.
+- Produces: `ConfiguracionEvolutiva`, `evaluar_multisemilla(...)`, `comparar_configuraciones(...)`, registro reabrible y decisión por algoritmo/problema.
+
+- [ ] **Step 1: Escribir pruebas de exactitud, restricciones, multisemilla y registro**
+
+  Conservar óptimos conocidos de objetivo entero, Schaffer y Rosenbrock; añadir enumeración exacta en redes pequeñas, 20 semillas, tasa de factibilidad, brecha, hipervolumen, dispersión, presupuesto de evaluaciones y rechazo absoluto de islas/lazos/violaciones.
+
+- [ ] **Step 2: Ejecutar RED**
+
+  Run: `python -m pytest tests/test_digital_twin_evolutivo.py tests/test_digital_twin_evolutivo_registry.py -q`
+
+  Expected: las 27 pruebas existentes pasan y las nuevas fallan por evaluación/registro ausentes.
+
+- [ ] **Step 3: Implementar evaluación y promoción de configuración**
+
+  Versionar operadores, población, generaciones, semillas, límites, costes, función objetivo, grafo/oráculo y presupuesto; comparar configuración activa, candidata, búsqueda exacta pequeña y heurística determinista; impedir promoción por mejora media cuando empeora factibilidad o una familia crítica.
+
+- [ ] **Step 4: Ejecutar GREEN y benchmark reproducible**
+
+  Run: `python -m pytest tests/test_digital_twin_evolutivo.py tests/test_digital_twin_evolutivo_registry.py tests/test_digital_twin_flujo.py -q`
+
+  Run: `python tools/evaluar_evolutivos.py --seeds 20 --report output/web/_asistente/evolutivos-report.json`
+
+  Expected: pruebas PASS y reporte con GA, NSGA-II, jDE, baselines, intervalos y decisión; ninguna propuesta se aplica en PowerFactory.
+
+- [ ] **Step 5: Verificar consumidor PIDE y aceptación nativa separada**
+
+  Run: `python -m pytest tests/test_digital_twin_evolutivo.py -q -k "web or pide or reconfiguracion or consigna"`
+
+  Expected: consumidor real conserva la propuesta y `confirmar_en_pf`; la aceptación nativa queda pendiente hasta ejecutar guardado/reapertura/convergencia sobre los casos autorizados.
+
+- [ ] **Step 6: Commit**
+
+  `git commit -m "feat: registra y valida optimizadores evolutivos"`
+
+### Task 9: Integración web/CLI, ejecución real y aceptación integral
 
 **Files:**
 - Modify: `src/igea_dgs/web/app.py`
@@ -319,7 +367,7 @@
 - Modify: `tests/test_asistente_web.py`
 
 **Interfaces:**
-- Consumes: `TrainingCoordinator`, registros y backends promovidos.
+- Consumes: `TrainingCoordinator`, registros, configuraciones evolutivas y backends promovidos.
 - Produces: endpoints/CLI de inventario, ejecución, estado, curación, métricas, reversión y reporte final con evidencia.
 
 - [ ] **Step 1: Escribir la prueba extremo a extremo sellada**
