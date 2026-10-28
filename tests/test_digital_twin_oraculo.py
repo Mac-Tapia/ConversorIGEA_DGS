@@ -309,3 +309,38 @@ def test_busqueda_de_hiperparametros_solo_en_validacion(entrenado, tmp_path, mon
     from pathlib import Path
 
     assert json.loads(Path(r['ruta']).read_text(encoding='utf-8'))['mejor'] == r['mejor']
+
+
+def test_cuantil_conforme_con_su_cobertura():
+    """027:RF-12 — con puntuaciones intercambiables sorteadas, el intervalo calibrado cubre al
+    menos la cobertura pedida menos un 2 % en datos nuevos."""
+    semilla = random.randrange(1 << 30)
+    rnd = np.random.default_rng(semilla)
+    for cobertura in (0.8, 0.9, 0.95):
+        escala = rnd.uniform(0.001, 0.02, size=4000)
+        error = np.abs(rnd.standard_normal(4000)) * escala
+        q = orc.cuantil_conforme((error[:2000] / escala[:2000]).tolist(), cobertura)
+        cubre = float(np.mean(error[2000:] <= q * escala[2000:]))
+        assert cubre >= cobertura - 0.02, (semilla, cobertura, cubre)
+    with pytest.raises(ValueError):
+        orc.cuantil_conforme([], 0.9)
+
+
+def test_intervalo_por_barra_y_no_confiable(entrenado):
+    """027:RF-12 / 027:RF-13 — el modelo trae su cuantil y da un intervalo por barra; si es
+    más ancho que la banda de la norma, la predicción no se usa para decidir."""
+    from igea_dgs.digital_twin.evaluacion import Limites
+
+    bufer, _r = entrenado
+    actual = orc.cargar(bufer)
+    assert actual.cuantil is not None and actual.cuantil > 0
+    g = red_radial(random.Random(11), 8)
+    p = actual.predecir(g)
+    assert p['intervalo_pu'] is not None and len(p['intervalo_pu']) == len(p['ids']) and p['cobertura'] == 0.9
+    ancha = Limites('NTCSE', 0.95, 1.05, 100.0, None)
+    estrecha = Limites('X', 1.0, 1.0 + 1e-9, 100.0, None)
+    assert orc.confiable(p, ancha)[0] == (float(2 * np.max(p['intervalo_pu'])) <= 0.1)
+    ok, motivo = orc.confiable(p, estrecha)
+    assert not ok and '027:RF-13' in motivo
+    e = orc.estado_electrico(p, g, estrecha)
+    assert e['requiere_pf'] and e['no_confiable']

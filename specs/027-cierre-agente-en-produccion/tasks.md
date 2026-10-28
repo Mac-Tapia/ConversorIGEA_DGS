@@ -67,8 +67,12 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       recorte; TPE con semilla y `MedianPruner` sobre la curva de validación por `al_validar`);
       `--buscar --ensayos --limite-s` guarda los ensayos en `modelos/busquedas/` y entrena con la
       elegida. Optuna en el extra `ml`.
-- [ ] T7. Intervalo conforme por barra y marca de no confiable. (RF-12, RF-13)
+- [x] T7. Intervalo conforme por barra y marca de no confiable. (RF-12, RF-13)
       Hecho cuando: cobertura empírica ≥ la pedida − 2 % en datos sorteados.
+      Hecho el 2026-10-28: predicción conforme partida normalizada por la dispersión del conjunto
+      (|error|/(σ + 10⁻⁴), cuantil ⌈(n+1)·c⌉), calibrada con la validación y guardada en
+      `modelo.json` (`conforme`); `predecir` da `intervalo_pu` por barra y `estado_electrico`
+      pide DIgSILENT si es más ancho que la banda de la norma (`confiable`).
 - [ ] T8. Top-k verificado en DIgSILENT con `pf_arnes`; descarte, episodio y siguiente;
       gemelo y DIgSILENT en la propuesta. (RF-14 a RF-16)
       Hecho cuando: prueba con `fake_pf` en verde y una propuesta de bancos verificada en
