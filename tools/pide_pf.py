@@ -22,7 +22,14 @@ import traceback
 from pathlib import Path
 
 from cargas_pf import activar_proyecto, clave_pf, flujo_de_carga
-from casos_pf import _escenario_de, _marcar, anio_del_plan, nombre_cargas_nuevas
+from casos_pf import (
+    _escenario_de,
+    _marcar,
+    anio_del_plan,
+    es_de_carga_nueva,
+    nombre_cargas_nuevas,
+    objetos_de_variacion,
+)
 from casos_pf import caso as caso_del_sistema
 from digital_twin_snapshot_pf import CASOS, _caso, resultados
 from estudios_pf import _num
@@ -59,12 +66,39 @@ def origenes_del_pide(app, plan: dict) -> dict:
     return out
 
 
-def casos_del_anio(app, origenes: dict, anio: int, factor_de, base: dict | None = None) -> dict:
+def fraccion_en(perfil, anio: int) -> float:
+    """La fracción del total de una carga nueva en el año ``anio`` del PIDE: la acumulada de sus
+    partes hasta él, 0 antes de la primera (030:RF-11, RF-15). ``perfil``: ``[[año, acumulada]]``."""
+    vistas = [f for a, f in sorted(perfil or [[0, 1.0]]) if a <= anio]
+    return float(vistas[-1]) if vistas else 0.0
+
+
+def cargas_nuevas_del_proyecto(app, pedidas: list | None = None) -> dict[str, list]:
+    """Las cargas (``ElmLod``) de las variaciones de carga nueva con su perfil de ingreso: el de
+    ``pedidas`` (``[{'variacion', 'perfil'}]``) o entera en el año 00 (030:RF-9, RF-11, RF-15)."""
+    perfiles = {str(p['variacion']): p.get('perfil') or [[int(p.get('anio') or 0), 1.0]]
+                for p in pedidas or [] if p.get('variacion')}
+    carpeta = app.GetProjectFolder('scheme')
+    out: dict[str, list] = {}
+    for v in (carpeta.GetContents('*.IntScheme', 1) if carpeta else []):
+        if not es_de_carga_nueva(v):
+            continue
+        perfil = next((x for nombre, x in perfiles.items()
+                       if v.loc_name == nombre or v.loc_name.startswith(nombre + '(')), [[0, 1.0]])
+        for clase, nombre in objetos_de_variacion(v):
+            if clase == 'ElmLod':
+                out[nombre] = perfil
+    return out
+
+
+def casos_del_anio(app, origenes: dict, anio: int, factor_de, base: dict | None = None,
+                   nuevas: dict[str, list] | None = None) -> dict:
     """«PIDE/Año NN» en casos y en escenarios, con un caso y un escenario por papel; la demanda de
     cada carga, por el factor de su alimentador (030:RF-1 a RF-3, RF-5, RF-8). ``factor_de(elm)``:
     el factor del año del ``ElmFeeder``; ``base``: el ``scale0`` de cada carga antes del PIDE, sobre
     el que se aplica, para que un año nunca escale el de otro."""
     base = base if base is not None else {}
+    nuevas = nuevas or {}
     etiqueta = f'Año {anio:02d}'
     casos = _carpeta(_carpeta(app.GetProjectFolder('study'), 'PIDE'), etiqueta)
     escenarios = _carpeta(_carpeta(app.GetProjectFolder('scen', 1), 'PIDE'), etiqueta)
@@ -95,8 +129,21 @@ def casos_del_anio(app, origenes: dict, anio: int, factor_de, base: dict | None 
             if f is None:
                 continue
             for c in elm.GetObjs('ElmLod'):
+                if c.loc_name in nuevas:
+                    continue                                                 # RF-9: constante
                 b = base.setdefault(clave_pf(c), float(getattr(c, 'scale0', 1.0) or 1.0))
                 c.scale0 = b * f                                             # RF-3, en su escenario
+        if rol in ('cargas', 'con') and nuevas:
+            # RF-11, RF-15: la carga nueva lleva lo que entró hasta este año, sin crecimiento;
+            # antes de su primera parte, fuera de servicio.
+            for c in app.GetCalcRelevantObjects('*.ElmLod') or []:
+                if c.loc_name not in nuevas:
+                    continue
+                f = fraccion_en(nuevas[c.loc_name], anio)
+                b = base.setdefault(clave_pf(c), float(getattr(c, 'scale0', 1.0) or 1.0))
+                c.outserv = 0 if f > 0 else 1
+                if f > 0:
+                    c.scale0 = b * f
         esc.Save()
         out[rol] = {'caso': f'PIDE/{etiqueta}/{nombre}', 'escenario': f'PIDE/{etiqueta}/{nombre}', 'objeto': caso}
     return out
@@ -202,6 +249,9 @@ def _por_anios(app, plan, informe, proyecto, raiz, lim, barras, de_linea, por_no
     if 'sin' not in origenes:
         return {**informe, 'error': 'el proyecto no tiene «Sin proyecto» para copiar a los años del PIDE'}, 2
     feeders = set(plan.get('feeders') or [])
+    nuevas = cargas_nuevas_del_proyecto(app, plan.get('cargas_nuevas'))           # RF-9, RF-11
+    if nuevas:
+        informe['cargas_nuevas'] = nuevas
     origenes['sin'].Activate()
     elms = [e for e in proyecto.GetContents('*.ElmFeeder', 1) if e.loc_name in feeders]
     base = {clave_pf(c): float(getattr(c, 'scale0', 1.0) or 1.0) for e in elms for c in e.GetObjs('ElmLod')}
@@ -212,7 +262,7 @@ def _por_anios(app, plan, informe, proyecto, raiz, lim, barras, de_linea, por_no
                     return None
                 return (1 + por_alim.get(elm.loc_name, tasa)) ** int(anio)
 
-            casos = casos_del_anio(app, origenes, int(anio), factor_de, base)
+            casos = casos_del_anio(app, origenes, int(anio), factor_de, base, nuevas)
             casos['sin']['objeto'].Activate()
             flujo = flujo_de_carga(app)
             fila = {'anio': int(anio), 'factor': (1 + tasa) ** int(anio), 'converge': flujo['converged'],
