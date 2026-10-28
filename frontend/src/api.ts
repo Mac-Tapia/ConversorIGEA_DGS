@@ -322,6 +322,9 @@ export const api = {
     request<AsistenteRespuesta>(`${ws(id)}/asistente/${enc(planId)}/corregir`, json('POST', body)),
   asistenteEntrenar: (id: string) => request<Job>(`${ws(id)}/asistente/entrenar`, { method: 'POST' }),
   asistenteRegistro: () => request<Record<string, unknown[]>>('/api/asistente/registro'),
+  // 027:RF-43, RF-44: el proyecto entero desde el espacio, con puntos de control.
+  agenteProyecto: (id: string, body: { sistema: string; periodo: string; ruta?: string; ruta_cargas?: string; reiniciar?: boolean }) =>
+    request<Job>(`${ws(id)}/agente/proyecto`, json('POST', body)),
   // 027:RF-35: rechazar un plan es una penalización para el modelo.
   asistenteRechazar: (id: string, planId: string) =>
     request<{ plan: string; rechazado: boolean }>(`${ws(id)}/asistente/${planId}/rechazar`, { method: 'POST' }),
