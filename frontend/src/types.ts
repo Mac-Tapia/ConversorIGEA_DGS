@@ -1564,3 +1564,25 @@ export interface EpisodioResumen {
   bloqueos: string[];
   violaciones: string[];
 }
+
+/** Spec 028: lo que el escaneo encontró en un alimentador de DIgSILENT. */
+export interface EscaneoGenerador {
+  generador: string; clase: string; barra: string | null; kv: number | null;
+  p_kw: number | null; q_kvar: number | null; en_servicio: boolean;
+  origen: 'conversor' | 'operador'; por: string | null;
+}
+export interface EscaneoBanco {
+  banco: string; barra: string | null; kv: number | null; q_nominal_kvar: number | null;
+  en_servicio: boolean; origen: 'conversor' | 'operador'; por: string | null;
+}
+export interface EscaneoAlimentador {
+  error?: string;
+  generadores?: EscaneoGenerador[];
+  bancos?: EscaneoBanco[];
+  cargas_cambiadas?: { sed: string; manual: { kw: number; kvar: number }; ajuste: { kw: number; kvar: number } }[];
+}
+export interface Escaneo {
+  project: string; caso: string | null; avisos: string[];
+  alimentadores: Record<string, EscaneoAlimentador>;
+  variaciones: { variacion: string; activa: boolean; objetos: number; origen: 'conversor' | 'operador' }[];
+}

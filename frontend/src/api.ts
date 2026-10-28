@@ -128,6 +128,9 @@ export const api = {
     request<{ ajuste: (AjusteResultado & { id: string; finished_at: number }) | null }>(
       `${ws(id)}/demanda/ajuste/ultimo?project=${encodeURIComponent(project)}`),
   // Spec 018, RF-13: la última lista leída en el espacio, sin abrir DIgSILENT.
+  // Spec 028, RF-9: escanear alimentadores en DIgSILENT antes de recalibrar.
+  pfEscanear: (id: string, project: string, feeders: string[], anio: number | null = null) =>
+    request<Job>(`${ws(id)}/powerfactory/escanear`, json('POST', { project, feeders, anio })),
   pfProjectsGuardados: (id: string) => request<PfInventario>(`${ws(id)}/powerfactory/projects`),
   // Spec 018, RF-10: usar la ejecución fuente con la que se aceptó el proyecto.
   pfAdoptarFuente: (id: string, project: string) =>

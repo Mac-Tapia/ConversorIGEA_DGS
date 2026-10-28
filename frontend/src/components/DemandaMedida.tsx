@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, fmtNum, type DemandaTipo } from '../api';
 import { estadoCatalogoClientes } from '../clientesCatalogo';
 import { useApp } from '../context';
-import type { BarraDeSet, CentralDeBarra, CentralTermica, SistemaDelProyecto, ClientesCruce, ClienteImportante, MaximaCabecera, MedidoresExternos } from '../types';
+import type { BarraDeSet, CentralDeBarra, CentralTermica, Escaneo, SistemaDelProyecto, ClientesCruce, ClienteImportante, MaximaCabecera, MedidoresExternos } from '../types';
 import { AjusteCabecera } from './AjusteCabecera';
 import { FileDrop, useToast } from './ui';
 
@@ -333,6 +333,30 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   // RF-52: el instante de la máxima de cada alimentador marcado, para elegirlo como común.
   const instantes = cabecera.filter((r) => !r.error && r.fecha && feeders.includes(r.alimentador))
     .map((r) => ({ alimentador: r.alimentador, fecha: r.fecha as string, kw: r.kw }));
+  // Spec 028: el último escaneo de este proyecto en DIgSILENT (solo lectura).
+  const escaneo = Object.values(jobs)
+    .filter((j) => j.kind === 'pf_escaneo' && j.result && (j.result as unknown as Escaneo).project === project)
+    .pop()?.result as unknown as Escaneo | undefined;
+  const escanear = () => startJob(() => api.pfEscanear(ws.id, project, feeders, anio ? Number(anio) : null));
+  const firmaEscaneo = escaneo ? JSON.stringify(Object.keys(escaneo.alimentadores)) + escaneo.project : '';
+  useEffect(() => {
+    // RF-11, RF-12: un generador en servicio encontrado declara la central de su alimentador
+    // con su barra; el operador elige después los tres medidores.
+    if (!escaneo) return;
+    setCentrales((m) => {
+      const n = { ...m };
+      Object.entries(escaneo.alimentadores).forEach(([f, d]) => {
+        const gens = (d.generadores ?? []).filter((g) => g.en_servicio && g.barra);
+        const barras = [...new Set(gens.filter((g) => g.origen === 'operador').map((g) => g.barra as string))];
+        const elegidas = barras.length ? barras : [...new Set(gens.map((g) => g.barra as string))];
+        if (elegidas.length !== 1) return;
+        if (!n[f]) n[f] = { ...CENTRAL_VACIA, nodo: elegidas[0] };
+        else if (!n[f].nodo) n[f] = { ...n[f], nodo: elegidas[0] };
+      });
+      return n;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firmaEscaneo]);
   const ponerCentral = (f: string, campo: keyof CentralTermica, valor: string) =>
     setCentrales((m) => ({ ...m, [f]: { ...(m[f] ?? CENTRAL_VACIA), [campo]: valor } }));
   const quitarCentral = (f: string) => setCentrales((m) => {
@@ -418,8 +442,13 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
         <button className="btn" disabled={!feeders.length || !ws.demanda?.medidores || buscando} onClick={buscar}>
           Buscar medidores de {cuales}
         </button>
+        <button className="btn btn-ghost" disabled={!project || !feeders.length || Boolean(active.powerfactory)}
+          onClick={escanear}
+          title="Lee en DIgSILENT, sin cambiar nada, los generadores (centrales), bancos, variaciones y cargas cambiadas a mano de cada alimentador (spec 028)">
+          Escanear en DIgSILENT</button>
         {!ws.demanda?.medidores && <small className="muted">Falta el libro de medidores por alimentador.</small>}
       </div>
+      {escaneo && <EscaneoTabla escaneo={escaneo} />}
       <datalist id="demanda-alimentadores">{lista.map((a) => <option key={a} value={a} />)}</datalist>
       {buscados && (
         <div className="table-wrap table-short">
@@ -732,6 +761,39 @@ function BarrasDeSet({ barras, avisos }: { barras: BarraDeSet[]; avisos: string[
           <ul className="small">{avisos.map((a) => <li key={a}>{a}</li>)}</ul>
         </details>
       )}
+    </div>
+  );
+}
+
+/** Spec 028, RF-10: lo que encontró el escaneo, por alimentador. */
+function EscaneoTabla({ escaneo }: { escaneo: Escaneo }) {
+  const deQuien = (o: string) => (o === 'operador' ? 'a mano' : 'del conversor');
+  const ajenas = escaneo.variaciones.filter((v) => v.origen === 'operador');
+  return (
+    <div className="table-wrap table-short">
+      <p className="muted">Escaneo de {escaneo.project}{escaneo.caso ? ` en «${escaneo.caso}»` : ''}: solo lectura.</p>
+      <table className="table">
+        <thead><tr><th>Alimentador</th><th>Generadores (centrales)</th><th>Bancos</th><th>Cargas cambiadas</th></tr></thead>
+        <tbody>{Object.entries(escaneo.alimentadores).map(([f, d]) => (
+          <tr key={f}>
+            <td className="strong">{f}</td>
+            {d.error ? <td colSpan={3} className="err">{d.error}</td> : <>
+              <td>{(d.generadores ?? []).length ? (d.generadores ?? []).map((g) => (
+                <div key={g.generador}>{g.generador} · barra {g.barra ?? '—'} · {fmtNum(g.p_kw ?? 0)} kW
+                  {g.en_servicio ? '' : ' (fuera de servicio)'} · <small className="muted">{deQuien(g.origen)}</small></div>
+              )) : <span className="muted">ninguno</span>}</td>
+              <td>{(d.bancos ?? []).length ? (d.bancos ?? []).map((b) => (
+                <div key={b.banco}>{b.banco} · {b.barra ?? '—'} · {fmtNum(b.q_nominal_kvar ?? 0)} kvar
+                  {b.en_servicio ? '' : ' (fuera de servicio)'} · <small className="muted">{deQuien(b.origen)}</small></div>
+              )) : <span className="muted">ninguno</span>}</td>
+              <td>{(d.cargas_cambiadas ?? []).length || <span className="muted">ninguna</span>}</td>
+            </>}
+          </tr>
+        ))}</tbody>
+      </table>
+      {ajenas.length > 0 && <p className="muted">Variaciones hechas a mano: {ajenas.map((v) =>
+        `${v.variacion}${v.activa ? ' (activa)' : ''}, ${v.objetos} objeto(s)`).join('; ')}</p>}
+      {escaneo.avisos.map((a) => <p key={a} className="muted">{a}</p>)}
     </div>
   );
 }

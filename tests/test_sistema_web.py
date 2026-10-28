@@ -251,3 +251,40 @@ def test_reconstruir_reconvierte_con_las_medidas(herramienta):
     assert suministros == [str(Path('l/s.xlsx'))] * 2
     assert ('POST', '/powerfactory/flow') in web.llamadas
     assert [r for _m, r in web.llamadas].count('/demanda/ajuste/plan') == 1
+
+
+def test_escanea_antes_de_calibrar_y_la_central_toma_su_barra(herramienta, monkeypatch, capsys):
+    """028:RF-15 — el sistema se escanea antes del plan; la central del perfil sin barra va al
+    plan con la del generador que encontró el escaneo."""
+    from igea_dgs import perfil_empresa
+
+    monkeypatch.setattr(perfil_empresa, 'datos_perfil', lambda *a, **k: {})
+    monkeypatch.setattr(perfil_empresa, 'centrales_termicas', lambda _d: {
+        'PI102': {'generacion': 'CT_X', 'llegada': 'CT_L', 'salida': 'CT_S'}})
+
+    class ConEscaneo(WebFalsa):
+        planes: list = []
+
+        def post(self, ruta, **kw):
+            if ruta == '/demanda/ajuste/plan':
+                self.llamadas.append(('POST', ruta))
+                self.planes.append(kw['json'])
+                return {'token': 't', 'avisos': []}
+            return super().post(ruta, **kw)
+
+        def esperar(self, trabajo):
+            if trabajo['id'] == '/powerfactory/escanear':
+                self.esperados.append(trabajo['id'])
+                return {'status': 'done', 'result': {
+                    'resumen': {'PI102': {'generadores': 1, 'bancos': 0, 'cargas_cambiadas': 0}},
+                    'alimentadores': {'PI102': {'generadores': [
+                        {'barra': 'N5', 'en_servicio': True, 'origen': 'operador'}]}}}}
+            return super().esperar(trabajo)
+
+    web = ConEscaneo(informes=[VALIDO])
+    assert _correr(herramienta, web) == 0
+    rutas = [r for _m, r in web.llamadas]
+    assert rutas.index('/powerfactory/escanear') < rutas.index('/demanda/ajuste/plan')
+    [plan] = web.planes
+    assert plan['centrales']['PI102']['nodo'] == 'N5'
+    assert 'escaneo PI102: 1 generador(es)' in capsys.readouterr().out

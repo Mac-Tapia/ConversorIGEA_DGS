@@ -442,6 +442,14 @@ class SelectionIn(BaseModel):
     nombre: str = ''
 
 
+class EscaneoIn(BaseModel):
+    """Spec 028: alimentadores de un proyecto de DIgSILENT a escanear."""
+
+    project: str = Field(min_length=1)
+    feeders: list[str] = Field(min_length=1)
+    anio: int | None = None
+
+
 class SistemaIn(BaseModel):
     """Spec 022, RF-48: los zonales a convertir; vacío, todos. RF-61: los alimentadores a
     reconstruir con su medida y las medidas de los demás, en kW."""
@@ -1122,6 +1130,20 @@ def create_app(
         ws = ws_or_404(wid)
         return submit(ws, 'pf_projects', 'Leer proyectos de DIgSILENT',
                       lambda ctx: services.pf_projects(ws, ctx), lane='powerfactory')
+
+    # Spec 028, RF-9: escanear alimentadores antes de recalibrar (solo lectura).
+    @app.post('/api/workspaces/{wid}/powerfactory/escanear', status_code=202)
+    def pf_escanear(wid: str, body: EscaneoIn) -> dict:
+        ws = ws_or_404(wid)
+        quien = body.feeders[0] if len(body.feeders) == 1 else f'{len(body.feeders)} alim.'
+        return submit(ws, 'pf_escaneo', f'Escanear {quien} · {body.project}',
+                      lambda ctx: services.escanear_alimentadores(ws, ctx, body.project, body.feeders,
+                                                                  body.anio),
+                      lane='powerfactory')
+
+    @app.get('/api/workspaces/{wid}/powerfactory/escaneo')
+    def pf_escaneo_guardado(wid: str) -> dict:
+        return {'escaneo': ws_or_404(wid).escaneo}
 
     # Spec 018, RF-13: la última lista leída, sin abrir DIgSILENT (los trabajos no sobreviven
     # a un reinicio de la web).
