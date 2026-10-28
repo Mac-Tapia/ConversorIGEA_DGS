@@ -18,6 +18,7 @@ Estado: borrador del 2026-10-28, pendiente de aprobación junto con la spec.
 | J. Ajuste LoRA/QLoRA (condicional) | `asistente/lora.py` (nuevo), `tools/asistente_lora.py` (nuevo) | RF-21 |
 | K. Operación | `digital_twin/oraculo.deriva`, `asistente/vigilancia.py`, ruta de vuelta atrás en `web/app.py` | RF-22 a RF-24 |
 | L. Trabajador del motor | `web/jobs.py` (carril `engine` en un proceso aparte), `web/services.py` | RF-25 a RF-27 |
+| O. Recompensas, penalizaciones y decisión | `asistente/almacen.py` (señal y pares), `asistente/reflexiones.py` (nuevo), `asistente/interprete.py` (umbrales por tarea, ejemplos parecidos), `asistente/indice.responder` (citas comprobadas) | RF-35 a RF-42 |
 | N. Auditoría del dataset | `digital_twin/auditoria.py` (nuevo), `tools/digital_twin_auditar.py` (nuevo), `oraculo.entrenar` y `asistente/transformer.entrenar` la llaman antes | RF-29 a RF-34 |
 | M. Aceptación | `tools/sistema_web.py` y el asistente sobre todos los sistemas | RF-28 |
 

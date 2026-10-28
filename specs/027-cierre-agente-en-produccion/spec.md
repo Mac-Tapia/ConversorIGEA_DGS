@@ -57,6 +57,9 @@ vuelta atrás) y una web que no se bloquea.
 | Razonar y actuar | S. Yao et al., «ReAct», ICLR 2023 | Intercalar razonamiento y llamadas a herramientas, con traza auditable |
 | Recuperación | Y. Gao et al., «Retrieval-Augmented Generation for LLMs: A Survey» (arXiv 2312.10997, 2023-2024) | Respuestas con cita del índice del proyecto |
 | Ajuste fino eficiente | E. Hu et al., «LoRA», ICLR 2022; T. Dettmers et al., «QLoRA», NeurIPS 2023 | Adaptar el modelo local con poca memoria de GPU, solo si las puertas lo exigen |
+| Preferencias | R. Rafailov et al., «Direct Preference Optimization», NeurIPS 2023 | Aprender de pares «rechazada frente a corregida» sin un modelo de recompensa aparte ni RL |
+| Recompensa verbal | N. Shinn et al., «Reflexion: Language Agents with Verbal Reinforcement Learning», NeurIPS 2023 | Penalizar un fallo con una nota en memoria que guía la siguiente decisión, sin reentrenar |
+| Abstención calibrada | V. Quach et al., «Conformal Language Modeling», ICLR 2024 | Umbrales con garantía de tasa de error para decidir cuándo preguntar |
 | Operación de modelos | D. Kreuzberger, N. Kühl, S. Hirschl, «MLOps: Overview, Definition, and Architecture», *IEEE Access* 11 (2023) 31866-31879 | Registro de modelos, linaje de datos, monitoreo, reentrenamiento y vuelta atrás |
 
 ## Requisitos
@@ -138,6 +141,41 @@ Robustez de la web
   seguimiento de trabajos en menos de 1 s.
 - RF-27: SI un trabajo del motor supera un límite de memoria fijado en la configuración,
   ENTONCES EL SISTEMA lo detendrá y lo dirá, sin detener la API.
+
+Asistente: aprendizaje, razonamiento, decisión, recompensas y penalizaciones
+
+Lo que hay (revisión del 2026-10-28): (1) comprensión: el Transformer da tarea, confianza y
+datos; con confianza menor que el umbral pasa a Ollama, y si nadie llega pregunta; lo que tiene
+forma inequívoca (periodo, número, ruta) lo fijan reglas; (2) razonamiento: `plan.resolver`
+contrasta cada dato con lo que existe (parecido ≥ 0,8) y escribe su razón; (3) decisión: umbrales
+fijos y pasos fijos por tarea; todo lo que escribe espera confirmación; (4) aprendizaje: solo
+supervisado, con las órdenes confirmadas o corregidas (5 hoy) repetidas ×5 junto a las
+sintéticas; **no hay recompensa ni penalización**: una orden rechazada o una ejecución fallida
+no enseñan nada; (5) consultas por prompt: recuperación BM25 + vectores (50/50), «No lo sé»
+por umbral y respuesta de Ollama con citas.
+
+- RF-35: EL SISTEMA guardará con cada orden su señal: confirmada (recompensa), corregida
+  (penalización de la interpretación del modelo y ejemplo positivo de la corregida),
+  rechazada (penalización) y ejecución fallida (penalización de la acción, con el error).
+- RF-36: EL SISTEMA formará, con cada corrección, un par de preferencia (la interpretación
+  rechazada frente a la corregida) para el ajuste por preferencias directas (DPO) del modelo
+  local con LoRA, dentro de RF-21.
+- RF-37: CUANDO una ejecución falle o el operador corrija una orden, EL SISTEMA guardará una
+  nota con la causa y la corrección, y la dará como contexto cuando llegue una orden parecida
+  (memoria de reflexiones, sin cambiar pesos).
+- RF-38: EL SISTEMA calibrará por tarea, con las órdenes reales, el umbral de confianza a
+  partir del cual no pregunta, de modo que la tasa de error de lo que interpreta sin preguntar
+  no supere la fijada en la configuración (por defecto 2 %); por debajo, preguntará.
+- RF-39: CUANDO pase una orden a Ollama, EL SISTEMA le dará como ejemplos las k órdenes
+  confirmadas más parecidas (por defecto 5).
+- RF-40: EL SISTEMA decidirá según el impacto: una consulta de lectura puede responderse sin
+  confirmar; toda escritura en DIgSILENT o en disco espera confirmación mientras se cumpla
+  RF-19.
+- RF-41: EL SISTEMA comprobará que cada cita de una respuesta exista en el índice y comparta
+  términos con la frase que apoya; una respuesta con una cita que no la apoya se cambia por los
+  trozos citados.
+- RF-42: EL SISTEMA medirá las consultas con un conjunto de preguntas reales del operador: la
+  fracción respondida con cita correcta y la fracción de «No lo sé» acertados.
 
 Auditoría del dataset de cada modelo (antes de entrenar)
 
