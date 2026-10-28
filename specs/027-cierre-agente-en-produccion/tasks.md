@@ -97,9 +97,13 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       propone con fuera de dominio, ≥ 10 nuevos o un 20 % más), `--deriva` en la herramienta, ruta
       `POST …/digital-twin/deriva` y `POST /api/modelos/{gemelo|asistente}/volver`; botones «Revisar
       deriva» y «Volver al modelo anterior» en 5.2.
-- [ ] T13. Carril `engine` en un proceso trabajador con límite de memoria. (RF-25 a RF-27)
+- [x] T13. Carril `engine` en un proceso trabajador con límite de memoria. (RF-25 a RF-27)
       Hecho cuando: `/api/health` < 1 s durante la búsqueda de la máxima de Chincha y un
       trabajo que supera el límite se detiene sin tumbar la API.
+      Hecho el 2026-10-28: `JobContext.en_proceso` (proceso `spawn` con Registro, avance y
+      cancelación; límite `IGEA_LIMITE_MEMORIA_MB`, 6000 por defecto, vigilado con psutil) y la
+      máxima por barra en `demanda_medida.maximas_por_barra`. En la web con Chincha (28 medidores,
+      13 barras, 15 s), `/api/health` respondió en 0,031 s como máximo.
 - [x] T15. Señal de cada orden (confirmada, corregida, rechazada, fallida) y pares de
       preferencia. (RF-35, RF-36)
       Hecho cuando: pruebas del almacén en verde; la web muestra recompensas y penalizaciones

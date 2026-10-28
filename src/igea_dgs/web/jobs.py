@@ -56,6 +56,36 @@ TIEMPO_AGOTADO = 124
 LIMITE_ARRANQUE_PF_S = 180.0
 
 
+class MemoriaExcedida(RuntimeError):
+    """Un trabajo del motor en su proceso pasó el límite de memoria (027:RF-27)."""
+
+
+#: Límite de memoria de un trabajo del motor en su proceso, en MB (027:RF-27); se cambia con
+#: ``IGEA_LIMITE_MEMORIA_MB``. Con Nasca (2026-10-27) la web se quedó sin memoria al abrir
+#: varias copias de los .xls de cabecera de ~400 MB.
+LIMITE_MEMORIA_MB = 6000
+
+
+def limite_memoria_mb() -> float:
+    try:
+        return float(os.environ.get('IGEA_LIMITE_MEMORIA_MB') or LIMITE_MEMORIA_MB)
+    except ValueError:
+        return float(LIMITE_MEMORIA_MB)
+
+
+def _en_hijo(fn, args, kwargs, cola, cancelado) -> None:
+    """Lo que corre en el proceso del trabajo: la función con su avance y su Registro."""
+    try:
+        res = fn(*args, progreso=lambda i, n, m='': cola.put(('progreso', (i, n, m))),
+                 log=lambda texto: cola.put(('log', texto)), cancelado=cancelado.is_set, **kwargs)
+        cola.put(('fin', res))
+    except BaseException as exc:  # noqa: BLE001 - el padre lo vuelve a lanzar
+        try:
+            cola.put(('error', exc))
+        except Exception:  # noqa: BLE001 - excepción que no se puede enviar
+            cola.put(('error', RuntimeError(f'{type(exc).__name__}: {exc}')))
+
+
 class JobCancelled(Exception):
     """El operador canceló el trabajo."""
 
@@ -167,6 +197,65 @@ class JobContext:
     def check_cancel(self) -> None:
         if self.job.cancel.is_set():
             raise JobCancelled()
+
+    def en_proceso(self, fn: Callable[..., Any], *args: Any, limite_mb: float | None = None,
+                   **kwargs: Any) -> Any:
+        """Ejecuta ``fn`` (de nivel superior, con argumentos que se puedan enviar) en un proceso
+        aparte y devuelve su resultado (027:RF-25 a RF-27).
+
+        Leer los libros de cabecera dentro del proceso de la API se llevaba el GIL y la memoria:
+        con Chincha, ``/api/health`` tardaba segundos y Nasca agotó la memoria (2026-10-27).
+        ``fn`` recibe ``progreso``, ``log`` y ``cancelado``, que llegan al Registro y a la
+        cancelación de este trabajo. Si su proceso pasa de ``limite_mb``, se termina con
+        :class:`MemoriaExcedida`; la API sigue.
+        """
+        import multiprocessing as mp
+
+        limite = float(limite_mb if limite_mb is not None else limite_memoria_mb())
+        ctx = mp.get_context('spawn')
+        cola = ctx.Queue()
+        cancelado = ctx.Event()
+        proc = ctx.Process(target=_en_hijo, args=(fn, args, kwargs, cola, cancelado), daemon=True,
+                           name=f'igea-motor-{self.job.id}')
+        proc.start()
+        try:
+            import psutil
+
+            vigilado = psutil.Process(proc.pid)
+        except Exception:  # noqa: BLE001 - sin psutil no hay límite de memoria
+            vigilado = None
+        try:
+            while True:
+                try:
+                    tipo, dato = cola.get(timeout=0.2)
+                except queue.Empty:
+                    tipo = None
+                if tipo == 'fin':
+                    return dato
+                if tipo == 'error':
+                    raise dato
+                if tipo == 'log':
+                    self.log(dato)
+                elif tipo == 'progreso':
+                    self.progress(*dato)
+                if self.cancel.is_set():
+                    cancelado.set()
+                if vigilado is not None:
+                    try:
+                        mb = vigilado.memory_info().rss / 2**20
+                    except Exception:  # noqa: BLE001 - el proceso ya terminó
+                        mb = 0.0
+                    if mb > limite:
+                        proc.kill()
+                        raise MemoriaExcedida(f'el trabajo usó {mb:,.0f} MB, más que su límite de '
+                                              f'{limite:,.0f} MB; se detuvo y la web sigue (027:RF-27)')
+                if tipo is None and not proc.is_alive() and cola.empty():
+                    raise RuntimeError(f'el proceso del trabajo terminó sin resultado (código {proc.exitcode})')
+        finally:
+            if proc.is_alive():
+                proc.join(timeout=5)
+            if proc.is_alive():
+                proc.kill()
 
     def sin_retorno(self) -> None:
         """Punto sin retorno: la cancelación llega antes o ya no llega.

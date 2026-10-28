@@ -1971,3 +1971,131 @@ def valor_de_barra_en(curvas: Sequence[Sequence[tuple[datetime, float, float | N
         return None
     return {'fecha': fecha, 'kw': sum(p[0] for p in puntos),
             'kvar': sum((p[1] or 0.0) for p in puntos), 'registros': 1}
+
+
+def maximas_por_barra(libros, alias, barras, pares, periodo, avisos, *, progreso=lambda *_a: None,
+                      log=lambda _t: None, cancelado=lambda: False):
+    """La máxima de cada barra de SET y sus alimentadores en ese instante (022:RF-37 a RF-46,
+    RF-84 a RF-91), sin nada de la web: corre en el proceso de su trabajo (027:RF-25). Devuelve
+    ``(resultados, barras_informe, avisos, maximas_de_barra, instantes)``."""
+    from collections import defaultdict
+
+    def duenio(a: str) -> str:
+        return a[len('Central '):].strip() if a.lower().startswith('central ') else a
+
+    avisos = list(avisos)
+    # Los libros se abren una vez para la barra y todos sus instantes (022:RF-84).
+    cabecera = Cabecera(libros, alias)
+    de_barra = maximas(libros, [(b.clave, m) for b in barras for m in b.medidores + b.centrales],
+                       alias=alias, cancelado=cancelado, cabecera=cabecera)
+    # Las curvas de los alimentadores de las SET con barra de 60 kV, con los libros ya
+    # abiertos: su instante tiene que tener registro en todos (022:RF-91).
+    con_alta = {f for b in barras if b.alta or b.de_alta for f in b.alimentadores}
+    de_alimentador = maximas(libros, [(a, m) for a, m in pares if duenio(a).upper() in con_alta],
+                             alias=alias, periodo=periodo, cancelado=cancelado,
+                             cabecera=cabecera) if con_alta else []
+    curva_de = {(r.alimentador, r.medidor): r.curva for r in de_barra if r.curva}
+    fechas_de: dict[str, list[set]] = defaultdict(list)
+    for r in de_alimentador:
+        if r.curva:
+            fechas_de[duenio(r.alimentador).upper()].append({f for f, kw, _q in r.curva if kw is not None})
+
+    def comunes_de_la_set(alta_clave: str) -> set | None:
+        """Los registros que tienen todos los medidores de los alimentadores de la SET de
+        esa barra de 60 kV (022:RF-91), o ``None`` si ninguno tiene curva."""
+        feeders = {f for b in barras if b.clave == alta_clave or b.de_alta == alta_clave
+                   for f in b.alimentadores}
+        conjuntos = [s for f in feeders for s in fechas_de.get(f, [])]
+        return set.intersection(*conjuntos) if conjuntos else None
+    instantes: dict[str, datetime] = {}
+    info = []
+    maxima_alta: dict[str, dict] = {}
+    # 022:RF-84: primero la máxima de cada barra de 60 kV; sus barras de 22,9 y 10 kV se
+    # leen después, en esa misma fecha y hora, y no en la suya.
+    for b in sorted(barras, key=lambda x: not x.alta):
+        # Un transformador sin registros en el periodo (B-PA6T1 en julio de 2026) no entra
+        # en la suma: con él, ninguna fecha era común y la barra se quedaba sin instante.
+        sin_curva = [m for m in b.medidores if not curva_de.get((b.clave, m))]
+        if sin_curva and len(sin_curva) < len(b.medidores):
+            avisos.append(f'{b.clave}: {", ".join(sin_curva)} sin registros'
+                          + (f' en {periodo}' if periodo else '')
+                          + '; la barra se suma con los demás (022:RF-84).')
+        curvas = [curva_de[(b.clave, m)] for m in b.medidores if curva_de.get((b.clave, m))]
+        alta = maxima_alta.get(b.de_alta) if b.de_alta else None
+        if alta is not None:
+            mx = valor_de_barra_en(curvas, alta['fecha']) if curvas else None
+            if mx is None and b.medidores:
+                avisos.append(f'{b.clave}: sin el registro de {", ".join(b.medidores)} el '
+                              f'{alta["fecha"]}, el de la máxima de {b.de_alta}; sus alimentadores '
+                              'se calibran igual en esa fecha y hora (022:RF-84).')
+            mx = mx or {'fecha': alta['fecha'], 'kw': None, 'kvar': None, 'registros': 0}
+        else:
+            mx = maxima_de_barra(curvas, periodo) if curvas else None
+            comunes = comunes_de_la_set(b.clave) if b.alta and mx is not None else None
+            if comunes is not None and mx['fecha'] not in comunes:
+                # 022:RF-91: CHNB6T1 dio su máxima el 2026-07-24 11:45 y CHN101, CHN102 y
+                # CHN201 no tienen ese registro: se quedaban sin calibrar. La máxima de la
+                # barra, entre los registros que tienen también todos sus alimentadores.
+                filtradas = [[x for x in c if x[0] in comunes] for c in curvas]
+                otra = maxima_de_barra(filtradas, periodo) if all(filtradas) else None
+                if otra is not None:
+                    avisos.append(f"{b.clave}: su máxima del {mx['fecha']} no tiene registro en todos "
+                                  f"sus alimentadores; se toma la del {otra['fecha']}, la mayor con "
+                                  'registro en todos (022:RF-91).')
+                    mx = otra
+                else:
+                    avisos.append(f'{b.clave}: ningún registro común con sus alimentadores'
+                                  + (f' en {periodo}' if periodo else '')
+                                  + '; los que no tengan su registro, con su propia máxima (022:RF-91).')
+            if mx is None:
+                avisos.append(f'{b.clave}: sin registros comunes de {", ".join(b.medidores)}'
+                              + (f' en {periodo}' if periodo else '')
+                              + ('; sus barras de media, con su propia máxima (022:RF-84).' if b.alta else
+                                 '; sus alimentadores, con su propia máxima (022:RF-42).'))
+                continue
+        if b.alta:
+            maxima_alta[b.clave] = mx
+        centrales = []
+        for m in b.centrales:
+            punto = next((x for x in curva_de.get((b.clave, m)) or [] if x[0] == mx['fecha']), None)
+            centrales.append({'medidor': m, 'kw': punto[1] if punto else None,
+                              'kvar': punto[2] if punto else None})
+        for f in b.alimentadores:
+            instantes[f] = mx['fecha']
+        info.append({'clave': b.clave, 'set': b.set_codigo, 'kv': b.kv, 'suelta': b.suelta,
+                     'alta': b.alta, 'de_alta': b.de_alta if alta is not None else '',  # RF-84
+                     'transformadores': b.transformadores,                         # RF-87
+                     'medidores': b.medidores, 'centrales': centrales,
+                     'alimentadores': b.alimentadores, 'fecha': mx['fecha'].isoformat(sep=' '),
+                     'kw': mx['kw'], 'kvar': mx['kvar'], 'registros': mx['registros']})
+        valor = f'{mx["kw"]:,.1f} kW' if mx['kw'] is not None else 'sin registro'
+        suma = ' + '.join(f'{m} ({b.transformadores[m]})' if b.transformadores.get(m) else m
+                          for m in b.medidores)
+        log(f'  {b.clave}: {valor} el {mx["fecha"]} ({suma})'
+                + (f', instante de {b.de_alta}' if alta is not None else '')
+                + (f'; {", ".join(b.alimentadores)} en esa fecha y hora' if b.alimentadores else ''))
+    # 022:RF-89: la barra de 60 kV tiene que dar al menos lo que dan sus barras de media en
+    # su instante, menos la generación de sus centrales. CHNB6T1 (Chincha Nueva) marcó 8,3
+    # frente a ~3 300 kW de media (2026-10-28): otra unidad (MW) o un medidor mal
+    # configurado. El instante se usa igual (la máxima no cambia con la unidad), y se avisa.
+    for alta in (x for x in info if x['alta'] and x['kw'] is not None):
+        media = [x for x in info if x.get('de_alta') == alta['clave'] and x['kw'] is not None]
+        neto = (sum(x['kw'] for x in media)
+                - sum(c['kw'] or 0.0 for x in media for c in x['centrales']))
+        if media and neto > 0 and alta['kw'] < 0.5 * neto:
+            avisos.append(f"{alta['clave']}: {alta['kw']:,.1f} kW frente a {neto:,.1f} kW de sus barras de "
+                          f"media en ese instante; revise la unidad (¿MW?) o el medidor "
+                          f"{', '.join(alta['medidores'])}. El instante se usa igual (022:RF-89).")
+    grupos: dict[Any, list[tuple[str, str]]] = defaultdict(list)
+    for a, m in pares:
+        grupos[instantes.get(duenio(a).upper())].append((a, m))
+    # Cada instante (uno por SET con barra de 60 kV) con los mismos libros ya abiertos: un
+    # hilo por instante abría cada uno su copia de los .xls de ~400 MB y la web se quedó sin
+    # memoria con Nasca (2026-10-27); abrir es lo que cuesta, no buscar un registro.
+    res = []
+    for inst, ps in grupos.items():
+        res += maximas(libros, ps, alias=alias, periodo=None if inst else periodo,
+                       instante=inst, cancelado=cancelado, cabecera=cabecera)
+    orden = {m: i for i, (_a, m) in enumerate(pares)}
+    res.sort(key=lambda r: orden.get(r.medidor, len(orden)))
+    return res, info, avisos, de_barra, instantes
