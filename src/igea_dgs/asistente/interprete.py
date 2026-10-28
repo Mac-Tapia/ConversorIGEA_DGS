@@ -7,9 +7,8 @@ sin depender de ningún modelo.
 """
 from __future__ import annotations
 
-from collections.abc import Sequence
-
 import re
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -79,7 +78,7 @@ def _por_reglas(texto: str) -> dict[str, list[dict]]:
 
 def interpretar(texto: str, *, transformer: Any = None, ollama: Any = None,
                 umbral: float = UMBRAL_TRANSFORMER, umbral_ollama: float = UMBRAL_OLLAMA,
-                contexto: Sequence[str] = ()) -> Interpretacion:
+                contexto: Sequence[str] = (), umbrales: Mapping[str, float] | None = None) -> Interpretacion:
     """La tarea y los datos de la orden, con quién la entendió (RF-7)."""
     texto = texto.strip()
     consultados = []
@@ -87,7 +86,8 @@ def interpretar(texto: str, *, transformer: Any = None, ollama: Any = None,
     if transformer is not None:
         previa = transformer.predecir(texto)
         consultados.append(f"Transformer {previa.get('version') or ''}".strip())
-        if previa['confianza'] >= umbral:
+        # 027:RF-38: el umbral de su tarea, calibrado con las órdenes reales, si lo hay.
+        if previa['confianza'] >= (umbrales or {}).get(previa['tarea'], umbral):
             return _con_reglas(Interpretacion(texto, previa['tarea'], previa['confianza'], 'transformer',
                                               previa['datos'], previa.get('alternativas') or [], consultados))
     if ollama is not None:

@@ -10,7 +10,7 @@ más parecidas como ejemplos (RF-39).
 """
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from . import almacen
@@ -77,3 +77,51 @@ def resumen() -> dict[str, dict[str, int]]:
         d[f['senal']] += 1
         d['recompensas' if f['valor'] > 0 else 'penalizaciones'] += 1
     return out
+
+
+#: Tasa de error máxima de lo que se interpreta sin preguntar (027:RF-38).
+ERROR_MAX = 0.02
+#: Órdenes reales de una tarea con las que se calibra su umbral; con menos, el de siempre.
+MIN_POR_TAREA = 10
+
+
+def calibrar_umbrales(filas: Sequence[tuple[str, float, bool]], error_max: float = ERROR_MAX,
+                      minimo: int = MIN_POR_TAREA) -> dict[str, float]:
+    """Por tarea, el menor umbral de confianza con el que lo interpretado sin preguntar no se
+    equivoca más que ``error_max`` (027:RF-38). ``filas``: (tarea, confianza, acertó)."""
+    por_tarea: dict[str, list[tuple[float, bool]]] = {}
+    for tarea, conf, ok in filas:
+        por_tarea.setdefault(tarea, []).append((float(conf), bool(ok)))
+    out = {}
+    for tarea, xs in por_tarea.items():
+        if len(xs) < minimo:
+            continue
+        xs.sort(key=lambda x: -x[0])
+        mejor, errores = None, 0
+        for i, (conf, ok) in enumerate(xs, 1):
+            errores += not ok
+            # Solo se corta entre confianzas distintas: un umbral deja pasar a todas las iguales.
+            if i >= minimo and errores / i <= error_max and (i == len(xs) or xs[i][0] < conf):
+                mejor = conf
+        if mejor is not None:
+            out[tarea] = mejor
+    return out
+
+
+def filas_reales() -> list[tuple[str, float, bool]]:
+    """Cada orden real con su confianza y si el operador la dio por buena (confirmada) o no
+    (corregida o rechazada); las fallidas son de la acción, no de la interpretación."""
+    senal = {f['plan']: f['senal'] for f in almacen.leer('senales') if f.get('senal') != 'fallida'}
+    out = []
+    for o in almacen.leer('ordenes'):
+        s = senal.get(o.get('plan'))
+        if s and o.get('tarea') and o.get('confianza') is not None:
+            out.append((o['tarea'], float(o['confianza']), s == 'confirmada'))
+    return out
+
+
+def calibrar_y_guardar() -> dict[str, float]:
+    """Calibra los umbrales con las órdenes reales y los guarda para el intérprete (RF-38)."""
+    umbrales = calibrar_umbrales(filas_reales())
+    almacen.guardar_json('umbrales', umbrales)
+    return umbrales

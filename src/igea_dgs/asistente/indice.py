@@ -221,6 +221,40 @@ def cargar_o_construir(repo: Path, ollama: Any = None) -> Indice:
     return construir(repo, ollama)
 
 
+def _terminos(texto: str) -> set[str]:
+    return {w for w in re.findall(r'\w{4,}', normalizar(texto)) if w not in _VACIAS}
+
+
+def citas_que_no_apoyan(redactada: str, citas: Sequence[dict]) -> list[str]:
+    """Cada cita de la respuesta que no existe o no comparte ningún término con la frase que la
+    lleva (027:RF-41): un modelo pequeño citaba [5] tras una frase que no salía de ese trozo."""
+    por_n = {c['n']: c for c in citas}
+    problemas = []
+    for frase in re.split(r'(?<=[.!?;])\s+', redactada or ''):
+        for n in map(int, re.findall(r'\[(\d+)\]', frase)):
+            cita = por_n.get(n)
+            if cita is None:
+                problemas.append(f'[{n}] no está entre los trozos hallados')
+            elif not _terminos(re.sub(r'\[\d+\]', '', frase)) & _terminos(cita['texto']):
+                problemas.append(f'[{n}] no apoya «{frase.strip()[:80]}»')
+    return problemas
+
+
+def medir(indice: Indice, preguntas: Sequence[dict], ollama: Any = None) -> dict[str, Any]:
+    """Las consultas medidas con preguntas reales del operador (027:RF-42): ``{'pregunta',
+    'fuente'}``, con ``fuente`` el fichero que la responde o ``None`` si no hay respuesta en el
+    proyecto. Da la fracción con una cita de la fuente esperada y la de «No lo sé» acertados."""
+    con, sin = [p for p in preguntas if p.get('fuente')], [p for p in preguntas if not p.get('fuente')]
+    aciertos_cita = 0
+    for p in con:
+        r = responder(indice, p['pregunta'], ollama)
+        aciertos_cita += r['sabe'] and any(str(p['fuente']) in str(c['fuente']) for c in r['citas'])
+    no_lo_se = sum(not responder(indice, p['pregunta'], ollama)['sabe'] for p in sin)
+    return {'preguntas': len(preguntas),
+            'con_cita_correcta': aciertos_cita / len(con) if con else None,
+            'no_lo_se_acertados': no_lo_se / len(sin) if sin else None}
+
+
 def responder(indice: Indice, pregunta: str, ollama: Any = None, k: int = 6) -> dict[str, Any]:
     """La respuesta con sus citas; si ningún trozo responde, «No lo sé» (RF-18)."""
     vector = None
@@ -239,6 +273,11 @@ def responder(indice: Indice, pregunta: str, ollama: Any = None, k: int = 6) -> 
     explicacion = re.sub(r'\[\d+\]', '', redactada or '')
     if redactada and 'no lo sé' not in redactada.lower() and re.search(r'\[\d+\]', redactada) \
             and len(re.findall(r'\w', explicacion)) >= 40:
-        return {'respuesta': redactada, 'citas': citas, 'sabe': True, 'redactada_por': ollama.modelo}
+        problemas = citas_que_no_apoyan(redactada, citas)                  # 027:RF-41
+        if not problemas:
+            return {'respuesta': redactada, 'citas': citas, 'sabe': True, 'redactada_por': ollama.modelo}
+    else:
+        problemas = []
     resumen = ' '.join(f'[{c["n"]}] {c["texto"][:300]}' for c in citas[:3])
-    return {'respuesta': resumen, 'citas': citas, 'sabe': True, 'redactada_por': None}
+    return {'respuesta': resumen, 'citas': citas, 'sabe': True, 'redactada_por': None,
+            **({'citas_sin_apoyo': problemas} if problemas else {})}

@@ -5762,7 +5762,8 @@ def asistente_orden(ws: Workspace, texto: str, trabajos: list[dict] | None = Non
     transformer, ollama = _asistente_modelos()
     from ..asistente.senales import contexto_para
 
-    interp = interpretar(texto, transformer=transformer, ollama=ollama, contexto=contexto_para(texto))
+    interp = interpretar(texto, transformer=transformer, ollama=ollama, contexto=contexto_para(texto),
+                         umbrales=almacen.leer_json('umbrales') or {})                       # 027:RF-38
     plan = resolver(interp, asistente_vocabulario(ws))
     extras = _asistente_extras(ws, plan, trabajos or [])
     _asistente_requisitos(ws, plan, extras)
@@ -6124,6 +6125,13 @@ def asistente_entrenar(ws: Workspace, ctx: JobContext) -> dict:
     rc = ctx.run_process([sys.executable, str(_script('asistente_entrenar.py')), '--vocabulario', str(vocab),
                           '--output-json', str(report)], cwd=str(project_root()))
     try:
-        return json.loads(report.read_text(encoding='utf-8'))
+        resultado = json.loads(report.read_text(encoding='utf-8'))
     except (OSError, ValueError):
         raise UserError(f'El entrenamiento del asistente terminó con el código {rc} sin informe.') from None
+    # 027:RF-38: con cada reentrenamiento, el umbral de cada tarea con las órdenes reales.
+    from ..asistente.senales import calibrar_y_guardar
+
+    resultado['umbrales'] = calibrar_y_guardar()
+    if resultado['umbrales']:
+        ctx.log(f"Asistente: umbrales por tarea {resultado['umbrales']} (027:RF-38)")
+    return resultado

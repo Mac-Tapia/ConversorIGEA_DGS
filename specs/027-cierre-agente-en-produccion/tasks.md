@@ -107,10 +107,18 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       fallo forzado).
       Hecho el 2026-10-28: nota por fallo o corrección y `contexto_para` (trigramas) con las 5
       confirmadas más parecidas y las notas, que Ollama recibe antes de la orden.
-- [ ] T17. Umbrales por tarea calibrados con órdenes reales y decisión por impacto. (RF-38, RF-40)
+- [x] T17. Umbrales por tarea calibrados con órdenes reales y decisión por impacto. (RF-38, RF-40)
       Hecho cuando: tasa de error empírica ≤ la fijada en el conjunto real de prueba.
-- [ ] T18. Citas comprobadas y medición de consultas. (RF-41, RF-42)
+      Hecho el 2026-10-28 (código): `senales.calibrar_umbrales` (menor umbral con error ≤ 2 % y al
+      menos 10 órdenes de la tarea), calibrado en cada reentrenamiento y usado por el intérprete;
+      la decisión por impacto (RF-40) ya la daba el plan. Con 5 órdenes reales aún ninguna tarea
+      tiene 10: se calibra cuando el conjunto crezca (RF-17).
+- [x] T18. Citas comprobadas y medición de consultas. (RF-41, RF-42)
       Hecho cuando: prueba con una cita falsa sustituida; informe con preguntas reales.
+      Hecho el 2026-10-28 (código): `indice.citas_que_no_apoyan` cambia la redacción por los trozos
+      si una cita no existe o no comparte términos con su frase; `indice.medir` da la fracción con
+      cita correcta y la de «No lo sé» acertados. Falta el informe: no hay aún preguntas reales del
+      operador con su fuente esperada.
 - [x] T19. Corpus PIDE desde `referencia/PIDEELOR` con `pide_dataset` (texto completo) y su
       auditoría con T0: ficheros, formatos no leídos y fragmentos por artículo. (RF-46, RF-47, RF-51)
       Hecho cuando: el manifiesto cubre los 1397 ficheros con su huella, cada no leído
