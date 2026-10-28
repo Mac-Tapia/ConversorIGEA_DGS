@@ -43,6 +43,9 @@ VERSION_GRAFO = 2
 CLASES_OBJETIVO = (Clase.ACCEPTED.value, Clase.COUNTERFACTUAL.value)
 #: Miembros del conjunto: la desviación entre ellos es la incertidumbre (RF-15).
 MIEMBROS = 3
+#: Tope de la impedancia de una rama en p.u. (r y x): un acoplador cerrado, sin impedancia en el
+#: grafo. Cambiarlo invalida los pesos entrenados con el anterior (027:RF-31).
+Z_ACOPLADOR_PU = 1e-6
 
 
 class Modelo(Protocol):
@@ -57,7 +60,7 @@ class Modelo(Protocol):
 @dataclass
 class Muestra:
     ids: list[str]
-    x: np.ndarray            # nodos × 4: kV relativo, P pu, Q pu, fuente
+    x: np.ndarray            # nodos × 5: log10 kV, P pu, Q pu, fuente, consigna de la fuente
     aristas: np.ndarray      # 2 × E (ambos sentidos)
     z: np.ndarray            # E: impedancia compleja en pu
     inom: np.ndarray         # E: corriente nominal en pu de la base del nodo de salida
@@ -94,8 +97,8 @@ def muestra(grafo: Mapping[str, Any], tensiones: Mapping[str, float] | None = No
             continue
         z_base = kv[a] ** 2 / S_BASE
         zz = complex(float(r.get('r_ohm') or 0.0), float(r.get('x_ohm') or 0.0)) / z_base
-        if abs(zz) < 1e-6:
-            zz = complex(1e-6, 1e-6)       # acoplador cerrado
+        if abs(zz) < Z_ACOPLADOR_PU:
+            zz = complex(Z_ACOPLADOR_PU, Z_ACOPLADOR_PU)       # acoplador cerrado
         i_base = S_BASE / (math.sqrt(3) * kv[a])
         for u, w in ((a, b), (b, a)):
             origen.append(u)
@@ -280,6 +283,16 @@ def dispositivo():
                      '(pip install torch --index-url https://download.pytorch.org/whl/cu126) '
                      'y compruebe el controlador de la tarjeta.')
     return torch.device('cuda')
+
+
+def _parametros(cfg: Entrenamiento) -> int:
+    """Parámetros de un miembro de ``_red`` sin construirla (sin GPU), para la auditoría
+    (027:RF-33): 309 506 con 64 ocultas y 8 pasos, lo mismo que cuenta PyTorch."""
+    h, k = cfg.ocultas, cfg.pasos
+    entrada = (7 * h + h) + (h * h + h)
+    por_paso = ((2 * h + 3) * h + h) + (h * h + h) + (6 * h * h + 6 * h)   # mensaje y GRUCell
+    salida = (h * h + h) + (2 * h + 2)
+    return entrada + k * por_paso + salida
 
 
 def _red(ocultas: int = 64, pasos: int = 8):
@@ -643,6 +656,17 @@ def entrenar(bufer: BuferEpisodios, *, consulta: Consulta | None = None, cfg: En
     muestras, ids = _muestras(bufer, consulta)
     if not muestras:
         return {'entrenado': False, 'motivo': 'no hay episodios con grafo y tensiones'}
+    # 027:RF-29, RF-30: el dataset se audita antes; con valores no finitos no se entrena.
+    from .auditoria import auditar_muestras
+
+    actual_cfg = (cfg or Entrenamiento())
+    auditoria = auditar_muestras(muestras, ids, parametros=MIEMBROS * _parametros(actual_cfg))
+    for aviso in auditoria['avisos']:
+        log(f'Gemelo: {aviso}')
+    if not auditoria['apto']:
+        return {'entrenado': False, 'auditoria': auditoria,
+                'motivo': 'dataset con valores no finitos: ' + ', '.join(
+                    f"{x['episodio']} ({x['campo']})" for x in auditoria['no_finitos'][:10])}
     grupos = {'entrenamiento': [], 'validacion': [], 'prueba': []}
     for m in muestras:
         grupos[particion(m.familia or 'x')].append(m)

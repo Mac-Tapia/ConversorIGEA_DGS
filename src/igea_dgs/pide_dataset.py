@@ -182,7 +182,8 @@ def _firma(path: Path) -> tuple[str, str]:
     if inicio.startswith(b'PK\x03\x04'):
         return 'zip_container', 'extractable' if ext in {'.xlsx', '.docx', '.pptx', '.kmz'} else 'archive'
     if inicio.startswith(bytes.fromhex('D0CF11E0A1B11AE1')):
-        return 'ole_compound', 'native_required'
+        # El .xls lo lee calamine, como los libros de cabecera; los demás OLE (msg…), no.
+        return 'ole_compound', 'extractable' if ext == '.xls' else 'native_required'
     if inicio.startswith(b'Rar!'):
         return 'rar_archive', 'archive'
     if ext in {'.pfd', '.dwg', '.mpp', '.msg', '.bak', '.wf1', '.ci1', '.geprint'} or not ext:
@@ -304,10 +305,25 @@ def _extraer_pdf(path: Path, max_chars: int) -> tuple[list[dict], list[dict], li
     return fragments, [{'kind': 'pdf', 'pages': len(reader.pages)}], warnings
 
 
+def _extraer_docx_crudo(path: Path, max_chars: int) -> tuple[list[dict], list[dict], list[str]]:
+    """El texto de ``word/document.xml`` sin python-docx: un Word antiguo guarda sus imágenes
+    con «\\» en la ruta interna y python-docx no lo abre (P&C-059-2022 de PIDEELOR)."""
+    with ZipFile(path) as archive:
+        xml = archive.read('word/document.xml').decode('utf-8', errors='replace')
+    parrafos = [''.join(re.findall(r'<w:t[^>]*>([^<]*)</w:t>', p)) for p in re.split(r'</w:p>', xml)]
+    fragments: list[dict[str, Any]] = []
+    for numero, texto in enumerate((p for p in parrafos if p.strip()), 1):
+        fragments.extend(_fragmentos(texto, f'paragraph:{numero}', max_chars))
+    return fragments, [{'kind': 'docx', 'paragraphs': len(fragments), 'tables': None}], ['docx_sin_python_docx']
+
+
 def _extraer_docx(path: Path, max_chars: int) -> tuple[list[dict], list[dict], list[str]]:
     from docx import Document
 
-    doc = Document(path)
+    try:
+        doc = Document(path)
+    except KeyError:
+        return _extraer_docx_crudo(path, max_chars)
     fragments: list[dict[str, Any]] = []
     for numero, paragraph in enumerate(doc.paragraphs, 1):
         fragments.extend(_fragmentos(paragraph.text, f'paragraph:{numero}', max_chars))
@@ -318,7 +334,38 @@ def _extraer_docx(path: Path, max_chars: int) -> tuple[list[dict], list[dict], l
                         'tables': len(doc.tables)}], []
 
 
-def _extraer_xlsx(path: Path) -> tuple[list[dict], list[dict], list[str]]:
+FILAS_POR_HOJA = 30
+"""Filas de cada hoja que van al corpus: la cabecera y las primeras de datos bastan para
+aprender la forma de un formato (027:RF-48) sin volcar libros de miles de filas."""
+
+
+def _contenido_de_hojas(path: Path, max_chars: int) -> tuple[list[dict], dict[str, list[str]]]:
+    """El texto de las primeras filas de cada hoja y su cabecera (la primera fila con texto),
+    con calamine para .xlsx y .xls. Antes solo se guardaban nombre y tamaño de cada hoja, y los
+    276 libros de PIDEELOR no daban ninguna columna (2026-10-28)."""
+    from python_calamine import CalamineWorkbook
+
+    libro = CalamineWorkbook.from_path(str(path))
+    fragments: list[dict[str, Any]] = []
+    cabeceras: dict[str, list[str]] = {}
+    for hoja in libro.sheet_names:
+        try:
+            filas = libro.get_sheet_by_name(hoja).to_python(nrows=FILAS_POR_HOJA)
+        except Exception:  # una hoja ilegible no tumba el libro
+            continue
+        textos = [[str(c).strip() for c in fila if str(c).strip()] for fila in filas]
+        cabeceras[hoja] = next((t for t in textos if len(t) >= 2), [])
+        cuerpo = '\n'.join(' | '.join(t) for t in textos if t)
+        fragments.extend(_fragmentos(cuerpo, f'sheet:{hoja}', max_chars))
+    return fragments, cabeceras
+
+
+def _extraer_xls(path: Path, max_chars: int) -> tuple[list[dict], list[dict], list[str]]:
+    fragments, cabeceras = _contenido_de_hojas(path, max_chars)
+    return fragments, [{'kind': 'xls_sheet', 'sheet': h, 'cabecera': c} for h, c in cabeceras.items()], []
+
+
+def _extraer_xlsx(path: Path, max_chars: int = 1800) -> tuple[list[dict], list[dict], list[str]]:
     ns = {'m': 'http://schemas.openxmlformats.org/spreadsheetml/2006/main',
           'r': 'http://schemas.openxmlformats.org/officeDocument/2006/relationships',
           'pr': 'http://schemas.openxmlformats.org/package/2006/relationships'}
@@ -348,7 +395,13 @@ def _extraer_xlsx(path: Path) -> tuple[list[dict], list[dict], list[str]]:
         warnings = [f'vinculos_externos:{external}'] if external else []
         for asset in assets:
             asset['external_links'] = external
-        return [], assets, warnings
+    try:
+        fragments, cabeceras = _contenido_de_hojas(path, max_chars)
+    except Exception as exc:  # el inventario de hojas ya vale; el texto, si se puede
+        return [], assets, warnings + [f'sin_contenido:{type(exc).__name__}']
+    for asset in assets:
+        asset['cabecera'] = cabeceras.get(asset['sheet'], [])
+    return fragments, assets, warnings
 
 
 def _extraer_csv(path: Path, max_chars: int) -> tuple[list[dict], list[dict], list[str]]:
@@ -423,8 +476,11 @@ def extraer_archivo(archivo: ArchivoPide, raiz: Path | str, *,
             fragments, assets, warnings = _extraer_docx(path, max_chars)
             method = 'python-docx'
         elif extension == '.xlsx':
-            fragments, assets, warnings = _extraer_xlsx(path)
-            method = 'ooxml'
+            fragments, assets, warnings = _extraer_xlsx(path, max_chars)
+            method = 'ooxml+calamine'
+        elif extension == '.xls':
+            fragments, assets, warnings = _extraer_xls(path, max_chars)
+            method = 'calamine'
         elif extension == '.csv':
             fragments, assets, warnings = _extraer_csv(path, max_chars)
             method = 'csv'

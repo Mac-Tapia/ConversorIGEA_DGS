@@ -1,6 +1,6 @@
 # Spec 027 — Cierre del agente en producción: datos, entrenamiento robusto, verificación y operación
 
-Estado: borrador del 2026-10-28, pendiente de aprobación (spec, plan y tareas) · Fecha: 2026-10-28
+Estado: aprobada el 2026-10-28 (spec, plan y tareas), con las dudas resueltas por el usuario el mismo día · Fecha: 2026-10-28
 Origen: revisión del 2026-10-28 de los modelos de las specs 024 (gemelo) y 026 (asistente).
 
 ## Contexto y objetivo
@@ -71,7 +71,7 @@ Datos y episodios
   la huella del proyecto, como ya hace la 024 con IN111–TA225.
 - RF-2: EL SISTEMA particionará los episodios por familia de red de modo que ningún sistema
   eléctrico esté a la vez en entrenamiento y en prueba (evaluación «un sistema fuera»).
-- RF-3: SI una familia tiene menos de [NECESITA ACLARACIÓN: ¿5 o 10?] episodios de prueba,
+- RF-3: SI una familia tiene menos de 10 episodios de prueba,
   ENTONCES EL SISTEMA no promoverá un modelo por su resultado en esa familia y lo dirá.
 - RF-4: EL SISTEMA generará escenarios de entrenamiento en copias del proyecto (024:RF-10)
   con un muestreo que cubra el rango de carga medido de cada sistema, no solo su punta.
@@ -117,7 +117,7 @@ Asistente (LLM)
   como ejemplo de evaluación del asistente.
 - RF-18: EL SISTEMA evaluará el asistente con un conjunto fijo de órdenes reales separado del
   de entrenamiento y lo promoverá solo con acierto de tarea ≥ 0,98 y F1 de datos ≥ 0,95.
-- RF-19: MIENTRAS el conjunto real tenga menos de [NECESITA ACLARACIÓN: ¿200 órdenes?], EL
+- RF-19: MIENTRAS el conjunto real tenga menos de 200 órdenes, EL
   SISTEMA pedirá confirmación de toda acción que escribe, aunque el asistente esté seguro.
 - RF-20: CUANDO una acción ejecutada por el asistente devuelva un error, EL SISTEMA dará al
   modelo el error y su contexto y le dejará un único nuevo intento antes de devolver la orden
@@ -129,8 +129,8 @@ Operación
 
 - RF-22: EL SISTEMA vigilará la deriva de los datos de entrada de cada modelo frente a su
   dominio y avisará cuando una familia salga de él.
-- RF-23: CUANDO haya deriva o al menos [NECESITA ACLARACIÓN: ¿10?] episodios nuevos de una
-  familia, EL SISTEMA propondrá un reentrenamiento, que se promueve solo con las puertas.
+- RF-23: CUANDO haya deriva o al menos 10 episodios nuevos de una
+  familia, o un 20 % más que su conjunto de entrenamiento,, EL SISTEMA propondrá un reentrenamiento, que se promueve solo con las puertas.
 - RF-24: EL SISTEMA permitirá volver al modelo anterior con una sola orden desde la web.
 
 Robustez de la web
@@ -207,9 +207,19 @@ entrenamiento los archivos ya entregables de PIDE que están en la subcarpeta PI
 - RF-51: SI un fichero del expediente es de un formato que el conversor no lee (proyectos MPP,
   planos DWG, comprimidos RAR), ENTONCES EL SISTEMA lo inventariará con su huella y lo dirá,
   sin descartarlo en silencio.
-- RF-52: [NECESITA ACLARACIÓN: la base «BASE DE DATOS GIS MT BT IQUITOS» viene en shapefile
-  (SHP/DBF/SHX): ¿convertir la red de Iquitos desde ese GIS a DIgSILENT entra en esta spec, como
-  una cuarta fuente junto a TXT, MDB y VNR-GIS, o solo se usa como corpus?]
+- RF-52: EL SISTEMA usará la «BASE DE DATOS GIS MT BT IQUITOS» (shapefile) solo como corpus, sin
+  convertirla a DIgSILENT (usuario, 2026-10-28).
+- RF-53: EL SISTEMA reunirá por cada sistema eléctrico al menos 30 episodios de entrenamiento,
+  10 de validación y 10 de prueba antes de promover el gemelo con él, y decidirá si hacen falta
+  más con su curva de aprendizaje: si añadir un 20 % de episodios mejora el error de validación
+  menos de un 5 %, el aprendizaje ha convergido para esa familia y no se piden más.
+- RF-54: «Equipos» son los modelos que integran el agente (Transformer de órdenes, clasificador
+  de informes, modelo local de Ollama, gemelo PINN/GNN, GRU de curvas y optimizadores
+  evolutivos): cada uno pasa la auditoría de RF-29, sus puertas y su registro de RF-8 (usuario,
+  2026-10-28).
+- RF-55: La prueba de punta a punta del agente desde cero (RF-43) se hará primero con un
+  alimentador de la copia VNR-GIS `.bak` (spec 023) y después con los sistemas eléctricos
+  (usuario, 2026-10-28).
 
 Auditoría del dataset de cada modelo (antes de entrenar)
 
@@ -218,17 +228,19 @@ Auditoría del dataset de cada modelo (antes de entrenar)
   etiquetada, rangos, valores no finitos y duplicados.
 - RF-30: SI el dataset tiene valores no finitos, ENTONCES EL SISTEMA no entrenará y nombrará
   los episodios que los traen.
-- RF-31: SI una rama tiene una impedancia por debajo de un umbral en p.u. fijado en la
-  configuración (puentes y maniobras: 1,4·10⁻⁶ p.u. en IN111–TA225, relación máx/mín
-  6·10⁷), ENTONCES EL SISTEMA fundirá sus dos nodos en la física de la PINN, en vez de
-  invertir esa impedancia.
-- RF-32: SI una tensión objetivo cae fuera de un rango plausible fijado en la configuración
-  (0,61 p.u. en IN111–TA225), ENTONCES EL SISTEMA la marcará en el informe y la excluirá de la
-  pérdida salvo que el operador la confirme.
+- RF-31: EL SISTEMA dirá en el informe cuántas ramas tienen la impedancia del tope de acoplador
+  cerrado (10⁻⁶ p.u., ya fijado en la muestra) y la relación entre la mayor y la menor; el tope
+  queda en el manifiesto, y cambiarlo invalida los pesos entrenados con el anterior.
+  (Cambiado el 2026-10-28: la revisión halló que el mínimo de 1,4·10⁻⁶ p.u. es ese tope, no
+  un dato erróneo; fundir nodos no hace falta.)
+- RF-32: SI una tensión objetivo cae fuera de un rango fijado en la configuración (por defecto
+  0,8 a 1,2 p.u.), ENTONCES EL SISTEMA la marcará en el informe con su episodio, sin excluirla:
+  la calculó DIgSILENT, que es la referencia (principio 1), y los escenarios de estrés la
+  producen (0,61 p.u. en IN111–TA225). (Cambiado el 2026-10-28: antes la excluía.)
 - RF-33: EL SISTEMA dirá en el informe la relación entre parámetros del modelo y etiquetas
   independientes (928 518 parámetros de la PINN frente a 58 707 tensiones de una sola red;
   567 088 del Transformer frente a 4055 órdenes, una real) y avisará cuando el número de redes
-  o de órdenes reales distintas sea menor que [NECESITA ACLARACIÓN: ¿2 redes / 200 órdenes?].
+  o de órdenes reales distintas sea menor que 2 redes o 200 órdenes reales.
 - RF-34: EL SISTEMA medirá el asistente solo con órdenes reales, nunca con las sintéticas que
   genera para entrenar, para las puertas de RF-18.
 
@@ -246,9 +258,10 @@ Aceptación
 - Entrenar modelos de lenguaje desde cero.
 - Operar la red en tiempo real: el agente planifica y propone; no maniobra equipos.
 
-## Dudas abiertas
+## Dudas resueltas (2026-10-28)
 
-- [NECESITA ACLARACIÓN: «todos sus módulos y equipos»: ¿«equipos» son los equipos de la red
-  (transformadores, bancos, reguladores) que el agente debe saber modelar y proponer, o el
-  hardware (GPU, servidor) en que corre?]
-- [NECESITA ACLARACIÓN: umbrales de RF-3, RF-19 y RF-23.]
+- Umbrales: 10 episodios de prueba por sistema (RF-3), 200 órdenes reales (RF-19, RF-33) y 10
+  episodios nuevos o un 20 % más para reentrenar (RF-23); cuántos episodios hacen falta, RF-53.
+- «Equipos» son los modelos que integran el agente (RF-54).
+- El GIS de Iquitos, solo como corpus (RF-52); la prueba desde cero, con un alimentador VNR-GIS (RF-55).
+- El nodo de cabecera de Chincha Nueva (`…_CN101` del TXT) también se nombra CHN (022:RF-90, T23).
