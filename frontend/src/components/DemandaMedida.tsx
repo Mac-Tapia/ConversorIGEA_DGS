@@ -808,26 +808,32 @@ function Recalibrar({ project }: { project: string }) {
   const { ws, startJob, active } = useApp();
   const [periodo, setPeriodo] = useState('');
   const [zonal, setZonal] = useState('');
+  const [alimentadores, setAlimentadores] = useState<string[]>([]);
   const [carpeta, setCarpeta] = useState('');
   const [transformadores, setTransformadores] = useState(false);
   const [error, setError] = useState('');
   useEffect(() => {
     setError('');
     if (!project) return;
-    void api.recalibrarDatos(ws.id, project).then((d) => { setZonal(d.zonal); setCarpeta(d.demanda_dir); })
+    void api.recalibrarDatos(ws.id, project).then((d) => {
+      setZonal(d.zonal); setCarpeta(d.demanda_dir); setAlimentadores(d.alimentadores ?? []);
+    })
       .catch((e: Error) => setError(e.message));
   }, [ws.id, project]);
   const listo = Boolean(project) && /^\d{4}(-(0[1-9]|1[0-2]))?$/.test(periodo.trim()) && !error;
   return (
     <div className="step-box">
       <h4>Recalibrar «Sin proyecto»</h4>
-      <p className="muted small">Para un sistema ya calibrado: escanea en DIgSILENT los tramos nuevos, centrales,
+      <p className="muted small">Para un proyecto ya calibrado de un sistema, un alimentador o varios unidos:
+        escanea en DIgSILENT los tramos nuevos, centrales,
         bancos y cambios hechos a mano, busca la máxima del periodo y vuelve a calibrar con todo eso. No reconvierte
         ni vuelve a importar, y el «Caso base» no se toca. La primera calibración sigue en los pasos 2.1 a 2.3.</p>
       {error ? <p className="muted small">{error}</p> : (
         <div className="row">
-          <label className="field"><span>Sistema</span>
-            <input value={zonal} onChange={(e) => setZonal(e.target.value)} /></label>
+          {alimentadores.length ? <label className="field"><span>Alimentadores del proyecto</span>
+            <input value={alimentadores.join(' + ')} readOnly /></label> :
+            <label className="field"><span>Sistema</span>
+              <input value={zonal} onChange={(e) => setZonal(e.target.value)} /></label>}
           <label className="field"><span>Periodo</span>
             <input value={periodo} placeholder="2026-07" onChange={(e) => setPeriodo(e.target.value)} /></label>
           <label className="field"><span>Carpeta de los libros</span>

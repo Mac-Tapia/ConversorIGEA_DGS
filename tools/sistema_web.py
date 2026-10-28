@@ -19,10 +19,16 @@ Cualquiera se puede dar por opción. ``--periodo`` es un mes (``2026-07``) o un 
 (``2025``, 025:RF-25): la calibración de otro año va a sus propios casos («Sin proyecto
 2025»), sin tocar los de siempre.
 
+Con ``--red`` en vez de ``--zonal``, lo mismo para uno o varios alimentadores (unidos en un
+proyecto si son varios), cada uno calibrado con su propia máxima y no la de su barra
+(028:RF-24, RF-25); sin ``--reconvertir`` y con el proyecto ya importado, es la recalibración.
+
 Un corte de la conexión con la web mientras trabaja no la corta: se reintenta.
 
     python tools/sistema_web.py --espacio 47a003aac1f84cc6 --zonal Pisco \\
         --demanda-dir referencia --periodo 2025
+    python tools/sistema_web.py --espacio 5f11283a33c94ea5 --red IN111 TA225 \\
+        --demanda-dir referencia --periodo 2026-07 --reconvertir
 
 Códigos de salida: 0 calibrado y válido, 1 calibrado con fallos, 2 no se pudo llegar.
 """
@@ -39,6 +45,7 @@ import requests
 
 from igea_dgs.demanda_medida import (TIPOS_DEMANDA, DemandaError, clasificar_carpeta_demanda,
                                      descubrir_libro_suministros)
+from igea_dgs.util import nombre_seguro
 
 TERMINADOS = ('done', 'failed', 'cancelled')
 #: Sin estos dos no hay calibración; sin clientes o suministros, todo por kVA (013:RF-13).
@@ -83,6 +90,14 @@ class Web:
         raise TimeoutError(f"{trabajo.get('title')}: sin terminar en {limite_s / 3600:g} h")
 
 
+def _terminado(estado: dict) -> bool:
+    if estado.get('status') == 'done':
+        return True
+    print(f"ERROR: trabajo {estado.get('id', '')}: {estado.get('status')}; "
+          f"{estado.get('error') or ''}", flush=True)
+    return False
+
+
 def _resumen(estado: dict) -> tuple[int, int]:
     """Imprime el resultado de la calibración; devuelve (válidos, con fallos)."""
     validos = fallidos = 0
@@ -94,7 +109,7 @@ def _resumen(estado: dict) -> tuple[int, int]:
         val = inf.get('validacion_posterior_nativa') or {}
         estados = ([val.get('status')] if 'status' in val
                    else [x.get('status') for x in val.values() if isinstance(x, dict)])
-        ok = bool(inf.get('cuadrado')) and all(e == 'VALIDO' for e in estados)
+        ok = bool(inf.get('cuadrado')) and bool(estados) and all(e == 'VALIDO' for e in estados)
         validos, fallidos = validos + ok, fallidos + (not ok)
         desvio = (inf.get('desvio') or {}).get('kw')
         remedios = [x.get('remedio') for x in inf.get('remedios') or []]
@@ -102,6 +117,16 @@ def _resumen(estado: dict) -> tuple[int, int]:
               + (f', desvío {desvio:+.2%}' if desvio is not None else '')
               + (f", remedios {remedios}" if remedios else '')
               + f", validación {'/'.join(map(str, estados)) or '-'}", flush=True)
+        # 015:RF-68: cada SED no fija, escalada y con su parte de la demanda.
+        partes = ([val['participacion']] if 'participacion' in val
+                  else [x['participacion'] for x in val.values()
+                        if isinstance(x, dict) and 'participacion' in x])
+        for part in partes:
+            print(f"    {part['fijas']} fijas; {part['escaladas']} escaladas: {part['con_escala']} con "
+                  f"factor de escala, {part['con_potencia']} con potencia instalada, "
+                  f"{part['consumen'] if part['consumen'] is not None else '-'} consumen en el flujo"
+                  + (f"; sin potencia instalada: {', '.join(part['sin_potencia_instalada'][:10])}"
+                     if part['sin_potencia_instalada'] else ''), flush=True)
         for h in (inf.get('historial') or [])[:1]:
             if not h.get('converge'):
                 print(f"    primer flujo: {h.get('motivo')}", flush=True)
@@ -154,11 +179,19 @@ def libros_de_la_demanda(demanda_dir: Path, dados: dict[str, Path | None] | None
     return libros, avisos
 
 
-def correr(web: Web, zonal: str, *, demanda_dir: Path, periodo: str | None,
+def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | None,
            reconvertir: bool, transformadores: bool, tension_pu: float | None,
            bancos: bool, solo: list[str] | None = None,
            reconstruir: list[str] | None = None,
-           libros: dict[str, Path] | None = None) -> int:
+           libros: dict[str, Path] | None = None,
+           red: list[str] | None = None, grupo: str | None = None) -> int:
+    red = list(dict.fromkeys(a.strip().upper() for a in red or [] if a.strip()))
+    if bool(red) == bool(zonal) or (grupo and not red) or (red and reconstruir):
+        print('ERROR: elija --zonal o --red; --grupo requiere --red y --reconstruir requiere --zonal.')
+        return 2
+    if len(red) == 1 and grupo and grupo != red[0]:
+        print('ERROR: un alimentador usa su código como grupo; --grupo solo nombra redes unidas.')
+        return 2
     if libros is None:
         try:
             libros, avisos = libros_de_la_demanda(demanda_dir)
@@ -175,18 +208,47 @@ def correr(web: Web, zonal: str, *, demanda_dir: Path, periodo: str | None,
         web.esperar(trabajo)
     if not web.get('').get('loaded'):
         print('Cargando la fuente…', flush=True)
-        web.esperar(web.post('/load'))
-    grupo = f'SISTEMA_{zonal.upper()}'
+        if not _terminado(web.esperar(web.post('/load'))):
+            return 2
+    if red:
+        # 028:RF-25: un alimentador con su código; varios, unidos con el nombre de la web.
+        grupo = nombre_seguro((grupo or '').strip() or (red[0] if len(red) == 1 else
+                              '_'.join(red[:4]) + ('_ETC' if len(red) > 4 else '')), maximo=60)
+    else:
+        grupo = f'SISTEMA_{zonal.upper()}'
     proyecto = (web.get('').get('pf_projects') or {}).get(grupo)
-    if proyecto is None or reconvertir:
+    if red and (proyecto is None or reconvertir):
+        unir = len(red) > 1
+        estado = web.esperar(web.post('/convert', json={'feeders': red, 'unir': unir,
+                                                        'nombre': grupo if unir else ''}))
+        res = estado.get('result') or {}
+        print(f"Conversión: {estado['status']} {res.get('status') or ''} {grupo}", flush=True)
+        resumen = res.get('summary') or {}
+        convertido = (res.get('status') == 'ok' if unir else
+                      resumen.get('status') == 'completed' and resumen.get('ok') == 1
+                      and not any(resumen.get(k) for k in ('failed', 'skipped', 'not_processed')))
+        if estado['status'] != 'done' or not convertido:
+            print(f"ERROR: {res.get('error') or estado.get('error')}")
+            return 2
+        estado = web.esperar(web.post('/powerfactory/flow', json={'feeders': [grupo]}))
+        print(f"DIgSILENT: {estado['status']} {(estado.get('result') or {}).get('lines')}", flush=True)
+        if not _terminado(estado):
+            return 2
+        proyecto = (web.get('').get('pf_projects') or {}).get(grupo)
+        if proyecto is None:
+            print(f"ERROR: la importación no dejó proyecto: {estado.get('error')}")
+            return 2
+    elif proyecto is None or reconvertir:
         estado = web.esperar(web.post('/convert/sistema', json={'zonales': [zonal]}))
         res = estado.get('result') or {}
         print(f"Conversión: {estado['status']} {res.get('status')} {res.get('group')}", flush=True)
-        if res.get('status') != 'ok':
+        if estado['status'] != 'done' or res.get('status') != 'ok':
             print(f"ERROR: {res.get('error') or estado.get('error')}")
             return 2
         estado = web.esperar(web.post('/powerfactory/flow', json={'feeders': [res['group']]}))
         print(f"DIgSILENT: {estado['status']} {(estado.get('result') or {}).get('lines')}", flush=True)
+        if not _terminado(estado):
+            return 2
         proyecto = (web.get('').get('pf_projects') or {}).get(res['group'])
         if proyecto is None:
             print(f"ERROR: la importación no dejó proyecto: {estado.get('error')}")
@@ -197,12 +259,17 @@ def correr(web: Web, zonal: str, *, demanda_dir: Path, periodo: str | None,
             print(f'  {TIPOS_DEMANDA[tipo]}: {libros[tipo]}', flush=True)
             web.post(f'/demanda/{tipo}/path', json={'path': str(libros[tipo])})
     # 025:RF-28, RF-34: el índice por año de la cabecera, el mismo que ve el operador.
-    web.esperar(web.post('/demanda/cabecera/indexar'))
+    if not _terminado(web.esperar(web.post('/demanda/cabecera/indexar'))):
+        return 2
     if 'clientes' in libros:
-        web.esperar(web.post('/demanda/clientes/indexar'))
-    sistema = web.get('/demanda/sistema', params={'project': proyecto})['sistema']
+        if not _terminado(web.esperar(web.post('/demanda/clientes/indexar'))):
+            return 2
+    sistema = web.get('/demanda/sistema', params={'project': proyecto, 'todos': bool(red)})['sistema']
     if sistema is None:
-        print(f'ERROR: {proyecto} no es un proyecto por sistema eléctrico.')
+        print(f'ERROR: no se encontraron los alimentadores del proyecto {proyecto}.')
+        return 2
+    if red and set(red) != {a.upper() for a in sistema['alimentadores']}:
+        print(f'ERROR: los alimentadores de {proyecto} no coinciden con --red.')
         return 2
     # ``solo``: una parte del sistema, con el resto en los mismos flujos y la demanda del
     # archivo, para aislar qué alimentador impide converger (Chincha, 2026-10-18).
@@ -226,8 +293,11 @@ def correr(web: Web, zonal: str, *, demanda_dir: Path, periodo: str | None,
 
     # 028:RF-15: lo que hay en DIgSILENT (centrales y bancos puestos a mano) antes de calibrar;
     # la central del perfil sin barra toma la de su generador.
-    escaneo = web.esperar(web.post('/powerfactory/escanear', json={
-        'project': proyecto, 'feeders': sistema['alimentadores']})).get('result') or {}
+    estado = web.esperar(web.post('/powerfactory/escanear', json={
+        'project': proyecto, 'feeders': sistema['alimentadores']}))
+    if not _terminado(estado):
+        return 2
+    escaneo = estado.get('result') or {}
     for a, r in (escaneo.get('resumen') or {}).items():
         if r['generadores'] or r['bancos'] or r['cargas_cambiadas']:
             print(f"  escaneo {a}: {r['generadores']} generador(es), {r['bancos']} banco(s), "
@@ -263,8 +333,11 @@ def correr(web: Web, zonal: str, *, demanda_dir: Path, periodo: str | None,
     for c in centrales:
         print(f"  central {c['medidor']} ({c['set'] or 'sin SET'}, {c['kv']} kV): "
               + (f"en el tramo de {c['tramo']}" if c.get('tramo') else 'en la barra'), flush=True)
+    # 028:RF-24: fuera de un sistema, cada alimentador con su propia máxima (spec 006).
     maxima = web.esperar(web.post('/demanda/cabecera/buscar', json={
-        'medidores': pares, 'periodo': periodo, 'por_barra': True, 'centrales_tramo': tramo}))
+        'medidores': pares, 'periodo': periodo, 'por_barra': not red, 'centrales_tramo': tramo}))
+    if not _terminado(maxima):
+        return 2
     res = maxima.get('result') or {}
     for b in sorted(res.get('barras', []),
                     key=lambda x: (x.get('set', ''), not x.get('alta'), -float(x.get('kv') or 0))):
@@ -293,13 +366,15 @@ def correr(web: Web, zonal: str, *, demanda_dir: Path, periodo: str | None,
         estado = web.esperar(web.post('/convert/sistema', json={
             'zonales': [zonal], 'reconstruir': pedidos, 'medidas_kw': medidas}))
         resultado = estado.get('result') or {}
-        if resultado.get('status') != 'ok':
+        if estado['status'] != 'done' or resultado.get('status') != 'ok':
             print(f"ERROR: {resultado.get('error') or estado.get('error')}")
             return 2
         for r in ((resultado.get('estructura') or {}).get('reconstrucciones') or []):
             print(f"  {r['texto']}", flush=True)
         estado = web.esperar(web.post('/powerfactory/flow', json={'feeders': [resultado['group']]}))
         print(f"DIgSILENT: {estado['status']} {(estado.get('result') or {}).get('lines')}", flush=True)
+        if not _terminado(estado):
+            return 2
         return correr(web, zonal, demanda_dir=demanda_dir, periodo=periodo, reconvertir=False,
                       transformadores=transformadores, tension_pu=tension_pu, bancos=bancos,
                       solo=solo, libros=libros)
@@ -310,7 +385,8 @@ def correr(web: Web, zonal: str, *, demanda_dir: Path, periodo: str | None,
                                                     'periodo': periodo})
     # El vínculo exige que la última relectura de DIgSILENT vea el proyecto (spec 018): tras
     # importar, Chincha (2026-10-18) dio PROJECT_BINDING_PROJECT_MISMATCH sin ella.
-    web.esperar(web.post('/powerfactory/projects'))
+    if not _terminado(web.esperar(web.post('/powerfactory/projects'))):
+        return 2
     plan = web.post('/demanda/ajuste/plan', json={
         'project': proyecto, 'job_id': maxima['id'], 'medidores': medidores,
         'completar_bancos': bancos, 'tension_fuente_pu': tension_pu,
@@ -323,6 +399,8 @@ def correr(web: Web, zonal: str, *, demanda_dir: Path, periodo: str | None,
     if transformadores:
         # 022:RF-62: los de todos los alimentadores y una sola recalibración del proyecto.
         sim = web.esperar(web.post(f'/demanda/ajuste/{token}/simular'))
+        if not _terminado(sim):
+            return 2
         pedidos = {}
         for inf in (sim.get('result') or {}).get('informes', []):
             seds = [x['sed'] for x in inf.get('fijas_sobre_su_transformador') or []
@@ -337,6 +415,8 @@ def correr(web: Web, zonal: str, *, demanda_dir: Path, periodo: str | None,
     if ultimo is None:
         ultimo = web.esperar(web.post(f'/demanda/ajuste/{token}/aplicar'))
     print(f"Calibración: {ultimo['status']} {ultimo.get('error') or ''}", flush=True)
+    if not _terminado(ultimo):
+        return 2
     validos, fallidos = _resumen(ultimo)
     print(f'{validos} válido(s), {fallidos} con fallos.')
     return 0 if validos and not fallidos else 1
@@ -346,7 +426,11 @@ def main(argv=None) -> int:
     p = argparse.ArgumentParser(description='Convierte, importa y calibra un sistema eléctrico '
                                             'entero por la web (spec 022 y 025)')
     p.add_argument('--espacio', required=True, help='Id del espacio de trabajo de la web')
-    p.add_argument('--zonal', required=True, help='Zonal de la estructura (Nasca, Pisco…)')
+    destino = p.add_mutually_exclusive_group(required=True)
+    destino.add_argument('--zonal', help='Zonal de la estructura (Nasca, Pisco…)')
+    destino.add_argument('--red', nargs='+', metavar='COD',
+                         help='Uno o varios alimentadores, unidos si son varios (028:RF-25)')
+    p.add_argument('--grupo', help='Con --red, el nombre del proyecto unido en la web')
     p.add_argument('--demanda-dir', type=Path, required=True,
                    help='Carpeta con los libros de demanda; cada uno se reconoce por su contenido')
     p.add_argument('--medidores', type=Path, help='Libro de medidores por alimentador')
@@ -384,7 +468,8 @@ def main(argv=None) -> int:
                       periodo=args.periodo, reconvertir=args.reconvertir,
                       transformadores=args.transformadores, tension_pu=args.tension_pu,
                       bancos=not args.sin_bancos, solo=args.alimentadores,
-                      reconstruir=args.reconstruir, libros=libros)
+                      reconstruir=args.reconstruir, libros=libros,
+                      red=args.red, grupo=args.grupo)
     except (RuntimeError, TimeoutError, DemandaError, requests.RequestException) as exc:
         print(f'ERROR: {exc}')
         return 2

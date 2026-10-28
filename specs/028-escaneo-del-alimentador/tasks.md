@@ -40,3 +40,17 @@ cuando el usuario ponga a mano la central de NA205.
       20261028-103442_IGEA_SISTEMA_CHINCHA con 2026-07: 26 válidos y 0 con fallos en 261 s. La
       primera vez se esperaba a sí mismo (`sistema_web.py` esperaba al trabajo que lo lanzó):
       arreglado con `IGEA_TRABAJO_PROPIO`, también para el asistente y el agente.
+- [ ] T9. Recalibrar el proyecto de uno o varios alimentadores: ruta, botón y `sistema_web.py
+      --red`. (RF-23 a RF-25)
+      Hecho cuando: pruebas de la API y de la herramienta en verde, y en DIgSILENT, desde la web,
+      un alimentador y dos unidos convertidos, calibrados, recalibrados y con su informe de estudio.
+      Continuación 2026-10-28: CLI, API y botón implementados; la selección guardada manda sobre
+      el nombre del proyecto, el grupo usa el mismo nombre seguro que la conversión y cada red
+      usa máximas individuales. Se detiene ante trabajos fallidos, conversiones individuales
+      omitidas/incompletas y ausencia de validación nativa. Verificación: 147 pruebas aprobadas
+      en `test_sistema_web.py`, `test_escaneo.py`, `test_ajuste_cabecera_web.py`,
+      `test_central_termica_front.py` y `test_demanda_medida_web.py`; `npm run build` aprobado;
+      `git diff --check` sin errores. Las pruebas usan dobles del motor: no prueban aceptación
+      eléctrica. La API local respondió a la consulta de lectura del espacio 5f11283a33c94ea5:
+      fuente sin cargar y sin trabajos activos; no se ejecutó el recorrido nativo ni informes
+      en esta continuación. T9 sigue abierta hasta obtener esa evidencia. Sustento: `research.md`.

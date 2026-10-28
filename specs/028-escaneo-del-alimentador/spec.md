@@ -83,8 +83,15 @@ bancos y otros cambios; en base de eso debe recalibrar sin ningún bloqueo, solo
   inicial»).
 - RF-22: EL SISTEMA tomará para recalibrar el sistema eléctrico del nombre del proyecto y la
   carpeta de los libros de demanda que ya tiene el espacio, y el operador podrá cambiarlos.
-- RF-23: SI el proyecto no es de un sistema eléctrico o el espacio no tiene libros de demanda,
-  ENTONCES EL SISTEMA lo dirá antes de empezar.
+- RF-23: SI el proyecto no es de un sistema eléctrico ni de alimentadores convertidos en el
+  espacio, o el espacio no tiene libros de demanda, ENTONCES EL SISTEMA lo dirá antes de empezar
+  (cambiado el 2026-10-28 por RF-24: antes solo valía un sistema eléctrico).
+- RF-24: EL SISTEMA recalibrará también el proyecto de un alimentador o de varios unidos, con los
+  alimentadores que el espacio guardó para él y la máxima de cada uno, sin la de su barra
+  (usuario, 2026-10-28: «otras conversiones, ya sea de un alimentador o dos, hasta su
+  recalibración y generación de los informes»).
+- RF-25: EL SISTEMA dará al operador una herramienta que convierta, importe y calibre por la web
+  uno o varios alimentadores, unidos en un proyecto si son varios, igual que un sistema eléctrico.
 
 ## Fuera de alcance
 
