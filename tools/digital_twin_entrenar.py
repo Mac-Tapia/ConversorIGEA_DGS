@@ -10,6 +10,8 @@ se cayó entrenando dentro de su proceso). Reentrena solo si toca (RF-39) o, con
 
 Con ``--evaluar`` no entrena: dice cuánto se apartan de DIgSILENT el modelo promovido y la
 física sola en cada episodio, con la media de entrenamiento, validación y prueba (RF-74).
+Con ``--reproducir VERSION`` vuelve a entrenar ese modelo con su manifiesto y dice si su error
+difiere menos de 10⁻⁵ p.u. (spec 027, RF-9).
 
 Códigos de salida: 0 hecho (entrenado o no hacía falta), 2 sin PyTorch, 1 error.
 """
@@ -42,6 +44,8 @@ def main(argv=None) -> int:
     p.add_argument('--minimo', type=int, default=10, help='Episodios nuevos para reentrenar')
     p.add_argument('--evaluar', action='store_true',
                    help='No entrenar: comparar el modelo promovido y la física con DIgSILENT')
+    p.add_argument('--reproducir', metavar='VERSION',
+                   help='Reentrenar un modelo con su manifiesto y comparar su error (027:RF-9)')
     args = p.parse_args(argv)
     salida = Path(args.output_json)
 
@@ -62,6 +66,12 @@ def main(argv=None) -> int:
 
         liberar_gpu_para_entrenar()
     try:
+        if args.reproducir:
+            r = oraculo.reproducir(bufer, args.reproducir, log=_log)
+            print(f"{r['version']}: original {r['mae_original']}, reproducido {r['mae_reproducido']}, "
+                  f"diferencia {r['diferencia']:.2e} ({'reproducible' if r['reproducible'] else 'NO reproducible'})")
+            salida.write_text(json.dumps(r, ensure_ascii=False, default=str), encoding='utf-8')
+            return 0 if r['reproducible'] else 1
         if args.evaluar:
             r = oraculo.evaluar(bufer)
             for parte, d in r['por_particion'].items():

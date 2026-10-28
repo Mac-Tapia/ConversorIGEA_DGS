@@ -261,3 +261,20 @@ def test_el_registro_guarda_la_curva_de_validacion(entrenado):
     meta = json.loads((Path(r['carpeta']) / 'modelo.json').read_text(encoding='utf-8'))
     assert len(meta['validacion']) == orc.MIEMBROS
     assert all(v['mejor_epoca'] is not None and v['curva'] for v in meta['validacion'])
+
+
+def test_manifiesto_y_reproduccion_en_la_gpu(entrenado):
+    """027:RF-8 / 027:RF-9 — el modelo guarda episodios, commit, configuración, semillas,
+    dispositivo y error por familia; con su manifiesto se reproduce con diferencia < 10⁻⁵ p.u."""
+    import json
+    from pathlib import Path
+
+    bufer, r = entrenado
+    meta = json.loads((Path(r['carpeta']) / 'modelo.json').read_text(encoding='utf-8'))
+    man = meta['manifiesto']
+    assert len(man['episodios']) == 48 and man['semillas'] == [CFG.semilla + k for k in range(orc.MIEMBROS)]
+    assert man['dispositivo'] and man['torch'] and man['cfg']['ocultas'] == CFG.ocultas
+    assert man['mae_por_familia'] and all(v is not None for v in man['mae_por_familia'].values())
+    rep = orc.reproducir(bufer, r['version'])
+    assert rep['reproducible'], rep
+    assert rep['diferencia'] < orc.TOLERANCIA_REPRODUCCION and rep['misma_gpu']

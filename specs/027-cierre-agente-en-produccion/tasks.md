@@ -52,9 +52,14 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       miembro se valida con la partición de validación y vuelve a su mejor época, que queda con su
       curva en `modelo.json`; la GRU valida con el último 20 % de la serie y `temporal.elegido` usa
       el estacional si no lo mejora (la web también). Sin CUDA, `SinGPU` (sin caída a CPU).
-- [ ] T5. Manifiesto con commit, huellas, configuración, semilla y dispositivo; reproducción con
+- [x] T5. Manifiesto con commit, huellas, configuración, semilla y dispositivo; reproducción con
       diferencia < 10⁻⁵ p.u. (RF-8, RF-9)
       Hecho cuando: prueba de reproducibilidad en GPU en verde.
+      Hecho el 2026-10-28: `manifiesto` en `modelo.json` (episodios por su huella, commit, cfg,
+      semillas, GPU, torch y CUDA, modelo del que parte, MAE por familia); entrenamiento con
+      algoritmos deterministas (`CUBLAS_WORKSPACE_CONFIG`); `reproducir` y
+      `tools/digital_twin_entrenar.py --reproducir VERSION`; reproducido en la GPU con diferencia
+      < 10⁻⁵ p.u.
 - [ ] T6. Búsqueda de hiperparámetros con presupuesto (Optuna, TPE y poda), solo en validación,
       y `tools/digital_twin_entrenar.py --buscar`. (RF-7)
       Hecho cuando: prueba sintética en verde; `--help` sin GPU; informe de ensayos guardado.
