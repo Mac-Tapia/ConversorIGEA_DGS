@@ -116,3 +116,14 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
 - [ ] T24. Episodios por sistema según RF-53 y curva de aprendizaje por familia. (RF-53, RF-54)
       Hecho cuando: informe por sistema con sus 30/10/10 episodios y la curva que dice si ha
       convergido.
+- [x] T25. Destilación del modelo local de Ollama al Transformer de órdenes: votos con
+      temperatura, filtro por acuerdo, pérdida α·CE + (1 − α)·T²·KL, promoción solo si no empeora
+      al alumno sin destilar y registro del maestro. (RF-56 a RF-62)
+      Hecho cuando: `pytest -q tests/test_asistente_destilacion.py` en verde con un maestro falso
+      sorteado (también uno que no responde) y una corrida real con Ollama en esta máquina.
+      Hecho el 2026-10-28: `asistente/destilacion.py`, pérdida en `transformer.entrenar` y
+      `tools/asistente_entrenar.py --destilar`; 5 pruebas en verde. Corrida real con llama3.1:8b en
+      la GPU: 12 órdenes sin etiqueta, 11 etiquetadas y 1 descartada por acuerdo; el destilado
+      acierta 0,982 frente a 0,983 sin destilar en la prueba fija de 541, así que se queda sin
+      destilar (RF-60) y el modelo en uso (0,987) sigue. Con 11 órdenes frente a 4070 sintéticas la
+      destilación aún no aporta: hará falta con las 200 órdenes reales de RF-17.

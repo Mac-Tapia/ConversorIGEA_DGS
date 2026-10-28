@@ -57,6 +57,7 @@ vuelta atrás) y una web que no se bloquea.
 | Razonar y actuar | S. Yao et al., «ReAct», ICLR 2023 | Intercalar razonamiento y llamadas a herramientas, con traza auditable |
 | Recuperación | Y. Gao et al., «Retrieval-Augmented Generation for LLMs: A Survey» (arXiv 2312.10997, 2023-2024) | Respuestas con cita del índice del proyecto |
 | Ajuste fino eficiente | E. Hu et al., «LoRA», ICLR 2022; T. Dettmers et al., «QLoRA», NeurIPS 2023 | Adaptar el modelo local con poca memoria de GPU, solo si las puertas lo exigen |
+| Destilación de LLM | C.-Y. Hsieh et al., «Distilling Step-by-Step!», Findings of ACL 2023; Y. Gu et al., «MiniLLM: Knowledge Distillation of LLMs», ICLR 2024; R. Agarwal et al., «On-Policy Distillation of Language Models (GKD)», ICLR 2024; X. Xu et al., «A Survey on Knowledge Distillation of LLMs» (arXiv 2402.13116, 2024) | El modelo grande local (maestro) etiqueta órdenes sin etiqueta con su distribución; el Transformer pequeño (alumno) aprende de ella y de las etiquetas reales, y solo se usa si mejora sin destilar |
 | Preferencias | R. Rafailov et al., «Direct Preference Optimization», NeurIPS 2023 | Aprender de pares «rechazada frente a corregida» sin un modelo de recompensa aparte ni RL |
 | Recompensa verbal | N. Shinn et al., «Reflexion: Language Agents with Verbal Reinforcement Learning», NeurIPS 2023 | Penalizar un fallo con una nota en memoria que guía la siguiente decisión, sin reentrenar |
 | Abstención calibrada | V. Quach et al., «Conformal Language Modeling», ICLR 2024 | Umbrales con garantía de tasa de error para decidir cuándo preguntar |
@@ -220,6 +221,28 @@ entrenamiento los archivos ya entregables de PIDE que están en la subcarpeta PI
 - RF-55: La prueba de punta a punta del agente desde cero (RF-43) se hará primero con un
   alimentador de la copia VNR-GIS `.bak` (spec 023) y después con los sistemas eléctricos
   (usuario, 2026-10-28).
+
+Destilación del modelo local al Transformer (usuario, 2026-10-28: «no te olvides de verificar e
+implementar la técnica y metodología de destilación para el entrenamiento de LLM»)
+
+- RF-56: CUANDO se entrene el Transformer de órdenes con destilación, EL SISTEMA pedirá al
+  modelo local de Ollama (maestro) k interpretaciones de cada orden sin etiqueta, con
+  temperatura mayor que cero, y tomará la proporción de votos por tarea como su distribución
+  blanda (autoconsistencia).
+- RF-57: EL SISTEMA descartará como ejemplo de destilación la orden cuya tarea más votada no
+  llegue al acuerdo mínimo de la configuración, y lo dirá en el informe.
+- RF-58: EL SISTEMA entrenará el alumno con α·(entropía cruzada con las etiquetas) +
+  (1 − α)·T²·KL(maestro ‖ alumno a temperatura T), con α y T en la configuración, y tomará los
+  datos que el maestro marca y aparecen en el texto como etiquetas de los datos.
+- RF-59: Las órdenes sin etiqueta serán las del registro de órdenes del asistente que el
+  operador no confirmó ni corrigió; nunca las de la prueba fija.
+- RF-60: EL SISTEMA promoverá el alumno destilado solo si, en la prueba fija con las órdenes
+  reales, acierta al menos lo mismo que el mismo alumno entrenado sin destilación con la misma
+  semilla, y guardará las dos métricas en el registro.
+- RF-61: SI Ollama no responde, ENTONCES EL SISTEMA entrenará sin destilación y lo dirá, sin
+  detener el entrenamiento.
+- RF-62: EL SISTEMA guardará con el modelo destilado el maestro (nombre del modelo de Ollama),
+  k, la temperatura, α, T, cuántas órdenes etiquetó y cuántas descartó (RF-8).
 
 Auditoría del dataset de cada modelo (antes de entrenar)
 

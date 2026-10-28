@@ -66,12 +66,16 @@ class ClienteOllama:
         r = self._pedir('/api/tags')
         return None if r is None else [m.get('name', '') for m in r.get('models') or []]
 
-    def interpretar(self, texto: str) -> dict[str, Any] | None:
-        """La tarea y los datos de la orden según el modelo, o ``None`` si no responde."""
+    def interpretar(self, texto: str, *, temperatura: float = 0.0, semilla: int = 0) -> dict[str, Any] | None:
+        """La tarea y los datos de la orden según el modelo, o ``None`` si no responde.
+
+        Con ``temperatura`` mayor que cero y semillas distintas, cada llamada es un voto del
+        maestro en la destilación (027:RF-56); para atender al operador, 0.
+        """
         inicio = time.monotonic()
         r = self._pedir('/api/chat', {
             'model': self.modelo, 'stream': False, 'format': 'json', 'keep_alive': RETENER,
-            'options': {'temperature': 0, 'seed': 0},
+            'options': {'temperature': temperatura, 'seed': semilla},
             'messages': [{'role': 'system', 'content': _INSTRUCCIONES + '\nTareas: '
                           + json.dumps(descripcion_para_modelo(), ensure_ascii=False)},
                          {'role': 'user', 'content': texto}]})

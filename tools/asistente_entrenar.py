@@ -7,6 +7,11 @@ menos que el que está en uso (RF-20); el anterior queda para volver a él.
 
     python tools/asistente_entrenar.py --output-json entrenamiento.json [--vocabulario vocab.json]
     python tools/asistente_entrenar.py --output-json evaluacion.json --evaluar
+    python tools/asistente_entrenar.py --output-json entrenamiento.json --destilar
+
+``--destilar`` (spec 027, RF-56 a RF-62): el modelo local de Ollama interpreta k veces las
+órdenes que el operador no confirmó y el Transformer aprende de sus votos; se usa solo si
+acierta al menos lo mismo que sin destilar.
 
 ``--vocabulario`` es un JSON ``{"alimentadores": [...], "proyecto": [...], "sistema": [...]}``
 con los nombres reales del espacio; sin él se usan los que guardó la web la última vez.
@@ -36,6 +41,8 @@ def main(argv=None) -> int:
     p.add_argument('--output-json', required=True)
     p.add_argument('--vocabulario', type=Path, help='Nombres reales del espacio (JSON)')
     p.add_argument('--solo', choices=('ordenes', 'informes'), help='Entrenar solo uno de los dos modelos')
+    p.add_argument('--destilar', action='store_true',
+                   help='Destilar del modelo local de Ollama (maestro) al Transformer (spec 027, RF-56)')
     p.add_argument('--evaluar', action='store_true', help='No entrenar: medir los modelos en uso con la prueba fija')
     args = p.parse_args(argv)
     salida = Path(args.output_json)
@@ -68,7 +75,13 @@ def main(argv=None) -> int:
             print(json.dumps(out, ensure_ascii=False))
         else:
             if args.solo in (None, 'ordenes'):
-                out['ordenes'] = transformer.entrenar_y_promover(vocab, log=_log)
+                kw = {}
+                if args.destilar:
+                    from igea_dgs.asistente.destilacion import Destilacion
+                    from igea_dgs.asistente.ollama import cliente_configurado
+
+                    kw = {'destilar': Destilacion(), 'maestro': cliente_configurado(tiempo_max_s=60.0)}
+                out['ordenes'] = transformer.entrenar_y_promover(vocab, log=_log, **kw)
             if args.solo in (None, 'informes'):
                 out['informes'] = clasificador.entrenar_y_promover(log=_log)
         codigo = 0

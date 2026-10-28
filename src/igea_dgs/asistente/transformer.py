@@ -207,8 +207,14 @@ def _spans(texto: str, probabilidades) -> dict[str, list[dict]]:
 
 
 def entrenar(ejemplos: Sequence[Ejemplo], cfg: Configuracion | None = None,
-             log: Callable[[str], None] = lambda _m: None) -> ModeloOrdenes:
-    """Un modelo nuevo con estos ejemplos, en la GPU."""
+             log: Callable[[str], None] = lambda _m: None, *, blandos: Sequence = (),
+             alfa: float = 1.0, T: float = 1.0) -> ModeloOrdenes:
+    """Un modelo nuevo con estos ejemplos, en la GPU.
+
+    ``blandos`` (027:RF-58): órdenes con la distribución del maestro (``destilacion``). En
+    ellas la pérdida de tarea es α·CE con su tarea más votada + (1 − α)·T²·KL(maestro ‖
+    alumno a temperatura T); en las demás, la CE de siempre.
+    """
     torch = _torch()
     cfg = cfg or Configuracion()
     liberar_gpu()
@@ -216,15 +222,24 @@ def entrenar(ejemplos: Sequence[Ejemplo], cfg: Configuracion | None = None,
     rnd = random.Random(cfg.semilla)
     disp = _dispositivo()
     tareas = sorted(TAREAS)
+    duros = len(ejemplos)
+    ejemplos = [*ejemplos, *(Ejemplo(b.texto, b.tarea, list(b.datos)) for b in blandos)]
     simbolos = {c: i + 3 for i, c in enumerate(alfabeto([e.texto for e in ejemplos]))}
     red = construir_red(len(simbolos) + 3, {'tarea': len(tareas)}, cfg, len(ETIQUETAS)).to(disp)
     opt = torch.optim.AdamW(red.parameters(), lr=cfg.lr, weight_decay=0.01)
     ids = codificar([e.texto for e in ejemplos], simbolos)
     objetivo = [tareas.index(e.tarea) for e in ejemplos]
     etiquetas = [_etiquetas_de(e) for e in ejemplos]
+    # La distribución del maestro de cada ejemplo blando; en los duros no se usa.
+    maestro = torch.zeros(len(ejemplos), len(tareas), device=disp)
+    for i, b in enumerate(blandos):
+        for tarea, prob in b.distribucion.items():
+            maestro[duros + i, tareas.index(tarea)] = prob
+    es_blando = torch.zeros(len(ejemplos), dtype=torch.bool, device=disp)
+    es_blando[duros:] = True
     pasos = cfg.epocas * ((len(ejemplos) + cfg.lote - 1) // cfg.lote)
     plan = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=cfg.lr, total_steps=max(pasos, 1))
-    ce = torch.nn.CrossEntropyLoss()
+    ce = torch.nn.CrossEntropyLoss(reduction='none')
     # Los caracteres de un dato son pocos frente a los demás: pesan más, o el modelo aprende
     # que todo es «O» y acierta casi siempre.
     peso = torch.ones(len(ETIQUETAS), device=disp)
@@ -239,7 +254,16 @@ def entrenar(ejemplos: Sequence[Ejemplo], cfg: Configuracion | None = None,
             e = rellenar([etiquetas[i] for i in lote], -100).to(disp)
             clases, etq = red(x)
             etq = etq[:, :e.shape[1]]
-            perdida = ce(clases['tarea'], y) + ce_etq(etq.reshape(-1, etq.shape[-1]), e.reshape(-1))
+            z = clases['tarea']
+            blando = es_blando[lote]
+            peso_ce = torch.where(blando, torch.full_like(z[:, 0], alfa), torch.ones_like(z[:, 0]))
+            perdida_tarea = (peso_ce * ce(z, y)).mean()
+            if bool(blando.any()):
+                p = maestro[lote][blando]
+                log_q = torch.log_softmax(z[blando] / T, -1)
+                kl = (p * (torch.log(p.clamp_min(1e-9)) - log_q)).sum(-1)
+                perdida_tarea = perdida_tarea + (1 - alfa) * T * T * kl.sum() / len(lote)
+            perdida = perdida_tarea + ce_etq(etq.reshape(-1, etq.shape[-1]), e.reshape(-1))
             opt.zero_grad()
             perdida.backward()
             torch.nn.utils.clip_grad_norm_(red.parameters(), 1.0)
@@ -360,9 +384,15 @@ def ejemplos_reales() -> tuple[list[Ejemplo], list[Ejemplo]]:
 
 
 def entrenar_y_promover(vocab: dict, *, cfg: Configuracion | None = None, puertas: Puertas | None = None,
-                        log: Callable[[str], None] = lambda _m: None) -> dict[str, Any]:
+                        log: Callable[[str], None] = lambda _m: None, destilar=None,
+                        maestro=None) -> dict[str, Any]:
     """Entrena un candidato con sintéticos y reales, lo evalúa en la prueba fija y lo promueve
-    si pasa las puertas y no acierta menos que el modelo en uso (RF-20)."""
+    si pasa las puertas y no acierta menos que el modelo en uso (RF-20).
+
+    Con ``destilar`` (una ``destilacion.Destilacion``) y ``maestro``, entrena también el alumno
+    con las órdenes sin etiqueta que interpreta el maestro y se queda con él solo si acierta
+    al menos lo mismo que sin destilar (027:RF-56 a RF-62).
+    """
     from .sinteticos import generar
 
     cfg = cfg or Configuracion()
@@ -378,8 +408,32 @@ def entrenar_y_promover(vocab: dict, *, cfg: Configuracion | None = None, puerta
                                 prueba_real=len(prueba_real))
     for aviso in auditoria['avisos']:
         log(f'Asistente: {aviso}')
+    destilado, r = None, None
+    if destilar is not None:
+        from .destilacion import etiquetar, registro, sin_etiqueta
+
+        textos = sin_etiqueta(excluir=[e.texto for e in prueba])
+        r = etiquetar(textos, maestro, destilar) if maestro is not None and textos else None
+        destilado = {**registro(destilar, maestro, r), 'sin_etiqueta': len(textos), 'usado': False}
+        if r is None or not r['respondio']:
+            log('Asistente: el maestro no respondió o no hay órdenes sin etiqueta; se entrena sin '
+                'destilar (027:RF-61)')
+            r = None
+        else:
+            log(f"Asistente: destilación con {destilado['maestro']}: {destilado['etiquetadas']} órdenes "
+                f"etiquetadas, {destilado['descartadas']} descartadas por acuerdo (027:RF-56, RF-57)")
     candidato = entrenar(datos, cfg, log)
     metricas = evaluar(candidato, prueba)
+    if r is not None and r['blandos']:
+        alumno = entrenar(datos, cfg, log, blandos=r['blandos'], alfa=destilar.alfa, T=destilar.T)
+        m_alumno = evaluar(alumno, prueba)
+        destilado.update(metricas_sin_destilar=metricas, metricas_destilado=m_alumno,
+                         usado=m_alumno['acierto_tarea'] >= metricas['acierto_tarea'] - 1e-9)   # RF-60
+        log(f"Asistente: con destilación acierto {m_alumno['acierto_tarea']:.3f}, sin ella "
+            f"{metricas['acierto_tarea']:.3f}: "
+            f"{'se usa el destilado' if destilado['usado'] else 'se queda sin destilar'} (027:RF-60)")
+        if destilado['usado']:
+            candidato, metricas = alumno, m_alumno
     actual = cargar()
     del_actual = evaluar(actual, prueba) if actual is not None else None
     fallos = []
@@ -391,8 +445,9 @@ def entrenar_y_promover(vocab: dict, *, cfg: Configuracion | None = None, puerta
         fallos.append(f"acierta menos que el modelo en uso ({del_actual['acierto_tarea']:.3f})")
     version = guardar(candidato, {'metricas': metricas, 'metricas_en_uso': del_actual,
                                   'ejemplos': len(datos), 'reales': len(reales), 'prueba': len(prueba),
-                                  'auditoria': auditoria})
+                                  'auditoria': auditoria, 'destilacion': destilado})
     if not fallos:
         promover(version, f"acierto {metricas['acierto_tarea']:.3f}, F1 {metricas['f1_datos']:.3f}")
     log(f"Asistente: candidato {version}: {'promovido' if not fallos else 'no promovido: ' + '; '.join(fallos)}")
-    return {'version': version, 'promovido': not fallos, 'fallos': fallos, **metricas, 'en_uso': del_actual}
+    return {'version': version, 'promovido': not fallos, 'fallos': fallos, **metricas, 'en_uso': del_actual,
+            'destilacion': destilado}
