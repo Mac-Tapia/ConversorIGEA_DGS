@@ -226,9 +226,10 @@ Destilación del modelo local al Transformer (usuario, 2026-10-28: «no te olvid
 implementar la técnica y metodología de destilación para el entrenamiento de LLM»)
 
 - RF-56: CUANDO se entrene el Transformer de órdenes con destilación, EL SISTEMA pedirá al
-  modelo local de Ollama (maestro) k interpretaciones de cada orden sin etiqueta, con
-  temperatura mayor que cero, y tomará la proporción de votos por tarea como su distribución
-  blanda (autoconsistencia).
+  maestro elegido k interpretaciones de cada orden sin etiqueta y tomará la proporción de
+  votos por tarea como su distribución blanda (autoconsistencia). Los maestros son Claude y
+  Codex (usuario, 2026-10-28: «la destilación debe hacerla Claude o Codex, ustedes son los
+  maestros»; «deben ustedes entrenar el LLM»); el modelo local de Ollama queda de respaldo.
 - RF-57: EL SISTEMA descartará como ejemplo de destilación la orden cuya tarea más votada no
   llegue al acuerdo mínimo de la configuración, y lo dirá en el informe.
 - RF-58: EL SISTEMA entrenará el alumno con α·(entropía cruzada con las etiquetas) +
@@ -241,6 +242,13 @@ implementar la técnica y metodología de destilación para el entrenamiento de 
   semilla, y guardará las dos métricas en el registro.
 - RF-61: SI Ollama no responde, ENTONCES EL SISTEMA entrenará sin destilación y lo dirá, sin
   detener el entrenamiento.
+- RF-63: DONDE el maestro sea un servicio fuera de la máquina (Codex), EL SISTEMA le enviará cada
+  orden con los nombres de la red (alimentadores, proyectos y sistemas del vocabulario del
+  espacio) cambiados por marcadores, los repondrá en su respuesta y anotará cada envío en el
+  registro de internet (P9 de la spec 026: los datos de la distribuidora no salen).
+- RF-64: EL SISTEMA aceptará como maestro las etiquetas que Claude deje en el registro
+  `etiquetas_maestro` del asistente (texto, votos por tarea, datos y modelo), para destilar
+  sin servicio en línea.
 - RF-62: EL SISTEMA guardará con el modelo destilado el maestro (nombre del modelo de Ollama),
   k, la temperatura, α, T, cuántas órdenes etiquetó y cuántas descartó (RF-8).
 
