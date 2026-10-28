@@ -17,6 +17,7 @@ mismo contrato (RF-38) y el resto del conversor funciona.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import os
@@ -625,6 +626,47 @@ def _muestras(bufer: BuferEpisodios, consulta: Consulta) -> tuple[list[Muestra],
     return muestras, ids
 
 
+#: Episodios de prueba de otra red sin los que no se promueve (027:RF-3; usuario, 2026-10-28).
+MIN_EPISODIOS_PRUEBA = 10
+
+
+def red_de(m: Muestra) -> str:
+    """La red de una muestra por sus nodos: los escenarios de una misma red comparten huella."""
+    return hashlib.sha256('\n'.join(m.ids).encode('utf-8')).hexdigest()
+
+
+def particionar(muestras: Sequence[Muestra]) -> dict[str, list[Muestra]]:
+    """«Un sistema fuera» (027:RF-2): cada red entera a prueba o a entrenamiento; con dos o
+    más redes, al menos una a prueba (la de huella menor si el reparto fijo no da ninguna) y
+    nunca todas. La validación sale de los escenarios de las redes de entrenamiento."""
+    redes = sorted({red_de(m) for m in muestras})
+    de_prueba = {r for r in redes if particion(r) == 'prueba'}
+    if len(redes) >= 2 and (not de_prueba or de_prueba == set(redes)):
+        de_prueba = {redes[0]}
+    if len(redes) < 2:
+        de_prueba = set()
+    grupos: dict[str, list[Muestra]] = {'entrenamiento': [], 'validacion': [], 'prueba': []}
+    for m in muestras:
+        if red_de(m) in de_prueba:
+            grupos['prueba'].append(m)
+        elif particion(hashlib.sha256((m.familia or 'x').encode('utf-8')).hexdigest()) == 'validacion':
+            grupos['validacion'].append(m)
+        else:
+            grupos['entrenamiento'].append(m)
+    return grupos
+
+
+def fallos_de_particion(grupos: Mapping[str, Sequence[Muestra]]) -> list[str]:
+    """Lo que impide promover por el reparto (027:RF-3)."""
+    if not grupos['prueba']:
+        return ['sin una red de prueba distinta de las de entrenamiento: hace falta otro sistema '
+                '(027:RF-3)']
+    if len(grupos['prueba']) < MIN_EPISODIOS_PRUEBA:
+        return [f"{len(grupos['prueba'])} episodios de prueba de otra red, menos de "
+                f'{MIN_EPISODIOS_PRUEBA} (027:RF-3)']
+    return []
+
+
 def elegir_exponente(muestras: Sequence[Muestra], candidatos: Sequence[float] = (0.0, 1.0, 2.0),
                      fisica: str = 'mallado') -> float:
     """El modelo de carga que mejor reproduce a DIgSILENT con la física de la base.
@@ -667,11 +709,9 @@ def entrenar(bufer: BuferEpisodios, *, consulta: Consulta | None = None, cfg: En
         return {'entrenado': False, 'auditoria': auditoria,
                 'motivo': 'dataset con valores no finitos: ' + ', '.join(
                     f"{x['episodio']} ({x['campo']})" for x in auditoria['no_finitos'][:10])}
-    grupos = {'entrenamiento': [], 'validacion': [], 'prueba': []}
-    for m in muestras:
-        grupos[particion(m.familia or 'x')].append(m)
+    grupos = particionar(muestras)                                       # 027:RF-2
     if not grupos['entrenamiento']:
-        grupos['entrenamiento'] = list(muestras)
+        grupos['entrenamiento'] = list(grupos['validacion'])
     actual = cargar(bufer)
     # Sin configuración, la del modelo en uso; sus pesos solo valen con la misma arquitectura.
     cfg = cfg or (actual.cfg if actual else Entrenamiento())
@@ -704,7 +744,7 @@ def entrenar(bufer: BuferEpisodios, *, consulta: Consulta | None = None, cfg: En
             'residuo_medio': float(np.mean(residuos)), 'mae_dorados': error_dorados,
             'particiones': {k: len(v) for k, v in grupos.items()}}
     carpeta = guardar(candidato, bufer, meta)
-    fallos = []
+    fallos = fallos_de_particion(grupos)                                 # 027:RF-3
     if error is None or error > puertas.mae_v_max:
         fallos.append(f'error de tensión {error} p.u. sobre {puertas.mae_v_max}')
     if meta['residuo_medio'] > puertas.residuo_max:
@@ -727,8 +767,10 @@ def evaluar(bufer: BuferEpisodios, consulta: Consulta | None = None) -> dict[str
     actual = cargar(bufer) if muestras else None
     fisica = ModeloMallado(exponente=actual.cfg.exponente_carga if actual else 0.0)
     filas = []
+    grupos = particionar(muestras)                                       # 027:RF-2
+    parte_de = {id(m): p for p, ms in grupos.items() for m in ms}
     for m, i in zip(muestras, ids, strict=True):
-        fila = {'episodio': i, 'particion': particion(m.familia or 'x'), 'nodos': len(m.ids),
+        fila = {'episodio': i, 'particion': parte_de[id(m)], 'nodos': len(m.ids),
                 'mae_fisica': mae(fisica, [m])}
         if actual is not None:
             fila['mae_modelo'] = mae(actual, [m])

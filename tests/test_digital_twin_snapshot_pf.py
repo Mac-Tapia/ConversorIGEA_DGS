@@ -81,6 +81,23 @@ def test_lee_sin_escribir_y_con_reapertura(guion):
     assert 'ausente' in lectura['flujo']['confiabilidad']
 
 
+def test_la_lectura_trae_el_grafo_y_el_episodio_entrena(guion):
+    """027:RF-1 — la lectura tras una acción trae el grafo eléctrico con los mismos
+    identificadores que las tensiones, y el episodio que se arma con ella es entrenable:
+    los de las calibraciones de Nasca y Chincha (2026-10-28) traían tensiones y no grafo."""
+    from igea_dgs.digital_twin.oraculo import VERSION_GRAFO, muestra
+
+    feeders = _alimentadores()
+    lectura, rc = guion.ejecutar(_app(feeders), _plan(feeders))
+    assert rc == 0, f'semilla {SEMILLA}: {lectura}'
+    grafo = lectura['topologia']['grafo']
+    assert grafo['version'] == VERSION_GRAFO and grafo['nodos'] and grafo['ramas']
+    tensiones = lectura['flujo']['tensiones']['valores']
+    assert set(tensiones) <= set(grafo['nodos']), 'mismos identificadores'
+    m = muestra(grafo, tensiones)
+    assert m.mascara.sum() == len(tensiones) and len(m.z) > 0
+
+
 def test_tramo_abierto_es_frontera_y_parte_la_isla(guion):
     """024:RF-2 — un tramo abierto queda en la frontera y separa sus dos lados."""
     feeders = ('F1',)

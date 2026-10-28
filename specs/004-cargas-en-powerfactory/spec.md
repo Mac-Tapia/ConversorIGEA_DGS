@@ -273,6 +273,12 @@ hojas trae SUMINISTRO y SED, y el cruce elegía uno de ellos como tabla de sumin
   registro, el FP de la SED fija es el de la EA y el ERI de esa fecha y hora, sin llevarlo
   al mínimo de 015:RF-62, que solo vale para el cociente del mes; las escaladas siguen con
   el FP del perfil (0,98 en Electro Dunas, 015:RF-54) (usuario, 2026-10-28).
+- RF-67: CUANDO el objetivo del alimentador tenga su fecha y hora (el instante de su barra de
+  60 kV, 022:RF-84, o su propia máxima), EL SISTEMA tomará de la hoja de 15 minutos de cada
+  cliente fijo el registro de ese mismo instante, con su kW (EA × 4) y su kVAR (ERI × 4), en vez
+  de su POT del mes: sumar la POT de cada cliente, cada una de un día, dio en NA203 9 261 kW de
+  fijas frente a 7 876 medidos y Nasca dejó de cuadrar (DIgSILENT, 2026-10-28). Sin ese
+  registro, RF-66.
 
 ## Requisitos no funcionales
 

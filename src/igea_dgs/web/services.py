@@ -2600,7 +2600,7 @@ def demanda_curva_central(ws: Workspace, job_id: str, *, alimentador: str, cabec
 
 
 def demanda_clientes(ws: Workspace, alimentadores: list[str] | None = None,
-                     *, periodo: str | None = None) -> dict:
+                     *, periodo: str | None = None, instante: datetime | None = None) -> dict:
     """Clientes importantes cruzados con los suministros (RF-33 a RF-37); con
     ``alimentadores``, solo los de esos alimentadores por su radial (RF-43)."""
     from ..demanda_medida import (DemandaError, cruzar, del_alimentador, leer_clientes,
@@ -2626,12 +2626,13 @@ def demanda_clientes(ws: Workspace, alimentadores: list[str] | None = None,
     # 004:RF-66: la reactiva de cada cliente en el registro de 15 minutos de su POT, de su
     # hoja del mismo libro; solo los cruzados (los de un alimentador, en el plan).
     try:
-        registro, avisos_r = registros_de_maxima(libro, {c.codigo: c.pot for c in cruzados})
+        registro, avisos_r = registros_de_maxima(libro, {c.codigo: c.pot for c in cruzados},
+                                                 instante=instante)
     except DemandaError as exc:
         registro, avisos_r = {}, [str(exc)]
     for c in cruzados:
         if c.codigo in registro:
-            c.fecha_registro, c.q_registro_kvar = registro[c.codigo]
+            c.fecha_registro, c.q_registro_kvar, c.p_registro_kw = registro[c.codigo]
     avisos_c = avisos_c + avisos_r
     return {
         'alimentadores': alimentadores,
@@ -3029,8 +3030,15 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
         # 025:RF-11: sin libro del mes de su máxima, todas sus SED por kVA.
         if (hay_suministros(ws) and ws.demanda.get('clientes')
                 and client_period.status != 'NO_CLIENT_BOOK'):
+            # 004:RF-67: los clientes fijos en el registro del objetivo (el instante de su
+            # barra de 60 kV o la máxima del alimentador), coincidentes con él.
+            try:
+                instante_obj = datetime.fromisoformat(str(objetivo.fecha)) if objetivo.fecha else None
+            except ValueError:
+                instante_obj = None
             clientes = demanda_clientes(
                 ws, sorted(implicados) or [alimentador], periodo=maximum_period,
+                instante=instante_obj,
             )['cruzados']
             if implicados:
                 # 022:RF-63: el libro de suministros dice el alimentador de siempre (RADIAL);

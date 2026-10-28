@@ -24,92 +24,11 @@ import time
 import traceback
 from pathlib import Path
 
-from cargas_pf import _cerrado, activar_proyecto, clave_pf, flujo_de_carga
-from digital_twin_snapshot_pf import CASOS, _caso, _red, resultados
-from estudios_pf import _num
+from cargas_pf import activar_proyecto, clave_pf, flujo_de_carga
+from digital_twin_snapshot_pf import CASOS, _caso, _red, grafo, resultados
 
-from igea_dgs.digital_twin.native_snapshot import componentes, identidad_nativa
-from igea_dgs.digital_twin.oraculo import VERSION_GRAFO
+from igea_dgs.digital_twin.native_snapshot import componentes
 from igea_dgs.native_action import native_action_block_report
-
-
-def _id(obj, raiz: str) -> str:
-    return identidad_nativa(obj.GetClassName(), clave_pf(obj), raiz)
-
-
-def _barra(cub, raiz: str) -> str | None:
-    barra = getattr(cub, 'cterm', None) or (cub.GetParent() if cub is not None else None)
-    return _id(barra, raiz) if barra is not None else None
-
-
-def grafo(app, proyecto, raiz: str, feeders: list[str], factor: float = 1.0) -> dict:
-    """Nodos y ramas con sus parámetros en unidades físicas (kV, MW, Mvar, Ω, kA)."""
-    nodos = {}
-    for b in app.GetCalcRelevantObjects('*.ElmTerm'):
-        nodos[_id(b, raiz)] = {'kv': _num(b, 'uknom'), 'p_mw': 0.0, 'q_mvar': 0.0, 'fuente': False}
-    for c in app.GetCalcRelevantObjects('*.ElmLod'):
-        if int(getattr(c, 'outserv', 0) or 0):
-            continue
-        n = _barra(getattr(c, 'bus1', None), raiz)
-        if n in nodos:
-            escala = (_num(c, 'scale0') or 1.0) * factor
-            nodos[n]['p_mw'] += (_num(c, 'plini') or 0.0) * escala
-            nodos[n]['q_mvar'] += (_num(c, 'qlini') or 0.0) * escala
-    for sh in app.GetCalcRelevantObjects('*.ElmShnt'):
-        n = _barra(getattr(sh, 'bus1', None), raiz)
-        if n in nodos and not int(getattr(sh, 'outserv', 0) or 0):
-            q = _num(sh, 'qtotn') or (_num(sh, 'qcapn') or 0.0) * (_num(sh, 'ncapa') or 1.0)
-            nodos[n]['q_mvar'] -= q
-    redes = list(app.GetCalcRelevantObjects('*.ElmXnet'))
-    fuentes = [_barra(getattr(x, 'bus1', None), raiz) for x in redes]
-    # La consigna de tensión de cada red externa: IN111 está a 1,02 p.u. y TA225 a 1,00, y sin
-    # ella el oráculo tenía que adivinar el nivel de toda la red (024, 2026-10-22).
-    for x, f in zip(redes, fuentes, strict=True):
-        if f in nodos and (u := _num(x, 'usetp')) is not None:
-            nodos[f]['v_pu'] = u
-    if not any(fuentes):
-        # Sin red externa (el doble de pruebas), la fuente es la barra de cada cabecera.
-        elms = {f.loc_name: f for f in proyecto.GetContents('*.ElmFeeder', 1)}
-        fuentes = [_barra(getattr(elms[f], 'obj_id', None), raiz) for f in feeders if f in elms]
-    for f in fuentes:
-        if f in nodos:
-            nodos[f]['fuente'] = True
-    ramas = []
-    for ln in app.GetCalcRelevantObjects('*.ElmLne'):
-        tipo = getattr(ln, 'typ_id', None)
-        cubs = [c for c in (getattr(ln, 'bus1', None), getattr(ln, 'bus2', None)) if c is not None]
-        if tipo is None or len(cubs) != 2:
-            continue
-        n = max(int(getattr(ln, 'nlnum', 1) or 1), 1)
-        largo = _num(ln, 'dline') or 0.0
-        ramas.append({'id': _id(ln, raiz), 'clase': 'ElmLne', 'desde': _barra(cubs[0], raiz),
-                      'hasta': _barra(cubs[1], raiz), 'cerrada': _cerrado(ln, cubs),
-                      'r_ohm': (_num(tipo, 'rline') or 0.0) * largo / n,
-                      'x_ohm': (_num(tipo, 'xline') or 0.0) * largo / n,
-                      'inom_ka': (_num(tipo, 'sline') or 0.0) * n})
-    # Los acopladores (interruptores y seccionadores de barra): desde la spec 022 la cabecera
-    # de cada alimentador es un interruptor en su SET. Sin ellos, de 2470 nodos de IN111–TA225
-    # solo 91 quedaban unidos a una fuente (2026-10-22).
-    for cp in app.GetCalcRelevantObjects('*.ElmCoup'):
-        cubs = [c for c in (getattr(cp, 'bus1', None), getattr(cp, 'bus2', None)) if c is not None]
-        if len(cubs) == 2:
-            ramas.append({'id': _id(cp, raiz), 'clase': 'ElmCoup', 'desde': _barra(cubs[0], raiz),
-                          'hasta': _barra(cubs[1], raiz), 'cerrada': _cerrado(cp, cubs),
-                          'r_ohm': 0.0, 'x_ohm': 0.0, 'inom_ka': 0.0})
-    for tr in app.GetCalcRelevantObjects('*.ElmTr2'):
-        tipo = getattr(tr, 'typ_id', None)
-        hv, lv = getattr(tr, 'bushv', None), getattr(tr, 'buslv', None)
-        if tipo is None or hv is None or lv is None:
-            continue
-        s, uh = _num(tipo, 'strn') or 0.0, _num(tipo, 'utrn_h') or 0.0
-        z_base = uh * uh / s if s else 0.0
-        ramas.append({'id': _id(tr, raiz), 'clase': 'ElmTr2', 'desde': _barra(hv, raiz),
-                      'hasta': _barra(lv, raiz), 'cerrada': not int(getattr(tr, 'outserv', 0) or 0),
-                      'r_ohm': (_num(tipo, 'pcutr') or 0.0) / 1000 / s * z_base if s else 0.0,
-                      'x_ohm': (_num(tipo, 'uktr') or 0.0) / 100 * z_base,
-                      'inom_ka': s / (3 ** 0.5 * uh) if uh else 0.0,
-                      'relacion': uh / (_num(tipo, 'utrn_l') or uh)})
-    return {'version': VERSION_GRAFO, 'nodos': nodos, 'ramas': ramas}
 
 
 def ejecutar(app, plan: dict, cancelado=lambda: False) -> tuple[dict, int]:

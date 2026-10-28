@@ -329,7 +329,16 @@ def test_reactiva_del_registro_de_la_pot_del_cliente(tmp_path):
         'maestro_lib': [['numero_suministro', 'nombre_hoja_exportacion'], ['700', 'cli700']],
         'cli700': hoja})
     reg, avisos = dm.registros_de_maxima(tmp_path / 'c.xlsx', {'700': 400.0, '800': 50.0})
-    assert reg['700'] == (f'01/07/2026 {pico // 4:02d}:{15 * (pico % 4):02d}', pytest.approx(30.0))
+    assert reg['700'][:2] == (f'01/07/2026 {pico // 4:02d}:{15 * (pico % 4):02d}', pytest.approx(30.0))
+    # 004:RF-67: con el instante del alimentador, P y Q de ese registro, coincidentes.
+    from datetime import datetime as _dt
+    k = (pico + 3) % 24
+    en_t, _ = dm.registros_de_maxima(tmp_path / 'c.xlsx', {'700': 400.0},
+                                    instante=_dt(2026, 7, 1, k // 4, 15 * (k % 4)))
+    assert en_t['700'][1] == pytest.approx(4.0) and en_t['700'][2] == pytest.approx((10.0 + k) * 4)
+    f_t = fijas_de([{'sed': 'S1', 'pot': 400.0, 'codigo': '700', 'q_registro_kvar': en_t['700'][1],
+                     'p_registro_kw': en_t['700'][2]}], Objetivo(kw=1.0, kvar=0.0, medidor='M'))
+    assert f_t['S1'].kw == pytest.approx((10.0 + k) * 4), 'el kW del instante, no la POT del mes'
     assert '800' not in reg and not avisos, 'sin hoja, nada que decir: sigue con su ERI/EA'
     objetivo = Objetivo(kw=1000.0, kvar=100.0, medidor='M', alimentador='A', fecha='2026-07-01')
     clientes = [{'sed': 'S1', 'pot': 400.0, 'ea': 900.0, 'eri': 900.0, 'codigo': '700',

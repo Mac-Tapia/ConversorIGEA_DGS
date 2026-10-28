@@ -108,6 +108,9 @@ def fijas_de(cruzados: Iterable[Mapping[str, Any]], objetivo: Objetivo,
         ea, eri = numero(c.get('ea')), numero(c.get('eri'))
         codigo = str(c.get('codigo') or '')
         q_registro = numero(c.get('q_registro_kvar'))
+        if numero(c.get('p_registro_kw')) is not None:
+            # 004:RF-67: P y Q del cliente en el instante de su alimentador, coincidentes.
+            kw = numero(c.get('p_registro_kw'))
         if q_registro is not None and kw:
             # 004:RF-66: la reactiva del registro de 15 minutos en que se dio su POT.
             tan = q_registro / kw

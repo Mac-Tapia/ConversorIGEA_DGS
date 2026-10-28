@@ -1404,21 +1404,28 @@ class ClienteImportante:
     # ese mismo registro (kVAR = ERI × 4), en vez del cociente ERI/EA del mes.
     fecha_registro: str = ''
     q_registro_kvar: float | None = None
+    p_registro_kw: float | None = None   # con el instante de su alimentador (004:RF-67)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
 def registros_de_maxima(path: Path | str, pot_de: Mapping[str, float | None],
-                        ) -> tuple[dict[str, tuple[str, float]], list[str]]:
+                        instante: datetime | None = None,
+                        ) -> tuple[dict[str, tuple[str, float, float | None]], list[str]]:
     """El registro de 15 minutos en que cada cliente dio su POT, con su kVAR (004:RF-66).
 
     El libro de clientes trae, además del resumen, una hoja de 15 minutos por cliente libre
     («maestro_lib» dice cuál: ``numero_suministro`` → ``nombre_hoja_exportacion``) con
     FECHA, HORA, EA, ERI y POT (kW = EA × 4). El usuario, el 2026-10-28: «ubicar la hoja de
     ese cliente y buscar la fecha en que pasó esa EA, y de esa misma fecha sacar el ERI».
-    Devuelve ``{código: (fecha y hora, kVAR = ERI × 4)}`` y los avisos; un cliente sin hoja
-    o sin ese registro no está, y sigue con su ERI/EA del mes.
+    Devuelve ``{código: (fecha y hora, kVAR = ERI × 4, kW = EA × 4 o None)}`` y los avisos;
+    un cliente sin hoja o sin ese registro no está, y sigue con su ERI/EA del mes.
+
+    Con ``instante`` (el de la barra de 60 kV de su alimentador, 022:RF-84), el registro de esa
+    fecha y hora, con su kW y su kVAR: tomar la POT de cada cliente, cada una de un día, sumaba
+    en NA203 9 261 kW de fijas frente a 7 876 medidos y 4 432 kVAR frente a 483, y Nasca dejó
+    de cuadrar (2026-10-28). Sin ``instante``, el registro de su POT, sin kW.
     """
     libro = _abrir(path)
     avisos: list[str] = []
@@ -1446,15 +1453,23 @@ def registros_de_maxima(path: Path | str, pot_de: Mapping[str, float | None],
         if cols is None:
             avisos.append(f'{codigo}: la hoja «{hoja}» no tiene FECHA, HORA, ERI y POT.')
             continue
-        tol = max(1e-6, 1e-4 * abs(pot))
-        fila = next((f for f in datos if numero(_celda(f, cols['pot'])) is not None
-                     and abs(numero(_celda(f, cols['pot'])) - pot) <= tol), None)
+        if instante is not None:
+            buscado = (instante.strftime('%d/%m/%Y'), instante.strftime('%H:%M'))
+            fila = next((f for f in datos if (_texto(f, cols['fecha']), _texto(f, cols['hora'])[:5]) == buscado),
+                        None)
+        else:
+            tol = max(1e-6, 1e-4 * abs(pot))
+            fila = next((f for f in datos if numero(_celda(f, cols['pot'])) is not None
+                         and abs(numero(_celda(f, cols['pot'])) - pot) <= tol), None)
         eri = numero(_celda(fila, cols['eri'])) if fila is not None else None
         if fila is None or eri is None:
-            avisos.append(f'{codigo}: su POT {pot:g} kW no está en la hoja «{hoja}»; '
+            que = f'el registro del {instante}' if instante is not None else f'su POT {pot:g} kW'
+            avisos.append(f'{codigo}: {que} no está en la hoja «{hoja}»; '
                           'su kVAR con el ERI/EA del mes (004:RF-66).')
             continue
-        out[codigo] = (f"{_texto(fila, cols['fecha'])} {_texto(fila, cols['hora'])}".strip(), eri * 4.0)
+        ea = numero(_celda(fila, cols['ea'])) if 'ea' in cols else None
+        kw = ea * 4.0 if instante is not None and ea is not None else None
+        out[codigo] = (f"{_texto(fila, cols['fecha'])} {_texto(fila, cols['hora'])}".strip(), eri * 4.0, kw)
     return out, avisos
 
 

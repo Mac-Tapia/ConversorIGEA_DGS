@@ -52,8 +52,19 @@ def _episodio(grafo, i, clase='counterfactual'):
 def entrenado(tmp_path_factory):
     rnd = random.Random(11)
     bufer = BuferEpisodios(tmp_path_factory.mktemp('twin'))
-    for i in range(24):
-        bufer.guardar(_episodio(red_radial(rnd, rnd.randint(8, 18)), i))
+    # 027:RF-2, RF-3: cuatro redes de tamaño distinto con 12 escenarios de carga cada una, para
+    # que una red entera quede de prueba con al menos 10 episodios.
+    import copy
+
+    for r, n in enumerate((8, 11, 14, 17)):
+        base = red_radial(rnd, n)
+        for k in range(12):
+            g = copy.deepcopy(base)
+            factor = rnd.uniform(0.7, 1.3)
+            for nodo in g['nodos'].values():
+                nodo['p_mw'] = (nodo.get('p_mw') or 0.0) * factor
+                nodo['q_mvar'] = (nodo.get('q_mvar') or 0.0) * factor
+            bufer.guardar(_episodio(g, r * 12 + k))
     r = orc.entrenar(bufer, cfg=CFG, puertas=orc.Puertas(mae_v_max=0.02, residuo_max=0.5))
     return bufer, r
 
@@ -81,7 +92,8 @@ def test_entrena_registra_y_promueve(entrenado):
     por familias, registra episodios y métricas y promueve si pasa las puertas."""
     bufer, r = entrenado
     assert r['entrenado'] and r['promovido'], r
-    assert sum(r['particiones'].values()) == 24 and r['mae_v'] < 0.02
+    assert sum(r['particiones'].values()) == 48 and r['mae_v'] < 0.02
+    assert r['particiones']['prueba'] >= orc.MIN_EPISODIOS_PRUEBA
     meta = (bufer.raiz / 'modelos' / r['version'] / 'modelo.json').read_text(encoding='utf-8')
     assert '"episodios"' in meta and '"consulta"' in meta
     assert orc.cargar(bufer).version == r['version']
