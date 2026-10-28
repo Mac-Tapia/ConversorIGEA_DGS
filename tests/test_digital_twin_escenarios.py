@@ -131,3 +131,53 @@ def test_el_grafo_trae_los_acopladores_y_la_version(guion):
     g = informe['grafo']
     assert rc == 0 and g['version'] == VERSION_GRAFO
     assert [r['clase'] for r in g['ramas']].count('ElmCoup') == 1
+
+
+def test_hipercubo_latino_del_rango_medido():
+    """027:RF-4 — los factores cubren el rango medido del total coincidente, del valle a la
+    punta con su margen, uno por franja; misma semilla, mismos factores."""
+    import random as _r
+
+    semilla = _r.randrange(1 << 30)
+    rnd = _r.Random(semilla)
+    curvas = [[rnd.uniform(200, 1000) for _ in range(96)] for _ in range(rnd.randint(1, 5))]
+    lo, hi = es.rango_medido(curvas, margen=0.1)
+    total = [sum(c[i] for c in curvas) for i in range(96)]
+    assert lo == pytest.approx(min(total) / max(total)) and hi == pytest.approx(1.1)
+    n = rnd.randint(3, 12)
+    f = es.factores_hipercubo(lo, hi, n, semilla)
+    ancho = (hi - lo) / n
+    assert len(f) == n and list(f) == sorted(f)
+    assert all(lo + k * ancho - 1e-4 <= x <= lo + (k + 1) * ancho + 1e-4 for k, x in enumerate(f)), semilla
+    assert f == es.factores_hipercubo(lo, hi, n, semilla)
+    assert es.rango_medido([]) is None and es.factores_hipercubo(1.0, 1.0, 3) == ()
+    m = es.matriz(['L1'], factores=f, contingencias=1)
+    assert {e.factor_carga for e in m} == set(f)
+
+
+def test_la_web_usa_el_rango_de_la_ultima_maxima(monkeypatch):
+    """027:RF-4 — el servicio arma la matriz con los factores del hipercubo del rango medido
+    en las curvas de la última máxima buscada."""
+    from datetime import datetime
+    from threading import Lock
+    from types import SimpleNamespace
+
+    from igea_dgs import perfil_empresa
+    from igea_dgs.digital_twin import buffer, oraculo
+    from igea_dgs.web import services
+
+    t0 = datetime(2026, 7, 1)
+    curva = [(t0, kw, 0.0) for kw in (300.0, 600.0, 1000.0, 500.0)]
+    ws = SimpleNamespace(lock=Lock(), curvas_cabecera={'J': {'M1': {'curva': curva}}})
+    pedidas = []
+    monkeypatch.setattr(services, 'native_action_context', lambda *a: {'feeders': ['F1']})
+    monkeypatch.setattr(services, 'carpeta_pf', lambda: 'c')
+    monkeypatch.setattr(services, '_guion_pf', lambda *a, **k: (0, {'tramos': ['L1'], 'grafo': {}}, None))
+    monkeypatch.setattr(perfil_empresa, 'datos_perfil', lambda *a, **k: {'gemelo': {'puntos_de_carga': 4}})
+    monkeypatch.setattr(buffer, 'BuferEpisodios', lambda *a, **k: SimpleNamespace(consultar=lambda _c: []))
+    monkeypatch.setattr(oraculo, 'incertidumbre_de_escenarios', lambda _g: None)
+    monkeypatch.setattr(es, 'elegir', lambda m, *a, **k: pedidas.extend(m) or [])
+    r = services.gemelo_aprender(ws, SimpleNamespace(log=lambda _m: None), "P", ["F1"], n=3)
+    assert r['simulados'] == 0
+    factores = sorted({e.factor_carga for e in pedidas})
+    assert len(factores) == 4 and 0.3 <= factores[0] < 0.5 and factores[-1] <= 1.1
