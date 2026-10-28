@@ -203,3 +203,14 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       acierta 0,982 frente a 0,983 sin destilar en la prueba fija de 541, así que se queda sin
       destilar (RF-60) y el modelo en uso (0,987) sigue. Con 11 órdenes frente a 4070 sintéticas la
       destilación aún no aporta: hará falta con las 200 órdenes reales de RF-17.
+- [ ] T26. Claude y Codex como maestros de la destilación: etiquetas de Claude en
+      `etiquetas_maestro`, Codex por su CLI con los nombres de la red enmascarados y anotado, y
+      `tools/asistente_entrenar.py --destilar --maestro claude|codex|ollama`. (RF-56, RF-63, RF-64)
+      Hecho cuando: pruebas en verde (enmascarado y restitución, etiquetas de archivo) y una
+      corrida real con las etiquetas de Claude y otra con Codex.
+      Avance del 2026-10-28: `MaestroArchivo`, `MaestroCodex` (con `enmascarar` y `reponer`) y
+      `--maestro claude|codex|ollama`, `--modelo-codex`; 9 pruebas en verde. Claude etiquetó las 13
+      órdenes sin confirmar (5 votos cada una) y, con él de maestro, el alumno acierta 0,985 frente a
+      0,980 sin destilar (se usa el destilado); no se promueve porque el modelo en uso acierta 0,987.
+      Codex, pendiente: su cuenta de ChatGPT rechaza el modelo configurado (`gpt-5.6-sol`) y también
+      gpt-5.5, gpt-5 y gpt-5-codex; falta configurar un modelo que la cuenta admita.

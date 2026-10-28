@@ -10,10 +10,12 @@ secuencia como en Hsieh et al., 2023, y Xu et al., 2024): el alumno aprende de e
 """
 from __future__ import annotations
 
+import json
 import re
 from collections import Counter
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field
+from pathlib import Path
 from typing import Any, Protocol
 
 from . import almacen
@@ -128,3 +130,103 @@ def registro(cfg: Destilacion, maestro: Maestro | None, resultado: dict[str, Any
             'etiquetadas': len((resultado or {}).get('blandos') or []),
             'descartadas': len((resultado or {}).get('descartados') or []),
             'respondio': bool((resultado or {}).get('respondio'))}
+
+
+# ------------------------------------------------------------------ maestros (RF-56, RF-63, RF-64)
+class MaestroArchivo:
+    """Las etiquetas que dejó Claude en el registro ``etiquetas_maestro`` (RF-64): por orden, sus
+    votos (una tarea por voto) y sus datos. Cada semilla toma el voto siguiente."""
+
+    def __init__(self, filas: Iterable[Mapping[str, Any]] | None = None):
+        filas = list(filas if filas is not None else almacen.leer('etiquetas_maestro'))
+        self.por_texto = {normalizar(f['texto']): f for f in filas if f.get('texto')}
+        self.modelo = next((str(f.get('maestro')) for f in filas if f.get('maestro')), 'claude')
+
+    def interpretar(self, texto: str, *, temperatura: float = 0.0, semilla: int = 0, **_kw) -> dict | None:
+        f = self.por_texto.get(normalizar(texto))
+        if f is None or not f.get('votos'):
+            return None
+        votos = list(f['votos'])
+        tarea = votos[semilla % len(votos)]
+        datos = {tipo: [{'valor': v, 'confianza': 1.0} for v in (vs if isinstance(vs, list) else [vs])]
+                 for tipo, vs in (f.get('datos') or {}).items()} if tarea == votos[0] else {}
+        return {'tarea': tarea, 'confianza': f.get('confianza', 0.9), 'datos': datos, 'modelo': self.modelo}
+
+
+def enmascarar(texto: str, vocab: Mapping[str, Sequence[str]]) -> tuple[str, dict[str, str]]:
+    """El texto con cada nombre del vocabulario cambiado por un marcador (``<ALIMENTADORES1>``…) y
+    la tabla para reponerlos (RF-63). Los nombres largos primero, sin distinguir mayúsculas."""
+    tabla: dict[str, str] = {}
+    nombres = sorted({(str(n), tipo) for tipo, ns in vocab.items() for n in ns if n and len(str(n)) >= 3},
+                     key=lambda x: (-len(x[0]), x[0]))
+    salida = texto
+    for nombre, tipo in nombres:
+        patron = re.compile(re.escape(nombre), re.I)
+        if patron.search(salida):
+            previas = sum(1 for k in tabla if k.startswith('<' + tipo.upper()))
+            marca = f'<{tipo.upper()}{previas + 1}>'
+            tabla[marca] = nombre
+            salida = patron.sub(marca, salida)
+    return salida, tabla
+
+
+def reponer(valor: str, tabla: Mapping[str, str]) -> str:
+    for marca, nombre in tabla.items():
+        valor = valor.replace(marca, nombre)
+    return valor
+
+
+class MaestroCodex:
+    """Codex por su CLI (``codex exec``) como maestro (RF-56, RF-63): la orden sale enmascarada, la
+    respuesta es un JSON con la tarea y los datos, y cada envío queda anotado."""
+
+    def __init__(self, vocab: Mapping[str, Sequence[str]], *, modelo: str | None = None,
+                 tiempo_max_s: float = 180.0, ejecutar=None):
+        self.vocab, self.tiempo_max_s = vocab, tiempo_max_s
+        self.modelo = f"codex:{modelo or 'predeterminado'}"
+        self._modelo_cli = modelo
+        self._ejecutar = ejecutar or self._codex
+
+    def _codex(self, prompt: str) -> str | None:
+        import shutil
+        import subprocess
+        import tempfile
+
+        exe = shutil.which('codex')
+        if exe is None:
+            return None
+        with tempfile.TemporaryDirectory() as d:
+            salida = Path(d) / 'respuesta.txt'
+            cmd = [exe, 'exec', '--skip-git-repo-check', '-s', 'read-only', '-o', str(salida)]
+            if self._modelo_cli:
+                cmd += ['-m', self._modelo_cli]
+            try:
+                subprocess.run(cmd + ['-'], input=prompt, text=True, encoding='utf-8', cwd=d,
+                               capture_output=True, timeout=self.tiempo_max_s, check=False)
+            except (OSError, subprocess.SubprocessError):
+                return None
+            return salida.read_text(encoding='utf-8') if salida.is_file() else None
+
+    def interpretar(self, texto: str, *, temperatura: float = 0.0, semilla: int = 0, **_kw) -> dict | None:
+        from .tareas import descripcion_para_modelo
+
+        oculto, tabla = enmascarar(texto, self.vocab)
+        almacen.anotar('internet', {'destino': 'codex', 'consulta': oculto,
+                                    'motivo': 'maestro de destilación (027:RF-63)'})
+        prompt = ('Eres el maestro que etiqueta órdenes de un operador de redes eléctricas. Responde SOLO un '
+                  'JSON {"tarea": <nombre>, "datos": {<nombre del dato>: <valor o lista>}} con una tarea de '
+                  'esta lista: ' + json.dumps(descripcion_para_modelo(), ensure_ascii=False)
+                  + f'\nVariante {semilla}: piensa la orden de nuevo antes de decidir.\nOrden: {oculto}')
+        bruto = self._ejecutar(prompt)
+        m = re.search(r'\{.*\}', bruto or '', re.S)
+        if not m:
+            return None
+        try:
+            r = json.loads(m.group(0))
+        except ValueError:
+            return None
+        datos = {}
+        for nombre, valor in (r.get('datos') or {}).items():
+            valores = valor if isinstance(valor, list) else [valor]
+            datos[nombre] = [{'valor': reponer(str(v), tabla), 'confianza': 0.8} for v in valores if v not in (None, '')]
+        return {'tarea': r.get('tarea'), 'confianza': 0.8, 'datos': datos, 'modelo': self.modelo}

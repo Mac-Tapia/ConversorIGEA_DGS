@@ -132,3 +132,39 @@ def test_sin_maestro_se_entrena_sin_destilar(con_ordenes):
                                puertas=tr.Puertas(acierto_tarea=0.0, f1_datos=0.0),
                                destilar=dst.Destilacion(k=2), maestro=MaestroMudo())
     assert r['destilacion']['usado'] is False and not r['destilacion']['respondio']
+
+
+def test_maestro_claude_de_archivo(tmp_path, monkeypatch):
+    """027:RF-64 — las etiquetas de Claude (votos y datos) son el maestro: cada semilla toma el
+    voto siguiente y la distribución sale de ellos."""
+    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(tmp_path))
+    almacen.anotar('etiquetas_maestro', {'texto': 'convierte IN111 y TA225', 'votos': ['convertir'] * 4 + ['unir'],
+                                         'datos': {'alimentadores': ['IN111', 'TA225']}, 'maestro': 'claude-opus-5-5'})
+    m = dst.MaestroArchivo()
+    assert m.modelo == 'claude-opus-5-5' and m.interpretar('otra orden') is None
+    r = dst.etiquetar(['convierte IN111 y TA225'], m, dst.Destilacion(k=5, acuerdo_min=0.6))
+    [b] = r['blandos']
+    assert b.distribucion == {'convertir': 0.8, 'unir': 0.2}
+    assert [texto for texto in ('IN111', 'TA225') if any(b.texto[x:y] == texto for x, y, _t in b.datos)] == ['IN111', 'TA225']
+
+
+def test_maestro_codex_enmascarado(tmp_path, monkeypatch):
+    """027:RF-56 / 027:RF-63 — a Codex solo le llega la orden con los nombres de la red cambiados
+    por marcadores; se reponen en su respuesta y el envío queda anotado."""
+    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(tmp_path))
+    vocab = {'alimentadores': ['IN111', 'TA225', 'IN11'], 'proyecto': ['P_PISCO'], 'sistema': ['Pisco']}
+    oculto, tabla = dst.enmascarar('convierte in111 y TA225 de Pisco', vocab)
+    assert 'IN111' not in oculto.upper() and 'TA225' not in oculto and 'Pisco' not in oculto
+    assert dst.reponer(oculto, tabla).lower() == 'convierte in111 y ta225 de pisco'
+    enviados = []
+
+    def codex_falso(prompt):
+        enviados.append(prompt)
+        return 'Mi respuesta: {"tarea": "convertir", "datos": {"alimentadores": ["<ALIMENTADORES1>", "<ALIMENTADORES2>"]}}'
+
+    m = dst.MaestroCodex(vocab, ejecutar=codex_falso)
+    r = m.interpretar('convierte IN111 y TA225', semilla=1)
+    assert r['tarea'] == 'convertir' and sorted(d['valor'] for d in r['datos']['alimentadores']) == ['IN111', 'TA225']
+    assert 'IN111' not in enviados[0] and 'TA225' not in enviados[0]
+    assert almacen.leer('internet')[-1]['destino'] == 'codex' and 'IN111' not in almacen.leer('internet')[-1]['consulta']
+    assert dst.MaestroCodex(vocab, ejecutar=lambda _p: 'sin json').interpretar('x') is None

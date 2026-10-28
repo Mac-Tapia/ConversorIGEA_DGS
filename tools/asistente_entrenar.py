@@ -43,6 +43,9 @@ def main(argv=None) -> int:
     p.add_argument('--solo', choices=('ordenes', 'informes'), help='Entrenar solo uno de los dos modelos')
     p.add_argument('--destilar', action='store_true',
                    help='Destilar del modelo local de Ollama (maestro) al Transformer (spec 027, RF-56)')
+    p.add_argument('--maestro', choices=('claude', 'codex', 'ollama'), default='claude',
+                   help='Maestro de la destilación: las etiquetas de Claude, Codex o Ollama (027:RF-56)')
+    p.add_argument('--modelo-codex', help='Modelo de Codex como maestro (por defecto, el de su configuración)')
     p.add_argument('--evaluar', action='store_true', help='No entrenar: medir los modelos en uso con la prueba fija')
     args = p.parse_args(argv)
     salida = Path(args.output_json)
@@ -80,7 +83,12 @@ def main(argv=None) -> int:
                     from igea_dgs.asistente.destilacion import Destilacion
                     from igea_dgs.asistente.ollama import cliente_configurado
 
-                    kw = {'destilar': Destilacion(), 'maestro': cliente_configurado(tiempo_max_s=60.0)}
+                    from igea_dgs.asistente.destilacion import MaestroArchivo, MaestroCodex
+
+                    maestro = {'claude': lambda: MaestroArchivo(), 'codex': lambda: MaestroCodex(vocab, modelo=args.modelo_codex),
+                               'ollama': lambda: cliente_configurado(tiempo_max_s=60.0)}[args.maestro]()
+                    # Codex fuera de la máquina: menos votos, cada uno es una llamada (RF-63).
+                    kw = {'destilar': Destilacion(k=3 if args.maestro == 'codex' else 5), 'maestro': maestro}
                 out['ordenes'] = transformer.entrenar_y_promover(vocab, log=_log, **kw)
             if args.solo in (None, 'informes'):
                 out['informes'] = clasificador.entrenar_y_promover(log=_log)
