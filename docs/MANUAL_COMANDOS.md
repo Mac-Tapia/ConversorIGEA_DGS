@@ -998,8 +998,10 @@ se ejecutan con el intérprete de PowerFactory (Python 3.12 con `powerfactory.py
 | `obras_pf.py` | Obras de mejora de la spec 011: con `--bibliotecas`, alimentadores y tipos de las tres bibliotecas para el formulario; sin él, simula o aplica las obras en sus casos (sección 7.ter). | PF |
 | `transferencia_pf.py` | Transferencia de carga entre dos alimentadores por su enlace, en los dos sentidos, sin dejar nada en el proyecto (spec 011; sección 7.ter). | PF |
 | `transformador_set_pf.py` | Cargabilidad del devanado del transformador de la SET en el proyecto de transmisión (AD08), sin y con proyecto: a la carga de la barra de la SET se le suma el Δ de cabecera de los flujos guardados de 4.2; `--listar` da las cargas de barra y los casos. Nada se guarda (spec 017, T10; paso 4.4.2). | PF |
+| `build_interactive_architecture.py` | Genera la página de la arquitectura C4 interactiva desde `docs/architecture/`. | |
 | `check_pf_license.py` | Qué módulos de PowerFactory permite la licencia. | PF |
 | `compare_schema.py` | Cabeceras de un DGS de otra versión de PF frente a un perfil de esquema. | |
+| `construir_dataset_pide.py` | Corpus PIDE universal de una empresa: `--raiz`, `--destino`, `--empresa`, `--contrato` (solo lee el expediente). | |
 | `convertir_grupos_mdb.py` | Varios alimentadores de una base en un DGS, importado y con flujo. | PF |
 | `fidelidad_seleccion.py` | Que una selección pase entera del TXT al modelo y al DGS. | |
 | `linea_base_dgs.py` | Línea base de DGS antes de una reorganización, y comparación después. | |
@@ -1012,6 +1014,7 @@ se ejecutan con el intérprete de PowerFactory (Python 3.12 con `powerfactory.py
 | `show_pf_diagram.py` | Abre en DIgSILENT el diagrama de un alimentador (`--feeder`). | PF |
 | `sistema_web.py` | Un sistema eléctrico de punta a punta por la web abierta: convierte por sistema, importa, busca la máxima por barra de SET y calibra el sistema entero; retoma lo hecho (spec 022, RF-56). | Web + PF |
 | `suggest_line_type_aliases.py` | Propone alias para tipos de línea sin ficha en el catálogo. | |
+| `verify_architecture_links.py` | Comprueba los enlaces del espacio Structurizr (`docs/architecture/workspace.dsl`); necesita internet. | |
 | `verificar_pf.py` | Convergencia del proyecto con lo activo (paso 3.0 de 7.ter). | PF |
 
 Documentos relacionados: `docs/POWERFACTORY_ACCEPTANCE.md` (detalle de la puerta de

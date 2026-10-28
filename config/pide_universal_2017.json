@@ -1,0 +1,62 @@
+{
+  "schema": "igea-pide-universal-v1",
+  "version": "2017-prepublicacion-v1",
+  "estado_juridico": "proyecto",
+  "fuente": {
+    "titulo": "Norma Criterios y Metodología de Planificación para la Elaboración del PIDE",
+    "acto": "RM 428-2017-MEM/DM",
+    "nota": "Prepublicación; no se presenta como norma vigente"
+  },
+  "articulos": [
+    {"numero": 1, "titulo": "Objetivo", "etapa": "general", "entradas": ["mandato de planificación"], "procedimiento": ["definir propósito y resultados"], "evidencias": ["objetivo documentado"], "entregables": ["alcance del estudio"]},
+    {"numero": 2, "titulo": "Alcance", "etapa": "general", "entradas": ["empresa y zona de responsabilidad"], "procedimiento": ["delimitar sistemas e instalaciones"], "evidencias": ["ámbito trazable"], "entregables": ["matriz de alcance"]},
+    {"numero": 3, "titulo": "Base Legal", "etapa": "general", "entradas": ["disposiciones aplicables"], "procedimiento": ["identificar estado jurídico"], "evidencias": ["fuentes y versiones"], "entregables": ["matriz legal"]},
+    {"numero": 4, "titulo": "Obligaciones de las empresas y de OSINERGMIN", "etapa": "general", "entradas": ["responsables y procedimiento"], "procedimiento": ["asignar obligaciones y plazos"], "evidencias": ["responsable por requisito"], "entregables": ["matriz RACI"]},
+    {"numero": 5, "titulo": "Desarrollo general del estudio y del PIDE", "etapa": "general", "entradas": ["datos aprobados y horizonte"], "procedimiento": ["encadenar mercado, diagnóstico, alternativas y plan"], "evidencias": ["linaje entre etapas"], "entregables": ["plan de trabajo"]},
+    {"numero": 6, "titulo": "Alcances y etapas del planeamiento de largo plazo", "etapa": "planeamiento_largo_plazo", "entradas": ["red base y horizonte"], "procedimiento": ["definir etapas del estudio"], "evidencias": ["etapas completas"], "entregables": ["estructura del estudio"]},
+    {"numero": 7, "titulo": "Análisis del Mercado Eléctrico", "etapa": "planeamiento_largo_plazo", "entradas": ["históricos, clientes, proyectos y geografía"], "procedimiento": ["proyectar demanda y densidad por escenarios"], "evidencias": ["series, supuestos y validación"], "entregables": ["F01", "mapas de densidad"]},
+    {"numero": 8, "titulo": "Diagnóstico de los Sistemas de Distribución Eléctrica Existentes", "etapa": "planeamiento_largo_plazo", "entradas": ["modelo calibrado, inventario y mediciones"], "procedimiento": ["evaluar tensión, carga, pérdidas, calidad, confiabilidad y seguridad"], "evidencias": ["resultados por activo y escenario"], "entregables": ["F02", "F03", "F04", "F05", "F06"]},
+    {"numero": 9, "titulo": "Formulación de Alternativas de Inversión", "etapa": "planeamiento_largo_plazo", "entradas": ["problemas y causas"], "procedimiento": ["formular alternativas comparables"], "evidencias": ["alternativas incluidas y descartadas"], "entregables": ["F07"]},
+    {"numero": 10, "titulo": "Resultados del Estudio", "etapa": "planeamiento_largo_plazo", "entradas": ["mercado, diagnóstico y alternativas"], "procedimiento": ["consolidar resultados de largo plazo"], "evidencias": ["consistencia entre capítulos"], "entregables": ["informe de largo plazo"]},
+    {"numero": 11, "titulo": "Alcances y etapas del PIDE", "etapa": "pide", "entradas": ["resultados de largo plazo y periodo regulatorio"], "procedimiento": ["delimitar proyectos del PIDE"], "evidencias": ["proyectos trazados a necesidades"], "entregables": ["cartera candidata"]},
+    {"numero": 12, "titulo": "Formulación de Alternativas de Inversión", "etapa": "pide", "entradas": ["problemas del periodo"], "procedimiento": ["dimensionar alternativas generales y específicas"], "evidencias": ["metrados, ubicación y año"], "entregables": ["F08"]},
+    {"numero": 13, "titulo": "Evaluación Técnica", "etapa": "pide", "entradas": ["alternativas y red por escenario"], "procedimiento": ["simular y verificar solución de restricciones"], "evidencias": ["convergencia, límites y lectura posterior"], "entregables": ["resultados técnicos"]},
+    {"numero": 14, "titulo": "Evaluación Económica", "etapa": "pide", "entradas": ["CAPEX, COyM, pérdidas, tasa y beneficios"], "procedimiento": ["calcular indicadores con moneda y año base"], "evidencias": ["supuestos, fórmulas y sensibilidad"], "entregables": ["F09"]},
+    {"numero": 15, "titulo": "Priorización y Selección", "etapa": "pide", "entradas": ["resultados técnicos, económicos y presupuesto"], "procedimiento": ["priorizar conservando alternativas rechazadas"], "evidencias": ["criterio y restricciones de selección"], "entregables": ["cartera priorizada"]},
+    {"numero": 16, "titulo": "Propuesta del PIDE", "etapa": "pide", "entradas": ["cartera priorizada"], "procedimiento": ["programar proyectos por empresa y sistema"], "evidencias": ["responsables, cronograma y presupuesto"], "entregables": ["F10", "F11", "F12"]},
+    {"numero": 17, "titulo": "Resultados del PIDE", "etapa": "pide", "entradas": ["propuesta y anexos técnicos"], "procedimiento": ["consolidar costos, fichas y resultados"], "evidencias": ["coherencia técnica y económica"], "entregables": ["F13", "F14", "F15"]},
+    {"numero": 18, "titulo": "Formatos", "etapa": "entrega", "entradas": ["resultados de artículos 7 a 17"], "procedimiento": ["completar F01 a F15 sin campos silenciosamente vacíos"], "evidencias": ["campos y fuentes"], "entregables": ["libro F01-F15"]},
+    {"numero": 19, "titulo": "Medios", "etapa": "entrega", "entradas": ["informes, datos, modelos y planos"], "procedimiento": ["publicar medios editables y verificables"], "evidencias": ["manifiesto y huellas"], "entregables": ["paquete digital"]},
+    {"numero": 20, "titulo": "Plazo", "etapa": "entrega", "entradas": ["calendario regulatorio"], "procedimiento": ["verificar hitos y versión entregada"], "evidencias": ["fechas y constancias"], "entregables": ["cronograma de presentación"]}
+  ],
+  "formatos": [
+    {"codigo": "F01", "nombre": "Proyección", "campos": ["sistema", "año", "energía", "demanda", "tasa"]},
+    {"codigo": "F02", "nombre": "Metrados", "campos": ["sistema", "nivel", "elemento", "unidad", "cantidad"]},
+    {"codigo": "F03", "nombre": "Tensión MT", "campos": ["centro", "alimentador", "nivel", "demanda", "caída"]},
+    {"codigo": "F04", "nombre": "Tensión BT", "campos": ["centro", "alimentador", "SED", "demanda", "caída"]},
+    {"codigo": "F05", "nombre": "Pérdidas", "campos": ["sistema", "nivel", "componente", "porcentaje"]},
+    {"codigo": "F06", "nombre": "Calidad de suministro", "campos": ["centro", "alimentador", "SAIFI", "SAIDI"]},
+    {"codigo": "F07", "nombre": "Alternativas del estudio", "campos": ["año", "rubro", "código", "alternativa", "costo"]},
+    {"codigo": "F08", "nombre": "Alternativas PIDE", "campos": ["año", "rubro", "código", "alternativa", "demanda"]},
+    {"codigo": "F09", "nombre": "Evaluación económica", "campos": ["año", "código", "costo", "VAN", "TIR"]},
+    {"codigo": "F10", "nombre": "Propuesta empresa", "campos": ["año", "rubro", "demanda", "inversión", "costo anual"]},
+    {"codigo": "F11", "nombre": "Propuesta sistema", "campos": ["sistema", "año", "rubro", "inversión"]},
+    {"codigo": "F12", "nombre": "Propuesta proyecto", "campos": ["sistema", "año", "código", "proyecto", "inversión"]},
+    {"codigo": "F13", "nombre": "Detalle de costos", "campos": ["sistema", "código", "proyecto", "componentes", "total"]},
+    {"codigo": "F14", "nombre": "Ficha técnica", "campos": ["código", "proyecto", "ubicación", "objetivo", "alcance"]},
+    {"codigo": "F15", "nombre": "Ficha económica", "campos": ["código", "proyecto", "ítem", "costo"]}
+  ],
+  "alternativas": [
+    {"codigo": "reconfiguracion", "familia": "operacion", "resuelve": ["transferencia", "sobrecarga", "continuidad"]},
+    {"codigo": "cambio_conductor", "familia": "refuerzo", "resuelve": ["cargabilidad", "tensión", "pérdidas"]},
+    {"codigo": "nueva_terna", "familia": "refuerzo", "resuelve": ["cargabilidad", "confiabilidad"]},
+    {"codigo": "nuevo_alimentador", "familia": "expansion", "resuelve": ["sobrecarga", "demanda", "confiabilidad"]},
+    {"codigo": "nueva_subestacion", "familia": "expansion", "resuelve": ["capacidad", "tensión", "expansión espacial"]},
+    {"codigo": "ampliacion_subestacion", "familia": "refuerzo", "resuelve": ["capacidad", "reserva"]},
+    {"codigo": "compensacion_reactiva", "familia": "calidad", "resuelve": ["factor de potencia", "tensión", "pérdidas"]},
+    {"codigo": "regulacion_tension", "familia": "calidad", "resuelve": ["subtensión", "sobretensión"]},
+    {"codigo": "proteccion_automatizacion", "familia": "smart_grid", "resuelve": ["seguridad", "SAIFI", "SAIDI"]},
+    {"codigo": "reemplazo_activo", "familia": "remodelacion", "resuelve": ["antigüedad", "obsolescencia", "seguridad"]},
+    {"codigo": "electrificacion_expansion", "familia": "expansion", "resuelve": ["nueva demanda", "cobertura"]}
+  ]
+}

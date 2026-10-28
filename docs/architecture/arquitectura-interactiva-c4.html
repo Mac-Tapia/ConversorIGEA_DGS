@@ -1,0 +1,624 @@
+<div id="igea-c4-flow" class="igea-c4">
+  <style>
+    #igea-c4-flow {
+      --flow-duration: 1400ms;
+      color: var(--foreground);
+      background: transparent;
+      font-family: inherit;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      overflow-x: clip;
+    }
+    #igea-c4-flow * { box-sizing: border-box; }
+    #igea-c4-flow [hidden] { display: none !important; }
+    #igea-c4-flow .c4-heading { margin: 0 0 0.35rem; font-weight: 500; }
+    #igea-c4-flow .c4-subtitle { margin: 0 0 0.8rem; color: var(--muted-foreground); overflow-wrap: anywhere; }
+    #igea-c4-flow .c4-toolbar,
+    #igea-c4-flow .c4-view-tabs,
+    #igea-c4-flow .c4-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+      align-items: center;
+    }
+    #igea-c4-flow .c4-toolbar { justify-content: space-between; margin-bottom: 0.65rem; }
+    #igea-c4-flow .c4-speed { display: flex; gap: 0.45rem; align-items: center; }
+    #igea-c4-flow .c4-speed input { width: 8rem; }
+    #igea-c4-flow .c4-stage {
+      position: relative;
+      min-height: 520px;
+    }
+    #igea-c4-flow .c4-canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      min-height: 520px;
+    }
+    #igea-c4-flow .c4-frame {
+      fill: none;
+      stroke: var(--border);
+      stroke-width: 1;
+    }
+    #igea-c4-flow .c4-boundary {
+      fill: color-mix(in srgb, var(--muted) 55%, transparent);
+      stroke: var(--border);
+      stroke-width: 1.5;
+      stroke-dasharray: 8 5;
+    }
+    #igea-c4-flow .c4-boundary-label {
+      fill: var(--muted-foreground);
+      font-size: 14px;
+      font-weight: 500;
+    }
+    #igea-c4-flow .c4-node { color: var(--viz-series-1); }
+    #igea-c4-flow .c4-node[data-kind="external"] { color: var(--viz-series-2); }
+    #igea-c4-flow .c4-node[data-kind="native"] { color: var(--viz-series-3); }
+    #igea-c4-flow .c4-node[data-kind="ai"] { color: var(--viz-series-4); }
+    #igea-c4-flow .c4-node[data-kind="store"] { color: var(--viz-series-5); }
+    #igea-c4-flow .c4-node rect {
+      fill: color-mix(in srgb, currentColor 12%, var(--card));
+      stroke: color-mix(in srgb, currentColor 65%, var(--border));
+      stroke-width: 2;
+      rx: 12;
+    }
+    #igea-c4-flow .c4-node:hover rect,
+    #igea-c4-flow .c4-node:focus rect,
+    #igea-c4-flow .c4-node.is-active rect {
+      stroke: currentColor;
+      stroke-width: 4;
+    }
+    #igea-c4-flow .c4-node-title {
+      fill: var(--foreground);
+      font-size: 15px;
+      font-weight: 500;
+    }
+    #igea-c4-flow .c4-node-tech,
+    #igea-c4-flow .c4-node-path {
+      fill: var(--muted-foreground);
+      font-size: 12px;
+    }
+    #igea-c4-flow .c4-edge-visible {
+      fill: none;
+      stroke: var(--muted-foreground);
+      stroke-width: 2.2;
+      marker-end: url(#c4-arrow);
+    }
+    #igea-c4-flow .c4-edge.is-active .c4-edge-visible {
+      stroke: var(--viz-series-1);
+      stroke-width: 4;
+      stroke-dasharray: 14 9;
+      animation: c4-flow-dash var(--flow-duration) linear both;
+    }
+    #igea-c4-flow .c4-edge-hit {
+      fill: none;
+      stroke: transparent;
+      stroke-width: 22;
+    }
+    #igea-c4-flow .c4-edge:hover .c4-edge-visible,
+    #igea-c4-flow .c4-edge:focus .c4-edge-visible { stroke: var(--viz-series-1); stroke-width: 4; }
+    #igea-c4-flow .c4-edge-label {
+      fill: var(--foreground);
+      font-size: 12px;
+      paint-order: stroke;
+      stroke: var(--background);
+      stroke-width: 5px;
+      stroke-linejoin: round;
+    }
+    #igea-c4-flow .c4-particle {
+      fill: var(--viz-series-1);
+      stroke: var(--background);
+      stroke-width: 3;
+      pointer-events: none;
+    }
+    #igea-c4-flow .c4-detail {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 0.65rem 1rem;
+      align-items: center;
+      margin-top: 0.65rem;
+    }
+    #igea-c4-flow .c4-detail-main { min-width: 0; }
+    #igea-c4-flow .c4-detail-title { margin: 0 0 0.2rem; font-weight: 500; }
+    #igea-c4-flow .c4-detail-text,
+    #igea-c4-flow .c4-detail-access { margin: 0; color: var(--muted-foreground); }
+    #igea-c4-flow .c4-detail-access code { overflow-wrap: anywhere; }
+    #igea-c4-flow .c4-mobile-flow { display: none; }
+    #igea-c4-flow .c4-mobile-flow ol { margin: 0; padding-left: 1.4rem; }
+    #igea-c4-flow .c4-mobile-flow button { width: 100%; text-align: left; margin: 0.2rem 0; }
+    #igea-c4-flow .c4-access-index {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin-top: 0.65rem;
+    }
+    #igea-c4-flow .c4-access-index button { font-size: 0.86em; }
+    #igea-c4-flow .c4-sources { margin-top: 0.7rem; color: var(--muted-foreground); }
+    #igea-c4-flow .c4-sources summary { cursor: pointer; font-weight: 500; }
+    #igea-c4-flow .c4-sources ul { margin: 0.45rem 0 0; padding-left: 1.25rem; }
+    #igea-c4-flow .c4-sources a { color: var(--primary); }
+    @keyframes c4-flow-dash {
+      from { stroke-dashoffset: 92; }
+      to { stroke-dashoffset: 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #igea-c4-flow .c4-edge.is-active .c4-edge-visible { animation: none; }
+    }
+    @media (max-width: 560px) {
+      #igea-c4-flow .c4-heading { font-size: 1.2rem; }
+      #igea-c4-flow .c4-view-tabs,
+      #igea-c4-flow .c4-access-index {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        width: 100%;
+      }
+      #igea-c4-flow .c4-view-tabs button,
+      #igea-c4-flow .c4-access-index button { white-space: normal; }
+      #igea-c4-flow .c4-stage { min-height: 0; }
+      #igea-c4-flow .c4-canvas { display: none; }
+      #igea-c4-flow .c4-mobile-flow { display: block; }
+      #igea-c4-flow .c4-detail { grid-template-columns: 1fr; }
+      #igea-c4-flow .c4-speed { width: 100%; }
+      #igea-c4-flow .c4-speed input { flex: 1; }
+    }
+  </style>
+
+  <h2 class="c4-heading">Arquitectura C4 - Conversor IGEA-DGS</h2>
+  <p class="c4-subtitle">Reproduce el flujo, selecciona una flecha o abre una caja para ver su acceso directo.</p>
+
+  <div class="c4-toolbar">
+    <div class="nav nav-pills c4-view-tabs" role="tablist" aria-label="Vista de arquitectura">
+      <button id="tab-context" class="nav-link active" type="button" role="tab" aria-controls="c4-stage" aria-selected="true" data-view="context">Contexto</button>
+      <button id="tab-containers" class="nav-link" type="button" role="tab" aria-controls="c4-stage" aria-selected="false" data-view="containers">Contenedores</button>
+      <button id="tab-conversion" class="nav-link" type="button" role="tab" aria-controls="c4-stage" aria-selected="false" data-view="conversion">Datos a DGS</button>
+      <button id="tab-powerfactory" class="nav-link" type="button" role="tab" aria-controls="c4-stage" aria-selected="false" data-view="powerfactory">DGS a PowerFactory</button>
+      <button id="tab-intelligence" class="nav-link" type="button" role="tab" aria-controls="c4-stage" aria-selected="false" data-view="intelligence">IA y decision</button>
+      <button id="tab-deployment" class="nav-link" type="button" role="tab" aria-controls="c4-stage" aria-selected="false" data-view="deployment">Despliegue</button>
+    </div>
+    <div class="c4-actions">
+      <button id="flow-play" class="btn btn-primary" type="button">Reproducir</button>
+      <button id="flow-next" class="btn" type="button">Paso siguiente</button>
+      <button id="flow-reset" class="btn btn-ghost" type="button">Reiniciar</button>
+      <label class="c4-speed form-label" for="flow-speed">Velocidad
+        <input id="flow-speed" class="form-range" type="range" min="600" max="2600" step="200" value="1400" aria-label="Duracion de cada paso en milisegundos">
+      </label>
+    </div>
+  </div>
+
+  <div id="c4-stage" class="c4-stage" role="tabpanel" aria-labelledby="tab-context">
+    <svg class="c4-canvas" viewBox="0 0 1200 620" role="img" aria-labelledby="c4-svg-title c4-svg-desc">
+      <title id="c4-svg-title">Arquitectura interactiva del Conversor IGEA-DGS</title>
+      <desc id="c4-svg-desc">Cajas seleccionables conectadas por flechas que se animan de forma finita al reproducir cada flujo.</desc>
+      <defs>
+        <marker id="c4-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke"></path>
+        </marker>
+      </defs>
+      <rect class="c4-frame" x="1" y="1" width="1198" height="618" rx="12"></rect>
+      <g id="c4-boundaries"></g>
+      <g id="c4-edges"></g>
+      <g id="c4-nodes"></g>
+      <circle id="c4-particle" class="c4-particle" cx="0" cy="0" r="7" hidden></circle>
+    </svg>
+    <div id="c4-mobile-flow" class="c4-mobile-flow" aria-label="Flujo secuencial"></div>
+  </div>
+
+  <div class="card c4-detail" aria-live="polite">
+    <div class="c4-detail-main">
+      <p id="c4-detail-title" class="c4-detail-title">Contexto del sistema</p>
+      <p id="c4-detail-text" class="c4-detail-text">Selecciona una caja o reproduce el flujo.</p>
+      <p class="c4-detail-access">Acceso: <code id="c4-detail-access">README.md</code></p>
+    </div>
+    <div class="c4-actions">
+      <a id="c4-open" class="btn" href="http://127.0.0.1:8765/" target="_blank" rel="noreferrer">Abrir</a>
+      <button id="c4-copy" class="btn btn-ghost" type="button">Copiar acceso</button>
+    </div>
+  </div>
+
+  <div class="c4-access-index" aria-label="Accesos principales">
+    <button class="btn btn-ghost" type="button" data-node-id="sources">Fuentes</button>
+    <button class="btn btn-ghost" type="button" data-node-id="frontend">Frontend</button>
+    <button class="btn btn-ghost" type="button" data-node-id="api">API</button>
+    <button class="btn btn-ghost" type="button" data-node-id="engine">Motor</button>
+    <button class="btn btn-ghost" type="button" data-node-id="powerfactory">PowerFactory</button>
+    <button class="btn btn-ghost" type="button" data-node-id="twin">Gemelo</button>
+    <button class="btn btn-ghost" type="button" data-node-id="assistant">Asistente</button>
+    <button class="btn btn-ghost" type="button" data-node-id="deliverables">Entregables</button>
+  </div>
+
+  <details class="c4-sources">
+    <summary>Fundamento academico y tecnico del plano</summary>
+    <ul>
+      <li><a href="https://doi.org/10.1016/j.jss.2014.03.071" target="_blank" rel="noreferrer">Shahin et al. (2014): revision sistematica de visualizacion arquitectonica</a>.</li>
+      <li><a href="https://doi.org/10.1109/TPWRS.2018.2829021" target="_blank" rel="noreferrer">Thurner et al. (2018): pandapower para analisis automatizado</a>.</li>
+      <li><a href="https://doi.org/10.1016/j.epsr.2020.106664" target="_blank" rel="noreferrer">Fobes et al. (2020): PowerModelsDistribution y modelado de redes</a>.</li>
+      <li><a href="https://redi.cedia.edu.ec/document/42803" target="_blank" rel="noreferrer">Zambrano Asanza y Andrade Rodas (2011), tesis de maestria: analisis del modelo comun de datos electrico para integrar sistemas de manejo de la distribucion</a>.</li>
+      <li><a href="https://etheses.whiterose.ac.uk/id/eprint/30114/" target="_blank" rel="noreferrer">Sanchez Pina (2021), tesis doctoral: ejecuciones conservativas y trazables de flujos heterogeneos de modelos</a>.</li>
+    </ul>
+  </details>
+
+  <script>
+    (() => {
+      const root = document.getElementById('igea-c4-flow');
+      const svg = root.querySelector('.c4-canvas');
+      const nodeLayer = root.querySelector('#c4-nodes');
+      const edgeLayer = root.querySelector('#c4-edges');
+      const boundaryLayer = root.querySelector('#c4-boundaries');
+      const particle = root.querySelector('#c4-particle');
+      const detailTitle = root.querySelector('#c4-detail-title');
+      const detailText = root.querySelector('#c4-detail-text');
+      const detailAccess = root.querySelector('#c4-detail-access');
+      const openLink = root.querySelector('#c4-open');
+      const copyButton = root.querySelector('#c4-copy');
+      const playButton = root.querySelector('#flow-play');
+      const nextButton = root.querySelector('#flow-next');
+      const resetButton = root.querySelector('#flow-reset');
+      const speedInput = root.querySelector('#flow-speed');
+      const mobileFlow = root.querySelector('#c4-mobile-flow');
+      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+      const NS = 'http://www.w3.org/2000/svg';
+
+      const common = {
+        operator: { label: 'Operador electrico', tech: 'Decision humana', path: 'http://127.0.0.1:8765/', kind: 'external', detail: 'Selecciona alcance, confirma planes y acepta o rechaza con evidencia.' },
+        sources: { label: 'Fuentes electricas', tech: 'TXT / MDB / VNR-GIS', path: 'src/igea_dgs/sources', kind: 'external', detail: 'Entradas primarias aisladas y libros auxiliares de medicion.' },
+        system: { label: 'Conversor IGEA-DGS', tech: 'Sistema local auditable', path: 'README.md', kind: 'engine', detail: 'Convierte, valida, acepta y documenta redes de distribucion.' },
+        frontend: { label: 'Frontend web', tech: 'React + TypeScript', path: 'frontend/src', kind: 'web', detail: 'Seleccion, seguimiento, confirmacion y descarga.' },
+        api: { label: 'API y orquestacion', tech: 'FastAPI / Python 3.12', path: 'src/igea_dgs/web/app.py', kind: 'engine', detail: 'REST y WebSocket; valida pedidos y coordina trabajos.' },
+        jobs: { label: 'Colas', tech: 'engine | powerfactory | asistente', path: 'src/igea_dgs/web/jobs.py', kind: 'store', detail: 'Serializa las operaciones de cada carril.' },
+        custody: { label: 'Custodia', tech: 'Snapshots + SHA-256', path: 'src/igea_dgs/web/source_runs.py', kind: 'store', detail: 'Fija una ejecucion fuente inmutable sin mezclar modalidades.' },
+        engine: { label: 'Motor de conversion', tech: 'Python / FeederModel', path: 'src/igea_dgs/batch.py', kind: 'engine', detail: 'Adapta, reconstruye, aplica reglas y construye el modelo canonico.' },
+        oracle: { label: 'Preflight consultivo', tech: 'pandapower', path: 'src/igea_dgs/oraculo.py', kind: 'engine', detail: 'Informa conectividad y convergencia antes de PowerFactory; sus avisos no omiten el DGS.' },
+        dgs: { label: 'DGS y validacion', tech: 'Esquema versionado', path: 'src/igea_dgs/dgs.py', kind: 'engine', detail: 'Escribe, valida y publica atomicamente.' },
+        powerfactory: { label: 'PowerFactory 2024', tech: 'API nativa', path: 'tools/powerfactory_acceptance.py', kind: 'native', detail: 'Importa, activa Caso base, ejecuta flujo, guarda y produce evidencia de aceptacion.' },
+        native: { label: 'Ejecutor nativo', tech: 'Plan JSON / informe JSON', path: 'src/igea_dgs/web/services.py', kind: 'native', detail: 'Aisla y serializa los procesos que controlan PowerFactory.' },
+        twin: { label: 'Gemelo digital', tech: 'Radial / mallado / PINN-GNN / GRU', path: 'src/igea_dgs/digital_twin/oraculo.py', kind: 'ai', detail: 'Aprende solo de episodios clasificados y conserva metricas.' },
+        optimizer: { label: 'PIDE y evolutivos', tech: 'GA / NSGA-II / DE', path: 'src/igea_dgs/digital_twin/evolutivo.py', kind: 'ai', detail: 'Ordena alternativas con restricciones y frente de Pareto.' },
+        assistant: { label: 'Asistente', tech: 'Reglas / Transformer / Ollama', path: 'src/igea_dgs/asistente/interprete.py', kind: 'ai', detail: 'Interpreta, muestra un plan y requiere confirmacion.' },
+        episodes: { label: 'Buffer de episodios', tech: 'JSON + SQLite', path: 'src/igea_dgs/digital_twin/buffer.py', kind: 'store', detail: 'Guarda evidencia y snapshots direccionados por contenido.' },
+        workspace: { label: 'Workspace', tech: 'Filesystem', path: 'output/web', kind: 'store', detail: 'Conserva entradas, planes, resultados y descargas.' },
+        deliverables: { label: 'Entregables', tech: 'DGS / PF / estudios / informes', path: 'docs/architecture/plano_flujo_arquitectura_conversor_igea_dgs.pdf', kind: 'store', detail: 'Artefactos para revision, operacion y decision.' },
+        browser: { label: 'Navegador', tech: '127.0.0.1:8765', path: 'http://127.0.0.1:8765/', kind: 'web', detail: 'Acceso local a frontend y API.' },
+        python: { label: 'Python 3.12', tech: 'API + motor + IA', path: 'pyproject.toml', kind: 'engine', detail: 'Proceso principal del conversor.' },
+        ollama: { label: 'Ollama / GPU', tech: 'Opcional y local', path: 'src/igea_dgs/asistente/ollama.py', kind: 'ai', detail: 'Inferencia local; no es requisito del motor determinista.' }
+      };
+
+      const n = (id, x, y, w = 190, h = 88) => ({ id, x, y, w, h, ...common[id] });
+      const e = (from, to, label) => ({ from, to, label });
+
+      const views = {
+        context: {
+          title: 'Contexto del sistema',
+          nodes: [n('operator', 55, 235), n('sources', 55, 405), n('system', 455, 290, 285, 120), n('powerfactory', 900, 250, 235, 100), n('deliverables', 900, 420, 235, 100)],
+          edges: [e('operator','system','Opera y confirma'), e('sources','system','Entrega redes y mediciones'), e('system','powerfactory','Importa y ejecuta'), e('powerfactory','system','Devuelve lectura nativa'), e('system','deliverables','Publica evidencia')]
+        },
+        containers: {
+          title: 'Contenedores del sistema',
+          boundary: { x: 35, y: 42, w: 1130, h: 535, label: 'Conversor IGEA-DGS' },
+          nodes: [n('frontend',50,85,175,78), n('api',280,85,175,78), n('jobs',510,85,175,78), n('custody',740,85,175,78), n('workspace',970,85,175,78), n('engine',50,250,175,78), n('dgs',280,250,175,78), n('oracle',510,250,175,78), n('native',740,250,175,78), n('powerfactory',970,250,175,78), n('twin',50,415,175,78), n('episodes',280,415,175,78), n('optimizer',510,415,175,78), n('assistant',740,415,175,78), n('deliverables',970,415,175,78)],
+          edges: [e('frontend','api','REST + WebSocket'), e('api','jobs','Encola'), e('api','custody','Custodia'), e('jobs','engine','Carril engine'), e('engine','dgs','Escribe y valida'), e('dgs','workspace','Publica'), e('jobs','native','Carril PF'), e('native','oracle','Consulta opcional'), e('native','powerfactory','API nativa'), e('native','workspace','Informe + binding'), e('native','twin','Captura'), e('twin','episodes','Episodios'), e('twin','optimizer','Evalua'), e('optimizer','assistant','Propone'), e('assistant','api','API existente'), e('workspace','deliverables','Descarga')]
+        },
+        conversion: {
+          title: 'Flujo de datos a DGS',
+          nodes: [n('sources',20,260,145), n('api',185,260,145), n('custody',350,260,145), n('engine',515,260,145), n('dgs',680,260,145), n('workspace',845,260,145), n('frontend',1010,260,155)],
+          edges: [e('sources','api','1. Ingresar fuente'), e('api','custody','2. Custodiar huellas'), e('custody','engine','3. Adaptar y modelar'), e('engine','dgs','4. Escribir DGS'), e('dgs','workspace','5. Validar y publicar'), e('workspace','frontend','6. Mostrar y descargar')]
+        },
+        powerfactory: {
+          title: 'Flujo DGS a PowerFactory',
+          nodes: [n('frontend',20,260,140), n('api',180,260,140), n('jobs',340,260,140), n('native',500,260,150), n('oracle',690,105,170), n('powerfactory',710,320,180), n('workspace',940,320,170)],
+          edges: [e('frontend','api','1. Solicitar'), e('api','jobs','2. Encolar'), e('jobs','native','3. Lanzar aislado'), e('native','oracle','4. Preflight consultivo'), e('oracle','native','5. Avisar y continuar'), e('native','powerfactory','6. Importar y ejecutar'), e('powerfactory','native','7. Guardar y releer'), e('native','workspace','8. Guardar evidencia'), e('workspace','frontend','9. Presentar evidencia')]
+        },
+        intelligence: {
+          title: 'Flujo de IA y decision humana',
+          nodes: [n('native',20,260,145), n('twin',180,260,145), n('episodes',340,260,145), n('optimizer',500,260,145), n('assistant',660,260,145), n('operator',820,260,145), n('api',1000,260,145)],
+          edges: [e('native','twin','1. Capturar'), e('twin','episodes','2. Persistir'), e('episodes','twin','3. Entrenar/evaluar'), e('twin','optimizer','4. Evaluar alternativas'), e('optimizer','assistant','5. Explicar'), e('operator','assistant','6. Confirmar o rechazar'), e('assistant','api','7. Ejecutar por API')]
+        },
+        deployment: {
+          title: 'Despliegue local',
+          boundary: { x: 35, y: 50, w: 1130, h: 525, label: 'Estacion Windows del operador' },
+          nodes: [n('browser',80,120,190), n('frontend',340,120,190), n('python',600,120,190), n('powerfactory',860,120,210), n('workspace',210,380,190), n('episodes',505,380,190), n('ollama',800,380,190)],
+          edges: [e('browser','frontend','HTTP local'), e('frontend','python','REST + WebSocket'), e('python','powerfactory','Proceso nativo exclusivo'), e('python','workspace','Archivos'), e('python','episodes','SQLite/JSON'), e('python','ollama','Inferencia opcional')]
+        }
+      };
+
+      let currentView = 'context';
+      let currentStep = -1;
+      let playing = false;
+      let timer = null;
+      let frame = null;
+      let activePath = null;
+
+      function svgEl(name, attrs = {}) {
+        const element = document.createElementNS(NS, name);
+        Object.entries(attrs).forEach(([key, value]) => element.setAttribute(key, String(value)));
+        return element;
+      }
+
+      function wrapLabel(text, maxChars) {
+        const words = text.split(' ');
+        const lines = [];
+        let line = '';
+        words.forEach(word => {
+          const trial = line ? `${line} ${word}` : word;
+          if (trial.length > maxChars && line) { lines.push(line); line = word; }
+          else { line = trial; }
+        });
+        if (line) lines.push(line);
+        return lines.slice(0, 3);
+      }
+
+      function edgePath(source, target) {
+        const sx = source.x + source.w;
+        const sy = source.y + source.h / 2;
+        const tx = target.x;
+        const ty = target.y + target.h / 2;
+        if (tx >= sx) {
+          const mx = sx + (tx - sx) / 2;
+          return `M ${sx} ${sy} L ${mx} ${sy} L ${mx} ${ty} L ${tx} ${ty}`;
+        }
+        const startX = source.x + source.w / 2;
+        const endX = target.x + target.w / 2;
+        const bendY = Math.min(source.y, target.y) - 42;
+        return `M ${startX} ${source.y} L ${startX} ${bendY} L ${endX} ${bendY} L ${endX} ${target.y}`;
+      }
+
+      function showDetail(item, labelOverride) {
+        const title = labelOverride || item.label || 'Relacion';
+        detailTitle.textContent = title;
+        detailText.textContent = item.detail || item.description || '';
+        const access = item.path || `${item.from} -> ${item.to}`;
+        detailAccess.textContent = access;
+        const isUrl = /^https?:\/\//.test(access);
+        const isLocalPath = !isUrl && !access.includes(' -> ') && !access.startsWith('output/web');
+        openLink.hidden = !(isUrl || isLocalPath);
+        if (isUrl) openLink.href = access;
+        if (isLocalPath) openLink.href = new URL(`../../${access}`, window.location.href).href;
+        copyButton.dataset.value = access;
+      }
+
+      function drawBoundary(boundary) {
+        boundaryLayer.replaceChildren();
+        if (!boundary) return;
+        const rect = svgEl('rect', { class: 'c4-boundary', x: boundary.x, y: boundary.y, width: boundary.w, height: boundary.h, rx: 18 });
+        const label = svgEl('text', { class: 'c4-boundary-label', x: boundary.x + 18, y: boundary.y + 27 });
+        label.textContent = boundary.label;
+        boundaryLayer.append(rect, label);
+      }
+
+      function drawNode(node) {
+        const group = svgEl('g', { class: 'c4-node', 'data-node-id': node.id, 'data-kind': node.kind, role: 'button', tabindex: '0', 'aria-label': `${node.label}. ${node.tech}` });
+        group.appendChild(svgEl('rect', { x: node.x, y: node.y, width: node.w, height: node.h }));
+        const title = svgEl('text', { class: 'c4-node-title', x: node.x + 14, y: node.y + 25 });
+        wrapLabel(node.label, Math.max(16, Math.floor(node.w / 9))).forEach((line, index) => {
+          const span = svgEl('tspan', { x: node.x + 14, dy: index === 0 ? 0 : 18 });
+          span.textContent = line;
+          title.appendChild(span);
+        });
+        const tech = svgEl('text', { class: 'c4-node-tech', x: node.x + 14, y: node.y + node.h - 28 });
+        tech.textContent = node.tech;
+        const path = svgEl('text', { class: 'c4-node-path', x: node.x + 14, y: node.y + node.h - 11 });
+        const compact = node.path.length > 28 ? `${node.path.slice(0, 26)}...` : node.path;
+        path.textContent = compact;
+        group.append(title, tech, path);
+        const activate = () => { clearActive(); group.classList.add('is-active'); showDetail(node); };
+        group.addEventListener('click', activate);
+        group.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); activate(); } });
+        return group;
+      }
+
+      function drawEdge(edge, index, nodes) {
+        const source = nodes.find(node => node.id === edge.from);
+        const target = nodes.find(node => node.id === edge.to);
+        const group = svgEl('g', { class: 'c4-edge', 'data-edge-index': index, role: 'button', tabindex: '0', 'aria-label': `${source.label} a ${target.label}: ${edge.label}` });
+        const d = edgePath(source, target);
+        const visible = svgEl('path', { class: 'c4-edge-visible', d });
+        const hit = svgEl('path', { class: 'c4-edge-hit', d });
+        const forward = target.x >= source.x + source.w;
+        const labelX = forward
+          ? source.x + source.w + (target.x - source.x - source.w) / 2
+          : (source.x + source.w / 2 + target.x + target.w / 2) / 2;
+        const labelY = forward
+          ? source.y + source.h / 2 - 12
+          : Math.min(source.y, target.y) - 54;
+        const label = svgEl('text', { class: 'c4-edge-label', x: labelX, y: labelY, 'text-anchor': 'middle' });
+        visible.setAttribute('id', `edge-${currentView}-${index}`);
+        label.textContent = edge.label;
+        const activate = () => selectEdge(index, false);
+        group.addEventListener('click', activate);
+        group.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); activate(); } });
+        group.append(visible, hit, label);
+        return group;
+      }
+
+      function renderMobile(view) {
+        const list = document.createElement('ol');
+        view.edges.forEach((edge, index) => {
+          const item = document.createElement('li');
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'btn btn-ghost';
+          button.textContent = `${common[edge.from].label} -> ${common[edge.to].label}: ${edge.label}`;
+          button.addEventListener('click', () => selectEdge(index, false));
+          item.appendChild(button);
+          list.appendChild(item);
+        });
+        mobileFlow.replaceChildren(list);
+      }
+
+      function renderView() {
+        stopPlayback();
+        currentStep = -1;
+        const view = views[currentView];
+        drawBoundary(view.boundary);
+        nodeLayer.replaceChildren(...view.nodes.map(drawNode));
+        edgeLayer.replaceChildren(...view.edges.map((edge, index) => drawEdge(edge, index, view.nodes)));
+        renderMobile(view);
+        detailTitle.textContent = view.title;
+        detailText.textContent = 'Selecciona una caja o reproduce el flujo completo.';
+        detailAccess.textContent = 'docs/architecture/workspace.dsl';
+        copyButton.dataset.value = 'docs/architecture/workspace.dsl';
+        openLink.hidden = true;
+        updateButtons();
+      }
+
+      function clearActive() {
+        root.querySelectorAll('.c4-node.is-active, .c4-edge.is-active').forEach(element => element.classList.remove('is-active'));
+        particle.hidden = true;
+      }
+
+      function animateParticle(path, duration) {
+        if (frame) cancelAnimationFrame(frame);
+        const length = path.getTotalLength();
+        const started = performance.now();
+        particle.hidden = false;
+        activePath = path;
+        const tick = now => {
+          const progress = reducedMotion.matches ? 1 : Math.min(1, (now - started) / duration);
+          const point = path.getPointAtLength(length * progress);
+          particle.setAttribute('cx', point.x);
+          particle.setAttribute('cy', point.y);
+          if (progress < 1 && activePath === path) frame = requestAnimationFrame(tick);
+          else if (progress >= 1) particle.hidden = true;
+        };
+        frame = requestAnimationFrame(tick);
+      }
+
+      function selectEdge(index, animate = true) {
+        const view = views[currentView];
+        if (!view.edges.length) return;
+        currentStep = Math.max(0, Math.min(index, view.edges.length - 1));
+        clearActive();
+        const edge = view.edges[currentStep];
+        const edgeGroup = edgeLayer.querySelector(`[data-edge-index="${currentStep}"]`);
+        const sourceNode = nodeLayer.querySelector(`[data-node-id="${edge.from}"]`);
+        const targetNode = nodeLayer.querySelector(`[data-node-id="${edge.to}"]`);
+        edgeGroup.classList.add('is-active');
+        sourceNode.classList.add('is-active');
+        targetNode.classList.add('is-active');
+        showDetail({ from: edge.from, to: edge.to, description: `${common[edge.from].label} -> ${common[edge.to].label}`, path: `${common[edge.from].path} -> ${common[edge.to].path}` }, edge.label);
+        if (animate) animateParticle(edgeGroup.querySelector('.c4-edge-visible'), Number(speedInput.value));
+        updateButtons();
+      }
+
+      function scheduleNext() {
+        clearTimeout(timer);
+        if (!playing) return;
+        const duration = reducedMotion.matches ? 80 : Number(speedInput.value);
+        timer = setTimeout(() => {
+          if (currentStep >= views[currentView].edges.length - 1) {
+            stopPlayback();
+            detailText.textContent = 'Flujo completado. La reproduccion se detuvo sin reiniciar automaticamente.';
+            return;
+          }
+          advanceFlow(true);
+          scheduleNext();
+        }, duration + 120);
+      }
+
+      function playFlow() {
+        if (playing) { stopPlayback(); return; }
+        if (currentStep >= views[currentView].edges.length - 1) currentStep = -1;
+        playing = true;
+        playButton.textContent = 'Pausar';
+        advanceFlow(true);
+        scheduleNext();
+      }
+
+      function stopPlayback() {
+        playing = false;
+        clearTimeout(timer);
+        if (frame) cancelAnimationFrame(frame);
+        playButton.textContent = 'Reproducir';
+        particle.hidden = true;
+      }
+
+      function advanceFlow(animate = true) {
+        const total = views[currentView].edges.length;
+        const next = currentStep + 1 >= total ? 0 : currentStep + 1;
+        selectEdge(next, animate);
+      }
+
+      function resetFlow() {
+        stopPlayback();
+        currentStep = -1;
+        clearActive();
+        detailTitle.textContent = views[currentView].title;
+        detailText.textContent = 'Flujo reiniciado. Pulsa Reproducir o Paso siguiente.';
+        detailAccess.textContent = 'docs/architecture/workspace.dsl';
+        copyButton.dataset.value = 'docs/architecture/workspace.dsl';
+        openLink.hidden = true;
+        updateButtons();
+      }
+
+      function updateButtons() {
+        const total = views[currentView].edges.length;
+        nextButton.textContent = currentStep < 0 ? 'Iniciar paso a paso' : `Paso ${currentStep + 1}/${total}: siguiente`;
+        root.style.setProperty('--flow-duration', `${speedInput.value}ms`);
+      }
+
+      function setView(viewName) {
+        if (!views[viewName]) return;
+        currentView = viewName;
+        root.querySelectorAll('[data-view]').forEach(button => {
+          const active = button.dataset.view === currentView;
+          button.classList.toggle('active', active);
+          button.setAttribute('aria-selected', String(active));
+        });
+        root.querySelector('#c4-stage').setAttribute('aria-labelledby', `tab-${currentView}`);
+        renderView();
+        if (window.openai?.setWidgetState) {
+          window.openai.setWidgetState({ modelContent: { view: currentView }, privateContent: { speed: speedInput.value } }).catch(() => {});
+        }
+      }
+
+      async function copyAccess(value) {
+        try {
+          await navigator.clipboard.writeText(value);
+        } catch (_error) {
+          const area = document.createElement('textarea');
+          area.value = value;
+          root.appendChild(area);
+          area.select();
+          document.execCommand('copy');
+          area.remove();
+        }
+        copyButton.textContent = 'Copiado';
+        setTimeout(() => { copyButton.textContent = 'Copiar acceso'; }, 1200);
+      }
+
+      const viewTabs = [...root.querySelectorAll('[data-view]')];
+      viewTabs.forEach((button, index) => {
+        button.addEventListener('click', () => setView(button.dataset.view));
+        button.addEventListener('keydown', event => {
+          if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+          event.preventDefault();
+          let target = index;
+          if (event.key === 'ArrowLeft') target = (index - 1 + viewTabs.length) % viewTabs.length;
+          if (event.key === 'ArrowRight') target = (index + 1) % viewTabs.length;
+          if (event.key === 'Home') target = 0;
+          if (event.key === 'End') target = viewTabs.length - 1;
+          viewTabs[target].focus();
+          setView(viewTabs[target].dataset.view);
+        });
+      });
+      root.querySelectorAll('.c4-access-index [data-node-id]').forEach(button => button.addEventListener('click', () => {
+        const node = common[button.dataset.nodeId];
+        if (node) showDetail(node);
+      }));
+      playButton.addEventListener('click', playFlow);
+      nextButton.addEventListener('click', () => { stopPlayback(); advanceFlow(true); });
+      resetButton.addEventListener('click', resetFlow);
+      speedInput.addEventListener('input', updateButtons);
+      copyButton.addEventListener('click', () => copyAccess(copyButton.dataset.value || detailAccess.textContent));
+      reducedMotion.addEventListener?.('change', () => { if (playing) scheduleNext(); });
+      window.addEventListener('openai:set_globals', event => {
+        const state = event.detail?.globals?.widgetState;
+        if (state?.modelContent?.view) setView(state.modelContent.view);
+        if (state?.privateContent?.speed) { speedInput.value = state.privateContent.speed; updateButtons(); }
+      });
+
+      const saved = window.openai?.widgetState;
+      if (saved?.privateContent?.speed) speedInput.value = saved.privateContent.speed;
+      setView(saved?.modelContent?.view || 'context');
+    })();
+  </script>
+</div>
