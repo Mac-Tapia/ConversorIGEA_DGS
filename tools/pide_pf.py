@@ -66,10 +66,29 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
             de_linea[ln.loc_name] = feeder
     por_nombre = {v['nombre']: v for v in barras.values()}
     informe['barras_mt'] = sorted(v['nombre'] for v in barras.values() if (v['kv'] or 0) >= 1)
+    # 029:RF-4: con tasa por alimentador, cada uno escala sus cargas con la suya (``scale0``) y el
+    # factor del flujo queda en 1; al terminar, cada carga vuelve a su valor.
+    por_alim = {str(a): float(x) for a, x in (plan.get('tasa_por_alimentador') or {}).items()}
+    cargas = {a: list(elms[a].GetObjs('ElmLod')) for a in por_alim if a in elms}
+    base_scale = {id(c): float(getattr(c, 'scale0', 1.0) or 1.0) for cs in cargas.values() for c in cs}
     try:
         for anio in plan.get('anios') or [0]:
             factor = (1 + float(tasa)) ** int(anio)
-            ldf.scLoadFac = float(original) * factor
+            if cargas:
+                for a, cs in cargas.items():
+                    f = (1 + por_alim[a]) ** int(anio)
+                    for c in cs:
+                        c.scale0 = base_scale[id(c)] * f
+                # Los alimentadores sin tasa propia, con la del sistema; los demás ya escalados.
+                for a, elm in elms.items():
+                    if a in cargas or a not in (plan.get('feeders') or []):
+                        continue
+                    for c in elm.GetObjs('ElmLod'):
+                        base_scale.setdefault(id(c), float(getattr(c, 'scale0', 1.0) or 1.0))
+                        c.scale0 = base_scale[id(c)] * factor
+                ldf.scLoadFac = float(original)
+            else:
+                ldf.scLoadFac = float(original) * factor
             flujo = flujo_de_carga(app)
             fila = {'anio': int(anio), 'factor': factor, 'converge': flujo['converged']}
             if flujo['converged']:
@@ -91,6 +110,12 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
             informe['anios'].append(fila)
     finally:
         ldf.scLoadFac = original
+        for elm in elms.values():
+            for c in elm.GetObjs('ElmLod'):
+                if id(c) in base_scale:
+                    c.scale0 = base_scale[id(c)]
+    if por_alim:
+        informe['tasa_por_alimentador'] = por_alim
     return informe, 0
 
 

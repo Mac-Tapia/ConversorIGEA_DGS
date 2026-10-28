@@ -57,3 +57,29 @@ def test_el_anio_que_no_converge_se_dice(guion):
     assert rc == 0
     assert informe['anios'][0]['converge'] and not informe['anios'][1]['converge']
     assert app.ldf.scLoadFac == 100.0
+
+
+def test_tasa_por_alimentador_y_cargas_restituidas(guion):
+    """029:RF-4 — cada alimentador escala sus cargas con su propia tasa en cada año y, al
+    terminar, cada carga vuelve a su factor; el del flujo no se toca."""
+    app = fake_pf.proyecto(alimentadores=('F1', 'F2'), cargas_por_alim=3, bt=True, flujo=True)
+    app.carpetas['study'].CreateObject('IntCase', 'Sin proyecto')
+    object.__setattr__(app.ldf, 'scLoadFac', 100.0)
+    elms = {f.loc_name: f for f in app.proyecto.GetContents('*.ElmFeeder', 1)}
+    for c in elms['F1'].GetObjs('ElmLod'):
+        c.scale0 = 0.8
+    vistos = []
+    original = app.ldf.Execute
+
+    def medir():
+        vistos.append({a: [round(c.scale0, 6) for c in e.GetObjs('ElmLod')] for a, e in elms.items()})
+        return original()
+
+    object.__setattr__(app.ldf, 'Execute', medir)
+    informe, rc = guion.ejecutar(app, _plan(feeders=['F1', 'F2'], anios=[0, 4],
+                                            tasa_por_alimentador={'F1': 0.10, 'F2': 0.0}))
+    assert rc == 0, informe
+    ultimo = vistos[-1]
+    assert ultimo['F1'] == [pytest.approx(0.8 * 1.1 ** 4)] * 3 and ultimo['F2'] == [1.0] * 3
+    assert all(c.scale0 == pytest.approx(0.8) for c in elms['F1'].GetObjs('ElmLod'))
+    assert app.ldf.scLoadFac == 100.0 and informe['tasa_por_alimentador'] == {'F1': 0.10, 'F2': 0.0}

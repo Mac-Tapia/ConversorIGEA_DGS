@@ -3791,12 +3791,23 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
         raise UserError('Faltan en el perfil los límites de la norma de estos alimentadores.')
     avisos: list[str] = []
     tasa = plan_pide.get('crecimiento_demanda_anual')
+    crecimiento = None
+    if tasa is None:
+        # 029:RF-1 a RF-3: sin tasa del perfil, la de cada alimentador desde la cabecera.
+        crecimiento = _crecimiento_de_la_cabecera(ws, ctx, project, feeders, avisos)
+        medidas = [c['tasa'] for c in (crecimiento or {}).values() if c.get('tasa') is not None]
+        if medidas:
+            import statistics
+
+            tasa = statistics.median(medidas)
     anios = [0] + list(plan_pide.get('anios_horizonte') or []) if tasa is not None else [0]
     if tasa is None:
-        avisos.append('sin tasa de crecimiento de la demanda en el perfil: solo el diagnóstico del '
-                      'año 00 (RF-51)')
+        avisos.append('sin tasa de crecimiento de la demanda en el perfil ni en la cabecera: solo el '
+                      'diagnóstico del año 00 (RF-51)')
     plan = {'project': project, 'folder': carpeta_pf(), 'feeders': feeders, 'case': 'sin_proyecto',
             'tasa': tasa if tasa is not None else 0.0, 'anios': anios,
+            **({'tasa_por_alimentador': {a: c['tasa'] for a, c in crecimiento.items() if c.get('tasa') is not None}}
+               if crecimiento else {}),
             'limites': {'tension_min_pu': limites.tension_min_pu, 'tension_max_pu': limites.tension_max_pu,
                         'cargabilidad_max_pct': limites.cargabilidad_max_pct,
                         'transformador_max_pct': limites.transformador_max_pct},
@@ -3840,10 +3851,46 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
     ctx.log(f"PIDE: {len(propuesta['obras'])} obra(s) propuesta(s), {len(implementadas)} aplicada(s) "
             f'solas en «Con proyecto»; formatos en {libro.name}.')
     return {'project': project, 'feeders': feeders, 'report': report.name, 'formatos': libro.name,
+            'crecimiento': crecimiento,                                         # 029:RF-5
             'anios': [{k: v for k, v in a.items() if k != 'problemas'} | {'problemas': len(a.get('problemas') or [])}
                       for a in informe.get('anios') or []],
             'obras': propuesta['obras'], 'implementadas': implementadas, 'avisos': avisos,
             'comparacion_formatos': comparacion}
+
+
+def _crecimiento_de_la_cabecera(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
+                                avisos: list[str]) -> dict | None:
+    """La tasa de cada alimentador del sistema desde los libros de cabecera de cada año (spec 029).
+    Sin sistema, sin medidores o sin dos años, ``None`` y el aviso: el PIDE sigue con el año 00."""
+    from ..crecimiento import curvas_por_anio, tasas_por_alimentador
+    from ..demanda_medida import DemandaError
+    from ..libros_por_anio import anios_de, arbol_de_libros
+
+    sistema = sistema_del_proyecto(ws, project)
+    ruta = _demanda_ruta(ws, 'cabecera') if (ws.demanda or {}).get('cabecera') else None
+    if not sistema or ruta is None or not ruta.is_dir():
+        avisos.append('la tasa de crecimiento por alimentador necesita un proyecto de sistema y la '
+                      'carpeta de cabecera con sus años (029:RF-1)')
+        return None
+    try:
+        anios = anios_de(arbol_de_libros(ruta))
+        libros = {a: _libros_de_cabecera(ws, str(a)) for a in anios}
+    except (DemandaError, UserError) as exc:
+        avisos.append(f'tasa de crecimiento: {exc}')
+        return None
+    if len(libros) < 2:
+        avisos.append(f'la cabecera solo tiene {list(libros)}: hacen falta dos años (029:RF-1)')
+        return None
+    pares = [(a, m) for a, ms in sistema['medidores'].items() for m in ms if a in feeders]
+    ctx.log(f'Crecimiento por alimentador desde la cabecera de {sorted(libros)} (029:RF-1)…')
+    curvas = ctx.en_proceso(curvas_por_anio, libros, pares, demanda_alias())       # 029:RF-7
+    tasas = tasas_por_alimentador(curvas, feeders)
+    for a, c in sorted(tasas.items()):
+        if c.get('tasa') is not None:
+            ctx.log(f"  {a}: {100 * c['tasa']:+.2f} %/año ({c['origen']}"
+                    + (f", meses {c['meses']}, {c['max_anterior_kw']:,.0f} → {c['max_ultimo_kw']:,.0f} kW" if c.get('meses') else '')
+                    + ')')
+    return tasas
 
 
 def _pide_optimizar(project: str, obras: list[dict], limites, perfil: dict, plan_pide: dict,
