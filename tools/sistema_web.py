@@ -30,6 +30,7 @@ Códigos de salida: 0 calibrado y válido, 1 calibrado con fallos, 2 no se pudo 
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import time
 from pathlib import Path
@@ -166,7 +167,10 @@ def correr(web: Web, zonal: str, *, demanda_dir: Path, periodo: str | None,
             return 2
         for aviso in avisos:
             print(f'  aviso: {aviso}', flush=True)
-    for trabajo in [t for t in web.get('')['jobs'] if t['status'] not in TERMINADOS]:
+    # El trabajo de la web que lanzó este proceso (el botón «Recalibrar», el asistente) no se
+    # espera: se esperaba a sí mismo y el «Recalibrar» de Chincha no empezó nunca (2026-10-28).
+    propio = os.environ.get('IGEA_TRABAJO_PROPIO', '')
+    for trabajo in [t for t in web.get('')['jobs'] if t['status'] not in TERMINADOS and t['id'] != propio]:
         print(f"Esperando «{trabajo['title']}»…", flush=True)
         web.esperar(trabajo)
     if not web.get('').get('loaded'):

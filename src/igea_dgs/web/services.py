@@ -4030,7 +4030,7 @@ def gemelo_entrenar(ws: Workspace, ctx: JobContext, *, forzar: bool = False) -> 
            '--raiz', str(raiz_buffer())]
     if forzar:
         cmd.append('--forzar')
-    rc = ctx.run_process(cmd, cwd=str(project_root()))
+    rc = ctx.run_process(cmd, cwd=str(project_root()), env=_entorno_del_trabajo(ctx))
     try:
         r = json.loads(report.read_text(encoding='utf-8'))
     except (OSError, ValueError):
@@ -5916,7 +5916,7 @@ def agente_proyecto(ws: Workspace, ctx: JobContext, datos: dict, base: str, http
                '--periodo', d['periodo']]
         if d.get('ruta'):
             cmd += ['--demanda-dir', d['ruta']]
-        rc = ctx.run_process(cmd, cwd=str(project_root()))
+        rc = ctx.run_process(cmd, cwd=str(project_root()), env=_entorno_del_trabajo(ctx))
         if rc not in (0, 1):
             raise UserError(f'El sistema {d["sistema"]} no se pudo llevar hasta el final (código {rc}).')
         return {'codigo': rc}
@@ -5927,6 +5927,14 @@ def agente_proyecto(ws: Workspace, ctx: JobContext, datos: dict, base: str, http
                                  log=ctx.log)
     except (PasoFallido, ValueError, RuntimeError) as exc:
         raise UserError(f'El agente paró; la próxima vez retoma desde aquí: {exc}') from exc
+
+
+def _entorno_del_trabajo(ctx: JobContext) -> dict[str, str]:
+    """El entorno de un proceso que llama a la web: lleva el trabajo que lo lanzó, para que no
+    se espere a sí mismo (028:RF-21)."""
+    import os
+
+    return {**os.environ, 'IGEA_TRABAJO_PROPIO': ctx.job.id}
 
 
 def recalibrar_datos(ws: Workspace, project: str) -> dict:
@@ -5965,7 +5973,7 @@ def recalibrar_sistema(ws: Workspace, ctx: JobContext, project: str, periodo: st
            '--periodo', periodo, '--demanda-dir', demanda_dir]
     if transformadores:
         cmd.append('--transformadores')
-    rc = ctx.run_process(cmd, cwd=str(project_root()))
+    rc = ctx.run_process(cmd, cwd=str(project_root()), env=_entorno_del_trabajo(ctx))
     if rc not in (0, 1):
         raise UserError(f'La recalibración de {zonal} no llegó al final (código {rc}): vea el Registro.')
     return {'project': project, 'zonal': zonal, 'periodo': periodo, 'codigo': rc,
@@ -5982,7 +5990,7 @@ def _asistente_proceso(ws: Workspace, ctx: JobContext, plan) -> dict:
            '--periodo', plan.datos['periodo']]
     if plan.datos.get('ruta'):
         cmd += ['--demanda-dir', plan.datos['ruta']]
-    rc = ctx.run_process(cmd, cwd=str(project_root()))
+    rc = ctx.run_process(cmd, cwd=str(project_root()), env=_entorno_del_trabajo(ctx))
     if rc not in (0, 1):
         raise UserError(f'El sistema {plan.datos["sistema"]} no se pudo llevar hasta el final (código {rc}).')
     return {'plan': plan.id, 'tarea': plan.tarea, 'codigo': rc,

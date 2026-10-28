@@ -288,3 +288,12 @@ def test_escanea_antes_de_calibrar_y_la_central_toma_su_barra(herramienta, monke
     [plan] = web.planes
     assert plan['centrales']['PI102']['nodo'] == 'N5'
     assert 'escaneo PI102: 1 generador(es)' in capsys.readouterr().out
+
+
+def test_no_espera_al_trabajo_que_lo_lanzo(herramienta, monkeypatch):
+    """028:RF-21 — lanzado por el botón «Recalibrar», no se espera a sí mismo: el trabajo que lo
+    lanzó sigue en curso mientras recalibra (Chincha no empezaba nunca, 2026-10-28)."""
+    monkeypatch.setenv('IGEA_TRABAJO_PROPIO', 'v')
+    web = WebFalsa(informes=[VALIDO])
+    assert _correr(herramienta, web) == 0
+    assert 'v' not in web.esperados
