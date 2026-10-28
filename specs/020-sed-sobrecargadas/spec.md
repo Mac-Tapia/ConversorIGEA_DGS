@@ -2,6 +2,12 @@
 
 Estado: aprobada (2026-10-16) · Fecha: 2026-10-16
 
+> Cambiada por la spec 032 (2026-10-28): los transformadores van en la variación
+> `SED_NTP_<proyecto>`, no en la red (RF-16), porque el «Caso base» conserva los kVA del
+> archivo; solo bloquea una variación del operador que grabe (RF-17); y la propuesta tras
+> calibrar incluye también las escaladas por encima del umbral del perfil (RF-1, RF-6 y
+> «Fuera de alcance»), distinguidas de las que pasan del 100 %.
+
 ## Contexto y objetivo
 
 La calibración de PA217 (`20261016-094237_IGEA_PA217`, 2026-10-16) no era válida y la web

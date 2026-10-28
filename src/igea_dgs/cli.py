@@ -82,9 +82,9 @@ def _parser() -> argparse.ArgumentParser:
     conv.add_argument('--aliases', help='Opcional: JSON de alias de tipos de línea, texto→texto (se aplica antes de buscar en el catálogo)')
     conv.add_argument(
         '--catalogo', nargs='?', const='', metavar='XLSX',
-        help=('Corregir las características eléctricas con el catálogo de fichas antes '
-              'de escribir el DGS. Sin valor usa input/catalogo_parametros.xlsx. La '
-              'identidad de cada elemento (código, material, sección) se conserva.'))
+        help=('Catálogo de fichas con que completar los conductores que la entrada no trae. '
+              'Sin valor usa input/catalogo_parametros.xlsx. Los que sí trae van al DGS como '
+              'en el archivo; la ficha se aplica al calibrar «Sin proyecto» (spec 032).'))
     conv.add_argument('--schema-profile', default='pf21_dgs_1_8_4', help='Perfil de esquema DGS')
     conv.add_argument('--source-crs', default=None,
                       help='CRS de CoordX/CoordY de la entrada (un EPSG en metros, p. ej. el UTM '
@@ -125,7 +125,7 @@ def _parser() -> argparse.ArgumentParser:
     conv.add_argument(
         '--literal', action='store_true',
         help='Convertir sin las reglas del proyecto (sin fundir puentes, con las SED de '
-             'medición, sin redimensionar SED, escala del motor). Solo para comparar con la entrada.',
+             'medición, escala del motor). Solo para comparar con la entrada.',
     )
     conv.add_argument(
         '--workers', type=int, default=1,
@@ -353,7 +353,7 @@ def main(argv=None) -> int:
             except CatalogError as exc:
                 raise SystemExit(f'Catálogo: {exc}') from exc
             print(f'Catálogo: {ruta} — {len(correcciones_catalogo)} tipo(s) con valor '
-                  f'de ficha aplicable.', flush=True)
+                  'de ficha; el DGS lleva los del archivo (032:RF-2).', flush=True)
             catalogo = ruta if not args.literal else None
 
         if args.unir and args.por_sistema is not None:

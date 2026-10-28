@@ -86,3 +86,17 @@ def test_nombre_del_tipo_propio_como_en_pa217():
     assert (nombre_tipo(630, 'NTP370400', 22.899999618530273, 219.9999988079071, 'DYN5')
             == 'TR_630kVA_NTP370400_22.9-220V_DYN5')
     assert nombre_tipo(37.5, '', 10.0, 380.0, 'dyn11') == 'TR_37.5kVA_10-380V_DYN11'
+
+
+def test_sed_sobre_el_umbral_con_su_nivel():
+    """032:RF-20, 032:RF-28 — fijas y escaladas por encima del umbral, distinguidas las que pasan
+    del 100 % de las que están entre el umbral y el 100 %; sin kVA no se comparan."""
+    from igea_dgs.trafos_sed import sed_sobre_umbral
+
+    out = sed_sobre_umbral({'A': 120.0, 'B': 90.0, 'C': 70.0, 'D': 500.0},
+                           {'A': 100.0, 'B': 100.0, 'C': 100.0, 'D': None}, 80.0)
+    assert [(x['sed'], x['nivel']) for x in out] == [('A', 'sobre_100'), ('B', 'sobre_umbral')]
+    assert out[0]['carga_pct'] == pytest.approx(120.0)
+    # Sin perfil, el umbral es el 100 % (032:RF-25): solo las que pasan de su potencia.
+    assert [x['sed'] for x in sed_sobre_umbral({'A': 120.0, 'B': 90.0},
+                                               {'A': 100.0, 'B': 100.0}, 100.0)] == ['A']

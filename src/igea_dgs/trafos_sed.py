@@ -18,6 +18,28 @@ import math
 from typing import Any
 
 
+def sed_sobre_umbral(demandas_kva: dict[str, float], kva: dict[str, float | None],
+                     umbral_pct: float) -> list[dict[str, Any]]:
+    """SED fijas o escaladas cuya demanda calibrada pasa del umbral del perfil (032:RF-20, RF-28).
+
+    Antes solo se miraban las fijas por encima del 100 % (020:RF-1), y las SED que el
+    conversor redimensionaba al convertir dejaban de verse en el «Caso base». Con los kVA
+    del archivo (032:RF-1) la propuesta va aquí. ``nivel`` distingue las que pasan del
+    100 % (``sobre_100``) de las que están entre el umbral y el 100 % (``sobre_umbral``).
+    Una SED sin potencia instalada no se compara.
+    """
+    out = []
+    for sed, s in demandas_kva.items():
+        k = kva.get(sed)
+        if not k or k <= 0:
+            continue
+        pct = 100.0 * s / k
+        if pct > umbral_pct + 1e-9:
+            out.append({'sed': sed, 'kva_carga': s, 'kva': k, 'carga_pct': pct,
+                        'nivel': 'sobre_100' if pct > 100.0 + 1e-9 else 'sobre_umbral'})
+    return sorted(out, key=lambda x: (-x['carga_pct'], x['sed']))
+
+
 def tabla_para(tablas: list[dict[str, Any]], kv_primaria: float | None) -> dict[str, Any] | None:
     """La tabla cuyo rango (``kv_min`` excluido, ``kv_max`` incluido) tiene la tensión (RF-8)."""
     if kv_primaria is None:

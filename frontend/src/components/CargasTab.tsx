@@ -464,7 +464,9 @@ export function CargasTab() {
           <h4>3.1 · Demandas en bloque {plantilla('demandas')}</h4>
           <div className="row">
             <FileDrop compact accept=".xlsx,.csv" onFiles={([f]) => { setDemandas(f); setPlan(null); }}>
-              <span>{demandas ? <strong>{demandas.name}</strong> : <>Libro de demandas: soltar o <u>elegir</u></>}</span>
+              <span>{demandas
+                ? <><strong>{demandas.name}</strong> · reemplazar: soltar otro o <u>elegir</u></>
+                : <>Libro de demandas: soltar o <u>elegir</u></>}</span>
             </FileDrop>
             {demandas && <button className="btn btn-ghost btn-sm" onClick={() => { setDemandas(null); setPlan(null); }}>Quitar</button>}
           </div>
@@ -482,7 +484,9 @@ export function CargasTab() {
           <h4>3.3 · Cargas nuevas en bloque {plantilla('nuevas')}</h4>
           <div className="row">
             <FileDrop compact accept=".xlsx,.csv" onFiles={([f]) => { setNuevas(f); setPlan(null); }}>
-              <span>{nuevas ? <strong>{nuevas.name}</strong> : <>Libro de cargas nuevas: soltar o <u>elegir</u></>}</span>
+              <span>{nuevas
+                ? <><strong>{nuevas.name}</strong> · reemplazar: soltar otro o <u>elegir</u></>
+                : <>Libro de cargas nuevas: soltar o <u>elegir</u></>}</span>
             </FileDrop>
             {nuevas && <button className="btn btn-ghost btn-sm" onClick={() => { setNuevas(null); setPlan(null); }}>Quitar</button>}
           </div>

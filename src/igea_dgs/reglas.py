@@ -18,13 +18,16 @@ Sobre cada **modelo** (por alimentador):
    (:mod:`igea_dgs.puentes`).
 2. Trafomix —medición MT registrada como SED— excluidos (:mod:`igea_dgs.trafomix`), solo
    si el perfil de empresa da su patrón (``M…`` en Electro Dunas).
-3. SED con más carga que kVA → tamaño normalizado que la cubre, listado
-   (:mod:`igea_dgs.sed_potencia`).
-4. Correcciones de ficha del catálogo (filas ``ficha``/``derivado``), conservando código,
-   sección y tipo.
-5. Diagrama en hoja a medida, a escala geográfica real (la del perfil, si la da), con
+3. Diagrama en hoja a medida, a escala geográfica real (la del perfil, si la da), con
    símbolos de tamaño NA205.
     A0–A4 solo se usan si el operador selecciona explícitamente un formato fijo.
+
+Lo que **no** se hace al convertir (spec 032): llevar las SED con más carga que kVA a un
+tamaño normalizado (:mod:`igea_dgs.sed_potencia`) ni poner a los conductores la R, X, B y
+corriente de la ficha del catálogo. Así el «Caso base» es la red como la registró la
+distribuidora (usuario, 2026-10-28); las fichas y las potencias propuestas se aplican en
+«Sin proyecto», en sus variaciones. Las dos reglas siguen aquí, apagadas, para
+``tools/apply_catalog_to_model.py`` y las comparaciones.
 
 Y sobre el **resultado**: auditoría de completitud contra la entrada
 (:func:`auditar_completitud`). Un alimentador que pierde un elemento no es «ok».
@@ -49,7 +52,10 @@ class Reglas:
     hoja: str | None = None
     fundir_puentes: bool = True
     excluir_trafomix: bool = True
-    redimensionar_sed: bool = True
+    #: Apagadas por defecto (032:RF-1, RF-2): el «Caso base» lleva los kVA y los
+    #: conductores de la entrada.
+    redimensionar_sed: bool = False
+    aplicar_fichas: bool = False
     dibujar_todo: bool = True
     #: Del perfil de empresa (spec 002, RF-31 a RF-33): sin patrón no se excluye ninguna
     #: SED por su nombre, y sin escala queda la del motor.
@@ -90,6 +96,9 @@ class InformeEntrada:
     catalogo: str = ''
     completados_catalogo: dict[str, str] = field(default_factory=dict)
     sin_parametros: list[str] = field(default_factory=list)
+    #: 032:RF-4: cada código completado, como dato deducido: ``codigo``, ``fuente`` y
+    #: ``tramos``. Es lo único del catálogo que entra en el «Caso base».
+    conductores_deducidos: list[dict[str, Any]] = field(default_factory=list)
 
     def texto(self) -> str:
         return ' '.join(x for x in (self.coordenadas, self.catalogo) if x)
@@ -125,6 +134,17 @@ def preparar_dataset(dataset, *, catalogo: Path | str | None = None) -> InformeE
                     tablas[tabla] = tuple(tablas.get(tabla, ())) + tuple(nuevas)
             informe.completados_catalogo = dict(eq.completados)
             informe.sin_parametros = sorted(eq.sin_resolver)
+            tramos: dict[str, int] = {}
+            for lc in dataset.line_configurations.values():
+                c = str(lc.get('LineCableID', ''))
+                if c in codigos_faltan:
+                    tramos[c] = tramos.get(c, 0) + 1
+            for c in sorted(codigos_faltan - set(eq.sin_resolver)):
+                origen = eq.completados.get(c)
+                informe.conductores_deducidos.append({
+                    'codigo': c, 'tramos': tramos.get(c, 0),
+                    'fuente': Path(catalogo).name + (
+                        f' (por sección y material, de {origen})' if origen and origen != c else '')})
             añadidos = len(codigos_faltan) - len(eq.sin_resolver)
             informe.catalogo = (f'Catálogo del proyecto: {añadidos} código(s) de conductor que la '
                                 f'entrada no traía, tomados de {Path(catalogo).name}.')
@@ -148,7 +168,7 @@ def aplicar_reglas(model, reglas: Reglas = REGLAS_PROYECTO, *,
                    correcciones: dict | None = None) -> dict[str, Any]:
     """Aplica al modelo, en el sitio, las reglas del proyecto. Devuelve lo que hizo."""
     informe: dict[str, Any] = {}
-    if correcciones:
+    if correcciones and reglas.aplicar_fichas:
         from .catalog import aplicar_correcciones
 
         informe['catalogo'] = [c.linea() for c in aplicar_correcciones(model, dict(correcciones))]

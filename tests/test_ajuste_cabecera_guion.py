@@ -559,6 +559,38 @@ def test_carga_que_consume_menos_de_lo_escrito_no_es_valida(guion):
     assert guion.aviso_consumo_fisico(validacion, historial[2:]).count(';') == aviso.count(';') - 2
 
 
+def test_toda_sed_no_fija_escalada_y_participando(guion):
+    """015:RF-68 — el informe cuenta, carga por carga, las escaladas con su factor, con su
+    potencia instalada y con consumo en el flujo, y nombra la que no tiene potencia instalada
+    (en Chincha, 2026-10-28, las cargas de un trafomix M… y de un regulador)."""
+    from igea_dgs.ajuste_cabecera import Medida, Objetivo
+
+    app = _app(n=3)
+    cargas, reparto = _reparto_de(app, 1.0, fija='F1_S1')
+    validacion, _ = guion.validar_cargas_nativas(
+        cargas, reparto, Medida(True, 5600.0, 560.0),
+        Objetivo(5600.0, 560.0, 'M1', 'F1'), 0.01)
+    assert validacion['correcta'] is True, validacion['fallos']
+    part = validacion['participacion']
+    assert (part['fijas'], part['escaladas'], part['con_escala'], part['con_potencia'],
+            part['consumen']) == (1, 2, 2, 2, 2)
+    assert part['factor_comun'] == pytest.approx(1.0) and part['sin_potencia_instalada'] == []
+
+    # Una escalada sin potencia instalada: queda en cero, sin consumo, y se nombra.
+    sin = 'F1_S3'
+    cargas[sin].plini = cargas[sin].qlini = 0.0
+    object.__setattr__(cargas[sin], 'm:Psum:bus1', 0.0)
+    object.__setattr__(cargas[sin], 'm:Qsum:bus1', 0.0)
+    reparto.base[sin] = (0.0, 0.0)
+    reparto.demandas[sin] = SimpleNamespace(kw=0.0, kvar=0.0)
+    validacion, _ = guion.validar_cargas_nativas(
+        cargas, reparto, Medida(True, 2600.0, 260.0),
+        Objetivo(2600.0, 260.0, 'M1', 'F1'), 0.01)
+    part = validacion['participacion']
+    assert (part['escaladas'], part['con_escala'], part['con_potencia'], part['consumen']) == (2, 2, 1, 1)
+    assert part['sin_potencia_instalada'] == [sin]
+
+
 def test_fija_con_su_p_pero_otra_q_en_el_flujo_no_es_valida(guion):
     """015:RF-47 — la Q de una fija también se compara con lo que consume."""
     from igea_dgs.ajuste_cabecera import Medida, Objetivo
@@ -627,11 +659,11 @@ def test_no_redistribuir_informa_perdidas_con_consumo_efectivo(guion):
     assert balance['perdidas_kw'] == pytest.approx(segundo['perdidas']['kw'])
 
 
-def test_calibracion_con_cargas_dependientes_de_la_tension_se_revierte(guion):
-    """015:RF-47 / 015:RF-49 / 015:RF-51 — CA101 en DIgSILENT, 2026-10-15: las cargas
-    consumían lo escrito por u² con ``iopt_lev=1`` y la calibración quedaba «válida».
-    Ahora no lo es: no se graba, las cargas vuelven a como estaban y el aviso nombra la
-    fija que no consume lo suyo y el ajuste del flujo."""
+def test_calibracion_con_cargas_dependientes_de_la_tension_no_es_valida(guion):
+    """015:RF-47 / 015:RF-49 / 015:RF-51 / 015:RF-69 — CA101 en DIgSILENT, 2026-10-15: las
+    cargas consumían lo escrito por u² con ``iopt_lev=1`` y la calibración quedaba «válida».
+    Ahora no lo es y el aviso nombra la fija que no consume lo suyo y el ajuste del flujo;
+    el reparto que cuadró queda grabado y ninguna escalada vuelve a cero (SL144 + SM117)."""
     app = _app()
     object.__setattr__(app.ldf, 'iopt_lev', 1)
     antes = {o.loc_name: (o.plini, o.scale0) for o in app.proyecto.GetContents('*.ElmLod', 1)}
@@ -643,14 +675,17 @@ def test_calibracion_con_cargas_dependientes_de_la_tension_se_revierte(guion):
 
     assert rc == 2
     assert informe['status'] == 'FALLO_VALIDACION_NATIVA' and not informe['cuadrado']
-    assert informe['calibracion_revertida'] is True
-    assert 'escenarios' not in informe
+    assert 'calibracion_revertida' not in informe and informe['calibracion_sin_validar'] is True
+    assert informe['escenarios'], 'el reparto que cuadró se graba'
     aviso = next(a for a in informe['avisos'] if a.startswith('VALIDACION_FISICA'))
     assert 'F1_S2' in aviso and 'iopt_lev=1' in aviso
     balance = informe['validacion_posterior_nativa']['balance']
     assert balance['fijas_consumida_kw'] == pytest.approx(0.9 * balance['fijas_escrita_kw'])
-    assert {o.loc_name: (o.plini, o.scale0)
-            for o in app.proyecto.GetContents('*.ElmLod', 1)} == pytest.approx(antes)
+    escaladas = {d['sed'] for d in informe['validacion_posterior_nativa']['cargas']
+                 if d['clase'] == 'ESCALABLE'}
+    despues = {o.loc_name: (o.plini, o.scale0) for o in app.proyecto.GetContents('*.ElmLod', 1)}
+    assert escaladas and despues != antes
+    assert all(despues[s][0] * despues[s][1] > 0 for s in escaladas)
 
 
 def test_ajuste_suma_dos_troncales_y_conserva_clientes_fijos(guion):
@@ -1725,12 +1760,17 @@ def test_la_variacion_de_una_central_no_bloquea_los_transformadores(guion):
     hecho = guion.implementar_transformadores(app, {'F1_S2': _carga(app, 'F1_S2')},
                                               plan['transformadores'])
     assert 'error' not in hecho and [h['sed'] for h in hecho['cambios']] == ['F1_S2']
-    assert activas == [central], 'la central vuelve a quedar activa'
-    activas.append(Var(loc_name='Obra_del_operador'))
+    assert central in activas, 'la central vuelve a quedar activa'
+    # 032:RF-12 (cambia 020:RF-17): los transformadores van en su variación, así que solo
+    # bloquea una variación del operador que esté grabando, y se nombra.
+    # ``Obra_`` es prefijo del conversor (011, 016): la del operador se llama de otro modo.
+    obra = Var(loc_name='Refuerzo_del_operador')
+    activas.append(obra)
+    app.GetRecordingStage = lambda: SimpleNamespace(loc_name='Etapa', GetParent=lambda: obra)
     hecho = guion.implementar_transformadores(app, {'F1_S2': _carga(app, 'F1_S2')},
-                                              plan['transformadores'])
-    assert 'Obra_del_operador' in hecho['error'] and 'Central_F2' not in hecho['error']
-    assert {v.loc_name for v in activas} == {'Central_F2', 'Obra_del_operador'}
+                                              plan['transformadores'], 'P')
+    assert 'Refuerzo_del_operador' in hecho['error'] and 'Central_F2' not in hecho['error']
+    assert '032:RF-12' in hecho['error']
 
 
 def test_cambios_en_la_red_original_y_nuevo(guion):
@@ -1785,3 +1825,218 @@ def test_la_cambiada_a_mano_no_entra_en_el_factor_comun(guion):
                                           manuales={'MANUAL'})
     assert any(f['tipo'] == 'REPARTO_P_NO_PROPORCIONAL' for f in sin['fallos'])
     assert not any(f['tipo'].startswith('REPARTO_') for f in con['fallos'])
+
+
+# --------------------------------------------------------------------------- spec 032
+_FICHA_F1 = {'AAAC_F1': {'valores': {'r1_ohm_km': 0.9, 'ampacity_a': 300.0},
+                         'fuente': 'ficha del fabricante X'}}
+
+
+def _lineas(app, f='F1'):
+    return [o for o in app.proyecto.GetContents('*.ElmLne', 1) if o.loc_name.startswith(f + '_')]
+
+
+def _tipo(app, nombre):
+    return next((t for t in app.carpetas['equip'].GetContents('*.TypLne', 1)
+                 if t.loc_name == nombre), None)
+
+
+def _variaciones(app, prefijo):
+    return [v for v in app.carpetas['scheme'].GetContents('*.IntScheme', 1)
+            if v.loc_name.startswith(prefijo)]
+
+
+def test_codigo_del_tipo_de_linea():
+    """032:RF-14 — la ficha se busca por el código del conductor, sin la tensión ni el (n)."""
+    from igea_dgs.naming import codigo_de_tipo_linea
+
+    assert codigo_de_tipo_linea('AA12003D_22_9kV') == 'AA12003D'
+    assert codigo_de_tipo_linea('NK12003D_10kV(1)') == 'NK12003D'
+    assert codigo_de_tipo_linea('AAAC_F1') == 'AAAC_F1'
+
+
+def test_conductores_con_su_ficha_en_su_variacion(guion):
+    """032:RF-8, 032:RF-9, 032:RF-14, 032:RF-15, 032:RF-27 — en «Sin proyecto» las líneas pasan a una copia del
+    tipo con la ficha, reasignadas en la variación ``Fichas_<proyecto>``; el tipo del archivo no
+    cambia, la longitud y el tramo tampoco, y sin la variación (el «Caso base») vuelven al tipo
+    del archivo. En la etapa solo están las líneas: la marca fija o escalable va a la red."""
+    app = _app(n=3)
+    app.atributos_en_variacion = True
+    original = _tipo(app, 'AAAC_F1')
+    longitudes = {ln.loc_name: ln.dline for ln in _lineas(app)}
+
+    informe, rc = guion.ejecutar(app, {**_plan(kw=300.0, kvar=90.0),
+                                       'fichas_conductores': _FICHA_F1})
+
+    assert rc == 0, informe
+    (var,) = _variaciones(app, 'Fichas_')
+    assert var.loc_name == 'Fichas_P' and informe['conductores_ficha']['variacion'] == 'Fichas_P'
+    nuevo = _tipo(app, 'AAAC_F1_FICHA')
+    assert nuevo is not None and nuevo.rline == pytest.approx(0.9)
+    assert nuevo.sline == pytest.approx(0.3) and nuevo.xline == pytest.approx(0.4)
+    assert (original.rline, original.xline) == (0.5, 0.4)                       # RF-9
+    _caso(app, 'Sin proyecto').Activate()
+    assert all(ln.typ_id is nuevo for ln in _lineas(app))
+    assert {ln.loc_name: ln.dline for ln in _lineas(app)} == longitudes          # RF-15
+    etapa = next(iter(var.GetContents('*.IntSstage')))
+    assert {o.GetClassName() for o in etapa.GetContents('*', 1)} == {'ElmLne'}
+    _caso(app, 'Caso base').Activate()                                          # RF-27
+    assert all(ln.typ_id is original for ln in _lineas(app))
+
+
+def test_informe_de_conductores_con_su_ficha(guion):
+    """032:RF-16, 032:RF-17 — por código, el parámetro, el valor del archivo y el de la ficha, la
+    variación en %, tramos, km y la fuente; y un aviso en el resultado del ajuste."""
+    app = _app(n=3)
+    informe, rc = guion.ejecutar(app, {**_plan(kw=300.0, kvar=90.0),
+                                       'fichas_conductores': _FICHA_F1})
+
+    assert rc == 0, informe
+    por = {c['parametro']: c for c in informe['conductores_ficha']['cambios']}
+    r = por['rline']
+    assert (r['codigo'], r['archivo'], r['ficha'], r['tramos'], r['km']) == (
+        'AAAC_F1', 0.5, 0.9, 3, 3.0)
+    assert r['variacion_pct'] == pytest.approx(80.0) and r['fuente'] == 'ficha del fabricante X'
+    assert (por['sline']['unidad'], por['sline']['ficha']) == ('A', 300.0)
+    assert any('032:RF-14' in a and 'AAAC_F1' in a for a in informe['avisos'])
+
+
+def test_recalibrar_reutiliza_la_variacion_y_el_tipo(guion):
+    """032:RF-13, 032:RF-10 — otra calibración no crea otra variación ni otro tipo, ni reescribe."""
+    app = _app(n=3)
+    plan = {**_plan(kw=300.0, kvar=90.0), 'fichas_conductores': _FICHA_F1}
+    guion.ejecutar(app, plan)
+    informe, rc = guion.ejecutar(app, plan)
+
+    assert rc == 0, informe
+    assert len(_variaciones(app, 'Fichas_')) == 1
+    assert [t.loc_name for t in app.carpetas['equip'].GetContents('*.TypLne', 1)
+            ].count('AAAC_F1_FICHA') == 1
+    assert informe['conductores_ficha']['tramos_reasignados'] == 0
+    assert informe['conductores_ficha']['cambios']
+
+
+def test_tipo_propio_con_otros_datos_no_se_toca(guion):
+    """032:RF-11 — un ``<tipo>_FICHA`` ya existente con otros datos no se cambia: sus líneas se
+    quedan como estaban y se nombra el tipo y el dato."""
+    app = _app(n=3)
+    otro = app.carpetas['equip'].AddCopy(_tipo(app, 'AAAC_F1'), 'AAAC_F1_FICHA')
+    otro.rline = 1.7
+    informe, rc = guion.ejecutar(app, {**_plan(kw=300.0, kvar=90.0),
+                                       'fichas_conductores': _FICHA_F1})
+
+    assert rc == 0, informe
+    (om,) = informe['conductores_ficha']['omitidos']
+    assert om['tipo'] == 'AAAC_F1_FICHA' and 'rline' in om['motivo']
+    assert otro.rline == 1.7
+    assert all(ln.typ_id.loc_name == 'AAAC_F1' for ln in _lineas(app))
+
+
+def test_con_otra_variacion_grabando_no_se_cambia_nada(guion):
+    """032:RF-12 — si graba una variación del operador, no se cambia ningún conductor y se nombra."""
+    app = _app(n=3)
+    guion.preparar_sin(app, {'project': 'P', 'feeders': ['F1'], 'caso_base_sin_verificar': {}})
+    _caso(app, 'Sin proyecto').Activate()
+    var = app.carpetas['scheme'].CreateObject('IntScheme', 'Mi_obra')
+    var.NewStage('Etapa', 1_760_000_000, 1)
+    informe, rc = guion.ejecutar(app, {**_plan(kw=300.0, kvar=90.0),
+                                       'fichas_conductores': _FICHA_F1})
+
+    assert 'Mi_obra' in (informe['conductores_ficha'].get('error') or '')
+    assert _tipo(app, 'AAAC_F1_FICHA') is None and not _variaciones(app, 'Fichas_')
+
+
+def test_codigo_sin_ficha_queda_como_en_el_archivo(guion):
+    """032:RF-18 — un conductor sin ficha conserva sus valores y se lista «sin ficha»."""
+    app = _app(n=3)
+    informe, rc = guion.ejecutar(app, {**_plan(kw=300.0, kvar=90.0),
+                                       'fichas_conductores': {'OTRO': {'valores': {'r1_ohm_km': 1.0}}}})
+
+    assert rc == 0, informe
+    assert informe['conductores_ficha']['sin_ficha'] == ['AAAC_F1']
+    assert not _variaciones(app, 'Fichas_')
+    assert all(ln.typ_id.loc_name == 'AAAC_F1' for ln in _lineas(app))
+
+
+def test_transformadores_en_su_variacion_y_el_caso_base_intacto(guion):
+    """032:RF-8, 032:RF-23, 032:RF-24, 032:RF-27 (cambia 020:RF-16) — los transformadores
+    implementados van en
+    ``SED_NTP_<proyecto>``: «Sin proyecto» ve el tipo nuevo y el «Caso base» conserva el del
+    archivo. Una variación del operador activa sin grabar no lo impide."""
+    app = _app(n=3)
+    app.atributos_en_variacion = True
+    plan = _con_propuesta(guion, app, _sobrecargada(app))
+    viejo = _tr(app, 'TR_F1_S2').typ_id
+
+    informe, rc = guion.ejecutar(app, plan)
+
+    assert rc == 0, informe
+    assert informe['transformadores_implementados']['variacion'] == 'SED_NTP_P'
+    assert [v.loc_name for v in _variaciones(app, 'SED_NTP_')] == ['SED_NTP_P']
+    _caso(app, 'Sin proyecto').Activate()
+    assert _tr(app, 'TR_F1_S2').typ_id.loc_name.startswith('TR_400kVA')
+    _caso(app, 'Caso base').Activate()
+    assert _tr(app, 'TR_F1_S2').typ_id is viejo and _tr(app, 'TR_F1_S2').ntnum in (None, 1)
+    # RF-24: en la tabla de cambios, lo original del archivo (100 kVA) y lo nuevo (400 kVA).
+    [c] = [x for x in informe['cambios_en_la_red'] if x['clase'] == 'transformador']
+    assert (c['sed'], c['original']['potencia'], c['nuevo']['potencia']) == ('F1_S2', 100.0, 400.0)
+
+
+def test_escaladas_y_fijas_sobre_el_umbral_con_propuesta(guion):
+    """032:RF-20, 032:RF-21, 032:RF-28 — tras calibrar, las SED fijas y escaladas por encima del umbral
+    del perfil, con su nivel, su tipo y la propuesta de la ficha."""
+    app = _app(n=3)
+    plan = {**_plan(kw=600.0, kvar=150.0, clientes=_sobrecargada(app)),
+            'transformadores_sed': _fichas_plan()}
+
+    informe, rc = guion.ejecutar(app, plan)
+
+    assert rc == 0, informe
+    sobre = informe['sed_sobre_umbral']
+    assert sobre['umbral_carga_pct'] == 80
+    por = {x['sed']: x for x in sobre['sed']}
+    fija = por['F1_S2']
+    assert (fija['tipo'], fija['nivel']) == ('fija', 'sobre_100') and fija['clientes'] == ['CI-9']
+    assert fija['propuesta']['kva'] is not None
+    assert all(x['carga_pct'] > 80 for x in sobre['sed'])
+    assert {x['nivel'] for x in sobre['sed']} <= {'sobre_100', 'sobre_umbral'}
+    escaladas = [x for x in sobre['sed'] if x['tipo'] == 'escalada']
+    assert all(x['clientes'] == [] for x in escaladas)
+
+
+def test_sin_perfil_las_sed_sobre_el_100_sin_propuesta(guion):
+    """032:RF-25 — sin tablas en el perfil, umbral del 100 % y la lista sin propuesta."""
+    app = _app(n=3)
+    informe, rc = guion.ejecutar(app, _plan(kw=600.0, kvar=150.0, clientes=_sobrecargada(app)))
+
+    assert rc == 0, informe
+    sobre = informe['sed_sobre_umbral']
+    assert sobre['umbral_carga_pct'] == 100.0
+    assert sobre['sed'] and all(x['propuesta']['kva'] is None for x in sobre['sed'])
+
+
+def test_variaciones_del_catalogo_en_sin_y_con_proyecto_y_no_en_el_caso_base(guion, monkeypatch):
+    """032:RF-27 — con «Con proyecto» ya creado, calibrar deja ``Fichas_<proyecto>`` activa en
+    «Sin proyecto» y en «Con proyecto», y nunca en el «Caso base»; las del catálogo no se
+    cuentan como del operador."""
+    import sys
+
+    app = _con_escenario_que_manda()
+    app.atributos_en_variacion = True
+    casos = sys.modules['casos_pf']
+    monkeypatch.setattr(casos, 'activar_proyecto', lambda app, ruta, carpeta=None: app.proyecto)
+    guion.ejecutar(app, _plan())
+    _con_proyecto(app)
+    _caso(app, 'Caso base').Activate()
+
+    informe, rc = guion.ejecutar(app, {**_plan(), 'fichas_conductores': _FICHA_F1})
+
+    assert rc == 0, informe
+    for nombre, esperado in (('Sin proyecto', True), ('Con proyecto', True), ('Caso base', False)):
+        _caso(app, nombre).Activate()
+        activas = {v.loc_name for v in app.GetActiveNetworkVariations()}
+        assert ('Fichas_P' in activas) is esperado, (nombre, activas)
+        assert all((ln.typ_id.loc_name == 'AAAC_F1_FICHA') is esperado for ln in _lineas(app))
+    (var,) = _variaciones(app, 'Fichas_')
+    assert casos.es_del_catalogo(var) and not casos.es_del_operador(var)
+    assert any('032:RF-27' in a for a in informe['avisos'])

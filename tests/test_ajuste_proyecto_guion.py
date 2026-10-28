@@ -336,3 +336,42 @@ def test_con_remedios_los_bancos_salen_de_la_q_escrita(guion, monkeypatch, con_q
     else:
         assert not pedidos and not inf['bancos_nuevos']
         assert any('021:RF-70' in a for a in inf['avisos'])
+
+
+def test_fichas_de_todo_el_proyecto_en_una_variacion(guion):
+    """032:RF-8, 032:RF-13, 032:RF-14 — calibrando el proyecto, los conductores de todos sus
+    alimentadores con su ficha, en una sola variación ``Fichas_<proyecto>``, y el mismo informe
+    en cada alimentador; un código sin ficha, «sin ficha». La calibración sigue cuadrando."""
+    app = _app(escenario=True)
+    fichas = {'AAAC_F1': {'valores': {'r1_ohm_km': 0.9}, 'fuente': 'f'}}
+    planes = [{**_de(_plan(), f, kw), 'fichas_conductores': fichas}
+              for f, kw in (('F1', 300.0), ('F2', 220.0))]
+    (f1, rc1), (f2, rc2) = guion.ejecutar_proyecto(app, planes)
+
+    assert (rc1, rc2) == (0, 0), (f1, f2)
+    assert f1['cuadrado'] and f2['cuadrado']
+    assert [v.loc_name for v in app.carpetas['scheme'].GetContents('*.IntScheme')] == ['Fichas_P']
+    assert f1['conductores_ficha'] is f2['conductores_ficha']
+    assert f1['conductores_ficha']['sin_ficha'] == ['AAAC_F2']
+    assert {c['codigo'] for c in f1['conductores_ficha']['cambios']} == {'AAAC_F1'}
+
+
+def test_bancos_que_faltan_con_la_variacion_de_las_fichas(guion):
+    """032:RF-8 — CA101 desde cero (2026-10-28): con ``Fichas_<proyecto>`` activa, poner los
+    bancos que faltan se negaba (««Sin proyecto» tiene variaciones activas») y fallaba la
+    calibración entera. Ahora se aparta como la de una central: los bancos van a la red, no a
+    la etapa de las fichas, y la variación sigue activa en «Sin proyecto»."""
+    app = _app(escenario=True)
+    plan = {**_de(_plan(kvar=10.0), 'F1', 300.0), 'completar_bancos': True,
+            'bancos_kvar_por_tension': {'10': 2.0},
+            'fichas_conductores': {'AAAC_F1': {'valores': {'r1_ohm_km': 0.9}, 'fuente': 'f'}}}
+
+    [(inf, rc)] = guion.ejecutar_proyecto(app, [plan])
+
+    assert inf['bancos_nuevos'], (inf.get('error'), inf['avisos'])
+    nombres = {b['banco'] for b in inf['bancos_nuevos']}
+    assert all(o.etapa_creacion is None for o in app.creados if o.loc_name in nombres)
+    assert inf['conductores_ficha']['variacion'] == 'Fichas_P'
+    sin = next(c for c in app.carpetas['study'].GetContents('*.IntCase') if c.loc_name == 'Sin proyecto')
+    sin.Activate()
+    assert 'Fichas_P' in {v.loc_name for v in app.GetActiveNetworkVariations()}

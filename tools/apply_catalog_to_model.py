@@ -277,7 +277,9 @@ def main(argv: list[str] | None = None) -> int:
     # conversión que se desviaría de la primera en cuanto una cambiase.
     from igea_dgs.batch import convert_selection
     from igea_dgs.perfil_empresa import cargar_perfil
-    from igea_dgs.reglas import reglas_de_perfil
+    from dataclasses import replace
+
+    from igea_dgs.reglas import REGLAS_PROYECTO, reglas_de_perfil
 
     perfil = cargar_perfil()
     out_dir = Path(args.out_dir)
@@ -288,7 +290,9 @@ def main(argv: list[str] | None = None) -> int:
         include_geography=not args.sin_geografia,
         source_crs=args.source_crs or perfil.crs_origen,
         catalog_corrections=correcciones,
-        reglas=reglas_de_perfil(perfil),
+        # Este guion es para comparar con la ficha: la enciende a propósito. Las vías del
+        # proyecto no, para que el «Caso base» lleve lo del archivo (032:RF-2).
+        reglas=reglas_de_perfil(perfil, replace(REGLAS_PROYECTO, aplicar_fichas=True)),
         perfil=perfil,
     )
     hechos = [f for f in manifiesto.get('feeders', []) if f.get('status') == 'ok']
