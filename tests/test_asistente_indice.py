@@ -59,3 +59,39 @@ def test_el_proyecto_real_se_indexa(tmp_path, monkeypatch):
     i = indice.construir(RAIZ)
     r = indice.responder(i, 'flujo de carga por matriz de admitancias con lazos del gemelo')
     assert r['sabe'] and any('flujo.py' in c['fuente'] or '024' in c['texto'] for c in r['citas'])
+
+
+class _Redactor:
+    modelo = 'falso'
+
+    def __init__(self, texto):
+        self.texto = texto
+
+    def responder(self, pregunta, contexto):
+        return self.texto
+
+
+def test_cita_falsa_se_cambia_por_los_trozos(tmp_path, monkeypatch):
+    """027:RF-41 — una respuesta con una cita que no existe o que no apoya su frase se cambia
+    por los trozos citados; con citas que la apoyan, se deja."""
+    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(tmp_path / 'datos'))
+    i = indice.cargar_o_construir(_repo(tmp_path / 'repo'))
+    pregunta = '¿cómo se reparte la medida de la barra en alimentadores sin medidor?'
+    buena = ('La medida de la barra se reparte entre los alimentadores sin medidor por su potencia '
+             'instalada [1].')
+    r = indice.responder(i, pregunta, _Redactor(buena))
+    assert r['redactada_por'] == 'falso' and 'citas_sin_apoyo' not in r
+    falsa = 'Las tortillas llevan huevo y patatas fritas en aceite de oliva caliente [1]. Y cebolla [9].'
+    r = indice.responder(i, pregunta, _Redactor(falsa))
+    assert r['redactada_por'] is None and r['respuesta'].startswith('[1]')
+    assert any('[9] no está' in p for p in r['citas_sin_apoyo']) and any('[1] no apoya' in p for p in r['citas_sin_apoyo'])
+
+
+def test_medicion_de_las_consultas(tmp_path, monkeypatch):
+    """027:RF-42 — la fracción respondida con la cita esperada y la de «No lo sé» acertados."""
+    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(tmp_path / 'datos'))
+    i = indice.cargar_o_construir(_repo(tmp_path / 'repo'))
+    m = indice.medir(i, [{'pregunta': '¿cómo se reparte la medida de la barra sin medidor?', 'fuente': 'specs/099-prueba'},
+                         {'pregunta': 'receta de la tortilla de patatas', 'fuente': None},
+                         {'pregunta': 'potencia instalada del reparto de la barra', 'fuente': 'no/existe.py'}])
+    assert m == {'preguntas': 3, 'con_cita_correcta': 0.5, 'no_lo_se_acertados': 1.0}
