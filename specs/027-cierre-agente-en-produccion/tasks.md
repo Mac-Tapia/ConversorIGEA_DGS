@@ -60,9 +60,13 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       algoritmos deterministas (`CUBLAS_WORKSPACE_CONFIG`); `reproducir` y
       `tools/digital_twin_entrenar.py --reproducir VERSION`; reproducido en la GPU con diferencia
       < 10⁻⁵ p.u.
-- [ ] T6. Búsqueda de hiperparámetros con presupuesto (Optuna, TPE y poda), solo en validación,
+- [x] T6. Búsqueda de hiperparámetros con presupuesto (Optuna, TPE y poda), solo en validación,
       y `tools/digital_twin_entrenar.py --buscar`. (RF-7)
       Hecho cuando: prueba sintética en verde; `--help` sin GPU; informe de ensayos guardado.
+      Hecho el 2026-10-28: `digital_twin/hiperparametros.py` (lr, ocultas, pasos, peso físico y
+      recorte; TPE con semilla y `MedianPruner` sobre la curva de validación por `al_validar`);
+      `--buscar --ensayos --limite-s` guarda los ensayos en `modelos/busquedas/` y entrena con la
+      elegida. Optuna en el extra `ml`.
 - [ ] T7. Intervalo conforme por barra y marca de no confiable. (RF-12, RF-13)
       Hecho cuando: cobertura empírica ≥ la pedida − 2 % en datos sorteados.
 - [ ] T8. Top-k verificado en DIgSILENT con `pf_arnes`; descarte, episodio y siguiente;
