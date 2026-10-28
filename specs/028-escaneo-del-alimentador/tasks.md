@@ -21,3 +21,6 @@ cuando el usuario ponga a mano la central de NA205.
 - [ ] T6. Prueba en DIgSILENT: escanear Nasca con la central de NA205 puesta a mano por el
       usuario y recalibrar.
       Hecho cuando: el escaneo nombra el generador de NA205 y su barra, y la calibración lo usa.
+      Pendiente (usuario, 2026-10-28: «no puedo modificar el DIgSILENT a mano, deja pendiente de
+      central térmica a mano»): la central de NA205 no está aún en el proyecto. El escaneo en
+      DIgSILENT ya corre (Nasca: 8 bancos de calibración en NA205 y 7 en NA203, ningún generador).
