@@ -179,7 +179,7 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       Hecho cuando: informe con Nasca, Chincha, Pisco e Ica válidos en DIgSILENT y las métricas
       de las puertas, y el agente ejecutó el proyecto desde un espacio vacío hasta el PIDE y
       sus informes (RF-43).
-- [ ] T23. El nodo de cabecera con la sigla canónica (`NODE_…_CN101` → `NODE_…_CHN101`) en el DGS,
+- [x] T23. El nodo de cabecera con la sigla canónica (`NODE_…_CN101` → `NODE_…_CHN101`) en el DGS,
       sus metadatos y lo que los guiones buscan por él. (022:RF-90)
       Hecho cuando: Chincha reconvertido e importado sin `CN` en sus nombres y calibrado válido
       en DIgSILENT.
@@ -187,6 +187,10 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       «sigla + número» (`NODE_2030_1192582_CN101` → `…_CHN101`, también `NET_` y `SRC_`) y el DGS
       lo aplica a todos los `loc_name` con las siglas leídas una vez por fichero. Falta reconvertir
       e importar Chincha en DIgSILENT.
+      Cerrada el 2026-10-28: la primera reconversión falló en la validación estricta, que buscaba
+      `…_CN101`; `validate._loc` usa ya la misma tabla de siglas que el DGS (prueba con las dos
+      disposiciones). Chincha reconvertido, importado (20261028-103442_IGEA_SISTEMA_CHINCHA) y
+      calibrado por la web: 26 válidos y 0 con fallos, y ningún `CN` suelto en su DGS.
 - [ ] T24. Episodios por sistema según RF-53 y curva de aprendizaje por familia. (RF-53, RF-54)
       Hecho cuando: informe por sistema con sus 30/10/10 episodios y la curva que dice si ha
       convergido.
