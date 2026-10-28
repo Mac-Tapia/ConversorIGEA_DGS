@@ -525,7 +525,7 @@ VARIABLE_COLA = 'IGEA_PF_COLA'
 # cerraba el servidor y abría DIgSILENT por su cuenta (AL105 + AL108, 2026-10-23: 2,5 min
 # más por ajuste y 73 s de conexión en la acción siguiente).
 GUIONES_SERVIBLES = frozenset({
-    'ajuste_cabecera_pf.py', 'cargas_pf.py', 'casos_pf.py', 'digital_twin_snapshot_pf.py',
+    'ajuste_cabecera_pf.py', 'cargas_pf.py', 'casos_pf.py', 'digital_twin_snapshot_pf.py', 'escanear_alimentador_pf.py',
     'escenarios_pf.py', 'estudios_pf.py', 'obras_pf.py', 'pf_proyectos.py', 'pide_pf.py',
     'transferencia_pf.py', 'transformador_set_pf.py', 'verificar_pf.py'})
 
