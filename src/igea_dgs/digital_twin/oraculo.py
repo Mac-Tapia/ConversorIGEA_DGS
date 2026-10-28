@@ -412,6 +412,8 @@ class Entrenamiento:
     """Tasa final del coseno (027:RF-6)."""
     recorte: float = 1.0
     """Norma máxima del gradiente (027:RF-6): con cargas grandes, el residuo físico daba saltos."""
+    cobertura: float = 0.9
+    """Cobertura del intervalo conforme de tensión por barra (027:RF-12)."""
 
 
 def entrenar_miembro(muestras: Sequence[Muestra], cfg: Entrenamiento, inicial: dict | None = None,
@@ -495,6 +497,8 @@ class OraculoPINN:
     dominio: dict[str, Any]
     nombre: str = 'pinn_gnn'
     version: str = ''
+    cuantil: float | None = None
+    """Cuantil conforme de |error| / (dispersión + ε) en validación (027:RF-12)."""
 
     def _redes(self):
         disp = dispositivo()
@@ -530,19 +534,68 @@ class OraculoPINN:
         ths = np.stack([s[1].cpu().numpy() for s in salidas])
         v, th = vs.mean(axis=0), ths.mean(axis=0)
         motivos = self.fuera_de_dominio(m)
-        return {'ids': m.ids, 'v': v, 'theta': th, 'incertidumbre': vs.std(axis=0),
+        sigma = vs.std(axis=0)
+        # 027:RF-12: semiancho del intervalo con la cobertura pedida.
+        semiancho = None if self.cuantil is None else self.cuantil * (sigma + EPS_CONFORME)
+        return {'ids': m.ids, 'v': v, 'theta': th, 'incertidumbre': sigma,
+                'intervalo_pu': semiancho, 'cobertura': self.cfg.cobertura if semiancho is not None else None,
                 'residuo': residuo(m, v, th, self.cfg.exponente_carga), 'fuera_de_dominio': bool(motivos),
                 'motivos': motivos,
                 'modelo': self.nombre, 'version': self.version}
 
 
-def estado_electrico(prediccion: Mapping[str, Any], grafo: Mapping[str, Any]) -> dict[str, Any]:
+#: Suelo de la dispersión en el cociente conforme: con los tres miembros casi iguales en una
+#: barra, |error|/σ se disparaba y el cuantil salía de una sola barra (027:RF-12).
+EPS_CONFORME = 1e-4
+
+
+def cuantil_conforme(puntuaciones: Sequence[float], cobertura: float) -> float:
+    """El cuantil de predicción conforme partida (Lei et al., 2018; Angelopoulos y Bates, 2023):
+    el ⌈(n+1)·cobertura⌉-ésimo de las puntuaciones de calibración, que da cobertura ≥ la pedida
+    con datos intercambiables (027:RF-12)."""
+    s = np.sort(np.asarray(puntuaciones, dtype=float))
+    if not len(s):
+        raise ValueError('sin puntuaciones de calibración')
+    k = int(np.ceil((len(s) + 1) * cobertura)) - 1
+    return float(s[min(max(k, 0), len(s) - 1)])
+
+
+def calibrar_conforme(oraculo: OraculoPINN, calibracion: Sequence[Muestra]) -> float | None:
+    """Puntuaciones |v − v_DIgSILENT| / (σ + ε) por barra en ``calibracion`` y su cuantil."""
+    puntuaciones = []
+    for m in calibracion:
+        p = oraculo.predecir(_grafo_de_muestra(m))
+        err = np.abs(np.asarray(p['v']) - m.v)[m.mascara]
+        puntuaciones.extend((err / (np.asarray(p['incertidumbre'])[m.mascara] + EPS_CONFORME)).tolist())
+    return cuantil_conforme(puntuaciones, oraculo.cfg.cobertura) if puntuaciones else None
+
+
+def confiable(prediccion: Mapping[str, Any], limites=None) -> tuple[bool, str | None]:
+    """SI el intervalo de una barra es más ancho que la banda de la norma, no se usa para
+    decidir (027:RF-13). Sin intervalo o sin límites, no se puede negar."""
+    semi = prediccion.get('intervalo_pu')
+    if semi is None or limites is None:
+        return True, None
+    banda = float(limites.tension_max_pu) - float(limites.tension_min_pu)
+    ancho = 2 * np.asarray(semi, dtype=float)
+    if len(ancho) and float(ancho.max()) > banda:
+        k = int(np.argmax(ancho))
+        return False, (f'intervalo de {ancho[k]:.3f} p.u. en {prediccion["ids"][k]}, más ancho que la banda '
+                       f'{banda:.3f} p.u. de {limites.norma} (027:RF-13)')
+    return True, None
+
+
+def estado_electrico(prediccion: Mapping[str, Any], grafo: Mapping[str, Any], limites=None) -> dict[str, Any]:
     """Tensiones, flujos, pérdidas y cargabilidad de una predicción (RF-18).
 
-    Fuera de dominio no se da como verdad: se pide el cálculo a DIgSILENT (RF-19).
+    Fuera de dominio no se da como verdad: se pide el cálculo a DIgSILENT (RF-19); tampoco con
+    un intervalo más ancho que la banda de la norma (027:RF-13).
     """
     if prediccion.get('fuera_de_dominio'):
         return {'requiere_pf': True, 'motivos': prediccion.get('motivos') or []}
+    ok, motivo = confiable(prediccion, limites)
+    if not ok:
+        return {'requiere_pf': True, 'no_confiable': True, 'motivos': [motivo]}
     m = muestra(grafo)
     vc = np.asarray(prediccion['v']) * np.exp(1j * np.asarray(prediccion['theta']))
     a, b = m.aristas
@@ -624,7 +677,8 @@ def cargar(bufer: BuferEpisodios, version: str | None = None) -> OraculoPINN | N
     estados = [torch.load(carpeta / f'miembro_{i}.pt', weights_only=True) for i in range(meta['miembros'])]
     # Los modelos de antes del 2026-10-24 se entrenaron sobre el barrido radial.
     cfg = Entrenamiento(**{'fisica': 'radial', **meta['cfg']})
-    return OraculoPINN(estados, cfg, meta['dominio'], version=version)
+    return OraculoPINN(estados, cfg, meta['dominio'], version=version,
+                       cuantil=(meta.get('conforme') or {}).get('cuantil'))
 
 
 def promover(bufer: BuferEpisodios, version: str, motivo: str) -> None:
@@ -847,6 +901,9 @@ def entrenar(bufer: BuferEpisodios, *, consulta: Consulta | None = None, cfg: En
                                         inicial, log, validacion=grupos['validacion'],
                                         historial=curvas[-1]))
     candidato = OraculoPINN(estados, cfg, dominio)
+    # 027:RF-12: el intervalo se calibra con la validación, que no se usó para los pesos.
+    calibracion = grupos['validacion'] or grupos['entrenamiento']
+    candidato.cuantil = calibrar_conforme(candidato, calibracion)
     evaluacion = grupos['prueba'] or grupos['validacion'] or grupos['entrenamiento']
     error = mae(candidato, evaluacion)
     man = manifiesto(cfg, ids, grupos, candidato, actual.version if compatible else None)   # 027:RF-8
@@ -860,7 +917,9 @@ def entrenar(bufer: BuferEpisodios, *, consulta: Consulta | None = None, cfg: En
             # 027:RF-5: la mejor época de cada miembro y su curva de validación.
             'validacion': [{'mejor_epoca': min(c, key=lambda x: x[1])[0] if c else None,
                             'epocas': c[-1][0] + 1 if c else None, 'curva': c} for c in curvas],
-            'manifiesto': man}
+            'manifiesto': man,
+            'conforme': {'cuantil': candidato.cuantil, 'cobertura': cfg.cobertura,
+                         'calibracion': len(calibracion)}}
     carpeta = guardar(candidato, bufer, meta)
     fallos = fallos_de_particion(grupos)                                 # 027:RF-3
     if error is None or error > puertas.mae_v_max:
