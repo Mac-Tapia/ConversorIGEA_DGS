@@ -95,7 +95,7 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       Hecho el 2026-10-28: `ejecutor.revisar_tras_error` da el error al modelo; con la misma tarea y
       datos (fallo pasajero) se reintenta una vez, con otros vuelve al operador con la propuesta
       para confirmar (RF-19); cada decisión queda en el registro `reintentos`.
-- [x] T11. (Condicional) LoRA/QLoRA local si T9 no pasa las puertas. (RF-21)
+- [ ] T11. (Condicional) LoRA/QLoRA local si T9 no pasa las puertas. (RF-21)
       Hecho cuando: el modelo ajustado pasa RF-18 con el conjunto real, o la tarea se cierra
       con la medida de que no hace falta.
       Cerrada el 2026-10-28 con la medida: el Transformer en uso (20261024-150042-37ce) acierta 1,0
@@ -103,6 +103,8 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       puertas de RF-18; LoRA/QLoRA no hace falta. Con 5 órdenes la medida es débil: se repite al
       llegar a las 200 (RF-19), y los pares de preferencia de T15 quedan para un DPO si entonces
       no pasa.
+      Reabierta el 2026-10-28: con las 200 órdenes fijas (T27) el asistente no pasa RF-18 (0,854 y
+      0,851); toca mejorar el modelo (búsqueda de hiperparámetros, más capacidad o ajuste fino).
 - [x] T12. Deriva, propuesta de reentrenamiento y vuelta atrás desde la web. (RF-22 a RF-24)
       Hecho cuando: pruebas de API en verde y botón en la web compilada.
       Hecho el 2026-10-28: `oraculo.deriva_por_familia` (nuevos y fuera de dominio por familia;
@@ -220,3 +222,13 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       0,980 sin destilar (se usa el destilado); no se promueve porque el modelo en uso acierta 0,987.
       Codex, pendiente: su cuenta de ChatGPT rechaza el modelo configurado (`gpt-5.6-sol`) y también
       gpt-5.5, gpt-5 y gpt-5-codex; falta configurar un modelo que la cuenta admita.
+- [x] T27. Conjunto fijo de 200 órdenes del maestro en el entrenamiento y en la prueba fija, con
+      su huella en el registro del modelo. (RF-65 a RF-67)
+      Hecho cuando: pruebas en verde (200, todas las tareas, reparto 160/40, no cambian RF-19) y
+      un entrenamiento real medido con ellas.
+      Hecho el 2026-10-28: `asistente/ordenes_fijas.py` (200 órdenes del maestro, las 27 tareas,
+      frases que no son plantillas, huella 72984d5f…, 160/40) en el entrenamiento y la prueba fija.
+      Medida real: el candidato acierta 0,854 la tarea y 0,851 el F1 de los datos en las 41 de prueba
+      (40 fijas y 1 del operador), bajo las puertas de 0,98 y 0,95: RF-18 no se cumple. El modelo en
+      uso falla con confianza alta en algunas («que tengo cargado ahora» → cargar la fuente, 1,00;
+      «obras del pide de …» → pide, 0,99). Se reabre T11.

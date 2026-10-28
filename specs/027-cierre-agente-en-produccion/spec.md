@@ -249,6 +249,14 @@ implementar la técnica y metodología de destilación para el entrenamiento de 
 - RF-64: EL SISTEMA aceptará como maestro las etiquetas que Claude deje en el registro
   `etiquetas_maestro` del asistente (texto, votos por tarea, datos y modelo), para destilar
   sin servicio en línea.
+- RF-65: EL SISTEMA tendrá un conjunto fijo de 200 órdenes escritas por el maestro (Claude), con
+  su tarea y sus datos, repartidas entre todas las tareas, con frases distintas de las plantillas
+  del entrenamiento y una huella que cambia si cambia una orden (usuario, 2026-10-28: «debería
+  tener las 200 órdenes fijadas»).
+- RF-66: EL SISTEMA pondrá una de cada cinco órdenes fijas en la prueba fija y las demás en el
+  entrenamiento, y medirá las puertas de RF-18 con las fijas de prueba junto a las del operador.
+- RF-67: EL SISTEMA no contará las órdenes fijas como órdenes del operador para RF-19: lo que
+  escribe sigue pidiendo confirmación hasta que el operador confirme 200.
 - RF-62: EL SISTEMA guardará con el modelo destilado el maestro (nombre del modelo de Ollama),
   k, la temperatura, α, T, cuántas órdenes etiquetó y cuántas descartó (RF-8).
 
