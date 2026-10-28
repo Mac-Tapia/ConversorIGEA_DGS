@@ -453,6 +453,16 @@ class AgenteProyectoIn(BaseModel):
     reiniciar: bool = False
 
 
+class RecalibrarIn(BaseModel):
+    """028:RF-21: recalibrar el sistema del proyecto ya importado."""
+
+    project: str = Field(min_length=1)
+    periodo: str = Field(pattern=r'^\d{4}(-(0[1-9]|1[0-2]))?$')
+    zonal: str | None = None
+    demanda_dir: str | None = None
+    transformadores: bool = False
+
+
 class EscaneoIn(BaseModel):
     """Spec 028: alimentadores de un proyecto de DIgSILENT a escanear."""
 
@@ -1151,6 +1161,22 @@ def create_app(
                       lambda ctx: services.escanear_alimentadores(ws, ctx, body.project, body.feeders,
                                                                   body.anio),
                       lane='powerfactory')
+
+    # Spec 028, RF-21: recalibrar, aparte de la calibración inicial. Corre ``sistema_web.py``,
+    # que usa el carril de DIgSILENT por la API: va en el carril del asistente, o se esperaría a sí mismo.
+    @app.get('/api/workspaces/{wid}/demanda/recalibrar')
+    def recalibrar_datos(wid: str, project: str) -> dict:
+        return services.recalibrar_datos(ws_or_404(wid), project)
+
+    @app.post('/api/workspaces/{wid}/demanda/recalibrar', status_code=202)
+    def recalibrar(wid: str, body: RecalibrarIn) -> dict:
+        ws = ws_or_404(wid)
+        services.recalibrar_datos(ws, body.project)          # 028:RF-23, antes de encolar
+        return submit(ws, 'recalibrar', f'Recalibrar · {body.project}',
+                      lambda ctx: services.recalibrar_sistema(ws, ctx, body.project, body.periodo,
+                                                              zonal=body.zonal, demanda_dir=body.demanda_dir,
+                                                              transformadores=body.transformadores),
+                      lane='asistente')
 
     @app.get('/api/workspaces/{wid}/powerfactory/escaneo')
     def pf_escaneo_guardado(wid: str) -> dict:
