@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 import re
 from collections import Counter, defaultdict
-from collections.abc import Iterable, Iterator, Mapping
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +26,12 @@ POR_ARTICULO = 5
 LARGO_CITA = 300
 #: Términos de un artículo que tiene que nombrar un fragmento para ser suyo.
 MIN_TERMINOS = 2
+#: Filas del principio de cada hoja de formato donde están sus encabezados, y celdas guardadas.
+FILAS_CABECERA = 15
+MAX_CELDAS = 400
+_CON_LETRAS = re.compile(r'[^\W\d_]{3}')
+#: Unidades que se comparan entre un campo producido y el entregado (027:RF-49).
+_UNIDADES = re.compile(r'us\$|kw\.?h|mw\.?h|kva|kvar|kw|mw|kv|km|%', re.I)
 
 _VACIAS = {'para', 'como', 'sobre', 'desde', 'entre', 'cada', 'todos', 'todas', 'según', 'segun', 'este',
            'esta', 'estos', 'estas', 'del', 'los', 'las', 'con', 'por', 'una', 'uno', 'sus'}
@@ -108,9 +114,16 @@ def construir(dataset: Path | str, contrato: ContratoPide) -> dict[str, Any]:
     secciones: dict[str, Counter] = {'4.1': Counter(), '4.2': Counter()}
     fuentes_informe: dict[str, set[str]] = {'4.1': set(), '4.2': set()}
     con_articulo = total = 0
+    celdas: dict[str, set[str]] = defaultdict(set)
     for f in _jsonl(dataset / 'fragments.jsonl'):
         total += 1
         ruta, texto = f.get('relative_path') or '', f.get('text') or ''
+        if str(f.get('location') or '').startswith('sheet:'):
+            for codigo in formatos_de_ruta(ruta):
+                if len(celdas[codigo]) < MAX_CELDAS:
+                    for linea in texto.splitlines()[:FILAS_CABECERA]:
+                        # Solo las que tienen texto: las cifras llenaban las 400 (F02, F05).
+                        celdas[codigo] |= {c.strip() for c in linea.split('|') if _CON_LETRAS.search(c)}
         arts = sorted(set(f.get('articulos') or []) | set(articulos_de_texto(texto, terminos)))
         con_articulo += bool(arts)
         periodo = f.get('periodo') or 'sin periodo'
@@ -144,7 +157,8 @@ def construir(dataset: Path | str, contrato: ContratoPide) -> dict[str, Any]:
     for fmt in contrato.formatos:
         hojas = formatos.get(fmt.codigo, [])
         salida_formatos[fmt.codigo] = {'nombre': fmt.nombre, 'campos_contrato': list(fmt.campos),
-                                       'entregado': hojas[:20], 'hojas': len(hojas), 'ausente': not hojas}
+                                       'entregado': hojas[:20], 'hojas': len(hojas), 'ausente': not hojas,
+                                       'celdas': sorted(celdas.get(fmt.codigo, set()))[:MAX_CELDAS]}
     informes = {k: {'fuentes': len(fuentes_informe[k]),
                     'secciones': [{'numero': n, 'titulo': t, 'veces': c}
                                   for (n, t), c in sorted(v.items(), key=lambda x: _orden(x[0][0]))]}
@@ -173,3 +187,44 @@ def resumen(datos: Mapping[str, Any]) -> Iterable[str]:
         f"; ausentes: {', '.join(c['formatos_ausentes'])}" if c['formatos_ausentes'] else '')
     for k, v in datos['informes'].items():
         yield f"Informe {k}: {v['fuentes']} fichero(s), {len(v['secciones'])} secciones"
+
+
+def _palabras(texto: str) -> set[str]:
+    return {w for w in re.findall(r'[a-z]{3,}', normalizar(_UNIDADES.sub(' ', texto))) if w not in _VACIAS}
+
+
+def _unidades(texto: str) -> set[str]:
+    return {u.lower().replace('.', '') for u in _UNIDADES.findall(texto)}
+
+
+def comparar_formatos(producidos: Mapping[str, Sequence[str]], filas: Mapping[str, Sequence[Any]],
+                      ejemplos: Mapping[str, Any]) -> dict[str, Any]:
+    """Cada formato producido frente al entregado del mismo código (027:RF-49): qué campos
+    tienen una celda de encabezado entregada con sus palabras, si la unidad coincide y la
+    fracción de campos que coinciden. ``producidos``: ``{'F01 Proyección': (campos…)}``."""
+    out = {}
+    for nombre, campos in producidos.items():
+        codigo = nombre.split()[0]
+        entregado = (ejemplos.get('formatos') or {}).get(codigo) or {}
+        celdas = [(c, _palabras(c)) for c in entregado.get('celdas') or []]
+        detalle = []
+        for campo in campos:
+            p, u = _palabras(campo), _unidades(campo)
+            iguales = [c for c, pc in celdas if p and (p <= pc or len(p & pc) / len(p | pc) >= 0.5)]
+            unidad = not u or any(u <= _unidades(c) for c in iguales)
+            detalle.append({'campo': campo, 'coincide': bool(iguales) and unidad,
+                            'entregado': iguales[0] if iguales else None,
+                            **({'unidad_distinta': True} if iguales and not unidad else {})})
+        n = sum(d['coincide'] for d in detalle)
+        out[codigo] = {'formato': nombre, 'campos': len(campos), 'coinciden': n,
+                       'fraccion': n / len(campos) if campos else None,
+                       'filas_producidas': len(filas.get(nombre) or []),
+                       'entregado': not entregado.get('ausente', True), 'detalle': detalle}
+    return out
+
+
+def ultimo_ejemplos(raiz: Path | str) -> Path | None:
+    """El ``ejemplos_agente.json`` más reciente bajo ``output/pide_dataset`` de ``raiz``."""
+    candidatos = sorted(Path(raiz).glob('output/pide_dataset/*/ejemplos_agente.json'),
+                        key=lambda p: p.stat().st_mtime)
+    return candidatos[-1] if candidatos else None

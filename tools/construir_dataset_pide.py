@@ -35,6 +35,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         ruta.write_text(json.dumps(datos, ensure_ascii=False, indent=1), encoding='utf-8')
         for linea in resumen(datos):
             print(linea)
+        # 027:RF-49: los encabezados que produce el conversor frente a los entregados.
+        from igea_dgs.asistente.ejemplos_pide import comparar_formatos
+        from igea_dgs.pide import FORMATOS
+
+        for codigo, c in comparar_formatos(FORMATOS, {}, datos).items():
+            print(f"  {codigo}: {c['coinciden']} de {c['campos']} campos como en lo entregado"
+                  + ('' if c['entregado'] else ' (no entregado)'))
         print(f'Ejemplos en {ruta}')
         return 0
     if not args.raiz.is_dir():
