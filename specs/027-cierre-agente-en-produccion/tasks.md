@@ -162,6 +162,11 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
 - [ ] T22. PIDE completo con lo implementado y comparación de cada formato con el entregado.
       (RF-45, RF-49)
       Hecho cuando: F01 a F15 producidos para un sistema, con la fracción de campos coincidentes.
+      Avance del 2026-10-28 (código): `ejemplos_pide.comparar_formatos` (palabras y unidades de
+      cada campo frente a las celdas de encabezado entregadas) en el resultado del PIDE de la web
+      (`comparacion_formatos`) y en `--solo-ejemplos`; los encabezados del conversor coinciden en
+      63 de 122 campos con los entregados de PIDEELOR (F10 7/9, F13 9/15; F15 1/4). Falta producir
+      F01 a F15 de un sistema en DIgSILENT (con T14).
 - [ ] T14. Aceptación: todos los sistemas desde la web con el asistente, gemelo con dos o más
       familias de prueba y asistente con RF-18. (RF-28)
       Hecho cuando: informe con Nasca, Chincha, Pisco e Ica válidos en DIgSILENT y las métricas

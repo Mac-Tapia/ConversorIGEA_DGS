@@ -3820,12 +3820,24 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
                                           set(plan_pide.get('anios_pide') or []))
     token = uuid.uuid4().hex[:8]
     libro = escribir_formatos(ws.out_dir / f'pide_{token}.xlsx', propuesta['formatos'])
+    # 027:RF-49: cada formato frente al entregado del mismo código, si hay corpus de ejemplos.
+    from ..asistente.ejemplos_pide import comparar_formatos, ultimo_ejemplos
+    from ..pide import FORMATOS
+
+    comparacion = None
+    ejemplos = ultimo_ejemplos(project_root())
+    if ejemplos is not None:
+        comparacion = comparar_formatos(FORMATOS, propuesta['formatos'],
+                                        json.loads(ejemplos.read_text(encoding='utf-8')))
+        ctx.log('PIDE: campos que coinciden con lo entregado: ' + ', '.join(
+            f"{c} {v['coinciden']}/{v['campos']}" for c, v in comparacion.items()))
     ctx.log(f"PIDE: {len(propuesta['obras'])} obra(s) propuesta(s), {len(implementadas)} aplicada(s) "
             f'solas en «Con proyecto»; formatos en {libro.name}.')
     return {'project': project, 'feeders': feeders, 'report': report.name, 'formatos': libro.name,
             'anios': [{k: v for k, v in a.items() if k != 'problemas'} | {'problemas': len(a.get('problemas') or [])}
                       for a in informe.get('anios') or []],
-            'obras': propuesta['obras'], 'implementadas': implementadas, 'avisos': avisos}
+            'obras': propuesta['obras'], 'implementadas': implementadas, 'avisos': avisos,
+            'comparacion_formatos': comparacion}
 
 
 def _pide_optimizar(project: str, obras: list[dict], limites, perfil: dict, plan_pide: dict,

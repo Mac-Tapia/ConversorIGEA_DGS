@@ -61,3 +61,20 @@ def test_ejemplos_por_articulo_formato_e_informe(tmp_path):
     assert d['informes']['4.2']['secciones'][0]['numero'] == '6.3'
     assert 'no norma' in d['nota']
     assert any('Formatos entregados: 1 de 15' in x for x in ep.resumen(d))
+
+
+def test_comparar_formatos_con_lo_entregado():
+    """027:RF-49 — por formato, qué campos tienen una celda entregada con sus palabras y su
+    unidad, y la fracción; un formato no entregado lo dice."""
+    ejemplos = {'formatos': {
+        'F01': {'ausente': False, 'celdas': ['Sistema Eléctrico', 'Año', 'Energía (MW.h)', 'Demanda (kW)', '0.5']},
+        'F02': {'ausente': True, 'celdas': []}}}
+    producidos = {'F01 Proyección': ('Sistema', 'Año', 'Energía MT MW.h', 'Demanda MT MW', 'Tasa %'),
+                  'F02 Metrados': ('Sistema', 'Nivel')}
+    c = ep.comparar_formatos(producidos, {'F01 Proyección': [[1, 2, 3, 4, 5]]}, ejemplos)
+    f01 = {d['campo']: d for d in c['F01']['detalle']}
+    assert f01['Sistema']['coincide'] and f01['Energía MT MW.h']['coincide']
+    assert not f01['Demanda MT MW']['coincide'] and f01['Demanda MT MW'].get('unidad_distinta')
+    assert not f01['Tasa %']['coincide']
+    assert c['F01']['coinciden'] == 3 and c['F01']['fraccion'] == 0.6 and c['F01']['filas_producidas'] == 1
+    assert c['F02']['entregado'] is False and c['F02']['coinciden'] == 0
