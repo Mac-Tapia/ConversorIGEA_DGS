@@ -1214,6 +1214,35 @@ def test_gana_el_cambio_manual_de_demanda(guion, monkeypatch):
     assert _carga(app, 'F1_S2').plini == pytest.approx(en_con)
 
 
+def test_el_factor_de_escala_que_mueve_el_conversor_no_es_un_cambio_manual(guion):
+    """014:RF-10 — con la P y la Q escritas guardadas, una carga cuyo factor de escala cambió
+    no es un cambio a mano, y una cuya P escrita cambió sí: en SM218 el scale0 de las
+    escaladas pasó de 0,10214 a 0,10305 entre dos calibraciones y 257 cargas salían «a mano»,
+    que tapaban a los 15 clientes importantes."""
+    import random
+
+    rng = random.Random(10)
+    app = _app()
+    cargas = {o.loc_name: o for o in app.proyecto.GetContents('*.ElmLod', 1)}
+    for o in cargas.values():
+        o.scale0 = rng.uniform(0.05, 2.0)
+    ultima = {'nombre': 'la calibración del 2026-10-28 17:49',
+              'sed': {s: list(guion.potencia_efectiva(o)) for s, o in cargas.items()},
+              'escrita': {s: list(guion.potencia(o)) for s, o in cargas.items()}}
+    nombres = sorted(cargas)
+    escalada, a_mano = rng.sample(nombres, 2)
+    cargas[escalada].scale0 *= 1.00883
+    cargas[a_mano].plini *= 1.5
+
+    manuales, nombre = guion.cambios_manuales(cargas, ultima)
+
+    assert [m['sed'] for m in manuales] == [a_mano]
+    assert nombre == 'la calibración del 2026-10-28 17:49'
+    # Un registro anterior, sin lo escrito, sigue comparando lo que consume.
+    viejos, _ = guion.cambios_manuales(cargas, {k: v for k, v in ultima.items() if k != 'escrita'})
+    assert sorted(m['sed'] for m in viejos) == sorted([escalada, a_mano])
+
+
 def test_el_ajuste_no_comprueba_la_red(guion):
     """015:RF-17, 015:RF-21 — el ajuste no relee ni compara la red: no trae la relectura del
     vínculo ni de los bancos, y calibra igual con un transformador sin capacidad, porque eso

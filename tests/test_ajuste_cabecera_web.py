@@ -527,6 +527,36 @@ def test_la_calibracion_guarda_las_fijas_con_fp_real_y_corregido(tmp_path):
                     'compensado': True}
 
 
+def test_la_calibracion_guarda_lo_releido_en_digsilent_y_no_el_reparto(tmp_path):
+    """014:RF-10 — se guarda lo que quedó escrito en DIgSILENT, releído, y no el reparto
+    calculado: en SM218 diferían (SE42227, 1,718 kW guardados y 1,584 en DIgSILENT) y la
+    siguiente calibración veía todas las cargas «cambiadas a mano» y tapaba a los clientes."""
+    import random
+
+    from igea_dgs.web.workspace import Workspace
+
+    rng = random.Random(32)
+    n = rng.randint(3, 12)
+    seds = [f'SE{rng.randint(10000, 99999)}-{i}' for i in range(n)]
+    reparto = {s: (rng.uniform(1, 500), rng.uniform(0, 200)) for s in seds}
+    escrito = {s: (kw * rng.uniform(0.85, 0.95), kvar * rng.uniform(0.85, 0.95))
+               for s, (kw, kvar) in reparto.items()}
+    ws = Workspace(id='w', root=tmp_path / 'ws')
+    informe = {'cuadrado': True, 'escenario': 'Sin proyecto',
+               'escenarios': [{'escenario': 'Sin proyecto'}],
+               'sed': [{'sed': s, 'despues': {'kw': kw, 'kvar': kvar}, 'derivaciones': []}
+                       for s, (kw, kvar) in reparto.items()],
+               'relectura_cargas_nativas': {'despues': [
+                   {'sed': s, 'p_kw': kw, 'q_kvar': kvar,
+                    'escrita': {'p_kw': kw * 10, 'q_kvar': kvar * 10}}
+                   for s, (kw, kvar) in escrito.items()]}}
+    services._guardar_calibracion(ws, 'P', 'A1', informe)
+    registro = ws.calibraciones['P']['A1']
+    assert registro['sed'] == {s: list(v) for s, v in escrito.items()}
+    # Y la P y la Q escritas, sin el factor de escala, con las que se buscan los cambios a mano.
+    assert registro['escrita'] == {s: [kw * 10, kvar * 10] for s, (kw, kvar) in escrito.items()}
+
+
 # --------------------------------------------------------------------------- spec 020
 def test_el_plan_lleva_las_fichas_de_transformadores_del_perfil(client, tmp_path, monkeypatch):
     """020:RF-6 / 020:RF-10 — con el perfil de Electro Dunas el plan lleva sus tablas de fichas;
