@@ -278,3 +278,34 @@ def test_manifiesto_y_reproduccion_en_la_gpu(entrenado):
     rep = orc.reproducir(bufer, r['version'])
     assert rep['reproducible'], rep
     assert rep['diferencia'] < orc.TOLERANCIA_REPRODUCCION and rep['misma_gpu']
+
+
+def test_busqueda_de_hiperparametros_solo_en_validacion(entrenado, tmp_path, monkeypatch):
+    """027:RF-7 — TPE con presupuesto de ensayos; cada ensayo se evalúa solo con la partición
+    de validación y se guardan todos y la configuración elegida."""
+    pytest.importorskip('optuna')
+    from igea_dgs.digital_twin import hiperparametros as hp
+    from igea_dgs.digital_twin.buffer import Consulta
+
+    bufer, _r = entrenado
+    muestras, _ids = orc._muestras(bufer, Consulta())
+    grupos = orc.particionar(muestras)
+    validacion = {id(m) for m in grupos['validacion']}
+    vistas = []
+    original = hp.mae
+
+    def espia(modelo, ms):
+        ms = list(ms)
+        vistas.append({id(m) for m in ms})
+        return original(modelo, ms)
+
+    monkeypatch.setattr(hp, 'mae', espia)
+    base = orc.Entrenamiento(epocas=15, ocultas=32, pasos=4)
+    r = hp.buscar(muestras, base=base, ensayos=3, limite_s=600, semilla=3, destino=tmp_path)
+    assert vistas and all(v == validacion for v in vistas), 'solo la validación'
+    assert r['evaluado_en'] == 'validacion' and len(r['ensayos']) == 3
+    assert r['cfg']['epocas'] == 15 and r['cfg']['lr'] == r['mejor']['params']['lr']
+    import json
+    from pathlib import Path
+
+    assert json.loads(Path(r['ruta']).read_text(encoding='utf-8'))['mejor'] == r['mejor']

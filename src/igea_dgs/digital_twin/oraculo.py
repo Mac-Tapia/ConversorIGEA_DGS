@@ -416,23 +416,24 @@ class Entrenamiento:
 
 def entrenar_miembro(muestras: Sequence[Muestra], cfg: Entrenamiento, inicial: dict | None = None,
                      log: Callable[[str], None] = lambda _m: None, validacion: Sequence[Muestra] = (),
-                     historial: list | None = None):
+                     historial: list | None = None, al_validar: Callable[[int, float], None] | None = None):
     """Un miembro del conjunto: error frente a DIgSILENT + residuo físico (PINN).
 
     Con ``validacion``, para tras ``cfg.paciencia`` épocas sin mejorar y devuelve los pesos de
-    la mejor época (027:RF-5); ``historial`` recibe ``(época, mae de validación)``.
+    la mejor época (027:RF-5); ``historial`` recibe ``(época, mae de validación)`` y
+    ``al_validar`` se llama con los dos tras cada medida (la poda de la búsqueda, RF-7).
     """
     torch = _torch()
     try:
         return _entrenar_en(muestras, cfg, inicial, log, dispositivo(), validacion,
-                            historial if historial is not None else [])
+                            historial if historial is not None else [], al_validar)
     finally:
         torch.cuda.empty_cache()     # cada miembro devuelve la memoria de la GPU
 
 
 def _entrenar_en(muestras: Sequence[Muestra], cfg: Entrenamiento, inicial: dict | None,
                  log: Callable[[str], None], disp, validacion: Sequence[Muestra] = (),
-                 historial: list | None = None):
+                 historial: list | None = None, al_validar: Callable[[int, float], None] | None = None):
     torch = _torch()
     # 027:RF-9: mismo manifiesto, misma GPU, mismo modelo. ``index_add_`` en CUDA no tiene
     # versión determinista: se avisa en vez de fallar y la prueba mide la diferencia.
@@ -473,6 +474,8 @@ def _entrenar_en(muestras: Sequence[Muestra], cfg: Entrenamiento, inicial: dict 
                 err = float(np.mean([float((red(x, ar, e)[0] - v)[mask].abs().mean()) for x, ar, e, v, mask in val]))
             red.train()
             historial.append((epoca, err))
+            if al_validar is not None:
+                al_validar(epoca, err)
             if err < mejor - 1e-9:
                 mejor, mejor_epoca = err, epoca
                 mejor_estado = {k: v.detach().clone() for k, v in red.state_dict().items()}
