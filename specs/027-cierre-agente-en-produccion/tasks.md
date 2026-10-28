@@ -18,6 +18,11 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       Nasca y Chincha desde la web, el búfer tiene episodios de las dos familias.
       Hecho el 2026-10-28: la lectura nativa trae el grafo eléctrico (antes solo tensiones) y el
       episodio de la calibración de Nasca en DIgSILENT es entrenable (4067 nodos con tensión).
+      Pendiente (2026-10-28): Nasca dejó de cuadrar en DIgSILENT. NA203 se arregló con 004:RF-67
+      (de +6,18 % a −0,18 %), pero la cabecera de NA205 se queda en 8631 kW con el factor de 1,11
+      a 1,46 en 30 flujos (en la corrida buena respondía: 9510 → 8634 → 8732). Igual antes y
+      después de RF-67, así que cambió el proyecto: revisar con una sonda los 6 bancos de
+      450 kvar de la calibración fallida, las maniobras y la central de Nasca (¿fuente?).
 - [x] T2. Particiones «un sistema fuera» y mínimo de episodios de prueba por familia. (RF-2, RF-3)
       Hecho cuando: `pytest -q tests/test_digital_twin_evaluacion.py` en verde con familias
       sorteadas; ningún sistema en entrenamiento y prueba a la vez.
