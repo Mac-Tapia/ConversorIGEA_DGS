@@ -44,3 +44,16 @@ def test_siglas_canonicas_del_perfil(monkeypatch):
     assert naming.feeder_short_name('ALIMENTADOR-CN') == 'CN'
     monkeypatch.setattr(naming, '_siglas_canonicas', lambda: {})
     assert naming.feeder_short_name('NET_2030_1192582_CN101') == 'CN101'
+
+
+def test_nombre_canonico_de_los_trozos():
+    """022:RF-90 / 027:T23 — cada trozo «sigla + número» con la sigla canónica; lo demás igual."""
+    from igea_dgs.naming import nombre_canonico
+
+    canon = {'CN': 'CHN'}
+    assert nombre_canonico('NODE_2030_1192582_CN101', canon) == 'NODE_2030_1192582_CHN101'
+    assert nombre_canonico('NET_2030_1192598_CN103', canon) == 'NET_2030_1192598_CHN103'
+    assert nombre_canonico('CN201', canon) == 'CHN201'
+    assert nombre_canonico('SE20859', canon) == 'SE20859'
+    assert nombre_canonico('ACN101', canon) == 'ACN101' and nombre_canonico('CHN101', canon) == 'CHN101'
+    assert nombre_canonico('NODE_1_CN101', {}) == 'NODE_1_CN101'

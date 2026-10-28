@@ -51,6 +51,23 @@ def _siglas_canonicas() -> dict[str, str]:
     return _siglas_canonicas_de(sello)
 
 
+_TROZO = re.compile(r'(?<![A-Za-z0-9])([A-Za-z]+)(\d+)(?![A-Za-z0-9])')
+
+
+def nombre_canonico(nombre: str, canonicas: dict[str, str] | None = None) -> str:
+    """El nombre con la sigla canónica en cada trozo «sigla + número» (022:RF-90, 027:T23).
+
+    El nodo de cabecera de Chincha Nueva llegaba al DGS como ``NODE_2030_1192582_CN101``
+    aunque el alimentador ya se llamaba CHN101: ``NODE_2030_1192582_CHN101``. Solo cambia las
+    siglas alternativas de la estructura del perfil; sin perfil, el nombre tal cual.
+    """
+    canonicas = _siglas_canonicas() if canonicas is None else canonicas
+    if not canonicas or not nombre:
+        return nombre
+    return _TROZO.sub(lambda m: canonicas.get(m.group(1).upper(), m.group(1)) + m.group(2)
+                      if m.group(1).upper() in canonicas else m.group(0), nombre)
+
+
 @lru_cache(maxsize=4)
 def _siglas_canonicas_de(_sello: tuple[str, int]) -> dict[str, str]:
     from .estructura import EstructuraError

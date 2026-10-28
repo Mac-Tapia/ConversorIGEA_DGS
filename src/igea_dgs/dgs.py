@@ -10,7 +10,7 @@ from typing import Mapping
 import math
 
 from .model import FeederModel, Line, Sed, decode_phase, split_by_phase
-from .naming import nombre_con_tension, sufijo_tension
+from .naming import _siglas_canonicas, nombre_canonico, nombre_con_tension, sufijo_tension
 from .schema import DgsSchema, load_schema
 from .geography import GeographyManifest, GeoPoint
 
@@ -89,8 +89,14 @@ def _fmt(value) -> str:
 DGS_ENCODING = 'cp1252'
 
 
+#: Siglas canónicas del perfil durante la escritura de un DGS (``write_dgs`` las fija una vez).
+_CANONICAS: dict[str, str] = {}
+
+
 def _loc_name(value: str) -> str:
-    return _fmt(value)[:40]
+    # 027:T23: «NODE_…_CN101» sale como «NODE_…_CHN101», como su alimentador (022:RF-90).
+    texto = _fmt(value)
+    return (nombre_canonico(texto, _CANONICAS) if _CANONICAS else texto)[:40]
 
 
 def _material(code: str) -> str:
@@ -867,6 +873,8 @@ def write_dgs(
     :func:`igea_dgs.catalog.leer_trafos`). Una potencia que el catálogo trae completa
     usa esos valores; las demás, los máximos del Reglamento (:func:`_tr2_losses_kw`).
     """
+    global _CANONICAS
+    _CANONICAS = _siglas_canonicas()                                   # 027:T23, una vez por DGS
     schema = load_schema(schema_profile)
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)

@@ -325,7 +325,7 @@ def optimizar_bancos(grafo: Mapping[str, Any], *, candidatos: Sequence[str], kva
                      tension_min_pu: float, tension_max_pu: float, modulos_max: int = 3,
                      costo_modulo: float | None = None, valor_kw_perdidas: float | None = None,
                      factor_carga: float = 1.0, exponente: float = 0.0, semilla: int = 0,
-                     poblacion: int = 40, generaciones: int = 80) -> dict[str, Any]:
+                     poblacion: int = 40, generaciones: int = 80, top_k: int = 3) -> dict[str, Any]:
     """Dónde y cuántos módulos de banco poner para cumplir la norma al menor coste (RF-68, RF-70).
 
     El genoma da los módulos (0 a ``modulos_max``) en cada barra candidata. El algoritmo
@@ -396,7 +396,19 @@ def optimizar_bancos(grafo: Mapping[str, Any], *, candidatos: Sequence[str], kva
                      'sobredimensionada': bool(vio <= 0 and float(obj[0]) > inversion(elegido) + 1e-9)}
                     for g, obj, vio in zip(frente.soluciones, frente.objetivos, frente.violacion, strict=True)]
     v_med = sol.v[medir] if medir.any() else np.array([0.0])
+    # 027:RF-14: las k mejores que cumplen, distintas, para verificarlas en DIgSILENT en orden.
+    alternativas, vistas = [], set()
+    for (_inf, _c, _n, clave), g, s in puntuadas:
+        if len(alternativas) >= top_k or clave in vistas or _inf or not s.convergio:
+            continue
+        vistas.add(clave)
+        alternativas.append({
+            'bancos': [{'nodo': nodos[i], 'barra': _nombre_corto(nodos[i]), 'modulos': int(k),
+                        'q_kvar': float(k * kvar_modulo)} for i, k in enumerate(g) if k > 0],
+            'inversion': inversion(g), 'coste_total': coste(g, s), 'perdidas_kw': perdidas_kw(s),
+            'v_min': float(s.v[medir].min()) if medir.any() else None})
     return {
+        'alternativas': alternativas,
         'bancos': [{'nodo': nodos[i], 'barra': _nombre_corto(nodos[i]), 'modulos': int(k),
                     'q_kvar': float(k * kvar_modulo)} for i, k in enumerate(elegido) if k > 0],
         'factible': bool(factible), 'inversion': inversion(elegido), 'coste_total': coste(elegido, sol),
@@ -632,7 +644,7 @@ def afinar_bancos_pide(obras: list[dict], grafo: Mapping[str, Any], *, tension_m
                              costo_modulo=costo_modulo, valor_kw_perdidas=valor_kw_perdidas,
                              factor_carga=(1 + tasa_demanda) ** anio, semilla=semilla)
         resumen = {k: r.get(k) for k in ('factible', 'inversion', 'perdidas_kw', 'perdidas_kw_base', 'v_min',
-                                          'v_min_base', 'algoritmos', 'frente')}
+                                          'v_min_base', 'algoritmos', 'frente', 'alternativas')}
         if not r['factible'] or not r['bancos']:
             motivo = ('con bancos no se cumple la norma en la red del gemelo' if not r['factible']
                       else 'la red del gemelo ya cumple sin bancos')
@@ -657,3 +669,37 @@ def afinar_bancos_pide(obras: list[dict], grafo: Mapping[str, Any], *, tension_m
                 {**lista[0]['obra_011'], 'barra': b['barra'], 'q_kvar': b['q_kvar'], 'escalones': b['modulos']}
                 for b in bancos[len(lista):]]
     return avisos
+
+
+def verificar_top_k(alternativas: Sequence[Mapping[str, Any]], medir: Callable[[Mapping[str, Any]], Mapping | None],
+                    *, tolerancia_v_pu: float, tolerancia_perdidas: float = 0.2,
+                    guardar: Callable[[Mapping[str, Any], Mapping | None, str], None] = lambda *_a: None
+                    ) -> dict[str, Any]:
+    """La primera de las k mejores que DIgSILENT confirma (027:RF-14 a RF-16).
+
+    ``medir(alternativa)`` la simula en DIgSILENT y da ``{'converge', 'v_min', 'perdidas_kw'}``.
+    Si no converge o se aparta de lo predicho más que la tolerancia del gemelo (tensión mínima
+    en p.u., pérdidas en fracción), se descarta, se guarda como episodio (``guardar``) y se
+    prueba la siguiente. La elegida lleva la evaluación del gemelo y la de DIgSILENT.
+    """
+    descartadas = []
+    for alt in alternativas:
+        m = medir(alt)
+        if not m or not m.get('converge'):
+            motivo = 'el flujo de DIgSILENT no converge con ella'
+        else:
+            dv = abs(float(m['v_min']) - float(alt['v_min'])) if m.get('v_min') is not None and alt.get(
+                'v_min') is not None else 0.0
+            pred = float(alt.get('perdidas_kw') or 0.0)
+            dp = abs(float(m.get('perdidas_kw') or 0.0) - pred) / pred if pred else 0.0
+            motivo = None
+            if dv > tolerancia_v_pu:
+                motivo = f'tensión mínima {m["v_min"]:.4f} p.u. frente a {alt["v_min"]:.4f} del gemelo'
+            elif dp > tolerancia_perdidas:
+                motivo = f'pérdidas {m["perdidas_kw"]:.1f} kW frente a {pred:.1f} del gemelo'
+            if motivo is None:
+                return {'elegida': dict(alt), 'gemelo': {k: alt.get(k) for k in ('v_min', 'perdidas_kw')},
+                        'digsilent': dict(m), 'descartadas': descartadas, 'verificada': True}
+        guardar(alt, m, motivo)
+        descartadas.append({'alternativa': dict(alt), 'motivo': motivo, 'digsilent': dict(m or {})})
+    return {'elegida': None, 'descartadas': descartadas, 'verificada': False}

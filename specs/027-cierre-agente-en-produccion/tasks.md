@@ -77,6 +77,11 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       gemelo y DIgSILENT en la propuesta. (RF-14 a RF-16)
       Hecho cuando: prueba con `fake_pf` en verde y una propuesta de bancos verificada en
       DIgSILENT con Chincha.
+      Avance del 2026-10-28 (código): `optimizar_bancos` devuelve las 3 mejores alternativas que
+      cumplen (distintas) y `evolutivo.verificar_top_k` las prueba en orden con la medida de
+      DIgSILENT, descarta la que se aparta de la tolerancia (tensión mínima o pérdidas), guarda su
+      episodio y da la propuesta con el gemelo y DIgSILENT; las alternativas viajan con las obras
+      del PIDE. Falta conectar la medida a `obras_pf.py --evaluar` y la prueba con Chincha.
 - [x] T9. Conjunto de órdenes reales del operador, versionado y separado; puertas de tarea y
       datos; confirmación obligatoria mientras sea pequeño. (RF-17 a RF-19)
       Hecho cuando: pruebas del asistente en verde; la web muestra el tamaño del conjunto.
@@ -176,9 +181,17 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       sus metadatos y lo que los guiones buscan por él. (022:RF-90)
       Hecho cuando: Chincha reconvertido e importado sin `CN` en sus nombres y calibrado válido
       en DIgSILENT.
+      Avance del 2026-10-28 (código): `naming.nombre_canonico` cambia la sigla de cada trozo
+      «sigla + número» (`NODE_2030_1192582_CN101` → `…_CHN101`, también `NET_` y `SRC_`) y el DGS
+      lo aplica a todos los `loc_name` con las siglas leídas una vez por fichero. Falta reconvertir
+      e importar Chincha en DIgSILENT.
 - [ ] T24. Episodios por sistema según RF-53 y curva de aprendizaje por familia. (RF-53, RF-54)
       Hecho cuando: informe por sistema con sus 30/10/10 episodios y la curva que dice si ha
       convergido.
+      Avance del 2026-10-28 (código): `digital_twin/curva.py` y `digital_twin_entrenar.py --curva`.
+      En el búfer real hay una red (IN111–TA225, 2470 nodos) con 14/4/6 episodios: faltan 16/6/4
+      para la curva, que se piden con «Aprender» (T3) en cada sistema; el episodio de la
+      calibración de Nasca no sale como red entrenable y hay que revisarlo.
 - [x] T25. Destilación del modelo local de Ollama al Transformer de órdenes: votos con
       temperatura, filtro por acuerdo, pérdida α·CE + (1 − α)·T²·KL, promoción solo si no empeora
       al alumno sin destilar y registro del maestro. (RF-56 a RF-62)

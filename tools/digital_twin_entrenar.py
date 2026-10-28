@@ -12,7 +12,9 @@ Con ``--evaluar`` no entrena: dice cuánto se apartan de DIgSILENT el modelo pro
 física sola en cada episodio, con la media de entrenamiento, validación y prueba (RF-74).
 Con ``--reproducir VERSION`` vuelve a entrenar ese modelo con su manifiesto y dice si su error
 difiere menos de 10⁻⁵ p.u. (spec 027, RF-9). Con ``--deriva`` no entrena: dice por familia los
-episodios nuevos y fuera de dominio y si conviene reentrenar (spec 027, RF-22 y RF-23). Con ``--buscar`` busca antes los hiperparámetros
+episodios nuevos y fuera de dominio y si conviene reentrenar (spec 027, RF-22 y RF-23). Con
+``--curva`` dice los episodios de cada sistema frente a los 30/10/10 y, si los tiene, su curva de
+aprendizaje (spec 027, RF-53). Con ``--buscar`` busca antes los hiperparámetros
 (TPE y poda, solo en validación, con ``--ensayos`` y ``--limite-s``), guarda los ensayos y entrena
 con los elegidos (spec 027, RF-7).
 
@@ -51,6 +53,8 @@ def main(argv=None) -> int:
                    help='Buscar hiperparámetros (Optuna, solo en validación) y entrenar con ellos (027:RF-7)')
     p.add_argument('--ensayos', type=int, default=20, help='Ensayos de la búsqueda')
     p.add_argument('--limite-s', type=float, default=1800.0, help='Segundos de la búsqueda')
+    p.add_argument('--curva', action='store_true',
+                   help='No promover: episodios por sistema (30/10/10) y su curva de aprendizaje (027:RF-53)')
     p.add_argument('--deriva', action='store_true',
                    help='No entrenar: deriva por familia y si conviene reentrenar (027:RF-22, RF-23)')
     p.add_argument('--reproducir', metavar='VERSION',
@@ -69,12 +73,26 @@ def main(argv=None) -> int:
         print(f'ERROR: {exc}')
         return 2
     bufer = BuferEpisodios(args.raiz)
-    if not (args.evaluar or args.deriva):
+    if not (args.evaluar or args.deriva) or args.curva:
         # 026: la GPU de 8 GB la comparte con Ollama, que retiene su modelo tras responder.
         from igea_dgs.asistente.ollama import liberar_gpu_para_entrenar
 
         liberar_gpu_para_entrenar()
     try:
+        if args.curva:
+            from igea_dgs.digital_twin.buffer import Consulta
+            from igea_dgs.digital_twin.curva import informe
+
+            muestras, ids = oraculo._muestras(bufer, Consulta())
+            r = informe(muestras, ids, log=_log)
+            for f in r['sistemas']:
+                c = f.get('curva')
+                print(f"red {f['red']} ({f['nodos']} nodos): {f['entrenamiento']}/{f['validacion']}/{f['prueba']}"
+                      + (f"; faltan {f['faltan']}" if not f['suficiente'] else '')
+                      + (f"; mejora con un 20 % más: {c['mejora_ultimo_20pct']:.1%}"
+                         f" ({'convergido' if c['convergido'] else 'hacen falta más'})" if c else ''))
+            salida.write_text(json.dumps(r, ensure_ascii=False, default=str), encoding='utf-8')
+            return 0
         if args.deriva:
             r = oraculo.deriva_por_familia(bufer)
             for m in r['motivos'] or ['sin deriva: no hace falta reentrenar']:

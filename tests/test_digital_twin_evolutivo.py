@@ -273,3 +273,25 @@ def test_la_web_optimiza_los_bancos_con_la_red_del_gemelo(tmp_path, monkeypatch)
     BuferEpisodios().guardar(leer_episodio(p))
     avisos = services._pide_optimizar('P1', obras, limites, perfil, plan, {}, ctx)
     assert obras[0]['optimizacion']['aplicada'] and any('desempatan' in a for a in avisos)
+
+
+def test_top_k_verificado_en_digsilent(bancos):
+    """027:RF-14 / 027:RF-15 / 027:RF-16 — las k mejores que cumplen, distintas, en orden; la que
+    DIgSILENT no confirma se descarta con su episodio y se prueba la siguiente; la elegida lleva
+    la evaluación del gemelo y la de DIgSILENT."""
+    _g, r = bancos
+    alts = r['alternativas']
+    assert 1 <= len(alts) <= 3 and alts[0]['bancos'] == r['bancos']
+    assert len({tuple((b['barra'], b['modulos']) for b in a['bancos']) for a in alts}) == len(alts)
+    guardados = []
+    medidas = iter([{'converge': True, 'v_min': alts[0]['v_min'] - 0.05, 'perdidas_kw': alts[0]['perdidas_kw']}]
+                   + [{'converge': True, 'v_min': a['v_min'] + 0.001, 'perdidas_kw': a['perdidas_kw'] * 1.05}
+                      for a in alts[1:]])
+    v = ev.verificar_top_k(alts, lambda _a: next(medidas), tolerancia_v_pu=0.01,
+                           guardar=lambda a, m, motivo: guardados.append(motivo))
+    if len(alts) > 1:
+        assert v['verificada'] and v['elegida'] == alts[1] and len(v['descartadas']) == 1
+        assert 'tensión mínima' in v['descartadas'][0]['motivo'] and guardados == [v['descartadas'][0]['motivo']]
+        assert set(v['gemelo']) == {'v_min', 'perdidas_kw'} and v['digsilent']['converge']
+    nada = ev.verificar_top_k(alts, lambda _a: {'converge': False}, tolerancia_v_pu=0.01)
+    assert not nada['verificada'] and len(nada['descartadas']) == len(alts)
