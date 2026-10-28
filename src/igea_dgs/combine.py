@@ -605,7 +605,7 @@ def estructurar(combinado: FeederModel, estructura, asignacion=None) -> list[str
             continue
         grupos[(codigo, round(float(ref.nominal_kv), 6))].append(ref)
         info.zonal_de[ref.name] = estructura.sets[codigo].zonal
-        info.sistema_de[ref.name] = estructura.alimentadores[ref.name.upper()].sistema
+        info.sistema_de[ref.name] = estructura.alimentador(ref.name).sistema   # RF-81: CHN101
         sist = info.sistema_de[ref.name]
         if sist in estructura.sistemas:
             info.sistemas[sist] = estructura.sistemas[sist]

@@ -669,10 +669,12 @@ def test_maxima_con_mes_e_instante(client):
 
 
 # --------------------------------------------------------------- 022:RF-37 a RF-46
-def _libros_por_barra(client, wid, monkeypatch):
+def _libros_por_barra(client, wid, monkeypatch, kv_alta=220, pico_alta=None, escala_alta=1.0,
+                      hueco_m3=None):
     """SET X con dos transformadores (B-X1T1 y B-X1T2) y una central en su barra (CT_X), con
     A1 y A2; SET Y sin medidor de barra, con B1. La barra da su máxima en el registro 3 y
-    los alimentadores la suya en otros."""
+    los alimentadores la suya en otros. B-X6T1 es la de alta: de 220 kV no cuenta; de 60 kV
+    con su punta en ``pico_alta`` da el instante a toda la SET X (022:RF-84)."""
     from igea_dgs.estructura import estructura_de_dict
     from igea_dgs.web import services
 
@@ -685,20 +687,21 @@ def _libros_por_barra(client, wid, monkeypatch):
                        ['A1', 'M1', 10, 'X'], ['A2', 'M3', 10, 'X'], ['B1', 'M4', 10, 'Y'],
                        ['A3', 'M5', 10, 'X'],
                        ['Barra', 'B-X1T1', 10, 'X'], ['Barra', 'B-X1T2', 10, 'X'],
-                       ['Barra', 'B-X6T1', 60, 'X'], ['Barra CT', 'CT_X', 10, 'X']]}
+                       ['Barra', 'B-X6T1', kv_alta, 'X'], ['Barra CT', 'CT_X', 10, 'X']]}
     filas = {k: [['Local Time', 'kW tot', 'kVAR tot']]
              for k in ('M1', 'M3', 'M4', 'M5', 'B-X1T1', 'B-X1T2', 'B-X6T1', 'CT_X')}
     for i in range(8):
         t = T0 + timedelta(minutes=15 * i)
         pico = 500.0 if i == 3 else 0.0
         filas['M1'].append([t, 100.0 + 10 * i, 5.0])          # su máxima, el registro 7
-        filas['M3'].append([t, 300.0 - 10 * i, 5.0])          # la suya, el 0
+        if i != hueco_m3:
+            filas['M3'].append([t, 300.0 - 10 * i, 5.0])      # la suya, el 0
         filas['M4'].append([t, 50.0 + i, 1.0])
         if i != 3:
             filas['M5'].append([t, 20.0, 1.0])     # sin el registro de la barra
         filas['B-X1T1'].append([t, 200.0 + pico, 20.0])
         filas['B-X1T2'].append([t, 150.0 + i, 15.0])
-        filas['B-X6T1'].append([t, 9999.0, 1.0])
+        filas['B-X6T1'].append([t, (9999.0 if i == pico_alta else 1000.0) * escala_alta, 1.0])
         filas['CT_X'].append([t, 40.0 + i, -2.0])
     _subir(client, wid, 'medidores', medidores)
     _subir(client, wid, 'cabecera', filas)
@@ -708,7 +711,7 @@ def test_maxima_por_barra_y_sus_alimentadores_en_esa_fecha(client, monkeypatch):
     """022:RF-37, 022:RF-39, 022:RF-40, 022:RF-41, 022:RF-41c, 022:RF-42, 022:RF-43, 022:RF-44 — la
     máxima de la barra de SET X es la de la suma de sus dos transformadores (registro 3); A1
     y A2 se buscan en esa fecha y hora, no en su máxima; B1, sin medidor de barra, en la
-    suya; el de 60 kV no cuenta; la central de la barra, con su medida en ese registro."""
+    suya; el de 220 kV no cuenta; la central de la barra, con su medida en ese registro."""
     wid = _wid(client)
     _libros_por_barra(client, wid, monkeypatch)
     job = client.post(f'/api/workspaces/{wid}/demanda/cabecera/buscar', json={
@@ -730,3 +733,97 @@ def test_maxima_por_barra_y_sus_alimentadores_en_esa_fecha(client, monkeypatch):
     assert kw['M1'] == pytest.approx(130.0) and kw['M3'] == pytest.approx(270.0)
     m5 = next(r for r in res['resultados'] if r['medidor'] == 'M5')
     assert m5['error'] and 'sin registro' in m5['error'], 'sin el registro de la barra, se dice'
+
+
+def test_central_en_un_tramo_no_va_a_la_barra(client, monkeypatch):
+    """022:RF-88 — la web lista CT_X con su SET y los alimentadores de esa SET; dicha en el
+    tramo de A1, no va a la barra y se mide con A1 en el instante de la de 60 kV."""
+    wid = _wid(client)
+    _libros_por_barra(client, wid, monkeypatch, kv_alta=60, pico_alta=5)
+    r = client.get(f'/api/workspaces/{wid}/demanda/centrales')
+    assert r.status_code == 200, r.text
+    [c] = r.json()['centrales']
+    assert c['medidor'] == 'CT_X' and c['set'] == 'SET X' and c['alimentadores'] == ['A1', 'A2', 'A3']
+    job = client.post(f'/api/workspaces/{wid}/demanda/cabecera/buscar', json={
+        'medidores': [{'alimentador': a, 'medidor': m} for a, m in (('A1', 'M1'), ('A2', 'M3'))],
+        'por_barra': True, 'centrales_tramo': {'CT_X': 'A1'}})
+    estado = esperar_trabajo(client, job.json())
+    assert estado['status'] == 'done', estado
+    res = estado['result']
+    t5 = (T0 + timedelta(minutes=75)).isoformat(sep=' ')
+    assert all(b['centrales'] == [] for b in res['barras']), 'en el tramo, no en la barra'
+    ct = next(x for x in res['resultados'] if x['medidor'] == 'CT_X')
+    assert ct['alimentador'] == 'Central A1' and ct['fecha'] == t5 and ct['kw'] == pytest.approx(45.0)
+    assert any('CT_X' in a and '022:RF-88' in a for a in res['avisos'])
+    # Una central en el tramo de un alimentador que no es del sistema pedido no entra.
+    job = client.post(f'/api/workspaces/{wid}/demanda/cabecera/buscar', json={
+        'medidores': [{'alimentador': 'B1', 'medidor': 'M4'}],
+        'por_barra': True, 'centrales_tramo': {'CT_X': 'A1'}})
+    res = esperar_trabajo(client, job.json())['result']
+    assert not any(x['medidor'] == 'CT_X' for x in res['resultados'])
+    assert all('A1' not in b['alimentadores'] for b in res['barras'])
+
+
+def test_maxima_de_la_barra_de_60_kv_da_el_instante_a_toda_la_set(client, monkeypatch):
+    """022:RF-84, 022:RF-86 — la máxima de B-X6T1 (60 kV) en el registro 5 fija el instante:
+    la barra de 10 kV de SET X se lee en el 5 (su suma ahí, no su máxima del 3), con su
+    central en ese registro, y A1 y A2 se calibran en el 5; B1, de una SET sin 60 kV, con
+    su propia máxima."""
+    wid = _wid(client)
+    _libros_por_barra(client, wid, monkeypatch, kv_alta=60, pico_alta=5)
+    job = client.post(f'/api/workspaces/{wid}/demanda/cabecera/buscar', json={
+        'medidores': [{'alimentador': a, 'medidor': m}
+                      for a, m in (('A1', 'M1'), ('A2', 'M3'), ('B1', 'M4'))],
+        'por_barra': True})
+    estado = esperar_trabajo(client, job.json())
+    assert estado['status'] == 'done', estado
+    res = estado['result']
+    t5 = (T0 + timedelta(minutes=75)).isoformat(sep=' ')
+    por = {b['clave']: b for b in res['barras']}
+    alta = por['SET X 60 kV']
+    assert alta['alta'] and alta['fecha'] == t5 and alta['kw'] == pytest.approx(9999.0)
+    media = por['SET X 10 kV']
+    assert media['de_alta'] == 'SET X 60 kV' and media['fecha'] == t5
+    assert media['kw'] == pytest.approx(200.0 + 155.0), 'la suma en el registro de la de 60 kV'
+    assert media['alimentadores'] == ['A1', 'A2']
+    assert media['centrales'] == [{'medidor': 'CT_X', 'kw': 45.0, 'kvar': -2.0}]
+    fechas = {r['medidor']: r['fecha'] for r in res['resultados']}
+    assert fechas['M1'] == fechas['M3'] == t5
+    assert fechas['M4'] == (T0 + timedelta(minutes=15 * 7)).isoformat(sep=' ')
+    kw = {r['medidor']: r['kw'] for r in res['resultados']}
+    assert kw['M1'] == pytest.approx(150.0) and kw['M3'] == pytest.approx(250.0)
+    assert not any('022:RF-89' in a for a in res['avisos']), '9 999 kW > 310 kW de su media'
+
+
+def test_instante_de_60_kv_con_registro_en_todos_sus_alimentadores(client, monkeypatch):
+    """022:RF-91 — la punta de B-X6T1 (registro 5) no está en M3 (A2): el instante es la
+    mayor de la barra entre los registros que tienen A1 y A2, y se dice; A2 se calibra."""
+    wid = _wid(client)
+    _libros_por_barra(client, wid, monkeypatch, kv_alta=60, pico_alta=5, hueco_m3=5)
+    job = client.post(f'/api/workspaces/{wid}/demanda/cabecera/buscar', json={
+        'medidores': [{'alimentador': a, 'medidor': m} for a, m in (('A1', 'M1'), ('A2', 'M3'))],
+        'por_barra': True})
+    estado = esperar_trabajo(client, job.json())
+    assert estado['status'] == 'done', estado
+    res = estado['result']
+    t5 = (T0 + timedelta(minutes=75)).isoformat(sep=' ')
+    alta = next(b for b in res['barras'] if b['alta'])
+    assert alta['fecha'] != t5 and alta['kw'] == pytest.approx(1000.0)
+    assert any('022:RF-91' in a for a in res['avisos'])
+    m3 = next(r for r in res['resultados'] if r['medidor'] == 'M3')
+    assert not m3['error'] and m3['fecha'] == alta['fecha']
+
+
+def test_barra_de_60_kv_menor_que_su_media_se_avisa(client, monkeypatch):
+    """022:RF-89 — una barra de 60 kV que marca menos que sus barras de media (otra unidad,
+    como CHNB6T1 en MW) se avisa, y su instante se usa igual."""
+    wid = _wid(client)
+    _libros_por_barra(client, wid, monkeypatch, kv_alta=60, pico_alta=5, escala_alta=0.001)
+    job = client.post(f'/api/workspaces/{wid}/demanda/cabecera/buscar', json={
+        'medidores': [{'alimentador': 'A1', 'medidor': 'M1'}], 'por_barra': True})
+    estado = esperar_trabajo(client, job.json())
+    assert estado['status'] == 'done', estado
+    res = estado['result']
+    t5 = (T0 + timedelta(minutes=75)).isoformat(sep=' ')
+    assert next(b for b in res['barras'] if b['alta'])['fecha'] == t5
+    assert any('SET X 60 kV' in a and '022:RF-89' in a for a in res['avisos'])

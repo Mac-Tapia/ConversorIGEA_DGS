@@ -7,6 +7,7 @@ Feeder IDs vary by utility (e.g. ``NET_2030_142_IN111``, ``ALIMENTADOR-12``,
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 
 # Tokens may be separated by underscore, hyphen, dot, slash or backslash.
 _TOKEN_SPLIT = re.compile(r'[_\-./\\]+')
@@ -20,9 +21,49 @@ def feeder_tokens(network_id: str) -> list[str]:
 
 
 def feeder_short_name(network_id: str) -> str:
-    """Display / output basename for a NetworkID (last path-like token)."""
+    """Display / output basename for a NetworkID (last path-like token).
+
+    Con las siglas canónicas del perfil (022:RF-90): la SET nueva Chincha Nueva viene en la
+    red de RED_231026 como CN101 a CN201 y la empresa la llama CHN101 a CHN201; la
+    estructura declara ``"siglas": ["CHN", "CN"]`` y desde la carga del TXT se llama CHN101
+    en el inventario, el DGS y la calibración. Sin perfil, el nombre de la red tal cual.
+    """
     parts = feeder_tokens(network_id)
-    return parts[-1] if parts else (network_id or '').strip()
+    nombre = parts[-1] if parts else (network_id or '').strip()
+    m = re.match(r'([A-Za-z]+)(\d.*)$', nombre)
+    if m:
+        canonicas = _siglas_canonicas()
+        if m.group(1).upper() in canonicas:
+            return canonicas[m.group(1).upper()] + m.group(2)
+    return nombre
+
+
+def _siglas_canonicas() -> dict[str, str]:
+    """``{siglas alternativas: canónicas}`` de la estructura del perfil activo, leída una vez
+    por versión del perfil (ruta y fecha del fichero)."""
+    try:
+        from .perfil_empresa import ruta_perfil_activo
+
+        ruta = ruta_perfil_activo()
+        sello = (str(ruta), ruta.stat().st_mtime_ns if ruta.is_file() else 0)
+    except OSError:
+        return {}
+    return _siglas_canonicas_de(sello)
+
+
+@lru_cache(maxsize=4)
+def _siglas_canonicas_de(_sello: tuple[str, int]) -> dict[str, str]:
+    from .estructura import EstructuraError
+    from .perfil_empresa import PerfilError, estructura_empresa
+
+    try:
+        estructura = estructura_empresa()
+    except (PerfilError, EstructuraError, OSError, ValueError):
+        return {}
+    if estructura is None:
+        return {}
+    return {s.upper(): st.siglas[0].upper() for st in estructura.sets.values()
+            if len(st.siglas) > 1 for s in st.siglas[1:]}
 
 
 def sort_key_feeder(network_id: str) -> str:

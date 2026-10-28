@@ -156,6 +156,32 @@ def test_la_web_ve_la_estructura_completada_y_avisa(monkeypatch):
     assert 'deducida' in d['ZN101']['regla']
 
 
+def test_la_web_convierte_una_set_sola(monkeypatch):
+    """022:RF-82 — con `sets`, solo los alimentadores de esa SET y un nombre con su zonal y
+    su código; el resumen trae cada SET con su rótulo y sus alimentadores; una SET que no
+    está en la estructura se rechaza."""
+    from igea_dgs import perfil_empresa
+    from igea_dgs.web import services
+
+    e, cab = _estructura(random.Random(SEMILLA))
+    monkeypatch.setattr(perfil_empresa, 'estructura_empresa', lambda *a, **k: e)
+    filas = [{'feeder': f, 'network_id': f'NET_{f}', 'cabecera_xy': list(xy) if xy else None}
+             for f, xy in cab.items()]
+    ws = SimpleNamespace(demanda={}, inventory={'feeders': filas})
+    monkeypatch.setattr(services, 'group_selection', lambda *_a, **_k: sorted(cab))
+    monkeypatch.setattr(services, 'require_loaded', lambda _ws: None)
+    st = e.set_de(sorted(cab)[0])
+    esperados = sorted(f for f in cab if e.set_de(f).codigo == st.codigo)
+    elegidos, nombre, _e = services.sistema_seleccion(ws, [], [st.codigo])
+    assert elegidos == esperados, SEMILLA
+    assert nombre.startswith('SISTEMA_') and st.codigo.replace(' ', '_') in nombre
+    detalle = {s['codigo']: s for z in services.estructura_resumen(ws)['zonales']
+               for s in z['sets_detalle']}
+    assert detalle[st.codigo]['alimentadores'] == esperados and detalle[st.codigo]['rotulo'] == st.rotulo
+    with pytest.raises(services.UserError, match='SET que no están'):
+        services.sistema_seleccion(ws, [], ['SET NO_EXISTE'])
+
+
 def test_el_informe_de_la_conversion_avisa_de_los_deducidos():
     """022:RF-78 — el aviso de la red unida nombra a cada alimentador deducido."""
     e, cab = _estructura(random.Random(SEMILLA))

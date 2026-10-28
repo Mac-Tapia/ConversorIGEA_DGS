@@ -22,7 +22,7 @@ import time
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from ..naming import feeder_short_name
 from ..powerfactory_env import (
@@ -1131,16 +1131,23 @@ def estructura_resumen(ws: Workspace) -> dict:
     origen = 'excel' if ((ws.demanda or {}).get('estructura') or {}).get('path') else 'perfil'
     deducidos = [{'alimentador': f, 'set': e.set_de(f).codigo, 'zonal': e.set_de(f).zonal,
                   'regla': e.deducidos[f]} for f in sorted(a.set_de) if f in e.deducidos]
+    de_set: dict[str, list[str]] = {}
+    for f, s in sorted(a.set_de.items()):
+        de_set.setdefault(s, []).append(f)
     return {'origen': origen, 'sin_set': a.sin_set, 'deducidos': deducidos, 'zonales': [
-        {'nombre': z, 'sets': sorted({s for f, s in a.set_de.items() if e.sets[s].zonal == z}),
-         'alimentadores': sorted(f for f, s in a.set_de.items() if e.sets[s].zonal == z)}
+        {'nombre': z, 'sets': sorted(s for s in de_set if e.sets[s].zonal == z),
+         'alimentadores': sorted(f for f, s in a.set_de.items() if e.sets[s].zonal == z),
+         # 022:RF-82: cada SET con su rótulo y sus alimentadores, para convertirla sola.
+         'sets_detalle': [{'codigo': s, 'rotulo': e.sets[s].rotulo, 'alimentadores': de_set[s]}
+                          for s in sorted(de_set) if e.sets[s].zonal == z]}
         for z in a.zonales]}
 
 
-def sistema_seleccion(ws: Workspace, zonales: list[str]) -> tuple[list[str], str, object]:
-    """Los alimentadores de la entrega de los zonales elegidos (o de todos), el nombre del
-    DGS y la estructura (022:RF-47 a RF-49)."""
-    from ..estructura import asignar
+def sistema_seleccion(ws: Workspace, zonales: list[str],
+                      sets: list[str] | None = None) -> tuple[list[str], str, object]:
+    """Los alimentadores de la entrega de los zonales o las SET elegidos (o de todos), el
+    nombre del DGS y la estructura (022:RF-47 a RF-49, RF-82)."""
+    from ..estructura import asignar, clave
 
     require_loaded(ws)
     e = estructura_del_espacio(ws)
@@ -1153,14 +1160,29 @@ def sistema_seleccion(ws: Workspace, zonales: list[str]) -> tuple[list[str], str
     desconocidos = [z for z in pedidos if z not in e.zonales]
     if desconocidos:
         raise UserError(f"Zonal(es) que no están en la estructura: {', '.join(desconocidos)}.")
+    pedidas = [clave(s) for s in sets or () if clave(s)]
+    desconocidas = [s for s in pedidas if s not in e.sets]
+    if desconocidas:
+        raise UserError(f"SET que no están en la estructura: {', '.join(desconocidas)}.")
     por_nombre = {f.upper(): f for f in todos}
-    if pedidos:
+    if pedidas:
+        # RF-82: una SET (o varias) sola, con su red y sus barras, como en su sistema.
+        elegidos = [por_nombre[f] for f, s in a.set_de.items() if s in pedidas]
+        alcance = pedidas
+    elif pedidos:
         elegidos = [por_nombre[f] for f, s in a.set_de.items() if e.sets[s].zonal in pedidos]
+        alcance = pedidos
     else:
         elegidos = list(todos)                                       # RF-48: también «Sin SET»
+        alcance = []
     if not elegidos:
-        raise UserError('Ningún alimentador de la entrega es de ' + ', '.join(pedidos) + '.')
-    nombre = nombre_seguro('SISTEMA_' + ('_'.join(pedidos) if pedidos else 'ELECTRICO'), maximo=60)
+        raise UserError('Ningún alimentador de la entrega es de ' + ', '.join(alcance) + '.')
+    if pedidas:
+        zonal = {e.sets[s].zonal for s in pedidas}
+        base = '_'.join(sorted(zonal)) + '_' + '_'.join(pedidas)
+    else:
+        base = '_'.join(pedidos) if pedidos else 'ELECTRICO'
+    nombre = nombre_seguro('SISTEMA_' + base, maximo=60)
     return sorted(elegidos), nombre.upper(), e
 
 
@@ -2074,7 +2096,7 @@ def demanda_medidores(ws: Workspace, alimentador: str) -> dict:
         raise UserError('Escriba el código de alimentador.')
     try:
         medidores = medidores_de(leer_medidores(_demanda_ruta(ws, 'medidores'), demanda_alias()),
-                                 alimentador)
+                                 alimentador, _grafias(ws)(alimentador))
     except DemandaError as exc:
         raise UserError(str(exc)) from exc
     return {'alimentador': alimentador.strip(), 'medidores': medidores, 'encontrado': bool(medidores)}
@@ -2109,8 +2131,19 @@ def sistema_del_proyecto(ws: Workspace, project: str) -> dict | None:
         filas = leer_medidores(_demanda_ruta(ws, 'medidores'), demanda_alias())
     except (DemandaError, UserError):
         filas = []                    # sin libro de medidores, ninguno tiene medidor
-    medidores = {a: medidores_de(filas, a) for a in alimentadores}
+    grafias = _grafias(ws)
+    medidores = {a: medidores_de(filas, a, grafias(a)) for a in alimentadores}
     return {'grupo': grupo, 'alimentadores': alimentadores, 'medidores': medidores}
+
+
+def _grafias(ws: Workspace) -> Callable[[str], list[str]]:
+    """Las otras grafías de un alimentador según la estructura del espacio, leída una vez
+    (022:RF-81): la red trae CN101 y el libro de medidores, CHN101. Sin estructura, ninguna."""
+    try:
+        e = estructura_del_espacio(ws)
+    except UserError:
+        e = None
+    return (lambda a: e.equivalentes(a)[1:]) if e is not None else (lambda a: [])
 
 
 def _libros_de_cabecera(ws: Workspace, periodo: str | None) -> list[Path]:
@@ -2140,7 +2173,7 @@ def _libros_de_cabecera(ws: Workspace, periodo: str | None) -> list[Path]:
 
 def demanda_cabecera(ws: Workspace, ctx: JobContext, pares: list[tuple[str, str]], *,
                      periodo: str | None = None, instante: datetime | None = None,
-                     por_barra: bool = False) -> dict:
+                     por_barra: bool = False, centrales_tramo: dict[str, str] | None = None) -> dict:
     """Máxima de cada medidor en la medición de cabecera (RF-24 a RF-32). Es un trabajo:
     abrir los libros cuesta segundos (P7). Se cancela entre medidores.
 
@@ -2152,7 +2185,7 @@ def demanda_cabecera(ws: Workspace, ctx: JobContext, pares: list[tuple[str, str]
     if not pares:
         raise UserError('Indique al menos un medidor.')
     if por_barra and instante is None:
-        return _demanda_por_barra(ws, ctx, pares, periodo)            # 022:RF-37 a RF-46
+        return _demanda_por_barra(ws, ctx, pares, periodo, centrales_tramo)   # 022:RF-37 a RF-46, RF-88
     # Con un instante, el año es el suyo (021:RF-50): sus libros, no todos.
     libros = _libros_de_cabecera(ws, periodo or (instante.strftime('%Y') if instante else None))
     alias = demanda_alias()
@@ -2236,8 +2269,42 @@ def _kv_alimentadores(ws: Workspace) -> dict[str, float]:
     return out
 
 
+def demanda_centrales_de_barra(ws: Workspace) -> dict:
+    """Las centrales térmicas (medidores CT…) del libro de medidores, con su SET, su tensión
+    y los alimentadores de esa SET, para que el operador diga si están en la barra o en el
+    tramo de un alimentador (022:RF-88). La propuesta: en el tramo, las del perfil
+    (``centrales_termicas``, la de Nasca en NA205); en la barra, las demás (CT_PEDREG)."""
+    from ..demanda_medida import DemandaError, clave_codigo, leer_medidores_de_barra
+    from ..perfil_empresa import PerfilError, centrales_termicas, datos_perfil
+
+    try:
+        filas = leer_medidores_de_barra(_demanda_ruta(ws, 'medidores'), demanda_alias())
+    except DemandaError as exc:
+        raise UserError(str(exc)) from exc
+    try:
+        perfil = centrales_termicas(datos_perfil())
+    except PerfilError:
+        perfil = {}
+    del_perfil = {clave_codigo(c['generacion']): a for a, c in perfil.items()}
+    e = estructura_del_espacio(ws)
+    de_set: dict[str, list[str]] = {}
+    if e is not None:
+        for a in e.alimentadores.values():
+            de_set.setdefault(a.set_codigo, []).append(a.codigo)
+    out = []
+    for m in filas:
+        if not m.central:
+            continue
+        st = (e.set_de_texto(m.siglas) or e.set_de_medidor(m.medidor)) if e is not None else None
+        out.append({'medidor': m.medidor, 'kv': m.kv, 'rotulo': m.rotulo,
+                    'set': st.codigo if st else '', 'set_rotulo': st.rotulo if st else '',
+                    'alimentadores': sorted(de_set.get(st.codigo, [])) if st else [],
+                    'tramo': del_perfil.get(clave_codigo(m.medidor), '')})
+    return {'centrales': out}
+
+
 def _demanda_por_barra(ws: Workspace, ctx: JobContext, pares: list[tuple[str, str]],
-                       periodo: str | None) -> dict:
+                       periodo: str | None, centrales_tramo: dict[str, str] | None = None) -> dict:
     """La máxima de cada barra de SET con medidor y sus alimentadores en esa fecha y hora
     (022:RF-37 a RF-46). El usuario, el 2026-10-17: «cuando se identifique el máximo valor
     en la barra, los alimentadores de la misma barra se deben calibrar con la misma fecha
@@ -2246,8 +2313,9 @@ def _demanda_por_barra(ws: Workspace, ctx: JobContext, pares: list[tuple[str, st
     """
     from collections import defaultdict
 
-    from ..demanda_medida import (DemandaError, barras_de_calibracion, leer_medidores_de_barra,
-                                  maxima_de_barra, maximas)
+    from ..demanda_medida import (Cabecera, DemandaError, barras_de_calibracion,
+                                  leer_medidores_de_barra, maxima_de_barra, maximas,
+                                  valor_de_barra_en)
 
     estructura = estructura_del_espacio(ws)
     if estructura is None:
@@ -2259,28 +2327,97 @@ def _demanda_por_barra(ws: Workspace, ctx: JobContext, pares: list[tuple[str, st
     def duenio(a: str) -> str:
         return a[len('Central '):].strip() if a.lower().startswith('central ') else a
 
+    # 022:RF-88: las centrales en el tramo de un alimentador, las que dice el operador y las
+    # del formulario de la central de un alimentador (pares «Central NA205»); se miden con
+    # él, en su instante, y no van a la barra.
+    en_tramo = {m: duenio(a).upper() for a, m in pares if a.lower().startswith('central ')}
+    # Solo las de los alimentadores pedidos: la de Nasca (perfil, NA205) entraba en Chincha
+    # y traía la SET 51 a su calibración (DIgSILENT, 2026-10-28).
+    del_sistema = {duenio(a).upper() for a, _m in pares if a}
+    en_tramo.update({m.strip(): a.strip().upper() for m, a in (centrales_tramo or {}).items()
+                     if m.strip() and a.strip().upper() in del_sistema})
+    vistos = {m.upper() for _a, m in pares}
+    pares = list(pares) + [(f'Central {a}', m) for m, a in en_tramo.items() if m.upper() not in vistos]
     try:
         medidores = leer_medidores_de_barra(_demanda_ruta(ws, 'medidores'), alias)
         alimentadores = sorted({duenio(a).upper() for a, _m in pares if a})
         barras, avisos = barras_de_calibracion(estructura, medidores, alimentadores,
-                                               _kv_alimentadores(ws))
+                                               _kv_alimentadores(ws), en_tramo)
         ctx.log(f'Máxima por barra de SET: {len(barras)} barra(s) con medidor para '
                 f'{len(alimentadores)} alimentador(es)' + (f' · {periodo}' if periodo else ''))
+        # Los libros se abren una vez para la barra y todos sus instantes (022:RF-84).
+        cabecera = Cabecera(libros, alias)
         de_barra = maximas(libros, [(b.clave, m) for b in barras for m in b.medidores + b.centrales],
-                           alias=alias, cancelado=ctx.cancel.is_set)
+                           alias=alias, cancelado=ctx.cancel.is_set, cabecera=cabecera)
+        # Las curvas de los alimentadores de las SET con barra de 60 kV, con los libros ya
+        # abiertos: su instante tiene que tener registro en todos (022:RF-91).
+        con_alta = {f for b in barras if b.alta or b.de_alta for f in b.alimentadores}
+        de_alimentador = maximas(libros, [(a, m) for a, m in pares if duenio(a).upper() in con_alta],
+                                 alias=alias, periodo=periodo, cancelado=ctx.cancel.is_set,
+                                 cabecera=cabecera) if con_alta else []
     except DemandaError as exc:
         raise UserError(str(exc)) from exc
     curva_de = {(r.alimentador, r.medidor): r.curva for r in de_barra if r.curva}
+    fechas_de: dict[str, list[set]] = defaultdict(list)
+    for r in de_alimentador:
+        if r.curva:
+            fechas_de[duenio(r.alimentador).upper()].append({f for f, kw, _q in r.curva if kw is not None})
+
+    def comunes_de_la_set(alta_clave: str) -> set | None:
+        """Los registros que tienen todos los medidores de los alimentadores de la SET de
+        esa barra de 60 kV (022:RF-91), o ``None`` si ninguno tiene curva."""
+        feeders = {f for b in barras if b.clave == alta_clave or b.de_alta == alta_clave
+                   for f in b.alimentadores}
+        conjuntos = [s for f in feeders for s in fechas_de.get(f, [])]
+        return set.intersection(*conjuntos) if conjuntos else None
     instantes: dict[str, datetime] = {}
     info = []
-    for b in barras:
-        curvas = [curva_de.get((b.clave, m)) for m in b.medidores]
-        mx = maxima_de_barra(curvas, periodo) if all(curvas) else None
-        if mx is None:
-            avisos.append(f'{b.clave}: sin registros comunes de {", ".join(b.medidores)}'
+    maxima_alta: dict[str, dict] = {}
+    # 022:RF-84: primero la máxima de cada barra de 60 kV; sus barras de 22,9 y 10 kV se
+    # leen después, en esa misma fecha y hora, y no en la suya.
+    for b in sorted(barras, key=lambda x: not x.alta):
+        # Un transformador sin registros en el periodo (B-PA6T1 en julio de 2026) no entra
+        # en la suma: con él, ninguna fecha era común y la barra se quedaba sin instante.
+        sin_curva = [m for m in b.medidores if not curva_de.get((b.clave, m))]
+        if sin_curva and len(sin_curva) < len(b.medidores):
+            avisos.append(f'{b.clave}: {", ".join(sin_curva)} sin registros'
                           + (f' en {periodo}' if periodo else '')
-                          + '; sus alimentadores, con su propia máxima (022:RF-42).')
-            continue
+                          + '; la barra se suma con los demás (022:RF-84).')
+        curvas = [curva_de[(b.clave, m)] for m in b.medidores if curva_de.get((b.clave, m))]
+        alta = maxima_alta.get(b.de_alta) if b.de_alta else None
+        if alta is not None:
+            mx = valor_de_barra_en(curvas, alta['fecha']) if curvas else None
+            if mx is None and b.medidores:
+                avisos.append(f'{b.clave}: sin el registro de {", ".join(b.medidores)} el '
+                              f'{alta["fecha"]}, el de la máxima de {b.de_alta}; sus alimentadores '
+                              'se calibran igual en esa fecha y hora (022:RF-84).')
+            mx = mx or {'fecha': alta['fecha'], 'kw': None, 'kvar': None, 'registros': 0}
+        else:
+            mx = maxima_de_barra(curvas, periodo) if curvas else None
+            comunes = comunes_de_la_set(b.clave) if b.alta and mx is not None else None
+            if comunes is not None and mx['fecha'] not in comunes:
+                # 022:RF-91: CHNB6T1 dio su máxima el 2026-07-24 11:45 y CHN101, CHN102 y
+                # CHN201 no tienen ese registro: se quedaban sin calibrar. La máxima de la
+                # barra, entre los registros que tienen también todos sus alimentadores.
+                filtradas = [[x for x in c if x[0] in comunes] for c in curvas]
+                otra = maxima_de_barra(filtradas, periodo) if all(filtradas) else None
+                if otra is not None:
+                    avisos.append(f"{b.clave}: su máxima del {mx['fecha']} no tiene registro en todos "
+                                  f"sus alimentadores; se toma la del {otra['fecha']}, la mayor con "
+                                  'registro en todos (022:RF-91).')
+                    mx = otra
+                else:
+                    avisos.append(f'{b.clave}: ningún registro común con sus alimentadores'
+                                  + (f' en {periodo}' if periodo else '')
+                                  + '; los que no tengan su registro, con su propia máxima (022:RF-91).')
+            if mx is None:
+                avisos.append(f'{b.clave}: sin registros comunes de {", ".join(b.medidores)}'
+                              + (f' en {periodo}' if periodo else '')
+                              + ('; sus barras de media, con su propia máxima (022:RF-84).' if b.alta else
+                                 '; sus alimentadores, con su propia máxima (022:RF-42).'))
+                continue
+        if b.alta:
+            maxima_alta[b.clave] = mx
         centrales = []
         for m in b.centrales:
             punto = next((x for x in curva_de.get((b.clave, m)) or [] if x[0] == mx['fecha']), None)
@@ -2289,19 +2426,40 @@ def _demanda_por_barra(ws: Workspace, ctx: JobContext, pares: list[tuple[str, st
         for f in b.alimentadores:
             instantes[f] = mx['fecha']
         info.append({'clave': b.clave, 'set': b.set_codigo, 'kv': b.kv, 'suelta': b.suelta,
+                     'alta': b.alta, 'de_alta': b.de_alta if alta is not None else '',  # RF-84
+                     'transformadores': b.transformadores,                         # RF-87
                      'medidores': b.medidores, 'centrales': centrales,
                      'alimentadores': b.alimentadores, 'fecha': mx['fecha'].isoformat(sep=' '),
                      'kw': mx['kw'], 'kvar': mx['kvar'], 'registros': mx['registros']})
-        ctx.log(f'  {b.clave}: {mx["kw"]:,.1f} kW el {mx["fecha"]} ({" + ".join(b.medidores)}); '
-                f'{", ".join(b.alimentadores)} en esa fecha y hora')
+        valor = f'{mx["kw"]:,.1f} kW' if mx['kw'] is not None else 'sin registro'
+        suma = ' + '.join(f'{m} ({b.transformadores[m]})' if b.transformadores.get(m) else m
+                          for m in b.medidores)
+        ctx.log(f'  {b.clave}: {valor} el {mx["fecha"]} ({suma})'
+                + (f', instante de {b.de_alta}' if alta is not None else '')
+                + (f'; {", ".join(b.alimentadores)} en esa fecha y hora' if b.alimentadores else ''))
+    # 022:RF-89: la barra de 60 kV tiene que dar al menos lo que dan sus barras de media en
+    # su instante, menos la generación de sus centrales. CHNB6T1 (Chincha Nueva) marcó 8,3
+    # frente a ~3 300 kW de media (2026-10-28): otra unidad (MW) o un medidor mal
+    # configurado. El instante se usa igual (la máxima no cambia con la unidad), y se avisa.
+    for alta in (x for x in info if x['alta'] and x['kw'] is not None):
+        media = [x for x in info if x.get('de_alta') == alta['clave'] and x['kw'] is not None]
+        neto = (sum(x['kw'] for x in media)
+                - sum(c['kw'] or 0.0 for x in media for c in x['centrales']))
+        if media and neto > 0 and alta['kw'] < 0.5 * neto:
+            avisos.append(f"{alta['clave']}: {alta['kw']:,.1f} kW frente a {neto:,.1f} kW de sus barras de "
+                          f"media en ese instante; revise la unidad (¿MW?) o el medidor "
+                          f"{', '.join(alta['medidores'])}. El instante se usa igual (022:RF-89).")
     grupos: dict[Any, list[tuple[str, str]]] = defaultdict(list)
     for a, m in pares:
         grupos[instantes.get(duenio(a).upper())].append((a, m))
+    # Cada instante (uno por SET con barra de 60 kV) con los mismos libros ya abiertos: un
+    # hilo por instante abría cada uno su copia de los .xls de ~400 MB y la web se quedó sin
+    # memoria con Nasca (2026-10-27); abrir es lo que cuesta, no buscar un registro.
     res = []
     try:
         for inst, ps in grupos.items():
             res += maximas(libros, ps, alias=alias, periodo=None if inst else periodo,
-                           instante=inst, cancelado=ctx.cancel.is_set)
+                           instante=inst, cancelado=ctx.cancel.is_set, cabecera=cabecera)
     except DemandaError as exc:
         raise UserError(str(exc)) from exc
     orden = {m: i for i, (_a, m) in enumerate(pares)}
@@ -2366,6 +2524,8 @@ def demanda_medidores_externos(ws: Workspace, red: list[str]) -> dict:
         filas = leer_medidores(_demanda_ruta(ws, 'medidores'), demanda_alias())
     except DemandaError as exc:
         raise UserError(str(exc)) from exc
+    grafias = _grafias(ws)                                                      # 022:RF-81
+    de_la_red |= {clave_codigo(e) for a in list(de_la_red) for e in grafias(a)}
     externos = [{'alimentador': m.alimentador, 'medidor': m.medidor} for m in filas
                 if clave_codigo(m.alimentador) not in de_la_red]
     try:
@@ -2444,7 +2604,7 @@ def demanda_clientes(ws: Workspace, alimentadores: list[str] | None = None,
     """Clientes importantes cruzados con los suministros (RF-33 a RF-37); con
     ``alimentadores``, solo los de esos alimentadores por su radial (RF-43)."""
     from ..demanda_medida import (DemandaError, cruzar, del_alimentador, leer_clientes,
-                                  leer_suministros)
+                                  leer_suministros, registros_de_maxima)
 
     alias = demanda_alias()
     try:
@@ -2463,6 +2623,16 @@ def demanda_clientes(ws: Workspace, alimentadores: list[str] | None = None,
     de_otros = 0
     if alimentadores:
         cruzados, aparte, de_otros = del_alimentador(cruzados, aparte, alimentadores)
+    # 004:RF-66: la reactiva de cada cliente en el registro de 15 minutos de su POT, de su
+    # hoja del mismo libro; solo los cruzados (los de un alimentador, en el plan).
+    try:
+        registro, avisos_r = registros_de_maxima(libro, {c.codigo: c.pot for c in cruzados})
+    except DemandaError as exc:
+        registro, avisos_r = {}, [str(exc)]
+    for c in cruzados:
+        if c.codigo in registro:
+            c.fecha_registro, c.q_registro_kvar = registro[c.codigo]
+    avisos_c = avisos_c + avisos_r
     return {
         'alimentadores': alimentadores,
         'libro': libro.name,

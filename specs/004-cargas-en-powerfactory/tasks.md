@@ -89,3 +89,11 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde y `- [x]`.
       `IGEA_DEMANDA_DIR` la carpeta de clientes no da candidatos de suministros.
       Hecho el 2026-10-22: `referencia/4.-clientesimportantes` da 0 candidatos (5 libros de
       clientes avisados) y `3.-suministrocliente` elige «0926 Clientes_spl.xlsx».
+- [x] T17. Reactiva de las fijas en el registro de su POT: `registros_de_maxima` (hoja
+      «maestro_lib» → hoja de 15 minutos del cliente), `q_registro_kvar` y `fecha_registro`
+      en el cruce, `fijas_de` con el ERI × 4 de ese registro y sin el FP mínimo, columnas en
+      la web y en el Excel. (RF-66)
+      Hecho cuando: `pytest -q tests/test_demanda_medida.py tests/test_central_termica_front.py`
+      en verde y, con el libro real de julio de 2026, cada cliente cruzado con su registro.
+      Hecho el 2026-10-28: 12 de 12 clientes del libro de julio con su registro (0,2 s); FP del
+      registro frente al del mes, de 0,769 a 0,956 en 700096086.

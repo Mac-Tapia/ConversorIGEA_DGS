@@ -31,10 +31,17 @@ class WebFalsa:
         if ruta == '/demanda/sistema':
             return {'sistema': {'grupo': 'SISTEMA_PISCO', 'alimentadores': ['PI102', 'PI101'],
                                 'medidores': {'PI102': ['L-PI102'], 'PI101': []}}}
+        if ruta == '/demanda/centrales':                                 # 022:RF-88
+            return {'centrales': [
+                {'medidor': 'CT_X', 'kv': 22.9, 'set': 'SET 31', 'tramo': 'PI102'},
+                {'medidor': 'CT_Y', 'kv': 10.0, 'set': 'SET 31', 'tramo': ''}]}
         raise AssertionError(ruta)
 
     def post(self, ruta, **kw):
         self.llamadas.append(('POST', ruta))
+        if ruta == '/demanda/cabecera/buscar':
+            # 022:RF-88: la central del perfil va en el tramo; la otra, en su barra.
+            assert kw['json']['centrales_tramo'] == {'CT_X': 'PI102'}, kw['json']
         if ruta == '/powerfactory/flow':
             self.proyecto = 'P_PISCO'
         if ruta == '/demanda/ajuste/plan':
@@ -51,7 +58,9 @@ class WebFalsa:
                 'barras': [{'clave': 'SET 31 10 kV', 'kw': 5456.3, 'fecha': '2026-07-21 18:45',
                             'alimentadores': ['PI101', 'PI102']}],
                 'resultados': [{'medidor': 'L-PI102', 'alimentador': 'PI102', 'kw': 1000.0},
-                               {'medidor': 'L-PI141', 'error': 'sin dato'}]}}
+                               {'medidor': 'L-PI141', 'error': 'sin dato'},
+                               # 022:RF-88: la central en tramo, no al plan.
+                               {'medidor': 'CT_X', 'alimentador': 'Central PI102', 'kw': 50.0}]}}
         if trabajo['id'].endswith('/aplicar'):
             return {'status': 'done', 'result': {
                 'sistema': {'sin_medidor': ['PI101']}, 'informes': self.informes}}

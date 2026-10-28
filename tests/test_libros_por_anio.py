@@ -395,9 +395,12 @@ def test_real_cada_anio_da_la_maxima_de_sus_alimentadores():
     for anio in lpa.anios_de(arbol):
         libros = [x.ruta for x in lpa.libros_del_periodo(arbol, str(anio))]
         hojas = {h for p in libros for h in dm._abrir(p).sheet_names}
-        con_hoja = [a for a in dm.alimentadores_de(meds)
-                    if dm.hojas_del_alimentador(sorted(hojas), a)
-                    or any(any(dm.hojas_del_medidor(sorted(hojas), m)) for m in dm.medidores_de(meds, a))]
+        # Las filas «Barra10KV», «Barra60KV»… no son alimentadores: agrupan los medidores de
+        # barra de varias SET (CHNB1T1 no existe en 2025) y van por 022:RF-84 (libro del
+        # 2026-10-27).
+        con_hoja = [a for a in dm.alimentadores_de(meds) if 'barra' not in dm.normalizar(a)
+                    and (dm.hojas_del_alimentador(sorted(hojas), a)
+                         or any(any(dm.hojas_del_medidor(sorted(hojas), m)) for m in dm.medidores_de(meds, a)))]
         assert con_hoja, anio
         pares = [(a, m) for a in con_hoja for m in dm.medidores_de(meds, a)]
         res = dm.maximas(libros, pares, periodo=str(anio))

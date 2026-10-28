@@ -44,9 +44,9 @@
         {"codigo": "PE101", "sistema": "SE1043"}, {"codigo": "PE102", "sistema": "SE1043"},
         {"codigo": "PE103", "sistema": "SE0043"}, {"codigo": "PE104", "sistema": "SE0043"},
         {"codigo": "PE105", "sistema": "SE0043"}, {"codigo": "PE106", "sistema": "SE1043"}]},
-      {"codigo": "SET CHN", "nombre": "Chincha Nueva", "siglas": ["CN"], "alimentadores": [
-        {"codigo": "CN101", "sistema": "SE0043"}, {"codigo": "CN102", "sistema": "SE0043"},
-        {"codigo": "CN103", "sistema": "SE0043"}, {"codigo": "CN201", "sistema": "SE0043"}]}]},
+      {"codigo": "SET CHN", "nombre": "Chincha Nueva", "siglas": ["CHN", "CN"], "alimentadores": [
+        {"codigo": "CHN101", "sistema": "SE0043"}, {"codigo": "CHN102", "sistema": "SE0043"},
+        {"codigo": "CHN103", "sistema": "SE0043"}, {"codigo": "CHN201", "sistema": "SE0043"}]}]},
     {"nombre": "Pisco", "sets": [
       {"codigo": "SET 31", "nombre": "Pisco", "siglas": ["PI"], "alimentadores": [
         {"codigo": "PI101", "sistema": "SE0046"}, {"codigo": "PI102", "sistema": "SE0046"},

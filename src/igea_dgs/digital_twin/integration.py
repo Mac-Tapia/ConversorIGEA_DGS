@@ -61,11 +61,9 @@ def normas_de(estructura: Any, feeders: Iterable[str]) -> list[str | None]:
     """Norma de calidad del sistema eléctrico de cada alimentador, según la estructura."""
     if estructura is None:
         return [None]
-    from ..estructura import clave
-
     normas = []
     for f in feeders:
-        a = estructura.alimentadores.get(clave(f))
+        a = estructura.alimentador(f)                                     # 022:RF-81
         sistema = estructura.sistemas.get(a.sistema) if a is not None else None
         normas.append((sistema.norma or None) if sistema is not None else None)
     return normas or [None]

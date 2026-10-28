@@ -155,8 +155,8 @@ por ejemplo, la barra B-PA2T1, 22,9, PA, es la barra de 22,9 kV de la SET Paraca
   SISTEMA lo dirá y no lo calibrará (021:RF-53).
 - RF-42: SI una barra de SET no tiene medidor de barra, ENTONCES EL SISTEMA calibrará cada
   alimentador de esa barra con la máxima de su propio medidor, como hasta ahora.
-- RF-43: EL SISTEMA no usará los medidores de barra de alta tensión (60 kV, 220 kV): la SET
-  entra sin su transformador de potencia.
+- RF-43: EL SISTEMA no usará los medidores de barra de 220 kV: la SET entra sin su
+  transformador de potencia. (Cambiado por RF-84 el 2026-10-27: los de 60 kV sí se usan.)
 - RF-44: DONDE un medidor de barra es de una central («Barra CT», «CTBarra»: CT_PEDREG en la
   barra de 10 kV de Pedregal), EL SISTEMA pondrá la central en esa barra con la P y Q
   medidas en el registro objetivo de la barra, como la central de 021:RF-35.
@@ -291,6 +291,66 @@ por zonal los dejaba fuera)
   Chincha (usuario, 2026-10-23).
 - RF-80: La estructura del perfil de Electro Dunas pondrá PO101, de la SET 35 Pampa de
   Ocas, en el sistema eléctrico SE0046 Pisco (usuario, 2026-10-23).
+- RF-81: CUANDO una SET de la estructura declare varias siglas, EL SISTEMA tratará como el
+  mismo alimentador los códigos que solo difieren en esas siglas: en la estructura, en el
+  libro de medidores (sus medidores y si es de la red) y en la barra de su SET. La SET
+  nueva Chincha Nueva viene en RED_231026 como CN101 a CN201 y en los libros de la empresa
+  como CHN101 a CHN201, con el medidor de barra CHNB1T1; en la web sus alimentadores no
+  encontraban medidor y su barra quedaba suelta (usuario, 2026-10-27). El perfil de
+  Electro Dunas da a la SET CHN las siglas CN y CHN; sin siglas declaradas no se casa nada.
+- RF-82: La web tendrá, junto a «Convertir sistema», un desplegable con las SET de la
+  entrega (las del sistema elegido, o todas), cada una con sus alimentadores, y un botón
+  «Convertir SET» que convierte solo esa SET como en su sistema: su red, sus barras y la
+  red externa de cada barra (usuario, 2026-10-27: «debe haber botón para conversión por
+  sistema y SET»). La API (`/convert/sistema`) aceptará `sets` y rechazará una SET que
+  no esté en la estructura.
+- RF-83: La web pedirá la estructura al cargar la entrega, no al enfocar un desplegable:
+  el de sistemas estaba desactivado sin ella, nunca recibía el foco y no aparecía ningún
+  sistema ni la SET nueva Chincha Nueva (usuario, 2026-10-27).
+- RF-84: CUANDO el libro de medidores traiga filas de barra de 60 kV (columna ALIMENTADOR
+  «Barra…», MEDIDOR, nivel de tensión y SET), EL SISTEMA calibrará cada sistema eléctrico
+  con la máxima de la barra de 60 kV de cada SET: la suma, registro a registro, de sus
+  medidores de 60 kV, y todos los alimentadores de esa SET, de cualquier tensión, en esa
+  fecha y hora (usuario, 2026-10-27: «la calibración de cualquier sistema eléctrico debe
+  ser con el máximo valor de barras en 60 kV, emparejando la columna alimentador, que ahí
+  dice barra de 60 kV, MEDIDOR y columna SET»). Prevalece sobre la barra de media de RF-38.
+- RF-85: EL SISTEMA reconocerá la columna «SET» del libro de medidores como la de las
+  siglas, y su valor por las siglas de la SET, su código («SET 21») o su nombre.
+- RF-86: SI una SET no tiene medidor de barra de 60 kV, ENTONCES EL SISTEMA seguirá con su
+  barra de media (RF-38 a RF-42); SI un medidor de 60 kV no es de ninguna SET de la
+  estructura, ENTONCES lo dirá y no lo usará, sin barra suelta; los de 220 kV no se usan.
+  SI un medidor de una barra no tiene registros en el periodo (B-PA6T1 en julio de 2026),
+  ENTONCES EL SISTEMA lo dirá y sumará la barra con los demás. Una columna SET vacía se
+  deduce del nombre del medidor (TMB6T2 → SET 22), y un medidor en dos SET se avisa.
+- RF-87: Una SET tiene 1, 2 o 3 transformadores (T1, T2, T3 en el rótulo «Barra60KV_T2» o
+  en el medidor, B-PA6T2, TA6TR2). EL SISTEMA sumará, registro a registro, los medidores
+  de todos sus transformadores en cada barra (la de 60 kV y cada una de media), dirá de
+  qué transformador es cada medidor en el resultado y el Registro, y avisará si los
+  transformadores medidos en 60 kV no son los mismos que en media (usuario, 2026-10-27).
+- RF-88: Los medidores que empiezan por CT son centrales térmicas. La web listará las del
+  libro con su SET y su nivel, y el operador dirá si cada una está en la barra de su SET
+  (CT_PEDREG, en la de 10 kV de Pedregal) o en un tramo de media de un alimentador (la de
+  Nasca, CT_BH4 NA, en la troncal de 22,9 kV de NA205); la propuesta sale de
+  `centrales_termicas` del perfil. EL SISTEMA pondrá la de barra como generador en esa
+  barra con su medida en el instante de la barra de 60 kV, y la de tramo no la pondrá en
+  la barra: la medirá con su alimentador, en ese mismo instante (021:RF-28) (usuario,
+  2026-10-27).
+- RF-89: SI la barra de 60 kV de una SET marca, en su instante, menos de la mitad de lo
+  que dan sus barras de media menos la generación de sus centrales, ENTONCES EL SISTEMA lo
+  dirá (otra unidad o un medidor mal configurado: CHNB6T1 de Chincha Nueva, 8,3 frente a
+  ~3 300 kW, en DIgSILENT el 2026-10-28) y usará igual su instante, que no cambia con la
+  unidad.
+- RF-90: CUANDO una SET de la estructura declare varias siglas, la primera será la
+  canónica, y EL SISTEMA nombrará con ella al alimentador desde la carga de la fuente
+  (inventario, DGS, web y calibración): la red de RED_231026 trae CN101 a CN201 y la SET
+  Chincha Nueva se declara `["CHN", "CN"]`, así que son CHN101 a CHN201 (usuario,
+  2026-10-28: «debes corregirlo con los CHN desde la carga de los TXT en la web»). Sin
+  perfil, el nombre de la red tal cual.
+- RF-91: EL SISTEMA buscará la máxima de la barra de 60 kV solo entre los registros que
+  tienen también todos los medidores de los alimentadores de su SET, para que el instante
+  coincida en todos; si la máxima sin esa condición cae en un registro que falta en alguno,
+  lo dirá con las dos fechas (CHNB6T1 dio el 2026-07-24 11:45 y CHN101, CHN102 y CHN201 no
+  tenían ese registro y quedaban sin calibrar, DIgSILENT, 2026-10-28).
 
 Informe
 

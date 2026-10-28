@@ -67,7 +67,9 @@ def test_medidores_por_alimentador_y_maxima_en_un_trabajo():
     assert 'no está en el libro de medidores' in DEMANDA and 'anadir(f)' in DEMANDA
     # Los elegidos y, en el mismo trabajo, los medidores de cada central (spec 021, RF-25).
     assert 'const aBuscar = [...elegidos, ' in DEMANDA
-    assert 'startJob(() => api.demandaCabecera(ws.id, aBuscar, { periodo, instante, por_barra: porBarra && !instante }))' in DEMANDA
+    # 022:RF-88: con las centrales en el tramo de su alimentador.
+    assert ('startJob(() => api.demandaCabecera(ws.id, aBuscar, { periodo, instante, por_barra: porBarra && !instante,'
+            in DEMANDA) and 'centrales_tramo: centralTramo }))' in DEMANDA
 
 
 def test_clientes_de_los_marcados():

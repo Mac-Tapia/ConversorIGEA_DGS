@@ -312,6 +312,39 @@ def test_varios_medidores_por_separado_sin_sumar(tmp_path):
     assert all(r.alimentador == 'A1' for r in res)
 
 
+def test_reactiva_del_registro_de_la_pot_del_cliente(tmp_path):
+    """004:RF-66 — «maestro_lib» lleva a la hoja de 15 minutos de cada cliente; su kVAR es
+    el ERI × 4 del registro en que dio su POT; sin hoja, sigue con su ERI/EA del mes."""
+    from igea_dgs.ajuste_cabecera import Objetivo, fijas_de
+
+    rng = random.Random(SEMILLA)
+    pico = rng.randint(1, 20)
+    hoja = [['CLIENTE / GRUPO', '700'], [], ['SUMINISTRO', 'FECHA', 'HORA', 'EA', 'ERI', 'POT']]
+    for k in range(24):
+        ea = 100.0 if k == pico else 10.0 + k
+        hoja.append(['700', '01/07/2026', f'{k // 4:02d}:{15 * (k % 4):02d}', ea, 7.5 if k == pico else 1.0, ea * 4])
+    _libro(tmp_path / 'c.xlsx', {
+        'Resumen': [['SUMINISTRO', 'EA_TOTAL', 'ERI_TOTAL', 'POT_MAX'],
+                    ['700', 900.0, 900.0, 400.0], ['800', 500.0, 100.0, 50.0]],
+        'maestro_lib': [['numero_suministro', 'nombre_hoja_exportacion'], ['700', 'cli700']],
+        'cli700': hoja})
+    reg, avisos = dm.registros_de_maxima(tmp_path / 'c.xlsx', {'700': 400.0, '800': 50.0})
+    assert reg['700'] == (f'01/07/2026 {pico // 4:02d}:{15 * (pico % 4):02d}', pytest.approx(30.0))
+    assert '800' not in reg and not avisos, 'sin hoja, nada que decir: sigue con su ERI/EA'
+    objetivo = Objetivo(kw=1000.0, kvar=100.0, medidor='M', alimentador='A', fecha='2026-07-01')
+    clientes = [{'sed': 'S1', 'pot': 400.0, 'ea': 900.0, 'eri': 900.0, 'codigo': '700',
+                 'q_registro_kvar': 30.0, 'fecha_registro': reg['700'][0]},
+                {'sed': 'S2', 'pot': 50.0, 'ea': 500.0, 'eri': 100.0, 'codigo': '800'}]
+    f = fijas_de(clientes, objetivo)
+    assert f['S1'].kvar == pytest.approx(30.0) and 'ERI_DEL_REGISTRO' in f['S1'].derivaciones[0]['metodo']
+    assert f['S2'].kvar == pytest.approx(10.0) and f['S2'].derivaciones[0]['metodo'] == 'ERI/EA'
+    # Con el FP mínimo del perfil (0,98): el del registro no se toca; el del mes, sí.
+    bajo = [{**clientes[0], 'q_registro_kvar': 200.0}, {**clientes[1], 'eri': 400.0}]
+    f = fijas_de(bajo, objetivo, fp_minimo=0.98)
+    assert f['S1'].kvar == pytest.approx(200.0) and 'compensado' not in f['S1'].derivaciones[0]
+    assert f['S2'].derivaciones[0]['compensado']['fp_escrito'] == 0.98
+
+
 def test_kva_y_fp_calculados_y_marcados(tmp_path):
     """004:RF-30 — sin kVA ni FP en el registro, se calculan con kW y kVAR y se marcan."""
     filas = [['Local Time', 'kW tot', 'kVAR tot', 'PF sign tot us'],
@@ -320,6 +353,27 @@ def test_kva_y_fp_calculados_y_marcados(tmp_path):
     res = dm.maximas([tmp_path / 'c.xlsx'], [('', 'M1')])[0]
     assert res.kva == pytest.approx(500.0) and res.kva_calculado
     assert res.fp == pytest.approx(-0.6) and res.fp_calculado, 'kVAR capacitivo: FP negativo'
+
+
+def test_fp_calculado_acotado_si_el_kva_es_menor_que_el_kw(tmp_path):
+    """004:RF-30 — un kVA menor que el kW (L-LL123, octubre de 2026) no da FP > 1: vale 1,
+    con su signo, y se avisa."""
+    filas = [['Local Time', 'kW tot', 'kVAR tot', 'kVA tot'], [INICIO, 300.0, -20.0, 282.0]]
+    _libro(tmp_path / 'c.xlsx', {'M1': filas})
+    res = dm.maximas([tmp_path / 'c.xlsx'], [('', 'M1')])[0]
+    assert res.fp == pytest.approx(-1.0) and res.fp_calculado
+    assert any('acotado a 1' in a for a in res.avisos)
+
+
+def test_registro_con_kva_negativo_no_es_maximo(tmp_path):
+    """004:RF-31 — un registro con kVA negativo (L-LL123: 32 765 kW y −30 818 kVA, desborde
+    del contador) no es la máxima y se avisa."""
+    filas = [['Local Time', 'kW tot', 'kVAR tot', 'kVA tot'],
+             [INICIO, 32765.0, 11483.0, -30818.0], [INICIO + timedelta(minutes=15), 900.0, 100.0, 905.6]]
+    _libro(tmp_path / 'c.xlsx', {'M1': filas})
+    res = dm.maximas([tmp_path / 'c.xlsx'], [('', 'M1')])[0]
+    assert res.kw == pytest.approx(900.0) and 0 < res.fp <= 1
+    assert any('kVA negativo' in a for a in res.avisos)
 
 
 def test_registros_vacios_o_no_numericos_no_son_maximo(tmp_path):
@@ -747,6 +801,98 @@ def test_real_casi_todos_los_medidores_tienen_su_maxima():
         assert r.fp is None or -1 <= r.fp <= 1
 
 
+@pytest.mark.parametrize('rotulo, central', [
+    ('Barra CT10KV', True), ('CT_Barra10KV', True), ('CT_Barra22,9KV', True), ('Barra CT', True),
+    ('CTBarra', True), ('Barra10KV', False), ('Barra60kv_T1', False), ('Barra', False)])
+def test_central_de_barra_por_su_rotulo(rotulo, central):
+    """022:RF-44, 022:RF-85 — «Barra CT10KV» (CT_PEDREG en el libro real) es una central;
+    antes se sumaba como un transformador más de la barra."""
+    assert dm._es_central(dm.normalizar(rotulo)) is central
+
+
+@pytest.mark.parametrize('medidor, rotulo, t', [
+    ('B-PA6T2', 'Barra60KV', 'T2'), ('B-IN6T1', 'Barra60kv_T1', 'T1'), ('TA6TR2', 'Barra60KV', 'T2'),
+    ('CAB1T2', 'Barra', 'T2'), ('X', 'Barra22.9KV_T3', 'T3'), ('PO_BARRA 10KV', 'Barra', '')])
+def test_transformador_de_cada_medidor(medidor, rotulo, t):
+    """022:RF-87 — el transformador sale del rótulo o del nombre del medidor."""
+    assert dm.transformador_de(medidor, rotulo) == t
+
+
+def test_set_con_tres_transformadores_suma_los_tres():
+    """022:RF-84, 022:RF-87 — tres transformadores en 60 kV (sorteados de 1 a 3 y con
+    puntas en registros distintos): el instante es la máxima de la suma, no la de uno; un
+    transformador medido solo en 60 kV se avisa."""
+    from igea_dgs.estructura import estructura_de_dict
+
+    rng = random.Random(SEMILLA)
+    n = rng.randint(1, 3)
+    e = estructura_de_dict({'zonales': [{'nombre': 'Z', 'sets': [
+        {'codigo': 'SET X', 'nombre': 'Equis', 'siglas': ['X'], 'alimentadores': ['X101']}]}]})
+    ms = [dm.MedidorBarra(f'B-X6T{i}', 60.0, 'SET X', False, i, rotulo=f'Barra60KV_T{i}')
+          for i in range(1, n + 1)] + [dm.MedidorBarra('B-X1T1', 10.0, 'SET X', False, 9)]
+    barras, avisos = dm.barras_de_calibracion(e, ms, ['X101'], {'X101': 10.0})
+    alta = next(b for b in barras if b.alta)
+    assert alta.transformadores == {f'B-X6T{i}': f'T{i}' for i in range(1, n + 1)}
+    assert any('022:RF-87' in a for a in avisos) == (n > 1)
+    t0 = datetime(2026, 7, 1)
+    curvas = [[(t0 + timedelta(minutes=15 * k), (500.0 if k == i else 100.0), 0.0) for k in range(6)]
+              for i in range(1, n + 1)]
+    mx = dm.maxima_de_barra(curvas)
+    # Cada transformador tiene su punta en otro registro: con varios, la suma empata y
+    # vale el primero; con uno, su punta.
+    assert mx['kw'] == pytest.approx(500.0 + 100.0 * (n - 1))
+    assert mx['fecha'] == t0 + timedelta(minutes=15)
+
+
+def test_medidor_ct_es_central_termica(tmp_path):
+    """022:RF-44 — un medidor de barra que empieza por CT es una central térmica aunque su
+    rótulo solo diga «Barra» (usuario, 2026-10-27)."""
+    filas = [['codigo alimentador', 'Medidor', 'Nivel Tension', 'SET'],
+             ['Barra', 'CT_PEDREG', 10, 'SET 25'], ['Barra', 'B-PE1T1', 10, 'SET 25']]
+    _libro(tmp_path / 'm.xlsx', {'h': filas})
+    por = {m.medidor: m.central for m in dm.leer_medidores_de_barra(tmp_path / 'm.xlsx')}
+    assert por == {'CT_PEDREG': True, 'B-PE1T1': False}
+
+
+def test_medidores_de_barra_pegados_con_y():
+    """022:RF-85 — B1T1_V18YB1T1_V19YB1T1_V8 son tres medidores; B-SPIT1 o CHNB1T1, uno."""
+    assert dm._partir_medidores_de_barra('B1T1_V18YB1T1_V19YB1T1_V8') == ['B1T1_V18', 'B1T1_V19', 'B1T1_V8']
+    assert dm._partir_medidores_de_barra('B-SPIT1') == ['B-SPIT1']
+    assert dm._partir_medidores_de_barra('CHNB1T1') == ['CHNB1T1']
+    assert dm._kv_del_rotulo('Barra22,9KV_T2') == 22.9 and dm._kv_del_rotulo('Barra') is None
+
+
+@real
+def test_real_barras_de_60_kv_casan_con_su_set_y_llevan_toda_la_set():
+    """022:RF-84, 022:RF-85, 022:RF-86 — el libro real de medidores trae filas de barra de
+    60 kV (ALIMENTADOR «Barra…», MEDIDOR, nivel y SET); cada una casa con una SET de la
+    estructura de Electro Dunas, y todo alimentador de esa SET queda en una barra con el
+    instante de la de 60 kV. Si falla, solo se dicen recuentos y siglas, no medidas."""
+    import json
+
+    from igea_dgs.estructura import estructura_de_dict
+
+    raiz = Path(__file__).resolve().parents[1]
+    e = estructura_de_dict(json.loads((raiz / 'config' / 'perfiles' / 'electro_dunas.estructura.json')
+                                      .read_text(encoding='utf-8')))
+    libro = next(p for p in sorted(_sub('1.').iterdir()) if p.suffix.lower().startswith('.xls'))
+    ms = dm.leer_medidores_de_barra(libro)
+    assert ms, 'el libro no trae filas «Barra» en su columna de alimentador'
+    alta = [m for m in ms if m.kv is not None and dm.KV_MAX_MEDIA < m.kv <= dm.KV_MAX_SUBTRANSMISION]
+    niveles = sorted({m.kv for m in ms if m.kv is not None})
+    assert alta, f'ninguna fila de barra de 60 kV; niveles leídos: {niveles}'
+    sin_set = sorted({f'{m.medidor}: «{m.siglas}»' for m in alta
+                      if e.set_de_texto(m.siglas) is None and e.set_de_medidor(m.medidor) is None})
+    assert not sin_set, f'filas de 60 kV cuya columna SET no casa con la estructura: {sin_set}'
+    alimentadores = sorted(e.alimentadores)
+    barras, _avisos = dm.barras_de_calibracion(e, ms, alimentadores, {})
+    sets_alta = {b.set_codigo for b in barras if b.alta}
+    assert sets_alta, 'ninguna barra de 60 kV con su SET'
+    con_instante = {f for b in barras if b.alta or b.de_alta for f in b.alimentadores}
+    faltan = sorted(f for f in alimentadores if e.set_de(f).codigo in sets_alta and f not in con_instante)
+    assert not faltan, f'alimentadores de una SET con 60 kV sin su instante: {faltan}'
+
+
 @real
 def test_real_los_dos_formatos_de_clientes_cruzan():
     """004:RF-34 a RF-37, 025:RF-1 — cada libro de clientes, de cada año, cruza casi entero
@@ -881,11 +1027,14 @@ def test_central_solo_con_los_registros_comunes():
 def test_real_na205_con_su_central():
     """021:RF-28, 021:RF-29, 021:RF-30, 021:RF-31, 021:RF-32, 021:RF-33, 021:RF-34 — NA205 con la central de Nasca: CT_BH4 NA (generación), CTNA_BH2
     (llegada desde la SET) y CTNA_BH1 (salida a la carga). La máxima de demanda es la del
-    2026-08-20 16:45, con la central generando, no la de cabecera con ella parada."""
+    2026-08-20 16:45, con la central generando, no la de cabecera con ella parada.
+
+    Con el mes de la medición (2026-08), como la web (013:RF-11): sin él, la máxima salía de
+    todos los libros y cambió el 2026-10-27, cuando entraron los de octubre de 2026."""
     cab = dm.Cabecera([_sub('2.')])
     curvas = {m: cab.maxima(m).curva for m in ('NA205', 'CT_BH4 NA', 'CTNA_BH2', 'CTNA_BH1')}
     r = dm.demanda_con_central(curvas['NA205'], curvas['CT_BH4 NA'], curvas['CTNA_BH2'],
-                               curvas['CTNA_BH1'])
+                               curvas['CTNA_BH1'], periodo='2026-08')
     assert r.error is None, r
     assert (r.signo_llegada, r.signo_salida) == (1, 1)
     assert r.fecha == '2026-08-20 16:45:00'
