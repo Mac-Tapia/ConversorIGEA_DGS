@@ -758,6 +758,16 @@ def particionar(muestras: Sequence[Muestra]) -> dict[str, list[Muestra]]:
     return grupos
 
 
+def _grupos(muestras: Sequence[Muestra], ids: Sequence[str], sistema: str | None) -> dict[str, list[Muestra]]:
+    """«Un sistema fuera» (RF-2) o, con ``sistema``, su propio reparto por la huella de cada
+    episodio (RF-68, el de ``curva.reparto_del_sistema``)."""
+    if not sistema:
+        return particionar(muestras)
+    from .curva import reparto_del_sistema
+
+    return {k: [muestras[i] for i in v] for k, v in reparto_del_sistema(ids).items()}
+
+
 def fallos_de_particion(grupos: Mapping[str, Sequence[Muestra]]) -> list[str]:
     """Lo que impide promover por el reparto (027:RF-3)."""
     if not grupos['prueba']:
@@ -831,9 +841,10 @@ def reproducir(bufer: BuferEpisodios, version: str, log: Callable[[str], None] =
     man = meta.get('manifiesto')
     if not man:
         raise ValueError(f'el modelo {version} no tiene manifiesto (es de antes de 027:RF-8)')
-    muestras = [m for m in (muestra_de_episodio(bufer.leer(i)) for i in man['episodios']) if m is not None]
+    pares = [(m, i) for i in man['episodios'] if (m := muestra_de_episodio(bufer.leer(i))) is not None]
+    muestras = [m for m, _i in pares]
     cfg = Entrenamiento(**man['cfg'])
-    grupos = particionar(muestras)
+    grupos = _grupos(muestras, [i for _m, i in pares], man.get('sistema'))
     if not grupos['entrenamiento']:
         grupos['entrenamiento'] = list(grupos['validacion'])
     inicial = cargar(bufer, man['parte_de']) if man.get('parte_de') else None
@@ -853,7 +864,7 @@ def reproducir(bufer: BuferEpisodios, version: str, log: Callable[[str], None] =
 
 def entrenar(bufer: BuferEpisodios, *, consulta: Consulta | None = None, cfg: Entrenamiento | None = None,
              puertas: Puertas | None = None, dorados: Sequence[str] = (),
-             log: Callable[[str], None] = lambda _m: None) -> dict[str, Any]:
+             log: Callable[[str], None] = lambda _m: None, sistema: str | None = None) -> dict[str, Any]:
     """Entrena un candidato con una consulta fija del búfer, lo evalúa por particiones de
     familia y lo promueve si supera las puertas sin empeorar los dorados (RF-12, RF-13,
     RF-16, RF-17, RF-42). Si ya hay modelo, parte de sus pesos y repite el histórico entero
@@ -861,6 +872,10 @@ def entrenar(bufer: BuferEpisodios, *, consulta: Consulta | None = None, cfg: En
     consulta = consulta or Consulta()
     puertas = puertas or Puertas()
     muestras, ids = _muestras(bufer, consulta)
+    if sistema:
+        # 027:RF-68: solo los episodios de ese sistema (su red, por la huella de sus nodos).
+        elegidos = [i for i, m in enumerate(muestras) if red_de(m).startswith(sistema)]
+        muestras, ids = [muestras[i] for i in elegidos], [ids[i] for i in elegidos]
     if not muestras:
         return {'entrenado': False, 'motivo': 'no hay episodios con grafo y tensiones'}
     # 027:RF-29, RF-30: el dataset se audita antes; con valores no finitos no se entrena.
@@ -874,7 +889,7 @@ def entrenar(bufer: BuferEpisodios, *, consulta: Consulta | None = None, cfg: En
         return {'entrenado': False, 'auditoria': auditoria,
                 'motivo': 'dataset con valores no finitos: ' + ', '.join(
                     f"{x['episodio']} ({x['campo']})" for x in auditoria['no_finitos'][:10])}
-    grupos = particionar(muestras)                                       # 027:RF-2
+    grupos = _grupos(muestras, ids, sistema)                             # 027:RF-2, RF-68
     if not grupos['entrenamiento']:
         grupos['entrenamiento'] = list(grupos['validacion'])
     actual = cargar(bufer)
@@ -907,6 +922,7 @@ def entrenar(bufer: BuferEpisodios, *, consulta: Consulta | None = None, cfg: En
     evaluacion = grupos['prueba'] or grupos['validacion'] or grupos['entrenamiento']
     error = mae(candidato, evaluacion)
     man = manifiesto(cfg, ids, grupos, candidato, actual.version if compatible else None)   # 027:RF-8
+    man['sistema'] = sistema
     residuos = [float(np.mean(candidato.predecir(_grafo_de_muestra(m))['residuo'])) for m in evaluacion]
     dorados_m = [m for m, i in zip(muestras, ids, strict=True) if i in set(dorados)]
     error_dorados = mae(candidato, dorados_m) if dorados_m else None

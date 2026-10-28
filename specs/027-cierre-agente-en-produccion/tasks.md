@@ -236,3 +236,11 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       (40 fijas y 1 del operador), bajo las puertas de 0,98 y 0,95: RF-18 no se cumple. El modelo en
       uso falla con confianza alta en algunas («que tengo cargado ahora» → cargar la fuente, 1,00;
       «obras del pide de …» → pide, 0,99). Se reabre T11.
+- [x] T28. Gemelo entrenado con un sistema entero y curva inestable. (RF-68, RF-69)
+      Hecho cuando: pruebas en verde y el gemelo de Chincha entrenado con sus 52/10/10, con su
+      error en sus 10 de prueba.
+      Hecho el 2026-10-28: `oraculo.entrenar(sistema=…)` y `--sistema RED`; curva con `inestable`.
+      Chincha entero (red 2a5bc4f3e4ee, 4944 nodos): 70 escenarios simulados en DIgSILENT, 52/10/10;
+      el gemelo se aparta 0,0024 p.u. en sus 10 episodios de prueba y queda promovido
+      (20261028-114528-e6f5). Antes, con «un sistema fuera», el modelo de IN111–TA225 daba 0,31 p.u.
+      en Chincha.
