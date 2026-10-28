@@ -3806,6 +3806,7 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
                       'diagnóstico del año 00 (RF-51)')
     plan = {'project': project, 'folder': carpeta_pf(), 'feeders': feeders, 'case': 'sin_proyecto',
             'tasa': tasa if tasa is not None else 0.0, 'anios': anios,
+            'casos_por_anio': True,                                            # 030:RF-1, RF-2
             **({'tasa_por_alimentador': {a: c['tasa'] for a, c in crecimiento.items() if c.get('tasa') is not None}}
                if crecimiento else {}),
             'limites': {'tension_min_pu': limites.tension_min_pu, 'tension_max_pu': limites.tension_max_pu,

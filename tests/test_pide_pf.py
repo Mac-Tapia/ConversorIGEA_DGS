@@ -83,3 +83,42 @@ def test_tasa_por_alimentador_y_cargas_restituidas(guion):
     assert ultimo['F1'] == [pytest.approx(0.8 * 1.1 ** 4)] * 3 and ultimo['F2'] == [1.0] * 3
     assert all(c.scale0 == pytest.approx(0.8) for c in elms['F1'].GetObjs('ElmLod'))
     assert app.ldf.scLoadFac == 100.0 and informe['tasa_por_alimentador'] == {'F1': 0.10, 'F2': 0.0}
+
+
+def test_anios_en_carpetas_con_sus_casos_y_escenarios(guion, monkeypatch):
+    """030:RF-1 / 030:RF-2 / 030:RF-3 / 030:RF-4 / 030:RF-5 / 030:RF-6 / 030:RF-7 / 030:RF-8 —
+    «PIDE/Año NN» con «Sin proyecto» y «Con proyecto» copiados (sin «Cargas nuevas», que no hay),
+    cada uno con su escenario y la demanda del año; renovar no duplica y los casos del proyecto
+    quedan como estaban."""
+    casos_pf = cargar_herramienta('casos_pf.py', tools_en_path=True)
+    monkeypatch.setattr(casos_pf, 'activar_proyecto', lambda app, ruta, carpeta=None: app.proyecto)
+    app = fake_pf.proyecto(alimentadores=('F1', 'F2'), cargas_por_alim=2, bt=True, flujo=True, escenario=True)
+    object.__setattr__(app.ldf, 'scLoadFac', 100.0)
+    base = {'variaciones': [], 'feeders': ['F1', 'F2'], 'ajustes': [], 'excluidos': []}
+    plan_casos = {'project': 'P', 'folder': None, 'feeders': ['F1', 'F2'], 'base': base, 'caso_base_sin_verificar': {}}
+    assert casos_pf.preparar_sin(app, plan_casos)[1] == 0 and casos_pf.preparar_con(app, plan_casos)[1] == 0
+    sin = next(c for c in app.carpetas['study'].GetContents('*.IntCase') if c.loc_name == 'Sin proyecto')
+    sin.Activate()
+    elms = {f.loc_name: f for f in app.proyecto.GetContents('*.ElmFeeder', 1)}
+    antes = [c.scale0 for c in elms['F1'].GetObjs('ElmLod')]
+    plan = _plan(feeders=['F1', 'F2'], anios=[0, 4], casos_por_anio=True, tasa_por_alimentador={'F1': 0.10})
+    for _ in range(2):                                                    # RF-5: dos corridas
+        informe, rc = guion.ejecutar(app, plan)
+        assert rc == 0, informe
+    carpeta = next(x for x in app.carpetas['study'].GetContents('*.IntFolder') if x.loc_name == 'PIDE')
+    anios = {x.loc_name: x for x in carpeta.GetContents('*.IntFolder')}
+    assert set(anios) == {'Año 00', 'Año 04'}
+    assert sorted(c.loc_name for c in anios['Año 04'].GetContents('*.IntCase')) == ['Con proyecto', 'Sin proyecto']
+    esc = next(x for x in app.carpetas['scen'].GetContents('*.IntFolder') if x.loc_name == 'PIDE')
+    assert sorted(e.loc_name for e in next(x for x in esc.GetContents('*.IntFolder') if x.loc_name == 'Año 04')
+                  .GetContents('*.IntScenario')) == ['Con proyecto', 'Sin proyecto']
+    assert informe['anios'][1]['casos']['sin'] == {'caso': 'PIDE/Año 04/Sin proyecto',
+                                                  'escenario': 'PIDE/Año 04/Sin proyecto'}
+    assert casos_pf.rol_de(anios['Año 04'].GetContents('*.IntCase')[0]).startswith('pide_04_')
+    assert app.GetActiveStudyCase() is sin
+    assert [c.scale0 for c in elms['F1'].GetObjs('ElmLod')] == pytest.approx(antes)
+    assert len(casos_pf.casos_del_proyecto(app)) == 3, 'los casos del proyecto siguen siendo los suyos'
+    # La demanda del año 04 se escribió en el escenario del año, no en el del proyecto.
+    esc_04 = {id(e) for x in esc.GetContents('*.IntFolder') if x.loc_name == 'Año 04' for e in x.GetContents('*.IntScenario')}
+    escritas = [(v, id(s)) for o, attr, v, _etapa, s in app.escrituras if attr == 'scale0' and s is not None]
+    assert any(v == pytest.approx(1.1 ** 4) and s in esc_04 for v, s in escritas)
