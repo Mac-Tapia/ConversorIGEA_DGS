@@ -973,6 +973,37 @@ def deriva(bufer: BuferEpisodios, nuevos: Sequence[str], puertas: Puertas | None
     return error is not None and error > 2 * puertas.mae_v_max
 
 
+def deriva_por_familia(bufer: BuferEpisodios, *, minimo: int = 10, fraccion: float = 0.2) -> dict[str, Any]:
+    """Por familia, los episodios que el modelo en uso no vio y cuántos están fuera de su
+    dominio (027:RF-22); propone reentrenar si una familia sale del dominio, trae al menos
+    ``minimo`` episodios nuevos o un ``fraccion`` más que los suyos de entrenamiento (RF-23)."""
+    muestras, ids = _muestras(bufer, Consulta())
+    actual = cargar(bufer)
+    vistos: set[str] = set()
+    if actual is not None:
+        meta = json.loads((_raiz_modelos(bufer) / actual.version / 'modelo.json').read_text(encoding='utf-8'))
+        vistos = set(meta.get('episodios') or [])
+    familias: dict[str, dict[str, int]] = {}
+    for m, i in zip(muestras, ids, strict=True):
+        f = familias.setdefault(m.familia or '—', {'entrenamiento': 0, 'nuevos': 0, 'fuera_de_dominio': 0})
+        if i in vistos:
+            f['entrenamiento'] += 1
+            continue
+        f['nuevos'] += 1
+        if actual is not None and actual.fuera_de_dominio(m):
+            f['fuera_de_dominio'] += 1
+    motivos = []
+    for nombre, f in sorted(familias.items()):
+        if f['fuera_de_dominio']:
+            motivos.append(f"{nombre}: {f['fuera_de_dominio']} episodio(s) fuera del dominio del modelo")
+        elif f['nuevos'] >= minimo:
+            motivos.append(f"{nombre}: {f['nuevos']} episodios nuevos")
+        elif f['nuevos'] and f['entrenamiento'] and f['nuevos'] >= fraccion * f['entrenamiento']:
+            motivos.append(f"{nombre}: {f['nuevos']} nuevos, más del {fraccion:.0%} de sus {f['entrenamiento']}")
+    return {'modelo': actual.version if actual else None, 'familias': familias,
+            'proponer_reentrenar': bool(motivos), 'motivos': motivos}
+
+
 def entrenar_si_toca(bufer: BuferEpisodios, *, minimo: int = 10,
                      log: Callable[[str], None] = lambda _m: None) -> dict[str, Any]:
     """Reentrena solo cuando hay episodios nuevos que el modelo en uso no vio (RF-39), o

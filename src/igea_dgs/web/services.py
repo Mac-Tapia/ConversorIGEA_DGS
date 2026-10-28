@@ -5659,6 +5659,43 @@ def gemelo_evaluar(ws: Workspace, ctx: JobContext) -> dict:
     return {'modelo': r.get('modelo'), 'por_particion': r.get('por_particion'), 'informe': report.name}
 
 
+def gemelo_deriva(ws: Workspace, ctx: JobContext) -> dict:
+    """Deriva por familia y propuesta de reentrenar (027:RF-22, RF-23), en otro proceso."""
+    import sys
+
+    from ..digital_twin.buffer import raiz_buffer
+
+    report = ws.out_dir / f'gemelo_deriva_{uuid.uuid4().hex[:8]}.json'
+    report.parent.mkdir(parents=True, exist_ok=True)
+    rc = ctx.run_process([sys.executable, str(_script('digital_twin_entrenar.py')), '--deriva',
+                          '--output-json', str(report), '--raiz', str(raiz_buffer())], cwd=str(project_root()))
+    try:
+        r = json.loads(report.read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        raise UserError(f'La revisión de la deriva terminó con el código {rc} sin informe.') from None
+    for m in r.get('motivos') or []:
+        ctx.log(f'Gemelo: {m}')
+    return r
+
+
+def volver_al_modelo_anterior(modelo: str) -> dict:
+    """Vuelve al modelo promovido antes del actual con una sola orden (027:RF-24)."""
+    if modelo == 'gemelo':
+        from ..digital_twin.buffer import BuferEpisodios, raiz_buffer
+        from ..digital_twin.oraculo import volver_al_anterior
+
+        version = volver_al_anterior(BuferEpisodios(raiz_buffer()))
+    elif modelo == 'asistente':
+        from ..asistente.transformer import volver_al_anterior
+
+        version = volver_al_anterior()
+    else:
+        raise UserError('El modelo es «gemelo» o «asistente».')
+    if version is None:
+        raise UserError(f'El {modelo} no tiene un modelo anterior al que volver.')
+    return {'modelo': modelo, 'version': version}
+
+
 def asistente_vocabulario(ws: Workspace) -> dict[str, list[str]]:
     """Lo que existe y contra lo que se contrastan los datos de una orden (026:RF-6)."""
     vocab: dict[str, list[str]] = {

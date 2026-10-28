@@ -1456,6 +1456,17 @@ def create_app(
         ws = ws_or_404(wid)
         return submit(ws, 'gemelo_evaluar', 'Gemelo · evaluar', lambda ctx: services.gemelo_evaluar(ws, ctx))
 
+    @app.post('/api/workspaces/{wid}/digital-twin/deriva', status_code=202)
+    def gemelo_deriva(wid: str) -> dict:
+        """027:RF-22, RF-23: deriva por familia y si conviene reentrenar."""
+        ws = ws_or_404(wid)
+        return submit(ws, 'gemelo_deriva', 'Gemelo · revisar la deriva', lambda ctx: services.gemelo_deriva(ws, ctx))
+
+    @app.post('/api/modelos/{modelo}/volver')
+    def volver_al_modelo_anterior(modelo: str) -> dict:
+        """027:RF-24: volver al modelo anterior del gemelo o del asistente."""
+        return services.volver_al_modelo_anterior(modelo)
+
     # ------------------------------------------------------------ asistente (spec 026)
     def _asistente_job(ws: Workspace, plan_id: str, request: Request) -> dict:
         base = str(request.base_url).rstrip('/')

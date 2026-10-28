@@ -302,6 +302,10 @@ export const api = {
     request<Record<string, unknown>>(`${ws(id)}/pide/decision`, json('POST', body)),
   gemeloAprender: (id: string, body: { project: string; feeders: string[]; n: number }) =>
     request<Job>(`${ws(id)}/digital-twin/aprender`, json('POST', body)),
+  // 027:RF-22 a RF-24: deriva por familia y vuelta al modelo anterior.
+  gemeloDeriva: (id: string) => request<Job>(`${ws(id)}/digital-twin/deriva`, { method: 'POST' }),
+  volverModelo: (modelo: 'gemelo' | 'asistente') =>
+    request<{ modelo: string; version: string }>(`/api/modelos/${modelo}/volver`, { method: 'POST' }),
   gemeloEpisodios: (id: string, filtros: { proyecto?: string; caso?: string; clase?: string }) =>
     request<EpisodioResumen[]>(`${ws(id)}/digital-twin/episodes?${new URLSearchParams(
       Object.entries(filtros).filter(([, v]) => v) as [string, string][])}`),

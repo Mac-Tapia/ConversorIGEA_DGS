@@ -66,6 +66,11 @@ export function GemeloPIDE({ project, feeders }: { project: string; feeders: str
         <button className="btn btn-pf" disabled={pfBusy || !project}
           onClick={() => startJob(() => api.gemeloAprender(ws.id, { project, feeders, n }))}>Aprender</button>
         <button className="btn btn-ghost btn-sm" onClick={() => void cargarEpisodios()}>Actualizar</button>
+        <button className="btn btn-ghost btn-sm"
+          title="Episodios nuevos y fuera del dominio del modelo por familia, y si conviene reentrenar"
+          onClick={() => startJob(() => api.gemeloDeriva(ws.id))}>Revisar deriva</button>
+        <button className="btn btn-ghost btn-sm" title="Deja en uso el modelo del gemelo promovido antes del actual"
+          onClick={() => void run(() => api.volverModelo('gemelo'))}>Volver al modelo anterior</button>
       </div>
       {episodios.length > 0 && (
         <div className="table-wrap table-short">

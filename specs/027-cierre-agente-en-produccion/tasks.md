@@ -91,8 +91,12 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
 - [ ] T11. (Condicional) LoRA/QLoRA local si T9 no pasa las puertas. (RF-21)
       Hecho cuando: el modelo ajustado pasa RF-18 con el conjunto real, o la tarea se cierra
       con la medida de que no hace falta.
-- [ ] T12. Deriva, propuesta de reentrenamiento y vuelta atrás desde la web. (RF-22 a RF-24)
+- [x] T12. Deriva, propuesta de reentrenamiento y vuelta atrás desde la web. (RF-22 a RF-24)
       Hecho cuando: pruebas de API en verde y botón en la web compilada.
+      Hecho el 2026-10-28: `oraculo.deriva_por_familia` (nuevos y fuera de dominio por familia;
+      propone con fuera de dominio, ≥ 10 nuevos o un 20 % más), `--deriva` en la herramienta, ruta
+      `POST …/digital-twin/deriva` y `POST /api/modelos/{gemelo|asistente}/volver`; botones «Revisar
+      deriva» y «Volver al modelo anterior» en 5.2.
 - [ ] T13. Carril `engine` en un proceso trabajador con límite de memoria. (RF-25 a RF-27)
       Hecho cuando: `/api/health` < 1 s durante la búsqueda de la máxima de Chincha y un
       trabajo que supera el límite se detiene sin tumbar la API.
