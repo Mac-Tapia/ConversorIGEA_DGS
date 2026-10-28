@@ -214,6 +214,23 @@ def correr(web: Web, zonal: str, *, demanda_dir: Path, periodo: str | None,
     # 022:RF-88: dónde está cada central del libro, con la propuesta del perfil, como la ve
     # el operador en la web (la de Nasca en el tramo de NA205; CT_PEDREG en su barra).
     centrales = web.get('/demanda/centrales').get('centrales') or []
+    # 021:RF-25, RF-33: la central de un alimentador del sistema (la de Nasca en NA205), con sus
+    # tres medidores y su barra, del perfil: sin ella NA205 se calibraba con su cabecera, que
+    # es la demanda menos la generación (usuario, 2026-10-28).
+    from igea_dgs.perfil_empresa import PerfilError, centrales_termicas, datos_perfil
+
+    try:
+        del_perfil = {a: c for a, c in centrales_termicas(datos_perfil()).items()
+                      if a.upper() in {x.upper() for x in sistema['alimentadores']} and c.get('nodo')}
+    except PerfilError:
+        del_perfil = {}
+    ya = {p['medidor'] for p in pares}
+    for a, c in del_perfil.items():
+        for m in (c['generacion'], c['llegada'], c['salida']):
+            if m not in ya:
+                pares.append({'alimentador': f'Central {a}', 'medidor': m})
+        print(f"  central de {a} en la barra {c['nodo']}: {c['generacion']}, {c['llegada']}, {c['salida']}",
+              flush=True)
     del_sistema = {a.upper() for a in sistema['alimentadores']}
     tramo = {c['medidor']: c['tramo'] for c in centrales
              if c.get('tramo') and c['tramo'].upper() in del_sistema}
@@ -270,7 +287,8 @@ def correr(web: Web, zonal: str, *, demanda_dir: Path, periodo: str | None,
     web.esperar(web.post('/powerfactory/projects'))
     plan = web.post('/demanda/ajuste/plan', json={
         'project': proyecto, 'job_id': maxima['id'], 'medidores': medidores,
-        'completar_bancos': bancos, 'tension_fuente_pu': tension_pu})
+        'completar_bancos': bancos, 'tension_fuente_pu': tension_pu,
+        'centrales': del_perfil})
     for aviso in plan.get('avisos', []):
         if 'RF-62' not in aviso:              # las fijas compensadas, una por cliente
             print(f'  aviso: {aviso}', flush=True)
