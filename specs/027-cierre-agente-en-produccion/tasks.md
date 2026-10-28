@@ -47,6 +47,17 @@ Estado: borrador del 2026-10-28, pendiente de aprobación. Una tarea cada vez, p
 - [ ] T13. Carril `engine` en un proceso trabajador con límite de memoria. (RF-25 a RF-27)
       Hecho cuando: `/api/health` < 1 s durante la búsqueda de la máxima de Chincha y un
       trabajo que supera el límite se detiene sin tumbar la API.
+- [ ] T15. Señal de cada orden (confirmada, corregida, rechazada, fallida) y pares de
+      preferencia. (RF-35, RF-36)
+      Hecho cuando: pruebas del almacén en verde; la web muestra recompensas y penalizaciones
+      acumuladas por tarea.
+- [ ] T16. Memoria de reflexiones y ejemplos parecidos para Ollama. (RF-37, RF-39)
+      Hecho cuando: una orden que falló una vez lleva su nota la siguiente vez (prueba con un
+      fallo forzado).
+- [ ] T17. Umbrales por tarea calibrados con órdenes reales y decisión por impacto. (RF-38, RF-40)
+      Hecho cuando: tasa de error empírica ≤ la fijada en el conjunto real de prueba.
+- [ ] T18. Citas comprobadas y medición de consultas. (RF-41, RF-42)
+      Hecho cuando: prueba con una cita falsa sustituida; informe con preguntas reales.
 - [ ] T14. Aceptación: todos los sistemas desde la web con el asistente, gemelo con dos o más
       familias de prueba y asistente con RF-18. (RF-28)
       Hecho cuando: informe con Nasca, Chincha, Pisco e Ica válidos en DIgSILENT y las métricas
