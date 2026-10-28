@@ -1897,6 +1897,18 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
     if sin is not None:
         sin.Activate()
         informe['caso'] = nombre_caso('sin', anio)
+    if not plan.get('central'):
+        # 028:RF-18: un generador del operador sin central declarada se calibra tal como está.
+        from igea_dgs.escaneo import CLASES_GENERADOR, origen_de
+
+        propios = [g for c in CLASES_GENERADOR for g in alims.objetos(feeder, c)
+                   if not int(getattr(g, 'outserv', 0) or 0) and origen_de(g.loc_name)['origen'] == 'operador']
+        if propios:
+            informe['generadores_del_operador'] = [
+                {'generador': g.loc_name, 'p_kw': 1000.0 * float(getattr(g, 'pgini', 0.0) or 0.0)} for g in propios]
+            informe['avisos'].append(
+                f"{feeder}: se calibra con {', '.join(g.loc_name for g in propios)} tal como está en la red; "
+                'la cabecera medida es la demanda menos su generación (028:RF-18).')
     con = caso_del_sistema(app, 'con', anio)
     escenario = app.GetActiveScenario()
     if escenario is None and not simular:

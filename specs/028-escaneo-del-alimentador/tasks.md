@@ -24,3 +24,8 @@ cuando el usuario ponga a mano la central de NA205.
       Pendiente (usuario, 2026-10-28: «no puedo modificar el DIgSILENT a mano, deja pendiente de
       central térmica a mano»): la central de NA205 no está aún en el proyecto. El escaneo en
       DIgSILENT ya corre (Nasca: 8 bancos de calibración en NA205 y 7 en NA203, ningún generador).
+- [ ] T7. Recalibrar sin bloqueos: escaneo automático al simular y aplicar, tramos nuevos frente al
+      DGS aceptado, generador del operador sin central y central sin barra que no detiene.
+      (RF-16 a RF-20)
+      Hecho cuando: pruebas con `fake_pf` y de la web en verde, y el escaneo de Chincha en
+      DIgSILENT con sus tramos nuevos.

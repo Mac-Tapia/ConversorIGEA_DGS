@@ -8,8 +8,9 @@ central y los bancos de NA205; con esto la web los ve y la calibración usa su b
 
     python tools/escanear_alimentador_pf.py --plan plan.json --output-json escaneo.json
 
-El plan: ``project``, ``folder``, ``feeders``, ``anio_casos`` (opcional) y
-``ultima_calibracion`` por alimentador (opcional, 014:RF-10).
+El plan: ``project``, ``folder``, ``feeders``, ``anio_casos`` (opcional),
+``ultima_calibracion`` por alimentador (opcional, 014:RF-10) y ``tramos_dgs``, los tramos del
+DGS aceptado, para decir cuáles son nuevos (RF-17).
 
 Códigos de salida: 0 bien, 1 error inesperado, 2 proyecto que no existe, 3 API de
 PowerFactory no disponible.
@@ -64,6 +65,23 @@ def _generadores(alims, feeder: str, de_objeto: dict) -> list[dict]:
     return sorted(filas, key=lambda x: (str(x['barra']), x['generador']))
 
 
+def _tramos_nuevos(alims, feeder: str, de_dgs: set[str], de_objeto: dict) -> list[dict]:
+    """RF-17: los tramos del alimentador que no venían en el DGS aceptado."""
+    from cargas_pf import _num
+
+    filas = []
+    for ln in alims.objetos(feeder, 'ElmLne'):
+        if ln.loc_name in de_dgs:
+            continue
+        lados = [getattr(getattr(ln, f'bus{k}', None), 'cterm', None) for k in (1, 2)]
+        variacion = de_objeto.get(('ElmLne', ln.loc_name))
+        filas.append({'tramo': ln.loc_name, 'desde': getattr(lados[0], 'loc_name', None),
+                      'hasta': getattr(lados[1], 'loc_name', None), 'km': _num(ln, 'dline'),
+                      'en_servicio': not int(getattr(ln, 'outserv', 0) or 0), 'variacion': variacion,
+                      **origen_de(ln.loc_name, variacion)})
+    return sorted(filas, key=lambda x: x['tramo'])
+
+
 def ejecutar(app, plan: dict) -> tuple[dict, int]:
     """El escaneo de los alimentadores del plan. Devuelve (informe, código)."""
     from ajuste_cabecera_pf import bancos_instalados, cambios_manuales, cargas_sed
@@ -92,6 +110,7 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
     informe['variaciones'], de_objeto = _variaciones(app)
     alims = Alimentadores(app, proyecto, feeders)
     ultimas = plan.get('ultima_calibracion') or {}
+    de_dgs = set(plan.get('tramos_dgs') or [])
     for f in feeders:
         if f not in alims.elm:                                              # RF-8
             informe['alimentadores'][f] = {'error': f'el alimentador {f} no está en el proyecto'}
@@ -102,7 +121,9 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
             cargas, _sin = cargas_sed(alims, f)
             cambiadas, _nombre = cambios_manuales(cargas, ultimas.get(f))
             informe['alimentadores'][f] = {'generadores': _generadores(alims, f, de_objeto),
-                                           'bancos': bancos, 'cargas_cambiadas': cambiadas}
+                                           'bancos': bancos, 'cargas_cambiadas': cambiadas,
+                                           'tramos_nuevos': _tramos_nuevos(alims, f, de_dgs, de_objeto)
+                                           if de_dgs else []}
         except Exception as exc:  # noqa: BLE001 - un alimentador no tumba el escaneo (RF-8)
             informe['alimentadores'][f] = {'error': f'{type(exc).__name__}: {exc}'}
     return informe, 0
@@ -134,7 +155,8 @@ def main(argv=None) -> int:
             print(f"  {f}: {d['error']}", flush=True)
         else:
             print(f"  {f}: {len(d['generadores'])} generador(es), {len(d['bancos'])} banco(s), "
-                  f"{len(d['cargas_cambiadas'])} carga(s) cambiada(s)", flush=True)
+                  f"{len(d['cargas_cambiadas'])} carga(s) cambiada(s), "
+                  f"{len(d.get('tramos_nuevos') or [])} tramo(s) nuevo(s)", flush=True)
     print(f"Escaneo de {plan.get('project')}: código {codigo}")
     return codigo
 

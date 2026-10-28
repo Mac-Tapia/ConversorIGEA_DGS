@@ -9,6 +9,7 @@ nombre de empresa, central o alimentador esté escrito en el código.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from pathlib import Path
 from typing import Any
 
 #: Prefijos de lo que crea el conversor, con quién lo crea (specs 004, 006, 007, 011, 016, 021, 022).
@@ -49,7 +50,8 @@ def resumen(escaneo: Mapping[str, Any]) -> dict[str, dict[str, int]]:
                   'bancos': len(bancos),
                   'bancos_del_operador': sum(b.get('origen') == 'operador' for b in bancos),
                   'bancos_de_calibracion': sum(b.get('origen') == 'conversor' for b in bancos),
-                  'cargas_cambiadas': len(d.get('cargas_cambiadas') or [])}
+                  'cargas_cambiadas': len(d.get('cargas_cambiadas') or []),
+                  'tramos_nuevos': len(d.get('tramos_nuevos') or [])}
     return out
 
 
@@ -70,3 +72,22 @@ def nodo_de_central(escaneo: Mapping[str, Any] | None, alimentador: str) -> str 
             return None
     return None
 
+
+
+def tramos_del_dgs(ruta: Path | str) -> set[str]:
+    """Los ``loc_name`` de los tramos (``ElmLne``) de un DGS: los que venían en el aceptado, para
+    saber cuáles son nuevos (RF-17)."""
+    from .dgs import DGS_ENCODING
+
+    nombres: set[str] = set()
+    dentro = False
+    with open(ruta, encoding=DGS_ENCODING, errors='replace') as f:
+        for linea in f:
+            if linea.startswith('$$'):
+                dentro = linea.startswith('$$ElmLne;')
+                continue
+            if dentro and linea.strip() and not linea.startswith('*'):
+                campos = linea.strip().split(';')
+                if len(campos) > 2:
+                    nombres.add(campos[2])
+    return nombres

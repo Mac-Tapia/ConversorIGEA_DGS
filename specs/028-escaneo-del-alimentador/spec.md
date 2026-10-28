@@ -61,6 +61,22 @@ En la calibración
   alimentadores y usará la barra del generador encontrado para la central del perfil que no la
   traiga.
 
+Recalibrar sin bloqueos (usuario, 2026-10-28: «en el caso base se debe ejecutar tal como está;
+ahora en el Sin proyecto se calibra con datos máximos según la metodología con las instalaciones
+que están; en la recalibración ya debe observar, escanear los nuevos tramos, centrales térmicas,
+bancos y otros cambios; en base de eso debe recalibrar sin ningún bloqueo, solo se recalibra»)
+
+- RF-16: CUANDO se simule o aplique una calibración desde la web, EL SISTEMA escaneará antes sus
+  alimentadores sin que el operador lo pida, y si el escaneo falla lo dirá y calibrará igual.
+- RF-17: EL SISTEMA listará en el escaneo los tramos del alimentador que no venían en el DGS
+  aceptado del proyecto (tramos nuevos), con sus barras y su longitud.
+- RF-18: SI un alimentador tiene un generador en servicio que puso el operador y no tiene central
+  declarada, ENTONCES EL SISTEMA lo calibrará con el generador tal como está (su P y Q en el
+  flujo, la cabecera medida es la demanda menos su generación) y lo dirá, sin pedir medidores.
+- RF-19: SI una central declarada no tiene barra ni generador en el escaneo, ENTONCES EL SISTEMA
+  calibrará el alimentador sin ella y lo dirá, sin detener el plan.
+- RF-20: EL SISTEMA no tocará el «Caso base» al recalibrar: se ejecuta tal como está (015:RF-19).
+
 ## Fuera de alcance
 
 - Crear centrales o bancos desde el escaneo: solo se leen; los crea el operador o la
