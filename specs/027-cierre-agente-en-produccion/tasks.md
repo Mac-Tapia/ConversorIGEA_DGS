@@ -151,9 +151,14 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       a 9 035: el artículo sale también del texto, y «diagnóstico»/«pérdida» con tilde no
       coincidían nunca en `clasificar_ruta`), 15 de 15 formatos con sus hojas y columnas, y las
       secciones del 4.1 (82) y del 4.2 (65); en `output/pide_dataset/PIDEELOR/ejemplos_agente.json`.
-- [ ] T21. Orquestador del proyecto desde cero, etapa por etapa, con puntos de control y
+- [x] T21. Orquestador del proyecto desde cero, etapa por etapa, con puntos de control y
       reanudación, por las rutas de la web. (RF-43, RF-44)
       Hecho cuando: prueba con `fake_pf` cortada a mitad y reanudada sin repetir etapas.
+      Hecho el 2026-10-28 (código): `asistente/orquestador.py`, `POST …/agente/proyecto` (carril
+      `asistente`) y «Proyecto desde cero» en la pestaña Asistente; punto de control en
+      `agente_proyecto.json` del espacio; prueba cortada en los estudios y retomada sin repetir la
+      fuente, el sistema ni el «Caso base». La corrida real desde cero con VNR-GIS es la de T14
+      (RF-55).
 - [ ] T22. PIDE completo con lo implementado y comparación de cada formato con el entregado.
       (RF-45, RF-49)
       Hecho cuando: F01 a F15 producidos para un sistema, con la fracción de campos coincidentes.

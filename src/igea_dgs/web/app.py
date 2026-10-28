@@ -442,6 +442,17 @@ class SelectionIn(BaseModel):
     nombre: str = ''
 
 
+class AgenteProyectoIn(BaseModel):
+    """027:RF-43: el proyecto desde cero de un sistema eléctrico."""
+
+    sistema: str = Field(min_length=1)
+    periodo: str = Field(pattern=r'^\d{4}(-\d{2})?$')
+    ruta: str | None = None
+    ruta_cargas: str | None = None
+    formulario: dict[str, Any] | None = None
+    reiniciar: bool = False
+
+
 class EscaneoIn(BaseModel):
     """Spec 028: alimentadores de un proyecto de DIgSILENT a escanear."""
 
@@ -1466,6 +1477,17 @@ def create_app(
     def volver_al_modelo_anterior(modelo: str) -> dict:
         """027:RF-24: volver al modelo anterior del gemelo o del asistente."""
         return services.volver_al_modelo_anterior(modelo)
+
+    # ------------------------------------------------------------ agente (spec 027, RF-43)
+    @app.post('/api/workspaces/{wid}/agente/proyecto', status_code=202)
+    def agente_proyecto(wid: str, body: AgenteProyectoIn, request: Request) -> dict:
+        ws = ws_or_404(wid)
+        base = str(request.base_url).rstrip('/')
+        datos = {k: v for k, v in body.model_dump().items() if k != 'reiniciar' and v not in (None, '', {})}
+        return submit(ws, 'agente_proyecto', f'Agente · proyecto desde cero · {body.sistema}',
+                      lambda ctx: services.agente_proyecto(ws, ctx, datos, base, getattr(app.state, 'asistente_http', None),
+                                                           reiniciar=body.reiniciar),
+                      lane='asistente')
 
     # ------------------------------------------------------------ asistente (spec 026)
     def _asistente_job(ws: Workspace, plan_id: str, request: Request) -> dict:

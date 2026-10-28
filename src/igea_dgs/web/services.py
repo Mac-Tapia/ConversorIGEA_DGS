@@ -5847,6 +5847,41 @@ def asistente_rechazar(ws: Workspace, plan_id: str) -> dict:
     return {'plan': plan.id, 'rechazado': True}
 
 
+def agente_proyecto(ws: Workspace, ctx: JobContext, datos: dict, base: str, http: Any = None,
+                    reiniciar: bool = False) -> dict:
+    """El proyecto entero desde el espacio, etapa por etapa y con su punto de control
+    (027:RF-43, RF-44): retoma donde se cortó, sin repetir lo hecho."""
+    import sys
+
+    from ..asistente.ejecutor import ClienteWeb, PasoFallido
+    from ..asistente.orquestador import PuntoDeControl, ejecutar_proyecto
+
+    ruta = ws.out_dir / 'agente_proyecto.json'
+    if reiniciar:
+        ruta.unlink(missing_ok=True)
+    if http is None:
+        import requests
+
+        http = requests.Session()
+
+    def proceso(tarea: str, d: dict) -> dict:
+        cmd = [sys.executable, str(_script('sistema_web.py')), '--espacio', ws.id, '--zonal', d['sistema'],
+               '--periodo', d['periodo']]
+        if d.get('ruta'):
+            cmd += ['--demanda-dir', d['ruta']]
+        rc = ctx.run_process(cmd, cwd=str(project_root()))
+        if rc not in (0, 1):
+            raise UserError(f'El sistema {d["sistema"]} no se pudo llevar hasta el final (código {rc}).')
+        return {'codigo': rc}
+
+    cliente = ClienteWeb(http, base.rstrip('/'), ws.id, cancelado=ctx.cancel.is_set)
+    try:
+        return ejecutar_proyecto(datos, cliente=cliente, control=PuntoDeControl.abrir(ruta), proceso=proceso,
+                                 log=ctx.log)
+    except (PasoFallido, ValueError, RuntimeError) as exc:
+        raise UserError(f'El agente paró; la próxima vez retoma desde aquí: {exc}') from exc
+
+
 def _asistente_proceso(ws: Workspace, ctx: JobContext, plan) -> dict:
     """Las tareas que son herramientas de tools/ (sistema completo, reentrenar el asistente)."""
     import sys

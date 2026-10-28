@@ -67,6 +67,43 @@ function Registro() {
   );
 }
 
+/** 027:RF-43, RF-44: el agente hace el proyecto entero; si se corta, retoma donde quedó. */
+function ProyectoDesdeCero() {
+  const { ws, startJob, active } = useApp();
+  const [sistema, setSistema] = useState('');
+  const [periodo, setPeriodo] = useState('');
+  const [ruta, setRuta] = useState('');
+  const [cargas, setCargas] = useState('');
+  const [reiniciar, setReiniciar] = useState(false);
+  const listo = sistema.trim() && /^\d{4}(-\d{2})?$/.test(periodo.trim());
+  return (
+    <details>
+      <summary className="small">Proyecto desde cero (el agente hace todas las etapas)</summary>
+      <div className="stack small">
+        <p className="muted">Cargar la fuente, convertir, importar y calibrar el sistema, verificar el «Caso base»,
+          cargas nuevas, obras, estudios, PIDE e informe. Cada etapa hecha queda guardada: si se corta, la siguiente
+          vez retoma desde la que falta.</p>
+        <div className="row">
+          <label className="field"><span>Sistema eléctrico</span>
+            <input value={sistema} placeholder="Pisco" onChange={(e) => setSistema(e.target.value)} /></label>
+          <label className="field"><span>Periodo</span>
+            <input value={periodo} placeholder="2026-07" onChange={(e) => setPeriodo(e.target.value)} /></label>
+          <label className="field"><span>Carpeta de la demanda</span>
+            <input value={ruta} placeholder="referencia" onChange={(e) => setRuta(e.target.value)} /></label>
+          <label className="field"><span>Libro de cargas nuevas (opcional)</span>
+            <input value={cargas} onChange={(e) => setCargas(e.target.value)} /></label>
+          <label className="row"><input type="checkbox" checked={reiniciar} onChange={(e) => setReiniciar(e.target.checked)} />
+            Empezar de nuevo</label>
+          <button className="btn btn-primary" disabled={!listo || Boolean(active.asistente)}
+            onClick={() => startJob(() => api.agenteProyecto(ws.id, { sistema: sistema.trim(), periodo: periodo.trim(),
+              ruta: ruta.trim() || undefined, ruta_cargas: cargas.trim() || undefined, reiniciar }))}>
+            Hacer el proyecto</button>
+        </div>
+      </div>
+    </details>
+  );
+}
+
 export function Asistente() {
   const { ws, run, startJob, jobs, active } = useApp();
   const [texto, setTexto] = useState('');
@@ -122,6 +159,7 @@ export function Asistente() {
           onClick={() => startJob(() => api.asistenteEntrenar(ws.id))}>Reentrenar</button>
       </div>
       <Registro />
+      <ProyectoDesdeCero />
       {[...historial].reverse().map((x, rev) => {
         const i = historial.length - 1 - rev;
         const plan = x.r.plan;
