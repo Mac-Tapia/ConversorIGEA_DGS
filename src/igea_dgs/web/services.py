@@ -4127,6 +4127,7 @@ def gemelo_temporal(ws: Workspace, ctx: JobContext, job_id: str, alimentadores: 
     """
     from ..digital_twin.temporal import (
         desviaciones,
+        elegido,
         instante_critico,
         metricas,
         modelo_temporal,
@@ -4146,10 +4147,8 @@ def gemelo_temporal(ws: Workspace, ctx: JobContext, job_id: str, alimentadores: 
     medidas = {a: [p[1] for p in c[:largo]] for a, c in series.items()}
     reproducidas, resultado = {}, {}
     for a, s in medidas.items():
-        modelo = modelo_temporal()
         corte = int(0.7 * len(s))
-        if hasattr(modelo, 'entrenar'):
-            modelo.entrenar(s[:corte])
+        modelo = elegido(modelo_temporal(), s[:corte])       # 027:RF-11
         r = modelo.reproducir(s)
         reproducidas[a] = r
         resultado[a] = {'modelo': modelo.nombre, **metricas(s[corte:], r[corte:])}

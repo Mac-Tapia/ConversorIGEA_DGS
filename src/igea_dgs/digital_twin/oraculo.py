@@ -399,20 +399,36 @@ class Entrenamiento:
     """Modelo de carga de la física, elegido con los datos (``elegir_exponente``)."""
     fisica: str = 'mallado'
     """Física de la base (``FISICAS``): los pesos solo valen sobre la base con que se entrenaron."""
+    paciencia: int = 60
+    """Épocas sin mejorar el error de validación antes de parar (027:RF-5): con 300 épocas fijas
+    el miembro seguía hasta el final aunque la validación ya no bajara."""
+    cada: int = 5
+    """Cada cuántas épocas se mide la validación."""
+    lr_min: float = 1e-5
+    """Tasa final del coseno (027:RF-6)."""
+    recorte: float = 1.0
+    """Norma máxima del gradiente (027:RF-6): con cargas grandes, el residuo físico daba saltos."""
 
 
 def entrenar_miembro(muestras: Sequence[Muestra], cfg: Entrenamiento, inicial: dict | None = None,
-                     log: Callable[[str], None] = lambda _m: None):
-    """Un miembro del conjunto: error frente a DIgSILENT + residuo físico (PINN)."""
+                     log: Callable[[str], None] = lambda _m: None, validacion: Sequence[Muestra] = (),
+                     historial: list | None = None):
+    """Un miembro del conjunto: error frente a DIgSILENT + residuo físico (PINN).
+
+    Con ``validacion``, para tras ``cfg.paciencia`` épocas sin mejorar y devuelve los pesos de
+    la mejor época (027:RF-5); ``historial`` recibe ``(época, mae de validación)``.
+    """
     torch = _torch()
     try:
-        return _entrenar_en(muestras, cfg, inicial, log, dispositivo())
+        return _entrenar_en(muestras, cfg, inicial, log, dispositivo(), validacion,
+                            historial if historial is not None else [])
     finally:
         torch.cuda.empty_cache()     # cada miembro devuelve la memoria de la GPU
 
 
 def _entrenar_en(muestras: Sequence[Muestra], cfg: Entrenamiento, inicial: dict | None,
-                 log: Callable[[str], None], disp):
+                 log: Callable[[str], None], disp, validacion: Sequence[Muestra] = (),
+                 historial: list | None = None):
     torch = _torch()
     torch.manual_seed(cfg.semilla)
     random.seed(cfg.semilla)
@@ -420,9 +436,15 @@ def _entrenar_en(muestras: Sequence[Muestra], cfg: Entrenamiento, inicial: dict 
     if inicial:
         red.load_state_dict(inicial)
     opt = torch.optim.Adam(red.parameters(), lr=cfg.lr)
+    plan = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=max(cfg.epocas, 1), eta_min=cfg.lr_min)
     datos = [(_fisica(m, disp, cfg.exponente_carga), *_tensores(m, disp, cfg.exponente_carga, cfg.fisica),
               torch.tensor(m.v, dtype=torch.float32, device=disp),
               torch.tensor(m.mascara, device=disp)) for m in muestras]
+    val = [(*_tensores(m, disp, cfg.exponente_carga, cfg.fisica),
+            torch.tensor(m.v, dtype=torch.float32, device=disp),
+            torch.tensor(m.mascara, device=disp)) for m in validacion]
+    historial = historial if historial is not None else []
+    mejor, mejor_estado, mejor_epoca = math.inf, None, -1
     for epoca in range(cfg.epocas):
         random.shuffle(datos)
         total = 0.0
@@ -431,11 +453,26 @@ def _entrenar_en(muestras: Sequence[Muestra], cfg: Entrenamiento, inicial: dict 
             perdida = ((vp - v)[mask] ** 2).mean() + cfg.peso_fisico * _residuo_torch(f, vp, th).mean()
             opt.zero_grad()
             perdida.backward()
+            torch.nn.utils.clip_grad_norm_(red.parameters(), cfg.recorte)
             opt.step()
             total += float(perdida.detach())
+        plan.step()
         if epoca % 100 == 0:
             log(f'  época {epoca}: pérdida {total / max(len(datos), 1):.3e}')
-    return {k: v.detach().cpu() for k, v in red.state_dict().items()}
+        if val and (epoca % cfg.cada == 0 or epoca == cfg.epocas - 1):
+            red.eval()
+            with torch.no_grad():
+                err = float(np.mean([float((red(x, ar, e)[0] - v)[mask].abs().mean()) for x, ar, e, v, mask in val]))
+            red.train()
+            historial.append((epoca, err))
+            if err < mejor - 1e-9:
+                mejor, mejor_epoca = err, epoca
+                mejor_estado = {k: v.detach().clone() for k, v in red.state_dict().items()}
+            elif epoca - mejor_epoca >= cfg.paciencia:
+                log(f'  parada temprana en la época {epoca}: la mejor fue la {mejor_epoca} ({mejor:.3e} p.u.)')
+                break
+    final = mejor_estado if mejor_estado is not None else red.state_dict()
+    return {k: v.detach().cpu() for k, v in final.items()}
 
 
 @dataclass
@@ -726,13 +763,15 @@ def entrenar(bufer: BuferEpisodios, *, consulta: Consulta | None = None, cfg: En
     dominio = {'x_min': x_all.min(axis=0).tolist(), 'x_max': x_all.max(axis=0).tolist(),
                'nodos': [min(len(m.ids) for m in grupos['entrenamiento']),
                          max(len(m.ids) for m in grupos['entrenamiento'])]}
-    estados = []
+    estados, curvas = [], []
     for k in range(MIEMBROS):
         inicial = actual.estados[k] if compatible and k < len(actual.estados) else None
         log(f'Gemelo: entrenando el miembro {k + 1} de {MIEMBROS} en {dispositivo()}…')
+        curvas.append([])
         estados.append(entrenar_miembro(grupos['entrenamiento'],
                                         Entrenamiento(**{**cfg.__dict__, 'semilla': cfg.semilla + k}),
-                                        inicial, log))
+                                        inicial, log, validacion=grupos['validacion'],
+                                        historial=curvas[-1]))
     candidato = OraculoPINN(estados, cfg, dominio)
     evaluacion = grupos['prueba'] or grupos['validacion'] or grupos['entrenamiento']
     error = mae(candidato, evaluacion)
@@ -742,7 +781,10 @@ def entrenar(bufer: BuferEpisodios, *, consulta: Consulta | None = None, cfg: En
     error_dorados_actual = mae(actual, dorados_m) if actual and dorados_m else None
     meta = {'consulta': consulta.__dict__, 'episodios': ids, 'mae_v': error,
             'residuo_medio': float(np.mean(residuos)), 'mae_dorados': error_dorados,
-            'particiones': {k: len(v) for k, v in grupos.items()}}
+            'particiones': {k: len(v) for k, v in grupos.items()},
+            # 027:RF-5: la mejor época de cada miembro y su curva de validación.
+            'validacion': [{'mejor_epoca': min(c, key=lambda x: x[1])[0] if c else None,
+                            'epocas': c[-1][0] + 1 if c else None, 'curva': c} for c in curvas]}
     carpeta = guardar(candidato, bufer, meta)
     fallos = fallos_de_particion(grupos)                                 # 027:RF-3
     if error is None or error > puertas.mae_v_max:

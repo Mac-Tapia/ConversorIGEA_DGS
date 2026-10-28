@@ -40,10 +40,14 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       (sin red de prueba o con menos de 10 episodios no se promueve); `entrenar` y `evaluar` lo usan.
 - [ ] T3. Escenarios por hipercubo latino del rango de carga medido, en copias del proyecto. (RF-4)
       Hecho cuando: pruebas de `escenarios.py` en verde y una corrida en DIgSILENT con Nasca.
-- [ ] T4. `Entrenamiento` con paciencia, coseno, recorte de gradiente y mejor época; GRU con
+- [x] T4. `Entrenamiento` con paciencia, coseno, recorte de gradiente y mejor época; GRU con
       validación temporal y sin caída a CPU. (RF-5, RF-6, RF-10, RF-11)
       Hecho cuando: `pytest -q tests/test_digital_twin_oraculo.py tests/test_digital_twin_temporal.py`
       en verde; sin CUDA, error claro.
+      Hecho el 2026-10-28: paciencia, `cada`, coseno (`lr_min`) y recorte en `Entrenamiento`; cada
+      miembro se valida con la partición de validación y vuelve a su mejor época, que queda con su
+      curva en `modelo.json`; la GRU valida con el último 20 % de la serie y `temporal.elegido` usa
+      el estacional si no lo mejora (la web también). Sin CUDA, `SinGPU` (sin caída a CPU).
 - [ ] T5. Manifiesto con commit, huellas, configuración, semilla y dispositivo; reproducción con
       diferencia < 10⁻⁵ p.u. (RF-8, RF-9)
       Hecho cuando: prueba de reproducibilidad en GPU en verde.
