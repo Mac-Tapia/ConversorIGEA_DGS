@@ -253,6 +253,18 @@ Compensación propia de los clientes fijos (cambio del 2026-10-15)
   (RF-54, RF-55), con un margen de 0,001, y SI alguna no lo tiene, ENTONCES no dará la
   calibración por válida y la nombrará. (Usuario, 2026-10-15: «debes asegurar que las cargas
   escaladas de las SED todas tengan un factor de potencia de 0,98».)
+- RF-68: CUANDO valida la calibración, EL SISTEMA dirá en el informe de cada alimentador
+  cuántas cargas son fijas y cuántas escaladas, cuántas escaladas llevan el factor de escala,
+  cuántas tienen potencia instalada y cuántas consumen en el flujo, con el factor común y el
+  nombre de cada escalada sin potencia instalada (RF-45). (Usuario, 2026-10-28: «todos los
+  trafos o SED no fijos deben ser escalados y participar en la distribución de carga».)
+- RF-69: SI la validación física no da la calibración por válida (RF-49, RF-67), ENTONCES EL
+  SISTEMA dejará grabado en «Sin proyecto» el reparto que cuadró, con cada SED no fija con su
+  parte y los ajustes del flujo con que convergió, sin volver a la demanda del archivo, y dirá
+  que no es válida y por qué. Antes se revertía y las SED escaladas quedaban en cero, que es lo
+  que trae el archivo (SL144 + SM117, 2026-10-28; usuario: «en cualquier alimentador todas las
+  SED no fijas se deben escalar y distribuir sus cargas, no debe haber ninguna SED con carga
+  cero»).
 
 ## Requisitos que esta spec cambia
 

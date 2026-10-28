@@ -42,3 +42,15 @@
   (RF-9, RF-10) y el front compilado con el botón (RF-9, RF-11).
 - `tests/test_ajuste_cabecera_pf.py` o la prueba de centrales existente para RF-13 y RF-14.
 - En DIgSILENT: escanear Nasca tras poner el usuario la central de NA205 a mano.
+
+## Continuación RF-24 y RF-25
+
+- `sistema_web.py --red COD [COD ...] [--grupo NOMBRE]`: convierte e importa un alimentador
+  o una red unida; con el proyecto registrado, recalibra sin reconvertir. Usa máximas
+  individuales, comprueba pertenencia y resultados de cada etapa antes del plan.
+- `sistema_del_proyecto(..., todos=True)` permite consultar los alimentadores de proyectos
+  individuales y unidos sin cambiar el alcance por defecto de los consumidores por sistema.
+- `recalibrar_datos` y `recalibrar_sistema` conservan los alimentadores del grupo registrado;
+  el botón los muestra y el subproceso recibe `--red` y `--grupo`.
+- `research.md` contiene el sustento académico y distingue escenarios de máximas propias
+  de una máxima coincidente. La aceptación nativa y los informes permanecen en T9.

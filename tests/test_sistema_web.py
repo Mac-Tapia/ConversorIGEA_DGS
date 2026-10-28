@@ -297,3 +297,110 @@ def test_no_espera_al_trabajo_que_lo_lanzo(herramienta, monkeypatch):
     web = WebFalsa(informes=[VALIDO])
     assert _correr(herramienta, web) == 0
     assert 'v' not in web.esperados
+
+
+class WebRed(WebFalsa):
+    def __init__(self, red, grupo, *, importado=False, fallo=None):
+        super().__init__(proyecto='P_RED' if importado else None, informes=[VALIDO])
+        self.red, self.grupo, self.fallo = red, grupo, fallo
+        self.enviados = {}
+
+    def get(self, ruta, **kw):
+        if ruta == '':
+            return {'loaded': True, 'jobs': [],
+                    'pf_projects': {self.grupo: self.proyecto} if self.proyecto else {}}
+        if ruta == '/demanda/sistema':
+            assert kw['params']['todos'] is True
+            return {'sistema': {'grupo': self.grupo, 'alimentadores': self.red,
+                                'medidores': {a: [f'L-{a}'] for a in self.red}}}
+        if ruta == '/demanda/centrales':
+            return {'centrales': []}
+        return super().get(ruta, **kw)
+
+    def post(self, ruta, **kw):
+        self.llamadas.append(('POST', ruta))
+        self.enviados[ruta] = kw.get('json')
+        if ruta == '/powerfactory/flow' and self.fallo != ruta:
+            self.proyecto = 'P_RED'
+        if ruta == '/demanda/ajuste/plan':
+            return {'token': 't'}
+        return {'id': ruta, 'title': ruta}
+
+    def esperar(self, trabajo):
+        ruta = trabajo['id']
+        if self.fallo == ruta:
+            return {'id': ruta, 'status': 'failed', 'error': 'fallo deliberado'}
+        if ruta == '/convert':
+            return {'status': 'done', 'result': (
+                {'status': 'ok'} if len(self.red) > 1 else
+                {'status': None, 'summary': {'status': 'completed', 'ok': 1, 'failed': 0, 'skipped': 0}})}
+        return super().esperar(trabajo)
+
+
+def _correr_red(herramienta, web, **kw):
+    return herramienta.correr(web, None, demanda_dir=Path('libros'), periodo='2026-07',
+                              reconvertir=False, transformadores=False, tension_pu=None,
+                              bancos=True, libros=LIBROS, red=web.red, **kw)
+
+
+@pytest.mark.parametrize('red,nombre,grupo', [
+    (['PI102'], None, 'PI102'),
+    (['PI102', 'PI101'], None, 'PI102_PI101'),
+    (['PI102', 'PI101'], ' Red Pisco / prueba ', 'Red_Pisco___prueba'),
+])
+def test_red_convierte_importa_y_usa_maximas_individuales(herramienta, red, nombre, grupo):
+    web = WebRed(red, grupo)
+    assert _correr_red(herramienta, web, grupo=nombre) == 0
+    assert web.enviados['/convert'] == {
+        'feeders': red, 'unir': len(red) > 1, 'nombre': grupo if len(red) > 1 else ''}
+    assert web.enviados['/powerfactory/flow'] == {'feeders': [grupo]}
+    assert web.enviados['/demanda/cabecera/buscar']['por_barra'] is False
+    assert ('POST', '/convert/sistema') not in web.llamadas
+
+
+def test_red_recalibra_sin_reconvertir(herramienta):
+    web = WebRed(['PI102', 'PI101'], 'RED', importado=True)
+    assert _correr_red(herramienta, web, grupo='RED') == 0
+    assert '/convert' not in web.enviados and '/powerfactory/flow' not in web.enviados
+
+
+@pytest.mark.parametrize('ruta', ['/convert', '/powerfactory/flow',
+                                  '/demanda/cabecera/indexar', '/demanda/clientes/indexar',
+                                  '/powerfactory/escanear', '/demanda/cabecera/buscar',
+                                  '/powerfactory/projects'])
+def test_red_no_calibra_si_falla_un_paso_previo(herramienta, ruta):
+    web = WebRed(['PI102'], 'PI102', fallo=ruta)
+    assert _correr_red(herramienta, web) == 2
+    assert '/demanda/ajuste/plan' not in web.enviados
+
+
+def test_red_reconstruir_se_rechaza_antes_de_convertir(herramienta):
+    web = WebRed(['PI102'], 'PI102')
+    assert _correr_red(herramienta, web, reconstruir=['PI102']) == 2
+    assert not web.enviados
+
+
+def test_sin_validacion_nativa_o_trabajo_fallido_no_es_exito(herramienta):
+    web = WebRed(['PI102'], 'PI102', fallo='/demanda/ajuste/t/aplicar')
+    assert _correr_red(herramienta, web) == 2
+    assert herramienta._resumen({'result': {'informes': [
+        {**VALIDO, 'validacion_posterior_nativa': {}}]}}) == (0, 1)
+
+
+@pytest.mark.parametrize('status,summary', [
+    ('completed', {'ok': 0, 'failed': 1, 'skipped': 0}),
+    ('completed', {'ok': 0, 'failed': 0, 'skipped': 1}),
+    ('cancelled', {'ok': 1, 'failed': 0, 'skipped': 0}),
+])
+def test_red_no_importa_conversion_individual_sin_resultado_util(herramienta, status, summary):
+    web = WebRed(['PI102'], 'PI102')
+    esperar = web.esperar
+
+    def resultado(trabajo):
+        if trabajo['id'] == '/convert':
+            return {'status': 'done', 'result': {'status': None, 'summary': {**summary, 'status': status}}}
+        return esperar(trabajo)
+
+    web.esperar = resultado
+    assert _correr_red(herramienta, web) == 2
+    assert '/powerfactory/flow' not in web.enviados

@@ -454,7 +454,7 @@ class AgenteProyectoIn(BaseModel):
 
 
 class RecalibrarIn(BaseModel):
-    """028:RF-21: recalibrar el sistema del proyecto ya importado."""
+    """028:RF-21, RF-24: recalibrar el sistema o los alimentadores del proyecto ya importado."""
 
     project: str = Field(min_length=1)
     periodo: str = Field(pattern=r'^\d{4}(-(0[1-9]|1[0-2]))?$')
@@ -1282,9 +1282,10 @@ def create_app(
         return services.demanda_medidores(ws_or_404(wid), alimentador)
 
     @app.get('/api/workspaces/{wid}/demanda/sistema')
-    def demanda_sistema(wid: str, project: str = Query(...)) -> dict:
-        # 022:RF-54: los alimentadores del sistema y sus medidores, para proponerlos todos.
-        return {'sistema': services.sistema_del_proyecto(ws_or_404(wid), project)}
+    def demanda_sistema(wid: str, project: str = Query(...), todos: bool = False) -> dict:
+        # 022:RF-54: los alimentadores del sistema y sus medidores, para proponerlos todos;
+        # 028:RF-24, con ``todos``, también los de un proyecto de uno o varios alimentadores.
+        return {'sistema': services.sistema_del_proyecto(ws_or_404(wid), project, todos=todos)}
 
     @app.get('/api/workspaces/{wid}/demanda/alimentadores')
     def demanda_alimentadores(wid: str) -> dict:
