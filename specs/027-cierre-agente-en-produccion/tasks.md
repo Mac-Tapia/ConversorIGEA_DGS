@@ -33,6 +33,8 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       Decisión del usuario (2026-10-28): las centrales y los bancos de NA205 los pone él a mano en
       DIgSILENT (cambio manual, que se respeta). `tools/sistema_web.py` pasa al plan la central del
       perfil solo si trae su `nodo`; el perfil local ya no lo trae.
+      Pendiente (usuario, 2026-10-28): la central de NA205 no se puede poner a mano; Nasca se
+      recalibra cuando esté en el proyecto (028:T6).
 - [x] T2. Particiones «un sistema fuera» y mínimo de episodios de prueba por familia. (RF-2, RF-3)
       Hecho cuando: `pytest -q tests/test_digital_twin_evaluacion.py` en verde con familias
       sorteadas; ningún sistema en entrenamiento y prueba a la vez.
