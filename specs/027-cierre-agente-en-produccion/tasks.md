@@ -30,6 +30,9 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       entre corridas (NA205 tiene 8: _1, _1_2, _1_3, _2 a _6). Corregir en tools/ajuste_cabecera_pf.py:
       partir de la base de las escaladas (kVA × FP, 015:RF-44) y no repetir bancos ya puestos
       (021:RF-64); después recalibrar Nasca y Chincha y cerrar T1.
+      Decisión del usuario (2026-10-28): las centrales y los bancos de NA205 los pone él a mano en
+      DIgSILENT (cambio manual, que se respeta). `tools/sistema_web.py` pasa al plan la central del
+      perfil solo si trae su `nodo`; el perfil local ya no lo trae.
 - [x] T2. Particiones «un sistema fuera» y mínimo de episodios de prueba por familia. (RF-2, RF-3)
       Hecho cuando: `pytest -q tests/test_digital_twin_evaluacion.py` en verde con familias
       sorteadas; ningún sistema en entrenamiento y prueba a la vez.
