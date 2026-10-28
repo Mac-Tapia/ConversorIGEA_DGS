@@ -16,6 +16,7 @@ Estado: borrador del 2026-10-28, pendiente de aprobación junto con la spec.
 | H. Optimización verificada | `digital_twin/evolutivo.py` (top-k), guion de DIgSILENT por `pf_arnes` (`tools/digital_twin_snapshot_pf.py`) | RF-14, RF-15, RF-16 |
 | I. Asistente con órdenes reales | `asistente/almacen.py`, `asistente/transformer.py` (`Puertas`), `asistente/ejecutor.py` (un reintento con el error) | RF-17 a RF-20 |
 | J. Ajuste LoRA/QLoRA (condicional) | `asistente/lora.py` (nuevo), `tools/asistente_lora.py` (nuevo) | RF-21 |
+| Q. Destilación maestro → alumno | `asistente/destilacion.py` (nuevo: votos del maestro, filtro por acuerdo, ejemplos blandos), `asistente/transformer.py` (pérdida α·CE + (1 − α)·T²·KL, comparación con y sin destilar), `asistente/ollama.py` (`interpretar` con temperatura y semilla), `tools/asistente_entrenar.py --destilar` | RF-56 a RF-62 |
 | K. Operación | `digital_twin/oraculo.deriva`, `asistente/vigilancia.py`, ruta de vuelta atrás en `web/app.py` | RF-22 a RF-24 |
 | L. Trabajador del motor | `web/jobs.py` (carril `engine` en un proceso aparte), `web/services.py` | RF-25 a RF-27 |
 | O. Recompensas, penalizaciones y decisión | `asistente/almacen.py` (señal y pares), `asistente/reflexiones.py` (nuevo), `asistente/interprete.py` (umbrales por tarea, ejemplos parecidos), `asistente/indice.responder` (citas comprobadas) | RF-35 a RF-42 |
