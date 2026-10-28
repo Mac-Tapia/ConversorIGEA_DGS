@@ -795,6 +795,82 @@ def leer_catalogo(
 TOLERANCIA_CAMBIO_REL = 1e-3
 
 
+def _con_homopolar(valores: dict[str, float], actual) -> dict[str, float]:
+    """``valores`` con la homopolar arrastrada desde la directa cuando hace falta.
+
+    La homopolar del catálogo CYMDIST es, en todos los tipos, copia exacta de la
+    directa. Si se corrige R1 y se deja R0 quieto, el resultado es R0 < R1, que con
+    retorno por tierra no puede darse: sería peor que el defecto de partida, porque un
+    valor imposible desconcierta más que uno consistente y erróneo. Mientras no haya
+    valor de ficha para la homopolar, la copia se mantiene. ``actual(atributo)`` da el
+    valor que tiene hoy el tipo, por atributo del modelo.
+    """
+    for directa, homopolar in (('r1_ohm_km', 'r0_ohm_km'), ('x1_ohm_km', 'x0_ohm_km')):
+        nuevo_directo = valores.get(directa)
+        if nuevo_directo is None or homopolar in valores:
+            continue
+        if math.isclose(actual(homopolar), actual(directa), rel_tol=TOLERANCIA_CAMBIO_REL):
+            valores[homopolar] = nuevo_directo
+    return valores
+
+
+#: Atributo del modelo → (atributo de ``TypLne``, factor a la unidad de DIgSILENT, unidad
+#: del informe). Sale de :data:`CARACTERISTICAS`; la corriente va en kA en ``sline``.
+_EN_PF = {atr: (pf, 1e-3 if pf == 'sline' else 1.0, unidad)
+          for atr, pf, unidad in CARACTERISTICAS.values()}
+
+
+def fichas_para_pf(correcciones: dict[str, CorreccionConductor]) -> dict[str, dict[str, Any]]:
+    """Las fichas del catálogo listas para el plan del ajuste de «Sin proyecto» (032:RF-14).
+
+    ``{codigo: {'valores': {atributo del modelo: valor}, 'fuente': texto}}``; el guion de
+    DIgSILENT las compara con cada ``TypLne`` con :func:`cambios_de_ficha`. Va en JSON, por
+    eso no lleva objetos.
+    """
+    return {c: {'valores': dict(corr.valores), 'fuente': corr.fuente}
+            for c, corr in sorted(correcciones.items()) if corr.aplica()}
+
+
+def cambios_de_ficha(codigo: str, actuales_pf: dict[str, float | None], ficha: dict[str, Any],
+                     *, tramos: int = 0, km: float = 0.0,
+                     ) -> tuple[dict[str, float], list[Cambio], list[str]]:
+    """Qué atributos de un ``TypLne`` cambia su ficha (032:RF-14, RF-16, RF-19).
+
+    ``actuales_pf`` son los valores del tipo en DIgSILENT, por atributo de ``TypLne``
+    (``rline``, ``sline`` en kA…). Devuelve los valores nuevos en unidades de DIgSILENT,
+    los cambios para el informe (corriente en A) y los rechazos: una ficha que da cero o
+    negativo donde el archivo tiene un valor positivo no se aplica, porque dejaría al
+    conductor sin impedancia o sin capacidad (RF-19).
+    """
+    def actual(atr: str) -> float:
+        pf, factor, _u = _EN_PF[atr]
+        return float(actuales_pf.get(pf) or 0.0) / factor
+
+    valores = _con_homopolar(dict(ficha.get('valores') or {}), actual)
+    nuevos: dict[str, float] = {}
+    cambios: list[Cambio] = []
+    rechazos: list[str] = []
+    for atr, valor in sorted(valores.items()):
+        if atr not in _EN_PF:
+            continue
+        valor = float(valor)
+        pf, factor, unidad = _EN_PF[atr]
+        antes = actual(atr)
+        if valor <= 0.0 and antes > 0.0:
+            rechazos.append(f'{codigo}: la ficha da {pf}={valor:g} {unidad} y el archivo '
+                            f'{antes:g} {unidad}; no se aplica (032:RF-19)')
+            continue
+        if math.isclose(valor, antes, rel_tol=TOLERANCIA_CAMBIO_REL):
+            continue
+        fuente = ficha.get('fuente') or ''
+        if atr not in (ficha.get('valores') or {}):
+            fuente += (' (arrastrado desde la secuencia directa: el catálogo tenía la '
+                       'homopolar como copia y no hay valor de ficha para ella)')
+        nuevos[pf] = valor * factor
+        cambios.append(Cambio(codigo, pf, unidad, antes, valor, tramos, km, fuente))
+    return nuevos, cambios, rechazos
+
+
 def aplicar_correcciones(
     model: Any, correcciones: dict[str, CorreccionConductor],
 ) -> list[Cambio]:
@@ -840,24 +916,8 @@ def aplicar_correcciones(
         corr = correcciones.get(tipo.code)
         if corr is None:
             continue
-        valores = dict(corr.valores)
-
-        # La homopolar del catálogo CYMDIST es, en todos los tipos, copia exacta de la
-        # directa. Si se corrige R1 y se deja R0 quieto, el resultado es R0 < R1, que
-        # con retorno por tierra no puede darse: sería peor que el defecto de partida,
-        # porque un valor imposible desconcierta más que uno consistente y erróneo.
-        # Mientras no haya valor de ficha para la homopolar, la copia se mantiene.
-        for directa, homopolar, etiqueta in (
-            ('r1_ohm_km', 'r0_ohm_km', 'rline0'),
-            ('x1_ohm_km', 'x0_ohm_km', 'xline0'),
-        ):
-            nuevo_directo = valores.get(directa)
-            if nuevo_directo is None or homopolar in valores:
-                continue
-            if math.isclose(float(getattr(tipo, homopolar, 0.0) or 0.0),
-                            float(getattr(tipo, directa, 0.0) or 0.0),
-                            rel_tol=TOLERANCIA_CAMBIO_REL):
-                valores[homopolar] = nuevo_directo
+        valores = _con_homopolar(dict(corr.valores),
+                                 lambda a, t=tipo: float(getattr(t, a, 0.0) or 0.0))
 
         nuevo = tipo
         for atributo, pf, unidad in CARACTERISTICAS.values():

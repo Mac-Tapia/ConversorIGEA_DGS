@@ -635,3 +635,61 @@ class TestFlujoDeConversion:
         assert texto.index('aplicar_reglas(model') < texto.index('write_dgs(model')
         reglas = (fuente.parent / 'reglas.py').read_text(encoding='utf-8')
         assert 'aplicar_correcciones(model' in reglas
+
+
+class TestFichasEnSinProyecto:
+    """Spec 032: la ficha ya no entra en el DGS; la aplica el ajuste de «Sin proyecto»."""
+
+    FICHA = {'valores': {'r1_ohm_km': 0.9, 'ampacity_a': 500.0}, 'fuente': 'ficha X'}
+    ACTUAL = {'rline': 0.31, 'xline': 0.39, 'rline0': 0.31, 'xline0': 0.39,
+              'bline': 2.9, 'sline': 0.25}
+
+    def test_fichas_para_el_plan(self):
+        """032:RF-14 — las fichas del catálogo van al plan por código, en JSON."""
+        from igea_dgs.catalog import fichas_para_pf
+
+        out = fichas_para_pf({
+            'AA': CorreccionConductor('AA', {'r1_ohm_km': 0.9}, fuente='f'),
+            'VACIO': CorreccionConductor('VACIO', {}, fuente='f')})
+        assert out == {'AA': {'valores': {'r1_ohm_km': 0.9}, 'fuente': 'f'}}
+
+    def test_cambios_en_unidades_de_digsilent_y_del_informe(self):
+        """032:RF-14, 032:RF-16 — R en Ω/km y corriente en kA para DIgSILENT; el informe la da en A,
+        con el valor del archivo, el de la ficha, tramos, km y fuente."""
+        from igea_dgs.catalog import cambios_de_ficha
+
+        nuevos, cambios, rechazos = cambios_de_ficha('AA', self.ACTUAL, self.FICHA,
+                                                     tramos=7, km=1.5)
+        assert rechazos == []
+        # La homopolar era copia de la directa: se arrastra con ella.
+        assert nuevos == pytest.approx({'rline': 0.9, 'rline0': 0.9, 'sline': 0.5})
+        por = {c.atributo_pf: c for c in cambios}
+        assert (por['sline'].antes, por['sline'].despues, por['sline'].unidad) == (250.0, 500.0, 'A')
+        assert por['rline'].variacion_pct == pytest.approx((0.9 - 0.31) / 0.31 * 100)
+        assert (por['rline'].tramos, por['rline'].km) == (7, 1.5)
+        assert por['rline'].fuente == 'ficha X' and 'arrastrado' in por['rline0'].fuente
+
+    def test_sin_diferencia_no_hay_cambio(self):
+        """032:RF-14 — solo cambian los parámetros que difieren del archivo."""
+        from igea_dgs.catalog import cambios_de_ficha
+
+        nuevos, cambios, _ = cambios_de_ficha(
+            'AA', self.ACTUAL, {'valores': {'r1_ohm_km': 0.31, 'ampacity_a': 250.0}})
+        assert nuevos == {} and cambios == []
+
+    def test_sin_ficha_no_cambia_nada(self):
+        """032:RF-18 — un código sin ficha deja los valores del archivo."""
+        from igea_dgs.catalog import cambios_de_ficha
+
+        assert cambios_de_ficha('AA', self.ACTUAL, {}) == ({}, [], [])
+
+    def test_valor_no_positivo_se_rechaza(self):
+        """032:RF-19 — una ficha con 0 donde el archivo tiene un valor positivo no se aplica y
+        se nombra el código y el parámetro."""
+        from igea_dgs.catalog import cambios_de_ficha
+
+        nuevos, _c, rechazos = cambios_de_ficha(
+            'AA', self.ACTUAL, {'valores': {'ampacity_a': 0.0, 'x1_ohm_km': 0.5}})
+        assert 'sline' not in nuevos and nuevos['xline'] == pytest.approx(0.5)
+        [motivo] = rechazos
+        assert 'AA' in motivo and 'sline' in motivo

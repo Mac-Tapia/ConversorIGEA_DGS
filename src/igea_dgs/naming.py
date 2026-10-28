@@ -104,3 +104,14 @@ def nombre_con_tension(base: str, kv: float) -> str:
     principio; cambiarlo alteraría los ``loc_name`` de los DGS ya importados.
     """
     return f'{base}_{kv:g}kV'.replace('.', '_')
+
+
+def codigo_de_tipo_linea(nombre: str) -> str:
+    """El código de conductor de un ``TypLne`` del DGS: ``AA12003D_22_9kV`` → ``AA12003D``.
+
+    Inverso de :func:`nombre_con_tension`, y sin el ``(1)`` que DIgSILENT añade a un nombre
+    repetido. Con él la calibración de «Sin proyecto» busca la ficha del conductor en el
+    catálogo, que va por código (032:RF-14).
+    """
+    nombre = re.sub(r'\(\d+\)$', '', (nombre or '').strip())
+    return re.sub(r'_\d+(?:_\d+)?kV$', '', nombre)

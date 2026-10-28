@@ -23,7 +23,13 @@ PREFIJOS_PROPIOS: tuple[tuple[str, str], ...] = (
     ('Estudio_', 'estudio (011)'),
     ('Transferencia_', 'transferencia (011)'),
     ('REC_', 'tramo reconstruido (022)'),
+    ('Fichas_', 'conductores con su ficha (032)'),
+    ('SED_NTP_', 'transformadores de SED con su ficha (032)'),
 )
+
+#: Variaciones del catálogo (spec 032): activas en «Sin proyecto» y «Con proyecto», nunca en
+#: el «Caso base», que conserva los conductores y los kVA del archivo (032:RF-27).
+PREFIJOS_CATALOGO: tuple[str, ...] = ('Fichas_', 'SED_NTP_')
 
 #: Clases de generador que se buscan en el alimentador (RF-2).
 CLASES_GENERADOR: tuple[str, ...] = ('ElmGenstat', 'ElmSym', 'ElmPvsys', 'ElmAsm')

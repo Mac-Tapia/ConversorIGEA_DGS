@@ -226,7 +226,7 @@ def test_generador_del_operador_sin_central(ajuste):
 
 
 def test_boton_recalibrar_y_su_ruta(tmp_path, monkeypatch):
-    """028:RF-21 / 028:RF-22 / 028:RF-23 — la ruta saca el sistema del proyecto y la carpeta de
+    """028:RF-21 / 028:RF-22 / 028:RF-23 / 028:RF-24 — la ruta saca el sistema del proyecto y la carpeta de
     los libros, corre ``sistema_web.py`` sin reconvertir en el carril del asistente y rechaza un
     proyecto que no es de un sistema; el front tiene su botón aparte."""
     from pathlib import Path
@@ -259,8 +259,67 @@ def test_boton_recalibrar_y_su_ruta(tmp_path, monkeypatch):
         assert job['lane'] == 'asistente'
         fin = esperar_trabajo(c, job)
         assert fin['status'] == 'done' and fin['result']['texto'] == 'recalibrado y válido'
-    [cmd] = ordenes
+        # 028:RF-24: el proyecto de dos alimentadores unidos, por su grupo y sin barra.
+        ws.pf_projects = {'IN111_TA225': '20261028_IGEA_IN111_TA225', 'CA101': '20261028_IGEA_CA101'}
+        ws.groups = {'IN111_TA225': {'tipo': 'unida', 'feeders': ['IN111', 'TA225']}}
+        d = c.get(f'/api/workspaces/{wid}/demanda/recalibrar', params={'project': '20261028_IGEA_IN111_TA225'}).json()
+        assert d['grupo'] == 'IN111_TA225' and d['alimentadores'] == ['IN111', 'TA225'] and d['zonal'] == ''
+        assert c.get(f'/api/workspaces/{wid}/demanda/recalibrar',
+                     params={'project': '20261028_IGEA_CA101'}).json()['alimentadores'] == ['CA101']
+        fin = esperar_trabajo(c, c.post(f'/api/workspaces/{wid}/demanda/recalibrar',
+                                        json={'project': '20261028_IGEA_IN111_TA225', 'periodo': '2026-07'}).json())
+        assert fin['status'] == 'done'
+    cmd, cmd2 = ordenes
     assert Path(cmd[1]).name == 'sistema_web.py' and '--reconvertir' not in cmd
     assert cmd[cmd.index('--zonal') + 1] == 'Chincha' and cmd[cmd.index('--periodo') + 1] == '2026-07'
+    assert '--zonal' not in cmd2 and cmd2[cmd2.index('--red') + 1:cmd2.index('--grupo')] == ['IN111', 'TA225']
+    assert cmd2[cmd2.index('--grupo') + 1] == 'IN111_TA225'
     demanda = (Path(__file__).resolve().parents[1] / 'frontend' / 'src' / 'components' / 'DemandaMedida.tsx').read_text(encoding='utf-8')
     assert 'Recalibrar «Sin proyecto»' in demanda and 'api.recalibrar(ws.id' in demanda
+
+
+@pytest.mark.parametrize('grupo,feeders,project', [
+    ('CA101', None, 'P_CA101'),
+    ('RED', ['CA101', 'CA102'], 'P_RED'),
+    ('SISTEMA_PISCO', ['CA101', 'CA102'], 'P_SISTEMA_PISCO'),
+])
+def test_recalibrar_alimentadores_usa_la_seleccion_guardada(tmp_path, monkeypatch, grupo, feeders, project):
+    """RF-24: la pertenencia del espacio manda incluso si una red unida se llama SISTEMA_*."""
+    from apoyo import esperar_trabajo
+    from fastapi.testclient import TestClient
+    from igea_dgs.web import jobs
+    from igea_dgs.web.app import create_app
+
+    ordenes = []
+    monkeypatch.setattr(jobs.JobContext, 'run_process', lambda self, cmd, **kw: ordenes.append(cmd) or 0)
+    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    with TestClient(create_app(tmp_path / 'web')) as c:
+        wid = c.post('/api/workspaces').json()['id']
+        ws = c.app.state.store.get(wid)
+        ws.pf_projects[grupo] = project
+        ws.demanda = {'medidores': {'path': str(tmp_path / 'm.xlsx')}}
+        if feeders:
+            ws.groups[grupo] = {'tipo': 'unida', 'feeders': feeders}
+        esperado = feeders or [grupo]
+        ruta = f'/api/workspaces/{wid}/demanda'
+        d = c.get(ruta + '/recalibrar', params={'project': project}).json()
+        assert d['zonal'] == '' and d['grupo'] == grupo and d['alimentadores'] == esperado
+        assert c.get(ruta + '/sistema', params={'project': project}).json()['sistema'] is None
+        sistema = c.get(ruta + '/sistema', params={'project': project, 'todos': True}).json()['sistema']
+        assert sistema['alimentadores'] == esperado
+        job = c.post(ruta + '/recalibrar', json={
+            'project': project, 'periodo': '2026-07', 'zonal': 'Pisco'}).json()
+        assert esperar_trabajo(c, job)['status'] == 'done'
+    [cmd] = ordenes
+    assert '--zonal' not in cmd and '--reconvertir' not in cmd
+    assert cmd[cmd.index('--red') + 1:cmd.index('--grupo')] == esperado
+    assert cmd[cmd.index('--grupo') + 1] == grupo
+
+
+def test_las_variaciones_del_catalogo_son_del_conversor():
+    """032:RF-27 — ``Fichas_`` y ``SED_NTP_`` son del conversor para el escaneo (028)."""
+    from igea_dgs import escaneo as esc
+
+    for nombre in ('Fichas_CA101', 'SED_NTP_Chincha'):
+        assert esc.origen_de('', nombre)['origen'] == 'conversor'
+        assert nombre.startswith(esc.PREFIJOS_CATALOGO)

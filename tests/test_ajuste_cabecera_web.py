@@ -899,3 +899,70 @@ def test_kva_del_alimentador_reconstruido(client, monkeypatch, tmp_path):
     assert services._capacidad_de_la_red({}, {}, 0.98) is None
     body = _plan(client, wid, job).json()
     assert body.get('feeders') == ['A1'], body
+
+
+# --------------------------------------------------------------------------- spec 032
+def test_el_plan_lleva_las_fichas_de_los_conductores(client, monkeypatch):
+    """032:RF-14 — el plan del ajuste lleva las fichas del catálogo (el subido a la web o el
+    del proyecto) para ponerlas en «Sin proyecto»; sin catálogo, ninguna."""
+    from igea_dgs.catalog import CorreccionConductor
+    from igea_dgs.web import services as srv
+
+    wid, job = _maxima(client)
+    ws = client.app.state.store.get(wid)
+    monkeypatch.setattr(srv, 'catalogo_del_proyecto', lambda: None, raising=False)
+    monkeypatch.setattr('igea_dgs.reglas.catalogo_del_proyecto', lambda: None)
+    monkeypatch.setattr(type(ws), 'catalog_corrections', lambda self: None)
+    token = _plan(client, wid, job).json()['token']
+    plan = json.loads(Path(ws.cargas_planes[token]['path']).read_text(encoding='utf-8'))
+    assert plan['fichas_conductores'] == {}
+    monkeypatch.setattr(type(ws), 'catalog_corrections', lambda self: {
+        'AA05003D': CorreccionConductor('AA05003D', {'r1_ohm_km': 0.6}, fuente='ficha Y')})
+    token = _plan(client, wid, job).json()['token']
+    plan = json.loads(Path(ws.cargas_planes[token]['path']).read_text(encoding='utf-8'))
+    assert plan['fichas_conductores'] == {
+        'AA05003D': {'valores': {'r1_ohm_km': 0.6}, 'fuente': 'ficha Y'}}
+
+
+def test_se_implementan_tambien_las_escaladas_sobre_el_umbral(client):
+    """032:RF-22 — la propuesta que se implementa sale del último ajuste: también las SED
+    escaladas sobre el umbral (``sed_sobre_umbral``), no solo las fijas de la 020."""
+    from igea_dgs.web import services as srv
+
+    wid, token = _simulado(client)
+    ws = client.app.state.store.get(wid)
+    ruta = ws.out_dir / f'ajuste_cabecera_simulacion_{token}.json'
+    informe = json.loads(ruta.read_text(encoding='utf-8'))
+    informe['sed_sobre_umbral'] = {'umbral_carga_pct': 80, 'sed': [
+        {'sed': 'SE_E', 'tipo': 'escalada', 'nivel': 'sobre_umbral', 'clientes': [],
+         'transformadores': [{'transformador': 'TR_SE_E'}],
+         'propuesta': {'kva': 160, 'unidades': 1, 'tipo_nuevo': 'TR_160kVA'}}]}
+    ruta.write_text(json.dumps(informe), encoding='utf-8')
+
+    cambios = srv.ajuste_transformadores_pedido(ws, token, 'A1', ['SE_E', 'S1'])
+
+    assert [c['sed'] for c in cambios] == ['SE_E', 'S1']
+    assert cambios[0] == {'sed': 'SE_E', 'transformador': 'TR_SE_E',
+                          'propuesta': {'kva': 160, 'unidades': 1, 'tipo_nuevo': 'TR_160kVA'}}
+
+
+def test_la_web_muestra_conductores_con_ficha_y_nivel_de_cada_sed():
+    """032:RF-17, 032:RF-22, 032:RF-28 — el resultado del ajuste enseña la tabla de conductores con su
+    ficha (archivo frente a ficha, tramos, km y fuente) y, en la propuesta de SED, las fijas y
+    escaladas tras calibrar con su nivel: más del 100 % o entre el umbral y el 100 %."""
+    from pathlib import Path
+
+    raiz = Path(__file__).resolve().parents[1] / 'frontend' / 'src'
+    ajuste = (raiz / 'components' / 'AjusteCabecera.tsx').read_text(encoding='utf-8')
+    tipos = (raiz / 'types.ts').read_text(encoding='utf-8')
+    # RF-17: la tabla de conductores, con el «Caso base» dicho.
+    assert '<ConductoresConFicha r={inf.conductores_ficha} />' in ajuste
+    for texto in ('Archivo', 'Ficha', 'Tramos', 'Fuente', 'Sin ficha (quedan como en el archivo)',
+                  'El «Caso base» sigue con los parámetros del archivo.'):
+        assert texto in ajuste, texto
+    assert 'conductores_ficha?: ConductoresFicha' in tipos
+    # RF-22: la propuesta tras calibrar, con el mismo botón; RF-28: el nivel distinguido.
+    assert 'inf.sed_sobre_umbral?.sed ?? inf.fijas_sobre_su_transformador' in ajuste
+    assert "nivel?: 'sobre_100' | 'sobre_umbral'" in tipos
+    assert 'más del 100 %' in ajuste and '<Nivel x={x} umbral={umbral} />' in ajuste
+    assert 'SED_NTP_{inf.project}' in ajuste

@@ -180,8 +180,9 @@ def _convert_feeder(
             dataset, network_id, aliases=opts.aliases, strict=opts.strict,
             include_geography=opts.include_geography,
         )
-        # Reglas del proyecto (igea_dgs.reglas): catálogo de ficha, puentes, trafomix,
-        # SED sobrecargadas y diagrama a escala real. El mismo camino en serie y en paralelo.
+        # Reglas del proyecto (igea_dgs.reglas): puentes, trafomix y diagrama a escala real;
+        # las fichas y las SED sobrecargadas, solo si se piden (spec 032). El mismo camino
+        # en serie y en paralelo.
         informe_reglas = aplicar_reglas(model, opts.reglas, correcciones=opts.catalog_corrections)
         changes = list(informe_reglas.get('catalogo', []))
         geography = None
@@ -563,7 +564,9 @@ def convert_selection(
             # Un DGS con impedancias distintas a las del TXT tiene que decir de dónde
             # salieron, o dentro de seis meses nadie sabrá por qué el resultado del
             # estudio cambió.
-            'catalog_applied': bool(catalog_corrections),
+            # 032:RF-2: las fichas solo se aplican si las reglas lo piden; las del
+            # proyecto no: van a «Sin proyecto».
+            'catalog_applied': bool(catalog_corrections) and reglas.aplicar_fichas,
             'catalog_changes': catalog_changes,
             # Resumen de lo leído: hace visible de un vistazo un CARGA vacío o un
             # export sin maniobras, que antes producían un lote «ok» sin esos
@@ -584,6 +587,7 @@ def convert_selection(
             'input_warnings': input_warnings,
             'reglas': reglas.__dict__,
             'entrada': informe_entrada.texto(),
+            'conductores_deducidos': informe_entrada.conductores_deducidos,
             'catalogo': str(catalogo) if catalogo else None,
             'workers': n_workers,
             'summary': {
@@ -677,6 +681,7 @@ def convert_group(
     manifest: dict[str, Any] = {
         'name': nombre, 'feeders': list(selectors), 'network_ids': [],
         'reglas': reglas.__dict__, 'entrada': informe_entrada.texto(), 'status': 'failed',
+        'conductores_deducidos': informe_entrada.conductores_deducidos,
         'perfil_empresa': (perfil or SIN_PERFIL).valores(),
     }
     try:

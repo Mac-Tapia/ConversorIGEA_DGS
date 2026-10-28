@@ -166,9 +166,18 @@ def es_de_carga_nueva(variacion) -> bool:
     return variacion.loc_name.startswith('Carga_')
 
 
+def es_del_catalogo(variacion) -> bool:
+    """Variación de los conductores con su ficha o de los transformadores de SED (spec 032)."""
+    from igea_dgs.escaneo import PREFIJOS_CATALOGO
+
+    return variacion.loc_name.startswith(PREFIJOS_CATALOGO)
+
+
 def es_del_operador(variacion) -> bool:
-    """Ni de carga nueva ni ajuste puro: se conserva tal como la dejó el operador (spec 014)."""
-    return not es_de_carga_nueva(variacion) and not es_ajuste_puro(variacion)
+    """Ni de carga nueva, ni ajuste puro, ni del catálogo: se conserva tal como la dejó el
+    operador (spec 014)."""
+    return (not es_de_carga_nueva(variacion) and not es_ajuste_puro(variacion)
+            and not es_del_catalogo(variacion))
 
 
 def clasificar(variaciones, feeders: list[str], base: list[str], demandas: str | None) -> dict:
@@ -266,7 +275,10 @@ def operador_a_con_proyecto(app, casos: dict, variaciones=None) -> list[str]:
     """
     previo = app.GetActiveStudyCase()
     casos['sin'].Activate()
-    en_sin = [v for v in (app.GetActiveNetworkVariations() or []) if es_del_operador(v)]
+    # 032:RF-27: las del catálogo también; «Con proyecto» lleva los conductores con su ficha
+    # y los transformadores que se calibraron en «Sin proyecto».
+    en_sin = [v for v in (app.GetActiveNetworkVariations() or [])
+              if es_del_operador(v) or es_del_catalogo(v)]
     if variaciones is not None:
         nombres = {v.loc_name for v in variaciones}
         en_sin = [v for v in en_sin if v.loc_name in nombres]

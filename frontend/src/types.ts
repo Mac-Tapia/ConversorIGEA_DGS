@@ -1067,12 +1067,27 @@ export interface ValidacionNativa {
 
 /** Spec 020: una SED fija por encima de su potencia instalada, con su propuesta. */
 export interface SedSobrecargada {
-  sed: string; clientes: string[]; p_kw: number; kva_carga: number; kva: number; carga_pct: number;
+  sed: string; clientes: string[]; p_kw?: number; kva_carga: number; kva: number; carga_pct: number;
+  /** Spec 032, RF-20, RF-28: fija o escalada, y si pasa del 100 % o está entre el umbral y el 100 %. */
+  tipo?: 'fija' | 'escalada';
+  nivel?: 'sobre_100' | 'sobre_umbral';
   transformadores?: { transformador: string; tipo: string | null; kva: number; unidades: number;
     kv_at: number | null; v_bt: number | null; grupo: string | null }[];
   propuesta?: { kva: number | null; motivo?: string; unidades?: number; po_w?: number; pc_w?: number;
     io_pct?: number; uk_pct?: number; norma?: string; codigo?: string; carga_pct_prevista?: number;
     tipo_nuevo?: string };
+}
+
+/** Spec 032, RF-16 a RF-19: lo que la ficha cambió en cada conductor, en «Sin proyecto». */
+export interface ConductoresFicha {
+  variacion: string | null;
+  cambios: { codigo: string; tipo: string; parametro: string; unidad: string; archivo: number;
+    ficha: number; variacion_pct: number | null; tramos: number; km: number; fuente: string }[];
+  sin_ficha: string[];
+  omitidos: { codigo: string; tipo: string; motivo: string }[];
+  rechazos: string[];
+  aviso?: string;
+  error?: string;
 }
 
 export interface AjusteInforme {
@@ -1102,6 +1117,10 @@ export interface AjusteInforme {
   }[];
   /** Spec 015, RF-59: fijas que piden más que la potencia instalada de su SED. */
   fijas_sobre_su_transformador?: SedSobrecargada[];
+  /** Spec 032, RF-20 a RF-28: tras calibrar, fijas y escaladas sobre el umbral del perfil. */
+  sed_sobre_umbral?: { umbral_carga_pct: number; sed: SedSobrecargada[] };
+  /** Spec 032, RF-16, RF-17: los conductores con su ficha en «Sin proyecto». */
+  conductores_ficha?: ConductoresFicha;
   /** Spec 020, RF-10: las tablas de fichas del perfil, o por qué no hay. */
   fichas_transformador_sed?: { umbral_carga_pct?: number; normas?: string[]; avisos?: string[]; falta?: string };
   /** Spec 020, RF-4: la sobrecarga es la causa probable de que la calibración no salga. */
@@ -1122,6 +1141,8 @@ export interface AjusteInforme {
   };
   /** Spec 015, RF-49: la validación no pasó y las cargas volvieron a como estaban. */
   calibracion_revertida?: boolean;
+  /** Spec 015, RF-69: no es válida, pero el reparto que cuadró queda grabado. */
+  calibracion_sin_validar?: boolean;
   /** Spec 015, RF-47 a RF-52: lo que consumen las cargas en el flujo, después de calibrar. */
   validacion_posterior_nativa?: ValidacionNativa;
   modo?: 'simular' | 'aplicar';

@@ -38,6 +38,7 @@ import traceback
 from contextlib import contextmanager
 from dataclasses import replace
 from pathlib import Path
+from typing import Any
 
 from cargas_pf import (
     Alimentadores,
@@ -322,8 +323,10 @@ def _centrales_apagadas(app):
     restauración de una pasada no válida dejó 167 cargas en «Central_NA205» y las fijas de
     NA203 salían escalables en la validación.
     """
+    # Spec 032: las de los conductores con su ficha y de los transformadores de SED también
+    # son del conversor y graban; la marca escrita con ellas activas caería en su etapa.
     activas = [v for v in (app.GetActiveNetworkVariations() or [])
-               if v.loc_name.startswith(PREFIJO_CENTRAL)]
+               if v.loc_name.startswith(PREFIJOS_QUE_GRABAN)]
     for v in activas:
         v.Deactivate()
     try:
@@ -331,28 +334,6 @@ def _centrales_apagadas(app):
     finally:
         for v in activas:
             v.Activate()
-
-
-def _restaurar_cargas(cargas: dict, fotos: list[dict], apagar: dict, antes_apagar: dict) -> None:
-    """Deja las cargas como estaban antes de calibrar (validación nativa fallida)."""
-    por_sed = {f['sed']: f for f in fotos}
-    for sed, obj in cargas.items():
-        foto = por_sed.get(sed)
-        if foto is None:
-            continue
-        try:
-            escrita = foto.get('escrita') or {'p_kw': foto['p_kw'], 'q_kvar': foto['q_kvar']}
-            escribir_carga(obj, escrita['p_kw'] / 1000.0, escrita['q_kvar'] / 1000.0)
-            obj.scale0 = foto.get('scale0', 1.0)
-            obj.outserv = foto['outserv']
-            obj.i_scale = foto['i_scale']
-        except Exception:  # noqa: BLE001 - lo que no se pueda restaurar lo dice el informe
-            continue
-    for sed, obj in apagar.items():
-        try:
-            obj.outserv = antes_apagar.get(sed, 0)
-        except Exception:  # noqa: BLE001
-            continue
 
 
 def _apartar_cargas_nuevas(app, estado: dict) -> list[str]:
@@ -592,6 +573,41 @@ def transformadores_de(carga) -> list[dict]:
     return sorted(out, key=lambda t: t['transformador'])
 
 
+def fichas_del_plan(plan: dict) -> tuple[dict | None, str | None]:
+    """Las tablas de fichas de transformador del perfil que manda la web, validadas (020:RF-31)."""
+    if plan.get('transformadores_sed') is None:
+        return None, None
+    from igea_dgs.perfil_empresa import PerfilError, transformadores_sed
+    try:
+        return transformadores_sed(
+            {'calibracion': {'transformadores_sed': plan['transformadores_sed']}}), None
+    except PerfilError as exc:
+        return None, str(exc)
+
+
+def sed_sobre_el_umbral(plan: dict, cargas: dict, kva: dict, fijas: dict, apagar: dict) -> dict:
+    """Las SED, fijas y escaladas, que tras calibrar pasan del umbral del perfil, con su
+    propuesta (032:RF-20, RF-21, RF-25, RF-28).
+
+    La demanda es la que consume cada carga en «Sin proyecto» calibrado: la escrita por su
+    factor de escala, que en las escaladas solo da el flujo (scale0). Sin tablas en el perfil
+    el umbral es el 100 % y se listan sin propuesta.
+    """
+    from igea_dgs.trafos_sed import sed_sobre_umbral
+
+    fichas, motivo = fichas_del_plan(plan)
+    umbral = float(fichas['umbral_carga_pct']) if fichas else 100.0
+    demandas = {sed: math.hypot(*potencia_efectiva(o)) for sed, o in cargas.items()
+                if sed not in apagar and not int(getattr(o, 'outserv', 0) or 0)}
+    lista = sed_sobre_umbral(demandas, kva, umbral)
+    for x in lista:
+        f = fijas.get(x['sed'])
+        x['tipo'] = 'fija' if f is not None else 'escalada'
+        x['clientes'] = list(f.clientes) if f is not None else []
+    proponer_transformadores(lista, cargas, fichas, motivo)
+    return {'umbral_carga_pct': umbral, 'sed': lista}
+
+
 def proponer_transformadores(sobre: list[dict], cargas: dict, fichas: dict | None,
                              motivo_sin_fichas: str | None = None) -> None:
     """Pone en cada SED sobrecargada sus transformadores y la propuesta (020:RF-6 a RF-12)."""
@@ -630,13 +646,17 @@ def _elm_tr2(carga) -> list:
         return []
 
 
-def implementar_transformadores(app, cargas: dict, cambios: list[dict]) -> dict:
-    """Los transformadores nuevos de las SED marcadas, en la red de «Sin proyecto» (020:RF-16 a RF-24).
+def implementar_transformadores(app, cargas: dict, cambios: list[dict],
+                                proyecto: str = '') -> dict:
+    """Los transformadores nuevos de las SED marcadas, en «Sin proyecto» (020:RF-18 a RF-24).
 
     Se llama con «Sin proyecto» activo y antes de leer los kVA de la calibración, que así
     ya ve los nuevos. En PA217 (2026-10-16) se hizo a mano (015, T26): tipo propio copiado
     del actual (tensiones, grupo, secuencia cero) con la ficha de la NTP, y ``ntnum``
     unidades en paralelo; ningún tipo existente se toca, porque lo comparten otras SED.
+
+    Spec 032 (cambia 020:RF-16): van en la variación ``SED_NTP_<proyecto>``, no en la red,
+    porque la red la comparte el «Caso base», que conserva los kVA del archivo (RF-1, RF-23).
     """
     # La variación de una central (021:RF-37) es del conversor y está activa en «Sin
     # proyecto»: se apaga mientras se escriben y se vuelve a encender, como al marcar las
@@ -647,27 +667,31 @@ def implementar_transformadores(app, cargas: dict, cambios: list[dict]) -> dict:
     for v in centrales:
         v.Deactivate()
     try:
-        return _implementar_transformadores(app, cargas, cambios)
+        return _implementar_transformadores(app, cargas, cambios, proyecto)
     finally:
         for v in centrales:
             v.Activate()
 
 
-def _implementar_transformadores(app, cargas: dict, cambios: list[dict]) -> dict:
+def _implementar_transformadores(app, cargas: dict, cambios: list[dict], proyecto: str) -> dict:
     from igea_dgs.demanda_medida import clave_codigo
     from igea_dgs.trafos_sed import nombre_tipo
 
-    variaciones = sorted(v.loc_name for v in (app.GetActiveNetworkVariations() or []))
-    etapa = app.GetRecordingStage()
-    if variaciones or etapa is not None:
-        # 020:RF-17: lo escrito iría a esa variación y no a la red que se calibra.
-        que = (f"las variaciones activas {', '.join(variaciones)}" if variaciones
-               else f"la etapa {etapa.loc_name} grabando")
+    ajena = _grabando_ajena(app)
+    if ajena is not None:
+        # 032:RF-12, 020:RF-17: lo escrito iría a esa variación del operador.
         activo = app.GetActiveStudyCase()                  # el de su año (025:RF-24)
         caso = activo.loc_name if activo is not None else NOMBRES['sin']
-        return {'error': f"«{caso}» tiene {que}: los transformadores se escriben en "
-                         'la red, sin variación; desactívelas y vuelva a implementar '
-                         '(020:RF-17).', 'cambios': [], 'omitidas': []}
+        return {'error': f"«{caso}» tiene {ajena} grabando: los transformadores van en su "
+                         'propia variación; termine o desactive esa y vuelva a implementar '
+                         '(020:RF-17, 032:RF-12).', 'cambios': [], 'omitidas': []}
+    variacion = None
+    if cambios:
+        try:
+            variacion, _creada = variacion_grabando(app, f'{PREFIJO_SED_NTP}{proyecto}', 'sed_ntp')
+        except RuntimeError as exc:
+            return {'error': f'Los transformadores no se pudieron escribir: {exc} (032:RF-8).',
+                    'cambios': [], 'omitidas': []}
     equip = app.GetProjectFolder('equip')
     tipos = {t.loc_name: t for t in (equip.GetContents('*.TypTr2', 1) if equip else [])}
     por_clave = {clave_codigo(s): o for s, o in cargas.items()}
@@ -713,7 +737,8 @@ def _implementar_transformadores(app, cargas: dict, cambios: list[dict]) -> dict
         hechos.append({'sed': sed, 'transformador': tr.loc_name, 'antes': antes,
                        'despues': {'tipo': nombre, 'kva': p['kva'], 'unidades': int(p['unidades']),
                                    'norma': p.get('norma')}})
-    return {'cambios': hechos, 'omitidas': omitidas}
+    return {'cambios': hechos, 'omitidas': omitidas,
+            'variacion': getattr(variacion, 'loc_name', None)}
 
 
 def resultado_transformadores(cambiados: list[dict], sobre: list[dict], fijas: dict,
@@ -1123,6 +1148,22 @@ def validar_cargas_nativas(cargas: dict, reparto, medida, objetivo, tolerancia: 
             'causa_probable': causa,
         }
 
+    # 015:RF-68: que toda SED no fija esté escalada y tome su parte se demuestra carga por
+    # carga, no se supone (usuario, 2026-10-28: «todos los trafos o SED no fijos deben ser
+    # escalados y participar en la distribución de carga»). En Chincha, de 1183 escaladas, las
+    # 4 sin potencia instalada eran cargas en un trafomix M… o en un regulador, no SED.
+    escaladas = [d for d in detalles if d['clase'] == 'ESCALABLE']
+    sin_potencia = sorted(s for s in reparto.base if abs(reparto.base[s][0]) <= 1e-12)
+    participacion = {
+        'fijas': sum(1 for d in detalles if d['clase'] == 'FIJA'),
+        'escaladas': len(escaladas),
+        'con_escala': sum(1 for d in escaladas if d['i_scale'] == 1),
+        'con_potencia': len(escaladas) - len(sin_potencia),
+        'consumen': (sum(1 for d in escaladas if (d['p_consumida_kw'] or 0) > CONSUMO_ABS)
+                     if medida.converge else None),
+        'factor_comun': factor_p,
+        'sin_potencia_instalada': sin_potencia,
+    }
     reconstruido = None
     if not fallos:
         a = reparto.a if factor_p is None else factor_p
@@ -1138,6 +1179,7 @@ def validar_cargas_nativas(cargas: dict, reparto, medida, objetivo, tolerancia: 
         'consumo_cargas_efectivo': {'kw': total_p, 'kvar': total_q,
                                     'origen': consumo_origen},
         'balance': balance,
+        'participacion': participacion,
         'fp_escaladas': {'esperado': fp_escaladas, 'distintas': len(fp_distinto)},
         'cabecera': ({'kw': medida.kw, 'kvar': medida.kvar}
                      if medida.converge else None),
@@ -1176,6 +1218,18 @@ def sincronizar_con_proyecto(app, con, sin, cargas: dict, reparto, omitir, apaga
 # =========================================================================== central (spec 021)
 #: Prefijo del generador y de la variación de la central que crea el conversor (RF-36).
 PREFIJO_CENTRAL = 'Central_'
+#: Spec 032: lo que el catálogo cambia en «Sin proyecto», cada clase en su variación del
+#: proyecto (usuario, 2026-10-28: «cada uno en cada variación, por más que esté en una sola
+#: fecha»), activas en «Sin proyecto» y «Con proyecto» y nunca en el «Caso base».
+PREFIJO_FICHAS = 'Fichas_'
+PREFIJO_SED_NTP = 'SED_NTP_'
+#: Variaciones del conversor que graban y que se apagan al escribir dato de red (015:RF-37).
+PREFIJOS_QUE_GRABAN = (PREFIJO_CENTRAL, PREFIJO_FICHAS, PREFIJO_SED_NTP)
+#: El tipo de línea con la ficha es una copia del del archivo con este sufijo (032:RF-9).
+SUFIJO_FICHA = '_FICHA'
+#: Atributos de ``TypLne`` que compara la ficha; ``InomAir`` acompaña a ``sline``, como en
+#: el DGS, donde valen lo mismo.
+ATRIBUTOS_TIPO_LINEA = ('rline', 'xline', 'rline0', 'xline0', 'bline', 'sline', 'InomAir')
 
 
 def _misma_pf(a, b) -> bool:
@@ -1269,6 +1323,198 @@ def variacion_de_la_central(app, feeder: str):
     nombre = f'{PREFIJO_CENTRAL}{feeder}'
     return next((v for v in (carpeta.GetContents('*.IntScheme', 1) if carpeta else [])
                  if v.loc_name == nombre or v.loc_name.startswith(nombre + '(')), None)
+
+
+def variacion_propia(app, nombre: str):
+    """La variación ``nombre`` del proyecto (o la que DIgSILENT renombró ``nombre(n)``)."""
+    carpeta = app.GetProjectFolder('scheme')
+    return next((v for v in (carpeta.GetContents('*.IntScheme', 1) if carpeta else [])
+                 if v.loc_name == nombre or v.loc_name.startswith(nombre + '(')), None)
+
+
+def _grabando_ajena(app) -> str | None:
+    """La variación que graba si no es del conversor (032:RF-12, 020:RF-17)."""
+    from igea_dgs.escaneo import origen_de
+
+    etapa = app.GetRecordingStage()
+    if etapa is None:
+        return None
+    padre = getattr(etapa, 'GetParent', None)
+    variacion = padre() if padre is not None else None
+    nombre = getattr(variacion, 'loc_name', '') or ''
+    if nombre.startswith(PREFIJOS_QUE_GRABAN) or origen_de('', nombre)['origen'] == 'conversor':
+        return None
+    return nombre or etapa.loc_name
+
+
+def variacion_grabando(app, nombre: str, etiqueta: str):
+    """La variación ``nombre`` activa y con su etapa grabando; se crea si no existe (032:RF-8, RF-13).
+
+    Reutilizarla y no crear otra en cada calibración es lo que evita duplicar los cambios.
+    Con otras etapas activas de la misma fecha DIgSILENT puede no dejarla grabar (SI213,
+    2026-10-12): se apartan las demás, se activa la etapa y se reactivan, como
+    ``cargas_pf.crear_variacion``. Si aun así no graba, error: escribir sin etapa iría a la
+    red que comparte el «Caso base».
+    """
+    from cargas_pf import _misma, crear_variacion, nombre_pf
+
+    nombre = nombre_pf(nombre)
+    variacion = variacion_propia(app, nombre)
+    if variacion is None:
+        variacion, _etapa = crear_variacion(app, nombre, etiqueta)
+        return variacion, True
+    if not any(_misma(v, variacion) for v in (app.GetActiveNetworkVariations() or [])):
+        variacion.Activate()
+    etapas = sorted(variacion.GetContents('*.IntSstage') or [],
+                    key=lambda s: int(getattr(s, 'tAcTime', 0) or 0))
+    if not etapas:
+        raise RuntimeError(f'la variación {variacion.loc_name} no tiene etapa: bórrela y vuelva '
+                           'a calibrar')
+    etapa = etapas[-1]
+    etapa.Activate(1)
+    if not _misma(app.GetRecordingStage(), etapa):
+        otras = [v for v in (app.GetActiveNetworkVariations() or []) if not _misma(v, variacion)]
+        for v in otras:
+            v.Deactivate()
+        etapa.Activate(1)
+        for v in otras:
+            v.Activate()
+    if not _misma(app.GetRecordingStage(), etapa):
+        raise RuntimeError(f'la etapa {etapa.loc_name} de {variacion.loc_name} no quedó grabando: '
+                           'no se escribe nada')
+    return variacion, False
+
+
+def poner_fichas(app, proyecto: str, lineas, fichas: dict) -> dict:
+    """Los conductores de ``lineas`` con su ficha, en la variación ``Fichas_<proyecto>`` (032:RF-8 a RF-19).
+
+    El «Caso base» lleva lo que trae el archivo (032:RF-2). Aquí cada ``TypLne`` con ficha
+    distinta tiene su copia ``<tipo>_FICHA`` en la biblioteca y la etapa reasigna a ella sus
+    líneas: los tipos no los graba una variación, así que cambiar el del archivo cambiaría
+    también el «Caso base» (032:RF-9). Código, material, sección y qué tramo usa qué
+    conductor no cambian (RF-15). Devuelve el informe de RF-16 a RF-19.
+    """
+    from igea_dgs.catalog import cambios_de_ficha
+    from igea_dgs.naming import codigo_de_tipo_linea
+
+    out: dict[str, Any] = {'variacion': None, 'cambios': [], 'sin_ficha': [], 'omitidos': [],
+                           'rechazos': [], 'tramos_reasignados': 0}
+    if not fichas:
+        out['aviso'] = ('Sin catálogo de fichas de conductor: los conductores quedan como en '
+                        'el archivo (032:RF-18).')
+        return out
+    equip = app.GetProjectFolder('equip')
+    tipos = {t.loc_name: t for t in (equip.GetContents('*.TypLne', 1) if equip else [])}
+    grupos: dict[str, tuple[Any, list]] = {}
+    for ln in lineas:
+        tipo = getattr(ln, 'typ_id', None)
+        if tipo is None or tipo.GetClassName() != 'TypLne':
+            continue
+        nombre = tipo.loc_name
+        # Recalibrar: la línea ya lleva el tipo con la ficha; se parte del del archivo.
+        base = tipos.get(nombre[:-len(SUFIJO_FICHA)]) if nombre.endswith(SUFIJO_FICHA) else tipo
+        if base is not None:
+            grupos.setdefault(base.loc_name, (base, []))[1].append(ln)
+    pendientes = []
+    for nombre, (base, lns) in sorted(grupos.items()):
+        codigo = codigo_de_tipo_linea(nombre)
+        ficha = fichas.get(codigo)
+        if ficha is None:                                                       # RF-18
+            out['sin_ficha'].append(codigo)
+            continue
+        actuales = {a: _num(base, a) for a in ATRIBUTOS_TIPO_LINEA}
+        km = sum(_num(ln, 'dline') or 0.0 for ln in lns)
+        nuevos, cambios, rechazos = cambios_de_ficha(codigo, actuales, ficha, tramos=len(lns),
+                                                     km=km)
+        out['rechazos'] += rechazos                                             # RF-19
+        if not nuevos:
+            continue
+        if 'sline' in nuevos and (actuales.get('InomAir') or 0.0) > 0.0:
+            nuevos['InomAir'] = nuevos['sline']
+        destino = nombre + SUFIJO_FICHA
+        existente = tipos.get(destino)
+        if existente is not None:                                               # RF-10, RF-11
+            esperado = {a: (nuevos[a] if a in nuevos else actuales.get(a))
+                        for a in ATRIBUTOS_TIPO_LINEA}
+            distinto = next(((a, _num(existente, a), v) for a, v in esperado.items()
+                             if v is not None and not math.isclose(
+                                 _num(existente, a) or 0.0, v, rel_tol=1e-4, abs_tol=1e-9)), None)
+            if distinto is not None:
+                a, tiene, pide = distinto
+                out['omitidos'].append({'codigo': codigo, 'tipo': destino, 'motivo': (
+                    f'ya existe el tipo {destino} con {a}={tiene} y la ficha pide {pide:g}: no se '
+                    'toca un tipo existente (032:RF-11)')})
+                continue
+        out['cambios'] += [{'codigo': c.codigo, 'tipo': nombre, 'parametro': c.atributo_pf,
+                            'unidad': c.unidad, 'archivo': c.antes, 'ficha': c.despues,
+                            'variacion_pct': c.variacion_pct, 'tramos': c.tramos,
+                            'km': round(c.km, 4), 'fuente': c.fuente} for c in cambios]
+        pendientes.append((base, destino, existente, nuevos, lns))
+    out['sin_ficha'] = sorted(set(out['sin_ficha']))
+    por_hacer = [x for x in pendientes
+                 if x[2] is None or any(ln.typ_id is not x[2] for ln in x[4])]
+    if not por_hacer:
+        variacion = variacion_propia(app, f'{PREFIJO_FICHAS}{proyecto}')
+        out['variacion'] = getattr(variacion, 'loc_name', None)
+        return out
+    ajena = _grabando_ajena(app)
+    if ajena is not None:                                                       # RF-12
+        out['error'] = (f'«{ajena}» está grabando: los conductores con su ficha van en su '
+                        'propia variación; termine o desactive esa y vuelva a calibrar (032:RF-12).')
+        return out
+    variacion, creada = variacion_grabando(app, f'{PREFIJO_FICHAS}{proyecto}', 'fichas')
+    out['variacion'], out['variacion_creada'] = variacion.loc_name, creada
+    for base, destino, existente, nuevos, lns in por_hacer:
+        tipo = existente
+        if tipo is None:
+            tipo = base.GetParent().AddCopy(base, destino)
+            for a, v in nuevos.items():
+                setattr(tipo, a, v)
+            tipos[destino] = tipo
+        for ln in lns:
+            if ln.typ_id is not tipo:
+                ln.typ_id = tipo
+                out['tramos_reasignados'] += 1
+    return out
+
+
+def _catalogo_en_con(app, sin, con, informes: list[dict]) -> None:
+    """Las variaciones del catálogo de «Sin proyecto», activas también en «Con proyecto» si ya
+    existe (032:RF-27); si no, ``preparar_con`` las activa al crearlo."""
+    if sin is None or con is None:
+        return
+    from casos_pf import es_del_catalogo, operador_a_con_proyecto
+
+    carpeta = app.GetProjectFolder('scheme')
+    propias = [v for v in (carpeta.GetContents('*.IntScheme', 1) if carpeta else [])
+               if es_del_catalogo(v)]
+    if not propias:
+        return
+    activadas = operador_a_con_proyecto(app, {'sin': sin, 'con': con}, propias)
+    for inf in informes:
+        if activadas:
+            inf['avisos'].append('Activadas también en «Con proyecto»: ' + ', '.join(activadas)
+                                 + ' (032:RF-27).')
+
+
+def _conductores_con_ficha(app, plan: dict, feeders: list[str], alims, informes: list[dict]) -> None:
+    """:func:`poner_fichas` con las líneas de ``feeders`` y el resultado en cada informe
+    (032:RF-16, RF-17). No bloquea la calibración: un fallo se avisa."""
+    lineas = [ln for f in feeders for ln in alims.objetos(f, 'ElmLne')]
+    try:
+        r = poner_fichas(app, plan['project'], lineas, plan.get('fichas_conductores') or {})
+    except RuntimeError as exc:
+        r = {'error': f'Los conductores con su ficha no se pudieron poner: {exc}'}
+    for inf in informes:
+        inf['conductores_ficha'] = r
+        if r.get('error'):
+            inf['avisos'].append(r['error'])
+        elif r.get('cambios'):
+            codigos = sorted({c['codigo'] for c in r['cambios']})
+            inf['avisos'].append(
+                f"{len(codigos)} conductor(es) con los parámetros de su ficha en «Sin proyecto» "
+                f"(variación {r.get('variacion')}): " + ', '.join(codigos[:30])
+                + '; el «Caso base» sigue con los del archivo (032:RF-14).')
 
 
 def generador_del_operador(app, barra):
@@ -1525,9 +1771,10 @@ def _ejecutar_con_central(app, plan: dict, informe: dict, *, alims, elm, feeder:
         if previa is not None and previa.loc_name in {
                 v.loc_name for v in (app.GetActiveNetworkVariations() or [])}:
             previa.Deactivate()
-        for z, r in repartos.items():
-            for sed in r.demandas:
-                zonas[z][sed].i_scale = 1 if sed in r.base else 0
+        with _centrales_apagadas(app):              # 032: y las de fichas y SED, que graban
+            for z, r in repartos.items():
+                for sed in r.demandas:
+                    zonas[z][sed].i_scale = 1 if sed in r.base else 0
         for obj in apagar.values():
             obj.outserv = 1
         informe['central'].update(central_en_sin_proyecto(                     # RF-35, RF-36
@@ -1722,7 +1969,8 @@ def _preparar_alimentador(app, plan: dict, informe: dict, *, alims, feeder: str,
     # 020:RF-16 a RF-24: los transformadores nuevos que marcó el operador, antes de leer
     # los kVA, para que la calibración ya cuente con ellos (RF-25).
     if plan.get('transformadores') and not simular:
-        hecho = implementar_transformadores(app, cargas, plan['transformadores'])
+        hecho = implementar_transformadores(app, cargas, plan['transformadores'],
+                                            plan.get('project') or '')
         informe['transformadores_implementados'] = hecho
         if hecho.get('error'):
             return {**informe, 'error': hecho['error']}, 2
@@ -1807,14 +2055,7 @@ def _preparar_alimentador(app, plan: dict, informe: dict, *, alims, feeder: str,
     sobre = fijas_sobre_su_transformador(fijas, kva)
     # 020:RF-6 a RF-12: la propuesta de transformadores nuevos, con las fichas del perfil
     # que manda la web en el plan; se validan aquí con la misma lectura que el perfil.
-    fichas, motivo_fichas = None, None
-    if plan.get('transformadores_sed') is not None:
-        from igea_dgs.perfil_empresa import PerfilError, transformadores_sed
-        try:
-            fichas = transformadores_sed(
-                {'calibracion': {'transformadores_sed': plan['transformadores_sed']}})
-        except PerfilError as exc:
-            motivo_fichas = str(exc)
+    fichas, motivo_fichas = fichas_del_plan(plan)
     informe['fichas_transformador_sed'] = (
         {'umbral_carga_pct': fichas['umbral_carga_pct'],
          'normas': [t['norma'] for t in fichas['tablas']], 'avisos': fichas['avisos']}
@@ -1925,10 +2166,15 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
         informe['consigna_fuente'] = fijar_consigna_de_la_fuente(
             app, float(plan['tension_fuente_pu']), [sin, con])
         escenario = app.GetActiveScenario()
+    if not simular:
+        # 032:RF-14: los conductores con su ficha antes del primer flujo.
+        _conductores_con_ficha(app, plan, [feeder], alims, [informe])
     p = _preparar_alimentador(app, plan, informe, alims=alims, feeder=feeder,
                               simular=simular, cancelado=cancelado)
     if isinstance(p, tuple):
         return p
+    if not simular:
+        _catalogo_en_con(app, sin, con, [informe])                     # 032:RF-27
     if p['central']:
         return _ejecutar_con_central(
             app, plan, informe, alims=alims, elm=elm, feeder=feeder, cargas=p['cargas'],
@@ -2148,13 +2394,18 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
                     'error': f"validación nativa: {fallo.get('tipo')}",
                     'detalle': fallo,
                 } for fallo in validacion_posterior['fallos'])
-                # Una cabecera cuadrada no compensa una carga que la relectura nativa no
-                # conservó: las cargas vuelven a como estaban y no queda nada para estudios.
-                with _centrales_apagadas(app):
-                    _restaurar_cargas(cargas, antes_nativo, apagar, antes_apagar)
-                informe['calibracion_revertida'] = True
+                # 015:RF-69: no se revierte: volver a como estaban dejaba las escaladas con la
+                # demanda del archivo, cero (SL144 + SM117, 2026-10-28). El reparto que cuadró
+                # se queda grabado y la calibración, dicha no válida.
+                informe['calibracion_sin_validar'] = True
+                informe['avisos'].append(
+                    'La calibración no es válida (validación física), pero el reparto que cuadró '
+                    'queda grabado: cada SED no fija con su parte (015:RF-69).')
         if res.reparto is not None:
             informe['sed'] = _por_sed(res.reparto, cargas, kva_origen, antes, fijas)
+            # 032:RF-20: con la demanda que dejó la calibración, fijas y escaladas.
+            if res.medida is not None and res.medida.converge:
+                informe['sed_sobre_umbral'] = sed_sobre_el_umbral(plan, cargas, kva, fijas, apagar)
             despues_nativo = _foto_cargas_nativas(cargas)
             informe['relectura_cargas_nativas'] = {
                 'status': ('FALLO_VALIDACION_NATIVA' if fallo_validacion_nativa else
@@ -2187,7 +2438,7 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
                 caso=nombre_caso('sin', anio_del_plan(plan)))
             if informe['resultado_transformadores']['status'] != 'VALIDO':
                 informe['avisos'].append(informe['resultado_transformadores']['aviso'])
-        if res.reparto is not None and not fallo_validacion_nativa:
+        if res.reparto is not None:
             escenario.Save()
             informe['escenarios'] = [{'escenario': escenario.loc_name,
                                       'cargas': len(res.reparto.demandas) - len(con_manual),
@@ -2211,8 +2462,8 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
         # falta se quedan para que el caso siga convergiendo (CA101 desde cero, 2026-10-14:
         # cuadró con «adaptación automática del modelo» y, restituida, no convergía). Si no
         # cuadró o se revirtió, se restituyen, como en el caso del operador (006:RF-16).
-        if (sin is not None and remedios.originales and informe.get('cuadrado')
-                and not fallo_validacion_nativa):
+        if (sin is not None and remedios.originales
+                and (informe.get('cuadrado') or fallo_validacion_nativa)):
             aplicados = remedios.aplicados()
             informe['ajustes_del_flujo_conservados'] = aplicados
             if con is not None:
@@ -2319,7 +2570,10 @@ def poner_bancos(app, alims, sin, base, con, pedidos: dict[str, tuple[int, float
     """
     sin.Activate()
     activas = list(app.GetActiveNetworkVariations() or [])
-    centrales = [v for v in activas if v.loc_name.startswith(PREFIJO_CENTRAL)]
+    # Spec 032: también las de los conductores con su ficha y los transformadores de SED, que
+    # son del conversor y graban. CA101 desde cero (2026-10-28): con «Fichas_» activa, poner
+    # los bancos que faltan se negaba y la calibración del proyecto fallaba entera.
+    centrales = [v for v in activas if v.loc_name.startswith(PREFIJOS_QUE_GRABAN)]
     for v in centrales:
         v.Deactivate()
     creados: list[dict] = []
@@ -2585,6 +2839,9 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
     for f in feeders:
         if pu:
             informes[f]['consigna_fuente'] = consigna
+    # 032:RF-14: los conductores de todo el proyecto con su ficha, antes del primer flujo.
+    _conductores_con_ficha(app, validos[0], [p['feeder'] for p in validos], alims,
+                           [informes[p['feeder']] for p in validos])
     preps: dict[str, dict] = {}
     for plan in validos:
         f = plan['feeder']
@@ -2619,6 +2876,7 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
         preps[f] = p
     if not preps:
         return todos('ningún alimentador se puede calibrar')
+    _catalogo_en_con(app, sin, con, [informes[f] for f in preps])          # 032:RF-27
     fuera = [f for f in feeders if f not in preps]
     for f in preps:
         inf = informes[f]
@@ -2678,13 +2936,14 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
             if v.loc_name.startswith(PREFIJO_CENTRAL):
                 v.Deactivate()
         for f, p in preps.items():
-            if p['central']:
-                for z, r in p['zc']['repartos'].items():
-                    for sed in r.demandas:
-                        p['zc']['zonas'][z][sed].i_scale = 1 if sed in r.base else 0
-            else:
-                for sed in p['reparto'].demandas:
-                    p['cargas'][sed].i_scale = 1 if sed in p['reparto'].base else 0
+            with _centrales_apagadas(app):          # 032: y las de fichas y SED, que graban
+                if p['central']:
+                    for z, r in p['zc']['repartos'].items():
+                        for sed in r.demandas:
+                            p['zc']['zonas'][z][sed].i_scale = 1 if sed in r.base else 0
+                else:
+                    for sed in p['reparto'].demandas:
+                        p['cargas'][sed].i_scale = 1 if sed in p['reparto'].base else 0
             for sed, obj in p['apagar'].items():                                   # 008:RF-26
                 try:
                     obj.outserv = 1
@@ -2765,14 +3024,13 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
                 inf['cuadrado'] = False
                 if f not in invalidos:
                     inf['status'] = 'FALLO_VALIDACION_NATIVA_EN_EL_PROYECTO'
-                    inf['avisos'].append('La calibración del proyecto no es válida por '
-                                         + ', '.join(invalidos) + ': vuelve a como estaba.')
-                if not p['central']:
-                    with _centrales_apagadas(app):
-                        _restaurar_cargas(p['cargas'], p['antes_nativo'], p['apagar'],
-                                      p['antes_apagar'])
-                    inf['calibracion_revertida'] = True
-        if res.repartos is not None and not invalidos and not solo_medir:
+                # 015:RF-69: el reparto que cuadró se queda; volver atrás dejaba las escaladas
+                # en cero, con la demanda del archivo (SL144 + SM117, 2026-10-28).
+                inf['calibracion_sin_validar'] = True
+                inf['avisos'].append('La calibración del proyecto no es válida por '
+                                     + ', '.join(invalidos) + ', pero el reparto que cuadró queda '
+                                     'grabado: cada SED no fija con su parte (015:RF-69).')
+        if res.repartos is not None and not solo_medir:
             escenario.Save()
             guardado = res.cuadrado
             for f, p in preps.items():
@@ -2907,6 +3165,9 @@ def _cerrar_alimentador_en_proyecto(app, alims, feeder: str, p: dict, inf: dict,
             inf['resultado_carga_nativa'] = {'status': 'APLICADO_Y_VALIDADO', 'bloquea': False}
     if rep is not None:
         inf['sed'] = _por_sed(rep, p['cargas'], p['kva_origen'], p['antes'], p['fijas'])
+        if med is not None:                                                     # 032:RF-20
+            inf['sed_sobre_umbral'] = sed_sobre_el_umbral(p['plan'], p['cargas'], p['kva'],
+                                                          p['fijas'], p['apagar'])
         despues = _foto_cargas_nativas(p['cargas'])
         inf['relectura_cargas_nativas'] = {
             'status': ('FALLO_VALIDACION_NATIVA' if not valido else

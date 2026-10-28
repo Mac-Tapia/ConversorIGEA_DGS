@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { api, fmtNum } from '../api';
 import { useApp } from '../context';
 import type {
-  AjusteInforme, AjustePlan, AjusteResultado, BalanceCabecera, CambioEnLaRed, CentralTermica, ConsumoDistinto, Job,
-  MaximaCabecera, MaximaConCentral, SedSobrecargada,
+  AjusteInforme, AjustePlan, AjusteResultado, BalanceCabecera, CambioEnLaRed, CentralTermica, ConductoresFicha,
+  ConsumoDistinto, Job, MaximaCabecera, MaximaConCentral, SedSobrecargada,
 } from '../types';
 import { CurvaCabecera } from './CurvaCabecera';
 
@@ -242,7 +242,8 @@ function InformeAjuste({ inf, report, cancelado, token }: {
   // convergió. Antes salía de después/antes, que con el reparto por kVA ya no es el factor.
   const ultimoFlujo = [...(inf.historial ?? [])].reverse().find((h) => h.converge && h.a != null);
   const factor = ultimoFlujo?.a ?? null;
-  // Spec 015, RF-49: la validación física no pasó; nada quedó grabado.
+  // Spec 015, RF-49, RF-69: la validación física no pasó; el reparto queda grabado sin validar
+  // (las de antes de la RF-69 se revertían).
   const revertida = inf.status === 'FALLO_VALIDACION_NATIVA' || inf.calibracion_revertida;
   const validacion = inf.validacion_posterior_nativa;
   const consumoDistinto = validacion?.fallos.find((f) => f.tipo === 'CONSUMO_DISTINTO_DE_LO_ESCRITO');
@@ -251,9 +252,10 @@ function InformeAjuste({ inf, report, cancelado, token }: {
     <div className="step-box">
       <h4>{simular ? 'Simulación' : 'Ajuste'} de {inf.feeder} en {inf.project}
         {inf.escenario ? ` · escenario «${inf.escenario}»` : inf.variacion ? ` · variación ${inf.variacion}` : ''}</h4>
-      {(inf.fijas_sobre_su_transformador ?? []).length > 0 && (
+      {sedPropuestas(inf).length > 0 && (
         <SedSobrecargadas inf={inf} token={token} />
       )}
+      {inf.conductores_ficha && <ConductoresConFicha r={inf.conductores_ficha} />}
       {inf.transformadores_implementados && <TransformadoresImplementados inf={inf} />}
       {(inf.cambios_en_la_red ?? []).length > 0 && <CambiosEnLaRed filas={inf.cambios_en_la_red!} />}
       {simular && <p className="muted">Nada se ha escrito en el proyecto. Es el reparto antes de las pérdidas: al ajustar,
@@ -261,8 +263,10 @@ function InformeAjuste({ inf, report, cancelado, token }: {
       {!simular && revertida && (
         <p className="alert alert-error">
           La validación física en DIgSILENT no pasa: las cargas no consumen en el flujo lo que tienen
-          escrito o falta su resultado. La calibración no es válida: las cargas vuelven a como estaban y
-          no se grabó nada.
+          escrito o falta su resultado. La calibración no es válida.{' '}
+          {inf.calibracion_sin_validar
+            ? 'El reparto que cuadró queda grabado: cada SED no fija con su parte, para corregir la causa.'
+            : 'Las cargas vuelven a como estaban y no se grabó nada.'}
         </p>
       )}
       {!simular && !revertida && (
@@ -502,9 +506,27 @@ const instalada = (x: SedSobrecargada) => {
  * marcadas) y el botón que los implementa en «Sin proyecto» y vuelve a calibrar. En PA217
  * (2026-10-16) SE30940 pedía 3818 kVA sobre 400 kVA y solo se veía en un desplegable.
  */
+/**
+ * Spec 032, RF-20 a RF-22: tras calibrar, las SED fijas y escaladas sobre el umbral del perfil;
+ * al simular (sin flujo calibrado), las fijas por encima del 100 % de la 020.
+ */
+function sedPropuestas(inf: AjusteInforme): SedSobrecargada[] {
+  return inf.sed_sobre_umbral?.sed ?? inf.fijas_sobre_su_transformador ?? [];
+}
+
+/** Spec 032, RF-28: las que pasan del 100 % se distinguen de las que están entre el umbral y el 100 %. */
+function Nivel({ x, umbral }: { x: SedSobrecargada; umbral: number | undefined }) {
+  const sobre100 = x.nivel ? x.nivel === 'sobre_100' : x.carga_pct > 100;
+  return sobre100
+    ? <span className="badge err">más del 100 %</span>
+    : <span className="badge warn">{umbral ? `${fmtNum(umbral, 0)}–100 %` : 'bajo el 100 %'}</span>;
+}
+
 function SedSobrecargadas({ inf, token }: { inf: AjusteInforme; token: string | null }) {
   const { ws, startJob, active } = useApp();
-  const sobre = inf.fijas_sobre_su_transformador ?? [];
+  const sobre = sedPropuestas(inf);
+  const umbral = inf.sed_sobre_umbral?.umbral_carga_pct;
+  const mas100 = sobre.filter((x) => (x.nivel ? x.nivel === 'sobre_100' : x.carga_pct > 100)).length;
   const conPropuesta = sobre.filter((x) => x.propuesta?.kva != null);
   const [marcadas, setMarcadas] = useState<Set<string>>(() => new Set(conPropuesta.map((x) => x.sed)));
   const pfBusy = Boolean(active.powerfactory);
@@ -523,7 +545,10 @@ function SedSobrecargadas({ inf, token }: { inf: AjusteInforme; token: string | 
     : !marcadas.size ? 'Marque al menos una SED.' : pfBusy ? 'DIgSILENT está ocupado con otro trabajo.' : '';
   return (
     <div className={causa ? 'alert alert-error' : 'alert alert-warn'}>
-      <strong>{sobre.length} SED fija(s) sobrecargada(s): piden más que su potencia instalada.</strong>
+      <strong>{inf.sed_sobre_umbral
+        ? `${sobre.length} SED sobre el ${fmtNum(umbral ?? 100, 0)} % de su potencia instalada tras calibrar `
+          + `(${mas100} por encima del 100 %).`
+        : `${sobre.length} SED fija(s) sobrecargada(s): piden más que su potencia instalada.`}</strong>
       {causa
         ? <p>Es la causa probable de que la calibración no converja o no sea válida. Implemente los transformadores
           propuestos y se volverá a calibrar.</p>
@@ -531,7 +556,7 @@ function SedSobrecargadas({ inf, token }: { inf: AjusteInforme; token: string | 
       <div className="table-wrap">
         <table className="table">
           <thead><tr><th /><th>SED</th><th>Clientes</th><th className="num">Demanda (kVA)</th><th>Instalada</th>
-            <th className="num">Carga</th><th>Propuesta</th><th className="num">Po / Pc (W)</th>
+            <th className="num">Carga</th><th>Nivel</th><th>Propuesta</th><th className="num">Po / Pc (W)</th>
             <th className="num">Io / uk (%)</th><th className="num">Carga prevista</th></tr></thead>
           <tbody>{sobre.map((x) => {
             const p = x.propuesta;
@@ -541,10 +566,12 @@ function SedSobrecargadas({ inf, token }: { inf: AjusteInforme; token: string | 
                 <td>{hay && <input type="checkbox" aria-label={`Implementar ${x.sed}`} checked={marcadas.has(x.sed)}
                   disabled={pfBusy} onChange={() => alternar(x.sed)} />}</td>
                 <td><strong>{x.sed}</strong></td>
-                <td>{x.clientes.join(', ') || 'cambio manual'}</td>
+                <td>{x.tipo === 'escalada' ? <span className="muted">escalada</span>
+                  : x.clientes.join(', ') || 'cambio manual'}</td>
                 <td className="num">{fmtNum(x.kva_carga, 0)}</td>
                 <td>{instalada(x)}</td>
                 <td className="num">{fmtNum(x.carga_pct, 0)} %</td>
+                <td><Nivel x={x} umbral={umbral} /></td>
                 {hay
                   ? <><td>{(p!.unidades ?? 1) > 1 ? `${p!.unidades} × ` : ''}{fmtNum(p!.kva!, 0)} kVA
                       <br /><small className="muted">{p!.norma}</small></td>
@@ -563,11 +590,46 @@ function SedSobrecargadas({ inf, token }: { inf: AjusteInforme; token: string | 
         <div className="row">
           <button className="btn btn-pf" disabled={Boolean(motivoBoton)} title={motivoBoton || undefined}
             onClick={implementar}>Implementar transformadores ({marcadas.size})</button>
-          <small className="muted">Se cambian en «Sin proyecto», en la red y sin variación, con un tipo propio de la ficha
+          <small className="muted">Se cambian en «Sin proyecto», en su variación SED_NTP_{inf.project}; el «Caso base»
+            conserva los kVA del archivo. Con un tipo propio de la ficha
             {fichas?.umbral_carga_pct ? ` (máxima al ${fmtNum(fichas.umbral_carga_pct, 0)} % o menos)` : ''}; los tipos
             existentes no se tocan. Después se vuelve a calibrar.</small>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Spec 032, RF-16 a RF-19: los conductores con los parámetros de su ficha en «Sin proyecto», con
+ * el valor del archivo (el del «Caso base») y el de la ficha, por código.
+ */
+function ConductoresConFicha({ r }: { r: ConductoresFicha }) {
+  if (r.error) return <p className="alert alert-warn">{r.error}</p>;
+  if (r.aviso && !r.cambios.length) return <p className="small muted">{r.aviso}</p>;
+  return (
+    <div className="table-wrap">
+      <strong>Conductores con su ficha en «Sin proyecto»{r.variacion ? ` (variación ${r.variacion})` : ''}:
+        {' '}{new Set(r.cambios.map((c) => c.codigo)).size} código(s)</strong>
+      <p className="small muted">El «Caso base» sigue con los parámetros del archivo.</p>
+      {r.cambios.length > 0 && (
+        <table className="small">
+          <thead><tr><th>Código</th><th>Parámetro</th><th className="num">Archivo</th><th className="num">Ficha</th>
+            <th className="num">Variación</th><th className="num">Tramos</th><th className="num">km</th><th>Fuente</th></tr></thead>
+          <tbody>{r.cambios.map((c) => (
+            <tr key={`${c.tipo}-${c.parametro}`}>
+              <td className="mono">{c.codigo}</td><td className="mono">{c.parametro}</td>
+              <td className="num">{fmtNum(c.archivo, 4)} {c.unidad}</td><td className="num">{fmtNum(c.ficha, 4)} {c.unidad}</td>
+              <td className="num">{c.variacion_pct === null ? '—' : `${fmtNum(c.variacion_pct, 1)} %`}</td>
+              <td className="num">{c.tramos}</td><td className="num">{fmtNum(c.km, 2)}</td>
+              <td className="muted">{c.fuente}</td>
+            </tr>
+          ))}</tbody>
+        </table>
+      )}
+      {r.sin_ficha.length > 0 && <p className="small">Sin ficha (quedan como en el archivo): {r.sin_ficha.join(', ')}.</p>}
+      {r.omitidos.map((o) => <p key={o.tipo} className="small">{o.codigo}: {o.motivo}.</p>)}
+      {r.rechazos.map((t) => <p key={t} className="small">{t}.</p>)}
     </div>
   );
 }

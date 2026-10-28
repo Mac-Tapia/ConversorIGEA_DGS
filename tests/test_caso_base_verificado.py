@@ -377,3 +377,25 @@ def test_un_proyecto_ya_importado_se_verifica_sin_flujo(tmp_path, capsys):
         rc = tool.main(['--existing-project', 'P', '--source-dgs', str(dgs), '--manifest',
                         str(geo), opcion])
         assert rc == 1 and 'al importar el DGS' in capsys.readouterr().err
+
+
+def test_al_escalar_la_demanda_no_se_tocan_sed_ni_conductores():
+    """032:RF-26 — si el «Caso base» no converge con lo original, solo se escala la demanda:
+    ningún transformador ni línea cambia de tipo o de unidades."""
+    app = _red_que_no_converge(None)
+    mayor = max(sum(c.plini for c in app.proyecto.GetContents('*.ElmLod', 1)
+                    if c.loc_name.startswith(f)) for f in ('F1', 'F2'))
+    app.ldf.limite = mayor * 0.62
+
+    def foto():
+        return {(o.GetClassName(), o.loc_name): (getattr(o, 'typ_id', None),
+                                                 getattr(o, 'ntnum', None),
+                                                 getattr(o, 'nlnum', None))
+                for clase in ('ElmTr2', 'ElmLne')
+                for o in app.proyecto.GetContents(f'*.{clase}', 1)}
+
+    antes = foto()
+    assert any(k[0] == 'ElmTr2' for k in antes) and any(k[0] == 'ElmLne' for k in antes)
+    ajuste = tool.converger_caso_base(app)
+    assert ajuste['pass'] is True and ajuste['factor'] < 1.0
+    assert foto() == antes

@@ -515,7 +515,9 @@ def convert(ws: Workspace, ctx: JobContext, feeders: list[str] | None, all_feede
         ctx.log(f'Alcance: {len(feeders or [])} seleccionado(s): '
                 + ', '.join((feeders or [])[:8]) + ('…' if len(feeders or []) > 8 else ''))
     if corrections:
-        ctx.log(f'Catálogo corregido aplicado: {len(corrections)} código(s).')
+        # 032:RF-2: el «Caso base» lleva los conductores del archivo; la ficha, en «Sin proyecto».
+        ctx.log(f'Catálogo corregido: {len(corrections)} código(s) con ficha; se aplicarán al '
+                'calibrar «Sin proyecto», no en el «Caso base».')
     ctx.log('--- Inicio de conversión ---')
 
     from ..batch import resolve_workers
@@ -577,8 +579,6 @@ def convert(ws: Workspace, ctx: JobContext, feeders: list[str] | None, all_feede
                 extra.append(f"trafomix excluidos={reglas['trafomix']['excluidos']}")
             if (reglas.get('puentes') or {}).get('tramos'):
                 extra.append(f"puentes fundidos={reglas['puentes']['tramos']}")
-            if reglas.get('sed_redimensionadas'):
-                extra.append(f"SED redimensionadas={len(reglas['sed_redimensionadas'])}")
             hoja = item.get('hoja') or {}
             if hoja:
                 extra.append(f"hoja {hoja['formato']} {hoja['orientacion']} 1:{hoja['escala_1_a']:,}")
@@ -586,12 +586,11 @@ def convert(ws: Workspace, ctx: JobContext, feeders: list[str] | None, all_feede
                     f"cargas={counts.get('source_loads', '?')} "
                     f"SED={counts.get('source_seds', counts.get('dgs_seds', '?'))}"
                     + (f" · {' · '.join(extra)}" if extra else ''))
-            for linea in reglas.get('sed_redimensionadas') or []:
-                ctx.log(f"      SED redimensionada — {linea}")
         elif status == 'skipped':
             ctx.log(f"  OMITIDO {name}: {item.get('error') or 'sin topología'}")
         else:
             ctx.log(f"  BLOQUEADO_DATOS {name}: {item.get('error') or 'error de conversión'}")
+    _log_conductores_deducidos(ctx, manifest)
     ctx.log('--- Fin de conversión ---')
     return {
         'summary': summary,
@@ -1049,6 +1048,26 @@ def crs_origen_exigido(ws: Workspace) -> str:
     return crs
 
 
+def fichas_conductores_de(ws: Workspace) -> dict[str, dict]:
+    """Fichas de conductor para «Sin proyecto» (032:RF-14): el catálogo subido a la web o,
+    sin él, el del proyecto; sin ninguno, vacío y el guion no cambia nada."""
+    from ..catalog import fichas_para_pf, leer_catalogo
+    from ..reglas import catalogo_del_proyecto
+
+    correcciones = ws.catalog_corrections()
+    if not correcciones:
+        ruta = catalogo_del_proyecto()
+        correcciones = leer_catalogo(ruta) if ruta else {}
+    return fichas_para_pf(correcciones or {})
+
+
+def _log_conductores_deducidos(ctx: JobContext, manifest: dict) -> None:
+    """032:RF-4: lo único del catálogo que entra en el «Caso base», dicho como deducido."""
+    for c in manifest.get('conductores_deducidos') or []:
+        ctx.log(f"  Conductor deducido {c['codigo']}: la entrada no trae sus parámetros; "
+                f"del catálogo {c['fuente']}, en {c['tramos']} tramo(s).")
+
+
 def reglas_de(ws: Workspace):
     """Reglas del proyecto con la hoja elegida y las convenciones del perfil de empresa."""
     from dataclasses import replace
@@ -1273,15 +1292,14 @@ def convert_group(
         write_json_atomic(Path(metadata_path), metadata)
     write_json_atomic(ws.out_dir / f'{nombre}_manifest.json', man)
     ctx.log(man.get('entrada') or '')
+    _log_conductores_deducidos(ctx, man)
     if man.get('union'):
         ctx.log(man['union'])
     for alim, inf in (man.get('reglas_por_alimentador') or {}).items():
         t = (inf.get('trafomix') or {}).get('excluidos', 0)
         pu = (inf.get('puentes') or {}).get('tramos', 0)
-        ctx.log(f'  {alim}: puentes fundidos {pu}, trafomix excluidos {t}, '
-                f'SED redimensionadas {len(inf.get("sed_redimensionadas") or [])}')
-        for linea in inf.get('sed_redimensionadas') or []:
-            ctx.log(f'      SED redimensionada — {linea}')
+        # 032:RF-5: el «Caso base» no lleva propuestas de SED; van a «Sin proyecto».
+        ctx.log(f'  {alim}: puentes fundidos {pu}, trafomix excluidos {t}')
     if man.get('de_energised_nodes'):
         ctx.log(f"AVISO: {len(man['de_energised_nodes'])} barras sin camino a ninguna fuente: "
                 'quedan en el DGS fuera de servicio.')
@@ -2113,27 +2131,30 @@ def demanda_alimentadores(ws: Workspace) -> dict:
         raise UserError(str(exc)) from exc
 
 
-def sistema_del_proyecto(ws: Workspace, project: str) -> dict | None:
+def sistema_del_proyecto(ws: Workspace, project: str, *, todos: bool = False) -> dict | None:
     """El sistema eléctrico de un proyecto de DIgSILENT, si se convirtió por sistema (022:RF-52).
 
-    ``{'grupo', 'alimentadores', 'medidores'}``, con los medidores de alimentador de cada
-    uno en el libro (vacío si no tiene). ``None`` si el proyecto no es de tipo «sistema».
+    ``{'grupo', 'alimentadores', 'medidores', 'tipo'}``, con los medidores de alimentador de
+    cada uno en el libro (vacío si no tiene). ``None`` si el proyecto no es de tipo «sistema»;
+    con ``todos``, también el de un alimentador o de varios unidos (028:RF-24).
     """
     from ..demanda_medida import DemandaError, leer_medidores, medidores_de
 
     proyecto = project.strip()
     grupo = next((n for n, p in (ws.pf_projects or {}).items()
-                  if p == proyecto and (ws.groups.get(n) or {}).get('tipo') == 'sistema'), None)
+                  if p == proyecto and (todos or (ws.groups.get(n) or {}).get('tipo') == 'sistema')), None)
     if grupo is None:
         return None
-    alimentadores = list(ws.groups[grupo].get('feeders') or [])
+    # Un alimentador solo se guarda con su código y sin grupo (CA101 → su proyecto).
+    alimentadores = list((ws.groups.get(grupo) or {}).get('feeders') or [grupo])
     try:
         filas = leer_medidores(_demanda_ruta(ws, 'medidores'), demanda_alias())
     except (DemandaError, UserError):
         filas = []                    # sin libro de medidores, ninguno tiene medidor
     grafias = _grafias(ws)
     medidores = {a: medidores_de(filas, a, grafias(a)) for a in alimentadores}
-    return {'grupo': grupo, 'alimentadores': alimentadores, 'medidores': medidores}
+    return {'grupo': grupo, 'alimentadores': alimentadores, 'medidores': medidores,
+            'tipo': (ws.groups.get(grupo) or {}).get('tipo') or ('unida' if grupo in ws.groups else 'alimentador')}
 
 
 def _grafias(ws: Workspace) -> Callable[[str], list[str]]:
@@ -2850,6 +2871,8 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
     caso_calibracion = f'{SIN_PROYECTO} {anio_casos}' if anio_casos else SIN_PROYECTO
     # 015:RF-13, RF-15: sin «Caso base» verificado no se calibra; con varios, los demás sí.
     sin_verificar = caso_base_verificado(ws, project, requested_feeders)
+    # 032:RF-14: las fichas de los conductores, una vez para todo el proyecto.
+    fichas_conductores = fichas_conductores_de(ws)
     for fila in filas:
         alim_fila = str(fila.get('alimentador') or '').strip()
         if alim_fila in sin_verificar:
@@ -3000,6 +3023,9 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
             # el guion las valida con la misma lectura (020:RF-31).
             'transformadores_sed': (datos_perfil().get('calibracion') or {}).get(
                 'transformadores_sed'),
+            # 032:RF-14: el «Caso base» lleva los conductores del archivo; su ficha se pone
+            # en «Sin proyecto», en la variación de los conductores.
+            'fichas_conductores': fichas_conductores,
             'caso_base_sin_verificar': {},
             # 025:RF-14, RF-24: el año de la medición y el de los casos en que se graba.
             'anio_medicion': anio_medicion, 'anio_casos': anio_casos, 'caso': caso_calibracion,
@@ -3257,7 +3283,11 @@ def ajuste_transformadores_pedido(ws: Workspace, token: str, feeder: str,
         informe = json.loads(ultimo.read_text(encoding='utf-8'))
     except (OSError, ValueError) as exc:
         raise UserError(f'No se pudo leer el informe del ajuste ({ultimo.name}): {exc}') from exc
+    # 032:RF-22: las SED sobre el umbral tras calibrar (fijas y escaladas); las fijas de la
+    # 020, que también salen al simular, valen si no hay otra propuesta de esa SED.
     propuestas = {x['sed']: x for x in informe.get('fijas_sobre_su_transformador') or []}
+    propuestas.update({x['sed']: x for x in
+                       (informe.get('sed_sobre_umbral') or {}).get('sed') or []})
     cambios, sin = [], []
     for sed in dict.fromkeys(seds):
         x = propuestas.get(sed)
@@ -6022,14 +6052,20 @@ def _entorno_del_trabajo(ctx: JobContext) -> dict[str, str]:
 
 
 def recalibrar_datos(ws: Workspace, project: str) -> dict:
-    """El sistema eléctrico del proyecto y la carpeta de los libros del espacio (028:RF-22, RF-23)."""
+    """El sistema eléctrico del proyecto, o sus alimentadores si es de uno o de varios unidos, y
+    la carpeta de los libros del espacio (028:RF-22 a RF-24)."""
     import os
     import re
 
     m = re.search(r'SISTEMA_([A-Za-z0-9]+)$', (project or '').strip())
-    if not m:
-        raise UserError(f'«{project}» no es el proyecto de un sistema eléctrico: recalibre sus '
-                        'alimentadores con la calibración del paso 2 (028:RF-23).')
+    grupo = next((n for n, p in (ws.pf_projects or {}).items() if p == (project or '').strip()), None)
+    if grupo is not None:
+        # La selección registrada prevalece sobre un nombre que contenga SISTEMA_.
+        m = (re.search(r'SISTEMA_([A-Za-z0-9]+)$', grupo)
+             if (ws.groups.get(grupo) or {}).get('tipo') == 'sistema' else None)
+    if not m and grupo is None:
+        raise UserError(f'«{project}» no es el proyecto de un sistema eléctrico ni de alimentadores '
+                        'convertidos en este espacio: conviértalos e impórtelos antes (028:RF-23).')
     rutas = [str(Path(v['path']) if Path(v['path']).is_dir() else Path(v['path']).parent)
              for v in (ws.demanda or {}).values() if isinstance(v, dict) and v.get('path')]
     if not rutas:
@@ -6038,7 +6074,10 @@ def recalibrar_datos(ws: Workspace, project: str) -> dict:
         carpeta = os.path.commonpath(rutas)
     except ValueError:
         carpeta = rutas[0]
-    return {'zonal': m.group(1).capitalize(), 'demanda_dir': carpeta}
+    if m:
+        return {'zonal': m.group(1).capitalize(), 'demanda_dir': carpeta}
+    alimentadores = list((ws.groups.get(grupo) or {}).get('feeders') or [grupo])
+    return {'zonal': '', 'grupo': grupo, 'alimentadores': alimentadores, 'demanda_dir': carpeta}
 
 
 def recalibrar_sistema(ws: Workspace, ctx: JobContext, project: str, periodo: str, *,
@@ -6050,11 +6089,17 @@ def recalibrar_sistema(ws: Workspace, ctx: JobContext, project: str, periodo: st
     import sys
 
     base = recalibrar_datos(ws, project)
-    zonal = (zonal or '').strip() or base['zonal']
+    zonal = '' if base.get('alimentadores') else ((zonal or '').strip() or base['zonal'])
     demanda_dir = (demanda_dir or '').strip() or base['demanda_dir']
-    ctx.log(f'Recalibrar {zonal} ({project}) con {periodo}, libros de {demanda_dir} (028:RF-21).')
-    cmd = [sys.executable, str(_script('sistema_web.py')), '--espacio', ws.id, '--zonal', zonal,
+    cmd = [sys.executable, str(_script('sistema_web.py')), '--espacio', ws.id,
            '--periodo', periodo, '--demanda-dir', demanda_dir]
+    if zonal:
+        cmd += ['--zonal', zonal]
+    else:
+        # 028:RF-24: el proyecto de uno o de varios alimentadores unidos, por su grupo.
+        zonal = ' + '.join(base['alimentadores'])
+        cmd += ['--red', *base['alimentadores'], '--grupo', base['grupo']]
+    ctx.log(f'Recalibrar {zonal} ({project}) con {periodo}, libros de {demanda_dir} (028:RF-21).')
     if transformadores:
         cmd.append('--transformadores')
     rc = ctx.run_process(cmd, cwd=str(project_root()), env=_entorno_del_trabajo(ctx))
