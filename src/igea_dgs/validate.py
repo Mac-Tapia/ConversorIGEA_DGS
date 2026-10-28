@@ -9,6 +9,7 @@ import json
 import math
 
 from .model import FeederModel, Line
+from .naming import _siglas_canonicas, nombre_canonico
 from .schema import load_schema
 from .geography import GeographyManifest
 from .util import finite_or_none
@@ -76,8 +77,14 @@ def _mismo_trazado(a: list[tuple[float, float]], b: list[tuple[float, float]]) -
         math.isclose(x, y, rel_tol=0.0, abs_tol=1e-8) for p, q in zip(a, b) for x, y in zip(p, q))
 
 
+#: Siglas canónicas del perfil durante una validación (``validate_dgs`` las fija una vez).
+_CANONICAS: dict[str, str] = {}
+
+
 def _loc(value: str) -> str:
-    return value.replace(';', ',').replace('\n', ' ').replace('\r', ' ')[:40]
+    # 027:T23: el nombre que escribe el DGS, con la sigla canónica (NODE_…_CN101 → …_CHN101).
+    texto = value.replace(';', ',').replace('\n', ' ').replace('\r', ' ')
+    return (nombre_canonico(texto, _CANONICAS) if _CANONICAS else texto)[:40]
 
 
 
@@ -89,6 +96,8 @@ def validate_dgs(
     schema_profile: str = 'pf21_dgs_1_8_4',
     geography: GeographyManifest | None = None,
 ) -> dict:
+    global _CANONICAS
+    _CANONICAS = _siglas_canonicas()                                   # 027:T23, las del DGS
     schema = load_schema(schema_profile)
     tables = parse_dgs(dgs_path)
     schema_errors: list[str] = []

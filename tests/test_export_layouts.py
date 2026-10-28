@@ -324,3 +324,24 @@ class TestLosEquiposDeManiobraSegunSuClase:
         assert len(seccionadores) == spec.feeders and len(seccionalizadores) == 2 * spec.feeders
         assert set(seccionadores.values()) == {'dct'}
         assert set(seccionalizadores.values()) == {'swt'}
+
+
+@pytest.mark.parametrize('layout', LAYOUTS)
+def test_sigla_alternativa_valida_con_su_canonica(tmp_path, monkeypatch, layout):
+    """022:RF-90 / 027:T23 — con una SET de siglas alternativas en el perfil, el DGS escribe la
+    canónica en todos los nombres (también el nodo de cabecera y la red) y la validación
+    estricta lo da por bueno: con Chincha Nueva (CN → CHN) la conversión fallaba (2026-10-28)."""
+    from igea_dgs import dgs, naming, validate
+    from igea_dgs.batch import convert_selection
+
+    canon = lambda: {'AL': 'ALT'}
+    for modulo in (naming, dgs, validate):
+        monkeypatch.setattr(modulo, '_siglas_canonicas', canon)
+    ds = load_export(_spec(layout), tmp_path / layout)
+    salida = tmp_path / f'out_{layout}'
+    manifest = convert_selection(ds, None, str(salida), all_feeders=True, aliases={}, strict=True,
+                                 include_geography=True, source_crs='EPSG:32718', target_crs='EPSG:4326',
+                                 workers=1)
+    assert manifest['summary']['failed'] == 0, manifest
+    textos = [p.read_text(encoding='cp1252') for p in salida.glob('*.dgs')]
+    assert textos and all('_AL0' not in t and 'ALT0' in t for t in textos)
