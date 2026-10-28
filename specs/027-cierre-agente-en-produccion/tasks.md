@@ -12,13 +12,17 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       Hecho el 2026-10-28: 6 pruebas en verde; `tools/digital_twin_auditar.py` sobre el búfer real da
       24 muestras, 1 red de 2470 nodos, 58 707 etiquetas, 928 518 parámetros, 11 episodios con
       tensiones fuera de 0,8–1,2 p.u. y 5 órdenes reales del asistente (1 en la prueba).
-- [ ] T1. Episodio tras cada calibración, obra y estudio de cualquier sistema desde la web, con
+- [x] T1. Episodio tras cada calibración, obra y estudio de cualquier sistema desde la web, con
       sistema, SET, caso y huella. (RF-1)
       Hecho cuando: `pytest -q tests/test_digital_twin_capture.py` en verde y, tras calibrar
       Nasca y Chincha desde la web, el búfer tiene episodios de las dos familias.
-- [ ] T2. Particiones «un sistema fuera» y mínimo de episodios de prueba por familia. (RF-2, RF-3)
+      Hecho el 2026-10-28: la lectura nativa trae el grafo eléctrico (antes solo tensiones) y el
+      episodio de la calibración de Nasca en DIgSILENT es entrenable (4067 nodos con tensión).
+- [x] T2. Particiones «un sistema fuera» y mínimo de episodios de prueba por familia. (RF-2, RF-3)
       Hecho cuando: `pytest -q tests/test_digital_twin_evaluacion.py` en verde con familias
       sorteadas; ningún sistema en entrenamiento y prueba a la vez.
+      Hecho el 2026-10-28: `particionar` por red (huella de sus nodos) y `fallos_de_particion`
+      (sin red de prueba o con menos de 10 episodios no se promueve); `entrenar` y `evaluar` lo usan.
 - [ ] T3. Escenarios por hipercubo latino del rango de carga medido, en copias del proyecto. (RF-4)
       Hecho cuando: pruebas de `escenarios.py` en verde y una corrida en DIgSILENT con Nasca.
 - [ ] T4. `Entrenamiento` con paciencia, coseno, recorte de gradiente y mejor época; GRU con
