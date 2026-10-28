@@ -300,12 +300,20 @@ def cambios_manuales(cargas: dict, ultima: dict | None) -> tuple[list[dict], str
     if not grabadas:
         return [], None
     nombre = ultima.get('nombre') or 'la última calibración'
+    # Con la P y la Q escritas guardadas, se compara con ellas: el operador cambia lo escrito,
+    # y el factor de escala de las escaladas lo mueve el propio conversor (SM218, 2026-10-28:
+    # scale0 de 0,10214 a 0,10305 entre dos calibraciones y 257 cargas «a mano», que tapaban
+    # a los clientes importantes). Un registro antiguo, sin ellas, sigue con lo que consume.
+    escritas = ultima.get('escrita') or {}
     out = []
     for sed, obj in cargas.items():
         if sed not in grabadas:
             continue
         ahora, antes = potencia_efectiva(obj), tuple(grabadas[sed])
-        if all(_cerca(a, b, rel=1e-3, abs_=0.01) for a, b in zip(ahora, antes)):
+        if sed in escritas and None not in escritas[sed]:
+            if all(_cerca(a, b, rel=1e-3, abs_=0.01) for a, b in zip(potencia(obj), escritas[sed])):
+                continue
+        elif all(_cerca(a, b, rel=1e-3, abs_=0.01) for a, b in zip(ahora, antes)):
             continue
         out.append({'sed': sed, 'calibracion': nombre,
                     'manual': {'kw': ahora[0], 'kvar': ahora[1]},

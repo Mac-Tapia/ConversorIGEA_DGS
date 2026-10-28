@@ -336,6 +336,12 @@ def test_reactiva_del_registro_de_la_pot_del_cliente(tmp_path):
     en_t, _ = dm.registros_de_maxima(tmp_path / 'c.xlsx', {'700': 400.0},
                                     instante=_dt(2026, 7, 1, k // 4, 15 * (k % 4)))
     assert en_t['700'][1] == pytest.approx(4.0) and en_t['700'][2] == pytest.approx((10.0 + k) * 4)
+    # 004:RF-67, «sin ese registro, RF-66»: un instante que la hoja no trae da el ERI del
+    # registro de su POT, con su fecha, y no el ERI/EA del mes.
+    fuera, avisos_f = dm.registros_de_maxima(tmp_path / 'c.xlsx', {'700': 400.0},
+                                             instante=_dt(2026, 7, 2, 10, 0))
+    assert fuera['700'] == (reg['700'][0], pytest.approx(30.0), None)
+    assert any('RF-67' in a for a in avisos_f)
     f_t = fijas_de([{'sed': 'S1', 'pot': 400.0, 'codigo': '700', 'q_registro_kvar': en_t['700'][1],
                      'p_registro_kw': en_t['700'][2]}], Objetivo(kw=1.0, kvar=0.0, medidor='M'))
     assert f_t['S1'].kw == pytest.approx((10.0 + k) * 4), 'el kW del instante, no la POT del mes'

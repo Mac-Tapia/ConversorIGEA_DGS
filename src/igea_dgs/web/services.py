@@ -3129,6 +3129,19 @@ def _guardar_calibracion(ws: Workspace, project: str, feeder: str, informe: dict
         return
     sed = {x['sed']: [(x.get('despues') or {}).get('kw'), (x.get('despues') or {}).get('kvar')]
            for x in informe['sed'] if (x.get('despues') or {}).get('kw') is not None}
+    # 014:RF-10: lo que quedó en DIgSILENT, releído tras escribir, y no el reparto calculado.
+    # SM218 (2026-10-28): se guardaba el reparto, que no coincide con lo escrito (SE42227
+    # 1,718 kW guardados, 1,584 kW en DIgSILENT); la siguiente veía las 306 cargas «cambiadas
+    # a mano», las dejaba fijas sin escribirlas, tapaba a los 15 clientes importantes y
+    # volvía a guardar el reparto: el error se repetía en cada calibración.
+    releidas = (informe.get('relectura_cargas_nativas') or {}).get('despues') or []
+    sed.update({x['sed']: [x.get('p_kw'), x.get('q_kvar')] for x in releidas
+                if x.get('sed') in sed and x.get('p_kw') is not None})
+    # 014:RF-10: también la P y la Q escritas, sin el factor de escala, que es lo que cambia el
+    # operador. SM218 (2026-10-28): entre dos calibraciones el scale0 de las escaladas pasó
+    # de 0,10214 a 0,10305 sin que nadie tocara la red, y 257 cargas salían «a mano».
+    escrita = {x['sed']: [(x.get('escrita') or {}).get('p_kw'), (x.get('escrita') or {}).get('q_kvar')]
+               for x in releidas if x.get('sed') in sed and (x.get('escrita') or {}).get('p_kw') is not None}
     # 015:RF-65: los clientes fijos con su FP real (EA/ERI) y el corregido, para el informe.
     fijas = []
     for x in informe['sed']:
@@ -3142,7 +3155,7 @@ def _guardar_calibracion(ws: Workspace, project: str, feeder: str, informe: dict
     with ws.lock:
         ws.calibraciones.setdefault(clave_calibracion(project, anio_casos), {})[feeder] = {
             'nombre': f"la calibración del {informe.get('stamp') or time.strftime('%Y-%m-%d %H:%M')}",
-            'sed': sed, 'fijas': fijas, 'cuadrado': bool(informe.get('cuadrado')),
+            'sed': sed, 'escrita': escrita, 'fijas': fijas, 'cuadrado': bool(informe.get('cuadrado')),
             'escenario': informe.get('escenario'), 'recorded_at': time.time(),
             'anio': anio_medicion, 'caso': informe.get('caso')}
         if anio_medicion and not anio_casos:

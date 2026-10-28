@@ -1453,22 +1453,28 @@ def registros_de_maxima(path: Path | str, pot_de: Mapping[str, float | None],
         if cols is None:
             avisos.append(f'{codigo}: la hoja «{hoja}» no tiene FECHA, HORA, ERI y POT.')
             continue
+        fila = None
         if instante is not None:
             buscado = (instante.strftime('%d/%m/%Y'), instante.strftime('%H:%M'))
             fila = next((f for f in datos if (_texto(f, cols['fecha']), _texto(f, cols['hora'])[:5]) == buscado),
                         None)
-        else:
+            if fila is None:
+                # 004:RF-67, «sin ese registro, RF-66»: el ERI de la fecha y hora de su EA
+                # máxima, no el cociente del mes; antes saltaba directo al ERI/EA del mes.
+                avisos.append(f'{codigo}: el registro del {instante} no está en la hoja «{hoja}»; '
+                              'su kVAR con el ERI del registro de su POT (004:RF-67).')
+        en_el_instante = fila is not None
+        if fila is None:
             tol = max(1e-6, 1e-4 * abs(pot))
             fila = next((f for f in datos if numero(_celda(f, cols['pot'])) is not None
                          and abs(numero(_celda(f, cols['pot'])) - pot) <= tol), None)
         eri = numero(_celda(fila, cols['eri'])) if fila is not None else None
         if fila is None or eri is None:
-            que = f'el registro del {instante}' if instante is not None else f'su POT {pot:g} kW'
-            avisos.append(f'{codigo}: {que} no está en la hoja «{hoja}»; '
+            avisos.append(f'{codigo}: su POT {pot:g} kW no está en la hoja «{hoja}»; '
                           'su kVAR con el ERI/EA del mes (004:RF-66).')
             continue
         ea = numero(_celda(fila, cols['ea'])) if 'ea' in cols else None
-        kw = ea * 4.0 if instante is not None and ea is not None else None
+        kw = ea * 4.0 if en_el_instante and ea is not None else None
         out[codigo] = (f"{_texto(fila, cols['fecha'])} {_texto(fila, cols['hora'])}".strip(), eri * 4.0, kw)
     return out, avisos
 
