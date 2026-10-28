@@ -275,6 +275,10 @@ class SinGPU(RuntimeError):
     """No hay GPU CUDA: el gemelo no entrena ni predice en la CPU."""
 
 
+#: cuBLAS solo es determinista con este espacio de trabajo, fijado antes de usar la GPU (027:RF-9).
+os.environ.setdefault('CUBLAS_WORKSPACE_CONFIG', ':4096:8')
+
+
 def dispositivo():
     """La GPU CUDA, siempre (usuario, 2026-10-22: «sí o sí debe conectar a GPU para no usar
     el CPU»). Sin ella, un error que lo dice; nunca la CPU en silencio."""
@@ -430,6 +434,10 @@ def _entrenar_en(muestras: Sequence[Muestra], cfg: Entrenamiento, inicial: dict 
                  log: Callable[[str], None], disp, validacion: Sequence[Muestra] = (),
                  historial: list | None = None):
     torch = _torch()
+    # 027:RF-9: mismo manifiesto, misma GPU, mismo modelo. ``index_add_`` en CUDA no tiene
+    # versión determinista: se avisa en vez de fallar y la prueba mide la diferencia.
+    torch.use_deterministic_algorithms(True, warn_only=True)
+    torch.backends.cudnn.benchmark = False
     torch.manual_seed(cfg.semilla)
     random.seed(cfg.semilla)
     red = _red(cfg.ocultas, cfg.pasos).to(disp)
@@ -723,6 +731,69 @@ def elegir_exponente(muestras: Sequence[Muestra], candidatos: Sequence[float] = 
     return min(candidatos, key=error)
 
 
+def _commit() -> str | None:
+    """El commit del código con que se entrena (027:RF-8), o ``None`` fuera de git."""
+    import subprocess
+
+    try:
+        r = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=Path(__file__).resolve().parent,
+                           capture_output=True, text=True, timeout=10, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return (r.stdout.strip() or None) if r.returncode == 0 else None
+
+
+def manifiesto(cfg: Entrenamiento, ids: Sequence[str], grupos: Mapping[str, Sequence[Muestra]],
+               candidato: OraculoPINN, parte_de: str | None) -> dict[str, Any]:
+    """Lo que hace falta para reproducir el modelo (027:RF-8): episodios (su id es la huella
+    de su contenido), commit, configuración, semillas, dispositivo, de qué modelo parte y el
+    error por familia de la partición de evaluación."""
+    torch = _torch()
+    evaluacion = grupos.get('prueba') or grupos.get('validacion') or grupos.get('entrenamiento') or []
+    por_familia: dict[str, list[Muestra]] = {}
+    for m in evaluacion:
+        por_familia.setdefault(m.familia or '—', []).append(m)
+    return {'episodios': list(ids), 'commit': _commit(), 'cfg': dict(cfg.__dict__),
+            'semillas': [cfg.semilla + k for k in range(MIEMBROS)],
+            'dispositivo': torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
+            'torch': torch.__version__, 'cuda': torch.version.cuda, 'parte_de': parte_de,
+            'particiones': {k: len(v) for k, v in grupos.items()},
+            'mae_por_familia': {f: mae(candidato, ms) for f, ms in sorted(por_familia.items())}}
+
+
+#: Diferencia de MAE de tensión que se acepta al reproducir (027:RF-9).
+TOLERANCIA_REPRODUCCION = 1e-5
+
+
+def reproducir(bufer: BuferEpisodios, version: str, log: Callable[[str], None] = lambda _m: None
+               ) -> dict[str, Any]:
+    """Vuelve a entrenar un modelo con su manifiesto y compara su error (027:RF-9)."""
+    torch = _torch()
+    carpeta = _raiz_modelos(bufer) / version
+    meta = json.loads((carpeta / 'modelo.json').read_text(encoding='utf-8'))
+    man = meta.get('manifiesto')
+    if not man:
+        raise ValueError(f'el modelo {version} no tiene manifiesto (es de antes de 027:RF-8)')
+    muestras = [m for m in (muestra_de_episodio(bufer.leer(i)) for i in man['episodios']) if m is not None]
+    cfg = Entrenamiento(**man['cfg'])
+    grupos = particionar(muestras)
+    if not grupos['entrenamiento']:
+        grupos['entrenamiento'] = list(grupos['validacion'])
+    inicial = cargar(bufer, man['parte_de']) if man.get('parte_de') else None
+    estados = [entrenar_miembro(grupos['entrenamiento'], Entrenamiento(**{**cfg.__dict__, 'semilla': s}),
+                                inicial.estados[k] if inicial and k < len(inicial.estados) else None,
+                                log, validacion=grupos['validacion'])
+               for k, s in enumerate(man['semillas'])]
+    candidato = OraculoPINN(estados, cfg, meta['dominio'])
+    evaluacion = grupos['prueba'] or grupos['validacion'] or grupos['entrenamiento']
+    error = mae(candidato, evaluacion)
+    diferencia = abs((error or 0.0) - (meta.get('mae_v') or 0.0))
+    gpu = torch.cuda.get_device_name(0) if torch.cuda.is_available() else None
+    return {'version': version, 'mae_original': meta.get('mae_v'), 'mae_reproducido': error,
+            'diferencia': diferencia, 'reproducible': diferencia < TOLERANCIA_REPRODUCCION,
+            'mismo_commit': man.get('commit') == _commit(), 'misma_gpu': man.get('dispositivo') == gpu}
+
+
 def entrenar(bufer: BuferEpisodios, *, consulta: Consulta | None = None, cfg: Entrenamiento | None = None,
              puertas: Puertas | None = None, dorados: Sequence[str] = (),
              log: Callable[[str], None] = lambda _m: None) -> dict[str, Any]:
@@ -775,6 +846,7 @@ def entrenar(bufer: BuferEpisodios, *, consulta: Consulta | None = None, cfg: En
     candidato = OraculoPINN(estados, cfg, dominio)
     evaluacion = grupos['prueba'] or grupos['validacion'] or grupos['entrenamiento']
     error = mae(candidato, evaluacion)
+    man = manifiesto(cfg, ids, grupos, candidato, actual.version if compatible else None)   # 027:RF-8
     residuos = [float(np.mean(candidato.predecir(_grafo_de_muestra(m))['residuo'])) for m in evaluacion]
     dorados_m = [m for m, i in zip(muestras, ids, strict=True) if i in set(dorados)]
     error_dorados = mae(candidato, dorados_m) if dorados_m else None
@@ -784,7 +856,8 @@ def entrenar(bufer: BuferEpisodios, *, consulta: Consulta | None = None, cfg: En
             'particiones': {k: len(v) for k, v in grupos.items()},
             # 027:RF-5: la mejor época de cada miembro y su curva de validación.
             'validacion': [{'mejor_epoca': min(c, key=lambda x: x[1])[0] if c else None,
-                            'epocas': c[-1][0] + 1 if c else None, 'curva': c} for c in curvas]}
+                            'epocas': c[-1][0] + 1 if c else None, 'curva': c} for c in curvas],
+            'manifiesto': man}
     carpeta = guardar(candidato, bufer, meta)
     fallos = fallos_de_particion(grupos)                                 # 027:RF-3
     if error is None or error > puertas.mae_v_max:
