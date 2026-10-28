@@ -427,3 +427,31 @@ def test_episodios_por_sistema_y_curva(tmp_path):
         assert len(c['puntos']) == 3 and c['puntos'][-1]['episodios'] == grande['entrenamiento']
         assert c['convergido'] == (c['mejora_ultimo_20pct'] < cv.MEJORA_MIN)
         assert r['listos'] == 1 and 'indices' not in r['sistemas'][0]
+
+
+def test_entrenar_con_un_sistema_entero(entrenado, tmp_path):
+    """027:RF-68 / 027:RF-69 — con ``sistema`` se entrena y prueba solo con esa red, con su propio
+    reparto por la huella de cada episodio; la curva que empeora al añadir datos es inestable."""
+    import shutil
+
+    from igea_dgs.digital_twin import curva as cv
+    from igea_dgs.digital_twin.buffer import Consulta
+
+    bufer, _r = entrenado
+    copia = BuferEpisodios(tmp_path / 'copia')
+    shutil.copytree(bufer.raiz, copia.raiz, dirs_exist_ok=True)
+    copia = BuferEpisodios(copia.raiz)
+    muestras, ids = orc._muestras(copia, Consulta())
+    red = orc.red_de(muestras[0])
+    del_sistema = [i for m, i in zip(muestras, ids, strict=True) if orc.red_de(m) == red]
+    r = orc.entrenar(copia, cfg=orc.Entrenamiento(epocas=10, ocultas=16, pasos=4), sistema=red[:12],
+                     puertas=orc.Puertas(mae_v_max=1.0, residuo_max=10.0))
+    import json
+    from pathlib import Path
+
+    man = json.loads((Path(r['carpeta']) / 'modelo.json').read_text(encoding='utf-8'))['manifiesto']
+    assert man['sistema'] == red[:12] and sorted(man['episodios']) == sorted(del_sistema)
+    esperado = {k: len(v) for k, v in cv.reparto_del_sistema(del_sistema).items()}
+    assert man['particiones'] == esperado
+    assert cv.curva.__doc__ and {'convergido', 'inestable'} <= set(
+        cv.curva(muestras[:6], muestras[6:8], orc.Entrenamiento(epocas=3, ocultas=8, pasos=2)))

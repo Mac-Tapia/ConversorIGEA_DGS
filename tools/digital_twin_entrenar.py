@@ -53,6 +53,8 @@ def main(argv=None) -> int:
                    help='Buscar hiperparámetros (Optuna, solo en validación) y entrenar con ellos (027:RF-7)')
     p.add_argument('--ensayos', type=int, default=20, help='Ensayos de la búsqueda')
     p.add_argument('--limite-s', type=float, default=1800.0, help='Segundos de la búsqueda')
+    p.add_argument('--sistema', metavar='RED',
+                   help='Entrenar y evaluar solo con ese sistema (huella de su red, de --curva; 027:RF-68)')
     p.add_argument('--curva', action='store_true',
                    help='No promover: episodios por sistema (30/10/10) y su curva de aprendizaje (027:RF-53)')
     p.add_argument('--deriva', action='store_true',
@@ -90,7 +92,8 @@ def main(argv=None) -> int:
                 print(f"red {f['red']} ({f['nodos']} nodos): {f['entrenamiento']}/{f['validacion']}/{f['prueba']}"
                       + (f"; faltan {f['faltan']}" if not f['suficiente'] else '')
                       + (f"; mejora con un 20 % más: {c['mejora_ultimo_20pct']:.1%}"
-                         f" ({'convergido' if c['convergido'] else 'hacen falta más'})" if c else ''))
+                         f" ({'convergido' if c['convergido'] else 'inestable' if c.get('inestable') else 'hacen falta más'})"
+                         if c else ''))
             salida.write_text(json.dumps(r, ensure_ascii=False, default=str), encoding='utf-8')
             return 0
         if args.deriva:
@@ -122,8 +125,8 @@ def main(argv=None) -> int:
             _log(f"Búsqueda: mejor ensayo {b['mejor']['numero']} con {b['mejor']['mae_validacion']:.3e} p.u. "
                  f"en validación; ensayos en {b.get('ruta')}")
             r = {**oraculo.entrenar(bufer, cfg=oraculo.Entrenamiento(**b['cfg']), log=_log), 'busqueda': b}
-        elif args.forzar:
-            r = oraculo.entrenar(bufer, log=_log)
+        elif args.forzar or args.sistema:
+            r = oraculo.entrenar(bufer, log=_log, sistema=args.sistema)
         else:
             r = oraculo.entrenar_si_toca(bufer, minimo=args.minimo, log=_log)
         codigo = 0

@@ -257,6 +257,13 @@ implementar la técnica y metodología de destilación para el entrenamiento de 
   entrenamiento, y medirá las puertas de RF-18 con las fijas de prueba junto a las del operador.
 - RF-67: EL SISTEMA no contará las órdenes fijas como órdenes del operador para RF-19: lo que
   escribe sigue pidiendo confirmación hasta que el operador confirme 200.
+- RF-68: CUANDO el operador pida entrenar el gemelo con un sistema eléctrico que ya tiene los
+  episodios de RF-53, EL SISTEMA lo entrenará y evaluará solo con ese sistema, con su reparto
+  30/10/10 por la huella de cada episodio, y la prueba serán sus propios episodios no vistos
+  (usuario, 2026-10-28: «el gemelo debe entrenar con todo un sistema»; con «un sistema fuera»
+  Chincha entero quedó de prueba de un modelo entrenado con IN111–TA225, 0,31 p.u.).
+- RF-69: EL SISTEMA no dará por convergida una curva de aprendizaje cuyo error de validación
+  empeora más del 5 % al añadir un 20 % de episodios: la marcará inestable.
 - RF-62: EL SISTEMA guardará con el modelo destilado el maestro (nombre del modelo de Ollama),
   k, la temperatura, α, T, cuántas órdenes etiquetó y cuántas descartó (RF-8).
 

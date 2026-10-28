@@ -4,7 +4,7 @@ El PIDE de Chincha (2026-10-28) no tenía tasa: el perfil la dejaba vacía y sol
 el año 00. La cabecera trae 2025 entero y 2026 hasta el mes del último libro: comparar la máxima
 de un año entero con la de medio año daba un crecimiento falso, así que se comparan las máximas
 de los meses que tienen los dos años (RF-2). Es la tasa de la demanda medida y nada más: la
-proyección con variables exógenas es otra spec (la 030).
+proyección con variables exógenas es otra spec (la 031).
 """
 from __future__ import annotations
 

@@ -33,5 +33,5 @@ cada alimentador, que crece distinto según su zona y sus clientes.
 ## Fuera de alcance
 
 - La proyección econométrica con variables exógenas (población, PBI, clientes, tarifas): será
-  una spec aparte, la 030. Esta tasa sale solo de la demanda medida.
+  una spec aparte, la 031. Esta tasa sale solo de la demanda medida.
 - Corregir la tasa por cargas nuevas puntuales (las cargas en bloque van por la spec 007).

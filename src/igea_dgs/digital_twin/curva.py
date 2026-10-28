@@ -62,7 +62,9 @@ def curva(entrenamiento: Sequence[Muestra], validacion: Sequence[Muestra], cfg: 
         log(f'  curva: {n} episodio(s) → {error:.3e} p.u. en validación')
     previo, ultimo = puntos[-2]['mae_validacion'], puntos[-1]['mae_validacion']
     mejora = (previo - ultimo) / previo if previo else 0.0
-    return {'puntos': puntos, 'mejora_ultimo_20pct': mejora, 'convergido': mejora < MEJORA_MIN}
+    # 027:RF-69: si empeora más del umbral al añadir datos, no ha convergido: es inestable.
+    return {'puntos': puntos, 'mejora_ultimo_20pct': mejora, 'convergido': -MEJORA_MIN <= mejora < MEJORA_MIN,
+            'inestable': mejora < -MEJORA_MIN}
 
 
 def _dominio(muestras: Sequence[Muestra]) -> dict[str, Any]:
