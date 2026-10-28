@@ -78,6 +78,7 @@ spec 001, RF-14 (DGS idéntico byte a byte); su diseño histórico está en
 | `src/igea_dgs/oraculo.py` | Flujo independiente con pandapower antes de escribir el DGS; sobre la red unida entera, con una isla por barra de SET, su veredicto por SET y zonal y, si una no converge, su barra más débil y su transformador más cargado. | base, 022 (RF-28, RF-32, RF-33) |
 | `src/igea_dgs/pide.py` | Metodología del PIDE (RM 428-2017-MEM/DM): proyección y densidad de carga por cuadrículas de la Tabla N.º 2, diagnóstico con su causa (caída, FP, conductor, transformador, isla, sobretensión, pérdidas), año de incumplimiento, plan por etapas sin adelantar obras y formatos 01 a 15 en Excel. | 024 (RF-49 a RF-53, RF-60 a RF-63) |
 | `src/igea_dgs/pide_economia.py` | Evaluación económica y priorización del PIDE: libro CAPEX por nombres del perfil (sin datos personales), anualidad, costo anual, VAN y TIR del art. 14, flujo privado con el pliego tarifario y la tasa privada, priorización del art. 15 con obras sobredimensionadas, y la propuesta con la obra de la spec 011 de lo que se construye solo. | 024 (RF-33, RF-34, RF-45 a RF-47, RF-54 a RF-59) |
+| `src/igea_dgs/pide_dataset.py` | Corpus PIDE universal desde un expediente de la empresa en solo lectura: custodia, calidad y fragmentos de texto. | 024 (diseño `docs/superpowers/specs/2026-10-25-dataset-pide-universal-pideelor-design.md`) |
 | `src/igea_dgs/perfil_empresa.py` | Perfil de empresa: CRS de origen, patrón de las SED de medición, escala del diagrama y forma de los alimentadores, fuera del código; hereda de `config/perfiles/`; fichas de transformadores de SED; tamaño de banco por tensión (021:RF-65); centrales térmicas por alimentador; uno o varios patrones de nombre de los libros de clientes. | 002 (RF-31 a RF-37), 020 (RF-29 a RF-31), 021 (RF-27), 025 (RF-6b) |
 | `src/igea_dgs/mapa_informe.py` | Imágenes del informe de estudio (ubicación, tensión, cargabilidad y detalle de las obras) con el GPS y los resultados del flujo de DIgSILENT; conductor nuevo y bancos resaltados con rótulos que no se pisan. | 017 (RF-11b, RF-116, RF-133) |
 | `src/igea_dgs/pf_arnes.py` | Arnés de DIgSILENT: turno del motor de la máquina, conexión común con reintento, caso restituido y proceso que se queda abierto. | 019 |
@@ -206,6 +207,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `tools/base_scenario.py` | Escenario base (año 0): lo construye, lo hace converger y lo diagnostica. | 005 |
 | `tools/build_input_catalog.py` | Tabla de parámetros eléctricos en `input/` y auditoría de alimentadores. | base |
 | `tools/build_system_grid.py` | Todos los alimentadores en una sola red, importada en PowerFactory. | base |
+| `tools/build_interactive_architecture.py` | Página distribuible de la arquitectura C4 interactiva desde su fuente en `docs/architecture/`. | 009 (diseño `docs/superpowers/specs/2026-10-25-arquitectura-c4-interactiva-design.md`) |
 | `tools/cargas_pf.py` | Guion de DIgSILENT: demandas y cargas nuevas en un proyecto existente; también el módulo común de los guiones: cabecera del alimentador, leer su red para la troncal y partir un tramo con `Application.SplitLine` en la variación que graba; las cargas nuevas se conectan en el punto más cercano de la troncal.; mide la cabecera en el interruptor de cabecera de una barra de SET compartida | 004, 007, 008, 011 (RF-52 a RF-55), 016 (RF-2, RF-4, RF-16 a RF-19, RF-21, RF-22, RF-45 a RF-50), 022 (RF-22, RF-23) |
 | `tools/casos_pf.py` | Guion de DIgSILENT: los casos «Caso base», «Sin proyecto» y «Con proyecto», cada uno con su escenario y sus variaciones; «Sin proyecto» solo desde el «Caso base» verificado; «Con proyecto» como copia de «Sin proyecto», también para las obras; lo hecho a mano en «Sin proyecto» pasa a «Con proyecto». | 011 (RF-1 a RF-16, RF-46 a RF-50; casos para RF-51 a RF-54), 014, 015, 016 (RF-12), 025 (RF-14 a RF-17, RF-21) |
 | `tools/digital_twin_buffer.py` | Búfer de episodios desde la consola: listar, mostrar, validar, registrar y rehacer el índice, sin DIgSILENT. | 024 (RF-6, RF-8, RF-9) |
@@ -217,6 +219,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `tools/estudios_pf.py` | Guion de DIgSILENT: un estudio en un caso, sin escalado por alimentador y sin aplicar lo que proponen los optimizadores; mide cada alimentador. Con `--guion`, lista o ejecuta los guiones DPL y Python del operador. En «Con proyecto», mide cada alternativa del informe con solo sus obras; guarda la geografía con barras, tipo y largo de cada tramo y los acoples, y el nodo de la red de cada banco. | 011 (RF-17, RF-20 a RF-22, RF-26, RF-27 a RF-30, RF-31, RF-33, RF-36, RF-38, RF-43 a RF-45, RF-49), 017 (RF-130, RF-131, RF-135) |
 | `tools/check_pf_license.py` | Qué módulos de PowerFactory permite la licencia. | 005, 011, 012 (RF-4) |
 | `tools/compare_schema.py` | Cabeceras de un DGS externo frente a un perfil de esquema. | base |
+| `tools/construir_dataset_pide.py` | Construye el corpus PIDE universal de una empresa con `pide_dataset`. | 024 |
 | `tools/convertir_grupos_mdb.py` | Varios alimentadores de una base en un DGS, importado y con flujo, a escala real por defecto. | base, 021 |
 | `tools/fidelidad_seleccion.py` | Comprueba que una selección pasa entera del TXT al DGS. | 009 |
 | `tools/linea_base_dgs.py` | Línea base de DGS para comprobar que una reorganización no cambia nada. | 001 (RF-14), 002 (RF-20) |
@@ -234,6 +237,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `tools/pide_pf.py` | Guion de DIgSILENT: cada año del horizonte del PIDE con la demanda escalada por el `ComLdf`, diagnóstico de la norma con el alimentador y la tensión de cada problema; restituye el factor. | 024 (RF-51 a RF-53) |
 | `tools/pf_cliente.py` | Envía un guion de DIgSILENT al proceso que se queda abierto y reescribe su salida. | 019 |
 | `tools/pf_servidor.py` | Proceso que mantiene DIgSILENT abierto y atiende las órdenes de los guiones; se cierra a los 2 minutos sin órdenes. | 019 |
+| `tools/verify_architecture_links.py` | Comprueba los enlaces públicos y locales del espacio Structurizr de la arquitectura. | 009 |
 | `tools/verificar_pf.py` | Guion de DIgSILENT: convergencia del proyecto con lo activo. | 008 |
 
 ## `frontend/src/` — interfaz web
