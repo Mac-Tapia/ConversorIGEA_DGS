@@ -131,6 +131,8 @@ Central térmica en un tramo: declaración y medidas
 - RF-25: DONDE el operador declara una central en un alimentador, EL SISTEMA le pedirá tres
   medidores (generación, llegada desde la SET y salida hacia la carga) y el nodo del
   troncal donde está la barra de la central.
+  Cambiado el 2026-10-28 por 028:RF-19: sin barra ni generador ya no se pide; se calibra sin la
+  central y se avisa.
 - RF-26: EL SISTEMA ofrecerá como medidores de la central los del libro de medidores cuyo
   alimentador no es ninguno de la red, sin suponer nada por su nombre.
 - RF-27: DONDE el perfil de empresa guarda la central de un alimentador, EL SISTEMA la

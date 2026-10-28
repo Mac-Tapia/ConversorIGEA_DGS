@@ -46,7 +46,8 @@ def test_reglas_barra_de_la_central_y_resumen():
     assert esc.nodo_de_central(None, 'A') is None
     r = esc.resumen(escaneo)['A']
     assert r == {'generadores': 2, 'generadores_del_operador': 1, 'bancos': 2,
-                 'bancos_del_operador': 1, 'bancos_de_calibracion': 1, 'cargas_cambiadas': 0}
+                 'bancos_del_operador': 1, 'bancos_de_calibracion': 1, 'cargas_cambiadas': 0,
+                 'tramos_nuevos': 0}
 
 
 @pytest.fixture(scope='module')
@@ -167,3 +168,58 @@ def test_la_central_es_el_generador_del_operador(ajuste):
     assert (gen.pgini, gen.qgini) == (pytest.approx(0.6), pytest.approx(-0.04))
     assert '028:RF-13' in c['aviso']
 
+
+
+def test_tramos_nuevos_frente_al_dgs(guion, tmp_path):
+    """028:RF-17 — un tramo que no venía en el DGS aceptado sale como nuevo con sus barras."""
+    dgs = tmp_path / 'red.dgs'
+    dgs.write_text('$$General;ID(a:40);Descr(a:40);Val(a:40)\n  1;Version;6.0\n'
+                   '$$ElmLne;FID(a:40);OP(a:1);loc_name(a:40);fold_id(p)\n'
+                   '  10;C;F1_L1;4\n  11;C;F1_L2;4\n  12;C;F1_L3;4\n$$ElmTerm;FID(a:40);OP(a:1);loc_name(a:40)\n'
+                   '  20;C;F1_L4;4\n', encoding='cp1252')
+    assert esc.tramos_del_dgs(dgs) == {'F1_L1', 'F1_L2', 'F1_L3'}
+    app = fake_pf.proyecto(alimentadores=('F1',), cargas_por_alim=4, bt=True, flujo=True)
+    informe, rc = guion.ejecutar(app, {'project': 'P', 'feeders': ['F1'], 'tramos_dgs': sorted(esc.tramos_del_dgs(dgs))})
+    assert rc == 0
+    [nuevo] = informe['alimentadores']['F1']['tramos_nuevos']
+    assert nuevo['tramo'] == 'F1_L4' and nuevo['desde'] == 'F1_B3' and nuevo['hasta'] == 'F1_B4'
+    assert esc.resumen(informe)['F1']['tramos_nuevos'] == 1
+
+
+def test_recalibrar_sin_bloqueos(tmp_path, monkeypatch):
+    """028:RF-16 / 028:RF-19 / 028:RF-20 — la calibración escanea antes sin que se pida y, si el
+    escaneo falla, calibra igual; una central sin barra ni generador no detiene el plan."""
+    from threading import Event
+    from types import SimpleNamespace
+
+    from igea_dgs.web import services
+
+    ws = SimpleNamespace(escaneo={}, pf_project_bindings={}, root=tmp_path, calibraciones={})
+    avisos: list[str] = []
+    monkeypatch.setattr(services, 'demanda_central', lambda *a, **k: {'error': None})
+    assert services._central_del_plan(ws, 'J', 'A1', 'M', {'generacion': 'G', 'llegada': 'L', 'salida': 'S',
+                                                           'nodo': ''}, avisos, '') is None
+    assert any('028:RF-19' in a for a in avisos)
+    logs = []
+    ctx = SimpleNamespace(log=logs.append, cancel=Event())
+    monkeypatch.setattr(services, 'escanear_alimentadores',
+                        lambda *a, **k: (_ for _ in ()).throw(services.UserError('DIgSILENT ocupado')))
+    assert services._escanear_sin_bloquear(ws, ctx, 'P', ['A1'], None) is None
+    assert any('se calibra igual' in x for x in logs)
+    assert services._tramos_del_dgs_aceptado(ws, 'P') == set()
+
+
+def test_generador_del_operador_sin_central(ajuste):
+    """028:RF-18 — sin central declarada, el generador del operador se queda en la red y el
+    informe lo dice; no se crea ninguno."""
+    from test_ajuste_central_guion import _app, _plan
+
+    app = _app()
+    gen = _con(app, 'F1', 'ElmGenstat', 'GD_A_MANO', 'F1_B3')
+    gen.pgini, gen.qgini, gen.outserv = 0.2, 0.0, 0
+    plan = _plan()
+    plan.pop('central')
+    informe, _rc = ajuste.ejecutar(app, plan)
+    assert informe['generadores_del_operador'] == [{'generador': 'GD_A_MANO', 'p_kw': 200.0}]
+    assert any('028:RF-18' in a for a in informe['avisos'])
+    assert not [o for o in app.creados if o._clase == 'ElmGenstat' and o.loc_name.startswith('Central_')]

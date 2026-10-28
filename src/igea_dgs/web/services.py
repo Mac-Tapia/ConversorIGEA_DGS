@@ -2769,7 +2769,10 @@ def _central_del_plan(ws: Workspace, job_id: str, alimentador: str, cabecera: st
         if nodo:
             avisos.append(f'{pre}la central va en la barra {nodo}, la de su generador en el escaneo (028:RF-12).')
     if not nodo:
-        raise UserError(f'{alimentador}: indique la barra de la central en DIgSILENT (021:RF-25).')
+        # 028:RF-19: sin barra ni generador no se detiene el plan; se calibra sin la central.
+        avisos.append(f'{pre}la central no tiene barra ni generador en DIgSILENT: se calibra sin '
+                      'ella (028:RF-19).')
+        return None
     try:
         maxima = demanda_central(ws, job_id, alimentador=alimentador, cabecera=cabecera,
                                  generacion=declarada['generacion'], llegada=declarada['llegada'],
@@ -3201,6 +3204,8 @@ def ajuste_ejecutar(ws: Workspace, ctx: JobContext, token: str, *, simular: bool
     if not all(Path(p).is_file() for p in paths):
         raise UserError('El plan del ajuste ya no existe: vuelva a prepararlo.')
     _require_pf()                     # sin DIgSILENT se dice antes de empezar
+    escaneo = _escanear_sin_bloquear(ws, ctx, plan['project'], list(plan['feeders']),
+                                     plan.get('anio_casos'))                      # 028:RF-16
     modo = 'simulacion' if simular else 'aplicacion'
     flag = ws.plans_dir / f'cancelar_{token}.flag'
     flag.unlink(missing_ok=True)
@@ -3218,7 +3223,8 @@ def ajuste_ejecutar(ws: Workspace, ctx: JobContext, token: str, *, simular: bool
             'report': reports[0].name, 'reports': [r.name for r in reports],
             'project': plan['project'], 'feeders': plan['feeders'], 'token': token,
             'informe': informes[0], 'informes': informes,
-            'sistema': plan.get('sistema')}                                  # 022:RF-53
+            'sistema': plan.get('sistema'),                                  # 022:RF-53
+            'escaneo': (escaneo or {}).get('resumen')}                       # 028:RF-16
 
 
 def _plan_y_sufijo(plan: dict, feeder: str) -> tuple[str, str]:
@@ -4175,6 +4181,34 @@ def _guion_pf(ws: Workspace, ctx: JobContext, script: str, plan: dict, *, nombre
 
 
 # ------------------------------------------------------------------ escaneo (spec 028)
+def _tramos_del_dgs_aceptado(ws: Workspace, project: str) -> set[str]:
+    """Los tramos del DGS con que se aceptó el proyecto (028:RF-17): el de la ejecución fuente
+    cuya huella es la del vínculo. Sin vínculo o sin el fichero, ninguno (no se dice «nuevo»)."""
+    import hashlib
+
+    from ..escaneo import tramos_del_dgs
+
+    vinculo = ws.pf_project_bindings.get(project) or {}
+    huellas = set((vinculo.get('dgs_sha256') or {}).values())
+    carpeta = ws.root / 'runs' / str(vinculo.get('source_run_id') or '') / 'salida'
+    if not huellas or not carpeta.is_dir():
+        return set()
+    for ruta in sorted(carpeta.glob('*.dgs')):
+        if hashlib.sha256(ruta.read_bytes()).hexdigest() in huellas:
+            return tramos_del_dgs(ruta)
+    return set()
+
+
+def _escanear_sin_bloquear(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
+                           anio: int | None) -> dict | None:
+    """028:RF-16: antes de calibrar se escanea; si falla, se dice y se calibra igual."""
+    try:
+        return escanear_alimentadores(ws, ctx, project, feeders, anio)
+    except (UserError, OSError, ValueError) as exc:
+        ctx.log(f'Escaneo antes de calibrar no disponible: {exc}; se calibra igual (028:RF-16).')
+        return None
+
+
 def escanear_alimentadores(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
                            anio: int | None = None) -> dict[str, Any]:
     """Lee en DIgSILENT, sin escribir, los generadores, bancos, variaciones y cargas cambiadas
@@ -4185,7 +4219,8 @@ def escanear_alimentadores(ws: Workspace, ctx: JobContext, project: str, feeders
         raise UserError('Elija el proyecto y al menos un alimentador para escanear.')
     plan = {'project': project.strip(), 'folder': carpeta_pf(), 'feeders': list(feeders),
             'anio_casos': anio,
-            'ultima_calibracion': ws.calibraciones.get(clave_calibracion(project.strip(), anio)) or {}}
+            'ultima_calibracion': ws.calibraciones.get(clave_calibracion(project.strip(), anio)) or {},
+            'tramos_dgs': sorted(_tramos_del_dgs_aceptado(ws, project.strip()))}       # RF-17
     _rc, informe, _report = _guion_pf(ws, ctx, 'escanear_alimentador_pf.py', plan, nombre='escaneo',
                                       cancelable=False)
     if informe.get('error'):

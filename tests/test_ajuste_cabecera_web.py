@@ -695,11 +695,14 @@ def test_el_plan_lleva_la_central_y_su_maxima_de_demanda(client):
     assert c['maxima']['generacion_kw'] == 6000.0
 
 
-def test_sin_la_barra_de_la_central_no_hay_plan(client):
-    """021:RF-25 — sin la barra de la central en DIgSILENT, se pide."""
+def test_sin_la_barra_de_la_central_se_calibra_sin_ella(client):
+    """021:RF-25 / 028:RF-19 — sin la barra de la central ni generador en el escaneo, el plan
+    sale sin central y lo dice; no se detiene (cambio del 2026-10-28)."""
     wid, job = _maxima_con_central(client)
     r = _plan(client, wid, job, medidores=['M1'], centrales={'A1': {**CENTRAL, 'nodo': ''}})
-    assert r.status_code == 400 and 'barra de la central' in r.json()['detail']
+    assert r.status_code == 200, r.text
+    assert any('028:RF-19' in a for a in r.json()['avisos'])
+    assert not _recibido(client, wid, r.json()['token']).get('central')
 
 
 def test_con_el_balance_roto_se_calibra_sin_la_central(client):
