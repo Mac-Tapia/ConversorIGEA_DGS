@@ -122,3 +122,36 @@ def test_anios_en_carpetas_con_sus_casos_y_escenarios(guion, monkeypatch):
     esc_04 = {id(e) for x in esc.GetContents('*.IntFolder') if x.loc_name == 'Año 04' for e in x.GetContents('*.IntScenario')}
     escritas = [(v, id(s)) for o, attr, v, _etapa, s in app.escrituras if attr == 'scale0' and s is not None]
     assert any(v == pytest.approx(1.1 ** 4) and s in esc_04 for v, s in escritas)
+
+
+class _Envoltorio:
+    """Como la API de DIgSILENT 2024: un objeto de Python nuevo en cada acceso al mismo elemento
+    (``clave_pf`` lo documenta); ``id()`` no lo reconoce y Python reutiliza los identificadores."""
+
+    def __init__(self, obj):
+        object.__setattr__(self, '_o', obj)
+
+    def __getattr__(self, k):
+        return getattr(self._o, k)
+
+    def __setattr__(self, k, v):
+        setattr(self._o, k, v)
+
+
+def test_restituye_cada_carga_aunque_la_api_de_objetos_nuevos(guion, monkeypatch):
+    """029:RF-4 / 030:RF-6 — con un objeto nuevo por acceso, como en DIgSILENT, cada carga vuelve a
+    su factor: con ``id()`` se mezclaban y «Sin proyecto» de Chincha quedó alterado (2026-10-28)."""
+    app = fake_pf.proyecto(alimentadores=('F1', 'F2'), cargas_por_alim=3, bt=True, flujo=True)
+    app.carpetas['study'].CreateObject('IntCase', 'Sin proyecto')
+    object.__setattr__(app.ldf, 'scLoadFac', 100.0)
+    elms = {f.loc_name: f for f in app.proyecto.GetContents('*.ElmFeeder', 1)}
+    for i, c in enumerate(c for e in elms.values() for c in e.GetObjs('ElmLod')):
+        c.scale0 = 0.1 * (i + 1)
+    antes = {c.loc_name: c.scale0 for e in elms.values() for c in e.GetObjs('ElmLod')}
+    for e in elms.values():
+        original = e.GetObjs
+        object.__setattr__(e, 'GetObjs', lambda clase, o=original: [_Envoltorio(x) for x in o(clase)])
+    informe, rc = guion.ejecutar(app, _plan(feeders=['F1', 'F2'], anios=[0, 4, 8],
+                                            tasa_por_alimentador={'F1': 0.10}))
+    assert rc == 0, informe
+    assert {c.loc_name: c.scale0 for e in elms.values() for c in e.GetObjs('ElmLod')} == pytest.approx(antes)

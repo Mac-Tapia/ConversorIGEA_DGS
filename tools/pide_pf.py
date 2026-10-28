@@ -95,7 +95,7 @@ def casos_del_anio(app, origenes: dict, anio: int, factor_de, base: dict | None 
             if f is None:
                 continue
             for c in elm.GetObjs('ElmLod'):
-                b = base.setdefault(id(c), float(getattr(c, 'scale0', 1.0) or 1.0))
+                b = base.setdefault(clave_pf(c), float(getattr(c, 'scale0', 1.0) or 1.0))
                 c.scale0 = b * f                                             # RF-3, en su escenario
         esc.Save()
         out[rol] = {'caso': f'PIDE/{etiqueta}/{nombre}', 'escenario': f'PIDE/{etiqueta}/{nombre}', 'objeto': caso}
@@ -145,7 +145,7 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
         return _por_anios(app, plan, informe, proyecto, raiz, lim, barras, de_linea, por_nombre, float(tasa),
                           por_alim)
     cargas = {a: list(elms[a].GetObjs('ElmLod')) for a in por_alim if a in elms}
-    base_scale = {id(c): float(getattr(c, 'scale0', 1.0) or 1.0) for cs in cargas.values() for c in cs}
+    base_scale = {clave_pf(c): float(getattr(c, 'scale0', 1.0) or 1.0) for cs in cargas.values() for c in cs}
     try:
         for anio in plan.get('anios') or [0]:
             factor = (1 + float(tasa)) ** int(anio)
@@ -153,14 +153,14 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
                 for a, cs in cargas.items():
                     f = (1 + por_alim[a]) ** int(anio)
                     for c in cs:
-                        c.scale0 = base_scale[id(c)] * f
+                        c.scale0 = base_scale[clave_pf(c)] * f
                 # Los alimentadores sin tasa propia, con la del sistema; los demás ya escalados.
                 for a, elm in elms.items():
                     if a in cargas or a not in (plan.get('feeders') or []):
                         continue
                     for c in elm.GetObjs('ElmLod'):
-                        base_scale.setdefault(id(c), float(getattr(c, 'scale0', 1.0) or 1.0))
-                        c.scale0 = base_scale[id(c)] * factor
+                        base_scale.setdefault(clave_pf(c), float(getattr(c, 'scale0', 1.0) or 1.0))
+                        c.scale0 = base_scale[clave_pf(c)] * factor
                 ldf.scLoadFac = float(original)
             else:
                 ldf.scLoadFac = float(original) * factor
@@ -187,8 +187,8 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
         ldf.scLoadFac = original
         for elm in elms.values():
             for c in elm.GetObjs('ElmLod'):
-                if id(c) in base_scale:
-                    c.scale0 = base_scale[id(c)]
+                if clave_pf(c) in base_scale:
+                    c.scale0 = base_scale[clave_pf(c)]
     if por_alim:
         informe['tasa_por_alimentador'] = por_alim
     return informe, 0
@@ -204,7 +204,7 @@ def _por_anios(app, plan, informe, proyecto, raiz, lim, barras, de_linea, por_no
     feeders = set(plan.get('feeders') or [])
     origenes['sin'].Activate()
     elms = [e for e in proyecto.GetContents('*.ElmFeeder', 1) if e.loc_name in feeders]
-    base = {id(c): float(getattr(c, 'scale0', 1.0) or 1.0) for e in elms for c in e.GetObjs('ElmLod')}
+    base = {clave_pf(c): float(getattr(c, 'scale0', 1.0) or 1.0) for e in elms for c in e.GetObjs('ElmLod')}
     try:
         for anio in plan.get('anios') or [0]:
             def factor_de(elm, anio=anio):
@@ -240,8 +240,8 @@ def _por_anios(app, plan, informe, proyecto, raiz, lim, barras, de_linea, por_no
             origen.Activate()
             for e in elms:
                 for c in e.GetObjs('ElmLod'):
-                    if id(c) in base and float(getattr(c, 'scale0', 1.0) or 1.0) != base[id(c)]:
-                        c.scale0 = base[id(c)]
+                    if clave_pf(c) in base and float(getattr(c, 'scale0', 1.0) or 1.0) != base[clave_pf(c)]:
+                        c.scale0 = base[clave_pf(c)]
         if inicial is not None:
             inicial.Activate()
     if por_alim:
