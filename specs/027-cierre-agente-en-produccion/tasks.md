@@ -105,6 +105,10 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       no pasa.
       Reabierta el 2026-10-28: con las 200 órdenes fijas (T27) el asistente no pasa RF-18 (0,854 y
       0,851); toca mejorar el modelo (búsqueda de hiperparámetros, más capacidad o ajuste fino).
+      Medido el mismo día en la GPU: 40 épocas y 250 frases por tarea, 0,902 y 0,851; 192 dimensiones,
+      6 capas, 0,927 y 0,841. La tarea mejora con capacidad; el F1 de los datos no (el marcado de
+      trozos por carácter es el cuello de botella). Sigue: búsqueda de hiperparámetros con Optuna
+      sobre las fijas de entrenamiento y, si no llega, cabeza de datos con CRF o ajuste fino.
 - [x] T12. Deriva, propuesta de reentrenamiento y vuelta atrás desde la web. (RF-22 a RF-24)
       Hecho cuando: pruebas de API en verde y botón en la web compilada.
       Hecho el 2026-10-28: `oraculo.deriva_por_familia` (nuevos y fuera de dominio por familia;
