@@ -177,6 +177,40 @@ por umbral y respuesta de Ollama con citas.
 - RF-42: EL SISTEMA medirá las consultas con un conjunto de preguntas reales del operador: la
   fracción respondida con cita correcta y la fracción de «No lo sé» acertados.
 
+Proyecto completo desde cero y PIDE (usuario, 2026-10-28: «el agente debe hacer desde cero y toda
+la norma PIDE ya implementada, debe saber ejecutar todo el proyecto, debe usar para el
+entrenamiento los archivos ya entregables de PIDE que están en la subcarpeta PIDEELOR»)
+
+- RF-43: CUANDO el operador lo pida, EL SISTEMA (el agente) ejecutará el proyecto entero desde
+  un espacio vacío, por las rutas de la web: cargar las fuentes, convertir por sistema,
+  importar en DIgSILENT, verificar el «Caso base», calibrar, integrar cargas nuevas, obras,
+  estudios, PIDE e informes.
+- RF-44: EL SISTEMA guardará un punto de control al terminar cada etapa de RF-43 y retomará
+  desde el último si la ejecución se corta, sin repetir lo hecho.
+- RF-45: EL SISTEMA producirá el PIDE completo con lo ya implementado (`pide.py`,
+  `pide_economia.py`, 024:T13 y T14) y el contrato universal de 2017
+  (`config/pide_universal_2017.json`: artículos 1 a 20, formatos F01 a F15 y alternativas),
+  sin una segunda implementación de la norma.
+- RF-46: EL SISTEMA construirá el corpus de entrenamiento y de consulta desde
+  `referencia/PIDEELOR` con `pide_dataset` (manifiesto con custodia y huella de cada fichero,
+  fragmentos de texto y tablas), local y fuera de git.
+- RF-47: EL SISTEMA tratará el corpus como contexto, nunca como norma: lo que dice un
+  entregable ilustra cómo se hizo; lo que manda es el contrato de 2017.
+- RF-48: EL SISTEMA sacará del corpus ejemplos para el agente: por cada artículo, sus
+  evidencias y entregables en los PIDE 2021 y 2026 entregados; por cada formato F01 a F15, sus
+  hojas y columnas tal como se entregaron.
+- RF-49: EL SISTEMA comparará cada formato que produce con el entregado del mismo código
+  (hojas, columnas y unidades) y dirá la fracción de campos que coinciden.
+- RF-50: EL SISTEMA aprenderá la estructura de los informes entregados (secciones del Informe
+  de Largo Plazo 4.1 y del Informe PIDE 4.2) para redactar los del proyecto con la misma
+  estructura.
+- RF-51: SI un fichero del expediente es de un formato que el conversor no lee (proyectos MPP,
+  planos DWG, comprimidos RAR), ENTONCES EL SISTEMA lo inventariará con su huella y lo dirá,
+  sin descartarlo en silencio.
+- RF-52: [NECESITA ACLARACIÓN: la base «BASE DE DATOS GIS MT BT IQUITOS» viene en shapefile
+  (SHP/DBF/SHX): ¿convertir la red de Iquitos desde ese GIS a DIgSILENT entra en esta spec, como
+  una cuarta fuente junto a TXT, MDB y VNR-GIS, o solo se usa como corpus?]
+
 Auditoría del dataset de cada modelo (antes de entrenar)
 
 - RF-29: CUANDO se pida entrenar cualquier modelo, EL SISTEMA auditará antes su dataset y
