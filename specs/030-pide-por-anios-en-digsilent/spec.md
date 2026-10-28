@@ -31,6 +31,26 @@ año, mira su flujo y sus problemas, y las obras de ese año se prueban en él.
 - RF-6: EL SISTEMA no tocará el «Caso base», «Sin proyecto», «Con proyecto» ni sus escenarios, y
   al terminar dejará activo el caso que estaba.
 - RF-7: EL SISTEMA dirá en el informe del PIDE el caso y el escenario de cada año.
+- RF-9: EL SISTEMA no aplicará ninguna tasa de crecimiento a las cargas nuevas (las de la spec 007,
+  en sus variaciones `Carga_…`): su demanda es constante en todos los años (usuario, 2026-10-28:
+  «las cargas nuevas deben ser constantes, no tienen tasa de crecimiento una vez que se conectan»).
+- RF-10: EL SISTEMA aceptará en el libro de cargas nuevas una columna opcional de año de ingreso,
+  como año calendario (2030) o como año del PIDE (4); sin ella, la carga entra en el año 00.
+- RF-11: EL SISTEMA dejará cada carga nueva en servicio en los casos «Cargas nuevas» y «Con
+  proyecto» de los años del PIDE iguales o posteriores a su ingreso, y fuera de servicio en los
+  anteriores, en el escenario de cada año («más adelante las cargas deben ingresarse por años en el
+  escenario que le corresponde»).
+- RF-13: EL SISTEMA aceptará una carga nueva fraccionada: una columna de total y columnas de año
+  (la cabecera es el año, calendario o del PIDE: «2027», «Año 4») con la potencia que entra en
+  cada uno (usuario, 2026-10-28: «las cargas se fraccionan hasta en tres partes o más, van entrando
+  por cierta cantidad de potencia hasta sumar el total requerido»).
+- RF-14: SI las partes de una carga no suman su total (con un 1 % de tolerancia), ENTONCES EL
+  SISTEMA la rechazará y dirá las dos sumas.
+- RF-15: EL SISTEMA dará a la carga fraccionada, en cada año del PIDE, la potencia acumulada de
+  sus partes hasta ese año (fuera de servicio antes de la primera) y, desde la última, el total,
+  constante (RF-9).
+- RF-12: EL SISTEMA tomará como año 00 el año de la medición con que se calibró el proyecto, para
+  pasar un año calendario de ingreso a año del PIDE.
 
 ## Fuera de alcance
 

@@ -3807,6 +3807,7 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
     plan = {'project': project, 'folder': carpeta_pf(), 'feeders': feeders, 'case': 'sin_proyecto',
             'tasa': tasa if tasa is not None else 0.0, 'anios': anios,
             'casos_por_anio': True,                                            # 030:RF-1, RF-2
+            'cargas_nuevas': _ingreso_de_las_cargas(ws, project),              # 030:RF-9 a RF-12
             **({'tasa_por_alimentador': {a: c['tasa'] for a, c in crecimiento.items() if c.get('tasa') is not None}}
                if crecimiento else {}),
             'limites': {'tension_min_pu': limites.tension_min_pu, 'tension_max_pu': limites.tension_max_pu,
@@ -3857,6 +3858,39 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
                       for a in informe.get('anios') or []],
             'obras': propuesta['obras'], 'implementadas': implementadas, 'avisos': avisos,
             'comparacion_formatos': comparacion}
+
+
+def _ingreso_de_las_cargas(ws: Workspace, project: str) -> list[dict]:
+    """Cada carga nueva aplicada con su variación y el año del PIDE en que entra (030:RF-10,
+    RF-12): un año calendario se pasa a año del PIDE con el de la medición de la calibración."""
+    import re
+
+    base = None
+    for criterio in (ws.criterio_cabecera or {}).values():
+        m = re.match(r'(\d{4})', str((criterio or {}).get('periodo') or ''))
+        if m:
+            base = int(m.group(1))
+    base = base or datetime.now().year
+    def del_pide(a) -> int:
+        return max(int(a) - base if int(a) >= 1900 else int(a), 0)
+
+    out = []
+    for c in _cargas_nuevas_aplicadas(ws, project):
+        if not c.get('variacion'):
+            continue
+        etapas = [(del_pide(a), float(kw)) for a, kw in c.get('etapas') or []]
+        total = sum(kw for _a, kw in etapas)
+        if etapas and total > 0:
+            # 030:RF-15: la fracción acumulada del total en cada año en que entra una parte.
+            perfil, acumulado = [], 0.0
+            for a, kw in sorted(etapas):
+                acumulado += kw
+                perfil.append([a, acumulado / total])
+        else:
+            a = c.get('anio_ingreso')
+            perfil = [[0 if a in (None, '') else del_pide(a), 1.0]]
+        out.append({'variacion': c['variacion'], 'sed': c.get('sed'), 'perfil': perfil})
+    return out
 
 
 def _crecimiento_de_la_cabecera(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
@@ -5226,6 +5260,8 @@ def _cargas_nuevas_aplicadas(ws: Workspace, project: str) -> list[dict]:
                 'kw': fila.get('kw'), 'kvar': fila.get('kvar'), 'kva_instalado': fila.get('kva_instalado'),
                 # 008:RF-24: la del formulario lleva la hoja «formulario»; las del libro, la suya.
                 'sola': fila.get('hoja') == 'formulario', 'informe': fichero.name,
+                'anio_ingreso': fila.get('anio_ingreso'),                     # 030:RF-10
+                'etapas': fila.get('etapas') or [],                            # 030:RF-13
             }
     return list(vistas.values())
 

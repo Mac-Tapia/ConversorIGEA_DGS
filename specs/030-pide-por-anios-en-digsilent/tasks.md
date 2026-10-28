@@ -13,3 +13,7 @@ origen, activo, con el `scale0` de cada carga por el factor de su alimentador; e
       demanda del año, renovación sin duplicar, casos del proyecto intactos).
 - [ ] T2. PIDE de Chincha en DIgSILENT con sus carpetas por año.
       Hecho cuando: el proyecto tiene «PIDE/Año 00…20» con sus casos y escenarios.
+- [x] T3. Cargas nuevas constantes, con su año de ingreso o fraccionadas por años: columnas del
+      libro, plan de la web y potencia acumulada por año en los escenarios del PIDE. (RF-9 a RF-15)
+      Hecho cuando: pruebas en verde (lectura de la columna, carga nueva sin escalar, fuera de
+      servicio antes de su año y en servicio desde él).

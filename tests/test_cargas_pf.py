@@ -263,3 +263,21 @@ def test_cabecera_irreconocible_es_un_error_y_no_cero_cargas(tmp_path):
     lectura = leer_nuevas(libro)
     assert not lectura.filas
     assert lectura.errores and 'no se reconoce la cabecera' in lectura.errores[0]
+
+
+def test_carga_fraccionada_por_anios(tmp_path):
+    """030:RF-10 / 030:RF-13 / 030:RF-14 — el total y sus partes por año (calendario o del PIDE);
+    si no suman el total, se rechaza diciendo las dos sumas; un solo año de ingreso también vale."""
+    libro = _libro(tmp_path / 'nuevas.xlsx', {'H': [
+        ['DESCRIPCION', 'TOTAL', 'TRONCAL', 'BARRA', '2027', '2029', 'Año 8', 'AÑO DE INGRESO'],
+        ['Planta A', 900, 'AL1', 'B1', 300, 300, 300, None],
+        ['Planta B', 1000, 'AL1', 'B1', 300, 300, 300, None],
+        ['Planta C', 500, 'AL1', 'B1', None, None, None, 2030],
+        ['Planta D', None, 'AL1', 'B1', 100, 50, None, None],
+    ]})
+    lectura = leer_nuevas(libro)
+    por = {f.sed: f for f in lectura.filas}
+    assert por['Planta A'].kw == 900 and por['Planta A'].etapas == ((8, 300.0), (2027, 300.0), (2029, 300.0))
+    assert 'Planta B' not in por and any('suman 900' in e and '1000' in e for e in lectura.errores)
+    assert por['Planta C'].anio_ingreso == 2030 and por['Planta C'].etapas == ()
+    assert por['Planta D'].kw == pytest.approx(150) and len(por['Planta D'].etapas) == 2

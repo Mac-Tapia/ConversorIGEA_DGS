@@ -155,3 +155,11 @@ def test_restituye_cada_carga_aunque_la_api_de_objetos_nuevos(guion, monkeypatch
                                             tasa_por_alimentador={'F1': 0.10}))
     assert rc == 0, informe
     assert {c.loc_name: c.scale0 for e in elms.values() for c in e.GetObjs('ElmLod')} == pytest.approx(antes)
+
+
+def test_fraccion_acumulada_por_anio(guion):
+    """030:RF-9 / 030:RF-11 / 030:RF-15 — la carga nueva lleva lo acumulado de sus partes hasta cada
+    año, 0 antes de la primera, y el total desde la última, sin crecer."""
+    perfil = [[4, 1 / 3], [8, 2 / 3], [12, 1.0]]
+    assert [round(guion.fraccion_en(perfil, a), 4) for a in (0, 4, 6, 8, 12, 20)] == [0, 0.3333, 0.3333, 0.6667, 1, 1]
+    assert guion.fraccion_en(None, 0) == 1.0 and guion.fraccion_en([[8, 1.0]], 4) == 0.0

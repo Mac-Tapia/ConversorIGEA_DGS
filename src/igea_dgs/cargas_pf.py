@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import csv
 import math
+import re
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -29,7 +30,7 @@ SCHEMA = 'igea-dgs-cargas-pf-v1'
 DEMANDA_COLUMNS = ('SED', 'Kw', 'Kvar', '(kVA)', 'FP', 'accion', 'observaciones')
 NUEVA_COLUMNS = (
     'SED', 'alimentador', 'barra', 'Lat', 'Lon', 'CoordX', 'CoordY', 'kVA_instalado',
-    'Kw', 'Kvar', '(kVA)', 'FP', 'tipo_linea', 'tension_bt_kv', 'observaciones',
+    'Kw', 'Kvar', '(kVA)', 'FP', 'tipo_linea', 'tension_bt_kv', 'observaciones', 'anio_ingreso',
 )
 
 # Columnas propias de la carga nueva, con sus variantes de grafía (cabecera normalizada).
@@ -50,7 +51,16 @@ NUEVA_ALIASES = {
     # por su descripción; el alimentador va como «TRONCAL».
     'descripcion': 'nombre', 'nombre': 'nombre', 'proyecto': 'nombre', 'cliente': 'nombre',
     'troncal': 'alimentador',
+    # 030:RF-10: año de ingreso, calendario (2030) o del PIDE (4); con o sin ñ.
+    'añodeingreso': 'anio_ingreso', 'añoingreso': 'anio_ingreso', 'anodeingreso': 'anio_ingreso',
+    'anoingreso': 'anio_ingreso', 'aniodeingreso': 'anio_ingreso', 'anioingreso': 'anio_ingreso',
+    'ingreso': 'anio_ingreso', 'añoentrada': 'anio_ingreso', 'anoentrada': 'anio_ingreso',
+    # 030:RF-13: el total de una carga fraccionada es su demanda.
+    'total': 'Kw', 'totalkw': 'Kw', 'kwtotal': 'Kw', 'demandatotal': 'Kw', 'potenciatotal': 'Kw',
 }
+
+#: 030:RF-13: una cabecera que es un año (calendario o del PIDE), con o sin «año» delante.
+_ANIO_DE_ETAPA = re.compile(r'^(?:año|ano|anio)?(\d{1,4})$')
 
 # Potencias normalizadas de transformador (IEC 60076-1, serie R10) para deducir el kVA
 # instalado de una carga que solo trae su demanda (RF-52). Se repite ×10 hasta cubrirla.
@@ -118,6 +128,10 @@ class CargaNueva:
     fp: float
     tipo_linea: str = ''
     tension_bt_kv: float | None = None
+    anio_ingreso: int | None = None
+    """030:RF-10: año calendario (≥ 1900) o año del PIDE en que entra; ``None``, el año 00."""
+    etapas: tuple[tuple[int, float], ...] = ()
+    """030:RF-13: (año, kW que entra ese año) de una carga fraccionada; suman ``kw``."""
 
     def para_pf(self) -> dict[str, Any]:
         datos = asdict(self)
@@ -259,6 +273,12 @@ def leer_hoja_nuevas(
         nombre = '' if index in mapping else _columna_por_patron(_normalise(raw))
         if nombre and nombre not in mapping.values():
             mapping[index] = nombre
+    # 030:RF-13: las columnas de año de una carga fraccionada.
+    etapas_de: dict[int, int] = {}
+    for index, raw in enumerate(header):
+        m = _ANIO_DE_ETAPA.match(_normalise(raw)) if index not in mapping else None
+        if m:
+            etapas_de[index] = int(m.group(1))
     # Sin columna de nombre ni de demanda, cada fila se saltaría como «resto de la hoja»
     # y el libro entero daría cero cargas sin decir por qué.
     if body and not {'SED', 'nombre', 'Kw', '(kVA)'} & set(mapping.values()):
@@ -289,7 +309,7 @@ def leer_hoja_nuevas(
         numeros: dict[str, float | None] = {}
         malo = ''
         for nombre in ('Lat', 'Lon', 'CoordX', 'CoordY', 'kVA_instalado', 'Kw', 'Kvar',
-                       '(kVA)', 'FP', 'tension_bt_kv'):
+                       '(kVA)', 'FP', 'tension_bt_kv', 'anio_ingreso'):
             valor = _number(cell.get(nombre))
             if valor is not None and math.isnan(valor):
                 malo = f'{nombre}={cell.get(nombre)!r} no es un número'
@@ -298,6 +318,14 @@ def leer_hoja_nuevas(
                 malo = f'{nombre}={valor} negativo'
                 break
             numeros[nombre] = valor
+        ingreso = numeros.get('anio_ingreso')
+        if not malo and ingreso is not None and ingreso != int(ingreso):
+            malo = f'año de ingreso {ingreso} no es un año entero'
+        etapas = []
+        for index, anio_etapa in sorted(etapas_de.items(), key=lambda x: x[1]):
+            v = _number(values[index]) if index < len(values) else None
+            if v is not None and not math.isnan(v) and v > 0:
+                etapas.append((anio_etapa, float(v)))
         if not malo and numeros.get('FP') is not None and not 0 <= numeros['FP'] <= 1:
             malo = f'FP={numeros["FP"]} fuera de [0, 1]'
         lat, lon = numeros.get('Lat'), numeros.get('Lon')
@@ -324,8 +352,16 @@ def leer_hoja_nuevas(
         if conflicto:
             errores.append(f'{donde}: {conflicto}. Deje un solo par: Kw y Kvar, Kw y FP, o (kVA) y FP.')
             continue
+        if sin_datos and etapas:
+            # 030:RF-13: sin total, el total es la suma de sus partes.
+            kw, kvar, _kva, fp, _derivada, sin_datos = _resolve_power(
+                sum(x for _a, x in etapas), numeros.get('Kvar'), None, numeros.get('FP'))
         if sin_datos:
             errores.append(f'{donde}: sin demanda (Kw, o (kVA) y FP)')
+            continue
+        if etapas and not math.isclose(sum(x for _a, x in etapas), kw, rel_tol=0.01):
+            errores.append(f'{donde}: las partes por año suman {sum(x for _a, x in etapas):g} kW y el '
+                           f'total es {kw:g} kW (030:RF-14)')
             continue
         kva_instalado = numeros.get('kVA_instalado')
         if not kva_instalado:
@@ -341,6 +377,7 @@ def leer_hoja_nuevas(
             barra=texto.get('barra', ''), lat=lat, lon=lon,
             kva_instalado=float(kva_instalado), kw=kw, kvar=kvar, fp=fp,
             tipo_linea=texto.get('tipo_linea', ''), tension_bt_kv=numeros.get('tension_bt_kv'),
+            anio_ingreso=int(ingreso) if ingreso is not None else None, etapas=tuple(etapas),
         ))
     if pendientes_xy:
         gps = a_wgs84([(x, y) for _i, x, y in pendientes_xy], source_crs)
