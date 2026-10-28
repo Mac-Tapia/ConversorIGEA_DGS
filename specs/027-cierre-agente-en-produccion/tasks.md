@@ -58,7 +58,22 @@ Estado: borrador del 2026-10-28, pendiente de aprobación. Una tarea cada vez, p
       Hecho cuando: tasa de error empírica ≤ la fijada en el conjunto real de prueba.
 - [ ] T18. Citas comprobadas y medición de consultas. (RF-41, RF-42)
       Hecho cuando: prueba con una cita falsa sustituida; informe con preguntas reales.
+- [ ] T19. Corpus PIDE desde `referencia/PIDEELOR` con `pide_dataset` (texto completo) y su
+      auditoría con T0: ficheros, formatos no leídos y fragmentos por artículo. (RF-46, RF-47, RF-51)
+      Hecho cuando: el manifiesto cubre los 1397 ficheros con su huella, cada no leído
+      (MPP, DWG, RAR) dicho, y `test_pide_dataset` en verde.
+- [ ] T20. Ejemplos del agente desde el corpus: artículo → evidencias y entregables; formato →
+      hojas y columnas entregadas; estructura de los informes 4.1 y 4.2. (RF-48, RF-50)
+      Hecho cuando: prueba con un corpus sintético; informe del real con los 20 artículos y
+      los 15 formatos cubiertos o dichos como ausentes.
+- [ ] T21. Orquestador del proyecto desde cero, etapa por etapa, con puntos de control y
+      reanudación, por las rutas de la web. (RF-43, RF-44)
+      Hecho cuando: prueba con `fake_pf` cortada a mitad y reanudada sin repetir etapas.
+- [ ] T22. PIDE completo con lo implementado y comparación de cada formato con el entregado.
+      (RF-45, RF-49)
+      Hecho cuando: F01 a F15 producidos para un sistema, con la fracción de campos coincidentes.
 - [ ] T14. Aceptación: todos los sistemas desde la web con el asistente, gemelo con dos o más
       familias de prueba y asistente con RF-18. (RF-28)
       Hecho cuando: informe con Nasca, Chincha, Pisco e Ica válidos en DIgSILENT y las métricas
-      de las puertas.
+      de las puertas, y el agente ejecutó el proyecto desde un espacio vacío hasta el PIDE y
+      sus informes (RF-43).

@@ -19,6 +19,7 @@ Estado: borrador del 2026-10-28, pendiente de aprobación junto con la spec.
 | K. Operación | `digital_twin/oraculo.deriva`, `asistente/vigilancia.py`, ruta de vuelta atrás en `web/app.py` | RF-22 a RF-24 |
 | L. Trabajador del motor | `web/jobs.py` (carril `engine` en un proceso aparte), `web/services.py` | RF-25 a RF-27 |
 | O. Recompensas, penalizaciones y decisión | `asistente/almacen.py` (señal y pares), `asistente/reflexiones.py` (nuevo), `asistente/interprete.py` (umbrales por tarea, ejemplos parecidos), `asistente/indice.responder` (citas comprobadas) | RF-35 a RF-42 |
+| P. Proyecto desde cero y PIDE | `asistente/orquestador.py` (nuevo: etapas, puntos de control y reanudación sobre `asistente/ejecutor.py`), `pide_dataset.py` (corpus de PIDEELOR), `asistente/ejemplos_pide.py` (nuevo), `pide.py`, `pide_economia.py` (sin cambiar la norma) | RF-43 a RF-52 |
 | N. Auditoría del dataset | `digital_twin/auditoria.py` (nuevo), `tools/digital_twin_auditar.py` (nuevo), `oraculo.entrenar` y `asistente/transformer.entrenar` la llaman antes | RF-29 a RF-34 |
 | M. Aceptación | `tools/sistema_web.py` y el asistente sobre todos los sistemas | RF-28 |
 
@@ -55,6 +56,14 @@ Estado: borrador del 2026-10-28, pendiente de aprobación junto con la spec.
 9. **Aprendizaje continuo con repetición del histórico (RF-23)**: ya lo hace la 024 (ajuste
    fino desde los pesos promovidos, repitiendo todo el histórico). Es el método de repetición
    de Wang et al. (TPAMI, 2024) contra el olvido.
+
+10. **El agente orquesta lo que ya existe (RF-43, RF-45)** en lugar de reimplementarlo: cada
+   etapa es una ruta de la web ya probada (conversión, `sistema_web`, ajuste, obras, PIDE,
+   informes). Es el patrón de Jia, Cui y Hug (2024-2025): el modelo razona y el simulador
+   ejecuta y realimenta el error, con la traza auditable de ReAct.
+11. **El corpus PIDEELOR como contexto y ejemplos, no como norma (RF-46 a RF-48)**: los PIDE 2021
+   y 2026 de Electro Oriente enseñan la forma de los entregables. La norma es el contrato de
+   2017. Recuperación con cita (Gao et al., 2023-2024), igual que el índice del proyecto.
 
 ## Pruebas
 
