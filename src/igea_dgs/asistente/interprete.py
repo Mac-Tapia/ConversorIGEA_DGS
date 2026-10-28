@@ -7,6 +7,8 @@ sin depender de ningún modelo.
 """
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 import re
 from dataclasses import dataclass, field
 from typing import Any
@@ -76,7 +78,8 @@ def _por_reglas(texto: str) -> dict[str, list[dict]]:
 
 
 def interpretar(texto: str, *, transformer: Any = None, ollama: Any = None,
-                umbral: float = UMBRAL_TRANSFORMER, umbral_ollama: float = UMBRAL_OLLAMA) -> Interpretacion:
+                umbral: float = UMBRAL_TRANSFORMER, umbral_ollama: float = UMBRAL_OLLAMA,
+                contexto: Sequence[str] = ()) -> Interpretacion:
     """La tarea y los datos de la orden, con quién la entendió (RF-7)."""
     texto = texto.strip()
     consultados = []
@@ -88,7 +91,8 @@ def interpretar(texto: str, *, transformer: Any = None, ollama: Any = None,
             return _con_reglas(Interpretacion(texto, previa['tarea'], previa['confianza'], 'transformer',
                                               previa['datos'], previa.get('alternativas') or [], consultados))
     if ollama is not None:
-        r = ollama.interpretar(texto)
+        # 027:RF-37, RF-39: con órdenes parecidas y notas de fallos, si las hay.
+        r = ollama.interpretar(texto, contexto=list(contexto)) if contexto else ollama.interpretar(texto)
         consultados.append(f'Ollama {ollama.modelo}' + ('' if r is not None else ' (no respondió)'))
         if r is not None and r.get('tarea') and r['confianza'] >= umbral_ollama:
             return _con_reglas(Interpretacion(texto, r['tarea'], r['confianza'], r['modelo'], r['datos'],

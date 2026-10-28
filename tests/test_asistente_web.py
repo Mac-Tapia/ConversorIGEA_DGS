@@ -208,3 +208,64 @@ def test_revisar_tras_error_propone_al_operador():
     otra = _Revisor({'tarea': 'sistema_completo', 'datos': {}})
     assert revisar_tras_error('convierte IN111', 'convertir', datos, 'x', otra)['accion'] == 'operador'
     assert revisar_tras_error('convierte IN111', 'convertir', datos, 'x', _Revisor(None))['accion'] == 'reintentar'
+
+
+def test_senales_preferencias_y_reflexiones(client, monkeypatch):
+    """027:RF-35 / 027:RF-36 / 027:RF-37 — confirmar es recompensa; corregir, penalización con
+    par de preferencia y nota; rechazar, penalización; el registro las suma por tarea."""
+    from igea_dgs.asistente import senales
+
+    monkeypatch.setattr(services, 'gemelo_entrenar', lambda ws, ctx, forzar=False: {'entrenado': True})
+    wid = _wid(client)
+    plan = _orden(client, wid, 'reentrena la pinn')['plan']
+    assert _esperar(client, client.post(f"/api/workspaces/{wid}/asistente/{plan['id']}/confirmar").json()['id'])['status'] == 'done'
+    plan = _orden(client, wid, 'reentrena la pinn')['plan']
+    r = client.post(f"/api/workspaces/{wid}/asistente/{plan['id']}/corregir", json={'tarea': 'evaluar_gemelo'})
+    assert r.status_code == 200, r.text
+    plan = _orden(client, wid, 'reentrena la pinn')['plan']
+    assert client.post(f"/api/workspaces/{wid}/asistente/{plan['id']}/rechazar").json()['rechazado']
+    [par] = almacen.leer('preferencias')
+    assert par['rechazada']['tarea'] == 'gemelo_entrenar' and par['elegida']['tarea'] == 'evaluar_gemelo'
+    assert 'corrigió' in almacen.leer('reflexiones')[-1]['causa']
+    suma = senales.resumen()['gemelo_entrenar']
+    assert suma['confirmada'] == 1 and suma['corregida'] == 1 and suma['rechazada'] == 1
+    assert suma['recompensas'] == 1 and suma['penalizaciones'] == 2
+    reg = client.get('/api/asistente/registro').json()
+    assert any(s['tarea'] == 'gemelo_entrenar' and s['penalizaciones'] == 2 for s in reg['senales'])
+
+
+def test_orden_parecida_lleva_su_nota_y_sus_ejemplos(client, monkeypatch):
+    """027:RF-37 / 027:RF-39 — tras un fallo, una orden parecida llega a Ollama con la nota del
+    fallo y las órdenes confirmadas más parecidas."""
+    from igea_dgs.asistente import senales
+
+    almacen.anotar('ejemplos', {'texto': 'convierte el alimentador IN111', 'tarea': 'convertir',
+                                'datos': [], 'origen': 'confirmado'})
+    senales.reflexion('convierte el alimentador IN112', 'convertir', 'la ejecución falló: no existe IN112',
+                      'pida el código correcto')
+    textos = senales.contexto_para('convierte el alimentador IN113')
+    assert any('Ejemplo confirmado' in t and 'IN111' in t for t in textos)
+    assert any('no existe IN112' in t for t in textos)
+    assert senales.contexto_para('reentrena la pinn') == [] or all('IN11' not in t for t in senales.contexto_para('xyz'))
+
+    class Ollama:
+        modelo = 'falso'
+        vistos: list = []
+
+        def interpretar(self, texto, contexto=()):
+            self.vistos.append(list(contexto))
+            return {'tarea': 'convertir', 'confianza': 0.9, 'datos': {}, 'modelo': 'falso'}
+
+    o = Ollama()
+    monkeypatch.setattr(services, '_asistente_modelos', lambda: (None, o))
+    wid = _wid(client)
+    _orden(client, wid, 'convierte el alimentador IN113')
+    assert o.vistos and any('no existe IN112' in t for t in o.vistos[-1])
+
+
+def test_tamano_del_conjunto_real_en_el_registro(client):
+    """027:RF-17 / 027:RF-19 — el registro dice cuántas órdenes reales hay de las 200 y que,
+    hasta entonces, toda escritura pide confirmación."""
+    almacen.anotar('ejemplos', {'texto': 'convierte IN111', 'tarea': 'convertir', 'datos': [], 'origen': 'confirmado'})
+    [c] = client.get('/api/asistente/registro').json()['conjunto_real']
+    assert c == {'ordenes': 1, 'hacen_falta': 200, 'confirmacion_obligatoria': True}

@@ -77,9 +77,12 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       gemelo y DIgSILENT en la propuesta. (RF-14 a RF-16)
       Hecho cuando: prueba con `fake_pf` en verde y una propuesta de bancos verificada en
       DIgSILENT con Chincha.
-- [ ] T9. Conjunto de órdenes reales del operador, versionado y separado; puertas de tarea y
+- [x] T9. Conjunto de órdenes reales del operador, versionado y separado; puertas de tarea y
       datos; confirmación obligatoria mientras sea pequeño. (RF-17 a RF-19)
       Hecho cuando: pruebas del asistente en verde; la web muestra el tamaño del conjunto.
+      Hecho el 2026-10-28: puertas de 0,98 y 0,95 en las órdenes reales de la prueba fija, medidas
+      aparte de las sintéticas (`Puertas.acierto_real`, `f1_real`); el registro y la pestaña dicen
+      cuántas hay de las 200 y que toda escritura pide confirmación hasta entonces.
 - [x] T10. Realimentación del error con un único reintento en el ejecutor. (RF-20)
       Hecho cuando: prueba con un error forzado: un reintento y luego vuelta al operador.
       Hecho el 2026-10-28: `ejecutor.revisar_tras_error` da el error al modelo; con la misma tarea y
@@ -93,13 +96,17 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
 - [ ] T13. Carril `engine` en un proceso trabajador con límite de memoria. (RF-25 a RF-27)
       Hecho cuando: `/api/health` < 1 s durante la búsqueda de la máxima de Chincha y un
       trabajo que supera el límite se detiene sin tumbar la API.
-- [ ] T15. Señal de cada orden (confirmada, corregida, rechazada, fallida) y pares de
+- [x] T15. Señal de cada orden (confirmada, corregida, rechazada, fallida) y pares de
       preferencia. (RF-35, RF-36)
       Hecho cuando: pruebas del almacén en verde; la web muestra recompensas y penalizaciones
       acumuladas por tarea.
-- [ ] T16. Memoria de reflexiones y ejemplos parecidos para Ollama. (RF-37, RF-39)
+      Hecho el 2026-10-28: `asistente/senales.py` (confirmada +1; corregida, rechazada y fallida −1;
+      pares de preferencia por corrección); botón «Rechazar» y tabla por tarea en el registro.
+- [x] T16. Memoria de reflexiones y ejemplos parecidos para Ollama. (RF-37, RF-39)
       Hecho cuando: una orden que falló una vez lleva su nota la siguiente vez (prueba con un
       fallo forzado).
+      Hecho el 2026-10-28: nota por fallo o corrección y `contexto_para` (trigramas) con las 5
+      confirmadas más parecidas y las notas, que Ollama recibe antes de la orden.
 - [ ] T17. Umbrales por tarea calibrados con órdenes reales y decisión por impacto. (RF-38, RF-40)
       Hecho cuando: tasa de error empírica ≤ la fijada en el conjunto real de prueba.
 - [ ] T18. Citas comprobadas y medición de consultas. (RF-41, RF-42)

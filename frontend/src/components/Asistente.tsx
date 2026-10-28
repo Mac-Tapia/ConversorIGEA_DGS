@@ -43,6 +43,19 @@ function Registro() {
       {registro && (
         <div className="stack small">
           <p>{Object.entries(registro).map(([k, v]) => `${k}: ${v.length}`).join(' · ')}</p>
+          {filas('conjunto_real').map((c, i) => (
+            <p key={i}>Órdenes reales del operador: {String(c.ordenes)} de las {String(c.hacen_falta)} que hacen falta
+              {c.confirmacion_obligatoria ? '; mientras tanto, todo lo que escribe pide confirmación' : ''}.</p>))}
+          {filas('senales').length > 0 && (
+            <table className="small">
+              <thead><tr><th>Tarea</th><th>Recompensas</th><th>Penalizaciones</th><th>Confirmadas</th>
+                <th>Corregidas</th><th>Rechazadas</th><th>Fallidas</th></tr></thead>
+              <tbody>{filas('senales').map((s) => (
+                <tr key={String(s.tarea)}><td>{String(s.tarea)}</td><td>{String(s.recompensas)}</td>
+                  <td>{String(s.penalizaciones)}</td><td>{String(s.confirmada)}</td><td>{String(s.corregida)}</td>
+                  <td>{String(s.rechazada)}</td><td>{String(s.fallida)}</td></tr>))}</tbody>
+            </table>
+          )}
           <ul>{filas('ordenes').slice(-10).reverse().map((o, i) => (
             <li key={i}>{String(o.fecha)} · «{String(o.texto)}» → {String(o.tarea ?? 'sin entender')}</li>))}</ul>
           <ul>{filas('internet').slice(-5).reverse().map((o, i) => (
@@ -75,6 +88,11 @@ export function Asistente() {
   const confirmar = async (i: number, planId: string) => {
     const job = await startJob(() => api.asistenteConfirmar(ws.id, planId));
     if (job) setHistorial((h) => h.map((x, k) => (k === i ? { ...x, trabajo: job.id } : x)));
+  };
+
+  const rechazar = async (i: number, planId: string) => {
+    const r = await run(() => api.asistenteRechazar(ws.id, planId));
+    if (r) setHistorial((h) => h.map((x, k) => (k === i ? { ...x, trabajo: 'rechazado' } : x)));
   };
 
   const corregir = async (i: number, planId: string) => {
@@ -134,6 +152,8 @@ export function Asistente() {
             {plan.listo && plan.escribe && !x.trabajo && (
               <div className="row">
                 <button className="btn btn-primary" onClick={() => void confirmar(i, plan.id)}>Confirmar y ejecutar</button>
+                <button className="btn btn-ghost" title="El plan no es lo que pidió: cuenta como penalización para el modelo"
+                  onClick={() => void rechazar(i, plan.id)}>Rechazar</button>
               </div>
             )}
             {!x.trabajo && (

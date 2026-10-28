@@ -1490,6 +1490,11 @@ def create_app(
         return services.asistente_corregir(ws_or_404(wid), plan_id, tarea=body.tarea, datos=body.datos,
                                            tipo_informe=body.tipo_informe, subtipo=body.subtipo)
 
+    @app.post('/api/workspaces/{wid}/asistente/{plan_id}/rechazar')
+    def asistente_rechazar(wid: str, plan_id: str) -> dict:
+        """027:RF-35: el operador rechaza el plan (penalización)."""
+        return services.asistente_rechazar(ws_or_404(wid), plan_id)
+
     @app.get('/api/asistente/registro')
     def asistente_registro() -> dict:
         """026:RF-28, RF-31: órdenes, decisiones, mejoras, consultas a internet, suite y avisos."""
