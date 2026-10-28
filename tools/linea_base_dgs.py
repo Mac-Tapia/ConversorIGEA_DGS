@@ -12,25 +12,30 @@ perfil local de la máquina: con él se reproducen los DGS de antes (spec 002, R
 Los DGS salen de datos de la distribuidora: el JSON va a ``output/`` (ignorado por git) y
 solo guarda hashes, nunca contenido.
 
-Con ``--mdb`` guarda además los DGS de la vía Access (spec 002, T1): la reorganización
-mueve el lector de Access igual que el de TXT, y una línea base solo de TXT no lo vería.
+Con ``--mdb`` hace la línea base de la vía Access (spec 002, T1) en su propio fichero:
+TXT, MDB y VNR-GIS son entradas distintas, de empresas y fechas distintas, y cada una se
+convierte y se compara por su cuenta. Antes la de Access iba dentro de la del TXT, y
+regenerar una obligaba a pasar las dos fuentes juntas.
 
 Uso::
 
     python tools/linea_base_dgs.py --red RED.txt --loads CARGA.txt --equipment BD.txt
-    python tools/linea_base_dgs.py ... --mdb RED.mdb [--equipment-mdb EQUIPOS.mdb]
+    python tools/linea_base_dgs.py --mdb RED.mdb [--equipment-mdb EQUIPOS.mdb]
 """
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import tempfile
+from contextlib import contextmanager
 from dataclasses import asdict
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[1]
 DESTINO = RAIZ / 'output' / 'linea_base_001.json'
+DESTINO_MDB = RAIZ / 'output' / 'linea_base_001_mdb.json'
 
 #: Perfil de empresa con que se hace la línea base: el de los datos de referencia.
 PERFIL = 'electro_dunas'
@@ -46,6 +51,31 @@ def _reglas():
     from igea_dgs.reglas import REGLAS_PROYECTO, reglas_de_perfil
 
     return reglas_de_perfil(_perfil(), REGLAS_PROYECTO)
+
+
+@contextmanager
+def _perfil_activo():
+    """El perfil de la línea base también como perfil activo mientras se convierte.
+
+    Los nombres canónicos (022:RF-90, CN101 → CHN101) salen del perfil activo y no de las
+    reglas: la línea base de Access se hizo con el perfil local de la máquina (CHN101) y la
+    prueba, que no tiene perfil, daba CN101. Con este, las dos dan lo mismo en cualquier
+    equipo.
+    """
+    from igea_dgs.perfil_empresa import VARIABLE_RUTA
+
+    antes = os.environ.get(VARIABLE_RUTA)
+    with tempfile.TemporaryDirectory(prefix='igea-linea-base-perfil-') as tmp:
+        ruta = Path(tmp) / 'perfil_empresa.json'
+        ruta.write_text(json.dumps({'perfil': PERFIL}), encoding='utf-8')
+        os.environ[VARIABLE_RUTA] = str(ruta)
+        try:
+            yield
+        finally:
+            if antes is None:
+                os.environ.pop(VARIABLE_RUTA, None)
+            else:
+                os.environ[VARIABLE_RUTA] = antes
 
 
 PARAMETROS = {
@@ -82,6 +112,12 @@ def huella_entradas(red: Path, loads: Path, equipment: Path) -> dict[str, str | 
 
 def calcular(red: Path, loads: Path, equipment: Path, salida: Path, *,
              workers: int | None = None) -> dict:
+    with _perfil_activo():
+        return _calcular(red, loads, equipment, salida, workers=workers)
+
+
+def _calcular(red: Path, loads: Path, equipment: Path, salida: Path, *,
+              workers: int | None = None) -> dict:
     """Convierte la entrega en ``salida`` y devuelve la línea base (sin escribirla).
 
     ``workers`` cambia solo el reparto del lote: la prueba lo usa con 4 para comprobar
@@ -143,6 +179,11 @@ def huella_mdb(mdb: Path, equipment_mdb: Path | None) -> dict[str, str | None]:
 
 def calcular_mdb(mdb: Path, equipment_mdb: Path | None, salida: Path) -> dict:
     """Convierte todas las redes de la ``.mdb`` por alimentador y devuelve sus hashes."""
+    with _perfil_activo():
+        return _calcular_mdb(mdb, equipment_mdb, salida)
+
+
+def _calcular_mdb(mdb: Path, equipment_mdb: Path | None, salida: Path) -> dict:
     from igea_dgs.access import read_access_dataset
     from igea_dgs.batch import convert_selection
     from igea_dgs.reglas import catalogo_del_proyecto
@@ -164,28 +205,39 @@ def calcular_mdb(mdb: Path, equipment_mdb: Path | None, salida: Path) -> dict:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument('--red', type=Path, required=True)
-    ap.add_argument('--loads', type=Path, required=True)
-    ap.add_argument('--equipment', type=Path, required=True)
+    ap.add_argument('--red', type=Path)
+    ap.add_argument('--loads', type=Path)
+    ap.add_argument('--equipment', type=Path)
     ap.add_argument('--mdb', type=Path, help='Base de red (.mdb) para la línea base de la vía Access')
     ap.add_argument('--equipment-mdb', type=Path, help='Base de equipos (.mdb), si va aparte')
-    ap.add_argument('--out', type=Path, default=DESTINO)
+    ap.add_argument('--out', type=Path,
+                    help=f'Por defecto, {DESTINO.name} o {DESTINO_MDB.name} según la fuente')
     args = ap.parse_args(argv)
 
-    with tempfile.TemporaryDirectory(prefix='igea-linea-base-') as tmp:
-        base = calcular(args.red, args.loads, args.equipment, Path(tmp))
+    txt = (args.red, args.loads, args.equipment)
+    if args.mdb and any(txt):
+        ap.error('una fuente por vez: los TXT o la .mdb, no las dos')
+    if not args.mdb and not all(txt):
+        ap.error('indique --red, --loads y --equipment, o --mdb')
+
     if args.mdb:
         with tempfile.TemporaryDirectory(prefix='igea-linea-base-mdb-') as tmp:
-            base['mdb'] = calcular_mdb(args.mdb, args.equipment_mdb, Path(tmp))
-        print(f"Vía Access: {len(base['mdb']['dgs_alimentadores'])} DGS; "
-              f"lote {base['mdb']['resumen_lote']}")
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(json.dumps(base, indent=2, ensure_ascii=False, sort_keys=True),
-                        encoding='utf-8')
-    print(f"Línea base: {len(base['dgs_alimentadores'])} DGS de alimentador, "
-          f"{len(base['dgs_red_unida'])} de red unida ({base['estado_red_unida']}); "
-          f"lote {base['resumen_lote']}")
-    print(f'Escrita en {args.out}')
+            base = calcular_mdb(args.mdb, args.equipment_mdb, Path(tmp))
+        destino = args.out or DESTINO_MDB
+        resumen = (f"Línea base de Access: {len(base['dgs_alimentadores'])} DGS; "
+                   f"lote {base['resumen_lote']}")
+    else:
+        with tempfile.TemporaryDirectory(prefix='igea-linea-base-') as tmp:
+            base = calcular(args.red, args.loads, args.equipment, Path(tmp))
+        destino = args.out or DESTINO
+        resumen = (f"Línea base: {len(base['dgs_alimentadores'])} DGS de alimentador, "
+                   f"{len(base['dgs_red_unida'])} de red unida ({base['estado_red_unida']}); "
+                   f"lote {base['resumen_lote']}")
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    destino.write_text(json.dumps(base, indent=2, ensure_ascii=False, sort_keys=True),
+                       encoding='utf-8')
+    print(resumen)
+    print(f'Escrita en {destino}')
     return 0
 
 

@@ -113,6 +113,7 @@ además `IGEA_DEMANDA_DIR`.
 
 ## Reglas que más se rompen
 
+- Una fuente por vez: TXT, MDB y VNR-GIS son entradas distintas, de empresas y fechas distintas. Nunca se mezclan en una conversión, una línea base, una prueba, un espacio de la web ni una orden: cada una se carga, se convierte, se prueba y se regenera sola (`linea_base_001.json` del TXT, `linea_base_001_mdb.json` de Access, cada una con su orden). Ninguna prueba compara una con otra y ningún mensaje pide la otra fuente ni la misma fecha.
 - Universal: TXT, MDB y VNR-GIS de cualquier distribuidora. Electro Dunas es un caso de prueba; sus convenciones (CRS `EPSG:32718`, SED `M…`, escala NA205) van en un perfil de empresa, nunca como valor por defecto (constitución P13).
 - El número de alimentadores es variable (10, 50, 200…): nada de recorrer una tabla entera por alimentador, y nada de tamaños fijos en las pruebas. Ver la sección «Escala» del skill.
 - Dos disposiciones de export (reducida y completa): todo cambio en el lector se prueba con las dos.

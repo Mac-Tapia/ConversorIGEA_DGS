@@ -70,7 +70,7 @@ def test_dgs_identicos_con_cuatro_procesos(igea_paths, tmp_path):
 
 
 def test_dgs_identicos_por_la_via_access(tmp_path):
-    """002:RF-20 — la vía Access también da los DGS de la línea base."""
+    """002:RF-20 — la vía Access da los DGS de su propia línea base, aparte de la del TXT."""
     import os
 
     pytest.importorskip('pyodbc')
@@ -79,11 +79,10 @@ def test_dgs_identicos_por_la_via_access(tmp_path):
         pytest.skip('Defina IGEA_MDB para comparar la vía Access')
     equipos = os.environ.get('IGEA_EQUIPMENT_MDB', '').strip() or None
     lb = _herramienta()
-    if not lb.DESTINO.is_file():
-        pytest.skip(f'Sin línea base: genérela con tools/linea_base_dgs.py ({lb.DESTINO})')
-    base = json.loads(lb.DESTINO.read_text(encoding='utf-8')).get('mdb')
-    if base is None:
-        pytest.skip('La línea base no tiene vía Access: regenérela con --mdb')
+    if not lb.DESTINO_MDB.is_file():
+        pytest.skip('Sin línea base de Access: genérela con '
+                    f'tools/linea_base_dgs.py --mdb ({lb.DESTINO_MDB})')
+    base = json.loads(lb.DESTINO_MDB.read_text(encoding='utf-8'))
     mdb, equipos = Path(mdb), Path(equipos) if equipos else None
     if lb.huella_mdb(mdb, equipos) != base['entradas']:
         pytest.skip('La línea base de Access se hizo con otras bases u otro catálogo')
