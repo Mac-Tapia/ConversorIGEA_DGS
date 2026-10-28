@@ -88,9 +88,14 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       Hecho el 2026-10-28: `ejecutor.revisar_tras_error` da el error al modelo; con la misma tarea y
       datos (fallo pasajero) se reintenta una vez, con otros vuelve al operador con la propuesta
       para confirmar (RF-19); cada decisión queda en el registro `reintentos`.
-- [ ] T11. (Condicional) LoRA/QLoRA local si T9 no pasa las puertas. (RF-21)
+- [x] T11. (Condicional) LoRA/QLoRA local si T9 no pasa las puertas. (RF-21)
       Hecho cuando: el modelo ajustado pasa RF-18 con el conjunto real, o la tarea se cierra
       con la medida de que no hace falta.
+      Cerrada el 2026-10-28 con la medida: el Transformer en uso (20261024-150042-37ce) acierta 1,0
+      la tarea y 1,0 el F1 de los datos en las 5 órdenes reales (1 en la prueba fija), sobre las
+      puertas de RF-18; LoRA/QLoRA no hace falta. Con 5 órdenes la medida es débil: se repite al
+      llegar a las 200 (RF-19), y los pares de preferencia de T15 quedan para un DPO si entonces
+      no pasa.
 - [x] T12. Deriva, propuesta de reentrenamiento y vuelta atrás desde la web. (RF-22 a RF-24)
       Hecho cuando: pruebas de API en verde y botón en la web compilada.
       Hecho el 2026-10-28: `oraculo.deriva_por_familia` (nuevos y fuera de dominio por familia;
