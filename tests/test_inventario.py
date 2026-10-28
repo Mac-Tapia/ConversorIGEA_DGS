@@ -195,7 +195,9 @@ def test_config_sin_datos_de_una_empresa():
     empresa con convenciones (los de config/perfiles, que comprueba 002:RF-35)."""
     salida = subprocess.run(['git', 'ls-files', 'config'], cwd=RAIZ, capture_output=True,
                             text=True, encoding='utf-8', check=True).stdout.split()
-    genericos = {'config/vnr_dgs_profile.json'}
+    # El contrato universal del PIDE es la norma de 2017, sin datos de ninguna empresa
+    # (test_pide_dataset lo comprueba).
+    genericos = {'config/vnr_dgs_profile.json', 'config/pide_universal_2017.json'}
     malos = [f for f in salida if '.example.' not in f and f not in genericos
              and not (f.startswith('config/perfiles/') and f.endswith('.json'))]
     assert not malos, f'config/ con datos de una empresa en git: {malos}'

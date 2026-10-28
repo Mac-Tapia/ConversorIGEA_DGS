@@ -371,6 +371,13 @@ def entrenar_y_promover(vocab: dict, *, cfg: Configuracion | None = None, puerta
     datos = generar(vocab, por_tarea=cfg.por_tarea, semilla=cfg.semilla) + reales * 5
     prueba = generar(vocab, por_tarea=20, semilla=SEMILLA_PRUEBA) + prueba_real
     log(f'Asistente: {len(datos)} ejemplos ({len(reales)} reales), prueba fija de {len(prueba)}')
+    # 027:RF-29, RF-33, RF-34: el dataset se audita antes y el informe va al registro.
+    from ..digital_twin.auditoria import auditar_ordenes
+
+    auditoria = auditar_ordenes(reales=len(reales), sinteticas=len(datos) - 5 * len(reales),
+                                prueba_real=len(prueba_real))
+    for aviso in auditoria['avisos']:
+        log(f'Asistente: {aviso}')
     candidato = entrenar(datos, cfg, log)
     metricas = evaluar(candidato, prueba)
     actual = cargar()
@@ -383,7 +390,8 @@ def entrenar_y_promover(vocab: dict, *, cfg: Configuracion | None = None, puerta
     if del_actual and metricas['acierto_tarea'] < del_actual['acierto_tarea'] - 1e-9:
         fallos.append(f"acierta menos que el modelo en uso ({del_actual['acierto_tarea']:.3f})")
     version = guardar(candidato, {'metricas': metricas, 'metricas_en_uso': del_actual,
-                                  'ejemplos': len(datos), 'reales': len(reales), 'prueba': len(prueba)})
+                                  'ejemplos': len(datos), 'reales': len(reales), 'prueba': len(prueba),
+                                  'auditoria': auditoria})
     if not fallos:
         promover(version, f"acierto {metricas['acierto_tarea']:.3f}, F1 {metricas['f1_datos']:.3f}")
     log(f"Asistente: candidato {version}: {'promovido' if not fallos else 'no promovido: ' + '; '.join(fallos)}")

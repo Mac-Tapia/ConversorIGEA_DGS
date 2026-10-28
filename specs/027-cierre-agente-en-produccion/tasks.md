@@ -1,14 +1,17 @@
 # Tareas — Spec 027
 
-Estado: borrador del 2026-10-28, pendiente de aprobación. Una tarea cada vez, pruebas primero.
+Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pruebas primero.
 
-- [ ] T0. Auditoría del dataset de cada modelo antes de entrenar (`tools/digital_twin_auditar.py`
+- [x] T0. Auditoría del dataset de cada modelo antes de entrenar (`tools/digital_twin_auditar.py`
       e informe en el registro del modelo): estructura, validez, rangos, impedancias mínimas,
       tensiones implausibles, parámetros frente a etiquetas; corregir el comentario de
       `Muestra.x` (5 columnas, no 4). (RF-29 a RF-34)
       Hecho cuando: `pytest -q tests/test_digital_twin_auditoria.py` en verde con datos
       sorteados que traen cada defecto, y el informe del búfer real reproduce las cifras del
       2026-10-28 (24 muestras, 1 red de 2470 nodos, 928 518 parámetros).
+      Hecho el 2026-10-28: 6 pruebas en verde; `tools/digital_twin_auditar.py` sobre el búfer real da
+      24 muestras, 1 red de 2470 nodos, 58 707 etiquetas, 928 518 parámetros, 11 episodios con
+      tensiones fuera de 0,8–1,2 p.u. y 5 órdenes reales del asistente (1 en la prueba).
 - [ ] T1. Episodio tras cada calibración, obra y estudio de cualquier sistema desde la web, con
       sistema, SET, caso y huella. (RF-1)
       Hecho cuando: `pytest -q tests/test_digital_twin_capture.py` en verde y, tras calibrar
@@ -58,10 +61,16 @@ Estado: borrador del 2026-10-28, pendiente de aprobación. Una tarea cada vez, p
       Hecho cuando: tasa de error empírica ≤ la fijada en el conjunto real de prueba.
 - [ ] T18. Citas comprobadas y medición de consultas. (RF-41, RF-42)
       Hecho cuando: prueba con una cita falsa sustituida; informe con preguntas reales.
-- [ ] T19. Corpus PIDE desde `referencia/PIDEELOR` con `pide_dataset` (texto completo) y su
+- [x] T19. Corpus PIDE desde `referencia/PIDEELOR` con `pide_dataset` (texto completo) y su
       auditoría con T0: ficheros, formatos no leídos y fragmentos por artículo. (RF-46, RF-47, RF-51)
       Hecho cuando: el manifiesto cubre los 1397 ficheros con su huella, cada no leído
       (MPP, DWG, RAR) dicho, y `test_pide_dataset` en verde.
+      Hecho el 2026-10-28: 1397 ficheros con huella (26 GB, 1015 contenidos distintos, 382
+      duplicados), 724 extraídos, 194 que piden lector nativo (107 MPP, 32 PFD, 12 DWG, 19 MSG…)
+      y 92 solo metadatos, dichos; 18 620 fragmentos y 2603 de 2625 hojas de Excel con su
+      cabecera (antes solo nombre y tamaño); los .xls con calamine y el .docx antiguo con «\»
+      leído de su XML. Quedan 2 PDF truncados en el propio expediente (mapas SR0020 y SR0021).
+      El 87 % de los fragmentos no tiene artículo por su ruta: lo asigna T20 por contenido.
 - [ ] T20. Ejemplos del agente desde el corpus: artículo → evidencias y entregables; formato →
       hojas y columnas entregadas; estructura de los informes 4.1 y 4.2. (RF-48, RF-50)
       Hecho cuando: prueba con un corpus sintético; informe del real con los 20 artículos y
@@ -77,3 +86,10 @@ Estado: borrador del 2026-10-28, pendiente de aprobación. Una tarea cada vez, p
       Hecho cuando: informe con Nasca, Chincha, Pisco e Ica válidos en DIgSILENT y las métricas
       de las puertas, y el agente ejecutó el proyecto desde un espacio vacío hasta el PIDE y
       sus informes (RF-43).
+- [ ] T23. El nodo de cabecera con la sigla canónica (`NODE_…_CN101` → `NODE_…_CHN101`) en el DGS,
+      sus metadatos y lo que los guiones buscan por él. (022:RF-90)
+      Hecho cuando: Chincha reconvertido e importado sin `CN` en sus nombres y calibrado válido
+      en DIgSILENT.
+- [ ] T24. Episodios por sistema según RF-53 y curva de aprendizaje por familia. (RF-53, RF-54)
+      Hecho cuando: informe por sistema con sus 30/10/10 episodios y la curva que dice si ha
+      convergido.

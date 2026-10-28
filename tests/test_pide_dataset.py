@@ -125,6 +125,9 @@ def test_extrae_docx_xlsx_csv_pdf_y_geojson_reales(tmp_path):
     xlsx = extraidas['.xlsx']
     assert xlsx.status == 'ok' and xlsx.assets[0]['sheet'] == 'F08 Alternativas'
     assert xlsx.assets[0]['dimension'] == 'A1:C2'
+    # 027:RF-48: el contenido de la hoja y su cabecera, no solo su nombre.
+    assert xlsx.assets[0]['cabecera'] == ['Código', 'Alternativa', 'Costo']
+    assert 'Nuevo alimentador' in ' '.join(f['text'] for f in xlsx.fragments)
     assert extraidas['.csv'].assets[0]['columns'] == ['sistema', 'anio', 'demanda']
     assert extraidas['.geojson'].assets[0]['features'] == 1
     assert extraidas['.pdf'].status == 'ok'
@@ -225,3 +228,23 @@ def test_dataset_real_pideelor_cubre_cada_archivo_y_articulo(tmp_path):
                             for p in destino.glob('*.json*'))
     assert str(repo) not in publicados
     assert '"estado":"gold"' not in publicados
+
+
+def test_docx_que_python_docx_no_abre_se_lee_igual(tmp_path, monkeypatch):
+    """027:RF-46, 027:RF-51 — un Word antiguo con «\» en sus rutas internas (P&C-059-2022 de
+    PIDEELOR) hacía fallar a python-docx: su texto se lee de word/document.xml y se avisa."""
+    import docx
+    from docx import Document
+    from igea_dgs import pide_dataset as pd
+
+    doc = Document()
+    doc.add_paragraph('Alternativa de inversión por cambio de conductor.')
+    doc.save(tmp_path / 'viejo.docx')
+
+    def roto(*_a, **_k):
+        raise KeyError("There is no item named 'word/media\\image1.jpg' in the archive")
+
+    monkeypatch.setattr(docx, 'Document', roto)
+    fragments, assets, avisos = pd._extraer_docx(tmp_path / 'viejo.docx', 200)
+    assert 'cambio de conductor' in ' '.join(f['text'] for f in fragments)
+    assert avisos == ['docx_sin_python_docx'] and assets[0]['kind'] == 'docx'
