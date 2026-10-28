@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { api, fmtNum } from '../api';
 import { useApp } from '../context';
 import type { EstructuraResumen, FeederRow } from '../types';
@@ -76,6 +76,8 @@ export function FeedersPanel() {
   // Spec 022, RF-47 a RF-51: la conversión por sistema eléctrico, aparte de unir.
   const [estructura, setEstructura] = useState<EstructuraResumen | null>(null);
   const [zonal, setZonal] = useState('');
+  const [setElegida, setSetElegida] = useState('');
+  const [errorEstructura, setErrorEstructura] = useState('');
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'feeder', dir: 1 });
   const anchor = useRef<string | null>(null);
   const engineBusy = Boolean(active.engine);
@@ -151,13 +153,28 @@ export function FeedersPanel() {
     await startJob(() => api.convertGroup(ws.id, selected, nombre.trim() || sugerido));
   };
 
-  const cargarEstructura = async () => {
-    if (estructura) return;
-    const e = await run(() => api.estructura(ws.id));
-    if (e) setEstructura(e);
-  };
+  // 022:RF-83: la estructura se pide al cargar la entrega. Antes se pedía al enfocar el
+  // desplegable, que estaba desactivado sin ella: nunca recibía el foco y ni los sistemas ni
+  // la SET nueva Chincha Nueva aparecían (usuario, 2026-10-27).
+  useEffect(() => {
+    setEstructura(null);
+    setErrorEstructura('');
+    if (!feeders.length) return;
+    let vigente = true;
+    api.estructura(ws.id)
+      .then((e) => { if (vigente) setEstructura(e); })
+      .catch((err: unknown) => { if (vigente) setErrorEstructura(err instanceof Error ? err.message : String(err)); });
+    return () => { vigente = false; };
+  }, [ws.id, ws.active_run_id, feeders.length]);
+  const zonalesEstructura = estructura?.zonales ?? [];
+  const setsVisibles = zonalesEstructura
+    .filter((z) => !zonal || z.nombre === zonal)
+    .flatMap((z) => (z.sets_detalle ?? []).map((s) => ({ ...s, zonal: z.nombre })));
   const convertirSistema = async () => {
     await startJob(() => api.convertSistema(ws.id, zonal ? [zonal] : []));
+  };
+  const convertirSet = async () => {
+    if (setElegida) await startJob(() => api.convertSistema(ws.id, [], [setElegida]));
   };
 
   const pfFlow = async () => {
@@ -349,17 +366,37 @@ export function FeedersPanel() {
           </div>
           <div className="row">
             <span>Por sistema eléctrico:</span>
-            <select value={zonal} disabled={engineBusy || !estructura?.zonales.length}
-              onFocus={cargarEstructura} onChange={(e) => setZonal(e.target.value)}>
+            <select value={zonal} disabled={engineBusy || !zonalesEstructura.length}
+              aria-label="Sistema eléctrico"
+              onChange={(e) => { setZonal(e.target.value); setSetElegida(''); }}>
               <option value="">Todos los sistemas (SISTEMA_ELECTRICO)</option>
-              {(estructura?.zonales ?? []).map((z) => (
+              {zonalesEstructura.map((z) => (
                 <option key={z.nombre} value={z.nombre}>{z.nombre} — {z.sets.length} SET, {z.alimentadores.length} alimentadores</option>
               ))}
             </select>
-            <button className="btn" disabled={engineBusy || !allReady} onClick={convertirSistema}
+            <button className="btn" disabled={engineBusy || !allReady || !estructura} onClick={convertirSistema}
               title="Un DGS por sistema eléctrico: una red por zonal, cada SET con sus barras y una red externa por barra; enlaces y anillos abiertos y el oráculo de la red entera. Aparte de unir: no se mezcla (spec 022)">
-              Convertir por sistema eléctrico
+              Convertir sistema {zonal || 'eléctrico (todos)'}
             </button>
+          </div>
+          <div className="row">
+            <span>Por SET:</span>
+            <select value={setElegida} disabled={engineBusy || !setsVisibles.length}
+              aria-label="Subestación (SET)" onChange={(e) => setSetElegida(e.target.value)}>
+              <option value="">Elija una SET…</option>
+              {setsVisibles.map((s) => (
+                <option key={s.codigo} value={s.codigo}
+                  title={s.alimentadores.join(', ')}>
+                  {s.rotulo} ({s.zonal}) — {s.alimentadores.length} alimentadores: {s.alimentadores.join(', ')}
+                </option>
+              ))}
+            </select>
+            <button className="btn" disabled={engineBusy || !allReady || !setElegida} onClick={convertirSet}
+              title="Un DGS con solo esta SET: su red, sus barras de 10 y 22,9 kV y la red externa de cada barra, como dentro de su sistema (spec 022, RF-82)">
+              Convertir SET {setElegida}
+            </button>
+            {!estructura && !errorEstructura && feeders.length > 0 && <small className="muted">Leyendo la estructura de la empresa…</small>}
+            {errorEstructura && <small className="alert alert-error">Estructura de la empresa: {errorEstructura}</small>}
             {estructura && !estructura.zonales.length && <small className="muted">Sin estructura de la empresa: súbala en el paso de demanda o póngala en el perfil.</small>}
             {!!estructura?.deducidos?.length && (
               <small className="muted"

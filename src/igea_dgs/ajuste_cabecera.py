@@ -107,7 +107,12 @@ def fijas_de(cruzados: Iterable[Mapping[str, Any]], objetivo: Objetivo,
         f = por_clave.setdefault(clave_codigo(sed), Fija(sed))
         ea, eri = numero(c.get('ea')), numero(c.get('eri'))
         codigo = str(c.get('codigo') or '')
-        if ea is None or eri is None or ea == 0:
+        q_registro = numero(c.get('q_registro_kvar'))
+        if q_registro is not None and kw:
+            # 004:RF-66: la reactiva del registro de 15 minutos en que se dio su POT.
+            tan = q_registro / kw
+            metodo = f"ERI_DEL_REGISTRO {c.get('fecha_registro') or ''}".strip()
+        elif ea is None or eri is None or ea == 0:
             tan = objetivo.tan_phi
             metodo = 'FP_CABECERA_FALLBACK'
             f.avisos.append(f'{codigo}: sin EA o ERI; su kVAR con el FP del objetivo '
@@ -118,7 +123,10 @@ def fijas_de(cruzados: Iterable[Mapping[str, Any]], objetivo: Objetivo,
         q_kvar = kw * tan
         fp_libro = abs(kw) / math.hypot(kw, q_kvar) if (kw or q_kvar) else 1.0
         compensado = None
-        if fp_minimo is not None and fp_libro < fp_minimo and kw > 0:
+        # 004:RF-66: con su registro, su FP es el de su EA y ERI en esa fecha y hora, sin
+        # llevarlo al mínimo: la compensación de 015:RF-62 era para el cociente del mes
+        # (usuario, 2026-10-28).
+        if fp_minimo is not None and fp_libro < fp_minimo and kw > 0 and q_registro is None:
             q_libro = q_kvar
             q_kvar = kw * math.tan(math.acos(fp_minimo))
             compensado = {'fp_ea_eri': fp_libro, 'fp_escrito': fp_minimo,

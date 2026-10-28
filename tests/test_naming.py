@@ -29,3 +29,18 @@ def test_sufijo_de_tension_es_uno_para_el_dgs_y_las_obras():
     assert _type_name('LINE:AA12003D', 'AA12003D', 22.9) == nombre_con_tension('AA12003D', 22.9)
     assert _type_name('LINE:X', 'DEFAULT', 13.2) == 'DEFAULT_OH_13_2kV'
     assert _type_name('CABLE:X', 'DEFAULT') == 'DEFAULT_UG'
+
+
+def test_siglas_canonicas_del_perfil(monkeypatch):
+    """022:RF-90 — con la estructura que declara ``["CHN", "CN"]``, CN101 de la red se llama
+    CHN101 desde la carga; las demás siglas y los nombres sin número, tal cual; sin perfil,
+    nada cambia."""
+    from igea_dgs import naming
+
+    monkeypatch.setattr(naming, '_siglas_canonicas', lambda: {'CN': 'CHN'})
+    assert naming.feeder_short_name('NET_2030_1192582_CN101') == 'CHN101'
+    assert naming.feeder_short_name('NET_2030_1192601_cn201') == 'CHN201'
+    assert naming.feeder_short_name('NET_2030_131_CA101') == 'CA101'
+    assert naming.feeder_short_name('ALIMENTADOR-CN') == 'CN'
+    monkeypatch.setattr(naming, '_siglas_canonicas', lambda: {})
+    assert naming.feeder_short_name('NET_2030_1192582_CN101') == 'CN101'

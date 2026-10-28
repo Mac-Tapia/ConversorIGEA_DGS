@@ -172,6 +172,9 @@ class DemandaMedidoresIn(BaseModel):
     instante: datetime | None = None
     # Spec 022, RF-39 a RF-41: la máxima de cada barra de SET y sus alimentadores en esa fecha.
     por_barra: bool = False
+    # 022:RF-88: las centrales (CT…) conectadas en un tramo de su alimentador, no en la barra:
+    # {medidor: alimentador}.
+    centrales_tramo: dict[str, str] = Field(default_factory=dict)
 
 
 class DemandaClientesIn(BaseModel):
@@ -444,6 +447,7 @@ class SistemaIn(BaseModel):
     reconstruir con su medida y las medidas de los demás, en kW."""
 
     zonales: list[str] = Field(default_factory=list)
+    sets: list[str] = Field(default_factory=list)          # 022:RF-82: una SET sola
     reconstruir: dict[str, float] = Field(default_factory=dict)
     medidas_kw: dict[str, float] = Field(default_factory=dict)
 
@@ -950,7 +954,7 @@ def create_app(
         ws = ws_or_404(wid)
         services.check_ready(ws)
         services.check_convert_options(ws)
-        feeders, nombre, estructura = services.sistema_seleccion(ws, body.zonales)
+        feeders, nombre, estructura = services.sistema_seleccion(ws, body.zonales, body.sets)
         return submit(ws, 'convert_group', f'Sistema eléctrico {nombre}.dgs ({len(feeders)} alimentadores)',
                       lambda ctx: services.convert_group(
                           ws, ctx, feeders, nombre, requested_feeders=feeders,
@@ -1236,7 +1240,13 @@ def create_app(
         return submit(ws, 'demanda_cabecera', f'Máxima de cabecera ({len(pares)} medidor(es))',
                       lambda ctx: services.demanda_cabecera(ws, ctx, pares, periodo=body.periodo,
                                                             instante=body.instante,
-                                                            por_barra=body.por_barra))
+                                                            por_barra=body.por_barra,
+                                                            centrales_tramo=body.centrales_tramo))
+
+    @app.get('/api/workspaces/{wid}/demanda/centrales')
+    def demanda_centrales(wid: str) -> dict:
+        # 022:RF-88: las centrales térmicas (CT…) del libro, para decir dónde se conectan.
+        return services.demanda_centrales_de_barra(ws_or_404(wid))
 
     @app.get('/api/workspaces/{wid}/demanda/cabecera/{job_id}/curva')
     def demanda_curva(wid: str, job_id: str, medidor: str = Query(...),

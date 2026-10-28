@@ -265,6 +265,14 @@ hojas trae SUMINISTRO y SED, y el cruce elegía uno de ellos como tabla de sumin
 - RF-65: SI en la fuente de clientes importantes hay un libro cuyo mes no sale del nombre y
   que no tiene hoja «resumen», ENTONCES EL SISTEMA no lo activará para ningún mes y lo dirá
   en su fila del índice; los libros cuyo mes sale del nombre siguen sin abrirse (013:RF-2).
+- RF-66: CUANDO el libro de clientes importantes traiga las hojas de 15 minutos de sus
+  clientes (hoja «maestro_lib»: número de suministro → hoja, con FECHA, HORA, EA, ERI y
+  POT), EL SISTEMA buscará en la hoja de cada cliente cruzado el registro en que se dio su
+  POT y escribirá su kVAR con el ERI de ese mismo registro (ERI × 4), y dirá la fecha y
+  hora; sin hoja o sin ese registro, su kVAR sigue con el ERI/EA del mes (RF-6). Con su
+  registro, el FP de la SED fija es el de la EA y el ERI de esa fecha y hora, sin llevarlo
+  al mínimo de 015:RF-62, que solo vale para el cociente del mes; las escaladas siguen con
+  el FP del perfil (0,98 en Electro Dunas, 015:RF-54) (usuario, 2026-10-28).
 
 ## Requisitos no funcionales
 

@@ -134,3 +134,30 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]` y pa
       Hecho cuando: `pytest -q tests/test_dgs_por_set.py tests/test_diagram_topology_coverage.py
       tests/test_cargas_pf_guion_016.py` en verde, suite completa con las siete variables sin
       omitidas y, en DIgSILENT, la sonda de T14 da cada hoja con todos sus gráficos dentro.
+- [x] T17. Siglas de una SET con dos grafías: `Estructura.alimentador` y `equivalentes`,
+      SET CHN con las siglas CN y CHN en el perfil, medidores del libro por cualquiera de
+      las dos en la web. (RF-81)
+      Hecho cuando: `pytest -q tests/test_estructura.py` en verde y, con el espacio de
+      RED_231026, CN101 a CN201 en SET CHN y CHN101 a CHN201 resueltos al mismo alimentador.
+      2026-10-27: en verde; CN103 sigue fuera de la red por no tener tramos.
+- [x] T18. Web: «Convertir sistema» y «Convertir SET» con sus desplegables; `sets` en
+      `/convert/sistema` y `sets_detalle` en el resumen; la estructura se pide al cargar la
+      entrega. (RF-82, RF-83)
+      Hecho cuando: `pytest -q tests/test_estructura_nuevos.py tests/test_central_termica_front.py`
+      en verde, `npx tsc --noEmit` sin errores y `npm run build` correcto.
+      2026-10-27: en verde y compilado.
+- [x] T19. Calibración con la barra de 60 kV: `barras_de_calibracion` con `de_alta`, columna
+      «SET» del libro, `valor_de_barra_en`, la web lee primero la de 60 kV y después sus
+      barras de media en ese instante, un hilo por instante; transformadores T1 a T3 de
+      cada medidor; centrales CT en barra o en el tramo de su alimentador, con su campo en
+      la web (`/demanda/centrales`); aviso de la barra de 60 kV en otra unidad, nombre
+      canónico de las siglas (CHN) desde la carga y el instante de 60 kV con registro en
+      todos sus alimentadores. (RF-84 a RF-91)
+      Hecho cuando: `pytest -q tests/test_estructura.py tests/test_demanda_medida_web.py` en
+      verde (2026-10-27) y, en DIgSILENT, un sistema con medidores de 60 kV calibrado desde
+      la web con todos sus alimentadores en el instante de su barra de 60 kV.
+      2026-10-28, en DIgSILENT desde la web (`tools/sistema_web.py`, julio de 2026): Nasca 7
+      válidos y 0 fallos (SET 51, 52 y 53 en el instante de su barra de 60 kV, la central de
+      Nasca en el tramo de NA205); Chincha 26 válidos y 0 fallos con `--transformadores` y
+      `--reconstruir TM106 TM104` (CT_PEDREG en la barra de 10 kV, CHN101, CHN102 y CHN201
+      con su medidor en el instante de CHNB6T1 con registro en todos).

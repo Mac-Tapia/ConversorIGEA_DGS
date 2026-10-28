@@ -32,7 +32,7 @@ import unicodedata
 from dataclasses import asdict, dataclass, field, fields, replace
 from datetime import date, datetime
 from pathlib import Path
-from typing import Any, Callable, Iterable, Literal, Sequence
+from typing import Any, Callable, Iterable, Literal, Mapping, Sequence
 
 EXTENSIONES = ('.xls', '.xlsx', '.xlsb', '.xlsm')
 FILAS_CABECERA = 30          # dónde se busca la fila de cabecera de un libro
@@ -66,7 +66,8 @@ ALIAS: dict[str, tuple[str, ...]] = {
     'pot': ('pot max', 'pot', 'potencia maxima', 'potencia'),
     # 022:RF-37: las filas de barra del libro de medidores, con su nivel y sus siglas.
     'nivel': ('nivel tension', 'nivel de tension', 'tension kv', 'kv'),
-    'siglas': ('siglas',),
+    # 022:RF-85: la columna «SET» del libro (siglas, código o nombre de la SET).
+    'siglas': ('siglas', 'set', 'siglas set', 'sigla set', 'codigo set', 'cod set'),
     # 004:RF-56: el nombre del cliente; en los libros de julio de 2026, «CLIENTE». Los de
     # enero a abril no lo traen.
     'cliente_nombre': ('cliente', 'nombre cliente', 'nombre del cliente', 'razon social', 'nombre'),
@@ -551,10 +552,15 @@ def alimentadores_de(medidores: Sequence[Medidor]) -> list[str]:
     return sorted(vistos.values(), key=clave_codigo)
 
 
-def medidores_de(medidores: Sequence[Medidor], alimentador: str) -> list[str]:
-    """Cada medidor que el libro asigna al alimentador, sin repetir y en su orden (RF-22)."""
-    clave = clave_codigo(alimentador)
-    return list(dict.fromkeys(parte for m in medidores if clave_codigo(m.alimentador) == clave
+def medidores_de(medidores: Sequence[Medidor], alimentador: str,
+                 equivalentes: Iterable[str] = ()) -> list[str]:
+    """Cada medidor que el libro asigna al alimentador, sin repetir y en su orden (RF-22).
+
+    ``equivalentes``: otras grafías del mismo alimentador según la estructura (022:RF-81),
+    CHN101 en el libro para el CN101 de la red.
+    """
+    claves = {clave_codigo(alimentador)} | {clave_codigo(e) for e in equivalentes}
+    return list(dict.fromkeys(parte for m in medidores if clave_codigo(m.alimentador) in claves
                               for parte in partir_medidores(m.medidor)))
 
 
@@ -781,10 +787,17 @@ def maxima_de_registros(registros: Sequence[Registro], resultado: MaximaCabecera
     y su central, 2026-10-17).
     """
     mejor: Registro | None = None
+    corruptos = 0
     for r in registros:
         kw = r.valores.get('kw')
         if kw is None:
             continue                                    # RF-31: vacío o no numérico
+        kva = r.valores.get('kva')
+        if kva is not None and kva < 0:
+            # Un kVA negativo no es físico: L-LL123 el 2026-10-18 dio 32 765 kW (el tope de
+            # un contador de 16 bits) con −30 818 kVA y ganaba como máxima de LL203.
+            corruptos += 1
+            continue
         if instante is not None:
             if _como_datetime(r.fecha) == instante:
                 mejor = r
@@ -797,6 +810,9 @@ def maxima_de_registros(registros: Sequence[Registro], resultado: MaximaCabecera
             mejor = r
     resultado.registros = len(registros)
     resultado.curva, resultado.fuera_de_curva = curva_de_registros(registros)
+    if corruptos:
+        resultado.avisos.append(f'{corruptos} registro(s) con kVA negativo descartados: no son '
+                                'físicos (desborde del contador del medidor).')
     if mejor is None:
         resultado.error = (f'sin registro con kW numérico el {_iso(instante)}' if instante
                            else f'ningún registro con kW numérico en {periodo}' if periodo
@@ -814,6 +830,12 @@ def maxima_de_registros(registros: Sequence[Registro], resultado: MaximaCabecera
         resultado.kva_calculado = True
     if resultado.fp is None and resultado.kva:
         fp = abs(resultado.kw) / resultado.kva
+        if fp > 1.0:
+            # Un kVA menor que el kW no es físico: el medidor integra cada magnitud por su
+            # lado (L-LL123, octubre de 2026: FP calculado 1,06). Vale 1 y se dice.
+            resultado.avisos.append(f'kVA {resultado.kva:g} menor que |kW| {abs(resultado.kw):g} '
+                                    'en el registro: FP calculado acotado a 1.')
+            fp = 1.0
         # Con kVAR negativo (capacitivo) el FP lleva signo negativo, como en el medidor.
         resultado.fp = -fp if (resultado.kvar or 0) < 0 else fp
         resultado.fp_calculado = True
@@ -1045,12 +1067,16 @@ class Cabecera:
 def maximas(rutas: Iterable[Path | str], medidores: Sequence[tuple[str, str]], *, alias=ALIAS,
             periodo: str | None = None, instante: datetime | None = None,
             cancelado: Callable[[], bool] = lambda: False,
-            progreso: Callable[[int, int, str], None] = lambda *_a: None) -> list[MaximaCabecera]:
+            progreso: Callable[[int, int, str], None] = lambda *_a: None,
+            cabecera: Cabecera | None = None) -> list[MaximaCabecera]:
     """Máxima de cada ``(alimentador, medidor)``, por separado, sin sumar (RF-29, RF-32).
 
-    Se cancela entre medidores: un medidor se lee entero.
+    Se cancela entre medidores: un medidor se lee entero. ``cabecera``: los libros ya
+    abiertos, para no abrirlos otra vez en cada instante de la máxima por barra (022:RF-84):
+    con un hilo por instante, cada uno abría su copia de los .xls de ~400 MB y la web se
+    quedó sin memoria con Nasca (2026-10-27).
     """
-    cabecera = Cabecera(rutas, alias)
+    cabecera = cabecera or Cabecera(rutas, alias)
     out = []
     for n, (alimentador, medidor) in enumerate(medidores, start=1):
         if cancelado():
@@ -1374,9 +1400,62 @@ class ClienteImportante:
     radial: str = ''
     motivo: str = ''
     nombre: str = ''                # 004:RF-56; vacío si el libro no lo trae
+    # 004:RF-66: el registro de 15 minutos de su hoja en que se dio su POT, y la reactiva de
+    # ese mismo registro (kVAR = ERI × 4), en vez del cociente ERI/EA del mes.
+    fecha_registro: str = ''
+    q_registro_kvar: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+def registros_de_maxima(path: Path | str, pot_de: Mapping[str, float | None],
+                        ) -> tuple[dict[str, tuple[str, float]], list[str]]:
+    """El registro de 15 minutos en que cada cliente dio su POT, con su kVAR (004:RF-66).
+
+    El libro de clientes trae, además del resumen, una hoja de 15 minutos por cliente libre
+    («maestro_lib» dice cuál: ``numero_suministro`` → ``nombre_hoja_exportacion``) con
+    FECHA, HORA, EA, ERI y POT (kW = EA × 4). El usuario, el 2026-10-28: «ubicar la hoja de
+    ese cliente y buscar la fecha en que pasó esa EA, y de esa misma fecha sacar el ERI».
+    Devuelve ``{código: (fecha y hora, kVAR = ERI × 4)}`` y los avisos; un cliente sin hoja
+    o sin ese registro no está, y sigue con su ERI/EA del mes.
+    """
+    libro = _abrir(path)
+    avisos: list[str] = []
+    maestro = next((h for h in libro.sheet_names if normalizar(h) == 'maestro lib'), None)
+    if maestro is None:
+        return {}, []
+    filas = _filas(libro, maestro)
+    cab = next((i for i, f in enumerate(filas[:FILAS_CABECERA])
+                if {'numero suministro', 'nombre hoja exportacion'} <= {normalizar(c) for c in f}), None)
+    if cab is None:
+        return {}, [f'{Path(path).name} › {maestro}: sin «numero_suministro» ni «nombre_hoja_exportacion».']
+    norm = [normalizar(c) for c in filas[cab]]
+    i_sum, i_hoja = norm.index('numero suministro'), norm.index('nombre hoja exportacion')
+    hoja_de = {clave_codigo(_texto(f, i_sum)): _texto(f, i_hoja) for f in filas[cab + 1:]
+               if _texto(f, i_sum) and _texto(f, i_hoja)}
+    out: dict[str, tuple[str, float]] = {}
+    for codigo, pot in pot_de.items():
+        hoja = hoja_de.get(clave_codigo(codigo))
+        if not hoja or pot is None or hoja not in libro.sheet_names:
+            continue
+        datos = _filas(libro, hoja)
+        cols = next(({n: j for j, n in enumerate(normalizar(c) for c in f)}
+                     for f in datos[:FILAS_CABECERA]
+                     if {'fecha', 'hora', 'eri', 'pot'} <= {normalizar(c) for c in f}), None)
+        if cols is None:
+            avisos.append(f'{codigo}: la hoja «{hoja}» no tiene FECHA, HORA, ERI y POT.')
+            continue
+        tol = max(1e-6, 1e-4 * abs(pot))
+        fila = next((f for f in datos if numero(_celda(f, cols['pot'])) is not None
+                     and abs(numero(_celda(f, cols['pot'])) - pot) <= tol), None)
+        eri = numero(_celda(fila, cols['eri'])) if fila is not None else None
+        if fila is None or eri is None:
+            avisos.append(f'{codigo}: su POT {pot:g} kW no está en la hoja «{hoja}»; '
+                          'su kVAR con el ERI/EA del mes (004:RF-66).')
+            continue
+        out[codigo] = (f"{_texto(fila, cols['fecha'])} {_texto(fila, cols['hora'])}".strip(), eri * 4.0)
+    return out, avisos
 
 
 def _hojas_resumen(nombres: Sequence[str]) -> list[str]:
@@ -1579,6 +1658,8 @@ CLIENTE_COLUMNAS = (
     ('suministro_actual', 'Suministro Act'), ('suministro_anterior', 'Suministro'),
     ('sed', 'SED'), ('radial', 'Radial'), ('ea', 'EA'), ('eri', 'ERI'), ('pot', 'Pot'),
     ('motivo', 'Motivo'),
+    # 004:RF-66, al final: las columnas de siempre no cambian de letra en el Excel.
+    ('fecha_registro', 'Registro de su Pot'), ('q_registro_kvar', 'kVAR en él'),
 )
 
 
@@ -1625,6 +1706,21 @@ class MedidorBarra:
     central: bool
     fila: int
     alimentador: str = ''           # «Barra/CHI201»: la barra suelta de ese alimentador
+    rotulo: str = ''                # lo que dice la columna: «Barra60KV_T1», «Barra CT10KV»
+
+
+def _es_central(tipo: str) -> bool:
+    """«Barra CT10KV», «CT_Barra10KV», «Barra CT», «CTBarra»: la barra de una central (RF-44).
+    Antes solo valía «ct» como palabra suelta o al principio, y CT_PEDREG del libro real
+    («Barra CT10KV») se sumaba como un transformador más de Pedregal (2026-10-27)."""
+    return re.search(r'(?:^|\s)ct', tipo) is not None
+
+
+def _partir_medidores_de_barra(celda: str) -> list[str]:
+    """Una celda con varios medidores de barra: los de siempre (``partir_medidores``) y los
+    pegados con «Y» entre un número y el siguiente: B1T1_V18YB1T1_V19YB1T1_V8, la barra
+    de 10 kV del T1 de Ica Norte, son tres medidores (libro real, 2026-10-27)."""
+    return [p for parte in partir_medidores(celda) for p in re.split(r'(?<=\d)Y(?=[A-Z])', parte) if p]
 
 
 def leer_medidores_de_barra(path: Path | str, alias=ALIAS) -> list[MedidorBarra]:
@@ -1644,12 +1740,33 @@ def leer_medidores_de_barra(path: Path | str, alias=ALIAS) -> list[MedidorBarra]
             med = ' '.join(_texto(fila, cols['medidor']).split())
             if 'barra' not in tipo or not med:
                 continue
-            out.append(MedidorBarra(med, numero(_celda(fila, cols.get('nivel'))),
-                                    ' '.join(_texto(fila, cols.get('siglas')).split()).upper(),
-                                    'ct' in tipo.split() or tipo.startswith('ct'), n,
-                                    crudo.split('/', 1)[1].strip().upper() if '/' in crudo else ''))
+            for parte in _partir_medidores_de_barra(med):
+                # 022:RF-44: un medidor que empieza por CT es de una central térmica
+                # (CT_PEDREG, CT_LUREN, CT_BH4 NA), diga lo que diga su rótulo.
+                out.append(MedidorBarra(parte, numero(_celda(fila, cols.get('nivel'))),
+                                        ' '.join(_texto(fila, cols.get('siglas')).split()).upper(),
+                                        _es_central(tipo) or parte.upper().startswith('CT'), n,
+                                        crudo.split('/', 1)[1].strip().upper() if '/' in crudo else '',
+                                        crudo))
         return out
     return []
+
+
+def transformador_de(medidor: str, rotulo: str = '') -> str:
+    """El transformador de la SET que mide un medidor de barra (022:RF-87): «T1», «T2» o
+    «T3». Lo dice el rótulo («Barra60KV_T2») o el nombre del medidor (B-PA6T2, CAB1T2,
+    TA6TR2: la última «T» o «TR» con su número). Vacío si no se sabe."""
+    for texto in (rotulo, medidor):
+        m = re.search(r'T(?:R)?\s*(\d)\s*$', ' '.join(str(texto or '').split()).upper())
+        if m:
+            return f'T{m.group(1)}'
+    return ''
+
+
+def _kv_del_rotulo(rotulo: str) -> float | None:
+    """La tensión que dice el rótulo de la fila: «Barra22,9KV_T2» → 22,9; sin ella, ``None``."""
+    m = re.search(r'(\d+(?:[.,]\d+)?)\s*kv', rotulo, re.I)
+    return float(m.group(1).replace(',', '.')) if m else None
 
 
 def maxima_de_barra(curvas: Sequence[Sequence[tuple[datetime, float, float | None]]],
@@ -1674,9 +1791,11 @@ def maxima_de_barra(curvas: Sequence[Sequence[tuple[datetime, float, float | Non
     return {'fecha': fecha, 'kw': suma[fecha][0], 'kvar': suma[fecha][1], 'registros': len(comunes)}
 
 
-#: Por encima de esta tensión un medidor de barra es de alta (60 kV, 220 kV): la SET entra
-#: sin su transformador de potencia y no se usa (022:RF-43).
+#: Por encima de esta tensión un medidor de barra es de alta (60 kV, 220 kV) (022:RF-43).
 KV_MAX_MEDIA = 35.0
+#: Hasta esta tensión, la alta es la barra de 60 kV de la SET, que fija el instante de todos
+#: sus alimentadores (022:RF-84); por encima (220 kV) no se usa: es la red de transmisión.
+KV_MAX_SUBTRANSMISION = 72.5
 
 
 @dataclass
@@ -1690,26 +1809,84 @@ class BarraMedida:
     centrales: list[str] = field(default_factory=list)
     alimentadores: list[str] = field(default_factory=list)
     suelta: bool = False
+    alta: bool = False              # 022:RF-84: la barra de 60 kV de la SET
+    de_alta: str = ''
+    """La barra de 60 kV que da el instante a esta de media (022:RF-84): su valor y sus
+    alimentadores, en la fecha y hora de la máxima de la de 60 kV, no en la suya."""
+    transformadores: dict[str, str] = field(default_factory=dict)
+    """El transformador de la SET de cada medidor (022:RF-87): una SET tiene 1, 2 o 3, y la
+    barra suma los de todos, registro a registro."""
 
 
 def barras_de_calibracion(estructura, medidores: Sequence[MedidorBarra],
                           alimentadores: Sequence[str],
-                          kv_de: dict[str, float]) -> tuple[list[BarraMedida], list[str]]:
+                          kv_de: dict[str, float],
+                          centrales_en_tramo: Mapping[str, str] | None = None,
+                          ) -> tuple[list[BarraMedida], list[str]]:
     """Las barras con medidor y los alimentadores marcados de cada una (022:RF-38, RF-42 a RF-46).
 
-    Un medidor de barra va a la barra de su SET (por sus siglas) y de su nivel; uno de alta
-    tensión no se usa (RF-43); unas siglas sin SET son una barra suelta propia, de los
-    alimentadores con ese prefijo, y «Barra/CHI201», la de ese alimentador (RF-45). Cada
-    alimentador marcado va a la barra de su SET y su tensión; si su tensión no se sabe y
-    su SET tiene una sola barra con medidor, a esa. Los que no tienen barra con medidor no
-    salen: se calibran con su propia máxima (RF-42).
+    Un medidor de barra va a la barra de su SET (por sus siglas, código o nombre, RF-85) y
+    de su nivel; uno de 220 kV no se usa (RF-43). Unas siglas sin SET en media son una barra
+    suelta propia, de los alimentadores con ese prefijo, y «Barra/CHI201», la de ese
+    alimentador (RF-45). Cada alimentador marcado va a la barra de su SET y su tensión; si
+    su tensión no se sabe y su SET tiene una sola barra con medidor, a esa.
+
+    Con barra de 60 kV en la SET (RF-84), sus barras de 22,9 y 10 kV llevan ``de_alta``: se
+    leen y calibran en el instante de la máxima de la de 60 kV; los alimentadores de la SET
+    sin barra de media con medidor van a la de 60 kV, con el mismo instante. Sin ninguna
+    barra con medidor, se calibran con su propia máxima (RF-42).
     """
     barras: dict[str, BarraMedida] = {}
     avisos: list[str] = []
+    set_de_medidor: dict[str, str] = {}
+    en_tramo = {clave_codigo(k): v for k, v in (centrales_en_tramo or {}).items() if v}
+    pedidas = {st.codigo for f in alimentadores if (st := estructura.set_de(f)) is not None}
+    del_libro: list[tuple[str, set[str]]] = []
+
+    def avisar(texto: str, *sets: str) -> None:
+        del_libro.append((texto, {s for s in sets if s}))
     for m in medidores:
-        if m.kv is None or m.kv > KV_MAX_MEDIA:
+        if m.central and clave_codigo(m.medidor) in en_tramo:
+            # RF-88: la central conectada en un tramo de media de su alimentador (CT_BH4 NA
+            # en la troncal de 22,9 kV de NA205) no va a la barra de la SET: se mide con su
+            # alimentador, en su mismo instante (021:RF-28).
+            avisos.append(f'{m.medidor}: central en el tramo de {en_tramo[clave_codigo(m.medidor)]}'
+                          f' ({m.kv:g} kV), no en la barra; se mide con su alimentador (022:RF-88).'
+                          if m.kv is not None else
+                          f'{m.medidor}: central en el tramo de {en_tramo[clave_codigo(m.medidor)]} (022:RF-88).')
             continue
-        st = estructura.set_de_siglas(m.siglas) if m.siglas else None
+        if m.kv is None or m.kv > KV_MAX_SUBTRANSMISION:
+            continue
+        st = estructura.set_de_texto(m.siglas) if m.siglas else None
+        if st is None and not m.alimentador:
+            # RF-85: sin SET en su columna (TMB6T2, B-PU6T1), la del nombre del medidor.
+            st = estructura.set_de_medidor(m.medidor)
+            if st is not None:
+                avisar(f'{m.medidor}: su columna SET '
+                       + (f'«{m.siglas}» no es de la estructura' if m.siglas else 'está vacía')
+                       + f'; por su nombre, {st.rotulo} (022:RF-85).', st.codigo)
+        kv_rotulo = _kv_del_rotulo(m.rotulo)
+        if kv_rotulo is not None and abs(kv_rotulo - m.kv) > 0.05 * m.kv:
+            avisar(f'{m.medidor}: «{m.rotulo}» dice {kv_rotulo:g} kV y su nivel {m.kv:g} kV; '
+                   'vale el nivel (022:RF-85).', st.codigo if st else '')
+        if st is not None:
+            antes = set_de_medidor.setdefault(m.medidor, st.codigo)
+            if antes != st.codigo:
+                avisar(f'{m.medidor}: en dos SET del libro, {antes} y {st.codigo}; '
+                       'revise el libro (022:RF-85).', antes, st.codigo)
+        if m.kv > KV_MAX_MEDIA:
+            # RF-84: la barra de 60 kV de la SET; sin SET no se usa, ni suelta (RF-86).
+            if st is None or m.central:
+                avisos.append(f'{m.medidor}: medidor de {m.kv:g} kV '
+                              + ('de una central' if st is not None else
+                                 f'cuya SET «{m.siglas or "(vacía)"}» no está en la estructura')
+                              + '; no se usa (022:RF-86).')
+                continue
+            clave = f'{st.codigo} {m.kv:g} kV'
+            b = barras.setdefault(clave, BarraMedida(clave, st.codigo, float(m.kv), alta=True))
+            b.medidores.append(m.medidor)
+            b.transformadores[m.medidor] = transformador_de(m.medidor, m.rotulo)
+            continue
         if m.alimentador:
             clave, codigo, suelta = f'Suelta {m.alimentador} {m.kv:g} kV', m.alimentador, True
         elif st is not None:
@@ -1720,22 +1897,62 @@ def barras_de_calibracion(estructura, medidores: Sequence[MedidorBarra],
                           'de la estructura; barra suelta propia (022:RF-45).')
         b = barras.setdefault(clave, BarraMedida(clave, codigo, float(m.kv), suelta=suelta))
         (b.centrales if m.central else b.medidores).append(m.medidor)
+        if not m.central:
+            b.transformadores[m.medidor] = transformador_de(m.medidor, m.rotulo)
+    alta_de = {b.set_codigo: b for b in barras.values() if b.alta}
+    for alta in alta_de.values():
+        # RF-87: los transformadores medidos en 60 kV y en media deberían ser los mismos;
+        # si no, la suma de una barra deja fuera lo que pasa por el que falta.
+        arriba = {t for t in alta.transformadores.values() if t}
+        abajo = {t for b in barras.values() if not b.alta and not b.suelta
+                 and b.set_codigo == alta.set_codigo for t in b.transformadores.values() if t}
+        if arriba and abajo and arriba != abajo:
+            avisar(f'{alta.set_codigo}: transformadores medidos en 60 kV '
+                   f'{", ".join(sorted(arriba))} y en media {", ".join(sorted(abajo))} (022:RF-87).',
+                   alta.set_codigo)
+    # Los avisos del libro, solo de las SET de los alimentadores pedidos: al calibrar Nasca
+    # salían los de Tambo de Mora o Ica (2026-10-27); los que no son de ninguna SET, siempre.
+    avisos[:0] = [t for t, sets in del_libro if not sets or not pedidas or sets & pedidas]
+    for b in barras.values():
+        if not b.alta and not b.suelta and b.set_codigo in alta_de:
+            b.de_alta = alta_de[b.set_codigo].clave                         # RF-84
     for f in alimentadores:
         st = estructura.set_de(f)
+        alta = alta_de.get(st.codigo) if st is not None else None
         candidatas = []
         if st is not None:
-            candidatas = [b for b in barras.values() if not b.suelta and b.set_codigo == st.codigo
-                          and b.medidores]
-        if not candidatas:
+            # Con la de 60 kV, también la de media con solo su central: la central se mide
+            # en el instante de la de 60 kV y se pone en su barra (RF-44).
+            candidatas = [b for b in barras.values() if not b.suelta and not b.alta
+                          and b.set_codigo == st.codigo and (b.medidores or (alta and b.centrales))]
+        if not candidatas and alta is None:
             candidatas = [b for b in barras.values() if b.suelta and b.medidores and (
                 b.set_codigo == f.upper() or (len(b.set_codigo) < len(f) and f.upper().startswith(b.set_codigo)))]
         kv = kv_de.get(f)
         if kv is not None:
             candidatas = [b for b in candidatas if abs(b.kv - kv) <= 0.05 * kv]
         elif len(candidatas) > 1:
-            avisos.append(f'{f}: no se sabe su tensión y su SET tiene varias barras con medidor; '
-                          'se calibra con su propia máxima.')
-            continue
+            if alta is None:
+                avisos.append(f'{f}: no se sabe su tensión y su SET tiene varias barras con medidor; '
+                              'se calibra con su propia máxima.')
+                continue
+            candidatas = []                                  # RF-84: a la de 60 kV, mismo instante
         if candidatas:
             candidatas[0].alimentadores.append(f)
-    return [b for b in barras.values() if b.alimentadores], avisos
+        elif alta is not None:
+            alta.alimentadores.append(f)
+    usadas = {b.de_alta for b in barras.values() if b.alimentadores and b.de_alta}
+    return [b for b in barras.values() if b.alimentadores or b.clave in usadas], avisos
+
+
+def valor_de_barra_en(curvas: Sequence[Sequence[tuple[datetime, float, float | None]]],
+                      fecha: datetime) -> dict[str, Any] | None:
+    """La suma de los medidores de una barra en una fecha y hora dada (022:RF-84): la de 22,9
+    o 10 kV en el instante de la máxima de su barra de 60 kV. ``None`` si alguno no tiene
+    ese registro: la barra no se suma a medias."""
+    puntos = [next(((kw, kvar) for f, kw, kvar in c if f == fecha and kw is not None), None)
+              for c in curvas]
+    if not puntos or any(p is None for p in puntos):
+        return None
+    return {'fecha': fecha, 'kw': sum(p[0] for p in puntos),
+            'kvar': sum((p[1] or 0.0) for p in puntos), 'registros': 1}

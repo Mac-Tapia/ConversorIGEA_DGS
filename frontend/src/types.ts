@@ -754,6 +754,19 @@ export interface CentralTermica {
 }
 
 /** Medidores que no son de un alimentador de la red y las centrales del perfil (021:RF-26, RF-27). */
+/** 022:RF-88: una central térmica (medidor CT…) del libro y dónde puede conectarse. */
+export interface CentralDeBarra {
+  medidor: string;
+  kv: number | null;
+  rotulo: string;
+  set: string;
+  set_rotulo: string;
+  /** Los alimentadores de su SET: en el tramo de uno de ellos, o en la barra. */
+  alimentadores: string[];
+  /** La propuesta del perfil: el alimentador en cuyo tramo está; vacío, en la barra. */
+  tramo: string;
+}
+
 export interface MedidoresExternos {
   medidores: { alimentador: string; medidor: string }[];
   centrales_perfil: Record<string, CentralTermica>;
@@ -816,6 +829,9 @@ export interface ClienteImportante {
   motivo: string;
   /** 004:RF-56: vacío si el libro no trae nombre. */
   nombre: string;
+  /** 004:RF-66: el registro de 15 minutos de su POT y su kVAR en él (ERI × 4). */
+  fecha_registro?: string;
+  q_registro_kvar?: number | null;
 }
 
 export interface ClientesCruce {
@@ -1441,12 +1457,20 @@ export interface BarraDeSet {
   set: string;
   kv: number;
   suelta: boolean;
+  /** 022:RF-84: la barra de 60 kV de la SET, que da el instante a sus barras de media. */
+  alta?: boolean;
+  /** 022:RF-84: la barra de 60 kV cuyo instante usa esta barra de media. */
+  de_alta?: string;
+  /** 022:RF-87: el transformador (T1, T2, T3) de cada medidor. */
+  transformadores?: Record<string, string>;
   medidores: string[];
+  /** 022:RF-44: centrales térmicas (medidores CT…) de la barra, en su registro. */
   centrales: { medidor: string; kw: number | null; kvar: number | null }[];
   alimentadores: string[];
   fecha: string;
-  kw: number;
-  kvar: number;
+  /** null: la barra de media no tiene registro en el instante de su barra de 60 kV. */
+  kw: number | null;
+  kvar: number | null;
   registros: number;
 }
 
@@ -1456,7 +1480,11 @@ export interface EstructuraResumen {
   sin_set?: string[];
   /** 022:RF-78: los de la entrega que la tabla no traía, con la regla que los colocó. */
   deducidos?: { alimentador: string; set: string; zonal: string; regla: string }[];
-  zonales: { nombre: string; sets: string[]; alimentadores: string[] }[];
+  zonales: {
+    nombre: string; sets: string[]; alimentadores: string[];
+    /** 022:RF-82: cada SET con su rótulo y sus alimentadores, para convertirla sola. */
+    sets_detalle?: { codigo: string; rotulo: string; alimentadores: string[] }[];
+  }[];
 }
 
 /** 022:RF-52 a RF-54: el sistema eléctrico de un proyecto convertido por sistema. */

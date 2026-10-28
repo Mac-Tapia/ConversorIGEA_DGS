@@ -121,7 +121,9 @@ def medida_de(alimentador: str, medidas: dict[str, float], barras: list[dict]) -
     if alimentador in medidas:
         return medidas[alimentador]
     barra = next((b for b in barras if alimentador in b.get('alimentadores', [])), None)
-    if barra is None:
+    # 022:RF-84: una barra de media sin registro en el instante de su barra de 60 kV no da
+    # medida; la de 60 kV lleva además las pérdidas del transformador y no se reparte.
+    if barra is None or barra.get('kw') is None or barra.get('alta'):
         return 0.0
     return float(barra['kw']) - sum(medidas.get(a, 0.0) for a in barra['alimentadores']
                                     if a != alimentador)
@@ -209,13 +211,36 @@ def correr(web: Web, zonal: str, *, demanda_dir: Path, periodo: str | None,
     if not pares:
         print('Ningún alimentador del sistema tiene medidor: no hay qué calibrar.')
         return 2
+    # 022:RF-88: dónde está cada central del libro, con la propuesta del perfil, como la ve
+    # el operador en la web (la de Nasca en el tramo de NA205; CT_PEDREG en su barra).
+    centrales = web.get('/demanda/centrales').get('centrales') or []
+    del_sistema = {a.upper() for a in sistema['alimentadores']}
+    tramo = {c['medidor']: c['tramo'] for c in centrales
+             if c.get('tramo') and c['tramo'].upper() in del_sistema}
+    for c in centrales:
+        print(f"  central {c['medidor']} ({c['set'] or 'sin SET'}, {c['kv']} kV): "
+              + (f"en el tramo de {c['tramo']}" if c.get('tramo') else 'en la barra'), flush=True)
     maxima = web.esperar(web.post('/demanda/cabecera/buscar', json={
-        'medidores': pares, 'periodo': periodo, 'por_barra': True}))
+        'medidores': pares, 'periodo': periodo, 'por_barra': True, 'centrales_tramo': tramo}))
     res = maxima.get('result') or {}
-    for b in res.get('barras', []):
-        print(f"  barra {b['clave']}: {b['kw']:,.1f} kW el {b['fecha']} "
-              f"({', '.join(b['alimentadores'])})", flush=True)
-    medidores = [x['medidor'] for x in res.get('resultados', []) if not x.get('error')]
+    for b in sorted(res.get('barras', []),
+                    key=lambda x: (x.get('set', ''), not x.get('alta'), -float(x.get('kv') or 0))):
+        trafos = b.get('transformadores') or {}
+        medidos = ' + '.join(f'{m} ({trafos[m]})' if trafos.get(m) else m
+                             for m in b.get('medidores') or [])
+        kw = 'sin registro' if b.get('kw') is None else f"{b['kw']:,.1f} kW"
+        centrales_b = b.get('centrales') or []
+        print(f"  barra {b['clave']}: {kw} el {b['fecha']} [{medidos}]"
+              + (f" en el instante de {b['de_alta']}" if b.get('de_alta') else '')
+              + (f"; centrales {', '.join(c['medidor'] for c in centrales_b)}" if centrales_b else '')
+              + (f" ({', '.join(b['alimentadores'])})" if b.get('alimentadores') else ''), flush=True)
+    for aviso in res.get('avisos', []):
+        print(f'  aviso: {aviso}', flush=True)
+    # Los de una central («Central NA205», 022:RF-88) solo traen su curva al mismo instante:
+    # no son cabeceras de alimentador y el plan los rechazaba (PROJECT_BINDING_FEEDER_MISMATCH,
+    # Nasca, 2026-10-27), como ya los deja fuera la web al elegir los del ajuste.
+    medidores = [x['medidor'] for x in res.get('resultados', [])
+                 if not x.get('error') and not str(x.get('alimentador') or '').lower().startswith('central ')]
     if reconstruir:
         # 022:RF-57 a RF-61: con las medidas de esta máxima, se reconvierte uniendo cada uno a
         # la red de su vecino, se importa de nuevo y se calibra el proyecto nuevo.

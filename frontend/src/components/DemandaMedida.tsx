@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, fmtNum, type DemandaTipo } from '../api';
 import { estadoCatalogoClientes } from '../clientesCatalogo';
 import { useApp } from '../context';
-import type { BarraDeSet, CentralTermica, SistemaDelProyecto, ClientesCruce, ClienteImportante, MaximaCabecera, MedidoresExternos } from '../types';
+import type { BarraDeSet, CentralDeBarra, CentralTermica, SistemaDelProyecto, ClientesCruce, ClienteImportante, MaximaCabecera, MedidoresExternos } from '../types';
 import { AjusteCabecera } from './AjusteCabecera';
 import { FileDrop, useToast } from './ui';
 
@@ -190,6 +190,20 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   const [anio, setAnio] = useState('');
   // 022:RF-39 a RF-41: la máxima de cada barra de SET y sus alimentadores en esa fecha.
   const [porBarra, setPorBarra] = useState(false);
+  // 022:RF-88: las centrales térmicas (CT…) del libro y dónde se conecta cada una: en la
+  // barra de su SET (vacío) o en el tramo de un alimentador. Se piden al marcar «por barra».
+  const [centralesLibro, setCentralesLibro] = useState<CentralDeBarra[] | null>(null);
+  const [centralTramo, setCentralTramo] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!porBarra || centralesLibro !== null || !ws.demanda?.medidores) return;
+    let vigente = true;
+    api.demandaCentrales(ws.id).then((r) => {
+      if (!vigente) return;
+      setCentralesLibro(r.centrales);
+      setCentralTramo(Object.fromEntries(r.centrales.filter((c) => c.tramo).map((c) => [c.medidor, c.tramo])));
+    }).catch(() => { if (vigente) setCentralesLibro([]); });
+    return () => { vigente = false; };
+  }, [porBarra, centralesLibro, ws.id, ws.demanda?.medidores]);
   // 022:RF-52 a RF-54: un proyecto por sistema se calibra entero, con la máxima por barra.
   const [sistema, setSistema] = useState<SistemaDelProyecto | null>(null);
   // Spec 021, RF-25 a RF-27: central térmica en un tramo, por alimentador, y los medidores
@@ -310,7 +324,8 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   // instante, el registro de esa fecha y hora en todos, para calibrar a la vez.
   const maxima = (instante = '') => {
     if (!elegidos.length) { toast('error', 'Elija al menos un medidor', ''); return; }
-    startJob(() => api.demandaCabecera(ws.id, aBuscar, { periodo, instante, por_barra: porBarra && !instante }));
+    startJob(() => api.demandaCabecera(ws.id, aBuscar, { periodo, instante, por_barra: porBarra && !instante,
+      centrales_tramo: centralTramo }));
   };
   const instanteActual = (ultimo?.result?.instante as string | null | undefined) ?? '';
   const barrasSet = (ultimo?.result?.barras as BarraDeSet[] | undefined) ?? [];
@@ -497,12 +512,42 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
         <button className="btn btn-primary" disabled={!elegidos.length || !ws.demanda?.cabecera || engineBusy || faltaAnio} onClick={() => maxima()}>
           Buscar la máxima ({aBuscar.length} medidor{aBuscar.length === 1 ? '' : 'es'})
         </button>
-        <label className="check" title="La máxima de la barra de SET (suma de sus transformadores) y cada alimentador de la barra con su kW y kVAR de esa fecha y hora">
+        <label className="check" title="Con medidor de 60 kV en la SET: su máxima (suma de T1, T2, T3) fija la fecha y hora de sus barras de 22,9 y 10 kV, sus centrales térmicas (CT…) y cada alimentador. Sin él, la máxima de su barra de media. Del libro de medidores: columnas ALIMENTADOR («Barra…»), MEDIDOR, nivel y SET (022:RF-84 a RF-87)">
           <input type="checkbox" checked={porBarra} disabled={engineBusy} onChange={(e) => setPorBarra(e.target.checked)} />
-          {' '}Máxima por barra de SET
+          {' '}Máxima por barra de SET (60 kV → 22,9 y 10 kV)
         </label>
         {!ws.demanda?.cabecera && <small className="muted">Falta la medición de cabecera.</small>}
       </div>
+      {porBarra && !!centralesLibro?.length && (
+        <div className="table-wrap">
+          <strong>Centrales térmicas del libro (CT…): dónde se conectan</strong>
+          <table className="small">
+            <thead><tr><th>Medidor</th><th>SET</th><th>Nivel</th><th>Conexión</th></tr></thead>
+            <tbody>{centralesLibro.map((c) => (
+              <tr key={c.medidor}>
+                <td className="mono">{c.medidor}</td>
+                <td>{c.set_rotulo || c.set || '—'}</td>
+                <td>{c.kv === null ? '—' : `${fmtNum(c.kv, 1)} kV`}</td>
+                <td>
+                  <select value={centralTramo[c.medidor] ?? ''} disabled={engineBusy}
+                    aria-label={`Conexión de ${c.medidor}`}
+                    onChange={(e) => setCentralTramo((m) => {
+                      const n = { ...m };
+                      if (e.target.value) n[c.medidor] = e.target.value; else delete n[c.medidor];
+                      return n;
+                    })}>
+                    <option value="">En la barra de {c.kv === null ? '' : `${fmtNum(c.kv, 1)} kV `}de su SET</option>
+                    {c.alimentadores.map((a) => <option key={a} value={a}>En un tramo de {a}</option>)}
+                  </select>
+                </td>
+              </tr>
+            ))}</tbody>
+          </table>
+          <small className="muted">En la barra (CT_PEDREG en la de 10 kV de Pedregal): generador en esa barra con su
+            medida en el instante de la barra de 60 kV. En un tramo (la de Nasca en la troncal de 22,9 kV de NA205): se
+            mide con su alimentador en ese mismo instante y no va a la barra (022:RF-88).</small>
+        </div>
+      )}
       {sistema && (() => {
         const sin = sistema.alimentadores.filter((a) => !(sistema.medidores?.[a] ?? []).length);
         return (
@@ -552,7 +597,7 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
               </select>
             </label>
           )}
-          {barrasSet.length > 0 && <BarrasDeSet barras={barrasSet} />}
+          {barrasSet.length > 0 && <BarrasDeSet barras={barrasSet} avisos={(ultimo?.result?.avisos as string[] | undefined) ?? []} />}
           {instanteActual && (
             <small className="alert alert-info">Todos los medidores, también los de una central, en el
               registro del {instanteActual}: se calibra a la vez, no en la máxima de cada uno (021:RF-50).</small>
@@ -617,7 +662,9 @@ function Cruce({ cruce, visibles, filtro, setFiltro, desconectados, conmutar }: 
     <div className="table-wrap table-short">
       <table className="table">
         <thead><tr><th>Conectado</th><th>Nis / Suministro</th><th>Cliente</th><th>Cruzado por</th><th>SED</th><th>Radial</th>
-          <th className="num">EA</th><th className="num">ERI</th><th className="num">Pot</th></tr></thead>
+          <th className="num">EA</th><th className="num">ERI</th><th className="num">Pot</th>
+          <th title="004:RF-66: el registro de 15 minutos de su hoja en que se dio su Pot">Registro de su Pot</th>
+          <th className="num" title="004:RF-66: ERI de ese registro × 4">kVAR en él</th></tr></thead>
         <tbody>{visibles.map((c) => (
           <tr key={c.codigo} className={desconectados.has(c.codigo) ? 'muted' : undefined}>
             <td><input type="checkbox" checked={!desconectados.has(c.codigo)} onChange={() => conmutar(c.codigo)}
@@ -625,7 +672,9 @@ function Cruce({ cruce, visibles, filtro, setFiltro, desconectados, conmutar }: 
               title="Desmarcado: no suma a su SED y, si su SED se queda sin clientes conectados, su carga queda fuera de servicio en el ajuste" /></td>
             <td className="mono">{c.codigo}</td><td className="small">{c.nombre || '—'}</td><td className="small">{c.cruzado_por === 'actual' ? 'Suministro Act' : 'Suministro'}</td>
             <td className="strong">{c.sed}</td><td>{c.radial || '—'}</td><td className="num">{fmtNum(c.ea, 2)}</td>
-            <td className="num">{fmtNum(c.eri, 2)}</td><td className="num">{fmtNum(c.pot, 2)}</td></tr>
+            <td className="num">{fmtNum(c.eri, 2)}</td><td className="num">{fmtNum(c.pot, 2)}</td>
+            <td className="small">{c.fecha_registro || '— (ERI/EA del mes)'}</td>
+            <td className="num">{c.q_registro_kvar == null ? '—' : fmtNum(c.q_registro_kvar, 2)}</td></tr>
         ))}</tbody>
       </table>
     </div>
@@ -640,24 +689,49 @@ function Cruce({ cruce, visibles, filtro, setFiltro, desconectados, conmutar }: 
   </>;
 }
 
-/** Spec 022, RF-39 a RF-44: cada barra de SET con su máxima y sus alimentadores en esa fecha. */
-function BarrasDeSet({ barras }: { barras: BarraDeSet[] }) {
+/** Spec 022, RF-39 a RF-44 y RF-84 a RF-87: por SET, la barra de 60 kV con su máxima y
+ * debajo sus barras de 22,9 y 10 kV en ese mismo instante, con el transformador de cada
+ * medidor, las centrales térmicas (CT…) y los alimentadores que se calibran en esa fecha. */
+function BarrasDeSet({ barras, avisos }: { barras: BarraDeSet[]; avisos: string[] }) {
+  // Orden: SET, y dentro de cada una la de 60 kV primero y luego de mayor a menor tensión.
+  const filas = [...barras].sort((a, b) => a.set.localeCompare(b.set) || Number(!!b.alta) - Number(!!a.alta) || b.kv - a.kv);
+  const medidores = (b: BarraDeSet) => b.medidores.map((m) => {
+    const t = b.transformadores?.[m];
+    return t ? `${m} (${t})` : m;
+  }).join(' + ');
+  const conAlta = barras.some((b) => b.alta);
   return (
     <div className="table-wrap">
-      <strong>Máxima por barra de SET</strong>
+      <strong>Máxima por barra de SET{conAlta ? ': instante de la barra de 60 kV' : ''}</strong>
       <table className="small">
-        <thead><tr><th>Barra</th><th>Medidores</th><th>Fecha y hora</th><th>kW</th><th>kVAR</th>
-          <th>Central</th><th>Alimentadores (en esa fecha)</th></tr></thead>
-        <tbody>{barras.map((b) => (
+        <thead><tr><th>SET</th><th>Barra</th><th>Medidores (transformador)</th><th>Fecha y hora</th>
+          <th>kW</th><th>kVAR</th><th>Centrales térmicas (CT)</th><th>Alimentadores (en esa fecha)</th></tr></thead>
+        <tbody>{filas.map((b) => (
           <tr key={b.clave}>
-            <td>{b.clave}{b.suelta ? ' (suelta)' : ''}</td><td className="mono">{b.medidores.join(' + ')}</td>
-            <td>{b.fecha}</td><td className="num">{fmtNum(b.kw, 1)}</td><td className="num">{fmtNum(b.kvar, 1)}</td>
+            <td>{b.set}</td>
+            <td>{b.alta ? <strong>{fmtNum(b.kv, 1)} kV (máxima)</strong> : `${fmtNum(b.kv, 1)} kV`}
+              {b.suelta ? ' (suelta)' : ''}
+              {b.de_alta && <div className="muted">en el instante de {b.de_alta}</div>}</td>
+            <td className="mono">{medidores(b) || '—'}</td>
+            <td>{b.fecha}</td>
+            <td className="num">{b.kw === null ? 'sin registro' : fmtNum(b.kw, 1)}</td>
+            <td className="num">{b.kvar === null ? '—' : fmtNum(b.kvar, 1)}</td>
             <td>{b.centrales.map((c) => `${c.medidor} ${c.kw === null ? '—' : fmtNum(c.kw, 1)} kW`).join('; ') || '—'}</td>
-            <td>{b.alimentadores.join(', ')}</td>
+            <td>{b.alimentadores.join(', ') || '—'}</td>
           </tr>
         ))}</tbody>
       </table>
-      <small className="muted">Cada alimentador de la barra se calibra con su kW y kVAR de esa fecha y hora, no con su máxima (022:RF-41).</small>
+      <small className="muted">
+        {conAlta
+          ? 'En cada SET con medidor de 60 kV, la máxima es la suma de sus transformadores (T1, T2, T3) en 60 kV; sus barras de 22,9 y 10 kV, sus centrales y cada alimentador se toman en esa misma fecha y hora (022:RF-84, RF-87). '
+          : ''}
+        Cada alimentador se calibra con su kW y kVAR de esa fecha y hora, no con su máxima (022:RF-41).
+      </small>
+      {avisos.length > 0 && (
+        <details className="alert alert-warn"><summary>Avisos del libro de medidores: {avisos.length}</summary>
+          <ul className="small">{avisos.map((a) => <li key={a}>{a}</li>)}</ul>
+        </details>
+      )}
     </div>
   );
 }

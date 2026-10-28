@@ -64,12 +64,71 @@ class Estructura:
     (022:RF-71 a RF-74, RF-78): la tabla de la empresa va por detrás de las entregas."""
 
     def set_de(self, alimentador: str) -> SetElectrica | None:
-        a = self.alimentadores.get(clave(alimentador))
+        a = self.alimentador(alimentador)
         return self.sets.get(a.set_codigo) if a else None
+
+    def alimentador(self, codigo: str) -> AlimentadorEstructura | None:
+        """El alimentador por su código o por otra grafía de las siglas de su SET (022:RF-81)."""
+        for c in self.equivalentes(codigo):
+            if c in self.alimentadores:
+                return self.alimentadores[c]
+        return None
+
+    def equivalentes(self, codigo: str) -> list[str]:
+        """El código y sus grafías con las otras siglas de su SET, el primero el dado (022:RF-81).
+
+        La SET nueva Chincha Nueva sale en la red de RED_231026 como CN101 a CN201 y en los
+        libros de la empresa como CHN101 a CHN201 (medidor de barra CHNB1T1): sin casarlos,
+        sus alimentadores no encontraban medidor y su barra quedaba suelta. Solo valen las
+        siglas que el perfil declara juntas en una misma SET; nada se adivina.
+        """
+        c = clave(codigo)
+        s = siglas_de(c)
+        st = self.set_de_siglas(s) if s else None
+        if st is None:
+            return [c]
+        resto = c[len(s):]
+        return list(dict.fromkeys([c] + [clave(x) + resto for x in st.siglas]))
 
     def set_de_siglas(self, siglas: str) -> SetElectrica | None:
         s = clave(siglas)
         return next((x for x in self.sets.values() if s in {clave(y) for y in x.siglas}), None)
+
+    def set_de_texto(self, valor: str) -> SetElectrica | None:
+        """La SET de la columna «SET» del libro: sus siglas, su código o su nombre (022:RF-85).
+
+        El libro real de medidores (2026-10-27) la escribe «SET 31», «SET41», «PA», «SEICA»
+        y «SET CHINCHA NUEVA»; y la mitad de las SET no tienen siglas en el perfil, así que
+        también valen las de sus alimentadores (IN → SET 44) si son de una sola SET.
+        """
+        v = clave(valor)
+        if not v:
+            return None
+        v = re.sub(r'^SET\s*(\d+)$', r'SET \1', v)
+        sin_set = re.sub(r'^SET\s+', '', v)
+        return (self.set_de_siglas(v) or self.sets.get(v)
+                or next((x for x in self.sets.values() if x.nombre
+                         and (v in {clave(x.nombre), clave(x.rotulo)} or sin_set == clave(x.nombre))), None)
+                or self.set_de_siglas_de_alimentadores(v))
+
+    def set_de_siglas_de_alimentadores(self, siglas: str) -> SetElectrica | None:
+        """La SET de unas siglas por sus alimentadores (IN111 → SET 44), si son de una sola."""
+        s = clave(siglas)
+        sets = {a.set_codigo for a in self.alimentadores.values() if siglas_de(a.codigo) == s}
+        return self.sets.get(next(iter(sets))) if len(sets) == 1 else None
+
+    def set_de_medidor(self, medidor: str) -> SetElectrica | None:
+        """La SET por el nombre del medidor de barra cuando su columna SET no la dice
+        (022:RF-85): TMB6T2 → TM, B-PU6T1 → PU, CHNB6T1 → CHN; la «B» de barra se quita."""
+        m = re.match(r'(?:B[-\s])?([A-Z]+)', clave(medidor))
+        if not m:
+            return None
+        letras = m.group(1)
+        for s in dict.fromkeys([letras, letras[:-1] if letras.endswith('B') else '']):
+            st = s and (self.set_de_siglas(s) or self.set_de_siglas_de_alimentadores(s))
+            if st:
+                return st
+        return None
 
 
 def clave(codigo: Any) -> str:
@@ -327,7 +386,8 @@ def asignar(estructura: Estructura, alimentadores: Iterable[str]) -> Asignacion:
     out = Asignacion()
     vistos = set()
     for codigo in sorted({clave(a) for a in alimentadores if clave(a)}):
-        vistos.add(codigo)
+        propio = estructura.alimentador(codigo)
+        vistos.add(propio.codigo if propio else codigo)                  # RF-81: CHN101 es CN101
         st = estructura.set_de(codigo)
         if st is None:
             out.sin_set.append(codigo)
@@ -338,7 +398,7 @@ def asignar(estructura: Estructura, alimentadores: Iterable[str]) -> Asignacion:
     out.sets = sorted(con_redes)
     zonales_con = {estructura.sets[s].zonal for s in con_redes}
     out.zonales = [z for z in estructura.zonales if z in zonales_con]
-    sistemas_con = {estructura.alimentadores[a].sistema for a in out.set_de} - {''}
+    sistemas_con = {estructura.alimentador(a).sistema for a in out.set_de} - {''}
     out.sistemas = sorted(sistemas_con)
     out.omitidos = {
         'sets': sorted(set(estructura.sets) - con_redes),

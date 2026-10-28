@@ -1,4 +1,4 @@
-import type { AsistenteRespuesta, SistemaDelProyecto, EstructuraResumen,
+import type { AsistenteRespuesta, CentralDeBarra, SistemaDelProyecto, EstructuraResumen,
   AjustePlan, AjusteResultado, CargasPlan, CentralTermica, ClientesCruce, CurvaCabecera, DemandaMedidores,
   MaximaConCentral, MedidoresExternos, Economia, EstudiosCatalogo, EstudiosPlan,
   FeederRow, Health, InformeEstudioForm, InformeFactibilidadForm, InformesContexto, Job, Limites, MaximaCabecera, Obra,
@@ -104,8 +104,9 @@ export const api = {
     request<Job>(`${ws(id)}/convert`, json('POST', { feeders, all: false, unir: true, nombre })),
   // Spec 022, RF-47 a RF-51: la conversión por sistema eléctrico, una opción propia.
   estructura: (id: string) => request<EstructuraResumen>(`${ws(id)}/estructura`),
-  convertSistema: (id: string, zonales: string[]) =>
-    request<Job>(`${ws(id)}/convert/sistema`, json('POST', { zonales })),
+  // 022:RF-82: con `sets`, solo esas SET, cada una con su red y sus barras.
+  convertSistema: (id: string, zonales: string[], sets: string[] = []) =>
+    request<Job>(`${ws(id)}/convert/sistema`, json('POST', { zonales, sets })),
 
   cancelJob: (jobId: string) => request<Job>(`/api/jobs/${jobId}/cancel`, { method: 'POST' }),
 
@@ -188,11 +189,15 @@ export const api = {
   // Spec 013, RF-11: ``periodo``, la máxima de ese mes; spec 021, RF-50: ``instante``, el
   // registro de esa fecha y hora en todos los medidores (calibración coincidente).
   demandaCabecera: (id: string, medidores: { alimentador: string; medidor: string }[],
-    criterio: { periodo?: string; instante?: string; por_barra?: boolean } = {}) =>
+    criterio: { periodo?: string; instante?: string; por_barra?: boolean;
+      centrales_tramo?: Record<string, string> } = {}) =>
     request<Job>(`${ws(id)}/demanda/cabecera/buscar`, json('POST', {
       medidores, periodo: criterio.periodo || null, instante: criterio.instante || null,
-      por_barra: Boolean(criterio.por_barra),
+      por_barra: Boolean(criterio.por_barra), centrales_tramo: criterio.centrales_tramo ?? {},
     })),
+  // 022:RF-88: las centrales térmicas (CT…) del libro, para decir si van en barra o en tramo.
+  demandaCentrales: (id: string) =>
+    request<{ centrales: CentralDeBarra[] }>(`${ws(id)}/demanda/centrales`),
   demandaCurva: (id: string, jobId: string, medidor: string, desde?: string, hasta?: string) => {
     const q = new URLSearchParams({ medidor });
     if (desde) q.set('desde', desde);

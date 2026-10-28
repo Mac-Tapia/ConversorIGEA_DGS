@@ -24,7 +24,7 @@ def test_campo_central_con_tres_medidores_y_su_nodo():
     for campo in ("'generacion', 'Generación'", "'llegada', 'Llegada (lado SET)'",
                   "'salida', 'Salida (lado carga)'", 'Barra de la central en DIgSILENT'):
         assert campo in DEMANDA
-    assert 'api.demandaCabecera(ws.id, aBuscar, { periodo, instante, por_barra: porBarra && !instante })' in DEMANDA
+    assert 'api.demandaCabecera(ws.id, aBuscar, { periodo, instante, por_barra: porBarra && !instante,' in DEMANDA
     assert 'alimentador: alimentadorDeCentral(f), medidor' in DEMANDA
     assert 'nodo: string;' in TIPOS
 
@@ -103,7 +103,7 @@ def test_mes_de_analisis_antes_de_buscar_la_maxima():
     # 025:RF-7: el mismo aviso dice también «todo el año» cuando el periodo es un año.
     assert 'La máxima se busca en {periodo.length === 4 ? `todo ${periodo}` : nombreMes(periodo)}' in DEMANDA
     assert "', el mes elegido en 2.3'" in DEMANDA
-    assert 'api.demandaCabecera(ws.id, aBuscar, { periodo, instante, por_barra: porBarra && !instante })' in DEMANDA
+    assert 'api.demandaCabecera(ws.id, aBuscar, { periodo, instante, por_barra: porBarra && !instante,' in DEMANDA
     assert "periodo: criterio.periodo || null, instante: criterio.instante || null" in API
 
 
@@ -150,7 +150,7 @@ def test_maxima_por_barra_de_set_en_la_web():
     la búsqueda; la tabla de cada barra con su máxima, su central y sus alimentadores en esa
     fecha."""
     assert 'Máxima por barra de SET' in DEMANDA and 'por_barra: porBarra && !instante' in DEMANDA
-    assert '<BarrasDeSet barras={barrasSet} />' in DEMANDA
+    assert '<BarrasDeSet barras={barrasSet} avisos=' in DEMANDA
     assert '<th>Alimentadores (en esa fecha)</th>' in DEMANDA
     assert 'por_barra: Boolean(criterio.por_barra),' in API
     assert 'export interface BarraDeSet' in TIPOS
@@ -161,12 +161,46 @@ def test_conversion_por_sistema_electrico_aparte_de_unir():
     sistema eléctrico» con el zonal (o todos), aparte de «Unir», que ya no lleva la
     estructura; la lista de DGS unidos dice el tipo; ranura para la tabla de la estructura."""
     panel = (SRC / 'components' / 'FeedersPanel.tsx').read_text(encoding='utf-8')
-    assert 'Convertir por sistema eléctrico' in panel and 'api.convertSistema(ws.id, zonal ? [zonal] : [])' in panel
+    assert 'Convertir sistema {zonal ||' in panel and 'api.convertSistema(ws.id, zonal ? [zonal] : [])' in panel
     assert 'Todos los sistemas (SISTEMA_ELECTRICO)' in panel
     assert 'api.convertGroup(ws.id, selected, nombre.trim() || sugerido))' in panel
     assert 'por_set' not in API and '/convert/sistema' in API
     assert "g.tipo === 'sistema'" in panel
     assert "tipo: 'estructura', titulo: 'Estructura zonal → SET (opcional)'" in DEMANDA
+
+
+def test_barras_de_60_kv_en_la_web():
+    """022:RF-84, 022:RF-86, 022:RF-87 — la tabla de barras dice por SET la de 60 kV con su
+    máxima, sus barras de media «en el instante de» ella, el transformador de cada medidor,
+    las centrales térmicas (CT) y los avisos del libro."""
+    assert 'alta?: boolean' in TIPOS and 'de_alta?: string' in TIPOS
+    assert 'transformadores?: Record<string, string>' in TIPOS and 'kw: number | null' in TIPOS
+    assert 'en el instante de {b.de_alta}' in DEMANDA and 'Centrales térmicas (CT)' in DEMANDA
+    assert 'Medidores (transformador)' in DEMANDA and 'Avisos del libro de medidores' in DEMANDA
+    assert 'Máxima por barra de SET (60 kV → 22,9 y 10 kV)' in DEMANDA
+    # 022:RF-88: cada central CT del libro, en barra o en el tramo de un alimentador.
+    assert 'api.demandaCentrales(ws.id)' in DEMANDA and 'centrales_tramo: centralTramo' in DEMANDA
+    assert 'En un tramo de {a}' in DEMANDA and 'export interface CentralDeBarra' in TIPOS
+    assert "centrales_tramo: criterio.centrales_tramo ?? {}" in API
+
+
+def test_clientes_con_el_registro_de_su_pot():
+    """004:RF-66 — la tabla de clientes dice el registro de 15 minutos de su Pot y su kVAR
+    en él; sin hoja, que sigue con su ERI/EA del mes."""
+    assert 'Registro de su Pot' in DEMANDA and "c.fecha_registro || '— (ERI/EA del mes)'" in DEMANDA
+    assert 'q_registro_kvar?: number | null' in TIPOS
+
+
+def test_conversion_por_set_y_estructura_al_cargar():
+    """022:RF-82, 022:RF-83 — botón «Convertir SET» con el desplegable de las SET del
+    sistema elegido; la estructura se pide al cargar la entrega, no al enfocar un
+    desplegable desactivado (nunca recibía el foco y no aparecía Chincha Nueva)."""
+    panel = (SRC / 'components' / 'FeedersPanel.tsx').read_text(encoding='utf-8')
+    assert 'api.convertSistema(ws.id, [], [setElegida])' in panel and 'Convertir SET {setElegida}' in panel
+    assert 'z.sets_detalle' in panel and 'sets_detalle?:' in TIPOS
+    assert 'onFocus={cargarEstructura}' not in panel
+    assert 'api.estructura(ws.id)' in panel and 'useEffect(' in panel
+    assert "json('POST', { zonales, sets })" in API
 
 
 def test_proyecto_por_sistema_en_la_calibracion():

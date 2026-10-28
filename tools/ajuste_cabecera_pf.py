@@ -2450,7 +2450,9 @@ def _barras_frente_a_su_medidor(preps: dict, informes: dict) -> None:
                            (red - central - float(b['kw'])) / abs(float(b['kw'])))}
         for f in feeders:
             informes[f]['barra_set'] = fila
-            if red is not None:
+            # 022:RF-84: una barra de media sin registro en el instante de su barra de 60 kV
+            # no tiene medida con la que comparar.
+            if red is not None and b.get('kw') is not None:
                 informes[f]['avisos'].append(
                     f"{clave}: las cabeceras de {', '.join(feeders)} dan {red:,.1f} kW"
                     + (f' menos {central:,.1f} kW de su central' if central else '')
