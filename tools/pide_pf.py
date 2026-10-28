@@ -22,12 +22,84 @@ import traceback
 from pathlib import Path
 
 from cargas_pf import activar_proyecto, clave_pf, flujo_de_carga
+from casos_pf import _escenario_de, _marcar, anio_del_plan, nombre_cargas_nuevas
+from casos_pf import caso as caso_del_sistema
 from digital_twin_snapshot_pf import CASOS, _caso, resultados
 from estudios_pf import _num
 
 from igea_dgs.digital_twin.native_snapshot import identidad_nativa
 from igea_dgs.native_action import native_action_block_report
 from igea_dgs.pide import diagnosticar
+
+
+#: Los casos de cada año del PIDE, con su papel y su nombre (030:RF-1).
+CASOS_DEL_ANIO = (('sin', 'Sin proyecto'), ('cargas', 'Cargas nuevas'), ('con', 'Con proyecto'))
+
+
+def _carpeta(padre, nombre: str):
+    """La subcarpeta ``nombre`` de ``padre``, creada si falta."""
+    return next((x for x in padre.GetContents('*.IntFolder') if x.loc_name == nombre), None) \
+        or padre.CreateObject('IntFolder', nombre)
+
+
+def origenes_del_pide(app, plan: dict) -> dict:
+    """Los casos del proyecto que se copian a cada año: «Sin proyecto», «Cargas nuevas» y «Con
+    proyecto», los del año de medición si los hay (030:RF-1)."""
+    anio = anio_del_plan(plan)
+    out = {}
+    sin = caso_del_sistema(app, 'sin', anio) or _caso(app, 'Sin proyecto')
+    if sin is not None:
+        out['sin'] = sin
+    cargas = _caso(app, nombre_cargas_nuevas(anio))
+    if cargas is not None:
+        out['cargas'] = cargas
+    con = caso_del_sistema(app, 'con', anio)
+    if con is not None:
+        out['con'] = con
+    return out
+
+
+def casos_del_anio(app, origenes: dict, anio: int, factor_de, base: dict | None = None) -> dict:
+    """«PIDE/Año NN» en casos y en escenarios, con un caso y un escenario por papel; la demanda de
+    cada carga, por el factor de su alimentador (030:RF-1 a RF-3, RF-5, RF-8). ``factor_de(elm)``:
+    el factor del año del ``ElmFeeder``; ``base``: el ``scale0`` de cada carga antes del PIDE, sobre
+    el que se aplica, para que un año nunca escale el de otro."""
+    base = base if base is not None else {}
+    etiqueta = f'Año {anio:02d}'
+    casos = _carpeta(_carpeta(app.GetProjectFolder('study'), 'PIDE'), etiqueta)
+    escenarios = _carpeta(_carpeta(app.GetProjectFolder('scen', 1), 'PIDE'), etiqueta)
+    out = {}
+    for rol, nombre in CASOS_DEL_ANIO:
+        origen = origenes.get(rol)
+        if origen is None:
+            continue
+        esc_origen = _escenario_de(app, origen)
+        origen.Activate()                       # el de una corrida anterior no puede estar activo
+        for x in casos.GetContents('*.IntCase'):
+            if x.loc_name == nombre:
+                x.Delete()                      # RF-5: se renueva, sin duplicar
+        for x in escenarios.GetContents('*.IntScenario'):
+            if x.loc_name == nombre:
+                x.Delete()
+        caso = casos.AddCopy(origen, nombre)
+        _marcar(caso, f'pide_{anio:02d}_{rol}')                              # RF-8
+        caso.Activate()
+        actual = app.GetActiveScenario()
+        if actual is not None:
+            actual.Deactivate(0)
+        esc = escenarios.AddCopy(esc_origen, nombre) if esc_origen is not None \
+            else escenarios.CreateObject('IntScenario', nombre)
+        esc.Activate()
+        for elm in app.GetActiveProject().GetContents('*.ElmFeeder', 1):
+            f = factor_de(elm)
+            if f is None:
+                continue
+            for c in elm.GetObjs('ElmLod'):
+                b = base.setdefault(id(c), float(getattr(c, 'scale0', 1.0) or 1.0))
+                c.scale0 = b * f                                             # RF-3, en su escenario
+        esc.Save()
+        out[rol] = {'caso': f'PIDE/{etiqueta}/{nombre}', 'escenario': f'PIDE/{etiqueta}/{nombre}', 'objeto': caso}
+    return out
 
 
 def ejecutar(app, plan: dict) -> tuple[dict, int]:
@@ -69,6 +141,9 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
     # 029:RF-4: con tasa por alimentador, cada uno escala sus cargas con la suya (``scale0``) y el
     # factor del flujo queda en 1; al terminar, cada carga vuelve a su valor.
     por_alim = {str(a): float(x) for a, x in (plan.get('tasa_por_alimentador') or {}).items()}
+    if plan.get('casos_por_anio'):
+        return _por_anios(app, plan, informe, proyecto, raiz, lim, barras, de_linea, por_nombre, float(tasa),
+                          por_alim)
     cargas = {a: list(elms[a].GetObjs('ElmLod')) for a in por_alim if a in elms}
     base_scale = {id(c): float(getattr(c, 'scale0', 1.0) or 1.0) for cs in cargas.values() for c in cs}
     try:
@@ -114,6 +189,61 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
             for c in elm.GetObjs('ElmLod'):
                 if id(c) in base_scale:
                     c.scale0 = base_scale[id(c)]
+    if por_alim:
+        informe['tasa_por_alimentador'] = por_alim
+    return informe, 0
+
+
+def _por_anios(app, plan, informe, proyecto, raiz, lim, barras, de_linea, por_nombre, tasa, por_alim):
+    """030:RF-1 a RF-7: cada año en su carpeta, con sus casos y escenarios, y su diagnóstico en el
+    «Sin proyecto» del año. El caso que estaba activo vuelve a estarlo al terminar (RF-6)."""
+    inicial = app.GetActiveStudyCase()
+    origenes = origenes_del_pide(app, plan)
+    if 'sin' not in origenes:
+        return {**informe, 'error': 'el proyecto no tiene «Sin proyecto» para copiar a los años del PIDE'}, 2
+    feeders = set(plan.get('feeders') or [])
+    origenes['sin'].Activate()
+    elms = [e for e in proyecto.GetContents('*.ElmFeeder', 1) if e.loc_name in feeders]
+    base = {id(c): float(getattr(c, 'scale0', 1.0) or 1.0) for e in elms for c in e.GetObjs('ElmLod')}
+    try:
+        for anio in plan.get('anios') or [0]:
+            def factor_de(elm, anio=anio):
+                if elm.loc_name not in feeders:
+                    return None
+                return (1 + por_alim.get(elm.loc_name, tasa)) ** int(anio)
+
+            casos = casos_del_anio(app, origenes, int(anio), factor_de, base)
+            casos['sin']['objeto'].Activate()
+            flujo = flujo_de_carga(app)
+            fila = {'anio': int(anio), 'factor': (1 + tasa) ** int(anio), 'converge': flujo['converged'],
+                    'casos': {r: {k: v for k, v in c.items() if k != 'objeto'} for r, c in casos.items()}}   # RF-7
+            if flujo['converged']:
+                lectura = {'flujo': resultados(app, proyecto, raiz, list(plan.get('feeders') or [])),
+                           'topologia': {'barras': barras}}
+                fila['problemas'] = []
+                for p in diagnosticar(lectura, **lim):
+                    sitio = por_nombre.get(p.elemento) or {}
+                    linea = p.elemento.removesuffix('.ElmLne')
+                    fila['problemas'].append({**p.__dict__, 'kv': sitio.get('kv'),
+                                              'alimentador': sitio.get('alimentador') or de_linea.get(linea)})
+                tensiones = lectura['flujo']['tensiones']['valores']
+                fila['vm_min'] = min(tensiones.values()) if tensiones else None
+                fila['cabeceras_kw'] = lectura['flujo']['balance']['valores']['cabeceras']
+            else:
+                fila['problemas'] = [{'tipo': 'flujo', 'elemento': 'red', 'causa': 'no_converge',
+                                      'evidencia': 'el flujo no converge con esta demanda'}]
+            informe['anios'].append(fila)
+    finally:
+        # RF-6: los casos del proyecto con su demanda de antes. En DIgSILENT cada escenario guarda
+        # la suya y esto no cambia nada; si algo escribió fuera de su escenario, lo deshace.
+        for origen in origenes.values():
+            origen.Activate()
+            for e in elms:
+                for c in e.GetObjs('ElmLod'):
+                    if id(c) in base and float(getattr(c, 'scale0', 1.0) or 1.0) != base[id(c)]:
+                        c.scale0 = base[id(c)]
+        if inicial is not None:
+            inicial.Activate()
     if por_alim:
         informe['tasa_por_alimentador'] = por_alim
     return informe, 0
