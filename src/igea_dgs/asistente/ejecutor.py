@@ -179,6 +179,37 @@ def entregables(resultado: Any) -> list[str]:
     return out
 
 
+def _valores(datos: Mapping[str, Any]) -> dict[str, list[str]]:
+    """Los datos de una orden como texto normalizado, para compararlos."""
+    out = {}
+    for tipo, vs in (datos or {}).items():
+        lista = vs if isinstance(vs, list) else [vs]
+        out[tipo] = sorted(str(v.get('valor') if isinstance(v, dict) else v).strip().lower() for v in lista)
+    return out
+
+
+def revisar_tras_error(texto: str, tarea: str, datos: Mapping[str, Any], error: str, modelo: Any = None
+                       ) -> dict[str, Any]:
+    """Qué hacer con una orden cuyo paso falló (027:RF-20): el modelo recibe el error y su
+    contexto. Si mantiene la tarea y los datos (un fallo pasajero, como el 4002 de DIgSILENT
+    ocupado), se reintenta una vez; si propone otros, vuelve al operador con la propuesta, que
+    se confirma como cualquier escritura (RF-19). Sin modelo, se reintenta igual una vez."""
+    if modelo is None:
+        return {'accion': 'reintentar', 'motivo': 'sin modelo que revise el error'}
+    r = modelo.interpretar(f'{texto}\nLa ejecución falló con este error: {error}\n'
+                           'Revisa la tarea y los datos de la orden.')
+    if r is None or not r.get('tarea'):
+        return {'accion': 'reintentar', 'motivo': 'el modelo no respondió'}
+    if r['tarea'] != tarea:
+        return {'accion': 'operador', 'tarea': r['tarea'], 'datos': r.get('datos') or {},
+                'motivo': f"el modelo propone otra tarea ({r['tarea']})"}
+    nuevos = {k: v for k, v in _valores(r.get('datos') or {}).items() if v}
+    if not nuevos or all(_valores(datos).get(k) == v for k, v in nuevos.items()):
+        return {'accion': 'reintentar', 'motivo': 'el modelo mantiene la tarea y los datos'}
+    return {'accion': 'operador', 'tarea': tarea, 'datos': r.get('datos') or {},
+            'motivo': 'el modelo propone otros datos: confírmelos'}
+
+
 def ejecutar(lista: list[Paso], cliente: ClienteWeb, log: Callable[[str], None] = lambda _m: None) -> dict:
     """Los pasos en orden; el resultado de cada uno queda para el siguiente."""
     resultados: list[Any] = []

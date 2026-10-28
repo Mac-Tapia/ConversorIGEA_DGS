@@ -151,3 +151,60 @@ def test_rutas_del_gemelo_para_el_asistente(client, monkeypatch):
     wid = _wid(client)
     j = client.post(f'/api/workspaces/{wid}/digital-twin/evaluar')
     assert j.status_code == 202 and _esperar(client, j.json()['id'])['result']['modelo'] == 'v1'
+
+
+class _Revisor:
+    modelo = 'falso'
+
+    def __init__(self, respuesta):
+        self.respuesta, self.textos = respuesta, []
+
+    def interpretar(self, texto, **_kw):
+        self.textos.append(texto)
+        return self.respuesta
+
+
+def test_un_reintento_con_el_error_y_vuelta_al_operador(client, monkeypatch):
+    """027:RF-20 — el paso que falla vuelve al modelo con su error; si mantiene la orden se
+    reintenta una sola vez y, si vuelve a fallar, se devuelve al operador."""
+    llamadas = []
+
+    def entrenar(ws, ctx, forzar=False):
+        llamadas.append(forzar)
+        if len(llamadas) == 1:
+            raise services.UserError('DIgSILENT ocupado (4002)')
+        return {'entrenado': True, 'informe': 'gemelo.xlsx'}
+
+    revisor = _Revisor({'tarea': 'gemelo_entrenar', 'datos': {}, 'confianza': 0.9, 'modelo': 'falso'})
+    monkeypatch.setattr(services, 'gemelo_entrenar', entrenar)
+    monkeypatch.setattr(services, '_asistente_modelos', lambda: (None, revisor))
+    wid = _wid(client)
+    plan = _orden(client, wid, 'reentrena la pinn')['plan']
+    fin = _esperar(client, client.post(f"/api/workspaces/{wid}/asistente/{plan['id']}/confirmar").json()['id'])
+    assert fin['status'] == 'done', fin['error']
+    assert len(llamadas) == 2 and fin['result']['reintento']['accion'] == 'reintentar'
+    assert '4002' in revisor.textos[-1], 'el modelo ve el error'
+    # Falla dos veces: un solo reintento y vuelve al operador.
+    llamadas.clear()
+    monkeypatch.setattr(services, 'gemelo_entrenar', lambda ws, ctx, forzar=False: (
+        llamadas.append(1), (_ for _ in ()).throw(services.UserError('sin GPU')))[1])
+    plan = _orden(client, wid, 'reentrena la pinn')['plan']
+    fin = _esperar(client, client.post(f"/api/workspaces/{wid}/asistente/{plan['id']}/confirmar").json()['id'])
+    assert fin['status'] == 'failed' and 'único reintento' in fin['error'] and len(llamadas) == 2
+    assert almacen.leer('reintentos')[-1]['accion'] == 'reintentar'
+
+
+def test_revisar_tras_error_propone_al_operador():
+    """027:RF-20 — con otros datos u otra tarea, no se ejecuta solo: vuelve al operador."""
+    from igea_dgs.asistente.ejecutor import revisar_tras_error
+
+    datos = {'alimentadores': [{'valor': 'IN111'}]}
+    assert revisar_tras_error('convierte IN111', 'convertir', datos, 'x')['accion'] == 'reintentar'
+    igual = _Revisor({'tarea': 'convertir', 'datos': {'alimentadores': [{'valor': 'in111 '}]}})
+    assert revisar_tras_error('convierte IN111', 'convertir', datos, 'x', igual)['accion'] == 'reintentar'
+    otro = _Revisor({'tarea': 'convertir', 'datos': {'alimentadores': [{'valor': 'IN112'}]}})
+    d = revisar_tras_error('convierte IN111', 'convertir', datos, 'no existe IN111', otro)
+    assert d['accion'] == 'operador' and d['datos']['alimentadores'][0]['valor'] == 'IN112'
+    otra = _Revisor({'tarea': 'sistema_completo', 'datos': {}})
+    assert revisar_tras_error('convierte IN111', 'convertir', datos, 'x', otra)['accion'] == 'operador'
+    assert revisar_tras_error('convierte IN111', 'convertir', datos, 'x', _Revisor(None))['accion'] == 'reintentar'
