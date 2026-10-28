@@ -23,6 +23,13 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       a 1,46 en 30 flujos (en la corrida buena respondía: 9510 → 8634 → 8732). Igual antes y
       después de RF-67, así que cambió el proyecto: revisar con una sonda los 6 bancos de
       450 kvar de la calibración fallida, las maniobras y la central de Nasca (¿fuente?).
+      Sonda del 2026-10-28 (solo lectura): las 109 cargas de NA205 tienen tensión y consumen
+      7,877 MW, sin fuentes dentro; las escaladas están en scale0 0,014 y 0,037 (el factor que
+      dejaron corridas con las fijas por su POT) y con 004:RF-67 deben subir ~19 veces: el ajuste
+      parte del factor anterior y avanza ~1 % por flujo. Además los bancos BC_CAL_* se acumulan
+      entre corridas (NA205 tiene 8: _1, _1_2, _1_3, _2 a _6). Corregir en tools/ajuste_cabecera_pf.py:
+      partir de la base de las escaladas (kVA × FP, 015:RF-44) y no repetir bancos ya puestos
+      (021:RF-64); después recalibrar Nasca y Chincha y cerrar T1.
 - [x] T2. Particiones «un sistema fuera» y mínimo de episodios de prueba por familia. (RF-2, RF-3)
       Hecho cuando: `pytest -q tests/test_digital_twin_evaluacion.py` en verde con familias
       sorteadas; ningún sistema en entrenamiento y prueba a la vez.
