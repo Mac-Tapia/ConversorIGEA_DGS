@@ -344,3 +344,52 @@ def test_intervalo_por_barra_y_no_confiable(entrenado):
     assert not ok and '027:RF-13' in motivo
     e = orc.estado_electrico(p, g, estrecha)
     assert e['requiere_pf'] and e['no_confiable']
+
+
+def test_deriva_por_familia_y_vuelta_al_anterior(entrenado, tmp_path):
+    """027:RF-22 / 027:RF-23 / 027:RF-24 — tras el modelo, los episodios nuevos de una familia
+    (y los que salen de su dominio) proponen reentrenar; se vuelve al modelo anterior con una
+    orden."""
+    import copy
+    import shutil
+
+    bufer, r = entrenado
+    copia = BuferEpisodios(tmp_path / 'copia')
+    shutil.copytree(bufer.raiz, copia.raiz, dirs_exist_ok=True)
+    copia = BuferEpisodios(copia.raiz)
+    d = orc.deriva_por_familia(copia)
+    assert d['modelo'] == r['version']
+    antes = sum(f['nuevos'] for f in d['familias'].values())
+    grande = red_radial(random.Random(99), 40, carga=6.0)
+    for k in range(10):
+        g = copy.deepcopy(grande)
+        for nodo in g['nodos'].values():
+            nodo['p_mw'] = (nodo.get('p_mw') or 0.0) * (1 + 0.01 * k)
+        copia.guardar(_episodio(g, 100 + k))
+    d = orc.deriva_por_familia(copia)
+    assert d['proponer_reentrenar'] and any('fuera del dominio' in m or 'nuevos' in m for m in d['motivos'])
+    assert sum(f['nuevos'] for f in d['familias'].values()) == antes + 10
+    orc.promover(copia, r['version'], 'prueba')
+    assert orc.volver_al_anterior(copia) == r['version']
+
+
+def test_rutas_de_deriva_y_vuelta(tmp_path, monkeypatch):
+    """027:RF-23 / 027:RF-24 — la web lanza la revisión de deriva y vuelve al modelo anterior
+    del gemelo o del asistente; sin anterior, lo dice."""
+    from apoyo import esperar_trabajo
+    from fastapi.testclient import TestClient
+
+    from igea_dgs.web import services
+    from igea_dgs.web.app import create_app
+
+    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    monkeypatch.setattr(services, 'gemelo_deriva', lambda ws, ctx: {'proponer_reentrenar': True, 'motivos': ['x']})
+    import igea_dgs.asistente.transformer as tr
+
+    monkeypatch.setattr(tr, 'volver_al_anterior', lambda: 'v1')
+    with TestClient(create_app(tmp_path / 'web')) as c:
+        wid = c.post('/api/workspaces').json()['id']
+        fin = esperar_trabajo(c, c.post(f'/api/workspaces/{wid}/digital-twin/deriva').json())
+        assert fin['status'] == 'done' and fin['result']['proponer_reentrenar']
+        assert c.post('/api/modelos/asistente/volver').json() == {'modelo': 'asistente', 'version': 'v1'}
+        assert c.post('/api/modelos/otro/volver').status_code in (400, 422)
