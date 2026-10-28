@@ -401,8 +401,14 @@ def entrenar_y_promover(vocab: dict, *, cfg: Configuracion | None = None, puerta
     cfg = cfg or Configuracion()
     puertas = puertas or Puertas()
     reales, prueba_real = ejemplos_reales()
-    datos = generar(vocab, por_tarea=cfg.por_tarea, semilla=cfg.semilla) + reales * 5
-    prueba = generar(vocab, por_tarea=20, semilla=SEMILLA_PRUEBA) + prueba_real
+    # 027:RF-65, RF-66: las 200 órdenes fijas del maestro, 160 a entrenar y 40 a la prueba fija,
+    # que con las del operador miden las puertas de RF-18. No cuentan para RF-19 (RF-67).
+    from . import ordenes_fijas
+
+    fijas = ordenes_fijas.generar(vocab)
+    fijas_ent, fijas_prueba = ordenes_fijas.repartir(fijas)
+    datos = generar(vocab, por_tarea=cfg.por_tarea, semilla=cfg.semilla) + reales * 5 + fijas_ent * 2
+    prueba = generar(vocab, por_tarea=20, semilla=SEMILLA_PRUEBA) + prueba_real + fijas_prueba
     log(f'Asistente: {len(datos)} ejemplos ({len(reales)} reales), prueba fija de {len(prueba)}')
     # 027:RF-29, RF-33, RF-34: el dataset se audita antes y el informe va al registro.
     from ..digital_twin.auditoria import auditar_ordenes
@@ -444,7 +450,8 @@ def entrenar_y_promover(vocab: dict, *, cfg: Configuracion | None = None, puerta
         fallos.append(f"acierto de tarea {metricas['acierto_tarea']:.3f} bajo {puertas.acierto_tarea}")
     if metricas['f1_datos'] < puertas.f1_datos:
         fallos.append(f"F1 de los datos {metricas['f1_datos']:.3f} bajo {puertas.f1_datos}")
-    reales_prueba = evaluar(candidato, prueba_real) if prueba_real else None
+    puertas_reales = prueba_real + fijas_prueba
+    reales_prueba = evaluar(candidato, puertas_reales) if puertas_reales else None
     if reales_prueba is not None:                                        # 027:RF-18
         if reales_prueba['acierto_tarea'] < puertas.acierto_real:
             fallos.append(f"acierto en las órdenes reales {reales_prueba['acierto_tarea']:.3f} bajo {puertas.acierto_real}")
@@ -455,7 +462,9 @@ def entrenar_y_promover(vocab: dict, *, cfg: Configuracion | None = None, puerta
     version = guardar(candidato, {'metricas': metricas, 'metricas_en_uso': del_actual,
                                   'ejemplos': len(datos), 'reales': len(reales), 'prueba': len(prueba),
                                   'auditoria': auditoria, 'destilacion': destilado,
-                                  'metricas_reales': reales_prueba})
+                                  'metricas_reales': reales_prueba,
+                                  'ordenes_fijas': {'total': len(fijas), 'huella': ordenes_fijas.huella(fijas),
+                                                    'prueba': len(fijas_prueba)}})
     if not fallos:
         promover(version, f"acierto {metricas['acierto_tarea']:.3f}, F1 {metricas['f1_datos']:.3f}")
     log(f"Asistente: candidato {version}: {'promovido' if not fallos else 'no promovido: ' + '; '.join(fallos)}")

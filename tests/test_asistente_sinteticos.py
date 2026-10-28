@@ -48,3 +48,29 @@ def test_normalizar_conserva_las_posiciones():
     """026:RF-2 — sin tildes ni mayúsculas y con la misma longitud."""
     t = 'Calibración de PISCO en julio'
     assert normalizar(t) == 'calibracion de pisco en julio' and len(normalizar(t)) == len(t)
+
+
+def test_doscientas_ordenes_fijas_del_maestro():
+    """027:RF-65 / 027:RF-66 — 200 órdenes de todas las tareas, con frases que no son las del
+    entrenamiento, deterministas por su huella, 160 a entrenar y 40 a la prueba."""
+    from igea_dgs.asistente import ordenes_fijas as of
+    from igea_dgs.asistente.tareas import TAREAS
+
+    vocab = {'alimentadores': ['IN111', 'TA225'], 'proyecto': ['P_PISCO'], 'sistema': ['Pisco']}
+    e = of.generar(vocab)
+    assert len(e) == 200 and {x.tarea for x in e} == set(TAREAS)
+    assert of.huella(e) == of.huella(of.generar(vocab)) != of.huella(of.generar(vocab, semilla=1))
+    plantillas = {p for t in TAREAS.values() for p in t.plantillas}
+    assert not set(f for fs in of.FRASES.values() for f in fs) & plantillas
+    ent, prueba = of.repartir(e)
+    assert (len(ent), len(prueba)) == (160, 40)
+    assert all(0 <= a < b <= len(x.texto) for x in e for a, b, _t in x.datos)
+
+
+def test_las_fijas_no_quitan_la_confirmacion(tmp_path, monkeypatch):
+    """027:RF-67 — el conjunto fijo no cuenta como órdenes del operador."""
+    from igea_dgs.asistente import almacen
+    from igea_dgs.asistente import transformer as tr
+
+    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(tmp_path))
+    assert tr.ejemplos_reales() == ([], []) and len(almacen.leer('ejemplos')) == 0
