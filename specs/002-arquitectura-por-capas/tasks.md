@@ -10,6 +10,8 @@ Access.
 
 - [x] T1. Línea base de DGS con `tools/linea_base_dgs.py`, que guarda los SHA-256 en
       `output/linea_base_001.json` (fuera de git); añadirle la vía MDB y `workers=4`. (RF-20)
+      Del 2026-10-28: la vía MDB en su propia línea base, `output/linea_base_001_mdb.json`,
+      generada con `--mdb` sola; la herramienta rechaza TXT y MDB en una misma orden.
       Hecho cuando: `pytest -q tests/test_linea_base_001.py`, con las variables `IGEA_*`, en verde.
 - [ ] T2. `tests/test_capas.py` y la tabla módulo → capa en `pyproject.toml`, con las
       excepciones medidas del plan. (RF-2 a RF-5)
