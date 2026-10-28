@@ -5760,7 +5760,9 @@ def asistente_orden(ws: Workspace, texto: str, trabajos: list[dict] | None = Non
     if len(texto) > 2000:
         raise UserError('La orden es demasiado larga (máximo 2000 caracteres).')
     transformer, ollama = _asistente_modelos()
-    interp = interpretar(texto, transformer=transformer, ollama=ollama)
+    from ..asistente.senales import contexto_para
+
+    interp = interpretar(texto, transformer=transformer, ollama=ollama, contexto=contexto_para(texto))
     plan = resolver(interp, asistente_vocabulario(ws))
     extras = _asistente_extras(ws, plan, trabajos or [])
     _asistente_requisitos(ws, plan, extras)
@@ -5866,6 +5868,10 @@ def asistente_ejecutar(ws: Workspace, ctx: JobContext, plan_id: str, base: str, 
         raise UserError('El plan no está completo: ' + '; '.join(plan.faltan))
     almacen.anotar('ejemplos', {**_ejemplo_de(plan.texto, plan.tarea, plan.datos), 'origen': 'confirmado'})
     almacen.anotar('decisiones', {'plan': plan.id, 'tarea': plan.tarea, 'datos': plan.datos, 'decision': 'confirmada'})
+    from ..asistente import senales
+
+    senales.anotar('confirmada', plan=plan.id, texto=plan.texto, tarea=plan.tarea, datos=plan.datos,
+                   modelo=plan.interpretado_por)                                    # 027:RF-35
     if plan.modo == 'proceso':
         return _asistente_proceso(ws, ctx, plan)
     if http is None:
@@ -5881,17 +5887,41 @@ def asistente_ejecutar(ws: Workspace, ctx: JobContext, plan_id: str, base: str, 
         decision = revisar_tras_error(plan.texto, plan.tarea, plan.datos, str(exc), ollama)
         almacen.anotar('reintentos', {'plan': plan.id, 'tarea': plan.tarea, 'error': str(exc), **decision})
         if decision['accion'] != 'reintentar' or ctx.cancel.is_set():
+            _asistente_fallo(plan, str(exc), decision['motivo'])
             raise UserError(f"El asistente paró: {exc}. {decision['motivo']} (027:RF-20)") from exc
         ctx.log(f"Asistente: «{exc}»; {decision['motivo']}: un nuevo intento (027:RF-20)")
         try:
             resultado = ejecutar(pasos(plan.tarea, plan.datos, guardado['extras']), cliente, ctx.log)
         except PasoFallido as exc2:
+            _asistente_fallo(plan, str(exc2), 'falló también en el reintento')
             raise UserError(f'El asistente paró tras su único reintento: {exc2}') from exc2
         resultado['reintento'] = {'error': str(exc), **decision}
     if plan.tarea in ('informe_estudio', 'informe_factibilidad'):
         resultado['clasificacion'] = _asistente_clasificar_generado(ws, plan, entregables(resultado.get('resultado')))
     ctx.log(f"Asistente: «{plan.tarea}» terminado; {len(resultado.get('entregables') or [])} entregable(s).")
     return {'plan': plan.id, 'tarea': plan.tarea, **resultado}
+
+
+def _asistente_fallo(plan, error: str, motivo: str) -> None:
+    """La penalización de la acción y la nota para la próxima orden parecida (027:RF-35, RF-37)."""
+    from ..asistente import senales
+
+    senales.anotar('fallida', plan=plan.id, texto=plan.texto, tarea=plan.tarea, datos=plan.datos,
+                   modelo=plan.interpretado_por, error=error)
+    senales.reflexion(plan.texto, plan.tarea, f'la ejecución de «{plan.tarea}» falló: {error[:300]}', motivo)
+
+
+def asistente_rechazar(ws: Workspace, plan_id: str) -> dict:
+    """El operador rechaza el plan: penalización de la interpretación (027:RF-35)."""
+    from ..asistente import almacen, senales
+
+    plan = asistente_plan(ws, plan_id)['plan']
+    almacen.anotar('decisiones', {'plan': plan.id, 'tarea': plan.tarea, 'decision': 'rechazada'})
+    senales.anotar('rechazada', plan=plan.id, texto=plan.texto, tarea=plan.tarea, datos=plan.datos,
+                   modelo=plan.interpretado_por)
+    with _ASISTENTE_CERROJO:
+        _ASISTENTE_PLANES.get(ws.id, {}).pop(plan.id, None)
+    return {'plan': plan.id, 'rechazado': True}
 
 
 def _asistente_proceso(ws: Workspace, ctx: JobContext, plan) -> dict:
@@ -5957,6 +5987,15 @@ def asistente_corregir(ws: Workspace, plan_id: str, *, tarea: str | None = None,
     almacen.anotar('ejemplos', {**_ejemplo_de(previo.texto, tarea, plan.datos), 'origen': 'corregido'})
     almacen.anotar('decisiones', {'plan': previo.id, 'nuevo': plan.id, 'decision': 'corregida', 'tarea_antes':
                                   previo.tarea, 'tarea': tarea})
+    # 027:RF-35 a RF-37: penalización de lo que entendió el modelo, par de preferencia y nota.
+    from ..asistente import senales
+
+    senales.anotar('corregida', plan=previo.id, texto=previo.texto, tarea=previo.tarea, datos=previo.datos,
+                   modelo=previo.interpretado_por)
+    senales.par_de_preferencia(previo.texto, {'tarea': previo.tarea, 'datos': previo.datos},
+                               {'tarea': tarea, 'datos': plan.datos})
+    senales.reflexion(previo.texto, tarea, f'se entendió «{previo.tarea}» y el operador la corrigió',
+                      f'la tarea es «{tarea}»')
     if subtipo or tipo_informe:
         from ..asistente import clasificador
 
@@ -6032,7 +6071,16 @@ def asistente_registro() -> dict:
     """Lo que el asistente hizo y decidió, para auditarlo (026:RF-28, RF-31)."""
     from ..asistente import almacen, mejoras
 
-    return {'ordenes': almacen.leer('ordenes', 50), 'decisiones': almacen.leer('decisiones', 50),
+    from ..asistente import senales
+
+    from ..digital_twin.auditoria import Umbrales
+
+    reales = len(almacen.leer('ejemplos'))
+    return {'conjunto_real': [{'ordenes': reales, 'hacen_falta': Umbrales().min_ordenes_reales,      # 027:RF-17, RF-19
+                               'confirmacion_obligatoria': reales < Umbrales().min_ordenes_reales}],
+            'senales': [{'tarea': k, **v} for k, v in sorted(senales.resumen().items())],   # 027:RF-35
+            'preferencias': almacen.leer('preferencias', 50), 'reflexiones': almacen.leer('reflexiones', 50),
+            'ordenes': almacen.leer('ordenes', 50), 'decisiones': almacen.leer('decisiones', 50),
             'mejoras': mejoras.historial(), 'internet': almacen.leer('internet', 50),
             'suite': almacen.leer('suite', 10), 'avisos': almacen.leer('avisos', 50)}
 

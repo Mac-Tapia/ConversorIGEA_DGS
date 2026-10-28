@@ -318,6 +318,9 @@ export const api = {
     request<AsistenteRespuesta>(`${ws(id)}/asistente/${enc(planId)}/corregir`, json('POST', body)),
   asistenteEntrenar: (id: string) => request<Job>(`${ws(id)}/asistente/entrenar`, { method: 'POST' }),
   asistenteRegistro: () => request<Record<string, unknown[]>>('/api/asistente/registro'),
+  // 027:RF-35: rechazar un plan es una penalización para el modelo.
+  asistenteRechazar: (id: string, planId: string) =>
+    request<{ plan: string; rechazado: boolean }>(`${ws(id)}/asistente/${planId}/rechazar`, { method: 'POST' }),
 
   system: (id: string, action: 'grid' | 'base' | 'missing-data') =>
     request<Job>(`${ws(id)}/system/${action}`, { method: 'POST' }),

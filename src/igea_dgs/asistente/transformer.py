@@ -48,6 +48,9 @@ class Configuracion:
 class Puertas:
     acierto_tarea: float = 0.95
     f1_datos: float = 0.85
+    #: 027:RF-18: en las órdenes reales de la prueba fija, aparte de las sintéticas.
+    acierto_real: float = 0.98
+    f1_real: float = 0.95
 
 
 def _torch():
@@ -441,13 +444,20 @@ def entrenar_y_promover(vocab: dict, *, cfg: Configuracion | None = None, puerta
         fallos.append(f"acierto de tarea {metricas['acierto_tarea']:.3f} bajo {puertas.acierto_tarea}")
     if metricas['f1_datos'] < puertas.f1_datos:
         fallos.append(f"F1 de los datos {metricas['f1_datos']:.3f} bajo {puertas.f1_datos}")
+    reales_prueba = evaluar(candidato, prueba_real) if prueba_real else None
+    if reales_prueba is not None:                                        # 027:RF-18
+        if reales_prueba['acierto_tarea'] < puertas.acierto_real:
+            fallos.append(f"acierto en las órdenes reales {reales_prueba['acierto_tarea']:.3f} bajo {puertas.acierto_real}")
+        if reales_prueba['f1_datos'] < puertas.f1_real:
+            fallos.append(f"F1 de los datos reales {reales_prueba['f1_datos']:.3f} bajo {puertas.f1_real}")
     if del_actual and metricas['acierto_tarea'] < del_actual['acierto_tarea'] - 1e-9:
         fallos.append(f"acierta menos que el modelo en uso ({del_actual['acierto_tarea']:.3f})")
     version = guardar(candidato, {'metricas': metricas, 'metricas_en_uso': del_actual,
                                   'ejemplos': len(datos), 'reales': len(reales), 'prueba': len(prueba),
-                                  'auditoria': auditoria, 'destilacion': destilado})
+                                  'auditoria': auditoria, 'destilacion': destilado,
+                                  'metricas_reales': reales_prueba})
     if not fallos:
         promover(version, f"acierto {metricas['acierto_tarea']:.3f}, F1 {metricas['f1_datos']:.3f}")
     log(f"Asistente: candidato {version}: {'promovido' if not fallos else 'no promovido: ' + '; '.join(fallos)}")
     return {'version': version, 'promovido': not fallos, 'fallos': fallos, **metricas, 'en_uso': del_actual,
-            'destilacion': destilado}
+            'destilacion': destilado, 'reales': reales_prueba}

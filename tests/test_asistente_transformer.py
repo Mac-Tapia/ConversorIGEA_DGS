@@ -71,3 +71,14 @@ def test_evaluar_en_la_prueba_fija(entrenado, monkeypatch):
     assert [e.texto for e in prueba] == [e.texto for e in generar(VOCAB, por_tarea=8, semilla=tr.SEMILLA_PRUEBA)]
     m = tr.evaluar(tr.cargar(), prueba)
     assert 0 <= m['f1_datos'] <= 1 and m['acierto_tarea'] >= 0.8
+
+
+def test_puertas_de_las_ordenes_reales(entrenado, monkeypatch):
+    """027:RF-18 — con órdenes reales en la prueba fija, el candidato se promueve solo con
+    acierto ≥ 0,98 y F1 ≥ 0,95 en ellas, medidas aparte."""
+    raiz, _r = entrenado
+    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(raiz))
+    r = tr.entrenar_y_promover(VOCAB, cfg=CFG_RAPIDO, puertas=tr.Puertas(acierto_tarea=0.0, f1_datos=0.0,
+                                                                        acierto_real=1.01))
+    assert r['reales'] is not None and r['reales']['ejemplos'] >= 1
+    assert not r['promovido'] and any('órdenes reales' in f for f in r['fallos'])
