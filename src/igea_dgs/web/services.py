@@ -4040,7 +4040,7 @@ def gemelo_aprender(ws: Workspace, ctx: JobContext, project: str, feeders: list[
     from ..digital_twin.buffer import BuferEpisodios, Consulta
     from ..digital_twin.capture import artefacto_de, construir_episodio
     from ..digital_twin.episode import Caso
-    from ..digital_twin.escenarios import Escenario, elegir, matriz
+    from ..digital_twin.escenarios import Escenario, elegir, factores_hipercubo, matriz, rango_medido
     from ..digital_twin.integration import limites_combinados, normas_de
     from ..perfil_empresa import datos_perfil, estructura_empresa
 
@@ -4067,7 +4067,22 @@ def gemelo_aprender(ws: Workspace, ctx: JobContext, project: str, feeders: list[
         incertidumbre = incertidumbre_de_escenarios(tramos.get('grafo') or {})
     except ImportError:
         pass
-    elegidos = elegir(matriz(tramos.get('tramos') or [], semilla=int(ajustes.get('semilla') or 0)),
+    # 027:RF-4: la demanda de los escenarios cubre el rango medido de las cabeceras del
+    # sistema (la última máxima buscada), por hipercubo latino; sin curvas, los factores fijos.
+    semilla = int(ajustes.get('semilla') or 0)
+    with ws.lock:
+        ultimas = list(ws.curvas_cabecera.values())[-1] if ws.curvas_cabecera else {}
+    # Las de los medidores de la máxima, que es la del sistema: el nombre de un medidor no
+    # tiene por qué llevar el del alimentador (TMB6T2 es una barra de Chincha).
+    curvas = [[p[1] for p in c.get('curva') or []] for c in ultimas.values()]
+    rango = rango_medido(curvas)
+    factores = (factores_hipercubo(*rango, int(ajustes.get('puntos_de_carga') or 8), semilla)
+                if rango else None)
+    if factores:
+        ctx.log(f'Gemelo: demanda de {rango[0]:.2f} a {rango[1]:.2f} de la punta medida, '
+                f'{len(factores)} factores por hipercubo latino (027:RF-4)')
+    elegidos = elegir(matriz(tramos.get('tramos') or [], semilla=semilla,
+                             **({'factores': factores} if factores else {})),
                       int(n), incertidumbre, hechos)
     if not elegidos:
         return {'project': project, 'simulados': 0, 'avisos': ['no quedan escenarios por simular']}

@@ -40,6 +40,10 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       (sin red de prueba o con menos de 10 episodios no se promueve); `entrenar` y `evaluar` lo usan.
 - [ ] T3. Escenarios por hipercubo latino del rango de carga medido, en copias del proyecto. (RF-4)
       Hecho cuando: pruebas de `escenarios.py` en verde y una corrida en DIgSILENT con Nasca.
+      Hecho el 2026-10-28 (código): `rango_medido` (total coincidente de las cabeceras de la última
+      máxima, del valle a la punta + 10 %) y `factores_hipercubo` (una franja por factor, sorteado
+      dentro); `gemelo_aprender` los usa y, sin curvas, sigue con los fijos. Falta la corrida en
+      DIgSILENT con Nasca, tras su recalibración.
 - [x] T4. `Entrenamiento` con paciencia, coseno, recorte de gradiente y mejor época; GRU con
       validación temporal y sin caída a CPU. (RF-5, RF-6, RF-10, RF-11)
       Hecho cuando: `pytest -q tests/test_digital_twin_oraculo.py tests/test_digital_twin_temporal.py`

@@ -35,6 +35,32 @@ class Escenario:
                               .encode()).hexdigest()[:16]
 
 
+def rango_medido(curvas: Iterable[Sequence[float]], margen: float = 0.1) -> tuple[float, float] | None:
+    """Del total coincidente de las cabeceras, su mínimo y su máximo relativos a la punta, con
+    ``margen`` por encima (027:RF-4): los factores fijos 0,7–1,3 no cubrían el valle de la
+    noche, donde una cabecera rural baja al 30 % de su punta, y el gemelo solo veía la punta."""
+    series = [[float(v) for v in c] for c in curvas if c]
+    if not series:
+        return None
+    largo = min(len(s) for s in series)
+    total = [sum(s[i] for s in series) for i in range(largo)]
+    punta = max(total) if total else 0.0
+    if punta <= 0:
+        return None
+    return max(min(total) / punta, 0.0), 1.0 + margen
+
+
+def factores_hipercubo(minimo: float, maximo: float, n: int, semilla: int = 0) -> tuple[float, ...]:
+    """``n`` factores de demanda por hipercubo latino en ``[minimo, maximo]`` (027:RF-4): uno en
+    cada franja de igual ancho, en una posición sorteada dentro de ella, y en orden creciente.
+    Determinista por semilla."""
+    if n <= 0 or maximo <= minimo:
+        return ()
+    rnd = random.Random(semilla)
+    ancho = (maximo - minimo) / n
+    return tuple(round(minimo + (k + rnd.random()) * ancho, 4) for k in range(n))
+
+
 def matriz(tramos: Sequence[str], *, factores: Sequence[float] = (0.7, 0.85, 1.0, 1.15, 1.3),
            contingencias: int = 20, semilla: int = 0) -> list[Escenario]:
     """Factores de demanda por cada estado: intacto y con un tramo fuera (N-1) sorteado.
