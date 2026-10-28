@@ -142,10 +142,15 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       cabecera (antes solo nombre y tamaño); los .xls con calamine y el .docx antiguo con «\»
       leído de su XML. Quedan 2 PDF truncados en el propio expediente (mapas SR0020 y SR0021).
       El 87 % de los fragmentos no tiene artículo por su ruta: lo asigna T20 por contenido.
-- [ ] T20. Ejemplos del agente desde el corpus: artículo → evidencias y entregables; formato →
+- [x] T20. Ejemplos del agente desde el corpus: artículo → evidencias y entregables; formato →
       hojas y columnas entregadas; estructura de los informes 4.1 y 4.2. (RF-48, RF-50)
       Hecho cuando: prueba con un corpus sintético; informe del real con los 20 artículos y
       los 15 formatos cubiertos o dichos como ausentes.
+      Hecho el 2026-10-28: `asistente/ejemplos_pide.py` y `construir_dataset_pide.py --solo-ejemplos`.
+      En PIDEELOR: 20 de 20 artículos con ejemplos de 2021 y 2026 (fragmentos con artículo de 6 758
+      a 9 035: el artículo sale también del texto, y «diagnóstico»/«pérdida» con tilde no
+      coincidían nunca en `clasificar_ruta`), 15 de 15 formatos con sus hojas y columnas, y las
+      secciones del 4.1 (82) y del 4.2 (65); en `output/pide_dataset/PIDEELOR/ejemplos_agente.json`.
 - [ ] T21. Orquestador del proyecto desde cero, etapa por etapa, con puntos de control y
       reanudación, por las rutas de la web. (RF-43, RF-44)
       Hecho cuando: prueba con `fake_pf` cortada a mitad y reanudada sin repetir etapas.

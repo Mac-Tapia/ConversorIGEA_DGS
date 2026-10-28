@@ -218,7 +218,9 @@ def clasificar_ruta(relative_path: str | Path) -> ClasificacionPide:
     bajo = texto.lower()
     if any(x in bajo for x in ('demanda', 'mercado', 'densidad')):
         familia, articulos = 'mercado_demanda', (7,)
-    elif any(x in bajo for x in ('diagn[oó]stico', 'flujo', 'calidad', 'p[eé]rdida')):
+    # Con ``in``, «diagn[oó]stico» y «p[eé]rdida» buscaban los corchetes y nunca coincidían:
+    # los diagnósticos de los PIDE 2021 y 2026 quedaban sin artículo (2026-10-28).
+    elif re.search(r'diagn[oó]stico|flujo|calidad|p[eé]rdida', bajo):
         familia, articulos = 'diagnostico', (8,)
     elif any(x in bajo for x in ('evaluacion economica', 'evaluación económica', 'valorizacion', 'costos')):
         familia, articulos = 'economia', (14, 15)
