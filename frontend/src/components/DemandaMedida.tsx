@@ -432,6 +432,7 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
 
   return (
     <div className="calibracion">
+      <Recalibrar project={project} />
       <h4>2.1 · Libros de medición</h4>
       <div className="form-grid">
         {LIBROS.map((l) => <Libro key={l.tipo} {...l} />)}
@@ -797,6 +798,48 @@ function EscaneoTabla({ escaneo }: { escaneo: Escaneo }) {
       {ajenas.length > 0 && <p className="muted">Variaciones hechas a mano: {ajenas.map((v) =>
         `${v.variacion}${v.activa ? ' (activa)' : ''}, ${v.objetos} objeto(s)`).join('; ')}</p>}
       {escaneo.avisos.map((a) => <p key={a} className="muted">{a}</p>)}
+    </div>
+  );
+}
+
+/** Spec 028, RF-21 a RF-23: recalibrar «Sin proyecto» del sistema ya importado, aparte de la
+ * calibración inicial: escanea lo que hay en DIgSILENT, busca la máxima y recalibra. */
+function Recalibrar({ project }: { project: string }) {
+  const { ws, startJob, active } = useApp();
+  const [periodo, setPeriodo] = useState('');
+  const [zonal, setZonal] = useState('');
+  const [carpeta, setCarpeta] = useState('');
+  const [transformadores, setTransformadores] = useState(false);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    setError('');
+    if (!project) return;
+    void api.recalibrarDatos(ws.id, project).then((d) => { setZonal(d.zonal); setCarpeta(d.demanda_dir); })
+      .catch((e: Error) => setError(e.message));
+  }, [ws.id, project]);
+  const listo = Boolean(project) && /^\d{4}(-(0[1-9]|1[0-2]))?$/.test(periodo.trim()) && !error;
+  return (
+    <div className="step-box">
+      <h4>Recalibrar «Sin proyecto»</h4>
+      <p className="muted small">Para un sistema ya calibrado: escanea en DIgSILENT los tramos nuevos, centrales,
+        bancos y cambios hechos a mano, busca la máxima del periodo y vuelve a calibrar con todo eso. No reconvierte
+        ni vuelve a importar, y el «Caso base» no se toca. La primera calibración sigue en los pasos 2.1 a 2.3.</p>
+      {error ? <p className="muted small">{error}</p> : (
+        <div className="row">
+          <label className="field"><span>Sistema</span>
+            <input value={zonal} onChange={(e) => setZonal(e.target.value)} /></label>
+          <label className="field"><span>Periodo</span>
+            <input value={periodo} placeholder="2026-07" onChange={(e) => setPeriodo(e.target.value)} /></label>
+          <label className="field"><span>Carpeta de los libros</span>
+            <input value={carpeta} onChange={(e) => setCarpeta(e.target.value)} /></label>
+          <label className="row small"><input type="checkbox" checked={transformadores}
+            onChange={(e) => setTransformadores(e.target.checked)} /> Implementar transformadores</label>
+          <button className="btn btn-pf" disabled={!listo || Boolean(active.asistente) || Boolean(active.powerfactory)}
+            onClick={() => startJob(() => api.recalibrar(ws.id, {
+              project, periodo: periodo.trim(), zonal: zonal.trim(), demanda_dir: carpeta.trim(), transformadores }))}>
+            Recalibrar</button>
+        </div>
+      )}
     </div>
   );
 }

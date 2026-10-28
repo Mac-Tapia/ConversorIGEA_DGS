@@ -128,6 +128,11 @@ export const api = {
     request<{ ajuste: (AjusteResultado & { id: string; finished_at: number }) | null }>(
       `${ws(id)}/demanda/ajuste/ultimo?project=${encodeURIComponent(project)}`),
   // Spec 018, RF-13: la última lista leída en el espacio, sin abrir DIgSILENT.
+  // Spec 028, RF-21, RF-22: recalibrar el sistema del proyecto, aparte de la calibración inicial.
+  recalibrarDatos: (id: string, project: string) =>
+    request<{ zonal: string; demanda_dir: string }>(`${ws(id)}/demanda/recalibrar?project=${encodeURIComponent(project)}`),
+  recalibrar: (id: string, body: { project: string; periodo: string; zonal?: string; demanda_dir?: string; transformadores?: boolean }) =>
+    request<Job>(`${ws(id)}/demanda/recalibrar`, json('POST', body)),
   // Spec 028, RF-9: escanear alimentadores en DIgSILENT antes de recalibrar.
   pfEscanear: (id: string, project: string, feeders: string[], anio: number | null = null) =>
     request<Job>(`${ws(id)}/powerfactory/escanear`, json('POST', { project, feeders, anio })),

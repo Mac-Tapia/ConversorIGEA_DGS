@@ -76,6 +76,15 @@ bancos y otros cambios; en base de eso debe recalibrar sin ningún bloqueo, solo
 - RF-19: SI una central declarada no tiene barra ni generador en el escaneo, ENTONCES EL SISTEMA
   calibrará el alimentador sin ella y lo dirá, sin detener el plan.
 - RF-20: EL SISTEMA no tocará el «Caso base» al recalibrar: se ejecuta tal como está (015:RF-19).
+- RF-21: EL SISTEMA tendrá en la web un botón «Recalibrar», aparte de la calibración inicial, que
+  sobre el proyecto ya importado escanee, busque la máxima del periodo y recalibre «Sin
+  proyecto» de su sistema eléctrico, sin reconvertir ni volver a importar (usuario, 2026-10-28:
+  «tiene que haber un botón para recalibrar en la web, así evitar confundir con la calibración
+  inicial»).
+- RF-22: EL SISTEMA tomará para recalibrar el sistema eléctrico del nombre del proyecto y la
+  carpeta de los libros de demanda que ya tiene el espacio, y el operador podrá cambiarlos.
+- RF-23: SI el proyecto no es de un sistema eléctrico o el espacio no tiene libros de demanda,
+  ENTONCES EL SISTEMA lo dirá antes de empezar.
 
 ## Fuera de alcance
 

@@ -29,3 +29,7 @@ cuando el usuario ponga a mano la central de NA205.
       (RF-16 a RF-20)
       Hecho cuando: pruebas con `fake_pf` y de la web en verde, y el escaneo de Chincha en
       DIgSILENT con sus tramos nuevos.
+- [ ] T8. Botón «Recalibrar» con su ruta, que corre `tools/sistema_web.py` sin reconvertir.
+      (RF-21 a RF-23)
+      Hecho cuando: prueba de la API y del front en verde y una recalibración de Chincha desde el
+      botón.

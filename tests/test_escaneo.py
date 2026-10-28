@@ -223,3 +223,44 @@ def test_generador_del_operador_sin_central(ajuste):
     assert informe['generadores_del_operador'] == [{'generador': 'GD_A_MANO', 'p_kw': 200.0}]
     assert any('028:RF-18' in a for a in informe['avisos'])
     assert not [o for o in app.creados if o._clase == 'ElmGenstat' and o.loc_name.startswith('Central_')]
+
+
+def test_boton_recalibrar_y_su_ruta(tmp_path, monkeypatch):
+    """028:RF-21 / 028:RF-22 / 028:RF-23 — la ruta saca el sistema del proyecto y la carpeta de
+    los libros, corre ``sistema_web.py`` sin reconvertir en el carril del asistente y rechaza un
+    proyecto que no es de un sistema; el front tiene su botón aparte."""
+    from pathlib import Path
+
+    from apoyo import esperar_trabajo
+    from fastapi.testclient import TestClient
+
+    from igea_dgs.web import jobs, services
+    from igea_dgs.web.app import create_app
+
+    ordenes = []
+    monkeypatch.setattr(jobs.JobContext, 'run_process', lambda self, cmd, **kw: ordenes.append(cmd) or 0)
+    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    libros = tmp_path / 'referencia'
+    (libros / '1.-medidores').mkdir(parents=True)
+    (libros / '2.-cabecera').mkdir()
+    with TestClient(create_app(tmp_path / 'web')) as c:
+        wid = c.post('/api/workspaces').json()['id']
+        ws = c.app.state.store.get(wid)
+        ws.demanda = {'medidores': {'path': str(libros / '1.-medidores' / 'm.xlsx')},
+                      'cabecera': {'path': str(libros / '2.-cabecera')}}
+        d = c.get(f'/api/workspaces/{wid}/demanda/recalibrar', params={'project': '20261028_IGEA_SISTEMA_CHINCHA'}).json()
+        assert d == {'zonal': 'Chincha', 'demanda_dir': str(libros)}
+        assert c.post(f'/api/workspaces/{wid}/demanda/recalibrar',
+                      json={'project': 'P_CA101', 'periodo': '2026-07'}).status_code == 400
+        assert c.post(f'/api/workspaces/{wid}/demanda/recalibrar',
+                      json={'project': 'X_SISTEMA_CHINCHA', 'periodo': 'julio'}).status_code == 422
+        job = c.post(f'/api/workspaces/{wid}/demanda/recalibrar',
+                     json={'project': '20261028_IGEA_SISTEMA_CHINCHA', 'periodo': '2026-07'}).json()
+        assert job['lane'] == 'asistente'
+        fin = esperar_trabajo(c, job)
+        assert fin['status'] == 'done' and fin['result']['texto'] == 'recalibrado y válido'
+    [cmd] = ordenes
+    assert Path(cmd[1]).name == 'sistema_web.py' and '--reconvertir' not in cmd
+    assert cmd[cmd.index('--zonal') + 1] == 'Chincha' and cmd[cmd.index('--periodo') + 1] == '2026-07'
+    demanda = (Path(__file__).resolve().parents[1] / 'frontend' / 'src' / 'components' / 'DemandaMedida.tsx').read_text(encoding='utf-8')
+    assert 'Recalibrar «Sin proyecto»' in demanda and 'api.recalibrar(ws.id' in demanda

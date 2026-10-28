@@ -5929,6 +5929,49 @@ def agente_proyecto(ws: Workspace, ctx: JobContext, datos: dict, base: str, http
         raise UserError(f'El agente paró; la próxima vez retoma desde aquí: {exc}') from exc
 
 
+def recalibrar_datos(ws: Workspace, project: str) -> dict:
+    """El sistema eléctrico del proyecto y la carpeta de los libros del espacio (028:RF-22, RF-23)."""
+    import os
+    import re
+
+    m = re.search(r'SISTEMA_([A-Za-z0-9]+)$', (project or '').strip())
+    if not m:
+        raise UserError(f'«{project}» no es el proyecto de un sistema eléctrico: recalibre sus '
+                        'alimentadores con la calibración del paso 2 (028:RF-23).')
+    rutas = [str(Path(v['path']) if Path(v['path']).is_dir() else Path(v['path']).parent)
+             for v in (ws.demanda or {}).values() if isinstance(v, dict) and v.get('path')]
+    if not rutas:
+        raise UserError('El espacio no tiene libros de demanda: asígnelos en «2.1» (028:RF-23).')
+    try:
+        carpeta = os.path.commonpath(rutas)
+    except ValueError:
+        carpeta = rutas[0]
+    return {'zonal': m.group(1).capitalize(), 'demanda_dir': carpeta}
+
+
+def recalibrar_sistema(ws: Workspace, ctx: JobContext, project: str, periodo: str, *,
+                       zonal: str | None = None, demanda_dir: str | None = None,
+                       transformadores: bool = False) -> dict:
+    """Recalibra «Sin proyecto» del sistema sobre el proyecto ya importado: escaneo, máxima del
+    periodo y calibración, sin reconvertir (028:RF-16, RF-21). Es ``tools/sistema_web.py`` sin
+    ``--reconvertir``, el mismo recorrido del operador."""
+    import sys
+
+    base = recalibrar_datos(ws, project)
+    zonal = (zonal or '').strip() or base['zonal']
+    demanda_dir = (demanda_dir or '').strip() or base['demanda_dir']
+    ctx.log(f'Recalibrar {zonal} ({project}) con {periodo}, libros de {demanda_dir} (028:RF-21).')
+    cmd = [sys.executable, str(_script('sistema_web.py')), '--espacio', ws.id, '--zonal', zonal,
+           '--periodo', periodo, '--demanda-dir', demanda_dir]
+    if transformadores:
+        cmd.append('--transformadores')
+    rc = ctx.run_process(cmd, cwd=str(project_root()))
+    if rc not in (0, 1):
+        raise UserError(f'La recalibración de {zonal} no llegó al final (código {rc}): vea el Registro.')
+    return {'project': project, 'zonal': zonal, 'periodo': periodo, 'codigo': rc,
+            'texto': 'recalibrado y válido' if rc == 0 else 'recalibrado con fallos: vea el Registro'}
+
+
 def _asistente_proceso(ws: Workspace, ctx: JobContext, plan) -> dict:
     """Las tareas que son herramientas de tools/ (sistema completo, reentrenar el asistente)."""
     import sys
