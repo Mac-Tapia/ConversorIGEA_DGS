@@ -5853,11 +5853,12 @@ def _ejemplo_de(texto: str, tarea: str, datos: dict) -> dict:
     return {'texto': texto, 'tarea': tarea, 'datos': sorted(trozos)}
 
 
-def asistente_ejecutar(ws: Workspace, ctx: JobContext, plan_id: str, base: str, http: Any = None) -> dict:
+def asistente_ejecutar(ws: Workspace, ctx: JobContext, plan_id: str, base: str, http: Any = None,
+                      revisor: Any = None) -> dict:
     """El plan confirmado, por las rutas y trabajos de la web (026:RF-10, RF-12); la orden queda
     como ejemplo confirmado (026:RF-19)."""
     from ..asistente import almacen
-    from ..asistente.ejecutor import ClienteWeb, PasoFallido, ejecutar, entregables, pasos
+    from ..asistente.ejecutor import ClienteWeb, PasoFallido, ejecutar, entregables, pasos, revisar_tras_error
 
     guardado = asistente_plan(ws, plan_id)
     plan = guardado['plan']
@@ -5875,7 +5876,18 @@ def asistente_ejecutar(ws: Workspace, ctx: JobContext, plan_id: str, base: str, 
     try:
         resultado = ejecutar(pasos(plan.tarea, plan.datos, guardado['extras']), cliente, ctx.log)
     except PasoFallido as exc:
-        raise UserError(f'El asistente paró: {exc}') from exc
+        # 027:RF-20: el error vuelve al modelo y hay un único nuevo intento.
+        _modelo, ollama = _asistente_modelos() if revisor is None else (None, revisor)
+        decision = revisar_tras_error(plan.texto, plan.tarea, plan.datos, str(exc), ollama)
+        almacen.anotar('reintentos', {'plan': plan.id, 'tarea': plan.tarea, 'error': str(exc), **decision})
+        if decision['accion'] != 'reintentar' or ctx.cancel.is_set():
+            raise UserError(f"El asistente paró: {exc}. {decision['motivo']} (027:RF-20)") from exc
+        ctx.log(f"Asistente: «{exc}»; {decision['motivo']}: un nuevo intento (027:RF-20)")
+        try:
+            resultado = ejecutar(pasos(plan.tarea, plan.datos, guardado['extras']), cliente, ctx.log)
+        except PasoFallido as exc2:
+            raise UserError(f'El asistente paró tras su único reintento: {exc2}') from exc2
+        resultado['reintento'] = {'error': str(exc), **decision}
     if plan.tarea in ('informe_estudio', 'informe_factibilidad'):
         resultado['clasificacion'] = _asistente_clasificar_generado(ws, plan, entregables(resultado.get('resultado')))
     ctx.log(f"Asistente: «{plan.tarea}» terminado; {len(resultado.get('entregables') or [])} entregable(s).")

@@ -80,8 +80,11 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
 - [ ] T9. Conjunto de órdenes reales del operador, versionado y separado; puertas de tarea y
       datos; confirmación obligatoria mientras sea pequeño. (RF-17 a RF-19)
       Hecho cuando: pruebas del asistente en verde; la web muestra el tamaño del conjunto.
-- [ ] T10. Realimentación del error con un único reintento en el ejecutor. (RF-20)
+- [x] T10. Realimentación del error con un único reintento en el ejecutor. (RF-20)
       Hecho cuando: prueba con un error forzado: un reintento y luego vuelta al operador.
+      Hecho el 2026-10-28: `ejecutor.revisar_tras_error` da el error al modelo; con la misma tarea y
+      datos (fallo pasajero) se reintenta una vez, con otros vuelve al operador con la propuesta
+      para confirmar (RF-19); cada decisión queda en el registro `reintentos`.
 - [ ] T11. (Condicional) LoRA/QLoRA local si T9 no pasa las puertas. (RF-21)
       Hecho cuando: el modelo ajustado pasa RF-18 con el conjunto real, o la tarea se cierra
       con la medida de que no hace falta.
