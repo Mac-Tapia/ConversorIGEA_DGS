@@ -2876,6 +2876,14 @@ def _central_del_plan(ws: Workspace, job_id: str, alimentador: str, cabecera: st
         return None
     nodo = str(declarada.get('nodo') or '').strip()
     if not nodo:
+        # 028:RF-12: sin barra declarada, la del generador que encontró el último escaneo.
+        from ..escaneo import nodo_de_central
+
+        proyecto = next((p for p, e in ws.escaneo.items() if alimentador in (e.get('alimentadores') or {})), None)
+        nodo = nodo_de_central(ws.escaneo.get(proyecto), alimentador) or ''
+        if nodo:
+            avisos.append(f'{pre}la central va en la barra {nodo}, la de su generador en el escaneo (028:RF-12).')
+    if not nodo:
         raise UserError(f'{alimentador}: indique la barra de la central en DIgSILENT (021:RF-25).')
     try:
         maxima = demanda_central(ws, job_id, alimentador=alimentador, cabecera=cabecera,
@@ -4252,6 +4260,33 @@ def _guion_pf(ws: Workspace, ctx: JobContext, script: str, plan: dict, *, nombre
     if not informe:
         informe = {'error': f'El guion terminó con el código {rc} sin dejar informe: vea el Registro.'}
     return rc, informe, report
+
+
+# ------------------------------------------------------------------ escaneo (spec 028)
+def escanear_alimentadores(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
+                           anio: int | None = None) -> dict[str, Any]:
+    """Lee en DIgSILENT, sin escribir, los generadores, bancos, variaciones y cargas cambiadas
+    de los alimentadores (028:RF-1 a RF-10) y lo guarda en el espacio para la calibración."""
+    from ..escaneo import resumen
+
+    if not project.strip() or not feeders:
+        raise UserError('Elija el proyecto y al menos un alimentador para escanear.')
+    plan = {'project': project.strip(), 'folder': carpeta_pf(), 'feeders': list(feeders),
+            'anio_casos': anio,
+            'ultima_calibracion': ws.calibraciones.get(clave_calibracion(project.strip(), anio)) or {}}
+    _rc, informe, _report = _guion_pf(ws, ctx, 'escanear_alimentador_pf.py', plan, nombre='escaneo',
+                                      cancelable=False)
+    if informe.get('error'):
+        raise UserError(f"Escaneo de {project}: {informe['error']}")
+    informe['resumen'] = resumen(informe)
+    for f, r in informe['resumen'].items():
+        ctx.log(f"Escaneo {f}: {r['generadores']} generador(es) ({r['generadores_del_operador']} del operador), "
+                f"{r['bancos']} banco(s) ({r['bancos_de_calibracion']} de la calibración), "
+                f"{r['cargas_cambiadas']} carga(s) cambiada(s)")
+    with ws.lock:
+        ws.escaneo[project.strip()] = informe
+        ws.save()
+    return informe
 
 
 # ------------------------------------------------------------------ obras (RF-95)

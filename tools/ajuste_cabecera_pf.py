@@ -1271,6 +1271,19 @@ def variacion_de_la_central(app, feeder: str):
                  if v.loc_name == nombre or v.loc_name.startswith(nombre + '(')), None)
 
 
+def generador_del_operador(app, barra):
+    """Un generador en servicio que no creó el conversor, conectado a ``barra`` (028:RF-13)."""
+    from igea_dgs.escaneo import CLASES_GENERADOR, origen_de
+
+    for clase in CLASES_GENERADOR:
+        for o in app.GetCalcRelevantObjects(f'*.{clase}') or []:
+            if int(getattr(o, 'outserv', 0) or 0) or origen_de(o.loc_name)['origen'] != 'operador':
+                continue
+            if _misma_pf(getattr(getattr(o, 'bus1', None), 'cterm', None), barra):
+                return o
+    return None
+
+
 def central_en_sin_proyecto(app, barra, feeder: str, p_kw: float, q_kvar: float) -> dict:
     """El generador de la central en su barra, con la P y Q medidas (021:RF-35, RF-36).
 
@@ -1286,6 +1299,19 @@ def central_en_sin_proyecto(app, barra, feeder: str, p_kw: float, q_kvar: float)
 
     nombre = nombre_pf(f'{PREFIJO_CENTRAL}{feeder}')
     variacion = variacion_de_la_central(app, feeder)
+    propio = generador_del_operador(app, barra)
+    if propio is not None:
+        # 028:RF-13: el usuario pone a mano la central de NA205 (2026-10-28); otra del conversor
+        # en la misma barra inyectaría dos veces. Se usa la suya con lo medido en el instante.
+        if variacion is not None and variacion.loc_name in {
+                v.loc_name for v in (app.GetActiveNetworkVariations() or [])}:
+            variacion.Deactivate()
+        propio.pgini = p_kw / 1000.0
+        propio.qgini = q_kvar / 1000.0
+        return {'generador': propio.loc_name, 'barra': barra.loc_name, 'creado': False,
+                'del_operador': True, 'variacion': None, 'p_kw': p_kw, 'q_kvar': q_kvar,
+                'aviso': f'la central es el generador {propio.loc_name} que puso el operador en '
+                         f'{barra.loc_name}: lleva la P y Q medidas y no se crea otro (028:RF-13)'}
     if variacion is not None and variacion.loc_name not in {
             v.loc_name for v in (app.GetActiveNetworkVariations() or [])}:
         variacion.Activate()
@@ -2328,6 +2354,7 @@ def poner_bancos(app, alims, sin, base, con, pedidos: dict[str, tuple[int, float
 def _con_bancos_que_faltan(app, planes: list[dict], *, cancelado, estado: dict) -> list[tuple[dict, int]]:
     """Calibra, pone los bancos que faltan y recalibra, en la misma ejecución (021:RF-64 a RF-68)."""
     from igea_dgs.ajuste_cabecera import bancos_que_faltan, tamano_de_banco
+    from igea_dgs.escaneo import origen_de
 
     primera = _ejecutar_proyecto(app, planes, cancelado=cancelado, estado=estado, solo_medir=True)
     pedidos, avisos = {}, []
@@ -2353,6 +2380,18 @@ def _con_bancos_que_faltan(app, planes: list[dict], *, cancelado, estado: dict) 
             # falta: en NA205 del TXT (2026-10-18) no cuadraba y puso 10 bancos sin sentido.
             avisos.append(f'{f}: no cuadró en kW en la primera pasada; no se calcula qué '
                           'bancos faltan (021:RF-64).')
+            continue
+        # Los del ElmFeeder y los que llevan su nombre: un banco recién creado no está en el
+        # alimentador hasta que un flujo recalcula su topología.
+        por_nombre = [o for o in app.GetCalcRelevantObjects('*.ElmShnt') or []
+                      if o.loc_name.startswith(f'BC_CAL_{f}_')]
+        ya = sorted({o.loc_name for o in [*_objetos_banco(alims, f), *por_nombre]
+                     if origen_de(o.loc_name)['origen'] == 'conversor'})
+        if ya:
+            # 028:RF-14: en Nasca (2026-10-28) se acumulaban entre corridas (8 en NA205); lo que
+            # ya hay lo cuenta el flujo y lo demás lo decide el operador.
+            avisos.append(f"{f}: ya tiene {len(ya)} banco(s) de la calibración ({', '.join(ya)}); "
+                          'no se ponen más (028:RF-14).')
             continue
         q_red, q_medido = _deficit(inf, plan)
         cab = cabecera_de(alims.elm[f])

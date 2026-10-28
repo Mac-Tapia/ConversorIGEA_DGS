@@ -217,13 +217,35 @@ def correr(web: Web, zonal: str, *, demanda_dir: Path, periodo: str | None,
     # 021:RF-25, RF-33: la central de un alimentador del sistema (la de Nasca en NA205), con sus
     # tres medidores y su barra, del perfil: sin ella NA205 se calibraba con su cabecera, que
     # es la demanda menos la generación (usuario, 2026-10-28).
+    from igea_dgs.escaneo import nodo_de_central
     from igea_dgs.perfil_empresa import PerfilError, centrales_termicas, datos_perfil
 
+    # 028:RF-15: lo que hay en DIgSILENT (centrales y bancos puestos a mano) antes de calibrar;
+    # la central del perfil sin barra toma la de su generador.
+    escaneo = web.esperar(web.post('/powerfactory/escanear', json={
+        'project': proyecto, 'feeders': sistema['alimentadores']})).get('result') or {}
+    for a, r in (escaneo.get('resumen') or {}).items():
+        if r['generadores'] or r['bancos'] or r['cargas_cambiadas']:
+            print(f"  escaneo {a}: {r['generadores']} generador(es), {r['bancos']} banco(s), "
+                  f"{r['cargas_cambiadas']} carga(s) cambiada(s)", flush=True)
     try:
-        del_perfil = {a: c for a, c in centrales_termicas(datos_perfil()).items()
-                      if a.upper() in {x.upper() for x in sistema['alimentadores']} and c.get('nodo')}
+        perfil = centrales_termicas(datos_perfil())
     except PerfilError:
-        del_perfil = {}
+        perfil = {}
+    del_perfil = {}
+    for a, c in perfil.items():
+        if a.upper() not in {x.upper() for x in sistema['alimentadores']}:
+            continue
+        nodo = c.get('nodo') or nodo_de_central(escaneo, a)
+        if nodo:
+            del_perfil[a] = {**c, 'nodo': nodo}
+        else:
+            print(f'  aviso: la central de {a} del perfil no tiene barra ni generador en DIgSILENT; '
+                  'se calibra sin ella', flush=True)
+    for a in sistema['alimentadores']:
+        if a not in del_perfil and nodo_de_central(escaneo, a):
+            print(f'  aviso: {a} tiene un generador en {nodo_de_central(escaneo, a)} sin medidores de '
+                  'central en el perfil; elíjalos en la web para calibrar por zonas (028:RF-11)', flush=True)
     ya = {p['medidor'] for p in pares}
     for a, c in del_perfil.items():
         for m in (c['generacion'], c['llegada'], c['salida']):

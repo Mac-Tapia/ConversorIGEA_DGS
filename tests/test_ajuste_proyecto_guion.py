@@ -194,6 +194,19 @@ def test_pone_los_bancos_que_faltan_y_recalibra(guion, monkeypatch):
     assert any('021:RF-64' in a for a in inf['avisos'])
 
 
+def test_una_segunda_calibracion_no_repite_los_bancos(guion):
+    """028:RF-14 — con los bancos de la calibración ya puestos, la siguiente no pone más y lo
+    dice (Nasca, 2026-10-28: 8 bancos acumulados en NA205)."""
+    app = _app(escenario=True)
+    plan = {**_de(_plan(kvar=10.0), 'F1', 300.0), 'completar_bancos': True,
+            'bancos_kvar_por_tension': {'10': 2.0}}
+    [(primera, _rc)] = guion.ejecutar_proyecto(app, [plan])
+    assert primera['bancos_nuevos']
+    [(segunda, _rc)] = guion.ejecutar_proyecto(app, [plan])
+    assert segunda['bancos_nuevos'] == []
+    assert any('028:RF-14' in a for a in segunda['avisos']), segunda['avisos']
+
+
 def test_barras_de_los_bancos_en_la_troncal(guion):
     """021:RF-66 — las barras de la troncal más cercanas a 2k/(2n+1) de su largo, sin
     repetir."""
