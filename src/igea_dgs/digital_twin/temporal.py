@@ -42,12 +42,15 @@ class GemeloGRU:
 
     nombre = 'gru'
 
-    def __init__(self, ventana: int = PUNTOS_DIA, ocultas: int = 32, epocas: int = 40, semilla: int = 0):
+    def __init__(self, ventana: int = PUNTOS_DIA, ocultas: int = 32, epocas: int = 40, semilla: int = 0,
+                 paciencia: int = 8, recorte: float = 1.0, fraccion_validacion: float = 0.2):
         import torch
 
         self.torch = torch
         self.ventana, self.ocultas, self.epocas, self.semilla = ventana, ocultas, epocas, semilla
+        self.paciencia, self.recorte, self.fraccion_validacion = paciencia, recorte, fraccion_validacion
         self.escala = 1.0
+        self.validacion: dict[str, Any] = {}
         from .oraculo import dispositivo
 
         self.disp = dispositivo()          # solo en la GPU, como la PINN
@@ -73,6 +76,10 @@ class GemeloGRU:
         return np.stack([s[inicio:inicio + self.ventana], hora], axis=1)
 
     def entrenar(self, serie: Sequence[float]) -> float:
+        """Entrena con la primera parte de la serie y valida con la última (027:RF-11): una
+        partición al azar dejaba ver a la red el día siguiente al que predecía. Para tras
+        ``paciencia`` épocas sin mejorar, con coseno y recorte del gradiente (027:RF-5, RF-6),
+        y deja en ``validacion`` su error y el del estacional en esa misma parte."""
         torch = self.torch
         s = np.asarray(serie, dtype=float)
         self.escala = float(np.max(np.abs(s))) or 1.0
@@ -80,16 +87,41 @@ class GemeloGRU:
         n = len(s) - self.ventana
         if n <= 0:
             raise ValueError(f'hacen falta más de {self.ventana} puntos para entrenar')
+        n_val = int(n * self.fraccion_validacion) if n * self.fraccion_validacion >= 1 else 0
+        n_ent = n - n_val
         x = torch.tensor(np.stack([self._entradas(s, i) for i in range(n)]), dtype=torch.float32, device=self.disp)
         y = torch.tensor(s[self.ventana:], dtype=torch.float32, device=self.disp)
         opt = torch.optim.Adam(self.red.parameters(), lr=1e-2)
+        plan = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=max(self.epocas, 1), eta_min=1e-4)
         perdida = torch.tensor(0.0)
-        for _ in range(self.epocas):
-            for lote in torch.split(torch.randperm(n, device=self.disp), 256):
+        mejor, mejor_estado, mejor_epoca, epoca = np.inf, None, -1, -1
+        for epoca in range(self.epocas):
+            for lote in torch.split(torch.randperm(n_ent, device=self.disp), 256):
                 perdida = ((self.red(x[lote]) - y[lote]) ** 2).mean()
                 opt.zero_grad()
                 perdida.backward()
+                torch.nn.utils.clip_grad_norm_(self.red.parameters(), self.recorte)
                 opt.step()
+            plan.step()
+            if not n_val:
+                continue
+            with torch.no_grad():
+                err = float((self.red(x[n_ent:]) - y[n_ent:]).abs().mean())
+            if err < mejor - 1e-12:
+                mejor, mejor_epoca = err, epoca
+                mejor_estado = {k: v.detach().clone() for k, v in self.red.state_dict().items()}
+            elif epoca - mejor_epoca >= self.paciencia:
+                break
+        if mejor_estado is not None:
+            self.red.load_state_dict(mejor_estado)
+        if n_val:
+            cola = slice(self.ventana + n_ent, len(s))
+            est = ModeloEstacional().reproducir(s)[cola]
+            ok = ~np.isnan(est)
+            mae_est = float(np.abs(est[ok] - s[cola][ok]).mean()) * self.escala if ok.any() else np.inf
+            self.validacion = {'mae_kw': mejor * self.escala, 'mae_estacional_kw': mae_est,
+                               'mejor_epoca': mejor_epoca, 'epocas': epoca + 1,
+                               'supera_estacional': bool(mejor * self.escala < mae_est)}
         return float(perdida.detach()) * self.escala ** 2
 
     def reproducir(self, serie: Sequence[float]) -> np.ndarray:
@@ -173,6 +205,16 @@ def instante_critico(curvas: Mapping[str, Sequence[float]], instantes: Sequence[
     t = int(np.argmax(total))
     return {'instante': instantes[t].isoformat(), 'total_kw': float(total[t]),
             'por_alimentador': {a: float(np.asarray(c, dtype=float)[t]) for a, c in curvas.items()}}
+
+
+def elegido(modelo, serie: Sequence[float]):
+    """El modelo que se usa para la serie: la GRU entrenada solo si mejora al estacional en la
+    última parte de la serie (027:RF-11); si no, el estacional."""
+    if hasattr(modelo, 'entrenar'):
+        modelo.entrenar(serie)
+        if not (getattr(modelo, 'validacion', {}) or {}).get('supera_estacional', False):
+            return ModeloEstacional()
+    return modelo
 
 
 def modelo_temporal(**kw):

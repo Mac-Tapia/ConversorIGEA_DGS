@@ -97,3 +97,20 @@ def test_gemelo_temporal_desde_la_web(tmp_path, monkeypatch):
     assert r['pseudo_medidas']['C']['estimada'] and r['pseudo_medidas']['C']['kw_max'] > 0
     with pytest.raises(services.UserError):
         services.gemelo_temporal(ws, ctx, 'J1', {'A': 'NO'})
+
+
+def test_gru_valida_con_la_ultima_parte_y_para_a_tiempo():
+    """027:RF-5 / 027:RF-6 / 027:RF-11 — la GRU valida con el final de la serie, para cuando
+    no mejora y se usa solo si gana al estacional en esa parte."""
+    pytest.importorskip('torch')
+    s = _curva(7, 2000, 9)
+    m = tp.GemeloGRU(epocas=200, paciencia=3)
+    m.entrenar(s)
+    v = m.validacion
+    assert v['epocas'] < 200 and v['mejor_epoca'] < v['epocas']
+    assert v['mae_kw'] > 0 and v['mae_estacional_kw'] > 0
+    usado = tp.elegido(tp.GemeloGRU(epocas=200, paciencia=3), s)
+    assert usado.nombre == ('gru' if v['supera_estacional'] else 'estacional')
+    # Una serie que se repite día a día: el estacional es exacto y la GRU no puede ganarle.
+    repetida = np.tile(s[:tp.PUNTOS_DIA], 7)
+    assert tp.elegido(tp.GemeloGRU(epocas=2, paciencia=1), repetida).nombre == 'estacional'

@@ -130,7 +130,7 @@ def test_puertas_que_no_se_pasan_no_promueven(entrenado):
     llamadas = []
     original = orc.entrenar_miembro
 
-    def espia(muestras, cfg, inicial=None, log=None):
+    def espia(muestras, cfg, inicial=None, log=None, **_kw):
         llamadas.append(inicial is not None)
         return original(muestras, orc.Entrenamiento(epocas=1, ocultas=32, pasos=6), inicial)
 
@@ -225,3 +225,39 @@ def test_solo_en_la_gpu(monkeypatch):
     monkeypatch.setattr(torch.cuda, 'is_available', lambda: False)
     with pytest.raises(orc.SinGPU, match='GPU CUDA'):
         orc.dispositivo()
+
+
+
+def test_parada_temprana_con_la_mejor_epoca():
+    """027:RF-5 / 027:RF-6 — con validación, el miembro para tras la paciencia y devuelve los
+    pesos de su mejor época; coseno y recorte vienen de la configuración."""
+    rnd = random.Random(5)
+    datos = []
+    for _ in range(6):
+        g = red_radial(rnd, 9)
+        datos.append(orc.muestra(g, _tensiones(g)))
+    cfg = orc.Entrenamiento(epocas=3000, lr=5e-3, ocultas=16, pasos=4, paciencia=10, cada=1, recorte=0.5)
+    historial: list = []
+    estado = orc.entrenar_miembro(datos[:4], cfg, validacion=datos[4:], historial=historial)
+    assert historial and historial[-1][0] < cfg.epocas - 1
+    _mejor_epoca, mejor = min(historial, key=lambda x: x[1])
+    disp = orc.dispositivo()
+    red = orc._red(cfg.ocultas, cfg.pasos).to(disp)
+    red.load_state_dict(estado)
+    red.eval()
+    with torch.no_grad():
+        err = np.mean([float((red(*orc._tensores(m, disp, cfg.exponente_carga, cfg.fisica))[0]
+                              - torch.tensor(m.v, dtype=torch.float32, device=disp))[torch.tensor(m.mascara, device=disp)]
+                             .abs().mean()) for m in datos[4:]])
+    assert err == pytest.approx(mejor, rel=1e-4)
+
+
+def test_el_registro_guarda_la_curva_de_validacion(entrenado):
+    """027:RF-5 — el candidato guarda la mejor época y la curva de cada miembro."""
+    import json
+    from pathlib import Path
+
+    _bufer, r = entrenado
+    meta = json.loads((Path(r['carpeta']) / 'modelo.json').read_text(encoding='utf-8'))
+    assert len(meta['validacion']) == orc.MIEMBROS
+    assert all(v['mejor_epoca'] is not None and v['curva'] for v in meta['validacion'])
