@@ -393,3 +393,37 @@ def test_rutas_de_deriva_y_vuelta(tmp_path, monkeypatch):
         assert fin['status'] == 'done' and fin['result']['proponer_reentrenar']
         assert c.post('/api/modelos/asistente/volver').json() == {'modelo': 'asistente', 'version': 'v1'}
         assert c.post('/api/modelos/otro/volver').status_code in (400, 422)
+
+
+def test_episodios_por_sistema_y_curva(tmp_path):
+    """027:RF-53 — por sistema, sus episodios frente a 30/10/10 con un reparto fijo por su
+    huella; con los mínimos, la curva dice si un 20 % más mejora menos del 5 %."""
+    import copy
+    import hashlib
+
+    from igea_dgs.digital_twin import curva as cv
+
+    rnd = random.Random(21)
+    muestras, ids = [], []
+    for r, (n, cuantos) in enumerate(((9, 70), (12, 8))):
+        base = red_radial(rnd, n)
+        for k in range(cuantos):
+            g = copy.deepcopy(base)
+            f = rnd.uniform(0.6, 1.4)
+            for nodo in g['nodos'].values():
+                nodo['p_mw'] = (nodo.get('p_mw') or 0.0) * f
+            muestras.append(orc.muestra(g, _tensiones(g)))
+            ids.append(hashlib.sha256(f'{r}-{k}'.encode()).hexdigest())
+    filas = cv.por_sistema(muestras, ids)
+    assert [f['episodios'] for f in filas] == [70, 8]
+    grande, chica = filas
+    assert grande['entrenamiento'] + grande['validacion'] + grande['prueba'] == 70
+    assert not chica['suficiente'] and sum(chica['faltan'].values()) > 0
+    assert cv.reparto_del_sistema(ids[:70]) == cv.reparto_del_sistema(ids[:70])
+    cfg = orc.Entrenamiento(epocas=40, ocultas=16, pasos=4, paciencia=10)
+    if grande['suficiente']:
+        r = cv.informe(muestras, ids, cfg)
+        c = r['sistemas'][0]['curva']
+        assert len(c['puntos']) == 3 and c['puntos'][-1]['episodios'] == grande['entrenamiento']
+        assert c['convergido'] == (c['mejora_ultimo_20pct'] < cv.MEJORA_MIN)
+        assert r['listos'] == 1 and 'indices' not in r['sistemas'][0]
