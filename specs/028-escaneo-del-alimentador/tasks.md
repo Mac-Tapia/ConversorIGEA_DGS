@@ -32,7 +32,11 @@ cuando el usuario ponga a mano la central de NA205.
       Hecho el 2026-10-28: pruebas en verde; en DIgSILENT, el escaneo de Chincha compara con los
       3358 tramos de su DGS aceptado (0 nuevos en el proyecto recién importado) y ve los bancos de
       calibración de TM106 y PN107; la calibración desde la web escanea antes y no se detiene.
-- [ ] T8. Botón «Recalibrar» con su ruta, que corre `tools/sistema_web.py` sin reconvertir.
+- [x] T8. Botón «Recalibrar» con su ruta, que corre `tools/sistema_web.py` sin reconvertir.
       (RF-21 a RF-23)
       Hecho cuando: prueba de la API y del front en verde y una recalibración de Chincha desde el
       botón.
+      Hecho el 2026-10-28: pruebas en verde; en la web, «Recalibrar» sobre
+      20261028-103442_IGEA_SISTEMA_CHINCHA con 2026-07: 26 válidos y 0 con fallos en 261 s. La
+      primera vez se esperaba a sí mismo (`sistema_web.py` esperaba al trabajo que lo lanzó):
+      arreglado con `IGEA_TRABAJO_PROPIO`, también para el asistente y el agente.
