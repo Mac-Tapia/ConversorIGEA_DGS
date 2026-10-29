@@ -143,6 +143,7 @@ spec; recogido por la revisión 033 del 2026-10-29)
 - RF-30: SI el libro de clientes importantes del ajuste es de otro mes que la máxima, o su
   mes no se sabe, ENTONCES EL SISTEMA no preparará el plan del ajuste y lo dirá
   (`CLIENT_PERIOD_MISMATCH` o `CLIENT_PERIOD_UNKNOWN`).
+  Cambiado por 035:RF-19 (2026-10-29): un libro de otro mes no bloquea; se usa y se dice.
 - RF-31: SI hay libro de clientes y no se sabe el mes de la máxima, ENTONCES EL SISTEMA no
   preparará el plan del ajuste (`MAXIMUM_PERIOD_UNKNOWN`); sin libro de clientes, lo
   preparará con el aviso de RF-13.

@@ -185,6 +185,8 @@ export interface UniversalSourceAudit {
 
 export interface WorkspaceState {
   id: string;
+  /** 035:RF-21: proyecto (o «proyecto@año») → alimentador → n.º de recalibración (0: la primera). */
+  calibraciones?: Record<string, Record<string, { recalibracion: number; nombre?: string; caso?: string | null }>>;
   created_at: number;
   options: Options;
   inputs: Record<string, InputMeta>;
@@ -832,6 +834,15 @@ export interface ClienteImportante {
   /** 004:RF-66: el registro de 15 minutos de su POT y su kVAR en él (ERI × 4). */
   fecha_registro?: string;
   q_registro_kvar?: number | null;
+  p_registro_kw?: number | null;
+  /** 035:RF-1 a RF-3: con la máxima de su alimentador, lo que el ajuste escribirá en su SED. */
+  alimentador_maxima?: string | null;
+  instante_maxima?: string | null;
+  p_kw?: number;
+  q_kvar?: number;
+  fp_escrito?: number;
+  metodo?: string;
+  fecha_valores?: string | null;
 }
 
 export interface ClientesCruce {
@@ -839,6 +850,8 @@ export interface ClientesCruce {
   /** Spec 013, RF-16: libro y mes de donde salieron los clientes. */
   libro?: string;
   mes?: string | null;
+  /** 035:RF-1: fecha y hora de la máxima con que se cruzó cada alimentador. */
+  maximas?: Record<string, string | null>;
   cruzados: ClienteImportante[];
   no_cruzados: ClienteImportante[];
   avisos: string[];
@@ -1094,7 +1107,20 @@ export interface AjusteInforme {
   project: string;
   feeder: string;
   status?: 'OK' | 'AVISO_KVAR' | 'VIOLACION_FISICA' | 'NO_CONVERGE' | 'FALLO_VALIDACION_NATIVA';
-  criterio_cuadre?: 'KW_ONLY';
+  /** 035:RF-5: con bancos en servicio, también la Q. */
+  criterio_cuadre?: 'KW_ONLY' | 'KW_Y_KVAR';
+  bancos_en_servicio?: string[];
+  /** 035:RF-22: la primera calibración cuadra solo P; la recalibración n.º k, P y Q. */
+  tipo_ajuste?: { tipo: 'CALIBRACION' | 'RECALIBRACION'; numero: number; cuadra: 'P' | 'P_Y_Q' };
+  revision_bancos?: { motivo: string; cabecera_kvar: number; objetivo_kvar: number; diferencia_kvar: number; aviso: string };
+  /** 035:RF-11: cómo quedó la Q con los bancos. */
+  cuadre_q?: {
+    estado: 'CUADRADA' | 'SIN_MARGEN' | 'SIN_BASE' | null; factor_p: number; factor_q: number;
+    fp_escaladas: number | null; cabecera_kvar: number | null; objetivo_kvar: number;
+    faltan_kvar: number | null; bancos_kvar: number;
+  };
+  /** 035:RF-16: unidades de P y Q leídas en el proyecto de DIgSILENT. */
+  unidades?: { leidas: Record<string, string | null>; correctas: boolean; distintas: Record<string, string> };
   /** Spec 015, RF-56: fijas con su EA/ERI; escaladas con el factor del perfil o del archivo. */
   factor_potencia_cargas?: {
     fijas: string; escaladas: number | null; escaladas_origen: string;

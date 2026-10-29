@@ -62,6 +62,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 032 «Caso base» con los datos originales; fichas y potencias en «Sin proyecto» | cumplida |  |
   | 033 Trazabilidad y estado de las specs | cumplida |  |
   | 034 Motor base de conversión y contrato universal de fuentes | cumplida |  |
+  | 035 Fijas de la tabla en el instante de la máxima, Q de cabecera con bancos y unidades de DIgSILENT | implementada | falta T6 |
 
   Las convenciones de cada empresa (CRS de origen, patrón de SED de medición, escala,
   carpeta de DIgSILENT) van en `config/perfil_empresa.json`, local y fuera de git, que

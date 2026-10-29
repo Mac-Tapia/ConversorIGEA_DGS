@@ -78,6 +78,7 @@ Periodo de la máxima
 
 Medidor y hoja
 
+  Cambiado por 035:RF-17 (2026-10-29): antes de repartir por kVA, el libro del mes anterior más cercano.
 - RF-12: SI el medidor que da el libro de medidores no tiene hoja en los libros del año,
   ENTONCES EL SISTEMA buscará la hoja cuyo nombre es el código del alimentador, solo o tras
   un prefijo separado por un guion, un espacio, un punto o un subrayado («L-PA217», «ALIM
@@ -149,6 +150,12 @@ Trabajos en segundo plano (usuario: «los hilos bien hechos»)
   dentro de una petición HTTP (P7).
 - RF-33: SI se cancela o falla el índice, ENTONCES EL SISTEMA conservará el índice anterior
   entero, sin dejar uno a medias.
+- RF-78: EL SISTEMA lanzará el índice de cabecera o el de clientes solo CUANDO el operador
+  asigne esa fuente (subida o ruta) o pulse «Actualizar índice»; abrir o recargar la web,
+  cambiar de pestaña o de espacio no lanzará ningún trabajo (usuario, 2026-10-29: al abrir el
+  paso 2 salía «Ya hay un trabajo en curso en este espacio: «Actualizar libros de cabecera»»
+  sin haber pedido nada, porque los dos índices se lanzaban solos a la vez y el segundo
+  chocaba con el primero en el carril del motor).
 
 Cómo entra cada libro en la web (usuario: «en la web se debe identificar claro cómo se
 ingresan»)

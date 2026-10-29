@@ -72,6 +72,17 @@ def test_libros_por_anio_con_su_estado_y_donde_dejar_uno_nuevo():
     assert "'/api/workspaces/{wid}/demanda/cabecera/indexar'" in APP
 
 
+def test_el_indice_no_se_lanza_al_abrir_la_pestana():
+    """025:RF-78 — el índice de cabecera y el de clientes salen de asignar la fuente o del
+    botón, nunca de montar la pestaña: los dos a la vez chocaban en el carril del motor y el
+    segundo daba «Ya hay un trabajo en curso» sin que el operador pidiera nada."""
+    libro = DEMANDA[DEMANDA.index('function Libro('):DEMANDA.index('function LibrosPorAnio')]
+    assert 'useEffect(' not in libro and 'autoIndexado' not in libro
+    assert 'if (indexable(r.demanda?.[tipo])) void indexar();' in libro
+    assert 'if (r) asignada(r);' in libro and 'if (r) { asignada(r);' in libro
+    assert 'actualizar={indexar}' in libro
+
+
 CARGAS = (SRC / 'components' / 'CargasTab.tsx').read_text(encoding='utf-8')
 
 

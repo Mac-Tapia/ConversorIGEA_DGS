@@ -212,6 +212,7 @@ Factor de potencia de las cargas (cambio del 2026-10-15)
 - RF-54: DONDE el perfil de empresa fija el factor de potencia de las SED escaladas, EL
   SISTEMA dará a cada una la Q que da su P base (RF-44) con ese factor, y la escalará con
   el mismo factor de escala que su P.
+  Con bancos en servicio, el FP de las escaladas sale del cuadre de la Q (035:RF-6, RF-12).
 - RF-55: MIENTRAS el perfil de empresa no fije el factor de potencia de las escaladas, EL
   SISTEMA usará para ellas el factor de potencia de la máxima de cabecera.
 - RF-56: EL SISTEMA dirá en el informe de la calibración de dónde sale el factor de

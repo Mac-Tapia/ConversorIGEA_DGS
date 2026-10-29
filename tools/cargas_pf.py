@@ -496,6 +496,40 @@ def foto_carga(obj) -> dict:
     return {n: getattr(obj, n, None) for n in nombres}
 
 
+#: Unidades con que se escriben y leen las demandas (035:RF-14): ``plini`` en MW y ``qlini``
+#: y ``qcapn`` en Mvar. Son un ajuste del proyecto (``SetPrj.cspqexp``), no de DIgSILENT.
+UNIDADES_ESPERADAS = {'plini': 'MW', 'qlini': 'Mvar', 'qcapn': 'Mvar'}
+
+
+def unidades_del_proyecto(app) -> dict:
+    """Las unidades de P y Q de las cargas y de los bancos del proyecto activo (035:RF-14).
+
+    Todo el ajuste escribe ``kW / 1000``: en un proyecto con las cargas en kW quedarían mil
+    veces menores sin aviso. SM218 (sonda del 2026-10-29): ``cspqexp`` «M», MW y Mvar.
+    """
+    leidas: dict[str, str | None] = {}
+    for clase, atributos in (('ElmLod', ('plini', 'qlini')), ('ElmShnt', ('qcapn',))):
+        obj = next(iter(app.GetCalcRelevantObjects(f'*.{clase}') or []), None)
+        for a in atributos:
+            try:
+                leidas[a] = None if obj is None else str(obj.GetAttributeUnit(a)).strip() or None
+            except Exception:  # noqa: BLE001 - versión sin GetAttributeUnit: no se sabe
+                leidas[a] = None
+    distintas = {a: u for a, u in leidas.items() if u is not None and u != UNIDADES_ESPERADAS[a]}
+    return {'leidas': leidas, 'esperadas': dict(UNIDADES_ESPERADAS), 'correctas': not distintas,
+            'distintas': distintas}
+
+
+def error_de_unidades(unidades: dict) -> str | None:
+    """El motivo para no escribir nada si las unidades no son MW y Mvar (035:RF-15)."""
+    if unidades.get('correctas', True):
+        return None
+    return ('El proyecto de DIgSILENT tiene la potencia de cargas o bancos en ' + ', '.join(
+        f'{u} ({a})' for a, u in unidades['distintas'].items()) + ' y el ajuste escribe en MW y '
+        'Mvar: cambie las unidades en Proyecto › Ajustes del proyecto › Variables de entrada '
+        '(cargas y generadores en «M») y vuelva a calibrar. No se escribió nada (035:RF-15).')
+
+
 def escribir_carga(obj, p_mw: float, q_mvar: float) -> None:
     """Escribe solo las ENTRADAS del modo de la carga (``mode_inp``), con el signo de Q.
 

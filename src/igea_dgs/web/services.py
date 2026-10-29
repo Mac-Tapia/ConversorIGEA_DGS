@@ -2506,9 +2506,17 @@ def demanda_curva_central(ws: Workspace, job_id: str, *, alimentador: str, cabec
 
 
 def demanda_clientes(ws: Workspace, alimentadores: list[str] | None = None,
-                     *, periodo: str | None = None, instante: datetime | None = None) -> dict:
+                     *, periodo: str | None = None, instante: datetime | None = None,
+                     maximas: dict[str, dict] | None = None) -> dict:
     """Clientes importantes cruzados con los suministros (RF-33 a RF-37); con
-    ``alimentadores``, solo los de esos alimentadores por su radial (RF-43)."""
+    ``alimentadores``, solo los de esos alimentadores por su radial (RF-43).
+
+    Con ``maximas`` (alimentador → su máxima de cabecera buscada), cada alimentador con el
+    registro del instante de su máxima y el libro de su mes, y cada cliente con la P y la Q
+    que el ajuste escribirá en su SED (035:RF-1 a RF-3).
+    """
+    if maximas:
+        return _clientes_en_sus_maximas(ws, alimentadores or list(maximas), maximas, periodo)
     from ..demanda_medida import (DemandaError, cruzar, del_alimentador, leer_clientes,
                                   leer_suministros, registros_de_maxima)
 
@@ -2550,6 +2558,120 @@ def demanda_clientes(ws: Workspace, alimentadores: list[str] | None = None,
         'totales': {'clientes': len(clientes), 'cruzados': len(cruzados), 'no_cruzados': len(aparte),
                     'por_actual': sum(c.cruzado_por == 'actual' for c in cruzados),
                     'por_anterior': sum(c.cruzado_por == 'anterior' for c in cruzados),
+                    'de_otros': de_otros},
+    }
+
+
+def _clientes_en_sus_maximas(ws: Workspace, alimentadores: list[str], maximas: dict[str, dict],
+                             periodo: str | None) -> dict:
+    """La tabla de clientes con lo que el ajuste escribirá (035:RF-1 a RF-3).
+
+    Hasta el 2026-10-29 la tabla se cruzaba sin instante: la POT de cada cliente, cada una de
+    su día, mientras el plan escribía la P y la Q del instante de la máxima de su alimentador
+    (004:RF-67). Aquí cada alimentador va con el libro del mes de su máxima y el registro de
+    su fecha y hora, y cada cliente con :func:`derivacion_cliente`, la cuenta de ``fijas_de``.
+    Los libros se abren una vez por mes y los registros una vez por instante: los
+    alimentadores de una barra de 60 kV comparten el suyo (022:RF-84).
+    """
+    from ..ajuste_cabecera import AjusteError, derivacion_cliente, objetivo_de
+    from ..demanda_medida import (DemandaError, clave_codigo, cruzar, del_alimentador,
+                                  leer_clientes, leer_suministros, registros_de_maxima)
+    from ..perfil_empresa import PerfilError, datos_perfil, factor_potencia_cargas
+
+    alias = demanda_alias()
+    try:
+        # 015:RF-62: el mismo mínimo de las fijas que usa el plan del ajuste.
+        fp_min = factor_potencia_cargas(datos_perfil(), 'factor_potencia_minimo_fijas')
+    except PerfilError as exc:
+        raise UserError(f'Perfil de empresa: {exc}') from exc
+    grupos: dict[tuple[str | None, datetime | None], list[str]] = {}
+    objetivos, avisos = {}, []
+    for f in alimentadores:
+        m = maximas.get(f) or {}
+        try:
+            instante = datetime.fromisoformat(str(m['fecha'])) if m.get('fecha') else None
+        except ValueError:
+            instante = None
+        try:
+            objetivos[f] = objetivo_de({**m, 'alimentador': f})
+        except AjusteError as exc:
+            avisos.append(f'{f}: {exc} La tabla no puede decir su P y su Q.')
+        if instante is None:
+            avisos.append(f'{f}: sin fecha de su máxima; sus clientes con el registro de su POT.')
+        mes = instante.strftime('%Y-%m') if instante else periodo
+        grupos.setdefault((mes, instante), []).append(f)
+    try:
+        suministros, avisos_s = leer_suministros(_demanda_ruta(ws, 'suministros'), alias)
+    except DemandaError as exc:
+        raise UserError(str(exc)) from exc
+    avisos += avisos_s
+    libros: dict[str | None, tuple] = {}
+    cruzados_out, aparte_out, de_otros, leidos = [], {}, 0, []
+    total_clientes = 0
+    for (mes, instante), feeders in sorted(grupos.items(), key=lambda g: (g[0][0] or '', str(g[0][1]))):
+        if mes:
+            # 035:RF-17: el libro del mes de la máxima; solo si no está, el del mes anterior
+            # más cercano, como el plan del ajuste, y dicho.
+            evidencia = periodo_clientes_activo(ws, mes)
+            if evidencia.status == 'NO_CLIENT_BOOK':
+                avisos.append(f"{', '.join(feeders)}: {evidencia.warning}")
+                continue
+            if evidencia.status == 'CLIENT_PERIOD_PREVIOUS':
+                avisos.append(f"{', '.join(feeders)}: {evidencia.warning}")
+                mes = evidencia.period
+        if mes not in libros:
+            try:
+                libro = _demanda_ruta(ws, 'clientes', periodo=mes)
+                clientes, avisos_c = leer_clientes(libro, alias)
+            except DemandaError as exc:
+                raise UserError(str(exc)) from exc
+            avisos += avisos_c
+            total_clientes += len(clientes)
+            libros[mes] = (libro, cruzar(clientes, suministros))
+            leidos.append({'mes': mes, 'libro': libro.name})
+        libro, (todos, aparte_mes) = libros[mes]
+        suyos, aparte, otros = del_alimentador(todos, aparte_mes, feeders)
+        de_otros += otros
+        for c in aparte:
+            aparte_out.setdefault(c.codigo, c)
+        try:
+            registro, avisos_r = registros_de_maxima(libro, {c.codigo: c.pot for c in suyos},
+                                                     instante=instante)
+        except DemandaError as exc:
+            registro, avisos_r = {}, [str(exc)]
+        avisos += avisos_r
+        por_clave = {clave_codigo(f): f for f in feeders}
+        for c in suyos:
+            if c.codigo in registro:
+                c.fecha_registro, c.q_registro_kvar, c.p_registro_kw = registro[c.codigo]
+            fila = c.to_dict()
+            f = por_clave.get(clave_codigo(c.radial))
+            obj = objetivos.get(f) if f else None
+            fila['alimentador_maxima'] = f
+            fila['instante_maxima'] = instante.isoformat(sep=' ') if instante else None
+            if obj is not None:
+                d = derivacion_cliente(fila, obj.tan_phi, obj.fp, fp_min)
+                if d is not None:
+                    fila.update(p_kw=d['p_kw'], q_kvar=d['q_kvar'], fp_escrito=d['fp'],
+                                metodo=d['metodo'], fecha_valores=d.get('fecha'),
+                                compensado=d.get('compensado'))
+            cruzados_out.append(fila)
+    cruzados_out.sort(key=lambda x: (str(x.get('alimentador_maxima') or ''), str(x.get('sed') or ''),
+                                     str(x.get('codigo') or '')))
+    aparte_list = [c.to_dict() for c in aparte_out.values()]
+    return {
+        'alimentadores': alimentadores,
+        'libro': ', '.join(x['libro'] for x in leidos),
+        'mes': leidos[0]['mes'] if len(leidos) == 1 else None,
+        'maximas': {f: (inst.isoformat(sep=' ') if inst else None)
+                    for (_mes, inst), fs in grupos.items() for f in fs},
+        'cruzados': cruzados_out,
+        'no_cruzados': aparte_list,
+        'avisos': list(dict.fromkeys(avisos)),
+        'totales': {'clientes': total_clientes, 'cruzados': len(cruzados_out),
+                    'no_cruzados': len(aparte_list),
+                    'por_actual': sum(c.get('cruzado_por') == 'actual' for c in cruzados_out),
+                    'por_anterior': sum(c.get('cruzado_por') == 'anterior' for c in cruzados_out),
                     'de_otros': de_otros},
     }
 
@@ -2688,17 +2810,23 @@ def periodo_clientes_activo(ws: Workspace, periodo: str | None = None):
                 sheet='resumen', fingerprint=None, period_origin=None, warning=str(exc),
             )
     active = [item for item in catalog if item.get('activo')]
+    anterior_de = None
     if periodo and source.is_dir() and len(active) > 1 and not any(
             str(item.get('mes') or '').strip() == periodo for item in active):
-        # 025:RF-11 (013:RF-13): una carpeta de libros mensuales sin el del mes de la
-        # máxima. Con la de 2025, la máxima de un alimentador puede caer en un mes cuyo
-        # libro no llegó: se dice y sus SED se reparten por kVA, sin bloquear a los demás.
-        return ClientPeriodEvidence(
-            status='NO_CLIENT_BOOK', period=None, file=None, sheet=None,
-            fingerprint=None, period_origin=None,
-            warning=(f'Sin libro de clientes importantes de {periodo} en {source.name}: '
-                     'sus SED se reparten por kVA.'),
-        )
+        # 035:RF-17: una carpeta de libros mensuales sin el del mes de la máxima. SM218
+        # (2026-10-29) tiene su máxima de 2026 el 23 de octubre y el último libro de clientes
+        # es el de septiembre; el usuario: «si no existe el mismo mes de la cabecera, usa el
+        # mes anterior». Se toma el más cercano anterior que exista y se dice.
+        anterior = mes_anterior_con_libro(active, periodo)
+        if anterior is None:
+            # 025:RF-11 (013:RF-13): ni ese mes ni uno anterior: sus SED por kVA.
+            return ClientPeriodEvidence(
+                status='NO_CLIENT_BOOK', period=None, file=None, sheet=None,
+                fingerprint=None, period_origin=None,
+                warning=(f'Sin libro de clientes importantes de {periodo} ni de un mes anterior '
+                         f'en {source.name}: sus SED se reparten por kVA.'),
+            )
+        anterior_de, periodo = periodo, anterior
     if periodo:
         matching = [item for item in active if str(item.get('mes') or '').strip() == periodo]
         # Con un único libro conservamos su mes real para emitir MISMATCH; con una
@@ -2723,12 +2851,29 @@ def periodo_clientes_activo(ws: Workspace, periodo: str | None = None):
         )
     digest = hashlib.sha256(path.read_bytes()).hexdigest()
     period = str(chosen.get('mes') or '').strip() or None
+    if anterior_de and period:
+        return ClientPeriodEvidence(
+            status='CLIENT_PERIOD_PREVIOUS', period=period, file=path.name, sheet='resumen',
+            fingerprint=digest, period_origin=str(chosen.get('origen_mes') or '') or None,
+            warning=(f'Sin libro de clientes importantes de {anterior_de}: se usa el de '
+                     f'{period} ({path.name}), el mes anterior más cercano con libro; sus '
+                     'clientes no tienen el registro de la fecha de la máxima, van con el de su '
+                     'POT de ese mes (035:RF-17, RF-18).'),
+        )
     return ClientPeriodEvidence(
         status='CLIENT_PERIOD_VERIFIED' if period else 'CLIENT_PERIOD_UNKNOWN',
         period=period, file=path.name, sheet='resumen', fingerprint=digest,
         period_origin=str(chosen.get('origen_mes') or '') or None,
         warning=None if period else 'El libro activo no tiene un mes demostrable.',
     )
+
+
+def mes_anterior_con_libro(catalogo: list[dict], periodo: str) -> str | None:
+    """El mes más cercano anterior a ``periodo`` con libro de clientes activo (035:RF-17)."""
+    meses = sorted({str(x.get('mes') or '').strip() for x in catalogo if x.get('activo')}
+                   - {''})
+    previos = [m for m in meses if m < periodo]
+    return previos[-1] if previos else None
 
 
 def _periodo_clientes_para_maxima(ws: Workspace, periodo: str | None):
@@ -2823,6 +2968,8 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
     ``desconectados`` son los Nis que el operador desmarcó en la tabla del cruce (RF-26):
     van aparte en el plan, y el guion decide qué carga de SED se queda sin clientes.
     """
+    from dataclasses import replace
+
     import time as _time
 
     from ..ajuste_cabecera import AjusteError, Objetivo, fijas_de, objetivo_de
@@ -2925,15 +3072,23 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
                     'CLIENT_PERIOD_UNKNOWN: '
                     + (client_period.warning or 'el libro activo no demuestra su mes')
                 )
-            if maximum_period != client_period.period:
-                raise UserError(
-                    f'CLIENT_PERIOD_MISMATCH: la máxima es {maximum_period} y el libro '
-                    f'{client_period.file} es {client_period.period}.'
-                )
+            previo = client_period.status == 'CLIENT_PERIOD_PREVIOUS'           # 035:RF-17
+            otro = maximum_period != client_period.period and not previo
             period_evidence = {
-                'status': 'CLIENT_PERIOD_MATCH', 'maxima': maximum_period,
-                'clientes': client_period.period,
+                'status': ('CLIENT_PERIOD_PREVIOUS' if previo else
+                           'CLIENT_PERIOD_MISMATCH' if otro else 'CLIENT_PERIOD_MATCH'),
+                'maxima': maximum_period, 'clientes': client_period.period,
             }
+            if otro:
+                # 035:RF-19: un libro de otro mes no bloquea (usuario, 2026-10-29: «cuando se
+                # hace cambio de mes con otro mes que no sea el de la cabecera no debe bloquear
+                # nada»); se cruza con ese libro y se dice.
+                client_period = replace(client_period, warning=(
+                    f'La máxima es de {maximum_period} y el libro de clientes '
+                    f'{client_period.file} es de {client_period.period}: se usan sus clientes, '
+                    'sin el registro de la fecha de la máxima (035:RF-19).'))
+            if (previo or otro) and pre + client_period.warning not in avisos:
+                avisos.append(pre + client_period.warning)
         else:
             period_evidence = {
                 'status': 'NO_CLIENT_BOOK', 'maxima': maximum_period, 'clientes': None,
@@ -2956,7 +3111,7 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
             except ValueError:
                 instante_obj = None
             clientes = demanda_clientes(
-                ws, sorted(implicados) or [alimentador], periodo=maximum_period,
+                ws, sorted(implicados) or [alimentador], periodo=client_period.period,
                 instante=instante_obj,
             )['cruzados']
             if implicados:
@@ -3034,6 +3189,10 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
             'ultima_calibracion': (ws.calibraciones.get(clave_calibracion(project, anio_casos))
                                    or {}).get(alimentador),
         }
+        # 035:RF-21, RF-22: con una calibración anterior en estos casos, es la recalibración
+        # n.º k y cuadra P y Q; la primera (0) solo la P.
+        previa = (ws.calibraciones.get(clave_calibracion(project, anio_casos)) or {}).get(alimentador)
+        plan['recalibracion'] = 0 if not previa else int(previa.get('recalibracion') or 0) + 1
         if central:
             plan['central'] = central
         nombre = (f'ajuste_cabecera_{token}.json' if not varios
@@ -3153,11 +3312,16 @@ def _guardar_calibracion(ws: Workspace, project: str, feeder: str, informe: dict
                 'q_real_kvar': comp.get('q_ea_eri_kvar', d.get('q_kvar')),
                 'q_kvar': d.get('q_kvar'), 'compensado': bool(comp)})
     with ws.lock:
-        ws.calibraciones.setdefault(clave_calibracion(project, anio_casos), {})[feeder] = {
-            'nombre': f"la calibración del {informe.get('stamp') or time.strftime('%Y-%m-%d %H:%M')}",
+        por_feeder = ws.calibraciones.setdefault(clave_calibracion(project, anio_casos), {})
+        # 035:RF-21: la primera calibración es la 0; cada una después, la recalibración n.º k.
+        previa = por_feeder.get(feeder)
+        numero = 0 if previa is None else int(previa.get('recalibracion') or 0) + 1
+        por_feeder[feeder] = {
+            'nombre': (f"la {'calibración' if numero == 0 else f'recalibración n.º {numero}'} del "
+                       f"{informe.get('stamp') or time.strftime('%Y-%m-%d %H:%M')}"),
             'sed': sed, 'escrita': escrita, 'fijas': fijas, 'cuadrado': bool(informe.get('cuadrado')),
             'escenario': informe.get('escenario'), 'recorded_at': time.time(),
-            'anio': anio_medicion, 'caso': informe.get('caso')}
+            'anio': anio_medicion, 'caso': informe.get('caso'), 'recalibracion': numero}
         if anio_medicion and not anio_casos:
             # 025:RF-17: desde ahora los casos sin año son de este año.
             ws.anios_casos.setdefault(project.strip(), int(anio_medicion))
