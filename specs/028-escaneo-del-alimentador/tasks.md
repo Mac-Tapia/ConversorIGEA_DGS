@@ -54,3 +54,9 @@ cuando el usuario ponga a mano la central de NA205.
       eléctrica. La API local respondió a la consulta de lectura del espacio 5f11283a33c94ea5:
       fuente sin cargar y sin trabajos activos; no se ejecutó el recorrido nativo ni informes
       en esta continuación. T9 sigue abierta hasta obtener esa evidencia. Sustento: `research.md`.
+- [x] T10. Tramos cambiados a mano en el escaneo: los del DGS aceptado que graba una variación
+      del operador, con su variación, tipo y longitud; resumen y columna en la tabla. (RF-26)
+      Hecho cuando: `pytest -q tests/test_escaneo.py` en verde y en DIgSILENT el escaneo de CA101
+      nombra la variación del operador.
+      Hecho el 2026-10-28: suite del escaneo en verde; en DIgSILENT el escaneo de CA101 nombró
+      «Prueba_operador_032» como del operador (vacía: sin tramos que listar).

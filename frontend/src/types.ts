@@ -1603,6 +1603,8 @@ export interface EscaneoAlimentador {
   cargas_cambiadas?: { sed: string; manual: { kw: number; kvar: number }; ajuste: { kw: number; kvar: number } }[];
   /** 028:RF-17: tramos que no venían en el DGS aceptado. */
   tramos_nuevos?: { tramo: string; desde: string | null; hasta: string | null; km: number | null; origen: string }[];
+  /** 028:RF-26: tramos del DGS aceptado que el operador cambió en una variación suya. */
+  tramos_cambiados?: { tramo: string; variacion: string; tipo: string | null; km: number | null; en_servicio: boolean }[];
 }
 export interface Escaneo {
   project: string; caso: string | null; avisos: string[];

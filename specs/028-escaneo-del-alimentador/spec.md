@@ -92,6 +92,12 @@ bancos y otros cambios; en base de eso debe recalibrar sin ningún bloqueo, solo
   recalibración y generación de los informes»).
 - RF-25: EL SISTEMA dará al operador una herramienta que convierta, importe y calibre por la web
   uno o varios alimentadores, unidos en un proyecto si son varios, igual que un sistema eléctrico.
+- RF-26: CUANDO escanea, EL SISTEMA listará por alimentador cada tramo que venía en el DGS
+  aceptado y que graba una variación que no es del conversor (el operador le cambió el tipo, la
+  longitud o el estado), con su variación, su tipo y su longitud de ahora, y lo mostrará en la
+  tabla del escaneo junto a los tramos nuevos. Usuario, 2026-10-28: «todas esas modificaciones
+  manuales debe reconocerlas al momento de recalibrar» (tramos actualizados y ternas nuevas,
+  según las instalaciones en campo); los tramos y ternas nuevos ya los da RF-17.
 
 ## Fuera de alcance
 

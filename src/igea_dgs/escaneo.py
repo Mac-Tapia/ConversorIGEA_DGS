@@ -57,7 +57,8 @@ def resumen(escaneo: Mapping[str, Any]) -> dict[str, dict[str, int]]:
                   'bancos_del_operador': sum(b.get('origen') == 'operador' for b in bancos),
                   'bancos_de_calibracion': sum(b.get('origen') == 'conversor' for b in bancos),
                   'cargas_cambiadas': len(d.get('cargas_cambiadas') or []),
-                  'tramos_nuevos': len(d.get('tramos_nuevos') or [])}
+                  'tramos_nuevos': len(d.get('tramos_nuevos') or []),
+                  'tramos_cambiados': len(d.get('tramos_cambiados') or [])}           # RF-26
     return out
 
 

@@ -774,11 +774,11 @@ function EscaneoTabla({ escaneo }: { escaneo: Escaneo }) {
     <div className="table-wrap table-short">
       <p className="muted">Escaneo de {escaneo.project}{escaneo.caso ? ` en «${escaneo.caso}»` : ''}: solo lectura.</p>
       <table className="table">
-        <thead><tr><th>Alimentador</th><th>Generadores (centrales)</th><th>Bancos</th><th>Tramos nuevos</th><th>Cargas cambiadas</th></tr></thead>
+        <thead><tr><th>Alimentador</th><th>Generadores (centrales)</th><th>Bancos</th><th>Tramos nuevos</th><th>Tramos cambiados a mano</th><th>Cargas cambiadas</th></tr></thead>
         <tbody>{Object.entries(escaneo.alimentadores).map(([f, d]) => (
           <tr key={f}>
             <td className="strong">{f}</td>
-            {d.error ? <td colSpan={4} className="err">{d.error}</td> : <>
+            {d.error ? <td colSpan={5} className="err">{d.error}</td> : <>
               <td>{(d.generadores ?? []).length ? (d.generadores ?? []).map((g) => (
                 <div key={g.generador}>{g.generador} · barra {g.barra ?? '—'} · {fmtNum(g.p_kw ?? 0)} kW
                   {g.en_servicio ? '' : ' (fuera de servicio)'} · <small className="muted">{deQuien(g.origen)}</small></div>
@@ -789,6 +789,10 @@ function EscaneoTabla({ escaneo }: { escaneo: Escaneo }) {
               )) : <span className="muted">ninguno</span>}</td>
               <td>{(d.tramos_nuevos ?? []).length ? (d.tramos_nuevos ?? []).map((x) => (
                 <div key={x.tramo}>{x.tramo} · {x.desde ?? '—'} → {x.hasta ?? '—'}{x.km != null ? ` · ${fmtNum(x.km)} km` : ''}</div>
+              )) : <span className="muted">ninguno</span>}</td>
+              <td>{(d.tramos_cambiados ?? []).length ? (d.tramos_cambiados ?? []).map((x) => (
+                <div key={x.tramo}>{x.tramo} · {x.tipo ?? '—'}{x.km != null ? ` · ${fmtNum(x.km)} km` : ''}
+                  {x.en_servicio ? '' : ' (fuera de servicio)'} · <small className="muted">{x.variacion}</small></div>
               )) : <span className="muted">ninguno</span>}</td>
               <td>{(d.cargas_cambiadas ?? []).length || <span className="muted">ninguna</span>}</td>
             </>}

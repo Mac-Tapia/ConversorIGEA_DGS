@@ -12,7 +12,7 @@ import copy
 
 import pytest
 from apoyo import cargar_herramienta, contexto_nativo
-from test_ajuste_cabecera_guion import _app, _carga, _plan
+from test_ajuste_cabecera_guion import _app, _carga, _caso, _plan
 from test_ajuste_central_guion import _plan as _plan_central
 
 
@@ -194,6 +194,28 @@ def test_pone_los_bancos_que_faltan_y_recalibra(guion, monkeypatch):
     assert any('021:RF-64' in a for a in inf['avisos'])
 
 
+def test_los_bancos_que_faltan_con_la_variacion_del_operador_grabando(guion):
+    """032:RF-29 — con una variación del operador activa y grabando en «Sin proyecto» (sus
+    tramos y ternas a mano), los bancos que faltan se ponen en la red, su variación vuelve
+    activa y grabando, y la calibración sigue. Antes se detenía entera."""
+    app = _app(escenario=True)
+    guion.preparar_sin(app, {'project': 'P', 'feeders': ['F1'], 'caso_base_sin_verificar': {}})
+    _caso(app, 'Sin proyecto').Activate()
+    var = app.carpetas['scheme'].CreateObject('IntScheme', 'Ternas_del_operador')
+    var.NewStage('Etapa', 1_760_000_000, 1)
+    suya = app.grabando
+    plan = {**_de(_plan(kvar=10.0), 'F1', 300.0), 'completar_bancos': True,
+            'bancos_kvar_por_tension': {'10': 2.0}}
+
+    [(inf, rc)] = guion.ejecutar_proyecto(app, [plan])
+
+    assert inf['bancos_nuevos'], inf['avisos']
+    assert all(o.etapa_creacion is None for o in app.creados
+               if o.loc_name in {b['banco'] for b in inf['bancos_nuevos']}), 'en la red'
+    assert var in app.variaciones_activas and app.grabando is suya
+    assert not any('tiene variaciones activas' in a for a in inf['avisos'])
+
+
 def test_la_segunda_pasada_no_toma_lo_que_escribio_la_primera_por_cambio_manual(guion):
     """014:RF-10, 021:RF-64 — con dos pasadas, los cambios a mano son los que vio la primera:
     lo que ella escribe sin guardar no es un cambio del operador. En SM218 (2026-10-28) la
@@ -351,7 +373,7 @@ def test_con_remedios_los_bancos_salen_de_la_q_escrita(guion, monkeypatch, con_q
 
     pedidos = []
     monkeypatch.setattr(guion, '_ejecutar_proyecto', con_remedios)
-    monkeypatch.setattr(guion, 'poner_bancos', lambda *a: pedidos.append(a[-1]) or [])
+    monkeypatch.setattr(guion, 'poner_bancos', lambda *a: pedidos.append(a[5]) or [])
     [(inf, _rc)] = guion.ejecutar_proyecto(app, [plan])
     if con_q:
         assert pedidos == [{'F1': (2, 2.0)}], '14,5 escritos frente a 10 medidos: dos de 2'

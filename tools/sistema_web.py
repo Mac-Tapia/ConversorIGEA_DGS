@@ -299,9 +299,12 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
         return 2
     escaneo = estado.get('result') or {}
     for a, r in (escaneo.get('resumen') or {}).items():
-        if r['generadores'] or r['bancos'] or r['cargas_cambiadas']:
+        if (r['generadores'] or r['bancos'] or r['cargas_cambiadas']
+                or r.get('tramos_nuevos') or r.get('tramos_cambiados')):
             print(f"  escaneo {a}: {r['generadores']} generador(es), {r['bancos']} banco(s), "
-                  f"{r['cargas_cambiadas']} carga(s) cambiada(s)", flush=True)
+                  f"{r['cargas_cambiadas']} carga(s) cambiada(s), {r.get('tramos_nuevos', 0)} "
+                  f"tramo(s) nuevo(s), {r.get('tramos_cambiados', 0)} tramo(s) cambiado(s) a mano "
+                  '(028:RF-17, RF-26)', flush=True)
     try:
         perfil = centrales_termicas(datos_perfil())
     except PerfilError:

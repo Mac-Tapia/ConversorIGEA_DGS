@@ -31,13 +31,37 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 - [x] T8. Web: tabla de conductores con su ficha y nivel de cada SED en la propuesta;
       `npm run build`. (RF-17, RF-22, RF-28)
       Hecho cuando: el front compila y las pruebas de la API del ajuste pasan.
-- [ ] T9. Prueba en DIgSILENT desde la web con un sistema entero (conversión nueva):
+- [x] T9. Prueba en DIgSILENT desde la web con un sistema entero (conversión nueva):
       «Caso base» con los kVA y conductores del archivo y verificación sin diferencias;
       «Sin proyecto» con `Fichas_` y `SED_NTP_` grabadas, informe de conductores y propuesta.
       (Todos)
       Hecho cuando: `tools/sistema_web.py` termina válido y el escaneo muestra las dos
       variaciones solo fuera del «Caso base».
+      Hecho el 2026-10-28 desde la web con la entrega 231026 (espacio 5f11283a33c94ea5), en
+      dos alimentadores, porque ninguno trae las dos clases: SM218 (su único conductor,
+      AA05001D, sin ficha) y CA101 convertido e importado de nuevo. Con «Implementar
+      transformadores», SM218 válido a −0,29 % y CA101 a −0,01 % (sin ellos, CA101 solo
+      convergía con iopt_lev: SE20701, 1 088 kW sobre 50 kVA, a 0,517 pu). Sonda de solo
+      lectura en DIgSILENT: «Caso base» sin variaciones, TR_SE41054 1 × 85 kVA, TR_SE20701
+      1 × 50 kVA y CU01603D con R 1,3488 Ω/km e In 112 A del archivo; «Sin proyecto» con
+      `SED_NTP_` (2 × 630 y 3 × 630 kVA NTP 370.400) y, en CA101, `Fichas_` (48 cambios en
+      15 conductores; CU01603D_FICHA, R 1,17 Ω/km, In 141 A). En la prueba salieron y se
+      corrigieron las fijas tapadas por cambios a mano falsos (014:RF-10, commits 85f5efbc y 0e5ea1bd).
+      El TXT de cargas trae demanda en 2 547 de sus 7 339 SED (154 541 kW) y 0 kW en el resto
+      (SE41384: 0 kW, 125 kVA); el «Caso base» lleva la del archivo: SM218, 121 de 306 SED
+      con demanda (6 788,5 kW) y 185 en cero; CA101, 67 de 171 (3 016,2 kW). Las que vienen en
+      cero se quedan en cero (usuario, el mismo día: «dejarlo en cero»); la demanda de todas
+      la pone la calibración en «Sin proyecto».
+- [x] T11. Cambios a mano del operador sin bloqueo: con una variación suya grabando, las
+      fichas y los transformadores se graban en su variación propia y la grabación vuelve a
+      la del operador; los bancos que faltan apartan sus variaciones solo mientras se crean.
+      (RF-12, RF-29)
+      Hecho cuando: `pytest -q tests/test_caso_base_original.py tests/test_ajuste_proyecto_guion.py`
+      en verde y en DIgSILENT SM218 calibra con una variación del operador grabando.
+      Hecho el 2026-10-28 con CA101 (proyecto de la T9): con «Prueba_operador_032», vacía y
+      grabando en «Sin proyecto», la recalibración por la web salió VÁLIDA (−0,01 %, 9 fijas)
+      y la variación siguió activa y grabando; se borró al terminar.
 - [ ] T10. Validación: cada RF citado por al menos una prueba y en verde; suite con las
       siete variables, `-rs`, ninguna omitida; `CODIGO_FUENTE.md`, tabla de `CLAUDE.md` y
       nota en la 020. (Todos)
-      Hecho cuando: `grep -rnoE "032:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-28.
+      Hecho cuando: `grep -rnoE "032:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-29.
