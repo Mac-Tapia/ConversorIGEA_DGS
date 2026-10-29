@@ -61,7 +61,9 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho el 2026-10-28 con CA101 (proyecto de la T9): con «Prueba_operador_032», vacía y
       grabando en «Sin proyecto», la recalibración por la web salió VÁLIDA (−0,01 %, 9 fijas)
       y la variación siguió activa y grabando; se borró al terminar.
-- [ ] T10. Validación: cada RF citado por al menos una prueba y en verde; suite con las
+- [x] T10. Validación: cada RF citado por al menos una prueba y en verde; suite con las
       siete variables, `-rs`, ninguna omitida; `CODIGO_FUENTE.md`, tabla de `CLAUDE.md` y
       nota en la 020. (Todos)
       Hecho cuando: `grep -rnoE "032:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-29.
+      Hecho el 2026-10-28: RF-1 a RF-29 citados; suite con las siete variables, 3110 pasan,
+      ninguna omitida; nota en la 020 ya presente; sin ficheros nuevos para `CODIGO_FUENTE.md`.
