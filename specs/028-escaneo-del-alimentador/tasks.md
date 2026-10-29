@@ -54,6 +54,9 @@ cuando el usuario ponga a mano la central de NA205.
       eléctrica. La API local respondió a la consulta de lectura del espacio 5f11283a33c94ea5:
       fuente sin cargar y sin trabajos activos; no se ejecutó el recorrido nativo ni informes
       en esta continuación. T9 sigue abierta hasta obtener esa evidencia. Sustento: `research.md`.
+      2026-10-29: un alimentador convertido, calibrado y recalibrado desde la web con `--red` (SM218 y
+      CA101 de la entrega 231026, VÁLIDOS); dos unidos, IN111 + TA225 calibrados en DIgSILENT (025).
+      Falta su informe de estudio: espera las cargas nuevas que el usuario sube en bloque (3.3).
 - [x] T10. Tramos cambiados a mano en el escaneo: los del DGS aceptado que graba una variación
       del operador, con su variación, tipo y longitud; resumen y columna en la tabla. (RF-26)
       Hecho cuando: `pytest -q tests/test_escaneo.py` en verde y en DIgSILENT el escaneo de CA101

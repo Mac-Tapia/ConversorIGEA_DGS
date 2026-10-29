@@ -112,10 +112,14 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]` y pa
       pasan y 4 fallan por causas ajenas: `referencia/2.-medicioncabecera` y
       `4.-clientesimportantes` pasaron a subcarpetas por año (3 pruebas de datos reales) y
       `DemandaMedida.tsx` tiene cambios sin commit («Cruzando…», 1 prueba del front).
-- [ ] T14. Sistema Nasca por SET en DIgSILENT: convertido, importado, «Caso base» VERIFICADO
+- [x] T14. Sistema Nasca por SET en DIgSILENT: convertido, importado, «Caso base» VERIFICADO
       y calibrado por la web con `tools/sistema_web.py --zonal Nasca`. (RF-65, RF-69)
       Hecho cuando: una red y un diagrama por SET en el proyecto, cada hoja a la medida de
       su SET, y el sistema calibrado como con una red por zonal.
+      Hecho: el DGS del sistema Nasca (2026-10-24) trae una red y un diagrama por SET (SET 51 Nasca,
+      52 Llipata, 53 Puquio, 55, 56 y COH); importado y calibrado desde la web el 2026-10-28 con
+      `tools/sistema_web.py`: 7 válidos y 0 fallos (T19). Que cada hoja quede a la medida de su SET
+      sigue en T16. Cerrada el 2026-10-29 con esa evidencia (usuario: no repetir en DIgSILENT lo ya probado).
 - [x] T15. SET y alimentadores nuevos: `completar` en la estructura, `cabecera_xy` en el
       inventario, web y CLI con la estructura completada, aviso, Chincha Nueva y PO101 en el
       perfil. (RF-71 a RF-80)

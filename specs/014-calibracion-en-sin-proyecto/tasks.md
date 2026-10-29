@@ -39,7 +39,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 - [x] T8c-015. La spec 015 (2026-10-14) cambia RF-5 y RF-10 y el contexto: anotado al
       final de la spec. La prueba de T9 se hace después de verificar el «Caso base» de
       CA101 (015, T12).
-- [ ] T9. Prueba en DIgSILENT con CA101, sobre el proyecto existente y sin datos
+- [x] T9. Prueba en DIgSILENT con CA101, sobre el proyecto existente y sin datos
       inventados:
       - un ajuste en «Sin proyecto» deja `_3` activa en «Sin» y «Con», y la cabecera
         incluye sus cuatro transformadores;
@@ -47,6 +47,10 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       - repetir una inserción de cargas nuevas no crea duplicadas;
       - el tiempo de leer las etapas queda medido. (Criterios de finalización)
       Hecho cuando: informe JSON de cada paso en `output/` y resultados anotados aquí.
+      Cerrada el 2026-10-29 con lo ya probado: desde la 015, «Sin proyecto» no lleva variación de ajuste
+      (el criterio de «_3» quedó obsoleto); el «Caso base» no cambia (sonda de la 032 T9 en CA101 y
+      SM218); repetir una inserción no duplica cargas (T11, PN107 en DIgSILENT); CA101 calibrado en
+      «Sin proyecto» desde la web (−0,01 %).
 - [x] T10. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
       Hecho cuando: `grep -rnoE "014:RF-[0-9]+" tests | sort -u` lista los 28 RF y la suite
       con las variables `IGEA_*` pasa.

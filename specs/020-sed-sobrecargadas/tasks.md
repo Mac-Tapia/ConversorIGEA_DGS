@@ -65,7 +65,10 @@ Plan: `specs/020-sed-sobrecargadas/plan.md`. Una tarea cada vez, pruebas primero
       Hecho cuando: `grep -rnoE "020:RF-[0-9]+" tests | sort -u` lista los 32 RF.
       Resultado del 2026-10-16: los 32 RF citados; suite sintética 2220 pruebas en verde
       (43 omitidas, las de datos reales: no se toca el lector ni el modelo).
-- [ ] T10. Prueba en DIgSILENT desde la web con PA217 importado de nuevo: aviso, propuesta,
+- [x] T10. Prueba en DIgSILENT desde la web con PA217 importado de nuevo: aviso, propuesta,
       implementación y recalibración válida sin adaptar el modelo.
       Hecho cuando: el informe del trabajo dice APLICADO_Y_VALIDADO y está en
       `output/spec020/`.
+      Cerrada el 2026-10-29 con SM218 y CA101 de la entrega 231026 (032 T9), no con PA217, que el usuario
+      ya trabajó («PA217 no deberías hacer nada»): aviso, propuesta e «Implementar transformadores»
+      desde la web, 5 SED cada uno en «SED_NTP_», recalibrados VÁLIDOS (−0,29 % y −0,01 %).
