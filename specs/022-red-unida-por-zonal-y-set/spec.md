@@ -1,6 +1,6 @@
 # Spec 022 — Red unida por zonal y SET
 
-Estado: implementada (2026-10-18; T11c y T11d abiertas) · Fecha: 2026-10-17
+Estado: cumplida (revisión 033 del 2026-10-29) · implementada (2026-10-18) · Fecha: 2026-10-17
 
 ## Contexto y objetivo
 
@@ -133,6 +133,8 @@ de los sistemas se debe usar el máximo valor del Excel medidoralimentador en la
 código alimentador Barra, con su medidor, su nivel de tensión y siglas: AL es Alto la Luna;
 por ejemplo, la barra B-PA2T1, 22,9, PA, es la barra de 22,9 kV de la SET Paracas»)
 
+- RF-35 a RF-36: no se usan (nunca se definieron: los requisitos de las barras de SET
+  empezaron en RF-37).
 - RF-37: EL SISTEMA leerá del libro de medidores por alimentador las filas de barra: las
   que en «código alimentador» dicen «Barra», con su medidor, su nivel de tensión y sus
   siglas.
@@ -351,6 +353,7 @@ por zonal los dejaba fuera)
   coincida en todos; si la máxima sin esa condición cae en un registro que falta en alguno,
   lo dirá con las dos fechas (CHNB6T1 dio el 2026-07-24 11:45 y CHN101, CHN102 y CHN201 no
   tenían ese registro y quedaban sin calibrar, DIgSILENT, 2026-10-28).
+- RF-92: no se usa (nunca se definió: la herramienta de las hojas entró como RF-93).
 - RF-93: EL SISTEMA dará una herramienta de solo lectura que compare en DIgSILENT la hoja de
   cada diagrama con sus gráficos y conectores y diga, por diagrama, su formato, su
   orientación y si todo cae dentro. Usuario, 2026-10-29: no había ninguna en `tools/`

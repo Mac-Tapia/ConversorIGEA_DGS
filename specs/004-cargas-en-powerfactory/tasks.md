@@ -68,6 +68,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde y `- [x]`.
       2026-10-09: RF-1 a RF-41 citados; suite completa con las cinco variables `IGEA_*` y
       `IGEA_DEMANDA_DIR` en verde (948 correctas, 18 omitidas). Falta la prueba real en
       DIgSILENT.
+      Hecho cuando: `grep -rnoE "004:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-41 y la suite completa, en verde.
 - [x] T14. Demandas también en el escenario de operación: en el del caso en que se escriben
       y, con los tres casos de la 011, en los de «Sin proyecto» y «Con proyecto», no en el
       del «Caso base». El doble imita que el escenario manda (`app.escenario_manda`).
@@ -97,3 +98,6 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde y `- [x]`.
       en verde y, con el libro real de julio de 2026, cada cliente cruzado con su registro.
       Hecho el 2026-10-28: 12 de 12 clientes del libro de julio con su registro (0,2 s); FP del
       registro frente al del mes, de 0,769 a 0,956 en 700096086.
+- [x] T18. Retro (033, 2026-10-29): RF-42, RF-43, RF-46 a RF-53, RF-56, RF-57, RF-67, añadidos a la spec como cambio después de
+      escribir las tareas e implementados con su prueba sin tarea propia. (RF-42, RF-43, RF-46 a RF-53, RF-56, RF-57, RF-67)
+      Hecho cuando: las pruebas que los citan pasan (pruebas de `tests/test_demanda_medida*.py`, `tests/test_cargas_pf*.py`, `tests/test_cargas_tres_pasos_front.py` y `tests/test_central_termica_front.py`).

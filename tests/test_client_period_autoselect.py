@@ -1,4 +1,4 @@
-"""Selección automática del libro mensual que coincide con la máxima."""
+"""Spec 013, RF-12: con un mes, el libro de ese mes de la carpeta (no se elige el mes)."""
 
 from __future__ import annotations
 
@@ -26,6 +26,7 @@ def _workspace(tmp_path):
 
 
 def test_periodo_clientes_selects_exact_peak_month_from_multi_month_folder(tmp_path):
+    """013:RF-12 — de una carpeta de varios meses, el libro del mes pedido."""
     from igea_dgs.web.services import periodo_clientes_activo
 
     evidence = periodo_clientes_activo(_workspace(tmp_path), '2026-04')
@@ -37,6 +38,7 @@ def test_periodo_clientes_selects_exact_peak_month_from_multi_month_folder(tmp_p
 
 
 def test_demanda_path_selects_exact_peak_month_without_mutating_catalog(tmp_path):
+    """013:RF-12 — elegir el libro del mes no cambia el índice."""
     from igea_dgs.web.services import _demanda_ruta
 
     ws = _workspace(tmp_path)

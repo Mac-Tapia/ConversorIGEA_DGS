@@ -69,7 +69,7 @@ def _activas_en(app, caso):
 
 @pytest.mark.parametrize('semilla', SEMILLAS)
 def test_tres_casos_con_sus_variaciones(semilla):
-    """011:RF-1, 011:RF-3, 011:RF-4, 011:RF-5, 011:RF-8 / 015:RF-16, 015:RF-18, 015:RF-27,
+    """011:RF-1, 011:RF-2, 011:RF-3, 011:RF-4, 011:RF-5, 011:RF-8 / 015:RF-16, 015:RF-18, 015:RF-27,
     015:RF-29 — el original pasa a «Caso base»; «Sin proyecto» es su copia, sin ninguna
     variación activa; «Con proyecto», la copia de «Sin proyecto» con las cargas nuevas."""
     app, plan, v = _escenario_red(random.Random(semilla))

@@ -1,4 +1,7 @@
-"""Unit tests for catalog type resolution (no TXT fixtures required)."""
+"""Unit tests for catalog type resolution (no TXT fixtures required).
+
+Spec 034: 034:RF-7.
+"""
 
 from igea_dgs.model import suggest_catalog_code, _resolve_type, LineType
 

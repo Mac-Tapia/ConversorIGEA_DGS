@@ -14,6 +14,8 @@ Salía como un aviso más entre otros dos.
 Completando con el catálogo de la entrega anterior, la cobertura pasó del 2 % al 93 %, y
 ``DEFAULT`` del 100 % al 0,6 % —que son los ramales de acometida de 0,3 m, los únicos que
 el export deja así a propósito—.
+
+Spec 034: 034:RF-8.
 """
 
 from __future__ import annotations

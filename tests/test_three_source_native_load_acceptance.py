@@ -1,4 +1,7 @@
-"""Contrato final de aceptación universal hasta carga y estudio nativos."""
+"""Contrato final de aceptación universal hasta carga y estudio nativos.
+
+Spec 034: 034:RF-24.
+"""
 
 from __future__ import annotations
 

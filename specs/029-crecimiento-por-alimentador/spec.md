@@ -1,6 +1,6 @@
 # Spec 029 — Crecimiento de la demanda por alimentador desde la medición de cabecera
 
-Estado: pedida por el usuario el 2026-10-28 («saca de los libros de cabecera para cada
+Estado: cumplida (revisión 033 del 2026-10-29) · pedida por el usuario el 2026-10-28 («saca de los libros de cabecera para cada
 alimentador; después implementamos un módulo de proyección de demanda según los datos históricos
 con variables exógenas o variables externas, proyecciones econométricas»).
 

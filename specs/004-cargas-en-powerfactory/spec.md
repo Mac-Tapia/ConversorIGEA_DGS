@@ -347,7 +347,7 @@ hojas trae SUMINISTRO y SED, y el cruce elegía uno de ellos como tabla de sumin
 
 ## Cambios de la spec 014 (2026-10-14)
 
-- RF-15: «la carga nueva ya existe» no se busca solo en la red activa: se busca en todas
+- Aclaración de RF-15: «la carga nueva ya existe» no se busca solo en la red activa: se busca en todas
   las variaciones del proyecto, activas o no, y en la red de «Con proyecto», por su nombre
   en el alimentador (014:RF-23, RF-27). Si ya existe no se crea otra vez; si difiere del
   libro, se avisa de cada diferencia (014:RF-24 a RF-26, RF-28).

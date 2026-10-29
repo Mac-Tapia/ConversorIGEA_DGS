@@ -38,10 +38,13 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       huecos, tablas y figuras, y escritura atómica. (RF-2, RF-3, RF-6 a RF-9, RF-23 a
       RF-25, RF-27, RF-44, RF-45, RF-106, RF-113, RF-114, RF-118, RF-120)
       Hecho cuando: `pytest -q tests/test_informe_docx.py` en verde.
-- [ ] T7. `tools/informes_pf.py`: casos, medidas, imágenes y restauración, sobre `fake_pf`.
+- [ ] T7. Casos, medidas, imágenes y restauración sin un guion `tools/informes_pf.py` aparte
+      (cambio de diseño, 033: el informe se arma con lo que guardan `tools/estudios_pf.py` y
+      `tools/obras_pf.py` al correr los casos desde la web, y `mapa_informe.py` dibuja las
+      imágenes con el GPS, RF-11b); falta lo que solo da DIgSILENT con ventana.
       (RF-1, RF-1b, RF-10 a RF-12, RF-24, RF-28 a RF-30, RF-46 a RF-49, RF-52, RF-53,
       RF-109 a RF-112, RF-116, RF-117)
-      Hecho cuando: `pytest -q tests/test_informes_pf.py` en verde y `--help` responde.
+      Hecho cuando: las pruebas que citan los RF de esta tarea pasan sobre `fake_pf`.
 - [ ] T8. Etapas 1 a 3: bancos existentes y del proyecto anterior, sonda y uso de `ComCapo`
       y `ComPlaceopt`. (RF-32, RF-35 a RF-40d)
       Hecho cuando: pruebas sobre `fake_pf` en verde y la sonda anotada en el plan.
@@ -70,7 +73,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       `tests/test_informe_web.py`; RF-82 (formulario en el servidor) hecho el mismo día;
       faltan el carril `powerfactory` (con T7) y la CLI.
 - [ ] T12. Paso «4.4 · Informes» en la web (antes «5 · Informes», cambiado por el usuario
-      el 2026-10-15). (RF-73 a RF-95, RF-98, RF-100 a RF-102, RF-124, RF-125)
+      el 2026-10-15). (RF-51, RF-73 a RF-95, RF-98, RF-100 a RF-102, RF-124, RF-125)
       Hecho cuando: `npx tsc --noEmit -p frontend`, `npm run build` y checklist del skill
       `igea-dgs-frontend`.
       Estado 2026-10-15: `InformesPF.tsx` con los dos formularios, botones «Generar»,
@@ -78,10 +81,10 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       (RF-93, RF-94); faltan las etapas de 5.2 (RF-83 a RF-88, con T8 y T9), el proyecto de
       transmisión (RF-95, con T10), la vista previa de ubicación (RF-124) y las miniaturas
       (RF-101, con T7).
-- [ ] T13. Prueba en DIgSILENT: informe de estudio de CA101 desde cero, con los bancos de
+- [ ] T13. [DIgSILENT] Prueba en DIgSILENT: informe de estudio de CA101 desde cero, con los bancos de
       «CA101 13», revisado por el usuario.
       Hecho cuando: el usuario da por bueno el `.docx`.
-- [ ] T14. Prueba en DIgSILENT: informe de factibilidad de una carga nueva del libro de
+- [ ] T14. [DIgSILENT] Prueba en DIgSILENT: informe de factibilidad de una carga nueva del libro de
       cargas nuevas, con AD08 V4.
       Hecho cuando: el usuario da por bueno el `.docx`.
       Pendiente aparte (usuario, 2026-10-16): es otro análisis, el punto de diseño de una

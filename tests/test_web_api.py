@@ -2,6 +2,8 @@
 
 Se usa el export sintético: no depende de los TXT reales y ejercita las dos
 disposiciones de export (ver ``tests/synthetic_export.py``).
+
+Spec 034: 034:RF-20.
 """
 
 from __future__ import annotations

@@ -1,6 +1,6 @@
 # Spec 006 — Ajuste de las demandas a la máxima de cabecera
 
-Estado: aprobada (2026-10-09) · Fecha: 2026-10-09 · Origen: uso de la demanda medida (spec 004, RF-22 a RF-43) con los libros reales, 2026-10-09
+Estado: cumplida (revisión 033 del 2026-10-29) · aprobada (2026-10-09) · Fecha: 2026-10-09 · Origen: uso de la demanda medida (spec 004, RF-22 a RF-43) con los libros reales, 2026-10-09
 
 ## Contexto y objetivo
 
@@ -290,7 +290,7 @@ Ninguna. Resueltas el 2026-10-09:
 - El ajuste se hace en «Sin proyecto», nunca en «Caso base» ni en «Con proyecto»
   (014:RF-1, RF-2), y mide la cabecera con las variaciones del operador activas en
   «Sin proyecto» (014:RF-14).
-- RF-28: la demanda del ajuste se graba en los escenarios de «Sin proyecto» y «Con
+- Aclaración de RF-28: la demanda del ajuste se graba en los escenarios de «Sin proyecto» y «Con
   proyecto», solo en las cargas existentes y sin pisar una carga con cambio manual de
   demanda, que entra en el ajuste como fija (014:RF-4, RF-9 a RF-11).
 - Las cargas nuevas quedan fuera de servicio mientras se mide y vuelven a su estado al
@@ -302,7 +302,7 @@ Ninguna. Resueltas el 2026-10-09:
   el escenario de «Sin proyecto» activo, que es donde queda la demanda; si existe «Con
   proyecto», su escenario recibe la misma (015:RF-26, 014:RF-4). Una sola medida de la
   cabecera, con el escenario, y no hay otra que pueda diferir (RF-30).
-- RF-18: la marca fija o escalable se escribe en la red, que comparten los casos: el
+- Aclaración de RF-18: la marca fija o escalable se escribe en la red, que comparten los casos: el
   escenario no la guarda (sonda T1 de la 015; 015:RF-37).
 - La calibración no comprueba la red ni da por verificado el vínculo del proyecto: eso es
   la verificación del «Caso base» (015:RF-17, RF-22).

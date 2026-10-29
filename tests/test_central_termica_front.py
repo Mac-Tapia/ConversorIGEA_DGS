@@ -107,6 +107,24 @@ def test_mes_de_analisis_antes_de_buscar_la_maxima():
     assert "periodo: criterio.periodo || null, instante: criterio.instante || null" in API
 
 
+def test_meses_del_selector_son_los_que_tienen_libro():
+    """013:RF-7 / 013:RF-10 — el selector ofrece los meses con libro de clientes, cada uno con
+    los alimentadores que tienen allí su máxima, y el operador lo elige y lo cambia."""
+    assert '{estadoClientes.meses.map(({ mes, libro }) => (' in DEMANDA
+    assert "mesesMaxima[mes] ? ` · máxima de ${mesesMaxima[mes].join(', ')}` : ''" in DEMANDA
+    assert 'onChange={(e) => elegirPeriodo(e.target.value)}' in DEMANDA
+    # Otro mes, otros clientes: el cruce mostrado deja de valer al cambiarlo.
+    assert 'const elegirPeriodo = (mes: string) => {' in DEMANDA
+
+
+def test_aviso_si_el_mes_no_es_el_de_la_maxima():
+    """013:RF-15 — con un mes elegido, avisa de los alimentadores con la máxima en otro mes,
+    sin bloquear."""
+    assert "const otrosMesesMaxima = periodo.length === 7" in DEMANDA
+    assert "`${alims.join(', ')} tiene su máxima en ${nombreMes(mes)}`" in DEMANDA
+    assert 'className="alert alert-warn"' in DEMANDA
+
+
 def test_instante_coincidente_de_la_maxima_de_un_alimentador():
     """021:RF-50, 021:RF-52 — tras la búsqueda, se puede calibrar a todos en la máxima de uno:
     se vuelve a buscar con ese instante y se avisa de que es coincidente."""

@@ -40,12 +40,13 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       sorteadas; ningún sistema en entrenamiento y prueba a la vez.
       Hecho el 2026-10-28: `particionar` por red (huella de sus nodos) y `fallos_de_particion`
       (sin red de prueba o con menos de 10 episodios no se promueve); `entrenar` y `evaluar` lo usan.
-- [ ] T3. Escenarios por hipercubo latino del rango de carga medido, en copias del proyecto. (RF-4)
+- [x] T3. Escenarios por hipercubo latino del rango de carga medido, en copias del proyecto. (RF-4)
       Hecho cuando: pruebas de `escenarios.py` en verde y una corrida en DIgSILENT con Nasca.
       Hecho el 2026-10-28 (código): `rango_medido` (total coincidente de las cabeceras de la última
       máxima, del valle a la punta + 10 %) y `factores_hipercubo` (una franja por factor, sorteado
       dentro); `gemelo_aprender` los usa y, sin curvas, sigue con los fijos. Falta la corrida en
       DIgSILENT con Nasca, tras su recalibración.
+      Código cerrado el 2026-10-29 (033) con sus pruebas en verde; lo que falta en DIgSILENT pasa a T29.
 - [x] T4. `Entrenamiento` con paciencia, coseno, recorte de gradiente y mejor época; GRU con
       validación temporal y sin caída a CPU. (RF-5, RF-6, RF-10, RF-11)
       Hecho cuando: `pytest -q tests/test_digital_twin_oraculo.py tests/test_digital_twin_temporal.py`
@@ -75,7 +76,7 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       (|error|/(σ + 10⁻⁴), cuantil ⌈(n+1)·c⌉), calibrada con la validación y guardada en
       `modelo.json` (`conforme`); `predecir` da `intervalo_pu` por barra y `estado_electrico`
       pide DIgSILENT si es más ancho que la banda de la norma (`confiable`).
-- [ ] T8. Top-k verificado en DIgSILENT con `pf_arnes`; descarte, episodio y siguiente;
+- [x] T8. Top-k verificado en DIgSILENT con `pf_arnes`; descarte, episodio y siguiente;
       gemelo y DIgSILENT en la propuesta. (RF-14 a RF-16)
       Hecho cuando: prueba con `fake_pf` en verde y una propuesta de bancos verificada en
       DIgSILENT con Chincha.
@@ -84,6 +85,7 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       DIgSILENT, descarta la que se aparta de la tolerancia (tensión mínima o pérdidas), guarda su
       episodio y da la propuesta con el gemelo y DIgSILENT; las alternativas viajan con las obras
       del PIDE. Falta conectar la medida a `obras_pf.py --evaluar` y la prueba con Chincha.
+      Código cerrado el 2026-10-29 (033) con sus pruebas en verde; lo que falta en DIgSILENT pasa a T30.
 - [x] T9. Conjunto de órdenes reales del operador, versionado y separado; puertas de tarea y
       datos; confirmación obligatoria mientras sea pequeño. (RF-17 a RF-19)
       Hecho cuando: pruebas del asistente en verde; la web muestra el tamaño del conjunto.
@@ -155,6 +157,7 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       cabecera (antes solo nombre y tamaño); los .xls con calamine y el .docx antiguo con «\»
       leído de su XML. Quedan 2 PDF truncados en el propio expediente (mapas SR0020 y SR0021).
       El 87 % de los fragmentos no tiene artículo por su ruta: lo asigna T20 por contenido.
+      También RF-52: la base GIS de Iquitos entra solo como corpus (033, 2026-10-29).
 - [x] T20. Ejemplos del agente desde el corpus: artículo → evidencias y entregables; formato →
       hojas y columnas entregadas; estructura de los informes 4.1 y 4.2. (RF-48, RF-50)
       Hecho cuando: prueba con un corpus sintético; informe del real con los 20 artículos y
@@ -180,7 +183,7 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       (`comparacion_formatos`) y en `--solo-ejemplos`; los encabezados del conversor coinciden en
       63 de 122 campos con los entregados de PIDEELOR (F10 7/9, F13 9/15; F15 1/4). Falta producir
       F01 a F15 de un sistema en DIgSILENT (con T14).
-- [ ] T14. Aceptación: todos los sistemas desde la web con el asistente, gemelo con dos o más
+- [ ] T14. [DIgSILENT] Aceptación: todos los sistemas desde la web con el asistente, gemelo con dos o más
       familias de prueba y asistente con RF-18. (RF-28)
       Hecho cuando: informe con Nasca, Chincha, Pisco e Ica válidos en DIgSILENT y las métricas
       de las puertas, y el agente ejecutó el proyecto desde un espacio vacío hasta el PIDE y
@@ -197,13 +200,14 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       `…_CN101`; `validate._loc` usa ya la misma tabla de siglas que el DGS (prueba con las dos
       disposiciones). Chincha reconvertido, importado (20261028-103442_IGEA_SISTEMA_CHINCHA) y
       calibrado por la web: 26 válidos y 0 con fallos, y ningún `CN` suelto en su DGS.
-- [ ] T24. Episodios por sistema según RF-53 y curva de aprendizaje por familia. (RF-53, RF-54)
+- [x] T24. Episodios por sistema según RF-53 y curva de aprendizaje por familia. (RF-53, RF-54)
       Hecho cuando: informe por sistema con sus 30/10/10 episodios y la curva que dice si ha
       convergido.
       Avance del 2026-10-28 (código): `digital_twin/curva.py` y `digital_twin_entrenar.py --curva`.
       En el búfer real hay una red (IN111–TA225, 2470 nodos) con 14/4/6 episodios: faltan 16/6/4
       para la curva, que se piden con «Aprender» (T3) en cada sistema; el episodio de la
       calibración de Nasca no sale como red entrenable y hay que revisarlo.
+      Código cerrado el 2026-10-29 (033) con sus pruebas en verde; lo que falta en DIgSILENT pasa a T31.
 - [x] T25. Destilación del modelo local de Ollama al Transformer de órdenes: votos con
       temperatura, filtro por acuerdo, pérdida α·CE + (1 − α)·T²·KL, promoción solo si no empeora
       al alumno sin destilar y registro del maestro. (RF-56 a RF-62)
@@ -244,3 +248,9 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       el gemelo se aparta 0,0024 p.u. en sus 10 episodios de prueba y queda promovido
       (20261028-114528-e6f5). Antes, con «un sistema fuera», el modelo de IN111–TA225 daba 0,31 p.u.
       en Chincha.
+- [ ] T29. [DIgSILENT] Corrida de los escenarios por hipercubo latino en copias del proyecto de Nasca (sigue a T3). (RF-4)
+      Hecho cuando: el resultado de T3 medido en DIgSILENT desde la web.
+- [ ] T30. [DIgSILENT] Propuesta de bancos con el top-k verificada en DIgSILENT con Chincha (sigue a T8). (RF-14 a RF-16)
+      Hecho cuando: el resultado de T8 medido en DIgSILENT desde la web.
+- [ ] T31. [DIgSILENT] Episodios 30/10/10 de cada sistema con «Aprender» y su curva de aprendizaje (sigue a T24). (RF-53, RF-54)
+      Hecho cuando: el resultado de T24 medido en DIgSILENT desde la web.

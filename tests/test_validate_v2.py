@@ -1,3 +1,7 @@
+"""Pruebas del motor base de conversión.
+
+Spec 034: 034:RF-13.
+"""
 from igea_dgs.dgs import write_dgs
 
 

@@ -24,3 +24,4 @@
       2026-10-18: RF-1 a RF-10 citados por sus pruebas; suite con las siete variables y
       `-rs`: 2450 pasan, ninguna omitida (línea base 001 regenerada con el catálogo de fichas).
       Sistema Ica desde la copia: «Caso base» VERIFICADO tras corregir la aceptación.
+      Hecho cuando: RF-1 a RF-10 citados y la suite con las siete variables, sin omitidas, en verde.

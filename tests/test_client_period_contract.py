@@ -1,4 +1,4 @@
-"""Periodo de clientes importantes ligado a la máxima y al proyecto nativo."""
+"""Spec 013, RF-30 a RF-32: el libro de clientes del ajuste, del mes de la máxima."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ import pytest
 
 
 def test_periodo_de_fecha_is_month_stable():
+    """013:RF-11 — el mes de una fecha, en cualquiera de sus formas."""
     from igea_dgs.demanda_medida import periodo_de_fecha
 
     assert periodo_de_fecha(datetime(2026, 4, 16, 11)) == '2026-04'
@@ -64,6 +65,7 @@ def _maxima(fecha='2026-04-16 11:00:00'):
 
 
 def test_matching_client_month_produces_v2_immutable_evidence(tmp_path, monkeypatch):
+    """013:RF-32 — el plan guarda los dos meses, el libro con su huella y el vínculo."""
     from igea_dgs.web import services
 
     ws = _workspace(tmp_path)
@@ -84,6 +86,7 @@ def test_matching_client_month_produces_v2_immutable_evidence(tmp_path, monkeypa
 
 
 def test_different_or_unknown_client_month_blocks_plan(tmp_path, monkeypatch):
+    """013:RF-30 — libro de otro mes o sin mes: no hay plan."""
     from igea_dgs.web import services
 
     monkeypatch.setattr(services, 'carpeta_pf', lambda: 'Conversor IGEA-DGS')
@@ -96,6 +99,8 @@ def test_different_or_unknown_client_month_blocks_plan(tmp_path, monkeypatch):
 
 
 def test_unknown_peak_month_blocks_only_when_client_book_exists(tmp_path, monkeypatch):
+    """013:RF-31 / 013:RF-13 — sin mes de la máxima solo bloquea si hay libro; sin libro,
+    plan con aviso."""
     from igea_dgs.web import services
 
     monkeypatch.setattr(services, 'carpeta_pf', lambda: 'Conversor IGEA-DGS')

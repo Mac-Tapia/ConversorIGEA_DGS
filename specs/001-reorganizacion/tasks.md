@@ -158,6 +158,7 @@ Spec aprobada el 2026-10-08.
 - [x] T17. Validación: RF-17 a RF-21 citados y suite completa en verde, RF-14 igual.
       Hecho el 2026-10-08: suite con las cinco `IGEA_*`, 939 correctas y 18 omitidas (las
       de siempre); `test_linea_base_001` en verde.
+      Hecho cuando: `grep -rnoE "001:RF-(1[7-9]|2[01])" tests | sort -u` lista RF-17 a RF-21 y la suite completa, en verde.
 
 ## Segundo cambio del 2026-10-08 (RF-22 a RF-25)
 
@@ -181,6 +182,7 @@ Spec aprobada el 2026-10-08.
       las dos vías usan `pipeline.buscar_capa_de_tramos`.
 - [x] T20. Validación: RF-22 a RF-25 citados, suite completa en verde y RF-14 igual.
       Hecho el 2026-10-08: 945 correctas y 18 omitidas (las de siempre); RF-14 en verde.
+      Hecho cuando: `grep -rnoE "001:RF-2[2-5]" tests | sort -u` lista RF-22 a RF-25 y la suite completa, en verde.
 
 ## Tercer cambio del 2026-10-08 (RF-26, RF-27)
 
@@ -199,6 +201,7 @@ Spec aprobada el 2026-10-08.
       abre. Sin Node.js y con un `dist` viejo, avisa y abre el anterior en vez de cerrar.
 - [x] T23. Validación: RF-26 y RF-27 citados, `tsc` y `build` correctos, suite en verde.
       Hecho el 2026-10-08: 951 correctas y 18 omitidas (las de siempre); RF-14 en verde.
+      Hecho cuando: RF-26 y RF-27 citados por pruebas, `npx tsc --noEmit` y `npm run build` correctos y la suite en verde.
 
 ## Cuarto cambio del 2026-10-15 (RF-28 a RF-33)
 
@@ -218,6 +221,8 @@ Spec aprobada el 2026-10-08.
       Hecho el 2026-10-15 con procesos reales en 8797 a 8799: el mismo código se reutiliza
       (sale con 0 al momento), otra versión sin trabajos se cierra por petición y el nuevo
       toma su puerto, y con `http.server` en el puerto arranca en el siguiente.
+      Hecho cuando: las pruebas que citan 001:RF-28 a RF-33 pasan y el acceso directo se probó en Windows en los tres casos.
 - [x] T27. RF-34: el servidor anota sus trabajos en curso en `igea_dgs/trabajos_web/<pid>.json`
       (`jobs.py`) y el lanzador no termina al que no responde si los tiene: espera un minuto.
       Hecho el 2026-10-24 tras perder la escalera de Pisco al reabrir el acceso directo.
+      Hecho cuando: las pruebas que citan 001:RF-34 pasan.

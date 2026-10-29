@@ -1,4 +1,7 @@
-"""El frontend muestra el contrato calculado por el servidor, sin recalcularlo."""
+"""El frontend muestra el contrato calculado por el servidor, sin recalcularlo.
+
+Spec 034: 034:RF-19.
+"""
 
 from pathlib import Path
 

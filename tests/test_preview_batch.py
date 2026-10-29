@@ -1,4 +1,7 @@
-"""Integration: preview + TSV export wired through convert_selection."""
+"""Integration: preview + TSV export wired through convert_selection.
+
+Spec 034: 034:RF-14.
+"""
 
 from __future__ import annotations
 

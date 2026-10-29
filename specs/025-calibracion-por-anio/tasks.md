@@ -162,10 +162,11 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       variantes, `--evaluar`, costo con el CAPEX por ruta y el perfil, elección y solo la elegida
       aplicada); la escalera antigua (`obras_pf.escalera_de_obras`) retirada; tabla de variantes en el
       informe de cargas con su costo y por qué no.
-- [ ] T21. DIgSILENT: PA217 (Pisco) y TM105 (Chincha) en «Con proyecto 2025» desde la web,
+- [ ] T21. [DIgSILENT] DIgSILENT: PA217 (Pisco) y TM105 (Chincha) en «Con proyecto 2025» desde la web,
       con la obra elegida en DIgSILENT nativo y «Sin proyecto 2025» calibrado igual que antes.
       Hecho cuando: los dos con su variante elegida o con la más cercana dicha (RF-56).
 - [ ] T22. Validación de RF-44 a RF-60 y suite completa sin omitidas.
+      Hecho cuando: `grep -rnoE "025:RF-[0-9]+[a-z]?" tests | sort -u` lista RF-44 a RF-60 y la suite con las siete variables pasa sin omitidas.
 - [x] T16. Cargas nuevas incompletas e independientes. (RF-45, RF-46, RF-47, RF-48)
       Hecho cuando: `pytest -q tests/test_cargas_pf.py tests/test_cargas_pf_web.py
       tests/test_cargas_pf_guion_016.py tests/test_cargas_tres_pasos_front.py` en verde.
@@ -175,3 +176,6 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `grep -rnoE "025:RF-[0-9]+[b-c]?" tests | sort -u` lista todos los RF.
       Hecho el 2026-10-24: los 48 RF (y RF-6b, RF-12b, RF-25b, RF-25c, RF-42b) citados con la
       forma `025:RF-n` que cuenta `test_inventario`; RF-46 y RF-48 con prueba propia nueva.
+- [x] T24. Retro (033, 2026-10-29): RF-69 a RF-77, añadidos a la spec como cambio después de
+      escribir las tareas e implementados con su prueba sin tarea propia. (RF-69 a RF-77)
+      Hecho cuando: las pruebas que los citan pasan (pruebas de `tests/test_escalera_optima.py`, `tests/test_obras_pf_guion.py` y `tests/test_casos_por_anio.py`).

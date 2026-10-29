@@ -1,4 +1,7 @@
-"""Generic end-to-end acceptance for reconstruction before DGS conversion."""
+"""Generic end-to-end acceptance for reconstruction before DGS conversion.
+
+Spec 034: 034:RF-22.
+"""
 
 from __future__ import annotations
 

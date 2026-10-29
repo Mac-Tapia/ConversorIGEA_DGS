@@ -1,3 +1,7 @@
+"""Pruebas del motor base de conversión.
+
+Spec 034: 034:RF-11.
+"""
 def test_build_geography_has_full_sample_coverage(ds, sample_model):
     from igea_dgs.geography import build_geography
 

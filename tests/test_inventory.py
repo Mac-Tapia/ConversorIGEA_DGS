@@ -1,4 +1,7 @@
-"""Inventory analysis tests (uses referencia TXT when available)."""
+"""Inventory analysis tests (uses referencia TXT when available).
+
+Spec 034: 034:RF-28.
+"""
 
 from __future__ import annotations
 

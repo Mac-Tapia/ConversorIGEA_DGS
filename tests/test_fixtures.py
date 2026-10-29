@@ -1,4 +1,7 @@
-"""Fixture discovery helpers (no TXT required)."""
+"""Fixture discovery helpers (no TXT required).
+
+Spec 034: 034:RF-29.
+"""
 
 from igea_paths import SKIP_MSG, resolve_igea_txt_paths
 

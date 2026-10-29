@@ -1,4 +1,7 @@
-"""Contrato universal aplicado despues de los adaptadores de entrada."""
+"""Contrato universal aplicado despues de los adaptadores de entrada.
+
+Spec 034: 034:RF-19.
+"""
 
 from __future__ import annotations
 

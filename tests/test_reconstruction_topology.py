@@ -1,3 +1,7 @@
+"""Pruebas del motor base de conversión.
+
+Spec 034: 034:RF-22.
+"""
 from __future__ import annotations
 
 from pathlib import Path

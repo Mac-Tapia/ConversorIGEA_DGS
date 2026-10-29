@@ -45,7 +45,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 - [x] T11. Validación: cada RF citado por al menos una prueba y en verde; suite completa
       con las variables `IGEA_*`. (Todos)
       Hecho cuando: `grep -rnoE "005:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-20.
-- [ ] T12. Prueba manual en DIgSILENT (la hace el usuario): importar dos DGS, uno con
+- [ ] T12. [DIgSILENT] Prueba manual en DIgSILENT (la hace el usuario): importar dos DGS, uno con
       nombre repetido, crear una subcarpeta y leer los proyectos. (RF-5 a RF-17)
       Hecho cuando: el usuario lo confirma, y la lista de caracteres no admitidos queda
       comprobada.

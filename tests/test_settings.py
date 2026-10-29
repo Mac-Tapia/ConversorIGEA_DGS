@@ -6,6 +6,8 @@ mano cada vez, y es fácil convertir sin darse cuenta con la entrega del mes pas
 
 Lo hacía ``settings.py`` para la GUI Tkinter, que se retiró (spec 001, RF-16). En la web
 lo hace cada espacio de trabajo, que guarda sus entradas y opciones en su carpeta.
+
+Spec 034: 034:RF-30.
 """
 
 from __future__ import annotations

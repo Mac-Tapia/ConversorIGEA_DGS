@@ -1,4 +1,7 @@
-"""Puertas de preparación comunes a TXT, MDB y VNR-GIS."""
+"""Puertas de preparación comunes a TXT, MDB y VNR-GIS.
+
+Spec 034: 034:RF-20.
+"""
 
 from __future__ import annotations
 

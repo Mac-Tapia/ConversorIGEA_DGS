@@ -13,6 +13,8 @@ Las tres reglas que estas pruebas fijan, por orden de gravedad si se rompen:
 3. **La identidad de cada alimentador sobrevive a la unión.** Una fuente y un
    ``ElmFeeder`` por alimentador; si se pierden, deja de poder distinguirse quién
    alimenta qué dentro de la red común.
+
+Spec 034: 034:RF-17.
 """
 
 from __future__ import annotations

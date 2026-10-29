@@ -1,6 +1,6 @@
 # Spec 032 — «Caso base» con los datos originales; fichas y potencias en «Sin proyecto»
 
-Estado: aprobada (2026-10-28) · Fecha: 2026-10-28
+Estado: cumplida (revisión 033 del 2026-10-29) · aprobada (2026-10-28) · Fecha: 2026-10-28
 
 ## Contexto y objetivo
 

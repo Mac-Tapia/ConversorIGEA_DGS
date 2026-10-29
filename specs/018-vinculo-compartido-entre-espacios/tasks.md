@@ -19,6 +19,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       causa. Hecho cuando: `npm run build` en `frontend/` sin errores.
 - [x] T6. Revisión: literales con mojibake corregidos y suite de vínculo, API web, caso base y
       ajuste en verde.
+      Hecho cuando: la suite de vínculo, API web, caso base y ajuste en verde y sin literales con mojibake.
 - [x] T7. Siembra del registro al arrancar (`WorkspaceStore`, `sembrar_registro`): los vínculos
       de los espacios existentes pasan al registro, validados por su huella. (RF-8)
       Hecho cuando: `pytest -q tests/test_powerfactory_binding.py` en verde, con la prueba de RF-8.
@@ -33,3 +34,6 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 - [x] T11. `pf_proyectos_guardados` y `GET /powerfactory/projects`; la pestaña la usa cuando no
       hay lectura en la sesión. (RF-13) Hecho cuando: la prueba de RF-13 en
       `tests/test_caso_base_web.py` en verde y `npm run build` sin errores.
+- [x] T12. Retro (033, 2026-10-29): RF-14, RF-15, añadidos a la spec como cambio después de
+      escribir las tareas e implementados con su prueba sin tarea propia. (RF-14, RF-15)
+      Hecho cuando: las pruebas que los citan pasan (pruebas de `tests/test_powerfactory_binding.py`).

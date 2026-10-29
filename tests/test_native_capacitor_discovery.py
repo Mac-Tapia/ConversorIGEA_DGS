@@ -1,4 +1,7 @@
-"""Los bancos presentes solo en DIgSILENT también forman parte de la aceptación."""
+"""Los bancos presentes solo en DIgSILENT también forman parte de la aceptación.
+
+Spec 034: 034:RF-23.
+"""
 
 from __future__ import annotations
 

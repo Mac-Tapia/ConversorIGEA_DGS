@@ -1,3 +1,7 @@
+"""Pruebas del motor base de conversión.
+
+Spec 034: 034:RF-1.
+"""
 from igea_dgs.dataset import CymdistDataset
 
 

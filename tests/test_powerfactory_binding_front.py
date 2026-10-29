@@ -1,4 +1,7 @@
-"""La identidad vinculada se muestra y gobierna los controles nativos."""
+"""La identidad vinculada se muestra y gobierna los controles nativos.
+
+Spec 034: 034:RF-21.
+"""
 
 from pathlib import Path
 

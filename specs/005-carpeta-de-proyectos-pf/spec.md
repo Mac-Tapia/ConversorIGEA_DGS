@@ -1,6 +1,6 @@
 # Spec 005 — Carpeta de proyectos importados en DIgSILENT
 
-Estado: aprobada (2026-10-09) · Fecha: 2026-10-09 · Origen: prueba manual de «Leer proyectos de DIgSILENT» del 2026-10-09
+Estado: implementada (revisión 033 del 2026-10-29) · aprobada (2026-10-09) · Fecha: 2026-10-09 · Origen: prueba manual de «Leer proyectos de DIgSILENT» del 2026-10-09
 
 ## Contexto y objetivo
 

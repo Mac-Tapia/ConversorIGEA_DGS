@@ -12,7 +12,7 @@ les dio hoja vertical; los vectores de los conectores llevan −1 en los puntos 
 no son del dibujo.
 
     python tools/hojas_diagrama_pf.py --proyecto 20261029-081235_IGEA_SISTEMA_NASCA \
-        --carpeta sistemaeletricoELD [--output-json hojas.json]
+        --carpeta <carpeta del perfil de empresa> [--output-json hojas.json]
 
 Códigos de salida: 0 todas dentro, 1 alguna fuera o error inesperado, 2 proyecto que no
 existe, 3 API de PowerFactory no disponible.

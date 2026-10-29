@@ -238,7 +238,7 @@ def _clientes_por_anio(client, tmp_path) -> tuple[str, object]:
 
 
 def test_clientes_del_mes_de_la_maxima_en_su_subcarpeta(client, tmp_path):
-    """025:RF-10 — la máxima de julio de 2025 cruza con el libro de julio de su carpeta 2025."""
+    """025:RF-10 / 013:RF-17 — la máxima de julio de 2025 cruza con el libro de julio de su carpeta 2025."""
     from igea_dgs.web import services
 
     _wid_, ws = _clientes_por_anio(client, tmp_path)

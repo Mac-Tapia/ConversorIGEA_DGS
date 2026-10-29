@@ -18,7 +18,7 @@ cuando el usuario ponga a mano la central de NA205.
       Hecho cuando: pruebas con `fake_pf` en verde.
 - [x] T5. `tools/sistema_web.py` escanea antes de calibrar. (RF-15)
       Hecho cuando: prueba de `sistema_web` en verde.
-- [ ] T6. Prueba en DIgSILENT: escanear Nasca con la central de NA205 puesta a mano por el
+- [ ] T6. [DIgSILENT] Prueba en DIgSILENT: escanear Nasca con la central de NA205 puesta a mano por el
       usuario y recalibrar.
       Hecho cuando: el escaneo nombra el generador de NA205 y su barra, y la calibración lo usa.
       Pendiente (usuario, 2026-10-28: «no puedo modificar el DIgSILENT a mano, deja pendiente de
@@ -40,7 +40,7 @@ cuando el usuario ponga a mano la central de NA205.
       20261028-103442_IGEA_SISTEMA_CHINCHA con 2026-07: 26 válidos y 0 con fallos en 261 s. La
       primera vez se esperaba a sí mismo (`sistema_web.py` esperaba al trabajo que lo lanzó):
       arreglado con `IGEA_TRABAJO_PROPIO`, también para el asistente y el agente.
-- [ ] T9. Recalibrar el proyecto de uno o varios alimentadores: ruta, botón y `sistema_web.py
+- [x] T9. Recalibrar el proyecto de uno o varios alimentadores: ruta, botón y `sistema_web.py
       --red`. (RF-23 a RF-25)
       Hecho cuando: pruebas de la API y de la herramienta en verde, y en DIgSILENT, desde la web,
       un alimentador y dos unidos convertidos, calibrados, recalibrados y con su informe de estudio.
@@ -57,9 +57,13 @@ cuando el usuario ponga a mano la central de NA205.
       2026-10-29: un alimentador convertido, calibrado y recalibrado desde la web con `--red` (SM218 y
       CA101 de la entrega 231026, VÁLIDOS); dos unidos, IN111 + TA225 calibrados en DIgSILENT (025).
       Falta su informe de estudio: espera las cargas nuevas que el usuario sube en bloque (3.3).
+      Código cerrado el 2026-10-29 (033): CLI, API y botón con sus pruebas en verde (028:RF-23 a RF-25); la prueba en DIgSILENT pasa a T11.
 - [x] T10. Tramos cambiados a mano en el escaneo: los del DGS aceptado que graba una variación
       del operador, con su variación, tipo y longitud; resumen y columna en la tabla. (RF-26)
       Hecho cuando: `pytest -q tests/test_escaneo.py` en verde y en DIgSILENT el escaneo de CA101
       nombra la variación del operador.
       Hecho el 2026-10-28: suite del escaneo en verde; en DIgSILENT el escaneo de CA101 nombró
       «Prueba_operador_032» como del operador (vacía: sin tramos que listar).
+- [ ] T11. [DIgSILENT] Desde la web, un alimentador y dos unidos convertidos, calibrados,
+      recalibrados y con su informe de estudio (sigue a T9). (RF-23 a RF-25)
+      Hecho cuando: los dos proyectos válidos tras recalibrar y con su informe.

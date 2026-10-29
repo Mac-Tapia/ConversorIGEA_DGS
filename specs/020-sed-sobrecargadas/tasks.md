@@ -72,3 +72,6 @@ Plan: `specs/020-sed-sobrecargadas/plan.md`. Una tarea cada vez, pruebas primero
       Cerrada el 2026-10-29 con SM218 y CA101 de la entrega 231026 (032 T9), no con PA217, que el usuario
       ya trabajó («PA217 no deberías hacer nada»): aviso, propuesta e «Implementar transformadores»
       desde la web, 5 SED cada uno en «SED_NTP_», recalibrados VÁLIDOS (−0,29 % y −0,01 %).
+- [x] T11. Retro (033, 2026-10-29): RF-60 a RF-62, añadidos a la spec como cambio después de
+      escribir las tareas e implementados con su prueba sin tarea propia. (RF-60 a RF-62)
+      Hecho cuando: las pruebas que los citan pasan (pruebas de `tests/test_ajuste_cabecera_guion.py` y `tests/test_central_termica_front.py`).

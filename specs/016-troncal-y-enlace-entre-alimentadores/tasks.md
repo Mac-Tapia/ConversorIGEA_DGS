@@ -133,14 +133,19 @@ Cierre
       Hecho el 2026-10-16: enlace TA225-IN111 por la vía, 6,27 km y 140 vértices (3,62 km en
       recta), 9,4 m fuera de vía; «Con proyecto» converge con la migración, las nueve
       cargas y la segunda terna en siete tramos (máximo 98,1 %).
-- [ ] T16. Cable hasta la carga nueva solo a más de 25 m del nodo de media; a menos, la SED
+- [x] T16. Cable hasta la carga nueva solo a más de 25 m del nodo de media; a menos, la SED
       cuelga del nodo. `con_cable` en `tools/cargas_pf.py`, en la resolución, al crear, en la
       simulación y en el informe. (RF-88)
       Hecho cuando: las pruebas que citan 016:RF-88 pasan y una carga de PN107 en DIgSILENT
       sale con su nodo y, según la distancia, con o sin cable.
+      Código hecho el 2026-10-16 (las pruebas de 016:RF-88 pasan); la prueba en DIgSILENT con PN107 pasa a T18 (033, 2026-10-29).
 - [x] T17. Dibujar en el diagrama lo que crean las cargas y las obras sin símbolo
       (`Diagrama.completar` en `tools/cargas_pf.py`, al final de cargas y de obras). (RF-89)
       Hecho cuando: las pruebas que citan 016:RF-89 pasan y el enlace de IN111 + TA225 se ve.
       Hecho el 2026-10-16: en IN111 + TA225 se dibujaron el enlace (140 vértices, extremos
       en 15232 y ENLACE_C_IN111(2)), las seis mitades partidas y sus seis nodos; las cargas
       IC_9 a IC_17 están en el punto del Excel (0,0 m); «Con proyecto» converge.
+- [ ] T18. [DIgSILENT] Carga nueva de PN107 con y sin cable según la distancia a su nodo de
+      media. (RF-88)
+      Hecho cuando: en DIgSILENT una carga de PN107 sale con su nodo y, según la distancia,
+      con o sin cable.

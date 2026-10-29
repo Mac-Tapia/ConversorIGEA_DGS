@@ -1,6 +1,6 @@
 # Spec 028 — Escaneo del alimentador antes de recalibrar
 
-Estado: pedida por el usuario el 2026-10-28 («en el interfaz debe tener un campo donde escanea
+Estado: implementada (revisión 033 del 2026-10-29) · pedida por el usuario el 2026-10-28 («en el interfaz debe tener un campo donde escanea
 al alimentador para hacer la recalibración donde identifique los cambios y centrales térmicas
 en cualquier alimentador; recuerda que este proyecto es universal, general, nada debe estar
 fijo»), tras decir que las centrales y los bancos de NA205 los pone él a mano en DIgSILENT.

@@ -1,6 +1,6 @@
 # Spec 007 — Cargas nuevas sobre el alimentador ajustado, una variación por carga
 
-Estado: aprobada (2026-10-09), implementada el 2026-10-10 con el cambio RF-36 y RF-37; falta la prueba en DIgSILENT (T11) · Fecha: 2026-10-09 · Origen: uso real con SI213, 2026-10-09 (ajuste de la spec 006 aplicado y libro de cargas nuevas con coordenadas subido)
+Estado: implementada (revisión 033 del 2026-10-29) · aprobada (2026-10-09), implementada el 2026-10-10 con el cambio RF-36 y RF-37; falta la prueba en DIgSILENT (T11) · Fecha: 2026-10-09 · Origen: uso real con SI213, 2026-10-09 (ajuste de la spec 006 aplicado y libro de cargas nuevas con coordenadas subido)
 
 ## Contexto y objetivo
 
@@ -236,5 +236,5 @@ Cambio del 2026-10-13: deshacer una aplicación
 - Las cargas nuevas se crean solo en «Con proyecto», copia de «Sin proyecto» con sus
   variaciones activas y su escenario (014:RF-18, RF-19); antes de insertarlas se activan
   en «Con proyecto» las variaciones del operador activas en «Sin proyecto» (014:RF-21).
-- RF-10: el nombre de la variación (SED y alimentador) es también la clave con que se
+- Aclaración de RF-10: el nombre de la variación (SED y alimentador) es también la clave con que se
   reconoce una carga ya creada; repetir la inserción no la duplica (014:RF-23 a RF-28).

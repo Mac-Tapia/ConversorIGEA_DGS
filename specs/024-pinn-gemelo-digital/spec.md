@@ -1,6 +1,6 @@
 # Spec 024 — PINN como oráculo y gemelo digital de la red calibrada
 
-Estado: aprobada el 2026-10-21, con el cambio del mismo día (RF-39 a RF-53: aprendizaje autónomo, propuestas e implementación propias, diagnóstico y plan por etapas); primera entrega (búfer de episodios, T1 a T9) implementada el 2026-10-22 y probada en DIgSILENT con IN111–TA225; T10, T12 a T14 hechas el 2026-10-22; del 2026-10-24, RF-64 a RF-74 (física mallada, algoritmos genéticos y evolutivos, evaluación del aprendizaje; T15 a T17) y T11 cerrada con la PINN de IN111–TA225 promovida · Fecha: 2026-10-21
+Estado: cumplida (revisión 033 del 2026-10-29) · aprobada el 2026-10-21, con el cambio del mismo día (RF-39 a RF-53: aprendizaje autónomo, propuestas e implementación propias, diagnóstico y plan por etapas); primera entrega (búfer de episodios, T1 a T9) implementada el 2026-10-22 y probada en DIgSILENT con IN111–TA225; T10, T12 a T14 hechas el 2026-10-22; del 2026-10-24, RF-64 a RF-74 (física mallada, algoritmos genéticos y evolutivos, evaluación del aprendizaje; T15 a T17) y T11 cerrada con la PINN de IN111–TA225 promovida · Fecha: 2026-10-21
 
 ## Contexto y objetivo
 

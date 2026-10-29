@@ -1,4 +1,7 @@
-"""Tests for preview layers and Leaflet HTML export (no leafmap required)."""
+"""Tests for preview layers and Leaflet HTML export (no leafmap required).
+
+Spec 034: 034:RF-14.
+"""
 
 from __future__ import annotations
 

@@ -13,6 +13,8 @@ De ahí venía toda la maquinaria de buscar un intérprete compatible y lanzar s
 Con el entorno fijado en 3.12 esa maquinaria sigue existiendo —hace falta en máquinas
 donde el conversor y PowerFactory no comparten intérprete—, pero aquí resuelve al propio
 proceso y deja de ser un punto de fallo.
+
+Spec 034: 034:RF-29.
 """
 
 from __future__ import annotations

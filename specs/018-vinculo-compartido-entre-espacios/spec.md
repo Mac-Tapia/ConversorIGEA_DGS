@@ -1,6 +1,6 @@
 # Spec 018 - Vínculo de proyectos de DIgSILENT compartido entre espacios de trabajo
 
-Estado: implementada (2026-10-15; RF-9 a RF-12 añadidos y hechos el mismo día) - Fecha:
+Estado: cumplida (revisión 033 del 2026-10-29) · implementada (2026-10-15; RF-9 a RF-12 añadidos y hechos el mismo día) - Fecha:
 2026-10-15 - Origen: PROJECT_BINDING_MISSING sobre CA101 en un espacio de trabajo que no
 aceptó el proyecto (2026-10-15)
 

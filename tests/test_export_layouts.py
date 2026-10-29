@@ -18,6 +18,8 @@ de 21 MB, con las mismas 96 alimentadores— el resultado medido fue:
 De los cinco, tres son de la clase que no falla: producen un modelo que se importa en
 PowerFactory y converge dando números creíbles y equivocados. De ahí que esto se pruebe
 sobre las dos disposiciones y no sobre una.
+
+Spec 034: 034:RF-1.
 """
 
 from __future__ import annotations

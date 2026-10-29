@@ -29,7 +29,7 @@ def test_curva_en_la_caja_del_ajuste_con_la_ruta_de_la_api():
 
 
 def test_franja_del_mes_de_la_maxima():
-    """006:RF-33 — franja del mes natural de la máxima, del día 1 al 1 del mes siguiente."""
+    """006:RF-33 / 013:RF-21 — franja del mes natural de la máxima, del día 1 al 1 del mes siguiente."""
     assert 'new Date(fm.getFullYear(), fm.getMonth(), 1)' in CURVA
     assert 'new Date(fm.getFullYear(), fm.getMonth() + 1, 1)' in CURVA
     assert 'className="curva-franja"' in CURVA and '.curva-franja { fill: var(--warn-soft); }' in CSS
@@ -70,7 +70,7 @@ def test_selector_de_medidor_con_el_del_objetivo_por_defecto():
 
 # ---------------------------------------------------------------- spec 021: varias curvas
 def test_varios_alimentadores_en_una_grafica_con_el_mismo_eje():
-    """021:RF-17 — con dos o más alimentadores, todas las curvas en una gráfica, con el
+    """021:RF-17 / 013:RF-18 / 013:RF-19 — con dos o más alimentadores, todas las curvas en una gráfica, con el
     mismo eje de tiempo (del primer al último registro de ellas)."""
     assert 'const varias = series.length > 1;' in CURVA
     assert 'series={grupos.flatMap((g, i) => {' in AJUSTE
@@ -87,7 +87,7 @@ def test_un_color_y_una_leyenda_por_alimentador():
 
 
 def test_la_maxima_de_cada_alimentador_con_su_color():
-    """021:RF-19 — la máxima de cada uno, con un punto de su color."""
+    """021:RF-19 / 013:RF-20 — la máxima de cada uno, con un punto de su color."""
     assert 'className="curva-pico-serie"' in CURVA and 'fill={s.color}' in CURVA
 
 

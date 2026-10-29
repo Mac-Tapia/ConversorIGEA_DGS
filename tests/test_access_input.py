@@ -9,6 +9,8 @@ Los tests del estudio son sintéticos y siempre corren. Los de la base necesitan
 
 La base se valida por sí misma, sin compararla con los TXT: las dos fuentes son
 independientes y pueden ser de otra fecha o de otra empresa (2026-10-14).
+
+Spec 034: 034:RF-3.
 """
 
 from __future__ import annotations

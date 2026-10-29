@@ -3,6 +3,8 @@
 Las unidades y nombres de atributo se leyeron de la API de PF 2024: la etapa guarda
 inversión, valor original y de desecho en kUSD, costes adicionales en kUSD/año y vida
 útil en años; la orden, el interés en % y las pérdidas en US$/kWh.
+
+Spec 034: 034:RF-27.
 """
 
 from __future__ import annotations

@@ -10,6 +10,8 @@ Cubre P0.4 del plan y la regla «si existe, se dibuja»:
 - El manifiesto se escribe siempre, incluso si el lote revienta (checklist backend).
 - Un FEEDER=/SOURCE sin filas SECTION ya no se omite: se dibuja su barra de cabecera,
   que es lo único que el export contiene.
+
+Spec 034: 034:RF-15.
 """
 
 from __future__ import annotations

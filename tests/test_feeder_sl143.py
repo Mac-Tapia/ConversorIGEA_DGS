@@ -18,6 +18,8 @@ aéreo (797) y subterráneo (239).
 
 Requisitos: ``IGEA_RED``/``IGEA_LOADS``/``IGEA_EQUIPMENT`` para la vía TXT, ``IGEA_MDB``
 para la vía Access. Cada bloque hace *skip* limpio si falta su entrada.
+
+Spec 034: 034:RF-10, 034:RF-18.
 """
 
 from __future__ import annotations

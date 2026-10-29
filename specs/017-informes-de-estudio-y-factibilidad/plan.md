@@ -182,3 +182,23 @@ de RF-25 es el contrato entre las dos mitades.
   (RF-133).
 - `informe_docx.py`: sección por alternativa (obras, plano, fuente, tensión,
   cargabilidad), tabla comparativa y recomendación (RF-134).
+
+## Cambio de diseño (verificado el 2026-10-29, spec 033)
+
+El guion `tools/informes_pf.py` de las partes 6 a 9 no se creó. El 2026-10-15 se decidió que el
+informe se arma con lo que ya guardan la calibración, los estudios y las obras al correr desde
+la web, sin volver a simular («no hacer dobles trabajos»); y `WriteWMF` sin ventana deja un
+fichero vacío, así que las imágenes se dibujan con el GPS (RF-11b). El código que existe:
+
+| Parte | Ficheros | RF |
+| --- | --- | --- |
+| Lo que no necesita DIgSILENT | `src/igea_dgs/informes.py` | perfil, cálculos y redacción |
+| Word | `src/igea_dgs/informe_docx.py` | RF-3, RF-6, RF-23, alternativas RF-128 a RF-135 |
+| Imágenes con el GPS | `src/igea_dgs/mapa_informe.py`; el GPS y el flujo de cada caso los guarda `tools/estudios_pf.py` | RF-10, RF-11b, RF-115, RF-116, RF-133 |
+| Libro de pérdidas | `src/igea_dgs/libros_informe.py` | RF-39b a RF-39e, RF-61 a RF-64 |
+| Transformador de la SET | `tools/transformador_set_pf.py` | RF-65 a RF-68, RF-70 |
+| API (carril `engine`, con lo guardado) | `src/igea_dgs/web/{app,services}.py` | RF-26, RF-82 |
+| Paso «4.4 · Informes» | `frontend/src/components/InformesPF.tsx` | RF-73 a RF-95 (en parte) |
+
+Lo que falta sigue en las tareas abiertas T5, T7 a T12, T15 y T17, y en las de DIgSILENT T13 y T14.
+
