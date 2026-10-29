@@ -672,27 +672,26 @@ def implementar_transformadores(app, cargas: dict, cambios: list[dict],
     # transformadores de NA203.
     activas = list(app.GetActiveNetworkVariations() or [])
     centrales = [v for v in activas if v.loc_name.startswith(PREFIJO_CENTRAL)]
+    # 032:RF-12: la etapa del operador que graba (sus tramos y ternas a mano) no detiene nada:
+    # los transformadores se graban en «SED_NTP_» y la grabación vuelve a la suya al terminar.
+    ajena = _etapa_ajena(app)
     for v in centrales:
         v.Deactivate()
     try:
-        return _implementar_transformadores(app, cargas, cambios, proyecto)
+        hecho = _implementar_transformadores(app, cargas, cambios, proyecto)
     finally:
         for v in centrales:
             v.Activate()
+        aviso = _devolver_grabacion(app, ajena) if cambios else None
+    if aviso:
+        hecho.setdefault('avisos', []).append(aviso)
+    return hecho
 
 
 def _implementar_transformadores(app, cargas: dict, cambios: list[dict], proyecto: str) -> dict:
     from igea_dgs.demanda_medida import clave_codigo
     from igea_dgs.trafos_sed import nombre_tipo
 
-    ajena = _grabando_ajena(app)
-    if ajena is not None:
-        # 032:RF-12, 020:RF-17: lo escrito iría a esa variación del operador.
-        activo = app.GetActiveStudyCase()                  # el de su año (025:RF-24)
-        caso = activo.loc_name if activo is not None else NOMBRES['sin']
-        return {'error': f"«{caso}» tiene {ajena} grabando: los transformadores van en su "
-                         'propia variación; termine o desactive esa y vuelva a implementar '
-                         '(020:RF-17, 032:RF-12).', 'cambios': [], 'omitidas': []}
     variacion = None
     if cambios:
         try:
@@ -1340,8 +1339,8 @@ def variacion_propia(app, nombre: str):
                  if v.loc_name == nombre or v.loc_name.startswith(nombre + '(')), None)
 
 
-def _grabando_ajena(app) -> str | None:
-    """La variación que graba si no es del conversor (032:RF-12, 020:RF-17)."""
+def _etapa_ajena(app):
+    """La etapa que graba si no es de una variación del conversor (032:RF-12), o ``None``."""
     from igea_dgs.escaneo import origen_de
 
     etapa = app.GetRecordingStage()
@@ -1352,7 +1351,43 @@ def _grabando_ajena(app) -> str | None:
     nombre = getattr(variacion, 'loc_name', '') or ''
     if nombre.startswith(PREFIJOS_QUE_GRABAN) or origen_de('', nombre)['origen'] == 'conversor':
         return None
-    return nombre or etapa.loc_name
+    return etapa
+
+
+def _nombre_de_etapa(etapa) -> str:
+    padre = getattr(etapa, 'GetParent', None)
+    variacion = padre() if padre is not None else None
+    return getattr(variacion, 'loc_name', '') or etapa.loc_name
+
+
+def _devolver_grabacion(app, etapa) -> str | None:
+    """Deja otra vez grabando la etapa del operador tras escribir en una del conversor (032:RF-12).
+
+    El operador mete tramos y ternas a mano en su variación, y su etapa se queda grabando;
+    antes eso detenía las fichas y los transformadores (usuario, 2026-10-28: «esto no debería
+    bloquear nada»). Con otras etapas activas de la misma fecha DIgSILENT puede no dejarla
+    grabar a la primera: se apartan las demás, como en :func:`variacion_grabando`.
+    """
+    from cargas_pf import _misma
+
+    if etapa is None:
+        return None
+    nombre = _nombre_de_etapa(etapa)
+    if not _misma(app.GetRecordingStage(), etapa):
+        etapa.Activate(1)
+    if not _misma(app.GetRecordingStage(), etapa):
+        padre = etapa.GetParent()
+        otras = [v for v in (app.GetActiveNetworkVariations() or []) if not _misma(v, padre)]
+        for v in otras:
+            v.Deactivate()
+        etapa.Activate(1)
+        for v in otras:
+            v.Activate()
+    if not _misma(app.GetRecordingStage(), etapa):
+        return (f'«{nombre}» estaba grabando y no volvió a grabar: actívela de nuevo en '
+                'DIgSILENT para seguir con sus cambios (032:RF-12).')
+    return (f'«{nombre}», del operador, estaba grabando: lo del conversor se grabó en su '
+            'propia variación y la grabación volvió a «' + nombre + '» (032:RF-12).')
 
 
 def variacion_grabando(app, nombre: str, etiqueta: str):
@@ -1465,24 +1500,27 @@ def poner_fichas(app, proyecto: str, lineas, fichas: dict) -> dict:
         variacion = variacion_propia(app, f'{PREFIJO_FICHAS}{proyecto}')
         out['variacion'] = getattr(variacion, 'loc_name', None)
         return out
-    ajena = _grabando_ajena(app)
-    if ajena is not None:                                                       # RF-12
-        out['error'] = (f'«{ajena}» está grabando: los conductores con su ficha van en su '
-                        'propia variación; termine o desactive esa y vuelva a calibrar (032:RF-12).')
-        return out
-    variacion, creada = variacion_grabando(app, f'{PREFIJO_FICHAS}{proyecto}', 'fichas')
-    out['variacion'], out['variacion_creada'] = variacion.loc_name, creada
-    for base, destino, existente, nuevos, lns in por_hacer:
-        tipo = existente
-        if tipo is None:
-            tipo = base.GetParent().AddCopy(base, destino)
-            for a, v in nuevos.items():
-                setattr(tipo, a, v)
-            tipos[destino] = tipo
-        for ln in lns:
-            if ln.typ_id is not tipo:
-                ln.typ_id = tipo
-                out['tramos_reasignados'] += 1
+    # RF-12: con la etapa del operador grabando (sus tramos y ternas a mano), los conductores
+    # se graban en «Fichas_» y la grabación vuelve a la suya; antes no se cambiaba nada.
+    ajena = _etapa_ajena(app)
+    try:
+        variacion, creada = variacion_grabando(app, f'{PREFIJO_FICHAS}{proyecto}', 'fichas')
+        out['variacion'], out['variacion_creada'] = variacion.loc_name, creada
+        for base, destino, existente, nuevos, lns in por_hacer:
+            tipo = existente
+            if tipo is None:
+                tipo = base.GetParent().AddCopy(base, destino)
+                for a, v in nuevos.items():
+                    setattr(tipo, a, v)
+                tipos[destino] = tipo
+            for ln in lns:
+                if ln.typ_id is not tipo:
+                    ln.typ_id = tipo
+                    out['tramos_reasignados'] += 1
+    finally:
+        aviso = _devolver_grabacion(app, ajena)
+    if aviso:
+        out['aviso_grabacion'] = aviso
     return out
 
 
@@ -1517,7 +1555,9 @@ def _conductores_con_ficha(app, plan: dict, feeders: list[str], alims, informes:
         inf['conductores_ficha'] = r
         if r.get('error'):
             inf['avisos'].append(r['error'])
-        elif r.get('cambios'):
+        if r.get('aviso_grabacion'):
+            inf['avisos'].append(r['aviso_grabacion'])
+        if not r.get('error') and r.get('cambios'):
             codigos = sorted({c['codigo'] for c in r['cambios']})
             inf['avisos'].append(
                 f"{len(codigos)} conductor(es) con los parámetros de su ficha en «Sin proyecto» "
@@ -1984,6 +2024,7 @@ def _preparar_alimentador(app, plan: dict, informe: dict, *, alims, feeder: str,
             return {**informe, 'error': hecho['error']}, 2
         for o in hecho['omitidas']:
             informe['avisos'].append(f"{o['sed']}: transformador no cambiado: {o['motivo']}.")
+        informe['avisos'].extend(hecho.get('avisos') or [])                 # 032:RF-12
         if hecho['cambios']:
             informe['avisos'].append(
                 f"{len(hecho['cambios'])} transformador(es) nuevo(s) en «{nombre_caso('sin', anio_del_plan(plan))}», en la "
@@ -2574,27 +2615,33 @@ def barras_para_bancos(red, cabecera: str, n: int) -> list[str]:
     return out
 
 
-def poner_bancos(app, alims, sin, base, con, pedidos: dict[str, tuple[int, float]]) -> list[dict]:
+def poner_bancos(app, alims, sin, base, con, pedidos: dict[str, tuple[int, float]],
+                 avisos: list[str] | None = None) -> list[dict]:
     """Los bancos que faltan, en la troncal de cada alimentador (021:RF-66, RF-67).
 
-    Se crean en la red con las variaciones de las centrales apagadas, como los
-    transformadores (020:RF-17); en servicio en los escenarios de «Sin proyecto» y «Con
-    proyecto» y fuera de servicio en el del «Caso base», que sigue como se verificó.
+    Se crean en la red, con las variaciones activas apartadas, como los transformadores
+    (020:RF-17); en servicio en los escenarios de «Sin proyecto» y «Con proyecto» y fuera de
+    servicio en el del «Caso base», que sigue como se verificó.
     """
+    avisos = [] if avisos is None else avisos
     sin.Activate()
-    activas = list(app.GetActiveNetworkVariations() or [])
     # Spec 032: también las de los conductores con su ficha y los transformadores de SED, que
-    # son del conversor y graban. CA101 desde cero (2026-10-28): con «Fichas_» activa, poner
-    # los bancos que faltan se negaba y la calibración del proyecto fallaba entera.
-    centrales = [v for v in activas if v.loc_name.startswith(PREFIJOS_QUE_GRABAN)]
-    for v in centrales:
+    # son del conversor y graban (CA101 desde cero, 2026-10-28: con «Fichas_» activa se
+    # negaba). Y las del operador (032:RF-29): sus tramos y ternas a mano dejaban la
+    # calibración entera en «tiene variaciones activas o una etapa grabando». Se apartan solo
+    # mientras se crean los bancos y vuelven activas, con su etapa grabando.
+    ajena = _etapa_ajena(app)
+    activas = list(app.GetActiveNetworkVariations() or [])
+    for v in activas:
         v.Deactivate()
     creados: list[dict] = []
     objetos = []
     try:
-        if app.GetRecordingStage() is not None or len(centrales) < len(activas):
-            raise RuntimeError('«Sin proyecto» tiene variaciones activas o una etapa grabando: '
-                               'los bancos van en la red (020:RF-17).')
+        if app.GetRecordingStage() is not None:
+            avisos.append('Una etapa sigue grabando con todas las variaciones apartadas: los '
+                          'bancos que faltan no se ponen, porque irían a ella y no a la red '
+                          '(032:RF-29).')
+            pedidos = {}
         for feeder, (n, kvar) in pedidos.items():
             elm = alims.elm[feeder]
             cab = cabecera_de(elm)
@@ -2614,8 +2661,11 @@ def poner_bancos(app, alims, sin, base, con, pedidos: dict[str, tuple[int, float
                 creados.append({'feeder': feeder, 'banco': banco.loc_name, 'barra': nombre,
                                 'kv': float(barra.uknom), 'kvar': kvar})
     finally:
-        for v in centrales:
+        for v in activas:
             v.Activate()
+        aviso = _devolver_grabacion(app, ajena)
+    if aviso:
+        avisos.append(aviso)
     for caso, fuera in ((base, 1), (sin, 0), (con, 0)):
         if caso is None:
             continue
@@ -2705,7 +2755,7 @@ def _con_bancos_que_faltan(app, planes: list[dict], *, cancelado, estado: dict) 
         anio = anio_del_plan(planes[0])                                  # 025:RF-18
         creados = poner_bancos(app, alims, caso_del_sistema(app, 'sin', anio),
                                caso_del_sistema(app, 'base'), caso_del_sistema(app, 'con', anio),
-                               pedidos)
+                               pedidos, avisos)
     # RF-68: la calibración que vale, con los bancos y los ajustes del flujo restituidos.
     segunda = _ejecutar_proyecto(app, planes, cancelado=cancelado, estado=estado)
     for plan, (inf, _rc) in zip(planes, segunda):

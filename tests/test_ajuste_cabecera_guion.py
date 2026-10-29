@@ -1647,19 +1647,26 @@ def test_solo_cambian_las_sed_marcadas(guion):
     assert _tr(app, 'TR_F1_S2').typ_id.loc_name.startswith('TR_400kVA')
 
 
-def test_con_una_etapa_grabando_no_se_cambia_nada(guion):
-    """020:RF-17 — con una etapa grabando en «Sin proyecto», nada cambia y se nombra."""
+def test_con_la_etapa_del_operador_grabando_los_transformadores_no_se_bloquean(guion):
+    """032:RF-12 (cambia 020:RF-17) — con la etapa del operador grabando en «Sin proyecto»
+    (sus tramos y ternas a mano), los transformadores se graban en «SED_NTP_», la grabación
+    vuelve a la suya y se dice. Antes no se cambiaba nada y la calibración se detenía."""
     app = _app(n=3)
     plan = _con_propuesta(guion, app, _sobrecargada(app))
     viejo = _tr(app, 'TR_F1_S2').typ_id
-    # El estado de la etapa es de cada caso, y el guion activa «Sin proyecto»: se simula
-    # lo que DIgSILENT devuelve en él.
-    app.GetRecordingStage = lambda: SimpleNamespace(loc_name='Etapa_del_operador')
+    guion.preparar_sin(app, {'project': 'P', 'feeders': ['F1'], 'caso_base_sin_verificar': {}})
+    _caso(app, 'Sin proyecto').Activate()
+    var = app.carpetas['scheme'].CreateObject('IntScheme', 'Ternas_del_operador')
+    var.NewStage('Etapa', 1_760_000_000, 1)
+    suya = app.grabando
 
     informe, rc = guion.ejecutar(app, plan)
 
-    assert rc == 2 and 'Etapa_del_operador' in informe['error'] and '020:RF-17' in informe['error']
-    assert _tr(app, 'TR_F1_S2').typ_id is viejo
+    assert rc == 0, informe
+    assert _tr(app, 'TR_F1_S2').typ_id is not viejo
+    assert _variaciones(app, 'SED_NTP_')
+    assert app.grabando is suya, 'la grabación vuelve a la etapa del operador'
+    assert any('Ternas_del_operador' in a and '032:RF-12' in a for a in informe['avisos'])
 
 
 def test_el_tipo_propio_se_reutiliza(guion):
@@ -1770,8 +1777,8 @@ def test_la_sed_cambiada_por_encima_del_umbral_se_nombra(guion):
 
 def test_la_variacion_de_una_central_no_bloquea_los_transformadores(guion):
     """020:RF-17, 021:RF-37 — la variación de la central (del conversor) se apaga mientras se
-    escriben los transformadores y se vuelve a encender; la de otro, sí bloquea. En NA203 +
-    NA205 (2026-10-17) la central de NA205 bloqueaba los transformadores de NA203."""
+    escriben los transformadores y se vuelve a encender. En NA203 + NA205 (2026-10-17) la
+    central de NA205 bloqueaba los transformadores de NA203."""
     app = _app(n=3)
     plan = _con_propuesta(guion, app, _sobrecargada(app))
     activas = []
@@ -1790,16 +1797,6 @@ def test_la_variacion_de_una_central_no_bloquea_los_transformadores(guion):
                                               plan['transformadores'])
     assert 'error' not in hecho and [h['sed'] for h in hecho['cambios']] == ['F1_S2']
     assert central in activas, 'la central vuelve a quedar activa'
-    # 032:RF-12 (cambia 020:RF-17): los transformadores van en su variación, así que solo
-    # bloquea una variación del operador que esté grabando, y se nombra.
-    # ``Obra_`` es prefijo del conversor (011, 016): la del operador se llama de otro modo.
-    obra = Var(loc_name='Refuerzo_del_operador')
-    activas.append(obra)
-    app.GetRecordingStage = lambda: SimpleNamespace(loc_name='Etapa', GetParent=lambda: obra)
-    hecho = guion.implementar_transformadores(app, {'F1_S2': _carga(app, 'F1_S2')},
-                                              plan['transformadores'], 'P')
-    assert 'Refuerzo_del_operador' in hecho['error'] and 'Central_F2' not in hecho['error']
-    assert '032:RF-12' in hecho['error']
 
 
 def test_cambios_en_la_red_original_y_nuevo(guion):
@@ -1961,18 +1958,23 @@ def test_tipo_propio_con_otros_datos_no_se_toca(guion):
     assert all(ln.typ_id.loc_name == 'AAAC_F1' for ln in _lineas(app))
 
 
-def test_con_otra_variacion_grabando_no_se_cambia_nada(guion):
-    """032:RF-12 — si graba una variación del operador, no se cambia ningún conductor y se nombra."""
+def test_con_la_etapa_del_operador_grabando_las_fichas_no_se_bloquean(guion):
+    """032:RF-12 — con la etapa del operador grabando (sus tramos y ternas a mano), los
+    conductores se graban en «Fichas_», la grabación vuelve a la suya y se dice."""
     app = _app(n=3)
     guion.preparar_sin(app, {'project': 'P', 'feeders': ['F1'], 'caso_base_sin_verificar': {}})
     _caso(app, 'Sin proyecto').Activate()
     var = app.carpetas['scheme'].CreateObject('IntScheme', 'Mi_obra')
     var.NewStage('Etapa', 1_760_000_000, 1)
+    suya = app.grabando
     informe, rc = guion.ejecutar(app, {**_plan(kw=300.0, kvar=90.0),
                                        'fichas_conductores': _FICHA_F1})
 
-    assert 'Mi_obra' in (informe['conductores_ficha'].get('error') or '')
-    assert _tipo(app, 'AAAC_F1_FICHA') is None and not _variaciones(app, 'Fichas_')
+    assert rc == 0, informe
+    assert not informe['conductores_ficha'].get('error')
+    assert _tipo(app, 'AAAC_F1_FICHA') is not None and _variaciones(app, 'Fichas_')
+    assert app.grabando is suya, 'la grabación vuelve a la etapa del operador'
+    assert any('Mi_obra' in a and '032:RF-12' in a for a in informe['avisos'])
 
 
 def test_codigo_sin_ficha_queda_como_en_el_archivo(guion):

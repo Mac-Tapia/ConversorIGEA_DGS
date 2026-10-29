@@ -73,8 +73,12 @@ lote; DIgSILENT PowerFactory 2024.
   SISTEMA lo reutilizará.
 - RF-11: SI ya existe un tipo propio con el mismo nombre y otros datos, ENTONCES EL
   SISTEMA no cambiará los elementos de ese tipo y nombrará el tipo y el dato que difiere.
-- RF-12: SI en «Sin proyecto» hay otra variación del operador grabando, ENTONCES EL
-  SISTEMA no cambiará nada y nombrará la variación (020:RF-17).
+- RF-12: SI en «Sin proyecto» hay una variación del operador grabando, ENTONCES EL
+  SISTEMA escribirá en su propia variación de RF-8, devolverá la grabación a la etapa del
+  operador al terminar y lo dirá, sin dejar de calibrar. Usuario, 2026-10-28: «verifica que
+  se van a poder hacer las modificaciones manuales por mí en DIgSILENT […] esto no debería
+  bloquear nada, porque yo actualizo en DIgSILENT algunos datos de tramos, incluyo nuevas
+  ternas según las instalaciones actuales en campo». Antes no cambiaba nada (020:RF-17).
 - RF-13: CUANDO se vuelve a calibrar, EL SISTEMA reutilizará cada variación de RF-8 sin
   duplicar sus cambios.
 
@@ -114,6 +118,11 @@ Potencias de SED propuestas
   original del archivo y lo nuevo.
 - RF-25: DONDE el perfil de empresa no trae tablas de fichas, EL SISTEMA listará las SED
   de RF-20 sin propuesta (020:RF-10).
+- RF-29: MIENTRAS «Sin proyecto» tenga variaciones del operador activas o una etapa suya
+  grabando, EL SISTEMA pondrá los bancos que faltan (021:RF-64) en la red como siempre,
+  apartando esas variaciones solo mientras los crea y volviéndolas a dejar activas y con
+  su etapa grabando, en vez de detener la calibración (antes lanzaba «tiene variaciones
+  activas o una etapa grabando»).
 
 ## Requisitos no funcionales
 
@@ -164,6 +173,8 @@ Potencias de SED propuestas
 | 020:RF-1, RF-6 | Solo SED fijas por encima del 100 % de su potencia | Fijas y escaladas por encima del umbral del perfil (RF-20, RF-21) |
 | 020:RF-16 | Transformadores en la red de «Sin proyecto», sin variación | En su propia variación, inactiva en el «Caso base» (RF-8, RF-23, RF-27) |
 | 020, «Fuera de alcance» | Sin SED escaladas | Con SED escaladas (RF-20) |
+| 020:RF-17, 032:RF-12 | Con una variación del operador grabando, no se cambia nada | Se graba en la variación propia y se devuelve la grabación al operador (RF-12) |
+| 021:RF-64 | Con variaciones del operador activas, los bancos que faltan detienen la calibración | Se apartan mientras se crean los bancos y vuelven activas (RF-29) |
 
 ## Criterios de finalización
 

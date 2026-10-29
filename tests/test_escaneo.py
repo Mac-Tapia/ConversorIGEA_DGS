@@ -47,7 +47,7 @@ def test_reglas_barra_de_la_central_y_resumen():
     r = esc.resumen(escaneo)['A']
     assert r == {'generadores': 2, 'generadores_del_operador': 1, 'bancos': 2,
                  'bancos_del_operador': 1, 'bancos_de_calibracion': 1, 'cargas_cambiadas': 0,
-                 'tramos_nuevos': 0}
+                 'tramos_nuevos': 0, 'tramos_cambiados': 0}
 
 
 @pytest.fixture(scope='module')
@@ -184,6 +184,33 @@ def test_tramos_nuevos_frente_al_dgs(guion, tmp_path):
     [nuevo] = informe['alimentadores']['F1']['tramos_nuevos']
     assert nuevo['tramo'] == 'F1_L4' and nuevo['desde'] == 'F1_B3' and nuevo['hasta'] == 'F1_B4'
     assert esc.resumen(informe)['F1']['tramos_nuevos'] == 1
+
+
+def test_tramos_cambiados_a_mano_en_una_variacion_del_operador(guion):
+    """028:RF-26 — un tramo del DGS aceptado que graba una variación del operador sale como
+    cambiado a mano, con su variación y su longitud de ahora; el de una variación del
+    conversor («Fichas_») no. Usuario, 2026-10-28: «todas esas modificaciones manuales debe
+    reconocerlas al momento de recalibrar»."""
+    rnd = random.Random(SEMILLA)
+    app = fake_pf.proyecto(alimentadores=('F1',), cargas_por_alim=4, bt=True, flujo=True)
+    lineas = {ln.loc_name: ln for ln in app.proyecto.GetContents('*.ElmLne', 1)}
+    suyo, del_conversor = rnd.sample(sorted(n for n in lineas if n.startswith('F1_L')), 2)
+    nombre = f'Terna_{_nombre(rnd)}'
+    var = app.carpetas['scheme'].CreateObject('IntScheme', nombre)
+    var.NewStage('Etapa', 1_760_000_000, 1)
+    km = round(rnd.uniform(0.1, 3.0), 3)
+    lineas[suyo].dline = km
+    fichas = app.carpetas['scheme'].CreateObject('IntScheme', 'Fichas_P')
+    fichas.NewStage('Etapa', 1_760_000_100, 1)
+    lineas[del_conversor].dline = 9.0
+
+    informe, rc = guion.ejecutar(app, {'project': 'P', 'feeders': ['F1'],
+                                       'tramos_dgs': sorted(lineas)})
+
+    assert rc == 0, informe
+    [fila] = informe['alimentadores']['F1']['tramos_cambiados']
+    assert fila['tramo'] == suyo and fila['variacion'] == nombre and fila['km'] == pytest.approx(km)
+    assert esc.resumen(informe)['F1']['tramos_cambiados'] == 1
 
 
 def test_recalibrar_sin_bloqueos(tmp_path, monkeypatch):

@@ -82,6 +82,30 @@ def _tramos_nuevos(alims, feeder: str, de_dgs: set[str], de_objeto: dict) -> lis
     return sorted(filas, key=lambda x: x['tramo'])
 
 
+def _tramos_cambiados(alims, feeder: str, de_dgs: set[str], de_objeto: dict) -> list[dict]:
+    """RF-26: los tramos del DGS aceptado que graba una variación del operador.
+
+    El operador actualiza en DIgSILENT tramos y ternas según lo instalado en campo (usuario,
+    2026-10-28: «todas esas modificaciones manuales debe reconocerlas al momento de
+    recalibrar»). Los nuevos ya salen en RF-17; estos son los del archivo que él cambió.
+    Los de una variación del conversor («Fichas_», obras) no son suyos y no salen.
+    """
+    from cargas_pf import _num
+
+    filas = []
+    for ln in alims.objetos(feeder, 'ElmLne'):
+        variacion = de_objeto.get(('ElmLne', ln.loc_name))
+        if ln.loc_name not in de_dgs or variacion is None:
+            continue
+        if origen_de('', variacion)['origen'] != 'operador':
+            continue
+        filas.append({'tramo': ln.loc_name, 'variacion': variacion,
+                      'tipo': getattr(getattr(ln, 'typ_id', None), 'loc_name', None),
+                      'km': _num(ln, 'dline'),
+                      'en_servicio': not int(getattr(ln, 'outserv', 0) or 0)})
+    return sorted(filas, key=lambda x: x['tramo'])
+
+
 def ejecutar(app, plan: dict) -> tuple[dict, int]:
     """El escaneo de los alimentadores del plan. Devuelve (informe, código)."""
     from ajuste_cabecera_pf import bancos_instalados, cambios_manuales, cargas_sed
@@ -123,7 +147,9 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
             informe['alimentadores'][f] = {'generadores': _generadores(alims, f, de_objeto),
                                            'bancos': bancos, 'cargas_cambiadas': cambiadas,
                                            'tramos_nuevos': _tramos_nuevos(alims, f, de_dgs, de_objeto)
-                                           if de_dgs else []}
+                                           if de_dgs else [],
+                                           'tramos_cambiados': _tramos_cambiados(alims, f, de_dgs,
+                                                                                 de_objeto)}
         except Exception as exc:  # noqa: BLE001 - un alimentador no tumba el escaneo (RF-8)
             informe['alimentadores'][f] = {'error': f'{type(exc).__name__}: {exc}'}
     return informe, 0
@@ -156,7 +182,8 @@ def main(argv=None) -> int:
         else:
             print(f"  {f}: {len(d['generadores'])} generador(es), {len(d['bancos'])} banco(s), "
                   f"{len(d['cargas_cambiadas'])} carga(s) cambiada(s), "
-                  f"{len(d.get('tramos_nuevos') or [])} tramo(s) nuevo(s)", flush=True)
+                  f"{len(d.get('tramos_nuevos') or [])} tramo(s) nuevo(s), "
+                  f"{len(d.get('tramos_cambiados') or [])} cambiado(s) a mano", flush=True)
     print(f"Escaneo de {plan.get('project')}: código {codigo}")
     return codigo
 
