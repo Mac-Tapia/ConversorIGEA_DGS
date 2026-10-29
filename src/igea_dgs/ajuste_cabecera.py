@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Callable, Iterable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from .demanda_medida import clave_codigo, numero
@@ -101,58 +101,82 @@ def fijas_de(cruzados: Iterable[Mapping[str, Any]], objetivo: Objetivo,
     por_clave: dict[str, Fija] = {}
     for c in cruzados:
         sed = str(c.get('sed') or '').strip()
-        kw = numero(c.get('pot'))
-        if not sed or kw is None:
+        derivacion = derivacion_cliente(c, objetivo.tan_phi, objetivo.fp, fp_minimo)
+        if not sed or derivacion is None:
             continue
         f = por_clave.setdefault(clave_codigo(sed), Fija(sed))
-        ea, eri = numero(c.get('ea')), numero(c.get('eri'))
-        codigo = str(c.get('codigo') or '')
-        q_registro = numero(c.get('q_registro_kvar'))
-        if numero(c.get('p_registro_kw')) is not None:
-            # 004:RF-67: P y Q del cliente en el instante de su alimentador, coincidentes.
-            kw = numero(c.get('p_registro_kw'))
-        if q_registro is not None and kw:
-            # 004:RF-66: la reactiva del registro de 15 minutos en que se dio su POT.
-            tan = q_registro / kw
-            metodo = f"ERI_DEL_REGISTRO {c.get('fecha_registro') or ''}".strip()
-        elif ea is None or eri is None or ea == 0:
-            tan = objetivo.tan_phi
-            metodo = 'FP_CABECERA_FALLBACK'
-            f.avisos.append(f'{codigo}: sin EA o ERI; su kVAR con el FP del objetivo '
-                            f'({objetivo.fp:.3f}).')
-        else:
-            tan = eri / ea
-            metodo = 'ERI/EA'
-        q_kvar = kw * tan
-        fp_libro = abs(kw) / math.hypot(kw, q_kvar) if (kw or q_kvar) else 1.0
-        compensado = None
-        # 004:RF-66: con su registro, su FP es el de su EA y ERI en esa fecha y hora, sin
-        # llevarlo al mínimo: la compensación de 015:RF-62 era para el cociente del mes
-        # (usuario, 2026-10-28).
-        if fp_minimo is not None and fp_libro < fp_minimo and kw > 0 and q_registro is None:
-            q_libro = q_kvar
-            q_kvar = kw * math.tan(math.acos(fp_minimo))
-            compensado = {'fp_ea_eri': fp_libro, 'fp_escrito': fp_minimo,
-                          'q_ea_eri_kvar': q_libro, 'q_escrita_kvar': q_kvar}
-            f.avisos.append(
-                f'{codigo}: FP {fp_libro:.3f} de su EA/ERI llevado a {fp_minimo:.3f} por su '
-                f'banco propio; Q {q_libro:,.1f} → {q_kvar:,.1f} kvar (015:RF-62).')
-        f.kw += kw
-        f.kvar += q_kvar
-        f.clientes.append(codigo)
-        derivacion = {
-            'cliente': codigo,
-            'p_kw': kw,
-            'q_kvar': q_kvar,
-            'fp': abs(kw) / math.hypot(kw, q_kvar) if (kw or q_kvar) else 1.0,
-            'metodo': metodo,
-            'ea': ea,
-            'eri': eri,
-        }
-        if compensado:
-            derivacion['compensado'] = compensado
+        aviso = derivacion.pop('aviso', None)
+        if aviso:
+            f.avisos.append(aviso)
+        f.kw += derivacion['p_kw']
+        f.kvar += derivacion['q_kvar']
+        f.clientes.append(derivacion['cliente'])
         f.derivaciones.append(derivacion)
     return {f.sed: f for f in por_clave.values()}
+
+
+def derivacion_cliente(c: Mapping[str, Any], tan_objetivo: float, fp_objetivo: float,
+                       fp_minimo: float | None = None) -> dict[str, Any] | None:
+    """La P y la Q que se escriben de un cliente fijo, y de dónde salen (035:RF-2 a RF-4).
+
+    Una sola cuenta para la tabla de la web y para el ajuste: antes la tabla enseñaba la POT
+    de cada cliente, cada una de su día, y el ajuste escribía la P del instante de la máxima
+    de su alimentador (004:RF-67); el operador no veía lo que iba a DIgSILENT (2026-10-29).
+    ``None`` si el cliente no trae potencia. ``aviso``, si lo hay, es para el informe.
+    """
+    kw = numero(c.get('pot'))
+    if kw is None:
+        return None
+    ea, eri = numero(c.get('ea')), numero(c.get('eri'))
+    codigo = str(c.get('codigo') or '')
+    q_registro = numero(c.get('q_registro_kvar'))
+    p_registro = numero(c.get('p_registro_kw'))
+    fecha = str(c.get('fecha_registro') or '').strip() or None
+    aviso = None
+    if p_registro is not None:
+        # 004:RF-67: P y Q del cliente en el instante de su alimentador, coincidentes.
+        kw = p_registro
+    if q_registro is not None and kw:
+        # 004:RF-66: la reactiva del registro de 15 minutos (el del instante o el de su POT).
+        tan = q_registro / kw
+        metodo = ('REGISTRO_DEL_INSTANTE' if p_registro is not None
+                  else f"ERI_DEL_REGISTRO {fecha or ''}".strip())
+    elif ea is None or eri is None or ea == 0:
+        tan = tan_objetivo
+        metodo = 'FP_CABECERA_FALLBACK'
+        aviso = f'{codigo}: sin EA o ERI; su kVAR con el FP del objetivo ({fp_objetivo:.3f}).'
+    else:
+        tan = eri / ea
+        metodo = 'ERI/EA'
+    q_kvar = kw * tan
+    fp_libro = abs(kw) / math.hypot(kw, q_kvar) if (kw or q_kvar) else 1.0
+    compensado = None
+    # 004:RF-66: con su registro, su FP es el de su EA y ERI en esa fecha y hora, sin
+    # llevarlo al mínimo: la compensación de 015:RF-62 era para el cociente del mes
+    # (usuario, 2026-10-28).
+    if fp_minimo is not None and fp_libro < fp_minimo and kw > 0 and q_registro is None:
+        q_libro = q_kvar
+        q_kvar = kw * math.tan(math.acos(fp_minimo))
+        compensado = {'fp_ea_eri': fp_libro, 'fp_escrito': fp_minimo,
+                      'q_ea_eri_kvar': q_libro, 'q_escrita_kvar': q_kvar}
+        aviso = (f'{codigo}: FP {fp_libro:.3f} de su EA/ERI llevado a {fp_minimo:.3f} por su '
+                 f'banco propio; Q {q_libro:,.1f} → {q_kvar:,.1f} kvar (015:RF-62).')
+    derivacion: dict[str, Any] = {
+        'cliente': codigo,
+        'p_kw': kw,
+        'q_kvar': q_kvar,
+        'fp': abs(kw) / math.hypot(kw, q_kvar) if (kw or q_kvar) else 1.0,
+        'metodo': metodo,
+        'ea': ea,
+        'eri': eri,
+    }
+    if q_registro is not None and fecha:
+        derivacion['fecha'] = fecha                 # 035:RF-2: de qué registro sale
+    if compensado:
+        derivacion['compensado'] = compensado
+    if aviso:
+        derivacion['aviso'] = aviso
+    return derivacion
 
 
 def sed_desconectadas(desconectados: Iterable[Mapping[str, Any]],
@@ -200,6 +224,19 @@ class Reparto:
         """El mismo reparto con otros factores; en «solo kW» el kVAR sigue al kW (RF-14)."""
         b = a if self.solo_kw else (self.b if b is None else b)
         return Reparto(**{**self.__dict__, 'a': a, 'b': b})
+
+    def con_q(self) -> Reparto:
+        """El mismo reparto con la Q de las escaladas libre de su P (035:RF-6)."""
+        return replace(self, solo_kw=False)
+
+    def fp_escaladas(self) -> float | None:
+        """FP de las escaladas con los factores actuales: el de su base si ``b == a`` (035:RF-12)."""
+        bp = sum(p for p, _ in self.base.values())
+        bq = sum(q for _, q in self.base.values())
+        if bp <= 0 or self.a <= 0:
+            return None
+        tan = bq / bp * self.b / self.a
+        return 1.0 / math.hypot(1.0, tan)
 
     def a_solo_kw(self, objetivo: Objetivo) -> Reparto:
         """Pasa a «solo kW» (RF-14): el kVAR de las que escalan, con el FP del objetivo."""
@@ -342,6 +379,8 @@ class Cuadre:
     avisos: list[str] = field(default_factory=list)
     motivo: str = ''
     cancelado: bool = False
+    con_q: bool = False                  # 035:RF-5: también la Q de cabecera
+    q_estado: str | None = None          # Q_CUADRADA, Q_SIN_MARGEN o Q_SIN_BASE
 
     def errores(self) -> tuple[float | None, float | None]:
         """Error relativo de kW y kVAR en la cabecera, con signo (medido − objetivo)."""
@@ -406,6 +445,35 @@ def kvar_difference(medida: Medida, objetivo: Objetivo, tolerancia: float) -> di
     }
 
 
+#: Cómo quedó la Q de cabecera cuando se cuadra (035:RF-5, RF-8, RF-9).
+Q_CUADRADA, Q_SIN_MARGEN, Q_SIN_BASE = 'CUADRADA', 'SIN_MARGEN', 'SIN_BASE'
+#: Precisión de la Q de cabecera en «Sin proyecto» con bancos (035:RF-5). El usuario, el
+#: 2026-10-29: «el cuadre de Q en la cabecera debe tener una precisión de ± 2 %».
+TOLERANCIA_Q = 0.02
+
+
+def cuadrado_kvar(kvar: float | None, objetivo: Objetivo, tolerancia: float = TOLERANCIA_Q) -> bool:
+    """La Q de cabecera dentro de la tolerancia, medida como el aviso de kVAR (RF-14)."""
+    return kvar is not None and abs(_rel(kvar, objetivo.kvar, objetivo.kw)) <= tolerancia
+
+
+def _paso_q(rep: Reparto, kvar: float, objetivo: Objetivo,
+            puntos: list[tuple[float, float]]) -> tuple[float | None, str | None]:
+    """El siguiente factor de Q de las escaladas o por qué ya no se puede mover (035:RF-6).
+
+    La Q de las fijas es la medida y los bancos son la red: lo único libre es la Q de las
+    escaladas. SM218 (2026-10-29), con siete bancos de 450 kvar, quedaba con la Q que dieran
+    las escaladas a FP 0,98 y nada la llevaba a la medida.
+    """
+    bq = sum(q for _, q in rep.base.values())
+    if bq <= 0:
+        return None, Q_SIN_BASE                                         # RF-9
+    if rep.b <= 0 and kvar > objetivo.kvar:
+        return None, Q_SIN_MARGEN                                       # RF-8
+    puntos.append((rep.b, kvar))
+    return max(0.0, _siguiente(rep.b, kvar, objetivo.kvar, puntos, bq)), None
+
+
 def cuadrado(medida: Medida, objetivo: Objetivo, tolerancia: float,
              solo_kw: bool = True) -> bool:
     """Compatibilidad del API histórico; ``solo_kw`` ya no cambia la aceptación."""
@@ -434,17 +502,23 @@ def cuadrar(
     remedio: Callable[[str, dict[str, Any]], list[str]] = lambda nombre, ajustes: [],
     cancelado: Callable[[], bool] = lambda: False,
     progreso: Callable[[int, int, str], None] = lambda n, maximo, texto: None,
+    con_q: bool = False,
+    tolerancia_q: float = TOLERANCIA_Q,
 ) -> Cuadre:
     """Ajusta los factores del reparto hasta que la cabecera dé el objetivo (RF-11, RF-12).
 
     ``flujo(reparto)`` escribe las demandas y ejecuta el flujo de carga. ``remedio(nombre,
     ajustes)`` aplica un remedio de :data:`ESCALERA` y dice qué cambió. Si no cuadra, el
     resultado lleva el último reparto que convergió, y el flujo queda ejecutado con él
-    (RF-18, RF-22).
+    (RF-18, RF-22). Con ``con_q`` (bancos en servicio, 035:RF-5) también la Q de cabecera,
+    moviendo solo la Q de las escaladas.
     """
     res = Cuadre(cuadrado=False, reparto=None, medida=None, objetivo=objetivo,
-                 tolerancia=tolerancia, avisos=list(reparto.avisos))
+                 tolerancia=tolerancia, avisos=list(reparto.avisos), con_q=con_q)
     puntos_p: list[tuple[float, float]] = []
+    puntos_q: list[tuple[float, float]] = []
+    if con_q:
+        reparto = reparto.con_q()
     actual = meta = reparto      # meta: adonde se quería llegar cuando dejó de converger
     escalon = mitades = 0
     ultimo_flujo: Reparto | None = None
@@ -468,7 +542,9 @@ def cuadrar(
             # secante vuelve a saltar al objetivo, y si allí no converge se repetía sin
             # llegar nunca a los remedios del flujo de carga.
             res.reparto, res.medida = actual, m
-            if cuadrado_kw(m, objetivo, tolerancia):
+            q_lista = (not con_q or res.q_estado is not None
+                       or cuadrado_kvar(m.kvar, objetivo, tolerancia_q))
+            if cuadrado_kw(m, objetivo, tolerancia) and q_lista:
                 p_nominal, _q_nominal = actual.totales()
                 p_cargas = p_nominal if m.carga_kw is None else m.carga_kw
                 perdida_p = m.kw - p_cargas
@@ -483,6 +559,8 @@ def cuadrar(
                         f'pérdidas activas negativas ({perdida_p:,.1f} kW): la frontera '
                         'de medición puede estar omitiendo una troncal o parte de las cargas')
                     return res
+                if con_q and res.q_estado is None:
+                    res.q_estado = Q_CUADRADA
                 res.cuadrado = True
                 return res
             puntos_p.append((actual.a, m.kw))
@@ -491,9 +569,12 @@ def cuadrar(
             if a <= 0:
                 # Las pérdidas y las fijas ya pasan del objetivo: no se cruza el cero de un salto.
                 a = actual.a / 2
-            # La asignación inicial de Q se conserva. Sólo P se itera para compensar las
-            # pérdidas; el Q final será el que produzca la red nativa con sus bancos.
-            actual = meta = actual.con_factores(a)
+            # Sin bancos, la asignación inicial de Q se conserva y solo P se itera (RF-12); con
+            # ellos, también la Q de las escaladas hasta la medida (035:RF-5, RF-6).
+            b = None
+            if con_q and res.q_estado is None and m.kvar is not None and not q_lista:
+                b, res.q_estado = _paso_q(actual, m.kvar, objetivo, puntos_q)
+            actual = meta = actual.con_factores(a, b)
             continue
 
         # No converge: acercarse a medio camino desde el último reparto que convergió
@@ -734,6 +815,7 @@ class CuadreConjunto:
     motivo: str = ''
     cancelado: bool = False
     ajustables: tuple[str, ...] = ()
+    q_estado: dict[str, str] = field(default_factory=dict)     # 035:RF-5, por clave con Q
 
     def desvio(self, clave: str) -> float | None:
         """Error relativo de kW de una clave en el último flujo común que convergió."""
@@ -755,6 +837,8 @@ def cuadrar_conjunto(
     cancelado: Callable[[], bool] = lambda: False,
     progreso: Callable[[int, int, str], None] = lambda n, maximo, texto: None,
     fila: Callable[[Mapping[str, Reparto], MedidaConjunta], dict[str, Any]] | None = None,
+    con_q: Iterable[str] = (),
+    tolerancia_q: float = TOLERANCIA_Q,
 ) -> CuadreConjunto:
     """Ajusta a la vez un factor por clave hasta que todas den su objetivo (021:RF-54 a RF-58).
 
@@ -766,7 +850,8 @@ def cuadrar_conjunto(
     el mismo flujo (RF-55). Si no converge, los pasos de :func:`cuadrar` para todas: medio
     camino desde el último flujo común que convergió y luego los remedios de
     :data:`ESCALERA`, una vez para el proyecto (RF-56). Una clave en ``quietas`` (una zona
-    solo con clientes fijos, 021:RF-45) se escribe pero no se ajusta ni decide.
+    solo con clientes fijos, 021:RF-45) se escribe pero no se ajusta ni decide. Las de
+    ``con_q`` (alimentadores con bancos en servicio, 035:RF-5) cuadran también su Q.
     """
     quietas = set(quietas)
     claves = tuple(repartos)
@@ -778,7 +863,9 @@ def cuadrar_conjunto(
     if not ajustables:
         raise AjusteError('Ninguno de los alimentadores tiene cargas que escalar.')
     puntos: dict[str, list[tuple[float, float]]] = {k: [] for k in claves}
-    actual = meta = dict(repartos)
+    con_q = tuple(k for k in con_q if k in ajustables)
+    puntos_q: dict[str, list[tuple[float, float]]] = {k: [] for k in con_q}
+    actual = meta = {k: (r.con_q() if k in con_q else r) for k, r in repartos.items()}
     escalon = mitades = 0
     ultimo: dict[str, Reparto] | None = None
     while res.flujos < max_flujos:
@@ -798,8 +885,10 @@ def cuadrar_conjunto(
             else 'no converge'))
         if medido:
             res.repartos, res.medida = dict(actual), m
+            q_listas = {k: k in res.q_estado or cuadrado_kvar(m.kvar.get(k), objetivos[k], tolerancia_q)
+                        for k in con_q}
             if all(abs(_rel(m.kw[k], objetivos[k].kw)) <= tolerancia  # type: ignore[arg-type]
-                   for k in ajustables):
+                   for k in ajustables) and all(q_listas.values()):
                 negativas = [
                     f'{k} ({m.kw[k] - m.carga_kw[k]:,.1f} kW)'  # type: ignore[operator]
                     for k in ajustables if m.carga_kw.get(k) is not None
@@ -811,6 +900,8 @@ def cuadrar_conjunto(
                                   + ': la frontera de medición puede estar omitiendo una '
                                   'troncal o parte de las cargas')
                     return res
+                for k in con_q:
+                    res.q_estado.setdefault(k, Q_CUADRADA)
                 res.cuadrado = True
                 return res
             nuevo = dict(actual)
@@ -818,7 +909,12 @@ def cuadrar_conjunto(
                 r, y = actual[k], m.kw[k]
                 puntos[k].append((r.a, y))  # type: ignore[arg-type]
                 a = _siguiente(r.a, y, objetivos[k].kw, puntos[k], pendiente[k])  # type: ignore[arg-type]
-                nuevo[k] = r.con_factores(a if a > 0 else r.a / 2)
+                b = None
+                if k in con_q and not q_listas[k] and m.kvar.get(k) is not None:
+                    b, estado = _paso_q(r, m.kvar[k], objetivos[k], puntos_q[k])  # type: ignore[arg-type]
+                    if estado:
+                        res.q_estado[k] = estado
+                nuevo[k] = r.con_factores(a if a > 0 else r.a / 2, b)
             actual = meta = nuevo
             continue
         if mitades < MITADES:

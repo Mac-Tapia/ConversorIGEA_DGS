@@ -260,9 +260,11 @@ export const api = {
     request<Job>(`${ws(id)}/informes/estudio`, json('POST', body)),
   informeFactibilidad: (id: string, body: InformeFactibilidadForm) =>
     request<Job>(`${ws(id)}/informes/factibilidad`, json('POST', body)),
-  demandaClientes: (id: string, alimentadores: string[], periodo?: string) =>
+  // 035:RF-1: con la máxima de cada alimentador, el registro de su instante.
+  demandaClientes: (id: string, alimentadores: string[], periodo?: string,
+    maximas?: Record<string, { fecha: string | null; kw: number | null; kvar: number | null; fp: number | null }>) =>
     request<ClientesCruce>(`${ws(id)}/demanda/clientes/cruzar`,
-      json('POST', periodo ? { alimentadores, periodo } : { alimentadores })),
+      json('POST', { alimentadores, ...(periodo ? { periodo } : {}), ...(maximas ? { maximas } : {}) })),
   ajustePlan: (id: string, body: { project: string; job_id: string; medidor: string; medidores?: string[]; tolerancia: number; desconectados?: string[]; centrales?: Record<string, CentralTermica>; tension_fuente_pu?: number | null; completar_bancos?: boolean }) =>
     request<AjustePlan>(`${ws(id)}/demanda/ajuste/plan`, json('POST', body)),
   ajusteSimular: (id: string, token: string) =>

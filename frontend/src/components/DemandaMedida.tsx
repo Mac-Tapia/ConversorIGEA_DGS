@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { api, fmtNum, type DemandaTipo } from '../api';
 import { estadoCatalogoClientes } from '../clientesCatalogo';
 import { useApp } from '../context';
@@ -20,9 +20,9 @@ function Libro({ tipo, titulo, ayuda }: (typeof LIBROS)[number]) {
   const { ws, setWs, run, health, startJob, jobs, active } = useApp();
   const [ruta, setRuta] = useState('');
   const meta = ws.demanda?.[tipo];
-  const autoIndexado = useRef('');
   // Spec 025, RF-28 y RF-32: la cabecera en carpeta también tiene su índice por año.
-  const conIndice = tipo === 'clientes' || (tipo === 'cabecera' && meta?.source_kind === 'folder');
+  const indexable = (m: typeof meta) => tipo === 'clientes' || (tipo === 'cabecera' && m?.source_kind === 'folder');
+  const conIndice = indexable(meta);
   const tipoTrabajo = tipo === 'clientes' ? 'demanda_clientes_index' : 'demanda_cabecera_index';
   const indexando = Object.values(jobs).some((j) => j.kind === tipoTrabajo
     && (j.status === 'queued' || j.status === 'running'));
@@ -30,24 +30,20 @@ function Libro({ tipo, titulo, ayuda }: (typeof LIBROS)[number]) {
   const indexar = () => startJob(() => (tipo === 'clientes'
     ? api.demandaClientesIndexar(ws.id) : api.demandaCabeceraIndexar(ws.id)));
 
-  // Al elegir o volver a abrir una fuente se reescanea la misma carpeta.
-  useEffect(() => {
-    if (!conIndice || !meta || indexando || engineBusy) return;
-    const clave = `${ws.id}:${meta.origin}:${meta.name}`;
-    if (autoIndexado.current === clave) return;
-    autoIndexado.current = clave;
-    void startJob(() => (tipo === 'clientes'
-      ? api.demandaClientesIndexar(ws.id) : api.demandaCabeceraIndexar(ws.id))).then((job) => {
-      if (!job) autoIndexado.current = '';
-    });
-  }, [conIndice, engineBusy, indexando, meta, startJob, tipo, ws.id]);
+  // 025:RF-78: el índice sale de asignar la fuente, no de montar la pestaña. Antes un efecto
+  // lo lanzaba en cada montaje para la cabecera y los clientes a la vez: el segundo chocaba
+  // con el primero en el carril del motor y salía «Ya hay un trabajo en curso» sin pedir nada.
+  const asignada = (r: Awaited<ReturnType<typeof api.demandaRuta>>) => {
+    setWs(r);
+    if (indexable(r.demanda?.[tipo])) void indexar();
+  };
   const subir = async (files: File[]) => {
     const r = await run(() => api.demandaSubir(ws.id, tipo, files));
-    if (r) { autoIndexado.current = ''; setWs(r); }
+    if (r) asignada(r);
   };
   const porRuta = async () => {
     const r = await run(() => api.demandaRuta(ws.id, tipo, ruta.trim()));
-    if (r) { autoIndexado.current = ''; setWs(r); setRuta(''); }
+    if (r) { asignada(r); setRuta(''); }
   };
   const quitar = async () => {
     const r = await run(() => api.demandaQuitar(ws.id, tipo));
@@ -96,6 +92,12 @@ interface FilaLibro { libro: string; anio: number | null; meses: string[]; detal
 
 const ORIGEN_MES: Record<string, string> = {
   nombre: 'del nombre', contenido: 'de una fecha del libro', manual: 'asignado a mano', sin_mes: 'sin mes',
+};
+
+/** 035:RF-3: de dónde salen la P y la Q de un cliente fijo. */
+const ORIGEN_VALORES: Record<string, string> = {
+  REGISTRO_DEL_INSTANTE: 'registro de la máxima', ERI_DEL_REGISTRO: 'registro de su POT (sin el de la máxima)',
+  'ERI/EA': 'POT y EA/ERI del mes', FP_CABECERA_FALLBACK: 'POT y FP de la cabecera',
 };
 
 const rangoMeses = (meses: string[]) => (meses.length === 0 ? '—'
@@ -370,7 +372,13 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   const cruzar = async () => {
     setCruzando(true);
     try {
-      const r = await run(() => api.demandaClientes(ws.id, feeders, periodo || undefined));
+      // 035:RF-1: cada alimentador con la fecha y hora de su máxima buscada, la misma con
+      // que el ajuste (2.4) escribe las fijas; sin ella, la POT de cada cliente.
+      const maximas = Object.fromEntries(cabecera
+        .filter((m) => !m.error && m.fecha && feeders.includes(m.alimentador))
+        .map((m) => [m.alimentador, { fecha: m.fecha, kw: m.kw, kvar: m.kvar, fp: m.fp }]));
+      const r = await run(() => api.demandaClientes(ws.id, feeders, periodo || undefined,
+        Object.keys(maximas).length ? maximas : undefined));
       if (r) { setCruce(r); setDesconectados(new Set()); }
       // 004:RF-64: un fallo puede dejar el hueco de suministros sin libro y con su aviso.
       else await refresh().catch(() => undefined);
@@ -678,7 +686,20 @@ function Cruce({ cruce, visibles, filtro, setFiltro, desconectados, conmutar }: 
 }) {
   const t = cruce.totales;
   const ali = cruce.alimentadores.join(', ');
+  const conMaxima = Boolean(cruce.maximas && Object.keys(cruce.maximas).length);
+  // 035:RF-2: lo que se escribe en las fijas, por SED, como lo suma el ajuste.
+  const porSed = conMaxima ? visibles.filter((c) => !desconectados.has(c.codigo) && c.p_kw != null)
+    .reduce<Record<string, { p: number; q: number }>>((m, c) => {
+      const s = (m[c.sed] ??= { p: 0, q: 0 });
+      s.p += c.p_kw ?? 0; s.q += c.q_kvar ?? 0;
+      return m;
+    }, {}) : {};
   return <>
+    {conMaxima && <p className="small">Clientes en la máxima de {Object.entries(cruce.maximas ?? {})
+      .map(([f, fecha]) => `${f} (${fecha ?? 'sin fecha'})`).join(', ')}: su P y su Q van a su SED como carga fija,
+      con factor de escala 1; las demás SED se escalan hasta la cabecera (035:RF-4). {Object.keys(porSed).length} SED fija(s):
+      {' '}{fmtNum(Object.values(porSed).reduce((a, s) => a + s.p, 0), 1)} kW y
+      {' '}{fmtNum(Object.values(porSed).reduce((a, s) => a + s.q, 0), 1)} kvar.</p>}
     <p>{ali ? <>{fmtNum(t.cruzados)} cliente(s) de <strong>{ali}</strong> de {fmtNum(t.clientes)}</> : <>{fmtNum(t.cruzados)} de {fmtNum(t.clientes)} cruzados</>}
       {' '}({fmtNum(t.por_actual)} por «Suministro Act», {fmtNum(t.por_anterior)} por «Suministro»); {fmtNum(t.no_cruzados)} aparte
       {ali ? `, ${fmtNum(t.de_otros)} de otros alimentadores sin mostrar` : ''}.
@@ -692,9 +713,16 @@ function Cruce({ cruce, visibles, filtro, setFiltro, desconectados, conmutar }: 
     <div className="table-wrap table-short">
       <table className="table">
         <thead><tr><th>Conectado</th><th>Nis / Suministro</th><th>Cliente</th><th>Cruzado por</th><th>SED</th><th>Radial</th>
-          <th className="num">EA</th><th className="num">ERI</th><th className="num">Pot</th>
-          <th title="004:RF-66: el registro de 15 minutos de su hoja en que se dio su Pot">Registro de su Pot</th>
-          <th className="num" title="004:RF-66: ERI de ese registro × 4">kVAR en él</th></tr></thead>
+          <th className="num">EA</th><th className="num">ERI</th><th className="num">Pot del mes</th>
+          {conMaxima ? <>
+            <th title="035:RF-1: el registro de 15 minutos de la fecha y hora de la máxima de su alimentador">Registro</th>
+            <th className="num" title="035:RF-2: la P que el ajuste escribe en su SED, fija a escala 1">P (kW)</th>
+            <th className="num" title="035:RF-2: la Q que el ajuste escribe en su SED, fija a escala 1">Q (kvar)</th>
+            <th title="035:RF-3: de dónde salen su P y su Q">De</th>
+          </> : <>
+            <th title="004:RF-66: el registro de 15 minutos de su hoja en que se dio su Pot">Registro de su Pot</th>
+            <th className="num" title="004:RF-66: ERI de ese registro × 4">kVAR en él</th>
+          </>}</tr></thead>
         <tbody>{visibles.map((c) => (
           <tr key={c.codigo} className={desconectados.has(c.codigo) ? 'muted' : undefined}>
             <td><input type="checkbox" checked={!desconectados.has(c.codigo)} onChange={() => conmutar(c.codigo)}
@@ -703,8 +731,15 @@ function Cruce({ cruce, visibles, filtro, setFiltro, desconectados, conmutar }: 
             <td className="mono">{c.codigo}</td><td className="small">{c.nombre || '—'}</td><td className="small">{c.cruzado_por === 'actual' ? 'Suministro Act' : 'Suministro'}</td>
             <td className="strong">{c.sed}</td><td>{c.radial || '—'}</td><td className="num">{fmtNum(c.ea, 2)}</td>
             <td className="num">{fmtNum(c.eri, 2)}</td><td className="num">{fmtNum(c.pot, 2)}</td>
-            <td className="small">{c.fecha_registro || '— (ERI/EA del mes)'}</td>
-            <td className="num">{c.q_registro_kvar == null ? '—' : fmtNum(c.q_registro_kvar, 2)}</td></tr>
+            {conMaxima ? <>
+              <td className="small">{c.fecha_valores || '—'}</td>
+              <td className="num strong">{c.p_kw == null ? '—' : fmtNum(c.p_kw, 2)}</td>
+              <td className="num strong">{c.q_kvar == null ? '—' : fmtNum(c.q_kvar, 2)}</td>
+              <td className="small">{ORIGEN_VALORES[(c.metodo ?? '').split(' ')[0]] ?? c.metodo ?? '—'}</td>
+            </> : <>
+              <td className="small">{c.fecha_registro || '— (ERI/EA del mes)'}</td>
+              <td className="num">{c.q_registro_kvar == null ? '—' : fmtNum(c.q_registro_kvar, 2)}</td>
+            </>}</tr>
         ))}</tbody>
       </table>
     </div>
@@ -824,7 +859,9 @@ function Recalibrar({ project }: { project: string }) {
     })
       .catch((e: Error) => setError(e.message));
   }, [ws.id, project]);
-  const listo = Boolean(project) && /^\d{4}(-(0[1-9]|1[0-2]))?$/.test(periodo.trim()) && !error;
+  // 035:RF-21: se activa con la primera calibración del proyecto.
+  const calibrado = Object.keys(ws.calibraciones ?? {}).some((clave) => clave.split('@')[0] === project.trim());
+  const listo = calibrado && Boolean(project) && /^\d{4}(-(0[1-9]|1[0-2]))?$/.test(periodo.trim()) && !error;
   return (
     <div className="step-box">
       <h4>Recalibrar «Sin proyecto»</h4>
@@ -850,6 +887,9 @@ function Recalibrar({ project }: { project: string }) {
             Recalibrar</button>
         </div>
       )}
+      {!calibrado && project && <small className="muted">Se activa con la primera calibración del proyecto (2.2 a 2.4).
+        Para recalibrar eligiendo antes la máxima del alimentador o de su barra y SET y revisando la tabla cruzada, use
+        esos mismos pasos: después de la primera, el botón de 2.4 es «Recalibrar (n.º k)».</small>}
     </div>
   );
 }

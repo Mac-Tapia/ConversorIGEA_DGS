@@ -3,7 +3,7 @@ import { api, fmtNum } from '../api';
 import { useApp } from '../context';
 import type {
   AjusteInforme, AjustePlan, AjusteResultado, BalanceCabecera, CambioEnLaRed, CentralTermica, ConductoresFicha,
-  ConsumoDistinto, Job, MaximaCabecera, MaximaConCentral, SedSobrecargada,
+  ConsumoDistinto, Job, MaximaCabecera, MaximaConCentral, SedSobrecargada, WorkspaceState,
 } from '../types';
 import { CurvaCabecera } from './CurvaCabecera';
 
@@ -18,6 +18,15 @@ const pct = (x: number | null | undefined) => (x == null ? '—' : `${x >= 0 ? '
  * RF-43, RF-44). Todo queda en el escenario de «Sin proyecto», sin variaciones. Con varios
  * alimentadores marcados se ajustan uno tras otro en un solo trabajo (spec 008, RF-12).
  */
+/** 035:RF-21: n.º de la siguiente recalibración de esos alimentadores; 0 si aún no tienen calibración. */
+export function numeroDeRecalibracion(calibraciones: WorkspaceState['calibraciones'], project: string,
+  feeders: string[]): number {
+  const hechas = Object.entries(calibraciones ?? {})
+    .filter(([clave]) => clave.split('@')[0] === project.trim())
+    .flatMap(([, porFeeder]) => feeders.filter((f) => porFeeder[f]).map((f) => porFeeder[f].recalibracion + 1));
+  return hechas.length ? Math.max(...hechas) : 0;
+}
+
 export function AjusteCabecera({ project, maxima, feeders, desconectados, centrales = {} }: {
   project: string; maxima: Job | undefined; feeders: string[]; desconectados: Set<string>;
   /** Spec 021: central térmica declarada en 2.2, por alimentador, con sus tres medidores. */
@@ -95,6 +104,8 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados, centra
     await startJob(() => (simular ? api.ajusteSimular : api.ajusteAplicar)(ws.id, p.token));
   };
   const quien = grupos.length === 1 ? grupos[0].alimentador : `${grupos.length} alimentadores`;
+  // 035:RF-21: con la primera calibración hecha, este mismo paso es la recalibración n.º k.
+  const recalibracion = numeroDeRecalibracion(ws.calibraciones, project, grupos.map((g) => g.alimentador));
 
   return (
     <div className="step-box">
@@ -175,9 +186,17 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados, centra
         <button className="btn" disabled={Boolean(falta) || pfBusy} onClick={() => lanzar(true)}
           title="El reparto por SED antes de las pérdidas, sin escribir en el proyecto">Simular</button>
         <button className="btn btn-pf" disabled={Boolean(falta) || pfBusy} onClick={() => lanzar(false)}>
-          Ajustar {grupos.length ? quien : ''} en DIgSILENT
+          {recalibracion ? `Recalibrar ${grupos.length ? quien : ''} (n.º ${recalibracion})` : `Ajustar ${grupos.length ? quien : ''}`} en DIgSILENT
         </button>
       </div>
+      {/* 035:RF-22: qué se cuadra en cada una, sin lugar a dudas. */}
+      <p className="alert small">{recalibracion > 0
+        ? <><strong>Recalibración n.º {recalibracion}: se cuadran la P (kW) y la Q (kvar)</strong>, la Q con ±2 % y los bancos que
+          haya en la red; sin bancos, la Q se informa y se recomienda revisarlos para que los valide el evaluador. Con la máxima
+          elegida arriba (del alimentador o de su barra y SET) y la tabla cruzada, sobre la red que hay ahora en DIgSILENT (SED y
+          transformadores nuevos, bancos, tramos y cambios a mano, escaneados antes de aplicar, 028:RF-16).</>
+        : <><strong>Calibración: solo se cuadra la P (kW).</strong> La Q (kvar) se informa; se cuadra en la recalibración, que
+          se activa en cuanto esta queda hecha.</>}</p>
       {falta && <small className="muted">{falta}</small>}
       {!falta && grupos.length > 1 && (
         <small className="muted">Orden: {grupos.map((g, i) => `${g.alimentador} (${medidores[i]})`).join(' → ')}. Si uno falla,
@@ -307,7 +326,19 @@ function InformeAjuste({ inf, report, cancelado, token }: {
                 <td className="num">{fmtNum(factor, 4)}</td><td className="num">—</td></tr>}
               {inf.desvio && <tr><td>Error</td><td className="num">{pct(inf.desvio.kw)}</td>
                 <td className="num">{inf.solo_kw ? 'solo se cuadra el kW' : pct(inf.desvio.kvar)}</td></tr>}
-              {inf.kvar_no_bloqueante && <tr><td>Diferencia de kVAR (no bloqueante)</td>
+              {inf.tipo_ajuste && <tr><td>Tipo</td><td colSpan={2}>{inf.tipo_ajuste.tipo === 'RECALIBRACION'
+                ? `Recalibración n.º ${inf.tipo_ajuste.numero}` : 'Calibración'} · cuadra {inf.tipo_ajuste.cuadra === 'P_Y_Q'
+                ? 'P (kW) y Q (kvar)' : 'solo la P (kW)'}</td></tr>}
+              {inf.cuadre_q && <tr><td title="035:RF-5 a RF-11: con bancos en servicio, la Q de cabecera se cuadra con la de las escaladas">
+                Q con bancos ({(inf.bancos_en_servicio ?? []).length} en servicio, {fmtNum(inf.cuadre_q.bancos_kvar, 0)} kvar)</td>
+                <td className="num">{inf.cuadre_q.estado === 'CUADRADA' ? 'cuadrada'
+                  : inf.cuadre_q.estado === 'SIN_MARGEN' ? `faltan ${fmtNum(inf.cuadre_q.faltan_kvar ?? 0, 1)} kvar`
+                  : 'sin Q en las escaladas'}</td>
+                <td className="num">FP escaladas {inf.cuadre_q.fp_escaladas == null ? '—' : fmtNum(inf.cuadre_q.fp_escaladas, 3)}</td></tr>}
+              {inf.unidades && <tr><td title="035:RF-14 a RF-16">Unidades en DIgSILENT</td>
+                <td colSpan={2}>{Object.entries(inf.unidades.leidas).map(([a, u]) => `${a} ${u ?? '—'}`).join(' · ')}
+                  {inf.unidades.correctas ? '' : ' — no son MW/Mvar: no se escribió nada'}</td></tr>}
+              {inf.kvar_no_bloqueante && !inf.cuadre_q && <tr><td>Diferencia de kVAR (no bloqueante)</td>
                 <td className="num">—</td>
                 <td className="num">{inf.kvar_no_bloqueante.diferencia_kvar == null ? 'sin lectura'
                   : `${fmtNum(inf.kvar_no_bloqueante.diferencia_kvar, 2)} kVAR · ${pct(inf.kvar_no_bloqueante.diferencia_relativa)}`}

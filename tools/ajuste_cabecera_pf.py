@@ -46,6 +46,7 @@ from cargas_pf import (
     activar_proyecto,
     cabecera_de,
     detalle_cabecera,
+    error_de_unidades,
     error_inesperado,
     error_relectura,
     escribir_carga,
@@ -55,6 +56,7 @@ from cargas_pf import (
     nombre_libre,
     nombre_pf,
     potencia,
+    unidades_del_proyecto,
 )
 from casos_pf import NOMBRES, casos_del_proyecto, es_de_carga_nueva, preparar_sin, sin_a_con_proyecto
 from casos_pf import anio_del_plan, nombre_caso
@@ -403,6 +405,67 @@ def bancos_instalados(alims: Alimentadores, feeder: str) -> list[dict]:
             'escalones': f"{int(pasos)} de {int(_num(o, 'ncapx') or pasos)}",
         })
     return sorted(filas, key=lambda x: (str(x['barra']), x['banco']))
+
+
+def bancos_en_servicio(alims: Alimentadores, feeder: str) -> list[str]:
+    """Los bancos del alimentador que entregan reactiva: con ellos se cuadra la Q (035:RF-5).
+
+    SM218 (2026-10-29) tiene siete de 450 kvar en servicio; con la Q solo informada, la de
+    cabecera quedaba donde la dejaran las escaladas a FP 0,98.
+    """
+    return sorted(o.loc_name for o in _objetos_banco(alims, feeder)
+                  if not int(getattr(o, 'outserv', 0) or 0) and (_num(o, 'ncapa') or 0) > 0
+                  and (_num(o, 'qcapn') or 0) > 0)
+
+
+def informe_de_la_q(rep, med, objetivo, q_estado: str | None,
+                    bancos: list[dict]) -> tuple[dict, str | None]:
+    """Lo que dice el informe del cuadre de la Q con bancos, y su aviso (035:RF-8, RF-9, RF-11)."""
+    kvar = med.kvar if med is not None else None
+    faltan = kvar - objetivo.kvar if q_estado == 'SIN_MARGEN' and kvar is not None else None
+    datos = {
+        'estado': q_estado, 'factor_p': rep.a, 'factor_q': rep.b,
+        'fp_escaladas': rep.fp_escaladas(), 'cabecera_kvar': kvar,
+        'objetivo_kvar': objetivo.kvar, 'faltan_kvar': faltan,
+        'bancos_kvar': sum(b.get('q_flujo_kvar') or 0.0 for b in bancos if b.get('en_servicio')),
+    }
+    aviso = None
+    if q_estado == 'SIN_MARGEN':
+        aviso = (f'Q de cabecera {kvar:,.1f} kvar frente a {objetivo.kvar:,.1f} medidos aun con las '
+                 f'escaladas sin reactiva: faltan {faltan:,.1f} kvar de compensación (bancos, '
+                 '021:RF-64). Ajuste aceptado por kW (035:RF-8).')
+    elif q_estado == 'SIN_BASE':
+        aviso = ('Las escaladas no tienen Q (FP 1 en el perfil): la Q de cabecera no se puede '
+                 'cuadrar; ajuste aceptado por kW (035:RF-9).')
+    return datos, aviso
+
+
+def revision_de_bancos(feeder: str, med, objetivo, con_q: bool,
+                       q_estado: str | None) -> dict | None:
+    """La recomendación de revisar los bancos del alimentador, para el evaluador (035:RF-20).
+
+    El usuario, el 2026-10-29: si no existen bancos «se debe recomendar revisar el proyecto del
+    alimentador para su implementación o revisión de los bancos existentes, donde el evaluador
+    debe validar». También cuando, con bancos, la Q no baja a la medida (RF-8).
+    """
+    from igea_dgs.ajuste_cabecera import TOLERANCIA_Q, cuadrado_kvar
+
+    kvar = med.kvar if med is not None and med.converge else None
+    if kvar is None or (con_q and q_estado != 'SIN_MARGEN'):
+        return None
+    if not con_q and cuadrado_kvar(kvar, objetivo):
+        return None
+    diferencia = kvar - objetivo.kvar
+    que = ('implementar bancos de condensadores' if not con_q
+           else 'revisar los bancos existentes o implementar los que falten')
+    return {
+        'motivo': 'SIN_BANCOS' if not con_q else 'BANCOS_INSUFICIENTES',
+        'cabecera_kvar': kvar, 'objetivo_kvar': objetivo.kvar, 'diferencia_kvar': diferencia,
+        'tolerancia': TOLERANCIA_Q,
+        'aviso': (f'{feeder}: la Q de cabecera da {kvar:,.1f} kvar frente a {objetivo.kvar:,.1f} '
+                  f'medidos ({diferencia:+,.1f} kvar, fuera de ±{TOLERANCIA_Q:.0%}). Revise en el '
+                  f'proyecto del alimentador {que}; el evaluador debe validarlo (035:RF-20).'),
+    }
 
 
 def bancos_a_su_maxima_capacidad(alims: Alimentadores, feeder: str) -> list[dict]:
@@ -857,6 +920,9 @@ def escribir_reparto(cargas: dict, rep, omitir=frozenset()) -> list[dict]:
     que no se escriben (cambio manual de demanda, 014:RF-11). Devuelve los fallos.
     """
     fallos = []
+    # 035:RF-7: con la Q cuadrada aparte, su base va por b/a y un solo scale0 (= a) da a P y
+    # a Q su factor: DIgSILENT no tiene otro factor de escala solo para la Q de una carga.
+    k_q = rep.b / rep.a if not rep.solo_kw and rep.a else 1.0
     for sed, d in rep.demandas.items():
         if sed in omitir:
             continue
@@ -864,6 +930,7 @@ def escribir_reparto(cargas: dict, rep, omitir=frozenset()) -> list[dict]:
         try:
             if sed in rep.base:
                 bp, bq = rep.base[sed]
+                bq *= k_q
                 if not all(_cerca(a, b) for a, b in zip(potencia(obj), (bp, bq))):
                     escribir_carga(obj, bp / 1000.0, bq / 1000.0)
                 obj.scale0 = rep.a
@@ -2155,6 +2222,7 @@ def _preparar_alimentador(app, plan: dict, informe: dict, *, alims, feeder: str,
 def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tuple[dict, int]:
     from igea_dgs.ajuste_cabecera import (
         MAX_FLUJOS,
+        cuadrado_kvar,
         cuadrar,
         kvar_difference,
     )
@@ -2192,6 +2260,9 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
     if sin is not None:
         sin.Activate()
         informe['caso'] = nombre_caso('sin', anio)
+    informe['unidades'] = unidades_del_proyecto(app)                    # 035:RF-14, RF-16
+    if error_de_unidades(informe['unidades']) and not simular:
+        return {**informe, 'error': error_de_unidades(informe['unidades'])}, 2
     if not plan.get('central'):
         # 028:RF-18: un generador del operador sin central declarada se calibra tal como está.
         from igea_dgs.escaneo import CLASES_GENERADOR, origen_de
@@ -2265,6 +2336,15 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
         informe['avisos'].append(
             'Bancos existentes puestos a su máxima capacidad (todos los escalones, en '
             'servicio): ' + ', '.join(c['banco'] for c in al_maximo) + ' (015:RF-66).')
+    # 035:RF-5: con bancos en servicio también se cuadra la Q, salvo si escalan todas (las
+    # fijas cambiarían su Q, 035:RF-6).
+    con_bancos = bancos_en_servicio(alims, feeder)
+    # 035:RF-22: la primera calibración solo cuadra la P; la recalibración, P y Q.
+    recal = int(plan.get('recalibracion') or 0)
+    con_q = recal > 0 and bool(con_bancos) and not reparto.todo_escala
+    informe['bancos_en_servicio'] = con_bancos
+    informe['tipo_ajuste'] = {'tipo': 'RECALIBRACION' if recal else 'CALIBRACION', 'numero': recal,
+                              'cuadra': 'P_Y_Q' if con_q else 'P'}
     # Idempotencia nativa: antes de escribir una carga se demuestra si el estado efectivo
     # ya contiene el mismo reparto y cuadre.
     medida_previa = medir_cabecera(app, elm)
@@ -2273,6 +2353,13 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
         ambiguas=ambiguas, apagar=apagar, ajustes_flujo=ajustes_del_flujo(app),
         fp_escaladas=None if reparto.todo_escala else (fp_cargas or objetivo.fp),
     )
+    if (con_q and validacion_previa['correcta']
+            and not cuadrado_kvar(medida_previa.kvar, objetivo)):
+        # 035:RF-13: el reparto de kW ya estaba, pero no la Q medida: se vuelve a cuadrar.
+        validacion_previa['correcta'] = False
+        validacion_previa['fallos'].append({'tipo': 'Q_CABECERA_SIN_CUADRAR',
+                                            'cabecera_kvar': medida_previa.kvar,
+                                            'objetivo_kvar': objetivo.kvar})
     informe['validacion_previa_nativa'] = validacion_previa
     if validacion_previa['correcta'] and reparto_nativo is not None:
         fotos = _foto_cargas_nativas(cargas)
@@ -2377,7 +2464,7 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
                       tolerancia=float(plan.get('tolerancia', 0.01)),
                       max_flujos=int(plan.get('max_flujos') or MAX_FLUJOS),
                       remedio=remedios.aplicar, cancelado=cancelado,
-                      progreso=lambda n, m, t: print(f'  {t}'))
+                      progreso=lambda n, m, t: print(f'  {t}'), con_q=con_q)
         e_kw, e_kvar = res.errores()
         p_kw, p_kvar = res.perdidas()
         informe.update(
@@ -2394,7 +2481,7 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
             perdidas_de=('RESULTADOS_CARGAS_NATIVAS'
                          if res.medida is not None and res.medida.carga_kw is not None
                          else 'ENTRADAS_NOMINALES'),
-            criterio_cuadre='KW_ONLY', solo_kw=True,
+            criterio_cuadre='KW_Y_KVAR' if con_q else 'KW_ONLY', solo_kw=not con_q,
             reparto_solo_kw=(res.reparto.solo_kw if res.reparto is not None else
                              reparto.solo_kw),
             fallos=fallos_desc + list(fallos),
@@ -2413,10 +2500,23 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
                 detail = ('sin lectura de kVAR' if native is None else
                           f'{native:,.2f} kVAR frente a {objetivo.kvar:,.2f} kVAR '
                           f'(diferencia {difference:+,.2f} kVAR)')
-                informe['avisos'].append(
-                    'AVISO_KVAR: ajuste aceptado por kW; la red nativa DIgSILENT resulta '
-                    f'{detail}. La diferencia reactiva se informa y no bloquea la conversión, '
-                    'el ajuste ni los estudios.')
+                if not con_q:
+                    informe['avisos'].append(
+                        'AVISO_KVAR: ajuste aceptado por kW; la red nativa DIgSILENT resulta '
+                        f'{detail}. La diferencia reactiva se informa y no bloquea la conversión, '
+                        'el ajuste ni los estudios.')
+            if con_q:
+                # 035:RF-11: la Q también, con los bancos como están.
+                informe['cuadre_q'], aviso_q = informe_de_la_q(
+                    res.reparto, res.medida, objetivo, res.q_estado, informe['bancos'])
+                informe['status'] = 'OK' if res.q_estado == 'CUADRADA' else 'AVISO_KVAR'
+                if aviso_q:
+                    informe['avisos'].append(aviso_q)
+            revision = (revision_de_bancos(feeder, res.medida, objetivo, con_q, res.q_estado)
+                        if recal else None)
+            if revision:                                                # 035:RF-20
+                informe['revision_bancos'] = revision
+                informe['avisos'].append(revision['aviso'])
         else:
             informe['status'] = ('NO_CONVERGE' if res.medida is None or
                                   not res.medida.converge else 'VIOLACION_FISICA')
@@ -2424,7 +2524,9 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
             validacion_posterior, _reparto_verificado = validar_cargas_nativas(
                 cargas, res.reparto, res.medida, objetivo, float(informe['tolerancia']),
                 ambiguas=ambiguas, apagar=apagar, ajustes_flujo=ajustes_del_flujo(app),
-                fp_escaladas=None if res.reparto.todo_escala else (fp_cargas or objetivo.fp),
+                # 035:RF-12: con la Q cuadrada, el FP que resultó para las escaladas.
+                fp_escaladas=(None if res.reparto.todo_escala else res.reparto.fp_escaladas()
+                              if con_q else (fp_cargas or objetivo.fp)),
                 manuales=con_manual,
             )
             informe['validacion_posterior_nativa'] = validacion_posterior
@@ -2896,6 +2998,11 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
         sin = caso_del_sistema(app, 'sin', anio)
         inicial = app.GetActiveStudyCase()
     sin.Activate()
+    unidades = unidades_del_proyecto(app)                               # 035:RF-14, RF-16
+    for f in feeders:
+        informes[f]['unidades'] = unidades
+    if error_de_unidades(unidades):
+        return todos(error_de_unidades(unidades))
     con = caso_del_sistema(app, 'con', anio)
     escenario = app.GetActiveScenario()
     if escenario is None:
@@ -2978,6 +3085,18 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
                     'Bancos existentes puestos a su máxima capacidad (todos los escalones, en '
                     'servicio): ' + ', '.join(c['banco'] for c in al_maximo) + ' (015:RF-66).')
 
+    # 035:RF-5: los alimentadores con bancos en servicio cuadran también su Q.
+    con_q = []
+    for f, p in preps.items():
+        if not p['central']:
+            informes[f]['bancos_en_servicio'] = bancos_en_servicio(alims, f)
+            # 035:RF-22: la primera calibración solo cuadra la P; la recalibración, P y Q.
+            recal = int(p['plan'].get('recalibracion') or 0)
+            if recal and informes[f]['bancos_en_servicio'] and not p['reparto'].todo_escala:
+                con_q.append(f)
+            informes[f]['tipo_ajuste'] = {
+                'tipo': 'RECALIBRACION' if recal else 'CALIBRACION', 'numero': recal,
+                'cuadra': 'P_Y_Q' if f in con_q else 'P'}
     # Un factor por alimentador, o por zona si tiene central (RF-55).
     repartos, objetivos, quietas = {}, {}, set()
     for f, p in preps.items():
@@ -3013,7 +3132,7 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
                 else:
                     for sed in p['reparto'].demandas:
                         p['cargas'][sed].i_scale = 1 if sed in p['reparto'].base else 0
-            for sed, obj in p['apagar'].items():                                   # 008:RF-26
+            for sed, obj in p['apagar'].items():                                   # 006:RF-26
                 try:
                     obj.outserv = 1
                 except Exception as exc:  # noqa: BLE001 - una SED no tumba el ajuste
@@ -3067,7 +3186,7 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
         res = cuadrar_conjunto(repartos, objetivos, flujo, quietas=quietas,
                                tolerancia=tolerancia, max_flujos=max_flujos,
                                remedio=remedios.aplicar, cancelado=cancelado,
-                               progreso=lambda n, m, t: print(f'  {t}'))
+                               progreso=lambda n, m, t: print(f'  {t}'), con_q=con_q)
         medidas = res.medida.extra if res.medida is not None and res.medida.converge else {}
         reps = res.repartos or {}
         fallido = next((h for h in res.historial if not h['converge']), None)
@@ -3082,7 +3201,8 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
             else:
                 ok = _cerrar_alimentador_en_proyecto(app, alims, f, p, inf, reps.get(f),
                                                      medidas.get(f), res, tolerancia,
-                                                     fallido, kvar_difference)
+                                                     fallido, kvar_difference,
+                                                     con_q=f in con_q)
             if not ok:
                 invalidos.append(f)
         if invalidos:
@@ -3179,13 +3299,14 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
 
 
 def _cerrar_alimentador_en_proyecto(app, alims, feeder: str, p: dict, inf: dict, rep, med,
-                                    res, tolerancia: float, fallido, kvar_difference) -> bool:
+                                    res, tolerancia: float, fallido, kvar_difference,
+                                    con_q: bool = False) -> bool:
     """El informe de un alimentador sin central tras el cuadre del proyecto (RF-59), como el
     de :func:`_ejecutar`; ``False`` si lo que consumen sus cargas no es lo escrito."""
     objetivo = p['objetivo']
     inf['medicion_cabecera'] = detalle_cabecera(p['elm'])
     inf['bancos'] = bancos_instalados(alims, feeder)                               # 015:RF-60
-    inf.update(criterio_cuadre='KW_ONLY', solo_kw=True,
+    inf.update(criterio_cuadre='KW_Y_KVAR' if con_q else 'KW_ONLY', solo_kw=not con_q,
                reparto_solo_kw=(rep or p['reparto']).solo_kw)
     if med is not None:
         p_cargas = med.carga_kw if med.carga_kw is not None else rep.totales()[0]
@@ -3203,11 +3324,23 @@ def _cerrar_alimentador_en_proyecto(app, alims, feeder: str, p: dict, inf: dict,
         if res.cuadrado:
             inf['status'] = q_audit['status']
             inf['kvar_no_bloqueante'] = q_audit
-            if q_audit['status'] == 'AVISO_KVAR':
+            if q_audit['status'] == 'AVISO_KVAR' and not con_q:
                 inf['avisos'].append(
                     'AVISO_KVAR: ajuste aceptado por kW; la red nativa DIgSILENT resulta '
                     f"{q_audit['red_nativa_kvar']:,.2f} kVAR frente a {objetivo.kvar:,.2f} kVAR. "
                     'La diferencia reactiva se informa y no bloquea.')
+            if con_q and rep is not None:
+                # 035:RF-11: la Q también, con los bancos como están.
+                inf['cuadre_q'], aviso_q = informe_de_la_q(rep, med, objetivo,
+                                                           res.q_estado.get(feeder), inf['bancos'])
+                inf['status'] = 'OK' if res.q_estado.get(feeder) == 'CUADRADA' else 'AVISO_KVAR'
+                if aviso_q:
+                    inf['avisos'].append(aviso_q)
+            revision = (revision_de_bancos(feeder, med, objetivo, con_q, res.q_estado.get(feeder))
+                        if int(p['plan'].get('recalibracion') or 0) else None)
+            if revision:                                                # 035:RF-20
+                inf['revision_bancos'] = revision
+                inf['avisos'].append(revision['aviso'])
     if not res.cuadrado:
         inf['status'] = 'NO_CONVERGE' if med is None else 'VIOLACION_FISICA'
         inf['avisos'].append(f'NO cumple el {tolerancia:.1%} en todo el proyecto: {res.motivo}. '
@@ -3217,7 +3350,8 @@ def _cerrar_alimentador_en_proyecto(app, alims, feeder: str, p: dict, inf: dict,
         validacion, _ = validar_cargas_nativas(
             p['cargas'], rep, med, objetivo, tolerancia, ambiguas=p['ambiguas'],
             apagar=p['apagar'], ajustes_flujo=ajustes_del_flujo(app),
-            fp_escaladas=None if rep.todo_escala else (p['fp_cargas'] or objetivo.fp),
+            fp_escaladas=(None if rep.todo_escala else rep.fp_escaladas() if con_q
+                          else (p['fp_cargas'] or objetivo.fp)),               # 035:RF-12
             manuales=p['con_manual'])
         inf['validacion_posterior_nativa'] = validacion
         if res.cuadrado and not validacion['correcta']:

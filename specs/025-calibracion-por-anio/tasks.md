@@ -179,3 +179,8 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 - [x] T24. Retro (033, 2026-10-29): RF-69 a RF-77, añadidos a la spec como cambio después de
       escribir las tareas e implementados con su prueba sin tarea propia. (RF-69 a RF-77)
       Hecho cuando: las pruebas que los citan pasan (pruebas de `tests/test_escalera_optima.py`, `tests/test_obras_pf_guion.py` y `tests/test_casos_por_anio.py`).
+- [x] T25. El índice de cabecera y el de clientes, solo al asignar la fuente o al pulsar
+      «Actualizar índice», nunca al abrir la pestaña. (RF-78)
+      Hecho cuando: `pytest -q tests/test_libros_por_anio_front.py` en verde.
+      Hecho el 2026-10-29: retirado el `useEffect` de `Libro` que lanzaba los dos índices en
+      cada montaje; el índice sale de `subir` y `porRuta` con la fuente recién asignada.

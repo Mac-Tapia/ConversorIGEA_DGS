@@ -437,6 +437,12 @@ class Workspace:
             'pf_project_bindings': self.pf_project_bindings,
             'obras': self.obras,
             'obras_aplicadas': self.obras_aplicadas,
+            # 035:RF-21: qué proyectos y alimentadores ya tienen su primera calibración y cuántas
+            # recalibraciones llevan; sin la demanda por SED, que pesa y no es de la web.
+            'calibraciones': {clave: {f: {'recalibracion': int(c.get('recalibracion') or 0),
+                                          'nombre': c.get('nombre'), 'caso': c.get('caso')}
+                                      for f, c in por_feeder.items()}
+                              for clave, por_feeder in self.calibraciones.items()},
             'demanda': {tipo: {k: v for k, v in meta.items() if k != 'path'}
                         for tipo, meta in self.demanda.items()},
             'last_seq': self.events.last_seq,

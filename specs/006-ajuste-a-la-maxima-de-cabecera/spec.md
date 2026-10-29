@@ -95,6 +95,8 @@ Cuadre con las pérdidas
 - RF-12: MIENTRAS el kW no esté cuadrado, EL SISTEMA corregirá únicamente el factor de
   potencia activa repartida para compensar pérdidas y volverá a ejecutar el flujo. La
   asignación inicial de Q se conserva y el Q final es el resultado de la red nativa.
+  Cambiado por 035:RF-5 a RF-10 (2026-10-29): con bancos en servicio en el alimentador
+  también se cuadra la Q, moviendo solo la de las escaladas.
 - RF-13: SI las SED con clientes importantes ya superan el objetivo, o no dejan nada que
   repartir, ENTONCES EL SISTEMA las escalará también, junto con las demás, hasta cuadrar,
   y lo dirá.

@@ -85,14 +85,17 @@ def test_matching_client_month_produces_v2_immutable_evidence(tmp_path, monkeypa
     assert plan['project_binding']['native_reread']['status'] == 'VERIFICADO_PERSISTENCIA'
 
 
-def test_different_or_unknown_client_month_blocks_plan(tmp_path, monkeypatch):
-    """013:RF-30 — libro de otro mes o sin mes: no hay plan."""
+def test_different_client_month_warns_and_unknown_blocks_plan(tmp_path, monkeypatch):
+    """013:RF-30, 035:RF-19 — un libro de otro mes no bloquea: hay plan, con el libro, los dos
+    meses y el aviso; un libro sin mes demostrable sigue sin plan."""
     from igea_dgs.web import services
 
     monkeypatch.setattr(services, 'carpeta_pf', lambda: 'Conversor IGEA-DGS')
-    with pytest.raises(services.UserError, match='CLIENT_PERIOD_MISMATCH'):
-        services.ajuste_plan(_workspace(tmp_path / 'different', client_period='2026-03'),
-                             'P', _maxima(), '', .01)
+    plan = services.ajuste_plan(_workspace(tmp_path / 'different', client_period='2026-03'),
+                                'P', _maxima(), '', .01)
+    assert plan['periodo'] == {'status': 'CLIENT_PERIOD_MISMATCH', 'maxima': '2026-04',
+                               'clientes': '2026-03'}
+    assert any('035:RF-19' in a and '2026-03' in a for a in plan['avisos'])
     with pytest.raises(services.UserError, match='CLIENT_PERIOD_UNKNOWN'):
         services.ajuste_plan(_workspace(tmp_path / 'unknown', client_period=None),
                              'P', _maxima(), '', .01)
