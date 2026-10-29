@@ -132,12 +132,16 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]` y pa
       en «SET COH» deducida en Nasca. `igea-dgs convert --por-sistema Chincha`: 27
       alimentadores en 5 SET, la CHN con barras de 10 y 22,9 kV, oráculo converge, 0 errores
       (CN103 no tiene tramos y queda fuera, como todo alimentador sin red).
-- [ ] T16. Cada diagrama con su origen: gráficos y conectores de cada `IntGrfnet` desplazados
+- [x] T16. Cada diagrama con su origen: gráficos y conectores de cada `IntGrfnet` desplazados
       al margen, la hoja del manifiesto desde (0, 0), y lo que dibujan los guiones situado
       con las barras de su diagrama; línea base de la 001 regenerada. (RF-65)
       Hecho cuando: `pytest -q tests/test_dgs_por_set.py tests/test_diagram_topology_coverage.py
       tests/test_cargas_pf_guion_016.py` en verde, suite completa con las siete variables sin
       omitidas y, en DIgSILENT, la sonda de T14 da cada hoja con todos sus gráficos dentro.
+      Cerrada el 2026-10-29: código en ad21bb8b; suite con las siete variables sin omitidas
+      (3110); Nasca por SET convertido e importado de nuevo tras la corrección
+      (20261029-081235_IGEA_SISTEMA_NASCA) y `tools/hojas_diagrama_pf.py` (T20) da las 6 hojas
+      con todos sus gráficos dentro, la 52, la 53 y la 56 en vertical.
 - [x] T17. Siglas de una SET con dos grafías: `Estructura.alimentador` y `equivalentes`,
       SET CHN con las siglas CN y CHN en el perfil, medidores del libro por cualquiera de
       las dos en la web. (RF-81)
@@ -165,3 +169,9 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]` y pa
       Nasca en el tramo de NA205); Chincha 26 válidos y 0 fallos con `--transformadores` y
       `--reconstruir TM106 TM104` (CT_PEDREG en la barra de 10 kV, CHN101, CHN102 y CHN201
       con su medidor en el instante de CHNB6T1 con registro en todos).
+- [x] T20. Herramienta `tools/hojas_diagrama_pf.py`, de solo lectura, que compara en DIgSILENT
+      la hoja de cada `IntGrfnet` con sus gráficos y conectores. (RF-93)
+      Hecho cuando: `pytest -q tests/test_hojas_diagrama_pf.py` en verde y, en DIgSILENT, la
+      herramienta da todas las hojas de Nasca por SET con sus gráficos dentro.
+      Hecho el 2026-10-29: pruebas en verde; en DIgSILENT, Nasca por SET con sus 6 hojas dentro
+      (código 0).

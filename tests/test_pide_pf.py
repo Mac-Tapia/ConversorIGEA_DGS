@@ -163,3 +163,27 @@ def test_fraccion_acumulada_por_anio(guion):
     perfil = [[4, 1 / 3], [8, 2 / 3], [12, 1.0]]
     assert [round(guion.fraccion_en(perfil, a), 4) for a in (0, 4, 6, 8, 12, 20)] == [0, 0.3333, 0.3333, 0.6667, 1, 1]
     assert guion.fraccion_en(None, 0) == 1.0 and guion.fraccion_en([[8, 1.0]], 4) == 0.0
+
+
+def test_el_anio_00_es_el_de_la_medicion_de_la_calibracion(tmp_path, monkeypatch):
+    """030:RF-12 — el año calendario de ingreso de una carga nueva pasa a año del PIDE con el año
+    de la medición con que se calibró el proyecto; un año ya del PIDE se queda como está."""
+    import random
+
+    from igea_dgs.web import services
+    from igea_dgs.web.workspace import Workspace
+
+    rnd = random.Random()
+    base = rnd.randint(2024, 2030)
+    ws = Workspace(id='w', root=tmp_path / 'ws')
+    ws.criterio_cabecera = {'P': {'periodo': f'{base}-07'}}
+    a, b, del_pide, ingreso = base + 1, base + 3, rnd.randint(1, 15), base + rnd.randint(1, 9)
+    monkeypatch.setattr(services, '_cargas_nuevas_aplicadas', lambda ws, project: [
+        {'variacion': 'Carga_A', 'sed': 'A', 'etapas': [[a, 300.0], [b, 300.0], [del_pide, 300.0]]},
+        {'variacion': 'Carga_B', 'sed': 'B', 'anio_ingreso': ingreso}])
+
+    perfiles = {c['sed']: c['perfil'] for c in services._ingreso_de_las_cargas(ws, 'P')}
+
+    assert [anio for anio, _f in perfiles['A']] == sorted([1, 3, del_pide])
+    assert perfiles['B'] == [[ingreso - base, 1.0]]
+

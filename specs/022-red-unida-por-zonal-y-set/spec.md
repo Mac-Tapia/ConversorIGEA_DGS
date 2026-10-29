@@ -351,6 +351,13 @@ por zonal los dejaba fuera)
   coincida en todos; si la máxima sin esa condición cae en un registro que falta en alguno,
   lo dirá con las dos fechas (CHNB6T1 dio el 2026-07-24 11:45 y CHN101, CHN102 y CHN201 no
   tenían ese registro y quedaban sin calibrar, DIgSILENT, 2026-10-28).
+- RF-93: EL SISTEMA dará una herramienta de solo lectura que compare en DIgSILENT la hoja de
+  cada diagrama con sus gráficos y conectores y diga, por diagrama, su formato, su
+  orientación y si todo cae dentro. Usuario, 2026-10-29: no había ninguna en `tools/`
+  (`prueba_representacion.py` mira el DGS). Medido ese día en Nasca por SET: DIgSILENT crea
+  la hoja a la medida y la orienta él (vertical la SET 52, la 53 y la 56, más altas que
+  anchas); los vectores de los conectores traen −1 en los puntos sin usar, que no son del
+  dibujo. No hace falta orientar las hojas al importar.
 
 Informe
 

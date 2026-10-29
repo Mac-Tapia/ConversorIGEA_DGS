@@ -51,3 +51,32 @@ def test_curvas_sumadas_en_registros_comunes():
     s = cr.sumar([[(t, 10.0, None), (t + timedelta(hours=1), 5.0, None)], [(t, 3.0, None)]])
     assert s == [(t, 13.0, None)]
     assert cr.maximas_mensuales([(t, 1.0, None), (t + timedelta(days=40), 2.0, None), ('mala', 9.0, None)]) == {1: 1.0, 2: 2.0}
+
+
+def test_la_tasa_del_perfil_vale_para_todos():
+    """029:RF-6 — con «crecimiento_demanda_anual» en el perfil no se lee la cabecera: la tasa de
+    cada alimentador solo se calcula si el perfil no la trae."""
+    import inspect
+
+    from igea_dgs.web import services
+
+    fuente = inspect.getsource(services.pide_ejecutar)
+    tasa = fuente.index("tasa = plan_pide.get('crecimiento_demanda_anual')")
+    condicion = fuente.index('if tasa is None:', tasa)
+    llamada = fuente.index('_crecimiento_de_la_cabecera(', condicion)
+    assert tasa < condicion < llamada
+    assert fuente.count('_crecimiento_de_la_cabecera(') == 1, 'una sola vez, bajo esa condición'
+
+
+def test_los_libros_de_cabecera_se_leen_en_el_proceso_del_trabajo():
+    """029:RF-7 (027:RF-25) — las curvas de cada año se leen con ``ctx.en_proceso``, en el
+    proceso del trabajo y no en el de la API, con una función de nivel superior."""
+    import inspect
+
+    from igea_dgs import crecimiento
+    from igea_dgs.web import services
+
+    fuente = inspect.getsource(services._crecimiento_de_la_cabecera)
+    assert 'ctx.en_proceso(curvas_por_anio,' in fuente
+    assert crecimiento.curvas_por_anio.__qualname__ == 'curvas_por_anio', 'de nivel superior'
+
