@@ -2042,6 +2042,11 @@ def _preparar_alimentador(app, plan: dict, informe: dict, *, alims, feeder: str,
     # 014:RF-10 a RF-12: una demanda cambiada a mano entra fija con su valor y no se
     # sobrescribe; gana sobre el cliente importante de la misma SED.
     manuales, ultimo = cambios_manuales(cargas, plan.get('ultima_calibracion'))
+    if 'manuales_de_la_primera' in plan:
+        # 021:RF-64: en la segunda pasada, solo los que ya eran a mano en la primera; los
+        # demás difieren porque la primera escribió su reparto.
+        de_la_primera = set(plan['manuales_de_la_primera'])
+        manuales = [m for m in manuales if m['sed'] in de_la_primera]
     for m in manuales:
         fijas_libro[clave_codigo(m['sed'])] = Fija(
             m['sed'], m['manual']['kw'], m['manual']['kvar'],
@@ -2631,6 +2636,12 @@ def _con_bancos_que_faltan(app, planes: list[dict], *, cancelado, estado: dict) 
     from igea_dgs.escaneo import origen_de
 
     primera = _ejecutar_proyecto(app, planes, cancelado=cancelado, estado=estado, solo_medir=True)
+    # 014:RF-10: los cambios a mano son los que vio la primera pasada. Ella escribe el reparto
+    # sin guardarlo, y la segunda, al comparar con la calibración anterior, tomaba lo escrito
+    # por la primera como cambios a mano: en SM218 (2026-10-28), 257 escaladas y las 15 fijas
+    # de los clientes importantes, todas «a mano», y el scale0 de 0,10214 a 0,10305.
+    for plan, (inf, _rc) in zip(planes, primera):
+        plan['manuales_de_la_primera'] = [m['sed'] for m in inf.get('cargas_manuales') or []]
     pedidos, avisos = {}, []
     proyecto = activar_proyecto(app, planes[0]['project'], planes[0].get('folder'))
     alims = Alimentadores(app, proyecto, [p['feeder'] for p in planes])

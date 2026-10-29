@@ -194,6 +194,29 @@ def test_pone_los_bancos_que_faltan_y_recalibra(guion, monkeypatch):
     assert any('021:RF-64' in a for a in inf['avisos'])
 
 
+def test_la_segunda_pasada_no_toma_lo_que_escribio_la_primera_por_cambio_manual(guion):
+    """014:RF-10, 021:RF-64 — con dos pasadas, los cambios a mano son los que vio la primera:
+    lo que ella escribe sin guardar no es un cambio del operador. En SM218 (2026-10-28) la
+    segunda tomaba 257 escaladas y las 15 fijas por cambiadas a mano."""
+    app = _app(escenario=True)
+    plan = {**_de(_plan(kvar=10.0), 'F1', 300.0), 'completar_bancos': True,
+            'bancos_kvar_por_tension': {'10': 2.0}}
+    [(primero, rc)] = guion.ejecutar_proyecto(app, [copy.deepcopy(plan)])
+    assert rc == 0, primero
+    # Un registro anterior a lo escrito: lo que consume cada carga, factor de escala incluido.
+    ultima = {'nombre': 'la calibración del 2026-10-28 17:49',
+              'sed': {x['sed']: [x['p_kw'], x['q_kvar']]
+                      for x in primero['relectura_cargas_nativas']['despues']}}
+    a_mano = sorted(ultima['sed'])[0]
+    _carga(app, a_mano).plini *= 1.5                     # el operador, en «Sin proyecto»
+
+    [(segundo, rc)] = guion.ejecutar_proyecto(
+        app, [{**copy.deepcopy(plan), 'objetivo': {**plan['objetivo'], 'kw': 330.0},
+               'ultima_calibracion': ultima}])
+
+    assert [m['sed'] for m in segundo.get('cargas_manuales') or []] == [a_mano]
+
+
 def test_una_segunda_calibracion_no_repite_los_bancos(guion):
     """028:RF-14 — con los bancos de la calibración ya puestos, la siguiente no pone más y lo
     dice (Nasca, 2026-10-28: 8 bancos acumulados en NA205)."""
