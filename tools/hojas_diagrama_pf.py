@@ -104,8 +104,10 @@ def revisar(diagrama, formatos: dict[str, tuple[float, float]]) -> dict:
     formato = str(_valor(diagrama, 'cDrawFormat') or '')
     orientacion = orientacion_de(diagrama)
     hoja = hoja_efectiva(tamano_del_formato(formato, formatos), orientacion)
-    dentro = (caja is not None and hoja is not None and caja[0] >= 0 and caja[1] >= 0
-              and caja[2] <= hoja[0] and caja[3] <= hoja[1])
+    # Sin gráficos no hay nada fuera: el «Geographic» vacío de Chincha (2026-10-29) salía FUERA
+    # y daba código 1 a un proyecto con todas sus hojas bien.
+    dentro = caja is None or (hoja is not None and caja[0] >= 0 and caja[1] >= 0
+                              and caja[2] <= hoja[0] and caja[3] <= hoja[1])
     return {'diagrama': diagrama.loc_name, 'formato': formato,
             'orientacion': 'vertical' if orientacion == VERTICAL else 'horizontal',
             'hoja': list(hoja) if hoja else None, 'recuadro': list(caja) if caja else None,

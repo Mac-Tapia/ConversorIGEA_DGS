@@ -79,3 +79,19 @@ def test_la_herramienta_da_cada_hoja_con_sus_graficos(hojas, monkeypatch):
     informe, rc = hojas.ejecutar(app, {'project': 'P'})
     fuera = [d['diagrama'] for d in informe['diagramas'] if not d['dentro']]
     assert rc == 1 and fuera == ['Nasca SET 56']
+
+
+def test_un_diagrama_sin_graficos_no_se_sale(hojas, monkeypatch):
+    """022:RF-93 — un diagrama vacío no tiene nada fuera de su hoja. Chincha (2026-10-29): el
+    «Geographic» vacío salía FUERA y la herramienta daba código 1 por él."""
+    app = fake_pf.proyecto(alimentadores=('F1',))
+    monkeypatch.setattr(importlib.import_module('cargas_pf'), 'activar_proyecto',
+                        lambda app, nombre, carpeta=None: app.proyecto)
+    for d in app.proyecto.GetContents('*.IntGrfnet', 1):
+        d.Delete()
+    vacio = app.proyecto.CreateObject('IntGrfnet', 'Geographic')
+    vacio.cDrawFormat, vacio.cDrawOrient = 'A0', hojas.VERTICAL
+
+    informe, rc = hojas.ejecutar(app, {'project': 'P'})
+
+    assert rc == 0 and informe['diagramas'][0]['recuadro'] is None and informe['diagramas'][0]['dentro']
