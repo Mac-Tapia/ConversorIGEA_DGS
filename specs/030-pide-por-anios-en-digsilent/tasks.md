@@ -11,8 +11,11 @@ origen, activo, con el `scale0` de cada carga por el factor de su alimentador; e
 - [x] T1. Casos y escenarios por año en `pide_pf.py` y en el plan de la web. (RF-1 a RF-8)
       Hecho cuando: prueba con `fake_pf` en verde (carpetas, tres casos, escenarios con la
       demanda del año, renovación sin duplicar, casos del proyecto intactos).
-- [ ] T2. PIDE de Chincha en DIgSILENT con sus carpetas por año.
+- [x] T2. PIDE de Chincha en DIgSILENT con sus carpetas por año.
       Hecho cuando: el proyecto tiene «PIDE/Año 00…20» con sus casos y escenarios.
+      Hecho el 2026-10-28 en DIgSILENT (mismo PIDE de Chincha, a las 11:56, tras T1): «PIDE/Año 00»
+      a «PIDE/Año 20» con su «Sin proyecto» y su escenario cada uno; el proyecto no tenía «Cargas
+      nuevas» ni «Con proyecto». Cerrada el 2026-10-29 con esa evidencia.
 - [x] T3. Cargas nuevas constantes, con su año de ingreso o fraccionadas por años: columnas del
       libro, plan de la web y potencia acumulada por año en los escenarios del PIDE. (RF-9 a RF-15)
       Hecho cuando: pruebas en verde (lectura de la columna, carga nueva sin escalar, fuera de
