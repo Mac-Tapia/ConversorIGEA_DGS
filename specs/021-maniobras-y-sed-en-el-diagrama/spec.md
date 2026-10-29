@@ -1,6 +1,6 @@
 # Spec 021 — Maniobras en el extremo de la línea, SED unidas a su barra, curvas de todos los alimentadores y central térmica en la calibración
 
-Estado: aprobada (2026-10-17; RF-50 a RF-53 añadidos el mismo día) · Fecha: 2026-10-17
+Estado: cumplida (revisión 033 del 2026-10-29) · aprobada (2026-10-17; RF-50 a RF-53 añadidos el mismo día) · Fecha: 2026-10-17
 
 ## Contexto y objetivo
 

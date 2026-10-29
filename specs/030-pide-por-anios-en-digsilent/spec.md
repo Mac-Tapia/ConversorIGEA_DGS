@@ -1,6 +1,6 @@
 # Spec 030 — Los años del PIDE en casos y escenarios de DIgSILENT
 
-Estado: pedida por el usuario el 2026-10-28 («para ser más organizados, estos años 0, 4, 8, 12, 16
+Estado: cumplida (revisión 033 del 2026-10-29) · pedida por el usuario el 2026-10-28 («para ser más organizados, estos años 0, 4, 8, 12, 16
 y 20 en DIgSILENT se crean en carpetas, y de la misma manera en escenarios de operación»; «es
 porque habrá casos sin proyecto, con proyecto y con cargas nuevas, e igual para escenarios de
 estudio, en cada año propuesto»).

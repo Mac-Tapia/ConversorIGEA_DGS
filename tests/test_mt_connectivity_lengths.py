@@ -1,4 +1,7 @@
-"""MT From/To georef connectivity, geo lengths, and SED→node TXT proof."""
+"""MT From/To georef connectivity, geo lengths, and SED→node TXT proof.
+
+Spec 034: 034:RF-11.
+"""
 
 from __future__ import annotations
 

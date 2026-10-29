@@ -39,3 +39,4 @@ Access.
       Hecho cuando: `npm run lint`, `npx tsc --noEmit -p .` y `npm run build` correctos.
 - [ ] T12. Validación: `grep -rnoE "002:RF-[0-9]+" tests frontend | sort -u` lista RF-1 a RF-37;
       línea base idéntica; `CODIGO_FUENTE.md` con las rutas nuevas.
+      Hecho cuando: `grep -rnoE "002:RF-[0-9]+" tests frontend | sort -u` lista RF-1 a RF-37 y la línea base de la 001 sigue idéntica.

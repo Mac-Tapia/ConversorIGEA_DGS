@@ -1,3 +1,7 @@
+"""Pruebas del motor base de conversión.
+
+Spec 034: 034:RF-9.
+"""
 from igea_dgs.model import build_feeder_model
 
 

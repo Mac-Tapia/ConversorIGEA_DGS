@@ -13,6 +13,8 @@ Cubre tres propiedades:
   sea el tamaño.
 - **Escalabilidad**: el coste crece de forma lineal con el número de tramos, no
   cuadrática (regresión histórica C-02).
+
+Spec 034: 034:RF-16.
 """
 
 from __future__ import annotations

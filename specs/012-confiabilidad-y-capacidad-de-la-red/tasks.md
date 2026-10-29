@@ -98,7 +98,7 @@ Cierre
       por una prueba en verde, suite completa con las tres `IGEA_*`. (Todos)
       Hecho cuando: `pytest -q tests/test_inventario.py` en verde y
       `grep -rnoE "012:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-72.
-- [ ] T13. Prueba real en DIgSILENT con dos alimentadores calibrados, una carga nueva y un
+- [ ] T13. [DIgSILENT] Prueba real en DIgSILENT con dos alimentadores calibrados, una carga nueva y un
       libro de la empresa, a cargo del usuario: índices y ENS por alimentador, un
       reconectador y un banco propuestos y aceptados como obra, capacidad de un nodo y
       curva PV de un alimentador. (Todos)

@@ -1013,7 +1013,8 @@ def _con_escenario_que_manda(**kw):
 
 
 def test_el_escenario_lleva_el_ajuste(guion, monkeypatch):
-    """006:RF-27 / 006:RF-29 / 014:RF-4 / 015:RF-19 / 015:RF-26 / 015:RF-37 — la demanda
+    """006:RF-27 / 006:RF-29 / 011:RF-54 / 011:RF-55 / 014:RF-4 / 015:RF-19 / 015:RF-26 /
+    015:RF-37 — la demanda
     calibrada queda en el escenario de «Sin proyecto» y, si existe, en el de «Con
     proyecto»; el «Caso base» conserva su demanda y su escenario, y ve la marca fija o
     escalable, que DIgSILENT guarda en la red (sonda T1 de la 015).

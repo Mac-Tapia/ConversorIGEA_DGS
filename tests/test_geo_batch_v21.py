@@ -1,3 +1,7 @@
+"""Pruebas del motor base de conversión.
+
+Spec 034: 034:RF-11.
+"""
 from pathlib import Path
 import json
 

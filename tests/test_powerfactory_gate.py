@@ -1,4 +1,7 @@
-"""Unit tests for PowerFactory gate helpers that do not need a live PF session."""
+"""Unit tests for PowerFactory gate helpers that do not need a live PF session.
+
+Spec 034: 034:RF-21.
+"""
 
 from __future__ import annotations
 

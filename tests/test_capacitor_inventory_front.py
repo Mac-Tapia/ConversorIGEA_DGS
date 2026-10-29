@@ -1,3 +1,7 @@
+"""Pruebas del motor base de conversión.
+
+Spec 034: 034:RF-23.
+"""
 from pathlib import Path
 from types import SimpleNamespace
 

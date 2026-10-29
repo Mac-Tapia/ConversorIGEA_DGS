@@ -262,3 +262,6 @@ Añadido el 2026-10-17 (calibrar NA203 y NA205 con su central en julio y a la ve
       mismo flujo, en 2 flujos y sin ningún remedio, con la validación física correcta.
       NA203 9 190,9 de 9 244 kW (−0,57 %); NA205 aguas arriba 936,8 de 934,6 kW y aguas
       abajo 7 145,1 de 7 177,9 kW, cabecera −1 570,0 frente a −1 520,8 medidos.
+- [x] T21. Retro (033, 2026-10-29): RF-70, añadidos a la spec como cambio después de
+      escribir las tareas e implementados con su prueba sin tarea propia. (RF-70)
+      Hecho cuando: las pruebas que los citan pasan (pruebas de `tests/test_ajuste_proyecto_guion.py`).

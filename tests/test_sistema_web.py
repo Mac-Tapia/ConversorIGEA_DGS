@@ -349,6 +349,8 @@ def _correr_red(herramienta, web, **kw):
     (['PI102', 'PI101'], ' Red Pisco / prueba ', 'Red_Pisco___prueba'),
 ])
 def test_red_convierte_importa_y_usa_maximas_individuales(herramienta, red, nombre, grupo):
+    """028:RF-25 / 028:RF-24 — ``--red`` convierte, importa y calibra uno o varios
+    alimentadores, unidos en un proyecto si son varios, con la máxima de cada uno."""
     web = WebRed(red, grupo)
     assert _correr_red(herramienta, web, grupo=nombre) == 0
     assert web.enviados['/convert'] == {
@@ -359,6 +361,7 @@ def test_red_convierte_importa_y_usa_maximas_individuales(herramienta, red, nomb
 
 
 def test_red_recalibra_sin_reconvertir(herramienta):
+    """028:RF-25 — con el proyecto ya importado, recalibra sin reconvertir."""
     web = WebRed(['PI102', 'PI101'], 'RED', importado=True)
     assert _correr_red(herramienta, web, grupo='RED') == 0
     assert '/convert' not in web.enviados and '/powerfactory/flow' not in web.enviados

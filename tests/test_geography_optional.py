@@ -10,6 +10,8 @@ Dos requisitos que se sostienen a la vez (C-03 del diagnóstico 2026-09-22):
    TXT — si no concuerda, es un error de unidades o de proyección y debe bloquear.
 
 Todo aquí es sintético: no necesita los TXT de la distribuidora.
+
+Spec 034: 034:RF-11.
 """
 
 from __future__ import annotations

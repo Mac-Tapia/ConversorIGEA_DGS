@@ -12,4 +12,6 @@
       Hecho cuando: `pytest -q tests/test_cargas_tres_pasos_front.py tests/test_cargas_pf_front.py
       tests/test_demanda_medida_front.py`, `npx tsc --noEmit -p .` y `npm run build` correctos.
 - [x] T6. Validación: `grep -rnoE "008:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-24; suite completa.
-- [ ] T7. Prueba real en DIgSILENT con un proyecto de dos alimentadores, a cargo del usuario.
+      Hecho cuando: `grep -rnoE "008:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-24 y la suite completa, en verde.
+- [ ] T7. [DIgSILENT] Prueba real en DIgSILENT con un proyecto de dos alimentadores, a cargo del usuario.
+      Hecho cuando: el usuario confirma en DIgSILENT los tres pasos con un proyecto de dos alimentadores.

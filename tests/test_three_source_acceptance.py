@@ -1,4 +1,7 @@
-"""Contrato del ejecutor auditado de las tres fuentes."""
+"""Contrato del ejecutor auditado de las tres fuentes.
+
+Spec 034: 034:RF-24.
+"""
 
 from __future__ import annotations
 

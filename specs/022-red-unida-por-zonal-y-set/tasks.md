@@ -175,3 +175,6 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]` y pa
       herramienta da todas las hojas de Nasca por SET con sus gráficos dentro.
       Hecho el 2026-10-29: pruebas en verde; en DIgSILENT, Nasca por SET con sus 6 hojas dentro
       (código 0).
+- [x] T21. Retro (033, 2026-10-29): RF-41b, RF-41c, RF-62, RF-63, añadidos a la spec como cambio después de
+      escribir las tareas e implementados con su prueba sin tarea propia. (RF-41b, RF-41c, RF-62, RF-63)
+      Hecho cuando: las pruebas que los citan pasan (pruebas de `tests/test_ajuste_cabecera_web.py`, `tests/test_ajuste_proyecto_guion.py` y `tests/test_demanda_medida_web.py`).

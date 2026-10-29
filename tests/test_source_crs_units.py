@@ -7,6 +7,8 @@ in degrees the total length of one reference feeder dropped from 127 m to 0.0011
 (factor 110,575) and the converter still reported ``ok`` with ``errors_total = 0``:
 the validator compares the DGS against the same model that produced it, so it is
 structurally unable to notice.
+
+Spec 034: 034:RF-4.
 """
 
 from __future__ import annotations

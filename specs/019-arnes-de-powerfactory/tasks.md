@@ -10,9 +10,11 @@
       Hecho cuando: `pytest -q tests/test_obras_pf.py tests/test_obras_pf_guion.py` en verde.
 - [x] T4. `tools/pf_servidor.py` y su uso desde la web. (RF-7, RF-8, RF-9)
       Hecho cuando: `pytest -q tests/test_pf_servidor.py` y las de la web en verde.
-- [x] T5. Prueba en DIgSILENT real: dos guiones a la vez, tres órdenes con una activación,
+- [x] T5. [DIgSILENT] Prueba en DIgSILENT real: dos guiones a la vez, tres órdenes con una activación,
       consigna de cabecera en CA101. (Todos)
+      Hecho cuando: en DIgSILENT real dos guiones esperan su turno y tres órdenes usan una sola activación.
 - [x] T6. Validación: cada RF citado por al menos una prueba. (Todos)
+      Hecho cuando: `grep -rnoE "019:RF-[0-9]+" tests | sort -u` lista todos los RF.
 - [x] T7. El servidor ocioso cede el turno, salida sin búfer y la API de DIgSILENT buscada
       en su instalación. (RF-14, RF-15, RF-16)
       Hecho cuando: `pytest -q tests/test_pf_arnes.py tests/test_pf_servidor.py` en verde y

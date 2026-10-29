@@ -1,6 +1,6 @@
 # Spec 020 — SED fijas sobrecargadas: aviso y transformadores nuevos desde la web
 
-Estado: aprobada (2026-10-16) · Fecha: 2026-10-16
+Estado: cumplida (revisión 033 del 2026-10-29) · aprobada (2026-10-16) · Fecha: 2026-10-16
 
 > Cambiada por la spec 032 (2026-10-28): los transformadores van en la variación
 > `SED_NTP_<proyecto>`, no en la red (RF-16), porque el «Caso base» conserva los kVA del
@@ -135,6 +135,8 @@ Cambios en la red, lo original y lo nuevo (usuario, 2026-10-17: «todos los camb
 se hacen se deben reportar como original existente con su potencia instalada y el valor de
 potencia cambiada con sus respectivos códigos SED»)
 
+- RF-33 a RF-59: no se usan (los RF de «Cambios en la red» se numeraron desde RF-60 al
+  añadirlos el 2026-10-17, commit 3e3ea1e5; esos números nunca se definieron).
 - RF-60: CUANDO la calibración cambia un elemento de la red (un transformador de RF-16, un
   banco puesto a su máxima capacidad de 015:RF-66), EL SISTEMA lo reportará en una tabla
   de cambios con el código de su SED (o la barra, si no es de una SED), el elemento, lo

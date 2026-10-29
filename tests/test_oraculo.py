@@ -5,6 +5,8 @@ los 96 alimentadores de la entrega de 03/08: 95 convergen y 1 da tensión imposi
 pero nada habría avisado si una versión nueva de pandapower lo rompía, y la web habría
 seguido mostrando un veredicto sin calcularlo. Estas pruebas lo ejecutan sobre exports
 sintéticos con las dos disposiciones.
+
+Spec 034: 034:RF-25.
 """
 
 from __future__ import annotations

@@ -5,6 +5,8 @@ no es lo mismo que **es defendible**. ``ComRel3`` corre sin problemas con todas 
 tasas de falla a cero y devuelve SAIDI = 0. No falla, miente. Si esa distinción se
 diluye, el informe pasa de ser útil a ser peligroso, porque presentaría como resultado
 del año 0 un número que nadie puede sostener ante Osinergmin.
+
+Spec 034: 034:RF-26.
 """
 
 from __future__ import annotations

@@ -1002,6 +1002,7 @@ se ejecutan con el intérprete de PowerFactory (Python 3.12 con `powerfactory.py
 | `build_interactive_architecture.py` | Genera la página de la arquitectura C4 interactiva desde `docs/architecture/`. | |
 | `check_pf_license.py` | Qué módulos de PowerFactory permite la licencia. | PF |
 | `compare_schema.py` | Cabeceras de un DGS de otra versión de PF frente a un perfil de esquema. | |
+| `estado_specs.py` | Estado de las specs: numeración, tareas abiertas y RF con prueba; `--escribir` regenera `specs/README.md` y `--comprobar` sale con 1 si no está al día (spec 033). | |
 | `construir_dataset_pide.py` | Corpus PIDE universal de una empresa: `--raiz`, `--destino`, `--empresa`, `--contrato` (solo lee el expediente); `--solo-ejemplos` saca de él los ejemplos del agente por artículo, formato e informe (spec 027, RF-48 y RF-50). | |
 | `convertir_grupos_mdb.py` | Varios alimentadores de una base en un DGS, importado y con flujo. | PF |
 | `fidelidad_seleccion.py` | Que una selección pase entera del TXT al modelo y al DGS. | |

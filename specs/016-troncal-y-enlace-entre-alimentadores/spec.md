@@ -1,6 +1,6 @@
 # Spec 016 — Troncal por el camino más largo, enlace entre alimentadores y conexión en un tramo
 
-Estado: aprobada (2026-10-14) · Fecha: 2026-10-14 · Origen: petición del usuario, 2026-10-14 (cambiar
+Estado: implementada (revisión 033 del 2026-10-29) · aprobada (2026-10-14) · Fecha: 2026-10-14 · Origen: petición del usuario, 2026-10-14 (cambiar
 la troncal de IN111 a 120 mm² y transferir carga de IN111 a TA225)
 
 ## Contexto y objetivo
@@ -266,6 +266,10 @@ Etapas de las variaciones (prueba en DIgSILENT con IN111 + TA225, 2026-10-15)
   más cercano a sus coordenadas, con su propia línea hasta su punto, con las variaciones
   de las anteriores activas, y la medirá con ellas y lo dirá (cambia RF-47 y 007:RF-12
   para esas cargas). DIgSILENT no resuelve partir un trozo creado por otra variación.
+- Aclaración de RF-77 (033, 2026-10-29): 025:RF-47 y RF-48 la cambiaron el 2026-10-23. La
+  carga que cae en un tramo ya partido sigue sin partirlo otra vez, pero va a un extremo
+  existente del tramo y se mide con las variaciones de las demás cargas nuevas inactivas;
+  colgarla del nodo de otra dejaba a CH_8 de TM105 sin red al desactivar CH_3.
 - RF-78: CUANDO una carga nueva trae coordenadas y no trae barra, EL SISTEMA la conectará
   en el punto más cercano a sus coordenadas de cualquier tramo de media en servicio del
   alimentador, no solo de la troncal; SI ese punto es el de otra carga de la misma

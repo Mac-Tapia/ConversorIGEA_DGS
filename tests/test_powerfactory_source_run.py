@@ -1,4 +1,7 @@
-"""PowerFactory solo puede consumir artefactos de la ejecución fuente activa."""
+"""PowerFactory solo puede consumir artefactos de la ejecución fuente activa.
+
+Spec 034: 034:RF-21.
+"""
 
 from __future__ import annotations
 

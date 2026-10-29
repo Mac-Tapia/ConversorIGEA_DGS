@@ -129,7 +129,7 @@ def test_troncal_sin_coordenadas(guion):
 
 
 def test_dos_cargas_en_el_mismo_tramo(guion):
-    """016:RF-47, 025:RF-47 — dos cargas en el mismo tramo: la primera lo parte y la segunda se
+    """016:RF-47, 016:RF-77, 025:RF-47 — dos cargas en el mismo tramo: la primera lo parte y la segunda se
     conecta en el extremo existente del tramo más cercano, con su propia línea, sin partir
     otra vez ni colgar del nodo de la primera; desactivar la primera no la deja sin red."""
     app = _app(alimentadores=('F1',))

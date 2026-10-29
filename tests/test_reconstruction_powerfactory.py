@@ -1,4 +1,7 @@
-"""Acceptance contract for reconstructed feeders in PowerFactory."""
+"""Acceptance contract for reconstructed feeders in PowerFactory.
+
+Spec 034: 034:RF-22.
+"""
 
 from __future__ import annotations
 

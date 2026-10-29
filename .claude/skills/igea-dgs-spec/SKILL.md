@@ -65,6 +65,24 @@ Validación rápida de una spec:
 grep -rnoE "001:RF-[0-9]+" tests | sort -u
 ```
 
+## Estado, numeración y crecimiento (spec 033, que la suite comprueba)
+
+- **Estado**, primera palabra de la línea `Estado:` y nada más: `borrador`, `aprobada`
+  (queda código por hacer), `implementada` (solo faltan tareas `[DIgSILENT]`), `cumplida`
+  (nada abierto), `reservada` o `retirada` (con una sección `## Motivo`). No hay otro sitio
+  donde escribirlo: `specs/README.md` lo genera `python tools/estado_specs.py --escribir`, y
+  la tabla de `CLAUDE.md` debe decir lo mismo.
+- **Tareas de DIgSILENT** con la marca `[DIgSILENT]` tras el número. Si una tarea mezcla código
+  y prueba en DIgSILENT, se parte en dos: el código se cierra con sus pruebas.
+- **Numeración**: nunca se renumera (las pruebas citan los números). Un RF se define una vez
+  con `- RF-n:`; una aclaración posterior es `- Aclaración de RF-n …`; un número que no se use
+  se declara con `- RF-a a RF-b: no se usan (motivo).`
+- **Un RF nuevo entra con su tarea**, en el mismo cambio, y la tarea dice «Hecho cuando:».
+- **Una spec cumplida no crece**: un cambio sobre ella abre una spec nueva que la cita. La 017
+  llegó a 154 RF y la 011 a 130 con cambios añadidos al final, y eran las más desfasadas.
+- Cada fichero de pruebas cita al menos una spec, y cada commit `feat` nombra la suya
+  (`NNN:RF-n`, «spec NNN» o «NNN Tn»).
+
 ## Reglas de redacción
 
 - La spec dice **QUÉ** y **POR QUÉ**. Stack, ficheros, firmas y algoritmos van en el plan.

@@ -13,6 +13,8 @@ Lo que se fija aquí:
 
 El cruce con el modelo de la conversión se retiró (spec 004): qué SED existe lo decide
 ``tools/cargas_pf.py`` en el proyecto de DIgSILENT.
+
+Spec 034: 034:RF-6.
 """
 
 from __future__ import annotations

@@ -9,6 +9,8 @@ Se ejecutan solo con los datos disponibles, y hacen *skip* limpio si faltan:
 
     set IGEA_RED / IGEA_LOADS / IGEA_EQUIPMENT   → alternativa 1 (TXT)
     set IGEA_MDB  (+ IGEA_EQUIPMENT_MDB)         → alternativa 2 (Access)
+
+Spec 034: 034:RF-18.
 """
 
 from __future__ import annotations

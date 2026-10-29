@@ -110,7 +110,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       SE20859 (509 % en kVA aparentes), SE21082 (236 %), SE20444 (125 %) y SE20426 (120 %,
       FP 0,43); ningún cambio manual, porque la calibración registrada en la web coincide
       con DIgSILENT. 612 pruebas de web, front y calibración en verde.
-- [x] T22. Cambio manual del operador, pedido por el usuario el 2026-10-15 (no es código de
+- [x] T22. [DIgSILENT] Cambio manual del operador, pedido por el usuario el 2026-10-15 (no es código de
       la aplicación): los transformadores de las SED fijas que pedían más que su potencia,
       a la menor potencia normalizada con la máxima ≤ 80 %, con los parámetros de la NTP
       370.400-2013 (Tabla 6 de la especificación de FONAFE, 2017: trifásicos, AT ≤ 17,5 kV):
@@ -122,6 +122,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       el usuario). Recalibrado (`output/spec015/T22_ajuste_CA101_trafos_ntp.json`): 5987,9 kW
       (−0,20 %), validación física correcta, ninguna fija sobre su transformador, pérdidas
       1050 kW (17,5 %), 0,637 pu en SE20701; registrado en el espacio de la web.
+      Hecho cuando: las dos SED con su transformador nuevo en DIgSILENT y la calibración válida.
 - [x] T23. Clientes fijos con FP por debajo de 0,98 compensados por su banco propio hasta
       0,98 y dichos en el informe de la calibración, en la web y en el informe de estudio
       con su FP real y el corregido; bancos existentes a su máxima capacidad; toda escalada
@@ -135,7 +136,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       (1 de 1 escalón) y entregan 198, 198 y 185 kvar. Repetida sobre lo calibrado:
       YA_CARGADO_VALIDADO con las 160 escaladas a 0,98 en lo escrito y en el flujo. Antes, en
       una copia: sin bancos SE20701 caía de 0,637 a 0,546 pu y las pérdidas subían 486 kW.
-- [x] T24. «Con proyecto» con la demanda calibrada de «Sin proyecto» (014:RF-4), probado con
+- [x] T24. [DIgSILENT] «Con proyecto» con la demanda calibrada de «Sin proyecto» (014:RF-4), probado con
       la obra de cambio de conductor de CA101. Hallazgo en DIgSILENT real (2026-10-15): en
       las cargas desequilibradas las fases son dato de la red y `plini` lo deriva DIgSILENT
       en el escenario activo; «Con proyecto» conservaba la `plini` del archivo (consumía
@@ -150,7 +151,8 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       esos tramos 112 → 38 %, bancos 581 → 748 kvar; «Caso base» y «Sin proyecto» sin la
       variación y con sus tipos; las 169 cargas consumen lo escrito y las 160 escaladas a
       0,98 en «Sin» y «Con proyecto».
-- [x] T25. Etapas siguientes en «Con proyecto» de CA101, cada obra en su variación (pedido del
+      Hecho cuando: «Con proyecto» de CA101 consume en DIgSILENT la demanda calibrada de «Sin proyecto».
+- [x] T25. [DIgSILENT] Etapas siguientes en «Con proyecto» de CA101, cada obra en su variación (pedido del
       usuario, 2026-10-15): bancos nuevos de 600 kvar en SE20701(1) y 300 kvar en SE20730(1)
       con la herramienta de obras; como no bastaba (SE20701 0,942 pu, 357 barras < 0,95), la
       consigna de la red externa a 1,05 pu (máxima del perfil) en el escenario de «Con
@@ -158,7 +160,8 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       MT 0,990 pu, ninguna barra fuera de 0,95–1,05, pérdidas 381 kW, cabecera 125 kvar; «Sin
       proyecto» sin cambios. La consigna de cabecera no es aún una clase de obra: queda para
       una spec.
-- [x] T26. PA217 (`20261016-094237_IGEA_PA217`, 22,9 kV), 2026-10-16: la calibración no
+      Hecho cuando: «Con proyecto» de CA101 converge en DIgSILENT con cada obra en su variación.
+- [x] T26. [DIgSILENT] PA217 (`20261016-094237_IGEA_PA217`, 22,9 kV), 2026-10-16: la calibración no
       era válida (VALIDACION_FISICA). Con cargas PQ no convergía ni con las escaladas al
       0,5 % de su kVA; solo con la adaptación automática del modelo, y entonces las fijas
       escribían 7896 kW y consumían 6250 (SE30940, 3800 → 2535 kW a 0,817 pu). Causa: la
@@ -179,6 +182,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       de VALIDACION_FISICA dice que sin el ajuste del flujo no converge y nombra las fijas
       sobre su transformador (RF-59). Pendiente: registrar la calibración en la web
       (volver a pulsar el ajuste: ya cargado, la valida y la guarda).
+      Hecho cuando: PA217 calibrado y válido en DIgSILENT tras corregir la fija sobre su transformador.
 - [x] T12. Prueba en DIgSILENT con CA101, sobre el proyecto existente y sin datos
       inventados: la verificación lista lo que falla; corregido, pasa; se crea
       «Sin proyecto»; la calibración solo cambia su escenario y el «Caso base» queda igual;
@@ -239,3 +243,6 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 - [x] T13. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
       Hecho cuando: `grep -rnoE "015:RF-[0-9]+" tests | sort -u` lista los 46 RF y la suite
       con las variables `IGEA_*` pasa.
+- [x] T27. Retro (033, 2026-10-29): RF-68, RF-69, añadidos a la spec como cambio después de
+      escribir las tareas e implementados con su prueba sin tarea propia. (RF-68, RF-69)
+      Hecho cuando: las pruebas que los citan pasan (pruebas de `tests/test_ajuste_cabecera_guion.py`).

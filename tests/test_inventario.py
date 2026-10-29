@@ -31,7 +31,9 @@ RETIRADAS = (
     'emparejar_entradas.py',
 )
 #: Tareas que no son de código: la prueba en DIgSILENT la hace el usuario.
-DEL_USUARIO = re.compile(r'a cargo del usuario|la hace el usuario', re.I)
+#: 033:RF-7: la marca ``[DIgSILENT]``; la frase de antes sigue valiendo.
+DEL_USUARIO = re.compile(r'\[DIgSILENT\]|a cargo del usuario|la hace el usuario', re.I)
+_DEF = re.compile(r'^- RF-(\d+[a-z]?):(?! no se usan?\b)', re.M)
 
 
 def _versionados() -> list[str]:
@@ -129,7 +131,8 @@ def _citas() -> str:
 
 
 def _rf(spec: str) -> set[int]:
-    return {int(x) for x in re.findall(r'^- RF-(\d+)', spec, re.M)}
+    # El mismo lector que la 033: sin las aclaraciones ni los huecos declarados («no se usa»).
+    return {int(x[:-1] if x[-1].isalpha() else x) for x in _DEF.findall(spec)}
 
 
 def _tareas(d: Path) -> list[tuple[bool, str]]:

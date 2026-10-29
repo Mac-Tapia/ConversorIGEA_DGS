@@ -6,6 +6,8 @@ archivos, snapping determinista, topología, reconciliación, enriquecimiento,
 configuración, doctor, exportadores y CLI. Las dependencias ``shapely``,
 ``requests`` y ``geopandas`` no se importan en colección (todo es perezoso), así
 que estas pruebas no rompen la suite existente.
+
+Spec 034: 034:RF-4.
 """
 
 from __future__ import annotations

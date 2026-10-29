@@ -4,6 +4,8 @@ Red de prueba, con la forma medida en 260924.mdb:
 
     FUENTE ─L1(AA)─ A ─P1(DEFAULT, seccionador)─ B ─L2(AA)─ C ─P2(DEFAULT, carga)─ D
                                                              └─P3(DEFAULT, nada)── E ─L3─ F
+
+Spec 034: 034:RF-32.
 """
 
 from __future__ import annotations

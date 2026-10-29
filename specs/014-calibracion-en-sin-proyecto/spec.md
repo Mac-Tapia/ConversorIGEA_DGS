@@ -1,6 +1,6 @@
 # Spec 014 — Calibración y cambios del operador en «Sin proyecto», cargas nuevas en «Con proyecto»
 
-Estado: aprobada (2026-10-14) · Fecha: 2026-10-14 · Origen: aceptación de CA101 del 2026-10-14
+Estado: cumplida (revisión 033 del 2026-10-29) · aprobada (2026-10-14) · Fecha: 2026-10-14 · Origen: aceptación de CA101 del 2026-10-14
 
 ## Contexto y objetivo
 
@@ -227,6 +227,6 @@ creó un banco de condensadores en «Sin proyecto» y no estaba en «Con proyect
   después, sus modificaciones en «Sin proyecto» se graban directamente en la red, sin
   variaciones (015:RF-14, RF-27). Las variaciones del operador de antes de la 015 se
   siguen conservando (RF-3, RF-15, RF-20).
-- RF-5: «Sin proyecto» solo se crea con el «Caso base» verificado (015:RF-17).
-- RF-10: el cambio manual de demanda se compara con la última calibración que guarda la
+- Aclaración de RF-5: «Sin proyecto» solo se crea con el «Caso base» verificado (015:RF-17).
+- Aclaración de RF-10: el cambio manual de demanda se compara con la última calibración que guarda la
   web, porque la calibración ya no deja variación (015:RF-26).

@@ -1,4 +1,7 @@
-"""Contrato HTTP que consume la interfaz de las tres fuentes aisladas."""
+"""Contrato HTTP que consume la interfaz de las tres fuentes aisladas.
+
+Spec 034: 034:RF-20.
+"""
 
 from __future__ import annotations
 

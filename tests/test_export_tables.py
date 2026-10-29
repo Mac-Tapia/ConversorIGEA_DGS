@@ -1,4 +1,7 @@
-"""Tests for DGS tabular export (TSV always; Excel if pandas/openpyxl present)."""
+"""Tests for DGS tabular export (TSV always; Excel if pandas/openpyxl present).
+
+Spec 034: 034:RF-14.
+"""
 
 from __future__ import annotations
 

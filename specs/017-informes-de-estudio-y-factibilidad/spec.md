@@ -400,6 +400,7 @@ Apartado 5.1 · Conexión de un cliente nuevo
   pérdidas reconocidas y el precio que lee para el alimentador, o qué no encuentra.
 - RF-95: EL SISTEMA mostrará en 5.1 el proyecto de transmisión del perfil y permitirá elegir
   otro de la carpeta de proyectos de DIgSILENT (spec 005).
+- RF-123: no se usa (nunca se definió: la vista previa entró como RF-124).
 - RF-124: EL SISTEMA ofrecerá en 5.1 una vista previa de la imagen de ubicación, como
   trabajo del carril `powerfactory`, antes de generar el informe.
 - RF-125: EL SISTEMA pedirá en 5.1 que el operador confirme si el predio está en el área de

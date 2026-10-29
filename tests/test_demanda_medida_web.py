@@ -342,7 +342,7 @@ def test_carpeta_con_un_mes_puede_cruzar_y_con_varios_exige_elegir(client, tmp_p
 
 
 def test_cruce_con_el_mes_elegido_dice_su_libro(client, tmp_path, monkeypatch):
-    """013:RF-12 y RF-16 — con varios meses se cruza el libro del mes elegido y se dice cuál."""
+    """013:RF-12 / 013:RF-16 — con varios meses se cruza el libro del mes elegido y se dice cuál."""
     _perfil_clientes_mensuales(tmp_path, monkeypatch)
     carpeta = tmp_path / 'clientes'
     carpeta.mkdir()

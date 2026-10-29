@@ -1,4 +1,7 @@
-"""Bancos de fuente: no se inventa potencia, fases ni escalones."""
+"""Bancos de fuente: no se inventa potencia, fases ni escalones.
+
+Spec 034: 034:RF-12.
+"""
 
 from __future__ import annotations
 

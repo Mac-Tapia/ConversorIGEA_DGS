@@ -36,9 +36,10 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 - [x] T8c. Notas en las specs 004, 006, 007 y 011 sobre los RF que cambia la 014;
       `CODIGO_FUENTE.md` y `docs/MANUAL_COMANDOS.md` al día. (Trazabilidad)
       Hecho cuando: `pytest -q tests/test_inventario.py` en verde.
-- [x] T8c-015. La spec 015 (2026-10-14) cambia RF-5 y RF-10 y el contexto: anotado al
+- [x] T8d. La spec 015 (2026-10-14) cambia RF-5 y RF-10 y el contexto: anotado al
       final de la spec. La prueba de T9 se hace después de verificar el «Caso base» de
       CA101 (015, T12).
+      Hecho cuando: la nota de la 015 está al final de esta spec y las pruebas de 014:RF-5 y RF-10 pasan.
 - [x] T9. Prueba en DIgSILENT con CA101, sobre el proyecto existente y sin datos
       inventados:
       - un ajuste en «Sin proyecto» deja `_3` activa en «Sin» y «Con», y la cabecera

@@ -1,6 +1,6 @@
 # Spec 015 — «Caso base» verificado de una vez; «Sin proyecto» solo calibra cargas
 
-Estado: aprobada (2026-10-14) · Fecha: 2026-10-14 · Origen: revisión de la aceptación de CA101 del 2026-10-14
+Estado: cumplida (revisión 033 del 2026-10-29) · aprobada (2026-10-14) · Fecha: 2026-10-14 · Origen: revisión de la aceptación de CA101 del 2026-10-14
 
 ## Contexto y objetivo
 

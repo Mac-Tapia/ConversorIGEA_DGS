@@ -9,6 +9,8 @@ Lo que estas pruebas fijan, por orden de importancia:
    hallazgos: una herramienta que marca todo no se usa dos veces.
 3. **Nada entra en el modelo por accidente.** Una fila «por_confirmar» no corrige,
    aunque tenga un número escrito.
+
+Spec 034: 034:RF-7.
 """
 
 from __future__ import annotations

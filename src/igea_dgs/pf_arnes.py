@@ -526,7 +526,7 @@ VARIABLE_COLA = 'IGEA_PF_COLA'
 # más por ajuste y 73 s de conexión en la acción siguiente).
 GUIONES_SERVIBLES = frozenset({
     'ajuste_cabecera_pf.py', 'cargas_pf.py', 'casos_pf.py', 'digital_twin_snapshot_pf.py', 'escanear_alimentador_pf.py',
-    'escenarios_pf.py', 'estudios_pf.py', 'obras_pf.py', 'pf_proyectos.py', 'pide_pf.py',
+    'escenarios_pf.py', 'estudios_pf.py', 'hojas_diagrama_pf.py', 'obras_pf.py', 'pf_proyectos.py', 'pide_pf.py',
     'transferencia_pf.py', 'transformador_set_pf.py', 'verificar_pf.py'})
 
 _APP_COMPARTIDA: Any = None

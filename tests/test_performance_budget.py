@@ -8,6 +8,8 @@ was those two patterns; cost grew as ~4.8e-6 · sections².
 
 The call-count test below is the real guard and needs no utility TXT: it fails the
 moment someone puts an index rebuild back inside a loop, regardless of machine speed.
+
+Spec 034: 034:RF-16.
 """
 
 from __future__ import annotations

@@ -5,6 +5,8 @@
 el export CYMDIST: con un perfil verificado, ``export()`` pasaba la carpeta de salida en
 el lugar de la especificación de columnas y fallaba con ``TypeError``. Nunca se había
 ejecutado ese camino.
+
+Spec 034: 034:RF-4.
 """
 
 from __future__ import annotations

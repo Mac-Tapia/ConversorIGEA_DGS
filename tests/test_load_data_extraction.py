@@ -15,6 +15,8 @@ La energía (KWH) también se lee, pero ``ElmLod`` de PowerFactory no tiene ning
 atributo de energía anual —comprobado en ``datascheme.db``, sus 105 atributos—, así que
 no se inventa un sitio donde meterla: se usa para el factor de carga, que es para lo
 que hace falta en el PIDE.
+
+Spec 034: 034:RF-1, 034:RF-9.
 """
 
 from __future__ import annotations

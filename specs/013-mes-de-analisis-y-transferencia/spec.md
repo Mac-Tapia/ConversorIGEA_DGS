@@ -1,6 +1,6 @@
 # Spec 013 — Mes de análisis y transferencia entre dos alimentadores
 
-Estado: borrador · Fecha: 2026-10-13 · Origen: revisión de «2.3 Clientes importantes» del 2026-10-13
+Estado: aprobada (2026-10-29, revisión 033: las decisiones se cerraron el 2026-10-13 y RF-1 a RF-6, RF-8, RF-11 y RF-12 ya estaban implementados) · era borrador · Fecha: 2026-10-13 · Origen: revisión de «2.3 Clientes importantes» del 2026-10-13
 
 ## Contexto y objetivo
 
@@ -136,6 +136,32 @@ Resultado de la transferencia (amplía 011:RF-110, RF-112 y RF-121)
   candidatos necesarios para afirmar el resultado, ENTONCES EL SISTEMA bloqueará la
   aceptación de la transferencia y explicará qué evidencia falta. Un resultado parcial no
   se presentará como capacidad de transferencia comprobada.
+
+Libro de clientes y máxima del ajuste (implementado el 2026-10-13, commit `d80aab22`, sin
+spec; recogido por la revisión 033 del 2026-10-29)
+
+- RF-30: SI el libro de clientes importantes del ajuste es de otro mes que la máxima, o su
+  mes no se sabe, ENTONCES EL SISTEMA no preparará el plan del ajuste y lo dirá
+  (`CLIENT_PERIOD_MISMATCH` o `CLIENT_PERIOD_UNKNOWN`).
+- RF-31: SI hay libro de clientes y no se sabe el mes de la máxima, ENTONCES EL SISTEMA no
+  preparará el plan del ajuste (`MAXIMUM_PERIOD_UNKNOWN`); sin libro de clientes, lo
+  preparará con el aviso de RF-13.
+- RF-32: EL SISTEMA guardará en el plan y en el informe del ajuste el mes de la máxima, el
+  mes, el fichero y la huella del libro de clientes usado, y el vínculo del proyecto.
+
+Aclaraciones de la revisión 033 (2026-10-29): lo que el código hace distinto
+
+- Aclaración de RF-7: el selector ofrece los meses que tienen libro de clientes, sin mirar
+  la cabecera (decisión del 2026-10-15), y cada mes dice qué alimentadores tienen en él su
+  máxima.
+- Aclaración de RF-9: hoy, sin mes elegido, la máxima se busca en todo el registro
+  (004:RF-27); lo que espera al mes es el cruce de clientes. Lo que falta de RF-9 sigue en T4.
+- Aclaración de RF-17: la 025 (RF-10, RF-23) lo cambió. Con «Todo AAAA» cada alimentador
+  se cruza con el libro del mes de su máxima; con «Todo el registro», el cruce espera a que
+  el operador elija un mes.
+- Aclaración de RF-18 a RF-21: los implementó la 021 (RF-17 a RF-19: una gráfica con el
+  mismo eje y la máxima de cada uno) sobre la curva de la 006 (RF-33: franja del mes de la
+  máxima, que con un mes elegido es ese mes).
 
 ## Requisitos no funcionales
 

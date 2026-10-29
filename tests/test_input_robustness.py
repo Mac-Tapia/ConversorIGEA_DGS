@@ -7,6 +7,8 @@ un CARGA vacío generaba DGS sin ninguna carga cuyo flujo converge trivialmente.
 
 Aquí se fija el contrato: o el lote produce lo que debe, o dice exactamente qué falta
 y dónde.
+
+Spec 034: 034:RF-5.
 """
 
 from __future__ import annotations

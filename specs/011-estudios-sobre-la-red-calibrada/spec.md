@@ -1,6 +1,6 @@
 # Spec 011 — Estudios y obras de mejora sobre la red calibrada
 
-Estado: aprobada (2026-10-11) · Fecha: 2026-10-11 · Origen: petición del usuario, 2026-10-11 («los estudios
+Estado: implementada (revisión 033 del 2026-10-29) · aprobada (2026-10-11) · Fecha: 2026-10-11 · Origen: petición del usuario, 2026-10-11 («los estudios
 se deben hacer cuando se hizo la calibración en las cabeceras y la actualización de cargas por
 SED, como fijas y escaladas»)
 
@@ -128,6 +128,9 @@ Dónde trabajan las specs 006 a 008 una vez creados los casos
 - RF-54: CUANDO se aplica un ajuste o unas demandas en «Sin proyecto», EL SISTEMA activará
   también sus variaciones en «Con proyecto», para que las cargas nuevas sigan sobre la
   red calibrada.
+- Aclaración de RF-54 (033, 2026-10-29): desde 014:RF-4 y 015:RF-19 y RF-26 el ajuste y las
+  demandas no crean variaciones: se graban en los escenarios de «Sin proyecto» y de «Con
+  proyecto», y así llegan a «Con proyecto» sin activar nada.
 - RF-55: EL SISTEMA grabará el ajuste, las demandas y las cargas nuevas en sus variaciones,
   desactivando el escenario de operación del caso mientras escribe y restaurándolo al
   terminar, como hacen hoy las specs 004 y 006.
@@ -581,14 +584,14 @@ Ninguna.
 
 ## Cambios de la spec 014 (2026-10-14)
 
-- RF-2: la calibración no se hace en el «Caso base» sino en «Sin proyecto» (014:RF-1,
+- Aclaración de RF-2: la calibración no se hace en el «Caso base» sino en «Sin proyecto» (014:RF-1,
   RF-5).
-- RF-6: al reutilizar los casos solo cambian las variaciones de carga nueva; las del
+- Aclaración de RF-6: al reutilizar los casos solo cambian las variaciones de carga nueva; las del
   operador solo se activan en «Con proyecto», si lo están en «Sin proyecto» (014:RF-15,
   RF-20, RF-21).
 - RF-7, RF-50: la calibración no desactiva ni borra variaciones del operador (014:RF-3,
   RF-20).
-- RF-8: «Con proyecto» hereda «Sin proyecto» y suma las cargas nuevas (014:RF-18, RF-21,
+- Aclaración de RF-8: «Con proyecto» hereda «Sin proyecto» y suma las cargas nuevas (014:RF-18, RF-21,
   RF-24).
 - RF-54, RF-55: sustituidos después por la spec 015 (sección siguiente): no hay variación
   del ajuste ni de las demandas; se graban en el escenario de «Sin proyecto».
