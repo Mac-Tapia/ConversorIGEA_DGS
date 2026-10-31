@@ -1164,7 +1164,9 @@ _CLASES = {'ElmLod': Carga, 'IntScheme': Variacion, 'IntSstage': Etapa, 'ComImpo
            'ComSimoutage': Contingencias, 'ComOutage': Contingencia,
            'SetSelect': Seleccion, 'ComRel3': Fiabilidad, 'ComOpri': Reconectadores,
            'ComHostcap': Alojamiento, 'ComPvcurves': CurvasPV, 'ComCapo': Condensadores,
-           'ComDpl': Guion, 'ComPython': Guion}
+           'ComDpl': Guion, 'ComPython': Guion,
+           # 042:RF-11: la SET nueva crea sus alimentadores con CreateObject, como DIgSILENT.
+           'ElmFeeder': lambda app, _clase, nombre, padre: Alimentador(app, nombre, padre)}
 
 
 class App:

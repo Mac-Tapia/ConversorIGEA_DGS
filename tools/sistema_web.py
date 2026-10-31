@@ -184,7 +184,8 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
            bancos: bool, solo: list[str] | None = None,
            reconstruir: list[str] | None = None,
            libros: dict[str, Path] | None = None,
-           red: list[str] | None = None, grupo: str | None = None) -> int:
+           red: list[str] | None = None, grupo: str | None = None,
+           criterio_fijas: str = 'coincidente') -> int:
     red = list(dict.fromkeys(a.strip().upper() for a in red or [] if a.strip()))
     if bool(red) == bool(zonal) or (grupo and not red) or (red and reconstruir):
         print('ERROR: elija --zonal o --red; --grupo requiere --red y --reconstruir requiere --zonal.')
@@ -380,12 +381,20 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
             return 2
         return correr(web, zonal, demanda_dir=demanda_dir, periodo=periodo, reconvertir=False,
                       transformadores=transformadores, tension_pu=tension_pu, bancos=bancos,
-                      solo=solo, libros=libros)
+                      solo=solo, libros=libros, criterio_fijas=criterio_fijas)
     if 'clientes' in libros and 'suministros' in libros and (not periodo or len(periodo) == 7):
         # Con un año entero no hay un mes que cruzar aquí: el plan cruza cada alimentador
-        # con el libro del mes de su máxima (025:RF-10).
-        web.post('/demanda/clientes/cruzar', json={'alimentadores': sistema['alimentadores'],
-                                                    'periodo': periodo})
+        # con el libro del mes de su máxima (025:RF-10). Como el front (035:RF-1), con la
+        # máxima de cada alimentador: así usa el libro de su mes o el anterior (035:RF-17).
+        # Solo con el periodo, SM218 (2026-10-29) paraba: no hay libro de clientes de 2026-10.
+        del_sistema = {a.upper() for a in sistema['alimentadores']}
+        maximas = {x['alimentador']: {k: x.get(k) for k in ('fecha', 'kw', 'kvar', 'fp')}
+                   for x in res.get('resultados', [])
+                   if not x.get('error') and x.get('fecha')
+                   and str(x.get('alimentador') or '').upper() in del_sistema}
+        web.post('/demanda/clientes/cruzar', json={
+            'alimentadores': sistema['alimentadores'], 'periodo': periodo,
+            'criterio': criterio_fijas, **({'maximas': maximas} if maximas else {})})
     # El vínculo exige que la última relectura de DIgSILENT vea el proyecto (spec 018): tras
     # importar, Chincha (2026-10-18) dio PROJECT_BINDING_PROJECT_MISMATCH sin ella.
     if not _terminado(web.esperar(web.post('/powerfactory/projects'))):
@@ -393,7 +402,7 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
     plan = web.post('/demanda/ajuste/plan', json={
         'project': proyecto, 'job_id': maxima['id'], 'medidores': medidores,
         'completar_bancos': bancos, 'tension_fuente_pu': tension_pu,
-        'centrales': del_perfil})
+        'centrales': del_perfil, 'criterio_fijas': criterio_fijas})            # 039:RF-1
     for aviso in plan.get('avisos', []):
         if 'RF-62' not in aviso:              # las fijas compensadas, una por cliente
             print(f'  aviso: {aviso}', flush=True)
@@ -451,6 +460,8 @@ def main(argv=None) -> int:
     p.add_argument('--reconstruir', nargs='+', metavar='COD',
                    help='Unir estos a la red vecina por el tramo que falta y repartir por medida '
                         '(022:RF-57 a RF-61); reconvierte e importa de nuevo')
+    p.add_argument('--criterio-fijas', choices=('coincidente', 'maximo_mes'), default='coincidente',
+                   help='Fijas en el instante de la máxima de cabecera o en su máximo del mes (039:RF-1)')
     p.add_argument('--alimentadores', nargs='+', metavar='COD',
                    help='Calibrar solo estos; los demás del sistema, con la demanda del archivo')
     args = p.parse_args(argv)
@@ -472,7 +483,7 @@ def main(argv=None) -> int:
                       transformadores=args.transformadores, tension_pu=args.tension_pu,
                       bancos=not args.sin_bancos, solo=args.alimentadores,
                       reconstruir=args.reconstruir, libros=libros,
-                      red=args.red, grupo=args.grupo)
+                      red=args.red, grupo=args.grupo, criterio_fijas=args.criterio_fijas)
     except (RuntimeError, TimeoutError, DemandaError, requests.RequestException) as exc:
         print(f'ERROR: {exc}')
         return 2

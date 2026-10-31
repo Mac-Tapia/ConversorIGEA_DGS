@@ -229,6 +229,25 @@ class Reparto:
         """El mismo reparto con la Q de las escaladas libre de su P (035:RF-6)."""
         return replace(self, solo_kw=False)
 
+    def al_perfil(self) -> Reparto:
+        """Las escaladas otra vez con el FP de su base, la Q siguiendo a la P (035:RF-29).
+
+        Es como quedan en la calibración: con una medida de cabecera que no es coherente, su
+        Q es la que dé DIgSILENT con ese FP, no una forzada a la medida.
+        """
+        return replace(self, solo_kw=True, b=self.a)
+
+    def factor_q_maximo(self, fp_minimo: float | None) -> float:
+        """El factor de Q de las escaladas con su FP en ``fp_minimo`` (035:RF-28).
+
+        Sin mínimo, el FP de su base: el factor de Q no pasa del de P.
+        """
+        bp = sum(p for p, _ in self.base.values())
+        bq = sum(q for _, q in self.base.values())
+        if fp_minimo is None or bp <= 0 or bq <= 0:
+            return self.a
+        return max(self.a, self.a * math.tan(math.acos(fp_minimo)) / (bq / bp))
+
     def fp_escaladas(self) -> float | None:
         """FP de las escaladas con los factores actuales: el de su base si ``b == a`` (035:RF-12)."""
         bp = sum(p for p, _ in self.base.values())
@@ -380,7 +399,8 @@ class Cuadre:
     motivo: str = ''
     cancelado: bool = False
     con_q: bool = False                  # 035:RF-5: también la Q de cabecera
-    q_estado: str | None = None          # Q_CUADRADA, Q_SIN_MARGEN o Q_SIN_BASE
+    q_estado: str | None = None          # Q_CUADRADA, Q_INCOHERENTE_* o Q_SIN_BASE
+    q_extremo: dict[str, Any] | None = None   # 035:RF-30: el flujo que lo demostró
 
     def errores(self) -> tuple[float | None, float | None]:
         """Error relativo de kW y kVAR en la cabecera, con signo (medido − objetivo)."""
@@ -445,11 +465,15 @@ def kvar_difference(medida: Medida, objetivo: Objetivo, tolerancia: float) -> di
     }
 
 
-#: Cómo quedó la Q de cabecera cuando se cuadra (035:RF-5, RF-8, RF-9).
-Q_CUADRADA, Q_SIN_MARGEN, Q_SIN_BASE = 'CUADRADA', 'SIN_MARGEN', 'SIN_BASE'
-#: Precisión de la Q de cabecera en «Sin proyecto» con bancos (035:RF-5). El usuario, el
-#: 2026-10-29: «el cuadre de Q en la cabecera debe tener una precisión de ± 2 %».
-TOLERANCIA_Q = 0.02
+#: Cómo quedó la Q de cabecera cuando se cuadra (035:RF-5, RF-9, RF-28 a RF-30). Una medida
+#: es incoherente si ni con las escaladas en un extremo de su FP la cabecera la alcanza: por
+#: encima con FP 1 (le haría falta reactiva negativa) o por debajo con su FP mínimo.
+Q_CUADRADA, Q_SIN_BASE = 'CUADRADA', 'SIN_BASE'
+Q_INCOHERENTE_ALTA, Q_INCOHERENTE_BAJA = 'MEDIDA_INCOHERENTE_ALTA', 'MEDIDA_INCOHERENTE_BAJA'
+Q_INCOHERENTES = (Q_INCOHERENTE_ALTA, Q_INCOHERENTE_BAJA)
+#: Precisión de la Q de cabecera al recalibrar (035:RF-25). El usuario, el 2026-10-29, primero
+#: «± 2 %» y después «la precisión debe ser 1 %».
+TOLERANCIA_Q = 0.01
 
 
 def cuadrado_kvar(kvar: float | None, objetivo: Objetivo, tolerancia: float = TOLERANCIA_Q) -> bool:
@@ -457,21 +481,34 @@ def cuadrado_kvar(kvar: float | None, objetivo: Objetivo, tolerancia: float = TO
     return kvar is not None and abs(_rel(kvar, objetivo.kvar, objetivo.kw)) <= tolerancia
 
 
-def _paso_q(rep: Reparto, kvar: float, objetivo: Objetivo,
-            puntos: list[tuple[float, float]]) -> tuple[float | None, str | None]:
-    """El siguiente factor de Q de las escaladas o por qué ya no se puede mover (035:RF-6).
+def _paso_q(rep: Reparto, kvar: float, objetivo: Objetivo, puntos: list[tuple[float, float]],
+            b_maximo: float, tolerancia: float = TOLERANCIA_Q) -> tuple[float | None, str | None]:
+    """El siguiente factor de Q de las escaladas o por qué la medida no es coherente (035:RF-6).
 
-    La Q de las fijas es la medida y los bancos son la red: lo único libre es la Q de las
-    escaladas. SM218 (2026-10-29), con siete bancos de 450 kvar, quedaba con la Q que dieran
-    las escaladas a FP 0,98 y nada la llevaba a la medida.
+    La Q de las fijas es la de su registro y los bancos son la red: lo único libre es la Q de
+    las escaladas, con su FP entre 1 (factor 0) y su mínimo (``b_maximo``). Solo un flujo en
+    el extremo decide que la medida no se alcanza (035:RF-28). El usuario, el 2026-10-31:
+    «las mediciones en cabecera que no sean coherentes como de NA203» quedan con la Q real de
+    DIgSILENT, y «en las que sí tienen coherencia se debe hacer cuadre». NA203 daba 3 447 kvar
+    con las escaladas a FP 1 frente a 1 711 medidos: le hacía falta reactiva negativa, y una
+    escalada con reactiva negativa no es una carga.
     """
     bq = sum(q for _, q in rep.base.values())
     if bq <= 0:
         return None, Q_SIN_BASE                                         # RF-9
-    if rep.b <= 0 and kvar > objetivo.kvar:
-        return None, Q_SIN_MARGEN                                       # RF-8
+    fuera = not cuadrado_kvar(kvar, objetivo, tolerancia)
+    if fuera and kvar > objetivo.kvar and rep.b <= 1e-12:
+        return None, Q_INCOHERENTE_ALTA                                 # RF-28
+    if fuera and kvar < objetivo.kvar and rep.b >= b_maximo * (1 - 1e-9):
+        return None, Q_INCOHERENTE_BAJA                                 # RF-28
     puntos.append((rep.b, kvar))
-    return max(0.0, _siguiente(rep.b, kvar, objetivo.kvar, puntos, bq)), None
+    return min(b_maximo, max(0.0, _siguiente(rep.b, kvar, objetivo.kvar, puntos, bq))), None
+
+
+def _extremo_q(rep: Reparto, kvar: float, estado: str) -> dict[str, Any]:
+    """El flujo que demostró que la medida no es coherente, para el informe (035:RF-30)."""
+    return {'estado': estado, 'fp_escaladas': rep.fp_escaladas() if rep.b > 0 else 1.0,
+            'factor_q': rep.b, 'cabecera_kvar': kvar}
 
 
 def cuadrado(medida: Medida, objetivo: Objetivo, tolerancia: float,
@@ -504,6 +541,7 @@ def cuadrar(
     progreso: Callable[[int, int, str], None] = lambda n, maximo, texto: None,
     con_q: bool = False,
     tolerancia_q: float = TOLERANCIA_Q,
+    fp_minimo_escaladas: float | None = None,
 ) -> Cuadre:
     """Ajusta los factores del reparto hasta que la cabecera dé el objetivo (RF-11, RF-12).
 
@@ -573,7 +611,12 @@ def cuadrar(
             # ellos, también la Q de las escaladas hasta la medida (035:RF-5, RF-6).
             b = None
             if con_q and res.q_estado is None and m.kvar is not None and not q_lista:
-                b, res.q_estado = _paso_q(actual, m.kvar, objetivo, puntos_q)
+                b, res.q_estado = _paso_q(actual, m.kvar, objetivo, puntos_q,
+                                          actual.factor_q_maximo(fp_minimo_escaladas), tolerancia_q)
+                if res.q_estado in Q_INCOHERENTES:
+                    # 035:RF-29: la Q, la que dé la red con las escaladas a su FP de perfil.
+                    res.q_extremo = _extremo_q(actual, m.kvar, res.q_estado)
+                    actual = actual.al_perfil()
             actual = meta = actual.con_factores(a, b)
             continue
 
@@ -816,6 +859,7 @@ class CuadreConjunto:
     cancelado: bool = False
     ajustables: tuple[str, ...] = ()
     q_estado: dict[str, str] = field(default_factory=dict)     # 035:RF-5, por clave con Q
+    q_extremo: dict[str, dict[str, Any]] = field(default_factory=dict)   # 035:RF-30
 
     def desvio(self, clave: str) -> float | None:
         """Error relativo de kW de una clave en el último flujo común que convergió."""
@@ -839,6 +883,7 @@ def cuadrar_conjunto(
     fila: Callable[[Mapping[str, Reparto], MedidaConjunta], dict[str, Any]] | None = None,
     con_q: Iterable[str] = (),
     tolerancia_q: float = TOLERANCIA_Q,
+    fp_minimo_escaladas: float | None = None,
 ) -> CuadreConjunto:
     """Ajusta a la vez un factor por clave hasta que todas den su objetivo (021:RF-54 a RF-58).
 
@@ -911,9 +956,13 @@ def cuadrar_conjunto(
                 a = _siguiente(r.a, y, objetivos[k].kw, puntos[k], pendiente[k])  # type: ignore[arg-type]
                 b = None
                 if k in con_q and not q_listas[k] and m.kvar.get(k) is not None:
-                    b, estado = _paso_q(r, m.kvar[k], objetivos[k], puntos_q[k])  # type: ignore[arg-type]
+                    b, estado = _paso_q(r, m.kvar[k], objetivos[k], puntos_q[k],  # type: ignore[arg-type]
+                                        r.factor_q_maximo(fp_minimo_escaladas), tolerancia_q)
                     if estado:
                         res.q_estado[k] = estado
+                    if estado in Q_INCOHERENTES:
+                        res.q_extremo[k] = _extremo_q(r, m.kvar[k], estado)  # type: ignore[arg-type]
+                        r = r.al_perfil()                                    # 035:RF-29
                 nuevo[k] = r.con_factores(a if a > 0 else r.a / 2, b)
             actual = meta = nuevo
             continue
@@ -978,3 +1027,172 @@ def tamano_de_banco(por_tension: Mapping[float, float] | None, kv: float | None)
         return None
     tension, kvar = min(por_tension.items(), key=lambda par: abs(par[0] - kv))
     return kvar if abs(tension - kv) <= 0.1 * kv else None
+
+
+# =========================================================================== spec 041
+#: Repartos por defecto (041) y mínimo de fijas para estimar de ellas la dispersión (RF-3).
+N_PROBABILISTICO = 200
+MINIMO_FIJAS_PROBABILISTICO = 5
+
+
+@dataclass(frozen=True)
+class Probabilistico:
+    """Cómo varía la utilización de cada SED escalada (041:RF-1 a RF-3, RF-7).
+
+    La utilización de una escalada es ``factor común × (kVA / kVA medio)^pendiente × ruido``,
+    con el ruido lognormal de media 1 y desviación ``dispersion`` en su logaritmo: siempre
+    positiva y, con la pendiente, mayor cuanto mayor la potencia (el usuario, 2026-10-31: «la
+    probabilidad debe ser de acuerdo de la mayor potencia a menos de las escaladas»).
+    """
+
+    dispersion: float
+    pendiente: float
+    n: int = N_PROBABILISTICO
+    semilla: int = 0
+    fuente: str = ''
+
+    def a_dict(self) -> dict[str, Any]:
+        return {'dispersion': self.dispersion, 'pendiente': self.pendiente, 'n': self.n,
+                'semilla': self.semilla, 'fuente': self.fuente}
+
+
+def probabilistico_de_fijas(rep: Reparto, *, n: int = N_PROBABILISTICO, semilla: int = 0,
+                            minimo: int = MINIMO_FIJAS_PROBABILISTICO) -> Probabilistico | None:
+    """La dispersión y la pendiente con la potencia, de las fijas del mismo reparto (041:RF-3).
+
+    Las fijas son las únicas SED con su potencia medida en el instante: su utilización
+    (kW / kVA) frente a su kVA, en logaritmos, da por mínimos cuadrados la pendiente y, de lo
+    que queda, la dispersión. La pendiente no baja de cero (RF-2). Con menos de ``minimo``
+    fijas con kVA y potencia, ``None``.
+    """
+    pares = []
+    for s, (p, _q) in rep.fijas.items():
+        k = _kva_valido(rep.kva.get(s))
+        if k and p > 0:
+            pares.append((math.log(k), math.log(p / k)))
+    if len(pares) < max(3, minimo):
+        return None
+    mx = sum(x for x, _ in pares) / len(pares)
+    my = sum(y for _, y in pares) / len(pares)
+    sxx = sum((x - mx) ** 2 for x, _ in pares)
+    pendiente = sum((x - mx) * (y - my) for x, y in pares) / sxx if sxx > 0 else 0.0
+    residuos = [y - my - pendiente * (x - mx) for x, y in pares]
+    dispersion = math.sqrt(sum(r * r for r in residuos) / (len(pares) - 2))
+    return Probabilistico(dispersion=dispersion, pendiente=max(0.0, pendiente), n=n,
+                          semilla=semilla, fuente=f'fijas ({len(pares)})')
+
+
+def probabilistico_del_perfil(datos: Mapping[str, Any] | None, *, n: int | None = None,
+                              semilla: int = 0) -> Probabilistico | None:
+    """``calibracion.reparto_probabilistico`` del perfil: ``dispersion`` y ``pendiente``, y
+    opcionalmente ``n`` (041:RF-3). Sin la sección, ``None``: no se supone nada (P13)."""
+    sec = ((datos or {}).get('calibracion') or {}).get('reparto_probabilistico')
+    if not isinstance(sec, Mapping):
+        return None
+    disp, pend = numero(sec.get('dispersion')), numero(sec.get('pendiente'))
+    if disp is None or disp < 0 or pend is None:
+        raise AjusteError('calibracion.reparto_probabilistico necesita «dispersion» (≥ 0) y '
+                          '«pendiente» numéricas (041:RF-3).')
+    return Probabilistico(dispersion=disp, pendiente=max(0.0, pend),
+                          n=int(n or numero(sec.get('n')) or N_PROBABILISTICO),
+                          semilla=semilla, fuente='perfil de empresa')
+
+
+def muestra_de_reparto(rep: Reparto, prob: Probabilistico, azar) -> Reparto:
+    """Un reparto posible: cada escalada con su multiplicador y la misma P base total (041:RF-1, RF-2).
+
+    ``azar`` es un ``random.Random`` con la semilla del informe (RF-7). Se conserva la P base
+    total de las escaladas, así que el factor común ``a`` sigue casi igual y el cuadre de cada
+    muestra parte de cerca; la Q de cada SED sigue a su P con su mismo FP.
+    """
+    kvas = [k for s in rep.base if (k := _kva_valido(rep.kva.get(s)))]
+    k_medio = math.exp(sum(math.log(k) for k in kvas) / len(kvas)) if kvas else 1.0
+    s2 = prob.dispersion ** 2
+    mult = {}
+    for s in sorted(rep.base):                       # orden fijo: misma semilla, misma muestra
+        k = _kva_valido(rep.kva.get(s))
+        ruido = math.exp(prob.dispersion * azar.gauss(0.0, 1.0) - s2 / 2)
+        mult[s] = ((k / k_medio) ** prob.pendiente if k else 1.0) * ruido
+    total = sum(p for p, _ in rep.base.values())
+    nuevo = sum(rep.base[s][0] * m for s, m in mult.items())
+    norma = total / nuevo if nuevo > 0 else 1.0
+    base = {s: (p * mult[s] * norma, q * mult[s] * norma) for s, (p, q) in rep.base.items()}
+    return replace(rep, base=base)
+
+
+def percentil(valores: Iterable[float], q: float) -> float | None:
+    """Percentil ``q`` (0 a 1) con interpolación lineal; ``None`` sin valores."""
+    xs = sorted(valores)
+    if not xs:
+        return None
+    pos = q * (len(xs) - 1)
+    i = int(math.floor(pos))
+    return xs[i] if i + 1 >= len(xs) else xs[i] + (xs[i + 1] - xs[i]) * (pos - i)
+
+
+def reparto_p50(rep: Reparto, kw_por_sed: Mapping[str, list[float]]) -> Reparto:
+    """El reparto de las medianas (041:RF-5): por escalada, la mediana de su P en las muestras,
+    con su Q a su mismo FP; se cuadra después a la cabecera como cualquiera."""
+    base = {}
+    for s, (p, q) in rep.base.items():
+        med = percentil(kw_por_sed.get(s) or [], 0.5)
+        actual = rep.a * p
+        if med is None or actual <= 0:
+            base[s] = (p, q)
+            continue
+        base[s] = (p * med / actual, q * med / actual)
+    return replace(rep, base=base)
+
+
+def resumen_probabilistico(rep: Reparto, muestras: list[dict[str, Any]],
+                           prob: Probabilistico) -> dict[str, Any]:
+    """Por escalada, de mayor a menor potencia, sus percentiles de kW y de cargabilidad y la
+    probabilidad de pasar del 100 %; y la de una barra fuera de banda (041:RF-6).
+
+    Cada muestra es ``{'kw': {sed: kW}, 'carga': {sed: % o None}, 'fuera_de_banda': bool o
+    None}``; solo cuentan las que cuadraron.
+    """
+    validas = [m for m in muestras if m.get('kw')]
+    sed = []
+    for s in sorted(rep.base, key=lambda x: (-(_kva_valido(rep.kva.get(x)) or 0.0), x)):
+        kw = [m['kw'][s] for m in validas if s in m['kw']]
+        carga = [c for m in validas if (c := (m.get('carga') or {}).get(s)) is not None]
+        sed.append({
+            'sed': s, 'kva': _kva_valido(rep.kva.get(s)),
+            'kw_p05': percentil(kw, 0.05), 'kw_p50': percentil(kw, 0.5), 'kw_p95': percentil(kw, 0.95),
+            'carga_p05': percentil(carga, 0.05), 'carga_p50': percentil(carga, 0.5),
+            'carga_p95': percentil(carga, 0.95),
+            'prob_sobrecarga': (sum(c > 100.0 for c in carga) / len(carga)) if carga else None,
+        })
+    bandas = [m['fuera_de_banda'] for m in validas if m.get('fuera_de_banda') is not None]
+    return {**prob.a_dict(), 'muestras': len(muestras), 'validas': len(validas), 'sed': sed,
+            'prob_tension_fuera': (sum(bandas) / len(bandas)) if bandas else None}
+
+
+def montecarlo(rep: Reparto, prob: Probabilistico,
+               cuadrar_muestra: Callable[[Reparto], tuple[Reparto | None, dict[str, Any]]],
+               *, cancelado: Callable[[], bool] = lambda: False,
+               progreso: Callable[[int, int, str], None] = lambda n, maximo, texto: None,
+               ) -> tuple[dict[str, Any], Reparto]:
+    """Los N repartos posibles cuadrados a la cabecera, su resumen y el reparto P50 (041:RF-1 a RF-7).
+
+    ``cuadrar_muestra(muestra)`` la cuadra en DIgSILENT y devuelve el reparto cuadrado (o
+    ``None``) con lo que se leyó del flujo (``carga`` por SED, ``fuera_de_banda``).
+    """
+    import random
+
+    azar = random.Random(prob.semilla)
+    muestras: list[dict[str, Any]] = []
+    for i in range(prob.n):
+        if cancelado():
+            break
+        cuadrada, leido = cuadrar_muestra(muestra_de_reparto(rep, prob, azar))
+        progreso(i + 1, prob.n, f'reparto probabilístico {i + 1}/{prob.n}')
+        kw = ({s: d.kw for s, d in cuadrada.demandas.items() if s in cuadrada.base}
+              if cuadrada is not None else {})
+        muestras.append({'kw': kw, **(leido or {})})
+    kw_por_sed: dict[str, list[float]] = {}
+    for m in muestras:
+        for s, v in m['kw'].items():
+            kw_por_sed.setdefault(s, []).append(v)
+    return resumen_probabilistico(rep, muestras, prob), reparto_p50(rep, kw_por_sed)

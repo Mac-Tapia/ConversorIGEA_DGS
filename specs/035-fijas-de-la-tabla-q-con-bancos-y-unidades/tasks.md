@@ -34,7 +34,27 @@ Estado: pedida por el usuario el 2026-10-29. Plan: [plan.md](plan.md).
       Hecho cuando: `pytest -q tests/test_q_con_bancos.py` en verde y el front compila.
       Hecho el 2026-10-29: `recalibracion` en el plan, `tipo_ajuste` en el informe, `con_q` solo al
       recalibrar; textos del paso 2.4.
-- [ ] T6. [DIgSILENT] SM218 desde la web: tabla en el instante de la máxima, fijas con la P y la Q
+- [x] T10. Q en toda recalibración al ±1 % con el FP de las escaladas, capacitivo si hace falta, y
+      la revisión de bancos cuando quedan capacitivas. (RF-24 a RF-27)
+      Hecho cuando: `pytest -q tests/test_q_con_bancos.py tests/test_ajuste_proyecto_guion.py
+      tests/test_ajuste_cabecera.py` en verde.
+      Hecho el 2026-10-29: `TOLERANCIA_Q` 0,01; `con_q` al recalibrar sin pedir bancos; la
+      recalibración no pone bancos de calibración. El 2026-10-31, por el usuario, las escaladas
+      nunca con reactiva negativa: `_paso_q` vuelve a parar en FP 1 (`SIN_MARGEN`) y la revisión
+      de bancos lo recomienda (RF-26, RF-27). 173 pruebas del ajuste en verde.
+- [x] T11. Coherencia de la medida de cabecera: cuadre de la Q solo si es coherente; si no, la Q
+      real de DIgSILENT con las escaladas a su FP de perfil, dicho. (RF-28 a RF-31)
+      Hecho cuando: `pytest -q tests/test_q_con_bancos.py tests/test_tabla_en_el_instante.py` en
+      verde y el front compila.
+      Hecho el 2026-10-31: `Q_INCOHERENTE_ALTA/BAJA` y `q_extremo` en `cuadrar` y
+      `cuadrar_conjunto`, `Reparto.al_perfil` y `factor_q_maximo`; `factor_potencia_minimo_escaladas`
+      en el plan; `coherente` y `extremo` en `cuadre_q`; la comparación de 039 dice la Q alcanzable
+      con cada criterio. Retira `SIN_MARGEN`.
+- [x] T6. [DIgSILENT] SM218 desde la web: tabla en el instante de la máxima, fijas con la P y la Q
       de la tabla a escala 1, escaladas cuadrando P y Q con sus siete bancos, unidades MW/Mvar.
       Hecho cuando: el informe de la calibración de SM218 dice criterio kW y kvar, Q de cabecera
       dentro de la tolerancia (o los kvar que faltan, RF-8) y la validación nativa correcta.
+      Hecho el 2026-10-31: SM218, recalibración n.º 13 (2026-09, coincidente): kW y kvar, Q de
+      cabecera 2 519,6 frente a 2 506 medidos (+0,5 %, coherente) con las escaladas a FP 0,985,
+      validación nativa VALIDO. NA203: medida no coherente (2 453,6 kvar a FP 1 frente a 1 777),
+      Q real de DIgSILENT a FP 0,98 y dicho (RF-28 a RF-30).

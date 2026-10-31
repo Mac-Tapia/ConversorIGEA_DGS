@@ -55,40 +55,73 @@ class EstudiosError(ValueError):
 
 
 # --------------------------------------------------------------------------- catálogo
-def estudios_ofrecidos() -> tuple[Estudio, ...]:
-    """Los de RF-23. Todos son defendibles hoy; si uno dejara de serlo, no se ofrece."""
-    return tuple(e for e in ESTUDIOS if e.clave in ESTUDIOS_011 and e.defendible)
+#: Los de la spec 012, junto a los de la 011 en «4.2 Estudios» (012:RF-1).
+ESTUDIOS_012 = tuple(e.clave for e in ESTUDIOS if e.clave in {
+    'fiabilidad', 'reconectadores', 'alojamiento', 'curvas_pv', 'condensadores'})
+#: Entradas del catálogo que trae el libro de la empresa (spec 012): con el libro cargado
+#: dejan de bloquear, y lo que falte lo dice ``datos_empresa.que_falta``.
+_DEL_LIBRO = {'Tasa de falla (λ) y tiempo de reparación por tipo de elemento',
+              'Tiempo de maniobra y de localización de falla',
+              'Precios unitarios de conductor, estructura, SED y equipos de maniobra',
+              'Coste de la energía (moneda/kWh) y tasa de actualización'}
 
 
-def estudios_no_ofrecidos() -> list[dict[str, Any]]:
-    """Los demás del catálogo con lo que les falta (RF-24).
+def _que_le_falta(e: Estudio, libro, sin_licencia) -> tuple[list[str], str]:
+    """Lo que impide ofrecer un estudio y el motivo para el operador (011:RF-24, 012:RF-4, RF-19)."""
+    from .datos_empresa import que_falta
+
+    if e.clase_pf in set(sin_licencia or ()):
+        return [], f'no disponible: la licencia de DIgSILENT no incluye el módulo {e.clase_pf}'
+    if e.clave in ESTUDIOS_012:
+        falta = [x.nombre for x in e.bloqueantes if x.nombre not in _DEL_LIBRO] + que_falta(libro, e.clave)
+    elif e.clave in ESTUDIOS_011:
+        falta = [x.nombre for x in e.bloqueantes]
+    else:
+        falta = [x.nombre for x in e.bloqueantes]
+        return falta, ('faltan datos: ' + '; '.join(falta)) if falta else 'fuera de esta iteración'
+    return falta, ('faltan datos: ' + '; '.join(falta)) if falta else ''
+
+
+def estudios_ofrecidos(libro=None, sin_licencia=()) -> tuple[Estudio, ...]:
+    """Los de la 011 (RF-23) y los de la 012 que tienen sus datos y su licencia.
+
+    ``libro``: el ``datos_empresa.Libro`` del proyecto, o ``None`` si no hay (012:RF-19).
+    ``sin_licencia``: clases de orden que DIgSILENT rechazó por licencia (012:RF-4).
+    """
+    return tuple(e for e in ESTUDIOS if e.clave in ESTUDIOS_011 + ESTUDIOS_012
+                 and not _que_le_falta(e, libro, sin_licencia)[1])
+
+
+def estudios_no_ofrecidos(libro=None, sin_licencia=()) -> list[dict[str, Any]]:
+    """Los demás del catálogo con lo que les falta (011:RF-24, 012:RF-4, RF-19).
 
     Un estudio defendible que no está en la iteración (el flujo óptimo) no tiene dato
     faltante: se dice que queda fuera, en vez de inventarle uno.
     """
-    ofrecidos = {e.clave for e in estudios_ofrecidos()}
+    ofrecidos = {e.clave for e in estudios_ofrecidos(libro, sin_licencia)}
     out = []
     for e in ESTUDIOS:
         if e.clave in ofrecidos:
             continue
-        falta = [x.nombre for x in e.bloqueantes]
-        motivo = ('faltan datos: ' + '; '.join(falta)) if falta else 'fuera de esta iteración'
-        out.append({'clave': e.clave, 'nombre': e.nombre, 'falta': falta, 'motivo': motivo})
+        falta, motivo = _que_le_falta(e, libro, sin_licencia)
+        out.append({'clave': e.clave, 'nombre': e.nombre, 'falta': falta, 'motivo': motivo,
+                    'modulo': e.clase_pf})
     return out
 
 
-def validar_estudios(claves: Iterable[str]) -> tuple[str, ...]:
+def validar_estudios(claves: Iterable[str], libro=None, sin_licencia=()) -> tuple[str, ...]:
     """Los pedidos, sin repetir y en el orden del catálogo; error si alguno no se ofrece."""
     pedidos = set(claves)
     if not pedidos:
         raise EstudiosError('Elija al menos un estudio.')
-    no = {o['clave']: o for o in estudios_no_ofrecidos()}
-    malos = sorted(c for c in pedidos if c not in ESTUDIOS_011)
+    ofrecidos = [e.clave for e in estudios_ofrecidos(libro, sin_licencia)]
+    no = {o['clave']: o for o in estudios_no_ofrecidos(libro, sin_licencia)}
+    malos = sorted(c for c in pedidos if c not in ofrecidos)
     if malos:
         partes = [f"{no[c]['nombre']} ({no[c]['motivo']})" if c in no else f'{c} (no existe)'
                   for c in malos]
         raise EstudiosError('No se pueden ejecutar: ' + '; '.join(partes) + '.')
-    return tuple(c for c in ESTUDIOS_011 if c in pedidos)
+    return tuple(c for c in ofrecidos if c in pedidos)
 
 
 # --------------------------------------------------------------------------- límites
@@ -195,7 +228,8 @@ def _clave(r: Mapping[str, Any]) -> tuple[str, str]:
 
 
 def _orden_estudio(clave: str) -> int:
-    return ESTUDIOS_011.index(clave) if clave in ESTUDIOS_011 else len(ESTUDIOS_011)
+    todos = ESTUDIOS_011 + ESTUDIOS_012
+    return todos.index(clave) if clave in todos else len(todos)
 
 
 def _ordenadas(filas: list[dict[str, Any]], *extra: str) -> list[dict[str, Any]]:

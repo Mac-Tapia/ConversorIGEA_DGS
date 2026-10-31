@@ -115,7 +115,7 @@ def _ejecutar(client, wid, token):
 
 
 def test_casos_y_luego_cada_estudio_sin_y_con_proyecto(client):
-    """011:RF-25, 011:RF-12, 011:RF-37 — en un trabajo del carril de DIgSILENT: prepara los
+    """011:RF-25, 011:RF-12, 011:RF-37, 037:RF-3 — en un trabajo del carril de DIgSILENT: prepara los
     casos con la base, y ejecuta los estudios primero en «Sin proyecto» y después los mismos
     en «Con proyecto»; deja los dos ficheros para descargar."""
     wid = _espacio(client)
@@ -126,9 +126,11 @@ def test_casos_y_luego_cada_estudio_sin_y_con_proyecto(client):
     res = estado['result']
     assert res['casos']['recibido']['base']['variaciones'] == ['Ajuste_A1_1', 'Ajuste_A3_1']
     assert [(e['caso'], e['estudio']) for e in res['estudios']] == [
-        (SIN, 'flujo'), (SIN, 'contingencias'), (CON, 'flujo'), (CON, 'contingencias')]
+        (SIN, 'flujo'), (SIN, 'contingencias'), ('Cargas nuevas', 'flujo'),
+        ('Cargas nuevas', 'contingencias'), (CON, 'flujo'), (CON, 'contingencias')]
     # 011:RF-68: las obras activas de cada caso llegan al resultado.
-    assert {e['caso']: e['obras_activas'] for e in res['estudios']} == {SIN: [], CON: ['Obra_terna_A1']}
+    assert {e['caso']: e['obras_activas'] for e in res['estudios']} == {
+        SIN: [], 'Cargas nuevas': [], CON: ['Obra_terna_A1']}
     assert sorted(res['ficheros']) == sorted(f'estudios_{n}_{token}.csv'
                                              for n in ('resultados', 'violaciones'))
     for nombre in res['ficheros']:
@@ -142,6 +144,29 @@ def test_sin_cargas_nuevas_solo_sin_proyecto(client):
     token = _plan(client, wid, _ajuste(client, wid, 'SIN_CARGAS'), project='SIN_CARGAS').json()['token']
     estado = esperar_trabajo(client, _ejecutar(client, wid, token))
     assert {e['caso'] for e in estado['result']['estudios']} == {SIN}
+
+
+def test_estudios_incluyen_diagnostico_y_csv_con_anio(client):
+    """037:RF-1, 037:RF-3, 037:RF-4, 037:RF-5, 037:RF-6 — tres casos en orden y diagnóstico exportado."""
+    wid = _espacio(client)
+    job = _ajuste(client, wid)
+    for inf in client.app.state.jobs.get(job).result['informes']:
+        inf['caso'] = 'Sin proyecto 2025'
+    plan = _plan(client, wid, job).json()
+    assert plan['casos'] == ['Sin proyecto 2025', 'Cargas nuevas 2025', 'Con proyecto 2025']
+    estado = esperar_trabajo(client, _ejecutar(client, wid, plan['token']))
+    assert estado['status'] == 'done', estado
+    r = estado['result']
+    recibido = r['casos']['recibido']
+    assert recibido['anio_casos'] == 2025 and recibido['incluir_cargas_nuevas'] is True
+    assert [(e['caso'], e['estudio']) for e in r['estudios']] == [
+        (c, e) for c in (SIN, 'Cargas nuevas', CON) for e in ('flujo', 'contingencias')]
+    assert r['casos']['cargas_nuevas']['no_convergen'][0]['variacion'] == 'Carga_rechazada'
+    diag = [e for e in r['estudios'] if e['caso'] == 'Cargas nuevas']
+    assert all(e['nombre_caso'] == 'Cargas nuevas 2025' and not e['obras_activas'] for e in diag)
+    assert any(m['caso'] == 'Cargas nuevas' for m in r['medidas'])
+    csv = next(f for f in r['ficheros'] if 'resultados' in f)
+    assert 'Cargas nuevas' in client.get(f'/api/workspaces/{wid}/files/{csv}').text
 
 
 def test_base_borrada_no_estudia_nada(client):
@@ -199,20 +224,66 @@ def test_cancelar_conserva_los_terminados(client):
 
 
 # --------------------------------------------------------------------------- transferencia
+def _cabecera(client, wid, periodo='2026-07', *, desfase_b=0):
+    """La máxima de cabecera de 2.2 ya buscada: curvas de A1 (dos medidores) y A2, con el
+    periodo elegido. ``desfase_b`` corre los registros de A2 unos minutos."""
+    from datetime import datetime, timedelta
+
+    t0 = datetime(2026, 7, 1)
+    horas = [t0 + timedelta(hours=h) for h in range(48)]
+    b = [t + timedelta(minutes=desfase_b) for t in horas]
+    ws = client.app.state.store.get(wid)
+    ws.curvas_cabecera = {'J': {
+        'M1': {'alimentador': 'A1', 'curva': [(t, 100.0 + h, 30.0) for h, t in enumerate(horas)]},
+        'M2': {'alimentador': 'A1', 'curva': [(t, 50.0, 10.0) for t in horas]},
+        'M3': {'alimentador': 'A2', 'curva': [(t, 400.0 - h, 90.0) for h, t in enumerate(b)]}}}
+    ws.criterio_cabecera = {'J': {'periodo': periodo, 'instante': None}}
+    return 'J'
+
+
 def test_transferencia_en_el_carril_de_powerfactory_con_su_fichero(client):
-    """011:RF-104, 011:RF-121 — dos alimentadores y los casos elegidos, en un trabajo de
-    DIgSILENT, con el fichero descargable."""
+    """011:RF-104, 011:RF-121, 013:RF-22, 013:RF-27, 013:RF-28 — dos alimentadores y los casos
+    elegidos, en un trabajo de DIgSILENT, con los candidatos del instante común del periodo
+    de la máxima buscada y el libro descargable."""
     wid = _espacio(client)
+    job = _cabecera(client, wid)
     r = client.post(f'/api/workspaces/{wid}/pf/transferencia', json={
-        'project': 'P', 'feeders': ['A1', 'A2'], 'casos': [SIN, CON]})
+        'project': 'P', 'feeders': ['A1', 'A2'], 'casos': [SIN, CON], 'cabecera_job_id': job})
     estado = esperar_trabajo(client, r.json())
     assert estado['status'] == 'done', estado
     assert estado['lane'] == 'powerfactory'
     recibido = estado['result']['informe']['recibido']
     assert recibido['casos'] == [SIN, CON] and recibido['feeders'] == ['A1', 'A2']
     assert recibido['seccionadores'] == []            # sin entrada cargada (RF-129)
+    # A1 sube y A2 baja hora a hora: ningún instante domina a otro en los dos sentidos.
+    assert recibido['periodo'] == '2026-07' and len(recibido['instantes']) == 48
+    primero = recibido['instantes'][0]
+    assert primero == {'fecha': '2026-07-01 00:00:00', 'objetivos': {'A1': [150.0, 40.0], 'A2': [400.0, 90.0]}}
+    assert recibido['cobertura']['instantes_comunes'] == 48
+    assert recibido['cobertura']['registros'] == {'A1': 48, 'A2': 48}
     fichero = estado['result']['fichero']
+    assert fichero.endswith('.xlsx')
     assert client.get(f'/api/workspaces/{wid}/files/{fichero}').status_code == 200
+
+
+@pytest.mark.parametrize('falta', ['sin_maxima', 'sin_periodo', 'sin_comunes', 'sin_alimentador'])
+def test_transferencia_sin_periodo_ni_instante_comun_no_se_calcula(client, falta):
+    """013:RF-9, 013:RF-29 — sin la máxima buscada, sin un periodo elegido, sin la cabecera de
+    uno de los dos o sin ningún registro a la misma fecha y hora, no se calcula: no se suman
+    máximas independientes."""
+    wid = _espacio(client)
+    job = None
+    if falta != 'sin_maxima':
+        job = _cabecera(client, wid, None if falta == 'sin_periodo' else '2026-07',
+                        desfase_b=7 if falta == 'sin_comunes' else 0)
+    feeders = ['A1', 'A3'] if falta == 'sin_alimentador' else ['A1', 'A2']
+    r = client.post(f'/api/workspaces/{wid}/pf/transferencia', json={
+        'project': 'P', 'feeders': feeders, 'cabecera_job_id': job})
+    estado = esperar_trabajo(client, r.json())
+    assert estado['status'] == 'failed'
+    esperado = {'sin_maxima': 'Busque antes la máxima', 'sin_periodo': '013:RF-9',
+                'sin_comunes': '013:RF-29', 'sin_alimentador': 'no tiene la cabecera de A3'}[falta]
+    assert esperado in estado['error']
 
 
 @pytest.mark.parametrize('feeders', [['A1'], ['A1', 'A1'], ['A1', 'A2', 'A3']])

@@ -18,6 +18,8 @@
   "estructura": "electro_dunas.estructura.json",
   "calibracion": {
     "factor_potencia_cargas": 0.98, "factor_potencia_minimo_fijas": 0.98,
+    "_comentario_factor_potencia_minimo_escaladas": "035:RF-28: al recalibrar, las SED escaladas bajan su FP hasta 0,90 si hace falta para cuadrar la Q de cabecera (usuario, 2026-10-31: «sí se puede bajar hasta 0.9, hasta lo necesario»).",
+    "factor_potencia_minimo_escaladas": 0.9,
     "bancos_kvar_por_tension": {"10": 300, "22.9": 450},
     "transformadores_sed": {
       "umbral_carga_pct": 80,
@@ -54,6 +56,13 @@
   "normas": {"NTCSER": {"tension_min_pu": 0.94, "tension_max_pu": 1.06, "tension_bt_pct": 7.5}},
   "_comentario_planificacion": "Planificación del PIDE (spec 024, RF-51 a RF-59): norma prepublicada con la RM 428-2017-MEM/DM. Tasa 12 % (art. 79 de la LCE y la privada, pedida por el usuario el 2026-10-21), vida útil 30 años (art. 14.4), horizonte 20 años y PIDE de 4 (años 04 a 07). Los pesos del art. 15.3 son iguales y provisionales: la norma solo dice «ponderados o valorados adecuadamente». Tarifas: pliego de Electro Dunas (Ica) de Osinergmin vigente desde el 2026-10-04, sin IGV. CAPEX: hoja y columnas del libro «RESUMEN PROP CAPEX» de la empresa.",
   "planificacion": {
+    "_comentario_set_nueva": "Spec 042 (usuario, 2026-10-31): la SET nueva para las cargas que la red existente ya no atiende se dimensiona a la vida útil con un factor de seguridad de 1,25 y se elige entre los módulos del PIT del libro CAPEX (hoja PyOTx27: transformadores 60/22,9/10 kV de 15, 25 y 40 MVA y la Nueva SET Copara; costos en dólares, sin la escala de miles de la hoja 3_Crec_Dem).",
+    "factor_seguridad_set": 1.25,
+    "_comentario_transformador_set": "Spec 042: lo que el libro CAPEX no trae del transformador de la SET nueva. uk mínima por potencia de la IEC 60076-5:2006, tabla 1 (hasta 25 MVA 8 %, hasta 40 MVA 10 %, hasta 63 MVA 11 %, hasta 100 MVA 12,5 %); cambiador en alta de ±8 tomas de 1,25 %.",
+    "transformador_set": {"uk_pct_hasta_mva": [[0.63, 4.0], [1.25, 5.0], [2.5, 6.0], [6.3, 7.0], [25, 8.0], [40, 10.0], [63, 11.0], [100, 12.5]],
+                          "toma_paso_pct": 1.25, "tomas": 8},
+    "modulos_pit": {"hoja": "PyOTx27", "fila_cabecera_contiene": "OBJETO", "escala": 1,
+                    "columnas": {"descripcion": "OBJETO", "costo": "VALOR TOTAL DEL CONTRATO", "moneda": "MONEDA"}},
     "tasa_regulada": 0.12, "tasa_privada": 0.12, "vida_util_anios": 30,
     "horizonte_anios": 20, "anios_horizonte": [4, 8, 12, 16, 20], "anios_pide": [4, 5, 6, 7],
     "crecimiento_demanda_anual": null,

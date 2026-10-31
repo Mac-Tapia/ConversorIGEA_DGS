@@ -63,7 +63,9 @@ def _resultados(rng):
 def test_estudios_que_se_ofrecen():
     """011:RF-23 — los siete de esta iteración, en el orden del catálogo, todos defendibles."""
     ofrecidos = ep.estudios_ofrecidos()
-    assert [e.clave for e in ofrecidos] == list(ep.ESTUDIOS_011)
+    # 012:RF-19: sin libro de la empresa, de la 012 solo los que no lo necesitan.
+    assert [e.clave for e in ofrecidos if e.clave in ep.ESTUDIOS_011] == list(ep.ESTUDIOS_011)
+    assert {e.clave for e in ofrecidos} - set(ep.ESTUDIOS_011) == {'alojamiento', 'curvas_pv'}
     assert set(ep.ESTUDIOS_011) == {'flujo', 'flujo_desequilibrado', 'contingencias', 'troncal',
                                     'punto_apertura', 'perfil_tension', 'balance_fases'}
     assert all(e.defendible for e in ofrecidos)
@@ -72,7 +74,7 @@ def test_estudios_que_se_ofrecen():
 def test_los_demas_se_listan_con_lo_que_falta_y_no_se_ejecutan():
     """011:RF-24 — los no ofrecidos salen con su dato faltante, y pedirlos es un error."""
     otros = {o['clave']: o for o in ep.estudios_no_ofrecidos()}
-    assert set(otros) == {e.clave for e in ESTUDIOS} - set(ep.ESTUDIOS_011)
+    assert set(otros) == {e.clave for e in ESTUDIOS} - set(ep.ESTUDIOS_011) - {'alojamiento', 'curvas_pv'}
     assert otros['cortocircuito']['falta'] and 'cortocircuito' in otros['cortocircuito']['falta'][0].lower()
     # Defendible pero fuera de esta iteración: se dice, sin inventar un dato faltante.
     assert otros['flujo_optimo']['falta'] == [] and 'iteración' in otros['flujo_optimo']['motivo']
@@ -142,6 +144,24 @@ def test_violaciones_nuevas_con_proyecto():
                       (ep.CON_PROYECTO, 'B2'): 'sí', (ep.CON_PROYECTO, 'L1'): 'sí'}
 
 
+def test_diagnostico_conserva_medidas_y_violaciones_sin_cambiar_la_diferencia(tmp_path):
+    """037:RF-6 — el CSV contiene el diagnóstico y con−sin mantiene su significado."""
+    lim = ep.Limites(0.95, 1.05, 100.0)
+    medida = _medida(random.Random(1), barras=[('B1', 1.0)], elementos=[('L1', 'ElmLne', 50)])
+    comun = {'alimentador': 'A', 'estudio': 'flujo'}
+    sin = {**comun, **medida, 'caso': ep.SIN_PROYECTO, 'cabecera_kw': 1000}
+    diag = {**comun, **medida, 'caso': 'Cargas nuevas', 'cabecera_kw': 1400,
+            'barras': [('B1', 0.90)], 'vm_min': 0.90}
+    con = {**comun, **medida, 'caso': ep.CON_PROYECTO, 'cabecera_kw': 1300}
+    resultados = ep.filas_resultados([sin, diag, con], lim)
+    assert next(r for r in resultados if r['caso'] == 'Cargas nuevas')['violaciones'] == 1
+    assert next(r for r in resultados if r['caso'] == ep.DIFERENCIA)['cabecera_kw'] == 300
+    violaciones = ep.filas_violaciones([sin, diag, con], lim)
+    assert len(violaciones) == 1 and violaciones[0]['caso'] == 'Cargas nuevas'
+    ruta = ep.escribir_csv(violaciones, ep.COLUMNAS_VIOLACIONES, tmp_path / 'violaciones.csv')
+    assert 'Cargas nuevas' in ruta.read_text(encoding='utf-8-sig')
+
+
 @pytest.mark.parametrize('semilla', SEMILLAS)
 def test_ficheros_deterministas(semilla, tmp_path):
     """011:RF-37 — una fila por caso, alimentador y estudio (más la diferencia), otra por
@@ -164,3 +184,26 @@ def test_ficheros_deterministas(semilla, tmp_path):
     assert va.read_bytes() == vb.read_bytes()
     total = sum(len(ep.violaciones(r, lim)) for r in res)
     assert len(va.read_text(encoding='utf-8-sig').splitlines()) == total + 1
+
+
+def test_los_de_la_012_dependen_del_libro_y_de_la_licencia():
+    """012:RF-1, 012:RF-4, 012:RF-19, 012:RF-63 — sin libro, confiabilidad, reconectadores y
+    condensadores se listan con el dato que les falta; con libro completo se ofrecen; un
+    módulo que la licencia no cubre se lista como no disponible con su nombre."""
+    from igea_dgs import datos_empresa as de
+
+    no = {o['clave']: o for o in ep.estudios_no_ofrecidos()}
+    for clave in ('fiabilidad', 'reconectadores', 'condensadores'):
+        assert 'libro de la empresa' in no[clave]['motivo']
+    libro = de.Libro(tasas={'linea': de.Tasa('linea', 0.1, None, 2.0)}, tiempos_min={'localizacion': 5, 'manual': 9},
+                     bancos=[de.Banco(150, 2, True, 10.0, 20, 1.0)], coste_energia_kwh=0.1, tasa_descuento=0.1)
+    claves = {e.clave for e in ep.estudios_ofrecidos(libro)}
+    assert set(ep.ESTUDIOS_012) <= claves
+    sin_bancos = de.Libro(**{**libro.__dict__, 'bancos': [], 'hojas_que_faltan': ['Bancos de condensadores']})
+    no = {o['clave']: o for o in ep.estudios_no_ofrecidos(sin_bancos)}
+    assert 'Bancos de condensadores' in no['condensadores']['motivo'] and 'fiabilidad' not in no
+    no = {o['clave']: o for o in ep.estudios_no_ofrecidos(libro, sin_licencia=['ComHostcap'])}
+    assert 'ComHostcap' in no['alojamiento']['motivo'] and 'licencia' in no['alojamiento']['motivo']
+    with pytest.raises(ep.EstudiosError, match='ComHostcap'):
+        ep.validar_estudios(['alojamiento'], libro, ['ComHostcap'])
+    assert ep.validar_estudios(['curvas_pv', 'flujo', 'fiabilidad'], libro) == ('flujo', 'fiabilidad', 'curvas_pv')

@@ -1084,6 +1084,21 @@ def test_la_maxima_del_mes_elegido(tmp_path):
     assert vacio.error and '2026-03' in vacio.error
 
 
+def test_junto_a_la_del_mes_la_del_periodo_y_su_mes(tmp_path):
+    """013:RF-14 — con un mes elegido, junto a su máxima, la de todo el periodo leído y el mes en
+    que ocurrió; sin mes elegido o con el año entero no hace falta."""
+    rng = random.Random(SEMILLA)
+    n = 4 * 24 * 40
+    completo, _esperado = _medicion(rng, n, {'kw': 'kW tot', 'kvar': 'kVAR tot'}, pico=n - 10)
+    _libro(tmp_path / 'c.xlsx', {'M1': completo})
+    todo = dm.maximas([tmp_path / 'c.xlsx'], [('', 'M1')])[0]
+    julio = dm.maximas([tmp_path / 'c.xlsx'], [('', 'M1')], periodo='2026-07')[0]
+    assert julio.maxima_periodo == {'fecha': todo.fecha, 'kw': todo.kw, 'mes': '2026-08'}
+    assert julio.to_dict()['maxima_periodo']['mes'] == '2026-08'
+    assert todo.maxima_periodo is None
+    assert dm.maximas([tmp_path / 'c.xlsx'], [('', 'M1')], periodo='2026')[0].maxima_periodo is None
+
+
 def test_el_registro_de_un_instante(tmp_path):
     """021:RF-50, 021:RF-53 — con un instante, el registro de esa fecha y hora, no la máxima; sin
     registro en ese instante, se dice."""

@@ -1,6 +1,6 @@
 import type { AsistenteRespuesta, CentralDeBarra, SistemaDelProyecto, EstructuraResumen,
-  AjustePlan, AjusteResultado, CargasPlan, CentralTermica, ClientesCruce, CurvaCabecera, DemandaMedidores,
-  MaximaConCentral, MedidoresExternos, Economia, EstudiosCatalogo, EstudiosPlan,
+  AjustePlan, AjusteResultado, CargasPlan, CentralTermica, ClientesCruce, CriterioFijas, CurvaCabecera, DemandaMedidores,
+  MaximaConCentral, MedidoresExternos, Economia, EstudiosCatalogo, EstudiosPlan, DatosEmpresa, OpcionesEstudios,
   FeederRow, Health, InformeEstudioForm, InformeFactibilidadForm, InformesContexto, Job, Limites, MaximaCabecera, Obra,
   ObraGuardada, Options, OutputFile, PfInventario, PowerFactoryStatus, ReconstructionReport, WorkspaceState, EpisodioResumen } from './types';
 
@@ -131,7 +131,8 @@ export const api = {
   // Spec 028, RF-21, RF-22: recalibrar el sistema del proyecto, aparte de la calibración inicial.
   recalibrarDatos: (id: string, project: string) =>
     request<{ zonal: string; demanda_dir: string; grupo?: string; alimentadores?: string[] }>(`${ws(id)}/demanda/recalibrar?project=${encodeURIComponent(project)}`),
-  recalibrar: (id: string, body: { project: string; periodo: string; zonal?: string; demanda_dir?: string; transformadores?: boolean }) =>
+  recalibrar: (id: string, body: { project: string; periodo: string; zonal?: string; demanda_dir?: string; transformadores?: boolean;
+    criterio_fijas?: CriterioFijas }) =>
     request<Job>(`${ws(id)}/demanda/recalibrar`, json('POST', body)),
   // Spec 028, RF-9: escanear alimentadores en DIgSILENT antes de recalibrar.
   pfEscanear: (id: string, project: string, feeders: string[], anio: number | null = null) =>
@@ -261,11 +262,17 @@ export const api = {
   informeFactibilidad: (id: string, body: InformeFactibilidadForm) =>
     request<Job>(`${ws(id)}/informes/factibilidad`, json('POST', body)),
   // 035:RF-1: con la máxima de cada alimentador, el registro de su instante.
+  // 039:RF-1: el criterio de todas las fijas; por defecto, coincidente.
   demandaClientes: (id: string, alimentadores: string[], periodo?: string,
-    maximas?: Record<string, { fecha: string | null; kw: number | null; kvar: number | null; fp: number | null }>) =>
+    maximas?: Record<string, { fecha: string | null; kw: number | null; kvar: number | null; fp: number | null }>,
+    criterio: CriterioFijas = 'coincidente') =>
     request<ClientesCruce>(`${ws(id)}/demanda/clientes/cruzar`,
-      json('POST', { alimentadores, ...(periodo ? { periodo } : {}), ...(maximas ? { maximas } : {}) })),
-  ajustePlan: (id: string, body: { project: string; job_id: string; medidor: string; medidores?: string[]; tolerancia: number; desconectados?: string[]; centrales?: Record<string, CentralTermica>; tension_fuente_pu?: number | null; completar_bancos?: boolean }) =>
+      json('POST', { alimentadores, criterio, ...(periodo ? { periodo } : {}), ...(maximas ? { maximas } : {}) })),
+  // 039:RF-5: los dos criterios frente a la cabecera y a la red simulada, como trabajo.
+  demandaCompararFijas: (id: string, body: { project: string; alimentadores: string[]; periodo?: string;
+    maximas: Record<string, { fecha: string | null; kw: number | null; kvar: number | null; fp: number | null }> }) =>
+    request<Job>(`${ws(id)}/demanda/clientes/comparar`, json('POST', body)),
+  ajustePlan: (id: string, body: { project: string; job_id: string; medidor: string; medidores?: string[]; tolerancia: number; desconectados?: string[]; centrales?: Record<string, CentralTermica>; tension_fuente_pu?: number | null; completar_bancos?: boolean; criterio_fijas?: CriterioFijas }) =>
     request<AjustePlan>(`${ws(id)}/demanda/ajuste/plan`, json('POST', body)),
   ajusteSimular: (id: string, token: string) =>
     request<Job>(`${ws(id)}/demanda/ajuste/${enc(token)}/simular`, { method: 'POST' }),
@@ -291,11 +298,26 @@ export const api = {
   obrasEscalera: (id: string, body: { project: string; feeders: string[]; anio_casos: number | null;
     tipo_cambio: number | null; capex: string }) =>
     request<Job>(`${ws(id)}/pf/obras/escalera`, json('POST', body)),
-  estudiosCatalogo: () => request<EstudiosCatalogo>('/api/pf/estudios'),
+  // Spec 042, RF-13: escalera carga a carga y SET nueva para las que no caben.
+  obrasConProyecto: (id: string, body: { project: string; feeders: string[]; anio_casos: number | null;
+    tipo_cambio: number | null; capex: string; alimentadores_nuevos: number }) =>
+    request<Job>(`${ws(id)}/pf/obras/con-proyecto`, json('POST', body)),
+  // Spec 012: el catálogo según el libro de la empresa del proyecto y la licencia.
+  estudiosCatalogo: (id: string, project: string) =>
+    request<EstudiosCatalogo>(`${ws(id)}/pf/estudios?project=${enc(project)}`),
   estudiosPlan: (id: string, body: {
     project: string; feeders: string[]; estudios: string[]; ajuste_job_id: string | null;
-    limites: Partial<Limites>; limite_s: number | null;
+    limites: Partial<Limites>; limite_s: number | null; opciones: OpcionesEstudios;
   }) => request<EstudiosPlan>(`${ws(id)}/pf/estudios/plan`, json('POST', body)),
+  datosEmpresaSubir: (id: string, project: string, file: File) => {
+    const fd = new FormData();
+    fd.append('project', project);
+    fd.append('file', file, file.name);
+    return request<{ libro: DatosEmpresa }>(`${ws(id)}/pf/datos-empresa`, { method: 'POST', body: fd });
+  },
+  datosEmpresaPlantillaUrl: (id: string) => `${ws(id)}/pf/datos-empresa/plantilla`,
+  datosEmpresaAplicar: (id: string, body: { project: string; feeders: string[] }) =>
+    request<Job>(`${ws(id)}/pf/datos-empresa/aplicar`, json('POST', body)),
   estudiosEjecutar: (id: string, token: string) =>
     request<Job>(`${ws(id)}/pf/estudios/${enc(token)}/ejecutar`, { method: 'POST' }),
   guiones: (id: string, project: string) => request<Job>(`${ws(id)}/pf/guiones`, json('POST', { project })),
@@ -316,7 +338,8 @@ export const api = {
   gemeloEpisodios: (id: string, filtros: { proyecto?: string; caso?: string; clase?: string }) =>
     request<EpisodioResumen[]>(`${ws(id)}/digital-twin/episodes?${new URLSearchParams(
       Object.entries(filtros).filter(([, v]) => v) as [string, string][])}`),
-  transferencia: (id: string, body: { project: string; feeders: string[]; casos: string[] }) =>
+  transferencia: (id: string, body: { project: string; feeders: string[]; casos: string[];
+    cabecera_job_id?: string | null }) =>
     request<Job>(`${ws(id)}/pf/transferencia`, json('POST', body)),
 
   // Spec 026: asistente de órdenes.
@@ -329,6 +352,7 @@ export const api = {
     request<AsistenteRespuesta>(`${ws(id)}/asistente/${enc(planId)}/corregir`, json('POST', body)),
   asistenteEntrenar: (id: string) => request<Job>(`${ws(id)}/asistente/entrenar`, { method: 'POST' }),
   asistenteRegistro: () => request<Record<string, unknown[]>>('/api/asistente/registro'),
+  asistenteModelos: () => request<import('./types').EstadoModelos>('/api/asistente/modelos'),
   // 027:RF-43, RF-44: el proyecto entero desde el espacio, con puntos de control.
   agenteProyecto: (id: string, body: { sistema: string; periodo: string; ruta?: string; ruta_cargas?: string; reiniciar?: boolean }) =>
     request<Job>(`${ws(id)}/agente/proyecto`, json('POST', body)),

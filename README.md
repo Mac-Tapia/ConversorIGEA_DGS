@@ -59,9 +59,13 @@ trabajo:
    buscar por nombre o carpeta y elegir uno (spec 005).
 2. **2 · Alimentadores y calibración**: al elegir el proyecto se marcan todos sus
    alimentadores. Con los libros de medición se busca la máxima de cabecera de cada uno,
-   los clientes importantes quedan como demanda fija y el resto se escala por kVA hasta
-   que la cabecera dé la máxima; los alimentadores se ajustan uno tras otro, en el
-   escenario de «Sin proyecto» (specs 004, 006, 008, 014 y 015). Solo se calibra un
+   los clientes importantes (coincidentes con la máxima, por defecto, o en su máximo del
+   mes) y las SED medidas en «3.1 Demandas en bloque» quedan como demanda fija, y el resto
+   se escala por kVA con un reparto probabilístico, más cargado cuanto mayor la potencia,
+   hasta que la cabecera dé la máxima; en DIgSILENT queda el P50 y el informe da sus bandas
+   y la probabilidad de sobrecarga. La recalibración cuadra también la Q si la medida de
+   cabecera es coherente con la red; si no, deja la Q real y lo dice. Todo en el escenario
+   de «Sin proyecto» (specs 004, 006, 008, 014, 015, 035, 039 y 041). Solo se calibra un
    alimentador cuyo «Caso base» esté verificado frente al archivo original (spec 015), y
    un cambio manual del operador gana a la calibración (spec 014).
 3. **3 · Integración de nuevas**: verificar que el flujo converge y, sobre esa red,

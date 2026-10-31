@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { api, fmtNum, type DemandaTipo } from '../api';
 import { estadoCatalogoClientes } from '../clientesCatalogo';
 import { useApp } from '../context';
-import type { BarraDeSet, CentralDeBarra, CentralTermica, Escaneo, SistemaDelProyecto, ClientesCruce, ClienteImportante, MaximaCabecera, MedidoresExternos } from '../types';
+import type { BarraDeSet, CentralDeBarra, CentralTermica, ComparacionFijas, CriterioFijas, Escaneo, SistemaDelProyecto, ClientesCruce, ClienteImportante, MaximaCabecera, MedidoresExternos } from '../types';
 import { AjusteCabecera } from './AjusteCabecera';
 import { FileDrop, useToast } from './ui';
 
@@ -96,9 +96,33 @@ const ORIGEN_MES: Record<string, string> = {
 
 /** 035:RF-3: de dónde salen la P y la Q de un cliente fijo. */
 const ORIGEN_VALORES: Record<string, string> = {
-  REGISTRO_DEL_INSTANTE: 'registro de la máxima', ERI_DEL_REGISTRO: 'registro de su POT (sin el de la máxima)',
+  REGISTRO_DEL_INSTANTE: 'registro de la máxima', ERI_DEL_REGISTRO: 'registro de su POT',
   'ERI/EA': 'POT y EA/ERI del mes', FP_CABECERA_FALLBACK: 'POT y FP de la cabecera',
 };
+
+/** 039:RF-1: los dos criterios de las fijas, con lo que toma cada uno de la hoja de 15 minutos. */
+const CRITERIOS_FIJAS: { valor: CriterioFijas; texto: string; ayuda: string }[] = [
+  { valor: 'coincidente', texto: 'Coincidentes con la máxima de cabecera',
+    ayuda: 'Cada fija con su EA × 4 y ERI × 4 del registro de la fecha y hora de la máxima de su alimentador (039:RF-3)' },
+  { valor: 'maximo_mes', texto: 'Máximo del mes de cada fija',
+    ayuda: 'Cada fija con su POT máxima del mes y el ERI × 4 de ese mismo registro, cada una de su día (039:RF-2)' },
+];
+const criterioDe = (c?: CriterioFijas) => CRITERIOS_FIJAS.find((x) => x.valor === (c ?? 'coincidente')) ?? CRITERIOS_FIJAS[0];
+
+/** 039:RF-1: un solo selector del criterio de todas las fijas, en 2.3 y en «Recalibrar». */
+function SelectorCriterio({ valor, cambiar, disabled }: {
+  valor: CriterioFijas; cambiar: (c: CriterioFijas) => void; disabled?: boolean;
+}) {
+  return (
+    <label className="row" title={criterioDe(valor).ayuda}>
+      <span>Fijas de la tabla cruzada</span>
+      <select value={valor} disabled={disabled} onChange={(e) => cambiar(e.target.value as CriterioFijas)}
+        aria-label="Criterio de las fijas de la tabla cruzada">
+        {CRITERIOS_FIJAS.map((c) => <option key={c.valor} value={c.valor} title={c.ayuda}>{c.texto}</option>)}
+      </select>
+    </label>
+  );
+}
 
 const rangoMeses = (meses: string[]) => (meses.length === 0 ? '—'
   : meses.length === 1 ? nombreMes(meses[0]) : `${nombreMes(meses[0])} a ${nombreMes(meses[meses.length - 1])}`);
@@ -187,6 +211,8 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   const [filtro, setFiltro] = useState('');
   // Spec 013, RF-8 y RF-10: mes del libro de clientes, siempre elegido por el operador.
   const [periodo, setPeriodo] = useState('');
+  // 039:RF-1: el criterio de todas las fijas; por defecto, coincidentes con la cabecera.
+  const [criterioFijas, setCriterioFijas] = useState<CriterioFijas>('coincidente');
   // Spec 025, RF-22: el año de las mediciones, siempre elegido por el operador; con él,
   // ``periodo`` es «AAAA» (todo el año) o uno de sus meses.
   const [anio, setAnio] = useState('');
@@ -369,16 +395,17 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   const opcionesExternas = externos?.medidores ?? [];
   // RF-11: los clientes de los alimentadores marcados.
   // Abrir libros de 50 a 150 MB tarda; sin «Cruzando…» el botón parecía no hacer nada.
+  // 035:RF-1: cada alimentador con la fecha y hora de su máxima buscada, la misma con
+  // que el ajuste (2.4) escribe las fijas; sin ella, la POT de cada cliente.
+  const maximas = Object.fromEntries(cabecera
+    .filter((m) => !m.error && m.fecha && feeders.includes(m.alimentador))
+    .map((m) => [m.alimentador, { fecha: m.fecha, kw: m.kw, kvar: m.kvar, fp: m.fp }]));
+  const hayMaximas = Object.keys(maximas).length > 0;
   const cruzar = async () => {
     setCruzando(true);
     try {
-      // 035:RF-1: cada alimentador con la fecha y hora de su máxima buscada, la misma con
-      // que el ajuste (2.4) escribe las fijas; sin ella, la POT de cada cliente.
-      const maximas = Object.fromEntries(cabecera
-        .filter((m) => !m.error && m.fecha && feeders.includes(m.alimentador))
-        .map((m) => [m.alimentador, { fecha: m.fecha, kw: m.kw, kvar: m.kvar, fp: m.fp }]));
       const r = await run(() => api.demandaClientes(ws.id, feeders, periodo || undefined,
-        Object.keys(maximas).length ? maximas : undefined));
+        hayMaximas ? maximas : undefined, criterioFijas));
       if (r) { setCruce(r); setDesconectados(new Set()); }
       // 004:RF-64: un fallo puede dejar el hueco de suministros sin libro y con su aviso.
       else await refresh().catch(() => undefined);
@@ -392,6 +419,18 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
     setCruce(null);
     setDesconectados(new Set());
   };
+  // 039:RF-1: con otro criterio las fijas son otras; el plan (2.4) lleva el mismo.
+  const elegirCriterio = (c: CriterioFijas) => {
+    setCriterioFijas(c);
+    setCruce(null);
+    setDesconectados(new Set());
+  };
+  // 039:RF-5: los dos criterios frente a la cabecera y a la red simulada, sin DIgSILENT.
+  const comparar = () => startJob(() => api.demandaCompararFijas(ws.id, {
+    project, alimentadores: feeders, periodo: periodo.length === 7 ? periodo : undefined, maximas }));
+  const comparacion = Object.values(jobs)
+    .filter((j) => j.kind === 'demanda_comparar_fijas' && j.status === 'done' && j.result).pop()
+    ?.result as unknown as ComparacionFijas | undefined;
   // Con todo el año, cada máxima va con su mes (025:RF-10): no hay otro mes que avisar.
   const otrosMesesMaxima = periodo.length === 7
     ? Object.entries(mesesMaxima).filter(([mes]) => mes !== periodo) : [];
@@ -440,7 +479,7 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
 
   return (
     <div className="calibracion">
-      <Recalibrar project={project} />
+      <Recalibrar project={project} criterioFijas={criterioFijas} elegirCriterio={elegirCriterio} />
       <h4>2.1 · Libros de medición</h4>
       <div className="form-grid">
         {LIBROS.map((l) => <Libro key={l.tipo} {...l} />)}
@@ -606,7 +645,11 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
                 <td>{r.alimentador || '—'}</td>
                 <td className="strong">{r.medidor}</td>
                 {r.error ? <td colSpan={6} className="alert-error small">{r.error}</td> : <>
-                  <td className="mono">{r.fecha}</td>
+                  <td className="mono">{r.fecha}
+                    {/* 013:RF-14: junto a la del mes, la del periodo entero y su mes. */}
+                    {r.maxima_periodo && (
+                      <div className="muted small">Periodo: {fmtNum(r.maxima_periodo.kw, 2)} kW
+                        en {nombreMes(r.maxima_periodo.mes)} ({r.maxima_periodo.fecha})</div>)}</td>
                   <td className="num">{fmtNum(r.kw, 2)}</td>
                   <td className="num">{fmtNum(r.kvar, 2)}</td>
                   <td className="num" title={r.kva_calculado ? 'Calculado con kW y kVAR' : undefined}>
@@ -647,6 +690,7 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
 
       <h4>2.3 · Clientes importantes (demanda fija)</h4>
       {selectorMes}
+      <SelectorCriterio valor={criterioFijas} cambiar={elegirCriterio} disabled={engineBusy || cruzando} />
       {otrosMesesMaxima.length > 0 && (
         <small className="alert alert-warn">
           {otrosMesesMaxima.map(([mes, alims]) => `${alims.join(', ')} tiene su máxima en ${nombreMes(mes)}`).join('; ')}:
@@ -658,6 +702,11 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
           || !estadoClientes.listoParaCruzar || engineBusy || cruzando} onClick={cruzar}>
           {cruzando ? `Cruzando clientes de ${cuales}…` : `Cruzar clientes de ${cuales}`}
         </button>
+        <button className="btn btn-ghost" disabled={!hayMaximas || !haySuministros || !ws.demanda?.clientes
+          || !estadoClientes.listoParaCruzar || engineBusy || cruzando} onClick={comparar}
+          title={hayMaximas ? 'Las fijas con los dos criterios frente a la cabecera y a la Q de la red y de los bancos de la última calibración; no abre DIgSILENT (039:RF-5)'
+            : 'Busque antes la máxima de cabecera (2.2)'}>
+          Comparar los criterios de las fijas</button>
         {librosFaltan.length > 0 && (
           <small className="muted">Falta {librosFaltan.join(' y ')} (2.1): sin {librosFaltan.length > 1 ? 'ellos' : 'él'} todas
             las SED se escalan con el factor de escala.</small>)}
@@ -665,6 +714,7 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
       </div>
       {cruce && <Cruce cruce={cruce} visibles={visibles} filtro={filtro} setFiltro={setFiltro}
         desconectados={desconectados} conmutar={conmutar} />}
+      {comparacion && <CompararFijas comparacion={comparacion} />}
 
       <div className="row">
         <button className="btn btn-ghost btn-sm" disabled={!cabecera.length && !cruce} onClick={excel}>
@@ -675,7 +725,8 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
       {/* Spec 006: la máxima de arriba, repartida entre las SED del proyecto de DIgSILENT. */}
       <h4>2.4 · Escalar las demás cargas y ajustar</h4>
       <AjusteCabecera project={project} maxima={ultimo} feeders={feeders} desconectados={desconectados}
-        centrales={Object.fromEntries(Object.entries(centrales).filter(([, c]) => centralCompleta(c)))} />
+        centrales={Object.fromEntries(Object.entries(centrales).filter(([, c]) => centralCompleta(c)))}
+        criterioFijas={criterioFijas} />
     </div>
   );
 }
@@ -694,12 +745,43 @@ function Cruce({ cruce, visibles, filtro, setFiltro, desconectados, conmutar }: 
       s.p += c.p_kw ?? 0; s.q += c.q_kvar ?? 0;
       return m;
     }, {}) : {};
+  // SM218, 2026-10-29: máxima el 23/10 y el último libro de clientes, el de septiembre (035:RF-17).
+  // Sus hojas no llegan a esa fecha, así que cada cliente va con el registro de su POT, cada uno
+  // de su día; la columna «Registro» no coincide con la máxima y hay que decir por qué.
+  // 039:RF-2: con «máximo del mes» cada fija va de su día a propósito; 039:RF-4: la que no tiene
+  // el registro de la máxima se dice aparte, y aquí quedan las que no tienen hoja.
+  const maximoMes = cruce.criterio === 'maximo_mes';
+  const fueraDelInstante = conMaxima && !maximoMes
+    ? cruce.cruzados.filter((c) => c.metodo && !c.metodo.startsWith('REGISTRO_DEL_INSTANTE') && !c.sin_coincidente) : [];
+  const sinCoincidente = cruce.no_coincidentes ?? [];
+  const sinRegistro = Object.entries(cruce.maximas ?? {})
+    .filter(([f, fecha]) => fecha && fueraDelInstante.some((c) => c.alimentador_maxima === f))
+    .map(([f, fecha]) => {
+      const mesMaxima = String(fecha).slice(0, 7);
+      const sinLibro = cruce.mes && cruce.mes !== mesMaxima;
+      return `${f} (máxima el ${fecha}): ${sinLibro
+        ? `no hay libro de clientes de ${nombreMes(mesMaxima)} y el de ${nombreMes(cruce.mes!)} no trae ese registro`
+        : 'sus hojas no traen ese registro'}`;
+    });
   return <>
-    {conMaxima && <p className="small">Clientes en la máxima de {Object.entries(cruce.maximas ?? {})
+    <p className="alert alert-info small">La pertenencia de las SED se contrasta con la fuente de red cargada antes
+      de filtrar los clientes. Cuando difiere del libro y la pertenencia es inequívoca, se usa el alimentador de la red
+      y se deja una nota en su fila.
+      Los planos de IGEA previos a la exportación quedan fuera del alcance del conversor; aquí se usa la fuente
+      exportada cargada (TXT, MDB o VNR-GIS).</p>
+    <p className="small"><strong>Fijas: {criterioDe(cruce.criterio).texto}</strong> ({criterioDe(cruce.criterio).ayuda}).</p>
+    {sinCoincidente.length > 0 && <div className="alert alert-error small">
+      <p>{fmtNum(sinCoincidente.length)} fija(s) sin su registro del instante de la máxima: no toman otro y el ajuste
+        (2.4) no se prepara hasta que elija el mes de los clientes de esa fecha o «{CRITERIOS_FIJAS[1].texto}» (039:RF-4).</p>
+      <ul>{sinCoincidente.slice(0, 50).map((m) => <li key={m}>{m}</li>)}</ul></div>}
+    {conMaxima && <p className="small">Clientes {maximoMes ? 'de' : 'en la máxima de'} {Object.entries(cruce.maximas ?? {})
       .map(([f, fecha]) => `${f} (${fecha ?? 'sin fecha'})`).join(', ')}: su P y su Q van a su SED como carga fija,
       con factor de escala 1; las demás SED se escalan hasta la cabecera (035:RF-4). {Object.keys(porSed).length} SED fija(s):
       {' '}{fmtNum(Object.values(porSed).reduce((a, s) => a + s.p, 0), 1)} kW y
       {' '}{fmtNum(Object.values(porSed).reduce((a, s) => a + s.q, 0), 1)} kvar.</p>}
+    {sinRegistro.length > 0 && <p className="alert alert-warn small">{sinRegistro.join('; ')}.
+      {' '}{fmtNum(fueraDelInstante.length)} cliente(s) sin hoja de 15 minutos van con su EA/ERI del mes con los dos
+      criterios: por eso su «Registro» no coincide.</p>}
     <p>{ali ? <>{fmtNum(t.cruzados)} cliente(s) de <strong>{ali}</strong> de {fmtNum(t.clientes)}</> : <>{fmtNum(t.cruzados)} de {fmtNum(t.clientes)} cruzados</>}
       {' '}({fmtNum(t.por_actual)} por «Suministro Act», {fmtNum(t.por_anterior)} por «Suministro»); {fmtNum(t.no_cruzados)} aparte
       {ali ? `, ${fmtNum(t.de_otros)} de otros alimentadores sin mostrar` : ''}.
@@ -711,7 +793,7 @@ function Cruce({ cruce, visibles, filtro, setFiltro, desconectados, conmutar }: 
     <input className="search" type="search" placeholder="Filtrar por Nis, SED o radial…" value={filtro}
       onChange={(e) => setFiltro(e.target.value)} />
     <div className="table-wrap table-short">
-      <table className="table">
+      <table className="table table-ajustada">
         <thead><tr><th>Conectado</th><th>Nis / Suministro</th><th>Cliente</th><th>Cruzado por</th><th>SED</th><th>Radial</th>
           <th className="num">EA</th><th className="num">ERI</th><th className="num">Pot del mes</th>
           {conMaxima ? <>
@@ -729,13 +811,19 @@ function Cruce({ cruce, visibles, filtro, setFiltro, desconectados, conmutar }: 
               aria-label={`Conectar ${c.codigo} en DIgSILENT`}
               title="Desmarcado: no suma a su SED y, si su SED se queda sin clientes conectados, su carga queda fuera de servicio en el ajuste" /></td>
             <td className="mono">{c.codigo}</td><td className="small">{c.nombre || '—'}</td><td className="small">{c.cruzado_por === 'actual' ? 'Suministro Act' : 'Suministro'}</td>
-            <td className="strong">{c.sed}</td><td>{c.radial || '—'}</td><td className="num">{fmtNum(c.ea, 2)}</td>
+            <td className="strong">{c.sed}</td><td>{c.radial || '—'}
+              {c.radial_fuente && <small className="muted"> Según la fuente de red.</small>}
+              {c.radial_libro && c.radial_libro !== c.radial && <small className="muted"> Libro: {c.radial_libro}.</small>}
+              {c.nota_asignacion && <p className="small">{c.nota_asignacion}</p>}
+            </td><td className="num">{fmtNum(c.ea, 2)}</td>
             <td className="num">{fmtNum(c.eri, 2)}</td><td className="num">{fmtNum(c.pot, 2)}</td>
             {conMaxima ? <>
               <td className="small">{c.fecha_valores || '—'}</td>
               <td className="num strong">{c.p_kw == null ? '—' : fmtNum(c.p_kw, 2)}</td>
               <td className="num strong">{c.q_kvar == null ? '—' : fmtNum(c.q_kvar, 2)}</td>
-              <td className="small">{ORIGEN_VALORES[(c.metodo ?? '').split(' ')[0]] ?? c.metodo ?? '—'}</td>
+              <td className="small">{c.sin_coincidente
+                ? <span className="badge err" title={c.sin_coincidente}>sin el registro de la máxima</span>
+                : ORIGEN_VALORES[(c.metodo ?? '').split(' ')[0]] ?? c.metodo ?? '—'}</td>
             </> : <>
               <td className="small">{c.fecha_registro || '— (ERI/EA del mes)'}</td>
               <td className="num">{c.q_registro_kvar == null ? '—' : fmtNum(c.q_registro_kvar, 2)}</td>
@@ -752,6 +840,67 @@ function Cruce({ cruce, visibles, filtro, setFiltro, desconectados, conmutar }: 
       </details>
     )}
   </>;
+}
+
+/** 039:RF-5: por alimentador, cada fija con los dos criterios, sus sumas, la cabecera medida en
+ * la máxima, la Q de la red y de los bancos de la última calibración y la Q que queda para las
+ * escaladas con cada criterio. Solo lee: el operador elige después el criterio en 2.3. */
+function CompararFijas({ comparacion }: { comparacion: ComparacionFijas }) {
+  const v = (x: number | null | undefined, d = 1) => (x == null ? '—' : fmtNum(x, d));
+  return (
+    <details className="step-box" open>
+      <summary className="strong">Comparación de los criterios de las fijas · libro {comparacion.libro}</summary>
+      {comparacion.avisos.length > 0 && <details className="alert alert-warn"><summary>Avisos: {comparacion.avisos.length}</summary>
+        <ul className="small">{comparacion.avisos.slice(0, 100).map((a) => <li key={a}>{a}</li>)}</ul></details>}
+      {comparacion.alimentadores.map((a) => (
+        <div key={a.alimentador}>
+          <h5>{a.alimentador} · máxima del {a.cabecera.fecha ?? 'sin fecha'}: {v(a.cabecera.kw)} kW y {v(a.cabecera.kvar)} kvar</h5>
+          <div className="table-wrap">
+            <table className="table table-ajustada">
+              <thead>
+                <tr><th rowSpan={2}>Nis</th><th rowSpan={2}>SED</th>
+                  {CRITERIOS_FIJAS.map((c) => <th key={c.valor} colSpan={3} title={c.ayuda}>{c.texto}</th>)}</tr>
+                <tr>{CRITERIOS_FIJAS.map((c) => <Fragment key={c.valor}><th>Registro</th>
+                  <th className="num">P (kW)</th><th className="num">Q (kvar)</th></Fragment>)}</tr>
+              </thead>
+              <tbody>
+                {a.fijas.map((f) => (
+                  <tr key={f.codigo}><td className="mono">{f.codigo}</td><td className="strong">{f.sed}</td>
+                    {CRITERIOS_FIJAS.map(({ valor }) => {
+                      const x = f[valor];
+                      return x?.sin_coincidente
+                        ? <td key={valor} colSpan={3}><span className="badge err" title={x.sin_coincidente}>sin el registro de la máxima</span></td>
+                        : <Fragment key={valor}><td className="small">{x?.fecha ?? '— (EA/ERI del mes)'}</td>
+                          <td className="num">{v(x?.p_kw, 2)}</td><td className="num">{v(x?.q_kvar, 2)}</td></Fragment>;
+                    })}</tr>
+                ))}
+                <tr className="strong"><td colSpan={2}>Suma de las fijas</td>
+                  {CRITERIOS_FIJAS.map(({ valor }) => <Fragment key={valor}><td className="small">
+                    {a.sumas[valor].sin_registro ? `${a.sumas[valor].sin_registro} sin registro, fuera de la suma` : ''}</td>
+                    <td className="num">{v(a.sumas[valor].p_kw)}</td><td className="num">{v(a.sumas[valor].q_kvar)}</td></Fragment>)}</tr>
+                <tr><td colSpan={2} title="035:RF-28: Q de cabecera que puede dar la red con las escaladas entre FP 1 y su mínimo, frente a la medida">
+                  Q de cabecera alcanzable</td>
+                  {CRITERIOS_FIJAS.map(({ valor }) => {
+                    const c = a.coherencia[valor];
+                    return <Fragment key={valor}><td className="small">{!c ? 'sin calibración con la red'
+                      : c.coherente ? <span className="badge ok">coherente: se cuadra</span>
+                        : <span className="badge err">no coherente{c.lado === 'alta' ? ': la medida está por debajo' : ': la medida está por encima'}</span>}</td>
+                      <td className="num" colSpan={2}>{c ? `${v(c.q_fp1_kvar)} a ${v(c.q_fp_minimo_kvar)} kvar (FP 1 a ${v(c.fp_minimo, 3)})` : '—'}</td></Fragment>;
+                  })}</tr>
+              </tbody>
+            </table>
+          </div>
+          <p className="small">{a.red
+            ? <>Red y bancos en {a.red.calibracion}: cabecera simulada {v(a.red.cabecera_kvar)} kvar y cargas {v(a.red.cargas_kvar)} kvar;
+              la red y los bancos ponen {v(a.red.red_y_bancos_kvar)} kvar
+              {a.red.bancos_kvar != null ? ` (los bancos entregan ${v(a.red.bancos_kvar)} kvar)` : ''}.</>
+            : 'Sin calibración guardada de este alimentador: no se sabe la P y la Q de la red ni si la medida es coherente.'}</p>
+          <p className="small muted">Medida coherente: la recalibración cuadra la Q con el FP de las escaladas. No coherente:
+            no se fuerza; queda la Q que da DIgSILENT con las escaladas a su FP de perfil, y se dice (035:RF-28, RF-29).</p>
+        </div>
+      ))}
+    </details>
+  );
 }
 
 /** Spec 022, RF-39 a RF-44 y RF-84 a RF-87: por SET, la barra de 60 kV con su máxima y
@@ -843,7 +992,9 @@ function EscaneoTabla({ escaneo }: { escaneo: Escaneo }) {
 
 /** Spec 028, RF-21 a RF-23: recalibrar «Sin proyecto» del sistema ya importado, aparte de la
  * calibración inicial: escanea lo que hay en DIgSILENT, busca la máxima y recalibra. */
-function Recalibrar({ project }: { project: string }) {
+function Recalibrar({ project, criterioFijas, elegirCriterio }: {
+  project: string; criterioFijas: CriterioFijas; elegirCriterio: (c: CriterioFijas) => void;
+}) {
   const { ws, startJob, active } = useApp();
   const [periodo, setPeriodo] = useState('');
   const [zonal, setZonal] = useState('');
@@ -881,9 +1032,11 @@ function Recalibrar({ project }: { project: string }) {
             <input value={carpeta} onChange={(e) => setCarpeta(e.target.value)} /></label>
           <label className="row small"><input type="checkbox" checked={transformadores}
             onChange={(e) => setTransformadores(e.target.checked)} /> Implementar transformadores</label>
+          <SelectorCriterio valor={criterioFijas} cambiar={elegirCriterio} />
           <button className="btn btn-pf" disabled={!listo || Boolean(active.asistente) || Boolean(active.powerfactory)}
             onClick={() => startJob(() => api.recalibrar(ws.id, {
-              project, periodo: periodo.trim(), zonal: zonal.trim(), demanda_dir: carpeta.trim(), transformadores }))}>
+              project, periodo: periodo.trim(), zonal: zonal.trim(), demanda_dir: carpeta.trim(), transformadores,
+              criterio_fijas: criterioFijas }))}>
             Recalibrar</button>
         </div>
       )}

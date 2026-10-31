@@ -60,6 +60,7 @@ ALIAS: dict[str, tuple[str, ...]] = {
     'suministro': ('suministro', 'suministro anterior', 'nis anterior'),
     'sed': ('sed', 'subestacion', 'subestacion de distribucion'),
     'radial': ('radial', 'alimentador'),
+    'nota_asignacion': ('nota asignacion', 'observacion', 'observaciones'),
     'cliente_codigo': ('nis', 'suministro', 'nro suministro', 'numero suministro'),
     'ea': ('ea', 'ea total', 'energia activa'),
     'eri': ('eri', 'eri total', 'energia reactiva inductiva'),
@@ -757,6 +758,8 @@ class MaximaCabecera:
     canal_de: str = ''
     # Spec 006, RF-31 y RF-37: registros que no entran en la curva (sin fecha o sin kW).
     fuera_de_curva: int = 0
+    # 013:RF-14: con un mes elegido, la máxima de todo lo leído y su mes ``{fecha, kw, mes}``.
+    maxima_periodo: dict[str, Any] | None = None
     # Curva entera ``(fecha, kW, kVAR)`` en orden. Fuera de ``to_dict``: el resultado del
     # trabajo viaja al navegador por el WebSocket, y un año de lecturas cada 15 min son
     # unos 35 000 registros por medidor. La web la sirve aparte y reducida (RF-39).
@@ -787,6 +790,8 @@ def maxima_de_registros(registros: Sequence[Registro], resultado: MaximaCabecera
     y su central, 2026-10-17).
     """
     mejor: Registro | None = None
+    # 013:RF-14: la del periodo entero, para ver si el mes elegido es el de la máxima.
+    del_todo: Registro | None = None
     corruptos = 0
     for r in registros:
         kw = r.valores.get('kw')
@@ -803,11 +808,17 @@ def maxima_de_registros(registros: Sequence[Registro], resultado: MaximaCabecera
                 mejor = r
                 break
             continue
+        if (del_todo is None or kw > del_todo.valores['kw']
+                or (kw == del_todo.valores['kw'] and _antes(r.fecha, del_todo.fecha))):
+            del_todo = r
         if not en_periodo(r.fecha, periodo):
             continue
         if (mejor is None or kw > mejor.valores['kw']
                 or (kw == mejor.valores['kw'] and _antes(r.fecha, mejor.fecha))):
             mejor = r
+    if periodo and len(periodo) == 7 and instante is None and del_todo is not None:
+        resultado.maxima_periodo = {'fecha': _iso(del_todo.fecha), 'kw': del_todo.valores['kw'],
+                                    'mes': periodo_de_fecha(del_todo.fecha)}
     resultado.registros = len(registros)
     resultado.curva, resultado.fuera_de_curva = curva_de_registros(registros)
     if corruptos:
@@ -1305,12 +1316,13 @@ class Suministro:
     sed: str
     radial: str
     fila: int
+    nota_asignacion: str = ''
 
 
 def leer_suministros(path: Path | str, alias=ALIAS) -> tuple[list[Suministro], list[str]]:
     """Código actual, anterior, SED y radial de cada suministro (RF-33)."""
     libro = _abrir(path)
-    campos = ('suministro_act', 'suministro', 'sed', 'radial')
+    campos = ('suministro_act', 'suministro', 'sed', 'radial', 'nota_asignacion')
     for hoja in libro.sheet_names:
         filas = _filas(libro, hoja)
         hallada = _buscar_cabecera(filas, campos, alias, ('sed',))
@@ -1324,7 +1336,8 @@ def leer_suministros(path: Path | str, alias=ALIAS) -> tuple[list[Suministro], l
             act, ant = _texto(fila, cols.get('suministro_act')), _texto(fila, cols.get('suministro'))
             if act or ant:
                 out.append(Suministro(act, ant, _texto(fila, cols['sed']),
-                                      _texto(fila, cols.get('radial')), n))
+                                      _texto(fila, cols.get('radial')), n,
+                                      _texto(fila, cols.get('nota_asignacion'))))
         return out, avisos
     raise DemandaError(f'{Path(path).name}: ninguna hoja tiene «Suministro Act» o «Suministro» y «SED».')
 
@@ -1405,14 +1418,19 @@ class ClienteImportante:
     fecha_registro: str = ''
     q_registro_kvar: float | None = None
     p_registro_kw: float | None = None   # con el instante de su alimentador (004:RF-67)
+    # 038:RF-2: el radial comercial se conserva aunque mande la pertenencia de la red.
+    radial_libro: str = ''
+    radial_fuente: str = ''
+    radiales_fuente: list[str] = field(default_factory=list)
+    nota_asignacion: str = ''
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
 def registros_de_maxima(path: Path | str, pot_de: Mapping[str, float | None],
-                        instante: datetime | None = None,
-                        ) -> tuple[dict[str, tuple[str, float, float | None]], list[str]]:
+                        instante: datetime | None = None, *, solo_instante: bool = False,
+                        ) -> tuple[dict[str, tuple[str, float, float | None] | None], list[str]]:
     """El registro de 15 minutos en que cada cliente dio su POT, con su kVAR (004:RF-66).
 
     El libro de clientes trae, además del resumen, una hoja de 15 minutos por cliente libre
@@ -1426,6 +1444,10 @@ def registros_de_maxima(path: Path | str, pot_de: Mapping[str, float | None],
     fecha y hora, con su kW y su kVAR: tomar la POT de cada cliente, cada una de un día, sumaba
     en NA203 9 261 kW de fijas frente a 7 876 medidos y 4 432 kVAR frente a 483, y Nasca dejó
     de cuadrar (2026-10-28). Sin ``instante``, el registro de su POT, sin kW.
+
+    Con ``solo_instante`` (criterio «coincidente», 039:RF-4), un cliente con hoja pero sin el
+    registro de ese instante va con ``None``: tomar el de su POT mezclaba los dos criterios sin
+    decirlo. El que no tiene hoja no está, como siempre: con los dos criterios va con su EA/ERI.
     """
     libro = _abrir(path)
     avisos: list[str] = []
@@ -1441,7 +1463,7 @@ def registros_de_maxima(path: Path | str, pot_de: Mapping[str, float | None],
     i_sum, i_hoja = norm.index('numero suministro'), norm.index('nombre hoja exportacion')
     hoja_de = {clave_codigo(_texto(f, i_sum)): _texto(f, i_hoja) for f in filas[cab + 1:]
                if _texto(f, i_sum) and _texto(f, i_hoja)}
-    out: dict[str, tuple[str, float]] = {}
+    out: dict[str, tuple[str, float, float | None] | None] = {}
     for codigo, pot in pot_de.items():
         hoja = hoja_de.get(clave_codigo(codigo))
         if not hoja or pot is None or hoja not in libro.sheet_names:
@@ -1458,6 +1480,9 @@ def registros_de_maxima(path: Path | str, pot_de: Mapping[str, float | None],
             buscado = (instante.strftime('%d/%m/%Y'), instante.strftime('%H:%M'))
             fila = next((f for f in datos if (_texto(f, cols['fecha']), _texto(f, cols['hora'])[:5]) == buscado),
                         None)
+            if fila is None and solo_instante:
+                out[codigo] = None
+                continue
             if fila is None:
                 # 004:RF-67, «sin ese registro, RF-66»: el ERI de la fecha y hora de su EA
                 # máxima, no el cociente del mes; antes saltaba directo al ERI/EA del mes.
@@ -1642,12 +1667,46 @@ def cruzar(clientes: Sequence[ClienteImportante], suministros: Sequence[Suminist
             continue
         c.cruzado_por, c.suministro_actual, c.suministro_anterior = via, s.actual, s.anterior
         c.sed, c.radial = s.sed, s.radial
+        c.radial_libro = s.radial
+        c.nota_asignacion = s.nota_asignacion
         if not s.sed:
             c.motivo = f'cruza por el código {via} pero el suministro no tiene SED'
             aparte.append(c)
         else:
             cruzados.append(c)
     return cruzados, aparte
+
+
+def reconciliar_radiales(clientes: Sequence[ClienteImportante],
+                         propietarios: Mapping[str, Iterable[str]] | None,
+                         ) -> tuple[list[ClienteImportante], list[ClienteImportante]]:
+    """038:RF-1 a RF-4: pertenencia exacta antes del filtro, sin agrupar sufijos.
+
+    Un radial comercial desactualizado hacía desaparecer fijas del plan correcto.
+    No se elige entre dos propietarios ni se inventa uno cuando falta la SED.
+    """
+    indice: dict[str, set[str]] = {}
+    for sed, owners in (propietarios or {}).items():
+        indice.setdefault(str(sed).strip().casefold(), set()).update(owners)
+    buenos, ambiguos = [], []
+    for original in clientes:
+        c = replace(original, radial_libro=original.radial_libro or original.radial)
+        owners = sorted(indice.get(c.sed.strip().casefold(), set()))
+        c.radiales_fuente = owners
+        if len(owners) > 1:
+            c.motivo = (f'ASIGNACION_SED_AMBIGUA: {c.sed} pertenece a '
+                        f'{", ".join(owners)} en la fuente cargada; revise la pertenencia.')
+            ambiguos.append(c)
+            continue
+        if owners:
+            c.radial_fuente = owners[0]
+            if clave_codigo(c.radial) != clave_codigo(c.radial_fuente):
+                nota = (f'{c.sed}: el libro indica {c.radial or "sin radial"}; '
+                        f'se usa {c.radial_fuente} según la fuente de red cargada.')
+                c.nota_asignacion = ' '.join(filter(None, (c.nota_asignacion, nota)))
+            c.radial = c.radial_fuente
+        buenos.append(c)
+    return buenos, ambiguos
 
 
 def del_alimentador(cruzados: Sequence[ClienteImportante], aparte: Sequence[ClienteImportante],
@@ -1662,8 +1721,11 @@ def del_alimentador(cruzados: Sequence[ClienteImportante], aparte: Sequence[Clie
     cruzados quedaron fuera por ser de otro alimentador.
     """
     claves = {clave_codigo(a) for a in alimentadores if str(a).strip()}
+    from .naming import feeder_short_name
+
     suyo = [c for c in cruzados if clave_codigo(c.radial) in claves]
-    otros = [c for c in aparte if not c.cruzado_por or clave_codigo(c.radial) in claves]
+    otros = [c for c in aparte if not c.cruzado_por or clave_codigo(c.radial) in claves
+             or any(clave_codigo(feeder_short_name(f)) in claves for f in c.radiales_fuente)]
     return suyo, otros, len(cruzados) - len(suyo)
 
 
@@ -1681,6 +1743,8 @@ CLIENTE_COLUMNAS = (
     ('motivo', 'Motivo'),
     # 004:RF-66, al final: las columnas de siempre no cambian de letra en el Excel.
     ('fecha_registro', 'Registro de su Pot'), ('q_registro_kvar', 'kVAR en él'),
+    ('radial_libro', 'Radial del libro'), ('radial_fuente', 'Radial de la fuente'),
+    ('nota_asignacion', 'Nota de asignación'),
 )
 
 

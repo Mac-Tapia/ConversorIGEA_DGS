@@ -60,6 +60,30 @@ def _alim(app, f):
     return next(a for a in app.proyecto.GetContents('*.ElmFeeder', 1) if a.loc_name == f)
 
 
+@pytest.mark.parametrize('anio', [None, 2025])
+def test_estudia_diagnostico_del_anio_por_nombre_y_marca(anio):
+    """037:RF-4, 037:RF-7 — el estudio resuelve el diagnóstico propio del año solicitado."""
+    from cargas_pf import flujo_con_mensajes
+
+    app, feeders = _red(escenario=True)
+    assert casos_pf.preparar_sin(app, {'project': 'P', 'feeders': feeders,
+                                      'anio_casos': anio, 'caso_base_sin_verificar': {}})[1] == 0
+    sin = casos_pf.casos_del_proyecto(app, anio)['sin']
+    casos_pf.cargas_nuevas(app, sin, anio, [], flujo_con_mensajes)
+    inicial = app.GetActiveStudyCase()
+    informe, rc = guion.ejecutar(app, _plan(feeders, caso='cargas', anio_casos=anio))
+    assert rc == 0, informe
+    assert informe['caso'] == 'Cargas nuevas'
+    assert informe['nombre_caso'] == casos_pf.nombre_cargas_nuevas(anio)
+    assert set(informe['medidas']) == set(feeders)
+    assert app.GetActiveStudyCase() is inicial
+    diagnostico = next(c for c in app.carpetas['study'].GetContents('*.IntCase')
+                       if c.loc_name == casos_pf.nombre_cargas_nuevas(anio))
+    diagnostico.desc = []
+    informe, rc = guion.ejecutar(app, _plan(feeders, caso='cargas', anio_casos=anio))
+    assert rc == 2 and not informe['medidas']
+
+
 def test_identidad_nativa_no_depende_del_wrapper_python():
     """PowerFactory puede devolver dos wrappers para la misma variación; la limpieza de
     optimizadores no debe confundir una variación previa con una creada por el estudio."""

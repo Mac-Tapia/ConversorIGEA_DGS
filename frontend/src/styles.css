@@ -258,6 +258,9 @@ small.alert { display: block; margin: 4px 0 0; }
 .table tbody tr.selected { background: var(--primary-soft); }
 .table .num { text-align: right; font-variant-numeric: tabular-nums; }
 .table .check { width: 34px; text-align: center; }
+/* Columnas al ancho de su contenido, sin partir fechas ni textos cortos en varias líneas. */
+.table-ajustada { width: auto; }
+.table-ajustada td { white-space: nowrap; }
 .table .empty { text-align: center; }
 .row-actions { display: flex; gap: 12px; justify-content: flex-end; }
 .empty { color: var(--muted); padding: 18px 0; }

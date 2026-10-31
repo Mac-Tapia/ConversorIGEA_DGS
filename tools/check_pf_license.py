@@ -58,7 +58,7 @@ ORDENES = (
     ('ComLdf', 'Flujo de potencia', 24, 'Base de todo el análisis'),
     ('ComShc', 'Cortocircuito', 25, 'Dimensionar protecciones, verificar Ithr'),
     ('ComSimoutage', 'Contingencias N-1', 26, 'Respaldo entre alimentadores'),
-    ('ComRel3', 'Fiabilidad', 45, 'SAIDI, SAIFI y ENS a 1 US$/kWh'),
+    ('ComRel3', 'Fiabilidad', 45, 'SAIDI, SAIFI y ENS'),
     ('ComRelreport', 'Informe de fiabilidad', 45, 'Salida del análisis de fiabilidad'),
     ('ComOpf', 'Flujo óptimo de potencia', 38, 'Optimización con restricciones de red'),
     ('ComTececo', 'Evaluación técnico-económica', 43, 'VAN de la estrategia de expansión'),

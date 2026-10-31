@@ -12,6 +12,8 @@ REQUIRED_MODULES = (
     'fastapi',
     'uvicorn',
     'multipart',
+    # Sin psutil jobs.py no puede vigilar el límite RAM de los libros (036:RF-1).
+    'psutil',
     # Tercera fuente: VNR-GIS y su normalización GIS/topológica.
     'vnr_etl',
     'requests',

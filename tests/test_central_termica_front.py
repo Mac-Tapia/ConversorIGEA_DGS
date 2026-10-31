@@ -125,6 +125,20 @@ def test_aviso_si_el_mes_no_es_el_de_la_maxima():
     assert 'className="alert alert-warn"' in DEMANDA
 
 
+def test_maxima_del_periodo_junto_a_la_del_mes():
+    """013:RF-14 — junto a la máxima del mes elegido, la del periodo entero y su mes."""
+    assert 'r.maxima_periodo && (' in DEMANDA
+    assert 'en {nombreMes(r.maxima_periodo.mes)} ({r.maxima_periodo.fecha})' in DEMANDA
+    assert 'maxima_periodo?: { fecha: string; kw: number; mes: string } | null;' in TIPOS
+
+
+def test_sin_periodo_no_se_cruzan_clientes():
+    """013:RF-9 — sin un mes (o el año) elegido no se cruzan clientes: el botón espera a que
+    el catálogo esté listo para cruzar con el periodo elegido."""
+    assert '|| !estadoClientes.listoParaCruzar || engineBusy || cruzando} onClick={cruzar}>' in DEMANDA
+    assert 'Todo el registro (elija un mes para cruzar clientes)' in DEMANDA
+
+
 def test_instante_coincidente_de_la_maxima_de_un_alimentador():
     """021:RF-50, 021:RF-52 — tras la búsqueda, se puede calibrar a todos en la máxima de uno:
     se vuelve a buscar con ese instante y se avisa de que es coincidente."""

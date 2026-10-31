@@ -301,6 +301,8 @@ def test_boton_recalibrar_y_su_ruta(tmp_path, monkeypatch):
     assert cmd[cmd.index('--zonal') + 1] == 'Chincha' and cmd[cmd.index('--periodo') + 1] == '2026-07'
     assert '--zonal' not in cmd2 and cmd2[cmd2.index('--red') + 1:cmd2.index('--grupo')] == ['IN111', 'TA225']
     assert cmd2[cmd2.index('--grupo') + 1] == 'IN111_TA225'
+    # 039:RF-1: sin elegir, las fijas coincidentes con la cabecera.
+    assert cmd[cmd.index('--criterio-fijas') + 1] == 'coincidente'
     demanda = (Path(__file__).resolve().parents[1] / 'frontend' / 'src' / 'components' / 'DemandaMedida.tsx').read_text(encoding='utf-8')
     assert 'Recalibrar «Sin proyecto»' in demanda and 'api.recalibrar(ws.id' in demanda
 

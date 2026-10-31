@@ -1,0 +1,147 @@
+"""Spec 042, T4: la obra «SET nueva» en DIgSILENT (doble ``fake_pf``).
+
+El caso real es la SET Copara para NA203 + NA205 (2026-10-31): transformador del módulo PIT,
+red externa con los datos de la de cabecera, y las ramas que pasan a ella, cada una con su
+alimentador nuevo y su tramo de entrada abierto, solo en «Con proyecto».
+"""
+from __future__ import annotations
+
+import random
+
+import pytest
+
+from apoyo import cargar_herramienta
+from igea_dgs.obras_pf import ObrasError, validar_obra
+from test_obras_pf_guion import CON, SIN, _activas, _barra, _calibrada, _linea, _plan
+
+guion = cargar_herramienta('obras_pf.py', 'obras_042', tools_en_path=True)
+SEMILLAS = [11, 23, 57]
+#: Lo que el libro CAPEX no trae del transformador: la uk de IEC 60076-5 y las tomas (042:RF-7).
+PERFIL = {'planificacion': {'transformador_set': {
+    'uk_pct_hasta_mva': [[6.3, 7.0], [25, 8.0], [40, 10.0]], 'toma_paso_pct': 1.25, 'tomas': 8}}}
+
+
+@pytest.fixture()
+def perfil(monkeypatch):
+    monkeypatch.setattr(guion, 'datos_perfil', lambda: PERFIL)
+
+
+def _obra(**extra):
+    return {'clase': 'set_nueva', 'alimentador': 'F1', 'casos': [CON], 'destino': '-14.0005, -75.6995',
+            'ramas': ['F1/F1_B2', 'F2/F2_B2'], 'mva': 25, 'kv_alta': 60, **extra}
+
+
+def _con_red_externa(app):
+    cabecera = _barra(app, 'F1_B0')
+    red = cabecera.GetParent().CreateObject('ElmXnet', 'Red_F1')
+    red.usetp, red.snss, red.rntxn = 1.02, 250.0, 0.1
+    cub = cabecera.CreateObject('StaCubic', 'c_Red_F1')
+    cub.obj_id = red
+    app.escrituras.clear()
+    app.creados.clear()
+    return red
+
+
+def test_la_obra_set_nueva_se_valida():
+    """042:RF-5, 042:RF-6, 042:RF-11 — punto «lat, lon», ramas ALIMENTADOR/NODO, potencia y tensión
+    de alta; solo en «Con proyecto»."""
+    o = validar_obra(_obra())
+    assert o.ramas == ('F1/F1_B2', 'F2/F2_B2') and o.mva == 25 and o.kv_alta == 60
+    with pytest.raises(ObrasError, match='latitud'):
+        validar_obra(_obra(destino='cerca'))
+    with pytest.raises(ObrasError, match='ALIMENTADOR/NODO'):
+        validar_obra(_obra(ramas=['F1']))
+    with pytest.raises(ObrasError):
+        validar_obra(_obra(casos=[SIN]))
+
+
+@pytest.mark.parametrize('semilla', SEMILLAS)
+def test_la_set_nueva_se_crea_solo_en_con_proyecto(semilla, perfil):
+    """042:RF-5, 042:RF-6, 042:RF-7, 042:RF-10, 042:RF-11 — barras de 60 kV y de media, red externa
+    con los datos de la de cabecera, transformador de 25 MVA con la uk de la norma (8 %), una
+    línea y un alimentador nuevo por rama y su tramo de entrada abierto; nada en «Sin proyecto»."""
+    app, alims = _calibrada(random.Random(semilla), n_min=2, cargas_min=3)
+    origen = _con_red_externa(app)
+    informe, codigo = guion.aplicar(app, _plan(alims, obras=[_obra()]))
+    assert codigo == 0, informe
+    (fila,) = informe['obras']
+    assert fila['casos_activos'] == [CON], fila
+    s = fila['set_nueva']
+    assert s['uk_pct'] == pytest.approx(8.0) and s['copiado_de'] == origen.loc_name
+    assert {'usetp', 'snss', 'rntxn'} <= set(s['atributos_copiados'])
+    nuevos = {(x['alimentador'], x['nodo'], x['entrada']) for x in s['alimentadores_nuevos']}
+    assert nuevos == {('F1', 'F1_B2', 'F1_L2'), ('F2', 'F2_B2', 'F2_L2')}
+    assert s['intentos'] and all(x['largo_m'] > 0 for x in s['alimentadores_nuevos'])
+
+    _activas(app, CON)
+    assert _barra(app, 'SET_NUEVA_AT').uknom == 60.0
+    tr = next(o for o in app.proyecto.GetContents('*.ElmTr2', 1) if o.loc_name == 'TR_SET_NUEVA')
+    assert tr.typ_id.strn == 25.0 and tr.typ_id.utrn_h == 60.0
+    red = next(o for o in app.proyecto.GetContents('*.ElmXnet', 1) if o.loc_name == 'Red_SET_NUEVA')
+    assert (red.usetp, red.snss, red.bustp) == (1.02, 250.0, 'SL')
+    assert _linea(app, 'F1_L2').outserv == 1 and _linea(app, 'F2_L2').outserv == 1
+    assert {f['feeder'] for f in s['alimentadores_nuevos']} <= {
+        o.loc_name for o in app.proyecto.GetContents('*.ElmFeeder', 1)}
+
+    _activas(app, SIN)
+    assert not any(b.loc_name == 'SET_NUEVA_AT' for b in app.proyecto.GetContents('*.ElmTerm', 1))
+    assert int(getattr(_linea(app, 'F1_L2'), 'outserv', 0) or 0) == 0
+
+
+def test_sin_red_externa_en_la_cabecera_se_dice(perfil):
+    """042:RF-5 — sin red externa en la cabecera no se sabe con qué alimentar la SET nueva."""
+    app, alims = _calibrada(random.Random(5), n_min=2, cargas_min=3)
+    informe, codigo = guion.aplicar(app, _plan(alims, obras=[_obra()]))
+    assert codigo == 2 and 'red externa' in informe['obras'][0]['error']
+
+
+def test_sin_la_uk_en_el_perfil_no_se_supone():
+    """042:RF-8 — sin la tabla de uk del perfil, la SET nueva no se crea y se dice qué falta."""
+    app, alims = _calibrada(random.Random(7), n_min=2, cargas_min=3)
+    _con_red_externa(app)
+    informe, codigo = guion.aplicar(app, _plan(alims, obras=[_obra()]))
+    assert codigo == 2 and 'uk_pct_hasta_mva' in informe['obras'][0]['error']
+
+
+def test_apartar_variaciones_por_nombre():
+    """042:RF-2 — la escalera carga a carga aparta, además de las de unos alimentadores, las
+    variaciones de carga nueva que se le nombran, y solo esas."""
+    app, alims = _calibrada(random.Random(3), n_min=2, cargas_min=3)
+    _activas(app, CON)
+    v1 = app.carpetas['scheme'].CreateObject('IntScheme', 'Carga_A_F1_1')
+    v1.NewStage('E1', 0, 1)
+    v2 = app.carpetas['scheme'].CreateObject('IntScheme', 'Carga_B_F1_1')
+    v2.NewStage('E2', 0, 1)
+    app.grabando = None
+    apartadas = guion._apartar_cargas_de(app, [], ['Carga_A_F1_1'])
+    assert [v.loc_name for v in apartadas] == ['Carga_A_F1_1']
+    activas = {v.loc_name for v in app.GetActiveNetworkVariations()}
+    assert 'Carga_B_F1_1' in activas and 'Carga_A_F1_1' not in activas
+
+
+def test_datos_de_la_red_para_la_set_nueva():
+    """042:RF-6, 042:RF-7, 042:RF-9 — en «Con proyecto», por alimentador: cabecera, barras con su
+    GPS, tramos, y cada carga en la barra de media de su SED (la de alta de su transformador)."""
+    app, alims = _calibrada(random.Random(9), n_min=2, cargas_min=3)
+    informe, codigo = guion.datos_set_nueva(app, _plan(alims))
+    assert codigo == 0, informe
+    for f in alims:
+        d = informe['alimentadores'][f]
+        assert d['cabecera'] == f'{f}_B0' and d['kv'] == 10.0
+        assert all(b['gps'] for b in d['barras'] if b['nombre'].startswith(f'{f}_B'))
+        assert {t['nombre'] for t in d['tramos']} >= {f'{f}_L1', f'{f}_L2'}
+        por_carga = {c['nombre']: c['barra'] for c in d['cargas']}
+        assert por_carga[f'{f}_S1'] == f'{f}_B1' and all(c['kw'] > 0 for c in d['cargas'])
+
+
+def test_la_escalera_mide_la_barra_de_media_de_una_ampliacion():
+    """042:RF-2 — una ampliación (040:RF-4) cuelga de la barra de baja de su SED; la escalera la
+    mide en la de media (025:RF-50). Con la de baja, en NA203 + NA205 (2026-10-31) todas las
+    variantes salían «la carga nueva en SE50150_BT queda a ? p.u.»."""
+    app, alims = _calibrada(random.Random(13), n_min=2, cargas_min=3)
+    plan = _plan(alims, barras={'F1': ['F1_S2_BT']}, tension_min_pu=0.94)
+    informe, codigo = guion.datos_escalera(app, plan)
+    assert codigo == 0, informe
+    d = informe['alimentadores']['F1']
+    assert d['media'] == {'F1_S2_BT': 'F1_B2'}
+    assert 'F1_B2' in d['existen'] and 'F1_B2' in d['indices']

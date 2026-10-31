@@ -55,7 +55,7 @@ def test_cada_llamada_va_a_una_ruta_de_la_api():
         'obrasBibliotecas': "@app.post('/api/workspaces/{wid}/pf/obras/bibliotecas'",
         'obrasSimular': "@app.post('/api/workspaces/{wid}/pf/obras/simular'",
         'obrasAplicar': "@app.post('/api/workspaces/{wid}/pf/obras/aplicar'",
-        'estudiosCatalogo': "@app.get('/api/pf/estudios')",
+        'estudiosCatalogo': "@app.get('/api/workspaces/{wid}/pf/estudios')",
         'estudiosPlan': "@app.post('/api/workspaces/{wid}/pf/estudios/plan')",
         'estudiosEjecutar': "@app.post('/api/workspaces/{wid}/pf/estudios/{token}/ejecutar'",
         'transferencia': "@app.post('/api/workspaces/{wid}/pf/transferencia'",
@@ -63,7 +63,8 @@ def test_cada_llamada_va_a_una_ruta_de_la_api():
     for funcion, decorador in rutas.items():
         assert f'  {funcion}: ' in API, funcion
         assert decorador in APP_PY, decorador
-    assert '`${ws(id)}/pf/obras/bibliotecas`' in API and "'/api/pf/estudios'" in API
+    assert '`${ws(id)}/pf/obras/bibliotecas`' in API
+    assert '`${ws(id)}/pf/estudios?project=${enc(project)}`' in API
 
 
 def test_obras_en_un_formulario_sin_libro():
@@ -129,12 +130,34 @@ def test_limites_del_perfil_que_el_operador_cambia():
     assert 'los del perfil de empresa' in ESTUDIOS
 
 
+def test_estudios_explican_y_muestran_el_diagnostico():
+    """037:RF-1, 037:RF-5 — los tres casos visibles y las exclusiones del diagnóstico."""
+    assert '«Cargas nuevas»' in ESTUDIOS
+    assert 'plan.casos.join' in ESTUDIOS
+    assert 'r.casos.cargas_nuevas' in ESTUDIOS
+    assert 'no_convergen.map' in ESTUDIOS and 'Cargas excluidas' in ESTUDIOS
+
+
 def test_transferencia_dos_alimentadores_y_el_caso():
     """011:RF-104, 011:RF-105 — dos alimentadores marcados distintos y el caso, «Sin
     proyecto», «Con proyecto» o los dos; el resultado por sentido."""
     assert "feeders: [uno, otro], casos" in TRANSF
     assert 'uno === otro' in TRANSF and 'CASOS_OBRA.map' in TRANSF
     assert '{s.cede} → {s.recibe}' in TRANSF
+
+
+def test_transferencia_en_el_instante_comun_del_periodo():
+    """013:RF-9, 013:RF-22, 013:RF-25, 013:RF-28, 013:RF-29 — sin la máxima de cabecera buscada
+    con un periodo no se habilita; se pide con esa máxima; el resultado dice el instante
+    crítico, las cabeceras antes y después, la cobertura y si es comprobada o parcial."""
+    assert "j.kind === 'demanda_cabecera' && j.result" in TRANSF
+    assert '|| !periodo}' in TRANSF and 'cabecera_job_id: cabecera?.id ?? null' in TRANSF
+    assert '<th>Instante crítico</th>' in TRANSF and '<th>Cabeceras antes → después</th>' in TRANSF
+    assert "t.aceptable ? 'comprobada' : 'parcial, no aceptable'" in TRANSF
+    assert 't.faltantes.map((f) =>' in TRANSF and '{t.criterio}' in TRANSF
+    # Sin lectura de una cabecera no se pinta un cero.
+    assert "return v ? `${fmtNum(v[0], 1)} kW` : '—';" in TRANSF
+    assert 'cabecera_job_id?: string | null' in API
 
 
 def test_guiones_del_operador_en_los_estudios():

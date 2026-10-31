@@ -257,6 +257,22 @@ def test_el_plan_lleva_la_ruta_y_la_carpeta(client):
     assert body['project'] == 'Oct/SI213' and body['folder'] == services.carpeta_pf()
 
 
+def test_el_plan_lleva_las_fichas_de_transformador_del_perfil(client, monkeypatch):
+    """040:RF-5 — el plan de cargas lleva las fichas del perfil, con que el guion propone el
+    transformador de la SED de una ampliación."""
+    from igea_dgs import perfil_empresa
+
+    fichas = {'umbral_carga_pct': 80, 'tablas': []}
+    monkeypatch.setattr(perfil_empresa, 'datos_perfil',
+                        lambda: {'calibracion': {'transformadores_sed': fichas}})
+    wid = _wid(client)
+    r = _plan(client, wid, demandas=DEMANDAS)
+    assert r.status_code == 200, r.text
+    plan = json.loads(Path(client.app.state.store.get(wid).cargas_planes[r.json()['token']]['path'])
+                      .read_text(encoding='utf-8'))
+    assert plan['transformadores_sed'] == fichas
+
+
 def test_formulario_delante_del_libro(client):
     """008:RF-24 — la carga del formulario se aplica antes que las del libro."""
     wid = _wid(client)

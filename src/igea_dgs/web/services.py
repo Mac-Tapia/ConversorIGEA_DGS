@@ -1628,6 +1628,41 @@ def _economia_del_lote(economia: dict | None):
     return costos, tec
 
 
+def _ruta_sed_medidas(ws: Workspace, project: str) -> Path:
+    return ws.root / 'demandas_en_bloque' / f'{nombre_seguro(project.strip())}.json'
+
+
+def _guardar_sed_medidas(ws: Workspace, project: str, demandas: list[dict]) -> None:
+    """Las demandas medidas por SED de «3.1 Demandas en bloque», para la calibración (041:RF-9).
+
+    El libro se sube para cada envío y se borra; la calibración las necesita después: las SED
+    con su medida entran fijas, como las de la tabla cruzada, y solo las demás se escalan con
+    el reparto probabilístico (usuario, 2026-10-31: «en algún momento se cargará un archivo de
+    todas las SED escaladas con sus mediciones reales, donde deberán ser fijas como las tablas
+    cruzadas»; «es 3.1 demanda en bloque»). El último libro del proyecto reemplaza al anterior.
+    """
+    _ruta_sed_medidas(ws, project).parent.mkdir(parents=True, exist_ok=True)
+    write_json_atomic(_ruta_sed_medidas(ws, project), {
+        'project': project.strip(), 'guardado': time.strftime('%Y-%m-%d %H:%M:%S'),
+        'demandas': [{k: d.get(k) for k in ('sed', 'hoja', 'kw', 'kvar')} for d in demandas]})
+
+
+def sed_medidas_de(ws: Workspace, project: str, sed_del_alimentador) -> list[dict]:
+    """Las SED de un alimentador con su demanda medida en 3.1 (041:RF-9), por su código."""
+    from ..demanda_medida import clave_codigo
+
+    ruta = _ruta_sed_medidas(ws, project)
+    if not ruta.is_file():
+        return []
+    try:
+        datos = json.loads(ruta.read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return []
+    suyas = {clave_codigo(str(s)) for s in sed_del_alimentador}
+    return [d for d in datos.get('demandas') or []
+            if clave_codigo(str(d.get('sed') or '')) in suyas and d.get('kw') is not None]
+
+
 def cargas_plantilla(ws: Workspace, tipo: str, fmt: str) -> Path:
     """Plantilla **vacía** de demandas o de cargas nuevas: sin modelo ni entradas (RF-1)."""
     from ..cargas_pf import escribir_plantilla
@@ -1730,6 +1765,11 @@ def cargas_plan(
             carpeta=carpeta_pf(), base=base, minima_m=minima_m,
         )
         plan['native_action_context'] = action_context
+        # 040:RF-5: las fichas del perfil para proponer el transformador de la SED de una
+        # ampliación, las mismas que la calibración (020:RF-31).
+        from ..perfil_empresa import datos_perfil
+
+        plan['transformadores_sed'] = (datos_perfil().get('calibracion') or {}).get('transformadores_sed')
         # 025:RF-36, RF-37: en los casos del año de la calibración base.
         plan['anio_casos'] = (base or {}).get('anio_casos')
         # 015:RF-17: «Sin» y «Con proyecto» solo se crean con el «Caso base» verificado.
@@ -1738,6 +1778,8 @@ def cargas_plan(
         plan['caso_base_sin_verificar'] = caso_base_verificado(ws, project, feeders)
     except LoadTemplateError as exc:
         raise UserError(str(exc)) from exc
+    if plan['demandas']:
+        _guardar_sed_medidas(ws, project, plan['demandas'])                      # 041:RF-9
     token = uuid.uuid4().hex[:12]
     ws.plans_dir.mkdir(parents=True, exist_ok=True)
     path = ws.plans_dir / f'cargas_pf_{token}.json'
@@ -2228,7 +2270,9 @@ def demanda_cabecera(ws: Workspace, ctx: JobContext, pares: list[tuple[str, str]
     # La curva no va en el resultado, que viaja entero por el WebSocket: se guarda aparte
     # y se pide reducida (spec 006, RF-31 y RF-39).
     with ws.lock:
-        ws.curvas_cabecera = {ctx.job.id: {r.medidor: {'curva': r.curva, 'fuera': r.fuera_de_curva}
+        # 013:RF-22: con su alimentador, para cruzar las cabeceras en la transferencia.
+        ws.curvas_cabecera = {ctx.job.id: {r.medidor: {'curva': r.curva, 'fuera': r.fuera_de_curva,
+                                                       'alimentador': r.alimentador}
                                            for r in res if r.curva}}
         ws.criterio_cabecera = {ctx.job.id: {'periodo': periodo, 'instante': instante}}
     return {'resultados': [r.to_dict() for r in res],
@@ -2373,7 +2417,8 @@ def _demanda_por_barra(ws: Workspace, ctx: JobContext, pares: list[tuple[str, st
     for aviso in avisos:
         ctx.log(f'  aviso: {aviso}')
     with ws.lock:
-        ws.curvas_cabecera = {ctx.job.id: {r.medidor: {'curva': r.curva, 'fuera': r.fuera_de_curva}
+        ws.curvas_cabecera = {ctx.job.id: {r.medidor: {'curva': r.curva, 'fuera': r.fuera_de_curva,
+                                                       'alimentador': r.alimentador}
                                            for r in list(res) + list(de_barra) if r.curva}}
         ws.criterio_cabecera = {ctx.job.id: {'periodo': periodo, 'instante': None,
                                              'instantes': instantes}}
@@ -2505,19 +2550,79 @@ def demanda_curva_central(ws: Workspace, job_id: str, *, alimentador: str, cabec
             'total': len(tramo), 'reducida': len(reducidos) < len(tramo), 'fuera_de_curva': 0}
 
 
+def _cruzar_clientes_en_red(ws: Workspace, clientes, suministros):
+    """038:RF-1: una pasada por fuente; la pertenencia precede al filtro por radial."""
+    from ..demanda_medida import cruzar, reconciliar_radiales
+    from ..model import extract_sed_code
+
+    cruzados, aparte = cruzar(clientes, suministros)
+    # Un plan llama este cruce por alimentador: no releer toda la red por cada uno (P2).
+    with ws.lock:
+        dataset = ws.dataset
+        cache = ws._sed_owners_cache
+        if cache is not None and cache[0] is dataset:
+            nombres = cache[1]
+        else:
+            propietarios: dict[str, set[str]] = {}
+            for (section, device), row in getattr(dataset, 'customer_loads', {}).items():
+                sed = extract_sed_code(row.get('CustomerNumber', ''), device, section)
+                owner = dataset.section_owner.get(section)
+                if sed and owner:
+                    propietarios.setdefault(sed, set()).add(owner)
+            redes = {owner for owners in propietarios.values() for owner in owners}
+            cortos_por_red = {owner: feeder_short_name(owner) for owner in redes}
+            nombres = {}
+            for sed, owners in propietarios.items():
+                cortos = {cortos_por_red[owner] for owner in owners}
+                # Dos NetworkID distintos con el mismo nombre corto siguen siendo ambiguos.
+                nombres[sed] = cortos if len(cortos) == len(owners) else owners
+            ws._sed_owners_cache = (dataset, nombres)
+    cruzados, ambiguos = reconciliar_radiales(cruzados, nombres)
+    return cruzados, aparte + ambiguos
+
+
+#: 039:RF-1: criterio de todas las fijas de la tabla cruzada; por defecto, coincidente.
+CRITERIO_COINCIDENTE, CRITERIO_MAXIMO_MES = 'coincidente', 'maximo_mes'
+CRITERIOS_FIJAS = (CRITERIO_COINCIDENTE, CRITERIO_MAXIMO_MES)
+
+
+def _criterio_fijas(criterio: str | None) -> str:
+    c = (criterio or CRITERIO_COINCIDENTE).strip()
+    if c not in CRITERIOS_FIJAS:
+        raise UserError(f'Criterio de las fijas «{c}»: es «{CRITERIO_COINCIDENTE}» o '
+                        f'«{CRITERIO_MAXIMO_MES}» (039:RF-1).')
+    return c
+
+
+def _sin_coincidente(codigo: str, instante: datetime | None) -> str:
+    """El motivo de 039:RF-4, con el periodo que daría la misma fecha."""
+    if instante is None:
+        return (f'{codigo}: la máxima de su alimentador no tiene fecha y no hay registro '
+                'coincidente; elija «máximo del mes» (039:RF-4).')
+    return (f'{codigo}: el libro de clientes no tiene su registro del {instante:%d/%m/%Y %H:%M}; '
+            f'elija el periodo {instante:%Y-%m} de los clientes o «máximo del mes» (039:RF-4).')
+
+
 def demanda_clientes(ws: Workspace, alimentadores: list[str] | None = None,
                      *, periodo: str | None = None, instante: datetime | None = None,
-                     maximas: dict[str, dict] | None = None) -> dict:
+                     maximas: dict[str, dict] | None = None,
+                     criterio: str | None = None) -> dict:
     """Clientes importantes cruzados con los suministros (RF-33 a RF-37); con
     ``alimentadores``, solo los de esos alimentadores por su radial (RF-43).
 
     Con ``maximas`` (alimentador → su máxima de cabecera buscada), cada alimentador con el
     registro del instante de su máxima y el libro de su mes, y cada cliente con la P y la Q
     que el ajuste escribirá en su SED (035:RF-1 a RF-3).
+
+    ``criterio`` (039:RF-1 a RF-4): «coincidente» (por defecto) toma de cada fija solo su
+    registro del instante de la máxima, y la que no lo tiene va en ``no_coincidentes``;
+    «maximo_mes», el registro de su POT del mes.
     """
+    criterio = _criterio_fijas(criterio)
     if maximas:
-        return _clientes_en_sus_maximas(ws, alimentadores or list(maximas), maximas, periodo)
-    from ..demanda_medida import (DemandaError, cruzar, del_alimentador, leer_clientes,
+        return _clientes_en_sus_maximas(ws, alimentadores or list(maximas), maximas, periodo,
+                                        criterio)
+    from ..demanda_medida import (DemandaError, del_alimentador, leer_clientes,
                                   leer_suministros, registros_de_maxima)
 
     alias = demanda_alias()
@@ -2532,27 +2637,37 @@ def demanda_clientes(ws: Workspace, alimentadores: list[str] | None = None,
     mes = next((str(x.get('mes') or '') or None
                 for x in (ws.demanda.get('clientes') or {}).get('catalogo') or []
                 if x.get('activo') and x.get('nombre') == libro.name), None)
-    cruzados, aparte = cruzar(clientes, suministros)
+    cruzados, aparte = _cruzar_clientes_en_red(ws, clientes, suministros)
     alimentadores = [a.strip() for a in alimentadores or [] if a.strip()]
     de_otros = 0
     if alimentadores:
         cruzados, aparte, de_otros = del_alimentador(cruzados, aparte, alimentadores)
     # 004:RF-66: la reactiva de cada cliente en el registro de 15 minutos de su POT, de su
     # hoja del mismo libro; solo los cruzados (los de un alimentador, en el plan).
+    coincidente = criterio == CRITERIO_COINCIDENTE
     try:
-        registro, avisos_r = registros_de_maxima(libro, {c.codigo: c.pot for c in cruzados},
-                                                 instante=instante)
+        registro, avisos_r = registros_de_maxima(
+            libro, {c.codigo: c.pot for c in cruzados},
+            instante=instante if coincidente else None, solo_instante=coincidente)
     except DemandaError as exc:
         registro, avisos_r = {}, [str(exc)]
+    filas = []
     for c in cruzados:
-        if c.codigo in registro:
+        if registro.get(c.codigo):
             c.fecha_registro, c.q_registro_kvar, c.p_registro_kw = registro[c.codigo]
+        fila = c.to_dict()
+        # Sin instante (la tabla sin máxima buscada) no hay con qué coincidir: su POT.
+        if c.codigo in registro and registro[c.codigo] is None:
+            fila['sin_coincidente'] = _sin_coincidente(c.codigo, instante)       # 039:RF-4
+        filas.append(fila)
     avisos_c = avisos_c + avisos_r
     return {
         'alimentadores': alimentadores,
         'libro': libro.name,
         'mes': mes,
-        'cruzados': [c.to_dict() for c in cruzados],
+        'criterio': criterio,
+        'no_coincidentes': [f['sin_coincidente'] for f in filas if f.get('sin_coincidente')],
+        'cruzados': filas,
         'no_cruzados': [c.to_dict() for c in aparte],
         'avisos': avisos_s + avisos_c,
         'totales': {'clientes': len(clientes), 'cruzados': len(cruzados), 'no_cruzados': len(aparte),
@@ -2563,7 +2678,7 @@ def demanda_clientes(ws: Workspace, alimentadores: list[str] | None = None,
 
 
 def _clientes_en_sus_maximas(ws: Workspace, alimentadores: list[str], maximas: dict[str, dict],
-                             periodo: str | None) -> dict:
+                             periodo: str | None, criterio: str = CRITERIO_COINCIDENTE) -> dict:
     """La tabla de clientes con lo que el ajuste escribirá (035:RF-1 a RF-3).
 
     Hasta el 2026-10-29 la tabla se cruzaba sin instante: la POT de cada cliente, cada una de
@@ -2574,7 +2689,7 @@ def _clientes_en_sus_maximas(ws: Workspace, alimentadores: list[str], maximas: d
     alimentadores de una barra de 60 kV comparten el suyo (022:RF-84).
     """
     from ..ajuste_cabecera import AjusteError, derivacion_cliente, objetivo_de
-    from ..demanda_medida import (DemandaError, clave_codigo, cruzar, del_alimentador,
+    from ..demanda_medida import (DemandaError, clave_codigo, del_alimentador,
                                   leer_clientes, leer_suministros, registros_de_maxima)
     from ..perfil_empresa import PerfilError, datos_perfil, factor_potencia_cargas
 
@@ -2596,7 +2711,7 @@ def _clientes_en_sus_maximas(ws: Workspace, alimentadores: list[str], maximas: d
             objetivos[f] = objetivo_de({**m, 'alimentador': f})
         except AjusteError as exc:
             avisos.append(f'{f}: {exc} La tabla no puede decir su P y su Q.')
-        if instante is None:
+        if instante is None and criterio == CRITERIO_MAXIMO_MES:
             avisos.append(f'{f}: sin fecha de su máxima; sus clientes con el registro de su POT.')
         mes = instante.strftime('%Y-%m') if instante else periodo
         grupos.setdefault((mes, instante), []).append(f)
@@ -2606,7 +2721,8 @@ def _clientes_en_sus_maximas(ws: Workspace, alimentadores: list[str], maximas: d
         raise UserError(str(exc)) from exc
     avisos += avisos_s
     libros: dict[str | None, tuple] = {}
-    cruzados_out, aparte_out, de_otros, leidos = [], {}, 0, []
+    cruzados_out, aparte_out, de_otros, leidos, no_coincidentes = [], {}, 0, [], []
+    coincidente = criterio == CRITERIO_COINCIDENTE
     total_clientes = 0
     for (mes, instante), feeders in sorted(grupos.items(), key=lambda g: (g[0][0] or '', str(g[0][1]))):
         if mes:
@@ -2627,7 +2743,7 @@ def _clientes_en_sus_maximas(ws: Workspace, alimentadores: list[str], maximas: d
                 raise UserError(str(exc)) from exc
             avisos += avisos_c
             total_clientes += len(clientes)
-            libros[mes] = (libro, cruzar(clientes, suministros))
+            libros[mes] = (libro, _cruzar_clientes_en_red(ws, clientes, suministros))
             leidos.append({'mes': mes, 'libro': libro.name})
         libro, (todos, aparte_mes) = libros[mes]
         suyos, aparte, otros = del_alimentador(todos, aparte_mes, feeders)
@@ -2635,16 +2751,26 @@ def _clientes_en_sus_maximas(ws: Workspace, alimentadores: list[str], maximas: d
         for c in aparte:
             aparte_out.setdefault(c.codigo, c)
         try:
-            registro, avisos_r = registros_de_maxima(libro, {c.codigo: c.pot for c in suyos},
-                                                     instante=instante)
+            # 039:RF-2, RF-3: el registro de su POT del mes o solo el del instante.
+            registro, avisos_r = registros_de_maxima(
+                libro, {c.codigo: c.pot for c in suyos},
+                instante=instante if coincidente else None, solo_instante=coincidente)
         except DemandaError as exc:
             registro, avisos_r = {}, [str(exc)]
         avisos += avisos_r
         por_clave = {clave_codigo(f): f for f in feeders}
         for c in suyos:
-            if c.codigo in registro:
+            if registro.get(c.codigo):
                 c.fecha_registro, c.q_registro_kvar, c.p_registro_kw = registro[c.codigo]
             fila = c.to_dict()
+            # 039:RF-4: con hoja y sin su registro del instante (o sin fecha de la máxima,
+            # sin nada con qué coincidir): no toma otro y lo dice.
+            if coincidente and (c.codigo in registro and registro[c.codigo] is None
+                                or instante is None and c.codigo in registro):
+                fila['sin_coincidente'] = _sin_coincidente(c.codigo, instante)
+                no_coincidentes.append(fila['sin_coincidente'])
+                if instante is None:
+                    fila.update(fecha_registro=None, q_registro_kvar=None, p_registro_kw=None)
             f = por_clave.get(clave_codigo(c.radial))
             obj = objetivos.get(f) if f else None
             fila['alimentador_maxima'] = f
@@ -2665,6 +2791,8 @@ def _clientes_en_sus_maximas(ws: Workspace, alimentadores: list[str], maximas: d
         'mes': leidos[0]['mes'] if len(leidos) == 1 else None,
         'maximas': {f: (inst.isoformat(sep=' ') if inst else None)
                     for (_mes, inst), fs in grupos.items() for f in fs},
+        'criterio': criterio,
+        'no_coincidentes': no_coincidentes,
         'cruzados': cruzados_out,
         'no_cruzados': aparte_list,
         'avisos': list(dict.fromkeys(avisos)),
@@ -2674,6 +2802,110 @@ def _clientes_en_sus_maximas(ws: Workspace, alimentadores: list[str], maximas: d
                     'por_anterior': sum(c.get('cruzado_por') == 'anterior' for c in cruzados_out),
                     'de_otros': de_otros},
     }
+
+
+def comparar_criterios_fijas(ws: Workspace, ctx: JobContext, project: str,
+                             alimentadores: list[str], maximas: dict[str, dict],
+                             periodo: str | None = None) -> dict:
+    """Las fijas con los dos criterios, frente a la cabecera y a la red simulada (039:RF-5).
+
+    NA203 (2026-10-31): con la POT de cada fija las 15 sumaban 3 725,5 kvar y la cabecera
+    medía 1 711; en un mismo instante, 3 061 frente a 1 717. La red y los bancos ponen su P y su
+    Q, las de la última simulación en DIgSILENT (cabecera simulada menos lo que consumen sus
+    cargas). Con cada criterio se dice entre qué Q de cabecera puede quedar la red con las
+    escaladas entre FP 1 y su mínimo, y si la medida cae ahí: si es coherente y la recalibración
+    la cuadrará (035:RF-28). El usuario, el 2026-10-31, no entendía una «Q para las escaladas»
+    negativa que la red no tiene. Solo lee: no abre DIgSILENT.
+    """
+    import math
+
+    from ..ajuste_cabecera import TOLERANCIA_Q
+    from ..perfil_empresa import PerfilError, datos_perfil, factor_potencia_cargas
+
+    try:
+        fp_minimo = (factor_potencia_cargas(datos_perfil(), 'factor_potencia_minimo_escaladas')
+                     or factor_potencia_cargas(datos_perfil()))
+    except PerfilError as exc:
+        raise UserError(f'Perfil de empresa: {exc}') from exc
+    tablas = {}
+    for criterio in CRITERIOS_FIJAS:
+        ctx.log(f'Fijas con el criterio «{criterio}»…')
+        tablas[criterio] = _clientes_en_sus_maximas(ws, alimentadores, maximas, periodo, criterio)
+    anio_base, _aviso = anio_de_los_casos(ws, project) if project.strip() else (None, None)
+    en_disco = ajuste_aplicado_en_disco(ws, project) if project.strip() else None
+    salida = []
+    for f in alimentadores:
+        filas: dict[str, dict] = {}
+        sumas = {c: {'p_kw': 0.0, 'q_kvar': 0.0, 'sin_registro': 0} for c in CRITERIOS_FIJAS}
+        for criterio, tabla in tablas.items():
+            for c in tabla['cruzados']:
+                if c.get('alimentador_maxima') != f or c.get('p_kw') is None:
+                    continue
+                fila = filas.setdefault(str(c.get('codigo')), {
+                    'codigo': c.get('codigo'), 'sed': c.get('sed'), 'nombre': c.get('nombre')})
+                fila[criterio] = {'p_kw': c['p_kw'], 'q_kvar': c.get('q_kvar'),
+                                  'fecha': c.get('fecha_valores'), 'metodo': c.get('metodo'),
+                                  'sin_coincidente': c.get('sin_coincidente')}
+                # 039:RF-4: la que no tiene el registro no suma con otro.
+                if c.get('sin_coincidente'):
+                    sumas[criterio]['sin_registro'] += 1
+                    continue
+                sumas[criterio]['p_kw'] += c['p_kw']
+                sumas[criterio]['q_kvar'] += c.get('q_kvar') or 0.0
+        m = maximas.get(f) or {}
+        cabecera = {'fecha': m.get('fecha'), 'kw': m.get('kw'), 'kvar': m.get('kvar')}
+        anio = int(str(m['fecha'])[:4]) if str(m.get('fecha') or '')[:4].isdigit() else None
+        anio_casos = anio if anio and anio_base and anio != anio_base else None
+        previa = ((ws.calibraciones.get(clave_calibracion(project, anio_casos)) or {}).get(f)
+                  if project.strip() else None) or {}
+        red = None
+        cab_sim = previa.get('cabecera') or {}
+        if cab_sim.get('kvar') is not None and cab_sim.get('kw') is not None:
+            p_cargas = sum(x for x, _q in (previa.get('sed') or {}).values() if x is not None)
+            q_cargas = sum(q for _p, q in (previa.get('sed') or {}).values() if q is not None)
+            red = {'calibracion': previa.get('nombre'), 'cabecera_kvar': cab_sim['kvar'],
+                   'cargas_kvar': q_cargas, 'red_y_bancos_kvar': cab_sim['kvar'] - q_cargas,
+                   'red_kw': cab_sim['kw'] - p_cargas, 'bancos_kvar': previa.get('bancos_kvar')}
+        elif previa and en_disco:
+            # Las calibraciones guardadas antes del 2026-10-31 no llevan la cabecera simulada;
+            # su informe en disco sí (NA203: sin esto la comparación no descontaba la red).
+            inf, nombre = next(((i, n) for i, n in zip(en_disco.get('informes') or [],
+                                                         en_disco.get('reports') or [])
+                                if i.get('feeder') == f and i.get('caso') == previa.get('caso')),
+                               (None, None))
+            cab_inf = (inf or {}).get('cabecera') or {}
+            if inf is not None and cab_inf.get('kvar') is not None and cab_inf.get('kw') is not None:
+                despues = [x.get('despues') or {} for x in inf.get('sed') or []]
+                p_cargas = sum(d.get('kw') or 0.0 for d in despues)
+                q_cargas = sum(d.get('kvar') or 0.0 for d in despues)
+                red = {'calibracion': f'el informe {nombre}', 'cabecera_kvar': cab_inf['kvar'],
+                       'cargas_kvar': q_cargas, 'red_y_bancos_kvar': cab_inf['kvar'] - q_cargas,
+                       'red_kw': cab_inf['kw'] - p_cargas,
+                       'bancos_kvar': (inf.get('cuadre_q') or {}).get('bancos_kvar')}
+        coherencia = {}
+        if red is not None and cabecera['kw'] is not None and cabecera['kvar'] is not None:
+            medido = float(cabecera['kvar'])
+            holgura = TOLERANCIA_Q * max(abs(medido), 1e-9)
+            for criterio, sm in sumas.items():
+                # Las escaladas ponen la P que falta; su Q va de 0 (FP 1) a la de su FP mínimo.
+                esc_kw = max(0.0, float(cabecera['kw']) - sm['p_kw'] - red['red_kw'])
+                q_fp1 = sm['q_kvar'] + red['red_y_bancos_kvar']
+                q_min = (q_fp1 + esc_kw * math.tan(math.acos(fp_minimo))) if fp_minimo else q_fp1
+                coherencia[criterio] = {
+                    'escaladas_kw': esc_kw, 'q_fp1_kvar': q_fp1, 'q_fp_minimo_kvar': q_min,
+                    'fp_minimo': fp_minimo,
+                    'coherente': q_fp1 - holgura <= medido <= q_min + holgura,
+                    'lado': ('alta' if medido < q_fp1 - holgura else
+                             'baja' if medido > q_min + holgura else None)}
+        salida.append({'alimentador': f, 'cabecera': cabecera, 'fijas': sorted(
+            filas.values(), key=lambda x: (str(x.get('sed') or ''), str(x.get('codigo') or ''))),
+            'sumas': sumas, 'red': red, 'coherencia': coherencia})
+    avisos = list(dict.fromkeys(a for t in tablas.values() for a in t['avisos']))
+    if not any(x['red'] for x in salida):
+        avisos.append('Sin calibración guardada con su cabecera simulada: no se sabe la P y la Q de '
+                      'la red ni de los bancos, ni si la medida es coherente; calibre antes.')
+    return {'project': project, 'alimentadores': salida, 'avisos': avisos,
+            'libro': tablas[CRITERIO_COINCIDENTE]['libro']}
 
 
 def demanda_excel(ws: Workspace, datos: dict) -> Path:
@@ -2958,7 +3190,8 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
                 centrales: dict[str, dict] | None = None,
                 tension_fuente_pu: float | None = None,
                 completar_bancos: bool = False,
-                barras: list[dict] | None = None) -> dict:
+                barras: list[dict] | None = None,
+                criterio_fijas: str | None = None) -> dict:
     """Plan para ``tools/ajuste_cabecera_pf.py`` (spec 006, RF-1 a RF-3, RF-10).
 
     ``maximas`` es el resultado del trabajo de la máxima de cabecera que el operador ve
@@ -2972,13 +3205,17 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
 
     import time as _time
 
-    from ..ajuste_cabecera import AjusteError, Objetivo, fijas_de, objetivo_de
+    import zlib
+
+    from ..ajuste_cabecera import (N_PROBABILISTICO, AjusteError, Objetivo, fijas_de, objetivo_de,
+                                   probabilistico_del_perfil)
     from ..demanda_medida import periodo_de_fecha
     from ..perfil_empresa import PerfilError, bancos_kvar_por_tension, datos_perfil, factor_potencia_cargas
     from ..powerfactory_binding import PowerFactoryProjectBinding, caso_base_verificado
 
     if not project.strip():
         raise UserError('Elija el proyecto de DIgSILENT.')
+    criterio_fijas = _criterio_fijas(criterio_fijas)                           # 039:RF-1
     filas = _medidores_del_ajuste(maximas, medidor, medidores)
     # 025:RF-18: un año cada vez; antes que nada, para que el motivo sea este.
     anios_medidos = {int(str(f['fecha'])[:4]) for f in filas
@@ -2992,9 +3229,18 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
         fp_cargas = factor_potencia_cargas(datos_perfil())
         # 015:RF-62: el mínimo de las fijas, por su banco propio.
         fp_min_fijas = factor_potencia_cargas(datos_perfil(), 'factor_potencia_minimo_fijas')
+        # 035:RF-28: el FP más bajo de las escaladas al cuadrar la Q; sin él, su FP de perfil.
+        fp_min_escaladas = factor_potencia_cargas(datos_perfil(), 'factor_potencia_minimo_escaladas')
+        # 041:RF-3, RF-6: lo del perfil para el reparto probabilístico, si no hay fijas
+        # bastantes, y la banda de tensión de sus estudios.
+        prob_perfil = probabilistico_del_perfil(datos_perfil())
+        est = datos_perfil().get('estudios') or {}
+        banda = ([float(est['tension_min_pu']), float(est['tension_max_pu'])]
+                 if est.get('tension_min_pu') is not None and est.get('tension_max_pu') is not None
+                 else None)
         # 021:RF-65: el tamaño de los bancos que falten, por tensión.
         por_tension = bancos_kvar_por_tension(datos_perfil()) if completar_bancos else None
-    except PerfilError as exc:
+    except (PerfilError, AjusteError) as exc:
         raise UserError(f'Perfil de empresa: {exc}') from exc
     requested_feeders = [str(row.get('alimentador') or '').strip() for row in filas]
     action_context = native_action_context(ws, project, requested_feeders, 'ajuste')
@@ -3110,10 +3356,15 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
                 instante_obj = datetime.fromisoformat(str(objetivo.fecha)) if objetivo.fecha else None
             except ValueError:
                 instante_obj = None
-            clientes = demanda_clientes(
+            cruce = demanda_clientes(
                 ws, sorted(implicados) or [alimentador], periodo=client_period.period,
-                instante=instante_obj,
-            )['cruzados']
+                instante=instante_obj, criterio=criterio_fijas,
+            )
+            ambiguas = [c for c in cruce['no_cruzados'] if len(c.get('radiales_fuente') or []) > 1]
+            if ambiguas:
+                raise UserError('ASIGNACION_SED_AMBIGUA: no se puede preparar el ajuste; '
+                                + '; '.join(c['motivo'] for c in ambiguas))
+            clientes = cruce['cruzados']
             if implicados:
                 # 022:RF-63: el libro de suministros dice el alimentador de siempre (RADIAL);
                 # en una red reconstruida, los clientes son los de sus SED en el DGS: los
@@ -3123,6 +3374,15 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
             avisos.append('Sin libros de suministros y de clientes: todas las SED se reparten por kVA.')
         apagados = [c for c in clientes if str(c.get('codigo') or '').strip() in fuera]
         clientes = [c for c in clientes if str(c.get('codigo') or '').strip() not in fuera]
+        # 039:RF-4: con «coincidente», una fija sin su registro del instante no toma otro y
+        # no se aplica hasta que el operador elija el periodo de esa fecha o el máximo del mes.
+        sin_registro = [c['sin_coincidente'] for c in clientes if c.get('sin_coincidente')]
+        if sin_registro:
+            motivo = pre + 'FIJAS_SIN_REGISTRO_COINCIDENTE: ' + ' '.join(sin_registro)
+            if not varios:
+                raise UserError(motivo)
+            avisos.append(motivo + ' No se calibra.')
+            continue
         fixed = fijas_de(clientes, objetivo, fp_min_fijas)
         fixed_evidence = [{
             'sed': item.sed, 'p_kw': item.kw, 'q_kvar': item.kvar, 'fp': item.fp,
@@ -3157,6 +3417,7 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
             ),
             'periodo': period_evidence,
             'client_evidence': client_period.to_dict(),
+            'criterio_fijas': criterio_fijas,                                    # 039:RF-6
             'fixed_load_evidence': fixed_evidence,
             'variacion': f'Ajuste_{alimentador}_{stamp}',
             'objetivo': {'kw': objetivo.kw, 'kvar': objetivo.kvar, 'medidor': objetivo.medidor,
@@ -3174,6 +3435,17 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
             # 015:RF-54: solo las escaladas; None deja la Q del archivo (RF-55).
             'factor_potencia_cargas': fp_cargas,
             'factor_potencia_minimo_fijas': fp_min_fijas,
+            'factor_potencia_minimo_escaladas': fp_min_escaladas,
+            # 041:RF-9: las SED con su demanda medida en «3.1 Demandas en bloque», fijas.
+            'sed_medidas': sed_medidas_de(ws, project, kva_entrada),
+            # 041:RF-1 a RF-7: el reparto probabilístico de las escaladas, con una semilla que
+            # sale de lo que se calibra (la misma máxima, el mismo sorteo) y se guarda.
+            'probabilistico': {
+                'n': prob_perfil.n if prob_perfil else N_PROBABILISTICO,
+                'semilla': zlib.crc32(f'{project.strip()}|{alimentador}|{objetivo.fecha}'.encode()),
+                'perfil': ({'dispersion': prob_perfil.dispersion, 'pendiente': prob_perfil.pendiente}
+                           if prob_perfil else None)},
+            'banda_tension': banda,
             # 020:RF-6 a RF-12: las fichas del perfil para proponer transformadores nuevos;
             # el guion las valida con la misma lectura (020:RF-31).
             'transformadores_sed': (datos_perfil().get('calibracion') or {}).get(
@@ -3238,7 +3510,8 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
             'source': plan['source'], 'project_binding': plan['project_binding'],
             'native_action_context': action_context,
             'feeders': feeders, 'ajustes': ajustes, 'avisos': avisos, 'sistema': sistema,
-            'anio_medicion': anio_medicion, 'anio_casos': anio_casos, 'caso': caso_calibracion}
+            'anio_medicion': anio_medicion, 'anio_casos': anio_casos, 'caso': caso_calibracion,
+            'criterio_fijas': criterio_fijas}
 
 
 def clave_calibracion(project: str, anio_casos: int | None) -> str:
@@ -3321,7 +3594,10 @@ def _guardar_calibracion(ws: Workspace, project: str, feeder: str, informe: dict
                        f"{informe.get('stamp') or time.strftime('%Y-%m-%d %H:%M')}"),
             'sed': sed, 'escrita': escrita, 'fijas': fijas, 'cuadrado': bool(informe.get('cuadrado')),
             'escenario': informe.get('escenario'), 'recorded_at': time.time(),
-            'anio': anio_medicion, 'caso': informe.get('caso'), 'recalibracion': numero}
+            'anio': anio_medicion, 'caso': informe.get('caso'), 'recalibracion': numero,
+            # 039:RF-5: la cabecera simulada y los bancos, para la Q de la red sin las cargas.
+            'cabecera': {k: (informe.get('cabecera') or {}).get(k) for k in ('kw', 'kvar')},
+            'bancos_kvar': (informe.get('cuadre_q') or {}).get('bancos_kvar')}
         if anio_medicion and not anio_casos:
             # 025:RF-17: desde ahora los casos sin año son de este año.
             ws.anios_casos.setdefault(project.strip(), int(anio_medicion))
@@ -4599,8 +4875,13 @@ def _curva_del_anio(ws: Workspace, ctx: JobContext, anio: int, medidores: dict[s
 
 def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *,
                    anio_casos: int | None = None, tipo_cambio: float | None = None,
-                   capex: str | None = None) -> dict:
+                   capex: str | None = None, cargas_activas: list[str] | None = None,
+                   aplicar: bool = True) -> dict:
     """Escalera optimizada de obras sobre «Con proyecto <año>» (025:RF-44, RF-49 a RF-60, RF-67).
+
+    042:RF-1 a RF-3: con ``cargas_activas`` (nombres de sus variaciones) solo esas cargas nuevas
+    cuentan y las demás se apartan; sin ``aplicar`` se evalúa y no se crea ninguna obra, para
+    saber cuántas caben en la red existente.
 
     Usuario, 2026-10-24: «primero se debe probar bancos, después nueva terna, cambio de
     sección de cable, donde se debe iterar varias veces hasta obtener la mejor solución según
@@ -4633,8 +4914,16 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
         anio_casos = next((int(m.group(1)) for i in base.get('informes') or []
                            if (m := re.search(r'(\d{4})$', str(i.get('caso') or '')))), None)
     cargas = _cargas_nuevas_aplicadas(ws, project)
+    apartar_variaciones: list[str] = []
+    if cargas_activas is not None:                                              # 042:RF-2
+        activas = set(cargas_activas)
+        apartar_variaciones = sorted(str(c['variacion']) for c in cargas
+                                     if c.get('variacion') and c['variacion'] not in activas)
+        cargas = [c for c in cargas if c.get('variacion') in activas]
     con_cargas = [f for f in feeders if any(clave_codigo(c.get('alimentador')) == clave_codigo(f) for c in cargas)]
     if not con_cargas:
+        if cargas_activas is not None:
+            return {'project': project.strip(), 'anio_casos': anio_casos, 'alimentadores': [], 'avisos': []}
         raise UserError('Ningún alimentador marcado tiene cargas nuevas aplicadas: no hay escalera que hacer.')
     faltan = [f for f in feeders if not (objetivos.get(f) or {}).get('kw') or not (objetivos.get(f) or {}).get('medidor')]
     if faltan:
@@ -4683,7 +4972,8 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
         # 025:RF-69: activas solo sus cargas nuevas y las de los ya resueltos.
         comun = {'project': project.strip(), 'folder': carpeta_pf(), 'anio_casos': anio_casos,
                  'native_action_context': native_action_context(ws, project, [f], 'obras'),
-                 'apartar_cargas_de': [g for g in con_cargas if g != f and g not in resueltos]}
+                 'apartar_cargas_de': [g for g in con_cargas if g != f and g not in resueltos],
+                 'apartar_variaciones': apartar_variaciones}
         de_f = [c for c in cargas if clave_codigo(c.get('alimentador')) == clave_codigo(f)]
         barras = list(dict.fromkeys(str(c['barra']) for c in de_f if c.get('barra')))
         rc, datos, _rep = _guion_pf(ws, ctx, 'obras_pf.py', {
@@ -4696,11 +4986,20 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             fila['avisos'].append(datos.get('error') or f'{f}: no se pudo leer su troncal en DIgSILENT.')
             resultado.append(fila)
             continue
+        # 042: la barra de media de cada carga; la de una ampliación es la de baja de su SED.
+        media = d.get('media') or {}
+        barras = list(dict.fromkeys(media.get(b, b) for b in barras))
         kv = (lectura.get('alimentadores', {}).get(f) or {}).get('kv')
         banco = (min(kvar.items(), key=lambda par: abs(float(par[0]) - float(kv)))[1]
                  if kvar and kv else None)
-        cargas_f = [{'barra': c['barra'], 'existe': str(c.get('criterio') or '').startswith('barra'),
-                     'indice_troncal': d['indices'].get(str(c['barra']))} for c in de_f if c.get('barra')]
+        # 025:RF-44: banco solo en una barra que existe sin las cargas nuevas, como la ve
+        # DIgSILENT; el texto del criterio no basta (una carga reutilizada dice «ya existe» y
+        # puede estar en el NODE_T_ que creó su variación).
+        existen = set(d.get('existen') or ())
+        cargas_f = [{'barra': media.get(str(c['barra']), str(c['barra'])),
+                     'existe': media.get(str(c['barra']), str(c['barra'])) in existen,
+                     'indice_troncal': d['indices'].get(media.get(str(c['barra']), str(c['barra'])))}
+                    for c in de_f if c.get('barra')]
         vs, av = eo.variantes(f, float(kv or 0), d['troncal'], cargas_f, lectura.get('tipos') or [], p,
                               banco_kvar=banco, fuera_desde=d.get('fuera_desde'))
         fila['avisos'] += av
@@ -4735,6 +5034,7 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
         if ev.get('error'):
             raise UserError(ev['error'])
         if ev.get('ya_cumple'):                                                  # 025:RF-74
+            fila['ya_cumple'] = True
             fila['avisos'].append(f"{f}: «Con proyecto» ya cumple con lo que tiene (sorteos "
                                   f"{100 * float(ev['ya_cumple'].get('fraccion') or 0):.0f} %): no se aplica "
                                   'nada (025:RF-74).')
@@ -4760,11 +5060,14 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
                            | {'inversion': (t.get('costo') or {}).get('inversion'),
                               'costo_anual': (t.get('costo') or {}).get('costo_anual')}
                            for t in decision['tabla']])
-        if decision['elegida']:                                                  # RF-54
+        if decision['elegida'] and not aplicar:                                  # 042:RF-2
+            resueltos.append(f)
+        elif decision['elegida']:                                                # RF-54
             ids = [obra_anadir(ws, o)['id'] for o in por_nombre[decision['elegida']].obras]
             ctx.log(f"{f}: se aplica «{decision['elegida']}» en «Con proyecto»…")
             hecho = obras_ejecutar(ws, ctx, project, feeders, ids, eo.BIBLIOTECA_TIPOS, simular=False,
-                                   anio_casos=anio_casos, apartar_cargas_de=comun['apartar_cargas_de'])
+                                   anio_casos=anio_casos, apartar_cargas_de=comun['apartar_cargas_de'],
+                                   apartar_variaciones=apartar_variaciones)
             hechas = (hecho.get('informe') or {}).get('obras') or []
             fila['aplicada'] = [o.get('variacion') for o in hechas]
             # 025:RF-69: resuelto solo si su obra quedó activa en «Con proyecto <año>»; si no,
@@ -4781,6 +5084,196 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
         resultado.append(fila)
     return {'project': project.strip(), 'anio_casos': anio_casos, 'moneda': p.moneda, 'tipo_cambio': tipo_cambio,
             'sorteos': len(sorteos), 'avisos': avisos, 'alimentadores': resultado}
+
+
+def optimizar_con_proyecto(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *,
+                           anio_casos: int | None = None, tipo_cambio: float | None = None,
+                           capex: str | None = None) -> dict:
+    """Cuántas cargas nuevas caben en la red existente con la escalera, y cuáles no (042:RF-1 a RF-4).
+
+    De mayor a menor potencia (usuario, 2026-10-31), se busca por bisección el mayor número k de
+    cargas con el que la escalera de la 025 encuentra obra para todos los alimentadores, midiendo
+    sin aplicar; después se aplica la escalera de esas k, con las demás apartadas. Las que quedan
+    van a la SET nueva (RF-3, RF-5 en adelante). En NA203 + NA205 (2026-10-31) la escalera con
+    las 37 a la vez no encontraba ninguna variante y no quedaba nada aplicado.
+    """
+    from ..demanda_medida import clave_codigo
+    from .. import set_nueva as sn
+
+    marcados = {clave_codigo(f) for f in feeders}
+    cargas = [c for c in _cargas_nuevas_aplicadas(ws, project)
+              if clave_codigo(c.get('alimentador')) in marcados and c.get('variacion')]
+    if not cargas:
+        raise UserError('Ningún alimentador marcado tiene cargas nuevas aplicadas: no hay nada que optimizar.')
+    orden = sn.orden_de_cargas(cargas)
+    opciones = {'anio_casos': anio_casos, 'tipo_cambio': tipo_cambio, 'capex': capex}
+    ctx.log(f'{len(orden)} cargas nuevas, de mayor a menor potencia: se busca cuántas caben en la red '
+            'existente con la escalera de obras (042:RF-1).')
+
+    def cabe(k: int) -> bool:
+        ctx.check_cancel()
+        r = obras_escalera(ws, ctx, project, feeders, cargas_activas=[c['variacion'] for c in orden[:k]],
+                           aplicar=False, **opciones)
+        ok = all(f.get('elegida') or f.get('ya_cumple') for f in r.get('alimentadores') or [])
+        ctx.log(f"Con las {k} mayores ({orden[k - 1]['sed']} la menor): "
+                f"{'hay obra que cumple' if ok else 'ninguna variante cumple'} (042:RF-2).")
+        return ok
+
+    k, pruebas = sn.cuantas_caben(len(orden), cabe)
+    escalera = None
+    if k:
+        ctx.log(f'Caben {k} de {len(orden)}: se aplica su escalera en «Con proyecto» (042:RF-4).')
+        escalera = obras_escalera(ws, ctx, project, feeders, cargas_activas=[c['variacion'] for c in orden[:k]],
+                                  aplicar=True, **opciones)
+    resto = orden[k:]
+    if resto:
+        ctx.log(f"{len(resto)} carga(s) no caben en la red existente y van a la SET nueva: "
+                f"{', '.join(str(c['sed']) for c in resto)} (042:RF-3).")
+    campos = ('sed', 'alimentador', 'kw', 'kvar', 'barra', 'variacion')
+    return {'project': project.strip(), 'orden': [{k_: c.get(k_) for k_ in campos} for c in orden],
+            'caben': k, 'pruebas': pruebas, 'escalera': escalera,
+            'a_set_nueva': [{k_: c.get(k_) for k_ in campos} for c in resto]}
+
+
+def _punto_utm(lat: float, lon: float) -> dict | None:
+    """El punto de la SET nueva en el CRS del perfil, con :func:`_utm` (042:RF-12)."""
+    from ..perfil_empresa import datos_perfil
+
+    v = _utm((lat, lon))
+    return {'crs': (datos_perfil() or {}).get('crs_origen'), 'este': v[0], 'norte': v[1]} if v else None
+
+
+def set_nueva_proponer(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
+                       a_set_nueva: list[dict], *, capex: str | None, alimentadores_nuevos: int,
+                       anio_casos: int | None = None) -> dict:
+    """Diseña, sitúa y crea en «Con proyecto» la SET nueva de las cargas que no caben (042:RF-5 a RF-12).
+
+    Lee la red en DIgSILENT (``obras_pf.py --set-nueva-datos``); por alimentador, las ramas que
+    pasan (RF-6); la potencia de diseño con la tasa de la 029 a la vida útil y el factor de
+    seguridad (RF-7); el menor módulo PIT del libro CAPEX que la cubre; el punto de Weber con los
+    sorteos de crecimiento por zona (RF-9); y la obra ``set_nueva``, que en DIgSILENT acerca la
+    SET a las barras que caen hasta que cumplen (RF-10, RF-11).
+    """
+    from ..demanda_medida import clave_codigo
+    from ..escalera_optima import BIBLIOTECA_TIPOS
+    from ..obras_pf import nombre_pf
+    from ..perfil_empresa import datos_perfil
+    from .. import set_nueva as sn
+    from ..troncal import Barra, Tramo, red_de
+
+    if not a_set_nueva:
+        return {'avisos': ['Todas las cargas nuevas caben en la red existente: no hace falta SET nueva.']}
+    perfil = datos_perfil()
+    if not capex or not capex.strip():
+        raise UserError('La SET nueva se elige entre los módulos PIT del libro CAPEX: indique el libro (042:RF-7).')
+    try:
+        p = sn.parametros(perfil)
+        modulos = sn.leer_modulos_pit(Path(capex.strip().strip('"')), p.modulos_pit)
+    except (sn.SetNuevaError, OSError) as exc:
+        raise UserError(f'SET nueva: {exc}') from exc
+    rc, datos, _rep = _guion_pf(ws, ctx, 'obras_pf.py', {
+        'project': project.strip(), 'folder': carpeta_pf(), 'feeders': list(feeders), 'anio_casos': anio_casos,
+        'native_action_context': native_action_context(ws, project, feeders, 'obras')},
+        nombre='set_nueva_datos', args=('--set-nueva-datos',))
+    if rc or datos.get('error'):
+        raise UserError(datos.get('error') or 'No se pudo leer la red en DIgSILENT para la SET nueva.')
+    nuevas_todas = {nombre_pf(str(c.get('sed') or '')) for c in _cargas_nuevas_aplicadas(ws, project)}
+    avisos = list(datos.get('avisos') or [])
+    por_alim: dict[str, list[dict]] = {}
+    for c in a_set_nueva:
+        por_alim.setdefault(next((f for f in feeders if clave_codigo(f) == clave_codigo(c.get('alimentador'))),
+                                 str(c.get('alimentador'))), []).append(c)
+    cupo = max(1, int(alimentadores_nuevos) // max(1, len(por_alim)))
+    ramas, trasladado, existentes, nuevas_pts, kv_mt = [], {}, [], [], None
+    for f, cargas_f in sorted(por_alim.items()):
+        d = (datos.get('alimentadores') or {}).get(f)
+        if not d:
+            raise UserError(f'{f}: no se leyó su red en DIgSILENT.')
+        kv_mt = kv_mt or d['kv']
+        red = red_de([Barra(b['nombre'], b.get('kv'), tuple(b['gps']) if b.get('gps') else None) for b in d['barras']],
+                     [Tramo(t['nombre'], t['desde'], t['hasta'], float(t['largo_m'] or 0), bool(t['cerrado']))
+                      for t in d['tramos']])
+        barra_de = {c['nombre']: c for c in d['cargas']}
+        destino = set()
+        for c in cargas_f:
+            x = barra_de.get(nombre_pf(str(c.get('sed') or '')))
+            if x is None:
+                avisos.append(f"{c.get('sed')}: no está activa en «Con proyecto» de {f}; no entra en la SET nueva.")
+                continue
+            destino.add(x['barra'])
+        existentes_kw = {}
+        for c in d['cargas']:
+            if c['nombre'] not in nuevas_todas:
+                existentes_kw[c['barra']] = existentes_kw.get(c['barra'], 0.0) + float(c['kw'] or 0)
+        try:
+            ramas_f = sn.ramas_a_trasladar(red, d['cabecera'], destino, existentes_kw, max_ramas=cupo)
+        except sn.SetNuevaError as exc:
+            raise UserError(f'{f}: {exc}') from exc
+        gps = {b['nombre']: b.get('gps') for b in d['barras']}
+        p_kw = q_kvar = 0.0
+        for r in ramas_f:
+            dentro = set(r['barras'])
+            for c in d['cargas']:
+                if c['barra'] in dentro and c['nombre'] not in nuevas_todas:
+                    p_kw, q_kvar = p_kw + float(c['kw'] or 0), q_kvar + float(c['kvar'] or 0)
+                    if gps.get(c['barra']):
+                        existentes.append((gps[c['barra']][0], gps[c['barra']][1], float(c['kw'] or 0)))
+            ramas.append({**r, 'alimentador': f})
+        trasladado[f] = (p_kw, q_kvar)
+        for c in cargas_f:
+            x = barra_de.get(nombre_pf(str(c.get('sed') or '')))
+            if x is not None and gps.get(x['barra']):
+                nuevas_pts.append((gps[x['barra']][0], gps[x['barra']][1], float(c.get('kw') or 0)))
+    tasas_det = _crecimiento_de_la_cabecera(ws, ctx, project, list(trasladado), avisos) or {}
+    tasas = {f: (tasas_det.get(f) or {}).get('tasa') for f in trasladado}
+    nuevas_pq = (sum(float(c.get('kw') or 0) for c in a_set_nueva), sum(float(c.get('kvar') or 0) for c in a_set_nueva))
+    try:
+        diseno = sn.potencia_de_diseno(trasladado, nuevas_pq, tasas, anios=p.anios, factor_seguridad=p.factor_seguridad)
+    except sn.SetNuevaError as exc:
+        raise UserError(str(exc)) from exc
+    eleccion = sn.elegir_modulo(modulos, diseno['kva_diseno'], float(kv_mt or 0))
+    escalera = (perfil.get('escalera') or {})
+    base_kw = sum(pq[0] for pq in trasladado.values()) + nuevas_pq[0]
+    ubic = sn.ubicacion_optima(existentes, nuevas_pts, incremento_kw=base_kw * (diseno['factor_crecimiento'] - 1.0),
+                               zona_m=1000.0, sorteos=int(escalera.get('sorteos') or 200),
+                               semilla=int(escalera.get('semilla') or 0))
+    informe = {'ramas': [{k: r[k] for k in ('alimentador', 'nodo', 'entrada', 'destino', 'kw_existente')}
+                         | {'barras': len(r['barras'])} for r in ramas],
+               'diseno': diseno, 'modulo': eleccion['modulo'], 'motivo_modulo': eleccion['motivo'],
+               'ubicacion': {'lat': ubic['lat'], 'lon': ubic['lon'], 'dispersion_m': ubic['dispersion_m'],
+                             'sorteos': ubic['sorteos'], 'utm': _punto_utm(ubic['lat'], ubic['lon'])},
+               'avisos': avisos, 'obra': None}
+    ctx.log(f"SET nueva: {diseno['kva_diseno'] / 1000:.1f} MVA de diseño a {p.anios} años "
+            f"(tasa {100 * diseno['tasa_ponderada']:.2f} %/año, factor {p.factor_seguridad:g}); "
+            f"{eleccion['motivo']}; punto {ubic['lat']:.6f}, {ubic['lon']:.6f} (042:RF-7, RF-9).")
+    if eleccion['modulo'] is None:
+        informe['avisos'].append(f"{eleccion['motivo']}: no se crea la SET nueva (042:RF-8).")
+        return informe
+    obra = {'clase': 'set_nueva', 'alimentador': sorted(trasladado)[0], 'casos': ['Con proyecto'],
+            'destino': f"{ubic['lat']:.7f}, {ubic['lon']:.7f}",
+            'ramas': [f"{r['alimentador']}/{r['nodo']}" for r in ramas],
+            'mva': eleccion['modulo']['mva'], 'kv_alta': eleccion['modulo']['kv_at']}
+    ident = obra_anadir(ws, obra)['id']
+    hecho = obras_ejecutar(ws, ctx, project, feeders, [ident], BIBLIOTECA_TIPOS, simular=False,
+                           anio_casos=anio_casos)
+    hechas = (hecho.get('informe') or {}).get('obras') or []
+    informe['obra'] = hechas[0] if hechas else hecho
+    final = (hechas[0].get('set_nueva') if hechas else None) or {}
+    if final.get('lat') is not None:
+        informe['ubicacion_final'] = {'lat': final['lat'], 'lon': final['lon'], 'cumple': final.get('cumple'),
+                                      'intentos': final.get('intentos'), 'utm': _punto_utm(final['lat'], final['lon'])}
+    return informe
+
+
+def con_proyecto_optimizar(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *,
+                           anio_casos: int | None = None, tipo_cambio: float | None = None,
+                           capex: str | None = None, alimentadores_nuevos: int = 4) -> dict:
+    """«Con proyecto» optimizado: escalera carga a carga y SET nueva para las que no caben (spec 042)."""
+    escalera = optimizar_con_proyecto(ws, ctx, project, feeders, anio_casos=anio_casos,
+                                      tipo_cambio=tipo_cambio, capex=capex)
+    set_nueva = set_nueva_proponer(ws, ctx, project, feeders, escalera['a_set_nueva'], capex=capex,
+                                   alimentadores_nuevos=alimentadores_nuevos, anio_casos=anio_casos)
+    return {'escalera_por_cargas': escalera, 'set_nueva': set_nueva}
 
 
 VIGENCIA_EVALUACION_S = 24 * 3600
@@ -4832,7 +5325,8 @@ def registrar_obra_aplicada(ws: Workspace, project: str, variacion: str, obra: d
 def obras_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
                    ids: list[str] | None, otro_proyecto: str, *, simular: bool,
                    anio_casos: int | None = None,
-                   apartar_cargas_de: list[str] | None = None) -> dict:
+                   apartar_cargas_de: list[str] | None = None,
+                   apartar_variaciones: list[str] | None = None) -> dict:
     """Simula o aplica las obras guardadas con ``tools/obras_pf.py`` (RF-56 a RF-87).
 
     Al aplicar, las obras que quedaron creadas en el proyecto salen del espacio (RF-95):
@@ -4853,6 +5347,8 @@ def obras_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             'anio_casos': anio_casos}                                   # 025:RF-41
     if apartar_cargas_de:
         plan['apartar_cargas_de'] = list(apartar_cargas_de)            # 025:RF-69
+    if apartar_variaciones:
+        plan['apartar_variaciones'] = list(apartar_variaciones)        # 042:RF-2
     modo = 'simulacion' if simular else 'aplicacion'
     ctx.log(f"Proyecto de DIgSILENT: {plan['project']}  ·  {len(elegidas)} obra(s)")
     rc, informe, report = _guion_pf(ws, ctx, 'obras_pf.py', plan, nombre=f'obras_{modo}',
@@ -4886,8 +5382,10 @@ def obras_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
 
 
 # ------------------------------------------------------------------ estudios
-def estudios_catalogo() -> dict:
-    """Estudios ofrecidos, los demás con lo que les falta y los límites del perfil (RF-23, RF-24, RF-35)."""
+def estudios_catalogo(ws: Workspace | None = None, project: str = '') -> dict:
+    """Estudios ofrecidos, los demás con lo que les falta y los límites del perfil (011:RF-23,
+    RF-24, RF-35); con el espacio y el proyecto, los de la 012 según su libro y la licencia
+    (012:RF-1, RF-4, RF-19)."""
     from dataclasses import asdict
 
     from ..estudios_pf import EstudiosError, estudios_no_ofrecidos, estudios_ofrecidos, limites_de_perfil
@@ -4896,14 +5394,112 @@ def estudios_catalogo() -> dict:
         limites, error = asdict(limites_de_perfil()), None
     except EstudiosError as exc:
         limites, error = None, str(exc)
-    return {'ofrecidos': [{'clave': e.clave, 'nombre': e.nombre} for e in estudios_ofrecidos()],
-            'no_ofrecidos': estudios_no_ofrecidos(), 'limites': limites,
-            'error_limites': error, 'limite_s': LIMITE_ESTUDIO_S}
+    libro = _libro_empresa(ws, project) if ws is not None else None
+    sin_lic = list(ws.sin_licencia) if ws is not None else []
+    return {'ofrecidos': [{'clave': e.clave, 'nombre': e.nombre} for e in estudios_ofrecidos(libro, sin_lic)],
+            'no_ofrecidos': estudios_no_ofrecidos(libro, sin_lic), 'limites': limites,
+            'error_limites': error, 'limite_s': LIMITE_ESTUDIO_S,
+            'datos_empresa': datos_empresa_estado(ws, project) if ws is not None else None}
+
+
+# ------------------------------------------------------------------ libro de la empresa (012)
+def _libro_empresa(ws: Workspace | None, project: str):
+    """El ``datos_empresa.Libro`` guardado con el proyecto, o ``None`` (012:RF-19, RF-20)."""
+    from ..datos_empresa import Libro
+
+    meta = (ws.datos_empresa.get(project.strip()) if ws is not None else None) or {}
+    return Libro.desde_dict(meta['libro']) if meta.get('libro') else None
+
+
+def datos_empresa_estado(ws: Workspace, project: str) -> dict | None:
+    """El libro del proyecto, su fecha de carga y lo que trae (012:RF-20)."""
+    from ..datos_empresa import resumen
+
+    meta = ws.datos_empresa.get(project.strip())
+    libro = _libro_empresa(ws, project)
+    if not meta or libro is None:
+        return None
+    return {**resumen(libro), 'nombre': meta['nombre'], 'cargado': meta['cargado'],
+            'aplicado': meta.get('aplicado')}
+
+
+def datos_empresa_subir(ws: Workspace, project: str, ruta: Path, nombre: str) -> dict:
+    """Valida el libro entero al subirlo, sin abrir DIgSILENT, y lo guarda con el proyecto
+    (012:RF-6, RF-16, RF-20, RF-62, RF-63). Un libro con errores no reemplaza al anterior."""
+    from ..datos_empresa import DatosEmpresaError, leer_libro
+
+    if not project.strip():
+        raise UserError('Elija el proyecto de DIgSILENT del libro.')
+    try:
+        libro = leer_libro(ruta, nombre)
+    except DatosEmpresaError as exc:
+        raise UserError(str(exc)) from exc
+    carpeta = ws.root / 'datos_empresa' / nombre_seguro(project.strip())
+    carpeta.mkdir(parents=True, exist_ok=True)
+    destino = carpeta / (nombre_seguro(Path(nombre).stem, defecto='libro') + Path(nombre).suffix.lower())
+    if Path(ruta).resolve() != destino.resolve():
+        import shutil
+
+        shutil.copyfile(ruta, destino)
+    with ws.lock:
+        ws.datos_empresa[project.strip()] = {
+            'path': str(destino), 'nombre': nombre, 'libro': libro.a_dict(),
+            'cargado': datetime.now().isoformat(timespec='seconds'), 'aplicado': None}
+        ws.save()
+    return datos_empresa_estado(ws, project) or {}
+
+
+def datos_empresa_plantilla(ws: Workspace) -> Path:
+    """La plantilla descargable del libro (012:RF-7)."""
+    from ..datos_empresa import plantilla
+
+    return plantilla(ws.out_dir / 'plantilla_datos_empresa.xlsx')
+
+
+def _clases_de_la_entrada(ws: Workspace, feeders: list[str]) -> dict[str, str]:
+    """Clase de cada equipo de maniobra de la entrada cargada, por su número (012:RF-26).
+
+    El DGS escribe interruptores, reconectadores y fusibles con el mismo ``aUsage``; sin la
+    entrada, el guion solo reconoce los seccionadores y bloquea lo demás, como la 011
+    (RF-129) con la transferencia.
+    """
+    ds = ws.dataset
+    if ds is None:
+        return {}
+    cortos = set(feeders)
+    out = {}
+    for network_id, filas in getattr(ds, 'switching_by_feeder', {}).items():
+        if network_id in cortos or feeder_short_name(network_id) in cortos:
+            for clase, fila in filas:
+                if fila.get('EqNumber'):
+                    out[str(fila['EqNumber'])] = clase
+    return out
+
+
+def datos_empresa_aplicar(ws: Workspace, ctx: JobContext, project: str, feeders: list[str]) -> dict:
+    """Escribe el libro en la variación «Datos de confiabilidad» (012:RF-20 a RF-27, RF-69)."""
+    libro = _libro_empresa(ws, project)
+    if libro is None:
+        raise UserError('El proyecto no tiene libro de la empresa: súbalo primero.')
+    pedidos = list(dict.fromkeys(f.strip() for f in feeders if f.strip()))
+    if not pedidos:
+        raise UserError('Marque los alimentadores a los que aplicar el libro.')
+    plan = {'project': project.strip(), 'folder': carpeta_pf(), 'feeders': pedidos,
+            'libro': libro.a_dict(), 'clases_equipo': _clases_de_la_entrada(ws, pedidos),
+            'native_action_context': native_action_context(ws, project, pedidos, 'confiabilidad')}
+    ctx.log(f"Libro {ws.datos_empresa[project.strip()]['nombre']} → {project.strip()}")
+    rc, informe, report = _guion_pf(ws, ctx, 'confiabilidad_pf.py', plan, nombre='datos_confiabilidad',
+                                    args=('--aplicar-datos',))
+    if rc == 0 and not informe.get('error'):
+        with ws.lock:
+            ws.datos_empresa[project.strip()]['aplicado'] = datetime.now().isoformat(timespec='seconds')
+            ws.save()
+    return {'returncode': rc, 'report': report.name, 'informe': informe}
 
 
 def estudios_plan(ws: Workspace, project: str, feeders: list[str], estudios: list[str],
                   ajuste: dict | None, limites: dict | None = None,
-                  limite_s: float | None = None) -> dict:
+                  limite_s: float | None = None, opciones: dict | None = None) -> dict:
     """Valida y guarda el plan de los estudios sobre la base calibrada (RF-12 a RF-15, RF-25).
 
     La base es la del último ajuste aplicado, la misma de las cargas (RF-12). Sin ajuste
@@ -4921,8 +5517,9 @@ def estudios_plan(ws: Workspace, project: str, feeders: list[str], estudios: lis
     if ajuste is None:
         raise UserError('El proyecto no tiene ningún ajuste a la máxima aplicado en este espacio: '
                         'primero hay que calibrar.')
+    libro = _libro_empresa(ws, project)
     try:
-        claves = list(validar_estudios(estudios))
+        claves = list(validar_estudios(estudios, libro, ws.sin_licencia))      # 012:RF-4, RF-19
         lim = limites_de_perfil().con(**(limites or {}))
     except EstudiosError as exc:
         raise UserError(str(exc)) from exc
@@ -4942,10 +5539,17 @@ def estudios_plan(ws: Workspace, project: str, feeders: list[str], estudios: lis
     token = uuid.uuid4().hex[:12]
     plan = {'project': project.strip(), 'folder': carpeta_pf(), 'feeders': estudiables,
             'base': base, 'estudios': claves, 'limites': asdict(lim),
+            'anio_casos': base.get('anio_casos'),
             'limite_s': float(limite_s or LIMITE_ESTUDIO_S),
             'objetivos': {a['feeder']: a.get('objetivo') for a in base['ajustes']
                           if isinstance(a.get('objetivo'), dict)},
             'tolerancia': float(ajuste.get('tolerancia') or 0.01),
+            # Spec 012: opciones de los estudios (RF-37, RF-45, RF-53), el libro con que se
+            # estudia, nombrado con su fecha (RF-20), y la clase de los equipos (RF-26).
+            'opciones': dict(opciones or {}),
+            'libro': libro.a_dict() if libro is not None else None,
+            'libro_cargado': (ws.datos_empresa.get(project.strip()) or {}).get('cargado'),
+            'clases_equipo': _clases_de_la_entrada(ws, estudiables),
             'native_action_context': native_action_context(
                 ws, project, estudiables, 'estudios',
             )}
@@ -4958,6 +5562,8 @@ def estudios_plan(ws: Workspace, project: str, feeders: list[str], estudios: lis
                                    'applicable': True}
     return {'token': token, 'kind': 'estudios', 'project': plan['project'],
             'feeders': estudiables, 'estudios': claves, 'excluidos': excluidos,
+            'casos': [f'{n} {plan["anio_casos"]}' if plan['anio_casos'] else n
+                      for n in ('Sin proyecto', 'Cargas nuevas', 'Con proyecto')],
             'avisos': avisos, 'limites': plan['limites'], 'limite_s': plan['limite_s']}
 
 
@@ -4987,13 +5593,15 @@ def estudios_ejecutar(ws: Workspace, ctx: JobContext, token: str) -> dict:
     if meta is None or meta.get('kind') != 'estudios' or not Path(meta['path']).is_file():
         raise UserError('El plan de los estudios ya no existe: vuelva a prepararlo.')
     plan = json.loads(Path(meta['path']).read_text(encoding='utf-8'))
-    nombres = {'sin': SIN_PROYECTO, 'con': CON_PROYECTO}
+    nombres = {'sin': SIN_PROYECTO, 'cargas': 'Cargas nuevas', 'con': CON_PROYECTO}
     ctx.log(f"Proyecto de DIgSILENT: {plan['project']}  ·  preparar los casos")
     from ..powerfactory_binding import caso_base_verificado
 
     _rc, casos, casos_report = _guion_pf(
         ws, ctx, 'casos_pf.py', {
             **{k: plan[k] for k in ('project', 'folder', 'feeders', 'base')},
+            'anio_casos': plan.get('anio_casos'), 'incluir_cargas_nuevas': True,
+            'nuevas': _cargas_nuevas_aplicadas(ws, plan['project']),
             'native_action_context': plan['native_action_context'],
             # 015:RF-17: sin «Caso base» verificado no se crean «Sin» ni «Con proyecto».
             'caso_base_sin_verificar': caso_base_verificado(ws, plan['project'], plan['feeders']),
@@ -5002,9 +5610,11 @@ def estudios_ejecutar(ws: Workspace, ctx: JobContext, token: str) -> dict:
     if casos.get('error'):
         raise UserError(casos['error'])                                # RF-13, RF-16
     feeders = casos.get('feeders') or plan['feeders']
-    roles = ['sin'] + (['con'] if (casos.get('casos') or {}).get('con', {}).get('estudiable') else [])
+    roles = ['sin'] + [r for r in ('cargas', 'con')
+                       if (casos.get('casos') or {}).get(r, {}).get('estudiable')]
     total = len(roles) * len(plan['estudios'])
     resultados, informes, cancelado, n = [], [], False, 0
+    red, capacidad, propuestas = [], [], []                   # spec 012
     try:
         for rol in roles:
             for estudio in plan['estudios']:
@@ -5015,8 +5625,11 @@ def estudios_ejecutar(ws: Workspace, ctx: JobContext, token: str) -> dict:
                 n += 1
                 sub = {'project': plan['project'], 'folder': plan['folder'], 'feeders': feeders,
                        'estudio': estudio, 'caso': rol, 'objetivos': plan['objetivos'],
+                       'anio_casos': plan.get('anio_casos'),
                        'tolerancia': plan['tolerancia'], 'stamp': token,
-                       'native_action_context': plan['native_action_context']}
+                       'native_action_context': plan['native_action_context'],
+                       # Spec 012: lo que necesitan sus guiones.
+                       **{k: plan.get(k) for k in ('limites', 'opciones', 'libro', 'clases_equipo')}}
                 if rol == 'con' and estudio in ('flujo', 'flujo_desequilibrado'):
                     # 017:RF-130: cada alternativa del informe medida en esta misma ejecución.
                     alternativas = _alternativas_del_proyecto(ws, plan['project'], feeders)
@@ -5027,12 +5640,15 @@ def estudios_ejecutar(ws: Workspace, ctx: JobContext, token: str) -> dict:
                                             limite_s=plan['limite_s'])
                 if inf.get('no_terminado'):
                     ctx.log(f'{estudio} en «{nombres[rol]}»: {inf["error"]}; se sigue con el siguiente.')
-                elif estudio == 'flujo' and not inf.get('error'):
+                elif estudio == 'flujo' and rol in ('sin', 'con') and not inf.get('error'):
                     # 024:RF-1 / RF-28: el estado de cada caso, observado con su flujo.
                     _gemelo(ws, ctx, sub, inf, caso={'base': 'caso_base', 'sin': 'sin_proyecto',
                                                      'con': 'con_proyecto'}[rol],
                             rutas={'resultado': report})
                 informes.append({'caso': nombres[rol], 'estudio': estudio, 'returncode': rc,
+                                 'nombre_caso': inf.get('nombre_caso') or (
+                                     f'{nombres[rol]} {plan["anio_casos"]}' if plan.get('anio_casos')
+                                     else nombres[rol]),
                                  'report': report.name, 'error': inf.get('error'),
                                  'no_terminado': bool(inf.get('no_terminado')),
                                  'obras_activas': inf.get('obras_activas') or [],     # RF-68
@@ -5040,6 +5656,7 @@ def estudios_ejecutar(ws: Workspace, ctx: JobContext, token: str) -> dict:
                 for f, medida in sorted((inf.get('medidas') or {}).items()):
                     resultados.append({'caso': nombres[rol], 'alimentador': f,
                                        'estudio': estudio, **medida})
+                _resultados_de_red(ws, estudio, nombres[rol], inf, red, capacidad, propuestas)
             if cancelado:
                 break
     except JobCancelled:
@@ -5056,10 +5673,54 @@ def estudios_ejecutar(ws: Workspace, ctx: JobContext, token: str) -> dict:
                 ('violaciones', violation_rows, COLUMNAS_VIOLACIONES)):
             destino = escribir_csv(filas, columnas, ws.out_dir / f'estudios_{nombre}_{token}.csv')
             ficheros.append(destino.name)
+    from ..estudios_red_pf import COLUMNAS_CAPACIDAD, COLUMNAS_RED, comparar, filas_red
+
+    red_rows = filas_red(red) if red else []
+    for nombre, filas, columnas in (('red', red_rows, COLUMNAS_RED),                # 012:RF-59
+                                    ('capacidad', capacidad, COLUMNAS_CAPACIDAD)):  # 012:RF-49
+        if filas:
+            ficheros.append(escribir_csv(filas, columnas, ws.out_dir / f'estudios_{nombre}_{token}.csv').name)
+    fiab = {c: {r['alimentador']: r for r in red if r['estudio'] == 'fiabilidad' and r['caso'] == c}
+            for c in (SIN_PROYECTO, CON_PROYECTO)}
     return {'project': plan['project'], 'feeders': feeders, 'casos': casos,
             'casos_report': casos_report.name, 'estudios': informes, 'ficheros': ficheros,
             'medidas': resultados, 'resultados': result_rows, 'violaciones': violation_rows,
+            'red': red_rows, 'capacidad': capacidad, 'propuestas': propuestas,
+            'comparacion_ens': (comparar(fiab[SIN_PROYECTO], fiab[CON_PROYECTO])            # 012:RF-68
+                                if any(fiab.values()) else None),
+            'libro': ({'nombre': (plan['libro'] or {}).get('nombre'), 'cargado': plan.get('libro_cargado')}
+                      if plan.get('libro') else None),                                   # 012:RF-20
             'cancelado': cancelado}
+
+
+def _resultados_de_red(ws: Workspace, estudio: str, caso: str, inf: dict, red: list, capacidad: list,
+                       propuestas: list) -> None:
+    """Lo que devuelve un estudio de la 012 en las filas de sus ficheros y en las propuestas
+    que el operador puede aceptar como obra (RF-39, RF-40, RF-47, RF-49, RF-56, RF-58, RF-59)."""
+    from ..estudios_red_pf import filas_capacidad
+
+    if inf.get('sin_licencia') and inf['sin_licencia'] not in ws.sin_licencia:     # RF-4
+        with ws.lock:
+            ws.sin_licencia.append(inf['sin_licencia'])
+            ws.save()
+    fiable = inf.get('fiable', True)
+    if estudio == 'reconectadores':
+        prop = inf.get('propuesta') or {}
+        mejora = (inf.get('mejora') or {}).get('reduccion_kwh')
+        for f, lista in sorted((prop.get('por_alimentador') or {}).items()):
+            red.append({'caso': caso, 'alimentador': f, 'estudio': estudio, 'reconectadores': len(lista),
+                        'mejora_kwh': mejora, 'fiable': fiable})
+            propuestas += [{'tipo': 'reconectador', 'caso': caso, 'mejora_kwh': mejora, **p} for p in lista]
+        return
+    for f, fila in sorted((inf.get('red') or {}).items()):
+        extra = {'bancos': len(fila.get('bancos') or [])} if estudio == 'condensadores' else {}
+        red.append({'caso': caso, 'alimentador': f, 'estudio': estudio,
+                    **{k: v for k, v in fila.items() if not isinstance(v, (list, dict))}, **extra,
+                    'fiable': bool(fila.get('fiable', True) and fiable)})
+        for b in fila.get('bancos') or []:
+            propuestas.append({'tipo': 'condensador', 'caso': caso, 'alimentador': f, **b})
+    if inf.get('nodos'):
+        capacidad += filas_capacidad(caso, inf['nodos'])
 
 
 # ------------------------------------------------------------------ transferencia
@@ -5069,35 +5730,78 @@ def _seccionadores_de_la_entrada(ws: Workspace, feeders: list[str]) -> list[str]
     Solo hacen falta para un proyecto convertido antes de que el DGS distinguiera los
     seccionadores; sin entrada cargada, el guion lo dice.
     """
-    ds = ws.dataset
-    if ds is None:
-        return []
-    cortos = set(feeders)
-    out = []
-    for network_id, filas in getattr(ds, 'switching_by_feeder', {}).items():
-        if network_id in cortos or feeder_short_name(network_id) in cortos:
-            out += [fila.get('EqNumber') for clase, fila in filas
-                    if clase == 'SWITCH' and fila.get('EqNumber')]
-    return sorted(set(out))
+    return sorted(n for n, clase in _clases_de_la_entrada(ws, feeders).items() if clase == 'SWITCH')
+
+
+def instantes_de_transferencia(ws: Workspace, cabecera_job_id: str | None,
+                               feeders: list[str]) -> dict:
+    """Periodo, candidatos y cobertura del instante común de dos alimentadores (013:RF-22,
+    RF-27, RF-28), con las curvas de la máxima de cabecera buscada en 2.2 (sin id, la última).
+
+    No se suman máximas independientes: cada candidato es un registro que los dos tienen a
+    la misma fecha y hora. Sin periodo elegido no hay transferencia (RF-9); sin instantes
+    comunes, tampoco (RF-29). Es memoria, no libros: tras reiniciar la web hay que volver a
+    buscar la máxima.
+    """
+    from ..demanda_medida import clave_codigo
+    from ..transferencia_pf import (
+        candidatos_de_transferencia, curva_del_alimentador, en_el_periodo, instantes_comunes,
+    )
+
+    with ws.lock:
+        job_id = cabecera_job_id or next(reversed(ws.curvas_cabecera), '')
+        curvas = dict(ws.curvas_cabecera.get(job_id) or {})
+        criterio = dict(ws.criterio_cabecera.get(job_id) or {})
+    if not curvas:
+        raise UserError('Busque antes la máxima de cabecera de los dos alimentadores (2.2): la '
+                        'transferencia se calcula en sus registros de un mismo instante (013:RF-22).')
+    periodo = criterio.get('periodo')
+    if not periodo:
+        raise UserError('Elija el mes (o todo el año) y vuelva a buscar la máxima de cabecera: sin '
+                        'periodo no se calcula la transferencia (013:RF-9).')
+    por_alim = {}
+    for f in feeders:
+        de_f = [e['curva'] for e in curvas.values()
+                if clave_codigo(str(e.get('alimentador') or '')) == clave_codigo(f) and e.get('curva')]
+        if not de_f:
+            raise UserError(f'La última máxima buscada no tiene la cabecera de {f}: búsquela con '
+                            'los dos alimentadores marcados.')
+        por_alim[f] = curva_del_alimentador(de_f)
+    instantes = instantes_comunes(por_alim, periodo)
+    if not instantes:
+        raise UserError(f'{feeders[0]} y {feeders[1]} no tienen ningún registro de cabecera a la misma '
+                        f'fecha y hora en {periodo}: sin un instante común no se puede afirmar la '
+                        'transferencia (013:RF-29).')
+    candidatos, cobertura = candidatos_de_transferencia(instantes, *feeders)
+    cobertura['registros'] = {f: sum(1 for t, _kw, _q in c if en_el_periodo(t, periodo))
+                              for f, c in por_alim.items()}
+    return {'periodo': periodo, 'cabecera_job_id': job_id, 'cobertura': cobertura,
+            'instantes': [{'fecha': i.fecha.isoformat(sep=' '),
+                           'objetivos': {f: list(v) for f, v in i.objetivos.items()}} for i in candidatos]}
 
 
 def transferencia_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
-                           casos: list[str], limites: dict | None = None) -> dict:
+                           casos: list[str], limites: dict | None = None,
+                           cabecera_job_id: str | None = None) -> dict:
     """Transferencia de carga entre dos alimentadores con ``tools/transferencia_pf.py``
-    (RF-104 a RF-129), con su fichero descargable (RF-121)."""
+    (RF-104 a RF-129) en el instante común del periodo (spec 013), con su libro descargable
+    (RF-121; 013:RF-26)."""
     feeders = list(dict.fromkeys(f.strip() for f in feeders if f.strip()))
     if not project.strip():
         raise UserError('Elija el proyecto de DIgSILENT.')
     if len(feeders) != 2:
         raise UserError('Elija dos alimentadores distintos.')
     action_context = native_action_context(ws, project, feeders, 'transferencia')
+    temporal = instantes_de_transferencia(ws, cabecera_job_id, feeders)
     token = uuid.uuid4().hex[:12]
-    fichero = ws.out_dir / f'transferencias_{token}.csv'
+    fichero = ws.out_dir / f'transferencias_{token}.xlsx'
     plan = {'project': project.strip(), 'folder': carpeta_pf(), 'feeders': feeders,
             'casos': list(casos), 'limites': dict(limites or {}),
             'seccionadores': _seccionadores_de_la_entrada(ws, feeders),
-            'native_action_context': action_context}
+            'native_action_context': action_context, **temporal}
     ctx.log(f"Proyecto de DIgSILENT: {plan['project']}  ·  transferencia {feeders[0]} ↔ {feeders[1]}")
+    ctx.log(f"  {temporal['periodo']}: {temporal['cobertura']['instantes_comunes']} instante(s) comunes, "
+            f"{len(temporal['instantes'])} candidato(s) no dominado(s) que se verifican en DIgSILENT")
     rc, informe, report = _guion_pf(ws, ctx, 'transferencia_pf.py', plan, nombre='transferencia',
                                     args=('--fichero', str(fichero)))
     if informe.get('error') and not informe.get('resultados'):
@@ -5319,6 +6023,7 @@ def informe_estudio(ws: Workspace, ctx: JobContext | None, formulario: dict) -> 
     # resultados que guardó el flujo de cada caso (DIgSILENT sin ventana no dibuja).
     from ..mapa_informe import MapaError, imagenes_del_estado
 
+    _paso_informe(ctx, 1, 'imágenes')                                                   # RF-97
     varias = len(etapas) > 1
     estados = [('actual', geo_sin, 'estado actual')] + [
         (e.clave, geo_de.get(e.clave), f'alternativa {i}' if varias else 'estado proyectado')
@@ -5348,14 +6053,16 @@ def informe_estudio(ws: Workspace, ctx: JobContext | None, formulario: dict) -> 
                                       for b in sin['medidas'][alimentador].get('bancos') or ()),
                          fijas=tuple(_fijas_de_la_calibracion(ws, sin, alimentador)))
     destino = ws.out_dir / f'informe_estudio_{nombre_seguro(alimentador)}_{uuid.uuid4().hex[:8]}.docx'
+    _paso_informe(ctx, 2, 'documento')
     try:
         huecos = escribir_informe_estudio(config, destino, datos)
     except InformeError as exc:
         raise UserError(str(exc)) from exc
     if ctx is not None:
         ctx.log(f'Informe de estudio de {alimentador}: {destino.name} ({len(huecos)} hueco(s)).')
+    _paso_informe(ctx, 3, 'listo')
     return {'informe': destino.name, 'json': destino.with_suffix('.json').name, 'huecos': huecos,
-            'estudios': fuentes, 'etapa': clave}
+            'estudios': fuentes, 'etapa': clave, 'imagenes': _imagenes_para_la_web(ws, imagenes)}
 
 
 def _utm(lat_lon) -> list[float] | None:
@@ -5727,6 +6434,33 @@ def carga_del_informe(ws: Workspace, project: str, alimentador: str, sed: str) -
     return carga
 
 
+def informe_vista_ubicacion(ws: Workspace, project: str, alimentador: str, sed: str, cliente: str = '',
+                            potencia_kw: float | None = None, codigo: str = '') -> dict:
+    """Vista previa de la imagen de ubicación del cliente antes de generar el informe (017:RF-124).
+
+    Se dibuja con la geografía que guardó el último flujo de «Con proyecto», como la del
+    informe (RF-11b): no hace falta DIgSILENT, así que no ocupa su carril.
+    """
+    from ..mapa_informe import MapaError, rotulo_de_carga, ubicacion_del_cliente
+
+    carga = carga_del_informe(ws, project, alimentador, sed)
+    con = _ultimo_estudio(ws, 'con', project)
+    geos = (con or {}).get('geo') or {}
+    if not geos.get(carga['alimentador']):
+        raise UserError(f'No hay un flujo de «Con proyecto» de {alimentador} con su geografía: ejecute '
+                        'antes el estudio de flujo en 4.2.')
+    kw = float(potencia_kw if potencia_kw is not None else carga.get('kw') or 0.0)
+    texto = rotulo_de_carga(cliente.strip() or str(carga['sed']), kw, codigo.strip() or carga['barra'])
+    destino = (ws.out_dir / 'imagenes_informe' /
+               f'vista_ubicacion_{nombre_seguro(alimentador)}_{nombre_seguro(str(carga["sed"]))}.png')
+    try:
+        ubicacion_del_cliente(geos, carga['alimentador'], carga['barra'], texto, destino,
+                              titulo=f'Ubicación del cliente nuevo · {alimentador}')
+    except MapaError as exc:
+        raise UserError(str(exc)) from exc
+    return {'fichero': destino.relative_to(ws.out_dir).as_posix(), 'rotulo': texto}
+
+
 def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict) -> dict:
     """Escribe el informe de factibilidad y punto de diseño de una carga nueva (spec 017,
     RF-47 a RF-72) con lo que ya guardó la web.
@@ -5834,13 +6568,17 @@ def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict
                             asunto=str(formulario.get('asunto') or ''),
                             destinatario=str(formulario.get('destinatario') or ''),
                             lugar=str(formulario.get('lugar') or ''))
+    codigo = str(formulario.get('codigo_punto') or '').strip() or carga['barra']
+    _paso_informe(ctx, 1, 'imágenes')                                                   # RF-97
+    imagenes = _imagenes_factibilidad(ws, ctx, config, sin, con, carga, solicitud, codigo, devanado)
+    _paso_informe(ctx, 2, 'documento')
     datos = DatosFactibilidad(
         encabezado=encabezado, actual=actual, proyectado=proyectado, solicitud=solicitud,
-        punto_diseno=punto, codigo_punto=str(formulario.get('codigo_punto') or '').strip() or carga['barra'],
+        punto_diseno=punto, codigo_punto=codigo,
         solicitudes_vigentes=en_bloque, perdidas_actual=perdidas(actual),
         perdidas_proyectado=perdidas(proyectado), libro=libro, devanado=devanado,
         caso_transmision=str(t.get('caso') or ''), fuentes=fuentes,
-        numero=formulario.get('numero') or None)
+        numero=formulario.get('numero') or None, imagenes=imagenes)
     destino = ws.out_dir / (f'informe_factibilidad_{nombre_seguro(alimentador)}_'
                             f'{nombre_seguro(str(carga["sed"]))}_{uuid.uuid4().hex[:8]}.docx')
     try:
@@ -5851,9 +6589,87 @@ def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict
     if ctx is not None:
         ctx.log(f'Informe de factibilidad de {carga["sed"]} en {alimentador}: {destino.name} '
                 f'({len(huecos)} hueco(s)); {"factible" if resumen.get("factible") else "no factible"}.')
+    _paso_informe(ctx, 3, 'listo')
     return {'informe': destino.name, 'json': destino.with_suffix('.json').name, 'huecos': huecos,
             'estudios': [sin['_fichero'], con['_fichero']], 'factible': resumen.get('factible'),
-            'excesos': resumen.get('excesos') or [], 'punto_diseno': punto, 'carga': carga}
+            'excesos': resumen.get('excesos') or [], 'punto_diseno': punto, 'carga': carga,
+            'imagenes': _imagenes_para_la_web(ws, imagenes)}
+
+
+#: Pasos del progreso de un informe (017:RF-97): casos, imágenes, documento.
+PASOS_INFORME = 3
+
+
+def _paso_informe(ctx: JobContext | None, n: int, que: str) -> None:
+    """El progreso por pasos del informe; el detalle va al Registro (017:RF-97)."""
+    if ctx is not None:
+        ctx.progress(n, PASOS_INFORME, que)
+        ctx.log(f'Informe: {que}…' if n < PASOS_INFORME else 'Informe: listo.')
+
+
+def _imagenes_para_la_web(ws: Workspace, imagenes: dict[str, dict[str, Any]]) -> list[dict]:
+    """Las imágenes del informe, relativas a la salida del espacio, para las miniaturas
+    del resultado (017:RF-101)."""
+    out = []
+    for estado, por_modo in imagenes.items():
+        for modo, ruta in por_modo.items():
+            if not ruta:
+                continue
+            try:
+                rel = Path(ruta).resolve().relative_to(ws.out_dir.resolve()).as_posix()
+            except ValueError:
+                continue                    # una del formulario fuera del espacio no se sirve
+            out.append({'estado': estado, 'modo': modo, 'fichero': rel})
+    return out
+
+
+def _imagenes_factibilidad(ws: Workspace, ctx: JobContext | None, config, sin: dict, con: dict,
+                           carga: dict, solicitud, codigo: str, devanado) -> dict[str, dict[str, Path]]:
+    """Las imágenes del informe de factibilidad con lo que guardó la web (017:RF-11b):
+    estado actual; estado proyectado con la carga nueva rotulada (RF-117); la ubicación del
+    cliente entre los alimentadores cercanos (RF-109); el transformador de la SET (RF-119).
+    Lo que no se puede dibujar se dice en el Registro y queda como hueco del informe."""
+    from ..mapa_informe import (MapaError, imagenes_del_estado, rotulo_de_carga,
+                                transformador_de_la_set, ubicacion_del_cliente)
+
+    alimentador = carga['alimentador']
+    carpeta = ws.out_dir / 'imagenes_informe'
+    prefijo = f'factibilidad_{nombre_seguro(alimentador)}_{nombre_seguro(str(carga["sed"]))}'
+    texto = rotulo_de_carga(solicitud.cliente or str(carga['sed']), solicitud.potencia_kw, codigo)
+    out: dict[str, dict[str, Path]] = {}
+
+    def intentar(que: str, hacer):
+        try:
+            return hacer()
+        except MapaError as exc:
+            if ctx is not None:
+                ctx.log(f'Sin imagen de {que}: {exc}')
+            return None
+
+    bandas = {'bandas_tension': config.bandas_tension_pct, 'bandas_carga': config.bandas_cargabilidad_pct}
+    for clave, datos, estado, cliente in (('actual', sin, 'estado actual', None),
+                                          ('proyectado', con, 'estado proyectado', (carga['barra'], texto))):
+        geo = (datos.get('geo') or {}).get(alimentador)
+        if geo:
+            r = intentar(estado, lambda g=geo, c=clave, e=estado, cl=cliente: imagenes_del_estado(
+                g, carpeta, f'{prefijo}_{c}', estado=e, alimentador=alimentador, cliente=cl, **bandas))
+            if r:
+                out[clave] = dict(r)
+    geos = con.get('geo') or {}
+    if geos.get(alimentador):
+        r = intentar('ubicación del cliente', lambda: ubicacion_del_cliente(
+            geos, alimentador, carga['barra'], texto, carpeta / f'{prefijo}_ubicacion_cliente.png',
+            titulo=f'Ubicación del cliente nuevo · {alimentador}'))
+        if r:
+            out.setdefault('proyectado', {})['ubicacion'] = r
+    if devanado is not None and devanado.con_pct is not None:
+        r = intentar('transformador de la SET', lambda: transformador_de_la_set(
+            solicitud.transformador or 'Transformador', solicitud.set_nombre, [(devanado.kv, devanado.con_pct)],
+            carpeta / f'{prefijo}_transformador.png',
+            titulo=f'Transformador de la SET {solicitud.set_nombre} · estado proyectado'))
+        if r:
+            out['transformador'] = {'cargabilidad': r}
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -5938,6 +6754,61 @@ def asistente_vocabulario(ws: Workspace) -> dict[str, list[str]]:
 
     vocab['subtipo'] = subtipos_del_perfil()
     return vocab
+
+
+def asistente_estado_modelos() -> dict:
+    """043:RF-8: leer evidencia no equivale a entrenar ni aprobar un modelo."""
+    from ..asistente import almacen
+    from ..model_registry import EstadoModelo, RegistroModelo
+    from ..training_coordinator import ORDEN_MODELOS
+
+    raiz = almacen.raiz()
+    ruta = raiz / 'training' / 'report.json'
+    errores = []
+    try:
+        informe = json.loads(ruta.read_text(encoding='utf-8')) if ruta.is_file() else {}
+        etapas = informe.get('stages', [])
+        if not isinstance(etapas, list) or any(not isinstance(e, dict) for e in etapas):
+            raise ValueError('informe de etapas inválido')
+        nombres = [e.get('model') for e in etapas]
+        if len(nombres) != len(set(nombres)):
+            raise ValueError('informe con familias duplicadas')
+        por_nombre = {e.get('model'): e for e in etapas}
+    except (OSError, ValueError, AttributeError, TypeError) as exc:
+        informe, por_nombre = {}, {}
+        errores.append(f'informe ilegible: {exc}')
+    familias = []
+    registro = RegistroModelo(raiz / 'model_registry')
+    for nombre in ORDEN_MODELOS:
+        etapa = por_nombre.get(nombre, {})
+        estado = etapa.get('status')
+        bloqueos = list(errores)
+        if estado not in {e.value for e in EstadoModelo}:
+            estado = None
+            bloqueos.append('sin estado terminal registrado')
+        candidato = etapa.get('candidate_id')
+        algoritmo = (etapa.get('model_manifest') or {}).get('algorithm')
+        puertas = etapa.get('gates') or {}
+        if estado == EstadoModelo.PROMOVIDO.value:
+            try:
+                activo = registro.activo(nombre)
+                if not activo or activo.get('candidate_id') != candidato:
+                    raise ValueError('sin candidato activo coincidente')
+                detalle = registro.detalle(nombre, candidato)
+                puertas = detalle['decision'].get('gates') or {}
+                if (detalle['decision'].get('status') != EstadoModelo.PROMOVIDO.value
+                        or puertas.get('approved') is not True
+                        or detalle['smoke_reload'].get('ok') is not True):
+                    raise ValueError('sin puertas y reapertura aprobadas')
+                algoritmo = detalle['model_manifest'].get('algorithm')
+            except (OSError, ValueError, TypeError, KeyError) as exc:
+                estado = None
+                bloqueos.append(f'promoción sin evidencia verificable: {exc}')
+        familias.append({'familia': nombre, 'estado': estado, 'candidate_id': candidato,
+                         'algorithm': algoritmo, 'report_path': str(ruta), 'gates': puertas,
+                         'bloqueos': bloqueos + ([str(etapa['reason'])] if etapa.get('reason') else [])})
+    return {'schema_version': 1, 'familias': familias,
+            'complete': bool(informe.get('complete')) and all(f['estado'] for f in familias)}
 
 
 def _asistente_modelos() -> tuple[Any, Any]:
@@ -6259,7 +7130,8 @@ def recalibrar_datos(ws: Workspace, project: str) -> dict:
 
 def recalibrar_sistema(ws: Workspace, ctx: JobContext, project: str, periodo: str, *,
                        zonal: str | None = None, demanda_dir: str | None = None,
-                       transformadores: bool = False) -> dict:
+                       transformadores: bool = False,
+                       criterio_fijas: str | None = None) -> dict:
     """Recalibra «Sin proyecto» del sistema sobre el proyecto ya importado: escaneo, máxima del
     periodo y calibración, sin reconvertir (028:RF-16, RF-21). Es ``tools/sistema_web.py`` sin
     ``--reconvertir``, el mismo recorrido del operador."""
@@ -6279,6 +7151,7 @@ def recalibrar_sistema(ws: Workspace, ctx: JobContext, project: str, periodo: st
     ctx.log(f'Recalibrar {zonal} ({project}) con {periodo}, libros de {demanda_dir} (028:RF-21).')
     if transformadores:
         cmd.append('--transformadores')
+    cmd += ['--criterio-fijas', _criterio_fijas(criterio_fijas)]                # 039:RF-1
     rc = ctx.run_process(cmd, cwd=str(project_root()), env=_entorno_del_trabajo(ctx))
     if rc not in (0, 1):
         raise UserError(f'La recalibración de {zonal} no llegó al final (código {rc}): vea el Registro.')

@@ -671,6 +671,19 @@ def afinar_bancos_pide(obras: list[dict], grafo: Mapping[str, Any], *, tension_m
     return avisos
 
 
+def _metricas_completas(valores: Mapping[str, Any], origen: str) -> str | None:
+    """044:RF-6: una ausencia o NaN no puede aparentar diferencia cero."""
+    for clave in ('v_min', 'perdidas_kw'):
+        valor = valores.get(clave)
+        try:
+            numero = float(valor) if not isinstance(valor, bool) else float('nan')
+        except (ValueError, TypeError, OverflowError):
+            numero = float('nan')
+        if not math.isfinite(numero) or (clave == 'perdidas_kw' and numero < 0):
+            return f'{origen}: métrica {clave} ausente o inválida'
+    return None
+
+
 def verificar_top_k(alternativas: Sequence[Mapping[str, Any]], medir: Callable[[Mapping[str, Any]], Mapping | None],
                     *, tolerancia_v_pu: float, tolerancia_perdidas: float = 0.2,
                     guardar: Callable[[Mapping[str, Any], Mapping | None, str], None] = lambda *_a: None
@@ -687,16 +700,18 @@ def verificar_top_k(alternativas: Sequence[Mapping[str, Any]], medir: Callable[[
         m = medir(alt)
         if not m or not m.get('converge'):
             motivo = 'el flujo de DIgSILENT no converge con ella'
+        elif (motivo := _metricas_completas(alt, 'predicción') or
+              _metricas_completas(m, 'DIgSILENT')):
+            pass
         else:
-            dv = abs(float(m['v_min']) - float(alt['v_min'])) if m.get('v_min') is not None and alt.get(
-                'v_min') is not None else 0.0
-            pred = float(alt.get('perdidas_kw') or 0.0)
-            dp = abs(float(m.get('perdidas_kw') or 0.0) - pred) / pred if pred else 0.0
+            dv = abs(float(m['v_min']) - float(alt['v_min']))
+            pred, medida = float(alt['perdidas_kw']), float(m['perdidas_kw'])
+            dp = abs(medida - pred) / pred if pred else (0.0 if medida == 0 else math.inf)
             motivo = None
             if dv > tolerancia_v_pu:
-                motivo = f'tensión mínima {m["v_min"]:.4f} p.u. frente a {alt["v_min"]:.4f} del gemelo'
+                motivo = f'tensión mínima {float(m["v_min"]):.4f} p.u. frente a {float(alt["v_min"]):.4f} del gemelo'
             elif dp > tolerancia_perdidas:
-                motivo = f'pérdidas {m["perdidas_kw"]:.1f} kW frente a {pred:.1f} del gemelo'
+                motivo = f'pérdidas {medida:.1f} kW frente a {pred:.1f} del gemelo'
             if motivo is None:
                 return {'elegida': dict(alt), 'gemelo': {k: alt.get(k) for k in ('v_min', 'perdidas_kw')},
                         'digsilent': dict(m), 'descartadas': descartadas, 'verificada': True}

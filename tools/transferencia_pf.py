@@ -41,7 +41,10 @@ se cancela o algo falla.
 El plan lleva ``project``, ``folder``, ``feeders`` (los dos alimentadores), ``casos``
 («Sin proyecto», «Con proyecto» o los dos), y, si se quieren, ``limites`` (los de los
 estudios, RF-35) y ``seccionadores`` (números de equipo de la entrada cargada, para un
-proyecto convertido antes de que el DGS distinguiera los seccionadores, RF-129).
+proyecto convertido antes de que el DGS distinguiera los seccionadores, RF-129). Con ``instantes``
+(``[{fecha, objetivos: {alimentador: [kW, kVAR]}}]``, los candidatos del instante común de la
+spec 013), cada sentido se calcula en cada uno con las dos cabeceras ajustadas a su registro,
+y el resultado es el del crítico, con ``temporal`` (periodo, cobertura, aceptable, faltantes).
 
 Códigos de salida: 0 hecho, 2 no se pudo (el informe dice por qué), 3 sin API.
 """
@@ -50,6 +53,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import traceback
 from pathlib import Path
 from typing import Any
@@ -57,7 +61,7 @@ from typing import Any
 from cargas_pf import (
     clave_pf,
     Alimentadores, _num, activar_proyecto, crear_variacion, error_inesperado, flujo_de_carga,
-    potencia,
+    leer_cabecera, potencia,
 )
 from casos_pf import NOMBRES, tres_casos
 from estudios_pf import medida
@@ -66,7 +70,7 @@ from igea_dgs.estudios_pf import EstudiosError, limites_de_perfil
 from igea_dgs.native_action import native_action_block_report
 from igea_dgs.transferencia_pf import (
     NODO, SECCIONADOR, Punto, escribir_fichero, juzgar, margen, maximo_factor,
-    pasos_del_camino, resumir_sentido,
+    pasos_del_camino, resumir_sentido, seleccionar_critico,
 )
 
 #: Nombre de caso → su rol en ``casos_pf``.
@@ -152,7 +156,7 @@ class Red:
                 if e is None or clave_pf(e) in camino or self.abierto(cub):
                     continue
                 if clave_pf(e) in self.cargas:
-                    p, q = potencia(e)
+                    p, q = potencia_escalada(e)
                     kw, kvar = kw + p, kvar + q
                     if all(clave_pf(x) != clave_pf(e) for x in cargas):
                         cargas.append(e)
@@ -165,6 +169,81 @@ class Red:
                         barras.append(otra)
                         pendientes.append(otra)
         return kw, kvar, barras, elementos, cargas
+
+
+def potencia_escalada(carga) -> tuple[float, float]:
+    """kW y kVAR de la carga con su factor de escala, los que usa el flujo.
+
+    Las escaladas llevan su ``scale0`` (spec 035) y el ajuste a un instante del mes lo
+    cambia (013:RF-22): sin él, la carga transferida sería la escrita, no la del instante.
+    """
+    p, q = potencia(carga)
+    k = float(getattr(carga, 'scale0', 1.0) or 1.0)
+    return p * k, q * k
+
+
+def sed_transferidas(cargas: list) -> list[dict[str, Any]]:
+    """Cada carga que pasa al que recibe, con su demanda en kW, kVAR y kVA (013:RF-24)."""
+    out = []
+    for c in cargas:
+        p, q = potencia_escalada(c)
+        out.append({'sed': c.loc_name, 'kw': p, 'kvar': q, 'kva': math.hypot(p, q)})
+    return sorted(out, key=lambda s: s['sed'])
+
+
+def cabeceras(alims, feeders) -> dict[str, list[float] | None]:
+    """kW y kVAR de la cabecera de cada alimentador tras el último flujo (013:RF-25)."""
+    out = {}
+    for f in feeders:
+        m = leer_cabecera(alims.elm[f])
+        out[f] = [m.kw, m.kvar] if m.converge else None
+    return out
+
+
+#: Desvío relativo admitido entre la cabecera de DIgSILENT y el registro del instante, el
+#: mismo 2 % del ajuste de la spec 006; y cuántas veces se reescala antes de darlo por perdido.
+TOLERANCIA_INSTANTE = 0.02
+ITERACIONES_INSTANTE = 8
+
+
+def ajustar_instante(app, alims, objetivos: dict, *, tolerancia: float = TOLERANCIA_INSTANTE,
+                     iteraciones: int = ITERACIONES_INSTANTE) -> dict[str, Any]:
+    """Deja los dos alimentadores en sus cabeceras del instante (013:RF-22).
+
+    Parte del ajuste mensual aplicado y escala el ``scale0`` de las cargas de cada uno por
+    el cociente entre el kW del registro y el que da DIgSILENT, flujo tras flujo, hasta que
+    los dos quedan dentro de la tolerancia. Las pérdidas cambian con la carga: por eso se
+    itera en vez de escalar una vez. El ``scale0`` lo restituye la foto del sentido.
+    """
+    medido: dict[str, list[float] | None] = {}
+    kw_pf: dict[str, float] = {}
+    sin_demanda = sorted(f for f, (kw, _q) in objetivos.items() if not kw or kw <= 0)
+    if sin_demanda:
+        # Con la cabecera en cero o negativa (una central que exporta) no hay a qué escalar.
+        return {'verificado': False, 'medido': medido, 'iteraciones': 0,
+                'motivo': f'el registro del instante no tiene demanda positiva en {", ".join(sin_demanda)}'}
+    for n in range(iteraciones):
+        flujo = flujo_de_carga(app)
+        if not flujo['converged']:
+            return {'verificado': False, 'medido': medido, 'iteraciones': n + 1,
+                    'motivo': 'el flujo de carga no converge con las cabeceras del instante'}
+        medido = cabeceras(alims, list(objetivos))
+        for f in objetivos:
+            m = medido.get(f)
+            if m is None or not m[0]:
+                return {'verificado': False, 'medido': medido, 'iteraciones': n + 1,
+                        'motivo': f'sin lectura de la cabecera de {f}'}
+            kw_pf[f] = m[0]
+        if all(abs(kw_pf[f] - kw) <= tolerancia * abs(kw) for f, (kw, _q) in objetivos.items()):
+            return {'verificado': True, 'medido': medido, 'iteraciones': n + 1, 'motivo': ''}
+        for f, (kw, _kvar) in objetivos.items():
+            factor = kw / kw_pf[f]
+            for c in alims.elm[f].GetObjs('ElmLod'):
+                c.scale0 = float(getattr(c, 'scale0', 1.0) or 1.0) * factor
+    peor = max(objetivos, key=lambda f: abs(kw_pf[f] - objetivos[f][0]) / (abs(objetivos[f][0]) or 1.0))
+    return {'verificado': False, 'medido': medido, 'iteraciones': iteraciones,
+            'motivo': (f'{peor} no cuadra con su cabecera del instante tras {iteraciones} flujos '
+                       f'({kw_pf[peor]:,.1f} kW frente a {objetivos[peor][0]:,.1f} kW)')}
 
 
 def es_seccionador(sw, entrada: set[str]) -> bool:
@@ -388,13 +467,16 @@ class Foto:
 
 
 def _sentido(app, alims, cede, recibe, enlace_nombre, troncal, enlace, entrada, limites,
-             cancelado) -> dict[str, Any]:
+             cancelado, *, con_capacidad: bool = True) -> dict[str, Any]:
     red = Red(alims.elm[cede])
     reconoce = distingue(red, entrada)
     camino = Camino(red, list(troncal.GetCompleteBbPath(0, 1) or []), enlace, entrada, reconoce)
     pasos = pasos_del_camino(camino.puntos)
+    # 013:RF-25: las cabeceras de los dos con el enlace todavía abierto.
+    antes_ok = flujo_de_carga(app)['converged']
+    cabecera_antes = cabeceras(alims, (cede, recibe)) if antes_ok else None
     enlace.on_off = 1                                                   # RF-109
-    medidas = []
+    medidas, cabecera_paso = [], {}
     for paso in pasos:
         if cancelado():
             break
@@ -405,13 +487,24 @@ def _sentido(app, alims, cede, recibe, enlace_nombre, troncal, enlace, entrada, 
             flujo = flujo_de_carga(app)
             medidas.append(_medir(alims.elm[recibe], camino.transferido[paso.punto])
                            if flujo['converged'] else {'converge': False})
+            if flujo['converged']:
+                cabecera_paso[paso.punto] = cabeceras(alims, (cede, recibe))
         finally:
             setattr(obj, atributo, antes)
     resumen = resumir_sentido(pasos[:len(medidas)], medidas, limites,
                               seccionadores_reconocidos=reconoce)
+    # 013:RF-24, RF-25: en el punto viable más lejano, qué SED pasan y cómo quedan las cabeceras.
+    maximo = resumen['maximo_seccionador'] or resumen['maximo_nodo']
+    punto = maximo['punto'] if maximo else None
+    resumen['punto_transferido'] = punto
+    resumen['sed_transferidas'] = sed_transferidas(camino.transferido[punto][2]) if punto else []
+    resumen['cabeceras'] = {'antes': cabecera_antes,
+                            'despues': cabecera_paso.get(punto) if punto else None}
+    # Un sentido verificado tiene el flujo de antes y el de cada paso; si no, falta evidencia (RF-29).
+    resumen['verificado'] = antes_ok and len(medidas) == len(pasos)
     resumen['capacidad'] = None
     maximo = resumen['maximo_seccionador']
-    if maximo is not None and not cancelado():                          # RF-122
+    if con_capacidad and maximo is not None and not cancelado():       # RF-122
         paso = next(p for p in pasos if p.punto == maximo['punto'])
         resumen['capacidad'] = capacidad_del_enlace(app, alims, cede, recibe, camino,
                                                     maximo['punto'], paso, enlace, limites)
@@ -453,6 +546,15 @@ def calcular(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
     if alims.sin_elm:
         return {**informe, 'error': 'no están en el proyecto: ' + ', '.join(alims.sin_elm)}, 2
     entrada = set(plan.get('seccionadores') or [])
+    # Spec 013: con ``instantes`` en el plan, cada sentido en el instante común del mes.
+    instantes = None
+    if 'instantes' in plan:
+        instantes = [(i['fecha'], {f: tuple(v) for f, v in i['objetivos'].items()})
+                     for i in plan.get('instantes') or []]
+        if not instantes:                                               # 013:RF-29
+            return {**informe, 'error': f'{feeders[0]} y {feeders[1]} no tienen ningún instante con '
+                                        'registro de cabecera de los dos en el periodo'}, 2
+        informe['verificaciones'] = []
     inicial = app.GetActiveStudyCase()
     a, b = feeders
     sin_enlace = True
@@ -464,7 +566,7 @@ def calcular(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
             caso = casos[ROL_DE_CASO[nombre_caso]]
             caso.Activate()
             informe['restitucion'][nombre_caso] = _en_un_caso(
-                app, alims, a, b, nombre_caso, entrada, limites, cancelado, informe)
+                app, alims, a, b, nombre_caso, entrada, limites, cancelado, informe, instantes)
             if any(r['caso'] == nombre_caso for r in informe['resultados']):
                 sin_enlace = False
             if any(e['caso'] == nombre_caso for e in informe.get('sin_calcular', [])):
@@ -476,6 +578,8 @@ def calcular(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
             inicial.Activate()
     if sin_enlace and not informe['cancelado']:                         # RF-107
         return {**informe, 'error': f'{a} y {b} no tienen ningún punto de enlace entre ellos'}, 2
+    if instantes is not None:
+        informe['temporal'] = _temporal(plan, instantes, informe)
     no_vuelto = [x for r in informe['restitucion'].values() for x in r['distintos']]
     nada = not informe['resultados'] and bool(informe.get('sin_calcular'))
     return informe, 2 if no_vuelto or informe['cancelado'] or nada else 0
@@ -515,8 +619,61 @@ def _tensiones_distintas(redes, enlace) -> str:
             'cierra ni se calcula la transferencia por él hasta migrar la parte que pasa')
 
 
-def _en_un_caso(app, alims, a, b, nombre_caso, entrada, limites, cancelado, informe) -> dict:
-    """Los dos sentidos en el caso activo, en una variación temporal que se borra."""
+def _por_instante(args: tuple, nombre_caso: str, instantes: list, foto, cancelado,
+                  informe) -> list[dict[str, Any]]:
+    """Un sentido y un enlace en cada instante candidato (013:RF-22, RF-27).
+
+    Cada candidato parte del mismo estado base: se ajustan las dos cabeceras a las del
+    instante, se recorre el camino sin buscar la capacidad (solo hace falta en el crítico)
+    y se restituye todo antes del siguiente.
+    """
+    app, alims, cede, recibe, nombre_enlace = args[:5]
+    verifs = []
+    for n, (instante, objetivos) in enumerate(instantes, start=1):
+        if cancelado():
+            informe['cancelado'] = True
+            break
+        print(f'candidato {n}/{len(instantes)} · {nombre_caso} · {cede} → {recibe} por '
+              f'{nombre_enlace} · {instante}', flush=True)
+        try:
+            ajuste = ajustar_instante(app, alims, objetivos)
+            r = (_sentido(*args, con_capacidad=False) if ajuste['verificado']
+                 else {'cede': cede, 'recibe': recibe, 'enlace': nombre_enlace, 'admite': False,
+                       'verificado': False})
+        finally:
+            foto.restituir()                                            # 011:RF-119
+        motivo = ajuste['motivo'] or ('' if r.get('verificado') else
+                                      'faltan flujos del camino (cancelado o sin converger antes de cerrar el enlace)')
+        verifs.append({**r, 'caso': nombre_caso, 'instante': instante, 'objetivos': objetivos,
+                       'medido': ajuste['medido'],
+                       'verificado': bool(ajuste['verificado'] and r.get('verificado')), 'motivo': motivo})
+    return verifs
+
+
+def _temporal(plan: dict, instantes: list, informe: dict) -> dict[str, Any]:
+    """Lo que se informa del instante común: periodo, cobertura, criterio, cada candidato con
+    lo medido tras ajustarlo, si el resultado es aceptable y qué evidencia falta (RF-28, RF-29)."""
+    _criticos, estado = seleccionar_critico(informe['verificaciones'], [t for t, _o in instantes],
+                                            cancelado=informe['cancelado'])
+    candidatos = []
+    for t, objetivos in instantes:
+        vs = [v for v in informe['verificaciones'] if v['instante'] == t]
+        candidatos.append({'instante': t, 'objetivos': objetivos,
+                           'medido': vs[0]['medido'] if vs else {},
+                           'verificado': bool(vs) and all(v['verificado'] for v in vs),
+                           'motivo': '; '.join(sorted({v['motivo'] for v in vs if v['motivo']}))
+                           or ('' if vs else 'no se calculó')})
+    return {'periodo': plan.get('periodo'), 'cobertura': plan.get('cobertura') or {},
+            'candidatos': candidatos, **estado}
+
+
+def _en_un_caso(app, alims, a, b, nombre_caso, entrada, limites, cancelado, informe,
+                instantes: list | None = None) -> dict:
+    """Los dos sentidos en el caso activo, en una variación temporal que se borra.
+
+    Con ``instantes`` (``[(fecha, {alimentador: (kW, kVAR)})]``), cada sentido se calcula
+    en cada uno, ajustado a sus cabeceras, y se da el crítico (spec 013).
+    """
     grababa = app.GetRecordingStage()
     escenario = app.GetActiveScenario()
     if escenario is not None:
@@ -556,12 +713,29 @@ def _en_un_caso(app, alims, a, b, nombre_caso, entrada, limites, cancelado, info
                         {'caso': nombre_caso, 'cede': cede, 'recibe': recibe,
                          'enlace': nombre_enlace, 'motivo': motivo})
                     continue
-                try:
-                    r = _sentido(app, alims, cede, recibe, nombre_enlace, troncal, enlace,
-                                 entrada, limites, cancelado)
-                finally:
-                    foto.restituir()                                    # RF-119
-                informe['resultados'].append({'caso': nombre_caso, **r})
+                if instantes is None:
+                    try:
+                        r = _sentido(app, alims, cede, recibe, nombre_enlace, troncal, enlace,
+                                     entrada, limites, cancelado)
+                    finally:
+                        foto.restituir()                                # RF-119
+                    informe['resultados'].append({'caso': nombre_caso, **r})
+                    continue
+                args = (app, alims, cede, recibe, nombre_enlace, troncal, enlace, entrada,
+                        limites, cancelado)
+                verifs = _por_instante(args, nombre_caso, instantes, foto, cancelado, informe)
+                informe['verificaciones'] += verifs
+                # 013:RF-27: el crítico de este sentido, que se repite con la capacidad del enlace.
+                criticos, _ = seleccionar_critico(verifs, [t for t, _o in instantes])
+                if criticos and not cancelado():
+                    critico = criticos[0]
+                    try:
+                        ajustar_instante(app, alims, dict(instantes)[critico['instante']])
+                        r = _sentido(*args)
+                    finally:
+                        foto.restituir()
+                    informe['resultados'].append({'caso': nombre_caso, 'instante': critico['instante'],
+                                                  **r, 'verificado': critico['verificado']})
     finally:
         distintos = foto.restituir() if foto is not None else []
         for bb in creadas:
@@ -588,7 +762,8 @@ def main(argv=None) -> int:
                                             '(spec 011)')
     p.add_argument('--plan', required=True, help='Plan JSON preparado por la web')
     p.add_argument('--output-json', required=True, help='Dónde dejar el informe')
-    p.add_argument('--fichero', help='CSV con una fila por caso, sentido, enlace y paso')
+    p.add_argument('--fichero', help='CSV de los pasos, o XLSX con pasos, SED transferidas y '
+                                     'cobertura temporal (spec 013)')
     p.add_argument('--cancel-file', help='Si este fichero aparece, para entre pasos')
     args = p.parse_args(argv)
     plan = json.loads(Path(args.plan).read_text(encoding='utf-8'))
@@ -614,7 +789,8 @@ def main(argv=None) -> int:
     try:
         informe, codigo = calcular(app, plan, cancelado=cancelado)
         if args.fichero and informe.get('resultados'):
-            informe['fichero'] = str(escribir_fichero(informe['resultados'], Path(args.fichero)))
+            informe['fichero'] = str(escribir_fichero(informe['resultados'], Path(args.fichero),
+                                                      informe.get('temporal')))
     except Exception as exc:  # noqa: BLE001 - el informe dice el error en vez de perderse
         traceback.print_exc()
         informe, codigo = error_inesperado(plan, False, exc), 1

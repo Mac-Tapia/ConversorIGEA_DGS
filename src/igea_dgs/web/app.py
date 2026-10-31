@@ -186,6 +186,17 @@ class DemandaClientesIn(BaseModel):
     # 035:RF-1: la máxima buscada de cada alimentador (fecha, kw, kvar, fp): sus clientes
     # con el registro de ese instante y lo que el ajuste escribirá.
     maximas: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    # 039:RF-1: las fijas coincidentes con la cabecera (por defecto) o su máximo del mes.
+    criterio: Literal['coincidente', 'maximo_mes'] = 'coincidente'
+
+
+class CompararFijasIn(BaseModel):
+    """039:RF-5: los alimentadores de la máxima buscada y el proyecto de su última calibración."""
+
+    project: str = ''
+    alimentadores: list[str] = Field(default_factory=list, max_length=2000)
+    periodo: str | None = Field(default=None, pattern=r'^\d{4}-(0[1-9]|1[0-2])$')
+    maximas: dict[str, dict[str, Any]] = Field(default_factory=dict)
 
 
 class TransformadoresIn(BaseModel):
@@ -225,6 +236,8 @@ class AjusteIn(BaseModel):
     tension_fuente_pu: float | None = Field(None, ge=0.9, le=1.1)
     # Spec 021, RF-64: poner los bancos que falten para el kVAR medido y recalibrar.
     completar_bancos: bool = False
+    # 039:RF-1: el mismo criterio de las fijas que se eligió en la tabla cruzada.
+    criterio_fijas: Literal['coincidente', 'maximo_mes'] = 'coincidente'
 
 
 class VerificarIn(BaseModel):
@@ -265,6 +278,8 @@ class ObrasIn(BaseModel):
     tipo_cambio: float | None = Field(None, gt=0, le=100_000)
     # Spec 025, RF-53: el libro CAPEX de la empresa, por su ruta en este equipo.
     capex: str = Field('', max_length=1000)
+    # Spec 042, RF-6: cuántos alimentadores nuevos puede tener la SET nueva.
+    alimentadores_nuevos: int = Field(4, ge=1, le=20)
 
 
 class EstudiosIn(BaseModel):
@@ -277,6 +292,16 @@ class EstudiosIn(BaseModel):
     limites: dict[str, float] = Field(default_factory=dict)
     # RF-39: límite por estudio y caso, entre 10 s y un día.
     limite_s: float | None = Field(None, ge=10, le=86400)
+    # Spec 012: objetivo y máximos de reconectadores (RF-37), crecimiento conjunto (RF-45) y
+    # contingencias de las curvas PV (RF-53).
+    opciones: dict[str, Any] = Field(default_factory=dict)
+
+
+class DatosEmpresaAplicarIn(BaseModel):
+    """Escribir el libro de la empresa en el proyecto (spec 012, RF-21)."""
+
+    project: str
+    feeders: list[str] = Field(default_factory=list, max_length=2000)
 
 
 class InformeEstudioIn(BaseModel):
@@ -377,6 +402,17 @@ class InformeFactibilidadIn(BaseModel):
     codigo_punto: str = ''
 
 
+class VistaUbicacionIn(BaseModel):
+    """Vista previa de la ubicación del cliente nuevo (spec 017, RF-124)."""
+
+    project: str = Field(min_length=1)
+    alimentador: str = Field(min_length=1)
+    sed: str = Field(min_length=1)
+    cliente: str = ''
+    potencia_kw: float | None = Field(None, gt=0)
+    codigo_punto: str = ''
+
+
 class TransferenciaIn(BaseModel):
     """Transferencia de carga entre dos alimentadores (spec 011, RF-104)."""
 
@@ -384,6 +420,9 @@ class TransferenciaIn(BaseModel):
     feeders: list[str] = Field(default_factory=list, max_length=2)
     casos: list[str] = Field(default_factory=lambda: ['Sin proyecto'])
     limites: dict[str, float] = Field(default_factory=dict)
+    # 013:RF-22: la máxima de cabecera buscada en 2.2, con su periodo y sus curvas; sin
+    # ella, la última.
+    cabecera_job_id: str | None = None
 
 
 class GuionesIn(BaseModel):
@@ -464,6 +503,8 @@ class RecalibrarIn(BaseModel):
     zonal: str | None = None
     demanda_dir: str | None = None
     transformadores: bool = False
+    # 039:RF-1: el criterio de las fijas, el mismo de la tabla cruzada.
+    criterio_fijas: Literal['coincidente', 'maximo_mes'] = 'coincidente'
 
 
 class EscaneoIn(BaseModel):
@@ -1178,7 +1219,8 @@ def create_app(
         return submit(ws, 'recalibrar', f'Recalibrar · {body.project}',
                       lambda ctx: services.recalibrar_sistema(ws, ctx, body.project, body.periodo,
                                                               zonal=body.zonal, demanda_dir=body.demanda_dir,
-                                                              transformadores=body.transformadores),
+                                                              transformadores=body.transformadores,
+                                                              criterio_fijas=body.criterio_fijas),
                       lane='asistente')
 
     @app.get('/api/workspaces/{wid}/powerfactory/escaneo')
@@ -1358,7 +1400,20 @@ def create_app(
     def demanda_clientes(wid: str, body: DemandaClientesIn | None = None) -> dict:
         return services.demanda_clientes(ws_or_404(wid), body.alimentadores if body else None,
                                          periodo=body.periodo if body else None,
-                                         maximas=body.maximas if body else None)
+                                         maximas=body.maximas if body else None,
+                                         criterio=body.criterio if body else None)
+
+    # 039:RF-5: las fijas con los dos criterios, frente a la cabecera y a la red simulada.
+    @app.post('/api/workspaces/{wid}/demanda/clientes/comparar', status_code=202)
+    def demanda_comparar_fijas(wid: str, body: CompararFijasIn) -> dict:
+        ws = ws_or_404(wid)
+        if not body.maximas:
+            raise HTTPException(422, 'Busque antes la máxima de cabecera de los alimentadores.')
+        feeders = [a.strip() for a in body.alimentadores if a.strip()] or list(body.maximas)
+        return submit(ws, 'demanda_comparar_fijas',
+                      f'Comparar los criterios de las fijas ({len(feeders)} alimentador(es))',
+                      lambda ctx: services.comparar_criterios_fijas(
+                          ws, ctx, body.project, feeders, body.maximas, body.periodo))
 
     # Spec 006: ajuste de las demandas del alimentador a la máxima de cabecera.
     @app.post('/api/workspaces/{wid}/demanda/ajuste/plan')
@@ -1375,7 +1430,8 @@ def create_app(
                                     centrales={a: c.model_dump() for a, c in body.centrales.items()},
                                     tension_fuente_pu=body.tension_fuente_pu,
                                     completar_bancos=body.completar_bancos,
-                                    barras=job.result.get('barras'))
+                                    barras=job.result.get('barras'),
+                                    criterio_fijas=body.criterio_fijas)
 
     def _ajuste_job(wid: str, token: str, simular: bool) -> dict:
         ws = ws_or_404(wid)
@@ -1564,6 +1620,11 @@ def create_app(
         """026:RF-28, RF-31: órdenes, decisiones, mejoras, consultas a internet, suite y avisos."""
         return services.asistente_registro()
 
+    @app.get('/api/asistente/modelos')
+    def asistente_modelos() -> dict:
+        """043:RF-8 — estados respaldados por informes y candidatos íntegros."""
+        return services.asistente_estado_modelos()
+
     @app.post('/api/workspaces/{wid}/asistente/entrenar', status_code=202)
     def asistente_entrenar(wid: str) -> dict:
         ws = ws_or_404(wid)
@@ -1660,16 +1721,60 @@ def create_app(
                                                           capex=body.capex),
                       lane='powerfactory')
 
+    @app.post('/api/workspaces/{wid}/pf/obras/con-proyecto', status_code=202)
+    def obras_con_proyecto(wid: str, body: ObrasIn) -> dict:
+        """042:RF-13: escalera carga a carga y SET nueva para las que no caben."""
+        ws = ws_or_404(wid)
+        return submit(ws, 'obras_con_proyecto', f'Optimizar «Con proyecto» · {body.project.strip()}',
+                      lambda ctx: services.con_proyecto_optimizar(
+                          ws, ctx, body.project, body.feeders, anio_casos=body.anio_casos,
+                          tipo_cambio=body.tipo_cambio, capex=body.capex,
+                          alimentadores_nuevos=body.alimentadores_nuevos),
+                      lane='powerfactory')
+
     @app.get('/api/pf/estudios')
     def estudios_catalogo() -> dict:
         return services.estudios_catalogo()
+
+    @app.get('/api/workspaces/{wid}/pf/estudios')
+    def estudios_catalogo_proyecto(wid: str, project: str = '') -> dict:
+        """012:RF-19, RF-4: los estudios según el libro del proyecto y la licencia."""
+        return services.estudios_catalogo(ws_or_404(wid), project)
+
+    @app.get('/api/workspaces/{wid}/pf/datos-empresa')
+    def datos_empresa_estado(wid: str, project: str = '') -> dict:
+        return {'libro': services.datos_empresa_estado(ws_or_404(wid), project)}
+
+    @app.post('/api/workspaces/{wid}/pf/datos-empresa')
+    def datos_empresa_subir(wid: str, project: str = Form(...), file: UploadFile = File(...)) -> dict:
+        """012:RF-6, RF-16: el libro se valida al subirlo, sin abrir DIgSILENT."""
+        ws = ws_or_404(wid)
+        tmp = _upload_tmp(ws, file, 'datos_empresa.xlsx')
+        try:
+            return {'libro': services.datos_empresa_subir(ws, project, tmp, Path(file.filename or 'datos_empresa.xlsx').name)}
+        finally:
+            tmp.unlink(missing_ok=True)
+
+    @app.get('/api/workspaces/{wid}/pf/datos-empresa/plantilla')
+    def datos_empresa_plantilla(wid: str) -> FileResponse:
+        """012:RF-7: la plantilla del libro."""
+        path = services.datos_empresa_plantilla(ws_or_404(wid))
+        return FileResponse(path, filename=path.name)
+
+    @app.post('/api/workspaces/{wid}/pf/datos-empresa/aplicar', status_code=202)
+    def datos_empresa_aplicar(wid: str, body: DatosEmpresaAplicarIn) -> dict:
+        """012:RF-21: el libro en la variación «Datos de confiabilidad», como trabajo."""
+        ws = ws_or_404(wid)
+        return submit(ws, 'datos_confiabilidad', f'Datos de confiabilidad · {body.project.strip()}',
+                      lambda ctx: services.datos_empresa_aplicar(ws, ctx, body.project, body.feeders),
+                      lane='powerfactory')
 
     @app.post('/api/workspaces/{wid}/pf/estudios/plan')
     def estudios_plan(wid: str, body: EstudiosIn) -> dict:
         ws = ws_or_404(wid)
         return services.estudios_plan(ws, body.project, body.feeders, body.estudios,
                                       _ajuste_aplicado(wid, body.ajuste_job_id), body.limites,
-                                      body.limite_s)
+                                      body.limite_s, body.opciones)
 
     @app.post('/api/workspaces/{wid}/pf/estudios/{token}/ejecutar', status_code=202)
     def estudios_ejecutar(wid: str, token: str) -> dict:
@@ -1765,6 +1870,13 @@ def create_app(
         return submit(ws, 'informe_factibilidad', f'Informe de factibilidad · {body.sed}',
                       lambda ctx: services.informe_factibilidad(ws, ctx, formulario), lane='engine')
 
+    @app.post('/api/workspaces/{wid}/informes/ubicacion')
+    def informe_vista_ubicacion(wid: str, body: VistaUbicacionIn) -> dict:
+        """Spec 017, RF-124: la imagen de ubicación del cliente antes de generar el informe.
+        Se dibuja con la geografía guardada en menos de un segundo: no es un trabajo."""
+        return services.informe_vista_ubicacion(ws_or_404(wid), body.project, body.alimentador, body.sed,
+                                                body.cliente, body.potencia_kw, body.codigo_punto)
+
     @app.post('/api/workspaces/{wid}/pf/transferencia', status_code=202)
     def transferencia(wid: str, body: TransferenciaIn) -> dict:
         ws = ws_or_404(wid)
@@ -1772,7 +1884,8 @@ def create_app(
             raise HTTPException(400, 'Elija dos alimentadores distintos.')
         return submit(ws, 'transferencia', f"Transferencia · {' ↔ '.join(body.feeders)}",
                       lambda ctx: services.transferencia_ejecutar(ws, ctx, body.project, body.feeders,
-                                                                  body.casos, body.limites),
+                                                                  body.casos, body.limites,
+                                                                  body.cabecera_job_id),
                       lane='powerfactory')
 
     @app.post('/api/workspaces/{wid}/demanda/excel')

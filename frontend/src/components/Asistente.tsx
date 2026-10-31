@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../context';
-import type { AsistentePlan, AsistenteRespuesta } from '../types';
+import type { AsistentePlan, AsistenteRespuesta, EstadoModelos } from '../types';
 
 /** Spec 026: la consola del asistente. La orden se escribe en español; lo que escribe en
  * DIgSILENT o en disco espera la confirmación (RF-8) y se ejecuta como cualquier trabajo. */
@@ -33,6 +33,26 @@ function Plan({ plan }: { plan: AsistentePlan }) {
 }
 
 /** RF-28, RF-31: lo que el asistente hizo, decidió y consultó en internet, para auditarlo. */
+function Modelos() {
+  const { run } = useApp();
+  const [modelos, setModelos] = useState<EstadoModelos | null>(null);
+  return (
+    <details onToggle={(e) => {
+      if ((e.target as HTMLDetailsElement).open)
+        void run(api.asistenteModelos).then((r) => r && setModelos(r));
+    }}>
+      <summary className="small">Estado de los modelos y evidencia de evaluación</summary>
+      {modelos && <table className="small">
+        <thead><tr><th>Familia</th><th>Algoritmo</th><th>Estado</th><th>Observaciones</th></tr></thead>
+        <tbody>{modelos.familias.map((f) => <tr key={f.familia}>
+          <td>{f.familia}</td><td>{f.algorithm ?? '—'}</td>
+          <td>{f.estado ?? 'Pendiente de evidencia'}</td><td>{f.bloqueos.join('; ') || '—'}</td>
+        </tr>)}</tbody>
+      </table>}
+    </details>
+  );
+}
+
 function Registro() {
   const { run } = useApp();
   const [registro, setRegistro] = useState<Record<string, unknown[]> | null>(null);
@@ -141,6 +161,7 @@ export function Asistente() {
 
   return (
     <div className="stack">
+      <Modelos />
       <p className="muted small">
         Escriba lo que quiere hacer, por ejemplo «calibra el sistema Pisco con julio de 2026» o «¿cómo se calibra una
         barra sin medidor?». Las consultas se responden al momento; lo que escribe en DIgSILENT o en disco espera su

@@ -110,6 +110,41 @@ def test_sin_cargas_nuevas_no_se_estudia_con_proyecto():
     assert any('cargas nuevas' in a for a in informe['avisos'])
 
 
+@pytest.mark.parametrize('anio', [None, 2025])
+def test_estudios_preparan_diagnostico_sin_obras_exclusivas(anio):
+    """037:RF-2, 037:RF-4 — diagnóstico renovado con el año, las cargas y sin obras de Con."""
+    app, plan, variaciones = _escenario_red(random.Random(9), escenario=True)
+    plan.update(incluir_cargas_nuevas=True, anio_casos=anio)
+    informe, rc = casos_pf.preparar(app, plan)
+    assert rc == 0, informe
+    con = casos_pf.casos_del_proyecto(app, anio)['con']
+    con.Activate()
+    obra = _variacion(app, 'Obra_solo_con')
+    informe, rc = casos_pf.preparar(app, plan)
+    assert rc == 0, informe
+    diag = informe['casos']['cargas']
+    assert diag['nombre'] == casos_pf.nombre_cargas_nuevas(anio)
+    assert diag['estudiable'] and diag['converge']
+    caso = _caso(app, diag['nombre'])
+    activas, escenario = _activas_en(app, caso)
+    assert set(v.loc_name for v in variaciones['cargas']) <= set(activas)
+    assert obra.loc_name not in activas
+    assert escenario.loc_name == diag['nombre']
+    assert obra.loc_name in _activas_en(app, con)[0]
+    assert len(casos_pf.tres_casos(app, anio)) == 3
+
+
+def test_estudios_no_adoptan_diagnostico_ajeno():
+    """037:RF-7 — un diagnóstico ajeno se conserva y se informa como no estudiable."""
+    app, plan, _v = _escenario_red(random.Random(9))
+    ajeno = app.carpetas['study'].CreateObject('IntCase', 'Cargas nuevas')
+    informe, rc = casos_pf.preparar(app, {**plan, 'incluir_cargas_nuevas': True})
+    assert rc == 0, informe
+    assert not informe['casos']['cargas']['estudiable']
+    assert any('no creó el sistema' in a for a in informe['avisos'])
+    assert casos_pf.rol_de(ajeno) is None
+
+
 def test_con_obras_y_sin_cargas_nuevas_se_estudia_con_proyecto():
     """017:RF-30 — un estudio sin cliente nuevo: las obras de «Con proyecto» bastan para estudiarlo."""
     app, plan, _v = _escenario_red(random.Random(11), cargas=False)

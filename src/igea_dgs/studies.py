@@ -13,7 +13,7 @@ Por eso este módulo separa tres cosas que es fácil confundir:
     Las entradas que el estudio necesita existen y no son ceros ni valores por defecto.
 ``es defendible``
     Ambas, y además la fuente del dato está identificada. Es el listón del PIDE, porque
-    el expediente va a Osinergmin.
+    el expediente va al regulador.
 
 Lo que hay aquí es la tabla de requisitos, comprobable contra el export sin necesidad de
 PowerFactory. La ejecución vive en ``tools/base_scenario.py``.
@@ -116,17 +116,17 @@ _IMPEDANCIA_FUENTE = Entrada(
 _TASAS_FALLA = Entrada(
     'Tasa de falla (λ) y tiempo de reparación por tipo de elemento',
     AUSENTE,
-    'Las columnas FailRate, TmpFailRate y OutageTime existen en el BD_Equipo y están '
-    'TODAS a cero. Salen del histórico de interrupciones de la empresa, que Electro '
-    'Dunas ya reporta a Osinergmin por la NTCSE.',
+    'Las columnas FailRate, TmpFailRate y OutageTime del catálogo de equipos pueden venir '
+    'a cero. Salen del histórico de interrupciones de la empresa, en su libro de datos '
+    '(spec 012).',
     'ComRel3 se ejecuta igual y devuelve SAIDI = SAIFI = ENS = 0. Es el peor caso: un '
     'resultado limpio y sin sentido.',
 )
 
 _CLIENTES = Entrada(
     'Número de clientes por SED', DISPONIBLE,
-    'NumberOfCustomer de [CUSTOMER LOADS]: 294.137 suministros en el export. El '
-    'conversor ya lo lee y lo escribe en ElmLod.NrCust.',
+    'NumberOfCustomer de [CUSTOMER LOADS]. El conversor lo lee y lo escribe en '
+    'ElmLod.NrCust.',
     'Nada: el dato llega. SAIFI y SAIDI se ponderan por cliente, y el denominador '
     'está puesto. Las cargas sin el dato quedan con el valor por defecto de '
     'PowerFactory, que exige NrCust > 0 y rechaza el cero.',
@@ -181,9 +181,8 @@ _PRECIOS = Entrada(
 )
 
 _COSTE_ENERGIA = Entrada(
-    'Coste de la energía (US$/kWh) y tasa de actualización', PARCIAL,
-    'La tasa la fija el TdR en 12 % y el valor de la ENS en 1 US$/kWh. El coste de la '
-    'energía de pérdidas lo pone la empresa.',
+    'Coste de la energía (moneda/kWh) y tasa de actualización', PARCIAL,
+    'Los da la empresa en su libro de datos (spec 012), con su moneda; nada se supone.',
     'Las pérdidas no se pueden capitalizar, que es la mitad de la función objetivo.',
 )
 
@@ -239,8 +238,29 @@ ESTUDIOS: tuple[Estudio, ...] = (
     ),
     Estudio(
         'fiabilidad', 'ComRel3', 'Fiabilidad (SAIDI, SAIFI, ENS)', 45,
-        'Los índices de la NTCSE y la ENS a 1 US$/kWh del régimen de incentivos.',
+        'SAIFI, SAIDI y la ENS que pide el regulador.',
         (_TOPOLOGIA, _TASAS_FALLA, _CLIENTES, _TIEMPOS_MANIOBRA),
+
+        coste=PESADO,
+    ),
+    Estudio(
+        'reconectadores', 'ComOpri', 'Ubicación óptima de reconectadores', 46,
+        'Dónde un reconectador baja más la ENS (spec 012).',
+        (_TOPOLOGIA, _TASAS_FALLA, _CLIENTES, _TIEMPOS_MANIOBRA),
+
+        coste=PESADO,
+    ),
+    Estudio(
+        'alojamiento', 'ComHostcap', 'Capacidad de alojamiento', 41,
+        'Generación distribuida y carga nueva que admite cada nodo (spec 012).',
+        (_TOPOLOGIA,),
+
+        coste=PESADO,
+    ),
+    Estudio(
+        'curvas_pv', 'ComPvcurves', 'Curvas PV', 40,
+        'Margen de cada alimentador hasta el colapso de tensión (spec 012).',
+        (_TOPOLOGIA,),
 
         coste=PESADO,
     ),

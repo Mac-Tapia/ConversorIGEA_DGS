@@ -129,3 +129,142 @@ def test_el_plan_y_la_tabla_dicen_el_libro_del_mes_anterior():
     assert "periodo=client_period.period," in fuente
     tabla = fuente[fuente.index('def _clientes_en_sus_maximas'):fuente.index('def demanda_excel')]
     assert "evidencia.status == 'CLIENT_PERIOD_PREVIOUS'" in tabla and 'mes = evidencia.period' in tabla
+
+
+def _hoja_dia(dia: str, pico: int):
+    """Hoja de 15 minutos de un día: EA de 10 + k y su pico en ``pico`` (POT 400 kW)."""
+    filas = [['SUMINISTRO', 'FECHA', 'HORA', 'EA', 'ERI', 'POT']]
+    for k in range(24):
+        ea = 100.0 if k == pico else 10.0 + k
+        filas.append(['x', dia, f'{k // 4:02d}:{15 * (k % 4):02d}', ea,
+                      7.5 if k == pico else 1.0 + k / 10, ea * 4])
+    return filas
+
+
+def _dos_criterios(client):
+    """A1 con 11 (hoja del día de la máxima), 14 (hoja de otro día) y 12 (sin hoja)."""
+    wid = client.post('/api/workspaces').json()['id']
+    _subir(client, wid, 'suministros', {'s': [['Suministro', 'Suministro Act', 'SED', 'RADIAL'],
+                                              [11, 9011, 'E1', 'A1'], [12, 9012, 'E1', 'A1'],
+                                              [14, 9014, 'E2', 'A1']]}, 'sum.xlsx')
+    _subir(client, wid, 'clientes', {
+        'resumen': [['x'], ['Nis', 'EA', 'ERI', 'Pot'], [11, 900.0, 300.0, 400.0],
+                    [12, 500.0, 100.0, 50.0], [14, 900.0, 300.0, 400.0]],
+        'maestro_lib': [['numero_suministro', 'nombre_hoja_exportacion'], ['11', 'cli11'], ['14', 'cli14']],
+        'cli11': _hoja_dia('01/07/2026', 9), 'cli14': _hoja_dia('02/07/2026', 9)}, 'ci.xlsx')
+    maxima = {'fecha': '2026-07-01T00:30:00', 'kw': 1000.0, 'kvar': 250.0, 'fp': None}
+
+    def cruzar(**kw):
+        r = client.post(f'/api/workspaces/{wid}/demanda/clientes/cruzar',
+                        json={'alimentadores': ['A1'], 'maximas': {'A1': maxima}, **kw})
+        assert r.status_code == 200, r.text
+        return r.json()
+    cruzar.wid, cruzar.maxima = wid, maxima
+    return cruzar
+
+
+def test_por_defecto_las_fijas_son_coincidentes_y_la_que_no_tiene_el_instante_no_toma_otro(client):
+    """039:RF-1, 039:RF-3, 039:RF-4 — sin elegir, el criterio es «coincidente»: cada fija con su
+    EA × 4 y ERI × 4 del instante de la máxima; la que tiene hoja pero no ese registro no toma
+    el de su POT, y se dice con el periodo que daría la misma fecha. La que no tiene hoja va
+    con su EA/ERI del mes con los dos criterios y no se marca."""
+    cruce = _dos_criterios(client)()
+    assert cruce['criterio'] == 'coincidente'
+    filas = {c['codigo']: c for c in cruce['cruzados']}
+    assert filas['11']['metodo'] == 'REGISTRO_DEL_INSTANTE' and filas['11']['p_kw'] == pytest.approx(12 * 4)
+    assert filas['14'].get('fecha_valores') is None and filas['14']['metodo'] != 'REGISTRO_DEL_INSTANTE'
+    assert '01/07/2026 00:30' in filas['14']['sin_coincidente'] and '2026-07' in filas['14']['sin_coincidente']
+    assert filas['12']['metodo'] == 'ERI/EA' and not filas['12'].get('sin_coincidente')
+    assert cruce['no_coincidentes'] == [filas['14']['sin_coincidente']]
+
+
+def test_con_maximo_del_mes_cada_fija_va_con_su_pot_y_el_eri_de_ese_registro(client):
+    """039:RF-1, 039:RF-2 — con «máximo del mes», cada fija con la POT máxima de su hoja y el
+    ERI × 4 de ese mismo registro, aunque la hoja tenga el instante de la máxima."""
+    cruce = _dos_criterios(client)(criterio='maximo_mes')
+    assert cruce['criterio'] == 'maximo_mes' and cruce['no_coincidentes'] == []
+    filas = {c['codigo']: c for c in cruce['cruzados']}
+    for codigo, dia in (('11', '01/07/2026'), ('14', '02/07/2026')):
+        f = filas[codigo]
+        assert f['fecha_valores'] == f'{dia} 02:15' and f['metodo'].startswith('ERI_DEL_REGISTRO')
+        assert f['p_kw'] == pytest.approx(400.0) and f['q_kvar'] == pytest.approx(7.5 * 4)
+
+
+def test_un_criterio_que_no_existe_se_rechaza(client):
+    """039:RF-1 — solo «coincidente» o «maximo_mes»."""
+    wid = client.post('/api/workspaces').json()['id']
+    r = client.post(f'/api/workspaces/{wid}/demanda/clientes/cruzar', json={'criterio': 'promedio'})
+    assert r.status_code == 422
+
+
+def test_comparar_los_criterios_con_la_cabecera_y_la_red_simulada(client):
+    """039:RF-5, 035:RF-28 — un trabajo que no abre DIgSILENT da, por fija, P y Q con su registro
+    en los dos criterios; sus sumas (sin la que no tiene el registro del instante); la cabecera
+    de la máxima; la P y la Q de la red y de los bancos de la última calibración; y con cada
+    criterio, si la medida de cabecera es coherente."""
+    from igea_dgs.web import services
+    from apoyo import esperar_trabajo
+
+    cruzar = _dos_criterios(client)
+    ws = client.app.state.store.get(cruzar.wid)
+    informe = {'sed': [{'sed': 'E1', 'despues': {'kw': 60.0, 'kvar': 20.0}},
+                       {'sed': 'E3', 'despues': {'kw': 500.0, 'kvar': 100.0}}],
+               'escenarios': [{'escenario': 'Sin proyecto'}], 'cabecera': {'kw': 1000.0, 'kvar': 90.0},
+               'cuadre_q': {'bancos_kvar': 300.0}}
+    services._guardar_calibracion(ws, 'P', 'A1', informe)
+    r = client.post(f'/api/workspaces/{cruzar.wid}/demanda/clientes/comparar',
+                    json={'project': 'P', 'alimentadores': ['A1'], 'maximas': {'A1': cruzar.maxima}})
+    assert r.status_code == 202, r.text
+    estado = esperar_trabajo(client, r.json())
+    assert estado['status'] == 'done', estado
+    a1 = estado['result']['alimentadores'][0]
+    fijas = {f['codigo']: f for f in a1['fijas']}
+    assert fijas['11']['coincidente']['fecha'] == '01/07/2026 00:30'
+    assert fijas['11']['maximo_mes']['fecha'] == '01/07/2026 02:15'
+    assert fijas['14']['coincidente']['sin_coincidente'] and fijas['14']['maximo_mes']['p_kw'] == pytest.approx(400.0)
+    s = a1['sumas']
+    assert s['coincidente']['sin_registro'] == 1
+    assert s['coincidente']['p_kw'] == pytest.approx(48.0 + fijas['12']['coincidente']['p_kw'])
+    assert s['maximo_mes']['p_kw'] == pytest.approx(800.0 + fijas['12']['maximo_mes']['p_kw'])
+    assert a1['cabecera'] == {'fecha': '2026-07-01T00:30:00', 'kw': 1000.0, 'kvar': 250.0}
+    red = a1['red']
+    assert red['cargas_kvar'] == pytest.approx(120.0) and red['red_y_bancos_kvar'] == pytest.approx(-30.0)
+    assert red['bancos_kvar'] == pytest.approx(300.0)
+    assert red['red_kw'] == pytest.approx(1000.0 - 560.0)
+    # 035:RF-28: con cada criterio, la Q de cabecera alcanzable con las escaladas entre FP 1 y su
+    # mínimo, y si la medida (250 kvar) cae ahí; nunca una «Q para las escaladas» negativa.
+    for criterio in ('coincidente', 'maximo_mes'):
+        c = a1['coherencia'][criterio]
+        assert c['escaladas_kw'] == pytest.approx(max(0.0, 1000.0 - s[criterio]['p_kw'] - 440.0))
+        assert c['q_fp1_kvar'] == pytest.approx(s[criterio]['q_kvar'] - 30.0)
+        assert c['q_fp_minimo_kvar'] >= c['q_fp1_kvar']
+        dentro = c['q_fp1_kvar'] - 2.5 <= 250.0 <= c['q_fp_minimo_kvar'] + 2.5
+        assert c['coherente'] is dentro and (c['lado'] is None) is dentro
+    # Sin máxima no hay con qué comparar.
+    assert client.post(f'/api/workspaces/{cruzar.wid}/demanda/clientes/comparar',
+                       json={'project': 'P'}).status_code == 422
+
+
+def test_una_calibracion_guardada_sin_cabecera_toma_la_red_de_su_informe_en_disco(client):
+    """039:RF-5 — las calibraciones guardadas antes de llevar la cabecera simulada dan la Q de la
+    red con su informe de aplicación en disco, del mismo caso."""
+    import json
+
+    from igea_dgs.web import services
+    from apoyo import esperar_trabajo
+
+    cruzar = _dos_criterios(client)
+    ws = client.app.state.store.get(cruzar.wid)
+    ws.calibraciones = {'P': {'A1': {'nombre': 'la calibración vieja', 'sed': {'E1': [60.0, 20.0]},
+                                     'caso': 'Sin proyecto', 'recalibracion': 0}}}
+    ws.out_dir.mkdir(parents=True, exist_ok=True)
+    (ws.out_dir / 'ajuste_cabecera_aplicacion_tok.json').write_text(json.dumps({
+        'project': 'P', 'feeder': 'A1', 'caso': 'Sin proyecto', 'cabecera': {'kw': 1000.0, 'kvar': 50.0},
+        'sed': [{'sed': 'E1', 'despues': {'kw': 60.0, 'kvar': 20.0}},
+                {'sed': 'E3', 'despues': {'kw': 500.0, 'kvar': 70.0}}],
+        'cuadre_q': {'bancos_kvar': 150.0}}), encoding='utf-8')
+    r = client.post(f'/api/workspaces/{cruzar.wid}/demanda/clientes/comparar',
+                    json={'project': 'P', 'alimentadores': ['A1'], 'maximas': {'A1': cruzar.maxima}})
+    red = esperar_trabajo(client, r.json())['result']['alimentadores'][0]['red']
+    assert red['red_y_bancos_kvar'] == pytest.approx(50.0 - 90.0) and red['bancos_kvar'] == pytest.approx(150.0)
+    assert 'ajuste_cabecera_aplicacion_tok.json' in red['calibracion']

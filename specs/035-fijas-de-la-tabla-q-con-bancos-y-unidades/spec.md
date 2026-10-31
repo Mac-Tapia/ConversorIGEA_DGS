@@ -1,6 +1,6 @@
 # Spec 035 — Fijas de la tabla en el instante de la máxima, Q de cabecera con bancos y unidades de DIgSILENT
 
-Estado: implementada · pedida por el usuario el 2026-10-29 («verifica que la tabla cruzada de los
+Estado: cumplida · pedida por el usuario el 2026-10-29 («verifica que la tabla cruzada de los
 SED coincida en la misma fecha del valor de cabecera seleccionada y los valores de las columnas
 de Pot (kW) y Q (kvar) de la misma tabla se carguen a DIgSILENT con escala 1, fijas, y los SED que
 no están en la tabla se escalan para cuadrar al valor de la cabecera más fijas; además debe
@@ -49,8 +49,8 @@ Q de cabecera con bancos
 - RF-7: EL SISTEMA escribirá en cada escalada su Q base por el cociente entre el factor de Q y el
   de P, de modo que un solo factor de escala de DIgSILENT (`scale0`) siga valiendo para P y Q.
 - RF-8: SI ni con las escaladas sin reactiva la Q de cabecera baja a la medida, ENTONCES EL
-  SISTEMA dejará las escaladas sin reactiva, aceptará por kW y dirá cuántos kvar de compensación
-  faltan.
+  SISTEMA aceptará por kW y lo dirá; las escaladas quedan con su FP de perfil y la Q es la de
+  DIgSILENT (cambiado por RF-29 el 2026-10-31: antes quedaban sin reactiva).
 - RF-9: SI las escaladas no tienen Q base (FP 1 en el perfil), ENTONCES EL SISTEMA no podrá
   cuadrar la Q, aceptará por kW y lo dirá.
 - RF-10: EN la primera calibración, o SI el alimentador no tiene bancos en servicio, EL SISTEMA
@@ -120,6 +120,47 @@ de ajustes o cambios de actualización»)
   caso (bancos implementados, cambios de sección o de tipo de conductor, tramos nuevos y demandas
   cambiadas a mano, escaneados antes, 028:RF-16, RF-17, RF-26), y no con las obras de «Con
   proyecto», que son otro caso (spec 011).
+
+Q en toda recalibración (usuario, 2026-10-29: «en recalibración ya debes cuadrar el Q escalando
+los factores de potencia de los SED que no están como fijas; la precisión debe ser 1 %», «en la
+recalibración ya debes ver que existan bancos y considerar todos los bancos en su operación
+máxima» y «no debería quedar nada por encima en kvar si vas a ajustar el factor de potencia de
+los SED no fijas, pero las SED fijas se mantienen con P y Q fijos a escala 1»). SM218
+(2026-10-29), recalibración n.º 7: con sus tres bancos de 450 kvar al máximo y las escaladas sin
+reactiva, la cabecera daba 3 053 kvar frente a 2 903 y se aceptaba por kW (RF-8).
+
+- RF-24: CUANDO se recalibra, EL SISTEMA cuadrará la Q de cabecera además de la P con el FP de
+  las escaladas (RF-6, RF-7), con los bancos existentes a su máxima capacidad (015:RF-66),
+  aunque el alimentador no tenga bancos en servicio (cambia RF-5 y RF-10 en la recalibración; la
+  primera calibración sigue solo con la P, RF-22).
+- RF-25: EL SISTEMA dará la Q de cabecera por cuadrada dentro de ±1 % de la medida (cambia el
+  ±2 % de RF-5 y RF-20).
+- RF-26: EL SISTEMA no dará nunca a las escaladas reactiva negativa: su FP varía solo entre el
+  del perfil y 1; SI al recalibrar la Q de cabecera sigue por encima de la medida con las
+  escaladas a FP 1, ENTONCES las dejará así, sin tocar las fijas (escala 1 con su P y su Q) ni
+  poner bancos, aceptará por kW y dirá los kvar que sobran (RF-8). El usuario, el 2026-10-31:
+  la medida de cabecera ya es el total, con los bancos al 100 %, los conductores y todo; «en
+  qué momento se ve la carga negativa».
+- RF-27: EN ese caso EL SISTEMA recomendará revisar los bancos del alimentador como en RF-20,
+  con la Q de cabecera, la medida y la diferencia, para que el evaluador lo valide.
+
+Medida de cabecera coherente o no (usuario, 2026-10-31: «la recalibración de Q debe ser el
+resultado real de DIgSILENT, no cuadrar a la medición de cabecera … esto debe ser en las
+mediciones en cabecera que no sean coherentes como de NA203; en los que sí tienen coherencia se
+debe hacer cuadre; esto debe ser dable y robusto»). NA203: con sus escaladas a FP 1 la red daba
+3 447 kvar frente a 1 711 medidos; para cuadrar le hacía falta reactiva negativa.
+
+- RF-28: EL SISTEMA dará por coherente la Q de cabecera medida SI la red la alcanza con las
+  escaladas entre FP 1 y su FP mínimo (`calibracion.factor_potencia_minimo_escaladas` del perfil;
+  sin él, su FP de perfil), dentro de ±1 %; lo decidirá un flujo de DIgSILENT en el extremo
+  (FP 1 si la medida queda por debajo, el FP mínimo si queda por encima), nunca una estimación.
+- RF-29: SI la medida no es coherente, ENTONCES EL SISTEMA no cuadrará la Q: dejará las
+  escaladas con su FP de perfil, como en la calibración, la Q de cabecera será la que dé
+  DIgSILENT y aceptará por kW (cambia RF-26: las escaladas ya no quedan a FP 1).
+- RF-30: EL SISTEMA dirá en el informe y en la web si la medida es coherente, el flujo del
+  extremo que lo demostró (FP de las escaladas y Q de cabecera), la Q que quedó y su diferencia.
+- RF-31: CON la medida no coherente, EL SISTEMA recomendará revisar los bancos y la medición
+  del alimentador como en RF-20 (motivo `MEDIDA_INCOHERENTE`), para que el evaluador lo valide.
 
 ## Fuera de alcance
 

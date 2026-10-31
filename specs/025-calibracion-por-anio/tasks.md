@@ -95,7 +95,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Cerrada el 2026-10-24: suite con las siete variables, 2770 pasan, ninguna omitida (11 min
       15 s; la cuenta de flujos de 007 suma el de RF-43). Las obras de la escalera del 23 ya
       llegaron con `anio_casos` 2025 por la API.
-- [ ] T15. Obras en escalera sobre «Con proyecto <año>» que no converge (RF-44), con la 017
+- [x] T15. Obras en escalera sobre «Con proyecto <año>» que no converge (RF-44), con la 017
       (T8, T9): bancos, regulador, sección, terna; la primera que converge, en su variación.
       Hecho cuando: Pisco y Chincha convergen en «Con proyecto 2025» y el informe dice la obra.
       Avance del 2026-10-23: `obras_pf.escalera_de_obras` y `POST /pf/obras/escalera` con
@@ -111,6 +111,14 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       converge en los tres con sus cargas y su obra. El regulador no se pudo probar: no hay
       ningún `TypVoltreg` en la biblioteca global ni en los proyectos; hace falta su ficha.
       Del 2026-10-24: sustituida por T17 a T22 (escalera optimizada, RF-44 cambiado).
+      Cerrada el 2026-10-29 (código): el regulador está en la escalera (bancos, regulador, terna,
+      sección, T17 a T20) y los bancos ya no se deciden por el texto del criterio, que dejaba fuera
+      el «extremo existente» y dentro una carga reutilizada («ya existe») en su NODE_T_:
+      `obras_pf.py --escalera-datos` dice en `existen` qué barras pedidas siguen en el alimentador
+      con las variaciones de las cargas nuevas apartadas, y solo en esas va un banco. Pruebas
+      `test_datos_de_la_escalera_dicen_que_barras_existen_sin_las_cargas_nuevas` y
+      `test_la_escalera_no_pone_bancos_en_el_nodo_que_crea_la_variacion_de_la_carga`. Lo que
+      falta en DIgSILENT (Pisco y Chincha en «Con proyecto 2025») es la T21.
 - [x] T17. Catálogo Eaton VR-32 de 50 Hz y creación de sus `TypVoltreg` en la biblioteca
       global. (RF-59)
       Hecho el 2026-10-24: `catalogo_reguladores.py` y `obras_pf.py --tipos-regulador`; en

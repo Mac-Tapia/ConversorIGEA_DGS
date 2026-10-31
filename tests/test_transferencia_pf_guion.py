@@ -349,6 +349,81 @@ def test_cancelar_tambien_restituye():
     assert all(not getattr(ln, 'outserv', 0) for ln in app.proyecto.GetContents('*.ElmLne', 1))
 
 
+# --------------------------------------------------------------------------- spec 013: instante común
+def _instantes(*objetivos):
+    """Un candidato por par ``(kW de A, kW de B)``, con el kVAR que da el flujo del doble."""
+    return [{'fecha': f'2026-07-0{k} 19:00:00', 'objetivos': {'A': [a, a / 3], 'B': [b, b / 3]}}
+            for k, (a, b) in enumerate(objetivos, start=1)]
+
+
+@pytest.mark.parametrize('semilla', SEMILLAS)
+def test_cada_candidato_ajustado_a_sus_cabeceras_y_el_critico(semilla, tmp_path):
+    """013:RF-22, 013:RF-23, 013:RF-24, 013:RF-25, 013:RF-27, 013:RF-28 — cada candidato deja
+    los dos alimentadores en sus cabeceras del instante; el crítico es el de menor
+    transferencia, con las SED que pasan, las cabeceras antes y después y la cobertura."""
+    from openpyxl import load_workbook
+
+    rng = random.Random(semilla)
+    n = 4
+    app, _ = _red(rng, n=n)
+    capacidad = 460.0                       # el primer tramo del que recibe aguanta 460 kW
+    app.ldf = _flujo(app, capacidad_kw=capacidad)
+    bajo, alto = rng.uniform(150, 220), rng.uniform(280, 320)
+    plan = _plan(instantes=_instantes((bajo, bajo), (alto, alto)), periodo='2026-07',
+                 cobertura={'instantes_comunes': 2})
+    informe, codigo = guion.calcular(app, plan)
+    assert codigo == 0, informe
+    vs = informe['verificaciones']
+    assert len(vs) == 4 and all(v['verificado'] for v in vs)          # 2 instantes × 2 sentidos
+    for v in vs:
+        for f, (kw, _q) in v['objetivos'].items():
+            assert v['medido'][f][0] == pytest.approx(kw, rel=guion.TOLERANCIA_INSTANTE)
+    # Con más carga en los dos, pasan menos SED: el crítico es el instante alto.
+    por_sed = alto / n
+    k = int((capacidad - alto) // por_sed)
+    for r in informe['resultados']:
+        assert r['instante'] == '2026-07-02 19:00:00' and r['verificado']
+        assert len(r['sed_transferidas']) == k
+        assert sum(s['kw'] for s in r['sed_transferidas']) == pytest.approx(k * por_sed, rel=0.03)
+        antes, despues = r['cabeceras']['antes'], r['cabeceras']['despues']
+        assert antes[r['cede']][0] == pytest.approx(alto, rel=0.03)
+        assert despues[r['recibe']][0] == pytest.approx(alto + k * por_sed, rel=0.03)
+        assert despues[r['cede']][0] == pytest.approx(alto - k * por_sed, rel=0.03)
+    temporal = informe['temporal']
+    assert temporal['aceptable'] and not temporal['faltantes'] and temporal['periodo'] == '2026-07'
+    assert [c['instante'] for c in temporal['candidatos']] == ['2026-07-01 19:00:00', '2026-07-02 19:00:00']
+    # Cada candidato partió del mismo estado: al terminar, cada carga con su factor de siempre.
+    assert all((getattr(c, 'scale0', 1.0) or 1.0) == 1.0
+               for f in ('A', 'B') for c in _alim(app, f).GetObjs('ElmLod'))
+    assert all(r['restituido'] for r in informe['restitucion'].values())
+    # 013:RF-26: el libro con las SED y la cobertura en hojas aparte.
+    libro = load_workbook(guion.escribir_fichero(informe['resultados'], tmp_path / 't.xlsx', temporal))
+    assert libro['SED transferidas'].max_row == 1 + 2 * k
+    assert libro['Cobertura temporal'].max_row == 1 + 2 * 2
+
+
+def test_candidato_sin_cuadrar_no_da_capacidad_comprobada():
+    """013:RF-29 — si un candidato no se puede ajustar a sus cabeceras, no se verifica: el
+    resultado no es aceptable y dice qué instante falta y por qué."""
+    app, _ = _red(random.Random(2), n=4)
+    app.ldf = _flujo(app, capacidad_kw=460.0)
+    informe, codigo = guion.calcular(app, _plan(instantes=_instantes((200.0, 200.0), (0.0, 250.0))))
+    assert codigo == 0, informe
+    temporal = informe['temporal']
+    assert not temporal['aceptable']
+    assert any('2026-07-02 19:00:00' in f and 'demanda positiva en A' in f for f in temporal['faltantes'])
+    # Lo observado se da con el instante que sí se verificó.
+    assert {r['instante'] for r in informe['resultados']} == {'2026-07-01 19:00:00'}
+
+
+def test_sin_instantes_comunes_no_calcula():
+    """013:RF-29 — un plan con el periodo pero sin ningún instante común no se calcula."""
+    app, _ = _red(random.Random(3), n=3)
+    app.ldf = _flujo(app, capacidad_kw=10_000.0)
+    informe, codigo = guion.calcular(app, _plan(instantes=[]))
+    assert codigo == 2 and 'instante' in informe['error']
+
+
 def test_dos_casos_y_fichero(tmp_path):
     """011:RF-104, 011:RF-121 — en los dos casos pedidos, y el fichero con una fila por caso,
     sentido, enlace y paso."""

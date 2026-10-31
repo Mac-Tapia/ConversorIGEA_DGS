@@ -46,14 +46,14 @@ BANDA_TENSION_PU = 0.01
 #: Casos en que se puede activar una obra; el «Caso base» nunca (RF-58).
 CASOS = (SIN_PROYECTO, CON_PROYECTO)
 CLASES = ('condensador', 'reconectador', 'regulador', 'seccion', 'terna', 'tension', 'enlace',
-          'migracion', 'consigna')
+          'migracion', 'consigna', 'set_nueva')
 #: Obras que construyen algo nuevo o cambian la tensión de una parte: solo en «Con
 #: proyecto» (016:RF-14, RF-25, RF-53). La consigna de cabecera también (019:RF-12).
-SOLO_CON_PROYECTO = ('enlace', 'migracion', 'consigna')
+SOLO_CON_PROYECTO = ('enlace', 'migracion', 'consigna', 'set_nueva')
 #: Clase de tipo que pide cada obra (RF-89). Banco y terna no tienen tipo; la migración
 #: copia los que ya usa el alimentador.
 CLASE_DE_TIPO = {'reconectador': 'TypRecl', 'regulador': 'TypVoltreg', 'seccion': 'TypLne',
-                 'enlace': 'TypLne'}
+                 'enlace': 'TypLne', 'set_nueva': 'TypLne'}
 #: De dónde puede venir un tipo (RF-89 a RF-91).
 ORIGENES = ('proyecto', 'global', 'otro')
 
@@ -193,6 +193,12 @@ class Obra:
     """Barra, o «latitud, longitud», que indica el operador (016:RF-31)."""
     nodo: str = ''
     """Migración: desde dónde se pasa a la tensión de destino (016:RF-51)."""
+    ramas: tuple[str, ...] = ()
+    """SET nueva: ``ALIMENTADOR/NODO`` de cada rama que pasa a ella (042:RF-6)."""
+    mva: float | None = None
+    """SET nueva: potencia del transformador del módulo PIT (042:RF-7)."""
+    kv_alta: float | None = None
+    """SET nueva: tensión de alta del módulo PIT (042:RF-5)."""
 
     def a_dict(self) -> dict[str, Any]:
         """Lo que se guarda en el espacio de trabajo; ``validar_obra`` lo reconstruye."""
@@ -341,8 +347,27 @@ def _validar_consigna(comunes: dict[str, Any], datos: Mapping[str, Any]) -> Obra
 #: Clase de obra → su validación, para las que no están en ``validar_obra`` (019:RF-11):
 #: una clase nueva se añade aquí, en ``_PLANES`` y en ``CONSTRUCTORES`` del guion, sin
 #: tocar la lógica común de variaciones, casos y flujos.
+def _validar_set_nueva(comunes: dict[str, Any], datos: Mapping[str, Any]) -> Obra:
+    """SET nueva con su punto, sus ramas, su potencia y su tensión de alta (042:RF-5, RF-6, RF-11)."""
+    destino = str(datos.get('destino') or '').strip()
+    if punto_indicado(destino) is None:
+        raise ObrasError('Indique el punto de la SET nueva como «latitud, longitud».')
+    ramas = _lista(datos.get('ramas'))
+    if not ramas:
+        raise ObrasError('La SET nueva necesita al menos una rama que pase a ella (ALIMENTADOR/NODO).')
+    for r in ramas:
+        alim, _, nodo = r.partition('/')
+        if not alim.strip() or not nodo.strip():
+            raise ObrasError(f'La rama {r!r} tiene que ser ALIMENTADOR/NODO.')
+    return Obra(**comunes, destino=destino, ramas=ramas,
+                mva=_numero(datos, 'mva', 'la potencia del transformador de la SET nueva (MVA)'),
+                kv_alta=_numero(datos, 'kv_alta', 'la tensión de alta de la SET nueva (kV)'),
+                tipo=_tipo_ref(datos.get('tipo'), 'set_nueva', requerido=False))
+
+
 VALIDADORES: dict[str, Callable[[dict[str, Any], Mapping[str, Any]], Obra]] = {
     'consigna': _validar_consigna,
+    'set_nueva': _validar_set_nueva,
 }
 
 
@@ -924,9 +949,44 @@ def _migracion(p: _Plan) -> None:
                           'entrada': parte.entrada})
 
 
+def _set_nueva(p: _Plan) -> None:
+    """SET nueva y las ramas que pasan a ella (042:RF-5, RF-6, RF-11).
+
+    Lo que no necesita DIgSILENT: que cada nodo sea de su alimentador y no su cabecera, y el
+    tramo que se abre. El punto final lo ajusta el guion con el flujo (RF-10).
+    """
+    o = p.obra
+    ramas = []
+    for texto in o.ramas:
+        alim, _, nodo = texto.partition('/')
+        red = p.redes.get(alim.strip())
+        if red is None:
+            raise ObrasError(f'El alimentador {alim!r} de la rama {texto!r} no está en el proyecto leído.')
+        if red.topologia is None or not red.cabecera:
+            raise ObrasError(f'No se leyó la red de {alim}: no se sabe qué pasa a la SET nueva.')
+        if nodo == red.cabecera:
+            raise ObrasError(f'El nodo {nodo} es la cabecera de {alim}: no puede pasar a otra SET.')
+        try:
+            parte = aguas_abajo(red.topologia, red.cabecera, nodo.strip())
+        except TroncalError as exc:
+            raise ObrasError(f'El nodo {nodo} no es del alimentador {alim}: {exc}.') from None
+        ramas.append({'alimentador': alim.strip(), 'nodo': nodo.strip(), 'entrada': parte.entrada,
+                      'barras': len(parte.barras)})
+        p.elemento(f'Alimentador nuevo hasta {nodo}', 'ElmLne',
+                   f'nuevo, desde la barra de media de la SET nueva hasta {nodo} de {alim}')
+        p.elemento(parte.entrada or nodo, 'ElmLne', f'se abre: la rama de {nodo} pasa a la SET nueva')
+    kv_mt = p.estado.kv
+    p.elemento('SET nueva', 'ElmTerm', f'barras de {o.kv_alta:g} y {kv_mt:g} kV en {o.destino}')
+    p.elemento('Red externa de la SET nueva', 'ElmXnet',
+               f'con la tensión y la potencia de cortocircuito de la de cabecera de {o.alimentador}')
+    p.elemento('Transformador de la SET nueva', 'ElmTr2', f'nuevo, {o.mva:g} MVA, {o.kv_alta:g}/{kv_mt:g} kV')
+    p.extra['set_nueva'] = {'punto': o.destino, 'mva': o.mva, 'kv_alta': o.kv_alta, 'kv_media': kv_mt,
+                            'ramas': ramas, 'tipo': o.tipo.nombre if o.tipo else None}
+
+
 _PLANES = {'condensador': _condensador, 'reconectador': _reconectador, 'regulador': _regulador,
            'seccion': _seccion, 'terna': _terna, 'tension': _tension, 'enlace': _enlace,
-           'migracion': _migracion, 'consigna': _consigna}
+           'migracion': _migracion, 'consigna': _consigna, 'set_nueva': _set_nueva}
 
 
 def plan_simulacion(obras: Iterable[Obra], redes: Mapping[str, RedAlimentador],

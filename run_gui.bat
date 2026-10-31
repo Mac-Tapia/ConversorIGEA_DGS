@@ -38,8 +38,17 @@ if errorlevel 1 (
   ) else (
     echo Compilando la interfaz web...
     pushd frontend
+    if errorlevel 1 goto :front_error
     call npm install --no-audit --no-fund
+    if errorlevel 1 (
+      popd
+      goto :front_error
+    )
     call npm run build
+    if errorlevel 1 (
+      popd
+      goto :front_error
+    )
     popd
   )
 )
@@ -73,6 +82,14 @@ exit /b 0
 echo.
 echo No se pudo preparar el entorno completo TXT, MDB y VNR-GIS.
 echo Revise la salida anterior y AUDIT\web_runtime si existe.
+pause
+endlocal
+exit /b 1
+
+:front_error
+echo.
+echo No se pudo preparar o compilar la interfaz web. No se abre una compilacion anterior.
+echo Revise el error de npm anterior y vuelva a ejecutar el acceso directo.
 pause
 endlocal
 exit /b 1

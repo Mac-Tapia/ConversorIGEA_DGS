@@ -23,16 +23,28 @@ abiertas, lo que falta. Una tarea cada vez, pruebas primero.
       guarda su evidencia (commit `d80aab22`). (RF-30 a RF-32)
       Hecho cuando: `pytest -q tests/test_client_period_contract.py tests/test_client_period_autoselect.py`
       en verde.
-- [ ] T5. Sin periodo elegido no se busca la máxima ni se habilitan el ajuste y la
+- [x] T5. Sin periodo elegido no se busca la máxima ni se habilitan el ajuste y la
       transferencia; junto a la máxima del mes, la del periodo entero y su mes. (RF-9, RF-14)
       Hecho cuando: pruebas de la API y del front que citan 013:RF-9 y RF-14 en verde.
-- [ ] T6. Transferencia en el instante común del mes: instantes coincidentes sin interpolar,
+      Evidencia (2026-10-29): `MaximaCabecera.maxima_periodo` y su línea en la tabla de 2.2
+      (`tests/test_demanda_medida.py`, `tests/test_central_termica_front.py`); sin periodo no se
+      cruzan clientes ni se calcula la transferencia (`tests/test_estudios_pf_web.py`,
+      `tests/test_obras_estudios_front.py`). La máxima sin mes sigue buscándose en todo el
+      registro, por la aclaración de RF-9.
+- [x] T6. Transferencia en el instante común del mes: instantes coincidentes sin interpolar,
       dominancia, carga transferida y SED que cambian de alimentador por sentido y enlace,
       cabeceras antes y después, hoja aparte en el descargable, instante crítico y bloqueo sin
       evidencia completa, sobre `fake_pf`. (RF-22 a RF-29)
       Hecho cuando: pruebas que citan 013:RF-22 a RF-29 en verde, con curvas sorteadas.
+      Evidencia (2026-10-29): instantes comunes, frontera no dominada en P y |Q| y crítico en
+      `igea_dgs.transferencia_pf`; ajuste de las dos cabeceras por candidato, SED y cabeceras
+      antes y después en `tools/transferencia_pf.py`; candidatos desde las curvas de la máxima
+      de 2.2 en `services.instantes_de_transferencia`; libro con las hojas «Pasos», «SED
+      transferidas» y «Cobertura temporal». Pruebas: `tests/test_transferencia_pf.py`,
+      `tests/test_transferencia_pf_guion.py`, `tests/test_estudios_pf_web.py`,
+      `tests/test_obras_estudios_front.py`.
 - [ ] T7. [DIgSILENT] Transferencia entre CA101 y PE104 en el mismo instante desde la web,
       con el descargable releído. (RF-22 a RF-29)
       Hecho cuando: el usuario confirma la transferencia, las SED transferidas y el instante.
-- [ ] T8. Validación: cada RF citado por al menos una prueba y en verde. (RF-1 a RF-32)
+- [x] T8. Validación: cada RF citado por al menos una prueba y en verde. (RF-1 a RF-32)
       Hecho cuando: `grep -rnoE "013:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-32.

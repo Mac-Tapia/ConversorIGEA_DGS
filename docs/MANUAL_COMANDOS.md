@@ -702,17 +702,40 @@ queda fuera. Una modificación manual del proyecto es un aviso, nunca un bloqueo
 | **2 · Alimentadores y calibración** | Marcar alimentadores (todos al elegir el proyecto) | Los marcados sirven a la calibración y a la integración |
 | 2.1 Libros de medición | Medidor por alimentador, medición de cabecera, suministros, clientes importantes | Se validan en la web (spec 004, RF-22 a RF-45) |
 | 2.2 Máxima de cabecera | «Buscar medidores» y «Buscar la máxima», para todos los marcados en un trabajo | `igea_dgs.demanda_medida` |
-| 2.3 Clientes importantes | «Cruzar clientes»: su demanda queda fija | Cruce por «Suministro Act» y «Suministro» |
-| 2.4 Escalar y ajustar | «Simular» o «Ajustar en DIgSILENT» | `tools/ajuste_cabecera_pf.py`, un alimentador tras otro, en el escenario de «Sin proyecto»; las cargas nuevas quedan fuera de la medida (specs 006, 008, 014 y 015) |
+| 2.3 Clientes importantes | Elegir «Fijas de la tabla cruzada» (coincidentes con la máxima, por defecto, o máximo del mes) y «Cruzar clientes»: su demanda queda fija a escala 1. «Comparar los criterios de las fijas» enseña los dos y si la medida de cabecera es coherente, sin abrir DIgSILENT | Cruce por «Suministro Act» y «Suministro» (specs 035 y 039) |
+| 2.4 Escalar y ajustar | «Simular» o «Ajustar en DIgSILENT» (después de la primera, «Recalibrar (n.º k)») | `tools/ajuste_cabecera_pf.py`, en el escenario de «Sin proyecto»; las escaladas con reparto probabilístico y el P50 escrito; las cargas nuevas quedan fuera de la medida (specs 006, 008, 014, 015, 035 y 041) |
 | **3 · Integración de nuevas** | | |
 | 3.0 Convergencia | «Verificar la convergencia en DIgSILENT» | `tools/verificar_pf.py`: flujo con lo activo y cabecera de cada alimentador; no escribe |
-| 3.1 Demandas en bloque | Libro de demandas (plantilla Excel o CSV) | `tools/cargas_pf.py` |
+| 3.1 Demandas en bloque | Libro de demandas (plantilla Excel o CSV). Sus SED medidas quedan además fijas en la siguiente calibración, como las de la tabla cruzada | `tools/cargas_pf.py` (spec 041, RF-9) |
 | 3.2 Una carga nueva | Formulario: kW, FP y coordenadas; se conecta a la barra de media más cercana y la SED queda con su GPS. Las mismas reglas que el libro | `tools/cargas_pf.py` |
 | 3.3 Cargas nuevas en bloque | Libro de cargas nuevas | `tools/cargas_pf.py`, en «Con proyecto», una variación por carga (specs 007 y 014) |
 | **4 · Obras y estudios** | | Sobre «Sin proyecto» y «Con proyecto», preparados por `tools/casos_pf.py` (spec 011) |
 | 4.1 Obras de mejora | Formulario y obras guardadas; «Simular» o «Aplicar» | `tools/obras_pf.py` |
-| 4.2 Estudios y guiones | Estudio, caso y límites; guiones DPL y Python del operador | `tools/estudios_pf.py` |
+| 4.2 Estudios y guiones | Estudio, caso y límites; libro de la empresa (confiabilidad, reconectadores, capacidad, curvas PV, condensadores, spec 012); guiones DPL y Python del operador | `tools/estudios_pf.py`, `tools/confiabilidad_pf.py`, `tools/capacidad_pf.py` |
 | 4.3 Transferencia | Dos alimentadores y su enlace | `tools/transferencia_pf.py` |
+
+### Cómo se calibra y se recalibra (specs 035, 039 y 041)
+
+- **Fijas**: los clientes de la tabla cruzada (2.3) y las SED medidas en «3.1 Demandas en bloque»
+  van a escala 1 con su P y su Q, sin escalar. Con «coincidentes», cada cliente con su EA × 4 y
+  ERI × 4 del registro de la máxima de cabecera; si su hoja no trae ese registro, no se toma otro
+  y el plan pide el mes de los clientes de esa fecha o «máximo del mes». Una demanda cambiada a
+  mano en DIgSILENT siempre manda.
+- **Escaladas**: el resto de las SED, por su potencia instalada. Cada una con su propio factor
+  aleatorio, más cargada cuanto mayor su potencia; la dispersión y esa pendiente salen de las
+  fijas del mismo alimentador (con menos de 5, de `calibracion.reparto_probabilistico` del perfil;
+  sin ninguna, el reparto de siempre y se dice). Se cuadran 200 repartos en el mismo caso y en
+  DIgSILENT queda el **P50**, cuadrado y validado; el informe da por SED, de mayor a menor
+  potencia, P05/P50/P95 de kW y de carga y la probabilidad de sobrecarga, y la de una barra
+  fuera de la banda de tensión del perfil. La misma semilla repite los mismos números.
+- **Calibración** (la primera): cuadra solo la P (kW) al ±1 %; las escaladas con el FP del perfil.
+- **Recalibración**: cuadra la P y la Q al ±1 % **si la medida de cabecera es coherente**: la red la
+  alcanza con las escaladas entre FP 1 y su mínimo (`calibracion.factor_potencia_minimo_escaladas`
+  del perfil; Electro Dunas, 0,90). Si no es coherente (NA203: 2 454 kvar con las escaladas a FP 1
+  frente a 1 777 medidos), no se fuerza: queda la Q que da DIgSILENT con las escaladas a su FP de
+  perfil, y el informe y la web lo dicen con el flujo que lo demostró y recomiendan revisar
+  bancos y medición. Los bancos existentes trabajan a su máxima capacidad y la medida de
+  cabecera ya los incluye.
 
 Las tres partes del paso 3 son optativas: se usa cualquier combinación y se revisan
 juntas. En cada alimentador se aplican en ese orden: demandas, carga del formulario y
@@ -731,6 +754,7 @@ que prepara la web (`output/web/<espacio>/planes/`):
 > python tools\casos_pf.py --plan plan.json --output-json informe.json
 > python tools\estudios_pf.py --plan plan.json --output-json informe.json
 > python tools\estudios_pf.py --guion --plan plan.json --output-json informe.json
+> python tools\confiabilidad_pf.py --aplicar-datos --plan plan.json --output-json informe.json
 > python tools\obras_pf.py --bibliotecas --plan plan.json --output-json informe.json
 > python tools\obras_pf.py --plan plan.json --output-json informe.json [--simular] [--cancel-file cancelar.flag]
 > python tools\transferencia_pf.py --plan plan.json --output-json informe.json [--fichero transferencias.csv] [--cancel-file cancelar.flag]
@@ -754,8 +778,14 @@ API de DIgSILENT se busca en la instalación si no está en la ruta (spec 019, R
 Un sistema eléctrico entero, con la web abierta (spec 022, RF-56):
 
 ```bat
-> python tools\sistema_web.py --espacio <id> --zonal Pisco --demanda-dir referencia --periodo 2026-07 [--transformadores] [--tension-pu 1.05] [--alimentadores COD …] [--reconstruir TM106 TM101]
+> python tools\sistema_web.py --espacio <id> --zonal Pisco --demanda-dir referencia --periodo 2026-07 [--transformadores] [--tension-pu 1.05] [--criterio-fijas maximo_mes] [--alimentadores COD …] [--reconstruir TM106 TM101]
 ```
+
+Las fijas de la tabla cruzada van por defecto coincidentes con la máxima de cabecera (EA × 4 y
+ERI × 4 del registro de su fecha y hora); con `--criterio-fijas maximo_mes`, con la POT máxima
+del mes de cada una y el ERI × 4 de ese registro. Con «coincidente», una fija cuya hoja no trae
+ese registro no toma otro: el plan no se prepara y dice el periodo de los clientes de esa fecha
+(spec 039, RF-1 a RF-4). La web compara los dos criterios sin abrir DIgSILENT (RF-5).
 
 Con `--deshacer`, `cargas_pf.py` borra lo que creó una aplicación anterior según su
 informe (`runs/<id>/salida/cargas_pf_aplicacion_<token>.json`): las variaciones de sus

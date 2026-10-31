@@ -6,7 +6,7 @@ import math
 import pytest
 
 from igea_dgs.ajuste_cabecera import (
-    Fija, Medida, MedidaConjunta, Objetivo, Q_CUADRADA, Q_SIN_BASE, Q_SIN_MARGEN, cuadrar,
+    Fija, Medida, MedidaConjunta, Objetivo, Q_CUADRADA, Q_INCOHERENTE_ALTA, Q_INCOHERENTE_BAJA, Q_SIN_BASE, cuadrar,
     cuadrar_conjunto, reparto_inicial)
 
 TOL = 0.01
@@ -29,11 +29,13 @@ def _reparto(objetivo, fp=0.98, fija_kvar=200.0):
 
 
 def test_con_bancos_cuadra_p_y_q_moviendo_solo_las_escaladas():
-    """035:RF-5, 035:RF-6 — con bancos, la Q de cabecera llega a la medida en el mismo cuadre;
-    las fijas conservan su P y su Q y las escaladas comparten un factor de P y otro de Q."""
+    """035:RF-5, 035:RF-6, 035:RF-28 — con bancos y una medida coherente (alcanzable con las
+    escaladas entre su FP mínimo del perfil y 1), la Q de cabecera llega a la medida en el mismo
+    cuadre; las fijas conservan su P y su Q y las escaladas comparten un factor de P y otro de Q."""
     objetivo = Objetivo(kw=1200.0, kvar=150.0, medidor='M')
-    res = cuadrar(_reparto(objetivo), objetivo, _red(bancos_kvar=900.0), tolerancia=TOL, con_q=True)
-    assert res.cuadrado and res.q_estado == Q_CUADRADA
+    res = cuadrar(_reparto(objetivo), objetivo, _red(bancos_kvar=900.0), tolerancia=TOL, con_q=True,
+                  fp_minimo_escaladas=0.7)
+    assert res.cuadrado and res.q_estado == Q_CUADRADA and res.reparto.fp_escaladas() >= 0.7 - 1e-9
     assert abs(res.medida.kw - objetivo.kw) <= TOL * objetivo.kw
     assert abs(res.medida.kvar - objetivo.kvar) <= TOL * abs(objetivo.kvar)
     rep = res.reparto
@@ -54,14 +56,37 @@ def test_sin_bancos_la_q_sigue_informada():
     assert res.reparto.fp_escaladas() == pytest.approx(0.98)
 
 
-def test_sin_margen_acepta_por_kw_y_dice_lo_que_falta():
-    """035:RF-8 — ni con las escaladas sin reactiva baja la Q: se acepta por kW, escaladas a Q 0."""
-    objetivo = Objetivo(kw=1200.0, kvar=-400.0, medidor='M')
+def test_medida_incoherente_por_encima_queda_la_q_real_con_el_fp_de_perfil():
+    """035:RF-8, 035:RF-26, 035:RF-28, 035:RF-29, 035:RF-30 — si ni con las escaladas a FP 1 la cabecera
+    baja a la medida (NA203: le haría falta reactiva negativa), la medida no es coherente: no se
+    cuadra la Q, las escaladas vuelven a su FP de perfil (nunca reactiva negativa) y la Q es la
+    del flujo; el cuadre guarda el flujo a FP 1 que lo demostró. Las fijas, intactas."""
+    objetivo = Objetivo(kw=1200.0, kvar=50.0, medidor='M')
     res = cuadrar(_reparto(objetivo, fija_kvar=600.0), objetivo, _red(bancos_kvar=300.0),
                   tolerancia=TOL, con_q=True)
-    assert res.cuadrado and res.q_estado == Q_SIN_MARGEN
-    assert res.reparto.b == 0.0
-    assert res.medida.kvar > objetivo.kvar
+    assert res.cuadrado and res.q_estado == Q_INCOHERENTE_ALTA
+    assert res.q_extremo['fp_escaladas'] == 1.0 and res.q_extremo['cabecera_kvar'] > objetivo.kvar
+    assert res.reparto.fp_escaladas() == pytest.approx(0.98) and res.reparto.solo_kw
+    assert res.medida.kvar == pytest.approx(_red(300.0)(res.reparto).kvar)
+    assert all(d.kvar >= 0 for s, d in res.reparto.demandas.items() if s in res.reparto.base)
+    assert res.reparto.demandas['S1'].kw == 300.0 and res.reparto.demandas['S1'].kvar == 600.0
+
+
+def test_medida_incoherente_por_debajo_y_el_fp_minimo_del_perfil():
+    """035:RF-28, 035:RF-29 — si la Q medida pide a las escaladas un FP más bajo que su mínimo
+    (sin ``factor_potencia_minimo_escaladas``, el de perfil), tampoco es coherente y queda la Q
+    real; con un mínimo de 0,85 la misma medida sí se alcanza y se cuadra, con su FP entre 0,85
+    y el de perfil."""
+    objetivo = Objetivo(kw=1200.0, kvar=700.0, medidor='M')
+    res = cuadrar(_reparto(objetivo), objetivo, _red(bancos_kvar=0.0), tolerancia=TOL, con_q=True)
+    assert res.cuadrado and res.q_estado == Q_INCOHERENTE_BAJA
+    assert res.q_extremo['cabecera_kvar'] < objetivo.kvar
+    assert res.reparto.fp_escaladas() == pytest.approx(0.98)
+    res = cuadrar(_reparto(objetivo), objetivo, _red(bancos_kvar=0.0), tolerancia=TOL, con_q=True,
+                  fp_minimo_escaladas=0.85)
+    assert res.cuadrado and res.q_estado == Q_CUADRADA
+    assert abs(res.medida.kvar - objetivo.kvar) <= TOL * objetivo.kvar
+    assert 0.85 - 1e-9 <= res.reparto.fp_escaladas() < 0.98
 
 
 def test_sin_base_de_q_no_se_puede_cuadrar():
@@ -87,7 +112,8 @@ def test_por_proyecto_solo_el_alimentador_con_bancos_cuadra_su_q():
             kw[k], kvar[k] = m.kw, m.kvar
         return MedidaConjunta(True, kw=kw, kvar=kvar)
 
-    res = cuadrar_conjunto(repartos, objetivos, flujo, tolerancia=TOL, con_q=['A'])
+    res = cuadrar_conjunto(repartos, objetivos, flujo, tolerancia=TOL, con_q=['A'],
+                           fp_minimo_escaladas=0.7)
     assert res.cuadrado and res.q_estado == {'A': Q_CUADRADA}
     assert abs(res.medida.kvar['A'] - 150.0) <= TOL * 150.0
     assert res.repartos['B'].solo_kw and not res.repartos['A'].solo_kw
@@ -148,35 +174,44 @@ def test_la_q_que_ya_estaba_sin_cuadrar_se_vuelve_a_calibrar(guion):
     assert informe['cuadre_q']['estado'] == 'CUADRADA'
 
 
-def test_la_q_de_cabecera_con_bancos_a_mas_o_menos_dos_por_ciento():
-    """035:RF-5 — la Q se da por cuadrada dentro de ±2 % de la medida, aparte del kW."""
+def test_la_q_de_cabecera_a_mas_o_menos_uno_por_ciento():
+    """035:RF-25 — la Q se da por cuadrada dentro de ±1 % de la medida, aparte del kW."""
     from igea_dgs.ajuste_cabecera import TOLERANCIA_Q, cuadrado_kvar
 
     objetivo = Objetivo(kw=1000.0, kvar=500.0, medidor='M')
-    assert TOLERANCIA_Q == 0.02
-    assert cuadrado_kvar(509.0, objetivo) and cuadrado_kvar(491.0, objetivo)
-    assert not cuadrado_kvar(511.0, objetivo) and not cuadrado_kvar(489.0, objetivo)
+    assert TOLERANCIA_Q == 0.01
+    assert cuadrado_kvar(504.0, objetivo) and cuadrado_kvar(496.0, objetivo)
+    assert not cuadrado_kvar(506.0, objetivo) and not cuadrado_kvar(494.0, objetivo)
 
 
-def test_sin_bancos_y_la_q_lejos_se_recomienda_revisar_los_bancos(guion):
-    """035:RF-20 — sin bancos y con la Q de cabecera fuera de ±2 %, el informe recomienda revisar
-    en el proyecto del alimentador la implementación de bancos, para el evaluador, con las cifras."""
+def test_recalibrar_sin_bancos_cuadra_la_q_y_si_no_baja_se_recomienda_revisar(guion):
+    """035:RF-24, 035:RF-27, 035:RF-28, 035:RF-31 — al recalibrar sin bancos la Q también se
+    cuadra con las escaladas; si la medida no es coherente (ni a FP 1 baja), queda la Q real con
+    el FP de perfil, se acepta por kW y el informe lo dice y recomienda revisar los bancos."""
     informe, rc = guion.ejecutar(_app(), {**_plan(kw=300.0, kvar=5.0), 'recalibracion': 1})
     assert rc == 0, informe
+    assert informe['bancos_en_servicio'] == [] and informe['criterio_cuadre'] == 'KW_Y_KVAR'
+    assert informe['cuadre_q']['estado'] == 'CUADRADA'
+    # Con una Q medida por debajo de la que dan las fijas y las pérdidas, no hay margen.
+    informe, rc = guion.ejecutar(_app(), {**_plan(kw=300.0, kvar=-60.0), 'recalibracion': 1})
+    assert rc == 0, informe
+    q = informe['cuadre_q']
+    assert q['estado'] == 'MEDIDA_INCOHERENTE_ALTA' and not q['coherente']
+    assert q['extremo']['fp_escaladas'] == 1.0 and q['fp_escaladas'] == pytest.approx(0.98, abs=1e-3)
+    assert q['diferencia_kvar'] > 0 and any('no coherente' in a for a in informe['avisos'])
     rev = informe['revision_bancos']
-    assert rev['motivo'] == 'SIN_BANCOS' and rev['objetivo_kvar'] == 5.0
-    assert rev['diferencia_kvar'] == pytest.approx(rev['cabecera_kvar'] - 5.0)
+    assert rev['motivo'] == 'MEDIDA_INCOHERENTE' and rev['diferencia_kvar'] > 0
     assert any('evaluador' in a and '035:RF-20' in a for a in informe['avisos'])
 
 
 def test_con_bancos_que_no_alcanzan_tambien_se_recomienda(guion):
-    """035:RF-8, 035:RF-20 — con bancos y Q sin margen, la misma recomendación (bancos insuficientes)."""
+    """035:RF-20, 035:RF-31 — con bancos y la medida incoherente, la misma recomendación."""
     from types import SimpleNamespace
 
     med = SimpleNamespace(converge=True, kvar=3553.1)
     objetivo = Objetivo(kw=10436.0, kvar=2903.0, medidor='M')
-    rev = guion.revision_de_bancos('SM218', med, objetivo, True, 'SIN_MARGEN')
-    assert rev['motivo'] == 'BANCOS_INSUFICIENTES' and rev['diferencia_kvar'] == pytest.approx(650.1)
+    rev = guion.revision_de_bancos('SM218', med, objetivo, True, 'MEDIDA_INCOHERENTE_ALTA')
+    assert rev['motivo'] == 'MEDIDA_INCOHERENTE' and rev['diferencia_kvar'] == pytest.approx(650.1)
     assert guion.revision_de_bancos('SM218', med, objetivo, True, 'CUADRADA') is None
 
 
@@ -229,3 +264,11 @@ def test_la_web_dice_que_cuadra_cada_una(tmp_path):
     ajuste = (raiz / 'frontend' / 'src' / 'components' / 'AjusteCabecera.tsx').read_text(encoding='utf-8')
     assert 'Calibración: solo se cuadra la P (kW).' in ajuste
     assert 'se cuadran la P (kW) y la Q (kvar)' in ajuste and "'P (kW) y Q (kvar)' : 'solo la P (kW)'" in ajuste
+
+
+@pytest.mark.parametrize('criterio', ['coincidente', 'maximo_mes'])
+def test_el_informe_dice_el_criterio_de_las_fijas(guion, criterio):
+    """039:RF-6 — el informe de la calibración dice el criterio de las fijas del plan."""
+    informe, rc = guion.ejecutar(_app(), {**_plan(kw=300.0, kvar=5.0), 'criterio_fijas': criterio})
+    assert rc == 0, informe
+    assert informe['criterio_fijas'] == criterio

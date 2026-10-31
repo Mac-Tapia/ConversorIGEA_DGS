@@ -1181,6 +1181,30 @@ def test_datos_de_la_escalera_troncal_corriente_y_tramo_de_cada_carga():
     assert _activas(app, CON) == antes
     assert informe['variaciones_activas'] == sorted(antes)                    # 025:RF-73
 
+
+def test_datos_de_la_escalera_dicen_que_barras_existen_sin_las_cargas_nuevas():
+    """025:RF-44 — un banco en el nodo que crea la variación de una carga nueva dependería de
+    ella (Pisco, 2026-10-23: NODE_T_PI_1 y NODE_T_PI_11): la lectura dice qué barras pedidas
+    siguen en la red con las cargas nuevas apartadas; la del tramo partido, no."""
+    from test_casos_pf import cargas_guion
+    from test_cargas_pf_guion import _nueva, _plan as _plan_cargas
+
+    app, alims = _calibrada_con_escenario(random.Random(23))
+    f = alims[0]
+    # N1 en una barra de la red; N2 frente al centro de F1_L2, que parte con NODE_T_N2 (016).
+    nuevas = [_nueva('N1', barra=f'{f}_B1', tension_bt_kv=0.38),
+              _nueva('N2', alimentador=f, lat=-14.0005, lon=-75.6985, tension_bt_kv=0.38)]
+    base = {'variaciones': [], 'feeders': list(alims), 'excluidos': [],
+            'ajustes': [{'feeder': a, 'cuadrado': True} for a in alims]}
+    informe, rc = cargas_guion.ejecutar(app, {**_plan_cargas(list(alims), nuevas=nuevas), 'base': base},
+                                        simular=False)
+    assert rc == 0, informe
+    barras = {c['sed']: c['barra'] for c in informe['cargas']}
+    assert barras['N2'] == 'NODE_T_N2', informe['cargas']
+    informe, codigo = guion.datos_escalera(app, _plan(alims, barras={f: [barras['N1'], barras['N2']]}))
+    assert codigo == 0, informe
+    assert informe['alimentadores'][f]['existen'] == [barras['N1']]
+
 def test_al_evaluar_un_alimentador_se_apartan_las_cargas_de_los_otros(monkeypatch):
     """025:RF-69 — mientras se evalúa F1, las cargas nuevas de F2 (sin resolver) están apartadas
     en «Con proyecto»; al terminar vuelven a estar activas."""

@@ -185,6 +185,35 @@ def test_clientes_del_alimentador_van_al_plan(client):
     assert [c['codigo'] for c in plan['clientes']] == ['11']
 
 
+@pytest.mark.parametrize('ambiguo', [False, True])
+def test_plan_usa_pertenencia_de_fuente_y_rechaza_ambiguedad(client, monkeypatch, ambiguo):
+    """038:RF-5, 038:RF-8 — el plan usa la red antes del filtro y no omite una fija ambigua."""
+    from types import SimpleNamespace
+
+    wid, job = _maxima(client)
+    _subir(client, wid, 'suministros', {'s': [
+        ['Suministro', 'SED', 'RADIAL'], [11, 'E1', 'ANTERIOR'],
+    ]})
+    _subir(client, wid, 'clientes', CLIENTES)
+    cargas = {('SEC_2010_1_E1', 'DEV_2010_1_E1'): {'CustomerNumber': 'CUST_2010_1_E1'}}
+    owners = {'SEC_2010_1_E1': 'NET_2030_1_A1'}
+    if ambiguo:
+        cargas[('SEC_2010_2_E1', 'DEV_2010_2_E1')] = {'CustomerNumber': 'CUST_2010_2_E1'}
+        owners['SEC_2010_2_E1'] = 'NET_2030_2_B2'
+    client.app.state.store.get(wid).dataset = SimpleNamespace(customer_loads=cargas, section_owner=owners)
+    monkeypatch.setattr(services, '_kva_de_la_entrada', lambda *_: ({}, ''))
+    r = _plan(client, wid, job)
+    if ambiguo:
+        assert r.status_code == 400 and 'ASIGNACION_SED_AMBIGUA' in r.json()['detail']
+    else:
+        assert r.status_code == 200 and r.json()['n_clientes'] == 1
+        ws = client.app.state.store.get(wid)
+        path = next(ws.plans_dir.glob(f"ajuste_cabecera_{r.json()['token']}*.json"))
+        plan = json.loads(path.read_text(encoding='utf-8'))
+        assert plan['clientes'][0]['radial'] == 'A1'
+        assert plan['clientes'][0]['radial_libro'] == 'ANTERIOR'
+
+
 def test_el_plan_lleva_el_fp_de_las_escaladas_del_perfil(client, tmp_path, monkeypatch):
     """015:RF-53 / 015:RF-54 / 015:RF-55 / 015:RF-57 — con el perfil de Electro Dunas el plan
     lleva 0,98 para las escaladas y las fijas siguen con su EA/ERI; sin perfil, nada; con
@@ -996,3 +1025,47 @@ def test_la_web_muestra_conductores_con_ficha_y_nivel_de_cada_sed():
     assert "nivel?: 'sobre_100' | 'sobre_umbral'" in tipos
     assert 'más del 100 %' in ajuste and '<Nivel x={x} umbral={umbral} />' in ajuste
     assert 'SED_NTP_{inf.project}' in ajuste
+
+
+def _clientes_con_hoja(dia: str):
+    """CLIENTES con la hoja de 15 minutos de 11 de un solo día; su POT (5 kW) a las 00:15."""
+    hoja = [['SUMINISTRO', 'FECHA', 'HORA', 'EA', 'ERI', 'POT']]
+    hoja += [['11', dia, f'{k // 4:02d}:{15 * (k % 4):02d}', 1.25 if k == 1 else 0.5,
+              0.25, 5.0 if k == 1 else 2.0] for k in range(8)]
+    return {**CLIENTES, 'maestro_lib': [['numero_suministro', 'nombre_hoja_exportacion'], ['11', 'c11']],
+            'c11': hoja}
+
+
+def test_coincidente_sin_el_registro_del_instante_no_se_calibra_y_maximo_del_mes_si(client):
+    """039:RF-1, 039:RF-4, 039:RF-6 — la máxima de A1 es del 01/07/2026 01:45 y la hoja de su
+    fija solo trae el 02/07: con «coincidente» (por defecto) el plan no se prepara y dice el
+    periodo; con «máximo del mes», la fija va con el registro de su POT y el plan lleva el
+    criterio que se eligió."""
+    wid, job = _maxima(client)
+    _subir(client, wid, 'suministros', SUMINISTROS)
+    _subir(client, wid, 'clientes', _clientes_con_hoja('02/07/2026'))
+    r = _plan(client, wid, job)
+    assert r.status_code == 400
+    assert 'FIJAS_SIN_REGISTRO_COINCIDENTE' in r.json()['detail'] and '2026-07' in r.json()['detail']
+    r = _plan(client, wid, job, criterio_fijas='maximo_mes')
+    assert r.status_code == 200, r.text
+    assert r.json()['criterio_fijas'] == 'maximo_mes'
+    trabajo = client.post(f"/api/workspaces/{wid}/demanda/ajuste/{r.json()['token']}/simular").json()
+    plan = esperar_trabajo(client, trabajo)['result']['informe']['recibido']
+    assert plan['criterio_fijas'] == 'maximo_mes'
+    assert plan['clientes'][0]['fecha_registro'] == '02/07/2026 00:15'
+
+
+def test_coincidente_con_el_registro_del_instante_va_al_plan(client):
+    """039:RF-3, 039:RF-6 — con la hoja del día de la máxima, la fija va con su registro de
+    las 01:45 y el plan dice «coincidente»."""
+    wid, job = _maxima(client)
+    _subir(client, wid, 'suministros', SUMINISTROS)
+    _subir(client, wid, 'clientes', _clientes_con_hoja('01/07/2026'))
+    r = _plan(client, wid, job)
+    assert r.status_code == 200, r.text
+    trabajo = client.post(f"/api/workspaces/{wid}/demanda/ajuste/{r.json()['token']}/simular").json()
+    plan = esperar_trabajo(client, trabajo)['result']['informe']['recibido']
+    assert plan['criterio_fijas'] == 'coincidente'
+    cliente = plan['clientes'][0]
+    assert cliente['fecha_registro'] == '01/07/2026 01:45' and cliente['p_registro_kw'] == pytest.approx(2.0)

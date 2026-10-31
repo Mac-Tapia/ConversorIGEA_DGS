@@ -452,9 +452,10 @@ def test_repetir_la_insercion_reutiliza_la_variacion(guion):
     assert var in _activas_en(app, 'Con proyecto')
 
 
-def test_carga_en_dos_variaciones_no_se_crea_ni_se_toca(guion):
-    """014:RF-26 — una carga que ya está en dos variaciones no se crea otra vez, ninguna de
-    las dos cambia de estado en «Con proyecto» y se avisa; las demás cargas sí se crean."""
+def test_carga_en_dos_variaciones_no_se_crea_y_sobra_una(guion):
+    """014:RF-26 (cambia con 040:RF-7) — una carga que ya está en dos variaciones no se crea
+    otra vez: se conserva la primera por su nombre, activa en «Con proyecto», se elimina la
+    otra y se avisa; las demás cargas sí se crean."""
     app = _app()
     primero, rc = guion.ejecutar(app, _plan(['F1'], nuevas=[_nueva('N1', barra='F1_B2')]),
                                  simular=False)
@@ -476,11 +477,11 @@ def test_carga_en_dos_variaciones_no_se_crea_ni_se_toca(guion):
     assert rc == 0, segundo
     assert [c['sed'] for c in segundo['cargas']] == ['N2']
     n1 = next(x for x in segundo['no_creadas'] if x['sed'] == 'N1')
-    assert n1['variaciones'] == sorted([copia.loc_name, f'Carga_N1_F1_{STAMP}'])
-    assert any('014:RF-26' in a for a in segundo['avisos'])
+    assert n1['variacion'] == copia.loc_name and n1['eliminar'] == [f'Carga_N1_F1_{STAMP}']
+    assert any('040:RF-7' in a for a in segundo['avisos'])
     despues = _activas_en(app, 'Con proyecto')
-    assert copia.loc_name not in despues and f'Carga_N1_F1_{STAMP}' in despues
-    assert set(antes) <= set(despues)
+    assert copia.loc_name in despues and f'Carga_N1_F1_{STAMP}' not in _variaciones(app)
+    assert set(antes) - {f'Carga_N1_F1_{STAMP}'} <= set(despues)
 
 
 def test_ya_creada_en_la_red_de_con_proyecto_o_en_el_libro(guion):

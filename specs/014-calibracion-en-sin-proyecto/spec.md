@@ -121,6 +121,8 @@ Inserción sin duplicados
   nueva, ENTONCES EL SISTEMA no la creará e informará dónde está.
 - RF-26: SI la misma carga está en más de una variación, ENTONCES EL SISTEMA no creará
   ninguna, no cambiará cuáles están activas y las listará en un aviso.
+- Aclaración de RF-26 (cambia con 040:RF-7, usuario, 2026-10-31): se conserva la primera por
+  su nombre y se eliminan las demás; con las dos activas, «Con proyecto» sumaba la carga dos veces.
 - RF-27: EL SISTEMA reconocerá que una carga ya existe por su nombre en el alimentador,
   el mismo con que se nombra al crearla (004:RF-15, 007:RF-10).
 - RF-28: SI una carga ya existente difiere de la fila del libro en potencia o en punto,

@@ -418,26 +418,117 @@ def bancos_en_servicio(alims: Alimentadores, feeder: str) -> list[str]:
                   and (_num(o, 'qcapn') or 0) > 0)
 
 
-def informe_de_la_q(rep, med, objetivo, q_estado: str | None,
-                    bancos: list[dict]) -> tuple[dict, str | None]:
-    """Lo que dice el informe del cuadre de la Q con bancos, y su aviso (035:RF-8, RF-9, RF-11)."""
+def informe_de_la_q(rep, med, objetivo, q_estado: str | None, bancos: list[dict],
+                    extremo: dict | None = None) -> tuple[dict, str | None]:
+    """Lo que dice el informe del cuadre de la Q, y su aviso (035:RF-9, RF-11, RF-28 a RF-30).
+
+    Con la medida incoherente, la Q de cabecera es la que dio DIgSILENT con las escaladas a su
+    FP de perfil, y el informe dice el flujo del extremo que lo demostró.
+    """
+    from igea_dgs.ajuste_cabecera import Q_INCOHERENTE_ALTA, Q_INCOHERENTES
+
     kvar = med.kvar if med is not None else None
-    faltan = kvar - objetivo.kvar if q_estado == 'SIN_MARGEN' and kvar is not None else None
+    diferencia = kvar - objetivo.kvar if q_estado in Q_INCOHERENTES and kvar is not None else None
     datos = {
-        'estado': q_estado, 'factor_p': rep.a, 'factor_q': rep.b,
+        'estado': q_estado, 'coherente': q_estado not in Q_INCOHERENTES,
+        'factor_p': rep.a, 'factor_q': rep.b,
         'fp_escaladas': rep.fp_escaladas(), 'cabecera_kvar': kvar,
-        'objetivo_kvar': objetivo.kvar, 'faltan_kvar': faltan,
+        'objetivo_kvar': objetivo.kvar, 'diferencia_kvar': diferencia, 'extremo': extremo,
         'bancos_kvar': sum(b.get('q_flujo_kvar') or 0.0 for b in bancos if b.get('en_servicio')),
     }
     aviso = None
-    if q_estado == 'SIN_MARGEN':
-        aviso = (f'Q de cabecera {kvar:,.1f} kvar frente a {objetivo.kvar:,.1f} medidos aun con las '
-                 f'escaladas sin reactiva: faltan {faltan:,.1f} kvar de compensación (bancos, '
-                 '021:RF-64). Ajuste aceptado por kW (035:RF-8).')
+    if q_estado in Q_INCOHERENTES and kvar is not None and extremo:
+        cual = ('por encima aun con las escaladas a FP 1: le haría falta reactiva negativa'
+                if q_estado == Q_INCOHERENTE_ALTA else
+                f"por debajo aun con las escaladas a FP {extremo['fp_escaladas']:.3f}, su mínimo")
+        aviso = (f"Medida de cabecera no coherente: {objetivo.kvar:,.1f} kvar medidos y la red da "
+                 f"{extremo['cabecera_kvar']:,.1f} kvar {cual}. No se cuadra la Q: queda la de "
+                 f'DIgSILENT con las escaladas a su FP de perfil, {kvar:,.1f} kvar '
+                 f'({diferencia:+,.1f} kvar); ajuste aceptado por kW (035:RF-28, RF-29).')
     elif q_estado == 'SIN_BASE':
         aviso = ('Las escaladas no tienen Q (FP 1 en el perfil): la Q de cabecera no se puede '
                  'cuadrar; ajuste aceptado por kW (035:RF-9).')
     return datos, aviso
+
+
+#: Flujos de cada muestra del reparto probabilístico: parte del factor ya cuadrado (041).
+MAX_FLUJOS_MUESTRA = 6
+
+
+def lectura_probabilistica(alims: Alimentadores, feeder: str, cargas: dict, rep,
+                           banda: list | tuple | None) -> dict:
+    """Lo que se lee de un flujo de una muestra (041:RF-6): la cargabilidad del transformador
+    de cada escalada (el más cargado de su barra) y si alguna barra queda fuera de la banda."""
+    carga = {}
+    for sed in rep.base:
+        obj = cargas.get(sed)
+        valores = [c for e in (_elm_tr2(obj) if obj is not None else [])
+                   if (c := _num(e, 'c:loading')) is not None]
+        carga[sed] = max(valores) if valores else None
+    fuera = None
+    if banda:
+        us = [u for b in alims.objetos(feeder, 'ElmTerm')
+              if b.HasResults() and (u := _num(b, 'm:u')) is not None and u > TENSION_CAIDA]
+        fuera = any(u < banda[0] or u > banda[1] for u in us) if us else None
+    return {'carga': carga, 'fuera_de_banda': fuera}
+
+
+def preparar_probabilistico(plan: dict, rep):
+    """Los parámetros del reparto probabilístico, o por qué no se hace (041:RF-3).
+
+    De las fijas del mismo alimentador si hay bastantes; si no, los del perfil que manda la
+    web; sin ninguno, nada, y se dice.
+    """
+    from igea_dgs.ajuste_cabecera import (MINIMO_FIJAS_PROBABILISTICO, N_PROBABILISTICO,
+                                          Probabilistico, probabilistico_de_fijas)
+
+    cfg = plan.get('probabilistico') or {}
+    if not cfg or not rep.base:
+        return None, None
+    n, semilla = int(cfg.get('n') or N_PROBABILISTICO), int(cfg.get('semilla') or 0)
+    prob = probabilistico_de_fijas(rep, n=n, semilla=semilla)
+    perfil = cfg.get('perfil') or {}
+    if prob is None and perfil:
+        prob = Probabilistico(dispersion=float(perfil['dispersion']),
+                              pendiente=max(0.0, float(perfil['pendiente'])), n=n,
+                              semilla=semilla, fuente='perfil de empresa')
+    if prob is None:
+        return None, (f'Reparto probabilístico no hecho: menos de {MINIMO_FIJAS_PROBABILISTICO} '
+                      'fijas con kVA para estimar la dispersión y sin '
+                      '«calibracion.reparto_probabilistico» en el perfil (041:RF-3).')
+    return prob, None
+
+
+def probabilistico_de_un_alimentador(res, objetivo, flujo, leer, prob, *, tolerancia: float,
+                                     max_flujos: int, remedio, cancelado, con_q: bool,
+                                     fp_minimo) -> tuple:
+    """N repartos cuadrados y el P50 cuadrado entero, que queda escrito (041:RF-1 a RF-8).
+
+    Cada muestra cuadra la P desde el factor ya cuadrado, con la Q de las escaladas del cuadre
+    determinista; el P50 se cuadra como cualquier calibración (P y, si la medida es coherente,
+    Q). Si el P50 no cuadra, la red vuelve al determinista y se dice.
+    """
+    from igea_dgs.ajuste_cabecera import cuadrar, montecarlo
+
+    def cuadrar_muestra(m):
+        r = cuadrar(m, objetivo, flujo, tolerancia=tolerancia, max_flujos=MAX_FLUJOS_MUESTRA,
+                    remedio=remedio, cancelado=cancelado)
+        return (r.reparto, leer(r.reparto)) if r.cuadrado else (None, {})
+
+    resumen, p50 = montecarlo(res.reparto, prob, cuadrar_muestra, cancelado=cancelado,
+                              progreso=lambda n, m, t: print(f'  {t}', flush=True)
+                              if n % 20 == 0 or n == m else None)
+    final = cuadrar(p50.con_q() if con_q else p50, objetivo, flujo, tolerancia=tolerancia,
+                    max_flujos=max_flujos, remedio=remedio, cancelado=cancelado, con_q=con_q,
+                    fp_minimo_escaladas=fp_minimo)
+    if final.cuadrado:
+        resumen['escrito'] = 'P50'
+        return final, resumen
+    resumen['escrito'] = 'DETERMINISTA'
+    resumen['aviso'] = (f'El reparto P50 no cuadró ({final.motivo}): queda el determinista '
+                        '(041:RF-5).')
+    res.medida = flujo(res.reparto)
+    return res, resumen
 
 
 def revision_de_bancos(feeder: str, med, objetivo, con_q: bool,
@@ -446,12 +537,13 @@ def revision_de_bancos(feeder: str, med, objetivo, con_q: bool,
 
     El usuario, el 2026-10-29: si no existen bancos «se debe recomendar revisar el proyecto del
     alimentador para su implementación o revisión de los bancos existentes, donde el evaluador
-    debe validar». También cuando, con bancos, la Q no baja a la medida (RF-8).
+    debe validar». También cuando, al recalibrar, la medida de cabecera no es coherente con la
+    red (035:RF-28, RF-31).
     """
-    from igea_dgs.ajuste_cabecera import TOLERANCIA_Q, cuadrado_kvar
+    from igea_dgs.ajuste_cabecera import Q_INCOHERENTES, TOLERANCIA_Q, cuadrado_kvar
 
     kvar = med.kvar if med is not None and med.converge else None
-    if kvar is None or (con_q and q_estado != 'SIN_MARGEN'):
+    if kvar is None or (con_q and q_estado not in Q_INCOHERENTES):
         return None
     if not con_q and cuadrado_kvar(kvar, objetivo):
         return None
@@ -459,7 +551,7 @@ def revision_de_bancos(feeder: str, med, objetivo, con_q: bool,
     que = ('implementar bancos de condensadores' if not con_q
            else 'revisar los bancos existentes o implementar los que falten')
     return {
-        'motivo': 'SIN_BANCOS' if not con_q else 'BANCOS_INSUFICIENTES',
+        'motivo': 'SIN_BANCOS' if not con_q else 'MEDIDA_INCOHERENTE',
         'cabecera_kvar': kvar, 'objetivo_kvar': objetivo.kvar, 'diferencia_kvar': diferencia,
         'tolerancia': TOLERANCIA_Q,
         'aviso': (f'{feeder}: la Q de cabecera da {kvar:,.1f} kvar frente a {objetivo.kvar:,.1f} '
@@ -1457,6 +1549,18 @@ def _devolver_grabacion(app, etapa) -> str | None:
             'propia variación y la grabación volvió a «' + nombre + '» (032:RF-12).')
 
 
+def _etapas_al_dia(app, informes: list[dict]) -> None:
+    """:func:`cargas_pf.etapas_al_dia` en «Sin proyecto», dicho en cada informe."""
+    from cargas_pf import etapas_al_dia
+
+    subidas = etapas_al_dia(app)
+    if subidas:
+        for inf in informes:
+            inf['avisos'].append('La etapa de ' + ', '.join(subidas) + ' quedaba después de la '
+                                 'hora de «Sin proyecto» y no se aplicaba: se adelanta para '
+                                 'calibrar con todos los cambios hechos en la red.')
+
+
 def variacion_grabando(app, nombre: str, etiqueta: str):
     """La variación ``nombre`` activa y con su etapa grabando; se crea si no existe (032:RF-8, RF-13).
 
@@ -2147,6 +2251,21 @@ def _preparar_alimentador(app, plan: dict, informe: dict, *, alims, feeder: str,
             + '; '.join(f"{c['sed']} FP {c['fp_ea_eri']:.3f} → {c['fp_escrito']:.3f} "
                         f"(Q {c['q_ea_eri_kvar']:,.1f} → {c['q_escrita_kvar']:,.1f} kvar)"
                         for c in compensadas) + ' (015:RF-62).')
+    # 041:RF-9: la SED con su demanda medida en «3.1 Demandas en bloque» entra fija, como las
+    # de la tabla cruzada, con la medida de la SED entera; no se escala ni entra al sorteo.
+    medidas = []
+    for d in plan.get('sed_medidas') or []:
+        clave = clave_codigo(str(d['sed']))
+        antes = fijas_libro.get(clave)
+        fijas_libro[clave] = Fija(str(d['sed']), float(d['kw']), float(d['kvar']), avisos=[
+            'demanda medida de la SED en «3.1 Demandas en bloque» (041:RF-9)'
+            + (f'; reemplaza la de sus clientes ({antes.kw:,.1f} kW)' if antes else '') + '.'])
+        medidas.append({'sed': d['sed'], 'kw': float(d['kw']), 'kvar': float(d['kvar']),
+                        'reemplaza_clientes': antes is not None})
+    if medidas:
+        informe['sed_medidas'] = medidas
+        informe['avisos'].append(f'{len(medidas)} SED con su demanda medida en «3.1 Demandas en '
+                                 'bloque» quedan fijas a escala 1 (041:RF-9).')
     # 014:RF-10 a RF-12: una demanda cambiada a mano entra fija con su valor y no se
     # sobrescribe; gana sobre el cliente importante de la misma SED.
     manuales, ultimo = cambios_manuales(cargas, plan.get('ultima_calibracion'))
@@ -2260,6 +2379,8 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
     if sin is not None:
         sin.Activate()
         informe['caso'] = nombre_caso('sin', anio)
+        if not simular:
+            _etapas_al_dia(app, [informe])
     informe['unidades'] = unidades_del_proyecto(app)                    # 035:RF-14, RF-16
     if error_de_unidades(informe['unidades']) and not simular:
         return {**informe, 'error': error_de_unidades(informe['unidades'])}, 2
@@ -2336,15 +2457,15 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
         informe['avisos'].append(
             'Bancos existentes puestos a su máxima capacidad (todos los escalones, en '
             'servicio): ' + ', '.join(c['banco'] for c in al_maximo) + ' (015:RF-66).')
-    # 035:RF-5: con bancos en servicio también se cuadra la Q, salvo si escalan todas (las
-    # fijas cambiarían su Q, 035:RF-6).
+    # 035:RF-22, RF-24: la primera calibración solo cuadra la P; la recalibración, P y Q, con
+    # bancos o sin ellos, salvo si escalan todas (las fijas cambiarían su Q, 035:RF-6).
     con_bancos = bancos_en_servicio(alims, feeder)
-    # 035:RF-22: la primera calibración solo cuadra la P; la recalibración, P y Q.
     recal = int(plan.get('recalibracion') or 0)
-    con_q = recal > 0 and bool(con_bancos) and not reparto.todo_escala
+    con_q = recal > 0 and not reparto.todo_escala
     informe['bancos_en_servicio'] = con_bancos
     informe['tipo_ajuste'] = {'tipo': 'RECALIBRACION' if recal else 'CALIBRACION', 'numero': recal,
                               'cuadra': 'P_Y_Q' if con_q else 'P'}
+    informe['criterio_fijas'] = plan.get('criterio_fijas')                      # 039:RF-6
     # Idempotencia nativa: antes de escribir una carga se demuestra si el estado efectivo
     # ya contiene el mismo reparto y cuadre.
     medida_previa = medir_cabecera(app, elm)
@@ -2464,7 +2585,25 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
                       tolerancia=float(plan.get('tolerancia', 0.01)),
                       max_flujos=int(plan.get('max_flujos') or MAX_FLUJOS),
                       remedio=remedios.aplicar, cancelado=cancelado,
-                      progreso=lambda n, m, t: print(f'  {t}'), con_q=con_q)
+                      progreso=lambda n, m, t: print(f'  {t}'), con_q=con_q,
+                      fp_minimo_escaladas=plan.get('factor_potencia_minimo_escaladas'))
+        if res.cuadrado and res.reparto is not None and not res.cancelado:
+            prob, motivo = preparar_probabilistico(plan, res.reparto)          # 041
+            if motivo:
+                informe['avisos'].append(motivo)
+            if prob is not None:
+                print(f'Reparto probabilístico de {feeder}: {prob.n} repartos, {prob.fuente}.',
+                      flush=True)
+                res, informe['probabilistico'] = probabilistico_de_un_alimentador(
+                    res, objetivo, flujo,
+                    lambda r: lectura_probabilistica(alims, feeder, cargas, r,
+                                                     plan.get('banda_tension')),
+                    prob, tolerancia=float(plan.get('tolerancia', 0.01)),
+                    max_flujos=int(plan.get('max_flujos') or MAX_FLUJOS),
+                    remedio=remedios.aplicar, cancelado=cancelado, con_q=con_q,
+                    fp_minimo=plan.get('factor_potencia_minimo_escaladas'))
+                if informe['probabilistico'].get('aviso'):
+                    informe['avisos'].append(informe['probabilistico']['aviso'])
         e_kw, e_kvar = res.errores()
         p_kw, p_kvar = res.perdidas()
         informe.update(
@@ -2508,7 +2647,7 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
             if con_q:
                 # 035:RF-11: la Q también, con los bancos como están.
                 informe['cuadre_q'], aviso_q = informe_de_la_q(
-                    res.reparto, res.medida, objetivo, res.q_estado, informe['bancos'])
+                    res.reparto, res.medida, objetivo, res.q_estado, informe['bancos'], res.q_extremo)
                 informe['status'] = 'OK' if res.q_estado == 'CUADRADA' else 'AVISO_KVAR'
                 if aviso_q:
                     informe['avisos'].append(aviso_q)
@@ -2799,7 +2938,17 @@ def _con_bancos_que_faltan(app, planes: list[dict], *, cancelado, estado: dict) 
     alims = Alimentadores(app, proyecto, [p['feeder'] for p in planes])
     for plan, (inf, _rc) in zip(planes, primera):
         f = plan['feeder']
+        # La etapa adelantada en la primera pasada (035:RF-23) ya no lo está en la segunda:
+        # el aviso pasa al informe que vale.
+        avisos += [a for a in inf.get('avisos') or []
+                   if a.startswith('La etapa de ') and a not in avisos]
         if inf.get('error') or alims.elm.get(f) is None:
+            continue
+        if int(plan.get('recalibracion') or 0):
+            # 035:RF-26: al recalibrar, la Q la cuadran las escaladas con los bancos que ya
+            # hay a su máxima capacidad; el usuario: «solo debes escalar las cargas».
+            avisos.append(f'{f}: recalibración: la Q se cuadra con el FP de las escaladas; no se '
+                          'ponen bancos (035:RF-26).')
             continue
         q_escrita = None
         if inf.get('remedios'):
@@ -2998,6 +3147,7 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
         sin = caso_del_sistema(app, 'sin', anio)
         inicial = app.GetActiveStudyCase()
     sin.Activate()
+    _etapas_al_dia(app, [informes[f] for f in feeders])
     unidades = unidades_del_proyecto(app)                               # 035:RF-14, RF-16
     for f in feeders:
         informes[f]['unidades'] = unidades
@@ -3085,18 +3235,18 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
                     'Bancos existentes puestos a su máxima capacidad (todos los escalones, en '
                     'servicio): ' + ', '.join(c['banco'] for c in al_maximo) + ' (015:RF-66).')
 
-    # 035:RF-5: los alimentadores con bancos en servicio cuadran también su Q.
+    # 035:RF-22, RF-24: al recalibrar, cada alimentador cuadra también su Q, con bancos o sin.
     con_q = []
     for f, p in preps.items():
         if not p['central']:
             informes[f]['bancos_en_servicio'] = bancos_en_servicio(alims, f)
-            # 035:RF-22: la primera calibración solo cuadra la P; la recalibración, P y Q.
             recal = int(p['plan'].get('recalibracion') or 0)
-            if recal and informes[f]['bancos_en_servicio'] and not p['reparto'].todo_escala:
+            if recal and not p['reparto'].todo_escala:
                 con_q.append(f)
             informes[f]['tipo_ajuste'] = {
                 'tipo': 'RECALIBRACION' if recal else 'CALIBRACION', 'numero': recal,
                 'cuadra': 'P_Y_Q' if f in con_q else 'P'}
+        informes[f]['criterio_fijas'] = p['plan'].get('criterio_fijas')         # 039:RF-6
     # Un factor por alimentador, o por zona si tiene central (RF-55).
     repartos, objetivos, quietas = {}, {}, set()
     for f, p in preps.items():
@@ -3186,7 +3336,15 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
         res = cuadrar_conjunto(repartos, objetivos, flujo, quietas=quietas,
                                tolerancia=tolerancia, max_flujos=max_flujos,
                                remedio=remedios.aplicar, cancelado=cancelado,
-                               progreso=lambda n, m, t: print(f'  {t}'), con_q=con_q)
+                               progreso=lambda n, m, t: print(f'  {t}'), con_q=con_q,
+                               fp_minimo_escaladas=next(
+                                   (p['plan'].get('factor_potencia_minimo_escaladas')
+                                    for p in preps.values()), None))
+        if res.cuadrado and res.repartos and not res.cancelado:
+            res = _probabilistico_del_proyecto(
+                res, preps, informes, objetivos, flujo, alims, quietas=quietas,
+                tolerancia=tolerancia, max_flujos=max_flujos, remedio=remedios.aplicar,
+                cancelado=cancelado, con_q=con_q)
         medidas = res.medida.extra if res.medida is not None and res.medida.converge else {}
         reps = res.repartos or {}
         fallido = next((h for h in res.historial if not h['converge']), None)
@@ -3298,6 +3456,62 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
     return [salida[f] for f in feeders]
 
 
+def _probabilistico_del_proyecto(res, preps: dict, informes: dict, objetivos, flujo, alims, *,
+                                  quietas, tolerancia: float, max_flujos: int, remedio,
+                                  cancelado, con_q):
+    """El reparto probabilístico de cada alimentador sin central del proyecto (041).
+
+    Las muestras de uno se cuadran con los demás quietos, en el mismo flujo de todo el
+    proyecto (021:RF-54); al final, todos los P50 juntos se cuadran como la calibración.
+    """
+    from igea_dgs.ajuste_cabecera import cuadrar_conjunto, montecarlo
+
+    p50s = {}
+    for f, p in preps.items():
+        if p['central'] or f not in res.repartos:
+            continue
+        prob, motivo = preparar_probabilistico(p['plan'], res.repartos[f])
+        if motivo:
+            informes[f]['avisos'].append(motivo)
+        if prob is None:
+            continue
+        print(f'Reparto probabilístico de {f}: {prob.n} repartos, {prob.fuente}.', flush=True)
+        otras = set(quietas) | {k for k in res.repartos if k != f}
+
+        def cuadrar_muestra(m, f=f, p=p, otras=otras):
+            r = cuadrar_conjunto({**res.repartos, f: m}, objetivos, flujo, quietas=otras,
+                                 tolerancia=tolerancia, max_flujos=MAX_FLUJOS_MUESTRA,
+                                 remedio=remedio, cancelado=cancelado)
+            if not r.cuadrado:
+                return None, {}
+            return r.repartos[f], lectura_probabilistica(alims, f, p['cargas'], r.repartos[f],
+                                                         p['plan'].get('banda_tension'))
+
+        resumen, p50s[f] = montecarlo(res.repartos[f], prob, cuadrar_muestra, cancelado=cancelado,
+                                      progreso=lambda n, m, t: print(f'  {t}', flush=True)
+                                      if n % 20 == 0 or n == m else None)
+        informes[f]['probabilistico'] = resumen
+    if not p50s:
+        return res
+    final = cuadrar_conjunto({**res.repartos, **{f: (r.con_q() if f in con_q else r)
+                                                 for f, r in p50s.items()}},
+                             objetivos, flujo, quietas=quietas, tolerancia=tolerancia,
+                             max_flujos=max_flujos, remedio=remedio, cancelado=cancelado,
+                             con_q=con_q, fp_minimo_escaladas=next(
+                                 (p['plan'].get('factor_potencia_minimo_escaladas')
+                                  for p in preps.values()), None))
+    escrito = 'P50' if final.cuadrado else 'DETERMINISTA'
+    for f in p50s:
+        informes[f]['probabilistico']['escrito'] = escrito
+        if not final.cuadrado:
+            informes[f]['avisos'].append(f'El reparto P50 no cuadró ({final.motivo}): queda el '
+                                         'determinista (041:RF-5).')
+    if final.cuadrado:
+        return final
+    res.medida = flujo(res.repartos)
+    return res
+
+
 def _cerrar_alimentador_en_proyecto(app, alims, feeder: str, p: dict, inf: dict, rep, med,
                                     res, tolerancia: float, fallido, kvar_difference,
                                     con_q: bool = False) -> bool:
@@ -3332,7 +3546,8 @@ def _cerrar_alimentador_en_proyecto(app, alims, feeder: str, p: dict, inf: dict,
             if con_q and rep is not None:
                 # 035:RF-11: la Q también, con los bancos como están.
                 inf['cuadre_q'], aviso_q = informe_de_la_q(rep, med, objetivo,
-                                                           res.q_estado.get(feeder), inf['bancos'])
+                                                           res.q_estado.get(feeder), inf['bancos'],
+                                                           res.q_extremo.get(feeder))
                 inf['status'] = 'OK' if res.q_estado.get(feeder) == 'CUADRADA' else 'AVISO_KVAR'
                 if aviso_q:
                     inf['avisos'].append(aviso_q)

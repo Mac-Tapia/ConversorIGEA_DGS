@@ -1001,6 +1001,20 @@ def test_etapas_nuevas_con_fecha_propia_antes_del_estudio(guion):
     # NewStage lleva la hora del caso a la de la etapa: se devuelve, o las anteriores
     # quedarían después de la hora del estudio, inactivas.
     assert app.caso.iStudyTime == 5_000_000
+    # 035:RF-23 — si una etapa activa quedó después de la hora del caso (SED_NTP_ de SM218,
+    # 2026-10-29), se adelanta a la siguiente fecha libre antes del estudio para que se aplique,
+    # sin tocar la hora; una etapa de años después (PIDE), no.
+    assert cargas_pf.etapas_al_dia(app) == []
+    hora = fechas[-1] - 1
+    app.caso.iStudyTime = hora
+    assert cargas_pf.etapas_al_dia(app) == [etapas[-1].GetParent().loc_name]
+    assert etapas[-1].tAcTime < hora and app.caso.iStudyTime == hora
+    assert etapas[-1].GetParent() in app.variaciones_activas
+    lejana = app.carpetas['scheme'].CreateObject('IntScheme', 'PIDE_2030')
+    lejana.NewStage('Etapa_2030', hora + 2 * cargas_pf.VENTANA_ETAPAS_S, 1)
+    app.grabando = None
+    app.caso.iStudyTime = hora
+    assert cargas_pf.etapas_al_dia(app) == [] and app.caso.iStudyTime == hora
 
 
 def _con_escenario_que_manda(**kw):

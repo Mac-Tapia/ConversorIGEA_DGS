@@ -3,7 +3,7 @@ import { api, fmtNum } from '../api';
 import { useApp } from '../context';
 import type {
   AjusteInforme, AjustePlan, AjusteResultado, BalanceCabecera, CambioEnLaRed, CentralTermica, ConductoresFicha,
-  ConsumoDistinto, Job, MaximaCabecera, MaximaConCentral, SedSobrecargada, WorkspaceState,
+  ConsumoDistinto, CriterioFijas, Job, MaximaCabecera, MaximaConCentral, SedSobrecargada, WorkspaceState,
 } from '../types';
 import { CurvaCabecera } from './CurvaCabecera';
 
@@ -27,8 +27,10 @@ export function numeroDeRecalibracion(calibraciones: WorkspaceState['calibracion
   return hechas.length ? Math.max(...hechas) : 0;
 }
 
-export function AjusteCabecera({ project, maxima, feeders, desconectados, centrales = {} }: {
+export function AjusteCabecera({ project, maxima, feeders, desconectados, centrales = {}, criterioFijas = 'coincidente' }: {
   project: string; maxima: Job | undefined; feeders: string[]; desconectados: Set<string>;
+  /** 039:RF-1: el criterio de las fijas elegido en la tabla cruzada (2.3). */
+  criterioFijas?: CriterioFijas;
   /** Spec 021: central térmica declarada en 2.2, por alimentador, con sus tres medidores. */
   centrales?: Record<string, CentralTermica>;
 }) {
@@ -97,7 +99,7 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados, centra
     const p = await run(() => api.ajustePlan(ws.id, {
       project, job_id: maxima.id, medidor: '', medidores, tolerancia: tol, desconectados: [...desconectados],
       // Spec 021: la central de cada alimentador que la tiene; el guion calibra por zonas.
-      centrales, tension_fuente_pu: uFuente, completar_bancos: completarBancos,
+      centrales, tension_fuente_pu: uFuente, completar_bancos: completarBancos, criterio_fijas: criterioFijas,
     }));
     if (!p) return;
     setPlan(p);
@@ -191,8 +193,10 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados, centra
       </div>
       {/* 035:RF-22: qué se cuadra en cada una, sin lugar a dudas. */}
       <p className="alert small">{recalibracion > 0
-        ? <><strong>Recalibración n.º {recalibracion}: se cuadran la P (kW) y la Q (kvar)</strong>, la Q con ±2 % y los bancos que
-          haya en la red; sin bancos, la Q se informa y se recomienda revisarlos para que los valide el evaluador. Con la máxima
+        ? <><strong>Recalibración n.º {recalibracion}: se cuadran la P (kW) y la Q (kvar)</strong>, la Q con ±1 % variando
+          solo el FP de las escaladas entre el del perfil y 1, con los bancos que haya a su máxima capacidad y las fijas a escala 1;
+          si con las escaladas a FP 1 la Q sigue por encima, se acepta por kW y se recomienda revisar los bancos para que los
+          valide el evaluador (035:RF-24 a RF-27). Las fijas, con el criterio elegido en 2.3 (039:RF-1). Con la máxima
           elegida arriba (del alimentador o de su barra y SET) y la tabla cruzada, sobre la red que hay ahora en DIgSILENT (SED y
           transformadores nuevos, bancos, tramos y cambios a mano, escaneados antes de aplicar, 028:RF-16).</>
         : <><strong>Calibración: solo se cuadra la P (kW).</strong> La Q (kvar) se informa; se cuadra en la recalibración, que
@@ -329,10 +333,11 @@ function InformeAjuste({ inf, report, cancelado, token }: {
               {inf.tipo_ajuste && <tr><td>Tipo</td><td colSpan={2}>{inf.tipo_ajuste.tipo === 'RECALIBRACION'
                 ? `Recalibración n.º ${inf.tipo_ajuste.numero}` : 'Calibración'} · cuadra {inf.tipo_ajuste.cuadra === 'P_Y_Q'
                 ? 'P (kW) y Q (kvar)' : 'solo la P (kW)'}</td></tr>}
-              {inf.cuadre_q && <tr><td title="035:RF-5 a RF-11: con bancos en servicio, la Q de cabecera se cuadra con la de las escaladas">
+              {inf.cuadre_q && <tr><td title="035:RF-24, RF-28 a RF-30: con la medida coherente la Q se cuadra con la de las escaladas; si no, queda la de DIgSILENT con su FP de perfil">
                 Q con bancos ({(inf.bancos_en_servicio ?? []).length} en servicio, {fmtNum(inf.cuadre_q.bancos_kvar, 0)} kvar)</td>
                 <td className="num">{inf.cuadre_q.estado === 'CUADRADA' ? 'cuadrada'
-                  : inf.cuadre_q.estado === 'SIN_MARGEN' ? `faltan ${fmtNum(inf.cuadre_q.faltan_kvar ?? 0, 1)} kvar`
+                  : inf.cuadre_q.estado === 'MEDIDA_INCOHERENTE_ALTA' || inf.cuadre_q.estado === 'MEDIDA_INCOHERENTE_BAJA'
+                    ? `medida no coherente: Q de DIgSILENT ${fmtNum(inf.cuadre_q.cabecera_kvar ?? 0, 1)} kvar (${fmtNum(inf.cuadre_q.diferencia_kvar ?? 0, 1)} kvar); con FP ${fmtNum(inf.cuadre_q.extremo?.fp_escaladas ?? 1, 3)} daba ${fmtNum(inf.cuadre_q.extremo?.cabecera_kvar ?? 0, 1)}`
                   : 'sin Q en las escaladas'}</td>
                 <td className="num">FP escaladas {inf.cuadre_q.fp_escaladas == null ? '—' : fmtNum(inf.cuadre_q.fp_escaladas, 3)}</td></tr>}
               {inf.unidades && <tr><td title="035:RF-14 a RF-16">Unidades en DIgSILENT</td>
@@ -348,6 +353,7 @@ function InformeAjuste({ inf, report, cancelado, token }: {
         </div>
       )}
       {validacion?.balance && <BalanceFisico b={validacion.balance} />}
+      {inf.probabilistico && <RepartoProbabilistico p={inf.probabilistico} medidas={inf.sed_medidas ?? []} />}
       {(inf.fijas_compensadas ?? []).length > 0 && (
         <details className="alert alert-warn" open>
           <summary>Clientes fijos compensados por su banco propio: {inf.fijas_compensadas!.length}</summary>
@@ -449,6 +455,44 @@ function InformeAjuste({ inf, report, cancelado, token }: {
         <small className="muted">* kVA de la entrada original. Informe completo: {report}, en «Resultados».</small>
       </> : null}
     </div>
+  );
+}
+
+/** 041:RF-6, RF-9: el reparto probabilístico de las escaladas, de mayor a menor potencia: lo
+ * escrito (P50) y sus bandas, la probabilidad de sobrecarga de cada SED y la de una barra fuera
+ * de banda; y las SED que quedaron fijas por su demanda medida en «3.1 Demandas en bloque». */
+function RepartoProbabilistico({ p, medidas }: {
+  p: NonNullable<AjusteInforme['probabilistico']>; medidas: NonNullable<AjusteInforme['sed_medidas']>;
+}) {
+  const v = (x: number | null | undefined, d = 1) => (x == null ? '—' : fmtNum(x, d));
+  const pct = (x: number | null | undefined) => (x == null ? '—' : `${fmtNum(100 * x, 0)} %`);
+  const riesgo = p.sed.filter((s) => (s.prob_sobrecarga ?? 0) > 0).length;
+  return (
+    <details className="step-box" open={riesgo > 0}>
+      <summary className="strong">Reparto probabilístico de las escaladas: {p.validas} de {p.muestras} repartos
+        cuadrados · escrito {p.escrito === 'P50' ? 'el P50' : 'el determinista'} · {riesgo} SED con probabilidad
+        de sobrecarga{p.prob_tension_fuera != null ? ` · barra fuera de banda en ${pct(p.prob_tension_fuera)}` : ''}</summary>
+      <p className="small muted">Cada SED escalada con su factor propio, más cargada cuanto mayor su potencia
+        (pendiente {v(p.pendiente, 2)}, dispersión {v(p.dispersion, 2)}, de {p.fuente}); semilla {p.semilla}: la misma
+        semilla repite estos números (041:RF-2, RF-3, RF-7).</p>
+      {medidas.length > 0 && <p className="small">{medidas.length} SED fijas por su demanda medida en «3.1 Demandas en
+        bloque», fuera del sorteo: {medidas.map((m) => m.sed).join(', ')} (041:RF-9).</p>}
+      <div className="table-wrap table-short">
+        <table className="table table-ajustada">
+          <thead><tr><th>SED</th><th className="num">kVA</th><th className="num">kW P05</th><th className="num">kW P50</th>
+            <th className="num">kW P95</th><th className="num">Carga P50</th><th className="num">Carga P95</th>
+            <th className="num" title="Fracción de repartos en que su transformador pasa del 100 %">P(sobrecarga)</th></tr></thead>
+          <tbody>{p.sed.map((s) => (
+            <tr key={s.sed}><td className="strong">{s.sed}</td><td className="num">{v(s.kva, 0)}</td>
+              <td className="num">{v(s.kw_p05)}</td><td className="num strong">{v(s.kw_p50)}</td><td className="num">{v(s.kw_p95)}</td>
+              <td className="num">{s.carga_p50 == null ? '—' : `${v(s.carga_p50, 0)} %`}</td>
+              <td className="num">{s.carga_p95 == null ? '—' : `${v(s.carga_p95, 0)} %`}</td>
+              <td className="num">{(s.prob_sobrecarga ?? 0) > 0
+                ? <span className="badge err">{pct(s.prob_sobrecarga)}</span> : pct(s.prob_sobrecarga)}</td></tr>
+          ))}</tbody>
+        </table>
+      </div>
+    </details>
   );
 }
 

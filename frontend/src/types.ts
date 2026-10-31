@@ -648,6 +648,27 @@ export interface EscaleraResultado {
   }[];
 }
 
+/** Spec 042: escalera carga a carga y SET nueva para las que no caben (RF-12). */
+export interface ConProyectoCarga { sed: string; alimentador: string; kw: number | null; variacion: string }
+export interface ConProyectoResultado {
+  escalera_por_cargas: {
+    project: string; caben: number; orden: ConProyectoCarga[]; a_set_nueva: ConProyectoCarga[];
+    pruebas: { cargas: number; cabe: boolean }[]; escalera: EscaleraResultado | null;
+  };
+  set_nueva: {
+    avisos: string[];
+    ramas?: { alimentador: string; nodo: string; entrada: string; destino: string[]; kw_existente: number; barras: number }[];
+    diseno?: { kva_trasladado: number; kva_nuevas: number; kva_base: number; tasa_ponderada: number; anios: number;
+      factor_crecimiento: number; factor_seguridad: number; kva_diseno: number };
+    modulo?: { descripcion: string; tipo: string; mva: number; kv_at: number; costo: number; moneda: string } | null;
+    motivo_modulo?: string;
+    ubicacion?: { lat: number; lon: number; dispersion_m: number; sorteos: number;
+      utm: { crs: string; este: number; norte: number } | null };
+    ubicacion_final?: { lat: number; lon: number; cumple: boolean; intentos: unknown[];
+      utm: { crs: string; este: number; norte: number } | null };
+  };
+}
+
 export interface CargasResultado {
   returncode: number;
   modo: string;
@@ -743,6 +764,8 @@ export interface MaximaCabecera {
   error: string | null;
   /** Registros sin fecha o sin kW, que no entran en la curva (spec 006, RF-37). */
   fuera_de_curva?: number;
+  /** Con un mes elegido, la máxima de todo el periodo y su mes (spec 013, RF-14). */
+  maxima_periodo?: { fecha: string; kw: number; mes: string } | null;
 }
 
 /** Curva del registro de un medidor de cabecera, entera o un tramo (spec 006, RF-31 a RF-39). */
@@ -828,6 +851,11 @@ export interface ClienteImportante {
   suministro_anterior: string;
   sed: string;
   radial: string;
+  /** 038:RF-2: pertenencia comercial y contraste con la fuente de red. */
+  radial_libro?: string;
+  radial_fuente?: string;
+  radiales_fuente?: string[];
+  nota_asignacion?: string;
   motivo: string;
   /** 004:RF-56: vacío si el libro no trae nombre. */
   nombre: string;
@@ -843,6 +871,30 @@ export interface ClienteImportante {
   fp_escrito?: number;
   metodo?: string;
   fecha_valores?: string | null;
+  /** 039:RF-4: con «coincidente», la fija con hoja pero sin su registro del instante. */
+  sin_coincidente?: string | null;
+}
+
+/** 039:RF-1: fijas coincidentes con la máxima de cabecera o en su máximo del mes. */
+export type CriterioFijas = 'coincidente' | 'maximo_mes';
+
+/** 039:RF-5: una fija con los dos criterios, y por alimentador sus sumas, la cabecera y la red. */
+export interface ValorFija { p_kw: number; q_kvar: number | null; fecha?: string | null; metodo?: string; sin_coincidente?: string | null }
+export interface ComparacionFijas {
+  project: string;
+  libro: string;
+  avisos: string[];
+  alimentadores: {
+    alimentador: string;
+    cabecera: { fecha: string | null; kw: number | null; kvar: number | null };
+    fijas: { codigo: string; sed: string; nombre?: string | null; coincidente?: ValorFija; maximo_mes?: ValorFija }[];
+    sumas: Record<CriterioFijas, { p_kw: number; q_kvar: number; sin_registro: number }>;
+    red: { calibracion: string; cabecera_kvar: number; cargas_kvar: number; red_y_bancos_kvar: number;
+      red_kw: number; bancos_kvar: number | null } | null;
+    /** 035:RF-28: la Q de cabecera alcanzable con las escaladas entre FP 1 y su mínimo. */
+    coherencia: Partial<Record<CriterioFijas, { escaladas_kw: number; q_fp1_kvar: number; q_fp_minimo_kvar: number;
+      fp_minimo: number | null; coherente: boolean; lado: 'alta' | 'baja' | null }>>;
+  }[];
 }
 
 export interface ClientesCruce {
@@ -852,6 +904,9 @@ export interface ClientesCruce {
   mes?: string | null;
   /** 035:RF-1: fecha y hora de la máxima con que se cruzó cada alimentador. */
   maximas?: Record<string, string | null>;
+  /** 039:RF-1: el criterio de todas las fijas; 039:RF-4, las que no tienen el instante. */
+  criterio?: CriterioFijas;
+  no_coincidentes?: string[];
   cruzados: ClienteImportante[];
   no_cruzados: ClienteImportante[];
   avisos: string[];
@@ -1113,12 +1168,24 @@ export interface AjusteInforme {
   /** 035:RF-22: la primera calibración cuadra solo P; la recalibración n.º k, P y Q. */
   tipo_ajuste?: { tipo: 'CALIBRACION' | 'RECALIBRACION'; numero: number; cuadra: 'P' | 'P_Y_Q' };
   revision_bancos?: { motivo: string; cabecera_kvar: number; objetivo_kvar: number; diferencia_kvar: number; aviso: string };
-  /** 035:RF-11: cómo quedó la Q con los bancos. */
+  /** 035:RF-11, RF-28 a RF-30: cómo quedó la Q y si la medida de cabecera es coherente. */
   cuadre_q?: {
-    estado: 'CUADRADA' | 'SIN_MARGEN' | 'SIN_BASE' | null; factor_p: number; factor_q: number;
+    estado: 'CUADRADA' | 'MEDIDA_INCOHERENTE_ALTA' | 'MEDIDA_INCOHERENTE_BAJA' | 'SIN_BASE' | null;
+    coherente?: boolean; factor_p: number; factor_q: number;
     fp_escaladas: number | null; cabecera_kvar: number | null; objetivo_kvar: number;
-    faltan_kvar: number | null; bancos_kvar: number;
+    diferencia_kvar: number | null; bancos_kvar: number;
+    extremo?: { estado: string; fp_escaladas: number; factor_q: number; cabecera_kvar: number } | null;
   };
+  /** 041:RF-6: el reparto probabilístico de las escaladas y lo que se escribió. */
+  probabilistico?: {
+    dispersion: number; pendiente: number; n: number; semilla: number; fuente: string;
+    muestras: number; validas: number; escrito?: 'P50' | 'DETERMINISTA'; aviso?: string;
+    prob_tension_fuera: number | null;
+    sed: { sed: string; kva: number | null; kw_p05: number | null; kw_p50: number | null; kw_p95: number | null;
+      carga_p05: number | null; carga_p50: number | null; carga_p95: number | null; prob_sobrecarga: number | null }[];
+  };
+  /** 041:RF-9: SED fijas por su demanda medida en «3.1 Demandas en bloque». */
+  sed_medidas?: { sed: string; kw: number; kvar: number; reemplaza_clientes: boolean }[];
   /** 035:RF-16: unidades de P y Q leídas en el proyecto de DIgSILENT. */
   unidades?: { leidas: Record<string, string | null>; correctas: boolean; distintas: Record<string, string> };
   /** Spec 015, RF-56: fijas con su EA/ERI; escaladas con el factor del perfil o del archivo. */
@@ -1415,10 +1482,58 @@ export interface Limites {
 
 export interface EstudiosCatalogo {
   ofrecidos: { clave: string; nombre: string }[];
-  no_ofrecidos: { clave: string; nombre: string; falta: string[]; motivo: string }[];
+  no_ofrecidos: { clave: string; nombre: string; falta: string[]; motivo: string; modulo?: string }[];
   limites: Limites | null;
   error_limites: string | null;
   limite_s: number;
+  /** Spec 012: el libro de la empresa del proyecto (RF-20), o null. */
+  datos_empresa?: DatosEmpresa | null;
+}
+
+/** Spec 012: el libro de la empresa guardado con el proyecto (RF-6, RF-20). */
+export interface DatosEmpresa {
+  nombre: string;
+  cargado: string;
+  aplicado: string | null;
+  clases: string[];
+  tipos: string[];
+  telemandados: number;
+  bancos: { potencia_kvar: number; pasos: number; trifasico: boolean; inversion: number;
+    vida_anios: number; coste_anual: number | null }[];
+  coste_energia_kwh: number | null;
+  moneda: string;
+  tasa_descuento: number | null;
+  hojas_que_faltan: string[];
+  avisos: string[];
+}
+
+/** Spec 012: opciones de reconectadores (RF-37), alojamiento (RF-45) y curvas PV (RF-53). */
+export interface OpcionesEstudios {
+  objetivo?: 'ens' | 'saidi';
+  max_total?: number;
+  max_por_alimentador?: number;
+  conjunto?: boolean;
+  contingencias?: boolean;
+}
+
+/** Spec 012: una fila de resultados por caso, alimentador y estudio (RF-59). */
+export type FilaRed = Record<string, string | number | boolean | null> & {
+  caso: string; alimentador: string; estudio: string;
+};
+
+/** Spec 012: un reconectador o un banco propuesto, que se puede aceptar como obra (RF-40, RF-58). */
+export interface PropuestaRed {
+  tipo: 'reconectador' | 'condensador';
+  caso: string;
+  alimentador: string;
+  elemento?: string;
+  tramo?: string | null;
+  mejora_kwh?: number | null;
+  nodo?: string;
+  kvar_paso?: number;
+  pasos?: number;
+  kvar?: number;
+  coste_anual?: number | null;
 }
 
 export interface EstudiosPlan {
@@ -1426,6 +1541,7 @@ export interface EstudiosPlan {
   project: string;
   feeders: string[];
   estudios: string[];
+  casos: string[];
   excluidos: { feeder: string; motivo: string }[];
   avisos: string[];
   limites: Limites;
@@ -1437,11 +1553,20 @@ export interface EstudiosResultado {
   feeders: string[];
   estudios: {
     caso: string; estudio: string; error: string | null; no_terminado: boolean; avisos: string[];
+    nombre_caso?: string;
     obras_activas: string[];
   }[];
   ficheros: string[];
   cancelado: boolean;
-  casos: { avisos?: string[]; excluidos?: { feeder: string; motivo: string }[] };
+  casos: { avisos?: string[]; excluidos?: { feeder: string; motivo: string }[];
+    cargas_nuevas?: { caso: string; activas: string[];
+      no_convergen: { variacion: string; texto?: string }[] } };
+  /** Spec 012. */
+  red?: FilaRed[];
+  propuestas?: PropuestaRed[];
+  comparacion_ens?: { ens_total_kwh: Record<string, number | null>; ens_total_diferencia_kwh: number | null;
+    ens_total_diferencia_pct: number | null } | null;
+  libro?: { nombre: string; cargado: string | null } | null;
 }
 
 export interface MaximoTransferencia {
@@ -1461,12 +1586,32 @@ export interface SentidoTransferencia {
   limita?: { paso: number; punto: string; motivo: string; elemento: string | null; valor: number | null } | null;
   capacidad?: { metodo: string; capacidad_kw: number | null; margen_kw: number | null } | null;
   avisos?: string[];
+  /** Spec 013: el instante crítico del sentido, con lo que pasa y las cabeceras (RF-23 a RF-25). */
+  instante?: string;
+  verificado?: boolean;
+  punto_transferido?: string | null;
+  sed_transferidas?: { sed: string; kw: number; kvar: number; kva: number }[];
+  /** Alimentador → [kW, kVAR] de su cabecera; null si el flujo no convergió. */
+  cabeceras?: { antes: Record<string, [number, number] | null> | null;
+    despues: Record<string, [number, number] | null> | null };
+}
+
+/** Instante común del periodo (spec 013, RF-27 a RF-29). */
+export interface TransferenciaTemporal {
+  periodo: string | null;
+  cobertura: { instantes_comunes?: number; candidatos?: number; desde?: string | null; hasta?: string | null;
+    registros?: Record<string, number> };
+  candidatos: { instante: string; verificado: boolean; motivo: string }[];
+  aceptable: boolean;
+  faltantes: string[];
+  criterio: string;
 }
 
 export interface TransferenciaResultado {
   report: string;
   fichero: string | null;
-  informe: { resultados: SentidoTransferencia[]; avisos: string[]; error?: string };
+  informe: { resultados: SentidoTransferencia[]; avisos: string[]; error?: string;
+    temporal?: TransferenciaTemporal };
 }
 
 /** Un guion DPL o Python del operador (spec 011, RF-27). */
@@ -1598,6 +1743,21 @@ export interface AsistenteRespuesta {
   respuesta?: { texto: string; citas?: { n: number; fuente: string; texto: string }[]; entregables?: string[];
     [k: string]: unknown };
   trabajo?: Job;
+}
+
+/** 043: estado respaldado por registro; null significa pendiente o evidencia incompleta. */
+export interface EstadoModelos {
+  schema_version: number;
+  complete: boolean;
+  familias: {
+    familia: string;
+    estado: 'PROMOVIDO' | 'RECHAZADO' | 'BLOQUEADO_POR_DATOS' | 'ERROR_ENTORNO' | null;
+    candidate_id: string | null;
+    algorithm: string | null;
+    report_path: string;
+    gates: Record<string, unknown>;
+    bloqueos: string[];
+  }[];
 }
 
 export interface EpisodioResumen {

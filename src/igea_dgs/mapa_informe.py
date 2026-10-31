@@ -91,7 +91,8 @@ def _fuente(tam: int):
 def dibujar(geo: Mapping[str, Any], modo: str, destino: Path, *, titulo: str,
             bandas_tension: Sequence[float] | None = None,
             bandas_carga: Sequence[float] | None = None,
-            marcar: Sequence[str] = (), obras: Mapping[str, Any] | None = None) -> Path:
+            marcar: Sequence[str] = (), obras: Mapping[str, Any] | None = None,
+            cliente: tuple[str, str] | None = None) -> Path:
     """La imagen ``modo`` (``ubicacion``, ``tension`` o ``cargabilidad``) en ``destino``.
 
     ``marcar``: barras que se señalan con su nombre (la cabecera y la de menor tensión).
@@ -177,6 +178,9 @@ def dibujar(geo: Mapping[str, Any], modo: str, destino: Path, *, titulo: str,
             d.ellipse([x - 11, y - 11, x + 11, y + 11], outline=(0, 0, 0), width=3)
             texto = barra if b[3] is None else f'{barra} · {b[3]:.3f} p.u.'
         _rotular(d, x, y, texto, color, f_texto, ocupados)
+    if cliente is not None and posicion.get(cliente[0]) is not None:
+        b = posicion[cliente[0]]
+        _marcar_cliente(d, *a_px(b[1], b[2]), cliente[1], f_texto, ocupados)
 
     d.rectangle([0, 0, ANCHO_PX, MARGEN_PX + 10], fill='white')
     d.text((MARGEN_PX, 18), titulo, fill=(0, 0, 0), font=f_titulo)
@@ -243,13 +247,16 @@ def _zona_de_obras(barras, tramos, obras) -> list[tuple[float, float]]:
     return [(min(lats) - m, min(lons) - m), (max(lats) + m, max(lons) + m)]
 
 
-def _rotular(d, x: float, y: float, texto: str, color, fuente, ocupados: list) -> None:
+def _rotular(d, x: float, y: float, texto: str, color, fuente, ocupados: list, *,
+             apartar: bool = False):
     """Rótulo junto al punto, en el primer hueco libre a la derecha o a la izquierda, más
-    arriba o más abajo, con una línea guía si se aparta del punto."""
+    arriba o más abajo, con una línea guía si se aparta del punto. Con ``apartar`` nunca a
+    su misma altura, para que quepa una flecha (RF-117). Devuelve su caja."""
     if not texto:
-        return
+        return None
     ancho = d.textlength(texto, font=fuente)
-    for dy in (0, -30, 30, -60, 60, -90, 90, -120, 120, -150, 150):
+    for dy in ((-60, 60, -90, 90, -120, 120, -150, 150) if apartar
+               else (0, -30, 30, -60, 60, -90, 90, -120, 120, -150, 150)):
         for lado in (1, -1):
             tx = x + 16 if lado == 1 else x - 16 - ancho
             caja = (tx - 3, y + dy - 13, tx + ancho + 3, y + dy + 12)
@@ -260,19 +267,162 @@ def _rotular(d, x: float, y: float, texto: str, color, fuente, ocupados: list) -
         else:
             continue
         break
-    if dy:
+    if dy and not apartar:
         d.line([(x, y), (tx if lado == 1 else tx + ancho, y + dy)], fill=color, width=2)
     d.rectangle(caja, fill='white', outline=color)
     d.text((tx, y + dy - 12), texto, fill=(0, 0, 0), font=fuente)
     ocupados.append(caja)
+    return caja
+
+
+#: Color de la carga nueva y de su rótulo (017:RF-117).
+COLOR_CLIENTE = (220, 0, 0)
+
+
+def rotulo_de_carga(nombre: str, kw: float, codigo: str) -> str:
+    """«Carga-{nombre}-{kW} kW-Cod {código del punto de diseño}» (017:RF-117)."""
+    return f'Carga-{nombre}-{kw:g} kW-Cod {codigo}'
+
+
+def _marcar_cliente(d, x: float, y: float, texto: str, fuente, ocupados: list) -> None:
+    """Rombo rojo en el punto de conexión y el rótulo apartado con una flecha hacia él."""
+    d.polygon([(x, y - 13), (x + 13, y), (x, y + 13), (x - 13, y)], fill=COLOR_CLIENTE, outline=(0, 0, 0))
+    caja = _rotular(d, x, y, texto, COLOR_CLIENTE, fuente, ocupados, apartar=True)
+    if caja is None:
+        return
+    # La flecha va del rótulo al punto: la punta, un triángulo sobre el rombo.
+    cx = caja[0] if caja[0] > x else caja[2]
+    cy = (caja[1] + caja[3]) / 2
+    ang = math.atan2(y - cy, x - cx)
+    punta = (x - 14 * math.cos(ang), y - 14 * math.sin(ang))
+    d.line([(cx, cy), punta], fill=COLOR_CLIENTE, width=3)
+    for giro in (2.6, -2.6):
+        d.line([punta, (punta[0] + 14 * math.cos(ang + giro), punta[1] + 14 * math.sin(ang + giro))],
+               fill=COLOR_CLIENTE, width=3)
+
+
+#: Paleta de los alimentadores en la vista de ubicación del cliente (017:RF-109).
+COLORES_ALIMENTADOR = ((40, 90, 200), (40, 150, 60), (240, 130, 20), (130, 60, 180), (0, 150, 170),
+                       (160, 110, 40), (200, 30, 120), (90, 90, 90))
+#: Un alimentador es «cercano» si alguna de sus barras está a menos de esto del cliente: a
+#: más distancia no es una alternativa de conexión en media tensión.
+RADIO_CERCANOS_KM = 3.0
+
+
+def _km(a: tuple[float, float], b: tuple[float, float]) -> float:
+    lat = math.radians((a[0] + b[0]) / 2)
+    return 111.32 * math.hypot(a[0] - b[0], (a[1] - b[1]) * math.cos(lat))
+
+
+def ubicacion_del_cliente(geos: Mapping[str, Mapping[str, Any]], alimentador: str, barra: str,
+                          texto: str, destino: Path, *, titulo: str) -> Path:
+    """La ubicación del cliente nuevo (017:RF-109, RF-112): su punto de conexión marcado y
+    rotulado, y los alimentadores cercanos, cada uno en su color y con su nombre.
+
+    No hay mapa de fondo: dibujarlo pediría las coordenadas a un servicio de teselas, y el
+    informe se arma sin enviar la red fuera (RF-111); el pie lo dice.
+    """
+    from PIL import Image, ImageDraw
+
+    propia = geos.get(alimentador) or {}
+    punto = next(((b[1], b[2]) for b in propia.get('barras') or [] if b[0] == barra
+                  and b[1] is not None and b[2] is not None), None)
+    if punto is None:
+        raise MapaError(f'La barra {barra} de la carga no tiene coordenadas en la geografía de {alimentador}.')
+
+    def puntos(g):
+        return ([(b[1], b[2]) for b in g.get('barras') or [] if b[1] is not None and b[2] is not None]
+                + [tuple(p) for t in g.get('tramos') or [] for p in t[1] or []])
+
+    cercanos = [alimentador] + sorted(
+        f for f, g in geos.items() if f != alimentador
+        and any(_km(punto, p) <= RADIO_CERCANOS_KM for p in puntos(g)))
+    todos = [p for f in cercanos for p in puntos(geos[f])]
+    a_px, _ = _proyeccion(todos)
+    img = Image.new('RGB', (ANCHO_PX, ALTO_PX), 'white')
+    d = ImageDraw.Draw(img)
+    f_titulo, f_texto = _fuente(30), _fuente(20)
+    ocupados: list = []
+    for i, f in enumerate(cercanos):
+        color = COLORES_ALIMENTADOR[i % len(COLORES_ALIMENTADOR)]
+        for t in geos[f].get('tramos') or []:
+            if len(t[1] or []) >= 2:
+                d.line([a_px(*p) for p in t[1]], fill=color, width=4 if f == alimentador else 3, joint='curve')
+        # El nombre, junto a la cabecera o, sin ella, junto a su primera barra.
+        cab = next((b for b in geos[f].get('barras') or [] if b[0] == geos[f].get('cabecera')), None)
+        ref = cab or next((b for b in geos[f].get('barras') or [] if b[1] is not None), None)
+        if ref is not None:
+            _rotular(d, *a_px(ref[1], ref[2]), f, color, f_texto, ocupados)
+    _marcar_cliente(d, *a_px(*punto), texto, f_texto, ocupados)
+    d.rectangle([0, 0, ANCHO_PX, MARGEN_PX + 10], fill='white')
+    d.text((MARGEN_PX, 18), titulo, fill=(0, 0, 0), font=f_titulo)
+    x0, y = ANCHO_PX - LEYENDA_PX + 10, MARGEN_PX + 50
+    d.rectangle([x0 - 10, 0, ANCHO_PX, ALTO_PX], fill='white')
+    d.text((x0, y), 'Alimentadores', fill=(0, 0, 0), font=f_texto)
+    for i, f in enumerate(cercanos):
+        y += 30
+        d.rectangle([x0, y, x0 + 28, y + 18], fill=COLORES_ALIMENTADOR[i % len(COLORES_ALIMENTADOR)])
+        d.text((x0 + 38, y - 2), f, fill=(0, 0, 0), font=f_texto)
+    y += 30
+    d.polygon([(x0 + 14, y), (x0 + 28, y + 9), (x0 + 14, y + 18), (x0, y + 9)], fill=COLOR_CLIENTE)
+    d.text((x0 + 38, y - 2), 'cliente nuevo', fill=(0, 0, 0), font=f_texto)
+    d.text((x0, ALTO_PX - 60), 'Sin mapa de fondo: dibujado con las', fill=(90, 90, 90), font=_fuente(16))
+    d.text((x0, ALTO_PX - 40), 'coordenadas de la red (RF-112)', fill=(90, 90, 90), font=_fuente(16))
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    img.save(destino, 'PNG', dpi=(250, 250))
+    return destino
+
+
+def transformador_de_la_set(nombre: str, set_nombre: str, devanados: Sequence[tuple[float, float | None]],
+                            destino: Path, *, titulo: str) -> Path:
+    """Unifilar del transformador de la SET con la cargabilidad de cada devanado (017:RF-69,
+    RF-119): «Cargabilidad devanado {kV} kV {x} %».
+
+    Se dibuja con los números que dio el flujo del proyecto de transmisión: DIgSILENT sin
+    ventana no exporta el diagrama (``WriteWMF`` deja el fichero vacío, RF-11b).
+    """
+    from PIL import Image, ImageDraw
+
+    if not devanados:
+        raise MapaError('Sin la cargabilidad de ningún devanado del transformador de la SET.')
+    img = Image.new('RGB', (ANCHO_PX, 900), 'white')
+    d = ImageDraw.Draw(img)
+    f_titulo, f_texto = _fuente(30), _fuente(24)
+    d.text((MARGEN_PX, 18), titulo, fill=(0, 0, 0), font=f_titulo)
+    cx = ANCHO_PX // 2
+    d.line([(cx - 300, 150), (cx + 300, 150)], fill=(0, 0, 0), width=8)            # barra de alta
+    d.text((cx + 320, 135), f'SET {set_nombre}', fill=(0, 0, 0), font=f_texto)
+    d.line([(cx, 150), (cx, 260)], fill=(0, 0, 0), width=4)
+    d.ellipse([cx - 70, 260, cx + 70, 400], outline=(0, 0, 0), width=5)              # primario
+    d.text((cx + 170, 300), nombre, fill=(0, 0, 0), font=f_texto)
+    n = len(devanados)
+    for i, (kv, pct) in enumerate(devanados):
+        x = cx + (i - (n - 1) / 2) * 420
+        color = (0, 0, 0) if pct is None else _color(_banda(pct, BANDAS_CARGA), BANDAS_CARGA, COLORES_CARGA)
+        d.ellipse([x - 70, 360, x + 70, 500], outline=color, width=5)                # secundario
+        d.line([(x, 500), (x, 600)], fill=(0, 0, 0), width=4)
+        d.line([(x - 170, 600), (x + 170, 600)], fill=(0, 0, 0), width=8)
+        kv_txt = f'{kv:g}'.replace('.', ',')
+        texto = (f'Cargabilidad devanado {kv_txt} kV '
+                 + ('sin dato' if pct is None else f'{pct:.2f} %'.replace('.', ',')))
+        ancho = d.textlength(texto, font=f_texto)
+        d.rectangle([x - ancho / 2 - 8, 630, x + ancho / 2 + 8, 670], fill='white', outline=color, width=3)
+        d.text((x - ancho / 2, 636), texto, fill=(0, 0, 0), font=f_texto)
+    d.text((MARGEN_PX, 860), 'Resultados del flujo del proyecto de transmisión en DIgSILENT',
+           fill=(90, 90, 90), font=_fuente(16))
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    img.save(destino, 'PNG', dpi=(250, 250))
+    return destino
 
 
 def imagenes_del_estado(geo: Mapping[str, Any], carpeta: Path, prefijo: str, *, estado: str,
                         alimentador: str, bandas_tension=None, bandas_carga=None,
-                        obras: Mapping[str, Any] | None = None) -> dict[str, Path]:
+                        obras: Mapping[str, Any] | None = None,
+                        cliente: tuple[str, str] | None = None) -> dict[str, Path]:
     """Las tres imágenes de un estado del informe: ubicación, tensión y cargabilidad.
 
     ``obras``: lo que se resalta en el plano de una alternativa (RF-133, ver :func:`dibujar`).
+    ``cliente``: ``(barra, rótulo)`` de la carga nueva en el estado proyectado (RF-117).
     """
     barras = [b for b in geo.get('barras') or [] if b[3] is not None]
     marcar = []
@@ -289,5 +439,5 @@ def imagenes_del_estado(geo: Mapping[str, Any], carpeta: Path, prefijo: str, *, 
         out[modo] = dibujar(geo, modo, carpeta / f'{prefijo}_{modo}.png',
                             titulo=f'{que} · {alimentador} · {estado}',
                             bandas_tension=bandas_tension, bandas_carga=bandas_carga,
-                            marcar=marcar, obras=obras)
+                            marcar=marcar, obras=obras, cliente=cliente)
     return out

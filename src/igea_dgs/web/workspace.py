@@ -153,8 +153,14 @@ class Workspace:
     # Spec 017: lo escrito en los formularios de 4.4 por proyecto y tipo (RF-82), y el
     # libro de pérdidas de la empresa (RF-93), para no perderlos al recargar la página.
     informes: dict[str, Any] = field(default_factory=lambda: {'formularios': {}})
+    # Spec 012: el último libro de la empresa de cada proyecto ({'path', 'nombre', 'cargado',
+    # 'libro'}, RF-20) y los módulos que DIgSILENT rechazó por licencia (RF-4).
+    datos_empresa: dict[str, dict[str, Any]] = field(default_factory=dict)
+    sin_licencia: list[str] = field(default_factory=list)
     # --- solo en memoria
     dataset: Any = None
+    # 038:RF-1: índice de pertenencia por identidad de la fuente, solo en memoria.
+    _sed_owners_cache: tuple[Any, dict[str, set[str]]] | None = field(default=None, repr=False)
     loaded_run_id: str | None = None
     loaded_source_mode: str | None = None
     loaded_source_fingerprint: str | None = None
@@ -224,6 +230,8 @@ class Workspace:
             'obras': self.obras,
             'obras_aplicadas': self.obras_aplicadas,
             'informes': self.informes,
+            'datos_empresa': self.datos_empresa,
+            'sin_licencia': self.sin_licencia,
         }
         self.root.mkdir(parents=True, exist_ok=True)
         tmp = self.root / 'workspace.json.tmp'
@@ -267,6 +275,10 @@ class Workspace:
             **({'libro_perdidas': libro} if isinstance(libro, dict)
                and Path(libro.get('path', '')).is_file() else {}),
         }
+        # Como las entradas: un libro de la empresa que ya no está no se restaura.
+        ws.datos_empresa = {p: d for p, d in (data.get('datos_empresa') or {}).items()
+                            if isinstance(d, dict) and Path(d.get('path', '')).is_file()}
+        ws.sin_licencia = [str(m) for m in data.get('sin_licencia') or []]
         run_id = data.get('active_run_id')
         if run_id and (root / 'runs' / str(run_id) / 'source_manifest.json').is_file():
             ws.active_run_id = str(run_id)
@@ -282,6 +294,7 @@ class Workspace:
     def invalidate(self) -> None:
         """Otra entrada = otro dataset. Lo leído deja de valer, y los planes también."""
         self.dataset = None
+        self._sed_owners_cache = None
         self.loaded_run_id = None
         self.loaded_source_mode = None
         self.loaded_source_fingerprint = None

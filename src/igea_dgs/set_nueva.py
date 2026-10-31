@@ -1,0 +1,383 @@
+"""SET nueva para las cargas que la red existente ya no puede atender (spec 042).
+
+Por qué. En NA203 + NA205 (2026-10-31) las 37 cargas nuevas del libro suman unos 30 MW sobre 11 MW
+calibrados: juntas dejan la red a 0,63 pu y ninguna variante de la escalera de la 025 cumple. Las
+que no caben pasan, con los tramos de NA203 y NA205 donde se conectan, a una SET nueva (la Copara
+que Electro Dunas ya planifica en Nasca). Aquí, sin DIgSILENT: su potencia de diseño a la vida
+útil, el módulo del Plan de Inversiones en Transmisión que la cubre y el punto donde menos
+potencia por distancia hay que llevar.
+"""
+from __future__ import annotations
+
+import math
+import random
+import re
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+RADIO_TIERRA_M = 6_371_000.0
+M_POR_GRADO = 111_320.0
+#: Trozos en que se reparte el crecimiento de un sorteo entre las zonas (RF-9).
+TROZOS_POR_SORTEO = 20
+
+
+class SetNuevaError(ValueError):
+    """Falta un dato para diseñar la SET nueva; el mensaje dice cuál (042:RF-8, P13)."""
+
+
+@dataclass(frozen=True)
+class Parametros:
+    anios: int
+    factor_seguridad: float
+    modulos_pit: Mapping[str, Any]
+
+
+def parametros(perfil: Mapping[str, Any]) -> Parametros:
+    """Vida útil, factor de seguridad y configuración de los módulos PIT del perfil (042:RF-8)."""
+    plan = perfil.get('planificacion') or {}
+    faltan = [k for k in ('vida_util_anios', 'factor_seguridad_set', 'modulos_pit') if not plan.get(k)]
+    if faltan:
+        raise SetNuevaError('el perfil de empresa no trae ' + ', '.join(f'planificacion.{k}' for k in faltan)
+                            + ': no se supone ningún valor para diseñar la SET nueva (042:RF-8).')
+    return Parametros(int(plan['vida_util_anios']), float(plan['factor_seguridad_set']),
+                      plan['modulos_pit'])
+
+
+def distancia_m(a: tuple[float, float], b: tuple[float, float]) -> float:
+    """Distancia sobre la esfera entre dos puntos (lat, lon) en grados."""
+    la1, lo1, la2, lo2 = map(math.radians, (a[0], a[1], b[0], b[1]))
+    h = math.sin((la2 - la1) / 2) ** 2 + math.cos(la1) * math.cos(la2) * math.sin((lo2 - lo1) / 2) ** 2
+    return 2 * RADIO_TIERRA_M * math.asin(min(1.0, math.sqrt(h)))
+
+
+# =========================================================================== RF-7
+def potencia_de_diseno(trasladado: Mapping[str, tuple[float, float]], nuevas: tuple[float, float],
+                       tasas: Mapping[str, float], *, anios: int, factor_seguridad: float) -> dict[str, Any]:
+    """(demanda trasladada + cargas nuevas) × (1 + g)^n × FS, con cada término (042:RF-7).
+
+    ``trasladado``: kW y kvar calibrados que cada alimentador pasa a la SET nueva; ``nuevas``: los
+    de las cargas nuevas que van a ella; ``tasas``: la de la spec 029 de cada alimentador. La tasa
+    se pondera por los kVA que traslada cada uno: el que más carga aporta es el que más pesa en
+    cómo crecerá la SET.
+    """
+    faltan = sorted(f for f in trasladado if tasas.get(f) is None)
+    if faltan:
+        raise SetNuevaError(f"sin tasa de crecimiento de la spec 029 para {', '.join(faltan)}: no se "
+                            'supone ninguna (042:RF-8).')
+    kva = {f: math.hypot(*pq) for f, pq in trasladado.items()}
+    total = sum(kva.values())
+    g = (sum(tasas[f] * s for f, s in kva.items()) / total if total
+         else sum(tasas[f] for f in trasladado) / len(trasladado) if trasladado else 0.0)
+    p = sum(pq[0] for pq in trasladado.values())
+    q = sum(pq[1] for pq in trasladado.values())
+    base = math.hypot(p, q) + math.hypot(*nuevas)
+    crecimiento = (1.0 + g) ** anios
+    return {'kva_trasladado': math.hypot(p, q), 'kva_nuevas': math.hypot(*nuevas), 'kva_base': base,
+            'tasa_ponderada': g, 'tasas': dict(tasas), 'anios': anios, 'factor_crecimiento': crecimiento,
+            'factor_seguridad': factor_seguridad, 'kva_diseno': base * crecimiento * factor_seguridad}
+
+
+# =========================================================================== módulos PIT
+_TENSIONES_MVA = re.compile(
+    r'(\d+(?:[.,]\d+)?)\s*/\s*(\d+(?:[.,]\d+)?)(?:\s*/\s*(\d+(?:[.,]\d+)?))?\s*(?:kV)?\s*(?:de)?\s*'
+    r'(\d+(?:[.,]\d+)?)(?:\s*/\s*\d+(?:[.,]\d+)?)*\s*MVA', re.I)
+
+
+def _num(texto: str) -> float:
+    return float(texto.replace(',', '.'))
+
+
+def _limpio(x: Any) -> str:
+    return re.sub(r'\s+', ' ', str(x or '')).strip().upper()
+
+
+def leer_modulos_pit(ruta: Path | str, cfg: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """Módulos de SET y de transformador del libro CAPEX de la empresa (042:RF-5, RF-7).
+
+    Cada fila cuya descripción dice tensiones y MVA («60/22,9/10 kV de 25/25/25 MVA»): un
+    transformador si lo dice, una SET si nombra la SET. Las líneas y las celdas no son módulos de
+    SET. La hoja, la fila de cabecera y las columnas vienen del perfil (P13); el costo, por la
+    escala del perfil.
+    """
+    import openpyxl
+
+    wb = openpyxl.load_workbook(ruta, read_only=True, data_only=True)
+    if cfg['hoja'] not in wb.sheetnames:
+        raise SetNuevaError(f"el libro CAPEX no tiene la hoja {cfg['hoja']!r} de los módulos PIT.")
+    filas = list(wb[cfg['hoja']].iter_rows(values_only=True))
+    marca = _limpio(cfg['fila_cabecera_contiene'])
+    i_cab = next((i for i, f in enumerate(filas) if any(marca in _limpio(v) for v in f)), None)
+    if i_cab is None:
+        raise SetNuevaError(f"la hoja {cfg['hoja']!r} no tiene la cabecera «{cfg['fila_cabecera_contiene']}».")
+    cab = [_limpio(v) for v in filas[i_cab]]
+    col = {}
+    for clave, nombre in cfg['columnas'].items():
+        j = next((j for j, c in enumerate(cab) if _limpio(nombre) in c), None)
+        if j is None:
+            raise SetNuevaError(f"la hoja {cfg['hoja']!r} no tiene la columna «{nombre}».")
+        col[clave] = j
+    escala = float(cfg.get('escala') or 1.0)
+    out = []
+    for f in filas[i_cab + 1:]:
+        desc = str(f[col['descripcion']] or '').strip() if col['descripcion'] < len(f) else ''
+        m = _TENSIONES_MVA.search(desc)
+        costo = f[col['costo']] if col['costo'] < len(f) else None
+        if not m or not isinstance(costo, (int, float)):
+            continue
+        if re.search(r'transformador', desc, re.I):
+            tipo = 'transformador'
+        elif re.search(r'\bSET\b', desc):
+            tipo = 'set'
+        else:
+            continue
+        kv = sorted((_num(x) for x in m.groups()[:3] if x), reverse=True)
+        out.append({'descripcion': desc, 'tipo': tipo, 'kv_at': kv[0], 'kv_mt': kv[1],
+                    'kv': kv, 'mva': _num(m.group(4)), 'costo': float(costo) * escala,
+                    'moneda': str(f[col['moneda']] or '').strip() if 'moneda' in col else ''})
+    return out
+
+
+def elegir_modulo(modulos: Sequence[Mapping[str, Any]], kva_diseno: float, kv_mt: float,
+                  kv_at: float | None = None) -> dict[str, Any]:
+    """El menor módulo que cubre la potencia de diseño a la tensión de media (042:RF-7).
+
+    Primero un módulo de SET nueva (es lo que se construye); si ninguno cubre, el menor
+    transformador, cuyo costo no incluye la SET. Sin ninguno, ``modulo`` es ``None`` y ``motivo``
+    dice por qué.
+    """
+    def sirve(m):
+        return (any(abs(v - kv_mt) < 0.05 for v in m['kv'][1:])
+                and (kv_at is None or abs(m['kv_at'] - kv_at) < 0.5)
+                and m['mva'] * 1000.0 >= kva_diseno)
+
+    for tipo in ('set', 'transformador'):
+        cand = sorted((m for m in modulos if m['tipo'] == tipo and sirve(m)),
+                      key=lambda m: (m['mva'], m['costo']))
+        if cand:
+            motivo = ('módulo de SET nueva' if tipo == 'set' else
+                      'ningún módulo de SET nueva cubre la potencia: el transformador, sin la SET')
+            return {'modulo': dict(cand[0]), 'motivo': motivo}
+    # El mayor de esa tensión: con todos, la SET El Ángel de 22 kV y 120 MVA salía como «el mayor».
+    mayor = max((m['mva'] for m in modulos if any(abs(v - kv_mt) < 0.05 for v in m['kv'][1:])), default=0)
+    return {'modulo': None,
+            'motivo': f'ningún módulo PIT de {kv_mt:g} kV cubre {kva_diseno / 1000.0:.1f} MVA '
+                      f'(el mayor de {kv_mt:g} kV es de {mayor:g} MVA)'}
+
+
+# =========================================================================== RF-1 a RF-3
+def orden_de_cargas(cargas: Sequence[Mapping[str, Any]]) -> list[Mapping[str, Any]]:
+    """De mayor a menor potencia (usuario, 2026-10-31); a igual kW, por nombre (042:RF-1)."""
+    return sorted(cargas, key=lambda c: (-float(c.get('kw') or 0.0), str(c.get('sed') or '')))
+
+
+def cuantas_caben(n: int, cabe) -> tuple[int, list[dict[str, Any]]]:
+    """El mayor k ≤ n tal que las k primeras cargas caben en la red existente (042:RF-2, RF-3).
+
+    Por bisección: cada ``cabe(k)`` es una escalera entera en DIgSILENT (minutos), y con más
+    carga nunca es más fácil cumplir; con 37 cargas, 6 escaleras en vez de 37. Sin ninguna
+    carga, la red ya está como estaba: k = 0 cabe sin probarlo.
+    """
+    pruebas: list[dict[str, Any]] = []
+
+    def probar(k: int) -> bool:
+        ok = bool(cabe(k))
+        pruebas.append({'cargas': k, 'cabe': ok})
+        return ok
+
+    if n <= 0:
+        return 0, pruebas
+    if probar(n):
+        return n, pruebas
+    bajo, alto = 0, n                       # cabe(bajo) y no cabe(alto)
+    while alto - bajo > 1:
+        medio = (bajo + alto) // 2
+        if probar(medio):
+            bajo = medio
+        else:
+            alto = medio
+    return bajo, pruebas
+
+
+# =========================================================================== RF-6
+def ramas_a_trasladar(red, cabecera: str, destino: set[str], kw_por_barra: Mapping[str, float], *,
+                      max_ramas: int) -> list[dict[str, Any]]:
+    """Las ramas del alimentador que pasan a la SET nueva y el tramo donde se abren (042:RF-6).
+
+    ``destino``: barras donde se conectan las cargas que ya no caben en la red existente. Se
+    empieza por el menor número de ramas: el ancestro común más bajo de las cargas de cada salida
+    de la cabecera. Con alimentadores nuevos de sobra (``max_ramas``), se parte la rama que más
+    carga existente arrastra en sus subramas con cargas nuevas: el ancestro común de cargas
+    repartidas por NA205 podía estar junto a la cabecera y llevarse el alimentador entero.
+    """
+    from .troncal import arbol
+
+    a = arbol(red, cabecera)
+    if cabecera in destino:
+        raise SetNuevaError(f'la cabecera {cabecera} no puede pasar a otra SET (042:RF-6).')
+    fuera = sorted(b for b in destino if b not in a.padre)
+    if fuera:
+        raise SetNuevaError(f"{', '.join(fuera)} no tiene camino cerrado desde la cabecera {cabecera}.")
+    hijos: dict[str, list[str]] = {}
+    for b in a.orden:
+        if a.padre[b] is not None:
+            hijos.setdefault(a.padre[b][0], []).append(b)
+
+    def camino(b: str) -> list[str]:
+        out = [b]
+        while a.padre[out[-1]] is not None:
+            out.append(a.padre[out[-1]][0])
+        return out[::-1]                                     # de la cabecera a b
+
+    def comun(barras: Sequence[str]) -> str:
+        caminos = [camino(b) for b in barras]
+        nodo = cabecera
+        for nivel in zip(*caminos):
+            if len(set(nivel)) > 1:
+                break
+            nodo = nivel[0]
+        return nodo
+
+    def subarbol(nodo: str) -> list[str]:
+        out, pila = [], [nodo]
+        while pila:
+            u = pila.pop()
+            out.append(u)
+            pila.extend(hijos.get(u, ()))
+        return sorted(out)
+
+    def rama(nodo: str) -> dict[str, Any]:
+        barras = subarbol(nodo)
+        dentro = set(barras)
+        return {'nodo': nodo, 'entrada': a.padre[nodo][1].nombre, 'barras': barras,
+                'tramos': sorted(a.padre[b][1].nombre for b in barras if b != nodo),
+                'destino': sorted(destino & dentro),
+                'kw_existente': sum(float(kw_por_barra.get(b, 0.0)) for b in barras)}
+
+    def partes(nodo: str, objetivos: set[str]) -> list[str]:
+        """Las raíces en que se parte ``nodo``: el ancestro común de los objetivos de cada hijo."""
+        grupos: dict[str, list[str]] = {}
+        for b in sorted(objetivos):
+            c = camino(b)
+            grupos.setdefault(c[c.index(nodo) + 1], []).append(b)
+        return [comun(g) for _h, g in sorted(grupos.items())]
+
+    ramas = [rama(r) for r in partes(cabecera, destino)]
+    while len(ramas) < max_ramas:
+        mejor = None
+        for i, r in enumerate(ramas):
+            if r['nodo'] in destino:
+                continue                                     # su propia carga no se puede dejar
+            nuevas = [rama(n) for n in partes(r['nodo'], set(r['destino']))]
+            if len(nuevas) < 2 and nuevas and nuevas[0]['nodo'] == r['nodo']:
+                continue
+            if len(ramas) - 1 + len(nuevas) > max_ramas:
+                continue
+            ganancia = r['kw_existente'] - sum(n['kw_existente'] for n in nuevas)
+            if ganancia > 0 and (mejor is None or (ganancia, -i) > (mejor[0], -mejor[1])):
+                mejor = (ganancia, i, nuevas)
+        if mejor is None:
+            break
+        _g, i, nuevas = mejor
+        ramas = ramas[:i] + nuevas + ramas[i + 1:]
+    return sorted(ramas, key=lambda r: r['nodo'])
+
+
+# =========================================================================== RF-9
+def _plano(puntos, origen):
+    lat0, lon0 = origen
+    k = math.cos(math.radians(lat0)) * M_POR_GRADO
+    return [((lo - lon0) * k, (la - lat0) * M_POR_GRADO, w) for la, lo, w in puntos], k
+
+
+def _weber(puntos_xy: Sequence[tuple[float, float, float]]) -> tuple[float, float]:
+    """Mínimo de Σ w·d por Weiszfeld, desde el centro de gravedad."""
+    total = sum(w for _x, _y, w in puntos_xy)
+    if total <= 0:
+        return 0.0, 0.0
+    x = sum(px * w for px, _y, w in puntos_xy) / total
+    y = sum(py * w for _x, py, w in puntos_xy) / total
+    for _ in range(1000):
+        nx = ny = den = 0.0
+        for px, py, w in puntos_xy:
+            d = math.hypot(px - x, py - y)
+            if d < 1e-9 or w <= 0:
+                continue
+            nx, ny, den = nx + w * px / d, ny + w * py / d, den + w / d
+        if den == 0:
+            break
+        nx, ny = nx / den, ny / den
+        paso = math.hypot(nx - x, ny - y)
+        x, y = nx, ny
+        if paso < 1e-4:
+            break
+    return x, y
+
+
+def _zonas(nuevas, zona_m, origen):
+    """Celdas de ``zona_m`` con cargas nuevas: centro ponderado y probabilidad de crecer (∝ kW)."""
+    xy, _k = _plano(nuevas, origen)
+    celdas: dict[tuple[int, int], list] = {}
+    for (x, y, _w), (la, lo, w) in zip(xy, nuevas):
+        celdas.setdefault((math.floor(x / zona_m), math.floor(y / zona_m)), []).append((la, lo, w))
+    total = sum(w for _la, _lo, w in nuevas)
+    out = []
+    for clave in sorted(celdas):
+        c = celdas[clave]
+        s = sum(w for _a, _b, w in c)
+        if s <= 0 or total <= 0:
+            continue
+        out.append(((sum(a * w for a, _b, w in c) / s, sum(b * w for _a, b, w in c) / s), s / total))
+    return out
+
+
+def ubicacion_optima(existentes: Sequence[tuple[float, float, float]],
+                     nuevas: Sequence[tuple[float, float, float]], *, incremento_kw: float,
+                     zona_m: float, sorteos: int, semilla: int) -> dict[str, Any]:
+    """El punto que minimiza el valor esperado de Σ P·d (042:RF-9).
+
+    ``existentes``: (lat, lon, kW) de las SED de los tramos trasladados; ``nuevas``: las cargas
+    nuevas del bloque; ``incremento_kw``: lo que crecerá la demanda en la vida útil, repartido por
+    zonas de ``zona_m`` con probabilidad proporcional a la potencia nueva de cada una (usuario,
+    2026-10-31: «hacer probabilidades a zona [donde] está la tendencia de crecimiento»).
+
+    Como Σ P·d es lineal en P, su valor esperado es el de las potencias esperadas: el punto es el
+    de Weber con ellas. Los sorteos dan además dónde caería en cada futuro posible, y su
+    dispersión, que es la incertidumbre del punto.
+    """
+    todos = list(existentes) + list(nuevas)
+    if not todos:
+        raise SetNuevaError('sin cargas que atender no hay centro de carga para la SET nueva.')
+    total = sum(w for _a, _b, w in todos) or 1.0
+    origen = (sum(a * w for a, _b, w in todos) / total, sum(b * w for _a, b, w in todos) / total)
+    zonas = _zonas(nuevas, zona_m, origen) if nuevas else []
+    if not zonas:
+        incremento_kw = 0.0
+    esperados = todos + [(c[0], c[1], incremento_kw * p) for c, p in zonas]
+
+    def a_grados(xy, k):
+        return origen[0] + xy[1] / M_POR_GRADO, origen[1] + xy[0] / k
+
+    xy, k = _plano(esperados, origen)
+    lat, lon = a_grados(_weber(xy), k)
+    rng = random.Random(semilla)
+    puntos = []
+    for _ in range(sorteos if incremento_kw > 0 else 0):
+        reparto = [0.0] * len(zonas)
+        for _t in range(TROZOS_POR_SORTEO):
+            r, acum = rng.random(), 0.0
+            for i, (_c, p) in enumerate(zonas):
+                acum += p
+                if r <= acum or i == len(zonas) - 1:
+                    reparto[i] += incremento_kw / TROZOS_POR_SORTEO
+                    break
+        sorteo = todos + [(c[0], c[1], w) for (c, _p), w in zip(zonas, reparto) if w > 0]
+        sxy, sk = _plano(sorteo, origen)
+        puntos.append(a_grados(_weber(sxy), sk))
+    dispersion = (math.sqrt(sum(distancia_m((lat, lon), p) ** 2 for p in puntos) / len(puntos))
+                  if puntos else 0.0)
+    return {'lat': lat, 'lon': lon, 'pesos': esperados, 'zonas': [
+                {'lat': c[0], 'lon': c[1], 'probabilidad': p} for c, p in zonas],
+            'incremento_kw': incremento_kw, 'sorteos': len(puntos), 'dispersion_m': dispersion,
+            'puntos_sorteados': puntos}

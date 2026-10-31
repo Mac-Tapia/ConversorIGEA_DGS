@@ -61,8 +61,10 @@ from cargas_pf import (
     Alimentadores, _num, activar_proyecto, cabecera_de, crear_variacion, error_inesperado,
     flujo_de_carga, gps_de, leer_cabecera, potencia, trazado_de, variaciones_activas,
 )
-from casos_pf import NOMBRES, casos_del_proyecto, sin_a_con_proyecto
+from casos_pf import (NOMBRES, anio_del_plan, casos_del_proyecto, nombre_cargas_nuevas,
+                      rol_de, sin_a_con_proyecto)
 
+from igea_dgs.estudios_pf import ESTUDIOS_012
 from igea_dgs.obras_pf import PREFIJO_VARIACION
 from igea_dgs.native_action import native_action_block_report
 
@@ -71,7 +73,12 @@ ORDENES = {
     'flujo': 'ComLdf', 'flujo_desequilibrado': 'ComLdf', 'contingencias': 'ComSimoutage',
     'troncal': 'ComBbone', 'punto_apertura': 'ComTieopt', 'perfil_tension': 'ComVoltplan',
     'balance_fases': 'ComBalance',
+    # Spec 012: los guiones confiabilidad_pf.py y capacidad_pf.py.
+    'fiabilidad': 'ComRel3', 'reconectadores': 'ComOpri', 'alojamiento': 'ComHostcap',
+    'curvas_pv': 'ComPvcurves', 'condensadores': 'ComCapo',
 }
+#: Los de la spec 012: su propio guion y la comprobación de estado al terminar (RF-60).
+ESTUDIOS_RED = ESTUDIOS_012
 #: Los que proponen cambios en la red: se ejecutan en una variación temporal (RF-26).
 OPTIMIZADORES = ('punto_apertura', 'perfil_tension', 'balance_fases')
 
@@ -549,21 +556,84 @@ def _alternativas(app, alims, feeders, alternativas: list[dict], todo, avisos: l
     return out
 
 
+def _estado(app, alims, feeders: list[str]) -> tuple[dict, Foto]:
+    """Lo que un estudio de la 012 no debe dejar cambiado (RF-60)."""
+    caso = app.GetActiveStudyCase()
+    foto = Foto(alims, feeders)
+    etapa = app.GetRecordingStage()
+    return {'demandas': {o.loc_name: pq for o, pq in foto.cargas.values()},
+            'variaciones': [v.loc_name for v in app.GetProjectFolder('scheme').GetContents('*.IntScheme', 1)],
+            'hora': getattr(caso, 'iStudyTime', None),
+            'etapa': getattr(etapa, 'loc_name', None), '_etapa': etapa}, foto
+
+
+def _estudio_de_red(app, plan: dict, alims, feeders: list[str], informe: dict) -> str | None:
+    """Un estudio de la spec 012 y, al terminar, lo que dejó cambiado se deshace y se
+    nombra, y el estudio queda como no fiable (RF-60, RF-61): ``ComOpri`` cambió la hora del
+    caso y dejó su variación grabando en la prueba en DIgSILENT del 2026-10-12."""
+    import sys
+
+    # Los guiones vecinos, como cuando DIgSILENT ejecuta este desde tools/.
+    carpeta = str(Path(__file__).resolve().parent)
+    if carpeta not in sys.path:
+        sys.path.insert(0, carpeta)
+    import capacidad_pf
+    import confiabilidad_pf
+
+    from igea_dgs.estudios_red_pf import VARIACION_DATOS, cambios_de_estado
+
+    funcion = {'fiabilidad': confiabilidad_pf.fiabilidad, 'reconectadores': confiabilidad_pf.reconectadores,
+               'alojamiento': capacidad_pf.alojamiento, 'curvas_pv': capacidad_pf.curvas_pv,
+               'condensadores': capacidad_pf.condensadores}[plan['estudio']]
+    antes, foto = _estado(app, alims, feeders)
+    try:
+        return funcion(app, plan, alims, feeders, informe)
+    finally:
+        despues, _ = _estado(app, alims, feeders)
+        cambios = cambios_de_estado(antes, despues)
+        informe['fiable'] = not cambios
+        if cambios:
+            caso = app.GetActiveStudyCase()
+            for v in app.GetProjectFolder('scheme').GetContents('*.IntScheme', 1):
+                if v.loc_name not in antes['variaciones'] and v.loc_name != VARIACION_DATOS:
+                    v.Deactivate()
+                    v.Delete()
+            foto.restituir()
+            for o, (kw, kvar) in foto.cargas.values():
+                if potencia(o) != (kw, kvar):
+                    o.plini, o.qlini = kw / 1000.0, kvar / 1000.0
+            if caso is not None and antes['hora'] is not None:
+                caso.iStudyTime = antes['hora']
+            if antes['_etapa'] is not None and app.GetRecordingStage() is not antes['_etapa']:
+                antes['_etapa'].Activate(1)
+            informe['cambios'] = cambios
+            informe['avisos'].append('El estudio cambió ' + ', '.join(cambios) + '; se deshizo y el '
+                                     'resultado queda como no fiable.')
+
+
 def ejecutar(app, plan: dict) -> tuple[dict, int]:
     """Un estudio en un caso. Devuelve (informe, código de salida)."""
     estudio, rol = plan['estudio'], plan['caso']
-    informe = {'project': plan.get('project'), 'estudio': estudio, 'caso': NOMBRES.get(rol),
+    nombre = 'Cargas nuevas' if rol == 'cargas' else NOMBRES.get(rol)
+    informe = {'project': plan.get('project'), 'estudio': estudio, 'caso': nombre,
                'avisos': [], 'medidas': {}}
     if estudio not in ORDENES:
         return {**informe, 'error': f'estudio desconocido: {estudio!r}'}, 2
     proyecto = activar_proyecto(app, plan['project'], plan.get('folder'))
     if proyecto is None:
         return {**informe, 'error': f"no existe el proyecto {plan['project']!r} en DIgSILENT"}, 2
-    casos = casos_del_proyecto(app)
+    anio = anio_del_plan(plan)
+    casos = casos_del_proyecto(app, anio)
     caso = casos.get(rol)
+    if rol == 'cargas':
+        # 037:RF-4, RF-7: no adoptar un caso ajeno ni el de otra calibración.
+        marca = f'cargas@{anio}' if anio else 'cargas'
+        caso = next((c for c in app.GetProjectFolder('study').GetContents('*.IntCase')
+                     if rol_de(c) == marca and c.loc_name == nombre_cargas_nuevas(anio)), None)
     if caso is None:
-        return {**informe, 'error': f'el proyecto no tiene el caso «{NOMBRES.get(rol, rol)}»: '
+        return {**informe, 'error': f'el proyecto no tiene el caso «{nombre or rol}»: '
                                     'prepare los casos primero'}, 2
+    informe['nombre_caso'] = caso.loc_name
     feeders = list(plan['feeders'])
     inicial = app.GetActiveStudyCase()
     ldf = None                      # el del caso: se toma con el caso ya activo
@@ -610,6 +680,11 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
             if rol == 'con' and plan.get('alternativas'):
                 informe['alternativas'] = _alternativas(app, alims, feeders, plan['alternativas'],
                                                         todo, informe['avisos'])
+        elif estudio in ESTUDIOS_RED:
+            motivo = _estudio_de_red(app, plan, alims, feeders, informe)
+            informe['medidas'] = base
+            if motivo:
+                return {**informe, 'error': motivo}, 2
         elif estudio == 'contingencias':
             motivo = _contingencias(app, plan, alims, feeders, informe)
             informe['medidas'] = base

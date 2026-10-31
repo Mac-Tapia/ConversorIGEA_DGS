@@ -802,6 +802,40 @@ def preparar(app, plan: dict) -> tuple[dict, int]:
                 'error': 'Ningún alimentador marcado está calibrado: primero hay que calibrar '
                          '(paso 2).'}, 2
     informe, rc = preparar_con(app, {**plan, 'feeders': feeders})
+    if not rc and plan.get('incluir_cargas_nuevas'):
+        # 037:RF-2: renovar desde la calibración actual, sin las obras exclusivas de Con.
+        # Los callbacks de inserción conservan el diagnóstico eléctrico de 025:RF-66.
+        from cargas_pf import (Alimentadores, estado_del_alimentador, flujo_con_mensajes,
+                               motivo_de_carga)
+
+        anio = anio_del_plan(plan)
+        casos = casos_del_proyecto(app, anio)
+        carpeta = app.GetProjectFolder('scheme')
+        grupos = clasificar(carpeta.GetContents('*.IntScheme', 1) if carpeta else [],
+                            feeders, [], None)
+        if grupos['cargas']:
+            alims = Alimentadores(app, activar_proyecto(app, plan['project'], plan.get('folder')),
+                                  feeders)
+            filas = {f.get('variacion'): f for f in plan.get('nuevas') or []}
+
+            def antes(_app, v):
+                feeder = filas.get(v.loc_name, {}).get('alimentador')
+                return estado_del_alimentador(alims, feeder) if feeder in alims.elm else {}
+
+            def explicar(v, previo, mensajes):
+                fila = filas.get(v.loc_name, {})
+                return motivo_de_carga(fila.get('sed') or v.loc_name,
+                                       fila.get('alimentador'), fila.get('kw'), previo, mensajes)
+
+            diagnostico = cargas_nuevas(app, casos['sin'], anio,
+                                        sorted(grupos['cargas'], key=lambda v: v.loc_name),
+                                        flujo_con_mensajes, antes=antes, explicar=explicar)
+            informe['cargas_nuevas'] = diagnostico
+            informe['avisos'] += diagnostico['avisos']
+            informe['casos']['cargas'] = {
+                'nombre': diagnostico['caso'], 'escenario': diagnostico.get('escenario'),
+                'converge': diagnostico.get('converge'),
+                'estudiable': diagnostico.get('converge') is not None}
     informe['excluidos'] = excluidos
     informe['feeders'] = feeders
     for f in feeders:

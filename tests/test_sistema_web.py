@@ -407,3 +407,26 @@ def test_red_no_importa_conversion_individual_sin_resultado_util(herramienta, st
     web.esperar = resultado
     assert _correr_red(herramienta, web) == 2
     assert '/powerfactory/flow' not in web.enviados
+
+
+@pytest.mark.parametrize('criterio', [None, 'maximo_mes'])
+def test_el_criterio_de_las_fijas_va_al_cruce_y_al_plan(herramienta, criterio):
+    """039:RF-1 — ``--criterio-fijas`` (por defecto «coincidente») va al cruce de clientes y al
+    plan del ajuste, como lo manda el front."""
+    class Web(WebFalsa):
+        def __init__(self, **kw):
+            super().__init__(**kw)
+            self.cuerpos: dict[str, dict | None] = {}
+
+        def post(self, ruta, **kw):
+            self.cuerpos[ruta] = kw.get('json')
+            return super().post(ruta, **kw)
+
+    web = Web(informes=[VALIDO])
+    extra = {'criterio_fijas': criterio} if criterio else {}
+    assert herramienta.correr(web, 'Pisco', demanda_dir=Path('libros'), periodo='2026-07',
+                              reconvertir=False, transformadores=False, tension_pu=None,
+                              bancos=True, libros=LIBROS, **extra) == 0
+    esperado = criterio or 'coincidente'
+    assert web.cuerpos['/demanda/clientes/cruzar']['criterio'] == esperado
+    assert web.cuerpos['/demanda/ajuste/plan']['criterio_fijas'] == esperado

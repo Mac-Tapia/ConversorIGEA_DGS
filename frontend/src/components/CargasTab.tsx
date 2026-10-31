@@ -3,7 +3,8 @@ import { api, download, fmtNum } from '../api';
 import { useApp } from '../context';
 import type {
   AjusteInforme, AjusteResultado, CalibradaCambiada, CasoBaseEstado, CasoBaseResultado, CargaConectada, CargaIntegrada, CargasFeederInforme,
-  CargasInforme, CargasMotivo, CargasPlan, CargasResultado, Economia, EscaleraResultado, Job, PfInventario, PfProject,
+  CargasInforme, CargasMotivo, CargasPlan, CargasResultado, ConProyectoResultado, Economia, EscaleraResultado, Job,
+  PfInventario, PfProject,
   VerificarInforme, VerificarResultado,
 } from '../types';
 import { estadoVinculoProyecto, textoCausaVinculo, usoDeLaFuente } from '../projectBinding';
@@ -175,6 +176,10 @@ export function CargasTab() {
   const lastEscalera = todos.filter((j) => j.kind === 'obras_escalera' && j.result
     && (j.result as EscaleraResultado).project === resultado?.informe.project).pop();
   const escalera = (lastEscalera?.result ?? null) as EscaleraResultado | null;
+  // Spec 042: la última optimización de «Con proyecto» de ese proyecto.
+  const lastConProyecto = todos.filter((j) => j.kind === 'obras_con_proyecto' && j.result
+    && (j.result as ConProyectoResultado).escalera_por_cargas?.project === resultado?.informe.project).pop();
+  const conProyecto = (lastConProyecto?.result ?? null) as ConProyectoResultado | null;
   const flujo = estadoFlujo(todos, project);
   const lastCheck = todos.filter((j) => j.kind === 'pf_verificar' && j.result?.project === project).pop();
   const verificado = (lastCheck?.result ?? null) as VerificarResultado | null;
@@ -527,10 +532,13 @@ export function CargasTab() {
       </div>
 
       {resultado && <Informe resultado={resultado} cancelado={lastRun?.status === 'cancelled'}
-        escalera={escalera} ocupado={pfBusy}
+        escalera={escalera} conProyecto={conProyecto} ocupado={pfBusy}
         onEscalera={(feeders, tipoCambio, capex) => startJob(() => api.obrasEscalera(ws.id, {
           project: resultado.informe.project, feeders, anio_casos: resultado.informe.anio_casos ?? null,
-          tipo_cambio: tipoCambio, capex }))} />}
+          tipo_cambio: tipoCambio, capex }))}
+        onConProyecto={(feeders, tipoCambio, capex, nuevos) => startJob(() => api.obrasConProyecto(ws.id, {
+          project: resultado.informe.project, feeders, anio_casos: resultado.informe.anio_casos ?? null,
+          tipo_cambio: tipoCambio, capex, alimentadores_nuevos: nuevos }))} />}
 
       {/* Spec 011, RF-42 y RF-98: con el mismo proyecto y los mismos alimentadores marcados. */}
       <div className="step-box">
@@ -799,10 +807,16 @@ function conexion(c: CargaConectada) {
 }
 
 /** Informe del guion por alimentador: lo que se actualizó o se crearía, y lo omitido (RF-20). */
-function Informe({ resultado, cancelado, escalera, ocupado, onEscalera }: {
-  resultado: CargasResultado; cancelado: boolean; escalera: EscaleraResultado | null; ocupado: boolean;
+function Informe({ resultado, cancelado, escalera, conProyecto, ocupado, onEscalera, onConProyecto }: {
+  resultado: CargasResultado; cancelado: boolean; escalera: EscaleraResultado | null;
+  conProyecto: ConProyectoResultado | null; ocupado: boolean;
   onEscalera: (feeders: string[], tipoCambio: number | null, capex: string) => void;
+  onConProyecto: (feeders: string[], tipoCambio: number | null, capex: string, nuevos: number) => void;
 }) {
+  // Spec 042, RF-6: cuántos alimentadores nuevos puede tener la SET nueva.
+  const [nuevos, setNuevos] = useState('4');
+  const nNuevos = Number(nuevos);
+  const nuevosValido = Number.isInteger(nNuevos) && nNuevos >= 1 && nNuevos <= 20;
   // Spec 025, RF-67: el tipo de cambio lo escribe el operador; no sale del perfil.
   const [tipoCambio, setTipoCambio] = useState('');
   // RF-53: el libro CAPEX de la empresa, por su ruta en este equipo.
@@ -852,6 +866,15 @@ function Informe({ resultado, cancelado, escalera, ocupado, onEscalera }: {
               onClick={() => onEscalera(feedersEscalera, tcValido ? tc : null, capex.trim())}>
               Proponer obras en escalera
             </button>
+            <label className="small">Alimentadores nuevos{' '}
+              <input type="number" min={1} max={20} step={1} value={nuevos} style={{ width: '4em' }}
+                aria-label="Alimentadores nuevos que puede tener la SET nueva" onChange={(e) => setNuevos(e.target.value)} />
+            </label>
+            <button className="btn btn-sm" disabled={ocupado || !capex.trim() || !nuevosValido
+              || (tipoCambio.trim() !== '' && !tcValido)}
+              onClick={() => onConProyecto(feedersEscalera, tcValido ? tc : null, capex.trim(), nNuevos)}>
+              Optimizar «Con proyecto» con SET nueva
+            </button>
             <small className="muted">
               Bancos, regulador, terna y cambio de sección en {lista(feedersEscalera)}, varias variantes y sus
               combinaciones en «{juntas.caso}»; gana la de menor costo anual entre las que cumplen. El tipo de
@@ -861,11 +884,19 @@ function Informe({ resultado, cancelado, escalera, ocupado, onEscalera }: {
                 : !tcValido ? ' Si los precios de pérdidas están en otra moneda, el servidor lo pedirá.' : ''}
               {ocupado ? ' Espere a que termine el trabajo de DIgSILENT en curso.' : ''}
             </small>
+            <small className="muted">
+              «Optimizar» mete las cargas nuevas de mayor a menor potencia y aplica la escalera hasta donde la red
+              existente cumple; las demás pasan, con sus ramas, a una SET nueva del módulo PIT del libro CAPEX,
+              dimensionada a la vida útil con el crecimiento medido y el factor de seguridad, en el centro de carga.
+              {!capex.trim() ? ' Necesita la ruta del libro CAPEX.' : ''}
+              {!nuevosValido ? ' Los alimentadores nuevos van de 1 a 20.' : ''}
+            </small>
           </div>
         </div>
       )}
       {inf.cargas_nuevas && <CargasNuevasCaso c={inf.cargas_nuevas} />}
       {escalera && <Escalera r={escalera} />}
+      {conProyecto && <ConProyecto r={conProyecto} />}
       {(inf.cargas ?? []).length > 0 && <PorCarga cargas={inf.cargas!} sin={inf.sin_proyecto} />}
       {(inf.calibradas_cambiadas ?? []).length > 0 && <Calibradas xs={inf.calibradas_cambiadas!} />}
       {inf.tecnico_economico && (
@@ -901,6 +932,54 @@ function CargasNuevasCaso({ c }: { c: NonNullable<CargasInforme['cargas_nuevas']
         : <>Converge con {c.activas.length} carga(s) nueva(s){fuera.length ? `; ${fuera.length} quedan inactivas porque con ellas ya no converge` : ''}.</>}
       {fuera.length > 0 && (
         <ul className="small">{fuera.map((x) => <li key={x.variacion}>{x.texto ?? x.variacion}</li>)}</ul>
+      )}
+    </div>
+  );
+}
+
+/** Spec 042, RF-12: qué carga va a la red existente y cuál a la SET nueva, y su diseño. */
+function ConProyecto({ r }: { r: ConProyectoResultado }) {
+  const e = r.escalera_por_cargas;
+  const s = r.set_nueva;
+  const u = s.ubicacion_final ?? s.ubicacion;
+  return (
+    <div className="step-box">
+      <h4>«Con proyecto» optimizado</h4>
+      <p>Caben en la red existente con obras <strong>{e.caben}</strong> de {e.orden.length} cargas nuevas
+        (de mayor a menor potencia; {e.pruebas.length} escaleras medidas).</p>
+      {e.a_set_nueva.length > 0 && (
+        <p className="small">A la SET nueva: {lista(e.a_set_nueva.map((c) => `${c.sed} (${c.alimentador})`))}</p>
+      )}
+      {e.escalera && <Escalera r={e.escalera} />}
+      {s.avisos.map((x) => <p key={x} className="muted small">{x}</p>)}
+      {s.diseno && (
+        <p className="small">Potencia de diseño: ({fmtNum(s.diseno.kva_trasladado, 0)} kVA trasladados +{' '}
+          {fmtNum(s.diseno.kva_nuevas, 0)} kVA nuevos) × {fmtNum(s.diseno.factor_crecimiento, 3)} (crecimiento{' '}
+          {fmtNum(100 * s.diseno.tasa_ponderada, 2)} %/año, {s.diseno.anios} años) × {fmtNum(s.diseno.factor_seguridad, 2)}{' '}
+          = <strong>{fmtNum(s.diseno.kva_diseno / 1000, 1)} MVA</strong>.</p>
+      )}
+      {s.modulo
+        ? <p className="small">Módulo PIT: <strong>{s.modulo.descripcion}</strong> · {fmtNum(s.modulo.costo, 0)} {s.modulo.moneda}</p>
+        : s.motivo_modulo && <p className="alert alert-warn">{s.motivo_modulo}</p>}
+      {u && (
+        <p className="small">Ubicación: {fmtNum(u.lat, 6)}, {fmtNum(u.lon, 6)}
+          {u.utm ? ` · ${u.utm.crs} ${fmtNum(u.utm.este, 0)} E, ${fmtNum(u.utm.norte, 0)} N` : ''}
+          {s.ubicacion ? ` · dispersión de los sorteos ${fmtNum(s.ubicacion.dispersion_m, 0)} m` : ''}
+          {s.ubicacion_final ? (s.ubicacion_final.cumple ? ' · tensiones dentro de los límites'
+            : ' · ningún punto probado deja todas las tensiones dentro de los límites') : ''}</p>
+      )}
+      {(s.ramas ?? []).length > 0 && (
+        <div className="table-wrap table-short">
+          <table className="table">
+            <thead><tr><th>Alimentador</th><th>Rama desde</th><th>Se abre</th><th className="num">Barras</th>
+              <th className="num">kW existentes</th><th>Cargas nuevas</th></tr></thead>
+            <tbody>{s.ramas!.map((x) => (
+              <tr key={`${x.alimentador}/${x.nodo}`}><td>{x.alimentador}</td><td>{x.nodo}</td><td>{x.entrada}</td>
+                <td className="num">{fmtNum(x.barras)}</td><td className="num">{fmtNum(x.kw_existente, 0)}</td>
+                <td className="small">{x.destino.join(', ')}</td></tr>
+            ))}</tbody>
+          </table>
+        </div>
       )}
     </div>
   );

@@ -468,7 +468,8 @@ def _perfil_escalera(costos):
             'estudios': {'tension_min_pu': 0.95, 'tension_max_pu': 1.05, 'cargabilidad_max_pct': 100}}
 
 
-def _escalera_falsa(tmp_path, monkeypatch, evaluar, costos, *, alimentadores=('F1',), activa=True):
+def _escalera_falsa(tmp_path, monkeypatch, evaluar, costos, *, alimentadores=('F1',), activa=True,
+                    existe=True):
     """El servicio de la escalera con DIgSILENT, los libros y el perfil sustituidos."""
     from datetime import datetime, timedelta
 
@@ -501,14 +502,16 @@ def _escalera_falsa(tmp_path, monkeypatch, evaluar, costos, *, alimentadores=('F
             (f,) = plan['feeders']
             return 0, {'variaciones_activas': guion.variaciones, 'alimentadores': {f: {
                 'troncal': [{'nombre': f'T{i}', 'largo_m': 1000.0, 'corriente_a': 100.0} for i in range(3)],
-                'fuera_desde': None, 'indices': {f'{f}_B4': 2}}}}, None
+                'fuera_desde': None, 'indices': {f'{f}_B4': 2},
+                'existen': [f'{f}_B4'] if existe else []}}}, None
         return 0, {'variantes': [evaluar(v['nombre']) for v in plan['variantes']]}, None
 
     guion.variaciones = ['Carga_Q']
     monkeypatch.setattr(services, '_guion_pf', guion)
     aplicadas = []
 
-    def ejecutar(ws_, ctx, project, feeders, ids, otro, *, simular, anio_casos=None, apartar_cargas_de=None):
+    def ejecutar(ws_, ctx, project, feeders, ids, otro, *, simular, anio_casos=None, apartar_cargas_de=None,
+                 apartar_variaciones=None):
         aplicadas.append(([o['clase'] for o in ws_.obras if o['id'] in ids], otro, anio_casos))
         ejecutar.apartadas.append(list(apartar_cargas_de or []))
         return {'informe': {'obras': [{'variacion': 'Obra_x',
@@ -550,6 +553,23 @@ def test_la_escalera_elige_la_mas_barata_que_cumple_y_aplica_solo_esa(tmp_path, 
     assert any(n.startswith('regulador') and 'sin costo' in m for n, m in motivos.items())
     assert any(n.startswith('bancos') and 'no cumple con la máxima' in m for n, m in motivos.items())
     assert any(n.startswith('terna') and 'cuesta más' in m for n, m in motivos.items())
+
+
+def test_la_escalera_no_pone_bancos_en_el_nodo_que_crea_la_variacion_de_la_carga(tmp_path, monkeypatch):
+    """025:RF-44 — si DIgSILENT dice que la barra de la carga nueva no existe sin ella (un
+    NODE_T_ de su variación), no hay variante con bancos; el regulador sigue en la escalera."""
+    def evaluar(nombre):
+        return {'nombre': nombre, 'maxima': True, 'fraccion': 1.0, 'perdidas_kw': 10.0, 'motivos': []}
+
+    services, ws, ctx, planes, _aplicadas, _apartadas = _escalera_falsa(
+        tmp_path, monkeypatch, evaluar, {'bancos': 9000, 'nueva_terna': 40000, 'cambio_seccion': 30000},
+        existe=False)
+    r = services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=ANIO)
+    (_args, ev), = [x for x in planes if '--evaluar' in x[0]]
+    nombres = [v['nombre'] for v in ev['variantes']]
+    assert nombres and not any('bancos' in n for n in nombres)
+    assert any(n.startswith('regulador') for n in nombres)
+    assert any('no hay escalón de bancos' in a for a in r['alimentadores'][0]['avisos'])
 
 
 def test_la_escalera_sin_ninguna_que_cumpla_no_aplica_nada(tmp_path, monkeypatch):

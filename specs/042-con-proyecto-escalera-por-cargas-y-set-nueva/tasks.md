@@ -1,0 +1,29 @@
+# Tareas — Spec 042
+
+Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y parar.
+
+- [x] T1. `set_nueva.py`: potencia de diseño, módulos PIT del libro CAPEX y el que cubre, ubicación
+      óptima con sorteos de crecimiento por zona; claves del perfil. (RF-5, RF-7 a RF-9)
+      Hecho cuando: `pytest -q tests/test_set_nueva.py` en verde.
+      Hecho el 2026-10-31: `potencia_de_diseno`, `leer_modulos_pit`, `elegir_modulo` y
+      `ubicacion_optima` (Weber con las potencias esperadas; los sorteos dan la dispersión);
+      `factor_seguridad_set` y `modulos_pit` en el perfil. Con el libro real: hasta 25 MVA la Nueva
+      SET Copara (5,75 M USD), hasta 40 MVA el transformador de 40 MVA; 7 pruebas, 10 semillas.
+- [x] T2. Ramas que pasan a la SET nueva y su punto de corte. (RF-6)
+      Hecho cuando: `pytest -q tests/test_set_nueva.py -k rama` en verde.
+- [x] T3. Carga a carga: orden, cargas apartadas en la escalera y bisección de cuántas caben. (RF-1 a RF-4)
+      Hecho cuando: `pytest -q tests/test_set_nueva_web.py -k escalera` en verde.
+- [x] T4. Obra «SET nueva» en DIgSILENT, con su comprobación de tensiones. (RF-10, RF-11)
+      Hecho cuando: `pytest -q tests/test_obras_pf_guion_042.py` en verde.
+      Hecho el 2026-10-31: clase de obra `set_nueva` (validación, plan y `construir_set_nueva`: barras,
+      red externa copiada de la de cabecera, trafo con la uk de IEC 60076-5 del perfil, una línea y un
+      `ElmFeeder` por rama, tramo de entrada abierto, y hasta 6 acercamientos a la barra que peor
+      queda); modo `--set-nueva-datos`; 8 pruebas con el doble.
+- [x] T5. Informe y botón en el paso de obras. (RF-12, RF-13)
+      Hecho cuando: `pytest -q tests/test_set_nueva_web.py` en verde y `npm run build` sin errores.
+      Hecho el 2026-10-31: `set_nueva_proponer` y `con_proyecto_optimizar`, ruta
+      `/pf/obras/con-proyecto`; botón «Optimizar «Con proyecto» con SET nueva» y su informe en el paso 3
+      (el de la escalera de la 025); `tsc` y `npm run build` sin errores.
+- [ ] T6. [DIgSILENT] NA203 + NA205 optimizado desde la web. (Todos)
+      Hecho cuando: cada carga nueva con su destino, la red existente con obras que cumplen y la SET
+      Copara con su punto, su módulo PIT y «Con proyecto» dentro de 0,94–1,06 pu.

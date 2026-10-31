@@ -247,8 +247,10 @@ def test_tipo_de_linea_de_la_fila_o_de_la_red(guion):
     b = next(x for x in app.proyecto.GetContents('*.ElmTerm', 1) if x.loc_name == 'F1_B1')
     # A unos 44 m: a 25 m o menos no hay cable ni, por tanto, tipo de línea (016:RF-88).
     cerca = dict(lat=b.GPSlat + 0.0004, lon=b.GPSlon)
+    # La segunda a unos 4 m de la primera: en el mismo punto sería duplicada (040:RF-1).
+    otra = dict(lat=b.GPSlat + 0.00044, lon=b.GPSlon)
     plan = _plan(['F1'], nuevas=[_nueva('N1', tipo_linea='AAAC_F2', **cerca),
-                                 _nueva('N2', tipo_linea='NO_EXISTE', **cerca)])
+                                 _nueva('N2', tipo_linea='NO_EXISTE', **otra)])
     informe, rc = guion.ejecutar(app, plan, simular=False)
     assert rc == 0, informe
     tipos = {c['sed']: (c['tipo_linea'], c['origen_tipo_linea']) for c in informe['feeders'][0]['creadas']}

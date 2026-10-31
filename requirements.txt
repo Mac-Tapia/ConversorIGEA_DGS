@@ -75,6 +75,11 @@ pandapower>=3.0
 fastapi>=0.115
 uvicorn[standard]>=0.30
 python-multipart>=0.0.9
+# Límite de memoria de los trabajos web: no degradar su vigilancia al instalar (036:RF-1).
+psutil>=5.9
+
+# Extracción de texto PDF del corpus PIDE (036:RF-2).
+pypdf>=5.0
 
 # ── Módulo VNR-GIS (vnr_etl): tercera alternativa de entrada ─────────────────────────
 

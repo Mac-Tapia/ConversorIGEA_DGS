@@ -68,6 +68,17 @@ SUFIJO_PF = re.compile(r'\(\d+\)$')
 # esa misma carga aunque traiga otro nombre (usuario, 2026-10-16: «por el nombre y el
 # mismo punto de coordenadas»). El libro da el punto con 6 decimales, unos 0,1 m.
 MISMO_PUNTO_M = 1.0
+# 040:RF-12: con sufijo, DIgSILENT deja la base en 34 caracteres: «Cesar_Alberto_Monge_Marquez_
+# SE50324» se guardó como «…_SE5032(2)» y «SU_Fundo_Luciana__propiedad_de_Agricola_» como
+# «…_de_Agr(3)» (NA203, 2026-10-31). Una base de esta longitud o más pudo quedar recortada.
+BASE_RECORTADA = 32
+# 040:RF-3: a esta distancia o menos de la barra de baja de una SED existente, la fila del
+# libro es una ampliación de ese cliente (usuario, 2026-10-31). En NA203 + NA205 «Cesar
+# Alberto Monge Marquez SE50324» cayó a 3 m de SE50324, HONGWEN a 1 m de SE50323 y AGROPEX
+# «250 A 1000KW» a 26 m de SE50150, y se crearon como SED nuevas junto a las que ya había.
+AMPLIACION_M = 30.0
+# Palabras del nombre de una fila: «SE50324» o «SE50290-7» son una; espacios y signos separan.
+_SEPARADOR = re.compile(r'[^\w\-]+')
 
 
 # =========================================================================== nombres
@@ -685,32 +696,65 @@ def _en_sed(barra) -> bool:
         return False
 
 
-def indice_de_cargas_nuevas(app, feeders) -> dict[tuple[str, str], dict]:
+def _alimentador_por_el_punto(carga, puntos: list[tuple[tuple[float, float], str]]) -> str | None:
+    """El alimentador de la SED existente más cercana a la carga (040:RF-11), o ``None``."""
+    pos = gps_de(carga) or gps_de(carga.GetParent())
+    if pos is None or not puntos:
+        return None
+    return min(puntos, key=lambda x: (distancia_m(x[0], pos), x[1]))[1]
+
+
+def indice_de_cargas_nuevas(app, feeders, alims: Alimentadores | None = None) -> dict[tuple[str, str], dict]:
     """``(alimentador, nombre)`` → variaciones de carga nueva que guardan esa carga (014:RF-23).
 
     Se recorren una vez por trabajo todas las variaciones ``Carga_…`` del proyecto,
     activas o no: ``ElmFeeder.GetObjs`` solo ve la red del caso activo, y una carga creada
     antes en una variación apagada no se veía y se volvía a crear.
+
+    040:RF-11: una variación cuyo nombre ya no dice el alimentador (cortado a 40 caracteres
+    antes de RF-10) es del alimentador de la SED existente más cercana a su carga, y lleva
+    ``sin_alimentador_en_nombre`` para renombrarla al reutilizarla.
     """
     c011 = _casos_011()
     carpeta = app.GetProjectFolder('scheme')
     out: dict[tuple[str, str], dict] = {}
+    puntos = None
     for v in (carpeta.GetContents('*.IntScheme', 1) if carpeta else []):
         if not c011.es_de_carga_nueva(v):
             continue
         feeder = c011._de_alimentador(v.loc_name, 'Carga_', list(feeders))
-        if feeder is None:
+        sin_nombre = feeder is None
+        if sin_nombre and alims is None:
             continue
+        if sin_nombre and puntos is None:
+            puntos = [(pos, f) for f in alims.elegidos for o in alims.objetos(f, 'ElmLod')
+                      for pos in [_gps_de_sed(o)] if pos is not None]
         for etapa in v.GetContents('*.IntSstage'):
+            # 040:RF-6: la que creó una SED es una carga nueva aparte; la de una ampliación
+            # solo guarda su carga, en la SED que ya existía.
+            con_sed = bool(etapa.GetContents('*.ElmSubstat', 1))
             for carga in etapa.GetContents('*.ElmLod', 1):
                 # Por el nombre sin el sufijo que pone la etapa (014:RF-29): con «CH_9(2)»
                 # no se reconocía CH_9, se creaba otra que partía de nuevo el trozo de la
                 # primera y «Con proyecto» no ejecutaba el flujo («Cubicle/Feeder Not
                 # found» en NODE_T_CH_9, PN107, 2026-10-16).
                 nombre = SUFIJO_PF.sub('', carga.loc_name)
-                d = out.setdefault((feeder, nombre), {'variaciones': [], 'carga': carga})
+                f = feeder if not sin_nombre else _alimentador_por_el_punto(carga, puntos or [])
+                if f is None:
+                    continue
+                d = out.setdefault((f, nombre), {'variaciones': [], 'carga': carga, 'con_sed': [],
+                                                 'feeder': f, 'sin_alimentador_en_nombre': [],
+                                                 # 040:RF-12: DIgSILENT recorta la base a 34
+                                                 # caracteres al añadir el sufijo; una base
+                                                 # corta («N1(2)») no se recortó.
+                                                 'recortado': (nombre != carga.loc_name
+                                                               and len(nombre) >= BASE_RECORTADA)})
                 if v.loc_name not in d['variaciones']:
                     d['variaciones'].append(v.loc_name)
+                if con_sed and v.loc_name not in d['con_sed']:
+                    d['con_sed'].append(v.loc_name)
+                if sin_nombre and v.loc_name not in d['sin_alimentador_en_nombre']:
+                    d['sin_alimentador_en_nombre'].append(v.loc_name)
     return out
 
 
@@ -759,18 +803,34 @@ def _en_el_punto(carga, punto: tuple[float, float]) -> bool:
     return distancia_m((float(lat), float(lon)), punto) <= MISMO_PUNTO_M
 
 
+def entradas_del_indice(indice: dict, candidatos: list[str], nombre: str) -> list[dict]:
+    """Las cargas nuevas ya creadas con ``nombre`` en esos alimentadores (014:RF-27, RF-29).
+
+    040:RF-12: si no hay ninguna con el nombre entero, la que DIgSILENT guardó recortada para
+    añadirle su sufijo: «Cesar_Alberto_Monge_Marquez_SE5032(2)» es «…_SE50324» (NA203,
+    2026-10-31), y sin esto se buscaba por el punto y se tomaba la variación de otra fila.
+    """
+    exactas = [indice[(f, nombre)] for f in candidatos if (f, nombre) in indice]
+    if exactas:
+        return exactas
+    return [d for (f, n), d in sorted(indice.items(), key=lambda x: x[0])
+            if f in candidatos and d.get('recortado') and nombre.startswith(n)]
+
+
 def ya_creada(fila: dict, candidatos: list[str], existentes: set[str], ya: dict | None):
     """La carga del libro ya existe: ``(no_creada, avisos)``, o ``None`` si hay que crearla.
 
     014:RF-24 a RF-27: por su nombre en su alimentador; en una variación de carga nueva se
-    reutiliza esa variación, en dos o más no se toca ninguna, y en la red de «Con
-    proyecto» fuera de una variación tampoco se crea.
+    reutiliza esa variación, y en la red de «Con proyecto» fuera de una variación tampoco se
+    crea. 040:RF-7 (cambia 014:RF-26): en dos o más se conserva la primera por su nombre y las
+    demás van en ``eliminar``; antes no se tocaba ninguna y «Con proyecto» sumaba la carga
+    tantas veces como variaciones tuviera activas.
     """
     sed = fila['sed']
     nombre = nombre_pf(sed)
     indice = (ya or {}).get('indice') or {}
     en_red = (ya or {}).get('red')
-    halladas = [indice[(f, nombre)] for f in candidatos if (f, nombre) in indice]
+    halladas = entradas_del_indice(indice, candidatos, nombre)
     criterio = 'ya existe'
     if not halladas and fila.get('lat') is not None:
         punto = (float(fila['lat']), float(fila['lon']))
@@ -780,23 +840,79 @@ def ya_creada(fila: dict, candidatos: list[str], existentes: set[str], ya: dict 
             otros = ', '.join(sorted({SUFIJO_PF.sub('', d['carga'].loc_name) for d in halladas}))
             criterio = f'ya existe en el mismo punto, como {otros} (014:RF-30),'
     variaciones = sorted({v for d in halladas for v in d['variaciones']})
-    if len(variaciones) > 1:
-        return ({'sed': sed, 'motivo': f'{criterio} en varias variaciones de carga nueva: no se crea '
-                                       'otra ni se cambia cuál está activa (014:RF-26)',
-                 'variaciones': variaciones},
-                [f"{sed}: está en {len(variaciones)} variaciones de carga nueva "
-                 f"({', '.join(variaciones)}); revise cuál vale (014:RF-26)."])
     if variaciones:
-        return ({'sed': sed, 'motivo': f'{criterio} en la variación {variaciones[0]}: se reutiliza, '
-                                       'activa en «Con proyecto» (014:RF-24)',
-                 'variacion': variaciones[0], 'reutilizada': True},
-                _diferencias_con_la_fila(sed, halladas[0]['carga'], fila))
+        conserva, sobran = variaciones[0], variaciones[1:]
+        no_creada = {'sed': sed, 'motivo': f'{criterio} en la variación {conserva}: se reutiliza, '
+                                           'activa en «Con proyecto» (014:RF-24)',
+                     'variacion': conserva, 'reutilizada': True,
+                     'alimentador': next((d.get('feeder') for d in halladas if conserva in d['variaciones']), None)}
+        avisos = _diferencias_con_la_fila(sed, halladas[0]['carga'], fila)
+        if sobran:
+            no_creada['eliminar'] = sobran
+            avisos.append(f"{sed}: estaba en {len(variaciones)} variaciones de carga nueva; se "
+                          f"conserva {conserva} y se eliminan {', '.join(sobran)} (040:RF-7).")
+        return no_creada, avisos
     if sed in existentes:
         return {'sed': sed, 'motivo': 'ya existe en el alimentador (RF-15)'}, []
     if en_red is not None and nombre in en_red:
         return ({'sed': sed, 'motivo': 'ya existe en la red de «Con proyecto», fuera de una '
                                        'variación de carga nueva (014:RF-25)'}, [])
     return None
+
+
+def _gps_de_sed(carga) -> tuple[float, float] | None:
+    """El punto de una SED existente: el de la barra de baja de su carga, o el de la carga o la SED."""
+    barra = getattr(getattr(carga, 'bus1', None), 'cterm', None)
+    for obj in (barra, carga, carga.GetParent()):
+        pos = gps_de(obj) if obj is not None else None
+        if pos is not None:
+            return pos
+    return None
+
+
+def sed_existentes(alims: Alimentadores, ya: dict | None) -> dict[str, list[dict]]:
+    """Alimentador → SED de la red con su carga, su barra de baja y su punto (040:RF-3).
+
+    Las cargas de la red que no son de una variación de carga nueva: la que creó antes el
+    sistema no es un cliente existente aunque su variación esté activa. Se lee una vez por
+    trabajo, con el índice de las cargas nuevas (014:RF-23).
+    """
+    nuevas = {(f, n) for f, n in ((ya or {}).get('indice') or {})}
+    out: dict[str, list[dict]] = {}
+    for f in alims.elegidos:
+        lista = []
+        for carga in alims.objetos(f, 'ElmLod'):
+            nombre = SUFIJO_PF.sub('', carga.loc_name)
+            if (f, nombre) in nuevas:
+                continue
+            barra = getattr(getattr(carga, 'bus1', None), 'cterm', None)
+            lista.append({'sed': nombre, 'carga': carga, 'barra': barra, 'gps': _gps_de_sed(carga)})
+        out[f] = sorted(lista, key=lambda s: str(s['sed']))
+    return out
+
+
+def ampliacion_de(fila: dict, existentes: list[dict], radio_m: float = AMPLIACION_M) -> dict | None:
+    """La SED existente de la que la fila del libro es ampliación (040:RF-3), o ``None``.
+
+    Por una palabra del nombre que es el de la SED, a cualquier distancia («Cesar Alberto Monge
+    Marquez SE50324»); si no, la más cercana a ``radio_m`` o menos de su barra de baja.
+    """
+    punto = (float(fila['lat']), float(fila['lon'])) if fila.get('lat') is not None else None
+    por_nombre = {s['sed'].upper(): s for s in existentes}
+    for palabra in _SEPARADOR.split(str(fila.get('sed') or '')):
+        s = por_nombre.get(palabra.upper()) if palabra else None
+        if s is not None:
+            d = distancia_m(s['gps'], punto) if (s['gps'] and punto) else None
+            return {**s, 'distancia_m': d, 'criterio': f"su nombre lleva la SED {s['sed']}"}
+    if punto is None:
+        return None
+    cerca = sorted((distancia_m(s['gps'], punto), s['sed'], i)
+                   for i, s in enumerate(existentes) if s['gps'] is not None)
+    if not cerca or cerca[0][0] > radio_m:
+        return None
+    d, _n, i = cerca[0]
+    s = existentes[i]
+    return {**s, 'distancia_m': d, 'criterio': f"a {d:.0f} m de la SED {s['sed']}"}
 
 
 def _troncales(alims: Alimentadores):
@@ -865,6 +981,9 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict
     # El libro escribe la TRONCAL a mano: «si213 » es SI213.
     marcados = {str(f).strip().upper(): f for f in alims.elegidos}
     de_otros: dict[str, int] = {}
+    indice = (ya or {}).get('indice') or {}
+    sed_de = sed_existentes(alims, ya)                   # 040:RF-3, una vez por trabajo
+    vistas: dict[str, list[tuple[tuple[float, float], str]]] = {}   # 040:RF-1
     for fila in nuevas:
         sed = fila['sed']
         candidatos = list(alims.elegidos)
@@ -876,6 +995,62 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict
                                                          'entre los alimentadores marcados (RF-29)'})
                 continue
             candidatos = [marcados[suyo.upper()]]
+        punto_fila = (float(fila['lat']), float(fila['lon'])) if fila.get('lat') is not None else None
+        nombre = nombre_pf(sed)
+        entrada = next(iter(entradas_del_indice(indice, candidatos, nombre)), None)
+        # 040:RF-1, RF-2: el mismo punto en el mismo alimentador del libro es la misma carga
+        # («Fundo Luciana» y «SU Fundo Luciana…» en NA203); en otro alimentador, no.
+        clave = suyo.upper()
+        primera = next((n for p, n in vistas.get(clave, [])
+                        if punto_fila is not None and distancia_m(p, punto_fila) <= MISMO_PUNTO_M), None)
+        if primera is not None:
+            dup = {'sed': sed, 'alimentador': suyo or None, 'duplicada_de': primera,
+                   'motivo': f'duplicada de {primera}: mismo alimentador y mismo punto en el libro (040:RF-1)'}
+            if entrada and entrada['variaciones']:
+                dup['eliminar'] = sorted(entrada['variaciones'])          # 040:RF-6
+            no_creadas.append(dup)
+            avisos.append(f'{sed}: duplicada de {primera} en el libro (mismo alimentador y mismo '
+                          'punto); no se crea (040:RF-1).')
+            continue
+        if punto_fila is not None:
+            vistas.setdefault(clave, []).append((punto_fila, sed))
+        # 040:RF-3, RF-4: la ampliación de un cliente existente no es duplicada ni SED nueva.
+        # Una fila que se llama igual que una SED es esa SED, y sigue 004:RF-15.
+        amp = None
+        for f in (candidatos if sed not in existentes else []):
+            a = ampliacion_de(fila, sed_de[f])
+            if a is not None and (amp is None or (a['distancia_m'] or 0.0) < (amp[1]['distancia_m'] or 0.0)):
+                amp = (f, a)
+        if amp is not None:
+            feeder, a = amp
+            con_sed = sorted(entrada['con_sed']) if entrada else []
+            como_amp = sorted(set(entrada['variaciones']) - set(con_sed)) if entrada else []
+            if como_amp:
+                ya_amp = {'sed': sed, 'variacion': como_amp[0], 'reutilizada': True,
+                          'motivo': f"ampliación de {a['sed']} ya creada en la variación {como_amp[0]}: "
+                                    'se reutiliza, activa en «Con proyecto» (014:RF-24, 040:RF-4)'}
+                if como_amp[1:] + con_sed:
+                    ya_amp['eliminar'] = como_amp[1:] + con_sed
+                no_creadas.append(ya_amp)
+                continue
+            if a['barra'] is None:
+                no_creadas.append({'sed': sed, 'motivo': f"ampliación de {a['sed']} ({a['criterio']}), "
+                                                         'pero su carga no está conectada a una barra (040:RF-4)'})
+                continue
+            bt = a['barra']
+            resueltas[feeder].append({
+                'fila': fila, 'barra': bt, 'distancia_m': a['distancia_m'],
+                'criterio': f"ampliación de {a['sed']}: {a['criterio']}", 'partir': None, 'nota': None,
+                'tipo': None, 'origen_tipo': '', 'tension_mt_kv': None,
+                'tension_bt_kv': float(getattr(bt, 'uknom', 0) or 0), 'red': None, 'frecuencia_hz': 0.0,
+                'ampliacion': {'sed': a['sed'], 'barra': bt.loc_name, 'carga': a['carga'],
+                               'criterio': a['criterio'], 'distancia_m': a['distancia_m']},
+                'eliminar': con_sed,
+            })
+            avisos.append(f"{sed}: ampliación de la SED {a['sed']} ({a['criterio']}); no se crea "
+                          f'SED: su carga va a la barra de baja {bt.loc_name} (040:RF-3, RF-4).')
+            existentes.add(sed)
+            continue
         repetida = ya_creada(fila, candidatos, existentes, ya)
         if repetida is not None:
             no_creadas.append(repetida[0])
@@ -1050,12 +1225,82 @@ def con_cable(distancia_m: float | None) -> bool:
     return (distancia_m or 0.0) > CABLE_MINIMO_M
 
 
+def crear_ampliacion(feeder, r) -> dict:
+    """La carga de una ampliación, en la barra de baja de su SED, en la etapa que graba (040:RF-4).
+
+    Sin SED, transformador, línea ni barra: el cliente ya existe, y crear otra SED a su lado
+    es lo que duplicaba a «Cesar Alberto Monge Marquez SE50324» en NA203 (2026-10-31). Se suma
+    al cliente como una carga más de su SED, y no cambiando la potencia de la que tiene: esa es
+    dato del escenario calibrado y no se podría activar y desactivar carga a carga (007:RF-12).
+    """
+    fila, barra, amp = r['fila'], r['barra'], r['ampliacion']
+    sed = fila['sed']
+    carga = amp['carga'].GetParent().CreateObject('ElmLod', nombre_pf(sed))
+    carga.mode_inp, carga.i_sym, carga.outserv = 'PC', 0, 0
+    escribir_carga(carga, float(fila['plini_mw']), float(fila['qlini_mvar']))
+    cub = barra.CreateObject('StaCubic', nombre_pf(f'Cub_{sed}'))
+    cub.obj_id, cub.obj_bus = carga, 0
+    punto = gps_de(barra)
+    if punto is not None:
+        try:
+            carga.GPSlat, carga.GPSlon = punto
+        except Exception:  # noqa: BLE001, S110 - sin GPS la carga calcula igual
+            pass
+    return {
+        'sed': sed, 'alimentador': feeder, 'barra': barra.loc_name, 'criterio': r['criterio'],
+        'distancia_m': r['distancia_m'], 'tipo_linea': None, 'origen_tipo_linea': None,
+        'tension_mt_kv': None, 'tension_bt_kv': r['tension_bt_kv'],
+        'kva_instalado': fila['kva_instalado'], 'kw': fila['kw'], 'kvar': fila['kvar'],
+        'tipo_trafo': None, 'tipo_trafo_nuevo': None, 'aviso': None,
+        'error_relectura': error_relectura(carga, float(fila['plini_mw']), float(fila['qlini_mvar'])) or None,
+        'dibujo': None, 'tramo_partido': None, 'cable': False,
+        'ampliacion': {k: amp[k] for k in ('sed', 'barra', 'criterio', 'distancia_m')},
+    }
+
+
+def transformador_de_la_ampliacion(plan: dict, r: dict, creada: dict) -> dict:
+    """Carga de la SED con la ampliación y, si pasa del umbral, el transformador de ficha (040:RF-5).
+
+    Lo que consume su carga en «Sin proyecto» (lo escrito por su factor de escala, 015:RF-44)
+    más el incremento de la fila. Se propone, no se cambia: el operador lo aplica desde la web
+    como las SED sobrecargadas de la calibración (spec 020).
+    """
+    from igea_dgs.trafos_sed import sed_sobre_umbral
+
+    # ``tools/ajuste_cabecera_pf.py`` importa este módulo: por eso no se importa arriba.
+    try:
+        import ajuste_cabecera_pf as ajuste
+    except ImportError:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import ajuste_cabecera_pf as ajuste
+    fichas_del_plan, potencia_efectiva = ajuste.fichas_del_plan, ajuste.potencia_efectiva
+    proponer_transformadores, transformadores_de = ajuste.proponer_transformadores, ajuste.transformadores_de
+
+    amp = r['ampliacion']
+    p, q = potencia_efectiva(amp['carga'])
+    kva_carga = math.hypot(p + float(creada['kw'] or 0.0), q + float(creada['kvar'] or 0.0))
+    trs = transformadores_de(amp['carga'])
+    kva = sum(t['kva'] * t['unidades'] for t in trs)
+    fichas, motivo = fichas_del_plan(plan)
+    umbral = float(fichas['umbral_carga_pct']) if fichas else 100.0
+    out = {'kva_sed': kva or None, 'kva_carga': kva_carga, 'umbral_carga_pct': umbral,
+           'carga_pct': 100.0 * kva_carga / kva if kva else None, 'propuesta': None}
+    sobre = sed_sobre_umbral({amp['sed']: kva_carga}, {amp['sed']: kva}, umbral)
+    if sobre:
+        proponer_transformadores(sobre, {amp['sed']: amp['carga']}, fichas, motivo)
+        out['propuesta'] = sobre[0]['propuesta']
+    return out
+
+
 def crear_carga(alims, proyecto, typ_folder, diagrama, feeder, r) -> dict:
     """Crea la carga resuelta en la etapa que graba. Devuelve lo creado (RF-14).
 
     Si la carga va dentro de un tramo de la troncal, primero lo parte en esta misma
-    variación (016:RF-46) y se engancha en la barra nueva.
+    variación (016:RF-46) y se engancha en la barra nueva. La de una ampliación, solo su
+    carga en la SED que ya existe (040:RF-4).
     """
+    if r.get('ampliacion'):
+        return crear_ampliacion(feeder, r)
     fila, barra, red = r['fila'], r['barra'], r['red']
     sed = fila['sed']
     contenedor = red if red is not None else barra.GetParent()
@@ -1351,6 +1596,38 @@ def fecha_de_etapa_nueva(carpeta, hora_estudio: int) -> int:
     return min(max(usadas) + 1, hora_estudio - 1) if usadas else desde
 
 
+def etapas_al_dia(app) -> list[str]:
+    """Que se apliquen las etapas de las variaciones activas fechadas justo después del estudio.
+
+    Una etapa posterior a la hora del caso no se aplica aunque su variación esté activa, y
+    DIgSILENT no avisa. SM218 (2026-10-29, sonda en el proyecto): la etapa de SED_NTP_, con
+    los once transformadores nuevos, quedó un segundo después de la hora de «Sin proyecto»;
+    la recalibración midió con las SED de 50 kVA y las fijas a 0,55 p.u. El usuario: la
+    recalibración considera todos los cambios ya hechos en la red. Cada una se adelanta a la
+    siguiente fecha libre antes del estudio, como toda etapa nueva (:func:`fecha_de_etapa_nueva`);
+    subir la hora del caso no se mantenía (la sonda la volvió a leer en la de antes). Solo las de
+    la ventana del sistema (``VENTANA_ETAPAS_S``): una fechada años después (los años del PIDE,
+    spec 030) es a propósito. Devuelve sus variaciones.
+    """
+    caso = app.GetActiveStudyCase()
+    if caso is None:
+        return []
+    hora = int(getattr(caso, 'iStudyTime', 0) or 0)
+    carpeta = app.GetProjectFolder('scheme')
+    movidas = []
+    for v in list(app.GetActiveNetworkVariations() or []):
+        tarde = [s for s in v.GetContents('*.IntSstage') or []
+                 if hora < int(getattr(s, 'tAcTime', 0) or 0) <= hora + VENTANA_ETAPAS_S]
+        for s in sorted(tarde, key=lambda s: int(s.tAcTime)):
+            s.tAcTime = fecha_de_etapa_nueva(carpeta, hora)
+        if tarde:
+            # Desactivar y volver a activar hace que DIgSILENT vuelva a mirar sus etapas.
+            v.Deactivate()
+            v.Activate()
+            movidas.append(v.loc_name)
+    return sorted(movidas)
+
+
 def crear_variacion(app, nombre_base: str, etiqueta_etapa: str):
     """Variación nueva con nombre libre y una etapa que **graba** (RF-3, RF-4)."""
     carpeta = app.GetProjectFolder('scheme')
@@ -1582,7 +1859,12 @@ def nombre_de_carga(carpeta, sed: str, feeder: str, stamp: str, usados: set[str]
     ``usados`` lleva los nombres ya dados en esta ejecución: al simular no se crea nada,
     y dos cargas no pueden anunciar el mismo nombre.
     """
-    base = nombre_pf(f'Carga_{sed}_{feeder}_{stamp}')
+    # 040:RF-10: se recorta la SED, nunca el alimentador ni el sello. Con todo recortado al
+    # final, «Carga_SU_Predio_3H_MINING_GROUP_SAC_NA20» perdió NA203 (2026-10-31): ni el índice
+    # de las cargas creadas ni los casos la reconocían, y se habría creado otra vez.
+    cola = nombre_pf(f'_{feeder}_{stamp}' if stamp else f'_{feeder}')
+    base = nombre_pf(f'Carga_{sed}')[:max(MAX_NOMBRE - len(cola), len('Carga_') + 1)] + cola
+    base = base[:MAX_NOMBRE]
     existentes = {o.loc_name for o in carpeta.GetContents('*.IntScheme')} | usados if carpeta else usados
     nombre, n = base, 2
     while nombre in existentes:
@@ -1652,7 +1934,66 @@ def _crearian(r: dict, variacion: str) -> dict:
             'distancia_m': r['distancia_m'], 'cable': con_cable(r['distancia_m']),
             'tipo_linea': getattr(r['tipo'], 'loc_name', None),
             'origen_tipo_linea': r['origen_tipo'] or None, 'tension_mt_kv': r['tension_mt_kv'],
-            'tension_bt_kv': r['tension_bt_kv'], 'variacion': variacion, 'nota': r.get('nota')}
+            'tension_bt_kv': r['tension_bt_kv'], 'variacion': variacion, 'nota': r.get('nota'),
+            'ampliacion': ({k: r['ampliacion'][k] for k in ('sed', 'barra', 'criterio', 'distancia_m')}
+                           if r.get('ampliacion') else None)}
+
+
+def variaciones_que_sobran(no_creadas: list[dict], resueltas: dict, por_nombre: dict, c011) -> list[dict]:
+    """Variaciones de carga nueva que guardan una fila duplicada o una ampliación creada como
+    SED nueva (040:RF-6, RF-7), con su motivo. Nunca una que se reutiliza ni una que no sea
+    ``Carga_…`` (040:RF-8)."""
+    conservadas = {x['variacion'] for x in no_creadas if x.get('reutilizada')}
+    out: dict[str, dict] = {}
+
+    def anotar(nombres, sed, motivo):
+        for n in nombres or []:
+            v = por_nombre.get(n)
+            if v is not None and c011.es_de_carga_nueva(v) and n not in conservadas and n not in out:
+                out[n] = {'variacion': n, 'sed': sed, 'motivo': motivo}
+
+    for x in no_creadas:
+        if x.get('duplicada_de'):
+            motivo = f"fila duplicada de {x['duplicada_de']} en el libro (040:RF-1)"
+        elif x.get('reutilizada') and str(x.get('motivo', '')).startswith('ampliación'):
+            motivo = 'la ampliación se creó antes como SED nueva (040:RF-3)'
+        else:
+            motivo = f"la carga ya está en {x.get('variacion')} (040:RF-7)"
+        anotar(x.get('eliminar'), x['sed'], motivo)
+    for lista in resueltas.values():
+        for r in lista:
+            anotar(r.get('eliminar'), r['fila']['sed'],
+                   f"ampliación de {r['ampliacion']['sed']} creada antes como SED nueva (040:RF-3)"
+                   if r.get('ampliacion') else 'sobra (040:RF-6)')
+    return [out[n] for n in sorted(out)]
+
+
+def eliminar_variaciones(app, lista: list[dict], por_nombre: dict) -> list[dict]:
+    """Desactiva en cada caso de estudio y elimina las variaciones de ``lista`` (040:RF-6).
+
+    En DIgSILENT las variaciones activas son de cada caso: borrar una que sigue activa en otro
+    caso deja ese caso con una referencia rota. Deja activo el caso que lo estaba.
+    """
+    objs = [por_nombre[x['variacion']] for x in lista]
+    previo = app.GetActiveStudyCase()
+    estudio = app.GetProjectFolder('study')
+    for caso in (estudio.GetContents('*.IntCase', 1) if estudio else []):
+        caso.Activate()
+        activas = list(app.GetActiveNetworkVariations() or [])
+        for v in objs:
+            if v in activas:
+                v.Deactivate()
+    if previo is not None:
+        previo.Activate()
+    hechas = []
+    for x, v in zip(lista, objs):
+        try:
+            v.Deactivate()
+            fallo = v.Delete()
+        except Exception as exc:  # noqa: BLE001 - una que no se borra no impide las demás
+            fallo = f'{type(exc).__name__}: {exc}'
+        hechas.append({**x, 'eliminada': not fallo, **({'error': str(fallo)} if fallo else {})})
+    return hechas
 
 
 def _casos_011():
@@ -1722,18 +2063,44 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
         informe['sin_a_con'] = c011.sin_a_con_proyecto(app, casos)
         informe['avisos'] += informe['sin_a_con']['avisos']
     # 014:RF-23: una vez por trabajo, no por carga.
-    ya = {'indice': indice_de_cargas_nuevas(app, alims.elegidos),
+    ya = {'indice': indice_de_cargas_nuevas(app, alims.elegidos, alims),
           'red': nombres_en_red(app, alims, casos['con']) if casos else None}
     resueltas, no_creadas, avisos = resolver_nuevas(alims, proyecto, plan.get('nuevas') or [], ya,
                                                     minima_m=plan.get('minima_m'))
     informe['reutilizadas'] = [x for x in no_creadas if x.get('reutilizada')]
-    duplicadas = {n for x in no_creadas for n in x.get('variaciones') or []}
     por_nombre_var = {v.loc_name: v for v in (app.GetProjectFolder('scheme').GetContents('*.IntScheme', 1)
                                               if app.GetProjectFolder('scheme') else [])}
     reutilizadas = [por_nombre_var[x['variacion']] for x in informe['reutilizadas']
                     if x['variacion'] in por_nombre_var] if casos else []
     informe['sin_alimentador'], informe['ambiguas'], informe['no_creadas'] = omitidas, ambiguas, no_creadas
     informe['avisos'] += avisos
+    informe['duplicadas'] = [x for x in no_creadas if x.get('duplicada_de')]          # 040:RF-1
+    sobran = variaciones_que_sobran(no_creadas, resueltas, por_nombre_var, c011)
+    if simular:
+        informe['eliminarian'] = sobran
+    elif sobran:
+        # 040:RF-6: antes de crear nada, para que «Con proyecto» no sume dos veces una carga.
+        informe['eliminadas'] = eliminar_variaciones(app, sobran, por_nombre_var)
+        for x in informe['eliminadas']:
+            informe['avisos'].append(
+                f"{x['variacion']} ({x['sed']}): {'eliminada' if x['eliminada'] else 'no se pudo eliminar'}"
+                f" del proyecto: {x['motivo']}" + (f"; DIgSILENT: {x['error']}" if x.get('error') else '')
+                + ' (040:RF-6).')
+    if not simular:
+        # 040:RF-11: la reutilizada cuyo nombre ya no dice su alimentador se renombra, para
+        # que los casos (casos_pf.clasificar) la cuenten como carga de ese alimentador.
+        nombres_dados: set[str] = set()
+        for x in informe['reutilizadas']:
+            v = por_nombre_var.get(x['variacion'])
+            if (v is None or not x.get('alimentador')
+                    or c011._de_alimentador(v.loc_name, 'Carga_', list(alims.elegidos))):
+                continue
+            viejo = v.loc_name
+            v.loc_name = nombre_de_carga(app.GetProjectFolder('scheme'), x['sed'], x['alimentador'],
+                                         plan.get('stamp') or '', nombres_dados)
+            x['variacion'], x['renombrada_de'] = v.loc_name, viejo
+            informe['avisos'].append(f"{viejo} ({x['sed']}): su nombre ya no decía el alimentador; "
+                                     f"se renombra {v.loc_name} (040:RF-11).")
     carpeta = app.GetProjectFolder('scheme')
     stamp = plan.get('stamp') or ''
     nombre_demandas = plan.get('variacion_demandas') or plan.get('variacion') or f'Demandas_{stamp}'
@@ -1851,11 +2218,8 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
             for v in variaciones_base + ([dem_var] if dem_var is not None else []):
                 v.Activate()
             todas = carpeta.GetContents('*.IntScheme', 1) if carpeta else []
+            # Sin las que eliminó 040:RF-6, que ya no están en la carpeta.
             previas_con = c011.clasificar(todas, list(alims.elegidos), [], None)['cargas']
-            activas_con_antes = {v.loc_name for v in previas_con if v in app.GetActiveNetworkVariations()}
-            # 014:RF-26: una carga repetida en varias variaciones no cambia cuáles están activas.
-            previas_con = [v for v in previas_con
-                           if v.loc_name not in duplicadas or v.loc_name in activas_con_antes]
             for v in previas_con:
                 v.Deactivate()
         esc_con = next((e for c, e in apagados if casos and c is casos['con']), None)
@@ -1892,7 +2256,22 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
                     por_feeder[feeder]['creadas'].append(creada)
                     informe['cargas'].append({k: creada.get(k) for k in (
                         'sed', 'alimentador', 'variacion', 'barra', 'criterio', 'distancia_m', 'nota',
-                        'con_proyecto', 'delta', 'economia', 'tecnico_economico')})
+                        'con_proyecto', 'delta', 'economia', 'tecnico_economico', 'ampliacion')})
+                    amp = creada.get('ampliacion')
+                    if amp and amp.get('propuesta'):
+                        p = amp['propuesta']
+                        # Por encima de la mayor ficha, unidades iguales en paralelo (020:RF-7):
+                        # «630 kVA» para los 1777 kVA de AGROPEX (NA203, 2026-10-31) no decía cuántas.
+                        unidades = int(p.get('unidades') or 1)
+                        cuantas = f'{unidades} × ' if unidades > 1 else ''
+                        informe['avisos'].append(
+                            f"{creada['sed']}: con la ampliación, la SED {amp['sed']} pide "
+                            f"{amp['kva_carga']:.0f} kVA ({amp['carga_pct']:.0f} % de {amp['kva_sed']:g} kVA, "
+                            f"umbral {amp['umbral_carga_pct']:g} %): "
+                            + (f"se propone {cuantas}{p['kva']:g} kVA ({p.get('tipo_nuevo') or p.get('codigo')}), "
+                               f"al {p.get('carga_pct_prevista', 0):.0f} %, sin aplicarlo" if p.get('kva')
+                               else f"sin propuesta: {p.get('motivo')}")
+                            + ' (040:RF-5).')
                 if informe['cancelado']:
                     break
             print(f"  cargas nuevas: {len(informe['cargas'])}, cada una en su variación")
@@ -2102,7 +2481,7 @@ def _una_carga(app, plan, alims, proyecto, typ_folder, diagrama, feeder, r, nomb
             f"en su extremo {getattr(r['barra'], 'loc_name', r['barra'])}, independiente de esa "
             'carga (025:RF-47).')
     creada.update(variacion=variacion.loc_name, nota=nota)
-    if plan.get('costos'):
+    if plan.get('costos') and not r.get('ampliacion'):     # la ampliación no construye SED ni línea
         from igea_dgs.economia import CostosUnitarios, datos_etapa
 
         eco = datos_etapa([{'sed_code': creada['sed'], 'installed_kva': creada['kva_instalado'],
@@ -2117,6 +2496,8 @@ def _una_carga(app, plan, alims, proyecto, typ_folder, diagrama, feeder, r, nomb
         creada['delta'] = diferencia(con, sin, feeder)    # RF-33
         if plan.get('tec'):
             creada['tecnico_economico'] = tecnico_economico(app, plan['tec'])   # RF-22, RF-23
+    if r.get('ampliacion'):
+        creada['ampliacion'].update(transformador_de_la_ampliacion(plan, r, creada))   # 040:RF-5
     variacion.Deactivate()                                # RF-12: la siguiente no la ve
     print(f"  {creada['sed']} → {creada['barra']} en {variacion.loc_name}")
     return creada

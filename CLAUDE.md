@@ -39,8 +39,8 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 009 Inventario del repositorio: cada fichero con su módulo y su spec | cumplida |  |
   | 010 Trazado GPS de las líneas | cumplida |  |
   | 011 Estudios y obras de mejora sobre la red calibrada | implementada | falta T19 |
-  | 012 Confiabilidad y capacidad de la red calibrada | aprobada | falta T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13 |
-  | 013 Mes de análisis y transferencia entre dos alimentadores | aprobada | falta T5, T6, T7, T8 |
+  | 012 Confiabilidad y capacidad de la red calibrada | implementada | falta T13 |
+  | 013 Mes de análisis y transferencia entre dos alimentadores | implementada | falta T7 |
   | 014 Calibración y cambios del operador en «Sin proyecto», cargas nuevas en «Con proyecto» | cumplida |  |
   | 015 «Caso base» verificado de una vez; «Sin proyecto» solo calibra cargas | cumplida |  |
   | 016 Troncal por el camino más largo, enlace entre alimentadores y conexión en un tramo | implementada | falta T18 |
@@ -52,7 +52,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 022 Red unida por zonal y SET | cumplida |  |
   | 023 VNR-GIS desde la copia de SQL Server de cualquier concesionaria | cumplida |  |
   | 024 PINN como oráculo y gemelo digital de la red calibrada | cumplida |  |
-  | 025 Calibración por año de medición | aprobada | falta T15, T21, T22 |
+  | 025 Calibración por año de medición | aprobada | falta T21, T22 |
   | 026 Asistente de órdenes en lenguaje natural que conoce, vigila y mejora el conversor | implementada | falta T12 |
   | 027 Cierre del agente en producción: datos, entrenamiento robusto, verificación y operación | aprobada | falta T11, T22, T14, T26, T29, T30, T31 |
   | 028 Escaneo del alimentador antes de recalibrar | implementada | falta T6, T11 |
@@ -62,7 +62,21 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 032 «Caso base» con los datos originales; fichas y potencias en «Sin proyecto» | cumplida |  |
   | 033 Trazabilidad y estado de las specs | cumplida |  |
   | 034 Motor base de conversión y contrato universal de fuentes | cumplida |  |
-  | 035 Fijas de la tabla en el instante de la máxima, Q de cabecera con bancos y unidades de DIgSILENT | implementada | falta T6 |
+  | 035 Fijas de la tabla en el instante de la máxima, Q de cabecera con bancos y unidades de DIgSILENT | cumplida |  |
+  | 036 Auditoría de raíz y correcciones del arranque | aprobada | ver sus tareas |
+  | 037 Caso «Cargas nuevas» en los estudios de la web | implementada | falta T4 |
+  | 038 Pertenencia de las SED y notas en la web | cumplida | — |
+  | 039 Fijas del máximo del mes o coincidentes con la cabecera | implementada | falta T4 |
+  | 040 Cargas del bloque sin duplicados, y ampliaciones de clientes existentes | cumplida |  |
+  | 041 Reparto probabilístico de las SED escaladas | cumplida |  |
+  | 042 «Con proyecto»: escalera de obras carga a carga y SET nueva para las que no caben | implementada | falta T6 |
+  | 043 Consolidación y gobierno de modelos | borrador | ver sus tareas |
+  | 044 Evaluación causal y verificación completa | borrador | ver sus tareas |
+  | 045 Gemelo físico y contratos PINN/GNN | borrador | ver sus tareas |
+  | 046 Pronóstico causal multihorizonte | borrador | ver sus tareas |
+  | 047 Asistente estructurado y revisión por roles | borrador | ver sus tareas |
+  | 048 Optimización mixta evolutiva y PNL | borrador | ver sus tareas |
+  | 049 Protecciones nativas y coordinación | borrador | ver sus tareas |
 
   Las convenciones de cada empresa (CRS de origen, patrón de SED de medición, escala,
   carpeta de DIgSILENT) van en `config/perfil_empresa.json`, local y fuera de git, que
