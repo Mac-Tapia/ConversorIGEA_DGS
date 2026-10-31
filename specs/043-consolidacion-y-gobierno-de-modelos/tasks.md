@@ -20,9 +20,16 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_modelos_web.py tests/test_model_registry.py tests/test_training_coordinator.py tests/test_experimentos.py` pasa
       y están guardadas las evidencias adicionales descritas en T4 del plan.
 
+- [x] T5. Preparar repositorios GitHub con URL, commit y licencia fijados, sin sobrescribir copias modificadas ni imponer dependencias al núcleo. (RF-9, RF-10, RF-11)
+      Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_upstream_ia.py` pasa y `tools/preparar_upstream_ia.py --verificar` valida las copias reales del catálogo.
+
 ## Evidencia de ejecución
 
-Pendiente. Anotar aquí, al ejecutar cada tarea, revisión, datos/contexto, comando,
+T5: siete pruebas con Git y subprocesos reales pasaron; se verificaron las nueve
+copias públicas. Catálogo y reproducción en [reutilización GitHub](../../docs/REUSO_GITHUB_IA_2026-10-31.md).
+La implementación de adaptadores y su aceptación permanecen en 045–048.
+
+Anotar aquí, al ejecutar cada tarea, revisión, datos/contexto, comando,
 resultado, informe y limitaciones; no marcar casillas por existir código o por una
 simulación que solo converge.
 

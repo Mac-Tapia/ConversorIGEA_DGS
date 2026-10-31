@@ -306,6 +306,9 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `src/igea_dgs/asistente/calidad_datos.py` | Calidad y contaminación entre particiones sin inflar el conjunto humano. | 043 (RF-3, RF-4) |
 | `src/igea_dgs/digital_twin/series_causales.py` | Cadencia, unidades, huecos y disponibilidad temporal de covariables. | 046 (RF-1 a RF-3) |
 | `tools/reentrenar_modelos.py` | CLI de coordinación, validación de configuración y rechazo de resultados incompletos. | 043 (RF-2, RF-5, RF-7) |
+| `src/igea_dgs/upstream_ia.py` | Verifica origen, commit, licencia y árbol limpio de repositorios reutilizados; conserva copias existentes. | 043 (RF-9 a RF-11) |
+| `tools/preparar_upstream_ia.py` | Prepara o verifica clones fijados sin instalar ni ejecutar sus programas. | 043 (RF-9 a RF-11) |
+| `src/igea_dgs/digital_twin/adaptador_pyg.py` | Adapta el MPN de PowerFlowNet a correcciones físicas de tensión y ángulo, mediante carga opcional. | 045 (RF-8) |
 
 
 ## Documentación
@@ -332,4 +335,6 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `specs/NNN-*/` | Specs, planes y tareas. | vigente |
 | `docs/DIAGNOSTICO_*.md` | Diagnósticos fechados que dieron origen a specs. | histórico |
 | `docs/EJECUCION_IA_2026-10-31.md` | Evidencia de implementación, revisión independiente y pendientes reales por spec. | 043, 044, 046 |
+| `docs/UPSTREAM_IA_LOCK.json` | URLs, commits y hashes de licencias de los proyectos GitHub seleccionados. | 043 (RF-9) |
+| `docs/REUSO_GITHUB_IA_2026-10-31.md` | Selección de proyectos, reproducción de clones, adaptador comprobado y límites pendientes. | 043, 045–048 |
 | `docs/superpowers/` | Diseños y planes anteriores a las specs. | histórico |

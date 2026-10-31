@@ -68,6 +68,16 @@ Pruebas nuevas citan `045:RF-n`; no cerrar tareas nativas con mocks.
 
 ### T3: Ablaciones, dominio y candidato opcional PyG
 
+El candidato reutiliza `networks/MPN.py` de PowerFlowNet (MIT), cuya copia/commit/licencia
+se verifican con 043 T5. `crear_red_powerflownet(ocultas, pasos)` ofrece la misma firma
+`forward(x, aristas, e) -> (v, theta)` que la red actual sobre sus siete entradas;
+las cuatro columnas de tipo y las siete de máscara requeridas por upstream se añaden
+en el adaptador. Sin modificar el clon, se imponen magnitud y referencia angular de
+fuentes tras la corrección híbrida. `Entrenamiento.arquitectura` distingue `igea`
+(por defecto compatible) y `powerflownet`, conservándose en manifiestos/artefactos.
+Las pruebas de dependencia real se ejecutan en `tests_ml/` con entorno opcional;
+no se sustituye PyG con un doble ni se exige su instalación al conversor básico.
+
 **Cubre:** RF-8, RF-9.
 
 **Files:** Crear `digital_twin/benchmark_fisico.py`, `digital_twin/adaptador_pyg.py` opcional y `tests/test_benchmark_pinn.py`; integrar informes en runner de 043.

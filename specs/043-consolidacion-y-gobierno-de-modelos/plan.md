@@ -106,6 +106,27 @@ Pruebas nuevas citan `043:RF-n`; no cerrar tareas nativas con mocks.
 
 ## Cierre y evidencia
 
+### T5: Reutilización reproducible de proyectos de GitHub
+
+**Cubre:** RF-9, RF-10, RF-11. Petición explícita del usuario de priorizar uso/clonación de GitHub.
+
+**Archivos:** crear `docs/UPSTREAM_IA_LOCK.json`, `src/igea_dgs/upstream_ia.py`, `tools/preparar_upstream_ia.py`,
+`tests/test_upstream_ia.py` y documentación de selección. Las copias quedan en
+`external/upstream/`, excluidas del repositorio padre; se preservan sus licencias.
+
+**Interfaz:** `preparar_catalogo(catalogo: Mapping, destino: Path, *, verificar: bool = False) -> dict`.
+Cada entrada fija id, URL HTTPS GitHub, commit SHA-1 de 40 dígitos, licencia SPDX,
+ruta de licencia y SHA-256 de ese blob Git. La verificación comprueba origen, revisión,
+árbol limpio y licencia; no ejecuta scripts del repositorio descargado. No actualizar
+automáticamente copias existentes. Adaptadores se implementan en 045–048 consumiendo
+el contrato y entorno opcional; clonar no equivale a incorporar ni validar un modelo.
+
+- [ ] Pruebas primero con repositorios Git locales reales: clonación fijada,
+  revisión/licencia incorrectas, cambios locales preservados y núcleo sin dependencias nuevas.
+- [ ] Observar fallos, implementar herramienta y repetir las pruebas hasta PASS.
+- [ ] Clonar y verificar proyectos públicos elegidos; registrar hashes, licencias y uso concreto.
+- [ ] Registrar evidencia y commit de alcance propio con referencia a spec 043 T5.
+
 Al ejecutar, actualizar [tasks.md](tasks.md) con comandos, resultado, hashes y rutas
 de informe; mantener abiertas las condiciones sin evidencia. El estado se escribe
 solo en spec.md y se refleja mediante `tools/estado_specs.py --escribir`. Validar

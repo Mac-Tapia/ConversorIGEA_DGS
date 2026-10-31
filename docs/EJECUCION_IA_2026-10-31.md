@@ -6,6 +6,14 @@ las casillas se cierran por evidencia, no por esa autorización.
 
 ## Implementado y probado
 
+- **043 T5:** nueve clones GitHub con origen, commit, árbol limpio y hash de licencia
+  verificados; herramienta reproducible que conserva copias modificadas. Catálogo
+  versionado y selección en [reutilización GitHub](REUSO_GITHUB_IA_2026-10-31.md).
+- **045 T3, avance parcial:** adaptador opcional al MPN original de PowerFlowNet,
+  seleccionado por `Entrenamiento.arquitectura`. Dos ensayos reales con PyG/CUDA
+  comprueban forward, gradientes finitos, descenso de pérdida, fronteras de fuente,
+  cuenta de parámetros y recarga exacta de pesos. Entrenamiento de prueba con una
+  red sintética de tres barras; no acredita un modelo mejorado para la red real.
 - **044 T0:** `verificar_top_k` rechaza métricas ausentes, NaN/Inf, booleanos,
   pérdidas negativas y tolerancias inválidas. Una predicción de pérdidas cero ya no
   oculta una pérdida medida distinta. Se conservan descartes y búsqueda de la siguiente
@@ -61,7 +69,7 @@ y contando los grupos con más de un valor distinto; no se necesita alterar la f
 | 043 T4 | Prueba visual de la tabla con los cuatro estados y artefactos de referencia. API y build verificados; no se cierra la aceptación visual por ello. |
 | 044 T1–T2 | Particiones independientes de entrenamiento/selección/calibración/prueba y puertas por familia integradas en el entrenamiento vigente. La reutilización actual de validación del PINN sigue pendiente. |
 | 044 T3–T4 | Contexto, flujo/referencia, norma y persistencia completos en los consumidores top-k; prueba nativa después de reapertura. |
-| 045 | Episodios v2 con «Cargas nuevas», grafo v3, controles/fronteras/residuos y ablaciones con contraste nativo. No se cambió el schema actual ni sus hashes. |
+| 045 | Episodios v2 con «Cargas nuevas», grafo v3, controles/fronteras/residuos y ablaciones con contraste nativo. PowerFlowNet tiene adaptador comprobado; faltan benchmark por familia y promoción. No se cambió el schema actual ni sus hashes. |
 | 046 T1 | Resolver la custodia de los duplicados conflictivos o seleccionar una fuente observada inequívoca antes de cerrar el ensayo de entrenamiento con datos reales. No corregir planos IGEA ni inventar valores. |
 | 046 T2–T3 | Adaptadores multihorizonte y benchmark temporal real con calibración y promoción; no están implementados NHITS/TFT/PatchTST. |
 | 047 | Salida estructurada/entidades, reranker, revisión por roles y ajuste condicionado. Las cinco órdenes humanas no sustituyen las 200 reales exigidas para la evaluación prevista. |
@@ -70,7 +78,17 @@ y contando los grupos con más de un valor distinto; no se necesita alterar la f
 
 ## Verificación y decisiones registradas
 
-Verificación final focalizada: **225 passed, 45 deselected en 39,07 s**, incluyendo las regresiones
+Ampliación GitHub: **42 passed, 46 deselected en 18,59 s** para custodia, trazabilidad
+e inventario; **5 passed, 78 deselected en 5,44 s** para ayuda de la nueva herramienta
+y regresiones físicas seleccionadas del oráculo. **2 passed en 22,30 s** en los
+ensayos opcionales CUDA, sin skip/xfail. Se verificaron las nueve copias públicas
+después de construir los paquetes. La instalación del núcleo conserva el inventario
+de dependencias previo. No se declara ejecutada una nueva suite global o nativa.
+Se corrigió una docstring que no cumplía el chequeo documental, sin cambiar la prueba.
+El ensayo inicial confundía el índice ordenado de la fuente; se corrigió para buscar
+su ID, conservando la comprobación de magnitud y ángulo.
+
+Verificación previa focalizada: **225 passed, 45 deselected en 39,07 s**, incluyendo las regresiones
 del asistente web, contratos, bloqueo, datasets, top-k, GRU/CUDA, episodios y
 trazabilidad y **13 comprobaciones de inventario/documentación**. Los 45 casos de
 `--help` de herramientas anteriores no se repitieron en esa selección; el `--help`

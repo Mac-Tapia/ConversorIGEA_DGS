@@ -21,6 +21,9 @@ Dependencias y relación: 024, 026 y 027; integración selectiva del worktree de
 - RF-6: MIENTRAS haya una etapa CUDA activa, EL SISTEMA impedirá que otra etapa de entrenamiento tome la misma GPU.
 - RF-7: CUANDO se reanude una ejecución, EL SISTEMA preservará las etapas terminales compatibles con la configuración registrada.
 - RF-8: CUANDO la web consulte los modelos, EL SISTEMA mostrará el estado respaldado por el informe vigente de cada familia.
+- RF-9: CUANDO se prepare un proyecto de GitHub para reutilizarlo, EL SISTEMA registrará su URL de origen, revisión exacta y licencia verificable en un catálogo versionado.
+- RF-10: SI una copia de terceros contiene cambios locales o una revisión distinta de la fijada, ENTONCES EL SISTEMA impedirá reemplazarla automáticamente.
+- RF-11: EL SISTEMA mantendrá las copias de terceros fuera de la instalación y del arranque obligatorios del conversor.
 
 ## Requisitos no funcionales
 
@@ -57,8 +60,8 @@ La evaluación reproducible y la separación de modelos/datos materializan las l
 
 ## Clarificaciones de diseño
 
-El alcance y las políticas anteriores son propuesta en borrador. No se declara
-aprobada esta spec ni se cambia el estado de specs anteriores por crear el plan.
+El usuario autorizó implementar este alcance. El estado aprobada indica que quedan
+tareas abiertas; crear el plan no cambia el estado de specs anteriores.
 Las capacidades, datos o licencias ausentes son condiciones detectables de bloqueo,
 no autorizaciones para inventar resultados.
 

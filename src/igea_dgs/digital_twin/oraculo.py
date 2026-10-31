@@ -294,14 +294,21 @@ def _parametros(cfg: Entrenamiento) -> int:
     """Parámetros de un miembro de ``_red`` sin construirla (sin GPU), para la auditoría
     (027:RF-33): 309 506 con 64 ocultas y 8 pasos, lo mismo que cuenta PyTorch."""
     h, k = cfg.ocultas, cfg.pasos
+    if cfg.arquitectura == 'powerflownet':
+        return h * h + 19 * h + (k - 1) * (4 * h * h + h) + 8 * h + 2
     entrada = (7 * h + h) + (h * h + h)
     por_paso = ((2 * h + 3) * h + h) + (h * h + h) + (6 * h * h + 6 * h)   # mensaje y GRUCell
     salida = (h * h + h) + (2 * h + 2)
     return entrada + k * por_paso + salida
 
 
-def _red(ocultas: int = 64, pasos: int = 8):
+def _red(ocultas: int = 64, pasos: int = 8, arquitectura: str = 'igea'):
     """GNN: codifica nodos, pasa mensajes ``pasos`` veces por las ramas y da (ΔV, θ)."""
+    if arquitectura == 'powerflownet':
+        from .adaptador_pyg import crear_red_powerflownet
+        return crear_red_powerflownet(ocultas, pasos)
+    if arquitectura != 'igea':
+        raise ValueError(f'arquitectura de gemelo no soportada: {arquitectura}')
     torch = _torch()
     nn = torch.nn
 
@@ -414,6 +421,7 @@ class Entrenamiento:
     """Norma máxima del gradiente (027:RF-6): con cargas grandes, el residuo físico daba saltos."""
     cobertura: float = 0.9
     """Cobertura del intervalo conforme de tensión por barra (027:RF-12)."""
+    arquitectura: str = 'igea'
 
 
 def entrenar_miembro(muestras: Sequence[Muestra], cfg: Entrenamiento, inicial: dict | None = None,
@@ -443,7 +451,7 @@ def _entrenar_en(muestras: Sequence[Muestra], cfg: Entrenamiento, inicial: dict 
     torch.backends.cudnn.benchmark = False
     torch.manual_seed(cfg.semilla)
     random.seed(cfg.semilla)
-    red = _red(cfg.ocultas, cfg.pasos).to(disp)
+    red = _red(cfg.ocultas, cfg.pasos, cfg.arquitectura).to(disp)
     if inicial:
         red.load_state_dict(inicial)
     opt = torch.optim.Adam(red.parameters(), lr=cfg.lr)
@@ -504,7 +512,7 @@ class OraculoPINN:
         disp = dispositivo()
         out = []
         for s in self.estados:
-            red = _red(self.cfg.ocultas, self.cfg.pasos).to(disp)
+            red = _red(self.cfg.ocultas, self.cfg.pasos, self.cfg.arquitectura).to(disp)
             red.load_state_dict(s)
             red.eval()
             out.append(red)
@@ -900,8 +908,8 @@ def entrenar(bufer: BuferEpisodios, *, consulta: Consulta | None = None, cfg: En
     cfg = Entrenamiento(**{**cfg.__dict__,
                            'exponente_carga': elegir_exponente(grupos['entrenamiento'], fisica=cfg.fisica)})
     log(f'Gemelo: física {cfg.fisica}, modelo de carga S0·|V|^{cfg.exponente_carga:g}')
-    compatible = actual is not None and (actual.cfg.ocultas, actual.cfg.pasos, actual.cfg.fisica) == \
-        (cfg.ocultas, cfg.pasos, cfg.fisica)
+    compatible = actual is not None and (actual.cfg.ocultas, actual.cfg.pasos, actual.cfg.fisica, actual.cfg.arquitectura) == \
+        (cfg.ocultas, cfg.pasos, cfg.fisica, cfg.arquitectura)
     x_all = np.concatenate([m.x for m in grupos['entrenamiento']])
     dominio = {'x_min': x_all.min(axis=0).tolist(), 'x_max': x_all.max(axis=0).tolist(),
                'nodos': [min(len(m.ids) for m in grupos['entrenamiento']),

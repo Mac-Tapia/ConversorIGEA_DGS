@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "fecha_consulta": "2026-10-31",
+  "repositorios": [
+    {
+      "id": "powerflownet",
+      "url": "https://github.com/StavrosOrf/PoweFlowNet.git",
+      "commit": "1ebf73ba9605427fccb273a6a703b059d800dedc",
+      "license": "MIT",
+      "license_path": "LICENSE",
+      "license_sha256": "66b18d19021ab95993725cc5f9cf54329ef1585f1d303f0359dcf5863fd67a50"
+    },
+    {
+      "id": "safepowergraph",
+      "url": "https://github.com/LISTEnergyIntelligence/SafePowerGraph_Powergrid.git",
+      "commit": "bdc6d77b216525ded3167270d6ee1fc69b3d2fad",
+      "license": "MIT",
+      "license_path": "LICENSE",
+      "license_sha256": "cafe5150efceb0df4be601dc5a47cb5faa13727886d6174751594fa666611570"
+    },
+    {
+      "id": "neuralforecast",
+      "url": "https://github.com/Nixtla/neuralforecast.git",
+      "commit": "cf7449383ac5ff6041ec35cbd97b84c23dd559a0",
+      "license": "Apache-2.0",
+      "license_path": "LICENSE",
+      "license_sha256": "d392f3d2969e354d7e6aef8fc6df5590ef5c20eea4b946191bd76a6138b4e81c"
+    },
+    {
+      "id": "pymoo",
+      "url": "https://github.com/the-dual-space/pymoo.git",
+      "commit": "23110c155aa8f31b5f1b86928227fb3931ba7f00",
+      "license": "Apache-2.0",
+      "license_path": "LICENSE",
+      "license_sha256": "2d81ea060825006fc8f3fe28aa5dc0ffeb80faf325b612c955229157b8c10dc0"
+    },
+    {
+      "id": "pyomo",
+      "url": "https://github.com/Pyomo/pyomo.git",
+      "commit": "4a366e22ac69ab25f3c3620d0c465dae1499ff1c",
+      "license": "BSD-3-Clause",
+      "license_path": "LICENSE.md",
+      "license_sha256": "a57ea3ac2d2dec65238989c17c7f4839481b9810bcec159c7977eac55fc75e69"
+    },
+    {
+      "id": "pyg",
+      "url": "https://github.com/pyg-team/pytorch_geometric.git",
+      "commit": "ea2c5f62d54c8b414dd3ea7139814a7c1ef83182",
+      "license": "MIT",
+      "license_path": "LICENSE",
+      "license_sha256": "89cfb6edc309735916a0c1189dccf761add4af6062ddb34b5a26f60d3efadfea"
+    },
+    {
+      "id": "sentence_transformers",
+      "url": "https://github.com/huggingface/sentence-transformers.git",
+      "commit": "7bfaf1ccb3dcacd613aeec668e9f0921991e366a",
+      "license": "Apache-2.0",
+      "license_path": "LICENSE",
+      "license_sha256": "624b030fd62b8b989dd502d5bb6322cbc0dbb524ab9c9708f32efe33d7275735"
+    },
+    {
+      "id": "peft",
+      "url": "https://github.com/huggingface/peft.git",
+      "commit": "03412afcf1e96f74a014e467a313b22baeb74498",
+      "license": "Apache-2.0",
+      "license_path": "LICENSE",
+      "license_sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+    },
+    {
+      "id": "tradingagents",
+      "url": "https://github.com/TauricResearch/TradingAgents.git",
+      "commit": "c4544913a14ed3df5f1ed7b9e8483270ce20682a",
+      "license": "Apache-2.0",
+      "license_path": "LICENSE",
+      "license_sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+    }
+  ]
+}

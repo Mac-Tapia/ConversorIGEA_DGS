@@ -182,3 +182,11 @@ La decisión de introducir un candidato se toma con el benchmark local. Si empat
 la referencia, conservar la solución vigente salvo otra ventaja predeclarada y medida.
 Las casillas y el registro de ejecución distinguen código comprobado de trabajo
 pendiente; crear el plan no acredita modelos entrenados, promovidos ni aceptados.
+
+## 8. Reutilización GitHub ejecutada
+
+Ver [selección y evidencia](../../REUSO_GITHUB_IA_2026-10-31.md) y
+[catálogo fijado](../../UPSTREAM_IA_LOCK.json). Se prepararon nueve clones con
+commit y licencia verificados (043 T5); PowerFlowNet cuenta con adaptador opcional
+y ensayo CUDA. Los adaptadores restantes y la aceptación comparativa/nativa
+continúan pendientes en sus tareas.

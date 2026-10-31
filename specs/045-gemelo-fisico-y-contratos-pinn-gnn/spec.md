@@ -60,8 +60,8 @@ El fundamento general incluye la [tesis de maestría de Zhang (UCR, 2024)](https
 
 ## Clarificaciones de diseño
 
-El alcance y las políticas anteriores son propuesta en borrador. No se declara
-aprobada esta spec ni se cambia el estado de specs anteriores por crear el plan.
+El usuario autorizó implementar este alcance. El estado aprobada indica que quedan
+tareas abiertas; crear el plan no cambia el estado de specs anteriores.
 Las capacidades, datos o licencias ausentes son condiciones detectables de bloqueo,
 no autorizaciones para inventar resultados.
 

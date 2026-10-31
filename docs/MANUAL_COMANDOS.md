@@ -1047,6 +1047,7 @@ se ejecutan con el intérprete de PowerFactory (Python 3.12 con `powerfactory.py
 | `powerfactory_acceptance.py` | Puerta de aceptación: importa un DGS y lo valida (sección 5). | PF |
 | `prueba_representacion.py` | Red, cargas y SED del TXT en una sola hoja de PowerFactory. | PF |
 | `reentrenar_modelos.py` | Coordinador de familias y verificación de informes; `run --config RUTA --validar-config` valida el contrato sin entrenar; `verify --report RUTA --fail-on-incomplete` rechaza familias ausentes o sin entrenamiento acreditado. La consolidación de todos los ejecutables de entrenamiento sigue pendiente en spec 043 T3. | GPU para entrenar |
+| `preparar_upstream_ia.py` | Clona revisiones fijadas en `docs/UPSTREAM_IA_LOCK.json`; `--verificar` comprueba las copias sin descargar. Opciones `--catalogo`, `--destino` y `--output-json`. No instala dependencias ni ejecuta terceros; ver `docs/REUSO_GITHUB_IA_2026-10-31.md`. | |
 | `run_one_study.py` | Trabajador de un estudio en su propio proceso (sección 8). | PF |
 | `run_powerfactory_gate.bat` | Atajo de `powerfactory_acceptance.py` con el intérprete de PF (sección 5.3). | PF |
 | `show_pf_diagram.py` | Abre en DIgSILENT el diagrama de un alimentador (`--feeder`). | PF |
