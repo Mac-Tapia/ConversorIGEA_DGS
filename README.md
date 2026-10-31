@@ -88,7 +88,9 @@ trabajo:
    con lo ya ejecutado desde la web; el de factibilidad y punto de diseño es un análisis
    aparte, de una carga nueva ingresada sola (spec 017).
 
-El detalle, con los guiones que hay detrás, está en `docs/MANUAL_COMANDOS.md` (7.ter).
+El [manual de uso](docs/MANUAL_DE_USO.md) lo explica como un libro, con la arquitectura,
+los flujos de trabajo y cada procedimiento paso a paso; las órdenes exactas, con los guiones
+que hay detrás, están en `docs/MANUAL_COMANDOS.md` (7.ter).
 
 ### Perfil de empresa
 
