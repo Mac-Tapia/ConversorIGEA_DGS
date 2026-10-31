@@ -1,6 +1,6 @@
 # Spec 047 — Asistente estructurado y revisión por roles
 
-Estado: borrador · Fecha: 2026-10-31
+Estado: aprobada · Fecha: 2026-10-31
 
 ## Contexto y objetivo
 

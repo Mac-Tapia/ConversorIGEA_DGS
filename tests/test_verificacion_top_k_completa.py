@@ -48,3 +48,19 @@ def test_top_k_descarta_y_continua_con_evidencia():
     assert resultado['verificada']
     assert resultado['elegida']['id'] == 'valida'
     assert len(guardados) == len(resultado['descartadas']) == 1
+
+
+@pytest.mark.parametrize('clave', ['tolerancia_v_pu', 'tolerancia_perdidas'])
+@pytest.mark.parametrize('valor', [float('nan'), float('inf'), -1, True])
+def test_tolerancia_invalida_no_habilita_verificacion(clave, valor):
+    """044:RF-6 — NaN en la política tampoco puede convertir diferencias en aceptación."""
+    parametros = {'tolerancia_v_pu': 0.01, 'tolerancia_perdidas': 0.2, clave: valor}
+    with pytest.raises(ValueError, match='tolerancia'):
+        verificar_top_k([], lambda _: None, **parametros)
+
+
+def test_perdida_cero_no_oculta_error():
+    """044:RF-6 — una predicción cero no puede suprimir la comparación de pérdidas."""
+    resultado = verificar_top_k([{'v_min': 0.97, 'perdidas_kw': 0}],
+        lambda _: {'converge': True, 'v_min': 0.97, 'perdidas_kw': 10}, tolerancia_v_pu=0.01)
+    assert not resultado['verificada']

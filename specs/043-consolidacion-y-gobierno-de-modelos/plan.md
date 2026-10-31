@@ -55,15 +55,15 @@ Pruebas nuevas citan `043:RF-n`; no cerrar tareas nativas con mocks.
 
 **Interfaces:** Definir `ContextoExperimento` inmutable con `source_run_id: str`, `source_mode: str`, `source_fingerprint: str`, `project: str`, `feeders: tuple[str, ...]`, `case_id: str`, `case_role: str`, `year: int | None`, `period: str`, `criterio_fijas: str`, `profile_hash: str`, `topology_hash: str`, `controls_hash: str`, `scenario_hash: str`. `clave_contexto(contexto: ContextoExperimento) -> str` usa JSON canónico y SHA-256. `ExperimentoSpec` contiene contexto, algoritmo, semillas, política, revisión y schema_version; `cargar_experimento(ruta: Path) -> ExperimentoSpec` rechaza campos incompatibles.
 
-- [ ] Escribir primero las pruebas con las citas RF correspondientes. Aserciones:
+- [x] Escribir primero las pruebas con las citas RF correspondientes. Aserciones:
   `test_contexto_distinto_no_reutiliza`: cambiar source_run_id o criterio_fijas cambia la clave; `test_sintetico_no_es_gold_real`: 200 sintéticos producen contador real=0; `test_duplicados_comparten_grupo`: copias con distinto nombre comparten grupo de observación. Incluir semillas/distribución 041 y bloque/etapa 040–042 en scenario_hash.
-- [ ] Ejecutar `.venv/Scripts/python.exe -m pytest -q tests/test_experimentos.py tests/test_asistente_dataset_entrenamiento.py tests/test_asistente_calidad_datos.py` y observar el fallo
+- [x] Ejecutar `.venv/Scripts/python.exe -m pytest -q tests/test_experimentos.py tests/test_asistente_dataset_entrenamiento.py tests/test_asistente_calidad_datos.py` y observar el fallo
   que demuestra la brecha (o ausencia de interfaz), sin ocultar errores de entorno.
-- [ ] Implementar el contrato descrito en los archivos indicados, con el mínimo
+- [x] Implementar el contrato descrito en los archivos indicados, con el mínimo
   cambio que cubra estas aserciones y conservando las interfaces vigentes.
-- [ ] Repetir el comando hasta PASS sin skips de requisitos obligatorios; ampliar
+- [x] Repetir el comando hasta PASS sin skips de requisitos obligatorios; ampliar
   solo a las regresiones de los módulos tocados y registrar evidencia real indicada.
-- [ ] Revisar el diff propio, actualizar `CODIGO_FUENTE.md` si se crea código y
+- [x] Revisar el diff propio, actualizar `CODIGO_FUENTE.md` si se crea código y
   registrar un commit de alcance propio que cite `spec 043 T2`.
 
 ### T3: Runner, reanudación y promoción con reapertura

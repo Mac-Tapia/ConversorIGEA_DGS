@@ -51,3 +51,12 @@ def test_unknown_quality_is_reported_and_blocks_audit():
                                    'validation': (), 'test': ()})
 
     assert not audit['valid'] and audit['unknown_qualities'] == ['invented']
+
+
+def test_sintetico_no_es_gold_real():
+    """043:RF-3 — doscientas órdenes generadas no habilitan escrituras sin confirmar."""
+    from igea_dgs.asistente.dataset_entrenamiento import normalizar_orden
+    from igea_dgs.asistente.calidad_datos import resumir_calidad
+    filas = [normalizar_orden({'texto': f'convierte F{i}', 'tarea': 'convertir',
+                              'origen': 'sintetico'}) for i in range(200)]
+    assert resumir_calidad(filas)['qualities'].get('gold_human', 0) == 0

@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3.12, PyTorch/CUDA, Ollama local, React/TypeScript y PowerFactory mediante el arnés existente; adaptadores opcionales evaluables para PyG, NeuralForecast, sentence-transformers, PEFT, pymoo y Pyomo/Ipopt.
 
-**Spec:** paquetes [043](../../../specs/043-consolidacion-y-gobierno-de-modelos/spec.md) a [049](../../../specs/049-protecciones-nativas-y-coordinacion/spec.md), cada uno con `spec.md`, `plan.md` y `tasks.md`. Estado inicial: borrador; ninguna tarea de implementación se declara ejecutada.
+**Spec:** paquetes [043](../../../specs/043-consolidacion-y-gobierno-de-modelos/spec.md) a [049](../../../specs/049-protecciones-nativas-y-coordinacion/spec.md), cada uno con `spec.md`, `plan.md` y `tasks.md`. El avance ejecutado y los pendientes reales están en el [registro de ejecución](../../EJECUCION_IA_2026-10-31.md); el estado vigente se conserva en cada spec.
 
 ## Global Constraints
 
@@ -77,8 +77,8 @@ flowchart LR
   G --> H
 ```
 
-Prioridad inmediata: 044 T0 reproduce el defecto del auxiliar y lo corrige con
-rechazo por datos incompletos. Después, completar 043 y la integración de 044 antes de entrenar nuevas
+044 T0 está cerrada con pruebas; la prioridad actual es completar 043 y la
+integración de 044 antes de entrenar nuevas
 arquitecturas. Las ramas P2 son separables, pero GPU y carril nativo siguen en serie.
 No se estima una fecha de entrenamiento o cierre antes de inventariar datos/licencias.
 
@@ -180,5 +180,5 @@ empresa, demuestra que nuestros modelos mejoraron o aprueba una red.
 
 La decisión de introducir un candidato se toma con el benchmark local. Si empata con
 la referencia, conservar la solución vigente salvo otra ventaja predeclarada y medida.
-Este entregable es un plan con brechas verificadas; no declara implementadas las
-mejoras ni entrenados, promovidos o aceptados los nuevos modelos.
+Las casillas y el registro de ejecución distinguen código comprobado de trabajo
+pendiente; crear el plan no acredita modelos entrenados, promovidos ni aceptados.

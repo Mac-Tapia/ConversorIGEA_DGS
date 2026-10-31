@@ -695,6 +695,9 @@ def verificar_top_k(alternativas: Sequence[Mapping[str, Any]], medir: Callable[[
     en p.u., pérdidas en fracción), se descarta, se guarda como episodio (``guardar``) y se
     prueba la siguiente. La elegida lleva la evaluación del gemelo y la de DIgSILENT.
     """
+    for nombre, valor in (('tolerancia_v_pu', tolerancia_v_pu), ('tolerancia_perdidas', tolerancia_perdidas)):
+        if isinstance(valor, bool) or not isinstance(valor, (int, float)) or not math.isfinite(valor) or valor < 0:
+            raise ValueError(f'{nombre}: tolerancia no finita o negativa')
     descartadas = []
     for alt in alternativas:
         m = medir(alt)

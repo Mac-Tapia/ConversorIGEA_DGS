@@ -46,7 +46,7 @@ constitución y 001:RF-14 (DGS idéntico byte a byte); su diseño histórico est
 | `src/igea_dgs/digital_twin/native_snapshot.py` | Identidad estable de un objeto de DIgSILENT, huella SHA-256 de un trazado e islas por tramos cerrados, sin suponer red radial. | 024 (RF-2, RF-3) |
 | `src/igea_dgs/digital_twin/oraculo.py` | Oráculo PINN/GNN (PyTorch, GPU si la hay): grafo por unidad, red de grafos sobre la física mallada con pérdida física de balance por barra eléctrica, conjunto con incertidumbre, fuera de dominio, estado eléctrico (flujos, pérdidas, cargabilidad), registro de modelos con promoción por puertas, vuelta al anterior, deriva y reentreno, evaluación del aprendizaje por partición; flujo mallado y barrido radial con el mismo contrato; orden de obras candidatas. | 024 (RF-12 a RF-19, RF-23, RF-35, RF-36, RF-38 a RF-40, RF-42 a RF-44, RF-64 a RF-66, RF-74) |
 | `src/igea_dgs/digital_twin/flujo.py` | Flujo de carga físico por matriz de admitancias dispersa, con lazos: acopladores fusionados en una barra, factorización LU una sola vez, punto fijo Z-bus, consigna de las fuentes sin refactorizar, pérdidas y no convergencia dicha. | 024 (RF-64 a RF-66) |
-| `src/igea_dgs/digital_twin/evolutivo.py` | Algoritmo genético, NSGA-II y evolución diferencial autoadaptativa (jDE), deterministas con su semilla; bancos de condensadores al menor coste con frente inversión–pérdidas y sobredimensionadas, reconfiguración radial por maniobras, consigna de cabecera y bancos del PIDE afinados con la red del gemelo. | 024 (RF-67 a RF-73) |
+| `src/igea_dgs/digital_twin/evolutivo.py` | Algoritmo genético, NSGA-II y evolución diferencial autoadaptativa (jDE), deterministas con su semilla; bancos de condensadores al menor coste con frente inversión–pérdidas y sobredimensionadas, reconfiguración radial por maniobras, consigna de cabecera y bancos del PIDE afinados con la red del gemelo. | 024 (RF-67 a RF-73), 044 (RF-6) |
 | `src/igea_dgs/asistente/ordenes_fijas.py` | Las 200 órdenes fijas del asistente escritas por el maestro (Claude), de todas las tareas y distintas de las plantillas, con su huella y su reparto 160/40. | 027 (RF-65 a RF-67) |
 | `src/igea_dgs/asistente/orquestador.py` | El proyecto entero desde el espacio, etapa por etapa por las rutas de la web (fuente, sistema, «Caso base», cargas nuevas, obras, estudios, PIDE, informe), con punto de control y reanudación sin repetir. | 027 (RF-43, RF-44) |
 | `src/igea_dgs/asistente/ejemplos_pide.py` | Ejemplos del agente desde el corpus PIDE entregado: por artículo sus evidencias en cada PIDE (por la ruta y el texto), por formato F01 a F15 sus hojas y columnas, y las secciones de los informes 4.1 y 4.2; contexto, no norma. | 027 (RF-47, RF-48, RF-50) |
@@ -66,7 +66,7 @@ constitución y 001:RF-14 (DGS idéntico byte a byte); su diseño histórico est
 | `src/igea_dgs/asistente/vigilancia.py` | Vigilancia de trabajos (fallos, tiempos, colas, reintento del 4002), modelos, calidad de resultados y suite nocturna con el RF de cada fallo. | 026 (RF-22 a RF-25) |
 | `src/igea_dgs/asistente/mejoras.py` | Mejoras en una rama aparte (git worktree) con spec y pruebas y su suite; nunca fusiona ni sube; decisiones auditables; fichas de librerías. | 026 (RF-26 a RF-28, RF-32) |
 | `src/igea_dgs/asistente/internet.py` | Búsquedas en GitHub, PyPI y arXiv con el filtro de identificadores de la red y rutas; cada consulta registrada, las bloqueadas sin su texto. | 026 (RF-29 a RF-32) |
-| `src/igea_dgs/digital_twin/temporal.py` | Gemelo temporal: GRU de las curvas de cabecera (estacional sin PyTorch), métricas, desviaciones por instante y alimentador, pseudo-medidas por kVA con intervalo e instante crítico coincidente. | 024 (RF-20 a RF-22, RF-37) |
+| `src/igea_dgs/digital_twin/temporal.py` | Gemelo temporal: GRU de las curvas de cabecera (estacional sin PyTorch), métricas, desviaciones por instante y alimentador, pseudo-medidas por kVA con intervalo e instante crítico coincidente. | 024 (RF-20 a RF-22, RF-37), 046 (RF-1) |
 | `src/igea_dgs/crecimiento.py` | Tasa anual de crecimiento de la demanda de cada alimentador desde la medición de cabecera: máximas de los meses comunes del primer y el último año, mediana para los demás. | 029 (RF-1 a RF-3, RF-5, RF-7) |
 | `src/igea_dgs/dgs.py` | Escritor DGS: tablas, FID, cubículos, maniobras, capa gráfica y trazado GPS de las líneas; la barra de una SED sola va dentro de ella.; con la estructura, una red y un diagrama por zonal, la SET como subestación con sus barras, una red externa por barra y el ElmFeeder en el interruptor de cabecera | 034, 010 (RF-1 a RF-4), 011 (RF-128), 021 (RF-12), 022 (RF-6 a RF-16) |
 | `src/igea_dgs/economia.py` | Datos de la evaluación técnico-económica (`ComTececo`). | 004 |
@@ -283,7 +283,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `frontend/src/components/DemandaMedida.tsx` | Paso 2: libros de medición, máxima de cabecera (con la central térmica de un alimentador, en el mes de análisis o en un instante coincidente) y clientes con su nombre.; máxima por barra de SET | 004 (RF-57), 008, 013 (RF-11), 021 (RF-25 a RF-27, RF-50, RF-52), 022 (RF-39, RF-41), 025 (RF-22, RF-23, RF-34, RF-35, RF-78), 035 (RF-1, RF-2), 038 (RF-2, RF-6, RF-7), 039 (RF-1, RF-4, RF-5) |
 | `frontend/src/components/DatosEmpresaPF.tsx` | Paso 4.2: libro de la empresa del proyecto (subir, plantilla, lo que trae, aplicar en DIgSILENT). | 012 (RF-6, RF-7, RF-16, RF-20, RF-21) |
 | `frontend/src/components/EstudiosPF.tsx` | Paso 4.2: estudios sobre la red calibrada, límites y resultados; los de la 012 con sus opciones, su tabla y aceptar un reconectador o un banco como obra. | 011 (RF-24, RF-25, RF-35, RF-39, RF-68), 012 (RF-1, RF-19, RF-37, RF-40, RF-45, RF-53, RF-58), 037 (RF-1, RF-5) |
-| `frontend/src/components/Asistente.tsx` | Pestaña «Asistente»: consola de órdenes, plan con datos, pasos, lo que falta, dudas y razonamiento, confirmar y ejecutar, corregir la tarea, respuestas con cita, entregables y reentrenar. | 026 (RF-1, RF-7, RF-8, RF-12, RF-15) |
+| `frontend/src/components/Asistente.tsx` | Pestaña «Asistente»: consola de órdenes, plan con datos, pasos, lo que falta, dudas y razonamiento, confirmar y ejecutar, corregir la tarea, respuestas con cita, entregables y reentrenar. | 026 (RF-1, RF-7, RF-8, RF-12, RF-15), 043 (RF-8) |
 | `frontend/src/components/GemeloPIDE.tsx` | Paso 5 de «Cargas en DIgSILENT»: planificar con el PIDE (CAPEX opcional, aplicar solas las obras que funcionan), tabla de obras con prioridad, estado y decisión del operador, formatos 01 a 15, aprendizaje activo del gemelo y episodios del proyecto. | 024 (RF-8, RF-45 a RF-48) |
 | `frontend/src/components/GuionesPF.tsx` | Paso 4.2: guiones DPL y Python del operador, sus parámetros y su salida por caso. | 011 (RF-27 a RF-30) |
 | `frontend/src/components/ObrasPF.tsx` | Paso 4.1: formulario de obras de mejora (también enlace, migración desde un nodo y sección de toda la troncal), bibliotecas de tipos, obras guardadas, simular y aplicar. | 011 (RF-56 a RF-95), 016 (RF-68 a RF-72) |
@@ -294,6 +294,19 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `frontend/src/components/JobBar.tsx` | Barra de trabajos en curso. | 001 |
 | `frontend/src/components/LogPanel.tsx` | Registro. | 001 |
 | `frontend/src/components/ui.tsx` | Piezas comunes: modal, avisos, casillas, ficheros. | 001 |
+
+## Gobierno de modelos y preparación causal
+
+| Fichero | Responsabilidad | Spec |
+| --- | --- | --- |
+| `src/igea_dgs/model_registry.py` | Candidatos inmutables, integridad, promoción atómica y reapertura en subproceso. | 043 (RF-1, RF-5) |
+| `src/igea_dgs/training_coordinator.py` | Etapas reanudables y bloqueo GPU mediante guardia OS compartida. | 043 (RF-6, RF-7) |
+| `src/igea_dgs/experimentos.py` | Contexto exacto y contratos inmutables de configuración, con SHA-256 canónico. | 043 (RF-2) |
+| `src/igea_dgs/asistente/dataset_entrenamiento.py` | Custodia de datos reales, sintéticos y de contexto; agrupación de registros. | 043 (RF-3, RF-4) |
+| `src/igea_dgs/asistente/calidad_datos.py` | Calidad y contaminación entre particiones sin inflar el conjunto humano. | 043 (RF-3, RF-4) |
+| `src/igea_dgs/digital_twin/series_causales.py` | Cadencia, unidades, huecos y disponibilidad temporal de covariables. | 046 (RF-1 a RF-3) |
+| `tools/reentrenar_modelos.py` | CLI de coordinación, validación de configuración y rechazo de resultados incompletos. | 043 (RF-2, RF-5, RF-7) |
+
 
 ## Documentación
 
@@ -318,4 +331,5 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `input/README.md` | Qué va en `input/`. | vigente |
 | `specs/NNN-*/` | Specs, planes y tareas. | vigente |
 | `docs/DIAGNOSTICO_*.md` | Diagnósticos fechados que dieron origen a specs. | histórico |
+| `docs/EJECUCION_IA_2026-10-31.md` | Evidencia de implementación, revisión independiente y pendientes reales por spec. | 043, 044, 046 |
 | `docs/superpowers/` | Diseños y planes anteriores a las specs. | histórico |

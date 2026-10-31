@@ -1,5 +1,9 @@
 # Verificación de las publicaciones y del código — 31 de octubre de 2026
 
+Actualización posterior: el defecto puntual del auxiliar descrito aquí se corrigió
+en 044 T0. Este documento conserva el diagnóstico inicial; el estado ejecutado y
+los bloqueos vigentes están en el [registro de ejecución](EJECUCION_IA_2026-10-31.md).
+
 Alcance: revisión del código local y de contenido público, con un reproductor del
 validador de alternativas. Esto no es una certificación de modelos entrenados ni una
 aceptación eléctrica. Las mejoras quedan especificadas en el [plan maestro](superpowers/plans/2026-10-31-mejora-integral-ia-conversor.md).

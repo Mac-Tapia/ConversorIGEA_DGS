@@ -1,6 +1,6 @@
 # Spec 045 — Gemelo físico y contratos PINN/GNN
 
-Estado: borrador · Fecha: 2026-10-31
+Estado: aprobada · Fecha: 2026-10-31
 
 ## Contexto y objetivo
 

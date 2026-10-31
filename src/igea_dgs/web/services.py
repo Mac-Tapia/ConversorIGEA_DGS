@@ -6794,7 +6794,9 @@ def asistente_estado_modelos() -> dict:
                 activo = registro.activo(nombre)
                 if not activo or activo.get('candidate_id') != candidato:
                     raise ValueError('sin candidato activo coincidente')
-                detalle = registro.detalle(nombre, candidato)
+                # La integridad completa se comprueba al promover; aquí se consulta
+                # su manifiesto sin releer gigabytes de pesos en una petición HTTP.
+                detalle = registro.detalle(nombre, candidato, verificar_artefactos=False)
                 puertas = detalle['decision'].get('gates') or {}
                 if (detalle['decision'].get('status') != EstadoModelo.PROMOVIDO.value
                         or puertas.get('approved') is not True

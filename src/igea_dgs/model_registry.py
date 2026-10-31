@@ -25,6 +25,11 @@ def _canonico(valor: Any) -> bytes:
                       separators=(',', ':'), default=str, allow_nan=False).encode('utf-8')
 
 
+def _sha_archivo(ruta: Path) -> str:
+    with ruta.open('rb') as contenido:
+        return hashlib.file_digest(contenido, 'sha256').hexdigest()
+
+
 class RegistroModelo:
     def __init__(self, raiz: Path | str):
         self.raiz = Path(raiz)
@@ -49,7 +54,7 @@ class RegistroModelo:
         except (KeyError, ValueError) as exc:
             raise ValueError('estado terminal desconocido') from exc
         if estado == EstadoModelo.PROMOVIDO and not (
-                (decision.get('gates') or {}).get('approved') and smoke_reload.get('ok')):
+                (decision.get('gates') or {}).get('approved') is True and smoke_reload.get('ok') is True):
             raise ValueError('PROMOVIDO requiere puertas y reapertura exitosas')
         hashes = {}
         for artefacto in artifacts:
@@ -58,7 +63,7 @@ class RegistroModelo:
                 raise ValueError(f'artefacto ausente: {ruta}')
             if ruta.name in hashes:
                 raise ValueError(f'artefacto duplicado: {ruta.name}')
-            hashes[ruta.name] = hashlib.sha256(ruta.read_bytes()).hexdigest()
+            hashes[ruta.name] = _sha_archivo(ruta)
         identidad = hashlib.sha256(_canonico({
             'model': modelo, 'model_manifest': model_manifest,
             'dataset_manifest': dataset_manifest, 'metrics': metrics,
@@ -88,7 +93,7 @@ class RegistroModelo:
         detalle = self.detalle(modelo, candidate_id)
         return Path(detalle['path']), detalle['decision'], detalle['smoke_reload']
 
-    def detalle(self, modelo: str, candidate_id: str) -> dict[str, Any]:
+    def detalle(self, modelo: str, candidate_id: str, *, verificar_artefactos: bool = True) -> dict[str, Any]:
         if not isinstance(candidate_id, str) or not re.fullmatch(r'[0-9a-f]{64}', candidate_id):
             raise ValueError('identidad de candidato inválida')
         raiz = self._modelo(modelo) / 'candidates' / candidate_id
@@ -96,11 +101,13 @@ class RegistroModelo:
             raise ValueError('candidato inexistente')
         datos = {nombre: json.loads((raiz / f'{nombre}.json').read_text(encoding='utf-8'))
                  for nombre in ('model_manifest', 'dataset_manifest', 'metrics', 'decision', 'smoke_reload', 'artifacts')}
+        if any(not isinstance(valor, dict) for valor in datos.values()):
+            raise ValueError('integridad: manifiesto de candidato no es un objeto')
         for nombre, esperado in datos['artifacts'].items():
             if Path(nombre).name != nombre or '/' in nombre or '\\' in nombre:
                 raise ValueError('integridad: nombre de artefacto inválido')
             ruta = raiz / 'artifacts' / nombre
-            if not ruta.is_file() or hashlib.sha256(ruta.read_bytes()).hexdigest() != esperado:
+            if not ruta.is_file() or (verificar_artefactos and _sha_archivo(ruta) != esperado):
                 raise ValueError(f'integridad: artefacto modificado o ausente: {nombre}')
         if hashlib.sha256(_canonico({'model': modelo, **datos})).hexdigest() != candidate_id:
             raise ValueError('integridad: manifiesto de candidato modificado')
@@ -109,7 +116,7 @@ class RegistroModelo:
     def promover(self, modelo: str, candidate_id: str) -> dict[str, Any]:
         _raiz, decision, smoke = self._candidato(modelo, candidate_id)
         if decision.get('status') != EstadoModelo.PROMOVIDO.value \
-                or not (decision.get('gates') or {}).get('approved') or not smoke.get('ok'):
+                or (decision.get('gates') or {}).get('approved') is not True or smoke.get('ok') is not True:
             raise ValueError('candidato no aprobado o no reabierto')
         activo_ruta = self._modelo(modelo) / 'active.json'
         anterior = self.activo(modelo)
@@ -121,14 +128,22 @@ class RegistroModelo:
 
     def activo(self, modelo: str) -> dict[str, Any] | None:
         ruta = self._modelo(modelo) / 'active.json'
-        return json.loads(ruta.read_text(encoding='utf-8')) if ruta.is_file() else None
+        if not ruta.is_file():
+            return None
+        payload = json.loads(ruta.read_text(encoding='utf-8'))
+        if not isinstance(payload, dict) or not isinstance(payload.get('candidate_id'), str):
+            raise ValueError('puntero activo inválido')
+        return payload
 
     def volver_al_anterior(self, modelo: str) -> dict[str, Any]:
         ruta = self._modelo(modelo) / 'previous.json'
         if not ruta.is_file():
             raise ValueError('no existe modelo anterior')
         payload = json.loads(ruta.read_text(encoding='utf-8'))
-        self._candidato(modelo, payload['candidate_id'])
+        _raiz, decision, smoke = self._candidato(modelo, payload['candidate_id'])
+        if (decision.get('status') != EstadoModelo.PROMOVIDO.value
+                or (decision.get('gates') or {}).get('approved') is not True or smoke.get('ok') is not True):
+            raise ValueError('modelo anterior no aprobado o no reabierto')
         self._reemplazar_json(self.raiz / modelo / 'active.json', payload)
         return payload
 

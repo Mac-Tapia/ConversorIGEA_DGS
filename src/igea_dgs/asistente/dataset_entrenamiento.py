@@ -16,7 +16,6 @@ from .calidad_datos import CALIDADES, auditar_contaminacion, texto_canonico
 ESQUEMA = 'igea-dgs-training-record-v2'
 ESQUEMA_DATASET = 'igea-dgs-training-dataset-v2'
 _RUTA_WINDOWS = re.compile(r'(?i)(?:[a-z]:\\)[^\s"\']+')
-_CODIGO_ALIMENTADOR = re.compile(r'([A-Z]{2,3}\d{3})$')
 
 
 def _limpiar(valor: Any) -> Any:
@@ -83,7 +82,7 @@ class DatasetConstruido:
 
 
 def descubrir_alimentadores_inventarios(raiz_web: Path | str) -> list[str]:
-    """Une inventarios reales y normaliza ``NET_2030_<id>_<código>`` a su código operativo."""
+    """Une identidades explícitas; un sufijo de nombre no prueba pertenencia (043:RF-2)."""
     codigos: set[str] = set()
     for ruta in Path(raiz_web).rglob('dataset_inventory.json'):
         try:
@@ -91,9 +90,9 @@ def descubrir_alimentadores_inventarios(raiz_web: Path | str) -> list[str]:
         except (OSError, ValueError):
             continue
         for fila in inventario.get('feeders') or ():
-            valor = str(fila.get('network_id') or fila.get('feeder') or '').strip().upper()
-            if (m := _CODIGO_ALIMENTADOR.search(valor)):
-                codigos.add(m.group(1))
+            valor = str(fila.get('feeder') or fila.get('network_id') or '').strip()
+            if valor:
+                codigos.add(valor)
     return sorted(codigos)
 
 
@@ -132,7 +131,7 @@ def normalizar_orden(fila: dict[str, Any]) -> RegistroEntrenamiento:
     for clave in ('operador', 'challenge_id', 'plan_id'):
         if fila.get(clave):
             provenance[clave] = fila[clave]
-    return _crear(
+    return crear_registro(
         group_basis={'tipo': 'orden', 'tarea': tarea, 'texto': texto_canonico(texto)},
         tipo='orden', quality=quality, tarea=tarea, texto=texto, sistema='', sets=(),
         alimentadores=alimentadores, mensajes=({'role': 'user', 'content': texto},),
@@ -169,10 +168,15 @@ def normalizar_episodio(payload: dict[str, Any]) -> RegistroEntrenamiento:
     proyecto = str(nativo.get('project') or '')
     texto = f'{tarea} en {proyecto} para {", ".join(alimentadores)}'.strip()
     hashes = tuple(sorted({str(v) for k, v in fuente.items()
-                           if 'sha256' in str(k).casefold() and v}))
+                           if ('sha256' in str(k).casefold() or k == 'source_fingerprint') and v}
+                          | {str(a['sha256']) for a in payload.get('artefactos', ())
+                             if isinstance(a, dict) and a.get('sha256')}))
     provenance = {
         'episode_id': payload.get('episode_id'),
         'source_run_id': fuente.get('source_run_id'),
+        'source_mode': fuente.get('source_mode'),
+        'source_fingerprint': fuente.get('source_fingerprint'),
+        'reopen_verified': nativo.get('reopen_verified') is True,
         'pf_version': nativo.get('pf_version'),
     }
     result = {'clase': payload.get('clase'),

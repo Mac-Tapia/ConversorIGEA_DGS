@@ -148,7 +148,7 @@ def test_normative_unknown_license_is_quarantined(tmp_path):
     assert 'licencia' in records[0].motivo
 
 
-def test_descubre_ciento_un_alimentadores_normalizando_identidad_mdb(tmp_path):
+def test_descubre_ciento_un_alimentadores_sin_inferir_identidad_mdb(tmp_path):
     from igea_dgs.asistente.dataset_entrenamiento import descubrir_alimentadores_inventarios
 
     ruta = tmp_path / 'w' / 'runs' / 'r' / 'salida'
@@ -157,4 +157,15 @@ def test_descubre_ciento_un_alimentadores_normalizando_identidad_mdb(tmp_path):
     (ruta / 'dataset_inventory.json').write_text(
         json.dumps({'feeders': feeders}), encoding='utf-8')
     codigos = descubrir_alimentadores_inventarios(tmp_path)
-    assert len(codigos) == 101 and codigos[0] == 'AA000' and codigos[-1] == 'AA100'
+    assert set(codigos) == {f['network_id'] for f in feeders}
+
+
+def test_identidad_explicita_prevalece_sobre_nombre_de_red(tmp_path):
+    """043:RF-2 043:RF-3 — pertenencia explícita y códigos universales, sin regex de empresa."""
+    from igea_dgs.asistente.dataset_entrenamiento import descubrir_alimentadores_inventarios
+    (tmp_path / 'dataset_inventory.json').write_text(json.dumps({'feeders': [
+        {'network_id': 'NET_2030_1_AA001', 'feeder': 'Ramal rural/Sur'},
+        {'network_id': 'Identificador-no-convencional'},
+    ]}), encoding='utf-8')
+    assert set(descubrir_alimentadores_inventarios(tmp_path)) == {
+        'Ramal rural/Sur', 'Identificador-no-convencional'}

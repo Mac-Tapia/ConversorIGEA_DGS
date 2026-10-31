@@ -1,6 +1,6 @@
 # Spec 049 — Protecciones nativas y coordinación
 
-Estado: borrador · Fecha: 2026-10-31
+Estado: aprobada · Fecha: 2026-10-31
 
 ## Contexto y objetivo
 

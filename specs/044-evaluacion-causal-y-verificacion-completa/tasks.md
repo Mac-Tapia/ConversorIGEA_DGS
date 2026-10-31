@@ -4,7 +4,7 @@ Estado inicial: todas pendientes; este documento no acredita ejecución.
 Leer [spec.md](spec.md), [plan.md](plan.md) y sus contratos dependientes antes de editar.
 Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
 
-- [ ] T0. Rechazo puntual de métricas ausentes/no finitas sin dependencias nuevas. (RF-6)
+- [x] T0. Rechazo puntual de métricas ausentes/no finitas sin dependencias nuevas. (RF-6)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_verificacion_top_k_completa.py tests/test_digital_twin_evolutivo.py` pasa con el reproductor y sus parámetros de T0; la integración completa queda en T3.
 
 - [ ] T1. Particiones independientes y política previa. (RF-1, RF-2, RF-3)
@@ -29,3 +29,5 @@ Pendiente. Anotar aquí, al ejecutar cada tarea, revisión, datos/contexto, coma
 resultado, informe y limitaciones; no marcar casillas por existir código o por una
 simulación que solo converge.
 
+
+Ejecución 2026-10-31: ver [registro y pendientes](../../docs/EJECUCION_IA_2026-10-31.md).

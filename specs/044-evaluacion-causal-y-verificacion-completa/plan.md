@@ -40,7 +40,7 @@ predicción y medición antes de calcular diferencias, sin depender de clases de
 La falta de `v_min` o `perdidas_kw`, un valor no finito o una pérdida negativa
 descarta esa alternativa con motivo explícito; no fabricar ceros.
 
-- [ ] Escribir primero `test_top_k_sin_metricas_rechaza` con el reproductor:
+- [x] Escribir primero `test_top_k_sin_metricas_rechaza` con el reproductor:
 
   ```python
   resultado = verificar_top_k(
@@ -52,13 +52,13 @@ descarta esa alternativa con motivo explícito; no fabricar ceros.
 
   Parametrizar ausencia y NaN/Inf en cada métrica, y pérdida negativa; una medición
   completa válida conserva el comportamiento anterior hasta la integración T3.
-- [ ] Ejecutar `.venv/Scripts/python.exe -m pytest -q tests/test_verificacion_top_k_completa.py`
+- [x] Ejecutar `.venv/Scripts/python.exe -m pytest -q tests/test_verificacion_top_k_completa.py`
   y observar el fallo actual `True is False`.
-- [ ] Añadir el rechazo local de incompletitud/no finitud sin cambiar firma ni
+- [x] Añadir el rechazo local de incompletitud/no finitud sin cambiar firma ni
   introducir puertas eléctricas parciales como sustituto de T3.
-- [ ] Ejecutar `.venv/Scripts/python.exe -m pytest -q tests/test_verificacion_top_k_completa.py tests/test_digital_twin_evolutivo.py`
+- [x] Ejecutar `.venv/Scripts/python.exe -m pytest -q tests/test_verificacion_top_k_completa.py tests/test_digital_twin_evolutivo.py`
   hasta PASS y comprobar sus consumidores por posibles dependencias del comportamiento defectuoso.
-- [ ] Registrar evidencia y commit propio que cite `spec 044 T0`; no marcar T3 ni
+- [x] Registrar evidencia y commit propio que cite `spec 044 T0`; no marcar T3 ni
   la spec completa por esta corrección puntual.
 
 ### T1: Particiones independientes y política previa

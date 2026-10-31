@@ -70,13 +70,13 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 040 Cargas del bloque sin duplicados, y ampliaciones de clientes existentes | cumplida |  |
   | 041 Reparto probabilístico de las SED escaladas | cumplida |  |
   | 042 «Con proyecto»: escalera de obras carga a carga y SET nueva para las que no caben | implementada | falta T6 |
-  | 043 Consolidación y gobierno de modelos | borrador | ver sus tareas |
-  | 044 Evaluación causal y verificación completa | borrador | ver sus tareas |
-  | 045 Gemelo físico y contratos PINN/GNN | borrador | ver sus tareas |
-  | 046 Pronóstico causal multihorizonte | borrador | ver sus tareas |
-  | 047 Asistente estructurado y revisión por roles | borrador | ver sus tareas |
-  | 048 Optimización mixta evolutiva y PNL | borrador | ver sus tareas |
-  | 049 Protecciones nativas y coordinación | borrador | ver sus tareas |
+  | 043 Consolidación y gobierno de modelos | aprobada | ver sus tareas |
+  | 044 Evaluación causal y verificación completa | aprobada | ver sus tareas |
+  | 045 Gemelo físico y contratos PINN/GNN | aprobada | ver sus tareas |
+  | 046 Pronóstico causal multihorizonte | aprobada | ver sus tareas |
+  | 047 Asistente estructurado y revisión por roles | aprobada | ver sus tareas |
+  | 048 Optimización mixta evolutiva y PNL | aprobada | ver sus tareas |
+  | 049 Protecciones nativas y coordinación | aprobada | ver sus tareas |
 
   Las convenciones de cada empresa (CRS de origen, patrón de SED de medición, escala,
   carpeta de DIgSILENT) van en `config/perfil_empresa.json`, local y fuera de git, que

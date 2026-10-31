@@ -7,6 +7,7 @@ import json
 import hashlib
 import subprocess
 import sys
+import uuid
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
@@ -40,8 +41,14 @@ def _estado(payload: dict, modelo: str) -> dict:
 def _subproceso(comando: list[str], reporte: Path, modelo: str, *, cwd: Path = REPO) -> dict:
     reporte.parent.mkdir(parents=True, exist_ok=True)
     log = reporte.with_suffix('.log')
+    if reporte.exists():
+        # Un proceso que termina sin escribir no puede heredar el éxito anterior.
+        reporte.rename(reporte.with_name(f'{reporte.stem}.previous.{uuid.uuid4().hex}.json'))
     p = subprocess.run(comando, cwd=cwd, capture_output=True, text=True, check=False)
     log.write_text((p.stdout or '') + ('\n[stderr]\n' + p.stderr if p.stderr else ''), encoding='utf-8')
+    if p.returncode != 0:
+        return {'status': 'ERROR_ENTORNO', 'reason': f'código de salida {p.returncode}',
+                'returncode': p.returncode, 'training_completed': False, 'log': str(log)}
     if not reporte.is_file():
         return {'status': 'ERROR_ENTORNO', 'reason': f'código {p.returncode} sin informe', 'log': str(log)}
     try:
@@ -49,6 +56,8 @@ def _subproceso(comando: list[str], reporte: Path, modelo: str, *, cwd: Path = R
     except (OSError, ValueError) as exc:
         return {'status': 'ERROR_ENTORNO', 'reason': str(exc), 'log': str(log)}
     resultado = _estado(payload, modelo)
+    resultado['training_completed'] = (payload.get('entrenado') is True
+                                      or payload.get('training_completed') is True)
     resultado.update({'report': str(reporte), 'returncode': p.returncode, 'log': str(log)})
     return resultado
 
@@ -119,6 +128,23 @@ def _etapas(args, run_dir: Path):
     ]
 
 
+def huella_entrada(ruta: Path, *, tipo: str) -> str:
+    """043:RF-7: el contenido del búfer importa aunque no exista manifest.json."""
+    ruta = Path(ruta)
+    if ruta.is_file():
+        with ruta.open('rb') as archivo:
+            return hashlib.file_digest(archivo, 'sha256').hexdigest()
+    if ruta.is_dir():
+        archivos = ((ruta / 'objetos').rglob('*.json') if tipo == 'twin' else ruta.rglob('*'))
+        entradas = []
+        for archivo in sorted(p for p in archivos if p.is_file()):
+            with archivo.open('rb') as contenido:
+                digest = hashlib.file_digest(contenido, 'sha256').hexdigest()
+            entradas.append((archivo.relative_to(ruta).as_posix(), digest))
+        return hashlib.sha256(json.dumps(entradas, ensure_ascii=False).encode('utf-8')).hexdigest()
+    return hashlib.sha256(b'entrada-ausente').hexdigest()
+
+
 def verificar(reporte: Path, *, fail_on_incomplete: bool) -> int:
     if not reporte.is_file():
         print(json.dumps({'ok': False, 'reason': 'reporte ausente'}, ensure_ascii=False))
@@ -131,7 +157,8 @@ def verificar(reporte: Path, *, fail_on_incomplete: bool) -> int:
                        and {x.get('model') for x in etapas} == set(ORDEN_MODELOS)
                        and all(x.get('status') in permitidos for x in etapas))
     completo = bool(payload.get('complete')) and estados_validos
-    todos_entrenados = completo and all(x.get('status') in {'PROMOVIDO', 'RECHAZADO'} for x in etapas)
+    todos_entrenados = completo and all(x.get('status') in {'PROMOVIDO', 'RECHAZADO'}
+                                        and x.get('training_completed') is True for x in etapas)
     ok = todos_entrenados if fail_on_incomplete else completo
     salida = {'ok': ok, 'complete': completo, 'all_trained': todos_entrenados,
               'statuses': {x.get('model'): x.get('status') for x in etapas}}
@@ -215,9 +242,8 @@ def main(argv=None) -> int:
         ruta = getattr(args, nombre)
         if ruta is not None:
             fuente = Path(ruta)
-            manifiesto = fuente / 'manifest.json' if fuente.is_dir() else fuente
-            entradas[nombre] = {'path': str(fuente.resolve()), 'sha256':
-                hashlib.sha256(manifiesto.read_bytes()).hexdigest() if manifiesto.is_file() else None}
+            entradas[nombre] = {'path': str(fuente.resolve()),
+                                'sha256': huella_entrada(fuente, tipo=nombre)}
     huella = hashlib.sha256(json.dumps({'experimento': experimento.huella if experimento else None,
         'entradas': entradas, 'semillas': args.semillas, 'embedding_model': args.embedding_model,
         'qlora_model': args.qlora_model, 'qlora_revision': args.qlora_revision},

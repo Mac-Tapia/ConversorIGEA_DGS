@@ -86,3 +86,28 @@ def test_dos_ejecuciones_comparten_bloqueo(tmp_path, monkeypatch):
         'status': 'RECHAZADO', 'segunda': segunda()})], tmp_path / 'primera').run()
     assert llamadas == []
     assert informe['stages'][0]['segunda']['stages'][0]['status'] == 'ERROR_ENTORNO'
+
+
+def test_guardia_no_recupera_metadatos_obsoletos_mientras_hay_propietario(tmp_path):
+    """043:RF-6 — la exclusión no depende de releer un PID antes de un unlink."""
+    from igea_dgs.training_coordinator import BloqueoGPU
+    ruta = tmp_path / 'gpu.lock'
+    with BloqueoGPU(ruta, 'propietario'):
+        ruta.write_text(json.dumps({'pid': 99999999, 'model': 'obsoleto'}), encoding='utf-8')
+        with pytest.raises(RuntimeError, match='GPU ocupada'):
+            with BloqueoGPU(ruta, 'segundo'):
+                pytest.fail('dos propietarios simultáneos')
+
+
+def test_corrida_sin_gpu_no_libera_recursos_del_propietario(tmp_path, monkeypatch):
+    """043:RF-6 — fallar al adquirir GPU no autoriza descargar recursos de otra etapa."""
+    from igea_dgs.training_coordinator import BloqueoGPU, TrainingCoordinator, TrainingStage
+    ruta = tmp_path / 'global.lock'
+    monkeypatch.setenv('IGEA_ML_GPU_LOCK', str(ruta))
+    llamadas = []
+    with BloqueoGPU(ruta, 'propietario'):
+        resultado = TrainingCoordinator([TrainingStage('gru', lambda: {'status': 'RECHAZADO'})],
+            tmp_path / 'run', liberar_ollama=lambda: llamadas.append('ollama'),
+            liberar_cuda=lambda: llamadas.append('cuda')).run()
+    assert llamadas == []
+    assert resultado['stages'][0]['status'] == 'ERROR_ENTORNO'

@@ -48,9 +48,36 @@ class BloqueoGPU:
     def __init__(self, ruta: Path | str, model: str):
         self.ruta, self.model = Path(ruta), model
         self.token = uuid.uuid4().hex
+        self._guardia = None
 
     def __enter__(self):
         self.ruta.parent.mkdir(parents=True, exist_ok=True)
+        # 043:RF-6: la guardia OS permanece en disco; cerrar el descriptor libera
+        # el bloqueo incluso al morir el proceso. Nunca se borra su inode.
+        guardia = self.ruta.with_name(self.ruta.name + '.guard').open('a+b')
+        if guardia.seek(0, os.SEEK_END) == 0:
+            guardia.write(b'1')
+            guardia.flush()
+        guardia.seek(0)
+        try:
+            if os.name == 'nt':
+                import msvcrt
+                msvcrt.locking(guardia.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(guardia.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            guardia.close()
+            raise RuntimeError('GPU ocupada: otro proceso conserva la guardia') from None
+        self._guardia = guardia
+        try:
+            return self._entrar_con_guardia()
+        except BaseException:
+            self._guardia.close()
+            self._guardia = None
+            raise
+
+    def _entrar_con_guardia(self):
         for _ in range(2):
             try:
                 fd = os.open(self.ruta, os.O_WRONLY | os.O_CREAT | os.O_EXCL)
@@ -83,6 +110,10 @@ class BloqueoGPU:
                 self.ruta.unlink()
         except (OSError, ValueError):
             pass
+        finally:
+            if self._guardia is not None:
+                self._guardia.close()
+                self._guardia = None
 
 
 @dataclass(frozen=True)
@@ -144,12 +175,12 @@ class TrainingCoordinator:
                 continue
             try:
                 if etapa.uses_gpu:
-                    self.liberar_ollama()
-                    try:
-                        with BloqueoGPU(self.gpu_lock, etapa.name):
+                    with BloqueoGPU(self.gpu_lock, etapa.name):
+                        try:
+                            self.liberar_ollama()
                             resultado = etapa.run()
-                    finally:
-                        self.liberar_cuda()
+                        finally:
+                            self.liberar_cuda()
                 else:
                     resultado = etapa.run()
                 if resultado.get('status') not in terminales:

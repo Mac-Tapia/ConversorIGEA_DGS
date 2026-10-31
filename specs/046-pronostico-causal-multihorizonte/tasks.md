@@ -22,3 +22,5 @@ Pendiente. Anotar aquí, al ejecutar cada tarea, revisión, datos/contexto, coma
 resultado, informe y limitaciones; no marcar casillas por existir código o por una
 simulación que solo converge.
 
+
+Las tareas abiertas pueden contener código parcial: el registro distingue implementación, datos reales, verificación y aceptación pendiente.

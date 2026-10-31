@@ -33,3 +33,45 @@ def test_ausencia_de_informe_es_pendiente(tmp_path, monkeypatch):
     payload = services.asistente_estado_modelos()
     assert all(f['estado'] is None for f in payload['familias'])
     assert not payload['complete']
+
+
+def test_consulta_modelos_no_relee_pesos_en_http(tmp_path, monkeypatch):
+    """043:RF-8 — consultar estado usa manifiestos; no bloquea HTTP leyendo GB de pesos."""
+    from pathlib import Path
+    from igea_dgs.model_registry import RegistroModelo
+    from igea_dgs.web import services
+    from test_model_registry import _payload
+    raiz = tmp_path / 'asistente'
+    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(raiz))
+    registro = RegistroModelo(raiz / 'model_registry')
+    candidato = registro.registrar_candidato('gru', **_payload(tmp_path))
+    registro.promover('gru', candidato['candidate_id'])
+    ruta = raiz / 'training/report.json'
+    ruta.parent.mkdir()
+    ruta.write_text(json.dumps({'complete': False, 'stages': [{
+        'model': 'gru', 'status': 'PROMOVIDO', 'candidate_id': candidato['candidate_id']}]}), encoding='utf-8')
+    original = Path.open
+    def abrir(path, *args, **kwargs):
+        if path.name == 'pesos.bin':
+            pytest.fail('la petición HTTP abrió los pesos')
+        return original(path, *args, **kwargs)
+    import pytest
+    monkeypatch.setattr(Path, 'open', abrir)
+    fila = next(f for f in services.asistente_estado_modelos()['familias'] if f['familia'] == 'gru')
+    assert fila['estado'] == 'PROMOVIDO'
+
+
+def test_puntero_activo_corrupto_no_rompe_consulta(tmp_path, monkeypatch):
+    """043:RF-8 — un registro ilegible se muestra bloqueado en vez de lanzar HTTP 500."""
+    from igea_dgs.web import services
+    raiz = tmp_path / 'asistente'
+    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(raiz))
+    ruta = raiz / 'training/report.json'
+    ruta.parent.mkdir(parents=True)
+    ruta.write_text(json.dumps({'complete': False, 'stages': [{
+        'model': 'gru', 'status': 'PROMOVIDO', 'candidate_id': 'a' * 64}]}), encoding='utf-8')
+    activo = raiz / 'model_registry/gru/active.json'
+    activo.parent.mkdir(parents=True)
+    activo.write_text('[1]', encoding='utf-8')
+    fila = next(f for f in services.asistente_estado_modelos()['familias'] if f['familia'] == 'gru')
+    assert fila['estado'] is None and fila['bloqueos']

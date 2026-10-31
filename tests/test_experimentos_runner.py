@@ -35,3 +35,34 @@ def test_config_se_valida_sin_entrenar(tmp_path, capsys):
     resultado = json.loads(capsys.readouterr().out)
     assert resultado['etapas'] == ['gru'] and len(resultado['config_hash']) == 64
     assert not (tmp_path / 'report.json').exists()
+
+
+def test_subproceso_fallido_no_reutiliza_informe(tmp_path):
+    """043:RF-5 — un reporte anterior no hace exitoso un proceso que acaba de fallar."""
+    import sys
+    from tools.reentrenar_modelos import _subproceso
+    ruta = tmp_path / 'gru.json'
+    ruta.write_text(json.dumps({'promovido': True, 'entrenado': True}), encoding='utf-8')
+    resultado = _subproceso([sys.executable, '-c', 'raise SystemExit(3)'], ruta, 'gru')
+    assert resultado['status'] == 'ERROR_ENTORNO'
+
+
+def test_huella_twin_cambia_con_objetos(tmp_path):
+    """043:RF-7 — el búfer real no tiene un manifest.json único de sus objetos."""
+    from tools.reentrenar_modelos import huella_entrada
+    objeto = tmp_path / 'objetos/aa/episodio.json'
+    objeto.parent.mkdir(parents=True)
+    objeto.write_text('{"valor": 1}', encoding='utf-8')
+    antes = huella_entrada(tmp_path, tipo='twin')
+    objeto.write_text('{"valor": 2}', encoding='utf-8')
+    assert huella_entrada(tmp_path, tipo='twin') != antes
+
+
+def test_verify_rechazo_sin_entrenamiento_no_cierra(tmp_path):
+    """043:RF-7 — rechazar promoción no demuestra haber entrenado una familia."""
+    from tools.reentrenar_modelos import verificar
+    from igea_dgs.training_coordinator import ORDEN_MODELOS
+    ruta = tmp_path / 'report.json'
+    ruta.write_text(json.dumps({'complete': True, 'stages': [
+        {'model': n, 'status': 'RECHAZADO'} for n in ORDEN_MODELOS]}), encoding='utf-8')
+    assert verificar(ruta, fail_on_incomplete=True) != 0

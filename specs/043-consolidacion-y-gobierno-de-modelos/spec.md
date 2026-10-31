@@ -1,6 +1,6 @@
 # Spec 043 — Consolidación y gobierno de modelos
 
-Estado: borrador · Fecha: 2026-10-31
+Estado: aprobada · Fecha: 2026-10-31
 
 ## Contexto y objetivo
 

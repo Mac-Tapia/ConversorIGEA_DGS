@@ -82,13 +82,20 @@ class GemeloGRU:
         y deja en ``validacion`` su error y el del estacional en esa misma parte."""
         torch = self.torch
         s = np.asarray(serie, dtype=float)
-        self.escala = float(np.max(np.abs(s))) or 1.0
-        s = s / self.escala
+        if s.ndim != 1 or not np.isfinite(s).all():
+            raise ValueError('la serie de entrenamiento debe ser un vector finito sin huecos')
+        if not 0 <= self.fraccion_validacion < 1:
+            raise ValueError('fraccion_validacion debe estar entre 0 y 1, sin incluir 1')
         n = len(s) - self.ventana
         if n <= 0:
             raise ValueError(f'hacen falta más de {self.ventana} puntos para entrenar')
         n_val = int(n * self.fraccion_validacion) if n * self.fraccion_validacion >= 1 else 0
         n_ent = n - n_val
+        # 046:RF-1: la primera etiqueta de validación está en ventana+n_ent.
+        # Un pico posterior no debe alterar la representación de los datos anteriores.
+        corte = self.ventana + n_ent
+        self.escala = float(np.max(np.abs(s[:corte]))) or 1.0
+        s = s / self.escala
         x = torch.tensor(np.stack([self._entradas(s, i) for i in range(n)]), dtype=torch.float32, device=self.disp)
         y = torch.tensor(s[self.ventana:], dtype=torch.float32, device=self.disp)
         opt = torch.optim.Adam(self.red.parameters(), lr=1e-2)

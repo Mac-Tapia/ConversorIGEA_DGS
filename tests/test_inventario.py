@@ -8,6 +8,7 @@ sobre su estado dejen la suite en rojo.
 from __future__ import annotations
 
 import ast
+from collections import Counter
 import os
 import re
 import subprocess
@@ -216,6 +217,9 @@ def test_sin_definiciones_que_nada_use():
     textos = {f: (RAIZ / f).read_text(encoding='utf-8', errors='replace')
               for f in salida if f.endswith(('.py', '.ts', '.tsx')) and (RAIZ / f).is_file()}
     todo = '\n'.join(textos.values())
+    # 009:RF-15: contar palabras una vez conserva el criterio, evitando recorrer
+    # todo el repositorio por cada definición (varios minutos tras integrar IA).
+    apariciones = Counter(re.findall(r'\b\w+\b', todo))
     muertas = []
     for f, texto in textos.items():
         if not (f.startswith('src/') and f.endswith('.py')):
@@ -226,6 +230,6 @@ def test_sin_definiciones_que_nada_use():
             if any(isinstance(d, ast.Call) and getattr(d.func, 'attr', '') in _RUTAS for d in n.decorator_list):
                 continue
             # La definición cuenta una vez; cualquier otra aparición es un uso.
-            if len(re.findall(rf'\b{re.escape(n.name)}\b', todo)) <= 1:
+            if apariciones[n.name] <= 1:
                 muertas.append(f'{f}:{n.lineno} {n.name}')
     assert not muertas, f'Sin uso: {muertas}'
