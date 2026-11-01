@@ -3,34 +3,40 @@
   "modelos": [
     {
       "backend": "huggingface",
-      "id": "Qwen/Qwen3-4B",
-      "revision": "1cfa9a7208912126459214e8b04321603b3df60c",
+      "id": "unsloth/Qwen3-4B-Instruct-2507-bnb-4bit",
+      "revision": "f12db89cd5156e090618dded9b4367f23f8f3b33",
       "licencia": "apache-2.0",
-      "rol": "base para ajuste local condicionado",
+      "rol": "base NF4 para ajuste local condicionado",
       "files": [
         {
-          "path": "LICENSE",
-          "size": 11343,
+          "path": "README.md",
+          "size": 9044,
           "sha256": null,
-          "git_blob_sha1": "6634c8cc3133b3848ec74b9f275acaaa1ea618ab"
+          "git_blob_sha1": "1c2792edfad47211ef5657969c09e7a3ec270cc3"
         },
         {
-          "path": "README.md",
-          "size": 16857,
+          "path": "added_tokens.json",
+          "size": 707,
           "sha256": null,
-          "git_blob_sha1": "2de5ee7eee214bb55ea33ec7505c5838a7adf7f6"
+          "git_blob_sha1": "b54f9135e44c1e81047e8d05cb027af8bc039eed"
+        },
+        {
+          "path": "chat_template.jinja",
+          "size": 4040,
+          "sha256": null,
+          "git_blob_sha1": "a18870ad4ba26ac6c43758fc506c1bb6ff206bb4"
         },
         {
           "path": "config.json",
-          "size": 726,
+          "size": 2185,
           "sha256": null,
-          "git_blob_sha1": "e49eccdc32f36da9c09cfa0e737084f9e0105e5e"
+          "git_blob_sha1": "b2ba571a6233ad8a8b71c5c448da800d29cf1c7a"
         },
         {
           "path": "generation_config.json",
-          "size": 239,
+          "size": 237,
           "sha256": null,
-          "git_blob_sha1": "20a8a9156fc8c3f25295ca067f61fdf120d517c5"
+          "git_blob_sha1": "9727fbfef3c51823a86f9fe0354998fa7bb939ad"
         },
         {
           "path": "merges.txt",
@@ -39,25 +45,15 @@
           "git_blob_sha1": "31349551d90c7606f325fe0f11bbb8bd5fa0d7c7"
         },
         {
-          "path": "model-00001-of-00003.safetensors",
-          "size": 3957900840,
-          "sha256": "328a91d3122359d5547f9d79521205bc0a46e1f79a792dfe650e99fc2d651223"
+          "path": "model.safetensors",
+          "size": 2653133894,
+          "sha256": "f632ab95da1d8f307237094aca7c7dfa9e416b6d2f87bdd8ecda6dadfedb204d"
         },
         {
-          "path": "model-00002-of-00003.safetensors",
-          "size": 3987450520,
-          "sha256": "6cd087b316306a68c562436b5492edbcf6e16c6dba3a1308279caa5a58e21ca5"
-        },
-        {
-          "path": "model-00003-of-00003.safetensors",
-          "size": 99630640,
-          "sha256": "e4bf436957184f4eeb86a80e9db394503f1f56446b2e6b7edeac5b81470f4ca1"
-        },
-        {
-          "path": "model.safetensors.index.json",
-          "size": 32819,
+          "path": "special_tokens_map.json",
+          "size": 614,
           "sha256": null,
-          "git_blob_sha1": "95c0a0059df040d75dc6c396b174382cf61d2f91"
+          "git_blob_sha1": "9b8043f10c758210957b050c77f14d6282f33a52"
         },
         {
           "path": "tokenizer.json",
@@ -66,9 +62,9 @@
         },
         {
           "path": "tokenizer_config.json",
-          "size": 9732,
+          "size": 9653,
           "sha256": null,
-          "git_blob_sha1": "417d038a63fa3de29cfde265caedae14d1a58d92"
+          "git_blob_sha1": "9b37e07cb3cb20de2ce15a0c8e76b281f1f6bdc4"
         },
         {
           "path": "vocab.json",
@@ -76,7 +72,9 @@
           "sha256": null,
           "git_blob_sha1": "4783fe10ac3adce15ac8f358ef5462739852c569"
         }
-      ]
+      ],
+      "origen_base": "Qwen/Qwen3-4B-Instruct-2507",
+      "quantization": "bitsandbytes NF4 con double quantization"
     },
     {
       "backend": "huggingface",
@@ -205,6 +203,86 @@
       "revision": "0a109f422b47e3a30ba2b10eca18548e944e8a23073ee3f3e947efcf3c45e59f",
       "licencia": "Apache-2.0",
       "rol": "embeddings del indice existente"
+    }
+  ],
+  "experimentos_archivados": [
+    {
+      "backend": "huggingface",
+      "id": "Qwen/Qwen3-4B",
+      "revision": "1cfa9a7208912126459214e8b04321603b3df60c",
+      "licencia": "apache-2.0",
+      "rol": "base para ajuste local condicionado",
+      "files": [
+        {
+          "path": "LICENSE",
+          "size": 11343,
+          "sha256": null,
+          "git_blob_sha1": "6634c8cc3133b3848ec74b9f275acaaa1ea618ab"
+        },
+        {
+          "path": "README.md",
+          "size": 16857,
+          "sha256": null,
+          "git_blob_sha1": "2de5ee7eee214bb55ea33ec7505c5838a7adf7f6"
+        },
+        {
+          "path": "config.json",
+          "size": 726,
+          "sha256": null,
+          "git_blob_sha1": "e49eccdc32f36da9c09cfa0e737084f9e0105e5e"
+        },
+        {
+          "path": "generation_config.json",
+          "size": 239,
+          "sha256": null,
+          "git_blob_sha1": "20a8a9156fc8c3f25295ca067f61fdf120d517c5"
+        },
+        {
+          "path": "merges.txt",
+          "size": 1671853,
+          "sha256": null,
+          "git_blob_sha1": "31349551d90c7606f325fe0f11bbb8bd5fa0d7c7"
+        },
+        {
+          "path": "model-00001-of-00003.safetensors",
+          "size": 3957900840,
+          "sha256": "328a91d3122359d5547f9d79521205bc0a46e1f79a792dfe650e99fc2d651223"
+        },
+        {
+          "path": "model-00002-of-00003.safetensors",
+          "size": 3987450520,
+          "sha256": "6cd087b316306a68c562436b5492edbcf6e16c6dba3a1308279caa5a58e21ca5"
+        },
+        {
+          "path": "model-00003-of-00003.safetensors",
+          "size": 99630640,
+          "sha256": "e4bf436957184f4eeb86a80e9db394503f1f56446b2e6b7edeac5b81470f4ca1"
+        },
+        {
+          "path": "model.safetensors.index.json",
+          "size": 32819,
+          "sha256": null,
+          "git_blob_sha1": "95c0a0059df040d75dc6c396b174382cf61d2f91"
+        },
+        {
+          "path": "tokenizer.json",
+          "size": 11422654,
+          "sha256": "aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4"
+        },
+        {
+          "path": "tokenizer_config.json",
+          "size": 9732,
+          "sha256": null,
+          "git_blob_sha1": "417d038a63fa3de29cfde265caedae14d1a58d92"
+        },
+        {
+          "path": "vocab.json",
+          "size": 2776833,
+          "sha256": null,
+          "git_blob_sha1": "4783fe10ac3adce15ac8f358ef5462739852c569"
+        }
+      ],
+      "motivo": "variante FP16 no seleccionada; se preservan parciales y se elige base Instruct-2507 NF4 para PEFT en GPU de 8 GB"
     }
   ]
 }

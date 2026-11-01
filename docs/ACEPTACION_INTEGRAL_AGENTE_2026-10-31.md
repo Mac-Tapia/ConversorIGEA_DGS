@@ -164,6 +164,31 @@ estado `RECHAZADO`; los motivos ya no confunden 200 propuestas con 200 humanas.
 
 ## Lo que falta para la aceptación integral
 
+Actualización de la base de ajuste: se seleccionó
+[`unsloth/Qwen3-4B-Instruct-2507-bnb-4bit`](https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-bnb-4bit),
+revisión `f12db89cd5156e090618dded9b4367f23f8f3b33`, licencia Apache-2.0 declarada,
+NF4 con doble cuantización y arquitectura estándar `Qwen3ForCausalLM`, sin código
+remoto. Los pesos principales ocupan unos 2,65 GB. Su variante FP16 inicial quedó
+archivada en el catálogo y se conservaron sus parciales. La elección corresponde
+a una GPU de 8 GB y PEFT; cambia el modelo de base y exige evaluación propia,
+sin heredar precisión del original ni habilitar un ajuste de producción.
+La compatibilidad metodológica se contrasta con
+[la documentación oficial de bitsandbytes/Transformers](https://huggingface.co/docs/transformers/quantization/bitsandbytes).
+
+La prueba adicional de E5 en CUDA falló con error Windows **1455**, de archivo de
+paginación/memoria. El equipo tiene 16 GiB de RAM y en el diagnóstico quedaban
+aproximadamente 0,5–0,6 GiB disponibles. No se acredita ese ensayo ni se cierra 043 T6.
+Los nuevos ensayos comprueban recursos **antes** de cargar los modelos: 3 GiB libres
+para E5, 4 GiB para BGE y 6 GiB para el paso NF4/LoRA. Falta de memoria es un fallo visible,
+sin fallback ni omisión; no se cerraron aplicaciones ni servicios del usuario.
+`tests_ml/test_pesos_ia.py` define la carga real de E5/BGE y un paso LoRA con recarga
+en un proceso nuevo. Ese paso es una prueba de entorno, sin activación del adaptador.
+
+BGE completó la descarga y pasó una auditoría local independiente del instalador;
+evidencia `bge_verificado_local.json`. Sus pruebas de inferencia siguen sujetas a
+recursos suficientes. El instalador continúa exclusivamente sobre el catálogo y
+las rutas de este conversor; sus resultados están en `output/aceptacion_200_20261031/`.
+
 | Alcance | Situación comprobada | Condición de cierre |
 | --- | --- | --- |
 | 200 propuestas | Materializadas y evaluadas, sin fuga exacta/de grupos con entrenamiento | Cumplir calidad; conservar prueba externa futura para nuevas iteraciones |

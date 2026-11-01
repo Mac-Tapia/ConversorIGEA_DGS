@@ -37,6 +37,12 @@ T6 parcial: 33 paquetes instalados, cero versiones previas del núcleo cambiadas
 Catálogos fijados y descargas reanudables implementados; conservar abierta hasta
 verificar todos los pesos completos. [Informe](../../docs/ACEPTACION_INTEGRAL_AGENTE_2026-10-31.md).
 
+Continuación local: BGE completó descarga y verificación de archivos/hashes;
+E5 y nomic están disponibles. Se fijó la base Instruct-2507 NF4 para PEFT y se
+preservó la variante FP16 como experimento archivado. Las pruebas nuevas de carga
+están en `tests_ml/test_pesos_ia.py`; E5/CUDA encontró error Windows 1455 y el control
+previo de RAM informa el bloqueo sin omitirlo. T6 permanece abierta.
+
 Anotar aquí, al ejecutar cada tarea, revisión, datos/contexto, comando,
 resultado, informe y limitaciones; no marcar casillas por existir código o por una
 simulación que solo converge.
