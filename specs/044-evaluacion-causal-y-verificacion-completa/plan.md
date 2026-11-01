@@ -69,6 +69,12 @@ descarta esa alternativa con motivo explícito; no fabricar ceros.
 
 **Interfaces:** `Particiones` contiene `entrenamiento`, `seleccion`, `calibracion`, `prueba` como tuplas de IDs; `PoliticaEvaluacion` contiene `schema_version`, `modo` (por_sistema/generalizacion), `min_calibracion_grupos`, `cobertura_objetivo`, `puertas_por_familia`, `semillas` y hash sellado. `particionar_registros(registros: Sequence[Mapping], politica: PoliticaEvaluacion) -> Particiones`. Requerir mínimos existentes 30/10/10 por sistema y mínimo de calibración positivo declarado; el modo generalizacion además retiene sistemas enteros fuera.
 
+Para el currículo del agente (047 T5), se admite modo `agente` con mínimos de grupos
+explícitos por partición, sin atribuir generalización a otros sistemas eléctricos.
+La asignación de familias de plantillas se declara antes de generar ejemplos y el
+particionador la valida; no divide filas hermanas al azar. No altera las cuotas
+eléctricas del modo por_sistema ni cierra su integración pendiente en el PINN.
+
 - [ ] Escribir primero las pruebas con las citas RF correspondientes. Aserciones:
   `test_cuatro_particiones_sin_solape`: intersecciones de IDs y grupos vacías; `test_sin_calibracion_bloquea`: mínimo no declarado o grupo insuficiente da BLOQUEADO_POR_DATOS; `test_modo_por_sistema_no_finge_generalizacion`: informar alcance sin exigir sistema externo en el modo autorizado por 027:RF-68. Usar cortes temporales para series y grupos hermanos para episodios.
 - [ ] Ejecutar `.venv/Scripts/python.exe -m pytest -q tests/test_evaluacion_modelos.py tests/test_digital_twin_particiones.py` y observar el fallo

@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .sinteticos import MESES, normalizar
+from .contratos_salida import validar_orden
 
 UMBRAL_TRANSFORMER = 0.85
 UMBRAL_OLLAMA = 0.6
@@ -76,6 +77,17 @@ def _por_reglas(texto: str) -> dict[str, list[dict]]:
     return datos
 
 
+def _prediccion_valida(prediccion) -> bool:
+    """047:RF-1: valida también predicciones de modelos locales cargados de disco."""
+    try:
+        validar_orden({'tarea': prediccion['tarea'], 'confianza': prediccion['confianza'],
+                       'datos': {t: [d['valor'] for d in valores]
+                                 for t, valores in prediccion['datos'].items()}})
+        return True
+    except (ValueError, KeyError, TypeError, AttributeError):
+        return False
+
+
 def interpretar(texto: str, *, transformer: Any = None, ollama: Any = None,
                 umbral: float = UMBRAL_TRANSFORMER, umbral_ollama: float = UMBRAL_OLLAMA,
                 contexto: Sequence[str] = (), umbrales: Mapping[str, float] | None = None) -> Interpretacion:
@@ -85,16 +97,21 @@ def interpretar(texto: str, *, transformer: Any = None, ollama: Any = None,
     previa = None
     if transformer is not None:
         previa = transformer.predecir(texto)
-        consultados.append(f"Transformer {previa.get('version') or ''}".strip())
+        valida = _prediccion_valida(previa)
+        version = previa.get('version') if isinstance(previa, Mapping) else None
+        consultados.append(f"Transformer {version or ''}".strip() +
+                           ('' if valida else ' (salida inválida)'))
+        if not valida:
+            previa = None
         # 027:RF-38: el umbral de su tarea, calibrado con las órdenes reales, si lo hay.
-        if previa['confianza'] >= (umbrales or {}).get(previa['tarea'], umbral):
+        if previa is not None and previa['confianza'] >= (umbrales or {}).get(previa['tarea'], umbral):
             return _con_reglas(Interpretacion(texto, previa['tarea'], previa['confianza'], 'transformer',
                                               previa['datos'], previa.get('alternativas') or [], consultados))
     if ollama is not None:
         # 027:RF-37, RF-39: con órdenes parecidas y notas de fallos, si las hay.
         r = ollama.interpretar(texto, contexto=list(contexto)) if contexto else ollama.interpretar(texto)
         consultados.append(f'Ollama {ollama.modelo}' + ('' if r is not None else ' (no respondió)'))
-        if r is not None and r.get('tarea') and r['confianza'] >= umbral_ollama:
+        if r is not None and _prediccion_valida(r) and r.get('tarea') and r['confianza'] >= umbral_ollama:
             return _con_reglas(Interpretacion(texto, r['tarea'], r['confianza'], r['modelo'], r['datos'],
                                               [], consultados, r.get('razon') or ''))
     alternativas = []

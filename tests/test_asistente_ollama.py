@@ -44,14 +44,15 @@ def test_solo_en_esta_maquina():
 def test_interpreta_con_las_tareas_como_herramientas():
     """026:RF-3 — la orden va al modelo local con la lista de tareas; la respuesta JSON se
     convierte en tarea, datos y confianza, sin datos que la tarea no tiene."""
-    contenido = {'tarea': 'pide', 'datos': {'proyecto': 'CA101 13', 'alimentadores': ['CA101'], 'inventado': 'x'},
+    contenido = {'tarea': 'pide', 'datos': {'proyecto': 'CA101 13', 'alimentadores': ['CA101']},
                  'confianza': 0.9, 'razon': 'pide el plan de inversiones'}
     abrir, pedidas = _servidor({'/api/chat': {'message': {'content': json.dumps(contenido)}}})
     r = ClienteOllama(abrir=abrir).interpretar('haz el plan de inversiones de CA101 13')
     assert r['tarea'] == 'pide' and r['confianza'] == 0.9 and r['modelo'].startswith('ollama:')
     assert r['datos']['proyecto'][0]['valor'] == 'CA101 13' and 'inventado' not in r['datos']
     cuerpo = pedidas[0][1]
-    assert cuerpo['format'] == 'json' and 'pide' in cuerpo['messages'][0]['content'] and pedidas[0][2] == 30.0
+    # 047:RF-1: la salida ahora queda acotada mediante JSON Schema.
+    assert cuerpo['format']['type'] == 'object' and 'pide' in cuerpo['messages'][0]['content'] and pedidas[0][2] == 30.0
 
 
 def test_suelta_la_gpu_antes_de_entrenar():
@@ -71,7 +72,8 @@ def test_sin_respuesta_o_tarea_desconocida():
     abrir, _ = _servidor({'/api/chat': urllib.error.URLError('rechazada')})
     assert ClienteOllama(abrir=abrir).interpretar('lo que sea') is None
     abrir, _ = _servidor({'/api/chat': {'message': {'content': json.dumps({'tarea': 'borrar_todo'})}}})
-    assert ClienteOllama(abrir=abrir).interpretar('borra todo')['tarea'] is None
+    # 047:RF-1: se rechaza la respuesta entera si la tarea no existe.
+    assert ClienteOllama(abrir=abrir).interpretar('borra todo') is None
     abrir, _ = _servidor({'/api/tags': {'models': [{'name': 'qwen2.5:3b'}]},
                           '/api/embed': {'embeddings': [[0.1, 0.2]]}})
     c = ClienteOllama(abrir=abrir)

@@ -80,7 +80,8 @@ def resolver(interp: Interpretacion, vocab: Mapping[str, Sequence[str]]) -> Plan
                 confianza=interp.confianza, alternativas=list(interp.alternativas))
     if interp.consultados:
         plan.razonamiento.append(f"Consulté: {', '.join(interp.consultados)}.")
-    if interp.tarea is None:
+    if interp.tarea not in TAREAS:
+        plan.tarea = None
         dudas = ', '.join(f'{t} ({c:.0%})' for t, c in interp.alternativas[:3])
         plan.faltan.append('la tarea: no entendí la orden con suficiente confianza'
                            + (f'; ¿quiso decir {dudas}?' if dudas else ''))
@@ -95,6 +96,8 @@ def resolver(interp: Interpretacion, vocab: Mapping[str, Sequence[str]]) -> Plan
         valor = _resolver_dato(d.tipo, valores, interp.texto, vocab, plan)
         if valor not in (None, [], ''):
             plan.datos[d.nombre] = valor
+            if plan.escribe and d.tipo in ('alimentadores', 'proyecto', 'sistema') and not vocab.get(d.tipo):
+                plan.faltan.append(f'contexto vinculado de {d.tipo}: cargar o leer su fuente antes de ejecutar')
         elif d.obligatorio:
             plan.faltan.append(f'{d.nombre}: {d.descripcion}')
     if plan.escribe:
@@ -145,7 +148,7 @@ def _nombre(tipo: str, valores: list[str], texto: str, opciones: list[str], plan
     if nombrados:
         plan.razonamiento.append(f'{tipo}: tomado del texto: {nombrados[0]}.')
         return nombrados[0]
-    if tipo == 'proyecto' and len(opciones) == 1:
+    if tipo == 'proyecto' and len(opciones) == 1 and not valores:
         plan.razonamiento.append(f'proyecto: el único que conoce la web, {opciones[0]}.')
         return opciones[0]
     return None

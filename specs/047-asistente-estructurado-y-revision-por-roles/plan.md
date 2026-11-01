@@ -18,6 +18,52 @@ No crear otro registro, particionador o conexión nativa; consumir los contratos
 significa conservar cambios propios y ajenos, no reemplazar árboles completos.
 Pruebas nuevas citan `047:RF-n`; no cerrar tareas nativas con mocks.
 
+### T5: Destilación del maestro de sesión, alumno y funcionamiento
+
+**Cubre:** RF-11 a RF-15; consume 044 RF-1 a RF-5 y RF-8.
+Crear `asistente/curriculo_maestro.py`, `asistente/destilacion_integral.py`,
+`tools/asistente_destilar.py`, `tests/test_destilacion_integral.py` y el particionador
+compartido `evaluacion_modelos.py` con `tests/test_evaluacion_modelos.py`.
+`tools/asistente_entrenar.py --integral` expone el protocolo a la cola existente de
+la web; el servicio usa esa opción y no recalibra umbrales del modelo activo cuando
+el candidato queda bloqueado o rechazado. El lanzador anterior se conserva como
+compatibilidad experimental, sin usarlo para acreditar esta evaluación independiente.
+El currículo declara cuatro conjuntos de familias de frases antes de entrenar;
+los ejemplos derivados de cada plantilla permanecen en una sola partición.
+Las frases históricas de `ordenes_fijas.FRASES`, revisadas por el maestro de sesión,
+pueden ampliar solo entrenamiento; no se usa su partición histórica de prueba.
+Las expansiones sintéticas con etiquetas incompatibles quedan en cuarentena; una
+contradicción humana bloquea el corpus para no ignorar correcciones.
+El maestro Codex de sesión aporta etiquetas y breves justificaciones verificables,
+no logits internos ni múltiples votos ficticios. Se usa destilación de respuestas
+con objetivos categóricos de una anotación; una distribución one-hot no se anuncia
+como incertidumbre estimada del maestro.
+Comparar alumno supervisado y alumno con ejemplos del maestro con configuración y
+semillas iguales; seleccionar por macroacierto/F1 de selección. Calibrar temperatura
+solo en calibración. Abrir prueba una vez al fijar ganador, conservando resultados
+por tarea. Las cinco órdenes humanas disponibles se reservan para evaluación real;
+no se aumentan mediante duplicados ni sintéticos. Con menos de 200 órdenes reales,
+el candidato se conserva y la promoción queda bloqueada. No alterar punteros legacy
+ni activar el candidato desde el ensayo.
+Guardar artefactos y manifiestos en el registro 043, exigir recarga CUDA en proceso
+nuevo y comparar predicciones. El ensayo pasa por `interprete.interpretar` y
+`plan.resolver`; comprueba tareas desconocidas, entidades ajenas y autorización,
+sin invocar el ejecutor nativo. El CLI mantiene informe aun en error y acepta
+`--help` sin Torch/Ollama/datos empresariales. Probar primero los contratos puros,
+después ejecutar entrenamiento y regresiones afectadas.
+Además del smoke de tres órdenes, evaluar al agente híbrido sobre al menos una
+orden sellada por tarea y las humanas únicas, publicando consultas al fallback,
+acierto, abstenciones y confirmaciones. Es un diagnóstico sobre la misma prueba
+sellada, no otro conjunto independiente ni una razón para reajustar al ganador.
+
+Fundamento: [Hsieh et al., ACL Findings 2023](https://aclanthology.org/2023.findings-acl.507/),
+[Hinton et al., 2015](https://research.google/pubs/distilling-the-knowledge-in-a-neural-network/),
+[maestría de Witossek, DLR](https://elib.dlr.de/220552/),
+[doctorado de Yun Zhang, HKUST](https://researchportal.hkust.edu.hk/en/studentTheses/knowledge-distillation-for-generative-models/)
+y [Gou et al., IJCV 2021](https://doi.org/10.1007/s11263-021-01453-z).
+Las referencias justifican destilación y evaluación; no prueban que este alumno
+supere al maestro o cumpla aceptación eléctrica.
+
 ## Review Focus
 
 - JSON válido con tarea inexistente: T1, test_tarea_desconocida_rechaza.

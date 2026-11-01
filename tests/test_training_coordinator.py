@@ -10,6 +10,13 @@ from pathlib import Path
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def lock_de_ensayo_aislado(tmp_path, monkeypatch):
+    # Los callbacks de estas pruebas no entrenan: su exclusión OS debe poder
+    # verificarse mientras otra sesión sí ocupa la GPU real.
+    monkeypatch.setenv('IGEA_ML_GPU_LOCK', str(tmp_path / 'ensayo-gpu.lock'))
+
+
 def test_lock_rechaza_pid_vivo_y_recupera_pid_muerto(tmp_path):
     from igea_dgs.training_coordinator import BloqueoGPU
 

@@ -309,6 +309,12 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `src/igea_dgs/upstream_ia.py` | Verifica origen, commit, licencia y árbol limpio de repositorios reutilizados; conserva copias existentes. | 043 (RF-9 a RF-11) |
 | `tools/preparar_upstream_ia.py` | Prepara o verifica clones fijados sin instalar ni ejecutar sus programas. | 043 (RF-9 a RF-11) |
 | `src/igea_dgs/digital_twin/adaptador_pyg.py` | Adapta el MPN de PowerFlowNet a correcciones físicas de tensión y ángulo, mediante carga opcional. | 045 (RF-8) |
+| `src/igea_dgs/evaluacion_modelos.py` | Política previa y validación de cuatro particiones por grupos; puertas independientes por familia. | 044 (RF-1 a RF-5, RF-8) |
+| `src/igea_dgs/asistente/curriculo_maestro.py` | Familias sintéticas de órdenes escritas por el maestro de sesión, separadas antes del entrenamiento. | 047 (RF-11, RF-12) |
+| `src/igea_dgs/asistente/destilacion_integral.py` | Comparación supervisado/destilado, calibración, prueba sellada, recarga y registro del alumno. | 047 (RF-11 a RF-15) |
+| `src/igea_dgs/asistente/contratos_salida.py` | Esquema de órdenes y validación de tareas, campos, confianza y entidades del contexto. | 047 (RF-1, RF-2, RF-10) |
+| `src/igea_dgs/schemas/asistente_orden_v1.schema.json` | Contrato base de salida estructurada para el intérprete local. | 047 (RF-1) |
+| `tools/asistente_destilar.py` | Prepara el currículo, entrena con exclusión GPU y verifica el alumno en proceso nuevo. | 047 (RF-11 a RF-15) |
 
 
 ## Documentación
@@ -337,4 +343,5 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `docs/EJECUCION_IA_2026-10-31.md` | Evidencia de implementación, revisión independiente y pendientes reales por spec. | 043, 044, 046 |
 | `docs/UPSTREAM_IA_LOCK.json` | URLs, commits y hashes de licencias de los proyectos GitHub seleccionados. | 043 (RF-9) |
 | `docs/REUSO_GITHUB_IA_2026-10-31.md` | Selección de proyectos, reproducción de clones, adaptador comprobado y límites pendientes. | 043, 045–048 |
+| `docs/DESTILACION_AGENTE_2026-10-31.md` | Metodología, currículo del maestro, comparación real y límites de aceptación del alumno del agente. | 043, 044, 047 |
 | `docs/superpowers/` | Diseños y planes anteriores a las specs. | histórico |

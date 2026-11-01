@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Orden interpretada del asistente; no autoriza ejecución",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["tarea", "datos", "confianza"],
+  "properties": {
+    "tarea": {"type": ["string", "null"]},
+    "datos": {"type": "object", "additionalProperties": false, "properties": {}},
+    "confianza": {"type": "number", "minimum": 0, "maximum": 1},
+    "razon": {"type": "string"}
+  }
+}

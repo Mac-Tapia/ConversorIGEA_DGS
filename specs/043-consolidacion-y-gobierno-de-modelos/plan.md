@@ -87,6 +87,12 @@ Pruebas nuevas citan `043:RF-n`; no cerrar tareas nativas con mocks.
 
 ### T4: Visibilidad y aceptación de integración
 
+El registro común puede conservar un puntero `latest.json` a la última decisión de
+candidato, distinto de `active.json`. La web puede usarlo si no existe etapa del
+coordinador o si la decisión del registro es más reciente que ese informe,
+comprobando sus manifiestos sin releer pesos en HTTP. Un candidato
+bloqueado sigue sin activarse ni acredita haber completado todas las familias.
+
 **Cubre:** RF-8.
 
 **Files:** Integrar/adaptar `GET /api/asistente/modelos` en `src/igea_dgs/web/app.py` y `services.py`; modificar `frontend/src/components/Asistente.tsx`, `frontend/src/types.ts` y `frontend/src/api.ts`; crear `tests/test_modelos_web.py`.

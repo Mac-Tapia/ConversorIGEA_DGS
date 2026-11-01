@@ -6781,6 +6781,21 @@ def asistente_estado_modelos() -> dict:
     registro = RegistroModelo(raiz / 'model_registry')
     for nombre in ORDEN_MODELOS:
         etapa = por_nombre.get(nombre, {})
+        ruta_fuente = ruta
+        ruta_ultima = raiz / 'model_registry' / nombre / 'latest.json'
+        try:
+            if not etapa or (ruta_ultima.is_file() and (not ruta.is_file()
+                    or ruta_ultima.stat().st_mtime_ns > ruta.stat().st_mtime_ns)):
+                ultima = registro.ultimo(nombre)
+                if ultima is not None:
+                    ruta_fuente = ruta_ultima
+                    detalle = ultima['detalle']
+                    etapa = {'status': ultima['status'], 'candidate_id': ultima['candidate_id'],
+                             'model_manifest': detalle['model_manifest'],
+                             'gates': detalle['decision'].get('gates') or {},
+                             'reason': '; '.join(detalle['decision'].get('fallos') or ())}
+        except (OSError, ValueError, TypeError, KeyError) as exc:
+            etapa = {'reason': f'última decisión sin evidencia verificable: {exc}'}
         estado = etapa.get('status')
         bloqueos = list(errores)
         if estado not in {e.value for e in EstadoModelo}:
@@ -6807,7 +6822,7 @@ def asistente_estado_modelos() -> dict:
                 estado = None
                 bloqueos.append(f'promoción sin evidencia verificable: {exc}')
         familias.append({'familia': nombre, 'estado': estado, 'candidate_id': candidato,
-                         'algorithm': algoritmo, 'report_path': str(ruta), 'gates': puertas,
+                         'algorithm': algoritmo, 'report_path': str(ruta_fuente), 'gates': puertas,
                          'bloqueos': bloqueos + ([str(etapa['reason'])] if etapa.get('reason') else [])})
     return {'schema_version': 1, 'familias': familias,
             'complete': bool(informe.get('complete')) and all(f['estado'] for f in familias)}
@@ -6948,6 +6963,10 @@ def _asistente_requisitos(ws: Workspace, plan, extras: dict) -> None:
         return
     if plan.tarea in ('convertir', 'unir', 'convertir_sistema'):
         extras['cargar_antes'] = True
+        # 047:RF-2: el vínculo pendiente se satisface al leer las entradas antes de
+        # convertir; sin entradas válidas se conserva el bloqueo anterior.
+        plan.faltan[:] = [f for f in plan.faltan if not f.startswith(
+            ('contexto vinculado de alimentadores:', 'contexto vinculado de sistema:'))]
         plan.razonamiento.append('La fuente del espacio no está cargada: primero se carga, con sus entradas.')
 
 
@@ -7359,15 +7378,19 @@ def asistente_entrenar(ws: Workspace, ctx: JobContext) -> dict:
     report = ws.out_dir / f'asistente_entrenamiento_{uuid.uuid4().hex[:8]}.json'
     report.parent.mkdir(parents=True, exist_ok=True)
     rc = ctx.run_process([sys.executable, str(_script('asistente_entrenar.py')), '--vocabulario', str(vocab),
-                          '--output-json', str(report)], cwd=str(project_root()))
+                          '--output-json', str(report), '--integral'], cwd=str(project_root()))
     try:
         resultado = json.loads(report.read_text(encoding='utf-8'))
     except (OSError, ValueError):
         raise UserError(f'El entrenamiento del asistente terminó con el código {rc} sin informe.') from None
+    if rc != 0 or resultado.get('training_completed') is False:
+        raise UserError(f"El entrenamiento del asistente falló (código {rc}): "
+                        f"{resultado.get('error') or resultado.get('motivo') or 'entrenamiento no completado'}. "
+                        f'Informe: {report}')
     # 027:RF-38: con cada reentrenamiento, el umbral de cada tarea con las órdenes reales.
     from ..asistente.senales import calibrar_y_guardar
 
-    resultado['umbrales'] = calibrar_y_guardar()
+    resultado['umbrales'] = calibrar_y_guardar() if (resultado.get('ordenes') or {}).get('promovido') is True else {}
     if resultado['umbrales']:
         ctx.log(f"Asistente: umbrales por tarea {resultado['umbrales']} (027:RF-38)")
     return resultado

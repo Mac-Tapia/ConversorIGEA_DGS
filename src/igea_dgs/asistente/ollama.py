@@ -18,6 +18,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from .tareas import TAREAS, descripcion_para_modelo
+from .contratos_salida import esquema_orden, validar_orden
 
 URL_LOCAL = 'http://127.0.0.1:11434'
 #: Cuánto retiene Ollama el modelo en la GPU tras responder: con sus 5 minutos por defecto, una
@@ -39,7 +40,8 @@ class OllamaNoLocal(ValueError):
 
 
 def _abrir_por_defecto(peticion, timeout):
-    return urllib.request.urlopen(peticion, timeout=timeout)
+    # P9: una configuración de proxy del sistema no debe sacar una orden local.
+    return urllib.request.build_opener(urllib.request.ProxyHandler({})).open(peticion, timeout=timeout)
 
 
 class ClienteOllama:
@@ -78,8 +80,8 @@ class ClienteOllama:
             texto = 'Contexto de órdenes anteriores:\n' + '\n'.join(contexto) + f'\n\nOrden: {texto}'
         inicio = time.monotonic()
         r = self._pedir('/api/chat', {
-            'model': self.modelo, 'stream': False, 'format': 'json', 'keep_alive': RETENER,
-            'options': {'temperature': temperatura, 'seed': semilla},
+            'model': self.modelo, 'stream': False, 'format': esquema_orden(), 'keep_alive': RETENER,
+            'options': {'temperature': temperatura, 'seed': semilla, 'num_predict': 512},
             'messages': [{'role': 'system', 'content': _INSTRUCCIONES + '\nTareas: '
                           + json.dumps(descripcion_para_modelo(), ensure_ascii=False)},
                          {'role': 'user', 'content': texto}]})
@@ -90,6 +92,10 @@ class ClienteOllama:
         except ValueError:
             return None
         if not isinstance(respuesta, dict):
+            return None
+        try:
+            respuesta = validar_orden(respuesta)
+        except ValueError:
             return None
         tarea = respuesta.get('tarea')
         segundos = time.monotonic() - inicio

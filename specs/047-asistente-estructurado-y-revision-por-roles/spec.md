@@ -23,6 +23,11 @@ Dependencias y relación: 043 y 044; conservar intérprete, resolución, herrami
 - RF-8: CUANDO se decida ajustar el LLM, EL SISTEMA exigirá el incumplimiento medido de las puertas del conjunto real.
 - RF-9: CUANDO se evalúe el asistente, EL SISTEMA aplicará las puertas de 027:RF-18 sobre órdenes reales independientes.
 - RF-10: EL SISTEMA conservará las reglas de autorización y confirmación vigentes al incorporar los nuevos modelos.
+- RF-11: CUANDO se destile al alumno, EL SISTEMA conservará autor, revisión, método y etiquetas del maestro sin presentar anotaciones únicas como votos independientes ni como órdenes humanas.
+- RF-12: CUANDO se compare destilación con entrenamiento supervisado, EL SISTEMA usará las mismas semillas y particiones independientes y elegirá el candidato únicamente con selección.
+- RF-13: CUANDO se informe la calidad del alumno, EL SISTEMA separará las métricas sintéticas, del maestro y humanas con sus denominadores y bloqueará esta promoción sin el mínimo predeclarado de 200 órdenes humanas, conservando las confirmaciones de 027.
+- RF-14: CUANDO se registre un alumno, EL SISTEMA verificará sus pesos en un proceso nuevo y conservará configuración, corpus, particiones y decisión en el registro común.
+- RF-15: CUANDO se ensaye el agente entrenado, EL SISTEMA comprobará interpretación, resolución de entidades y confirmaciones con casos positivos y negativos sin ejecutar escrituras nativas.
 
 ## Requisitos no funcionales
 
@@ -59,8 +64,8 @@ El fundamento general incluye la [tesis de maestría de Zhang (UCR, 2024)](https
 
 ## Clarificaciones de diseño
 
-El alcance y las políticas anteriores son propuesta en borrador. No se declara
-aprobada esta spec ni se cambia el estado de specs anteriores por crear el plan.
+El usuario autorizó la implementación y el entrenamiento con destilación. El estado
+aprobada conserva visibles las tareas sin completar.
 Las capacidades, datos o licencias ausentes son condiciones detectables de bloqueo,
 no autorizaciones para inventar resultados.
 

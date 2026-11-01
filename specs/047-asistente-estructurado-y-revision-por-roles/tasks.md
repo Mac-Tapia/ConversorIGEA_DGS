@@ -20,9 +20,17 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_asistente_ajuste_condicionado.py tests/test_asistente_qlora.py` pasa
       y están guardadas las evidencias adicionales descritas en T4 del plan.
 
+- [x] T5. Destilación reproducible del maestro de sesión y ensayo del alumno. (RF-11, RF-12, RF-13, RF-14, RF-15)
+      Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_destilacion_integral.py tests/test_evaluacion_modelos.py` pasa, se ejecuta entrenamiento CUDA real con comparación supervisado/destilado, reapertura en proceso nuevo y ensayo del intérprete/plan; se informa por separado cualquier bloqueo de promoción por datos humanos.
+
 ## Evidencia de ejecución
 
-Pendiente. Anotar aquí, al ejecutar cada tarea, revisión, datos/contexto, comando,
+T5: seis entrenamientos CUDA, semilla elegida por selección, recarga en proceso nuevo,
+prueba separada y diagnóstico híbrido de las 27 tareas. Candidato bloqueado, sin
+promoción. [Metodología y evidencia](../../docs/DESTILACION_AGENTE_2026-10-31.md).
+Las tareas T1–T4 conservan pendientes reales; no se cierran por este entrenamiento.
+
+Anotar aquí, al ejecutar cada tarea, revisión, datos/contexto, comando,
 resultado, informe y limitaciones; no marcar casillas por existir código o por una
 simulación que solo converge.
 

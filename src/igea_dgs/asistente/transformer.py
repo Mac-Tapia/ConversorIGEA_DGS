@@ -136,6 +136,7 @@ class ModeloOrdenes:
     tareas: list[str]
     cfg: Configuracion
     version: str = ''
+    temperatura: float = 1.0
 
     def predecir(self, texto: str) -> dict[str, Any]:
         """Tarea con su confianza y los datos marcados, cada uno con la suya."""
@@ -145,7 +146,7 @@ class ModeloOrdenes:
         self.red.eval()
         with torch.no_grad():
             clases, etq = self.red(ids)
-        p = torch.softmax(clases['tarea'][0], -1).cpu()
+        p = torch.softmax(clases['tarea'][0] / self.temperatura, -1).cpu()
         orden = torch.argsort(p, descending=True)[:3].tolist()
         datos = _spans(texto, torch.softmax(etq[0], -1).cpu().numpy())
         return {'tarea': self.tareas[orden[0]], 'confianza': float(p[orden[0]]),
@@ -348,7 +349,8 @@ def cargar_pesos(nombre: str, version: str | None = None) -> tuple[dict, Any] | 
 
 
 def guardar(modelo: ModeloOrdenes, meta: dict) -> str:
-    modelo.version = guardar_pesos(modelo.red, {**meta, 'cfg': asdict(modelo.cfg), 'simbolos': modelo.simbolos,
+    modelo.version = guardar_pesos(modelo.red, {**meta, 'temperatura': modelo.temperatura,
+                                                'cfg': asdict(modelo.cfg), 'simbolos': modelo.simbolos,
                                                 'tareas': modelo.tareas, 'etiquetas': list(ETIQUETAS)}, 'ordenes')
     return modelo.version
 
@@ -369,7 +371,11 @@ def cargar(version: str | None = None) -> ModeloOrdenes | None:
     red = construir_red(len(meta['simbolos']) + 3, {'tarea': len(meta['tareas'])}, cfg, len(meta['etiquetas']))
     red.load_state_dict(pesos)
     red.to(_dispositivo()).eval()
-    modelo = ModeloOrdenes(red, meta['simbolos'], meta['tareas'], cfg, version)
+    temperatura = meta.get('temperatura', 1.)
+    import math
+    if type(temperatura) not in (int, float) or not math.isfinite(temperatura) or temperatura <= 0:
+        raise ValueError('temperatura de calibración inválida')
+    modelo = ModeloOrdenes(red, meta['simbolos'], meta['tareas'], cfg, version, temperatura)
     _cache[clave] = (version, modelo)
     return modelo
 

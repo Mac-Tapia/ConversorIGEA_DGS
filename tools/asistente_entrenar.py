@@ -22,8 +22,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import sys
+import tempfile
 import traceback
 from pathlib import Path
+
+_REPO = Path(__file__).resolve().parents[1]
+if str(_REPO / 'src') not in sys.path:
+    sys.path.insert(0, str(_REPO / 'src'))
 
 
 def _log(mensaje: str) -> None:
@@ -43,12 +50,44 @@ def main(argv=None) -> int:
     p.add_argument('--solo', choices=('ordenes', 'informes'), help='Entrenar solo uno de los dos modelos')
     p.add_argument('--destilar', action='store_true',
                    help='Destilar del modelo local de Ollama (maestro) al Transformer (spec 027, RF-56)')
-    p.add_argument('--maestro', choices=('claude', 'codex', 'ollama'), default='claude',
+    p.add_argument('--integral', action='store_true', help='Protocolo independiente del maestro de sesión (047 T5); conserva el clasificador vigente')
+    p.add_argument('--semillas', default='11,23,37', help='Semillas de --integral')
+    p.add_argument('--epocas', type=int, default=24, help='Épocas por candidato de --integral')
+    p.add_argument('--maestro', choices=('claude', 'codex', 'ollama'), default=None,
                    help='Maestro de la destilación: las etiquetas de Claude, Codex o Ollama (027:RF-56)')
     p.add_argument('--modelo-codex', help='Modelo de Codex como maestro (por defecto, el de su configuración)')
     p.add_argument('--evaluar', action='store_true', help='No entrenar: medir los modelos en uso con la prueba fija')
     args = p.parse_args(argv)
     salida = Path(args.output_json)
+    salida.parent.mkdir(parents=True, exist_ok=True)
+
+    if args.integral:
+        try:
+            if args.evaluar or args.destilar or args.solo == 'informes' or args.maestro not in (None, 'codex') or args.modelo_codex:
+                raise ValueError('--integral usa el currículo local del maestro Codex; no combine con otros maestros/modos')
+            if args.epocas < 1:
+                raise ValueError('épocas positivas obligatorias')
+            from igea_dgs.asistente import almacen, transformer
+            from igea_dgs.asistente.destilacion_integral import preparar_corpus, guardar_corpus, entrenar_destilacion
+            from igea_dgs.training_coordinator import BloqueoGPU
+            destino = salida.parent / (salida.stem + '_integral')
+            vocab = json.loads(args.vocabulario.read_text(encoding='utf-8')) if args.vocabulario else {}
+            filas, meta = preparar_corpus(vocab, almacen.leer('ejemplos'))
+            guardar_corpus(destino / 'corpus', filas, meta)
+            lock = Path(os.environ.get('IGEA_ML_GPU_LOCK') or str(Path(tempfile.gettempdir()) / 'igea-dgs-gpu.lock'))
+            with BloqueoGPU(lock, 'asistente-integral-web'):
+                resultado = entrenar_destilacion(destino / 'corpus', destino / 'entrenamiento',
+                    cfg=transformer.Configuracion(epocas=args.epocas),
+                    semillas=tuple(int(s) for s in args.semillas.split(',') if s.strip()),
+                    registro=almacen.raiz() / 'model_registry')
+            informe = {'ordenes': resultado, 'training_completed': True,
+                       'informes': {'entrenado': False, 'motivo': 'se conserva el clasificador vigente'}}
+            codigo = 0
+        except Exception as exc:
+            informe, codigo = {'training_completed': False, 'status': 'ERROR_ENTORNO',
+                                'error': str(exc), 'traza': traceback.format_exc()}, 2
+        salida.write_text(json.dumps(informe, ensure_ascii=False, default=str), encoding='utf-8')
+        return codigo
 
     try:
         from igea_dgs.asistente import almacen, clasificador, transformer
@@ -85,10 +124,11 @@ def main(argv=None) -> int:
 
                     from igea_dgs.asistente.destilacion import MaestroArchivo, MaestroCodex
 
+                    maestro_nombre = args.maestro or 'claude'
                     maestro = {'claude': lambda: MaestroArchivo(), 'codex': lambda: MaestroCodex(vocab, modelo=args.modelo_codex),
-                               'ollama': lambda: cliente_configurado(tiempo_max_s=60.0)}[args.maestro]()
+                               'ollama': lambda: cliente_configurado(tiempo_max_s=60.0)}[maestro_nombre]()
                     # Codex fuera de la máquina: menos votos, cada uno es una llamada (RF-63).
-                    kw = {'destilar': Destilacion(k=3 if args.maestro == 'codex' else 5), 'maestro': maestro}
+                    kw = {'destilar': Destilacion(k=3 if maestro_nombre == 'codex' else 5), 'maestro': maestro}
                 out['ordenes'] = transformer.entrenar_y_promover(vocab, log=_log, **kw)
             if args.solo in (None, 'informes'):
                 out['informes'] = clasificador.entrenar_y_promover(log=_log)

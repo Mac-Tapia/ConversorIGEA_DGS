@@ -86,6 +86,7 @@ class RegistroModelo:
             except BaseException:
                 shutil.rmtree(temporal, ignore_errors=True)
                 raise
+        self._reemplazar_json(modelo_raiz / 'latest.json', {'candidate_id': identidad, 'status': estado.value})
         return {'candidate_id': identidad, 'model': modelo, 'status': estado.value,
                 'path': str(final)}
 
@@ -146,6 +147,19 @@ class RegistroModelo:
             raise ValueError('modelo anterior no aprobado o no reabierto')
         self._reemplazar_json(self.raiz / modelo / 'active.json', payload)
         return payload
+
+    def ultimo(self, modelo: str) -> dict[str, Any] | None:
+        """Última decisión; no implica que el candidato esté activo."""
+        ruta = self._modelo(modelo) / 'latest.json'
+        if not ruta.is_file():
+            return None
+        payload = json.loads(ruta.read_text(encoding='utf-8'))
+        if not isinstance(payload, dict):
+            raise ValueError('última decisión ilegible')
+        detalle = self.detalle(modelo, payload.get('candidate_id'), verificar_artefactos=False)
+        if detalle['decision'].get('status') != payload.get('status'):
+            raise ValueError('última decisión no coincide con el candidato')
+        return {**payload, 'detalle': detalle}
 
 
 def reabrir_en_subproceso(comando: Sequence[str], *, timeout_s: float = 120.0,
