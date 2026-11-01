@@ -14,11 +14,11 @@ import pytest
 def lock_de_ensayo_aislado(tmp_path, monkeypatch):
     # Los callbacks de estas pruebas no entrenan: su exclusión OS debe poder
     # verificarse mientras otra sesión sí ocupa la GPU real.
-    monkeypatch.setenv('IGEA_ML_GPU_LOCK', str(tmp_path / 'ensayo-gpu.lock'))
+    monkeypatch.setenv('CSG_ML_GPU_LOCK', str(tmp_path / 'ensayo-gpu.lock'))
 
 
 def test_lock_rechaza_pid_vivo_y_recupera_pid_muerto(tmp_path):
-    from igea_dgs.training_coordinator import BloqueoGPU
+    from convertersmartgrid.training_coordinator import BloqueoGPU
 
     ruta = tmp_path / 'gpu.lock'
     ruta.write_text(json.dumps({'pid': os.getpid(), 'model': 'otro'}), encoding='utf-8')
@@ -32,11 +32,11 @@ def test_lock_rechaza_pid_vivo_y_recupera_pid_muerto(tmp_path):
 
 
 def test_dos_procesos_reales_no_adquieren_el_mismo_lock(tmp_path):
-    from igea_dgs.training_coordinator import BloqueoGPU
+    from convertersmartgrid.training_coordinator import BloqueoGPU
 
     lock = tmp_path / 'gpu.lock'
     script = ('import sys,time; sys.path.insert(0,sys.argv[2]); '
-              'from igea_dgs.training_coordinator import BloqueoGPU; '
+              'from convertersmartgrid.training_coordinator import BloqueoGPU; '
               'b=BloqueoGPU(sys.argv[1],"p1"); b.__enter__(); print("LOCKED",flush=True); '
               'time.sleep(2); b.__exit__(None,None,None)')
     src = Path(__file__).resolve().parents[1] / 'src'
@@ -53,7 +53,7 @@ def test_dos_procesos_reales_no_adquieren_el_mismo_lock(tmp_path):
 
 
 def test_orden_reanudacion_y_liberacion_entre_fases(tmp_path):
-    from igea_dgs.training_coordinator import ORDEN_MODELOS, TrainingCoordinator, TrainingStage
+    from convertersmartgrid.training_coordinator import ORDEN_MODELOS, TrainingCoordinator, TrainingStage
 
     llamadas = []
     etapas = [TrainingStage(nombre, lambda n=nombre: llamadas.append(n) or {
@@ -72,7 +72,7 @@ def test_orden_reanudacion_y_liberacion_entre_fases(tmp_path):
 @pytest.mark.parametrize('contenido', ['{roto', '{}', '{"pid": null}', '[]'])
 def test_lock_ilegible_bloquea(tmp_path, contenido):
     """043:RF-6 — un lock sin propietario válido no se borra en silencio."""
-    from igea_dgs.training_coordinator import BloqueoGPU
+    from convertersmartgrid.training_coordinator import BloqueoGPU
     ruta = tmp_path / 'gpu.lock'
     ruta.write_text(contenido, encoding='utf-8')
     with pytest.raises(RuntimeError, match='lock'):
@@ -83,8 +83,8 @@ def test_lock_ilegible_bloquea(tmp_path, contenido):
 
 def test_dos_ejecuciones_comparten_bloqueo(tmp_path, monkeypatch):
     """043:RF-6 — directorios de ejecución distintos no habilitan dos etapas CUDA."""
-    from igea_dgs.training_coordinator import TrainingCoordinator, TrainingStage
-    monkeypatch.setenv('IGEA_ML_GPU_LOCK', str(tmp_path / 'global.lock'))
+    from convertersmartgrid.training_coordinator import TrainingCoordinator, TrainingStage
+    monkeypatch.setenv('CSG_ML_GPU_LOCK', str(tmp_path / 'global.lock'))
     llamadas = []
     def segunda():
         return TrainingCoordinator([TrainingStage('gru', lambda: llamadas.append('segunda') or {
@@ -97,7 +97,7 @@ def test_dos_ejecuciones_comparten_bloqueo(tmp_path, monkeypatch):
 
 def test_guardia_no_recupera_metadatos_obsoletos_mientras_hay_propietario(tmp_path):
     """043:RF-6 — la exclusión no depende de releer un PID antes de un unlink."""
-    from igea_dgs.training_coordinator import BloqueoGPU
+    from convertersmartgrid.training_coordinator import BloqueoGPU
     ruta = tmp_path / 'gpu.lock'
     with BloqueoGPU(ruta, 'propietario'):
         ruta.write_text(json.dumps({'pid': 99999999, 'model': 'obsoleto'}), encoding='utf-8')
@@ -108,9 +108,9 @@ def test_guardia_no_recupera_metadatos_obsoletos_mientras_hay_propietario(tmp_pa
 
 def test_corrida_sin_gpu_no_libera_recursos_del_propietario(tmp_path, monkeypatch):
     """043:RF-6 — fallar al adquirir GPU no autoriza descargar recursos de otra etapa."""
-    from igea_dgs.training_coordinator import BloqueoGPU, TrainingCoordinator, TrainingStage
+    from convertersmartgrid.training_coordinator import BloqueoGPU, TrainingCoordinator, TrainingStage
     ruta = tmp_path / 'global.lock'
-    monkeypatch.setenv('IGEA_ML_GPU_LOCK', str(ruta))
+    monkeypatch.setenv('CSG_ML_GPU_LOCK', str(ruta))
     llamadas = []
     with BloqueoGPU(ruta, 'propietario'):
         resultado = TrainingCoordinator([TrainingStage('gru', lambda: {'status': 'RECHAZADO'})],
@@ -129,7 +129,7 @@ def test_corrida_sin_gpu_no_libera_recursos_del_propietario(tmp_path, monkeypatc
 ])
 def test_memoria_windows_distingue_ram_y_compromiso(monkeypatch, fisica, commit, minimo, permitido):
     """043:RF-12: memoria comprometible suficiente no es igual a RAM fisica libre."""
-    import igea_dgs.training_coordinator as m
+    import convertersmartgrid.training_coordinator as m
     assert callable(getattr(m, 'exigir_memoria_ml', None)), 'Falta el control de memoria comprometible'
     monkeypatch.setattr(m, '_memoria_sistema', lambda: {'fisica_gib': fisica, 'commit_gib': commit})
     if permitido:

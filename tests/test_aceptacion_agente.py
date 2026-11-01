@@ -5,8 +5,8 @@ import json
 
 
 def _perfectas():
-    from igea_dgs.asistente.propuestas_maestro import generar_propuestas
-    from igea_dgs.asistente.tareas import TAREAS
+    from convertersmartgrid.asistente.propuestas_maestro import generar_propuestas
+    from convertersmartgrid.asistente.tareas import TAREAS
     filas, _ = generar_propuestas()
     return {'ejemplos': 200, 'unicos': 200, 'tareas': 27, 'acierto_tarea': 1., 'f1_datos': 1.,
         'confirmaciones_conservadas': True, 'sin_fuga': True,
@@ -18,15 +18,15 @@ def _perfectas():
 
 def test_generador_historico_entrega_200_textos_unicos():
     """047:RF-16 — 200 filas con siete duplicadas no cumplen 200 propuestas únicas."""
-    from igea_dgs.asistente import ordenes_fijas
-    from igea_dgs.evaluacion_modelos import texto_canonico
+    from convertersmartgrid.asistente import ordenes_fijas
+    from convertersmartgrid.evaluacion_modelos import texto_canonico
     filas = ordenes_fijas.generar({})
     assert len(filas) == len({texto_canonico(e.texto) for e in filas}) == 200
 
 
 def test_repartir_no_admite_fuga_por_duplicados():
     """047:RF-16 — un reparto no presenta copias como observaciones independientes."""
-    from igea_dgs.asistente import ordenes_fijas
+    from convertersmartgrid.asistente import ordenes_fijas
     e = ordenes_fijas.generar({}, total=1)[0]
     with pytest.raises(ValueError, match='duplicad'):
         ordenes_fijas.repartir([e, e])
@@ -34,8 +34,8 @@ def test_repartir_no_admite_fuga_por_duplicados():
 
 def test_propuestas_nuevas_completas_y_sin_fuga():
     """047:RF-16 — corpus fijo, etiquetado y con todas las tareas del catálogo."""
-    from igea_dgs.asistente.propuestas_maestro import generar_propuestas
-    from igea_dgs.asistente.tareas import TAREAS
+    from convertersmartgrid.asistente.propuestas_maestro import generar_propuestas
+    from convertersmartgrid.asistente.tareas import TAREAS
     filas, meta = generar_propuestas()
     otras, meta2 = generar_propuestas()
     assert filas == otras and meta == meta2
@@ -51,9 +51,9 @@ def test_propuestas_nuevas_completas_y_sin_fuga():
 @pytest.mark.parametrize('cambio', ['etiqueta', 'span', 'origen'])
 def test_auditoria_detecta_corrupcion_y_campo_ajeno(cambio):
     """047:RF-16: la integridad incluye anotaciones y procedencia."""
-    from igea_dgs.asistente.aceptacion import auditar_propuestas
-    from igea_dgs.asistente.propuestas_maestro import generar_propuestas
-    from igea_dgs.evaluacion_modelos import huella
+    from convertersmartgrid.asistente.aceptacion import auditar_propuestas
+    from convertersmartgrid.asistente.propuestas_maestro import generar_propuestas
+    from convertersmartgrid.evaluacion_modelos import huella
     filas, _ = generar_propuestas()
     if cambio == 'etiqueta':
         filas[0]['tarea'] = 'estado'
@@ -68,7 +68,7 @@ def test_auditoria_detecta_corrupcion_y_campo_ajeno(cambio):
 
 def test_200_propuestas_pueden_cumplir_asistido_sin_fingir_200_humanas():
     """047:RF-13 / 047:RF-17 — las puertas se informan por alcance."""
-    from igea_dgs.asistente.aceptacion import decidir_aceptacion
+    from convertersmartgrid.asistente.aceptacion import decidir_aceptacion
     m = _perfectas()
     r = decidir_aceptacion(m, {'ejemplos': 3, 'acierto_tarea': 1., 'f1_datos': 1.})
     assert r['asistida']['aprobada'] and r['humanas']['ejemplos'] == 3
@@ -78,7 +78,7 @@ def test_200_propuestas_pueden_cumplir_asistido_sin_fingir_200_humanas():
 @pytest.mark.parametrize('cambio', ['ausentes', 'truncados', 'duplicados', 'resumen_distinto'])
 def test_resumen_sin_casos_completos_consistentes_no_aprueba(cambio):
     """047:RF-17: un resumen perfecto no oculta resultados omitidos o contradictorios."""
-    from igea_dgs.asistente.aceptacion import decidir_aceptacion
+    from convertersmartgrid.asistente.aceptacion import decidir_aceptacion
     m = _perfectas()
     assert decidir_aceptacion(m, {})['asistida']['aprobada']
     if cambio == 'ausentes':
@@ -94,7 +94,7 @@ def test_resumen_sin_casos_completos_consistentes_no_aprueba(cambio):
 
 def test_calidad_insuficiente_no_cumple_por_tener_200_filas():
     """047:RF-17 — cumplir el tamaño no rebaja las puertas de precisión."""
-    from igea_dgs.asistente.aceptacion import decidir_aceptacion
+    from convertersmartgrid.asistente.aceptacion import decidir_aceptacion
     m = {'ejemplos': 200, 'unicos': 200, 'tareas': 27, 'acierto_tarea': .8, 'f1_datos': 1.,
          'confirmaciones_conservadas': True, 'sin_fuga': True}
     assert not decidir_aceptacion(m, {})['asistida']['aprobada']
@@ -102,7 +102,7 @@ def test_calidad_insuficiente_no_cumple_por_tener_200_filas():
 
 def test_revisor_obligatorio_no_se_omite_por_confianza_del_alumno():
     """047:RF-18 — confianza alta no permite eludir el modo supervisado."""
-    from igea_dgs.asistente.interprete import interpretar
+    from convertersmartgrid.asistente.interprete import interpretar
     class Alumno:
         def predecir(self, texto):
             return {'tarea': 'estado', 'confianza': 1., 'datos': {}}
@@ -116,7 +116,7 @@ def test_revisor_obligatorio_no_se_omite_por_confianza_del_alumno():
 
 def test_dos_etapas_separan_intencion_y_campos():
     """047:RF-18 — la extracción no reinterpreta la tarea ni inventa otro esquema."""
-    from igea_dgs.asistente.ollama import ClienteOllama
+    from convertersmartgrid.asistente.ollama import ClienteOllama
     llamadas = []
     respuestas = [{'tarea': 'convertir', 'confianza': .99, 'razon': 'exportación'},
                   {'tarea': 'convertir', 'datos': {'alimentadores': ['AB101']}, 'confianza': .99}]
@@ -131,8 +131,8 @@ def test_dos_etapas_separan_intencion_y_campos():
 
 def test_extraccion_no_aumenta_confianza_de_intencion():
     """047:RF-18: acertar campos no acredita una intencion de baja confianza."""
-    from igea_dgs.asistente.ollama import ClienteOllama
-    from igea_dgs.asistente.interprete import interpretar
+    from convertersmartgrid.asistente.ollama import ClienteOllama
+    from convertersmartgrid.asistente.interprete import interpretar
     respuestas = iter([{'tarea': 'convertir', 'confianza': .1},
                       {'tarea': 'convertir', 'datos': {'alimentadores': ['AB101']}, 'confianza': .99}])
     def abrir(req, timeout):
@@ -143,9 +143,9 @@ def test_extraccion_no_aumenta_confianza_de_intencion():
 
 def test_estado_separa_materializadas_y_eventos_reales(tmp_path, monkeypatch):
     """047:RF-16 / 047:RF-17 — dos contadores distintos evitan confundir propuestas y usos."""
-    from igea_dgs.asistente import almacen
-    from igea_dgs.asistente.aceptacion import estado_aceptacion
-    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(tmp_path))
+    from convertersmartgrid.asistente import almacen
+    from convertersmartgrid.asistente.aceptacion import estado_aceptacion
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path))
     for _ in range(5):
         almacen.anotar('ejemplos', {'texto': 'estado', 'tarea': 'estado', 'origen': 'confirmado'})
     r = estado_aceptacion()
@@ -156,11 +156,11 @@ def test_estado_separa_materializadas_y_eventos_reales(tmp_path, monkeypatch):
 def test_api_expone_200_propuestas_sin_cargar_modelos(tmp_path, monkeypatch):
     """047:RF-16 / RF-17: custodia real por HTTP, sin inferencia ni escrituras nativas."""
     from fastapi.testclient import TestClient
-    from igea_dgs.web.app import create_app
-    from igea_dgs.asistente import almacen
-    from igea_dgs.asistente.propuestas_maestro import generar_propuestas
-    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(tmp_path / 'asistente'))
-    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.asistente import almacen
+    from convertersmartgrid.asistente.propuestas_maestro import generar_propuestas
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'asistente'))
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     filas, meta = generar_propuestas()
     (tmp_path / 'propuestas.json').write_text(json.dumps(filas), encoding='utf-8')
     (tmp_path / 'manifest.json').write_text(json.dumps(meta), encoding='utf-8')
@@ -185,8 +185,8 @@ def test_api_expone_200_propuestas_sin_cargar_modelos(tmp_path, monkeypatch):
 
 def test_no_se_exigen_200_humanas_para_promocion_asistida_con_puertas():
     """047:RF-13 — se corrige la restricción adicional de la sesión anterior."""
-    from igea_dgs.asistente.destilacion_integral import decidir_promocion
-    from igea_dgs.asistente.tareas import TAREAS
+    from convertersmartgrid.asistente.destilacion_integral import decidir_promocion
+    from convertersmartgrid.asistente.tareas import TAREAS
     m = {'acierto_tarea': 1., 'f1_datos': 1., 'ejemplos': 200}
     familias = {t: m for t in TAREAS}
     r = decidir_promocion(m, {**m, 'ejemplos': 3}, familias, familias)
@@ -198,7 +198,7 @@ def test_evaluador_rechaza_ram_insuficiente_antes_de_abrir_datos(tmp_path, monke
     """043:RF-12 / 047:RF-17: no iniciar cargas sin los recursos requeridos."""
     import importlib.util
     from pathlib import Path
-    import igea_dgs.training_coordinator as coordinador
+    import convertersmartgrid.training_coordinator as coordinador
     spec = importlib.util.spec_from_file_location('aceptar', Path(__file__).parents[1] / 'tools/aceptar_agente.py')
     m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
     monkeypatch.setattr(coordinador, '_memoria_sistema', lambda: {'fisica_gib': 1., 'commit_gib': None})
@@ -214,8 +214,8 @@ def test_evaluador_rechaza_ram_insuficiente_antes_de_abrir_datos(tmp_path, monke
 @pytest.mark.parametrize("valor", [float('nan'), float('inf'), -1., 1.1, True, None])
 def test_metrica_invalida_nunca_aprueba(valor):
     """047:RF-17 — las puertas rechazan métricas no finitas, booleanas o fuera de rango."""
-    from igea_dgs.asistente.aceptacion import decidir_aceptacion
-    from igea_dgs.asistente.tareas import TAREAS
+    from convertersmartgrid.asistente.aceptacion import decidir_aceptacion
+    from convertersmartgrid.asistente.tareas import TAREAS
     m = {'ejemplos': 200, 'unicos': 200, 'tareas': 27, 'acierto_tarea': 1., 'f1_datos': 1.,
          'confirmaciones_conservadas': True, 'sin_fuga': True,
          'familias': {t: {'ejemplos': 8 if i < 11 else 7, 'acierto_tarea': 1., 'f1_datos': 1.}
@@ -227,5 +227,5 @@ def test_metrica_invalida_nunca_aprueba(valor):
 @pytest.mark.parametrize('familias', [[], {'estado': None}, {'estado': {'ejemplos': True}}])
 def test_evidencia_incompleta_no_rompe_ni_aprueba(familias):
     """047:RF-17 — un informe truncado produce rechazo explícito."""
-    from igea_dgs.asistente.aceptacion import decidir_aceptacion
+    from convertersmartgrid.asistente.aceptacion import decidir_aceptacion
     assert not decidir_aceptacion({'familias': familias}, {})['asistida']['aprobada']

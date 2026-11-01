@@ -1,7 +1,7 @@
-# Diagnóstico técnico y científico del conversor IGEA/CYMDIST → DGS
+# Diagnóstico técnico y científico del conversor CYMDIST → DGS
 
 Fecha de revisión: 2026-09-21  
-Alcance: código versionado en `src/igea_dgs`, pruebas, herramientas de aceptación, documentación y artefactos existentes en `output/production_all`.  
+Alcance: código versionado en `src/convertersmartgrid`, pruebas, herramientas de aceptación, documentación y artefactos existentes en `output/production_all`.  
 Tipo de revisión: lectura estática, ejecución local de pruebas y contraste bibliográfico. No se modificó el motor ni se volvió a ejecutar PowerFactory.
 
 ## Dictamen ejecutivo
@@ -34,7 +34,7 @@ Clasificación recomendada hoy: **apto para generación, inspección y premodela
 |---|---|---|---|---|
 | C-01 | Crítica | `model.py` | `apply_georeferenced_lengths` calcula `hypot(Δx,Δy)` y lo interpreta como metros, sin consultar unidades del CRS; se invoca siempre al construir el modelo. | Longitud, impedancia total, caída de tensión y pérdidas pueden quedar escaladas incorrectamente; `--no-geography` no evita la mutación. |
 | C-02 | Crítica | `dgs.py` / `model.py` | Se fuerza `nlnph=3`, cubículos 0/1/2, transformadores trifásicos y cargas sin mapeo eléctrico explícito de `Phase`. | Se pierde fidelidad monofásica/bifásica y de desbalance; un flujo convergente puede representar otro circuito. |
-| C-03 | Crítica | `dgs.py` | Los `TypTr2` se fabrican con BT=0.22 kV, grupo Dyn5, uk=4 %, pérdidas y potencia mínima de 1 kVA. | Resultados de flujo, pérdidas y cortocircuito no son trazables al catálogo IGEA. |
+| C-03 | Crítica | `dgs.py` | Los `TypTr2` se fabrican con BT=0.22 kV, grupo Dyn5, uk=4 %, pérdidas y potencia mínima de 1 kVA. | Resultados de flujo, pérdidas y cortocircuito no son trazables al catálogo de la fuente. |
 | C-04 | Crítica | `model.py` | Un tipo ausente se reemplaza por distancia de edición/prefijo o por `DEFAULT`; la selección usa texto del código, no equivalencia eléctrica. | Sustitución silenciosa de R/X/ampacidad; riesgo de decisiones erróneas de carga y caída de tensión. |
 | A-01 | Alta | `model.py` | `_float` y `_int` convierten texto inválido en cero/default; `_calc_p_q` solo modela plenamente `ValueType=2`. | Corrupción de entrada puede transformarse en parámetros físicamente válidos en apariencia; Q puede quedar en cero. |
 | A-02 | Alta | `dgs.py` / `validate.py` | B1/B0 se conservan en memoria pero DGS escribe `bline=bline0=0`; `ElmXnet` deja vacíos los campos de cortocircuito. | Flujo capacitivo y estudios de falla incompletos; el corto circuito no es defendible científicamente. |

@@ -2,7 +2,7 @@
 
 Fecha: 2026-09-22
 Revisor: auditoría asistida, ejecutada sobre `master` (commit `1c87484`)
-Marco de evaluación: los dos skills del propio repo — `.cursor/skills/igea-dgs-backend/SKILL.md` y `.cursor/skills/igea-dgs-frontend/SKILL.md` — usados como criterio normativo (reglas de dominio + checklist de producción).
+Marco de evaluación: los dos skills del propio repo — `.cursor/skills/convertersmartgrid-backend/SKILL.md` y `.cursor/skills/convertersmartgrid-frontend/SKILL.md` — usados como criterio normativo (reglas de dominio + checklist de producción).
 Método: lectura estática, ejecución de la suite con TXT reales, *profiling* con `cProfile`, y experimentos de reproducción y de parche en copia de trabajo aislada. **El repositorio no fue modificado**; los parches se midieron en una copia en directorio temporal.
 
 Este documento complementa `DIAGNOSTICO_TECNICO_2026-09-21.md` y **corrige una de sus severidades** (ver §7).
@@ -112,7 +112,7 @@ El *threading* está implementado exactamente como el skill lo pide, y eso es lo
 
 | Ítem del checklist | Estado | Detalle |
 | --- | --- | --- |
-| Persistir últimas rutas en `%LOCALAPPDATA%/igea-dgs/gui_state.json` | **No cumple, por decisión explícita** | El código hace lo contrario: `_discard_legacy_state` (`gui.py:527`) **borra** el fichero y `_on_close` resetea la sesión. El operador vuelve a elegir tres ficheros en cada arranque. Es defendible para no arrastrar sesiones, pero contradice el checklist y es fricción diaria en uso real |
+| Persistir últimas rutas en `%LOCALAPPDATA%/convertersmartgrid/gui_state.json` | **No cumple, por decisión explícita** | El código hace lo contrario: `_discard_legacy_state` (`gui.py:527`) **borra** el fichero y `_on_close` resetea la sesión. El operador vuelve a elegir tres ficheros en cada arranque. Es defendible para no arrastrar sesiones, pero contradice el checklist y es fricción diaria en uso real |
 | Validar archivos y crear carpeta de salida | **Cumple** | `_require_inputs`, `mkdir` con manejo de error |
 | Aliases: JSON legible si hay ruta | **Cumple** | |
 | Errores: diálogo + Registro | **Cumple** | |
@@ -124,7 +124,7 @@ El *threading* está implementado exactamente como el skill lo pide, y eso es lo
 | F-01 | **No existe cancelación.** No hay botón Cancelar ni `threading.Event` en todo el módulo | `gui.py` | Un lote de 96 alimentadores hoy son ~2 min, pero un export urbano grande son decenas de minutos sin salida. El operador solo puede matar el proceso |
 | F-02 | **Cerrar la ventana durante un lote corrompe la salida.** `_on_close` llama a `root.destroy()` sin comprobar `self._busy`; `mainloop` retorna, `main()` devuelve, el proceso termina y el hilo *daemon* muere **a mitad de escritura** | `gui.py:1107` | `.dgs` truncados indistinguibles de válidos; no hay escritura atómica que lo contenga |
 | F-03 | **El Registro no se persiste.** Vive solo en el widget `ScrolledText` y se borra al cerrar | `gui.py:320`, `575` | Sin soporte posible: cuando un cliente reporte un fallo no habrá nada que pedirle. Bloqueante comercial |
-| F-04 | **La GUI solo funciona desde el árbol de fuentes.** `_project_root()` es `Path(__file__).resolve().parents[2]`, que asume `<raíz>/src/igea_dgs/` | `gui.py:84` | Instalado como *wheel* en `site-packages`, `parents[2]` apunta fuera: `tools/powerfactory_acceptance.py` y `config/line_type_aliases.json` no se encuentran. Además `pyproject.toml` **no empaqueta `tools/` ni `config/`**. El botón de PowerFactory no funciona en una instalación real |
+| F-04 | **La GUI solo funciona desde el árbol de fuentes.** `_project_root()` es `Path(__file__).resolve().parents[2]`, que asume `<raíz>/src/convertersmartgrid/` | `gui.py:84` | Instalado como *wheel* en `site-packages`, `parents[2]` apunta fuera: `tools/powerfactory_acceptance.py` y `config/line_type_aliases.json` no se encuentran. Además `pyproject.toml` **no empaqueta `tools/` ni `config/`**. El botón de PowerFactory no funciona en una instalación real |
 | F-05 | **Prefill desde `referencia/`.** `_default_referencia_inputs` rellena los tres campos con los TXT del repo | `gui.py:102` | Comodidad de desarrollo filtrada al producto: el operador puede convertir el export de otra empresa sin notarlo |
 | F-06 | **Detección de PowerFactory frágil.** Ruta fija a «PowerFactory 2024\Python\3.12» + `glob` bajo `C:\Program Files\DIgSILENT` | `gui.py:54-72` | Falla con instalación en otra unidad, `Program Files` localizado, o versión no contemplada. No consulta el registro de Windows |
 | F-07 | **`EPSG:4326` en el desplegable de CRS de origen** | `gui.py:42` | Es la vía de acceso al defecto crítico C-01 (§7). Opción que destruye el modelo eléctrico en silencio |
@@ -228,7 +228,7 @@ Separado por naturaleza del bloqueo. Ninguno de estos puntos es de física eléc
 | --- | --- | --- |
 | K-01 | **No hay `LICENSE`.** Sin términos, el cliente no puede legalmente usarlo ni su departamento legal aprobarlo | Ausente |
 | K-02 | **No hay instalador.** No hay `.spec` de PyInstaller, MSI ni ejecutable. La instalación es `python -m venv` + `pip install` + editar `PYTHONPATH` | Ausente |
-| K-03 | **El paquete no incluye lo que la GUI necesita.** `pyproject.toml` empaqueta solo `src/igea_dgs`; `tools/powerfactory_acceptance.py` (97 KB, la puerta de aceptación) y `config/` quedan fuera, y `_project_root()` los busca por ruta relativa al árbol de fuentes (F-04) | Roto en instalación real |
+| K-03 | **El paquete no incluye lo que la GUI necesita.** `pyproject.toml` empaqueta solo `src/convertersmartgrid`; `tools/powerfactory_acceptance.py` (97 KB, la puerta de aceptación) y `config/` quedan fuera, y `_project_root()` los busca por ruta relativa al árbol de fuentes (F-04) | Roto en instalación real |
 | K-04 | **Sin mecanismo de licenciamiento ni control de versión de producto** | Ausente |
 | K-05 | **Sin política de soporte, versionado semántico documentado ni CHANGELOG** | Ausente |
 
@@ -337,14 +337,14 @@ Ordenado por relación valor/coste, no por severidad. Las estimaciones son de es
 **P1.1 · Legal y empaquetado (C-07)**
 
 - Añadir `LICENSE` y `CHANGELOG.md`; decidir modelo (propietario / comercial / dual).
-- Mover `tools/powerfactory_acceptance.py` a `src/igea_dgs/powerfactory/` y `config/` a `package-data`; eliminar `_project_root()` y resolver recursos con `importlib.resources`.
+- Mover `tools/powerfactory_acceptance.py` a `src/convertersmartgrid/powerfactory/` y `config/` a `package-data`; eliminar `_project_root()` y resolver recursos con `importlib.resources`.
 - Construir ejecutable (PyInstaller *onedir*) + instalador, con `pyproj` y sus datos de proyección embebidos.
 
 *Aceptación:* instalar en una máquina limpia sin Python y ejecutar un lote completo, incluido el botón de PowerFactory.
 
 **P1.2 · Soporte y trazabilidad (C-09)**
 
-- `logging` estructurado con `run_id`, a `%LOCALAPPDATA%/igea-dgs/logs/` con rotación; la GUI vuelca el mismo log al widget.
+- `logging` estructurado con `run_id`, a `%LOCALAPPDATA%/convertersmartgrid/logs/` con rotación; la GUI vuelca el mismo log al widget.
 - Enriquecer `batch_manifest.json`: versión del paquete, Python, `pyproj`, perfil de esquema, SHA-256 de los tres TXT, tiempos por etapa, política de imputación aplicada.
 - Botón «Exportar diagnóstico» que empaquete log + manifiesto + inventario en un ZIP para soporte.
 

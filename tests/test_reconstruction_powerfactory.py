@@ -64,13 +64,13 @@ def _report(*, catalog=0, assumptions=0, repairs=None, intent=None):
     ],
 )
 def test_classifies_convergence_by_evidence_and_load_intervention(report, expected):
-    from igea_dgs.powerfactory_metadata import classify_convergence
+    from convertersmartgrid.powerfactory_metadata import classify_convergence
 
     assert classify_convergence(report) == expected
 
 
 def test_stale_source_evidence_is_rejected_and_reread_or_rollback_fail_closed():
-    from igea_dgs.powerfactory_metadata import classify_convergence
+    from convertersmartgrid.powerfactory_metadata import classify_convergence
 
     stale = _report()
     stale['source_verification']['status'] = 'MISMATCH'
@@ -86,7 +86,7 @@ def test_stale_source_evidence_is_rejected_and_reread_or_rollback_fail_closed():
 
 
 def test_nonconverged_result_is_not_promoted():
-    from igea_dgs.powerfactory_metadata import classify_convergence
+    from convertersmartgrid.powerfactory_metadata import classify_convergence
 
     report = _report()
     report['load_flow_loop']['pass'] = False
@@ -95,7 +95,7 @@ def test_nonconverged_result_is_not_promoted():
 
 
 def test_reconstruction_report_hash_and_sidecar_are_verified(tmp_path):
-    from igea_dgs.powerfactory_metadata import (
+    from convertersmartgrid.powerfactory_metadata import (
         reconstruction_report_sha256,
         verify_reconstruction_contract,
     )
@@ -134,7 +134,7 @@ def test_reconstruction_report_hash_and_sidecar_are_verified(tmp_path):
 
 
 def test_load_intervention_extracts_structured_attempt_evidence():
-    from igea_dgs.powerfactory_metadata import load_intervention_from_attempts
+    from convertersmartgrid.powerfactory_metadata import load_intervention_from_attempts
 
     attempts = _report(intent='scale_loads_50')['load_flow_loop']['attempts']
     evidence = load_intervention_from_attempts(attempts)

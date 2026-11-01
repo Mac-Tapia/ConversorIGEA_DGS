@@ -7,7 +7,7 @@ Estado: aprobado (2026-10-31)
 | Filas repetidas del libro por alimentador y punto, antes de resolver cada fila | `tools/cargas_pf.py` (`duplicadas_del_libro`, `resolver_nuevas`) | RF-1, RF-2 |
 | SED existentes de cada alimentador (cargas de la red que no son de una variación `Carga_…`, con la barra de baja y su GPS), y la ampliación por palabra del nombre o a 30 m | `tools/cargas_pf.py` (`sed_existentes`, `ampliacion_de`, `resolver_nuevas`) | RF-3 |
 | La ampliación crea solo la carga en la barra de baja de la SED, en su variación; se mide como las demás | `tools/cargas_pf.py` (`crear_carga`, `_una_carga`) | RF-4 |
-| Propuesta de transformador con `potencia_efectiva`, `transformadores_de` y `proponer_transformadores` de la calibración; las fichas en el plan de cargas | `tools/cargas_pf.py`, `tools/ajuste_cabecera_pf.py` (sin cambios), `src/igea_dgs/web/services.py` | RF-5 |
+| Propuesta de transformador con `potencia_efectiva`, `transformadores_de` y `proponer_transformadores` de la calibración; las fichas en el plan de cargas | `tools/cargas_pf.py`, `tools/ajuste_cabecera_pf.py` (sin cambios), `src/convertersmartgrid/web/services.py` | RF-5 |
 | Variaciones `Carga_…` que sobran: desactivadas en cada caso y eliminadas; la primera por nombre se conserva | `tools/cargas_pf.py` (`eliminar_variaciones`, `ya_creada`, `ejecutar`) | RF-6 a RF-8 |
 | Avisos y listas del informe (`duplicadas`, `ampliaciones`, `eliminadas`) | `tools/cargas_pf.py` | RF-9 |
 

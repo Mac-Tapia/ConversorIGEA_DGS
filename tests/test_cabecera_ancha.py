@@ -15,10 +15,10 @@ from pathlib import Path
 import pytest
 from openpyxl import Workbook
 
-from igea_dgs import cabecera_ancha as ca
-from igea_dgs import demanda_medida as dm
+from convertersmartgrid import cabecera_ancha as ca
+from convertersmartgrid import demanda_medida as dm
 
-SEMILLA = int(os.environ.get('IGEA_SCALE_SEED', random.randrange(1 << 30)))
+SEMILLA = int(os.environ.get('CSG_SCALE_SEED', random.randrange(1 << 30)))
 RAIZ = Path(__file__).resolve().parents[1]
 
 
@@ -179,7 +179,7 @@ def test_fp_del_usuario_para_una_medicion_sin_reactiva(tmp_path):
     rechaza."""
     import math
 
-    from igea_dgs.ajuste_cabecera import objetivo_de
+    from convertersmartgrid.ajuste_cabecera import objetivo_de
 
     rng = random.Random(SEMILLA)
     _maximas(tmp_path / 'max.xlsx', rng, ['R5'])

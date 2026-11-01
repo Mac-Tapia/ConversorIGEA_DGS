@@ -30,7 +30,7 @@ from vnr_etl.discovery.download import (
     inventory_zip,
     safe_extract_zip,
 )
-from igea_dgs.util import sha256_file as sha256_of
+from convertersmartgrid.util import sha256_file as sha256_of
 from vnr_etl.discovery.fingerprint import compute_schema_fingerprint
 from vnr_etl.discovery.freshness import resolve_freshness
 from vnr_etl.discovery.official import (
@@ -548,7 +548,7 @@ def _production_ready_model() -> CanonicalModel:
         'working_crs': 'EPSG:32718',
         'working_crs_is_projected': True,
     })
-    # Una red que el motor igea_dgs acepta en modo estricto (spec 001, RF-10): cada
+    # Una red que el motor convertersmartgrid acepta en modo estricto (spec 001, RF-10): cada
     # elemento con su alimentador y el tramo con un conductor de parámetros completos.
     for node in model.nodes:
         node.nominal_kv = 10.0
@@ -584,7 +584,7 @@ def test_dgs_export_writes_file_with_verified_profile(tmp_path):
     assert manifest['source_publication_id'] == 'PUB-1'
     assert manifest['target_profile_hash'] == exporter.profile.sample_hash
     assert manifest['artifact_sha256'] == sha256_of(dgs_path)
-    assert manifest['engine'] == 'igea_dgs.batch.convert_group'
+    assert manifest['engine'] == 'convertersmartgrid.batch.convert_group'
     assert manifest['feeders'] == ['F1']
     # La validación del motor queda junto al DGS, sin errores.
     stem = dgs_path.stem
@@ -597,7 +597,7 @@ def test_dgs_export_writes_file_with_verified_profile(tmp_path):
 
 def test_dgs_export_es_el_mismo_dgs_que_el_motor(tmp_path):
     """001:RF-10 — mismo modelo, mismo DGS byte a byte que el motor por la vía de la web."""
-    from igea_dgs.batch import convert_group
+    from convertersmartgrid.batch import convert_group
     from vnr_etl.application.cymdist_bridge import canonical_to_cymdist
 
     model = _production_ready_model()
@@ -611,7 +611,7 @@ def test_dgs_export_es_el_mismo_dgs_que_el_motor(tmp_path):
 
 def _exporta(tmp_path, model):
     """Exporta y devuelve las tablas del DGS y el informe de reconstrucción."""
-    from igea_dgs.validate import parse_dgs
+    from convertersmartgrid.validate import parse_dgs
 
     exporter = DgsExporter(profile=_verified_dgs_profile(tmp_path))
     paths = exporter.export(model, tmp_path / 'out')
@@ -656,7 +656,7 @@ def test_dgs_export_conductor_sin_parametros_se_completa_con_el_catalogo(tmp_pat
     """001:RF-18 — un conductor sin parámetros se completa con el catálogo antes que con supuestos."""
     from unittest import mock
 
-    from igea_dgs.catalog_resolution import CatalogSource
+    from convertersmartgrid.catalog_resolution import CatalogSource
 
     model = _production_ready_model()
     for campo in ('r0_ohm_km', 'x0_ohm_km', 'ampacity_a'):
@@ -667,7 +667,7 @@ def test_dgs_export_conductor_sin_parametros_se_completa_con_el_catalogo(tmp_pat
                                'B1': 0, 'B0': 0, 'Amps': 230, 'EquipmentClass': 'LINE',
                                'Overhead': True},),
     )
-    with mock.patch('igea_dgs.reconstruction_pipeline.catalogos_del_fichero',
+    with mock.patch('convertersmartgrid.reconstruction_pipeline.catalogos_del_fichero',
                     return_value=(catalogo,)):
         _tablas, informe = _exporta(tmp_path, model)
     assert informe['equipos_resueltos']['AA70']['nivel'] == 'catalog_match'
@@ -684,7 +684,7 @@ def test_dgs_export_sin_codigo_ni_catalogo_usa_el_perfil_provisional(tmp_path):
     model = _production_ready_model()
     model.sections[0].conductor_code = ''
     model.conductor_types = []
-    with mock.patch('igea_dgs.reconstruction_pipeline.catalogos_del_fichero', return_value=()):
+    with mock.patch('convertersmartgrid.reconstruction_pipeline.catalogos_del_fichero', return_value=()):
         tablas, informe = _exporta(tmp_path, model)
     assert len(tablas['ElmLne']['rows']) == 1
     [equipo] = informe['equipos_resueltos'].values()
@@ -776,7 +776,7 @@ def test_servicio_exporta_con_datos_reconstruidos(tmp_path):
 
 
 def test_dgs_export_projects_node_coordinates_to_gps(tmp_path):
-    from igea_dgs.validate import parse_dgs
+    from convertersmartgrid.validate import parse_dgs
 
     model = _production_ready_model()
     model.nodes[0].x, model.nodes[0].y = 500000.0, 8450000.0
@@ -895,9 +895,9 @@ def test_application_service_requires_simulator_evidence_before_production_write
 
 def _main_app(tmp_path, monkeypatch, settings=None):
     """La API web única (spec 001, RF-11), con las rutas de VNR montadas."""
-    from igea_dgs.web.app import create_app
+    from convertersmartgrid.web.app import create_app
 
-    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'no-frontend'))
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'no-frontend'))
     return create_app(tmp_path / 'web', vnr_settings=settings)
 
 

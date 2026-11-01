@@ -7,7 +7,7 @@ Estado: propuesto el 2026-10-10, pendiente de aprobar. No se ha movido código t
 
 ## Punto de partida (medido el 2026-10-10)
 
-- **Cruces entre paquetes:** 31 importaciones entre `igea_dgs` y `vnr_etl`, en los dos
+- **Cruces entre paquetes:** 31 importaciones entre `convertersmartgrid` y `vnr_etl`, en los dos
   sentidos. `vnr_etl` usa del motor `dataset`, `geography`, `reconstruction`, `util`,
   `batch`, `coordenadas`, `reconstruction_pipeline`, `reglas`, `schema`, `validate` y
   `web.jobs`; el motor usa de `vnr_etl` `pipeline`, `cymdist_bridge`, `discovery.*`,
@@ -29,7 +29,7 @@ Estado: propuesto el 2026-10-10, pendiente de aprobar. No se ha movido código t
   en `dgs`. `reglas` importa `powerfactory_env` solo por `project_root`.
 - **Perfil de empresa:** existe `config/perfil_empresa.json` (spec 005) con una sola
   clave, `carpeta_proyectos_pf`, leída por `carpeta_pf.nombre_de_perfil`.
-- **Reexportaciones temporales:** `igea_dgs.web.sources` e `igea_dgs.web.sources.vnr`.
+- **Reexportaciones temporales:** `convertersmartgrid.web.sources` e `convertersmartgrid.web.sources.vnr`.
 
 ## Capas
 
@@ -50,7 +50,7 @@ como hoy: son procesos aparte que reciben un plan JSON (P7).
 ## Decisiones
 
 - **La comprobación de capas es una prueba de la suite** (`tests/test_capas.py`), con
-  `ast` y la tabla módulo → capa en `pyproject.toml` (`[tool.igea_dgs.capas]`), y tarda
+  `ast` y la tabla módulo → capa en `pyproject.toml` (`[tool.convertersmartgrid.capas]`), y tarda
   menos de 10 s (requisito no funcional). Mientras dure la migración lleva una lista de
   excepciones medidas que solo puede encoger: una violación nueva falla, una retirada
   obliga a quitarla de la lista. *Descartado:* `import-linter`, una dependencia más
@@ -64,14 +64,14 @@ como hoy: son procesos aparte que reciben un plan JSON (P7).
   Sin perfil ni CRS en la entrada, la web y el CLI piden el CRS (RF-32) en vez de suponer
   `EPSG:32718`; la línea base se regenera con el perfil de Electro Dunas, no con un valor
   por defecto.
-- **Entry points en `pyproject.toml`**, grupo `igea_dgs.modulos`, también para los
+- **Entry points en `pyproject.toml`**, grupo `convertersmartgrid.modulos`, también para los
   lectores y el escritor propios (RF-9). El registro se resuelve una vez en el proceso
   principal y se pasa a los hijos con `workers>1` (RF-29). Lista de permitidos en
   `config/modulos_permitidos.json`, sin ruta web que la cambie (RF-23, RF-24).
 - **Mover sin cambiar comportamiento:** cada movimiento deja una reexportación en la ruta
   vieja hasta la tarea de limpieza (RF-21), y cada tarea compara la línea base de DGS
   byte a byte (`tools/linea_base_dgs.py`, RF-20).
-- **`vnr_etl` entra como `igea_dgs.adaptadores.entrada.vnr`** con su CLI (`vnr-etl`, RF-22)
+- **`vnr_etl` entra como `convertersmartgrid.adaptadores.entrada.vnr`** con su CLI (`vnr-etl`, RF-22)
   apuntando a la ruta nueva; `VNR-GIS.md` sigue siendo su diseño.
 - **Tipos del front generados** desde `/openapi.json` con `openapi-typescript` (dependencia
   de desarrollo de npm) en `frontend/src/api/esquema.ts`; una prueba de Python regenera el
@@ -96,4 +96,4 @@ como hoy: son procesos aparte que reciben un plan JSON (P7).
 - `tests/test_perfil_empresa.py`: dos perfiles sobre la misma red sintética (RF-36), sin
   CRS (RF-32), sin patrón (RF-33), manifiesto (RF-37).
 - `tests/test_contrato_api.py`: esquema OpenAPI frente a los tipos generados (RF-17).
-- Línea base de DGS antes y después de cada tarea (RF-20), con las tres variables `IGEA_*`.
+- Línea base de DGS antes y después de cada tarea (RF-20), con las tres variables `CSG_*`.

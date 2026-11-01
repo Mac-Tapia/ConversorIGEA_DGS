@@ -5,7 +5,7 @@ import random
 
 import pytest
 
-from igea_dgs import escalera_optima as eo
+from convertersmartgrid import escalera_optima as eo
 
 SEMILLAS = (3, 17, 41, 88)
 PERFIL = {

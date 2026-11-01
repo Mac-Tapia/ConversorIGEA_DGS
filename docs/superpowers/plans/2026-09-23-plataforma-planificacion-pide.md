@@ -240,12 +240,12 @@ arquitectura la absorbe en lugar de fingir que no existe.
                     └──────────────┬───────────────────────┘
                                    │
                     ┌──────────────┴──────────────┐
-                    │  igea_dgs  — el motor de hoy │
+                    │  convertersmartgrid  — el motor de hoy │
                     │  intacto, como biblioteca    │
                     └──────────────────────────────┘
 ```
 
-**Principio rector**: `igea_dgs` no se reescribe. Es una biblioteca de Python con 350
+**Principio rector**: `convertersmartgrid` no se reescribe. Es una biblioteca de Python con 350
 pruebas que funciona; se le pone un servicio encima. La Tkinter actual se mantiene
 mientras la web no la iguale, porque hoy es lo que la empresa usa para trabajar.
 

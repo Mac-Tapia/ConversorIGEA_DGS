@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from igea_dgs.batch import convert_selection
+from convertersmartgrid.batch import convert_selection
 
 
 def test_convert_with_preview_and_tsv(ds, sample_feeder, tmp_path: Path, opciones_reales):

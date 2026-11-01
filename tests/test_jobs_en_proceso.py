@@ -5,7 +5,7 @@ import time
 
 import pytest
 
-from igea_dgs.web import jobs
+from convertersmartgrid.web import jobs
 
 
 def ocupado(segundos, *, progreso, log, cancelado):
@@ -35,9 +35,9 @@ def falla(*, progreso, log, cancelado):
 def cliente(tmp_path, monkeypatch):
     from fastapi.testclient import TestClient
 
-    from igea_dgs.web.app import create_app
+    from convertersmartgrid.web.app import create_app
 
-    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     with TestClient(create_app(tmp_path / 'web')) as c:
         yield c
 

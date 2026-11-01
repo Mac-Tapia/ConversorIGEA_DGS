@@ -25,7 +25,7 @@ Preparación
 
 Estudios sobre los tres casos
 
-- [x] T3. `src/igea_dgs/estudios_pf.py`. (RF-23, RF-24, RF-32 a RF-35, RF-37)
+- [x] T3. `src/convertersmartgrid/estudios_pf.py`. (RF-23, RF-24, RF-32 a RF-35, RF-37)
       Hecho cuando: `pytest -q tests/test_estudios_pf.py` en verde.
 - [x] T4. `tools/casos_pf.py`: los tres casos, escenarios por caso, variaciones por caso,
       ajustes anteriores, caso ajeno, caso activo restaurado. (RF-1 a RF-16, RF-46 a
@@ -47,9 +47,9 @@ Obras de mejora
 
 - [x] T9. Mover el sufijo de tensión de `dgs._type_name` a `naming.py`, sin cambiar el
       DGS. (RF-61)
-      Hecho cuando: suite completa en verde con las tres `IGEA_*` y `TestParallelWorkers`
+      Hecho cuando: suite completa en verde con las tres `CSG_*` y `TestParallelWorkers`
       en verde.
-- [x] T10. `src/igea_dgs/obras_pf.py`: modelo y validación de cada obra, nombres de
+- [x] T10. `src/convertersmartgrid/obras_pf.py`: modelo y validación de cada obra, nombres de
       variación y de copias, igualdad de tipos, plan de la simulación. (RF-56, RF-59,
       RF-61 a RF-63, RF-69, RF-85)
       Hecho cuando: `pytest -q tests/test_obras_pf.py` en verde.
@@ -78,9 +78,9 @@ Transferencia de carga
       `StaSwitch`; ver «Métodos de la API comprobados» en el plan) según la clase del
       export (seccionador o seccionalizador), con el valor de «Disconnector» que lea el
       usuario en DIgSILENT. (RF-128)
-      Hecho cuando: suite completa en verde con las tres `IGEA_*`, `TestParallelWorkers`
+      Hecho cuando: suite completa en verde con las tres `CSG_*`, `TestParallelWorkers`
       en verde y una prueba que cita `011:RF-128` con las dos disposiciones de export.
-- [x] T15b. `src/igea_dgs/transferencia_pf.py`: pasos, carga transferida, viabilidad,
+- [x] T15b. `src/convertersmartgrid/transferencia_pf.py`: pasos, carga transferida, viabilidad,
       máximo por seccionador y por nodo, elemento limitante, filas del fichero. (RF-110 a
       RF-117, RF-121)
       Hecho cuando: `pytest -q tests/test_transferencia_pf.py` en verde.
@@ -101,7 +101,7 @@ Web
       RF-95, y el trabajo de las transferencias)
       Hecho cuando: `pytest -q tests/test_estudios_pf_web.py tests/test_obras_pf_web.py`
       en verde.
-- [x] T17. Paso «4 · Obras y estudios» (leer antes el skill `igea-dgs-frontend`). (RF-24,
+- [x] T17. Paso «4 · Obras y estudios» (leer antes el skill `convertersmartgrid-frontend`). (RF-24,
       RF-35, RF-42, RF-70, RF-88 a RF-95, RF-98, RF-104)
       Hecho cuando: `pytest -q tests/test_obras_estudios_front.py` en verde y
       `npx tsc --noEmit -p .` y `npm run build` en `frontend/` correctos.
@@ -118,7 +118,7 @@ Cierre
 
 - [x] T18. Índice, estado y validación: ficheros nuevos en `CODIGO_FUENTE.md`, la spec en
       `CLAUDE.md`, cada RF citado por una prueba en verde, suite completa con las tres
-      `IGEA_*`. (Todos)
+      `CSG_*`. (Todos)
       Hecho cuando: `pytest -q tests/test_inventario.py` en verde y
       `grep -rnoE "011:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-129.
 - [ ] T19. [DIgSILENT] Prueba real en DIgSILENT con dos alimentadores calibrados, una carga nueva y

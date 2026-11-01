@@ -10,7 +10,7 @@ from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[1]
 SRC = RAIZ / 'frontend' / 'src'
-APP_PY = (RAIZ / 'src' / 'igea_dgs' / 'web' / 'app.py').read_text(encoding='utf-8')
+APP_PY = (RAIZ / 'src' / 'convertersmartgrid' / 'web' / 'app.py').read_text(encoding='utf-8')
 APP = (SRC / 'App.tsx').read_text(encoding='utf-8')
 CARGAS = (SRC / 'components' / 'CargasTab.tsx').read_text(encoding='utf-8')
 DEMANDA = (SRC / 'components' / 'DemandaMedida.tsx').read_text(encoding='utf-8')

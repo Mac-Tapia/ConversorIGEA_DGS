@@ -35,7 +35,7 @@
 
 **Files:**
 - Create: `config/pide_universal_2017.json`
-- Create: `src/igea_dgs/pide_dataset.py`
+- Create: `src/convertersmartgrid/pide_dataset.py`
 - Create: `tests/test_pide_dataset.py`
 
 **Interfaces:**
@@ -49,7 +49,7 @@
 ### Task 2: Manifiesto exhaustivo y clasificación empresarial
 
 **Files:**
-- Modify: `src/igea_dgs/pide_dataset.py`
+- Modify: `src/convertersmartgrid/pide_dataset.py`
 - Modify: `tests/test_pide_dataset.py`
 
 **Interfaces:**
@@ -64,7 +64,7 @@
 ### Task 3: Extracción robusta por formato
 
 **Files:**
-- Modify: `src/igea_dgs/pide_dataset.py`
+- Modify: `src/convertersmartgrid/pide_dataset.py`
 - Modify: `tests/test_pide_dataset.py`
 
 **Interfaces:**
@@ -79,7 +79,7 @@
 ### Task 4: Publicación de corpus y registros para LLM
 
 **Files:**
-- Modify: `src/igea_dgs/pide_dataset.py`
+- Modify: `src/convertersmartgrid/pide_dataset.py`
 - Create: `tools/construir_dataset_pide.py`
 - Modify: `tests/test_pide_dataset.py`
 

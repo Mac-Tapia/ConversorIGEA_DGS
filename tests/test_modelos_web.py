@@ -3,13 +3,13 @@ import json
 
 from fastapi.testclient import TestClient
 
-from igea_dgs.web.app import create_app
+from convertersmartgrid.web.app import create_app
 
 
 def test_modelos_web_no_infiere_promocion(tmp_path, monkeypatch):
     """043:RF-8 — un informe sin candidato íntegro no prueba promoción."""
-    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(tmp_path / 'asistente'))
-    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'asistente'))
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     ruta = tmp_path / 'asistente/training/report.json'
     ruta.parent.mkdir(parents=True)
     ruta.write_text(json.dumps({'complete': True, 'stages': [
@@ -28,8 +28,8 @@ def test_modelos_web_no_infiere_promocion(tmp_path, monkeypatch):
 
 def test_ausencia_de_informe_es_pendiente(tmp_path, monkeypatch):
     """043:RF-8 — la ausencia no se inventa como etapa entrenada ni rechazada."""
-    from igea_dgs.web import services
-    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(tmp_path / 'asistente'))
+    from convertersmartgrid.web import services
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'asistente'))
     payload = services.asistente_estado_modelos()
     assert all(f['estado'] is None for f in payload['familias'])
     assert not payload['complete']
@@ -37,11 +37,11 @@ def test_ausencia_de_informe_es_pendiente(tmp_path, monkeypatch):
 
 def test_candidato_bloqueado_visible_sin_informe_global(tmp_path, monkeypatch):
     """043:RF-8 — la destilación registra su decisión sin fingir siete entrenamientos."""
-    from igea_dgs.model_registry import RegistroModelo
-    from igea_dgs.web import services
+    from convertersmartgrid.model_registry import RegistroModelo
+    from convertersmartgrid.web import services
     from test_model_registry import _payload
     raiz = tmp_path / 'asistente'
-    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(raiz))
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(raiz))
     registro = RegistroModelo(raiz / 'model_registry')
     datos = _payload(tmp_path)
     datos['decision'] = {'status': 'BLOQUEADO_POR_DATOS', 'gates': {'approved': False},
@@ -55,11 +55,11 @@ def test_candidato_bloqueado_visible_sin_informe_global(tmp_path, monkeypatch):
 def test_decision_reciente_no_queda_oculta_por_informe_viejo(tmp_path, monkeypatch):
     """043:RF-8 — se distingue última decisión de candidato y modelo que sigue activo."""
     import os
-    from igea_dgs.model_registry import RegistroModelo
-    from igea_dgs.web import services
+    from convertersmartgrid.model_registry import RegistroModelo
+    from convertersmartgrid.web import services
     from test_model_registry import _payload
     raiz = tmp_path / 'asistente'
-    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(raiz))
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(raiz))
     registro = RegistroModelo(raiz / 'model_registry')
     viejo = registro.registrar_candidato('transformer', **_payload(tmp_path))
     registro.promover('transformer', viejo['candidate_id'])
@@ -78,11 +78,11 @@ def test_decision_reciente_no_queda_oculta_por_informe_viejo(tmp_path, monkeypat
 def test_consulta_modelos_no_relee_pesos_en_http(tmp_path, monkeypatch):
     """043:RF-8 — consultar estado usa manifiestos; no bloquea HTTP leyendo GB de pesos."""
     from pathlib import Path
-    from igea_dgs.model_registry import RegistroModelo
-    from igea_dgs.web import services
+    from convertersmartgrid.model_registry import RegistroModelo
+    from convertersmartgrid.web import services
     from test_model_registry import _payload
     raiz = tmp_path / 'asistente'
-    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(raiz))
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(raiz))
     registro = RegistroModelo(raiz / 'model_registry')
     candidato = registro.registrar_candidato('gru', **_payload(tmp_path))
     registro.promover('gru', candidato['candidate_id'])
@@ -103,9 +103,9 @@ def test_consulta_modelos_no_relee_pesos_en_http(tmp_path, monkeypatch):
 
 def test_puntero_activo_corrupto_no_rompe_consulta(tmp_path, monkeypatch):
     """043:RF-8 — un registro ilegible se muestra bloqueado en vez de lanzar HTTP 500."""
-    from igea_dgs.web import services
+    from convertersmartgrid.web import services
     raiz = tmp_path / 'asistente'
-    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(raiz))
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(raiz))
     ruta = raiz / 'training/report.json'
     ruta.parent.mkdir(parents=True)
     ruta.write_text(json.dumps({'complete': False, 'stages': [{

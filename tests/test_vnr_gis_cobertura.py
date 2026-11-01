@@ -14,7 +14,7 @@ from __future__ import annotations
 import pytest
 
 from vnr_etl.catalogs.conductor import ConductorCatalog, load_conductor_catalog
-from igea_dgs.util import sha256_file as sha256_of
+from convertersmartgrid.util import sha256_file as sha256_of
 from vnr_etl.exporters.base import ExportBlocked, TargetProfile
 from vnr_etl.exporters.cymdist import CymdistExporter
 from vnr_etl.gis.crs import CRSError, CRSManager

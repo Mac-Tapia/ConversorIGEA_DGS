@@ -2,7 +2,7 @@
 
 **Fecha:** 2026-09-27  
 **Estado:** aprobado conceptualmente por el usuario; pendiente de revisión del documento escrito  
-**Entorno objetivo:** Windows local, PowerFactory 2024 y conversor web IGEA/CYMDIST → DGS
+**Entorno objetivo:** Windows local, PowerFactory 2024 y conversor web CYMDIST → DGS
 
 ## 1. Objetivo
 
@@ -110,7 +110,7 @@ una columna de SED.
 ### 4.1 Fuente de verdad
 
 El alimentador de origen se obtendrá del `NetworkID` que poseía la sección en la
-entrada IGEA/CYMDIST. No se inferirá por:
+entrada CYMDIST. No se inferirá por:
 
 - el prefijo o número de `SE…`;
 - la cercanía geográfica;
@@ -289,13 +289,13 @@ Una suite sintética aprobada no sustituye esta puerta propietaria.
 
 ## 9. Componentes afectados
 
-- `src/igea_dgs/reglas.py`: valor predeterminado de hoja.
-- `src/igea_dgs/model.py`: procedencia por alimentador de las cargas.
-- `src/igea_dgs/combine.py`: conservación al unir modelos.
-- `src/igea_dgs/dgs.py`: manifiesto de objetos y escala gráfica.
-- `src/igea_dgs/batch.py`: publicación del manifiesto de asociación.
+- `src/convertersmartgrid/reglas.py`: valor predeterminado de hoja.
+- `src/convertersmartgrid/model.py`: procedencia por alimentador de las cargas.
+- `src/convertersmartgrid/combine.py`: conservación al unir modelos.
+- `src/convertersmartgrid/dgs.py`: manifiesto de objetos y escala gráfica.
+- `src/convertersmartgrid/batch.py`: publicación del manifiesto de asociación.
 - `tools/powerfactory_acceptance.py`: Data Extension, población y puerta real.
-- `src/igea_dgs/web/services.py`: invocación y Registro.
+- `src/convertersmartgrid/web/services.py`: invocación y Registro.
 - pruebas de reglas, gráficos, combinación, DGS, API web y PowerFactory.
 
 El frontend React solo cambiará si hace falta mostrar un nuevo campo de resultado. No

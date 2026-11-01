@@ -15,10 +15,10 @@ SRC = Path(__file__).resolve().parents[1] / 'src'
 
 COMPROBACION = '''
 import sys
-import igea_dgs.sources
-import igea_dgs.sources.txt, igea_dgs.sources.mdb, igea_dgs.sources.vnr
+import convertersmartgrid.sources
+import convertersmartgrid.sources.txt, convertersmartgrid.sources.mdb, convertersmartgrid.sources.vnr
 cargados = sorted(m for m in sys.modules
-                  if m.startswith('igea_dgs.web') or m.split('.')[0] in ('fastapi', 'starlette'))
+                  if m.startswith('convertersmartgrid.web') or m.split('.')[0] in ('fastapi', 'starlette'))
 print(cargados)
 sys.exit(1 if cargados else 0)
 '''
@@ -34,11 +34,11 @@ def test_importar_los_adaptadores_no_carga_la_web():
 
 
 def test_la_ruta_antigua_sigue_dando_los_mismos_objetos():
-    """001:RF-1 — ``igea_dgs.web.sources`` reexporta mientras dura la migración."""
-    from igea_dgs import sources
-    from igea_dgs.web import sources as antiguo
-    from igea_dgs.web.source_runs import SourceSnapshot
-    from igea_dgs.web.sources.vnr import VnrSourceAdapter
+    """001:RF-1 — ``convertersmartgrid.web.sources`` reexporta mientras dura la migración."""
+    from convertersmartgrid import sources
+    from convertersmartgrid.web import sources as antiguo
+    from convertersmartgrid.web.source_runs import SourceSnapshot
+    from convertersmartgrid.web.sources.vnr import VnrSourceAdapter
 
     assert antiguo.adapter_for is sources.adapter_for
     assert SourceSnapshot is sources.snapshot.SourceSnapshot

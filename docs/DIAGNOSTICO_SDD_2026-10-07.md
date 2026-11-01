@@ -14,7 +14,7 @@ fases).
 
 | Pieza SDD | Qué tiene ya el repositorio | Qué le falta |
 | --- | --- | --- |
-| Constitución (principios no negociables) | `CLAUDE.md` y los skills `igea-dgs-backend` / `igea-dgs-frontend` | Nada importante: es la parte más sólida |
+| Constitución (principios no negociables) | `CLAUDE.md` y los skills `convertersmartgrid-backend` / `convertersmartgrid-frontend` | Nada importante: es la parte más sólida |
 | Especificación | 6 specs en `docs/superpowers/specs/` + `VNR-GIS.md` (1 704 líneas) | Requisitos con identificador; criterios verificables (EARS: «CUANDO … EL SISTEMA DEBE …») |
 | Plan y tareas | 10 planes en `docs/superpowers/plans/`, con 448 casillas `- [ ]` | **Ninguna casilla marcada**: el plan no dice qué está hecho |
 | Trazabilidad spec ↔ prueba | — | **Ninguna prueba cita una spec o un requisito** (0 de 75 ficheros) |
@@ -31,7 +31,7 @@ de verdad se implementó en VNR-GIS solo se sabe leyendo el código.
   en esta máquina.
 - Duplicados en el front: ventanas de 6 líneas normalizadas sobre `frontend/src`.
 - Integración: rutas declaradas en `web/app.py` frente a llamadas de `frontend/src/api.ts`.
-- Front: `npx tsc --noEmit` y el checklist del skill `igea-dgs-frontend`.
+- Front: `npx tsc --noEmit` y el checklist del skill `convertersmartgrid-frontend`.
 
 ## 3. Diagnóstico backend
 
@@ -56,7 +56,7 @@ puede usar.
 ### B2. Dos caminos de VNR-GIS a DGS — alta
 
 1. **El integrado**: paquete VNR → modelo canónico → `cymdist_bridge` → `CymdistDataset`
-   → motor `igea_dgs` (reglas, validación, publicación atómica, determinismo).
+   → motor `convertersmartgrid` (reglas, validación, publicación atómica, determinismo).
 2. **El paralelo**: `vnr_etl/exporters/dgs.py` (`DgsExporter`, 332 líneas) escribe su
    propio DGS «mínimo» desde el modelo canónico. Lo usan el CLI `vnr-etl` y la web
    `vnr-etl-web`.
@@ -144,8 +144,8 @@ Ordenada para que cada fase deje la suite en verde y tenga su spec antes que su 
 | Fase | Qué | Resuelve | Riesgo |
 | --- | --- | --- | --- |
 | 0 | Plantilla de spec con requisitos `RQ-<área>-NN` y criterios EARS; las pruebas citan el requisito en su docstring; los planes se marcan al cerrar | Trazabilidad (§1) | Nulo: solo documentación |
-| 1 | Módulo `igea_dgs/util.py` (o `_io.py`) con `sha256_file`, `write_json_atomic`, `finite_float_or_none`, `nombre_seguro`; reproyección única en `geography.py` | B5, B6 | Bajo |
-| 2 | Pasar `web/sources/` a `igea_dgs/sources/` y que el CLI y la GUI carguen con `adapter_for(mode)` | B1; el CLI gana VNR-GIS | Medio: lector, probar las dos disposiciones |
+| 1 | Módulo `convertersmartgrid/util.py` (o `_io.py`) con `sha256_file`, `write_json_atomic`, `finite_float_or_none`, `nombre_seguro`; reproyección única en `geography.py` | B5, B6 | Bajo |
+| 2 | Pasar `web/sources/` a `convertersmartgrid/sources/` y que el CLI y la GUI carguen con `adapter_for(mode)` | B1; el CLI gana VNR-GIS | Medio: lector, probar las dos disposiciones |
 | 3 | `diagnose`/`reconstruct` como trabajos del carril `engine`; el front con `startJob` | B4, F3 | Bajo-medio |
 | 4 | `DgsExporter` de `vnr_etl` como envoltorio del puente + `batch.convert_selection`; retirar el escritor propio | B2 | Medio: cambia la salida de `vnr-etl export` |
 | 5 | Retirar `vnr_etl/web` (o montarlo como router dentro de la app principal y su `JobManager`) | B3 | Medio: quita el script `vnr-etl-web` |
@@ -163,7 +163,7 @@ primera no miró.
 
 - Cada referencia de §3 y §4 (fichero y línea) sigue apuntando al código descrito.
 - Suite completa con los tres TXT reales: **854 correctas, 58 omitidas, 0 fallos**
-  (101 s). Las 58 omitidas son todas de la vía Access, por falta de `IGEA_MDB`.
+  (101 s). Las 58 omitidas son todas de la vía Access, por falta de `CSG_MDB`.
 - `tests/test_access_input.py` con las dos bases `.mdb`: **21 correctas, 6 omitidas**.
   Las 6 se omiten por diseño: la base y los TXT no son de la misma exportación.
 - Front: `npx tsc --noEmit` sin errores y `npm run build` correcto (JS de 305 kB, 94 kB
@@ -184,9 +184,9 @@ primera no miró.
 
 **S1. Las rutas locales del servidor fallan en abierto — media-alta.**
 `_server_paths_allowed()` (`web/app.py:56-63`) las permite cuando la variable
-`IGEA_WEB_SERVER_PATHS` no existe. Solo el lanzador `igea-dgs-web` las desactiva al
+`CSG_WEB_SERVER_PATHS` no existe. Solo el lanzador `convertersmartgrid-web` las desactiva al
 escuchar fuera de `127.0.0.1`, y lo hace con `os.environ.setdefault`, que no pisa un
-valor previo. Si la app se arranca con `uvicorn igea_dgs.web.app:create_app --factory
+valor previo. Si la app se arranca con `uvicorn convertersmartgrid.web.app:create_app --factory
 --host 0.0.0.0`, o con la variable ya a `1`, cualquiera en la red puede asignar como
 entrada cualquier fichero del disco del servidor. Además, la API no tiene autenticación;
 `vnr_etl/web` sí acepta un `auth_token`. La decisión debería tomarla `create_app` según
@@ -236,15 +236,15 @@ front. S1 entra en la spec 001 como RF-15.
    (15 500 de 20 069 líneas). Los `__init__.py` que salen al 0 % son un artefacto: se
    importan antes de que empiece la medición.
 3. **Puntos de entrada en vivo:**
-   - `igea-dgs list` y `convert --all` sobre los 96 alimentadores reales: **96/96 OK**, con
+   - `convertersmartgrid list` y `convert --all` sobre los 96 alimentadores reales: **96/96 OK**, con
      `--workers 1` (9 s) y `--workers 4` (5 s), y los 96 DGS **idénticos byte a byte**.
-   - `igea-dgs-web` arrancado de verdad: salud, página, espacio de trabajo, rutas locales,
+   - `convertersmartgrid-web` arrancado de verdad: salud, página, espacio de trabajo, rutas locales,
      carga (96 alimentadores), conversión de 3, salidas (20 ficheros) y `diagnose`.
      Rechaza bien una opción fuera de rango (422) y una ruta con `../..` (400). El
      registro del servidor no tiene ningún 500 ni ninguna traza.
    - Interfaz en un navegador real (Playwright): carga sin errores ni avisos de consola, el
      Registro conecta por WebSocket y detecta PowerFactory 2024 con Python 3.12.
-   - `vnr-etl --help`, `vnr-etl doctor` e `igea-dgs-web --help`: responden.
+   - `vnr-etl --help`, `vnr-etl doctor` e `convertersmartgrid-web --help`: responden.
 4. **Oráculo pandapower** (`oraculo.py`, que ninguna prueba ejecuta) sobre los 96
    alimentadores reales con las reglas del proyecto: 31 s; **95 convergen, 1 con error**
    (`tension_imposible`; tensión mínima 0,756 pu en PE105); **0 excepciones**.
@@ -323,11 +323,11 @@ front. S1 entra en la spec 001 como RF-15.
 | `gui.py` | 1777 | 33 % |
 | `settings.py` | 73 | 95 % |
 
-- `igea_dgs/` — 1 módulos, 42 líneas, 93 %
+- `convertersmartgrid/` — 1 módulos, 42 líneas, 93 %
 
-- `igea_dgs/web/` — 11 módulos, 3425 líneas, 76 %. Bajo 70 %: `__main__.py` 0 %, `runtime.py` 68 %, `services.py` 66 %
+- `convertersmartgrid/web/` — 11 módulos, 3425 líneas, 76 %. Bajo 70 %: `__main__.py` 0 %, `runtime.py` 68 %, `services.py` 66 %
 
-- `igea_dgs/web/sources/` — 4 módulos, 143 líneas, 92 %
+- `convertersmartgrid/web/sources/` — 4 módulos, 143 líneas, 92 %
 
 - `vnr_etl/` — 6 módulos, 1025 líneas, 76 %. Bajo 70 %: `__main__.py` 0 %, `cli.py` 67 %, `logging.py` 65 %
 
@@ -368,7 +368,7 @@ front. S1 entra en la spec 001 como RF-15.
 | Lote y red unida | Sí | 93-95 %; serie = paralelo byte a byte |
 | Cargas (plantillas) | Sí | 78-93 % |
 | API web y front | Sí | Recorrido en vivo completo; `services.py` al 66 % |
-| CLI `igea-dgs` | Sí | Conversión real; 66 % en la suite |
+| CLI `convertersmartgrid` | Sí | Conversión real; 66 % en la suite |
 | GUI Tkinter | Sin comprobar en vivo | 33 %; es heredada y se usa a mano |
 | PowerFactory | Sin comprobar | Lo prueba el usuario en PF |
 | VNR-GIS (`vnr_etl`) | Sí en lo que se prueba | 86 pruebas en verde. Falta `gis/crs.py` (30 %) y `exporters/cymdist.py` (37 %); 5 drivers opcionales sin instalar |
@@ -383,7 +383,7 @@ front. S1 entra en la spec 001 como RF-15.
   `pip install -r requirements.txt`, también la instalación automática de `run_gui.bat`.
   Además, el `.venv` de esta máquina no tiene `leafmap`, `chardet`, `SQLAlchemy`,
   `oracledb`, `psycopg2-binary`, `opencv-python`, `pdf2image` ni `rarfile`.
-- **R3. Ayuda del CLI en inglés.** `igea-dgs --help` («Universal IGEA/CYMDIST TXT to
+- **R3. Ayuda del CLI en inglés.** `convertersmartgrid --help` («Universal CYMDIST TXT to
   DIgSILENT DGS converter», «List feeders…», «Convert one, several…») incumple la regla de
   idioma.
 - **R4. Ruido de pandapower.** Imprime un aviso de `numba` por cada alimentador calculado
@@ -391,7 +391,7 @@ front. S1 entra en la spec 001 como RF-15.
 - **R5. Módulos VNR poco probados:** `gis/crs.py` (30 %), `gis/geometry.py` (45 %),
   `exporters/cymdist.py` (37 %) y `catalogs/conductor.py` (0 %; se importa, pero
   `ConductorCatalog` no se ejecuta nunca).
-- **Matiz a S1 (§6):** la ayuda de `igea-dgs-web` documenta que `IGEA_WEB_SERVER_PATHS=1`
+- **Matiz a S1 (§6):** la ayuda de `convertersmartgrid-web` documenta que `CSG_WEB_SERVER_PATHS=1`
   es la forma deliberada de activar las rutas al exponer el servidor. El riesgo real es
   arrancar la app con `uvicorn` directamente, sin pasar por el lanzador.
 
@@ -418,8 +418,8 @@ hoy; R1 y R2 son los que más conviene cerrar.
   conexión (interruptor entre barras), abierta si alguna maniobra de ese tramo lo está.
   La entrega de 03/08, en disposición reducida, da el mismo resultado que antes: 95
   convergen y 1 da error.
-- **R3 — corregido.** La ayuda y los mensajes de `igea-dgs` están en español, y el
-  programa se presenta como `igea-dgs` (antes, `cli.py`). Siguen en inglés los textos fijos
+- **R3 — corregido.** La ayuda y los mensajes de `convertersmartgrid` están en español, y el
+  programa se presenta como `convertersmartgrid` (antes, `cli.py`). Siguen en inglés los textos fijos
   de `argparse` («usage», «options», «show this help message and exit»).
 - **R4 — corregido.** `runpp(..., numba=False)`: ya no hay avisos de numba (antes, 96 por
   lote). Una prueba lo vigila.
@@ -435,10 +435,10 @@ hoy; R1 y R2 son los que más conviene cerrar.
 
 | Comprobación | Resultado |
 | --- | --- |
-| Suite completa con los tres TXT reales | **864 correctas**, 58 omitidas (todas de la vía Access, por falta de `IGEA_MDB`), 0 fallos. Son las 854 anteriores más las 10 nuevas del oráculo |
+| Suite completa con los tres TXT reales | **864 correctas**, 58 omitidas (todas de la vía Access, por falta de `CSG_MDB`), 0 fallos. Son las 854 anteriores más las 10 nuevas del oráculo |
 | Repetida tras instalar los drivers opcionales | 864 correctas, 0 fallos: los drivers no cambian ningún resultado |
 | `tests/test_access_input.py` con las dos `.mdb` | 21 correctas; 6 omitidas por diseño (base y TXT de exportaciones distintas) |
-| `igea-dgs convert --all --workers 4` con los 96 alimentadores reales | 96/96 OK; los 96 DGS idénticos byte a byte a los de la revisión anterior (`--workers 1`). El resumen sale en español: «Pedidos / OK / Omitidos / Fallidos / Manifiesto» |
+| `convertersmartgrid convert --all --workers 4` con los 96 alimentadores reales | 96/96 OK; los 96 DGS idénticos byte a byte a los de la revisión anterior (`--workers 1`). El resumen sale en español: «Pedidos / OK / Omitidos / Fallidos / Manifiesto» |
 | Oráculo sobre los 96 alimentadores reales | Igual que antes del arreglo: 95 convergen y 1 da error (`tension_imposible`, PE105 a 0,756 pu); 0 excepciones; 0 líneas de aviso de numba |
 | Prueba de que la prueba de numba sirve | `runpp` sin `numba=False` imprime el aviso: la prueba lo detectaría |
 | `pip install -r requirements.txt` | **Correcto**, ya sin drivers ni `leafmap`: el `.venv` tiene ahora todo lo del fichero principal, incluido `chardet`, que faltaba |

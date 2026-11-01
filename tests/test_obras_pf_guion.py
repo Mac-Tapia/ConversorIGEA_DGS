@@ -1079,7 +1079,7 @@ def _calibrada_con_escenario(rng):
 def _actual_no_cumple(monkeypatch):
     """«Con proyecto» tal como está no cumple (en la red real lo impiden las cargas nuevas):
     la primera comparación, la del estado actual (025:RF-74), sale que no."""
-    from igea_dgs import escalera_optima
+    from convertersmartgrid import escalera_optima
 
     original = escalera_optima.cumple
     llamadas = []
@@ -1188,7 +1188,7 @@ def test_los_sorteos_escalan_solo_las_cargas_existentes_y_se_restituyen(monkeypa
                  sorteos=sorteos, barras_cargas=[], parametros=PERFIL_ESCALERA)
     informe, codigo = guion.evaluar(app, plan)
     assert codigo == 0, informe
-    en_sorteo = [(e, p) for e, p in vistos if e.startswith('IGEA_sorteo_escalera')]
+    en_sorteo = [(e, p) for e, p in vistos if e.startswith('CSG_sorteo_escalera')]
     assert [round(p / p0, 6) for _, p in en_sorteo] == [0.5, 0.8, 0.5, 0.8]
     assert float(carga.plini) == p0
 
@@ -1303,7 +1303,7 @@ def test_perdidas_con_lo_que_consumen_las_cargas_en_el_flujo(monkeypatch):
     flujo (``m:Psum:bus1``), no su potencia nominal."""
     from types import SimpleNamespace
 
-    from igea_dgs.ajuste_cabecera import Medida
+    from convertersmartgrid.ajuste_cabecera import Medida
 
     cargas = [SimpleNamespace(outserv=0, plini=9.0, GetAttribute=lambda a, p=p: p) for p in (0.4, 0.5)]
     elm = SimpleNamespace(GetObjs=lambda clase: cargas if clase == 'ElmLod' else [])
@@ -1338,7 +1338,7 @@ def test_sorteos_de_la_mas_barata_a_la_mas_cara_hasta_la_primera_que_cumple(monk
     primera que cumple las más caras no se sortean; la que no tiene costo tampoco."""
     import contextlib
 
-    from igea_dgs import escalera_optima
+    from convertersmartgrid import escalera_optima
 
     app, alims = _calibrada_con_escenario(random.Random(31))
     actual, sorteadas, medidas = {}, [], {'n': 0}
@@ -1395,7 +1395,7 @@ def test_tipo_de_otro_proyecto_que_no_se_deja_pegar_se_copia_igual():
     """025:RF-59 — si DIgSILENT no deja pegar el tipo del proyecto biblioteca (``PasteCopy``
     con código 1, Pisco 2026-10-24), se copia de otra forma, con los mismos datos."""
     app, alims = _calibrada(random.Random(5))
-    _prj, equip_otro = _otro_proyecto(app, 'IGEA_Biblioteca_tipos')
+    _prj, equip_otro = _otro_proyecto(app, 'CSG_Biblioteca_tipos')
     original = _tipo(equip_otro, 'TypVoltreg', 'VR32_22_9kV_300A', Un=13.2213, In=300.0, pcReg=10.0,
                      ntapmin=-16, ntapmax=16, nntap0=0)
     local = app.GetLocalLibrary('TypVoltreg')

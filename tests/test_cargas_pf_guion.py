@@ -16,7 +16,7 @@ import pytest
 import fake_pf
 from apoyo import cargar_herramienta, contexto_nativo
 
-SEMILLA = int(os.environ.get('IGEA_SCALE_SEED', random.randrange(1 << 30)))
+SEMILLA = int(os.environ.get('CSG_SCALE_SEED', random.randrange(1 << 30)))
 
 
 @pytest.fixture(scope='module')

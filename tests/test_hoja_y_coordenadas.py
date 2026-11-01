@@ -17,7 +17,7 @@ import math
 import pytest
 
 from synthetic_export import CRS_SINTETICO, ExportSpec, load_export
-from igea_dgs.coordenadas import ORIGEN_GRAFO, completar_coordenadas
+from convertersmartgrid.coordenadas import ORIGEN_GRAFO, completar_coordenadas
 
 pytest.importorskip('pyproj')
 
@@ -93,7 +93,7 @@ def test_componente_sin_ancla_no_se_inventa(tmp_path):
 
 
 def test_la_coordenada_inferida_no_cambia_la_longitud_electrica(tmp_path):
-    from igea_dgs.model import build_feeder_model
+    from convertersmartgrid.model import build_feeder_model
 
     ds = _dataset(tmp_path)
     cadena = _cadena(ds)
@@ -113,10 +113,10 @@ def test_la_coordenada_inferida_no_cambia_la_longitud_electrica(tmp_path):
 # ---------------------------------------------------------------------------
 
 def _dgs_en_hoja(tmp_path, formato='A3', **kw):
-    from igea_dgs.dgs import write_dgs
-    from igea_dgs.geography import build_geography
-    from igea_dgs.model import build_feeder_model
-    from igea_dgs.validate import parse_dgs, validate_dgs
+    from convertersmartgrid.dgs import write_dgs
+    from convertersmartgrid.geography import build_geography
+    from convertersmartgrid.model import build_feeder_model
+    from convertersmartgrid.validate import parse_dgs, validate_dgs
 
     ds = _dataset(tmp_path, **kw)
     m = build_feeder_model(ds, ds.feeder_ids()[0], strict=False, include_geography=True)
@@ -137,7 +137,7 @@ def _coordenadas(tablas):
 
 @pytest.mark.parametrize('formato', ['A0', 'A3', 'A4'])
 def test_todo_el_dibujo_cabe_en_la_hoja(tmp_path, formato):
-    from igea_dgs.dgs import FORMATOS_HOJA
+    from convertersmartgrid.dgs import FORMATOS_HOJA
 
     _m, _g, man, rep, tablas = _dgs_en_hoja(tmp_path, formato)
     assert rep['errors_total'] == 0, rep
@@ -160,13 +160,13 @@ def test_escala_isotropa_conserva_la_forma_de_la_red(tmp_path):
     for a, b in ((ids[0], ids[-1]), (ids[1], ids[-2])):
         pa, pb = geo.nodes[a], geo.nodes[b]
         metros = math.dist((pa.x, pa.y), (pb.x, pb.y))
-        from igea_dgs.dgs import _diagram_mapper_hoja
+        from convertersmartgrid.dgs import _diagram_mapper_hoja
         mp, _ = _diagram_mapper_hoja(geo, 'A3')
         assert math.dist(mp(pa), mp(pb)) == pytest.approx(metros * s, rel=2e-3)
 
 
 def test_simbolos_en_multiplos_de_la_cuadricula(tmp_path):
-    from igea_dgs.dgs import CUADRICULAS_MM, TAMANO_PROPIO_SIMBOLO, PROPORCION_SIMBOLO
+    from convertersmartgrid.dgs import CUADRICULAS_MM, TAMANO_PROPIO_SIMBOLO, PROPORCION_SIMBOLO
 
     _m, _g, man, _r, tablas = _dgs_en_hoja(tmp_path, 'A3')
     assert man.diagram_grid_mm in CUADRICULAS_MM
@@ -180,8 +180,8 @@ def test_simbolos_en_multiplos_de_la_cuadricula(tmp_path):
 
 
 def test_red_alta_va_en_hoja_vertical(tmp_path):
-    from igea_dgs.dgs import _diagram_mapper_hoja
-    from igea_dgs.geography import GeoPoint, GeographyManifest
+    from convertersmartgrid.dgs import _diagram_mapper_hoja
+    from convertersmartgrid.geography import GeoPoint, GeographyManifest
 
     geo = GeographyManifest(
         feeder='V', network_id='V', source_node='a', source_crs='EPSG:32718',
@@ -211,7 +211,7 @@ def test_la_grid_conserva_la_curva_con_el_tope_de_powerfactory():
     Tomar puntos a intervalos fijos (4 por mitad) cortaba las curvas: en IN111 + TA225
     la grid se separaba hasta 257 m del trazado que dibuja el mapa.
     """
-    from igea_dgs.dgs import PUNTOS_POR_CONECTOR_PF, _puntos_que_dan_la_forma
+    from convertersmartgrid.dgs import PUNTOS_POR_CONECTOR_PF, _puntos_que_dan_la_forma
 
     # Una recta larga con un único quiebro lejos de los intervalos regulares.
     puntos = [(float(i), 0.0) for i in range(60)]
@@ -225,7 +225,7 @@ def test_la_grid_conserva_la_curva_con_el_tope_de_powerfactory():
 
 def test_cabecera_de_conectores_ensanchada_es_valida():
     """010:RF-7 — el DGS declara tantos puntos por conector como usa, y el validador lo acepta."""
-    from igea_dgs.schema import load_schema
+    from convertersmartgrid.schema import load_schema
 
     schema = load_schema()
     ancho = schema.con_puntos_por_conector(20).header('IntGrfcon')

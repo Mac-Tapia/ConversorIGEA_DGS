@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Sequence
 
-from igea_dgs.pide_dataset import construir_dataset
+from convertersmartgrid.pide_dataset import construir_dataset
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -27,8 +27,8 @@ def _parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     if args.solo_ejemplos:
-        from igea_dgs.asistente.ejemplos_pide import construir, resumen
-        from igea_dgs.pide_dataset import cargar_contrato
+        from convertersmartgrid.asistente.ejemplos_pide import construir, resumen
+        from convertersmartgrid.pide_dataset import cargar_contrato
 
         datos = construir(args.destino, cargar_contrato(args.contrato))
         ruta = args.destino / 'ejemplos_agente.json'
@@ -36,8 +36,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         for linea in resumen(datos):
             print(linea)
         # 027:RF-49: los encabezados que produce el conversor frente a los entregados.
-        from igea_dgs.asistente.ejemplos_pide import comparar_formatos
-        from igea_dgs.pide import FORMATOS
+        from convertersmartgrid.asistente.ejemplos_pide import comparar_formatos
+        from convertersmartgrid.pide import FORMATOS
 
         for codigo, c in comparar_formatos(FORMATOS, {}, datos).items():
             print(f"  {codigo}: {c['coinciden']} de {c['campos']} campos como en lo entregado"

@@ -562,10 +562,10 @@ Línea de órdenes
 ## Criterios de finalización
 
 - Cada RF citado por al menos una prueba (`grep -rnoE "017:RF-[0-9]+" tests`).
-- Suite en verde, también con las variables `IGEA_*`, con una prueba de API en
+- Suite en verde, también con las variables `CSG_*`, con una prueba de API en
   `tests/test_web_api.py` por cada endpoint nuevo.
 - `npx tsc --noEmit -p frontend` sin errores y `npm run build` correcto; el paso 5 revisado
-  con la checklist del skill `igea-dgs-frontend` (modo claro y oscuro, sin `localStorage`).
+  con la checklist del skill `convertersmartgrid-frontend` (modo claro y oscuro, sin `localStorage`).
 - Prueba en DIgSILENT con CA101 desde cero: conversión, importación, «Caso base»
   verificado, calibración en «Sin proyecto», etapas de obras en «Con proyecto» e informe
   de estudio generado, con las imágenes de DIgSILENT, revisado por el usuario.

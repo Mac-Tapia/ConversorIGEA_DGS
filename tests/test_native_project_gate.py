@@ -23,7 +23,7 @@ class _NoSubprocess:
 
 
 def _workspace(tmp_path):
-    from igea_dgs.web.workspace import Workspace
+    from convertersmartgrid.web.workspace import Workspace
 
     ws = Workspace(id='gate', root=tmp_path)
     ws.active_run_id = 'run-active'
@@ -50,19 +50,19 @@ def _maxima():
         w, _NoSubprocess(), 'P', ['A1', 'A2'], ['sin'], None),
 ])
 def test_every_native_action_rejects_unbound_project_before_work(tmp_path, invoke):
-    from igea_dgs.web import services
+    from convertersmartgrid.web import services
 
     with pytest.raises(services.UserError, match='PROJECT_BINDING_MISSING'):
         invoke(services, _workspace(tmp_path))
 
 
 def test_native_action_context_carries_one_signed_binding(tmp_path):
-    from igea_dgs.powerfactory_binding import PowerFactoryProjectBinding
-    from igea_dgs.web import services
+    from convertersmartgrid.powerfactory_binding import PowerFactoryProjectBinding
+    from convertersmartgrid.web import services
 
     ws = _workspace(tmp_path)
     binding = PowerFactoryProjectBinding(
-        project='P', folder='Conversor IGEA-DGS', source_run_id='run-active',
+        project='P', folder='ConverterSmartGrid', source_run_id='run-active',
         source_mode='txt', source_fingerprint='f' * 64, feeders=('A1', 'A2'),
         dgs_sha256={'A1': 'a' * 64, 'A2': 'b' * 64}, native_inventory_sha256='n' * 64,
         native_reread={'status': 'VERIFICADO_PERSISTENCIA'}, accepted_at=1.0,
@@ -83,13 +83,13 @@ def test_native_action_context_carries_one_signed_binding(tmp_path):
 
 def test_native_action_context_signs_nonblocking_project_warnings(tmp_path):
     """014:RF-17 — la acción nativa se autoriza con las modificaciones manuales como aviso."""
-    from igea_dgs.native_action import verify_native_action_context
-    from igea_dgs.powerfactory_binding import PowerFactoryProjectBinding
-    from igea_dgs.web import services
+    from convertersmartgrid.native_action import verify_native_action_context
+    from convertersmartgrid.powerfactory_binding import PowerFactoryProjectBinding
+    from convertersmartgrid.web import services
 
     ws = _workspace(tmp_path)
     binding = PowerFactoryProjectBinding(
-        project='P', folder='Conversor IGEA-DGS', source_run_id='run-previous',
+        project='P', folder='ConverterSmartGrid', source_run_id='run-previous',
         source_mode='txt', source_fingerprint='f' * 64, feeders=('A1',),
         dgs_sha256={'A1': 'a' * 64}, native_inventory_sha256='n' * 64,
         native_reread={'status': 'VERIFICADO_PERSISTENCIA'}, accepted_at=1.0,
@@ -122,7 +122,7 @@ def test_native_action_context_signs_nonblocking_project_warnings(tmp_path):
     ({'not_applicable': 'sin interruptor'}, 'NO_APLICA'),
 ])
 def test_status_vocabulary_never_returns_generic_fail(evidence, expected):
-    from igea_dgs.native_action import native_result_status
+    from convertersmartgrid.native_action import native_result_status
 
     status = native_result_status(evidence)
     assert status == expected
@@ -130,7 +130,7 @@ def test_status_vocabulary_never_returns_generic_fail(evidence, expected):
 
 
 def test_q_warning_is_nonblocking_for_studies():
-    from igea_dgs.native_action import status_blocks_studies
+    from convertersmartgrid.native_action import status_blocks_studies
 
     assert status_blocks_studies('AVISO_KVAR') is False
     assert status_blocks_studies('AVISO_PERSISTENCIA_CORREGIDA') is False

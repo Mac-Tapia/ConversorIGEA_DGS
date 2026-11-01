@@ -58,7 +58,7 @@ output/
 # utility identifiers and machine-specific paths; publish only curated summaries.
 AUDIT/
 
-# Large IGEA sample TXT (keep local; do not publish utility dumps)
+# Large CYMDIST sample TXT (keep local; do not publish utility dumps)
 referencia/RED_*.txt
 referencia/CARGA_*.txt
 referencia/BD_Equipo*.txt

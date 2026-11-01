@@ -4,7 +4,7 @@
   Hecho cuando: pasan los casos único, ausente y ambiguo y la integración con máximas.
 - [x] T2. Notas del libro, interfaz y exportación (RF-2, RF-6).
   Hecho cuando: las notas sobreviven al cruce y al Excel y la interfaz las muestra.
-- [x] T3. Nota sobre la fuente exportada y el alcance de los planos de IGEA (RF-7).
+- [x] T3. Nota sobre la fuente exportada y el alcance de los planos de la distribuidora (RF-7).
   Hecho cuando: la nota explica el alcance indicado por el usuario y pasa el build.
 - [x] T4. Verificar regresión, trazabilidad y entrega real (RF-1 a RF-8).
   Hecho cuando: pasan las suites afectadas y se comprueban las asignaciones de la fuente real sin modificar la red nativa por un cambio comercial.
@@ -16,7 +16,7 @@
   preparación de un plan que omitía una fija ambigua; quedaron corregidas.
 - `pytest tests/test_pertenencia_sed.py tests/test_demanda_medida.py
   tests/test_demanda_medida_web.py tests/test_ajuste_cabecera_web.py
-  tests/test_q_con_bancos.py -q` con `IGEA_DEMANDA_DIR` real: **203 passed**, sin skips.
+  tests/test_q_con_bancos.py -q` con `CSG_DEMANDA_DIR` real: **203 passed**, sin skips.
 - `npm --prefix frontend run build`: TypeScript y Vite correctos.
 - Regresión final después de incorporar el índice reutilizable de la fuente:
   `test_pertenencia_sed`, `test_demanda_medida_web`, `test_ajuste_cabecera_web`,
@@ -42,5 +42,5 @@
   y conservó la central del operador y cuatro bancos por alimentador en su escaneo;
   terminó en `FALLO_VALIDACION_NATIVA`. El cierre de esta spec de pertenencia y notas
   no acredita aceptación eléctrica de NA203 ni NA205.
-- Los planos previos de IGEA no se modificaron; el aviso añadido inicialmente a la vista
+- Los planos previos de la distribuidora no se modificaron; el aviso añadido inicialmente a la vista
   previa se retiró al aclarar el usuario el alcance.

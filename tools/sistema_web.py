@@ -43,9 +43,9 @@ from pathlib import Path
 
 import requests
 
-from igea_dgs.demanda_medida import (TIPOS_DEMANDA, DemandaError, clasificar_carpeta_demanda,
+from convertersmartgrid.demanda_medida import (TIPOS_DEMANDA, DemandaError, clasificar_carpeta_demanda,
                                      descubrir_libro_suministros)
-from igea_dgs.util import nombre_seguro
+from convertersmartgrid.util import nombre_seguro
 
 TERMINADOS = ('done', 'failed', 'cancelled')
 #: Sin estos dos no hay calibración; sin clientes o suministros, todo por kVA (013:RF-13).
@@ -203,7 +203,7 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
             print(f'  aviso: {aviso}', flush=True)
     # El trabajo de la web que lanzó este proceso (el botón «Recalibrar», el asistente) no se
     # espera: se esperaba a sí mismo y el «Recalibrar» de Chincha no empezó nunca (2026-10-28).
-    propio = os.environ.get('IGEA_TRABAJO_PROPIO', '')
+    propio = os.environ.get('CSG_TRABAJO_PROPIO', '')
     for trabajo in [t for t in web.get('')['jobs'] if t['status'] not in TERMINADOS and t['id'] != propio]:
         print(f"Esperando «{trabajo['title']}»…", flush=True)
         web.esperar(trabajo)
@@ -289,8 +289,8 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
     # 021:RF-25, RF-33: la central de un alimentador del sistema (la de Nasca en NA205), con sus
     # tres medidores y su barra, del perfil: sin ella NA205 se calibraba con su cabecera, que
     # es la demanda menos la generación (usuario, 2026-10-28).
-    from igea_dgs.escaneo import nodo_de_central
-    from igea_dgs.perfil_empresa import PerfilError, centrales_termicas, datos_perfil
+    from convertersmartgrid.escaneo import nodo_de_central
+    from convertersmartgrid.perfil_empresa import PerfilError, centrales_termicas, datos_perfil
 
     # 028:RF-15: lo que hay en DIgSILENT (centrales y bancos puestos a mano) antes de calibrar;
     # la central del perfil sin barra toma la de su generador.

@@ -14,10 +14,10 @@ torch = pytest.importorskip('torch')
 
 from test_digital_twin_episode import _payload
 
-from igea_dgs.digital_twin import oraculo as orc
-from igea_dgs.digital_twin.buffer import BuferEpisodios
-from igea_dgs.digital_twin.episode import episodio_a_dict, leer_episodio
-from igea_dgs.digital_twin.escenarios import Escenario
+from convertersmartgrid.digital_twin import oraculo as orc
+from convertersmartgrid.digital_twin.buffer import BuferEpisodios
+from convertersmartgrid.digital_twin.episode import episodio_a_dict, leer_episodio
+from convertersmartgrid.digital_twin.escenarios import Escenario
 
 CFG = orc.Entrenamiento(epocas=120, lr=5e-3, ocultas=32, pasos=6)
 
@@ -284,8 +284,8 @@ def test_busqueda_de_hiperparametros_solo_en_validacion(entrenado, tmp_path, mon
     """027:RF-7 — TPE con presupuesto de ensayos; cada ensayo se evalúa solo con la partición
     de validación y se guardan todos y la configuración elegida."""
     pytest.importorskip('optuna')
-    from igea_dgs.digital_twin import hiperparametros as hp
-    from igea_dgs.digital_twin.buffer import Consulta
+    from convertersmartgrid.digital_twin import hiperparametros as hp
+    from convertersmartgrid.digital_twin.buffer import Consulta
 
     bufer, _r = entrenado
     muestras, _ids = orc._muestras(bufer, Consulta())
@@ -329,7 +329,7 @@ def test_cuantil_conforme_con_su_cobertura():
 def test_intervalo_por_barra_y_no_confiable(entrenado):
     """027:RF-12 / 027:RF-13 — el modelo trae su cuantil y da un intervalo por barra; si es
     más ancho que la banda de la norma, la predicción no se usa para decidir."""
-    from igea_dgs.digital_twin.evaluacion import Limites
+    from convertersmartgrid.digital_twin.evaluacion import Limites
 
     bufer, _r = entrenado
     actual = orc.cargar(bufer)
@@ -379,12 +379,12 @@ def test_rutas_de_deriva_y_vuelta(tmp_path, monkeypatch):
     from apoyo import esperar_trabajo
     from fastapi.testclient import TestClient
 
-    from igea_dgs.web import services
-    from igea_dgs.web.app import create_app
+    from convertersmartgrid.web import services
+    from convertersmartgrid.web.app import create_app
 
-    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     monkeypatch.setattr(services, 'gemelo_deriva', lambda ws, ctx: {'proponer_reentrenar': True, 'motivos': ['x']})
-    import igea_dgs.asistente.transformer as tr
+    import convertersmartgrid.asistente.transformer as tr
 
     monkeypatch.setattr(tr, 'volver_al_anterior', lambda: 'v1')
     with TestClient(create_app(tmp_path / 'web')) as c:
@@ -401,7 +401,7 @@ def test_episodios_por_sistema_y_curva(tmp_path):
     import copy
     import hashlib
 
-    from igea_dgs.digital_twin import curva as cv
+    from convertersmartgrid.digital_twin import curva as cv
 
     rnd = random.Random(21)
     muestras, ids = [], []
@@ -434,8 +434,8 @@ def test_entrenar_con_un_sistema_entero(entrenado, tmp_path):
     reparto por la huella de cada episodio; la curva que empeora al añadir datos es inestable."""
     import shutil
 
-    from igea_dgs.digital_twin import curva as cv
-    from igea_dgs.digital_twin.buffer import Consulta
+    from convertersmartgrid.digital_twin import curva as cv
+    from convertersmartgrid.digital_twin.buffer import Consulta
 
     bufer, _r = entrenado
     copia = BuferEpisodios(tmp_path / 'copia')

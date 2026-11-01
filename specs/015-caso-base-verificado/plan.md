@@ -14,7 +14,7 @@ Hoy la verificación del modelo físico está partida en dos sitios:
   sin manifiesto (CA101, 2026-10-13) solo corre el flujo, y `attach_project_binding`
   vincula el proyecto como `IDENTIDAD_VERIFICADA_PENDIENTE_CONVERGENCIA`. Ninguna de las
   dos vías compara la potencia de los transformadores ni la corriente de las líneas.
-- `src/igea_dgs/powerfactory_binding.py`. `promote_project_binding_after_calibration`
+- `src/convertersmartgrid/powerfactory_binding.py`. `promote_project_binding_after_calibration`
   da el vínculo por verificado cuando cuadra un ajuste (`services.ajuste_ejecutar`).
 
 La calibración (`tools/ajuste_cabecera_pf.py`) crea una variación `Ajuste_<alim>_…`,
@@ -32,7 +32,7 @@ incluye P/Q, así que calibrar no lo cambia) y su aviso `PROJECT_BINDING_NATIVE_
 
 | Parte | Ficheros | Cubre |
 | --- | --- | --- |
-| A. Equipos del archivo original | `src/igea_dgs/capacidades.py` (nuevo): de las tablas del DGS, `strn`×`ntnum` de cada `ElmTr2` y `sline`/`InomAir`×`nlnum` de cada `ElmLne`, y de cada `TypTr2` el grupo de conexión (`tr2cn_h`, `tr2cn_l`, `nt2ag`) y la tensión de baja (`utrn_l`); comparación con lo leído en DIgSILENT → sin dato / distinto, con lo que toca hacer con cada uno (capacidad distinta: aviso; grupo o tensión de baja: corregir) | RF-6, RF-7, RF-11, RF-32, RF-33 |
+| A. Equipos del archivo original | `src/convertersmartgrid/capacidades.py` (nuevo): de las tablas del DGS, `strn`×`ntnum` de cada `ElmTr2` y `sline`/`InomAir`×`nlnum` de cada `ElmLne`, y de cada `TypTr2` el grupo de conexión (`tr2cn_h`, `tr2cn_l`, `nt2ag`) y la tensión de baja (`utrn_l`); comparación con lo leído en DIgSILENT → sin dato / distinto, con lo que toca hacer con cada uno (capacidad distinta: aviso; grupo o tensión de baja: corregir) | RF-6, RF-7, RF-11, RF-32, RF-33 |
 | B. Verificación del «Caso base» | `tools/powerfactory_acceptance.py`: `run_acceptance` también con `--existing-project`, que pasa a exigir `--manifest`; activa el caso marcado «Caso base» si existe; añade la conectividad de las cargas, las capacidades, el grupo de conexión y la tensión de baja de los transformadores de SED (A) y la lista de variaciones activas; el flujo, sin remedios (`--fix-until-converge` prohibido aquí); el informe dice el resultado de cada comprobación | RF-1 a RF-9, RF-12, RF-31 a RF-33 |
 | B2. Corrección de transformadores de SED | `tools/powerfactory_acceptance.py`, antes del flujo: a cada `ElmTr2` con grupo o tensión de baja distintos se le asigna un tipo con los valores del archivo original (el mismo `TypTr2` si todos los que lo usan necesitan la corrección; si no, una copia del tipo con su nombre y los valores corregidos), como ya hace `reread_capacitors` con los bancos | RF-34 a RF-36 |
 | C. Estado del vínculo | `powerfactory_binding.py`: `native_reread['caso_base'] = {alimentador: {status, fallos}}`; `caso_base_verificado(ws, proyecto, alimentadores)`; desaparecen `IDENTIDAD_VERIFICADA_PENDIENTE_CONVERGENCIA` y `promote_project_binding_after_calibration` | RF-10, RF-13, RF-22 |
@@ -66,7 +66,7 @@ incluye P/Q, así que calibrar no lo cambia) y su aviso `PROJECT_BINDING_NATIVE_
 - La demanda que dejó la última calibración se guarda en el espacio de la web. Descartado:
   una marca en DIgSILENT, porque escribirla en la carga sería otro dato fuera del
   escenario.
-- **Resultado de T1 (2026-10-14, copia de `20261009-215203_IGEA_CA101`, borrada;
+- **Resultado de T1 (2026-10-14, copia de `20261009-215203_CSG_CA101`, borrada;
   `output/spec015/T1_sonda_escenario.json`):** el escenario de operación guarda `plini`,
   `qlini`, `scale0` y `outserv` de la carga (41,8 kW en el base, 63,7 kW escritos en la
   copia, y el base siguió en 41,8 kW). `i_scale` **no**: escrito en la copia, cambió

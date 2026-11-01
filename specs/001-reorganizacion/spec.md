@@ -16,7 +16,7 @@ correcto**.
 ## Usuarios / actores
 
 - Ingeniero de planificación que convierte desde la web.
-- Quien convierte en lote con el CLI `igea-dgs`.
+- Quien convierte en lote con el CLI `convertersmartgrid`.
 - Quien usa el módulo VNR-GIS (`vnr-etl`).
 - Desarrollador del proyecto, que mantiene el código.
 
@@ -36,7 +36,7 @@ Entrada
 - RF-1: EL SISTEMA leerá la entrada (TXT, MDB y VNR-GIS) con un único conjunto de
   adaptadores, compartido por la web y el CLI.
 - RF-16: EL SISTEMA ofrecerá la conversión solo por la web y el CLI: la GUI Tkinter, su
-  orden `igea-dgs gui`, su script `igea-dgs-gui` y sus lanzadores `.bat` se retiran.
+  orden `convertersmartgrid gui`, su script `convertersmartgrid-gui` y sus lanzadores `.bat` se retiran.
 - RF-2: CUANDO el CLI recibe un paquete VNR-GIS, EL SISTEMA lo cargará con el mismo
   adaptador y el mismo resultado que la web.
 - RF-3: CUANDO se completa o diagnostica el catálogo de conductores, EL SISTEMA aplicará
@@ -60,7 +60,7 @@ Trabajos
 VNR-GIS
 
 - RF-10: CUANDO `vnr-etl` exporta a DGS, EL SISTEMA generará el DGS con el motor
-  `igea_dgs` (reglas, validación y publicación atómica).
+  `convertersmartgrid` (reglas, validación y publicación atómica).
 - RF-11: EL SISTEMA ofrecerá una única API web y una única cola de trabajos; el script
   `vnr-etl-web` se retira.
 - RF-17: SI al exportar desde VNR-GIS falta un dato de la red (alimentador de un tramo,
@@ -131,7 +131,7 @@ Seguridad
 
 - RF-15: SI la API escucha fuera de `127.0.0.1`, ENTONCES EL SISTEMA rechazará las rutas
   del disco del servidor como entrada, cualquiera que sea el lanzador y aunque la
-  variable `IGEA_WEB_SERVER_PATHS` exista.
+  variable `CSG_WEB_SERVER_PATHS` exista.
 
 Salida
 
@@ -166,7 +166,7 @@ Salida
 
 - Cada RF lo cita al menos una prueba: `grep -rnoE "001:RF-[0-9]+" tests | sort -u` lista
   RF-1 a RF-16.
-- Suite en verde con las tres variables `IGEA_*`.
+- Suite en verde con las tres variables `CSG_*`.
 - RF-14 comprobado: DGS de referencia regenerados e idénticos a los anteriores.
 - `npx tsc --noEmit -p frontend` y `npm run build` correctos.
 

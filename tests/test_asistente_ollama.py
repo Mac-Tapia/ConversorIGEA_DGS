@@ -7,7 +7,7 @@ import urllib.error
 
 import pytest
 
-from igea_dgs.asistente.ollama import ClienteOllama, OllamaNoLocal
+from convertersmartgrid.asistente.ollama import ClienteOllama, OllamaNoLocal
 
 
 class _Respuesta(io.BytesIO):
@@ -80,9 +80,9 @@ def test_sin_respuesta_o_tarea_desconocida():
     assert c.modelos() == ['qwen2.5:3b'] and c.embeddings(['hola']) == [[0.1, 0.2]]
 def test_cliente_configurado_conserva_revision_y_dos_etapas(tmp_path, monkeypatch):
     """047:RF-18: el protocolo medido debe llegar al cliente que atiende en la web."""
-    from igea_dgs.asistente import almacen
-    from igea_dgs.asistente.ollama import cliente_configurado
-    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(tmp_path))
+    from convertersmartgrid.asistente import almacen
+    from convertersmartgrid.asistente.ollama import cliente_configurado
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path))
     almacen.guardar_json('ollama', {'modelo': 'candidato:local', 'revisar_transformer': True,
                                   'dos_etapas': True, 'pensar': False})
     c = cliente_configurado()
@@ -92,9 +92,9 @@ def test_cliente_configurado_conserva_revision_y_dos_etapas(tmp_path, monkeypatc
 @pytest.mark.parametrize('cfg', [[], {'modelo': 0}, {'dos_etapas': 'false'}])
 def test_cliente_configurado_rechaza_protocolo_malformado(tmp_path, monkeypatch, cfg):
     """047:RF-18: un valor ambiguo no cambia silenciosamente el protocolo evaluado."""
-    from igea_dgs.asistente import almacen
-    from igea_dgs.asistente.ollama import cliente_configurado
-    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(tmp_path))
+    from convertersmartgrid.asistente import almacen
+    from convertersmartgrid.asistente.ollama import cliente_configurado
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path))
     almacen.guardar_json('ollama', cfg)
     with pytest.raises(ValueError):
         cliente_configurado()
@@ -102,7 +102,7 @@ def test_cliente_configurado_rechaza_protocolo_malformado(tmp_path, monkeypatch,
 
 def test_ensayo_no_descarga_modelos_ajenos_de_la_gpu():
     """043:RF-12 / 047:RF-18: liberar el ensayo no modifica otros modelos cargados."""
-    from igea_dgs.asistente.ollama import ClienteOllama
+    from convertersmartgrid.asistente.ollama import ClienteOllama
     import io
     import json
     cuerpos = []
@@ -116,8 +116,8 @@ def test_ensayo_no_descarga_modelos_ajenos_de_la_gpu():
     assert cuerpos == [{'model': 'ensayo:local', 'keep_alive': 0}]
 def test_alumno_llm_usa_el_mismo_prompt_del_ajuste():
     """047:RF-19: exportar pesos no habilita un prompt distinto del evaluado."""
-    from igea_dgs.asistente.ollama import ClienteOllama
-    from igea_dgs.asistente.llm_destilacion import sistema_alumno
+    from convertersmartgrid.asistente.ollama import ClienteOllama
+    from convertersmartgrid.asistente.llm_destilacion import sistema_alumno
     import json
     import io
     peticiones=[]

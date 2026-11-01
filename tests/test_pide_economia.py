@@ -4,8 +4,8 @@ from __future__ import annotations
 import pytest
 from openpyxl import Workbook
 
-from igea_dgs import pide_economia as ec
-from igea_dgs.perfil_empresa import carpeta_perfiles
+from convertersmartgrid import pide_economia as ec
+from convertersmartgrid.perfil_empresa import carpeta_perfiles
 
 PLAN = {'tasa_regulada': 0.12, 'tasa_privada': 0.12, 'vida_util_anios': 30, 'horizonte_anios': 20,
         'tarifas': {'MT3': {'energia_punta_kwh': 0.3226, 'energia_fuera_punta_kwh': 0.2842,

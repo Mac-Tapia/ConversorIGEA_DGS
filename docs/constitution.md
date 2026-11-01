@@ -1,10 +1,10 @@
-# Constitución — Conversor IGEA/CYMDIST → DGS
+# Constitución — ConverterSmartGrid
 
 Principios innegociables. Toda spec (`specs/NNN-*/spec.md`), plan y tarea los cumple; si
 una spec necesita romper uno, primero se cambia este documento, con su motivo.
 
-No son reglas nuevas: resumen las de `CLAUDE.md` y los skills `igea-dgs-backend` y
-`igea-dgs-frontend`, que siguen siendo el detalle vigente. Cada principio dice cómo se
+No son reglas nuevas: resumen las de `CLAUDE.md` y los skills `convertersmartgrid-backend` y
+`convertersmartgrid-frontend`, que siguen siendo el detalle vigente. Cada principio dice cómo se
 comprueba; uno que no se pueda comprobar no es un principio.
 
 1. **Determinismo.** Misma entrada, perfil y alias dan el mismo DGS byte a byte, con
@@ -41,7 +41,7 @@ comprueba; uno que no se pueda comprobar no es un principio.
 10. **Idioma y estilo.** Código, comentarios, mensajes y commits en español. Los
     comentarios explican el **porqué**, con el caso real que lo motivó.
 11. **Las pruebas son la puerta.** Una tarea termina con la suite en verde, y con datos
-    reales (las tres variables `IGEA_*`) si toca el lector o el modelo. Sin ellas, la suite
+    reales (las tres variables `CSG_*`) si toca el lector o el modelo. Sin ellas, la suite
     «pasa» sin haber probado nada real.
 12. **La spec manda.** Un comportamiento nuevo entra primero en la spec activa y luego en
     el código; cada requisito `RF-n` tiene al menos una prueba que lo cita.

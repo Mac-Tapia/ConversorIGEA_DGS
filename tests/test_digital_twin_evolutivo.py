@@ -14,9 +14,9 @@ import pytest
 
 pytest.importorskip('scipy')
 
-from igea_dgs.digital_twin import evolutivo as ev
-from igea_dgs.digital_twin import oraculo as orc
-from igea_dgs.pide_economia import valor_kw_perdidas
+from convertersmartgrid.digital_twin import evolutivo as ev
+from convertersmartgrid.digital_twin import oraculo as orc
+from convertersmartgrid.pide_economia import valor_kw_perdidas
 
 NORMA = {'tension_min_pu': 0.95, 'tension_max_pu': 1.05}
 
@@ -255,11 +255,11 @@ def test_la_web_optimiza_los_bancos_con_la_red_del_gemelo(tmp_path, monkeypatch)
     sin red del gemelo, lo dice y deja los del diagnóstico."""
     from test_digital_twin_episode import _payload
 
-    from igea_dgs.digital_twin.buffer import BuferEpisodios
-    from igea_dgs.digital_twin.episode import leer_episodio
-    from igea_dgs.web import services
+    from convertersmartgrid.digital_twin.buffer import BuferEpisodios
+    from convertersmartgrid.digital_twin.episode import leer_episodio
+    from convertersmartgrid.web import services
 
-    monkeypatch.setenv('IGEA_TWIN_DATA', str(tmp_path / 'twin'))
+    monkeypatch.setenv('CSG_TWIN_DATA', str(tmp_path / 'twin'))
     limites = SimpleNamespace(**NORMA)
     perfil = {'calibracion': {'bancos_kvar_por_tension': {'10': 300}}}
     plan = {'tasa_regulada': 0.12, 'vida_util_anios': 30}

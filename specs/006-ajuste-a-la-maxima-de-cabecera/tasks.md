@@ -2,7 +2,7 @@
 
 Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y parar.
 
-- [x] T1. `src/igea_dgs/ajuste_cabecera.py`: objetivo, demandas fijas de los clientes y
+- [x] T1. `src/convertersmartgrid/ajuste_cabecera.py`: objetivo, demandas fijas de los clientes y
       reparto inicial por kVA, con los modos «todo escala» y «solo kW». (RF-1, RF-3, RF-5,
       RF-6, RF-7, RF-8, RF-13, RF-14, RF-24)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_ajuste_cabecera.py` en verde.

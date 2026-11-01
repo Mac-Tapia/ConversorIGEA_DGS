@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import pytest
 
-from igea_dgs import dgs
-from igea_dgs.batch import convert_selection
+from convertersmartgrid import dgs
+from convertersmartgrid.batch import convert_selection
 
 
 def _tablas(texto: str) -> dict[str, tuple[list[str], list[list[str]]]]:
@@ -96,7 +96,7 @@ def test_sed_monofasica_como_trafo_monofasico(ds, sample_feeder, tmp_path, opcio
     equilibrada (DIgSILENT la hace «1PH PH-E»)."""
     from dataclasses import replace
 
-    import igea_dgs.batch as batch
+    import convertersmartgrid.batch as batch
 
     construir = batch.write_dgs
 

@@ -16,7 +16,7 @@ def _write(path: Path, content: bytes) -> Path:
 
 
 def _txt_workspace(tmp_path):
-    from igea_dgs.web.workspace import Workspace
+    from convertersmartgrid.web.workspace import Workspace
 
     ws = Workspace(id='source-run-tests', root=tmp_path / 'workspace')
     ws.options['input_mode'] = 'txt'
@@ -31,7 +31,7 @@ def _txt_workspace(tmp_path):
 
 
 def test_source_run_custodia_originales_y_hashes(tmp_path):
-    from igea_dgs.web.source_runs import create_source_run
+    from convertersmartgrid.web.source_runs import create_source_run
 
     ws, originals = _txt_workspace(tmp_path)
 
@@ -59,7 +59,7 @@ def test_source_run_custodia_originales_y_hashes(tmp_path):
 
 
 def test_run_txt_no_incluye_slots_mdb_o_vnr(tmp_path):
-    from igea_dgs.web.source_runs import create_source_run
+    from convertersmartgrid.web.source_runs import create_source_run
 
     ws, _originals = _txt_workspace(tmp_path)
     ws.set_input('mdb', _write(tmp_path / 'server' / 'red.mdb', b'MDB'), origin='server')
@@ -77,7 +77,7 @@ def test_run_txt_no_incluye_slots_mdb_o_vnr(tmp_path):
 
 
 def test_cambiar_archivo_invalida_run_sin_borrar_historial(tmp_path):
-    from igea_dgs.web.source_runs import create_source_run
+    from convertersmartgrid.web.source_runs import create_source_run
 
     ws, _originals = _txt_workspace(tmp_path)
     snapshot = create_source_run(ws)
@@ -94,7 +94,7 @@ def test_cambiar_archivo_invalida_run_sin_borrar_historial(tmp_path):
 
 
 def test_ruta_servidor_mutada_no_cambia_snapshot(tmp_path):
-    from igea_dgs.web.source_runs import create_source_run
+    from convertersmartgrid.web.source_runs import create_source_run
 
     ws, originals = _txt_workspace(tmp_path)
     snapshot = create_source_run(ws)

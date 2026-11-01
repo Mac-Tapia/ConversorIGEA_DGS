@@ -114,7 +114,7 @@ def verify_source_contract(
     if reconstruction is not None or reconstruction_report_path is not None:
         if reconstruction_report_path is None:
             raise ValueError('el DGS reconstruido requiere --reconstruction-report')
-        from igea_dgs.powerfactory_metadata import verify_reconstruction_contract
+        from convertersmartgrid.powerfactory_metadata import verify_reconstruction_contract
 
         evidence['reconstruction'] = verify_reconstruction_contract(
             payload,
@@ -125,7 +125,7 @@ def verify_source_contract(
 
 
 def attach_source_evidence(report: dict[str, Any], evidence: dict[str, Any]) -> None:
-    from igea_dgs.powerfactory_metadata import (
+    from convertersmartgrid.powerfactory_metadata import (
         classify_convergence,
         load_intervention_from_attempts,
     )
@@ -182,7 +182,7 @@ def attach_project_binding(
         return
     if evidence.get('status') != 'VERIFIED_BEFORE_MUTATION':
         return
-    from igea_dgs.powerfactory_binding import (PowerFactoryProjectBinding, alimentadores_de_rotulos,
+    from convertersmartgrid.powerfactory_binding import (PowerFactoryProjectBinding, alimentadores_de_rotulos,
                                                native_inventory_evidence)
 
     feeders = tuple(evidence.get('feeders') or [fallback_feeder])
@@ -294,8 +294,8 @@ def connect_powerfactory(*, start_engine: bool = True, command_line: str | None 
     """Return PF Application; prefer running instance, else start engine."""
     # 019:RF-16: la API se busca también en la instalación de DIgSILENT, como en los demás
     # guiones; la aceptación lanzada a mano (VNR-GIS, 2026-10-18) no la encontraba.
-    from igea_dgs.pf_arnes import PFNoDisponible as _SinApi  # noqa: PLC0415
-    from igea_dgs.pf_arnes import importar_api, salida_sin_bufer  # noqa: PLC0415
+    from convertersmartgrid.pf_arnes import PFNoDisponible as _SinApi  # noqa: PLC0415
+    from convertersmartgrid.pf_arnes import importar_api, salida_sin_bufer  # noqa: PLC0415
 
     salida_sin_bufer()
     try:
@@ -311,7 +311,7 @@ def connect_powerfactory(*, start_engine: bool = True, command_line: str | None 
     # DIgSILENT abierto (sin arrancar el motor) es elección del operador: no se le avisa.
     import atexit  # noqa: PLC0415
 
-    from igea_dgs.pf_arnes import PFNoDisponible, soltar_turno, tomar_turno  # noqa: PLC0415
+    from convertersmartgrid.pf_arnes import PFNoDisponible, soltar_turno, tomar_turno  # noqa: PLC0415
 
     try:
         turno = tomar_turno('powerfactory_acceptance.py',
@@ -354,7 +354,7 @@ def connect_powerfactory(*, start_engine: bool = True, command_line: str | None 
 
 def _activate_project_by_path(app: Any, path: str, folder: str):
     """Punto único y sustituible para activar un proyecto existente por identidad."""
-    from igea_dgs.carpeta_pf import activar_proyecto
+    from convertersmartgrid.carpeta_pf import activar_proyecto
 
     return activar_proyecto(app, path, folder)
 
@@ -362,7 +362,7 @@ def _activate_project_by_path(app: Any, path: str, folder: str):
 def activate_existing_project(app: Any, project_path: str,
                               folder: str | None = None) -> dict[str, Any]:
     """Activa un proyecto nativo exacto sin crear ni importar otro proyecto."""
-    from igea_dgs.carpeta_pf import nombre_de_perfil
+    from convertersmartgrid.carpeta_pf import nombre_de_perfil
 
     requested = str(project_path or '').strip()
     folder_name = str(folder or nombre_de_perfil()).strip()
@@ -420,7 +420,7 @@ def import_dgs_file(
 
     ``carpeta`` None toma la del perfil de empresa (``config/perfil_empresa.json``).
     """
-    from igea_dgs.carpeta_pf import (
+    from convertersmartgrid.carpeta_pf import (
         CarpetaError, asegurar_carpeta, nombre_de_perfil, nombre_libre, validar_nombre,
     )
 
@@ -456,11 +456,11 @@ def import_dgs_file(
         return fallo(str(exc), carpeta_nombre=nombre_carpeta)
 
     en_raiz = {_name(p).lower() for p in (user.GetContents('*.IntPrj') or [])}
-    provisional = f'_igea_{stamp}'
+    provisional = f'_csg_{stamp}'
     n = 1
     while provisional.lower() in en_raiz:
         n += 1
-        provisional = f'_igea_{stamp}_{n}'
+        provisional = f'_csg_{stamp}_{n}'
 
     com = user.CreateObject('ComImport', f'DGSImport_{stamp}')
     if com is None:
@@ -549,12 +549,12 @@ def _generated_project_name(stamp: str, dgs_stem: str) -> str:
     """PowerFactory loc_name está limitado a 40 caracteres."""
     import hashlib
 
-    candidate = f'{stamp}_IGEA_{dgs_stem}'
+    candidate = f'{stamp}_CSG_{dgs_stem}'
     if len(candidate) <= 40:
         return candidate
     digest = hashlib.sha256(dgs_stem.encode('utf-8')).hexdigest()[:8]
     tail = dgs_stem[-8:]
-    return f'{stamp}_IGEA_{digest}_{tail}'[:40]
+    return f'{stamp}_CSG_{digest}_{tail}'[:40]
 
 
 # ---------------------------------------------------------------------------
@@ -1128,7 +1128,7 @@ def execute_load_flow(
         if iopt_net is None:
             # 054:RF-7: una red con líneas o trafos de menos de 3 fases, en desequilibrado; con
             # el equilibrado sus SED monofásicas quedaban a 0 pu (NJA202, 2026-11-01).
-            from igea_dgs.dgs import red_con_monofasicos
+            from convertersmartgrid.dgs import red_con_monofasicos
 
             if red_con_monofasicos(app):
                 iopt_net = 1
@@ -1918,7 +1918,7 @@ def apply_imported_feeder_metadata_and_restore(
     restore_study: bool,
     ensure_scenario: bool,
 ) -> dict[str, Any]:
-    from igea_dgs.powerfactory_metadata import apply_imported_feeder_metadata
+    from convertersmartgrid.powerfactory_metadata import apply_imported_feeder_metadata
 
     result = apply_imported_feeder_metadata(
         app, import_info, str(dgs_path), str(metadata_path) if metadata_path else None,
@@ -2389,7 +2389,7 @@ def compare_line_gps(lines: list[Any], manifest: dict[str, Any]) -> dict[str, An
 
 
 def inventory_network(net: Any) -> dict[str, int]:
-    """Count DigSilent elements relevant to IGEA→DGS acceptance."""
+    """Count DigSilent elements relevant to DGS acceptance."""
     all_terms = _contents(net, '*.ElmTerm')
     # SED triangles add internal MT/BT ElmTerm children — not TXT network buses.
     net_term_count = 0
@@ -2437,7 +2437,7 @@ def inventory_network(net: Any) -> dict[str, int]:
 # ---------------------------------------------------------------------------
 
 def _grupo_pf(tipo: Any) -> tuple[Any, Any, Any]:
-    from igea_dgs.capacidades import grupo_canonico
+    from convertersmartgrid.capacidades import grupo_canonico
 
     return grupo_canonico(_attr(tipo, 'tr2cn_h'), _attr(tipo, 'tr2cn_l'), _attr(tipo, 'nt2ag'))
 
@@ -2456,7 +2456,7 @@ def leer_equipos_pf(trafos: list[Any], lineas: list[Any]) -> dict[str, dict]:
     015:RF-6, RF-7, RF-32, RF-33: capacidad por las unidades en paralelo, tensión de baja y
     grupo de conexión del tipo asignado. Sin tipo, todo queda sin definir.
     """
-    from igea_dgs.capacidades import Linea, Trafo
+    from convertersmartgrid.capacidades import Linea, Trafo
 
     out_tr = {}
     for tr in trafos:
@@ -2983,8 +2983,8 @@ def run_acceptance(
     correcciones: list[dict] = []
     trafos = _contents(net, '*.ElmTr2')
     if source_dgs is not None and Path(source_dgs).is_file():
-        from igea_dgs.capacidades import comparar_equipos, equipos_de_dgs
-        from igea_dgs.validate import parse_dgs
+        from convertersmartgrid.capacidades import comparar_equipos, equipos_de_dgs
+        from convertersmartgrid.validate import parse_dgs
 
         archivo = equipos_de_dgs(parse_dgs(source_dgs))
         equipos = comparar_equipos(archivo, leer_equipos_pf(trafos, lines))
@@ -3226,7 +3226,7 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument('--project-name', help='Optional PF project name for ComImport')
     p.add_argument('--pf-carpeta', metavar='NOMBRE',
                    help='Carpeta de DIgSILENT donde queda el proyecto importado (spec 005). '
-                        'Por defecto, la del perfil de empresa o «Conversor IGEA-DGS».')
+                        'Por defecto, la del perfil de empresa o «ConverterSmartGrid».')
     p.add_argument('--feeder-metadata', help='Sidecar de procedencia por alimentador ligado al DGS')
     p.add_argument('--source-run-id', help='Ejecución fuente que debe declarar el sidecar')
     p.add_argument('--source-mode', choices=('txt', 'mdb', 'vnr'), help='Modo de la ejecución fuente')

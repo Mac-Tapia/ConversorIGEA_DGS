@@ -13,7 +13,7 @@ Este reparto documenta el alcance de esta sesión. No hay canal de mensajería e
 
 ## Resultado operativo confirmado
 
-- El acceso directo `Conversor IGEA-DGS.lnk` apunta a `D:\converter\ConversorIGEA_DGS\run_gui.bat` con el directorio de trabajo correcto.
+- El acceso directo `ConverterSmartGrid.lnk` apunta a `D:\converter\ConverterSmartGrid\run_gui.bat` con el directorio de trabajo correcto.
 - Se ejecutó ese `run_gui.bat`, después de comprobar cero trabajos activos. El proceso anterior fue reemplazado por el propio lanzador.
 - Web: `http://127.0.0.1:8765/`. PID nuevo 45392; huella del servidor y del código: `047092efd9ed8203`.
 - `npm --prefix frontend run build`: correcto; JavaScript y CSS descargados por HTTP son idénticos a los archivos compilados del disco, comprobados byte a byte y por SHA-256.
@@ -41,8 +41,8 @@ Comandos ejecutados desde el directorio del proyecto:
 npm --prefix frontend run build
 .\.venv\Scripts\python.exe -m pytest tests/test_lanzador_web.py tests/test_web_runtime_front.py tests/test_web_runtime_dependencies.py tests/test_q_con_bancos.py tests/test_tabla_en_el_instante.py tests/test_unidades_pf.py tests/test_client_period_contract.py tests/test_libros_por_anio_front.py -q -ra --junitxml=AUDIT/web_restart_20261029_focused.xml
 .\.venv\Scripts\python.exe -m pytest tests/test_web_api.py tests/test_ajuste_cabecera.py tests/test_ajuste_cabecera_guion.py tests/test_ajuste_cabecera_web.py tests/test_demanda_medida_web.py tests/test_cargas_pf_web.py tests/test_libros_por_anio_web.py tests/test_sistema_web.py tests/test_caso_base_web.py tests/test_inventario.py -q -ra --junitxml=AUDIT/web_restart_20261029_regression.xml
-.\.venv\Scripts\python.exe -m igea_dgs.web.runtime
-.\.venv\Scripts\python.exe -m igea_dgs.web.runtime --front
+.\.venv\Scripts\python.exe -m convertersmartgrid.web.runtime
+.\.venv\Scripts\python.exe -m convertersmartgrid.web.runtime --front
 git diff --check
 ```
 

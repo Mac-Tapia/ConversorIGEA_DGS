@@ -1,7 +1,7 @@
 """Spec 023 — VNR-GIS desde la copia de SQL Server de cualquier concesionaria, sin motor.
 
 El motor se sustituye por un doble de ODBC; las tablas son las del modelo VNR-GIS del
-regulador, iguales para toda empresa. La copia real se prueba con ``IGEA_VNR_BAK``.
+regulador, iguales para toda empresa. La copia real se prueba con ``CSG_VNR_BAK``.
 """
 from __future__ import annotations
 
@@ -173,7 +173,7 @@ def test_restaura_con_su_huella_y_reutiliza(tmp_path):
     bak.write_bytes(b'copia')
     motor = Motor()
     nombre = sv.restaurar(bak, conectar_odbc=motor.conectar)
-    assert nombre == f'IGEA_VNR_{sv.huella(bak)[:16]}'
+    assert nombre == f'CSG_VNR_{sv.huella(bak)[:16]}'
     restore = next(s for s in motor.sql if s.startswith('RESTORE DATABASE'))
     assert "MOVE N'VNR_dat' TO N'C:\\datos" in restore and '.ldf' in restore
     motor2 = Motor(bases={nombre})
@@ -260,8 +260,8 @@ def test_modelo_canonico_de_una_salida():
 def test_la_fuente_vnr_acepta_la_copia(monkeypatch, tmp_path):
     """023:RF-1 — la casilla VNR-GIS acepta ``.bak`` y la fuente la lleva por la copia de SQL
     Server, buscando sus vecinas donde estaba el original."""
-    from igea_dgs.sources.snapshot import snapshot_from_paths
-    from igea_dgs.sources.vnr import VnrSourceAdapter
+    from convertersmartgrid.sources.snapshot import snapshot_from_paths
+    from convertersmartgrid.sources.vnr import VnrSourceAdapter
     from vnr_etl.connectors.registry import FORMATOS_PAQUETE_VNR
 
     assert '.bak' in FORMATOS_PAQUETE_VNR
@@ -306,8 +306,8 @@ def test_sin_base_de_parametros_la_tension_sale_de_la_tabla_tensiones():
 def test_la_copia_sin_extension_se_reconoce_por_su_cabecera(monkeypatch, tmp_path):
     """023:RF-1 — una copia de SQL Server sin «.bak» (Electro Oriente entregó «ELOR25_V2») se
     reconoce por su cabecera MTF «TAPE»; un fichero sin extensión que no lo es, no."""
-    from igea_dgs.sources.snapshot import snapshot_from_paths
-    from igea_dgs.sources.vnr import VnrSourceAdapter
+    from convertersmartgrid.sources.snapshot import snapshot_from_paths
+    from convertersmartgrid.sources.vnr import VnrSourceAdapter
     from vnr_etl.discovery.official import OfficialDiscoveryError, validate_vnr_package_file
 
     copia = tmp_path / 'ELOR25_V2'
@@ -332,11 +332,11 @@ def test_la_copia_sin_extension_se_reconoce_por_su_cabecera(monkeypatch, tmp_pat
     assert res.provenance['package_format'] == 'sqlserver_bak' and 'F1' in res.dataset.feeders
 
 
-@pytest.mark.skipif(not os.environ.get('IGEA_VNR_BAK'), reason='sin IGEA_VNR_BAK')
+@pytest.mark.skipif(not os.environ.get('CSG_VNR_BAK'), reason='sin CSG_VNR_BAK')
 def test_copia_real_de_vnr_gis():
     """023:RF-3 / 023:RF-9 — la copia real se restaura y da sus salidas con tramos y SED."""
-    modelo, _avisos, alcance = sv.cargar_copia(os.environ['IGEA_VNR_BAK'])
-    assert alcance['base_red'].startswith('IGEA_VNR_') and modelo.sections and modelo.loads
+    modelo, _avisos, alcance = sv.cargar_copia(os.environ['CSG_VNR_BAK'])
+    assert alcance['base_red'].startswith('CSG_VNR_') and modelo.sections and modelo.loads
 
 
 def test_fichas_del_catalogo_del_proyecto(tmp_path):
@@ -345,7 +345,7 @@ def test_fichas_del_catalogo_del_proyecto(tmp_path):
     está en el catálogo se dice."""
     from openpyxl import Workbook
 
-    from igea_dgs.sources.vnr import fichas_del_catalogo
+    from convertersmartgrid.sources.vnr import fichas_del_catalogo
 
     wb = Workbook()
     hoja = wb.active

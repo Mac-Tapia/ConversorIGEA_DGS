@@ -6,7 +6,7 @@ import pytest
 
 def test_resume_config_distinta_rechaza(tmp_path):
     """043:RF-7 — no reutilizar una ejecución de otras semillas/datos/configuración."""
-    from igea_dgs.training_coordinator import TrainingCoordinator, TrainingStage
+    from convertersmartgrid.training_coordinator import TrainingCoordinator, TrainingStage
     etapas = [TrainingStage('gru', lambda: {'status': 'RECHAZADO'}, uses_gpu=False)]
     TrainingCoordinator(etapas, tmp_path, config_hash='a' * 64).run()
     with pytest.raises(ValueError, match='configuraci'):
@@ -61,7 +61,7 @@ def test_huella_twin_cambia_con_objetos(tmp_path):
 def test_verify_rechazo_sin_entrenamiento_no_cierra(tmp_path):
     """043:RF-7 — rechazar promoción no demuestra haber entrenado una familia."""
     from tools.reentrenar_modelos import verificar
-    from igea_dgs.training_coordinator import ORDEN_MODELOS
+    from convertersmartgrid.training_coordinator import ORDEN_MODELOS
     ruta = tmp_path / 'report.json'
     ruta.write_text(json.dumps({'complete': True, 'stages': [
         {'model': n, 'status': 'RECHAZADO'} for n in ORDEN_MODELOS]}), encoding='utf-8')

@@ -34,8 +34,8 @@
 ### Task 1: Caracterizar y cerrar el parser multialimentador
 
 **Files:**
-- Modify: `src/igea_dgs/loads.py`
-- Modify: `src/igea_dgs/loads_create.py`
+- Modify: `src/convertersmartgrid/loads.py`
+- Modify: `src/convertersmartgrid/loads_create.py`
 - Modify: `tests/test_sed_loads.py`
 - Modify: `tests/test_sed_create.py`
 
@@ -69,17 +69,17 @@ Expected: PASS.
 - [ ] **Step 5: Commit only module-related hunks**
 
 ```bash
-git add -p src/igea_dgs/loads.py src/igea_dgs/loads_create.py tests/test_sed_loads.py tests/test_sed_create.py
+git add -p src/convertersmartgrid/loads.py src/convertersmartgrid/loads_create.py tests/test_sed_loads.py tests/test_sed_create.py
 git commit -m "feat: normalize multi-feeder load workbooks"
 ```
 
 ### Task 2: Plan inmutable y custodia de libros
 
 **Files:**
-- Create: `src/igea_dgs/web/load_batch.py`
-- Modify: `src/igea_dgs/web/workspace.py`
-- Modify: `src/igea_dgs/web/services.py`
-- Modify: `src/igea_dgs/web/app.py`
+- Create: `src/convertersmartgrid/web/load_batch.py`
+- Modify: `src/convertersmartgrid/web/workspace.py`
+- Modify: `src/convertersmartgrid/web/services.py`
+- Modify: `src/convertersmartgrid/web/app.py`
 - Test: `tests/test_load_batch_plan.py`
 
 **Interfaces:**
@@ -111,7 +111,7 @@ Expected: PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/igea_dgs/web/load_batch.py src/igea_dgs/web/workspace.py src/igea_dgs/web/services.py src/igea_dgs/web/app.py tests/test_load_batch_plan.py
+git add src/convertersmartgrid/web/load_batch.py src/convertersmartgrid/web/workspace.py src/convertersmartgrid/web/services.py src/convertersmartgrid/web/app.py tests/test_load_batch_plan.py
 git commit -m "feat: custody immutable load batch plans"
 ```
 
@@ -121,7 +121,7 @@ git commit -m "feat: custody immutable load batch plans"
 - Modify: `tools/aplicar_lote_cargas.py`
 - Modify: `tools/apply_sed_loads.py`
 - Modify: `tools/create_sed_loads.py`
-- Modify: `src/igea_dgs/web/services.py`
+- Modify: `src/convertersmartgrid/web/services.py`
 - Test: `tests/test_load_batch_powerfactory.py`
 
 **Interfaces:**
@@ -153,7 +153,7 @@ Expected: PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add tools/aplicar_lote_cargas.py tools/apply_sed_loads.py tools/create_sed_loads.py src/igea_dgs/web/services.py tests/test_load_batch_powerfactory.py
+git add tools/aplicar_lote_cargas.py tools/apply_sed_loads.py tools/create_sed_loads.py src/convertersmartgrid/web/services.py tests/test_load_batch_powerfactory.py
 git commit -m "feat: apply load batches with per-feeder rollback"
 ```
 

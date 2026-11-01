@@ -199,6 +199,6 @@ def test_commits_feat_nombran_su_spec():
 
 def test_skill_con_las_reglas_del_flujo():
     """033:RF-22 — el skill dice cómo crece una spec, la marca y el vocabulario."""
-    skill = (RAIZ / '.claude' / 'skills' / 'igea-dgs-spec' / 'SKILL.md').read_text(encoding='utf-8')
+    skill = (RAIZ / '.claude' / 'skills' / 'convertersmartgrid-spec' / 'SKILL.md').read_text(encoding='utf-8')
     for regla in ('cumplida no crece', 'con su tarea', '[DIgSILENT]', 'implementada', 'reservada'):
         assert regla in skill, regla

@@ -4,7 +4,7 @@ Estado: aprobadas (2026-10-15) · Fecha: 2026-10-15
 
 Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y parar.
 
-- [x] T1. `python-docx` en `requirements.txt` y `pyproject.toml`; `src/igea_dgs/informes.py`
+- [x] T1. `python-docx` en `requirements.txt` y `pyproject.toml`; `src/convertersmartgrid/informes.py`
       con `ConfigInforme` (clave `informes` del perfil) y la clave en
       `config/perfiles/electro_dunas.json` (bandas del modelo). (RF-4, RF-5, RF-13, RF-14,
       RF-115)
@@ -23,18 +23,18 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: hay un PNG legible a 150 ppp y el plan lo anota.
       Resultado (2026-10-15): con el motor sin ventana `WriteWMF` deja un fichero vacío,
       así que no hay imagen de DIgSILENT que exportar (RF-11b). Las imágenes se dibujan con
-      `src/igea_dgs/mapa_informe.py` desde el GPS de barras y tramos y los resultados del
+      `src/convertersmartgrid/mapa_informe.py` desde el GPS de barras y tramos y los resultados del
       flujo que guarda `tools/estudios_pf.py` (`geo`), a 250 ppp con las bandas del perfil.
       En CA101: 6 imágenes (ubicación, tensión y cargabilidad, actual y proyectado) en el
       informe generado desde la web.
-- [x] T5. `src/igea_dgs/libros_informe.py`: libro de pérdidas y tabla de costes, y
+- [x] T5. `src/convertersmartgrid/libros_informe.py`: libro de pérdidas y tabla de costes, y
       `config/costes_referenciales.example.json` con precios de la web y su fuente. (RF-39b a
       RF-39e, RF-40c, RF-61 a RF-64)
       Hecho cuando: `pytest -q tests/test_libros_informe.py` en verde.
       Estado 2026-10-15: libro de pérdidas hecho y probado; la tabla de costes queda para la
       evaluación económica (el usuario: en CA101 bancos fijos de 300 kvar en 10 kV y 450 kvar
       en 22,9 kV, sin costes).
-- [x] T6. `src/igea_dgs/informe_docx.py`: los dos informes sobre un modelo base, con
+- [x] T6. `src/convertersmartgrid/informe_docx.py`: los dos informes sobre un modelo base, con
       huecos, tablas y figuras, y escritura atómica. (RF-2, RF-3, RF-6 a RF-9, RF-23 a
       RF-25, RF-27, RF-44, RF-45, RF-106, RF-113, RF-114, RF-118, RF-120)
       Hecho cuando: `pytest -q tests/test_informe_docx.py` en verde.
@@ -75,7 +75,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 - [ ] T12. Paso «4.4 · Informes» en la web (antes «5 · Informes», cambiado por el usuario
       el 2026-10-15). (RF-51, RF-73 a RF-95, RF-98, RF-100 a RF-102, RF-124, RF-125)
       Hecho cuando: `npx tsc --noEmit -p frontend`, `npm run build` y checklist del skill
-      `igea-dgs-frontend`.
+      `convertersmartgrid-frontend`.
       Estado 2026-10-15: `InformesPF.tsx` con los dos formularios, botones «Generar»,
       huecos, descarga e informes generados; el libro de pérdidas se sube y se lee en 4.4.2
       (RF-93, RF-94); faltan las etapas de 5.2 (RF-83 a RF-88, con T8 y T9), el proyecto de
@@ -112,4 +112,4 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 - [x] T18. Documentos del solicitante en 4.4: PDF de la carta u oficio en la factibilidad y
       varios PDF del expediente en el estudio, leídos con su texto o con OCR. (RF-136 a RF-141)
       Hecho cuando: las pruebas que citan 017:RF-136 a RF-141 pasan, también con los PDF de
-      `referencia/` (`IGEA_SOLICITUD_PDF`, `IGEA_SOLICITUD_DIR`), y se ve en el navegador.
+      `referencia/` (`CSG_SOLICITUD_PDF`, `CSG_SOLICITUD_DIR`), y se ve en el navegador.

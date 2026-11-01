@@ -12,9 +12,9 @@ from apoyo import cargar_herramienta, vincular_proyecto
 from fastapi.testclient import TestClient
 from test_digital_twin_episode import _payload
 
-from igea_dgs.digital_twin import episode as ep
-from igea_dgs.digital_twin.buffer import BuferEpisodios
-from igea_dgs.web.app import create_app
+from convertersmartgrid.digital_twin import episode as ep
+from convertersmartgrid.digital_twin.buffer import BuferEpisodios
+from convertersmartgrid.web.app import create_app
 
 
 def _episodio(proyecto='P', caso='sin_proyecto', clase='accepted', feeders=('A1', 'A2')):
@@ -25,7 +25,7 @@ def _episodio(proyecto='P', caso='sin_proyecto', clase='accepted', feeders=('A1'
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
-    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     with TestClient(create_app(tmp_path / 'web')) as c:
         yield c
 

@@ -25,7 +25,7 @@ import math
 
 import pytest
 
-from igea_dgs.model import (
+from convertersmartgrid.model import (
     FASES_PF,
     PHASE_CODES,
     decode_phase,
@@ -88,8 +88,8 @@ class TestRepartoPorFase:
 
 class TestLoQueSeEscribeAlDgs:
     def _dgs(self, tmp_path, cargas):
-        from igea_dgs.dgs import write_dgs
-        from igea_dgs.model import FeederModel, Line, LineType, Node
+        from convertersmartgrid.dgs import write_dgs
+        from convertersmartgrid.model import FeederModel, Line, LineType, Node
 
         tipo = LineType('LINE:AA', 'AA12003D', 'LINE', 0.28, 0.7, 0.43, 1.3, 3.7, 3.7, 340.0)
         nodes = {'N1': Node('N1', 0.0, 0.0), 'N2': Node('N2', 100.0, 0.0)}
@@ -112,7 +112,7 @@ class TestLoQueSeEscribeAlDgs:
         return filas
 
     def _carga(self, **kw):
-        from igea_dgs.model import Load
+        from convertersmartgrid.model import Load
 
         base = dict(section_id='S1', device_number='D1', customer_number='C1',
                     location='1', node_id='N2', p_mw=0.09, q_mvar=0.03, pf=0.95,
@@ -159,7 +159,7 @@ class TestLoQueSeEscribeAlDgs:
 
     def test_el_esquema_declara_los_atributos_nuevos(self):
         """Los nombres están comprobados en datascheme.db de PowerFactory 2024."""
-        from igea_dgs.schema import load_schema
+        from convertersmartgrid.schema import load_schema
 
         campos = load_schema('pf21_dgs_1_8_4').fields('ElmLod')
         for esperado in ('NrCust', 'i_sym', 'plinir', 'plinis', 'plinit',
@@ -169,7 +169,7 @@ class TestLoQueSeEscribeAlDgs:
 
 class TestExportReal:
     def test_el_export_trae_clientes_y_energia(self, ds):
-        from igea_dgs.model import build_feeder_model
+        from convertersmartgrid.model import build_feeder_model
 
         total_cli = total_kwh = 0
         con_fase = sin_fase = 0
@@ -191,7 +191,7 @@ class TestExportReal:
 
     def test_todas_las_fases_del_export_son_reconocibles(self, ds):
         """Un código que no se decodifica se reparte entre tres fases sin avisar."""
-        from igea_dgs.model import build_feeder_model
+        from convertersmartgrid.model import build_feeder_model
 
         desconocidas = set()
         for net in ds.feeder_ids()[:20]:

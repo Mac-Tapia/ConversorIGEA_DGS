@@ -5,10 +5,10 @@ Lee: `docs/constitution.md`, `specs/001-reorganizacion/spec.md` y el diagnóstic
 
 ## Contexto técnico
 
-- Entrada: `src/igea_dgs/web/sources/{base,txt,mdb,vnr}.py` (el diseño bueno),
-  `src/igea_dgs/cli.py:119` y `src/igea_dgs/gui.py:776-800` (las copias).
+- Entrada: `src/convertersmartgrid/web/sources/{base,txt,mdb,vnr}.py` (el diseño bueno),
+  `src/convertersmartgrid/cli.py:119` y `src/convertersmartgrid/gui.py:776-800` (las copias).
 - Utilidades copiadas: ver la tabla B5 del diagnóstico.
-- Trabajos: `src/igea_dgs/web/app.py:542-554` (`diagnose`, `reconstruct` síncronos),
+- Trabajos: `src/convertersmartgrid/web/app.py:542-554` (`diagnose`, `reconstruct` síncronos),
   `web/jobs.py` (`JobManager`, carril `engine`).
 - VNR: `src/vnr_etl/exporters/dgs.py`, `src/vnr_etl/web/app.py`,
   `src/vnr_etl/application/cymdist_bridge.py` (el puente bueno).
@@ -17,9 +17,9 @@ Lee: `docs/constitution.md`, `specs/001-reorganizacion/spec.md` y el diagnóstic
 
 | Parte | Ficheros | Cubre |
 | --- | --- | --- |
-| A. Utilidades comunes | nuevo `src/igea_dgs/util.py` (`sha256_file`, `write_json_atomic`, `finite_or_none`, `nombre_seguro`); `geography.make_transformer` | RF-4, RF-5, RF-6 |
+| A. Utilidades comunes | nuevo `src/convertersmartgrid/util.py` (`sha256_file`, `write_json_atomic`, `finite_or_none`, `nombre_seguro`); `geography.make_transformer` | RF-4, RF-5, RF-6 |
 | B. CRS inválido | `loads_create.py:810-830` usa `geography.make_transformer` y deja propagar el error | RF-7 |
-| C. Adaptadores de entrada | `web/sources/` pasa a `src/igea_dgs/sources/`; `web/sources/__init__.py` reexporta; `cli.load_dataset` y `gui.py` llaman a `adapter_for` | RF-1, RF-2, RF-3 |
+| C. Adaptadores de entrada | `web/sources/` pasa a `src/convertersmartgrid/sources/`; `web/sources/__init__.py` reexporta; `cli.load_dataset` y `gui.py` llaman a `adapter_for` | RF-1, RF-2, RF-3 |
 | D. Trabajos | `diagnose`/`reconstruct` con `JobManager.submit(lane='engine')`; front con `startJob` | RF-8, RF-9 |
 | E. Front | `api.ts`: `download()` reutiliza la extracción de `detail` de `request()`; quitar `sourceRuns`, `events`, `job` | RF-12, RF-13 |
 | F. VNR a DGS | `DgsExporter.export` = puente + `batch.convert_selection` | RF-10 |
@@ -27,11 +27,11 @@ Lee: `docs/constitution.md`, `specs/001-reorganizacion/spec.md` y el diagnóstic
 
 ## Decisiones
 
-- `util.py` en `igea_dgs` y no en un paquete nuevo: `vnr_etl` ya importa de `igea_dgs`
+- `util.py` en `convertersmartgrid` y no en un paquete nuevo: `vnr_etl` ya importa de `convertersmartgrid`
   (perfil de esquema). Descartado: un paquete `common/`, que añade empaquetado sin ganar nada.
 - Los adaptadores salen de `web/` porque el CLI no debe importar FastAPI. Se deja
   `web/sources/__init__.py` reexportando para no romper importaciones existentes.
-  Descartado: que el CLI importe `igea_dgs.web.sources` (arrastra la capa web al CLI).
+  Descartado: que el CLI importe `convertersmartgrid.web.sources` (arrastra la capa web al CLI).
 - El CLI usa los adaptadores sobre una instantánea (`SourceSnapshot`) construida a partir
   de las rutas de los argumentos, sin copiar los ficheros. Descartado: copiar como hace la
   web, porque duplica gigas de `.mdb` para una ejecución de un solo uso.
@@ -53,7 +53,7 @@ Lee: `docs/constitution.md`, `specs/001-reorganizacion/spec.md` y el diagnóstic
 
 - Pruebas nuevas citan su requisito: `"""001:RF-n — …"""`.
 - RF-14: prueba que regenera con los TXT reales y compara los hash con los guardados en T1;
-  se omite sin las variables `IGEA_*`, como el resto de pruebas reales.
+  se omite sin las variables `CSG_*`, como el resto de pruebas reales.
 - C: las pruebas existentes de `tests/test_web_*` y del CLI deben pasar sin cambios.
 
 ## Riesgos

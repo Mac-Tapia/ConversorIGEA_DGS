@@ -13,9 +13,9 @@ from pathlib import Path
 import pytest
 from openpyxl import Workbook, load_workbook
 
-from igea_dgs import catalog as cat
+from convertersmartgrid import catalog as cat
 
-SEMILLA = int(os.environ.get('IGEA_SCALE_SEED', random.randrange(1 << 30)))
+SEMILLA = int(os.environ.get('CSG_SCALE_SEED', random.randrange(1 << 30)))
 
 
 def _fila(codigo, r1, x1, b1, amp, estado='ficha', fuente='Indeco (Nexans)'):
@@ -123,7 +123,7 @@ def test_la_fuente_vnr_hace_crecer_el_catalogo_y_lo_usa(tmp_path):
     catálogo (uno, sin perfil de empresa) y los usa en la misma conversión."""
     from vnr_etl.models.canonical import CanonicalModel, ConductorType
 
-    from igea_dgs.sources import vnr
+    from convertersmartgrid.sources import vnr
 
     ruta = _catalogo(tmp_path)
     modelo = CanonicalModel()

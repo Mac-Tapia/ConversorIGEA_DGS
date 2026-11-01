@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from igea_dgs.asistente import indice
+from convertersmartgrid.asistente import indice
 
 RAIZ = Path(__file__).resolve().parents[1]
 
@@ -29,7 +29,7 @@ def _repo(tmp_path: Path) -> Path:
 def test_indice_con_specs_codigo_y_manual(tmp_path, monkeypatch):
     """026:RF-17 — el índice trae CODIGO_FUENTE, cada RF, cada docstring y el manual, y se
     reconstruye cuando cambia un fichero."""
-    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(tmp_path / 'datos'))
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'datos'))
     repo = _repo(tmp_path / 'repo')
     i = indice.cargar_o_construir(repo)
     fuentes = {f.fuente.split(':')[0] for f in i.frags}
@@ -44,7 +44,7 @@ def test_indice_con_specs_codigo_y_manual(tmp_path, monkeypatch):
 
 def test_responde_con_cita_o_no_lo_sabe(tmp_path, monkeypatch):
     """026:RF-18 — la respuesta cita fichero y línea; si nada responde, «No lo sé»."""
-    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(tmp_path / 'datos'))
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'datos'))
     i = indice.cargar_o_construir(_repo(tmp_path / 'repo'))
     r = indice.responder(i, '¿cómo se reparte la medida de la barra en alimentadores sin medidor?')
     assert r['sabe'] and r['citas'] and any(c['fuente'].startswith('specs/099-prueba/spec.md:') for c in r['citas'])
@@ -55,7 +55,7 @@ def test_responde_con_cita_o_no_lo_sabe(tmp_path, monkeypatch):
 
 def test_el_proyecto_real_se_indexa(tmp_path, monkeypatch):
     """026:RF-17 / 026:RF-18 — con el repositorio real, una pregunta del gemelo cita su spec."""
-    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(tmp_path / 'datos'))
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'datos'))
     i = indice.construir(RAIZ)
     r = indice.responder(i, 'flujo de carga por matriz de admitancias con lazos del gemelo')
     assert r['sabe'] and any('flujo.py' in c['fuente'] or '024' in c['texto'] for c in r['citas'])
@@ -74,7 +74,7 @@ class _Redactor:
 def test_cita_falsa_se_cambia_por_los_trozos(tmp_path, monkeypatch):
     """027:RF-41 — una respuesta con una cita que no existe o que no apoya su frase se cambia
     por los trozos citados; con citas que la apoyan, se deja."""
-    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(tmp_path / 'datos'))
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'datos'))
     i = indice.cargar_o_construir(_repo(tmp_path / 'repo'))
     pregunta = '¿cómo se reparte la medida de la barra en alimentadores sin medidor?'
     buena = ('La medida de la barra se reparte entre los alimentadores sin medidor por su potencia '
@@ -89,7 +89,7 @@ def test_cita_falsa_se_cambia_por_los_trozos(tmp_path, monkeypatch):
 
 def test_medicion_de_las_consultas(tmp_path, monkeypatch):
     """027:RF-42 — la fracción respondida con la cita esperada y la de «No lo sé» acertados."""
-    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(tmp_path / 'datos'))
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'datos'))
     i = indice.cargar_o_construir(_repo(tmp_path / 'repo'))
     m = indice.medir(i, [{'pregunta': '¿cómo se reparte la medida de la barra sin medidor?', 'fuente': 'specs/099-prueba'},
                          {'pregunta': 'receta de la tortilla de patatas', 'fuente': None},

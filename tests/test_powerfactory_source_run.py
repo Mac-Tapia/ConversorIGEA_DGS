@@ -13,7 +13,7 @@ import pytest
 
 
 def _ws(tmp_path, *, metadata_run: str = 'run-active'):
-    from igea_dgs.web.workspace import Workspace
+    from convertersmartgrid.web.workspace import Workspace
 
     ws = Workspace(id='pf-source', root=tmp_path)
     ws.active_run_id = 'run-active'
@@ -25,7 +25,7 @@ def _ws(tmp_path, *, metadata_run: str = 'run-active'):
     dgs = ws.out_dir / 'IN111.dgs'
     dgs.write_bytes(b'DGS-IN111')
     metadata = {
-        'schema_version': 'igea-dgs-feeder-metadata-v1',
+        'schema_version': 'convertersmartgrid-feeder-metadata-v1',
         'dgs_file': dgs.name,
         'dgs_sha256': hashlib.sha256(dgs.read_bytes()).hexdigest(),
         'assignments': [{'class_name': 'ElmXnet', 'dgs_fid': 'X', 'loc_name': 'External Grid IN111',
@@ -44,7 +44,7 @@ def _ws(tmp_path, *, metadata_run: str = 'run-active'):
 
 
 def test_same_name_historical_dgs_is_rejected(tmp_path):
-    from igea_dgs.web.services import UserError, check_powerfactory_source_run
+    from convertersmartgrid.web.services import UserError, check_powerfactory_source_run
 
     ws = _ws(tmp_path, metadata_run='run-historical')
     with pytest.raises(UserError, match=r'POWERFACTORY_SOURCE_RUN_MISMATCH.*IN111'):
@@ -52,7 +52,7 @@ def test_same_name_historical_dgs_is_rejected(tmp_path):
 
 
 def test_exact_active_source_run_is_accepted(tmp_path):
-    from igea_dgs.web.services import check_powerfactory_source_run
+    from convertersmartgrid.web.services import check_powerfactory_source_run
 
     ws = _ws(tmp_path)
     evidence = check_powerfactory_source_run(ws, ['IN111'])
@@ -62,8 +62,8 @@ def test_exact_active_source_run_is_accepted(tmp_path):
 
 
 def test_reconstructed_dgs_requires_the_active_untampered_report(tmp_path):
-    from igea_dgs.powerfactory_metadata import reconstruction_report_sha256
-    from igea_dgs.web.services import UserError, check_powerfactory_source_run
+    from convertersmartgrid.powerfactory_metadata import reconstruction_report_sha256
+    from convertersmartgrid.web.services import UserError, check_powerfactory_source_run
 
     ws = _ws(tmp_path)
     report = {
@@ -129,8 +129,8 @@ def test_acceptance_source_contract_runs_before_powerfactory_connect(tmp_path, m
 
 
 def test_assignment_report_proves_plan_identity_reread_and_rollback(tmp_path):
-    from igea_dgs.feeder_metadata import FeederAssignment
-    from igea_dgs.powerfactory_metadata import (
+    from convertersmartgrid.feeder_metadata import FeederAssignment
+    from convertersmartgrid.powerfactory_metadata import (
         PowerFactoryMetadataWriteError, apply_feeder_assignment_plan,
         assignment_plan_sha256,
     )

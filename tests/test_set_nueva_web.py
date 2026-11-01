@@ -1,7 +1,7 @@
 """Spec 042 en la web: escalera carga a carga y SET nueva para las que no caben.
 
 La escalera de la 025 se sustituye por un doble que dice si caben las cargas activas por su
-suma de kW; las cargas, por las aplicadas de un espacio sorteado (``IGEA_SCALE_SEED``).
+suma de kW; las cargas, por las aplicadas de un espacio sorteado (``CSG_SCALE_SEED``).
 """
 from __future__ import annotations
 
@@ -10,9 +10,9 @@ import random
 
 import pytest
 
-from igea_dgs.web import services
+from convertersmartgrid.web import services
 
-SEMILLA = int(os.environ.get('IGEA_SCALE_SEED', random.randrange(1 << 30)))
+SEMILLA = int(os.environ.get('CSG_SCALE_SEED', random.randrange(1 << 30)))
 
 
 class _Ctx:
@@ -94,7 +94,7 @@ def test_set_nueva_se_disena_situa_y_crea(monkeypatch, tmp_path):
     nueva; la potencia de diseño es (S_C × (1 + g)^30 + N1 + N2) × 1,25 y la cubre el módulo de
     SET de 25 MVA del libro; la obra lleva la rama, la potencia y la tensión de alta del módulo,
     y el informe da el punto en UTM y GPS."""
-    from igea_dgs import perfil_empresa
+    from convertersmartgrid import perfil_empresa
     from test_set_nueva import CFG_PIT, _libro
 
     perfil = {'crs_origen': 'EPSG:32718', 'escalera': {'sorteos': 20, 'semilla': 1},
@@ -136,7 +136,7 @@ def test_set_nueva_se_disena_situa_y_crea(monkeypatch, tmp_path):
 def test_set_nueva_toma_la_barra_de_una_carga_apartada(monkeypatch, tmp_path):
     """042:RF-6 — una carga apartada por la escalera no está activa en «Con proyecto» ni sale entre
     sus cargas: entra en la SET nueva por la barra que dio la escalera, llevada a media."""
-    from igea_dgs import perfil_empresa
+    from convertersmartgrid import perfil_empresa
     from test_set_nueva import CFG_PIT, _libro
 
     perfil = {'crs_origen': 'EPSG:32718', 'escalera': {'sorteos': 20, 'semilla': 1},
@@ -173,7 +173,7 @@ def test_sin_libro_capex_no_se_elige_modulo(monkeypatch):
 
 def test_la_web_ofrece_la_optimizacion_de_con_proyecto():
     """042:RF-13 — la ruta del paso de obras, como trabajo del carril de DIgSILENT."""
-    from igea_dgs.web.app import create_app
+    from convertersmartgrid.web.app import create_app
 
     rutas = {getattr(r, 'path', '') for r in create_app().routes}
     assert '/api/workspaces/{wid}/pf/obras/con-proyecto' in rutas

@@ -17,14 +17,14 @@ Lo que ya existe y se reutiliza:
   informe el `origen` de cada SED (`cliente` o `kva`). Es donde se marca el escalado. Su
   `diagnostico` es el de RF-67.
 - `tools/run_one_study.py`: un proceso por estudio con límite de tiempo, y `LDF_RELAJADO`.
-- `tools/pf_proyectos.py` y `src/igea_dgs/carpeta_pf.py` (spec 005): la lista de proyectos
+- `tools/pf_proyectos.py` y `src/convertersmartgrid/carpeta_pf.py` (spec 005): la lista de proyectos
   del usuario, que da el «otro proyecto» de RF-91.
-- `src/igea_dgs/studies.py`: el catálogo `ESTUDIOS`. Los siete de RF-23 ya son `defendible`.
-- `src/igea_dgs/dgs.py`, `_type_name`: el sufijo de tensión de los `TypLne`
+- `src/convertersmartgrid/studies.py`: el catálogo `ESTUDIOS`. Los siete de RF-23 ya son `defendible`.
+- `src/convertersmartgrid/dgs.py`, `_type_name`: el sufijo de tensión de los `TypLne`
   (`_22_9kV`), que las copias de RF-61 tienen que repetir.
-- `src/igea_dgs/web/services.py`: `ajuste_ejecutar`, `cargas_ejecutar`, `pf_verificar`,
+- `src/convertersmartgrid/web/services.py`: `ajuste_ejecutar`, `cargas_ejecutar`, `pf_verificar`,
   que lanzan los guiones con `ctx.run_process` en el carril `powerfactory`.
-- `src/igea_dgs/web/app.py`: la base del ajuste viene de `ajuste_job_id` (spec 007, RF-1).
+- `src/convertersmartgrid/web/app.py`: la base del ajuste viene de `ajuste_job_id` (spec 007, RF-1).
 - `frontend/src/components/CargasTab.tsx`: los pasos 1 a 3 (spec 008).
 - `tests/fake_pf.py`: el DIgSILENT falso. Hoy activa las variaciones de forma global; hay
   que darle casos de estudio con sus propias variaciones y escenario, bibliotecas de
@@ -164,18 +164,18 @@ de PF 2024 (2026-10-12), y cómo cambia el plan:
 
 | Parte | Ficheros | Cubre |
 | --- | --- | --- |
-| A. Lógica pura de los estudios: estudios ofrecidos, límites del perfil, violaciones, diferencia con − sin, violaciones nuevas, filas ordenadas de los dos ficheros | `src/igea_dgs/estudios_pf.py` (nuevo) | RF-23, RF-24, RF-32 a RF-35, RF-37 |
+| A. Lógica pura de los estudios: estudios ofrecidos, límites del perfil, violaciones, diferencia con − sin, violaciones nuevas, filas ordenadas de los dos ficheros | `src/convertersmartgrid/estudios_pf.py` (nuevo) | RF-23, RF-24, RF-32 a RF-35, RF-37 |
 | B. Los tres casos: renombrar el original, copiar casos y escenarios, activar en cada caso sus variaciones, desactivar ajustes anteriores, caso ajeno, restaurar el caso activo | `tools/casos_pf.py` (nuevo) | RF-1 a RF-11, RF-46 a RF-50 |
 | C. Dónde trabajan las specs 006 a 008 con los tres casos | `tools/ajuste_cabecera_pf.py`, `tools/cargas_pf.py` (llaman a `casos_pf`) | RF-51 a RF-55 |
 | D. Fijas y escaladas: el ajuste marca `i_scale`; los estudios desactivan el escalado por alimentador y comprueban la cabecera | `tools/ajuste_cabecera_pf.py`, `tools/estudios_pf.py` | RF-18 a RF-22 |
 | E. Guion de un estudio en un caso | `tools/estudios_pf.py` (nuevo) | RF-17, RF-25, RF-26, RF-31, RF-33, RF-36, RF-38, RF-49, RF-68 |
 | F. Contingencias N-1 sobre la troncal | `tools/estudios_pf.py` | RF-36, RF-43 a RF-45 |
 | G. Guiones DPL y Python del operador | `tools/estudios_pf.py` (modo `--guion`) | RF-27 a RF-30 |
-| H. Lógica pura de las obras: modelo de cada obra y su validación, nombres de variación y de copias de tipo, igualdad de datos de un tipo, plan de cambios de la simulación | `src/igea_dgs/obras_pf.py` (nuevo); el sufijo de tensión pasa de `dgs._type_name` a `naming.py` para que lo usen los dos | RF-56, RF-59, RF-61 a RF-63, RF-69, RF-85 |
+| H. Lógica pura de las obras: modelo de cada obra y su validación, nombres de variación y de copias de tipo, igualdad de datos de un tipo, plan de cambios de la simulación | `src/convertersmartgrid/obras_pf.py` (nuevo); el sufijo de tensión pasa de `dgs._type_name` a `naming.py` para que lo usen los dos | RF-56, RF-59, RF-61 a RF-63, RF-69, RF-85 |
 | I. Bibliotecas: leer los tipos de una clase del proyecto, de la global y de otro proyecto, con los datos de RF-94; leer barras y tramos de un alimentador; copiar un tipo a la biblioteca del proyecto | `tools/obras_pf.py` (nuevo, modo `--bibliotecas`) | RF-88 a RF-94 |
 | J. Aplicar las obras: una variación por obra, activarla en sus casos, copiar tipos, crear o cambiar los elementos de cada obra, flujo por caso, desactivar la que no converge, comprobar que «Sin proyecto» no cambió | `tools/obras_pf.py` (modo `--aplicar`/`--simular`) | RF-57, RF-58, RF-60, RF-64 a RF-67, RF-71 a RF-87, RF-96, RF-97 |
-| K. Web: obras guardadas en el espacio, lecturas de biblioteca y aplicación como trabajos del carril `powerfactory`; plan y trabajo de los estudios; ficheros descargables | `src/igea_dgs/web/services.py`, `src/igea_dgs/web/app.py`, `src/igea_dgs/web/workspace.py` | RF-12 a RF-16, RF-25, RF-39 a RF-41, RF-95 |
-| N. Transferencia de carga: camino por `ComBbone`, pasos por seccionador y por nodo, viabilidad, restitución de maniobras, capacidad y margen del enlace con `ComTransfer` o por bisección, fichero | `src/igea_dgs/transferencia_pf.py` (nuevo: pasos, viabilidad, máximos, filas) y `tools/transferencia_pf.py` (nuevo: DIgSILENT) | RF-104 a RF-129 |
+| K. Web: obras guardadas en el espacio, lecturas de biblioteca y aplicación como trabajos del carril `powerfactory`; plan y trabajo de los estudios; ficheros descargables | `src/convertersmartgrid/web/services.py`, `src/convertersmartgrid/web/app.py`, `src/convertersmartgrid/web/workspace.py` | RF-12 a RF-16, RF-25, RF-39 a RF-41, RF-95 |
+| N. Transferencia de carga: camino por `ComBbone`, pasos por seccionador y por nodo, viabilidad, restitución de maniobras, capacidad y margen del enlace con `ComTransfer` o por bisección, fichero | `src/convertersmartgrid/transferencia_pf.py` (nuevo: pasos, viabilidad, máximos, filas) y `tools/transferencia_pf.py` (nuevo: DIgSILENT) | RF-104 a RF-129 |
 | L. Paso «4 · Obras y estudios» | `frontend/src/components/ObrasPF.tsx`, `EstudiosPF.tsx` y `TransferenciaPF.tsx` (nuevos), `CargasTab.tsx`, `api.ts`, `types.ts` | RF-24, RF-35, RF-42, RF-70, RF-88 a RF-95, RF-98, RF-104 |
 | M. Índice y estado | `CODIGO_FUENTE.md`, `CLAUDE.md` | P12, spec 009 |
 
@@ -231,7 +231,7 @@ de PF 2024 (2026-10-12), y cómo cambia el plan:
   preparación activa su variación como etapa de grabación y completa la marca con el
   `origen` de su informe.
 - **Los casos se identifican por nombre y por una marca en su descripción**
-  (`desc` = `igea-dgs:011:<rol>`), que distingue uno del sistema de uno ajeno (RF-10).
+  (`desc` = `convertersmartgrid:011:<rol>`), que distingue uno del sistema de uno ajeno (RF-10).
 - **Un proceso por estudio y caso**, en serie, porque PowerFactory solo admite un proceso
   con el motor a la vez (medido en `run_one_study.py`). Descartado: un proceso para todo,
   porque un contingencias colgado se llevaría el resto (RF-40).
@@ -272,7 +272,7 @@ de PF 2024 (2026-10-12), y cómo cambia el plan:
   reconoce por el número de equipo (`loc_name` = `eq_number`) contra la entrada cargada
   en el espacio, si la hay. Descartado: reconocerlos por el nombre, porque la forma de
   los códigos es de cada empresa (P13). Este cambio toca el DGS: suite completa con las
-  tres `IGEA_*` y `TestParallelWorkers` (P1).
+  tres `CSG_*` y `TestParallelWorkers` (P1).
 - **Solo los seccionadores del tramo troncal** (RF-118): el camino ya es la troncal de
   `ComBbone` (`GetCompleteBbPath(…, iStopAtTieOpen=1)` da solo la parte del que cede), y
   de él se toman los `StaSwitch` con `aUsage` de seccionador.
@@ -338,7 +338,7 @@ de PF 2024 (2026-10-12), y cómo cambia el plan:
   siguen en verde sin los tres casos; las pruebas del DGS siguen en verde tras mover el
   sufijo de tensión a `naming.py` (el DGS idéntico byte a byte, P1).
 - No toca el lector: no hacen falta las dos disposiciones. Mover el sufijo toca el DGS:
-  suite completa con las tres `IGEA_*`.
+  suite completa con las tres `CSG_*`.
 
 ## Riesgos
 

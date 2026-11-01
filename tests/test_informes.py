@@ -7,14 +7,14 @@ from datetime import date
 
 import pytest
 
-from igea_dgs.estudios_pf import Limites
-from igea_dgs.informes import (
+from convertersmartgrid.estudios_pf import Limites
+from convertersmartgrid.informes import (
     ETAPAS, SOLICITUDES_VIGENTES, TRIFASICA, Caso, ConfigInforme, Devanado, Encabezado, Etapa, Extremo,
     InformeError, Potencia, Solicitud, antecedentes_factibilidad, asunto_propuesto, conclusiones_estudio,
     conclusiones_factibilidad, descripcion_factibilidad, etapa_recomendada, factor_de_carga, factor_de_perdidas, perdida_no_reconocida, perdidas_anuales,
     redactar_cargabilidad, redactar_tension, seguir_evaluando, texto_transformador,
     veredicto_factibilidad)
-from igea_dgs.perfil_empresa import carpeta_perfiles, datos_perfil
+from convertersmartgrid.perfil_empresa import carpeta_perfiles, datos_perfil
 
 COMPLETO = {
     'estudios': {'tension_min_pu': 0.95, 'tension_max_pu': 1.05, 'cargabilidad_max_pct': 100},
@@ -426,7 +426,7 @@ def test_caso_desequilibrado_y_sin_convergencia_desde_la_medida():
 def test_terna_y_enlace_son_la_etapa_de_refuerzo():
     """017:RF-126 — la terna y el enlace de «Con proyecto» son la etapa «refuerzo de la
     red», entre el cambio de conductor y la migración."""
-    from igea_dgs.informes import ETAPAS, NOMBRE_ETAPA, etapa_de_obras
+    from convertersmartgrid.informes import ETAPAS, NOMBRE_ETAPA, etapa_de_obras
 
     assert ETAPAS.index('conductor') < ETAPAS.index('refuerzo') < ETAPAS.index('migracion')
     assert 'Refuerzo' in NOMBRE_ETAPA['refuerzo']
@@ -439,7 +439,7 @@ def test_terna_y_enlace_son_la_etapa_de_refuerzo():
 def test_descripcion_de_la_terna_y_del_enlace():
     """017:RF-127 — la terna se describe con sus tramos y el enlace con su largo, su
     conductor y sus dos extremos, como se aplicó."""
-    from igea_dgs.informes import describir_obra, obra_para_informe
+    from convertersmartgrid.informes import describir_obra, obra_para_informe
 
     terna = obra_para_informe({'clase': 'terna', 'alimentador': 'TA225',
                                'tramos': ['SEC_1', 'SEC_2']})

@@ -6,9 +6,9 @@ import random
 
 import pytest
 
-from igea_dgs import obras_pf as op
-from igea_dgs.estudios_pf import CON_PROYECTO, SIN_PROYECTO
-from igea_dgs.troncal import Barra, Tramo, red_de, troncal
+from convertersmartgrid import obras_pf as op
+from convertersmartgrid.estudios_pf import CON_PROYECTO, SIN_PROYECTO
+from convertersmartgrid.troncal import Barra, Tramo, red_de, troncal
 
 SEMILLAS = (3, 17, 41, 77)
 CON, AMBOS = [CON_PROYECTO], [SIN_PROYECTO, CON_PROYECTO]
@@ -224,7 +224,7 @@ def test_migracion_de_lo_que_queda_aguas_abajo(semilla):
     obra = _obra(clase='migracion', alimentador='IN111', nodo=nodo, kv_destino=22.9, casos=CON)
     (fila,) = op.plan_simulacion([obra], {'IN111': red}, tipos)
     assert not fila['error'], fila
-    from igea_dgs.troncal import aguas_abajo
+    from convertersmartgrid.troncal import aguas_abajo
     parte = aguas_abajo(red.topologia, red.cabecera, nodo)
     por_clase = {}
     for e in fila['elementos']:

@@ -13,7 +13,7 @@ pytest.importorskip('fastapi')
 from fastapi.testclient import TestClient  # noqa: E402
 
 from apoyo import cargar_herramienta, esperar_trabajo  # noqa: E402
-from igea_dgs.web.app import create_app  # noqa: E402
+from convertersmartgrid.web.app import create_app  # noqa: E402
 
 
 def _medida(vmin):
@@ -39,8 +39,8 @@ def client(tmp_path, monkeypatch):
         'modelo_estudio': str(tmp_path / 'modelo.docx'), 'modelo_factibilidad': str(tmp_path / 'modelo.docx'),
         'bandas_tension_pct': [95, 105], 'bandas_cargabilidad_pct': [80, 100],
         'cabecera': {'numero': 'INFORME TECNICO'}, 'norma': 'NTCSE'}}), encoding='utf-8')
-    monkeypatch.setenv('IGEA_PERFIL_EMPRESA', str(perfil))
-    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    monkeypatch.setenv('CSG_PERFIL_EMPRESA', str(perfil))
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     with TestClient(create_app(tmp_path / 'web')) as c:
         yield c
 

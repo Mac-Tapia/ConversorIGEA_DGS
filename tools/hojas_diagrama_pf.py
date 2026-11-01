@@ -11,7 +11,7 @@ En Nasca por SET (2026-10-29) la SET 52, la 53 y la 56 son más altas que anchas
 les dio hoja vertical; los vectores de los conectores llevan −1 en los puntos sin usar, que
 no son del dibujo.
 
-    python tools/hojas_diagrama_pf.py --proyecto 20261029-081235_IGEA_SISTEMA_NASCA \
+    python tools/hojas_diagrama_pf.py --proyecto 20261029-081235_CSG_SISTEMA_NASCA \
         --carpeta <carpeta del perfil de empresa> [--output-json hojas.json]
 
 Códigos de salida: 0 todas dentro, 1 alguna fuera o error inesperado, 2 proyecto que no
@@ -147,7 +147,7 @@ def main(argv=None) -> int:
     p.add_argument('--carpeta', help='Carpeta de proyectos del usuario (perfil de empresa)')
     p.add_argument('--output-json', help='Informe en JSON')
     args = p.parse_args(argv)
-    from igea_dgs.pf_arnes import PFNoDisponible, conectar
+    from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
 
     try:
         app = conectar('hojas_diagrama_pf.py')

@@ -24,7 +24,7 @@ Sin ``--bibliotecas`` aplica las obras del plan (``--simular``: dice lo que har�
 escribir nada, RF-69). Las reglas comunes a todas (RF-57 a RF-60, RF-64 a RF-67):
 
 1. Lee la red y los tipos y planifica todas las obras con
-   ``igea_dgs.obras_pf.plan_simulacion``: lo que se aplica es lo que se simuló. Cada
+   ``convertersmartgrid.obras_pf.plan_simulacion``: lo que se aplica es lo que se simuló. Cada
    alimentador se lee en el caso de sus obras («Con proyecto» si todas son de allí, si no
    «Sin proyecto»), con la troncal del camino más largo (spec 016).
 2. Mide «Sin proyecto» antes de tocar nada: cabecera y tensión mínima por alimentador.
@@ -73,21 +73,21 @@ from casos_pf import (
 )
 from estudios_pf import medida
 
-from igea_dgs.carpeta_pf import buscar_proyecto, nombre_de_perfil
-from igea_dgs.perfil_empresa import datos_perfil
-from igea_dgs.vias import ruta_por_vias
-from igea_dgs.native_action import native_action_block_report
-from igea_dgs.obras_pf import (
+from convertersmartgrid.carpeta_pf import buscar_proyecto, nombre_de_perfil
+from convertersmartgrid.perfil_empresa import datos_perfil
+from convertersmartgrid.vias import ruta_por_vias
+from convertersmartgrid.native_action import native_action_block_report
+from convertersmartgrid.obras_pf import (
     ATRIBUTOS_TIPO, BANDA_TENSION_PU, SOLO_CON_PROYECTO, Obra, ObrasError, RedAlimentador, Tipo,
     diferencias_sin_proyecto, mismos_datos, plan_simulacion, red_de_lectura, resolver_copia,
     resumen_tipo, tipo_de_ficha, validar_obra,
 )
-from igea_dgs.estudios_pf import EstudiosError, limites_de_perfil
-from igea_dgs.naming import feeder_short_name
-from igea_dgs.obras_pf import nombre_copia, punto_indicado
-from igea_dgs.troncal import (Conexion, TroncalError, aguas_abajo, extremos_del_enlace,
+from convertersmartgrid.estudios_pf import EstudiosError, limites_de_perfil
+from convertersmartgrid.naming import feeder_short_name
+from convertersmartgrid.obras_pf import nombre_copia, punto_indicado
+from convertersmartgrid.troncal import (Conexion, TroncalError, aguas_abajo, extremos_del_enlace,
                               punto_en_troncal)
-from igea_dgs.troncal import troncal as troncal_de
+from convertersmartgrid.troncal import troncal as troncal_de
 
 #: Las clases de tipo que piden las obras (RF-89), en el orden en que se listan.
 CLASES_TIPO = tuple(ATRIBUTOS_TIPO)
@@ -299,7 +299,7 @@ def bibliotecas(app, plan: dict) -> tuple[dict, int]:
 #: Proyecto de DIgSILENT, en la carpeta del usuario, con los tipos de catálogo (025:RF-59).
 #: La biblioteca global no deja escribir al usuario (sonda del 2026-10-24: ``CreateObject``
 #: en ``\Lib`` y sus carpetas devuelve nada); las obras lo leen como «otro proyecto».
-BIBLIOTECA_TIPOS = 'IGEA_Biblioteca_tipos'
+BIBLIOTECA_TIPOS = 'CSG_Biblioteca_tipos'
 
 
 def _proyecto_biblioteca(app, nombre: str, avisos: list[str]):
@@ -340,7 +340,7 @@ def _iguales(leidos: dict, pedidos: dict) -> bool:
 def crear_tipos_regulador(app, plan: dict) -> tuple[dict, int]:
     """Los ``TypVoltreg`` del catálogo para cada tensión del plan, en el proyecto biblioteca
     (025:RF-59). Los que ya existen con ese nombre no se tocan ni se duplican."""
-    from igea_dgs.catalogo_reguladores import CatalogoError, FABRICANTE, unidades_para
+    from convertersmartgrid.catalogo_reguladores import CatalogoError, FABRICANTE, unidades_para
 
     nombre = plan.get('biblioteca') or BIBLIOTECA_TIPOS
     informe: dict[str, Any] = {'biblioteca': nombre, 'fabricante': FABRICANTE,
@@ -1151,7 +1151,7 @@ CON_TRONCAL = ('seccion', 'terna', 'enlace', 'migracion', 'set_nueva')
 def leer_troncal(elm, f: str) -> tuple[tuple[str, ...], object, str, list[str]]:
     """(troncal, red, cabecera, avisos) del alimentador en el caso activo (016:RF-1, RF-2).
 
-    Es la troncal del camino más largo de ``igea_dgs.troncal``, no la de ``ComBbone``:
+    Es la troncal del camino más largo de ``convertersmartgrid.troncal``, no la de ``ComBbone``:
     DIgSILENT solo dibuja troncales entre alimentadores con un enlace, e IN111 no tenía
     ninguno (2026-10-14). El N-1 y la transferencia siguen con ``ComBbone`` (016:RF-10).
     Solo cuentan las líneas: un seccionador del camino une, pero no se le cambia el tipo.
@@ -1727,7 +1727,7 @@ class _Sorteo:
             raise RuntimeError(f'«{app.GetActiveStudyCase().loc_name}» no tiene escenario de '
                                'operación: no se sortea sobre él (025:RF-51)')
         carpeta = app.GetProjectFolder('scen', 1)
-        nombre = nombre_libre(carpeta, 'IntScenario', 'IGEA_sorteo_escalera')
+        nombre = nombre_libre(carpeta, 'IntScenario', 'CSG_sorteo_escalera')
         self.temporal = carpeta.AddCopy(self.original, nombre)
         self.original.Deactivate(0)
         self.temporal.Activate()
@@ -1764,7 +1764,7 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
     ``estudios``). Devuelve por variante si cumple con la máxima, la fracción de sorteos que
     cumplen y sus pérdidas con la máxima.
     """
-    from igea_dgs.escalera_optima import cumple, parametros
+    from convertersmartgrid.escalera_optima import cumple, parametros
 
     informe: dict[str, Any] = {'project': plan.get('project'), 'modo': 'evaluar', 'variantes': [],
                                'avisos': [], 'cancelado': False}
@@ -2031,7 +2031,7 @@ def main(argv=None) -> int:
         return 2
     # 019:RF-1 a RF-6: turno del motor de la máquina, reintento con el motor ocupado y
     # primera línea al responder, comunes a todos los guiones.
-    from igea_dgs.pf_arnes import PFNoDisponible, conectar
+    from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
 
     try:
         app = conectar('obras_pf.py')

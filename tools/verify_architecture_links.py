@@ -26,7 +26,7 @@ def main(argv: list[str] | None = None) -> int:
 
     failures: list[str] = []
     for url in web_urls:
-        request = urllib.request.Request(url, headers={"User-Agent": "ConversorIGEA-DGS-architecture-check"})
+        request = urllib.request.Request(url, headers={"User-Agent": "ConverterSmartGrid-architecture-check"})
         try:
             with urllib.request.urlopen(request, timeout=20) as response:
                 status = response.status

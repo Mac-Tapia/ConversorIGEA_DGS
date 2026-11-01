@@ -57,7 +57,7 @@ permite el reparto por kVA y se conserva el aviso; no se inventan clientes fijos
 ## Evidencia por modalidad
 
 `acceptance_summary.json` usa el esquema
-`igea-dgs-three-source-native-load-v1` y contiene:
+`convertersmartgrid-three-source-native-load-v1` y contiene:
 
 - hash de la auditoría canónica, archivos fuente y DGS;
 - bancos esperados y releídos, potencia, nodo y correcciones antes/después;

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import pytest
 
-from igea_dgs.economia import (
+from convertersmartgrid.economia import (
     CostosUnitarios,
     EconomiaError,
     ParametrosTec,

@@ -256,7 +256,7 @@ def test_reconstruir_reconvierte_con_las_medidas(herramienta):
 def test_escanea_antes_de_calibrar_y_la_central_toma_su_barra(herramienta, monkeypatch, capsys):
     """028:RF-15 — el sistema se escanea antes del plan; la central del perfil sin barra va al
     plan con la del generador que encontró el escaneo."""
-    from igea_dgs import perfil_empresa
+    from convertersmartgrid import perfil_empresa
 
     monkeypatch.setattr(perfil_empresa, 'datos_perfil', lambda *a, **k: {})
     monkeypatch.setattr(perfil_empresa, 'centrales_termicas', lambda _d: {
@@ -293,7 +293,7 @@ def test_escanea_antes_de_calibrar_y_la_central_toma_su_barra(herramienta, monke
 def test_no_espera_al_trabajo_que_lo_lanzo(herramienta, monkeypatch):
     """028:RF-21 — lanzado por el botón «Recalibrar», no se espera a sí mismo: el trabajo que lo
     lanzó sigue en curso mientras recalibra (Chincha no empezaba nunca, 2026-10-28)."""
-    monkeypatch.setenv('IGEA_TRABAJO_PROPIO', 'v')
+    monkeypatch.setenv('CSG_TRABAJO_PROPIO', 'v')
     web = WebFalsa(informes=[VALIDO])
     assert _correr(herramienta, web) == 0
     assert 'v' not in web.esperados

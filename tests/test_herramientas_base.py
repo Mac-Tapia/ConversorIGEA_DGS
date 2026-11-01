@@ -22,7 +22,7 @@ HERRAMIENTAS = ('apply_catalog_to_model.py', 'build_input_catalog.py', 'compare_
 @pytest.mark.parametrize('herramienta', HERRAMIENTAS)
 def test_arrancan_sin_powerfactory(herramienta, tmp_path):
     """034:RF-33 — cada herramienta responde a ``--help`` sin DIgSILENT ni datos."""
-    env = {k: v for k, v in os.environ.items() if not k.startswith('IGEA_')}
+    env = {k: v for k, v in os.environ.items() if not k.startswith('CSG_')}
     env['PYTHONPATH'] = os.pathsep.join([str(RAIZ / 'src'), str(RAIZ / 'tools')])
     env['PYTHONIOENCODING'] = 'utf-8'
     r = subprocess.run([sys.executable, str(RAIZ / 'tools' / herramienta), '--help'], cwd=tmp_path,

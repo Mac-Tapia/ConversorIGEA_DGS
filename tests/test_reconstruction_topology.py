@@ -6,8 +6,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from igea_dgs.dataset import CymdistDataset
-from igea_dgs.reconstruction import EvidenceLevel, ReconstructionPolicy, reconstruct_dataset
+from convertersmartgrid.dataset import CymdistDataset
+from convertersmartgrid.reconstruction import EvidenceLevel, ReconstructionPolicy, reconstruct_dataset
 
 
 NETWORK = 'UTILITY_X_F-A'
@@ -52,7 +52,7 @@ def _result(dataset, *, tolerance=1.0):
 
 
 def test_recovers_a_referenced_node_omitted_from_node_table():
-    from igea_dgs.reconstruction_topology import repair_missing_nodes
+    from convertersmartgrid.reconstruction_topology import repair_missing_nodes
 
     dataset = _dataset(
         {'N0': _node('N0', 0, 0)},
@@ -71,7 +71,7 @@ def test_recovers_a_referenced_node_omitted_from_node_table():
 
 
 def test_creates_a_deterministic_terminal_for_a_blank_endpoint():
-    from igea_dgs.reconstruction_topology import repair_missing_nodes
+    from convertersmartgrid.reconstruction_topology import repair_missing_nodes
 
     dataset = _dataset(
         {'N0': _node('N0', 0, 0)},
@@ -91,7 +91,7 @@ def test_creates_a_deterministic_terminal_for_a_blank_endpoint():
 
 
 def test_repairs_a_unique_compatible_same_voltage_connection():
-    from igea_dgs.reconstruction_topology import repair_discontinuities
+    from convertersmartgrid.reconstruction_topology import repair_discontinuities
 
     dataset = _dataset(
         {
@@ -113,7 +113,7 @@ def test_repairs_a_unique_compatible_same_voltage_connection():
 
 
 def test_ranked_ambiguous_connection_is_deterministic_and_keeps_candidates():
-    from igea_dgs.reconstruction_topology import repair_discontinuities
+    from convertersmartgrid.reconstruction_topology import repair_discontinuities
 
     dataset = _dataset(
         {
@@ -138,7 +138,7 @@ def test_ranked_ambiguous_connection_is_deterministic_and_keeps_candidates():
 
 
 def test_discontinuity_repair_excludes_a_closer_node_at_another_voltage():
-    from igea_dgs.reconstruction_topology import repair_discontinuities
+    from convertersmartgrid.reconstruction_topology import repair_discontinuities
 
     dataset = _dataset(
         {
@@ -161,7 +161,7 @@ def test_discontinuity_repair_excludes_a_closer_node_at_another_voltage():
 
 
 def test_discontinuity_repair_never_crosses_company_scope():
-    from igea_dgs.reconstruction_topology import repair_discontinuities
+    from convertersmartgrid.reconstruction_topology import repair_discontinuities
 
     dataset = _dataset(
         {
@@ -184,8 +184,8 @@ def test_discontinuity_repair_never_crosses_company_scope():
 
 
 def test_bridge_transformations_are_preserved_after_model_rules():
-    from igea_dgs.puentes import InformePuentes
-    from igea_dgs.reconstruction_topology import record_bridge_transformations
+    from convertersmartgrid.puentes import InformePuentes
+    from convertersmartgrid.reconstruction_topology import record_bridge_transformations
 
     dataset = _dataset(
         {'N0': _node('N0', 0, 0)},

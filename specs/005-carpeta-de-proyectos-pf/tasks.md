@@ -2,7 +2,7 @@
 
 Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y parar.
 
-- [x] T1. `src/igea_dgs/carpeta_pf.py`: nombre por defecto, validación y lectura de
+- [x] T1. `src/convertersmartgrid/carpeta_pf.py`: nombre por defecto, validación y lectura de
       `config/perfil_empresa.json`; `config/perfil_empresa.example.json` versionado y
       `config/perfil_empresa.json` local con «sistemaeletricoELD», fuera de git. (RF-2, RF-3, RF-4)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_carpeta_pf.py` en verde,
@@ -43,7 +43,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       inexistente. (RF-12, RF-14, RF-16)
       Hecho cuando: `cd frontend && npm run build` sin errores de tipos.
 - [x] T11. Validación: cada RF citado por al menos una prueba y en verde; suite completa
-      con las variables `IGEA_*`. (Todos)
+      con las variables `CSG_*`. (Todos)
       Hecho cuando: `grep -rnoE "005:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-20.
 - [ ] T12. [DIgSILENT] Prueba manual en DIgSILENT (la hace el usuario): importar dos DGS, uno con
       nombre repetido, crear una subcarpeta y leer los proyectos. (RF-5 a RF-17)

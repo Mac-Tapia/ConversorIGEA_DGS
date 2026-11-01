@@ -2,13 +2,13 @@
 
 ## Archivos
 
-- `src/igea_dgs/powerfactory_binding.py`: registro compartido (`vinculo_guardado`,
+- `src/convertersmartgrid/powerfactory_binding.py`: registro compartido (`vinculo_guardado`,
   `alimentadores_vinculados`, `sembrar_registro`, lectura y escritura atómica con bloqueo),
   causas nuevas (`NO_ACTIVE_SOURCE`, `FOLDER_MISMATCH`, `REGISTRY_UNREADABLE`) y
   `caso_base_verificado` sobre el registro.
-- `src/igea_dgs/web/workspace.py`: `REGISTRO_VINCULOS_FILE` y el campo
+- `src/convertersmartgrid/web/workspace.py`: `REGISTRO_VINCULOS_FILE` y el campo
   `vinculos_compartidos`, fijado por `WorkspaceStore` (crear y cargar); la siembra al arrancar.
-- `src/igea_dgs/web/services.py`: `comprobar_dgs_vinculados` (RF-6), exigencia en
+- `src/convertersmartgrid/web/services.py`: `comprobar_dgs_vinculados` (RF-6), exigencia en
   `pf_verificar_base` (RF-5), `native_action_context`, `pf_projects` y `_registrar_vinculo`
   leen a través de `vinculo_guardado`. El import que deja proyectos sin vínculo escribe un
   AVISO en el Registro.

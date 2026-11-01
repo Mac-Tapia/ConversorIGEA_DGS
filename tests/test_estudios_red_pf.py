@@ -9,8 +9,8 @@ import random
 
 import pytest
 
-from igea_dgs import estudios_red_pf as er
-from igea_dgs.estudios_pf import CON_PROYECTO, DIFERENCIA, SIN_PROYECTO, escribir_csv
+from convertersmartgrid import estudios_red_pf as er
+from convertersmartgrid.estudios_pf import CON_PROYECTO, DIFERENCIA, SIN_PROYECTO, escribir_csv
 
 SEMILLAS = [random.randrange(10**6) for _ in range(4)]
 

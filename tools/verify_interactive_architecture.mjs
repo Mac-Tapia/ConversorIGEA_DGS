@@ -6,7 +6,7 @@ import { spawn } from 'node:child_process';
 
 const chrome = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 const page = pathToFileURL(resolve('output/arquitectura/index.html')).href;
-const profile = await mkdtemp(join(tmpdir(), 'igea-c4-browser-'));
+const profile = await mkdtemp(join(tmpdir(), 'csg-c4-browser-'));
 const port = 12000 + Math.floor(Math.random() * 40000);
 const child = spawn(chrome, [
   '--headless=new',
@@ -94,7 +94,7 @@ try {
       href: document.getElementById('c4-open').href,
     };
   })()`);
-  if (localAccess.hidden || !localAccess.href.endsWith('/src/igea_dgs/digital_twin/oraculo.py')) {
+  if (localAccess.hidden || !localAccess.href.endsWith('/src/convertersmartgrid/digital_twin/oraculo.py')) {
     throw new Error(`Local direct access failed: ${JSON.stringify(localAccess)}`);
   }
 
@@ -169,7 +169,7 @@ try {
   const mobile = await evaluate(client, `(() => ({
     innerWidth,
     documentWidth: document.documentElement.scrollWidth,
-    rootWidth: document.getElementById('igea-c4-flow').scrollWidth,
+    rootWidth: document.getElementById('csg-c4-flow').scrollWidth,
     canvas: getComputedStyle(document.querySelector('.c4-canvas')).display,
     list: getComputedStyle(document.querySelector('.c4-mobile-flow')).display,
     firstStep: document.querySelector('.c4-mobile-flow button').textContent,

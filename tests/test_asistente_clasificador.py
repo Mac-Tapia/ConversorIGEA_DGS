@@ -7,22 +7,22 @@ import pytest
 
 torch = pytest.importorskip('torch')
 
-from igea_dgs.asistente import almacen
-from igea_dgs.asistente import clasificador as cl
-from igea_dgs.asistente.ejecutor import pasos
-from igea_dgs.asistente.sinteticos import SUBTIPOS_ESTUDIO
-from igea_dgs.asistente.tareas import TAREAS
-from igea_dgs.asistente.transformer import Configuracion
+from convertersmartgrid.asistente import almacen
+from convertersmartgrid.asistente import clasificador as cl
+from convertersmartgrid.asistente.ejecutor import pasos
+from convertersmartgrid.asistente.sinteticos import SUBTIPOS_ESTUDIO
+from convertersmartgrid.asistente.tareas import TAREAS
+from convertersmartgrid.asistente.transformer import Configuracion
 
 
 @pytest.fixture(scope='module')
 def entrenado(tmp_path_factory):
     raiz = tmp_path_factory.mktemp('asistente_inf')
-    os.environ['IGEA_ASISTENTE_DATA'] = str(raiz)
+    os.environ['CSG_ASISTENTE_DATA'] = str(raiz)
     try:
         yield raiz, cl.entrenar_y_promover(cfg=Configuracion(epocas=8), minimo_subtipo=0.8)
     finally:
-        os.environ.pop('IGEA_ASISTENTE_DATA', None)
+        os.environ.pop('CSG_ASISTENTE_DATA', None)
 
 
 def test_los_dos_informes_desde_la_consola():
@@ -40,7 +40,7 @@ def test_los_dos_informes_desde_la_consola():
 def test_clasifica_tipo_y_subtipo(entrenado, monkeypatch):
     """026:RF-14 — clasifica un pedido o un informe en su tipo y su subtipo de estudio."""
     raiz, r = entrenado
-    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(raiz))
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(raiz))
     assert r['promovido'] and r['acierto_subtipo'] >= 0.8, r
     c = cl.cargar()
     x = c.clasificar('informe de factibilidad: solicitud de suministro para 800 kW en el fundo Santa Rosa')
@@ -51,7 +51,7 @@ def test_clasifica_tipo_y_subtipo(entrenado, monkeypatch):
 def test_aprende_de_las_correcciones(entrenado, monkeypatch):
     """026:RF-15 — cada corrección queda como ejemplo y entra al siguiente entrenamiento."""
     raiz, _ = entrenado
-    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(raiz))
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(raiz))
     for i in range(5):
         cl.registrar(f'estudio de coordinación de protecciones número {i}', 'estudio', 'mejora de tensión', 'corregido')
     ent, prueba = cl.reales()
@@ -61,7 +61,7 @@ def test_aprende_de_las_correcciones(entrenado, monkeypatch):
 
 def test_subtipos_del_perfil(monkeypatch):
     """026:RF-16 — dos niveles; los subtipos salen del perfil y, sin él, de la spec."""
-    import igea_dgs.perfil_empresa as pe
+    import convertersmartgrid.perfil_empresa as pe
 
     monkeypatch.setattr(pe, 'datos_perfil', lambda: {'asistente': {'subtipos_estudio': ['a', 'b']}})
     assert cl.subtipos_del_perfil() == ['a', 'b']

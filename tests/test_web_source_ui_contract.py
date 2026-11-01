@@ -13,13 +13,13 @@ pytest.importorskip('httpx2')
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from igea_dgs.web.app import create_app  # noqa: E402
+from convertersmartgrid.web.app import create_app  # noqa: E402
 from synthetic_export import ExportSpec, write_export  # noqa: E402
 from apoyo import esperar_trabajo  # noqa: E402
 
 
 def test_health_declares_the_three_isolated_source_modes(tmp_path, monkeypatch):
-    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'missing'))
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'missing'))
     with TestClient(create_app(tmp_path / 'web')) as client:
         health = client.get('/api/health').json()
     assert health['source_modes'] == ['txt', 'mdb', 'vnr']
@@ -27,7 +27,7 @@ def test_health_declares_the_three_isolated_source_modes(tmp_path, monkeypatch):
 
 
 def test_workspace_exposes_active_manifest_and_safe_run_history(tmp_path, monkeypatch):
-    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'missing'))
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'missing'))
     red, loads, equipment = write_export(ExportSpec(feeders=1), tmp_path / 'export')
     with TestClient(create_app(tmp_path / 'web')) as client:
         wid = client.post('/api/workspaces').json()['id']

@@ -3,7 +3,7 @@
 Eran una segunda aplicación FastAPI, con su propia cola de trabajos y su propio
 lanzador (`vnr-etl-web`): dos API y dos colas que vigilar, y dos sitios donde corregir
 lo mismo (spec 001, RF-11). Ahora son un ``APIRouter`` bajo ``/api/vnr`` que
-:func:`igea_dgs.web.app.create_app` monta, y sus trabajos van al ``JobManager`` común.
+:func:`convertersmartgrid.web.app.create_app` monta, y sus trabajos van al ``JobManager`` común.
 Lo que la API principal ya ofrece (salud, catálogo oficial con ``refresh``, estado de
 un trabajo) no se repite aquí.
 
@@ -64,7 +64,7 @@ class ReconcileIn(BaseModel):
 
 def create_router(root: Path | str, jobs: Any, settings: Settings | None = None) -> APIRouter:
     """Rutas de VNR bajo ``/api/vnr``. ``jobs`` es el ``JobManager`` de la API principal."""
-    from igea_dgs.web.jobs import DONE
+    from convertersmartgrid.web.jobs import DONE
 
     resolved_settings = settings or Settings()
     root = Path(root).resolve()

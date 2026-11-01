@@ -9,7 +9,7 @@ def test_activate_existing_project_returns_import_compatible_identity(monkeypatc
     from apoyo import cargar_herramienta
 
     tool = cargar_herramienta('powerfactory_acceptance.py')
-    project = SimpleNamespace(loc_name='20261013-121930_IGEA_CA101')
+    project = SimpleNamespace(loc_name='20261013-121930_CSG_CA101')
     monkeypatch.setattr(
         tool,
         '_activate_project_by_path',
@@ -18,14 +18,14 @@ def test_activate_existing_project_returns_import_compatible_identity(monkeypatc
     app = SimpleNamespace(GetActiveProject=lambda: project)
 
     info = tool.activate_existing_project(
-        app, '20261013-121930_IGEA_CA101', 'Conversor IGEA-DGS',
+        app, '20261013-121930_CSG_CA101', 'ConverterSmartGrid',
     )
 
     assert info['ok'] is True
     assert info['existing_project'] is True
-    assert info['project_name'] == '20261013-121930_IGEA_CA101'
-    assert info['project_path'] == '20261013-121930_IGEA_CA101'
-    assert info['project_folder'] == 'Conversor IGEA-DGS'
+    assert info['project_name'] == '20261013-121930_CSG_CA101'
+    assert info['project_path'] == '20261013-121930_CSG_CA101'
+    assert info['project_folder'] == 'ConverterSmartGrid'
     assert info['errors'] == []
 
 
@@ -58,7 +58,7 @@ def _vincular(report):
         },
         {
             'ok': True, 'existing_project': True,
-            'project_path': '20261013-121930_IGEA_CA101',
+            'project_path': '20261013-121930_CSG_CA101',
             'project_folder': 'sistemaeletricoELD',
         },
         fallback_feeder='CA101',
@@ -74,7 +74,7 @@ def test_caso_base_sin_converger_se_vincula_sin_verificar():
         'caso_base': {'status': 'NO_VERIFICADO', 'comprobaciones': {
             'gps_barras': {'pass': True}, 'flujo': {'pass': False}}},
     })
-    assert binding['project'] == '20261013-121930_IGEA_CA101'
+    assert binding['project'] == '20261013-121930_CSG_CA101'
     assert binding['native_reread']['status'] == 'CASO_BASE_NO_VERIFICADO'
     assert binding['native_reread']['caso_base']['CA101']['fallos'] == ['flujo']
 

@@ -6,13 +6,13 @@ Lee: `docs/constitution.md` y `specs/021-maniobras-y-sed-en-el-diagrama/spec.md`
 
 Cuatro bloques independientes, que se pueden entregar por separado y en este orden:
 
-1. **Maniobras de los puentes** (motor, DGS). `src/igea_dgs/puentes.py` decide hoy entre
-   fundir y `Coupler`; `src/igea_dgs/dgs.py` escribe los `Coupler` como `ElmCoup`
+1. **Maniobras de los puentes** (motor, DGS). `src/convertersmartgrid/puentes.py` decide hoy entre
+   fundir y `Coupler`; `src/convertersmartgrid/dgs.py` escribe los `Coupler` como `ElmCoup`
    (líneas 1214-1236) y los `SwitchingDevice` de `model.devices` como `StaSwitch` en el
    cubículo `line_cubic_fids[(section_id, terminal_side)]` (líneas 1268-1278). El cambio
    es sobre todo en `puentes.py`: un equipo plegado deja de ser `Coupler` y pasa a ser un
    `SwitchingDevice` de la línea vecina, y `dgs.py` ya lo escribe sin tocarlo. El
-   trafomix se quita en `src/igea_dgs/trafomix.py`, después de `fundir_puentes`
+   trafomix se quita en `src/convertersmartgrid/trafomix.py`, después de `fundir_puentes`
    (`reglas.aplicar_reglas`); la completitud está en `reglas.auditar_completitud`
    (líneas 210-241).
 2. **SED unidas a su barra** (DGS, dibujo). `dgs.py` escribe el triángulo `SecSubProd`
@@ -23,11 +23,11 @@ Cuatro bloques independientes, que se pueden entregar por separado y en este ord
    La ruta `GET /api/workspaces/{wid}/demanda/cabecera/{job_id}/curva` (`web/app.py:1093`,
    `services.demanda_curva`) devuelve una curva por medidor, y se reutiliza tal cual.
 4. **Central térmica** (demanda medida, plan del ajuste, guion de DIgSILENT, web).
-   `src/igea_dgs/demanda_medida.py` (lectura y máxima), `src/igea_dgs/ajuste_cabecera.py`
-   (objetivo, reparto, cuadre), `src/igea_dgs/web/services.py` (`maximas` en la búsqueda
+   `src/convertersmartgrid/demanda_medida.py` (lectura y máxima), `src/convertersmartgrid/ajuste_cabecera.py`
+   (objetivo, reparto, cuadre), `src/convertersmartgrid/web/services.py` (`maximas` en la búsqueda
    de la máxima, `ajuste_plan`), `tools/ajuste_cabecera_pf.py` (crear el generador y
-   medir en el flujo), `src/igea_dgs/troncal.py` (`aguas_abajo`), perfil de empresa en
-   `src/igea_dgs/perfil_empresa.py`. Carril `powerfactory` para el guion; el cálculo de
+   medir en el flujo), `src/convertersmartgrid/troncal.py` (`aguas_abajo`), perfil de empresa en
+   `src/convertersmartgrid/perfil_empresa.py`. Carril `powerfactory` para el guion; el cálculo de
    la máxima va en el carril `engine`, como hoy.
 
 ## Diseño por partes
@@ -68,7 +68,7 @@ Cuatro bloques independientes, que se pueden entregar por separado y en este ord
 - **Central como `ElmGenstat` creado en «Sin proyecto»** (decisión del operador). P y Q
   fijas, sin máquina síncrona: lo que se calibra es la demanda. Igual que los bancos
   existentes: el «Caso base» sigue fiel al archivo. Descartado: exigir que exista en el
-  proyecto, porque los archivos de IGEA no la traen.
+  proyecto, porque los archivos de la distribuidora no la traen.
 - **Dos zonas** (decisión del operador). La salida (BH1) mide toda la carga de aguas
   abajo, y cabecera + llegada la de aguas arriba: con una sola cifra en cabecera, 9 MW de
   generación esconden dónde está la carga. Descartado: un solo factor a cabecera.
@@ -87,7 +87,7 @@ Cuatro bloques independientes, que se pueden entregar por separado y en este ord
 - 4 Sin inventar: el generador lleva la P y Q medidas, no un tipo `DEFAULT`.
 - 5 Una sola vía: plegado y quitado del trafomix dentro de `aplicar_reglas`.
 - 7 Nada largo en HTTP: la máxima con central se calcula en el trabajo de la máxima.
-- 9 Datos de la distribuidora: las pruebas con libros reales solo con `IGEA_DEMANDA_DIR`;
+- 9 Datos de la distribuidora: las pruebas con libros reales solo con `CSG_DEMANDA_DIR`;
   las sintéticas inventan sus series.
 - 13 Universal: ningún nombre de medidor o de central en el código; la central de NA205
   solo en el perfil de Electro Dunas.
@@ -96,7 +96,7 @@ Cuatro bloques independientes, que se pueden entregar por separado y en este ord
 
 - `tests/test_puentes.py`: redes sintéticas para cada caso de RF-1 a RF-11 (vecina única,
   dos vecinas, cubículo ocupado, fuente, trafomix muerto); completitud.
-- Datos reales (las tres `IGEA_*` y la vía Access): NA203 + NA205 sin barras hechas solo
+- Datos reales (las tres `CSG_*` y la vía Access): NA203 + NA205 sin barras hechas solo
   de acopladores donde RF-6 aplica; contador del informe; DGS idéntico con
   `workers=1` y `workers>1`; las dos disposiciones del TXT.
 - `tests/test_dgs_v2.py`: la SED con lo que decida la sonda (RF-12, RF-13).
@@ -105,7 +105,7 @@ Cuatro bloques independientes, que se pueden entregar por separado y en este ord
 - `tests/test_curva_cabecera_front.py`: fuente del front (series, leyenda, arrastre
   común), como las pruebas de front existentes.
 - `tests/test_demanda_medida.py`: series sintéticas con central (signos cambiados,
-  desbalance, registros raros, central parada); con `IGEA_DEMANDA_DIR`, el registro de
+  desbalance, registros raros, central parada); con `CSG_DEMANDA_DIR`, el registro de
   NA205 del 2026-08-20 16:45.
 - `tests/test_ajuste_cabecera.py` y `test_ajuste_cabecera_guion.py` con `fake_pf`: dos
   factores, generador creado una vez, zona sin escaladas, sin central igual que antes.

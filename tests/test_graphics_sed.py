@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from igea_dgs.dgs import (
+from convertersmartgrid.dgs import (
     NA205_DIAGRAM_UNITS_PER_METER,
     NA205_SED_LV_KV,
     NA205_SED_SIZE,
@@ -19,8 +19,8 @@ from igea_dgs.dgs import (
     visible_pointterm_nodes,
     write_dgs,
 )
-from igea_dgs.geography import GeoLine, GeoPoint, GeographyManifest
-from igea_dgs.model import (
+from convertersmartgrid.geography import GeoLine, GeoPoint, GeographyManifest
+from convertersmartgrid.model import (
     FeederModel,
     Line,
     LineType,
@@ -31,7 +31,7 @@ from igea_dgs.model import (
     extract_sed_code,
     sed_loc_name,
 )
-from igea_dgs.validate import parse_dgs, validate_dgs
+from convertersmartgrid.validate import parse_dgs, validate_dgs
 
 
 def test_extract_equipment_suffix_from_identifiers():
@@ -51,7 +51,7 @@ def test_line_irot_follows_geometry():
 
 
 def test_ug_parallel_rail_paths_taper_to_shared_endpoints():
-    from igea_dgs.dgs import ug_parallel_rail_paths
+    from convertersmartgrid.dgs import ug_parallel_rail_paths
 
     center = [(0.0, 0.0), (10.0, 0.0), (20.0, 0.0)]
     left, right = ug_parallel_rail_paths(center, offset=2.0)
@@ -127,7 +127,7 @@ def test_underground_span_single_d_lin_and_inair(tmp_path: Path):
 
 
 def test_parallel_circuit_offsets_two_abc_same_span():
-    from igea_dgs.dgs import parallel_circuit_graphic_offsets
+    from convertersmartgrid.dgs import parallel_circuit_graphic_offsets
 
     nodes = {
         'A': Node('A', 0, 0),
@@ -202,7 +202,7 @@ def test_los_vertices_intermedios_cuentan_para_la_hoja():
     es que los puntos intermedios entran en el cálculo; ya no que encojan la escala,
     porque ahora lo que crece es la hoja.
     """
-    from igea_dgs.dgs import DIAGRAM_SHEET_MARGIN_DU
+    from convertersmartgrid.dgs import DIAGRAM_SHEET_MARGIN_DU
 
     meter_xy = {'A': (0.0, 0.0), 'B': (100.0, 0.0)}
     lejano = 80_000.0

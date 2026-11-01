@@ -2,7 +2,7 @@
 
 Regenera con los TXT reales y compara contra ``output/linea_base_001.json``, que se crea
 una vez, con el código anterior a la reorganización, con ``tools/linea_base_dgs.py``.
-Se omite sin las variables ``IGEA_*``, sin línea base, o si las entradas o el catálogo
+Se omite sin las variables ``CSG_*``, sin línea base, o si las entradas o el catálogo
 del proyecto no son los mismos con los que se hizo: entonces no hay nada que comparar.
 """
 from __future__ import annotations
@@ -30,13 +30,13 @@ def _diferencias(antes: dict[str, str], ahora: dict[str, str]) -> list[str]:
             + [f'cambia {k}' for k in sorted(antes.keys() & ahora.keys()) if antes[k] != ahora[k]])
 
 
-def test_dgs_identicos_a_la_linea_base(igea_paths, tmp_path):
+def test_dgs_identicos_a_la_linea_base(csg_paths, tmp_path):
     """001:RF-14 — mismos DGS byte a byte, por alimentador y en la red unida."""
     lb = _herramienta()
     if not lb.DESTINO.is_file():
         pytest.skip(f'Sin línea base: genérela con tools/linea_base_dgs.py ({lb.DESTINO})')
     base = json.loads(lb.DESTINO.read_text(encoding='utf-8'))
-    red, loads, equipment = igea_paths
+    red, loads, equipment = csg_paths
     if lb.huella_entradas(red, loads, equipment) != base['entradas']:
         pytest.skip('La línea base se hizo con otras entradas u otro catálogo del proyecto')
 
@@ -50,21 +50,21 @@ def test_dgs_identicos_a_la_linea_base(igea_paths, tmp_path):
     assert not cambios, f'{len(cambios)} DGS distintos de la línea base: {cambios[:20]}'
 
 
-def _base_para(igea_paths):
+def _base_para(csg_paths):
     lb = _herramienta()
     if not lb.DESTINO.is_file():
         pytest.skip(f'Sin línea base: genérela con tools/linea_base_dgs.py ({lb.DESTINO})')
     base = json.loads(lb.DESTINO.read_text(encoding='utf-8'))
-    red, loads, equipment = igea_paths
+    red, loads, equipment = csg_paths
     if lb.huella_entradas(red, loads, equipment) != base['entradas']:
         pytest.skip('La línea base se hizo con otras entradas u otro catálogo del proyecto')
     return lb, base
 
 
-def test_dgs_identicos_con_cuatro_procesos(igea_paths, tmp_path):
+def test_dgs_identicos_con_cuatro_procesos(csg_paths, tmp_path):
     """002:RF-20 — con workers=4 los DGS por alimentador son los de la línea base."""
-    lb, base = _base_para(igea_paths)
-    ahora = lb.calcular(*igea_paths, tmp_path, workers=4)
+    lb, base = _base_para(csg_paths)
+    ahora = lb.calcular(*csg_paths, tmp_path, workers=4)
     cambios = _diferencias(base['dgs_alimentadores'], ahora['dgs_alimentadores'])
     assert not cambios, f'{len(cambios)} DGS distintos con workers=4: {cambios[:20]}'
 
@@ -74,10 +74,10 @@ def test_dgs_identicos_por_la_via_access(tmp_path):
     import os
 
     pytest.importorskip('pyodbc')
-    mdb = os.environ.get('IGEA_MDB', '').strip()
+    mdb = os.environ.get('CSG_MDB', '').strip()
     if not mdb:
-        pytest.skip('Defina IGEA_MDB para comparar la vía Access')
-    equipos = os.environ.get('IGEA_EQUIPMENT_MDB', '').strip() or None
+        pytest.skip('Defina CSG_MDB para comparar la vía Access')
+    equipos = os.environ.get('CSG_EQUIPMENT_MDB', '').strip() or None
     lb = _herramienta()
     if not lb.DESTINO_MDB.is_file():
         pytest.skip('Sin línea base de Access: genérela con '

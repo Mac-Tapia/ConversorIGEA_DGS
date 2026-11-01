@@ -66,7 +66,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho el 2026-10-23, solo los alimentadores que pidió el usuario, cada uno en su
       proyecto y con `--sin-bancos` (los bancos que faltan se crean en la red común):
       Pisco SI213 −0,00 % y PA217 −0,01 %; Chincha PN107 −0,04 % y TM105 −0,00 %; el
-      unido IN111 + TA225 (`20261015-170359_IGEA_IN111_TA225`) IN111 −0,89 % y TA225
+      unido IN111 + TA225 (`20261015-170359_CSG_IN111_TA225`) IN111 −0,89 % y TA225
       −0,08 %; los seis VALIDO, con AVISO_KVAR (sin bancos, la red da menos kVAR que el
       medidor). Foto de cada carga (P, Q, scale0) y del flujo antes y después: «Caso base»,
       «Sin proyecto» y «Con proyecto» de 2026, IGUAL en los cuatro proyectos. IN111 en
@@ -123,7 +123,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       global. (RF-59)
       Hecho el 2026-10-24: `catalogo_reguladores.py` y `obras_pf.py --tipos-regulador`; en
       DIgSILENT, 16 tipos (9 de 10 kV, 50 a 668 A; 7 de 22,9 kV, 50 a 500 A) en el proyecto
-      `IGEA_Biblioteca_tipos` de la carpeta del usuario (elegido por el usuario: la global no
+      `CSG_Biblioteca_tipos` de la carpeta del usuario (elegido por el usuario: la global no
       deja escribir), creado con `Application.CreateProject`. La obra «regulador» pone ya
       `Un` de unidad monofásica (de fase en estrella) e `In` se muestra en amperios.
       Hecho cuando: prueba con `fake_pf` en verde y los tipos en DIgSILENT.

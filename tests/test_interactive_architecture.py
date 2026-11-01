@@ -31,10 +31,10 @@ def test_structurizr_model_exposes_required_views_and_real_access_points():
 
     for access_point in (
         "http://127.0.0.1:8765/",
-        "src/igea_dgs/web/app.py",
-        "src/igea_dgs/web/services.py",
-        "src/igea_dgs/digital_twin",
-        "src/igea_dgs/asistente",
+        "src/convertersmartgrid/web/app.py",
+        "src/convertersmartgrid/web/services.py",
+        "src/convertersmartgrid/digital_twin",
+        "src/convertersmartgrid/asistente",
         "output/web",
     ):
         assert access_point in text
@@ -44,13 +44,13 @@ def test_structurizr_model_exposes_required_views_and_real_access_points():
     assert "oracle -> dgs" not in text
     assert "/tree/main/" not in text
     assert "/blob/main/" not in text
-    assert "file:///D:/converter/ConversorIGEA_DGS/src/igea_dgs/digital_twin" in text
+    assert "file:///D:/converter/ConverterSmartGrid/src/convertersmartgrid/digital_twin" in text
 
 
 def test_interactive_visualization_has_finite_flow_controls_and_accessible_nodes():
     text = HTML.read_text(encoding="utf-8")
 
-    assert '<div id="igea-c4-flow"' in text
+    assert '<div id="csg-c4-flow"' in text
     assert "prefers-reduced-motion" in text
     assert 'id="flow-play"' in text
     assert 'id="flow-next"' in text
@@ -86,13 +86,13 @@ def test_visualization_contains_every_required_flow_and_direct_destination():
         assert f'data-view="{view}"' in text
 
     for destination in (
-        "src/igea_dgs/sources",
-        "src/igea_dgs/dgs.py",
-        "src/igea_dgs/web/app.py",
+        "src/convertersmartgrid/sources",
+        "src/convertersmartgrid/dgs.py",
+        "src/convertersmartgrid/web/app.py",
         "tools/powerfactory_acceptance.py",
-        "src/igea_dgs/digital_twin/oraculo.py",
-        "src/igea_dgs/asistente/interprete.py",
-        "docs/architecture/plano_flujo_arquitectura_conversor_igea_dgs.pdf",
+        "src/convertersmartgrid/digital_twin/oraculo.py",
+        "src/convertersmartgrid/asistente/interprete.py",
+        "docs/architecture/plano_flujo_arquitectura_converter_smart_grid.pdf",
     ):
         assert destination in text
 
@@ -110,7 +110,7 @@ def test_visualization_exposes_scientific_basis_and_standalone_delivery():
         assert source in text
 
 def test_tracked_source_builds_standalone_delivery_in_clean_directory(tmp_path):
-    assert (ROOT / "docs" / "architecture" / "plano_flujo_arquitectura_conversor_igea_dgs.pdf").is_file()
+    assert (ROOT / "docs" / "architecture" / "plano_flujo_arquitectura_converter_smart_grid.pdf").is_file()
     subprocess.run(
         [sys.executable, str(BUILDER), "--output-dir", str(tmp_path)],
         cwd=ROOT,
@@ -120,6 +120,6 @@ def test_tracked_source_builds_standalone_delivery_in_clean_directory(tmp_path):
     )
     standalone = (tmp_path / "index.html").read_text(encoding="utf-8")
     assert "<!doctype html>" in standalone.lower()
-    assert 'id="igea-c4-flow"' in standalone
+    assert 'id="csg-c4-flow"' in standalone
     assert "<iframe" not in standalone
     assert "tools/powerfactory_acceptance.py" in standalone

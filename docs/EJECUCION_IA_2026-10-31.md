@@ -92,7 +92,7 @@ y contando los grupos con más de un valor distinto; no se necesita alterar la f
 | 044 T1–T2 | Particiones independientes de entrenamiento/selección/calibración/prueba y puertas por familia integradas en el entrenamiento vigente. La reutilización actual de validación del PINN sigue pendiente. |
 | 044 T3–T4 | Contexto, flujo/referencia, norma y persistencia completos en los consumidores top-k; prueba nativa después de reapertura. |
 | 045 | Episodios v2 con «Cargas nuevas», grafo v3, controles/fronteras/residuos y ablaciones con contraste nativo. PowerFlowNet tiene adaptador comprobado; faltan benchmark por familia y promoción. No se cambió el schema actual ni sus hashes. |
-| 046 T1 | Resolver la custodia de los duplicados conflictivos o seleccionar una fuente observada inequívoca antes de cerrar el ensayo de entrenamiento con datos reales. No corregir planos IGEA ni inventar valores. |
+| 046 T1 | Resolver la custodia de los duplicados conflictivos o seleccionar una fuente observada inequívoca antes de cerrar el ensayo de entrenamiento con datos reales. No corregir planos de la distribuidora ni inventar valores. |
 | 046 T2–T3 | Adaptadores multihorizonte y benchmark temporal real con calibración y promoción; no están implementados NHITS/TFT/PatchTST. |
 | 047 | Completar vínculos de contexto nativo en T1; reranker, revisión por roles y ajuste condicionado T2–T4. T5 acredita el circuito de destilación y el experimento, no calidad suficiente ni activación. Los cinco eventos locales contienen solo tres órdenes humanas únicas. |
 | 048 | Problema mixto, adaptadores pymoo/PNL, comparación con presupuesto común y aplicación nativa. |

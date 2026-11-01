@@ -20,8 +20,8 @@ pytest.importorskip('openpyxl')
 from fastapi.testclient import TestClient  # noqa: E402
 
 from apoyo import esperar_trabajo  # noqa: E402
-from igea_dgs.web import services  # noqa: E402
-from igea_dgs.web.app import create_app  # noqa: E402
+from convertersmartgrid.web import services  # noqa: E402
+from convertersmartgrid.web.app import create_app  # noqa: E402
 from test_demanda_medida_web import CABECERA, CLIENTES, _subir, _xlsx  # noqa: E402
 
 GUION_FALSO = '''
@@ -72,22 +72,22 @@ SUMINISTROS = {'s': [['Suministro', 'Suministro Act', 'SED', 'RADIAL'], [11, 901
 
 @pytest.fixture()
 def client(tmp_path, monkeypatch):
-    from igea_dgs.demanda_medida import ClientPeriodEvidence
-    from igea_dgs.powerfactory_binding import PowerFactoryProjectBinding
+    from convertersmartgrid.demanda_medida import ClientPeriodEvidence
+    from convertersmartgrid.powerfactory_binding import PowerFactoryProjectBinding
 
-    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     guion = tmp_path / 'ajuste_falso.py'
     guion.write_text(GUION_FALSO, encoding='utf-8')
     monkeypatch.setattr(services, '_require_pf', lambda: (tmp_path, sys.executable))
     monkeypatch.setattr(services, '_script', lambda _nombre: guion)
     monkeypatch.setattr(services, 'pf_subprocess_env', lambda _d: None)
     # Spec 015: el «Caso base» de cada alimentador, verificado.
-    monkeypatch.setattr('igea_dgs.powerfactory_binding.caso_base_verificado',
+    monkeypatch.setattr('convertersmartgrid.powerfactory_binding.caso_base_verificado',
                         lambda _ws, _project, _feeders: {})
     monkeypatch.setattr(
-        'igea_dgs.powerfactory_binding.require_project_binding',
+        'convertersmartgrid.powerfactory_binding.require_project_binding',
         lambda _ws, project, feeders: PowerFactoryProjectBinding(
-            project=project, folder='Conversor IGEA-DGS', source_run_id='legacy-test-run',
+            project=project, folder='ConverterSmartGrid', source_run_id='legacy-test-run',
             source_mode='txt', source_fingerprint='f' * 64, feeders=tuple(feeders),
             dgs_sha256={f: 'd' * 64 for f in feeders}, native_inventory_sha256='n' * 64,
             native_reread={'status': 'VERIFICADO_PERSISTENCIA'}, accepted_at=1.0,
@@ -220,7 +220,7 @@ def test_el_plan_lleva_el_fp_de_las_escaladas_del_perfil(client, tmp_path, monke
     un valor imposible no se prepara y se dice cuál."""
     import json as _json
 
-    from igea_dgs.perfil_empresa import VARIABLE_RUTA
+    from convertersmartgrid.perfil_empresa import VARIABLE_RUTA
 
     wid, job = _maxima(client)
     _subir(client, wid, 'suministros', SUMINISTROS)
@@ -490,7 +490,7 @@ def test_cancelar_termina_el_proyecto(client):
 def test_sin_caso_base_verificado_no_se_calibra(client, monkeypatch):
     """015:RF-13, 015:RF-15 — un alimentador sin «Caso base» verificado no se calibra; con
     varios, los demás sí, y el que queda fuera se dice."""
-    monkeypatch.setattr('igea_dgs.powerfactory_binding.caso_base_verificado',
+    monkeypatch.setattr('convertersmartgrid.powerfactory_binding.caso_base_verificado',
                         lambda _ws, _project, feeders: {f: ['flujo'] for f in feeders if f == 'A1'})
     wid, job = _maxima(client)
     r = _plan(client, wid, job)
@@ -539,7 +539,7 @@ def test_calibrar_no_cambia_el_estado_del_caso_base(client, proyecto):
 def test_la_calibracion_guarda_las_fijas_con_fp_real_y_corregido(tmp_path):
     """015:RF-65 — lo que la calibración deja en el espacio para el informe: por cliente, el FP
     real de su EA/ERI y el corregido, y si se supone compensado por su banco propio."""
-    from igea_dgs.web.workspace import Workspace
+    from convertersmartgrid.web.workspace import Workspace
 
     ws = Workspace(id='w', root=tmp_path / 'ws')
     informe = {'cuadrado': True, 'escenario': 'Sin proyecto',
@@ -562,7 +562,7 @@ def test_la_calibracion_guarda_lo_releido_en_digsilent_y_no_el_reparto(tmp_path)
     siguiente calibración veía todas las cargas «cambiadas a mano» y tapaba a los clientes."""
     import random
 
-    from igea_dgs.web.workspace import Workspace
+    from convertersmartgrid.web.workspace import Workspace
 
     rng = random.Random(32)
     n = rng.randint(3, 12)
@@ -592,7 +592,7 @@ def test_el_plan_lleva_las_fichas_de_transformadores_del_perfil(client, tmp_path
     sin perfil, ninguna (el guion lo dice sin propuesta)."""
     import json as _json
 
-    from igea_dgs.perfil_empresa import VARIABLE_RUTA
+    from convertersmartgrid.perfil_empresa import VARIABLE_RUTA
 
     wid, job = _maxima(client)
     monkeypatch.setenv(VARIABLE_RUTA, str(tmp_path / 'no_existe.json'))
@@ -818,7 +818,7 @@ def test_poner_los_bancos_que_falten_va_en_el_plan(client, monkeypatch):
     perfil; sin marcarla, el plan no lo pide."""
     monkeypatch.setattr(services, 'datos_perfil', lambda: {'calibracion': {
         'bancos_kvar_por_tension': {'10': 300, '22.9': 450}}}, raising=False)
-    monkeypatch.setattr('igea_dgs.perfil_empresa.datos_perfil', lambda: {'calibracion': {
+    monkeypatch.setattr('convertersmartgrid.perfil_empresa.datos_perfil', lambda: {'calibracion': {
         'bancos_kvar_por_tension': {'10': 300, '22.9': 450}}})
     wid, job = _maxima(client)
     plan = _recibido(client, wid, _plan(client, wid, job, completar_bancos=True).json()['token'])
@@ -832,7 +832,7 @@ def test_solo_se_registra_la_calibracion_guardada(tmp_path):
     """014:RF-10, 015:RF-49 — una calibración cuyo escenario no se guardó (no pasó la
     validación física) no se registra: en NA205 (2026-10-17) dejó 93 cargas «cambiadas a
     mano» en la siguiente."""
-    from igea_dgs.web.workspace import Workspace
+    from convertersmartgrid.web.workspace import Workspace
 
     ws = Workspace(id='w', root=tmp_path / 'ws')
     sed = [{'sed': 'SE1', 'despues': {'kw': 100.0, 'kvar': 20.0}}]
@@ -964,13 +964,13 @@ def test_kva_del_alimentador_reconstruido(client, monkeypatch, tmp_path):
 def test_el_plan_lleva_las_fichas_de_los_conductores(client, monkeypatch):
     """032:RF-14 — el plan del ajuste lleva las fichas del catálogo (el subido a la web o el
     del proyecto) para ponerlas en «Sin proyecto»; sin catálogo, ninguna."""
-    from igea_dgs.catalog import CorreccionConductor
-    from igea_dgs.web import services as srv
+    from convertersmartgrid.catalog import CorreccionConductor
+    from convertersmartgrid.web import services as srv
 
     wid, job = _maxima(client)
     ws = client.app.state.store.get(wid)
     monkeypatch.setattr(srv, 'catalogo_del_proyecto', lambda: None, raising=False)
-    monkeypatch.setattr('igea_dgs.reglas.catalogo_del_proyecto', lambda: None)
+    monkeypatch.setattr('convertersmartgrid.reglas.catalogo_del_proyecto', lambda: None)
     monkeypatch.setattr(type(ws), 'catalog_corrections', lambda self: None)
     token = _plan(client, wid, job).json()['token']
     plan = json.loads(Path(ws.cargas_planes[token]['path']).read_text(encoding='utf-8'))
@@ -986,7 +986,7 @@ def test_el_plan_lleva_las_fichas_de_los_conductores(client, monkeypatch):
 def test_se_implementan_tambien_las_escaladas_sobre_el_umbral(client):
     """032:RF-22 — la propuesta que se implementa sale del último ajuste: también las SED
     escaladas sobre el umbral (``sed_sobre_umbral``), no solo las fijas de la 020."""
-    from igea_dgs.web import services as srv
+    from convertersmartgrid.web import services as srv
 
     wid, token = _simulado(client)
     ws = client.app.state.store.get(wid)

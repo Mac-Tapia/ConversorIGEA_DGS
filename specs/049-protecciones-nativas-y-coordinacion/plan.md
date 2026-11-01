@@ -32,7 +32,7 @@ Pruebas nuevas citan `049:RF-n`; no cerrar tareas nativas con mocks.
 
 **Cubre:** RF-1, RF-2, RF-3.
 
-**Files:** Crear `src/igea_dgs/protecciones.py`, `schemas/protecciones_v1.schema.json`, `tests/test_protecciones_datos.py`; modificar `studies.py`, `datos_empresa.py` y disponibilidad en `estudios_pf.py`.
+**Files:** Crear `src/convertersmartgrid/protecciones.py`, `schemas/protecciones_v1.schema.json`, `tests/test_protecciones_datos.py`; modificar `studies.py`, `datos_empresa.py` y disponibilidad en `estudios_pf.py`.
 
 **Interfaces:** `disponibilidad_protecciones(inventario: Mapping, capacidades: Mapping, perfil: Mapping) -> dict` informa disponible/faltan/bloqueos/alcance. Contrato: ID estable dispositivo/cubículo, fabricante/modelo, curva, pickup y unidad, dial/retardo y unidad, CT/VT cuando aplique, dirección, capacidad de interrupción y fuente documental. Datos de secuencia/cortocircuito y conexión a tierra obligatorios según fallas pedidas. No adoptar ComProtgraphic como prueba universal de auditoría: verificar API/documentación de la versión conectada.
 

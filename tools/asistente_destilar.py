@@ -50,31 +50,31 @@ def main(argv=None) -> int:
     evaluar.add_argument('--output-json', type=Path, required=True)
     args = p.parse_args(argv)
     try:
-        from igea_dgs.asistente.destilacion_integral import (
+        from convertersmartgrid.asistente.destilacion_integral import (
             entrenar_destilacion, guardar_corpus, preparar_corpus, verificar_reapertura)
         if args.accion == 'preparar':
-            from igea_dgs.asistente import almacen
+            from convertersmartgrid.asistente import almacen
             vocab = json.loads(args.vocabulario.read_text(encoding='utf-8')) if args.vocabulario else {}
             filas, meta = preparar_corpus(vocab, almacen.leer('ejemplos'), por_familia=args.por_familia)
             guardar_corpus(args.destino, filas, meta)
             resultado = {'ok': True, **meta}
         elif args.accion == 'entrenar':
-            from igea_dgs.asistente.transformer import Configuracion
-            from igea_dgs.training_coordinator import BloqueoGPU
+            from convertersmartgrid.asistente.transformer import Configuracion
+            from convertersmartgrid.training_coordinator import BloqueoGPU
             if args.epocas < 1:
                 raise ValueError('épocas positivas obligatorias')
             semillas = tuple(int(s) for s in args.semillas.split(',') if s.strip())
-            ruta = Path(os.environ.get('IGEA_ML_GPU_LOCK') or str(Path(tempfile.gettempdir()) / 'igea-dgs-gpu.lock'))
+            ruta = Path(os.environ.get('CSG_ML_GPU_LOCK') or str(Path(tempfile.gettempdir()) / 'convertersmartgrid-gpu.lock'))
             with BloqueoGPU(ruta, 'destilacion-integral'):
                 resultado = entrenar_destilacion(args.dataset, args.destino,
                     cfg=Configuracion(epocas=args.epocas), semillas=semillas, registro=args.registro)
         elif args.accion == 'verificar':
             resultado = verificar_reapertura(args.modelo)
         else:
-            from igea_dgs.asistente.destilacion_integral import cargar_alumno, ensayar_funcionamiento, evaluar_agente, leer_corpus
-            from igea_dgs.asistente.ollama import ClienteOllama
-            from igea_dgs.training_coordinator import BloqueoGPU
-            ruta = Path(os.environ.get('IGEA_ML_GPU_LOCK') or str(Path(tempfile.gettempdir()) / 'igea-dgs-gpu.lock'))
+            from convertersmartgrid.asistente.destilacion_integral import cargar_alumno, ensayar_funcionamiento, evaluar_agente, leer_corpus
+            from convertersmartgrid.asistente.ollama import ClienteOllama
+            from convertersmartgrid.training_coordinator import BloqueoGPU
+            ruta = Path(os.environ.get('CSG_ML_GPU_LOCK') or str(Path(tempfile.gettempdir()) / 'convertersmartgrid-gpu.lock'))
             with BloqueoGPU(ruta, 'ensayo-agente-integral'):
                 cliente = ClienteOllama(modelo=args.ollama, tiempo_max_s=60.) if args.ollama else None
                 try:

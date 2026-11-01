@@ -8,10 +8,10 @@ pytest.importorskip('httpx2')
 
 from fastapi.testclient import TestClient
 
-from igea_dgs.digital_twin.buffer import BuferEpisodios
-from igea_dgs.pide_economia import propuesta_pide
-from igea_dgs.web import services
-from igea_dgs.web.app import create_app
+from convertersmartgrid.digital_twin.buffer import BuferEpisodios
+from convertersmartgrid.pide_economia import propuesta_pide
+from convertersmartgrid.web import services
+from convertersmartgrid.web.app import create_app
 
 PLAN = {'tasa_regulada': 0.12, 'tasa_privada': 0.12, 'vida_util_anios': 30, 'horizonte_anios': 20,
         'anios_pide': [4, 5, 6, 7], 'anios_horizonte': [4, 8], 'crecimiento_demanda_anual': 0.04,
@@ -61,7 +61,7 @@ def test_sin_capex_se_dice():
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
-    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     with TestClient(create_app(tmp_path / 'web')) as c:
         yield c
 
@@ -78,8 +78,8 @@ def test_pide_simula_y_aplica_solo_lo_que_funciona(client, monkeypatch, tmp_path
               'calibracion': {'bancos_kvar_por_tension': {'10': 300}}}
     monkeypatch.setattr(services, 'native_action_context',
                         lambda _ws, project, feeders, action: {'feeders': ['F1'], 'project': project})
-    monkeypatch.setattr('igea_dgs.perfil_empresa.datos_perfil', lambda *a, **k: perfil)
-    monkeypatch.setattr('igea_dgs.perfil_empresa.estructura_empresa', lambda *a, **k: None)
+    monkeypatch.setattr('convertersmartgrid.perfil_empresa.datos_perfil', lambda *a, **k: perfil)
+    monkeypatch.setattr('convertersmartgrid.perfil_empresa.estructura_empresa', lambda *a, **k: None)
     informe = {'anios': [dict(INFORME['anios'][0], problemas=INFORME['anios'][0]['problemas']
                               + [_p('caida_de_tension', 'C3', 0.92, 10.0, alim='F2')]),
                          INFORME['anios'][1]]}
@@ -92,7 +92,7 @@ def test_pide_simula_y_aplica_solo_lo_que_funciona(client, monkeypatch, tmp_path
         if simular:   # el banco de F2 falla en la simulación
             return {'informe': {'obras': [{'obra': i + 1, 'error': 'no converge' if por_id[x]['alimentador'] == 'F2' else None}
                                           for i, x in enumerate(ids)]}}
-        return {'informe': {'obras': [{'obra': i + 1, 'variacion': f'IGEA obra {i + 1}'} for i in range(len(ids))]}}
+        return {'informe': {'obras': [{'obra': i + 1, 'variacion': f'CSG obra {i + 1}'} for i in range(len(ids))]}}
 
     monkeypatch.setattr(services, 'obras_ejecutar', obras)
 
@@ -103,7 +103,7 @@ def test_pide_simula_y_aplica_solo_lo_que_funciona(client, monkeypatch, tmp_path
     r = services.pide_ejecutar(ws, Ctx(), 'P', ['F1'])
     assert [(s, len(i)) for s, i in llamadas] == [(True, 2), (False, 1)]
     assert [x['alternativa'] for x in r['implementadas']] == ['bancos']
-    assert 'IGEA obra 1' in r['implementadas'][0]['aviso']
+    assert 'CSG obra 1' in r['implementadas'][0]['aviso']
     f2 = next(o for o in r['obras'] if o['alimentador'] == 'F2')
     assert 'simulación' in f2['motivo_sin_obra']
     assert not any(o['alimentador'] == 'F2' for o in ws.obras)

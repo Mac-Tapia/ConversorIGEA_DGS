@@ -2,7 +2,7 @@
 
 ## Módulos
 
-- `src/igea_dgs/escaneo.py` (RF-3, RF-4, RF-5, RF-7, RF-11, RF-12): reglas puras, sin
+- `src/convertersmartgrid/escaneo.py` (RF-3, RF-4, RF-5, RF-7, RF-11, RF-12): reglas puras, sin
   DIgSILENT. `origen_de(nombre, variacion)` con los prefijos propios del conversor
   (`Central_`, `BC_CAL_`, `Obra_`, cargas nuevas), `resumen` del informe y
   `nodo_de_central(escaneo, alimentador)`: la barra del único generador en servicio del
@@ -13,7 +13,7 @@
   variaciones (`IntScheme` de la carpeta de variaciones) y cambios de carga
   (`cambios_manuales` con la última calibración que manda la web). Un alimentador que falla
   sale con su error. No escribe nada.
-- `src/igea_dgs/web/services.py` y `app.py` (RF-9, RF-10): `escanear_alimentadores`, trabajo
+- `src/convertersmartgrid/web/services.py` y `app.py` (RF-9, RF-10): `escanear_alimentadores`, trabajo
   del carril `powerfactory` con `_guion_pf`; el resultado se guarda en el espacio
   (`ws.escaneo`) y `ajuste_plan` completa con él la barra de las centrales sin `nodo` (RF-12).
   Ruta `POST /api/workspaces/{wid}/pf/escanear`.

@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import pytest
 
-from igea_dgs.digital_twin import evaluacion as ev
-from igea_dgs.digital_twin.episode import Caso, Clase
+from convertersmartgrid.digital_twin import evaluacion as ev
+from convertersmartgrid.digital_twin.episode import Caso, Clase
 
 #: Perfil de prueba con la forma del real: NTCSE en ``estudios``, transformadores al 80 %.
 PERFIL = {

@@ -49,7 +49,7 @@ Bloque 1 · Maniobras de los puentes
       de detrás; dos tramos con barra común son un solo trecho. 167 pruebas en verde.
 - [x] T5. Datos reales: NA203 + NA205 por la vía Access y TXT en las dos disposiciones; DGS
       idéntico con `workers=1` y `workers>1`. (RF-6, RF-10)
-      Hecho cuando: la suite con las variables `IGEA_*` e `IGEA_MDB` en verde.
+      Hecho cuando: la suite con las variables `CSG_*` e `CSG_MDB` en verde.
       Resultado del 2026-10-17: suite completa con TXT y Access en verde (T3); con el
       código final del bloque, `test_linea_base_001` (TXT con 1 y 4 procesos y Access,
       byte a byte), `test_export_layouts`, `test_reglas` (las dos disposiciones) y
@@ -104,7 +104,7 @@ Bloque 4 · Central térmica
 - [x] T9. Medidas de la central: registros comunes, signos por balance, zonas, descarte por
       3·IQR y máxima de demanda. (RF-28 a RF-34)
       Hecho cuando: `pytest -q tests/test_demanda_medida.py` en verde; con
-      `IGEA_DEMANDA_DIR`, NA205 da el registro del 2026-08-20 16:45.
+      `CSG_DEMANDA_DIR`, NA205 da el registro del 2026-08-20 16:45.
       Resultado del 2026-10-17: `demanda_medida.demanda_con_central` sobre las cuatro
       curvas `(fecha, kW, kVAR)` que ya guarda la máxima (`MaximaCabecera.curva`):
       registros comunes, signos por la menor mediana de desbalance (desempate fijo),
@@ -185,7 +185,7 @@ Cierre
         hay nodo; con la barra 1720 el reparto de las zonas es el de v1 (2 775 kVA aguas
         arriba, 16 304 aguas abajo). Desde la web, NA205 con su central: máxima de demanda
         10 753,3 kW el 2026-08-20 16:45 (532 registros descartados) y su gráfica. El plan
-        de la web, en una copia de «20261016-160231_IGEA_NA203_NA205» (borrada): central
+        de la web, en una copia de «20261016-160231_CSG_NA203_NA205» (borrada): central
         en 1720 con 9 605 kW / −593 kvar solo en «Sin proyecto» (el «Caso base» sin ella),
         15 cargas aguas arriba y 88 aguas abajo, cuadrado en 3 flujos sin remedios
         (−0,08 % y −0,01 %), validación nativa válida en las dos zonas, cabecera calculada
@@ -229,7 +229,7 @@ Añadido el 2026-10-17 (calibrar NA203 y NA205 con su central en julio y a la ve
       posiciones en `ajuste_cabecera.py`, colocación en la troncal y recalibración en
       `tools/ajuste_cabecera_pf.py`, casilla en 2.4.
       Hecho cuando: pruebas del cálculo, del guion con `fake_pf`, de la web y del front en verde.
-- [x] T17. Calibrar NA203 y NA205 con su central en «20261016-160231_IGEA_NA203_NA205»
+- [x] T17. Calibrar NA203 y NA205 con su central en «20261016-160231_CSG_NA203_NA205»
       desde la web, en julio y en el instante de la máxima de NA203. (RF-50, RF-51)
       Hecho cuando: el ajuste aplicado cuadra en DIgSILENT y su informe lo dice.
       2026-10-17, desde la web y por proyecto (T18), registro del 2026-07-23 10:00: los

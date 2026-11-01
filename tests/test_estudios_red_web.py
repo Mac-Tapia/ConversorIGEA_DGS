@@ -61,7 +61,7 @@ def test_subir_el_libro_lo_valida_y_lo_guarda_con_el_proyecto(client, tmp_path):
     assert cat['datos_empresa']['nombre'] == 'libro_1.xlsx'
     assert _catalogo(client, wid, 'OTRO')[2]['datos_empresa'] is None
     ws = client.app.state.store.get(wid)
-    from igea_dgs.web.workspace import Workspace
+    from convertersmartgrid.web.workspace import Workspace
     assert Workspace.load(ws.root).datos_empresa['P']['nombre'] == 'libro_1.xlsx'
 
 

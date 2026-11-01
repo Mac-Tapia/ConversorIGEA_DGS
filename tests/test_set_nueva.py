@@ -2,7 +2,7 @@
 
 El caso real es NA203 + NA205 (2026-10-31): 37 cargas nuevas sobre 11 MW calibrados; la SET nueva
 es la Copara que Electro Dunas planifica en Nasca, con los módulos de su libro CAPEX (`PyOTx27`).
-Las redes y las cargas se sortean (``IGEA_SCALE_SEED``).
+Las redes y las cargas se sortean (``CSG_SCALE_SEED``).
 """
 from __future__ import annotations
 
@@ -12,9 +12,9 @@ import random
 
 import pytest
 
-from igea_dgs import set_nueva as sn
+from convertersmartgrid import set_nueva as sn
 
-SEMILLA = int(os.environ.get('IGEA_SCALE_SEED', random.randrange(1 << 30)))
+SEMILLA = int(os.environ.get('CSG_SCALE_SEED', random.randrange(1 << 30)))
 openpyxl = pytest.importorskip('openpyxl')
 
 CFG_PIT = {'hoja': 'PyOTx27', 'fila_cabecera_contiene': 'OBJETO',
@@ -147,7 +147,7 @@ def test_cuantas_caben_por_biseccion():
 
 # =========================================================================== RF-6
 def _red(enlaces):
-    from igea_dgs.troncal import Barra, Tramo, red_de
+    from convertersmartgrid.troncal import Barra, Tramo, red_de
 
     barras = {b for a, c in enlaces for b in (a, c)}
     return red_de([Barra(b) for b in sorted(barras)],

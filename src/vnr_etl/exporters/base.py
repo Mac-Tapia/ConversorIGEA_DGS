@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
-from igea_dgs.util import sha256_file
+from convertersmartgrid.util import sha256_file
 from vnr_etl.models import CanonicalModel
 
 

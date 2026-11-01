@@ -23,10 +23,10 @@ La geometría no viene como `geometry` de SQL Server sino por vértices con UTM 
 
 - `src/vnr_etl/connectors/sqlserver_vnr.py` (nuevo), restauración — huella del `.bak`,
   `RESTORE FILELISTONLY`, restauración con `WITH MOVE` en la carpeta de datos del propio
-  motor (su cuenta de servicio siempre puede escribir) con nombre `IGEA_VNR_<huella>`,
+  motor (su cuenta de servicio siempre puede escribir) con nombre `CSG_VNR_<huella>`,
   reutiliza si existe (RF-3, RF-4);
   error claro sin motor (RF-5); conexión de solo lectura (RF-6). Lee `ConfigBD.config` si
-  está (RF-2). Motor configurable (`IGEA_SQLSERVER`).
+  está (RF-2). Motor configurable (`CSG_SQLSERVER`).
 - `src/vnr_etl/connectors/sqlserver_vnr.py`, lectura semántica por campos (RF-7):
   busca la tabla de tramos por `CodTramoMT`+`CodSalidaMT`, la de vértices por
   `CodTramoMT`+`SecVertice`, etc., con los alias de `discovery/schema.py`; arma el
@@ -34,7 +34,7 @@ La geometría no viene como `geometry` de SQL Server sino por vértices con UTM 
   relación padre–hijo, tramos con longitud y norma, SED como cargas con su potencia
   instalada y su punto de unión, maniobras, fuente en la SET. CRS de `empEmpresa`
   (`Datum`+`ZonaUTM` → EPSG) o del perfil (RF-8).
-- `src/igea_dgs/sources/vnr.py`: acepta `.bak` como `vnr_package` y lo manda por el lector
+- `src/convertersmartgrid/sources/vnr.py`: acepta `.bak` como `vnr_package` y lo manda por el lector
   nuevo; lo demás por el puente de siempre (RF-1, RF-9).
 - Web y CLI: la casilla y `--vnr-package` aceptan `.bak` (RF-1).
 
@@ -50,5 +50,5 @@ La geometría no viene como `geometry` de SQL Server sino por vértices con UTM 
 
 - Sintéticas sin SQL Server: un doble del cursor que devuelve las tablas del esquema;
   RF-2, RF-5, RF-7, RF-8 y el modelo canónico de un alimentador.
-- Reales con `IGEA_VNR_BAK` (como las `IGEA_*`): restaurar, convertir un alimentador,
+- Reales con `CSG_VNR_BAK` (como las `CSG_*`): restaurar, convertir un alimentador,
   validar e importar en DIgSILENT.

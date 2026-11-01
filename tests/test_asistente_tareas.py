@@ -4,8 +4,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from igea_dgs.asistente.tareas import TAREAS, TIPOS_DATO, descripcion_para_modelo
-from igea_dgs.web import services
+from convertersmartgrid.asistente.tareas import TAREAS, TIPOS_DATO, descripcion_para_modelo
+from convertersmartgrid.web import services
 
 RAIZ = Path(__file__).resolve().parents[1]
 

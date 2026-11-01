@@ -35,11 +35,11 @@
 ### Task 1: Ámbito universal de empresa y periodo
 
 **Files:**
-- Create: `src/igea_dgs/web/source_scope.py`
-- Modify: `src/igea_dgs/web/sources/vnr.py`
+- Create: `src/convertersmartgrid/web/source_scope.py`
+- Modify: `src/convertersmartgrid/web/sources/vnr.py`
 - Modify: `src/vnr_etl/pipeline.py`
-- Modify: `src/igea_dgs/web/workspace.py`
-- Modify: `src/igea_dgs/web/app.py`
+- Modify: `src/convertersmartgrid/web/workspace.py`
+- Modify: `src/convertersmartgrid/web/app.py`
 - Modify: `frontend/src/types.ts`
 - Modify: `frontend/src/api.ts`
 - Modify: `frontend/src/components/InputsPanel.tsx`
@@ -89,14 +89,14 @@ Expected: exit 0.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/igea_dgs/web/source_scope.py src/igea_dgs/web/sources/vnr.py src/vnr_etl/pipeline.py src/igea_dgs/web/workspace.py src/igea_dgs/web/app.py frontend/src/types.ts frontend/src/api.ts frontend/src/components/InputsPanel.tsx tests/test_universal_source_scope.py
+git add src/convertersmartgrid/web/source_scope.py src/convertersmartgrid/web/sources/vnr.py src/vnr_etl/pipeline.py src/convertersmartgrid/web/workspace.py src/convertersmartgrid/web/app.py frontend/src/types.ts frontend/src/api.ts frontend/src/components/InputsPanel.tsx tests/test_universal_source_scope.py
 git commit -m "feat: make source scope universal"
 ```
 
 ### Task 2: Contrato inmutable de reconstrucción
 
 **Files:**
-- Create: `src/igea_dgs/reconstruction.py`
+- Create: `src/convertersmartgrid/reconstruction.py`
 - Test: `tests/test_reconstruction_contract.py`
 
 **Interfaces:**
@@ -136,15 +136,15 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/igea_dgs/reconstruction.py tests/test_reconstruction_contract.py
+git add src/convertersmartgrid/reconstruction.py tests/test_reconstruction_contract.py
 git commit -m "feat: add auditable reconstruction contract"
 ```
 
 ### Task 3: Reconstrucción topológica determinista
 
 **Files:**
-- Create: `src/igea_dgs/reconstruction_topology.py`
-- Modify: `src/igea_dgs/reconstruction.py`
+- Create: `src/convertersmartgrid/reconstruction_topology.py`
+- Modify: `src/convertersmartgrid/reconstruction.py`
 - Test: `tests/test_reconstruction_topology.py`
 
 **Interfaces:**
@@ -182,16 +182,16 @@ Expected: PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/igea_dgs/reconstruction.py src/igea_dgs/reconstruction_topology.py tests/test_reconstruction_topology.py
+git add src/convertersmartgrid/reconstruction.py src/convertersmartgrid/reconstruction_topology.py tests/test_reconstruction_topology.py
 git commit -m "feat: reconstruct incomplete feeder topology"
 ```
 
 ### Task 4: Resolución universal de equipos y parámetros
 
 **Files:**
-- Create: `src/igea_dgs/catalog_resolution.py`
-- Modify: `src/igea_dgs/reconstruction.py`
-- Modify: `src/igea_dgs/reglas.py`
+- Create: `src/convertersmartgrid/catalog_resolution.py`
+- Modify: `src/convertersmartgrid/reconstruction.py`
+- Modify: `src/convertersmartgrid/reglas.py`
 - Test: `tests/test_catalog_resolution.py`
 
 **Interfaces:**
@@ -229,18 +229,18 @@ Expected: PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/igea_dgs/catalog_resolution.py src/igea_dgs/reconstruction.py src/igea_dgs/reglas.py tests/test_catalog_resolution.py
+git add src/convertersmartgrid/catalog_resolution.py src/convertersmartgrid/reconstruction.py src/convertersmartgrid/reglas.py tests/test_catalog_resolution.py
 git commit -m "feat: resolve missing equipment with provenance"
 ```
 
 ### Task 5: Integración de diagnóstico, reconstrucción y conversión
 
 **Files:**
-- Create: `src/igea_dgs/web/reconstruction_service.py`
-- Modify: `src/igea_dgs/web/readiness.py`
-- Modify: `src/igea_dgs/web/services.py`
-- Modify: `src/igea_dgs/web/app.py`
-- Modify: `src/igea_dgs/web/workspace.py`
+- Create: `src/convertersmartgrid/web/reconstruction_service.py`
+- Modify: `src/convertersmartgrid/web/readiness.py`
+- Modify: `src/convertersmartgrid/web/services.py`
+- Modify: `src/convertersmartgrid/web/app.py`
+- Modify: `src/convertersmartgrid/web/workspace.py`
 - Test: `tests/test_web_reconstruction.py`
 
 **Interfaces:**
@@ -279,7 +279,7 @@ Expected: PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/igea_dgs/web/reconstruction_service.py src/igea_dgs/web/readiness.py src/igea_dgs/web/services.py src/igea_dgs/web/app.py src/igea_dgs/web/workspace.py tests/test_web_reconstruction.py
+git add src/convertersmartgrid/web/reconstruction_service.py src/convertersmartgrid/web/readiness.py src/convertersmartgrid/web/services.py src/convertersmartgrid/web/app.py src/convertersmartgrid/web/workspace.py tests/test_web_reconstruction.py
 git commit -m "feat: reconstruct incomplete feeders before conversion"
 ```
 
@@ -333,8 +333,8 @@ git commit -m "feat: expose reconstruction evidence in web ui"
 
 **Files:**
 - Modify: `tools/powerfactory_acceptance.py`
-- Modify: `src/igea_dgs/powerfactory_metadata.py`
-- Modify: `src/igea_dgs/web/services.py`
+- Modify: `src/convertersmartgrid/powerfactory_metadata.py`
+- Modify: `src/convertersmartgrid/web/services.py`
 - Test: `tests/test_reconstruction_powerfactory.py`
 
 **Interfaces:**
@@ -366,7 +366,7 @@ Expected: PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add tools/powerfactory_acceptance.py src/igea_dgs/powerfactory_metadata.py src/igea_dgs/web/services.py tests/test_reconstruction_powerfactory.py
+git add tools/powerfactory_acceptance.py src/convertersmartgrid/powerfactory_metadata.py src/convertersmartgrid/web/services.py tests/test_reconstruction_powerfactory.py
 git commit -m "feat: classify reconstructed powerfactory convergence"
 ```
 

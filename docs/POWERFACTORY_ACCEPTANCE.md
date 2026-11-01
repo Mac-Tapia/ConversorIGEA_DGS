@@ -129,7 +129,7 @@ In the web UI, select converted feeder(s) and press **«Cargar en DigSILENT + fl
 | Capacitor banks (`ElmShnt`) | Only if RED has placement | Current `referencia` RED has **no** `CAPACITOR SETTING` (BD_Equipo catalog alone is not enough) |
 | Voltage regulators (`ElmVoltreg`) | Only if RED has placement | Current RED has **no** `REGULATOR SETTING` |
 
-The gate **expects capacitors=0 and regulators=0** for typical IGEA exports and reports that clearly in warnings. When those SETTINGS appear in a future TXT, the converter must map them before PF can load them.
+The gate **expects capacitors=0 and regulators=0** for typical CYMDIST exports and reports that clearly in warnings. When those SETTINGS appear in a future TXT, the converter must map them before PF can load them.
 
 ## Manual procedure (without `--import-dgs`)
 

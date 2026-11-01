@@ -19,11 +19,11 @@ from pathlib import Path
 
 import pytest
 
-from igea_dgs import dgs as dgs_module
-from igea_dgs.dgs import write_dgs
-from igea_dgs.geography import GeoLine, GeoPoint, GeographyManifest
-from igea_dgs.model import FeederModel, Line, LineType, Load, Node, Sed
-from igea_dgs.validate import validate_dgs
+from convertersmartgrid import dgs as dgs_module
+from convertersmartgrid.dgs import write_dgs
+from convertersmartgrid.geography import GeoLine, GeoPoint, GeographyManifest
+from convertersmartgrid.model import FeederModel, Line, LineType, Load, Node, Sed
+from convertersmartgrid.validate import validate_dgs
 
 # Wall-clock ceiling for the largest reference feeder. Measured after the fix:
 # ~0.3 s. Before it: ~17 s. The wide margin keeps slow CI runners green while
@@ -169,8 +169,8 @@ def test_conversion_cost_grows_linearly_with_sections(tmp_path):
 
 def test_largest_reference_feeder_within_time_budget(ds, tmp_path):
     """End-to-end budget on real data; skipped when the TXT set is absent."""
-    from igea_dgs.geography import build_geography
-    from igea_dgs.model import build_feeder_model
+    from convertersmartgrid.geography import build_geography
+    from convertersmartgrid.model import build_feeder_model
 
     network_id = max(
         (nid for nid in ds.feeder_ids() if ds.feeders[nid]),

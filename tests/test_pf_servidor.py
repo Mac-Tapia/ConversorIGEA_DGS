@@ -12,7 +12,7 @@ from types import SimpleNamespace
 import pytest
 
 from apoyo import cargar_herramienta
-from igea_dgs import carpeta_pf, pf_arnes, powerfactory_env
+from convertersmartgrid import carpeta_pf, pf_arnes, powerfactory_env
 
 RAIZ = Path(__file__).resolve().parents[1]
 
@@ -290,7 +290,7 @@ def test_el_servidor_no_es_un_huerfano_que_cerrar():
 
 
 def test_la_web_manda_los_guiones_al_servidor(cola, monkeypatch):
-    """019:RF-7 — ``run_process`` lanza el cliente en lugar del guion; ``IGEA_PF_SERVIDOR=0``
+    """019:RF-7 — ``run_process`` lanza el cliente en lugar del guion; ``CSG_PF_SERVIDOR=0``
     lo apaga."""
     from test_carpeta_pf import _contexto_real
 
@@ -299,7 +299,7 @@ def test_la_web_manda_los_guiones_al_servidor(cola, monkeypatch):
     guion = str(RAIZ / 'tools' / 'verificar_pf.py')
     env = {**os.environ, 'PF_PYTHON': 'x'}
     for apagado, esperado in (('0', 'verificar_pf.py --help'), ('1', 'pf_cliente.py')):
-        env['IGEA_PF_SERVIDOR'] = apagado
+        env['CSG_PF_SERVIDOR'] = apagado
         ctx.run_process([sys.executable, guion, '--help'], env=env, limite_arranque_s=60)
         assert any(l.startswith('$ ') and esperado in l for l in registro), (apagado, registro)
 
@@ -308,7 +308,7 @@ def test_orden_cortada_cierra_el_servidor(tmp_path, monkeypatch):
     """019:RF-9 — si la web corta la orden (límite o cancelación), cierra también el proceso
     de DIgSILENT que la atendía."""
     from test_carpeta_pf import _contexto_real
-    from igea_dgs.web.jobs import TIEMPO_AGOTADO
+    from convertersmartgrid.web.jobs import TIEMPO_AGOTADO
 
     monkeypatch.setattr(powerfactory_env, 'cerrar_guiones_pf_huerfanos', lambda: [])
     cerrados = []
@@ -319,7 +319,7 @@ def test_orden_cortada_cierra_el_servidor(tmp_path, monkeypatch):
         "import time\nprint('Conectado', flush=True)\ntime.sleep(60)\n", encoding='utf-8')
     ctx, registro = _contexto_real()
     rc = ctx.run_process([sys.executable, str(tmp_path / 'verificar_pf.py')],
-                         env={**os.environ, 'PF_PYTHON': 'x', 'IGEA_PF_SERVIDOR': '1'},
+                         env={**os.environ, 'PF_PYTHON': 'x', 'CSG_PF_SERVIDOR': '1'},
                          limite_s=2)
     assert rc == TIEMPO_AGOTADO and len(cerrados) == 1 and cerrados[0]
     assert any('Se cierra el proceso de DIgSILENT' in l for l in registro)
@@ -329,7 +329,7 @@ def test_el_reintento_vuelve_a_pasar_por_el_servidor(tmp_path, monkeypatch):
     """019:RF-20 — el reintento de la web tras un guion mudo usa la orden original: vuelve
     al cliente con otra orden y, si también se corta, cierra el servidor colgado."""
     from test_carpeta_pf import _contexto_real
-    from igea_dgs.web import jobs
+    from convertersmartgrid.web import jobs
 
     monkeypatch.setattr(powerfactory_env, 'cerrar_guiones_pf_huerfanos', lambda: [])
     monkeypatch.setattr(powerfactory_env, 'powerfactory_abierto', lambda: [])
@@ -342,7 +342,7 @@ def test_el_reintento_vuelve_a_pasar_por_el_servidor(tmp_path, monkeypatch):
     ctx, registro = _contexto_real()
     with pytest.raises(jobs.PowerFactorySinRespuesta):
         ctx.run_process([sys.executable, str(tmp_path / 'verificar_pf.py')],
-                        env={**os.environ, 'PF_PYTHON': 'x', 'IGEA_PF_SERVIDOR': '1'})
+                        env={**os.environ, 'PF_PYTHON': 'x', 'CSG_PF_SERVIDOR': '1'})
     lanzados = [l for l in registro if l.startswith('$ ')]
     assert len(lanzados) == 2 and all('pf_cliente.py' in l for l in lanzados)
     assert 'pf_cliente.py' not in lanzados[1].split('pf_cliente.py', 1)[1]

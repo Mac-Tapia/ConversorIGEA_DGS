@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from igea_dgs.carpeta_pf import (
+from convertersmartgrid.carpeta_pf import (
     CLAVE_PERFIL,
     NOMBRE_POR_DEFECTO,
     CarpetaError,
@@ -42,9 +42,9 @@ def test_nombre_del_perfil_sin_espacios_sobrantes(tmp_path):
 
 @pytest.mark.parametrize('datos', [None, {}, {CLAVE_PERFIL: None}, {'otra_clave': 'x'}])
 def test_nombre_por_defecto(tmp_path, datos):
-    """005:RF-3 — sin perfil o sin la clave, la carpeta es «Conversor IGEA-DGS»."""
+    """005:RF-3 — sin perfil o sin la clave, la carpeta es «ConverterSmartGrid»."""
     ruta = tmp_path / 'no_existe.json' if datos is None else _perfil(tmp_path, datos)
-    assert nombre_de_perfil(ruta) == NOMBRE_POR_DEFECTO == 'Conversor IGEA-DGS'
+    assert nombre_de_perfil(ruta) == NOMBRE_POR_DEFECTO == 'ConverterSmartGrid'
 
 
 @pytest.mark.parametrize('malo', ['', '   ', 'x' * 41, 'a/b', 'a\\b', 'a.b', 'a:b', 'a*b',
@@ -145,7 +145,7 @@ def test_doble_mueve_borra_y_activa():
 import os
 import random
 
-from igea_dgs.carpeta_pf import (
+from convertersmartgrid.carpeta_pf import (
     asegurar_carpeta,
     buscar_carpeta,
     nombre_libre,
@@ -153,7 +153,7 @@ from igea_dgs.carpeta_pf import (
     proyectos_de,
 )
 
-SEMILLA = int(os.environ.get('IGEA_SCALE_SEED') or random.SystemRandom().randrange(10**6))
+SEMILLA = int(os.environ.get('CSG_SCALE_SEED') or random.SystemRandom().randrange(10**6))
 
 
 def _app():
@@ -199,7 +199,7 @@ def test_asegurar_carpeta_la_crea_una_vez():
 
 def test_asegurar_carpeta_que_no_se_puede_crear():
     """005:RF-9 — si DIgSILENT no crea la carpeta, el error la nombra."""
-    from igea_dgs.carpeta_pf import CarpetaError
+    from convertersmartgrid.carpeta_pf import CarpetaError
 
     app = _app()
     object.__setattr__(app.usuario, 'CreateObject', lambda *_a: None)
@@ -276,7 +276,7 @@ def test_mismo_nombre_en_dos_subcarpetas():
 
 
 # --------------------------------------------------------------------------- alimentadores
-from igea_dgs.carpeta_pf import alimentadores_de
+from convertersmartgrid.carpeta_pf import alimentadores_de
 
 
 def _carpeta_de(prj, tipo):
@@ -420,7 +420,7 @@ def test_si_no_se_puede_mover_no_queda_en_la_raiz(dgs):
 
 def test_carpeta_del_perfil_por_defecto(dgs, tmp_path, monkeypatch):
     """005:RF-2 — sin carpeta explícita, la importación usa la del perfil de empresa."""
-    import igea_dgs.carpeta_pf as cpf
+    import convertersmartgrid.carpeta_pf as cpf
 
     monkeypatch.setattr(cpf, 'ruta_perfil', lambda: _perfil(tmp_path, {CLAVE_PERFIL: 'Empresa'}))
     app = _app()
@@ -441,7 +441,7 @@ def test_carpeta_invalida_no_abre_nada(dgs):
 import ast
 import sys
 
-from igea_dgs.carpeta_pf import activar_proyecto
+from convertersmartgrid.carpeta_pf import activar_proyecto
 
 GUIONES_QUE_IMPORTAN = ('powerfactory_acceptance.py', 'build_system_grid.py',
                         'convertir_grupos_mdb.py', 'prueba_representacion.py',
@@ -591,8 +591,8 @@ from types import SimpleNamespace
 @pytest.fixture
 def web(tmp_path, monkeypatch):
     """Servicios de la web con DIgSILENT simulado: ``run`` anota cada orden lanzada."""
-    from igea_dgs.web import services
-    from igea_dgs.web.workspace import Workspace
+    from convertersmartgrid.web import services
+    from convertersmartgrid.web.workspace import Workspace
 
     (tmp_path / 'config').mkdir()
     monkeypatch.setattr(services, 'project_root', lambda: tmp_path)
@@ -633,7 +633,7 @@ def test_web_lee_la_carpeta_del_perfil(web):
 
 
 def test_web_sin_perfil_usa_el_nombre_por_defecto(web):
-    """005:RF-3 — sin perfil, la web usa «Conversor IGEA-DGS»."""
+    """005:RF-3 — sin perfil, la web usa «ConverterSmartGrid»."""
     web.services.pf_projects(web.ws, web.ctx)
     assert _valor(web.ordenes[0], '--carpeta') == NOMBRE_POR_DEFECTO
 
@@ -708,7 +708,7 @@ def test_front_elige_el_proyecto_por_su_ruta():
 
 def _contexto_real():
     """``JobContext`` de verdad, con el Registro en una lista."""
-    from igea_dgs.web.jobs import Job, JobContext
+    from convertersmartgrid.web.jobs import Job, JobContext
 
     registro: list[str] = []
     job = Job(kind='pf_projects', title='prueba', workspace_id='w', lane='powerfactory',
@@ -720,7 +720,7 @@ def _contexto_real():
 
 def test_guion_mudo_se_termina_al_pasar_el_arranque():
     """005:RF-21 — un guion que no escribe nada en el tiempo de arranque se termina."""
-    from igea_dgs.web.jobs import TIEMPO_AGOTADO
+    from convertersmartgrid.web.jobs import TIEMPO_AGOTADO
 
     ctx, registro = _contexto_real()
     inicio = time.monotonic()
@@ -750,7 +750,7 @@ def test_guion_no_espera_la_consola():
 
 def test_web_avisa_si_powerfactory_no_responde(web):
     """005:RF-21 — la web pide el límite de arranque y, si se agota, avisa sin colgarse."""
-    from igea_dgs.web.jobs import TIEMPO_AGOTADO
+    from convertersmartgrid.web.jobs import TIEMPO_AGOTADO
 
     opciones: list[dict] = []
 
@@ -768,7 +768,7 @@ def test_web_avisa_si_powerfactory_no_responde(web):
 def test_leer_proyectos_reintenta_si_digsilent_no_conecta_a_la_primera(web):
     """019:RF-18 — tras importar, el primer servidor no conectó en 180 s y el segundo sí:
     la lectura se reintenta una vez y lista los proyectos."""
-    from igea_dgs.web.jobs import TIEMPO_AGOTADO
+    from convertersmartgrid.web.jobs import TIEMPO_AGOTADO
 
     leer = web.ctx.run_process
     intentos: list[int] = []
@@ -785,7 +785,7 @@ def test_leer_proyectos_reintenta_si_digsilent_no_conecta_a_la_primera(web):
 
 def test_guion_de_pf_huerfano_se_reconoce_y_el_de_consola_no():
     """005:RF-21 — solo se cierra el guion de ``tools/`` cuyo padre ya no existe."""
-    from igea_dgs.powerfactory_env import guiones_pf_huerfanos
+    from convertersmartgrid.powerfactory_env import guiones_pf_huerfanos
 
     lista = [
         {'pid': 10, 'ppid': 1, 'name': 'cmd.exe', 'cmd': 'cmd'},
@@ -808,8 +808,8 @@ def test_cortar_un_guion_termina_tambien_sus_hijos(tmp_path):
     Con ``.venv\\Scripts\\python.exe`` el Python real es hijo del lanzador y seguía vivo,
     con PowerFactory, tras ``terminate``.
     """
-    from igea_dgs.powerfactory_env import procesos
-    from igea_dgs.web.jobs import TIEMPO_AGOTADO
+    from convertersmartgrid.powerfactory_env import procesos
+    from convertersmartgrid.web.jobs import TIEMPO_AGOTADO
 
     ctx, _registro = _contexto_real()
     pids = tmp_path / 'pids.txt'
@@ -830,8 +830,8 @@ def _contexto_pf(monkeypatch, limite_s: float):
     """``JobContext`` real con un entorno «de PowerFactory» y sin tocar procesos ajenos."""
     import os
 
-    import igea_dgs.powerfactory_env as pf_env
-    import igea_dgs.web.jobs as jobs
+    import convertersmartgrid.powerfactory_env as pf_env
+    import convertersmartgrid.web.jobs as jobs
 
     monkeypatch.setattr(jobs, 'LIMITE_ARRANQUE_PF_S', limite_s)
     monkeypatch.setattr(pf_env, 'cerrar_guiones_pf_huerfanos', lambda: [])
@@ -846,7 +846,7 @@ def test_todo_guion_de_pf_lleva_el_limite_de_arranque(monkeypatch):
     Solo «Leer proyectos» pedía el límite; los demás guiones de PowerFactory, colgados en
     la conexión, dejaban todos los botones de DIgSILENT ocupados sin aviso.
     """
-    from igea_dgs.web.jobs import PowerFactorySinRespuesta
+    from convertersmartgrid.web.jobs import PowerFactorySinRespuesta
 
     ctx, registro, env = _contexto_pf(monkeypatch, 1)
     inicio = time.monotonic()
@@ -866,7 +866,7 @@ def test_cancelar_un_guion_que_no_ha_conectado_lo_termina(monkeypatch, tmp_path)
     """
     import threading
 
-    from igea_dgs.web.jobs import JobCancelled
+    from convertersmartgrid.web.jobs import JobCancelled
 
     ctx, _registro, env = _contexto_pf(monkeypatch, 120)
     threading.Timer(1.0, ctx.cancel.set).start()
@@ -888,8 +888,8 @@ def test_los_guiones_de_pf_avisan_al_conectar():
 def test_guion_que_el_vigia_termino_se_reintenta_una_vez(monkeypatch, tmp_path):
     """019:RF-25 — un guion terminado por el vigía (DIgSILENT no respondió al conectar) se
     repite una vez; si vuelve a pasar, el error lo dice."""
-    from igea_dgs.pf_arnes import SIN_RESPUESTA
-    from igea_dgs.web.jobs import PowerFactorySinRespuesta
+    from convertersmartgrid.pf_arnes import SIN_RESPUESTA
+    from convertersmartgrid.web.jobs import PowerFactorySinRespuesta
 
     ctx, registro, env = _contexto_pf(monkeypatch, 60)
     with pytest.raises(PowerFactorySinRespuesta, match='no respondió al conectar'):

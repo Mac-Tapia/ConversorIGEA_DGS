@@ -15,7 +15,7 @@ Qué hace con cada grupo:
    completa con el del mismo material y sección, y se informa.
 2. Construye cada alimentador en modo **estricto** con su geografía: longitudes y
    dibujo a escala real desde las coordenadas de la base.
-3. Funde los tramos puente ``DEFAULT`` (``igea_dgs.puentes``): los seccionadores pasan al
+3. Funde los tramos puente ``DEFAULT`` (``convertersmartgrid.puentes``): los seccionadores pasan al
    extremo de su línea (``StaSwitch``) o, sin línea al lado, a ``ElmCoup``, y las SED
    quedan en su barra (spec 021). Ningún elemento de la base se pierde; el cuadre
    elemento a elemento va en el informe.
@@ -42,19 +42,19 @@ for _flujo in (sys.stdout, sys.stderr):
     except (AttributeError, ValueError):  # pragma: no cover
         pass
 
-from igea_dgs.access import read_access_dataset  # noqa: E402
-from igea_dgs.catalog import (  # noqa: E402
+from convertersmartgrid.access import read_access_dataset  # noqa: E402
+from convertersmartgrid.catalog import (  # noqa: E402
     aplicar_correcciones, leer_catalogo, leer_trafos, tablas_equipo_desde_catalogo,
 )
-from igea_dgs.combine import combine_models  # noqa: E402
-from igea_dgs.dgs import write_dgs  # noqa: E402
-from igea_dgs.geography import assert_metre_source_crs, build_geography  # noqa: E402
-from igea_dgs.model import build_feeder_model  # noqa: E402
-from igea_dgs.naming import feeder_short_name  # noqa: E402
-from igea_dgs.puentes import es_puente, fundir_puentes  # noqa: E402
-from igea_dgs.sed_potencia import redimensionar_sobrecargadas  # noqa: E402
-from igea_dgs.trafomix import excluir_trafomix  # noqa: E402
-from igea_dgs.validate import parse_dgs, validate_dgs  # noqa: E402
+from convertersmartgrid.combine import combine_models  # noqa: E402
+from convertersmartgrid.dgs import write_dgs  # noqa: E402
+from convertersmartgrid.geography import assert_metre_source_crs, build_geography  # noqa: E402
+from convertersmartgrid.model import build_feeder_model  # noqa: E402
+from convertersmartgrid.naming import feeder_short_name  # noqa: E402
+from convertersmartgrid.puentes import es_puente, fundir_puentes  # noqa: E402
+from convertersmartgrid.sed_potencia import redimensionar_sobrecargadas  # noqa: E402
+from convertersmartgrid.trafomix import excluir_trafomix  # noqa: E402
+from convertersmartgrid.validate import parse_dgs, validate_dgs  # noqa: E402
 
 #: Tipo de marcador de CYMDIST. Solo sirve para que los tramos puente tengan un tipo
 #: mientras se construye el modelo: se funden antes de escribir y ninguno llega al
@@ -309,9 +309,9 @@ def main(argv: list[str] | None = None) -> int:
     """Convierte cada grupo por el camino del producto (batch.convert_group) e importa."""
     from types import SimpleNamespace
 
-    from igea_dgs.batch import convert_group
-    from igea_dgs.dgs import formato_hoja
-    from igea_dgs.reglas import REGLAS_PROYECTO, catalogo_del_proyecto
+    from convertersmartgrid.batch import convert_group
+    from convertersmartgrid.dgs import formato_hoja
+    from convertersmartgrid.reglas import REGLAS_PROYECTO, catalogo_del_proyecto
     from dataclasses import replace
 
     p = argparse.ArgumentParser(description=__doc__,
@@ -326,7 +326,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument('--importar', action='store_true')
     p.add_argument('--pf-carpeta', metavar='NOMBRE',
                    help='Carpeta de DIgSILENT donde queda el proyecto importado (spec 005). '
-                        'Por defecto, la del perfil de empresa o «Conversor IGEA-DGS».')
+                        'Por defecto, la del perfil de empresa o «ConverterSmartGrid».')
     # A escala real por defecto, como la web y las reglas del proyecto: con A0, un tramo
     # de 18 m quedaba más corto que dos símbolos en el centro de NA203 + NA205 y el
     # diagrama se amontonaba (2026-10-17).
@@ -336,9 +336,9 @@ def main(argv: list[str] | None = None) -> int:
                         'dos símbolos y el diagrama se amontona.')
     args = p.parse_args(argv)
 
-    from igea_dgs.geography import exigir_crs_origen
-    from igea_dgs.perfil_empresa import cargar_perfil
-    from igea_dgs.reglas import reglas_de_perfil
+    from convertersmartgrid.geography import exigir_crs_origen
+    from convertersmartgrid.perfil_empresa import cargar_perfil
+    from convertersmartgrid.reglas import reglas_de_perfil
 
     perfil = cargar_perfil()
     args.source_crs = exigir_crs_origen(args.source_crs or perfil.crs_origen)

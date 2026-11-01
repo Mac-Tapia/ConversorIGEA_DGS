@@ -35,15 +35,15 @@ for _flujo in (sys.stdout, sys.stderr):
     except (AttributeError, ValueError):  # pragma: no cover
         pass
 
-from igea_dgs.combine import build_combined  # noqa: E402
-from igea_dgs.dgs import write_dgs  # noqa: E402
+from convertersmartgrid.combine import build_combined  # noqa: E402
+from convertersmartgrid.dgs import write_dgs  # noqa: E402
 
 
 def _cargar_dataset(args: argparse.Namespace):
     if args.mdb:
-        from igea_dgs.access import read_access_dataset
+        from convertersmartgrid.access import read_access_dataset
         return read_access_dataset(args.mdb, equipment_path=args.equipment_mdb)
-    from igea_dgs.dataset import CymdistDataset
+    from convertersmartgrid.dataset import CymdistDataset
     return CymdistDataset.from_files(args.red, args.cargas, args.equipos)
 
 
@@ -147,7 +147,7 @@ def main(argv: list[str] | None = None) -> int:
                    help='Importar el DGS en PowerFactory como proyecto nuevo.')
     p.add_argument('--pf-carpeta', metavar='NOMBRE',
                    help='Carpeta de DIgSILENT donde queda el proyecto importado (spec 005). '
-                        'Por defecto, la del perfil de empresa o «Conversor IGEA-DGS».')
+                        'Por defecto, la del perfil de empresa o «ConverterSmartGrid».')
     p.add_argument('--run-load-flow', action='store_true')
     p.add_argument('--informe-json')
     args = p.parse_args(argv)
@@ -162,7 +162,7 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     if args.catalogo is not None:
-        from igea_dgs.catalog import (
+        from convertersmartgrid.catalog import (
             CATALOG_FILENAME, CatalogError, aplicar_correcciones, input_dir,
             leer_catalogo,
         )
@@ -187,8 +187,8 @@ def main(argv: list[str] | None = None) -> int:
 
     geografia = None
     if not args.sin_geografia:
-        from igea_dgs.geography import assert_metre_source_crs, build_geography, exigir_crs_origen
-        from igea_dgs.perfil_empresa import crs_o_perfil
+        from convertersmartgrid.geography import assert_metre_source_crs, build_geography, exigir_crs_origen
+        from convertersmartgrid.perfil_empresa import crs_o_perfil
         args.source_crs = exigir_crs_origen(crs_o_perfil(args.source_crs))
         assert_metre_source_crs(args.source_crs)
         geografia = build_geography(ds, modelo, source_crs=args.source_crs)

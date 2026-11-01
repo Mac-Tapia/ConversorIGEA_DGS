@@ -98,7 +98,7 @@ def test_cada_herramienta_dice_para_que_sirve():
 @pytest.mark.parametrize('herramienta', [p.name for p in _herramientas()])
 def test_help_sin_powerfactory_ni_datos(herramienta, tmp_path):
     """009:RF-7 — ``--help`` termina con 0 sin DIgSILENT ni datos de la distribuidora."""
-    env = {k: v for k, v in os.environ.items() if not k.startswith('IGEA_')}
+    env = {k: v for k, v in os.environ.items() if not k.startswith('CSG_')}
     env['PYTHONPATH'] = os.pathsep.join([str(RAIZ / 'src'), str(RAIZ / 'tools')])
     env['PYTHONIOENCODING'] = 'utf-8'
     r = subprocess.run([sys.executable, str(RAIZ / 'tools' / herramienta), '--help'], cwd=tmp_path,
@@ -177,9 +177,9 @@ def test_una_spec_implementada_tiene_cada_rf_probado():
 # ----------------------------------------------------------------- documentación
 
 def test_documentacion_del_manual_de_ordenes():
-    """009:RF-12 — el manual describe cada orden de ``igea-dgs`` y cada herramienta."""
+    """009:RF-12 — el manual describe cada orden de ``convertersmartgrid`` y cada herramienta."""
     manual = (RAIZ / 'docs' / 'MANUAL_COMANDOS.md').read_text(encoding='utf-8')
-    for orden in ('igea-dgs list', 'igea-dgs convert', 'igea-dgs web'):
+    for orden in ('convertersmartgrid list', 'convertersmartgrid convert', 'convertersmartgrid web'):
         assert orden in manual, orden
     faltan = [p.name for p in _herramientas() if p.name not in manual]
     faltan += [p.name for p in (RAIZ / 'tools').glob('*.bat') if p.name not in manual]

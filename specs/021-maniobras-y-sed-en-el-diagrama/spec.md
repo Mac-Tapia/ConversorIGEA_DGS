@@ -4,7 +4,7 @@ Estado: cumplida (revisión 033 del 2026-10-29) · aprobada (2026-10-17; RF-50 a
 
 ## Contexto y objetivo
 
-En el diagrama de `20261016-160231_IGEA_NA203_NA205` (vía Access, 260924.mdb) aparecen
+En el diagrama de `20261016-160231_CSG_NA203_NA205` (vía Access, 260924.mdb) aparecen
 grupos de tres y cuatro puntos negros en menos de 1 m donde en campo hay una derivación
 con fusibles. La causa no es un hueco del archivo: CYMDIST cuelga cada seccionador o
 fusible de un tramo puente `DEFAULT` de unos 2 m, y el conversor funde el tramo pero deja
@@ -36,7 +36,7 @@ BH4 = BH1 + BH2 (mediana −5 kW), y cabecera NA205 + BH2 da la demanda entre la
 central (mediana 849 kW). Hoy el ajuste toma la máxima de cabecera de NA205 (2026-08-21
 00:15, 10 585 kW) con la central parada (BH4 = −111 kW); la máxima demanda real es la del
 2026-08-20 16:45, 10 753 kW, con la central dando 9 605 kW y solo 1 123 kW por la
-cabecera. Los archivos de IGEA no traen la central: los proyectos que crea el conversor
+cabecera. Los archivos de la distribuidora no traen la central: los proyectos que crea el conversor
 no la tienen.
 
 El objetivo es un diagrama sin barras de relleno, con las SED unidas a su barra, una
@@ -298,7 +298,7 @@ cada alimentador»; NA203 no tenía ninguno y la red daba 2 645 kVAR frente a 1 
 - Más de una central por alimentador, y una central entre dos alimentadores.
 - El modelo dinámico de la central (máquina síncrona, regulación de tensión, despacho):
   entra como generador estático con P y Q fijas.
-- Leer la central de los archivos de IGEA: no la traen.
+- Leer la central de los archivos de la distribuidora: no la traen.
 
 ## Criterios de finalización
 

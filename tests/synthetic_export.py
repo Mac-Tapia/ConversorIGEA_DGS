@@ -1,4 +1,4 @@
-"""Generador de exports IGEA/CYMDIST sintéticos, parametrizable.
+"""Generador de exports CYMDIST sintéticos, parametrizable.
 
 Existe por dos motivos:
 
@@ -373,7 +373,7 @@ def write_export(spec: ExportSpec, out_dir: Path) -> tuple[Path, Path, Path]:
 
 def load_export(spec: ExportSpec, out_dir: Path):
     """Genera el export y lo devuelve ya leído como ``CymdistDataset``."""
-    from igea_dgs.dataset import CymdistDataset
+    from convertersmartgrid.dataset import CymdistDataset
 
     red, carga, equipo = write_export(spec, out_dir)
     return CymdistDataset.from_files(red, carga, equipo)

@@ -46,11 +46,11 @@
 - Modify: `tests/test_reglas.py`
 - Modify: `tests/test_hoja_y_coordenadas.py`
 - Modify: `tests/test_web_api.py`
-- Modify: `src/igea_dgs/reglas.py`
-- Modify: `src/igea_dgs/cli.py`
-- Modify: `src/igea_dgs/web/workspace.py`
-- Modify: `src/igea_dgs/web/services.py`
-- Modify: `src/igea_dgs/web/app.py`
+- Modify: `src/convertersmartgrid/reglas.py`
+- Modify: `src/convertersmartgrid/cli.py`
+- Modify: `src/convertersmartgrid/web/workspace.py`
+- Modify: `src/convertersmartgrid/web/services.py`
+- Modify: `src/convertersmartgrid/web/app.py`
 - Modify: `tools/convertir_grupos_mdb.py`
 - Modify: `frontend/src/types.ts`
 - Modify: `frontend/src/components/OptionsPanel.tsx`
@@ -125,7 +125,7 @@ Expected: todas verdes; frontend compila sin incompatibilidades de literal.
 - [ ] **Step 5: Commit**
 
 ```powershell
-git add tests/test_reglas.py tests/test_hoja_y_coordenadas.py tests/test_web_api.py src/igea_dgs/reglas.py src/igea_dgs/cli.py src/igea_dgs/web/workspace.py src/igea_dgs/web/services.py src/igea_dgs/web/app.py tools/convertir_grupos_mdb.py frontend/src/types.ts frontend/src/components/OptionsPanel.tsx frontend/src/components/FeedersPanel.tsx README.md
+git add tests/test_reglas.py tests/test_hoja_y_coordenadas.py tests/test_web_api.py src/convertersmartgrid/reglas.py src/convertersmartgrid/cli.py src/convertersmartgrid/web/workspace.py src/convertersmartgrid/web/services.py src/convertersmartgrid/web/app.py tools/convertir_grupos_mdb.py frontend/src/types.ts frontend/src/components/OptionsPanel.tsx frontend/src/components/FeedersPanel.tsx README.md
 git commit -m "fix: usar grid adaptativo por defecto"
 ```
 
@@ -136,9 +136,9 @@ git commit -m "fix: usar grid adaptativo por defecto"
 - Modify: `tests/test_model.py`
 - Modify: `tests/test_combine.py`
 - Modify: `tests/test_puentes.py`
-- Modify: `src/igea_dgs/model.py`
-- Modify: `src/igea_dgs/combine.py`
-- Modify: `src/igea_dgs/puentes.py`
+- Modify: `src/convertersmartgrid/model.py`
+- Modify: `src/convertersmartgrid/combine.py`
+- Modify: `src/convertersmartgrid/puentes.py`
 
 **Interfaces:**
 
@@ -196,7 +196,7 @@ Expected: verdes, incluida la identidad tras combinar alimentadores.
 - [ ] **Step 5: Commit**
 
 ```powershell
-git add tests/test_model.py tests/test_combine.py tests/test_puentes.py src/igea_dgs/model.py src/igea_dgs/combine.py src/igea_dgs/puentes.py
+git add tests/test_model.py tests/test_combine.py tests/test_puentes.py src/convertersmartgrid/model.py src/convertersmartgrid/combine.py src/convertersmartgrid/puentes.py
 git commit -m "feat: conservar procedencia por alimentador"
 ```
 
@@ -204,10 +204,10 @@ git commit -m "feat: conservar procedencia por alimentador"
 
 **Files:**
 
-- Create: `src/igea_dgs/feeder_metadata.py`
+- Create: `src/convertersmartgrid/feeder_metadata.py`
 - Create: `tests/test_feeder_metadata.py`
-- Modify: `src/igea_dgs/dgs.py`
-- Modify: `src/igea_dgs/batch.py`
+- Modify: `src/convertersmartgrid/dgs.py`
+- Modify: `src/convertersmartgrid/batch.py`
 - Modify: `tests/test_batch_robustness.py`
 - Modify: `tests/test_reglas.py`
 
@@ -311,7 +311,7 @@ Expected: verdes; número de asignaciones `ElmLod`/`ElmXnet` idéntico al númer
 - [ ] **Step 7: Commit**
 
 ```powershell
-git add src/igea_dgs/feeder_metadata.py src/igea_dgs/dgs.py src/igea_dgs/batch.py tests/test_feeder_metadata.py tests/test_batch_robustness.py tests/test_reglas.py
+git add src/convertersmartgrid/feeder_metadata.py src/convertersmartgrid/dgs.py src/convertersmartgrid/batch.py tests/test_feeder_metadata.py tests/test_batch_robustness.py tests/test_reglas.py
 git commit -m "feat: publicar metadata de alimentadores"
 ```
 
@@ -319,19 +319,19 @@ git commit -m "feat: publicar metadata de alimentadores"
 
 **Files:**
 
-- Create: `src/igea_dgs/powerfactory_metadata.py`
+- Create: `src/convertersmartgrid/powerfactory_metadata.py`
 - Create: `tests/test_powerfactory_feeder_metadata.py`
 
 **Interfaces:**
 
 - Consumes: proyecto PowerFactory activo y clases `ElmLod`, `ElmSym`, `ElmXnet`.
-- Produces: configuración `Trazabilidad IGEA` por clase con atributo string `p:alimentador`, descripción `Alimentador`, unidad vacía y valor inicial vacío.
+- Produces: configuración `Trazabilidad CSG` por clase con atributo string `p:alimentador`, descripción `Alimentador`, unidad vacía y valor inicial vacío.
 - API oficial usada:
 
 ```python
 settings = project.BeginDataExtensionModification()
-config = settings.GetConfiguration(class_name, 'Trazabilidad IGEA')
-config = config or settings.AddConfiguration(class_name, 'Trazabilidad IGEA')
+config = settings.GetConfiguration(class_name, 'Trazabilidad CSG')
+config = config or settings.AddConfiguration(class_name, 'Trazabilidad CSG')
 config.AddString('alimentador', 'Alimentador', '', '')
 project.EndDataExtensionModification()
 ```
@@ -381,7 +381,7 @@ Expected: verde e idempotencia demostrada.
 - [ ] **Step 5: Commit**
 
 ```powershell
-git add src/igea_dgs/powerfactory_metadata.py tests/test_powerfactory_feeder_metadata.py
+git add src/convertersmartgrid/powerfactory_metadata.py tests/test_powerfactory_feeder_metadata.py
 git commit -m "feat: crear data extension de alimentador"
 ```
 
@@ -389,7 +389,7 @@ git commit -m "feat: crear data extension de alimentador"
 
 **Files:**
 
-- Modify: `src/igea_dgs/powerfactory_metadata.py`
+- Modify: `src/convertersmartgrid/powerfactory_metadata.py`
 - Modify: `tests/test_powerfactory_feeder_metadata.py`
 - Modify: `tools/powerfactory_acceptance.py`
 - Modify: `tests/test_powerfactory_gate.py`
@@ -481,7 +481,7 @@ Expected: verdes; ayuda incluye `--feeder-metadata`.
 - [ ] **Step 6: Commit**
 
 ```powershell
-git add src/igea_dgs/powerfactory_metadata.py tools/powerfactory_acceptance.py tests/test_powerfactory_feeder_metadata.py tests/test_powerfactory_gate.py
+git add src/convertersmartgrid/powerfactory_metadata.py tools/powerfactory_acceptance.py tests/test_powerfactory_feeder_metadata.py tests/test_powerfactory_gate.py
 git commit -m "feat: asignar alimentador en powerfactory"
 ```
 
@@ -489,8 +489,8 @@ git commit -m "feat: asignar alimentador en powerfactory"
 
 **Files:**
 
-- Modify: `src/igea_dgs/web/services.py`
-- Modify: `src/igea_dgs/web/workspace.py`
+- Modify: `src/convertersmartgrid/web/services.py`
+- Modify: `src/convertersmartgrid/web/workspace.py`
 - Modify: `tests/test_web_api.py`
 - Modify: `tests/test_reglas.py`
 - Modify: `frontend/src/types.ts`
@@ -542,7 +542,7 @@ Expected: verde; la interfaz compila y el comando queda observable en el fake ru
 - [ ] **Step 5: Commit**
 
 ```powershell
-git add src/igea_dgs/web/services.py src/igea_dgs/web/workspace.py tests/test_web_api.py tests/test_reglas.py frontend/src/types.ts frontend/src/components/FeedersPanel.tsx
+git add src/convertersmartgrid/web/services.py src/convertersmartgrid/web/workspace.py tests/test_web_api.py tests/test_reglas.py frontend/src/types.ts frontend/src/components/FeedersPanel.tsx
 git commit -m "feat: cablear columna alimentador en la web"
 ```
 

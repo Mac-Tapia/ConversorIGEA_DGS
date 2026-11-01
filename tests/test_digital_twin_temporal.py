@@ -7,7 +7,7 @@ from datetime import UTC, datetime, timedelta
 import numpy as np
 import pytest
 
-from igea_dgs.digital_twin import temporal as tp
+from convertersmartgrid.digital_twin import temporal as tp
 
 
 def _curva(dias: int, base: float, semilla: int) -> np.ndarray:
@@ -83,7 +83,7 @@ def test_gemelo_temporal_desde_la_web(tmp_path, monkeypatch):
     from threading import Lock
     from types import SimpleNamespace
 
-    from igea_dgs.web import services
+    from convertersmartgrid.web import services
 
     a, b = _curva(7, 1000, 6), _curva(7, 400, 7)
     barra = a + b + _curva(7, 300, 8)

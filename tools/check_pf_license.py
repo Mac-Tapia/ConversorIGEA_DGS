@@ -14,7 +14,7 @@ Cómo lo resuelve. Empíricamente: crea cada orden de cálculo en un caso de est
 la ejecuta. Un módulo sin licencia falla con un error de licencia; uno licenciado
 devuelve un código de cálculo. Es la única prueba que no miente.
 
-    py -3.12 tools\\check_pf_license.py --project 20260921-034855_IGEA_AL104
+    py -3.12 tools\\check_pf_license.py --project 20260921-034855_CSG_AL104
 
 Sin ``--project`` usa el proyecto activo. Conviene elegir un alimentador pequeño: algunas
 órdenes recorren toda la red.
@@ -136,7 +136,7 @@ def main(argv: list[str] | None = None) -> int:
         # Por ruta en la carpeta de proyectos, o por nombre en la raíz para los
         # anteriores: ActivateProject(nombre) solo mira la raíz (spec 005, RF-16).
         sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
-        from igea_dgs.carpeta_pf import activar_proyecto, nombre_de_perfil
+        from convertersmartgrid.carpeta_pf import activar_proyecto, nombre_de_perfil
 
         activar_proyecto(app, args.project, nombre_de_perfil())
     proyecto = app.GetActiveProject()

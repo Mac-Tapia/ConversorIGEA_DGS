@@ -6,7 +6,7 @@ import random
 import pytest
 from openpyxl import load_workbook
 
-from igea_dgs import pide
+from convertersmartgrid import pide
 
 LIM = {'tension_min_pu': 0.95, 'tension_max_pu': 1.05, 'cargabilidad_max_pct': 100,
        'transformador_max_pct': 80}

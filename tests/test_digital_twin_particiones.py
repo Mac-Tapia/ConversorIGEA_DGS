@@ -8,10 +8,10 @@ from __future__ import annotations
 import os
 import random
 
-from igea_dgs.digital_twin import oraculo
-from igea_dgs.digital_twin.oraculo import muestra
+from convertersmartgrid.digital_twin import oraculo
+from convertersmartgrid.digital_twin.oraculo import muestra
 
-SEMILLA = int(os.environ.get('IGEA_SCALE_SEED') or random.randrange(1_000_000))
+SEMILLA = int(os.environ.get('CSG_SCALE_SEED') or random.randrange(1_000_000))
 
 
 def _red(rng: random.Random, n: int, prefijo: str) -> dict:

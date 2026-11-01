@@ -22,12 +22,12 @@ def _ficha(identidad):
 
 @pytest.fixture(autouse=True)
 def gpu_exclusiva(monkeypatch, request):
-    from igea_dgs.training_coordinator import exigir_memoria_ml
+    from convertersmartgrid.training_coordinator import exigir_memoria_ml
     minimo_gb = 6 if 'qwen' in request.node.name else 4 if 'bge' in request.node.name else 3
     exigir_memoria_ml(minimo_gb, minimo_commit_gib=8. if 'qwen' in request.node.name else 6.)
-    from igea_dgs.training_coordinator import BloqueoGPU
+    from convertersmartgrid.training_coordinator import BloqueoGPU
     monkeypatch.setenv('HF_HUB_OFFLINE', '1')
-    ruta = Path(os.environ.get('IGEA_ML_GPU_LOCK') or str(Path(tempfile.gettempdir()) / 'igea-dgs-gpu.lock'))
+    ruta = Path(os.environ.get('CSG_ML_GPU_LOCK') or str(Path(tempfile.gettempdir()) / 'convertersmartgrid-gpu.lock'))
     with BloqueoGPU(ruta, 'ensayo-pesos-preentrenados'):
         # El supervisor no importa Torch: cada trabajador libera su contexto al salir.
         yield
@@ -97,7 +97,7 @@ def _entrenar_nf4(tmp_path):
 
 
 def _reabrir_nf4(tmp_path):
-    from igea_dgs.training_coordinator import exigir_memoria_ml
+    from convertersmartgrid.training_coordinator import exigir_memoria_ml
     exigir_memoria_ml(4., minimo_commit_gib=8.)
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -147,7 +147,7 @@ def test_qwen_nf4_paso_lora_y_reapertura_real(tmp_path):
     reapertura = json.loads((tmp_path / 'reapertura.json').read_text(encoding='utf-8'))
     assert entrenamiento['adaptador_cambio'] and entrenamiento['pasos'] == 1
     assert reapertura['error_maximo'] < .02 and reapertura['cuda']
-    evidencia = os.environ.get('IGEA_ENSAYO_NF4_EVIDENCIA')
+    evidencia = os.environ.get('CSG_ENSAYO_NF4_EVIDENCIA')
     if evidencia:
         import shutil
         shutil.copytree(tmp_path, evidencia, dirs_exist_ok=False)

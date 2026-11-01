@@ -5,10 +5,10 @@ import pytest
 
 def test_web_lanza_integral_y_no_recalibra_candidato_bloqueado(tmp_path, monkeypatch):
     """047:RF-13 / 047:RF-15 — entrenar no equivale a modificar el modelo que atiende."""
-    from igea_dgs.asistente import senales
-    from igea_dgs.web import services
-    from igea_dgs.web.workspace import Workspace
-    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(tmp_path / 'asistente'))
+    from convertersmartgrid.asistente import senales
+    from convertersmartgrid.web import services
+    from convertersmartgrid.web.workspace import Workspace
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'asistente'))
     ws = Workspace(id='ensayo', root=tmp_path / 'web')
     comandos = []
     class Contexto:
@@ -31,9 +31,9 @@ def test_web_lanza_integral_y_no_recalibra_candidato_bloqueado(tmp_path, monkeyp
 
 def test_web_no_declara_hecho_un_entrenamiento_fallido(tmp_path, monkeypatch):
     """047:RF-14 — un proceso fallido con informe sigue siendo un trabajo fallido."""
-    from igea_dgs.web import services
-    from igea_dgs.web.workspace import Workspace
-    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(tmp_path / 'asistente'))
+    from convertersmartgrid.web import services
+    from convertersmartgrid.web.workspace import Workspace
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'asistente'))
     ws = Workspace(id='ensayo', root=tmp_path / 'web')
     class Contexto:
         def run_process(self, cmd, **kwargs):

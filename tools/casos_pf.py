@@ -37,14 +37,14 @@ import traceback
 from pathlib import Path
 
 from cargas_pf import activar_proyecto, error_inesperado, nombre_pf
-from igea_dgs.native_action import native_action_block_report
-from igea_dgs.obras_pf import PREFIJO_VARIACION
+from convertersmartgrid.native_action import native_action_block_report
+from convertersmartgrid.obras_pf import PREFIJO_VARIACION
 
 #: Rol → nombre del caso. Fijos y reutilizados (usuario, 2026-10-11).
 NOMBRES = {'base': 'Caso base', 'sin': 'Sin proyecto', 'con': 'Con proyecto'}
 
 #: Marca en la descripción de un caso creado o renombrado por el sistema.
-MARCA = 'igea-dgs:011:'
+MARCA = 'convertersmartgrid:011:'
 
 
 def nombre_caso(rol: str, anio: int | None = None) -> str:
@@ -168,7 +168,7 @@ def es_de_carga_nueva(variacion) -> bool:
 
 def es_del_catalogo(variacion) -> bool:
     """Variación de los conductores con su ficha o de los transformadores de SED (spec 032)."""
-    from igea_dgs.escaneo import PREFIJOS_CATALOGO
+    from convertersmartgrid.escaneo import PREFIJOS_CATALOGO
 
     return variacion.loc_name.startswith(PREFIJOS_CATALOGO)
 
@@ -871,7 +871,7 @@ def main(argv=None) -> int:
         return 2
     # 019:RF-1 a RF-6: turno del motor de la máquina, reintento con el motor ocupado y
     # primera línea al responder, comunes a todos los guiones.
-    from igea_dgs.pf_arnes import PFNoDisponible, conectar
+    from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
 
     try:
         app = conectar('casos_pf.py')

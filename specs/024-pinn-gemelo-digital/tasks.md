@@ -38,7 +38,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       cuarentena sin tocar la acción; cancelación y tiempo agotado. (RF-1)
       Hecho cuando: `pytest -q tests/test_digital_twin_integration.py tests/test_pf_arnes.py
       tests/test_pf_servidor.py` en verde.
-      Hecho el 2026-10-22: `_gemelo` en cargas, ajuste, verificación del «Caso base», obras, estudios (flujo), transferencia y guiones; solo lo aplicado; `IGEA_TWIN_CAPTURA=0` lo apaga en las pruebas.
+      Hecho el 2026-10-22: `_gemelo` en cargas, ajuste, verificación del «Caso base», obras, estudios (flujo), transferencia y guiones; solo lo aplicado; `CSG_TWIN_CAPTURA=0` lo apaga en las pruebas.
 - [x] T7. Consulta: rutas de la API (lista y detalle, con la autorización de vínculos de la spec
       018) y herramienta `tools/digital_twin_buffer.py` (`list`, `show`, `validate`,
       `rebuild-index`, `register`). (RF-8)

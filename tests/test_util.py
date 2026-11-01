@@ -1,4 +1,4 @@
-"""Utilidades comunes de ``igea_dgs.util`` (spec 001, T2).
+"""Utilidades comunes de ``convertersmartgrid.util`` (spec 001, T2).
 
 Estaban copiadas hasta en siete sitios (diagnóstico del 2026-10-07, B5). Además de su
 comportamiento, aquí se prueba que no vuelvan a copiarse: el detector compara el árbol
@@ -13,8 +13,8 @@ from pathlib import Path
 
 import pytest
 
-from igea_dgs import util
-from igea_dgs.util import (
+from convertersmartgrid import util
+from convertersmartgrid.util import (
     finite_or_none, importar_opcional, nombre_seguro, sha256_file, write_json_atomic,
 )
 
@@ -105,7 +105,7 @@ def test_importar_opcional_lanza_el_error_de_quien_llama():
         pass
 
     with pytest.raises(ErrorPropio, match='falta X') as info:
-        importar_opcional('modulo_que_no_existe_igea', ErrorPropio('falta X'))
+        importar_opcional('modulo_que_no_existe_csg', ErrorPropio('falta X'))
     assert isinstance(info.value.__cause__, ImportError)
 
 
@@ -140,9 +140,9 @@ def _funciones(ruta: Path):
     return [n for n in ast.walk(arbol) if isinstance(n, ast.FunctionDef)]
 
 
-@pytest.mark.parametrize('paquete', ['igea_dgs', 'vnr_etl'])
+@pytest.mark.parametrize('paquete', ['convertersmartgrid', 'vnr_etl'])
 def test_ninguna_utilidad_esta_copiada(paquete):
-    """001:RF-4, 001:RF-5 — las utilidades viven solo en ``igea_dgs.util``."""
+    """001:RF-4, 001:RF-5 — las utilidades viven solo en ``convertersmartgrid.util``."""
     ruta_util = Path(util.__file__)
     propias = {_huella(f): f.name for f in _funciones(ruta_util) if not f.name.startswith('_')}
     copias = [

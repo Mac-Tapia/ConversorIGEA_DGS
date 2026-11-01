@@ -4,7 +4,7 @@
 
 **Goal:** Capturar, validar, clasificar y consultar episodios auditables de todo trabajo fuente–PowerFactory, incluido el caso dorado IN111–TA225, para formar el búfer local que alimentará los planes posteriores de generación de escenarios y entrenamiento PINN.
 
-**Architecture:** Un paquete puro `igea_dgs.digital_twin` define el contrato, la clasificación y un almacén inmutable direccionado por contenido; un exportador nativo relee PowerFactory en una sesión nueva y produce el estado eléctrico por elemento. La capa web registra cada resultado nativo sin convertir un fallo de captura en una mutación adicional: un episodio incompleto va a cuarentena y nunca al conjunto entrenable.
+**Architecture:** Un paquete puro `convertersmartgrid.digital_twin` define el contrato, la clasificación y un almacén inmutable direccionado por contenido; un exportador nativo relee PowerFactory en una sesión nueva y produce el estado eléctrico por elemento. La capa web registra cada resultado nativo sin convertir un fallo de captura en una mutación adicional: un episodio incompleto va a cuarentena y nunca al conjunto entrenable.
 
 **Tech Stack:** Python 3.12, dataclasses, JSON Schema, `sqlite3`, SHA-256, FastAPI, pytest, PowerFactory 2024 API; sin PyTorch en este plan.
 
@@ -38,14 +38,14 @@
 ### Task 1: Contrato tipado y esquema del episodio
 
 **Files:**
-- Create: `src/igea_dgs/digital_twin/__init__.py`
-- Create: `src/igea_dgs/digital_twin/episode.py`
-- Create: `src/igea_dgs/schemas/digital_twin_episode_v1.schema.json`
+- Create: `src/convertersmartgrid/digital_twin/__init__.py`
+- Create: `src/convertersmartgrid/digital_twin/episode.py`
+- Create: `src/convertersmartgrid/schemas/digital_twin_episode_v1.schema.json`
 - Test: `tests/test_digital_twin_episode.py`
 
 **Interfaces:**
 - Produces: `EpisodeClass`, `ArtifactRef`, `EpisodeManifest`, `canonical_payload(payload) -> dict[str, Any]`, `episode_sha256(payload) -> str`, `parse_episode(payload) -> EpisodeManifest`.
-- Consumes: solo biblioteca estándar; `NATIVE_RESULT_STATUSES` de `igea_dgs.native_action` se traduce en Task 3, no se importa aquí.
+- Consumes: solo biblioteca estándar; `NATIVE_RESULT_STATUSES` de `convertersmartgrid.native_action` se traduce en Task 3, no se importa aquí.
 
 - [ ] **Step 1: Write the failing canonicalization tests**
 
@@ -61,7 +61,7 @@ def test_feeder_order_is_preserved_because_it_can_express_orientation():
 - [ ] **Step 2: Run the canonicalization tests and verify failure**
 
 Run: `python -m pytest tests/test_digital_twin_episode.py -q`
-Expected: FAIL because `igea_dgs.digital_twin.episode` does not exist.
+Expected: FAIL because `convertersmartgrid.digital_twin.episode` does not exist.
 
 - [ ] **Step 3: Implement the immutable domain contract**
 
@@ -97,7 +97,7 @@ class EpisodeManifest:
     artifacts: tuple[ArtifactRef, ...]
 ```
 
-Use schema name `igea-dgs-digital-twin-episode-v1`. `episode_id` is the SHA-256 of the canonical payload excluding `episode_id` and volatile write timestamps; list order remains significant.
+Use schema name `convertersmartgrid-digital-twin-episode-v1`. `episode_id` is the SHA-256 of the canonical payload excluding `episode_id` and volatile write timestamps; list order remains significant.
 
 - [ ] **Step 4: Add validation and schema tests**
 
@@ -111,14 +111,14 @@ Expected: PASS.
 - [ ] **Step 6: Optional commit checkpoint**
 
 ```bash
-git add src/igea_dgs/digital_twin src/igea_dgs/schemas/digital_twin_episode_v1.schema.json tests/test_digital_twin_episode.py
+git add src/convertersmartgrid/digital_twin src/convertersmartgrid/schemas/digital_twin_episode_v1.schema.json tests/test_digital_twin_episode.py
 git commit -m "feat: define digital twin episode contract"
 ```
 
 ### Task 2: Búfer inmutable e índice reconstruible
 
 **Files:**
-- Create: `src/igea_dgs/digital_twin/buffer.py`
+- Create: `src/convertersmartgrid/digital_twin/buffer.py`
 - Test: `tests/test_digital_twin_buffer.py`
 
 **Interfaces:**
@@ -136,7 +136,7 @@ Expected: FAIL because `EpisodeBuffer` does not exist.
 
 - [ ] **Step 3: Implement atomic object storage**
 
-Use a same-directory `.tmp` file, `flush`, `os.fsync` and `Path.replace`. Set `default_buffer_root()` to `IGEA_TWIN_DATA` when defined, otherwise `igea_dgs.web.workspace.data_root() / '_digital_twin'`.
+Use a same-directory `.tmp` file, `flush`, `os.fsync` and `Path.replace`. Set `default_buffer_root()` to `CSG_TWIN_DATA` when defined, otherwise `convertersmartgrid.web.workspace.data_root() / '_digital_twin'`.
 
 - [ ] **Step 4: Add the SQLite index**
 
@@ -154,15 +154,15 @@ Expected: PASS.
 - [ ] **Step 7: Optional commit checkpoint**
 
 ```bash
-git add src/igea_dgs/digital_twin/buffer.py tests/test_digital_twin_buffer.py
+git add src/convertersmartgrid/digital_twin/buffer.py tests/test_digital_twin_buffer.py
 git commit -m "feat: add immutable episode buffer"
 ```
 
 ### Task 3: Clasificación y ensamblaje de evidencia
 
 **Files:**
-- Create: `src/igea_dgs/digital_twin/capture.py`
-- Modify: `src/igea_dgs/native_action.py`
+- Create: `src/convertersmartgrid/digital_twin/capture.py`
+- Modify: `src/convertersmartgrid/native_action.py`
 - Test: `tests/test_digital_twin_capture.py`
 - Test: `tests/test_native_project_gate.py`
 
@@ -207,7 +207,7 @@ Expected: PASS.
 - [ ] **Step 7: Optional commit checkpoint**
 
 ```bash
-git add src/igea_dgs/digital_twin/capture.py src/igea_dgs/native_action.py tests/test_digital_twin_capture.py tests/test_native_project_gate.py
+git add src/convertersmartgrid/digital_twin/capture.py src/convertersmartgrid/native_action.py tests/test_digital_twin_capture.py tests/test_native_project_gate.py
 git commit -m "feat: classify native work as twin episodes"
 ```
 
@@ -215,13 +215,13 @@ git commit -m "feat: classify native work as twin episodes"
 
 **Files:**
 - Create: `tools/digital_twin_snapshot_pf.py`
-- Create: `src/igea_dgs/digital_twin/native_snapshot.py`
+- Create: `src/convertersmartgrid/digital_twin/native_snapshot.py`
 - Modify: `tests/fake_pf.py`
 - Test: `tests/test_digital_twin_snapshot_pf.py`
 
 **Interfaces:**
 - Consumes: signed plan with `project`, `folder`, `feeders`, `case`, `native_action_context`, optional expected link fingerprints and voltage limits.
-- Produces: `snapshot_project(app, plan) -> dict[str, Any]`; CLI `--plan`, `--output-json`; report schema `igea-dgs-digital-twin-native-snapshot-v1`.
+- Produces: `snapshot_project(app, plan) -> dict[str, Any]`; CLI `--plan`, `--output-json`; report schema `convertersmartgrid-digital-twin-native-snapshot-v1`.
 
 - [ ] **Step 1: Write the failing read-only snapshot tests**
 
@@ -256,16 +256,16 @@ Expected: PASS.
 - [ ] **Step 8: Optional commit checkpoint**
 
 ```bash
-git add tools/digital_twin_snapshot_pf.py src/igea_dgs/digital_twin/native_snapshot.py tests/fake_pf.py tests/test_digital_twin_snapshot_pf.py
+git add tools/digital_twin_snapshot_pf.py src/convertersmartgrid/digital_twin/native_snapshot.py tests/fake_pf.py tests/test_digital_twin_snapshot_pf.py
 git commit -m "feat: export read-only native twin snapshots"
 ```
 
 ### Task 5: Captura automática de acciones PowerFactory
 
 **Files:**
-- Create: `src/igea_dgs/digital_twin/integration.py`
-- Modify: `src/igea_dgs/web/services.py`
-- Modify: `src/igea_dgs/web/jobs.py`
+- Create: `src/convertersmartgrid/digital_twin/integration.py`
+- Modify: `src/convertersmartgrid/web/services.py`
+- Modify: `src/convertersmartgrid/web/jobs.py`
 - Test: `tests/test_digital_twin_integration.py`
 - Test: `tests/test_native_project_gate.py`
 
@@ -306,7 +306,7 @@ Expected: PASS.
 - [ ] **Step 8: Optional commit checkpoint**
 
 ```bash
-git add src/igea_dgs/digital_twin/integration.py src/igea_dgs/web/services.py src/igea_dgs/web/jobs.py tests/test_digital_twin_integration.py tests/test_native_project_gate.py
+git add src/convertersmartgrid/digital_twin/integration.py src/convertersmartgrid/web/services.py src/convertersmartgrid/web/jobs.py tests/test_digital_twin_integration.py tests/test_native_project_gate.py
 git commit -m "feat: capture every native action as an episode"
 ```
 
@@ -314,8 +314,8 @@ git commit -m "feat: capture every native action as an episode"
 
 **Files:**
 - Create: `tools/digital_twin_buffer.py`
-- Modify: `src/igea_dgs/web/services.py`
-- Modify: `src/igea_dgs/web/app.py`
+- Modify: `src/convertersmartgrid/web/services.py`
+- Modify: `src/convertersmartgrid/web/app.py`
 - Test: `tests/test_digital_twin_web.py`
 - Test: `tests/test_digital_twin_buffer_cli.py`
 
@@ -352,7 +352,7 @@ Expected: PASS.
 - [ ] **Step 7: Optional commit checkpoint**
 
 ```bash
-git add tools/digital_twin_buffer.py src/igea_dgs/web/services.py src/igea_dgs/web/app.py tests/test_digital_twin_web.py tests/test_digital_twin_buffer_cli.py
+git add tools/digital_twin_buffer.py src/convertersmartgrid/web/services.py src/convertersmartgrid/web/app.py tests/test_digital_twin_web.py tests/test_digital_twin_buffer_cli.py
 git commit -m "feat: expose digital twin episode buffer"
 ```
 
@@ -379,7 +379,7 @@ Expected: FAIL until the acceptance tool exists and the classifier preserves the
 
 - [ ] **Step 3: Implement read-only native acceptance**
 
-The tool activates project `20261015-170359_IGEA_IN111_TA225` in `sistemaeletricoELD`, case `Con proyecto`, and verifies the existing active variations without creating/deleting anything. Require 3091/source connectivity at 10 kV, 3092 transfer isolation at 22.9 kV, `SEC_1091_1055021(1)` in service, link endpoints preserved, GPS SHA-256 preserved and valid `ComLdf`.
+The tool activates project `20261015-170359_CSG_IN111_TA225` in `sistemaeletricoELD`, case `Con proyecto`, and verifies the existing active variations without creating/deleting anything. Require 3091/source connectivity at 10 kV, 3092 transfer isolation at 22.9 kV, `SEC_1091_1055021(1)` in service, link endpoints preserved, GPS SHA-256 preserved and valid `ComLdf`.
 
 - [ ] **Step 4: Register the real episode**
 
@@ -398,7 +398,7 @@ Add commands to validate/list the buffer and run this native acceptance. State e
 Run without license: `python -m pytest tests/test_digital_twin_in111_ta225.py -q`
 Expected: PASS.
 
-Run with PowerFactory: `python tools/accept_digital_twin_in111_ta225.py --project 20261015-170359_IGEA_IN111_TA225 --folder sistemaeletricoELD --output-json <run>/salida/digital_twin_in111_ta225_acceptance.json`
+Run with PowerFactory: `python tools/accept_digital_twin_in111_ta225.py --project 20261015-170359_CSG_IN111_TA225 --folder sistemaeletricoELD --output-json <run>/salida/digital_twin_in111_ta225_acceptance.json`
 Expected: exit 0, snapshot persisted, episode class `converged_with_violations`, all topology/link checks true and `ComLdf` valid.
 
 - [ ] **Step 8: Optional commit checkpoint**
@@ -430,7 +430,7 @@ Expected: PASS.
 
 - [ ] **Step 3: Run scoped Ruff**
 
-Run: `python -m ruff check src/igea_dgs/digital_twin src/igea_dgs/native_action.py src/igea_dgs/web/services.py src/igea_dgs/web/jobs.py src/igea_dgs/web/app.py tools/digital_twin_snapshot_pf.py tools/digital_twin_buffer.py tools/accept_digital_twin_in111_ta225.py tests/test_digital_twin_*.py`
+Run: `python -m ruff check src/convertersmartgrid/digital_twin src/convertersmartgrid/native_action.py src/convertersmartgrid/web/services.py src/convertersmartgrid/web/jobs.py src/convertersmartgrid/web/app.py tools/digital_twin_snapshot_pf.py tools/digital_twin_buffer.py tools/accept_digital_twin_in111_ta225.py tests/test_digital_twin_*.py`
 Expected: PASS. Report this exact scope; do not claim repository-wide Ruff.
 
 - [ ] **Step 4: Run formatting and diff checks**

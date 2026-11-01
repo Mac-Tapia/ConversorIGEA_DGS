@@ -4,7 +4,7 @@
    el grafo de `digital_twin_snapshot_pf.grafo`, la troncal y las barras de media de cada
    alimentador (lo de `--escalera-datos`) y, por variación de carga nueva (índice de la 040),
    el nodo del grafo de su carga y su P y Q. Una sola lectura por trabajo.
-2. `src/igea_dgs/optimizacion_oraculo.py`: copia del grafo con una variante aplicada (banco,
+2. `src/convertersmartgrid/optimizacion_oraculo.py`: copia del grafo con una variante aplicada (banco,
    terna, sección, regulador), demanda con k cargas, flujo con `digital_twin.flujo`, medidas en
    la forma de `medida_para_criterio` (tensión por barra y cargabilidad por rama) y el criterio
    `escalera_optima.cumple`; búsqueda de k con `set_nueva.cuantas_caben` y elección con

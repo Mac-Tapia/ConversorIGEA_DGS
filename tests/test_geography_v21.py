@@ -3,7 +3,7 @@
 Spec 034: 034:RF-11.
 """
 def test_build_geography_has_full_sample_coverage(ds, sample_model):
-    from igea_dgs.geography import build_geography
+    from convertersmartgrid.geography import build_geography
 
     geo = build_geography(ds, sample_model, source_crs='EPSG:32718')
     assert len(geo.nodes) == len(sample_model.nodes)
@@ -18,7 +18,7 @@ def test_build_geography_has_full_sample_coverage(ds, sample_model):
 
 
 def test_line_geometry_starts_and_ends_at_electrical_nodes(ds, sample_model):
-    from igea_dgs.geography import build_geography
+    from convertersmartgrid.geography import build_geography
 
     geo = build_geography(ds, sample_model, source_crs='EPSG:32718')
     sample_lines = sample_model.lines[: min(50, len(sample_model.lines))]
@@ -29,9 +29,9 @@ def test_line_geometry_starts_and_ends_at_electrical_nodes(ds, sample_model):
 
 
 def test_dgs_writer_includes_geographic_graphic_layer(ds, sample_model, tmp_path):
-    from igea_dgs.geography import build_geography
-    from igea_dgs.dgs import diagram_line_rail_counts, write_dgs
-    from igea_dgs.validate import parse_dgs
+    from convertersmartgrid.geography import build_geography
+    from convertersmartgrid.dgs import diagram_line_rail_counts, write_dgs
+    from convertersmartgrid.validate import parse_dgs
 
     geo = build_geography(ds, sample_model, source_crs='EPSG:32718')
     out = tmp_path / f'{sample_model.name}.dgs'

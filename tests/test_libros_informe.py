@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from openpyxl import Workbook
 
-from igea_dgs.libros_informe import (
+from convertersmartgrid.libros_informe import (
     COSTES_REFERENCIALES, ColumnasPerdidas, LibroError, leer_costes, leer_libro_perdidas)
 
 PERFIL = {

@@ -11,7 +11,7 @@ Orden pensado para que el repositorio funcione al final de cada paso.
 4. Textos visibles (RF-1, RF-4, RF-5, RF-7): título de la web, cabecera del DGS, sigla de los
    proyectos (`_CSG_`), carpeta por defecto, skills (`.claude/skills/convertersmartgrid-*`),
    lanzador, README, CLAUDE.md, CODIGO_FUENTE.md, docs y specs. Las citas de RF-9 se marcan.
-5. Prueba (RF-8, RF-9): `tests/test_sin_igea.py` recorre `git ls-files` y falla si alguno
+5. Prueba (RF-8, RF-9): `tests/test_nombre_converter_smart_grid.py` recorre `git ls-files` y falla si alguno
    menciona IGEA fuera de una lista corta de excepciones con su motivo.
 6. Líneas base (RF-10): se regeneran solo por la cabecera; se comprueba que el resto del DGS es
    idéntico.

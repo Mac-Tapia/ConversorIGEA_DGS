@@ -10,7 +10,7 @@ import random
 
 import pytest
 
-from igea_dgs.troncal import (Barra, Tramo, TroncalError, _metros, aguas_abajo, conexion_en,
+from convertersmartgrid.troncal import (Barra, Tramo, TroncalError, _metros, aguas_abajo, conexion_en,
                               cortar_trazado, extremos_del_enlace, partir, punto_en_troncal,
                               punto_mas_cercano, red_de, troncal)
 
@@ -126,7 +126,7 @@ def test_aguas_abajo_de_un_nodo(semilla):
     nodo = rng.choice(sorted(red.barras))
     sub = aguas_abajo(red, cabecera, nodo)
     # Fuerza bruta: una barra está aguas abajo si su camino desde la cabecera pasa por el nodo.
-    from igea_dgs.troncal import arbol
+    from convertersmartgrid.troncal import arbol
     a = arbol(red, cabecera)
     dentro = set()
     for b in red.barras:
@@ -155,7 +155,7 @@ def test_nodo_de_otro_alimentador():
 def test_troncal_de_in111_con_los_txt_reales(txt_dataset):
     """016:RF-1 — IN111 del TXT de referencia: 71 tramos y 13,58 km. Tiene tres anillos
     cerrados; cada barra cuelga del lado por el que llega antes en metros."""
-    from igea_dgs.model import build_feeder_model
+    from convertersmartgrid.model import build_feeder_model
 
     m = build_feeder_model(txt_dataset, txt_dataset.resolve_feeder('IN111'), strict=False,
                            include_geography=False)
@@ -173,7 +173,7 @@ def test_con_anillos_cada_barra_por_su_camino_mas_corto(semilla):
     """016:RF-1, 016:RF-5 — con anillos cerrados sorteados, cada barra cuelga del camino
     más corto en metros (Bellman-Ford como referencia) y el resultado no depende del orden
     de lectura."""
-    from igea_dgs.troncal import arbol
+    from convertersmartgrid.troncal import arbol
 
     rng = random.Random(3000 + semilla)
     red, cabecera = _sorteada(rng)
@@ -358,8 +358,8 @@ def test_el_origen_solo_en_los_candidatos():
 def test_enlace_ta225_in111_con_los_txt_reales(txt_dataset, perfil_real):
     """016:RF-27, 016:RF-28 — de la troncal de TA225 a la de IN111 con los trazados GPS
     del TXT: los dos extremos en sus troncales, más cerca que sus barras más próximas."""
-    from igea_dgs.geography import build_geography
-    from igea_dgs.model import build_feeder_model
+    from convertersmartgrid.geography import build_geography
+    from convertersmartgrid.model import build_feeder_model
 
     redes, troncales = {}, {}
     for f in ('TA225', 'IN111'):

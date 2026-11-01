@@ -8,7 +8,7 @@ def _row(text, task, group, quality='gold_human'):
 
 
 def test_exact_duplicate_across_partitions_invalidates_dataset():
-    from igea_dgs.asistente.calidad_datos import auditar_contaminacion
+    from convertersmartgrid.asistente.calidad_datos import auditar_contaminacion
 
     audit = auditar_contaminacion({
         'train': (_row('reentrena la pinn', 'gemelo_entrenar', 'g1'),),
@@ -21,7 +21,7 @@ def test_exact_duplicate_across_partitions_invalidates_dataset():
 
 
 def test_same_group_across_partitions_invalidates_dataset_even_if_text_changes():
-    from igea_dgs.asistente.calidad_datos import auditar_contaminacion
+    from convertersmartgrid.asistente.calidad_datos import auditar_contaminacion
 
     audit = auditar_contaminacion({
         'train': (_row('convierte CA101', 'convertir', 'family-1'),),
@@ -33,7 +33,7 @@ def test_same_group_across_partitions_invalidates_dataset_even_if_text_changes()
 
 
 def test_feeder_entities_do_not_inflate_human_gold_count():
-    from igea_dgs.asistente.calidad_datos import resumir_calidad
+    from convertersmartgrid.asistente.calidad_datos import resumir_calidad
 
     rows = [_row(f'Fuente contiene F{i:03d}', 'convertir', f'g{i}', 'context')
             for i in range(101)]
@@ -45,7 +45,7 @@ def test_feeder_entities_do_not_inflate_human_gold_count():
 
 
 def test_unknown_quality_is_reported_and_blocks_audit():
-    from igea_dgs.asistente.calidad_datos import auditar_contaminacion
+    from convertersmartgrid.asistente.calidad_datos import auditar_contaminacion
 
     audit = auditar_contaminacion({'train': (_row('x', 'convertir', 'g', 'invented'),),
                                    'validation': (), 'test': ()})
@@ -55,8 +55,8 @@ def test_unknown_quality_is_reported_and_blocks_audit():
 
 def test_sintetico_no_es_gold_real():
     """043:RF-3 — doscientas órdenes generadas no habilitan escrituras sin confirmar."""
-    from igea_dgs.asistente.dataset_entrenamiento import normalizar_orden
-    from igea_dgs.asistente.calidad_datos import resumir_calidad
+    from convertersmartgrid.asistente.dataset_entrenamiento import normalizar_orden
+    from convertersmartgrid.asistente.calidad_datos import resumir_calidad
     filas = [normalizar_orden({'texto': f'convierte F{i}', 'tarea': 'convertir',
                               'origen': 'sintetico'}) for i in range(200)]
     assert resumir_calidad(filas)['qualities'].get('gold_human', 0) == 0

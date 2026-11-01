@@ -17,9 +17,9 @@ número de puntos varía por línea y por entrega.
 
 | Parte | Fichero | RF |
 | --- | --- | --- |
-| Tabla `Matrix` en el perfil, al final del orden de tablas | `src/igea_dgs/schemas/pf21_dgs_1_8_4.json` | RF-1 |
-| Filas de la matriz al escribir `ElmLne`; tabla solo si hay filas | `src/igea_dgs/dgs.py` | RF-1, RF-2, RF-3, RF-4 |
-| `Matrix` fuera de la regla de FID único (su clave es FID + columna + fila); trazado releído frente a la geografía | `src/igea_dgs/validate.py` | RF-5 |
+| Tabla `Matrix` en el perfil, al final del orden de tablas | `src/convertersmartgrid/schemas/pf21_dgs_1_8_4.json` | RF-1 |
+| Filas de la matriz al escribir `ElmLne`; tabla solo si hay filas | `src/convertersmartgrid/dgs.py` | RF-1, RF-2, RF-3, RF-4 |
+| `Matrix` fuera de la regla de FID único (su clave es FID + columna + fila); trazado releído frente a la geografía | `src/convertersmartgrid/validate.py` | RF-5 |
 | Trazado de las líneas en PowerFactory frente al manifiesto; cuenta en el informe; falla el diagrama si difiere | `tools/powerfactory_acceptance.py` | RF-6, RF-7 |
 | Excepción de RF-14 y línea base regenerada | `specs/001-reorganizacion/spec.md`, `output/linea_base_001.json` | — |
 
@@ -41,5 +41,5 @@ número de puntos varía por línea y por entrega.
   DGS idéntico con `workers=1` y `workers=2`.
 - `tests/test_powerfactory_gate.py`: comprobación del trazado en la aceptación con
   objetos falsos de PowerFactory.
-- Datos reales: suite con las tres `IGEA_*`; red unida NA203 + NA205 importada en
+- Datos reales: suite con las tres `CSG_*`; red unida NA203 + NA205 importada en
   PowerFactory con `--manifest`.

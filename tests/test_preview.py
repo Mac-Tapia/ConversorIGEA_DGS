@@ -10,9 +10,9 @@ from pathlib import Path
 
 import pytest
 
-from igea_dgs.geography import GeoLine, GeoPoint, GeographyManifest
-from igea_dgs.model import FeederModel, Line, LineType, Node
-from igea_dgs.preview import (
+from convertersmartgrid.geography import GeoLine, GeoPoint, GeographyManifest
+from convertersmartgrid.model import FeederModel, Line, LineType, Node
+from convertersmartgrid.preview import (
     PreviewError,
     build_preview_layers,
     layers_to_geojson,

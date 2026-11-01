@@ -145,7 +145,7 @@ def test_la_central_fuera_del_camino_mas_largo_avisa_y_calibra(guion, monkeypatc
     """021:RF-38 — la barra de la central en el alimentador pero fuera del camino más largo
     (NA205 del TXT, 2026-10-18: la central 1720 en otra rama): se avisa y se calibra igual
     por zonas."""
-    import igea_dgs.troncal as tr
+    import convertersmartgrid.troncal as tr
 
     original = tr.troncal
     monkeypatch.setattr(tr, 'troncal', lambda red, cab: tr.Troncal(original(red, cab).tramos[:1], 1.0))

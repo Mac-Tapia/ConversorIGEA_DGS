@@ -15,7 +15,7 @@ from synthetic_export import ExportSpec, write_export
 
 
 def _args(*argv: str):
-    from igea_dgs.cli import _parser
+    from convertersmartgrid.cli import _parser
 
     return _parser().parse_args(list(argv))
 
@@ -40,8 +40,8 @@ def _vnr_package(tmp_path: Path, companies: tuple[str, ...]) -> Path:
 @pytest.mark.parametrize('layout', ['reducido', 'completo'])
 def test_txt_igual_que_el_lector_directo(tmp_path, layout):
     """001:RF-1 — las dos disposiciones de export, por el adaptador común."""
-    from igea_dgs.cli import load_dataset
-    from igea_dgs.dataset import CymdistDataset
+    from convertersmartgrid.cli import load_dataset
+    from convertersmartgrid.dataset import CymdistDataset
 
     red, loads, equip = write_export(ExportSpec(feeders=3, layout=layout), tmp_path / 'e')
     ds = load_dataset(_args('list', '--red', str(red), '--loads', str(loads),
@@ -53,8 +53,8 @@ def test_txt_igual_que_el_lector_directo(tmp_path, layout):
 
 
 def test_convert_txt_de_punta_a_punta(tmp_path):
-    """001:RF-1 — ``igea-dgs convert`` sigue publicando el DGS con la lectura nueva."""
-    from igea_dgs.cli import main
+    """001:RF-1 — ``convertersmartgrid convert`` sigue publicando el DGS con la lectura nueva."""
+    from convertersmartgrid.cli import main
 
     red, loads, equip = write_export(ExportSpec(feeders=2), tmp_path / 'e')
     out = tmp_path / 'salida'
@@ -66,7 +66,7 @@ def test_convert_txt_de_punta_a_punta(tmp_path):
 
 def test_los_alias_llegan_al_catalogo(tmp_path, monkeypatch):
     """001:RF-3 — antes el CLI diagnosticaba el catálogo sin los alias del usuario."""
-    import igea_dgs.catalog_merge as catalog_merge
+    import convertersmartgrid.catalog_merge as catalog_merge
 
     vistos = {}
     original = catalog_merge.diagnosticar
@@ -80,7 +80,7 @@ def test_los_alias_llegan_al_catalogo(tmp_path, monkeypatch):
     alias = tmp_path / 'alias.json'
     alias.write_text(json.dumps({'CABLE_X': 'CABLE_Y'}), encoding='utf-8')
 
-    from igea_dgs.cli import load_dataset
+    from convertersmartgrid.cli import load_dataset
 
     load_dataset(_args('convert', '--red', str(red), '--loads', str(loads), '--equipment',
                        str(equip), '--all', '--out-dir', str(tmp_path / 'o'),
@@ -90,7 +90,7 @@ def test_los_alias_llegan_al_catalogo(tmp_path, monkeypatch):
 
 def test_varios_equipment_extra_conservan_su_orden(tmp_path, monkeypatch):
     """001:RF-1 — el primero que se indica rellena primero, como antes."""
-    import igea_dgs.catalog_merge as catalog_merge
+    import convertersmartgrid.catalog_merge as catalog_merge
 
     vistos = {}
     original = catalog_merge.completar
@@ -106,7 +106,7 @@ def test_varios_equipment_extra_conservan_su_orden(tmp_path, monkeypatch):
         extras.append(tmp_path / nombre)
         extras[-1].write_bytes(equip.read_bytes())
 
-    from igea_dgs.cli import load_dataset
+    from convertersmartgrid.cli import load_dataset
 
     argv = ['list', '--red', str(red), '--loads', str(loads), '--equipment', str(equip)]
     for extra in extras:
@@ -118,10 +118,10 @@ def test_varios_equipment_extra_conservan_su_orden(tmp_path, monkeypatch):
 def test_vnr_por_el_cli_igual_que_por_la_web(tmp_path):
     """001:RF-2 — mismo adaptador y mismo resultado que la web."""
     pytest.importorskip('fastapi')
-    from igea_dgs.cli import load_dataset
-    from igea_dgs.sources import adapter_for
-    from igea_dgs.web.source_runs import create_source_run
-    from igea_dgs.web.workspace import Workspace
+    from convertersmartgrid.cli import load_dataset
+    from convertersmartgrid.sources import adapter_for
+    from convertersmartgrid.web.source_runs import create_source_run
+    from convertersmartgrid.web.workspace import Workspace
 
     paquete = _vnr_package(tmp_path, ('EMPRESA_A',))
     ds_cli = load_dataset(_args('list', '--vnr-package', str(paquete)))
@@ -137,7 +137,7 @@ def test_vnr_por_el_cli_igual_que_por_la_web(tmp_path):
 
 def test_vnr_con_varias_empresas_exige_elegir(tmp_path):
     """001:RF-2 — un paquete con dos empresas no se lee sin --company."""
-    from igea_dgs.cli import load_dataset
+    from convertersmartgrid.cli import load_dataset
 
     paquete = _vnr_package(tmp_path, ('EMPRESA_A', 'EMPRESA_B'))
     with pytest.raises(SystemExit) as info:
@@ -158,8 +158,8 @@ def test_mdb_por_el_adaptador_con_ano_de_carga(tmp_path, monkeypatch):
         vistos.update(path=Path(path).name, **kwargs)
         return esperado
 
-    monkeypatch.setattr('igea_dgs.access.read_access_dataset', lector_falso)
-    from igea_dgs.cli import load_dataset
+    monkeypatch.setattr('convertersmartgrid.access.read_access_dataset', lector_falso)
+    from convertersmartgrid.cli import load_dataset
 
     ds = load_dataset(_args('list', '--mdb', str(mdb), '--load-year', '2025'))
     assert ds is esperado
@@ -177,7 +177,7 @@ def test_mdb_por_el_adaptador_con_ano_de_carga(tmp_path, monkeypatch):
 def test_errores_de_uso(tmp_path, monkeypatch, argv, mensaje):
     """001:RF-1 — los mismos mensajes de uso para las tres alternativas."""
     monkeypatch.chdir(tmp_path)
-    from igea_dgs.cli import load_dataset
+    from convertersmartgrid.cli import load_dataset
 
     with pytest.raises(SystemExit, match=mensaje):
         load_dataset(_args('list', *argv))

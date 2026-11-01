@@ -13,7 +13,7 @@ import pytest
 
 import fake_pf
 from apoyo import cargar_herramienta, contexto_nativo
-from igea_dgs import datos_empresa as de
+from convertersmartgrid import datos_empresa as de
 
 casos_pf = cargar_herramienta('casos_pf.py', 'casos_012', tools_en_path=True)
 conf = cargar_herramienta('confiabilidad_pf.py', 'confiabilidad_012', tools_en_path=True)

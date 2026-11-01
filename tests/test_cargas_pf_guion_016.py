@@ -193,7 +193,7 @@ def test_carga_de_otra_tanda_en_un_tramo_ya_partido(guion):
 def test_el_plan_lleva_la_distancia_minima():
     """016:RF-73 — el plan de cargas lleva la distancia mínima que da el operador; una
     negativa se rechaza."""
-    from igea_dgs.cargas_pf import LoadTemplateError, armar_plan, leer_hoja_nuevas
+    from convertersmartgrid.cargas_pf import LoadTemplateError, armar_plan, leer_hoja_nuevas
 
     filas, _ = leer_hoja_nuevas(['SED', 'Kw', 'barra'], [['N1', 50, 'B1']], 'A', avisos=[])
     nuevas = type('L', (), {'filas': filas, 'errores': [], 'avisos': []})()

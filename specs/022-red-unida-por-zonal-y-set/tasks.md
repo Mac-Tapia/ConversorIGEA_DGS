@@ -51,7 +51,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]` y pa
       sale verificado, con todos los conteos iguales. Arreglado por el camino: la red del
       zonal en la metadata y en las cargas sin SED, la aceptación con varias redes y el DGS
       en cp1252. Falta el ajuste de NA203 + NA205 en ese proyecto.
-      2026-10-18: cerrada con el sistema Nasca desde la base Access («20261018-034959_IGEA_
+      2026-10-18: cerrada con el sistema Nasca desde la base Access («20261018-034959_CSG_
       SISTEMA_NASCA», 17 alimentadores) calibrado entero desde la web: NA203 9 190,9 kW frente
       a 9 244 (−0,57 %, aviso de kVAR: la red da más que lo medido) y NA205 por zonas
       (1 110,5/1 117,4 kW y 9 043,1/9 114,1 kW), ambos VÁLIDOS en 2 flujos y sin remedios. Por
@@ -129,7 +129,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]` y pa
       2026-10-23: 24 en verde, con cinco semillas. RED_231026 (101 alimentadores) por la
       estructura del espacio: ninguno «Sin SET»; CN101 a CN201 en SET CHN Chincha Nueva
       (SE0043), PA219 en SET 32 por sus siglas, SC215 en «SET SC» deducida en Pisco y COH101
-      en «SET COH» deducida en Nasca. `igea-dgs convert --por-sistema Chincha`: 27
+      en «SET COH» deducida en Nasca. `convertersmartgrid convert --por-sistema Chincha`: 27
       alimentadores en 5 SET, la CHN con barras de 10 y 22,9 kV, oráculo converge, 0 errores
       (CN103 no tiene tramos y queda fuera, como todo alimentador sin red).
 - [x] T16. Cada diagrama con su origen: gráficos y conectores de cada `IntGrfnet` desplazados
@@ -140,7 +140,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]` y pa
       omitidas y, en DIgSILENT, la sonda de T14 da cada hoja con todos sus gráficos dentro.
       Cerrada el 2026-10-29: código en ad21bb8b; suite con las siete variables sin omitidas
       (3110); Nasca por SET convertido e importado de nuevo tras la corrección
-      (20261029-081235_IGEA_SISTEMA_NASCA) y `tools/hojas_diagrama_pf.py` (T20) da las 6 hojas
+      (20261029-081235_CSG_SISTEMA_NASCA) y `tools/hojas_diagrama_pf.py` (T20) da las 6 hojas
       con todos sus gráficos dentro, la 52, la 53 y la 56 en vertical.
 - [x] T17. Siglas de una SET con dos grafías: `Estructura.alimentador` y `equivalentes`,
       SET CHN con las siglas CN y CHN en el perfil, medidores del libro por cualquiera de

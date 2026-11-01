@@ -1,4 +1,4 @@
-"""Puente explícito del modelo canónico VNR al contrato del conversor IGEA.
+"""Puente explícito del modelo canónico VNR al contrato del ConverterSmartGrid.
 
 El puente no completa datos ausentes. Construye un inventario navegable y devuelve
 por alimentador las puertas que impiden declararlo listo para conversión.
@@ -12,7 +12,7 @@ import math
 from pathlib import Path
 from typing import Any
 
-from igea_dgs.dataset import CymdistDataset
+from convertersmartgrid.dataset import CymdistDataset
 from vnr_etl.models import CanonicalModel
 
 

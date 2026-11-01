@@ -23,7 +23,7 @@ def _txt(tmp_path, nombre: str) -> str:
 
 class TestEnLaInterfazWeb:
     def test_el_espacio_guarda_al_elegir_un_fichero(self, tmp_path):
-        from igea_dgs.web.workspace import Workspace
+        from convertersmartgrid.web.workspace import Workspace
 
         red = Path(_txt(tmp_path, 'red_web.txt'))
         root = tmp_path / 'workspace'
@@ -35,7 +35,7 @@ class TestEnLaInterfazWeb:
 
     def test_la_seleccion_mas_reciente_manda(self, tmp_path):
         """El caso que se pidió: la entrega nueva desplaza a la vieja."""
-        from igea_dgs.web.workspace import Workspace
+        from convertersmartgrid.web.workspace import Workspace
 
         vieja = Path(_txt(tmp_path, 'red_vieja.txt'))
         nueva = Path(_txt(tmp_path, 'red_nueva.txt'))
@@ -47,7 +47,7 @@ class TestEnLaInterfazWeb:
         assert Workspace.load(root).inputs['red']['path'] == str(nueva)
 
     def test_opciones_y_entradas_sobreviven_al_reinicio(self, tmp_path):
-        from igea_dgs.web.workspace import WorkspaceStore
+        from convertersmartgrid.web.workspace import WorkspaceStore
 
         store = WorkspaceStore(tmp_path / 'web')
         workspace = store.create()

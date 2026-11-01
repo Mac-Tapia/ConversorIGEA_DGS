@@ -2,11 +2,11 @@
 
 Spec 034: 034:RF-1.
 """
-from igea_dgs.dataset import CymdistDataset
+from convertersmartgrid.dataset import CymdistDataset
 
 
-def test_dataset_parses_all_source_tables_once(igea_paths):
-    red, loads, equip = igea_paths
+def test_dataset_parses_all_source_tables_once(csg_paths):
+    red, loads, equip = csg_paths
     ds = CymdistDataset.from_files(red, loads, equip)
     n_feeders = len(ds.feeder_ids())
     assert n_feeders >= 1
@@ -20,7 +20,7 @@ def test_dataset_parses_all_source_tables_once(igea_paths):
 
 
 def test_dataset_resolves_short_name_network_id_and_joins_load_location(ds, sample_feeder):
-    from igea_dgs.naming import feeder_short_name
+    from convertersmartgrid.naming import feeder_short_name
 
     network_id = ds.resolve_feeder(sample_feeder)
     assert feeder_short_name(network_id) == sample_feeder

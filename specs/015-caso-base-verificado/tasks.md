@@ -8,7 +8,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       «Sin proyecto» activo deja igual el «Caso base». (Decisión del plan; RF-19, RF-26)
       Hecho cuando: informe JSON en `output/` y resultado anotado en el plan. Si `i_scale`
       no es dato de operación, se para y se pregunta al usuario.
-- [x] T2. `src/igea_dgs/capacidades.py`: capacidades, grupo de conexión y tensión de baja
+- [x] T2. `src/convertersmartgrid/capacidades.py`: capacidades, grupo de conexión y tensión de baja
       del DGS, y su comparación. (RF-6, RF-7, RF-11, RF-32, RF-33)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_capacidades.py` en verde.
 - [x] T3. Verificación completa del «Caso base» en `powerfactory_acceptance.py`, también
@@ -70,7 +70,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       las fijas consumiendo su P y Q, o el informe nombra las cargas y el ajuste del flujo
       que lo impide. (RF-47 a RF-52)
       Hecho cuando: el informe del ajuste real trae `validacion_posterior_nativa.balance`.
-      Resultado del 2026-10-15 en `20261014-205212_IGEA_CA101`, con la última calibración
+      Resultado del 2026-10-15 en `20261014-205212_CSG_CA101`, con la última calibración
       del espacio (06:50) (`output/spec015/T19_ajuste_CA101.json`; sondas de solo lectura
       `T19_sonda_*.json`): cuadra la cabecera en 5994,9 kW (−0,09 %), pero la validación
       física no pasa: 71 cargas no consumen lo escrito; las 9 fijas escriben 3677,0 kW y
@@ -92,7 +92,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       de la máxima; fijas con su EA/ERI; el informe y la web dicen de dónde sale cada uno.
       (RF-44, RF-45, RF-53 a RF-58)
       Hecho cuando: suite de web, front y calibración en verde y la calibración real de CA101.
-      Resultado del 2026-10-15 en `20261014-205212_IGEA_CA101`
+      Resultado del 2026-10-15 en `20261014-205212_CSG_CA101`
       (`output/spec015/T20_ajuste_CA101_kva_fp098.json`): cuadra en 5985,4 kW (−0,24 %) en 3
       flujos, sin adaptar el modelo, y la validación física pasa en las 169 cargas: fijas
       3677,0 kW, escaladas 1212,7 kW (factor 0,087 de su kVA), pérdidas 1095,7 kW. Grabado en
@@ -105,7 +105,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       proyecto ni alimentador. (RF-59 a RF-61)
       Hecho cuando: suite de web, front y calibración en verde y una simulación (sin
       escribir) en DIgSILENT con CA101.
-      Resultado del 2026-10-15 (simulación sobre `20261014-205212_IGEA_CA101`): los 3 bancos
+      Resultado del 2026-10-15 (simulación sobre `20261014-205212_CSG_CA101`): los 3 bancos
       de 300 kvar en 10 kV, en servicio, dos en «Terminal» y uno en «Terminal(1)»; avisadas
       SE20859 (509 % en kVA aparentes), SE21082 (236 %), SE20444 (125 %) y SE20426 (120 %,
       FP 0,43); ningún cambio manual, porque la calibración registrada en la web coincide
@@ -161,7 +161,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       proyecto» sin cambios. La consigna de cabecera no es aún una clase de obra: queda para
       una spec.
       Hecho cuando: «Con proyecto» de CA101 converge en DIgSILENT con cada obra en su variación.
-- [x] T26. [DIgSILENT] PA217 (`20261016-094237_IGEA_PA217`, 22,9 kV), 2026-10-16: la calibración no
+- [x] T26. [DIgSILENT] PA217 (`20261016-094237_CSG_PA217`, 22,9 kV), 2026-10-16: la calibración no
       era válida (VALIDACION_FISICA). Con cargas PQ no convergía ni con las escaladas al
       0,5 % de su kVA; solo con la adaptación automática del modelo, y entonces las fijas
       escribían 7896 kW y consumían 6250 (SE30940, 3800 → 2535 kW a 0,817 pu). Causa: la
@@ -188,7 +188,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       «Sin proyecto»; la calibración solo cambia su escenario y el «Caso base» queda igual;
       una inserción crea «Con proyecto» y una variación por carga. (Criterios de finalización)
       Hecho cuando: informe JSON de cada paso en `output/` y resultados anotados aquí.
-      Resultado del 2026-10-14, sobre una copia de `20261013-121930_IGEA_CA101` (borrada al
+      Resultado del 2026-10-14, sobre una copia de `20261013-121930_CSG_CA101` (borrada al
       terminar; informe superado, en `output/_historico/2026-10-14_spec015/`): se verificó el caso «Caso base»
       con la geografía de la ejecución MDB del 13/10. Pasan el GPS de barras (1002 de 1002),
       el trazado de líneas (482 de 482), la conectividad, el diagrama y la capacidad de
@@ -231,7 +231,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       del 13/10 de CA101 se apartaron a `output/_historico/2026-10-13_ca101/`.
       Pendiente, a cargo del usuario: una inserción de cargas nuevas que cree «Con
       proyecto» con una variación por carga.
-      Cerrada el 2026-10-24 desde la web, en `20261022-134643_IGEA_CA101` (CA101 desde cero,
+      Cerrada el 2026-10-24 desde la web, en `20261022-134643_CSG_CA101` (CA101 desde cero,
       como pidió el usuario, calibrado el 22/10), con la carga de CA101 del libro de la empresa
       `NuevosclientesMayoresv1.xlsx` (CH_7) y la base de esa calibración
       (`output/pruebas_pf/20261024-130319_cargas_aplicacion.json`): se creó «Con proyecto»
@@ -242,7 +242,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       no lleva `_n`), arreglado con su prueba (025:RF-37).
 - [x] T13. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
       Hecho cuando: `grep -rnoE "015:RF-[0-9]+" tests | sort -u` lista los 46 RF y la suite
-      con las variables `IGEA_*` pasa.
+      con las variables `CSG_*` pasa.
 - [x] T27. Retro (033, 2026-10-29): RF-68, RF-69, añadidos a la spec como cambio después de
       escribir las tareas e implementados con su prueba sin tarea propia. (RF-68, RF-69)
       Hecho cuando: las pruebas que los citan pasan (pruebas de `tests/test_ajuste_cabecera_guion.py`).

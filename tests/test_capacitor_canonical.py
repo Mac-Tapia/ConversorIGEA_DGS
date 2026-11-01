@@ -27,7 +27,7 @@ from synthetic_export import ExportSpec, load_export
     ],
 )
 def test_capacitor_preserves_source_capacity(row, phases, per_step, steps, total):
-    from igea_dgs.model import capacitor_from_source
+    from convertersmartgrid.model import capacitor_from_source
 
     bank = capacitor_from_source(row)
 
@@ -39,7 +39,7 @@ def test_capacitor_preserves_source_capacity(row, phases, per_step, steps, total
 
 
 def test_missing_capacity_is_retained_without_synthetic_number():
-    from igea_dgs.model import capacitor_from_source
+    from convertersmartgrid.model import capacitor_from_source
 
     bank = capacitor_from_source({'DeviceNumber': 'SIN_Q', 'NodeID': 'N1', 'Phase': 'ABC'})
 
@@ -49,7 +49,7 @@ def test_missing_capacity_is_retained_without_synthetic_number():
 
 
 def test_txt_reader_preserves_shunt_capacitor_setting(tmp_path):
-    from igea_dgs.dataset import CymdistDataset
+    from convertersmartgrid.dataset import CymdistDataset
     from synthetic_export import write_export
 
     red, loads, equipment = write_export(ExportSpec(feeders=1), tmp_path / 'export')
@@ -74,7 +74,7 @@ def test_txt_reader_preserves_shunt_capacitor_setting(tmp_path):
 
 
 def test_feeder_model_keeps_complete_and_incomplete_banks(tmp_path):
-    from igea_dgs.model import build_feeder_model
+    from convertersmartgrid.model import build_feeder_model
 
     dataset = load_export(ExportSpec(feeders=1), tmp_path / 'export')
     network_id = dataset.feeder_ids()[0]
@@ -94,7 +94,7 @@ def test_feeder_model_keeps_complete_and_incomplete_banks(tmp_path):
 
 
 def test_missing_node_and_ambiguous_feeder_are_audited(tmp_path):
-    from igea_dgs.source_contract import audit_source
+    from convertersmartgrid.source_contract import audit_source
 
     dataset = load_export(ExportSpec(feeders=2), tmp_path / 'export')
     shared = next(iter(dataset.nodes))
@@ -120,8 +120,8 @@ def test_missing_node_and_ambiguous_feeder_are_audited(tmp_path):
 
 
 def test_combined_model_preserves_capacitor_identity_and_resolves_shared_node():
-    from igea_dgs.combine import combine_models
-    from igea_dgs.model import CapacitorBank, FeederModel, Node
+    from convertersmartgrid.combine import combine_models
+    from convertersmartgrid.model import CapacitorBank, FeederModel, Node
 
     def feeder(name: str) -> FeederModel:
         bank = CapacitorBank(

@@ -15,34 +15,34 @@ de RF-25 es el contrato entre las dos mitades.
 ## Contexto técnico
 
 - Medidas por alimentador: `tools/estudios_pf.py` (`medida`, `medidas`) y `Limites` de
-  `src/igea_dgs/estudios_pf.py`. Se reutilizan, no se copian (P5).
-- Obras en variaciones de «Con proyecto»: `src/igea_dgs/obras_pf.py` y `tools/obras_pf.py`
+  `src/convertersmartgrid/estudios_pf.py`. Se reutilizan, no se copian (P5).
+- Obras en variaciones de «Con proyecto»: `src/convertersmartgrid/obras_pf.py` y `tools/obras_pf.py`
   (spec 011), con la troncal y la migración de la spec 016 (`troncal.py`, T6 a T8 de la
   016 pendientes).
 - Casos y restauración del proyecto: `tools/casos_pf.py`.
-- Medición de cabecera del mes de análisis: `src/igea_dgs/demanda_medida.py` (spec 013).
+- Medición de cabecera del mes de análisis: `src/convertersmartgrid/demanda_medida.py` (spec 013).
 - Exportación del diagrama: `GetGraphicsBoard().WriteWMF`, ya usada en
   `tools/powerfactory_acceptance.py`. Para el `.docx` se exporta a PNG; si la versión no lo
   permite, se convierte de WMF (T4 lo comprueba en DIgSILENT).
-- Trabajos de la web: carril `powerfactory` de `src/igea_dgs/web/jobs.py`, como los pasos
+- Trabajos de la web: carril `powerfactory` de `src/convertersmartgrid/web/jobs.py`, como los pasos
   3 y 4.
 
 ## Diseño por partes
 
 | Parte | Ficheros | Cubre |
 | --- | --- | --- |
-| 1. Configuración del informe | `src/igea_dgs/informes.py` (nuevo), `config/perfiles/electro_dunas.json` | RF-4, RF-5, RF-13, RF-14, RF-115 |
-| 2. Cálculos y veredictos | `src/igea_dgs/informes.py` | RF-15 a RF-19 (forma de los datos), RF-31, RF-33, RF-34, RF-43, RF-54 a RF-60, RF-71, RF-72 |
-| 3. Redacción | `src/igea_dgs/informes.py` | RF-20, RF-21, RF-22, RF-50, RF-107, RF-108, RF-121, RF-122 |
-| 4. Libro de pérdidas y tabla de costes | `src/igea_dgs/libros_informe.py` (nuevo), `config/costes_referenciales.example.json` (nuevo) | RF-39b a RF-39e, RF-40c, RF-61 a RF-64 |
-| 5. Escritura del `.docx` | `src/igea_dgs/informe_docx.py` (nuevo) | RF-2, RF-3, RF-6 a RF-9, RF-23 a RF-25, RF-27, RF-44, RF-45, RF-106, RF-113, RF-114, RF-118, RF-120 |
+| 1. Configuración del informe | `src/convertersmartgrid/informes.py` (nuevo), `config/perfiles/electro_dunas.json` | RF-4, RF-5, RF-13, RF-14, RF-115 |
+| 2. Cálculos y veredictos | `src/convertersmartgrid/informes.py` | RF-15 a RF-19 (forma de los datos), RF-31, RF-33, RF-34, RF-43, RF-54 a RF-60, RF-71, RF-72 |
+| 3. Redacción | `src/convertersmartgrid/informes.py` | RF-20, RF-21, RF-22, RF-50, RF-107, RF-108, RF-121, RF-122 |
+| 4. Libro de pérdidas y tabla de costes | `src/convertersmartgrid/libros_informe.py` (nuevo), `config/costes_referenciales.example.json` (nuevo) | RF-39b a RF-39e, RF-40c, RF-61 a RF-64 |
+| 5. Escritura del `.docx` | `src/convertersmartgrid/informe_docx.py` (nuevo) | RF-2, RF-3, RF-6 a RF-9, RF-23 a RF-25, RF-27, RF-44, RF-45, RF-106, RF-113, RF-114, RF-118, RF-120 |
 | 6. Guion: casos, medidas e imágenes | `tools/informes_pf.py` (nuevo), `tests/fake_pf.py` | RF-1, RF-1b, RF-10 a RF-12, RF-28 a RF-30, RF-46 a RF-49, RF-52, RF-53, RF-109 a RF-112, RF-116, RF-117 |
 | 7. Guion: etapas de obras | `tools/informes_pf.py`, `tools/obras_pf.py` | RF-32, RF-35 a RF-42c |
 | 8. Guion: transformador de la SET | `tools/informes_pf.py` | RF-65 a RF-70, RF-119 |
-| 9. API y CLI | `src/igea_dgs/web/{app,services,jobs}.py`, `tools/informes_pf.py --plan` | RF-26, RF-82, RF-96, RF-97, RF-99, RF-103 a RF-105 |
+| 9. API y CLI | `src/convertersmartgrid/web/{app,services,jobs}.py`, `tools/informes_pf.py --plan` | RF-26, RF-82, RF-96, RF-97, RF-99, RF-103 a RF-105 |
 | 10. Paso «5 · Informes» | `frontend/src/components/InformesPF.tsx` (nuevo), `FeedersPanel.tsx` | RF-73 a RF-95, RF-98, RF-100 a RF-102, RF-124, RF-125 |
 
-### 1 a 3. `src/igea_dgs/informes.py`
+### 1 a 3. `src/convertersmartgrid/informes.py`
 
 - `ConfigInforme.de_perfil(perfil)`: modelos de los dos informes, banda y umbral (`Limites`
   de la 011), bandas de los dos coloreados, proyecto de transmisión, hojas y columnas del
@@ -62,7 +62,7 @@ de RF-25 es el contrato entre las dos mitades.
   (RF-20). Las frases fijas del modelo (antecedentes, descripción) son plantillas en el
   módulo, con los huecos del formulario.
 
-### 4. `src/igea_dgs/libros_informe.py`
+### 4. `src/convertersmartgrid/libros_informe.py`
 
 - `leer_libro_perdidas(ruta, alimentador, columnas)`: sistema eléctrico, pérdidas
   reconocidas en potencia y en energía, y precio de compra. Las hojas y columnas se buscan
@@ -73,7 +73,7 @@ de RF-25 es el contrato entre las dos mitades.
 - `config/costes_referenciales.example.json`: precios de mercado buscados en la web, cada fila con
   su URL y fecha (RF-39d). Es un fichero de ejemplo versionado, sin datos de la empresa.
 
-### 5. `src/igea_dgs/informe_docx.py`
+### 5. `src/convertersmartgrid/informe_docx.py`
 
 - Se escribe con `python-docx`, abriendo el modelo de la empresa como documento base: así
   quedan su cabecera, su pie, su logo y sus estilos. Se vacía el cuerpo y se escriben las
@@ -161,7 +161,7 @@ de RF-25 es el contrato entre las dos mitades.
 
 ## Etapa de refuerzo (RF-126, RF-127, 2026-10-16)
 
-- `src/igea_dgs/informes.py`: `ETAPAS` gana `refuerzo` entre `conductor` y `migracion`;
+- `src/convertersmartgrid/informes.py`: `ETAPAS` gana `refuerzo` entre `conductor` y `migracion`;
   `_ETAPA_DE_CLASE` asigna a ella `terna` y `enlace`; `obra_para_informe` y
   `describir_obra` describen la terna (tramos) y el enlace (largo, conductor, extremos).
 
@@ -192,12 +192,12 @@ fichero vacío, así que las imágenes se dibujan con el GPS (RF-11b). El códig
 
 | Parte | Ficheros | RF |
 | --- | --- | --- |
-| Lo que no necesita DIgSILENT | `src/igea_dgs/informes.py` | perfil, cálculos y redacción |
-| Word | `src/igea_dgs/informe_docx.py` | RF-3, RF-6, RF-23, alternativas RF-128 a RF-135 |
-| Imágenes con el GPS | `src/igea_dgs/mapa_informe.py`; el GPS y el flujo de cada caso los guarda `tools/estudios_pf.py` | RF-10, RF-11b, RF-115, RF-116, RF-133 |
-| Libro de pérdidas | `src/igea_dgs/libros_informe.py` | RF-39b a RF-39e, RF-61 a RF-64 |
+| Lo que no necesita DIgSILENT | `src/convertersmartgrid/informes.py` | perfil, cálculos y redacción |
+| Word | `src/convertersmartgrid/informe_docx.py` | RF-3, RF-6, RF-23, alternativas RF-128 a RF-135 |
+| Imágenes con el GPS | `src/convertersmartgrid/mapa_informe.py`; el GPS y el flujo de cada caso los guarda `tools/estudios_pf.py` | RF-10, RF-11b, RF-115, RF-116, RF-133 |
+| Libro de pérdidas | `src/convertersmartgrid/libros_informe.py` | RF-39b a RF-39e, RF-61 a RF-64 |
 | Transformador de la SET | `tools/transformador_set_pf.py` | RF-65 a RF-68, RF-70 |
-| API (carril `engine`, con lo guardado) | `src/igea_dgs/web/{app,services}.py` | RF-26, RF-82 |
+| API (carril `engine`, con lo guardado) | `src/convertersmartgrid/web/{app,services}.py` | RF-26, RF-82 |
 | Paso «4.4 · Informes» | `frontend/src/components/InformesPF.tsx` | RF-73 a RF-95 (en parte) |
 
 Lo que falta sigue en las tareas abiertas T5, T7 a T12, T15 y T17, y en las de DIgSILENT T13 y T14.

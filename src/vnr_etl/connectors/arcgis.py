@@ -12,7 +12,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
-from igea_dgs.util import importar_opcional
+from convertersmartgrid.util import importar_opcional
 
 from .base import LayerInfo, SourceProbe, VNRSourceAdapter
 

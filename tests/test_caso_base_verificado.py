@@ -307,7 +307,7 @@ def test_calibrar_no_cambia_la_huella_y_un_cambio_fisico_si(monkeypatch):
     import fake_pf
     from test_ajuste_cabecera_guion import _plan
 
-    from igea_dgs.powerfactory_binding import (
+    from convertersmartgrid.powerfactory_binding import (
         PowerFactoryProjectBinding, native_inventory_evidence, project_binding_warnings,
     )
 

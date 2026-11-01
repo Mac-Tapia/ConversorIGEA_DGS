@@ -64,9 +64,9 @@ from cargas_pf import (
 from casos_pf import (NOMBRES, anio_del_plan, casos_del_proyecto, nombre_cargas_nuevas,
                       rol_de, sin_a_con_proyecto)
 
-from igea_dgs.estudios_pf import ESTUDIOS_012
-from igea_dgs.obras_pf import PREFIJO_VARIACION
-from igea_dgs.native_action import native_action_block_report
+from convertersmartgrid.estudios_pf import ESTUDIOS_012
+from convertersmartgrid.obras_pf import PREFIJO_VARIACION
+from convertersmartgrid.native_action import native_action_block_report
 
 #: Estudio → orden de DIgSILENT. Los dos flujos usan el ``ComLdf`` del caso.
 ORDENES = {
@@ -91,7 +91,7 @@ MAX_SALIDA = 60
 #: Pasos de traza de una contingencia, como tope: una de un tramo tiene uno o dos.
 MAX_PASOS_TRAZA = 50
 #: Nombre del ``ComSimoutage`` que crea el N-1 en el caso, y que borra al terminar.
-NOMBRE_N1 = 'N1_troncal_igea_dgs'
+NOMBRE_N1 = 'N1_troncal_convertersmartgrid'
 #: Guiones del operador (RF-27): DPL y Python, en el caso o en la carpeta ``script``.
 CLASES_GUION = ('ComDpl', 'ComPython')
 #: Casos donde se ejecutan los guiones del operador (RF-28): nunca en el «Caso base».
@@ -580,7 +580,7 @@ def _estudio_de_red(app, plan: dict, alims, feeders: list[str], informe: dict) -
     import capacidad_pf
     import confiabilidad_pf
 
-    from igea_dgs.estudios_red_pf import VARIACION_DATOS, cambios_de_estado
+    from convertersmartgrid.estudios_red_pf import VARIACION_DATOS, cambios_de_estado
 
     funcion = {'fiabilidad': confiabilidad_pf.fiabilidad, 'reconectadores': confiabilidad_pf.reconectadores,
                'alojamiento': capacidad_pf.alojamiento, 'curvas_pv': capacidad_pf.curvas_pv,
@@ -862,7 +862,7 @@ def main(argv=None) -> int:
         return 2
     # 019:RF-1 a RF-6: turno del motor de la máquina, reintento con el motor ocupado y
     # primera línea al responder, comunes a todos los guiones.
-    from igea_dgs.pf_arnes import PFNoDisponible, conectar
+    from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
 
     try:
         app = conectar('estudios_pf.py')

@@ -18,7 +18,7 @@ alimentador entero), así que se construye sobre el camino que sí da (plan de l
    punto —el seccionador, o el tramo aguas arriba de la barra fuera de servicio para el
    resultado por nodos (RF-113)— con un flujo de carga en cada paso (RF-109). La medida
    de cada paso es la del alimentador que recibe más la parte transferida.
-4. ``igea_dgs.transferencia_pf`` juzga cada paso y resume el sentido (RF-110 a RF-117,
+4. ``convertersmartgrid.transferencia_pf`` juzga cada paso y resume el sentido (RF-110 a RF-117,
    RF-129).
 5. En la configuración del seccionador viable más lejano, la capacidad del enlace: hasta
    dónde puede subir la carga de la parte transferida sin pasar un límite del que recibe
@@ -66,9 +66,9 @@ from cargas_pf import (
 from casos_pf import NOMBRES, tres_casos
 from estudios_pf import medida
 
-from igea_dgs.estudios_pf import EstudiosError, limites_de_perfil
-from igea_dgs.native_action import native_action_block_report
-from igea_dgs.transferencia_pf import (
+from convertersmartgrid.estudios_pf import EstudiosError, limites_de_perfil
+from convertersmartgrid.native_action import native_action_block_report
+from convertersmartgrid.transferencia_pf import (
     NODO, SECCIONADOR, Punto, escribir_fichero, juzgar, margen, maximo_factor,
     pasos_del_camino, resumir_sentido, seleccionar_critico,
 )
@@ -80,7 +80,7 @@ USO_SECCIONADOR = 'dct'
 #: Ramas de un camino que se pueden sacar de servicio para el resultado por nodos.
 RAMAS = ('ElmLne', 'ElmCoup', 'ElmTr2')
 #: Lo que el guion crea para ``ComTransfer`` y borra al terminar.
-NOMBRE_TC = 'Capacidad_enlace_igea_dgs'
+NOMBRE_TC = 'Capacidad_enlace_convertersmartgrid'
 #: Opciones de ``ComTransfer`` (etiquetas de ``localisation/en-GB/data.db`` de PF 2024, en
 #: su orden: la API no da los valores; los confirma la prueba real, T19).
 TC_POR_ELEMENTOS = 1          # iopt_method: «Element selection»
@@ -775,7 +775,7 @@ def main(argv=None) -> int:
         return 2
     # 019:RF-1 a RF-6: turno del motor de la máquina, reintento con el motor ocupado y
     # primera línea al responder, comunes a todos los guiones.
-    from igea_dgs.pf_arnes import PFNoDisponible, conectar
+    from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
 
     try:
         app = conectar('transferencia_pf.py')

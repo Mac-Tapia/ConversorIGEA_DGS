@@ -13,7 +13,7 @@ import sys
 RAIZ = Path(__file__).resolve().parents[1]
 if str(RAIZ / 'src') not in sys.path:
     sys.path.insert(0, str(RAIZ / 'src'))
-from igea_dgs.upstream_ia import preparar_catalogo
+from convertersmartgrid.upstream_ia import preparar_catalogo
 
 
 def main(argv=None) -> int:

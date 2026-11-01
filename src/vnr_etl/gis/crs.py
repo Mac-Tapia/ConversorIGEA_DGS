@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 
-from igea_dgs.geography import make_transformer
-from igea_dgs.util import importar_opcional
+from convertersmartgrid.geography import make_transformer
+from convertersmartgrid.util import importar_opcional
 
 
 class CRSError(RuntimeError):

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import random
 
-from igea_dgs.capacidades import Linea, Trafo, comparar_equipos, equipos_de_dgs
-from igea_dgs.validate import parse_dgs
+from convertersmartgrid.capacidades import Linea, Trafo, comparar_equipos, equipos_de_dgs
+from convertersmartgrid.validate import parse_dgs
 
 _CAB = {
     'TypTr2': 'FID(a:40);OP(a:1);loc_name(a:40);nt2ph(i);strn(r);frnom(r);utrn_h(r);utrn_l(r);'

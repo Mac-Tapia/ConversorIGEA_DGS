@@ -49,17 +49,23 @@ from pathlib import Path
 from cargas_pf import _num, activar_proyecto, crear_variacion, error_inesperado, nombre_libre
 from casos_pf import NOMBRES, casos_del_proyecto
 
-from igea_dgs import datos_empresa as de
-from igea_dgs import estudios_red_pf as er
-from igea_dgs.native_action import native_action_block_report
+from convertersmartgrid import datos_empresa as de
+from convertersmartgrid import estudios_red_pf as er
+from convertersmartgrid.native_action import native_action_block_report
 
 #: Variación propia de la spec 012 (RF-21).
 VARIACION = er.VARIACION_DATOS
 #: Carpeta de la biblioteca del proyecto con los modelos ``Sto*`` y su prefijo (RF-23).
-CARPETA_MODELOS = 'IGEA_confiabilidad'
-PREFIJO_MODELO = 'IGEA012_'
+CARPETA_MODELOS = 'CSG_confiabilidad'
+PREFIJO_MODELO = 'CSG012_'
 #: Interruptor de cabecera que crea RF-69.
-NOMBRE_CABECERA = 'IGEA012_cabecera'
+NOMBRE_CABECERA = 'CSG012_cabecera'
+#: Nombres anteriores a la spec 058, solo para reconocer lo que ya está en los proyectos de
+#: DIgSILENT (no se renombran, 058:RF-9): sin esto, sus modelos y su cabecera se tomarían
+#: por ajenos.
+PREFIJO_ANTERIOR = 'IGEA012_'  # legado-058
+PREFIJOS_MODELO = (PREFIJO_MODELO, PREFIJO_ANTERIOR)
+NOMBRES_CABECERA = (NOMBRE_CABECERA, PREFIJO_ANTERIOR + 'cabecera')
 #: Clase de modelo de falla por clase de elemento.
 MODELO = {'linea': 'StoTyplne', 'cable': 'StoTyplne', 'transformador': 'StoTyptrf', 'barra': 'StoTypbar'}
 #: Clases con modelo de falla asignable; las demás solo deciden el despeje (RF-27).
@@ -74,8 +80,8 @@ INTERRUPTORES = ('StaSwitch', 'ElmCoup')
 OPCIONES_REL3 = {'iopt_type': 1, 'iopt_net': 1}
 #: ``ComOpri.objective`` (plan: 0 ENS, 1 SAIDI); ``locations`` 1 = con protección.
 OBJETIVO_OPRI = {'ens': 0, 'saidi': 1}
-NOMBRE_REL3 = 'Confiabilidad_igea_dgs'
-NOMBRE_OPRI = 'Reconectadores_igea_dgs'
+NOMBRE_REL3 = 'Confiabilidad_convertersmartgrid'
+NOMBRE_OPRI = 'Reconectadores_convertersmartgrid'
 
 
 # =========================================================================== clases
@@ -92,7 +98,7 @@ def clase_de_equipo(sw, clases_entrada: dict[str, str]) -> str | None:
     La entrada cargada manda (el DGS escribe interruptores, reconectadores y fusibles como
     ``cbk``); sin ella, solo seccionadores y seccionalizadores se reconocen por su ``aUsage``.
     """
-    if sw.loc_name.startswith(NOMBRE_CABECERA) or _es_interno_de_sed(sw):
+    if sw.loc_name.startswith(NOMBRES_CABECERA) or _es_interno_de_sed(sw):
         return 'interruptor'
     if sw.loc_name in clases_entrada:
         return CLASE_EXPORT.get(str(clases_entrada[sw.loc_name]).upper())
@@ -145,7 +151,7 @@ def escribir_modelos(app, libro: de.Libro) -> dict[str, object]:
     for tipo, tasa in libro.tasas_por_tipo.items():
         queridos[f'{PREFIJO_MODELO}tipo_{tipo}'] = (MODELO[tasa.clase], tasa)
     existentes = {o.loc_name: o for o in carpeta.GetContents('*')
-                  if o.loc_name.startswith(PREFIJO_MODELO)}
+                  if o.loc_name.startswith(PREFIJOS_MODELO)}
     for nombre, o in existentes.items():
         if nombre not in queridos or o.GetClassName() != queridos[nombre][0]:
             o.Delete()
@@ -388,7 +394,7 @@ def candidatos(elm, clases_entrada: dict[str, str]) -> tuple[list, list]:
     for sw in interruptores_de(elm):
         clase = clase_de_equipo(sw, clases_entrada)
         candidato = (clase in ('interruptor', 'reconectador') and not _es_interno_de_sed(sw)
-                     and not sw.loc_name.startswith(NOMBRE_CABECERA))
+                     and not sw.loc_name.startswith(NOMBRES_CABECERA))
         (si if candidato else no).append(sw)
     return si, no
 
@@ -431,7 +437,7 @@ def reconectadores(app, plan: dict, alims, feeders: list[str], informe: dict) ->
     antes = {sw.loc_name: getattr(sw, 'rel_hasRecl', 0) for sw in cand}
     carpeta = app.GetProjectFolder('scheme')
     previas = {v.loc_name for v in carpeta.GetContents('*.IntScheme', 1)}
-    seleccion = caso.CreateObject('SetSelect', nombre_libre(caso, 'SetSelect', 'Excluidos_igea_dgs'))
+    seleccion = caso.CreateObject('SetSelect', nombre_libre(caso, 'SetSelect', 'Excluidos_convertersmartgrid'))
     seleccion.AddRef(excluidos)
     orden = orden_propia(app, 'ComOpri', NOMBRE_OPRI)
     nombre_var = nombre_libre(carpeta, 'IntScheme', 'Reconectadores_temporal')
@@ -489,7 +495,7 @@ def main(argv=None) -> int:
                                           encoding='utf-8')
         print(blocked['error'])
         return 2
-    from igea_dgs.pf_arnes import PFNoDisponible, conectar
+    from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
 
     try:
         app = conectar('confiabilidad_pf.py')

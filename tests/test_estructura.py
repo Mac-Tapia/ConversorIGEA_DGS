@@ -7,9 +7,9 @@ import random
 
 import pytest
 
-from igea_dgs import estructura as es
+from convertersmartgrid import estructura as es
 
-SEMILLA = int(os.environ.get('IGEA_SCALE_SEED', random.randrange(1 << 30)))
+SEMILLA = int(os.environ.get('CSG_SCALE_SEED', random.randrange(1 << 30)))
 
 
 def _tabla(rng):
@@ -131,7 +131,7 @@ def test_la_estructura_de_electro_dunas_en_su_perfil(tmp_path):
     de la tabla pública: 4 zonales, NA205 en SET 51 Nasca, siglas SI → SEIN, PA → Paracas."""
     from pathlib import Path
 
-    from igea_dgs.perfil_empresa import estructura_empresa
+    from convertersmartgrid.perfil_empresa import estructura_empresa
 
     local = tmp_path / 'perfil_empresa.json'
     local.write_text('{"perfil": "electro_dunas"}', encoding='utf-8')
@@ -163,7 +163,7 @@ def test_la_estructura_de_electro_dunas_en_su_perfil(tmp_path):
 def _ed():
     from pathlib import Path
 
-    from igea_dgs.perfil_empresa import estructura_empresa
+    from convertersmartgrid.perfil_empresa import estructura_empresa
     carpeta = Path(__file__).resolve().parents[1] / 'config' / 'perfiles'
     import tempfile
     d = Path(tempfile.mkdtemp())
@@ -176,7 +176,7 @@ def test_medidores_de_barra_del_libro(tmp_path):
     de central y la barra suelta de un alimentador («Barra/CHI201»)."""
     from openpyxl import Workbook
 
-    from igea_dgs.demanda_medida import leer_medidores_de_barra
+    from convertersmartgrid.demanda_medida import leer_medidores_de_barra
 
     wb = Workbook()
     h = wb.active
@@ -199,7 +199,7 @@ def test_barras_de_calibracion_con_la_estructura_de_electro_dunas():
     central en su barra; SI es SEIN; unas siglas sin SET (QX), barra suelta de sus
     alimentadores; sin medidor de barra, el alimentador queda con su propia máxima.
     022:RF-81: CHNB1T1 es de la SET CHN y lleva a CN101, que el libro llama CHN101."""
-    from igea_dgs.demanda_medida import MedidorBarra, barras_de_calibracion
+    from convertersmartgrid.demanda_medida import MedidorBarra, barras_de_calibracion
 
     M = lambda med, kv, sig, ct=False, al='': MedidorBarra(med, kv, sig, ct, 1, al)  # noqa: E731
     medidores = [M('B-PA2T1', 22.9, 'PA'), M('B-PA1T1', 10.0, 'PA'), M('B-PA6T1', 220.0, 'PA'),
@@ -230,7 +230,7 @@ def test_barra_de_60_kv_fija_el_instante_de_toda_su_set():
     uno de 220 kV no se usan, sin barra suelta."""
     import random
 
-    from igea_dgs.demanda_medida import MedidorBarra, barras_de_calibracion
+    from convertersmartgrid.demanda_medida import MedidorBarra, barras_de_calibracion
 
     e = _ed()
     rng = random.Random(84)
@@ -269,8 +269,8 @@ def test_siglas_de_una_set_nueva_son_el_mismo_alimentador():
     """022:RF-81 — CN101 de la red y CHN101 de los libros son el mismo alimentador de la SET
     nueva Chincha Nueva: misma SET, sus medidores y no «faltan»; sin siglas declaradas
     juntas, nada se casa."""
-    from igea_dgs.demanda_medida import Medidor, medidores_de
-    from igea_dgs.estructura import asignar
+    from convertersmartgrid.demanda_medida import Medidor, medidores_de
+    from convertersmartgrid.estructura import asignar
 
     e = _ed()
     for a in ('CHN101', 'CHN102', 'CHN103', 'CHN201'):
@@ -291,7 +291,7 @@ def test_maxima_de_la_barra_suma_sus_transformadores():
     que tienen todos, y su fecha es el instante de sus alimentadores."""
     from datetime import datetime, timedelta
 
-    from igea_dgs.demanda_medida import maxima_de_barra
+    from convertersmartgrid.demanda_medida import maxima_de_barra
 
     t0 = datetime(2026, 7, 1)
     t1 = [(t0 + timedelta(minutes=15 * i), 100.0 + i, 10.0) for i in range(10)]

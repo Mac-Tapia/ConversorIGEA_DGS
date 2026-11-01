@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
 
-from igea_dgs.util import importar_opcional, sha256_file
+from convertersmartgrid.util import importar_opcional, sha256_file
 
 
 class DownloadError(RuntimeError):

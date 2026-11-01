@@ -12,9 +12,9 @@ carga nueva. Cada carga se conecta con solo la base y su variación activas, se 
 
 | Fichero | Cambio | RF |
 | --- | --- | --- |
-| `src/igea_dgs/cargas_pf.py` | `armar_plan(..., base=None)`: el plan lleva `base` (variación, alimentador, cuadró, desvío, cabecera, SED calibradas), `variacion_demandas` y, por carga, el nombre base de su variación `Carga_<SED>_<alim>_<stamp>`. Las SED calibradas que cambia el libro de demandas van en `calibradas_cambiadas`. | RF-1, RF-10, RF-19, RF-21, RF-34 |
-| `src/igea_dgs/web/services.py` | `cargas_plan(..., ajuste_job=None)`: toma la base del trabajo `ajuste_aplicar` (como `ajuste_plan` toma la máxima de su trabajo) y comprueba que es del mismo proyecto; sin trabajo, sin base. | RF-1, RF-4, RF-5, RF-34 |
-| `src/igea_dgs/web/app.py` | El endpoint del plan de cargas acepta `ajuste_job_id`. | RF-1 |
+| `src/convertersmartgrid/cargas_pf.py` | `armar_plan(..., base=None)`: el plan lleva `base` (variación, alimentador, cuadró, desvío, cabecera, SED calibradas), `variacion_demandas` y, por carga, el nombre base de su variación `Carga_<SED>_<alim>_<stamp>`. Las SED calibradas que cambia el libro de demandas van en `calibradas_cambiadas`. | RF-1, RF-10, RF-19, RF-21, RF-34 |
+| `src/convertersmartgrid/web/services.py` | `cargas_plan(..., ajuste_job=None)`: toma la base del trabajo `ajuste_aplicar` (como `ajuste_plan` toma la máxima de su trabajo) y comprueba que es del mismo proyecto; sin trabajo, sin base. | RF-1, RF-4, RF-5, RF-34 |
+| `src/convertersmartgrid/web/app.py` | El endpoint del plan de cargas acepta `ajuste_job_id`. | RF-1 |
 | `tools/cargas_pf.py` | `activar_base` (busca el `IntScheme` por nombre en la carpeta `scheme`, lo activa; RF-7 si no está), `variaciones_activas` para el informe, `resolver_nuevas(..., activo=)` para buscar solo en el alimentador activo, y un `ejecutar` por fases: demandas → flujo sin proyecto → una variación por carga → base al final. | RF-6 a RF-18, RF-24 a RF-33, RF-35 |
 | `tools/ajuste_cabecera_pf.py` → `tools/cargas_pf.py` | `medir_cabecera` y `potencia` pasan a `cargas_pf.py` (el ajuste ya importa de allí) para medir la cabecera con y sin proyecto sin importar en círculo. | RF-13, RF-32, RF-33 |
 | `tests/fake_pf.py` | Variaciones con `Activate`/`Deactivate` y `GetActiveNetworkVariations`; los objetos creados con una etapa grabando quedan fuera de la red cuando su variación se desactiva, para que el flujo de la carga *i* no vea la *i−1*. | apoyo RF-11, RF-12, RF-17 |

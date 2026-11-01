@@ -28,8 +28,8 @@ import math
 
 import pytest
 
-from igea_dgs.dataset import CymdistDataset
-from igea_dgs.model import (LARGO_MAXIMO_CARGA_CENTRAL_M, Line, ModelBuildError,
+from convertersmartgrid.dataset import CymdistDataset
+from convertersmartgrid.model import (LARGO_MAXIMO_CARGA_CENTRAL_M, Line, ModelBuildError,
                             _load_node, build_feeder_model)
 from synthetic_export import ExportSpec, load_export, write_export
 
@@ -126,8 +126,8 @@ class TestElCatalogoDeCables:
 
     def test_la_lista_de_tablas_es_una_sola(self):
         """Cada módulo llevaba su propia copia, y se desincronizaron."""
-        from igea_dgs import catalog_merge
-        from igea_dgs.dataset import TABLAS_TIPOS_LINEA
+        from convertersmartgrid import catalog_merge
+        from convertersmartgrid.dataset import TABLAS_TIPOS_LINEA
 
         assert catalog_merge.TABLAS_DE_TIPOS == TABLAS_TIPOS_LINEA
         assert 'CABLE' in TABLAS_TIPOS_LINEA
@@ -205,7 +205,7 @@ class TestElContratoDelConductorPorTramo:
 class TestLaConversionCompletaFuncionaConLasDos:
     @pytest.mark.parametrize('layout', LAYOUTS)
     def test_se_escribe_un_dgs_por_alimentador(self, tmp_path, layout):
-        from igea_dgs.batch import convert_selection
+        from convertersmartgrid.batch import convert_selection
 
         ds = load_export(_spec(layout), tmp_path / layout)
         salida = tmp_path / f'out_{layout}'
@@ -255,7 +255,7 @@ class TestLaEntregaRealLarga:
             'todo tramo del export largo trae conductor en las tablas de ajuste')
 
     def test_el_catalogo_cubre_el_cien_por_cien(self, entrega):
-        from igea_dgs import catalog_merge
+        from convertersmartgrid import catalog_merge
 
         informe = catalog_merge.diagnosticar(entrega)
         assert informe.cobertura_final == pytest.approx(1.0), (
@@ -309,7 +309,7 @@ class TestLosEquiposDeManiobraSegunSuClase:
     @pytest.mark.parametrize('layout', LAYOUTS)
     def test_seccionador_y_seccionalizador_con_su_uso(self, tmp_path, layout):
         """011:RF-128 — con las dos disposiciones: seccionadores ``dct``, seccionalizadores ``swt``."""
-        from igea_dgs.batch import convert_selection
+        from convertersmartgrid.batch import convert_selection
 
         spec = _spec(layout, switches_per_feeder=1, sectionalizers_per_feeder=2)
         ds = load_export(spec, tmp_path / layout)
@@ -333,8 +333,8 @@ def test_sigla_alternativa_valida_con_su_canonica(tmp_path, monkeypatch, layout)
     """022:RF-90 / 027:T23 — con una SET de siglas alternativas en el perfil, el DGS escribe la
     canónica en todos los nombres (también el nodo de cabecera y la red) y la validación
     estricta lo da por bueno: con Chincha Nueva (CN → CHN) la conversión fallaba (2026-10-28)."""
-    from igea_dgs import dgs, naming, validate
-    from igea_dgs.batch import convert_selection
+    from convertersmartgrid import dgs, naming, validate
+    from convertersmartgrid.batch import convert_selection
 
     canon = lambda: {'AL': 'ALT'}
     for modulo in (naming, dgs, validate):

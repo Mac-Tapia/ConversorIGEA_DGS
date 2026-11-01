@@ -3,9 +3,9 @@
 Los tests del estudio son sintéticos y siempre corren. Los de la base necesitan un
 ``.mdb`` real —que no es publicable— y se activan con variables de entorno:
 
-    set IGEA_MDB=D:\\ruta\\BaseDatos.mdb
-    set IGEA_EQUIPMENT_MDB=D:\\ruta\\OtraBase.mdb   (opcional)
-    set IGEA_STUDY=D:\\ruta\\estudio.zxst           (opcional)
+    set CSG_MDB=D:\\ruta\\BaseDatos.mdb
+    set CSG_EQUIPMENT_MDB=D:\\ruta\\OtraBase.mdb   (opcional)
+    set CSG_STUDY=D:\\ruta\\estudio.zxst           (opcional)
 
 La base se valida por sí misma, sin compararla con los TXT: las dos fuentes son
 independientes y pueden ser de otra fecha o de otra empresa (2026-10-14).
@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pytest
 
-from igea_dgs.study import STUDY_SUFFIXES, StudyReadError, describe, study_networks
+from convertersmartgrid.study import STUDY_SUFFIXES, StudyReadError, describe, study_networks
 
 
 def _write_study(path: Path, networks: list[str], *, zipped: bool = True) -> Path:
@@ -106,7 +106,7 @@ class TestNominalVoltageReconstruction:
     """CYMSOURCE guarda la fase-neutro; la nominal es ×√3 y hay que redondearla."""
 
     def test_phase_to_phase_is_recovered_exactly(self):
-        from igea_dgs.access import _nominal_kv
+        from convertersmartgrid.access import _nominal_kv
 
         # Valores reales de un export: 5.773503 → 10 kV, 13.221321 → 22.9 kV.
         assert _nominal_kv(5.773503) == '10'
@@ -114,7 +114,7 @@ class TestNominalVoltageReconstruction:
         assert _nominal_kv(7.621024) == '13.2'
 
     def test_absent_or_invalid_voltage_yields_empty(self):
-        from igea_dgs.access import _nominal_kv
+        from convertersmartgrid.access import _nominal_kv
 
         assert _nominal_kv(None) == ''
         assert _nominal_kv('no-es-numero') == ''
@@ -132,7 +132,7 @@ class TestPhaseCodeDecoding:
     """
 
     def test_codes_map_to_the_letters_the_engine_uses(self):
-        from igea_dgs.access import _phase
+        from convertersmartgrid.access import _phase
 
         assert _phase(1) == 'A'
         assert _phase(2) == 'B'
@@ -144,13 +144,13 @@ class TestPhaseCodeDecoding:
 
     def test_it_is_an_enumeration_not_a_bitmask(self):
         """3 es 'C', no 'A+B': tratarlo como máscara de bits daría fases erróneas."""
-        from igea_dgs.access import _phase
+        from convertersmartgrid.access import _phase
 
         assert _phase(3) == 'C'
         assert _phase(4) == 'AB'
 
     def test_unknown_or_absent_code_is_empty(self):
-        from igea_dgs.access import _phase
+        from convertersmartgrid.access import _phase
 
         assert _phase(None) == ''
         assert _phase(0) == ''
@@ -168,21 +168,21 @@ class TestPhaseCodeDecoding:
 class TestAccessErrorsAreActionable:
     def test_missing_database_is_reported(self, tmp_path):
         pytest.importorskip('pyodbc')
-        from igea_dgs.access import AccessReadError, read_access_dataset
+        from convertersmartgrid.access import AccessReadError, read_access_dataset
 
         with pytest.raises(AccessReadError, match='No se encuentra'):
             read_access_dataset(tmp_path / 'no-existe.mdb')
 
     def test_available_reports_driver_presence(self):
-        from igea_dgs.access import available
+        from convertersmartgrid.access import available
 
         assert isinstance(available(), bool)
 
 
 # ---------------------------------------------------------------- integración real
 
-MDB = os.environ.get('IGEA_MDB', '').strip()
-SKIP_MDB = 'Defina IGEA_MDB con la ruta de una base de red CYMDIST (.mdb)'
+MDB = os.environ.get('CSG_MDB', '').strip()
+SKIP_MDB = 'Defina CSG_MDB con la ruta de una base de red CYMDIST (.mdb)'
 
 
 @pytest.fixture(scope='session')
@@ -190,10 +190,10 @@ def access_dataset():
     if not MDB or not Path(MDB).is_file():
         pytest.skip(SKIP_MDB)
     pytest.importorskip('pyodbc')
-    from igea_dgs.access import AccessReadError, read_access_dataset
+    from convertersmartgrid.access import AccessReadError, read_access_dataset
 
     try:
-        return read_access_dataset(MDB, equipment_db=os.environ.get('IGEA_EQUIPMENT_MDB') or None)
+        return read_access_dataset(MDB, equipment_db=os.environ.get('CSG_EQUIPMENT_MDB') or None)
     except AccessReadError as exc:
         pytest.skip(f'No se pudo leer {MDB}: {exc}')
 
@@ -209,7 +209,7 @@ class TestAccessDatasetIsUsable:
         assert not sin_config[:5], f'{len(sin_config)} tramos sin LINE CONFIGURATION'
 
     def test_every_feeder_converts(self, access_dataset, tmp_path):
-        from igea_dgs.batch import convert_selection
+        from convertersmartgrid.batch import convert_selection
 
         manifest = convert_selection(
             access_dataset, None, tmp_path / 'out', all_feeders=True,
@@ -233,13 +233,13 @@ class TestAccessDatasetIsUsable:
         ][:5]
 
     def test_study_limits_the_networks_read(self, access_dataset):
-        from igea_dgs.access import read_access_dataset
+        from convertersmartgrid.access import read_access_dataset
 
         subset = sorted(access_dataset.feeder_ids())[:2]
         if len(subset) < 2:
             pytest.skip('se necesitan al menos 2 alimentadores')
         limited = read_access_dataset(
-            MDB, equipment_db=os.environ.get('IGEA_EQUIPMENT_MDB') or None, networks=subset,
+            MDB, equipment_db=os.environ.get('CSG_EQUIPMENT_MDB') or None, networks=subset,
         )
         assert set(limited.feeder_ids()) == set(subset)
         # Los nodos NO se filtran: hay tramos que referencian nodos de otra red.

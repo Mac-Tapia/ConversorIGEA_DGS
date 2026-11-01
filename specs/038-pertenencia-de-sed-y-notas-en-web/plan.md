@@ -11,7 +11,7 @@
    reconstrucciones explícitas (RF-5).
    Rechazar el plan si quedan clientes ambiguos en su alcance (RF-8).
 4. Mostrar notas por fila y un aviso visible del criterio. Aclarar que se usa la fuente
-   exportada cargada y que los planos previos de IGEA quedan fuera del alcance (RF-2, RF-7).
+   exportada cargada y que los planos previos de la distribuidora quedan fuera del alcance (RF-2, RF-7).
 
 ## Verificación
 

@@ -5,10 +5,10 @@ from dataclasses import replace
 
 import pytest
 
-from igea_dgs import oraculo
-from igea_dgs.combine import combine_models, estructurar
-from igea_dgs.enlaces import abrir_caminos_cerrados
-from igea_dgs.estructura import estructura_de_dict
+from convertersmartgrid import oraculo
+from convertersmartgrid.combine import combine_models, estructurar
+from convertersmartgrid.enlaces import abrir_caminos_cerrados
+from convertersmartgrid.estructura import estructura_de_dict
 from test_combine import _alimentador
 
 pytest.importorskip('pandapower')

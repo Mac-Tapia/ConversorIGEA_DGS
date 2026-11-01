@@ -9,8 +9,8 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from igea_dgs import transferencia_pf as tp
-from igea_dgs.estudios_pf import Limites
+from convertersmartgrid import transferencia_pf as tp
+from convertersmartgrid.estudios_pf import Limites
 
 #: Semillas de los sorteos: largo del camino, cargas, seccionadores y paso que limita.
 SEMILLAS = (5, 17, 38, 71)

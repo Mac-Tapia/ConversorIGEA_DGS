@@ -3,7 +3,7 @@
 **Fecha:** 2026-10-25
 
 **Estado:** pendiente de aprobación del usuario
-**Alcance:** asistente de órdenes, recuperación documental y gemelo digital de IGEA-DGS
+**Alcance:** asistente de órdenes, recuperación documental y gemelo digital de ConverterSmartGrid
 
 ## 1. Intención
 

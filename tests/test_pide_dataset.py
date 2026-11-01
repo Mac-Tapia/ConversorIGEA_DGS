@@ -10,7 +10,7 @@ CONTRATO = Path(__file__).parents[1] / 'config' / 'pide_universal_2017.json'
 
 def test_contrato_cubre_articulos_formatos_y_etapas_sin_empresa():
     """Falla si se pierde un artículo/formato o una empresa contamina la metodología."""
-    from igea_dgs.pide_dataset import cargar_contrato
+    from convertersmartgrid.pide_dataset import cargar_contrato
 
     contrato = cargar_contrato(CONTRATO)
 
@@ -32,7 +32,7 @@ def test_contrato_cubre_articulos_formatos_y_etapas_sin_empresa():
 
 def test_inventario_conserva_custodia_clasifica_y_deduplica(tmp_path):
     """Falla si una copia se pierde, si falta SHA-256 o si se filtra la ruta absoluta."""
-    from igea_dgs.pide_dataset import cargar_contrato, inventariar
+    from convertersmartgrid.pide_dataset import cargar_contrato, inventariar
 
     raiz = tmp_path / 'PIDE EMPRESA'
     entrega = raiz / 'PIDE 2026' / '4.2 INFORME PIDE' / '11.1 ANEXO 01'
@@ -64,7 +64,7 @@ def test_inventario_conserva_custodia_clasifica_y_deduplica(tmp_path):
 
 def test_inventario_rechaza_archivo_que_cambia_durante_huella(tmp_path, monkeypatch):
     """Falla si se publica una huella cuando tamaño o fecha cambian durante la lectura."""
-    from igea_dgs import pide_dataset
+    from convertersmartgrid import pide_dataset
 
     ruta = tmp_path / 'cambia.bin'
     ruta.write_bytes(b'abc')
@@ -91,7 +91,7 @@ def test_extrae_docx_xlsx_csv_pdf_y_geojson_reales(tmp_path):
     from docx import Document
     from openpyxl import Workbook
     from pypdf import PdfWriter
-    from igea_dgs.pide_dataset import cargar_contrato, extraer_archivo, inventariar
+    from convertersmartgrid.pide_dataset import cargar_contrato, extraer_archivo, inventariar
 
     raiz = tmp_path / 'corpus'
     raiz.mkdir()
@@ -136,7 +136,7 @@ def test_extrae_docx_xlsx_csv_pdf_y_geojson_reales(tmp_path):
 
 def test_extraccion_no_finge_lectura_de_duplicados_corruptos_o_propietarios(tmp_path):
     """Falla si un binario, copia o ZIP roto se presenta como contenido aprendido."""
-    from igea_dgs.pide_dataset import cargar_contrato, extraer_archivo, inventariar
+    from convertersmartgrid.pide_dataset import cargar_contrato, extraer_archivo, inventariar
 
     raiz = tmp_path / 'corpus'
     raiz.mkdir()
@@ -157,7 +157,7 @@ def test_extraccion_no_finge_lectura_de_duplicados_corruptos_o_propietarios(tmp_
 def test_publicacion_llm_es_atomica_determinista_y_tiene_custodia(tmp_path):
     """Falla si el corpus cambia sin cambiar entradas o publica texto sin procedencia."""
     from docx import Document
-    from igea_dgs.pide_dataset import construir_dataset
+    from convertersmartgrid.pide_dataset import construir_dataset
 
     raiz = tmp_path / 'corpus'
     raiz.mkdir()
@@ -208,7 +208,7 @@ def test_dataset_real_pideelor_cubre_cada_archivo_y_articulo(tmp_path):
     ``output/pide_dataset`` que solo existía si alguien lo había generado antes, y fijaba
     1397 ficheros, que cambian con cada expediente (2026-10-27).
     """
-    from igea_dgs.pide_dataset import construir_dataset
+    from convertersmartgrid.pide_dataset import construir_dataset
 
     repo = Path(__file__).parents[1]
     fuente = repo / 'referencia' / 'PIDEELOR'
@@ -235,7 +235,7 @@ def test_docx_que_python_docx_no_abre_se_lee_igual(tmp_path, monkeypatch):
     PIDEELOR) hacía fallar a python-docx: su texto se lee de word/document.xml y se avisa."""
     import docx
     from docx import Document
-    from igea_dgs import pide_dataset as pd
+    from convertersmartgrid import pide_dataset as pd
 
     doc = Document()
     doc.add_paragraph('Alternativa de inversión por cambio de conductor.')

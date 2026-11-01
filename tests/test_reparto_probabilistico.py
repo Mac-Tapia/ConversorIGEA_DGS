@@ -5,7 +5,7 @@ import random
 
 import pytest
 
-from igea_dgs.ajuste_cabecera import (
+from convertersmartgrid.ajuste_cabecera import (
     AjusteError, Fija, Objetivo, Probabilistico, montecarlo, muestra_de_reparto, percentil,
     probabilistico_de_fijas, probabilistico_del_perfil, reparto_inicial)
 
@@ -156,8 +156,8 @@ def test_la_sed_medida_en_31_queda_fija_y_fuera_del_sorteo(guion):
 def test_el_plan_guarda_las_medidas_de_31_y_las_da_al_alimentador(tmp_path):
     """041:RF-9 — el libro de 3.1 se guarda por proyecto y el plan de la calibración lleva solo
     las SED de ese alimentador; sin libro, ninguna."""
-    from igea_dgs.web import services
-    from igea_dgs.web.workspace import Workspace
+    from convertersmartgrid.web import services
+    from convertersmartgrid.web.workspace import Workspace
 
     ws = Workspace(id='w', root=tmp_path / 'ws')
     assert services.sed_medidas_de(ws, 'P', ['SE1']) == []

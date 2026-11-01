@@ -2,7 +2,7 @@
 
 Spec 034: 034:RF-9.
 """
-from igea_dgs.model import build_feeder_model
+from convertersmartgrid.model import build_feeder_model
 
 
 def test_build_sample_feeder_without_any_reference_dgs(ds, sample_feeder):
@@ -83,7 +83,7 @@ def test_source_only_feeder_is_drawn_instead_of_rejected(tmp_path):
     georreferencia— sin inventar tramos, cargas ni SED, y avisando de forma
     inequívoca de que no es un alimentador modelado.
     """
-    from igea_dgs.dataset import CymdistDataset
+    from convertersmartgrid.dataset import CymdistDataset
 
     red = tmp_path / 'RED.txt'
     loads = tmp_path / 'CARGA.txt'

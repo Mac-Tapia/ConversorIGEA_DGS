@@ -45,7 +45,7 @@ ejecuta scripts de los proyectos. Un informe con `ok: false` devuelve código 2.
 ## Adaptador PowerFlowNet implementado
 
 `Entrenamiento(arquitectura='powerflownet')` selecciona el MPN original mediante
-`digital_twin/adaptador_pyg.py`; `arquitectura='igea'` conserva el candidato vigente.
+`digital_twin/adaptador_pyg.py`; `arquitectura='csg'` conserva el candidato vigente.
 Antes de importar código ajeno se verifica su copia contra el catálogo. Las
 dependencias Torch/PyG se cargan al seleccionar el candidato, sin impedir importar
 el núcleo cuando no están disponibles. No se ejecuta `train.py` de PowerFlowNet.
@@ -88,7 +88,7 @@ La tarea 043 T5 acredita la custodia de clones. No cierra 045 T3: faltan
 particiones independientes, ablaciones física/red/híbrido, comparación por familia,
 contraste con datos nativos y decisión de promoción. Tampoco cierra los adaptadores
 de 046–048, los lanzadores pendientes de 043 ni protecciones de 049. No se modifican
-planos IGEA ni se envían datos de la distribuidora a GitHub o a servicios de IA.
+planos de la distribuidora ni se envían datos de la distribuidora a GitHub o a servicios de IA.
 
 ## Justificación académica
 

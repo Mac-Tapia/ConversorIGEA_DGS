@@ -100,14 +100,14 @@ def main(argv=None) -> int:
                    help='Registro de vínculos de la web (por defecto, el de output/web)')
     args = p.parse_args(argv)
 
-    from igea_dgs.digital_twin.buffer import BuferEpisodios
-    from igea_dgs.digital_twin.capture import construir_episodio
-    from igea_dgs.digital_twin.episode import Caso
-    from igea_dgs.digital_twin.integration import limites_combinados, normas_de
-    from igea_dgs.native_action import build_native_action_context
-    from igea_dgs.perfil_empresa import datos_perfil, estructura_empresa
-    from igea_dgs.powerfactory_binding import vinculo_guardado
-    from igea_dgs.web.workspace import REGISTRO_VINCULOS_FILE, data_root
+    from convertersmartgrid.digital_twin.buffer import BuferEpisodios
+    from convertersmartgrid.digital_twin.capture import construir_episodio
+    from convertersmartgrid.digital_twin.episode import Caso
+    from convertersmartgrid.digital_twin.integration import limites_combinados, normas_de
+    from convertersmartgrid.native_action import build_native_action_context
+    from convertersmartgrid.perfil_empresa import datos_perfil, estructura_empresa
+    from convertersmartgrid.powerfactory_binding import vinculo_guardado
+    from convertersmartgrid.web.workspace import REGISTRO_VINCULOS_FILE, data_root
 
     esperado = json.loads(args.esperado.read_text(encoding='utf-8'))
     registro = args.vinculos or data_root() / REGISTRO_VINCULOS_FILE

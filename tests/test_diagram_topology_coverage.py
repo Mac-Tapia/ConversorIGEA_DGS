@@ -7,17 +7,17 @@ from collections import Counter
 
 import pytest
 
-from igea_dgs.batch import convert_selection, load_aliases
-from igea_dgs.dgs import (
+from convertersmartgrid.batch import convert_selection, load_aliases
+from convertersmartgrid.dgs import (
     DIAGRAM_SHEET_MARGIN_DU,
     NA205_DIAGRAM_UNITS_PER_METER,
     _diagram_mapper,
     write_dgs,
 )
-from igea_dgs.geography import build_geography
-from igea_dgs.model import build_feeder_model
-from igea_dgs.naming import feeder_short_name
-from igea_dgs.validate import parse_dgs, validate_dgs
+from convertersmartgrid.geography import build_geography
+from convertersmartgrid.model import build_feeder_model
+from convertersmartgrid.naming import feeder_short_name
+from convertersmartgrid.validate import parse_dgs, validate_dgs
 
 
 def _aliases():
@@ -33,7 +33,7 @@ def _convertible_feeders(ds):
     Una isla con cargas bloquea en modo estricto (política deliberada), y estas
     pruebas son de fidelidad de diagrama, no de esa política.
     """
-    from igea_dgs.model import find_topology_islands
+    from convertersmartgrid.model import find_topology_islands
 
     result = []
     for nid in ds.feeder_ids():

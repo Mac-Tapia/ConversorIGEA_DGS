@@ -9,7 +9,7 @@ No abre DIgSILENT: trabaja con los episodios que ya registró la web.
     python tools/digital_twin_buffer.py register episodio.json
     python tools/digital_twin_buffer.py rebuild-index
 
-Con ``--raiz`` se usa otro búfer; sin ella, ``IGEA_TWIN_DATA`` o el de la web.
+Con ``--raiz`` se usa otro búfer; sin ella, ``CSG_TWIN_DATA`` o el de la web.
 Códigos de salida: 0 bien (también si ya estaba), 2 entrada no válida, 3 búfer
 inaccesible o dañado.
 """
@@ -21,8 +21,8 @@ import sqlite3
 import sys
 from pathlib import Path
 
-from igea_dgs.digital_twin.buffer import BuferEpisodios, ColisionEpisodio, Consulta
-from igea_dgs.digital_twin.episode import (
+from convertersmartgrid.digital_twin.buffer import BuferEpisodios, ColisionEpisodio, Consulta
+from convertersmartgrid.digital_twin.episode import (
     EpisodioInvalido,
     episodio_a_dict,
     leer_episodio,

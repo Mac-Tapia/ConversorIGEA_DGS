@@ -4,7 +4,7 @@ Lee: `docs/constitution.md` y `specs/006-ajuste-a-la-maxima-de-cabecera/spec.md`
 
 ## Contexto técnico
 
-- La demanda medida (spec 004) vive en `src/igea_dgs/demanda_medida.py` y en
+- La demanda medida (spec 004) vive en `src/convertersmartgrid/demanda_medida.py` y en
   `services.demanda_*`; la máxima es el resultado del trabajo `demanda_cabecera` y el
   cruce por alimentador lo da `services.demanda_clientes(ws, [alimentador])` (RF-43).
 - Las cargas en DIgSILENT siguen el patrón plan → guion: `services.cargas_plan` escribe
@@ -24,8 +24,8 @@ Lee: `docs/constitution.md` y `specs/006-ajuste-a-la-maxima-de-cabecera/spec.md`
 
 | Parte | Ficheros | Cubre |
 | --- | --- | --- |
-| Reparto y cuadre, puro y sin DIgSILENT | `src/igea_dgs/ajuste_cabecera.py` (nuevo) | RF-5 a RF-8, RF-11 a RF-14, RF-16 (pasos), RF-18, RF-24 |
-| Plan del ajuste en la web | `src/igea_dgs/web/services.py` (`ajuste_plan`, `ajuste_ejecutar`), `app.py` | RF-1 a RF-3, RF-4, RF-9, RF-10, RF-24 |
+| Reparto y cuadre, puro y sin DIgSILENT | `src/convertersmartgrid/ajuste_cabecera.py` (nuevo) | RF-5 a RF-8, RF-11 a RF-14, RF-16 (pasos), RF-18, RF-24 |
+| Plan del ajuste en la web | `src/convertersmartgrid/web/services.py` (`ajuste_plan`, `ajuste_ejecutar`), `app.py` | RF-1 a RF-3, RF-4, RF-9, RF-10, RF-24 |
 | Guion en DIgSILENT | `tools/ajuste_cabecera_pf.py` (nuevo) | RF-4, RF-9, RF-10, RF-11, RF-12, RF-15 a RF-22 |
 | Interfaz | `frontend/src/components/DemandaMedida.tsx`, `api.ts`, `types.ts` | RF-2, RF-3, RF-20, RF-21, RF-23 |
 
@@ -127,8 +127,8 @@ cuya carga escrita supera su kVA (el caso de `SE50111` en `sed_potencia.py`).
 
 | Parte | Ficheros | Cubre |
 | --- | --- | --- |
-| Curva y reducción, puras | `src/igea_dgs/demanda_medida.py` | RF-31, RF-37, RF-39 |
-| Guardar la curva y servirla | `src/igea_dgs/web/services.py`, `workspace.py`, `app.py` | RF-31, RF-35, RF-38, RF-39 |
+| Curva y reducción, puras | `src/convertersmartgrid/demanda_medida.py` | RF-31, RF-37, RF-39 |
+| Guardar la curva y servirla | `src/convertersmartgrid/web/services.py`, `workspace.py`, `app.py` | RF-31, RF-35, RF-38, RF-39 |
 | Gráfica | `frontend/src/components/CurvaCabecera.tsx` (nuevo), `AjusteCabecera.tsx`, `api.ts`, `types.ts`, `styles.css` | RF-32 a RF-36, RF-38 |
 
 ### `demanda_medida.py`

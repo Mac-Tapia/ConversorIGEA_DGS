@@ -1,7 +1,7 @@
 # Verificación de las specs — 2026-10-14
 
 Recorrido de cada spec de `specs/`, RF por RF y tarea por tarea, según la fase 7 del skill
-`igea-dgs-spec`: un RF sin prueba que lo cite es un RF no cumplido. Rama
+`convertersmartgrid-spec`: un RF sin prueba que lo cite es un RF no cumplido. Rama
 `lectura-de-las-dos-disposiciones`, con los cambios sin confirmar del arranque acotado de
 los guiones de PowerFactory (005:RF-21).
 
@@ -12,11 +12,11 @@ los guiones de PowerFactory (005:RF-21).
 - **RF probados:** RF definidos que cita al menos una prueba (`NNN:RF-n` en `tests/` o
   `frontend/src/`).
 - **Suite sintética:** `pytest -q` → 1713 correctas, 61 omitidas.
-- **Suite con datos reales** (`IGEA_RED`, `IGEA_LOADS`, `IGEA_EQUIPMENT`, `IGEA_MDB`,
-  `IGEA_EQUIPMENT_MDB`): 1753 correctas, 20 omitidas. 18 de las omitidas eran
+- **Suite con datos reales** (`CSG_RED`, `CSG_LOADS`, `CSG_EQUIPMENT`, `CSG_MDB`,
+  `CSG_EQUIPMENT_MDB`): 1753 correctas, 20 omitidas. 18 de las omitidas eran
   comparaciones tramo a tramo entre la vía TXT y la vía Access; se **retiraron** el mismo
   día, porque las fuentes son independientes (otra fecha, otra empresa) y cada una se
-  valida por sí misma. Las otras dos son de la demanda medida y piden `IGEA_DEMANDA_DIR`. El único fallo de esa vuelta fue el índice
+  valida por sí misma. Las otras dos son de la demanda medida y piden `CSG_DEMANDA_DIR`. El único fallo de esa vuelta fue el índice
   nombrando este informe antes de existir.
 
 ## Resultado por spec
@@ -74,5 +74,5 @@ los guiones de PowerFactory (005:RF-21).
 - Retiradas las 18 pruebas que comparaban TXT con Access (`TestAccessMatchesTxt`, la
   fase contra el TXT, y las clases «misma red» y «recuperación de conductores» de PA217
   y SL143) y la fixture `both`. Ninguna citaba un RF. Con ellas se retiraron
-  `src/igea_dgs/huella.py` y `tools/emparejar_entradas.py`, que solo servían para
+  `src/convertersmartgrid/huella.py` y `tools/emparejar_entradas.py`, que solo servían para
   emparejarlas.

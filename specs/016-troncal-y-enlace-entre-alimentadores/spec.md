@@ -359,7 +359,7 @@ Cable hasta la carga nueva (usuario, 2026-10-16)
 ## Criterios de finalización
 
 - Cada RF citado por al menos una prueba (`grep -rnoE "016:RF-[0-9]+" tests | sort -u`).
-- Suite en verde con los datos reales (las tres `IGEA_*`).
+- Suite en verde con los datos reales (las tres `CSG_*`).
 - Prueba en DIgSILENT con IN111 y TA225: la troncal de IN111 pasa a 120 mm² en «Sin
   proyecto» y «Con proyecto», el enlace queda solo en «Con proyecto» partiendo un tramo de
   cada alimentador y abierto (IN111 a 10 kV, TA225 a 22,9 kV); las SED de IN111 que

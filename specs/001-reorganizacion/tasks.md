@@ -7,7 +7,7 @@ Spec aprobada el 2026-10-08.
       alimentadores, `workers=1`) y guardar sus SHA-256 en `output/linea_base_001.json` (ignorado por git). (RF-14)
       Hecho cuando: existe el JSON y la prueba RF-14 pasa contra el código sin tocar.
 - [x] T2. `util.py` con `sha256_file`, `write_json_atomic`, `finite_or_none` y
-      `nombre_seguro`, con sus pruebas; sustituir las copias de `igea_dgs`. (RF-4, RF-5)
+      `nombre_seguro`, con sus pruebas; sustituir las copias de `convertersmartgrid`. (RF-4, RF-5)
       Hecho cuando: `pytest -q` en verde y el detector de duplicados no las lista.
       Hecho el 2026-10-08: el detector es ahora una prueba fija (`tests/test_util.py`).
       Fuera a propósito: `source_runs._atomic_json` (sin salto de línea final: cambiarla
@@ -27,12 +27,12 @@ Spec aprobada el 2026-10-08.
 - [x] T4. `geography.make_transformer` único; `loads_create` lo usa y un CRS inválido da
       error con el nombre del CRS. (RF-6, RF-7)
       Hecho cuando: prueba de CRS inválido en verde y RF-14 sigue igual.
-      Hecho el 2026-10-08: los cinco constructores (dos en `igea_dgs`, tres en `vnr_etl`)
+      Hecho el 2026-10-08: los cinco constructores (dos en `convertersmartgrid`, tres en `vnr_etl`)
       usan `make_transformer`, que da `ValueError` con los dos CRS. La web lo convierte en
       `UserError` (400) al crear SED. Sin pyproj, `loads_create` sigue dejando el GPS
       vacío a propósito. `tests/test_transformador.py` falla si aparece otro
       `Transformer.from_crs` en `src/`.
-- [x] T5. Mover `web/sources` a `igea_dgs/sources` con reexportación. (RF-1)
+- [x] T5. Mover `web/sources` a `convertersmartgrid/sources` con reexportación. (RF-1)
       Hecho cuando: `pytest -q tests/test_web_*.py` en verde sin tocar las pruebas.
       Hecho el 2026-10-08. Los tipos de la instantánea (`SourceSnapshot`, `SourceFile`,
       `SourceMode`, `MODE_SLOTS`) pasan a `sources/snapshot.py`; la custodia
@@ -51,16 +51,16 @@ Spec aprobada el 2026-10-08.
       correctas. Fuera de T6: el CLI no bloquea alimentadores no listos como hace la web
       (`web/readiness.py`); si se quiere, es un requisito nuevo.
 - [x] T7. Retirar la GUI Tkinter: `gui.py`, la orden `gui` del CLI, el script
-      `igea-dgs-gui`, `run_gui_escritorio.bat` y `tests/test_gui_wiring.py`, tomando
+      `convertersmartgrid-gui`, `run_gui_escritorio.bat` y `tests/test_gui_wiring.py`, tomando
       como referencia el commit `52974c8e`. (RF-16)
-      Hecho cuando: una prueba comprueba que `igea_dgs.gui` no existe y que el CLI no
+      Hecho cuando: una prueba comprueba que `convertersmartgrid.gui` no existe y que el CLI no
       ofrece `gui`, y `pytest -q` en verde.
       Hecho el 2026-10-08 (`tests/test_sin_gui.py`). También se retira `settings.py`, que
       solo usaba la ventana (la web guarda eso en cada `Workspace`); `test_settings.py`
       prueba ahora esa persistencia en la web. `version_key` se usa desde
       `powerfactory_env` (la de `gui.py` era copia). A diferencia de la referencia,
       `run_gui.bat` conserva su nombre por los accesos directos ya creados. El entorno
-      instalado conserva `igea-dgs-gui.exe` hasta el próximo `pip install -e .`.
+      instalado conserva `convertersmartgrid-gui.exe` hasta el próximo `pip install -e .`.
 - [x] T8. `diagnose` y `reconstruct` como trabajos del carril `engine`; la cancelación
       conserva el dataset anterior. (RF-8, RF-9)
       Hecho cuando: pruebas de API (202 + Job, cancelación) en verde.
@@ -107,14 +107,14 @@ Spec aprobada el 2026-10-08.
       Hecho cuando: prueba de API con host de red → 403 en `/inputs/{slot}/path`, aunque
       la variable esté a `1`.
       Hecho el 2026-10-08 (`tests/test_web_api.py`). `create_app(host=...)`; sin él lee
-      `IGEA_WEB_HOST`, que pone el lanzador (con `factory=True` uvicorn no pasa
+      `CSG_WEB_HOST`, que pone el lanzador (con `factory=True` uvicorn no pasa
       argumentos), y sin ninguno de los dos, cerradas: un `uvicorn --factory --host
       0.0.0.0` a mano también queda cubierto. Solo 127.0.0.1, `localhost` y `::1` las
-      abren; `IGEA_WEB_SERVER_PATHS=0` las apaga en local, pero ya no las abre fuera.
+      abren; `CSG_WEB_SERVER_PATHS=0` las apaga en local, pero ya no las abre fuera.
 - [x] T12. Validación: cada RF citado y en verde; RF-14 contra la línea base. (Todos)
       Hecho cuando: `grep -rnoE "001:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-16.
       Hecho el 2026-10-08. RF-1 a RF-16 citados por al menos una prueba, todas en verde.
-      Suite con las cinco variables `IGEA_*`: 929 correctas y 18 omitidas (las
+      Suite con las cinco variables `CSG_*`: 929 correctas y 18 omitidas (las
       comparaciones tramo a tramo TXT↔Access, que no son la misma exportación).
       `test_linea_base_001` se ejecutó, no se omitió: los DGS por alimentador y de la red
       unida son idénticos byte a byte a los de T1 (RF-14). Front: `npx tsc --noEmit -p .`
@@ -125,7 +125,7 @@ Spec aprobada el 2026-10-08.
 - [x] T13. La reconstrucción de la web sale a un módulo puro del motor, sin `Workspace`,
       para que la use también VNR. (RF-17)
       Hecho cuando: `pytest -q tests/test_web_reconstruction.py` en verde sin cambios.
-      Hecho el 2026-10-08: `igea_dgs/reconstruction_pipeline.py` (`reconstruir_seleccion`,
+      Hecho el 2026-10-08: `convertersmartgrid/reconstruction_pipeline.py` (`reconstruir_seleccion`,
       `catalogos_del_fichero`). Única prueba tocada: la de cancelación, que sustituía
       `repair_discontinuities` en el módulo web y ahora lo hace en el nuevo.
 - [x] T14. El resolvedor completa un conductor con parámetros a medias sin descartar los
@@ -156,7 +156,7 @@ Spec aprobada el 2026-10-08.
       estado `EXPORT_RECONSTRUCTED`. Las pruebas de T10 que exigían el bloqueo se
       sustituyen por las de RF-17 a RF-21.
 - [x] T17. Validación: RF-17 a RF-21 citados y suite completa en verde, RF-14 igual.
-      Hecho el 2026-10-08: suite con las cinco `IGEA_*`, 939 correctas y 18 omitidas (las
+      Hecho el 2026-10-08: suite con las cinco `CSG_*`, 939 correctas y 18 omitidas (las
       de siempre); `test_linea_base_001` en verde.
       Hecho cuando: `grep -rnoE "001:RF-(1[7-9]|2[01])" tests | sort -u` lista RF-17 a RF-21 y la suite completa, en verde.
 
@@ -193,7 +193,7 @@ Spec aprobada el 2026-10-08.
       lector menos `.shp` suelto (necesita `.dbf` y `.shx`: va en un ZIP o RAR).
       `validate_vnr_package_file` la usa y nombra los formatos al rechazar. Etiqueta de
       la casilla: «Paquete o base VNR-GIS», con los formatos bajo ella.
-- [x] T22. `igea_dgs.web.runtime --front` dice si `frontend/dist` está por detrás del
+- [x] T22. `convertersmartgrid.web.runtime --front` dice si `frontend/dist` está por detrás del
       código del front; `run_gui.bat` recompila en ese caso. (RF-27)
       Hecho cuando: prueba con un fichero del front más reciente que `dist`.
       Hecho el 2026-10-08 (`tests/test_web_runtime_front.py`). Probado además en `cmd`
@@ -210,7 +210,7 @@ Spec aprobada el 2026-10-08.
       Hecho cuando: pruebas de la huella, del rechazo sin cabecera, desde fuera y con
       trabajos en curso, y del cierre aceptado.
       Hecho el 2026-10-15 (`tests/test_lanzador_web.py`).
-- [x] T25. `igea_dgs.web` resuelve el puerto ocupado: reutiliza, reemplaza, respeta los
+- [x] T25. `convertersmartgrid.web` resuelve el puerto ocupado: reutiliza, reemplaza, respeta los
       trabajos, termina el colgado o cambia de puerto; abre el navegador cuando responde;
       `run_gui.bat` no pide tecla salvo error. (RF-28 a RF-32)
       Hecho cuando: una prueba por caso, con servidores falsos en puertos libres.
@@ -222,7 +222,7 @@ Spec aprobada el 2026-10-08.
       (sale con 0 al momento), otra versión sin trabajos se cierra por petición y el nuevo
       toma su puerto, y con `http.server` en el puerto arranca en el siguiente.
       Hecho cuando: las pruebas que citan 001:RF-28 a RF-33 pasan y el acceso directo se probó en Windows en los tres casos.
-- [x] T27. RF-34: el servidor anota sus trabajos en curso en `igea_dgs/trabajos_web/<pid>.json`
+- [x] T27. RF-34: el servidor anota sus trabajos en curso en `convertersmartgrid/trabajos_web/<pid>.json`
       (`jobs.py`) y el lanzador no termina al que no responde si los tiene: espera un minuto.
       Hecho el 2026-10-24 tras perder la escalera de Pisco al reabrir el acceso directo.
       Hecho cuando: las pruebas que citan 001:RF-34 pasan.

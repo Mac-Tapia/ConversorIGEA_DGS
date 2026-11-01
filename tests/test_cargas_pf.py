@@ -7,14 +7,14 @@ from datetime import datetime
 
 import pytest
 
-from igea_dgs.cargas_pf import (
+from convertersmartgrid.cargas_pf import (
     DEMANDA_COLUMNS, NUEVA_COLUMNS, armar_plan, escribir_plantilla, leer_demandas,
     kva_normalizado, leer_hoja_nuevas, leer_nuevas,
 )
 
 openpyxl = pytest.importorskip('openpyxl')
 
-SEMILLA = int(os.environ.get('IGEA_SCALE_SEED', random.randrange(1 << 30)))
+SEMILLA = int(os.environ.get('CSG_SCALE_SEED', random.randrange(1 << 30)))
 
 
 def _libro(path, hojas: dict[str, list[list]]):
@@ -179,7 +179,7 @@ def test_plantillas_vacias_se_vuelven_a_leer(tmp_path, tipo, columnas, ext):
     assert cabecera == list(columnas)
     lector = leer_demandas if tipo == 'demandas' else leer_nuevas
     if ext == '.xlsx':
-        from igea_dgs.loads import LoadTemplateError
+        from convertersmartgrid.loads import LoadTemplateError
 
         with pytest.raises(LoadTemplateError, match='ninguna hoja con datos'):
             lector(ruta)

@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from igea_dgs.web.runtime import front_desactualizado
+from convertersmartgrid.web.runtime import front_desactualizado
 
 RAIZ = Path(__file__).resolve().parents[1]
 
@@ -52,9 +52,9 @@ def test_un_componente_cambiado_obliga_a_recompilar(tmp_path):
 def test_el_lanzador_usa_la_comprobacion():
     """001:RF-27 — run_gui.bat pregunta antes de abrir y compila si hace falta."""
     bat = (RAIZ / 'run_gui.bat').read_bytes().decode('ascii')
-    comprobacion = bat.index('-m igea_dgs.web.runtime --front')
+    comprobacion = bat.index('-m convertersmartgrid.web.runtime --front')
     compila = bat.index('call npm run build')
-    abre = bat.index('-m igea_dgs.web\r\n')
+    abre = bat.index('-m convertersmartgrid.web\r\n')
     assert comprobacion < compila < abre
     # Ya no se compila solo cuando falta dist: la comprobación decide.
     assert 'if not exist "frontend\\dist\\index.html" (\r\n  where npm' not in bat

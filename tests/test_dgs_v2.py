@@ -1,9 +1,9 @@
-from igea_dgs.dgs import write_dgs
-from igea_dgs.schema import load_schema
+from convertersmartgrid.dgs import write_dgs
+from convertersmartgrid.schema import load_schema
 
 
 def _parse(path):
-    from igea_dgs.validate import parse_dgs
+    from convertersmartgrid.validate import parse_dgs
     return parse_dgs(path)
 
 
@@ -29,7 +29,7 @@ def test_writer_has_precise_cubicles_and_load_terminal(sample_model, tmp_path):
     assert len(tables['ElmLod']['rows']) == len(sample_model.loads)
     # Per SED: Tr2 (2 cubicles) + ElmCoup (2 cubicles) = 4; con barra propia, sin el
     # ElmCoup (021:RF-12).
-    from igea_dgs.dgs import seds_con_barra_propia
+    from convertersmartgrid.dgs import seds_con_barra_propia
 
     expected_cubics = (
         2 * len(sample_model.lines)

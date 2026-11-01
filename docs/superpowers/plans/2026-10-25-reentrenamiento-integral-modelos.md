@@ -39,16 +39,16 @@
 ### Task 1: Reconciliar la base concurrente y formalizar el dataset común
 
 **Files:**
-- Create: `src/igea_dgs/asistente/dataset_entrenamiento.py`
-- Create: `src/igea_dgs/asistente/calidad_datos.py`
-- Modify: `src/igea_dgs/web/services.py`
+- Create: `src/convertersmartgrid/asistente/dataset_entrenamiento.py`
+- Create: `src/convertersmartgrid/asistente/calidad_datos.py`
+- Modify: `src/convertersmartgrid/web/services.py`
 - Modify: `pyproject.toml`
 - Test: `tests/test_asistente_dataset_entrenamiento.py`
 - Test: `tests/test_asistente_calidad_datos.py`
 
 **Interfaces:**
 - Consumes: `almacen.raiz()`, episodios del gemelo, historial web y eventos de conversión existentes.
-- Produces: `RegistroEntrenamiento`, `DatasetConstruido`, `construir_dataset(...)`, `particionar_dataset(...)`, `escribir_particiones(...)`, `auditar_contaminacion(...)` y manifiesto `igea-dgs-training-dataset-v2`.
+- Produces: `RegistroEntrenamiento`, `DatasetConstruido`, `construir_dataset(...)`, `particionar_dataset(...)`, `escribir_particiones(...)`, `auditar_contaminacion(...)` y manifiesto `convertersmartgrid-training-dataset-v2`.
 
 - [ ] **Step 1: Portar primero las pruebas relevantes de los commits concurrentes y añadir fallos para la taxonomía v2**
 
@@ -77,11 +77,11 @@
 ### Task 2: Generar cobertura por tareas y aprendizaje activo sin inflar oro
 
 **Files:**
-- Create: `src/igea_dgs/asistente/curacion.py`
-- Modify: `src/igea_dgs/asistente/sinteticos.py`
-- Modify: `src/igea_dgs/asistente/supervisor.py`
-- Modify: `src/igea_dgs/asistente/interprete.py`
-- Modify: `src/igea_dgs/asistente/tareas.py`
+- Create: `src/convertersmartgrid/asistente/curacion.py`
+- Modify: `src/convertersmartgrid/asistente/sinteticos.py`
+- Modify: `src/convertersmartgrid/asistente/supervisor.py`
+- Modify: `src/convertersmartgrid/asistente/interprete.py`
+- Modify: `src/convertersmartgrid/asistente/tareas.py`
 - Test: `tests/test_asistente_curacion.py`
 - Test: `tests/test_asistente_supervisor.py`
 - Test: `tests/test_asistente_interprete.py`
@@ -117,9 +117,9 @@
 ### Task 3: Recuperación híbrida, dataset contrastivo y evaluación de embeddings
 
 **Files:**
-- Create: `src/igea_dgs/asistente/embeddings.py`
-- Modify: `src/igea_dgs/asistente/indice.py`
-- Modify: `src/igea_dgs/asistente/ollama.py`
+- Create: `src/convertersmartgrid/asistente/embeddings.py`
+- Modify: `src/convertersmartgrid/asistente/indice.py`
+- Modify: `src/convertersmartgrid/asistente/ollama.py`
 - Create: `tools/asistente_embeddings.py`
 - Modify: `pyproject.toml`
 - Test: `tests/test_asistente_embeddings.py`
@@ -158,11 +158,11 @@
 ### Task 4: Adaptación QLoRA funcional y puertas contra invención
 
 **Files:**
-- Create: `src/igea_dgs/asistente/qlora.py`
-- Create: `src/igea_dgs/asistente/registro_qlora.py`
+- Create: `src/convertersmartgrid/asistente/qlora.py`
+- Create: `src/convertersmartgrid/asistente/registro_qlora.py`
 - Create: `tools/asistente_qlora.py`
-- Modify: `src/igea_dgs/asistente/ollama.py`
-- Modify: `src/igea_dgs/asistente/interprete.py`
+- Modify: `src/convertersmartgrid/asistente/ollama.py`
+- Modify: `src/convertersmartgrid/asistente/interprete.py`
 - Modify: `pyproject.toml`
 - Test: `tests/test_asistente_qlora.py`
 - Test: `tests/test_asistente_registro_qlora.py`
@@ -200,8 +200,8 @@
 ### Task 5: Registro común y coordinador reanudable de GPU
 
 **Files:**
-- Create: `src/igea_dgs/model_registry.py`
-- Create: `src/igea_dgs/training_coordinator.py`
+- Create: `src/convertersmartgrid/model_registry.py`
+- Create: `src/convertersmartgrid/training_coordinator.py`
 - Create: `tools/reentrenar_modelos.py`
 - Test: `tests/test_model_registry.py`
 - Test: `tests/test_training_coordinator.py`
@@ -237,8 +237,8 @@
 ### Task 6: Fortalecer Transformer y clasificador con splits y métricas reales
 
 **Files:**
-- Modify: `src/igea_dgs/asistente/transformer.py`
-- Modify: `src/igea_dgs/asistente/clasificador.py`
+- Modify: `src/convertersmartgrid/asistente/transformer.py`
+- Modify: `src/convertersmartgrid/asistente/clasificador.py`
 - Modify: `tools/asistente_entrenar.py`
 - Modify: `tests/test_asistente_transformer.py`
 - Modify: `tests/test_asistente_clasificador.py`
@@ -274,9 +274,9 @@
 ### Task 7: Persistir y promover GRU; ampliar puertas PINN/GNN
 
 **Files:**
-- Modify: `src/igea_dgs/digital_twin/temporal.py`
-- Modify: `src/igea_dgs/digital_twin/oraculo.py`
-- Modify: `src/igea_dgs/digital_twin/api.py`
+- Modify: `src/convertersmartgrid/digital_twin/temporal.py`
+- Modify: `src/convertersmartgrid/digital_twin/oraculo.py`
+- Modify: `src/convertersmartgrid/digital_twin/api.py`
 - Create: `tests/test_digital_twin_temporal_registry.py`
 - Modify: `tests/test_digital_twin_temporal.py`
 - Modify: `tests/test_digital_twin_oraculo.py`
@@ -312,9 +312,9 @@
 ### Task 8: Registrar y validar algoritmo genético, NSGA-II y jDE
 
 **Files:**
-- Modify: `src/igea_dgs/digital_twin/evolutivo.py`
-- Modify: `src/igea_dgs/web/services.py`
-- Create: `src/igea_dgs/digital_twin/evaluacion_evolutiva.py`
+- Modify: `src/convertersmartgrid/digital_twin/evolutivo.py`
+- Modify: `src/convertersmartgrid/web/services.py`
+- Create: `src/convertersmartgrid/digital_twin/evaluacion_evolutiva.py`
 - Create: `tools/evaluar_evolutivos.py`
 - Modify: `tests/test_digital_twin_evolutivo.py`
 - Create: `tests/test_digital_twin_evolutivo_registry.py`
@@ -358,8 +358,8 @@
 ### Task 9: Integración web/CLI, ejecución real y aceptación integral
 
 **Files:**
-- Modify: `src/igea_dgs/web/app.py`
-- Modify: `src/igea_dgs/web/services.py`
+- Modify: `src/convertersmartgrid/web/app.py`
+- Modify: `src/convertersmartgrid/web/services.py`
 - Modify: `frontend/src/**` sólo en componentes consumidores del estado de modelos
 - Modify: `docs/MANUAL_COMANDOS.md`
 - Create: `docs/REENTRENAMIENTO_MODELOS.md`

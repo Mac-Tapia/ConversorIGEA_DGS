@@ -11,7 +11,7 @@ import tomllib
 import pytest
 from packaging.requirements import Requirement
 
-from igea_dgs.web.runtime import missing_dependencies
+from convertersmartgrid.web.runtime import missing_dependencies
 
 RAIZ = Path(__file__).resolve().parents[1]
 
@@ -56,7 +56,7 @@ def _lanzar_aislado(tmp_path, fallo):
     # El launcher CPython de Windows usa el home real indicado por pyvenv.cfg.
     shutil.copyfile(sys.executable, scripts / 'python.exe')
     shutil.copyfile(Path(sys.prefix) / 'pyvenv.cfg', entorno / 'pyvenv.cfg')
-    paquete = tmp_path / 'src' / 'igea_dgs' / 'web'
+    paquete = tmp_path / 'src' / 'convertersmartgrid' / 'web'
     paquete.mkdir(parents=True)
     (paquete.parent / '__init__.py').write_text('', encoding='ascii')
     (paquete / '__init__.py').write_text('', encoding='ascii')

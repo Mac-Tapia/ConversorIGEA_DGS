@@ -63,7 +63,7 @@ def _subproceso(comando: list[str], reporte: Path, modelo: str, *, cwd: Path = R
 
 
 def _etapas(args, run_dir: Path):
-    from igea_dgs.training_coordinator import TrainingStage
+    from convertersmartgrid.training_coordinator import TrainingStage
 
     py = sys.executable
     vocab = args.vocabulario
@@ -152,7 +152,7 @@ def verificar(reporte: Path, *, fail_on_incomplete: bool) -> int:
     payload = _leer(reporte)
     permitidos = {'PROMOVIDO', 'RECHAZADO', 'BLOQUEADO_POR_DATOS', 'ERROR_ENTORNO'}
     etapas = payload.get('stages') or []
-    from igea_dgs.training_coordinator import ORDEN_MODELOS
+    from convertersmartgrid.training_coordinator import ORDEN_MODELOS
     estados_validos = (len(etapas) == len(ORDEN_MODELOS)
                        and {x.get('model') for x in etapas} == set(ORDEN_MODELOS)
                        and all(x.get('status') in permitidos for x in etapas))
@@ -167,8 +167,8 @@ def verificar(reporte: Path, *, fail_on_incomplete: bool) -> int:
 
 
 def main(argv=None) -> int:
-    from igea_dgs.asistente import almacen
-    from igea_dgs.digital_twin.buffer import raiz_buffer
+    from convertersmartgrid.asistente import almacen
+    from convertersmartgrid.digital_twin.buffer import raiz_buffer
 
     p = argparse.ArgumentParser(description='Reentrenamiento integral reanudable')
     sub = p.add_subparsers(dest='accion')
@@ -207,7 +207,7 @@ def main(argv=None) -> int:
     experimento = None
     familia = None
     if args.config:
-        from igea_dgs.experimentos import cargar_experimento
+        from convertersmartgrid.experimentos import cargar_experimento
         try:
             experimento = cargar_experimento(args.config)
         except (OSError, ValueError) as exc:
@@ -227,13 +227,13 @@ def main(argv=None) -> int:
     elif args.validar_config:
         p.error('--validar-config requiere --config')
     run_dir = args.run_dir or almacen.raiz() / 'training'
-    from igea_dgs.asistente.ollama import liberar_gpu_para_entrenar
-    from igea_dgs.training_coordinator import TrainingCoordinator
+    from convertersmartgrid.asistente.ollama import liberar_gpu_para_entrenar
+    from convertersmartgrid.training_coordinator import TrainingCoordinator
     etapas = _etapas(args, run_dir)
     if familia:
         etapas = [etapa for etapa in etapas if etapa.name == familia]
     if experimento and experimento.algoritmo in {'nhits', 'tft', 'patchtst'}:
-        from igea_dgs.training_coordinator import TrainingStage
+        from convertersmartgrid.training_coordinator import TrainingStage
         etapas = [TrainingStage('gru', lambda: {'status': 'ERROR_ENTORNO',
             'reason': f'adaptador {experimento.algoritmo} pendiente de spec 046; no se sustituye por GRU'},
             uses_gpu=False)]

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 
 def _model():
-    from igea_dgs.model import CapacitorBank, FeederModel, Node
+    from convertersmartgrid.model import CapacitorBank, FeederModel, Node
 
     return FeederModel(
         name='CA101', network_id='NET_CA101', nominal_kv=10,
@@ -23,8 +23,8 @@ def _model():
 
 
 def test_dgs_preserves_source_capacity_and_completes_missing_10kv_bank_from_catalog(tmp_path):
-    from igea_dgs.dgs import write_dgs
-    from igea_dgs.validate import parse_dgs
+    from convertersmartgrid.dgs import write_dgs
+    from convertersmartgrid.validate import parse_dgs
 
     path = tmp_path / 'CA101.dgs'
     manifest = write_dgs(_model(), path)
@@ -56,9 +56,9 @@ def test_dgs_preserves_source_capacity_and_completes_missing_10kv_bank_from_cata
 
 
 def test_dgs_uses_450_kvar_catalog_value_at_22_9kv(tmp_path):
-    from igea_dgs.dgs import write_dgs
-    from igea_dgs.model import CapacitorBank, FeederModel, Node
-    from igea_dgs.validate import parse_dgs
+    from convertersmartgrid.dgs import write_dgs
+    from convertersmartgrid.model import CapacitorBank, FeederModel, Node
+    from convertersmartgrid.validate import parse_dgs
 
     model = FeederModel(
         name='SE220', network_id='NET_SE220', nominal_kv=22.9,
@@ -78,8 +78,8 @@ def test_dgs_uses_450_kvar_catalog_value_at_22_9kv(tmp_path):
 
 
 def test_complete_bank_has_one_terminal_cubicle(tmp_path):
-    from igea_dgs.dgs import write_dgs
-    from igea_dgs.validate import parse_dgs
+    from convertersmartgrid.dgs import write_dgs
+    from convertersmartgrid.validate import parse_dgs
 
     path = tmp_path / 'CA101.dgs'
     manifest = write_dgs(_model(), path)
@@ -92,8 +92,8 @@ def test_complete_bank_has_one_terminal_cubicle(tmp_path):
 
 
 def test_feeder_metadata_includes_shunt_assignment(tmp_path):
-    from igea_dgs.dgs import write_dgs
-    from igea_dgs.feeder_metadata import assignments_from_model, read_feeder_metadata, write_feeder_metadata
+    from convertersmartgrid.dgs import write_dgs
+    from convertersmartgrid.feeder_metadata import assignments_from_model, read_feeder_metadata, write_feeder_metadata
 
     model = _model()
     manifest = write_dgs(model, tmp_path / 'CA101.dgs')

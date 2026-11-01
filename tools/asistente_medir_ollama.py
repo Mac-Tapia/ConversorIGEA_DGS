@@ -29,10 +29,10 @@ def main(argv=None) -> int:
     p.add_argument('--tiempo-max', type=float, default=30.0, help='Segundos máximos por orden')
     args = p.parse_args(argv)
 
-    from igea_dgs.asistente import almacen
-    from igea_dgs.asistente.ollama import ClienteOllama
-    from igea_dgs.asistente.sinteticos import generar
-    from igea_dgs.asistente.transformer import SEMILLA_PRUEBA
+    from convertersmartgrid.asistente import almacen
+    from convertersmartgrid.asistente.ollama import ClienteOllama
+    from convertersmartgrid.asistente.sinteticos import generar
+    from convertersmartgrid.asistente.transformer import SEMILLA_PRUEBA
 
     salida = Path(args.output_json)
     instalados = ClienteOllama(modelo=args.modelos[0]).modelos()

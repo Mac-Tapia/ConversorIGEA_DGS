@@ -14,7 +14,7 @@ pytest.importorskip('scipy')
 
 from test_digital_twin_oraculo import red_radial
 
-from igea_dgs.digital_twin import oraculo as orc
+from convertersmartgrid.digital_twin import oraculo as orc
 
 
 def red_mallada(rnd: random.Random, n: int, lazos: int, kv: float = 10.0) -> dict:

@@ -34,7 +34,7 @@ Pruebas nuevas citan `045:RF-n`; no cerrar tareas nativas con mocks.
 
 **Files:** Modificar `digital_twin/episode.py`, `buffer.py`, `integration.py` y `native_snapshot.py`; crear `schemas/digital_twin_episode_v2.schema.json`, `digital_twin/contratos_fisicos.py` y `tests/test_gemelo_contratos_v2.py`; conservar schema v1.
 
-**Interfaces:** Añadir `Caso.CARGAS_NUEVAS='cargas_nuevas'`; nuevos episodios usan `igea-dgs-digital-twin-episode-v2`. `validar_alcance_fisico(grafo: Mapping) -> tuple[str, ...]` y `contexto_fisico(snapshot: Mapping) -> dict` viven en contratos_fisicos.py. Grafo versión 3 separa inyección/carga, generadores, bancos, tomas, modelo de carga, fase, estado, fuentes y base de unidades; hashes enlazan ContextoExperimento. Guardar ComLdf/iopt_lev, consignas escritas y resultados efectivos sin sustituirlos entre sí.
+**Interfaces:** Añadir `Caso.CARGAS_NUEVAS='cargas_nuevas'`; nuevos episodios usan `convertersmartgrid-digital-twin-episode-v2`. `validar_alcance_fisico(grafo: Mapping) -> tuple[str, ...]` y `contexto_fisico(snapshot: Mapping) -> dict` viven en contratos_fisicos.py. Grafo versión 3 separa inyección/carga, generadores, bancos, tomas, modelo de carga, fase, estado, fuentes y base de unidades; hashes enlazan ContextoExperimento. Guardar ComLdf/iopt_lev, consignas escritas y resultados efectivos sin sustituirlos entre sí.
 
 - [ ] Escribir primero las pruebas con las citas RF correspondientes. Aserciones:
   `test_v1_lectura_no_cambia_hash`; `test_cargas_nuevas_es_diagnostico`: nunca aceptado como obra; `test_controles_y_casos_no_se_mezclan`: variar criterio_fijas, banco, central, toma o caso cambia contexto. No inventar valores de controles ausentes.
@@ -73,7 +73,7 @@ se verifican con 043 T5. `crear_red_powerflownet(ocultas, pasos)` ofrece la mism
 `forward(x, aristas, e) -> (v, theta)` que la red actual sobre sus siete entradas;
 las cuatro columnas de tipo y las siete de máscara requeridas por upstream se añaden
 en el adaptador. Sin modificar el clon, se imponen magnitud y referencia angular de
-fuentes tras la corrección híbrida. `Entrenamiento.arquitectura` distingue `igea`
+fuentes tras la corrección híbrida. `Entrenamiento.arquitectura` distingue `csg`
 (por defecto compatible) y `powerflownet`, conservándose en manifiestos/artefactos.
 Las pruebas de dependencia real se ejecutan en `tests_ml/` con entorno opcional;
 no se sustituye PyG con un doble ni se exige su instalación al conversor básico.

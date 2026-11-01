@@ -121,7 +121,7 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       Hecho cuando: `/api/health` < 1 s durante la búsqueda de la máxima de Chincha y un
       trabajo que supera el límite se detiene sin tumbar la API.
       Hecho el 2026-10-28: `JobContext.en_proceso` (proceso `spawn` con Registro, avance y
-      cancelación; límite `IGEA_LIMITE_MEMORIA_MB`, 6000 por defecto, vigilado con psutil) y la
+      cancelación; límite `CSG_LIMITE_MEMORIA_MB`, 6000 por defecto, vigilado con psutil) y la
       máxima por barra en `demanda_medida.maximas_por_barra`. En la web con Chincha (28 medidores,
       13 barras, 15 s), `/api/health` respondió en 0,031 s como máximo.
 - [x] T15. Señal de cada orden (confirmada, corregida, rechazada, fallida) y pares de
@@ -198,7 +198,7 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       e importar Chincha en DIgSILENT.
       Cerrada el 2026-10-28: la primera reconversión falló en la validación estricta, que buscaba
       `…_CN101`; `validate._loc` usa ya la misma tabla de siglas que el DGS (prueba con las dos
-      disposiciones). Chincha reconvertido, importado (20261028-103442_IGEA_SISTEMA_CHINCHA) y
+      disposiciones). Chincha reconvertido, importado (20261028-103442_CSG_SISTEMA_CHINCHA) y
       calibrado por la web: 26 válidos y 0 con fallos, y ningún `CN` suelto en su DGS.
 - [x] T24. Episodios por sistema según RF-53 y curva de aprendizaje por familia. (RF-53, RF-54)
       Hecho cuando: informe por sistema con sus 30/10/10 episodios y la curva que dice si ha

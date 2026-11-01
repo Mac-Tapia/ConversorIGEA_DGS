@@ -7,13 +7,15 @@ de una empresa». Nombres técnicos elegidos por el usuario: `convertersmartgrid
 
 ## Contexto y objetivo
 
-El proyecto se llama «Conversor IGEA-DGS» porque nació para los TXT de IGEA/CYMDIST. Hoy
+El proyecto se llamaba «Conversor IGEA-DGS» porque nació para los TXT de IGEA/CYMDIST. Hoy
 convierte TXT, MDB y VNR-GIS de cualquier distribuidora (principio 13), e IGEA es el producto
-de otra empresa: su nombre aparece en la carpeta principal, el paquete Python (`igea_dgs`), los
-comandos (`igea-dgs`, `igea-dgs-web`), 52 variables de entorno `IGEA_*`, el título de la web, la
-cabecera del DGS, la carpeta por defecto y los proyectos de DIgSILENT, las skills y la
-documentación: 511 ficheros y unas 3 165 menciones el 2026-11-01. Esta spec da al proyecto su
-nombre propio, ConverterSmartGrid, y deja el repositorio sin menciones de IGEA.
+de otra empresa: su nombre aparecía en la carpeta principal (`ConversorIGEA_DGS`), el paquete
+Python (`igea_dgs`), los comandos (`igea-dgs`, `igea-dgs-web`), 52 variables de entorno `IGEA_*`,
+el título de la web, la cabecera del DGS, la carpeta por defecto y los proyectos de DIgSILENT
+(`…_IGEA_…`), las skills y la documentación: 511 ficheros y unas 3 165 menciones el
+2026-11-01. Esta spec da al proyecto su nombre propio, ConverterSmartGrid, y deja el
+repositorio sin menciones de IGEA. (Esta spec y la 056 citan los nombres anteriores para
+explicar el cambio: son la excepción de RF-9.)
 
 ## Requisitos funcionales (EARS)
 
@@ -34,8 +36,8 @@ nombre propio, ConverterSmartGrid, y deja el repositorio sin menciones de IGEA.
   salvo las excepciones de RF-9.
 - RF-9: Quedan con su nombre, por ser datos o historia y no del proyecto: el historial de git,
   los ficheros de datos de la distribuidora (fuera de git), los proyectos ya importados en
-  DIgSILENT y las citas literales de una fuente que se llama así (por ejemplo, una columna de
-  un TXT).
+  DIgSILENT (y los que el código reconoce para leerlos, marcados `legado-058`), la rama
+  `feat/robustecimiento-igea` y las specs 056 y 058, que explican el cambio.
 - RF-10: EL SISTEMA dará con los TXT el mismo DGS que antes byte a byte, salvo la cabecera
   (RF-1), y la suite completa pasará sin ninguna omitida.
 

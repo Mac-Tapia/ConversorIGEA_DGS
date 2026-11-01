@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from igea_dgs.batch import convert_group, convert_selection
-from igea_dgs.feeder_metadata import (
+from convertersmartgrid.batch import convert_group, convert_selection
+from convertersmartgrid.feeder_metadata import (
     FeederAssignment,
     read_feeder_metadata,
     validate_assignments,

@@ -25,10 +25,10 @@ import time
 
 import pytest
 
-from igea_dgs.batch import convert_selection
-from igea_dgs.reglas import SIN_REGLAS
-from igea_dgs.naming import feeder_short_name
-from igea_dgs.validate import parse_dgs
+from convertersmartgrid.batch import convert_selection
+from convertersmartgrid.reglas import SIN_REGLAS
+from convertersmartgrid.naming import feeder_short_name
+from convertersmartgrid.validate import parse_dgs
 from synthetic_export import ExportSpec, load_export
 
 
@@ -156,7 +156,7 @@ class TestOutputMatchesInputWhateverTheSize:
 
     def test_phases_present_in_the_txt_survive_into_the_model(self, tmp_path):
         """El generador alterna ABC/AB/A; el modelo debe conservar lo leído."""
-        from igea_dgs.model import build_feeder_model
+        from convertersmartgrid.model import build_feeder_model
 
         spec = ExportSpec(feeders=1, sections_per_feeder=6)
         ds = load_export(spec, tmp_path / 'src')
@@ -191,7 +191,7 @@ class TestScalability:
         Nada de 10, 50 o 200 fijos: el número de alimentadores y el tamaño de cada uno
         se sortean, porque una entrega real puede traer cualquier cantidad y de
         tamaños muy desiguales. La semilla va en el mensaje de fallo; con
-        ``IGEA_SCALE_SEED=<semilla>`` se reproduce el mismo sorteo.
+        ``CSG_SCALE_SEED=<semilla>`` se reproduce el mismo sorteo.
 
         El motor recorría CUSTOMER LOADS, las maniobras y los INTERMEDIATE NODES
         enteros por cada alimentador (O(F·N)). Con 50 alimentadores medianos cada uno
@@ -239,7 +239,7 @@ class TestScalability:
 
 
 def _scale_seed() -> int:
-    fixed = os.environ.get('IGEA_SCALE_SEED')
+    fixed = os.environ.get('CSG_SCALE_SEED')
     return int(fixed) if fixed else random.SystemRandom().randrange(2**31)
 
 
@@ -312,8 +312,8 @@ class TestNoFullTableScanPerFeeder:
     """
 
     def test_feeder_conversion_uses_only_the_indices(self, tmp_path):
-        from igea_dgs.geography import build_geography
-        from igea_dgs.model import build_feeder_model
+        from convertersmartgrid.geography import build_geography
+        from convertersmartgrid.model import build_feeder_model
 
         seed = _scale_seed()
         spec = ExportSpec(feeders=6, sections_per_feeder=8, loads_per_feeder=4,
@@ -365,7 +365,7 @@ class TestParallelWorkers:
 
         assert portable(parallel, tmp_path / 'parallel') == portable(serial, tmp_path / 'serial'), \
             f'semilla {seed}: el manifiesto en paralelo debe seguir el orden de la selección'
-        assert not list((tmp_path / 'parallel').glob('.igea-stage-*'))
+        assert not list((tmp_path / 'parallel').glob('.csg-stage-*'))
 
     def test_cancel_stops_launching_and_leaves_nothing_half_written(self, tmp_path):
         import threading
@@ -388,18 +388,18 @@ class TestParallelWorkers:
         # Lo que el manifiesto da por convertido existe entero; nada más quedó en disco.
         published = {p.stem for p in out.glob('*.dgs')}
         assert published == {it['feeder'] for it in manifest['feeders'] if it['status'] == 'ok'}
-        assert not list(out.glob('.igea-stage-*'))
+        assert not list(out.glob('.csg-stage-*'))
 
     @pytest.mark.parametrize(('workers', 'total', 'expected'), [
         (None, 50, 1), (1, 50, 1), (4, 50, 4), (8, 3, 3), (4, 0, 1),
     ])
     def test_resolve_workers(self, workers, total, expected):
-        from igea_dgs.batch import resolve_workers
+        from convertersmartgrid.batch import resolve_workers
 
         assert resolve_workers(workers, total) == expected
 
     def test_zero_workers_is_automatic_and_capped(self):
-        from igea_dgs.batch import AUTO_WORKERS_MAX, resolve_workers
+        from convertersmartgrid.batch import AUTO_WORKERS_MAX, resolve_workers
 
         assert resolve_workers(0, 10_000) == min(AUTO_WORKERS_MAX, os.cpu_count() or 1)
         assert resolve_workers(0, 1) == 1
@@ -430,4 +430,4 @@ def test_cancelar_en_serie_termina_el_alimentador_en_marcha(tmp_path):
     assert [it['network_id'] for it in manifest['feeders']] == empezados == list(ds.feeder_ids())[:2]
     assert all(it['status'] == 'ok' for it in manifest['feeders'])
     assert len(list(out.glob('*.dgs'))) == 2
-    assert not list(out.glob('.igea-stage-*'))
+    assert not list(out.glob('.csg-stage-*'))

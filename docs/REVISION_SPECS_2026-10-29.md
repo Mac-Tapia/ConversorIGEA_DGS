@@ -2,7 +2,7 @@
 
 Revisión de las 30 carpetas de `specs/` en los dos sentidos: de la spec al código (cada RF
 con su tarea y su prueba) y del código a la spec (cada fichero, prueba y commit con su
-spec). Sigue el skill `igea-dgs-spec`: primero los hallazgos, en bloques, y después el
+spec). Sigue el skill `convertersmartgrid-spec`: primero los hallazgos, en bloques, y después el
 plan, que el usuario ha pedido de forma expresa. Continúa a
 `docs/VERIFICACION_SPECS_2026-10-14.md`.
 
@@ -247,7 +247,7 @@ con `tools/sistema_web.py`, sin tocar proyectos ya trabajados:
 
 ### Fase 6 — Reglas para que no vuelva a pasar
 
-Se añaden al skill `igea-dgs-spec`:
+Se añaden al skill `convertersmartgrid-spec`:
 
 - Una spec «cumplida» no crece: un cambio sobre ella abre una spec nueva que la cita. La
   017 llegó a 154 RF y la 011 a 130 a base de cambios añadidos al final, y son las que
@@ -268,7 +268,7 @@ Se añaden al skill `igea-dgs-spec`:
 | 3 | unas 20 carpetas de `specs/` y `CODIGO_FUENTE.md` | solo documentos |
 | 4 | `tests/` | 13 RF y clasificar 769 pruebas |
 | 5 | DIgSILENT desde la web | 17 tareas en 6 grupos |
-| 6 | Skill `igea-dgs-spec`, *hook* | reglas |
+| 6 | Skill `convertersmartgrid-spec`, *hook* | reglas |
 
 ## 6. Resultado (ejecutado el mismo día, spec 033 cumplida)
 

@@ -23,7 +23,7 @@ import math
 
 import pytest
 
-from igea_dgs.loads import (
+from convertersmartgrid.loads import (
     ACTION_SKIP,
     SHEET_COLUMNS,
     LoadTemplateError,

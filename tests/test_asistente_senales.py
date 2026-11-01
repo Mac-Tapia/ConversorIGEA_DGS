@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import random
 
-from igea_dgs.asistente import almacen, senales
-from igea_dgs.asistente.interprete import interpretar
+from convertersmartgrid.asistente import almacen, senales
+from convertersmartgrid.asistente.interprete import interpretar
 
 
 def test_umbral_por_tarea_con_su_tasa_de_error():
@@ -29,7 +29,7 @@ def test_umbral_por_tarea_con_su_tasa_de_error():
 def test_filas_reales_y_umbral_en_el_interprete(tmp_path, monkeypatch):
     """027:RF-38 — las órdenes con su señal dan las filas (las fallidas no cuentan); el
     intérprete usa el umbral de la tarea y, si la confianza no llega, pregunta."""
-    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(tmp_path))
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path))
     for i, s in enumerate(('confirmada', 'corregida', 'fallida')):
         almacen.anotar('ordenes', {'plan': f'p{i}', 'texto': 't', 'tarea': 'convertir', 'confianza': 0.9})
         senales.anotar(s, plan=f'p{i}', texto='t', tarea='convertir')

@@ -6,9 +6,9 @@ import time
 import pytest
 from fastapi.testclient import TestClient
 
-from igea_dgs.asistente import almacen
-from igea_dgs.web import services
-from igea_dgs.web.app import create_app
+from convertersmartgrid.asistente import almacen
+from convertersmartgrid.web import services
+from convertersmartgrid.web.app import create_app
 
 #: Lo que «entiende» el Transformer falso de cada orden de estas pruebas.
 ORDENES = {
@@ -31,9 +31,9 @@ class TransformerFalso:
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
-    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'sin_front'))
-    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(tmp_path / 'asistente'))
-    monkeypatch.setenv('IGEA_TWIN_DATA', str(tmp_path / 'twin'))
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'asistente'))
+    monkeypatch.setenv('CSG_TWIN_DATA', str(tmp_path / 'twin'))
     monkeypatch.setattr(services, '_asistente_modelos', lambda: (TransformerFalso(), None))
     app = create_app(tmp_path / 'web')
     with TestClient(app) as c:
@@ -196,7 +196,7 @@ def test_un_reintento_con_el_error_y_vuelta_al_operador(client, monkeypatch):
 
 def test_revisar_tras_error_propone_al_operador():
     """027:RF-20 — con otros datos u otra tarea, no se ejecuta solo: vuelve al operador."""
-    from igea_dgs.asistente.ejecutor import revisar_tras_error
+    from convertersmartgrid.asistente.ejecutor import revisar_tras_error
 
     datos = {'alimentadores': [{'valor': 'IN111'}]}
     assert revisar_tras_error('convierte IN111', 'convertir', datos, 'x')['accion'] == 'reintentar'
@@ -213,7 +213,7 @@ def test_revisar_tras_error_propone_al_operador():
 def test_senales_preferencias_y_reflexiones(client, monkeypatch):
     """027:RF-35 / 027:RF-36 / 027:RF-37 — confirmar es recompensa; corregir, penalización con
     par de preferencia y nota; rechazar, penalización; el registro las suma por tarea."""
-    from igea_dgs.asistente import senales
+    from convertersmartgrid.asistente import senales
 
     monkeypatch.setattr(services, 'gemelo_entrenar', lambda ws, ctx, forzar=False: {'entrenado': True})
     wid = _wid(client)
@@ -237,7 +237,7 @@ def test_senales_preferencias_y_reflexiones(client, monkeypatch):
 def test_orden_parecida_lleva_su_nota_y_sus_ejemplos(client, monkeypatch):
     """027:RF-37 / 027:RF-39 — tras un fallo, una orden parecida llega a Ollama con la nota del
     fallo y las órdenes confirmadas más parecidas."""
-    from igea_dgs.asistente import senales
+    from convertersmartgrid.asistente import senales
 
     almacen.anotar('ejemplos', {'texto': 'convierte el alimentador IN111', 'tarea': 'convertir',
                                 'datos': [], 'origen': 'confirmado'})

@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import pytest
 
-from igea_dgs import catalog_merge as cm
+from convertersmartgrid import catalog_merge as cm
 
 
 def _equipos(tmp_path, nombre: str, lineas: list[tuple[str, float]]) -> str:
@@ -160,7 +160,7 @@ class TestElInventarioLoEscala:
     """Que falten dos códigos es rutina; que falte casi todo es otra cosa."""
 
     def _inventario(self, usados, en_catalogo, tmp_path, aliases=None):
-        from igea_dgs.inventory import build_dataset_inventory
+        from convertersmartgrid.inventory import build_dataset_inventory
 
         ds = _DatasetFalso(usados, en_catalogo)
         # build_dataset_inventory necesita más superficie que catalog_merge.

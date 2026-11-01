@@ -1,7 +1,7 @@
 # Tareas — Spec 002
 
 Pendientes de aprobar el plan. Una tarea cada vez; cada una deja la suite en verde con
-las tres variables `IGEA_*` y la línea base de DGS idéntica (RF-20).
+las tres variables `CSG_*` y la línea base de DGS idéntica (RF-20).
 
 T1 y T5 se adelantaron el 2026-10-12 a petición del usuario («siempre debe ser universal;
 Electro Dunas es un ejemplo de aplicación para pruebas»): no dependen de las capas. La
@@ -12,7 +12,7 @@ Access.
       `output/linea_base_001.json` (fuera de git); añadirle la vía MDB y `workers=4`. (RF-20)
       Del 2026-10-28: la vía MDB en su propia línea base, `output/linea_base_001_mdb.json`,
       generada con `--mdb` sola; la herramienta rechaza TXT y MDB en una misma orden.
-      Hecho cuando: `pytest -q tests/test_linea_base_001.py`, con las variables `IGEA_*`, en verde.
+      Hecho cuando: `pytest -q tests/test_linea_base_001.py`, con las variables `CSG_*`, en verde.
 - [ ] T2. `tests/test_capas.py` y la tabla módulo → capa en `pyproject.toml`, con las
       excepciones medidas del plan. (RF-2 a RF-5)
       Hecho cuando: `pytest -q tests/test_capas.py` en verde y una violación nueva lo pone en rojo.
@@ -29,7 +29,7 @@ Access.
 - [ ] T7. Mover los módulos a `dominio`, `puertos`, `aplicacion`, `adaptadores` y
       `presentacion`, con reexportaciones temporales. (RF-1)
       Hecho cuando: la tabla de `pyproject.toml` es la del plan y `test_capas.py` en verde sin excepciones de capa.
-- [ ] T8. `vnr_etl` dentro de `igea_dgs.adaptadores.entrada.vnr`; `vnr-etl` sigue igual. (RF-6, RF-22)
+- [ ] T8. `vnr_etl` dentro de `convertersmartgrid.adaptadores.entrada.vnr`; `vnr-etl` sigue igual. (RF-6, RF-22)
       Hecho cuando: no queda `src/vnr_etl/` y `pytest -q tests/test_vnr_etl.py` en verde.
 - [ ] T9. Retirar las reexportaciones; `tools/` y las pruebas usan las rutas nuevas. (RF-21)
       Hecho cuando: `test_capas.py` no encuentra ningún módulo que solo reexporte.

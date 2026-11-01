@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from igea_dgs.asistente import mejoras
+from convertersmartgrid.asistente import mejoras
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -15,7 +15,7 @@ def _git(repo: Path, *args: str) -> str:
 
 @pytest.fixture
 def repo(tmp_path, monkeypatch):
-    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(tmp_path / 'datos'))
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'datos'))
     r = tmp_path / 'repo'
     (r / 'tests').mkdir(parents=True)
     (r / 'tests' / 'test_base.py').write_text('def test_base():\n    assert True\n', encoding='utf-8')

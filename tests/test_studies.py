@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import pytest
 
-from igea_dgs.studies import (
+from convertersmartgrid.studies import (
     AUSENTE,
     DISPONIBLE,
     ESTUDIOS,

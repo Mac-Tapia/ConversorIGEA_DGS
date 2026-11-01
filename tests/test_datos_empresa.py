@@ -12,7 +12,7 @@ import string
 import pytest
 from openpyxl import Workbook, load_workbook
 
-from igea_dgs import datos_empresa as de
+from convertersmartgrid import datos_empresa as de
 
 SEMILLAS = [random.randrange(10**6) for _ in range(4)]
 

@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 
 from apoyo import vincular_proyecto
 from apoyo_pf_web import guion_falso  # noqa: F401
-from igea_dgs.web.app import create_app
+from convertersmartgrid.web.app import create_app
 
 RAIZ = Path(__file__).resolve().parents[1]
 OBRAS = (RAIZ / 'frontend' / 'src' / 'components' / 'ObrasPF.tsx').read_text(encoding='utf-8')
@@ -23,7 +23,7 @@ TIPO = {'nombre': 'AAAC_120', 'clase': 'TypLne'}
 
 @pytest.fixture()
 def client(tmp_path, monkeypatch, guion_falso):
-    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     with TestClient(create_app(tmp_path / 'web', host='127.0.0.1')) as c:
         yield c
 

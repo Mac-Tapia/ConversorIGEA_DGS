@@ -379,7 +379,7 @@ habilitados para el ingreso o cargado de nuevos datos o archivos de entrada desd
 - Escala: cualquier número de años y de alimentadores; los libros de un año se abren una vez
   por búsqueda, como hoy (`Cabecera`).
 - Los datos de `referencia/` no se publican ni se envían: las pruebas usan libros sintéticos y
-  las de datos reales siguen tras `IGEA_DEMANDA_DIR`.
+  las de datos reales siguen tras `CSG_DEMANDA_DIR`.
 
 ## Casos límite
 

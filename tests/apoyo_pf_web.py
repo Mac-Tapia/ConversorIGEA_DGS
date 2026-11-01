@@ -122,7 +122,7 @@ Path(a.output_json).write_text(json.dumps(informe), encoding='utf-8')
 @pytest.fixture()
 def guion_falso(tmp_path, monkeypatch):
     """Sustituye los guiones de DIgSILENT por el falso y devuelve la carpeta de los planes."""
-    from igea_dgs.web import services
+    from convertersmartgrid.web import services
 
     carpeta = tmp_path / 'guiones'
     carpeta.mkdir()

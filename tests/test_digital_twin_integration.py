@@ -8,11 +8,11 @@ from pathlib import Path
 import pytest
 from test_digital_twin_capture import _flujo, _lectura
 
-from igea_dgs.digital_twin import integration as it
-from igea_dgs.digital_twin.buffer import BuferEpisodios, Consulta
-from igea_dgs.digital_twin.episode import Caso
-from igea_dgs.estructura import AlimentadorEstructura, Estructura, Sistema
-from igea_dgs.native_action import build_native_action_context
+from convertersmartgrid.digital_twin import integration as it
+from convertersmartgrid.digital_twin.buffer import BuferEpisodios, Consulta
+from convertersmartgrid.digital_twin.episode import Caso
+from convertersmartgrid.estructura import AlimentadorEstructura, Estructura, Sistema
+from convertersmartgrid.native_action import build_native_action_context
 
 RAIZ = Path(__file__).resolve().parents[1]
 H = 'e' * 64
@@ -103,18 +103,18 @@ def test_obras_al_pide():
     """024:RF-32 — las obras creadas pasan con su alternativa; las fallidas o que no son
     inversión del PIDE, no."""
     obras = [{'clase': 'condensador'}, {'clase': 'consigna'}, {'clase': 'terna'}, {'clase': 'seccion'}]
-    filas = [{'obra': 1, 'variacion': 'IGEA obra 1'}, {'obra': 2, 'variacion': 'IGEA obra 2'},
-             {'obra': 3, 'variacion': 'IGEA obra 3', 'error': 'no converge'},
-             {'obra': 4, 'variacion': 'IGEA obra 4'}]
+    filas = [{'obra': 1, 'variacion': 'CSG obra 1'}, {'obra': 2, 'variacion': 'CSG obra 2'},
+             {'obra': 3, 'variacion': 'CSG obra 3', 'error': 'no converge'},
+             {'obra': 4, 'variacion': 'CSG obra 4'}]
     assert [o['alternativa'] for o in it.obras_pide(obras, filas)] == ['bancos', 'cambio_seccion']
 
 
 def test_plan_de_lectura_lleva_contexto_y_variaciones():
     """024:RF-27 — la lectura pide las variaciones que dejó la acción y el mismo contexto."""
     plan = _plan()
-    lectura = it.plan_de_lectura(plan, Caso.CON_PROYECTO, {'variaciones_creadas': ['IGEA obra 1']})
+    lectura = it.plan_de_lectura(plan, Caso.CON_PROYECTO, {'variaciones_creadas': ['CSG obra 1']})
     assert lectura['case'] == 'con_proyecto'
-    assert lectura['variaciones_esperadas'] == ['IGEA obra 1']
+    assert lectura['variaciones_esperadas'] == ['CSG obra 1']
     assert lectura['native_action_context'] == plan['native_action_context']
 
 
@@ -131,7 +131,7 @@ def test_captura_se_apaga_con_su_variable(monkeypatch):
                                      'guion_ejecutar'])
 def test_cada_accion_nativa_de_la_web_registra_su_episodio(funcion):
     """024:RF-1 — toda acción nativa de la web pasa por el único punto de captura."""
-    arbol = ast.parse((RAIZ / 'src' / 'igea_dgs' / 'web' / 'services.py').read_text(encoding='utf-8'))
+    arbol = ast.parse((RAIZ / 'src' / 'convertersmartgrid' / 'web' / 'services.py').read_text(encoding='utf-8'))
     definicion = next(n for n in arbol.body if isinstance(n, ast.FunctionDef) and n.name == funcion)
     llamadas = {n.func.id for n in ast.walk(definicion)
                 if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)}
@@ -140,8 +140,8 @@ def test_cada_accion_nativa_de_la_web_registra_su_episodio(funcion):
 
 def test_gemelo_de_la_web_con_la_lectura_del_guion(tmp_path, monkeypatch):
     """024:RF-1 — ``_gemelo`` lanza la lectura con el guion y deja el episodio en el búfer de
-    ``IGEA_TWIN_DATA``."""
-    from igea_dgs.web import services
+    ``CSG_TWIN_DATA``."""
+    from convertersmartgrid.web import services
 
     monkeypatch.setenv(it.VARIABLE_CAPTURA, '1')
     pedidos = []
@@ -175,8 +175,8 @@ def test_lectura_del_gemelo_con_su_limite_propio(tmp_path, monkeypatch, ajustes,
     """024:RF-1 — la lectura del gemelo no hereda el límite de un estudio (PA217 esperó 26 min
     a DIgSILENT): 5 min por defecto o ``gemelo.lectura_s`` del perfil; ``gemelo.captura: false``
     la apaga sin llamar a DIgSILENT."""
-    from igea_dgs import perfil_empresa
-    from igea_dgs.web import services
+    from convertersmartgrid import perfil_empresa
+    from convertersmartgrid.web import services
 
     monkeypatch.setenv(it.VARIABLE_CAPTURA, '1')
     monkeypatch.setattr(perfil_empresa, 'datos_perfil', lambda: {**PERFIL, 'gemelo': ajustes})

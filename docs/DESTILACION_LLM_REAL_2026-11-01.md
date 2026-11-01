@@ -84,7 +84,7 @@ esperar ambos procesos y publicar el GGUF completo antes de importarlo.
 
 La segunda importación terminó con código 0. GGUF de base:
 `a7051bf4fce0bfe5b41e61ff56cd245dae261bde2cf786404c2348df31cd2f96`,
-tag local `igea-alumno-base:20261101-nf4q4`. Es una base de comparación, no el alumno
+tag local `csg-alumno-base:20261101-nf4q4`. Es una base de comparación, no el alumno
 entrenado ni el modelo activo. Su selección real de 54 casos terminó: 7/54 tareas
 correctas (0,1296296296), F1 de datos 0,1, en `seleccion_base_v2/resultado.json`.
 Este ensayo usa el sellado anterior; no se reasigna su hash al corpus vigente.

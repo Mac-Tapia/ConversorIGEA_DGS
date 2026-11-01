@@ -22,7 +22,7 @@ import traceback
 from pathlib import Path
 
 from cargas_pf import activar_proyecto, error_inesperado, flujo_de_carga, leer_cabecera
-from igea_dgs.native_action import native_action_block_report
+from convertersmartgrid.native_action import native_action_block_report
 
 
 def ejecutar(app, plan: dict) -> tuple[dict, int]:
@@ -69,7 +69,7 @@ def main(argv=None) -> int:
         return 2
     # 019:RF-1 a RF-6: turno del motor de la máquina, reintento con el motor ocupado y
     # primera línea al responder, comunes a todos los guiones.
-    from igea_dgs.pf_arnes import PFNoDisponible, conectar
+    from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
 
     try:
         app = conectar('verificar_pf.py')

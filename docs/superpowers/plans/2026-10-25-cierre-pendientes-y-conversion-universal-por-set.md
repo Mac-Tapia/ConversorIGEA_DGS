@@ -121,9 +121,9 @@ Agregar una comprobación que falle si una especificación se declara implementa
 
 **Archivos:**
 
-- Modificar: `src/igea_dgs/estructura.py`
-- Modificar: `src/igea_dgs/cli.py`
-- Modificar: `src/igea_dgs/web/services.py`
+- Modificar: `src/convertersmartgrid/estructura.py`
+- Modificar: `src/convertersmartgrid/cli.py`
+- Modificar: `src/convertersmartgrid/web/services.py`
 - Crear: `tests/test_seleccion_sistema.py`
 
 **Interfaz propuesta:**
@@ -161,11 +161,11 @@ def seleccionar_sistema(
 
 **Archivos:**
 
-- Modificar: `src/igea_dgs/combine.py`
-- Modificar: `src/igea_dgs/batch.py`
-- Modificar: `src/igea_dgs/cli.py`
-- Modificar: `src/igea_dgs/web/services.py`
-- Modificar: `src/igea_dgs/web/app.py`
+- Modificar: `src/convertersmartgrid/combine.py`
+- Modificar: `src/convertersmartgrid/batch.py`
+- Modificar: `src/convertersmartgrid/cli.py`
+- Modificar: `src/convertersmartgrid/web/services.py`
+- Modificar: `src/convertersmartgrid/web/app.py`
 - Crear: `tests/test_sistema_faltantes.py`
 
 **Comportamiento:**
@@ -191,8 +191,8 @@ def seleccionar_sistema(
 
 **Archivos:**
 
-- Modificar: `src/igea_dgs/estructura.py`
-- Modificar: `src/igea_dgs/combine.py`
+- Modificar: `src/convertersmartgrid/estructura.py`
+- Modificar: `src/convertersmartgrid/combine.py`
 - Modificar: `config/perfiles/electro_dunas.estructura.json`
 - Modificar: `tests/test_estructura.py`
 - Modificar: `tests/test_estructura_nuevos.py`
@@ -232,7 +232,7 @@ La configuración no enumerará zonales autorizadas para dividir por SET. El nom
 **Archivos:**
 
 - Crear: `tests/test_recorridos_chn_pdo.py`
-- Modificar si falla el algoritmo: `src/igea_dgs/model.py`, `src/igea_dgs/validate.py` y/o `src/igea_dgs/combine.py`
+- Modificar si falla el algoritmo: `src/convertersmartgrid/model.py`, `src/convertersmartgrid/validate.py` y/o `src/convertersmartgrid/combine.py`
 
 **Pruebas por alimentador:**
 
@@ -257,8 +257,8 @@ Para CHN102, la prueba debe enumerar su recorrido real y fallar si cualquier obj
 
 **Archivos:**
 
-- Modificar: `src/igea_dgs/batch.py`
-- Modificar: `src/igea_dgs/combine.py`
+- Modificar: `src/convertersmartgrid/batch.py`
+- Modificar: `src/convertersmartgrid/combine.py`
 - Crear: `tests/test_manifest_scope.py`
 
 **Campos obligatorios:**
@@ -286,10 +286,10 @@ Para CHN102, la prueba debe enumerar su recorrido real y fallar si cualquier obj
 
 **Archivos:**
 
-- Modificar: `src/igea_dgs/validate.py`
-- Modificar: `src/igea_dgs/batch.py`
-- Modificar: `src/igea_dgs/web/app.py`
-- Modificar: `src/igea_dgs/web/services.py`
+- Modificar: `src/convertersmartgrid/validate.py`
+- Modificar: `src/convertersmartgrid/batch.py`
+- Modificar: `src/convertersmartgrid/web/app.py`
+- Modificar: `src/convertersmartgrid/web/services.py`
 - Crear: `tests/test_acceptance_gates.py`
 
 **Puertas:**
@@ -313,9 +313,9 @@ Una tensión mínima de 0.749 p.u. puede ser convergente, pero debe fallar calid
 
 **Archivos:**
 
-- Modificar: `src/igea_dgs/web/services.py`
-- Modificar: `src/igea_dgs/web/app.py`
-- Modificar: `src/igea_dgs/cli.py`
+- Modificar: `src/convertersmartgrid/web/services.py`
+- Modificar: `src/convertersmartgrid/web/app.py`
+- Modificar: `src/convertersmartgrid/cli.py`
 - Modificar: `frontend/src/**` únicamente en componentes consumidores identificados con `rg "sistema|alimentador|unir" frontend/src`
 - Modificar: `tests/test_sistema_web.py`
 - Modificar: `tests/test_web_api.py`
@@ -338,7 +338,7 @@ Una tensión mínima de 0.749 p.u. puede ser convergente, pero debe fallar calid
 
 **Archivos:**
 
-- Modificar solo según fallos: `src/igea_dgs/sources/txt.py`, `src/igea_dgs/sources/mdb.py`, `src/igea_dgs/sources/vnr.py` y adaptadores consumidores identificados con `rg "TXT|MDB|VNR|GIS" src/igea_dgs`
+- Modificar solo según fallos: `src/convertersmartgrid/sources/txt.py`, `src/convertersmartgrid/sources/mdb.py`, `src/convertersmartgrid/sources/vnr.py` y adaptadores consumidores identificados con `rg "TXT|MDB|VNR|GIS" src/convertersmartgrid`
 - Crear: `tests/test_sistema_por_set_fuentes_reales.py`
 - Actualizar: fixtures/manifiestos de evidencia, sin copiar fuentes de custodia al repositorio
 

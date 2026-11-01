@@ -10,7 +10,7 @@ DIgSILENT PowerFactory para MDB, tres TXT y VNR-GIS.
 La aplicación debe ofrecer tres alternativas equivalentes de entrada:
 
 1. base CYMDIST/Access (`MDB`);
-2. exportación IGEA/CYMDIST formada por `RED`, `CARGA` y `BD_Equipo` (`TXT`);
+2. exportación CYMDIST formada por `RED`, `CARGA` y `BD_Equipo` (`TXT`);
 3. paquete completo de base de datos geográfica `VNR-GIS`.
 
 Cada alternativa debe inventariar todos sus alimentadores, permitir convertir uno,
@@ -58,7 +58,7 @@ derivada separada y se registra en el manifiesto.
 
 ## 4. Arquitectura
 
-Se incorpora un contrato común en `igea_dgs.web.sources`:
+Se incorpora un contrato común en `convertersmartgrid.web.sources`:
 
 ```python
 class SourceAdapter(Protocol):

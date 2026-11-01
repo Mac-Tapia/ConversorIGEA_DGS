@@ -6,7 +6,7 @@
 
 ## 1. Objetivo
 
-Consolidar el conversor IGEA/CYMDIST → DGS en una única interfaz React + FastAPI,
+Consolidar el conversor CYMDIST → DGS en una única interfaz React + FastAPI,
 incorporar la trazabilidad carga–alimentador y las exportaciones eléctricas completas,
 mantener los flujos actualmente operativos y retirar por completo la GUI Tkinter y
 sus accesos antiguos.
@@ -109,7 +109,7 @@ del frontend o del servidor actual.
 ### 5.1 Fuente de verdad
 
 El valor **Alimentador** se obtiene de la procedencia eléctrica de la sección en la
-entrada IGEA/CYMDIST y se conserva al combinar redes. No se infiere por el nombre de
+entrada CYMDIST y se conserva al combinar redes. No se infiere por el nombre de
 la carga, por proximidad geográfica ni por el nombre de la Grid conjunta.
 
 El recorrido verificable será:
@@ -230,11 +230,11 @@ silenciosa del primer archivo disponible.
 La eliminación se ejecutará solamente después de demostrar equivalencia funcional de
 la interfaz web. Se retirarán:
 
-- `src/igea_dgs/gui.py`;
+- `src/convertersmartgrid/gui.py`;
 - `run_gui_escritorio.bat`;
 - `run_gui.bat`;
 - el subcomando CLI `gui`;
-- el entry point `igea-dgs-gui`;
+- el entry point `convertersmartgrid-gui`;
 - `tests/test_gui_wiring.py`;
 - referencias de uso de Tkinter o de los lanzadores anteriores.
 
@@ -246,9 +246,9 @@ La documentación conservará únicamente estos accesos:
 
 ```text
 run_web.bat
-python -m igea_dgs.web
-igea-dgs-web
-igea-dgs list|convert|web
+python -m convertersmartgrid.web
+convertersmartgrid-web
+convertersmartgrid list|convert|web
 ```
 
 ## 11. Errores, seguridad y recuperación

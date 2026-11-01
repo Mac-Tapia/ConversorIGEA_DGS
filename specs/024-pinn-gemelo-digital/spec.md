@@ -12,7 +12,7 @@ auditables, aprenda la relación entre topología, inyecciones y estado eléctri
 la validación nativa.
 
 El caso inicial dorado de topología —no de aceptación operativa— es el proyecto
-`20261015-170359_IGEA_IN111_TA225`: el corredor manual del
+`20261015-170359_CSG_IN111_TA225`: el corredor manual del
 enlace se conserva, el nodo 3092 y sus ramales quedan en 22,9 kV, el nodo 3091 y la red hacia
 IN111 permanecen en 10 kV, y la frontera se corrige cerrando `SEC_1091_1055021(1)`. Después de
 guardar y reabrir PowerFactory, el flujo converge; 3091 queda en 0,9522 p.u., 3092 en 0,9604 p.u.

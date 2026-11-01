@@ -6,7 +6,7 @@ from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[1]
 SRC = RAIZ / 'frontend' / 'src'
-APP = (RAIZ / 'src' / 'igea_dgs' / 'web' / 'app.py').read_text(encoding='utf-8')
+APP = (RAIZ / 'src' / 'convertersmartgrid' / 'web' / 'app.py').read_text(encoding='utf-8')
 CARGAS = (SRC / 'components' / 'CargasTab.tsx').read_text(encoding='utf-8')
 DEMANDA = (SRC / 'components' / 'DemandaMedida.tsx').read_text(encoding='utf-8')
 
@@ -21,7 +21,9 @@ def test_demanda_medida_en_la_misma_pestana():
 
 def test_las_tres_funciones_de_cargas_siguen():
     """004:RF-41 — carga nueva (formulario), cargas nuevas y demandas en bloque siguen en la pestaña."""
-    for pieza in ('setDemandas', 'setNuevas', 'guardarNueva', 'api.cargasPlan', 'api.cargasSimular',
+    # Una carga nueva se escribe en la página desde el 2026-10-31 (spec 008, cb4dd928):
+    # el formulario con su ventana y ``guardarNueva`` pasaron a ``cambiarNueva``.
+    for pieza in ('setDemandas', 'setNuevas', 'cambiarNueva', 'api.cargasPlan', 'api.cargasSimular',
                   'api.cargasAplicar'):
         assert pieza in CARGAS, pieza
     assert 'cargasPlan' not in DEMANDA, 'la demanda medida no rellena el plan de cargas'

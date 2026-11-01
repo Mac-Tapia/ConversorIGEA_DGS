@@ -25,16 +25,16 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'src'))
 
-from igea_dgs.dataset import CymdistDataset  # noqa: E402
-from igea_dgs.model import suggest_catalog_code  # noqa: E402
+from convertersmartgrid.dataset import CymdistDataset  # noqa: E402
+from convertersmartgrid.model import suggest_catalog_code  # noqa: E402
 
 
 def _paths(args: argparse.Namespace) -> tuple[Path, Path, Path]:
     if args.red and args.loads and args.equipment:
         return Path(args.red), Path(args.loads), Path(args.equipment)
-    root = Path(args.txt_dir or os.environ.get('IGEA_TXT_DIR', ''))
+    root = Path(args.txt_dir or os.environ.get('CSG_TXT_DIR', ''))
     if not root.is_dir():
-        raise SystemExit('Indique --red, --loads y --equipment, o --txt-dir (o IGEA_TXT_DIR).')
+        raise SystemExit('Indique --red, --loads y --equipment, o --txt-dir (o CSG_TXT_DIR).')
     red = next(iter(sorted(root.glob('RED_*.txt'))), None)
     loads = next(iter(sorted(root.glob('CARGA_*.txt'))), None)
     equip = next(iter(sorted(root.glob('BD_Equipo*.txt'))), None)

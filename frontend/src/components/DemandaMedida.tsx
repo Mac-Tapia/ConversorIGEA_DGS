@@ -767,7 +767,7 @@ function Cruce({ cruce, visibles, filtro, setFiltro, desconectados, conmutar }: 
     <p className="alert alert-info small">La pertenencia de las SED se contrasta con la fuente de red cargada antes
       de filtrar los clientes. Cuando difiere del libro y la pertenencia es inequívoca, se usa el alimentador de la red
       y se deja una nota en su fila.
-      Los planos de IGEA previos a la exportación quedan fuera del alcance del conversor; aquí se usa la fuente
+      Los planos de la distribuidora previos a la exportación quedan fuera del alcance del conversor; aquí se usa la fuente
       exportada cargada (TXT, MDB o VNR-GIS).</p>
     <p className="small"><strong>Fijas: {criterioDe(cruce.criterio).texto}</strong> ({criterioDe(cruce.criterio).ayuda}).</p>
     {sinCoincidente.length > 0 && <div className="alert alert-error small">

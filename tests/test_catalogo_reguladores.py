@@ -8,7 +8,7 @@ import pytest
 
 import fake_pf
 from apoyo import cargar_herramienta
-from igea_dgs import catalogo_reguladores as cat
+from convertersmartgrid import catalogo_reguladores as cat
 
 guion = cargar_herramienta('obras_pf.py', 'obras_t17', tools_en_path=True)
 

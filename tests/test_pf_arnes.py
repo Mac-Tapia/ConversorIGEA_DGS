@@ -12,8 +12,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from igea_dgs import pf_arnes
-from igea_dgs.pf_arnes import PFNoDisponible
+from convertersmartgrid import pf_arnes
+from convertersmartgrid.pf_arnes import PFNoDisponible
 
 RAIZ = Path(__file__).resolve().parents[1]
 
@@ -139,7 +139,7 @@ def test_liberar_un_muerto_no_borra_el_turno_de_otro(turno):
 def test_cerrar_servidor_solo_por_su_orden(turno, tmp_path, monkeypatch):
     """019:RF-20 — el corte retira su orden de la cola; cierra el servidor si la atendía o si
     no llegó a conectar, y no si atiende la de otro."""
-    from igea_dgs import powerfactory_env
+    from convertersmartgrid import powerfactory_env
 
     cola = tmp_path / 'cola'
     cola.mkdir()
@@ -185,7 +185,7 @@ def test_dos_procesos_a_la_vez_se_turnan(turno, tmp_path):
     codigo = textwrap.dedent(f"""
         import sys, time
         sys.path.insert(0, {str(RAIZ / 'src')!r})
-        from igea_dgs import pf_arnes
+        from convertersmartgrid import pf_arnes
         with pf_arnes.turno_del_motor(sys.argv[1], abierto=lambda: []):
             print('dentro', sys.argv[1], time.time(), flush=True)
             time.sleep(float(sys.argv[2]))
@@ -294,7 +294,7 @@ def test_la_salida_va_linea_a_linea():
     """019:RF-15 — redirigida a un fichero, la salida del guion no espera a llenar un bloque."""
     codigo = textwrap.dedent('''
         import sys, time
-        from igea_dgs import pf_arnes
+        from convertersmartgrid import pf_arnes
         pf_arnes.salida_sin_bufer()
         print('primera')
         time.sleep(30)
@@ -387,7 +387,7 @@ def test_conexion_colgada_de_verdad_termina_con_su_codigo(turno, tmp_path):
         import sys, time
         from types import SimpleNamespace
         sys.path.insert(0, {str(RAIZ / 'src')!r})
-        from igea_dgs import pf_arnes
+        from convertersmartgrid import pf_arnes
         colgado = SimpleNamespace(GetApplicationExt=lambda: time.sleep(600))
         pf_arnes.conectar('colgado.py', modulo=colgado, aviso=lambda m: None, abierto=lambda: [],
                           plazo_conexion_s=2)

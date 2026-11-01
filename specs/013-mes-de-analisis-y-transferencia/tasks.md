@@ -37,7 +37,7 @@ abiertas, lo que falta. Una tarea cada vez, pruebas primero.
       evidencia completa, sobre `fake_pf`. (RF-22 a RF-29)
       Hecho cuando: pruebas que citan 013:RF-22 a RF-29 en verde, con curvas sorteadas.
       Evidencia (2026-10-29): instantes comunes, frontera no dominada en P y |Q| y crítico en
-      `igea_dgs.transferencia_pf`; ajuste de las dos cabeceras por candidato, SED y cabeceras
+      `convertersmartgrid.transferencia_pf`; ajuste de las dos cabeceras por candidato, SED y cabeceras
       antes y después en `tools/transferencia_pf.py`; candidatos desde las curvas de la máxima
       de 2.2 en `services.instantes_de_transferencia`; libro con las hojas «Pasos», «SED
       transferidas» y «Cobertura temporal». Pruebas: `tests/test_transferencia_pf.py`,

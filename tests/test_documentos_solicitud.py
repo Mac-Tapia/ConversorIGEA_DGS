@@ -2,7 +2,7 @@
 
 Las pruebas sintéticas usan cartas inventadas con la redacción de las reales. Las de datos
 reales leen los PDF de ``referencia/`` por variables (nunca se copian al repositorio):
-``IGEA_SOLICITUD_PDF`` (la carta de un solicitante) e ``IGEA_SOLICITUD_DIR`` (una carpeta
+``CSG_SOLICITUD_PDF`` (la carta de un solicitante) e ``CSG_SOLICITUD_DIR`` (una carpeta
 con los PDF de un expediente, como «ampliaciondecarga»).
 """
 from __future__ import annotations
@@ -13,8 +13,8 @@ from pathlib import Path
 
 import pytest
 
-from igea_dgs import documentos_solicitud as ds
-from igea_dgs.documentos_solicitud import (
+from convertersmartgrid import documentos_solicitud as ds
+from convertersmartgrid.documentos_solicitud import (
     Documento, antecedentes_de, clase_de, datos_de_texto, leer_documento, propuesta_factibilidad, texto_pdf,
 )
 
@@ -169,11 +169,11 @@ def test_capa_de_texto_sin_ocr(tmp_path, monkeypatch):
 
 # ------------------------------------------------------------------ datos reales
 
-PDF_REAL = os.environ.get('IGEA_SOLICITUD_PDF', '')
-DIR_REAL = os.environ.get('IGEA_SOLICITUD_DIR', '')
+PDF_REAL = os.environ.get('CSG_SOLICITUD_PDF', '')
+DIR_REAL = os.environ.get('CSG_SOLICITUD_DIR', '')
 
 
-@pytest.mark.skipif(not PDF_REAL, reason='IGEA_SOLICITUD_PDF no definida')
+@pytest.mark.skipif(not PDF_REAL, reason='CSG_SOLICITUD_PDF no definida')
 def test_carta_real_por_texto_y_por_ocr():
     """017:RF-137 / 017:RF-138 — la carta real da cliente, potencia, fecha, NIS y expediente; leída
     a la fuerza con OCR (Tesseract y OpenCV o Pillow) da las mismas cifras."""
@@ -190,7 +190,7 @@ def test_carta_real_por_texto_y_por_ocr():
         assert ocr.datos.get(clave) == doc.datos.get(clave), clave
 
 
-@pytest.mark.skipif(not DIR_REAL, reason='IGEA_SOLICITUD_DIR no definida')
+@pytest.mark.skipif(not DIR_REAL, reason='CSG_SOLICITUD_DIR no definida')
 def test_expediente_real_en_antecedentes():
     """017:RF-138 / 017:RF-140 — cada PDF del expediente real se lee y da un antecedente, en orden
     de fecha; la ficha trae el punto de diseño."""
@@ -213,8 +213,8 @@ def client(tmp_path, monkeypatch):
     pytest.importorskip('fastapi')
     from fastapi.testclient import TestClient
 
-    from igea_dgs.web.app import create_app
-    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    from convertersmartgrid.web.app import create_app
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     with TestClient(create_app(tmp_path / 'web')) as c:
         yield c
 

@@ -23,9 +23,9 @@ from __future__ import annotations
 
 import pytest
 
-from igea_dgs.batch import convert_selection
-from igea_dgs.dataset import CymdistDataset
-from igea_dgs.model import (
+from convertersmartgrid.batch import convert_selection
+from convertersmartgrid.dataset import CymdistDataset
+from convertersmartgrid.model import (
     IslandWithLoadsError,
     ModelBuildError,
     build_feeder_model,

@@ -42,7 +42,7 @@ no bloquean el núcleo. Identidad de fuente/caso y norma se conservan en informe
 
 ## Fuera de alcance
 
-PINN dinámico RMS/EMT; aprendizaje de una PDE espacial inexistente en el flujo algebraico; sustituir el motor nativo; modificar planos IGEA; dar por soportada red desequilibrada sin representación por fase.
+PINN dinámico RMS/EMT; aprendizaje de una PDE espacial inexistente en el flujo algebraico; sustituir el motor nativo; modificar planos de la distribuidora; dar por soportada red desequilibrada sin representación por fase.
 
 ## Criterios de finalización
 

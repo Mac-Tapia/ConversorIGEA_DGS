@@ -17,8 +17,8 @@ import pytest
 
 pytest.importorskip('pandapower')
 
-from igea_dgs import oraculo  # noqa: E402
-from igea_dgs.model import build_feeder_model  # noqa: E402
+from convertersmartgrid import oraculo  # noqa: E402
+from convertersmartgrid.model import build_feeder_model  # noqa: E402
 from synthetic_export import ExportSpec, load_export  # noqa: E402
 
 LAYOUTS = ('reducido', 'completo')

@@ -7,8 +7,8 @@ compararla con la otra.
 
 Se ejecutan solo con los datos disponibles, y hacen *skip* limpio si faltan:
 
-    set IGEA_RED / IGEA_LOADS / IGEA_EQUIPMENT   → alternativa 1 (TXT)
-    set IGEA_MDB  (+ IGEA_EQUIPMENT_MDB)         → alternativa 2 (Access)
+    set CSG_RED / CSG_LOADS / CSG_EQUIPMENT   → alternativa 1 (TXT)
+    set CSG_MDB  (+ CSG_EQUIPMENT_MDB)         → alternativa 2 (Access)
 
 Spec 034: 034:RF-18.
 """
@@ -18,9 +18,9 @@ from __future__ import annotations
 from pathlib import Path
 
 
-from igea_dgs.batch import convert_selection
-from igea_dgs.reglas import SIN_REGLAS
-from igea_dgs.validate import parse_dgs
+from convertersmartgrid.batch import convert_selection
+from convertersmartgrid.reglas import SIN_REGLAS
+from convertersmartgrid.validate import parse_dgs
 
 FEEDER = 'PA217'
 
@@ -94,7 +94,7 @@ class TestPa217ConvertsFromBothInputs:
         assert (tsv_dir / 'ElmTerm.tsv').is_file()
 
     def test_output_is_published_atomically(self, dataset_for, tmp_path):
-        from igea_dgs.batch import STAGE_PREFIX
+        from convertersmartgrid.batch import STAGE_PREFIX
 
         source, ds = dataset_for
         out = tmp_path / source

@@ -65,7 +65,7 @@ descarta esa alternativa con motivo explícito; no fabricar ceros.
 
 **Cubre:** RF-1, RF-2, RF-3.
 
-**Files:** Crear `src/igea_dgs/evaluacion_modelos.py`, `tests/test_evaluacion_modelos.py`; modificar `digital_twin/oraculo.py:particionar`, `_grupos` y consumidores del donante.
+**Files:** Crear `src/convertersmartgrid/evaluacion_modelos.py`, `tests/test_evaluacion_modelos.py`; modificar `digital_twin/oraculo.py:particionar`, `_grupos` y consumidores del donante.
 
 **Interfaces:** `Particiones` contiene `entrenamiento`, `seleccion`, `calibracion`, `prueba` como tuplas de IDs; `PoliticaEvaluacion` contiene `schema_version`, `modo` (por_sistema/generalizacion), `min_calibracion_grupos`, `cobertura_objetivo`, `puertas_por_familia`, `semillas` y hash sellado. `particionar_registros(registros: Sequence[Mapping], politica: PoliticaEvaluacion) -> Particiones`. Requerir mínimos existentes 30/10/10 por sistema y mínimo de calibración positivo declarado; el modo generalizacion además retiene sistemas enteros fuera.
 

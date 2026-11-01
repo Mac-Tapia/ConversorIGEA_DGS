@@ -23,8 +23,8 @@ openpyxl = pytest.importorskip('openpyxl')
 from fastapi.testclient import TestClient  # noqa: E402
 
 from apoyo import esperar_trabajo, vincular_proyecto  # noqa: E402
-from igea_dgs.web import services  # noqa: E402
-from igea_dgs.web.app import create_app  # noqa: E402
+from convertersmartgrid.web import services  # noqa: E402
+from convertersmartgrid.web.app import create_app  # noqa: E402
 
 # Imita a tools/cargas_pf.py: escribe un informe con lo que recibió. Con --cancel-file
 # espera a que aparezca el fichero (como si estuviera a mitad de un alimentador) y
@@ -58,7 +58,7 @@ GUION_FALSO = textwrap.dedent('''
 
 @pytest.fixture()
 def client(tmp_path, monkeypatch):
-    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     guion = tmp_path / 'cargas_pf_falso.py'
     guion.write_text(GUION_FALSO, encoding='utf-8')
     monkeypatch.setattr(services, '_require_pf', lambda: (tmp_path, sys.executable))
@@ -265,7 +265,7 @@ def test_un_plan_de_cargas_sobrevive_a_cambiar_las_entradas(client, tmp_path):
 
 def test_el_plan_lleva_la_ruta_y_la_carpeta(client):
     """005:RF-16 — el plan identifica el proyecto por su ruta y lleva la carpeta del perfil."""
-    from igea_dgs.web import services
+    from convertersmartgrid.web import services
 
     wid = _wid(client)
     r = _plan(client, wid, project='Oct/SI213', demandas=DEMANDAS)
@@ -277,7 +277,7 @@ def test_el_plan_lleva_la_ruta_y_la_carpeta(client):
 def test_el_plan_lleva_las_fichas_de_transformador_del_perfil(client, monkeypatch):
     """040:RF-5 — el plan de cargas lleva las fichas del perfil, con que el guion propone el
     transformador de la SED de una ampliación."""
-    from igea_dgs import perfil_empresa
+    from convertersmartgrid import perfil_empresa
 
     fichas = {'umbral_carga_pct': 80, 'tablas': []}
     monkeypatch.setattr(perfil_empresa, 'datos_perfil',

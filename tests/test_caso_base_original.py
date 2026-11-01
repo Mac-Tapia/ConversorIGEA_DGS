@@ -12,9 +12,9 @@ from __future__ import annotations
 import pytest
 
 from synthetic_export import CRS_SINTETICO, ExportSpec, load_export
-from igea_dgs.batch import convert_group, convert_selection
-from igea_dgs.catalog import CorreccionConductor
-from igea_dgs.validate import parse_dgs
+from convertersmartgrid.batch import convert_group, convert_selection
+from convertersmartgrid.catalog import CorreccionConductor
+from convertersmartgrid.validate import parse_dgs
 
 pytest.importorskip('pyproj')
 
@@ -94,7 +94,7 @@ def test_la_verificacion_compara_con_la_entrada_sin_corregir(ds, tmp_path):
     esperado."""
     from dataclasses import replace
 
-    from igea_dgs.capacidades import comparar_equipos, equipos_de_dgs
+    from convertersmartgrid.capacidades import comparar_equipos, equipos_de_dgs
 
     m = convert_selection(ds, None, tmp_path / 'o', all_feeders=True, source_crs=CRS_SINTETICO,
                           catalog_corrections=FICHA)

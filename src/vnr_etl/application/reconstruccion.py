@@ -10,12 +10,12 @@ puente (:mod:`vnr_etl.application.cymdist_bridge`) no puede traducir por sí sol
 Reglas:
 
 * Nada se completa sin dejar constancia: cada cambio es una
-  :class:`igea_dgs.reconstruction.ReconstructionDecision`, con el valor original, el
+  :class:`convertersmartgrid.reconstruction.ReconstructionDecision`, con el valor original, el
   aplicado, la regla y la confianza, en el mismo formato que la reconstrucción de la web.
 * Determinista: todo se recorre en orden de identificador, para que el mismo paquete
   dé el mismo DGS (constitución P1).
 * Lo que es del catálogo de conductores no se decide aquí: lo resuelve el motor
-  (:func:`igea_dgs.reconstruction_pipeline.reconstruir_seleccion`), que usa el catálogo
+  (:func:`convertersmartgrid.reconstruction_pipeline.reconstruir_seleccion`), que usa el catálogo
   de parámetros antes que cualquier supuesto (RF-18).
 * Ningún CRS ni tensión de una empresa concreta como valor por defecto (P13): la zona
   UTM sale de las propias coordenadas y la tensión provisional, de la política.
@@ -30,7 +30,7 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Any
 
-from igea_dgs.reconstruction import EvidenceLevel, ReconstructionDecision, ReconstructionPolicy
+from convertersmartgrid.reconstruction import EvidenceLevel, ReconstructionDecision, ReconstructionPolicy
 from vnr_etl.gis.crs import parecen_grados
 from vnr_etl.models import CanonicalModel, Source
 from vnr_etl.pipeline import suggest_utm_crs
@@ -170,7 +170,7 @@ def _crs(out: ModeloReconstruido) -> None:
     lon = sum(p[0] for p in puntos) / len(puntos)
     lat = sum(p[1] for p in puntos) / len(puntos)
     destino = suggest_utm_crs(lon, lat)
-    from igea_dgs.geography import make_transformer
+    from convertersmartgrid.geography import make_transformer
 
     transformer = make_transformer(origen, destino)
     for node in out.model.nodes:

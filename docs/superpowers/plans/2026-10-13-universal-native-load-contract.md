@@ -36,10 +36,10 @@
 ### Task 1: Contrato canónico evaluado en cada carga
 
 **Files:**
-- Create: `src/igea_dgs/source_contract.py`
-- Modify: `src/igea_dgs/sources/base.py`
-- Modify: `src/igea_dgs/web/services.py:131`
-- Modify: `src/igea_dgs/web/readiness.py`
+- Create: `src/convertersmartgrid/source_contract.py`
+- Modify: `src/convertersmartgrid/sources/base.py`
+- Modify: `src/convertersmartgrid/web/services.py:131`
+- Modify: `src/convertersmartgrid/web/readiness.py`
 - Modify: `frontend/src/types.ts`
 - Modify: `frontend/src/components/FeedersPanel.tsx`
 - Test: `tests/test_source_contract.py`
@@ -51,7 +51,7 @@
 - Produces: `SourceIssue`, `FeederSourceAudit`, `UniversalSourceAudit`, `audit_source(dataset, provenance) -> UniversalSourceAudit`; `SourceLoadResult.audit`.
 
 - [ ] **Step 1: Write failing source-contract tests**
-  Add `test_same_audit_contract_for_txt_mdb_vnr`, `test_missing_or_ambiguous_feeder_is_reported_once`, `test_source_audit_keeps_mode_run_and_fingerprint`, and `test_common_contract_has_no_mode_branch`. Assert identical keys and status semantics for three datasets with the same electrical content and reject source-mode branching outside `src/igea_dgs/sources/`.
+  Add `test_same_audit_contract_for_txt_mdb_vnr`, `test_missing_or_ambiguous_feeder_is_reported_once`, `test_source_audit_keeps_mode_run_and_fingerprint`, and `test_common_contract_has_no_mode_branch`. Assert identical keys and status semantics for three datasets with the same electrical content and reject source-mode branching outside `src/convertersmartgrid/sources/`.
 - [ ] **Step 2: Run tests to verify failure**
   Run: `pytest tests/test_source_contract.py tests/test_source_adapters.py -q`
   Expected: FAIL because `audit_source` and `SourceLoadResult.audit` do not exist.
@@ -70,11 +70,11 @@
 ### Task 2: Bancos universales en dataset y modelo eléctrico
 
 **Files:**
-- Modify: `src/igea_dgs/dataset.py`
-- Modify: `src/igea_dgs/access.py`
-- Modify: `src/igea_dgs/model.py`
-- Modify: `src/igea_dgs/combine.py`
-- Modify: `src/igea_dgs/source_contract.py`
+- Modify: `src/convertersmartgrid/dataset.py`
+- Modify: `src/convertersmartgrid/access.py`
+- Modify: `src/convertersmartgrid/model.py`
+- Modify: `src/convertersmartgrid/combine.py`
+- Modify: `src/convertersmartgrid/source_contract.py`
 - Modify: `src/vnr_etl/application/cymdist_bridge.py`
 - Test: `tests/test_capacitor_canonical.py`
 - Test: `tests/test_vnr_cymdist_bridge.py`
@@ -106,11 +106,11 @@
 ### Task 3: Exportar y releer `ElmShnt` con trazabilidad
 
 **Files:**
-- Modify: `src/igea_dgs/dgs.py`
-- Modify: `src/igea_dgs/batch.py`
-- Modify: `src/igea_dgs/feeder_metadata.py`
-- Modify: `src/igea_dgs/powerfactory_metadata.py`
-- Modify: `src/igea_dgs/geography.py`
+- Modify: `src/convertersmartgrid/dgs.py`
+- Modify: `src/convertersmartgrid/batch.py`
+- Modify: `src/convertersmartgrid/feeder_metadata.py`
+- Modify: `src/convertersmartgrid/powerfactory_metadata.py`
+- Modify: `src/convertersmartgrid/geography.py`
 - Modify: `tools/powerfactory_acceptance.py`
 - Modify: `frontend/src/types.ts`
 - Modify: `frontend/src/components/FeedersPanel.tsx`
@@ -144,9 +144,9 @@
 ### Task 4: Binding verificable del proyecto PowerFactory
 
 **Files:**
-- Create: `src/igea_dgs/powerfactory_binding.py`
-- Modify: `src/igea_dgs/web/workspace.py`
-- Modify: `src/igea_dgs/web/services.py:557-821`
+- Create: `src/convertersmartgrid/powerfactory_binding.py`
+- Modify: `src/convertersmartgrid/web/workspace.py`
+- Modify: `src/convertersmartgrid/web/services.py:557-821`
 - Modify: `tools/powerfactory_acceptance.py`
 - Modify: `frontend/src/types.ts`
 - Modify: `frontend/src/components/CargasTab.tsx`
@@ -180,9 +180,9 @@
 ### Task 5: Periodo demostrado y cargas importantes fijas
 
 **Files:**
-- Modify: `src/igea_dgs/demanda_medida.py`
-- Modify: `src/igea_dgs/ajuste_cabecera.py`
-- Modify: `src/igea_dgs/web/services.py:1540-1715`
+- Modify: `src/convertersmartgrid/demanda_medida.py`
+- Modify: `src/convertersmartgrid/ajuste_cabecera.py`
+- Modify: `src/convertersmartgrid/web/services.py:1540-1715`
 - Modify: `frontend/src/types.ts`
 - Modify: `frontend/src/components/AjusteCabecera.tsx`
 - Test: `tests/test_demanda_medida.py`
@@ -191,7 +191,7 @@
 
 **Interfaces:**
 - Consumes: fecha de `Objetivo`, catálogo/libro activo de clientes y binding de Task 4.
-- Produces: `periodo_de_fecha(value) -> str`; `periodo_clientes_activo(ws) -> ClientPeriodEvidence`; plan `igea-dgs-ajuste-cabecera-v2` con `source`, `project_binding`, `periodo` y evidencia de clientes.
+- Produces: `periodo_de_fecha(value) -> str`; `periodo_clientes_activo(ws) -> ClientPeriodEvidence`; plan `convertersmartgrid-ajuste-cabecera-v2` con `source`, `project_binding`, `periodo` y evidencia de clientes.
 
 - [ ] **Step 1: Write failing period tests**
   Add coincident month accepted, different month blocked, unknown month blocked, and no-client-book allowed with explicit warning.
@@ -217,7 +217,7 @@
 ### Task 6: Cuadre universal a kW y diferencia kVAR no bloqueante
 
 **Files:**
-- Modify: `src/igea_dgs/ajuste_cabecera.py`
+- Modify: `src/convertersmartgrid/ajuste_cabecera.py`
 - Modify: `tools/ajuste_cabecera_pf.py`
 - Modify: `specs/006-ajuste-a-la-maxima-de-cabecera/spec.md`
 - Modify: `frontend/src/components/AjusteCabecera.tsx`
@@ -254,11 +254,11 @@
 ### Task 7: Aplicar la misma puerta a todos los casos de uso nativos
 
 **Files:**
-- Modify: `src/igea_dgs/web/services.py:1192-2290`
-- Modify: `src/igea_dgs/cargas_pf.py`
-- Modify: `src/igea_dgs/estudios_pf.py`
-- Modify: `src/igea_dgs/obras_pf.py`
-- Modify: `src/igea_dgs/transferencia_pf.py`
+- Modify: `src/convertersmartgrid/web/services.py:1192-2290`
+- Modify: `src/convertersmartgrid/cargas_pf.py`
+- Modify: `src/convertersmartgrid/estudios_pf.py`
+- Modify: `src/convertersmartgrid/obras_pf.py`
+- Modify: `src/convertersmartgrid/transferencia_pf.py`
 - Modify: `tools/cargas_pf.py`
 - Modify: `tools/estudios_pf.py`
 - Modify: `tools/obras_pf.py`
@@ -299,7 +299,7 @@
 
 **Interfaces:**
 - Consumes: source audit, DGS/shunt metadata, project binding and adjustment report from Tasks 1-7.
-- Produces: acceptance schema `igea-dgs-three-source-native-load-v1` and a per-mode evidence bundle.
+- Produces: acceptance schema `convertersmartgrid-three-source-native-load-v1` and a per-mode evidence bundle.
 
 - [ ] **Step 1: Write failing acceptance-schema tests**
   Require source audit hash, capacitor counts/power, metadata assignment counts, project binding, client period evidence, fixed/scaled counts, native P/Q, Q warning, `ComLdf` validity and physical violations.

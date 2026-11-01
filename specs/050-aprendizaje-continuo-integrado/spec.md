@@ -33,7 +33,7 @@ Los permisos y las condiciones de implementación nativa siguen sus specs vigent
 ## Fuera de alcance
 
 No prometer inteligencia general, progreso ilimitado ni que todo ajuste mejore.
-No modificar los planos anteriores a la exportación de IGEA. No mezclar otros
+No modificar los planos anteriores a la exportación de la distribuidora. No mezclar otros
 proyectos, entrenar en servicios externos ni convertir datos redactados en humanos.
 
 ## Criterios de finalización

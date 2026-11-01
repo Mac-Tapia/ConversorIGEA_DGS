@@ -5,7 +5,7 @@ import math
 
 import pytest
 
-from igea_dgs.ajuste_cabecera import (
+from convertersmartgrid.ajuste_cabecera import (
     Fija, Medida, MedidaConjunta, Objetivo, Q_CUADRADA, Q_INCOHERENTE_ALTA, Q_INCOHERENTE_BAJA, Q_SIN_BASE, cuadrar,
     cuadrar_conjunto, reparto_inicial)
 
@@ -176,7 +176,7 @@ def test_la_q_que_ya_estaba_sin_cuadrar_se_vuelve_a_calibrar(guion):
 
 def test_la_q_de_cabecera_a_mas_o_menos_uno_por_ciento():
     """035:RF-25 — la Q se da por cuadrada dentro de ±1 % de la medida, aparte del kW."""
-    from igea_dgs.ajuste_cabecera import TOLERANCIA_Q, cuadrado_kvar
+    from convertersmartgrid.ajuste_cabecera import TOLERANCIA_Q, cuadrado_kvar
 
     objetivo = Objetivo(kw=1000.0, kvar=500.0, medidor='M')
     assert TOLERANCIA_Q == 0.01
@@ -220,8 +220,8 @@ def test_la_recalibracion_se_numera_desde_la_primera_calibracion(tmp_path):
     espacio la publica sin la demanda por SED, y la web activa con ella la recalibración."""
     from pathlib import Path
 
-    from igea_dgs.web import services
-    from igea_dgs.web.workspace import Workspace
+    from convertersmartgrid.web import services
+    from convertersmartgrid.web.workspace import Workspace
 
     ws = Workspace(id='w', root=tmp_path / 'ws')
     informe = {'cuadrado': True, 'escenario': 'Sin proyecto', 'escenarios': [{'escenario': 'Sin proyecto'}],
@@ -259,7 +259,7 @@ def test_la_web_dice_que_cuadra_cada_una(tmp_path):
     from pathlib import Path
 
     raiz = Path(__file__).resolve().parents[1]
-    servicios = (raiz / 'src' / 'igea_dgs' / 'web' / 'services.py').read_text(encoding='utf-8')
+    servicios = (raiz / 'src' / 'convertersmartgrid' / 'web' / 'services.py').read_text(encoding='utf-8')
     assert "plan['recalibracion'] = 0 if not previa else int(previa.get('recalibracion') or 0) + 1" in servicios
     ajuste = (raiz / 'frontend' / 'src' / 'components' / 'AjusteCabecera.tsx').read_text(encoding='utf-8')
     assert 'Calibración: solo se cuadra la P (kW).' in ajuste

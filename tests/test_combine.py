@@ -22,13 +22,13 @@ from __future__ import annotations
 import pytest
 from dataclasses import replace
 
-from igea_dgs.combine import (
+from convertersmartgrid.combine import (
     CombinedInfo,
     combine_models,
     type_key_for,
     unsupplied_nodes,
 )
-from igea_dgs.model import FeederModel, Line, LineType, Load, Node, Sed
+from convertersmartgrid.model import FeederModel, Line, LineType, Load, Node, Sed
 
 
 def _tipo(code: str = 'AA12003D', tabla: str = 'LINE') -> LineType:
@@ -232,7 +232,7 @@ class TestIdentidadDeCadaAlimentador:
 
 class TestEscrituraDelDgs:
     def _escribir(self, modelos, tmp_path):
-        from igea_dgs.dgs import write_dgs
+        from convertersmartgrid.dgs import write_dgs
 
         modelo, informe = combine_models(modelos)
         destino = tmp_path / 'sistema.dgs'
@@ -300,7 +300,7 @@ class TestEscrituraDelDgs:
 
     def test_un_solo_alimentador_escribe_igual_que_antes(self, tmp_path):
         """La unión no debe cambiar el DGS de un alimentador suelto."""
-        from igea_dgs.dgs import write_dgs
+        from convertersmartgrid.dgs import write_dgs
 
         suelto = _alimentador('A', 10.0, ['N1', 'N2'], con_carga='N2')
         directo = tmp_path / 'directo.dgs'
@@ -317,7 +317,7 @@ class TestEscrituraDelDgs:
 
 class TestExportReal:
     def test_los_96_alimentadores_se_unen(self, ds):
-        from igea_dgs.combine import build_combined
+        from convertersmartgrid.combine import build_combined
 
         modelo, informe = build_combined(ds, include_geography=False)
         assert informe.feeders > 1
@@ -333,7 +333,7 @@ class TestExportReal:
 
     def test_ninguna_carga_activa_queda_sin_camino_a_una_fuente(self, ds):
         """Lo que hacía estancar el Newton de toda la red."""
-        from igea_dgs.combine import build_combined
+        from convertersmartgrid.combine import build_combined
 
         modelo, _ = build_combined(ds, include_geography=False)
         apagados = modelo.combined.de_energised
@@ -393,7 +393,7 @@ class TestEnlacesNormalmenteAbiertos:
         assert 'ENLACE' in modelo.nodes
 
     def test_el_dgs_escribe_el_interruptor_ABIERTO(self, tmp_path):
-        from igea_dgs.dgs import write_dgs
+        from convertersmartgrid.dgs import write_dgs
 
         modelo, _ = combine_models(self._par())
         destino = tmp_path / 'enlaces.dgs'
@@ -415,7 +415,7 @@ class TestEnlacesNormalmenteAbiertos:
         assert tie[0][cab.index('on_off(i)')] == '0', 'el enlace debe salir ABIERTO'
 
     def test_el_interruptor_tiene_un_cubiculo_a_cada_lado(self, tmp_path):
-        from igea_dgs.dgs import write_dgs
+        from convertersmartgrid.dgs import write_dgs
 
         modelo, _ = combine_models(self._par())
         destino = tmp_path / 'enlaces.dgs'
@@ -427,7 +427,7 @@ class TestEnlacesNormalmenteAbiertos:
 
 class TestEnlacesEnElExportReal:
     def test_los_enlaces_reales_salen_abiertos(self, ds):
-        from igea_dgs.combine import build_combined
+        from convertersmartgrid.combine import build_combined
 
         modelo, informe = build_combined(ds, include_geography=False)
         if not informe.tie_switches:
@@ -447,7 +447,7 @@ class TestEnlacesEnElExportReal:
         """
         import collections
 
-        from igea_dgs.combine import build_combined
+        from convertersmartgrid.combine import build_combined
 
         modelo, _ = build_combined(ds, include_geography=False)
         info = modelo.combined

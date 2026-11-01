@@ -37,9 +37,9 @@ cuando el usuario ponga a mano la central de NA205.
       Hecho cuando: prueba de la API y del front en verde y una recalibración de Chincha desde el
       botón.
       Hecho el 2026-10-28: pruebas en verde; en la web, «Recalibrar» sobre
-      20261028-103442_IGEA_SISTEMA_CHINCHA con 2026-07: 26 válidos y 0 con fallos en 261 s. La
+      20261028-103442_CSG_SISTEMA_CHINCHA con 2026-07: 26 válidos y 0 con fallos en 261 s. La
       primera vez se esperaba a sí mismo (`sistema_web.py` esperaba al trabajo que lo lanzó):
-      arreglado con `IGEA_TRABAJO_PROPIO`, también para el asistente y el agente.
+      arreglado con `CSG_TRABAJO_PROPIO`, también para el asistente y el agente.
 - [x] T9. Recalibrar el proyecto de uno o varios alimentadores: ruta, botón y `sistema_web.py
       --red`. (RF-23 a RF-25)
       Hecho cuando: pruebas de la API y de la herramienta en verde, y en DIgSILENT, desde la web,

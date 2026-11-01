@@ -1,10 +1,10 @@
 """Spec 022, T4: puntos de enlace y caminos cerrados de la red unida."""
 from __future__ import annotations
 
-from igea_dgs import enlaces as en
-from igea_dgs.combine import combine_models, estructurar
-from igea_dgs.estructura import estructura_de_dict
-from igea_dgs.model import Line, SwitchingDevice
+from convertersmartgrid import enlaces as en
+from convertersmartgrid.combine import combine_models, estructurar
+from convertersmartgrid.estructura import estructura_de_dict
+from convertersmartgrid.model import Line, SwitchingDevice
 from test_combine import _alimentador, _tipo
 
 E = estructura_de_dict({'zonales': [{'nombre': 'Z', 'sets': [
@@ -90,7 +90,7 @@ def _donante_y_receptor(y_receptor=50.0):
     final de D (TM106 y TM104 en Chincha, 2026-10-18)."""
     from dataclasses import replace
 
-    from igea_dgs.model import Load, Node, Sed
+    from convertersmartgrid.model import Load, Node, Sed
 
     d = _alimentador('D', 10.0, ['D_H', 'D_1', 'D_2', 'D_3', 'D_4'])
     for i, n in enumerate(['D_1', 'D_2', 'D_3', 'D_4'], start=1):
@@ -167,7 +167,7 @@ def test_la_cabecera_del_donante_se_parte_y_conserva_sus_ramas():
     """022:RF-58b — la unión cuelga de una rama de la cabecera del donante (como TM104): el
     donante conserva con su interruptor la rama más cercana a su parte y el reconstruido
     recibe las demás por la cabecera de siempre; la red sigue radial."""
-    from igea_dgs.model import Line, Load, Node, Sed
+    from convertersmartgrid.model import Line, Load, Node, Sed
 
     red, _ = _donante_y_receptor()
     t = _tipo()
@@ -201,7 +201,7 @@ def test_el_donante_conserva_una_rama_junto_a_su_cabecera():
     (a menos de 100 m) sale una sub-rama: el donante conserva la sub-rama que le basta para
     su medida y el reconstruido recibe el resto, también la rama grande (TM104 conserva la
     de 1 015 kVA a 44 m y TM106 recibe 8 400 kVA)."""
-    from igea_dgs.model import Line, Load, Node, Sed
+    from convertersmartgrid.model import Line, Load, Node, Sed
 
     red, _ = _donante_y_receptor()
     t = _tipo()

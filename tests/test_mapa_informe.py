@@ -4,7 +4,7 @@ from __future__ import annotations
 import pytest
 from PIL import Image
 
-from igea_dgs.mapa_informe import MapaError, dibujar, imagenes_del_estado
+from convertersmartgrid.mapa_informe import MapaError, dibujar, imagenes_del_estado
 
 GEO = {'cabecera': 'CAB',
        'barras': [['CAB', -14.0, -75.70, 1.0, 10.0], ['N1', -14.01, -75.69, 0.97, 10.0],

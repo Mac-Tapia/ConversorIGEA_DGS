@@ -19,14 +19,14 @@ pytest.importorskip('httpx2')
 from fastapi.testclient import TestClient  # noqa: E402
 
 from synthetic_export import CRS_SINTETICO, ExportSpec, write_export  # noqa: E402
-from igea_dgs.web.app import create_app  # noqa: E402
+from convertersmartgrid.web.app import create_app  # noqa: E402
 
 from apoyo import esperar_trabajo  # noqa: E402
 
 
 @pytest.fixture()
 def client(tmp_path, monkeypatch):
-    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     app = create_app(tmp_path / 'web')
     with TestClient(app) as c:
         yield c
@@ -66,8 +66,8 @@ def _loaded(client, export, *, geography: bool = False) -> str:
 def test_powerfactory_usa_un_dgs_unido_para_la_seleccion_exacta(tmp_path):
     import os
 
-    from igea_dgs.web.services import dgs_jobs
-    from igea_dgs.web.workspace import Workspace
+    from convertersmartgrid.web.services import dgs_jobs
+    from convertersmartgrid.web.workspace import Workspace
 
     ws = Workspace(id='w', root=tmp_path)
     ws.out_dir.mkdir(parents=True)
@@ -125,8 +125,8 @@ def test_powerfactory_usa_un_dgs_unido_para_la_seleccion_exacta(tmp_path):
 def test_powerfactory_importa_dgs_aunque_pandapower_avise_isla(tmp_path, monkeypatch):
     from types import SimpleNamespace
 
-    from igea_dgs.web import services
-    from igea_dgs.web.workspace import Workspace
+    from convertersmartgrid.web import services
+    from convertersmartgrid.web.workspace import Workspace
 
     ws = Workspace(id='w', root=tmp_path)
     dgs = ws.out_dir / 'RED.dgs'
@@ -167,8 +167,8 @@ def test_powerfactory_importa_dgs_aunque_pandapower_avise_isla(tmp_path, monkeyp
 
 
 def test_check_powerfactory_exige_metadata_para_no_dejar_columna_vacia(tmp_path, monkeypatch):
-    from igea_dgs.web import services
-    from igea_dgs.web.workspace import Workspace
+    from convertersmartgrid.web import services
+    from convertersmartgrid.web.workspace import Workspace
 
     ws = Workspace(id='w', root=tmp_path)
     ws.out_dir.mkdir(parents=True)
@@ -292,7 +292,7 @@ def test_no_se_sirven_ficheros_fuera_de_la_salida(client, export):
 
 
 def test_el_espacio_sobrevive_a_un_reinicio(tmp_path, export, monkeypatch):
-    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     root = tmp_path / 'web'
     with TestClient(create_app(root)) as c:
         wid = _workspace(c)
@@ -339,7 +339,7 @@ def test_convertir_en_paralelo_da_lo_mismo_que_en_serie(client, tmp_path):
 
 # ------------------------------------------------------------ rutas del disco del servidor
 def _ruta_local(tmp_path, monkeypatch, **kwargs):
-    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'no-frontend'))
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'no-frontend'))
     red, _carga, _equipo = write_export(ExportSpec(feeders=2), tmp_path / 'e')
     with TestClient(create_app(tmp_path / 'web', **kwargs)) as c:
         wid = c.post('/api/workspaces').json()['id']
@@ -351,34 +351,34 @@ def _ruta_local(tmp_path, monkeypatch, **kwargs):
 @pytest.mark.parametrize('host', ['0.0.0.0', '192.168.1.20', '::'])
 def test_rutas_locales_cerradas_si_escucha_en_red_aunque_la_variable_diga_1(
         tmp_path, monkeypatch, host):
-    """001:RF-15 — con host de red, 403 en /inputs/{slot}/path aunque IGEA_WEB_SERVER_PATHS=1."""
-    monkeypatch.setenv('IGEA_WEB_SERVER_PATHS', '1')
+    """001:RF-15 — con host de red, 403 en /inputs/{slot}/path aunque CSG_WEB_SERVER_PATHS=1."""
+    monkeypatch.setenv('CSG_WEB_SERVER_PATHS', '1')
     assert _ruta_local(tmp_path, monkeypatch, host=host) == (False, 403)
 
 
 def test_rutas_locales_cerradas_si_no_se_sabe_donde_escucha(tmp_path, monkeypatch):
     """001:RF-15 — sin host (p. ej. `uvicorn --factory` a mano), cerradas por defecto."""
-    monkeypatch.delenv('IGEA_WEB_HOST', raising=False)
-    monkeypatch.setenv('IGEA_WEB_SERVER_PATHS', '1')
+    monkeypatch.delenv('CSG_WEB_HOST', raising=False)
+    monkeypatch.setenv('CSG_WEB_SERVER_PATHS', '1')
     assert _ruta_local(tmp_path, monkeypatch) == (False, 403)
 
 
 def test_rutas_locales_abiertas_en_loopback_y_apagables(tmp_path, monkeypatch):
     """001:RF-15 — en 127.0.0.1 se admiten; la variable solo puede apagarlas."""
-    monkeypatch.delenv('IGEA_WEB_SERVER_PATHS', raising=False)
+    monkeypatch.delenv('CSG_WEB_SERVER_PATHS', raising=False)
     assert _ruta_local(tmp_path / 'a', monkeypatch, host='127.0.0.1') == (True, 200)
-    monkeypatch.setenv('IGEA_WEB_HOST', 'localhost')
+    monkeypatch.setenv('CSG_WEB_HOST', 'localhost')
     assert _ruta_local(tmp_path / 'b', monkeypatch) == (True, 200)
-    monkeypatch.setenv('IGEA_WEB_SERVER_PATHS', '0')
+    monkeypatch.setenv('CSG_WEB_SERVER_PATHS', '0')
     assert _ruta_local(tmp_path / 'c', monkeypatch, host='127.0.0.1') == (False, 403)
 
 
 def test_el_lanzador_pasa_la_interfaz_de_escucha_a_la_api(monkeypatch):
-    """001:RF-15 — `igea-dgs-web --host` llega a create_app, que con factory=True no tiene argumentos."""
+    """001:RF-15 — `convertersmartgrid-web --host` llega a create_app, que con factory=True no tiene argumentos."""
     import sys
     import types
 
-    from igea_dgs.web import __main__ as lanzador
+    from convertersmartgrid.web import __main__ as lanzador
 
     llamadas = []
     class Servidor:
@@ -391,14 +391,14 @@ def test_el_lanzador_pasa_la_interfaz_de_escucha_a_la_api(monkeypatch):
 
     monkeypatch.setitem(sys.modules, 'uvicorn', types.SimpleNamespace(
         Config=lambda *a, **k: k, Server=Servidor, run=lambda *a, **k: llamadas.append(k)))
-    monkeypatch.delenv('IGEA_WEB_HOST', raising=False)
-    monkeypatch.setenv('IGEA_WEB_SERVER_PATHS', '1')
+    monkeypatch.delenv('CSG_WEB_HOST', raising=False)
+    monkeypatch.setenv('CSG_WEB_SERVER_PATHS', '1')
     # Sin esto la prueba fallaba con la web del operador abierta en el 8765.
     monkeypatch.setattr(lanzador, 'puerto_ocupado', lambda *_a: False)
     assert lanzador.main(['--host', '0.0.0.0', '--no-browser']) == 0
     assert llamadas and llamadas[0]['host'] == '0.0.0.0'
     import os
-    assert os.environ['IGEA_WEB_HOST'] == '0.0.0.0'
+    assert os.environ['CSG_WEB_HOST'] == '0.0.0.0'
 
 
 
@@ -479,7 +479,7 @@ def test_sin_georreferenciacion_no_hay_gps_ni_diagrama(client, export, unir):
 
 @pytest.mark.parametrize('unir', [False, True], ids=['suelto', 'red_unida'])
 def test_el_modo_estricto_llega_al_motor(client, export, monkeypatch, unir):
-    from igea_dgs import batch
+    from convertersmartgrid import batch
 
     vistos = []
     original = batch.build_feeder_model
@@ -512,7 +512,7 @@ def test_el_arranque_no_abre_otro_servidor_si_el_puerto_esta_ocupado(capsys, mon
     """001:RF-31 — con el puerto y los siguientes en manos de otro programa, sale con 2 y lo nombra."""
     import socket
 
-    from igea_dgs.web import __main__ as lanzador
+    from convertersmartgrid.web import __main__ as lanzador
 
     # Otro programa (no un Conversor) y ningún puerto libre después: no hay qué hacer.
     monkeypatch.setattr(lanzador, 'conversor_en', lambda *_a, **_k: None)

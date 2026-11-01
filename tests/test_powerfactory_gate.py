@@ -24,7 +24,7 @@ def _load_pf_mod():
 
 
 def test_geography_expected_counts_include_equipment(ds, sample_model, tmp_path):
-    from igea_dgs.geography import build_geography, geography_to_dict
+    from convertersmartgrid.geography import build_geography, geography_to_dict
 
     geo = build_geography(ds, sample_model, source_crs='EPSG:32718')
     payload = geography_to_dict(geo, sample_model)
@@ -122,7 +122,7 @@ def test_generated_project_name_fits_powerfactory_limit():
     long_name = 'AL104_AL105_AL106_AL107_AL108_AL209_CA101_CA104_ETC'
     result = mod._generated_project_name('20260929-055603', long_name)
     assert len(result) <= 40
-    assert result.startswith('20260929-055603_IGEA_')
+    assert result.startswith('20260929-055603_CSG_')
     assert result.endswith(long_name[-8:])
 
 

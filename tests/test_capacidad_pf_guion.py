@@ -12,7 +12,7 @@ import pytest
 
 import fake_pf
 from apoyo import cargar_herramienta
-from igea_dgs import datos_empresa as de
+from convertersmartgrid import datos_empresa as de
 from test_confiabilidad_pf_guion import _alim, _plan_estudio, casos_pf
 from test_estudios_pf_guion import _bbone_que_crea
 

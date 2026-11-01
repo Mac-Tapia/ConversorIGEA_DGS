@@ -4,12 +4,12 @@ from __future__ import annotations
 import os
 import random
 
-from igea_dgs.combine import combine_models, estructurar
-from igea_dgs.estructura import asignar, estructura_de_dict
-from igea_dgs.model import Node
+from convertersmartgrid.combine import combine_models, estructurar
+from convertersmartgrid.estructura import asignar, estructura_de_dict
+from convertersmartgrid.model import Node
 from test_combine import _alimentador
 
-SEMILLA = int(os.environ.get('IGEA_SCALE_SEED', random.randrange(1 << 30)))
+SEMILLA = int(os.environ.get('CSG_SCALE_SEED', random.randrange(1 << 30)))
 
 
 def _proyecto(rng):

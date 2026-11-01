@@ -6,7 +6,7 @@ import random
 
 import pytest
 
-from igea_dgs.ajuste_cabecera import (
+from convertersmartgrid.ajuste_cabecera import (
     ESCALERA,
     MedidaConjunta,
     MedidaZonas,
@@ -80,7 +80,7 @@ def test_cliente_sin_energias_usa_el_fp_del_objetivo():
 
 @pytest.mark.parametrize('native_q', [-250.0, 0.0, 300.0, 900.0])
 def test_kw_acceptance_never_depends_on_native_q(native_q):
-    from igea_dgs.ajuste_cabecera import Medida, cuadrado_kw
+    from convertersmartgrid.ajuste_cabecera import Medida, cuadrado_kw
 
     objetivo = objetivo_de(_maxima(kw=1000.0, kvar=300.0))
     assert cuadrado_kw(Medida(True, 1005.0, native_q), objetivo, 0.01)
@@ -89,7 +89,7 @@ def test_kw_acceptance_never_depends_on_native_q(native_q):
 
 
 def test_kvar_difference_is_complete_and_never_blocks_including_zero_target():
-    from igea_dgs.ajuste_cabecera import Medida, kvar_difference
+    from convertersmartgrid.ajuste_cabecera import Medida, kvar_difference
 
     objetivo = objetivo_de(_maxima(kw=1000.0, kvar=300.0))
     aviso = kvar_difference(Medida(True, 1000.0, 450.0), objetivo, 0.01)
@@ -105,7 +105,7 @@ def test_kvar_difference_is_complete_and_never_blocks_including_zero_target():
 
 
 def test_cuadrar_preserves_initial_q_factor_and_stops_when_kw_matches():
-    from igea_dgs.ajuste_cabecera import Medida
+    from convertersmartgrid.ajuste_cabecera import Medida
 
     objetivo, _kva, reparto = _caso(n=2, kw=1000.0, kvar=300.0)
     vistos = []
@@ -416,7 +416,7 @@ def test_sin_fp_en_el_perfil_las_escaladas_con_el_de_la_cabecera():
 def test_fp_del_perfil_no_cambia_una_demanda_puesta_a_mano():
     """015:RF-58 — una carga cambiada a mano entra como fija con su P y Q (014:RF-10) y el
     factor de las escaladas no la toca."""
-    from igea_dgs.ajuste_cabecera import Fija
+    from convertersmartgrid.ajuste_cabecera import Fija
 
     o = objetivo_de(_maxima())
     manual = {'E1': Fija('E1', 120.0, 90.0)}
@@ -657,7 +657,7 @@ def test_bancos_que_faltan_y_donde():
     """021:RF-64, 021:RF-65, 021:RF-66 — el déficit entre el tamaño, redondeado; sin
     déficit, sin medida o sin tamaño, ninguno; los n bancos a 2k/(2n+1) del largo; el
     tamaño de la tensión más cercana del perfil, si está a menos del 10 %."""
-    from igea_dgs.ajuste_cabecera import bancos_que_faltan, distancias_de_bancos, tamano_de_banco
+    from convertersmartgrid.ajuste_cabecera import bancos_que_faltan, distancias_de_bancos, tamano_de_banco
 
     assert bancos_que_faltan(2645.0, 1560.0, 450.0) == 2
     assert bancos_que_faltan(3117.0, 3120.0, 450.0) == 0
@@ -671,7 +671,7 @@ def test_bancos_que_faltan_y_donde():
 
 def test_tamano_de_banco_en_el_perfil():
     """021:RF-65 — ``calibracion.bancos_kvar_por_tension`` del perfil; sin él, None."""
-    from igea_dgs.perfil_empresa import PerfilError, bancos_kvar_por_tension
+    from convertersmartgrid.perfil_empresa import PerfilError, bancos_kvar_por_tension
 
     assert bancos_kvar_por_tension({'calibracion': {'bancos_kvar_por_tension': {'10': 300, '22.9': 450}}}) == {
         10.0: 300.0, 22.9: 450.0}

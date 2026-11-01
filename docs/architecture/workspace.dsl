@@ -1,75 +1,75 @@
-workspace "Conversor IGEA-DGS" "Arquitectura C4 navegable desde fuentes hasta entregables" {
+workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta entregables" {
     model {
         operador = person "Operador electrico" "Selecciona el alcance, confirma planes y decide con evidencia." {
             url "http://127.0.0.1:8765/"
             tags "Person"
         }
 
-        fuentes = softwareSystem "Fuentes electricas" "TXT IGEA/CYMDIST, MDB/Access, VNR-GIS y libros de medicion." {
-            url "https://github.com/Mac-Tapia/ConversorIGEA_DGS/tree/lectura-de-las-dos-disposiciones/src/igea_dgs/sources"
+        fuentes = softwareSystem "Fuentes electricas" "TXT CYMDIST, MDB/Access, VNR-GIS y libros de medicion." {
+            url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/lectura-de-las-dos-disposiciones/src/convertersmartgrid/sources"
             tags "External"
         }
 
         powerfactory = softwareSystem "DIgSILENT PowerFactory 2024" "Motor nativo propietario para aceptar, calibrar y estudiar la red." {
-            url "https://github.com/Mac-Tapia/ConversorIGEA_DGS/blob/lectura-de-las-dos-disposiciones/tools/powerfactory_acceptance.py"
+            url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/lectura-de-las-dos-disposiciones/tools/powerfactory_acceptance.py"
             tags "Native"
         }
 
-        conversor = softwareSystem "Conversor IGEA-DGS" "Convierte, valida, acepta y documenta redes de distribucion." {
-            url "https://github.com/Mac-Tapia/ConversorIGEA_DGS/blob/lectura-de-las-dos-disposiciones/README.md"
+        conversor = softwareSystem "ConverterSmartGrid" "Convierte, valida, acepta y documenta redes de distribucion." {
+            url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/lectura-de-las-dos-disposiciones/README.md"
 
             frontend = container "Frontend web" "Interfaz, seleccion, progreso, resultados y confirmacion." "React + TypeScript" {
-                url "https://github.com/Mac-Tapia/ConversorIGEA_DGS/tree/lectura-de-las-dos-disposiciones/frontend/src"
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/lectura-de-las-dos-disposiciones/frontend/src"
                 tags "Web"
             }
 
             api = container "API y orquestacion" "Expone REST/WebSocket, valida pedidos y coordina trabajos." "FastAPI / Python 3.12" {
-                url "https://github.com/Mac-Tapia/ConversorIGEA_DGS/blob/lectura-de-las-dos-disposiciones/src/igea_dgs/web/app.py"
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/lectura-de-las-dos-disposiciones/src/convertersmartgrid/web/app.py"
                 tags "API"
             }
 
             jobs = container "Colas de trabajo" "Serializa engine, powerfactory y asistente." "Python threads/queues" {
-                url "https://github.com/Mac-Tapia/ConversorIGEA_DGS/blob/lectura-de-las-dos-disposiciones/src/igea_dgs/web/jobs.py"
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/lectura-de-las-dos-disposiciones/src/convertersmartgrid/web/jobs.py"
                 tags "Queue"
             }
 
             custody = container "Custodia de fuentes" "Crea source runs inmutables con alcance y huellas." "Filesystem + SHA-256" {
-                url "https://github.com/Mac-Tapia/ConversorIGEA_DGS/blob/lectura-de-las-dos-disposiciones/src/igea_dgs/web/source_runs.py"
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/lectura-de-las-dos-disposiciones/src/convertersmartgrid/web/source_runs.py"
                 tags "Store"
             }
 
             engine = container "Motor de conversion" "Adapta, reconstruye, aplica reglas y construye FeederModel." "Python" {
-                url "https://github.com/Mac-Tapia/ConversorIGEA_DGS/blob/lectura-de-las-dos-disposiciones/src/igea_dgs/batch.py"
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/lectura-de-las-dos-disposiciones/src/convertersmartgrid/batch.py"
                 tags "Engine"
             }
 
             oracle = container "Preflight consultivo" "Informa conectividad y convergencia antes de importar a PowerFactory; sus avisos no omiten el DGS." "pandapower" {
-                url "https://github.com/Mac-Tapia/ConversorIGEA_DGS/blob/lectura-de-las-dos-disposiciones/src/igea_dgs/oraculo.py"
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/lectura-de-las-dos-disposiciones/src/convertersmartgrid/oraculo.py"
                 tags "Engine"
             }
 
             dgs = container "Escritor y validador DGS" "Escribe con esquema versionado, valida y publica atomicamente." "Python + DGS schema" {
-                url "https://github.com/Mac-Tapia/ConversorIGEA_DGS/blob/lectura-de-las-dos-disposiciones/src/igea_dgs/dgs.py"
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/lectura-de-las-dos-disposiciones/src/convertersmartgrid/dgs.py"
                 tags "Engine"
             }
 
             nativeRunner = container "Ejecutor PowerFactory" "Lanza tools/*_pf.py con plan JSON y recibe informe JSON." "Python 3.12 / PowerFactory API" {
-                url "https://github.com/Mac-Tapia/ConversorIGEA_DGS/blob/lectura-de-las-dos-disposiciones/src/igea_dgs/web/services.py"
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/lectura-de-las-dos-disposiciones/src/convertersmartgrid/web/services.py"
                 tags "Native"
             }
 
             twin = container "Gemelo digital" "Captura episodios y ofrece oraculos radial, mallado, PINN-GNN y GRU." "Python + PyTorch" {
-                url "file:///D:/converter/ConversorIGEA_DGS/src/igea_dgs/digital_twin"
+                url "file:///D:/converter/ConverterSmartGrid/src/convertersmartgrid/digital_twin"
                 tags "AI"
             }
 
             optimizer = container "PIDE y optimizacion" "Evalua alternativas con GA, NSGA-II y evolucion diferencial." "Python + NumPy" {
-                url "file:///D:/converter/ConversorIGEA_DGS/src/igea_dgs/digital_twin/evolutivo.py"
+                url "file:///D:/converter/ConverterSmartGrid/src/convertersmartgrid/digital_twin/evolutivo.py"
                 tags "AI"
             }
 
             assistant = container "Asistente" "Interpreta ordenes, muestra el plan y ejecuta solo tras confirmacion." "Reglas + Transformer + Ollama local" {
-                url "file:///D:/converter/ConversorIGEA_DGS/src/igea_dgs/asistente"
+                url "file:///D:/converter/ConverterSmartGrid/src/convertersmartgrid/asistente"
                 tags "AI"
             }
 
@@ -82,7 +82,7 @@ workspace "Conversor IGEA-DGS" "Arquitectura C4 navegable desde fuentes hasta en
             }
 
             episodeStore = container "Buffer de episodios" "JSON inmutable, snapshots y indice SQLite." "JSON + SQLite" {
-                url "file:///D:/converter/ConversorIGEA_DGS/src/igea_dgs/digital_twin/buffer.py"
+                url "file:///D:/converter/ConverterSmartGrid/src/convertersmartgrid/digital_twin/buffer.py"
                 tags "Store"
             }
         }

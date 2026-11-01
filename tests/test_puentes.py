@@ -12,10 +12,10 @@ from __future__ import annotations
 
 import pytest
 
-from igea_dgs.catalog import leer_trafos, tablas_equipo_desde_catalogo
-from igea_dgs.combine import combine_models, unsupplied_nodes
-from igea_dgs.model import FeederModel, Line, LineType, Load, Node, Sed, SwitchingDevice
-from igea_dgs.puentes import fundir_puentes
+from convertersmartgrid.catalog import leer_trafos, tablas_equipo_desde_catalogo
+from convertersmartgrid.combine import combine_models, unsupplied_nodes
+from convertersmartgrid.model import FeederModel, Line, LineType, Load, Node, Sed, SwitchingDevice
+from convertersmartgrid.puentes import fundir_puentes
 
 
 def _linea(sid, a, b, code='AA05003D', m=100.0, overhead=True):
@@ -234,8 +234,8 @@ def test_la_red_unida_conserva_los_interruptores(tmp_path):
 
 def test_dgs_con_interruptores_valida_sin_errores(tmp_path):
     pytest.importorskip('pyproj')
-    from igea_dgs.dgs import write_dgs
-    from igea_dgs.validate import parse_dgs, validate_dgs
+    from convertersmartgrid.dgs import write_dgs
+    from convertersmartgrid.validate import parse_dgs, validate_dgs
 
     m = _modelo()
     fundir_puentes(m)
@@ -245,7 +245,7 @@ def test_dgs_con_interruptores_valida_sin_errores(tmp_path):
     assert rep['errors_total'] == 0, rep
     tablas = parse_dgs(out)
     coups = tablas['ElmCoup']['rows_dict']
-    from igea_dgs.dgs import seds_con_barra_propia
+    from convertersmartgrid.dgs import seds_con_barra_propia
     assert len(coups) == len(m.seds) - len(seds_con_barra_propia(m)) + len(m.couplers)
     # 021:RF-3 — el seccionador plegado sale en el cubículo de L1 con su nombre y estado.
     [sw] = [r for r in tablas['StaSwitch']['rows_dict'] if r['loc_name'] == 'SW1']
@@ -305,7 +305,7 @@ def test_trafos_solo_con_datos_completos(tmp_path):
 def test_solo_se_redimensiona_la_sed_que_no_puede_con_su_carga():
     from dataclasses import replace
 
-    from igea_dgs.sed_potencia import redimensionar_sobrecargadas
+    from convertersmartgrid.sed_potencia import redimensionar_sobrecargadas
 
     m = _modelo()
     m.loads = [replace(m.loads[0], p_mw=0.388, q_mvar=0.097)]   # 400 kVA
@@ -325,7 +325,7 @@ def test_solo_se_redimensiona_la_sed_que_no_puede_con_su_carga():
 # ---------------------------------------------------------------------------
 
 def _patron_ed() -> str:
-    from igea_dgs.perfil_empresa import perfil_con_nombre
+    from convertersmartgrid.perfil_empresa import perfil_con_nombre
 
     return perfil_con_nombre('electro_dunas').patron_sed_medicion
 
@@ -333,7 +333,7 @@ def _patron_ed() -> str:
 def test_trafomix_sin_carga_se_excluye_entero():
     from dataclasses import replace
 
-    from igea_dgs.trafomix import excluir_trafomix
+    from convertersmartgrid.trafomix import excluir_trafomix
 
     m = _modelo()
     m.seds = [replace(m.seds[0], code='M41608', loc_name='M41608')]
@@ -347,7 +347,7 @@ def test_trafomix_sin_carga_se_excluye_entero():
 def test_trafomix_con_carga_la_conserva_en_media_tension():
     from dataclasses import replace
 
-    from igea_dgs.trafomix import excluir_trafomix
+    from convertersmartgrid.trafomix import excluir_trafomix
 
     m = _modelo()
     m.seds = [replace(m.seds[0], code='M50099')]
@@ -359,7 +359,7 @@ def test_trafomix_con_carga_la_conserva_en_media_tension():
 def test_el_fusible_del_trafomix_excluido_se_quita_con_su_barra():
     """021:RF-7, 021:RF-8 — f3 llevaba a la barra del trafomix M50226; excluido, la barra se
     queda sin nada y no se escriben ni ella ni f3. El informe lo nombra."""
-    from igea_dgs.trafomix import excluir_trafomix
+    from convertersmartgrid.trafomix import excluir_trafomix
 
     m = _derivacion()
     fundir_puentes(m)
@@ -373,7 +373,7 @@ def test_el_fusible_del_trafomix_excluido_se_quita_con_su_barra():
 def test_el_fusible_del_trafomix_con_carga_se_conserva():
     """021:RF-7 — si el trafomix traía carga, queda como carga de MT en su barra: el
     fusible sigue llevando a algo y se conserva."""
-    from igea_dgs.trafomix import excluir_trafomix
+    from convertersmartgrid.trafomix import excluir_trafomix
 
     m = _derivacion()
     m.loads.append(Load('P3', 'D1', 'CM', '1', 'T', 0.2, 0.05, 0.97, 100, 0, 'ABC',
@@ -386,7 +386,7 @@ def test_el_fusible_del_trafomix_con_carga_se_conserva():
 
 def test_las_reglas_pliegan_y_quitan_en_toda_conversion():
     """021:RF-10 — plegado y quitado del trafomix van dentro de ``aplicar_reglas``."""
-    from igea_dgs.reglas import Reglas, aplicar_reglas
+    from convertersmartgrid.reglas import Reglas, aplicar_reglas
 
     m = _derivacion()
     inf = aplicar_reglas(m, Reglas(patron_sed_medicion=_patron_ed(), hoja=None))
@@ -397,7 +397,7 @@ def test_las_reglas_pliegan_y_quitan_en_toda_conversion():
 
 def test_sin_reglas_los_puentes_quedan_como_estaban():
     """021:RF-11 — ``SIN_REGLAS`` no funde ni pliega: los fusibles siguen en sus puentes."""
-    from igea_dgs.reglas import SIN_REGLAS, aplicar_reglas
+    from convertersmartgrid.reglas import SIN_REGLAS, aplicar_reglas
 
     m = _derivacion()
     aplicar_reglas(m, SIN_REGLAS)
@@ -408,7 +408,7 @@ def test_sin_reglas_los_puentes_quedan_como_estaban():
 def _auditar(m, informe, *, statswitch, elmcoup_red):
     from types import SimpleNamespace
 
-    from igea_dgs.reglas import auditar_completitud
+    from convertersmartgrid.reglas import auditar_completitud
 
     ds = SimpleNamespace(feeders={'N': {'LA', 'LB', 'P1', 'P2', 'P3'}},
                          customer_loads_by_feeder={}, load_placements={},
@@ -422,7 +422,7 @@ def _auditar(m, informe, *, statswitch, elmcoup_red):
 def test_la_completitud_cuenta_los_quitados_y_los_elmcoup_escritos():
     """021:RF-9 — maniobras de entrada = StaSwitch + ElmCoup de red del DGS + quitados por
     el trafomix. Un ElmCoup que no llega al DGS es una pérdida y se dice."""
-    from igea_dgs.reglas import Reglas, aplicar_reglas
+    from convertersmartgrid.reglas import Reglas, aplicar_reglas
 
     m = _derivacion()
     inf = aplicar_reglas(m, Reglas(patron_sed_medicion=_patron_ed(), hoja=None))
@@ -439,8 +439,8 @@ def test_el_seccionador_plegado_sigue_siendo_punto_de_maniobra(tmp_path):
 
     pytest.importorskip('pyproj')
     from apoyo import cargar_herramienta
-    from igea_dgs.dgs import write_dgs
-    from igea_dgs.validate import parse_dgs
+    from convertersmartgrid.dgs import write_dgs
+    from convertersmartgrid.validate import parse_dgs
 
     m = _modelo()
     m.devices = [replace(m.devices[0], kind='SWITCH')]
@@ -466,7 +466,7 @@ def test_el_oraculo_abre_el_seccionador_plegado_en_su_linea():
     from dataclasses import replace
 
     pp = pytest.importorskip('pandapower')
-    from igea_dgs.oraculo import red_pandapower
+    from convertersmartgrid.oraculo import red_pandapower
 
     m = _modelo()
     m.devices = [replace(m.devices[0], on_off=0)]
@@ -481,7 +481,7 @@ def test_el_oraculo_abre_el_seccionador_plegado_en_su_linea():
 def test_el_trecho_del_conductor_sigue_corrido_sin_acoples():
     """021:RF-16 — con el seccionador en el cubículo ya no hay acople entre tramos: dos
     tramos que comparten barra son un solo trecho para el informe de estudio (017)."""
-    from igea_dgs.informes import trechos_de_conductor
+    from convertersmartgrid.informes import trechos_de_conductor
 
     tramos = [['L1', [[-14.0, -75.7], [-14.001, -75.7]], 50.0, 'CAB', 'N1', 'AA35', 0.1],
               ['L2', [[-14.001, -75.7], [-14.002, -75.7]], 50.0, 'N1', 'N2', 'AA35', 0.1]]
@@ -518,8 +518,8 @@ def test_linea_fusible_y_sed_quedan_en_un_trazo_hasta_el_triangulo(tmp_path):
     """021:RF-12, 021:RF-14 — el fusible de derivación va en el extremo de L1, y ese extremo
     es la barra de MT dentro de la SED: línea, fusible y triángulo sin barra suelta."""
     pytest.importorskip('pyproj')
-    from igea_dgs.dgs import write_dgs
-    from igea_dgs.validate import parse_dgs, validate_dgs
+    from convertersmartgrid.dgs import write_dgs
+    from convertersmartgrid.validate import parse_dgs, validate_dgs
 
     m = _sed_de_derivacion()
     fundir_puentes(m)
@@ -539,8 +539,8 @@ def test_dos_sed_en_una_barra_siguen_con_su_acoplador(tmp_path):
     """021:RF-12, 021:RF-13 — una barra no cabe en dos ElmSubstat: con dos SED en la misma,
     cada una conserva su barra de MT y su acoplador a la barra del alimentador."""
     pytest.importorskip('pyproj')
-    from igea_dgs.dgs import seds_con_barra_propia, write_dgs
-    from igea_dgs.validate import parse_dgs, validate_dgs
+    from convertersmartgrid.dgs import seds_con_barra_propia, write_dgs
+    from convertersmartgrid.validate import parse_dgs, validate_dgs
 
     m = _sed_de_derivacion(dos_seds=True)
     fundir_puentes(m)
@@ -556,7 +556,7 @@ def test_dos_sed_en_una_barra_siguen_con_su_acoplador(tmp_path):
 
 @pytest.mark.parametrize('codigo', ['SE41608', 'SA50425', 'MI-1157078'])
 def test_solo_los_codigos_m_con_cifras_son_trafomix(codigo):
-    from igea_dgs.trafomix import es_trafomix
+    from convertersmartgrid.trafomix import es_trafomix
 
     patron = _patron_ed()
     assert not es_trafomix(codigo, patron)

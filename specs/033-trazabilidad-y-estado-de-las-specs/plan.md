@@ -28,7 +28,7 @@ Estado: aprobado (2026-10-29) · Spec: [spec.md](spec.md)
 | Corrección de las specs | `specs/*/spec.md`, `tasks.md`, `plan.md`; carpetas reservadas 003 y 031 | RF-1 a RF-13 |
 | Pruebas que faltaban | citas en las pruebas que ya lo verificaban; pruebas nuevas de 013:RF-7, RF-10, RF-15 y de 034:RF-33 | RF-16, RF-18 |
 | Código sin spec | `specs/034-*`, `CODIGO_FUENTE.md` | RF-19, RF-20 |
-| `CLAUDE.md` y skill | tabla reducida y reglas en `.claude/skills/igea-dgs-spec/SKILL.md` | RF-15, RF-22 |
+| `CLAUDE.md` y skill | tabla reducida y reglas en `.claude/skills/convertersmartgrid-spec/SKILL.md` | RF-15, RF-22 |
 
 ## Pruebas
 

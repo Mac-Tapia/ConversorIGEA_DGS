@@ -157,7 +157,7 @@ def main(argv=None) -> int:
     plan = json.loads(Path(args.plan).read_text(encoding='utf-8'))
     # 019:RF-1 a RF-6: turno del motor de la máquina, reintento con el motor ocupado y
     # primera línea al responder, comunes a todos los guiones.
-    from igea_dgs.pf_arnes import PFNoDisponible, conectar
+    from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
 
     try:
         app = conectar('transformador_set_pf.py')

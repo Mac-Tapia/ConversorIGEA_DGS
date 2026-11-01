@@ -62,7 +62,7 @@ def test_safe_extract_package_rechaza_traversal_y_duplicados(tmp_path):
 
 
 def test_bridge_conserva_identidad_de_dos_alimentadores():
-    from igea_dgs.model import build_feeder_model
+    from convertersmartgrid.model import build_feeder_model
     from vnr_etl.application.cymdist_bridge import canonical_to_cymdist
     from vnr_etl.models import CanonicalModel, ConductorType, Load, Node, Section, Source
 
@@ -129,9 +129,9 @@ def test_bridge_enumera_pero_bloquea_vnr_sin_fuente_ni_cargas():
 
 
 def test_vnr_adapter_respeta_empresa_y_periodo_explicitos(tmp_path):
-    from igea_dgs.web.source_runs import create_source_run
-    from igea_dgs.web.sources import adapter_for
-    from igea_dgs.web.workspace import Workspace
+    from convertersmartgrid.web.source_runs import create_source_run
+    from convertersmartgrid.web.sources import adapter_for
+    from convertersmartgrid.web.workspace import Workspace
 
     archive = _vnr_zip(tmp_path)
     ws = Workspace(id='vnr-adapter', root=tmp_path / 'workspace')

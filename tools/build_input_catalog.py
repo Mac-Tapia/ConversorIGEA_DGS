@@ -24,15 +24,15 @@ for _flujo in (sys.stdout, sys.stderr):
     except (AttributeError, ValueError):  # pragma: no cover - consola no reconfigurable
         pass
 
-from igea_dgs.catalog import auditar, escribir_catalogo, input_dir  # noqa: E402
-from igea_dgs.model import build_feeder_model  # noqa: E402
+from convertersmartgrid.catalog import auditar, escribir_catalogo, input_dir  # noqa: E402
+from convertersmartgrid.model import build_feeder_model  # noqa: E402
 
 
 def cargar_dataset(args: argparse.Namespace):
     if args.mdb:
-        from igea_dgs.access import read_access_dataset
+        from convertersmartgrid.access import read_access_dataset
         return read_access_dataset(args.mdb, equipment_path=args.equipment_mdb)
-    from igea_dgs.dataset import CymdistDataset
+    from convertersmartgrid.dataset import CymdistDataset
     return CymdistDataset.from_files(args.red, args.cargas, args.equipos)
 
 

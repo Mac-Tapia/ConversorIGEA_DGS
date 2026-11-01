@@ -54,7 +54,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       «Sin proyecto» desde la web (−0,01 %).
 - [x] T10. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
       Hecho cuando: `grep -rnoE "014:RF-[0-9]+" tests | sort -u` lista los 28 RF y la suite
-      con las variables `IGEA_*` pasa.
+      con las variables `CSG_*` pasa.
       Hecho el 2026-10-14: los 28 RF citados; suite con las cinco variables, 1753 correctas
       (`docs/VERIFICACION_SPECS_2026-10-14.md`).
 - [x] T11. La carga de una variación se reconoce también con el sufijo «(n)» que le pone la

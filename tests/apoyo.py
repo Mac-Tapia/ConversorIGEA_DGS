@@ -17,7 +17,7 @@ TOOLS = Path(__file__).resolve().parents[1] / 'tools'
 
 def contexto_nativo(project: str, feeders: list[str] | tuple[str, ...], action: str) -> dict:
     """Contexto mínimo pero firmado para planes unitarios que llegan al ``main``."""
-    from igea_dgs.native_action import build_native_action_context
+    from convertersmartgrid.native_action import build_native_action_context
 
     return build_native_action_context({'project': project}, project, feeders, action)
 
@@ -29,7 +29,7 @@ def vincular_proyecto(client, wid: str, project: str, feeders, *,
     Con el «Caso base» de cada alimentador verificado (spec 015), salvo los de
     ``sin_verificar``.
     """
-    from igea_dgs.powerfactory_binding import PowerFactoryProjectBinding
+    from convertersmartgrid.powerfactory_binding import PowerFactoryProjectBinding
 
     project = str(project or '').strip()
     if not project:
@@ -44,7 +44,7 @@ def vincular_proyecto(client, wid: str, project: str, feeders, *,
     ws.loaded_source_mode = 'txt'
     ws.loaded_source_fingerprint = 'f' * 64
     binding = PowerFactoryProjectBinding(
-        project=project, folder='Conversor IGEA-DGS', source_run_id='web-test-run',
+        project=project, folder='ConverterSmartGrid', source_run_id='web-test-run',
         source_mode='txt', source_fingerprint='f' * 64, feeders=bound,
         dgs_sha256={feeder: 'd' * 64 for feeder in bound},
         native_inventory_sha256='n' * 64,

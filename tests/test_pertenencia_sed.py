@@ -6,9 +6,9 @@ from types import SimpleNamespace
 import openpyxl
 import pytest
 
-from igea_dgs import demanda_medida as dm
-from igea_dgs.web import services
-from igea_dgs.web.workspace import Workspace
+from convertersmartgrid import demanda_medida as dm
+from convertersmartgrid.web import services
+from convertersmartgrid.web.workspace import Workspace
 
 
 def test_un_propietario_corrige_sin_agrupar_sufijos():
@@ -128,10 +128,10 @@ def test_notas_del_libro_se_leen_y_exportan(tmp_path):
     assert any('Corregido A1 a B2' in str(v) for s in wb for row in s.values for v in row)
 
 
-def test_web_muestra_notas_y_aclara_alcance_igea():
-    """038:RF-2, 038:RF-6, 038:RF-7 — nota visible; planos previos de IGEA fuera del alcance."""
+def test_web_muestra_notas_y_aclara_alcance_de_planos():
+    """038:RF-2, 038:RF-6, 038:RF-7 — nota visible; planos previos de la distribuidora fuera del alcance."""
     root = Path(__file__).resolve().parents[1] / 'frontend/src/components'
     demanda = (root / 'DemandaMedida.tsx').read_text(encoding='utf-8')
     assert 'nota_asignacion' in demanda and 'radial_libro' in demanda
-    assert 'planos de IGEA previos a la exportación quedan fuera del alcance' in demanda
+    assert 'planos de la distribuidora previos a la exportación quedan fuera del alcance' in demanda
     assert 'TXT, MDB o VNR-GIS' in demanda

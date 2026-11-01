@@ -7,7 +7,7 @@ debes implementar todas estas mejoras para que sea universal»).
 
 ## Contexto y objetivo
 
-El escritor del DGS (`src/igea_dgs/dgs.py`) escribe todas las líneas con `TypLne.nlnph = 3` y
+El escritor del DGS (`src/convertersmartgrid/dgs.py`) escribe todas las líneas con `TypLne.nlnph = 3` y
 todos los transformadores de SED con `TypTr2.nt2ph = 3`, sea cual sea la fuente (TXT, MDB o
 VNR-GIS) y la empresa. Las fases que trae la fuente se pierden: en NJA202 (Electro Oriente) hay
 3 531 tramos monofásicos (698 km) y 166 bifásicos frente a 1 880 trifásicos, y unas 780 SED

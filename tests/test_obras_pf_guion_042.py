@@ -11,7 +11,7 @@ import random
 import pytest
 
 from apoyo import cargar_herramienta
-from igea_dgs.obras_pf import ObrasError, validar_obra
+from convertersmartgrid.obras_pf import ObrasError, validar_obra
 from test_obras_pf_guion import CON, SIN, _activas, _barra, _calibrada, _linea, _plan
 
 guion = cargar_herramienta('obras_pf.py', 'obras_042', tools_en_path=True)

@@ -17,12 +17,12 @@ openpyxl = pytest.importorskip('openpyxl')
 from fastapi.testclient import TestClient  # noqa: E402
 
 from apoyo import esperar_trabajo  # noqa: E402
-from igea_dgs.web.app import create_app  # noqa: E402
+from convertersmartgrid.web.app import create_app  # noqa: E402
 
 
 @pytest.fixture()
 def client(tmp_path, monkeypatch):
-    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     with TestClient(create_app(tmp_path / 'web', host='127.0.0.1')) as c:
         yield c
 
@@ -92,7 +92,7 @@ def test_indice_de_cabecera_por_anio(client, tmp_path):
 
 def test_indice_solo_reabre_lo_nuevo_o_cambiado(client, tmp_path, monkeypatch):
     """025:RF-27, 025:RF-28 — un libro sin cambios no se vuelve a abrir; uno nuevo sí."""
-    from igea_dgs import demanda_medida as dm
+    from convertersmartgrid import demanda_medida as dm
 
     carpeta = _arbol(tmp_path / 'cabecera')
     wid = _wid(client)
@@ -114,8 +114,8 @@ def test_indice_solo_reabre_lo_nuevo_o_cambiado(client, tmp_path, monkeypatch):
 
 def test_cancelar_el_indice_conserva_el_anterior(client, tmp_path):
     """025:RF-33 — cancelado a mitad, queda el índice anterior entero."""
-    from igea_dgs.web import services
-    from igea_dgs.web.jobs import JobCancelled
+    from convertersmartgrid.web import services
+    from convertersmartgrid.web.jobs import JobCancelled
 
     carpeta = _arbol(tmp_path / 'cabecera')
     wid = _wid(client)
@@ -145,7 +145,7 @@ def test_cancelar_el_indice_conserva_el_anterior(client, tmp_path):
 
 def test_indice_que_cambia_mientras_se_construye(client, tmp_path, monkeypatch):
     """025:RF-31 — la carpeta cambió durante el índice: no vigente, y se pide actualizar."""
-    from igea_dgs import demanda_medida as dm
+    from convertersmartgrid import demanda_medida as dm
 
     carpeta = _arbol(tmp_path / 'cabecera')
     wid = _wid(client)
@@ -239,7 +239,7 @@ def _clientes_por_anio(client, tmp_path) -> tuple[str, object]:
 
 def test_clientes_del_mes_de_la_maxima_en_su_subcarpeta(client, tmp_path):
     """025:RF-10 / 013:RF-17 — la máxima de julio de 2025 cruza con el libro de julio de su carpeta 2025."""
-    from igea_dgs.web import services
+    from convertersmartgrid.web import services
 
     _wid_, ws = _clientes_por_anio(client, tmp_path)
     ev = services.periodo_clientes_activo(ws, '2025-07')
@@ -249,7 +249,7 @@ def test_clientes_del_mes_de_la_maxima_en_su_subcarpeta(client, tmp_path):
 
 def test_mes_sin_libro_de_clientes_se_reparte_por_kva(client, tmp_path):
     """025:RF-11 — el mes de la máxima no tiene libro en su año: se dice y va por kVA."""
-    from igea_dgs.web import services
+    from convertersmartgrid.web import services
 
     _wid_, ws = _clientes_por_anio(client, tmp_path)
     ev = services.periodo_clientes_activo(ws, '2025-03')
@@ -259,7 +259,7 @@ def test_mes_sin_libro_de_clientes_se_reparte_por_kva(client, tmp_path):
 
 def test_asignar_carpeta_lista_los_anios_sin_abrir_libros(client, tmp_path, monkeypatch):
     """025:RF-4, 025:RF-32 — asignar la carpeta solo lista: años y libros, ningún libro abierto."""
-    from igea_dgs import demanda_medida as dm
+    from convertersmartgrid import demanda_medida as dm
 
     carpeta = _arbol(tmp_path / 'cabecera')
     monkeypatch.setattr(dm, '_abrir', lambda *_a, **_k: pytest.fail('abrió un libro'))

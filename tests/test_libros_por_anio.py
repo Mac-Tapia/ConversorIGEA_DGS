@@ -2,7 +2,7 @@
 
 El usuario dejó la medición de cabecera y los clientes importantes en una subcarpeta por año
 (``2025``, ``2026``…) y seguirán llegando años, libros y subcarpetas. Los árboles se sortean
-(semilla en el mensaje: ``IGEA_SCALE_SEED``) y los nombres no son de ninguna empresa.
+(semilla en el mensaje: ``CSG_SCALE_SEED``) y los nombres no son de ninguna empresa.
 """
 
 from __future__ import annotations
@@ -14,10 +14,10 @@ from pathlib import Path
 
 import pytest
 
-from igea_dgs import demanda_medida as dm
-from igea_dgs import libros_por_anio as lpa
+from convertersmartgrid import demanda_medida as dm
+from convertersmartgrid import libros_por_anio as lpa
 
-SEMILLA = int(os.environ.get('IGEA_SCALE_SEED', random.randrange(1 << 30)))
+SEMILLA = int(os.environ.get('CSG_SCALE_SEED', random.randrange(1 << 30)))
 
 
 def _tocar(raiz: Path, relativa: str) -> Path:
@@ -235,7 +235,7 @@ def test_varios_patrones_en_el_perfil(tmp_path):
                 r'(?i)^CLI(?P<anio>\d{4})(?P<mes>\d{2})\.xlsx$']
     assert dm.mes_de_nombre('0126clientesImportantes.xlsx', patrones) == '2026-01'
     assert dm.mes_de_nombre('CLI202507.xlsx', patrones) == '2025-07'
-    from igea_dgs.perfil_empresa import PerfilEmpresa, PerfilError
+    from convertersmartgrid.perfil_empresa import PerfilEmpresa, PerfilError
     assert PerfilEmpresa(patron_libro_clientes=patrones).patron_libro_clientes == tuple(patrones)
     with pytest.raises(PerfilError, match='mes'):
         PerfilEmpresa(patron_libro_clientes=[patrones[0], r'(?P<anio>\d{4})'])
@@ -364,9 +364,9 @@ def test_dos_carpetas_del_mismo_tipo_o_ninguna_se_dicen(tmp_path):
     assert any('medición de cabecera' in a for a in avisos)
 
 
-REAL = os.environ.get('IGEA_DEMANDA_DIR', '').strip()
+REAL = os.environ.get('CSG_DEMANDA_DIR', '').strip()
 real = pytest.mark.skipif(not REAL or not Path(REAL).is_dir(),
-                          reason='IGEA_DEMANDA_DIR no apunta a la carpeta de la distribuidora')
+                          reason='CSG_DEMANDA_DIR no apunta a la carpeta de la distribuidora')
 
 
 def _sub_real(prefijo: str) -> Path:

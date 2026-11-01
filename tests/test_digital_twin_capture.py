@@ -6,10 +6,10 @@ import copy
 
 import pytest
 
-from igea_dgs.digital_twin import capture as cp
-from igea_dgs.digital_twin.episode import Caso, Clase
-from igea_dgs.digital_twin.evaluacion import Limites
-from igea_dgs.native_action import build_native_action_context
+from convertersmartgrid.digital_twin import capture as cp
+from convertersmartgrid.digital_twin.episode import Caso, Clase
+from convertersmartgrid.digital_twin.evaluacion import Limites
+from convertersmartgrid.native_action import build_native_action_context
 
 H = 'f' * 64
 LIM = Limites('NTCSE', 0.95, 1.05, 100, 80)

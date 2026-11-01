@@ -1,6 +1,6 @@
 # Plan — Spec 051
 
-1. `src/igea_dgs/cabecera_ancha.py`: lectura del libro ancho (cabecera con fecha y códigos,
+1. `src/convertersmartgrid/cabecera_ancha.py`: lectura del libro ancho (cabecera con fecha y códigos,
    magnitud por la hoja, instante de dos columnas, «CAPACITIVA», código repetido), de las
    máximas mensuales (MW o kW, sin hora ni reactiva) y escritura en el formato que ya lee
    `demanda_medida` (un libro por año con una hoja por código y el de medidores). Reutiliza

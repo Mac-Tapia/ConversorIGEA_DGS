@@ -35,7 +35,7 @@ TypeScript 5.8, SVG, pytest y DIgSILENT PowerFactory 2024.
   clientes y pares alimentador-medidor. Si cualquiera cambia, se prepara otro índice.
 - No interpolar timestamps. Una reducción distinta de la dominancia aprobada, un límite de
   candidatos o una comprobación nativa incompleta produce `aceptable=false`.
-- Los libros reales se prueban solo si `IGEA_DEMANDA_DIR` apunta a la carpeta raíz de la
+- Los libros reales se prueban solo si `CSG_DEMANDA_DIR` apunta a la carpeta raíz de la
   distribuidora. Ningún dato real se copia al repositorio.
 - Los cambios ajenos que ya existen en el árbol de trabajo no se reescriben ni se incluyen
   accidentalmente en los commits de esta spec.
@@ -119,9 +119,9 @@ manuales. No pretende sustituir un hash de custodia del contenido; sirve para in
 
 **Archivos**
 
-- Modificar: `src/igea_dgs/perfil_empresa.py`
+- Modificar: `src/convertersmartgrid/perfil_empresa.py`
 - Modificar: `config/perfiles/electro_dunas.json`
-- Modificar: `src/igea_dgs/demanda_medida.py`
+- Modificar: `src/convertersmartgrid/demanda_medida.py`
 - Modificar: `tests/test_perfil_empresa.py`
 - Modificar: `tests/test_demanda_medida.py`
 
@@ -169,7 +169,7 @@ el catálogo impide vincularlos a meses distintos sin evidencia.
 
    ```powershell
    .venv\Scripts\python.exe -m pytest tests/test_perfil_empresa.py tests/test_demanda_medida.py -q
-   git add src/igea_dgs/perfil_empresa.py config/perfiles/electro_dunas.json src/igea_dgs/demanda_medida.py tests/test_perfil_empresa.py tests/test_demanda_medida.py
+   git add src/convertersmartgrid/perfil_empresa.py config/perfiles/electro_dunas.json src/convertersmartgrid/demanda_medida.py tests/test_perfil_empresa.py tests/test_demanda_medida.py
    git commit -m "feat: indexar libros mensuales de clientes"
    ```
 
@@ -177,9 +177,9 @@ el catálogo impide vincularlos a meses distintos sin evidencia.
 
 **Archivos**
 
-- Modificar: `src/igea_dgs/web/workspace.py`
-- Modificar: `src/igea_dgs/web/services.py`
-- Modificar: `src/igea_dgs/web/app.py`
+- Modificar: `src/convertersmartgrid/web/workspace.py`
+- Modificar: `src/convertersmartgrid/web/services.py`
+- Modificar: `src/convertersmartgrid/web/app.py`
 - Modificar: `tests/test_demanda_medida_web.py`
 
 **Justificación científica:** la trazabilidad exigida por el uso conjunto de perfiles y
@@ -212,7 +212,7 @@ cruce.
 
    ```powershell
    .venv\Scripts\python.exe -m pytest tests/test_demanda_medida_web.py -q
-   git add src/igea_dgs/web/workspace.py src/igea_dgs/web/services.py src/igea_dgs/web/app.py tests/test_demanda_medida_web.py
+   git add src/convertersmartgrid/web/workspace.py src/convertersmartgrid/web/services.py src/convertersmartgrid/web/app.py tests/test_demanda_medida_web.py
    git commit -m "feat: conservar carpeta y meses de clientes"
    ```
 
@@ -220,11 +220,11 @@ cruce.
 
 **Archivos**
 
-- Crear: `src/igea_dgs/periodo_analisis.py`
-- Modificar: `src/igea_dgs/demanda_medida.py`
-- Modificar: `src/igea_dgs/web/workspace.py`
-- Modificar: `src/igea_dgs/web/services.py`
-- Modificar: `src/igea_dgs/web/app.py`
+- Crear: `src/convertersmartgrid/periodo_analisis.py`
+- Modificar: `src/convertersmartgrid/demanda_medida.py`
+- Modificar: `src/convertersmartgrid/web/workspace.py`
+- Modificar: `src/convertersmartgrid/web/services.py`
+- Modificar: `src/convertersmartgrid/web/app.py`
 - Crear: `tests/test_periodo_analisis.py`
 - Modificar: `tests/test_demanda_medida_web.py`
 
@@ -265,7 +265,7 @@ coincidencia temporal, no reducir anticipadamente cada alimentador a una punta a
 
    ```powershell
    .venv\Scripts\python.exe -m pytest tests/test_periodo_analisis.py tests/test_demanda_medida_web.py -q
-   git add src/igea_dgs/periodo_analisis.py src/igea_dgs/demanda_medida.py src/igea_dgs/web/workspace.py src/igea_dgs/web/services.py src/igea_dgs/web/app.py tests/test_periodo_analisis.py tests/test_demanda_medida_web.py
+   git add src/convertersmartgrid/periodo_analisis.py src/convertersmartgrid/demanda_medida.py src/convertersmartgrid/web/workspace.py src/convertersmartgrid/web/services.py src/convertersmartgrid/web/app.py tests/test_periodo_analisis.py tests/test_demanda_medida_web.py
    git commit -m "feat: calcular periodos comunes de demanda"
    ```
 
@@ -273,9 +273,9 @@ coincidencia temporal, no reducir anticipadamente cada alimentador a una punta a
 
 **Archivos**
 
-- Modificar: `src/igea_dgs/demanda_medida.py`
-- Modificar: `src/igea_dgs/web/services.py`
-- Modificar: `src/igea_dgs/web/app.py`
+- Modificar: `src/convertersmartgrid/demanda_medida.py`
+- Modificar: `src/convertersmartgrid/web/services.py`
+- Modificar: `src/convertersmartgrid/web/app.py`
 - Modificar: `tests/test_demanda_medida.py`
 - Modificar: `tests/test_demanda_medida_web.py`
 
@@ -307,7 +307,7 @@ et al. respaldan reconciliar el libro de clientes con la medición del mismo per
 
    ```powershell
    .venv\Scripts\python.exe -m pytest tests/test_demanda_medida.py tests/test_demanda_medida_web.py -q
-   git add src/igea_dgs/demanda_medida.py src/igea_dgs/web/services.py src/igea_dgs/web/app.py tests/test_demanda_medida.py tests/test_demanda_medida_web.py
+   git add src/convertersmartgrid/demanda_medida.py src/convertersmartgrid/web/services.py src/convertersmartgrid/web/app.py tests/test_demanda_medida.py tests/test_demanda_medida_web.py
    git commit -m "feat: acotar maxima y clientes al periodo"
    ```
 
@@ -370,9 +370,9 @@ que depende de coincidencia.
 
 **Archivos**
 
-- Modificar: `src/igea_dgs/demanda_medida.py`
-- Modificar: `src/igea_dgs/web/services.py`
-- Modificar: `src/igea_dgs/web/app.py`
+- Modificar: `src/convertersmartgrid/demanda_medida.py`
+- Modificar: `src/convertersmartgrid/web/services.py`
+- Modificar: `src/convertersmartgrid/web/app.py`
 - Modificar: `frontend/src/types.ts`
 - Modificar: `frontend/src/api.ts`
 - Modificar: `frontend/src/components/CurvaCabecera.tsx`
@@ -402,7 +402,7 @@ temporal común para distinguir simultaneidad y diversidad.
 4. Commit:
 
    ```powershell
-   git add src/igea_dgs/demanda_medida.py src/igea_dgs/web/services.py src/igea_dgs/web/app.py frontend/src/types.ts frontend/src/api.ts frontend/src/components/CurvaCabecera.tsx frontend/src/styles.css tests/test_demanda_medida.py tests/test_demanda_medida_web.py docs/acceptance/013-mes-clientes.md
+   git add src/convertersmartgrid/demanda_medida.py src/convertersmartgrid/web/services.py src/convertersmartgrid/web/app.py frontend/src/types.ts frontend/src/api.ts frontend/src/components/CurvaCabecera.tsx frontend/src/styles.css tests/test_demanda_medida.py tests/test_demanda_medida_web.py docs/acceptance/013-mes-clientes.md
    git commit -m "feat: comparar curvas en un eje temporal"
    ```
 
@@ -410,8 +410,8 @@ temporal común para distinguir simultaneidad y diversidad.
 
 **Archivos**
 
-- Modificar: `src/igea_dgs/web/services.py`
-- Modificar: `src/igea_dgs/web/app.py`
+- Modificar: `src/convertersmartgrid/web/services.py`
+- Modificar: `src/convertersmartgrid/web/app.py`
 - Modificar: `frontend/src/components/CargasTab.tsx`
 - Modificar: `frontend/src/components/TransferenciaPF.tsx`
 - Modificar: `frontend/src/api.ts`
@@ -441,7 +441,7 @@ originó.
    Set-Location frontend
    npm run build
    Set-Location ..
-   git add src/igea_dgs/web/services.py src/igea_dgs/web/app.py frontend/src/components/CargasTab.tsx frontend/src/components/TransferenciaPF.tsx frontend/src/api.ts tests/test_ajuste_cabecera_web.py tests/test_estudios_pf_web.py
+   git add src/convertersmartgrid/web/services.py src/convertersmartgrid/web/app.py frontend/src/components/CargasTab.tsx frontend/src/components/TransferenciaPF.tsx frontend/src/api.ts tests/test_ajuste_cabecera_web.py tests/test_estudios_pf_web.py
    git commit -m "feat: enlazar transferencia con el periodo aplicado"
    ```
 
@@ -449,8 +449,8 @@ originó.
 
 **Archivos**
 
-- Modificar: `src/igea_dgs/periodo_analisis.py`
-- Modificar: `src/igea_dgs/transferencia_pf.py`
+- Modificar: `src/convertersmartgrid/periodo_analisis.py`
+- Modificar: `src/convertersmartgrid/transferencia_pf.py`
 - Modificar: `tests/test_periodo_analisis.py`
 - Modificar: `tests/test_transferencia_pf.py`
 
@@ -494,7 +494,7 @@ al. y Mahdavi et al. respaldan evaluar reconfiguración bajo múltiples estados 
 
    ```powershell
    .venv\Scripts\python.exe -m pytest tests/test_periodo_analisis.py tests/test_transferencia_pf.py -q
-   git add src/igea_dgs/periodo_analisis.py src/igea_dgs/transferencia_pf.py tests/test_periodo_analisis.py tests/test_transferencia_pf.py
+   git add src/convertersmartgrid/periodo_analisis.py src/convertersmartgrid/transferencia_pf.py tests/test_periodo_analisis.py tests/test_transferencia_pf.py
    git commit -m "feat: construir frontera temporal de transferencia"
    ```
 
@@ -559,8 +559,8 @@ solo por aritmética de puntas.
 
 **Archivos**
 
-- Modificar: `src/igea_dgs/web/services.py`
-- Modificar: `src/igea_dgs/web/app.py`
+- Modificar: `src/convertersmartgrid/web/services.py`
+- Modificar: `src/convertersmartgrid/web/app.py`
 - Modificar: `frontend/src/types.ts`
 - Modificar: `frontend/src/api.ts`
 - Modificar: `frontend/src/components/TransferenciaPF.tsx`
@@ -593,7 +593,7 @@ la evaluación multitemporal descrita por Ding, Mahdavi et al. y Azizivahed et a
    Set-Location frontend
    npm run build
    Set-Location ..
-   git add src/igea_dgs/web/services.py src/igea_dgs/web/app.py frontend/src/types.ts frontend/src/api.ts frontend/src/components/TransferenciaPF.tsx frontend/src/styles.css tests/test_estudios_pf_web.py docs/acceptance/013-mes-clientes.md
+   git add src/convertersmartgrid/web/services.py src/convertersmartgrid/web/app.py frontend/src/types.ts frontend/src/api.ts frontend/src/components/TransferenciaPF.tsx frontend/src/styles.css tests/test_estudios_pf_web.py docs/acceptance/013-mes-clientes.md
    git commit -m "feat: informar transferencia temporal comprobada"
    ```
 
@@ -630,7 +630,7 @@ pruebas sintéticas con resultado operacional.
 3. Ejecutar prueba real de libros solo con datos externos configurados:
 
    ```powershell
-   $env:IGEA_DEMANDA_DIR = 'D:\converter\ConversorIGEA_DGS\referencia'
+   $env:CSG_DEMANDA_DIR = 'D:\converter\ConverterSmartGrid\referencia'
    .venv\Scripts\python.exe -m pytest tests/test_demanda_medida.py -k real -q
    ```
 

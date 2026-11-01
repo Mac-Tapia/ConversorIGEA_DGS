@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from igea_dgs.experimentos import (
+from convertersmartgrid.experimentos import (
     ContextoExperimento, ExperimentoSpec, cargar_experimento, clave_contexto,
 )
 

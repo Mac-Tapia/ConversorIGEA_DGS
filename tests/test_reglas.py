@@ -1,6 +1,6 @@
 """Reglas del proyecto: se aplican siempre, en cualquier vía, y no pierden nada.
 
-Ver ``igea_dgs.reglas``: hoja dinámica a escala real, coordenadas por el grafo, puentes fundidos,
+Ver ``convertersmartgrid.reglas``: hoja dinámica a escala real, coordenadas por el grafo, puentes fundidos,
 trafomix excluidos, SED redimensionadas, catálogo del proyecto y auditoría de
 completitud. Estas pruebas usan el export sintético, en sus dos disposiciones.
 """
@@ -12,9 +12,9 @@ import json
 import pytest
 
 from synthetic_export import CRS_SINTETICO, ExportSpec, load_export
-from igea_dgs.batch import convert_group, convert_selection
-from igea_dgs.reglas import REGLAS_PROYECTO, SIN_REGLAS
-from igea_dgs.validate import parse_dgs
+from convertersmartgrid.batch import convert_group, convert_selection
+from convertersmartgrid.reglas import REGLAS_PROYECTO, SIN_REGLAS
+from convertersmartgrid.validate import parse_dgs
 
 pytest.importorskip('pyproj')
 
@@ -88,9 +88,9 @@ def test_web_une_en_un_dgs(tmp_path, monkeypatch):
     from fastapi.testclient import TestClient
 
     from synthetic_export import write_export
-    from igea_dgs.web.app import create_app
+    from convertersmartgrid.web.app import create_app
 
-    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     red, carga, equipo = write_export(ExportSpec(feeders=3), tmp_path / 'e')
     with TestClient(create_app(tmp_path / 'web', host='127.0.0.1')) as c:
         wid = c.post('/api/workspaces').json()['id']
@@ -125,7 +125,7 @@ def test_la_red_unida_por_zonal_y_set(ds, tmp_path):
     """022:RF-6, 022:RF-7, 022:RF-25, 022:RF-34 — con la estructura, un DGS con una red por
     zonal y una fuente por barra de SET, en las dos disposiciones; el manifiesto trae el
     informe por zonal y SET, los «Sin SET», las aperturas y el oráculo."""
-    from igea_dgs.estructura import estructura_de_dict
+    from convertersmartgrid.estructura import estructura_de_dict
 
     nombres = [f['feeder'] for f in convert_selection(
         ds, None, tmp_path / 'x', all_feeders=True, source_crs=CRS_SINTETICO)['feeders']]
@@ -162,9 +162,9 @@ def test_web_convierte_por_sistema_electrico_con_la_tabla_subida(tmp_path, monke
     from openpyxl import Workbook
 
     from synthetic_export import write_export
-    from igea_dgs.web.app import create_app
+    from convertersmartgrid.web.app import create_app
 
-    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     red, carga, equipo = write_export(ExportSpec(feeders=3), tmp_path / 'e')
     with TestClient(create_app(tmp_path / 'web', host='127.0.0.1')) as c:
         wid = c.post('/api/workspaces').json()['id']
@@ -242,8 +242,8 @@ def test_cli_por_sistema_electrico(tmp_path):
     from openpyxl import Workbook
 
     from synthetic_export import write_export
-    from igea_dgs.cli import main
-    from igea_dgs.naming import feeder_short_name
+    from convertersmartgrid.cli import main
+    from convertersmartgrid.naming import feeder_short_name
 
     red, carga, equipo = write_export(ExportSpec(feeders=3), tmp_path / 'e')
     nombres = sorted(f['feeder'] for f in convert_selection(

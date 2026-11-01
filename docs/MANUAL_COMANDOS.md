@@ -7,7 +7,7 @@ Cada cosa que hace la interfaz gráfica se puede lanzar también desde la consol
 manual empareja las dos vías: **lo que pulsa en la interfaz web** y **el comando equivalente**,
 para poder automatizar, diagnosticar una incidencia o trabajar en una máquina sin pantalla.
 
-Todos los comandos se ejecutan desde la raíz del proyecto (`D:\converter\ConversorIGEA_DGS`)
+Todos los comandos se ejecutan desde la raíz del proyecto (`D:\converter\ConverterSmartGrid`)
 en **PowerShell** o **CMD** de Windows. El entorno virtual es `.venv`.
 
 > Convención de este manual: `>` es el símbolo del sistema; no lo escriba.
@@ -38,7 +38,7 @@ Ese único fichero trae todo: conversor, web, VNR-GIS y las herramientas de prue
 Comprobar que quedó bien instalado:
 
 ```bat
-> .venv\Scripts\python.exe -c "import igea_dgs, pyproj; print(igea_dgs.__version__)"
+> .venv\Scripts\python.exe -c "import convertersmartgrid, pyproj; print(convertersmartgrid.__version__)"
 2.1.0
 ```
 
@@ -66,23 +66,23 @@ repita `pip install -r requirements.txt`, o convierta con `--no-geography`.
 
 | En la interfaz | Comando |
 | --- | --- |
-| Doble clic en `run_gui.bat` | `> .venv\Scripts\igea-dgs.exe web` (o `igea-dgs-web`) |
+| Doble clic en `run_gui.bat` | `> .venv\Scripts\convertersmartgrid.exe web` (o `convertersmartgrid-web`) |
 
 `run_gui.bat` prefiere el `.venv`, instala las dependencias de producción si faltan,
 recompila el front si su código es más reciente que la compilación y abre el navegador
 en `http://127.0.0.1:8765/`. El comando directo no instala nada: asume el entorno ya
-preparado. La interfaz de escritorio Tkinter (`igea_dgs.gui`) se retiró (spec 001, RF-16).
+preparado. La interfaz de escritorio Tkinter (`convertersmartgrid.gui`) se retiró (spec 001, RF-16).
 
 ### Las órdenes del CLI
 
 | Orden | Para qué | Sección |
 | --- | --- | --- |
-| `igea-dgs list` | Listar alimentadores e inventario de la entrada (TXT, `.mdb` o VNR-GIS). | 3 |
-| `igea-dgs convert` | Convertir uno, varios (`--feeder` repetido) o todos (`--all`). | 4 |
-| `igea-dgs web` | Arrancar la interfaz web y abrir el navegador. | 1 |
+| `convertersmartgrid list` | Listar alimentadores e inventario de la entrada (TXT, `.mdb` o VNR-GIS). | 3 |
+| `convertersmartgrid convert` | Convertir uno, varios (`--feeder` repetido) o todos (`--all`). | 4 |
+| `convertersmartgrid web` | Arrancar la interfaz web y abrir el navegador. | 1 |
 | `vnr-etl` | Módulo VNR-GIS: descubrir, validar y exportar paquetes (`docs/VNR_GIS_PRODUCTION.md`). | — |
 
-`igea-dgs` equivale a `python -m igea_dgs.cli`; los ejemplos usan una u otra forma.
+`convertersmartgrid` equivale a `python -m convertersmartgrid.cli`; los ejemplos usan una u otra forma.
 
 ---
 
@@ -103,23 +103,23 @@ comprobación mínima tras instalar o actualizar.
 ### 2.2 Suite completa, con sus TXT
 
 ```bat
-> set IGEA_RED=referencia\RED_030826(1).txt
-> set IGEA_LOADS=referencia\CARGA_030826(1).txt
-> set IGEA_EQUIPMENT=referencia\BD_Equipo_V261124 (1)(1).txt
+> set CSG_RED=referencia\RED_030826(1).txt
+> set CSG_LOADS=referencia\CARGA_030826(1).txt
+> set CSG_EQUIPMENT=referencia\BD_Equipo_V261124 (1)(1).txt
 > .venv\Scripts\python.exe -m pytest -q
 ```
 
 En PowerShell:
 
 ```powershell
-> $env:IGEA_RED='referencia\RED_030826(1).txt'
-> $env:IGEA_LOADS='referencia\CARGA_030826(1).txt'
-> $env:IGEA_EQUIPMENT='referencia\BD_Equipo_V261124 (1)(1).txt'
+> $env:CSG_RED='referencia\RED_030826(1).txt'
+> $env:CSG_LOADS='referencia\CARGA_030826(1).txt'
+> $env:CSG_EQUIPMENT='referencia\BD_Equipo_V261124 (1)(1).txt'
 > .venv\Scripts\python.exe -m pytest -q
 ```
 
 Nota: los nombres con paréntesis **deben ir entre comillas** si los escribe sueltos.
-La variable `IGEA_TXT_DIR` que menciona el README no resuelve estos nombres; use las
+La variable `CSG_TXT_DIR` que menciona el README no resuelve estos nombres; use las
 tres variables individuales.
 
 ### 2.3 Solo un grupo concreto
@@ -152,10 +152,10 @@ rem Vínculo de la interfaz con el motor
 
 | En la interfaz | Comando |
 | --- | --- |
-| **Cargar / listar alimentadores** | `igea_dgs.cli list` |
+| **Cargar / listar alimentadores** | `convertersmartgrid.cli list` |
 
 ```bat
-> .venv\Scripts\python.exe -m igea_dgs.cli list ^
+> .venv\Scripts\python.exe -m convertersmartgrid.cli list ^
     --red "referencia\RED_030826(1).txt" ^
     --loads "referencia\CARGA_030826(1).txt" ^
     --equipment "referencia\BD_Equipo_V261124 (1)(1).txt" ^
@@ -176,7 +176,7 @@ El conversor acepta la red por **dos vías**. Son excluyentes: se elige una.
 | | Alternativa 1 — TXT | Alternativa 2 — base Access |
 | --- | --- | --- |
 | Qué se indica | `--red` `--loads` `--equipment` | `--mdb` (+ `--equipment-mdb` si el catálogo está aparte) |
-| Requisitos | Ninguno especial | Windows, driver «Microsoft Access Driver» de 64 bits, `pip install "igea-dgs[access]"` |
+| Requisitos | Ninguno especial | Windows, driver «Microsoft Access Driver» de 64 bits, `pip install "convertersmartgrid[access]"` |
 | Ventaja | Portable; no necesita CYMDIST ni licencia; funciona en Linux | Evita el paso manual de exportar; **conserva el conductor real** allí donde el export TXT escribe `DEFAULT`; permite elegir el año del escenario de carga |
 | Escenario de carga | El que trajera el export | `--load-year 2026`; por defecto el más reciente, igual que el TXT |
 
@@ -187,9 +187,9 @@ recuperan su conductor** leyendo la base en lugar del TXT.
 ### Leer desde la base
 
 ```bat
-> .venv\Scripts\python.exe -m igea_dgs.cli list --mdb "D:\Ruta\BaseDatos.mdb"
+> .venv\Scripts\python.exe -m convertersmartgrid.cli list --mdb "D:\Ruta\BaseDatos.mdb"
 
-> .venv\Scripts\python.exe -m igea_dgs.cli convert ^
+> .venv\Scripts\python.exe -m convertersmartgrid.cli convert ^
     --mdb "D:\Ruta\BaseDatos.mdb" ^
     --all --source-crs EPSG:32718 --out-dir output\produccion
 ```
@@ -207,7 +207,7 @@ Un `.zxst` de CYMDIST no contiene la red, pero sí **qué alimentadores forman p
 estudio**. Con `--study` se convierte exactamente ese conjunto:
 
 ```bat
-> .venv\Scripts\python.exe -m igea_dgs.cli convert ^
+> .venv\Scripts\python.exe -m convertersmartgrid.cli convert ^
     --mdb "D:\Ruta\BaseDatos.mdb" ^
     --study "D:\Ruta\estudios\base2026.zxst" ^
     --all --source-crs EPSG:32718 --out-dir output\produccion
@@ -218,7 +218,7 @@ Funciona también con la entrada por TXT, donde actúa como filtro de selección
 
 ### En la interfaz
 
-El panel **1 · Entrada de datos** tiene tres pestañas: *Tres TXT de IGEA/CYMDIST*,
+El panel **1 · Entrada de datos** tiene tres pestañas: *Tres TXT de CYMDIST*,
 *Base Access (.mdb)* y *VNR-GIS*. Al cambiar, el panel de casillas se sustituye. Con la
 base Access solo la base de red es obligatoria; la base de equipos y el estudio son
 opcionales.
@@ -236,7 +236,7 @@ opcionales.
 ### 4.1 Un alimentador
 
 ```bat
-> .venv\Scripts\python.exe -m igea_dgs.cli convert ^
+> .venv\Scripts\python.exe -m convertersmartgrid.cli convert ^
     --red "referencia\RED_030826(1).txt" ^
     --loads "referencia\CARGA_030826(1).txt" ^
     --equipment "referencia\BD_Equipo_V261124 (1)(1).txt" ^
@@ -248,7 +248,7 @@ opcionales.
 ### 4.2 Todos
 
 ```bat
-> .venv\Scripts\python.exe -m igea_dgs.cli convert ^
+> .venv\Scripts\python.exe -m convertersmartgrid.cli convert ^
     --red "referencia\RED_030826(1).txt" ^
     --loads "referencia\CARGA_030826(1).txt" ^
     --equipment "referencia\BD_Equipo_V261124 (1)(1).txt" ^
@@ -263,7 +263,7 @@ opcionales.
 | --- | --- | --- |
 | Georreferenciación (GPS + diagrama) | *(activa por defecto)* / `--no-geography` | GPS en terminales, diagrama `IntGrf` y sidecar `_geography.json` |
 | Modo estricto | *(activo por defecto)* / `--non-strict` | En estricto, una topología rota bloquea el alimentador |
-| Excel multi-hoja | `--export-xlsx` | Requiere `pip install "igea-dgs[xlsx]"` |
+| Excel multi-hoja | `--export-xlsx` | Requiere `pip install "convertersmartgrid[xlsx]"` |
 | TSV por tabla | `--export-tsv` | Una carpeta `{alimentador}_dgs_tables/` |
 | Vista previa | `--preview` | Mapa HTML + GeoJSON. Exige georreferenciación |
 | CRS origen | `--source-crs EPSG:XXXXX` | El de **su** export. Sin él, el del perfil de empresa; sin perfil, se pide |
@@ -308,7 +308,7 @@ Por cada alimentador, en `--out-dir`:
 ### 4.6 Garantías de integridad
 
 - **Nada se publica a medias.** Cada alimentador se escribe en una carpeta temporal
-  `.igea-stage-…` y solo se mueve a su sitio cuando está completo y validado. Un corte
+  `.csg-stage-…` y solo se mueve a su sitio cuando está completo y validado. Un corte
   de luz o un cierre no pueden dejar un `.dgs` truncado que parezca válido.
 - **Si un alimentador falla, no deja fichero** y el resultado bueno anterior se conserva.
 - **El manifiesto se escribe siempre**, incluso si el lote se interrumpe.
@@ -334,14 +334,14 @@ comprobación rápida tras instalar o actualizar.
 
 ```bat
 rem Alternativa 1 — TXT
-> .venv\Scripts\python.exe -m igea_dgs.cli convert ^
+> .venv\Scripts\python.exe -m convertersmartgrid.cli convert ^
     --red "referencia\RED_030826(1).txt" ^
     --loads "referencia\CARGA_030826(1).txt" ^
     --equipment "referencia\BD_Equipo_V261124 (1)(1).txt" ^
     --feeder PA217 --source-crs EPSG:32718 --out-dir output\pa217_txt
 
 rem Alternativa 2 — base Access
-> .venv\Scripts\python.exe -m igea_dgs.cli convert ^
+> .venv\Scripts\python.exe -m convertersmartgrid.cli convert ^
     --mdb "D:\BaseDatosElectroDunas\BaseDatos.mdb" ^
     --feeder PA217 --source-crs EPSG:32718 --out-dir output\pa217_mdb
 ```
@@ -430,7 +430,7 @@ y antes con el oráculo y las cargas del archivo (015:RF-8, RF-39, RF-41).
 
 ```bat
 > .venv\Scripts\python.exe tools\powerfactory_acceptance.py ^
-    --existing-project "20261013-121930_IGEA_CA101" ^
+    --existing-project "20261013-121930_CSG_CA101" ^
     --pf-carpeta "sistemaeletricoELD" ^
     --source-dgs output\produccion\CA101.dgs ^
     --manifest output\produccion\CA101_geography.json ^
@@ -509,13 +509,13 @@ set "CRS=EPSG:32718"
 set "ALIM=IN111"
 
 echo === 1/3 Pruebas ===
-set "IGEA_RED=%RED%"
-set "IGEA_LOADS=%CARGA%"
-set "IGEA_EQUIPMENT=%EQUIPO%"
+set "CSG_RED=%RED%"
+set "CSG_LOADS=%CARGA%"
+set "CSG_EQUIPMENT=%EQUIPO%"
 "%PY%" -m pytest -q || (echo Pruebas fallidas: se detiene. & exit /b 1)
 
 echo === 2/3 Conversion ===
-"%PY%" -m igea_dgs.cli convert --red "%RED%" --loads "%CARGA%" --equipment "%EQUIPO%" ^
+"%PY%" -m convertersmartgrid.cli convert --red "%RED%" --loads "%CARGA%" --equipment "%EQUIPO%" ^
     --feeder %ALIM% --source-crs %CRS% --out-dir "%SALIDA%" || (echo Conversion fallida. & exit /b 2)
 
 echo === 3/3 Importacion en DigSILENT ===
@@ -549,13 +549,13 @@ for %%F in ("%SALIDA%\*.dgs") do (
 
 | Síntoma | Causa | Solución |
 | --- | --- | --- |
-| `ModuleNotFoundError: igea_dgs` | Entorno sin instalar | `pip install -r requirements.txt` desde la raíz |
+| `ModuleNotFoundError: convertersmartgrid` | Entorno sin instalar | `pip install -r requirements.txt` desde la raíz |
 | `ModuleNotFoundError: pyproj` | Falta la dependencia de GPS | `pip install -r requirements.txt`, o use `--no-geography` |
 | `CRS de origen … no metros` | CRS en grados o pies | Indique el UTM de su export (§4.4) |
 | `Archivos de entrada no encontrados` | Ruta mal escrita | Comillas si el nombre lleva espacios o paréntesis |
 | Código `3` en la importación | API de PowerFactory no visible | Abra PF; configure `PF_PYTHON` (§5.1) |
 | Nombres con sufijo `__a1b2c3d4` | Dos `NetworkID` con el mismo nombre corto | Es correcto: evita que un alimentador pise al otro (§4.6) |
-| Carpetas `.igea-stage-…` sobrantes | El proceso murió a la fuerza | Se pueden borrar; ningún resultado publicado se pierde |
+| Carpetas `.csg-stage-…` sobrantes | El proceso murió a la fuerza | Se pueden borrar; ningún resultado publicado se pierde |
 | `topology: source_only` en el manifiesto | Cabecera sin tramos MT en el export | El DGS solo tiene la barra de cabecera. **No lo use para flujo ni estudios** |
 
 ---
@@ -629,7 +629,7 @@ rem Convertir a DGS con las características corregidas
     --out-dir output\corregido --escribir-dgs --informe-json output\cambios.json
 
 rem O directamente en la conversión normal
-.venv\Scripts\python.exe -m igea_dgs.cli convert --red R.txt --loads C.txt --equipment E.txt ^
+.venv\Scripts\python.exe -m convertersmartgrid.cli convert --red R.txt --loads C.txt --equipment E.txt ^
     --all --catalogo --source-crs EPSG:32718 --out-dir output\prod
 ```
 
@@ -704,7 +704,7 @@ queda fuera. Una modificación manual del proyecto es un aviso, nunca un bloqueo
 | **1 · Proyecto de DIgSILENT** | «Leer proyectos», buscar por nombre o carpeta y elegir | `tools/pf_proyectos.py` lee la carpeta de importación (spec 005) |
 | **2 · Alimentadores y calibración** | Marcar alimentadores (todos al elegir el proyecto) | Los marcados sirven a la calibración y a la integración |
 | 2.1 Libros de medición | Medidor por alimentador, medición de cabecera, suministros, clientes importantes | Se validan en la web (spec 004, RF-22 a RF-45) |
-| 2.2 Máxima de cabecera | «Buscar medidores» y «Buscar la máxima», para todos los marcados en un trabajo | `igea_dgs.demanda_medida` |
+| 2.2 Máxima de cabecera | «Buscar medidores» y «Buscar la máxima», para todos los marcados en un trabajo | `convertersmartgrid.demanda_medida` |
 | 2.3 Clientes importantes | Elegir «Fijas de la tabla cruzada» (coincidentes con la máxima, por defecto, o máximo del mes) y «Cruzar clientes»: su demanda queda fija a escala 1. «Comparar los criterios de las fijas» enseña los dos y si la medida de cabecera es coherente, sin abrir DIgSILENT | Cruce por «Suministro Act» y «Suministro» (specs 035 y 039) |
 | 2.4 Escalar y ajustar | «Simular» o «Ajustar en DIgSILENT» (después de la primera, «Recalibrar (n.º k)») | `tools/ajuste_cabecera_pf.py`, en el escenario de «Sin proyecto»; las escaladas con reparto probabilístico y el P50 escrito; las cargas nuevas quedan fuera de la medida (specs 006, 008, 014, 015, 035 y 041) |
 | **3 · Integración de nuevas** | | |
@@ -784,7 +784,7 @@ Un solo proceso a la vez tiene el motor de DIgSILENT en la máquina (spec 019): 
 tiene, el guion espera hasta 10 minutos diciendo quién, y con DIgSILENT abierto a mano
 avisa y no se lanza. La web manda estos guiones a un proceso que mantiene DIgSILENT
 abierto entre órdenes, sin volver a activar el proyecto, y que se cierra a los 2 minutos
-sin órdenes (`IGEA_PF_SERVIDOR=0` lo apaga):
+sin órdenes (`CSG_PF_SERVIDOR=0` lo apaga):
 
 ```bat
 > python tools\pf_servidor.py [--inactividad 120]
@@ -893,7 +893,7 @@ estudios, transferencia, guiones) deja su episodio en el búfer local
 La lectura de cada episodio tiene su propio límite, 5 minutos por defecto
 (`gemelo.lectura_s` en el perfil): si DIgSILENT no responde a tiempo, el episodio va a
 cuarentena con su motivo y la acción del operador sigue. `gemelo.captura: false` en el
-perfil (o `IGEA_TWIN_CAPTURA=0`) apaga la captura.
+perfil (o `CSG_TWIN_CAPTURA=0`) apaga la captura.
 
 Lo que el perfil de empresa necesita (`planificacion` en `config/perfiles/<empresa>.json`):
 la tasa de crecimiento de la demanda (`crecimiento_demanda_anual`; sin ella solo se
@@ -995,17 +995,17 @@ traen sus propios límites.
 ```bat
 rem Interfaz web
 run_gui.bat
-.venv\Scripts\igea-dgs.exe web
+.venv\Scripts\convertersmartgrid.exe web
 
 rem Pruebas
 .venv\Scripts\python.exe -m pytest -q
 
 rem Listar
-.venv\Scripts\igea-dgs.exe list --red R.txt --loads C.txt --equipment E.txt
+.venv\Scripts\convertersmartgrid.exe list --red R.txt --loads C.txt --equipment E.txt
 
 rem Convertir uno / todos
-.venv\Scripts\igea-dgs.exe convert --red R.txt --loads C.txt --equipment E.txt --feeder ALIMENTADOR --source-crs EPSG:XXXXX --out-dir output\prod
-.venv\Scripts\igea-dgs.exe convert --red R.txt --loads C.txt --equipment E.txt --all --source-crs EPSG:XXXXX --out-dir output\prod
+.venv\Scripts\convertersmartgrid.exe convert --red R.txt --loads C.txt --equipment E.txt --feeder ALIMENTADOR --source-crs EPSG:XXXXX --out-dir output\prod
+.venv\Scripts\convertersmartgrid.exe convert --red R.txt --loads C.txt --equipment E.txt --all --source-crs EPSG:XXXXX --out-dir output\prod
 
 rem Red unida y ano 0 del PIDE
 .venv\Scripts\python.exe tools\build_system_grid.py --red R.txt --cargas C.txt --equipos E.txt --importar --run-load-flow
@@ -1040,6 +1040,7 @@ se ejecutan con el intérprete de PowerFactory (Python 3.12 con `powerfactory.py
 | `casos_pf.py` | Deja los casos «Caso base», «Sin proyecto» y «Con proyecto» sobre la red calibrada, cada uno con su escenario (spec 011; sección 7.ter). | PF |
 | `asistente_entrenar.py` | Entrena el Transformer de órdenes y el clasificador de informes del asistente en su propio proceso, en la GPU, con el vocabulario del espacio (`--vocabulario`); solo promueve si pasa las puertas; `--evaluar` mide los modelos en uso; `--destilar` añade la destilación del modelo local de Ollama al Transformer y solo la usa si no acierta menos que sin ella (spec 027, RF-56 a RF-62). La web lo lanza con «Reentrenar» o la orden «reentrena el asistente» (spec 026, T3 y T7). | |
 | `asistente_medir_ollama.py` | Mide los modelos locales de Ollama (`--modelos qwen2.5:3b llama3.1:8b`) como intérpretes de órdenes y guarda el que más acierta en menos de `--tiempo-max` segundos (spec 026, T4). | |
+| `llm_destilar.py` | Destila el modelo local del asistente con fuentes reales y conserva su protocolo: `preparar` arma el corpus y no envía datos fuera ni ejecuta maniobras ni estudios (spec 047, T7). | |
 | `digital_twin_auditar.py` | Audita el dataset del gemelo y del asistente antes de entrenar: redes distintas, no finitos, tensiones fuera de rango, parámetros frente a etiquetas y órdenes reales (spec 027, T0). | |
 | `digital_twin_buffer.py` | Búfer de episodios del gemelo digital: `list` con filtros, `show`, `validate`, `register` y `rebuild-index`, sin DIgSILENT (spec 024, T7). | |
 | `digital_twin_entrenar.py` | Entrena el oráculo PINN/GNN del gemelo en su propio proceso, solo en la GPU (CUDA): sin ella se detiene con su motivo; `--forzar` entrena aunque no haya episodios nuevos; `--evaluar` no entrena y dice cuánto se apartan de DIgSILENT el modelo y la física por partición. La web lo lanza tras «Aprender» (spec 024, T11 y T17). `--buscar` busca antes los hiperparámetros (Optuna, solo en validación) y `--reproducir VERSION` reentrena un modelo con su manifiesto (spec 027, RF-7 y RF-9). | |

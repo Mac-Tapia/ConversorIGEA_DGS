@@ -10,10 +10,10 @@ import random
 
 import pytest
 
-from igea_dgs.asistente import almacen
-from igea_dgs.asistente import destilacion as dst
-from igea_dgs.asistente.sinteticos import generar
-from igea_dgs.asistente.tareas import TAREAS
+from convertersmartgrid.asistente import almacen
+from convertersmartgrid.asistente import destilacion as dst
+from convertersmartgrid.asistente.sinteticos import generar
+from convertersmartgrid.asistente.tareas import TAREAS
 
 SEMILLA = random.randrange(1 << 30)
 VOCAB = {'alimentadores': ['IN111', 'TA225', 'NA203'], 'proyecto': ['CA101 13'], 'sistema': ['Pisco', 'Nasca']}
@@ -69,7 +69,7 @@ def test_votos_con_temperatura_y_filtro_por_acuerdo():
 def test_sin_etiqueta_son_las_no_confirmadas_y_no_las_de_prueba(tmp_path, monkeypatch):
     """027:RF-59 — del registro de órdenes, las que el operador no confirmó ni corrigió, sin
     las de la prueba fija y sin repetir."""
-    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(tmp_path))
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path))
     for t in ('convierte IN111', 'calibra Pisco', 'convierte IN111', 'informe de CA101', 'de prueba'):
         almacen.anotar('ordenes', {'texto': t})
     almacen.anotar('ejemplos', {'texto': 'calibra Pisco', 'tarea': 'convertir', 'datos': []})
@@ -90,7 +90,7 @@ def test_maestro_mudo_y_registro():
 def con_ordenes(tmp_path, monkeypatch):
     """Un almacén con órdenes del operador sin confirmar, de las mismas plantillas."""
     pytest.importorskip('torch')
-    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(tmp_path))
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path))
     sin = generar(VOCAB, por_tarea=6, semilla=SEMILLA % 997 + 1)
     for e in sin:
         almacen.anotar('ordenes', {'texto': e.texto})
@@ -101,7 +101,7 @@ def test_el_alumno_se_entrena_con_el_maestro_y_solo_se_usa_si_no_empeora(con_ord
     """027:RF-58 / 027:RF-60 / 027:RF-62 — el alumno aprende con α·CE + (1 − α)·T²·KL; se
     entrena también sin destilar con la misma semilla, se guardan las dos métricas y se usa
     el destilado solo si acierta al menos lo mismo."""
-    from igea_dgs.asistente import transformer as tr
+    from convertersmartgrid.asistente import transformer as tr
 
     llamadas = []
     original = tr.entrenar
@@ -126,7 +126,7 @@ def test_el_alumno_se_entrena_con_el_maestro_y_solo_se_usa_si_no_empeora(con_ord
 
 def test_sin_maestro_se_entrena_sin_destilar(con_ordenes):
     """027:RF-61 — con el maestro mudo, un solo entrenamiento y el registro lo dice."""
-    from igea_dgs.asistente import transformer as tr
+    from convertersmartgrid.asistente import transformer as tr
 
     r = tr.entrenar_y_promover(VOCAB, cfg=tr.Configuracion(epocas=1, por_tarea=5),
                                puertas=tr.Puertas(acierto_tarea=0.0, f1_datos=0.0),
@@ -137,7 +137,7 @@ def test_sin_maestro_se_entrena_sin_destilar(con_ordenes):
 def test_maestro_claude_de_archivo(tmp_path, monkeypatch):
     """027:RF-64 — las etiquetas de Claude (votos y datos) son el maestro: cada semilla toma el
     voto siguiente y la distribución sale de ellos."""
-    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(tmp_path))
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path))
     almacen.anotar('etiquetas_maestro', {'texto': 'convierte IN111 y TA225', 'votos': ['convertir'] * 4 + ['unir'],
                                          'datos': {'alimentadores': ['IN111', 'TA225']}, 'maestro': 'claude-opus-5-5'})
     m = dst.MaestroArchivo()
@@ -151,7 +151,7 @@ def test_maestro_claude_de_archivo(tmp_path, monkeypatch):
 def test_maestro_codex_enmascarado(tmp_path, monkeypatch):
     """027:RF-56 / 027:RF-63 — a Codex solo le llega la orden con los nombres de la red cambiados
     por marcadores; se reponen en su respuesta y el envío queda anotado."""
-    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(tmp_path))
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path))
     vocab = {'alimentadores': ['IN111', 'TA225', 'IN11'], 'proyecto': ['P_PISCO'], 'sistema': ['Pisco']}
     oculto, tabla = dst.enmascarar('convierte in111 y TA225 de Pisco', vocab)
     assert 'IN111' not in oculto.upper() and 'TA225' not in oculto and 'Pisco' not in oculto

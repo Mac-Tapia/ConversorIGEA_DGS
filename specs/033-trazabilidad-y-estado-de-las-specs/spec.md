@@ -102,7 +102,7 @@ Código
 
 Reglas del flujo
 
-- RF-22: El skill `igea-dgs-spec` dirá que una spec cumplida no crece (un cambio sobre ella
+- RF-22: El skill `convertersmartgrid-spec` dirá que una spec cumplida no crece (un cambio sobre ella
   abre una spec nueva que la cita), que un RF nuevo entra con su tarea, que las tareas de
   DIgSILENT llevan la marca `[DIgSILENT]` y que el estado se escribe solo con el
   vocabulario de RF-8.

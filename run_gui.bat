@@ -11,26 +11,26 @@ if exist ".venv\Scripts\python.exe" set "PY=.venv\Scripts\python.exe"
 if not defined PY set "PY=python"
 
 set PYTHONPATH=src
-"%PY%" -m igea_dgs.web.runtime 1>nul 2>nul
+"%PY%" -m convertersmartgrid.web.runtime 1>nul 2>nul
 if errorlevel 1 (
   echo Instalando dependencias de produccion para TXT, MDB y VNR-GIS...
   "%PY%" -m pip install -r "%~dp0requirements.txt" --disable-pip-version-check
   if errorlevel 1 goto :dependency_error
-  "%PY%" -m igea_dgs.web.runtime
+  "%PY%" -m convertersmartgrid.web.runtime
   if errorlevel 1 goto :dependency_error
 )
 
 rem El front se compila si falta o si su codigo es mas reciente que la compilacion
 rem (spec 001, RF-27): antes solo si faltaba, y tras un cambio se seguia sirviendo
 rem la version anterior sin avisar. Node.js solo hace falta para compilar.
-"%PY%" -m igea_dgs.web.runtime --front
+"%PY%" -m convertersmartgrid.web.runtime --front
 if errorlevel 1 (
   where npm 1>nul 2>nul
   if errorlevel 1 (
     if not exist "frontend\dist\index.html" (
       echo.
       echo Falta compilar la interfaz web y no se encuentra Node.js ^(npm^).
-      echo Instale Node.js 20 o superior y vuelva a ejecutar, o convierta por consola con igea-dgs convert.
+      echo Instale Node.js 20 o superior y vuelva a ejecutar, o convierta por consola con convertersmartgrid convert.
       pause
       exit /b 1
     )
@@ -54,11 +54,11 @@ if errorlevel 1 (
 )
 
 echo Abriendo la interfaz web en el navegador...
-rem Con el puerto ocupado, igea_dgs.web reutiliza el Conversor abierto, reemplaza el de
+rem Con el puerto ocupado, convertersmartgrid.web reutiliza el Conversor abierto, reemplaza el de
 rem otra version o cambia de puerto (spec 001, RF-28 a RF-31): ya no hace falta pausa.
 rem 3 = otra version con trabajos en curso, abierta en el navegador: se deja leer el
 rem aviso y la ventana se cierra sola.
-"%PY%" -m igea_dgs.web
+"%PY%" -m convertersmartgrid.web
 if errorlevel 3 (
   timeout /t 20
   goto :fin

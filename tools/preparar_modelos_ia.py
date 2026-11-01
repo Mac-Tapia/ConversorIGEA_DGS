@@ -82,7 +82,7 @@ def descargar_por_partes(url, destino, ficha, *, tamano_parte=32 * 1024 * 1024):
     destino = Path(destino)
     if destino.exists():
         return verificar_archivo(destino, ficha)
-    partes = destino.parent / ('.igea-' + ficha['sha256'] + '-partes')
+    partes = destino.parent / ('.csg-' + ficha['sha256'] + '-partes')
     partes.mkdir(parents=True, exist_ok=True)
     total = (ficha['size'] + tamano_parte - 1) // tamano_parte
     import requests

@@ -13,9 +13,9 @@ openpyxl = pytest.importorskip('openpyxl')
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from igea_dgs.ajuste_cabecera import Objetivo, derivacion_cliente, fijas_de  # noqa: E402
-from igea_dgs.perfil_empresa import datos_perfil, factor_potencia_cargas  # noqa: E402
-from igea_dgs.web.app import create_app  # noqa: E402
+from convertersmartgrid.ajuste_cabecera import Objetivo, derivacion_cliente, fijas_de  # noqa: E402
+from convertersmartgrid.perfil_empresa import datos_perfil, factor_potencia_cargas  # noqa: E402
+from convertersmartgrid.web.app import create_app  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parents[1]
 
@@ -43,7 +43,7 @@ def _hoja_15min(pico: int):
 
 @pytest.fixture()
 def client(tmp_path, monkeypatch):
-    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     with TestClient(create_app(tmp_path / 'web', host='127.0.0.1')) as c:
         yield c
 
@@ -97,7 +97,7 @@ def test_la_web_manda_la_maxima_y_la_tabla_muestra_lo_que_se_escribe():
     enseña P (kW), Q (kvar), el registro y de dónde salen, y lo que suman las fijas."""
     demanda = (RAIZ / 'frontend' / 'src' / 'components' / 'DemandaMedida.tsx').read_text(encoding='utf-8')
     api = (RAIZ / 'frontend' / 'src' / 'api.ts').read_text(encoding='utf-8')
-    app = (RAIZ / 'src' / 'igea_dgs' / 'web' / 'app.py').read_text(encoding='utf-8')
+    app = (RAIZ / 'src' / 'convertersmartgrid' / 'web' / 'app.py').read_text(encoding='utf-8')
     assert 'maximas: dict[str, dict[str, Any]]' in app and 'maximas=body.maximas' in app
     assert '...(maximas ? { maximas } : {})' in api
     assert "feeders.includes(m.alimentador)" in demanda and 'fecha: m.fecha, kw: m.kw, kvar: m.kvar' in demanda
@@ -108,7 +108,7 @@ def test_la_web_manda_la_maxima_y_la_tabla_muestra_lo_que_se_escribe():
 def test_el_mes_anterior_solo_si_falta_el_de_la_maxima():
     """035:RF-17 — el libro del mes de la máxima si existe; si no, el anterior más cercano;
     sin anterior, ninguno (sus SED por kVA)."""
-    from igea_dgs.web.services import mes_anterior_con_libro
+    from convertersmartgrid.web.services import mes_anterior_con_libro
 
     catalogo = [{'mes': '2026-08', 'activo': True}, {'mes': '2026-09', 'activo': True},
                 {'mes': '2026-06', 'activo': False}, {'mes': '2025-12', 'activo': True}]
@@ -121,7 +121,7 @@ def test_el_mes_anterior_solo_si_falta_el_de_la_maxima():
 def test_el_plan_y_la_tabla_dicen_el_libro_del_mes_anterior():
     """035:RF-17, 035:RF-18 — solo cuando falta el del mes: el plan cruza con el libro elegido y
     no da el mes distinto por error; plan, tabla e informe lo dicen con su libro y su mes."""
-    fuente = (RAIZ / 'src' / 'igea_dgs' / 'web' / 'services.py').read_text(encoding='utf-8')
+    fuente = (RAIZ / 'src' / 'convertersmartgrid' / 'web' / 'services.py').read_text(encoding='utf-8')
     activo = fuente[fuente.index('def periodo_clientes_activo'):fuente.index('def mes_anterior_con_libro')]
     assert 'not any(\n            str(item.get(\'mes\') or \'\').strip() == periodo for item in active)' in activo
     assert "status='CLIENT_PERIOD_PREVIOUS'" in activo and 'el mes anterior más cercano con libro' in activo
@@ -202,7 +202,7 @@ def test_comparar_los_criterios_con_la_cabecera_y_la_red_simulada(client):
     en los dos criterios; sus sumas (sin la que no tiene el registro del instante); la cabecera
     de la máxima; la P y la Q de la red y de los bancos de la última calibración; y con cada
     criterio, si la medida de cabecera es coherente."""
-    from igea_dgs.web import services
+    from convertersmartgrid.web import services
     from apoyo import esperar_trabajo
 
     cruzar = _dos_criterios(client)
@@ -250,7 +250,7 @@ def test_una_calibracion_guardada_sin_cabecera_toma_la_red_de_su_informe_en_disc
     red con su informe de aplicación en disco, del mismo caso."""
     import json
 
-    from igea_dgs.web import services
+    from convertersmartgrid.web import services
     from apoyo import esperar_trabajo
 
     cruzar = _dos_criterios(client)

@@ -237,7 +237,7 @@ def _transform_points(points, source_crs, working_crs):
     """Reproyecta puntos; devuelve la misma lista si no hay pyproj o ya coinciden."""
     if not source_crs or not working_crs or source_crs == working_crs:
         return points
-    from igea_dgs.geography import make_transformer
+    from convertersmartgrid.geography import make_transformer
 
     try:
         transformer = make_transformer(source_crs, working_crs)

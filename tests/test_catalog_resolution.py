@@ -4,13 +4,13 @@ from pathlib import Path
 
 import pytest
 
-from igea_dgs.catalog_resolution import (
+from convertersmartgrid.catalog_resolution import (
     CatalogSource,
     EquipmentQuery,
     resolve_equipment,
 )
-from igea_dgs.dataset import CymdistDataset
-from igea_dgs.reconstruction import (
+from convertersmartgrid.dataset import CymdistDataset
+from convertersmartgrid.reconstruction import (
     EvidenceLevel,
     ReconstructionPolicy,
     reconstruct_dataset,
@@ -136,7 +136,7 @@ def test_ambiguous_compatible_tie_uses_provisional_profile_and_records_both():
 
 
 def test_dataset_materialization_keeps_linecableid_and_records_provenance():
-    from igea_dgs.catalog_resolution import resolve_dataset_equipment
+    from convertersmartgrid.catalog_resolution import resolve_dataset_equipment
 
     dataset = CymdistDataset(
         red_path=Path('red.txt'), loads_path=Path('loads.txt'),
@@ -196,7 +196,7 @@ def _dataset_con_conductor_a_medias():
 
 def test_conductor_a_medias_se_completa_con_el_catalogo_y_conserva_lo_que_trae():
     """001:RF-19 — un conductor con parámetros a medias se completa; R1 y X1 se conservan."""
-    from igea_dgs.catalog_resolution import resolve_dataset_equipment
+    from convertersmartgrid.catalog_resolution import resolve_dataset_equipment
 
     result = reconstruct_dataset(_dataset_con_conductor_a_medias(), ReconstructionPolicy(), [])
     catalog = _catalog('proyecto', 'global', [_row('AA70', 0.9, Amps=210)])
@@ -214,7 +214,7 @@ def test_conductor_a_medias_se_completa_con_el_catalogo_y_conserva_lo_que_trae()
 
 def test_conductor_a_medias_sin_catalogo_usa_el_ultimo_recurso_sin_perder_lo_que_trae():
     """001:RF-18 — sin catálogo, perfil provisional como último recurso; lo original manda."""
-    from igea_dgs.catalog_resolution import resolve_dataset_equipment
+    from convertersmartgrid.catalog_resolution import resolve_dataset_equipment
 
     result = reconstruct_dataset(_dataset_con_conductor_a_medias(), ReconstructionPolicy(), [])
 

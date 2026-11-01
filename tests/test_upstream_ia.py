@@ -76,7 +76,7 @@ def test_verificar_no_clona_ausentes(tmp_path, catalogo):
 def test_verificador_publico_para_adaptadores(tmp_path, catalogo):
     """043:RF-9 — adaptadores y CLI usan la misma verificación del código reutilizado."""
     from tools.preparar_upstream_ia import preparar_catalogo
-    from igea_dgs.upstream_ia import verificar_repositorio
+    from convertersmartgrid.upstream_ia import verificar_repositorio
     destino = tmp_path / 'clones'
     assert preparar_catalogo(catalogo, destino)['ok']
     assert verificar_repositorio('ejemplo', catalogo=catalogo, destino=destino)['ok']
@@ -84,7 +84,7 @@ def test_verificador_publico_para_adaptadores(tmp_path, catalogo):
 
 def test_revision_diferente_no_reemplaza_copia(tmp_path, catalogo):
     """043:RF-10 — un cambio del catálogo no mueve el HEAD de una copia existente."""
-    from igea_dgs.upstream_ia import preparar_catalogo
+    from convertersmartgrid.upstream_ia import preparar_catalogo
     destino = tmp_path / 'clones'
     assert preparar_catalogo(catalogo, destino)['ok']
     revision = catalogo['repositorios'][0]['commit']
@@ -100,9 +100,9 @@ def test_importar_sin_cargar_dependencias_ml(tmp_path):
     env['PYTHONPATH'] = str(Path(__file__).resolve().parents[1] / 'src')
     programa = '''
 import sys
-import igea_dgs.upstream_ia
-import igea_dgs.digital_twin.oraculo
-import igea_dgs.digital_twin.adaptador_pyg
+import convertersmartgrid.upstream_ia
+import convertersmartgrid.digital_twin.oraculo
+import convertersmartgrid.digital_twin.adaptador_pyg
 assert not ({'torch', 'torch_geometric', 'neuralforecast', 'pymoo', 'pyomo'} & sys.modules.keys())
 '''
     resultado = subprocess.run([sys.executable, '-c', programa], cwd=tmp_path,

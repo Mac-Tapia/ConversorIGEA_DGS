@@ -24,7 +24,7 @@ HERE = Path(__file__).resolve().parent
 if str(HERE.parent / 'src') not in sys.path:
     sys.path.insert(0, str(HERE.parent / 'src'))
 
-from igea_dgs import pf_arnes  # noqa: E402
+from convertersmartgrid import pf_arnes  # noqa: E402
 
 
 #: Lanzador intermedio: arranca el servidor, escribe su pid y sale. Así el servidor no
@@ -133,7 +133,7 @@ def enviar(guion: str, argv: list[str], cola: Path, *, dormir=time.sleep,
            reloj=time.monotonic, asegurar=asegurar_servidor, ident: str | None = None) -> int:
     """Deja la orden, reescribe su salida según llega y devuelve su código.
 
-    019:RF-20: el identificador lo da la web (``IGEA_PF_ORDEN``) para poder retirar o cortar
+    019:RF-20: el identificador lo da la web (``CSG_PF_ORDEN``) para poder retirar o cortar
     solo esta orden. 019:RF-22: si el servidor se cerró con la orden aún en la cola (cerró
     por inactividad justo cuando se dejó), se arranca otro en vez de fallar; mientras
     espera detrás de la orden de otro, se dice, y la web no la toma por DIgSILENT colgado.

@@ -26,7 +26,7 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(RAIZ / 'src'), str(RAIZ / 'tools')]
 
-from igea_dgs.escaneo import CLASES_GENERADOR, origen_de  # noqa: E402
+from convertersmartgrid.escaneo import CLASES_GENERADOR, origen_de  # noqa: E402
 
 
 def _variaciones(app) -> tuple[list[dict], dict[tuple[str, str], str]]:
@@ -163,7 +163,7 @@ def main(argv=None) -> int:
     args = p.parse_args(argv)
     plan = json.loads(Path(args.plan).read_text(encoding='utf-8'))
     salida = Path(args.output_json)
-    from igea_dgs.pf_arnes import PFNoDisponible, conectar
+    from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
 
     try:
         app = conectar('escanear_alimentador_pf.py')

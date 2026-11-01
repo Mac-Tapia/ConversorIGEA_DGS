@@ -1,6 +1,6 @@
-# Spec 056 — Nombres y mensajes según la fuente: nada de IGEA ni CYMDIST fuera de su entrada
+# Spec 056 — Nombres y mensajes según la fuente: cada fuente con sus propias palabras
 
-Estado: borrador · Fecha: 2026-11-01 · Origen: petición del usuario, 2026-11-01, al convertir
+Estado: aprobada (2026-11-01) · Fecha: 2026-11-01 · Origen: petición del usuario, 2026-11-01, al convertir
 NJA202 (W12882) de Electro Oriente desde su VNR-GIS: «¿por qué aparece IGEA y CYMDIST? Esto no
 debería aparecer, la otra empresa no usa esos software; si es universal, nada debería aparecer
 como o con esos».
@@ -21,16 +21,16 @@ la spec 005 (RF-2, RF-3) y no entra aquí.
 ## Requisitos funcionales (EARS)
 
 - RF-1: EL SISTEMA nombrará cada proyecto que importe en DIgSILENT con la fuente de la que
-  viene (TXT, MDB o VNR-GIS) y sin «IGEA» ni «CYMDIST» si no es un TXT de IGEA/CYMDIST.
+  viene (TXT, MDB o VNR-GIS) y sin «IGEA» ni «CYMDIST» si no es un TXT de CYMDIST.
 - RF-2: EL SISTEMA seguirá reconociendo como suyos los proyectos ya importados con el nombre
   anterior (028:RF-7).
 - RF-3: EL SISTEMA escribirá en la cabecera del DGS la fuente de la que viene, sin «CYMDIST» ni
-  «IGEA» si no es un TXT de IGEA/CYMDIST.
+  «IGEA» si no es un TXT de CYMDIST.
 - RF-4: EL SISTEMA nombrará en cada aviso e informe los ficheros, tablas o campos de la fuente
   que se cargó, nunca los de otra; lo que esa fuente no puede traer no se avisa con los nombres
   de otra.
-- RF-5: EL SISTEMA mostrará en la web un título que no nombre IGEA ni CYMDIST; esos nombres solo
-  aparecerán en la opción de entrada de los TXT.
+- RF-5: EL SISTEMA solo nombrará CYMDIST en la opción de entrada de los TXT y de la .mdb; el
+  título de la web es el de la spec 058.
 - RF-6: EL SISTEMA tendrá una prueba que falle si una conversión de MDB o de VNR-GIS deja
   «IGEA», «CYMDIST», «TXT», «BD_Equipo» o «RED export» en sus salidas o en el nombre del
   proyecto.
@@ -38,8 +38,7 @@ la spec 005 (RF-2, RF-3) y no entra aquí.
 ## Fuera de alcance
 
 - La carpeta de DIgSILENT de cada empresa (spec 005).
-- Renombrar el paquete `igea_dgs`, el repositorio o el puente interno de VNR-GIS: no los ve el
-  operador ni llegan a DIgSILENT.
+- El nombre del proyecto, su paquete y su carpeta: los cambia la spec 058 (ConverterSmartGrid).
 - Renombrar los proyectos ya importados.
 
 ## Relación con otras specs

@@ -1,4 +1,4 @@
-# Arquitectura del conversor IGEA/CYMDIST → DIgSILENT
+# Arquitectura del conversor CYMDIST → DIgSILENT
 
 Estado a 2026-10-14. Describe el código **tal como está**; la organización por capas que
 fija la spec 002 está aprobada pero sin hacer (ver «Arquitectura objetivo»). El detalle
@@ -151,7 +151,7 @@ se excluye por su nombre (P13). Alias de tipos de línea en
 
 ## Arquitectura objetivo (spec 002)
 
-La spec 002 llevará el código a un único paquete `igea_dgs` con las capas `dominio`,
+La spec 002 llevará el código a un único paquete `convertersmartgrid` con las capas `dominio`,
 `puertos`, `aplicacion`, `adaptadores` y `presentacion`, comprobadas por una prueba de
 importaciones (sin ciclos, sin nombres privados entre módulos, sin FastAPI ni
 `powerfactory` en el dominio); integrará `vnr_etl` como adaptador de entrada; definirá

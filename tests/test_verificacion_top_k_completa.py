@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-from igea_dgs.digital_twin.evolutivo import verificar_top_k
+from convertersmartgrid.digital_twin.evolutivo import verificar_top_k
 
 
 def test_top_k_sin_metricas_rechaza():

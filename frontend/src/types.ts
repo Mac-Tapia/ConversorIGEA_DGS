@@ -1,4 +1,4 @@
-// Tipos de la API (src/igea_dgs/web). Se mantienen a mano: son pocos y cambian poco.
+// Tipos de la API (src/convertersmartgrid/web). Se mantienen a mano: son pocos y cambian poco.
 
 export type InputMode = 'txt' | 'mdb' | 'vnr';
 
@@ -436,7 +436,7 @@ export interface ProjectBindingWarning {
 }
 
 export interface PowerFactoryProjectBinding {
-  schema_version: 'igea-dgs-powerfactory-project-binding-v1';
+  schema_version: 'convertersmartgrid-powerfactory-project-binding-v1';
   project: string;
   folder: string;
   source_run_id: string;

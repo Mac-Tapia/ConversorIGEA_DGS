@@ -18,16 +18,16 @@ Preparación
       entera en verde.
       Hecha el 2026-10-14: 22 en verde; suite sintética 1.717 en verde. Fallan las dos
       de `test_linea_base_001.py` (94 DGS distintos de la línea base), que no usan
-      `fake_pf`: vienen de los cambios sin confirmar de `src/igea_dgs/dgs.py` en la rama.
+      `fake_pf`: vienen de los cambios sin confirmar de `src/convertersmartgrid/dgs.py` en la rama.
       Las líneas de `fake_pf.proyecto` tienen ahora `dline` = 1 km (lo que ya suponía la
       confiabilidad de la 012) y `GPScoords` de barra a barra.
 
 Lógica sin DIgSILENT
 
-- [x] T3. `src/igea_dgs/troncal.py`: `Red`, `troncal`, `aguas_abajo`. Entra en
+- [x] T3. `src/convertersmartgrid/troncal.py`: `Red`, `troncal`, `aguas_abajo`. Entra en
       `CODIGO_FUENTE.md`. (RF-1 a RF-5, RF-64)
       Hecho cuando: `pytest -q tests/test_troncal.py tests/test_inventario.py` en verde, y
-      con las tres `IGEA_*` IN111 da 71 tramos y 13,58 km.
+      con las tres `CSG_*` IN111 da 71 tramos y 13,58 km.
       Hecha el 2026-10-15: 106 en verde. El árbol es el de los caminos más cortos en
       metros (IN111 tiene tres anillos cerrados); la spec y el plan, corregidos.
 - [x] T4. `troncal.py`: `punto_mas_cercano`, `punto_en_troncal`, `partir` y
@@ -36,7 +36,7 @@ Lógica sin DIgSILENT
       Hecho cuando: `pytest -q tests/test_troncal.py` en verde.
       Hecha el 2026-10-15: 177 en verde. Con los TXT, el enlace va del nodo `15232` de la
       troncal de TA225 al 47,4 % de `SEC_1091_1055021` de la de IN111: 3.626 m.
-- [x] T5. `src/igea_dgs/obras_pf.py`: casos (Sin proyecto implica Con proyecto), clases
+- [x] T5. `src/convertersmartgrid/obras_pf.py`: casos (Sin proyecto implica Con proyecto), clases
       `enlace` y `migracion`, sección con toda la troncal y tipo de cable, simulación de
       cada una. (RF-6 a RF-9, RF-11, RF-13, RF-14, RF-23 a RF-25, RF-31, RF-38, RF-39,
       RF-41, RF-51 a RF-53, RF-59, RF-61, RF-65, RF-66)
@@ -105,7 +105,7 @@ Cierre
 - [x] T13. Anotar 007 (RF-24, RF-28, RF-30, RF-31) y 011 (RF-57, RF-87) con el cambio de
       esta spec; `CODIGO_FUENTE.md` al día.
       Hecho cuando: `grep -rnoE "016:RF-[0-9]+" tests | sort -u` cubre los 73 RF y la
-      suite entera está en verde con las tres `IGEA_*`.
+      suite entera está en verde con las tres `CSG_*`.
       Hecha el 2026-10-15: anotados 007:RF-24, RF-28, RF-30, RF-31 y 011:RF-57, RF-87. Los
       73 RF citados; RF-44 también con una prueba del doble (el enlace de la obra es una
       línea con seccionador abierto), además de la de DIgSILENT de la T14.
@@ -116,7 +116,7 @@ Cierre
       (RF-44 y los criterios de finalización)
       Hecho cuando: el informe de cada paso converge, o se anota por qué no, y el usuario
       lo da por bueno.
-      Avance del 2026-10-15 (desde la web, proyecto 20261015-170359_IGEA_IN111_TA225):
+      Avance del 2026-10-15 (desde la web, proyecto 20261015-170359_CSG_IN111_TA225):
       nueve cargas nuevas en TA225, enlace a 22,9 kV, migración de IN111 desde el nodo
       del enlace (que lo cierra, RF-80) y segunda terna en siete tramos sobrecargados de
       TA225: «Con proyecto» converge, tramo más cargado 98,1 %. Salieron RF-74 a RF-80.

@@ -2,7 +2,7 @@
 
 ## Intencion
 
-Presentar la arquitectura real de ConversorIGEA_DGS de forma didactica, navegable y
+Presentar la arquitectura real de ConverterSmartGrid de forma didactica, navegable y
 auditable. La persona usuaria debe poder ver el recorrido desde las fuentes de datos
 hasta los entregables, reproducir el flujo paso a paso y abrir o copiar el punto de
 acceso asociado a cada caja.
@@ -48,7 +48,7 @@ acceso asociado a cada caja.
 
 ## Vistas
 
-- `SystemContext`: operador, fuentes, ConversorIGEA_DGS y PowerFactory.
+- `SystemContext`: operador, fuentes, ConverterSmartGrid y PowerFactory.
 - `Containers`: React, FastAPI, motor, ejecutor nativo, gemelo, asistente y almacenes.
 - `Conversion`: fuente -> API -> custodia -> modelo -> DGS -> validacion/publicacion.
 - `PowerFactory`: solicitud -> cola -> preflight consultivo no bloqueante -> importacion nativa -> Caso base/flujo -> guardado y reread.

@@ -7,8 +7,8 @@ import random
 import pytest
 from test_digital_twin_episode import _payload
 
-from igea_dgs.digital_twin import buffer as bf
-from igea_dgs.digital_twin import episode as ep
+from convertersmartgrid.digital_twin import buffer as bf
+from convertersmartgrid.digital_twin import episode as ep
 
 
 def _episodio(**cambios) -> ep.Episodio:
@@ -128,7 +128,7 @@ def test_esquema_de_otra_version_no_se_mezcla(bufer):
     """024:RF-7 — un manifiesto de otro esquema no entra al índice: va a cuarentena."""
     e = _episodio()
     otro = copy.deepcopy(ep.episodio_a_dict(e))
-    otro['schema'] = 'igea-dgs-digital-twin-episode-v9'
+    otro['schema'] = 'convertersmartgrid-digital-twin-episode-v9'
     ruta = bufer.raiz / 'objetos' / e.episode_id[:2] / f'{e.episode_id}.json'
     ruta.parent.mkdir(parents=True)
     ruta.write_text(ep.contenido_canonico(otro), encoding='utf-8')
@@ -137,9 +137,9 @@ def test_esquema_de_otra_version_no_se_mezcla(bufer):
 
 
 def test_raiz_por_variable_de_entorno(tmp_path, monkeypatch):
-    """024:RF-6 — el búfer es local: ``IGEA_TWIN_DATA`` o junto a los espacios de la web."""
-    monkeypatch.setenv('IGEA_TWIN_DATA', str(tmp_path / 'aqui'))
+    """024:RF-6 — el búfer es local: ``CSG_TWIN_DATA`` o junto a los espacios de la web."""
+    monkeypatch.setenv('CSG_TWIN_DATA', str(tmp_path / 'aqui'))
     assert bf.raiz_buffer() == tmp_path / 'aqui'
-    monkeypatch.delenv('IGEA_TWIN_DATA')
-    monkeypatch.setenv('IGEA_WEB_DATA', str(tmp_path / 'web'))
+    monkeypatch.delenv('CSG_TWIN_DATA')
+    monkeypatch.setenv('CSG_WEB_DATA', str(tmp_path / 'web'))
     assert bf.raiz_buffer() == tmp_path / 'web' / '_digital_twin'

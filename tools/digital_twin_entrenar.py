@@ -64,10 +64,10 @@ def main(argv=None) -> int:
     args = p.parse_args(argv)
     salida = Path(args.output_json)
 
-    from igea_dgs.digital_twin.buffer import BuferEpisodios
+    from convertersmartgrid.digital_twin.buffer import BuferEpisodios
 
     try:
-        from igea_dgs.digital_twin import oraculo
+        from convertersmartgrid.digital_twin import oraculo
         oraculo.dispositivo()
     except ImportError as exc:
         salida.write_text(json.dumps({'entrenado': False, 'motivo': str(exc)}, ensure_ascii=False),
@@ -77,13 +77,13 @@ def main(argv=None) -> int:
     bufer = BuferEpisodios(args.raiz)
     if not (args.evaluar or args.deriva) or args.curva:
         # 026: la GPU de 8 GB la comparte con Ollama, que retiene su modelo tras responder.
-        from igea_dgs.asistente.ollama import liberar_gpu_para_entrenar
+        from convertersmartgrid.asistente.ollama import liberar_gpu_para_entrenar
 
         liberar_gpu_para_entrenar()
     try:
         if args.curva:
-            from igea_dgs.digital_twin.buffer import Consulta
-            from igea_dgs.digital_twin.curva import informe
+            from convertersmartgrid.digital_twin.buffer import Consulta
+            from convertersmartgrid.digital_twin.curva import informe
 
             muestras, ids = oraculo._muestras(bufer, Consulta())
             r = informe(muestras, ids, log=_log)
@@ -116,8 +116,8 @@ def main(argv=None) -> int:
             salida.write_text(json.dumps(r, ensure_ascii=False, default=str), encoding='utf-8')
             return 0
         if args.buscar:
-            from igea_dgs.digital_twin.buffer import Consulta
-            from igea_dgs.digital_twin.hiperparametros import buscar
+            from convertersmartgrid.digital_twin.buffer import Consulta
+            from convertersmartgrid.digital_twin.hiperparametros import buscar
 
             muestras, _ids = oraculo._muestras(bufer, Consulta())
             b = buscar(muestras, ensayos=args.ensayos, limite_s=args.limite_s,

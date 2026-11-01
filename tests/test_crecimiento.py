@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from igea_dgs import crecimiento as cr
+from convertersmartgrid import crecimiento as cr
 
 
 def _curva(anio: int, meses: range, base: float, rnd: random.Random):
@@ -58,7 +58,7 @@ def test_la_tasa_del_perfil_vale_para_todos():
     cada alimentador solo se calcula si el perfil no la trae."""
     import inspect
 
-    from igea_dgs.web import services
+    from convertersmartgrid.web import services
 
     fuente = inspect.getsource(services.pide_ejecutar)
     tasa = fuente.index("tasa = plan_pide.get('crecimiento_demanda_anual')")
@@ -73,8 +73,8 @@ def test_los_libros_de_cabecera_se_leen_en_el_proceso_del_trabajo():
     proceso del trabajo y no en el de la API, con una función de nivel superior."""
     import inspect
 
-    from igea_dgs import crecimiento
-    from igea_dgs.web import services
+    from convertersmartgrid import crecimiento
+    from convertersmartgrid.web import services
 
     fuente = inspect.getsource(services._crecimiento_de_la_cabecera)
     assert 'ctx.en_proceso(curvas_por_anio,' in fuente

@@ -58,59 +58,59 @@ def main(argv=None):
         if args.destino.exists():
             raise ValueError('destino existente conservado; use una ruta nueva')
         if args.accion=='auditar':
-            from igea_dgs.asistente.llm_destilacion import auditar_fuentes_corpus
+            from convertersmartgrid.asistente.llm_destilacion import auditar_fuentes_corpus
             resultado=auditar_fuentes_corpus(args.dataset)
             args.destino.mkdir(parents=True);creado=True
             (args.destino/'auditoria.json').write_text(json.dumps(resultado,indent=2,ensure_ascii=False),encoding='utf-8')
             print(json.dumps(resultado,ensure_ascii=True));return 0
         if args.accion=='publicar':
-            from igea_dgs.asistente.llm_runtime import publicar
+            from convertersmartgrid.asistente.llm_runtime import publicar
             resultado=publicar(args.checkpoint,args.destino,args.modelo)
             print(json.dumps({k:resultado[k] for k in ('publicado','activado','modelo','modelo_digest','sha256_gguf')}))
             return 0
         if args.accion=='elegir':
-            from igea_dgs.asistente.llm_destilacion import elegir_version_llm
+            from convertersmartgrid.asistente.llm_destilacion import elegir_version_llm
             resultado=elegir_version_llm([json.loads(p.read_text(encoding='utf-8')) for p in args.informe])
             args.destino.mkdir(parents=True);creado=True
             (args.destino/'seleccion.json').write_text(json.dumps(resultado,indent=2,ensure_ascii=False),encoding='utf-8')
             print(json.dumps({'ok':True,'modelo':resultado['modelo'],'criterio':'seleccion'}));return 0
         if args.accion=='evaluar':
             import tempfile
-            from igea_dgs.training_coordinator import BloqueoGPU
-            from igea_dgs.asistente.llm_destilacion import evaluar_version_llm
+            from convertersmartgrid.training_coordinator import BloqueoGPU
+            from convertersmartgrid.asistente.llm_destilacion import evaluar_version_llm
             args.destino.mkdir(parents=True);creado=True
-            with BloqueoGPU(Path(tempfile.gettempdir())/'igea-dgs-gpu.lock','evaluacion-llm-generativo'):
+            with BloqueoGPU(Path(tempfile.gettempdir())/'convertersmartgrid-gpu.lock','evaluacion-llm-generativo'):
                 resultado=evaluar_version_llm(args.dataset,args.modelo,parte=args.parte,seleccion=args.seleccion,
                     log=print)
             (args.destino/'resultado.json').write_text(json.dumps(resultado,ensure_ascii=False,indent=2,allow_nan=False),encoding='utf-8')
             print(json.dumps({k:v for k,v in resultado.items() if k!='metricas'},ensure_ascii=True));return 0
         if args.accion=='entrenar-epoca':
             import tempfile
-            from igea_dgs.training_coordinator import BloqueoGPU
-            from igea_dgs.asistente.llm_destilacion import entrenar_epoca
+            from convertersmartgrid.training_coordinator import BloqueoGPU
+            from convertersmartgrid.asistente.llm_destilacion import entrenar_epoca
             creado=True
-            with BloqueoGPU(Path(tempfile.gettempdir())/'igea-dgs-gpu.lock','destilacion-llm-generativo'):
+            with BloqueoGPU(Path(tempfile.gettempdir())/'convertersmartgrid-gpu.lock','destilacion-llm-generativo'):
                 resultado=entrenar_epoca(args.dataset,args.destino,epoca=args.epoca,desde=args.desde,
                     semilla=args.semilla,rango=args.rango,lr=args.lr,acumulacion=args.acumulacion,
                     max_tokens=args.max_tokens)
             print(json.dumps(resultado,ensure_ascii=True));return 0
         if args.accion=='sellar':
-            from igea_dgs.asistente.llm_destilacion import sellar_particiones
+            from convertersmartgrid.asistente.llm_destilacion import sellar_particiones
             creado=True
             resultado=sellar_particiones(args.dataset,args.destino)
             print(json.dumps({'ok':True,'dataset_hash':resultado['dataset_hash'],
                               'por_particion':resultado['por_particion']},ensure_ascii=True));return 0
         if args.accion=='exportar':
             import tempfile
-            from igea_dgs.training_coordinator import BloqueoGPU
-            from igea_dgs.asistente.llm_destilacion import exportar_fusionado
+            from convertersmartgrid.training_coordinator import BloqueoGPU
+            from convertersmartgrid.asistente.llm_destilacion import exportar_fusionado
             creado=True
-            with BloqueoGPU(Path(tempfile.gettempdir())/'igea-dgs-gpu.lock','exportar-alumno-llm'):
+            with BloqueoGPU(Path(tempfile.gettempdir())/'convertersmartgrid-gpu.lock','exportar-alumno-llm'):
                 resultado=exportar_fusionado(args.destino,args.adaptador)
             print(json.dumps(resultado,ensure_ascii=True));return 0
         args.destino.mkdir(parents=True)
         creado=True
-        from igea_dgs.asistente.llm_destilacion import extraer_referencia, construir_corpus_real, custodiar
+        from convertersmartgrid.asistente.llm_destilacion import extraer_referencia, construir_corpus_real, custodiar
         fuentes=args.destino/'fuentes';fuentes.mkdir()
         copias=[];originales=[]
         for i,entrada in enumerate(args.workspace):
@@ -124,8 +124,8 @@ def main(argv=None):
             estructura_pdf=args.estructura_pdf,mediciones=args.mediciones,nuevos_clientes=args.nuevos_clientes,
             workspaces=copias)
         manifest['workspaces_originales']=originales
-        from igea_dgs.asistente import almacen
-        from igea_dgs.asistente.llm_destilacion import reservar_humanas
+        from convertersmartgrid.asistente import almacen
+        from convertersmartgrid.asistente.llm_destilacion import reservar_humanas
         humanas=reservar_humanas(almacen.leer('ejemplos'))
         filas,meta=construir_corpus_real(contextos,manifest,max_train_por_tarea=args.max_train_por_tarea,humanas=humanas)
         for nombre,datos in (('corpus.json',filas),('dataset_manifest.json',meta),('contextos.json',contextos),

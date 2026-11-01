@@ -283,7 +283,7 @@ def test_enlace_por_la_via_con_el_enrutador_del_perfil(monkeypatch):
     import functools
     import json
 
-    from igea_dgs import vias
+    from convertersmartgrid import vias
 
     app, alims = _dos_alimentadores(71)
     curva = [(-14.0, -75.6985), (-14.001, -75.6970), (-14.002, -75.6995), (-14.003, -75.6985)]

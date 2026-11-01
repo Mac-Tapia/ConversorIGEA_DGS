@@ -9,11 +9,11 @@ import math
 
 import pytest
 
-from igea_dgs.dataset import CymdistDataset
-from igea_dgs.geography import build_geography
-from igea_dgs.model import ModelBuildError, build_feeder_model, prove_mt_connections
-from igea_dgs.dgs import write_dgs
-from igea_dgs.validate import validate_dgs
+from convertersmartgrid.dataset import CymdistDataset
+from convertersmartgrid.geography import build_geography
+from convertersmartgrid.model import ModelBuildError, build_feeder_model, prove_mt_connections
+from convertersmartgrid.dgs import write_dgs
+from convertersmartgrid.validate import validate_dgs
 
 
 def _write_mini_feeder(tmp_path, *, length_txt: float = 52.0, location: str = '1'):

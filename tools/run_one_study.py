@@ -187,7 +187,7 @@ def main(argv: list[str] | None = None) -> int:
                         'ano 0, hace converger el flujo y mide el estado base.')
     p.add_argument('--pf-carpeta', metavar='NOMBRE',
                    help='Carpeta de DIgSILENT donde queda el proyecto importado (spec 005). '
-                        'Por defecto, la del perfil de empresa o «Conversor IGEA-DGS».')
+                        'Por defecto, la del perfil de empresa o «ConverterSmartGrid».')
     p.add_argument('--caso', default='ANIO_0_BASE')
     p.add_argument('--escenario', default='ANIO_0_OPERACION')
     p.add_argument('--muestra', type=int, default=6000)
@@ -209,7 +209,7 @@ def main(argv: list[str] | None = None) -> int:
             return 3
         ventana = app.GetOutputWindow()
         sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
-        from igea_dgs.carpeta_pf import activar_proyecto, nombre_de_perfil
+        from convertersmartgrid.carpeta_pf import activar_proyecto, nombre_de_perfil
 
         # ActivateProject(nombre) solo mira la raíz del usuario, y los proyectos
         # importados están en la carpeta (spec 005, RF-16).

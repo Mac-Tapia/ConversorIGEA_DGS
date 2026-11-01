@@ -1,10 +1,10 @@
 """Spec 026, T5: intérprete híbrido y plan con los datos contrastados."""
 from __future__ import annotations
 
-from igea_dgs.asistente.interprete import interpretar, periodo_de
-from igea_dgs.asistente.plan import parecido, resolver
+from convertersmartgrid.asistente.interprete import interpretar, periodo_de
+from convertersmartgrid.asistente.plan import parecido, resolver
 
-VOCAB = {'alimentadores': ['IN111', 'TA225', 'PA217'], 'proyecto': ['20261015-170359_IGEA_IN111_TA225', 'CA101 13'],
+VOCAB = {'alimentadores': ['IN111', 'TA225', 'PA217'], 'proyecto': ['20261015-170359_CSG_IN111_TA225', 'CA101 13'],
          'sistema': ['Pisco', 'Ica']}
 
 
@@ -62,9 +62,9 @@ def test_contrasta_los_datos_con_lo_que_existe():
                                                                      {'alimentadores': _d('in11 y XX999')}))
     plan = resolver(i, VOCAB)
     assert plan.datos['alimentadores'] == ['IN111'] and any('XX999' in d for d in plan.dudas)
-    i = interpretar('haz el pide de 20261015-170359_IGEA_IN111_TA225 para TA225', transformer=Transformer('pide', 0.99))
+    i = interpretar('haz el pide de 20261015-170359_CSG_IN111_TA225 para TA225', transformer=Transformer('pide', 0.99))
     plan = resolver(i, VOCAB)
-    assert plan.datos['proyecto'] == '20261015-170359_IGEA_IN111_TA225' and plan.datos['alimentadores'] == ['TA225']
+    assert plan.datos['proyecto'] == '20261015-170359_CSG_IN111_TA225' and plan.datos['alimentadores'] == ['TA225']
     i = interpretar('integra las cargas de "D:/no/existe.xlsx" en CA101 13 PA217',
                     transformer=Transformer('cargas_nuevas', 0.99))
     plan = resolver(i, VOCAB)

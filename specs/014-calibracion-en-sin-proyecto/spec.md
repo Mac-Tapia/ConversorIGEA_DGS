@@ -200,7 +200,7 @@ creó un banco de condensadores en «Sin proyecto» y no estaba en «Con proyect
 ## Criterios de finalización
 
 - Cada RF citado por al menos una prueba (`grep -rnoE "014:RF-[0-9]+" tests`).
-- Suite en verde con los datos reales (variables `IGEA_*`).
+- Suite en verde con los datos reales (variables `CSG_*`).
 - Prueba en DIgSILENT con CA101: un ajuste en «Sin proyecto» que deje activa `_3` con sus
   cuatro transformadores, y una inserción repetida que no cree cargas duplicadas.
 

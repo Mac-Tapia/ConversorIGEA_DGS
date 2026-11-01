@@ -5,7 +5,7 @@ import pytest
 
 def test_maestro_no_inventa_resultados_electricos():
     """047:RF-20: una anotacion de intencion no puede declarar una ejecucion nativa."""
-    from igea_dgs.asistente import llm_destilacion as m
+    from convertersmartgrid.asistente import llm_destilacion as m
     r={'texto':'carga la fuente','tarea':'cargar_fuente','datos':[], 'fuentes':[],
        'resultado_electrico':{'convergio':True}}
     with pytest.raises(ValueError,match='resultado electrico'):
@@ -14,7 +14,7 @@ def test_maestro_no_inventa_resultados_electricos():
 
 def test_datos_reales_exigen_huella_y_archivo(tmp_path):
     """047:RF-20: falla ante evidencia cambiada, ausente o sin custodia."""
-    from igea_dgs.asistente import llm_destilacion as m
+    from convertersmartgrid.asistente import llm_destilacion as m
     f=tmp_path/'entrada.txt'; f.write_text('registro de contrato',encoding='utf-8')
     evidencia=m.custodiar(f,localizador='archivo completo')
     assert m.verificar_fuente(evidencia)
@@ -25,7 +25,7 @@ def test_datos_reales_exigen_huella_y_archivo(tmp_path):
 
 def test_respuesta_solo_admite_entidades_literales_y_fuentes(tmp_path):
     """047:RF-11 / RF-20: copiar spans no permite inventar datos adicionales."""
-    from igea_dgs.asistente import llm_destilacion as m
+    from convertersmartgrid.asistente import llm_destilacion as m
     f=tmp_path/'evidencia.txt';f.write_text('dato de contrato',encoding='utf-8')
     r={'texto':'carga la fuente','tarea':'cargar_fuente','datos':[],
        'fuentes':[m.custodiar(f,localizador='archivo completo')]}
@@ -51,7 +51,7 @@ def test_cli_conserva_destino_existente(tmp_path,capsys):
 
 def test_config_exportada_conserva_arquitectura_y_retira_nf4():
     """047:RF-19: no anunciar pesos fusionados FP16 como otra base NF4."""
-    from igea_dgs.asistente import llm_destilacion as m
+    from convertersmartgrid.asistente import llm_destilacion as m
     assert callable(getattr(m,'config_exportacion',None))
     original={'model_type':'qwen3','hidden_size':12,'quantization_config':{'load_in_4bit':True}}
     salida=m.config_exportacion(original)
@@ -62,7 +62,7 @@ def test_config_exportada_conserva_arquitectura_y_retira_nf4():
 
 def test_checkpoint_no_se_elige_con_prueba():
     """047:RF-19: seleccionar con los resultados finales produce fuga."""
-    from igea_dgs.asistente import llm_destilacion as m
+    from convertersmartgrid.asistente import llm_destilacion as m
     assert callable(getattr(m,'elegir_version_llm',None))
     with pytest.raises(ValueError,match='seleccion'):
         m.elegir_version_llm([{'particion':'prueba'}])
@@ -80,7 +80,7 @@ def test_cli_ayuda_no_necesita_pesos_ni_fuente():
 
 def test_no_salta_la_epoca_previa_incompleta():
     """047:RF-19: reanudar no puede omitir datos pendientes de la epoca previa."""
-    from igea_dgs.asistente import llm_destilacion as m
+    from convertersmartgrid.asistente import llm_destilacion as m
     cfg={'dataset_hash':'contrato'};base={'id':'base-del-contrato','revision':'primera'}
     estado={'configuracion':cfg,'base':base,'epoca':1,'training_completed':False}
     with pytest.raises(ValueError,match='previa incompleta'):
@@ -91,7 +91,7 @@ def test_no_salta_la_epoca_previa_incompleta():
 
 def test_cambio_de_revision_base_rechaza_reanudar_y_exportar():
     """047:RF-19: la misma arquitectura con otra base no es el alumno entrenado."""
-    from igea_dgs.asistente import llm_runtime as m
+    from convertersmartgrid.asistente import llm_runtime as m
     base={'id':'base-del-contrato','revision':'primera','files':[{'path':'tokenizer.json','sha256':'a'*64}]}
     m.validar_base_checkpoint({'base':base},base)
     for actual in ({**base,'revision':'segunda'},{**base,'files':[{'path':'tokenizer.json','sha256':'b'*64}]}):

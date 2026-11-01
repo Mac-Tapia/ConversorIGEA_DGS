@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from igea_dgs.asistente import almacen
-from igea_dgs.asistente.vigilancia import (
+from convertersmartgrid.asistente import almacen
+from convertersmartgrid.asistente.vigilancia import (
     Vigilante,
     correr_suite,
     revisar_calidad,
@@ -12,8 +12,8 @@ from igea_dgs.asistente.vigilancia import (
     revisar_trabajos,
     toca_suite,
 )
-from igea_dgs.web import services
-from igea_dgs.web.app import _cerrar_entrenamiento_vigilado
+from convertersmartgrid.web import services
+from convertersmartgrid.web.app import _cerrar_entrenamiento_vigilado
 
 
 def _t(i, kind, status, *, start=None, end=None, lane='engine', error=None, created=0.0, result=None):
@@ -51,7 +51,7 @@ def test_modelos_y_calidad():
 
 def test_el_vigilante_actua_una_vez(tmp_path, monkeypatch):
     """026:RF-22 / 026:RF-23 — cada vuelta actúa sobre lo nuevo y no repite avisos."""
-    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(tmp_path))
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path))
     hechos = []
     v = Vigilante(listar_trabajos=lambda: [_t('d', 'flujo', 'failed', error='4002')],
                   reintentar=lambda i: hechos.append(('reintentar', i)),
@@ -65,7 +65,7 @@ def test_el_vigilante_actua_una_vez(tmp_path, monkeypatch):
 def test_el_corte_avanza_solo_si_el_entrenamiento_termina_bien(tmp_path, monkeypatch):
     """026:RF-20 / 026:RF-23 — un proceso fallido conserva los ejemplos pendientes para que la
     vigilancia pueda reintentarlos; solo el éxito avanza el corte."""
-    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(tmp_path))
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path))
     marcados = []
     monkeypatch.setattr(services, 'asistente_marcar_entrenado', marcados.append)
 
@@ -87,7 +87,7 @@ def test_el_corte_avanza_solo_si_el_entrenamiento_termina_bien(tmp_path, monkeyp
 
 def test_suite_nocturna_con_el_rf_de_cada_fallo(tmp_path, monkeypatch):
     """026:RF-25 — una vez por noche; lo que falla sale con el RF que cita la prueba."""
-    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(tmp_path / 'datos'))
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'datos'))
     assert not toca_suite(datetime(2026, 10, 24, 15), None)
     assert toca_suite(datetime(2026, 10, 24, 23), '2026-10-23T23:00:00')
     assert not toca_suite(datetime(2026, 10, 24, 23), '2026-10-24T22:10:00')

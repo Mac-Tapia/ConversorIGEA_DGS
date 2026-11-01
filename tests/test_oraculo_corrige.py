@@ -16,10 +16,10 @@ import pytest
 
 pytest.importorskip('pandapower')
 
-from igea_dgs import oraculo  # noqa: E402
-from igea_dgs.model import build_feeder_model  # noqa: E402
-from igea_dgs.reglas import REGLAS_PROYECTO, SIN_REGLAS, aplicar_reglas  # noqa: E402
-from igea_dgs.sed_potencia import FP_CORRECCION, corregir_demanda, demanda_fuera_de_escala  # noqa: E402
+from convertersmartgrid import oraculo  # noqa: E402
+from convertersmartgrid.model import build_feeder_model  # noqa: E402
+from convertersmartgrid.reglas import REGLAS_PROYECTO, SIN_REGLAS, aplicar_reglas  # noqa: E402
+from convertersmartgrid.sed_potencia import FP_CORRECCION, corregir_demanda, demanda_fuera_de_escala  # noqa: E402
 from synthetic_export import ExportSpec, load_export  # noqa: E402
 
 LAYOUTS = ('reducido', 'completo')
@@ -146,8 +146,8 @@ def test_la_importacion_deja_fuera_lo_que_no_converge(tmp_path, monkeypatch):
     """057:RF-5, 057:RF-6 — solo se importa lo que converge en el oráculo; el resto se nombra."""
     from types import SimpleNamespace
 
-    from igea_dgs.web import services
-    from igea_dgs.web.workspace import Workspace
+    from convertersmartgrid.web import services
+    from convertersmartgrid.web.workspace import Workspace
 
     ws = Workspace(id='w', root=tmp_path)
     ws.out_dir.mkdir(parents=True)

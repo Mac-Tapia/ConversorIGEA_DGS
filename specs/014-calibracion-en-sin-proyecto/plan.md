@@ -32,9 +32,9 @@ lo que pasa al plan y en los avisos que muestra, que ya se pintan como lista.
 | C. Variaciones por caso al preparar | `tools/casos_pf.py` (`preparar`) | RF-15, RF-16, RF-18, RF-20 a RF-22 |
 | D. Ajuste que respeta al operador | `tools/ajuste_cabecera_pf.py` (`ejecutar`, `al_escenario`) | RF-1 a RF-4, RF-14 |
 | E. Cargas nuevas durante el ajuste | `tools/ajuste_cabecera_pf.py` | RF-6 a RF-9 |
-| F. Gana lo manual | `tools/ajuste_cabecera_pf.py`, `src/igea_dgs/ajuste_cabecera.py` (`fijas` con origen `manual`) | RF-10 a RF-13 |
+| F. Gana lo manual | `tools/ajuste_cabecera_pf.py`, `src/convertersmartgrid/ajuste_cabecera.py` (`fijas` con origen `manual`) | RF-10 a RF-13 |
 | G. Inserción sin duplicados | `tools/cargas_pf.py` (`indice_de_cargas_nuevas`, `resolver_nuevas`, fase 2) | RF-19, RF-21 a RF-28 |
-| H. Avisos sin bloqueo | `src/igea_dgs/powerfactory_binding.py` (ya existe), pruebas | RF-17 |
+| H. Avisos sin bloqueo | `src/convertersmartgrid/powerfactory_binding.py` (ya existe), pruebas | RF-17 |
 | I. Documentos | specs 004, 006, 007 y 011 (nota «cambiado por 014:RF-n»), `CODIGO_FUENTE.md`, `docs/MANUAL_COMANDOS.md` | Trazabilidad |
 
 ### A. Qué contiene una variación
@@ -157,7 +157,7 @@ ajuste anterior no se compara nada (RF-13).
   (014:RF-19, RF-21 a RF-28).
 - `tests/test_native_project_gate.py` o `test_powerfactory_binding.py`: una modificación
   manual da aviso y no bloquea (014:RF-17).
-- Número de alimentadores sorteado con `IGEA_SCALE_SEED`, como en las pruebas actuales.
+- Número de alimentadores sorteado con `CSG_SCALE_SEED`, como en las pruebas actuales.
 - Prueba en DIgSILENT con CA101 (T9): el ajuste deja `_3` activa en «Sin proyecto» y
   «Con proyecto», y repetir una inserción no crea cargas duplicadas.
 

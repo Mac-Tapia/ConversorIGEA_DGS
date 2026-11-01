@@ -67,14 +67,14 @@ def main(argv=None) -> int:
                 raise ValueError('--integral usa el currículo local del maestro Codex; no combine con otros maestros/modos')
             if args.epocas < 1:
                 raise ValueError('épocas positivas obligatorias')
-            from igea_dgs.asistente import almacen, transformer
-            from igea_dgs.asistente.destilacion_integral import preparar_corpus, guardar_corpus, entrenar_destilacion
-            from igea_dgs.training_coordinator import BloqueoGPU
+            from convertersmartgrid.asistente import almacen, transformer
+            from convertersmartgrid.asistente.destilacion_integral import preparar_corpus, guardar_corpus, entrenar_destilacion
+            from convertersmartgrid.training_coordinator import BloqueoGPU
             destino = salida.parent / (salida.stem + '_integral')
             vocab = json.loads(args.vocabulario.read_text(encoding='utf-8')) if args.vocabulario else {}
             filas, meta = preparar_corpus(vocab, almacen.leer('ejemplos'))
             guardar_corpus(destino / 'corpus', filas, meta)
-            lock = Path(os.environ.get('IGEA_ML_GPU_LOCK') or str(Path(tempfile.gettempdir()) / 'igea-dgs-gpu.lock'))
+            lock = Path(os.environ.get('CSG_ML_GPU_LOCK') or str(Path(tempfile.gettempdir()) / 'convertersmartgrid-gpu.lock'))
             with BloqueoGPU(lock, 'asistente-integral-web'):
                 resultado = entrenar_destilacion(destino / 'corpus', destino / 'entrenamiento',
                     cfg=transformer.Configuracion(epocas=args.epocas),
@@ -90,8 +90,8 @@ def main(argv=None) -> int:
         return codigo
 
     try:
-        from igea_dgs.asistente import almacen, clasificador, transformer
-        from igea_dgs.digital_twin.oraculo import dispositivo
+        from convertersmartgrid.asistente import almacen, clasificador, transformer
+        from convertersmartgrid.digital_twin.oraculo import dispositivo
 
         dispositivo()
     except (ImportError, RuntimeError) as exc:
@@ -105,7 +105,7 @@ def main(argv=None) -> int:
     out: dict = {}
     try:
         if args.evaluar:
-            from igea_dgs.asistente.sinteticos import generar
+            from convertersmartgrid.asistente.sinteticos import generar
 
             m = transformer.cargar()
             prueba = generar(vocab, por_tarea=20, semilla=transformer.SEMILLA_PRUEBA) + transformer.ejemplos_reales()[1]
@@ -119,10 +119,10 @@ def main(argv=None) -> int:
             if args.solo in (None, 'ordenes'):
                 kw = {}
                 if args.destilar:
-                    from igea_dgs.asistente.destilacion import Destilacion
-                    from igea_dgs.asistente.ollama import cliente_configurado
+                    from convertersmartgrid.asistente.destilacion import Destilacion
+                    from convertersmartgrid.asistente.ollama import cliente_configurado
 
-                    from igea_dgs.asistente.destilacion import MaestroArchivo, MaestroCodex
+                    from convertersmartgrid.asistente.destilacion import MaestroArchivo, MaestroCodex
 
                     maestro_nombre = args.maestro or 'claude'
                     maestro = {'claude': lambda: MaestroArchivo(), 'codex': lambda: MaestroCodex(vocab, modelo=args.modelo_codex),

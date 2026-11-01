@@ -26,13 +26,13 @@ from pathlib import Path
 from cargas_pf import _cerrado, activar_proyecto, clave_pf, flujo_de_carga, trazado_de
 from estudios_pf import _num, medida
 
-from igea_dgs.digital_twin.native_snapshot import (
+from convertersmartgrid.digital_twin.native_snapshot import (
     componentes,
     huella_gps,
     identidad_nativa,
 )
-from igea_dgs.digital_twin.oraculo import VERSION_GRAFO
-from igea_dgs.native_action import native_action_block_report
+from convertersmartgrid.digital_twin.oraculo import VERSION_GRAFO
+from convertersmartgrid.native_action import native_action_block_report
 
 #: Caso del episodio → nombre del caso de estudio que deja la spec 011.
 CASOS = {'caso_base': 'Caso base', 'sin_proyecto': 'Sin proyecto', 'con_proyecto': 'Con proyecto'}
@@ -290,7 +290,7 @@ def main(argv=None) -> int:
         salida.write_text(json.dumps(blocked, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
         print(blocked['error'])
         return 2
-    from igea_dgs.pf_arnes import PFNoDisponible, conectar
+    from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
 
     try:
         app = conectar('digital_twin_snapshot_pf.py')

@@ -15,7 +15,7 @@ import fake_pf
 from apoyo import cargar_herramienta
 from test_cargas_pf_guion import _carga, _demanda, _nueva, _plan
 
-SEMILLA = int(os.environ.get('IGEA_SCALE_SEED', random.randrange(1 << 30)))
+SEMILLA = int(os.environ.get('CSG_SCALE_SEED', random.randrange(1 << 30)))
 STAMP = '20261008_120000'
 
 

@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from apoyo import esperar_trabajo, vincular_proyecto  # noqa: E402
 from apoyo_pf_web import guion_falso  # noqa: E402,F401
-from igea_dgs.web.app import create_app  # noqa: E402
+from convertersmartgrid.web.app import create_app  # noqa: E402
 
 TERNA = {'clase': 'terna', 'alimentador': 'A1', 'casos': ['Sin proyecto', 'Con proyecto'],
          'tramos': ['L1']}
@@ -20,7 +20,7 @@ BANCO = {'clase': 'condensador', 'alimentador': 'A1', 'casos': ['Con proyecto'],
 
 @pytest.fixture()
 def client(tmp_path, monkeypatch, guion_falso):
-    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     with TestClient(create_app(tmp_path / 'web', host='127.0.0.1')) as c:
         yield c
 
@@ -127,7 +127,7 @@ def test_sin_obras_no_hay_nada_que_aplicar(client):
 def test_escalera_es_un_trabajo_de_digsilent_con_su_anio(client, monkeypatch):
     """025:RF-44 — la escalera va al carril de DIgSILENT con el año de los casos; un año
     fuera de rango se rechaza antes de empezar."""
-    from igea_dgs.web import services
+    from convertersmartgrid.web import services
 
     vistos = []
 
@@ -153,14 +153,14 @@ def test_escalera_es_un_trabajo_de_digsilent_con_su_anio(client, monkeypatch):
 def test_escalera_sin_tipo_de_cambio_no_empieza(client, monkeypatch):
     """025:RF-68 — precios de pérdidas en otra moneda y sin tipo de cambio: la escalera no
     toca DIgSILENT y el trabajo dice qué falta."""
-    from igea_dgs.web import services
+    from convertersmartgrid.web import services
 
     perfil = {'escalera': {'cumplimiento': 0.95, 'sorteos': 10, 'tolerancia_pu': 0.005,
                            'tolerancia_carga_pct': 1, 'moneda': 'USD', 'moneda_precios_perdidas': 'PEN',
                            'precio_perdidas_kwh': 0.14},
               'planificacion': {'tasa_regulada': 0.12, 'vida_util_anios': 30},
               'estudios': {'tension_min_pu': 0.95, 'tension_max_pu': 1.05, 'cargabilidad_max_pct': 100}}
-    monkeypatch.setattr('igea_dgs.perfil_empresa.datos_perfil', lambda *a, **k: perfil)
+    monkeypatch.setattr('convertersmartgrid.perfil_empresa.datos_perfil', lambda *a, **k: perfil)
     tocado = []
     monkeypatch.setattr(services, 'obras_bibliotecas', lambda *a, **k: tocado.append(1) or {'informe': {}})
     wid = _espacio(client)

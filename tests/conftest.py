@@ -1,4 +1,4 @@
-"""Shared fixtures for IGEA TXT integration tests.
+"""Shared fixtures for CYMDIST TXT integration tests.
 
 Feeders and codes come only from the loaded TXT set — no company-specific names
 are required (IN111/TA121 etc. are optional samples when present).
@@ -10,8 +10,8 @@ from pathlib import Path
 
 import pytest
 
-from igea_paths import SKIP_MSG, resolve_igea_txt_paths
-from igea_dgs.naming import feeder_short_name
+from csg_paths import SKIP_MSG, resolve_txt_paths
+from convertersmartgrid.naming import feeder_short_name
 
 
 @pytest.fixture(autouse=True)
@@ -22,7 +22,7 @@ def _sin_perfil_de_la_maquina(monkeypatch, tmp_path_factory):
     pasaban en su equipo y fallaban en otro sin él. Una prueba que necesite un perfil lo
     escribe ella o usa uno de ``config/perfiles``.
     """
-    from igea_dgs.perfil_empresa import VARIABLE_RUTA
+    from convertersmartgrid.perfil_empresa import VARIABLE_RUTA
 
     vacio = tmp_path_factory.getbasetemp() / 'sin_perfil_empresa.json'
     monkeypatch.setenv(VARIABLE_RUTA, str(vacio))
@@ -37,8 +37,8 @@ def _sin_turno_de_la_maquina(monkeypatch, tmp_path):
     2026-10-17 la suite lo tuvo más de 10 minutos y una sonda real se quedó sin DIgSILENT
     («ocupado por ajuste_cabecera_pf.py», que era pytest).
     """
-    from igea_dgs import powerfactory_env
-    from igea_dgs.pf_arnes import VARIABLE_TURNO
+    from convertersmartgrid import powerfactory_env
+    from convertersmartgrid.pf_arnes import VARIABLE_TURNO
 
     monkeypatch.setenv(VARIABLE_TURNO, str(tmp_path / 'powerfactory.turno'))
     # Tampoco miran el DIgSILENT de la máquina: el 2026-10-22 el operador lo abrió a mano
@@ -53,64 +53,64 @@ def _sin_gemelo_de_la_maquina(monkeypatch, tmp_path):
     La captura lanza la lectura nativa después de cada acción de DIgSILENT; en las pruebas
     de la web sería un proceso más que no esperan. Las pruebas del gemelo la encienden.
     """
-    from igea_dgs.digital_twin.integration import VARIABLE_CAPTURA
+    from convertersmartgrid.digital_twin.integration import VARIABLE_CAPTURA
 
-    monkeypatch.setenv('IGEA_TWIN_DATA', str(tmp_path / '_digital_twin'))
+    monkeypatch.setenv('CSG_TWIN_DATA', str(tmp_path / '_digital_twin'))
     monkeypatch.setenv(VARIABLE_CAPTURA, '0')
 
 
 @pytest.fixture(scope='session')
 def perfil_real():
-    """Perfil de empresa de los datos reales de las variables ``IGEA_*``.
+    """Perfil de empresa de los datos reales de las variables ``CSG_*``.
 
     Los de ``referencia/`` son de Electro Dunas, así que por defecto es su perfil: es
     el de los datos de prueba, no un valor por defecto del código (spec 002, RF-35).
-    La entrega de otra empresa lo dice con ``IGEA_PERFIL=<nombre de config/perfiles>``.
+    La entrega de otra empresa lo dice con ``CSG_PERFIL=<nombre de config/perfiles>``.
     """
     import os
 
-    from igea_dgs.perfil_empresa import perfil_con_nombre
+    from convertersmartgrid.perfil_empresa import perfil_con_nombre
 
-    return perfil_con_nombre(os.environ.get('IGEA_PERFIL', '').strip() or 'electro_dunas')
+    return perfil_con_nombre(os.environ.get('CSG_PERFIL', '').strip() or 'electro_dunas')
 
 
 @pytest.fixture(scope='session')
 def opciones_reales(perfil_real) -> dict:
     """CRS, reglas y perfil con que se convierten los datos reales."""
-    from igea_dgs.reglas import reglas_de_perfil
+    from convertersmartgrid.reglas import reglas_de_perfil
 
     return {'source_crs': perfil_real.crs_origen, 'reglas': reglas_de_perfil(perfil_real),
             'perfil': perfil_real}
 
 
 @pytest.fixture(scope='session')
-def igea_paths() -> tuple[Path, Path, Path]:
-    paths = resolve_igea_txt_paths()
+def csg_paths() -> tuple[Path, Path, Path]:
+    paths = resolve_txt_paths()
     if paths is None:
         pytest.skip(SKIP_MSG)
     return paths
 
 
 @pytest.fixture(scope='session')
-def RED(igea_paths: tuple[Path, Path, Path]) -> Path:
-    return igea_paths[0]
+def RED(csg_paths: tuple[Path, Path, Path]) -> Path:
+    return csg_paths[0]
 
 
 @pytest.fixture(scope='session')
-def LOAD(igea_paths: tuple[Path, Path, Path]) -> Path:
-    return igea_paths[1]
+def LOAD(csg_paths: tuple[Path, Path, Path]) -> Path:
+    return csg_paths[1]
 
 
 @pytest.fixture(scope='session')
-def EQUIP(igea_paths: tuple[Path, Path, Path]) -> Path:
-    return igea_paths[2]
+def EQUIP(csg_paths: tuple[Path, Path, Path]) -> Path:
+    return csg_paths[2]
 
 
 @pytest.fixture(scope='session')
-def ds(igea_paths: tuple[Path, Path, Path]):
-    from igea_dgs.dataset import CymdistDataset
+def ds(csg_paths: tuple[Path, Path, Path]):
+    from convertersmartgrid.dataset import CymdistDataset
 
-    red, loads, equip = igea_paths
+    red, loads, equip = csg_paths
     dataset = CymdistDataset.from_files(red, loads, equip)
     if not dataset.feeder_ids():
         pytest.skip('El dataset cargado no contiene alimentadores')
@@ -137,7 +137,7 @@ def second_feeder(feeder_shorts, sample_feeder) -> str:
 
 @pytest.fixture(scope='session')
 def sample_model(ds, sample_feeder):
-    from igea_dgs.model import build_feeder_model
+    from convertersmartgrid.model import build_feeder_model
 
     return build_feeder_model(ds, sample_feeder)
 
@@ -151,10 +151,10 @@ def sample_model(ds, sample_feeder):
 # compartirlo entre módulos cambiaría el aislamiento de las pruebas.
 
 @pytest.fixture(scope='module')
-def txt_dataset(igea_paths):
-    from igea_dgs.dataset import CymdistDataset
+def txt_dataset(csg_paths):
+    from convertersmartgrid.dataset import CymdistDataset
 
-    red, loads, equip = igea_paths
+    red, loads, equip = csg_paths
     return CymdistDataset.from_files(red, loads, equip)
 
 
@@ -162,14 +162,14 @@ def txt_dataset(igea_paths):
 def mdb_dataset():
     import os
 
-    mdb = os.environ.get('IGEA_MDB', '').strip()
+    mdb = os.environ.get('CSG_MDB', '').strip()
     if not mdb or not Path(mdb).is_file():
-        pytest.skip('Defina IGEA_MDB con la ruta de una base de red CYMDIST (.mdb)')
+        pytest.skip('Defina CSG_MDB con la ruta de una base de red CYMDIST (.mdb)')
     pytest.importorskip('pyodbc')
-    from igea_dgs.access import AccessReadError, read_access_dataset
+    from convertersmartgrid.access import AccessReadError, read_access_dataset
 
     try:
-        return read_access_dataset(mdb, equipment_db=os.environ.get('IGEA_EQUIPMENT_MDB') or None)
+        return read_access_dataset(mdb, equipment_db=os.environ.get('CSG_EQUIPMENT_MDB') or None)
     except AccessReadError as exc:
         pytest.skip(f'No se pudo leer {mdb}: {exc}')
 

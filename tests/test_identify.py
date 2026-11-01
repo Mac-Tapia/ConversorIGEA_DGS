@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import pytest
 
-from igea_dgs.identify import (
+from convertersmartgrid.identify import (
     CARGA,
     DESCONOCIDO,
     EQUIPOS,
@@ -129,7 +129,7 @@ class TestRepartoAutomatico:
 
 class TestElMotorAborta:
     def test_from_files_rechaza_las_casillas_cruzadas(self, tmp_path):
-        from igea_dgs.dataset import CymdistDataset
+        from convertersmartgrid.dataset import CymdistDataset
 
         red = _escribir(tmp_path, 'a.txt', ['NODE', 'SECTION', 'SOURCE'])
         carga = _escribir(tmp_path, 'b.txt', ['CUSTOMER LOADS'])
@@ -138,7 +138,7 @@ class TestElMotorAborta:
             CymdistDataset.from_files(red, equipos, carga)
 
     def test_el_error_menciona_los_dos_ficheros_mal_puestos(self, tmp_path):
-        from igea_dgs.dataset import CymdistDataset
+        from convertersmartgrid.dataset import CymdistDataset
 
         red = _escribir(tmp_path, 'a.txt', ['NODE', 'SECTION'])
         carga = _escribir(tmp_path, 'b.txt', ['CUSTOMER LOADS'])
@@ -163,7 +163,7 @@ class TestExportReal:
         """Lo que hace falta: que la próxima entrega se llame como sea."""
         import shutil
 
-        from igea_dgs.dataset import CymdistDataset
+        from convertersmartgrid.dataset import CymdistDataset
 
         r = tmp_path / 'exportacion_enero.txt'
         c = tmp_path / 'demanda.txt'

@@ -16,7 +16,7 @@ consciente, no un efecto colateral.
 Otras diferencias con PA217: 10 kV en lugar de 22,9; todo trifásico; y mezcla real de
 aéreo (797) y subterráneo (239).
 
-Requisitos: ``IGEA_RED``/``IGEA_LOADS``/``IGEA_EQUIPMENT`` para la vía TXT, ``IGEA_MDB``
+Requisitos: ``CSG_RED``/``CSG_LOADS``/``CSG_EQUIPMENT`` para la vía TXT, ``CSG_MDB``
 para la vía Access. Cada bloque hace *skip* limpio si falta su entrada.
 
 Spec 034: 034:RF-10, 034:RF-18.
@@ -27,10 +27,10 @@ from __future__ import annotations
 from pathlib import Path
 
 
-from igea_dgs.batch import convert_selection
-from igea_dgs.reglas import SIN_REGLAS
-from igea_dgs.model import build_feeder_model
-from igea_dgs.validate import parse_dgs
+from convertersmartgrid.batch import convert_selection
+from convertersmartgrid.reglas import SIN_REGLAS
+from convertersmartgrid.model import build_feeder_model
+from convertersmartgrid.validate import parse_dgs
 
 FEEDER = 'SL143'
 ISLAND_SECTION = 'SEC_1091_975575'
@@ -110,7 +110,7 @@ class TestSl143IslandIsDetectedAndReported:
     """
 
     def test_the_island_section_is_present_and_floating(self, dataset_for):
-        from igea_dgs.model import _reachable_from_source
+        from convertersmartgrid.model import _reachable_from_source
 
         _source, ds = dataset_for
         model = build_feeder_model(ds, FEEDER, strict=True)

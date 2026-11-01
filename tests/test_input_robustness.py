@@ -17,8 +17,8 @@ import json
 
 import pytest
 
-from igea_dgs.batch import convert_selection
-from igea_dgs.dataset import CymdistDataset
+from convertersmartgrid.batch import convert_selection
+from convertersmartgrid.dataset import CymdistDataset
 from synthetic_export import ExportSpec, write_export
 
 SPEC = ExportSpec(feeders=3, sections_per_feeder=4, loads_per_feeder=2)

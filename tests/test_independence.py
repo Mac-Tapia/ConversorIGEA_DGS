@@ -2,7 +2,7 @@ from pathlib import Path
 
 
 def test_production_source_has_no_fixed_reference_dgs_dependency():
-    root = Path(__file__).resolve().parents[1] / 'src' / 'igea_dgs'
+    root = Path(__file__).resolve().parents[1] / 'src' / 'convertersmartgrid'
     forbidden = ('na205.dgs', 'reference_dgs', 'reference-dgs', '/mnt/data/na205')
     text = '\n'.join(p.read_text(encoding='utf-8', errors='replace').lower() for p in root.rglob('*') if p.is_file() and p.suffix in {'.py','.json'})
     for token in forbidden:
@@ -12,7 +12,7 @@ def test_production_source_has_no_fixed_reference_dgs_dependency():
 def test_schema_profile_defines_32_versioned_dgs_tables():
     """Las 30 del perfil, ``Matrix``, que lleva el trazado GPS de las líneas (010:RF-1), y
     ``ElmZone``, los sistemas eléctricos de la red unida por SET (022:RF-15)."""
-    from igea_dgs.schema import load_schema
+    from convertersmartgrid.schema import load_schema
     schema = load_schema()
     assert len(schema.tables) == 32 and 'ElmZone' in schema.tables
     assert len(schema.table_order) == 32

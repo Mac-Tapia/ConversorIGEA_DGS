@@ -1,8 +1,8 @@
-# IGEA/CYMDIST → DIgSILENT DGS Universal Engine v2
+# CYMDIST → DIgSILENT DGS Universal Engine v2
 
-Conversor modular para transformar los archivos TXT `RED`, `CARGA` y `BD_Equipo` exportados desde IGEA/CYMDIST en archivos DGS para DIgSILENT PowerFactory.
+Conversor modular para transformar los archivos TXT `RED`, `CARGA` y `BD_Equipo` exportados desde CYMDIST en archivos DGS para DIgSILENT PowerFactory.
 
-**Universal por diseño:** no está limitado a una empresa, a un número fijo de alimentadores ni a códigos como IN111/TA121. Cualquier export CYMDIST/IGEA con otras denominaciones de NetworkID, tipos de línea o CRS regionales se puede cargar; los nombres y conteos salen de los TXT, no de listas fijas en el código.
+**Universal por diseño:** no está limitado a una empresa, a un número fijo de alimentadores ni a códigos como IN111/TA121. Cualquier export CYMDIST con otras denominaciones de NetworkID, tipos de línea o CRS regionales se puede cargar; los nombres y conteos salen de los TXT, no de listas fijas en el código.
 
 ### Tres fuentes aisladas y aceptación auditable
 
@@ -28,11 +28,11 @@ Doble clic en `run_gui.bat`, o:
 
 ```bash
 set PYTHONPATH=src
-python -m igea_dgs.web          # o: igea-dgs-web  /  igea-dgs web
+python -m convertersmartgrid.web          # o: convertersmartgrid-web  /  convertersmartgrid web
 ```
 
 Abre el navegador en `http://127.0.0.1:8765/`. Es una API **FastAPI** que sirve un
-front **React + TypeScript** (`frontend/`) y usa el mismo motor `igea_dgs`, sin
+front **React + TypeScript** (`frontend/`) y usa el mismo motor `convertersmartgrid`, sin
 reescribirlo.
 
 1. **Entrada**: suelte los tres TXT juntos y cada uno va a su casilla por las tablas
@@ -119,7 +119,7 @@ hace falta Node.js 20+ **solo una vez**; después, no.
 **Desarrollo del front** (recarga en caliente):
 
 ```bash
-python -m igea_dgs.web --no-browser     # API en :8765
+python -m convertersmartgrid.web --no-browser     # API en :8765
 cd frontend && npm install && npm run dev   # front en :5173, reenvía /api a :8765
 ```
 
@@ -140,7 +140,7 @@ están en la web, y `run_gui.bat` conserva el nombre por los accesos directos ya
 ## Reglas del proyecto (se aplican a toda conversión)
 
 Cada entrada —los tres TXT, la base Access `.mdb` o el paquete VNR-GIS— y cada vía
-—interfaz web, CLI, red unida— convierte con las mismas reglas (`src/igea_dgs/reglas.py`):
+—interfaz web, CLI, red unida— convierte con las mismas reglas (`src/convertersmartgrid/reglas.py`):
 
 | Regla | Qué hace |
 |---|---|
@@ -156,8 +156,8 @@ Cada entrada —los tres TXT, la base Access `.mdb` o el paquete VNR-GIS— y ca
 cada alimentador con su fuente, enlaces como interruptores abiertos):
 
 ```bash
-igea-dgs convert --mdb 260924.mdb --feeder NA203 --feeder NA205 --unir NA203_NA205 --out-dir out
-igea-dgs convert --red R.txt --loads C.txt --equipment E.txt --all --out-dir out   # hoja a medida, escala real
+convertersmartgrid convert --mdb 260924.mdb --feeder NA203 --feeder NA205 --unir NA203_NA205 --out-dir out
+convertersmartgrid convert --red R.txt --loads C.txt --equipment E.txt --all --out-dir out   # hoja a medida, escala real
 ```
 
 En la web: «Unir en un solo DGS…» con los alimentadores seleccionados. `--literal`
@@ -202,7 +202,7 @@ Alternativa con extras de `pyproject.toml`:
 - Solo producción (con geografía): `pip install -e ".[geo]"`.
 - Desarrollo + tests: `pip install -e ".[geo,dev]"`.
 
-Entradas de consola: `igea-dgs` (CLI) e `igea-dgs-web` (interfaz web). `run_gui.bat` instala `requirements.txt` si faltan dependencias. Tras actualizar el código, `pip install -e .` retira el antiguo `igea-dgs-gui` del entorno.
+Entradas de consola: `convertersmartgrid` (CLI) e `convertersmartgrid-web` (interfaz web). `run_gui.bat` instala `requirements.txt` si faltan dependencias. Tras actualizar el código, `pip install -e .` retira el antiguo `convertersmartgrid-gui` del entorno.
 
 ## Principio de arquitectura
 
@@ -210,7 +210,7 @@ La arquitectura completa (capas, flujo de conversión, los tres casos de estudio
 PowerFactory, carriles de trabajo de la web y su relación con cada spec) está en
 [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md).
 
-El motor **no necesita un archivo DGS de referencia** para convertir. La compatibilidad de formato se describe en un perfil versionado (`src/igea_dgs/schemas/pf21_dgs_1_8_4.json`) que contiene únicamente nombres de tablas, campos y tipos DGS. No contiene nodos, FID, líneas, cargas, nombres ni datos eléctricos de un alimentador de ejemplo.
+El motor **no necesita un archivo DGS de referencia** para convertir. La compatibilidad de formato se describe en un perfil versionado (`src/convertersmartgrid/schemas/pf21_dgs_1_8_4.json`) que contiene únicamente nombres de tablas, campos y tipos DGS. No contiene nodos, FID, líneas, cargas, nombres ni datos eléctricos de un alimentador de ejemplo.
 
 La fuente de verdad para cada conversión es:
 
@@ -224,7 +224,7 @@ La fuente de verdad para cada conversión es:
 | ---- | ------ |
 | Motor de conversión (dataset → model → DGS → validate) | Listo |
 | CLI `list` / `convert` / `web` (TXT, Access y VNR-GIS) | Listo |
-| Interfaz web (FastAPI + React) | Listo (`src/igea_dgs/web/` + `frontend/` + `run_gui.bat`) |
+| Interfaz web (FastAPI + React) | Listo (`src/convertersmartgrid/web/` + `frontend/` + `run_gui.bat`) |
 | Interfaz de escritorio Tkinter | Retirada (spec 001, RF-16) |
 | Empaquetado `pyproject.toml` | Listo |
 | Dependencia `pyproj` (GPS) | En `requirements.txt` (+ extra `[geo]`) — opcional si convierte sin geografía |
@@ -240,7 +240,7 @@ La fuente de verdad para cada conversión es:
 ## Estructura
 
 ```text
-TXT IGEA/CYMDIST
+TXT CYMDIST
    │
    ├── RED
    ├── CARGA
@@ -268,7 +268,7 @@ Validador estricto
 Listar alimentadores:
 
 ```bash
-PYTHONPATH=src python -m igea_dgs.cli list \
+PYTHONPATH=src python -m convertersmartgrid.cli list \
   --red RED_030826.txt \
   --loads CARGA_030826.txt \
   --equipment BD_Equipo.txt
@@ -277,7 +277,7 @@ PYTHONPATH=src python -m igea_dgs.cli list \
 Convertir un alimentador (use el nombre corto que aparezca en `list`, el de su export):
 
 ```bash
-PYTHONPATH=src python -m igea_dgs.cli convert \
+PYTHONPATH=src python -m convertersmartgrid.cli convert \
   --red RED_export.txt \
   --loads CARGA_export.txt \
   --equipment BD_Equipo.txt \
@@ -289,7 +289,7 @@ PYTHONPATH=src python -m igea_dgs.cli convert \
 Convertir todos los alimentadores del lote cargado:
 
 ```bash
-PYTHONPATH=src python -m igea_dgs.cli convert \
+PYTHONPATH=src python -m convertersmartgrid.cli convert \
   --red RED_export.txt \
   --loads CARGA_export.txt \
   --equipment BD_Equipo.txt \
@@ -335,12 +335,12 @@ Instale deps de desarrollo: `pip install -r requirements.txt`.
 Sin TXT, pasan las unitarias (schema, independencia, gráficos, resolución de tipos). Con TXT:
 
 ```bat
-set IGEA_TXT_DIR=D:\ruta\a\carpeta_con_RED_CARGA_BD
+set CSG_TXT_DIR=D:\ruta\a\carpeta_con_RED_CARGA_BD
 set PYTHONPATH=src
 pytest -q
 ```
 
-También: `IGEA_RED`, `IGEA_LOADS`, `IGEA_EQUIPMENT` (rutas a cada archivo). Si faltan, las pruebas de integración hacen **skip** claro (no `FileNotFoundError`).
+También: `CSG_RED`, `CSG_LOADS`, `CSG_EQUIPMENT` (rutas a cada archivo). Si faltan, las pruebas de integración hacen **skip** claro (no `FileNotFoundError`).
 
 Aceptación en PowerFactory (API: import DGS + crear/activar escenario + flujo de carga con correcciones): `docs/POWERFACTORY_ACCEPTANCE.md` y `tools/powerfactory_acceptance.py` / `tools/run_powerfactory_gate.bat`. En la GUI: **Cargar DGS en DigSILENT + flujo**.
 

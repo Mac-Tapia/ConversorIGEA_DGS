@@ -31,7 +31,7 @@ Preparación
 
 Libro de la empresa y catálogo
 
-- [x] T3. `src/igea_dgs/datos_empresa.py`: leer el libro, validar hojas, filas, columnas y
+- [x] T3. `src/convertersmartgrid/datos_empresa.py`: leer el libro, validar hojas, filas, columnas y
       unidades, clases que faltan, fila por tipo que sustituye a la de su clase,
       telemandados, anualidad de los bancos y plantilla descargable. (RF-6 a RF-18,
       RF-62 a RF-66)
@@ -45,7 +45,7 @@ Libro de la empresa y catálogo
       Hecho cuando: `pytest -q tests/test_estudios_pf.py tests/test_studies*.py` en verde.
       Hecho el 2026-10-29: `reconectadores`, `alojamiento` y `curvas_pv` en `studies.py`; el catálogo
       ofrece los de la 012 según el libro y los módulos rechazados por licencia. 40 en verde.
-- [x] T5. `src/igea_dgs/estudios_red_pf.py`: índices por alimentador a partir de los de
+- [x] T5. `src/convertersmartgrid/estudios_red_pf.py`: índices por alimentador a partir de los de
       cada carga, CAIDI, ENS total y diferencias, aportes ordenados, capacidad mínima y
       máxima por alimentador, margen PV, informe de bancos, comprobación de estado y filas
       de los ficheros. (RF-25, RF-30 a RF-33, RF-39, RF-47 a RF-49, RF-52, RF-56, RF-57,
@@ -94,7 +94,7 @@ Web e interfaz
       Hecho cuando: `pytest -q tests/test_estudios_red_web.py` en verde.
       Hecho el 2026-10-29: rutas `/pf/datos-empresa` (subir, estado, plantilla, aplicar) y
       `/pf/estudios?project=`; `tests/test_estudios_red_web.py` en verde.
-- [x] T10. Interfaz (leer antes el skill `igea-dgs-frontend`): `DatosEmpresaPF.tsx` con el
+- [x] T10. Interfaz (leer antes el skill `convertersmartgrid-frontend`): `DatosEmpresaPF.tsx` con el
       libro, la plantilla y los errores por hoja y fila; los estudios nuevos y sus
       opciones en «4.2 Estudios»; tablas de resultados. (RF-1, RF-7, RF-19, RF-37, RF-45,
       RF-53)
@@ -116,7 +116,7 @@ Cierre
 
 - [x] T12. Índice, estado y validación: ficheros nuevos en `CODIGO_FUENTE.md`, las
       herramientas en `docs/MANUAL_COMANDOS.md`, la spec en `CLAUDE.md`, cada RF citado
-      por una prueba en verde, suite completa con las tres `IGEA_*`. (Todos)
+      por una prueba en verde, suite completa con las tres `CSG_*`. (Todos)
       Hecho cuando: `pytest -q tests/test_inventario.py` en verde y
       `grep -rnoE "012:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-72.
       Hecho el 2026-10-29: `CODIGO_FUENTE.md`, `docs/MANUAL_COMANDOS.md`; los 72 RF citados.

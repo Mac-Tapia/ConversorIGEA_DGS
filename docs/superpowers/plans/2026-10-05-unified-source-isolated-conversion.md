@@ -33,8 +33,8 @@
 ### Task 1: Custodia inmutable y contrato de ejecución
 
 **Files:**
-- Create: `src/igea_dgs/web/source_runs.py`
-- Modify: `src/igea_dgs/web/workspace.py`
+- Create: `src/convertersmartgrid/web/source_runs.py`
+- Modify: `src/convertersmartgrid/web/workspace.py`
 - Test: `tests/test_source_runs.py`
 
 **Interfaces:**
@@ -56,11 +56,11 @@
 ### Task 2: Adaptadores comunes TXT y MDB y rechazo de mezcla
 
 **Files:**
-- Create: `src/igea_dgs/web/sources/__init__.py`
-- Create: `src/igea_dgs/web/sources/base.py`
-- Create: `src/igea_dgs/web/sources/txt.py`
-- Create: `src/igea_dgs/web/sources/mdb.py`
-- Modify: `src/igea_dgs/web/services.py`
+- Create: `src/convertersmartgrid/web/sources/__init__.py`
+- Create: `src/convertersmartgrid/web/sources/base.py`
+- Create: `src/convertersmartgrid/web/sources/txt.py`
+- Create: `src/convertersmartgrid/web/sources/mdb.py`
+- Modify: `src/convertersmartgrid/web/services.py`
 - Test: `tests/test_source_adapters.py`
 - Test: `tests/test_web_api.py`
 
@@ -84,7 +84,7 @@
 ### Task 3: Ingesta segura y puente canónico VNR-GIS
 
 **Files:**
-- Create: `src/igea_dgs/web/sources/vnr.py`
+- Create: `src/convertersmartgrid/web/sources/vnr.py`
 - Create: `src/vnr_etl/application/cymdist_bridge.py`
 - Modify: `src/vnr_etl/connectors/registry.py`
 - Modify: `src/vnr_etl/pipeline.py`
@@ -113,8 +113,8 @@
 **Files:**
 - Modify: `src/vnr_etl/discovery/official.py`
 - Modify: `src/vnr_etl/discovery/download.py`
-- Modify: `src/igea_dgs/web/app.py`
-- Modify: `src/igea_dgs/web/workspace.py`
+- Modify: `src/convertersmartgrid/web/app.py`
+- Modify: `src/convertersmartgrid/web/workspace.py`
 - Test: `tests/test_vnr_official_web.py`
 
 **Interfaces:**
@@ -136,9 +136,9 @@
 ### Task 5: Preparación por alimentador y selección uniforme
 
 **Files:**
-- Create: `src/igea_dgs/web/readiness.py`
-- Modify: `src/igea_dgs/web/services.py`
-- Modify: `src/igea_dgs/web/app.py`
+- Create: `src/convertersmartgrid/web/readiness.py`
+- Modify: `src/convertersmartgrid/web/services.py`
+- Modify: `src/convertersmartgrid/web/app.py`
 - Modify: `tests/test_inventory.py`
 - Modify: `tests/test_web_api.py`
 
@@ -167,7 +167,7 @@
 - Modify: `frontend/src/components/InputsPanel.tsx`
 - Modify: `frontend/src/components/FeedersPanel.tsx`
 - Modify: `frontend/src/styles.css`
-- Modify: `src/igea_dgs/web/app.py`
+- Modify: `src/convertersmartgrid/web/app.py`
 - Test: `tests/test_web_api.py`
 
 **Interfaces:**
@@ -192,7 +192,7 @@
 ### Task 7: Puerta de procedencia en PowerFactory
 
 **Files:**
-- Modify: `src/igea_dgs/web/services.py`
+- Modify: `src/convertersmartgrid/web/services.py`
 - Modify: `tools/powerfactory_acceptance.py`
 - Modify: `tests/test_powerfactory_gate.py`
 - Modify: `tests/test_powerfactory_feeder_metadata.py`

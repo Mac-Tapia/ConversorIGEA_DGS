@@ -64,7 +64,7 @@ for _flujo in (sys.stdout, sys.stderr):
     except (AttributeError, ValueError):  # pragma: no cover
         pass
 
-from igea_dgs.catalog import (  # noqa: E402
+from convertersmartgrid.catalog import (  # noqa: E402
     CATALOG_FILENAME,
     Cambio,
     CatalogError,
@@ -74,14 +74,14 @@ from igea_dgs.catalog import (  # noqa: E402
     input_dir,
     leer_catalogo,
 )
-from igea_dgs.model import build_feeder_model  # noqa: E402
+from convertersmartgrid.model import build_feeder_model  # noqa: E402
 
 
 def _cargar_dataset(args: argparse.Namespace):
     if args.mdb:
-        from igea_dgs.access import read_access_dataset
+        from convertersmartgrid.access import read_access_dataset
         return read_access_dataset(args.mdb, equipment_path=args.equipment_mdb)
-    from igea_dgs.dataset import CymdistDataset
+    from convertersmartgrid.dataset import CymdistDataset
     return CymdistDataset.from_files(args.red, args.cargas, args.equipos)
 
 
@@ -275,11 +275,11 @@ def main(argv: list[str] | None = None) -> int:
     # aquí la escritura del DGS habría dejado fuera la georreferenciación, su
     # validación y la publicación atómica, y habría creado una segunda ruta de
     # conversión que se desviaría de la primera en cuanto una cambiase.
-    from igea_dgs.batch import convert_selection
-    from igea_dgs.perfil_empresa import cargar_perfil
+    from convertersmartgrid.batch import convert_selection
+    from convertersmartgrid.perfil_empresa import cargar_perfil
     from dataclasses import replace
 
-    from igea_dgs.reglas import REGLAS_PROYECTO, reglas_de_perfil
+    from convertersmartgrid.reglas import REGLAS_PROYECTO, reglas_de_perfil
 
     perfil = cargar_perfil()
     out_dir = Path(args.out_dir)

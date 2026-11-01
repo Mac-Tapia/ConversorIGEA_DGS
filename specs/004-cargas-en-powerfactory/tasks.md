@@ -2,7 +2,7 @@
 
 Una tarea cada vez, pruebas primero. Al terminarla: suite en verde y `- [x]`.
 
-- [x] T1. `igea_dgs/cargas_pf.py`: lee los libros de demandas y de cargas nuevas sin
+- [x] T1. `convertersmartgrid/cargas_pf.py`: lee los libros de demandas y de cargas nuevas sin
       modelo, valida cada fila, pasa coordenadas a WGS84 y arma el plan. (RF-1, RF-5)
       Hecho cuando: pruebas con libros sorteados de varios alimentadores, sin dataset.
       Hecho el 2026-10-08 (`tests/test_cargas_pf.py`). Una fila con error se informa y no
@@ -36,7 +36,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde y `- [x]`.
       Hecho cuando: ninguna referencia a ellos y suite en verde.
       Hecho el 2026-10-09: fuera los tres guiones, `loads_create.py`, `web/load_batch.py` y
       sus pruebas; `services.proyecto_pf_de` también (el proyecto lo elige el operador).
-- [x] T9. `igea_dgs/demanda_medida.py`, cabecera: medidores por alimentador, índice de
+- [x] T9. `convertersmartgrid/demanda_medida.py`, cabecera: medidores por alimentador, índice de
       hojas, hoja del medidor (entera o partida), columnas por alias, kW máximo con su
       registro, kVA/FP calculados, medidor no hallado. (RF-22, RF-24 a RF-32)
       Hecho cuando: pruebas con libros sintéticos de columnas sorteadas en verde.
@@ -47,7 +47,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde y `- [x]`.
       hojas completas con sufijo (`L-6613_PE`); celdas con dos medidores («A Y B»).
 - [x] T10. `demanda_medida.py`, clientes: suministros, resumen en los dos formatos,
       cruce actual → anterior, no cruzados, Excel de salida. (RF-33 a RF-38)
-      Hecho cuando: pruebas sintéticas en verde y, con `IGEA_DEMANDA_DIR`, con los reales.
+      Hecho cuando: pruebas sintéticas en verde y, con `CSG_DEMANDA_DIR`, con los reales.
       Hecho el 2026-10-09. Con los reales: 98 de 103 medidores con máxima (los otros 5,
       con motivo); clientes de enero a abril 257 cruzados (107 por el código anterior),
       de mayo a julio 253.
@@ -62,11 +62,11 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde y `- [x]`.
       del kW máximo desde las hojas de una magnitud del medidor o de sus hermanas, y unir
       el canal sin hoja con el medidor que ya lo da. (RF-44, RF-45)
       Hecho cuando: `pytest tests/test_demanda_medida.py` en verde y, con
-      `IGEA_DEMANDA_DIR`, IN111 de Ica sale con kW y kVAR en una sola fila.
+      `CSG_DEMANDA_DIR`, IN111 de Ica sale con kW y kVAR en una sola fila.
 - [x] T8. Validación: RF-1 a RF-41 citados, suite completa en verde, RF-14 de la 001
       igual; prueba real en DIgSILENT a cargo del usuario.
-      2026-10-09: RF-1 a RF-41 citados; suite completa con las cinco variables `IGEA_*` y
-      `IGEA_DEMANDA_DIR` en verde (948 correctas, 18 omitidas). Falta la prueba real en
+      2026-10-09: RF-1 a RF-41 citados; suite completa con las cinco variables `CSG_*` y
+      `CSG_DEMANDA_DIR` en verde (948 correctas, 18 omitidas). Falta la prueba real en
       DIgSILENT.
       Hecho cuando: `grep -rnoE "004:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-41 y la suite completa, en verde.
 - [x] T14. Demandas también en el escenario de operación: en el del caso en que se escriben
@@ -87,7 +87,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde y `- [x]`.
       libro de suministros el hueco se guarda sin elección, sin rechazar; en el índice de
       clientes, un libro sin «resumen» no se activa. (RF-62 a RF-65)
       Hecho cuando: pruebas sintéticas y de API en verde, `tsc` y `build` correctos, y con
-      `IGEA_DEMANDA_DIR` la carpeta de clientes no da candidatos de suministros.
+      `CSG_DEMANDA_DIR` la carpeta de clientes no da candidatos de suministros.
       Hecho el 2026-10-22: `referencia/4.-clientesimportantes` da 0 candidatos (5 libros de
       clientes avisados) y `3.-suministrocliente` elige «0926 Clientes_spl.xlsx».
 - [x] T17. Reactiva de las fijas en el registro de su POT: `registros_de_maxima` (hoja

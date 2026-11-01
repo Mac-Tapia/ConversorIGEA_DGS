@@ -37,7 +37,7 @@ def build(output_dir: Path) -> tuple[Path, Path]:
         "<!doctype html>\n<html lang=\"es\">\n<head>\n"
         "<meta charset=\"utf-8\">\n"
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
-        "<title>Arquitectura C4 interactiva - Conversor IGEA-DGS</title>\n"
+        "<title>Arquitectura C4 interactiva - ConverterSmartGrid</title>\n"
         f"<style>{SHELL_STYLE}</style>\n</head>\n<body>\n{fragment}\n</body>\n</html>\n",
         encoding="utf-8",
     )

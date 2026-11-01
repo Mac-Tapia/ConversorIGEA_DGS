@@ -4,7 +4,7 @@ Estado: borrador · Fecha: 2026-10-17 · Spec: [spec.md](spec.md)
 
 ## Piezas
 
-1. **Estructura de la empresa** — `src/igea_dgs/estructura.py` (nuevo). (RF-1 a RF-6, RF-25b)
+1. **Estructura de la empresa** — `src/convertersmartgrid/estructura.py` (nuevo). (RF-1 a RF-6, RF-25b)
    - `Estructura` (zonales → SET → alimentadores, con sistema eléctrico, sector y norma),
      indexada por código de alimentador una vez (escala).
    - `estructura_de_perfil(datos)` lee `estructura` del perfil, que puede apuntar a un
@@ -16,7 +16,7 @@ Estado: borrador · Fecha: 2026-10-17 · Spec: [spec.md](spec.md)
    - Alternativa descartada: leer la SET del nombre de la cabecera; no la traen ni TXT, ni
      MDB, ni VNR (sección `SOURCE`: alimentador, nodo y tensión).
 
-2. **Red unida estructurada** — `src/igea_dgs/combine.py`. (RF-7, RF-10 a RF-14, RF-21,
+2. **Red unida estructurada** — `src/convertersmartgrid/combine.py`. (RF-7, RF-10 a RF-14, RF-21,
    RF-26, RF-27)
    - `CombinedInfo` gana `sets` (SET → barras por tensión, con sus coordenadas), `zonales`,
      `zona_de` (alimentador → sistema eléctrico) y `cabeceras` (alimentador → interruptor).
@@ -26,7 +26,7 @@ Estado: borrador · Fecha: 2026-10-17 · Spec: [spec.md](spec.md)
    - Los enlaces (`TiePoint`) ya existen como nodos compartidos; se les añaden las dos SET
      (RF-27).
 
-3. **Enlaces y radialidad** — `src/igea_dgs/enlaces.py` (nuevo). (RF-26, RF-29 a RF-31,
+3. **Enlaces y radialidad** — `src/convertersmartgrid/enlaces.py` (nuevo). (RF-26, RF-29 a RF-31,
    RF-34)
    - Grafo de la red unida con los tramos y maniobras cerrados; recorrido desde cada barra
      de SET (el `arbol` de `troncal.py`, por metros). Una arista que vuelve a una barra ya
@@ -36,14 +36,14 @@ Estado: borrador · Fecha: 2026-10-17 · Spec: [spec.md](spec.md)
      distancia, el nombre.
    - Devuelve la lista de aperturas con su motivo para el modelo y el informe.
 
-4. **Oráculo de la red unida** — `src/igea_dgs/oraculo.py`. (RF-28, RF-32, RF-33)
+4. **Oráculo de la red unida** — `src/convertersmartgrid/oraculo.py`. (RF-28, RF-32, RF-33)
    - `red_pandapower` acepta la red unida: barras de SET con su red externa, interruptores
      de cabecera, enlaces abiertos. `validar_unida(model)` calcula el flujo una vez y da el
      veredicto por SET y zonal (la isla de cada barra de SET).
    - Si no converge, cada isla sola, y la barra de mayor desajuste de la isla que falla
      (lo que se hizo a mano en NA205 el 2026-10-17).
 
-5. **Escritor DGS** — `src/igea_dgs/dgs.py` y el esquema `schemas/pf21_dgs_1_8_4.json`.
+5. **Escritor DGS** — `src/convertersmartgrid/dgs.py` y el esquema `schemas/pf21_dgs_1_8_4.json`.
    (RF-8, RF-9, RF-11, RF-12, RF-14 a RF-18b, RF-27)
    - Un `ElmNet` por zonal; cada elemento con el `fold_id` de la red de su alimentador; las
      barras de SET dentro de su `ElmSubstat` («SET 21 El Carmen»).

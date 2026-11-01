@@ -11,7 +11,7 @@ import pytest
 
 def _runtime_module():
     try:
-        return importlib.import_module('igea_dgs.web.runtime')
+        return importlib.import_module('convertersmartgrid.web.runtime')
     except ModuleNotFoundError:
         pytest.fail('falta el comprobador único de dependencias del lanzador web')
 
@@ -21,7 +21,7 @@ def test_runtime_probe_covers_all_three_source_modes():
 
     required = set(runtime.REQUIRED_MODULES)
 
-    assert {'igea_dgs', 'pyproj', 'fastapi', 'uvicorn', 'multipart'} <= required
+    assert {'convertersmartgrid', 'pyproj', 'fastapi', 'uvicorn', 'multipart'} <= required
     assert {'vnr_etl', 'requests', 'shapely', 'networkx', 'yaml', 'geopandas'} <= required
 
 

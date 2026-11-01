@@ -3,7 +3,7 @@
 
 Para cada año pedido escala la demanda con el factor de escala de cargas del ``ComLdf``
 ((1 + tasa)^año), ejecuta el flujo en el caso pedido y diagnostica con la norma del perfil
-(``igea_dgs.pide``). Al terminar devuelve el factor a su valor: no crea ni guarda nada en
+(``convertersmartgrid.pide``). Al terminar devuelve el factor a su valor: no crea ni guarda nada en
 el proyecto.
 
     python tools/pide_pf.py --plan plan.json --output-json informe.json
@@ -34,9 +34,9 @@ from casos_pf import caso as caso_del_sistema
 from digital_twin_snapshot_pf import CASOS, _caso, resultados
 from estudios_pf import _num
 
-from igea_dgs.digital_twin.native_snapshot import identidad_nativa
-from igea_dgs.native_action import native_action_block_report
-from igea_dgs.pide import diagnosticar
+from convertersmartgrid.digital_twin.native_snapshot import identidad_nativa
+from convertersmartgrid.native_action import native_action_block_report
+from convertersmartgrid.pide import diagnosticar
 
 
 #: Los casos de cada año del PIDE, con su papel y su nombre (030:RF-1).
@@ -312,7 +312,7 @@ def main(argv=None) -> int:
         salida.write_text(json.dumps(blocked, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
         print(blocked['error'])
         return 2
-    from igea_dgs.pf_arnes import PFNoDisponible, conectar
+    from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
 
     try:
         app = conectar('pide_pf.py')

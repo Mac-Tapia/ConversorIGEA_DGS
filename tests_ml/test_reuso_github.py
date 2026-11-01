@@ -7,15 +7,15 @@ import numpy as np
 import torch
 import pytest
 
-from igea_dgs.digital_twin import oraculo
+from convertersmartgrid.digital_twin import oraculo
 
 
 @pytest.fixture(autouse=True)
 def gpu_exclusiva():
     """043:RF-6 — estos ensayos respetan la misma exclusión que el coordinador."""
-    from igea_dgs.training_coordinator import BloqueoGPU
-    ruta = Path(os.environ.get('IGEA_ML_GPU_LOCK') or
-                str(Path(tempfile.gettempdir()) / 'igea-dgs-gpu.lock'))
+    from convertersmartgrid.training_coordinator import BloqueoGPU
+    ruta = Path(os.environ.get('CSG_ML_GPU_LOCK') or
+                str(Path(tempfile.gettempdir()) / 'convertersmartgrid-gpu.lock'))
     with BloqueoGPU(ruta, 'ensayo-powerflownet'):
         yield
 
@@ -31,7 +31,7 @@ def grafo():
 
 def test_powerflownet_clonado_entrena_en_cuda(tmp_path):
     """045:RF-8 — forward, gradiente, fronteras y descenso de pérdida con el MPN real."""
-    from igea_dgs.digital_twin.adaptador_pyg import crear_red_powerflownet
+    from convertersmartgrid.digital_twin.adaptador_pyg import crear_red_powerflownet
     torch.manual_seed(11)
     muestra = oraculo.muestra(grafo())
     dispositivo = oraculo.dispositivo()

@@ -6,9 +6,9 @@ Estado: aprobada (2026-10-08) · Fecha: 2026-10-08 · Depende de: spec 001 cumpl
 
 El conversor va a crecer con módulos nuevos: otras entradas, otras salidas, estudios
 (flujo de carga, cortocircuito, pérdidas) y automatización de PowerFactory. Hoy no está
-preparado para ello. `igea_dgs` son 40 módulos planos sin fronteras, y `igea_dgs` y
+preparado para ello. `convertersmartgrid` son 40 módulos planos sin fronteras, y `convertersmartgrid` y
 `vnr_etl` se importan en ciclo: `vnr_etl` usa `dataset`, `schema` y `validate`, y
-`igea_dgs.web` usa `vnr_etl`. Además, `reglas.py` depende de `powerfactory_env`,
+`convertersmartgrid.web` usa `vnr_etl`. Además, `reglas.py` depende de `powerfactory_env`,
 `web/services.py` importa 22 módulos y `web/source_scope.py` usa funciones privadas de
 `vnr_etl.pipeline`. Con esta forma, cada módulo nuevo toca a los demás. El objetivo es
 la forma de CYME, PowerFactory o ETAP: un núcleo con un único modelo de red, módulos
@@ -47,7 +47,7 @@ NA205 (`dgs.py`). Esta spec las lleva a un perfil de empresa.
 
 Capas (backend)
 
-- RF-1: EL SISTEMA organizará el código Python en un único paquete `igea_dgs` con las
+- RF-1: EL SISTEMA organizará el código Python en un único paquete `convertersmartgrid` con las
   capas `dominio`, `puertos`, `aplicacion`, `adaptadores` y `presentacion`, en ese orden
   de abajo arriba: los casos de uso de `aplicacion` usan los puertos, y los adaptadores
   los implementan.
@@ -56,12 +56,12 @@ Capas (backend)
 - RF-3: SI la capa `dominio` importa FastAPI, Tkinter, `powerfactory`, un driver de base
   de datos o cualquier módulo de `adaptadores` o `presentacion`, ENTONCES la comprobación
   de capas fallará.
-- RF-4: SI dos módulos de `igea_dgs` se importan en ciclo, directa o indirectamente,
+- RF-4: SI dos módulos de `convertersmartgrid` se importan en ciclo, directa o indirectamente,
   ENTONCES la comprobación de capas fallará.
-- RF-5: SI un módulo de `igea_dgs` importa un nombre privado (con prefijo `_`) de otro
+- RF-5: SI un módulo de `convertersmartgrid` importa un nombre privado (con prefijo `_`) de otro
   módulo, ENTONCES la comprobación de capas fallará. Las pruebas de `tests/` quedan
   fuera: pueden probar funciones privadas.
-- RF-6: EL SISTEMA integrará `vnr_etl` dentro de `igea_dgs` como adaptador de entrada
+- RF-6: EL SISTEMA integrará `vnr_etl` dentro de `convertersmartgrid` como adaptador de entrada
   VNR-GIS y su descubrimiento de publicaciones, sin un paquete de nivel superior aparte.
 
 Puertos y módulos
@@ -69,7 +69,7 @@ Puertos y módulos
 - RF-7: EL SISTEMA definirá en `puertos` las interfaces `LectorDeRed`, `EscritorDeRed`,
   `Estudio` y `SesionPowerFactory`.
 - RF-8: CUANDO un paquete instalado declara un módulo en el grupo de entry points
-  `igea_dgs.modulos`, EL SISTEMA lo descubrirá sin cambiar el código del núcleo.
+  `convertersmartgrid.modulos`, EL SISTEMA lo descubrirá sin cambiar el código del núcleo.
 - RF-9: EL SISTEMA registrará sus propios lectores (TXT, MDB, VNR-GIS) y su escritor DGS
   por la misma vía de entry points que un módulo externo.
 - RF-10: EL SISTEMA cargará los módulos ordenados por su nombre declarado, de modo que el
@@ -93,7 +93,7 @@ Puertos y módulos
 - RF-26: SI una dependencia de un módulo externo no está instalada, ENTONCES EL SISTEMA
   excluirá ese módulo y arrancará igual.
 - RF-27: EL SISTEMA tratará como internos los módulos que declara la distribución
-  `igea-dgs`, que no necesitan figurar en la lista de módulos permitidos; cualquier otro
+  `convertersmartgrid`, que no necesitan figurar en la lista de módulos permitidos; cualquier otro
   es externo.
 - RF-28: SI los entry points instalados no coinciden con los que declara
   `pyproject.toml`, ENTONCES la suite fallará con un mensaje que pida reinstalar con
@@ -141,9 +141,9 @@ Compatibilidad
 - RF-20: EL SISTEMA producirá, para la misma entrada, perfil y alias, los mismos DGS byte
   a byte que antes de esta spec.
 - RF-21: EL SISTEMA no conservará, al cumplirse esta spec, reexportaciones desde las
-  rutas de importación antiguas (`igea_dgs.batch`, `vnr_etl.*`…); `tools/` y las pruebas
+  rutas de importación antiguas (`convertersmartgrid.batch`, `vnr_etl.*`…); `tools/` y las pruebas
   usarán las nuevas.
-- RF-22: EL SISTEMA mantendrá los comandos `igea-dgs`, `igea-dgs-web` y `vnr-etl` con
+- RF-22: EL SISTEMA mantendrá los comandos `convertersmartgrid`, `convertersmartgrid-web` y `vnr-etl` con
   los mismos argumentos (`vnr-etl-web` lo retira la spec 001).
 
 ## Requisitos no funcionales
@@ -190,7 +190,7 @@ Compatibilidad
 
 - Cada RF lo cita al menos una prueba: `grep -rnoE "002:RF-[0-9]+" tests frontend | sort -u`
   lista RF-1 a RF-37.
-- Suite en verde con las tres variables `IGEA_*`, y la comprobación de capas incluida en
+- Suite en verde con las tres variables `CSG_*`, y la comprobación de capas incluida en
   `pytest -q`.
 - RF-20 comprobado contra la línea base de DGS de la spec 001 (T1).
 - `npx tsc --noEmit -p frontend`, `npm run build` y el lint del frontend correctos.

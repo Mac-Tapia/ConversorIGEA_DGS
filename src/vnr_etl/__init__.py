@@ -1,11 +1,11 @@
-"""vnr_etl — módulo adicional del conversor IGEA-DGS.
+"""vnr_etl — módulo adicional del conversor ConverterSmartGrid.
 
 ETL universal y auditable para llevar fuentes OSINERGMIN / VNRGIS / GIS de
 empresa / bases de datos a un **modelo canónico** eléctrico y, de ahí, a
 CYMDIST o DIgSILENT PowerFactory.
 
-Es un módulo **independiente** que convive con ``igea_dgs`` sin tocarlo: se
-implementa solo lo que ``igea_dgs`` no tiene (descubrimiento, adaptadores de
+Es un módulo **independiente** que convive con ``convertersmartgrid`` sin tocarlo: se
+implementa solo lo que ``convertersmartgrid`` no tiene (descubrimiento, adaptadores de
 fuente, modelo canónico, CRS/snapping, topología, enriquecimiento y puertas de
 validación) y, donde corresponde, se **reutiliza** el escritor DGS existente en
 lugar de reescribirlo (ver AUDIT/integration_plan.md).

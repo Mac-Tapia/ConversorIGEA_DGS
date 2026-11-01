@@ -23,7 +23,7 @@ def _ctx():
 
 
 def _txt_workspace(tmp_path, *, feeders: int = 2):
-    from igea_dgs.web.workspace import Workspace
+    from convertersmartgrid.web.workspace import Workspace
 
     red, loads, equipment = write_export(ExportSpec(feeders=feeders), tmp_path / 'export')
     ws = Workspace(id='adapter-tests', root=tmp_path / 'workspace')
@@ -34,9 +34,9 @@ def _txt_workspace(tmp_path, *, feeders: int = 2):
 
 
 def test_txt_adapter_paridad_con_lector_actual(tmp_path):
-    from igea_dgs.dataset import CymdistDataset
-    from igea_dgs.web.source_runs import create_source_run
-    from igea_dgs.web.sources import adapter_for
+    from convertersmartgrid.dataset import CymdistDataset
+    from convertersmartgrid.web.source_runs import create_source_run
+    from convertersmartgrid.web.sources import adapter_for
 
     ws, originals = _txt_workspace(tmp_path)
     expected = CymdistDataset.from_files(*originals)
@@ -53,9 +53,9 @@ def test_txt_adapter_paridad_con_lector_actual(tmp_path):
 
 
 def test_mdb_adapter_paridad_con_lector_actual(tmp_path, monkeypatch):
-    from igea_dgs.web.source_runs import create_source_run
-    from igea_dgs.web.sources import adapter_for
-    from igea_dgs.web.workspace import Workspace
+    from convertersmartgrid.web.source_runs import create_source_run
+    from convertersmartgrid.web.sources import adapter_for
+    from convertersmartgrid.web.workspace import Workspace
 
     mdb = tmp_path / 'red.mdb'
     mdb.write_bytes(b'base access de prueba')
@@ -70,7 +70,7 @@ def test_mdb_adapter_paridad_con_lector_actual(tmp_path, monkeypatch):
         called.update(path=path, equipment_db=equipment_db, networks=networks)
         return expected
 
-    monkeypatch.setattr('igea_dgs.access.read_access_dataset', fake_reader)
+    monkeypatch.setattr('convertersmartgrid.access.read_access_dataset', fake_reader)
 
     result = adapter_for('mdb').load(snapshot, aliases={})
 
@@ -81,8 +81,8 @@ def test_mdb_adapter_paridad_con_lector_actual(tmp_path, monkeypatch):
 
 
 def test_adapter_rechaza_slot_de_otro_modo(tmp_path):
-    from igea_dgs.web.source_runs import SourceFile, SourceSnapshot
-    from igea_dgs.web.sources import SourceModeError, adapter_for
+    from convertersmartgrid.web.source_runs import SourceFile, SourceSnapshot
+    from convertersmartgrid.web.sources import SourceModeError, adapter_for
 
     foreign = tmp_path / 'red.mdb'
     foreign.write_bytes(b'mdb')
@@ -100,7 +100,7 @@ def test_adapter_rechaza_slot_de_otro_modo(tmp_path):
 
 
 def test_load_crea_run_antes_de_leer_y_usa_su_salida(tmp_path):
-    from igea_dgs.web import services
+    from convertersmartgrid.web import services
 
     ws, originals = _txt_workspace(tmp_path)
 
@@ -117,8 +117,8 @@ def test_load_crea_run_antes_de_leer_y_usa_su_salida(tmp_path):
 
 
 def test_convert_rechaza_source_run_mismatch(tmp_path):
-    from igea_dgs.web import services
-    from igea_dgs.web.source_runs import create_source_run
+    from convertersmartgrid.web import services
+    from convertersmartgrid.web.source_runs import create_source_run
 
     ws, _originals = _txt_workspace(tmp_path)
     services.load_dataset(ws, _ctx())
@@ -133,7 +133,7 @@ def test_convert_rechaza_source_run_mismatch(tmp_path):
 def test_conversion_estampa_run_en_manifiesto_y_metadata(tmp_path):
     import json
 
-    from igea_dgs.web import services
+    from convertersmartgrid.web import services
 
     ws, _originals = _txt_workspace(tmp_path, feeders=1)
     services.load_dataset(ws, _ctx())
@@ -155,7 +155,7 @@ def test_conversion_estampa_run_en_manifiesto_y_metadata(tmp_path):
 def test_conversion_unida_estampa_el_mismo_run(tmp_path):
     import json
 
-    from igea_dgs.web import services
+    from convertersmartgrid.web import services
 
     ws, _originals = _txt_workspace(tmp_path, feeders=2)
     services.load_dataset(ws, _ctx())
@@ -178,8 +178,8 @@ def test_conversion_unida_estampa_el_mismo_run(tmp_path):
 
 
 def test_conversion_unida_rechaza_source_run_mismatch(tmp_path):
-    from igea_dgs.web import services
-    from igea_dgs.web.source_runs import create_source_run
+    from convertersmartgrid.web import services
+    from convertersmartgrid.web.source_runs import create_source_run
 
     ws, _originals = _txt_workspace(tmp_path, feeders=2)
     services.load_dataset(ws, _ctx())

@@ -8,7 +8,7 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 
-from igea_dgs.dataset import CymdistDataset
+from convertersmartgrid.dataset import CymdistDataset
 
 
 def _dataset() -> CymdistDataset:
@@ -37,7 +37,7 @@ def _fingerprint(dataset: CymdistDataset) -> str:
 
 
 def test_reconstruction_never_mutates_original_dataset():
-    from igea_dgs.reconstruction import ReconstructionPolicy, reconstruct_dataset
+    from convertersmartgrid.reconstruction import ReconstructionPolicy, reconstruct_dataset
 
     dataset = _dataset()
     before = _fingerprint(dataset)
@@ -52,7 +52,7 @@ def test_reconstruction_never_mutates_original_dataset():
 
 
 def test_every_changed_field_has_original_and_evidence():
-    from igea_dgs.reconstruction import (
+    from convertersmartgrid.reconstruction import (
         EvidenceLevel,
         ReconstructionPolicy,
         reconstruct_dataset,
@@ -83,7 +83,7 @@ def test_every_changed_field_has_original_and_evidence():
 
 
 def test_reconstruction_report_serializes_enums_paths_and_tuples():
-    from igea_dgs.reconstruction import (
+    from convertersmartgrid.reconstruction import (
         EvidenceLevel,
         ReconstructionPolicy,
         reconstruct_dataset,
@@ -107,7 +107,7 @@ def test_reconstruction_report_serializes_enums_paths_and_tuples():
 def test_record_change_rejects_untraceable_or_noop_decisions():
     import pytest
 
-    from igea_dgs.reconstruction import (
+    from convertersmartgrid.reconstruction import (
         EvidenceLevel,
         ReconstructionDecision,
         ReconstructionReport,

@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 def test_packaged_schema_has_exact_core_headers_and_no_reference_dependency():
-    from igea_dgs.schema import load_schema
+    from convertersmartgrid.schema import load_schema
 
     schema = load_schema('pf21_dgs_1_8_4')
     assert schema.general_version == '7.0'

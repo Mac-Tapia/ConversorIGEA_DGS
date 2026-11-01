@@ -2,7 +2,7 @@
 
 Spec 034: 034:RF-13.
 """
-from igea_dgs.dgs import write_dgs
+from convertersmartgrid.dgs import write_dgs
 
 
 def _generated(model, tmp_path):
@@ -12,7 +12,7 @@ def _generated(model, tmp_path):
 
 
 def test_clean_sample_passes_strict_validation(sample_model, tmp_path):
-    from igea_dgs.validate import validate_dgs
+    from convertersmartgrid.validate import validate_dgs
 
     p = _generated(sample_model, tmp_path)
     report = validate_dgs(sample_model, p)
@@ -26,7 +26,7 @@ def test_clean_sample_passes_strict_validation(sample_model, tmp_path):
 
 
 def test_duplicate_fid_is_detected(sample_model, tmp_path):
-    from igea_dgs.validate import validate_dgs
+    from convertersmartgrid.validate import validate_dgs
 
     p = _generated(sample_model, tmp_path)
     lines = p.read_text(encoding='utf-8').splitlines()
@@ -41,7 +41,7 @@ def test_duplicate_fid_is_detected(sample_model, tmp_path):
 
 
 def test_dangling_type_pointer_is_detected(sample_model, tmp_path):
-    from igea_dgs.validate import validate_dgs, parse_dgs
+    from convertersmartgrid.validate import validate_dgs, parse_dgs
 
     p = _generated(sample_model, tmp_path)
     tables = parse_dgs(p)
@@ -56,7 +56,7 @@ def test_dangling_type_pointer_is_detected(sample_model, tmp_path):
 
 
 def test_missing_line_cubic_is_detected(sample_model, tmp_path):
-    from igea_dgs.validate import validate_dgs, parse_dgs
+    from convertersmartgrid.validate import validate_dgs, parse_dgs
 
     p = _generated(sample_model, tmp_path)
     tables = parse_dgs(p)
@@ -69,7 +69,7 @@ def test_missing_line_cubic_is_detected(sample_model, tmp_path):
 
 
 def test_switch_parent_must_be_a_cubic(sample_model, tmp_path):
-    from igea_dgs.validate import validate_dgs, parse_dgs
+    from convertersmartgrid.validate import validate_dgs, parse_dgs
 
     if not sample_model.devices:
         return
@@ -85,7 +85,7 @@ def test_switch_parent_must_be_a_cubic(sample_model, tmp_path):
 
 
 def test_line_length_mismatch_is_detected(sample_model, tmp_path):
-    from igea_dgs.validate import validate_dgs, parse_dgs
+    from convertersmartgrid.validate import validate_dgs, parse_dgs
 
     p = _generated(sample_model, tmp_path)
     tables = parse_dgs(p)

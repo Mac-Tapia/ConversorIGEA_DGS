@@ -13,7 +13,7 @@ from synthetic_export import ExportSpec, load_export
 
 
 def _workspace(tmp_path, *, mode: str, blocked: bool = False):
-    from igea_dgs.web.workspace import Workspace
+    from convertersmartgrid.web.workspace import Workspace
 
     ws = Workspace(id='readiness', root=tmp_path)
     ws.loaded_source_mode = mode
@@ -41,7 +41,7 @@ def _workspace(tmp_path, *, mode: str, blocked: bool = False):
 
 @pytest.mark.parametrize('mode', ['txt', 'mdb', 'vnr'])
 def test_selection_one_many_all_is_identical_for_every_source_mode(tmp_path, mode):
-    from igea_dgs.web.services import check_selection_readiness
+    from convertersmartgrid.web.services import check_selection_readiness
 
     ws = _workspace(tmp_path, mode=mode)
     assert check_selection_readiness(ws, ['AL101'], False) == ['AL101']
@@ -51,7 +51,7 @@ def test_selection_one_many_all_is_identical_for_every_source_mode(tmp_path, mod
 
 @pytest.mark.parametrize('mode', ['txt', 'mdb', 'vnr'])
 def test_mixed_selection_fails_as_one_batch_for_every_source_mode(tmp_path, mode):
-    from igea_dgs.web.services import UserError, check_selection_readiness
+    from convertersmartgrid.web.services import UserError, check_selection_readiness
 
     ws = _workspace(tmp_path, mode=mode, blocked=True)
     with pytest.raises(UserError, match=r'FEEDER_NOT_CONVERSION_READY.*AL102.*MISSING_CONDUCTOR'):
@@ -59,7 +59,7 @@ def test_mixed_selection_fails_as_one_batch_for_every_source_mode(tmp_path, mode
 
 
 def test_exact_catalogue_is_required_per_feeder(tmp_path):
-    from igea_dgs.web.readiness import assess_feeder_readiness
+    from convertersmartgrid.web.readiness import assess_feeder_readiness
 
     ds = load_export(ExportSpec(feeders=2), tmp_path / 'export')
     feeder = ds.feeder_ids()[0]
@@ -74,7 +74,7 @@ def test_exact_catalogue_is_required_per_feeder(tmp_path):
 
 
 def test_feeder_rows_expose_source_and_readiness(tmp_path):
-    from igea_dgs.web.services import feeder_rows
+    from convertersmartgrid.web.services import feeder_rows
 
     ws = _workspace(tmp_path, mode='vnr', blocked=True)
     ws.loaded_source_fingerprint = 'sha256:test'
@@ -87,7 +87,7 @@ def test_feeder_rows_expose_source_and_readiness(tmp_path):
 
 
 def test_conversion_preflight_runs_before_converter_writes(tmp_path, monkeypatch):
-    from igea_dgs.web import services
+    from convertersmartgrid.web import services
 
     ws = _workspace(tmp_path, mode='vnr', blocked=True)
     ws.dataset = SimpleNamespace()
@@ -102,7 +102,7 @@ def test_conversion_preflight_runs_before_converter_writes(tmp_path, monkeypatch
         nonlocal called
         called = True
 
-    monkeypatch.setattr('igea_dgs.batch.convert_selection', forbidden)
+    monkeypatch.setattr('convertersmartgrid.batch.convert_selection', forbidden)
     ctx = SimpleNamespace(log=lambda _message: None)
     with pytest.raises(services.UserError, match='FEEDER_NOT_CONVERSION_READY'):
         services.convert(ws, ctx, ['AL101', 'AL102'], False)

@@ -10,7 +10,7 @@ Estado: cumplida (revisión 033 del 2026-10-29) · aprobada (2026-10-16) · Fech
 
 ## Contexto y objetivo
 
-La calibración de PA217 (`20261016-094237_IGEA_PA217`, 2026-10-16) no era válida y la web
+La calibración de PA217 (`20261016-094237_CSG_PA217`, 2026-10-16) no era válida y la web
 solo decía «las cargas no consumen en el flujo lo que tienen escrito». La causa estaba en
 el modelo, no en las cargas: la SED fija SE30940 recibía los 3818 kVA de su cliente sobre
 un transformador de 400 kVA (955 %), y SE30642, SE30480 y SE30424 también pedían más que

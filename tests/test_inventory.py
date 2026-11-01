@@ -5,12 +5,12 @@ Spec 034: 034:RF-28.
 
 from __future__ import annotations
 
-from igea_dgs.inventory import build_dataset_inventory, format_inventory_report, write_inventory
+from convertersmartgrid.inventory import build_dataset_inventory, format_inventory_report, write_inventory
 
 
 def test_inventory_on_referencia_dataset(ds):
     inv = build_dataset_inventory(ds)
-    assert inv['format'] == 'igea-dgs-dataset-inventory-v1'
+    assert inv['format'] == 'convertersmartgrid-dataset-inventory-v1'
     totals = inv['totals']
     assert totals['feeders'] == len(ds.feeder_ids())
     assert totals['sections'] == len(ds.sections)
@@ -37,5 +37,5 @@ def test_write_inventory_json(ds, tmp_path):
     path = write_inventory(inv, tmp_path / 'dataset_inventory.json')
     assert path.is_file()
     text = path.read_text(encoding='utf-8')
-    assert '"igea-dgs-dataset-inventory-v1"' in text
+    assert '"convertersmartgrid-dataset-inventory-v1"' in text
     assert '"expected_dgs_files"' in text

@@ -1,6 +1,6 @@
-<div id="igea-c4-flow" class="igea-c4">
+<div id="csg-c4-flow" class="csg-c4">
   <style>
-    #igea-c4-flow {
+    #csg-c4-flow {
       --flow-duration: 1400ms;
       color: var(--foreground);
       background: transparent;
@@ -10,94 +10,94 @@
       min-width: 0;
       overflow-x: clip;
     }
-    #igea-c4-flow * { box-sizing: border-box; }
-    #igea-c4-flow [hidden] { display: none !important; }
-    #igea-c4-flow .c4-heading { margin: 0 0 0.35rem; font-weight: 500; }
-    #igea-c4-flow .c4-subtitle { margin: 0 0 0.8rem; color: var(--muted-foreground); overflow-wrap: anywhere; }
-    #igea-c4-flow .c4-toolbar,
-    #igea-c4-flow .c4-view-tabs,
-    #igea-c4-flow .c4-actions {
+    #csg-c4-flow * { box-sizing: border-box; }
+    #csg-c4-flow [hidden] { display: none !important; }
+    #csg-c4-flow .c4-heading { margin: 0 0 0.35rem; font-weight: 500; }
+    #csg-c4-flow .c4-subtitle { margin: 0 0 0.8rem; color: var(--muted-foreground); overflow-wrap: anywhere; }
+    #csg-c4-flow .c4-toolbar,
+    #csg-c4-flow .c4-view-tabs,
+    #csg-c4-flow .c4-actions {
       display: flex;
       flex-wrap: wrap;
       gap: 0.45rem;
       align-items: center;
     }
-    #igea-c4-flow .c4-toolbar { justify-content: space-between; margin-bottom: 0.65rem; }
-    #igea-c4-flow .c4-speed { display: flex; gap: 0.45rem; align-items: center; }
-    #igea-c4-flow .c4-speed input { width: 8rem; }
-    #igea-c4-flow .c4-stage {
+    #csg-c4-flow .c4-toolbar { justify-content: space-between; margin-bottom: 0.65rem; }
+    #csg-c4-flow .c4-speed { display: flex; gap: 0.45rem; align-items: center; }
+    #csg-c4-flow .c4-speed input { width: 8rem; }
+    #csg-c4-flow .c4-stage {
       position: relative;
       min-height: 520px;
     }
-    #igea-c4-flow .c4-canvas {
+    #csg-c4-flow .c4-canvas {
       display: block;
       width: 100%;
       height: auto;
       min-height: 520px;
     }
-    #igea-c4-flow .c4-frame {
+    #csg-c4-flow .c4-frame {
       fill: none;
       stroke: var(--border);
       stroke-width: 1;
     }
-    #igea-c4-flow .c4-boundary {
+    #csg-c4-flow .c4-boundary {
       fill: color-mix(in srgb, var(--muted) 55%, transparent);
       stroke: var(--border);
       stroke-width: 1.5;
       stroke-dasharray: 8 5;
     }
-    #igea-c4-flow .c4-boundary-label {
+    #csg-c4-flow .c4-boundary-label {
       fill: var(--muted-foreground);
       font-size: 14px;
       font-weight: 500;
     }
-    #igea-c4-flow .c4-node { color: var(--viz-series-1); }
-    #igea-c4-flow .c4-node[data-kind="external"] { color: var(--viz-series-2); }
-    #igea-c4-flow .c4-node[data-kind="native"] { color: var(--viz-series-3); }
-    #igea-c4-flow .c4-node[data-kind="ai"] { color: var(--viz-series-4); }
-    #igea-c4-flow .c4-node[data-kind="store"] { color: var(--viz-series-5); }
-    #igea-c4-flow .c4-node rect {
+    #csg-c4-flow .c4-node { color: var(--viz-series-1); }
+    #csg-c4-flow .c4-node[data-kind="external"] { color: var(--viz-series-2); }
+    #csg-c4-flow .c4-node[data-kind="native"] { color: var(--viz-series-3); }
+    #csg-c4-flow .c4-node[data-kind="ai"] { color: var(--viz-series-4); }
+    #csg-c4-flow .c4-node[data-kind="store"] { color: var(--viz-series-5); }
+    #csg-c4-flow .c4-node rect {
       fill: color-mix(in srgb, currentColor 12%, var(--card));
       stroke: color-mix(in srgb, currentColor 65%, var(--border));
       stroke-width: 2;
       rx: 12;
     }
-    #igea-c4-flow .c4-node:hover rect,
-    #igea-c4-flow .c4-node:focus rect,
-    #igea-c4-flow .c4-node.is-active rect {
+    #csg-c4-flow .c4-node:hover rect,
+    #csg-c4-flow .c4-node:focus rect,
+    #csg-c4-flow .c4-node.is-active rect {
       stroke: currentColor;
       stroke-width: 4;
     }
-    #igea-c4-flow .c4-node-title {
+    #csg-c4-flow .c4-node-title {
       fill: var(--foreground);
       font-size: 15px;
       font-weight: 500;
     }
-    #igea-c4-flow .c4-node-tech,
-    #igea-c4-flow .c4-node-path {
+    #csg-c4-flow .c4-node-tech,
+    #csg-c4-flow .c4-node-path {
       fill: var(--muted-foreground);
       font-size: 12px;
     }
-    #igea-c4-flow .c4-edge-visible {
+    #csg-c4-flow .c4-edge-visible {
       fill: none;
       stroke: var(--muted-foreground);
       stroke-width: 2.2;
       marker-end: url(#c4-arrow);
     }
-    #igea-c4-flow .c4-edge.is-active .c4-edge-visible {
+    #csg-c4-flow .c4-edge.is-active .c4-edge-visible {
       stroke: var(--viz-series-1);
       stroke-width: 4;
       stroke-dasharray: 14 9;
       animation: c4-flow-dash var(--flow-duration) linear both;
     }
-    #igea-c4-flow .c4-edge-hit {
+    #csg-c4-flow .c4-edge-hit {
       fill: none;
       stroke: transparent;
       stroke-width: 22;
     }
-    #igea-c4-flow .c4-edge:hover .c4-edge-visible,
-    #igea-c4-flow .c4-edge:focus .c4-edge-visible { stroke: var(--viz-series-1); stroke-width: 4; }
-    #igea-c4-flow .c4-edge-label {
+    #csg-c4-flow .c4-edge:hover .c4-edge-visible,
+    #csg-c4-flow .c4-edge:focus .c4-edge-visible { stroke: var(--viz-series-1); stroke-width: 4; }
+    #csg-c4-flow .c4-edge-label {
       fill: var(--foreground);
       font-size: 12px;
       paint-order: stroke;
@@ -105,65 +105,65 @@
       stroke-width: 5px;
       stroke-linejoin: round;
     }
-    #igea-c4-flow .c4-particle {
+    #csg-c4-flow .c4-particle {
       fill: var(--viz-series-1);
       stroke: var(--background);
       stroke-width: 3;
       pointer-events: none;
     }
-    #igea-c4-flow .c4-detail {
+    #csg-c4-flow .c4-detail {
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
       gap: 0.65rem 1rem;
       align-items: center;
       margin-top: 0.65rem;
     }
-    #igea-c4-flow .c4-detail-main { min-width: 0; }
-    #igea-c4-flow .c4-detail-title { margin: 0 0 0.2rem; font-weight: 500; }
-    #igea-c4-flow .c4-detail-text,
-    #igea-c4-flow .c4-detail-access { margin: 0; color: var(--muted-foreground); }
-    #igea-c4-flow .c4-detail-access code { overflow-wrap: anywhere; }
-    #igea-c4-flow .c4-mobile-flow { display: none; }
-    #igea-c4-flow .c4-mobile-flow ol { margin: 0; padding-left: 1.4rem; }
-    #igea-c4-flow .c4-mobile-flow button { width: 100%; text-align: left; margin: 0.2rem 0; }
-    #igea-c4-flow .c4-access-index {
+    #csg-c4-flow .c4-detail-main { min-width: 0; }
+    #csg-c4-flow .c4-detail-title { margin: 0 0 0.2rem; font-weight: 500; }
+    #csg-c4-flow .c4-detail-text,
+    #csg-c4-flow .c4-detail-access { margin: 0; color: var(--muted-foreground); }
+    #csg-c4-flow .c4-detail-access code { overflow-wrap: anywhere; }
+    #csg-c4-flow .c4-mobile-flow { display: none; }
+    #csg-c4-flow .c4-mobile-flow ol { margin: 0; padding-left: 1.4rem; }
+    #csg-c4-flow .c4-mobile-flow button { width: 100%; text-align: left; margin: 0.2rem 0; }
+    #csg-c4-flow .c4-access-index {
       display: flex;
       flex-wrap: wrap;
       gap: 0.35rem;
       margin-top: 0.65rem;
     }
-    #igea-c4-flow .c4-access-index button { font-size: 0.86em; }
-    #igea-c4-flow .c4-sources { margin-top: 0.7rem; color: var(--muted-foreground); }
-    #igea-c4-flow .c4-sources summary { cursor: pointer; font-weight: 500; }
-    #igea-c4-flow .c4-sources ul { margin: 0.45rem 0 0; padding-left: 1.25rem; }
-    #igea-c4-flow .c4-sources a { color: var(--primary); }
+    #csg-c4-flow .c4-access-index button { font-size: 0.86em; }
+    #csg-c4-flow .c4-sources { margin-top: 0.7rem; color: var(--muted-foreground); }
+    #csg-c4-flow .c4-sources summary { cursor: pointer; font-weight: 500; }
+    #csg-c4-flow .c4-sources ul { margin: 0.45rem 0 0; padding-left: 1.25rem; }
+    #csg-c4-flow .c4-sources a { color: var(--primary); }
     @keyframes c4-flow-dash {
       from { stroke-dashoffset: 92; }
       to { stroke-dashoffset: 0; }
     }
     @media (prefers-reduced-motion: reduce) {
-      #igea-c4-flow .c4-edge.is-active .c4-edge-visible { animation: none; }
+      #csg-c4-flow .c4-edge.is-active .c4-edge-visible { animation: none; }
     }
     @media (max-width: 560px) {
-      #igea-c4-flow .c4-heading { font-size: 1.2rem; }
-      #igea-c4-flow .c4-view-tabs,
-      #igea-c4-flow .c4-access-index {
+      #csg-c4-flow .c4-heading { font-size: 1.2rem; }
+      #csg-c4-flow .c4-view-tabs,
+      #csg-c4-flow .c4-access-index {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
         width: 100%;
       }
-      #igea-c4-flow .c4-view-tabs button,
-      #igea-c4-flow .c4-access-index button { white-space: normal; }
-      #igea-c4-flow .c4-stage { min-height: 0; }
-      #igea-c4-flow .c4-canvas { display: none; }
-      #igea-c4-flow .c4-mobile-flow { display: block; }
-      #igea-c4-flow .c4-detail { grid-template-columns: 1fr; }
-      #igea-c4-flow .c4-speed { width: 100%; }
-      #igea-c4-flow .c4-speed input { flex: 1; }
+      #csg-c4-flow .c4-view-tabs button,
+      #csg-c4-flow .c4-access-index button { white-space: normal; }
+      #csg-c4-flow .c4-stage { min-height: 0; }
+      #csg-c4-flow .c4-canvas { display: none; }
+      #csg-c4-flow .c4-mobile-flow { display: block; }
+      #csg-c4-flow .c4-detail { grid-template-columns: 1fr; }
+      #csg-c4-flow .c4-speed { width: 100%; }
+      #csg-c4-flow .c4-speed input { flex: 1; }
     }
   </style>
 
-  <h2 class="c4-heading">Arquitectura C4 - Conversor IGEA-DGS</h2>
+  <h2 class="c4-heading">Arquitectura C4 - ConverterSmartGrid</h2>
   <p class="c4-subtitle">Reproduce el flujo, selecciona una flecha o abre una caja para ver su acceso directo.</p>
 
   <div class="c4-toolbar">
@@ -187,7 +187,7 @@
 
   <div id="c4-stage" class="c4-stage" role="tabpanel" aria-labelledby="tab-context">
     <svg class="c4-canvas" viewBox="0 0 1200 620" role="img" aria-labelledby="c4-svg-title c4-svg-desc">
-      <title id="c4-svg-title">Arquitectura interactiva del Conversor IGEA-DGS</title>
+      <title id="c4-svg-title">Arquitectura interactiva del ConverterSmartGrid</title>
       <desc id="c4-svg-desc">Cajas seleccionables conectadas por flechas que se animan de forma finita al reproducir cada flujo.</desc>
       <defs>
         <marker id="c4-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
@@ -239,7 +239,7 @@
 
   <script>
     (() => {
-      const root = document.getElementById('igea-c4-flow');
+      const root = document.getElementById('csg-c4-flow');
       const svg = root.querySelector('.c4-canvas');
       const nodeLayer = root.querySelector('#c4-nodes');
       const edgeLayer = root.querySelector('#c4-edges');
@@ -260,26 +260,26 @@
 
       const common = {
         operator: { label: 'Operador electrico', tech: 'Decision humana', path: 'http://127.0.0.1:8765/', kind: 'external', detail: 'Selecciona alcance, confirma planes y acepta o rechaza con evidencia.' },
-        sources: { label: 'Fuentes electricas', tech: 'TXT / MDB / VNR-GIS', path: 'src/igea_dgs/sources', kind: 'external', detail: 'Entradas primarias aisladas y libros auxiliares de medicion.' },
-        system: { label: 'Conversor IGEA-DGS', tech: 'Sistema local auditable', path: 'README.md', kind: 'engine', detail: 'Convierte, valida, acepta y documenta redes de distribucion.' },
+        sources: { label: 'Fuentes electricas', tech: 'TXT / MDB / VNR-GIS', path: 'src/convertersmartgrid/sources', kind: 'external', detail: 'Entradas primarias aisladas y libros auxiliares de medicion.' },
+        system: { label: 'ConverterSmartGrid', tech: 'Sistema local auditable', path: 'README.md', kind: 'engine', detail: 'Convierte, valida, acepta y documenta redes de distribucion.' },
         frontend: { label: 'Frontend web', tech: 'React + TypeScript', path: 'frontend/src', kind: 'web', detail: 'Seleccion, seguimiento, confirmacion y descarga.' },
-        api: { label: 'API y orquestacion', tech: 'FastAPI / Python 3.12', path: 'src/igea_dgs/web/app.py', kind: 'engine', detail: 'REST y WebSocket; valida pedidos y coordina trabajos.' },
-        jobs: { label: 'Colas', tech: 'engine | powerfactory | asistente', path: 'src/igea_dgs/web/jobs.py', kind: 'store', detail: 'Serializa las operaciones de cada carril.' },
-        custody: { label: 'Custodia', tech: 'Snapshots + SHA-256', path: 'src/igea_dgs/web/source_runs.py', kind: 'store', detail: 'Fija una ejecucion fuente inmutable sin mezclar modalidades.' },
-        engine: { label: 'Motor de conversion', tech: 'Python / FeederModel', path: 'src/igea_dgs/batch.py', kind: 'engine', detail: 'Adapta, reconstruye, aplica reglas y construye el modelo canonico.' },
-        oracle: { label: 'Preflight consultivo', tech: 'pandapower', path: 'src/igea_dgs/oraculo.py', kind: 'engine', detail: 'Informa conectividad y convergencia antes de PowerFactory; sus avisos no omiten el DGS.' },
-        dgs: { label: 'DGS y validacion', tech: 'Esquema versionado', path: 'src/igea_dgs/dgs.py', kind: 'engine', detail: 'Escribe, valida y publica atomicamente.' },
+        api: { label: 'API y orquestacion', tech: 'FastAPI / Python 3.12', path: 'src/convertersmartgrid/web/app.py', kind: 'engine', detail: 'REST y WebSocket; valida pedidos y coordina trabajos.' },
+        jobs: { label: 'Colas', tech: 'engine | powerfactory | asistente', path: 'src/convertersmartgrid/web/jobs.py', kind: 'store', detail: 'Serializa las operaciones de cada carril.' },
+        custody: { label: 'Custodia', tech: 'Snapshots + SHA-256', path: 'src/convertersmartgrid/web/source_runs.py', kind: 'store', detail: 'Fija una ejecucion fuente inmutable sin mezclar modalidades.' },
+        engine: { label: 'Motor de conversion', tech: 'Python / FeederModel', path: 'src/convertersmartgrid/batch.py', kind: 'engine', detail: 'Adapta, reconstruye, aplica reglas y construye el modelo canonico.' },
+        oracle: { label: 'Preflight consultivo', tech: 'pandapower', path: 'src/convertersmartgrid/oraculo.py', kind: 'engine', detail: 'Informa conectividad y convergencia antes de PowerFactory; sus avisos no omiten el DGS.' },
+        dgs: { label: 'DGS y validacion', tech: 'Esquema versionado', path: 'src/convertersmartgrid/dgs.py', kind: 'engine', detail: 'Escribe, valida y publica atomicamente.' },
         powerfactory: { label: 'PowerFactory 2024', tech: 'API nativa', path: 'tools/powerfactory_acceptance.py', kind: 'native', detail: 'Importa, activa Caso base, ejecuta flujo, guarda y produce evidencia de aceptacion.' },
-        native: { label: 'Ejecutor nativo', tech: 'Plan JSON / informe JSON', path: 'src/igea_dgs/web/services.py', kind: 'native', detail: 'Aisla y serializa los procesos que controlan PowerFactory.' },
-        twin: { label: 'Gemelo digital', tech: 'Radial / mallado / PINN-GNN / GRU', path: 'src/igea_dgs/digital_twin/oraculo.py', kind: 'ai', detail: 'Aprende solo de episodios clasificados y conserva metricas.' },
-        optimizer: { label: 'PIDE y evolutivos', tech: 'GA / NSGA-II / DE', path: 'src/igea_dgs/digital_twin/evolutivo.py', kind: 'ai', detail: 'Ordena alternativas con restricciones y frente de Pareto.' },
-        assistant: { label: 'Asistente', tech: 'Reglas / Transformer / Ollama', path: 'src/igea_dgs/asistente/interprete.py', kind: 'ai', detail: 'Interpreta, muestra un plan y requiere confirmacion.' },
-        episodes: { label: 'Buffer de episodios', tech: 'JSON + SQLite', path: 'src/igea_dgs/digital_twin/buffer.py', kind: 'store', detail: 'Guarda evidencia y snapshots direccionados por contenido.' },
+        native: { label: 'Ejecutor nativo', tech: 'Plan JSON / informe JSON', path: 'src/convertersmartgrid/web/services.py', kind: 'native', detail: 'Aisla y serializa los procesos que controlan PowerFactory.' },
+        twin: { label: 'Gemelo digital', tech: 'Radial / mallado / PINN-GNN / GRU', path: 'src/convertersmartgrid/digital_twin/oraculo.py', kind: 'ai', detail: 'Aprende solo de episodios clasificados y conserva metricas.' },
+        optimizer: { label: 'PIDE y evolutivos', tech: 'GA / NSGA-II / DE', path: 'src/convertersmartgrid/digital_twin/evolutivo.py', kind: 'ai', detail: 'Ordena alternativas con restricciones y frente de Pareto.' },
+        assistant: { label: 'Asistente', tech: 'Reglas / Transformer / Ollama', path: 'src/convertersmartgrid/asistente/interprete.py', kind: 'ai', detail: 'Interpreta, muestra un plan y requiere confirmacion.' },
+        episodes: { label: 'Buffer de episodios', tech: 'JSON + SQLite', path: 'src/convertersmartgrid/digital_twin/buffer.py', kind: 'store', detail: 'Guarda evidencia y snapshots direccionados por contenido.' },
         workspace: { label: 'Workspace', tech: 'Filesystem', path: 'output/web', kind: 'store', detail: 'Conserva entradas, planes, resultados y descargas.' },
-        deliverables: { label: 'Entregables', tech: 'DGS / PF / estudios / informes', path: 'docs/architecture/plano_flujo_arquitectura_conversor_igea_dgs.pdf', kind: 'store', detail: 'Artefactos para revision, operacion y decision.' },
+        deliverables: { label: 'Entregables', tech: 'DGS / PF / estudios / informes', path: 'docs/architecture/plano_flujo_arquitectura_converter_smart_grid.pdf', kind: 'store', detail: 'Artefactos para revision, operacion y decision.' },
         browser: { label: 'Navegador', tech: '127.0.0.1:8765', path: 'http://127.0.0.1:8765/', kind: 'web', detail: 'Acceso local a frontend y API.' },
         python: { label: 'Python 3.12', tech: 'API + motor + IA', path: 'pyproject.toml', kind: 'engine', detail: 'Proceso principal del conversor.' },
-        ollama: { label: 'Ollama / GPU', tech: 'Opcional y local', path: 'src/igea_dgs/asistente/ollama.py', kind: 'ai', detail: 'Inferencia local; no es requisito del motor determinista.' }
+        ollama: { label: 'Ollama / GPU', tech: 'Opcional y local', path: 'src/convertersmartgrid/asistente/ollama.py', kind: 'ai', detail: 'Inferencia local; no es requisito del motor determinista.' }
       };
 
       const n = (id, x, y, w = 190, h = 88) => ({ id, x, y, w, h, ...common[id] });
@@ -293,7 +293,7 @@
         },
         containers: {
           title: 'Contenedores del sistema',
-          boundary: { x: 35, y: 42, w: 1130, h: 535, label: 'Conversor IGEA-DGS' },
+          boundary: { x: 35, y: 42, w: 1130, h: 535, label: 'ConverterSmartGrid' },
           nodes: [n('frontend',50,85,175,78), n('api',280,85,175,78), n('jobs',510,85,175,78), n('custody',740,85,175,78), n('workspace',970,85,175,78), n('engine',50,250,175,78), n('dgs',280,250,175,78), n('oracle',510,250,175,78), n('native',740,250,175,78), n('powerfactory',970,250,175,78), n('twin',50,415,175,78), n('episodes',280,415,175,78), n('optimizer',510,415,175,78), n('assistant',740,415,175,78), n('deliverables',970,415,175,78)],
           edges: [e('frontend','api','REST + WebSocket'), e('api','jobs','Encola'), e('api','custody','Custodia'), e('jobs','engine','Carril engine'), e('engine','dgs','Escribe y valida'), e('dgs','workspace','Publica'), e('jobs','native','Carril PF'), e('native','oracle','Consulta opcional'), e('native','powerfactory','API nativa'), e('native','workspace','Informe + binding'), e('native','twin','Captura'), e('twin','episodes','Episodios'), e('twin','optimizer','Evalua'), e('optimizer','assistant','Propone'), e('assistant','api','API existente'), e('workspace','deliverables','Descarga')]
         },

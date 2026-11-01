@@ -255,7 +255,7 @@ def test_una_segunda_calibracion_no_repite_los_bancos(guion):
 def test_barras_de_los_bancos_en_la_troncal(guion):
     """021:RF-66 — las barras de la troncal más cercanas a 2k/(2n+1) de su largo, sin
     repetir."""
-    from igea_dgs.troncal import Barra, Red, Tramo
+    from convertersmartgrid.troncal import Barra, Red, Tramo
 
     barras = {f'B{i}': Barra(f'B{i}') for i in range(7)}
     tramos = [Tramo(f'L{i}', f'B{i}', f'B{i + 1}', 1000.0) for i in range(6)]

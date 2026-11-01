@@ -7,12 +7,12 @@ import pytest
 
 torch = pytest.importorskip('torch')
 
-from igea_dgs.asistente import almacen
-from igea_dgs.asistente import transformer as tr
-from igea_dgs.asistente.sinteticos import generar
+from convertersmartgrid.asistente import almacen
+from convertersmartgrid.asistente import transformer as tr
+from convertersmartgrid.asistente.sinteticos import generar
 
 VOCAB = {'alimentadores': ['IN111', 'TA225', 'PA217', 'CA101', 'NA203'],
-         'proyecto': ['20261015-170359_IGEA_IN111_TA225', 'CA101 13'], 'sistema': ['Pisco', 'Ica', 'Nasca']}
+         'proyecto': ['20261015-170359_CSG_IN111_TA225', 'CA101 13'], 'sistema': ['Pisco', 'Ica', 'Nasca']}
 #: La de verdad: con 70 frases y 14 épocas la tarea se acierta pero los datos no (F1 0,49).
 CFG = tr.Configuracion()
 #: Para el candidato que debe rechazarse: basta con que exista.
@@ -22,20 +22,20 @@ CFG_RAPIDO = tr.Configuracion(epocas=2, por_tarea=20)
 @pytest.fixture(scope='module')
 def entrenado(tmp_path_factory):
     raiz = tmp_path_factory.mktemp('asistente')
-    os.environ['IGEA_ASISTENTE_DATA'] = str(raiz)
+    os.environ['CSG_ASISTENTE_DATA'] = str(raiz)
     try:
         r = tr.entrenar_y_promover(VOCAB, cfg=CFG, puertas=tr.Puertas(acierto_tarea=0.9, f1_datos=0.8,
                                                                        acierto_real=0.0, f1_real=0.0))
         yield raiz, r
     finally:
-        os.environ.pop('IGEA_ASISTENTE_DATA', None)
+        os.environ.pop('CSG_ASISTENTE_DATA', None)
 
 
 def test_aprende_la_tarea_y_los_datos(entrenado, monkeypatch):
     """026:RF-2 — en frases que no vio, reconoce la tarea y marca sus datos (alimentadores,
     proyecto, sistema, periodo), también con erratas."""
     raiz, r = entrenado
-    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(raiz))
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(raiz))
     assert r['promovido'] and r['acierto_tarea'] >= 0.9 and r['f1_datos'] >= 0.8, r
     m = tr.cargar()
     p = m.predecir('complata la conversion de IN111 y TA225')
@@ -50,7 +50,7 @@ def test_reentrena_con_ordenes_reales_y_prueba_fija(entrenado, monkeypatch):
     (una de cada cinco a la prueba fija); el candidato se registra y solo sustituye al modelo
     en uso si pasa las puertas, y se puede volver al anterior."""
     raiz, r = entrenado
-    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(raiz))
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(raiz))
     for i in range(10):
         almacen.anotar('ejemplos', {'texto': f'genera el dgs de PA217 vez {i}', 'tarea': 'convertir',
                                     'datos': [[15, 20, 'alimentadores']], 'origen': 'corregido'})
@@ -67,7 +67,7 @@ def test_reentrena_con_ordenes_reales_y_prueba_fija(entrenado, monkeypatch):
 def test_evaluar_en_la_prueba_fija(entrenado, monkeypatch):
     """026:RF-20 — la prueba fija se genera con su semilla y es la misma para todos."""
     raiz, _r = entrenado
-    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(raiz))
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(raiz))
     prueba = generar(VOCAB, por_tarea=8, semilla=tr.SEMILLA_PRUEBA)
     assert [e.texto for e in prueba] == [e.texto for e in generar(VOCAB, por_tarea=8, semilla=tr.SEMILLA_PRUEBA)]
     m = tr.evaluar(tr.cargar(), prueba)
@@ -78,7 +78,7 @@ def test_puertas_de_las_ordenes_reales(entrenado, monkeypatch):
     """027:RF-18 — con órdenes reales en la prueba fija, el candidato se promueve solo con
     acierto ≥ 0,98 y F1 ≥ 0,95 en ellas, medidas aparte."""
     raiz, _r = entrenado
-    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(raiz))
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(raiz))
     r = tr.entrenar_y_promover(VOCAB, cfg=CFG_RAPIDO, puertas=tr.Puertas(acierto_tarea=0.0, f1_datos=0.0,
                                                                         acierto_real=1.01))
     assert r['reales'] is not None and r['reales']['ejemplos'] >= 1

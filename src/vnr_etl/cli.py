@@ -61,7 +61,7 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument('--project', default='.')
     p.add_argument('--output')
 
-    p = sub.add_parser('web', help='Inicia la interfaz web (la de igea-dgs-web, con las rutas de VNR)')
+    p = sub.add_parser('web', help='Inicia la interfaz web (la de convertersmartgrid-web, con las rutas de VNR)')
     p.add_argument('--host', default='127.0.0.1')
     p.add_argument('--port', type=int, default=8765)
     p.add_argument('--no-browser', action='store_true')
@@ -147,8 +147,8 @@ def main(argv=None) -> int:
         print(f'vnr_etl {__version__}')
         return 0
     if args.command == 'web':
-        # Una sola API web (spec 001, RF-11): las rutas de VNR van en igea-dgs-web.
-        from igea_dgs.web.__main__ import main as web_main
+        # Una sola API web (spec 001, RF-11): las rutas de VNR van en convertersmartgrid-web.
+        from convertersmartgrid.web.__main__ import main as web_main
 
         argv = ['--host', args.host, '--port', str(args.port)]
         return web_main(argv + (['--no-browser'] if args.no_browser else []))
@@ -251,7 +251,7 @@ def _convert(args, log: Logger) -> int:
     from datetime import datetime
 
     from .discovery import compute_schema_fingerprint, compute_source_fingerprint
-    from igea_dgs.util import sha256_file
+    from convertersmartgrid.util import sha256_file
 
     from .pipeline import (
         buscar_capa_de_tramos,

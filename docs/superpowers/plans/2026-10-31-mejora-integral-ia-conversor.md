@@ -12,13 +12,13 @@
 
 ## Global Constraints
 
-- Leer primero `docs/constitution.md`, `.claude/skills/igea-dgs-spec/SKILL.md`, este plan y los tres documentos del paquete a ejecutar. El requisito entra antes que el código.
+- Leer primero `docs/constitution.md`, `.claude/skills/convertersmartgrid-spec/SKILL.md`, este plan y los tres documentos del paquete a ejecutar. El requisito entra antes que el código.
 - Python 3.12 exacto. Una dependencia de aprendizaje opcional no impedirá instalar, arrancar o convertir con el núcleo; los cambios de dependencias del núcleo se mantienen en `requirements.txt`.
 - Datos empresariales, incluidos los de contexto/RAG, permanecen en la máquina. No enviar libros, TXT, MDB, VNR-GIS, episodios ni órdenes reales a proveedores externos.
 - La selección de red procede del vínculo de fuente y de la lista de alimentadores guardada; nunca se infiere del nombre del proyecto.
 - PowerFactory usa un solo carril en serie; trabajos de más de un segundo van a cola con progreso y cancelación. El entrenamiento CUDA usa bloqueo exclusivo; no hay sustitución silenciosa por CPU.
 - Mantener fuente exacta `(source_run_id, source_mode, source_fingerprint)`, proyecto, alimentadores, caso nativo, año, periodo, `criterio_fijas`, perfil, versión de red y controles efectivos en cada experimento y caché.
-- Preservar datos, `output/`, modelos, historial y parches ajenos. Los planos georreferenciados de IGEA anteriores a la exportación están fuera de alcance por instrucción del usuario.
+- Preservar datos, `output/`, modelos, historial y parches ajenos. Los planos georreferenciados de la distribuidora anteriores a la exportación están fuera de alcance por instrucción del usuario.
 - Los límites eléctricos salen de la norma/perfil; los umbrales estadísticos de promoción no los sustituyen. Sin datos obligatorios se bloquea, no se inventan ceros, equipos o capacidades.
 - No renumerar specs. Al empezar esta revisión ya existían 040–042 de otra sesión; por eso los nuevos paquetes empiezan en 043.
 

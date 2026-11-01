@@ -110,7 +110,7 @@ def main(argv=None) -> int:
 
     try:
         app.PrintPlain(
-            f'IGEA-DGS: diagrama {args.feeder} abierto — use Graphics Board / '
+            f'ConverterSmartGrid: diagrama {args.feeder} abierto — use Graphics Board / '
             'View → Zoom All para ver toda la red en la hoja.'
         )
     except Exception:

@@ -23,9 +23,9 @@ sys.path.insert(0, str(ROOT / 'src'))
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from igea_dgs.web import __main__ as lanzador  # noqa: E402
-from igea_dgs.web import app as app_mod  # noqa: E402
-from igea_dgs.web.runtime import huella_del_codigo  # noqa: E402
+from convertersmartgrid.web import __main__ as lanzador  # noqa: E402
+from convertersmartgrid.web import app as app_mod  # noqa: E402
+from convertersmartgrid.web.runtime import huella_del_codigo  # noqa: E402
 
 
 def _huella_actual() -> str:
@@ -90,7 +90,7 @@ def _salud(**servidor) -> dict:
 def uvicorn_falso(monkeypatch, tmp_path):
     """Sustituye uvicorn: anota en qué puerto arrancaría el servidor, sin arrancarlo."""
     arranques: list[dict] = []
-    monkeypatch.setenv('IGEA_REGISTRO_TRABAJOS', str(tmp_path / 'trabajos_web'))
+    monkeypatch.setenv('CSG_REGISTRO_TRABAJOS', str(tmp_path / 'trabajos_web'))
 
     class Servidor:
         def __init__(self, config):
@@ -104,7 +104,7 @@ def uvicorn_falso(monkeypatch, tmp_path):
         Config=lambda *a, **k: k, Server=Servidor,
         run=lambda *a, **k: arranques.append(k)))
     monkeypatch.setattr(lanzador.webbrowser, 'open', lambda *_a, **_k: True)
-    monkeypatch.delenv('IGEA_WEB_HOST', raising=False)
+    monkeypatch.delenv('CSG_WEB_HOST', raising=False)
     return arranques
 
 
@@ -158,7 +158,7 @@ def test_conversor_colgado_se_termina(uvicorn_falso, monkeypatch):
     terminados = []
     monkeypatch.setattr(lanzador, 'conversor_en', lambda *_a, **_k: None)
     monkeypatch.setattr(lanzador, 'quien_escucha',
-                        lambda _p: (999_999, 'python.exe -m igea_dgs.web --no-browser'))
+                        lambda _p: (999_999, 'python.exe -m convertersmartgrid.web --no-browser'))
     monkeypatch.setattr(lanzador, '_terminar', lambda pid: (terminados.append(pid), s.close()))
     assert lanzador.main(['--port', str(port), '--no-browser']) == 0
     assert terminados == [999_999]
@@ -177,7 +177,7 @@ def _colgado_con_trabajos(monkeypatch, tmp_path, respuesta):
     monkeypatch.setattr(lanzador, 'conversor_en', lambda *_a, **_k: None)
     monkeypatch.setattr(lanzador, 'esperar_respuesta', lambda url, segundos: respuesta)
     monkeypatch.setattr(lanzador, 'quien_escucha',
-                        lambda _p: (999_999, 'python.exe -m igea_dgs.web'))
+                        lambda _p: (999_999, 'python.exe -m convertersmartgrid.web'))
     monkeypatch.setattr(lanzador, '_terminar', lambda pid: (terminados.append(pid), s.close()))
     return s, terminados
 
@@ -207,7 +207,7 @@ def test_conversor_ocupado_que_responde_al_esperar_se_reutiliza(uvicorn_falso, m
 
 def test_el_servidor_anota_sus_trabajos_en_curso(tmp_path, monkeypatch):
     """001:RF-34 — el registro del proceso dice cuántos trabajos tiene sin terminar."""
-    from igea_dgs.web import jobs
+    from convertersmartgrid.web import jobs
 
     monkeypatch.setenv(jobs.VARIABLE_REGISTRO, str(tmp_path))
     gestor = jobs.JobManager(lambda *_a: None)
@@ -239,9 +239,9 @@ def test_otro_programa_en_el_puerto_se_usa_el_siguiente(uvicorn_falso, monkeypat
 
 def test_solo_un_servidor_del_conversor_cuenta_como_tal():
     """001:RF-31 — la comprobación de entorno del .bat no es un servidor que terminar."""
-    assert lanzador.es_conversor('"C:\\py\\python.exe" -m igea_dgs.web --no-browser')
-    assert lanzador.es_conversor('C:\\venv\\Scripts\\igea-dgs-web.exe')
-    assert not lanzador.es_conversor('python -m igea_dgs.web.runtime --front')
+    assert lanzador.es_conversor('"C:\\py\\python.exe" -m convertersmartgrid.web --no-browser')
+    assert lanzador.es_conversor('C:\\venv\\Scripts\\convertersmartgrid-web.exe')
+    assert not lanzador.es_conversor('python -m convertersmartgrid.web.runtime --front')
     assert not lanzador.es_conversor('python -m http.server 8765')
 
 
@@ -345,7 +345,7 @@ def test_tras_un_reinicio_espera_a_que_la_pagina_se_reconecte(monkeypatch):
 def test_la_salud_cuenta_las_paginas_conectadas(tmp_path, monkeypatch):
     """001:RF-35 — cada pestaña abierta tiene su WebSocket: ``/api/health`` las cuenta al
     conectarse y deja de contarlas al cerrarse."""
-    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     with TestClient(app_mod.create_app(tmp_path / 'web')) as c:
         wid = c.post('/api/workspaces').json()['id']
         assert c.get('/api/health').json()['servidor']['paginas_abiertas'] == 0

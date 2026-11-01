@@ -35,7 +35,7 @@ Carpeta
   proyectos del usuario actual de DIgSILENT, que se llama carpeta de importación.
 - RF-2: EL SISTEMA tomará el nombre de la carpeta de importación del perfil de empresa.
 - RF-3: DONDE el perfil de empresa no da nombre de carpeta, EL SISTEMA usará el nombre
-  «Conversor IGEA-DGS».
+  «ConverterSmartGrid».
 - RF-4: SI el nombre de la carpeta está vacío, supera 40 caracteres o lleva un carácter que
   DIgSILENT no admite en un nombre, ENTONCES EL SISTEMA rechazará el perfil con un error
   que nombre el valor, antes de abrir DIgSILENT.

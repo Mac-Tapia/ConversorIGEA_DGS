@@ -79,9 +79,9 @@ No new commit is needed beyond the cherry-picks; record their range and test out
 ### Task 2: Crear el inventario tipado de cargas y SED
 
 **Files:**
-- Create: `src/igea_dgs/load_inventory.py`
-- Modify: `src/igea_dgs/web/workspace.py`
-- Modify: `src/igea_dgs/web/services.py`
+- Create: `src/convertersmartgrid/load_inventory.py`
+- Modify: `src/convertersmartgrid/web/workspace.py`
+- Modify: `src/convertersmartgrid/web/services.py`
 - Create: `tests/test_load_inventory.py`
 
 **Interfaces:**
@@ -103,7 +103,7 @@ Assert `Name=SE50033`, `Grid=NA203_NA205`, and `Alimentador` equal to the owning
 
 Run: `python -m pytest tests/test_load_inventory.py -q`
 
-Expected: FAIL because `igea_dgs.load_inventory` does not exist.
+Expected: FAIL because `convertersmartgrid.load_inventory` does not exist.
 
 - [ ] **Step 3: Implement the immutable row and query contracts**
 
@@ -151,7 +151,7 @@ Expected: PASS.
 - [ ] **Step 8: Commit**
 
 ```bash
-git add src/igea_dgs/load_inventory.py src/igea_dgs/web/workspace.py src/igea_dgs/web/services.py tests/test_load_inventory.py
+git add src/convertersmartgrid/load_inventory.py src/convertersmartgrid/web/workspace.py src/convertersmartgrid/web/services.py tests/test_load_inventory.py
 git commit -m "feat: crear inventario tipado de cargas"
 ```
 
@@ -160,8 +160,8 @@ git commit -m "feat: crear inventario tipado de cargas"
 ### Task 3: Publicar inventario paginado y exportaciones por FastAPI
 
 **Files:**
-- Modify: `src/igea_dgs/web/app.py`
-- Modify: `src/igea_dgs/web/services.py`
+- Modify: `src/convertersmartgrid/web/app.py`
+- Modify: `src/convertersmartgrid/web/services.py`
 - Modify: `tests/test_web_api.py`
 
 **Interfaces:**
@@ -212,7 +212,7 @@ Expected: PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/igea_dgs/web/app.py src/igea_dgs/web/services.py tests/test_web_api.py
+git add src/convertersmartgrid/web/app.py src/convertersmartgrid/web/services.py tests/test_web_api.py
 git commit -m "feat: publicar inventario electrico por api"
 ```
 
@@ -281,9 +281,9 @@ git commit -m "feat: mostrar cargas por alimentador en react"
 ### Task 5: Añadir custodia mínima y diagnósticos tipados sin reemplazar la web
 
 **Files:**
-- Create: `src/igea_dgs/web/custody.py`
-- Modify: `src/igea_dgs/web/workspace.py`
-- Modify: `src/igea_dgs/web/app.py`
+- Create: `src/convertersmartgrid/web/custody.py`
+- Modify: `src/convertersmartgrid/web/workspace.py`
+- Modify: `src/convertersmartgrid/web/app.py`
 - Modify: `frontend/src/types.ts`
 - Modify: `frontend/src/components/InputsPanel.tsx`
 - Create: `tests/test_web_custody.py`
@@ -326,7 +326,7 @@ Expected: PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/igea_dgs/web/custody.py src/igea_dgs/web/workspace.py src/igea_dgs/web/app.py frontend/src tests/test_web_custody.py
+git add src/convertersmartgrid/web/custody.py src/convertersmartgrid/web/workspace.py src/convertersmartgrid/web/app.py frontend/src tests/test_web_custody.py
 git commit -m "feat: custodiar entradas y tipar diagnosticos web"
 ```
 
@@ -380,9 +380,9 @@ git commit -m "test: verificar equivalencia de ventanas web"
 - Create: `run_web.bat`
 - Delete: `run_gui.bat`
 - Delete: `run_gui_escritorio.bat`
-- Delete: `src/igea_dgs/gui.py`
+- Delete: `src/convertersmartgrid/gui.py`
 - Delete: `tests/test_gui_wiring.py`
-- Modify: `src/igea_dgs/cli.py`
+- Modify: `src/convertersmartgrid/cli.py`
 - Modify: `pyproject.toml`
 - Modify: `tests/test_python_version.py`
 - Create: `tests/test_no_legacy_gui.py`
@@ -393,16 +393,16 @@ git commit -m "test: verificar equivalencia de ventanas web"
 
 **Interfaces:**
 - Consumes: Task 6 passing parity gate and `powerfactory_env.version_key`.
-- Produces: `run_web.bat`, `igea-dgs-web`, `python -m igea_dgs.web`, and CLI `web` as the only visual access paths.
+- Produces: `run_web.bat`, `convertersmartgrid-web`, `python -m convertersmartgrid.web`, and CLI `web` as the only visual access paths.
 
 - [ ] **Step 1: Write the failing absence and launcher tests**
 
 Add tests that assert:
 
-- no `igea-dgs-gui` project script;
+- no `convertersmartgrid-gui` project script;
 - CLI parser rejects `gui`;
-- no tracked `src/igea_dgs/gui.py`, `run_gui.bat`, `run_gui_escritorio.bat` or `tests/test_gui_wiring.py`;
-- `run_web.bat` launches `python -m igea_dgs.web` and builds React only when needed;
+- no tracked `src/convertersmartgrid/gui.py`, `run_gui.bat`, `run_gui_escritorio.bat` or `tests/test_gui_wiring.py`;
+- `run_web.bat` launches `python -m convertersmartgrid.web` and builds React only when needed;
 - documentation contains no operational legacy GUI instruction.
 
 - [ ] **Step 2: Run tests and verify RED**
@@ -417,7 +417,7 @@ Preserve the working environment/bootstrap behavior of current `run_gui.bat`, re
 
 - [ ] **Step 4: Retarget the version helper test**
 
-Import `version_key` directly from `igea_dgs.powerfactory_env`; no compatibility alias remains.
+Import `version_key` directly from `convertersmartgrid.powerfactory_env`; no compatibility alias remains.
 
 - [ ] **Step 5: Delete legacy files and update documentation**
 
@@ -429,7 +429,7 @@ Run: `python -m pytest tests/test_no_legacy_gui.py tests/test_python_version.py 
 
 Run: `npm run test:e2e -- window-parity.spec.ts && npm run test:run && npm run build` in `frontend`
 
-Expected: PASS; `python -m igea_dgs.cli gui` exits as invalid command.
+Expected: PASS; `python -m convertersmartgrid.cli gui` exits as invalid command.
 
 - [ ] **Step 7: Commit**
 

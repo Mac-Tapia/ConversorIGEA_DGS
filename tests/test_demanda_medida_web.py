@@ -15,7 +15,7 @@ openpyxl = pytest.importorskip('openpyxl')
 from fastapi.testclient import TestClient  # noqa: E402
 
 from apoyo import esperar_trabajo  # noqa: E402
-from igea_dgs.web.app import create_app  # noqa: E402
+from convertersmartgrid.web.app import create_app  # noqa: E402
 
 T0 = datetime(2026, 7, 1)
 
@@ -46,7 +46,7 @@ CLIENTES = {'resumen': [['x'], ['Nis', 'EA', 'ERI', 'Pot'], [11, 10.0, 2.0, 5.0]
 
 @pytest.fixture()
 def client(tmp_path, monkeypatch):
-    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     with TestClient(create_app(tmp_path / 'web', host='127.0.0.1')) as c:
         yield c
 
@@ -63,7 +63,7 @@ def _subir(client, wid, tipo, hojas, nombre='libro.xlsx'):
 
 def _perfil_clientes_mensuales(tmp_path, monkeypatch):
     """Perfil mínimo real: el resultado mensual depende del perfil, no del nombre codificado."""
-    from igea_dgs.perfil_empresa import VARIABLE_RUTA
+    from convertersmartgrid.perfil_empresa import VARIABLE_RUTA
 
     perfil = tmp_path / 'perfil-mensual.json'
     perfil.write_text(json.dumps({
@@ -382,7 +382,7 @@ def test_indice_de_clientes_rechaza_carpeta_sin_libros(client, tmp_path, monkeyp
 
 def test_indice_detecta_si_la_carpeta_cambia_durante_el_escaneo(client, tmp_path, monkeypatch):
     """013:RF-6 — una carrera no publica como vigente una instantánea que ya cambió."""
-    from igea_dgs import demanda_medida as dm
+    from convertersmartgrid import demanda_medida as dm
 
     _perfil_clientes_mensuales(tmp_path, monkeypatch)
     carpeta = tmp_path / 'clientes'
@@ -407,7 +407,7 @@ def test_indice_detecta_si_la_carpeta_cambia_durante_el_escaneo(client, tmp_path
 
 def test_rutas_cerradas_si_escucha_en_red(tmp_path, monkeypatch):
     """004:RF-39 — la ruta del servidor solo en local (como 001:RF-15)."""
-    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     with TestClient(create_app(tmp_path / 'web', host='0.0.0.0')) as c:
         wid = _wid(c)
         r = c.post(f'/api/workspaces/{wid}/demanda/cabecera/path', json={'path': str(tmp_path)})
@@ -546,7 +546,7 @@ def test_curva_solo_del_ultimo_trabajo(client):
 
 def test_curva_reducida_conserva_la_maxima(client, monkeypatch):
     """006:RF-39 — por encima del tope de puntos se reduce sin perder la máxima."""
-    from igea_dgs.web import services
+    from convertersmartgrid.web import services
     monkeypatch.setattr(services, 'CURVA_MAX_PUNTOS', 4)
     wid = _wid(client)
     _subir(client, wid, 'cabecera', CABECERA)
@@ -587,7 +587,7 @@ def test_medidores_que_no_son_de_la_red(client):
 
 def test_perfil_propone_la_central(client, tmp_path, monkeypatch):
     """021:RF-27 — la central que guarda el perfil local se propone ya rellena."""
-    from igea_dgs.perfil_empresa import VARIABLE_RUTA
+    from convertersmartgrid.perfil_empresa import VARIABLE_RUTA
 
     perfil = tmp_path / 'perfil.json'
     perfil.write_text(json.dumps({'centrales_termicas': {
@@ -675,8 +675,8 @@ def _libros_por_barra(client, wid, monkeypatch, kv_alta=220, pico_alta=None, esc
     A1 y A2; SET Y sin medidor de barra, con B1. La barra da su máxima en el registro 3 y
     los alimentadores la suya en otros. B-X6T1 es la de alta: de 220 kV no cuenta; de 60 kV
     con su punta en ``pico_alta`` da el instante a toda la SET X (022:RF-84)."""
-    from igea_dgs.estructura import estructura_de_dict
-    from igea_dgs.web import services
+    from convertersmartgrid.estructura import estructura_de_dict
+    from convertersmartgrid.web import services
 
     e = estructura_de_dict({'zonales': [{'nombre': 'Z', 'sets': [
         {'codigo': 'SET X', 'nombre': 'Equis', 'siglas': ['X'], 'alimentadores': ['A1', 'A2', 'A3']},

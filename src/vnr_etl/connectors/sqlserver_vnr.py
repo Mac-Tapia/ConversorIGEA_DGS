@@ -109,7 +109,7 @@ def restaurar(bak: Path | str, *, servidor: str = SERVIDOR, carpeta: Path | str 
     servidor de la empresa, que aquí no existen.
     """
     bak = Path(bak).resolve()
-    nombre = f'IGEA_VNR_{huella(bak)[:16]}'
+    nombre = f'CSG_VNR_{huella(bak)[:16]}'
     cn = conectar(servidor, conectar_odbc=conectar_odbc)
     cur = cn.cursor()
     cur.execute('SELECT name FROM sys.databases WHERE name = ?', nombre)

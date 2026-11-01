@@ -7,7 +7,7 @@ Estado: cumplida · solicitada el 2026-10-29 y verificada el 2026-10-31.
 El libro de suministros puede conservar un radial anterior al de la fuente cargada.
 Filtrar por ese radial antes de contrastar la SED omite clientes del plan correcto.
 El usuario pide usar el TXT y mostrar una nota en la web. Aclara que los planos de
-IGEA previos a la exportación están fuera del alcance y no se deben modificar.
+la distribuidora previos a la exportación están fuera del alcance y no se deben modificar.
 
 ## Requisitos
 
@@ -17,14 +17,14 @@ IGEA previos a la exportación están fuera del alcance y no se deben modificar.
 - RF-4: SI una SED no aparece en la fuente o no hay fuente cargada, ENTONCES EL SISTEMA conservará el radial del libro sin inventar un propietario.
 - RF-5: EL SISTEMA aplicará la misma asignación a la tabla con máximas, a la tabla sin máximas y al plan de calibración.
 - RF-6: DONDE el libro de suministros trae una nota de asignación, EL SISTEMA la mostrará con el cliente y la conservará en su exportación.
-- RF-7: EL SISTEMA indicará en la nota de la web que la pertenencia se toma de la fuente exportada cargada y que los planos previos de IGEA quedan fuera del alcance del conversor.
+- RF-7: EL SISTEMA indicará en la nota de la web que la pertenencia se toma de la fuente exportada cargada y que los planos previos de la distribuidora quedan fuera del alcance del conversor.
 - RF-8: SI un cliente del alcance del ajuste tiene una asignación ambigua en la fuente, ENTONCES EL SISTEMA rechazará el plan antes de escribir en DIgSILENT y nombrará la SED afectada.
 
 ## Fuera de alcance
 
 - Cambiar capacidades, centrales, bancos o conexiones nativas para corregir un radial comercial.
 - Sumar SED con sufijos distintos o elegir un propietario cuando hay varios.
-- Modificar o regenerar los planos de IGEA previos a exportar TXT, MDB o VNR-GIS.
+- Modificar o regenerar los planos de la distribuidora previos a exportar TXT, MDB o VNR-GIS.
 - Reemplazar las pertenencias de una reconstrucción explícita del proyecto (022:RF-63).
 
 ## Fundamento consultado en la web

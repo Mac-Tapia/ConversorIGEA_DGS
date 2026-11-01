@@ -1,7 +1,7 @@
 """Línea base de DGS para comprobar que una reorganización no cambia ninguna salida.
 
 Convierte todos los alimentadores de una entrega (uno por fichero y la red unida) por la
-misma vía que ``igea-dgs convert --all`` y ``--unir``, y guarda el SHA-256 de cada DGS.
+misma vía que ``convertersmartgrid convert --all`` y ``--unir``, y guarda el SHA-256 de cada DGS.
 La prueba ``tests/test_linea_base_001.py`` regenera y compara contra este fichero.
 
 Los parámetros van todos explícitos, sin valores por defecto del motor: la spec 002 quita
@@ -42,13 +42,13 @@ PERFIL = 'electro_dunas'
 
 
 def _perfil():
-    from igea_dgs.perfil_empresa import perfil_con_nombre
+    from convertersmartgrid.perfil_empresa import perfil_con_nombre
 
     return perfil_con_nombre(PERFIL)
 
 
 def _reglas():
-    from igea_dgs.reglas import REGLAS_PROYECTO, reglas_de_perfil
+    from convertersmartgrid.reglas import REGLAS_PROYECTO, reglas_de_perfil
 
     return reglas_de_perfil(_perfil(), REGLAS_PROYECTO)
 
@@ -62,10 +62,10 @@ def _perfil_activo():
     prueba, que no tiene perfil, daba CN101. Con este, las dos dan lo mismo en cualquier
     equipo.
     """
-    from igea_dgs.perfil_empresa import VARIABLE_RUTA
+    from convertersmartgrid.perfil_empresa import VARIABLE_RUTA
 
     antes = os.environ.get(VARIABLE_RUTA)
-    with tempfile.TemporaryDirectory(prefix='igea-linea-base-perfil-') as tmp:
+    with tempfile.TemporaryDirectory(prefix='csg-linea-base-perfil-') as tmp:
         ruta = Path(tmp) / 'perfil_empresa.json'
         ruta.write_text(json.dumps({'perfil': PERFIL}), encoding='utf-8')
         os.environ[VARIABLE_RUTA] = str(ruta)
@@ -90,7 +90,7 @@ PARAMETROS = {
 
 
 def _hashes_dgs(carpeta: Path) -> dict[str, str]:
-    from igea_dgs.util import sha256_file
+    from convertersmartgrid.util import sha256_file
 
     return {p.relative_to(carpeta).as_posix(): sha256_file(p)
             for p in sorted(carpeta.rglob('*.dgs'))}
@@ -98,8 +98,8 @@ def _hashes_dgs(carpeta: Path) -> dict[str, str]:
 
 def huella_entradas(red: Path, loads: Path, equipment: Path) -> dict[str, str | None]:
     """Hash de lo que determina la salida además del código: entradas y catálogo."""
-    from igea_dgs.reglas import catalogo_del_proyecto
-    from igea_dgs.util import sha256_file
+    from convertersmartgrid.reglas import catalogo_del_proyecto
+    from convertersmartgrid.util import sha256_file
 
     catalogo = catalogo_del_proyecto()
     return {
@@ -123,10 +123,10 @@ def _calcular(red: Path, loads: Path, equipment: Path, salida: Path, *,
     ``workers`` cambia solo el reparto del lote: la prueba lo usa con 4 para comprobar
     que el DGS no depende de él (002:RF-20); los parámetros guardados no cambian.
     """
-    from igea_dgs.batch import convert_group, convert_selection
-    from igea_dgs.dataset import CymdistDataset
-    from igea_dgs.naming import feeder_short_name
-    from igea_dgs.reglas import catalogo_del_proyecto
+    from convertersmartgrid.batch import convert_group, convert_selection
+    from convertersmartgrid.dataset import CymdistDataset
+    from convertersmartgrid.naming import feeder_short_name
+    from convertersmartgrid.reglas import catalogo_del_proyecto
 
     catalogo = catalogo_del_proyecto()
     p = PARAMETROS
@@ -166,8 +166,8 @@ def _calcular(red: Path, loads: Path, equipment: Path, salida: Path, *,
 
 def huella_mdb(mdb: Path, equipment_mdb: Path | None) -> dict[str, str | None]:
     """Hash de las bases de Access y del catálogo del proyecto."""
-    from igea_dgs.reglas import catalogo_del_proyecto
-    from igea_dgs.util import sha256_file
+    from convertersmartgrid.reglas import catalogo_del_proyecto
+    from convertersmartgrid.util import sha256_file
 
     catalogo = catalogo_del_proyecto()
     return {
@@ -184,9 +184,9 @@ def calcular_mdb(mdb: Path, equipment_mdb: Path | None, salida: Path) -> dict:
 
 
 def _calcular_mdb(mdb: Path, equipment_mdb: Path | None, salida: Path) -> dict:
-    from igea_dgs.access import read_access_dataset
-    from igea_dgs.batch import convert_selection
-    from igea_dgs.reglas import catalogo_del_proyecto
+    from convertersmartgrid.access import read_access_dataset
+    from convertersmartgrid.batch import convert_selection
+    from convertersmartgrid.reglas import catalogo_del_proyecto
 
     p = PARAMETROS
     ds = read_access_dataset(mdb, equipment_db=equipment_mdb)
@@ -221,13 +221,13 @@ def main(argv: list[str] | None = None) -> int:
         ap.error('indique --red, --loads y --equipment, o --mdb')
 
     if args.mdb:
-        with tempfile.TemporaryDirectory(prefix='igea-linea-base-mdb-') as tmp:
+        with tempfile.TemporaryDirectory(prefix='csg-linea-base-mdb-') as tmp:
             base = calcular_mdb(args.mdb, args.equipment_mdb, Path(tmp))
         destino = args.out or DESTINO_MDB
         resumen = (f"Línea base de Access: {len(base['dgs_alimentadores'])} DGS; "
                    f"lote {base['resumen_lote']}")
     else:
-        with tempfile.TemporaryDirectory(prefix='igea-linea-base-') as tmp:
+        with tempfile.TemporaryDirectory(prefix='csg-linea-base-') as tmp:
             base = calcular(args.red, args.loads, args.equipment, Path(tmp))
         destino = args.out or DESTINO
         resumen = (f"Línea base: {len(base['dgs_alimentadores'])} DGS de alimentador, "

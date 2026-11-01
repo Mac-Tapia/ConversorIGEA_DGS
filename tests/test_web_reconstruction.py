@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from igea_dgs.dataset import CymdistDataset
+from convertersmartgrid.dataset import CymdistDataset
 
 
 def _equipment(code='C2'):
@@ -57,8 +57,8 @@ def _dataset() -> CymdistDataset:
 
 
 def _workspace(tmp_path):
-    from igea_dgs.web.readiness import assess_feeder_readiness
-    from igea_dgs.web.workspace import Workspace
+    from convertersmartgrid.web.readiness import assess_feeder_readiness
+    from convertersmartgrid.web.workspace import Workspace
 
     dataset = _dataset()
     ws = Workspace(id='abcd1234', root=tmp_path / 'abcd1234')
@@ -90,7 +90,7 @@ def _fingerprint(dataset):
 
 
 def test_diagnosis_is_read_only_and_reports_one_many_all(tmp_path):
-    from igea_dgs.web.reconstruction_service import diagnose_selection
+    from convertersmartgrid.web.reconstruction_service import diagnose_selection
 
     ws = _workspace(tmp_path)
     before = _fingerprint(ws.dataset)
@@ -105,7 +105,7 @@ def test_diagnosis_is_read_only_and_reports_one_many_all(tmp_path):
 
 
 def test_reconstruction_is_atomic_keeps_original_and_persists_report(tmp_path):
-    from igea_dgs.web.reconstruction_service import reconstruct_selection
+    from convertersmartgrid.web.reconstruction_service import reconstruct_selection
 
     ws = _workspace(tmp_path)
     before = _fingerprint(ws.dataset)
@@ -127,8 +127,8 @@ def test_reconstruction_is_atomic_keeps_original_and_persists_report(tmp_path):
 
 
 def test_reconstruction_rejects_a_stale_loaded_run_before_writing(tmp_path):
-    from igea_dgs.web.reconstruction_service import reconstruct_selection
-    from igea_dgs.web.services import UserError
+    from convertersmartgrid.web.reconstruction_service import reconstruct_selection
+    from convertersmartgrid.web.services import UserError
 
     ws = _workspace(tmp_path)
     ws.loaded_run_id = '20261005T120000-bbbbbbbbbbbb'
@@ -141,9 +141,9 @@ def test_reconstruction_rejects_a_stale_loaded_run_before_writing(tmp_path):
 def _client_con_dataset(tmp_path, monkeypatch):
     from fastapi.testclient import TestClient
 
-    from igea_dgs.web.app import create_app
+    from convertersmartgrid.web.app import create_app
 
-    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'no-frontend'))
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'no-frontend'))
     client = TestClient(create_app(tmp_path / 'web'))
     client.__enter__()
     created = client.post('/api/workspaces').json()
@@ -213,9 +213,9 @@ def test_cancelar_la_reconstruccion_conserva_el_dataset_anterior(tmp_path, monke
     """001:RF-9 — cancelar a mitad deja activa la reconstrucción anterior y su informe."""
     import threading
 
-    from igea_dgs import reconstruction_pipeline
-    from igea_dgs.web.jobs import CANCELLED, JobManager
-    from igea_dgs.web.reconstruction_service import reconstruct_selection
+    from convertersmartgrid import reconstruction_pipeline
+    from convertersmartgrid.web.jobs import CANCELLED, JobManager
+    from convertersmartgrid.web.reconstruction_service import reconstruct_selection
 
     ws = _workspace(tmp_path)
     reconstruct_selection(ws, ['F-A'], all_feeders=False)
@@ -251,7 +251,7 @@ def test_tras_el_punto_sin_retorno_la_cancelacion_no_entra():
     """001:RF-9 — un trabajo que ya publicó no puede acabar «cancelado»."""
     import threading
 
-    from igea_dgs.web.jobs import DONE, JobManager
+    from convertersmartgrid.web.jobs import DONE, JobManager
 
     publicado, seguir = threading.Event(), threading.Event()
 
@@ -276,8 +276,8 @@ def test_tras_el_punto_sin_retorno_la_cancelacion_no_entra():
 def test_conversion_uses_matching_derived_dataset_and_stamps_evidence(tmp_path, monkeypatch):
     from threading import Event
 
-    from igea_dgs.web import services
-    from igea_dgs.web.reconstruction_service import reconstruct_selection
+    from convertersmartgrid.web import services
+    from convertersmartgrid.web.reconstruction_service import reconstruct_selection
 
     ws = _workspace(tmp_path)
     reconstruct_selection(ws, ['F-A'], all_feeders=False)
@@ -295,7 +295,7 @@ def test_conversion_uses_matching_derived_dataset_and_stamps_evidence(tmp_path, 
             }],
         }
 
-    monkeypatch.setattr('igea_dgs.batch.convert_selection', fake_convert)
+    monkeypatch.setattr('convertersmartgrid.batch.convert_selection', fake_convert)
     ctx = SimpleNamespace(log=lambda _text: None, progress=lambda *_args: None, cancel=Event())
 
     result = services.convert(ws, ctx, ['F-A'], False)

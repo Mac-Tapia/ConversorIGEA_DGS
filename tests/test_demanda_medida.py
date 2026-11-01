@@ -2,7 +2,7 @@
 
 Los libros se escriben aquí con openpyxl (``.xlsx``); el lector es el mismo para ``.xls``
 y ``.xlsb`` (python-calamine). Las columnas se sortean de orden, como en la medición
-real, donde cada medidor las exporta en otro orden. Con ``IGEA_DEMANDA_DIR`` (la carpeta
+real, donde cada medidor las exporta en otro orden. Con ``CSG_DEMANDA_DIR`` (la carpeta
 con las cuatro subcarpetas de la distribuidora) corren además las de datos reales; los
 valores no se imprimen: son datos de la distribuidora (P9).
 """
@@ -18,9 +18,9 @@ import pytest
 pytest.importorskip('python_calamine')
 openpyxl = pytest.importorskip('openpyxl')
 
-from igea_dgs import demanda_medida as dm  # noqa: E402
+from convertersmartgrid import demanda_medida as dm  # noqa: E402
 
-SEMILLA = int(os.environ.get('IGEA_SCALE_SEED', random.randrange(1 << 30)))
+SEMILLA = int(os.environ.get('CSG_SCALE_SEED', random.randrange(1 << 30)))
 INICIO = datetime(2026, 7, 1)
 
 
@@ -315,7 +315,7 @@ def test_varios_medidores_por_separado_sin_sumar(tmp_path):
 def test_reactiva_del_registro_de_la_pot_del_cliente(tmp_path):
     """004:RF-66 — «maestro_lib» lleva a la hoja de 15 minutos de cada cliente; su kVAR es
     el ERI × 4 del registro en que dio su POT; sin hoja, sigue con su ERI/EA del mes."""
-    from igea_dgs.ajuste_cabecera import Objetivo, fijas_de
+    from convertersmartgrid.ajuste_cabecera import Objetivo, fijas_de
 
     rng = random.Random(SEMILLA)
     pico = rng.randint(1, 20)
@@ -793,9 +793,9 @@ def test_excel_de_salida(tmp_path):
 
 
 # =========================================================================== datos reales
-REAL = os.environ.get('IGEA_DEMANDA_DIR', '').strip()
+REAL = os.environ.get('CSG_DEMANDA_DIR', '').strip()
 real = pytest.mark.skipif(not REAL or not Path(REAL).is_dir(),
-                          reason='IGEA_DEMANDA_DIR no apunta a la carpeta de la distribuidora')
+                          reason='CSG_DEMANDA_DIR no apunta a la carpeta de la distribuidora')
 
 
 def _sub(prefijo: str) -> Path:
@@ -837,7 +837,7 @@ def test_set_con_tres_transformadores_suma_los_tres():
     """022:RF-84, 022:RF-87 — tres transformadores en 60 kV (sorteados de 1 a 3 y con
     puntas en registros distintos): el instante es la máxima de la suma, no la de uno; un
     transformador medido solo en 60 kV se avisa."""
-    from igea_dgs.estructura import estructura_de_dict
+    from convertersmartgrid.estructura import estructura_de_dict
 
     rng = random.Random(SEMILLA)
     n = rng.randint(1, 3)
@@ -885,7 +885,7 @@ def test_real_barras_de_60_kv_casan_con_su_set_y_llevan_toda_la_set():
     instante de la de 60 kV. Si falla, solo se dicen recuentos y siglas, no medidas."""
     import json
 
-    from igea_dgs.estructura import estructura_de_dict
+    from convertersmartgrid.estructura import estructura_de_dict
 
     raiz = Path(__file__).resolve().parents[1]
     e = estructura_de_dict(json.loads((raiz / 'config' / 'perfiles' / 'electro_dunas.estructura.json')
@@ -912,7 +912,7 @@ def test_real_barras_de_60_kv_casan_con_su_set_y_llevan_toda_la_set():
 def test_real_los_dos_formatos_de_clientes_cruzan():
     """004:RF-34 a RF-37, 025:RF-1 — cada libro de clientes, de cada año, cruza casi entero
     con el de suministros."""
-    from igea_dgs.libros_por_anio import arbol_de_libros
+    from convertersmartgrid.libros_por_anio import arbol_de_libros
 
     sums, _ = dm.leer_suministros(next(_sub('3.').iterdir()))
     libros = arbol_de_libros(_sub('4.'))

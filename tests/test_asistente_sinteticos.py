@@ -4,10 +4,10 @@ from __future__ import annotations
 import random
 from collections import Counter
 
-from igea_dgs.asistente.sinteticos import expandir, generar, normalizar
-from igea_dgs.asistente.tareas import TAREAS
+from convertersmartgrid.asistente.sinteticos import expandir, generar, normalizar
+from convertersmartgrid.asistente.tareas import TAREAS
 
-VOCAB = {'alimentadores': ['IN111', 'TA225', 'PA217'], 'proyecto': ['20261015-170359_IGEA_IN111_TA225'],
+VOCAB = {'alimentadores': ['IN111', 'TA225', 'PA217'], 'proyecto': ['20261015-170359_CSG_IN111_TA225'],
          'sistema': ['Pisco', 'Ica']}
 
 
@@ -53,8 +53,8 @@ def test_normalizar_conserva_las_posiciones():
 def test_doscientas_ordenes_fijas_del_maestro():
     """027:RF-65 / 027:RF-66 — 200 órdenes de todas las tareas, con frases que no son las del
     entrenamiento, deterministas por su huella, 160 a entrenar y 40 a la prueba."""
-    from igea_dgs.asistente import ordenes_fijas as of
-    from igea_dgs.asistente.tareas import TAREAS
+    from convertersmartgrid.asistente import ordenes_fijas as of
+    from convertersmartgrid.asistente.tareas import TAREAS
 
     vocab = {'alimentadores': ['IN111', 'TA225'], 'proyecto': ['P_PISCO'], 'sistema': ['Pisco']}
     e = of.generar(vocab)
@@ -69,8 +69,8 @@ def test_doscientas_ordenes_fijas_del_maestro():
 
 def test_las_fijas_no_quitan_la_confirmacion(tmp_path, monkeypatch):
     """027:RF-67 — el conjunto fijo no cuenta como órdenes del operador."""
-    from igea_dgs.asistente import almacen
-    from igea_dgs.asistente import transformer as tr
+    from convertersmartgrid.asistente import almacen
+    from convertersmartgrid.asistente import transformer as tr
 
-    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(tmp_path))
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path))
     assert tr.ejemplos_reales() == ([], []) and len(almacen.leer('ejemplos')) == 0

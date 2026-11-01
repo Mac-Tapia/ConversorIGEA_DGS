@@ -33,12 +33,12 @@ Lee: `docs/constitution.md` y `specs/032-caso-base-original-fichas-en-sin-proyec
 
 | Parte | Ficheros | Cubre |
 | --- | --- | --- |
-| A. Caso base sin correcciones | `src/igea_dgs/reglas.py`: `Reglas.redimensionar_sed=False` en `REGLAS_PROYECTO`, campo nuevo `aplicar_fichas: bool = False`; `aplicar_reglas` aplica `correcciones` solo con `aplicar_fichas`. `batch.py` deja de leer `leer_catalogo` para convertir. `web/services.py` quita `catalog_corrections` y las líneas «SED redimensionada» del Registro | RF-1, RF-2, RF-5, RF-6 |
+| A. Caso base sin correcciones | `src/convertersmartgrid/reglas.py`: `Reglas.redimensionar_sed=False` en `REGLAS_PROYECTO`, campo nuevo `aplicar_fichas: bool = False`; `aplicar_reglas` aplica `correcciones` solo con `aplicar_fichas`. `batch.py` deja de leer `leer_catalogo` para convertir. `web/services.py` quita `catalog_corrections` y las líneas «SED redimensionada» del Registro | RF-1, RF-2, RF-5, RF-6 |
 | B. Completados anotados | `reglas.preparar_dataset`: `completados_catalogo` con fuente y nº de tramos por código; al manifiesto (informe de entrada) y al Registro | RF-3, RF-4 |
 | C. Verificación con la entrada | `capacidades.comparar_equipos` ya compara con el DGS aceptado, que ahora es la entrada: prueba que lo fija; 015:RF-38 sin cambios | RF-7, RF-26 |
 | D. Fichas en el plan | `catalog.py`: función pura `fichas_para_pf(correcciones) -> dict[codigo, dict[atributo_pf, valor]]` (unidades de DIgSILENT: `sline` en kA, `bline` en µS/km), con la regla de la homopolar de `aplicar_correcciones` extraída a una función común; y `cambios_de_ficha(codigo, actuales, ficha, tramos, km)` → `list[Cambio]` y rechazos (RF-19). `services.py` pone `fichas_conductores` en el plan (catálogo subido o el del proyecto) | RF-14, RF-16, RF-18, RF-19 |
 | E. Variación de conductores | `tools/ajuste_cabecera_pf.py`: `fichas_en_sin_proyecto(app, fichas)` antes del primer flujo: reutiliza o crea `Fichas_<proyecto>`; por cada `TypLne` usado con ficha, tipo propio `<tipo>_FICHA` (`AddCopy`, sin tocar el original), reutilizado si coincide y omitido con motivo si difiere; reasigna `typ_id` de sus `ElmLne` con la etapa grabando. Informe por código al resultado del ajuste | RF-8 a RF-17 |
-| F. SED sobre el umbral | `src/igea_dgs/trafos_sed.py`: función pura `sed_sobre_umbral(demanda_kva, kva, umbral_pct)` → nivel `sobre_100` / `sobre_umbral`. En el guion, tras el flujo calibrado, la demanda aparente de cada SED (fija o escalada) por `m:Ssum` de su transformador; las fijas conservan su aviso previo al flujo (020:RF-1) | RF-20, RF-21, RF-25, RF-28 |
+| F. SED sobre el umbral | `src/convertersmartgrid/trafos_sed.py`: función pura `sed_sobre_umbral(demanda_kva, kva, umbral_pct)` → nivel `sobre_100` / `sobre_umbral`. En el guion, tras el flujo calibrado, la demanda aparente de cada SED (fija o escalada) por `m:Ssum` de su transformador; las fijas conservan su aviso previo al flujo (020:RF-1) | RF-20, RF-21, RF-25, RF-28 |
 | G. Variación de SED | `implementar_transformadores`: reutiliza o crea `SED_NTP_<proyecto>` y escribe ahí; solo rechaza si graba una variación **del operador** (fuera de `PREFIJOS_PROPIOS`) | RF-8, RF-12, RF-13, RF-23, RF-24 |
 | H. Casos | `tools/casos_pf.py`: `Fichas_*` y `SED_NTP_*` activas en «Sin proyecto», «Con proyecto» y los de cada año; inactivas en «Caso base». `escaneo.PREFIJOS_PROPIOS` con los dos prefijos | RF-27 |
 | I. Web | `api.ts`, `AjusteCabecera.tsx`/`DemandaMedida.tsx`: tabla «Conductores con su ficha» (código, parámetro, archivo, ficha, %, tramos, km, fuente; «sin ficha» aparte) y columna de nivel en la propuesta de SED (> 100 % frente a umbral–100 %) | RF-17, RF-22, RF-28 |
@@ -86,7 +86,7 @@ Lee: `docs/constitution.md` y `specs/032-caso-base-original-fichas-en-sin-proyec
   (RF-20, RF-28).
 - `tests/test_casos_pf*.py`: activas en «Sin/Con proyecto», inactivas en «Caso base»
   (RF-27).
-- Datos reales (`IGEA_*`): DGS de los alimentadores reales sin SED redimensionadas.
+- Datos reales (`CSG_*`): DGS de los alimentadores reales sin SED redimensionadas.
 - Cada prueba cita `032:RF-n`.
 
 ## Riesgos

@@ -16,8 +16,8 @@ import pytest
 
 from synthetic_export import ExportSpec, load_export
 
-from igea_dgs.batch import convert_group, convert_selection
-from igea_dgs.validate import parse_dgs
+from convertersmartgrid.batch import convert_group, convert_selection
+from convertersmartgrid.validate import parse_dgs
 
 pytest.importorskip('pyproj')
 
@@ -136,10 +136,10 @@ def test_la_red_unida_lleva_el_trazado_de_todas_sus_lineas(tmp_path, layout):
 
 def test_el_validador_detecta_un_trazado_alterado(tmp_path):
     """010:RF-5 — un punto movido en la tabla Matrix es un error de validación."""
-    from igea_dgs.dgs import write_dgs
-    from igea_dgs.geography import build_geography
-    from igea_dgs.model import build_feeder_model
-    from igea_dgs.validate import validate_dgs
+    from convertersmartgrid.dgs import write_dgs
+    from convertersmartgrid.geography import build_geography
+    from convertersmartgrid.model import build_feeder_model
+    from convertersmartgrid.validate import validate_dgs
 
     ds = load_export(_spec('reducido', SEMILLAS[0]), tmp_path / 'export')
     nid = next(n for n in ds.feeder_ids() if ds.feeders.get(n))

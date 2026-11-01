@@ -2,9 +2,9 @@
 **Version:** 1.6.0 UNIVERSAL + DATABASE/BACKUP IMPORT + WEB UI | **Runtime:** Python 3.9+ | **Target:** Existing project / Cursor / VS Code
 
 ## 0. Mandatory agent contract
-Integrate an auditable OSINERGMIN VNR/IGEA/GIS → CYMDIST → DIgSILENT converter into an existing project. Audit before coding. Prefer `REUSE`, then `ADAPT`; use `REPLACE` only with justification and mark missing pieces `MISSING`.
+Integrate an auditable OSINERGMIN VNR-GIS → CYMDIST → DIgSILENT converter into an existing project. Audit before coding. Prefer `REUSE`, then `ADAPT`; use `REPLACE` only with justification and mark missing pieces `MISSING`.
 
-Hard rules: discovery is read-only; never invent IGEA endpoints, credentials, CRS, CYMDIST columns, DGS schemas or electrical parameters; preserve source IDs/lineage; separate GIS/topology from simulator serialization; make tolerances/mappings configurable; block strict export on mandatory validation failures; validate by simulator import/load flow when available; treat PDF extraction only as optional recovery.
+Hard rules: discovery is read-only; never invent external endpoints, credentials, CRS, CYMDIST columns, DGS schemas or electrical parameters; preserve source IDs/lineage; separate GIS/topology from simulator serialization; make tolerances/mappings configurable; block strict export on mandatory validation failures; validate by simulator import/load flow when available; treat PDF extraction only as optional recovery.
 
 ## 1. Required outputs
 CYMDIST (only against a verified organizational import contract): `CYM_SECTIONS.TXT`, `CYM_LOADS.TXT`, `CYM_EQUIPMENT.TXT`.
@@ -14,7 +14,7 @@ PowerFactory: `.DGS` generated from a known-good export/template from the exact 
 Required modes: `audit`, `validate`, `export-cymdist`, `export-dgs`, `export-all`.
 
 ## 2. Mandatory pre-implementation audit
-Inspect `pyproject.toml`, `setup.py`, requirements, virtual environments, CLI, SQLAlchemy/PostGIS/Oracle/ODBC/GeoPandas/proprietary connectors, settings/secrets, GIS preprocessors, graph code, conductor/transformer/phase/voltage catalogs, VNR→CYM/DGS mappings, known-good CYMDIST/DGS files, tests, and existing IGEA/VNR integrations.
+Inspect `pyproject.toml`, `setup.py`, requirements, virtual environments, CLI, SQLAlchemy/PostGIS/Oracle/ODBC/GeoPandas/proprietary connectors, settings/secrets, GIS preprocessors, graph code, conductor/transformer/phase/voltage catalogs, VNR→CYM/DGS mappings, known-good CYMDIST/DGS files, tests, and existing VNR integrations.
 
 `audit` MUST NOT alter application source. Produce:
 ```text
@@ -87,8 +87,8 @@ CRS must come from authoritative metadata. EPSG:32718 is only an example for som
 Secrets:
 ```python
 import os
-IGEA_API_URL = os.getenv('IGEA_API_URL')
-IGEA_API_TOKEN = os.getenv('IGEA_API_TOKEN')
+CSG_API_URL = os.getenv('CSG_API_URL')
+CSG_API_TOKEN = os.getenv('CSG_API_TOKEN')
 ```
 
 ## 8. Connector abstraction
@@ -153,7 +153,7 @@ def extract_candidate_shapes(pdf_path):
 ```
 Production: `PDF → control points → georeferencing → projected CRS → line/point extraction → LineString reconstruction → intersections/endpoints → snapping → classification → QA → canonical staging`.
 
-Do not POST recovered geometry to IGEA until the real endpoint, authorization and payload schema are verified.
+Do not POST recovered geometry to any external system until the real endpoint, authorization and payload schema are verified.
 
 ## 14. CYMDIST adapter
 Output:
@@ -250,7 +250,7 @@ Production-ready only when audit/integration plan are complete; ingestion has no
 | CRS/snapping | Complete | Yes | Real GIS for acceptance |
 | Graph QA | Complete | Yes | Real network for acceptance |
 | PDF candidate extraction | Complete | Yes with Poppler | PDF |
-| IGEA write-back | Guarded | No | Verified API contract |
+| Write-back | Guarded | No | Verified API contract |
 | CYMDIST serialization | Architecture complete | Not final | Known-good CYMDIST sample/schema |
 | DGS serialization | Architecture complete | Not final | Known-good DGS/template |
 | Import/load-flow QA | Defined | No | Target simulator |
@@ -258,7 +258,7 @@ Production-ready only when audit/integration plan are complete; ingestion has no
 ## 26. Audit conclusion
 This MD is **functional as a complete integration specification and coding-agent contract** for importing the converter into an existing project. It intentionally prevents false completeness where external contracts are unknown.
 
-The audit, canonical model, GIS normalization, snapping, graph, catalog validation, CLI and QA layers can be implemented immediately. Final CYMDIST/DGS serialization is production-valid only after discovering an existing exporter or verifying known-good target files. IGEA write-back remains disabled until the actual API is verified.
+The audit, canonical model, GIS normalization, snapping, graph, catalog validation, CLI and QA layers can be implemented immediately. Final CYMDIST/DGS serialization is production-valid only after discovering an existing exporter or verifying known-good target files. Write-back remains disabled until the actual API is verified.
 
 ## 27. Instruction to the coding agent
 When this MD is placed in a repository: run read-only audit; create `AUDIT/integration_plan.md`; identify reuse/insertion points; locate CYMDIST/DGS reference files; implement only missing layers with tests; run validation gates after each layer; do not enable production export prematurely; produce a final change report; run regression tests and simulator acceptance tests where available.
@@ -577,7 +577,7 @@ Expected audit-source report:
 ## J. Integration with an existing converter
 
 The agent MUST search the repository for:
-- existing IGEA TXT readers;
+- existing CYMDIST TXT readers;
 - GIS database connectors;
 - existing DGS writer;
 - CYMDIST import/export mappings;

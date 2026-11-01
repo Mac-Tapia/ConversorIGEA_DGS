@@ -74,7 +74,7 @@ Specs
 Documentación
 
 - RF-12: EL SISTEMA describirá en `docs/MANUAL_COMANDOS.md` cada orden del CLI
-  `igea-dgs` y cada herramienta de `tools/`.
+  `convertersmartgrid` y cada herramienta de `tools/`.
 - RF-13: EL SISTEMA describirá en el README la pestaña «Cargas en DIgSILENT» con sus tres
   pasos y el perfil de empresa.
 
@@ -107,4 +107,4 @@ Código
 ## Criterios de finalización
 
 - `grep -rnoE "009:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-15.
-- Suite completa en verde con las tres variables `IGEA_*`.
+- Suite completa en verde con las tres variables `CSG_*`.

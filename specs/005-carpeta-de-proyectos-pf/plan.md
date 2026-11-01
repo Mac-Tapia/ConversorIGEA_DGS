@@ -18,15 +18,15 @@ Lee: `docs/constitution.md` y `specs/005-carpeta-de-proyectos-pf/spec.md`.
   (`PfProject` en `frontend/src/types.ts`).
 - Precedente de convención de empresa en un fichero local: `config/demanda_medida_alias.json`
   (spec 004), con su `.example.json` versionado.
-- Los guiones de PowerFactory ya importan `igea_dgs` (`powerfactory_metadata`, `economia`),
+- Los guiones de PowerFactory ya importan `convertersmartgrid` (`powerfactory_metadata`, `economia`),
   con `PYTHONPATH=src` desde la web.
 
 ## Diseño por partes
 
 | Parte | Ficheros | Cubre |
 | --- | --- | --- |
-| Regla del nombre y perfil | `src/igea_dgs/carpeta_pf.py` (nuevo): `NOMBRE_POR_DEFECTO`, `validar_nombre`, `nombre_de_perfil(ruta)`; `config/perfil_empresa.example.json`; `config/perfil_empresa.json` local (no versionado) con «sistemaeletricoELD» | RF-2, RF-3, RF-4 |
-| Árbol de DIgSILENT | `src/igea_dgs/carpeta_pf.py`: `buscar_carpeta(user, nombre)`, `asegurar_carpeta(user, nombre)`, `nombre_libre(carpeta, nombre)`, `proyectos_de(carpeta)` → `[(ruta_relativa, IntPrj)]`, `proyecto_por_ruta(carpeta, ruta)`, `alimentadores_de(proyecto)`. Solo usan la API por duck typing, sin importar `powerfactory`; se prueban con `tests/fake_pf.py` | RF-1, RF-5, RF-7, RF-12, RF-13, RF-16, RF-17, RF-18, RF-19 |
+| Regla del nombre y perfil | `src/convertersmartgrid/carpeta_pf.py` (nuevo): `NOMBRE_POR_DEFECTO`, `validar_nombre`, `nombre_de_perfil(ruta)`; `config/perfil_empresa.example.json`; `config/perfil_empresa.json` local (no versionado) con «sistemaeletricoELD» | RF-2, RF-3, RF-4 |
+| Árbol de DIgSILENT | `src/convertersmartgrid/carpeta_pf.py`: `buscar_carpeta(user, nombre)`, `asegurar_carpeta(user, nombre)`, `nombre_libre(carpeta, nombre)`, `proyectos_de(carpeta)` → `[(ruta_relativa, IntPrj)]`, `proyecto_por_ruta(carpeta, ruta)`, `alimentadores_de(proyecto)`. Solo usan la API por duck typing, sin importar `powerfactory`; se prueban con `tests/fake_pf.py` | RF-1, RF-5, RF-7, RF-12, RF-13, RF-16, RF-17, RF-18, RF-19 |
 | Importación | `import_dgs_file(app, dgs, project_name=None, carpeta=None)`: importa con un nombre provisional único en la raíz, mueve el proyecto a la carpeta, le da el nombre libre y lo activa por objeto (`prj.Activate()`), no por nombre. Si mover falla, borra ese proyecto recién creado y devuelve error con la carpeta. El informe añade `project_folder` y `project_path` | RF-5, RF-6, RF-7, RF-8, RF-9 |
 | Guiones | `--pf-carpeta` en `powerfactory_acceptance.py`, `build_system_grid.py`, `convertir_grupos_mdb.py`, `prueba_representacion.py`, `run_one_study.py`; sin la opción, `nombre_de_perfil(config/perfil_empresa.json)` | RF-10 |
 | Activar después de importar | `carpeta_pf.activar_proyecto(app, ruta, carpeta)`: busca la ruta en la carpeta y, si no está, un proyecto de la raíz con ese nombre exacto (los anteriores, RF-20), y lo activa por objeto. La usan los estudios de `run_one_study.py` (que antes hacían `ActivateProject(nombre)`, que solo mira la raíz), `check_pf_license.py --project` y `show_pf_diagram.py`. `base_scenario.py` pasa a los estudios el proyecto que devolvió la importación, que puede llevar `_2`, y `--pf-carpeta` | RF-10, RF-16 |
@@ -38,13 +38,13 @@ Lee: `docs/constitution.md` y `specs/005-carpeta-de-proyectos-pf/spec.md`.
 ## Decisiones
 
 - **Mover tras importar con nombre provisional.** `ComImport` con `iopt_prj=0` crea en la
-  raíz; el proyecto se importa como `_igea_<sello>`, se mueve con `carpeta.Move(prj)` y se
+  raíz; el proyecto se importa como `_csg_<sello>`, se mueve con `carpeta.Move(prj)` y se
   renombra con el nombre libre. Descartado: el atributo de carpeta destino de `ComImport`,
   porque no aparece en el ejemplo oficial de la API que sigue el guion y no está probado en
   PF 2024; y descartado importar con el nombre final en la raíz, porque chocaría con los
   proyectos anteriores que siguen allí (RF-20) y DIgSILENT renombraría o fallaría.
-- **Una sola implementación en `src/igea_dgs/carpeta_pf.py`.** Los guiones ya importan
-  `igea_dgs`; la web valida el nombre con la misma función antes de abrir DIgSILENT (RF-4).
+- **Una sola implementación en `src/convertersmartgrid/carpeta_pf.py`.** Los guiones ya importan
+  `convertersmartgrid`; la web valida el nombre con la misma función antes de abrir DIgSILENT (RF-4).
   Descartado un `tools/pf_carpeta.py`, porque la web tendría que copiar la validación (P5).
 - **El nombre de la empresa en `config/perfil_empresa.json`, local y fuera de git.** Igual
   que `demanda_medida_alias.json`. Cuando exista el perfil de la spec 002 (RF-31), la clave
@@ -73,7 +73,7 @@ Lee: `docs/constitution.md` y `specs/005-carpeta-de-proyectos-pf/spec.md`.
   dentro de una petición HTTP.
 - **P9 Datos:** las pruebas usan el doble, sin datos de la distribuidora.
 - **P10 Idioma:** español.
-- **P13 Universal:** el código solo conoce «Conversor IGEA-DGS»; «sistemaeletricoELD» vive
+- **P13 Universal:** el código solo conoce «ConverterSmartGrid»; «sistemaeletricoELD» vive
   en el perfil local. La comprobación de universalidad de la spec 002 aún no existe; hasta
   entonces, una prueba exige que ni `src/` ni `tools/` contengan ese nombre.
 

@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from igea_dgs.digital_twin import episode as ep
+from convertersmartgrid.digital_twin import episode as ep
 
 RAIZ = Path(__file__).resolve().parents[1]
 H = 'a' * 64
@@ -170,7 +170,7 @@ def test_sorteo_de_clases_casos_y_alimentadores():
 
 def test_el_esquema_json_coincide_con_el_contrato():
     """024:RF-7 — el esquema publicado y el contrato de Python declaran lo mismo."""
-    esquema = json.loads((RAIZ / 'src' / 'igea_dgs' / 'schemas'
+    esquema = json.loads((RAIZ / 'src' / 'convertersmartgrid' / 'schemas'
                           / 'digital_twin_episode_v1.schema.json').read_text(encoding='utf-8'))
     props = esquema['properties']
     assert props['schema']['const'] == ep.ESQUEMA

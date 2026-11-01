@@ -31,7 +31,7 @@ for _p in (HERE, HERE.parent / 'src'):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
-from igea_dgs import pf_arnes  # noqa: E402
+from convertersmartgrid import pf_arnes  # noqa: E402
 
 
 def _cargar(guion: str):

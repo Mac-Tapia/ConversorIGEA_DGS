@@ -8,8 +8,8 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def gpu_exclusiva():
-    from igea_dgs.training_coordinator import BloqueoGPU
-    ruta = Path(os.environ.get('IGEA_ML_GPU_LOCK') or str(Path(tempfile.gettempdir()) / 'igea-dgs-gpu.lock'))
+    from convertersmartgrid.training_coordinator import BloqueoGPU
+    ruta = Path(os.environ.get('CSG_ML_GPU_LOCK') or str(Path(tempfile.gettempdir()) / 'convertersmartgrid-gpu.lock'))
     with BloqueoGPU(ruta, 'verificacion-dependencias-ia'):
         yield
 
@@ -44,7 +44,7 @@ def test_ipopt_resuelve_pnl_con_cotas():
     """043:RF-12: ejecutable/DLL reales para PNL; HiGHS no sustituye ese requisito."""
     import pyomo.environ as p
     raiz = Path(__file__).resolve().parents[1]
-    ejecutable = Path(os.environ.get('IGEA_IPOPT_PATH') or
+    ejecutable = Path(os.environ.get('CSG_IPOPT_PATH') or
         raiz / 'external/solvers/ipopt-3.14.19/Ipopt-3.14.19-win64-msvs2022-md/bin/ipopt.exe')
     assert ejecutable.is_file()
     m = p.ConcreteModel()

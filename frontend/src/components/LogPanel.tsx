@@ -30,7 +30,7 @@ export function LogPanel({ lines, onClear, connected }: { lines: LogLine[]; onCl
           const blob = new Blob([lines.map((l) => l.text).join('\n')], { type: 'text/plain' });
           const a = document.createElement('a');
           a.href = URL.createObjectURL(blob);
-          a.download = 'registro_igea_dgs.txt';
+          a.download = 'registro_convertersmartgrid.txt';
           a.click();
           URL.revokeObjectURL(a.href);
         }}>Guardar</button>

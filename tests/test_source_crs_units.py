@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import pytest
 
-from igea_dgs.geography import assert_metre_source_crs
+from convertersmartgrid.geography import assert_metre_source_crs
 
 pytest.importorskip('pyproj', reason='la verificación de unidades del CRS requiere pyproj')
 
@@ -49,7 +49,7 @@ def test_unknown_crs_is_refused():
 
 def test_batch_refuses_degree_crs_before_writing_anything(ds, sample_feeder, tmp_path):
     """El lote debe fallar antes de escribir, no producir un DGS 'válido'."""
-    from igea_dgs.batch import convert_selection
+    from convertersmartgrid.batch import convert_selection
 
     out = tmp_path / 'out'
     with pytest.raises(ValueError, match='no metros'):
@@ -62,7 +62,7 @@ def test_batch_refuses_degree_crs_before_writing_anything(ds, sample_feeder, tmp
 
 def test_no_geography_does_not_require_a_metre_crs(ds, sample_feeder, tmp_path):
     """Sin georreferenciación el CRS es irrelevante y no debe bloquear."""
-    from igea_dgs.batch import convert_selection
+    from convertersmartgrid.batch import convert_selection
 
     manifest = convert_selection(
         ds, [sample_feeder], tmp_path / 'out',

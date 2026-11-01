@@ -7,7 +7,7 @@ import fake_pf
 import pytest
 from apoyo import cargar_herramienta, contexto_nativo
 
-from igea_dgs.digital_twin import escenarios as es
+from convertersmartgrid.digital_twin import escenarios as es
 
 
 def test_matriz_con_demanda_y_n_menos_1():
@@ -116,7 +116,7 @@ def test_cancelar_para_entre_escenarios(guion):
 def test_el_grafo_trae_los_acopladores_y_la_version(guion):
     """024:RF-11 — los acopladores cerrados son ramas del grafo: sin ellos la cabecera,
     interruptor en su SET, dejaba la red sin fuente (IN111–TA225, 2026-10-22)."""
-    from igea_dgs.digital_twin.oraculo import VERSION_GRAFO
+    from convertersmartgrid.digital_twin.oraculo import VERSION_GRAFO
 
     app = _app()
     red = next(o for o in app.proyecto.GetContents('*.ElmNet', 1))
@@ -162,9 +162,9 @@ def test_la_web_usa_el_rango_de_la_ultima_maxima(monkeypatch):
     from threading import Lock
     from types import SimpleNamespace
 
-    from igea_dgs import perfil_empresa
-    from igea_dgs.digital_twin import buffer, oraculo
-    from igea_dgs.web import services
+    from convertersmartgrid import perfil_empresa
+    from convertersmartgrid.digital_twin import buffer, oraculo
+    from convertersmartgrid.web import services
 
     t0 = datetime(2026, 7, 1)
     curva = [(t0, kw, 0.0) for kw in (300.0, 600.0, 1000.0, 500.0)]

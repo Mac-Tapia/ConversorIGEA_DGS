@@ -31,7 +31,7 @@ import argparse
 from cargas_pf import crear_variacion, nombre_libre
 from confiabilidad_pf import orden_propia, sin_licencia
 
-from igea_dgs import estudios_red_pf as er
+from convertersmartgrid import estudios_red_pf as er
 
 #: ``ComHostcap.objective``: 0 generación distribuida, 1 carga nueva (plan).
 OBJETIVOS = {'gd': 0, 'carga': 1}
@@ -42,9 +42,9 @@ OPCIONES_HOSTCAP = {'iLoad': 1, 'iVolt': 1, 'ioptProt': 0, 'ioptPqual': 0, 'iopt
                     'ioptTrip': 0, 'ioptRevFlow': 0, 'ioptFlicker': 0}
 #: Por debajo de esta tensión (kV) una barra no es un sitio de media tensión (RF-42).
 KV_MINIMO_MT = 1.0
-NOMBRE_HOSTCAP = 'Alojamiento_igea_dgs'
-NOMBRE_PV = 'CurvasPV_igea_dgs'
-NOMBRE_CAPO = 'Condensadores_igea_dgs'
+NOMBRE_HOSTCAP = 'Alojamiento_convertersmartgrid'
+NOMBRE_PV = 'CurvasPV_convertersmartgrid'
+NOMBRE_CAPO = 'Condensadores_convertersmartgrid'
 #: ``ComCapo.shnttech``: 0 trifásico, 1 monofásico (orden del diálogo).
 TECNOLOGIA = {True: 0, False: 1}
 

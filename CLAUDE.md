@@ -1,19 +1,19 @@
-# Conversor IGEA/CYMDIST → DIgSILENT PowerFactory DGS
+# ConverterSmartGrid → DIgSILENT PowerFactory DGS
 
-Convierte los TXT que exporta IGEA/CYMDIST (RED, CARGA, BD_Equipo) en ficheros `.dgs`
+Convierte los TXT que exporta CYMDIST (RED, CARGA, BD_Equipo) en ficheros `.dgs`
 que se importan en PowerFactory, un alimentador por fichero o todos en una red unida.
 
 ## Entorno
 
 - Python **3.12 exacto**, en `.venv` (`.venv/Scripts/python.exe`). La API de PowerFactory 2024 solo carga en 3.12.
 - Instalación: `pip install -r requirements.txt`; los drivers opcionales de VNR-GIS, aparte con `pip install -r requirements-drivers.txt`. La web necesita compilar el front una vez: `cd frontend && npm install && npm run build`.
-- Web: `run_gui.bat` o `igea-dgs-web`. CLI: `igea-dgs convert --red ... --loads ... --equipment ... --all --out-dir out --workers 0`.
+- Web: `run_gui.bat` o `convertersmartgrid-web`. CLI: `convertersmartgrid convert --red ... --loads ... --equipment ... --all --out-dir out --workers 0`.
 
 ## Skills del proyecto
 
-- `.claude/skills/igea-dgs-backend/SKILL.md`: reglas del motor, la escala y la API. **Léelo antes de tocar `src/igea_dgs/`.**
-- `.claude/skills/igea-dgs-frontend/SKILL.md`: UX y checklist de la interfaz web (React en `frontend/`). Léelo antes de tocar `frontend/src/` o `src/igea_dgs/web/`.
-- `.claude/skills/igea-dgs-spec/SKILL.md`: desarrollo guiado por especificaciones. Toda funcionalidad o reorganización que no sea un arreglo de una línea empieza por `specs/NNN-*/spec.md` (requisitos `RF-n` en EARS), luego plan y tareas; las pruebas citan `NNN:RF-n`.
+- `.claude/skills/convertersmartgrid-backend/SKILL.md`: reglas del motor, la escala y la API. **Léelo antes de tocar `src/convertersmartgrid/`.**
+- `.claude/skills/convertersmartgrid-frontend/SKILL.md`: UX y checklist de la interfaz web (React en `frontend/`). Léelo antes de tocar `frontend/src/` o `src/convertersmartgrid/web/`.
+- `.claude/skills/convertersmartgrid-spec/SKILL.md`: desarrollo guiado por especificaciones. Toda funcionalidad o reorganización que no sea un arreglo de una línea empieza por `specs/NNN-*/spec.md` (requisitos `RF-n` en EARS), luego plan y tareas; las pruebas citan `NNN:RF-n`.
 - Las copias de `.cursor/skills/` son solo punteros a estas: el texto vigente es uno.
 
 ## Especificaciones
@@ -82,7 +82,10 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 052 Optimización de «Con proyecto» con el oráculo y confirmación en DIgSILENT | aprobada | falta T1, T2, T3, T4 |
   | 053 El catálogo de fichas crece con cada código nuevo | implementada | falta T2 |
   | 054 Fases reales en el DGS: tramos y SED monofásicos y bifásicos | implementada | falta T3 |
-  | 055 Estructura de sistemas y SET desde la propia fuente, para cualquier empresa | aprobada | falta T1, T2 |
+  | 055 Estructura de sistemas y SET desde la propia fuente, para cualquier empresa | aprobada | falta T1, T3, T2 |
+  | 056 Nombres y mensajes según la fuente: cada fuente con sus propias palabras | aprobada | falta T1, T2, T3 |
+  | 057 El «Caso base» llega convergido: el oráculo corrige antes de importar | implementada | falta T4 |
+  | 058 ConverterSmartGrid: el proyecto sin el nombre de otra empresa | aprobada | falta T5, T6, T7 |
 
   Las convenciones de cada empresa (CRS de origen, patrón de SED de medición, escala,
   carpeta de DIgSILENT) van en `config/perfil_empresa.json`, local y fuera de git, que
@@ -100,31 +103,31 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
 
 ```bash
 .venv/Scripts/python.exe -m pytest -q                      # sintéticas: omiten las de datos reales
-IGEA_RED="referencia/RED_030826(1).txt" IGEA_LOADS="referencia/CARGA_030826(1).txt" \
-IGEA_EQUIPMENT="referencia/BD_Equipo_V261124 (1)(1).txt" .venv/Scripts/python.exe -m pytest -q
+CSG_RED="referencia/RED_030826(1).txt" CSG_LOADS="referencia/CARGA_030826(1).txt" \
+CSG_EQUIPMENT="referencia/BD_Equipo_V261124 (1)(1).txt" .venv/Scripts/python.exe -m pytest -q
 ```
 
-Sin las tres variables `IGEA_*`, la mayoría de las pruebas de integración se omiten en
-silencio y la suite «pasa» sin haber probado nada real. `IGEA_TXT_DIR` no basta. La suite se da
+Sin las tres variables `CSG_*`, la mayoría de las pruebas de integración se omiten en
+silencio y la suite «pasa» sin haber probado nada real. `CSG_TXT_DIR` no basta. La suite se da
 por buena solo sin ninguna omitida: con las nueve variables (las tres de los TXT, las dos
-de Access de abajo, `IGEA_DEMANDA_DIR="referencia"`,
-`IGEA_VNR_BAK="referencia/Electro Dunas VNRGIS/DAT_VNR/ELDU_VNR_24_APR.bak"`, con SQL Server
+de Access de abajo, `CSG_DEMANDA_DIR="referencia"`,
+`CSG_VNR_BAK="referencia/Electro Dunas VNRGIS/DAT_VNR/ELDU_VNR_24_APR.bak"`, con SQL Server
 Express en marcha, spec 023, y las dos de los PDF del solicitante, spec 017:
-`IGEA_SOLICITUD_PDF="referencia/Carta_Sol_Fact_AMPC_480A1000.pdf"` e
-`IGEA_SOLICITUD_DIR="referencia/ampliaciondecarga"`) y `-rs` pasan todas. El OCR de esas
-pruebas usa Tesseract; el idioma `spa` puede ir en `~/.igea_dgs/tessdata` (o `IGEA_TESSDATA`)
+`CSG_SOLICITUD_PDF="referencia/Carta_Sol_Fact_AMPC_480A1000.pdf"` e
+`CSG_SOLICITUD_DIR="referencia/ampliaciondecarga"`) y `-rs` pasan todas. El OCR de esas
+pruebas usa Tesseract; el idioma `spa` puede ir en `~/.convertersmartgrid/tessdata` (o `CSG_TESSDATA`)
 si no se puede escribir en la carpeta de Tesseract.
 
 Para la vía Access (`tests/test_access_input.py`) hacen falta dos bases, porque la red
 más reciente no trae catálogo de equipos:
-`IGEA_MDB="D:/BaseDatosElectroDunas/260919BaseDatos/202603/260924.mdb"` e
-`IGEA_EQUIPMENT_MDB="D:/BaseDatosElectroDunas/260919BaseDatos/202603/BASE JUL25 1.mdb"`.
+`CSG_MDB="D:/BaseDatosElectroDunas/260919BaseDatos/202603/260924.mdb"` e
+`CSG_EQUIPMENT_MDB="D:/BaseDatosElectroDunas/260919BaseDatos/202603/BASE JUL25 1.mdb"`.
 
 Las fuentes son independientes: un TXT, una `.mdb` o un paquete VNR-GIS se convierten
 y se prueban cada uno por su cuenta, sean de la empresa y la fecha que sean. No hay
 pruebas que comparen una fuente con otra (se retiraron el 2026-10-14). Con las cinco
 variables a la vez la suite pasa entera; solo dos pruebas de la demanda medida piden
-además `IGEA_DEMANDA_DIR`.
+además `CSG_DEMANDA_DIR`.
 
 ## Probar en DIgSILENT
 
@@ -132,8 +135,8 @@ además `IGEA_DEMANDA_DIR`.
   `.venv/Scripts/python.exe tools/sistema_web.py --espacio <id> --zonal Pisco --demanda-dir referencia --periodo 2026-07`
   (convierte, importa y calibra; retoma lo hecho). Nada de guiones del scratchpad que
   repitan la API.
-- Tras cambiar `src/igea_dgs/web/` o `src/igea_dgs/*.py` que use la web, reiniciarla: parar
-  el proceso del puerto 8765 y abrir el acceso directo «Conversor IGEA-DGS» del escritorio.
+- Tras cambiar `src/convertersmartgrid/web/` o `src/convertersmartgrid/*.py` que use la web, reiniciarla: parar
+  el proceso del puerto 8765 y abrir el acceso directo «ConverterSmartGrid» del escritorio.
   Los guiones de `tools/` no: el servidor de DIgSILENT los carga de nuevo en cada orden.
 - Parar un cliente no para el trabajo de la web: cancelarlo con `POST /api/jobs/<id>/cancel`.
 - Una sonda suelta conecta con `pf_arnes.conectar('nombre')`, sin `PYTHONPATH` (019:RF-16);
@@ -152,4 +155,4 @@ además `IGEA_DEMANDA_DIR`.
 - Dos disposiciones de export (reducida y completa): todo cambio en el lector se prueba con las dos.
 - Determinismo: el DGS es idéntico byte a byte con `workers=1` y con `workers>1`.
 - Idioma: código, comentarios, mensajes y commits en español, con el estilo de los existentes. Los comentarios explican **por qué**, con el caso real que lo motivó.
-- Los TXT de `referencia/` y `D:\BaseDatosElectroDunas` son datos de la distribuidora: nunca se publican ni se suben a git. Desde el 2026-10-27 el usuario autoriza leerlos (sin `deny` en `.claude/settings.json`) para diagnosticar; las pruebas los siguen leyendo por las variables `IGEA_*`.
+- Los TXT de `referencia/` y `D:\BaseDatosElectroDunas` son datos de la distribuidora: nunca se publican ni se suben a git. Desde el 2026-10-27 el usuario autoriza leerlos (sin `deny` en `.claude/settings.json`) para diagnosticar; las pruebas los siguen leyendo por las variables `CSG_*`.

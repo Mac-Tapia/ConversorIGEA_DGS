@@ -13,7 +13,7 @@ pytest.importorskip('fastapi')
 from fastapi.testclient import TestClient  # noqa: E402
 
 from apoyo import esperar_trabajo  # noqa: E402
-from igea_dgs.web.app import create_app  # noqa: E402
+from convertersmartgrid.web.app import create_app  # noqa: E402
 
 
 def _medida(vmin, kvar_perdidas=55.0):
@@ -37,8 +37,8 @@ def client(tmp_path, monkeypatch):
         'modelo_factibilidad': str(tmp_path / 'modelo.docx'), 'bandas_tension_pct': [95, 105],
         'bandas_cargabilidad_pct': [80, 100], 'cabecera': {'numero': 'INFORME TECNICO'}, 'norma': 'NTCSE'}}),
         encoding='utf-8')
-    monkeypatch.setenv('IGEA_PERFIL_EMPRESA', str(perfil))
-    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    monkeypatch.setenv('CSG_PERFIL_EMPRESA', str(perfil))
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     with TestClient(create_app(tmp_path / 'web')) as c:
         yield c
 
@@ -224,7 +224,7 @@ def test_libro_de_perdidas_se_lee_y_entra_en_el_informe(client, tmp_path, monkey
 def test_transformador_con_el_delta_de_los_flujos_guardados(client, tmp_path, monkeypatch):
     """017:RF-65, 017:RF-67, 017:RF-67b — el Δ de cabecera «Con − Sin» de 4.2 va al guion de
     transmisión; nada se vuelve a simular en el proyecto del alimentador."""
-    from igea_dgs.web import services
+    from convertersmartgrid.web import services
 
     wid, salida = _espacio(client, tmp_path)
     con = next(salida.glob('estudio_con_*.json'))
@@ -261,7 +261,7 @@ def test_informe_de_estudio_con_las_obras_ya_aplicadas(client, tmp_path):
     espacio, y el informe salía solo con el estado actual. Ahora toma las obras aplicadas
     cuya variación está activa en el flujo de «Con proyecto», con la consigna de cabecera
     como etapa de regulación."""
-    from igea_dgs.web import services
+    from convertersmartgrid.web import services
 
     wid, salida = _espacio(client, tmp_path)
     con = salida / 'estudio_con_flujo_desequilibrado_b.json'
@@ -298,7 +298,7 @@ def test_informe_de_estudio_con_las_imagenes_del_flujo(client, tmp_path):
         (salida / nombre).write_text(json.dumps({
             'medidas': {'AL01': _medida(u)}, 'geo': {'AL01': GEO},
             'obras_activas': ['Obra_consigna_AL01']}), encoding='utf-8')
-    from igea_dgs.web import services
+    from convertersmartgrid.web import services
 
     ws = client.app.state.store.get(wid)
     services.registrar_obra_aplicada(ws, '', 'Obra_consigna_AL01', {
@@ -387,7 +387,7 @@ def test_progreso_por_pasos_huecos_y_descargas(client, tmp_path):
 
 def test_rotulo_de_la_carga_nueva_en_las_imagenes():
     """017:RF-109 / 017:RF-117 — el cliente nuevo se rotula «Carga-{nombre}-{kW} kW-Cod {código}»."""
-    from igea_dgs.mapa_informe import rotulo_de_carga
+    from convertersmartgrid.mapa_informe import rotulo_de_carga
 
     assert rotulo_de_carga('EMPRESA X', 800.0, 'E-39533') == 'Carga-EMPRESA X-800 kW-Cod E-39533'
     assert rotulo_de_carga('B', 1250.5, 'N1') == 'Carga-B-1250.5 kW-Cod N1'
@@ -395,7 +395,7 @@ def test_rotulo_de_la_carga_nueva_en_las_imagenes():
 
 def test_asunto_propuesto_con_el_tipo_y_los_alimentadores():
     """017:RF-80 — el asunto propuesto lleva el tipo de informe y los alimentadores."""
-    from igea_dgs.informes import asunto_propuesto
+    from convertersmartgrid.informes import asunto_propuesto
 
     assert asunto_propuesto('estudio', ['CA101', 'CA102']) == 'ESTUDIO ELÉCTRICO DE LOS ALIMENTADORES CA101, CA102'
     assert asunto_propuesto('factibilidad', ['SM218'], 'INKA BERRIES') == \
@@ -409,7 +409,7 @@ def test_sin_modelo_ni_limites_en_el_perfil_lo_dice_el_contexto(client, tmp_path
     perfil = tmp_path / 'perfil_sin_factibilidad.json'
     perfil.write_text(json.dumps({'informes': {'modelo_estudio': str(tmp_path / 'modelo.docx'),
                                                'cabecera': {'numero': 'INFORME TECNICO'}}}), encoding='utf-8')
-    monkeypatch.setenv('IGEA_PERFIL_EMPRESA', str(perfil))
+    monkeypatch.setenv('CSG_PERFIL_EMPRESA', str(perfil))
     wid, _salida = _espacio(client, tmp_path)
     ctx = client.get(f'/api/workspaces/{wid}/informes', params={'project': 'PRY', 'feeder': ['AL01']}).json()
     assert any('modelo_factibilidad' in x for x in ctx['faltan']['factibilidad'])
@@ -422,7 +422,7 @@ def test_sin_proyecto_no_convergido_avisa_y_deja_generar(client, tmp_path, monke
     """017:RF-1 / 017:RF-28 / 017:RF-78 — con el último flujo de «Sin proyecto» sin converger, el
     contexto lo marca, el informe se genera y lo dice en su sección; nada pasa por DIgSILENT,
     así que el proyecto queda como estaba."""
-    from igea_dgs.web import services
+    from convertersmartgrid.web import services
 
     def sin_digsilent(*_a, **_k):
         raise AssertionError('el informe no debe abrir DIgSILENT')
@@ -467,7 +467,7 @@ def test_resumen_y_miniaturas_al_terminar(client, tmp_path):
         (salida / nombre).write_text(json.dumps({
             'medidas': {'AL01': _medida(u)}, 'geo': {'AL01': GEO},
             'obras_activas': ['Obra_consigna_AL01']}), encoding='utf-8')
-    from igea_dgs.web import services
+    from convertersmartgrid.web import services
 
     ws = client.app.state.store.get(wid)
     services.registrar_obra_aplicada(ws, '', 'Obra_consigna_AL01', {

@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from igea_dgs.export_tables import load_dgs_table_rows, write_dgs_tsv, write_dgs_xlsx
+from convertersmartgrid.export_tables import load_dgs_table_rows, write_dgs_tsv, write_dgs_xlsx
 
 
 MINI_DGS = """\

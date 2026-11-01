@@ -8,7 +8,7 @@ Qué hace, en orden:
 
 1. Une los 96 alimentadores en una sola grid, con la tensión de cada uno, su fuente
    tomada del ``SOURCE`` de su TXT, y los enlaces entre alimentadores como
-   interruptores **normalmente abiertos** (ver :mod:`igea_dgs.combine`).
+   interruptores **normalmente abiertos** (ver :mod:`convertersmartgrid.combine`).
 2. La importa en PowerFactory como proyecto nuevo y crea el caso de estudio
    **AÑO_0_BASE** con su escenario de operación.
 3. Hace converger el flujo de potencia y comprueba que el resultado es utilizable:
@@ -46,9 +46,9 @@ for _flujo in (sys.stdout, sys.stderr):
     except (AttributeError, ValueError):  # pragma: no cover
         pass
 
-from igea_dgs.combine import build_combined  # noqa: E402
-from igea_dgs.dgs import write_dgs  # noqa: E402
-from igea_dgs.studies import (  # noqa: E402
+from convertersmartgrid.combine import build_combined  # noqa: E402
+from convertersmartgrid.dgs import write_dgs  # noqa: E402
+from convertersmartgrid.studies import (  # noqa: E402
     ESTUDIOS,
     PESADO,
     auditar_datos,
@@ -74,9 +74,9 @@ LIMITE_CARGABILIDAD = 80.0
 
 def _cargar_dataset(args):
     if args.mdb:
-        from igea_dgs.access import read_access_dataset
+        from convertersmartgrid.access import read_access_dataset
         return read_access_dataset(args.mdb, equipment_path=args.equipment_mdb)
-    from igea_dgs.dataset import CymdistDataset
+    from convertersmartgrid.dataset import CymdistDataset
     return CymdistDataset.from_files(args.red, args.cargas, args.equipos)
 
 
@@ -234,7 +234,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument('--sin-geografia', action='store_true')
     p.add_argument('--pf-carpeta', metavar='NOMBRE',
                    help='Carpeta de DIgSILENT donde queda el proyecto importado (spec 005). '
-                        'Por defecto, la del perfil de empresa o «Conversor IGEA-DGS».')
+                        'Por defecto, la del perfil de empresa o «ConverterSmartGrid».')
     p.add_argument('--solo-datos', action='store_true',
                    help='Solo auditar el export y listar lo que falta. No usa PowerFactory.')
     p.add_argument('--sin-estudios', action='store_true',
@@ -273,8 +273,8 @@ def main(argv: list[str] | None = None) -> int:
 
     geografia = None
     if not args.sin_geografia:
-        from igea_dgs.geography import assert_metre_source_crs, build_geography, exigir_crs_origen
-        from igea_dgs.perfil_empresa import crs_o_perfil
+        from convertersmartgrid.geography import assert_metre_source_crs, build_geography, exigir_crs_origen
+        from convertersmartgrid.perfil_empresa import crs_o_perfil
         args.source_crs = exigir_crs_origen(crs_o_perfil(args.source_crs))
         assert_metre_source_crs(args.source_crs)
         geografia = build_geography(ds, modelo, source_crs=args.source_crs)

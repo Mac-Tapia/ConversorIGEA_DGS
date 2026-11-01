@@ -26,10 +26,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument('--output-json', type=Path, help='Dónde guardar el informe')
     args = p.parse_args(argv)
 
-    from igea_dgs.asistente import almacen
-    from igea_dgs.digital_twin import oraculo
-    from igea_dgs.digital_twin.auditoria import auditar_muestras, auditar_ordenes
-    from igea_dgs.digital_twin.buffer import BuferEpisodios, Consulta, raiz_buffer
+    from convertersmartgrid.asistente import almacen
+    from convertersmartgrid.digital_twin import oraculo
+    from convertersmartgrid.digital_twin.auditoria import auditar_muestras, auditar_ordenes
+    from convertersmartgrid.digital_twin.buffer import BuferEpisodios, Consulta, raiz_buffer
 
     bufer = BuferEpisodios(args.raiz or raiz_buffer())
     muestras, ids = oraculo._muestras(bufer, Consulta())

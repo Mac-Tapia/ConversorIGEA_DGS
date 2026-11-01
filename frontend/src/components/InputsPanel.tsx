@@ -191,7 +191,7 @@ export function InputsPanel() {
         <h2><span className="step">1</span> Entrada de datos</h2>
         <div className="segmented" role="radiogroup" aria-label="Alternativa de entrada">
           <button role="radio" aria-checked={mode === 'txt'} className={mode === 'txt' ? 'on' : ''}
-            disabled={Boolean(active.engine)} onClick={() => setMode('txt')}>Tres TXT de IGEA/CYMDIST</button>
+            disabled={Boolean(active.engine)} onClick={() => setMode('txt')}>Tres TXT de CYMDIST</button>
           <button role="radio" aria-checked={mode === 'mdb'} className={mode === 'mdb' ? 'on' : ''}
             disabled={Boolean(active.engine)} onClick={() => setMode('mdb')}>Base Access (.mdb)</button>
           <button role="radio" aria-checked={mode === 'vnr'} className={mode === 'vnr' ? 'on' : ''}

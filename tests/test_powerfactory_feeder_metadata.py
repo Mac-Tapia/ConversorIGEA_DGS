@@ -8,8 +8,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from igea_dgs.feeder_metadata import FeederAssignment
-from igea_dgs.powerfactory_metadata import (
+from convertersmartgrid.feeder_metadata import FeederAssignment
+from convertersmartgrid.powerfactory_metadata import (
     PowerFactoryMetadataError,
     apply_imported_feeder_metadata,
     apply_feeder_assignment_plan,
@@ -186,7 +186,7 @@ def test_resolution_supports_sed_source_and_synchronous_machine(
 
 
 def test_imported_metadata_requires_the_exact_active_project_and_assigns_attribute(tmp_path):
-    from igea_dgs.feeder_metadata import write_feeder_metadata
+    from convertersmartgrid.feeder_metadata import write_feeder_metadata
 
     dgs = tmp_path / 'RED.dgs'
     dgs.write_text('DGS', encoding='ascii')

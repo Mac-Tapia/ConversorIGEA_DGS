@@ -26,10 +26,10 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-from igea_dgs.batch import convert_selection, load_aliases
-from igea_dgs.dataset import CymdistDataset
-from igea_dgs.inventory import build_dataset_inventory
-from igea_dgs.model import build_feeder_model
+from convertersmartgrid.batch import convert_selection, load_aliases
+from convertersmartgrid.dataset import CymdistDataset
+from convertersmartgrid.inventory import build_dataset_inventory
+from convertersmartgrid.model import build_feeder_model
 
 # La consola de Windows usa cp1252 y la ayuda lleva «→»: con la salida redirigida,
 # ``--help`` moría con UnicodeEncodeError antes de escribir nada (2026-10-14).

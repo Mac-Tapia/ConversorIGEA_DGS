@@ -86,7 +86,7 @@ def test_evidence_bundle_covers_source_banks_loads_and_native_study():
         }],
     )
 
-    assert evidence['schema_version'] == 'igea-dgs-three-source-native-load-v1'
+    assert evidence['schema_version'] == 'convertersmartgrid-three-source-native-load-v1'
     assert evidence['source_audit']['sha256'] == 'a' * 64
     assert evidence['capacitors']['expected'] == 3
     assert evidence['capacitors']['corrections'][0]['node'] == 'N10'
@@ -107,7 +107,7 @@ def test_dgs_only_summary_has_explicit_not_run_native_contract(tmp_path):
     mod = _module()
     summary = mod.run_three_sources(mod.AcceptanceConfig(audit_dir=tmp_path / 'audit'))
 
-    assert summary['schema_version'] == 'igea-dgs-three-source-native-load-v1'
+    assert summary['schema_version'] == 'convertersmartgrid-three-source-native-load-v1'
     assert all(row['native_load_contract']['status'] == 'NOT_RUN'
                for row in summary['sources'])
 

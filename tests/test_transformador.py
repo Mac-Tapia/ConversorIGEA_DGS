@@ -11,7 +11,7 @@ import pytest
 
 pytest.importorskip('pyproj')
 
-from igea_dgs.geography import make_transformer  # noqa: E402
+from convertersmartgrid.geography import make_transformer  # noqa: E402
 
 SRC = Path(__file__).resolve().parents[1] / 'src'
 
@@ -50,4 +50,4 @@ def test_solo_geography_construye_transformadores():
         for n, linea in enumerate(ruta.read_text(encoding='utf-8').splitlines(), 1)
         if 'Transformer.from_crs' in linea
     )
-    assert len(sitios) == 1 and sitios[0].startswith('igea_dgs/geography.py:'), sitios
+    assert len(sitios) == 1 and sitios[0].startswith('convertersmartgrid/geography.py:'), sitios

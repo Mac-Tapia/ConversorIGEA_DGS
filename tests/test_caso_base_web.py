@@ -14,15 +14,15 @@ pytest.importorskip('httpx2')
 from fastapi.testclient import TestClient  # noqa: E402
 
 from apoyo import esperar_trabajo  # noqa: E402
-from igea_dgs.web import services  # noqa: E402
-from igea_dgs.web.app import create_app  # noqa: E402
+from convertersmartgrid.web import services  # noqa: E402
+from convertersmartgrid.web.app import create_app  # noqa: E402
 
 # Imita a la aceptación sobre un proyecto existente: deja el informe con el «Caso base»
 # y el vínculo. PE104 no converge.
 ACEPTACION_FALSA = textwrap.dedent('''
     import argparse, json
     from pathlib import Path
-    from igea_dgs.powerfactory_binding import PowerFactoryProjectBinding
+    from convertersmartgrid.powerfactory_binding import PowerFactoryProjectBinding
     p = argparse.ArgumentParser()
     for a in ('--existing-project', '--source-dgs', '--manifest', '--output-json', '--source-fingerprint'):
         p.add_argument(a)
@@ -49,7 +49,7 @@ ACEPTACION_FALSA = textwrap.dedent('''
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
-    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     guion = tmp_path / 'aceptacion_falsa.py'
     guion.write_text(ACEPTACION_FALSA, encoding='utf-8')
     monkeypatch.setattr(services, '_require_pf', lambda: (tmp_path, sys.executable))
@@ -81,7 +81,7 @@ def _proyecto_aceptado(client, wid):
     con la fuente activa, sin comprobar de qué proyecto se trataba. La aceptación real lo
     graba al importar; aquí se graba directamente para no repetir la importación.
     """
-    from igea_dgs.powerfactory_binding import PowerFactoryProjectBinding, record_project_binding
+    from convertersmartgrid.powerfactory_binding import PowerFactoryProjectBinding, record_project_binding
 
     ws = client.app.state.store.get(wid)
     ws.active_run_id = ws.loaded_run_id = 'run'
@@ -123,7 +123,7 @@ def test_verificar_el_caso_base_es_un_trabajo_y_guarda_cada_estado(client):
 def test_verificar_el_caso_base_no_corre_el_flujo(client, monkeypatch):
     """015:RF-39 - la web verifica un proyecto ya importado sin pedir el flujo."""
     ordenes = []
-    from igea_dgs.web import jobs
+    from convertersmartgrid.web import jobs
 
     real = jobs.JobContext.run_process
 

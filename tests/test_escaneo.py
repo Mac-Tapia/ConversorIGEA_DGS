@@ -8,7 +8,7 @@ import fake_pf
 import pytest
 from apoyo import cargar_herramienta
 
-from igea_dgs import escaneo as esc
+from convertersmartgrid import escaneo as esc
 
 SEMILLA = random.randrange(1 << 30)
 
@@ -102,8 +102,8 @@ def test_ruta_de_la_web_guarda_el_escaneo_y_la_central_toma_su_barra(tmp_path, m
     from apoyo import esperar_trabajo
     from fastapi.testclient import TestClient
 
-    from igea_dgs.web import services
-    from igea_dgs.web.app import create_app
+    from convertersmartgrid.web import services
+    from convertersmartgrid.web.app import create_app
 
     informe = {'project': 'P', 'caso': 'Sin proyecto', 'avisos': [], 'variaciones': [],
                'alimentadores': {'A1': {'generadores': [{'generador': 'G', 'barra': 'N7', 'en_servicio': True,
@@ -113,7 +113,7 @@ def test_ruta_de_la_web_guarda_el_escaneo_y_la_central_toma_su_barra(tmp_path, m
     monkeypatch.setattr(services, '_guion_pf', lambda ws, ctx, script, plan, **kw: (
         pedidos.append((script, plan)) or (0, dict(informe), tmp_path / 'r.json')))
     monkeypatch.setattr(services, 'carpeta_pf', lambda: 'carpeta')
-    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     with TestClient(create_app(tmp_path / 'web')) as c:
         wid = c.post('/api/workspaces').json()['id']
         assert c.post(f'/api/workspaces/{wid}/powerfactory/escanear', json={'project': 'P', 'feeders': []}).status_code == 422
@@ -219,7 +219,7 @@ def test_recalibrar_sin_bloqueos(tmp_path, monkeypatch):
     from threading import Event
     from types import SimpleNamespace
 
-    from igea_dgs.web import services
+    from convertersmartgrid.web import services
 
     ws = SimpleNamespace(escaneo={}, pf_project_bindings={}, root=tmp_path, calibraciones={})
     avisos: list[str] = []
@@ -261,12 +261,12 @@ def test_boton_recalibrar_y_su_ruta(tmp_path, monkeypatch):
     from apoyo import esperar_trabajo
     from fastapi.testclient import TestClient
 
-    from igea_dgs.web import jobs, services
-    from igea_dgs.web.app import create_app
+    from convertersmartgrid.web import jobs, services
+    from convertersmartgrid.web.app import create_app
 
     ordenes = []
     monkeypatch.setattr(jobs.JobContext, 'run_process', lambda self, cmd, **kw: ordenes.append(cmd) or 0)
-    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     libros = tmp_path / 'referencia'
     (libros / '1.-medidores').mkdir(parents=True)
     (libros / '2.-cabecera').mkdir()
@@ -275,26 +275,26 @@ def test_boton_recalibrar_y_su_ruta(tmp_path, monkeypatch):
         ws = c.app.state.store.get(wid)
         ws.demanda = {'medidores': {'path': str(libros / '1.-medidores' / 'm.xlsx')},
                       'cabecera': {'path': str(libros / '2.-cabecera')}}
-        d = c.get(f'/api/workspaces/{wid}/demanda/recalibrar', params={'project': '20261028_IGEA_SISTEMA_CHINCHA'}).json()
+        d = c.get(f'/api/workspaces/{wid}/demanda/recalibrar', params={'project': '20261028_CSG_SISTEMA_CHINCHA'}).json()
         assert d == {'zonal': 'Chincha', 'demanda_dir': str(libros)}
         assert c.post(f'/api/workspaces/{wid}/demanda/recalibrar',
                       json={'project': 'P_CA101', 'periodo': '2026-07'}).status_code == 400
         assert c.post(f'/api/workspaces/{wid}/demanda/recalibrar',
                       json={'project': 'X_SISTEMA_CHINCHA', 'periodo': 'julio'}).status_code == 422
         job = c.post(f'/api/workspaces/{wid}/demanda/recalibrar',
-                     json={'project': '20261028_IGEA_SISTEMA_CHINCHA', 'periodo': '2026-07'}).json()
+                     json={'project': '20261028_CSG_SISTEMA_CHINCHA', 'periodo': '2026-07'}).json()
         assert job['lane'] == 'asistente'
         fin = esperar_trabajo(c, job)
         assert fin['status'] == 'done' and fin['result']['texto'] == 'recalibrado y válido'
         # 028:RF-24: el proyecto de dos alimentadores unidos, por su grupo y sin barra.
-        ws.pf_projects = {'IN111_TA225': '20261028_IGEA_IN111_TA225', 'CA101': '20261028_IGEA_CA101'}
+        ws.pf_projects = {'IN111_TA225': '20261028_CSG_IN111_TA225', 'CA101': '20261028_CSG_CA101'}
         ws.groups = {'IN111_TA225': {'tipo': 'unida', 'feeders': ['IN111', 'TA225']}}
-        d = c.get(f'/api/workspaces/{wid}/demanda/recalibrar', params={'project': '20261028_IGEA_IN111_TA225'}).json()
+        d = c.get(f'/api/workspaces/{wid}/demanda/recalibrar', params={'project': '20261028_CSG_IN111_TA225'}).json()
         assert d['grupo'] == 'IN111_TA225' and d['alimentadores'] == ['IN111', 'TA225'] and d['zonal'] == ''
         assert c.get(f'/api/workspaces/{wid}/demanda/recalibrar',
-                     params={'project': '20261028_IGEA_CA101'}).json()['alimentadores'] == ['CA101']
+                     params={'project': '20261028_CSG_CA101'}).json()['alimentadores'] == ['CA101']
         fin = esperar_trabajo(c, c.post(f'/api/workspaces/{wid}/demanda/recalibrar',
-                                        json={'project': '20261028_IGEA_IN111_TA225', 'periodo': '2026-07'}).json())
+                                        json={'project': '20261028_CSG_IN111_TA225', 'periodo': '2026-07'}).json())
         assert fin['status'] == 'done'
     cmd, cmd2 = ordenes
     assert Path(cmd[1]).name == 'sistema_web.py' and '--reconvertir' not in cmd
@@ -316,12 +316,12 @@ def test_recalibrar_alimentadores_usa_la_seleccion_guardada(tmp_path, monkeypatc
     """RF-24: la pertenencia del espacio manda incluso si una red unida se llama SISTEMA_*."""
     from apoyo import esperar_trabajo
     from fastapi.testclient import TestClient
-    from igea_dgs.web import jobs
-    from igea_dgs.web.app import create_app
+    from convertersmartgrid.web import jobs
+    from convertersmartgrid.web.app import create_app
 
     ordenes = []
     monkeypatch.setattr(jobs.JobContext, 'run_process', lambda self, cmd, **kw: ordenes.append(cmd) or 0)
-    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     with TestClient(create_app(tmp_path / 'web')) as c:
         wid = c.post('/api/workspaces').json()['id']
         ws = c.app.state.store.get(wid)
@@ -347,7 +347,7 @@ def test_recalibrar_alimentadores_usa_la_seleccion_guardada(tmp_path, monkeypatc
 
 def test_las_variaciones_del_catalogo_son_del_conversor():
     """032:RF-27 — ``Fichas_`` y ``SED_NTP_`` son del conversor para el escaneo (028)."""
-    from igea_dgs import escaneo as esc
+    from convertersmartgrid import escaneo as esc
 
     for nombre in ('Fichas_CA101', 'SED_NTP_Chincha'):
         assert esc.origen_de('', nombre)['origen'] == 'conversor'

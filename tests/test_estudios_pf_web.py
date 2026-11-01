@@ -18,15 +18,15 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from apoyo import esperar_trabajo, vincular_proyecto  # noqa: E402
 from apoyo_pf_web import guion_falso  # noqa: E402,F401
-from igea_dgs.web.app import create_app  # noqa: E402
+from convertersmartgrid.web.app import create_app  # noqa: E402
 
 SIN, CON = 'Sin proyecto', 'Con proyecto'
 
 
 @pytest.fixture()
 def client(tmp_path, monkeypatch, guion_falso):
-    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'sin_front'))
-    monkeypatch.setenv('IGEA_PERFIL_EMPRESA', str(tmp_path / 'no_hay_perfil.json'))
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    monkeypatch.setenv('CSG_PERFIL_EMPRESA', str(tmp_path / 'no_hay_perfil.json'))
     with TestClient(create_app(tmp_path / 'web', host='127.0.0.1')) as c:
         yield c
 

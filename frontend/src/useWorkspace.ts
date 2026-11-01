@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from './api';
 import type { EventItem, FeederRow, Job, OutputFile, WorkspaceState } from './types';
 
-const STORAGE_KEY = 'igea-dgs.workspace';
+const STORAGE_KEY = 'convertersmartgrid.workspace';
 const MAX_LOG = 4000;
 
 // Una sola vez por carga de página: en StrictMode el efecto corre dos veces y, sin

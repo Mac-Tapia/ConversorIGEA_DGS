@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from igea_dgs.perfil_empresa import transformadores_sed
-from igea_dgs.trafos_sed import proponer, tabla_para
+from convertersmartgrid.perfil_empresa import transformadores_sed
+from convertersmartgrid.trafos_sed import proponer, tabla_para
 
 RAIZ = Path(__file__).resolve().parents[1]
 
@@ -81,7 +81,7 @@ def test_sin_tablas_no_hay_propuesta():
 def test_nombre_del_tipo_propio_como_en_pa217():
     """020:RF-19 / 020:RF-21 — el nombre lleva potencia, norma, tensiones y grupo, y redondea
     los 22,899999618 kV con que DIgSILENT guarda 22,9: así sale el tipo creado en PA217."""
-    from igea_dgs.trafos_sed import nombre_tipo
+    from convertersmartgrid.trafos_sed import nombre_tipo
 
     assert (nombre_tipo(630, 'NTP370400', 22.899999618530273, 219.9999988079071, 'DYN5')
             == 'TR_630kVA_NTP370400_22.9-220V_DYN5')
@@ -91,7 +91,7 @@ def test_nombre_del_tipo_propio_como_en_pa217():
 def test_sed_sobre_el_umbral_con_su_nivel():
     """032:RF-20, 032:RF-28 — fijas y escaladas por encima del umbral, distinguidas las que pasan
     del 100 % de las que están entre el umbral y el 100 %; sin kVA no se comparan."""
-    from igea_dgs.trafos_sed import sed_sobre_umbral
+    from convertersmartgrid.trafos_sed import sed_sobre_umbral
 
     out = sed_sobre_umbral({'A': 120.0, 'B': 90.0, 'C': 70.0, 'D': 500.0},
                            {'A': 100.0, 'B': 100.0, 'C': 100.0, 'D': None}, 80.0)

@@ -2,7 +2,7 @@
 
 Trabajo autorizado: specs 047 T6 y 043 T6. La instalación, el entrenamiento,
 la precisión del agente y la aceptación eléctrica tienen evidencias distintas.
-Los planos de IGEA previos a la exportación permanecen fuera del alcance.
+Los planos de la distribuidora previos a la exportación permanecen fuera del alcance.
 
 ## Corrección del denominador
 
@@ -102,8 +102,8 @@ todavía abiertas de 047 T1–T4. Reproducción en PowerShell desde este reposit
 ```powershell
 $pruebasAsistente = @(Get-ChildItem -LiteralPath tests -Filter 'test_asistente*.py' | ForEach-Object { $_.FullName })
 $pruebasAsistente += @('tests/test_destilacion_integral.py', 'tests/test_aceptacion_agente.py', 'tests/test_evaluacion_modelos.py', 'tests/test_model_registry.py', 'tests/test_training_coordinator.py', 'tests/test_modelos_web.py')
-$env:IGEA_WEB_DATA = 'output/pruebas_asistente/web'
-$env:IGEA_ASISTENTE_DATA = 'output/pruebas_asistente/datos'
+$env:CSG_WEB_DATA = 'output/pruebas_asistente/web'
+$env:CSG_ASISTENTE_DATA = 'output/pruebas_asistente/datos'
 .venv/Scripts/python.exe -m pytest -q @pruebasAsistente --junitxml=output/pruebas_asistente/resultado.xml
 ```
 
@@ -177,7 +177,7 @@ Se instaló además **Ipopt 3.14.19** desde el
 [binario Windows oficial](https://github.com/coin-or/Ipopt/releases/tag/releases%2F3.14.19),
 SHA-256 `bd7818a19c2a627f1dcd538358833fbcb17c35080e19b4228be3f66cadf8c8fd`.
 Una prueba adicional de Pyomo/Ipopt resolvió realmente una PNL con cotas y
-restricciones. Su ruta está en el catálogo; `IGEA_IPOPT_PATH` permite otra
+restricciones. Su ruta está en el catálogo; `CSG_IPOPT_PATH` permite otra
 instalación sin modificar el PATH global. Esto acredita el solver, no la integración
 eléctrica de 048. El método se apoya en
 [Wächter y Biegler, Mathematical Programming (2006)](https://doi.org/10.1007/s10107-004-0559-y).

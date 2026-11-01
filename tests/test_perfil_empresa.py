@@ -17,8 +17,8 @@ from pathlib import Path
 import pytest
 
 from synthetic_export import ExportSpec, write_export
-from igea_dgs.dataset import CymdistDataset
-from igea_dgs.perfil_empresa import (
+from convertersmartgrid.dataset import CymdistDataset
+from convertersmartgrid.perfil_empresa import (
     SIN_PERFIL,
     VARIABLE_RUTA,
     PerfilEmpresa,
@@ -27,7 +27,7 @@ from igea_dgs.perfil_empresa import (
     perfil_con_nombre,
     perfiles_disponibles,
 )
-from igea_dgs.reglas import REGLAS_PROYECTO, reglas_de_perfil
+from convertersmartgrid.reglas import REGLAS_PROYECTO, reglas_de_perfil
 
 RAIZ = Path(__file__).resolve().parents[1]
 
@@ -39,7 +39,7 @@ EMPRESA_B = PerfilEmpresa(nombre='empresa_b', crs_origen='EPSG:32717')
 
 
 def _convertir(tmp_path: Path, perfil: PerfilEmpresa, nombre: str, *, geografia: bool = True) -> tuple[dict, Path]:
-    from igea_dgs.batch import convert_selection
+    from convertersmartgrid.batch import convert_selection
 
     red, loads, equip = write_export(ExportSpec(feeders=2, naming='plain'), tmp_path / 'export')
     ds = CymdistDataset.from_files(red, loads, equip)
@@ -53,7 +53,7 @@ def _convertir(tmp_path: Path, perfil: PerfilEmpresa, nombre: str, *, geografia:
 
 
 def _filas(dgs: Path, clase: str) -> list[dict]:
-    from igea_dgs.validate import parse_dgs
+    from convertersmartgrid.validate import parse_dgs
 
     tabla = parse_dgs(dgs).get(clase) or {}
     return [dict(zip(tabla['fields'], fila)) for fila in tabla.get('rows') or []]
@@ -118,8 +118,8 @@ def test_la_forma_del_alimentador_solo_avisa(tmp_path):
 # --------------------------------------------------------------------------- RF-32
 def test_sin_crs_no_se_supone_ninguno(tmp_path):
     """002:RF-32 — sin CRS en la entrada ni en el perfil, se pide antes de escribir nada."""
-    from igea_dgs.batch import convert_selection
-    from igea_dgs.geography import CrsOrigenFaltaError
+    from convertersmartgrid.batch import convert_selection
+    from convertersmartgrid.geography import CrsOrigenFaltaError
 
     red, loads, equip = write_export(ExportSpec(feeders=1), tmp_path / 'export')
     ds = CymdistDataset.from_files(red, loads, equip)
@@ -137,7 +137,7 @@ def test_sin_crs_se_convierte_sin_georreferenciacion(tmp_path):
 
 def test_el_cli_pide_el_crs_y_dice_como(tmp_path):
     """002:RF-32 — el CLI sale con 1 y nombra --source-crs, --perfil y el perfil local."""
-    from igea_dgs.cli import main
+    from convertersmartgrid.cli import main
 
     red, loads, equip = write_export(ExportSpec(feeders=1), tmp_path / 'export')
     with pytest.raises(SystemExit) as exc:
@@ -150,7 +150,7 @@ def test_el_cli_pide_el_crs_y_dice_como(tmp_path):
 def test_el_cli_toma_el_crs_del_perfil_con_nombre(tmp_path):
     """002:RF-32 — con --perfil, el CRS sale del perfil y no hay que escribirlo."""
     pytest.importorskip('pyproj')
-    from igea_dgs.cli import main
+    from convertersmartgrid.cli import main
 
     red, loads, equip = write_export(ExportSpec(feeders=1), tmp_path / 'export')
     with redirect_stdout(io.StringIO()):
@@ -166,8 +166,8 @@ def test_el_cli_toma_el_crs_del_perfil_con_nombre(tmp_path):
 def test_la_web_pide_el_crs_sin_perfil(tmp_path, monkeypatch):
     """002:RF-32 — la web no convierte con georreferenciación sin CRS: error de usuario."""
     pytest.importorskip('fastapi')
-    from igea_dgs.web.services import UserError, crs_origen, crs_origen_exigido
-    from igea_dgs.web.workspace import DEFAULT_OPTIONS, Workspace
+    from convertersmartgrid.web.services import UserError, crs_origen, crs_origen_exigido
+    from convertersmartgrid.web.workspace import DEFAULT_OPTIONS, Workspace
 
     assert DEFAULT_OPTIONS['source_crs'] is None
     ws = Workspace(id='w', root=tmp_path / 'w')
@@ -189,9 +189,9 @@ def test_la_web_sugiere_los_crs_de_los_perfiles_y_no_una_lista_fija(tmp_path, mo
     pytest.importorskip('httpx2')
     from fastapi.testclient import TestClient
 
-    from igea_dgs.web.app import create_app
+    from convertersmartgrid.web.app import create_app
 
-    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     with TestClient(create_app(tmp_path / 'web')) as client:
         salud = client.get('/api/health').json()
     assert salud['perfil_empresa'] == {**SIN_PERFIL.valores(), 'error': None}
@@ -206,7 +206,7 @@ def test_la_web_sugiere_los_crs_de_los_perfiles_y_no_una_lista_fija(tmp_path, mo
 # --------------------------------------------------------------------------- RF-33
 def test_sin_patron_no_se_excluye_ninguna_sed_por_su_nombre():
     """002:RF-33 — una SED que se llame «M…» es una SED si el perfil no dice lo contrario."""
-    from igea_dgs.trafomix import es_trafomix
+    from convertersmartgrid.trafomix import es_trafomix
 
     patron = perfil_con_nombre('electro_dunas').patron_sed_medicion
     assert es_trafomix('M41608', patron)
@@ -303,7 +303,7 @@ def test_el_manifiesto_registra_el_perfil_y_sus_valores(tmp_path):
 
 def test_la_red_unida_registra_el_perfil(tmp_path):
     """002:RF-37 — también el manifiesto de la red unida."""
-    from igea_dgs.batch import convert_group
+    from convertersmartgrid.batch import convert_group
 
     red, loads, equip = write_export(ExportSpec(feeders=2, naming='plain'), tmp_path / 'export')
     ds = CymdistDataset.from_files(red, loads, equip)
@@ -316,7 +316,7 @@ def test_la_red_unida_registra_el_perfil(tmp_path):
 @pytest.mark.parametrize('valor', [0, -0.5, 1.2, True, '0.98'])
 def test_factor_de_potencia_imposible_lo_nombra(valor):
     """015:RF-57 — un factor de potencia fuera de (0, 1] es un error que dice el valor."""
-    from igea_dgs.perfil_empresa import factor_potencia_cargas
+    from convertersmartgrid.perfil_empresa import factor_potencia_cargas
 
     with pytest.raises(PerfilError, match='factor_potencia_cargas'):
         factor_potencia_cargas({'calibracion': {'factor_potencia_cargas': valor}})
@@ -324,7 +324,7 @@ def test_factor_de_potencia_imposible_lo_nombra(valor):
 
 def test_factor_de_potencia_del_perfil_de_electro_dunas():
     """015:RF-54 / 015:RF-55 — Electro Dunas fija 0,98 para las escaladas; sin la clave, nada."""
-    from igea_dgs.perfil_empresa import factor_potencia_cargas
+    from convertersmartgrid.perfil_empresa import factor_potencia_cargas
 
     raiz = Path(__file__).resolve().parents[1] / 'config' / 'perfiles'
     datos = json.loads((raiz / 'electro_dunas.json').read_text(encoding='utf-8'))
@@ -335,7 +335,7 @@ def test_factor_de_potencia_del_perfil_de_electro_dunas():
 def test_fp_minimo_de_las_fijas_del_perfil():
     """015:RF-62 / 015:RF-57 — Electro Dunas fija 0,98 como mínimo de las fijas; un valor
     imposible se rechaza nombrando la clave."""
-    from igea_dgs.perfil_empresa import factor_potencia_cargas
+    from convertersmartgrid.perfil_empresa import factor_potencia_cargas
 
     raiz = Path(__file__).resolve().parents[1] / 'config' / 'perfiles'
     datos = json.loads((raiz / 'electro_dunas.json').read_text(encoding='utf-8'))
@@ -354,7 +354,7 @@ def _electro_dunas():
 def test_fichas_de_transformadores_del_perfil_de_electro_dunas():
     """020:RF-29 / 020:RF-30 — Electro Dunas trae las Tablas 6 y 7 de FONAFE 2017 (NTP
     370.400) por rango de tensión primaria, con Po, Pc, Io y uk por kVA, y el umbral del 80 %."""
-    from igea_dgs.perfil_empresa import transformadores_sed
+    from convertersmartgrid.perfil_empresa import transformadores_sed
 
     t = transformadores_sed(_electro_dunas())
     assert t['umbral_carga_pct'] == 80 and t['avisos'] == []
@@ -370,7 +370,7 @@ def test_fichas_de_transformadores_del_perfil_de_electro_dunas():
 
 def test_sin_fichas_en_el_perfil_no_se_supone_ninguna():
     """020:RF-29 — sin la sección, ninguna tabla (la 020:RF-10 lo dice en la web)."""
-    from igea_dgs.perfil_empresa import transformadores_sed
+    from convertersmartgrid.perfil_empresa import transformadores_sed
 
     assert transformadores_sed({}) is None
     assert transformadores_sed({'calibracion': {'factor_potencia_cargas': 0.98}}) is None
@@ -381,7 +381,7 @@ def test_sin_fichas_en_el_perfil_no_se_supone_ninguna():
 def test_una_fila_imposible_se_descarta_y_se_nombra(fila):
     """020:RF-31 — la fila incompleta o con un valor no positivo no se usa, y el aviso nombra
     la fila, la tabla y el perfil; las demás filas siguen valiendo."""
-    from igea_dgs.perfil_empresa import transformadores_sed
+    from convertersmartgrid.perfil_empresa import transformadores_sed
 
     datos = {'perfil': 'otra', 'calibracion': {'transformadores_sed': {
         'umbral_carga_pct': 80, 'tablas': [{
@@ -396,7 +396,7 @@ def test_una_fila_imposible_se_descarta_y_se_nombra(fila):
 @pytest.mark.parametrize('umbral', [0, -5, 150, 'x', None, True])
 def test_umbral_de_carga_imposible_lo_nombra(umbral):
     """020:RF-30 — el umbral tiene que estar entre 0 (sin incluirlo) y 100."""
-    from igea_dgs.perfil_empresa import transformadores_sed
+    from convertersmartgrid.perfil_empresa import transformadores_sed
 
     datos = {'calibracion': {'transformadores_sed': {'umbral_carga_pct': umbral, 'tablas': []}}}
     with pytest.raises(PerfilError, match='umbral_carga_pct'):
@@ -405,7 +405,7 @@ def test_umbral_de_carga_imposible_lo_nombra(umbral):
 
 def test_tabla_sin_rango_o_sin_filas_validas_se_descarta():
     """020:RF-31 — una tabla sin rango de tensión válido o sin ninguna fila válida no se usa."""
-    from igea_dgs.perfil_empresa import transformadores_sed
+    from convertersmartgrid.perfil_empresa import transformadores_sed
 
     datos = {'calibracion': {'transformadores_sed': {'umbral_carga_pct': 80, 'tablas': [
         {'norma': 'A', 'codigo': 'A', 'kv_min': 20, 'kv_max': 10, 'fichas': {'50': [1, 1, 1, 1]}},
@@ -418,7 +418,7 @@ def test_tabla_sin_rango_o_sin_filas_validas_se_descarta():
 def test_centrales_del_perfil_validadas():
     """021:RF-27 — la sección ``centrales_termicas``: tres medidores obligatorios y el nodo
     optativo; sin sección, ninguna central supuesta."""
-    from igea_dgs.perfil_empresa import PerfilError, centrales_termicas
+    from convertersmartgrid.perfil_empresa import PerfilError, centrales_termicas
 
     assert centrales_termicas({}) == {}
     assert centrales_termicas({'centrales_termicas': {' A1 ': {

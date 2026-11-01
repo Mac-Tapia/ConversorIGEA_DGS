@@ -12,10 +12,10 @@ import random
 import numpy as np
 import pytest
 
-from igea_dgs.digital_twin import auditoria as au
-from igea_dgs.digital_twin.oraculo import Z_ACOPLADOR_PU, muestra
+from convertersmartgrid.digital_twin import auditoria as au
+from convertersmartgrid.digital_twin.oraculo import Z_ACOPLADOR_PU, muestra
 
-SEMILLA = int(os.environ.get('IGEA_SCALE_SEED') or random.randrange(1_000_000))
+SEMILLA = int(os.environ.get('CSG_SCALE_SEED') or random.randrange(1_000_000))
 
 
 def _grafo(rng: random.Random, n: int, acopladores: int = 0) -> dict:
@@ -105,8 +105,8 @@ def test_una_sola_red_y_pocas_ordenes_reales_se_avisan():
 
 def test_entrenar_no_arranca_con_un_dataset_no_apto(monkeypatch, tmp_path):
     """027:RF-29, 027:RF-30 — `entrenar` audita antes: con no finitos no entrena y lo dice."""
-    from igea_dgs.digital_twin import oraculo
-    from igea_dgs.digital_twin.buffer import BuferEpisodios
+    from convertersmartgrid.digital_twin import oraculo
+    from convertersmartgrid.digital_twin.buffer import BuferEpisodios
 
     rng = random.Random(SEMILLA)
     ms, ids = _muestras(rng, 2, 2, nan=True)

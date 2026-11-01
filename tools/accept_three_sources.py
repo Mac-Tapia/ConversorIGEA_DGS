@@ -19,10 +19,10 @@ SRC = ROOT / 'src'
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from igea_dgs.util import sha256_file  # noqa: E402
-from igea_dgs.web import services  # noqa: E402
-from igea_dgs.web.jobs import Job, JobContext  # noqa: E402
-from igea_dgs.web.workspace import Workspace  # noqa: E402
+from convertersmartgrid.util import sha256_file  # noqa: E402
+from convertersmartgrid.web import services  # noqa: E402
+from convertersmartgrid.web.jobs import Job, JobContext  # noqa: E402
+from convertersmartgrid.web.workspace import Workspace  # noqa: E402
 
 
 @dataclass(frozen=True)
@@ -195,7 +195,7 @@ def build_native_load_evidence(
         status = 'OK'
 
     return {
-        'schema_version': 'igea-dgs-three-source-native-load-v1',
+        'schema_version': 'convertersmartgrid-three-source-native-load-v1',
         'status': status,
         'source_audit': {
             'status': (source_audit or {}).get('status'),
@@ -411,8 +411,8 @@ def _accept_mode(config: AcceptanceConfig, mode: str) -> dict[str, Any]:
             return row
 
         if config.reconstruct:
-            from igea_dgs.reconstruction import ReconstructionPolicy
-            from igea_dgs.web.reconstruction_service import reconstruct_selection
+            from convertersmartgrid.reconstruction import ReconstructionPolicy
+            from convertersmartgrid.web.reconstruction_service import reconstruct_selection
 
             reconstruction = reconstruct_selection(
                 workspace,
@@ -562,7 +562,7 @@ def validate_summary(summary: dict[str, Any]) -> None:
         if row.get('originals_unchanged') is False:
             raise ValueError(f'{mode} modificó un archivo original durante la aceptación')
         contract = row.get('native_load_contract') or {}
-        if contract.get('schema_version') != 'igea-dgs-three-source-native-load-v1':
+        if contract.get('schema_version') != 'convertersmartgrid-three-source-native-load-v1':
             raise ValueError(f'{mode} no contiene el contrato nativo universal')
         if (contract.get('capacitors') or {}).get('blocks') is not False:
             raise ValueError(f'{mode} intenta bloquear por la potencia reactiva de bancos')
@@ -592,7 +592,7 @@ def run_three_sources(config: AcceptanceConfig) -> dict[str, Any]:
     sources = [_accept_mode(config, mode) for mode in ('txt', 'mdb', 'vnr')]
     complete_states = ({'NATIVE_LOAD_VERIFIED'} if config.run_powerfactory else {'DGS_READY'})
     summary = {
-        'schema_version': 'igea-dgs-three-source-native-load-v1',
+        'schema_version': 'convertersmartgrid-three-source-native-load-v1',
         'created_at': time.time(),
         'audit_dir': str(config.audit_dir.resolve()),
         'requested_feeder': config.feeder,

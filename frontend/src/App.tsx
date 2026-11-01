@@ -24,7 +24,7 @@ const TABS = [
   { id: 'asistente', label: 'Asistente', el: <Asistente />, entradas: false },
 ] as const;
 
-const LOG_KEY = 'igea-dgs.log-height';
+const LOG_KEY = 'convertersmartgrid.log-height';
 
 function readLogHeight(): number {
   try {
@@ -156,7 +156,7 @@ export default function App() {
 
   if (w.bootError) {
     return <div className="boot"><h1>No se pudo abrir el espacio de trabajo</h1><p>{w.bootError}</p>
-      <p className="muted">¿Está arrancado el servidor? <code>python -m igea_dgs.web</code></p></div>;
+      <p className="muted">¿Está arrancado el servidor? <code>python -m convertersmartgrid.web</code></p></div>;
   }
   if (!health || !w.state) return <div className="boot"><div className="spinner" /><p>Conectando con el conversor…</p></div>;
 
@@ -177,7 +177,7 @@ export default function App() {
           <div className="brand">
             <span className="logo" aria-hidden>⚡</span>
             <div>
-              <h1>Conversor IGEA/CYMDIST → DGS</h1>
+              <h1>ConverterSmartGrid</h1>
               <span className="muted small">DIgSILENT PowerFactory · v{health.version}</span>
             </div>
           </div>

@@ -18,7 +18,7 @@ def _episode(*, accepted=True):
 
 
 def test_confirmed_order_is_human_gold_and_private_path_is_removed():
-    from igea_dgs.asistente.dataset_entrenamiento import normalizar_orden
+    from convertersmartgrid.asistente.dataset_entrenamiento import normalizar_orden
 
     record = normalizar_orden({
         'texto': r'convierte CA101 desde D:\empresa\fuente.txt',
@@ -34,7 +34,7 @@ def test_confirmed_order_is_human_gold_and_private_path_is_removed():
 
 
 def test_native_gold_requires_accepted_converged_evidence():
-    from igea_dgs.asistente.dataset_entrenamiento import normalizar_episodio
+    from convertersmartgrid.asistente.dataset_entrenamiento import normalizar_episodio
 
     accepted = normalizar_episodio(_episode())
     rejected = normalizar_episodio(_episode(accepted=False))
@@ -47,7 +47,7 @@ def test_native_gold_requires_accepted_converged_evidence():
 
 def test_native_sin_reapertura_no_es_gold():
     """043:RF-3 — una etiqueta de aceptación no inventa una reapertura ausente."""
-    from igea_dgs.asistente.dataset_entrenamiento import normalizar_episodio
+    from convertersmartgrid.asistente.dataset_entrenamiento import normalizar_episodio
     fila = _episode()
     fila['nativo'].pop('reopen_verified')
     assert normalizar_episodio(fila).quality == 'quarantine'
@@ -56,14 +56,14 @@ def test_native_sin_reapertura_no_es_gold():
 def test_episodio_vigente_se_valida_con_su_contrato():
     """043:RF-3 — aceptar el formato real de 024 sin exigir campos legacy inventados."""
     from test_digital_twin_episode import _payload
-    from igea_dgs.asistente.dataset_entrenamiento import normalizar_episodio
+    from convertersmartgrid.asistente.dataset_entrenamiento import normalizar_episodio
     payload = _payload()
     payload['topologia']['sets'] = ['SET1']
     assert normalizar_episodio(payload).quality == 'gold_native'
 
 
 def test_partition_keeps_group_together_and_excludes_quarantine():
-    from igea_dgs.asistente.dataset_entrenamiento import normalizar_orden, particionar_dataset
+    from convertersmartgrid.asistente.dataset_entrenamiento import normalizar_orden, particionar_dataset
 
     repeated = [normalizar_orden({'texto': 'reentrena la pinn', 'tarea': 'gemelo_entrenar',
                                   'origen': 'confirmado'}) for _ in range(3)]
@@ -77,14 +77,14 @@ def test_partition_keeps_group_together_and_excludes_quarantine():
 
 
 def test_manifest_v2_has_hashes_quality_counts_and_no_leak(tmp_path):
-    from igea_dgs.asistente.dataset_entrenamiento import (
+    from convertersmartgrid.asistente.dataset_entrenamiento import (
         escribir_particiones, normalizar_orden, particionar_dataset)
 
     rows = [normalizar_orden({'texto': f'ordena {i}', 'tarea': 'convertir',
                               'origen': 'confirmado'}) for i in range(20)]
     manifest = escribir_particiones(particionar_dataset(rows), tmp_path)
 
-    assert manifest['schema'] == 'igea-dgs-training-dataset-v2'
+    assert manifest['schema'] == 'convertersmartgrid-training-dataset-v2'
     assert manifest['sha256'] and manifest['audit']['valid']
     assert manifest['qualities']['gold_human'] == 20
     assert all((tmp_path / f'{name}.jsonl').is_file()
@@ -92,7 +92,7 @@ def test_manifest_v2_has_hashes_quality_counts_and_no_leak(tmp_path):
 
 
 def test_conversion_event_is_context_and_never_gold(tmp_path):
-    from igea_dgs.asistente.dataset_entrenamiento import (
+    from convertersmartgrid.asistente.dataset_entrenamiento import (
         normalizar_evento_conversion, registrar_evento_conversion)
 
     result = registrar_evento_conversion(
@@ -108,7 +108,7 @@ def test_conversion_event_is_context_and_never_gold(tmp_path):
 
 
 def test_web_history_merges_same_source_without_contradicting_reload(tmp_path):
-    from igea_dgs.asistente.dataset_entrenamiento import (
+    from convertersmartgrid.asistente.dataset_entrenamiento import (
         construir_dataset, importar_historial_web)
 
     web = tmp_path / 'web'
@@ -132,7 +132,7 @@ def test_web_history_merges_same_source_without_contradicting_reload(tmp_path):
 
 
 def test_normative_unknown_license_is_quarantined(tmp_path):
-    from igea_dgs.asistente.dataset_entrenamiento import importar_normativa
+    from convertersmartgrid.asistente.dataset_entrenamiento import importar_normativa
 
     root = tmp_path / 'normativa'
     (root / 'textos').mkdir(parents=True)
@@ -149,7 +149,7 @@ def test_normative_unknown_license_is_quarantined(tmp_path):
 
 
 def test_descubre_ciento_un_alimentadores_sin_inferir_identidad_mdb(tmp_path):
-    from igea_dgs.asistente.dataset_entrenamiento import descubrir_alimentadores_inventarios
+    from convertersmartgrid.asistente.dataset_entrenamiento import descubrir_alimentadores_inventarios
 
     ruta = tmp_path / 'w' / 'runs' / 'r' / 'salida'
     ruta.mkdir(parents=True)
@@ -162,7 +162,7 @@ def test_descubre_ciento_un_alimentadores_sin_inferir_identidad_mdb(tmp_path):
 
 def test_identidad_explicita_prevalece_sobre_nombre_de_red(tmp_path):
     """043:RF-2 043:RF-3 — pertenencia explícita y códigos universales, sin regex de empresa."""
-    from igea_dgs.asistente.dataset_entrenamiento import descubrir_alimentadores_inventarios
+    from convertersmartgrid.asistente.dataset_entrenamiento import descubrir_alimentadores_inventarios
     (tmp_path / 'dataset_inventory.json').write_text(json.dumps({'feeders': [
         {'network_id': 'NET_2030_1_AA001', 'feeder': 'Ramal rural/Sur'},
         {'network_id': 'Identificador-no-convencional'},

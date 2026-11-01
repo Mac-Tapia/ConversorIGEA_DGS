@@ -7,11 +7,11 @@ from dataclasses import replace
 
 import pytest
 
-from igea_dgs.combine import combine_models, estructurar
-from igea_dgs.dgs import write_dgs
-from igea_dgs.enlaces import abrir_caminos_cerrados
-from igea_dgs.estructura import estructura_de_dict
-from igea_dgs.validate import parse_dgs
+from convertersmartgrid.combine import combine_models, estructurar
+from convertersmartgrid.dgs import write_dgs
+from convertersmartgrid.enlaces import abrir_caminos_cerrados
+from convertersmartgrid.estructura import estructura_de_dict
+from convertersmartgrid.validate import parse_dgs
 from test_combine import _alimentador
 
 E = estructura_de_dict({'zonales': [
@@ -106,7 +106,7 @@ def test_una_zona_por_sistema_electrico(tmp_path):
 def test_la_carga_sin_sed_en_la_red_de_su_zonal(tmp_path):
     """022:RF-8 — una carga sin SED va en la red del zonal de su nodo, no en la primera (en
     la entrega completa, CUST_2010_330303_SEPALMAR de Nasca quedaba en Chincha)."""
-    from igea_dgs.model import Load
+    from convertersmartgrid.model import Load
 
     red = _red()
     red.loads.append(Load('C_LIBRE', 'D9', 'C9', '1', 'C_H', 0.01, 0.002, 0.98, 10.0, 0.0, 'ABC'))
@@ -120,7 +120,7 @@ def test_los_nombres_con_tilde_llegan_a_digsilent(tmp_path):
     """022:RF-9, 022:RF-15 — el DGS va en la página de códigos de DIgSILENT (cp1252): «SET 46
     Señor de Luren» y «Huaytará» no llegan como «SeÃ±or»; con nombres ASCII, el mismo
     fichero de siempre."""
-    from igea_dgs.estructura import estructura_de_dict
+    from convertersmartgrid.estructura import estructura_de_dict
 
     e = estructura_de_dict({'zonales': [{'nombre': 'Ica', 'sets': [
         {'codigo': 'SET 46', 'nombre': 'Señor de Luren', 'alimentadores': [{'codigo': 'A', 'sistema': 'SE0051'}]}]}],
@@ -134,7 +134,7 @@ def test_los_nombres_con_tilde_llegan_a_digsilent(tmp_path):
 
 
 # --------------------------------------------------------------- 022:RF-64 a RF-70
-SEMILLA = int(os.environ.get('IGEA_SCALE_SEED', random.randrange(1 << 30)))
+SEMILLA = int(os.environ.get('CSG_SCALE_SEED', random.randrange(1 << 30)))
 
 
 def _dividida(rng):
@@ -156,7 +156,7 @@ def _dividida(rng):
 def _geografia(red):
     """El mapa de la red unida, de las coordenadas de sus nodos: hace falta para escribir
     los diagramas."""
-    from igea_dgs.geography import GeoLine, GeoPoint, GeographyManifest
+    from convertersmartgrid.geography import GeoLine, GeoPoint, GeographyManifest
 
     def punto(n):
         nodo = red.nodes[n]
@@ -246,7 +246,7 @@ def test_cada_hoja_empieza_en_su_origen(tmp_path):
     """022:RF-65 — DIgSILENT dimensiona cada hoja desde (0, 0) hasta el mayor de sus gráficos:
     cada diagrama empieza en el margen, con su propio origen, y no en el del zonal (Nasca por
     SET, 2026-10-24: la SET 51 se quedó en A4 y la 55 con la hoja de alto negativo)."""
-    from igea_dgs.dgs import DIAGRAM_SHEET_MARGIN_DU
+    from convertersmartgrid.dgs import DIAGRAM_SHEET_MARGIN_DU
 
     red, _por_set = _red_dividida(random.Random(SEMILLA))
     out = tmp_path / 'o.dgs'
@@ -292,8 +292,8 @@ def test_el_enlace_entre_dos_set_va_en_la_de_menor_codigo(tmp_path):
 def test_la_metadata_y_el_manifiesto_nombran_la_red_de_su_set(tmp_path):
     """022:RF-69 — la importación, la verificación y la calibración buscan las redes por el
     manifiesto y cada objeto por la red de su metadata: los dos nombran la red de su SET."""
-    from igea_dgs.feeder_metadata import assignments_from_model
-    from igea_dgs.geography import geography_to_dict
+    from convertersmartgrid.feeder_metadata import assignments_from_model
+    from convertersmartgrid.geography import geography_to_dict
 
     red, por_set = _red_dividida(random.Random(SEMILLA))
     out = tmp_path / 'm.dgs'

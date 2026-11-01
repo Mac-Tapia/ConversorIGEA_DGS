@@ -1,6 +1,6 @@
-# Manual de uso del Conversor IGEA-DGS
+# Manual de uso del ConverterSmartGrid
 
-**De la red exportada por IGEA/CYMDIST, Access o VNR-GIS a un proyecto calibrado y estudiado en
+**De la red exportada por CYMDIST, Access o VNR-GIS a un proyecto calibrado y estudiado en
 DIgSILENT PowerFactory**
 
 Edición del 31 de octubre de 2026. Este libro explica qué hace el conversor, cómo está hecho y
@@ -54,7 +54,7 @@ cada función, en [specs/](../specs/README.md); los principios que no se negocia
 
 ## 1. Qué es y para qué sirve
 
-Una distribuidora tiene su red de media tensión en un sistema de gestión (IGEA/CYMDIST, una base
+Una distribuidora tiene su red de media tensión en un sistema de gestión (CYMDIST, una base
 Access o VNR-GIS) y necesita estudiarla en DIgSILENT PowerFactory: flujos de carga, pérdidas,
 caída de tensión, confiabilidad, cargas nuevas y obras. Pasar la red a mano es lento y propenso
 a errores; calibrarla a lo que mide la cabecera, más.
@@ -76,7 +76,7 @@ Dunas aparece en este libro solo como ejemplo real.
 
 | Concepto | Qué es |
 | --- | --- |
-| **Fuente** | De dónde sale la red: TXT de IGEA/CYMDIST (RED, CARGA, BD_Equipo), base Access (`.mdb`) o paquete VNR-GIS. Nunca se mezclan. |
+| **Fuente** | De dónde sale la red: TXT de CYMDIST (RED, CARGA, BD_Equipo), base Access (`.mdb`) o paquete VNR-GIS. Nunca se mezclan. |
 | **Alimentador** | Una salida de media tensión de una subestación (SET), con sus tramos, barras y SED. |
 | **SED** | Subestación de distribución: un transformador de media a baja con la carga de sus clientes. En DIgSILENT, una carga (`ElmLod`) en la barra de baja de su transformador. |
 | **DGS** | Formato de intercambio de PowerFactory que escribe el conversor. |
@@ -121,7 +121,7 @@ y reciben un plan JSON y devuelven un informe JSON. La web y el CLI son dos cara
 ```mermaid
 flowchart LR
     subgraph Fuentes
-        TXT[TXT IGEA/CYMDIST<br/>RED · CARGA · BD_Equipo]
+        TXT[TXT CYMDIST<br/>RED · CARGA · BD_Equipo]
         MDB[Base Access .mdb]
         VNR[Paquete VNR-GIS<br/>SQL Server]
     end
@@ -135,7 +135,7 @@ flowchart LR
     end
     subgraph Presentacion["Presentación"]
         WEB[Web<br/>FastAPI + React]
-        CLI[CLI igea-dgs]
+        CLI[CLI convertersmartgrid]
     end
     subgraph PF["DIgSILENT PowerFactory"]
         G[Guiones tools/*_pf.py] --> P[(Proyecto)]
@@ -410,7 +410,7 @@ Cada procedimiento dice qué hace falta antes, los pasos y cómo se sabe que sal
 
 ## P2. Abrir la web y crear un espacio de trabajo
 
-1. Abrir el acceso directo «Conversor IGEA-DGS» del escritorio, o `run_gui.bat`. La web queda en
+1. Abrir el acceso directo «ConverterSmartGrid» del escritorio, o `run_gui.bat`. La web queda en
    `http://127.0.0.1:8765`.
 2. La web abre el último espacio de trabajo; «Nuevo espacio» crea otro.
 
@@ -609,8 +609,8 @@ Estado de cada una: [specs/README.md](../specs/README.md).
 
 | Qué | Dónde |
 | --- | --- |
-| Motor | `src/igea_dgs/` |
-| Web | `src/igea_dgs/web/` (API) y `frontend/src/` (interfaz) |
+| Motor | `src/convertersmartgrid/` |
+| Web | `src/convertersmartgrid/web/` (API) y `frontend/src/` (interfaz) |
 | Guiones de DIgSILENT y herramientas | `tools/` |
 | Perfil de la empresa | `config/perfil_empresa.json` y `config/perfiles/` |
 | Salidas de la web | `output/web/<espacio>/` (planes, informes, ejecuciones) |

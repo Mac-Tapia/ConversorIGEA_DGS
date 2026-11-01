@@ -47,12 +47,12 @@ def main(argv=None):
     a.add_argument('--publicar', action='store_true')
     args = p.parse_args(argv)
     try:
-        from igea_dgs.asistente.aceptacion import auditar_propuestas, decidir_aceptacion, evaluar_ordenes
-        from igea_dgs.asistente.destilacion_integral import leer_corpus
-        from igea_dgs.asistente.propuestas_maestro import generar_propuestas, VOCABULARIO
-        from igea_dgs.asistente.ollama import ClienteOllama
-        from igea_dgs.training_coordinator import BloqueoGPU
-        from igea_dgs.evaluacion_modelos import huella
+        from convertersmartgrid.asistente.aceptacion import auditar_propuestas, decidir_aceptacion, evaluar_ordenes
+        from convertersmartgrid.asistente.destilacion_integral import leer_corpus
+        from convertersmartgrid.asistente.propuestas_maestro import generar_propuestas, VOCABULARIO
+        from convertersmartgrid.asistente.ollama import ClienteOllama
+        from convertersmartgrid.training_coordinator import BloqueoGPU
+        from convertersmartgrid.evaluacion_modelos import huella
         if args.accion == 'preparar':
             filas, meta = generar_propuestas()
             datos, fuente = leer_corpus(args.dataset)
@@ -64,13 +64,13 @@ def main(argv=None):
                 'training_dataset_hash': fuente['dataset_hash']})
             escribir(args.destino / 'humanas.json', [r for r in datos if r['quality'] == 'gold_human'])
             if args.publicar:
-                from igea_dgs.asistente import almacen
+                from convertersmartgrid.asistente import almacen
                 almacen.guardar_json('aceptacion_agente', {'corpus': str(args.destino.resolve()), 'evaluacion': None})
             resultado = {**meta, 'auditoria': auditoria}
         else:
-            from igea_dgs.training_coordinator import exigir_memoria_ml
+            from convertersmartgrid.training_coordinator import exigir_memoria_ml
             exigir_memoria_ml(4., minimo_commit_gib=6.)
-            ruta_lock = Path(os.environ.get('IGEA_ML_GPU_LOCK') or str(Path(tempfile.gettempdir()) / 'igea-dgs-gpu.lock'))
+            ruta_lock = Path(os.environ.get('CSG_ML_GPU_LOCK') or str(Path(tempfile.gettempdir()) / 'convertersmartgrid-gpu.lock'))
             with BloqueoGPU(ruta_lock, 'aceptacion-agente'):
                 if args.accion == 'seleccionar':
                     datos, fuente = leer_corpus(args.dataset)
@@ -141,7 +141,7 @@ def main(argv=None):
                     resultado = {'metricas': m, 'humanas': humanas, 'aceptacion': decidir_aceptacion(m, humanas), 'manifest': meta}
             escribir(args.destino / 'resultado.json', resultado)
             if args.accion == 'evaluar' and args.publicar:
-                from igea_dgs.asistente import almacen
+                from convertersmartgrid.asistente import almacen
                 almacen.guardar_json('aceptacion_agente', {'corpus': str(args.corpus.resolve()),
                     'evaluacion': str((args.destino / 'resultado.json').resolve())})
         print(json.dumps(resultado, ensure_ascii=True, allow_nan=False))

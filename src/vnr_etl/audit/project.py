@@ -66,12 +66,12 @@ def _discover(project_dir: Path) -> AuditFindings:
         gis_modules.append(f'vnr_etl/gis/{module.name}')
     for module in (src / 'vnr_etl' / 'catalogs').glob('*.py') if (src / 'vnr_etl' / 'catalogs').is_dir() else []:
         catalogs.append(f'vnr_etl/catalogs/{module.name}')
-    if (src / 'igea_dgs' / 'schemas').is_dir():
-        dgs_profiles = [rel(p) for p in sorted((src / 'igea_dgs' / 'schemas').glob('*.json'))]
+    if (src / 'convertersmartgrid' / 'schemas').is_dir():
+        dgs_profiles = [rel(p) for p in sorted((src / 'convertersmartgrid' / 'schemas').glob('*.json'))]
 
     exporters = []
-    if (src / 'igea_dgs' / 'dgs.py').is_file():
-        exporters.append('igea_dgs/dgs.py (write_dgs — reutilizar)')
+    if (src / 'convertersmartgrid' / 'dgs.py').is_file():
+        exporters.append('convertersmartgrid/dgs.py (write_dgs — reutilizar)')
 
     deps = _read_requirements(project_dir)
     tests = [rel(p) for p in sorted((project_dir / 'tests').glob('test_*.py'))] if (project_dir / 'tests').is_dir() else []
@@ -106,7 +106,7 @@ def _read_requirements(project_dir: Path) -> list[str]:
 def _known_risks(dgs_profiles: list[str]) -> list[str]:
     risks = [
         'El export final CYMDIST/DGS está bloqueado hasta verificar una muestra/template real (secciones 14-15).',
-        'IGEA write-back deshabilitado hasta verificar el endpoint real de Osinergmin.',
+        'Write-back deshabilitado hasta verificar el endpoint real de Osinergmin.',
         'El CRS/PSAD56/km de la empresa no se deduce; lo aporta la fuente.',
         'G/H (import/flujo) requieren el simulador y quedan pendientes sin él.',
     ]
@@ -138,7 +138,7 @@ def _structure(self: AuditFindings, offset: int) -> str:
     body = '## Paquetes Python\n\n' + _list_block(self.packages)
     body += '\n## Pruebas\n\n' + _list_block(self.tests)
     body += '\n\nLa estructura la descubre `setuptools` con `where = ["src"]`: ' \
-        '`vnr_etl` se añade como paquete adicional sin tocar `igea_dgs`.'
+        '`vnr_etl` se añade como paquete adicional sin tocar `convertersmartgrid`.'
     return _render('Estructura del proyecto (AUDIT/project_structure.md)', body)
 
 
@@ -160,7 +160,7 @@ def _catalogs(self: AuditFindings) -> str:
 
 def _cymdist(self: AuditFindings) -> str:
     body = (
-        'Los TXT CYMDIST de entrada existen en `igea_dgs` (RED/CARGA/BD_Equipo) y el '
+        'Los TXT CYMDIST de entrada existen en `convertersmartgrid` (RED/CARGA/BD_Equipo) y el '
         'export CYMDIST de salida de `vnr_etl` queda bloqueado hasta aportar un '
         'contrato organizacional verificado (columnas/delimitador/unidades).'
     )
@@ -181,9 +181,9 @@ def _risks(self: AuditFindings) -> str:
 def _plan(self: AuditFindings) -> str:
     body = (
         'El módulo `vnr_etl` se integra como paquete **adicional** (`src/vnr_etl/`), '
-        'sin modificar `igea_dgs`. Se reutiliza:\n\n'
-        '- `igea_dgs/schemas/pf21_dgs_1_8_4.json` — perfiltablas/campos DGS (escritor DGS).\n'
-        '- Convenciones de `igea_dgs/web` (FastAPI + colas) — referencia para la web del módulo.\n\n'
+        'sin modificar `convertersmartgrid`. Se reutiliza:\n\n'
+        '- `convertersmartgrid/schemas/pf21_dgs_1_8_4.json` — perfiltablas/campos DGS (escritor DGS).\n'
+        '- Convenciones de `convertersmartgrid/web` (FastAPI + colas) — referencia para la web del módulo.\n\n'
         'Se implementa solo lo faltante: descubrimiento, adaptadores, modelo canónico, '
         'CRS/snapping, topología, enriquecimiento, puertas y CLI. El export final queda '
         'estricto y bloqueado sin muestra verificada.'

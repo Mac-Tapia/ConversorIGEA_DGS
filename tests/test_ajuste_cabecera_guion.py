@@ -16,7 +16,7 @@ import fake_pf
 import pytest
 from apoyo import cargar_herramienta, contexto_nativo
 
-SEMILLA = int(os.environ.get('IGEA_SCALE_SEED', random.randrange(1 << 30)))
+SEMILLA = int(os.environ.get('CSG_SCALE_SEED', random.randrange(1 << 30)))
 
 
 @pytest.fixture(scope='module')
@@ -493,7 +493,7 @@ def test_validacion_de_perdidas_usa_consumo_efectivo_no_plini(guion):
     Con las cargas consumiendo lo escrito, el balance cuadra: cabecera = fijas +
     escaladas + pérdidas.
     """
-    from igea_dgs.ajuste_cabecera import Medida, Objetivo
+    from convertersmartgrid.ajuste_cabecera import Medida, Objetivo
 
     app = _app(n=2)
     cargas, reparto = _reparto_de(app, 1.0, fija='F1_S1')
@@ -522,7 +522,7 @@ def test_carga_que_consume_menos_de_lo_escrito_no_es_valida(guion):
     automática del modelo las cargas consumían lo escrito por u² y la relectura de lo
     escrito daba «válido». Ahora la fija y la escalada que no consumen lo suyo se nombran,
     con lo escrito, lo consumido y el ajuste del flujo como causa."""
-    from igea_dgs.ajuste_cabecera import Medida, Objetivo
+    from convertersmartgrid.ajuste_cabecera import Medida, Objetivo
 
     app = _app(n=2)
     cargas, reparto = _reparto_de(app, 0.73, fija='F1_S1')
@@ -563,7 +563,7 @@ def test_toda_sed_no_fija_escalada_y_participando(guion):
     """015:RF-68 — el informe cuenta, carga por carga, las escaladas con su factor, con su
     potencia instalada y con consumo en el flujo, y nombra la que no tiene potencia instalada
     (en Chincha, 2026-10-28, las cargas de un trafomix M… y de un regulador)."""
-    from igea_dgs.ajuste_cabecera import Medida, Objetivo
+    from convertersmartgrid.ajuste_cabecera import Medida, Objetivo
 
     app = _app(n=3)
     cargas, reparto = _reparto_de(app, 1.0, fija='F1_S1')
@@ -593,7 +593,7 @@ def test_toda_sed_no_fija_escalada_y_participando(guion):
 
 def test_fija_con_su_p_pero_otra_q_en_el_flujo_no_es_valida(guion):
     """015:RF-47 — la Q de una fija también se compara con lo que consume."""
-    from igea_dgs.ajuste_cabecera import Medida, Objetivo
+    from convertersmartgrid.ajuste_cabecera import Medida, Objetivo
 
     app = _app(n=2)
     cargas, reparto = _reparto_de(app, 1.0, fija='F1_S1')
@@ -612,7 +612,7 @@ def test_fija_con_su_p_pero_otra_q_en_el_flujo_no_es_valida(guion):
 
 def test_carga_sin_resultado_del_flujo_no_queda_verificada(guion):
     """015:RF-52 — tras un flujo convergente, una carga sin P consumida no se da por buena."""
-    from igea_dgs.ajuste_cabecera import Medida, Objetivo
+    from convertersmartgrid.ajuste_cabecera import Medida, Objetivo
 
     app = _app(n=2)
     cargas, reparto = _reparto_de(app, 1.0, fija='F1_S1')
@@ -1427,7 +1427,7 @@ def test_toda_escalada_con_el_fp_del_perfil(guion):
     """015:RF-67 — usuario, 2026-10-15: «todas las escaladas con factor de potencia 0,98».
     Calibrada, cada escalada lo tiene; una que en DIgSILENT consume con otro FP hace que la
     validación no pase y se nombra."""
-    from igea_dgs.ajuste_cabecera import Medida, Objetivo
+    from convertersmartgrid.ajuste_cabecera import Medida, Objetivo
 
     app = _app()
     informe, rc = guion.ejecutar(app, {**_plan(), 'factor_potencia_cargas': 0.98})
@@ -1757,7 +1757,7 @@ def test_tras_implementar_la_calibracion_sale_valida(guion):
 def test_si_tras_implementar_no_es_valida_es_un_fallo_con_lo_que_sigue_fallando(guion):
     """020:RF-32 — calibración no válida tras el cambio: fallo, los transformadores se quedan
     y se dice qué sigue (cargas que no consumen lo escrito, remedio del flujo)."""
-    from igea_dgs.ajuste_cabecera import Fija
+    from convertersmartgrid.ajuste_cabecera import Fija
 
     cambiados = [{'sed': 'S1'}]
     validacion = {'fallos': [{'tipo': 'CONSUMO_DISTINTO_DE_LO_ESCRITO', 'cantidad': 12}]}
@@ -1776,7 +1776,7 @@ def test_si_tras_implementar_no_es_valida_es_un_fallo_con_lo_que_sigue_fallando(
 def test_la_sed_cambiada_por_encima_del_umbral_se_nombra(guion):
     """020:RF-26 — una SED cambiada que queda sobre el umbral (o una fija que sigue sobre su
     potencia) hace fallar la comprobación aunque la calibración valga."""
-    from igea_dgs.ajuste_cabecera import Fija
+    from convertersmartgrid.ajuste_cabecera import Fija
 
     app = _app(n=3)
     carga = _carga(app, 'F1_S2')                 # 100 kVA en el doble
@@ -1889,7 +1889,7 @@ def _variaciones(app, prefijo):
 
 def test_codigo_del_tipo_de_linea():
     """032:RF-14 — la ficha se busca por el código del conductor, sin la tensión ni el (n)."""
-    from igea_dgs.naming import codigo_de_tipo_linea
+    from convertersmartgrid.naming import codigo_de_tipo_linea
 
     assert codigo_de_tipo_linea('AA12003D_22_9kV') == 'AA12003D'
     assert codigo_de_tipo_linea('NK12003D_10kV(1)') == 'NK12003D'

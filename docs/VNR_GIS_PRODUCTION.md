@@ -7,7 +7,7 @@
 ```text
 fuente oficial/archivo/SQLite -> inventario y huellas -> modelo canónico
 -> reconstrucción (alimentadores, fuentes, tensión, fases, longitudes, cargas, CRS)
--> catálogo de parámetros para los conductores -> motor igea_dgs
+-> catálogo de parámetros para los conductores -> motor convertersmartgrid
 -> DGS transaccional + manifiesto + informe de reconstrucción -> PowerFactory -> ComLdf
 ```
 
@@ -74,12 +74,12 @@ motivo queda en `metadata.crs_deducido`. `--source-crs` sigue mandando si se ind
 
 ## API Web y seguridad
 
-Las rutas de VNR forman parte de la API web única (`igea-dgs-web`), con su misma cola
+Las rutas de VNR forman parte de la API web única (`convertersmartgrid-web`), con su misma cola
 de trabajos; el lanzador `vnr-etl-web` y su token de sesión se retiraron (spec 001,
 RF-11). `vnr-etl web` abre esa misma web.
 
 ```powershell
-.\.venv\Scripts\igea-dgs-web.exe            # o: python -m vnr_etl web
+.\.venv\Scripts\convertersmartgrid-web.exe            # o: python -m vnr_etl web
 ```
 
 Las cargas usan identificadores

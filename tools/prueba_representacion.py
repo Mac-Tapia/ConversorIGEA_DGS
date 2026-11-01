@@ -6,10 +6,10 @@
 Por cada alimentador:
 
 1. Toma del TXT los valores y coordenadas de cada elemento. Los nodos sin
-   ``CoordX/CoordY`` se colocan por el grafo (``igea_dgs.coordenadas``) y quedan
+   ``CoordX/CoordY`` se colocan por el grafo (``convertersmartgrid.coordenadas``) y quedan
    marcados como inferidos.
 2. Excluye los trafomix —medición de MT registrada como SED, con el patrón del perfil
-   de empresa— (``igea_dgs.trafomix``).
+   de empresa— (``convertersmartgrid.trafomix``).
 3. Encaja el diagrama en la hoja pedida con escala isótropa y dimensiona los símbolos
    en múltiplos de la cuadrícula (``FeederModel.diagram_sheet``).
 4. Valida el DGS y **audita la completitud contra el TXT**: tramos, barras, cargas,
@@ -38,15 +38,15 @@ for _flujo in (sys.stdout, sys.stderr):
     except (AttributeError, ValueError):  # pragma: no cover
         pass
 
-from igea_dgs.coordenadas import completar_coordenadas  # noqa: E402
-from igea_dgs.dataset import CymdistDataset  # noqa: E402
-from igea_dgs.dgs import formato_hoja, write_dgs  # noqa: E402
-from igea_dgs.geography import assert_metre_source_crs, build_geography  # noqa: E402
-from igea_dgs.model import _calc_p_q, build_feeder_model  # noqa: E402
-from igea_dgs.naming import feeder_short_name  # noqa: E402
-from igea_dgs.sed_potencia import redimensionar_sobrecargadas  # noqa: E402
-from igea_dgs.trafomix import es_trafomix, excluir_trafomix  # noqa: E402
-from igea_dgs.validate import parse_dgs, validate_dgs  # noqa: E402
+from convertersmartgrid.coordenadas import completar_coordenadas  # noqa: E402
+from convertersmartgrid.dataset import CymdistDataset  # noqa: E402
+from convertersmartgrid.dgs import formato_hoja, write_dgs  # noqa: E402
+from convertersmartgrid.geography import assert_metre_source_crs, build_geography  # noqa: E402
+from convertersmartgrid.model import _calc_p_q, build_feeder_model  # noqa: E402
+from convertersmartgrid.naming import feeder_short_name  # noqa: E402
+from convertersmartgrid.sed_potencia import redimensionar_sobrecargadas  # noqa: E402
+from convertersmartgrid.trafomix import es_trafomix, excluir_trafomix  # noqa: E402
+from convertersmartgrid.validate import parse_dgs, validate_dgs  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -219,7 +219,7 @@ def main(argv: list[str] | None = None) -> int:
                    help='Importar este alimentador en PowerFactory. Repetible.')
     p.add_argument('--pf-carpeta', metavar='NOMBRE',
                    help='Carpeta de DIgSILENT donde queda el proyecto importado (spec 005). '
-                        'Por defecto, la del perfil de empresa o «Conversor IGEA-DGS».')
+                        'Por defecto, la del perfil de empresa o «ConverterSmartGrid».')
     p.add_argument('--muestra', action='store_true',
                    help='Importar además una muestra representativa.')
     p.add_argument('--source-crs', default=None, help='CRS de las coordenadas (EPSG en metros). Por defecto, el del perfil de empresa.')
@@ -229,8 +229,8 @@ def main(argv: list[str] | None = None) -> int:
     args = p.parse_args(argv)
 
     formato_hoja(args.hoja)
-    from igea_dgs.geography import exigir_crs_origen
-    from igea_dgs.perfil_empresa import cargar_perfil
+    from convertersmartgrid.geography import exigir_crs_origen
+    from convertersmartgrid.perfil_empresa import cargar_perfil
 
     perfil = cargar_perfil()
     args.source_crs = exigir_crs_origen(args.source_crs or perfil.crs_origen)

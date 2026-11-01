@@ -20,8 +20,8 @@ import math
 
 import pytest
 
-from igea_dgs.dataset import CymdistDataset
-from igea_dgs.model import (
+from convertersmartgrid.dataset import CymdistDataset
+from convertersmartgrid.model import (
     ModelBuildError,
     build_feeder_model,
     check_length_scale_agreement,

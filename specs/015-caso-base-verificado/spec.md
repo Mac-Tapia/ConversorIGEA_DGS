@@ -335,7 +335,7 @@ Compensación propia de los clientes fijos (cambio del 2026-10-15)
 ## Criterios de finalización
 
 - Cada RF citado por al menos una prueba (`grep -rnoE "015:RF-[0-9]+" tests`).
-- Suite en verde con los datos reales (variables `IGEA_*`).
+- Suite en verde con los datos reales (variables `CSG_*`).
 - Prueba en DIgSILENT con CA101: la verificación del «Caso base» lista lo que falla;
   corregido en DIgSILENT, pasa; la calibración en «Sin proyecto» solo cambia cargas.
 

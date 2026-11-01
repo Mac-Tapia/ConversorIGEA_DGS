@@ -18,7 +18,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'src'))
-from igea_dgs.schema import load_schema
+from convertersmartgrid.schema import load_schema
 
 
 def headers(path: Path) -> dict[str, str]:

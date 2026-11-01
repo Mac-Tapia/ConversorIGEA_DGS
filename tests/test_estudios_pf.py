@@ -8,8 +8,8 @@ import random
 import pytest
 
 from apoyo import cargar_herramienta
-from igea_dgs import estudios_pf as ep
-from igea_dgs.studies import ESTUDIOS
+from convertersmartgrid import estudios_pf as ep
+from convertersmartgrid.studies import ESTUDIOS
 
 #: Semillas de los sorteos: los alimentadores, sus nombres y el orden de llegada cambian.
 SEMILLAS = (11, 23, 57, 101)
@@ -190,7 +190,7 @@ def test_los_de_la_012_dependen_del_libro_y_de_la_licencia():
     """012:RF-1, 012:RF-4, 012:RF-19, 012:RF-63 — sin libro, confiabilidad, reconectadores y
     condensadores se listan con el dato que les falta; con libro completo se ofrecen; un
     módulo que la licencia no cubre se lista como no disponible con su nombre."""
-    from igea_dgs import datos_empresa as de
+    from convertersmartgrid import datos_empresa as de
 
     no = {o['clave']: o for o in ep.estudios_no_ofrecidos()}
     for clave in ('fiabilidad', 'reconectadores', 'condensadores'):

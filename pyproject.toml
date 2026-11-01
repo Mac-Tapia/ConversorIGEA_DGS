@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "igea-dgs"
+name = "convertersmartgrid"
 version = "2.1.0"
-description = "Conversor universal IGEA/CYMDIST TXT → DIgSILENT PowerFactory DGS"
+description = "Conversor universal CYMDIST TXT → DIgSILENT PowerFactory DGS"
 readme = "README.md"
 # Python 3.12 exacto, y el límite superior es tan importante como el inferior.
 #
@@ -69,22 +69,22 @@ all = [
 dev = ["pytest>=8.0", "pyproj>=3.6", "httpx2>=2.0"]
 
 [project.scripts]
-igea-dgs = "igea_dgs.cli:main"
-igea-dgs-web = "igea_dgs.web.__main__:main"
+convertersmartgrid = "convertersmartgrid.cli:main"
+convertersmartgrid-web = "convertersmartgrid.web.__main__:main"
 vnr-etl = "vnr_etl.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-igea_dgs = ["schemas/*.json"]
+convertersmartgrid = ["schemas/*.json"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
 
 # El código vive en src/: sin esto, los revisores del editor (mypy y pylint) marcaban
-# «no se encuentra igea_dgs» en tools/ y tests/, aunque al ejecutar se encuentra
+# «no se encuentra convertersmartgrid» en tools/ y tests/, aunque al ejecutar se encuentra
 # siempre (paquete instalado en el .venv). Es el mismo dato que pythonpath de pytest.
 [tool.mypy]
 mypy_path = "src"

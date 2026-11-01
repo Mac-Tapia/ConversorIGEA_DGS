@@ -11,12 +11,12 @@ from pathlib import Path
 import docx
 import pytest
 
-from igea_dgs.informe_docx import (
+from convertersmartgrid.informe_docx import (
     DatosEstudio, DatosFactibilidad, abrir_modelo, escribir_informe_estudio, escribir_informe_factibilidad)
-from igea_dgs.informes import (
+from convertersmartgrid.informes import (
     Caso, ConfigInforme, Devanado, Encabezado, Etapa, Extremo, InformeError, Potencia, Solicitud,
     perdidas_anuales)
-from igea_dgs.libros_informe import DatosPerdidas
+from convertersmartgrid.libros_informe import DatosPerdidas
 
 #: Datos del modelo que no pueden aparecer en ningún informe generado.
 DEL_MODELO = ('GT-019-PR', 'CAIDA DE TENSIÓN DEL MODELO', '9999', '3 de 6', 'JAVIER')
@@ -293,7 +293,7 @@ def test_json_con_los_valores_junto_al_word(tmp_path):
 
 def test_un_fallo_no_deja_word_a_medias(tmp_path, monkeypatch):
     """017:RF-27 — si la escritura falla, ni .docx ni .tmp en la carpeta."""
-    import igea_dgs.informe_docx as modulo
+    import convertersmartgrid.informe_docx as modulo
 
     def revienta(*_a, **_k):
         raise RuntimeError('cancelado')

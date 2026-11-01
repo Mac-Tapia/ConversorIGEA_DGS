@@ -8,10 +8,10 @@ from pathlib import Path
 import pytest
 from apoyo import cargar_herramienta
 
-from igea_dgs.digital_twin.capture import construir_episodio
-from igea_dgs.digital_twin.episode import Caso, Clase
-from igea_dgs.digital_twin.evaluacion import Limites
-from igea_dgs.native_action import build_native_action_context
+from convertersmartgrid.digital_twin.capture import construir_episodio
+from convertersmartgrid.digital_twin.episode import Caso, Clase
+from convertersmartgrid.digital_twin.evaluacion import Limites
+from convertersmartgrid.native_action import build_native_action_context
 
 FIXTURE = Path(__file__).parent / 'fixtures' / 'digital_twin' / 'in111_ta225_topology_episode.json'
 ESPERADO = json.loads(FIXTURE.read_text(encoding='utf-8'))
@@ -107,7 +107,7 @@ def test_la_subtension_queda_como_violacion():
 
 def test_sin_vinculo_no_se_acepta(guion, tmp_path):
     """024:RF-1 — sin vínculo de la fuente no se sabe de dónde viene: código 2, sin DIgSILENT."""
-    from igea_dgs.powerfactory_binding import REGISTRO_SCHEMA
+    from convertersmartgrid.powerfactory_binding import REGISTRO_SCHEMA
 
     registro = tmp_path / 'vinculos.json'
     registro.write_text(json.dumps({'schema': REGISTRO_SCHEMA, 'vinculos': {}}), encoding='utf-8')

@@ -4,7 +4,7 @@ Lee: `docs/constitution.md` y `specs/026-asistente-ordenes/spec.md`.
 
 ## Contexto técnico
 
-- Paquete nuevo `src/igea_dgs/asistente/`, sin importar PowerFactory. PyTorch (extra `ml`) para
+- Paquete nuevo `src/convertersmartgrid/asistente/`, sin importar PowerFactory. PyTorch (extra `ml`) para
   el Transformer y el clasificador, en la GPU como la PINN (024); Ollama por su API local
   (`http://127.0.0.1:11434`) con `urllib` de la biblioteca estándar, sin dependencias nuevas.
 - La ejecución pasa por las funciones de `web/services.py` que ya lanzan las pestañas
@@ -12,7 +12,7 @@ Lee: `docs/constitution.md` y `specs/026-asistente-ordenes/spec.md`.
   `estudios_ejecutar`, `transferencia_ejecutar`, `pide_ejecutar`, `gemelo_aprender`,
   `gemelo_entrenar`, `gemelo_temporal`, `informe_estudio`, `informe_factibilidad`…) y por
   `JobManager.submit` con su carril (P5, P7). El asistente no llama a DIgSILENT por su cuenta.
-- Datos locales en `data_root() / '_asistente'` (`IGEA_ASISTENTE_DATA` para las pruebas):
+- Datos locales en `data_root() / '_asistente'` (`CSG_ASISTENTE_DATA` para las pruebas):
   ejemplos, modelos, índice del proyecto, registro de decisiones y de consultas a internet.
 
 ## Diseño por partes

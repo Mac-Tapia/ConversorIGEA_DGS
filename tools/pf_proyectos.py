@@ -34,11 +34,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 
-from igea_dgs.carpeta_pf import (  # noqa: E402
+from convertersmartgrid.carpeta_pf import (  # noqa: E402
     CarpetaError, alimentadores_de, buscar_carpeta, nombre_de_perfil, proyectos_de,
     validar_nombre,
 )
-from igea_dgs.powerfactory_binding import native_inventory_evidence  # noqa: E402
+from convertersmartgrid.powerfactory_binding import native_inventory_evidence  # noqa: E402
 
 
 def leer(app, carpeta: str) -> dict:
@@ -91,7 +91,7 @@ def main(argv=None) -> int:
     p = argparse.ArgumentParser(description='Proyectos de la carpeta de importación de PowerFactory')
     p.add_argument('--output-json', required=True)
     p.add_argument('--carpeta', help='Carpeta de DIgSILENT. Por defecto, la del perfil de '
-                                     'empresa o «Conversor IGEA-DGS» (spec 005).')
+                                     'empresa o «ConverterSmartGrid» (spec 005).')
     args = p.parse_args(argv)
     try:
         carpeta = validar_nombre(args.carpeta) if args.carpeta is not None else nombre_de_perfil()
@@ -100,7 +100,7 @@ def main(argv=None) -> int:
         return 2
     # 019:RF-1 a RF-6: turno del motor de la máquina, reintento con el motor ocupado y
     # primera línea al responder, comunes a todos los guiones.
-    from igea_dgs.pf_arnes import PFNoDisponible, conectar
+    from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
 
     try:
         app = conectar('pf_proyectos.py')

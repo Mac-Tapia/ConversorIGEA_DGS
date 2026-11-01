@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Demandas y cargas nuevas en un proyecto existente de DIgSILENT (spec 004).
 
-Recibe el plan de ``igea_dgs.cargas_pf.armar_plan``: el proyecto, los alimentadores
+Recibe el plan de ``convertersmartgrid.cargas_pf.armar_plan``: el proyecto, los alimentadores
 elegidos en orden, las demandas por SED y las cargas nuevas. No necesita nada de la
 conversión: qué carga coincide y dónde se conecta cada carga nueva se decide aquí,
 mirando el proyecto (RF-1).
@@ -47,9 +47,9 @@ import traceback
 from collections import Counter
 from pathlib import Path
 
-from igea_dgs.native_action import native_action_block_report
-from igea_dgs.troncal import Barra, Red, Tramo, cortar_trazado, punto_en_troncal, red_de
-from igea_dgs.troncal import troncal as troncal_de
+from convertersmartgrid.native_action import native_action_block_report
+from convertersmartgrid.troncal import Barra, Red, Tramo, cortar_trazado, punto_en_troncal, red_de
+from convertersmartgrid.troncal import troncal as troncal_de
 
 MAX_NOMBRE = 40               # loc_name de DIgSILENT
 REFERENCIAS_DIBUJO = 12       # barras dibujadas cercanas con que se mide la escala
@@ -166,7 +166,7 @@ def _cerrado(objeto, cubiculos) -> bool:
 
 
 def leer_red(elm, cabecera=None) -> Red:
-    """La red del alimentador en el caso activo, para ``igea_dgs.troncal`` (016:RF-2).
+    """La red del alimentador en el caso activo, para ``convertersmartgrid.troncal`` (016:RF-2).
 
     Tramos son sus líneas y sus acopladores: un seccionador ``ElmCoup`` cerrado une dos
     barras igual que una línea, y abierto corta el camino. Los extremos salen de los
@@ -260,8 +260,8 @@ def activar_proyecto(app, ruta: str, carpeta: str | None = None):
     en el plan (planes anteriores a la spec 005), la del perfil de empresa. Respeta el
     caso de estudio activo del proyecto.
     """
-    from igea_dgs.carpeta_pf import activar_proyecto as activar
-    from igea_dgs.carpeta_pf import nombre_de_perfil
+    from convertersmartgrid.carpeta_pf import activar_proyecto as activar
+    from convertersmartgrid.carpeta_pf import nombre_de_perfil
 
     proyecto = activar(app, ruta, carpeta or nombre_de_perfil())
     if proyecto is None:
@@ -338,7 +338,7 @@ def medir_cabecera(app, elm):
     cubículo. ``m:Psum:busN`` es lo que sale de la barra hacia la rama: si el alimentador
     está orientado hacia la barra (``iorient`` = 1), lo que entra en él es lo contrario.
     """
-    from igea_dgs.ajuste_cabecera import Medida
+    from convertersmartgrid.ajuste_cabecera import Medida
 
     ldf = app.GetFromStudyCase('ComLdf')
     rc = ldf.Execute()
@@ -399,7 +399,7 @@ def leer_cabecera(elm):
 
     La verificación de la spec 008 mide varios alimentadores con un solo flujo.
     """
-    from igea_dgs.ajuste_cabecera import Medida
+    from convertersmartgrid.ajuste_cabecera import Medida
 
     cub, metodo, troncales, fuentes = _frontera_cabecera(elm)
     # Un ``ElmFeeder`` puede apuntar solo a una de varias troncales que salen de la
@@ -1265,7 +1265,7 @@ def transformador_de_la_ampliacion(plan: dict, r: dict, creada: dict) -> dict:
     más el incremento de la fila. Se propone, no se cambia: el operador lo aplica desde la web
     como las SED sobrecargadas de la calibración (spec 020).
     """
-    from igea_dgs.trafos_sed import sed_sobre_umbral
+    from convertersmartgrid.trafos_sed import sed_sobre_umbral
 
     # ``tools/ajuste_cabecera_pf.py`` importa este módulo: por eso no se importa arriba.
     try:
@@ -1525,7 +1525,7 @@ class Diagrama:
         return True
 
     def _linea(self, linea) -> bool:
-        from igea_dgs.dgs import PUNTOS_POR_CONECTOR_PF, _line_irot, _puntos_que_dan_la_forma
+        from convertersmartgrid.dgs import PUNTOS_POR_CONECTOR_PF, _line_irot, _puntos_que_dan_la_forma
 
         if hasattr(linea, 'bus1'):
             cubiculos = [getattr(linea, 'bus1', None), getattr(linea, 'bus2', None)]
@@ -1692,7 +1692,7 @@ def flujo_de_carga(app) -> dict:
 
     054:RF-7: con líneas o trafos de menos de 3 fases, el flujo desequilibrado; si no, el que
     tenga el caso (un estudio puede haber pedido el desequilibrado a propósito)."""
-    from igea_dgs.dgs import red_con_monofasicos
+    from convertersmartgrid.dgs import red_con_monofasicos
 
     ldf = app.GetFromStudyCase('ComLdf')
     if red_con_monofasicos(app):
@@ -2489,7 +2489,7 @@ def _una_carga(app, plan, alims, proyecto, typ_folder, diagrama, feeder, r, nomb
             'carga (025:RF-47).')
     creada.update(variacion=variacion.loc_name, nota=nota)
     if plan.get('costos') and not r.get('ampliacion'):     # la ampliación no construye SED ni línea
-        from igea_dgs.economia import CostosUnitarios, datos_etapa
+        from convertersmartgrid.economia import CostosUnitarios, datos_etapa
 
         eco = datos_etapa([{'sed_code': creada['sed'], 'installed_kva': creada['kva_instalado'],
                             'length_km': (creada['distancia_m'] or 0) / 1000.0}],
@@ -2599,7 +2599,7 @@ def main(argv=None) -> int:
         return 2
     # 019:RF-1 a RF-6: turno del motor de la máquina, reintento con el motor ocupado y
     # primera línea al responder, comunes a todos los guiones.
-    from igea_dgs.pf_arnes import PFNoDisponible, conectar
+    from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
 
     try:
         app = conectar('cargas_pf.py')

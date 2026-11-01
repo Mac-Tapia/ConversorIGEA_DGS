@@ -1,6 +1,6 @@
 {
   "_comentario": "Caso dorado de la spec 024 (RF-24 a RF-27): hechos medidos en DIgSILENT tras guardar y reabrir. Sin coordenadas ni datos de clientes.",
-  "project": "20261015-170359_IGEA_IN111_TA225",
+  "project": "20261015-170359_CSG_IN111_TA225",
   "folder": "sistemaeletricoELD",
   "feeders": ["IN111", "TA225"],
   "case": "con_proyecto",

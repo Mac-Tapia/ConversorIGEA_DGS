@@ -14,14 +14,14 @@ import fake_pf
 import pytest
 from apoyo import cargar_herramienta, contexto_nativo
 
-from igea_dgs.digital_twin.episode import RESULTADOS_FLUJO
-from igea_dgs.digital_twin.native_snapshot import (
+from convertersmartgrid.digital_twin.episode import RESULTADOS_FLUJO
+from convertersmartgrid.digital_twin.native_snapshot import (
     componentes,
     huella_gps,
     identidad_nativa,
 )
 
-SEMILLA = int(os.environ.get('IGEA_SCALE_SEED', random.randrange(1 << 30)))
+SEMILLA = int(os.environ.get('CSG_SCALE_SEED', random.randrange(1 << 30)))
 
 
 @pytest.fixture(scope='module')
@@ -85,7 +85,7 @@ def test_la_lectura_trae_el_grafo_y_el_episodio_entrena(guion):
     """027:RF-1 — la lectura tras una acción trae el grafo eléctrico con los mismos
     identificadores que las tensiones, y el episodio que se arma con ella es entrenable:
     los de las calibraciones de Nasca y Chincha (2026-10-28) traían tensiones y no grafo."""
-    from igea_dgs.digital_twin.oraculo import VERSION_GRAFO, muestra
+    from convertersmartgrid.digital_twin.oraculo import VERSION_GRAFO, muestra
 
     feeders = _alimentadores()
     lectura, rc = guion.ejecutar(_app(feeders), _plan(feeders))
@@ -122,7 +122,7 @@ def test_huella_del_trazado_pedido(guion):
 def test_variacion_esperada_que_no_esta_no_es_reapertura(guion):
     """024:RF-27 — si tras reabrir falta una variación que la acción dejó, no vale."""
     feeders = ('F1',)
-    lectura, _ = guion.ejecutar(_app(feeders), _plan(feeders, variaciones_esperadas=['IGEA obra 1']))
+    lectura, _ = guion.ejecutar(_app(feeders), _plan(feeders, variaciones_esperadas=['CSG obra 1']))
     assert lectura['reopen_verified'] is False and lectura['avisos']
 
 

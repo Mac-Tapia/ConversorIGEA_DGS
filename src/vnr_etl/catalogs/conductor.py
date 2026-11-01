@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
-from igea_dgs.util import finite_or_none
+from convertersmartgrid.util import finite_or_none
 from vnr_etl.models import ConductorType
 
 
