@@ -78,3 +78,23 @@ def test_sin_respuesta_o_tarea_desconocida():
                           '/api/embed': {'embeddings': [[0.1, 0.2]]}})
     c = ClienteOllama(abrir=abrir)
     assert c.modelos() == ['qwen2.5:3b'] and c.embeddings(['hola']) == [[0.1, 0.2]]
+def test_cliente_configurado_conserva_revision_y_dos_etapas(tmp_path, monkeypatch):
+    """047:RF-18: el protocolo medido debe llegar al cliente que atiende en la web."""
+    from igea_dgs.asistente import almacen
+    from igea_dgs.asistente.ollama import cliente_configurado
+    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(tmp_path))
+    almacen.guardar_json('ollama', {'modelo': 'candidato:local', 'revisar_transformer': True,
+                                  'dos_etapas': True, 'pensar': False})
+    c = cliente_configurado()
+    assert c.modelo == 'candidato:local' and c.revisar_transformer and c.dos_etapas and c.pensar is False
+
+
+@pytest.mark.parametrize('cfg', [[], {'modelo': 0}, {'dos_etapas': 'false'}])
+def test_cliente_configurado_rechaza_protocolo_malformado(tmp_path, monkeypatch, cfg):
+    """047:RF-18: un valor ambiguo no cambia silenciosamente el protocolo evaluado."""
+    from igea_dgs.asistente import almacen
+    from igea_dgs.asistente.ollama import cliente_configurado
+    monkeypatch.setenv('IGEA_ASISTENTE_DATA', str(tmp_path))
+    almacen.guardar_json('ollama', cfg)
+    with pytest.raises(ValueError):
+        cliente_configurado()

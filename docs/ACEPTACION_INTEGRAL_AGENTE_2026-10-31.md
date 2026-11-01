@@ -87,6 +87,11 @@ incompleta por tarea. Las anotaciones comprueban procedencia, campos admitidos,
 spans y hash individual. Si falla el revisor obligatorio, el alumno no lo elude
 por declarar confianza alta.
 
+El cliente que utiliza la web conserva `revisar_transformer`, `dos_etapas` y
+`pensar` de la configuración medida, con tipos estrictos y compatibilidad con la
+configuración anterior. Su prueba falló primero porque el lector descartaba esos
+indicadores; se corrigió sin activar la configuración evaluada y rechazada.
+
 ## Instalación reproducible
 
 El catálogo [MODELOS_IA_LOCK.json](MODELOS_IA_LOCK.json) fija los pesos seleccionados:

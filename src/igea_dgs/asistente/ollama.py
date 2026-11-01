@@ -202,5 +202,16 @@ def cliente_configurado(tiempo_max_s: float = 30.0) -> ClienteOllama:
     """El cliente con el modelo que eligió la medida (``tools/asistente_medir_ollama.py``)."""
     from . import almacen
 
-    elegido = (almacen.leer_json('ollama') or {}).get('modelo') or 'qwen2.5:3b'
-    return ClienteOllama(modelo=elegido, tiempo_max_s=tiempo_max_s)
+    cfg = almacen.leer_json('ollama')
+    if cfg is None:
+        cfg = {}
+    if not isinstance(cfg, dict):
+        raise ValueError('Configuración de Ollama inválida.')
+    elegido = cfg.get('modelo', 'qwen2.5:3b')
+    if not isinstance(elegido, str) or not elegido.strip():
+        raise ValueError('Modelo de Ollama inválido.')
+    revision, etapas, pensar = cfg.get('revisar_transformer', False), cfg.get('dos_etapas', False), cfg.get('pensar')
+    if type(revision) is not bool or type(etapas) is not bool or (pensar is not None and type(pensar) is not bool):
+        raise ValueError('Protocolo de revisión de Ollama inválido.')
+    return ClienteOllama(modelo=elegido, tiempo_max_s=tiempo_max_s,
+                         revisar_transformer=revision, dos_etapas=etapas, pensar=pensar)

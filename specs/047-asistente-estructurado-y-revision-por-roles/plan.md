@@ -31,6 +31,10 @@ La opción de revisión obligatoria consulta al LLM aunque el alumno esté segur
 si falla el revisor, se solicita aclaración. El selector y evaluador no ejecutan
 acciones nativas. Usar JSON Schema por tarea y contexto suficiente para el catálogo,
 manteniendo límites de salida y custodia local.
+El cliente configurado que atiende en la web conserva los indicadores medidos
+`revisar_transformer`, `dos_etapas` y `pensar`; rechaza tipos ambiguos en la
+configuración en lugar de cambiar silenciosamente el protocolo. Las configuraciones
+anteriores sin esos indicadores mantienen sus valores predeterminados.
 Comparar también un protocolo de dos etapas: clasificar intención con esquema
 simple y después extraer únicamente los campos de esa tarea. Máximo dos llamadas;
 las tareas sin entidades necesitan una sola. Rechazar si el extractor cambia la
