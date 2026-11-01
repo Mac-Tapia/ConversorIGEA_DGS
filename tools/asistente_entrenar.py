@@ -47,6 +47,7 @@ def main(argv=None) -> int:
                                             'del asistente (spec 026)')
     p.add_argument('--output-json', required=True)
     p.add_argument('--vocabulario', type=Path, help='Nombres reales del espacio (JSON)')
+    p.add_argument('--dataset-v2',type=Path,help='Particiones train/validation/test trazables; no usa datos legacy')
     p.add_argument('--solo', choices=('ordenes', 'informes'), help='Entrenar solo uno de los dos modelos')
     p.add_argument('--destilar', action='store_true',
                    help='Destilar del modelo local de Ollama (maestro) al Transformer (spec 027, RF-56)')
@@ -60,6 +61,20 @@ def main(argv=None) -> int:
     args = p.parse_args(argv)
     salida = Path(args.output_json)
     salida.parent.mkdir(parents=True, exist_ok=True)
+
+    if args.dataset_v2:
+        from convertersmartgrid.trabajadores_ml import fallo,escribir_informe,semillas_de
+        if salida.exists():print('Informe existente conservado');return 2
+        try:
+            if args.integral or args.destilar or args.evaluar or args.solo is None:
+                raise ValueError('--dataset-v2 requiere --solo y no combina modos legacy')
+            from convertersmartgrid.asistente.entrenamiento_dataset import entrenar_dataset
+            resultado=entrenar_dataset(args.dataset_v2,salida.parent,solo=args.solo,
+                semillas=semillas_de(args.semillas),epocas=args.epocas)
+            codigo=0
+        except Exception as exc:resultado=fallo(exc);codigo=2
+        escribir_informe(salida,resultado)
+        return codigo
 
     if args.integral:
         try:

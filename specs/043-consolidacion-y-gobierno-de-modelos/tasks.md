@@ -25,6 +25,20 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
 
 ## Evidencia de ejecución
 
+- [x] T7. Completar los cuatro trabajadores ausentes y sus contratos con el runner. (RF-5, RF-6, RF-7, RF-13)
+      Hecho cuando: existen y pasan ayuda/validación los CLI temporal, evolutivo, embeddings y QLoRA; el runner solo envía opciones aceptadas; se prueban informes reales de bloqueo y operaciones disponibles, exclusión GPU heredada y preservación del activo. Crear archivos no acredita ajustes completos ni aceptación integral.
+
+T7, 2026-11-01: cuatro entrypoints implementados, `--dataset-v2` funcional en el
+trabajador del asistente, corpus generativo separado mediante `--llm-dataset`,
+guardia padre/hijo verificada en procesos reales y reportes atómicos con motivos.
+Regresión final de código: 94 aprobadas, cero fallos/errores/omisiones.
+Benchmark real GA/NSGA-II/DE: 30 semillas por algoritmo. Con fuentes reales, QLoRA
+rechaza la huella antigua, GRU detecta fecha/potencia ausente y embeddings encontró
+memoria insuficiente; ningún bloqueo se presenta como entrenamiento completado.
+Se corrigieron cuatro hallazgos de revisión con pruebas RED/GREEN. Detalles y
+límites en [trabajadores](../../docs/TRABAJADORES_COORDINADOR_2026-11-01.md).
+Este cierre solo acredita los trabajadores/contratos de T7, no T3, 047 T7 ni 050.
+
 - [x] T6. Instalar y verificar bibliotecas y pesos faltantes del catálogo local. (RF-12)
       Hecho cuando: el catálogo fijado, las pruebas de preparación, las descargas completas y las operaciones reales de bibliotecas/modelos tienen informes; `pip check` pasa sin cambiar las versiones previas del núcleo. Descargar no cierra entrenamiento, integración o aceptación eléctrica.
 

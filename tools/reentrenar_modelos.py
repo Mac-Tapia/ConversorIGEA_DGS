@@ -8,6 +8,8 @@ import hashlib
 import subprocess
 import sys
 import uuid
+import os
+import tempfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
@@ -24,6 +26,8 @@ def _estado(payload: dict, modelo: str) -> dict:
         return {'status': payload['status'], 'reason': payload.get('reason') or payload.get('error', '')}
     if payload.get('entrenado') is False:
         return {'status': 'BLOQUEADO_POR_DATOS', 'reason': payload.get('motivo') or payload.get('error', '')}
+    if payload.get('status')=='RECHAZADO':
+        return {'status':'RECHAZADO','reason':payload.get('reason',''),'result':payload}
     if 'promovido' in payload:
         return {'status': 'PROMOVIDO' if payload['promovido'] else 'RECHAZADO',
                 'reason': '; '.join(payload.get('fallos') or ()), 'result': payload}
@@ -44,9 +48,22 @@ def _subproceso(comando: list[str], reporte: Path, modelo: str, *, cwd: Path = R
     if reporte.exists():
         # Un proceso que termina sin escribir no puede heredar el éxito anterior.
         reporte.rename(reporte.with_name(f'{reporte.stem}.previous.{uuid.uuid4().hex}.json'))
-    p = subprocess.run(comando, cwd=cwd, capture_output=True, text=True, check=False)
+    env=os.environ.copy();env.pop('CSG_GPU_PARENT_TOKEN',None)
+    lock=Path(env.get('CSG_ML_GPU_LOCK') or str(Path(tempfile.gettempdir())/'convertersmartgrid-gpu.lock'))
+    if lock.is_file():
+        dueno=_leer(lock)
+        if dueno.get('pid')==os.getpid():env['CSG_GPU_PARENT_TOKEN']=dueno['token']
+    p = subprocess.run(comando, cwd=cwd, capture_output=True, text=True, check=False,env=env,
+                       encoding='utf-8',errors='replace')
     log.write_text((p.stdout or '') + ('\n[stderr]\n' + p.stderr if p.stderr else ''), encoding='utf-8')
     if p.returncode != 0:
+        if reporte.is_file():
+            try:
+                fallo=_leer(reporte)
+                if fallo.get('status') in {'ERROR_ENTORNO','BLOQUEADO_POR_DATOS'}:
+                    return {**_estado(fallo,modelo),'returncode':p.returncode,'training_completed':False,
+                            'report':str(reporte),'log':str(log)}
+            except (OSError,ValueError):pass
         return {'status': 'ERROR_ENTORNO', 'reason': f'código de salida {p.returncode}',
                 'returncode': p.returncode, 'training_completed': False, 'log': str(log)}
     if not reporte.is_file():
@@ -58,6 +75,7 @@ def _subproceso(comando: list[str], reporte: Path, modelo: str, *, cwd: Path = R
     resultado = _estado(payload, modelo)
     resultado['training_completed'] = (payload.get('entrenado') is True
                                       or payload.get('training_completed') is True)
+    resultado['evaluation_completed']=payload.get('evaluation_completed') is True
     resultado.update({'report': str(reporte), 'returncode': p.returncode, 'log': str(log)})
     return resultado
 
@@ -85,6 +103,8 @@ def _etapas(args, run_dir: Path):
         cmd = [py, str(REPO / 'tools' / 'digital_twin_temporal_entrenar.py'),
                '--cabeceras', str(args.cabeceras), '--raiz', str(args.twin),
                '--output-json', str(reporte), '--semillas', semillas]
+        if args.zona_horaria:cmd+=['--zona-horaria',args.zona_horaria]
+        if args.codigos_temporales:cmd+=['--codigos',args.codigos_temporales]
         return _subproceso(cmd, reporte, 'gru')
 
     def pinn():
@@ -105,18 +125,24 @@ def _etapas(args, run_dir: Path):
         entrenado = _subproceso(
             [py, str(REPO / 'tools' / 'asistente_embeddings.py'), 'entrenar', '--dataset', str(dataset),
              '--destino', str(destino), '--modelo', args.embedding_model], train_report, 'embeddings')
-        if entrenado['status'] == 'ERROR_ENTORNO':
+        if entrenado['status'] in {'ERROR_ENTORNO','BLOQUEADO_POR_DATOS'}:
             return entrenado
         modelo = destino / 'modelo'
         eval_dir = run_dir / 'embeddings-eval'
-        return _subproceso(
+        evaluado=_subproceso(
             [py, str(REPO / 'tools' / 'asistente_embeddings.py'), 'evaluar', '--dataset', str(dataset),
              '--destino', str(eval_dir), '--modelo', str(modelo)], eval_dir / 'decision.json', 'embeddings')
+        evaluado['training_completed']=entrenado.get('training_completed',False)
+        evaluado['training_report']=entrenado.get('report')
+        return evaluado
 
     def qlora():
+        if not args.llm_dataset:raise ValueError('indique --llm-dataset con el corpus generativo sellado; no se sustituye por dataset v2')
         destino, reporte = run_dir / 'qlora', run_dir / 'qlora' / 'training_manifest.json'
-        cmd = [py, str(REPO / 'tools' / 'asistente_qlora.py'), 'entrenar', '--dataset', str(dataset),
-               '--salida', str(destino), '--modelo', args.qlora_model, '--revision', args.qlora_revision]
+        cmd = [py, str(REPO / 'tools' / 'asistente_qlora.py'), 'entrenar', '--dataset', str(args.llm_dataset),
+               '--salida', str(destino)]
+        if args.qlora_model:cmd+=['--modelo',args.qlora_model]
+        if args.qlora_revision:cmd+=['--revision',args.qlora_revision]
         return _subproceso(cmd, reporte, 'qlora')
 
     return [
@@ -159,8 +185,12 @@ def verificar(reporte: Path, *, fail_on_incomplete: bool) -> int:
     completo = bool(payload.get('complete')) and estados_validos
     todos_entrenados = completo and all(x.get('status') in {'PROMOVIDO', 'RECHAZADO'}
                                         and x.get('training_completed') is True for x in etapas)
-    ok = todos_entrenados if fail_on_incomplete else completo
+    operaciones_completas=completo and all(x.get('status') in {'PROMOVIDO','RECHAZADO'} and
+        (x.get('training_completed') is True or x.get('model')=='evolutivos' and x.get('evaluation_completed') is True)
+        for x in etapas)
+    ok = operaciones_completas if fail_on_incomplete else completo
     salida = {'ok': ok, 'complete': completo, 'all_trained': todos_entrenados,
+              'all_required_operations_completed':operaciones_completas,
               'statuses': {x.get('model'): x.get('status') for x in etapas}}
     print(json.dumps(salida, ensure_ascii=False, indent=2))
     return 0 if ok else 2
@@ -182,10 +212,13 @@ def main(argv=None) -> int:
     run.add_argument('--vocabulario', type=Path, default=almacen.raiz() / 'vocabulario.json')
     run.add_argument('--twin', type=Path, default=raiz_buffer())
     run.add_argument('--cabeceras', type=Path)
+    run.add_argument('--zona-horaria',help='Zona IANA explicita de las mediciones temporales')
+    run.add_argument('--codigos-temporales',help='Codigos de columnas del libro ancho, separados por coma')
+    run.add_argument('--llm-dataset',type=Path,help='Corpus generativo sellado de 047 T7, distinto del dataset v2')
     run.add_argument('--semillas', default='11,23,37,53,71')
     run.add_argument('--embedding-model', default='intfloat/multilingual-e5-base')
-    run.add_argument('--qlora-model', default='Qwen/Qwen3-4B')
-    run.add_argument('--qlora-revision', default='1cfa9a7208912126459214e8b04321603b3df60c')
+    run.add_argument('--qlora-model',help='Base del catalogo; por defecto NF4 fijada de 047 T7')
+    run.add_argument('--qlora-revision',help='Revision exacta del catalogo; no admite referencias mutables')
     verify = sub.add_parser('verify')
     verify.add_argument('--report', type=Path, required=True)
     verify.add_argument('--fail-on-incomplete', action='store_true')
@@ -238,7 +271,7 @@ def main(argv=None) -> int:
             'reason': f'adaptador {experimento.algoritmo} pendiente de spec 046; no se sustituye por GRU'},
             uses_gpu=False)]
     entradas = {}
-    for nombre in ('dataset', 'vocabulario', 'twin', 'cabeceras'):
+    for nombre in ('dataset', 'vocabulario', 'twin', 'cabeceras','llm_dataset'):
         ruta = getattr(args, nombre)
         if ruta is not None:
             fuente = Path(ruta)
@@ -246,7 +279,9 @@ def main(argv=None) -> int:
                                 'sha256': huella_entrada(fuente, tipo=nombre)}
     huella = hashlib.sha256(json.dumps({'experimento': experimento.huella if experimento else None,
         'entradas': entradas, 'semillas': args.semillas, 'embedding_model': args.embedding_model,
-        'qlora_model': args.qlora_model, 'qlora_revision': args.qlora_revision},
+        'qlora_model': args.qlora_model, 'qlora_revision': args.qlora_revision,
+        'zona_horaria':args.zona_horaria,'codigos_temporales':args.codigos_temporales,
+        'model_catalog_sha256':huella_entrada(REPO/'docs/MODELOS_IA_LOCK.json',tipo='catalogo')},
         sort_keys=True).encode()).hexdigest()
     informe = TrainingCoordinator(etapas, run_dir, config_hash=huella,
                                   liberar_ollama=liberar_gpu_para_entrenar).run(resume=args.resume)

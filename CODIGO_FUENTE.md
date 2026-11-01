@@ -304,6 +304,14 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | --- | --- | --- |
 | `src/convertersmartgrid/model_registry.py` | Candidatos inmutables, integridad, promoción atómica y reapertura en subproceso. | 043 (RF-1, RF-5) |
 | `src/convertersmartgrid/training_coordinator.py` | Etapas reanudables, bloqueo GPU mediante guardia OS compartida y memoria física/comprometible antes de cargar pesos. | 043 (RF-6, RF-7, RF-12) |
+| `src/convertersmartgrid/trabajadores_ml.py` | Informes atómicos, dataset v2 verificado y herencia comprobada de la guardia GPU en procesos hijos. | 043 (RF-6, RF-7, RF-13) |
+| `src/convertersmartgrid/digital_twin/temporal_entrenamiento.py` | Lectura de series mediante lectores existentes, ajuste causal GRU, candidatos y recarga verificable. | 043 (RF-13), 046 (RF-1, RF-3, RF-7, RF-8) |
+| `src/convertersmartgrid/asistente/embeddings.py` | Pares contrastivos, métricas de recuperación, encoder CUDA local y persistencia de índices con hashes. | 043 (RF-13), 047 (RF-3, RF-4) |
+| `src/convertersmartgrid/asistente/entrenamiento_dataset.py` | Ajuste de clasificadores pequeños sobre particiones v2 explícitas; conserva candidatos sin promoción. | 043 (RF-7, RF-13) |
+| `tools/digital_twin_temporal_entrenar.py` | Trabajador de entrenamiento y recarga GRU con cabeceras observadas y zona horaria explícita. | 043 (RF-13), 046 (RF-3, RF-7) |
+| `tools/evaluar_evolutivos.py` | Benchmark analítico calculado de GA, NSGA-II y DE con al menos 30 semillas, separado de aceptación eléctrica. | 043 (RF-13), 048 (RF-3, RF-6) |
+| `tools/asistente_embeddings.py` | Ajuste solo con train y evaluación sobre consultas reservadas del recuperador local; sin cambiar índice activo. | 043 (RF-13), 047 (RF-3, RF-4) |
+| `tools/asistente_qlora.py` | Adaptador del coordinador al ajuste generativo NF4 existente y su corpus sellado; conserva pesos candidatos. | 043 (RF-13), 047 (RF-19, RF-20) |
 | `src/convertersmartgrid/experimentos.py` | Contexto exacto y contratos inmutables de configuración, con SHA-256 canónico. | 043 (RF-2) |
 | `src/convertersmartgrid/asistente/dataset_entrenamiento.py` | Custodia de datos reales, sintéticos y de contexto; agrupación de registros. | 043 (RF-3, RF-4) |
 | `src/convertersmartgrid/asistente/calidad_datos.py` | Calidad y contaminación entre particiones sin inflar el conjunto humano. | 043 (RF-3, RF-4) |

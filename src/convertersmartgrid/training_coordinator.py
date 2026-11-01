@@ -40,6 +40,10 @@ def _memoria_sistema() -> dict[str, float | None]:
     return {'fisica_gib': estado.libre_fisica / 1024**3, 'commit_gib': estado.libre_commit / 1024**3}
 
 
+class MemoriaMLInsuficiente(ValueError):
+    """El entorno no tiene margen de memoria; no es una ausencia de datos de entrenamiento."""
+
+
 def exigir_memoria_ml(minimo_fisico_gib: float, *, minimo_commit_gib: float) -> dict:
     """Exige margen previo; permite paginación Windows sin fingir que la carga pasó."""
     import math
@@ -50,7 +54,7 @@ def exigir_memoria_ml(minimo_fisico_gib: float, *, minimo_commit_gib: float) -> 
         raise ValueError('Contadores o limites de memoria invalidos')
     insuficiente = fisica < minimo_fisico_gib if commit is None else fisica < .5 or commit < minimo_commit_gib
     if insuficiente:
-        raise ValueError(f'Memoria insuficiente: fisica={fisica:.2f} GiB, comprometible={commit}; '
+        raise MemoriaMLInsuficiente(f'Memoria insuficiente: fisica={fisica:.2f} GiB, comprometible={commit}; '
                          f'requiere {minimo_fisico_gib} GiB fisicos o, en Windows, '
                          f'0.5 GiB fisicos y {minimo_commit_gib} GiB comprometibles')
     return estado

@@ -33,6 +33,31 @@ Pruebas nuevas citan `043:RF-n`; no cerrar tareas nativas con mocks.
 
 ## Review Focus
 
+### T7: Trabajadores y contratos realmente ejecutables
+
+Autorización del usuario 2026-11-01: crear los cuatro CLI que la auditoría encontró
+ausentes. Reutilizar selectivamente el worktree `reentrenamiento-integral`, sin
+sobrescribir implementaciones modernas ni importar desde el worktree en runtime.
+Crear `tools/digital_twin_temporal_entrenar.py`, `tools/evaluar_evolutivos.py`,
+`tools/asistente_embeddings.py`, `tools/asistente_qlora.py` y sus módulos auxiliares.
+QLoRA reutiliza `llm_destilacion.entrenar_epoca`, la base NF4 fijada y su sellado;
+no se hace pasar el dataset v2 de tres partes por el corpus generativo de cuatro.
+La evaluación evolutiva de funciones analíticas se etiqueta como tal, sin inventar
+mediciones ni aprobación eléctrica. Un algoritmo de búsqueda se evalúa, no se
+presenta como red neuronal entrenada. La GRU conserva validación causal actual.
+Los embeddings entrenan solo con train y evalúan consultas de prueba explícitas;
+consultas extractivas autogeneradas no acreditan benchmark humano independiente.
+Todos mantienen artefactos candidatos, informes y confirmaciones; no autoactivan.
+Permitir a procesos hijos usar la guardia GPU de su padre solo al cotejar PID y
+token reales del lock, sin permitir saltarlo por una variable booleana.
+Escribir primero `tests/test_trabajadores_coordinador.py`; observar RED y después
+ejecutar contratos/regresiones y operaciones reales adecuadas. Mantener T3 y 050
+abiertas hasta la campaña integral y publicación conjunta verificadas.
+
+Fundamento: comparación maestro/alumno de la [maestría Witossek](https://elib.dlr.de/220552/),
+retención del [doctorado Mirzadeh](https://doi.org/10.7273/000004632), y separación de
+contextos/evaluación en [Nature Machine Intelligence](https://doi.org/10.1038/s42256-022-00568-3).
+
 - Contextos con igual nombre y fuente distinta: T2, test_contexto_distinto_no_reutiliza.
 - Lock GPU ilegible o perteneciente a proceso vivo: T1, test_lock_ilegible_bloquea.
 - Artefacto promovido que no reabre: T3, test_smoke_fallido_no_promueve.

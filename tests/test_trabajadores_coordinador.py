@@ -1,0 +1,140 @@
+"""043:RF-13: entrypoints y errores reales; fixtures no son evidencia de entrenamientos."""
+from pathlib import Path
+import json
+import subprocess
+import sys
+import pytest
+
+RAIZ=Path(__file__).resolve().parents[1]
+HERRAMIENTAS=('digital_twin_temporal_entrenar.py','evaluar_evolutivos.py',
+              'asistente_embeddings.py','asistente_qlora.py')
+
+
+@pytest.mark.parametrize('nombre',HERRAMIENTAS)
+def test_entrypoint_existe_y_ayuda_sin_modelos(nombre):
+    """043:RF-13: la herramienta real debe poder describir su contrato sin CUDA ni datos."""
+    f=RAIZ/'tools'/nombre
+    assert f.is_file(),nombre
+    r=subprocess.run([sys.executable,'-X','utf8',str(f),'--help'],capture_output=True,text=True,encoding='utf-8')
+    assert r.returncode==0,r.stderr
+
+
+@pytest.mark.parametrize('nombre,opciones,reporte',[
+    ('digital_twin_temporal_entrenar.py',['--cabeceras','ausente.xlsx','--raiz','raiz'],'temporal.json'),
+    ('asistente_embeddings.py',['entrenar','--dataset','ausente'],'embeddings/decision.json'),
+    ('asistente_qlora.py',['entrenar','--dataset','ausente'],'qlora/training_manifest.json')])
+def test_datos_ausentes_dejan_informe_sin_inventar_exito(tmp_path,nombre,opciones,reporte):
+    """043:RF-13: bloquear conserva evidencia; no puede declararse entrenamiento completado."""
+    salida=tmp_path/reporte
+    if nombre=='digital_twin_temporal_entrenar.py':args=opciones+['--output-json',str(salida)]
+    else:args=opciones+(['--salida'] if 'qlora' in nombre else ['--destino'])+[str(salida.parent)]
+    r=subprocess.run([sys.executable,'-X','utf8',str(RAIZ/'tools'/nombre),*args],capture_output=True,text=True,encoding='utf-8')
+    assert r.returncode!=0,r.stdout+r.stderr
+    d=json.loads(salida.read_text(encoding='utf-8'))
+    assert d['status']=='BLOQUEADO_POR_DATOS' and d['training_completed'] is False
+    assert d.get('promovido') is False
+
+
+def test_ayuda_asistente_admite_el_dataset_del_runner():
+    """043:RF-13: el runner no debe enviar una opción inexistente a su propio trabajador."""
+    r=subprocess.run([sys.executable,'-X','utf8',str(RAIZ/'tools/asistente_entrenar.py'),'--help'],capture_output=True,text=True,encoding='utf-8')
+    assert r.returncode==0 and '--dataset-v2' in r.stdout
+
+
+def test_guardia_del_coordinador_se_hereda_en_un_hijo_real(tmp_path,monkeypatch):
+    """043:RF-6 / RF-13: un hijo real comparte la guardia viva sin soltarla ni duplicarla."""
+    from convertersmartgrid.training_coordinator import BloqueoGPU
+    from tools.reentrenar_modelos import _subproceso
+    lock=tmp_path/'gpu.lock';monkeypatch.setenv('CSG_ML_GPU_LOCK',str(lock))
+    reporte=tmp_path/'informe.json';script=tmp_path/'worker.py'
+    script.write_text('from pathlib import Path\nfrom convertersmartgrid.trabajadores_ml import turno_gpu, escribir_informe\n'
+        'with turno_gpu("contrato-sin-calculo-CUDA"):\n'
+        f'    escribir_informe(Path({str(reporte)!r}),{{"status":"RECHAZADO","promovido":False,"training_completed":False}})\n',encoding='utf-8')
+    with BloqueoGPU(lock,'padre-del-contrato'):
+        resultado=_subproceso([sys.executable,str(script)],reporte,'gru')
+        assert resultado['returncode']==0 and resultado['status']=='RECHAZADO'
+        assert lock.exists()
+    assert not lock.exists()
+
+
+def test_runner_conserva_bloqueo_de_datos_del_worker(tmp_path):
+    """043:RF-13: retorno 2 de datos faltantes no debe ocultar su motivo como error de entorno."""
+    from tools.reentrenar_modelos import _subproceso
+    reporte=tmp_path/'salida/decision.json'
+    r=_subproceso([sys.executable,str(RAIZ/'tools/asistente_embeddings.py'),'entrenar',
+        '--dataset',str(tmp_path/'ausente'),'--destino',str(reporte.parent)],reporte,'embeddings')
+    assert r['status']=='BLOQUEADO_POR_DATOS' and 'dataset' in r['reason']
+
+
+def test_cabecera_no_oculta_huecos_ni_objetivos_ausentes(tmp_path):
+    """046:RF-3 / 043:RF-13: consumir el lector existente sin descartar objetivos ausentes."""
+    from datetime import datetime,timedelta
+    from openpyxl import Workbook
+    from convertersmartgrid.digital_twin.temporal_entrenamiento import cargar_cabeceras
+    libro=Workbook();h=libro.active;h.title='Cabecera contrato';h.append(['Fecha','kW'])
+    inicio=datetime(2025,1,1)
+    h.append([inicio,10.]);h.append([inicio+timedelta(minutes=30),12.])
+    f=tmp_path/'cabecera.xlsx';libro.save(f)
+    with pytest.raises(ValueError,match='huecos'):
+        cargar_cabeceras(f,zona_horaria='UTC')
+
+
+@pytest.fixture
+def dataset_retrieval_contrato(tmp_path):
+    """Documentos de contrato, no fuente electrica ni benchmark real del asistente."""
+    import hashlib
+    d=tmp_path/'dataset';d.mkdir();manifest={'partitions':{}}
+    for p in ('train','validation','test'):
+        r={'record_id':p,'group_id':p,'quality':'context',
+           'texto':f'documento del contrato {p} con contenido verificable de prueba',
+           'provenance':{'source_url':'fuente'}}
+        f=d/(p+'.jsonl');f.write_text(json.dumps(r)+'\n',encoding='utf-8')
+        manifest['partitions'][p]={'sha256':hashlib.sha256(f.read_bytes()).hexdigest(),'count':1}
+    (d/'manifest.json').write_text(json.dumps(manifest),encoding='utf-8')
+    return d
+
+
+@pytest.mark.parametrize('caso',['duplicada','sin_independencia','extractiva'])
+def test_consulta_train_no_se_disfraza_de_prueba_reservada(dataset_retrieval_contrato,caso):
+    """043:RF-13 / 047:RF-4: no evaluar sobre las mismas consultas usadas para ajustar."""
+    from tools.asistente_embeddings import cargar_dataset
+    d=dataset_retrieval_contrato
+    train={'pregunta':'consulta del entrenamiento','fuente':'fuente#train','confirmada':True}
+    test={**train,'independent_evaluation':True}
+    if caso=='sin_independencia':test={'pregunta':'consulta distinta','fuente':'fuente#test','confirmada':True}
+    if caso=='extractiva':
+        test['pregunta']='documento del contrato train con contenido verificable de prueba'
+    else:(d/'retrieval_train.jsonl').write_text(json.dumps(train)+'\n',encoding='utf-8')
+    (d/'retrieval_test.jsonl').write_text(json.dumps(test)+'\n',encoding='utf-8')
+    with pytest.raises(ValueError,match='independ|entrenamiento'):
+        cargar_dataset(d,entrenamiento=False)
+
+
+def test_recuperacion_admite_documento_compartido_con_consulta_nueva(dataset_retrieval_contrato):
+    """047:RF-4 / 043:RF-13: compartir corpus RAG no permite repetir la consulta supervisada."""
+    from tools.asistente_embeddings import cargar_dataset
+    d=dataset_retrieval_contrato
+    (d/'retrieval_test.jsonl').write_text(json.dumps({'pregunta':'consulta independiente del contrato',
+        'fuente':'fuente#train','confirmada':True,'independent_evaluation':True})+'\n',encoding='utf-8')
+    _,pares=cargar_dataset(d,entrenamiento=False)
+    assert len(pares)==1
+
+
+def test_busqueda_evolutiva_no_se_presenta_como_red_entrenada(tmp_path,capsys):
+    """043:RF-13: completar evaluacion de busqueda no inventa un entrenamiento de pesos."""
+    from tools.reentrenar_modelos import verificar
+    from convertersmartgrid.training_coordinator import ORDEN_MODELOS
+    r=tmp_path/'report.json'
+    etapas=[{'model':n,'status':'RECHAZADO','training_completed':n!='evolutivos',
+             'evaluation_completed':n=='evolutivos'} for n in ORDEN_MODELOS]
+    r.write_text(json.dumps({'complete':True,'stages':etapas}),encoding='utf-8')
+    assert verificar(r,fail_on_incomplete=True)==0
+    d=json.loads(capsys.readouterr().out)
+    assert d['all_required_operations_completed'] is True and d['all_trained'] is False
+
+
+def test_memoria_insuficiente_es_error_de_entorno():
+    """043:RF-12 / RF-13: recursos agotados no se diagnostican como datos ausentes."""
+    from convertersmartgrid.training_coordinator import MemoriaMLInsuficiente
+    from convertersmartgrid.trabajadores_ml import fallo
+    assert fallo(MemoriaMLInsuficiente('contrato'))['status']=='ERROR_ENTORNO'

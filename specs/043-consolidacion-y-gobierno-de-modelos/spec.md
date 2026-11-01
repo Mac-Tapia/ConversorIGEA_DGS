@@ -27,6 +27,8 @@ Dependencias y relación: 024, 026 y 027; integración selectiva del worktree de
 
 ## Requisitos no funcionales
 
+- RF-13: CUANDO el coordinador invoque un trabajador de entrenamiento o evaluación, EL SISTEMA usará un entrypoint existente con argumentos compatibles, conservará informe atómico de éxito, bloqueo o error, y distinguirá operación ejecutada de promoción, sin descargar datos ni activar candidatos implícitamente.
+
 - RF-12: CUANDO se preparen dependencias y pesos locales, EL SISTEMA conservará versiones, revisiones, licencias, tamaños y hashes de los modelos seleccionados; verificará archivos completos y disponibilidad local sin activar candidatos ni declarar aceptación por descargarlos. Los fallos se guardarán con salida no exitosa y sin eliminar descargas parciales. La instalación de paquetes conservará las versiones existentes del núcleo y acreditará imports y operaciones reales.
 
 Python 3.12; datos locales; entrenamiento CUDA exclusivo sin fallback silencioso a
