@@ -12,6 +12,37 @@
 
 ## Global Constraints
 
+### T6: 200 propuestas y aceptación por alcance
+
+Crear `asistente/aceptacion.py`, `asistente/propuestas_maestro.py`,
+`tools/aceptar_agente.py` y `tests/test_aceptacion_agente.py`.
+Corregir `ordenes_fijas.generar` para obtener 200 textos únicos deterministas y
+rechazar repartos con duplicados en lugar de atribuirles independencia. Auditar
+el material histórico como currículo, sin presentarlo como prueba independiente
+del alumno que ya lo usó. Las propuestas de aceptación usarán familias nuevas
+escritas por el maestro, fixtures públicas con entidades completas y origen
+`silver_teacher_verified`; conservar su manifiesto y las tres humanas observadas.
+Elegir configuración del revisor local (modelo/contexto) únicamente con selección
+del corpus previo; usar después el conjunto sellado de 200. Exigir acierto de tarea
+>=0,98 y F1 de entidades >=0,95 para aceptación asistida, sin rebajar umbrales.
+Registrar alcance, confirmación obligatoria, cobertura y fallos. Las condiciones
+humanas y eléctricas quedan separadas; no activar pesos que no pasaron sus puertas.
+La opción de revisión obligatoria consulta al LLM aunque el alumno esté seguro;
+si falla el revisor, se solicita aclaración. El selector y evaluador no ejecutan
+acciones nativas. Usar JSON Schema por tarea y contexto suficiente para el catálogo,
+manteniendo límites de salida y custodia local.
+Comparar también un protocolo de dos etapas: clasificar intención con esquema
+simple y después extraer únicamente los campos de esa tarea. Máximo dos llamadas;
+las tareas sin entidades necesitan una sola. Rechazar si el extractor cambia la
+tarea elegida. Evaluar esta elección solo en selección antes de las 200 propuestas.
+Mostrar en la API `/api/asistente/aceptacion` y en el panel del asistente las
+propuestas materializadas/únicas, los eventos humanos/órdenes únicas y el resultado
+por alcance. La consulta solo lee evidencia local, sin cargar modelos ni ejecutar
+trabajos. La publicación del informe no modifica pesos ni autoriza escrituras.
+Fundamento: las tesis de Witossek y Yun Zhang, Gou et al. IJCV y Hsieh et al. ACL,
+ya enlazados en este plan, distinguen datos del maestro de validación independiente;
+ninguna referencia convierte sintéticos en observaciones humanas.
+
 Rigen la constitución y las restricciones del [plan maestro](../../docs/superpowers/plans/2026-10-31-mejora-integral-ia-conversor.md#global-constraints).
 No crear otro registro, particionador o conexión nativa; consumir los contratos de
 043 y 044. Antes de editar, comparar diffs y verificar rutas actuales; «integrar»

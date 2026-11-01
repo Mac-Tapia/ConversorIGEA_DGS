@@ -104,7 +104,8 @@ def interpretar(texto: str, *, transformer: Any = None, ollama: Any = None,
         if not valida:
             previa = None
         # 027:RF-38: el umbral de su tarea, calibrado con las órdenes reales, si lo hay.
-        if previa is not None and previa['confianza'] >= (umbrales or {}).get(previa['tarea'], umbral):
+        if (previa is not None and not getattr(ollama, 'revisar_transformer', False)
+                and previa['confianza'] >= (umbrales or {}).get(previa['tarea'], umbral)):
             return _con_reglas(Interpretacion(texto, previa['tarea'], previa['confianza'], 'transformer',
                                               previa['datos'], previa.get('alternativas') or [], consultados))
     if ollama is not None:

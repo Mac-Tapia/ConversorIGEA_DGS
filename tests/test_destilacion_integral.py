@@ -20,12 +20,13 @@ def test_curriculo_y_derivados_no_cruzan_particiones():
     assert all(r['quality'] != 'gold_human' for r in registros)
 
 
-def test_faltan_humanos_bloquea_aunque_sinteticos_sean_perfectos():
-    """047:RF-13 — cinco humanas y miles sintéticas no equivalen a 200 humanas."""
+def test_muestra_humana_pequena_no_se_disfraza_de_200():
+    """047:RF-13 — conservar el denominador real sin bloquear solo por ser menor de 200."""
     from igea_dgs.asistente.destilacion_integral import decidir_promocion
     m = {'acierto_tarea': 1.0, 'f1_datos': 1.0, 'ejemplos': 9999}
     r = decidir_promocion(m, {**m, 'ejemplos': 5}, {'convertir': m}, None)
-    assert r['status'] == 'BLOQUEADO_POR_DATOS' and not r['gates']['approved']
+    assert r['status'] == 'RECHAZADO' and not r['gates']['approved']
+    assert r['ordenes_humanas'] == 5 and r['confirmacion_obligatoria']
 
 
 def test_mala_familia_no_se_oculta_en_media():

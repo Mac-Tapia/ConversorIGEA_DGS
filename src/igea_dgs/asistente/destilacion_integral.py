@@ -146,9 +146,10 @@ def decidir_promocion(sinteticas: dict, humanas: dict, familias: dict, referenci
         if type(valor) not in (float, int) or not math.isfinite(valor) or valor < minimo:
             fallos.append(f'prueba sintética: {k} bajo puerta o inválido')
     n = humanas.get('ejemplos', 0)
-    if type(n) is not int or n < 200:
+    if type(n) is not int or n < 1:
         return {'status': 'BLOQUEADO_POR_DATOS', 'gates': {'approved': False},
-                'fallos': [f'{n} órdenes humanas independientes; se requieren 200', *fallos]}
+                'ordenes_humanas': n, 'alcance': 'asistido', 'confirmacion_obligatoria': True,
+                'fallos': ['sin evaluación humana disponible', *fallos]}
     for k, minimo in (('acierto_tarea', .98), ('f1_datos', .95)):
         valor = humanas.get(k)
         if type(valor) not in (float, int) or not math.isfinite(valor) or valor < minimo:
@@ -157,7 +158,9 @@ def decidir_promocion(sinteticas: dict, humanas: dict, familias: dict, referenci
     if referencia is None:
         fallos.append('falta comparación por familia con el modelo activo')
     return {'status': 'RECHAZADO' if fallos else 'PROMOVIDO',
-            'gates': {'approved': not fallos}, 'fallos': fallos}
+            'gates': {'approved': not fallos}, 'fallos': fallos, 'ordenes_humanas': n,
+            'alcance': 'asistido', 'confirmacion_obligatoria': True,
+            'muestra_humana_amplia': n >= 200}
 
 
 def _ejemplos(registros):

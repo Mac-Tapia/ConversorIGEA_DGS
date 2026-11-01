@@ -185,6 +185,10 @@ pendiente; crear el plan no acredita modelos entrenados, promovidos ni aceptados
 
 ## 8. Reutilización GitHub ejecutada
 
+Actualización de aceptación: [200 propuestas, dependencias y pendientes verificables](../../ACEPTACION_INTEGRAL_AGENTE_2026-10-31.md).
+Los catálogos `MODELOS_IA_LOCK.json` y `DEPENDENCIAS_IA_LOCK.json` fijan pesos y
+bibliotecas. La descarga completa no implica adaptación, entrenamiento ni aceptación.
+
 Ver [selección y evidencia](../../REUSO_GITHUB_IA_2026-10-31.md) y
 [catálogo fijado](../../UPSTREAM_IA_LOCK.json). Se prepararon nueve clones con
 commit y licencia verificados (043 T5); PowerFlowNet cuenta con adaptador opcional

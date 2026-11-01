@@ -1,0 +1,210 @@
+{
+  "schema_version": 1,
+  "modelos": [
+    {
+      "backend": "huggingface",
+      "id": "Qwen/Qwen3-4B",
+      "revision": "1cfa9a7208912126459214e8b04321603b3df60c",
+      "licencia": "apache-2.0",
+      "rol": "base para ajuste local condicionado",
+      "files": [
+        {
+          "path": "LICENSE",
+          "size": 11343,
+          "sha256": null,
+          "git_blob_sha1": "6634c8cc3133b3848ec74b9f275acaaa1ea618ab"
+        },
+        {
+          "path": "README.md",
+          "size": 16857,
+          "sha256": null,
+          "git_blob_sha1": "2de5ee7eee214bb55ea33ec7505c5838a7adf7f6"
+        },
+        {
+          "path": "config.json",
+          "size": 726,
+          "sha256": null,
+          "git_blob_sha1": "e49eccdc32f36da9c09cfa0e737084f9e0105e5e"
+        },
+        {
+          "path": "generation_config.json",
+          "size": 239,
+          "sha256": null,
+          "git_blob_sha1": "20a8a9156fc8c3f25295ca067f61fdf120d517c5"
+        },
+        {
+          "path": "merges.txt",
+          "size": 1671853,
+          "sha256": null,
+          "git_blob_sha1": "31349551d90c7606f325fe0f11bbb8bd5fa0d7c7"
+        },
+        {
+          "path": "model-00001-of-00003.safetensors",
+          "size": 3957900840,
+          "sha256": "328a91d3122359d5547f9d79521205bc0a46e1f79a792dfe650e99fc2d651223"
+        },
+        {
+          "path": "model-00002-of-00003.safetensors",
+          "size": 3987450520,
+          "sha256": "6cd087b316306a68c562436b5492edbcf6e16c6dba3a1308279caa5a58e21ca5"
+        },
+        {
+          "path": "model-00003-of-00003.safetensors",
+          "size": 99630640,
+          "sha256": "e4bf436957184f4eeb86a80e9db394503f1f56446b2e6b7edeac5b81470f4ca1"
+        },
+        {
+          "path": "model.safetensors.index.json",
+          "size": 32819,
+          "sha256": null,
+          "git_blob_sha1": "95c0a0059df040d75dc6c396b174382cf61d2f91"
+        },
+        {
+          "path": "tokenizer.json",
+          "size": 11422654,
+          "sha256": "aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4"
+        },
+        {
+          "path": "tokenizer_config.json",
+          "size": 9732,
+          "sha256": null,
+          "git_blob_sha1": "417d038a63fa3de29cfde265caedae14d1a58d92"
+        },
+        {
+          "path": "vocab.json",
+          "size": 2776833,
+          "sha256": null,
+          "git_blob_sha1": "4783fe10ac3adce15ac8f358ef5462739852c569"
+        }
+      ]
+    },
+    {
+      "backend": "huggingface",
+      "id": "BAAI/bge-reranker-v2-m3",
+      "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+      "licencia": "apache-2.0",
+      "rol": "reranker multilingue",
+      "files": [
+        {
+          "path": "README.md",
+          "size": 17229,
+          "sha256": null,
+          "git_blob_sha1": "553540879ec61aea21df00434c984c0f760a3fcc"
+        },
+        {
+          "path": "config.json",
+          "size": 795,
+          "sha256": null,
+          "git_blob_sha1": "9f62673cb00ec41dcec8947b9ed16f6f2eb23ba2"
+        },
+        {
+          "path": "model.safetensors",
+          "size": 2271071852,
+          "sha256": "d9e3e081faff1eefb84019509b2f5558fd74c1a05a2c7db22f74174fcedb5286"
+        },
+        {
+          "path": "sentencepiece.bpe.model",
+          "size": 5069051,
+          "sha256": "cfc8146abe2a0488e9e2a0c56de7952f7c11ab059eca145a0a727afce0db2865"
+        },
+        {
+          "path": "special_tokens_map.json",
+          "size": 964,
+          "sha256": null,
+          "git_blob_sha1": "b1879d702821e753ffe4245048eee415d54a9385"
+        },
+        {
+          "path": "tokenizer.json",
+          "size": 17098273,
+          "sha256": "69564b696052886ed0ac63fa393e928384e0f8caada38c1f4864a9bfbf379c15"
+        },
+        {
+          "path": "tokenizer_config.json",
+          "size": 1173,
+          "sha256": null,
+          "git_blob_sha1": "328a00a9a560aadcf2a3064f917517359eb3cc26"
+        }
+      ]
+    },
+    {
+      "backend": "huggingface",
+      "id": "intfloat/multilingual-e5-base",
+      "revision": "d128750597153bb5987e10b1c3493a34e5a4502a",
+      "licencia": "mit",
+      "rol": "recuperacion multilingue",
+      "files": [
+        {
+          "path": "README.md",
+          "size": 179345,
+          "sha256": null,
+          "git_blob_sha1": "cb9a717ebcd784123f8bc5ea79b4ba0db4cf2f1d"
+        },
+        {
+          "path": "config.json",
+          "size": 694,
+          "sha256": null,
+          "git_blob_sha1": "2b827c7eb80b3765ec6f465ab7cbfe173388c9dc"
+        },
+        {
+          "path": "model.safetensors",
+          "size": 1112201288,
+          "sha256": "a18a44fad1d0b46ded15928144138cff1135d5cc8233bdd90be5f18822de09a7"
+        },
+        {
+          "path": "modules.json",
+          "size": 387,
+          "sha256": null,
+          "git_blob_sha1": "ac2039abdf6ff023b27c919bb9675cfe378cb10f"
+        },
+        {
+          "path": "sentence_bert_config.json",
+          "size": 57,
+          "sha256": null,
+          "git_blob_sha1": "4eca68d85ecd3034cf4174d8a4033a75344ea62d"
+        },
+        {
+          "path": "sentencepiece.bpe.model",
+          "size": 5069051,
+          "sha256": "cfc8146abe2a0488e9e2a0c56de7952f7c11ab059eca145a0a727afce0db2865"
+        },
+        {
+          "path": "special_tokens_map.json",
+          "size": 280,
+          "sha256": null,
+          "git_blob_sha1": "d5698132694f4f1bcff08fa7d937b1701812598e"
+        },
+        {
+          "path": "tokenizer.json",
+          "size": 17082660,
+          "sha256": "62c24cdc13d4c9952d63718d6c9fa4c287974249e16b7ade6d5a85e7bbb75626"
+        },
+        {
+          "path": "tokenizer_config.json",
+          "size": 418,
+          "sha256": null,
+          "git_blob_sha1": "6de1940d16d38be9877bf7cc228c9377841b311f"
+        },
+        {
+          "path": "1_Pooling/config.json",
+          "size": 200,
+          "sha256": null,
+          "git_blob_sha1": "2a824fa43c359360ecddb16808b539c6be892fef"
+        }
+      ]
+    },
+    {
+      "backend": "ollama",
+      "id": "qwen3:8b",
+      "revision": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",
+      "licencia": "Apache-2.0",
+      "rol": "interprete local"
+    },
+    {
+      "backend": "ollama",
+      "id": "nomic-embed-text:latest",
+      "revision": "0a109f422b47e3a30ba2b10eca18548e944e8a23073ee3f3e947efcf3c45e59f",
+      "licencia": "Apache-2.0",
+      "rol": "embeddings del indice existente"
+    }
+  ]
+}

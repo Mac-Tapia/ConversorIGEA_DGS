@@ -25,9 +25,12 @@ Dependencias y relación: 043 y 044; conservar intérprete, resolución, herrami
 - RF-10: EL SISTEMA conservará las reglas de autorización y confirmación vigentes al incorporar los nuevos modelos.
 - RF-11: CUANDO se destile al alumno, EL SISTEMA conservará autor, revisión, método y etiquetas del maestro sin presentar anotaciones únicas como votos independientes ni como órdenes humanas.
 - RF-12: CUANDO se compare destilación con entrenamiento supervisado, EL SISTEMA usará las mismas semillas y particiones independientes y elegirá el candidato únicamente con selección.
-- RF-13: CUANDO se informe la calidad del alumno, EL SISTEMA separará las métricas sintéticas, del maestro y humanas con sus denominadores y bloqueará esta promoción sin el mínimo predeclarado de 200 órdenes humanas, conservando las confirmaciones de 027.
+- RF-13: CUANDO se informe la calidad del alumno, EL SISTEMA separará las métricas sintéticas, del maestro y humanas con sus denominadores, sin sustituir las 200 propuestas del maestro por un requisito de 200 observaciones humanas para evaluar uso asistido y conservando las confirmaciones de 027.
 - RF-14: CUANDO se registre un alumno, EL SISTEMA verificará sus pesos en un proceso nuevo y conservará configuración, corpus, particiones y decisión en el registro común.
 - RF-15: CUANDO se ensaye el agente entrenado, EL SISTEMA comprobará interpretación, resolución de entidades y confirmaciones con casos positivos y negativos sin ejecutar escrituras nativas.
+- RF-16: CUANDO se publique el conjunto de 200 propuestas del maestro, EL SISTEMA exigirá 200 textos únicos, cobertura de todas las tareas, etiquetas y entidades válidas, huella sellada y ausencia de solapamiento declarado con entrenamiento.
+- RF-17: CUANDO se evalúe aceptación, EL SISTEMA publicará por separado aceptación asistida sobre las propuestas, validación humana y aceptación eléctrica, sin convertir propuestas en órdenes humanas ni omitir requisitos incumplidos.
+- RF-18: CUANDO se configure revisión obligatoria por el LLM local, EL SISTEMA impedirá que una predicción no validada del alumno evite esa revisión o forme un plan si el revisor no responde.
 
 ## Requisitos no funcionales
 
@@ -63,6 +66,12 @@ El fundamento general incluye la [tesis de maestría de Zhang (UCR, 2024)](https
 [TradingAgents oficial](https://github.com/TauricResearch/TradingAgents) inspira revisión por roles, con licencia Apache-2.0; su paper/repo financiero no se presenta como evidencia eléctrica. [Ollama Structured Outputs](https://docs.ollama.com/capabilities/structured-outputs) y [retrieve/rerank](https://www.sbert.net/examples/sentence_transformer/applications/retrieve_rerank/README.html) sustentan los contratos técnicos.
 
 ## Clarificaciones de diseño
+
+Continuación solicitada por el usuario: las 200 son propuestas del maestro. Se
+corrige la restricción adicional introducida en la ejecución anterior; las tres
+órdenes humanas únicas siguen informándose como tales. Las puertas de precisión
+no se reducen. Aceptación asistida no concede ejecución autónoma ni acredita
+persistencia eléctrica; las acciones que escriben conservan confirmación.
 
 El usuario autorizó la implementación y el entrenamiento con destilación. El estado
 aprobada conserva visibles las tareas sin completar.

@@ -7331,9 +7331,10 @@ def asistente_registro() -> dict:
 
     from ..digital_twin.auditoria import Umbrales
 
-    reales = len(almacen.leer('ejemplos'))
+    from ..asistente.aceptacion import estado_aceptacion
+    reales = estado_aceptacion()['humanas']['unicas']
     return {'conjunto_real': [{'ordenes': reales, 'hacen_falta': Umbrales().min_ordenes_reales,      # 027:RF-17, RF-19
-                               'confirmacion_obligatoria': reales < Umbrales().min_ordenes_reales}],
+                               'confirmacion_obligatoria': True}],
             'senales': [{'tarea': k, **v} for k, v in sorted(senales.resumen().items())],   # 027:RF-35
             'preferencias': almacen.leer('preferencias', 50), 'reflexiones': almacen.leer('reflexiones', 50),
             'ordenes': almacen.leer('ordenes', 50), 'decisiones': almacen.leer('decisiones', 50),

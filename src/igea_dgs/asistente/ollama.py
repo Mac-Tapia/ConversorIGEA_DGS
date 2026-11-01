@@ -32,7 +32,11 @@ _INSTRUCCIONES = (
     'Elige UNA tarea de la lista y extrae sus datos tal como aparecen en la orden. '
     'Responde solo con JSON: {"tarea": nombre, "datos": {nombre_dato: valor}, "confianza": 0 a 1, '
     '"razon": frase corta}. Si la orden no encaja en ninguna tarea, usa "tarea": null. '
-    'No inventes datos que la orden no dice.')
+    'No inventes datos que la orden no dice. '
+    'Distingue preguntar como, por que o para que sirve (pregunta) de ordenar un calculo. '
+    'Consultar proyectos conocidos es proyectos; volver a leer o actualizar desde PF es leer_proyectos. '
+    'Convertir un sistema a DGS es convertir_sistema; sistema_completo ademas importa y calibra. '
+    'Consultar lo disponible en el espacio es estado, no redactar un informe.')
 
 
 class OllamaNoLocal(ValueError):
@@ -46,13 +50,19 @@ def _abrir_por_defecto(peticion, timeout):
 
 class ClienteOllama:
     def __init__(self, url: str = URL_LOCAL, modelo: str = 'qwen2.5:3b', *, tiempo_max_s: float = 30.0,
-                 abrir: Callable = _abrir_por_defecto):
+                 abrir: Callable = _abrir_por_defecto, revisar_transformer: bool = False,
+                 dos_etapas: bool = False, pensar: bool | None = None):
         host = urlparse(url).hostname or ''
         if host not in LOCALES:
             raise OllamaNoLocal(f'Ollama tiene que estar en esta máquina, no en {host!r} (P9).')
         self.url, self.modelo, self.tiempo_max_s, self._abrir = url.rstrip('/'), modelo, tiempo_max_s, abrir
+        self.revisar_transformer = revisar_transformer
+        self.dos_etapas = dos_etapas
+        self.pensar = pensar
 
     def _pedir(self, ruta: str, cuerpo: dict | None = None) -> dict | None:
+        if ruta == '/api/chat' and cuerpo is not None and self.pensar is not None:
+            cuerpo = {**cuerpo, 'think': self.pensar}
         datos = json.dumps(cuerpo).encode('utf-8') if cuerpo is not None else None
         peticion = urllib.request.Request(self.url + ruta, data=datos,
                                           headers={'Content-Type': 'application/json'},
@@ -79,11 +89,47 @@ class ClienteOllama:
         if contexto:
             texto = 'Contexto de órdenes anteriores:\n' + '\n'.join(contexto) + f'\n\nOrden: {texto}'
         inicio = time.monotonic()
+        formato = esquema_orden()
+        sistema = _INSTRUCCIONES + '\nTareas: ' + json.dumps([
+            {**t, 'ejemplo_entrenamiento': TAREAS[t['tarea']].plantillas[0]}
+            for t in descripcion_para_modelo()], ensure_ascii=False)
+        elegida = None
+        if self.dos_etapas:
+            esquema_intencion = {'type': 'object', 'additionalProperties': False,
+                'properties': {'tarea': {'enum': [None, *sorted(TAREAS)]},
+                    'confianza': {'type': 'number', 'minimum': 0, 'maximum': 1}, 'razon': {'type': 'string'}},
+                'required': ['tarea', 'confianza']}
+            compactas = [{'tarea': t['tarea'], 'descripcion': t['descripcion'],
+                         'ejemplo': TAREAS[t['tarea']].plantillas[0]} for t in descripcion_para_modelo()]
+            r_intencion = self._pedir('/api/chat', {'model': self.modelo, 'stream': False,
+                'format': esquema_intencion, 'keep_alive': RETENER,
+                'options': {'temperature': temperatura, 'seed': semilla, 'num_predict': 256, 'num_ctx': 8192},
+                'messages': [{'role': 'system', 'content':
+                    'Clasifica la intención de una orden del operador del conversor de redes eléctricas. '
+                    'Devuelve solo tarea, confianza y razon; no extraigas datos ni ejecutes acciones. '
+                    'Si pide una explicación, es pregunta; si pide lo cargado en el espacio, es estado. '
+                    'Leer TXT/MDB/VNR es cargar_fuente; actualizar proyectos en PF es leer_proyectos. '
+                    'Distingue entrenar pesos del gemelo de capturar escenarios para aprendizaje. Tareas: ' +
+                    json.dumps(compactas, ensure_ascii=False)}, {'role': 'user', 'content': texto}]})
+            try:
+                intencion = json.loads((r_intencion or {}).get('message', {}).get('content', ''))
+                if not isinstance(intencion, dict) or set(intencion) - {'tarea', 'confianza', 'razon'}:
+                    return None
+                validada = validar_orden({**intencion, 'datos': {}})
+            except (ValueError, TypeError, AttributeError):
+                return None
+            elegida = validada['tarea']
+            if elegida is None or not TAREAS[elegida].datos:
+                return {**validada, 'modelo': f'ollama:{self.modelo}', 'segundos': time.monotonic() - inicio}
+            formato = next(r for r in formato['oneOf'] if r['properties']['tarea']['enum'] == [elegida])
+            sistema = ('La tarea ya está fijada y no puedes cambiarla. Extrae solo los datos literales completos '
+                'de la orden para esta tarea; no inventes los que falten. Omite los delimitadores «» de los valores. '
+                'Devuelve tarea, datos y confianza. Tarea: ' + json.dumps(next(
+                    t for t in descripcion_para_modelo() if t['tarea'] == elegida), ensure_ascii=False))
         r = self._pedir('/api/chat', {
-            'model': self.modelo, 'stream': False, 'format': esquema_orden(), 'keep_alive': RETENER,
-            'options': {'temperature': temperatura, 'seed': semilla, 'num_predict': 512},
-            'messages': [{'role': 'system', 'content': _INSTRUCCIONES + '\nTareas: '
-                          + json.dumps(descripcion_para_modelo(), ensure_ascii=False)},
+            'model': self.modelo, 'stream': False, 'format': formato, 'keep_alive': RETENER,
+            'options': {'temperature': temperatura, 'seed': semilla, 'num_predict': 512, 'num_ctx': 8192},
+            'messages': [{'role': 'system', 'content': sistema},
                          {'role': 'user', 'content': texto}]})
         if r is None:
             return None
@@ -96,6 +142,8 @@ class ClienteOllama:
         try:
             respuesta = validar_orden(respuesta)
         except ValueError:
+            return None
+        if self.dos_etapas and respuesta['tarea'] != elegida:
             return None
         tarea = respuesta.get('tarea')
         segundos = time.monotonic() - inicio
@@ -112,6 +160,8 @@ class ClienteOllama:
             confianza = max(0.0, min(1.0, float(respuesta.get('confianza') or 0.0)))
         except (TypeError, ValueError):
             confianza = 0.0
+        if self.dos_etapas:
+            confianza = min(confianza, validada['confianza'])
         return {'tarea': tarea, 'confianza': confianza, 'datos': datos, 'modelo': f'ollama:{self.modelo}',
                 'razon': str(respuesta.get('razon') or ''), 'segundos': segundos}
 

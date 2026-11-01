@@ -25,9 +25,17 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
 
 ## Evidencia de ejecución
 
+- [ ] T6. Instalar y verificar bibliotecas y pesos faltantes del catálogo local. (RF-12)
+      Hecho cuando: el catálogo fijado, las pruebas de preparación, las descargas completas y las operaciones reales de bibliotecas/modelos tienen informes; `pip check` pasa sin cambiar las versiones previas del núcleo. Descargar no cierra entrenamiento, integración o aceptación eléctrica.
+
 T5: siete pruebas con Git y subprocesos reales pasaron; se verificaron las nueve
 copias públicas. Catálogo y reproducción en [reutilización GitHub](../../docs/REUSO_GITHUB_IA_2026-10-31.md).
 La implementación de adaptadores y su aceptación permanecen en 045–048.
+
+T6 parcial: 33 paquetes instalados, cero versiones previas del núcleo cambiadas,
+`pip check` correcto; nueve ensayos de entorno/GPU y un ensayo real Ipopt pasaron.
+Catálogos fijados y descargas reanudables implementados; conservar abierta hasta
+verificar todos los pesos completos. [Informe](../../docs/ACEPTACION_INTEGRAL_AGENTE_2026-10-31.md).
 
 Anotar aquí, al ejecutar cada tarea, revisión, datos/contexto, comando,
 resultado, informe y limitaciones; no marcar casillas por existir código o por una

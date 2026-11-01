@@ -1625,6 +1625,12 @@ def create_app(
         """043:RF-8 — estados respaldados por informes y candidatos íntegros."""
         return services.asistente_estado_modelos()
 
+    @app.get('/api/asistente/aceptacion')
+    def asistente_aceptacion() -> dict:
+        """047:RF-16 / RF-17 — propuestas materializadas y observaciones reales separadas."""
+        from ..asistente.aceptacion import estado_aceptacion
+        return estado_aceptacion()
+
     @app.post('/api/workspaces/{wid}/asistente/entrenar', status_code=202)
     def asistente_entrenar(wid: str) -> dict:
         ws = ws_or_404(wid)

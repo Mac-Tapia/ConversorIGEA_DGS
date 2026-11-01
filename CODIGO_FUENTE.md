@@ -315,6 +315,13 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `src/igea_dgs/asistente/contratos_salida.py` | Esquema de órdenes y validación de tareas, campos, confianza y entidades del contexto. | 047 (RF-1, RF-2, RF-10) |
 | `src/igea_dgs/schemas/asistente_orden_v1.schema.json` | Contrato base de salida estructurada para el intérprete local. | 047 (RF-1) |
 | `tools/asistente_destilar.py` | Prepara el currículo, entrena con exclusión GPU y verifica el alumno en proceso nuevo. | 047 (RF-11 a RF-15) |
+| `src/igea_dgs/asistente/propuestas_maestro.py` | Corpus separado de 200 propuestas únicas, con anotaciones y procedencia del maestro. | 047 (RF-16) |
+| `src/igea_dgs/asistente/aceptacion.py` | Auditoría, evaluación del intérprete/plan y puertas de aceptación por alcance; cuenta observaciones humanas únicas. | 047 (RF-13, RF-16 a RF-18) |
+| `tools/aceptar_agente.py` | Materializa propuestas, selecciona configuración local y evalúa las 200 sin ejecutar acciones nativas. | 047 (RF-16 a RF-18) |
+| `frontend/src/asistenteAceptacion.ts` | Contrato web de propuestas, observaciones humanas y aceptación del agente. | 047 (RF-17) |
+| `tools/preparar_modelos_ia.py` | Descarga explícita y auditoría de pesos fijados, sin activación. | 043 (RF-12) |
+| `docs/MODELOS_IA_LOCK.json` | Revisiones, licencias, tamaños y hashes de los modelos locales seleccionados. | 043 (RF-12) |
+| `docs/DEPENDENCIAS_IA_LOCK.json` | Versiones, fuentes, hashes de bibliotecas y ejecutable Ipopt del entorno IA instalado. | 043 (RF-12) |
 
 
 ## Documentación
@@ -344,4 +351,5 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `docs/UPSTREAM_IA_LOCK.json` | URLs, commits y hashes de licencias de los proyectos GitHub seleccionados. | 043 (RF-9) |
 | `docs/REUSO_GITHUB_IA_2026-10-31.md` | Selección de proyectos, reproducción de clones, adaptador comprobado y límites pendientes. | 043, 045–048 |
 | `docs/DESTILACION_AGENTE_2026-10-31.md` | Metodología, currículo del maestro, comparación real y límites de aceptación del alumno del agente. | 043, 044, 047 |
+| `docs/ACEPTACION_INTEGRAL_AGENTE_2026-10-31.md` | Auditoría de las 200 propuestas, medición real, instalación de dependencias y pendientes de aceptación integral. | 043, 047 |
 | `docs/superpowers/` | Diseños y planes anteriores a las specs. | histórico |

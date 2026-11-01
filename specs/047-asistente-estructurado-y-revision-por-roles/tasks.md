@@ -23,7 +23,16 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
 - [x] T5. Destilación reproducible del maestro de sesión y ensayo del alumno. (RF-11, RF-12, RF-13, RF-14, RF-15)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_destilacion_integral.py tests/test_evaluacion_modelos.py` pasa, se ejecuta entrenamiento CUDA real con comparación supervisado/destilado, reapertura en proceso nuevo y ensayo del intérprete/plan; se informa por separado cualquier bloqueo de promoción por datos humanos.
 
+- [x] T6. Auditar, materializar y evaluar 200 propuestas únicas, sin fuga y con puertas por alcance. (RF-13, RF-16, RF-17, RF-18)
+      Hecho cuando: pruebas de `tests/test_aceptacion_agente.py` y regresiones de órdenes fijas/intérprete pasan; se ejecutan selección local de configuración y evaluación sellada de las 200 propuestas, con informe de métricas/errores/bloqueos y sin escrituras nativas.
+
 ## Evidencia de ejecución
+
+T6: 200 propuestas únicas, 27 tareas, 54 familias; auditoría sin solapamiento de
+texto/grupo con entrenamiento. Evaluación local Llama3.1:8b: 157/200 tareas,
+F1 0,864646; humanas 2/3 por separado. Uso asistido **rechazado por calidad**,
+sin activación ni escrituras nativas. El cierre de la tarea de evaluación no
+acredita aceptación del agente. [Informe y pendientes](../../docs/ACEPTACION_INTEGRAL_AGENTE_2026-10-31.md).
 
 T5: seis entrenamientos CUDA, semilla elegida por selección, recarga en proceso nuevo,
 prueba separada y diagnóstico híbrido de las 27 tareas. Candidato bloqueado, sin

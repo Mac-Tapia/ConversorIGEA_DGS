@@ -145,6 +145,11 @@ comprobación final tras esas correcciones fue mediante pruebas, sin segunda rev
 
 ## Fundamento científico
 
+Evidencia posterior: [auditoría de las 200 propuestas e instalación local](ACEPTACION_INTEGRAL_AGENTE_2026-10-31.md).
+Se separaron propuestas del maestro y observaciones humanas; el agente disponible
+obtuvo 157/200 tareas correctas y no pasó la puerta de calidad. No se declara cierre
+integral por completar esa evaluación ni por instalar dependencias.
+
 El protocolo conserva las fuentes del plan: [maestría de Zhang, UCR](https://escholarship.org/uc/item/4g839337),
 [doctorado de Stiasny, DTU](https://orbit.dtu.dk/en/publications/physics-informed-neural-networks-for-power-system-dynamics/)
 y [PowerFlowNet, IJEPES](https://doi.org/10.1016/j.ijepes.2024.110112).

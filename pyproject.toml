@@ -38,7 +38,17 @@ pide = ["pypdf>=5.0"]
 # Gemelo digital (spec 024, T11 y T12): la PINN/GNN y la GRU. Sin él, el oráculo radial y el
 # temporal estacional cumplen el mismo contrato. Con GPU NVIDIA, instalar el de CUDA:
 # pip install torch --index-url https://download.pytorch.org/whl/cu126
-ml = ["torch>=2.4", "numpy>=1.26", "scipy>=1.11", "optuna>=4.0"]
+ml = [
+    "torch>=2.4", "numpy>=1.26", "scipy>=1.11", "optuna>=4.0",
+    # Revisiones evaluadas de los adaptadores; el lock documental conserva hashes/licencias.
+    "torch-geometric @ git+https://github.com/pyg-team/pytorch_geometric.git@ea2c5f62d54c8b414dd3ea7139814a7c1ef83182",
+    "neuralforecast @ git+https://github.com/Nixtla/neuralforecast.git@cf7449383ac5ff6041ec35cbd97b84c23dd559a0",
+    "pyomo @ git+https://github.com/Pyomo/pyomo.git@4a366e22ac69ab25f3c3620d0c465dae1499ff1c",
+    "pymoo==0.6.2", "highspy==1.15.1",
+    "sentence-transformers==5.7.0", "transformers==5.20.2", "peft==0.21.2",
+    "bitsandbytes==0.50.2", "accelerate==1.15.0", "safetensors==0.8.0",
+    "huggingface-hub==2.3.0",
+]
 all = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",

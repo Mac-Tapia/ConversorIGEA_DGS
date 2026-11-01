@@ -1,0 +1,230 @@
+{
+  "schema_version": 1,
+  "python": "3.12",
+  "base_conservada": {
+    "torch": "2.14.1+cu126",
+    "numpy": "2.4.6",
+    "scipy": "1.18.1",
+    "optuna": "5.0.0",
+    "transformers": "5.20.2",
+    "sentence-transformers": "5.7.0",
+    "peft": "0.21.2",
+    "bitsandbytes": "0.50.2",
+    "accelerate": "1.15.0",
+    "huggingface-hub": "2.3.0",
+    "safetensors": "0.8.0"
+  },
+  "instalados": [
+    {
+      "name": "pymoo",
+      "version": "0.6.2",
+      "source": "PyPI wheel oficial Windows",
+      "sha256": "3e4b8ec6e2c2c20408843ffa62d57d90a76817fefd5fc17c4540515d6bfb8a92"
+    },
+    {
+      "name": "pyomo",
+      "version": "6.10.2.dev0",
+      "source": "https://github.com/Pyomo/pyomo.git",
+      "commit": "4a366e22ac69ab25f3c3620d0c465dae1499ff1c",
+      "path": "external/upstream/pyomo"
+    },
+    {
+      "name": "torch-geometric",
+      "version": "2.9.0",
+      "source": "https://github.com/pyg-team/pytorch_geometric.git",
+      "commit": "ea2c5f62d54c8b414dd3ea7139814a7c1ef83182",
+      "path": "external/upstream/pyg"
+    },
+    {
+      "name": "neuralforecast",
+      "version": "3.3.0",
+      "source": "https://github.com/Nixtla/neuralforecast.git",
+      "commit": "cf7449383ac5ff6041ec35cbd97b84c23dd559a0",
+      "path": "external/upstream/neuralforecast"
+    },
+    {
+      "name": "highspy",
+      "version": "1.15.1",
+      "source": "https://files.pythonhosted.org/packages/d4/01/05521ca6b38e34e68d707888c378d3bcac34e62715b739e7c0c9b9887993/highspy-1.15.1-cp312-cp312-win_amd64.whl",
+      "sha256": "8c548165270608a40147a7ea6d985fd62a65fabf0f075b3c0c59ea910b724223"
+    },
+    {
+      "name": "autograd",
+      "version": "1.9.1",
+      "source": "https://files.pythonhosted.org/packages/6e/ce/8c98e6604bb1ec9d03c8493c328185b69bb7533fe08f3640f0f3641bd9d1/autograd-1.9.1-py3-none-any.whl",
+      "sha256": "b788bae3fa010cbffb4cfb7b8ba2a3f0daa6072a8506da6164c779fe9cf3e05a"
+    },
+    {
+      "name": "cma",
+      "version": "4.5.0",
+      "source": "https://files.pythonhosted.org/packages/7a/c2/859dcb6fc39476c78fde66005883edaab09f3fc561fa52a3b9d4cc036937/cma-4.5.0-py3-none-any.whl",
+      "sha256": "9b37fa8bd541f1f4cf8e2cc4f98e6f02ec89d6d39ded8ec8a90d4f44c88c62c8"
+    },
+    {
+      "name": "coreforecast",
+      "version": "0.0.19",
+      "source": "https://files.pythonhosted.org/packages/a4/29/f9df3d19a1f05a9994ebde4a93ae2fd81a23bb199b277a40a2c091befd4a/coreforecast-0.0.19-cp312-cp312-win_amd64.whl",
+      "sha256": "995e51ce2d97aab04d48ba95a5d68f3549de437f1a569adc984da9f8aa6f99a0"
+    },
+    {
+      "name": "matplotlib",
+      "version": "3.11.2",
+      "source": "https://files.pythonhosted.org/packages/04/93/0d239bde12b308262265c2d98909b2f0ecad2b5deeae96241642e822e9c7/matplotlib-3.11.2-cp312-cp312-win_amd64.whl",
+      "sha256": "c5c1c68ee401fc98271263410f0e5ce88285abacf7627132914e8adf3d70ff43"
+    },
+    {
+      "name": "contourpy",
+      "version": "1.4.0",
+      "source": "https://files.pythonhosted.org/packages/50/a9/dab08786bb4d77ef9a046b3c1be923be4e73c5d07d91f5a54e8ea9b09e41/contourpy-1.4.0-cp312-cp312-win_amd64.whl",
+      "sha256": "6e697d94e69f499ff6bebb899cae97a58d5d14f0e1fe9568b43a0248d2f9af8c"
+    },
+    {
+      "name": "cycler",
+      "version": "0.12.1",
+      "source": "https://files.pythonhosted.org/packages/e7/05/c19819d5e3d95294a6f5947fb9b9629efb316b96de511b418c53d245aae6/cycler-0.12.1-py3-none-any.whl",
+      "sha256": "85cef7cff222d8644161529808465972e51340599459b8ac3ccbac5a854e0d30"
+    },
+    {
+      "name": "kiwisolver",
+      "version": "1.5.1",
+      "source": "https://files.pythonhosted.org/packages/6e/7c/7b210498f9f92e1cd7855f260fa69ef056881087b199ee20c208f0e4189a/kiwisolver-1.5.1-cp312-cp312-win_amd64.whl",
+      "sha256": "06a6917674de9e0fe3f66f5430787f59a9f2ddb64af9b714eaec547e29ef5c19"
+    },
+    {
+      "name": "moocore",
+      "version": "0.3.2",
+      "source": "https://files.pythonhosted.org/packages/3b/ab/f6370005946e36885ba431d93c45f369db3aa9178a44a88710473c7d981d/moocore-0.3.2-cp310-abi3-win_amd64.whl",
+      "sha256": "aaed31c1a434a846502f922f86766205c3f9d43642fa73782b1b5a5136de0573"
+    },
+    {
+      "name": "pyparsing",
+      "version": "3.3.3",
+      "source": "https://files.pythonhosted.org/packages/38/bb/d215ee7c73b61497b28a5503f9f53523f294fcc936762b7caf90e0c1c2b5/pyparsing-3.3.3-py3-none-any.whl",
+      "sha256": "ece8c00a69cf01b45d0b1dedabb469c90d8caf996d4fda40f147627a122849a4"
+    },
+    {
+      "name": "pytorch-lightning",
+      "version": "2.6.6",
+      "source": "https://files.pythonhosted.org/packages/4f/cf/ba8e4cc1b982ff6dc6f9fdef0e4074605438b82640f6270888a10e7e42c3/pytorch_lightning-2.6.6-py3-none-any.whl",
+      "sha256": "71f95c7b22f25c4f91cc659e1734bcdc6c69c8b66543f2ed2d78dbe29ce2f167"
+    },
+    {
+      "name": "lightning-utilities",
+      "version": "0.15.3",
+      "source": "https://files.pythonhosted.org/packages/25/f4/ead6e0e37209b07c9baa3e984ccdb0348ca370b77cea3aaea8ddbb097e00/lightning_utilities-0.15.3-py3-none-any.whl",
+      "sha256": "6c55f1bee70084a1cbeaa41ada96e4b3a0fea5909e844dd335bd80f5a73c5f91"
+    },
+    {
+      "name": "ray",
+      "version": "2.59.0",
+      "source": "https://files.pythonhosted.org/packages/68/73/1de47f6dba02a1f203e0c5697697003e95d4313836b52dbbd340de2906a5/ray-2.59.0-cp312-cp312-win_amd64.whl",
+      "sha256": "71a8ff087739044a0d596daeccde33da02afd6d0dacfecae962c395cb3e90d78"
+    },
+    {
+      "name": "msgpack",
+      "version": "1.2.4",
+      "source": "https://files.pythonhosted.org/packages/81/c5/dd0e78eb04f9a0773a810d25ef2cd8f16bb941487567d0c63f814881133c/msgpack-1.2.4-cp312-cp312-win_amd64.whl",
+      "sha256": "6e38b123681df22373d545520f54bbeddc4706d9235a1161061f12bd6648497d"
+    },
+    {
+      "name": "protobuf",
+      "version": "7.36.2",
+      "source": "https://files.pythonhosted.org/packages/8a/55/b77bda4e5e5f5971fb51b07663694690e9afdb9402136c16a522bd621cad/protobuf-7.36.2-cp310-abi3-win_amd64.whl",
+      "sha256": "a300819d441e078a5608c0d3c709796bb548136058fda017ae51d425b44fd353"
+    },
+    {
+      "name": "tensorboardX",
+      "version": "2.6.5",
+      "source": "https://files.pythonhosted.org/packages/87/0f/69fbab4c30b2f3a76e6de67585ea72a8eccf381751f5c0046b966fde9658/tensorboardx-2.6.5-py3-none-any.whl",
+      "sha256": "c10b891d00af306537cb8b58a039b2ba41571f0da06f433a41c4ca8d6abe1373"
+    },
+    {
+      "name": "torchmetrics",
+      "version": "1.9.0",
+      "source": "https://files.pythonhosted.org/packages/c3/a2/c7f6ebf546f8f644edf0f999aa98ece106986a77a7b922316bf6414ff825/torchmetrics-1.9.0-py3-none-any.whl",
+      "sha256": "bfdcbff3dd1d96b3374bb2496eb39f23c4b28b8a845b6a18c313688e0d2d9ca1"
+    },
+    {
+      "name": "tornado",
+      "version": "6.6",
+      "source": "https://files.pythonhosted.org/packages/b7/50/dc813fe35a672e14ee8bed8b5c634eeb343a05c98eb455318a169de24567/tornado-6.6-cp311-abi3-win_amd64.whl",
+      "sha256": "48f26ed9d7beb64e5f06adc864524e581ab6d62ba8ff46eaaa1ac2d0e6d753fd"
+    },
+    {
+      "name": "utilsforecast",
+      "version": "0.2.17",
+      "source": "https://files.pythonhosted.org/packages/d2/f8/3c209103cb971d10268dd553095ab8e218372d77fbe1e311a9c059183128/utilsforecast-0.2.17-py3-none-any.whl",
+      "sha256": "4bdc005676329cf76d3ef8586da8100f1831ab412bd33f888cd4ed62c7ba1290"
+    },
+    {
+      "name": "alive-progress",
+      "version": "3.3.0",
+      "source": "https://files.pythonhosted.org/packages/26/85/ec72f6c885703d18f3b09769645e950e14c7d0cc0a0e35d94127983f666f/alive_progress-3.3.0-py3-none-any.whl",
+      "sha256": "63dd33bb94cde15ad9e5b666dbba8fedf71b72a4935d6fb9a92931e69402c9ff"
+    },
+    {
+      "name": "about-time",
+      "version": "4.2.1",
+      "source": "https://files.pythonhosted.org/packages/fb/cd/7ee00d6aa023b1d0551da0da5fee3bc23c3eeea632fbfc5126d1fec52b7e/about_time-4.2.1-py3-none-any.whl",
+      "sha256": "8bbf4c75fe13cbd3d72f49a03b02c5c7dca32169b6d49117c257e7eb3eaee341"
+    },
+    {
+      "name": "graphemeu",
+      "version": "0.7.2",
+      "source": "https://files.pythonhosted.org/packages/69/18/36503ea63e1ecd0a95590d7b6b8b7d227a1e4541a154e1612a231def1bdc/graphemeu-0.7.2-py3-none-any.whl",
+      "sha256": "1444520f6899fd30114fc2a39f297d86d10fa0f23bf7579f772f8bc7efaa2542"
+    },
+    {
+      "name": "Deprecated",
+      "version": "3.0.1",
+      "source": "https://files.pythonhosted.org/packages/82/f0/07de837adfa09d592747b82fd74316e88285d2d7057551f30e4b5ef81bd8/deprecated-3.0.1-py3-none-any.whl",
+      "sha256": "eda314c115e8bc0fe52b90a6869e19240ac3cedb7449adfdba5981cf9ef693e1"
+    },
+    {
+      "name": "wrapt",
+      "version": "2.5.2",
+      "source": "https://files.pythonhosted.org/packages/7d/0a/ab645f8b4c594cac2db49bbc805bff97a9d3f2944061b865f67e0351b6c8/wrapt-2.5.2-cp312-cp312-win_amd64.whl",
+      "sha256": "36021ef761856bdbc10d5f3da9a95af93ef60d6acf9c72c8f849937ba2b902aa"
+    },
+    {
+      "name": "jsonschema",
+      "version": "4.26.0",
+      "source": "https://files.pythonhosted.org/packages/69/90/f63fb5873511e014207a475e2bb4e8b2e570d655b00ac19a9a0ca0a385ee/jsonschema-4.26.0-py3-none-any.whl",
+      "sha256": "d489f15263b8d200f8387e64b4c3a75f06629559fb73deb8fdfb525f2dab50ce"
+    },
+    {
+      "name": "jsonschema-specifications",
+      "version": "2025.9.1",
+      "source": "https://files.pythonhosted.org/packages/41/45/1a4ed80516f02155c51f51e8cedb3c1902296743db0bbc66608a0db2814f/jsonschema_specifications-2025.9.1-py3-none-any.whl",
+      "sha256": "98802fee3a11ee76ecaca44429fda8a41bff98b00a0f2838151b113f210cc6fe"
+    },
+    {
+      "name": "referencing",
+      "version": "0.37.0",
+      "source": "https://files.pythonhosted.org/packages/2c/58/ca301544e1fa93ed4f80d724bf5b194f6e4b945841c5bfd555878eea9fcb/referencing-0.37.0-py3-none-any.whl",
+      "sha256": "381329a9f99628c9069361716891d34ad94af76e461dcb0335825aecc7692231"
+    },
+    {
+      "name": "rpds-py",
+      "version": "2026.9.1",
+      "source": "https://files.pythonhosted.org/packages/1c/84/1700cc748d0eaa747486e4e82882d2575224e6e9a3148df583058850c629/rpds_py-2026.9.1-cp312-cp312-win_amd64.whl",
+      "sha256": "5ce8943f79c2210f7abcc28e86367b03b28d95027fd01c46d2472373ae70c86f"
+    },
+    {
+      "name": "platformdirs",
+      "version": "4.14.2",
+      "source": "https://files.pythonhosted.org/packages/0b/2d/98af31fdcd7c95c7114e2eb7c2eb0fa55d2a012c37ba4eb3722b7272abcb/platformdirs-4.14.2-py3-none-any.whl",
+      "sha256": "dc1f93390f2a9265e44e5afc8667ec7faf737739604e39bc538fec889720c36b"
+    }
+  ],
+  "solvers": [
+    {
+      "id": "ipopt",
+      "version": "3.14.19",
+      "source": "https://github.com/coin-or/Ipopt/releases/download/releases/3.14.19/Ipopt-3.14.19-win64-msvs2022-md.zip",
+      "sha256": "bd7818a19c2a627f1dcd538358833fbcb17c35080e19b4228be3f66cadf8c8fd",
+      "license": "EPL-2.0 y avisos de terceros incluidos",
+      "executable": "external/solvers/ipopt-3.14.19/Ipopt-3.14.19-win64-msvs2022-md/bin/ipopt.exe"
+    }
+  ]
+}

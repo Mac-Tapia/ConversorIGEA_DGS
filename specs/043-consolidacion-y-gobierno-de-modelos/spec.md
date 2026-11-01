@@ -27,6 +27,8 @@ Dependencias y relación: 024, 026 y 027; integración selectiva del worktree de
 
 ## Requisitos no funcionales
 
+- RF-12: CUANDO se preparen dependencias y pesos locales, EL SISTEMA conservará versiones, revisiones, licencias, tamaños y hashes de los modelos seleccionados; verificará archivos completos y disponibilidad local sin activar candidatos ni declarar aceptación por descargarlos. Los fallos se guardarán con salida no exitosa y sin eliminar descargas parciales. La instalación de paquetes conservará las versiones existentes del núcleo y acreditará imports y operaciones reales.
+
 Python 3.12; datos locales; entrenamiento CUDA exclusivo sin fallback silencioso a
 CPU; trabajo nativo en carril único y tareas largas cancelables. Preservar entrada,
 referencias, parches ajenos y determinismo del conversor. Adaptadores ML opcionales

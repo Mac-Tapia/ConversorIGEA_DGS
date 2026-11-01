@@ -1,5 +1,11 @@
 # Destilación y pruebas del agente — 31 de octubre de 2026
 
+**Actualización posterior:** [aceptación de las 200 propuestas](ACEPTACION_INTEGRAL_AGENTE_2026-10-31.md)
+corrige el requisito adicional de 200 humanas para todo uso asistido. Este informe
+conserva el resultado histórico; una reevaluación inmutable del mismo alumno ahora
+figura como `RECHAZADO` por calidad y comparación incompleta, sin nuevo entrenamiento
+ni activación. Las tres observaciones humanas siguen contabilizándose aparte.
+
 Contrato: [047 T5](../specs/047-asistente-estructurado-y-revision-por-roles/tasks.md),
 con particiones y registro de 044/043. El maestro de esta ejecución es Codex de
 sesión; el alumno es el Transformer local de tareas y entidades del asistente.

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../context';
 import type { AsistentePlan, AsistenteRespuesta, EstadoModelos } from '../types';
+import type { EstadoAceptacionAgente } from '../asistenteAceptacion';
 
 /** Spec 026: la consola del asistente. La orden se escribe en español; lo que escribe en
  * DIgSILENT o en disco espera la confirmación (RF-8) y se ejecuta como cualquier trabajo. */
@@ -53,6 +54,38 @@ function Modelos() {
   );
 }
 
+function Aceptacion() {
+  const { run } = useApp();
+  const [estado, setEstado] = useState<EstadoAceptacionAgente | null>(null);
+  return <details onToggle={(e) => {
+    if ((e.target as HTMLDetailsElement).open)
+      void run(api.asistenteAceptacion).then((r) => r && setEstado(r));
+  }}>
+    <summary className="small">200 propuestas y aceptación del agente</summary>
+    {estado && <div className="stack small">
+      <p><b>Propuestas del maestro:</b> {estado.propuestas.materializadas} materializadas,
+        {' '}{estado.propuestas.unicas} únicas, de {estado.propuestas.definidas} previstas.</p>
+      <p><b>Órdenes reales del operador:</b> {estado.humanas.unicas} únicas
+        {' '}en {estado.humanas.eventos} registros. Las propuestas del maestro se contabilizan aparte.</p>
+      <p>Los nombres y las rutas de las propuestas son ejemplos de prueba.</p>
+      {estado.evaluacion ? <>
+        <p>Evaluadas: {estado.evaluacion.ejemplos}. Acierto de tarea:
+          {' '}{(estado.evaluacion.acierto_tarea * 100).toFixed(1)} %.
+          {' '}F1 de datos: {(estado.evaluacion.f1_datos * 100).toFixed(1)} %.</p>
+        <p>{estado.evaluacion.aceptacion.asistida.aprobada
+          ? 'Cumple la evaluación de uso asistido. Las escrituras siguen pidiendo confirmación.'
+          : 'No cumple todavía la evaluación de uso asistido.'}</p>
+        {estado.evaluacion.aceptacion.asistida.fallos.map((f) => <p key={f} className="alert alert-warn">{f}</p>)}
+      </> : <p>Evaluación de las 200 propuestas pendiente.</p>}
+      {!estado.integral && <p>Aceptación integral y validación eléctrica pendientes.</p>}
+      {estado.bloqueos.map((b) => <p key={b} className="alert alert-warn">{b}</p>)}
+      <details><summary>Revisar las propuestas del maestro</summary>
+        <ol>{estado.propuestas.filas.map((r, i) => <li key={i}>{r.texto} <span className="muted">({r.tarea})</span></li>)}</ol>
+      </details>
+    </div>}
+  </details>;
+}
+
 function Registro() {
   const { run } = useApp();
   const [registro, setRegistro] = useState<Record<string, unknown[]> | null>(null);
@@ -64,8 +97,9 @@ function Registro() {
         <div className="stack small">
           <p>{Object.entries(registro).map(([k, v]) => `${k}: ${v.length}`).join(' · ')}</p>
           {filas('conjunto_real').map((c, i) => (
-            <p key={i}>Órdenes reales del operador: {String(c.ordenes)} de las {String(c.hacen_falta)} que hacen falta
-              {c.confirmacion_obligatoria ? '; mientras tanto, todo lo que escribe pide confirmación' : ''}.</p>))}
+            <p key={i}>Órdenes reales únicas del operador: {String(c.ordenes)}.
+              {' '}Referencia de muestra humana: {String(c.hacen_falta)}.
+              {c.confirmacion_obligatoria ? ' Las escrituras requieren confirmación.' : ''}</p>))}
           {filas('senales').length > 0 && (
             <table className="small">
               <thead><tr><th>Tarea</th><th>Recompensas</th><th>Penalizaciones</th><th>Confirmadas</th>
@@ -162,6 +196,7 @@ export function Asistente() {
   return (
     <div className="stack">
       <Modelos />
+      <Aceptacion />
       <p className="muted small">
         Escriba lo que quiere hacer, por ejemplo «calibra el sistema Pisco con julio de 2026» o «¿cómo se calibra una
         barra sin medidor?». Las consultas se responden al momento; lo que escribe en DIgSILENT o en disco espera su

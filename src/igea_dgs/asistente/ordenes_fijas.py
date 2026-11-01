@@ -18,7 +18,7 @@ import json
 import random
 from collections.abc import Mapping, Sequence
 
-from .sinteticos import Ejemplo, expandir
+from .sinteticos import Ejemplo, expandir, normalizar
 from .tareas import TAREAS
 
 TOTAL = 200
@@ -88,11 +88,20 @@ def generar(vocab: Mapping[str, Sequence[str]] | None = None, *, total: int = TO
     if faltan:
         raise ValueError(f'tareas sin frases del maestro: {faltan}')
     rnd = random.Random(semilla)
+    if type(total) is not int or total < 1:
+        raise ValueError('total positivo obligatorio')
     tareas = sorted(FRASES)
-    out = []
+    out, vistos = [], set()
     for i in range(total):
         tarea = tareas[i % len(tareas)]
-        out.append(expandir(rnd.choice(FRASES[tarea]), tarea, rnd, vocab or {}, RUIDO))
+        for _ in range(10000):
+            ejemplo = expandir(rnd.choice(FRASES[tarea]), tarea, rnd, vocab or {}, RUIDO)
+            clave = ' '.join(normalizar(ejemplo.texto).split())
+            if clave not in vistos:
+                vistos.add(clave); out.append(ejemplo)
+                break
+        else:
+            raise ValueError(f'no hay suficientes propuestas únicas de {tarea}')
     return out
 
 
@@ -104,6 +113,9 @@ def huella(ejemplos: Sequence[Ejemplo]) -> str:
 
 def repartir(ejemplos: Sequence[Ejemplo]) -> tuple[list[Ejemplo], list[Ejemplo]]:
     """Una de cada cinco a la prueba fija; el resto, a entrenar (RF-66)."""
+    claves = [' '.join(normalizar(e.texto).split()) for e in ejemplos]
+    if len(claves) != len(set(claves)):
+        raise ValueError('propuestas duplicadas: no se admite un reparto con fuga')
     entrenar, prueba = [], []
     for i, e in enumerate(ejemplos):
         (prueba if i % 5 == 4 else entrenar).append(e)
