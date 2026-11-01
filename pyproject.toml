@@ -47,7 +47,7 @@ ml = [
     "pymoo==0.6.2", "highspy==1.15.1",
     "sentence-transformers==5.7.0", "transformers==5.20.2", "peft==0.21.2",
     "bitsandbytes==0.50.2", "accelerate==1.15.0", "safetensors==0.8.0",
-    "huggingface-hub==2.3.0",
+    "huggingface-hub==2.3.0", "sentencepiece==0.2.1",
 ]
 all = [
     "fastapi>=0.115",

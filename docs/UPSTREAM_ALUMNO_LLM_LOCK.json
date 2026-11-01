@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "repositorios": [
+    {
+      "id": "llama_cpp",
+      "url": "https://github.com/ggml-org/llama.cpp.git",
+      "commit": "a91eab67d8389d979d29fdf6633b2edd0718eb4b",
+      "license": "MIT",
+      "license_path": "LICENSE",
+      "license_sha256": "94f29bbed6a22c35b992c5c6ebf0e7c92f13b836b90f36f461c9cf2f0f1d010d"
+    }
+  ]
+}

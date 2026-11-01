@@ -51,14 +51,17 @@ def _abrir_por_defecto(peticion, timeout):
 class ClienteOllama:
     def __init__(self, url: str = URL_LOCAL, modelo: str = 'qwen2.5:3b', *, tiempo_max_s: float = 30.0,
                  abrir: Callable = _abrir_por_defecto, revisar_transformer: bool = False,
-                 dos_etapas: bool = False, pensar: bool | None = None):
+                 dos_etapas: bool = False, pensar: bool | None = None, perfil_prompt: str = 'estandar'):
         host = urlparse(url).hostname or ''
         if host not in LOCALES:
             raise OllamaNoLocal(f'Ollama tiene que estar en esta máquina, no en {host!r} (P9).')
+        if perfil_prompt not in ('estandar', 'llm_destilado_v1') or (perfil_prompt == 'llm_destilado_v1' and dos_etapas):
+            raise ValueError('Perfil de prompt incompatible con el protocolo entrenado.')
         self.url, self.modelo, self.tiempo_max_s, self._abrir = url.rstrip('/'), modelo, tiempo_max_s, abrir
         self.revisar_transformer = revisar_transformer
         self.dos_etapas = dos_etapas
         self.pensar = pensar
+        self.perfil_prompt = perfil_prompt
 
     def _pedir(self, ruta: str, cuerpo: dict | None = None) -> dict | None:
         if ruta == '/api/chat' and cuerpo is not None and self.pensar is not None:
@@ -93,6 +96,9 @@ class ClienteOllama:
         sistema = _INSTRUCCIONES + '\nTareas: ' + json.dumps([
             {**t, 'ejemplo_entrenamiento': TAREAS[t['tarea']].plantillas[0]}
             for t in descripcion_para_modelo()], ensure_ascii=False)
+        if self.perfil_prompt == 'llm_destilado_v1':
+            from .llm_destilacion import sistema_alumno
+            sistema = sistema_alumno()
         elegida = None
         if self.dos_etapas:
             esquema_intencion = {'type': 'object', 'additionalProperties': False,
@@ -217,4 +223,5 @@ def cliente_configurado(tiempo_max_s: float = 30.0) -> ClienteOllama:
     if type(revision) is not bool or type(etapas) is not bool or (pensar is not None and type(pensar) is not bool):
         raise ValueError('Protocolo de revisión de Ollama inválido.')
     return ClienteOllama(modelo=elegido, tiempo_max_s=tiempo_max_s,
-                         revisar_transformer=revision, dos_etapas=etapas, pensar=pensar)
+                         revisar_transformer=revision, dos_etapas=etapas, pensar=pensar,
+                         perfil_prompt=cfg.get('perfil_prompt', 'estandar'))

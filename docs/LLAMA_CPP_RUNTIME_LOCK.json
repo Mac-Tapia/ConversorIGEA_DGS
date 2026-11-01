@@ -1,0 +1,8 @@
+{
+  "release": "b12024",
+  "url": "https://github.com/ggml-org/llama.cpp/releases/download/b12024/llama-b12024-bin-win-cpu-x64.zip",
+  "sha256_zip": "a8a1bc0167c594c377255e54aab617b288a38e09efb50f39ac5bd087e4398f72",
+  "sha256_quantize_exe": "9626db22f0a137087622fdb5947d3191b7aa87b0c9d44a770f6fe5705f1ca7d6",
+  "exe_relativo": "external\\solvers\\llama-b12024\\llama-quantize.exe",
+  "license": "MIT"
+}

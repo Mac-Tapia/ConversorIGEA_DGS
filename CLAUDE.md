@@ -77,6 +77,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 047 Asistente estructurado y revisión por roles | aprobada | ver sus tareas |
   | 048 Optimización mixta evolutiva y PNL | aprobada | ver sus tareas |
   | 049 Protecciones nativas y coordinación | aprobada | ver sus tareas |
+  | 050 Aprendizaje continuo integrado | aprobada | ver sus tareas |
 
   Las convenciones de cada empresa (CRS de origen, patrón de SED de medición, escala,
   carpeta de DIgSILENT) van en `config/perfil_empresa.json`, local y fuera de git, que

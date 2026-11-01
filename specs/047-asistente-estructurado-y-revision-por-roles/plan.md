@@ -101,6 +101,48 @@ supere al maestro o cumpla aceptación eléctrica.
 
 ## Review Focus
 
+### T7: Alumno LLM generativo y datos reales (RF-19, RF-20)
+
+Ruling: el usuario pide explícitamente que el alumno sea el LLM local. Se añade un
+ajuste generativo real; el clasificador anterior no satisface ese contrato. La
+autorización experimental se apoya en el déficit real medido y en la petición de
+destilación, sin inventar 200 órdenes humanas ni afirmar suficiencia estadística.
+
+Crear `asistente/llm_destilacion.py`, `tools/llm_destilar.py` y pruebas de contrato.
+La publicación local se implementa en `asistente/llm_runtime.py`: verificar hashes
+del checkpoint y herramientas fijadas; ejecutar exportación, conversión y
+cuantización en procesos secuenciales; publicar GGUF por renombrado después del
+código 0; importar con tag nuevo y releer digest. Conservar logs y no activar.
+Reutilizar lector TXT, estructura, manifiestos de fuente/vínculos y registro 043;
+trabajar solo con los archivos de este proyecto. Custodiar los archivos reales de
+referencia por SHA-256/localizador. El maestro redacta instrucciones y respuestas
+estructuradas ancladas a esos registros, identificadas como anotaciones del maestro.
+Las respuestas de interpretación describen solicitudes, nunca ejecuciones ya hechas.
+No generar tensiones, pérdidas, convergencia o aceptación sin informe nativo.
+
+Conservar cuatro particiones por familia de formulación y contexto de fuente.
+Reservar una prueba nueva de al menos 200 registros antes de ajustar; no incorporar
+el benchmark histórico a entrenamiento. Los casos humanos permanecen separados.
+Base: Qwen3-4B-Instruct-2507 NF4 ya verificada; PEFT all-linear, rango 8, BF16,
+gradient checkpointing, batch 1/acumulación 8 y pérdida causal solo en la respuesta.
+La longitud se comprueba sin truncar datos o etiquetas; abortar si no cabe. Entrenar
+el corpus completo, guardar checkpoints por época, elegir únicamente por selección
+y conservar semillas, pasos, pérdidas, VRAM, hashes y recarga en proceso nuevo.
+
+Comprobar primero la compatibilidad de adaptadores en el runtime Ollama con la base
+GGUF de la misma revisión lógica Instruct-2507. Fijar también revisión/hash de ese
+artefacto: NF4 y GGUF son cuantizaciones distintas y exigen comparación real tras
+exportación. Si no es compatible, usar un trabajador Transformers local explícito,
+sin presentar una exportación fallida como instalación. Mantener esquema estricto,
+cola para inferencias largas y todas las confirmaciones existentes.
+
+Fundamento: [maestría Witossek](https://elib.dlr.de/220552/),
+[doctorado Zhang](https://repository.hkust.edu.hk/ir/Record/1783.1-151306),
+[Gou et al., IJCV](https://doi.org/10.1007/s11263-021-01453-z),
+[QLoRA](https://arxiv.org/abs/2305.14314),
+[PEFT oficial](https://huggingface.co/docs/peft/developer_guides/quantization).
+No se dispone de logits internos del maestro; el método es destilación de respuestas.
+
 - JSON válido con tarea inexistente: T1, test_tarea_desconocida_rechaza.
 - SED en otro alimentador pese al libro viejo: T1, test_entidad_respeta_fuente_activa.
 - Reranker elimina coincidencia exacta de código: T2, test_codigo_exacto_se_conserva.

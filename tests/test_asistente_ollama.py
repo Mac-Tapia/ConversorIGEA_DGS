@@ -114,3 +114,17 @@ def test_ensayo_no_descarga_modelos_ajenos_de_la_gpu():
     c = ClienteOllama(modelo='ensayo:local', abrir=abrir)
     assert c.liberar_gpu(solo_actual=True) == ['ensayo:local']
     assert cuerpos == [{'model': 'ensayo:local', 'keep_alive': 0}]
+def test_alumno_llm_usa_el_mismo_prompt_del_ajuste():
+    """047:RF-19: exportar pesos no habilita un prompt distinto del evaluado."""
+    from igea_dgs.asistente.ollama import ClienteOllama
+    from igea_dgs.asistente.llm_destilacion import sistema_alumno
+    import json
+    import io
+    peticiones=[]
+    def abrir(req, timeout):
+        peticiones.append(json.loads(req.data))
+        return io.BytesIO(json.dumps({'message':{'content':json.dumps(
+            {'tarea':'cargar_fuente','datos':{},'confianza':.9})}}).encode())
+    c=ClienteOllama(modelo='alumno:prueba',abrir=abrir,perfil_prompt='llm_destilado_v1')
+    assert c.interpretar('carga la fuente')['tarea']=='cargar_fuente'
+    assert peticiones[0]['messages'][0]['content']==sistema_alumno()

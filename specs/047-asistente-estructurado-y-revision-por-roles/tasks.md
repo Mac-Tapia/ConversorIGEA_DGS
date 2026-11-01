@@ -28,6 +28,9 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
 
 ## Evidencia de ejecución
 
+- [ ] T7. Destilar el LLM generativo con fuentes reales y verificar su ejecución local. (RF-8, RF-9, RF-11, RF-14, RF-15, RF-19, RF-20)
+      Hecho cuando: las pruebas de `tests/test_llm_destilacion.py` pasan, el corpus conserva fuentes reales y particiones sin fuga, se completa ajuste QLoRA CUDA con pérdida solo de respuesta, se comparan base/checkpoints por selección, se reabre/exporta la versión exacta y se evalúan las 200 propuestas nuevas más casos humanos separados; la integración conserva confirmaciones y solo activa una versión aprobada.
+
 T6: 200 propuestas únicas, 27 tareas, 54 familias; auditoría sin solapamiento de
 texto/grupo con entrenamiento. Evaluación local Llama3.1:8b: 157/200 tareas,
 F1 0,864646; humanas 2/3 por separado. Uso asistido **rechazado por calidad**,
@@ -46,6 +49,22 @@ T5: seis entrenamientos CUDA, semilla elegida por selección, recarga en proceso
 prueba separada y diagnóstico híbrido de las 27 tareas. Candidato bloqueado, sin
 promoción. [Metodología y evidencia](../../docs/DESTILACION_AGENTE_2026-10-31.md).
 Las tareas T1–T4 conservan pendientes reales; no se cierran por este entrenamiento.
+
+T7, 2026-11-01: corpus real sellado de 1.734/54/54/200 registros; auditoría
+contra 11 archivos y 96 contextos, tres órdenes humanas reservadas. Validación
+final: 54 aprobadas, incluidas trazabilidad y procedencia con archivos reales.
+Regresión adicional del intérprete/esquema/tareas/web/aceptación: 70 aprobadas,
+sin fallos/errores/omisiones y con almacenamiento de prueba aislado.
+La base NF4 se exportó, convirtió, cuantizó e importó sin activarla; su selección
+anterior de 54 casos obtuvo 7 tareas correctas y F1 0,1. El primer ajuste generativo
+completo solicitado falló con error Windows 1455 antes de acreditar pasos o pesos.
+El segundo intento con el código revisado fue rechazado antes de cargar Torch por
+memoria comprometible de 2,00 GiB frente al mínimo de 8 GiB. Registro y API web
+releídos: QLoRA `ERROR_ENTORNO`, sin activo y `complete=false`.
+No se cierran entrenamiento, aceptación ni integración por estos resultados.
+[Evidencia, comandos y continuación](../../docs/DESTILACION_LLM_REAL_2026-11-01.md).
+La sincronización del ciclo entre familias queda exigida por la nueva spec 050,
+sin atribuirla a la mera existencia del coordinador.
 
 Anotar aquí, al ejecutar cada tarea, revisión, datos/contexto, comando,
 resultado, informe y limitaciones; no marcar casillas por existir código o por una

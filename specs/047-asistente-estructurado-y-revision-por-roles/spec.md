@@ -31,6 +31,8 @@ Dependencias y relación: 043 y 044; conservar intérprete, resolución, herrami
 - RF-16: CUANDO se publique el conjunto de 200 propuestas del maestro, EL SISTEMA exigirá 200 textos únicos, cobertura de todas las tareas, etiquetas y entidades válidas, huella sellada y ausencia de solapamiento declarado con entrenamiento.
 - RF-17: CUANDO se evalúe aceptación, EL SISTEMA publicará por separado aceptación asistida sobre las propuestas, validación humana y aceptación eléctrica, sin convertir propuestas en órdenes humanas ni omitir requisitos incumplidos.
 - RF-18: CUANDO se configure revisión obligatoria por el LLM local, EL SISTEMA impedirá que una predicción no validada del alumno evite esa revisión o forme un plan si el revisor no responde.
+- RF-19: CUANDO se destile al LLM generativo local como alumno, EL SISTEMA ajustará sus adaptadores con respuestas verificables del maestro, conservará la base fijada y comparará base/alumno mediante selección separada antes de evaluar y autorizar la versión de ejecución.
+- RF-20: CUANDO se construya su dataset desde referencia, EL SISTEMA conservará archivo, huella y localizador de cada dato real, identificará las instrucciones redactadas por el maestro y rechazará resultados eléctricos sin evidencia de ejecución nativa.
 
 ## Requisitos no funcionales
 
@@ -77,4 +79,12 @@ El usuario autorizó la implementación y el entrenamiento con destilación. El 
 aprobada conserva visibles las tareas sin completar.
 Las capacidades, datos o licencias ausentes son condiciones detectables de bloqueo,
 no autorizaciones para inventar resultados.
+
+El alumno solicitado es el LLM generativo local. Los entrenamientos anteriores del
+Transformer clasificador y el ensayo LoRA de un paso se conservan como antecedentes;
+no acreditan la destilación completa de este LLM. La autorización expresa permite
+experimentar con respuestas del maestro fundamentadas en archivos reales locales;
+no convierte instrucciones redactadas en órdenes humanas ni elimina las puertas.
+Los 200 casos ya examinados se conservan como benchmark histórico, sin entrenar
+sobre sus errores; la nueva prueba se declara y separa antes del nuevo ajuste.
 

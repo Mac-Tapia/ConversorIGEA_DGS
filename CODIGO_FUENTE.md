@@ -316,6 +316,10 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `src/igea_dgs/asistente/contratos_salida.py` | Esquema de órdenes y validación de tareas, campos, confianza y entidades del contexto. | 047 (RF-1, RF-2, RF-10) |
 | `src/igea_dgs/schemas/asistente_orden_v1.schema.json` | Contrato base de salida estructurada para el intérprete local. | 047 (RF-1) |
 | `tools/asistente_destilar.py` | Prepara el currículo, entrena con exclusión GPU y verifica el alumno en proceso nuevo. | 047 (RF-11 a RF-15) |
+| `src/igea_dgs/asistente/llm_destilacion.py` | Custodia de referencia, corpus del LLM con entidades reales y objetivos causales de respuesta. | 047 (RF-19, RF-20) |
+| `src/igea_dgs/asistente/llm_runtime.py` | Verifica checkpoints y publica exportación, GGUF e importación local secuencial con hashes y readback; no activa. | 047 (RF-19) |
+| `src/igea_dgs/asistente/curriculo_llm_real.py` | Solicitudes nuevas de prueba redactadas por el maestro; valores procedentes de fuentes reales. | 047 (RF-19, RF-20) |
+| `tools/llm_destilar.py` | Prepara el corpus del alumno LLM a partir de fuentes verificadas de este proyecto. | 047 (RF-19, RF-20) |
 | `src/igea_dgs/asistente/propuestas_maestro.py` | Corpus separado de 200 propuestas únicas, con anotaciones y procedencia del maestro. | 047 (RF-16) |
 | `src/igea_dgs/asistente/aceptacion.py` | Auditoría, evaluación del intérprete/plan y puertas de aceptación por alcance; cuenta observaciones humanas únicas. | 047 (RF-13, RF-16 a RF-18) |
 | `tools/aceptar_agente.py` | Materializa propuestas, selecciona configuración local y evalúa las 200 sin ejecutar acciones nativas. | 047 (RF-16 a RF-18) |
