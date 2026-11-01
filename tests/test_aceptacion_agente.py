@@ -194,6 +194,24 @@ def test_no_se_exigen_200_humanas_para_promocion_asistida_con_puertas():
     assert r['ordenes_humanas'] == 3 and r['confirmacion_obligatoria']
 
 
+def test_evaluador_rechaza_ram_insuficiente_antes_de_abrir_datos(tmp_path, monkeypatch, capsys):
+    """043:RF-12 / 047:RF-17: no iniciar cargas sin los recursos requeridos."""
+    import importlib.util
+    from pathlib import Path
+    import psutil
+    from types import SimpleNamespace
+    spec = importlib.util.spec_from_file_location('aceptar', Path(__file__).parents[1] / 'tools/aceptar_agente.py')
+    m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+    monkeypatch.setattr(psutil, 'virtual_memory', lambda: SimpleNamespace(available=1024**3))
+    r = m.main(['seleccionar', '--dataset', str(tmp_path / 'datos'), '--destino', str(tmp_path / 'salida')])
+    salida = json.loads(capsys.readouterr().out.splitlines()[-1])
+    assert r == 2 and 'RAM insuficiente' in salida['error']
+    assert list((tmp_path / 'salida').glob('error_*.json'))
+    monkeypatch.setattr(psutil, 'virtual_memory', lambda: SimpleNamespace(available=2*1024**3))
+    assert m.main(['seleccionar', '--dataset', str(tmp_path / 'datos'), '--destino', str(tmp_path / 'salida')]) == 2
+    assert 'RAM insuficiente' in json.loads(capsys.readouterr().out.splitlines()[-1])['error']
+
+
 @pytest.mark.parametrize("valor", [float('nan'), float('inf'), -1., 1.1, True, None])
 def test_metrica_invalida_nunca_aprueba(valor):
     """047:RF-17 — las puertas rechazan métricas no finitas, booleanas o fuera de rango."""

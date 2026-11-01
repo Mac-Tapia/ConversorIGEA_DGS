@@ -13,7 +13,7 @@ from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import json
 import os
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 import re
 import shutil
 import socket
@@ -46,13 +46,21 @@ def validar_catalogo(catalogo):
             rutas = set()
             for f in m['files']:
                 p = PurePosixPath(f['path'])
-                if p.is_absolute() or '..' in p.parts or '\\' in f['path'] or f['path'] in rutas:
+                if (not p.parts or p.is_absolute() or PureWindowsPath(f['path']).drive
+                        or '..' in p.parts or '\\' in f['path'] or ':' in f['path'] or '\0' in f['path']
+                        or f['path'] in rutas):
                     raise ValueError('ruta de archivo invalida/duplicada')
                 rutas.add(f['path'])
                 if type(f.get('size')) is not int or f['size'] <= 0:
                     raise ValueError('tamano de archivo invalido')
                 if f['path'].endswith('.safetensors') and not re.fullmatch('[0-9a-f]{64}', f.get('sha256') or ''):
                     raise ValueError('pesos sin SHA-256')
+                if f.get('sha256') is not None and not re.fullmatch('[0-9a-f]{64}', f['sha256']):
+                    raise ValueError('SHA-256 de archivo invalido')
+                if f.get('git_blob_sha1') is not None and not re.fullmatch('[0-9a-f]{40}', f['git_blob_sha1']):
+                    raise ValueError('SHA-1 de blob Git invalido')
+                if not f.get('sha256') and not f.get('git_blob_sha1'):
+                    raise ValueError('archivo sin hash de integridad')
     return catalogo
 
 

@@ -184,6 +184,14 @@ sin fallback ni omisión; no se cerraron aplicaciones ni servicios del usuario.
 `tests_ml/test_pesos_ia.py` define la carga real de E5/BGE y un paso LoRA con recarga
 en un proceso nuevo. Ese paso es una prueba de entorno, sin activación del adaptador.
 
+El evaluador del agente exige 4 GiB de RAM disponible antes de abrir los datos o
+cargar un modelo. Al terminar, libera únicamente el modelo de su ensayo; conserva
+los demás modelos que Ollama tenga en uso. Los errores sucesivos conservan el
+primer informe y devuelven el nuevo diagnóstico por consola, sin sobrescribirlo.
+El catálogo rechaza rutas absolutas, unidades Windows y archivos sin una huella
+válida antes de iniciar transferencias. La regresión de estos controles terminó
+con **51 pruebas aprobadas**, sin omisiones (`controles_aislamiento_local_final.xml`).
+
 BGE completó la descarga y pasó una auditoría local independiente del instalador;
 evidencia `bge_verificado_local.json`. Sus pruebas de inferencia siguen sujetas a
 recursos suficientes. El instalador continúa exclusivamente sobre el catálogo y

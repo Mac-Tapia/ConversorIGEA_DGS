@@ -3,7 +3,7 @@
 
     python tools/aceptar_agente.py preparar --destino output/aceptacion --dataset output/corpus
     python tools/aceptar_agente.py seleccionar --dataset output/corpus --destino output/seleccion
-    python tools/aceptar_agente.py evaluar --corpus output/aceptacion --destino output/evaluacion --modelo llama3.1:8b
+    python tools/aceptar_agente.py evaluar --corpus output/aceptacion --destino output/evaluacion --modelo llama3.1:8b --dataset output/corpus --seleccion output/seleccion/resultado.json
 
 No ejecuta acciones nativas, no cambia pesos y conserva los informes anteriores.
 """
@@ -68,6 +68,10 @@ def main(argv=None):
                 almacen.guardar_json('aceptacion_agente', {'corpus': str(args.destino.resolve()), 'evaluacion': None})
             resultado = {**meta, 'auditoria': auditoria}
         else:
+            import psutil
+            libres = psutil.virtual_memory().available / 1024**3
+            if libres < 4:
+                raise ValueError(f'RAM insuficiente para el ensayo del agente: {libres:.2f} GiB disponibles; se requieren 4 GiB libres')
             ruta_lock = Path(os.environ.get('IGEA_ML_GPU_LOCK') or str(Path(tempfile.gettempdir()) / 'igea-dgs-gpu.lock'))
             with BloqueoGPU(ruta_lock, 'aceptacion-agente'):
                 if args.accion == 'seleccionar':
@@ -94,7 +98,7 @@ def main(argv=None):
                         try:
                             m = evaluar_ordenes(casos, cliente=cliente)
                         finally:
-                            cliente.liberar_gpu()
+                            cliente.liberar_gpu(solo_actual=True)
                         m['modelo_digest'] = modelos_instalados[nombre]
                         escribir(args.destino / (nombre.replace(':', '_').replace('/', '_') + '.json'), m)
                         comparacion.append(m)
@@ -132,7 +136,7 @@ def main(argv=None):
                         reales = json.loads((args.corpus / 'humanas.json').read_text(encoding='utf-8'))
                         humanas = evaluar_ordenes(reales, cliente=cliente) if reales else {'ejemplos': 0}
                     finally:
-                        cliente.liberar_gpu()
+                        cliente.liberar_gpu(solo_actual=True)
                     m['sin_fuga'] = auditoria['sin_fuga']
                     m['modelo_digest'] = instalado['digest']
                     # Las humanas permanecen separadas; este informe no las inventa.
@@ -148,7 +152,7 @@ def main(argv=None):
         fallo = {'ok': False, 'error': str(exc), 'accion': args.accion}
         try:
             escribir(args.destino / f'error_{os.getpid()}.json', fallo)
-        except OSError:
+        except (OSError, ValueError):
             pass
         print(json.dumps(fallo, ensure_ascii=True))
         return 2

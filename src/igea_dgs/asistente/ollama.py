@@ -181,13 +181,16 @@ class ClienteOllama:
         r = self._pedir('/api/embed', {'model': modelo, 'input': list(textos), 'keep_alive': RETENER})
         return None if r is None else r.get('embeddings')
 
-    def liberar_gpu(self) -> list[str]:
+    def liberar_gpu(self, *, solo_actual: bool = False) -> list[str]:
         """Descarga de la GPU los modelos que Ollama tenga cargados y devuelve cuáles eran.
 
         La GPU de 8 GB la comparten Ollama, la PINN y el Transformer: con llama3.1:8b cargado
         (unos 5 GB), entrenar el Transformer dio «CUDA error: out of memory» (2026-10-24).
+        ``solo_actual=True`` conserva los modelos ajenos al cliente de este ensayo.
         """
         cargados = [m.get('name') for m in (self._pedir('/api/ps') or {}).get('models') or [] if m.get('name')]
+        if solo_actual:
+            cargados = [n for n in cargados if n in (self.modelo, self.modelo + ':latest')]
         for nombre in cargados:
             self._pedir('/api/generate', {'model': nombre, 'keep_alive': 0})
         return cargados

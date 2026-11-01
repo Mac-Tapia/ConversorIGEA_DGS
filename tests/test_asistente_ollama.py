@@ -98,3 +98,19 @@ def test_cliente_configurado_rechaza_protocolo_malformado(tmp_path, monkeypatch,
     almacen.guardar_json('ollama', cfg)
     with pytest.raises(ValueError):
         cliente_configurado()
+
+
+def test_ensayo_no_descarga_modelos_ajenos_de_la_gpu():
+    """043:RF-12 / 047:RF-18: liberar el ensayo no modifica otros modelos cargados."""
+    from igea_dgs.asistente.ollama import ClienteOllama
+    import io
+    import json
+    cuerpos = []
+    def abrir(req, timeout):
+        if req.data:
+            cuerpos.append(json.loads(req.data))
+            return io.BytesIO(b'{}')
+        return io.BytesIO(json.dumps({'models': [{'name': 'ensayo:local'}, {'name': 'otro:local'}]}).encode())
+    c = ClienteOllama(modelo='ensayo:local', abrir=abrir)
+    assert c.liberar_gpu(solo_actual=True) == ['ensayo:local']
+    assert cuerpos == [{'model': 'ensayo:local', 'keep_alive': 0}]

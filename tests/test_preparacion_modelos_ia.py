@@ -38,6 +38,24 @@ def test_no_acepta_ramas_mutables(revision):
              'files': [{'path': 'model.safetensors', 'size': 3, 'sha256': '0'*64}]}]})
 
 
+@pytest.mark.parametrize('ruta', ['C:/fuera/model.safetensors', 'C:model.safetensors', '.'])
+def test_catalogo_rechaza_rutas_windows_fuera_del_cache(ruta):
+    """043:RF-12: una ruta de entrada no debe escapar del destino de modelos."""
+    with pytest.raises(ValueError):
+        _modulo().validar_catalogo({'schema_version': 1, 'modelos': [
+            {'backend': 'huggingface', 'id': 'autor/modelo', 'revision': 'a'*40, 'licencia': 'mit',
+             'files': [{'path': ruta, 'size': 3, 'sha256': '0'*64}]}]})
+
+
+@pytest.mark.parametrize('sha', ['../fuera', 'x'*64, ''])
+def test_hash_de_configuracion_tambien_se_valida(sha):
+    """043:RF-12: la identidad del blob se valida antes de construir rutas o descargar."""
+    with pytest.raises(ValueError):
+        _modulo().validar_catalogo({'schema_version': 1, 'modelos': [
+            {'backend': 'huggingface', 'id': 'autor/modelo', 'revision': 'a'*40, 'licencia': 'mit',
+             'files': [{'path': 'config.json', 'size': 3, 'sha256': sha}]}]})
+
+
 @pytest.mark.parametrize('digest', ['a' * 64, 'b' * 64])
 def test_descarga_no_reemplaza_etiqueta_existente(monkeypatch, digest):
     """043:RF-12: un modelo instalado nunca se repunta al descargar un candidato."""
