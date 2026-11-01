@@ -161,8 +161,42 @@ def _terminar(pid: int) -> None:
         pass
 
 
+#: Lo que espera el lanzador a que una pestaña ya abierta se reconecte tras un reinicio: la
+#: página lo intenta cada 1,5 s (``useWorkspace.ts``).
+ESPERA_RECONEXION_S = 5.0
+
+
+def paginas_abiertas(salud: dict | None) -> int:
+    """Páginas conectadas al servidor según su ``/api/health`` (RF-35); 0 si no lo dice."""
+    servidor = (salud or {}).get('servidor')
+    n = servidor.get('paginas_abiertas') if isinstance(servidor, dict) else None
+    return n if isinstance(n, int) else 0
+
+
+def mostrar_en_navegador(url: str, salud: dict | None = None,
+                         espera_s: float = 0.0) -> bool:
+    """Abre una pestaña solo si ninguna página está conectada al servidor (001:RF-35).
+
+    Usuario, 2026-11-01: «debería lanzar solo un navegador; está abriendo en dos hasta tres».
+    Cada reinicio de la web (acceso directo, cambio de versión, otra sesión) abría una
+    pestaña más, aunque la que ya estaba abierta se reconecta sola. Con ``espera_s`` se da
+    tiempo a esa reconexión antes de decidir. Devuelve si abrió una.
+    """
+    limite = time.monotonic() + espera_s
+    while True:
+        if paginas_abiertas(salud) > 0:
+            print(f'La web ya está abierta en el navegador ({url}): no se abre otra pestaña.')
+            return False
+        if time.monotonic() >= limite:
+            break
+        time.sleep(0.5)
+        salud = conversor_en(url, timeout=1.0)
+    webbrowser.open(url)
+    return True
+
+
 def abrir_cuando_responda(url: str, segundos: float = 120.0) -> threading.Thread:
-    """Abre el navegador en cuanto el servidor responde.
+    """Abre el navegador en cuanto el servidor responde, si no hay ya una página (RF-35).
 
     Con 1,2 s fijos, el navegador llegaba antes de que el servidor terminara de importar
     (geopandas, VNR-GIS) y mostraba «no se puede conectar» (spec 001, RF-32).
@@ -170,8 +204,9 @@ def abrir_cuando_responda(url: str, segundos: float = 120.0) -> threading.Thread
     def esperar() -> None:
         limite = time.monotonic() + segundos
         while time.monotonic() < limite:
-            if conversor_en(url, timeout=1.0) is not None:
-                webbrowser.open(url)
+            salud = conversor_en(url, timeout=1.0)
+            if salud is not None:
+                mostrar_en_navegador(url, salud, ESPERA_RECONEXION_S)
                 return
             time.sleep(0.5)
 
@@ -215,14 +250,14 @@ def resolver_puerto(host: str, port: int, abrir: bool) -> tuple[str, int]:
                 print(f'El Conversor de {url} sigue sin responder con trabajos en curso: no se cierra '
                       'para no perderlos y se muestra en el navegador.', file=sys.stderr)
                 if abrir:
-                    webbrowser.open(url)
+                    mostrar_en_navegador(url)
                 return 'salir', SALIDA_OTRA_VERSION
     if salud is not None:
         servidor = salud.get('servidor') if isinstance(salud.get('servidor'), dict) else {}
         if servidor.get('huella') == huella_del_codigo(frontend_dist()):
             print(f'El Conversor ya está abierto en {url}: se muestra en el navegador.')
             if abrir:
-                webbrowser.open(url)
+                mostrar_en_navegador(url, salud)
             return 'salir', 0
         en_curso = trabajos_en_curso(url, salud)
         if en_curso != 0:
@@ -233,7 +268,7 @@ def resolver_puerto(host: str, port: int, abrir: bool) -> tuple[str, int]:
                   'ventana y vuelva a abrir el acceso directo para usar esta versión.',
                   file=sys.stderr)
             if abrir:
-                webbrowser.open(url)
+                mostrar_en_navegador(url, salud)
             return 'salir', SALIDA_OTRA_VERSION
         print(f'En {url} hay otra versión del Conversor sin trabajos: se cierra y se abre esta.')
         if not (pedir_cierre(url) and esperar_puerto_libre(host, port, 45)):

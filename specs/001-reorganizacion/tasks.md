@@ -226,3 +226,10 @@ Spec aprobada el 2026-10-08.
       (`jobs.py`) y el lanzador no termina al que no responde si los tiene: espera un minuto.
       Hecho el 2026-10-24 tras perder la escalera de Pisco al reabrir el acceso directo.
       Hecho cuando: las pruebas que citan 001:RF-34 pasan.
+- [x] T28. RF-35: `/api/health` publica las páginas conectadas por WebSocket y el lanzador
+      no abre otra pestaña si hay una, ni tras un reinicio mientras la abierta se reconecta.
+      Hecho cuando: las pruebas que citan 001:RF-35 pasan y, con la web abierta en el
+      navegador, reiniciar la web no abre otra pestaña.
+      Hecho el 2026-11-01: reiniciada la web con pestañas abiertas, el servidor nuevo contó 5
+      páginas reconectadas solas; abrir de nuevo el lanzador dijo «La web ya está abierta en el
+      navegador: no se abre otra pestaña», salió con 0 y siguieron siendo 5.

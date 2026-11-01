@@ -556,6 +556,8 @@ def create_app(
     from .runtime import huella_del_codigo
 
     huella = huella_del_codigo(frontend_dist())
+    # Páginas conectadas por WebSocket (001:RF-35). Solo se toca desde el bucle de eventos.
+    paginas = {'abiertas': 0}
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
@@ -623,7 +625,9 @@ def create_app(
             # Para el lanzador (spec 001, RF-28 a RF-30): si este servidor es el mismo
             # código, si se puede cerrar sin perder trabajo y qué proceso es.
             'servidor': {'pid': os.getpid(), 'huella': huella,
-                         'trabajos_en_curso': jobs.en_curso()},
+                         'trabajos_en_curso': jobs.en_curso(),
+                         # RF-35: con una página conectada, el lanzador no abre otra pestaña.
+                         'paginas_abiertas': paginas['abiertas']},
         }
 
     @app.post('/api/sistema/cerrar', status_code=202)
@@ -1081,6 +1085,8 @@ def create_app(
             await websocket.close(code=4404)
             return
         await websocket.accept()
+        # 001:RF-35: cada pestaña abierta tiene su WebSocket; el lanzador lo lee en /api/health.
+        paginas['abiertas'] += 1
         seq = since
         try:
             while True:
@@ -1092,6 +1098,8 @@ def create_app(
                     await websocket.send_json([])  # latido: detecta conexiones muertas
         except (WebSocketDisconnect, RuntimeError):
             return
+        finally:
+            paginas['abiertas'] -= 1
 
     # ------------------------------------------------------------ salida
     def _safe_out(ws: Workspace, rel: str) -> Path:

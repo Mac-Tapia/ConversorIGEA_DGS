@@ -120,6 +120,12 @@ Lanzador (acceso directo)
   (Pisco, 2026-10-24: al empezar la escalera de obras la web tardó más de 4 s en contestar a
   `/api/health`, el acceso directo abierto de nuevo la dio por colgada y la terminó con el
   trabajo dentro.)
+- RF-35: SI ya hay una página de la web conectada al servidor, ENTONCES EL SISTEMA no abrirá
+  otra pestaña al arrancar ni al abrir de nuevo el acceso directo: el servidor publica en
+  `/api/health` cuántas páginas tiene conectadas, y tras un reinicio el lanzador espera unos
+  segundos a que la página abierta se reconecte sola antes de abrir una. (Usuario,
+  2026-11-01: «debería lanzar solo un navegador; está abriendo en dos hasta tres navegadores
+  la web»: cada reinicio de la web añadía una pestaña.)
 
 Seguridad
 

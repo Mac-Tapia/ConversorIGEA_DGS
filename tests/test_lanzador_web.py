@@ -249,6 +249,7 @@ def test_navegador_cuando_responde_y_ctrl_c_sin_error(monkeypatch, uvicorn_falso
     """001:RF-32 — el navegador se abre al responder el servidor, y Ctrl+C sale con 0."""
     abiertos = []
     monkeypatch.setattr(lanzador.webbrowser, 'open', lambda url: abiertos.append(url))
+    monkeypatch.setattr(lanzador, 'ESPERA_RECONEXION_S', 0.6)
     falso = _Falso(_salud())
     url = f'http://127.0.0.1:{falso.port}/'
     try:
@@ -273,7 +274,8 @@ def test_health_publica_el_servidor(tmp_path):
     """001:RF-33 — health da el PID, la huella del código y los trabajos en curso."""
     client = TestClient(app_mod.create_app(tmp_path))
     servidor = client.get('/api/health').json()['servidor']
-    assert servidor == {'pid': os.getpid(), 'huella': _huella_actual(), 'trabajos_en_curso': 0}
+    assert servidor == {'pid': os.getpid(), 'huella': _huella_actual(), 'trabajos_en_curso': 0,
+                        'paginas_abiertas': 0}                                    # 001:RF-35
 
 
 def test_cierre_solo_desde_el_lanzador_local(tmp_path, monkeypatch):
@@ -302,3 +304,57 @@ def test_cierre_solo_desde_el_lanzador_local(tmp_path, monkeypatch):
         time.sleep(0.05)
     assert local.post('/api/sistema/cerrar', headers=cabecera).status_code == 202
     assert cerrado.wait(5)
+
+
+def test_con_una_pagina_abierta_no_se_abre_otra_pestana(monkeypatch, capsys):
+    """001:RF-35 — si el servidor dice que ya tiene una página conectada, el lanzador no abre
+    otra pestaña: ni al arrancar ni al abrir de nuevo el acceso directo con el mismo código."""
+    abiertos = []
+    monkeypatch.setattr(lanzador.webbrowser, 'open', lambda url: abiertos.append(url))
+    monkeypatch.setattr(lanzador, 'ESPERA_RECONEXION_S', 0.6)
+    falso = _Falso(_salud(pid=1, huella=_huella_actual(), trabajos_en_curso=0, paginas_abiertas=1))
+    url = f'http://127.0.0.1:{falso.port}/'
+    try:
+        lanzador.abrir_cuando_responda(url, segundos=10).join(10)
+        assert lanzador.resolver_puerto('127.0.0.1', falso.port, abrir=True) == ('salir', 0)
+    finally:
+        falso.cerrar()
+    assert abiertos == []
+    assert 'no se abre otra pestaña' in capsys.readouterr().out
+
+
+def test_tras_un_reinicio_espera_a_que_la_pagina_se_reconecte(monkeypatch):
+    """001:RF-35 — tras un reinicio la pestaña abierta se reconecta sola en ~1,5 s: el lanzador
+    la espera antes de decidir, y sin ninguna página abre una sola."""
+    abiertos = []
+    monkeypatch.setattr(lanzador.webbrowser, 'open', lambda url: abiertos.append(url))
+    salud = _salud(pid=1, paginas_abiertas=0)
+    falso = _Falso(salud)
+    url = f'http://127.0.0.1:{falso.port}/'
+    threading.Timer(0.8, lambda: salud['servidor'].update(paginas_abiertas=1)).start()
+    try:
+        assert lanzador.mostrar_en_navegador(url, lanzador.conversor_en(url), espera_s=4.0) is False
+        assert abiertos == []
+        salud['servidor']['paginas_abiertas'] = 0
+        assert lanzador.mostrar_en_navegador(url, lanzador.conversor_en(url), espera_s=0.6) is True
+    finally:
+        falso.cerrar()
+    assert abiertos == [url]
+
+
+def test_la_salud_cuenta_las_paginas_conectadas(tmp_path, monkeypatch):
+    """001:RF-35 — cada pestaña abierta tiene su WebSocket: ``/api/health`` las cuenta al
+    conectarse y deja de contarlas al cerrarse."""
+    monkeypatch.setenv('IGEA_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    with TestClient(app_mod.create_app(tmp_path / 'web')) as c:
+        wid = c.post('/api/workspaces').json()['id']
+        assert c.get('/api/health').json()['servidor']['paginas_abiertas'] == 0
+        with c.websocket_connect(f'/api/workspaces/{wid}/ws'):
+            limite = time.monotonic() + 5
+            while c.get('/api/health').json()['servidor']['paginas_abiertas'] != 1:
+                assert time.monotonic() < limite
+                time.sleep(0.05)
+        limite = time.monotonic() + 20
+        while c.get('/api/health').json()['servidor']['paginas_abiertas'] != 0:
+            assert time.monotonic() < limite, 'la página cerrada sigue contada'
+            time.sleep(0.1)
