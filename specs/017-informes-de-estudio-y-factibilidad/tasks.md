@@ -108,3 +108,8 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       el cambio de sección: 0,985 p.u. y 63 %, cumple; un trecho de 6,58 km en 21 tramos de
       14812 hasta SE20701) e informe generado; falta que el usuario lo dé por bueno, y que
       la web lo haga al ejecutar los estudios (el plan ya lleva las alternativas).
+
+- [x] T18. Documentos del solicitante en 4.4: PDF de la carta u oficio en la factibilidad y
+      varios PDF del expediente en el estudio, leídos con su texto o con OCR. (RF-136 a RF-141)
+      Hecho cuando: las pruebas que citan 017:RF-136 a RF-141 pasan, también con los PDF de
+      `referencia/` (`IGEA_SOLICITUD_PDF`, `IGEA_SOLICITUD_DIR`), y se ve en el navegador.

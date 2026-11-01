@@ -1849,6 +1849,26 @@ def create_app(
     def informes_perdidas_quitar(wid: str) -> dict:
         return services.informes_perdidas_quitar(ws_or_404(wid))
 
+    @app.post('/api/workspaces/{wid}/informes/documentos', status_code=202)
+    def informes_documentos(wid: str, tipo: Literal['factibilidad', 'estudio'] = Form(...),
+                            files: list[UploadFile] = File(...)) -> dict:
+        """017:RF-136 y RF-137: los PDF del solicitante, leídos en un trabajo (con OCR si hace falta)."""
+        ws = ws_or_404(wid)
+        malos = [f.filename for f in files if Path(f.filename or '').suffix.lower() != '.pdf']
+        if malos:
+            raise HTTPException(400, f'Solo se leen PDF: {", ".join(str(m) for m in malos)}.')
+        # 017:RF-141: cada lectura en su carpeta del espacio; la anterior se reemplaza.
+        carpeta = services.informes_carpeta_documentos(ws, tipo)
+        shutil.rmtree(carpeta, ignore_errors=True)
+        carpeta.mkdir(parents=True, exist_ok=True)
+        rutas = []
+        for f in files:
+            destino = carpeta / safe_filename(f.filename or 'documento.pdf')
+            _save_upload(destino, f)
+            rutas.append(destino)
+        return submit(ws, 'informe_documentos', f'Leer {len(rutas)} documento(s) del solicitante',
+                      lambda ctx: services.informe_documentos(ws, ctx, tipo, rutas), lane='engine')
+
     @app.post('/api/workspaces/{wid}/informes/transformador/cargas', status_code=202)
     def informes_trafo_cargas(wid: str, body: TransformadorListarIn) -> dict:
         """Spec 017, T10: cargas de barra y casos del proyecto de transmisión."""

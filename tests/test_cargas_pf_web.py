@@ -157,6 +157,23 @@ def test_carga_nueva_del_formulario_pasa_por_el_mismo_lector(client):
     assert [n['sed'] for n in libro.json()['nuevas']] == ['N9', 'N1']
 
 
+def test_carga_nueva_del_formulario_por_nombre_y_utm(client):
+    """008:RF-25 / 008:RF-26 / 008:RF-27 — el formulario con nombre (sin código de SED), kW,
+    FP 0,98 y UTM X/Y, sin kVA: la carga se llama por su nombre y las UTM se pasan a GPS con
+    el CRS del espacio."""
+    wid = _wid(client)
+    r = client.put(f'/api/workspaces/{wid}/options', json={'source_crs': 'EPSG:32718'})
+    assert r.status_code == 200, r.text
+    forma = {'nombre': 'Cliente Prueba', 'alimentador': 'F1', 'Kw': '120', 'FP': '0.98',
+             'CoordX': '380000', 'CoordY': '8480000'}
+    body = _plan(client, wid, nueva=forma).json()
+    assert body['applicable'] is True, body['row_errors']
+    n = body['nuevas'][0]
+    assert n['sed'] == 'Cliente Prueba' and n['alimentador'] == 'F1'
+    assert n['lat'] is not None and -90 < n['lat'] < 0 and n['lon'] < 0
+    assert n['kw'] == pytest.approx(120) and n['kvar'] == pytest.approx(120 * (1 / 0.98**2 - 1) ** 0.5, rel=1e-3)
+
+
 def test_errores_de_usuario(client):
     """004:RF-1 — sin libros, sin proyecto o con economía mala: 400/422 con el motivo."""
     wid = _wid(client)

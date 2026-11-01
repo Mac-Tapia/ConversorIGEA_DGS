@@ -136,16 +136,38 @@ def test_carga_nueva_con_kw_y_fp():
 
 
 def test_carga_nueva_ubicada_por_coordenadas():
-    """004:RF-47, 025:RF-45 — Lat/Lon y el alimentador (obligatorio) a la vista; CoordX/CoordY,
-    barra, línea y BT plegados."""
+    """004:RF-47 (cambiado por 008:RF-26), 025:RF-45, 008:RF-25 — nombre, alimentador (obligatorio)
+    y UTM X/Y a la vista; Lat/Lon, kVA, barra, línea y BT plegados; si falta el CRS se dice."""
     campos = _campos_nueva()
-    for clave in ('Lat', 'Lon', 'alimentador'):
+    for clave in ('nombre', 'SED', 'alimentador', 'Kw', 'FP', 'CoordX', 'CoordY'):
         assert re.search(rf"key: '{clave}'(?![^}}]*mas: true)[^}}]*}}", campos), clave
-    assert re.search(r"key: 'alimentador'[^}]*required: true", campos)
-    for clave in ('CoordX', 'CoordY', 'barra', 'tipo_linea', 'tension_bt_kv'):
+    for clave in ('nombre', 'alimentador'):
+        assert re.search(rf"key: '{clave}'[^}}]*required: true", campos), clave
+    for clave in ('Lat', 'Lon', 'kVA_instalado', 'barra', 'tipo_linea', 'tension_bt_kv'):
         assert re.search(rf"key: '{clave}'[^}}]*mas: true", campos), clave
     assert 'NUEVA_CAMPOS.filter((c) => !c.mas).map(campoNueva)' in CARGAS
     assert '<summary>Más opciones' in CARGAS
+    assert 'Sin CRS de origen' in CARGAS
+
+
+def test_carga_nueva_en_la_pagina_con_fp_propuesto():
+    """008:RF-25 / 008:RF-27 — los campos están en el numeral 3.2, sin ventana; FP 0,98 y coma
+    o punto decimal."""
+    seccion = CARGAS[CARGAS.index('3.2 · Una carga nueva'):CARGAS.index('3.3 · Cargas nuevas en bloque')]
+    assert 'NUEVA_CAMPOS.filter((c) => !c.mas).map(campoNueva)' in seccion
+    assert 'title="Una carga nueva"' not in CARGAS
+    assert "const FP_PROPUESTO = '0,98'" in CARGAS
+    assert "t.replace(',', '.')" in CARGAS
+
+
+def test_conectar_al_nmt_mas_cercano():
+    """008:RF-28 — el botón simula solo esa carga en su alimentador y muestra dónde quedaría."""
+    seccion = CARGAS[CARGAS.index('3.2 · Una carga nueva'):CARGAS.index('3.3 · Cargas nuevas en bloque')]
+    assert 'Conectar al NMT más cercano' in seccion and 'onClick={conectar}' in seccion
+    cuerpo = CARGAS[CARGAS.index('const conectar = async'):CARGAS.index('const campoNueva')]
+    assert '[nueva.alimentador]' in cuerpo and 'api.cargasSimular' in cuerpo
+    assert 'api.cargasAplicar' not in cuerpo
+    assert 'Se conectaría en {conexion(ubicacion.c)}' in seccion
 
 
 def test_cargas_rechazadas_con_su_motivo_en_el_plan():

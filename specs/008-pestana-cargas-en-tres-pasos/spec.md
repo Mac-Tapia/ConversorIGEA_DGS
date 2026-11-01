@@ -102,6 +102,27 @@ Paso 3 — Integración de nuevas
 - RF-24: CUANDO se aplica la integración, EL SISTEMA aplicará en cada alimentador las
   demandas en bloque, después la carga nueva del formulario y después las del libro.
 
+Cambio del 2026-10-31 (usuario: «en este numeral de una sola carga nueva debe haber campos
+para ingresar desde web de forma manual como la potencia, coordenadas UTM X Y, factor de
+potencia editable por defecto 0,98 y un botón para conectar al NMT más cercano» y «un campo
+debe haber para el nombre de la carga nueva»):
+
+- RF-25: EL SISTEMA mostrará los campos de la carga nueva en el propio numeral 3.2, sin
+  ventana aparte: nombre de la carga nueva, código de la SED (optativo; en blanco, la carga
+  se llama por su nombre), alimentador (uno de los del proyecto), potencia activa (kW),
+  factor de potencia y coordenadas UTM X e Y. El nombre es la columna «nombre»/«descripción»
+  del libro de cargas nuevas.
+- RF-26: (cambia 004:RF-47) EL SISTEMA pedirá a la vista la ubicación en UTM (CoordX/CoordY,
+  en el CRS del espacio o del perfil de empresa); Lat/Lon, la barra forzada, el kVA del
+  transformador, el tipo de línea y la tensión de baja irán plegados. SI no hay CRS de
+  origen, ENTONCES EL SISTEMA lo dirá junto a las coordenadas UTM.
+- RF-27: EL SISTEMA propondrá un factor de potencia de 0,98, que el operador puede cambiar;
+  los números se aceptan con coma o con punto decimal.
+- RF-28: CUANDO el operador pulsa «Conectar al NMT más cercano», EL SISTEMA simulará en
+  DIgSILENT solo esa carga sobre su alimentador, sin escribir en el proyecto, y mostrará en
+  el numeral 3.2 el nodo de media tensión donde se conectaría, a qué distancia y con qué
+  criterio (el mismo de 016:RF-78 que usa la aplicación).
+
 ## Casos límite
 
 - Proyecto con un solo alimentador: el paso 2 funciona igual, con uno.
@@ -119,7 +140,7 @@ Paso 3 — Integración de nuevas
 
 ## Criterios de finalización
 
-- `grep -rnoE "008:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-24.
+- `grep -rnoE "008:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-28.
 - Suite completa en verde, también las pruebas de las specs 004, 006 y 007.
 - `npx tsc --noEmit -p .` y `npm run build` en `frontend/` correctos.
 - Prueba real en DIgSILENT con un proyecto de dos alimentadores, a cargo del usuario.

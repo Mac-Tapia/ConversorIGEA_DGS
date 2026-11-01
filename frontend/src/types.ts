@@ -1032,6 +1032,27 @@ export interface InformeResultado {
   punto_diseno?: Record<string, number | null> | null;
 }
 
+/** Un PDF del solicitante leído (spec 017, RF-137 y RF-138). */
+export interface DocumentoLeido {
+  fichero: string;
+  paginas: number;
+  /** «texto» (capa del PDF), «ocr» o «ocr+texto». */
+  metodo: string;
+  clase: 'solicitud' | 'respuesta' | 'ficha';
+  datos: Record<string, string | number | string[]>;
+  avisos: string[];
+  extracto: string;
+}
+
+/** Resultado del trabajo «informe_documentos» (RF-139, RF-140). */
+export interface DocumentosResultado {
+  tipo: 'factibilidad' | 'estudio';
+  documentos: DocumentoLeido[];
+  /** Cada dato con el fichero del que sale. */
+  propuesta: Record<string, { valor: string | number; fichero: string }>;
+  antecedentes: string[];
+}
+
 /** Spec 006: plan del ajuste a la máxima de cabecera. */
 export interface ClientPeriodEvidence {
   status: 'CLIENT_PERIOD_VERIFIED' | 'CLIENT_PERIOD_UNKNOWN' | 'NO_CLIENT_BOOK';

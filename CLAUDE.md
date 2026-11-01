@@ -100,10 +100,14 @@ IGEA_EQUIPMENT="referencia/BD_Equipo_V261124 (1)(1).txt" .venv/Scripts/python.ex
 
 Sin las tres variables `IGEA_*`, la mayoría de las pruebas de integración se omiten en
 silencio y la suite «pasa» sin haber probado nada real. `IGEA_TXT_DIR` no basta. La suite se da
-por buena solo sin ninguna omitida: con las siete variables (las tres de los TXT, las dos
-de Access de abajo, `IGEA_DEMANDA_DIR="referencia"` e
+por buena solo sin ninguna omitida: con las nueve variables (las tres de los TXT, las dos
+de Access de abajo, `IGEA_DEMANDA_DIR="referencia"`,
 `IGEA_VNR_BAK="referencia/Electro Dunas VNRGIS/DAT_VNR/ELDU_VNR_24_APR.bak"`, con SQL Server
-Express en marcha, spec 023) y `-rs` pasan todas.
+Express en marcha, spec 023, y las dos de los PDF del solicitante, spec 017:
+`IGEA_SOLICITUD_PDF="referencia/Carta_Sol_Fact_AMPC_480A1000.pdf"` e
+`IGEA_SOLICITUD_DIR="referencia/ampliaciondecarga"`) y `-rs` pasan todas. El OCR de esas
+pruebas usa Tesseract; el idioma `spa` puede ir en `~/.igea_dgs/tessdata` (o `IGEA_TESSDATA`)
+si no se puede escribir en la carpeta de Tesseract.
 
 Para la vía Access (`tests/test_access_input.py`) hacen falta dos bases, porque la red
 más reciente no trae catálogo de equipos:

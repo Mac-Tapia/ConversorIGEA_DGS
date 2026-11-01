@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api, download, fmtNum } from '../api';
 import { useApp } from '../context';
 import type {
@@ -41,28 +41,64 @@ const TEC: [string, string, string, string][] = [
  * el servidor pasa el formulario por el mismo lector que el libro, así que aquí no se
  * valida nada (habría dos definiciones de «fila válida»).
  *
- * Spec 004, RF-46 y RF-47: la demanda se escribe como kW y FP, y la ubicación por
- * coordenadas. Con los cuatro campos de potencia a la vista el operador no sabía cuáles
- * llenar; kVAR y kVA siguen en el libro. Lo que casi nunca hace falta (`mas`) va plegado.
+ * Spec 004, RF-46: la demanda se escribe como kW y FP; con los cuatro campos de potencia a
+ * la vista el operador no sabía cuáles llenar; kVAR y kVA de demanda siguen en el libro.
+ *
+ * 008:RF-25 a RF-27 (cambia 004:RF-47, usuario, 2026-10-31): los campos están en el propio
+ * numeral 3.2, con el nombre de la carga (la «descripción» del libro de planificación, que
+ * aún no tiene SED) y la ubicación en UTM X/Y, como la escribe ese libro; el FP propone
+ * 0,98, el de las escaladas. Lat/Lon, la barra, el kVA del transformador (sin él, el
+ * normalizado que cubre la demanda, 004:RF-52), la línea y la BT van plegados (`mas`).
  */
 const NUEVA_CAMPOS: { key: string; label: string; help?: string; required?: boolean; mas?: boolean }[] = [
-  { key: 'SED', label: 'Código de la SED', required: true },
-  { key: 'kVA_instalado', label: 'Transformador (kVA)', required: true },
-  { key: 'Kw', label: 'Potencia activa (kW)', required: true },
-  { key: 'FP', label: 'Factor de potencia', required: true, help: 'Entre 0 y 1, p. ej. 0.95.' },
-  { key: 'Lat', label: 'Latitud (WGS84)', help: 'Se conecta a la barra de media más cercana.' },
-  { key: 'Lon', label: 'Longitud (WGS84)' },
-  { key: 'CoordX', label: 'CoordX', mas: true, help: 'En el CRS del perfil de empresa, en lugar de Lat/Lon.' },
-  { key: 'CoordY', label: 'CoordY', mas: true },
-  { key: 'barra', label: 'Barra de conexión', mas: true, help: 'Solo para forzar una barra; si no, la más cercana.' },
+  { key: 'nombre', label: 'Nombre de la carga nueva', required: true, help: 'P. ej. el cliente o el proyecto.' },
+  { key: 'SED', label: 'Código de la SED', help: 'En blanco: la carga se llama por su nombre.' },
   // Spec 025, RF-45: obligatorio; sin él la carga se rechaza y se dice.
   { key: 'alimentador', label: 'Alimentador', required: true },
+  { key: 'Kw', label: 'Potencia activa (kW)', required: true },
+  { key: 'FP', label: 'Factor de potencia', required: true, help: 'Entre 0 y 1; se propone 0,98.' },
+  { key: 'CoordX', label: 'UTM X (m)', required: true, help: 'Este.' },
+  { key: 'CoordY', label: 'UTM Y (m)', required: true, help: 'Norte.' },
+  { key: 'kVA_instalado', label: 'Transformador (kVA)', mas: true, help: 'En blanco: el normalizado que cubre la demanda.' },
+  { key: 'Lat', label: 'Latitud (WGS84)', mas: true, help: 'En lugar de UTM X/Y.' },
+  { key: 'Lon', label: 'Longitud (WGS84)', mas: true },
+  { key: 'barra', label: 'Barra de conexión', mas: true, help: 'Solo para forzar una barra; si no, la más cercana.' },
   { key: 'tipo_linea', label: 'Tipo de línea del enlace', mas: true, help: 'En blanco o si no existe: el de la red.' },
   { key: 'tension_bt_kv', label: 'Tensión de baja (kV)', mas: true, help: 'En blanco: la de un transformador del alimentador.' },
 ];
-const TEXTO = new Set(['SED', 'barra', 'alimentador', 'tipo_linea']);
+const TEXTO = new Set(['nombre', 'SED', 'barra', 'alimentador', 'tipo_linea']);
+/** 008:RF-27: el FP que se propone; el operador lo cambia. */
+const FP_PROPUESTO = '0,98';
 
-const vacio = () => Object.fromEntries(NUEVA_CAMPOS.map((c) => [c.key, '']));
+const vacio = (): Record<string, string> =>
+  Object.fromEntries(NUEVA_CAMPOS.map((c) => [c.key, c.key === 'FP' ? FP_PROPUESTO : '']));
+
+/**
+ * La carga del formulario como la lee el servidor, o ``null`` si el operador no escribió nada
+ * (el FP propuesto solo no es una carga). 008:RF-27: «0,98» y «0.98» valen igual; el
+ * servidor recibe el punto. Los vacíos no se envían: el lector los trata como ausentes.
+ */
+export function cargaDelFormulario(values: Record<string, string>): Record<string, string> | null {
+  const llenos: Record<string, string> = {};
+  for (const [k, v] of Object.entries(values)) {
+    const t = v.trim();
+    if (t) llenos[k] = TEXTO.has(k) ? t : t.replace(',', '.');
+  }
+  const escrito = Object.keys(llenos).some((k) => k !== 'FP') || llenos.FP !== FP_PROPUESTO.replace(',', '.');
+  return escrito && Object.keys(llenos).length ? llenos : null;
+}
+
+/** Dónde quedaría la carga del formulario según la última simulación de esa carga (008:RF-28). */
+function ubicacionSimulada(job: Job | undefined, sed: string): { c?: CargaConectada; motivo?: string } | null {
+  if (!job || job.status !== 'done' || !job.result) return null;
+  const inf = (job.result as CargasResultado).informe;
+  for (const f of inf.feeders) {
+    const c = (f.crearian ?? []).find((x) => x.sed === sed);
+    if (c) return { c };
+  }
+  const m = [...inf.no_creadas, ...inf.ambiguas, ...inf.sin_alimentador].find((x) => x.sed === sed);
+  return { motivo: m?.motivo ?? inf.plan_errores_de_fila?.[0] ?? 'DIgSILENT no informó dónde se conectaría.' };
+}
 
 /** Estado del último flujo de carga del proyecto (spec 008, RF-20). */
 interface EstadoFlujo {
@@ -108,7 +144,7 @@ export function estadoFlujo(jobs: Job[], project: string): EstadoFlujo | null {
  * conecta cada carga nueva lo decide el guion dentro del proyecto.
  */
 export function CargasTab() {
-  const { ws, run, startJob, active, jobs } = useApp();
+  const { ws, run, startJob, active, jobs, health } = useApp();
   const [project, setProject] = useState('');
   const [buscaProyecto, setBuscaProyecto] = useState('');
   const [order, setOrder] = useState<string[]>([]);
@@ -116,9 +152,11 @@ export function CargasTab() {
   const [demandas, setDemandas] = useState<File | null>(null);
   const [nuevas, setNuevas] = useState<File | null>(null);
   const [minima, setMinima] = useState('');
-  const [nueva, setNueva] = useState<Record<string, string> | null>(null);
-  const [form, setForm] = useState(false);
+  // 008:RF-25: el formulario está en la página; la carga es lo que tenga escrito.
   const [values, setValues] = useState<Record<string, string>>(vacio);
+  const nueva = cargaDelFormulario(values);
+  // 008:RF-28: el trabajo de «Conectar al NMT más cercano» de esta carga.
+  const [conectarId, setConectarId] = useState<string | null>(null);
   const [plan, setPlan] = useState<CargasPlan | null>(null);
   const [tecOn, setTecOn] = useState(false);
   // Spec 007, RF-4: el operador puede quitar la base y aplicar sobre lo activo.
@@ -259,21 +297,60 @@ export function CargasTab() {
     if (job) setPlan(null);
   };
 
-  const guardarNueva = (e: FormEvent) => {
-    e.preventDefault();
-    const llenos = Object.fromEntries(Object.entries(values).map(([k, v]) => [k, v.trim()]));
-    if (!llenos.SED) { toast('error', 'Falta el código de la SED', ''); return; }
-    setNueva(llenos);
+  const cambiarNueva = (key: string, valor: string) => {
+    setValues((v) => ({ ...v, [key]: valor }));
     setPlan(null);
-    setForm(false);
+    setConectarId(null);
+  };
+
+  // 008:RF-26: CoordX/CoordY se pasan a GPS con el CRS del espacio o del perfil de empresa.
+  const crs = ws.options.source_crs || health.perfil_empresa?.crs_origen || '';
+  const alimentadoresNueva = order.length ? order : (current?.feeders ?? []);
+  const nombreNueva = nueva ? (nueva.SED || nueva.nombre || '') : '';
+  const ubicada = Boolean(nueva && ((nueva.CoordX && nueva.CoordY) || (nueva.Lat && nueva.Lon) || nueva.barra));
+  const faltaParaConectar = !nueva ? 'Escriba la carga.'
+    : !nombreNueva ? 'Falta el nombre de la carga.'
+      : !nueva.alimentador ? 'Elija el alimentador.'
+        : !nueva.Kw ? 'Falta la potencia (kW).'
+          : !ubicada ? 'Faltan las coordenadas UTM X e Y.' : '';
+  const conectarJob = conectarId ? jobs[conectarId] : undefined;
+  const ubicacion = ubicacionSimulada(conectarJob, nombreNueva);
+
+  /**
+   * 008:RF-28: simula solo esta carga en su alimentador, sin escribir en el proyecto. El nodo
+   * lo elige el guion con la misma regla que al aplicar (016:RF-78); aquí no se duplica.
+   */
+  const conectar = async () => {
+    if (!nueva || faltaParaConectar) return;
+    const m = minima.trim().replace(',', '.');
+    const p = await run(() => api.cargasPlan(ws.id, project, [nueva.alimentador], null, null, nueva, null,
+      conBase ? baseJob!.id : null, m === '' ? null : Number(m)));
+    if (!p) return;
+    if (!p.applicable) {
+      toast('error', 'La carga no se puede conectar', p.row_errors.join(' · ') || 'Revise los datos.');
+      return;
+    }
+    const job = await startJob(() => api.cargasSimular(ws.id, p.token));
+    if (job) setConectarId(job.id);
   };
 
   const campoNueva = (c: (typeof NUEVA_CAMPOS)[number]) => (
     <label key={c.key} className="field">
       <span>{c.label}{c.required && <span className="req">*</span>}</span>
-      <input value={values[c.key]} inputMode={TEXTO.has(c.key) ? undefined : 'decimal'}
-        onChange={(e) => setValues((v) => ({ ...v, [c.key]: e.target.value }))} />
+      {c.key === 'alimentador' ? (
+        <select value={values.alimentador} onChange={(e) => cambiarNueva('alimentador', e.target.value)}>
+          <option value="">— elija —</option>
+          {alimentadoresNueva.map((f) => <option key={f} value={f}>{f}</option>)}
+        </select>
+      ) : (
+        <input value={values[c.key]} inputMode={TEXTO.has(c.key) ? undefined : 'decimal'}
+          onChange={(e) => cambiarNueva(c.key, e.target.value)} />
+      )}
       {c.help && <small className="muted">{c.help}</small>}
+      {c.key === 'CoordX' && !crs && (
+        <small className="alert alert-warn">Sin CRS de origen: elíjalo en Opciones o en el perfil de empresa, o use
+          Lat/Lon en «Más opciones».</small>
+      )}
     </label>
   );
 
@@ -477,14 +554,37 @@ export function CargasTab() {
           </div>
 
           <h4>3.2 · Una carga nueva</h4>
+          <p className="muted">Con las coordenadas, la SED queda en su sitio en DIgSILENT y se conecta al nodo de media
+            más cercano de su alimentador. Se valida al revisar, con las mismas reglas que el libro.</p>
+          <div className="form-grid">
+            {NUEVA_CAMPOS.filter((c) => !c.mas).map(campoNueva)}
+            <details className="span-2" open={NUEVA_CAMPOS.some((c) => c.mas && values[c.key]?.trim())}>
+              <summary>Más opciones: Lat/Lon, transformador, barra, línea y tensión de baja</summary>
+              <div className="form-grid">{NUEVA_CAMPOS.filter((c) => c.mas).map(campoNueva)}</div>
+            </details>
+          </div>
           <div className="row">
-            <button className="btn btn-sm" onClick={() => setForm(true)}>
-              {nueva ? `Carga nueva: ${nueva.SED} (editar)` : 'Escribir una carga nueva…'}
+            <button className="btn" disabled={pfBusy || !project || Boolean(faltaParaConectar)} onClick={conectar}
+              title={faltaParaConectar || 'Simula solo esta carga en DIgSILENT; no escribe en el proyecto'}>
+              Conectar al NMT más cercano
             </button>
             {nueva && <button className="btn btn-ghost btn-sm" onClick={() => {
-              setNueva(null); setValues(vacio()); setPlan(null);
-            }}>Quitar</button>}
+              setValues(vacio()); setPlan(null); setConectarId(null);
+            }}>Limpiar</button>}
+            {nueva && faltaParaConectar && <small className="muted">{faltaParaConectar}</small>}
+            {nueva && !faltaParaConectar && pfBusy && (
+              <small className="muted">DIgSILENT está ocupado con otro trabajo; se podrá al terminar.</small>
+            )}
           </div>
+          {conectarJob && (conectarJob.status === 'queued' || conectarJob.status === 'running') && (
+            <p className="muted">Buscando en DIgSILENT el nodo de media más cercano…</p>
+          )}
+          {conectarJob?.status === 'failed' && <p className="alert alert-error">{conectarJob.error}</p>}
+          {ubicacion?.c && (
+            <p className="alert alert-ok">Se conectaría en {conexion(ubicacion.c)}. Para crearla: «Revisar la integración» y
+              «Aplicar».</p>
+          )}
+          {ubicacion?.motivo && <p className="alert alert-warn">No se conectaría: {ubicacion.motivo}</p>}
 
           <h4>3.3 · Cargas nuevas en bloque {plantilla('nuevas')}</h4>
           <div className="row">
@@ -564,24 +664,6 @@ export function CargasTab() {
           : <GemeloPIDE project={project} feeders={order} />}
       </div>
       </fieldset>
-
-      {form && (
-        <Modal title="Una carga nueva" onClose={() => setForm(false)} actions={<>
-          <button className="btn" onClick={() => setForm(false)}>Cancelar</button>
-          <button className="btn btn-primary" type="submit" form="carga-nueva">Usar esta carga</button>
-        </>}>
-          <form id="carga-nueva" className="form-grid" onSubmit={guardarNueva}>
-            <p className="muted span-2">Con las coordenadas, la SED queda en su sitio en DIgSILENT y se conecta a la barra
-              de media más cercana con una línea de enlace de esa longitud. Se valida al revisar, con las mismas reglas
-              que el libro.</p>
-            {NUEVA_CAMPOS.filter((c) => !c.mas).map(campoNueva)}
-            <details className="span-2" open={NUEVA_CAMPOS.some((c) => c.mas && values[c.key]?.trim())}>
-              <summary>Más opciones: CoordX/CoordY, barra, alimentador, línea y tensión de baja</summary>
-              <div className="form-grid">{NUEVA_CAMPOS.filter((c) => c.mas).map(campoNueva)}</div>
-            </details>
-          </form>
-        </Modal>
-      )}
 
       {plan && (
         <Modal wide title={`Plan para ${plan.project}`} onClose={() => setPlan(null)} actions={<>

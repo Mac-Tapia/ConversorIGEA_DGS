@@ -3,7 +3,7 @@ import { api, fmtNum } from '../api';
 import { useApp } from '../context';
 import { FileDrop } from './ui';
 import type {
-  InformeEstudioForm, InformeFactibilidadForm, InformeResultado, InformesContexto, Limites, MaximaCabecera,
+  DocumentosResultado, InformeEstudioForm, InformeFactibilidadForm, InformeResultado, InformesContexto, Limites, MaximaCabecera,
   TrafoCargas, TrafoResultado,
 } from '../types';
 
@@ -60,6 +60,73 @@ function Campos<T extends Record<string, string>>({ campos, valores, fijar }: {
         inputMode={tipo === 'decimal' ? 'decimal' : undefined} />
     </label>
   ))}</>;
+}
+
+/** Nombre para el operador de cada dato que se lee de los PDF (017:RF-138). */
+const DATO_LEIDO: Record<string, string> = {
+  cliente: 'Cliente', ubicacion: 'Ubicación', tipo_solicitud: 'Tipo de solicitud', potencia_actual_kw: 'Potencia actual (kW)',
+  potencia_kw: 'Potencia solicitada (kW)', fecha: 'Fecha', lugar: 'Lugar', asunto: 'Asunto', tension_kv: 'Tensión (kV)',
+  nis: 'NIS', expediente: 'Expediente', solicitud: 'N.º de solicitud', referencias: 'Documentos citados',
+  set_nombre: 'SET', alimentador: 'Alimentador', estructura: 'Estructura del punto de diseño', utm_x: 'UTM X',
+  utm_y: 'UTM Y', pcc_mva: 'Potencia de cortocircuito (MVA)', destinatario: 'Destinatario',
+};
+const CLASE_DOC = { solicitud: 'Solicitud del interesado', respuesta: 'Respuesta de la distribuidora', ficha: 'Ficha técnica' };
+
+/**
+ * PDF del solicitante (017:RF-136 a RF-138): se suben, se leen en un trabajo —capa de texto
+ * y, en las páginas escaneadas, OCR— y ``onLeido`` recibe lo leído una sola vez por lectura.
+ */
+function DocumentosSolicitante({ tipo, varios, titulo, onLeido }: {
+  tipo: 'factibilidad' | 'estudio'; varios: boolean; titulo: string; onLeido: (r: DocumentosResultado) => void;
+}) {
+  const { ws, startJob, jobs, active } = useApp();
+  const [files, setFiles] = useState<File[]>([]);
+  const [jobId, setJobId] = useState<string | null>(null);
+  const job = jobId ? jobs[jobId] : undefined;
+  const r = (job?.status === 'done' ? job.result : null) as DocumentosResultado | null;
+  const aplicado = useRef('');
+  useEffect(() => {
+    if (!r || !jobId || aplicado.current === jobId) return;
+    aplicado.current = jobId;
+    onLeido(r);
+  }, [r, jobId]);  // eslint-disable-line react-hooks/exhaustive-deps
+  const leer = async () => {
+    const j = await startJob(() => api.informesDocumentos(ws.id, tipo, files));
+    if (j) setJobId(j.id);
+  };
+  const corriendo = job?.status === 'queued' || job?.status === 'running';
+  return (
+    <div className="field span-2">
+      <span>{titulo}</span>
+      <FileDrop compact multiple={varios} accept=".pdf,application/pdf"
+        onFiles={(fs) => setFiles(varios ? fs : fs.slice(0, 1))}>
+        <span>{files.length
+          ? <><strong>{files.map((f) => f.name).join(', ')}</strong> · reemplazar: soltar o <u>elegir</u></>
+          : <>PDF{varios ? ' (uno o varios)' : ''}: soltar o <u>elegir</u></>}</span>
+      </FileDrop>
+      <div className="row">
+        <button className="btn btn-sm" disabled={!files.length || corriendo || Boolean(active.engine)} onClick={leer}>
+          Leer {files.length > 1 ? `los ${files.length} documentos` : 'el documento'}
+        </button>
+        {files.length > 0 && <button className="btn btn-ghost btn-sm" onClick={() => { setFiles([]); setJobId(null); }}>Quitar</button>}
+        {corriendo && <small className="muted">Leyendo el texto (y con OCR las páginas escaneadas)…</small>}
+        {job?.status === 'failed' && <small className="alert alert-error">{job.error}</small>}
+      </div>
+      <small className="muted">Se lee la capa de texto del PDF; una página escaneada pasa por OCR. Los PDF quedan solo en
+        este equipo.</small>
+      {r && r.documentos.map((d) => (
+        <details key={d.fichero} className={`alert ${d.avisos.length ? 'alert-warn' : 'alert-ok'}`}>
+          <summary>{`${d.fichero} · ${CLASE_DOC[d.clase]} · ${d.paginas} pág. por ${d.metodo === 'texto' ? 'texto' : 'OCR'}`}
+            {` · ${Object.keys(d.datos).length} dato(s)`}{d.avisos.length ? ` · ${d.avisos.length} aviso(s)` : ''}</summary>
+          {d.avisos.map((a) => <p key={a} className="small">{a}</p>)}
+          <table className="table"><tbody>{Object.entries(d.datos).map(([k, v]) => (
+            <tr key={k}><td className="small">{DATO_LEIDO[k] ?? k}</td>
+              <td className="small">{Array.isArray(v) ? v.join(', ') : typeof v === 'number' ? fmtNum(v, 2) : v}</td></tr>
+          ))}</tbody></table>
+        </details>
+      ))}
+    </div>
+  );
 }
 
 /** Huecos, veredicto y descarga del último informe generado de un tipo (RF-100, RF-102, RF-103). */
@@ -245,6 +312,13 @@ function InformeEstudio({ project, feeders, ctx, busy, limites, limitesOk, limit
             placeholder="Un párrafo por bloque; deje una línea en blanco entre párrafos." /></label>
         <label className="field span-2"><span>Descripción</span>
           <textarea rows={3} value={descripcion} onChange={(e) => setDescripcion(e.target.value)} /></label>
+        {/* 017:RF-136, RF-140: los PDF del expediente proponen los antecedentes, sin repetir. */}
+        <DocumentosSolicitante tipo="estudio" varios titulo="Documentos del expediente (cartas, oficios, fichas)"
+          onLeido={(r) => {
+            const hay = parrafos(antecedentes);
+            const nuevos = r.antecedentes.filter((p) => !hay.includes(p));
+            if (nuevos.length) setAntecedentes([...hay, ...nuevos].join('\n\n'));
+          }} />
       </div>
       <Origen ctx={ctx} alimentador={alimentador} conCon />
       <small className="muted">Obras de 4.1 en «Con proyecto» de {alimentador}: {ctx.obras[alimentador] ?? 0}
@@ -355,6 +429,27 @@ function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, 
     fijar(c ? { clave: k, codigo: c.barra, sol: { ...sol, potencia_kw: c.kw != null ? String(c.kw) : sol.potencia_kw } }
       : { clave: k });
   };
+  /**
+   * 017:RF-139: lo leído de la carta va a los campos en blanco; lo escrito por el operador no
+   * se pisa. El tipo propuesto por defecto («factibilidad de suministro») cuenta como blanco.
+   */
+  const leidoDelSolicitante = (r: DocumentosResultado) => {
+    const valor = (k: string) => {
+      const v = r.propuesta[k]?.valor;
+      return v == null ? '' : String(v);
+    };
+    const de: Partial<Sol> = { cliente: valor('cliente'), ubicacion: valor('ubicacion'),
+      tipo_solicitud: valor('tipo_solicitud'), potencia_kw: valor('potencia_kw'), fecha_solicitud: valor('fecha'),
+      expediente: [valor('solicitud'), valor('expediente')].filter(Boolean).join(' y '),
+      set_nombre: valor('set_nombre'), tension_kv: valor('tension_kv') };
+    const nueva = { ...sol };
+    for (const [k, v] of Object.entries(de) as [keyof Sol, string][]) {
+      const libre = !nueva[k].trim() || (k === 'tipo_solicitud' && nueva[k] === 'factibilidad de suministro');
+      if (v && libre) nueva[k] = v;
+    }
+    fijar({ sol: nueva, ...(valor('lugar') && !cab.lugar.trim() ? { cab: { ...cab, lugar: valor('lugar') } } : {}) });
+  };
+
   // El factor medido se propone solo si el operador no escribió otro.
   useEffect(() => { if (fcMedido && !fc) setFc(String(fcMedido.fc)); }, [fcMedido]);  // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -385,10 +480,22 @@ function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, 
     void startJob(() => api.informeFactibilidad(ws.id, body));
   };
 
+  // 017:RF-136: la carta suele llegar antes que la carga; se lee ya y lo leído queda en el
+  // formulario guardado hasta que la carga se aplique en 3.2.
+  const documento = (
+    <DocumentosSolicitante tipo="factibilidad" varios={false}
+      titulo="Carta, oficio u otro documento del solicitante" onLeido={leidoDelSolicitante} />
+  );
   if (!ctx.cargas.length || !solas.length) {
-    return <p className="muted">No hay ninguna carga nueva ingresada sola y aplicada en {feeders.join(', ')}: intégrela en
-      el paso 3 con «Una carga nueva» y aplíquela.{enBloque.length > 0 && ` Las ${enBloque.length} del libro van en bloque
-      y entran como solicitudes vigentes.`}</p>;
+    const leido = SOLICITUD.filter(([k]) => sol[k].trim() && k !== 'tipo_solicitud');
+    return <div className="stack compact">
+      <p className="muted">No hay ninguna carga nueva ingresada sola y aplicada en {feeders.join(', ')}: intégrela en
+        el paso 3 con «Una carga nueva» y aplíquela.{enBloque.length > 0 && ` Las ${enBloque.length} del libro van en bloque
+        y entran como solicitudes vigentes.`}</p>
+      <div className="form-grid">{documento}</div>
+      {leido.length > 0 && <small className="muted">Solicitud guardada para el informe: {leido.map(([k, l]) =>
+        `${l.replace(' *', '')}: ${sol[k]}`).join(' · ')}.</small>}
+    </div>;
   }
   return (
     <div className="stack compact">
@@ -413,6 +520,8 @@ function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, 
         </div>
         <p><strong>Solicitud</strong></p>
         <div className="form-grid">
+          {/* 017:RF-136, RF-139: la carta u oficio del solicitante rellena lo que está en blanco. */}
+          {documento}
           <Campos campos={SOLICITUD} valores={sol} fijar={(k, v) => setSol((s) => ({ ...s, [k]: v }))} />
           <label className="field"><span>¿Predio en el área de concesión?</span>
             <select value={concesion} onChange={(e) => setConcesion(e.target.value as '' | 'si' | 'no')}>

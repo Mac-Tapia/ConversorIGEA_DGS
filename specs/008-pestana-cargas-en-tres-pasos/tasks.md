@@ -13,5 +13,8 @@
       tests/test_demanda_medida_front.py`, `npx tsc --noEmit -p .` y `npm run build` correctos.
 - [x] T6. Validación: `grep -rnoE "008:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-24; suite completa.
       Hecho cuando: `grep -rnoE "008:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-24 y la suite completa, en verde.
+- [x] T8. Numeral 3.2 en la página: nombre, kW, FP 0,98, UTM X/Y y «Conectar al NMT más cercano». (RF-25 a RF-28)
+      Hecho cuando: `pytest -q tests/test_cargas_pf_web.py tests/test_cargas_tres_pasos_front.py`,
+      `npx tsc --noEmit -p .` y `npm run build` correctos, y probado en el navegador.
 - [ ] T7. [DIgSILENT] Prueba real en DIgSILENT con un proyecto de dos alimentadores, a cargo del usuario.
       Hecho cuando: el usuario confirma en DIgSILENT los tres pasos con un proyecto de dos alimentadores.

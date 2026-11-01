@@ -249,6 +249,13 @@ export const api = {
     fd.append('file', file, file.name);
     return request<{ name: string }>(`${ws(id)}/informes/perdidas`, { method: 'POST', body: fd });
   },
+  // Spec 017, RF-136 y RF-137: los PDF del solicitante, leídos en un trabajo.
+  informesDocumentos: (id: string, tipo: 'factibilidad' | 'estudio', files: File[]) => {
+    const fd = new FormData();
+    fd.append('tipo', tipo);
+    files.forEach((f) => fd.append('files', f, f.name));
+    return request<Job>(`${ws(id)}/informes/documentos`, { method: 'POST', body: fd });
+  },
   informesPerdidasRuta: (id: string, path: string) =>
     request<{ name: string }>(`${ws(id)}/informes/perdidas/path`, json('POST', { path })),
   informesPerdidasQuitar: (id: string) =>

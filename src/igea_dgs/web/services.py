@@ -6320,6 +6320,37 @@ def informes_perdidas_quitar(ws: Workspace) -> dict:
     return {'quitado': True}
 
 
+def informes_carpeta_documentos(ws: Workspace, tipo: str) -> Path:
+    """Los PDF del solicitante, solo en el espacio de trabajo (017:RF-141)."""
+    return ws.root / 'informes' / 'documentos' / tipo
+
+
+def informe_documentos(ws: Workspace, ctx: JobContext | None, tipo: str, rutas: list[Path]) -> dict:
+    """Lee los PDF del solicitante y propone los datos del informe (017:RF-137 a RF-140).
+
+    Es un trabajo: una página escaneada pasa por OCR y tarda segundos. El resultado no se
+    escribe en el formulario: lo rellena la web, sin pisar lo que escribió el operador.
+    """
+    from ..documentos_solicitud import antecedentes_de, leer_documento, propuesta_factibilidad
+
+    documentos = []
+    for i, ruta in enumerate(rutas):
+        if ctx:
+            ctx.check_cancel()
+            ctx.progress(i, len(rutas), ruta.name)
+        doc = leer_documento(ruta, cancelado=ctx.check_cancel if ctx else None)
+        if ctx:
+            ctx.log(f'{ruta.name}: {doc.paginas} página(s) por {doc.metodo}, {len(doc.datos)} dato(s).')
+            for aviso in doc.avisos:
+                ctx.log(f'  {ruta.name}: {aviso}')
+        documentos.append(doc)
+    if ctx:
+        ctx.progress(len(rutas), len(rutas), 'listo')
+    return {'tipo': tipo, 'documentos': [d.a_dict() for d in documentos],
+            'propuesta': propuesta_factibilidad(documentos),
+            'antecedentes': antecedentes_de(documentos)}
+
+
 def _perdidas_del_libro(ws: Workspace, alimentadores: list[str]) -> dict | None:
     """Lo que el libro de pérdidas dice de cada alimentador, o por qué no se lee (RF-94).
 

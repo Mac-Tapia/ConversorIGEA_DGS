@@ -484,6 +484,32 @@ Generación, progreso y resultado
 - RF-104: EL SISTEMA listará en el paso 5 los informes ya generados del proyecto, con su
   tipo, fecha y alimentadores, y los dejará descargar de nuevo.
 
+Documentos del solicitante (usuario, 2026-10-31: «cuando se active el informe de carga
+nueva debe haber un campo para cargar PDF de carta, oficio u otro documento del solicitante
+de donde deberá extraer datos para el informe de cliente nuevo; para esto usa OCR u OpenCV
+[…] y cuando se active el informe de análisis se debe cargar como la anterior varios PDF,
+como los de la subcarpeta ampliaciondecarga»)
+
+- RF-136: EL SISTEMA ofrecerá en el informe de factibilidad (4.4.2) un campo para subir uno o
+  más PDF del solicitante (carta, oficio, ficha), y en el informe de estudio (4.4.1) un campo
+  para subir varios PDF del expediente.
+- RF-137: CUANDO se suben los PDF, EL SISTEMA leerá su texto en un trabajo con progreso y
+  cancelable; la capa de texto del PDF primero y, SI una página no trae texto (escaneada),
+  ENTONCES la leerá con OCR (Tesseract), con la imagen limpiada con OpenCV si está instalado.
+  SI no hay Tesseract, ENTONCES lo dirá por página, sin fallar el resto.
+- RF-138: EL SISTEMA extraerá de cada documento, cuando estén: fecha y lugar, asunto, cliente
+  (propietario), ubicación (distrito, provincia, departamento), tipo de solicitud, potencia
+  actual y solicitada (kW), tensión (kV), NIS, expediente, n.º de solicitud, documento de
+  referencia, SET, alimentador, estructura y coordenadas UTM del punto de diseño, potencia
+  de cortocircuito y destinatario.
+- RF-139: CUANDO termina la lectura en 4.4.2, EL SISTEMA rellenará con lo leído los campos de
+  la solicitud y del encabezado que estén en blanco, sin pisar lo escrito por el operador, y
+  mostrará qué leyó de cada documento y de qué fichero sale cada dato.
+- RF-140: CUANDO termina la lectura en 4.4.1, EL SISTEMA propondrá los antecedentes, un
+  párrafo por documento en orden de fecha, y los añadirá a los escritos sin repetir ninguno.
+- RF-141: EL SISTEMA guardará los PDF subidos solo en la carpeta del espacio de trabajo
+  (datos de la distribuidora, P9) y no los enviará a ningún servicio externo.
+
 Línea de órdenes
 
 - RF-105: EL SISTEMA ofrecerá generar los informes desde una herramienta de línea de
