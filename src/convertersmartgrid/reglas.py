@@ -112,6 +112,11 @@ def codigos_en_red(dataset) -> set[tuple[str, bool]]:
             for lc in dataset.line_configurations.values() if lc.get('LineCableID')}
 
 
+def _con_impedancia(fila: dict) -> bool:
+    """Si la fila de un tipo de conductor trae R1 y X1 (vacíos o «None» no cuentan)."""
+    return all(str(fila.get(c, '') or '').strip() not in ('', 'None') for c in ('R1', 'X1'))
+
+
 def preparar_dataset(dataset, *, catalogo: Path | str | None = None) -> InformeEntrada:
     """Aplica al dataset las reglas de entrada. Idempotente."""
     from .coordenadas import completar_coordenadas
@@ -125,8 +130,12 @@ def preparar_dataset(dataset, *, catalogo: Path | str | None = None) -> InformeE
         from .catalog import tablas_equipo_desde_catalogo
         from .dataset import TABLAS_TIPOS_AEREO, TABLAS_TIPOS_SUBTERRANEO
 
+        # Un código que la fuente trae sin impedancia cuenta como falta: se completa con su
+        # ficha al cargar. En la copia de Electro Oriente (2026-11-01) 22 alimentadores traían
+        # sus conductores (AA03503D, CU01603G…) solo descritos, sin R ni X; la carga los dejaba
+        # «incompletos» y la reconstrucción esperaba a convertir.
         presentes = {str(f.get('ID', '')) for t in (TABLAS_TIPOS_AEREO + TABLAS_TIPOS_SUBTERRANEO)
-                     for f in tablas.get(t, ())}
+                     for f in tablas.get(t, ()) if _con_impedancia(f)}
         faltan = {(c, aereo) for c, aereo in usados if c not in presentes and c.upper() != 'DEFAULT'}
         if faltan:
             eq = tablas_equipo_desde_catalogo(catalogo, codigos_en_red=faltan)
@@ -134,7 +143,17 @@ def preparar_dataset(dataset, *, catalogo: Path | str | None = None) -> InformeE
             for tabla, filas in eq.tablas.items():
                 nuevas = [f for f in filas if f['ID'] in codigos_faltan]
                 if nuevas:
-                    tablas[tabla] = tuple(tablas.get(tabla, ())) + tuple(nuevas)
+                    ids = {f['ID'] for f in nuevas}
+                    # La fila vacía de la fuente se sustituye por la completa, no se duplica.
+                    tablas[tabla] = tuple(f for f in tablas.get(tabla, ())
+                                          if str(f.get('ID', '')) not in ids) + tuple(nuevas)
+            # La vacía puede estar en otra tabla (aérea o subterránea) que la completa: también fuera.
+            completos = {str(f.get('ID', '')) for t in (TABLAS_TIPOS_AEREO + TABLAS_TIPOS_SUBTERRANEO)
+                         for f in tablas.get(t, ()) if _con_impedancia(f)}
+            for tabla in TABLAS_TIPOS_AEREO + TABLAS_TIPOS_SUBTERRANEO:
+                if tabla in tablas:
+                    tablas[tabla] = tuple(f for f in tablas[tabla]
+                                          if _con_impedancia(f) or str(f.get('ID', '')) not in completos)
             informe.completados_catalogo = dict(eq.completados)
             informe.sin_parametros = sorted(eq.sin_resolver)
             tramos: dict[str, int] = {}

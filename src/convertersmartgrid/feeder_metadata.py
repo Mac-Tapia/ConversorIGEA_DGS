@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from .util import sha256_file, write_json_atomic
+from .util import esquema_vigente
 
 SCHEMA_VERSION = 'convertersmartgrid-feeder-metadata-v1'
 TARGET_CLASSES = frozenset({'ElmLod', 'ElmShnt', 'ElmSubstat', 'ElmSym', 'ElmXnet'})
@@ -170,7 +171,7 @@ def read_feeder_metadata(
 ) -> dict[str, Any]:
     metadata_path = Path(path)
     payload = json.loads(metadata_path.read_text(encoding='utf-8'))
-    if payload.get('schema_version') != SCHEMA_VERSION:
+    if esquema_vigente(payload.get('schema_version')) != SCHEMA_VERSION:
         raise ValueError(f'esquema de metadata desconocido: {payload.get("schema_version")!r}')
     assignments = [FeederAssignment(**row) for row in payload.get('assignments', [])]
     validate_assignments(assignments)

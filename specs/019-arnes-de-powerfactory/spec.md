@@ -1,6 +1,6 @@
 # Spec 019 — Arnés de DIgSILENT: acceso exclusivo, conexión única y obras enchufables
 
-Estado: cumplida (2026-10-15; RF-14 a RF-16 el 2026-10-18; RF-17 a RF-22 el 2026-10-19) · Fecha: 2026-10-15
+Estado: cumplida (RF-26: T11 y T12 comprobadas el 2026-11-01; se conserva la evidencia histórica anterior) · Fecha: 2026-10-15
 
 ## Contexto y objetivo
 
@@ -114,6 +114,10 @@ Procesos que no quedan colgados
 
 Obras enchufables
 
+- RF-26: EN cada orden, EL SISTEMA cargará de nuevo el guion y los módulos de `tools/` que él
+  importa, para que un cambio en cualquiera valga desde la orden siguiente sin reiniciar el
+  proceso (2026-11-01: la calibración de NJA202 siguió con el `escribir_carga` anterior de
+  `cargas_pf`).
 - RF-11: EL SISTEMA definirá cada clase de obra en un módulo propio con su validación, su
   simulación y su construcción, registrado por nombre, sin cambiar la lógica común de
   variaciones, casos, flujos y comprobación de «Sin proyecto».

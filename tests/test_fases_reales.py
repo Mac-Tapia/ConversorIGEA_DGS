@@ -194,3 +194,33 @@ def test_un_ramal_toma_solo_una_fase_del_tramo_del_que_sale():
     repartir_ramales_monofasicos(m, 'F', [])
     fases = {s.phases for s in m.sections if s.section_id.startswith('R')}
     assert fases <= {'A', 'B'} and fases == {'A', 'B'}
+
+
+def test_fases_coherentes_desde_la_cabecera():
+    """054:RF-9 — un tramo trifásico tras uno monofásico devuelve sus fases aguas arriba; un
+    monofásico con otra letra que su padre toma la del padre; una SED, las que le llegan."""
+    from vnr_etl.connectors.sqlserver_vnr import coherencia_de_fases
+    from vnr_etl.models.canonical import CanonicalModel, Load, Section
+
+    m = CanonicalModel()
+    m.sections += [Section('T0', 'H', 'N0', phases='ABC', feeder_id='F'),
+                   Section('M1', 'N0', 'N1', phases='C', feeder_id='F'),
+                   Section('T2', 'N1', 'N2', phases='ABC', feeder_id='F'),     # tres tras una
+                   Section('R1', 'N0', 'X1', phases='B', feeder_id='F'),
+                   Section('R2', 'X1', 'X2', phases='A', feeder_id='F')]      # otra letra
+    m.loads += [Load('S1', 'N2', phases='ABC', feeder_id='F'),
+                Load('S2', 'X2', phases='C', feeder_id='F'),
+                Load('S3', 'X1', phases='ABC', feeder_id='F')]   # trifásica en un ramal: la B
+    avisos = []
+    coherencia_de_fases(m, 'F', 'H', avisos)
+    fase = {s.section_id: s.phases for s in m.sections}
+    assert fase['M1'] == 'ABC' and fase['T2'] == 'ABC'
+    assert fase['R2'] == 'B'
+    assert {c.load_id: c.phases for c in m.loads} == {'S1': 'ABC', 'S2': 'B', 'S3': 'B'}
+    assert fase['R1'] == 'B'                       # la SED no sube fases al tramo
+    assert avisos and avisos[0]['code'] == 'FASE_RECONSTRUIDA'
+    # Lo que ya es coherente no cambia ni se anota.
+    avisos = []
+    coherencia_de_fases(m, 'F', 'H', avisos)
+    assert avisos == []
+

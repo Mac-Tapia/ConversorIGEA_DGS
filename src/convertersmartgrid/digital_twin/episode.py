@@ -13,6 +13,7 @@ import re
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
+from ..util import esquema_vigente
 
 ESQUEMA = 'convertersmartgrid-digital-twin-episode-v1'
 
@@ -192,7 +193,7 @@ def leer_episodio(payload: dict[str, Any]) -> Episodio:
     """
     if not isinstance(payload, dict):
         raise EpisodioInvalido('', 'el episodio no es un objeto')
-    if payload.get('schema') != ESQUEMA:
+    if esquema_vigente(payload.get('schema')) != ESQUEMA:
         raise EpisodioInvalido('schema', f'se esperaba «{ESQUEMA}»')
     for campo in CAMPOS:
         if campo not in payload:

@@ -136,3 +136,31 @@ def test_la_fuente_vnr_hace_crecer_el_catalogo_y_lo_usa(tmp_path):
     as050 = next(t for t in modelo.conductor_types if t.conductor_code == 'AS05003G')
     assert as050.r1_ohm_km == pytest.approx(0.387 * cat.RHO20_AL_OHM_MM2_M / cat.RHO20_CU_OHM_MM2_M)
     assert vnr.ampliar_con_lo_que_falta(modelo, catalogo=ruta) == [], 'nada más que añadir'
+
+
+def test_familias_protegidas_y_cable_de_aluminio_y_fila_pendiente_rellenada(tmp_path):
+    """053:RF-2, 053:RF-9 — AP como el AAAC, CP como el cobre y NA como el N2XSY por ρAl/ρCu; una
+    fila que quedó pendiente sin R ni X se rellena en su sitio, sin duplicarse (Electro Oriente)."""
+    ruta = _catalogo(tmp_path)
+    aereo = cat.deducir_conductor('AP05003G', _todas(ruta))
+    assert aereo['R1_modelo_ohm_km'] == pytest.approx(0.6755, rel=1e-3)   # la ficha manda
+    cable = cat.deducir_conductor('NA05003D', _todas(ruta))
+    factor = cat.RHO20_AL_OHM_MM2_M / cat.RHO20_CU_OHM_MM2_M
+    assert cable['R1_modelo_ohm_km'] == pytest.approx(0.387 * factor, rel=1e-3)
+    # Primero queda pendiente (sin referencia CU en este catálogo), luego se rellena.
+    cat.ampliar_catalogo(ruta, ['CP05003D'])
+    assert _filas(ruta, 'conductores_aereos')['CP05003D']['R1_modelo_ohm_km'] in (None, '')
+    wb = load_workbook(ruta)
+    wb['conductores_aereos'].append(_fila('CU05003D', 0.37, 0.45, 3.2, 230.0))
+    wb.save(ruta)
+    cat.ampliar_catalogo(ruta, ['CP05003D'])
+    filas = _filas(ruta, 'conductores_aereos')
+    assert float(filas['CP05003D']['R1_modelo_ohm_km']) == pytest.approx(0.37, rel=1e-3)
+    codigos = [v[0] for v in load_workbook(ruta)['conductores_aereos'].iter_rows(values_only=True)]
+    assert codigos.count('CP05003D') == 1
+
+
+def _todas(ruta: Path) -> list[dict]:
+    return [f for hoja in ('conductores_aereos', 'cables_subterraneos')
+            for f in _filas(ruta, hoja).values()]
+

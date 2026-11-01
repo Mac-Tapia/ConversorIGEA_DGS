@@ -1,6 +1,6 @@
 # Spec 054 — Fases reales en el DGS: tramos y SED monofásicos y bifásicos
 
-Estado: implementada · Fecha: 2026-11-01 · Origen: petición del usuario, 2026-11-01, al calibrar
+Estado: cumplida · Fecha: 2026-11-01 · Origen: petición del usuario, 2026-11-01, al calibrar
 NJA202 y R205 de Electro Oriente («del R5 y del alimentador de Amazonas debe ver los tramos
 monofásicos, todos debes calibrar, y los SED monofásicos»; «haz la recomendación; recuerda que
 debes implementar todas estas mejoras para que sea universal»).
@@ -58,6 +58,11 @@ el flujo desequilibrado es obligatorio donde haya elementos monofásicos o bifá
   desequilibrado (`ComLdf.iopt_net` = 1) en la importación, la calibración y los estudios, y lo
   dirá en sus informes; una red toda trifásica sigue con el equilibrado.
 - RF-8: EL SISTEMA lo hará igual para cualquier fuente y empresa (constitución P13).
+- RF-9: EL SISTEMA dejará a cada tramo y SED solo fases que le lleguen desde la cabecera: el hijo
+  con fases que no le llegan toma las del padre; el tramo que tiene más fases que su padre las
+  devuelve aguas arriba hasta un tramo que ya las tenga, y la SED toma las que le llegan; cada
+  cambio se anota (`FASE_RECONSTRUIDA`). En NJA202 (2026-11-01) 374 de 849 SED
+  quedaban sin tensión en el flujo por 18 empalmes así.
 
 ## Relación con otras specs
 

@@ -8,7 +8,7 @@ una correspondencia exacta entre los códigos usados y el catálogo custodiado.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Mapping, Sequence
+from typing import Any, Iterable, Mapping, Sequence
 
 from ..dataset import TABLAS_TIPOS_LINEA
 from ..naming import feeder_short_name
@@ -221,3 +221,41 @@ def validate_selection(
             'FEEDER_NOT_CONVERSION_READY: ' + '; '.join(blocked)
         )
     return [str(row['feeder']) for row in selected_rows]
+
+
+#: Faltas de conductor que la carga reconstruye con el catálogo de fichas (spec 053).
+FALTAS_DE_CONDUCTOR = ('MISSING_CONDUCTOR_PARAMETERS', 'MISSING_CONDUCTOR_CATALOG')
+
+
+def revisar_conductores(readiness: dict[str, dict[str, Any]], dataset: Any,
+                        deducidos: Iterable[str] = ()) -> int:
+    """Quita la falta de conductor a los alimentadores que la carga ya completó (053:RF-9).
+
+    El lector la anota antes de que la carga complete el catálogo con las fichas; en la copia
+    de Electro Oriente (2026-11-01) 22 alimentadores quedaban «incompletos» con todos sus
+    conductores ya reconstruidos. Se mira el dataset completado: si cada código de sus tramos
+    tiene R1 y X1, la falta pasa a aviso ``CONDUCTOR_RECONSTRUIDO``. Devuelve cuántos cambian.
+    """
+    from ..dataset import TABLAS_TIPOS_AEREO, TABLAS_TIPOS_SUBTERRANEO
+    from ..reglas import _con_impedancia
+
+    completos = {str(f.get('ID', '')) for t in (TABLAS_TIPOS_AEREO + TABLAS_TIPOS_SUBTERRANEO)
+                 for f in dataset.equipment_tables.get(t, ()) if _con_impedancia(f)}
+    deducidos = set(deducidos)
+    cambiados = 0
+    for network_id, fila in readiness.items():
+        faltas = [c for c in fila.get('blocking_codes') or [] if c in FALTAS_DE_CONDUCTOR]
+        if not faltas:
+            continue
+        codigos = {str((dataset.line_configurations.get(sid) or {}).get('LineCableID', ''))
+                   for sid in dataset.feeders.get(network_id, ())}
+        if not codigos or not codigos <= completos:
+            continue
+        fila['blocking_codes'] = [c for c in fila['blocking_codes'] if c not in FALTAS_DE_CONDUCTOR]
+        fila['warning_codes'] = list(dict.fromkeys([*(fila.get('warning_codes') or []),
+                                                    'CONDUCTOR_RECONSTRUIDO']))
+        fila['conductores_reconstruidos'] = sorted(codigos & deducidos)
+        if not fila['blocking_codes'] and fila.get('status') == 'INVENTORY_ONLY':
+            fila['status'] = 'READY_RECONSTRUCTED'
+        cambiados += 1
+    return cambiados

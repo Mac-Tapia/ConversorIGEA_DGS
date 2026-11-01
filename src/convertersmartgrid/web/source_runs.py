@@ -86,6 +86,10 @@ def _atomic_json(path: Path, payload: dict[str, Any]) -> None:
 def create_source_run(ws: Workspace) -> SourceSnapshot:
     """Copia solo las entradas del modo activo y activa la instantánea resultante."""
     raw_mode = str(ws.options.get('input_mode') or '')
+    if not raw_mode:
+        # 059:RF-7: sin fuente no hay nada que convertir; se pide, no se supone una.
+        raise ValueError('Cargue primero la fuente: los tres TXT de CYMDIST, una base Access '
+                         '(.mdb) o un paquete VNR-GIS.')
     if raw_mode not in MODE_SLOTS:
         raise ValueError(f'Modo de entrada desconocido: {raw_mode!r}.')
     mode: SourceMode = raw_mode  # type: ignore[assignment]

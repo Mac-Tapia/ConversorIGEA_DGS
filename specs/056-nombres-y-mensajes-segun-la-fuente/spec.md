@@ -34,6 +34,10 @@ la spec 005 (RF-2, RF-3) y no entra aquí.
 - RF-6: EL SISTEMA tendrá una prueba que falle si una conversión de MDB o de VNR-GIS deja
   «IGEA», «CYMDIST», «TXT», «BD_Equipo» o «RED export» en sus salidas o en el nombre del
   proyecto.
+- RF-7: EL SISTEMA nombrará cada alimentador con el código operativo que da la fuente —en
+  VNR-GIS, `EtiquetaSalida` de la salida MT (NJA202, no W12882)— en la lista, el DGS, el proyecto
+  de DIgSILENT y la calibración; sin etiqueta, o con una repetida, conserva el código interno y
+  se anota. El código interno queda en los metadatos para rastrear la salida.
 
 ## Fuera de alcance
 
@@ -48,5 +52,5 @@ la spec 005 (RF-2, RF-3) y no entra aquí.
 
 ## Criterios de finalización
 
-- `grep -rnoE "056:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-6.
+- `grep -rnoE "056:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-7.
 - NJA202 convertido e importado por la web sin esas palabras en sus salidas ni en su proyecto.

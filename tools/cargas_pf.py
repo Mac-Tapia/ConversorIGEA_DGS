@@ -560,7 +560,15 @@ def escribir_carga(obj, p_mw: float, q_mvar: float) -> None:
         for f, pv, qv in zip(fases, p_new, q_new):
             setattr(obj, f'plini{f}', pv)
             setattr(obj, f'qlini{f}', qv)
-        return
+        # DIgSILENT guarda la fase sin carga como 8·10⁻¹¹, no como 0 (W2875143 de NJA202,
+        # 2026-11-01): una fase cuenta si pasa de una millonésima de la mayor.
+        if sum(1 for x in p_old if abs(x) > 1e-6 * max(map(abs, p_old), default=0.0)) == 3:
+            return
+        # Una SED monofásica o bifásica sin tipo de carga queda «1PH PH-E» y el flujo consume
+        # sus entradas de modo (``plini`` y ``coslini`` en PC), no sus fases (054, medido en
+        # NJA202): además de las fases se escriben las de su modo. Sin esto, las 784 SED
+        # monofásicas de NJA202 (2026-11-01) se quedaban con la plini de la importación, y con
+        # solo ``qlini`` (que en PC no es dato) las de 0205 quedaban con FP 1.
     modo = str(getattr(obj, 'mode_inp', '') or 'PC').upper()
     if modo == 'PQ':
         obj.plini, obj.qlini = p_mw, q_mvar

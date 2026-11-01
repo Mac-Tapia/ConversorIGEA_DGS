@@ -34,10 +34,29 @@ for _p in (HERE, HERE.parent / 'src'):
 from convertersmartgrid import pf_arnes  # noqa: E402
 
 
+def _olvidar_modulos_de_tools(carpeta: Path = HERE) -> list[str]:
+    """Saca de ``sys.modules`` los módulos de ``tools/`` que importan los guiones.
+
+    El guion se carga de nuevo en cada orden, pero lo que él importa (``from cargas_pf
+    import …``) se quedaba el de la primera orden: el 2026-11-01 la calibración de NJA202 y
+    0205 siguió con el ``escribir_carga`` anterior tras corregirlo, y las 784 SED monofásicas
+    seguían mal. Devuelve los que quitó.
+    """
+    quitados = []
+    for nombre, modulo in list(sys.modules.items()):
+        fichero = getattr(modulo, '__file__', None)
+        if fichero and Path(fichero).resolve().parent == carpeta and nombre != __name__:
+            del sys.modules[nombre]
+            quitados.append(nombre)
+    return quitados
+
+
 def _cargar(guion: str):
-    """El módulo del guion, cargado de nuevo en cada orden: sin estado de la anterior."""
+    """El módulo del guion, cargado de nuevo en cada orden: sin estado de la anterior,
+    ni de lo que importa de ``tools/``."""
     if guion not in pf_arnes.GUIONES_SERVIBLES:
         raise ValueError(f'el servidor no atiende {guion!r}')
+    _olvidar_modulos_de_tools()
     spec = importlib.util.spec_from_file_location(f'_orden_{guion[:-3]}', HERE / guion)
     modulo = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(modulo)

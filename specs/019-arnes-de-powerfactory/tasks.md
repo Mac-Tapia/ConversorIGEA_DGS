@@ -48,3 +48,19 @@ pf_servidor.py» y entró cuando el servidor se cerró solo a los 120 s sin órd
       Hecho el 2026-10-24: `vigilar_conexion` en otro intérprete, plazo de 150 s desde la
       última respuesta de DIgSILENT (un 4002 reintentado vuelve a contar), código 75, turno
       suelto; la web repite una vez el guion con ese código.
+
+- [x] T11. Comprobar recarga del guion y de sus módulos de herramientas entre órdenes. (RF-26)
+      Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_pf_servidor.py` pasa, incluida la prueba que cambia un módulo importado entre dos órdenes.
+- [x] T12. [DIgSILENT] Comprobar la recarga entre órdenes del servidor real. (RF-26)
+      Hecho cuando: dos órdenes reales consecutivas acreditan la versión actual del guion y sus herramientas importadas, sin reiniciar un trabajo activo ni alterar proyectos para esta comprobación.
+
+Corrección de trazabilidad, 2026-11-01: RF-26 ya estaba añadido en el árbol local
+sin tarea y con estado «cumplida». Se mantienen sus cambios de código; no se
+atribuye la evidencia histórica de T5 a esta ampliación ni se cierra T12 por pruebas
+con dobles. Las próximas ampliaciones de una spec cerrada deben abrir otra spec.
+
+T11, 2026-11-01: 19 pruebas aprobadas, sin omisiones, en
+`output/correcciones_alumnos_20261101/arnes_trazabilidad.xml`. T12 continúa abierta;
+no se reinició el servidor con trabajos activos para fabricar esa evidencia.
+      Hecho el 2026-11-01: la calibración de NJA202 y 0205 usó el `cargas_pf` corregido sin reiniciar
+      el proceso (`_olvidar_modulos_de_tools`).

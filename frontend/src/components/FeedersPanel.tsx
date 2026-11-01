@@ -219,7 +219,13 @@ export function FeedersPanel() {
     && selectedRows.every((row) => row.source_run_id === ws.active_run_id);
   const allReady = feeders.length > 0 && feeders.every((row) => row.source_run_id === ws.active_run_id);
   const pfReady = selectedRows.length === selected.length && selectedRows.every((row) => row.conversion?.status === 'ok');
-  const blocked = feeders.filter((row) => ['INVENTORY_ONLY', 'NEEDS_OPERATOR_REVIEW'].includes(row.readiness));
+  // Una cabecera sin tramos ni cargas no es un dato incompleto: no hay red que reconstruir.
+  // El 2026-11-01, CA103, CHN103, PI101 y PN208 de Electro Dunas salían como «datos incompletos
+  // que se reconstruirán», y no traen nada en la entrega.
+  const sinRed = (row: FeederRow) => row.sections === 0 && row.loads === 0;
+  const blocked = feeders.filter((row) => ['INVENTORY_ONLY', 'NEEDS_OPERATOR_REVIEW'].includes(row.readiness)
+    && !sinRed(row));
+  const cabecerasSinRed = feeders.filter(sinRed);
 
   return (
     <section className="card card-grow">
@@ -282,6 +288,9 @@ export function FeedersPanel() {
           )}
           {ws.catalog_applied && (
             <p className="alert alert-info">Catálogo corregido activo (<b>{ws.catalog_file}</b>): toda conversión lo aplica.</p>
+          )}
+          {cabecerasSinRed.length > 0 && (
+            <p className="alert alert-info"><b>{cabecerasSinRed.length} cabecera(s) sin red en la fuente</b> ({cabecerasSinRed.map((row) => row.feeder).join(', ')}): la entrega no trae tramos ni cargas suyos; no hay nada que convertir ni que reconstruir.</p>
           )}
           {blocked.length > 0 && (
             <p className="alert alert-warn"><b>{blocked.length} alimentador(es) tienen datos incompletos.</b> Siguen seleccionables y se reconstruirán de forma auditable antes de convertir: {Array.from(new Set(blocked.flatMap((row) => row.blocking_codes))).join(', ')}.</p>

@@ -197,6 +197,31 @@ def test_escritura_por_modo_sin_simulado(guion):
             assert c.slini == pytest.approx(math.hypot(0.3, 0.1))
 
 
+def test_carga_monofasica_escribe_tambien_su_plini(guion):
+    """054:RF-7 — una SED de menos de tres fases (i_sym=1, «1PH PH-E») consume las entradas de
+    su modo: se escriben con la fase (en NJA202, 2026-11-01, quedaba la plini de la importación;
+    en 0205, FP 1). La trifásica desequilibrada sigue con sus fases sin tocar su plini."""
+    class Carga:
+        i_sym = 1
+        mode_inp = 'PC'
+        pf_recap = 0
+
+    mono = Carga()
+    # DIgSILENT guarda las fases vacías como 8·10⁻¹¹, no como 0.
+    mono.plinir, mono.plinis, mono.plinit = 8.08e-11, 8.08e-11, 0.002
+    mono.qlinir, mono.qlinis, mono.qlinit = 0.0, 0.0, 0.0004
+    mono.plini, mono.qlini = 0.002, 0.0004
+    guion.escribir_carga(mono, 0.005, 0.001)
+    assert (mono.plinit, mono.plini) == pytest.approx((0.005, 0.005))
+    assert mono.coslini == pytest.approx(0.005 / math.hypot(0.005, 0.001))   # PC: P y cos φ
+    tri = Carga()
+    tri.plinir = tri.plinis = tri.plinit = 0.01
+    tri.qlinir = tri.qlinis = tri.qlinit = 0.002
+    guion.escribir_carga(tri, 0.06, 0.012)
+    assert tri.plinir == pytest.approx(0.02)
+    assert 'plini' not in vars(tri) and 'coslini' not in vars(tri)
+
+
 # =========================================================================== cargas nuevas
 def test_carga_nueva_en_la_barra_indicada(guion):
     """004:RF-10 — con barra en la fila, se conecta a ella sin línea de enlace si no hay GPS."""

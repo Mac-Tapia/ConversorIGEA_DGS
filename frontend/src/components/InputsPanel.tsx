@@ -214,7 +214,7 @@ export function InputsPanel() {
 
       <div className="slots">
         {slots.map((s) => <Slot key={s} slot={s} />)}
-        {mode !== 'vnr' && <Slot slot="aliases" />}
+        {(mode === 'txt' || mode === 'mdb') && <Slot slot="aliases" />}
       </div>
 
       {mode === 'vnr' && sourceScope && (

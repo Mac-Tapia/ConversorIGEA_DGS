@@ -81,3 +81,30 @@ def test_la_carpeta_por_defecto_es_convertersmartgrid():
     from convertersmartgrid.carpeta_pf import NOMBRE_POR_DEFECTO
 
     assert NOMBRE_POR_DEFECTO == 'ConverterSmartGrid'
+
+
+def test_lo_guardado_con_el_nombre_anterior_se_sigue_leyendo(tmp_path):
+    """058:RF-6: el registro de vínculos y los vínculos escritos antes del cambio de nombre se
+    leen; el 2026-11-01 la importación de NJA202 falló por el esquema anterior del registro."""
+    import json
+
+    from convertersmartgrid.powerfactory_binding import (
+        BINDING_SCHEMA, PowerFactoryProjectBinding, _leer_registro,
+    )
+    from convertersmartgrid.util import PREFIJO_ESQUEMA_ANTERIOR, esquema_vigente
+
+    anterior = PREFIJO_ESQUEMA_ANTERIOR + 'powerfactory-vinculos-v1'
+    registro = tmp_path / 'vinculos_pf.json'
+    registro.write_text(json.dumps({'schema': anterior, 'vinculos': {'P': {'project': 'P'}}}),
+                        encoding='utf-8')
+    assert _leer_registro(registro) == {'P': {'project': 'P'}}
+
+    vinculo = PowerFactoryProjectBinding(
+        project='P', folder='', source_run_id='r', source_mode='vnr', source_fingerprint='f',
+        feeders=('A',), dgs_sha256={'A': 'x'}, native_inventory_sha256='h', native_reread={},
+        schema_version=PREFIJO_ESQUEMA_ANTERIOR + 'powerfactory-project-binding-v1',
+    )
+    # Se acepta y su huella sigue valiendo: el esquema guardado no se reescribe.
+    leido = PowerFactoryProjectBinding.from_dict(vinculo.as_dict())
+    assert leido.binding_sha256 == vinculo.binding_sha256
+    assert esquema_vigente(leido.schema_version) == BINDING_SCHEMA

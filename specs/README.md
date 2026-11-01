@@ -25,7 +25,7 @@ retirada.
 | [016](016-troncal-y-enlace-entre-alimentadores/spec.md) | Troncal por el camino más largo, enlace entre alimentadores y conexión en un tramo | implementada | 89 | 89 | T18 (DIgSILENT) |
 | [017](017-informes-de-estudio-y-factibilidad/spec.md) | Informes de estudio eléctrico y de factibilidad de suministro | aprobada | 158 | 132 | T7, T8, T9, T10, T11, T12, T13 (DIgSILENT), T14 (DIgSILENT), T15, T17 |
 | [018](018-vinculo-compartido-entre-espacios/spec.md) | Spec 018 - Vínculo de proyectos de DIgSILENT compartido entre espacios de trabajo | cumplida | 15 | 15 | — |
-| [019](019-arnes-de-powerfactory/spec.md) | Arnés de DIgSILENT: acceso exclusivo, conexión única y obras enchufables | cumplida | 25 | 25 | — |
+| [019](019-arnes-de-powerfactory/spec.md) | Arnés de DIgSILENT: acceso exclusivo, conexión única y obras enchufables | cumplida | 26 | 26 | — |
 | [020](020-sed-sobrecargadas/spec.md) | SED fijas sobrecargadas: aviso y transformadores nuevos desde la web | cumplida | 35 | 35 | — |
 | [021](021-maniobras-y-sed-en-el-diagrama/spec.md) | Maniobras en el extremo de la línea, SED unidas a su barra, curvas de todos los alimentadores y central térmica en la calibración | cumplida | 70 | 70 | — |
 | [022](022-red-unida-por-zonal-y-set/spec.md) | Red unida por zonal y SET | cumplida | 95 | 95 | — |
@@ -59,8 +59,8 @@ retirada.
 | [050](050-aprendizaje-continuo-integrado/spec.md) | Aprendizaje continuo integrado | aprobada | 10 | 0 | T1, T2, T3, T4, T5 |
 | [051](051-medicion-de-cabecera-en-libro-ancho/spec.md) | Medición de cabecera en libro ancho: una columna por alimentador | implementada | 11 | 11 | T3 (DIgSILENT) |
 | [052](052-optimizacion-con-proyecto-con-el-oraculo/spec.md) | Optimización de «Con proyecto» con el oráculo y confirmación en DIgSILENT | aprobada | 10 | 0 | T1, T2, T3, T4 (DIgSILENT) |
-| [053](053-catalogo-de-fichas-que-crece/spec.md) | El catálogo de fichas crece con cada código nuevo | implementada | 8 | 8 | T2 (DIgSILENT) |
-| [054](054-fases-reales-en-el-dgs/spec.md) | Fases reales en el DGS: tramos y SED monofásicos y bifásicos | implementada | 8 | 8 | T3 (DIgSILENT) |
+| [053](053-catalogo-de-fichas-que-crece/spec.md) | El catálogo de fichas crece con cada código nuevo | cumplida | 9 | 9 | — |
+| [054](054-fases-reales-en-el-dgs/spec.md) | Fases reales en el DGS: tramos y SED monofásicos y bifásicos | cumplida | 9 | 9 | — |
 | [055](055-estructura-de-la-fuente-sistemas-y-set/spec.md) | Estructura de sistemas y SET desde la propia fuente, para cualquier empresa | aprobada | 7 | 0 | T1, T3, T2 (DIgSILENT) |
 | [056](056-nombres-y-mensajes-segun-la-fuente/spec.md) | Nombres y mensajes según la fuente: cada fuente con sus propias palabras | aprobada | 6 | 0 | T1, T2, T3 (DIgSILENT) |
 | [057](057-oraculo-corrige-antes-de-digsilent/spec.md) | El «Caso base» llega convergido: el oráculo corrige antes de importar | implementada | 6 | 6 | T4 (DIgSILENT) |

@@ -13,5 +13,13 @@
       Hecho cuando: las pruebas que citan RF-7 pasan.
       Hecho el 2026-11-01: `red_con_monofasicos` en `flujo_de_carga` (9 guiones) y en la
       aceptación de la importación.
-- [ ] T3. [DIgSILENT] NJA202 reimportado con sus fases y calibrado con el flujo desequilibrado. (Todos)
+- [x] T4. Coherencia de fases desde la cabecera. (RF-9)
+      Hecho cuando: las pruebas que citan 054:RF-9 pasan y NJA202 y 0205 tienen todas sus SED con
+      camino de fases desde la cabecera.
+      Hecho el 2026-11-01: `coherencia_de_fases` en `sqlserver_vnr`; NJA202 849/849 y 0205 205/205.
+- [x] T3. [DIgSILENT] NJA202 reimportado con sus fases y calibrado con el flujo desequilibrado. (Todos)
       Hecho cuando: P y Q de cabecera dentro del 1 % con las SED monofásicas servidas.
+      Hecho el 2026-11-01: NJA202 (849 SED, 780 monofásicas) y 0205 (205 SED) por la web desde la
+      copia VNR-GIS: calibración VÁLIDA en «Sin proyecto» (−0,04 % y −0,00 %), todas consumen, reparto
+      proporcional; hicieron falta 054:RF-9 (fases desde la cabecera) y escribir el modo de la carga
+      monofásica (`escribir_carga`, fases vacías a 8·10⁻¹¹).

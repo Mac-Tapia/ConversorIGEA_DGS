@@ -63,3 +63,20 @@ def nombre_seguro(texto: str, *, maximo: int | None = None, defecto: str = 'GRUP
     """Nombre apto para fichero y para PowerFactory: letras, dígitos, ``-`` y ``_``."""
     limpio = ''.join(c if c.isalnum() or c in '-_' else '_' for c in texto)
     return limpio[:maximo] or defecto
+
+
+#: Prefijo de los esquemas guardados antes del cambio de nombre (058:RF-6, RF-9).
+PREFIJO_ESQUEMA_ANTERIOR = 'igea-dgs-'  # legado-058
+
+
+def esquema_vigente(valor: object) -> object:
+    """El esquema de un fichero guardado, con el nombre de hoy (058:RF-6).
+
+    El 2026-11-01, tras el cambio de nombre, la importación de NJA202 (Electro Oriente) falló con
+    «vinculos_pf.json no tiene el esquema esperado»: el registro compartido y los vínculos de
+    cada espacio, escritos antes, llevaban el prefijo anterior. Se lee cualquiera de los dos y
+    se escribe siempre el nuevo; lo guardado no se reescribe, para que sus huellas sigan valiendo.
+    """
+    if isinstance(valor, str) and valor.startswith(PREFIJO_ESQUEMA_ANTERIOR):
+        return 'convertersmartgrid-' + valor[len(PREFIJO_ESQUEMA_ANTERIOR):]
+    return valor

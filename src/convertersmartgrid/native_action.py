@@ -11,6 +11,7 @@ import hashlib
 import json
 from collections.abc import Iterable, Mapping
 from typing import Any
+from .util import esquema_vigente
 
 
 NATIVE_CONTEXT_SCHEMA = 'convertersmartgrid-native-action-context-v1'
@@ -89,7 +90,7 @@ def verify_native_action_context(
         )
     context = dict(raw)
     signature = str(context.pop('context_sha256', '') or '')
-    if context.get('schema') != NATIVE_CONTEXT_SCHEMA:
+    if esquema_vigente(context.get('schema')) != NATIVE_CONTEXT_SCHEMA:
         raise NativeActionContextError(
             'BLOQUEADO_DATOS: esquema de contexto nativo ausente o incompatible',
         )

@@ -1103,6 +1103,16 @@ FAMILIAS_CABLE = ('N2', 'NK', 'EC')
 FAMILIA_EQUIVALENTE = {
     'CS': ('N2', 1.0, 'Autoportante Cu (XLPE)'),
     'AS': ('N2', RHO20_AL_OHM_MM2_M / RHO20_CU_OHM_MM2_M, 'Autoportante Al (XLPE)'),
+    # Electro Oriente (2026-11-01) usa en 22 alimentadores estas familias y no entregó su base de
+    # parámetros con la descripción de la norma: protegido = el desnudo del mismo material (la
+    # cubierta apenas cambia R y X), cable seco de Al = el N2XSY por ρAl/ρCu, «EC» = cable seco
+    # de Cu. Quedan «por confirmar» hasta la ficha del fabricante (053:RF-5).
+    'AP': ('AA', 1.0, 'Aluminio protegido (aleación de Al con cubierta)'),
+    'CP': ('CU', 1.0, 'Cobre protegido (Cu con cubierta)'),
+    'NA': ('N2', RHO20_AL_OHM_MM2_M / RHO20_CU_OHM_MM2_M, 'Cable seco Al (NA2XSY)'),
+    'EC': ('N2', 1.0, 'Cable seco Cu'),
+    'NY': ('N2', 1.0, 'Cable NYY Cu'),
+    'YC': ('N2', 1.0, 'Cable Cu'),
 }
 
 _BLOQUEO_CATALOGO: list = []
@@ -1208,12 +1218,35 @@ def ampliar_catalogo(path: Path | str, codigos: Iterable[str], *, origen: str = 
         todas: list[dict[str, Any]] = []
         for ws in hojas.values():
             todas += _filas_de(ws)
-        existentes = {str(f.get('codigo') or '').strip().upper() for f in todas}
+        existentes = {str(f.get('codigo') or '').strip().upper() for f in todas
+                      if _valor(f, 'R1', 'ohm_km') is not None}
+        # Una fila que quedó pendiente (sin R ni X) se rellena en su sitio cuando ya se puede
+        # deducir: con Electro Oriente, 20 códigos quedaban vacíos para siempre porque la regla
+        # de su familia llegó después de añadirlos (2026-11-01).
+        vacias = {}
+        for hoja in hojas.values():
+            cab = [str(c.value or '') for c in hoja[1]]
+            for fila_xl in hoja.iter_rows(min_row=2):
+                cod = str(fila_xl[0].value or '').strip().upper()
+                if cod and cod not in existentes:
+                    vacias[cod] = (cab, fila_xl)
         nuevas = []
         for codigo in dict.fromkeys(c.strip() for c in codigos if c and c.strip()):
             if codigo.upper() in existentes:
                 continue
             fila = deducir_conductor(codigo, todas)
+            if codigo.upper() in vacias:
+                if fila.get('R1_modelo_ohm_km') is None:
+                    continue
+                cab, celdas = vacias[codigo.upper()]
+                fila['observaciones'] = (f'Completado el {fecha} (spec 053). {fila.pop("regla")}. Con la '
+                                         'ficha del fabricante, escriba sus valores y ponga «ficha».')
+                for c, celda in zip(cab, celdas):
+                    if c in fila and c != 'codigo':
+                        celda.value = fila[c]
+                existentes.add(codigo.upper())
+                nuevas.append(fila)
+                continue
             fila['observaciones'] = (f'Añadido el {fecha}' + (f' al aparecer en {origen}' if origen else '')
                                      + f" (spec 053). {fila.pop('regla')}. Con la ficha del fabricante, "
                                        'escriba sus valores y ponga «ficha».')

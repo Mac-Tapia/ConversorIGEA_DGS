@@ -3,7 +3,8 @@
 export type InputMode = 'txt' | 'mdb' | 'vnr';
 
 export interface Options {
-  input_mode: InputMode;
+  /** null: sin fuente hasta que se carga un fichero; la dice el fichero (spec 059). */
+  input_mode: InputMode | null;
   source_company: string | null;
   source_period: string | null;
   /** null: el del perfil de empresa; sin perfil, hay que elegirlo (spec 002, RF-32). */

@@ -7,5 +7,7 @@
       `workers=1` y `workers>1`.
 - [x] T3. La importación deja fuera lo que el oráculo no logra converger. (RF-5, RF-6)
       Hecho cuando: las pruebas que citan 057:RF-5 y 057:RF-6 pasan.
-- [ ] T4. [DIgSILENT] NJA202 de Electro Oriente por la web con el «Caso base» convergido. (Todos)
+- [x] T4. [DIgSILENT] NJA202 de Electro Oriente por la web con el «Caso base» convergido. (Todos)
       Hecho cuando: se cumple su criterio de finalización.
+      Hecho el 2026-11-01: NJA202 por la web; el oráculo corrigió la demanda de relleno (33 111 →
+      6 921 kW) y el «Caso base» quedó VERIFICADO con su flujo; también 0205.

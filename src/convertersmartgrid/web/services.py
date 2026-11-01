@@ -272,6 +272,13 @@ def load_dataset(ws: Workspace, ctx: JobContext) -> dict:
         aliases=aliases,
         audit=source_audit_dict,
     )
+    from .readiness import revisar_conductores
+
+    reconstruidos = revisar_conductores(
+        readiness, dataset, (d['codigo'] for d in entrada.conductores_deducidos))
+    if reconstruidos:
+        ctx.log(f'{reconstruidos} alimentador(es) con conductores sin impedancia en la fuente: '
+                'reconstruidos con el catálogo de fichas al cargar (CONDUCTOR_RECONSTRUIDO).')
     ws.out_dir.mkdir(parents=True, exist_ok=True)
     audit_path = ws.out_dir / 'universal_source_audit.json'
     write_json_atomic(audit_path, source_audit_dict)

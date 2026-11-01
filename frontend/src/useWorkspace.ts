@@ -11,7 +11,10 @@ let bootPromise: Promise<WorkspaceState> | null = null;
 
 function bootWorkspace(): Promise<WorkspaceState> {
   bootPromise ??= (async () => {
-    const stored = readStoredId();
+    // ?espacio=<id> abre ese espacio en este navegador (2026-11-01: la copia de Electro Oriente
+    // se cargó en un espacio y el navegador del operador abría otro, sin ella ni su listado).
+    const pedido = espacioDeLaDireccion();
+    const stored = pedido ?? readStoredId();
     if (stored) {
       try {
         return await api.workspace(stored);
@@ -32,8 +35,29 @@ export interface LogLine {
   job?: string;
 }
 
+// Clave con el nombre anterior del proyecto (059:RF-6, 058:RF-9). El 2026-11-01, tras el cambio
+// de nombre, el navegador no encontró el espacio de Electro Oriente bajo la clave nueva y creó uno
+// vacío. Se lee una vez, se pasa a la nueva y se borra; manda sobre la nueva porque esta, en ese
+// arranque, ya apuntaba al espacio vacío recién creado.
+const STORAGE_KEY_ANTERIOR = 'igea-dgs.workspace'; // legado-058
+
+function espacioDeLaDireccion(): string | null {
+  const url = new URL(window.location.href);
+  const id = url.searchParams.get('espacio');
+  if (!id) return null;
+  url.searchParams.delete('espacio');
+  window.history.replaceState(null, '', url.toString());
+  return id;
+}
+
 function readStoredId(): string | null {
   try {
+    const anterior = localStorage.getItem(STORAGE_KEY_ANTERIOR);
+    if (anterior) {
+      localStorage.setItem(STORAGE_KEY, anterior);
+      localStorage.removeItem(STORAGE_KEY_ANTERIOR);
+      return anterior;
+    }
     return localStorage.getItem(STORAGE_KEY);
   } catch {
     return null;

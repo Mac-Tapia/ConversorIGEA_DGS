@@ -143,3 +143,70 @@ def repartir(rutas) -> dict[str, Path]:
         if ident.tipo and ident.tipo not in reparto:
             reparto[ident.tipo] = Path(ruta)
     return reparto
+
+
+#: Las tres fuentes del conversor (spec 059). Cada fichero dice a cuál pertenece.
+FUENTE_TXT = 'txt'
+FUENTE_MDB = 'mdb'
+FUENTE_VNR = 'vnr'
+
+#: Lo que Access escribe a partir del byte 4 de toda base: Jet (.mdb) o ACE (.accdb).
+_FIRMAS_ACCESS = (b'Standard Jet DB', b'Standard ACE DB')
+
+
+@dataclass(frozen=True)
+class Fuente:
+    """A qué fuente pertenece un fichero y, si es un TXT, cuál de los tres es."""
+
+    fuente: str  # FUENTE_TXT, FUENTE_MDB, FUENTE_VNR o DESCONOCIDO
+    tipo: str = DESCONOCIDO  # RED, CARGA o EQUIPOS, solo para los TXT
+    motivo: str = ''
+
+
+def es_base_access(path: Path | str) -> bool:
+    """¿Es una base de Access? Por su cabecera, no por la extensión."""
+    try:
+        with Path(path).open('rb') as fh:
+            cabecera = fh.read(32)
+    except OSError:
+        return False
+    return any(cabecera[4:4 + len(f)] == f for f in _FIRMAS_ACCESS)
+
+
+#: Extensiones que VNR-GIS admite y que también son de las otras fuentes o genéricas: un .txt
+#: o un .csv cualquiera no es un paquete VNR-GIS por llamarse así.
+_EXTENSIONES_COMPARTIDAS = frozenset({'.txt', '.csv', '.tsv', '.json', '.mdb', '.accdb'})
+
+
+def fuente_de(path: Path | str) -> Fuente:
+    """La fuente del fichero por su contenido (059:RF-3).
+
+    El 2026-11-01 la web abrió un espacio vacío como «Tres TXT de CYMDIST» por un valor por
+    defecto, con el de Electro Oriente, que es VNR-GIS: nada se supone, lo dice el fichero.
+    El orden importa: Access por su cabecera y CYMDIST por sus tablas antes que VNR-GIS, que
+    por extensión admite también .txt y .mdb.
+    """
+    ruta = Path(path)
+    if es_base_access(ruta):
+        return Fuente(FUENTE_MDB)
+    ident = identificar(ruta)
+    if ident.tipo != DESCONOCIDO:
+        return Fuente(FUENTE_TXT, ident.tipo)
+    try:
+        from vnr_etl.connectors.sqlserver_vnr import es_copia_sql
+        from vnr_etl.discovery.official import (
+            OfficialDiscoveryError, validate_vnr_package_file,
+        )
+    except ImportError:  # sin el módulo VNR no se reconoce un paquete
+        pass
+    else:
+        if es_copia_sql(ruta) or ruta.suffix.lower() not in _EXTENSIONES_COMPARTIDAS:
+            try:
+                validate_vnr_package_file(ruta)
+            except OfficialDiscoveryError:
+                pass
+            else:
+                return Fuente(FUENTE_VNR)
+    return Fuente(DESCONOCIDO, motivo=(
+        f'«{ruta.name}» no es un TXT de CYMDIST (no declara tablas conocidas), ni una base '
+        'Access, ni un paquete VNR-GIS'))

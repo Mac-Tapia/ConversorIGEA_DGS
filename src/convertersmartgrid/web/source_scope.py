@@ -100,8 +100,19 @@ def inspect_package_scope(
     selected_company: str | None = None,
     selected_period: str | None = None,
 ) -> SourceScope:
+    from vnr_etl.connectors.sqlserver_vnr import config_de, es_copia_sql
     from vnr_etl.pipeline import safe_extract_package
 
+    if es_copia_sql(package):
+        # Una copia de SQL Server no se extrae como un paquete de capas: su empresa y su base
+        # están en ``ConfigBD.config`` y, sin él, se leen al restaurarla. El 2026-11-01, la de
+        # Electro Oriente («ELOR25_V2», sin ConfigBD) daba «no contiene una capa de tramos» al
+        # asignarla en su entrada VNR-GIS, aunque se convierte entera.
+        config = config_de(package)
+        empresa = config.get('CodEmpresa') or None
+        periodo = config.get('nombreBD') or None
+        return SourceScope((empresa,) if empresa else (), (periodo,) if periodo else (),
+                           selected_company or empresa, selected_period or periodo, False)
     with tempfile.TemporaryDirectory(prefix='csg-vnr-scope-') as temporary:
         extracted = safe_extract_package(Path(package), Path(temporary) / 'package')
         return _inspect_extracted(

@@ -1,6 +1,6 @@
 # Spec 057 — El «Caso base» llega convergido: el oráculo corrige antes de importar
 
-Estado: implementada (2026-11-01) · Fecha: 2026-11-01 · Origen: petición del usuario, 2026-11-01, tras importar
+Estado: cumplida (2026-11-01) · Fecha: 2026-11-01 · Origen: petición del usuario, 2026-11-01, tras importar
 NJA202 (W12882) de Electro Oriente: «se supone que el oráculo detecta y, si no converge,
 corrige, y a DIgSILENT va convergido; eso es su trabajo».
 

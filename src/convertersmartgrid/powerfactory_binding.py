@@ -19,6 +19,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Iterable
+from .util import esquema_vigente
 
 
 BINDING_SCHEMA = 'convertersmartgrid-powerfactory-project-binding-v1'
@@ -72,7 +73,7 @@ def _leer_registro(path: Path) -> dict[str, dict[str, Any]]:
         raise ProjectBindingError(
             'PROJECT_BINDING_REGISTRY_UNREADABLE', f'{path.name} no se puede leer: {exc}',
         ) from exc
-    if (not isinstance(data, dict) or data.get('schema') != REGISTRO_SCHEMA
+    if (not isinstance(data, dict) or esquema_vigente(data.get('schema')) != REGISTRO_SCHEMA
             or not isinstance(data.get('vinculos'), dict)):
         raise ProjectBindingError(
             'PROJECT_BINDING_REGISTRY_UNREADABLE', f'{path.name} no tiene el esquema esperado',
@@ -326,7 +327,8 @@ class PowerFactoryProjectBinding:
             accepted_at=float(value.get('accepted_at') or 0.0),
             schema_version=str(value.get('schema_version') or BINDING_SCHEMA),
         )
-        if result.schema_version != BINDING_SCHEMA:
+        # El esquema guardado se conserva tal cual: entra en binding_sha256 (058:RF-6).
+        if esquema_vigente(result.schema_version) != BINDING_SCHEMA:
             raise ProjectBindingError(
                 'PROJECT_BINDING_SCHEMA_MISMATCH', result.schema_version,
             )
@@ -561,9 +563,13 @@ def project_binding_warnings(
     if current_hash and current_hash != binding.native_inventory_sha256:
         baseline = binding.native_reread.get('inventory_manifest') or []
         actual = (current or {}).get('native_inventory_manifest') or []
-        warnings.append({
-            'code': 'PROJECT_BINDING_NATIVE_MODIFIED',
-            'message': 'El proyecto contiene modificaciones manuales posteriores a su aceptación.',
-            'elements': _modified_elements(baseline, actual),
-        })
+        cambiados = _modified_elements(baseline, actual)
+        # Con los dos manifiestos y ningún elemento distinto, solo cambió el sobre de la huella
+        # (su esquema, renombrado en la spec 058): no hay modificación manual que avisar.
+        if cambiados or not (baseline and actual):
+            warnings.append({
+                'code': 'PROJECT_BINDING_NATIVE_MODIFIED',
+                'message': 'El proyecto contiene modificaciones manuales posteriores a su aceptación.',
+                'elements': cambiados,
+            })
     return warnings

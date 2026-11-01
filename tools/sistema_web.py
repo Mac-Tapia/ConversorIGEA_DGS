@@ -59,6 +59,10 @@ class Web:
         self.url, self.espacio = url.rstrip('/'), espacio
         self.reintentos, self.pausa = reintentos, pausa
         self.http = requests.Session()
+        # Sin reutilizar la conexión: entre consultas se espera 5 s, lo mismo que la web la
+        # mantiene abierta, y la reutilizada llegaba ya cerrada («la web no respondió
+        # (ConnectionError)» cada pocos segundos con NJA202, 2026-11-01).
+        self.http.headers['Connection'] = 'close'
 
     def _pedir(self, metodo: str, ruta: str, **kw):
         for intento in range(self.reintentos):

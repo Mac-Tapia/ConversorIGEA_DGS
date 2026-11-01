@@ -332,6 +332,79 @@ def repartir_ramales_monofasicos(modelo: CanonicalModel, salida: str, avisos: li
                               f'C {carga_fase["C"]:.0f}): la fuente no dice la fase'})
 
 
+def coherencia_de_fases(modelo: CanonicalModel, salida: str, cabecera: str,
+                        avisos: list[dict]) -> None:
+    """Que cada tramo y cada SED tenga solo fases que le llegan desde la cabecera (054:RF-9).
+
+    En NJA202 (Electro Oriente, 2026-11-01) 374 de 849 SED no consumían en el flujo de
+    DIgSILENT, con su barra de BT a 0 pu: 18 empalmes cortaban ramales enteros. Siete tramos
+    trifásicos salían de uno monofásico (la copia clasifica mal ese tramo: tres fases no salen
+    de una) y otros ramales monofásicos seguidos quedaban con letras distintas. Se reconstruye
+    desde la cabecera, sin bloquear: el hijo con fases que no le llegan toma las del padre; el
+    tramo que tiene más fases que su padre las devuelve aguas arriba hasta un tramo que ya las
+    tenga, y la SED toma las que le llegan. Cada cambio se anota.
+    """
+    tramos = [t for t in modelo.sections if t.feeder_id == salida]
+    if not tramos:
+        return
+    vecinos: dict[str, list] = defaultdict(list)
+    for t in tramos:
+        vecinos[t.from_node].append((t.to_node, t))
+        vecinos[t.to_node].append((t.from_node, t))
+    entrada: dict[str, tuple[str, object]] = {}          # nodo -> (nodo de arriba, tramo)
+    orden: list[tuple[str, str, object]] = []
+    vistos = {cabecera}
+    cola = [cabecera]
+    while cola:
+        n = cola.pop(0)
+        for nb, t in sorted(vecinos[n], key=lambda v: v[1].section_id):
+            if nb in vistos:
+                continue
+            vistos.add(nb)
+            entrada[nb] = (n, t)
+            orden.append((n, nb, t))
+            cola.append(nb)
+
+    def fases(n: str) -> str:
+        return 'ABC' if n == cabecera or n not in entrada else (entrada[n][1].phases or 'ABC')
+
+    cambios = 0
+
+    def subir(n: str, letras: set[str]) -> None:
+        """Devuelve ``letras`` a los tramos de arriba hasta uno que ya las tenga."""
+        nonlocal cambios
+        while n in entrada and not letras <= set(fases(n)):
+            arriba, t = entrada[n]
+            t.phases = ''.join(f for f in 'ABC' if f in set(t.phases or 'ABC') | letras)
+            cambios += 1
+            n = arriba
+
+    for arriba, _n, t in orden:
+        propias, llegan = t.phases or 'ABC', fases(arriba)
+        if set(propias) <= set(llegan):
+            continue
+        if len(propias) > len(llegan):
+            subir(arriba, set(propias))
+        else:
+            comunes = [f for f in llegan if f in propias]
+            t.phases = ''.join(sorted((comunes + [f for f in llegan if f not in comunes])[:len(propias)]))
+            cambios += 1
+    for c in modelo.loads:
+        if c.feeder_id != salida:
+            continue
+        propias, llegan = c.phases or 'ABC', fases(c.connection_node)
+        if set(propias) <= set(llegan):
+            continue
+        # La SED no sube fases aguas arriba: sin sufijo de norma se supone trifásica (054:RF-5) y
+        # el tramo, que sí dice sus fases, manda. Toma las que le llegan.
+        c.phases = llegan[:len(propias)]
+        cambios += 1
+    if cambios:
+        avisos.append({'code': 'FASE_RECONSTRUIDA', 'source_id': salida,
+                       'detalle': f'{cambios} tramo(s) o SED con fases que no les llegaban desde la '
+                                  'cabecera, corregidos aguas arriba o tomando las del tramo padre'})
+
+
 def fases_de_sed(norma: str, en_el_nodo: str) -> str:
     """Las fases de una SED por el sufijo de su norma (Anexo 2 del regulador, igual para toda
     empresa, 054:RF-1): «01» un trafo monofásico (1×kVA), «02» dos (2×kVA), «03» un banco de tres
@@ -385,6 +458,32 @@ class _Nodos:
         return ra
 
 
+def codigos_operativos(salidas: Sequence[Mapping], avisos: list[dict]) -> dict[str, str]:
+    """``{CodSalidaMT: código operativo}``: el que el operador usa, ``EtiquetaSalida`` (056:RF-7).
+
+    En Electro Oriente (2026-11-01) la web listaba W12882 y L14243, códigos internos de VNR-GIS,
+    y el operador los conoce como NJA202 y 0205; su medición de cabecera ya viene con NJA202. Sin
+    etiqueta, o con una repetida, la salida conserva su código y se anota.
+    """
+    etiquetas = {_s(f, 'CodSalidaMT'): _s(f, 'EtiquetaSalida') for f in salidas}
+    cuenta: dict[str, int] = defaultdict(int)
+    for etiqueta in etiquetas.values():
+        if etiqueta:
+            cuenta[etiqueta.upper()] += 1
+    codigos: dict[str, str] = {}
+    for salida in sorted(etiquetas):
+        etiqueta = etiquetas[salida]
+        if not etiqueta:
+            avisos.append({'code': 'SALIDA_SIN_ETIQUETA', 'source_id': salida})
+            codigos[salida] = salida
+        elif cuenta[etiqueta.upper()] > 1 or (etiqueta != salida and etiqueta in etiquetas):
+            avisos.append({'code': 'ETIQUETA_REPETIDA', 'source_id': salida, 'etiqueta': etiqueta})
+            codigos[salida] = salida
+        else:
+            codigos[salida] = etiqueta
+    return codigos
+
+
 def modelo_canonico(datos: DatosVnr, salidas: Iterable[str] | None = None, *,
                     tolerancia_m: float = TOLERANCIA_M) -> tuple[CanonicalModel, list[dict]]:
     """El modelo canónico de las salidas MT pedidas (todas si ``None``) y lo anotado (RF-9, RF-10).
@@ -395,6 +494,7 @@ def modelo_canonico(datos: DatosVnr, salidas: Iterable[str] | None = None, *,
     """
     pedidas = {s.strip() for s in salidas} if salidas is not None else None
     avisos: list[dict] = []
+    codigo_de = codigos_operativos(datos.salidas, avisos)
     # La tabla de códigos del regulador manda; lo que no trae, de la tabla «Tensiones» de la red.
     kv_de = {**tensiones_de_tabla(datos.tensiones), **tensiones_mt(datos.codigos_secundarios)}
     crs = crs_de_empresa(datos.empresa)
@@ -414,7 +514,7 @@ def modelo_canonico(datos: DatosVnr, salidas: Iterable[str] | None = None, *,
         tramos_de[_s(t, 'CodSalidaMT')].append(t)
     conductores: dict[str, ConductorType] = {}
     for salida in sorted(_s(s, 'CodSalidaMT') for s in datos.salidas):
-        if pedidas is not None and salida not in pedidas:
+        if pedidas is not None and salida not in pedidas and codigo_de.get(salida) not in pedidas:
             continue
         fila = next(s for s in datos.salidas if _s(s, 'CodSalidaMT') == salida)
         letra = _s(fila, 'CodTenNomi').upper()
@@ -555,8 +655,17 @@ def modelo_canonico(datos: DatosVnr, salidas: Iterable[str] | None = None, *,
                 nominal_kv=kv, source_layer='Sed', source_id=cod,
                 feeder_id=salida, connected_kva=_f(sed, 'PotInstalada')))
         repartir_ramales_monofasicos(modelo, salida, avisos)
+        coherencia_de_fases(modelo, salida, cabecera, avisos)
         _equipos(datos, salida, orientado, normas, kv, modelo, avisos)
     modelo.conductor_types.extend(conductores[c] for c in sorted(conductores))
+    # El alimentador, con su código operativo en todo el modelo (056:RF-7); el de VNR-GIS queda
+    # en los metadatos para rastrear la salida en la copia.
+    for lista in (modelo.sources, modelo.sections, modelo.loads, modelo.switches,
+                  modelo.capacitors, modelo.transformers, modelo.regulators):
+        for objeto in lista:
+            if getattr(objeto, 'feeder_id', '') in codigo_de:
+                objeto.feeder_id = codigo_de[objeto.feeder_id]
+    modelo.metadata['codigo_vnr'] = {c: s for s, c in codigo_de.items() if c != s}
     return modelo, avisos
 
 

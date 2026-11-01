@@ -857,11 +857,25 @@ def create_app(
                 validate_vnr_package_file(path)
             except OfficialDiscoveryError as exc:
                 raise UserError(str(exc)) from exc
+        group = str(spec.get('grupo') or '')
+        if group in ('txt', 'mdb') and slot != 'study':
+            # 059:RF-3: cada casilla, con un fichero de su fuente. Una base Access en la casilla
+            # de un TXT (o al revés) se rechaza; lo no reconocido sigue con su aviso.
+            from ..identify import FUENTE_MDB, FUENTE_TXT, fuente_de
+
+            fuente = fuente_de(path).fuente
+            if fuente in (FUENTE_TXT, FUENTE_MDB, 'vnr') and fuente != group:
+                nombres = {'txt': 'un TXT de CYMDIST', 'mdb': 'una base Access',
+                           'vnr': 'un paquete VNR-GIS'}
+                raise UserError(f'«{path.name}» es {nombres[fuente]} y la casilla '
+                                f'«{spec["etiqueta"]}» es de {nombres[group]}.')
         warning = comprobar_ranura(path, spec['tipo']) if spec['tipo'] else ''
         meta = ws.set_input(slot, path, origin=origin, warning=warning)
-        group = str(spec.get('grupo') or '')
         if group in ('txt', 'mdb', 'vnr'):
+            # La fuente es la del fichero asignado (059:RF-3); otra fuente, otro dataset.
             with ws.lock:
+                if ws.options.get('input_mode') != group:
+                    ws.invalidate()
                 ws.options['input_mode'] = group
                 ws.save()
         ws.events.append('log', {'text': f'Archivo asignado a {slot}: {path.name}'
@@ -944,25 +958,33 @@ def create_app(
 
     @app.post('/api/workspaces/{wid}/inputs-auto')
     def auto_inputs(wid: str, files: list[UploadFile] = File(...)) -> dict:
-        """Varios TXT sueltos: cada uno va a su casilla **por su contenido**.
+        """Los TXT de la entrada TXT: cada uno a su casilla **por su contenido** (059:RF-3, RF-4).
 
         Los nombres de la distribuidora no siguen convención; lo que distingue un RED de
-        un CARGA son las tablas que declara dentro. Si dos ficheros son del mismo tipo,
-        el segundo queda sin asignar: mejor una casilla vacía que una equivocada.
+        un CARGA son las tablas que declara dentro. Esta zona es de la entrada TXT: una
+        base Access o un paquete VNR-GIS soltados aquí no se asignan, se dice qué son y
+        que van en su propia entrada. Si dos ficheros son del mismo tipo, el segundo queda
+        sin asignar: mejor una casilla vacía que una equivocada.
         """
+        from ..identify import FUENTE_TXT, fuente_de
+
         ws = ws_or_404(wid)
         staging = ws.inputs_dir / '_auto'
         staging.mkdir(parents=True, exist_ok=True)
         slot_of = {'red': 'red', 'carga': 'loads', 'equipos': 'equipment'}
+        otra = {'mdb': 'una base Access: va en la entrada «Base Access (.mdb)»',
+                'vnr': 'un paquete VNR-GIS: va en la entrada «VNR-GIS»'}
         assigned, unassigned, taken = [], [], set()
         for upload in files:
             tmp = staging / Path(upload.filename or 'fichero.txt').name
             _save_upload(tmp, upload)
-            ident = identificar(tmp)
-            slot = slot_of.get(ident.tipo)
+            f = fuente_de(tmp)
+            slot = slot_of.get(f.tipo) if f.fuente == FUENTE_TXT else None
             if slot is None or slot in taken:
-                unassigned.append({'name': tmp.name, 'reason': (
-                    'tipo repetido' if slot else 'no declara tablas conocidas de CYMDIST')})
+                reason = ('tipo repetido' if slot else
+                          f'es {otra[f.fuente]}' if f.fuente in otra else
+                          'no declara tablas conocidas de CYMDIST')
+                unassigned.append({'name': tmp.name, 'reason': reason})
                 tmp.unlink(missing_ok=True)
                 continue
             taken.add(slot)
@@ -971,10 +993,6 @@ def create_app(
             _assign(ws, slot, target, 'upload')
             assigned.append({'slot': slot, 'name': target.name})
         shutil.rmtree(staging, ignore_errors=True)
-        if assigned:
-            with ws.lock:
-                ws.options['input_mode'] = 'txt'
-                ws.save()
         return {'assigned': assigned, 'unassigned': unassigned, 'workspace': ws.public()}
 
     # ------------------------------------------------------------ carga y tabla

@@ -71,7 +71,9 @@ SLOTS: dict[str, dict[str, Any]] = {
 }
 
 DEFAULT_OPTIONS: dict[str, Any] = {
-    'input_mode': 'txt',
+    # Sin fuente hasta que se carga un fichero: la dice el fichero (059:RF-1). Con 'txt' por
+    # defecto, el 2026-11-01 un espacio vacío se abrió como «Tres TXT de CYMDIST».
+    'input_mode': None,
     'source_company': None,
     'source_period': None,
     # Sin CRS: el del perfil de empresa o, sin perfil, se pide (spec 002, RF-32).
@@ -87,6 +89,11 @@ DEFAULT_OPTIONS: dict[str, Any] = {
     # None = hoja a medida y escala geográfica real; A0–A4 son formatos explícitos.
     'hoja': None,
 }
+
+#: Las tres fuentes del conversor (spec 059).
+FUENTES = ('txt', 'mdb', 'vnr')
+PIDE_FUENTE = ('la fuente: los tres TXT de CYMDIST, una base Access (.mdb) o un paquete '
+               'VNR-GIS, reconocida por el fichero que se carga')
 
 TEXT_OPTIONS = ('input_mode', 'source_company', 'source_period', 'source_crs', 'target_crs', 'hoja')
 BOOL_OPTIONS = ('include_geography', 'strict', 'write_preview', 'export_xlsx', 'export_tsv')
@@ -252,6 +259,10 @@ class Workspace:
         # apuntar a la nada y fallar cuando alguien pulse convertir.
         ws.inputs = {slot: meta for slot, meta in (data.get('inputs') or {}).items()
                      if slot in SLOTS and Path(meta.get('path', '')).is_file()}
+        # La fuente es la de lo cargado, no la guardada si no tiene entradas suyas (059:RF-2).
+        if ws.options.get('input_mode') not in FUENTES or not any(
+                SLOTS[slot]['grupo'] == ws.options['input_mode'] for slot in ws.inputs):
+            ws.options['input_mode'] = ws.fuente_por_entradas()
         catalog = data.get('catalog_file')
         ws.catalog_file = catalog if catalog and Path(catalog).is_file() else None
         ws.groups = dict(data.get('groups') or {})
@@ -347,6 +358,10 @@ class Workspace:
             old = self.inputs.pop(slot, None)
             self.invalidate()
             self._drop_upload(old)
+            # Sin ningún fichero de su fuente, el espacio deja de tener esa fuente (059:RF-2).
+            mode = self.options.get('input_mode')
+            if not any(SLOTS[s]['grupo'] == mode for s in self.inputs):
+                self.options['input_mode'] = self.fuente_por_entradas()
             self.save()
 
     def _drop_upload(self, meta: dict | None, keep: Path | None = None) -> None:
@@ -371,8 +386,15 @@ class Workspace:
         meta = self.inputs.get(slot)
         return meta['path'] if meta else ''
 
+    def fuente_por_entradas(self) -> str | None:
+        """La fuente del único grupo con entradas; ninguna si no hay o si hay de varios (059:RF-2)."""
+        grupos = {SLOTS[s]['grupo'] for s in self.inputs if SLOTS[s]['grupo'] in FUENTES}
+        return grupos.pop() if len(grupos) == 1 else None
+
     def missing_inputs(self) -> list[str]:
-        mode = self.options.get('input_mode', 'txt')
+        mode = self.options.get('input_mode')
+        if mode not in FUENTES:
+            return [PIDE_FUENTE]
         return [SLOTS[s]['etiqueta'] for s, spec in SLOTS.items()
                 if spec['grupo'] == mode and spec['obligatorio'] and not self.input_path(s)]
 

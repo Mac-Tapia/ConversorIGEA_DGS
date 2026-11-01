@@ -1,6 +1,6 @@
 # Spec 053 — El catálogo de fichas crece con cada código nuevo
 
-Estado: implementada · Fecha: 2026-11-01 · Origen: petición del usuario, 2026-11-01, al convertir la
+Estado: cumplida · Fecha: 2026-11-01 · Origen: petición del usuario, 2026-11-01, al convertir la
 copia VNR-GIS de Electro Oriente («debes usar para recalibración el catálogo y completar según
 fichas técnicas; las fichas técnicas de cada equipo son universales, no tienen un nombre de la
 empresa»; «las fichas técnicas son de uso universal, se usan para cualquier empresa; el flujo es
@@ -46,6 +46,10 @@ ficha del fabricante.
   reemplazo) y lo usará en la misma conversión.
 - RF-8: EL SISTEMA no tendrá un catálogo por empresa: es uno y universal; el perfil de empresa no
   interviene.
+- RF-9: CUANDO se carga una fuente, EL SISTEMA tratará como falta el código de conductor que la
+  fuente trae sin impedancia (sin R1 ni X1), lo completará con el catálogo de fichas en la misma
+  carga y dirá de cada alimentador así reconstruido que está listo con el aviso
+  `CONDUCTOR_RECONSTRUIDO`; solo el que no se puede completar sigue marcado como incompleto.
 
 ## Relación con otras specs
 
@@ -58,5 +62,5 @@ ficha del fabricante.
 
 ## Criterios de finalización
 
-- `grep -rnoE "053:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-8.
+- `grep -rnoE "053:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-9.
 - NJA202 y R205 de Electro Oriente reconvertidos sin ningún tramo de impedancia nula.

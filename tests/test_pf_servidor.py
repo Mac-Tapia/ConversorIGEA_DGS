@@ -363,3 +363,24 @@ def test_el_servidor_se_cierra_si_otro_pide_el_motor(cola, servidor):
     assert servidor.servir(120.0, reloj=reloj, dormir=dormir) == 0
     assert 5 <= reloj.t < 120, 'no espera la inactividad'
     assert not (cola / pf_arnes.CIERRE).exists()
+
+
+def test_cada_orden_recarga_lo_que_importa_de_tools(servidor, tmp_path):
+    """019:RF-26 — un módulo de tools/ importado por el guion no se queda el de la primera orden."""
+    import sys
+
+    carpeta = tmp_path / 'tools'
+    carpeta.mkdir()
+    (carpeta / 'ayuda_prueba_019.py').write_text('VALOR = 1\n', encoding='utf-8')
+    sys.path.insert(0, str(carpeta))
+    try:
+        import ayuda_prueba_019
+        assert ayuda_prueba_019.VALOR == 1
+        assert 'ayuda_prueba_019' in servidor._olvidar_modulos_de_tools(carpeta.resolve())
+        (carpeta / 'ayuda_prueba_019.py').write_text('VALOR = 222\n', encoding='utf-8')
+        import ayuda_prueba_019 as otra
+        assert otra.VALOR == 222
+    finally:
+        sys.path.remove(str(carpeta))
+        sys.modules.pop('ayuda_prueba_019', None)
+
