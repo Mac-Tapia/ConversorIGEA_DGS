@@ -146,7 +146,7 @@ def test_carga_o_caso_que_no_existen_lo_dicen():
 
 
 def test_listar_da_las_cargas_con_transformador_y_los_casos():
-    """017:RF-65b, 017:RF-95 — el operador elige la carga de la barra y el caso."""
+    """017:RF-65b, 017:RF-67c, 017:RF-95 — el operador elige la carga de la barra y el caso."""
     datos = guion.listar(_App())
     assert datos['casos'] == ['2026_D', '2027_D'] and datos['caso_activo'] == '2026_D'
     assert datos['cargas'] == [{'nombre': 'LElCarmen10', 'barra': 'CAR10A', 'kv': 10.0,

@@ -243,6 +243,9 @@ small.alert { display: block; margin: 4px 0 0; }
 .table-wrap { max-height: 420px; overflow: auto; border: 1px solid var(--border); border-radius: 8px; }
 /* 017:RF-124: vista previa de la ubicación del cliente nuevo, ajustada al ancho del paso. */
 .vista-ubicacion { display: block; max-width: 100%; height: auto; border: 1px solid var(--border); border-radius: 8px; }
+/* 017:RF-101: miniaturas de las imágenes del informe; se amplían al pulsarlas. */
+.miniaturas { display: flex; flex-wrap: wrap; gap: 8px; }
+.miniaturas img { width: 160px; height: auto; border: 1px solid var(--border); border-radius: 6px; display: block; }
 .table-short { max-height: 300px; margin-top: 8px; }
 .table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .table th {

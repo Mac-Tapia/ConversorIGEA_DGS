@@ -416,3 +416,73 @@ def test_sin_modelo_ni_limites_en_el_perfil_lo_dice_el_contexto(client, tmp_path
     assert not any('modelo_estudio' in x for x in ctx['faltan']['estudio'])
     assert all(ctx['limites'].get(k) is None for k in ('tension_min_pu', 'tension_max_pu', 'cargabilidad_max_pct'))
     assert ctx['cargas'] == []
+
+
+def test_sin_proyecto_no_convergido_avisa_y_deja_generar(client, tmp_path, monkeypatch):
+    """017:RF-1 / 017:RF-28 / 017:RF-78 — con el último flujo de «Sin proyecto» sin converger, el
+    contexto lo marca, el informe se genera y lo dice en su sección; nada pasa por DIgSILENT,
+    así que el proyecto queda como estaba."""
+    from igea_dgs.web import services
+
+    def sin_digsilent(*_a, **_k):
+        raise AssertionError('el informe no debe abrir DIgSILENT')
+
+    monkeypatch.setattr(services, '_require_pf', sin_digsilent)
+    wid, salida = _espacio(client, tmp_path)
+    fichero = salida / 'estudio_sin_flujo_desequilibrado_a.json'
+    medida = {**_medida(0.90), 'converge': False}
+    fichero.write_text(json.dumps({'medidas': {'AL01': medida}}), encoding='utf-8')
+    ctx = client.get(f'/api/workspaces/{wid}/informes', params={'project': '', 'feeder': ['AL01']}).json()
+    assert ctx['estudios']['sin']['alimentadores'] == {'AL01': False}
+    fin = esperar_trabajo(client, client.post(f'/api/workspaces/{wid}/informes/estudio', json=FORMULARIO).json())
+    assert fin['status'] == 'done', fin.get('error')
+    texto = '\n'.join(p.text for p in docx.Document(salida / fin['result']['informe']).paragraphs)
+    assert 'no converge' in texto
+
+
+def test_sin_caso_con_proyecto_dice_que_paso_lo_crea(client, tmp_path):
+    """017:RF-77 — sin el flujo de «Con proyecto» el contexto no lo trae y la factibilidad no se
+    genera: dice que hay que ejecutar el estudio de flujo en 4.2."""
+    wid, salida = _espacio(client, tmp_path, con=False)
+    (salida / 'estudio_con_flujo_desequilibrado_b.json').write_text(
+        json.dumps({'medidas': {'AL01': _medida(0.96)}}), encoding='utf-8')
+    _carga_aplicada(client, wid, salida)
+    (salida / 'estudio_con_flujo_desequilibrado_b.json').unlink()
+    ctx = client.get(f'/api/workspaces/{wid}/informes', params={'project': 'PRY', 'feeder': ['AL01']}).json()
+    assert ctx['estudios']['con'] is None
+    fin = esperar_trabajo(client, client.post(f'/api/workspaces/{wid}/informes/factibilidad',
+                                              json=FACTIBILIDAD).json())
+    assert fin['status'] == 'failed' and 'Con proyecto' in (fin['error'] or '')
+
+
+def test_resumen_y_miniaturas_al_terminar(client, tmp_path):
+    """017:RF-100 / 017:RF-101 — el JSON del informe trae lo que la página resume por caso y
+    etapa (tensión mínima, cargabilidad, pérdidas, si cumple, la recomendada), y cada imagen
+    que devuelve el trabajo se sirve para su miniatura."""
+    from test_mapa_informe import GEO
+
+    wid, salida = _espacio(client, tmp_path)
+    for nombre, u in (('estudio_sin_flujo_desequilibrado_a.json', 0.90),
+                      ('estudio_con_flujo_desequilibrado_b.json', 0.99)):
+        (salida / nombre).write_text(json.dumps({
+            'medidas': {'AL01': _medida(u)}, 'geo': {'AL01': GEO},
+            'obras_activas': ['Obra_consigna_AL01']}), encoding='utf-8')
+    from igea_dgs.web import services
+
+    ws = client.app.state.store.get(wid)
+    services.registrar_obra_aplicada(ws, '', 'Obra_consigna_AL01', {
+        'clase': 'consigna', 'alimentador': 'AL01', 'casos': ['Con proyecto'], 'consigna_pu': 1.05})
+    ws.save()
+    fin = esperar_trabajo(client, client.post(f'/api/workspaces/{wid}/informes/estudio',
+                                              json=FORMULARIO).json())
+    assert fin['status'] == 'done', fin.get('error')
+    res = fin['result']
+    datos = client.get(f"/api/workspaces/{wid}/files/{res['json']}").json()
+    assert datos['actual']['converge'] and datos['actual']['cargabilidad_max']['valor'] == 60.0
+    assert datos['actual']['perdidas']['kw'] == 300.0 and datos['actual']['tension_min']
+    assert datos['etapas'] and datos['recomendada'] == datos['etapas'][0]['clave']
+    assert datos['cumplen'][datos['recomendada']] is True
+    assert len(res['imagenes']) >= 6
+    for im in res['imagenes']:
+        r = client.get(f"/api/workspaces/{wid}/files/{im['fichero']}")
+        assert r.status_code == 200 and r.content[:8] == b'\x89PNG\r\n\x1a\n', im

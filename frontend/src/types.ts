@@ -1032,6 +1032,8 @@ export interface InformeResultado {
   punto_diseno?: Record<string, number | null> | null;
   /** 017:RF-105: el plan del informe, para tools/informe_web.py. */
   plan?: string;
+  /** 017:RF-101: las imágenes del informe, relativas a la salida del espacio. */
+  imagenes?: { estado: string; modo: string; fichero: string }[];
 }
 
 /** Un PDF del solicitante leído (spec 017, RF-137 y RF-138). */

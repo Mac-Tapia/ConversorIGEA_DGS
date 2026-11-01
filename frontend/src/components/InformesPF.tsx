@@ -129,6 +129,64 @@ function DocumentosSolicitante({ tipo, varios, titulo, onLeido }: {
   );
 }
 
+/** Un caso del JSON del informe (RF-25): tensión por fase o equilibrada, cargabilidad y pérdidas. */
+interface CasoJson {
+  nombre: string; converge: boolean; perdidas?: { kw: number } | null;
+  tension_min?: Record<string, { valor: number; donde: string }> | { valor: number; donde: string } | null;
+  cargabilidad_max?: { valor: number; donde: string } | null; nodos_fuera?: number; tramos_sobre?: number;
+}
+interface InformeJson {
+  actual?: CasoJson; proyectado?: CasoJson; recomendada?: string | null; cumplen?: Record<string, boolean>;
+  etapas?: { clave: string; caso: CasoJson | null; motivo?: string | null }[];
+}
+
+function tensionMinima(c: CasoJson): string {
+  const t = c.tension_min;
+  if (!t) return '—';
+  const valores = 'valor' in t ? [t as { valor: number; donde: string }]
+    : Object.values(t as Record<string, { valor: number; donde: string }>);
+  const peor = valores.reduce((a, b) => (b.valor < a.valor ? b : a), valores[0]);
+  return peor ? `${fmtNum(peor.valor, 3)} p.u. (${peor.donde})` : '—';
+}
+
+/**
+ * Resumen por caso y por etapa al terminar (017:RF-100): sale del JSON que se escribe junto
+ * al Word (RF-25), así lo que ve la página es lo que dice el documento.
+ */
+function ResumenCasos({ json }: { json: string }) {
+  const { ws } = useApp();
+  const [d, setD] = useState<InformeJson | null>(null);
+  useEffect(() => {
+    let vivo = true;
+    fetch(api.fileUrl(ws.id, json)).then((r) => (r.ok ? r.json() : null))
+      .then((x) => { if (vivo) setD(x as InformeJson | null); }).catch(() => undefined);
+    return () => { vivo = false; };
+  }, [ws.id, json]);
+  if (!d?.actual) return null;
+  const cumple = (c: CasoJson) => c.converge && !c.nodos_fuera && !c.tramos_sobre;
+  const filas: [string, CasoJson | null, boolean | null][] = [['Estado actual', d.actual, cumple(d.actual)]];
+  if (d.proyectado) filas.push(['Estado proyectado', d.proyectado, cumple(d.proyectado)]);
+  for (const e of d.etapas ?? []) filas.push([`Etapa «${e.clave}»`, e.caso, d.cumplen?.[e.clave] ?? (e.caso ? cumple(e.caso) : null)]);
+  return (
+    <div className="table-wrap table-short">
+      <table className="table">
+        <thead><tr><th>Caso</th><th>Tensión mínima</th><th>Cargabilidad máxima</th>
+          <th className="num">Pérdidas (kW)</th><th>Cumple</th></tr></thead>
+        <tbody>{filas.map(([nombre, c, ok]) => (
+          <tr key={nombre}>
+            <td className="strong">{nombre}{d.recomendada && nombre === `Etapa «${d.recomendada}»` ? ' · recomendada' : ''}</td>
+            {!c || !c.converge ? <td colSpan={3} className="muted">{c ? 'el flujo no converge' : 'sin evaluar'}</td> : <>
+              <td>{tensionMinima(c)}</td>
+              <td>{c.cargabilidad_max ? `${fmtNum(c.cargabilidad_max.valor, 1)} % (${c.cargabilidad_max.donde})` : '—'}</td>
+              <td className="num">{c.perdidas ? fmtNum(c.perdidas.kw, 1) : '—'}</td></>}
+            <td>{ok == null ? '—' : ok ? 'Sí' : 'No'}</td>
+          </tr>
+        ))}</tbody>
+      </table>
+    </div>
+  );
+}
+
 /** Huecos, veredicto y descarga del último informe generado de un tipo (RF-100, RF-102, RF-103). */
 function Resultado({ r, cancelado }: { r: InformeResultado | null; cancelado: boolean }) {
   const { ws } = useApp();
@@ -144,6 +202,18 @@ function Resultado({ r, cancelado }: { r: InformeResultado | null; cancelado: bo
         {r.plan && <a className="btn btn-sm btn-ghost" href={api.fileUrl(ws.id, r.plan, true)}
           title="Para repetir este informe con tools/informe_web.py">Plan</a>}
       </p>
+      <ResumenCasos json={r.json} />
+      {/* 017:RF-101: las imágenes del informe en miniatura; al pulsar, a tamaño completo. */}
+      {(r.imagenes ?? []).length > 0 && (
+        <div className="miniaturas">
+          {(r.imagenes ?? []).map((im) => (
+            <a key={im.fichero} href={api.fileUrl(ws.id, im.fichero)} target="_blank" rel="noreferrer"
+              title={`${im.estado} · ${im.modo}`}>
+              <img src={api.fileUrl(ws.id, im.fichero)} alt={`${im.estado} · ${im.modo}`} loading="lazy" />
+            </a>
+          ))}
+        </div>
+      )}
       {r.factible !== undefined && (
         <p className={`alert ${r.factible ? 'alert-ok' : 'alert-warn'}`}>
           {r.factible ? 'Factible.' : `No factible: ${(r.excesos ?? []).join('; ')}.`}
@@ -171,7 +241,9 @@ export function InformesPF({ project, feeders }: { project: string; feeders: str
   const [limites, setLimites] = useState<Record<string, string>>({});
   const [recargas, setRecargas] = useState(0);
   const recargar = () => setRecargas((n) => n + 1);
-  const engineBusy = Boolean(active.engine);
+  // 017:RF-98: tampoco mientras corre DIgSILENT: un estudio a medias dejaría el informe con
+  // los resultados del flujo anterior.
+  const engineBusy = Boolean(active.engine || active.powerfactory);
 
   const cabeceraJob = Object.values(jobs).filter((j) => j.kind === 'demanda_cabecera' && j.result).pop();
   const maximas = (cabeceraJob?.result?.resultados ?? []) as MaximaCabecera[];
@@ -331,6 +403,7 @@ function InformeEstudio({ project, feeders, ctx, busy, limites, limitesOk, limit
           Generar informe de estudio
         </button>
         {motivo && <small className="muted">{motivo}</small>}
+        {!motivo && busy && <small className="muted">Espere a que termine el trabajo en curso.</small>}
       </div>
       <Resultado r={(ultimo?.status === 'done' ? ultimo.result : null) as InformeResultado | null}
         cancelado={ultimo?.status === 'cancelled'} />
@@ -625,6 +698,7 @@ function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, 
           Generar informe de factibilidad
         </button>
         {motivo && <small className="muted">{motivo}</small>}
+        {!motivo && busy && <small className="muted">Espere a que termine el trabajo en curso.</small>}
       </div>
       <Resultado r={(ultimo?.status === 'done' ? ultimo.result : null) as InformeResultado | null}
         cancelado={ultimo?.status === 'cancelled'} />

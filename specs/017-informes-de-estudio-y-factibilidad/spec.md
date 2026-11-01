@@ -262,11 +262,11 @@ el modelo no se incluyen.
   está en la P y la Q de la cabecera del estado proyectado.
 - RF-67c: EL SISTEMA buscará la carga concentrada del alimentador por su nombre en la barra
   de su SET.
-- RF-67d: SI el proyecto de transmisión no tiene carga concentrada para el alimentador,
-  ENTONCES EL SISTEMA pondrá una provisional en la barra de su SET y tensión, y lo dirá en
-  el informe.
-- RF-67e: DONDE parte del alimentador pase a otra tensión en el estado proyectado, EL
-  SISTEMA pondrá esa parte en la barra de esa tensión de la misma SET.
+- RF-67d: no se usa desde el 2026-10-15 (ver el cambio de abajo): era poner una carga
+  provisional en la barra de la SET si no había carga del alimentador, y el alimentador
+  entra por su Δ en la carga de la barra que elige el operador.
+- RF-67e: no se usa desde el 2026-10-15, por el mismo cambio: era pasar a otra barra la parte
+  del alimentador migrada a otra tensión.
   > Cambio del 2026-10-15 (el usuario, tras la sonda de AD08): el proyecto de transmisión no
   > tiene una carga por alimentador sino por barra de SET (`LElCarmen10` en `CAR10A` lleva
   > CA101 y los demás de 10 kV de El Carmen). RF-67 y RF-67c quedan así: el operador elige
@@ -356,10 +356,10 @@ con el mismo proyecto (paso 1) y los mismos alimentadores marcados (paso 2).
 
 Paso y requisitos previos
 
-- RF-73: EL SISTEMA mostrará el paso «5 · Informes» en la pestaña de cargas en DIgSILENT,
-  después del paso «4 · Obras y estudios», con dos apartados: «5.1 · Conexión de un cliente
-  nuevo (factibilidad y punto de diseño)» y «5.2 · Análisis eléctrico (estudio
-  eléctrico)».
+- RF-73: EL SISTEMA mostrará los informes como «4.4 · Informes», dentro del paso «4 · Obras
+  y estudios» de la pestaña de cargas en DIgSILENT, con dos apartados: «4.4.1 · Análisis
+  eléctrico (informe de estudio)» y «4.4.2 · Conexión de un cliente nuevo (factibilidad y
+  punto de diseño)» (cambiado por el usuario el 2026-10-15: antes «5 · Informes»).
 - RF-74: EL SISTEMA usará en el paso 5 el proyecto elegido en el paso 1 y los
   alimentadores marcados en el paso 2, sin volver a pedirlos.
 - RF-75: SI no hay proyecto elegido o ningún alimentador marcado, ENTONCES EL SISTEMA
