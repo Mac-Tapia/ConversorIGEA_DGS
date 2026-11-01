@@ -192,10 +192,29 @@ El catálogo rechaza rutas absolutas, unidades Windows y archivos sin una huella
 válida antes de iniciar transferencias. La regresión de estos controles terminó
 con **51 pruebas aprobadas**, sin omisiones (`controles_aislamiento_local_final.xml`).
 
-BGE completó la descarga y pasó una auditoría local independiente del instalador;
-evidencia `bge_verificado_local.json`. Sus pruebas de inferencia siguen sujetas a
-recursos suficientes. El instalador continúa exclusivamente sobre el catálogo y
-las rutas de este conversor; sus resultados están en `output/aceptacion_200_20261031/`.
+La descarga completa terminó con código 0 y una segunda auditoría del catálogo
+canónico también terminó con código 0: **cinco modelos verificados**, sin
+activaciones. Evidencias en `output/aceptacion_200_20261031/`:
+`pesos_reanudados_local_v2.json` y `catalogo_completo_verificado.json`.
+
+| Modelo fijado | Descarga y revisión/huellas | Operación real pendiente |
+| --- | --- | --- |
+| Qwen3-4B Instruct-2507 NF4 | Completa y verificada | Paso LoRA y reapertura CUDA |
+| BGE reranker v2 m3 | Completa y verificada | Inferencia de pares CUDA |
+| E5 multilingual base | Completa y verificada | Repetir carga CUDA; el ensayo anterior de selección fue CPU |
+| Qwen3:8b Ollama | Completa; digest fijado coincide | Selección previa y evaluación del agente |
+| nomic embed text Ollama | Completa; digest fijado coincide | Inferencia local de dos vectores ya verificada |
+
+El ensayo posterior a la descarga (`pesos_completos_precondiciones.xml`) registró
+**tres errores de precondición, cero omisiones**: 1,54 GiB disponibles frente a
+3/4/6 GiB requeridos para E5/BGE/NF4. No se llegó a importar Torch ni cargar pesos
+en esas tres pruebas. Por ello 043 T6 sigue abierta. Para ejecutar los tres ensayos
+se necesitan al menos 6 GiB libres al comienzo; el evaluador del agente exige 4 GiB.
+No hay descargas activas de este instalador ni modelos nuevos promovidos.
+
+La verificación adicional del código cerró con **51 pruebas de controles, 62 de
+inventario y 22 de trazabilidad aprobadas**, sin omisiones; `pip check` correcto.
+Estos 135 resultados corresponden a comprobaciones enfocadas, no a toda la suite.
 
 | Alcance | Situación comprobada | Condición de cierre |
 | --- | --- | --- |

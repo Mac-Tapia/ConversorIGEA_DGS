@@ -43,6 +43,14 @@ preservó la variante FP16 como experimento archivado. Las pruebas nuevas de car
 están en `tests_ml/test_pesos_ia.py`; E5/CUDA encontró error Windows 1455 y el control
 previo de RAM informa el bloqueo sin omitirlo. T6 permanece abierta.
 
+Descargas terminadas: el catálogo canónico completo pasó una segunda auditoría
+con cinco modelos verificados y cero activaciones; informe
+`output/aceptacion_200_20261031/catalogo_completo_verificado.json`.
+Con los pesos completos, los tres ensayos E5/BGE/NF4 terminaron con error previo
+de recursos (1,54 GiB libres; requieren 3/4/6 GiB), sin cargar pesos ni omitirlos;
+evidencia `pesos_completos_precondiciones.xml`. Quedan pendientes esas operaciones
+y la selección/evaluación Qwen3:8b. No cerrar T6 por completar las descargas.
+
 Anotar aquí, al ejecutar cada tarea, revisión, datos/contexto, comando,
 resultado, informe y limitaciones; no marcar casillas por existir código o por una
 simulación que solo converge.
