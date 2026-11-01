@@ -39,16 +39,18 @@ proceso. Se preservan tanto las configuraciones rechazadas como sus resultados.
 | Candidato en selección | Acierto de tarea | F1 de datos | Decisión |
 | --- | ---: | ---: | --- |
 | Qwen2.5:3b, una etapa | 66,67 % | 57,14 % | No elegido |
-| Llama3.1:8b, una etapa | 70,37 % | 54,17 % | Mejor acierto disponible |
+| Llama3.1:8b, una etapa | 70,37 % | 54,17 % | Elegido en la primera ronda |
 | Qwen2.5:3b, dos etapas iniciales | 25,93 % | 13,33 % | Rechazado |
 | Llama3.1:8b, dos etapas iniciales | 51,85 % | 44,44 % | Rechazado |
 | E5-base, similitud de prototipos | 55,56 % | No aplica | No integrado; recall top-3 77,78 % |
+| Qwen3:8b, una etapa, sin pensamiento | 81,48 % | 62,75 % | Elegido en la segunda ronda |
+| Qwen3:8b, dos etapas, sin pensamiento | 77,78 % | 34,04 % | Rechazado en selección |
 
 El ensayo de dos etapas inicial usó un prompt que se simplificó posteriormente;
 sus resultados no se atribuyen al prompt corregido. E5 fue una prueba de
 recuperación, no un alumno entrenado ni un sustituto del benchmark completo.
 
-Se repitió la selección ganadora con digest fijado antes de abrir las 200:
+En la primera ronda se repitió la selección ganadora con digest fijado antes de abrir las 200:
 `llama3.1:8b`, digest
 `46e0c10c039e019119339687c3c1757cc81b9da49709a3b3924863ba87ca666e`.
 Temperatura 0, semilla 0, contexto 8192, máximo 512 tokens, esquema JSON por tarea
@@ -65,6 +67,45 @@ sus errores. La muestra es sintética y no demuestra desempeño de campo.
 de la prueba exigen acierto ≥98 %, F1 ≥95 % y cobertura/calidad por cada tarea.
 Tener 200 filas no compensa los fallos. No se promovieron pesos ni se habilitó
 autonomía. La evaluación eléctrica sigue pendiente de ejecución y relectura nativas.
+
+### Segunda ronda ejecutada: Qwen3:8b
+
+El modelo figuraba entre las descargas fijadas antes de la prueba. Se compararon
+una y dos etapas **solo en las 27 órdenes de selección anteriores**: 22/27 frente
+a 21/27, respectivamente. Se fijó una etapa, `pensar=False`, revisión obligatoria,
+contexto 8192 y digest `500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41`.
+Informes: `seleccion_qwen3_sin_pensamiento/` y `seleccion_qwen3_dos_etapas/`.
+
+La evaluación completa terminó con **188/200 tareas correctas (94 %)** y **F1
+0,9393939394**, en 363,328 s. Las tres órdenes humanas dieron **2/3**, informadas
+por separado. Se conservaron las confirmaciones y hubo **cero escrituras nativas**.
+Informe sellado: `evaluacion_qwen3/resultado.json`; no se entrenó sobre esa prueba.
+
+Mejora frente a Llama: **31 tareas correctas adicionales**, +15,5 puntos porcentuales
+de acierto y +7,47 puntos de F1. El candidato sigue **RECHAZADO**: no alcanza 98 %
+de tarea ni 95 % de F1, y fallan puertas de cargar fuente, convertir sistema,
+gemelo temporal, informe de estudio e informe de factibilidad. No se activaron pesos.
+
+La lectura HTTP real de la web devolvió 200, modelo `qwen3:8b`, 200 propuestas,
+acierto 0,94, F1 0,9393939394 e `integral=false`, sin errores de custodia;
+evidencia `web_qwen3_aceptacion.json`. Publicar el resultado no modifica el modelo
+que atiende al operador ni concede autorización de ejecución.
+
+La regresión de los **23 archivos existentes** del asistente y sus contratos
+terminó con **183 aprobadas, cero fallos, cero errores y cero omisiones**, en
+117,83 s. Evidencias: `asistente_regresion_completa.xml`,
+`asistente_regresion_resumen.json` y `asistente_regresion_archivos.json`.
+Se usaron rutas de datos de pruebas aisladas, sin sustituir el modelo activo.
+No equivale a ejecutar toda la suite de conversión ni a verificar las capacidades
+todavía abiertas de 047 T1–T4. Reproducción en PowerShell desde este repositorio:
+
+```powershell
+$pruebasAsistente = @(Get-ChildItem -LiteralPath tests -Filter 'test_asistente*.py' | ForEach-Object { $_.FullName })
+$pruebasAsistente += @('tests/test_destilacion_integral.py', 'tests/test_aceptacion_agente.py', 'tests/test_evaluacion_modelos.py', 'tests/test_model_registry.py', 'tests/test_training_coordinator.py', 'tests/test_modelos_web.py')
+$env:IGEA_WEB_DATA = 'output/pruebas_asistente/web'
+$env:IGEA_ASISTENTE_DATA = 'output/pruebas_asistente/datos'
+.venv/Scripts/python.exe -m pytest -q @pruebasAsistente --junitxml=output/pruebas_asistente/resultado.xml
+```
 
 ## Implementación y controles verificables
 
@@ -162,7 +203,7 @@ PowerFactory. La reevaluación del alumno anterior se registró sin reentrenarlo
 `49faf8e6955d988c435f8427662134a93cbd99a6c9f774b90c04bf99299ddf5c`,
 estado `RECHAZADO`; los motivos ya no confunden 200 propuestas con 200 humanas.
 
-## Lo que falta para la aceptación integral
+## Entorno local y aceptación integral
 
 Actualización de la base de ajuste: se seleccionó
 [`unsloth/Qwen3-4B-Instruct-2507-bnb-4bit`](https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-bnb-4bit),
@@ -177,7 +218,8 @@ La compatibilidad metodológica se contrasta con
 
 La prueba adicional de E5 en CUDA falló con error Windows **1455**, de archivo de
 paginación/memoria. El equipo tiene 16 GiB de RAM y en el diagnóstico quedaban
-aproximadamente 0,5–0,6 GiB disponibles. No se acredita ese ensayo ni se cierra 043 T6.
+aproximadamente 0,5–0,6 GiB disponibles. Ese fallo no se acreditó como éxito y
+entonces mantuvo abierta 043 T6.
 El control inicial comprobaba recursos **antes** de cargar los modelos: 3 GiB libres
 para E5, 4 GiB para BGE y 6 GiB para el paso NF4/LoRA. Falta de memoria es un fallo visible,
 sin fallback ni omisión; no se cerraron aplicaciones ni servicios del usuario.
@@ -197,18 +239,18 @@ canónico también terminó con código 0: **cinco modelos verificados**, sin
 activaciones. Evidencias en `output/aceptacion_200_20261031/`:
 `pesos_reanudados_local_v2.json` y `catalogo_completo_verificado.json`.
 
-| Modelo fijado | Descarga y revisión/huellas | Operación real pendiente |
+| Modelo fijado | Descarga y revisión/huellas | Operación real comprobada |
 | --- | --- | --- |
-| Qwen3-4B Instruct-2507 NF4 | Completa y verificada | Paso LoRA y reapertura CUDA |
-| BGE reranker v2 m3 | Completa y verificada | Inferencia de pares CUDA |
-| E5 multilingual base | Completa y verificada | Repetir carga CUDA; el ensayo anterior de selección fue CPU |
-| Qwen3:8b Ollama | Completa; digest fijado coincide | Selección previa y evaluación del agente |
+| Qwen3-4B Instruct-2507 NF4 | Completa y verificada | Paso LoRA y reapertura CUDA; error de logits 0,0 |
+| BGE reranker v2 m3 | Completa y verificada | Dos puntuaciones de pares en CUDA |
+| E5 multilingual base | Completa y verificada | Dos vectores normalizados en CUDA |
+| Qwen3:8b Ollama | Completa; digest fijado coincide | Selección real de 27 órdenes, totalmente en GPU |
 | nomic embed text Ollama | Completa; digest fijado coincide | Inferencia local de dos vectores ya verificada |
 
 El ensayo posterior a la descarga (`pesos_completos_precondiciones.xml`) registró
 **tres errores de precondición, cero omisiones**: 1,54 GiB disponibles frente a
 3/4/6 GiB requeridos para E5/BGE/NF4. No se llegó a importar Torch ni cargar pesos
-en esas tres pruebas. Por ello 043 T6 sigue abierta. Para ejecutar los tres ensayos
+en esas tres pruebas. Por ello se mantuvo abierta 043 T6. Para ejecutar los tres ensayos
 se exigían entonces al menos 6 GiB físicos libres; el diagnóstico se corrigió como
 se describe a continuación, conservando los informes anteriores.
 No hay descargas activas de este instalador ni modelos nuevos promovidos.

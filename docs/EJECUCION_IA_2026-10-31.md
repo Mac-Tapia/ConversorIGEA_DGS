@@ -27,6 +27,10 @@ las casillas se cierran por evidencia, no por esa autorización.
   LoRA guardó y reabrió su adaptador en procesos consecutivos con error de logits
   0,0. Qwen3:8b y nomic también ejecutaron inferencia local. Se corrigió el control
   de memoria Windows; [evidencia y límites](ACEPTACION_INTEGRAL_AGENTE_2026-10-31.md).
+- **047 T6, segunda ronda:** Qwen3:8b seleccionado con los 27 casos anteriores;
+  evaluación completa 188/200 tareas y F1 0,939394, humanas 2/3 por separado.
+  Mejora frente a Llama, pero sigue rechazado por calidad. Resultado publicado
+  y releído por HTTP real; 183 pruebas del asistente aprobadas sin omisiones.
 - **045 T3, avance parcial:** adaptador opcional al MPN original de PowerFlowNet,
   seleccionado por `Entrenamiento.arquitectura`. Dos ensayos reales con PyG/CUDA
   comprueban forward, gradientes finitos, descenso de pérdida, fronteras de fuente,

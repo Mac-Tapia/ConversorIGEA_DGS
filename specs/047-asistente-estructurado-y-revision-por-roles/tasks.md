@@ -34,6 +34,14 @@ F1 0,864646; humanas 2/3 por separado. Uso asistido **rechazado por calidad**,
 sin activación ni escrituras nativas. El cierre de la tarea de evaluación no
 acredita aceptación del agente. [Informe y pendientes](../../docs/ACEPTACION_INTEGRAL_AGENTE_2026-10-31.md).
 
+Continuación T6: selección Qwen3:8b de una etapa (22/27) frente a dos etapas
+(21/27), sin pensamiento, digest fijado. Evaluación completa de 200 propuestas:
+188 tareas correctas (0,94), F1 0,9393939394; humanas 2/3 por separado. Continúa
+RECHAZADO por las puertas de calidad. Informe `evaluacion_qwen3/resultado.json`
+publicado y releído mediante HTTP local real, sin activar pesos ni escrituras nativas.
+Regresión de los archivos existentes del asistente y sus contratos: 183 aprobadas,
+cero fallos/errores/omisiones (`asistente_regresion_completa.xml`). No cierra T1–T4.
+
 T5: seis entrenamientos CUDA, semilla elegida por selección, recarga en proceso nuevo,
 prueba separada y diagnóstico híbrido de las 27 tareas. Candidato bloqueado, sin
 promoción. [Metodología y evidencia](../../docs/DESTILACION_AGENTE_2026-10-31.md).
