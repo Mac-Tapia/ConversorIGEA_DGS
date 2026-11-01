@@ -53,6 +53,16 @@ def huella(path: Path | str, bloque: int = 1 << 20) -> str:
     return h.hexdigest()
 
 
+def es_copia_sql(path: Path | str) -> bool:
+    """Si el fichero es una copia de seguridad de SQL Server, por su cabecera MTF «TAPE» y no por
+    su extensión: Electro Oriente entregó la suya como «ELOR25_V2», sin «.bak» (2026-11-01)."""
+    try:
+        with open(path, 'rb') as f:
+            return f.read(4) == b'TAPE'
+    except OSError:
+        return False
+
+
 def leer_config_bd(carpeta: Path | str) -> dict[str, str]:
     """``ConfigBD.config`` de VNR-GIS junto a la copia: empresa y bases (RF-2); vacío si no."""
     ruta = Path(carpeta) / 'ConfigBD.config'
@@ -144,6 +154,10 @@ CAMPOS: dict[str, tuple[str, ...]] = {
     'enlace': ('CodNodoMT', 'CodTramoMT', 'CodSed', 'UTMEste', 'UTMNorte'),
     'norma': ('CodNorma', 'Descripcion', 'CodSubComponente'),
     'codigo_secundario': ('CodSecundario', 'CodTipSecundario', 'Descripcion'),
+    # La tabla «Tensiones» de la base de red: letra y kV. Electro Oriente 2025 no entregó su
+    # base de parámetros (donde está «cfgCodigoSecundario») y sin ella ninguna salida tenía
+    # tensión; su copia de red sí trae esta tabla (2026-11-01).
+    'tension': ('CodTenNomi', 'Tension'),
     'equipo': ('CodEqp', 'CodTramoMT', 'CodTipoEquipoProteccion', 'CodEstadoOperacion'),
 }
 
@@ -182,6 +196,9 @@ class DatosVnr:
     normas: list[dict] = field(default_factory=list)
     codigos_secundarios: list[dict] = field(default_factory=list)
     equipos: list[dict] = field(default_factory=list)
+    tensiones: list[dict] = field(default_factory=list)
+    ilegibles: list[dict] = field(default_factory=list)
+    """Tablas o vistas que el motor no pudo leer, con su motivo (se anotan, no bloquean)."""
 
 
 def _s(fila: Mapping, campo: str) -> str:
@@ -210,6 +227,17 @@ def tensiones_mt(codigos: Sequence[Mapping]) -> dict[str, float]:
     return out
 
 
+def tensiones_de_tabla(filas: Sequence[Mapping]) -> dict[str, float]:
+    """Letra de ``CodTenNomi`` → kV de la tabla «Tensiones» (redondeada: viene en coma flotante
+    simple, 22,899999618 kV)."""
+    out = {}
+    for f in filas:
+        letra, kv = _s(f, 'CodTenNomi').upper(), _f(f, 'Tension')
+        if letra and kv and kv > 0:
+            out[letra] = round(kv, 3)
+    return out
+
+
 def crs_de_empresa(empresa: Sequence[Mapping]) -> str | None:
     """EPSG de la empresa: WGS84 y su zona UTM, hemisferio sur (VNR-GIS es peruano)."""
     for fila in empresa:
@@ -231,6 +259,88 @@ def norma_de(descripcion: str) -> tuple[str, float | None, int | None]:
     material = ('CU' if 'COBRE' in d or ' CU ' in f' {d} ' else
                 'AL' if ' AL ' in f' {d} ' or 'ALUMINIO' in d or ' AA ' in f' {d} ' else '')
     return material, seccion, fases
+
+
+def repartir_ramales_monofasicos(modelo: CanonicalModel, salida: str, avisos: list[dict]) -> None:
+    """Reparte los ramales monofásicos de una salida entre las fases A, B y C (054:RF-1, RF-5).
+
+    VNR-GIS dice cuántas fases tiene un tramo, no cuál: todos salían en la A, y en NJA202
+    (2026-11-01) sus 698 km de ramales y ~780 SED monofásicas colgaban de la misma fase de la
+    troncal; con el flujo desequilibrado la red colapsaba (cargas a 0,0000x-0,29 pu). Cada ramal
+    (tramos monofásicos unidos entre sí) va entero a una fase: el de más kVA primero, a la de
+    menos kVA; se anota que la fase es deducida. Un ramal con fase ya distinta de la A se respeta.
+    """
+    tramos = [s for s in modelo.sections if s.feeder_id == salida and len(s.phases or 'ABC') == 1]
+    if not tramos:
+        return
+    padre: dict[str, str] = {}
+
+    def raiz(n: str) -> str:
+        while padre.get(n, n) != n:
+            padre[n] = padre.get(padre[n], padre[n])
+            n = padre[n]
+        return n
+
+    # Un nodo que toca un tramo de 2 o 3 fases es la frontera con la troncal: no une ramales
+    # (cada ramal que sale de él es otro).
+    letras_frontera: dict[str, set[str]] = {}
+    for s in modelo.sections:
+        if s.feeder_id == salida and len(s.phases or 'ABC') > 1:
+            for n in (s.from_node, s.to_node):
+                letras_frontera.setdefault(n, set()).update(s.phases or 'ABC')
+    frontera = set(letras_frontera)
+
+    def clave(n: str, s) -> str:
+        return f'{n}#{s.section_id}' if n in frontera else n
+
+    for s in tramos:
+        a, b = raiz(clave(s.from_node, s)), raiz(clave(s.to_node, s))
+        padre.setdefault(a, a)
+        padre.setdefault(b, b)
+        if a != b:
+            padre[max(a, b)] = min(a, b)
+    cargas = [c for c in modelo.loads if c.feeder_id == salida and len(c.phases or 'ABC') == 1]
+    kva: dict[str, float] = {}
+    for c in cargas:
+        if c.connection_node in padre and c.connection_node not in frontera:
+            r = raiz(c.connection_node)
+            kva[r] = kva.get(r, 0.0) + float(c.connected_kva or c.kw or 0.0)
+    ramales = sorted({raiz(clave(s.from_node, s)) for s in tramos}, key=lambda r: (-kva.get(r, 0.0), r))
+    # Un ramal solo puede tomar una fase que tenga el tramo del que sale: uno que cuelga de un
+    # tramo bifásico AB no puede ir a la C (NJA202, 2026-11-01: la C llevaba el doble de corriente).
+    permitidas: dict[str, set[str]] = {}
+    for s in tramos:
+        for n in (s.from_node, s.to_node):
+            if n in frontera:
+                r = raiz(clave(s.from_node, s))
+                permitidas[r] = permitidas.get(r, {'A', 'B', 'C'}) & letras_frontera[n]
+    carga_fase = {'A': 0.0, 'B': 0.0, 'C': 0.0}
+    fase_de: dict[str, str] = {}
+    for r in ramales:
+        opciones = sorted(permitidas.get(r) or {'A', 'B', 'C'})
+        f = min(opciones, key=lambda x: (carga_fase[x], x))
+        fase_de[r] = f
+        carga_fase[f] += kva.get(r, 0.0)
+    for s in tramos:
+        s.phases = fase_de[raiz(clave(s.from_node, s))]
+    for c in cargas:
+        if c.connection_node in padre and c.connection_node not in frontera:
+            c.phases = fase_de[raiz(c.connection_node)]
+    avisos.append({'code': 'FASE_DEDUCIDA', 'source_id': salida,
+                   'detalle': f'{len(ramales)} ramales monofásicos repartidos entre A, B y C por kVA '
+                              f'instalados (A {carga_fase["A"]:.0f}, B {carga_fase["B"]:.0f}, '
+                              f'C {carga_fase["C"]:.0f}): la fuente no dice la fase'})
+
+
+def fases_de_sed(norma: str, en_el_nodo: str) -> str:
+    """Las fases de una SED por el sufijo de su norma (Anexo 2 del regulador, igual para toda
+    empresa, 054:RF-1): «01» un trafo monofásico (1×kVA), «02» dos (2×kVA), «03» un banco de tres
+    y «04»/«05» trifásica. Las letras son las del tramo que llega a su nodo: una SED monofásica en
+    un ramal de la fase A es de la A. Sin sufijo conocido, trifásica (054:RF-5)."""
+    m = re.search(r'(\d{2})$', (norma or '').strip())
+    n = {'01': 1, '02': 2}.get(m.group(1), 3) if m else 3
+    letras = ''.join(f for f in 'ABC' if f in (en_el_nodo or 'ABC')) or 'ABC'
+    return (letras + 'ABC'.replace(letras, ''))[:n] if n < 3 else 'ABC'
 
 
 def _fases(n: int | None, codigo: str) -> str:
@@ -285,7 +395,8 @@ def modelo_canonico(datos: DatosVnr, salidas: Iterable[str] | None = None, *,
     """
     pedidas = {s.strip() for s in salidas} if salidas is not None else None
     avisos: list[dict] = []
-    kv_de = tensiones_mt(datos.codigos_secundarios)
+    # La tabla de códigos del regulador manda; lo que no trae, de la tabla «Tensiones» de la red.
+    kv_de = {**tensiones_de_tabla(datos.tensiones), **tensiones_mt(datos.codigos_secundarios)}
     crs = crs_de_empresa(datos.empresa)
     sets = {_s(s, 'CodSet'): s for s in datos.sets}
     normas = {_s(n, 'CodNorma'): _s(n, 'Descripcion') for n in datos.normas}
@@ -379,6 +490,7 @@ def modelo_canonico(datos: DatosVnr, salidas: Iterable[str] | None = None, *,
                                      source_layer='mtSalida', source_sid=salida))
         usados = set()
         orientado: dict[str, tuple[str, str, list]] = {}
+        fases_en_nodo: dict[str, str] = {}                     # 054:RF-1: las del tramo que llega
         for t in tramos:
             cod = _s(t, 'CodTramoMT')
             if cod not in geo:
@@ -408,6 +520,9 @@ def modelo_canonico(datos: DatosVnr, salidas: Iterable[str] | None = None, *,
                 phases=_fases(n_fases, norma), nominal_kv=kv, length_m=round(largo, 3),
                 geometry=puntos, source_layer='mtTramo', source_id=cod, feeder_id=salida))
             orientado[cod] = (a, b, puntos)
+            for extremo in (a, b):
+                fases_en_nodo[extremo] = ''.join(sorted(set(fases_en_nodo.get(extremo, '')) | set(
+                    _fases(n_fases, norma))))
         for n in sorted(usados):
             x, y = nodos.xy[n]
             modelo.nodes.append(Node(node_id=n, x=x, y=y, nominal_kv=kv, phases='ABC',
@@ -436,8 +551,10 @@ def modelo_canonico(datos: DatosVnr, salidas: Iterable[str] | None = None, *,
             nodo = min(candidatos, key=lambda n: (math.dist(nodos.xy[n], punto), n))
             modelo.loads.append(Load(
                 load_id=cod, connection_node=nodo, kw=_f(sed, 'MaxDemTotal') or 0.0,
-                kvar=0.0, phases='ABC', nominal_kv=kv, source_layer='Sed', source_id=cod,
+                kvar=0.0, phases=fases_de_sed(_s(sed, 'CodNorma'), fases_en_nodo.get(nodo, 'ABC')),
+                nominal_kv=kv, source_layer='Sed', source_id=cod,
                 feeder_id=salida, connected_kva=_f(sed, 'PotInstalada')))
+        repartir_ramales_monofasicos(modelo, salida, avisos)
         _equipos(datos, salida, orientado, normas, kv, modelo, avisos)
     modelo.conductor_types.extend(conductores[c] for c in sorted(conductores))
     return modelo, avisos
@@ -495,12 +612,19 @@ def leer_datos(cn_red, cn_param=None) -> DatosVnr:
         presentes = {c.casefold() for c in cols[tabla]}
         campos = [c for c in campos if c.casefold() in presentes]
         cur = cn.cursor()
-        cur.execute('SELECT ' + ', '.join(f'[{c}]' for c in campos) + f' FROM [{tabla}]')
+        try:
+            cur.execute('SELECT ' + ', '.join(f'[{c}]' for c in campos) + f' FROM [{tabla}]')
+        except Exception as exc:  # noqa: BLE001 - el error del controlador ODBC, sea cual sea
+            # Una vista que nombra otra base que no vino en la copia (Electro Oriente 2025:
+            # «norEquipoMT» apunta a «VNRGISGART», su base de parámetros, que no se entregó)
+            # no tumba la conversión: se anota y se sigue con lo que trae la red.
+            datos.ilegibles.append({'tabla': tabla, 'motivo': str(exc)[:300]})
+            return []
         return [dict(zip(campos, fila)) for fila in cur.fetchall()]
 
     cols_red = columnas(cn_red)
     red = tablas_por_campos(cols_red)
-    extra = {'salida': ('CodSisElectrico',), 'sed': ('MaxDemTotal',),
+    extra = {'salida': ('CodSisElectrico',), 'sed': ('MaxDemTotal', 'CodNorma'),
              'tramo': ('CodTenNomi',),
              'equipo': ('CodNorma', 'UTMEste', 'UTMNorte')}
     for concepto, atributo in (('empresa', 'empresa'), ('salida', 'salidas'), ('set', 'sets'),
@@ -514,6 +638,8 @@ def leer_datos(cn_red, cn_param=None) -> DatosVnr:
         param = tablas_por_campos(cols_cn)
         if not datos.normas and 'norma' in param:
             datos.normas = filas(cn, cols_cn, param['norma'], ('CodNorma', 'Descripcion'))
+        if not datos.tensiones and 'tension' in param:
+            datos.tensiones = filas(cn, cols_cn, param['tension'], CAMPOS['tension'])
         if not datos.codigos_secundarios and 'codigo_secundario' in param:
             datos.codigos_secundarios = filas(cn, cols_cn, param['codigo_secundario'],
                                               CAMPOS['codigo_secundario'])
@@ -573,6 +699,8 @@ def cargar_copia(bak: Path | str, *, servidor: str = SERVIDOR,
         if cn_param is not None:
             cn_param.close()
     modelo, avisos = modelo_canonico(datos, salidas)
+    avisos.extend({'code': 'TABLA_ILEGIBLE', 'source_id': x['tabla'], 'detalle': x['motivo']}
+                  for x in datos.ilegibles)
     empresa = config.get('CodEmpresa') or modelo.metadata.get('company') or ''
     modelo.metadata['company'] = empresa
     alcance = {'company': empresa, 'period': config.get('nombreBD', base_red),

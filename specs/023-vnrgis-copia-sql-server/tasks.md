@@ -25,3 +25,11 @@
       `-rs`: 2450 pasan, ninguna omitida (línea base 001 regenerada con el catálogo de fichas).
       Sistema Ica desde la copia: «Caso base» VERIFICADO tras corregir la aceptación.
       Hecho cuando: RF-1 a RF-10 citados y la suite con las siete variables, sin omitidas, en verde.
+- [x] T7. Segunda concesionaria: la copia VNR-GIS 2025 de Electro Oriente. (RF-1, RF-9)
+      Hecho cuando: `pytest -q tests/test_vnr_sqlserver.py` en verde y la copia se lee entera.
+      Hecho el 2026-11-01: `referencia/PIDEELOR/ELOR25_V2/ELOR25_V2` (sin extensión, cabecera
+      `TAPE`) vino sin su base de parámetros, y su vista `norEquipoMT` nombra `VNRGISGART`, que no
+      existe aquí: tumbaba la lectura. Ahora una tabla o vista ilegible se anota
+      (`TABLA_ILEGIBLE`) y se sigue. Resultado con el mismo lector, sin código de la empresa:
+      ELOR, 168 salidas, 83 353 tramos, 8 729 cargas, 160 tipos de conductor; anotados
+      1 233 huecos con su padre, 282 tramos sin padre unidos, 167 islas unidas, 95 SED sin enlace.

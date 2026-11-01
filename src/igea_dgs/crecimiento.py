@@ -102,3 +102,61 @@ def curvas_por_anio(libros_por_anio: Mapping[int, Sequence[Path | str]], pares: 
                 por_alim.setdefault(r.alimentador, []).append(r.curva)
         out[anio] = {a: sumar(cs) for a, cs in por_alim.items()}
     return out
+
+
+def tasa_de_las_fijas(pot_por_mes: Mapping[str, Mapping[str, float]],
+                      fijas: Mapping[str, Sequence[Sequence[str]]]) -> dict[str, dict[str, Any] | None]:
+    """La tasa de cada alimentador desde la POT registrada de sus fijas (042:RF-7).
+
+    Cuando la cabecera no tiene dos años (NA203 y NA205 solo tienen 2026, 2026-10-31), la demanda
+    registrada que sí los tiene es la de las fijas, en los libros de clientes de cada mes.
+    ``pot_por_mes``: ``'AAAA-MM'`` → clave de cliente → POT (kW); ``fijas``: alimentador → cada
+    fija con sus claves (la actual y la anterior: el código cambió entre años). Se suman, mes a
+    mes, las fijas con registro en los dos años (una que entró después inflaría el crecimiento) y
+    se comparan con :func:`tasa_entre`, como la cabecera.
+    """
+    anios = sorted({int(m[:4]) for m in pot_por_mes})
+    out: dict[str, dict[str, Any] | None] = {}
+    if len(anios) < 2:
+        return {f: None for f in fijas}
+    ant, ult = anios[-2], anios[-1]
+
+    def pot(mes: str, claves: Sequence[str]) -> float | None:
+        datos = pot_por_mes.get(mes) or {}
+        return next((datos[k] for k in claves if datos.get(k) is not None), None)
+
+    for f, clientes in fijas.items():
+        def con_registro(claves, anio):
+            return any(pot(m, claves) for m in pot_por_mes if m.startswith(str(anio)))
+
+        comunes = [c for c in clientes if con_registro(c, ant) and con_registro(c, ult)]
+        curvas = {a: [(datetime(a, int(m[5:7]), 1), sum(pot(m, c) or 0.0 for c in comunes), None)
+                      for m in sorted(pot_por_mes) if m.startswith(str(a))] for a in (ant, ult)}
+        r = tasa_entre(curvas[ant], curvas[ult], ult - ant) if comunes else None
+        out[f] = None if r is None else {**r, 'origen': 'fijas', 'clientes': len(comunes),
+                                         'de': len(clientes), 'anios': [ant, ult]}
+    return out
+
+
+def pot_de_los_libros(libros: Sequence[tuple[str, str]], alias: Any, *, progreso: Callable = lambda *_a: None,
+                      log: Callable = lambda _t: None,
+                      cancelado: Callable[[], bool] = lambda: False) -> dict[str, dict[str, float]]:
+    """``'AAAA-MM'`` → clave de cliente → POT (kW) de cada libro de clientes del catálogo (042:RF-7).
+
+    De nivel superior: corre en el proceso del trabajo (029:RF-7). Un libro que no se lee no
+    cuenta: su mes queda fuera de los meses comunes.
+    """
+    from .demanda_medida import DemandaError, clave_codigo, leer_clientes
+
+    out: dict[str, dict[str, float]] = {}
+    for i, (mes, ruta) in enumerate(libros, 1):
+        if cancelado():
+            break
+        log(f'Crecimiento: libro de clientes de {mes} ({i}/{len(libros)})…')
+        progreso(i, len(libros))
+        try:
+            clientes, _avisos = leer_clientes(ruta, alias)
+        except (DemandaError, OSError):
+            continue
+        out.setdefault(mes, {}).update({clave_codigo(c.codigo): float(c.pot) for c in clientes if c.pot})
+    return out

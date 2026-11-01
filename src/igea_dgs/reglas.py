@@ -57,6 +57,9 @@ class Reglas:
     redimensionar_sed: bool = False
     aplicar_fichas: bool = False
     dibujar_todo: bool = True
+    #: Spec 057: la demanda de relleno o mayor que su SED se corrige con el oráculo antes de
+    #: escribir el DGS, para que el «Caso base» llegue convergido a DIgSILENT.
+    corregir_con_oraculo: bool = True
     #: Del perfil de empresa (spec 002, RF-31 a RF-33): sin patrón no se excluye ninguna
     #: SED por su nombre, y sin escala queda la del motor.
     patron_sed_medicion: str | None = None
@@ -67,7 +70,7 @@ class Reglas:
 REGLAS_PROYECTO = Reglas()
 #: Conversión literal de la entrada, sin ninguna regla (pruebas de fidelidad).
 SIN_REGLAS = Reglas(hoja=None, fundir_puentes=False, excluir_trafomix=False,
-                    redimensionar_sed=False, dibujar_todo=False)
+                    redimensionar_sed=False, dibujar_todo=False, corregir_con_oraculo=False)
 
 
 def reglas_de_perfil(perfil, base: Reglas = REGLAS_PROYECTO) -> Reglas:
@@ -191,6 +194,8 @@ def aplicar_reglas(model, reglas: Reglas = REGLAS_PROYECTO, *,
         from .sed_potencia import redimensionar_sobrecargadas
 
         informe['sed_redimensionadas'] = [r.linea() for r in redimensionar_sobrecargadas(model)]
+    if reglas.corregir_con_oraculo:
+        informe.update(_corregir_con_oraculo(model))
     if reglas.hoja:
         model.diagram_sheet = reglas.hoja
     if reglas.escala_diagrama:
@@ -198,6 +203,50 @@ def aplicar_reglas(model, reglas: Reglas = REGLAS_PROYECTO, *,
     if reglas.dibujar_todo:
         model.diagram_max_stub_m = -1.0
     return informe
+
+
+def _corregir_con_oraculo(model) -> dict[str, Any]:
+    """057:RF-1 a RF-4: la corrección del oráculo, en el informe de reglas y en los avisos."""
+    from .oraculo import corregir_para_converger, disponible
+
+    if getattr(model, 'combined', None) is not None or not disponible():
+        # La red unida tiene su propio veredicto por isla (022:RF-33); sin pandapower no
+        # hay oráculo y la importación lo dice (034:RF-25).
+        return {}
+    res = corregir_para_converger(model)
+    if res.convergio is None or (res.convergio and not res.cambios):
+        return {}
+    if res.convergio:
+        model.warnings.append(
+            f'{len(res.cambios)} SED con demanda de relleno o mayor que su potencia: el oráculo '
+            f'la llevó a su potencia instalada × {res.factor:.4f} (FP 0,98) para que el flujo '
+            'converja (spec 057). ' + '; '.join(c.linea() for c in res.cambios[:20])
+            + ('…' if len(res.cambios) > 20 else ''))
+    else:
+        model.warnings.append(f'El oráculo no logra que el flujo converja: {res.motivo}')
+    return {'demanda_corregida': res.as_dict()}
+
+
+def _corregir_con_oraculo(model) -> dict[str, Any]:
+    """057:RF-1 a RF-4: la corrección del oráculo, en el informe de reglas y en los avisos."""
+    from .oraculo import corregir_para_converger, disponible
+
+    if getattr(model, 'combined', None) is not None or not disponible():
+        # La red unida tiene su propio veredicto por isla (022:RF-33); sin pandapower no
+        # hay oráculo y la importación lo dice (034:RF-25).
+        return {}
+    res = corregir_para_converger(model)
+    if res.convergio is None or (res.convergio and not res.cambios):
+        return {}
+    if res.convergio:
+        model.warnings.append(
+            f'{len(res.cambios)} SED con demanda de relleno o mayor que su potencia: el oráculo '
+            f'la llevó a su potencia instalada × {res.factor:.4f} (FP 0,98) para que el flujo '
+            'converja (spec 057). ' + '; '.join(c.linea() for c in res.cambios[:20])
+            + ('…' if len(res.cambios) > 20 else ''))
+    else:
+        model.warnings.append(f'El oráculo no logra que el flujo converja: {res.motivo}')
+    return {'demanda_corregida': res.as_dict()}
 
 
 # ---------------------------------------------------------------------------

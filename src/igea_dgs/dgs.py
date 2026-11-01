@@ -138,6 +138,51 @@ def _make_row(schema: DgsSchema, table: str, **values) -> str:
     return '  ' + ';'.join(_fmt(values.get(field, '')) for field in fields)
 
 
+#: ``ElmTerm.phtech`` de PowerFactory 2024 por número de fases (054:RF-3): ABC, 2PH y 1PH. Leído
+#: en el proyecto importado de NJA202 (2026-11-01): «ABC:ABC-N:BI:BI-N:2PH:2PH-N:1PH:1PH-N:N».
+PHTECH_POR_FASES = {3: 0, 2: 4, 1: 6}
+
+
+def letras_de_fase(fase) -> str:
+    """Las fases que ocupa un elemento, en orden A, B, C; «ABC» si la fuente no lo dice
+    (054:RF-5)."""
+    return decode_phase(fase) or 'ABC'
+
+
+def it2p_de(elemento: str, barra: str) -> dict[str, int]:
+    """Qué fase de la barra toma cada fase del elemento (``StaCubic.it2p1..3``, 054:RF-3).
+
+    Una línea monofásica de la fase B en una barra trifásica toma su índice 1; en una barra
+    1PH, el 0. Las posiciones que el elemento no usa quedan como siempre (0, 1, 2).
+    """
+    out = {'it2p1': 0, 'it2p2': 1, 'it2p3': 2}
+    for k, letra in enumerate(elemento[:3], start=1):
+        out[f'it2p{k}'] = barra.index(letra) if letra in barra else k - 1
+    return out
+
+
+def red_con_monofasicos(app) -> bool:
+    """Si la red activa de DIgSILENT tiene líneas o trafos de menos de 3 fases (054:RF-7).
+
+    Con ellos hace falta el flujo desequilibrado: con el equilibrado una SED monofásica
+    desaparece del cálculo (su barra de baja a 0 pu y su carga sin servir; medido en una copia
+    de NJA202, 2026-11-01). Se mira el tipo de cada elemento, y para en el primero.
+    """
+    for clase, atributo in (('ElmLne', 'nlnph'), ('ElmTr2', 'nt2ph')):
+        try:
+            elementos = app.GetCalcRelevantObjects(f'*.{clase}') or []
+        except Exception:  # noqa: BLE001 - sin la lista de esa clase, como hasta ahora: trifásica
+            continue
+        for elemento in elementos:
+            tipo = getattr(elemento, 'typ_id', None)
+            try:
+                if tipo is not None and int(getattr(tipo, atributo, 3) or 3) < 3:
+                    return True
+            except (TypeError, ValueError):
+                continue
+    return False
+
+
 def _capacitor_technology(phases: str) -> tuple[int, int]:
     """ElmShnt.ctech/ilcph from source phase occupancy (DGS enum)."""
     letters = decode_phase(phases)
@@ -977,17 +1022,40 @@ def write_dgs(
     sed_bt_fids = {key: reg.new() for key in sed_keys}
     sed_tr_fids = {key: reg.new() for key in sed_keys}
     sed_coup_fids = {key: reg.new() for key in sed_keys if key not in barra_propia}
-    # One TypTr2 per distinct (strn, utrn_h, utrn_l).
-    tr2_type_keys: dict[tuple[float, float, float], str] = {}
+    # 054: las fases de cada tramo, de cada SED (las de su carga) y de cada barra (las de lo que
+    # llega a ella). Con todo ABC no cambia nada del DGS (054:RF-6).
+    cargas_por_clave = {(x.section_id, x.device_number): x for x in model.loads}
+    fases_linea = {ln.section_id: letras_de_fase(ln.phase) for ln in model.lines}
+    fases_sed = {(s.section_id, s.device_number): letras_de_fase(
+        getattr(cargas_por_clave.get(s.load_key), 'phase', 'ABC')) for s in model.seds}
+    fases_en_nodo: dict[str, set[str]] = {}
+    for ln in model.lines:
+        for n in (ln.from_node, ln.to_node):
+            fases_en_nodo.setdefault(n, set()).update(fases_linea[ln.section_id])
+    for s in model.seds:
+        fases_en_nodo.setdefault(s.node_id, set()).update(fases_sed[(s.section_id, s.device_number)])
+    hay_fases = (any(len(f) < 3 for f in fases_linea.values())
+                 or any(len(f) < 3 for f in fases_sed.values()))
+
+    def letras_nodo(node_id: str) -> str:
+        f = fases_en_nodo.get(node_id)
+        return ''.join(x for x in 'ABC' if x in f) if f else 'ABC'
+
+    if hay_fases:
+        schema = schema.con_fases()
+
+    def clave_tr2(sed) -> tuple:
+        # One TypTr2 per distinct (strn, utrn_h, utrn_l); 054:RF-4: y sus fases si no es trifásica.
+        clave = (round(_tr2_strn_mva(sed.design_kva), 9), round(kv_de(sed.node_id), 9), NA205_SED_LV_KV)
+        n = len(fases_sed[(sed.section_id, sed.device_number)])
+        return clave if n == 3 else clave + (n,)
+
+    tr2_type_keys: dict[tuple, str] = {}
     for sed in model.seds:
         # La tensión de alta es la del nodo al que cuelga la SED. En una red unida hay
         # SED a 10 kV y a 22,9 kV, y darles todas la tensión del modelo pondría un
         # transformador de 22,9/0,22 kV colgando de una barra de 10 kV.
-        key = (
-            round(_tr2_strn_mva(sed.design_kva), 9),
-            round(kv_de(sed.node_id), 9),
-            NA205_SED_LV_KV,
-        )
+        key = clave_tr2(sed)
         if key not in tr2_type_keys:
             tr2_type_keys[key] = reg.new()
     source_fid = reg.new()
@@ -1072,7 +1140,7 @@ def write_dgs(
             fold_id=dentro or net_of(node_id), typ_id='', systype=0, iUsage=0 if dentro else 1,
             uknom=kv, unknom=kv / math.sqrt(3.0), iminus=0, outserv=fuera(node_id),
             GPSlat=gp.lat if gp is not None else '', GPSlon=gp.lon if gp is not None else '', vtarget=1,
-            cpZone=zona_de_nodo.get(node_id, ''),
+            cpZone=zona_de_nodo.get(node_id, ''), phtech=PHTECH_POR_FASES[len(letras_nodo(node_id))],
         ))
 
     # Internal SED buses (folder children of ElmSubstat) — required for PF double-click SLD.
@@ -1091,7 +1159,7 @@ def write_dgs(
                 iminus=0, outserv=fuera(sed.node_id),
                 GPSlat=gp.lat if gp is not None else '',
                 GPSlon=gp.lon if gp is not None else '',
-                vtarget=1,
+                vtarget=1, phtech=PHTECH_POR_FASES[len(fases_sed[key])],
             ))
         rows['ElmTerm'].append(_make_row(
             schema, 'ElmTerm', FID=sed_bt_fids[key], OP='C',
@@ -1100,20 +1168,25 @@ def write_dgs(
             iminus=0, outserv=fuera(sed.node_id),
             GPSlat=gp.lat if gp is not None else '',
             GPSlon=gp.lon if gp is not None else '',
-            vtarget=1,
+            vtarget=1, phtech=PHTECH_POR_FASES[len(fases_sed[key])],   # 054:RF-4: BT 1PH
         ))
 
-    for key in sorted(model.line_types):
+    # 054:RF-2: un tipo más por cada conductor que también se usa con 1 o 2 fases.
+    variantes_lne = {(ln.type_key, len(fases_linea[ln.section_id])) for ln in model.lines
+                     if len(fases_linea[ln.section_id]) < 3}
+    variante_fid = {v: reg.new() for v in sorted(variantes_lne)}
+    for key, nfases in [(k, 3) for k in sorted(model.line_types)] + sorted(variantes_lne):
         typ = model.line_types[key]
         rated_ka = typ.ampacity_a / 1000.0 if typ.ampacity_a else 0.0
+        nombre_tipo = _type_name(key, typ.code, type_kv.get(key))
         rows['TypLne'].append(_make_row(
-            schema, 'TypLne', FID=type_fids[key], OP='C',
-            loc_name=_loc_name(_type_name(key, typ.code, type_kv.get(key))),
+            schema, 'TypLne', FID=type_fids[key] if nfases == 3 else variante_fid[(key, nfases)], OP='C',
+            loc_name=_loc_name(nombre_tipo if nfases == 3 else f'{nombre_tipo}_{nfases}F'),
             uline=type_kv.get(key, model.nominal_kv),
             sline=rated_ka, InomAir=rated_ka, cohl_=1 if typ.source_table == 'LINE' else 0,
             rline=typ.r1_ohm_km, xline=typ.x1_ohm_km,
             rline0=typ.r0_ohm_km, xline0=typ.x0_ohm_km,
-            Ithr=0, tmax=80, rtemp=75, systp=0, nlnph=3, nneutral=0,
+            Ithr=0, tmax=80, rtemp=75, systp=0, nlnph=nfases, nneutral=0,
             frnom=60, mlei=_material(typ.code),
             # El catálogo CYMDIST trae la susceptancia en µS/km, que es la unidad de
             # TypLne.bline. Escribirla como cero descartaba un dato correcto y dejaba
@@ -1122,7 +1195,9 @@ def write_dgs(
             bline=typ.b1_source, bline0=typ.b0_source,
         ))
 
-    for (strn, utrn_h, utrn_l), fid in sorted(tr2_type_keys.items()):
+    for clave_tipo, fid in sorted(tr2_type_keys.items()):
+        strn, utrn_h, utrn_l = clave_tipo[:3]
+        nfases = clave_tipo[3] if len(clave_tipo) > 3 else 3
         # Pérdidas del Reglamento (UE) 548/2014 y recortadas para que uR% < uk%.
         # El suelo fijo anterior violaba esa condición en una SED de 0 kVA y
         # PowerFactory rechazaba el cálculo de TODA la red (ver _tr2_losses_kw).
@@ -1145,10 +1220,13 @@ def write_dgs(
             curmg = _tr2_curmg_pct(kva, pfe_kw)
         rows['TypTr2'].append(_make_row(
             schema, 'TypTr2', FID=fid, OP='C',
-            loc_name=_loc_name(f'TR_{format(strn * 1000.0, ".12g")}kVA'),
-            nt2ph=3, strn=strn, frnom=60, utrn_h=utrn_h, utrn_l=utrn_l,
+            loc_name=_loc_name(f'TR_{format(strn * 1000.0, ".12g")}kVA'
+                               + (f'_{nfases}F' if nfases < 3 else '')),
+            # 054:RF-4: monofásica de retorno por tierra, alta en D a la tensión entre líneas
+            # (medido en DIgSILENT en NJA202: en YN a 13,2 kV la BT salía a 1,59 pu).
+            nt2ph=nfases, strn=strn, frnom=60, utrn_h=utrn_h, utrn_l=utrn_l,
             uktr=uk, pcutr=pcutr, uk0tr=uk, ur0tr=0,
-            tr2cn_h='D', tr2cn_l='YN', nt2ag=5, curmg=curmg, pfe=pfe_kw,
+            tr2cn_h='D', tr2cn_l='YN' if nfases == 3 else 'D', nt2ag=5 if nfases == 3 else 0, curmg=curmg, pfe=pfe_kw,
             zx0hl_n=100, itapch=0, tap_side=0, dutap=0, phitr=0,
             nntap0=0, ntpmn=0, ntpmx=0, manuf='',
         ))
@@ -1171,14 +1249,15 @@ def write_dgs(
         rows['ElmLne'].append(_make_row(
             schema, 'ElmLne', FID=line_fids[line.section_id], OP='C',
             loc_name=_loc_name(line.section_id), fold_id=net_of(line.from_node),
-            typ_id=type_fids[line.type_key], dline=line.length_km, fline=1,
+            typ_id=(type_fids[line.type_key] if len(fases_linea[line.section_id]) == 3
+                    else variante_fid[(line.type_key, len(fases_linea[line.section_id]))]),
+            dline=line.length_km, fline=1,
             GPScoords=gps_fid, nlnum=1, inAir=1 if line.overhead else 0,
         ))
 
     for key in sed_keys:
         sed = seds_by_key[key]
-        strn = _tr2_strn_mva(sed.design_kva)
-        typ_key = (round(strn, 9), round(kv_de(sed.node_id), 9), NA205_SED_LV_KV)
+        typ_key = clave_tr2(sed)
         rows['ElmTr2'].append(_make_row(
             schema, 'ElmTr2', FID=sed_tr_fids[key], OP='C',
             loc_name=_loc_name(f'TR_{sed.loc_name}'), fold_id=sed_fids[key],
@@ -1189,7 +1268,7 @@ def write_dgs(
             rows['ElmCoup'].append(_make_row(
                 schema, 'ElmCoup', FID=sed_coup_fids[key], OP='C',
                 loc_name=_loc_name(f'SW_{sed.loc_name}'), fold_id=sed_fids[key],
-                typ_id='', on_off=1, aUsage='cbk', nphase=3, nneutral=0,
+                typ_id='', on_off=1, aUsage='cbk', nphase=len(fases_sed[key]), nneutral=0,
             ))
 
     loads_by_key = {(x.section_id, x.device_number): x for x in model.loads}
@@ -1223,7 +1302,9 @@ def write_dgs(
             # se quedaba con su valor por defecto de 1 sin que el recuento lo dijera.
             # En blanco se aplica ese mismo defecto, pero sin ensuciar el registro.
             NrCust=load.customers if load.customers > 0 else '',
-            i_sym=1 if letras == 'ABC' else 0,
+            # 054:RF-4: la de una SED no trifásica, equilibrada: en su barra 1PH DIgSILENT la
+            # hace «1PH PH-E» y consume su plini (medido en NJA202, 2026-11-01).
+            i_sym=1 if letras == 'ABC' or (key in nested_load_keys and len(letras) < 3) else 0,
             plinir=pr, plinis=ps, plinit=pt,
             qlinir=qr, qlinis=qs, qlinit=qt,
         ))
@@ -1302,7 +1383,7 @@ def write_dgs(
                 schema, 'StaCubic', FID=cubic_fid, OP='C',
                 loc_name=_loc_name(f'Cub{suffix}_{line.section_id}'),
                 fold_id=node_fids[node_id], obj_bus=side, obj_id=line_fid,
-                it2p1=0, it2p2=1, it2p3=2,
+                **it2p_de(fases_linea[line.section_id], letras_nodo(node_id)),
             ))
 
     load_cubic_fids: dict[tuple[str, str], str] = {}
@@ -1315,7 +1396,9 @@ def write_dgs(
         rows['StaCubic'].append(_make_row(
             schema, 'StaCubic', FID=cubic_fid, OP='C',
             loc_name=_loc_name(f'Cub_{load.device_number}'), fold_id=fold_term,
-            obj_bus=0, obj_id=load_fids[key], it2p1=0, it2p2=1, it2p3=2,
+            obj_bus=0, obj_id=load_fids[key],
+            **(it2p_de(letras_de_fase(load.phase), letras_de_fase(load.phase)) if key in nested_load_keys
+               else it2p_de(letras_de_fase(load.phase), letras_nodo(load.node_id))),
         ))
 
     for bank in complete_capacitors:
@@ -1323,7 +1406,7 @@ def write_dgs(
         rows['StaCubic'].append(_make_row(
             schema, 'StaCubic', FID=reg.new(), OP='C',
             loc_name=_loc_name(f'Cub_{bank.capacitor_id}'), fold_id=node_fids[bank.node_id],
-            obj_bus=0, obj_id=fid, it2p1=0, it2p2=1, it2p3=2,
+            obj_bus=0, obj_id=fid, **it2p_de(letras_de_fase(bank.phases), letras_nodo(bank.node_id)),
         ))
 
     for key in sed_keys:
@@ -1332,13 +1415,14 @@ def write_dgs(
             schema, 'StaCubic', FID=reg.new(), OP='C',
             loc_name=_loc_name(f'Cub1_TR_{seds_by_key[key].loc_name}'),
             fold_id=sed_mt_fids[key], obj_bus=0, obj_id=sed_tr_fids[key],
-            it2p1=0, it2p2=1, it2p3=2,
+            **it2p_de(fases_sed[key], letras_nodo(seds_by_key[key].node_id) if key in barra_propia
+                      else fases_sed[key]),
         ))
         rows['StaCubic'].append(_make_row(
             schema, 'StaCubic', FID=reg.new(), OP='C',
             loc_name=_loc_name(f'Cub2_TR_{seds_by_key[key].loc_name}'),
             fold_id=sed_bt_fids[key], obj_bus=1, obj_id=sed_tr_fids[key],
-            it2p1=0, it2p2=1, it2p3=2,
+            **it2p_de(fases_sed[key], fases_sed[key]),
         ))
         # Coupler: feeder TXT node ↔ internal MT bus (solo sin barra propia, 021:RF-12)
         sed = seds_by_key[key]
@@ -1348,13 +1432,13 @@ def write_dgs(
             schema, 'StaCubic', FID=reg.new(), OP='C',
             loc_name=_loc_name(f'Cub1_SW_{sed.loc_name}'),
             fold_id=node_fids[sed.node_id], obj_bus=0, obj_id=sed_coup_fids[key],
-            it2p1=0, it2p2=1, it2p3=2,
+            **it2p_de(fases_sed[key], letras_nodo(sed.node_id)),
         ))
         rows['StaCubic'].append(_make_row(
             schema, 'StaCubic', FID=reg.new(), OP='C',
             loc_name=_loc_name(f'Cub2_SW_{sed.loc_name}'),
             fold_id=sed_mt_fids[key], obj_bus=1, obj_id=sed_coup_fids[key],
-            it2p1=0, it2p2=1, it2p3=2,
+            **it2p_de(fases_sed[key], fases_sed[key]),
         ))
 
     # Enlaces entre alimentadores: un ElmCoup NORMALMENTE ABIERTO por cada uno, con su

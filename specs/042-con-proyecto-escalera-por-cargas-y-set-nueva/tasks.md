@@ -24,6 +24,14 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho el 2026-10-31: `set_nueva_proponer` y `con_proyecto_optimizar`, ruta
       `/pf/obras/con-proyecto`; botón «Optimizar «Con proyecto» con SET nueva» y su informe en el paso 3
       (el de la escalera de la 025); `tsc` y `npm run build` sin errores.
+- [x] T7. Transformadores en paralelo y cargas apartadas en la SET nueva. (RF-6, RF-14)
+      Hecho cuando: `pytest -q tests/test_set_nueva.py tests/test_obras_pf_guion_042.py
+      tests/test_set_nueva_web.py` en verde.
+      Hecho el 2026-10-31: `elegir_modulo(max_unidades=)`, campo `unidades` de la obra y
+      `ElmTr2.ntnum`; la barra de cada carga apartada se lleva a media desde la que dio la escalera
+      (antes 29 de 32 quedaban fuera con «no está activa»). La primera corrida en DIgSILENT
+      (trabajo aaaccc63b7e1): caben 3 cargas con bancos 2×450 kvar y terna de 11,13 km en NA203;
+      32 a la SET nueva, 45,5 MVA de diseño, sin módulo de 40 MVA que los cubra.
 - [ ] T6. [DIgSILENT] NA203 + NA205 optimizado desde la web. (Todos)
       Hecho cuando: cada carga nueva con su destino, la red existente con obras que cumplen y la SET
       Copara con su punto, su módulo PIT y «Con proyecto» dentro de 0,94–1,06 pu.

@@ -1078,3 +1078,176 @@ def leer_trafos(path: Path | str) -> dict[float, dict[str, float]]:
             salida[round(kva, 3)] = {'uk_pct': uk, 'Pk_W': pk, 'Po_W': po,
                                      'io_pct': num('io_pct') or 0.0}
     return salida
+
+
+# --------------------------------------------------------------------------------
+# Spec 053: el catálogo crece con cada código nuevo
+# --------------------------------------------------------------------------------
+#
+# Las fichas técnicas son universales: el mismo código de norma vale para cualquier
+# distribuidora (usuario, 2026-11-01). Al convertir NJA202 y R205 de Electro Oriente, seis
+# códigos no estaban en el catálogo y sus tramos salían con R = X = 0; el flujo de NJA202
+# solo convergía con la demanda al 11,3 %. Un código nuevo se añade con lo que se pueda
+# deducir de fichas que ya están, anotado, hasta que se escriba la del fabricante.
+
+#: Resistividad a 20 °C (IEC 60228): cobre recocido 100 % IACS y aluminio 61 % IACS.
+RHO20_CU_OHM_MM2_M = 0.017241
+RHO20_AL_OHM_MM2_M = 0.028264
+
+#: Familias de cable (van a la hoja de cables); las demás son aéreas.
+FAMILIAS_CABLE = ('N2', 'NK', 'EC')
+
+#: Norma del regulador (Anexo 2 de VNR-GIS): la red autoportante son cables con aislamiento
+#: XLPE trenzados sobre un portante; eléctricamente, el cable XLPE de cobre de su sección,
+#: con la resistividad de su material. ``familia → (familia de referencia, ρ/ρCu, material)``.
+FAMILIA_EQUIVALENTE = {
+    'CS': ('N2', 1.0, 'Autoportante Cu (XLPE)'),
+    'AS': ('N2', RHO20_AL_OHM_MM2_M / RHO20_CU_OHM_MM2_M, 'Autoportante Al (XLPE)'),
+}
+
+_BLOQUEO_CATALOGO: list = []
+
+
+def _bloqueo():
+    """Un solo escritor del catálogo a la vez en el proceso (la web convierte en hilos)."""
+    if not _BLOQUEO_CATALOGO:
+        import threading
+        _BLOQUEO_CATALOGO.append(threading.Lock())
+    return _BLOQUEO_CATALOGO[0]
+
+
+def _filas_de(ws) -> list[dict[str, Any]]:
+    valores = list(ws.iter_rows(values_only=True))
+    if not valores:
+        return []
+    cabecera = [str(c or '') for c in valores[0]]
+    return [dict(zip(cabecera, v)) for v in valores[1:] if v and v[0]]
+
+
+def _valor(fila: dict[str, Any], nombre: str, unidad: str) -> float | None:
+    """El de la ficha si su estado corrige; si no, el del modelo (como lo lee la fuente)."""
+    ficha = _num(fila.get(f'{nombre}_ficha_{unidad}'))
+    if ficha is not None and str(fila.get('estado') or '') in ESTADOS_QUE_CORRIGEN:
+        return ficha
+    return _num(fila.get(f'{nombre}_modelo_{unidad}'))
+
+
+def _referencia(filas: Sequence[dict[str, Any]], familia: str, seccion: float):
+    """La fila de la familia con R1 y X1 cuya sección está más cerca (en proporción) de la
+    pedida; a igual distancia, la que tiene ficha. ``(distancia, sin_ficha, código, fila, S)``."""
+    cand = []
+    for f in filas:
+        codigo = str(f.get('codigo') or '').strip()
+        s = seccion_de_codigo(codigo)
+        if codigo[:2].upper() != familia or not s:
+            continue
+        if _valor(f, 'R1', 'ohm_km') is None or _valor(f, 'X1', 'ohm_km') is None:
+            continue
+        cand.append((abs(math.log(s / seccion)), str(f.get('estado') or '') != 'ficha', codigo, f, s))
+    return min(cand, key=lambda c: c[:3]) if cand else None
+
+
+def deducir_conductor(codigo: str, filas: Sequence[dict[str, Any]]) -> dict[str, Any]:
+    """Los parámetros de un código que no está en el catálogo, con su regla (053:RF-2 a RF-5)."""
+    familia = codigo[:2].upper()
+    seccion = seccion_de_codigo(codigo)
+    ref_familia, factor, material = FAMILIA_EQUIVALENTE.get(familia, (familia, 1.0, material_de_codigo(codigo)))
+    base = {'codigo': codigo, 'seccion_mm2': seccion or '', 'material': material}
+    pendiente = {**base, 'estado': 'por_confirmar', 'fuente': 'Pendiente: ficha del proveedor (053:RF-5)'}
+    if not seccion:
+        return {**pendiente, 'regla': 'sin sección en el código'}
+    ref = _referencia(filas, ref_familia, seccion)
+    if ref is None:
+        return {**pendiente, 'regla': f'ninguna fila de la familia {ref_familia} con R y X'}
+    _d, _sin_ficha, ref_codigo, f, s_ref = ref
+    r1 = _valor(f, 'R1', 'ohm_km') * s_ref / seccion * factor
+    r0_ref, x1 = _valor(f, 'R0', 'ohm_km'), _valor(f, 'X1', 'ohm_km')
+    a_ref = _valor(f, 'ampacidad', 'A')
+    out = {**base,
+           'R1_modelo_ohm_km': round(r1, 6),
+           'X1_modelo_ohm_km': x1,
+           'R0_modelo_ohm_km': round(r0_ref * s_ref / seccion * factor, 6) if r0_ref is not None else round(r1, 6),
+           'X0_modelo_ohm_km': _valor(f, 'X0', 'ohm_km') or x1,
+           'B1_modelo_uS_km': _valor(f, 'B1', 'uS_km'),
+           # El calor que se disipa crece con el perímetro (∝ √S) y las pérdidas son I²·R con
+           # R ∝ 1/S: I ∝ S^0,75. Con otro material, la misma R·I²: I ∝ √(ρref/ρ).
+           'ampacidad_modelo_A': (round(a_ref * (seccion / s_ref) ** 0.75 / math.sqrt(factor), 1)
+                                  if a_ref else None),
+           'estado': 'por_confirmar',
+           'regla': (f'de {ref_codigo}: R·{s_ref:g}/{seccion:g}'
+                     + (f'·{factor:.3f} (ρAl/ρCu, IEC 60228)' if factor != 1.0 else '')
+                     + '; X, X0 y B1 iguales; ampacidad·(S/Sref)^0,75'
+                     + ('·√(ρCu/ρAl)' if factor != 1.0 else '')),
+           'fuente': f"Deducido (spec 053) de {ref_codigo}: {f.get('fuente') or 'catálogo'}"}
+    if familia == 'AA':                                                              # RF-3
+        out['R1_ficha_ohm_km'] = round(aaac_r20_ohm_km(seccion), 6)
+        out['estado'] = 'ficha' if seccion in AAAC_FICHA else 'derivado'
+        out['regla'] = 'R de la ficha universal del AAAC; ' + out['regla']
+        out['fuente'] = AAAC_FUENTE + '; X, X0, B1 y ampacidad ' + out['fuente']
+    return out
+
+
+def ampliar_catalogo(path: Path | str, codigos: Iterable[str], *, origen: str = '',
+                     fecha: str | None = None) -> list[dict[str, Any]]:
+    """Añade al catálogo una fila por cada código que no tiene, sin tocar las demás (053:RF-1).
+
+    Devuelve las filas añadidas, cada una con su regla en «observaciones». Se escribe en un
+    fichero temporal que sustituye al catálogo, para que nunca quede a medias (RF-7). Es uno
+    solo y universal: no depende de la empresa (RF-8).
+    """
+    import datetime as _dt
+    import os
+
+    from openpyxl import load_workbook
+
+    ruta = Path(path)
+    fecha = fecha or _dt.date.today().isoformat()
+    with _bloqueo():
+        wb = load_workbook(ruta)
+        hojas = {n: wb[n] for n in ('conductores_aereos', 'cables_subterraneos') if n in wb.sheetnames}
+        todas: list[dict[str, Any]] = []
+        for ws in hojas.values():
+            todas += _filas_de(ws)
+        existentes = {str(f.get('codigo') or '').strip().upper() for f in todas}
+        nuevas = []
+        for codigo in dict.fromkeys(c.strip() for c in codigos if c and c.strip()):
+            if codigo.upper() in existentes:
+                continue
+            fila = deducir_conductor(codigo, todas)
+            fila['observaciones'] = (f'Añadido el {fecha}' + (f' al aparecer en {origen}' if origen else '')
+                                     + f" (spec 053). {fila.pop('regla')}. Con la ficha del fabricante, "
+                                       'escriba sus valores y ponga «ficha».')
+            nombre = 'cables_subterraneos' if codigo[:2].upper() in FAMILIAS_CABLE else 'conductores_aereos'
+            ws = hojas.get(nombre)
+            if ws is None:
+                ws = hojas[nombre] = wb.create_sheet(nombre)
+                ws.append(list(COLUMNAS_CONDUCTOR))
+            cabecera = [str(c.value or '') for c in ws[1]]
+            ws.append(['' if fila.get(c) is None else fila.get(c, '') for c in cabecera])
+            todas.append(fila)
+            existentes.add(codigo.upper())
+            nuevas.append(fila)
+        if nuevas:
+            tmp = ruta.with_name(ruta.stem + '.tmp' + ruta.suffix)
+            wb.save(tmp)
+            _reemplazar(tmp, ruta)
+    return nuevas
+
+
+def _reemplazar(tmp: Path, ruta: Path, intentos: int = 10, pausa_s: float = 0.3) -> None:
+    """Sustituye el catálogo por el nuevo; en Windows, si otro proceso (el antivirus, Excel)
+    lo tiene abierto un instante, se reintenta; si sigue abierto, se dice cuál y no se pierde
+    nada (el temporal se borra y el catálogo queda como estaba)."""
+    import os
+    import time
+
+    for i in range(intentos):
+        try:
+            os.replace(tmp, ruta)
+            return
+        except PermissionError:
+            if i == intentos - 1:
+                tmp.unlink(missing_ok=True)
+                raise CatalogError(f'{ruta} está abierto en otro programa (¿Excel?): ciérrelo para que el '
+                                   'catálogo crezca (053:RF-7).') from None
+            time.sleep(pausa_s)

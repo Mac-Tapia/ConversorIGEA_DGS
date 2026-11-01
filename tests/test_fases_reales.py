@@ -1,0 +1,196 @@
+"""Spec 054: fases reales en el DGS (tramos y SED monofásicos y bifásicos).
+
+Lo medido en DIgSILENT en una copia de NJA202 (2026-11-01) está en la spec; aquí se comprueba
+lo que el conversor escribe, con la muestra de las pruebas (que trae tramos monofásicos) y con
+la misma muestra forzada a trifásica.
+"""
+from __future__ import annotations
+
+import pytest
+
+from igea_dgs import dgs
+from igea_dgs.batch import convert_selection
+
+
+def _tablas(texto: str) -> dict[str, tuple[list[str], list[list[str]]]]:
+    tablas, actual = {}, None
+    for linea in texto.splitlines():
+        if linea.startswith('$$'):
+            nombre, *campos = linea[2:].split(';')
+            actual = nombre
+            tablas[nombre] = ([c.split('(')[0] for c in campos], [])
+        elif actual and linea.startswith('  '):
+            tablas[actual][1].append(linea.strip().split(';'))
+    return tablas
+
+
+def _filas(tablas, nombre) -> list[dict[str, str]]:
+    campos, filas = tablas.get(nombre, ([], []))
+    return [dict(zip(campos, f)) for f in filas]
+
+
+def _dgs(ds, feeder, carpeta, opciones) -> dict:
+    manifiesto = convert_selection(ds, [feeder], carpeta, **opciones)
+    assert manifiesto['summary']['ok'] == 1, manifiesto['feeders'][0].get('error')
+    return _tablas((carpeta / f'{feeder}.dgs').read_text(encoding=dgs.DGS_ENCODING))
+
+
+def test_ayudas_de_fases():
+    """054:RF-3, 054:RF-5 — letras de fase (ABC si la fuente no dice), tecnología de la barra y
+    qué fase de la barra toma cada fase del elemento."""
+    assert dgs.letras_de_fase('') == 'ABC' and dgs.letras_de_fase('B') == 'B'
+    assert dgs.PHTECH_POR_FASES == {3: 0, 2: 4, 1: 6}
+    assert dgs.it2p_de('B', 'ABC') == {'it2p1': 1, 'it2p2': 1, 'it2p3': 2}
+    assert dgs.it2p_de('B', 'B') == {'it2p1': 0, 'it2p2': 1, 'it2p3': 2}
+    assert dgs.it2p_de('BC', 'ABC') == {'it2p1': 1, 'it2p2': 2, 'it2p3': 2}
+    assert dgs.it2p_de('ABC', 'ABC') == {'it2p1': 0, 'it2p2': 1, 'it2p3': 2}
+
+
+def test_fases_de_la_sed_por_su_norma():
+    """054:RF-1 — sufijo de la norma del regulador: 01 una fase, 02 dos, 03/04/05 tres; las
+    letras, las del tramo que llega a su nodo; sin sufijo, trifásica."""
+    from vnr_etl.connectors.sqlserver_vnr import fases_de_sed
+
+    assert fases_de_sed('SM03701', 'A') == 'A' and fases_de_sed('SM00501', 'B') == 'B'
+    assert fases_de_sed('SB01002', 'ABC') == 'AB' and fases_de_sed('SB00702', 'BC') == 'BC'
+    assert fases_de_sed('SB01503', 'ABC') == fases_de_sed('SB10004', 'A') == 'ABC'
+    assert fases_de_sed('SC30005', 'ABC') == fases_de_sed('', 'A') == 'ABC'
+
+
+def test_tramos_monofasicos_con_sus_fases(ds, sample_feeder, tmp_path, opciones_reales):
+    """054:RF-2, 054:RF-3, 054:RF-8 — cada tramo monofásico o bifásico con un tipo de su número
+    de fases; cada barra con la tecnología de lo que llega a ella; cada cubículo con una fase de
+    la barra que existe."""
+    t = _dgs(ds, sample_feeder, tmp_path, opciones_reales)
+    if 'phtech' not in t['ElmTerm'][0]:
+        pytest.skip('la muestra no tiene tramos monofásicos ni bifásicos')
+    tipos = {f['FID']: f for f in _filas(t, 'TypLne')}
+    fases_tipo = {fid: int(f['nlnph']) for fid, f in tipos.items()}
+    assert set(fases_tipo.values()) - {3}, 'ningún tipo con menos de 3 fases'
+    assert all(f['loc_name'].endswith(f"_{f['nlnph']}F") for f in tipos.values() if f['nlnph'] != '3')
+    lineas = {f['FID']: f['typ_id'] for f in _filas(t, 'ElmLne')}
+    barras = {f['FID']: f for f in _filas(t, 'ElmTerm')}
+    for c in (f for f in _filas(t, 'StaCubic') if f['obj_id'] in lineas):
+        n_linea = fases_tipo[lineas[c['obj_id']]]
+        n_barra = {0: 3, 4: 2, 6: 1}[int(barras[c['fold_id']]['phtech'])]
+        assert n_linea <= n_barra, (c, n_linea, n_barra)
+        assert all(0 <= int(c[f'it2p{k}']) < n_barra for k in range(1, n_linea + 1)), c
+
+
+def test_todo_trifasico_no_cambia_el_dgs(ds, sample_feeder, tmp_path, opciones_reales, monkeypatch):
+    """054:RF-5, 054:RF-6 — con todas las fases ABC, el DGS no trae la columna de fases de la
+    barra, ni tipos «_1F»/«_2F», ni trafos monofásicos, y es igual con 1 y con 2 hilos."""
+    monkeypatch.setattr(dgs, 'letras_de_fase', lambda _f: 'ABC')
+    a, b = tmp_path / 'a', tmp_path / 'b'
+    t = _dgs(ds, sample_feeder, a, {**opciones_reales, 'workers': 1})
+    assert 'phtech' not in t['ElmTerm'][0]
+    assert all(f['nlnph'] == '3' for f in _filas(t, 'TypLne'))
+    assert all(f['nt2ph'] == '3' for f in _filas(t, 'TypTr2'))
+    _dgs(ds, sample_feeder, b, {**opciones_reales, 'workers': 2})
+    assert (a / f'{sample_feeder}.dgs').read_bytes() == (b / f'{sample_feeder}.dgs').read_bytes()
+
+
+def test_sed_monofasica_como_trafo_monofasico(ds, sample_feeder, tmp_path, opciones_reales, monkeypatch):
+    """054:RF-4 — una SED cuya carga es de una fase: trafo de 1 fase en D a la tensión entre
+    líneas (con «_1F» en su tipo), su barra de baja 1PH, su acoplador de 1 fase y su carga
+    equilibrada (DIgSILENT la hace «1PH PH-E»)."""
+    from dataclasses import replace
+
+    import igea_dgs.batch as batch
+
+    construir = batch.write_dgs
+
+    def escribir(model, path, **kw):
+        claves = {s.load_key for s in model.seds}
+        model.loads[:] = [replace(c, phase='A') if (c.section_id, c.device_number) in claves else c
+                          for c in model.loads]
+        return construir(model, path, **kw)
+
+    monkeypatch.setattr(batch, 'write_dgs', escribir)
+    t = _dgs(ds, sample_feeder, tmp_path, opciones_reales)
+    trafos = _filas(t, 'TypTr2')
+    if not trafos:
+        pytest.skip('la muestra no tiene SED')
+    for tipo in trafos:
+        assert (tipo['nt2ph'], tipo['tr2cn_h'], tipo['tr2cn_l']) == ('1', 'D', 'D')
+        assert tipo['loc_name'].endswith('_1F')
+        assert float(tipo['utrn_h']) > 1.0, 'tensión entre líneas de MT, no la de fase'
+    barras_bt = [f for f in _filas(t, 'ElmTerm') if f['loc_name'].endswith('_BT')]
+    assert barras_bt and all(f['phtech'] == '6' for f in barras_bt)
+    acopladores = [f for f in _filas(t, 'ElmCoup') if f['loc_name'].startswith('SW_')]
+    assert all(f['nphase'] == '1' for f in acopladores)
+    cargas_sed = {f['loc_name'] for f in _filas(t, 'ElmLod')}
+    assert cargas_sed and all(f['i_sym'] == '1' for f in _filas(t, 'ElmLod')
+                              if f['fold_id'] in {s['FID'] for s in _filas(t, 'ElmSubstat')})
+
+
+def test_flujo_desequilibrado_si_hay_monofasicos():
+    """054:RF-7 — con una línea o un trafo de menos de 3 fases, la red pide el flujo
+    desequilibrado, y el flujo común lo pone; toda trifásica, no se toca."""
+    from types import SimpleNamespace as N
+
+    def app(lineas=3, trafos=3):
+        objetos = {'ElmLne': [N(typ_id=N(nlnph=3)), N(typ_id=N(nlnph=lineas))],
+                   'ElmTr2': [N(typ_id=N(nt2ph=trafos)), N(typ_id=None)]}
+        ldf = N(iopt_net=0, Execute=lambda: 0)
+        return N(GetCalcRelevantObjects=lambda patron: objetos[patron[2:]],
+                 GetFromStudyCase=lambda _n: ldf, IsLdfValid=lambda: True, ldf=ldf)
+
+    assert not dgs.red_con_monofasicos(app())
+    assert dgs.red_con_monofasicos(app(lineas=1)) and dgs.red_con_monofasicos(app(trafos=1))
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
+    import cargas_pf
+
+    a = app(lineas=1)
+    a.GetCalcRelevantObjects = (lambda f: lambda patron: [] if patron == '*.ElmTerm' else f(patron))(
+        a.GetCalcRelevantObjects)
+    assert cargas_pf.flujo_de_carga(a)['converged'] and a.ldf.iopt_net == 1
+    b = app()
+    b.GetCalcRelevantObjects = (lambda f: lambda patron: [] if patron == '*.ElmTerm' else f(patron))(
+        b.GetCalcRelevantObjects)
+    cargas_pf.flujo_de_carga(b)
+    assert b.ldf.iopt_net == 0
+
+
+def test_ramales_monofasicos_repartidos_entre_fases():
+    """054:RF-1, 054:RF-5 — VNR-GIS no dice la fase de un ramal monofásico: cada ramal entero va a
+    una fase, el de más kVA a la de menos, y se anota; los trifásicos no se tocan."""
+    from vnr_etl.connectors.sqlserver_vnr import repartir_ramales_monofasicos
+    from vnr_etl.models.canonical import CanonicalModel, Load, Section
+
+    m = CanonicalModel()
+    m.sections += [Section('T0', 'H', 'N0', phases='ABC', feeder_id='F'),
+                   Section('R1a', 'N0', 'X1', phases='A', feeder_id='F'),
+                   Section('R1b', 'X1', 'X2', phases='A', feeder_id='F'),
+                   Section('R2', 'N0', 'Y1', phases='A', feeder_id='F'),
+                   Section('R3', 'N0', 'Z1', phases='A', feeder_id='F')]
+    m.loads += [Load('S1', 'X2', phases='A', feeder_id='F', connected_kva=50.0),
+                Load('S2', 'Y1', phases='A', feeder_id='F', connected_kva=30.0),
+                Load('S3', 'Z1', phases='A', feeder_id='F', connected_kva=20.0),
+                Load('S4', 'N0', phases='ABC', feeder_id='F', connected_kva=100.0)]
+    avisos = []
+    repartir_ramales_monofasicos(m, 'F', avisos)
+    fase = {s.section_id: s.phases for s in m.sections}
+    assert fase['T0'] == 'ABC' and fase['R1a'] == fase['R1b']
+    assert {fase['R1a'], fase['R2'], fase['R3']} == {'A', 'B', 'C'}
+    assert {c.load_id: c.phases for c in m.loads} == {'S1': fase['R1a'], 'S2': fase['R2'],
+                                                       'S3': fase['R3'], 'S4': 'ABC'}
+    assert avisos and avisos[0]['code'] == 'FASE_DEDUCIDA'
+
+
+def test_un_ramal_toma_solo_una_fase_del_tramo_del_que_sale():
+    """054:RF-1 — un ramal que cuelga de un tramo bifásico AB va a la A o a la B, nunca a la C."""
+    from vnr_etl.connectors.sqlserver_vnr import repartir_ramales_monofasicos
+    from vnr_etl.models.canonical import CanonicalModel, Load, Section
+
+    m = CanonicalModel()
+    m.sections += [Section('T0', 'H', 'N0', phases='ABC', feeder_id='F'),
+                   Section('T1', 'N0', 'N1', phases='AB', feeder_id='F')]
+    m.sections += [Section(f'R{i}', 'N1', f'X{i}', phases='A', feeder_id='F') for i in range(4)]
+    m.loads += [Load(f'S{i}', f'X{i}', phases='A', feeder_id='F', connected_kva=10.0 * (i + 1))
+                for i in range(4)]
+    repartir_ramales_monofasicos(m, 'F', [])
+    fases = {s.phases for s in m.sections if s.section_id.startswith('R')}
+    assert fases <= {'A', 'B'} and fases == {'A', 'B'}

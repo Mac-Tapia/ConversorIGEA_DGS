@@ -1125,6 +1125,14 @@ def execute_load_flow(
         if cmd is None:
             result['errors'].append('ComLdf not found/created in active study case')
             return result
+        if iopt_net is None:
+            # 054:RF-7: una red con líneas o trafos de menos de 3 fases, en desequilibrado; con
+            # el equilibrado sus SED monofásicas quedaban a 0 pu (NJA202, 2026-11-01).
+            from igea_dgs.dgs import red_con_monofasicos
+
+            if red_con_monofasicos(app):
+                iopt_net = 1
+                result['desequilibrado_por_fases'] = True
         result['comldf_attrs'] = _configure_comldf(
             cmd,
             relaxed=relaxed,

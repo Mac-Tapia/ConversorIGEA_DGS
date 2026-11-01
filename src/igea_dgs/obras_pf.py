@@ -199,6 +199,8 @@ class Obra:
     """SET nueva: potencia del transformador del módulo PIT (042:RF-7)."""
     kv_alta: float | None = None
     """SET nueva: tensión de alta del módulo PIT (042:RF-5)."""
+    unidades: int | None = None
+    """SET nueva: transformadores iguales en paralelo; sin dato, uno (042:RF-14)."""
 
     def a_dict(self) -> dict[str, Any]:
         """Lo que se guarda en el espacio de trabajo; ``validar_obra`` lo reconstruye."""
@@ -362,6 +364,8 @@ def _validar_set_nueva(comunes: dict[str, Any], datos: Mapping[str, Any]) -> Obr
     return Obra(**comunes, destino=destino, ramas=ramas,
                 mva=_numero(datos, 'mva', 'la potencia del transformador de la SET nueva (MVA)'),
                 kv_alta=_numero(datos, 'kv_alta', 'la tensión de alta de la SET nueva (kV)'),
+                unidades=_numero(datos, 'unidades', 'los transformadores en paralelo de la SET nueva',
+                                 entero=True, requerido=False),
                 tipo=_tipo_ref(datos.get('tipo'), 'set_nueva', requerido=False))
 
 
@@ -979,8 +983,11 @@ def _set_nueva(p: _Plan) -> None:
     p.elemento('SET nueva', 'ElmTerm', f'barras de {o.kv_alta:g} y {kv_mt:g} kV en {o.destino}')
     p.elemento('Red externa de la SET nueva', 'ElmXnet',
                f'con la tensión y la potencia de cortocircuito de la de cabecera de {o.alimentador}')
-    p.elemento('Transformador de la SET nueva', 'ElmTr2', f'nuevo, {o.mva:g} MVA, {o.kv_alta:g}/{kv_mt:g} kV')
-    p.extra['set_nueva'] = {'punto': o.destino, 'mva': o.mva, 'kv_alta': o.kv_alta, 'kv_media': kv_mt,
+    n = o.unidades or 1
+    p.elemento('Transformador de la SET nueva', 'ElmTr2',
+               f"nuevo, {f'{n} × ' if n > 1 else ''}{o.mva:g} MVA, {o.kv_alta:g}/{kv_mt:g} kV"
+               + (' en paralelo' if n > 1 else ''))
+    p.extra['set_nueva'] = {'punto': o.destino, 'mva': o.mva, 'unidades': n, 'kv_alta': o.kv_alta, 'kv_media': kv_mt,
                             'ramas': ramas, 'tipo': o.tipo.nombre if o.tipo else None}
 
 

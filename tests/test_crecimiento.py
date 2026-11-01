@@ -80,3 +80,24 @@ def test_los_libros_de_cabecera_se_leen_en_el_proceso_del_trabajo():
     assert 'ctx.en_proceso(curvas_por_anio,' in fuente
     assert crecimiento.curvas_por_anio.__qualname__ == 'curvas_por_anio', 'de nivel superior'
 
+
+
+def test_tasa_de_las_fijas_con_los_clientes_de_los_dos_anios():
+    """042:RF-7 — sin dos años de cabecera, la tasa sale de la POT de las fijas en los meses
+    comunes, con los clientes que tienen registro en los dos años; el código anterior cuenta."""
+    pot = {'2025-01': {'A': 100.0, 'VIEJO_B': 50.0}, '2025-02': {'A': 120.0, 'VIEJO_B': 60.0},
+           '2026-01': {'A': 110.0, 'B': 66.0, 'C': 500.0}, '2026-02': {'A': 132.0, 'B': 66.0, 'C': 500.0}}
+    r = cr.tasa_de_las_fijas(pot, {'F1': [['A'], ['B', 'VIEJO_B'], ['C']]})['F1']
+    assert r['clientes'] == 2 and r['de'] == 3 and r['origen'] == 'fijas'
+    assert r['tasa'] == pytest.approx((132 + 66) / (120 + 60) - 1)
+    assert cr.tasa_de_las_fijas({'2026-01': {'A': 1.0}}, {'F1': [['A']]}) == {'F1': None}
+
+
+def test_los_libros_de_clientes_se_leen_como_trabajo():
+    """042:RF-7 (029:RF-7) — ``pot_de_los_libros`` acepta el progreso, el registro y la cancelación
+    con que ``ctx.en_proceso`` llama a sus funciones; sin ellos, la optimización de «Con proyecto»
+    fallaba al pedir la tasa de las fijas (2026-10-31)."""
+    vistos = []
+    assert cr.pot_de_los_libros([], None, progreso=lambda *a: vistos.append(a), log=vistos.append,
+                                cancelado=lambda: False) == {}
+    assert cr.pot_de_los_libros([('2026-01', 'no_existe.xlsx')], None, cancelado=lambda: True) == {}

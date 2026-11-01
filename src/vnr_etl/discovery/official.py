@@ -75,10 +75,11 @@ def validate_vnr_package_file(path) -> None:
     from pathlib import Path
 
     from vnr_etl.connectors.registry import FORMATOS_PAQUETE_VNR
+    from vnr_etl.connectors.sqlserver_vnr import es_copia_sql
 
     source = Path(path)
     suffix = source.suffix.lower()
-    if suffix not in FORMATOS_PAQUETE_VNR:
+    if suffix not in FORMATOS_PAQUETE_VNR and not es_copia_sql(source):
         raise OfficialDiscoveryError(
             f'{source.name} no es un paquete VNR-GIS soportado. Formatos admitidos: '
             + ', '.join(FORMATOS_PAQUETE_VNR) + '. Los PDF son solo evidencia.'

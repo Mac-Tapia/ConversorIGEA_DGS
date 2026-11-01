@@ -120,8 +120,15 @@ def validate_dgs(
             schema_errors.append(f'Missing required DGS table: {name}')
             continue
         esperada = schema.header(name)
-        if name == 'ElmTerm' and 'cpZone' in tables[name]['header']:
-            esperada = schema.con_zonas().header(name)          # 022:RF-15
+        if name == 'ElmTerm':
+            # Las dos columnas opcionales de la barra, en el orden en que las añade el escritor:
+            # sus fases (054:RF-3) y su zona (022:RF-15).
+            con = schema
+            if 'phtech' in tables[name]['header']:
+                con = con.con_fases()
+            if 'cpZone' in tables[name]['header']:
+                con = con.con_zonas()
+            esperada = con.header(name)
         if name == 'IntGrfcon':
             # El escritor ensancha los puntos de los conectores al trazado más largo.
             n = sum(1 for parte in tables[name]['header'].split(';')
@@ -176,8 +183,14 @@ def validate_dgs(
             f'ElmTerm count {len(term_rows)} != source nodes {len(model.nodes)} '
             f'+ 2×SED buses {2 * len(model.seds)}'
         )
-    if len(type_rows) != len(model.line_types):
-        structural_errors.append(f'TypLne count {len(type_rows)} != source line types {len(model.line_types)}')
+    # 054:RF-2: un tipo más por cada conductor que también se usa con 1 o 2 fases.
+    from .dgs import letras_de_fase
+
+    variantes = {(ln.type_key, len(letras_de_fase(ln.phase))) for ln in model.lines
+                 if len(letras_de_fase(ln.phase)) < 3}
+    if len(type_rows) != len(model.line_types) + len(variantes):
+        structural_errors.append(f'TypLne count {len(type_rows)} != source line types '
+                                 f'{len(model.line_types)} + {len(variantes)} por fases')
     if len(line_rows) != len(model.lines):
         structural_errors.append(f'ElmLne count {len(line_rows)} != source lines {len(model.lines)}')
     if len(load_rows) != len(model.loads):

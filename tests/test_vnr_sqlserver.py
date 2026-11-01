@@ -128,6 +128,24 @@ def _datos(tablas=None):
 
 
 # --------------------------------------------------------------------------- pruebas
+def test_una_vista_rota_no_tumba_la_lectura():
+    """023:RF-9 — una vista que nombra otra base que no vino en la copia (Electro Oriente 2025:
+    «norEquipoMT» apunta a «VNRGISGART», su base de parámetros, que no se entregó) se anota y
+    la lectura sigue con lo demás de la red."""
+    class MotorRoto(Motor):
+        def responder(self, sql, params):
+            if sql.startswith('SELECT [') and sql.endswith('[admCodigosNorma]'):
+                raise RuntimeError("[42S02] Invalid object name 'VNRGISGART.dbo.norEquipoMT'. (208)")
+            return super().responder(sql, params)
+
+    datos = sv.leer_datos(MotorRoto(tablas=_tablas()).conectar('red'))
+    assert datos.normas == [] and datos.tramos and datos.seds
+    (ilegible,) = datos.ilegibles
+    assert ilegible['tabla'] == 'admCodigosNorma' and 'VNRGISGART' in ilegible['motivo']
+    modelo, avisos = sv.modelo_canonico(datos)
+    assert modelo.sections and any(a['code'] == 'BANCO_SIN_KVAR' for a in avisos)
+
+
 def test_config_y_base_de_parametros_junto_al_original(tmp_path):
     """023:RF-2 — empresa y bases del ``ConfigBD.config``; la base de parámetros, la que
     dice o la otra ``.bak`` con «param», también donde estaba el original."""
@@ -263,6 +281,55 @@ def test_la_fuente_vnr_acepta_la_copia(monkeypatch, tmp_path):
     assert vistos['path'] == bak and vistos['vecinas'] == [tmp_path]
     assert res.provenance['package_format'] == 'sqlserver_bak'
     assert 'F1' in res.dataset.feeders
+
+
+def test_sin_base_de_parametros_la_tension_sale_de_la_tabla_tensiones():
+    """023:RF-9 — sin «cfgCodigoSecundario» (Electro Oriente 2025 no entregó su base de
+    parámetros) la tensión de cada letra sale de la tabla «Tensiones» de la red; si vienen las
+    dos, manda la del regulador."""
+    tablas = _tablas()
+    del tablas['cfgCodigoSecundario']
+    tablas['Tensiones'] = [{'CodTenNomi': 'D         ', 'Tension': 10.0},
+                           {'CodTenNomi': 'G         ', 'Tension': 22.899999618530273}]
+    datos, _ = _datos(tablas)
+    assert sv.tensiones_de_tabla(datos.tensiones) == {'D': 10.0, 'G': 22.9}
+    modelo, _avisos = sv.modelo_canonico(datos)
+    assert modelo.sections and all(s.nominal_kv == 10.0 for s in modelo.sections), \
+        {s.nominal_kv for s in modelo.sections}
+    tablas = _tablas()
+    tablas['Tensiones'] = [{'CodTenNomi': 'D', 'Tension': 99.0}]
+    datos, _ = _datos(tablas)
+    modelo, _avisos = sv.modelo_canonico(datos)
+    assert all(s.nominal_kv == 10.0 for s in modelo.sections), 'manda la del regulador'
+
+
+def test_la_copia_sin_extension_se_reconoce_por_su_cabecera(monkeypatch, tmp_path):
+    """023:RF-1 — una copia de SQL Server sin «.bak» (Electro Oriente entregó «ELOR25_V2») se
+    reconoce por su cabecera MTF «TAPE»; un fichero sin extensión que no lo es, no."""
+    from igea_dgs.sources.snapshot import snapshot_from_paths
+    from igea_dgs.sources.vnr import VnrSourceAdapter
+    from vnr_etl.discovery.official import OfficialDiscoveryError, validate_vnr_package_file
+
+    copia = tmp_path / 'ELOR25_V2'
+    copia.write_bytes(b'TAPE\x00\x00\x03\x00' + b'\x00' * 64)
+    otro = tmp_path / 'NOTAS'
+    otro.write_bytes(b'hola mundo')
+    assert sv.es_copia_sql(copia) and not sv.es_copia_sql(otro)
+    validate_vnr_package_file(copia)
+    with pytest.raises(OfficialDiscoveryError):
+        validate_vnr_package_file(otro)
+    datos, _ = _datos()
+    vistos = {}
+
+    def cargar(path, *, servidor, vecinas):
+        vistos['path'] = Path(path)
+        modelo, avisos = sv.modelo_canonico(datos)
+        return modelo, avisos, {'company': 'EMP', 'period': 'VNR'}
+
+    monkeypatch.setattr(sv, 'cargar_copia', cargar)
+    snap = snapshot_from_paths('vnr', {'vnr_package': copia}, tmp_path, origin='prueba')
+    res = VnrSourceAdapter().load(snap, aliases={})
+    assert res.provenance['package_format'] == 'sqlserver_bak' and 'F1' in res.dataset.feeders
 
 
 @pytest.mark.skipif(not os.environ.get('IGEA_VNR_BAK'), reason='sin IGEA_VNR_BAK')

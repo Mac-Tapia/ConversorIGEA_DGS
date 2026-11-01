@@ -1688,8 +1688,15 @@ def _misma(a, b) -> bool:
 
 
 def flujo_de_carga(app) -> dict:
-    """``ComLdf`` con lo activo; convergencia y tensiones extremas (RF-18)."""
+    """``ComLdf`` con lo activo; convergencia y tensiones extremas (RF-18).
+
+    054:RF-7: con líneas o trafos de menos de 3 fases, el flujo desequilibrado; si no, el que
+    tenga el caso (un estudio puede haber pedido el desequilibrado a propósito)."""
+    from igea_dgs.dgs import red_con_monofasicos
+
     ldf = app.GetFromStudyCase('ComLdf')
+    if red_con_monofasicos(app):
+        ldf.iopt_net = 1
     ret = ldf.Execute()
     valido = app.IsLdfValid()
     out = {'return_code': ret, 'ldf_valid': bool(valido), 'converged': ret == 0 and bool(valido)}

@@ -70,6 +70,13 @@ SET nueva para las que no caben
   40 MVA y la SET nueva completa), leídos con la configuración del perfil; el factor de seguridad
   es 1,25, en el perfil; y la SET nueva de NA203 + NA205 es la SET Copara que la empresa ya
   planifica en Nasca: se dimensiona y se ubica con RF-7 y RF-9, y se compara con la planificada.
+- Aclaración de RF-7 (usuario, 2026-10-31: «la tasa es para mediciones registradas, ya sea fijas y
+  medición de cabecera; las nuevas son fijas, no tienen tasa de crecimiento»): la potencia de
+  diseño es (demanda trasladada × (1 + g)^n + cargas nuevas) × factor de seguridad. g es la de la
+  cabecera (029) cuando hay dos años; si no, la de la POT registrada de las fijas del alimentador
+  en los libros de clientes de dos años, con las fijas que tienen registro en los dos y su código
+  anterior (tabla de suministros). Vale para cualquier proyecto, alimentador y empresa: NA203 +
+  NA205 es el caso de prueba (usuario, 2026-10-31: «debe ser universal, no exclusivo de Nazca»).
 - RF-8: SI falta en el perfil el factor de seguridad o la tabla de potencias normalizadas, o un
   alimentador no tiene tasa de la spec 029, ENTONCES EL SISTEMA dirá cuál falta y no supondrá un
   valor (P13).
@@ -94,6 +101,12 @@ Informe y web
   CAPEX lo trae.
 - RF-13: EL SISTEMA ofrecerá la optimización de «Con proyecto» en la web, en el paso de obras,
   como trabajo del carril de DIgSILENT, cancelable entre cargas.
+- RF-14: CUANDO ningún módulo PIT cubra solo la potencia de diseño y el perfil admita
+  transformadores en paralelo (`planificacion.transformador_set.unidades_en_paralelo_max`), EL
+  SISTEMA elegirá el de menor costo con n unidades iguales (la SET una vez y n − 1 transformadores
+  de su potencia) y creará la SET con esas n unidades; sin el dato del perfil, un solo
+  transformador. (Usuario, 2026-10-31: NA203 + NA205 pedían 45,5 MVA y el mayor módulo de
+  22,9 kV era de 40; «la a)», transformadores en paralelo.)
 
 ## Relación con otras specs
 
@@ -110,7 +123,7 @@ Informe y web
 
 ## Criterios de finalización
 
-- `grep -rnoE "042:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-13.
+- `grep -rnoE "042:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-14.
 - NA203 + NA205 desde la web: cada carga nueva con su destino; la red existente con obras que
   cumplen; la SET nueva con su punto, su potencia de diseño a 30 años y sus alimentadores, y
   «Con proyecto» convergiendo dentro de los límites de tensión.

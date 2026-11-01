@@ -717,6 +717,23 @@ queda fuera. Una modificación manual del proyecto es un aviso, nunca un bloqueo
 | 4.2 Estudios y guiones | Estudio, caso y límites; libro de la empresa (confiabilidad, reconectadores, capacidad, curvas PV, condensadores, spec 012); guiones DPL y Python del operador | `tools/estudios_pf.py`, `tools/confiabilidad_pf.py`, `tools/capacidad_pf.py` |
 | 4.3 Transferencia | Dos alimentadores y su enlace | `tools/transferencia_pf.py` |
 
+### Medición de cabecera de otra forma: una columna por alimentador (spec 051)
+
+La calibración lee la cabecera con una hoja por medidor y el libro de medidores. Si la empresa
+la entrega a lo ancho (una hoja por sistema y magnitud, fecha y hora en dos columnas y una
+columna por alimentador, como los perfiles del PIDE de Electro Oriente) o solo como tabla de
+máximas mensuales por salida, `tools/cabecera_ancha.py` la pasa a ese formato en una carpeta
+del espacio de trabajo, nunca en la de los datos de la distribuidora:
+
+```bash
+.venv/Scripts/python.exe tools/cabecera_ancha.py --ancho <carpeta de perfiles>     --alimentador NJA202=NJA202 --salida <carpeta del espacio>
+.venv/Scripts/python.exe tools/cabecera_ancha.py --mensual <libro de máximas>     --alimentador R205=R5 --salida <carpeta del espacio>
+```
+
+`NOMBRE_EN_DIGSILENT=CODIGO` une el alimentador con su columna de medición (R205 se mide como
+R5). Una reactiva marcada «CAPACITIVA» va con signo negativo. Las máximas mensuales no traen
+hora ni reactiva: la calibración ajusta solo la activa y no supone factor de potencia.
+
 ### Cómo se calibra y se recalibra (specs 035, 039 y 041)
 
 - **Fijas**: los clientes de la tabla cruzada (2.3) y las SED medidas en «3.1 Demandas en bloque»

@@ -94,3 +94,5 @@ config/demanda_medida_alias.json
 # Informes y modelos de la distribuidora: no se suben (constitución P9).
 referencia/*.doc
 referencia/*.docx
+# PDF del solicitante (spec 017): datos, no código.
+referencia/*.pdf

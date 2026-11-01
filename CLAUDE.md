@@ -78,6 +78,11 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 048 Optimización mixta evolutiva y PNL | aprobada | ver sus tareas |
   | 049 Protecciones nativas y coordinación | aprobada | ver sus tareas |
   | 050 Aprendizaje continuo integrado | aprobada | ver sus tareas |
+  | 051 Medición de cabecera en libro ancho: una columna por alimentador | implementada | falta T3 |
+  | 052 Optimización de «Con proyecto» con el oráculo y confirmación en DIgSILENT | aprobada | falta T1, T2, T3, T4 |
+  | 053 El catálogo de fichas crece con cada código nuevo | implementada | falta T2 |
+  | 054 Fases reales en el DGS: tramos y SED monofásicos y bifásicos | implementada | falta T3 |
+  | 055 Estructura de sistemas y SET desde la propia fuente, para cualquier empresa | aprobada | falta T1, T2 |
 
   Las convenciones de cada empresa (CRS de origen, patrón de SED de medición, escala,
   carpeta de DIgSILENT) van en `config/perfil_empresa.json`, local y fuera de git, que

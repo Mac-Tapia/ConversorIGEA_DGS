@@ -88,6 +88,22 @@ def test_la_set_nueva_se_crea_solo_en_con_proyecto(semilla, perfil):
     assert int(getattr(_linea(app, 'F1_L2'), 'outserv', 0) or 0) == 0
 
 
+def test_set_nueva_con_transformadores_en_paralelo(perfil):
+    """042:RF-14 — la obra con dos unidades crea un ElmTr2 con ntnum = 2, cada uno con la uk de su
+    potencia; sin el dato, uno; cero no es un número de unidades."""
+    assert validar_obra(_obra()).unidades is None
+    assert validar_obra(_obra(unidades=2)).unidades == 2
+    with pytest.raises(ObrasError, match='entero positivo'):
+        validar_obra(_obra(unidades=0))
+    app, alims = _calibrada(random.Random(21), n_min=2, cargas_min=3)
+    _con_red_externa(app)
+    informe, codigo = guion.aplicar(app, _plan(alims, obras=[_obra(unidades=2)]))
+    assert codigo == 0, informe
+    _activas(app, CON)
+    tr = next(o for o in app.proyecto.GetContents('*.ElmTr2', 1) if o.loc_name == 'TR_SET_NUEVA')
+    assert tr.ntnum == 2 and tr.typ_id.strn == 25.0 and tr.typ_id.uktr == pytest.approx(8.0)
+
+
 def test_sin_red_externa_en_la_cabecera_se_dice(perfil):
     """042:RF-5 — sin red externa en la cabecera no se sabe con qué alimentar la SET nueva."""
     app, alims = _calibrada(random.Random(5), n_min=2, cargas_min=3)
@@ -132,6 +148,16 @@ def test_datos_de_la_red_para_la_set_nueva():
         assert {t['nombre'] for t in d['tramos']} >= {f'{f}_L1', f'{f}_L2'}
         por_carga = {c['nombre']: c['barra'] for c in d['cargas']}
         assert por_carga[f'{f}_S1'] == f'{f}_B1' and all(c['kw'] > 0 for c in d['cargas'])
+
+
+def test_set_nueva_halla_la_barra_de_media_de_una_carga_apartada():
+    """042:RF-6 — las cargas que pasan a la SET nueva son las que la escalera apartó y no están
+    activas en «Con proyecto»: su barra de media sale de la barra que dio la escalera. Por su
+    nombre, en NA203 + NA205 (2026-10-31) 29 de 32 quedaban fuera de la SET nueva."""
+    app, alims = _calibrada(random.Random(17), n_min=2, cargas_min=3)
+    informe, codigo = guion.datos_set_nueva(app, _plan(alims, barras={'F1': ['F1_S2_BT']}))
+    assert codigo == 0, informe
+    assert informe['alimentadores']['F1']['media'] == {'F1_S2_BT': 'F1_B2'}
 
 
 def test_la_escalera_mide_la_barra_de_media_de_una_ampliacion():

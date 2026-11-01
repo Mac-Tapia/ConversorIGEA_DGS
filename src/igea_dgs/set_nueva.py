@@ -32,6 +32,8 @@ class Parametros:
     anios: int
     factor_seguridad: float
     modulos_pit: Mapping[str, Any]
+    max_unidades: int = 1
+    """Transformadores iguales en paralelo que admite la empresa (042:RF-14); sin dato, uno."""
 
 
 def parametros(perfil: Mapping[str, Any]) -> Parametros:
@@ -41,8 +43,10 @@ def parametros(perfil: Mapping[str, Any]) -> Parametros:
     if faltan:
         raise SetNuevaError('el perfil de empresa no trae ' + ', '.join(f'planificacion.{k}' for k in faltan)
                             + ': no se supone ningún valor para diseñar la SET nueva (042:RF-8).')
+    # Sin el dato, un solo transformador: el paralelo es una decisión de la empresa (P13).
+    unidades = int((plan.get('transformador_set') or {}).get('unidades_en_paralelo_max') or 1)
     return Parametros(int(plan['vida_util_anios']), float(plan['factor_seguridad_set']),
-                      plan['modulos_pit'])
+                      plan['modulos_pit'], max(1, unidades))
 
 
 def distancia_m(a: tuple[float, float], b: tuple[float, float]) -> float:
@@ -55,12 +59,14 @@ def distancia_m(a: tuple[float, float], b: tuple[float, float]) -> float:
 # =========================================================================== RF-7
 def potencia_de_diseno(trasladado: Mapping[str, tuple[float, float]], nuevas: tuple[float, float],
                        tasas: Mapping[str, float], *, anios: int, factor_seguridad: float) -> dict[str, Any]:
-    """(demanda trasladada + cargas nuevas) × (1 + g)^n × FS, con cada término (042:RF-7).
+    """(demanda trasladada × (1 + g)^n + cargas nuevas) × FS, con cada término (042:RF-7).
 
     ``trasladado``: kW y kvar calibrados que cada alimentador pasa a la SET nueva; ``nuevas``: los
     de las cargas nuevas que van a ella; ``tasas``: la de la spec 029 de cada alimentador. La tasa
     se pondera por los kVA que traslada cada uno: el que más carga aporta es el que más pesa en
-    cómo crecerá la SET.
+    cómo crecerá la SET. Las cargas nuevas no crecen: son fijas con su potencia declarada; la
+    tasa es de la demanda registrada (usuario, 2026-10-31: «la tasa es para mediciones
+    registradas, fijas y medición de cabecera; las nuevas son fijas, no tienen tasa»).
     """
     faltan = sorted(f for f in trasladado if tasas.get(f) is None)
     if faltan:
@@ -76,7 +82,8 @@ def potencia_de_diseno(trasladado: Mapping[str, tuple[float, float]], nuevas: tu
     crecimiento = (1.0 + g) ** anios
     return {'kva_trasladado': math.hypot(p, q), 'kva_nuevas': math.hypot(*nuevas), 'kva_base': base,
             'tasa_ponderada': g, 'tasas': dict(tasas), 'anios': anios, 'factor_crecimiento': crecimiento,
-            'factor_seguridad': factor_seguridad, 'kva_diseno': base * crecimiento * factor_seguridad}
+            'factor_seguridad': factor_seguridad,
+            'kva_diseno': (math.hypot(p, q) * crecimiento + math.hypot(*nuevas)) * factor_seguridad}
 
 
 # =========================================================================== módulos PIT
@@ -140,30 +147,51 @@ def leer_modulos_pit(ruta: Path | str, cfg: Mapping[str, Any]) -> list[dict[str,
 
 
 def elegir_modulo(modulos: Sequence[Mapping[str, Any]], kva_diseno: float, kv_mt: float,
-                  kv_at: float | None = None) -> dict[str, Any]:
+                  kv_at: float | None = None, *, max_unidades: int = 1) -> dict[str, Any]:
     """El menor módulo que cubre la potencia de diseño a la tensión de media (042:RF-7).
 
     Primero un módulo de SET nueva (es lo que se construye); si ninguno cubre, el menor
-    transformador, cuyo costo no incluye la SET. Sin ninguno, ``modulo`` es ``None`` y ``motivo``
-    dice por qué.
+    transformador, cuyo costo no incluye la SET. Si ninguno cubre solo y el perfil admite
+    transformadores en paralelo (``max_unidades`` > 1), el de menor costo con n unidades
+    iguales: la SET una vez y n − 1 transformadores de su potencia (042:RF-14; NA203 + NA205,
+    2026-10-31: 45,5 MVA de diseño y el mayor módulo de 22,9 kV era de 40 MVA). Sin ninguno,
+    ``modulo`` es ``None`` y ``motivo`` dice por qué. ``modulo['unidades']`` dice cuántos.
     """
-    def sirve(m):
+    def a_tension(m):
         return (any(abs(v - kv_mt) < 0.05 for v in m['kv'][1:])
-                and (kv_at is None or abs(m['kv_at'] - kv_at) < 0.5)
-                and m['mva'] * 1000.0 >= kva_diseno)
+                and (kv_at is None or abs(m['kv_at'] - kv_at) < 0.5))
 
     for tipo in ('set', 'transformador'):
-        cand = sorted((m for m in modulos if m['tipo'] == tipo and sirve(m)),
+        cand = sorted((m for m in modulos if m['tipo'] == tipo and a_tension(m) and m['mva'] * 1000.0 >= kva_diseno),
                       key=lambda m: (m['mva'], m['costo']))
         if cand:
             motivo = ('módulo de SET nueva' if tipo == 'set' else
                       'ningún módulo de SET nueva cubre la potencia: el transformador, sin la SET')
-            return {'modulo': dict(cand[0]), 'motivo': motivo}
+            return {'modulo': {**cand[0], 'unidades': 1, 'mva_total': cand[0]['mva'], 'costo_total': cand[0]['costo']},
+                    'motivo': motivo}
+    for tipo in ('set', 'transformador') if max_unidades > 1 else ():
+        opciones = []
+        for m in (m for m in modulos if m['tipo'] == tipo and a_tension(m) and m['mva'] > 0):
+            n = math.ceil(kva_diseno / (m['mva'] * 1000.0))
+            if n > max_unidades:
+                continue
+            # La SET se construye una vez; cada unidad más es un transformador de su potencia, o
+            # el propio módulo si el libro no trae ese transformador suelto.
+            extra = min((t['costo'] for t in modulos if t['tipo'] == 'transformador' and a_tension(t)
+                         and abs(t['mva'] - m['mva']) < 1e-6 and abs(t['kv_at'] - m['kv_at']) < 0.5),
+                        default=m['costo']) if tipo == 'set' else m['costo']
+            opciones.append((m['costo'] + (n - 1) * extra, n, m['mva'], m))
+        if opciones:
+            costo, n, _, m = min(opciones, key=lambda o: o[:3])
+            motivo = (f'ningún módulo cubre solo la potencia: {n} transformadores de {m["mva"]:g} MVA en paralelo'
+                      + ('' if tipo == 'set' else ', sin la SET'))
+            return {'modulo': {**m, 'unidades': n, 'mva_total': n * m['mva'], 'costo_total': costo}, 'motivo': motivo}
     # El mayor de esa tensión: con todos, la SET El Ángel de 22 kV y 120 MVA salía como «el mayor».
     mayor = max((m['mva'] for m in modulos if any(abs(v - kv_mt) < 0.05 for v in m['kv'][1:])), default=0)
+    paralelo = f'; ni con {max_unidades} en paralelo' if max_unidades > 1 else ''
     return {'modulo': None,
             'motivo': f'ningún módulo PIT de {kv_mt:g} kV cubre {kva_diseno / 1000.0:.1f} MVA '
-                      f'(el mayor de {kv_mt:g} kV es de {mayor:g} MVA)'}
+                      f'(el mayor de {kv_mt:g} kV es de {mayor:g} MVA{paralelo})'}
 
 
 # =========================================================================== RF-1 a RF-3
@@ -175,9 +203,12 @@ def orden_de_cargas(cargas: Sequence[Mapping[str, Any]]) -> list[Mapping[str, An
 def cuantas_caben(n: int, cabe) -> tuple[int, list[dict[str, Any]]]:
     """El mayor k ≤ n tal que las k primeras cargas caben en la red existente (042:RF-2, RF-3).
 
-    Por bisección: cada ``cabe(k)`` es una escalera entera en DIgSILENT (minutos), y con más
-    carga nunca es más fácil cumplir; con 37 cargas, 6 escaleras en vez de 37. Sin ninguna
-    carga, la red ya está como estaba: k = 0 cabe sin probarlo.
+    Con más carga nunca es más fácil cumplir, así que basta buscar el límite. Se galopa desde
+    abajo (1, 2, 4…) y se afina por bisección entre el último que cabe y el primero que no:
+    una prueba que no cabe recorre todas las variantes en DIgSILENT (en NA203 + NA205, 22 min
+    por alimentador) y una que cabe para en la primera que cumple. En NA203 + NA205
+    (2026-11-01) cabían 3 de 35 y la bisección desde arriba hacía 4 pruebas que no cabían antes
+    de llegar a ellas; galopando, una. Sin ninguna carga, k = 0 cabe sin probarlo.
     """
     pruebas: list[dict[str, Any]] = []
 
@@ -188,9 +219,16 @@ def cuantas_caben(n: int, cabe) -> tuple[int, list[dict[str, Any]]]:
 
     if n <= 0:
         return 0, pruebas
-    if probar(n):
-        return n, pruebas
-    bajo, alto = 0, n                       # cabe(bajo) y no cabe(alto)
+    bajo, k = 0, 1                          # cabe(bajo) siempre
+    while True:
+        k = min(k, n)
+        if not probar(k):
+            alto = k
+            break
+        bajo = k
+        if k == n:
+            return n, pruebas
+        k *= 2
     while alto - bajo > 1:
         medio = (bajo + alto) // 2
         if probar(medio):

@@ -40,8 +40,8 @@ def _libro(tmp_path):
 
 # =========================================================================== RF-7, RF-8
 def test_potencia_de_diseno_con_la_tasa_ponderada_y_el_factor():
-    """042:RF-7 — (trasladado + nuevas) × (1 + g)^n × FS, con g de cada alimentador ponderada por
-    la demanda que traslada; cada término sale en el resultado."""
+    """042:RF-7 — (trasladado × (1 + g)^n + nuevas) × FS, con g de cada alimentador ponderada por
+    la demanda que traslada; las cargas nuevas no crecen; cada término sale en el resultado."""
     d = sn.potencia_de_diseno({'NA203': (3000.0, 1000.0), 'NA205': (1000.0, 0.0)},
                               (8000.0, 2000.0), {'NA203': 0.03, 'NA205': 0.01},
                               anios=30, factor_seguridad=1.25)
@@ -50,7 +50,7 @@ def test_potencia_de_diseno_con_la_tasa_ponderada_y_el_factor():
     base = math.hypot(4000, 1000) + math.hypot(8000, 2000)
     assert d['tasa_ponderada'] == pytest.approx(g)
     assert d['kva_base'] == pytest.approx(base)
-    assert d['kva_diseno'] == pytest.approx(base * (1 + g) ** 30 * 1.25)
+    assert d['kva_diseno'] == pytest.approx((math.hypot(4000, 1000) * (1 + g) ** 30 + math.hypot(8000, 2000)) * 1.25)
     assert d['anios'] == 30 and d['factor_seguridad'] == 1.25
 
 
@@ -92,6 +92,27 @@ def test_se_elige_el_menor_modulo_que_cubre(tmp_path):
     assert (grande['tipo'], grande['mva']) == ('transformador', 40.0)
     ninguno = sn.elegir_modulo(mods, 60_000.0, 22.9)
     assert ninguno['modulo'] is None and '60' in ninguno['motivo']
+    assert sn.elegir_modulo(mods, 20_000.0, 22.9)['modulo']['unidades'] == 1
+
+
+def test_transformadores_en_paralelo_si_ninguno_cubre_solo(tmp_path):
+    """042:RF-14 — si ningún módulo cubre solo la potencia y el perfil admite n en paralelo, la SET
+    una vez y n − 1 transformadores de su potencia; sin módulo de SET que llegue, n
+    transformadores; sin el dato del perfil, uno solo. NA203 + NA205 (2026-10-31): 45,5 MVA y el
+    mayor módulo de 22,9 kV era de 40."""
+    mods = sn.leer_modulos_pit(_libro(tmp_path), CFG_PIT)
+    copara = next(m for m in mods if m['tipo'] == 'set')
+    trafo25 = next(m for m in mods if m['tipo'] == 'transformador' and m['mva'] == 25.0)
+    par = sn.elegir_modulo(mods, 45_500.0, 22.9, max_unidades=2)['modulo']
+    assert (par['tipo'], par['mva'], par['unidades'], par['mva_total']) == ('set', 25.0, 2, 50.0)
+    assert par['costo_total'] == pytest.approx(copara['costo'] + trafo25['costo'])
+    dos40 = sn.elegir_modulo(mods, 60_000.0, 22.9, max_unidades=2)['modulo']
+    assert (dos40['tipo'], dos40['mva'], dos40['unidades']) == ('transformador', 40.0, 2)
+    assert sn.elegir_modulo(mods, 90_000.0, 22.9, max_unidades=2)['modulo'] is None
+    assert sn.elegir_modulo(mods, 45_500.0, 22.9)['modulo'] is None
+    base = {'vida_util_anios': 30, 'factor_seguridad_set': 1.25, 'modulos_pit': CFG_PIT}
+    assert sn.parametros({'planificacion': base}).max_unidades == 1
+    assert sn.parametros({'planificacion': {**base, 'transformador_set': {'unidades_en_paralelo_max': 2}}}).max_unidades == 2
 
 
 # =========================================================================== RF-1 a RF-3
@@ -103,8 +124,9 @@ def test_orden_de_mayor_a_menor_potencia():
 
 
 def test_cuantas_caben_por_biseccion():
-    """042:RF-2, 042:RF-3 — el mayor k que cabe, el mismo que añadiéndolas una a una, con unas
-    log2(n) escaleras; ninguna se prueba dos veces."""
+    """042:RF-2, 042:RF-3 — el mayor k que cabe, el mismo que añadiéndolas una a una, galopando
+    desde abajo y afinando por bisección: unas 2·log2(k) escaleras, ninguna dos veces, y como
+    mucho dos que no caben más que las de afinar (NA203 + NA205: caben 3 de 35)."""
     rng = random.Random(SEMILLA)
     for _ in range(50):
         n = rng.randint(0, 60)
@@ -118,7 +140,9 @@ def test_cuantas_caben_por_biseccion():
         k, pruebas = sn.cuantas_caben(n, cabe)
         assert k == limite, SEMILLA
         assert len(probadas) == len(set(probadas)) == len(pruebas), SEMILLA
-        assert len(probadas) <= math.ceil(math.log2(n + 1)) + 1, SEMILLA
+        assert len(probadas) <= 2 * math.ceil(math.log2(limite + 2)) + 1, SEMILLA
+        no_caben = [k_ for k_ in probadas if k_ > limite]
+        assert len(no_caben) <= math.ceil(math.log2(limite + 2)) + 1, SEMILLA
 
 
 # =========================================================================== RF-6

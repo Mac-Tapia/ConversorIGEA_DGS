@@ -1136,6 +1136,37 @@ def test_evaluar_variantes_sin_dejar_nada(semilla, monkeypatch):
     assert {e.loc_name for e in app.GetProjectFolder('scen', 1).GetContents('*.IntScenario')} == escenarios
 
 
+def test_basta_una_variante_que_cumple_para_saber_si_caben(monkeypatch):
+    """042:RF-2 — con ``basta_una``, la primera variante con costo que cumple con la máxima se
+    sortea en seguida y, si cumple, no se prueba ninguna más; la que no tiene costo no cuenta.
+    Al terminar no queda ninguna obra y los casos siguen como estaban (NA203 + NA205,
+    2026-11-01: cada prueba de la bisección recorría todas las variantes)."""
+    app, alims = _calibrada_con_escenario(random.Random(43))
+    _actual_no_cumple(monkeypatch)
+    monkeypatch.setitem(guion.CONSTRUCTORES, 'terna', _terna)
+    f = alims[0]
+    antes = (_activas(app, SIN), _activas(app, CON), _variaciones(app))
+    sorteos = [{'factores': {a: 0.9 for a in alims}} for _ in range(3)]
+    variantes = [{'nombre': 'sin costo', 'obras': [_obra_terna(f, [CON])], 'costo_base': None},
+                 {'nombre': 'primera', 'obras': [_obra_terna(f, [CON])], 'costo_base': 1.0},
+                 {'nombre': 'segunda', 'obras': [_obra_terna(f, [CON])], 'costo_base': 0.5}]
+    plan = _plan(alims, variantes=variantes, sorteos=sorteos, barras_cargas=[],
+                 parametros=PERFIL_ESCALERA, basta_una=True)
+    informe, codigo = guion.evaluar(app, plan)
+    assert codigo == 0, informe
+    assert informe['basta_una'] == 'primera'
+    assert [v['nombre'] for v in informe['variantes']] == ['sin costo', 'primera']
+    sin_costo, primera = informe['variantes']
+    assert primera['maxima'] and primera['fraccion'] == 1.0
+    assert sin_costo['maxima'] and sin_costo['fraccion'] is None, 'sin costo no se sortea'
+    assert (_activas(app, SIN), _activas(app, CON), _variaciones(app)) == antes
+    # Sin «basta_una», las tres con la máxima, como siempre.
+    _actual_no_cumple(monkeypatch)
+    informe, codigo = guion.evaluar(app, {**plan, 'basta_una': False})
+    assert codigo == 0 and len(informe['variantes']) == 3 and 'basta_una' not in informe
+    assert (_activas(app, SIN), _activas(app, CON), _variaciones(app)) == antes
+
+
 def test_los_sorteos_escalan_solo_las_cargas_existentes_y_se_restituyen(monkeypatch):
     """025:RF-51, 025:RF-52 — en cada sorteo, la demanda de cada carga existente por el factor
     de su alimentador, en un escenario temporal; al terminar, la de siempre."""

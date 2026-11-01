@@ -472,7 +472,10 @@ def main(argv=None) -> int:
     web = Web(args.url, args.espacio)
     try:
         demanda_dir = args.demanda_dir.resolve()
-        dados = {t: (p if p.is_absolute() else demanda_dir / p)
+        # Relativa, dentro de la carpeta de la demanda («--medidores medidores.xlsx»); pero si ya
+        # existe tal como se escribió, esa: con «output/…/demanda_elor/medidores.xlsx» se pegaba
+        # dos veces la carpeta y la web decía «No existe» (Electro Oriente, 2026-11-01).
+        dados = {t: (p.resolve() if p.is_absolute() or p.exists() else demanda_dir / p)
                  for t, p in (('medidores', args.medidores), ('cabecera', args.cabecera),
                               ('clientes', args.clientes), ('suministros', args.suministros)) if p}
         libros, avisos = libros_de_la_demanda(demanda_dir, dados)

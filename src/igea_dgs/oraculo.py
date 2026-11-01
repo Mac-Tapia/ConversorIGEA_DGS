@@ -18,11 +18,15 @@ Qué red calcula. **La que se escribe en el DGS**, no una aproximación:
 * seccionadores e interruptores en su extremo de tramo, y los acopladores de los
   puentes fundidos, con su estado normal.
 
-Qué **no** hace: corregir. Un veredicto de tensión baja o de sobrecarga describe la red
+:func:`validar` no corrige. Un veredicto de tensión baja o de sobrecarga describe la red
 y no es un error de conversión. Cambiarlo para que «salga bien» produciría justo la
 clase de modelo que este proyecto no quiere: uno que converge con datos inventados.
-Las correcciones con regla explícita están en :mod:`igea_dgs.saneamiento`. Este módulo
-dice si el resultado se sostiene.
+Las correcciones con regla explícita están en :mod:`igea_dgs.saneamiento`.
+
+La única corrección propia es :func:`corregir_para_converger` (spec 057), y solo sobre un
+dato que falta: la demanda de relleno o mayor que su SED, que pasa a la potencia
+instalada que sí trae la fuente, con regla y anotada. Caso real: ELOR25_V2 trae 39 kW en
+todas sus SED y NJA202 no convergía ni en DIgSILENT ni aquí.
 
 El flujo es **equilibrado** (secuencia positiva). Las cargas monofásicas se reparten en
 las tres fases, así que la caída de tensión de un ramal monofásico se subestima. Sirve
@@ -381,6 +385,87 @@ def validar(model: FeederModel) -> InformeOraculo:
                 f'pérdidas del {pct:.1f} % de la carga: delatan impedancias o longitudes '
                 'fuera de escala.'))
     return informe
+
+
+# ------------------------------------------------------- corrección antes de importar (057)
+
+#: Ninguna SED corregida pasa de esta fracción de su potencia instalada (057:RF-3).
+TOPE_CORRECCION = 0.8
+#: Pasos de la bisección del factor: 0,8 / 2⁷ ≈ 0,006, más fino que lo que distingue la
+#: calibración de «Sin proyecto», que parte de aquí y lo ajusta a la cabecera.
+PASOS_CORRECCION = 7
+
+
+@dataclass
+class CorreccionOraculo:
+    """Lo que hizo :func:`corregir_para_converger`. ``convergio`` es ``None`` si no hizo falta
+    calcular (ninguna SED de relleno ni fuera de escala)."""
+
+    convergio: bool | None = None
+    factor: float | None = None
+    cambios: list = field(default_factory=list)
+    motivo: str = ''
+
+    def as_dict(self) -> dict[str, Any]:
+        return {'convergio': self.convergio, 'factor': self.factor, 'sed': len(self.cambios),
+                'lineas': [c.linea() for c in self.cambios], 'motivo': self.motivo}
+
+
+def corregir_para_converger(model: FeederModel, *, tope: float = TOPE_CORRECCION,
+                            pasos: int = PASOS_CORRECCION) -> CorreccionOraculo:
+    """La corrección del «Caso base» (015:RF-38) hecha aquí, antes de importar (spec 057).
+
+    Solo si hay SED con demanda de relleno o mayor que su potencia (057:RF-2) y el flujo no
+    converge: esas SED pasan a kVA × factor con FP 0,98, con el mayor factor ≤ ``tope`` con el
+    que converge. Las demás cargas quedan como las trae la fuente. Si ninguno converge, el
+    modelo queda como estaba y se dice. Determinista: mismos pasos, mismo factor.
+    """
+    from .sed_potencia import corregir_demanda, demanda_fuera_de_escala, regla_de
+
+    res = CorreccionOraculo()
+    claves = demanda_fuera_de_escala(model)
+    if not claves:
+        return res
+    inf = validar(model)
+    if not inf.disponible:
+        res.motivo = inf.motivo_no_disponible
+        return res
+    if inf.convergio:
+        res.convergio = True
+        return res
+    if any(h.codigo != 'no_converge' for h in inf.errores):
+        # Un tramo sin impedancia o sin tipo no se arregla con la demanda: se dice tal cual.
+        res.convergio = False
+        res.motivo = '; '.join(h.linea() for h in inf.errores)
+        return res
+    reglas = {k: regla_de(model, k) for k in claves}
+    original = list(model.loads)
+
+    def converge(f: float) -> bool:
+        model.loads = list(original)
+        corregir_demanda(model, claves, f, reglas=reglas)
+        return bool(validar(model).convergio)
+
+    mejor = tope if converge(tope) else None
+    if mejor is None:
+        bajo, alto = 0.0, tope
+        for _ in range(pasos):
+            medio = (bajo + alto) / 2.0
+            if converge(medio):
+                mejor, bajo = medio, medio
+            else:
+                alto = medio
+    model.loads = list(original)
+    if mejor is None:
+        res.convergio = False
+        res.motivo = (f'ni con {len(claves)} SED de relleno o fuera de escala al '
+                      f'{tope / 2 ** pasos:.1%} de su potencia converge el flujo: la causa no es '
+                      'la demanda (vea los hallazgos del oráculo)')
+        return res
+    res.cambios = corregir_demanda(model, claves, mejor, reglas=reglas)
+    res.factor = round(mejor, 6)
+    res.convergio = True
+    return res
 
 
 # ------------------------------------------------------------------- red unida (spec 022)

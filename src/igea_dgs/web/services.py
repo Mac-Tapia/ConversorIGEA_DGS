@@ -833,6 +833,7 @@ def pandapower_preflight(
     aliases = load_aliases(ws.input_path('aliases') or None)
     reports: list[dict[str, Any]] = []
     warnings: list[str] = []
+    no_convergen: dict[str, str] = {}
     for index, feeder in enumerate(members, start=1):
         ctx.check_cancel()
         ctx.progress(index - 1, len(members), f'pandapower: {feeder}')
@@ -855,7 +856,12 @@ def pandapower_preflight(
         reports.append(data)
         ctx.log(f"  pandapower {feeder}: {report.resumen()}; "
                 f'barras sin alimentar={report.barras_sin_alimentar}')
-        if not report.disponible or not report.convergio or report.barras_sin_alimentar:
+        if report.disponible and not report.convergio:
+            # 057:RF-5, RF-6: el modelo ya pasó por la corrección del oráculo en
+            # aplicar_reglas; si aun así no converge, no se importa: DIgSILENT no lo
+            # arreglaría (NJA202, 2026-11-01: nueve intentos hasta el 10 % de la demanda).
+            no_convergen[feeder] = '; '.join(h.linea() for h in report.errores) or report.resumen()
+        elif not report.disponible or report.barras_sin_alimentar:
             warnings.append(
                 f'{feeder}: {report.barras_sin_alimentar} barra(s) sin alimentar; '
                 f'{report.resumen()}. Se continúa con el import DGS completo.')
@@ -863,9 +869,10 @@ def pandapower_preflight(
         warnings.extend(errors)
     return {
         'disponible': True,
-        'import_continued': True,
+        'import_continued': not no_convergen,
         'feeders': reports,
         'avisos': warnings,
+        'no_convergen': no_convergen,
     }
 
 
@@ -878,7 +885,11 @@ def powerfactory_flow(ws: Workspace, ctx: JobContext, feeders: list[str]) -> dic
     preflight = pandapower_preflight(ws, [name for name, _dgs, _geo in jobs], ctx)
     for aviso in preflight.get('avisos') or []:
         ctx.log(f'  AVISO pandapower: {aviso}')
-    ctx.log('Preflight informativo terminado; se importará completo cada DGS solicitado.')
+    no_convergen = dict(preflight.get('no_convergen') or {})
+    for feeder, motivo in no_convergen.items():
+        ctx.log(f'  NO SE IMPORTA {feeder}: ni con la corrección del oráculo converge (spec 057). '
+                f'{motivo}')
+    ctx.log('Preflight terminado; se importa cada DGS solicitado que converge en el oráculo.')
 
     carpeta = carpeta_pf()
     pf_dir, interpreter = _require_pf()
@@ -891,6 +902,10 @@ def powerfactory_flow(ws: Workspace, ctx: JobContext, feeders: list[str]) -> dic
     for index, (feeder, dgs, geo) in enumerate(jobs, start=1):
         ctx.check_cancel()
         ctx.progress(index - 1, len(jobs), feeder)
+        if feeder in no_convergen:
+            fail_n += 1
+            lines.append(f'NO_CONVERGE {feeder}: no se importó; {no_convergen[feeder]}')
+            continue
         ctx.log(f'[{index}/{len(jobs)}] Import + escenario + flujo {feeder}…')
         # Importar, activar escenario y correr el flujo: segundos. Sin --run-studies
         # (el cortocircuito de una red unida tardaba más de 20 min y 7 GB de RAM en
@@ -4377,38 +4392,87 @@ def _ingreso_de_las_cargas(ws: Workspace, project: str) -> list[dict]:
 
 
 def _crecimiento_de_la_cabecera(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
-                                avisos: list[str]) -> dict | None:
+                                avisos: list[str], *, todos: bool = False) -> dict | None:
     """La tasa de cada alimentador del sistema desde los libros de cabecera de cada año (spec 029).
-    Sin sistema, sin medidores o sin dos años, ``None`` y el aviso: el PIDE sigue con el año 00."""
+    Sin sistema, sin medidores o sin dos años, ``None`` y el aviso: el PIDE sigue con el año 00.
+
+    Con ``todos``, también de un proyecto de uno o varios alimentadores (042:RF-7): la SET nueva de
+    NA203 + NA205 (2026-10-31) no tenía tasa porque su proyecto no es de un sistema entero, y la
+    medición de cabecera de 2025 y 2026 estaba en la carpeta del espacio."""
     from ..crecimiento import curvas_por_anio, tasas_por_alimentador
     from ..demanda_medida import DemandaError
     from ..libros_por_anio import anios_de, arbol_de_libros
 
-    sistema = sistema_del_proyecto(ws, project)
-    ruta = _demanda_ruta(ws, 'cabecera') if (ws.demanda or {}).get('cabecera') else None
-    if not sistema or ruta is None or not ruta.is_dir():
-        avisos.append('la tasa de crecimiento por alimentador necesita un proyecto de sistema y la '
-                      'carpeta de cabecera con sus años (029:RF-1)')
-        return None
-    try:
-        anios = anios_de(arbol_de_libros(ruta))
-        libros = {a: _libros_de_cabecera(ws, str(a)) for a in anios}
-    except (DemandaError, UserError) as exc:
-        avisos.append(f'tasa de crecimiento: {exc}')
-        return None
-    if len(libros) < 2:
-        avisos.append(f'la cabecera solo tiene {list(libros)}: hacen falta dos años (029:RF-1)')
-        return None
-    pares = [(a, m) for a, ms in sistema['medidores'].items() for m in ms if a in feeders]
-    ctx.log(f'Crecimiento por alimentador desde la cabecera de {sorted(libros)} (029:RF-1)…')
-    curvas = ctx.en_proceso(curvas_por_anio, libros, pares, demanda_alias())       # 029:RF-7
-    tasas = tasas_por_alimentador(curvas, feeders)
+    def medidas() -> dict:
+        sistema = sistema_del_proyecto(ws, project, todos=todos)
+        ruta = _demanda_ruta(ws, 'cabecera') if (ws.demanda or {}).get('cabecera') else None
+        if not sistema or ruta is None or not ruta.is_dir():
+            avisos.append('la tasa de crecimiento por alimentador necesita un proyecto de sistema y la '
+                          'carpeta de cabecera con sus años (029:RF-1)')
+            return {}
+        try:
+            anios = anios_de(arbol_de_libros(ruta))
+            libros = {a: _libros_de_cabecera(ws, str(a)) for a in anios}
+        except (DemandaError, UserError) as exc:
+            avisos.append(f'tasa de crecimiento: {exc}')
+            return {}
+        if len(libros) < 2:
+            avisos.append(f'la cabecera solo tiene {list(libros)}: hacen falta dos años (029:RF-1)')
+            return {}
+        pares = [(a, m) for a, ms in sistema['medidores'].items() for m in ms if a in feeders]
+        ctx.log(f'Crecimiento por alimentador desde la cabecera de {sorted(libros)} (029:RF-1)…')
+        curvas = ctx.en_proceso(curvas_por_anio, libros, pares, demanda_alias())   # 029:RF-7
+        return tasas_por_alimentador(curvas, feeders)
+
+    tasas = medidas()
+    # 042:RF-7: sin dos años de cabecera, la demanda registrada que los tiene es la de las fijas.
+    sin = [f for f in feeders if (tasas.get(f) or {}).get('tasa') is None]
+    if sin:
+        for f, r in _crecimiento_de_las_fijas(ws, ctx, project, sin, avisos).items():
+            if r is not None:
+                tasas[f] = r
     for a, c in sorted(tasas.items()):
         if c.get('tasa') is not None:
             ctx.log(f"  {a}: {100 * c['tasa']:+.2f} %/año ({c['origen']}"
                     + (f", meses {c['meses']}, {c['max_anterior_kw']:,.0f} → {c['max_ultimo_kw']:,.0f} kW" if c.get('meses') else '')
                     + ')')
-    return tasas
+    return tasas if any((c or {}).get('tasa') is not None for c in tasas.values()) else None
+
+
+def _crecimiento_de_las_fijas(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
+                              avisos: list[str]) -> dict[str, dict | None]:
+    """La tasa de cada alimentador desde la POT registrada de sus fijas (042:RF-7), para cualquier
+    proyecto y empresa: las fijas de su última calibración, los libros de clientes del catálogo
+    del espacio (su mes) y la tabla de suministros para el código anterior de cada cliente."""
+    from ..crecimiento import pot_de_los_libros, tasa_de_las_fijas
+    from ..demanda_medida import DemandaError, clave_codigo, leer_suministros
+
+    cal = (getattr(ws, 'calibraciones', None) or {}).get(project.strip()) or {}
+    fijas = {f: [str(x.get('cliente')) for x in (cal.get(f) or {}).get('fijas') or [] if x.get('cliente')]
+             for f in feeders}
+    meta = (ws.demanda or {}).get('clientes') or {}
+    raiz = Path(meta.get('path') or '')
+    libros = [(x['mes'], str(raiz / x['nombre'])) for x in meta.get('catalogo') or []
+              if x.get('activo') and x.get('mes') and raiz.is_dir()]
+    if not any(fijas.values()) or len({m[:4] for m, _ in libros}) < 2:
+        avisos.append('sin fijas calibradas o sin libros de clientes de dos años: no hay tasa de las '
+                      'fijas (042:RF-7)')
+        return {f: None for f in feeders}
+    anteriores: dict[str, set[str]] = {}
+    try:
+        suministros, _av = leer_suministros(_demanda_ruta(ws, 'suministros'), demanda_alias())
+        for s in suministros:
+            claves = {clave_codigo(c) for c in (s.actual, s.anterior) if c}
+            for c in claves:
+                anteriores.setdefault(c, set()).update(claves)
+    except (DemandaError, UserError) as exc:
+        avisos.append(f'tasa de las fijas sin la tabla de suministros (solo el código actual): {exc}')
+    clientes = {f: [sorted(anteriores.get(clave_codigo(c), {clave_codigo(c)})) for c in cs]
+                for f, cs in fijas.items()}
+    ctx.log(f'Crecimiento desde las fijas registradas de {", ".join(feeders)} '
+            f'({len(libros)} libros de clientes, 042:RF-7)…')
+    pot = ctx.en_proceso(pot_de_los_libros, libros, demanda_alias())
+    return tasa_de_las_fijas(pot, clientes)
 
 
 def _pide_optimizar(project: str, obras: list[dict], limites, perfil: dict, plan_pide: dict,
@@ -4876,12 +4940,14 @@ def _curva_del_anio(ws: Workspace, ctx: JobContext, anio: int, medidores: dict[s
 def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *,
                    anio_casos: int | None = None, tipo_cambio: float | None = None,
                    capex: str | None = None, cargas_activas: list[str] | None = None,
-                   aplicar: bool = True) -> dict:
+                   aplicar: bool = True, basta_una: bool = False, memo: dict | None = None) -> dict:
     """Escalera optimizada de obras sobre «Con proyecto <año>» (025:RF-44, RF-49 a RF-60, RF-67).
 
     042:RF-1 a RF-3: con ``cargas_activas`` (nombres de sus variaciones) solo esas cargas nuevas
     cuentan y las demás se apartan; sin ``aplicar`` se evalúa y no se crea ninguna obra, para
-    saber cuántas caben en la red existente.
+    saber cuántas caben en la red existente. Con ``basta_una`` solo se pregunta si hay obra:
+    se para en la primera variante que cumple y en el primer alimentador sin ninguna. ``memo``
+    guarda entre llamadas del mismo trabajo lo que no cambia (curva, sorteos, CAPEX, tipos).
 
     Usuario, 2026-10-24: «primero se debe probar bancos, después nueva terna, cambio de
     sección de cable, donde se debe iterar varias veces hasta obtener la mejor solución según
@@ -4928,41 +4994,51 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
     faltan = [f for f in feeders if not (objetivos.get(f) or {}).get('kw') or not (objetivos.get(f) or {}).get('medidor')]
     if faltan:
         raise UserError('Sin máxima ni medidor de su calibración: ' + ', '.join(faltan) + ' (025:RF-51)')
-    anio_curva = anio_casos or datetime.now().year
-    curvas = _curva_del_anio(ws, ctx, anio_curva, {f: str(objetivos[f]['medidor']) for f in feeders})
-    instantes: dict[Any, dict[str, float]] = {}
-    for f, curva in curvas.items():
-        for t, kw in curva:
-            instantes.setdefault(t, {})[f] = kw
-    try:
-        sorteos = eo.sorteos(sorted(instantes.items(), key=lambda x: x[0]),
-                             {f: float(objetivos[f]['kw']) for f in feeders}, p.sorteos, p.semilla)
-    except eo.EscaleraError as exc:
-        raise UserError(str(exc)) from exc
-    perdidas = {}
-    for f, curva in curvas.items():
-        fc = factor_de_carga([(t, kw, None) for t, kw in curva])
-        perdidas[f] = factor_de_perdidas(fc) if fc else None
-    ctx.log(f'Escalera de {project.strip()} en «Con proyecto{f" {anio_casos}" if anio_casos else ""}»: '
-            f'{len(sorteos)} sorteos de la curva de {anio_curva}, costo en {p.moneda or "la moneda del perfil"}.')
-
-    costos_capex, avisos = {}, []
-    if capex and capex.strip():
-        try:
-            obras_capex, avisos_capex = leer_capex(Path(capex.strip().strip('"')),
-                                                   (perfil.get('planificacion') or {}).get('capex') or {})
-        except (EconomiaPideError, OSError) as exc:
-            raise UserError(f'Libro CAPEX: {exc}') from exc
-        costos_capex = costos_por_alternativa(obras_capex)
-        avisos += avisos_capex
+    # 042: la bisección de cuántas cargas caben llama a la escalera varias veces en el mismo
+    # trabajo; la curva, los sorteos, el CAPEX y los tipos no cambian entre llamadas y se leen
+    # una vez (las bibliotecas de tipos tardaban 2 min 14 s por llamada en NA203 + NA205).
+    clave_memo = ('comun', anio_casos, tuple(feeders))
+    if memo is not None and clave_memo in memo:
+        anio_curva, curvas, sorteos, perdidas, costos, avisos, kvar, lectura = memo[clave_memo]
+        avisos = list(avisos)
     else:
-        avisos.append('Sin libro CAPEX: solo se costean las alternativas que da el perfil (025:RF-57).')
-    costos = eo.costos_de_alternativas(costos_capex, p)
-    try:
-        kvar = bancos_kvar_por_tension(perfil) or {}
-    except PerfilError:
-        kvar = {}
-    lectura = obras_bibliotecas(ws, ctx, project, feeders)['informe']
+        anio_curva = anio_casos or datetime.now().year
+        curvas = _curva_del_anio(ws, ctx, anio_curva, {f: str(objetivos[f]['medidor']) for f in feeders})
+        instantes: dict[Any, dict[str, float]] = {}
+        for f, curva in curvas.items():
+            for t, kw in curva:
+                instantes.setdefault(t, {})[f] = kw
+        try:
+            sorteos = eo.sorteos(sorted(instantes.items(), key=lambda x: x[0]),
+                                 {f: float(objetivos[f]['kw']) for f in feeders}, p.sorteos, p.semilla)
+        except eo.EscaleraError as exc:
+            raise UserError(str(exc)) from exc
+        perdidas = {}
+        for f, curva in curvas.items():
+            fc = factor_de_carga([(t, kw, None) for t, kw in curva])
+            perdidas[f] = factor_de_perdidas(fc) if fc else None
+        ctx.log(f'Escalera de {project.strip()} en «Con proyecto{f" {anio_casos}" if anio_casos else ""}»: '
+                f'{len(sorteos)} sorteos de la curva de {anio_curva}, costo en {p.moneda or "la moneda del perfil"}.')
+
+        costos_capex, avisos = {}, []
+        if capex and capex.strip():
+            try:
+                obras_capex, avisos_capex = leer_capex(Path(capex.strip().strip('"')),
+                                                       (perfil.get('planificacion') or {}).get('capex') or {})
+            except (EconomiaPideError, OSError) as exc:
+                raise UserError(f'Libro CAPEX: {exc}') from exc
+            costos_capex = costos_por_alternativa(obras_capex)
+            avisos += avisos_capex
+        else:
+            avisos.append('Sin libro CAPEX: solo se costean las alternativas que da el perfil (025:RF-57).')
+        costos = eo.costos_de_alternativas(costos_capex, p)
+        try:
+            kvar = bancos_kvar_por_tension(perfil) or {}
+        except PerfilError:
+            kvar = {}
+        lectura = obras_bibliotecas(ws, ctx, project, feeders)['informe']
+        if memo is not None:
+            memo[clave_memo] = (anio_curva, curvas, sorteos, perdidas, costos, list(avisos), kvar, lectura)
 
     resultado, resueltos = [], []
     for f in con_cargas:
@@ -5023,7 +5099,8 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             'variantes': [{'nombre': v.nombre, 'obras': v.obras, 'costo_base': costo_base(v)} for v in vs],
             'barras_cargas': barras, 'sorteos': sorteos, 'parametros': perfil, 'tipo_cambio': tipo_cambio,
             'otro_proyecto': eo.BIBLIOTECA_TIPOS,
-            'estado_con_proyecto': datos.get('variaciones_activas')}
+            'estado_con_proyecto': datos.get('variaciones_activas'),
+            **({'basta_una': True} if basta_una else {})}
         # 025:RF-73: sin el estado de «Con proyecto» no se sabe si es la misma red: se mide.
         ev = _evaluacion_hecha(ws, plan_ev) if datos.get('variaciones_activas') is not None else None
         if ev is not None:
@@ -5081,6 +5158,11 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
         else:                                                                    # RF-56
             fila['avisos'].append(f"{f}: ninguna variante cumple; la más cercana es «{decision['mas_cercana']}», "
                                   'y no se aplica nada (025:RF-56).')
+            if basta_una:
+                # 042:RF-2: con un alimentador sin obra ya se sabe que no caben; los demás no se
+                # prueban (NA205 tardaba 40 min más tras fallar NA203).
+                resultado.append(fila)
+                break
         resultado.append(fila)
     return {'project': project.strip(), 'anio_casos': anio_casos, 'moneda': p.moneda, 'tipo_cambio': tipo_cambio,
             'sorteos': len(sorteos), 'avisos': avisos, 'alimentadores': resultado}
@@ -5107,13 +5189,14 @@ def optimizar_con_proyecto(ws: Workspace, ctx: JobContext, project: str, feeders
         raise UserError('Ningún alimentador marcado tiene cargas nuevas aplicadas: no hay nada que optimizar.')
     orden = sn.orden_de_cargas(cargas)
     opciones = {'anio_casos': anio_casos, 'tipo_cambio': tipo_cambio, 'capex': capex}
+    memo: dict = {}
     ctx.log(f'{len(orden)} cargas nuevas, de mayor a menor potencia: se busca cuántas caben en la red '
             'existente con la escalera de obras (042:RF-1).')
 
     def cabe(k: int) -> bool:
         ctx.check_cancel()
         r = obras_escalera(ws, ctx, project, feeders, cargas_activas=[c['variacion'] for c in orden[:k]],
-                           aplicar=False, **opciones)
+                           aplicar=False, basta_una=True, memo=memo, **opciones)
         ok = all(f.get('elegida') or f.get('ya_cumple') for f in r.get('alimentadores') or [])
         ctx.log(f"Con las {k} mayores ({orden[k - 1]['sed']} la menor): "
                 f"{'hay obra que cumple' if ok else 'ninguna variante cumple'} (042:RF-2).")
@@ -5124,7 +5207,7 @@ def optimizar_con_proyecto(ws: Workspace, ctx: JobContext, project: str, feeders
     if k:
         ctx.log(f'Caben {k} de {len(orden)}: se aplica su escalera en «Con proyecto» (042:RF-4).')
         escalera = obras_escalera(ws, ctx, project, feeders, cargas_activas=[c['variacion'] for c in orden[:k]],
-                                  aplicar=True, **opciones)
+                                  aplicar=True, memo=memo, **opciones)
     resto = orden[k:]
     if resto:
         ctx.log(f"{len(resto)} carga(s) no caben en la red existente y van a la SET nueva: "
@@ -5171,18 +5254,19 @@ def set_nueva_proponer(ws: Workspace, ctx: JobContext, project: str, feeders: li
         modulos = sn.leer_modulos_pit(Path(capex.strip().strip('"')), p.modulos_pit)
     except (sn.SetNuevaError, OSError) as exc:
         raise UserError(f'SET nueva: {exc}') from exc
+    por_alim: dict[str, list[dict]] = {}
+    for c in a_set_nueva:
+        por_alim.setdefault(next((f for f in feeders if clave_codigo(f) == clave_codigo(c.get('alimentador'))),
+                                 str(c.get('alimentador'))), []).append(c)
     rc, datos, _rep = _guion_pf(ws, ctx, 'obras_pf.py', {
         'project': project.strip(), 'folder': carpeta_pf(), 'feeders': list(feeders), 'anio_casos': anio_casos,
+        'barras': {f: sorted({str(c['barra']) for c in cs if c.get('barra')}) for f, cs in por_alim.items()},
         'native_action_context': native_action_context(ws, project, feeders, 'obras')},
         nombre='set_nueva_datos', args=('--set-nueva-datos',))
     if rc or datos.get('error'):
         raise UserError(datos.get('error') or 'No se pudo leer la red en DIgSILENT para la SET nueva.')
     nuevas_todas = {nombre_pf(str(c.get('sed') or '')) for c in _cargas_nuevas_aplicadas(ws, project)}
     avisos = list(datos.get('avisos') or [])
-    por_alim: dict[str, list[dict]] = {}
-    for c in a_set_nueva:
-        por_alim.setdefault(next((f for f in feeders if clave_codigo(f) == clave_codigo(c.get('alimentador'))),
-                                 str(c.get('alimentador'))), []).append(c)
     cupo = max(1, int(alimentadores_nuevos) // max(1, len(por_alim)))
     ramas, trasladado, existentes, nuevas_pts, kv_mt = [], {}, [], [], None
     for f, cargas_f in sorted(por_alim.items()):
@@ -5195,12 +5279,19 @@ def set_nueva_proponer(ws: Workspace, ctx: JobContext, project: str, feeders: li
                       for t in d['tramos']])
         barra_de = {c['nombre']: c for c in d['cargas']}
         destino = set()
+        media = d.get('media') or {}
         for c in cargas_f:
-            x = barra_de.get(nombre_pf(str(c.get('sed') or '')))
-            if x is None:
-                avisos.append(f"{c.get('sed')}: no está activa en «Con proyecto» de {f}; no entra en la SET nueva.")
+            # La barra que dio la escalera, llevada a media (la carga está apartada y no se ve
+            # en «Con proyecto»); si no la trae, la de la carga activa con su nombre.
+            barra = media.get(str(c.get('barra') or ''))
+            if barra is None:
+                x = barra_de.get(nombre_pf(str(c.get('sed') or '')))
+                barra = x['barra'] if x is not None else None
+            if barra is None:
+                avisos.append(f"{c.get('sed')}: no se halló su barra en «Con proyecto» de {f}; "
+                              'no entra en la SET nueva.')
                 continue
-            destino.add(x['barra'])
+            destino.add(barra)
         existentes_kw = {}
         for c in d['cargas']:
             if c['nombre'] not in nuevas_todas:
@@ -5224,17 +5315,23 @@ def set_nueva_proponer(ws: Workspace, ctx: JobContext, project: str, feeders: li
             x = barra_de.get(nombre_pf(str(c.get('sed') or '')))
             if x is not None and gps.get(x['barra']):
                 nuevas_pts.append((gps[x['barra']][0], gps[x['barra']][1], float(c.get('kw') or 0)))
-    tasas_det = _crecimiento_de_la_cabecera(ws, ctx, project, list(trasladado), avisos) or {}
-    tasas = {f: (tasas_det.get(f) or {}).get('tasa') for f in trasladado}
+    # 029:RF-6: la tasa del perfil, si la trae, vale para todos; si no, la medida de cada uno.
+    tasa_perfil = (perfil.get('planificacion') or {}).get('crecimiento_demanda_anual')
+    if tasa_perfil is not None:
+        tasas = {f: float(tasa_perfil) for f in trasladado}
+    else:
+        tasas_det = _crecimiento_de_la_cabecera(ws, ctx, project, list(trasladado), avisos, todos=True) or {}
+        tasas = {f: (tasas_det.get(f) or {}).get('tasa') for f in trasladado}
     nuevas_pq = (sum(float(c.get('kw') or 0) for c in a_set_nueva), sum(float(c.get('kvar') or 0) for c in a_set_nueva))
     try:
         diseno = sn.potencia_de_diseno(trasladado, nuevas_pq, tasas, anios=p.anios, factor_seguridad=p.factor_seguridad)
     except sn.SetNuevaError as exc:
         raise UserError(str(exc)) from exc
-    eleccion = sn.elegir_modulo(modulos, diseno['kva_diseno'], float(kv_mt or 0))
+    eleccion = sn.elegir_modulo(modulos, diseno['kva_diseno'], float(kv_mt or 0), max_unidades=p.max_unidades)
     escalera = (perfil.get('escalera') or {})
-    base_kw = sum(pq[0] for pq in trasladado.values()) + nuevas_pq[0]
-    ubic = sn.ubicacion_optima(existentes, nuevas_pts, incremento_kw=base_kw * (diseno['factor_crecimiento'] - 1.0),
+    # 042:RF-7: solo crece la demanda registrada; las cargas nuevas son fijas.
+    registrada_kw = sum(pq[0] for pq in trasladado.values())
+    ubic = sn.ubicacion_optima(existentes, nuevas_pts, incremento_kw=registrada_kw * (diseno['factor_crecimiento'] - 1.0),
                                zona_m=1000.0, sorteos=int(escalera.get('sorteos') or 200),
                                semilla=int(escalera.get('semilla') or 0))
     informe = {'ramas': [{k: r[k] for k in ('alimentador', 'nodo', 'entrada', 'destino', 'kw_existente')}
@@ -5252,7 +5349,8 @@ def set_nueva_proponer(ws: Workspace, ctx: JobContext, project: str, feeders: li
     obra = {'clase': 'set_nueva', 'alimentador': sorted(trasladado)[0], 'casos': ['Con proyecto'],
             'destino': f"{ubic['lat']:.7f}, {ubic['lon']:.7f}",
             'ramas': [f"{r['alimentador']}/{r['nodo']}" for r in ramas],
-            'mva': eleccion['modulo']['mva'], 'kv_alta': eleccion['modulo']['kv_at']}
+            'mva': eleccion['modulo']['mva'], 'kv_alta': eleccion['modulo']['kv_at'],
+            'unidades': int(eleccion['modulo'].get('unidades') or 1)}
     ident = obra_anadir(ws, obra)['id']
     hecho = obras_ejecutar(ws, ctx, project, feeders, [ident], BIBLIOTECA_TIPOS, simular=False,
                            anio_casos=anio_casos)
@@ -5271,8 +5369,15 @@ def con_proyecto_optimizar(ws: Workspace, ctx: JobContext, project: str, feeders
     """«Con proyecto» optimizado: escalera carga a carga y SET nueva para las que no caben (spec 042)."""
     escalera = optimizar_con_proyecto(ws, ctx, project, feeders, anio_casos=anio_casos,
                                       tipo_cambio=tipo_cambio, capex=capex)
-    set_nueva = set_nueva_proponer(ws, ctx, project, feeders, escalera['a_set_nueva'], capex=capex,
-                                   alimentadores_nuevos=alimentadores_nuevos, anio_casos=anio_casos)
+    # La escalera ya se midió (y aplicó lo que cabe): si falta un dato de la SET nueva (042:RF-8),
+    # se dice sin perder lo hecho. NA203 + NA205 (2026-10-31): una hora de escalera y el trabajo
+    # salía «fallido» sin decir cuántas cargas cabían.
+    try:
+        set_nueva = set_nueva_proponer(ws, ctx, project, feeders, escalera['a_set_nueva'], capex=capex,
+                                       alimentadores_nuevos=alimentadores_nuevos, anio_casos=anio_casos)
+    except UserError as exc:
+        ctx.log(f'SET nueva: {exc}')
+        set_nueva = {'avisos': [str(exc)]}
     return {'escalera_por_cargas': escalera, 'set_nueva': set_nueva}
 
 
@@ -6164,13 +6269,29 @@ def _cargas_nuevas_aplicadas(ws: Workspace, project: str) -> list[dict]:
     from ..demanda_medida import clave_codigo
 
     vistas: dict[tuple[str, str], dict] = {}
-    informes = sorted(ws.out_dir.glob('cargas_pf_aplicacion_*.json'), key=lambda p: p.stat().st_mtime)
+    # 042:RF-1 (con 040:RF-6, RF-11): los informes de todas las ejecuciones del espacio, por fecha.
+    # Con solo la activa, NA203 + NA205 (2026-10-31) daba 4 cargas en vez de 36: las otras 31 se
+    # crearon el 29-10 en otra ejecución y hoy solo se reutilizaron, con su variación renombrada.
+    carpetas = [ws.root / 'salida', *sorted((ws.root / 'runs').glob('*/salida')), ws.out_dir]
+    informes = sorted({p.resolve(): p for c in carpetas if c.is_dir()
+                       for p in c.glob('cargas_pf_aplicacion_*.json')}.values(), key=lambda p: p.stat().st_mtime)
     for fichero in informes:
         try:
             datos = json.loads(fichero.read_text(encoding='utf-8'))
         except (OSError, ValueError):
             continue
-        if str(datos.get('project') or '').strip() != project.strip() or not datos.get('cargas'):
+        if str(datos.get('project') or '').strip() != project.strip():
+            continue
+        quitadas = {x['variacion'] for x in datos.get('eliminadas') or [] if x.get('eliminada')}
+        duplicadas = {clave_codigo(x.get('sed')) for x in datos.get('duplicadas') or []}
+        for k in [k for k, v in vistas.items() if v['variacion'] in quitadas or k[1] in duplicadas]:
+            del vistas[k]
+        for x in datos.get('reutilizadas') or []:
+            for k, v in vistas.items():
+                if k[1] == clave_codigo(x.get('sed')) and (
+                        not x.get('alimentador') or k[0] == clave_codigo(x['alimentador'])):
+                    v['variacion'] = x['variacion']
+        if not datos.get('cargas'):
             continue
         token = fichero.stem.rsplit('_', 1)[-1]
         plan_path = ws.plans_dir / f'cargas_pf_{token}.json'

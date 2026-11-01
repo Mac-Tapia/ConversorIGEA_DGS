@@ -27,7 +27,10 @@ class VnrSourceAdapter:
         from vnr_etl.pipeline import canonicalize_vnr_package, safe_extract_package
 
         package = snapshot.files['vnr_package'].path
-        if Path(package).suffix.lower() == '.bak':
+        from vnr_etl.connectors.sqlserver_vnr import es_copia_sql
+
+        # La copia de SQL Server, con «.bak» o sin extensión (la de Electro Oriente, 2026-11-01).
+        if Path(package).suffix.lower() == '.bak' or es_copia_sql(package):
             return self._cargar_copia_sql(snapshot, Path(package))
         extracted = safe_extract_package(package, snapshot.root / 'derivados' / 'vnr')
         canonical, scope = canonicalize_vnr_package(
@@ -64,6 +67,9 @@ class VnrSourceAdapter:
         modelo, avisos, alcance = cargar_copia(bak, servidor=servidor,
                                                vecinas=[original.parent])
         fichas = fichas_del_catalogo(modelo)
+        ampliado = ampliar_con_lo_que_falta(modelo, origen=f"{alcance['company']} ({bak.name})")
+        if ampliado:
+            fichas = fichas_del_catalogo(modelo)
         bridge = canonical_to_cymdist(modelo, source_path=bak)
         source = provenance(snapshot)
         source.update({
@@ -74,6 +80,7 @@ class VnrSourceAdapter:
             'canonical_counts': modelo.counts(),
             'vnr_avisos': avisos,
             'fichas_del_catalogo': fichas,
+            'catalogo_ampliado': ampliado,
             'bridge_issues': bridge.issues,
         })
         return SourceLoadResult(
@@ -82,6 +89,24 @@ class VnrSourceAdapter:
             readiness=bridge.readiness,
             provenance=source,
         )
+
+
+def ampliar_con_lo_que_falta(modelo, *, origen: str = '', catalogo: Path | None = None) -> list[dict]:
+    """Añade al catálogo los códigos del modelo que no tienen R y X (053:RF-1, RF-7).
+
+    El catálogo es uno y universal (RF-8): crece con cada conversión y se vuelve a aplicar en
+    esta misma. Sin catálogo no hay dónde crecer y no se hace nada.
+    """
+    from ..catalog import ampliar_catalogo
+    from ..reglas import catalogo_del_proyecto
+
+    ruta = catalogo or catalogo_del_proyecto()
+    faltan = [t.conductor_code for t in getattr(modelo, 'conductor_types', []) or []
+              if t.r1_ohm_km is None or t.x1_ohm_km is None]
+    if ruta is None or not faltan:
+        return []
+    return [{'codigo': f['codigo'], 'estado': f['estado'], 'observaciones': f['observaciones']}
+            for f in ampliar_catalogo(ruta, faltan, origen=origen)]
 
 
 def fichas_del_catalogo(modelo, catalogo: Path | None = None) -> dict[str, int]:
@@ -103,17 +128,22 @@ def fichas_del_catalogo(modelo, catalogo: Path | None = None) -> dict[str, int]:
 
     filas: dict[str, dict] = {}
     wb = load_workbook(ruta, read_only=True, data_only=True)
-    for hoja in ('conductores_aereos', 'cables_subterraneos'):
-        if hoja not in wb.sheetnames:
-            continue
-        valores = list(wb[hoja].iter_rows(values_only=True))
-        if not valores:
-            continue
-        cabecera = [str(c or '') for c in valores[0]]
-        for v in valores[1:]:
-            fila = dict(zip(cabecera, v))
-            if fila.get('codigo'):
-                filas[str(fila['codigo']).strip()] = fila
+    try:
+        for hoja in ('conductores_aereos', 'cables_subterraneos'):
+            if hoja not in wb.sheetnames:
+                continue
+            valores = list(wb[hoja].iter_rows(values_only=True))
+            if not valores:
+                continue
+            cabecera = [str(c or '') for c in valores[0]]
+            for v in valores[1:]:
+                fila = dict(zip(cabecera, v))
+                if fila.get('codigo'):
+                    filas[str(fila['codigo']).strip()] = fila
+    finally:
+        # Un libro en solo lectura deja el fichero abierto: en Windows bloqueaba que el
+        # catálogo creciera en la misma conversión (053:RF-7).
+        wb.close()
 
     def valor(fila, nombre, unidad):
         ficha = fila.get(f'{nombre}_ficha_{unidad}')

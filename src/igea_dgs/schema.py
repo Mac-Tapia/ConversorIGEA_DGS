@@ -54,6 +54,15 @@ class DgsSchema:
             return self
         return replace(self, tables={**self.tables, 'ElmTerm': cabecera + ';cpZone(p)'})
 
+    def con_fases(self) -> 'DgsSchema':
+        """El mismo perfil con ``phtech`` en ``ElmTerm``: la tecnología de fases de cada barra
+        (054:RF-3). Solo en un DGS con tramos o SED monofásicos o bifásicos: en los demás la
+        cabecera queda como estaba y el DGS es el mismo byte a byte (054:RF-6)."""
+        cabecera = self.tables.get('ElmTerm', '')
+        if 'phtech' in cabecera:
+            return self
+        return replace(self, tables={**self.tables, 'ElmTerm': cabecera + ';phtech(i)'})
+
     def header(self, table: str) -> str:
         try:
             return self.tables[table]

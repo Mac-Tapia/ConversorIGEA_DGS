@@ -1053,7 +1053,9 @@ def construir_set_nueva(ctx) -> None:
     tipo_tr.dutap = float(cfg.get('toma_paso_pct') or 0.0)
     tipo_tr.ntpmn, tipo_tr.ntpmx, tipo_tr.nntap0 = -int(cfg.get('tomas') or 0), int(cfg.get('tomas') or 0), 0
     tr = red.CreateObject('ElmTr2', nombre_libre(red, 'ElmTr2', 'TR_SET_NUEVA'))
-    tr.typ_id, tr.ntnum, tr.outserv, tr.nntap = tipo_tr, 1, 0, 0
+    # 042:RF-14: n transformadores iguales en paralelo son un ElmTr2 con ntnum = n (cada uno con
+    # la uk de su potencia); NA203 + NA205 pedían 45,5 MVA y el mayor módulo era de 40.
+    tr.typ_id, tr.ntnum, tr.outserv, tr.nntap = tipo_tr, int(getattr(o, 'unidades', None) or 1), 0, 0
     for barra, lado, nombre in ((at, 0, 'Cub1_TR_SET_NUEVA'), (mt, 1, 'Cub2_TR_SET_NUEVA')):
         c = barra.CreateObject('StaCubic', nombre_pf(nombre))
         c.obj_id, c.obj_bus = tr, lado
@@ -1866,6 +1868,23 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
                 fila['maxima'], fila['motivos'] = cumple(sin_max, con_max, barras, p)
             print(f"  {v['nombre']}: máxima {'cumple' if fila['maxima'] else 'no cumple'}", flush=True)
             filas.append((v, fila))
+            # 042:RF-2: para saber si las cargas caben basta una variante con costo que cumpla;
+            # la más barata solo hace falta al aplicar. Se sortea en cuanto cumple la máxima y,
+            # si también cumple en los sorteos, no se prueba ninguna más (NA203 + NA205,
+            # 2026-11-01: cada prueba recorría las 20 y las 40 variantes, unos 60 min).
+            if plan.get('basta_una') and fila['maxima'] and v.get('costo_base') is not None:
+                if sorteos:
+                    fila['fraccion'], error = con_variante(v, sortear)
+                    fila['error'] = fila['error'] or error
+                else:
+                    fila['fraccion'] = 1.0
+                print(f"  {v['nombre']}: sorteos {100 * (fila['fraccion'] or 0):.0f} %", flush=True)
+                if (fila['fraccion'] or 0) >= p.cumplimiento:
+                    informe['basta_una'] = fila['nombre']
+                    break
+        if informe.get('basta_una') or plan.get('basta_una'):
+            informe['variantes'] = [f for _v, f in filas]
+            return informe, 0
         # Fase 2 (RF-71): de la más barata a la más cara, hasta la primera que cumple en los sorteos.
         k = float(plan.get('costo_por_kw_perdido') or 0.0)
 
@@ -1960,7 +1979,18 @@ def datos_set_nueva(app, plan: dict) -> tuple[dict, int]:
                     continue
                 p, q = potencia_efectiva(c)
                 cargas.append({'nombre': c.loc_name, 'barra': barra.loc_name, 'kw': p, 'kvar': q})
+            # 042: las cargas que pasan a la SET nueva son justo las que la escalera apartó, así
+            # que en «Con proyecto» no están activas y no se encuentran por su nombre: se llega a
+            # su barra de media desde la barra que dio la escalera (NA203 + NA205, 2026-10-31:
+            # 29 de 32 quedaban fuera de la SET nueva con «no está activa»).
+            terminales = {b.loc_name: b for b in app.GetCalcRelevantObjects('*.ElmTerm')}
+            media = {}
+            for nombre in (plan.get('barras') or {}).get(f, []):
+                m = _media_de(terminales.get(nombre))
+                if m is not None:
+                    media[nombre] = m.loc_name
             informe['alimentadores'][f] = {
+                'media': media,
                 'cabecera': cabecera.loc_name, 'kv': float(getattr(cabecera, 'uknom', 0) or 0),
                 'barras': [{'nombre': b.nombre, 'kv': b.kv, 'gps': list(b.gps) if b.gps else None}
                            for b in red.barras.values()],
