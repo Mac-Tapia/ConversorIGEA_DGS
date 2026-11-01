@@ -401,8 +401,9 @@ Apartado 5.1 · Conexión de un cliente nuevo
 - RF-95: EL SISTEMA mostrará en 5.1 el proyecto de transmisión del perfil y permitirá elegir
   otro de la carpeta de proyectos de DIgSILENT (spec 005).
 - RF-123: no se usa (nunca se definió: la vista previa entró como RF-124).
-- RF-124: EL SISTEMA ofrecerá en 5.1 una vista previa de la imagen de ubicación, como
-  trabajo del carril `powerfactory`, antes de generar el informe.
+- RF-124: EL SISTEMA ofrecerá en 4.4.2 una vista previa de la imagen de ubicación antes de
+  generar el informe, dibujada con la geografía del último flujo de «Con proyecto», sin
+  DIgSILENT (RF-11b: DIgSILENT sin ventana no exporta imágenes; cambiado el 2026-11-01).
 - RF-125: EL SISTEMA pedirá en 5.1 que el operador confirme si el predio está en el área de
   concesión (RF-122 a).
 - RF-126: EL SISTEMA evaluará como etapa «refuerzo de la red», entre el cambio de

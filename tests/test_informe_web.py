@@ -310,3 +310,109 @@ def test_informe_de_estudio_con_las_imagenes_del_flujo(client, tmp_path):
     assert not [h for h in fin['result']['huecos'] if h.startswith('imagen')], fin['result']['huecos']
     documento = docx.Document(salida / fin['result']['informe'])
     assert len(documento.inline_shapes) >= 6
+
+
+def test_vista_previa_de_la_ubicacion_sin_digsilent(client, tmp_path):
+    """017:RF-124 — antes de generar, la vista previa dibuja la ubicación del cliente con la
+    geografía del último flujo de «Con proyecto», sin DIgSILENT; sin ese flujo lo dice."""
+    from test_mapa_informe import GEO
+
+    wid, salida = _espacio(client, tmp_path)
+    _carga_aplicada(client, wid, salida)
+    pedido = {'project': 'PRY', 'alimentador': 'AL01', 'sed': 'SN1', 'cliente': 'EMPRESA X',
+              'potencia_kw': 800, 'codigo_punto': 'E-39533'}
+    sin_geo = client.post(f'/api/workspaces/{wid}/informes/ubicacion', json=pedido)
+    assert sin_geo.status_code == 400 and 'Con proyecto' in sin_geo.json()['detail']
+    con = next(salida.glob('estudio_con_*.json'))
+    datos = json.loads(con.read_text(encoding='utf-8'))
+    datos['geo'] = {'AL01': {**GEO, 'barras': GEO['barras'] + [['B_NUEVA', -14.012, -75.688, 0.97, 10.0]]}}
+    con.write_text(json.dumps(datos), encoding='utf-8')
+    r = client.post(f'/api/workspaces/{wid}/informes/ubicacion', json=pedido)
+    assert r.status_code == 200, r.text
+    vista = r.json()
+    assert vista['fichero'].endswith('.png') and (salida / vista['fichero']).stat().st_size > 1000
+    assert 'EMPRESA X' in vista['rotulo'] and 'E-39533' in vista['rotulo']
+
+
+def test_area_de_concesion_la_confirma_el_operador(client, tmp_path):
+    """017:RF-125 — el informe dice si el predio está en el área de concesión según lo que
+    confirma el operador en 4.4.2; sin confirmar, queda señalado para él."""
+    wid, salida = _espacio(client, tmp_path)
+    _carga_aplicada(client, wid, salida)
+    textos = {}
+    for valor in (True, None):
+        formulario = {**FACTIBILIDAD, 'solicitud': {**FACTIBILIDAD['solicitud'], 'en_concesion': valor}}
+        fin = esperar_trabajo(client, client.post(f'/api/workspaces/{wid}/informes/factibilidad',
+                                                  json=formulario).json())
+        assert fin['status'] == 'done', fin.get('error')
+        textos[valor] = '\n'.join(p.text for p in docx.Document(salida / fin['result']['informe']).paragraphs)
+    assert 'se encuentra dentro del área de concesión' in textos[True]
+    assert 'A CONFIRMAR POR EL OPERADOR' in textos[None]
+
+
+def test_estado_actual_sin_proyecto_y_proyectado_con_proyecto(client, tmp_path):
+    """017:RF-48 / 017:RF-49 / 017:RF-51 — el estado actual sale del flujo de «Sin proyecto», el
+    proyectado del de «Con proyecto» con la carga del informe, y la solicitud del formulario."""
+    wid, salida = _espacio(client, tmp_path)
+    _carga_aplicada(client, wid, salida)
+    fin = esperar_trabajo(client, client.post(f'/api/workspaces/{wid}/informes/factibilidad',
+                                              json=FACTIBILIDAD).json())
+    assert fin['status'] == 'done', fin.get('error')
+    res = fin['result']
+    assert res['estudios'] == ['estudio_sin_flujo_desequilibrado_a.json', 'estudio_con_flujo_desequilibrado_b.json']
+    assert res['carga']['sed'] == 'SN1' and res['punto_diseno']['u_pu'] == 0.97     # la barra en «Con»
+    texto = '\n'.join(p.text for p in docx.Document(salida / res['informe']).paragraphs)
+    for dato in ('EMPRESA X', 'Fundo Y, Ica', '800 kW', '1 de septiembre de 2026', 'SET Z', 'EXP-1'):
+        assert dato in texto, dato
+
+
+def test_progreso_por_pasos_huecos_y_descargas(client, tmp_path):
+    """017:RF-97 / 017:RF-102 / 017:RF-103 — el informe avanza por pasos con su detalle en el
+    Registro, lista sus huecos con el motivo y deja descargar el Word y su JSON."""
+    wid, salida = _espacio(client, tmp_path)
+    _carga_aplicada(client, wid, salida)
+    sin_trafo = {**FACTIBILIDAD, 'transformador_set': {'kv': None, 'sin_pct': None, 'con_pct': None, 'caso': ''}}
+    fin = esperar_trabajo(client, client.post(f'/api/workspaces/{wid}/informes/factibilidad',
+                                              json=sin_trafo).json())
+    assert fin['status'] == 'done', fin.get('error')
+    lineas = [(e.get('data') or {}).get('text') or '' for e in client.get(f'/api/workspaces/{wid}/events').json()]
+    assert any('Informe: imágenes' in x for x in lineas) and any('Informe: listo' in x for x in lineas)
+    assert fin['progress'] and fin['progress']['index'] == fin['progress']['total']
+    huecos = fin['result']['huecos']
+    assert huecos and all(isinstance(h, str) and h.strip() for h in huecos)
+    for clave in ('informe', 'json'):
+        r = client.get(f"/api/workspaces/{wid}/files/{fin['result'][clave]}?download=1")
+        assert r.status_code == 200 and len(r.content) > 100, clave
+
+
+def test_rotulo_de_la_carga_nueva_en_las_imagenes():
+    """017:RF-109 / 017:RF-117 — el cliente nuevo se rotula «Carga-{nombre}-{kW} kW-Cod {código}»."""
+    from igea_dgs.mapa_informe import rotulo_de_carga
+
+    assert rotulo_de_carga('EMPRESA X', 800.0, 'E-39533') == 'Carga-EMPRESA X-800 kW-Cod E-39533'
+    assert rotulo_de_carga('B', 1250.5, 'N1') == 'Carga-B-1250.5 kW-Cod N1'
+
+
+def test_asunto_propuesto_con_el_tipo_y_los_alimentadores():
+    """017:RF-80 — el asunto propuesto lleva el tipo de informe y los alimentadores."""
+    from igea_dgs.informes import asunto_propuesto
+
+    assert asunto_propuesto('estudio', ['CA101', 'CA102']) == 'ESTUDIO ELÉCTRICO DE LOS ALIMENTADORES CA101, CA102'
+    assert asunto_propuesto('factibilidad', ['SM218'], 'INKA BERRIES') == \
+        'FACTIBILIDAD Y PUNTO DE DISEÑO - INKA BERRIES (SM218)'
+
+
+def test_sin_modelo_ni_limites_en_el_perfil_lo_dice_el_contexto(client, tmp_path, monkeypatch):
+    """017:RF-76 / 017:RF-81 / 017:RF-90 — sin el modelo de un tipo, el contexto dice qué clave
+    del perfil falta; sin banda ni umbral, los deja vacíos para pedirlos; sin cargas nuevas
+    aplicadas en el proyecto, no hay ninguna que elegir."""
+    perfil = tmp_path / 'perfil_sin_factibilidad.json'
+    perfil.write_text(json.dumps({'informes': {'modelo_estudio': str(tmp_path / 'modelo.docx'),
+                                               'cabecera': {'numero': 'INFORME TECNICO'}}}), encoding='utf-8')
+    monkeypatch.setenv('IGEA_PERFIL_EMPRESA', str(perfil))
+    wid, _salida = _espacio(client, tmp_path)
+    ctx = client.get(f'/api/workspaces/{wid}/informes', params={'project': 'PRY', 'feeder': ['AL01']}).json()
+    assert any('modelo_factibilidad' in x for x in ctx['faltan']['factibilidad'])
+    assert not any('modelo_estudio' in x for x in ctx['faltan']['estudio'])
+    assert all(ctx['limites'].get(k) is None for k in ('tension_min_pu', 'tension_max_pu', 'cargabilidad_max_pct'))
+    assert ctx['cargas'] == []

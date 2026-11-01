@@ -27,7 +27,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       flujo que guarda `tools/estudios_pf.py` (`geo`), a 250 ppp con las bandas del perfil.
       En CA101: 6 imágenes (ubicación, tensión y cargabilidad, actual y proyectado) en el
       informe generado desde la web.
-- [ ] T5. `src/igea_dgs/libros_informe.py`: libro de pérdidas y tabla de costes, y
+- [x] T5. `src/igea_dgs/libros_informe.py`: libro de pérdidas y tabla de costes, y
       `config/costes_referenciales.example.json` con precios de la web y su fuente. (RF-39b a
       RF-39e, RF-40c, RF-61 a RF-64)
       Hecho cuando: `pytest -q tests/test_libros_informe.py` en verde.

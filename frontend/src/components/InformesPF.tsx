@@ -139,7 +139,10 @@ function Resultado({ r, cancelado }: { r: InformeResultado | null; cancelado: bo
       <p>
         <strong>{r.informe}</strong>{' '}
         <a className="btn btn-sm" href={api.fileUrl(ws.id, r.informe, true)}>Descargar Word</a>{' '}
-        <a className="btn btn-sm btn-ghost" href={api.fileUrl(ws.id, r.json, true)}>JSON</a>
+        <a className="btn btn-sm btn-ghost" href={api.fileUrl(ws.id, r.json, true)}>JSON</a>{' '}
+        {/* 017:RF-105: el plan repite el informe con tools/informe_web.py. */}
+        {r.plan && <a className="btn btn-sm btn-ghost" href={api.fileUrl(ws.id, r.plan, true)}
+          title="Para repetir este informe con tools/informe_web.py">Plan</a>}
       </p>
       {r.factible !== undefined && (
         <p className={`alert ${r.factible ? 'alert-ok' : 'alert-warn'}`}>
@@ -450,6 +453,15 @@ function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, 
     fijar({ sol: nueva, ...(valor('lugar') && !cab.lugar.trim() ? { cab: { ...cab, lugar: valor('lugar') } } : {}) });
   };
 
+  // 017:RF-124: la vista previa se dibuja en el servidor con lo guardado; no es un trabajo.
+  const [vista, setVista] = useState<{ fichero: string; rotulo: string; cuando: number } | null>(null);
+  const verUbicacion = async () => {
+    if (!carga) return;
+    const r = await run(() => api.informesUbicacion(ws.id, { project, alimentador: carga.alimentador,
+      sed: carga.sed, cliente: sol.cliente, potencia_kw: num(sol.potencia_kw), codigo_punto: codigo }));
+    if (r) setVista({ ...r, cuando: Date.now() });
+  };
+
   // El factor medido se propone solo si el operador no escribió otro.
   useEffect(() => { if (fcMedido && !fc) setFc(String(fcMedido.fc)); }, [fcMedido]);  // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -533,6 +545,13 @@ function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, 
             <small className="muted">Barra donde el paso 3 conectó la carga: {carga.barra}.</small>
           </label>
         </div>
+        {/* 017:RF-124: la imagen de ubicación antes de generar, con la geografía de 4.2. */}
+        <div className="row">
+          <button className="btn btn-sm" onClick={verUbicacion}>Vista previa de la ubicación</button>
+          {vista && <small className="muted">{vista.rotulo}</small>}
+        </div>
+        {vista && <img className="vista-ubicacion" alt={`Ubicación de ${vista.rotulo}`}
+          src={`${api.fileUrl(ws.id, vista.fichero)}?v=${vista.cuando}`} />}
         <p><strong>Pérdidas</strong></p>
         <div className="form-grid">
           <label className="field"><span>Factor de carga</span>

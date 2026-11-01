@@ -1030,6 +1030,8 @@ export interface InformeResultado {
   factible?: boolean;
   excesos?: string[];
   punto_diseno?: Record<string, number | null> | null;
+  /** 017:RF-105: el plan del informe, para tools/informe_web.py. */
+  plan?: string;
 }
 
 /** Un PDF del solicitante leído (spec 017, RF-137 y RF-138). */

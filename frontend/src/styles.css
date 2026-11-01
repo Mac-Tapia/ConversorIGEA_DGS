@@ -241,6 +241,8 @@ small.alert { display: block; margin: 4px 0 0; }
 .search { min-width: 220px; flex: 0 1 320px; }
 .search-sm { min-width: 160px; padding: 3px 8px; font-size: 12.5px; }
 .table-wrap { max-height: 420px; overflow: auto; border: 1px solid var(--border); border-radius: 8px; }
+/* 017:RF-124: vista previa de la ubicación del cliente nuevo, ajustada al ancho del paso. */
+.vista-ubicacion { display: block; max-width: 100%; height: auto; border: 1px solid var(--border); border-radius: 8px; }
 .table-short { max-height: 300px; margin-top: 8px; }
 .table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .table th {

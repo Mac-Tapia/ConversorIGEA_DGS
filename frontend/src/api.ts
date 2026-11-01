@@ -249,6 +249,10 @@ export const api = {
     fd.append('file', file, file.name);
     return request<{ name: string }>(`${ws(id)}/informes/perdidas`, { method: 'POST', body: fd });
   },
+  // Spec 017, RF-124: vista previa de la ubicación del cliente nuevo; sin DIgSILENT, al momento.
+  informesUbicacion: (id: string, body: { project: string; alimentador: string; sed: string; cliente: string;
+    potencia_kw: number | null; codigo_punto: string }) =>
+    request<{ fichero: string; rotulo: string }>(`${ws(id)}/informes/ubicacion`, json('POST', body)),
   // Spec 017, RF-136 y RF-137: los PDF del solicitante, leídos en un trabajo.
   informesDocumentos: (id: string, tipo: 'factibilidad' | 'estudio', files: File[]) => {
     const fd = new FormData();

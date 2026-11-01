@@ -5939,6 +5939,7 @@ def informe_estudio(ws: Workspace, ctx: JobContext | None, formulario: dict) -> 
                             obra_para_informe)
     from ..perfil_empresa import datos_perfil
 
+    plan = _copia_del_plan(formulario)                                                # RF-105
     alimentador = str(formulario.get('alimentador') or '').strip()
     if not alimentador:
         raise UserError('Indique el alimentador del informe.')
@@ -6062,7 +6063,21 @@ def informe_estudio(ws: Workspace, ctx: JobContext | None, formulario: dict) -> 
         ctx.log(f'Informe de estudio de {alimentador}: {destino.name} ({len(huecos)} hueco(s)).')
     _paso_informe(ctx, 3, 'listo')
     return {'informe': destino.name, 'json': destino.with_suffix('.json').name, 'huecos': huecos,
-            'estudios': fuentes, 'etapa': clave, 'imagenes': _imagenes_para_la_web(ws, imagenes)}
+            'estudios': fuentes, 'etapa': clave, 'imagenes': _imagenes_para_la_web(ws, imagenes),
+            'plan': _guardar_plan(destino, 'estudio', plan)}
+
+
+def _copia_del_plan(formulario: dict) -> dict:
+    """El formulario tal como llegó, antes de que el informe le añada sus imágenes."""
+    return json.loads(json.dumps(formulario, ensure_ascii=False, default=str))
+
+
+def _guardar_plan(destino: Path, tipo: str, plan: dict) -> str:
+    """017:RF-105: el plan del informe junto a su Word, para repetirlo desde la línea de
+    órdenes (``tools/informe_web.py``) sin volver a escribir el formulario."""
+    ruta = destino.with_name(f'{destino.stem}.plan.json')
+    write_json_atomic(ruta, {'tipo': tipo, 'formulario': plan})
+    return ruta.name
 
 
 def _utm(lat_lon) -> list[float] | None:
@@ -6506,6 +6521,7 @@ def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict
     import math
     from datetime import date as _date
 
+    plan = _copia_del_plan(formulario)                                                # RF-105
     from ..estudios_pf import CON_PROYECTO, SIN_PROYECTO
     from ..informe_docx import DatosFactibilidad, escribir_informe_factibilidad
     from ..informes import (Caso, ConfigInforme, Devanado, Encabezado, InformeError, Solicitud,
@@ -6624,7 +6640,8 @@ def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict
     return {'informe': destino.name, 'json': destino.with_suffix('.json').name, 'huecos': huecos,
             'estudios': [sin['_fichero'], con['_fichero']], 'factible': resumen.get('factible'),
             'excesos': resumen.get('excesos') or [], 'punto_diseno': punto, 'carga': carga,
-            'imagenes': _imagenes_para_la_web(ws, imagenes)}
+            'imagenes': _imagenes_para_la_web(ws, imagenes),
+            'plan': _guardar_plan(destino, 'factibilidad', plan)}
 
 
 #: Pasos del progreso de un informe (017:RF-97): casos, imágenes, documento.
