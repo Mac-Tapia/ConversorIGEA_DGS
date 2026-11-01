@@ -21,6 +21,12 @@ las casillas se cierran por evidencia, no por esa autorización.
 - **043 T5:** nueve clones GitHub con origen, commit, árbol limpio y hash de licencia
   verificados; herramienta reproducible que conserva copias modificadas. Catálogo
   versionado y selección en [reutilización GitHub](REUSO_GITHUB_IA_2026-10-31.md).
+- **043 T6:** 33 paquetes instalados sin cambiar versiones previas del núcleo,
+  `pip check` correcto, cinco modelos completos verificados y operaciones reales
+  de las bibliotecas y pesos. E5/BGE/NF4 pasaron juntos tres pruebas CUDA; el paso
+  LoRA guardó y reabrió su adaptador en procesos consecutivos con error de logits
+  0,0. Qwen3:8b y nomic también ejecutaron inferencia local. Se corrigió el control
+  de memoria Windows; [evidencia y límites](ACEPTACION_INTEGRAL_AGENTE_2026-10-31.md).
 - **045 T3, avance parcial:** adaptador opcional al MPN original de PowerFlowNet,
   seleccionado por `Entrenamiento.arquitectura`. Dos ensayos reales con PyG/CUDA
   comprueban forward, gradientes finitos, descenso de pérdida, fronteras de fuente,

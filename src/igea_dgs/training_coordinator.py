@@ -17,6 +17,45 @@ from .model_registry import EstadoModelo
 ORDEN_MODELOS = ('transformer', 'clasificador', 'gru', 'pinn', 'evolutivos', 'embeddings', 'qlora')
 
 
+def _memoria_sistema() -> dict[str, float | None]:
+    """Consulta ligera: en Windows el error 1455 depende del margen de compromiso."""
+    if os.name != 'nt':
+        import psutil
+        return {'fisica_gib': psutil.virtual_memory().available / 1024**3, 'commit_gib': None}
+    import ctypes
+    from ctypes import wintypes
+
+    class EstadoMemoria(ctypes.Structure):
+        _fields_ = [('longitud', wintypes.DWORD), ('carga', wintypes.DWORD)] + [
+            (nombre, ctypes.c_ulonglong) for nombre in (
+                'total_fisica', 'libre_fisica', 'total_commit', 'libre_commit',
+                'total_virtual', 'libre_virtual', 'libre_extendida')]
+
+    kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+    kernel.GlobalMemoryStatusEx.argtypes = (ctypes.POINTER(EstadoMemoria),)
+    kernel.GlobalMemoryStatusEx.restype = wintypes.BOOL
+    estado = EstadoMemoria(); estado.longitud = ctypes.sizeof(estado)
+    if not kernel.GlobalMemoryStatusEx(ctypes.byref(estado)):
+        raise ctypes.WinError(ctypes.get_last_error())
+    return {'fisica_gib': estado.libre_fisica / 1024**3, 'commit_gib': estado.libre_commit / 1024**3}
+
+
+def exigir_memoria_ml(minimo_fisico_gib: float, *, minimo_commit_gib: float) -> dict:
+    """Exige margen previo; permite paginación Windows sin fingir que la carga pasó."""
+    import math
+    estado = _memoria_sistema()
+    fisica, commit = estado['fisica_gib'], estado['commit_gib']
+    valores = [fisica, minimo_fisico_gib, minimo_commit_gib] + ([] if commit is None else [commit])
+    if any(type(v) not in (int, float) or not math.isfinite(v) or v < 0 for v in valores):
+        raise ValueError('Contadores o limites de memoria invalidos')
+    insuficiente = fisica < minimo_fisico_gib if commit is None else fisica < .5 or commit < minimo_commit_gib
+    if insuficiente:
+        raise ValueError(f'Memoria insuficiente: fisica={fisica:.2f} GiB, comprometible={commit}; '
+                         f'requiere {minimo_fisico_gib} GiB fisicos o, en Windows, '
+                         f'0.5 GiB fisicos y {minimo_commit_gib} GiB comprometibles')
+    return estado
+
+
 def _pid_vivo(pid: int) -> bool:
     if pid <= 0:
         return False

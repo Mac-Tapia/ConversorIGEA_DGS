@@ -118,3 +118,22 @@ def test_corrida_sin_gpu_no_libera_recursos_del_propietario(tmp_path, monkeypatc
             liberar_cuda=lambda: llamadas.append('cuda')).run()
     assert llamadas == []
     assert resultado['stages'][0]['status'] == 'ERROR_ENTORNO'
+
+
+@pytest.mark.parametrize('fisica,commit,minimo,permitido', [
+    (1.32, 9.13, 6., True),
+    (0.1, 12., 6., False),
+    (7., 2., 6., False),
+    (2., None, 3., False),
+    (7., None, 6., True),
+])
+def test_memoria_windows_distingue_ram_y_compromiso(monkeypatch, fisica, commit, minimo, permitido):
+    """043:RF-12: memoria comprometible suficiente no es igual a RAM fisica libre."""
+    import igea_dgs.training_coordinator as m
+    assert callable(getattr(m, 'exigir_memoria_ml', None)), 'Falta el control de memoria comprometible'
+    monkeypatch.setattr(m, '_memoria_sistema', lambda: {'fisica_gib': fisica, 'commit_gib': commit})
+    if permitido:
+        assert m.exigir_memoria_ml(minimo, minimo_commit_gib=8.)['fisica_gib'] == fisica
+    else:
+        with pytest.raises(ValueError, match='Memoria insuficiente'):
+            m.exigir_memoria_ml(minimo, minimo_commit_gib=8.)

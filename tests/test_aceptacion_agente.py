@@ -198,18 +198,17 @@ def test_evaluador_rechaza_ram_insuficiente_antes_de_abrir_datos(tmp_path, monke
     """043:RF-12 / 047:RF-17: no iniciar cargas sin los recursos requeridos."""
     import importlib.util
     from pathlib import Path
-    import psutil
-    from types import SimpleNamespace
+    import igea_dgs.training_coordinator as coordinador
     spec = importlib.util.spec_from_file_location('aceptar', Path(__file__).parents[1] / 'tools/aceptar_agente.py')
     m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
-    monkeypatch.setattr(psutil, 'virtual_memory', lambda: SimpleNamespace(available=1024**3))
+    monkeypatch.setattr(coordinador, '_memoria_sistema', lambda: {'fisica_gib': 1., 'commit_gib': None})
     r = m.main(['seleccionar', '--dataset', str(tmp_path / 'datos'), '--destino', str(tmp_path / 'salida')])
     salida = json.loads(capsys.readouterr().out.splitlines()[-1])
-    assert r == 2 and 'RAM insuficiente' in salida['error']
+    assert r == 2 and 'Memoria insuficiente' in salida['error']
     assert list((tmp_path / 'salida').glob('error_*.json'))
-    monkeypatch.setattr(psutil, 'virtual_memory', lambda: SimpleNamespace(available=2*1024**3))
+    monkeypatch.setattr(coordinador, '_memoria_sistema', lambda: {'fisica_gib': 2., 'commit_gib': None})
     assert m.main(['seleccionar', '--dataset', str(tmp_path / 'datos'), '--destino', str(tmp_path / 'salida')]) == 2
-    assert 'RAM insuficiente' in json.loads(capsys.readouterr().out.splitlines()[-1])['error']
+    assert 'Memoria insuficiente' in json.loads(capsys.readouterr().out.splitlines()[-1])['error']
 
 
 @pytest.mark.parametrize("valor", [float('nan'), float('inf'), -1., 1.1, True, None])

@@ -17,8 +17,13 @@
 1. Auditar paquetes del entorno Python 3.12, clones fijados y pesos completos. Fijar las versiones existentes como restricciones antes de instalar paquetes faltantes; conservar informe pip antes/después. Declarar las bibliotecas opcionales en el extra `ml` de `pyproject.toml`, sin convertirlas en requisito de arranque del núcleo; conservar revisiones Git y wheel Windows para pymoo.
 2. Crear `docs/MODELOS_IA_LOCK.json` y `tools/preparar_modelos_ia.py`: auditoría local por defecto, descarga explícita de revisiones fijas, verificación de tamaño/SHA-256 para pesos y digest para Ollama. Sin código remoto de modelos ni activación automática.
 3. Probar catálogo inválido, archivos truncados y hash incorrecto; ejecutar descarga real, `pip check`, forward de grafos, clases de pronóstico, optimización y modelos locales. Respetar exclusión GPU para operaciones que la usan.
-   Comprobar RAM libre antes de importar/cargar pesos: mínimo 3 GiB para E5, 4 GiB para BGE y 6 GiB para NF4/LoRA. Recursos insuficientes producen fallo explícito, nunca skip ni aceptación. La base NF4 debe tener licencia/revisión fijadas para la GPU de 8 GB; conservar variantes no seleccionadas y sus parciales como experimentos archivados.
+   Comprobar memoria antes de importar/cargar pesos: en sistemas sin contador de compromiso, mínimo 3 GiB físicos para E5, 4 GiB para BGE y 6 GiB para NF4/LoRA. En Windows usar `GlobalMemoryStatusEx`: mínimo físico de 0,5 GiB y margen comprometible de 6 GiB para E5/BGE/evaluador o 8 GiB para NF4. La RAM física libre no mide por sí sola el margen de asignación de Windows; una sonda local acreditó importación Torch/CUDA con 1,32 GiB físicos y 9,13 GiB comprometibles. El contador comprometible también debe bloquear aunque haya RAM física suficiente. Cargar BGE directamente en CUDA con `device_map`, evitando construir primero la copia completa CPU. Recursos insuficientes producen fallo explícito, nunca skip ni aceptación. La base NF4 debe tener licencia/revisión fijadas para la GPU de 8 GB; conservar variantes no seleccionadas y sus parciales como experimentos archivados.
 4. Registrar evidencia y cualquier fallo real. La aceptación de las 200 propuestas y las puertas eléctricas conservan su autoridad independiente.
+
+Diagnóstico de memoria contrastado con [Microsoft: memoria y compromiso](https://learn.microsoft.com/en-us/windows/win32/memory/memory-performance-information)
+y [Hugging Face: carga de modelos grandes mediante el dispositivo meta](https://huggingface.co/docs/transformers/main/big_models).
+Las justificaciones de maestría, doctorado y artículos indexados permanecen en
+[el informe de aceptación](../../docs/ACEPTACION_INTEGRAL_AGENTE_2026-10-31.md#fundamento-consultado-en-la-web).
 
 Rigen la constitución y las restricciones del [plan maestro](../../docs/superpowers/plans/2026-10-31-mejora-integral-ia-conversor.md#global-constraints).
 No crear otro registro, particionador o conexión nativa; consumir los contratos de

@@ -178,14 +178,14 @@ La compatibilidad metodológica se contrasta con
 La prueba adicional de E5 en CUDA falló con error Windows **1455**, de archivo de
 paginación/memoria. El equipo tiene 16 GiB de RAM y en el diagnóstico quedaban
 aproximadamente 0,5–0,6 GiB disponibles. No se acredita ese ensayo ni se cierra 043 T6.
-Los nuevos ensayos comprueban recursos **antes** de cargar los modelos: 3 GiB libres
+El control inicial comprobaba recursos **antes** de cargar los modelos: 3 GiB libres
 para E5, 4 GiB para BGE y 6 GiB para el paso NF4/LoRA. Falta de memoria es un fallo visible,
 sin fallback ni omisión; no se cerraron aplicaciones ni servicios del usuario.
 `tests_ml/test_pesos_ia.py` define la carga real de E5/BGE y un paso LoRA con recarga
 en un proceso nuevo. Ese paso es una prueba de entorno, sin activación del adaptador.
 
-El evaluador del agente exige 4 GiB de RAM disponible antes de abrir los datos o
-cargar un modelo. Al terminar, libera únicamente el modelo de su ensayo; conserva
+El evaluador del agente comprueba memoria antes de abrir los datos o cargar un
+modelo. Al terminar, libera únicamente el modelo de su ensayo; conserva
 los demás modelos que Ollama tenga en uso. Los errores sucesivos conservan el
 primer informe y devuelven el nuevo diagnóstico por consola, sin sobrescribirlo.
 El catálogo rechaza rutas absolutas, unidades Windows y archivos sin una huella
@@ -209,12 +209,44 @@ El ensayo posterior a la descarga (`pesos_completos_precondiciones.xml`) registr
 **tres errores de precondición, cero omisiones**: 1,54 GiB disponibles frente a
 3/4/6 GiB requeridos para E5/BGE/NF4. No se llegó a importar Torch ni cargar pesos
 en esas tres pruebas. Por ello 043 T6 sigue abierta. Para ejecutar los tres ensayos
-se necesitan al menos 6 GiB libres al comienzo; el evaluador del agente exige 4 GiB.
+se exigían entonces al menos 6 GiB físicos libres; el diagnóstico se corrigió como
+se describe a continuación, conservando los informes anteriores.
 No hay descargas activas de este instalador ni modelos nuevos promovidos.
 
 La verificación adicional del código cerró con **51 pruebas de controles, 62 de
 inventario y 22 de trazabilidad aprobadas**, sin omisiones; `pip check` correcto.
 Estos 135 resultados corresponden a comprobaciones enfocadas, no a toda la suite.
+
+### Corrección del diagnóstico y ejecución real de todos los pesos
+
+La sonda real importó Torch/CUDA con 1,32 GiB físicos y 9,13 GiB comprometibles.
+El control anterior confundía memoria física disponible con capacidad de asignación
+Windows. Ahora el coordinador consulta `GlobalMemoryStatusEx` antes de importar
+Torch: exige 0,5 GiB físicos y 6 GiB comprometibles para E5/BGE/evaluador u 8 GiB
+para NF4. En sistemas sin ese contador conserva los mínimos físicos anteriores.
+No modifica el archivo de paginación ni cierra aplicaciones. Referencias técnicas:
+[Microsoft](https://learn.microsoft.com/en-us/windows/win32/memory/memory-performance-information),
+[Hugging Face](https://huggingface.co/docs/transformers/main/big_models).
+
+E5 y BGE cargan directamente sobre CUDA. El supervisor de las pruebas no importa
+Torch; cada trabajador sale antes de iniciar el siguiente. El primer ensayo NF4
+sí entrenó y guardó, pero su reapertura encontró solo 2,26 GiB comprometibles al
+coexistir con el proceso padre. Separar ambos procesos resolvió esa duplicación;
+se conserva `nf4_lora_memoria_corregida.xml` como fallo histórico.
+
+**Resultado final del entorno de pesos: 3/3 pruebas aprobadas, cero omisiones,
+146,80 s**, en `pesos_cuda_integrales.xml`. Se verificaron dos vectores E5 de 768
+componentes, dos puntuaciones BGE distintas y finitas, y un paso LoRA NF4 real
+con cambio de pesos y reapertura en un proceso nuevo. El adaptador y los informes
+están en `nf4_adaptador_verificado/`: pérdida 5,456531; pico CUDA 4.209.276.928 bytes;
+error máximo de logits tras recarga **0,0**. Es un ensayo de entorno con una orden
+genérica, no entrenamiento completo ni aceptación del agente.
+
+Qwen3:8b completó selección real con 22/27 tareas y F1 0,627451. Ollama informó
+6.194.766.806 bytes tanto de tamaño residente como de VRAM: totalmente en GPU,
+contexto 8192 y digest fijado; evidencia `qwen3_en_gpu.json`. Nomic ya tenía su
+inferencia acreditada. **043 T6 queda cerrada** por bibliotecas, pesos y operaciones
+reales; las tareas de calidad, integración y aceptación nativa conservan sus puertas.
 
 | Alcance | Situación comprobada | Condición de cierre |
 | --- | --- | --- |

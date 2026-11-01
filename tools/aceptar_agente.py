@@ -68,10 +68,8 @@ def main(argv=None):
                 almacen.guardar_json('aceptacion_agente', {'corpus': str(args.destino.resolve()), 'evaluacion': None})
             resultado = {**meta, 'auditoria': auditoria}
         else:
-            import psutil
-            libres = psutil.virtual_memory().available / 1024**3
-            if libres < 4:
-                raise ValueError(f'RAM insuficiente para el ensayo del agente: {libres:.2f} GiB disponibles; se requieren 4 GiB libres')
+            from igea_dgs.training_coordinator import exigir_memoria_ml
+            exigir_memoria_ml(4., minimo_commit_gib=6.)
             ruta_lock = Path(os.environ.get('IGEA_ML_GPU_LOCK') or str(Path(tempfile.gettempdir()) / 'igea-dgs-gpu.lock'))
             with BloqueoGPU(ruta_lock, 'aceptacion-agente'):
                 if args.accion == 'seleccionar':

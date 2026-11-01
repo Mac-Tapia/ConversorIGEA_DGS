@@ -301,7 +301,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | Fichero | Responsabilidad | Spec |
 | --- | --- | --- |
 | `src/igea_dgs/model_registry.py` | Candidatos inmutables, integridad, promoción atómica y reapertura en subproceso. | 043 (RF-1, RF-5) |
-| `src/igea_dgs/training_coordinator.py` | Etapas reanudables y bloqueo GPU mediante guardia OS compartida. | 043 (RF-6, RF-7) |
+| `src/igea_dgs/training_coordinator.py` | Etapas reanudables, bloqueo GPU mediante guardia OS compartida y memoria física/comprometible antes de cargar pesos. | 043 (RF-6, RF-7, RF-12) |
 | `src/igea_dgs/experimentos.py` | Contexto exacto y contratos inmutables de configuración, con SHA-256 canónico. | 043 (RF-2) |
 | `src/igea_dgs/asistente/dataset_entrenamiento.py` | Custodia de datos reales, sintéticos y de contexto; agrupación de registros. | 043 (RF-3, RF-4) |
 | `src/igea_dgs/asistente/calidad_datos.py` | Calidad y contaminación entre particiones sin inflar el conjunto humano. | 043 (RF-3, RF-4) |

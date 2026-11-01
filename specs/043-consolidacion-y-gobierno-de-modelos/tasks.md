@@ -25,31 +25,41 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
 
 ## Evidencia de ejecución
 
-- [ ] T6. Instalar y verificar bibliotecas y pesos faltantes del catálogo local. (RF-12)
+- [x] T6. Instalar y verificar bibliotecas y pesos faltantes del catálogo local. (RF-12)
       Hecho cuando: el catálogo fijado, las pruebas de preparación, las descargas completas y las operaciones reales de bibliotecas/modelos tienen informes; `pip check` pasa sin cambiar las versiones previas del núcleo. Descargar no cierra entrenamiento, integración o aceptación eléctrica.
 
 T5: siete pruebas con Git y subprocesos reales pasaron; se verificaron las nueve
 copias públicas. Catálogo y reproducción en [reutilización GitHub](../../docs/REUSO_GITHUB_IA_2026-10-31.md).
 La implementación de adaptadores y su aceptación permanecen en 045–048.
 
-T6 parcial: 33 paquetes instalados, cero versiones previas del núcleo cambiadas,
+T6: 33 paquetes instalados, cero versiones previas del núcleo cambiadas,
 `pip check` correcto; nueve ensayos de entorno/GPU y un ensayo real Ipopt pasaron.
-Catálogos fijados y descargas reanudables implementados; conservar abierta hasta
-verificar todos los pesos completos. [Informe](../../docs/ACEPTACION_INTEGRAL_AGENTE_2026-10-31.md).
+Catálogos fijados y descargas reanudables implementados; cinco modelos completos
+verificados por segunda auditoría. [Informe](../../docs/ACEPTACION_INTEGRAL_AGENTE_2026-10-31.md).
 
 Continuación local: BGE completó descarga y verificación de archivos/hashes;
 E5 y nomic están disponibles. Se fijó la base Instruct-2507 NF4 para PEFT y se
 preservó la variante FP16 como experimento archivado. Las pruebas nuevas de carga
 están en `tests_ml/test_pesos_ia.py`; E5/CUDA encontró error Windows 1455 y el control
-previo de RAM informa el bloqueo sin omitirlo. T6 permanece abierta.
+previo de RAM informó el bloqueo sin omitirlo; se conservan esos informes históricos.
 
 Descargas terminadas: el catálogo canónico completo pasó una segunda auditoría
 con cinco modelos verificados y cero activaciones; informe
 `output/aceptacion_200_20261031/catalogo_completo_verificado.json`.
 Con los pesos completos, los tres ensayos E5/BGE/NF4 terminaron con error previo
 de recursos (1,54 GiB libres; requieren 3/4/6 GiB), sin cargar pesos ni omitirlos;
-evidencia `pesos_completos_precondiciones.xml`. Quedan pendientes esas operaciones
-y la selección/evaluación Qwen3:8b. No cerrar T6 por completar las descargas.
+evidencia histórica `pesos_completos_precondiciones.xml`.
+
+Corrección y cierre: el control ahora distingue RAM física y memoria comprometible
+Windows, y los trabajadores CUDA salen antes de arrancar el siguiente. La ejecución
+conjunta `tests_ml/test_pesos_ia.py` terminó con **3 aprobadas, cero omisiones** en
+146,80 s (`pesos_cuda_integrales.xml`): codificación E5, pares BGE y un paso LoRA
+NF4 con reapertura real en otro proceso. Pico NF4 4.209.276.928 bytes; diferencia
+máxima de logits tras recarga 0,0. Adaptador y JSON conservados en
+`output/aceptacion_200_20261031/nf4_adaptador_verificado/`, sin activación.
+Qwen3:8b completó selección real de 27 órdenes, totalmente en GPU, con digest
+fijado; nomic produjo dos vectores locales. Se cierra preparación/operaciones,
+sin cerrar entrenamiento del agente, calidad ni aceptación eléctrica por arrastre.
 
 Anotar aquí, al ejecutar cada tarea, revisión, datos/contexto, comando,
 resultado, informe y limitaciones; no marcar casillas por existir código o por una
