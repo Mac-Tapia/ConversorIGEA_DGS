@@ -724,6 +724,26 @@ def test_maxima_coincidente_de_un_proyecto_de_alimentadores(client, monkeypatch)
     assert res['coincidente']['total_kw'] <= sum(r['kw'] for r in propias['resultados'])
 
 
+def test_desplegable_con_la_maxima_de_cada_cabecera_y_eleccion_a_mano(client, monkeypatch):
+    """028:RF-32 — por defecto el común; las máximas propias siguen disponibles y una manda si se elige."""
+    wid = _wid(client)
+    _libros_por_barra(client, wid, monkeypatch)
+    pares = [{'alimentador': a, 'medidor': m} for a, m in (('A1', 'M1'), ('A2', 'M3'))]
+    url = f'/api/workspaces/{wid}/demanda/cabecera/buscar'
+    auto = esperar_trabajo(client, client.post(url, json={'medidores': pares, 'coincidente': True}).json())['result']
+    propias = {x['alimentador']: x for x in auto['maximas_propias']}
+    fecha_a1 = (T0 + timedelta(minutes=15 * 7)).isoformat(sep=' ')
+    assert propias['A1']['fecha'] == fecha_a1 and propias['A1']['kw'] == pytest.approx(170.0)
+    assert propias['A2']['fecha'] == T0.isoformat(sep=' ') and propias['A2']['kw'] == pytest.approx(300.0)
+    assert auto['coincidente'] is not None and auto['instante'] not in {fecha_a1}
+    mano = esperar_trabajo(client, client.post(url, json={
+        'medidores': pares, 'instante': fecha_a1.replace(' ', 'T')}).json())['result']
+    assert mano['instante'] == fecha_a1 and mano['coincidente'] is None
+    assert {r['fecha'] for r in mano['resultados']} == {fecha_a1}
+    assert {x['alimentador']: x['fecha'] for x in mano['maximas_propias']}['A1'] == fecha_a1, 'siguen las opciones'
+    assert {x['alimentador'] for x in mano['maximas_propias']} == {'A1', 'A2'}
+
+
 def test_sesenta_kv_da_un_unico_instante_a_todo_el_sistema(client, monkeypatch):
     """028:RF-31 — todos los alimentadores, también los de una SET sin 60 kV, en el instante común."""
     wid = _wid(client)

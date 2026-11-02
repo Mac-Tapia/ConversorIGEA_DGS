@@ -366,9 +366,9 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   const instanteActual = (ultimo?.result?.instante as string | null | undefined) ?? '';
   const barrasSet = (ultimo?.result?.barras as BarraDeSet[] | undefined) ?? [];
   const periodoBuscado = (ultimo?.result?.periodo as string | null | undefined) ?? '';
-  // RF-52: el instante de la máxima de cada alimentador marcado, para elegirlo como común.
-  const instantes = cabecera.filter((r) => !r.error && r.fecha && feeders.includes(r.alimentador))
-    .map((r) => ({ alimentador: r.alimentador, fecha: r.fecha as string, kw: r.kw }));
+  // 028:RF-32: por defecto, el instante común de la mayor demanda conjunta; a mano, la máxima de una cabecera.
+  const instantes = (ultimo?.result?.maximas_propias as { alimentador: string; fecha: string; kw: number }[] | undefined) ?? [];
+  const instanteElegido = ultimo?.result?.coincidente ? '' : instanteActual;
   // Spec 028: el último escaneo de este proyecto en DIgSILENT (solo lectura).
   const trabajosDePf = Object.values(jobs).filter((j) => j.status === 'done' && (j.kind === 'pf_escaneo'
     || j.kind.startsWith('ajuste_') || j.kind.includes('recalibr'))).length;
@@ -686,16 +686,16 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
           {instantes.length > 1 && (
             <label className="row">
               <span>Instante de la calibración</span>
-              <select value={instanteActual} disabled={engineBusy}
+              <select value={instanteElegido} disabled={engineBusy}
                 onChange={(e) => maxima(e.target.value ? e.target.value.replace(' ', 'T') : '')}>
-                <option value="">La máxima de cada alimentador{periodoBuscado ? ` en ${nombreMes(periodoBuscado)}` : ''}</option>
+                <option value="">Máxima coincidente de los seleccionados{periodoBuscado ? ` en ${nombreMes(periodoBuscado)}` : ''} (por defecto)</option>
                 {instantes.map((x) => (
                   <option key={x.alimentador} value={x.fecha}>
-                    Coincidente: la máxima de {x.alimentador} · {x.fecha}
+                    Máxima de la cabecera de {x.alimentador} · {x.fecha} · {fmtNum(x.kw)} kW
                   </option>
                 ))}
-                {instanteActual && !instantes.some((x) => x.fecha === instanteActual) && (
-                  <option value={instanteActual}>Coincidente: {instanteActual}</option>
+                {instanteElegido && !instantes.some((x) => x.fecha === instanteElegido) && (
+                  <option value={instanteElegido}>Instante común: {instanteElegido}</option>
                 )}
               </select>
             </label>

@@ -2325,7 +2325,30 @@ def demanda_cabecera(ws: Workspace, ctx: JobContext, pares: list[tuple[str, str]
     return {'resultados': [r.to_dict() for r in res],
             'cancelado': len(res) < len(pares),
             'periodo': periodo, 'instante': instante.isoformat(sep=' ') if instante else None,
-            'coincidente': ({**conjunto, 'fecha': instante.isoformat(sep=' ')} if conjunto else None)}
+            'coincidente': ({**conjunto, 'fecha': instante.isoformat(sep=' ')} if conjunto else None),
+            'maximas_propias': _maximas_propias(res, alimentadores, periodo)}
+
+
+def _maximas_propias(res, alimentadores: dict[str, str], periodo: str | None) -> list[dict]:
+    """La máxima de la cabecera de cada alimentador, para elegirla a mano como instante común (028:RF-32).
+
+    Sale de la curva y no del resultado: con un instante común, ``r.fecha`` y ``r.kw`` son los de ese
+    registro, y el desplegable se quedaba con una sola fecha repetida por alimentador.
+    """
+    from ..demanda_medida import en_periodo
+
+    if len(alimentadores) < 2:
+        return []
+    propias = []
+    for r in res:
+        if alimentadores.get(r.alimentador) != r.medidor:
+            continue
+        puntos = [(f, kw) for f, kw, _q in r.curva or []
+                  if f is not None and kw is not None and (not periodo or en_periodo(f, periodo))]
+        if puntos:
+            f, kw = max(puntos, key=lambda p: (p[1], -p[0].timestamp()))
+            propias.append({'alimentador': r.alimentador, 'fecha': f.isoformat(sep=' '), 'kw': kw})
+    return propias
 
 
 def _informe_por_set(e: dict | None) -> list[str]:
@@ -2466,7 +2489,14 @@ def _demanda_por_barra(ws: Workspace, ctx: JobContext, pares: list[tuple[str, st
     if sistema_60kv:
         # 028:RF-31: CHN101, CHN102 y CHN201 no tienen el registro del instante de Chincha: no se
         # les da otra fecha (el sistema tiene una sola), y el operador lo tiene que ver.
-        sin_registro = sorted({r.alimentador for r in res if r.error})
+        # Si su medición empieza después (CHN101, desde el 24 de julio), se dice: no es un hueco.
+        def _sin_registro(r) -> str:
+            fechas = [f for f, kw, _q in r.curva or [] if f is not None and kw is not None]
+            t = instantes.get(duenio(r.alimentador).upper())
+            return (f'{r.alimentador} (su medición empieza el {min(fechas):%Y-%m-%d %H:%M})'
+                    if fechas and t and min(fechas) > t else r.alimentador)
+
+        sin_registro = sorted({_sin_registro(r) for r in res if r.error})
         if sin_registro:
             avisos.append(f'{", ".join(sin_registro)}: sin registro en el instante del sistema; '
                           'no se calibran con él: revise su medición (028:RF-31).')

@@ -140,10 +140,13 @@ def test_sin_periodo_no_se_cruzan_clientes():
 
 
 def test_instante_coincidente_de_la_maxima_de_un_alimentador():
-    """021:RF-50, 021:RF-52 — tras la búsqueda, se puede calibrar a todos en la máxima de uno:
-    se vuelve a buscar con ese instante y se avisa de que es coincidente."""
+    """021:RF-50, 021:RF-52, 028:RF-32 — tras la búsqueda, se puede calibrar a todos en la máxima de
+    una cabecera: se vuelve a buscar con ese instante y se avisa de que es coincidente; por defecto,
+    la coincidente de los seleccionados."""
     assert 'Instante de la calibración' in DEMANDA
-    assert 'Coincidente: la máxima de {x.alimentador} · {x.fecha}' in DEMANDA
+    assert 'Máxima de la cabecera de {x.alimentador} · {x.fecha}' in DEMANDA
+    assert 'Máxima coincidente de los seleccionados' in DEMANDA and '(por defecto)' in DEMANDA
+    assert 'La máxima de cada alimentador' not in DEMANDA, 'mezclaba instantes: no es una opción'
     assert "onChange={(e) => maxima(e.target.value ? e.target.value.replace(' ', 'T') : '')}" in DEMANDA
     assert 'se calibra a la vez, no en la máxima de cada uno' in DEMANDA
 

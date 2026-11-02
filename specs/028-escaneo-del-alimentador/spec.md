@@ -125,6 +125,10 @@ alimentador o barra de cabecera»)
   Una barra con huecos cuenta donde tiene registro y no descarta las demás fechas; SI no tiene el registro del instante,
   ENTONCES no suma y lo avisará. SI un alimentador no tiene registro en el instante, ENTONCES no se le atribuirá otro y lo
   nombrará. SI ninguna SET tiene barra de 60 kV, ENTONCES lo dirá y no buscará.
+- RF-32: DONDE el análisis sea de dos o tres alimentadores, EL SISTEMA buscará por defecto el instante común de RF-28 y dará
+  un desplegable con la máxima de la cabecera de cada seleccionado; CUANDO el operador elija una, TODOS los medidores se
+  leerán en ese instante, y podrá volver al de por defecto. Usuario, 2026-11-02: «esto debería ser manual desde la cabecera
+  con la selección desplegable, pero por defecto está bien así».
 
 ## Fuera de alcance
 

@@ -1125,6 +1125,10 @@ def test_central_en_el_instante_coincidente():
     raro = next(p[0] for p in cab if (p[1] + next(x[1] for x in lle if x[0] == p[0])) > 5000)
     r2 = dm.demanda_con_central(cab, gen, lle, sal, instante=raro)
     assert r2.fecha == raro.isoformat(sep=' ') and any('fuera de lo normal' in a for a in r2.avisos)
+    # 028:RF-28: «Todo 2026» también vale con central; comparado con «AAAA-MM», daba error.
+    anio = dm.demanda_con_central(cab, gen, lle, sal, periodo=str(t.year))
+    assert anio.error is None and anio.fecha.startswith(str(t.year))
+    assert dm.demanda_con_central(cab, gen, lle, sal, periodo=str(t.year + 1)).error
     r3 = dm.demanda_con_central(cab, gen, lle, sal, periodo='2026-07')
     assert r3.fecha.startswith('2026-07')
 
@@ -1211,6 +1215,17 @@ def test_sesenta_kv_la_mayor_suma_coincidente_no_la_de_cada_barra():
     assert r['fecha'] == f[2] and r['total_kw'] == pytest.approx(120.0)
     assert dm.instante_de_barras_de_alta({'SET A': [curva(1, 2, 3, 4, 5)]}, periodo='2030-01') is None
     assert dm.instante_de_barras_de_alta({}) is None
+
+
+def test_instante_coincidente_con_el_periodo_de_un_anio_entero():
+    """028:RF-28 — «Todo 2026» es un periodo válido: comparado con «AAAA-MM», no quedaba ninguna fecha."""
+    t0 = datetime(2026, 9, 1)
+    f = [t0 + timedelta(minutes=15 * i) for i in range(3)]
+    curva = lambda *kw: [(t, k, None) for t, k in zip(f, kw)]
+    cabeceras = {'A': curva(1, 9, 2), 'B': curva(1, 9, 2)}
+    assert dm.instante_coincidente(cabeceras, {}, '2026')['fecha'] == f[1]
+    assert dm.instante_coincidente(cabeceras, {}, '2026-09')['fecha'] == f[1]
+    assert dm.instante_coincidente(cabeceras, {}, '2025')['fecha'] is None
 
 
 def test_sesenta_kv_un_medidor_con_huecos_no_descarta_las_demas_fechas():

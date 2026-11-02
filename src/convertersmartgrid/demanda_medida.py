@@ -1249,7 +1249,8 @@ def instante_coincidente(cabeceras: Mapping[str, Curva], centrales: Mapping[str,
             demanda[alimentador] = {t: v[0] for t, v in cab.items()}
     fechas = set.intersection(*(set(d) for d in demanda.values())) if demanda else set()
     if periodo:
-        fechas = {t for t in fechas if periodo_de_fecha(t) == periodo}
+        # en_periodo y no «== periodo»: con «Todo 2026» ninguna fecha valía y la búsqueda fallaba.
+        fechas = {t for t in fechas if en_periodo(t, periodo)}
     base = {'descartados': descartados, 'registros': len(fechas), 'avisos': avisos}
     if not fechas:
         return {**base, 'fecha': None, 'total_kw': None, 'por_alimentador': {},
@@ -1280,7 +1281,7 @@ def demanda_con_central(cabecera: Curva, generacion: Curva, llegada: Curva,
     cab, gen, lle, sal = (_por_fecha(c) for c in (cabecera, generacion, llegada, salida))
     res.registros_cabecera = len(cab)
     # La de cabecera con la que se compara, del mismo mes de análisis (013:RF-11).
-    del_mes = {f: v for f, v in cab.items() if not periodo or periodo_de_fecha(f) == periodo}
+    del_mes = {f: v for f, v in cab.items() if en_periodo(f, periodo)}
     if del_mes:
         f, kw = max(((f, v[0]) for f, v in del_mes.items()), key=lambda p: (p[1], -p[0].timestamp()))
         res.maxima_cabecera = {'fecha': _iso(f), 'kw': kw}
@@ -1326,7 +1327,7 @@ def demanda_con_central(cabecera: Curva, generacion: Curva, llegada: Curva,
         validos = [instante]
     elif periodo:
         # 013:RF-11: la máxima del mes elegido; el balance y el rango normal, de todo el registro.
-        validos = [t for t in validos if periodo_de_fecha(t) == periodo]
+        validos = [t for t in validos if en_periodo(t, periodo)]
     if not validos:
         res.error = ('ningún registro con la zona aguas arriba dentro de lo normal'
                      + (f' en {periodo}' if periodo else ''))
