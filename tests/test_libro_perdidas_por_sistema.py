@@ -109,3 +109,21 @@ def test_libro_real_de_la_empresa():
     d = leer_libro_perdidas(ruta, 'SM218', ColumnasPerdidas.de_perfil(perfil))
     assert d.codigo_sistema == 'SE2044' and d.sistema_electrico == 'SANTA MARGARITA'
     assert (d.reconocido_kwh_pct, d.reconocido_kw_pct) == (1.69, 2.75)
+
+
+def test_el_perfil_local_no_pierde_el_libro_del_heredado(tmp_path):
+    """063:RF-41 — el perfil local cambia un rótulo de ``informes`` y conserva lo demás del heredado."""
+    import json
+
+    from convertersmartgrid.perfil_empresa import datos_perfil
+
+    carpeta = tmp_path / 'perfiles'
+    carpeta.mkdir()
+    (carpeta / 'empresa.json').write_text(json.dumps(
+        {'crs_origen': 'EPSG:32718', 'escala': 2, 'informes': {'norma': 'A', 'libro_perdidas': {'por_sistema': CONFIG}}}),
+        encoding='utf-8')
+    local = tmp_path / 'perfil.json'
+    local.write_text(json.dumps({'perfil': 'empresa', 'escala': 3, 'informes': {'norma': 'B'}}), encoding='utf-8')
+    datos = datos_perfil(local, carpeta=carpeta)
+    assert datos['escala'] == 3, 'fuera de informes, la clave local pisa la heredada'
+    assert datos['informes']['norma'] == 'B' and datos['informes']['libro_perdidas']['por_sistema'] == CONFIG

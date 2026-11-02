@@ -7083,6 +7083,11 @@ def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict
     lim = config.limites
 
     if formulario.get('preparar_casos') and ctx is not None:
+        # Antes de ocupar DIgSILENT: un libro de pérdidas que no se puede leer no depende de los flujos.
+        previo = None if any(v not in (None, '') for v in (formulario.get('perdidas_reconocidas') or {}).values()) \
+            else _perdidas_del_libro(ws, [alimentador])
+        if previo and previo['error']:
+            raise UserError(f'Libro de pérdidas: {previo["error"]}')
         preparar_flujos_del_informe(ws, ctx, project, alimentador)                 # 063:RF-1
     sin, con = _ultimo_estudio(ws, 'sin', project), _ultimo_estudio(ws, 'con', project)
     for rol, datos in ((SIN_PROYECTO, sin), (CON_PROYECTO, con)):

@@ -330,7 +330,12 @@ def datos_perfil(ruta: Path | None = None, *, carpeta: Path | None = None) -> di
     perfil_con_nombre(base, carpeta)   # valida el nombre y que exista
     carpeta = carpeta_perfiles() if carpeta is None else Path(carpeta)
     heredados = _leer_json(carpeta / f'{base}.json')
-    return {**heredados, **datos}
+    combinado = {**heredados, **datos}
+    # 063:RF-41: ``informes`` es una sección: el perfil local que cambia un rótulo no pierde lo demás
+    # (el local de Electro Dunas tapaba ``libro_perdidas`` y el botón del informe fallaba).
+    if isinstance(heredados.get('informes'), dict) and isinstance(datos.get('informes'), dict):
+        combinado['informes'] = {**heredados['informes'], **datos['informes']}
+    return combinado
 
 
 def estructura_empresa(ruta: Path | None = None, *, carpeta: Path | None = None):
