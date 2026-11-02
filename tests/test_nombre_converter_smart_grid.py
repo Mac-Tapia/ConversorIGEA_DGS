@@ -19,6 +19,7 @@ EXCEPCIONES_FICHERO = (
     'specs/058-',   # explica el renombrado: cita los nombres anteriores
     'referencia/',  # datos de la distribuidora, fuera de git (principio 9)
     '.agents/coordination/',  # registro entre sesiones, sin versionar: cita la ruta real de la carpeta
+    'docs/implementacion065/',  # evidencia: cita proyectos reales de DIgSILENT y rutas; reescribirla la falsearía
     'tests/test_nombre_converter_smart_grid.py',
 )
 #: Una rama que existe en git (historia) y lo que el código reconoce para leer lo ya guardado.

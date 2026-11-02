@@ -279,8 +279,12 @@ def test_descarga_temp_dir_explicito_respeta_fronteras(tmp_path, monkeypatch, ti
     if tipo == 'checkout':
         temporal = rutas_runtime().primario / 'temporal-no-crear'
     elif tipo == 'otro_volumen':
-        temporal = Path(os.environ.get('SystemDrive', 'C:') + '/temporal-no-crear')
-        assert temporal.anchor.casefold() != destino.anchor.casefold(), 'el caso requiere el volumen del sistema distinto'
+        # El temporal de pytest puede estar en el disco del sistema o fuera: se toma el que no sea el suyo.
+        volumenes = (os.environ.get('SystemDrive', 'C:') + '/', Path(__file__).anchor)
+        otros = [v for v in volumenes if Path(v).anchor.casefold() != destino.anchor.casefold()]
+        if not otros:
+            pytest.skip('este equipo solo tiene un volumen')
+        temporal = Path(otros[0]) / 'temporal-no-crear'
     else:
         temporal = tmp_path / 'temporales_explicitos'
     manager = DownloadManager(tmp_path / 'cache', temp_dir=temporal, retries=1)
