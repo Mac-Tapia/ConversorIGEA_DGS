@@ -1211,6 +1211,56 @@ def _suma(*xs: float | None) -> float | None:
     return None if any(x is None for x in xs) else sum(xs)  # type: ignore[arg-type]
 
 
+def _zona_arriba_valida(cab: Mapping, lle: Mapping, signo_llegada: int,
+                        comunes: Sequence[datetime]) -> tuple[dict, list]:
+    """021:RF-31, RF-32: la zona aguas arriba de cada registro y los que están dentro de lo normal."""
+    arriba = {t: cab[t][0] + signo_llegada * lle[t][0] for t in comunes}
+    q1, q3 = _cuartiles(list(arriba.values()))
+    margen = RANGOS_IQR * (q3 - q1)
+    return arriba, [t for t in comunes if q1 - margen <= arriba[t] <= q3 + margen]
+
+
+def instante_coincidente(cabeceras: Mapping[str, Curva], centrales: Mapping[str, tuple[Curva, Curva, Curva]],
+                         periodo: str | None = None) -> dict[str, Any]:
+    """El único instante de un proyecto de varios alimentadores: su mayor demanda conjunta (028:RF-28).
+
+    Cada alimentador con su máxima propia mezcla momentos que nunca ocurrieron juntos: en NA203 +
+    NA205 (2026-11-02) eran el 29 y el 25 de septiembre, con NA203 un 23 % sobre lo que medía a la hora
+    de NA205. Con central cuentan sus dos zonas y no los registros de maniobra: el mayor total crudo de
+    ese mes (09-30 03:45, 23 220 kW) era un disparo de un solo registro. ``centrales``: por
+    alimentador, las curvas de generación, llegada y salida.
+    """
+    demanda: dict[str, dict] = {}
+    avisos: list[str] = []
+    descartados = 0
+    for alimentador, curva in cabeceras.items():
+        cab = _por_fecha(curva)
+        central = centrales.get(alimentador)
+        res = demanda_con_central(curva, *central) if central else None
+        if res is not None and res.signo_llegada is not None and not res.error:
+            lle, sal = _por_fecha(central[1]), _por_fecha(central[2])
+            comunes = sorted(set(cab) & set(_por_fecha(central[0])) & set(lle) & set(sal))
+            arriba, validos = _zona_arriba_valida(cab, lle, res.signo_llegada, comunes)
+            descartados += len(comunes) - len(validos)
+            demanda[alimentador] = {t: arriba[t] + res.signo_salida * sal[t][0] for t in validos}
+        else:
+            if res is not None:
+                avisos.append(f'{alimentador}: la central no se usa para el instante común ({res.error})')
+            demanda[alimentador] = {t: v[0] for t, v in cab.items()}
+    fechas = set.intersection(*(set(d) for d in demanda.values())) if demanda else set()
+    if periodo:
+        fechas = {t for t in fechas if periodo_de_fecha(t) == periodo}
+    base = {'descartados': descartados, 'registros': len(fechas), 'avisos': avisos}
+    if not fechas:
+        return {**base, 'fecha': None, 'total_kw': None, 'por_alimentador': {},
+                'avisos': [*avisos, 'ningún registro común a todos los alimentadores'
+                           + (f' en {periodo}' if periodo else '')]}
+    # A igual demanda, el primero: determinismo.
+    t = max(fechas, key=lambda x: (sum(d[x] for d in demanda.values()), -x.timestamp()))
+    por = {a: d[t] for a, d in demanda.items()}
+    return {**base, 'fecha': t, 'total_kw': sum(por.values()), 'por_alimentador': por}
+
+
 def demanda_con_central(cabecera: Curva, generacion: Curva, llegada: Curva,
                         salida: Curva, periodo: str | None = None,
                         instante: datetime | None = None) -> MaximaConCentral:
@@ -1259,10 +1309,7 @@ def demanda_con_central(cabecera: Curva, generacion: Curva, llegada: Curva,
         return res
 
     # RF-31: aguas arriba, lo que entra por la cabecera y por la llegada; aguas abajo, la salida.
-    arriba = {t: cab[t][0] + sl * lle[t][0] for t in comunes}
-    q1, q3 = _cuartiles(list(arriba.values()))
-    margen = RANGOS_IQR * (q3 - q1)
-    validos = [t for t in comunes if q1 - margen <= arriba[t] <= q3 + margen]
+    arriba, validos = _zona_arriba_valida(cab, lle, sl, comunes)
     res.descartados = len(comunes) - len(validos)
     if res.descartados:
         res.avisos.append(f'{res.descartados} registro(s) con la zona aguas arriba a más de '

@@ -1099,9 +1099,18 @@ def _perdidas(e: _Escritor, datos: DatosFactibilidad, config: ConfigInforme, ali
                           _f(perdidas.kvar if perdidas else None, 2), _f(pct, 2)])
         e.tabla(['Escenario', 'Inyección neta total (kW)', 'Pérdidas activas (kW)',
                  'Pérdidas reactivas (kvar)', 'Pérdidas activas (%)'], filas)
-        e.parrafo('Se muestran balances instantáneos calculados con inyecciones y consumos '
-                  'efectivos. No se anualizan las pérdidas ni se atribuyen costos sin una '
-                  'curva y un precio de energía verificados para este alcance.')
+        e.parrafo('Se muestran balances instantáneos calculados con inyecciones y consumos efectivos.')
+        if datos.perdidas_actual is None or datos.perdidas_proyectado is None:
+            e.parrafo('No se anualizan las pérdidas ni se atribuyen costos sin una '
+                      'curva y un precio de energía verificados para este alcance.')
+            return
+        # 063:RF-57: con el factor de carga medido sí hay curva: la anual, con el precio del libro.
+        e.parrafo('Pérdidas anuales de cada estado, con el factor de carga de la medición y el precio de compra del libro.')
+        filas = [[nombre, _f(p.maxima_kw, 2), _f(p.energia_kwh, 2), _f(p.perdidas_kwh, 2), f'{numero(p.perdidas_pct, 2)} %',
+                  _f(p.no_reconocida_soles, 2)]
+                 for nombre, p in (('Estado actual', datos.perdidas_actual), ('Con proyecto', datos.perdidas_proyectado))]
+        e.tabla(['', 'MD kW', 'MD kWh', 'Pérdidas téc. kWh - año', 'Pérdidas téc. kWh (%)',
+                 'Pérdida/año no reconocida (S/.)'], filas)
         return
     e.parrafo('Pérdidas obtenidas en los escenarios del alimentador.')
     filas = []

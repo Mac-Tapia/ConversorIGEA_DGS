@@ -1,4 +1,4 @@
-import type { AsistenteRespuesta, CentralDeBarra, SistemaDelProyecto, EstructuraResumen,
+import type { Escaneo, AsistenteRespuesta, CentralDeBarra, SistemaDelProyecto, EstructuraResumen,
   AjustePlan, AjusteResultado, CargasPlan, CentralTermica, ClientesCruce, CriterioFijas, CurvaCabecera, DemandaMedidores,
   MaximaConCentral, MedidoresExternos, Economia, EstudiosCatalogo, EstudiosPlan, DatosEmpresa, OpcionesEstudios,
   FeederRow, Health, InformeEstudioForm, InformeFactibilidadForm, InformesContexto, Job, Limites, MaximaCabecera, Obra,
@@ -137,6 +137,9 @@ export const api = {
   // Spec 028, RF-9: escanear alimentadores en DIgSILENT antes de recalibrar.
   pfEscanear: (id: string, project: string, feeders: string[], anio: number | null = null) =>
     request<Job>(`${ws(id)}/powerfactory/escanear`, json('POST', { project, feeders, anio })),
+  // 028:RF-30: el último escaneo de cada proyecto, también el automático de una recalibración.
+  pfEscaneoGuardado: (id: string) =>
+    request<{ escaneo: Record<string, Escaneo> }>(`${ws(id)}/powerfactory/escaneo`),
   pfProjectsGuardados: (id: string) => request<PfInventario>(`${ws(id)}/powerfactory/projects`),
   // Spec 018, RF-10: usar la ejecución fuente con la que se aceptó el proyecto.
   pfAdoptarFuente: (id: string, project: string) =>
@@ -199,10 +202,12 @@ export const api = {
   // registro de esa fecha y hora en todos los medidores (calibración coincidente).
   demandaCabecera: (id: string, medidores: { alimentador: string; medidor: string }[],
     criterio: { periodo?: string; instante?: string; por_barra?: boolean;
-      centrales_tramo?: Record<string, string> } = {}) =>
+      centrales_tramo?: Record<string, string>; coincidente?: boolean;
+      centrales?: Record<string, { generacion: string; llegada: string; salida: string }> } = {}) =>
     request<Job>(`${ws(id)}/demanda/cabecera/buscar`, json('POST', {
       medidores, periodo: criterio.periodo || null, instante: criterio.instante || null,
       por_barra: Boolean(criterio.por_barra), centrales_tramo: criterio.centrales_tramo ?? {},
+      coincidente: Boolean(criterio.coincidente), centrales: criterio.centrales ?? {},
     })),
   // 022:RF-88: las centrales térmicas (CT…) del libro, para decir si van en barra o en tramo.
   demandaCentrales: (id: string) =>

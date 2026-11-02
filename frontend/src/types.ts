@@ -1864,6 +1864,9 @@ export interface EscaneoAlimentador {
   error?: string;
   generadores?: EscaneoGenerador[];
   bancos?: EscaneoBanco[];
+  /** 028:RF-29: conectados en la barra de cabecera, aparte de los del alimentador. */
+  generadores_en_barra?: EscaneoGenerador[];
+  bancos_en_barra?: EscaneoBanco[];
   cargas_cambiadas?: { sed: string; manual: { kw: number; kvar: number }; ajuste: { kw: number; kvar: number } }[];
   /** 028:RF-17: tramos que no venían en el DGS aceptado. */
   tramos_nuevos?: { tramo: string; desde: string | null; hasta: string | null; km: number | null; origen: string }[];

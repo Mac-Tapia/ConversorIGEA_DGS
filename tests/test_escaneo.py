@@ -133,6 +133,50 @@ def test_ruta_de_la_web_guarda_el_escaneo_y_la_central_toma_su_barra(tmp_path, m
     assert central['nodo'] == 'N7' and any('028:RF-12' in x for x in avisos)
 
 
+def test_guion_lista_lo_conectado_en_la_barra_de_cabecera(guion):
+    """028:RF-29 — generador y banco en la barra de cabecera, aparte de los del alimentador."""
+    rnd = random.Random(SEMILLA)
+    feeders = tuple(f'F{i}' for i in range(1, rnd.randint(2, 4)))
+    app = fake_pf.proyecto(alimentadores=feeders, cargas_por_alim=4, bt=True, flujo=True)
+    red = app.proyecto.GetContents('*.ElmNet', 1)[0]
+    elm = next(f for f in app.proyecto.GetContents('*.ElmFeeder', 1) if f.loc_name == 'F1')
+    barra = elm.obj_id.cterm
+    nombre_g, nombre_b = f'CT_{_nombre(rnd)}', f'BANCO_{_nombre(rnd)}'
+    for clase, nombre in (('ElmGenstat', nombre_g), ('ElmShnt', nombre_b)):
+        obj = red.CreateObject(clase, nombre)
+        cub = barra.CreateObject('StaCubic', f'Cub_{nombre}')
+        cub.obj_id, cub.obj_bus = obj, 0
+        obj.bus1 = cub
+        obj.outserv = 0
+        if clase == 'ElmShnt':
+            obj.qcapn, obj.ncapa = 0.3, 2
+        else:
+            obj.pgini, obj.qgini = 1.5, 0.1
+    antes = len(app.creados)
+    informe, rc = guion.ejecutar(app, {'project': 'P', 'feeders': list(feeders)})
+    assert rc == 0, informe
+    f1 = informe['alimentadores']['F1']
+    [g] = f1['generadores_en_barra']
+    assert (g['generador'], g['barra'], g['en_servicio']) == (nombre_g, barra.loc_name, True), SEMILLA
+    assert g['p_kw'] == pytest.approx(1500.0)
+    [b] = f1['bancos_en_barra']
+    assert (b['banco'], b['barra']) == (nombre_b, barra.loc_name) and b['q_nominal_kvar'] == pytest.approx(600.0)
+    assert not f1['generadores'], 'lo de la barra no es del alimentador: no parte en zonas'
+    assert len(app.creados) == antes
+
+
+def test_front_activa_lo_detectado_con_el_escaneo_guardado():
+    """028:RF-27 / 028:RF-30 — el tipo de proyecto decide sin casilla, y el escaneo automático de la
+    recalibración también activa la selección."""
+    from pathlib import Path
+
+    raiz = Path(__file__).resolve().parents[1] / 'frontend' / 'src'
+    demanda = (raiz / 'components' / 'DemandaMedida.tsx').read_text(encoding='utf-8')
+    assert 'setPorBarra' not in demanda and 'type="checkbox" checked={porBarra}' not in demanda
+    assert 'api.pfEscaneoGuardado(ws.id)' in demanda and 'function DetectadoEnElEscaneo' in demanda
+    assert 'coincidente: !porBarra' in demanda
+
+
 def test_front_con_el_boton_y_la_tabla():
     """028:RF-9 / 028:RF-10 / 028:RF-11 — el botón llama a la ruta, la tabla muestra lo hallado
     y un generador declara la central con su barra."""

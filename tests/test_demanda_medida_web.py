@@ -707,6 +707,23 @@ def _libros_por_barra(client, wid, monkeypatch, kv_alta=220, pico_alta=None, esc
     _subir(client, wid, 'cabecera', filas)
 
 
+def test_maxima_coincidente_de_un_proyecto_de_alimentadores(client, monkeypatch):
+    """028:RF-28 — dos alimentadores en un único instante, el de su mayor suma, no el de cada uno."""
+    wid = _wid(client)
+    _libros_por_barra(client, wid, monkeypatch)
+    pares = [{'alimentador': a, 'medidor': m} for a, m in (('A1', 'M1'), ('A2', 'M3'))]
+    job = client.post(f'/api/workspaces/{wid}/demanda/cabecera/buscar', json={'medidores': pares, 'coincidente': True})
+    estado = esperar_trabajo(client, job.json())
+    assert estado['status'] == 'done', estado
+    res = estado['result']
+    fechas = {r['fecha'] for r in res['resultados']}
+    assert fechas == {res['instante']} == {res['coincidente']['fecha']}
+    assert res['coincidente']['total_kw'] == pytest.approx(sum(r['kw'] for r in res['resultados']))
+    propias = esperar_trabajo(client, client.post(f'/api/workspaces/{wid}/demanda/cabecera/buscar',
+                                                  json={'medidores': pares}).json())['result']
+    assert res['coincidente']['total_kw'] <= sum(r['kw'] for r in propias['resultados'])
+
+
 def test_maxima_por_barra_y_sus_alimentadores_en_esa_fecha(client, monkeypatch):
     """022:RF-37, 022:RF-39, 022:RF-40, 022:RF-41, 022:RF-41c, 022:RF-42, 022:RF-43, 022:RF-44 — la
     máxima de la barra de SET X es la de la suma de sus dos transformadores (registro 3); A1

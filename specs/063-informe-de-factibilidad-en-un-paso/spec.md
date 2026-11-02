@@ -207,6 +207,8 @@ Obras para conectar
   flujo no converge o incumple, ENTONCES que por eso no es posible conectarlas y se justifica la obra; solo afirmará
   lo que midió. (Usuario, 2026-11-02: «no es posible conectarlo porque existen otros clientes además de la carga
   analizada y no converge; eso se debe explicar en conclusiones y en el desarrollo, y justifica la nueva SET».)
+- RF-57: DONDE el informe por balances medidos tenga el factor de carga, EL SISTEMA añadirá las pérdidas anuales de cada
+  estado con ese factor y el precio del libro; sin él, no las anualizará.
 
 ## Fuera de alcance
 

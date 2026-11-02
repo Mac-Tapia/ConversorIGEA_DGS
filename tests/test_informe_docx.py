@@ -209,13 +209,22 @@ def test_factibilidad_sin_obras_no_exige_transformador_fuera_de_alcance(tmp_path
 def test_factibilidad_perdidas_medidas_no_inventa_anualizacion(tmp_path):
     """017:RF-54, 063:RF-7: se comparan los tres balances medidos sin imputar una curva anual."""
     destino = tmp_path / 'perdidas_medidas.docx'
-    datos = _factibilidad(tmp_path, cargas=_caso('Cargas nuevas', 0.92),
+    datos = _factibilidad(tmp_path, cargas=_caso('Cargas nuevas', 0.92), perdidas_actual=None, perdidas_proyectado=None,
                           perdidas_instantaneas=True, observaciones=['Red completa NA203–NA205.'])
     escribir_informe_factibilidad(_config(tmp_path), destino, datos)
     texto = _texto(destino)
     assert 'Pérdidas activas (kW)' in texto and 'Pérdidas reactivas (kvar)' in texto
     assert 'No se anualizan' in texto and 'Red completa NA203–NA205.' in texto
     assert 'MD kWh' not in texto
+
+
+def test_perdidas_anuales_con_factor_de_carga_ademas_de_los_balances(tmp_path):
+    """063:RF-57: con el factor de carga medido, la tabla anual va junto a los balances."""
+    destino = tmp_path / 'perdidas_anuales.docx'
+    escribir_informe_factibilidad(_config(tmp_path), destino,
+                                  _factibilidad(tmp_path, cargas=_caso('Cargas nuevas', 0.92), perdidas_instantaneas=True))
+    texto = _texto(destino)
+    assert 'Pérdidas activas (kW)' in texto and 'MD kWh' in texto and 'No se anualizan' not in texto
 
 
 def test_referencia_fallida_certificada_se_documenta_sin_imputacion(tmp_path):

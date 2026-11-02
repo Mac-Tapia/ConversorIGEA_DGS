@@ -19,7 +19,8 @@ from convertersmartgrid.informe_docx import (
     DatosFactibilidad,
     escribir_informe_factibilidad,
 )
-from convertersmartgrid.informes import Caso, ConfigInforme, Encabezado, FuenteMedida, Solicitud
+from convertersmartgrid.informes import (
+    Caso, ConfigInforme, Encabezado, FuenteMedida, PerdidasAnuales, Solicitud, perdidas_anuales)
 from convertersmartgrid.libros_informe import DatosPerdidas
 from convertersmartgrid.mapa_informe import imagenes_del_estado
 from convertersmartgrid.perfil_empresa import datos_perfil
@@ -224,6 +225,14 @@ def _fuentes_medidas(caso: dict) -> tuple[FuenteMedida, ...]:
                  for f in (caso.get('red_proyecto') or {}).get('fuentes') or [])
 
 
+def _anuales(caso: Caso, plan: dict) -> PerdidasAnuales | None:
+    """063:RF-57: las pérdidas anuales, solo con un factor de carga medido en el plan."""
+    fc, libro = plan.get('factor_carga'), plan['perdidas_reconocidas']
+    if fc is None or not caso.converge or caso.fuente is None or caso.perdidas is None:
+        return None
+    return perdidas_anuales(caso.fuente.kw, caso.perdidas.kw, fc, libro.get('reconocido_kwh_pct'), libro.get('precio_compra'))
+
+
 def generar(plan: dict, destino: Path, raiz: Path) -> dict:
     """Escribe el informe con cifras nativas, figuras locales y anexos verificables."""
     import docx
@@ -296,6 +305,7 @@ def generar(plan: dict, destino: Path, raiz: Path) -> dict:
         libro=DatosPerdidas(**plan['perdidas_reconocidas']), imagenes=imagenes,
         fuentes=plan['fuentes'], observaciones=plan['observaciones'],
         incluir_transformador_set=False, perdidas_instantaneas=True, numero=plan.get('numero'),
+        perdidas_actual=_anuales(casos_dictamen['sin'], plan), perdidas_proyectado=_anuales(casos_dictamen['con'], plan),
         con_proyecto_verificado=referencia_fallida,
         # 063:RF-54 a RF-56: demanda nominal de cada caso, fuentes medidas y cargas en espera.
         nominal_kw={clave: v for clave, rol in (('actual', 'sin'), ('cargas', 'cargas'), ('proyectado', 'con'))

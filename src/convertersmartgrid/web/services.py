@@ -2258,19 +2258,42 @@ def _libros_de_cabecera(ws: Workspace, periodo: str | None) -> list[Path]:
 
 def demanda_cabecera(ws: Workspace, ctx: JobContext, pares: list[tuple[str, str]], *,
                      periodo: str | None = None, instante: datetime | None = None,
-                     por_barra: bool = False, centrales_tramo: dict[str, str] | None = None) -> dict:
+                     por_barra: bool = False, centrales_tramo: dict[str, str] | None = None,
+                     coincidente: bool = False,
+                     centrales: dict[str, dict[str, str]] | None = None) -> dict:
     """Máxima de cada medidor en la medición de cabecera (RF-24 a RF-32). Es un trabajo:
     abrir los libros cuesta segundos (P7). Se cancela entre medidores.
 
     ``periodo``: la máxima de ese mes (013:RF-11). ``instante``: el registro de esa fecha
-    y hora en todos los medidores, para calibrar a la vez (021:RF-50).
+    y hora en todos los medidores, para calibrar a la vez (021:RF-50). ``coincidente``: en un
+    proyecto de alimentadores, ese instante es el de su mayor demanda conjunta (028:RF-28).
     """
-    from ..demanda_medida import DemandaError, maximas
+    from ..demanda_medida import DemandaError, instante_coincidente, maximas
 
     if not pares:
         raise UserError('Indique al menos un medidor.')
     if por_barra and instante is None:
         return _demanda_por_barra(ws, ctx, pares, periodo, centrales_tramo)   # 022:RF-37 a RF-46, RF-88
+    alimentadores = {a: m for a, m in pares if not a.startswith('Central ')}
+    conjunto = None
+    if coincidente and instante is None and len(alimentadores) > 1:           # 028:RF-28
+        libros = _libros_de_cabecera(ws, periodo)
+        try:
+            curvas = {r.medidor: r.curva for r in maximas(libros, pares, alias=demanda_alias(), periodo=periodo,
+                                                          cancelado=ctx.cancel.is_set)}
+        except DemandaError as exc:
+            raise UserError(str(exc)) from exc
+        de_central = {a: tuple(curvas.get(c.get(k)) or [] for k in ('generacion', 'llegada', 'salida'))
+                      for a, c in (centrales or {}).items() if a in alimentadores}
+        conjunto = instante_coincidente({a: curvas.get(m) or [] for a, m in alimentadores.items()},
+                                        {a: c for a, c in de_central.items() if all(c)}, periodo)
+        for aviso in conjunto['avisos']:
+            ctx.log(f'  aviso: {aviso}')
+        if conjunto['fecha'] is None:
+            raise UserError('No hay un instante común a los alimentadores: ' + '; '.join(conjunto['avisos']))
+        instante = conjunto['fecha']
+        ctx.log(f'Instante común de los {len(alimentadores)} alimentadores: {instante}, '
+                f'{conjunto["total_kw"]:,.1f} kW de demanda conjunta (028:RF-28).')
     # Con un instante, el año es el suyo (021:RF-50): sus libros, no todos.
     libros = _libros_de_cabecera(ws, periodo or (instante.strftime('%Y') if instante else None))
     alias = demanda_alias()
@@ -2299,7 +2322,8 @@ def demanda_cabecera(ws: Workspace, ctx: JobContext, pares: list[tuple[str, str]
         ws.criterio_cabecera = {ctx.job.id: {'periodo': periodo, 'instante': instante}}
     return {'resultados': [r.to_dict() for r in res],
             'cancelado': len(res) < len(pares),
-            'periodo': periodo, 'instante': instante.isoformat(sep=' ') if instante else None}
+            'periodo': periodo, 'instante': instante.isoformat(sep=' ') if instante else None,
+            'coincidente': ({**conjunto, 'fecha': instante.isoformat(sep=' ')} if conjunto else None)}
 
 
 def _informe_por_set(e: dict | None) -> list[str]:

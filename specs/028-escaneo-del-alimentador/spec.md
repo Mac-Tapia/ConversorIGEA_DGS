@@ -99,6 +99,24 @@ bancos y otros cambios; en base de eso debe recalibrar sin ningún bloqueo, solo
   manuales debe reconocerlas al momento de recalibrar» (tramos actualizados y ternas nuevas,
   según las instalaciones en campo); los tramos y ternas nuevos ya los da RF-17.
 
+Instante según el tipo de proyecto y selección al detectar (usuario, 2026-11-02: «si se analiza por
+alimentador debe ser como la A, pero si analiza por sistema se considera por barra; son cosas
+diferentes que no se deben mezclar»; «estas selecciones de centrales térmicas estén para ingresar de
+la web y se activen una vez se detecte en la recalibración bancos y centrales, en cualquier
+alimentador o barra de cabecera»)
+
+- RF-27: DONDE el proyecto sea de un sistema, EL SISTEMA buscará la máxima por barra (022:RF-37); DONDE
+  sea de alimentadores, buscará por alimentador; el tipo lo da el proyecto y el operador no los cruza.
+- RF-28: DONDE un proyecto tenga dos o más alimentadores, EL SISTEMA los calibrará en un único instante:
+  el de la mayor demanda coincidente de todos, sumando en cada alimentador con central sus dos zonas
+  (021:RF-31) y descartando los registros que no pasen los filtros de esa central (021:RF-30, RF-32).
+  SI los medidores de una central no cuadran, ENTONCES ese alimentador cuenta por su cabecera y lo dirá.
+- RF-29: CUANDO escanea, EL SISTEMA listará también los generadores y los bancos conectados en la barra de
+  cabecera de cada alimentador, aparte de los del alimentador.
+- RF-30: CUANDO haya un escaneo del proyecto, también el automático de una calibración o recalibración,
+  EL SISTEMA activará en la web la selección de medidores de cada central hallada y avisará de lo
+  detectado en cada alimentador y barra de cabecera, sin que el operador tenga que escanear otra vez.
+
 ## Fuera de alcance
 
 - Crear centrales o bancos desde el escaneo: solo se leen; los crea el operador o la
