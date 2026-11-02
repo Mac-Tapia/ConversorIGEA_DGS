@@ -188,6 +188,12 @@ Obras para conectar
 - RF-49: SI el cliente de la solicitud no comparte ningún nombre con la carga elegida, ENTONCES EL SISTEMA lo
   avisará en el formulario y lo señalará como hueco del informe.
 - RF-50: SI Word falla después de guardar el PDF, ENTONCES EL SISTEMA dará el PDF por hecho.
+- RF-51: CUANDO los PDF den la potencia solicitada, EL SISTEMA la pondrá en lugar de la propuesta por la carga,
+  sin pisar la que escribió el operador.
+- RF-52: SI el incremento de la solicitud se separa más de 1 kW de la potencia de la carga del modelo, ENTONCES
+  EL SISTEMA lo avisará en el formulario.
+- RF-53: DONDE «Con proyecto» lleve obras activas, EL SISTEMA las describirá en el informe de la carga nueva, con
+  el nodo de cada banco y el inicio y el final de cada cambio de sección.
 
 ## Fuera de alcance
 

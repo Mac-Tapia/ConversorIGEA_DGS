@@ -105,6 +105,10 @@
       Hecho cuando: `pytest -q tests/test_libro_perdidas_por_sistema.py` en verde.
 - [x] T30. El formulario es de una carga y el cliente corresponde a ella. (RF-48, RF-49)
       Hecho cuando: `npm test` en `frontend/` y `pytest -q tests/test_informe_web.py -k cliente` en verde.
+- [x] T33. El informe de la carga nueva dice sus obras. (RF-53)
+      Hecho cuando: `pytest -q tests/test_informe_docx.py tests/test_informe_web.py -k obras` en verde.
+- [x] T32. La potencia de la carta manda y el incremento se contrasta con la carga. (RF-51, RF-52)
+      Hecho cuando: `npm test` en `frontend/` en verde.
 - [x] T31. El PDF guardado vale aunque Word caiga al cerrarse. (RF-50)
       Hecho cuando: `pytest -q tests/test_libro_perdidas_por_sistema.py -k cae_al_cerrarse` en verde.
 - [x] T29. Imágenes del estado proyectado sin obras. (RF-47)

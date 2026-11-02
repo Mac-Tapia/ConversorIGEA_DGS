@@ -508,3 +508,19 @@ def test_clientes_fijos_con_fp_real_y_corregido(tmp_path):
     texto = '\n'.join(p.text for p in __import__('docx').Document(destino).paragraphs)
     assert 'banco de condensadores propio' in texto and 'SE1' in texto
     assert json.loads(destino.with_suffix('.json').read_text(encoding='utf-8'))['fijas'][0]['sed'] == 'SE1'
+
+
+def test_factibilidad_con_obras_dice_cuales_y_donde(tmp_path):
+    """063:RF-53, 063:RF-31 — T7 en SM218: concluía «con las obras evaluadas» sin nombrarlas."""
+    destino = tmp_path / 'conexion.docx'
+    obras = ({'tipo': 'banco', 'kvar': 450, 'nodo': 'N8904'},
+             {'tipo': 'conductor', 'conductor': 'AA120', 'trechos': [
+                 {'desde': 'NA', 'hasta': 'NB', 'km': 5.8, 'tramos': ['T1', 'T2'], 'actuales': ['CU10']}]})
+    datos = _factibilidad(tmp_path, actual=_caso('Sin proyecto', 0.93), cargas=_caso('Cargas nuevas', 0.92),
+                          con_obras=True, incluir_transformador_set=False, devanado=None, obras=obras)
+    escribir_informe_factibilidad(_config(tmp_path), destino, datos)
+    texto = _texto(destino)
+    resumen = json.loads(destino.with_suffix('.json').read_text(encoding='utf-8'))
+    assert resumen['conclusion_conexion']['clave'] == 'con_obras'
+    assert texto.count('450 kvar en el nodo N8904') == 2, 'en el estado proyectado y en las conclusiones'
+    assert 'desde la barra NA hasta la barra NB' in texto and 'T1, T2' in texto

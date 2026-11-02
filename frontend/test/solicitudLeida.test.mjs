@@ -46,3 +46,19 @@ test('063:RF-48 elegir otra carga o ninguna no hereda; la primera elección cons
   assert.equal(esOtraCarga('', 'SM218|A'), false, '017:RF-136: la carta llega antes que la carga');
   assert.equal(esOtraCarga('SM218|A', 'SM218|A'), false);
 });
+
+test('063:RF-51 la carta sustituye la potencia propuesta por la carga, no la escrita', async () => {
+  const { esPotenciaPropuesta } = await cargar();
+  assert.equal(esPotenciaPropuesta('1100', 1100), true);
+  assert.equal(esPotenciaPropuesta('1500', 1100), false, 'la escribió el operador');
+  assert.equal(esPotenciaPropuesta('1100', null), false);
+});
+
+test('063:RF-52 el incremento que no cuadra con la carga del modelo se dice', async () => {
+  const { incrementoNoCuadra } = await cargar();
+  assert.equal(incrementoNoCuadra(200, 1100), true);
+  assert.equal(incrementoNoCuadra(1100, 1100), false);
+  assert.equal(incrementoNoCuadra(1100.5, 1100), false);
+  assert.equal(incrementoNoCuadra(null, 1100), false);
+  assert.equal(incrementoNoCuadra(200, null), false);
+});

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { api, fmtNum } from '../api';
 import { useApp } from '../context';
-import { acumularLeidos, alimentadoresDistintos, clienteAjeno, esOtraCarga } from '../solicitudLeida';
+import { acumularLeidos, alimentadoresDistintos, clienteAjeno, esOtraCarga, esPotenciaPropuesta, incrementoNoCuadra } from '../solicitudLeida';
 import { FileDrop } from './ui';
 import type {
   DocumentosResultado, InformeEstudioForm, InformeFactibilidadForm, InformeResultado, InformesContexto, Limites, MaximaCabecera,
@@ -562,7 +562,8 @@ function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, 
       potencia_actual_kw: valor('potencia_actual_kw'), nis: valor('nis'), codigo_ficha: valor('codigo_ficha') };
     const nueva = { ...sol };
     for (const [k, v] of Object.entries(de) as [keyof Sol, string][]) {
-      const libre = !nueva[k].trim() || (k === 'tipo_solicitud' && nueva[k] === 'factibilidad de suministro');
+      const libre = !nueva[k].trim() || (k === 'tipo_solicitud' && nueva[k] === 'factibilidad de suministro')
+        || (k === 'potencia_kw' && esPotenciaPropuesta(nueva[k], carga?.kw));
       if (v && libre) nueva[k] = v;
     }
     const nuevoPunto = { ...punto };
@@ -673,6 +674,9 @@ function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, 
           <Campos campos={SOLICITUD} valores={sol} fijar={(k, v) => setSol((s) => ({ ...s, [k]: v }))} />
           {incremento != null && <small className="muted span-2">Ampliación de {fmtNum(num(sol.potencia_actual_kw) as number, 0)} kW
             a {fmtNum(num(sol.potencia_kw) as number, 0)} kW: incremento de {fmtNum(incremento, 0)} kW (063:RF-14).</small>}
+          {incrementoNoCuadra(incremento, carga.kw) && <small className="alert alert-warn span-2">El incremento de la
+            solicitud es de {fmtNum(incremento as number, 0)} kW y la carga del modelo vale {fmtNum(carga.kw as number, 0)} kW:
+            compruebe las potencias antes de generar.</small>}
           {fechasLeidas.length > 1 && <small className="muted span-2">Fechas leídas: {fechasLeidas.map((x) =>
             `${x.valor} (${x.fichero})`).join(' · ')}. Se propone la de la solicitud del interesado.</small>}
           {clienteAjeno(carga.sed, sol.cliente) && <small className="alert alert-warn span-2">El cliente «{sol.cliente}» no

@@ -638,3 +638,18 @@ def test_cliente_de_otra_carga_se_dice_y_queda_como_hueco(client, tmp_path, monk
     monkeypatch.setattr(informes, 'cliente_ajeno', lambda *_a: True)
     fin = esperar_trabajo(client, client.post(url, json=cuerpo).json())
     assert any('no parece el de la carga' in h for h in fin['result']['huecos']), fin['result']['huecos']
+
+
+def test_obras_del_informe_solo_las_activas_de_ese_proyecto_y_alimentador():
+    """063:RF-53 — una obra de otro proyecto, de otro alimentador o apagada no se atribuye a esta carga."""
+    from convertersmartgrid.web import services
+
+    banco = {'clase': 'condensador', 'alimentador': 'AL01', 'barra': 'N8904', 'q_kvar': 450.0}
+    ws = SimpleNamespace(obras_aplicadas=[
+        {'project': 'PRY', 'variacion': 'Obra_a', 'obra': banco},
+        {'project': 'OTRO', 'variacion': 'Obra_a', 'obra': {**banco, 'barra': 'OTRO_PROYECTO'}},
+        {'project': 'PRY', 'variacion': 'Obra_a2', 'obra': {**banco, 'barra': 'APAGADA'}},
+        {'project': 'PRY', 'variacion': 'Obra_b', 'obra': {**banco, 'alimentador': 'AL02', 'barra': 'OTRO_ALIM'}},
+    ])
+    obras = services._obras_del_informe(ws, 'PRY', 'AL01', {}, {'obras_activas': ['Obra_a', 'Obra_b']})
+    assert [o['nodo'] for o in obras] == ['N8904'] and obras[0]['tipo'] == 'banco' and obras[0]['kvar'] == 450.0

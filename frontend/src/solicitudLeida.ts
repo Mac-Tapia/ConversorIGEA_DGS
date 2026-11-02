@@ -51,3 +51,16 @@ export function esOtraCarga(previa: string, nueva: string): boolean {
   return previa !== '' && previa !== nueva;
 }
 
+/**
+ * 063:RF-51: la potencia del campo es solo la propuesta de la carga, y lo que dice la carta manda. T7 en
+ * SM218: la carga vale 1100 kW (el incremento) y la carta dice 900 a 2000 kW; quedaba «incremento de 200 kW».
+ */
+export function esPotenciaPropuesta(valor: string, kwCarga: number | null | undefined): boolean {
+  return kwCarga != null && Number(valor) === kwCarga;
+}
+
+/** 063:RF-52: el incremento de la solicitud no es la potencia de la carga del modelo (tolerancia de 1 kW). */
+export function incrementoNoCuadra(incremento: number | null, kwCarga: number | null | undefined): boolean {
+  return incremento != null && kwCarga != null && Math.abs(incremento - kwCarga) > 1;
+}
+

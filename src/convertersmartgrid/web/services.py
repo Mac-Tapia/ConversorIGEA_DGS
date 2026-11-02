@@ -7214,6 +7214,7 @@ def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict
         # 063:RF-46: el transformador de la SET entra solo si se calculó (usuario, 2026-11-01: «no se
         # requiere»); su ausencia no es un hueco ni impide concluir.
         incluir_transformador_set=devanado is not None,
+        obras=_obras_del_informe(ws, project, alimentador, sin, con),
         aviso_cliente=(f'el cliente «{solicitud.cliente}» no parece el de la carga «{carga["sed"]}»: compruebe la solicitud'
                        if cliente_ajeno(str(carga['sed']), solicitud.cliente) else ''))
     destino = ws.out_dir / (f'informe_factibilidad_{nombre_seguro(alimentador)}_'
@@ -7285,6 +7286,22 @@ def _imagenes_para_la_web(ws: Workspace, imagenes: dict[str, dict[str, Any]]) ->
                 continue                    # una del formulario fuera del espacio no se sirve
             out.append({'estado': estado, 'modo': modo, 'fichero': rel})
     return out
+
+
+def _obras_del_informe(ws: Workspace, project: str, alimentador: str, sin: dict, con: dict) -> tuple[dict, ...]:
+    """Las obras activas en el flujo de «Con proyecto» de ese alimentador (063:RF-53).
+
+    T7 en SM218: el informe concluía «factible con las obras evaluadas» sin decir cuáles: el banco de
+    450 kvar en 8904 y los 25 tramos a 120 mm² solo estaban en el informe hecho a mano.
+    """
+    from ..informes import obra_para_informe
+
+    activas = set(con.get('obras_activas') or [])
+    geo_con = (con.get('geo') or {}).get(alimentador) or {}
+    geo_sin = (sin.get('geo') or {}).get(alimentador) or {}
+    return tuple(_obra_con_trechos(obra_para_informe(a['obra']), geo_con, geo_sin) for a in ws.obras_aplicadas
+                 if a.get('project') == project and a.get('variacion') in activas
+                 and (a.get('obra') or {}).get('alimentador') == alimentador)
 
 
 def _imagenes_factibilidad(ws: Workspace, ctx: JobContext | None, config, sin: dict, con: dict,

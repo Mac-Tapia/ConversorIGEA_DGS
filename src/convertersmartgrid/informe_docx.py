@@ -117,6 +117,8 @@ class DatosFactibilidad:
     incluir_transformador_set: bool = True
     #: 063:RF-49: el cliente de la solicitud no parece el de la carga; se señala como hueco.
     aviso_cliente: str = ''
+    #: 063:RF-53: las obras activas en «Con proyecto», como las describe el informe de estudio.
+    obras: Sequence[Mapping[str, Any]] = ()
     #: Comparación de los balances medidos cuando no se evalúa una curva anual.
     perdidas_instantaneas: bool = False
     observaciones: Sequence[str] = ()
@@ -876,6 +878,12 @@ def escribir_informe_factibilidad(config: ConfigInforme, destino: Path, datos: D
         e.parrafo('Datos documentales del punto de diseño (ficha del solicitante):')
         e.tabla(['Pcc (MVA)', 'UTM X (m)', 'UTM Y (m)'],
                 [[str(datos.ficha_punto.get(k, '')) for k in ('pcc_mva', 'utm_x', 'utm_y')]])
+    if datos.obras:
+        # 063:RF-53: el nodo de cada banco y el inicio y el final de cada tramo (063:RF-31).
+        e.parrafo('Obras evaluadas en este estado:')
+        for obra in datos.obras:
+            e.parrafo(describir_obra(obra))
+            _trechos(e, obra)
     proyectado = datos.proyectado
     if not _sin_flujo(e, proyectado):
         _datos_fuente(e, proyectado, 'Datos de la fuente en MD:',
@@ -965,6 +973,8 @@ def escribir_informe_factibilidad(config: ConfigInforme, destino: Path, datos: D
         }
         e.parrafo(textos[conexion.clave])
         if conexion.factible:
+            for obra in datos.obras:                                                  # 063:RF-53
+                e.parrafo(describir_obra(obra))
             for texto in conexion.violaciones:
                 e.parrafo(f'Motivo de las obras: {texto}')
         if conexion.factible and not veredicto.factible:
