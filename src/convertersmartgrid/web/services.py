@@ -7200,7 +7200,8 @@ def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict
                             lugar=str(formulario.get('lugar') or ''))
     codigo = str(formulario.get('codigo_punto') or '').strip() or carga['barra']
     _paso_informe(ctx, 1, 'imágenes')                                                   # RF-97
-    imagenes = _imagenes_factibilidad(ws, ctx, config, sin, con, carga, solicitud, codigo, devanado)
+    imagenes = _imagenes_factibilidad(ws, ctx, config, sin, con, carga, solicitud, codigo, devanado,
+                                      cargas=cargas_est)
     _paso_informe(ctx, 2, 'documento')
     datos = DatosFactibilidad(
         encabezado=encabezado, actual=actual, proyectado=proyectado, solicitud=solicitud,
@@ -7285,9 +7286,10 @@ def _imagenes_para_la_web(ws: Workspace, imagenes: dict[str, dict[str, Any]]) ->
 
 
 def _imagenes_factibilidad(ws: Workspace, ctx: JobContext | None, config, sin: dict, con: dict,
-                           carga: dict, solicitud, codigo: str, devanado) -> dict[str, dict[str, Path]]:
+                           carga: dict, solicitud, codigo: str, devanado,
+                           cargas: dict | None = None) -> dict[str, dict[str, Path]]:
     """Las imágenes del informe de factibilidad con lo que guardó la web (017:RF-11b):
-    estado actual; estado proyectado con la carga nueva rotulada (RF-117); la ubicación del
+    estado actual; proyectado sin obras (063:RF-47); proyectado con la carga nueva rotulada (RF-117); la ubicación del
     cliente entre los alimentadores cercanos (RF-109); el transformador de la SET (RF-119).
     Lo que no se puede dibujar se dice en el Registro y queda como hueco del informe."""
     from ..mapa_informe import (MapaError, imagenes_del_estado, rotulo_de_carga,
@@ -7309,6 +7311,7 @@ def _imagenes_factibilidad(ws: Workspace, ctx: JobContext | None, config, sin: d
 
     bandas = {'bandas_tension': config.bandas_tension_pct, 'bandas_carga': config.bandas_cargabilidad_pct}
     for clave, datos, estado, cliente in (('actual', sin, 'estado actual', None),
+                                          ('cargas', cargas or {}, 'estado proyectado sin obras', (carga['barra'], texto)),
                                           ('proyectado', con, 'estado proyectado', (carga['barra'], texto))):
         geo = (datos.get('geo') or {}).get(alimentador)
         if geo:

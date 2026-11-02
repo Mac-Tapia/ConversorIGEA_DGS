@@ -936,7 +936,8 @@ def escribir_informe_factibilidad(config: ConfigInforme, destino: Path, datos: D
         veredicto = Veredicto(conexion.factible and (transmision is None or transmision.factible),
                               tuple(dict.fromkeys(excesos)))
     else:
-        veredicto = veredicto_factibilidad(proyectado, [d] if d else None, config.limites)
+        veredicto = veredicto_factibilidad(proyectado, [d] if d else None, config.limites,
+                                           exigir_transformador=datos.incluir_transformador_set)
     if s is None:
         e.hueco('conclusiones: faltan los datos de la solicitud')
     elif conexion is not None:

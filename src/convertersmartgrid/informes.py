@@ -465,11 +465,11 @@ class Veredicto:
 
 
 def veredicto_factibilidad(proyectado: Caso, devanados: list[Devanado] | None,
-                           limites: Limites) -> Veredicto:
+                           limites: Limites, *, exigir_transformador: bool = True) -> Veredicto:
     """Factible solo si el proyectado cumple banda y umbral y la SET no pasa del 100 % (RF-71).
 
     Sin datos del transformador (RF-70) no se puede afirmar que la SET la admite, así
-    que no es factible y se dice por qué.
+    que no es factible y se dice por qué, salvo que el informe lo deje fuera (063:RF-46).
     """
     excesos = []
     if not proyectado.converge:
@@ -495,7 +495,8 @@ def veredicto_factibilidad(proyectado: Caso, devanados: list[Devanado] | None,
         if proyectado.tramos_sobre and (carga is None or carga.valor <= limites.cargabilidad_max_pct):
             excesos.append(f'{proyectado.tramos_sobre} tramos sobre el umbral de cargabilidad')
     if not devanados or all(d.con_pct is None for d in devanados):
-        excesos.append('no se obtuvo la cargabilidad del transformador de la SET')
+        if exigir_transformador:
+            excesos.append('no se obtuvo la cargabilidad del transformador de la SET')
     else:
         for d in devanados:
             if d.con_pct is not None and d.con_pct > 100.0:

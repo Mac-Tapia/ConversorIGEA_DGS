@@ -181,6 +181,8 @@ Obras para conectar
   SISTEMA usará el equilibrado en el informe y lo avisará.
 - RF-46: DONDE no se haya calculado el transformador de la SET, EL SISTEMA lo dejará fuera del informe,
   sin contarlo como hueco ni impedir la conclusión.
+- RF-47: DONDE haya flujo de «Cargas nuevas», EL SISTEMA dibujará en el informe sus imágenes de tensión y de
+  cargabilidad.
 
 ## Fuera de alcance
 

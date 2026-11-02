@@ -590,3 +590,31 @@ def test_transformador_opcional_no_impide_concluir(client, tmp_path):
     assert fin['status'] == 'done', fin.get('error')
     res = fin['result']
     assert not any('transformador de la SET' in x for x in [*res['huecos'], *res['excesos']]), res
+
+
+def test_imagenes_de_cargas_nuevas_salen_de_su_flujo(tmp_path, monkeypatch):
+    """063:RF-47 — T7 en SM218: el flujo estaba y el informe decía «imagen ... sin obras» como hueco."""
+    from convertersmartgrid import mapa_informe
+    from convertersmartgrid.web import services
+
+    dibujados = []
+
+    def dibuja(geo, carpeta, nombre, *, estado, **_k):
+        dibujados.append((geo, estado))
+        return {'tension': carpeta / f'{nombre}_t.png', 'cargabilidad': carpeta / f'{nombre}_c.png'}
+
+    monkeypatch.setattr(mapa_informe, 'imagenes_del_estado', dibuja)
+    monkeypatch.setattr(mapa_informe, 'ubicacion_del_cliente', lambda *_a, **_k: tmp_path / 'u.png')
+    ws = SimpleNamespace(out_dir=tmp_path)
+    config = SimpleNamespace(bandas_tension_pct=(), bandas_cargabilidad_pct=())
+    carga = {'alimentador': 'AL01', 'sed': 'S1', 'barra': 'B1'}
+    solicitud = SimpleNamespace(cliente='X', potencia_kw=100.0, transformador='', set_nombre='')
+    estudio = lambda g: {'geo': {'AL01': g}}
+    salida = services._imagenes_factibilidad(ws, None, config, estudio('sin'), estudio('con'), carga, solicitud, 'C',
+                                             None, cargas=estudio('car'))
+    assert ('car', 'estado proyectado sin obras') in dibujados
+    assert set(salida['cargas']) >= {'tension', 'cargabilidad'}
+    # Un estudio sin «Cargas nuevas» sigue dibujando los otros dos.
+    dibujados.clear()
+    salida = services._imagenes_factibilidad(ws, None, config, estudio('sin'), estudio('con'), carga, solicitud, 'C', None)
+    assert 'cargas' not in salida and len(dibujados) == 2
