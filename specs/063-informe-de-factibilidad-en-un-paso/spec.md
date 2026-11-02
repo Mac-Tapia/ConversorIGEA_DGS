@@ -164,11 +164,11 @@ Obras para conectar
 - RF-38: EL SISTEMA evaluará la operación de NA203–NA205 con la SET nueva y la central térmica
   fuera de servicio, y solo declarará aceptada la solución si convergen ambos flujos y se
   cumplen tensión y cargabilidad en toda la red del proyecto.
-- RF-39: EL SISTEMA escalará en los sorteos y sumará en las pérdidas de la escalera todas las
-  cargas del alimentador, en todas sus troncales, y juzgará toda la red calculable si la evaluación
-  abarca todos los alimentadores del proyecto. (SM218, 2026-11-02: `ElmFeeder` veía 242 de 306 cargas.)
-- RF-40: SI la evaluación abarca parte de los alimentadores de un proyecto y hay cargas etiquetadas
-  fuera de su topología, ENTONCES EL SISTEMA lo avisará en el informe de la evaluación.
+- RF-39: EL SISTEMA tratará como del alimentador las cargas, barras y tramos de todas las troncales
+  de su cabecera, en los sorteos, las pérdidas, el criterio y los estudios, también en un proyecto de
+  varios alimentadores. (SM218, 2026-11-02: `ElmFeeder` veía 242 de 306 cargas.)
+- RF-40: CUANDO una evaluación incluya cargas de una troncal fuera del `ElmFeeder`, EL SISTEMA lo dirá
+  en su informe con cuántas son.
 
 ## Fuera de alcance
 

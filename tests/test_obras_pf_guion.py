@@ -1432,7 +1432,10 @@ def _segunda_troncal(app, f):
     lo que devuelve ``ElmFeeder.GetObjs``: SM218 tiene 64 de sus 306 cargas así."""
     elm = next(x for x in app.proyecto.GetContents('*.ElmFeeder', 1) if x.loc_name == f)
     carga = next(iter(elm.GetObjs('ElmLod')))
-    barra = next(b for b in elm.GetObjs('ElmTerm') if float(getattr(b, 'uknom', 0) or 0) >= 1.0)
+    baja = carga.bus1.cterm
+    trafo = next((c.obj_id for c in baja.GetContents('*.StaCubic')
+                  if getattr(c, 'obj_id', None) is not None and c.obj_id.GetClassName() == 'ElmTr2'), None)
+    barra = trafo.bushv.cterm if trafo is not None else baja
     real, leer = elm.GetObjs, carga.GetAttribute
     elm.GetObjs = lambda clase: [o for o in real(clase) if o is not carga and o is not barra]
     carga.GetAttribute = lambda a: f if a == 'p:alimentador' else leer(a)

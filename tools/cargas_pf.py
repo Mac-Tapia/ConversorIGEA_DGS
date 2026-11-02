@@ -274,15 +274,138 @@ def activar_proyecto(app, ruta: str, carpeta: str | None = None):
     return proyecto
 
 
+def alimentadores_nativos(obj) -> set[str]:
+    """Etiquetas ``p:alimentador``; PowerFactory puede releerlas como una lista."""
+    try:
+        valor = obj.GetAttribute('p:alimentador')
+    except Exception:  # noqa: BLE001 - modelos antiguos no tienen la columna
+        try:
+            valor = getattr(obj, 'p:alimentador')
+        except Exception:  # noqa: BLE001
+            return set()
+    valores = valor if isinstance(valor, (list, tuple, set)) else (valor,)
+    return {str(v).strip() for v in valores if str(v or '').strip()}
+
+
+class ElmCompleto:
+    """El ``ElmFeeder`` con todas las troncales de su cabecera en ``GetObjs`` (063:RF-39).
+
+    El ``ElmFeeder`` solo abarca lo que cuelga de su cubículo. Un medidor con dos salidas tiene
+    una troncal fuera: SM218 (2026-11-02), 242 de 306 cargas y 1,698 MW; CA101 (2026-10-15), 95
+    de 168. Lo demás se delega en el objeto; a la API de DIgSILENT se le pasa ``crudo``.
+    """
+
+    __slots__ = ('crudo', '_alims')
+
+    def __init__(self, elm, alims):
+        object.__setattr__(self, 'crudo', elm)
+        object.__setattr__(self, '_alims', alims)
+
+    def __getattr__(self, nombre):
+        return getattr(self.crudo, nombre)
+
+    def __setattr__(self, nombre, valor):
+        setattr(self.crudo, nombre, valor)
+
+    def GetObjs(self, clase):
+        # Sin comparar nombres aquí: ``GetFullName`` en cada medida de 200 sorteos pasó SM218 de 3 a
+        # más de 10 minutos. Lo repetido se descarta una vez, en ``_recorrer_fuera``.
+        return list(self.crudo.GetObjs(clase)) + list(
+            self._alims.fuera_del_elm(self.crudo.loc_name).get(clase) or [])
+
+
 class Alimentadores:
     """Objetos de cada alimentador elegido, por clase. Sin ``ElmFeeder``, todo el proyecto."""
 
     def __init__(self, app, proyecto, elegidos):
         self.app = app
         self.elegidos = list(elegidos)
-        self.elm = {f.loc_name: f for f in proyecto.GetContents('*.ElmFeeder', 1)}
+        self.elm = {f.loc_name: ElmCompleto(f, self) for f in proyecto.GetContents('*.ElmFeeder', 1)}
         self.sin_elm = [f for f in self.elegidos if f not in self.elm]
         self._cache = {}
+        self._fuera: dict = {}
+        self._fuera_clave = None
+
+    def _clave_red(self):
+        """Lo que cambia la red que se ve: el caso activo y sus variaciones."""
+        try:
+            caso = self.app.GetActiveStudyCase()
+            return (clave_pf(caso) if caso is not None else '',
+                    tuple(sorted(clave_pf(v) for v in self.app.GetActiveNetworkVariations() or [])))
+        except Exception:  # noqa: BLE001 - un doble sin casos: una sola red
+            return ('', ())
+
+    def _etiquetadas(self) -> dict:
+        """Cargas por ``p:alimentador``, una sola pasada por toda la red (no una por alimentador)."""
+        por_alim: dict = {}
+        try:
+            cargas = self.app.GetCalcRelevantObjects('*.ElmLod') or []
+        except Exception:  # noqa: BLE001 - sin red calculable, nada que añadir
+            return por_alim
+        for c in cargas:
+            for etiqueta in alimentadores_nativos(c):
+                por_alim.setdefault(etiqueta, []).append(c)
+        return por_alim
+
+    def fuera_del_elm(self, feeder: str) -> dict[str, list]:
+        """Por clase, lo de ``feeder`` que su ``ElmFeeder`` no abarca: se llega desde sus cargas
+        etiquetadas, sin pasar la cabecera, un interruptor abierto ni otro alimentador."""
+        clave = self._clave_red()
+        if clave != self._fuera_clave:
+            self._fuera_clave, self._fuera = clave, {'_etiquetadas': self._etiquetadas()}
+        if feeder not in self._fuera:
+            self._fuera[feeder] = self._recorrer_fuera(feeder)
+        return self._fuera[feeder]
+
+    def _recorrer_fuera(self, feeder: str) -> dict[str, list]:
+        elm = self.elm.get(feeder)
+        etiquetadas = self._fuera['_etiquetadas'].get(feeder) or []
+        if elm is None or not etiquetadas:
+            return {}
+        propias = {clave_pf(c) for c in elm.crudo.GetObjs('ElmLod')}
+        semillas = [c for c in etiquetadas if clave_pf(c) not in propias]
+        if not semillas:
+            return {}
+        cabecera = cabecera_de(elm.crudo)
+        barrera = {clave_pf(cabecera)} if cabecera is not None else set()
+        for nombre, otro in self.elm.items():
+            if nombre != feeder:
+                barrera |= {clave_pf(b) for b in otro.crudo.GetObjs('ElmTerm')}
+        out: dict[str, dict] = {}
+        pendientes = [t for t in (getattr(getattr(c, 'bus1', None), 'cterm', None) for c in semillas)
+                      if t is not None]
+        vistas: set[str] = set()
+        while pendientes:
+            barra = pendientes.pop()
+            k = clave_pf(barra)
+            if k in vistas or k in barrera:
+                continue
+            vistas.add(k)
+            out.setdefault('ElmTerm', {})[k] = barra
+            for cub in barra.GetContents('*.StaCubic') or []:
+                o = getattr(cub, 'obj_id', None)
+                if o is None:
+                    continue
+                clase = o.GetClassName()
+                if clase == 'ElmLod':
+                    etiquetas = alimentadores_nativos(o)
+                    if not etiquetas or feeder in etiquetas:
+                        out.setdefault(clase, {})[clave_pf(o)] = o
+                    continue
+                abierto = (clase == 'ElmCoup' and not int(getattr(o, 'on_off', 1) or 0)) or any(
+                    not int(getattr(s, 'on_off', 1) or 0) for s in cub.GetContents('*.StaSwitch') or [])
+                if abierto:
+                    continue
+                out.setdefault(clase, {})[clave_pf(o)] = o
+                for lado in ('bus1', 'bus2', 'bushv', 'buslv'):
+                    otra = getattr(getattr(o, lado, None), 'cterm', None)
+                    if otra is not None:
+                        pendientes.append(otra)
+        fuera = {}
+        for clase, objs in out.items():
+            ya = {clave_pf(o) for o in elm.crudo.GetObjs(clase)}
+            fuera[clase] = [o for k, o in objs.items() if k not in ya]
+        return fuera
 
     def objetos(self, feeder: str, clase: str) -> list:
         clave = (feeder, clase)

@@ -438,7 +438,7 @@ def _optimizador(app, plan, alims, feeders, orden, informe) -> None:
     if plan['estudio'] == 'balance_fases' and len(feeders) == 1:
         # PowerFactory no toma el alimentador del caso ni del ElmFeeder activo: ComBalance
         # exige explícitamente ``startElm`` y termina con código 1 si queda vacío.
-        orden.startElm = alims.elm.get(feeders[0])
+        orden.startElm = getattr(alims.elm.get(feeders[0]), 'crudo', alims.elm.get(feeders[0]))
     carpeta = app.GetProjectFolder('scheme')
     previas = {_clave_nativa(v) for v in carpeta.GetContents('*.IntScheme', 1)}
     foto = Foto(alims, feeders)

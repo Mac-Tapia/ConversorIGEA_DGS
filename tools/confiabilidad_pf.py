@@ -46,7 +46,7 @@ import json
 import traceback
 from pathlib import Path
 
-from cargas_pf import _num, activar_proyecto, crear_variacion, error_inesperado, nombre_libre
+from cargas_pf import Alimentadores, _num, activar_proyecto, crear_variacion, error_inesperado, nombre_libre
 from casos_pf import NOMBRES, casos_del_proyecto
 
 from convertersmartgrid import datos_empresa as de
@@ -265,7 +265,7 @@ def aplicar_datos(app, plan: dict) -> tuple[dict, int]:
         anterior = _variacion_existente(app)
         if anterior is not None:            # RF-23: se lee la red sin la que se va a reemplazar
             anterior.Deactivate()
-        elms = {f.loc_name: f for f in proyecto.GetContents('*.ElmFeeder', 1)}
+        elms = Alimentadores(app, proyecto, feeders).elm                # 063:RF-39
         faltan = [f for f in feeders if f not in elms]
         if faltan:
             return {**informe, 'error': 'no están en el proyecto: ' + ', '.join(faltan)}, 2

@@ -107,16 +107,9 @@ def kva_en_pf(carga) -> float | None:
 
 
 def _alimentadores_nativos(obj) -> set[str]:
-    """Etiquetas ``p:alimentador``; PowerFactory puede releerlas como una lista."""
-    try:
-        valor = obj.GetAttribute('p:alimentador')
-    except Exception:  # noqa: BLE001 - modelos antiguos no tienen la columna
-        try:
-            valor = getattr(obj, 'p:alimentador')
-        except Exception:  # noqa: BLE001
-            return set()
-    valores = valor if isinstance(valor, (list, tuple, set)) else (valor,)
-    return {str(v).strip() for v in valores if str(v or '').strip()}
+    from cargas_pf import alimentadores_nativos
+
+    return alimentadores_nativos(obj)
 
 
 def _clave_objeto_nativo(obj):

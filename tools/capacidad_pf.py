@@ -209,7 +209,7 @@ def condensadores(app, plan: dict, alims, feeders: list[str], informe: dict) -> 
         orden = orden_propia(app, 'ComCapo', nombre_libre(app.GetActiveStudyCase(), 'ComCapo', NOMBRE_CAPO))
         try:
             crear_variacion(app, f'Condensadores_temporal_{f}', plan.get('stamp') or 'capo')   # RF-55
-            orden.feeder, orden.iopt_con = elm, 1
+            orden.feeder, orden.iopt_con = getattr(elm, 'crudo', elm), 1
             orden.ecost = float(libro.get('coste_energia_kwh') or 0.0)                       # RF-15
             _limites(orden, plan, {'vmin': 'tension_min_pu', 'vmax': 'tension_max_pu'})       # RF-3
             orden.shntqstep = [b['potencia_kvar'] / 1000.0 for b in bancos]

@@ -1991,13 +1991,6 @@ def _cargas_de(alims, feeder: str) -> list:
     return list(cargas.values())
 
 
-def _toda_la_red(alims, feeders: list[str]) -> bool:
-    """Si la evaluación abarca todos los alimentadores del proyecto: entonces el criterio mira
-    toda la red calculable. Con parte de un sistema se sigue por alimentador, porque recorrer la
-    red entera en cada sorteo no escala (CLAUDE.md, «Escala»)."""
-    return bool(alims.elm) and set(alims.elm) <= set(feeders)
-
-
 def medida_para_criterio(app, alims, feeders: list[str]) -> dict[str, Any]:
     """Lo que juzga ``escalera_optima.cumple``: si converge, la tensión de cada barra de media
     y la carga de cada tramo de los alimentadores, y sus pérdidas (025:RF-50, RF-53)."""
@@ -2006,11 +1999,7 @@ def medida_para_criterio(app, alims, feeders: list[str]) -> dict[str, Any]:
     if not out['converge']:
         return out
 
-    toda_la_red = app is not None and _toda_la_red(alims, feeders)            # 063:RF-39
-
     def objetos(f, clase):
-        if toda_la_red:
-            return []
         # 025:RF-75: los del alimentador en este caso y con esta variante; la lista guardada de
         # ``alims`` es la de «Sin proyecto», sin la barra de la carga nueva (NODE_T_CH_9 de
         # PN107 salía «a ? p.u.», 2026-10-24).
@@ -2022,19 +2011,6 @@ def medida_para_criterio(app, alims, feeders: list[str]) -> dict[str, Any]:
         except Exception:  # noqa: BLE001 - se usa la lista guardada
             return alims.objetos(f, clase)
 
-    barras_red = list(app.GetCalcRelevantObjects('*.ElmTerm')) if toda_la_red else []
-    lineas_red = list(app.GetCalcRelevantObjects('*.ElmLne')) if toda_la_red else []
-    for b in barras_red:
-        try:
-            if float(getattr(b, 'uknom', 0) or 0) >= 1.0 and b.HasResults():
-                out['u'][b.loc_name] = float(b.GetAttribute('m:u'))
-        except Exception:  # noqa: BLE001, S110 - sin resultado, no cuenta
-            pass
-    for ln in lineas_red:
-        try:
-            out['carga'][ln.loc_name] = float(ln.GetAttribute('c:loading'))
-        except Exception:  # noqa: BLE001, S110
-            pass
     for f in feeders:
         for b in objetos(f, 'ElmTerm'):
             try:
@@ -2164,15 +2140,15 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
         # «Sin proyecto» con la máxima y con cada sorteo, una sola vez (RF-50).
         casos['sin'].Activate()
         existentes = {c.loc_name for f in feeders for c in _cargas_de(alims, f)}   # 063:RF-39
-        if not _toda_la_red(alims, feeders):
-            # 063:RF-40: sus barras y tramos no cuentan en el criterio: se dice, no se calla.
-            for f in feeders:
-                vistas = {c.loc_name for c in alims.objetos(f, 'ElmLod')}
-                fuera = [c.loc_name for c in _cargas_de(alims, f) if c.loc_name not in vistas]
-                if fuera:
-                    informe['avisos'].append(
-                        f'{f}: {len(fuera)} cargas fuera de su ElmFeeder se escalan, pero sus barras y tramos no '
-                        'cuentan en el criterio; evalúe todos los alimentadores del proyecto (063:RF-40).')
+        for f in feeders:
+            # 063:RF-40: una troncal fuera del ElmFeeder entra en la evaluación, y se dice.
+            elm = alims.elm.get(f)
+            crudo = getattr(elm, 'crudo', elm)
+            vistas = {c.loc_name for c in (crudo.GetObjs('ElmLod') if crudo is not None else [])}
+            fuera = [c.loc_name for c in _cargas_de(alims, f) if c.loc_name not in vistas]
+            if fuera:
+                informe['avisos'].append(f'{f}: {len(fuera)} cargas de otra troncal, fuera de su ElmFeeder, entran '
+                                         'en los sorteos, las pérdidas y el criterio (063:RF-40).')
         sin_max = medida_para_criterio(app, alims, feeders)
         informe['sin_proyecto'] = {'converge': sin_max['converge'], 'perdidas_kw': sin_max['perdidas_kw']}
         sin_sorteos = []
