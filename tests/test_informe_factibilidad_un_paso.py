@@ -12,16 +12,44 @@ import random
 import pytest
 
 from convertersmartgrid.estudios_pf import Limites
-from convertersmartgrid.informes import (TRIFASICA, Caso, Extremo, Potencia,
-                                         conclusion_factibilidad)
+from convertersmartgrid.informes import (
+    TRIFASICA,
+    Caso,
+    Extremo,
+    Potencia,
+    conclusion_factibilidad,
+)
 
 SEMILLA = int(os.environ.get('CSG_SCALE_SEED', random.randrange(1 << 30)))
+
+
+def test_anexo_de_obras_exige_operacion_nativa_persistida(tmp_path):
+    """063:RF-36, RF-38: el anexo de aceptación no se fabrica desde un plan propuesto."""
+    import json
+
+    from apoyo import cargar_herramienta
+
+    herramienta = cargar_herramienta('informe_casos_guardados.py', 'anexo_operacion_063')
+    ruta = tmp_path / 'operacion.json'
+    datos = {'project': 'P', 'aceptada': True, 'persistida': False,
+             'cargas_previstas_relectura': {'completa': True},
+             'estudios_relectura': {'flujo': {'aceptada': True},
+                                   'flujo_desequilibrado': {'aceptada': True}}}
+    ruta.write_text(json.dumps(datos))
+    with pytest.raises(ValueError, match='persistida'):
+        herramienta.leer_operacion(ruta, 'P')
+    datos['persistida'] = True
+    ruta.write_text(json.dumps(datos))
+    assert herramienta.leer_operacion(ruta, 'P')['persistida']
+    with pytest.raises(ValueError, match='proyecto'):
+        herramienta.leer_operacion(ruta, 'OTRO')
 LIM = Limites(0.95, 1.05, 100.0)
 
 
 def test_documentos_de_casos_no_mezclan_proyectos_ni_omiten_ramas(tmp_path):
     """063:RF-6, 063:RF-12: el generador rechaza otro proyecto o cobertura incompleta."""
     import json
+
     from apoyo import cargar_herramienta
 
     herramienta = cargar_herramienta('informe_casos_guardados.py', 'informe_casos_063')
@@ -36,6 +64,22 @@ def test_documentos_de_casos_no_mezclan_proyectos_ni_omiten_ramas(tmp_path):
     ruta.write_text(json.dumps(datos), encoding='utf-8')
     with pytest.raises(ValueError, match='cobertura'):
         herramienta.leer_caso(ruta, 'P', 'Sin proyecto')
+
+
+def test_dictamen_incluye_el_peor_de_ambos_flujos():
+    """063:RF-38: un desequilibrado correcto no oculta una sobrecarga del equilibrado."""
+    from dataclasses import replace
+
+    from apoyo import cargar_herramienta
+
+    herramienta = cargar_herramienta('informe_casos_guardados.py', 'ambos_flujos_063')
+    rng = random.Random(SEMILLA)
+    bien = _caso(rng, 'Con proyecto', cumple=True)
+    mal = replace(bien, cargabilidad_max=Extremo(150, 'L_FALLA'), tramos_sobre=1)
+    c = herramienta.caso_conservador(mal, bien)
+    assert not c.cumple(LIM)
+    assert c.cargabilidad_max == Extremo(150, 'L_FALLA')
+    assert herramienta.caso_conservador(bien, bien).cumple(LIM)
 
 
 def _caso(rng, nombre, *, cumple: bool, converge: bool = True) -> Caso:
@@ -97,6 +141,120 @@ def test_conclusion_sin_convergencia_no_es_factible(cual):
     casos = {k: _caso(rng, k, cumple=k != 'actual', converge=k != cual) for k in ('actual', 'carga', 'con')}
     c = conclusion_factibilidad(casos['actual'], casos['carga'], casos['con'], LIM)
     assert not c.factible and c.clave == 'no_converge' and cual in ' '.join(c.violaciones)
+
+
+def test_referencia_no_convergente_solo_con_estado_final_verificado():
+    """063:RF-11, 063:RF-38 — la referencia fallida no inventa una aceptación sin obras."""
+    rng = random.Random(743)
+    actual, cargas, con = _caso(rng, 'actual', cumple=False), Caso('cargas', False), _caso(rng, 'con', cumple=True)
+    assert not conclusion_factibilidad(actual, cargas, con, LIM).factible
+    c = conclusion_factibilidad(actual, cargas, con, LIM, con_proyecto_verificado=True)
+    assert c.factible and c.clave == 'con_obras_verificadas'
+    assert any('no converge' in v for v in c.violaciones)
+    for a, f in ((Caso('actual', False), con), (actual, Caso('con', False)),
+                 (actual, _caso(rng, 'con', cumple=False))):
+        assert not conclusion_factibilidad(a, cargas, f, LIM, con_proyecto_verificado=True).factible
+
+
+def test_esquema_referencia_solo_usa_topologia_y_gps_propios():
+    """063:RF-35, 063:RF-38 — nunca reutiliza tensiones parciales de un flujo inválido."""
+    from apoyo import cargar_herramienta
+    h = cargar_herramienta('informe_casos_guardados.py', 'esquema_fallido_063')
+    objetos = {'ElmTerm': [
+        {'ruta': 'P/B1', 'nombre': 'B1', 'GPSlat': -14., 'GPSlon': -75., 'uknom': 10, 'outserv': 0, 'm:u': .5},
+        {'ruta': 'P/B2', 'nombre': 'B2', 'GPSlat': -14.01, 'GPSlon': -75.01, 'uknom': 10, 'outserv': 0, 'm:u': .2}],
+        'ElmLne': [{'nombre': 'L1', 'outserv': 0, 'c:loading': 300,
+                    'referencias': {'bus1': {'terminal': 'P/B1'}, 'bus2': {'terminal': 'P/B2'}}}],
+        'ElmLod': [{'nombre': 'Cliente', 'outserv': 0, 'plini': .1, 'qlini': .02, 'scale0': 1}]}
+    geo = h.geografia_topologica(objetos)
+    assert geo['barras'] == [['B1', -14., -75., None, 10], ['B2', -14.01, -75.01, None, 10]]
+    assert geo['tramos'][0][:3] == ['L1', [[-14., -75.], [-14.01, -75.01]], None]
+    assert geo['sin_resultados_electricos'] is True
+
+
+def _operacion_certificada_referencia():
+    import copy
+    objetos = {'ElmTerm': [{'outserv': 0, 'm:u': 1.0}], 'ElmSym': [{'outserv': 1}],
+               'ElmLod': [{'outserv': 0, 'plini': .1, 'qlini': .02, 'scale0': 1,
+                           'm:Psum:bus1': .1, 'm:Qsum:bus1': .02}]}
+    estudio = {'aceptada': True, 'incumplimientos': [],
+               'flujo': {'converged': True, 'return_code': 0, 'ldf_valid': True},
+               'red_proyecto': {'cobertura_completa': True, 'balance_completo': True,
+                                'cantidad_barras': 1, 'medida': {'converge': True}}, 'objetos': objetos}
+    return {'project': 'P', 'accion': 'aplicar', 'status': 'OK', 'aceptada': True, 'persistida': True,
+            'verificacion_final': {'modelo_identico': True, 'cargas_sin_obras_verificadas': True},
+            'cargas_previstas_relectura': {'completa': True},
+            'estudios_relectura': {m: copy.deepcopy(estudio) for m in ('flujo', 'flujo_desequilibrado')},
+            'estudios_referencia': {'sin': {'estudios': {m: copy.deepcopy(estudio) for m in ('flujo', 'flujo_desequilibrado')}}}}
+
+
+@pytest.mark.parametrize('fallo', ['modelo', 'persistencia', 'con', 'sin', 'cobertura', 'pq', 'tension'])
+def test_excepcion_referencia_rechaza_certificacion_incompleta(fallo):
+    """063:RF-11, 063:RF-38 — no relaja el estado final, P/Q ni la cobertura nativa."""
+    from apoyo import cargar_herramienta
+    h = cargar_herramienta('informe_casos_guardados.py', 'gate_referencia_063')
+    op = _operacion_certificada_referencia()
+    if fallo == 'modelo':
+        op['verificacion_final']['modelo_identico'] = False
+    elif fallo == 'persistencia':
+        op['persistida'] = False
+    elif fallo == 'con':
+        op['estudios_relectura']['flujo']['aceptada'] = False
+    elif fallo == 'sin':
+        op['estudios_referencia']['sin']['estudios']['flujo']['flujo']['converged'] = False
+    elif fallo == 'cobertura':
+        op['estudios_relectura']['flujo']['red_proyecto']['cobertura_completa'] = False
+    elif fallo == 'pq':
+        op['estudios_relectura']['flujo']['objetos']['ElmLod'][0]['m:Psum:bus1'] = .01
+    else:
+        op['estudios_relectura']['flujo']['objetos']['ElmTerm'][0]['m:u'] = .8
+    with pytest.raises(ValueError):
+        h.validar_referencia_certificada(op)
+
+
+def test_referencia_no_convergente_requiere_huella_y_objetos_del_mismo_caso(tmp_path):
+    """063:RF-11, 063:RF-35, 063:RF-38 — excepción cerrada y ligada al caso nativo."""
+    import json
+
+    from apoyo import cargar_herramienta
+    h = cargar_herramienta('informe_casos_guardados.py', 'lectura_referencia_063')
+    op = _operacion_certificada_referencia()
+    objetos = {'ElmTerm': [{'ruta': 'B', 'nombre': 'B', 'GPSlat': -14., 'GPSlon': -75., 'uknom': 10., 'outserv': 0}],
+               'ElmLne': [], 'ElmLod': []}
+    e = {'flujo': {'converged': False, 'return_code': 1, 'ldf_valid': False}, 'objetos': objetos}
+    op['estudios_referencia']['cargas'] = {'estudios': {'flujo': e}}
+    wrapper = {'project': 'P', 'caso': 'Cargas nuevas', 'estudio': 'flujo', 'error': 'no converge',
+               'referencia_no_convergente': True, 'source_operacion_sha256': 'SHA', 'objetos_nativos': objetos}
+    ruta = tmp_path / 'referencia.json'
+    ruta.write_text(json.dumps(wrapper))
+    with pytest.raises(ValueError):
+        h.leer_caso(ruta, 'P', 'Cargas nuevas')
+    datos = h.leer_caso(ruta, 'P', 'Cargas nuevas', operacion=op, sha_operacion='SHA')
+    assert datos['red_proyecto'] == {'medida': {'converge': False}}
+    assert datos['geo_proyecto']['barras'][0][3] is None
+    with pytest.raises(ValueError):
+        h.leer_caso(ruta, 'P', 'Cargas nuevas', operacion=op, sha_operacion='OTRA')
+
+
+@pytest.mark.parametrize('alteracion', ['huella', 'resultado', 'geografia'])
+def test_dictamen_certificado_no_admite_captura_con_proyecto_de_otra_lectura(alteracion):
+    """063:RF-12, 063:RF-38 — el certificado no legitima un wrapper antiguo del mismo proyecto."""
+    import copy
+
+    from apoyo import cargar_herramienta
+    h = cargar_herramienta('informe_casos_guardados.py', 'vinculo_capturas_063')
+    op = _operacion_certificada_referencia()
+    e = op['estudios_relectura']['flujo']
+    d = {'source_operacion_sha256': 'SHA', 'red_proyecto': copy.deepcopy(e['red_proyecto']),
+         'geo_proyecto': {}}
+    if alteracion == 'huella':
+        d['source_operacion_sha256'] = 'ANTERIOR'
+    elif alteracion == 'resultado':
+        d['red_proyecto']['cantidad_barras'] = 999
+    else:
+        d['geo_proyecto'] = {'barras': [['ANTERIOR', -14, -75, .97, 10]]}
+    with pytest.raises(ValueError):
+        h.vincular_capturas_certificadas([('con', 'flujo', d)], op, 'SHA')
 
 
 def test_conclusion_usa_los_limites_que_recibe():

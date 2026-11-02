@@ -66,9 +66,14 @@
       Hecho cuando: `pytest -q tests/test_escalera_optima.py` en verde, con variantes que cumplen la
       máxima y no los sorteos: se elige la primera por prioridad y se avisa.
       Hecho el 2026-11-01: `escalera_optima.elegir` con `sin_confirmar_sorteos`.
-- [ ] T18. Los sorteos miden la red con la obra y la demanda escalada. (RF-28)
+- [x] T18. Los sorteos miden la red con la obra y la demanda escalada. (RF-28)
       Hecho cuando: una prueba con el doble de DIgSILENT muestra que cada sorteo ve la obra aplicada y
       la demanda escalada (SM218: la tensión de INKA no cambiaba con la demanda).
+      Hecho el 2026-11-02: la causa no era la obra sino el escalado. Sonda en una copia de SM218:
+      escribir `plini × 0,35` en el escenario dejaba las existentes en 9,1 MW con cualquier factor;
+      `scale0 × 0,35` las bajó a 3,2 MW (INKA de 0,921 a 0,960 p.u.). `_Sorteo` escala `scale0`;
+      `test_los_sorteos_escalan_solo_las_cargas_existentes_y_se_restituyen` exige que no se
+      escriba `plini`. El 94,5 % era el corte de `sortear` tras 11 fallos de 200.
 - [x] T19. Más del umbral de carga nueva: SET nueva directa. (RF-34)
       Hecho cuando: `pytest -q tests/test_informe_factibilidad_un_paso.py -k umbral` en verde, con cargas
       sorteadas por encima y por debajo del umbral.
@@ -86,12 +91,25 @@
       Hecho cuando: `informe_casos_guardados.py --plan PLAN --salida INFORME.docx` conserva los
       hashes, rechaza otro proyecto o cobertura incompleta y entrega Word, JSON y CSV sin huecos.
       Verificado el 2026-11-01 con Santa María, NA205, y pruebas de rechazo; se reutiliza el escritor.
-- [ ] T22. Planos comparables con problemas y obras en colores/tramas y leyenda. (RF-35)
+- [x] T22. Planos comparables con problemas y obras en colores/tramas y leyenda. (RF-35)
       Hecho cuando: los tres estados del Word/PDF muestran la red, el punto del cliente,
       problemas de tensión/cargabilidad y las obras diferenciadas; prueba de render y revisión visual.
-- [ ] T23. Variaciones separadas y demanda completa en la solución COPARA. (RF-36, RF-37)
+      Verificado el 2026-11-02: Word/PDF de Santa María con planos nativos y esquema de Cargas
+      nuevas sin solución de flujo, identificado sin resultados eléctricos; 35 marcadores y
+      anexos de cargas/obras. PDF de 14 páginas revisado, sin huecos.
+- [x] T23. Variaciones separadas y demanda completa en la solución COPARA. (RF-36, RF-37)
       Hecho cuando: la relectura nativa verifica cargas previstas, demandas efectivas, variaciones
       de cada carga/obra y sus casos; ambos proyectados incluyen las mismas cargas del bloque.
-- [ ] T24. [DIgSILENT] COPARA con NA203–NA205 en límites y térmica fuera de servicio. (RF-38)
+      La conciliación explícita por fase conserva P/Q nominales y la proporción original entre
+      fases; se registran las entradas anteriores y posteriores en las copias de escenarios.
+      Verificado el 2026-11-02: 35 cargas nuevas y 35 variaciones de obra; 48,286 MW nominales
+      y efectivos en Con proyecto. Las dos referencias proyectadas conservan iguales demandas
+      nominales; Cargas nuevas sin obras no converge y no se atribuyen consumos efectivos.
+- [x] T24. [DIgSILENT] COPARA con NA203–NA205 en límites y térmica fuera de servicio. (RF-38)
       Hecho cuando: equilibrado y desequilibrado convergen, toda la red cumple, se releen
       variaciones tras reabrir y el informe entrega los resultados sin confundir convergencia y aceptación.
+      Aplicación febcc9b41837: informe nativo set_nueva_operacion_37f7270bd40c.json, aceptada y
+      persistida, modelo idéntico después de la restitución. Motor anterior cerrado; comprobación
+      independiente 0edd2ab893e0, set_nueva_operacion_87ace2d82986.json: ambos flujos conformes,
+      0,964209–1,049746 p.u., máximo 98,5597 %, CT fuera de servicio, 35 cargas desde COPARA.
+      Word/PDF: output/informes/Informe_Santa_Maria_NA205_COPARA_Verificado.*.

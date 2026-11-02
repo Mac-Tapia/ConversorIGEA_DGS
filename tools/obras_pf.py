@@ -1012,6 +1012,133 @@ def _hacia(a: tuple[float, float], b: tuple[float, float], f: float) -> tuple[fl
     return a[0] + f * (b[0] - a[0]), a[1] + f * (b[1] - a[1])
 
 
+def validar_salida_set_existente(proyecto, origen, destino, tipo, nombre, circuitos, ruta) -> dict:
+    """063:RF-36, RF-38: preflight de solo lectura, sin exigir etapa o escenario.
+
+    Valida los objetos ya resueltos y la polilínea explícita antes de abrir cualquier
+    etapa de obra. Devuelve metadatos JSON, con rutas completas; no devuelve objetos
+    nativos ni consulta servicios de mapas. El caller verifica además las colisiones
+    entre salidas del mismo lote, todavía no creadas.
+    """
+    if proyecto is None or proyecto.GetClassName() != 'IntPrj':
+        raise ValueError('La salida requiere el objeto nativo del proyecto vinculado.')
+    identidad = clave_pf(proyecto)
+    for etiqueta, obj, clase in (('origen', origen, 'ElmTerm'), ('destino', destino, 'ElmTerm'),
+                                 ('tipo', tipo, 'TypLne')):
+        if obj is None or obj.GetClassName() != clase:
+            raise ValueError(f'{etiqueta}: se requiere un objeto {clase} resuelto, no un nombre.')
+        propietario = _proyecto_de(obj)
+        if propietario is None or clave_pf(propietario) != identidad:
+            raise ValueError(f'{etiqueta}: el objeto no pertenece al proyecto vinculado.')
+    if clave_pf(origen) == clave_pf(destino):
+        raise ValueError('Los terminales de origen y destino deben ser distintos.')
+    tensiones = [float(getattr(obj, attr, 0) or 0) for obj, attr in
+                 ((origen, 'uknom'), (destino, 'uknom'), (tipo, 'uline'))]
+    if (any(not math.isfinite(kv) or kv < 1 for kv in tensiones)
+            or any(not math.isclose(kv, tensiones[0], rel_tol=1e-4, abs_tol=.001) for kv in tensiones[1:])):
+        raise ValueError('Las barras de media tensión y el tipo propio deben tener la misma tensión nominal.')
+    if type(circuitos) is not int or circuitos < 1:
+        raise ValueError('El número de circuitos requiere un entero positivo.')
+    if not isinstance(nombre, str) or not nombre or nombre_pf(nombre) != nombre:
+        raise ValueError('El nombre explícito de la salida debe cumplir el formato nativo de 40 caracteres.')
+    if not isinstance(ruta, (list, tuple)) or len(ruta) < 2:
+        raise ValueError('La salida necesita una ruta GPS explícita con al menos dos puntos.')
+    puntos = []
+    for p in ruta:
+        if (not isinstance(p, (list, tuple)) or len(p) != 2
+                or any(isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) for v in p)
+                or not -90 <= p[0] <= 90 or not -180 <= p[1] <= 180):
+            raise ValueError('La ruta contiene coordenadas GPS incompletas o no válidas.')
+        puntos.append([float(p[0]), float(p[1])])
+    gps_origen, gps_destino = gps_de(origen), gps_de(destino)
+    if gps_origen is None or gps_destino is None:
+        raise ValueError('Los dos terminales necesitan coordenadas nativas verificables.')
+    errores_extremos = [distancia_m(gps_origen, puntos[0]), distancia_m(gps_destino, puntos[-1])]
+    # Un metro cubre la serialización decimal del trazado; no desplaza ningún terminal.
+    if any(e > 1. for e in errores_extremos):
+        raise ValueError('Los extremos de la ruta explícita no coinciden con el GPS nativo de los terminales.')
+    largo_m = sum(distancia_m(a, b) for a, b in zip(puntos, puntos[1:]))
+    if not math.isfinite(largo_m) or largo_m <= 0:
+        raise ValueError('La ruta no tiene longitud física positiva.')
+    red = origen.GetParent()
+    while red is not None and red.GetClassName() != 'ElmNet':
+        red = red.GetParent()
+    if red is None:
+        raise ValueError('El terminal de origen no pertenece a una red ElmNet del proyecto.')
+    for clase in ('ElmLne', 'ElmFeeder'):
+        if any(obj.loc_name == nombre for obj in proyecto.GetContents(f'*.{clase}', 1)):
+            raise ValueError(f'Ya existe {nombre}.{clase}; no se renombra ni reutiliza una salida anterior.')
+    nombres_cubiculos = [nombre_pf(f'Cub_{i}_{nombre}') for i in (0, 1)]
+    for barra, n in zip((origen, destino), nombres_cubiculos):
+        if any(c.loc_name == n for c in barra.GetContents('*.StaCubic')):
+            raise ValueError(f'Ya existe el cubículo {n}; no se modifica una conexión anterior.')
+    return {'red': clave_pf(red), 'origen': clave_pf(origen), 'destino': clave_pf(destino),
+            'tipo': clave_pf(tipo), 'tipo_nombre': tipo.loc_name, 'nombre': nombre,
+            'circuitos': circuitos, 'kv': tensiones[0], 'GPScoords': puntos,
+            'largo_m': largo_m, 'longitud_km': largo_m / 1000.,
+            'GPS_origen': list(gps_origen), 'GPS_destino': list(gps_destino),
+            'error_extremos_m': errores_extremos, 'nombres_cubiculos': nombres_cubiculos}
+
+
+def construir_salida_set_existente(app, proyecto, origen, destino, tipo, nombre, circuitos, ruta) -> dict:
+    """063:RF-36, RF-38: crea cuatro objetos en la etapa que ya abrió el caller.
+
+    El caller mantiene la responsabilidad de revertir su etapa si falla la API.
+    El constructor no activa nada ni toca la SET, sus coordenadas o sus tipos;
+    repite el preflight para detectar colisiones aparecidas después de validar el lote.
+    """
+    if proyecto is None or proyecto.GetClassName() != 'IntPrj':
+        raise ValueError('La salida requiere el objeto nativo del proyecto vinculado.')
+    identidad = clave_pf(proyecto)
+    activo = app.GetActiveProject()
+    if activo is None or clave_pf(activo) != identidad:
+        raise ValueError('El proyecto vinculado no es el proyecto activo.')
+    etapa = app.GetRecordingStage()
+    if etapa is None or _proyecto_de(etapa) is None or clave_pf(_proyecto_de(etapa)) != identidad:
+        raise ValueError('El caller debe abrir una etapa propia del proyecto antes de construir la salida.')
+    if app.GetActiveScenario() is not None:
+        raise ValueError('El escenario debe estar inactivo para registrar la salida en su etapa propia.')
+    datos = validar_salida_set_existente(proyecto, origen, destino, tipo, nombre, circuitos, ruta)
+    red = origen.GetParent()
+    while red.GetClassName() != 'ElmNet':
+        red = red.GetParent()
+    puntos, largo_m = datos['GPScoords'], datos['largo_m']
+
+    linea = red.CreateObject('ElmLne', nombre)
+    if linea is None:
+        raise RuntimeError('La API no creó la línea de la salida.')
+    linea.typ_id, linea.nlnum, linea.outserv = tipo, circuitos, 0
+    linea.dline = largo_m / 1000.
+    linea.SetAttribute('GPScoords', puntos)
+    cubiculos = []
+    for lado, (barra, n) in enumerate(zip((origen, destino), datos['nombres_cubiculos'])):
+        cub = barra.CreateObject('StaCubic', n)
+        if cub is None:
+            raise RuntimeError('La API no creó uno de los cubículos de la salida.')
+        cub.obj_id, cub.obj_bus = linea, lado
+        cubiculos.append(cub)
+    feeder = red.CreateObject('ElmFeeder', nombre)
+    if feeder is None:
+        raise RuntimeError('La API no creó el alimentador de la salida.')
+    feeder.obj_id, feeder.iorient = cubiculos[0], 0
+    if (clave_pf(linea.typ_id) != clave_pf(tipo) or linea.nlnum != circuitos or linea.outserv != 0
+            or not math.isclose(float(linea.dline), largo_m / 1000., rel_tol=1e-6)
+            or linea.GetAttribute('GPScoords') != puntos
+            or any(clave_pf(c.obj_id) != clave_pf(linea) or c.obj_bus != i
+                   or clave_pf(c.cterm) != clave_pf(b)
+                   for i, (c, b) in enumerate(zip(cubiculos, (origen, destino))))
+            or clave_pf(feeder.obj_id) != clave_pf(cubiculos[0]) or feeder.iorient != 0):
+        raise RuntimeError('La relectura inmediata de la salida no conserva sus datos y conexiones.')
+    return {'linea': clave_pf(linea), 'nombre': linea.loc_name, 'feeder': clave_pf(feeder),
+            'feeder_nombre': feeder.loc_name, 'cubiculos': [clave_pf(c) for c in cubiculos],
+            'origen': clave_pf(origen), 'destino': clave_pf(destino), 'tipo': clave_pf(tipo),
+            'tipo_nombre': tipo.loc_name, 'kv': datos['kv'], 'circuitos': circuitos,
+            'longitud_km': float(linea.dline), 'largo_m': largo_m, 'GPScoords': puntos,
+            'GPS_origen': datos['GPS_origen'], 'GPS_destino': datos['GPS_destino'],
+            'error_extremos_m': datos['error_extremos_m'], 'etapa': clave_pf(etapa),
+            'objetos_creados': [clave_pf(o) for o in (linea, *cubiculos, feeder)]}
+
+
 def construir_set_nueva(ctx) -> None:
     """SET nueva con su transformador y las ramas que pasan a ella (042:RF-5, RF-6, RF-10, RF-11).
 
@@ -1930,22 +2057,27 @@ class _Sorteo:
         self.temporal = carpeta.AddCopy(self.original, nombre)
         self.original.Deactivate(0)
         self.temporal.Activate()
+        # 063:RF-28: se escala ``scale0``, no ``plini``/``qlini``. Sonda en una copia de SM218
+        # (2026-11-02): las existentes daban 7,2 MW; tras escribir ``plini × 0,35`` en el
+        # escenario, 9,1 MW, y lo mismo con cualquier factor (en PC escribir la Q mueve el cos φ
+        # y la calibración vive en ``scale0``). Todos los sorteos medían la misma red: INKA a
+        # 0,938 p.u. con factores de 0,35 a 0,74, y las variantes salían al 94,5 %. Con
+        # ``scale0 × 0,35`` la demanda bajó a 3,2 MW e INKA subió a 0,960 p.u.
         self.base = {}
         for f in self.feeders:
             for c in self.alims.objetos(f, 'ElmLod'):
                 if c.loc_name in self.existentes:
-                    self.base[id(c)] = (c, f, float(c.plini or 0.0), float(c.qlini or 0.0))
+                    self.base[id(c)] = (c, f, float(getattr(c, 'scale0', 1.0) or 0.0))
         return self
 
     def escalar(self, factores: dict[str, float]) -> None:
-        for c, f, p, q in self.base.values():
-            k = float(factores.get(f, 1.0))
-            c.plini, c.qlini = p * k, q * k
+        for c, f, s0 in self.base.values():
+            c.scale0 = s0 * float(factores.get(f, 1.0))
 
     def __exit__(self, *exc):
         try:
-            for c, _f, p, q in self.base.values():                  # todavía en el temporal
-                c.plini, c.qlini = p, q
+            for c, _f, s0 in self.base.values():                    # todavía en el temporal
+                c.scale0 = s0
             self.temporal.Deactivate(0)
         finally:
             self.original.Activate()

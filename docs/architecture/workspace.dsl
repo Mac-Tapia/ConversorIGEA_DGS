@@ -86,7 +86,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
                 tags "Store"
             }
             operationStore = container "Diario de operaciones y evidencia" "Estados por espacio, contexto inicial e informes custodiados; no promueve modelos." "SQLite + JSON + SHA-256" {
-                url "file:///D:/converter/ConversorIGEA_DGS/src/convertersmartgrid/asistente/observacion.py"
+                url "file:///D:/converter/ConversorIGEA_DGS/src/convertersmartgrid/asistente/observacion.py" // legado-058: ruta real del checkout existente
                 tags "Store"
             }
         }

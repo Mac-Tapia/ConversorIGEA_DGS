@@ -15,7 +15,7 @@ y sustituye la retención indefinida de ejecuciones obsoletas por esta política
 - RF-7: CUANDO termine o falle una revisión, EL SISTEMA conservará un resumen acotado con eliminados, conservados y errores, sin anunciar éxito ante errores de E/S.
 - RF-8: CUANDO se consulte el monitor, EL SISTEMA mostrará la política, la última revisión y su próxima fecha, sin añadir sondeo periódico.
 
-Fuera de alcance: limpieza de otros proyectos, edición de planos IGEA, borrado de
+Fuera de alcance: limpieza de otros proyectos, edición de planos de la herramienta de origen, borrado de
 modelos o evidencia nativa, y tareas del sistema operativo cuando la web está apagada.
 La antigüedad no prueba por sí sola que un archivo sea obsoleto. La revisión no
 modifica fuentes ni el funcionamiento eléctrico.

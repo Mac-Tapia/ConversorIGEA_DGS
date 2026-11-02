@@ -55,8 +55,13 @@ Flujos y conclusión
 - RF-10: SI hay violaciones y «Con proyecto» no tiene obras, ENTONCES EL SISTEMA concluirá que
   la carga no se puede conectar sin refuerzo (mejora de tramos o bancos) y nombrará los
   elementos que lo requieren.
-- RF-11: SI un caso no converge, ENTONCES EL SISTEMA no concluirá que la carga es factible y
-  dirá en el informe el mensaje de DIgSILENT.
+- RF-11: Por defecto, SI un caso no converge, ENTONCES EL SISTEMA no concluirá que la carga
+  es factible y dirá en el informe el mensaje de DIgSILENT. La referencia «Cargas nuevas sin
+  obras» no convergente podrá acompañar un dictamen condicionado exclusivamente a las obras
+  cuando exista evidencia nativa de la operación final aplicada y persistida, «Sin proyecto»
+  completo y convergente, y ambos flujos de «Con proyecto» completos, conformes y releídos.
+  La referencia fallida seguirá identificada como no evaluable: no se inventarán sus
+  tensiones, cargabilidades o pérdidas ni se afirmará que permite conexión sin obras.
 
 Universal
 

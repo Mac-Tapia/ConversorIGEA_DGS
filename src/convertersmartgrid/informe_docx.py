@@ -91,6 +91,8 @@ class DatosFactibilidad:
     #: Comparación de los balances medidos cuando no se evalúa una curva anual.
     perdidas_instantaneas: bool = False
     observaciones: Sequence[str] = ()
+    #: Solo el generador desde una operación nativa certificada habilita esta excepción RF-38.
+    con_proyecto_verificado: bool = False
 
 
 # --------------------------------------------------------------------------- modelo
@@ -823,7 +825,15 @@ def escribir_informe_factibilidad(config: ConfigInforme, destino: Path, datos: D
 
     if datos.cargas is not None:
         e.titulo('2.2.2 ESTADO PROYECTADO SIN OBRAS')
-        if not _sin_flujo(e, datos.cargas):
+        if not datos.cargas.converge:
+            e.parrafo('No converge / no evaluable sin obras. No se presentan tensiones, '
+                      'cargabilidades, potencias de flujo o pérdidas de esta referencia.')
+            imagen = (datos.imagenes.get('cargas') or {}).get('ubicacion')
+            if imagen is not None:
+                e.imagen(imagen, 'esquema topológico georreferenciado de la referencia sin obras',
+                         'Esquema topológico georreferenciado: enlaces simplificados entre terminales '
+                         'del mismo caso, sin resultados eléctricos. No representa corredores ni un plano conforme a obra.')
+        else:
             _datos_fuente(e, datos.cargas, 'Datos de la fuente en MD:',
                           perdidas_red=datos.perdidas_instantaneas)
             carga_img = datos.imagenes.get('cargas') or {}
@@ -845,6 +855,12 @@ def escribir_informe_factibilidad(config: ConfigInforme, destino: Path, datos: D
         e.parrafo('Datos en el punto de diseño:')
         p = datos.punto_diseno
         if p:
+            if (s is not None and s.potencia_actual_kw is not None
+                    and p.get('kw') is not None and p.get('kvar') is not None):
+                e.parrafo(f'Las potencias y la corriente de este bloque corresponden al incremento '
+                          f'modelado de {p["kw"]:g} kW y {p["kvar"]:g} kvar. '
+                          f'Se distinguen de la potencia total solicitada de {s.potencia_kw:g} kW '
+                          f'y de los {s.potencia_actual_kw:g} kW existentes.')
             e.tabla(['Vp.u.', 'kVLL', 'kVLN', 'i (A)', 'kVA', 'kW', 'kVAR'],
                     [[_f(p.get('u_pu'), 3), _f(p.get('kv_ll'), 2), _f(p.get('kv_ln'), 2), _f(p.get('i_a'), 1),
                       _f(p.get('kva'), 0), _f(p.get('kw'), 0), _f(p.get('kvar'), 0)]])
@@ -884,7 +900,8 @@ def escribir_informe_factibilidad(config: ConfigInforme, destino: Path, datos: D
         from .informes import Veredicto, conclusion_factibilidad
 
         conexion = conclusion_factibilidad(datos.actual, datos.cargas,
-                                           proyectado if datos.con_obras else None, config.limites)
+                                           proyectado if datos.con_obras else None, config.limites,
+                                           con_proyecto_verificado=datos.con_proyecto_verificado)
         excesos = [] if conexion.factible else list(conexion.violaciones)
         if not conexion.factible:
             excesos += [f'Requiere corregir el elemento {n}.' for n in conexion.elementos]
@@ -904,6 +921,10 @@ def escribir_informe_factibilidad(config: ConfigInforme, destino: Path, datos: D
                          'sin obras cumplen los límites evaluados.',
             'con_obras': 'La conexión es factible con las obras evaluadas, una vez ejecutadas y '
                         'verificadas en campo.',
+            'con_obras_verificadas': 'La conexión es viable con las obras evaluadas y la configuración '
+                                    'nativamente verificada. La referencia completa sin obras no converge '
+                                    'y no es evaluable eléctricamente; esta viabilidad queda condicionada '
+                                    'a ejecutar y verificar las obras en campo y conservar la operación estudiada.',
             'requiere_refuerzo': 'La conexión no es factible sin refuerzo: se requiere corregir '
                                 'las violaciones de tensión o cargabilidad identificadas.',
             'obras_insuficientes': 'Las obras evaluadas son insuficientes: la conexión no puede '
@@ -923,12 +944,22 @@ def escribir_informe_factibilidad(config: ConfigInforme, destino: Path, datos: D
         for texto in conclusiones_factibilidad(s, veredicto, datos.codigo_punto or '', d):
             e.parrafo(texto)
 
+    def resumen_caso(caso):
+        if caso is None:
+            return None
+        datos_caso = asdict(caso)
+        if not caso.converge:
+            datos_caso.update(fuente=None, perdidas=None, tension_min={}, tension_max=None,
+                              cargabilidad_max=None, trafo_max=None, nodos_fuera=None, tramos_sobre=None)
+        return datos_caso
+
     _guardar(documento, destino, {
         'tipo': 'factibilidad', 'numero': datos.numero,
         'encabezado': {**asdict(enc), 'fecha': enc.fecha.isoformat()},
         'solicitud': ({**asdict(s), 'fecha_solicitud': s.fecha_solicitud.isoformat()} if s else None),
-        'actual': asdict(datos.actual), 'proyectado': asdict(proyectado),
-        'cargas': asdict(datos.cargas) if datos.cargas is not None else None,
+        'actual': resumen_caso(datos.actual), 'proyectado': resumen_caso(proyectado),
+        'cargas': resumen_caso(datos.cargas),
+        'con_proyecto_verificado': datos.con_proyecto_verificado,
         'conclusion_conexion': asdict(conexion) if conexion is not None else None,
         'ficha_punto': dict(datos.ficha_punto),
         'incluir_transformador_set': datos.incluir_transformador_set,
@@ -965,6 +996,9 @@ def _perdidas(e: _Escritor, datos: DatosFactibilidad, config: ConfigInforme, ali
         for nombre, caso in (('Estado actual', datos.actual), ('Con cargas, sin obras', datos.cargas),
                               ('Con proyecto', datos.proyectado)):
             if caso is None:
+                continue
+            if not caso.converge:
+                filas.append([nombre + ' — No converge', 'N/C', 'N/C', 'N/C', 'N/C'])
                 continue
             fuente, perdidas = caso.fuente, caso.perdidas
             pct = (100 * perdidas.kw / fuente.kw

@@ -530,7 +530,8 @@ def _elementos_fuera(caso: Caso, limites: Limites) -> list[str]:
     return out
 
 
-def conclusion_factibilidad(actual: Caso, cargas: Caso, con: Caso | None, limites: Limites) -> Conclusion:
+def conclusion_factibilidad(actual: Caso, cargas: Caso, con: Caso | None, limites: Limites, *,
+                            con_proyecto_verificado: bool = False) -> Conclusion:
     """Factible, con o sin obras, a partir del estado actual, el de la carga y «Con proyecto».
 
     063:RF-8 a RF-11. Las obras solo se justifican si el estado actual o el de la carga violan
@@ -542,6 +543,19 @@ def conclusion_factibilidad(actual: Caso, cargas: Caso, con: Caso | None, limite
     casos = [('estado actual', actual), ('con la carga', cargas)] + ([('con proyecto', con)] if con else [])
     sin_flujo = [f'el flujo {nombre} no converge ({caso.nombre})' for nombre, caso in casos if not caso.converge]
     if sin_flujo:
+        # RF-38: la certificación nativa del estado final puede sustentar las obras aunque
+        # la referencia completa sin refuerzos no tenga solución de flujo. El valor por
+        # defecto conserva RF-11; esta excepción no acepta datos parciales del estado final.
+        if (con_proyecto_verificado and actual.converge and not cargas.converge
+                and con is not None and con.converge and con.minima is not None
+                and con.tension_max is not None
+                and (con.cargabilidad_max is not None or con.trafo_max is not None)):
+            motivos = tuple(sin_flujo) + ((f'estado actual: {_incumplimientos(actual, limites)}',)
+                                         if not actual.cumple(limites) else ())
+            if con.cumple(limites):
+                return Conclusion(True, 'con_obras_verificadas', motivos,
+                                  tuple(_elementos_fuera(actual, limites)))
+            return Conclusion(False, 'obras_insuficientes', motivos, tuple(_elementos_fuera(con, limites)))
         return Conclusion(False, 'no_converge', tuple(sin_flujo))
     if actual.cumple(limites) and cargas.cumple(limites):
         return Conclusion(True, 'sin_obras')

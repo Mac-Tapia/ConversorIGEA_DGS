@@ -297,6 +297,9 @@ class SetNuevaOperacionIn(BaseModel):
     cambios: list[dict[str, Any]] = Field(default_factory=list, max_length=1000)
     desactivar_variaciones: list[str] = Field(default_factory=list, max_length=1000)
     sincronizar_cargas: bool = False
+    conciliar_fases: bool = False
+    verificar_flujos: bool = False
+    salidas: list[dict[str, Any]] = Field(default_factory=list, max_length=1000)
     ajustes_flujo: dict[str, int] = Field(default_factory=dict)
     limites: dict[str, float] = Field(default_factory=dict)
     limite_s: float = Field(1200, ge=30, le=86400)

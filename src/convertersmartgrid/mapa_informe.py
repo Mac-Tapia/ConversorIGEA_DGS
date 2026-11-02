@@ -13,10 +13,11 @@ dio el flujo del caso, con las bandas del perfil de empresa (RF-115, RF-116).
 
 from __future__ import annotations
 
-import math
 import json
+import math
 import textwrap
 from collections.abc import Mapping, Sequence
+from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
@@ -35,6 +36,9 @@ COLOR_BANCO = (0, 150, 170)
 COLOR_PROBLEMA_TENSION = (235, 110, 0)
 COLOR_SOBRECARGA = (190, 20, 20)
 COLOR_SET = (95, 45, 170)
+COLOR_TRANSFORMADOR = (115, 55, 150)
+COLOR_CARGA_NUEVA = (0, 110, 75)
+COLOR_TRANSFERENCIA = (85, 95, 110)
 #: Bandas por defecto si el perfil no las trae: las del modelo EMAPICA (017:RF-115).
 BANDAS_TENSION = (85.0, 90.0, 95.0, 105.0)
 BANDAS_CARGA = (80.0, 90.0, 95.0, 105.0, 150.0)
@@ -118,6 +122,8 @@ def dibujar(geo: Mapping[str, Any], modo: str, destino: Path, *, titulo: str,
         raise MapaError('El estudio no guardó la geografía del alimentador: vuelva a ejecutar '
                         'el estudio de flujo.')
     obras = obras or {}
+    abiertos = {o['elemento'] for o in obras.get('transferencias', ())}
+    tramos = [t for t in tramos if t[0] not in abiertos]
     if encuadre and modo != 'detalle':
         puntos = [(b[1], b[2]) for b in encuadre.get('barras', ())
                   if b[1] is not None and b[2] is not None]
@@ -131,7 +137,6 @@ def dibujar(geo: Mapping[str, Any], modo: str, destino: Path, *, titulo: str,
     bc = tuple(bandas_carga or BANDAS_CARGA)
     img = Image.new('RGB', (ANCHO_PX, ALTO_PX), 'white')
     d = ImageDraw.Draw(img)
-    u_de = {b[0]: b[3] for b in barras}
 
     for nombre, pts, carga in ((t[0], t[1], t[2]) for t in tramos):
         if modo == 'cargabilidad' and carga is not None:
@@ -176,6 +181,14 @@ def dibujar(geo: Mapping[str, Any], modo: str, destino: Path, *, titulo: str,
     posicion = {b[0]: b for b in barras}
     ocupados: list[tuple[float, float, float, float]] = []
     if resaltar is not None:
+        for i, transferencia in enumerate(obras.get('transferencias') or (), 1):
+            pts = transferencia['geometria']
+            if pts:
+                _linea_discontinua(d, [a_px(*p) for p in pts], COLOR_TRANSFERENCIA, 5)
+                x, y = a_px(*pts[len(pts) // 2])
+                d.line([(x - 7, y - 7), (x + 7, y + 7)], fill=COLOR_TRANSFERENCIA, width=3)
+                d.line([(x - 7, y + 7), (x + 7, y - 7)], fill=COLOR_TRANSFERENCIA, width=3)
+                _rotular(d, x, y, f'A{i}', COLOR_TRANSFERENCIA, f_texto, ocupados)
         # Dos canales: la alarma nunca se sustituye por el color de una obra aplicada.
         sobre = {e[0]: e[2] for e in resaltar['carga']}
         for t in tramos:
@@ -183,11 +196,13 @@ def dibujar(geo: Mapping[str, Any], modo: str, destino: Path, *, titulo: str,
                 _linea_discontinua(d, [a_px(*p) for p in t[1]], COLOR_SOBRECARGA, 13)
                 if t[0] in cambiados:
                     d.line([a_px(*p) for p in t[1]], fill=COLOR_CONDUCTOR, width=4)
+        reforzados = {n for n, _ in obras.get('transformadores', ())}
         for n, _, _ in resaltar['carga']:
             b = posicion.get(resaltar['vinculos'].get(n, n))
             if b is not None:
                 x, y = a_px(b[1], b[2])
-                d.rectangle([x - 10, y - 10, x + 10, y + 10], outline=COLOR_SOBRECARGA, width=4)
+                r = 18 if n in reforzados else 10
+                d.rectangle([x - r, y - r, x + r, y + r], outline=COLOR_SOBRECARGA, width=4)
         for n, minimo, maximo in resaltar['tension']:
             if n in posicion:
                 b = posicion[n]
@@ -199,6 +214,21 @@ def dibujar(geo: Mapping[str, Any], modo: str, destino: Path, *, titulo: str,
                 x, y = a_px(b[1], b[2])
                 d.rectangle([x - 13, y - 13, x + 13, y + 13], outline=COLOR_SET, width=5)
                 _rotular(d, x, y, nombre, COLOR_SET, f_texto, ocupados)
+        for i, (nombre, barra) in enumerate(obras.get('transformadores') or (), 1):
+            b = posicion[barra]
+            x, y = a_px(b[1], b[2])
+            for dx in (-6, 6):
+                d.ellipse([x + dx - 7, y - 7, x + dx + 7, y + 7],
+                          fill='white', outline=COLOR_TRANSFORMADOR, width=3)
+            _rotular(d, x, y, f'R{i}', COLOR_TRANSFORMADOR, f_texto, ocupados)
+        for i, (nombre, barra) in enumerate(obras.get('cargas_nuevas') or (), 1):
+            b = posicion[barra]
+            x, y = a_px(b[1], b[2])
+            # El desplazamiento con guía conserva el rombo del cliente y la alarma en
+            # su coordenada nativa, aunque la carga esté conectada en esa misma barra.
+            d.line([(x, y), (x + 12, y + 12)], fill=COLOR_CARGA_NUEVA, width=1)
+            d.rectangle([x + 8, y + 8, x + 16, y + 16], fill=COLOR_CARGA_NUEVA)
+            _rotular(d, x + 12, y + 12, f'C{i}', COLOR_CARGA_NUEVA, _fuente(12), ocupados)
         # Identificadores cortos en el plano; nombres y medidas en la leyenda.
         for i, (tipo, n, valor) in enumerate(resaltar['rotulos'], 1):
             b = posicion.get(resaltar['vinculos'].get(n, n))
@@ -227,7 +257,7 @@ def dibujar(geo: Mapping[str, Any], modo: str, destino: Path, *, titulo: str,
         _marcar_cliente(d, *a_px(b[1], b[2]), cliente[1], f_texto, ocupados)
 
     d.rectangle([0, 0, ANCHO_PX, MARGEN_PX + 10], fill='white')
-    while d.textlength(titulo, font=f_titulo) > ANCHO_PX - 2 * MARGEN_PX:
+    while d.textlength(titulo, font=f_titulo) > ANCHO_PX - LEYENDA_PX - 2 * MARGEN_PX:
         f_titulo = _fuente(max(12, f_titulo.size - 1))
         if f_titulo.size == 12:
             break
@@ -262,9 +292,16 @@ def dibujar(geo: Mapping[str, Any], modo: str, destino: Path, *, titulo: str,
                 filas.append(('hueco', 'banco existente (vacío)'))
         if obras.get('sets'):
             filas.append((COLOR_SET, 'SET nueva (cuadro)'))
-        filas += [(COLOR_PROBLEMA_TENSION, 'tensión fuera (círculo)'),
-                  ('discontinua', 'sobrecarga (guion/cuadro)'),
-                  (COLOR_CLIENTE, 'punto cliente (rombo)')]
+        if obras.get('transformadores'):
+            filas.append((COLOR_TRANSFORMADOR, 'TR reforzado (doble círculo)'))
+        if obras.get('cargas_nuevas'):
+            filas.append((COLOR_CARGA_NUEVA, f'cargas nuevas: {len(obras["cargas_nuevas"])} (C#)'))
+        if obras.get('transferencias'):
+            filas.append((COLOR_TRANSFERENCIA, 'abierto por transferencia'))
+        if not resaltar.get('sin_resultados'):
+            filas += [(COLOR_PROBLEMA_TENSION, 'tensión fuera (círculo)'),
+                      ('discontinua', 'sobrecarga (guion/cuadro)')]
+        filas.append((COLOR_CLIENTE, 'punto cliente (rombo)'))
         if modo in PLANOS:
             filas = [(c, 'salida / terna / refuerzo' if r == 'conductor nuevo' else r) for c, r in filas]
         f_texto = _fuente(17)
@@ -285,15 +322,23 @@ def dibujar(geo: Mapping[str, Any], modo: str, destino: Path, *, titulo: str,
                 d.text((x0, y), linea, fill=(0, 0, 0), font=_fuente(16))
                 y += 20
             y += 6
-    d.text((x0, ALTO_PX - 40), 'Resultados del flujo de DIgSILENT', fill=(90, 90, 90),
+    pie = ('Topología nativa; sin solución de flujo' if (resaltar or {}).get('sin_resultados')
+           else 'Resultados del flujo de DIgSILENT')
+    d.text((x0, ALTO_PX - 40), pie, fill=(90, 90, 90),
            font=_fuente(16))
     destino.parent.mkdir(parents=True, exist_ok=True)
     from PIL.PngImagePlugin import PngInfo
     info = PngInfo()
     if resaltar is not None:
-        evidencia = {'tension_fuera': [x[0] for x in resaltar['tension']],
-                     'sobrecargas': [x[0] for x in resaltar['carga']],
+        evidencia = {'tension_fuera': (None if resaltar.get('sin_resultados') else [x[0] for x in resaltar['tension']]),
+                     'sobrecargas': (None if resaltar.get('sin_resultados') else [x[0] for x in resaltar['carga']]),
+                     'sin_resultados': bool(resaltar.get('sin_resultados')),
                      'sin_localizar': resaltar['sin_localizar'], 'obras_tramos': list(obras.get('tramos') or ()),
+                     'obras_transformadores': [n for n, _ in obras.get('transformadores', ())],
+                     'obras_sin_localizar': list(obras.get('sin_localizar') or ()),
+                     'cargas_nuevas': [n for n, _ in obras.get('cargas_nuevas', ())],
+                     'transferencias': [{'elemento': o['elemento'], 'dibujada': bool(o['geometria'])}
+                                       for o in obras.get('transferencias', ())],
                      'cliente': cliente[0] if cliente else None, 'leyenda': [r for _, r in filas],
                      'encuadre': [min(p[0] for p in puntos), min(p[1] for p in puntos),
                                   max(p[0] for p in puntos), max(p[1] for p in puntos)]}
@@ -311,7 +356,7 @@ MARGEN_DETALLE_GRADOS = 0.003
 def _linea_discontinua(d, puntos, color, ancho):
     """Trazo de alarma sobre el conductor: deja visible su color entre segmentos."""
     recorrido = 0.0
-    for (x1, y1), (x2, y2) in zip(puntos, puntos[1:]):
+    for (x1, y1), (x2, y2) in pairwise(puntos):
         largo = math.hypot(x2 - x1, y2 - y1)
         if largo == 0:
             continue
@@ -341,6 +386,8 @@ def _zona_de_obras(barras, tramos, obras) -> list[tuple[float, float]]:
     cambiados = set(obras.get('tramos') or ())
     marcadas = {b for par in obras.get('trechos') or () for b in par}
     marcadas |= {b for b, _ in [*(obras.get('bancos') or ()), *(obras.get('existentes') or ())]}
+    marcadas |= {b for _, b in obras.get('transformadores') or ()}
+    marcadas |= {b for b, _ in obras.get('sets') or ()}
     pts = [tuple(p) for t in tramos if t[0] in cambiados for p in t[1]]
     pts += [(b[1], b[2]) for b in barras if b[0] in marcadas]
     if not pts:
@@ -551,8 +598,10 @@ def imagenes_del_estado(geo: Mapping[str, Any], carpeta: Path, prefijo: str, *, 
     out = {}
     modos = [('ubicacion', 'Vista del alimentador'), ('tension', 'Coloreado por tensión'),
              ('cargabilidad', 'Coloreado por cargabilidad')]
-    if obras and (obras.get('tramos') or obras.get('bancos') or obras.get('sets')):
+    if obras and any(obras.get(k) for k in ('tramos', 'bancos', 'sets', 'transformadores')):
         modos.append(('detalle', 'Detalle de las obras'))                       # RF-133
+    if (resaltar or {}).get('sin_resultados'):
+        modos = [('ubicacion', 'Esquema de conexiones: sin resultados eléctricos')]
     for modo, que in modos:
         out[modo] = dibujar(geo, modo, carpeta / f'{prefijo}_{modo}.png',
                             titulo=f'{que} · {alimentador} · {estado}',
@@ -564,15 +613,19 @@ def imagenes_del_estado(geo: Mapping[str, Any], carpeta: Path, prefijo: str, *, 
 
 def _capas_del_estado(geo, red, limites, referencia, registros, activas, obras, vinculos):
     """Capas derivadas de evidencia guardada; no cambia ni redondea el dictamen nativo."""
+    sin_resultados = bool(red.get('sin_resultados') or red.get('medida', {}).get('converge') is False)
     capas = {k: list(v) for k, v in (obras or {}).items()}
-    for clave in ('tramos', 'bancos', 'existentes', 'sets'):
+    for clave in ('tramos', 'bancos', 'existentes', 'sets', 'transformadores', 'sin_localizar',
+                  'cargas_nuevas', 'transferencias'):
         capas.setdefault(clave, [])
     anterior = (referencia or {}).get('geo_proyecto') or {}
     tramos_antes = {t[0]: t for t in anterior.get('tramos', ())}
     barras = {b[0]: b for b in geo.get('barras', ()) if b[1] is not None and b[2] is not None}
     tramos = {t[0]: t for t in geo.get('tramos', ()) if len(t[1] or ()) >= 2}
     vinculos = {n: dato['barra'] for n, dato in vinculos.items() if dato.get('barra') in barras}
-    if referencia is not None and activas:
+    hay_obras = (any(r.get('variacion') in activas and (r.get('obra') or {}).get('clase') != 'carga_nueva'
+                     for r in registros) if registros else bool(activas))
+    if referencia is not None and hay_obras:
         for nombre, tramo in tramos.items():
             previo = tramos_antes.get(nombre)
             if previo is None or (len(tramo) > 5 and len(previo) > 5 and tramo[5] != previo[5]):
@@ -581,6 +634,20 @@ def _capas_del_estado(geo, red, limites, referencia, registros, activas, obras, 
         if registro.get('variacion') not in activas:
             continue
         obra = registro.get('obra') or {}
+        if obra.get('clase') in ('transformador', 'carga_nueva') and obra.get('elemento'):
+            nombre = obra['elemento']
+            if nombre in vinculos:
+                clave = 'transformadores' if obra['clase'] == 'transformador' else 'cargas_nuevas'
+                capas[clave].append((nombre, vinculos[nombre]))
+            else:
+                capas['sin_localizar'].append(nombre)
+        if obra.get('clase') == 'transferencia' and obra.get('outserv') == 1 and obra.get('elemento'):
+            pts = obra.get('geometria') or []
+            if len(pts) < 2 or not all(isinstance(p, (list, tuple)) and len(p) == 2
+                                          and all(isinstance(v, (int, float)) and math.isfinite(v) for v in p)
+                                          for p in pts):
+                pts = []
+            capas['transferencias'].append({'elemento': obra['elemento'], 'geometria': pts})
         if obra.get('clase') in ('terna', 'seccion', 'conductor'):
             capas['tramos'].extend(n for n in obra.get('tramos', ()) if n in tramos)
         if obra.get('clase') == 'set_nueva':
@@ -598,7 +665,7 @@ def _capas_del_estado(geo, red, limites, referencia, registros, activas, obras, 
     for banco in red.get('medida', {}).get('bancos', ()):
         if banco.get('en_servicio') is False:
             continue
-        nuevo = referencia is not None and banco['nombre'] not in bancos_antes and bool(activas)
+        nuevo = referencia is not None and banco['nombre'] not in bancos_antes and hay_obras
         capas['bancos' if nuevo else 'existentes'].append(
             (banco['barra'], banco['kvar'] * (banco.get('escalones') or 1)))
     capas['tramos'] = list(dict.fromkeys(capas['tramos']))
@@ -618,6 +685,8 @@ def _capas_del_estado(geo, red, limites, referencia, registros, activas, obras, 
     if elementos is None:
         elementos = [(t[0], 'ElmLne', t[2]) for t in tramos.values()]
     sobre = [(n, cl, c) for n, cl, c in elementos if c is not None and c > carga_max]
+    if sin_resultados:
+        tensiones, sobre = [], []
     sin_localizar = [n for n, _, _ in tensiones if n not in barras]
     sin_localizar += [n for n, _, _ in sobre if n not in barras and n not in tramos and n not in vinculos]
     peores_u = sorted((t for t in tensiones if t[0] in barras), key=lambda t: min(t[1] - umin, umax - t[2]))[:2]
@@ -627,6 +696,16 @@ def _capas_del_estado(geo, red, limites, referencia, registros, activas, obras, 
     resumen = [f'Límites: {umin:g}–{umax:g} p.u.; carga ≤ {carga_max:g} %.',
                f'Fuera: {len(tensiones)} barras; {len(sobre)} equipos.',
                f'Sin GPS/vínculo: {len(sin_localizar)} (ver CSV).']
+    if sin_resultados:
+        resumen = ['No converge: sin resultados eléctricos.',
+                   'Solo conexiones y demandas nominales identificadas.']
     resumen += [f'P{i}: {n} / {valor}' for i, (_, n, valor) in enumerate(rotulos, 1)]
+    resumen += [f'R{i}: TR reforzado {n}' for i, (n, _) in enumerate(capas['transformadores'], 1)]
+    resumen += [f'A{i}: {o["elemento"]}, abierto por transferencia'
+                + (' (sin geometría)' if not o['geometria'] else '')
+                for i, o in enumerate(capas['transferencias'], 1)]
+    if capas['sin_localizar']:
+        resumen.append('Obras sin vínculo GPS: ' + ', '.join(capas['sin_localizar']))
     return capas, {'tension': tensiones, 'carga': sobre, 'sin_localizar': sin_localizar,
-                   'rotulos': rotulos, 'resumen': resumen, 'vinculos': vinculos}
+                   'rotulos': rotulos, 'resumen': resumen, 'vinculos': vinculos,
+                   'sin_resultados': sin_resultados}

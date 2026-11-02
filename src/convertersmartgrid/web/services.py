@@ -6017,7 +6017,10 @@ def estudios_plan(ws: Workspace, project: str, feeders: list[str], estudios: lis
 def set_nueva_operacion(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *,
                         accion: str = 'diagnostico', cambios: list[dict] | None = None,
                         desactivar_variaciones: list[str] | None = None,
-                        sincronizar_cargas: bool = False, ajustes_flujo: dict[str, int] | None = None,
+                        sincronizar_cargas: bool = False, conciliar_fases: bool = False,
+                        verificar_flujos: bool = False,
+                        salidas: list[dict] | None = None,
+                        ajustes_flujo: dict[str, int] | None = None,
                         limites: dict[str, float] | None = None, limite_s: float = 1200,
                         reabrir: bool = True) -> dict:
     """Diagnóstico y refuerzos sobre una SET existente, por el arnés y con fuente vinculada.
@@ -6037,6 +6040,9 @@ def set_nueva_operacion(ws: Workspace, ctx: JobContext, project: str, feeders: l
             'native_action_context': action_context, 'accion': accion,
             'cambios': list(cambios or []), 'desactivar_variaciones': list(desactivar_variaciones or []),
             'sincronizar_cargas': sincronizar_cargas, 'ajustes_flujo': dict(ajustes_flujo or {}),
+            'conciliar_fases': conciliar_fases,
+            'verificar_flujos': verificar_flujos,
+            'salidas': list(salidas or []),
             'limites': asdict(limites_de_perfil().con(**(limites or {}))),
             'nuevas': _cargas_nuevas_aplicadas(ws, project), 'reabrir': reabrir}
     ctx.log(f'{project}: {accion} de SET existente; no se crea ni se desplaza la SET.')

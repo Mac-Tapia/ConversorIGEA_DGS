@@ -1,7 +1,7 @@
 """063:RF-36 a RF-38: intervención explícita de una SET existente por el carril nativo."""
+from apoyo import esperar_trabajo
 from fastapi.testclient import TestClient
 
-from apoyo import esperar_trabajo
 from convertersmartgrid.web import services
 from convertersmartgrid.web.app import create_app
 
@@ -19,13 +19,18 @@ def test_operacion_set_se_encola_en_powerfactory_sin_recrear_set(tmp_path, monke
     with TestClient(create_app(tmp_path / 'web')) as client:
         wid = client.post('/api/workspaces').json()['id']
         r = client.post(f'/api/workspaces/{wid}/pf/obras/set-nueva/operacion',
-                        json={'project': 'P', 'feeders': ['F1', 'F2'], 'accion': 'diagnostico'})
+                        json={'project': 'P', 'feeders': ['F1', 'F2'], 'accion': 'diagnostico',
+                              'conciliar_fases': True, 'salidas': [{'nombre': 'Salida_1'}],
+                              'verificar_flujos': True})
         assert r.status_code == 202, r.text
         assert r.json()['lane'] == 'powerfactory'
         fin = esperar_trabajo(client, r.json())
         assert fin['status'] == 'done', fin
         assert vistos[0][0:2] == ('P', ['F1', 'F2'])
         assert vistos[0][2]['cambios'] == []
+        assert vistos[0][2]['conciliar_fases'] is True
+        assert vistos[0][2]['salidas'] == [{'nombre': 'Salida_1'}]
+        assert vistos[0][2]['verificar_flujos'] is True
         assert 'alimentadores_nuevos' not in vistos[0][2]
         r = client.post(f'/api/workspaces/{wid}/pf/obras/set-nueva/operacion',
                         json={'project': 'P', 'accion': 'borrar_set'})

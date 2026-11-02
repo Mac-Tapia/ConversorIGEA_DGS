@@ -1,7 +1,7 @@
 # Auditoría de IA y aprendizaje del proyecto local
 
 Inspección iniciada: 2026-11-01, 09:57, America/Lima.
-Repositorio: `D:/converter/ConversorIGEA_DGS`; nombre actual: ConverterSmartGrid.
+Repositorio: `D:/converter/ConversorIGEA_DGS`; nombre actual: ConverterSmartGrid. <!-- legado-058: ruta real del checkout existente -->
 Commit leído: `e307889c2f448e68398387799f4d656948295246` más modificaciones
 concurrentes, inventariadas en la evidencia. No se revirtieron ni incorporaron.
 
@@ -100,7 +100,7 @@ umbral universal. El destino debe admitir además el resto de los artefactos.
 ### A4. Alta — Aún no existe evidencia del alumno LLM generativo entrenado
 
 No se encontraron checkpoints `estado.json` del ajuste completo en su directorio.
-Los tags `igea-alumno-base:*` instalados son bases históricas de comparación,
+Los tags `igea-alumno-base:*` instalados son bases históricas de comparación, <!-- legado-058: identidad de modelos instalados, conservada literalmente -->
 conservadas por identidad, no un alumno destilado. QLoRA permanece como
 `ERROR_ENTORNO` en el registro y la API. El error mostrado allí es el del intento
 anterior; no es una medición en vivo de memoria.

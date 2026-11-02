@@ -218,6 +218,38 @@ def test_factibilidad_perdidas_medidas_no_inventa_anualizacion(tmp_path):
     assert 'MD kWh' not in texto
 
 
+def test_referencia_fallida_certificada_se_documenta_sin_imputacion(tmp_path):
+    """063:RF-11, 063:RF-35, 063:RF-38 — Word y JSON conservan N/C en la referencia."""
+    destino = tmp_path / 'certificado.docx'
+    datos = _factibilidad(tmp_path, cargas=Caso('Cargas nuevas', False),
+                          con_proyecto_verificado=True, incluir_transformador_set=False,
+                          perdidas_instantaneas=True,
+                          imagenes=_imagenes(tmp_path, 'actual', 'cargas', 'proyectado'))
+    escribir_informe_factibilidad(_config(tmp_path), destino, datos)
+    texto = _texto(destino)
+    assert 'viable con las obras' in texto
+    assert 'No converge / no evaluable sin obras' in texto
+    assert 'enlaces simplificados' in texto and 'sin resultados eléctricos' in texto
+    assert any('N/C' in c for fila in _filas(destino) for c in fila)
+    resumen = json.loads(destino.with_suffix('.json').read_text(encoding='utf-8'))
+    assert resumen['factible'] and resumen['conclusion_conexion']['clave'] == 'con_obras_verificadas'
+    assert resumen['cargas']['fuente'] is None and resumen['cargas']['perdidas'] is None
+    assert resumen['cargas']['nodos_fuera'] is None
+
+
+def test_punto_diseno_identifica_incremento_modelado_y_total_solicitado(tmp_path):
+    """063:RF-14, 063:RF-38 — los 520 kW incrementales no se llaman demanda total."""
+    from dataclasses import replace
+    destino = tmp_path / 'incremento.docx'
+    datos = _factibilidad(tmp_path, solicitud=replace(SOLICITUD, potencia_kw=1000, potencia_actual_kw=480),
+                          punto_diseno={'u_pu': .97, 'kv_ll': 9.7, 'kv_ln': 5.6,
+                                        'i_a': 31, 'kva': 520, 'kw': 520, 'kvar': 0})
+    escribir_informe_factibilidad(_config(tmp_path), destino, datos)
+    texto = _texto(destino)
+    assert 'incremento modelado de 520 kW y 0 kvar' in texto
+    assert 'potencia total solicitada de 1000 kW' in texto
+
+
 @pytest.mark.parametrize('tipo', ['estudio', 'factibilidad'])
 def test_ningun_dato_del_modelo_pasa_al_informe(tmp_path, tipo):
     """017:RF-3, 017:RF-6 — esquema general: del modelo solo la forma; n.º, referencia y cuerpo son nuevos."""

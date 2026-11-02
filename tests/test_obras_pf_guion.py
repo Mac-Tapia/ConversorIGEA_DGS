@@ -1168,18 +1168,21 @@ def test_basta_una_variante_que_cumple_para_saber_si_caben(monkeypatch):
 
 
 def test_los_sorteos_escalan_solo_las_cargas_existentes_y_se_restituyen(monkeypatch):
-    """025:RF-51, 025:RF-52 — en cada sorteo, la demanda de cada carga existente por el factor
-    de su alimentador, en un escenario temporal; al terminar, la de siempre."""
+    """025:RF-51, 025:RF-52, 063:RF-28 — en cada sorteo, la demanda de cada carga existente por
+    el factor de su alimentador, en un escenario temporal; al terminar, la de siempre. Se escala
+    ``scale0`` (la calibración) y no ``plini``: en SM218 escribir ``plini`` dejaba la demanda
+    fija con cualquier factor y todas las variantes salían al 94,5 %."""
     app, alims = _calibrada_con_escenario(random.Random(9))
     monkeypatch.setitem(guion.CONSTRUCTORES, 'terna', _terna)
     f = alims[0]
     carga = next(c for c in app.proyecto.GetContents('*.ElmLod', 1) if c.loc_name.startswith(f))
-    p0 = float(carga.plini)
+    p0, s0 = float(carga.plini), float(carga.scale0)
     vistos = []
     medir = guion.medida_para_criterio
 
     def registrar(app_, alims_, feeders):
-        vistos.append((getattr(app_.GetActiveScenario(), 'loc_name', ''), float(carga.plini)))
+        assert float(carga.plini) == p0, 'el sorteo no escribe plini (063:RF-28)'
+        vistos.append((getattr(app_.GetActiveScenario(), 'loc_name', ''), float(carga.scale0) / s0 * p0))
         return medir(app_, alims_, feeders)
 
     monkeypatch.setattr(guion, 'medida_para_criterio', registrar)
@@ -1190,7 +1193,7 @@ def test_los_sorteos_escalan_solo_las_cargas_existentes_y_se_restituyen(monkeypa
     assert codigo == 0, informe
     en_sorteo = [(e, p) for e, p in vistos if e.startswith('CSG_sorteo_escalera')]
     assert [round(p / p0, 6) for _, p in en_sorteo] == [0.5, 0.8, 0.5, 0.8]
-    assert float(carga.plini) == p0
+    assert float(carga.plini) == p0 and float(carga.scale0) == s0
 
 def test_datos_de_la_escalera_troncal_corriente_y_tramo_de_cada_carga():
     """025:RF-49, 025:RF-60 — en «Con proyecto», la troncal de cada alimentador desde la

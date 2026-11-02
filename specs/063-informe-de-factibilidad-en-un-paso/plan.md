@@ -64,7 +64,8 @@ por ruta completa dentro del proyecto vinculado. Evaluar copia el escenario y gr
 refuerzo estructural en una variación propia; no aparta cargas que crean tramos partidos.
 Los cambios admitidos se restringen a capacidades, referencias de tipos existentes y
 operación; no se permite bajar plini, qlini o scale0. Se conserva posición y potencia de
-COPARA. La salida de la central térmica queda en el escenario propio de operación. La
+COPARA. Las maniobras y la salida de la central térmica quedan registradas en sus
+propias etapas, con el escenario propio de operación coherente con ellas. La
 aplicación debe revertir nuevas variaciones si falta cobertura, demanda o aceptación, y
 releer tras reabrir para acreditar persistencia. El caso original conserva su escenario.
 
@@ -88,3 +89,71 @@ instantáneos se pueden informar sin inventar una anualización ni un precio de 
 - Front: `tsc` y `npm run build`; la web probada en el navegador real con un proyecto
   importado (constitución, «web probada de verdad»).
 - [DIgSILENT]: INKA en SM218 desde la web con un clic.
+
+## Fundamento y límites de la verificación física
+
+La continuidad se comprueba por referencias nativas de cubículos y terminales, incluyendo
+líneas, transformadores, acoples y estados de interruptores; los nombres de alimentadores
+no demuestran la fuente que atiende una carga. Toda transferencia debe conservar las cargas
+y evitar unir redes externas independientes. El análisis del grafo propone la maniobra;
+los flujos equilibrado y desequilibrado, la demanda efectiva y la relectura deciden su
+aceptación. Se comprueban ambos modos en el dictamen del informe.
+
+El enfoque se apoya en estas fuentes primarias consultadas en la web:
+
+- Duchesne, M. (2025). *Unbalanced Low Voltage Distribution Network Reinforcement*.
+  Tesis de maestría, Université de Liège.
+  <https://matheo.uliege.be/handle/2268.2/23284>: fundamento para estudiar el desequilibrio
+  y los refuerzos de la red.
+- Li, J. (2025). *Flexibility Integration and Pricing Strategy for Distribution Networks
+  to Unlock Spare Capacity*. Tesis doctoral (EngD), University of Bath.
+  <https://researchportal.bath.ac.uk/en/studentTheses/flexibility-integration-and-pricing-strategy-for-distribution-net/>:
+  evaluación de capacidad disponible y planificación de la distribución.
+- Georgilakis, P. S., y Hatziargyriou, N. D. (2015). *A review of power distribution
+  planning in the modern power systems era: Models, methods and future research*.
+  Electric Power Systems Research, 121, 89–100.
+  <https://doi.org/10.1016/j.epsr.2014.12.010>: artículo de revista científica indexada
+  sobre modelos y métodos de planificación de redes.
+
+Estas referencias justifican el método; no certifican este modelo ni prescriben sus
+ternas, ubicación, potencia, precios o límites. La ubicación y los 2×40 MVA de COPARA
+son condiciones del usuario. Los límites proceden del perfil seleccionado y se registran
+en cada evaluación. Una alternativa que cumple los límites no prueba por sí sola un
+óptimo global económico o eléctrico. Al aplicar se capturan también los dos flujos
+de Sin proyecto y de Cargas nuevas con las demandas sincronizadas, sin reconstruir
+los casos ni sustituir el escenario de operación por una recalibración anterior.
+
+Cuando la suma de entradas por fase de una carga histórica difiere de sus totales de
+calibración, `conciliar_fases=true` corrige esa incoherencia en la copia del escenario:
+conserva `plini`, `qlini`, `scale0`, modo, estado y proporciones relativas por fase. La
+firma de demanda se fija después de registrar y verificar esa conciliación. La misma
+demanda se copia a Cargas nuevas; los escenarios originales se conservan. La corrección
+no autoriza reducir demanda nominal para conseguir convergencia.
+
+`salidas` permite repartir la carga desde la SET existente hacia terminales existentes
+mediante líneas, cubículos y alimentadores propios. Cada ruta se aporta explícitamente,
+con su procedencia; el adaptador no consulta mapas. El enrutador habilitado por el perfil
+puede preparar las polilíneas por vías antes de la ejecución nativa. Cortes y salidas se
+validan antes de escribir y se releen después; se conservan ubicación y potencia de SET.
+
+La toma fija `nntap` se admite únicamente en un transformador con cambiador real, paso
+positivo y posición dentro de los límites nativos del tipo. No se combina con sustitución
+del tipo en la misma obra. Se registra en una variación propia y en la copia del escenario;
+se comprueba la posición efectiva después del flujo y de reabrir. La aplicación conserva
+la fecha del candidato y verifica nuevamente el modelo después de la restitución final:
+activar una etapa antigua puede cambiar la fecha del caso y dejar sin efecto obras nuevas.
+
+La continuación del 2026-11-02 distingue el diagnóstico de la referencia sin obras y la
+aceptación final solicitada por el usuario. Si la primera no tiene solución de flujo, el
+informe conserva ese resultado y un esquema de sus conexiones y demandas nominales,
+identificado expresamente sin resultados eléctricos. Únicamente la operación nativa final
+aceptada, persistida, conforme en ambos modos y verificada después de la restitución permite
+un dictamen condicionado a esas obras. No se alteran las reglas bloqueantes de otros informes
+sin esa evidencia. Se evita representar ausencia de resultados como cero violaciones o
+comparar pérdidas inexistentes.
+
+Para la persistencia se usa además el manual primario instalado de PowerFactory 2024,
+*Python Function Reference*, página impresa 529 (PDF 538): `IntScenario.Save()` devuelve
+1 cuando el escenario no está modificado o no está activo. Ese retorno exige comprobar
+identidad activa y datos guardados; no se interpreta automáticamente como éxito ni fallo
+de persistencia. La posterior reactivación y lectura física siguen siendo obligatorias.

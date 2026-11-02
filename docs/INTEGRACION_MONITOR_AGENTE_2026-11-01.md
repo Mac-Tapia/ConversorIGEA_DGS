@@ -63,7 +63,7 @@ cualquier proceso externo arbitrario. La ejecución sigue supervisada. El ciclo
 autónomo sincronizado y su aceptación integral siguen abiertos en050. El candidato
 GRU no está promovido. El entrenamiento generativo LLM completo sigue bloqueado por
 recursos del entorno; el informe lo muestra como tal. Esta entrega no acredita
-aceptación conjunta nativa ni modifica planos externos de IGEA.
+aceptación conjunta nativa ni modifica planos externos de la herramienta de origen.
 
 ## Justificación científica
 
