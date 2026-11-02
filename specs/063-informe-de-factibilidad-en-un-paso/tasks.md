@@ -98,6 +98,9 @@
       Hecho cuando: `pytest -q tests/test_informe_factibilidad_un_paso.py -k umbral` en verde, con cargas
       sorteadas por encima y por debajo del umbral.
       Hecho el 2026-11-01: `con_proyecto_optimizar` y `planificacion.set_nueva_desde_kw` en el perfil.
+- [x] T25. Los sorteos y el criterio de la escalera cubren todas las troncales. (RF-39, RF-40)
+      Hecho cuando: `pytest -q tests/test_obras_pf_guion.py -k "troncales or queda_fuera"` en verde.
+      Hecho el 2026-11-02: `_cargas_de` usa `cargas_sed`. Las dos pruebas fallaban antes del arreglo.
 - [ ] T7. [DIgSILENT] INKA'S BERRIES en SM218 desde la web con un clic. (Todos)
       Hecho cuando: el informe sale del botón de 4.4 sin pasar por 4.2, con los tres casos, y dice lo
       mismo que el informe hecho a mano el 2026-11-01.

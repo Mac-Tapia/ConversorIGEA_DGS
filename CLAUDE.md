@@ -109,18 +109,18 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
 
 ```bash
 .venv/Scripts/python.exe -m pytest -q                      # sintéticas: omiten las de datos reales
-CSG_RED="referencia/RED_030826(1).txt" CSG_LOADS="referencia/CARGA_030826(1).txt" \
-CSG_EQUIPMENT="referencia/BD_Equipo_V261124 (1)(1).txt" .venv/Scripts/python.exe -m pytest -q
+CSG_RED="D:/BaseDatosElectroDunas/referencia_retirada_20261102/RED_030826(1).txt" CSG_LOADS="D:/BaseDatosElectroDunas/referencia_retirada_20261102/CARGA_030826(1).txt" \
+CSG_EQUIPMENT="D:/BaseDatosElectroDunas/referencia_retirada_20261102/BD_Equipo_V261124 (1)(1).txt" .venv/Scripts/python.exe -m pytest -q
 ```
 
 Sin las tres variables `CSG_*`, la mayoría de las pruebas de integración se omiten en
 silencio y la suite «pasa» sin haber probado nada real. `CSG_TXT_DIR` no basta. La suite se da
 por buena solo sin ninguna omitida: con las nueve variables (las tres de los TXT, las dos
-de Access de abajo, `CSG_DEMANDA_DIR="referencia"`,
-`CSG_VNR_BAK="referencia/Electro Dunas VNRGIS/DAT_VNR/ELDU_VNR_24_APR.bak"`, con SQL Server
+de Access de abajo, `CSG_DEMANDA_DIR="D:/BaseDatosElectroDunas/referencia_retirada_20261102"`,
+`CSG_VNR_BAK="D:/BaseDatosElectroDunas/referencia_retirada_20261102/Electro Dunas VNRGIS/DAT_VNR/ELDU_VNR_24_APR.bak"`, con SQL Server
 Express en marcha, spec 023, y las dos de los PDF del solicitante, spec 017:
-`CSG_SOLICITUD_PDF="referencia/Carta_Sol_Fact_AMPC_480A1000.pdf"` e
-`CSG_SOLICITUD_DIR="referencia/ampliaciondecarga"`) y `-rs` pasan todas. El OCR de esas
+`CSG_SOLICITUD_PDF="D:/BaseDatosElectroDunas/referencia_retirada_20261102/Carta_Sol_Fact_AMPC_480A1000.pdf"` e
+`CSG_SOLICITUD_DIR="D:/BaseDatosElectroDunas/referencia_retirada_20261102/ampliaciondecarga"`) y `-rs` pasan todas. El OCR de esas
 pruebas usa Tesseract; el idioma `spa` puede ir en `~/.convertersmartgrid/tessdata` (o `CSG_TESSDATA`)
 si no se puede escribir en la carpeta de Tesseract.
 
@@ -138,7 +138,7 @@ además `CSG_DEMANDA_DIR`.
 ## Probar en DIgSILENT
 
 - Siempre por la web, como el operador: un sistema eléctrico entero con
-  `.venv/Scripts/python.exe tools/sistema_web.py --espacio <id> --zonal Pisco --demanda-dir referencia --periodo 2026-07`
+  `.venv/Scripts/python.exe tools/sistema_web.py --espacio <id> --zonal Pisco --demanda-dir D:/BaseDatosElectroDunas/referencia_retirada_20261102 --periodo 2026-07`
   (convierte, importa y calibra; retoma lo hecho). Nada de guiones del scratchpad que
   repitan la API.
 - Tras cambiar `src/convertersmartgrid/web/` o `src/convertersmartgrid/*.py` que use la web, reiniciarla: parar
@@ -161,4 +161,4 @@ además `CSG_DEMANDA_DIR`.
 - Dos disposiciones de export (reducida y completa): todo cambio en el lector se prueba con las dos.
 - Determinismo: el DGS es idéntico byte a byte con `workers=1` y con `workers>1`.
 - Idioma: código, comentarios, mensajes y commits en español, con el estilo de los existentes. Los comentarios explican **por qué**, con el caso real que lo motivó.
-- Los TXT de `referencia/` y `D:\BaseDatosElectroDunas` son datos de la distribuidora: nunca se publican ni se suben a git. Desde el 2026-10-27 el usuario autoriza leerlos (sin `deny` en `.claude/settings.json`) para diagnosticar; las pruebas los siguen leyendo por las variables `CSG_*`.
+- Los datos de prueba se retiraron del proyecto el 2026-11-02: están en `D:/BaseDatosElectroDunas/referencia_retirada_20261102` y la web los carga por su ruta; ningún código los lee directamente. Esos ficheros y `D:\BaseDatosElectroDunas` son datos de la distribuidora: nunca se publican ni se suben a git. Desde el 2026-10-27 el usuario autoriza leerlos (sin `deny` en `.claude/settings.json`) para diagnosticar; las pruebas los siguen leyendo por las variables `CSG_*`.

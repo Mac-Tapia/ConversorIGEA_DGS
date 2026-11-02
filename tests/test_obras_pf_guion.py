@@ -1425,3 +1425,58 @@ def test_cada_variante_dice_la_tension_que_deja(monkeypatch):
     assert set(fila['u_cargas']) == {barra}
     assert fila['u_cargas'][barra] is not None and fila['u_min_mt'] is not None
     assert fila['u_min_mt'] <= fila['u_cargas'][barra] + 1e-9
+
+
+def _segunda_troncal(app, f):
+    """Una carga etiquetada del alimentador y una barra de MT en una segunda troncal, fuera de
+    lo que devuelve ``ElmFeeder.GetObjs``: SM218 tiene 64 de sus 306 cargas así."""
+    elm = next(x for x in app.proyecto.GetContents('*.ElmFeeder', 1) if x.loc_name == f)
+    carga = next(iter(elm.GetObjs('ElmLod')))
+    barra = next(b for b in elm.GetObjs('ElmTerm') if float(getattr(b, 'uknom', 0) or 0) >= 1.0)
+    real, leer = elm.GetObjs, carga.GetAttribute
+    elm.GetObjs = lambda clase: [o for o in real(clase) if o is not carga and o is not barra]
+    carga.GetAttribute = lambda a: f if a == 'p:alimentador' else leer(a)
+    barra.m_u = 1.0                     # el flujo del doble solo da resultado a lo del ElmFeeder
+    return carga, barra
+
+
+def test_los_sorteos_y_el_criterio_cubren_todas_las_troncales(monkeypatch):
+    """063:RF-39 — SM218 (2026-11-02): ``ElmFeeder.GetObjs`` veía 242 de 306 cargas; las 64 de la
+    segunda troncal (1,698 MW) no se escalaban en los sorteos, sus barras no contaban en el
+    criterio y las pérdidas salían en 2 126 kW en vez de 428 kW."""
+    app, alims = _calibrada_con_escenario(random.Random(21))
+    monkeypatch.setitem(guion.CONSTRUCTORES, 'terna', _terna)
+    f = alims[0]
+    carga, barra = _segunda_troncal(app, f)
+    s0 = float(carga.scale0)
+    escalas, vistas = [], []
+    medir = guion.medida_para_criterio
+
+    def registrar(app_, alims_, feeders):
+        escalas.append(round(float(carga.scale0) / s0, 6))
+        m = medir(app_, alims_, feeders)
+        vistas.append(barra.loc_name in m['u'])
+        return m
+
+    monkeypatch.setattr(guion, 'medida_para_criterio', registrar)
+    plan = _plan(alims, variantes=[{'nombre': 'terna', 'obras': [_obra_terna(f, [CON])], 'costo_base': 1.0}],
+                 sorteos=[{'factores': {a: 0.5 for a in alims}}], barras_cargas=[], parametros=PERFIL_ESCALERA)
+    informe, codigo = guion.evaluar(app, plan)
+    assert codigo == 0, informe
+    assert 0.5 in escalas, 'la carga de la segunda troncal no se escalaba'
+    assert vistas and all(vistas), 'la barra de la segunda troncal no contaba en el criterio'
+    assert float(carga.scale0) == s0
+
+
+def test_con_parte_de_los_alimentadores_avisa_de_lo_que_queda_fuera(monkeypatch):
+    """063:RF-40 — en un proyecto de sistema no se recorre toda la red en cada sorteo (escala), y
+    las cargas etiquetadas fuera de la topología del alimentador se dicen, no se callan."""
+    app, alims = _calibrada_con_escenario(random.Random(22))
+    monkeypatch.setitem(guion.CONSTRUCTORES, 'terna', _terna)
+    f = alims[0]
+    _segunda_troncal(app, f)
+    plan = _plan([f], variantes=[{'nombre': 'terna', 'obras': [_obra_terna(f, [CON])], 'costo_base': 1.0}],
+                 sorteos=[], barras_cargas=[], parametros=PERFIL_ESCALERA)
+    informe, codigo = guion.evaluar(app, plan)
+    assert codigo == 0, informe
+    assert any('063:RF-40' in a and f in a for a in informe['avisos']), informe['avisos']

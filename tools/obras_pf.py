@@ -61,7 +61,7 @@ import traceback
 from pathlib import Path
 from typing import Any, Callable
 
-from ajuste_cabecera_pf import diagnostico
+from ajuste_cabecera_pf import _clave_objeto_nativo, cargas_sed, diagnostico
 from cargas_pf import (
     Alimentadores, activar_proyecto, cabecera_de, clave_pf, crear_variacion, error_inesperado, es_cable,
     completar_diagrama, distancia_m, flujo_de_carga, gps_de, leer_cabecera, leer_red, medir_estado,
@@ -1973,6 +1973,31 @@ def datos_oraculo(app, plan: dict) -> tuple[dict, int]:
     return informe, 0
 
 
+def _cargas_de(alims, feeder: str) -> list:
+    """Las cargas en servicio del alimentador, en todas sus troncales (063:RF-39).
+
+    ``ElmFeeder.GetObjs`` solo ve lo que cuelga de su cubículo: en SM218 (2026-11-02), 242 de 306
+    cargas; las 64 de la segunda troncal (1,698 MW) no se escalaban en los sorteos y las pérdidas
+    salían en 2 126 kW en vez de 428 kW. ``cargas_sed`` une la topología y ``p:alimentador``, como la
+    calibración (CA101: 95 de 168).
+    """
+    cargas = {_clave_objeto_nativo(c): c for c in cargas_sed(alims, feeder)[0].values()}
+    # La lista de ``alims`` se guardó en «Sin proyecto»: la carga nueva de «Con proyecto» solo la ve
+    # el ElmFeeder en el caso activo. Sin esto, INKA (1 100 kW) salía como pérdidas.
+    elm = alims.elm.get(feeder)
+    for c in (elm.GetObjs('ElmLod') if elm is not None else []):
+        if not getattr(c, 'outserv', 0):
+            cargas.setdefault(_clave_objeto_nativo(c), c)
+    return list(cargas.values())
+
+
+def _toda_la_red(alims, feeders: list[str]) -> bool:
+    """Si la evaluación abarca todos los alimentadores del proyecto: entonces el criterio mira
+    toda la red calculable. Con parte de un sistema se sigue por alimentador, porque recorrer la
+    red entera en cada sorteo no escala (CLAUDE.md, «Escala»)."""
+    return bool(alims.elm) and set(alims.elm) <= set(feeders)
+
+
 def medida_para_criterio(app, alims, feeders: list[str]) -> dict[str, Any]:
     """Lo que juzga ``escalera_optima.cumple``: si converge, la tensión de cada barra de media
     y la carga de cada tramo de los alimentadores, y sus pérdidas (025:RF-50, RF-53)."""
@@ -1981,7 +2006,11 @@ def medida_para_criterio(app, alims, feeders: list[str]) -> dict[str, Any]:
     if not out['converge']:
         return out
 
+    toda_la_red = app is not None and _toda_la_red(alims, feeders)            # 063:RF-39
+
     def objetos(f, clase):
+        if toda_la_red:
+            return []
         # 025:RF-75: los del alimentador en este caso y con esta variante; la lista guardada de
         # ``alims`` es la de «Sin proyecto», sin la barra de la carga nueva (NODE_T_CH_9 de
         # PN107 salía «a ? p.u.», 2026-10-24).
@@ -1993,6 +2022,19 @@ def medida_para_criterio(app, alims, feeders: list[str]) -> dict[str, Any]:
         except Exception:  # noqa: BLE001 - se usa la lista guardada
             return alims.objetos(f, clase)
 
+    barras_red = list(app.GetCalcRelevantObjects('*.ElmTerm')) if toda_la_red else []
+    lineas_red = list(app.GetCalcRelevantObjects('*.ElmLne')) if toda_la_red else []
+    for b in barras_red:
+        try:
+            if float(getattr(b, 'uknom', 0) or 0) >= 1.0 and b.HasResults():
+                out['u'][b.loc_name] = float(b.GetAttribute('m:u'))
+        except Exception:  # noqa: BLE001, S110 - sin resultado, no cuenta
+            pass
+    for ln in lineas_red:
+        try:
+            out['carga'][ln.loc_name] = float(ln.GetAttribute('c:loading'))
+        except Exception:  # noqa: BLE001, S110
+            pass
     for f in feeders:
         for b in objetos(f, 'ElmTerm'):
             try:
@@ -2013,7 +2055,7 @@ def medida_para_criterio(app, alims, feeders: list[str]) -> dict[str, Any]:
         cab = leer_cabecera(elm) if elm is not None else None
         if cab is None or not cab.converge or cab.kw is None:
             continue
-        consumo = [_resultado(c, 'm:Psum:bus1') for c in elm.GetObjs('ElmLod') if not getattr(c, 'outserv', 0)]
+        consumo = [_resultado(c, 'm:Psum:bus1') for c in _cargas_de(alims, f)]      # 063:RF-39
         if any(x is None for x in consumo):
             continue
         perdidas.append(cab.kw - 1000 * sum(consumo))
@@ -2065,7 +2107,7 @@ class _Sorteo:
         # ``scale0 × 0,35`` la demanda bajó a 3,2 MW e INKA subió a 0,960 p.u.
         self.base = {}
         for f in self.feeders:
-            for c in self.alims.objetos(f, 'ElmLod'):
+            for c in _cargas_de(self.alims, f):                              # 063:RF-39
                 if c.loc_name in self.existentes:
                     self.base[id(c)] = (c, f, float(getattr(c, 'scale0', 1.0) or 0.0))
         return self
@@ -2121,7 +2163,16 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
     try:
         # «Sin proyecto» con la máxima y con cada sorteo, una sola vez (RF-50).
         casos['sin'].Activate()
-        existentes = {c.loc_name for f in feeders for c in alims.objetos(f, 'ElmLod')}
+        existentes = {c.loc_name for f in feeders for c in _cargas_de(alims, f)}   # 063:RF-39
+        if not _toda_la_red(alims, feeders):
+            # 063:RF-40: sus barras y tramos no cuentan en el criterio: se dice, no se calla.
+            for f in feeders:
+                vistas = {c.loc_name for c in alims.objetos(f, 'ElmLod')}
+                fuera = [c.loc_name for c in _cargas_de(alims, f) if c.loc_name not in vistas]
+                if fuera:
+                    informe['avisos'].append(
+                        f'{f}: {len(fuera)} cargas fuera de su ElmFeeder se escalan, pero sus barras y tramos no '
+                        'cuentan en el criterio; evalúe todos los alimentadores del proyecto (063:RF-40).')
         sin_max = medida_para_criterio(app, alims, feeders)
         informe['sin_proyecto'] = {'converge': sin_max['converge'], 'perdidas_kw': sin_max['perdidas_kw']}
         sin_sorteos = []
