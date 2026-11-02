@@ -1,6 +1,6 @@
 # Spec 064 — Arnés de DIgSILENT sin atajos: un turno para todos y estado restituido
 
-Estado: implementada · Fecha: 2026-11-01
+Estado: cumplida · Fecha: 2026-11-01
 
 La auditoría de arquitectura del 2026-11-01 encontró que la spec 019, cumplida, dejaba
 caminos fuera del arnés. Siete guiones de `tools/` conectan con `GetApplication()` sin

@@ -12,5 +12,12 @@
       Hecho cuando: `tests/test_pf_servidor.py` pasa con órdenes que fallan y que lanzan.
 - [x] T6. `set_nueva_operacion_pf.py` en el servidor. (RF-8)
       Hecho cuando: una prueba lo encuentra en `GUIONES_SERVIBLES`.
-- [ ] T7. [DIgSILENT] Desde la web abierta con el acceso directo: una orden que falla y la siguiente encuentran el caso y la hora de antes. (RF-5, RF-6)
+- [x] T7. [DIgSILENT] Desde la web abierta con el acceso directo: una orden que falla y la siguiente encuentran el caso y la hora de antes. (RF-5, RF-6)
       Hecho cuando: el registro de la orden fallida dice qué se restituyó y una lectura posterior lo confirma.
+
+Evidencia de T7 (2026-11-02): en una copia de `20261101-101524_CSG_0205` (Electro Oriente),
+borrada al terminar, la orden que falla a mitad dejó activo «Caso base» y la hora de «Sin
+proyecto» 10⁶ s atrás; `pf_estado.restituir` dijo «caso «Sin proyecto» activo de nuevo; hora
+de estudio repuesta a 1793546125» y la foto final fue igual a la inicial. Por la web,
+abierta con el acceso directo, el servidor atendió una lectura de proyectos (código 0) y una
+orden fallida (código 2) con la foto tomada en la API real.
