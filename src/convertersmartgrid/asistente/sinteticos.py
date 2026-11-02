@@ -42,6 +42,8 @@ _TEXTOS = ('calibra el conversor una barra sin medidor', 'se convierten los traf
            'caída de tensión en {a}', 'pérdidas de {a}', 'flujo de carga de {a} en python')
 
 _PREFIJOS = ('', '', '', 'por favor ', 'oye ', 'quiero que ', 'necesito que ', 'puedes ', 'ahora ')
+#: Las cortesías, sin repetir: una frase con cortesía es de la misma familia que sin ella (068:RF-27).
+CORTESIAS = tuple(sorted({p.strip() for p in _PREFIJOS if p.strip()}, key=len, reverse=True))
 
 
 def normalizar(texto: str) -> str:

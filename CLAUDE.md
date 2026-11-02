@@ -95,6 +95,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 065 Cierre verificable de la auditoría integral | aprobada | ver sus tareas |
   | 066 Cada informe con su libro Excel, según el perfil de la empresa | cumplida |  |
   | 067 Asistente operativo: revisión, planes, modelos y tareas que funcionan desde la web | aprobada | falta T7, T8, T9 |
+  | 068 Dataset real del maestro: órdenes del operador, etiquetas de plata y currículo con su estilo | aprobada | falta T7, T8 |
 
   Las convenciones de cada empresa (CRS de origen, patrón de SED de medición, escala,
   carpeta de DIgSILENT) van en `config/perfil_empresa.json`, local y fuera de git, que

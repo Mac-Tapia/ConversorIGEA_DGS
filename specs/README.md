@@ -74,3 +74,4 @@ retirada.
 | [065](065-cierre-de-auditoria-integral/spec.md) | Cierre verificable de la auditoría integral | aprobada | 25 | 24 | T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12 (DIgSILENT), T13 |
 | [066](066-libro-de-cada-informe/spec.md) | Cada informe con su libro Excel, según el perfil de la empresa | cumplida | 12 | 12 | — |
 | [067](067-asistente-operativo/spec.md) | Asistente operativo: revisión, planes, modelos y tareas que funcionan desde la web | aprobada | 40 | 40 | T8, T9 (DIgSILENT) |
+| [068](068-dataset-real-del-maestro/spec.md) | Dataset real del maestro: órdenes del operador, etiquetas de plata y currículo con su estilo | aprobada | 42 | 42 | T7, T8 |

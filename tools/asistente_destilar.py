@@ -55,10 +55,13 @@ def main(argv=None) -> int:
             entrenar_destilacion, guardar_corpus, preparar_corpus, verificar_reapertura)
         if args.accion == 'preparar':
             from convertersmartgrid.asistente import almacen
+            from convertersmartgrid.asistente.maestro_real import leer_etiquetas
             vocab = json.loads(args.vocabulario.read_text(encoding='utf-8')) if args.vocabulario else {}
-            filas, meta = preparar_corpus(vocab, almacen.leer('ejemplos'), por_familia=args.por_familia)
+            etiquetas, lectura = leer_etiquetas(almacen.raiz())                # 068:RF-33
+            filas, meta = preparar_corpus(vocab, almacen.leer('ejemplos'), por_familia=args.por_familia,
+                                          etiquetas_reales=etiquetas)
             guardar_corpus(args.destino, filas, meta)
-            resultado = {'ok': True, **meta}
+            resultado = {'ok': True, **meta, 'lectura_etiquetas': dict(lectura)}
         elif args.accion == 'entrenar':
             from convertersmartgrid.asistente.transformer import Configuracion
             from convertersmartgrid.training_coordinator import BloqueoGPU

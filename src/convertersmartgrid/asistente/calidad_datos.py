@@ -10,7 +10,7 @@ from typing import Any
 
 CALIDADES = (
     'gold_human', 'gold_native', 'silver_deterministic',
-    'silver_teacher_verified', 'context', 'quarantine',
+    'silver_teacher_verified', 'silver_maestro_texto_real', 'context', 'quarantine',
 )
 
 

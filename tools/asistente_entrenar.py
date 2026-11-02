@@ -87,7 +87,9 @@ def main(argv=None) -> int:
             from convertersmartgrid.training_coordinator import BloqueoGPU
             destino = salida.parent / (salida.stem + '_integral')
             vocab = json.loads(args.vocabulario.read_text(encoding='utf-8')) if args.vocabulario else {}
-            filas, meta = preparar_corpus(vocab, almacen.leer('ejemplos'))
+            from convertersmartgrid.asistente.maestro_real import leer_etiquetas
+            filas, meta = preparar_corpus(vocab, almacen.leer('ejemplos'),                 # 068:RF-33
+                                          etiquetas_reales=leer_etiquetas(almacen.raiz())[0])
             guardar_corpus(destino / 'corpus', filas, meta)
             lock = Path(os.environ.get('CSG_ML_GPU_LOCK') or str(Path(tempfile.gettempdir()) / 'convertersmartgrid-gpu.lock'))
             with BloqueoGPU(lock, 'asistente-integral-web'):
