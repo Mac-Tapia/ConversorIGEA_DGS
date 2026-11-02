@@ -275,6 +275,14 @@ class TipoObraRespuesta(Respuesta):
 
 
 class ObraRespuesta(Respuesta):
+    """Campos comunes declarados; cada clase de obra guarda además los suyos (065:RF-26).
+
+    Dos espacios reales traían ``enlace`` y ``km``, escritos por versiones anteriores: un contrato cerrado
+    devolvía 500 al abrirlos y el operador perdía el espacio entero por un dato de más.
+    """
+
+    model_config = ConfigDict(extra='allow')
+
     clase: str
     alimentador: str
     casos: list[str]
@@ -326,9 +334,12 @@ class LibroClienteRespuesta(Respuesta):
 
 
 class LibroCabeceraRespuesta(Respuesta):
-    nombre: str
+    """Una fila del índice tal como la guarda ``services`` (025:RF-28): el tamaño y la fecha deciden si se reabre."""
+
     relativa: str
     anio: int | None
+    size: int
+    mtime_ns: int
     hojas: list[str]
     meses: list[str]
     error: str | None

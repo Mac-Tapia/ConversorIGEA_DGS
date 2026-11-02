@@ -395,7 +395,10 @@ def test_rutas_de_deriva_y_vuelta(tmp_path, monkeypatch):
     monkeypatch.setattr(services, 'gemelo_deriva', lambda ws, ctx: {'proponer_reentrenar': True, 'motivos': ['x']})
     import convertersmartgrid.asistente.transformer as tr
 
-    monkeypatch.setattr(tr, 'volver_al_anterior', lambda: 'v1')
+    # Volver atrás también toca el registro de modelos (067:RF-23): sin esta carpeta, la prueba
+    # retiraría el modelo activo del registro real del equipo.
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'asistente'))
+    monkeypatch.setattr(tr, 'volver_al_anterior', lambda nombre='ordenes': 'v1')
     with TestClient(create_app(tmp_path / 'web')) as c:
         wid = c.post('/api/workspaces').json()['id']
         fin = esperar_trabajo(c, c.post(f'/api/workspaces/{wid}/digital-twin/deriva').json())

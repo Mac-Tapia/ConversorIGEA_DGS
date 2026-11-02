@@ -36,6 +36,7 @@ correcciones y guardas; no amplía silenciosamente specs ya cumplidas.
 - RF-23: CUANDO coordine el equipo del asistente, EL SISTEMA vinculará cada acción con su responsable, entradas, salida, decisión de revisión y límites de concurrencia.
 - RF-24: EL SISTEMA verificará el candidato integrado mediante instalación reproducible, regresión, build y arranque aislado, conservando los fallos y las exclusiones.
 - RF-25: CUANDO reparta alimentadores entre procesos, EL SISTEMA limitará cada proceso a un hilo de cálculo numérico, salvo que el operador haya fijado otro valor.
+- RF-26: SI un espacio guardado trae campos propios de una obra ya aplicada o su índice de cabecera, ENTONCES EL SISTEMA lo abrirá sin error y conservará esos campos en la respuesta.
 
 ## Relación con specs existentes
 

@@ -28,3 +28,5 @@
   Hecho cuando: evidencia integrada conserva resultados y pendientes sin omisiones ocultas.
 - [x] T14 Un hilo de cálculo por proceso en el reparto. (RF-25)
   Hecho cuando: `pytest -q tests/test_batch_hilos.py` y `pytest -q tests/test_linea_base_001.py -k cuatro_procesos` en verde.
+- [x] T15 Los espacios guardados se abren con el contrato de la API. (RF-26)
+  Hecho cuando: `pytest -q tests/test_contrato_api.py tests/test_libros_por_anio_web.py` en verde y todos los `workspace.json` reales validan contra `EspacioRespuesta`.

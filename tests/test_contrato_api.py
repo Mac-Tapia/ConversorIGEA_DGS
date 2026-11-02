@@ -119,6 +119,33 @@ def test_generacion_reproducible_y_detecta_deriva(tmp_path):
     assert h.generar(esquema, RAIZ, tmp_path / 'tercero') != primero
 
 
+def test_espacio_guardado_con_obras_e_indice_se_abre(tmp_path):
+    """065:RF-26 — lo ya guardado se abre: campos propios de cada obra e índice de cabecera (025:RF-28)."""
+    from convertersmartgrid.web.app import create_app
+
+    app = create_app(tmp_path / 'web')
+    with TestClient(app) as cliente:
+        wid = cliente.post('/api/workspaces').json()['id']
+        ws = app.state.store.get(wid)
+        comunes = {'alimentador': 'A1', 'casos': ['Con proyecto']}
+        ws.obras_aplicadas = [
+            {'project': 'P', 'variacion': 'V', 'aplicada': 1.0, 'obra': {
+                'clase': 'enlace', **comunes, 'cede': 'A2', 'enlace': {'recibe': 'A1', 'cede': 'A2', 'kv_recibe': 22.9}}},
+            {'project': 'P', 'variacion': 'V', 'aplicada': 2.0, 'obra': {
+                'clase': 'seccion', **comunes, 'tramos': ['T1'], 'km': 6.58}},
+        ]
+        ws.demanda = {'cabecera': {'name': 'carpeta', 'origin': 'server', 'indice': [
+            {'relativa': '2025/libro.xlsx', 'anio': 2025, 'size': 10, 'mtime_ns': 1793645327878408100,
+             'hojas': ['H'], 'meses': ['2025-01'], 'error': None}]}}
+        ws.save()
+        respuesta = cliente.get(f'/api/workspaces/{wid}')
+        assert respuesta.status_code == 200, respuesta.text
+        cuerpo = respuesta.json()
+        assert cuerpo['obras_aplicadas'][0]['obra']['enlace']['recibe'] == 'A1'
+        assert cuerpo['obras_aplicadas'][1]['obra']['km'] == 6.58
+        assert cuerpo['demanda']['cabecera']['indice'][0]['relativa'] == '2025/libro.xlsx'
+
+
 @pytest.mark.parametrize('disposicion', ['reducido', 'completo'])
 def test_contrato_preserva_espacio_cargado_y_obra_real(tmp_path, disposicion):
     """065:RF-17; 002:RF-16 — contratos anidados sobre lector y obra reales, sin motor nativo."""
