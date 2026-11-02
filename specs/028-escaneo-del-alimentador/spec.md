@@ -105,8 +105,11 @@ diferentes que no se deben mezclar»; «estas selecciones de centrales térmicas
 la web y se activen una vez se detecte en la recalibración bancos y centrales, en cualquier
 alimentador o barra de cabecera»)
 
-- RF-27: DONDE el proyecto sea de un sistema, EL SISTEMA buscará la máxima por barra (022:RF-37); DONDE
-  sea de alimentadores, buscará por alimentador; el tipo lo da el proyecto y el operador no los cruza.
+- RF-27: EL SISTEMA dará en la web un selector con tres tipos de análisis, que no se mezclan: alimentadores (uno a tres
+  juntos, RF-28), SET (máxima de su barra, 022:RF-37) y sistema eléctrico (RF-31). Propondrá sistema eléctrico si el proyecto
+  es de un sistema y alimentadores en otro caso, y el operador podrá cambiarlo. Con más de tres alimentadores no
+  buscará como «alimentadores» y lo dirá. Cambiado el 2026-11-02 por el usuario: «esto debe venir desde la web, la
+  selección de qué análisis se va a hacer»; solo para proyectos futuros: NA203_NA205 no se recalibra.
 - RF-28: DONDE un proyecto tenga dos o más alimentadores, EL SISTEMA los calibrará en un único instante:
   el de la mayor demanda coincidente de todos, sumando en cada alimentador con central sus dos zonas
   (021:RF-31) y descartando los registros que no pasen los filtros de esa central (021:RF-30, RF-32).
@@ -116,6 +119,12 @@ alimentador o barra de cabecera»)
 - RF-30: CUANDO haya un escaneo del proyecto, también el automático de una calibración o recalibración,
   EL SISTEMA activará en la web la selección de medidores de cada central hallada y avisará de lo
   detectado en cada alimentador y barra de cabecera, sin que el operador tenga que escanear otra vez.
+
+- RF-31: DONDE el análisis sea de sistema eléctrico, EL SISTEMA calibrará todas sus SET en un único instante: el de la mayor
+  suma coincidente de sus barras de 60 kV; una SET sin medidor de 60 kV no fija el instante, se calibra en él y lo avisará.
+  Una barra con huecos cuenta donde tiene registro y no descarta las demás fechas; SI no tiene el registro del instante,
+  ENTONCES no suma y lo avisará. SI un alimentador no tiene registro en el instante, ENTONCES no se le atribuirá otro y lo
+  nombrará. SI ninguna SET tiene barra de 60 kV, ENTONCES lo dirá y no buscará.
 
 ## Fuera de alcance
 

@@ -165,14 +165,17 @@ def test_guion_lista_lo_conectado_en_la_barra_de_cabecera(guion):
     assert len(app.creados) == antes
 
 
-def test_front_activa_lo_detectado_con_el_escaneo_guardado():
-    """028:RF-27 / 028:RF-30 — el tipo de proyecto decide sin casilla, y el escaneo automático de la
-    recalibración también activa la selección."""
+def test_front_selector_y_lo_detectado_con_el_escaneo_guardado():
+    """028:RF-27 / 028:RF-30 / 028:RF-31 — el operador elige entre los tres análisis, y el escaneo
+    automático de la recalibración también activa la selección."""
     from pathlib import Path
 
     raiz = Path(__file__).resolve().parents[1] / 'frontend' / 'src'
     demanda = (raiz / 'components' / 'DemandaMedida.tsx').read_text(encoding='utf-8')
     assert 'setPorBarra' not in demanda and 'type="checkbox" checked={porBarra}' not in demanda
+    for valor in ('alimentadores', 'set', 'sistema'):
+        assert f'<option value="{valor}">' in demanda
+    assert "sistema_60kv: tipoAnalisis === 'sistema'" in demanda and 'feeders.length > 3' in demanda
     assert 'api.pfEscaneoGuardado(ws.id)' in demanda and 'function DetectadoEnElEscaneo' in demanda
     assert 'coincidente: !porBarra' in demanda
 

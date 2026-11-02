@@ -239,6 +239,6 @@ def test_proyecto_por_sistema_en_la_calibracion():
     """022:RF-54 — con un proyecto por sistema eléctrico, la web lee su sistema, marca la
     máxima por barra de SET y dice qué alimentadores quedan sin medidor (022:RF-53)."""
     assert 'api.demandaSistema(ws.id, project)' in DEMANDA
-    assert 'setEsSistema(Boolean(r.sistema));' in DEMANDA
+    assert "setTipoAnalisis(r.sistema ? 'sistema' : 'alimentadores');" in DEMANDA
     assert 'Sin medidor (quedan con la demanda del archivo, en los mismos flujos)' in DEMANDA
     assert '/demanda/sistema?project=' in API and 'export interface SistemaDelProyecto' in TIPOS

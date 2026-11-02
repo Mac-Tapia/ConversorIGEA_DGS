@@ -202,12 +202,13 @@ export const api = {
   // registro de esa fecha y hora en todos los medidores (calibración coincidente).
   demandaCabecera: (id: string, medidores: { alimentador: string; medidor: string }[],
     criterio: { periodo?: string; instante?: string; por_barra?: boolean;
-      centrales_tramo?: Record<string, string>; coincidente?: boolean;
+      centrales_tramo?: Record<string, string>; coincidente?: boolean; sistema_60kv?: boolean;
       centrales?: Record<string, { generacion: string; llegada: string; salida: string }> } = {}) =>
     request<Job>(`${ws(id)}/demanda/cabecera/buscar`, json('POST', {
       medidores, periodo: criterio.periodo || null, instante: criterio.instante || null,
       por_barra: Boolean(criterio.por_barra), centrales_tramo: criterio.centrales_tramo ?? {},
       coincidente: Boolean(criterio.coincidente), centrales: criterio.centrales ?? {},
+      sistema_60kv: Boolean(criterio.sistema_60kv),
     })),
   // 022:RF-88: las centrales térmicas (CT…) del libro, para decir si van en barra o en tramo.
   demandaCentrales: (id: string) =>

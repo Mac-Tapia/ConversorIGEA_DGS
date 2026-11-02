@@ -1199,3 +1199,25 @@ def test_instante_coincidente_respeta_el_mes_y_avisa_si_la_central_no_cuadra():
     assert r['avisos'] and 'B' in r['avisos'][0], SEMILLA
     otro = dm.instante_coincidente({'A': a, 'B': cab}, {}, periodo='2030-01')
     assert otro['fecha'] is None and otro['avisos'], SEMILLA
+
+
+def test_sesenta_kv_la_mayor_suma_coincidente_no_la_de_cada_barra():
+    """028:RF-31 — la mayor suma de las barras, con sus transformadores, aunque ninguna marque ahí su máxima."""
+    t0 = datetime(2026, 9, 1)
+    f = [t0 + timedelta(minutes=15 * i) for i in range(5)]
+    curva = lambda *kw: [(t, k, None) for t, k in zip(f, kw)]
+    r = dm.instante_de_barras_de_alta({'SET A': [curva(10, 90, 60, 10, 10)],
+                                       'SET B': [curva(5, 5, 30, 45, 5), curva(5, 5, 30, 45, 5)]})
+    assert r['fecha'] == f[2] and r['total_kw'] == pytest.approx(120.0)
+    assert dm.instante_de_barras_de_alta({'SET A': [curva(1, 2, 3, 4, 5)]}, periodo='2030-01') is None
+    assert dm.instante_de_barras_de_alta({}) is None
+
+
+def test_sesenta_kv_un_medidor_con_huecos_no_descarta_las_demas_fechas():
+    """028:RF-31 — caso de Chincha: una barra casi muerta, con pocos registros, no fija el instante."""
+    t0 = datetime(2026, 7, 1)
+    f = [t0 + timedelta(minutes=15 * i) for i in range(5)]
+    curva = lambda *kw: [(t, k, None) for t, k in zip(f, kw) if k is not None]
+    r = dm.instante_de_barras_de_alta({'SET A': [curva(10, 90, 20, 30, 10)],
+                                       'SET CHN': [curva(None, None, None, 8, 8)]})
+    assert r['fecha'] == f[1] and r['total_kw'] == pytest.approx(90.0)

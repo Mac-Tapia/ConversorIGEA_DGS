@@ -2260,7 +2260,8 @@ def demanda_cabecera(ws: Workspace, ctx: JobContext, pares: list[tuple[str, str]
                      periodo: str | None = None, instante: datetime | None = None,
                      por_barra: bool = False, centrales_tramo: dict[str, str] | None = None,
                      coincidente: bool = False,
-                     centrales: dict[str, dict[str, str]] | None = None) -> dict:
+                     centrales: dict[str, dict[str, str]] | None = None,
+                     sistema_60kv: bool = False) -> dict:
     """Máxima de cada medidor en la medición de cabecera (RF-24 a RF-32). Es un trabajo:
     abrir los libros cuesta segundos (P7). Se cancela entre medidores.
 
@@ -2273,7 +2274,8 @@ def demanda_cabecera(ws: Workspace, ctx: JobContext, pares: list[tuple[str, str]
     if not pares:
         raise UserError('Indique al menos un medidor.')
     if por_barra and instante is None:
-        return _demanda_por_barra(ws, ctx, pares, periodo, centrales_tramo)   # 022:RF-37 a RF-46, RF-88
+        return _demanda_por_barra(ws, ctx, pares, periodo, centrales_tramo,   # 022:RF-37 a RF-46, RF-88
+                                  sistema_60kv=sistema_60kv)                  # 028:RF-31
     alimentadores = {a: m for a, m in pares if not a.startswith('Central ')}
     conjunto = None
     if coincidente and instante is None and len(alimentadores) > 1:           # 028:RF-28
@@ -2415,7 +2417,8 @@ def demanda_centrales_de_barra(ws: Workspace) -> dict:
 
 
 def _demanda_por_barra(ws: Workspace, ctx: JobContext, pares: list[tuple[str, str]],
-                       periodo: str | None, centrales_tramo: dict[str, str] | None = None) -> dict:
+                       periodo: str | None, centrales_tramo: dict[str, str] | None = None, *,
+                       sistema_60kv: bool = False) -> dict:
     """La máxima de cada barra de SET con medidor y sus alimentadores en esa fecha y hora
     (022:RF-37 a RF-46). El usuario, el 2026-10-17: «cuando se identifique el máximo valor
     en la barra, los alimentadores de la misma barra se deben calibrar con la misma fecha
@@ -2457,9 +2460,16 @@ def _demanda_por_barra(ws: Workspace, ctx: JobContext, pares: list[tuple[str, st
                 f'{len(alimentadores)} alimentador(es)' + (f' · {periodo}' if periodo else ''))
         # 027:RF-25: los libros se leen en el proceso del trabajo, no en el de la API.
         res, info, avisos, de_barra, instantes = ctx.en_proceso(
-            maximas_por_barra, libros, alias, barras, pares, periodo, avisos)
+            maximas_por_barra, libros, alias, barras, pares, periodo, avisos, comun_60kv=sistema_60kv)
     except DemandaError as exc:
         raise UserError(str(exc)) from exc
+    if sistema_60kv:
+        # 028:RF-31: CHN101, CHN102 y CHN201 no tienen el registro del instante de Chincha: no se
+        # les da otra fecha (el sistema tiene una sola), y el operador lo tiene que ver.
+        sin_registro = sorted({r.alimentador for r in res if r.error})
+        if sin_registro:
+            avisos.append(f'{", ".join(sin_registro)}: sin registro en el instante del sistema; '
+                          'no se calibran con él: revise su medición (028:RF-31).')
     for aviso in avisos:
         ctx.log(f'  aviso: {aviso}')
     with ws.lock:
@@ -2469,7 +2479,9 @@ def _demanda_por_barra(ws: Workspace, ctx: JobContext, pares: list[tuple[str, st
         ws.criterio_cabecera = {ctx.job.id: {'periodo': periodo, 'instante': None,
                                              'instantes': instantes}}
     return {'resultados': [r.to_dict() for r in res], 'cancelado': False, 'periodo': periodo,
-            'instante': None, 'por_barra': True, 'barras': info, 'avisos': avisos}
+            'instante': None, 'por_barra': True, 'barras': info, 'avisos': avisos,
+            'sistema_60kv': ({'fecha': next(iter(x['fecha'] for x in info), None),
+                              'total_kw': sum(x['kw'] or 0.0 for x in info if x['alta'])} if sistema_60kv else None)}
 
 
 # Puntos de la curva que se envían a la web: con ~1 000 px de gráfica, más no se distinguen.

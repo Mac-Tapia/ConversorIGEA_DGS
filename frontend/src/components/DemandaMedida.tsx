@@ -216,10 +216,10 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   // Spec 025, RF-22: el año de las mediciones, siempre elegido por el operador; con él,
   // ``periodo`` es «AAAA» (todo el año) o uno de sus meses.
   const [anio, setAnio] = useState('');
-  // 028:RF-27: lo decide el tipo de proyecto, no una casilla: un sistema, por barra (022:RF-39 a
-  // RF-41); un proyecto de alimentadores, su instante común. «Son cosas diferentes, no se mezclan».
-  const [esSistema, setEsSistema] = useState(false);
-  const porBarra = esSistema;
+  // 028:RF-27: el operador elige el análisis: alimentadores (1 a 3 juntos), SET (máxima de barra, 022:RF-39
+  // a RF-41) o sistema eléctrico (barras de 60 kV coincidentes, RF-31). «Son cosas diferentes, no se mezclan».
+  const [tipoAnalisis, setTipoAnalisis] = useState<'alimentadores' | 'set' | 'sistema'>('alimentadores');
+  const porBarra = tipoAnalisis !== 'alimentadores';
   // 028:RF-30: el último escaneo de cada proyecto, también el automático de una recalibración.
   const [escaneosGuardados, setEscaneosGuardados] = useState<Record<string, Escaneo>>({});
   // 022:RF-88: las centrales térmicas (CT…) del libro y dónde se conecta cada una: en la
@@ -277,13 +277,13 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   }, [project, marcados]);
 
   useEffect(() => {
-    if (!project) { setSistema(null); setEsSistema(false); return; }
+    if (!project) { setSistema(null); setTipoAnalisis('alimentadores'); return; }
     let vivo = true;
     api.demandaSistema(ws.id, project).then((r) => {
       if (!vivo) return;
       setSistema(r.sistema);
-      setEsSistema(Boolean(r.sistema));
-    }).catch(() => { setSistema(null); setEsSistema(false); });
+      setTipoAnalisis(r.sistema ? 'sistema' : 'alimentadores');
+    }).catch(() => { setSistema(null); setTipoAnalisis('alimentadores'); });
     return () => { vivo = false; };
   }, [ws.id, project, ws.demanda?.medidores?.name]);
 
@@ -357,10 +357,12 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   const maxima = (instante = '') => {
     if (!elegidos.length) { toast('error', 'Elija al menos un medidor', ''); return; }
     startJob(() => api.demandaCabecera(ws.id, aBuscar, { periodo, instante, por_barra: porBarra && !instante,
+      sistema_60kv: tipoAnalisis === 'sistema' && !instante,
       centrales_tramo: centralTramo, coincidente: !porBarra && !instante && feeders.length > 1,
       centrales: Object.fromEntries(feeders.filter((f) => centralCompleta(centrales[f])).map((f) => [f, {
         generacion: centrales[f].generacion, llegada: centrales[f].llegada, salida: centrales[f].salida }])) }));
   };
+  const demasiados = tipoAnalisis === 'alimentadores' && feeders.length > 3;
   const instanteActual = (ultimo?.result?.instante as string | null | undefined) ?? '';
   const barrasSet = (ultimo?.result?.barras as BarraDeSet[] | undefined) ?? [];
   const periodoBuscado = (ultimo?.result?.periodo as string | null | undefined) ?? '';
@@ -601,14 +603,18 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
       {faltaAnio && <small className="muted">Hay mediciones de {anios.join(', ')}: elija el año antes de buscar la
         máxima, para no mezclar años.</small>}
       <div className="row">
-        <button className="btn btn-primary" disabled={!elegidos.length || !ws.demanda?.cabecera || engineBusy || faltaAnio} onClick={() => maxima()}>
+        <button className="btn btn-primary" disabled={!elegidos.length || !ws.demanda?.cabecera || engineBusy || faltaAnio || demasiados} onClick={() => maxima()}>
           Buscar la máxima ({aBuscar.length} medidor{aBuscar.length === 1 ? '' : 'es'})
         </button>
-        <small className="muted">{porBarra
-          ? 'Análisis por sistema: máxima de barra de SET (60 kV → 22,9 y 10 kV).'
-          : feeders.length > 1
-            ? 'Análisis por alimentador: un único instante, el de la mayor demanda coincidente con sus centrales.'
-            : 'Análisis por alimentador: su máxima, con su central si la tiene.'}</small>
+        <label className="field-inline">Tipo de análisis{' '}
+          <select value={tipoAnalisis} disabled={engineBusy}
+            onChange={(e) => setTipoAnalisis(e.target.value as 'alimentadores' | 'set' | 'sistema')}>
+            <option value="alimentadores">Alimentadores (1 a 3 juntos): su máxima coincidente</option>
+            <option value="set">Por SET: máxima de barra de SET (60 kV → 22,9 y 10 kV)</option>
+            <option value="sistema">Sistema eléctrico: máxima coincidente de sus barras de 60 kV</option>
+          </select>
+        </label>
+        {demasiados && <small className="muted">Son {feeders.length} alimentadores: elija SET o sistema eléctrico, o marque hasta 3.</small>}
         {!ws.demanda?.cabecera && <small className="muted">Falta la medición de cabecera.</small>}
       </div>
       {porBarra && !!centralesLibro?.length && (
