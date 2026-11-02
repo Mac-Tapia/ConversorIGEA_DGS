@@ -167,19 +167,23 @@ def _leer_por_sistema(libro, alimentador: str, config: Mapping[str, Any]) -> Dat
     sistema = str(sistema).strip() if sistema not in (None, '') else None
     tabla = hoja(config['hoja_perdidas'])
     fila_t, i = _cabecera(tabla, {'clave': config['columna_clave']})
-    faltan: list[str] = ['precio de compra: el libro no lo trae']
+    # 066:RF-3: el precio está en la hoja del informe del libro, no en las de pérdidas.
+    precio = None
+    if config.get('hoja_precio') and config.get('celda_precio'):
+        precio = _numero(hoja(config['hoja_precio'])[config['celda_precio']])
+    faltan: list[str] = [] if precio is not None else ['precio de compra: el libro no lo trae']
     if codigo is None:
         faltan.insert(0, f'el código del sistema de {nombre}')
-        return DatosPerdidas(nombre, sistema, None, None, None, tuple(faltan))
+        return DatosPerdidas(nombre, sistema, None, None, precio, tuple(faltan))
     # La primera fila del código: el libro repite cada sistema más abajo con sus factores.
     for fila in tabla.iter_rows(min_row=fila_t + 1):
         if _clave(fila[i['clave']].value or '') == _clave(codigo):
             kw = _porcentaje(tabla[f"{config['letra_kw_pct']}{fila[0].row}"])
             kwh = _porcentaje(tabla[f"{config['letra_kwh_pct']}{fila[0].row}"])
             faltan += [f'{t} de {codigo}' for t, v in (('reconocidas en kW', kw), ('reconocidas en kWh', kwh)) if v is None]
-            return DatosPerdidas(nombre, sistema, kw, kwh, None, tuple(faltan), codigo)
+            return DatosPerdidas(nombre, sistema, kw, kwh, precio, tuple(faltan), codigo)
     faltan.insert(0, f'el sistema {codigo} no está en la hoja {tabla.title!r}')
-    return DatosPerdidas(nombre, sistema, None, None, None, tuple(faltan), codigo)
+    return DatosPerdidas(nombre, sistema, None, None, precio, tuple(faltan), codigo)
 
 
 def leer_libro_perdidas(ruta: Path, alimentador: str, columnas: ColumnasPerdidas) -> DatosPerdidas:

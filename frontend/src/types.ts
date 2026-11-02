@@ -1038,6 +1038,11 @@ export interface InformeResultado {
   /** 063:RF-42: el PDF junto al Word o, si no se pudo, el motivo. */
   pdf?: string | null;
   sin_pdf?: string;
+  /** 066:RF-11: el libro de la empresa, lo que quedó vacío y lo que no cuadra. */
+  libro_xlsx?: string | null;
+  sin_libro?: string;
+  huecos_libro?: string[];
+  avisos_libro?: string[];
   json: string;
   huecos: string[];
   estudios: string[];

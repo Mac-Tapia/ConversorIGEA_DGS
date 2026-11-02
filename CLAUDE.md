@@ -92,6 +92,8 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 062 Retención diaria de ejecuciones y temporales | cumplida | T1–T4 verificadas; primera revisión real sin errores |
   | 063 Evaluación de conexión y operación comercial en un paso, para cualquier alimentador | cumplida |  |
   | 064 Arnés de DIgSILENT sin atajos: un turno para todos y estado restituido | cumplida |  |
+  | 065 Cierre de auditoría integral (rama `codex/mejoras-auditoria-integral`) | reservada |  |
+  | 066 Cada informe con su libro Excel, según el perfil de la empresa | implementada | falta T7 |
 
   Las convenciones de cada empresa (CRS de origen, patrón de SED de medición, escala,
   carpeta de DIgSILENT) van en `config/perfil_empresa.json`, local y fuera de git, que

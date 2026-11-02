@@ -101,14 +101,16 @@ def test_sin_pdf_se_dice_el_motivo_y_el_word_sigue(tmp_path, fallo):
 
 @pytest.mark.skipif(not os.environ.get('CSG_DEMANDA_DIR'), reason='CSG_DEMANDA_DIR no definida')
 def test_libro_real_de_la_empresa():
-    """063:RF-41 — el libro real con el perfil de la empresa: SM218 → SE2044 → 1,69 % y 2,75 %."""
+    """063:RF-41, 066:RF-3 — el libro real con el perfil de la empresa: SM218 → SE2044 → 0,30 % y 0,55 %, las columnas
+    que el informe modelo usa para SE0044 (1,2 % y 0,79 %); 2,75 % y 1,69 % eran otra columna."""
     import json
 
     ruta = Path(os.environ['CSG_DEMANDA_DIR']) / 'informeModeloperdidas.xlsx'
     perfil = json.loads((Path(__file__).resolve().parents[1] / 'config/perfiles/electro_dunas.json').read_text(encoding='utf-8'))
     d = leer_libro_perdidas(ruta, 'SM218', ColumnasPerdidas.de_perfil(perfil))
     assert d.codigo_sistema == 'SE2044' and d.sistema_electrico == 'SANTA MARGARITA'
-    assert (d.reconocido_kwh_pct, d.reconocido_kw_pct) == (1.69, 2.75)
+    assert (d.reconocido_kwh_pct, d.reconocido_kw_pct) == (0.3, 0.55)
+    assert d.precio_compra == 0.2307
 
 
 def test_el_perfil_local_no_pierde_el_libro_del_heredado(tmp_path):
@@ -152,3 +154,15 @@ def test_un_pdf_vacio_o_de_otra_vez_no_cuenta(tmp_path):
     assert exportar_pdf(docx, ejecutar=falla) == (None, 'sin Word')
     vacia = lambda _orden: (pdf.write_bytes(b''), SimpleNamespace(returncode=0, stderr=''))[1]
     assert exportar_pdf(docx, ejecutar=vacia)[0] is None
+
+
+def test_el_precio_de_compra_sale_de_la_celda_del_perfil(tmp_path):
+    """066:RF-3 — se usó 0,1443 S/./kWh sin fuente porque solo se leían dos hojas; sin celda declarada, el hueco sigue."""
+    ruta, alimentador, *_ = _libro(tmp_path, random.Random(SEMILLA))
+    libro = openpyxl.load_workbook(ruta)
+    libro.create_sheet('Informe')['G183'] = 0.2307
+    libro.save(ruta)
+    con = {'informes': {'libro_perdidas': {'por_sistema': {**CONFIG, 'hoja_precio': 'Informe', 'celda_precio': 'G183'}}}}
+    d = leer_libro_perdidas(ruta, alimentador, ColumnasPerdidas.de_perfil(con))
+    assert d.precio_compra == 0.2307 and not any('precio' in x for x in d.faltan)
+    assert leer_libro_perdidas(ruta, alimentador, ColumnasPerdidas.de_perfil(PERFIL)).precio_compra is None

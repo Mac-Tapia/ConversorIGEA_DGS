@@ -6575,8 +6575,10 @@ def informe_estudio(ws: Workspace, ctx: JobContext | None, formulario: dict) -> 
         raise UserError(str(exc)) from exc
     if ctx is not None:
         ctx.log(f'Informe de estudio de {alimentador}: {destino.name} ({len(huecos)} hueco(s)).')
+    libro = _libro_del_informe(ctx, destino, {'actual': imagenes.get('actual') or {},
+                                              'proyectado': imagenes.get(clave) or {}})     # 066:RF-12
     _paso_informe(ctx, 3, 'listo')
-    return {'informe': destino.name, 'json': destino.with_suffix('.json').name, 'huecos': huecos,
+    return {'informe': destino.name, 'json': destino.with_suffix('.json').name, 'huecos': huecos, **libro,
             'estudios': fuentes, 'etapa': clave, 'imagenes': _imagenes_para_la_web(ws, imagenes),
             'plan': _guardar_plan(destino, 'estudio', plan)}
 
@@ -7157,7 +7159,7 @@ def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict
     reconocidas = formulario.get('perdidas_reconocidas') or {}
     libro = None
     # RF-62: lo del libro de pérdidas subido en 4.4.2; 063:RF-41: lo escrito a mano manda campo a
-    # campo. El libro de Electro Dunas no trae precio: escribirlo no debe descartar lo demás.
+    # campo. Un libro sin la celda del precio (066:RF-3): escribirlo no debe descartar lo demás.
     escrito = {k: v for k, v in reconocidas.items() if v not in (None, '')}
     leido = _perdidas_del_libro(ws, [alimentador])
     if leido and leido['error'] and not escrito:
@@ -7232,14 +7234,32 @@ def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict
     pdf, sin_pdf = exportar_pdf(destino)                                             # 063:RF-42
     if ctx is not None and pdf is None:
         ctx.log(f'El PDF no se generó: {sin_pdf}. El Word editable sí está.')
+    libro_xlsx = _libro_del_informe(ctx, destino, imagenes)                          # 066:RF-1
     _paso_informe(ctx, 3, 'listo')
     return {'conclusion_conexion': _conclusion_conexion(ws, project, alimentador, actual, con, lim),
             'informe': destino.name, 'json': destino.with_suffix('.json').name, 'huecos': huecos,
-            'pdf': pdf.name if pdf else None, 'sin_pdf': sin_pdf,
+            'pdf': pdf.name if pdf else None, 'sin_pdf': sin_pdf, **libro_xlsx,
             'estudios': [sin['_fichero'], con['_fichero']], 'factible': resumen.get('factible'),
             'excesos': resumen.get('excesos') or [], 'punto_diseno': punto, 'carga': carga,
             'imagenes': _imagenes_para_la_web(ws, imagenes),
             'plan': _guardar_plan(destino, 'factibilidad', plan)}
+
+
+def _libro_del_informe(ctx: JobContext | None, destino: Path, imagenes: dict) -> dict[str, Any]:
+    """El libro del informe, si el perfil de la empresa lo declara (066:RF-1, 066:RF-2)."""
+    from ..libro_informe import ConfigLibro, generar_libro
+    from ..perfil_empresa import datos_perfil
+
+    config = ConfigLibro.de_perfil(datos_perfil(), project_root())
+    if config is None:
+        return {}
+    resumen = json.loads(destino.with_suffix('.json').read_text(encoding='utf-8'))
+    hecho = generar_libro(config, destino, resumen, imagenes)
+    if ctx is not None:
+        ctx.log(f'Libro del informe: {hecho.ruta.name} ({len(hecho.huecos)} hueco(s), {len(hecho.avisos)} aviso(s)).'
+                if hecho.ruta else f'El libro no se generó: {hecho.motivo}. El Word sí está.')
+    return {'libro_xlsx': hecho.ruta.name if hecho.ruta else None, 'sin_libro': hecho.motivo,
+            'huecos_libro': list(hecho.huecos), 'avisos_libro': list(hecho.avisos)}
 
 
 #: Estudios que corre el informe de la carga nueva en cada caso (063:RF-6).
