@@ -264,6 +264,15 @@ def test_modelo_reabierto_predice_igual(falso):
     assert not di.verificar_reapertura(falso / 'alumno')['ok']
 
 
+def test_modelo_reapertura_aguanta_la_salida_del_codificador():
+    """069:RF-9 — la barra de carga escribe bytes que cp1252 no lee: la primera ejecución real se cayó ahí."""
+    from convertersmartgrid.model_registry import reabrir_en_subproceso
+    codigo = ('import sys; sys.stderr.buffer.write(bytes([0x8f, 0xe2, 0x96, 0x88])); sys.stderr.flush(); '
+              'print(\'{"ok": true}\')')
+    r = reabrir_en_subproceso([sys.executable, '-c', codigo])
+    assert r['ok'] and isinstance(r['stderr'], str)
+
+
 def test_modelo_codifica_cada_frase_una_vez():
     """069:RF-28 — los candidatos comparten frases: no se repite el codificador."""
     cod = CodificadorFalso()

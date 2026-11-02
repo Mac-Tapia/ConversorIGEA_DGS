@@ -198,7 +198,7 @@ class RegistroModelo:
 def reabrir_en_subproceso(comando: Sequence[str], *, timeout_s: float = 120.0,
                           cwd: Path | str | None = None) -> dict[str, Any]:
     try:
-        proceso = subprocess.run(list(comando), cwd=cwd, capture_output=True, text=True,
+        proceso = subprocess.run(list(comando), cwd=cwd, capture_output=True, text=True, encoding='utf-8', errors='replace',
                                  timeout=timeout_s, check=False)
     except (OSError, subprocess.TimeoutExpired) as exc:
         return {'ok': False, 'returncode': None, 'error': str(exc)}
