@@ -196,7 +196,7 @@ def test_tipo_de_otro_proyecto_no_se_resuelve_por_nombre():
 
 
 def test_consumo_reducido_impide_aceptar_aunque_tension_y_corriente_cumplan():
-    """063:RF-9 — una adaptación numérica no sustituye el abastecimiento de demanda."""
+    """063:RF-9, 063:RF-37 — una adaptación numérica no sustituye el abastecimiento de demanda."""
     barras = {'ruta': 'B', 'outserv': 0, 'm:u': 1.0}
     carga = {'ruta': 'L', 'outserv': 0, 'plini': 1., 'qlini': .1,
              'scale0': 1., 'm:Psum:bus1': .5, 'm:Qsum:bus1': .1}
@@ -301,7 +301,7 @@ def test_aplicar_exige_relectura():
 
 @pytest.mark.parametrize('fallo', ['ausente', 'apagada', 'nominal', 'ambigua', 'variacion'])
 def test_gate_cargas_previstas_impide_aceptar_inventario_incompleto(monkeypatch, fallo):
-    """063:RF-9 — conservar lo presente no demuestra que todas las solicitudes estén."""
+    """063:RF-9, 063:RF-37 — conservar lo presente no demuestra que todas las solicitudes estén."""
     app, _casos, _linea = red()
     obj = app.GetCalcRelevantObjects('*.ElmLod')[0]
     v = app.carpetas['scheme'].CreateObject('IntScheme', 'Carga_prevista')

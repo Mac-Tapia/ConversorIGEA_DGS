@@ -29,8 +29,15 @@
       Hecho el 2026-11-02: `codigo_ficha` aparte del EXP; `fechas` y `alimentadores_leidos` con su
       documento; `test_documentos_exp_codigo_de_ficha_fechas_y_alimentadores` (en
       `tests/test_documentos_solicitud.py`, junto a los textos sintéticos).
-- [ ] T6. Formulario: potencia actual, incremento, NIS, estructura, Pcc y UTM; aviso de alimentador. (RF-14, RF-16, RF-17, RF-18, RF-19)
+- [x] T6. Formulario: potencia actual, incremento, NIS, estructura, Pcc y UTM; aviso de alimentador. (RF-14, RF-16, RF-17, RF-18, RF-19)
       Hecho cuando: `npm --prefix frontend run build` sin errores y la web probada en el navegador real.
+      Hecho el 2026-11-02: `npm run build` sin errores y probado en el navegador real (web abierta con el
+      acceso directo, SM218, carga de INKA) con los PDF reales del expediente: la carta dio potencia actual
+      480 kW, solicitada 1100 kW e «incremento de 620 kW», NIS y EXP; la ficha, código de ficha
+      `00229-25` aparte del EXP, Pcc 36 MVA y UTM; la respuesta, la estructura 39533 como código del
+      punto de diseño; el botón activo sin pasar por 4.2; consola sin errores. El aviso de alimentador
+      (RF-19) no salió porque los PDF dicen SM218, como la carga: en el navegador no se vio; su
+      regla la prueba `frontend/test/solicitudLeida.test.mjs` (`npm test`).
 - [x] T8. Escalera por escalones: bancos, sección, terna; el primero que cumple. (RF-21, RF-22)
       Hecho cuando: `pytest -q tests/test_escalera_optima.py tests/test_optimizacion_oraculo.py
       tests/test_informe_factibilidad_un_paso.py` en verde, con variantes sorteadas donde la sección es

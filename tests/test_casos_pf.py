@@ -650,3 +650,24 @@ def test_con_proyecto_con_obras_no_se_renueva(monkeypatch):
     informe, codigo = casos_pf.preparar_con(app, plan)
     assert codigo == 0 and _caso(app, 'Con proyecto') is con
     assert not any('037:RF-8' in a for a in informe['avisos'])
+
+
+@pytest.mark.parametrize('semilla', SEMILLAS)
+def test_con_proyecto_se_copia_sin_las_cargas_nuevas_y_las_activa_despues(monkeypatch, semilla):
+    """063:RF-4 — en el momento de copiar «Sin proyecto», ninguna variación de carga nueva está
+    activa en él; después, todas lo están en «Con proyecto» y ninguna en «Sin proyecto»."""
+    app, plan, v = _escenario_red(random.Random(semilla), escenario=True)
+    nombres = {c.loc_name for c in v['cargas']}
+    assert nombres
+    real, vistas = casos_pf.crear_con_proyecto, []
+
+    def crear(app_, sin, anio=None):
+        vistas.append(set(_activas_en(app_, sin)[0]))
+        return real(app_, sin, anio)
+
+    monkeypatch.setattr(casos_pf, 'crear_con_proyecto', crear)
+    informe, codigo = casos_pf.preparar_con(app, plan)
+    assert codigo == 0, informe
+    assert vistas and all(not (x & nombres) for x in vistas), 'se copiaba con cargas nuevas activas'
+    assert nombres <= set(_activas_en(app, _caso(app, 'Con proyecto'))[0])
+    assert not (nombres & set(_activas_en(app, _caso(app, 'Sin proyecto'))[0]))

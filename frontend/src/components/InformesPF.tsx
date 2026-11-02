@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { api, fmtNum } from '../api';
 import { useApp } from '../context';
+import { acumularLeidos, alimentadoresDistintos } from '../solicitudLeida';
 import { FileDrop } from './ui';
 import type {
   DocumentosResultado, InformeEstudioForm, InformeFactibilidadForm, InformeResultado, InformesContexto, Limites, MaximaCabecera,
@@ -551,14 +552,15 @@ function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, 
     // sigue siendo la del cálculo. Solo si el operador no escribió otro.
     const estructura = valor('estructura');
     const codigoLibre = !codigo.trim() || (carga && codigo === carga.barra);
-    const lista = (xs?: { valor: string | number; fichero: string }[]) =>
-      (xs ?? []).map((x) => ({ valor: String(x.valor), fichero: x.fichero }));
-    fijar({ sol: nueva, punto: nuevoPunto, leidos: lista(r.alimentadores_leidos), fechas: lista(r.fechas),
+    // 063:RF-19, RF-20: este bloque lee un PDF por vez: lo de los anteriores se conserva.
+    const fichero = r.documentos[0]?.fichero ?? '';
+    fijar({ sol: nueva, punto: nuevoPunto, leidos: acumularLeidos(leidos, fichero, r.alimentadores_leidos),
+      fechas: acumularLeidos(fechasLeidas, fichero, r.fechas),
       ...(estructura && codigoLibre ? { codigo: estructura } : {}),
       ...(valor('lugar') && !cab.lugar.trim() ? { cab: { ...cab, lugar: valor('lugar') } } : {}) });
   };
   /** 063:RF-19: un alimentador de los PDF que no es el de la carga elegida. */
-  const otroAlimentador = carga ? leidos.filter((x) => x.valor !== carga.alimentador) : [];
+  const otroAlimentador = alimentadoresDistintos(leidos, carga?.alimentador);
   /** 063:RF-14: el incremento de una ampliación. */
   const incremento = num(sol.potencia_kw) != null && num(sol.potencia_actual_kw) != null
     ? (num(sol.potencia_kw) as number) - (num(sol.potencia_actual_kw) as number) : null;

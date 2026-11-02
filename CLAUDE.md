@@ -90,7 +90,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 060 Correcciones verificables del aprendizaje | cumplida |  |
   | 061 Observación y operación integrada del agente | cumplida | T1–T5 cerradas; evidencia en docs/INTEGRACION_MONITOR_AGENTE_2026-11-01.md |
   | 062 Retención diaria de ejecuciones y temporales | cumplida | T1–T4 verificadas; primera revisión real sin errores |
-  | 063 Evaluación de conexión y operación comercial en un paso, para cualquier alimentador | aprobada | falta T3, T5, T6, T12, T15, T16, T7 |
+  | 063 Evaluación de conexión y operación comercial en un paso, para cualquier alimentador | implementada | falta T7 |
   | 064 Arnés de DIgSILENT sin atajos: un turno para todos y estado restituido | cumplida |  |
 
   Las convenciones de cada empresa (CRS de origen, patrón de SED de medición, escala,

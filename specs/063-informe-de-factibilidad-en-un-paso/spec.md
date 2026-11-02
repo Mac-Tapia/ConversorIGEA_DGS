@@ -1,6 +1,6 @@
 # Spec 063 — Evaluación de conexión y operación comercial en un paso, para cualquier alimentador
 
-Estado: aprobada · Fecha: 2026-11-01 · Origen: petición del usuario, 2026-11-01 (informe de
+Estado: implementada · Fecha: 2026-11-01 · Origen: petición del usuario, 2026-11-01 (informe de
 la ampliación de INKA'S BERRIES S.A.C. en SM218)
 
 Cita la 017 (informe de factibilidad, RF-47 a RF-72 y RF-136 a RF-141), la 037 (casos de
