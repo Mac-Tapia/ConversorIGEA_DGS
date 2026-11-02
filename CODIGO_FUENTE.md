@@ -332,7 +332,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `tools/preparar_upstream_ia.py` | Prepara o verifica clones fijados sin instalar ni ejecutar sus programas. | 043 (RF-9 a RF-11) |
 | `src/convertersmartgrid/digital_twin/adaptador_pyg.py` | Adapta el MPN de PowerFlowNet a correcciones físicas de tensión y ángulo, mediante carga opcional. | 045 (RF-8) |
 | `src/convertersmartgrid/evaluacion_modelos.py` | Política previa y validación de cuatro particiones por grupos; puertas independientes por familia. | 044 (RF-1 a RF-5, RF-8) |
-| `src/convertersmartgrid/asistente/curriculo_maestro.py` | Familias sintéticas de órdenes escritas por el maestro de sesión, separadas antes del entrenamiento. | 047 (RF-11, RF-12) |
+| `src/convertersmartgrid/asistente/curriculo_maestro.py` | Familias sintéticas de órdenes escritas por el maestro de sesión, separadas antes del entrenamiento, y frases de estilo real solo de entrenamiento. | 047 (RF-11, RF-12), 068 (RF-35 a RF-37) |
 | `src/convertersmartgrid/asistente/destilacion_integral.py` | Comparación supervisado/destilado, calibración, prueba sellada, recarga y registro del alumno. | 047 (RF-11 a RF-15) |
 | `src/convertersmartgrid/asistente/contratos_salida.py` | Esquema de órdenes y validación de tareas, campos, confianza y entidades del contexto. | 047 (RF-1, RF-2, RF-10) |
 | `src/convertersmartgrid/schemas/asistente_orden_v1.schema.json` | Contrato base de salida estructurada para el intérprete local. | 047 (RF-1) |
@@ -403,6 +403,8 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `frontend/src/components/EquipoAsistente.tsx` | Roles, permisos y revisión de propuestas en la consola del asistente. | 065 |
 | `frontend/src/equipoAsistente.ts` | Cliente tipado de permisos, acciones y revisiones del equipo. | 065 |
 | `src/convertersmartgrid/asistente/equipo.py` | Gobierno de herramientas y permisos sellados por plan, rol y fuente. | 065 |
+| `src/convertersmartgrid/asistente/maestro_real.py` | Lee y valida las etiquetas de plata del maestro sobre textos reales, dice cuándo dos textos son la misma frase o familia y añade las erratas observadas. | 068 (RF-21 a RF-27, RF-38, RF-39) |
+| `tools/asistente_ordenes_reales.py` | Reúne las órdenes reales de las sesiones y del almacén, crea el libro de revisión e importa solo lo que el operador marque. | 068 (RF-1 a RF-20) |
 | `src/convertersmartgrid/asistente/evidencias_web.py` | Custodia como evidencia del espacio el resultado de los informes y estudios que terminan bien, con su proyecto y su fuente verdaderos, para la revisión por roles. | 067 (RF-1 a RF-7) |
 | `src/convertersmartgrid/asistente/planes_guardados.py` | Planes que escriben guardados por espacio con escritura atómica: sobreviven a un reinicio, sin confirmación y sin reanudarse. | 067 (RF-12 a RF-19) |
 | `src/convertersmartgrid/asistente/modelos_en_uso.py` | Pone en uso lo que el registro aprobó con un único puntero atómico, conserva el anterior y vuelve a él con el registro de acuerdo. | 067 (RF-20 a RF-24) |

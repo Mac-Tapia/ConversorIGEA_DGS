@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from collections import Counter, defaultdict
+from collections.abc import Sequence
 from dataclasses import asdict, replace
 import json
 import math
@@ -13,13 +14,99 @@ import platform
 
 from ..evaluacion_modelos import (PARTES, PoliticaEvaluacion, huella, particionar_registros,
                                   texto_canonico, verificar_familias)
-from .curriculo_maestro import FAMILIAS, MAESTRO
+from .curriculo_maestro import ESTILO_REAL, FAMILIAS, MAESTRO, MAESTRO_ESTILO_REAL
+from .maestro_real import CALIDAD, CONFIANZA_MINIMA, clave_texto, con_erratas, firma_familia
+from .ordenes_fijas import generar as generar_fijas, repartir
 from .sinteticos import Ejemplo, expandir
 from .tareas import TAREAS
 
+#: Variantes con erratas de cada texto real etiquetado (068:RF-38).
+VARIANTES_POR_TEXTO_REAL = 8
 
-def preparar_corpus(vocab: dict, reales: list[dict], *, por_familia: int = 40) -> tuple[list[dict], dict]:
-    """Expande familias declaradas; todos los ejemplos humanos quedan fuera del ajuste."""
+
+def _ampliar_entrenamiento(filas: list[dict], vocab: dict, etiquetas: Sequence[dict], por_familia: int,
+                           cuarentena: set[str], humanos: set[str]) -> dict:
+    """068:RF-25 a RF-27: añade lo nuevo solo al ajuste, después de sellar lo demás.
+
+    Va en una pasada aparte porque en la primera un texto en conflicto manda la fila de prueba a
+    cuarentena: la prueba cambiaría en silencio y dejaría de ser comparable con el candidato anterior.
+    """
+    apartadas = [r for r in filas if r['particion'] != 'entrenamiento']
+    vedados = {clave_texto(t) for t in (*humanos, *cuarentena)} | {clave_texto(r['texto']) for r in apartadas}
+    vedados |= {clave_texto(e.texto) for e in repartir(generar_fijas(vocab))[1]}   # 027:RF-66
+    familias = {firma_familia(r['texto'], r['datos']) for r in apartadas}
+    vistos = {texto_canonico(r['texto']) for r in filas}
+    cuenta = Counter()
+
+    def agregar(e: Ejemplo, grupo: str, calidad: str, tipo: str, *, aumentado: bool = False, **extra) -> str:
+        if clave_texto(e.texto) in vedados or firma_familia(e.texto, e.datos) in familias:
+            cuenta[f'{tipo}_fuga'] += 1
+            return 'fuga'
+        clave = texto_canonico(e.texto)
+        if clave in vistos:
+            cuenta[f'{tipo}_repetidas'] += 1
+            return 'repetida'
+        vistos.add(clave)
+        r = {'texto': e.texto, 'tarea': e.tarea, 'datos': [list(d) for d in sorted(e.datos)], 'group_id': grupo,
+             'particion': 'entrenamiento', 'quality': calidad, 'del_maestro': True,
+             'justificacion_verificable': TAREAS[e.tarea].descripcion, 'origen_curriculo': tipo, **extra}
+        if aumentado:
+            r['aumentado'] = 'erratas'
+        r['record_id'] = huella(r)
+        filas.append(r)
+        cuenta[f'{tipo}_filas'] += 1
+        return 'nueva'
+
+    def erratas(e: Ejemplo, grupo: str, calidad: str, tipo: str, rnd: random.Random, n: int = 1, **extra) -> None:
+        for _ in range(n):
+            agregar(con_erratas(e, rnd), grupo, calidad, tipo, aumentado=True, **extra)
+
+    def semilla_de(texto: str) -> random.Random:
+        # Sale del texto: añadir una etiqueta no cambia las variantes de las demás.
+        return random.Random(int(huella({'erratas': texto})[:8], 16))
+
+    for r in sorted((r for r in filas if r['particion'] == 'entrenamiento'), key=lambda r: r['record_id']):
+        erratas(Ejemplo(r['texto'], r['tarea'], [tuple(d) for d in r['datos']]), r['group_id'], r['quality'], 'catalogo',
+                semilla_de(r['texto']))
+    for tarea in sorted(TAREAS):
+        for j, plantilla in enumerate(ESTILO_REAL[tarea]):
+            rnd = random.Random(4231 + j + int(huella(tarea)[:8], 16))
+            grupo = huella({'estilo_real': plantilla, 'tarea': tarea})
+            for _ in range(max(1, por_familia // 2)):
+                e = expandir(plantilla, tarea, rnd, vocab, ruido=.08)
+                # Una frase sin datos se repite enseguida («como vamos») y su tarea se quedaría con
+                # pocas filas frente a las que llevan códigos: las erratas se añaden igual.
+                if agregar(e, grupo, 'silver_teacher_verified', 'estilo_real', maestro='claude') != 'fuga':
+                    erratas(e, grupo, 'silver_teacher_verified', 'estilo_real', rnd, maestro='claude')
+    por_tarea, leidas = Counter(), 0
+    for f in sorted(etiquetas, key=lambda x: clave_texto(x['texto'])):
+        leidas += 1
+        if f.get('tarea') not in TAREAS or float(f.get('confianza', 0)) < CONFIANZA_MINIMA:
+            cuenta['texto_real_apartadas'] += 1
+            continue
+        e = Ejemplo(f['texto'], f['tarea'], [tuple(d) for d in f.get('spans') or ()])
+        grupo = huella({'texto_real': clave_texto(e.texto)})
+        extra = {'maestro': str(f.get('maestro') or 'claude')}
+        resultado = agregar(e, grupo, CALIDAD, 'texto_real', **extra)
+        por_tarea[e.tarea] += resultado == 'nueva'
+        if resultado != 'fuga':
+            # Son pocas frente a las sintéticas: sus variantes les dan peso sin duplicar el texto.
+            erratas(e, grupo, CALIDAD, 'texto_real', semilla_de(e.texto), VARIANTES_POR_TEXTO_REAL, **extra)
+    return {'etiquetas_reales': {'leidas': leidas, 'usadas': sum(por_tarea.values()), 'filas': cuenta['texto_real_filas'],
+                                 'excluidas_por_fuga': cuenta['texto_real_fuga'], 'repetidas': cuenta['texto_real_repetidas'],
+                                 'apartadas': cuenta['texto_real_apartadas'], 'por_tarea': dict(sorted((t, n) for t, n in por_tarea.items() if n))},
+            'estilo_real': {'frases': sum(len(v) for v in ESTILO_REAL.values()), 'filas': cuenta['estilo_real_filas'],
+                            'excluidas_por_fuga': cuenta['estilo_real_fuga'], 'maestro': MAESTRO_ESTILO_REAL},
+            'erratas_del_catalogo': {'filas': cuenta['catalogo_filas'], 'excluidas_por_fuga': cuenta['catalogo_fuga']}}
+
+
+def preparar_corpus(vocab: dict, reales: list[dict], *, por_familia: int = 40, etiquetas_reales: Sequence[dict] = (),
+                    ampliar: bool = True) -> tuple[list[dict], dict]:
+    """Expande familias declaradas; todos los ejemplos humanos quedan fuera del ajuste.
+
+    ``etiquetas_reales`` (068) son plata del maestro sobre textos del operador; nunca cuentan como humanas.
+    Con ``ampliar=False`` da el corpus sellado de antes de la 068, para compararlo con lo que se añade.
+    """
     if type(por_familia) is not int or por_familia < 1 or set(FAMILIAS) != set(TAREAS):
         raise ValueError('currículo incompleto o tamaño inválido')
     filas, vistos, cuarentena = [], {}, set()
@@ -81,8 +168,15 @@ def preparar_corpus(vocab: dict, reales: list[dict], *, por_familia: int = 40) -
         agregar(e, huella({'humana': texto_canonico(e.texto)}), 'prueba', 'gold_human')
     filas = sorted((r for r in filas if texto_canonico(r['texto']) not in cuarentena),
                    key=lambda r: r['record_id'])
-    meta = {'schema_version': 1, 'maestro': MAESTRO, 'dataset_hash': huella(filas),
-            'curriculo_hash': huella({'sesion': FAMILIAS, 'catalogo_revisado': FRASES}),
+    ampliacion = (_ampliar_entrenamiento(filas, vocab, etiquetas_reales, por_familia, cuarentena, humanos)
+                  if ampliar else {})
+    filas.sort(key=lambda r: r['record_id'])
+    denominadores = defaultdict(Counter)
+    for r in filas:
+        denominadores[r['particion']][r['quality']] += 1
+    meta = {'schema_version': 1, 'maestro': MAESTRO, 'dataset_hash': huella(filas), **ampliacion,
+            'denominadores': {p: dict(sorted(c.items())) for p, c in sorted(denominadores.items())},
+            'curriculo_hash': huella({'sesion': FAMILIAS, 'catalogo_revisado': FRASES, 'estilo_real': ESTILO_REAL}),
             'calidades': dict(Counter(r['quality'] for r in filas)),
             'particiones': dict(Counter(r['particion'] for r in filas)),
             'vocabulario_hash': huella(vocab), 'por_familia': por_familia,
@@ -116,7 +210,7 @@ def leer_corpus(destino: Path) -> tuple[list[dict], dict]:
         if identidad != huella({k: v for k, v in r.items() if k != 'record_id'}):
             raise ValueError('integridad de registro inválida')
         if r.get('tarea') not in TAREAS or r.get('quality') not in {
-                'gold_human', 'silver_deterministic', 'silver_teacher_verified'}:
+                'gold_human', 'silver_deterministic', 'silver_teacher_verified', CALIDAD}:
             raise ValueError('etiqueta o calidad no admitida')
         texto = r['texto']
         for a, b, tipo in r.get('datos') or []:
@@ -349,12 +443,14 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
                  'particiones': asdict(particiones), 'dataset': meta, 'cfg': asdict(cfg),
                  'semillas': list(semillas), 'metodos': ['supervisado', 'destilado'],
                  'codigo_hashes': {p.name: huella(p.read_text(encoding='utf-8')) for p in
-                     (Path(__file__), Path(tr.__file__), Path(__file__).with_name('curriculo_maestro.py'))},
+                     (Path(__file__), Path(tr.__file__), Path(__file__).with_name('curriculo_maestro.py'),
+                      Path(__file__).with_name('maestro_real.py'))},
                  'entorno': {'python': platform.python_version(), 'torch': tr._torch().__version__,
                              'cuda': tr._torch().version.cuda, 'gpu': tr._torch().cuda.get_device_name(0)}}
     codigo = destino / 'codigo'
     codigo.mkdir()
     for archivo in (Path(__file__), Path(tr.__file__), Path(__file__).with_name('curriculo_maestro.py'),
+                    Path(__file__).with_name('maestro_real.py'),
                     Path(__file__).with_name('ordenes_fijas.py'), Path(__file__).parents[1] / 'evaluacion_modelos.py'):
         (codigo / archivo.name).write_text(archivo.read_text(encoding='utf-8'), encoding='utf-8')
     (destino / 'protocolo.json').write_text(json.dumps(protocolo, ensure_ascii=False, indent=2), encoding='utf-8')
@@ -414,6 +510,7 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
     # lanza el reentrenamiento con ``modelos_en_uso.aplicar_decision`` (067:RF-20).
     reporte = {'schema_version': 1, 'training_completed': True, 'entrenado': True,
         'status': decision['status'], 'promovido': False, 'decision': decision,
+        'denominadores': meta.get('denominadores'),                                       # 068:RF-29, 047:RF-13
         'elegido': elegido, 'candidato': candidato, 'sinteticas': sinteticas, 'humanas': humanas,
         'smoke_reload': smoke, 'funcionamiento': funcionamiento,
         'calibracion': calibracion, 'duracion_s': time.monotonic() - inicio}
