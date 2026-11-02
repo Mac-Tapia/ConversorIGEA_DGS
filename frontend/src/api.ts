@@ -311,8 +311,12 @@ export const api = {
     request<Job>(`${ws(id)}/pf/obras/escalera`, json('POST', body)),
   // Spec 042, RF-13: escalera carga a carga y SET nueva para las que no caben.
   obrasConProyecto: (id: string, body: { project: string; feeders: string[]; anio_casos: number | null;
-    tipo_cambio: number | null; capex: string; alimentadores_nuevos: number }) =>
+    tipo_cambio: number | null; capex: string; alimentadores_nuevos: number;
+    set_nueva_nombre?: string; directo_set_nueva?: boolean }) =>
     request<Job>(`${ws(id)}/pf/obras/con-proyecto`, json('POST', body)),
+  // 063:RF-36: diagnosticar o reforzar una SET existente, sin recrearla.
+  setNuevaOperacion: (id: string, body: import('./operacionSet').CuerpoSet) =>
+    request<Job>(`${ws(id)}/pf/obras/set-nueva/operacion`, json('POST', body)),
   // Spec 012: el catálogo según el libro de la empresa del proyecto y la licencia.
   estudiosCatalogo: (id: string, project: string) =>
     request<EstudiosCatalogo>(`${ws(id)}/pf/estudios?project=${enc(project)}`),
