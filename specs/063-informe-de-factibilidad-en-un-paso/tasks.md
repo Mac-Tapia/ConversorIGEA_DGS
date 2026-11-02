@@ -117,9 +117,12 @@
       Hecho cuando: `pytest -q tests/test_informe_web.py -k transformador_opcional` en verde.
 - [x] T27. Islas sin tensión, criterio de MT y flujo que no cuadra. (RF-43, RF-44, RF-45)
       Hecho cuando: `pytest -q tests/test_estudios_pf_guion.py tests/test_informe_web.py` en verde.
-- [ ] T7. [DIgSILENT] INKA'S BERRIES en SM218 desde la web con un clic. (Todos)
+- [x] T7. [DIgSILENT] INKA'S BERRIES en SM218 desde la web con un clic. (Todos)
       Hecho cuando: el informe sale del botón de 4.4 sin pasar por 4.2, con los tres casos, y dice lo
       mismo que el informe hecho a mano el 2026-11-01.
+      Hecho el 2026-11-02, trabajo `bb19702d821e`: sin huecos, Word y PDF, tres casos con 0,949 / 0,928 / 0,953 p.u.,
+      130,8 / 161,8 / 64,8 % y 428,3 / 593,6 / 498,9 kW, iguales al informe a mano; 450 kvar en el nodo 8904 y 25 tramos
+      (5,80 km) a 120 mm². El precio de 0,1443 S/./kWh y el factor de carga 0,5725 se escriben en el formulario.
 
 - [x] T20. Cobertura del proyecto completo tras trasladar ramas a una SET nueva. (RF-6, RF-9, RF-12)
       Hecho cuando: `pytest -q tests/test_estudios_pf_guion.py -k cobertura` en verde y los seis

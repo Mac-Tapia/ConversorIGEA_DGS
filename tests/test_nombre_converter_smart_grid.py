@@ -18,6 +18,7 @@ EXCEPCIONES_FICHERO = (
     'specs/056-',   # explica por qué los mensajes no deben nombrar IGEA ni CYMDIST
     'specs/058-',   # explica el renombrado: cita los nombres anteriores
     'referencia/',  # datos de la distribuidora, fuera de git (principio 9)
+    '.agents/coordination/',  # registro entre sesiones, sin versionar: cita la ruta real de la carpeta
     'tests/test_nombre_converter_smart_grid.py',
 )
 #: Una rama que existe en git (historia) y lo que el código reconoce para leer lo ya guardado.

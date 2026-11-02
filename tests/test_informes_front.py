@@ -33,8 +33,8 @@ def test_encabezado_en_los_dos_apartados():
 def test_al_elegir_la_carga_y_factor_de_carga_medido():
     """017:RF-91 / 017:RF-92 — elegir la carga rellena su potencia y su punto de conexión; el
     factor de carga se propone de la medición de cabecera con su mes, o se pide."""
-    elegir = INFORMES[INFORMES.index('const elegir = '):INFORMES.index('const elegir = ') + 400]
-    assert 'potencia_kw' in elegir and 'codigo: c.barra' in elegir
+    elegir = INFORMES[INFORMES.index('const elegir = '):INFORMES.index('const leidoDelSolicitante')]
+    assert 'potencia_kw' in elegir and 'c.barra' in elegir and 'c?.barra' in elegir, '063:RF-48: también al cambiar de carga'
     assert 'De la medición de ${fcMedido.medidor} en ${fcMedido.mes}' in INFORMES
     assert 'escríbalo, o las pérdidas quedan señaladas' in INFORMES
 

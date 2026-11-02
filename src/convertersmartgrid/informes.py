@@ -720,7 +720,7 @@ def describir_obra(obra: Mapping[str, Any]) -> str:
             for t in trechos:
                 hoy = f', hoy con {_lista(t["actuales"])}' if t.get('actuales') else ''
                 partes.append(f'desde la barra {t["desde"]} hasta la barra {t["hasta"]} '
-                              f'({numero(t["km"], 2)} km en {len(t["tramos"])} tramos{hoy})')
+                              f'({numero(t["km"], 2)} km en {len(t["tramos"])} {"tramo" if len(t["tramos"]) == 1 else "tramos"}{hoy})')
             km = sum(float(t['km']) for t in trechos)
             return (f'Cambiar la sección del conductor de la troncal a {obra["conductor"]} en '
                     f'{numero(km, 2)} km: ' + '; '.join(partes) + '.')
