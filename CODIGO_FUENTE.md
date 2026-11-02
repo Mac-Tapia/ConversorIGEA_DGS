@@ -62,7 +62,7 @@ constitución y 001:RF-14 (DGS idéntico byte a byte); su diseño histórico est
 | `src/convertersmartgrid/asistente/plan.py` | Del texto interpretado al plan: datos contrastados con lo que existe (parecido, tomados del texto), lo que falta, dudas y razonamiento. | 026 (RF-4, RF-6, RF-7, RF-8) |
 | `src/convertersmartgrid/asistente/ejecutor.py` | Ejecuta el plan confirmado por las rutas y trabajos de la web, paso a paso, esperando cada trabajo; entregables del resultado. | 026 (RF-10, RF-12) |
 | `src/convertersmartgrid/asistente/clasificador.py` | Clasificador de informes en dos niveles (estudio o factibilidad, y subtipo del perfil) sobre el mismo codificador; aprende de los informes generados y de las correcciones. | 026 (RF-13 a RF-16) |
-| `src/convertersmartgrid/asistente/indice.py` | Índice local del proyecto (CODIGO_FUENTE, RF de las specs, docstrings, manual, constitución), BM25 y embeddings locales, reconstrucción por huella y respuestas con cita o «No lo sé». | 026 (RF-17, RF-18) |
+| `src/convertersmartgrid/asistente/indice.py` | Índice local del proyecto (CODIGO_FUENTE, RF de las specs, docstrings, manual, constitución), BM25 y vectores fusionados por posición, cálculo de vectores por lotes, reconstrucción por huella y respuestas con citas comprobadas, sus métodos o «No lo sé». | 026 (RF-17, RF-18), 047 (RF-3, RF-21 a RF-26, RF-28 a RF-30) |
 | `src/convertersmartgrid/asistente/vigilancia.py` | Vigilancia de trabajos (fallos, tiempos, colas, reintento del 4002), modelos, calidad de resultados y suite nocturna con el RF de cada fallo. | 026 (RF-22 a RF-25) |
 | `src/convertersmartgrid/asistente/mejoras.py` | Mejoras en una rama aparte (git worktree) con spec y pruebas y su suite; nunca fusiona ni sube; decisiones auditables; fichas de librerías. | 026 (RF-26 a RF-28, RF-32) |
 | `src/convertersmartgrid/asistente/internet.py` | Búsquedas en GitHub, PyPI y arXiv con el filtro de identificadores de la red y rutas; cada consulta registrada, las bloqueadas sin su texto. | 026 (RF-29 a RF-32) |
@@ -322,6 +322,9 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `tools/digital_twin_temporal_entrenar.py` | Trabajador de entrenamiento y recarga GRU con cabeceras observadas y zona horaria explícita. | 043 (RF-13), 046 (RF-3, RF-7), 060 (RF-8) |
 | `tools/evaluar_evolutivos.py` | Benchmark analítico calculado de GA, NSGA-II y DE con al menos 30 semillas, separado de aceptación eléctrica. | 043 (RF-13), 048 (RF-3, RF-6) |
 | `tools/asistente_embeddings.py` | Ajuste solo con train y evaluación sobre consultas reservadas del recuperador local; sin cambiar índice activo. | 043 (RF-13), 047 (RF-3, RF-4) |
+| `src/convertersmartgrid/asistente/reranker.py` | Reranker por cross-encoder en CUDA, con revisión fijada, y la política que lee la decisión de la evaluación sellada. | 047 (RF-4, RF-27, RF-30) |
+| `src/convertersmartgrid/asistente/evaluacion_rag.py` | Conjunto sintético sellado, medición de BM25, híbrido y rerankers, y decisión según la política declarada. | 047 (RF-4, RF-27, RF-28) |
+| `tools/asistente_evaluar_rag.py` | Medición real de la recuperación en la GPU, o comprobación del conjunto sin ella con `--solo-conjunto`. | 047 (RF-4, RF-27) |
 | `tools/asistente_qlora.py` | Adaptador del coordinador al ajuste generativo NF4 existente y su corpus sellado; conserva pesos candidatos. | 043 (RF-13), 047 (RF-19, RF-20) |
 | `src/convertersmartgrid/experimentos.py` | Contexto exacto y contratos inmutables de configuración, con SHA-256 canónico. | 043 (RF-2) |
 | `src/convertersmartgrid/asistente/dataset_entrenamiento.py` | Custodia de datos reales, sintéticos y de contexto; agrupación de registros. | 043 (RF-3, RF-4) |
