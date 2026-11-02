@@ -1,6 +1,6 @@
 # Spec 066 — Cada informe con su libro Excel, según el perfil de la empresa
 
-Estado: implementada · Fecha: 2026-11-02 · Origen: petición del usuario, 2026-11-02 («si debe ir del libro,
+Estado: cumplida · Fecha: 2026-11-02 · Origen: petición del usuario, 2026-11-02 («si debe ir del libro,
 cada informe debe tener su libro; son datos para la empresa Electro Dunas, solo se usa en informes o estudios
 para Electro Dunas»).
 
