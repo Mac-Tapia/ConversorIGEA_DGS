@@ -65,8 +65,10 @@ def exportar_pdf(docx: Path, *, ejecutar=None) -> tuple[Path | None, str]:
     fallo se dice, no se oculta. Es el mismo guardado de Word que dio el PDF de INKA a mano.
     """
     import subprocess
+    import time
 
     pdf = Path(docx).with_suffix('.pdf')
+    inicio = time.time() - 2
     orden = ("$w = New-Object -ComObject Word.Application; $w.Visible = $false; "
              f"try {{ $d = $w.Documents.Open('{Path(docx).resolve()}', $false, $true); "
              f"$d.SaveAs([ref]'{pdf.resolve()}', [ref]17); $d.Close(0) }} finally {{ $w.Quit() }}")
@@ -77,9 +79,10 @@ def exportar_pdf(docx: Path, *, ejecutar=None) -> tuple[Path | None, str]:
         hecho = correr(orden)
     except (OSError, subprocess.SubprocessError) as exc:
         return None, f'no se pudo abrir Word: {exc}'
-    if getattr(hecho, 'returncode', 1) != 0 or not pdf.is_file():
-        return None, (str(getattr(hecho, 'stderr', '') or 'Word no generó el PDF').strip()[:300])
-    return pdf, ''
+    # 063:RF-50: T7 en SM218: Word guardó el PDF y cayó al cerrarse (RPC 0x800706BE): el PDF está hecho.
+    if pdf.is_file() and pdf.stat().st_mtime >= inicio and pdf.stat().st_size > 0:
+        return pdf, ''
+    return None, (str(getattr(hecho, 'stderr', '') or 'Word no generó el PDF').strip()[:300])
 
 
 @dataclass(frozen=True)
@@ -112,6 +115,8 @@ class DatosFactibilidad:
     ficha_punto: Mapping[str, float] = field(default_factory=dict)
     #: El análisis del transformador de transmisión tiene su propio alcance (spec 017).
     incluir_transformador_set: bool = True
+    #: 063:RF-49: el cliente de la solicitud no parece el de la carga; se señala como hueco.
+    aviso_cliente: str = ''
     #: Comparación de los balances medidos cuando no se evalúa una curva anual.
     perdidas_instantaneas: bool = False
     observaciones: Sequence[str] = ()
@@ -938,6 +943,8 @@ def escribir_informe_factibilidad(config: ConfigInforme, destino: Path, datos: D
     else:
         veredicto = veredicto_factibilidad(proyectado, [d] if d else None, config.limites,
                                            exigir_transformador=datos.incluir_transformador_set)
+    if datos.aviso_cliente:
+        e.hueco(datos.aviso_cliente)
     if s is None:
         e.hueco('conclusiones: faltan los datos de la solicitud')
     elif conexion is not None:

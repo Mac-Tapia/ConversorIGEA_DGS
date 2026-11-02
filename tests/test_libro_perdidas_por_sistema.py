@@ -127,3 +127,28 @@ def test_el_perfil_local_no_pierde_el_libro_del_heredado(tmp_path):
     datos = datos_perfil(local, carpeta=carpeta)
     assert datos['escala'] == 3, 'fuera de informes, la clave local pisa la heredada'
     assert datos['informes']['norma'] == 'B' and datos['informes']['libro_perdidas']['por_sistema'] == CONFIG
+
+
+def test_word_que_cae_al_cerrarse_no_pierde_el_pdf(tmp_path):
+    """063:RF-50 — T7 en SM218: Word guardó el PDF y falló en ``Quit``; el informe decía que no había PDF."""
+    docx = tmp_path / 'informe.docx'
+    docx.write_bytes(b'x')
+
+    def word(_orden):
+        docx.with_suffix('.pdf').write_bytes(b'%PDF')
+        return SimpleNamespace(returncode=1, stderr='Error en la llamada a procedimiento remoto')
+
+    assert exportar_pdf(docx, ejecutar=word) == (docx.with_suffix('.pdf'), '')
+
+
+def test_un_pdf_vacio_o_de_otra_vez_no_cuenta(tmp_path):
+    """063:RF-50 — solo vale el PDF de esta exportación y con contenido."""
+    docx = tmp_path / 'informe.docx'
+    docx.write_bytes(b'x')
+    pdf = docx.with_suffix('.pdf')
+    pdf.write_bytes(b'%PDF')
+    os.utime(pdf, (1, 1))
+    falla = lambda _orden: SimpleNamespace(returncode=1, stderr='sin Word')
+    assert exportar_pdf(docx, ejecutar=falla) == (None, 'sin Word')
+    vacia = lambda _orden: (pdf.write_bytes(b''), SimpleNamespace(returncode=0, stderr=''))[1]
+    assert exportar_pdf(docx, ejecutar=vacia)[0] is None

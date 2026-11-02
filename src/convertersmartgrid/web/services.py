@@ -7083,7 +7083,7 @@ def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict
     from ..estudios_pf import CON_PROYECTO, SIN_PROYECTO
     from ..informe_docx import DatosFactibilidad, escribir_informe_factibilidad
     from ..informes import (Caso, ConfigInforme, Devanado, Encabezado, InformeError, Solicitud,
-                            perdidas_anuales)
+                            cliente_ajeno, perdidas_anuales)
     from ..libros_informe import DatosPerdidas
     from ..perfil_empresa import datos_perfil
 
@@ -7213,7 +7213,9 @@ def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict
         con_obras=con_obras, ficha_punto=ficha_punto,
         # 063:RF-46: el transformador de la SET entra solo si se calculó (usuario, 2026-11-01: «no se
         # requiere»); su ausencia no es un hueco ni impide concluir.
-        incluir_transformador_set=devanado is not None)
+        incluir_transformador_set=devanado is not None,
+        aviso_cliente=(f'el cliente «{solicitud.cliente}» no parece el de la carga «{carga["sed"]}»: compruebe la solicitud'
+                       if cliente_ajeno(str(carga['sed']), solicitud.cliente) else ''))
     destino = ws.out_dir / (f'informe_factibilidad_{nombre_seguro(alimentador)}_'
                             f'{nombre_seguro(str(carga["sed"]))}_{uuid.uuid4().hex[:8]}.docx')
     try:

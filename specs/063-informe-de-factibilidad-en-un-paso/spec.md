@@ -183,6 +183,11 @@ Obras para conectar
   sin contarlo como hueco ni impedir la conclusión.
 - RF-47: DONDE haya flujo de «Cargas nuevas», EL SISTEMA dibujará en el informe sus imágenes de tensión y de
   cargabilidad.
+- RF-48: CUANDO el operador cambie la carga elegida, EL SISTEMA vaciará la solicitud, el punto de diseño y lo
+  leído de los PDF de la carga anterior.
+- RF-49: SI el cliente de la solicitud no comparte ningún nombre con la carga elegida, ENTONCES EL SISTEMA lo
+  avisará en el formulario y lo señalará como hueco del informe.
+- RF-50: SI Word falla después de guardar el PDF, ENTONCES EL SISTEMA dará el PDF por hecho.
 
 ## Fuera de alcance
 

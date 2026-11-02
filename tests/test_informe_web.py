@@ -618,3 +618,23 @@ def test_imagenes_de_cargas_nuevas_salen_de_su_flujo(tmp_path, monkeypatch):
     dibujados.clear()
     salida = services._imagenes_factibilidad(ws, None, config, estudio('sin'), estudio('con'), carga, solicitud, 'C', None)
     assert 'cargas' not in salida and len(dibujados) == 2
+
+
+def test_cliente_de_otra_carga_se_dice_y_queda_como_hueco(client, tmp_path, monkeypatch):
+    """063:RF-49 — T7 en SM218: la carga de INKA'S BERRIES salió con la solicitud de Minera Santa María."""
+    from convertersmartgrid import informes
+    from convertersmartgrid.informes import cliente_ajeno
+
+    assert cliente_ajeno("AMPC INKA'S BERRIES S.A.C.", 'Minera Santa María S.A.C.')
+    assert not cliente_ajeno("AMPC INKA'S BERRIES S.A.C.", 'Incas Berries S.A.C.')
+    assert not cliente_ajeno('SN1', 'Minera Santa María S.A.C.'), 'un código no dice de quién es'
+    assert not cliente_ajeno("AMPC INKA'S BERRIES S.A.C.", '')
+
+    wid, salida = _espacio(client, tmp_path)
+    _carga_aplicada(client, wid, salida)
+    url, cuerpo = f'/api/workspaces/{wid}/informes/factibilidad', FACTIBILIDAD
+    limpio = esperar_trabajo(client, client.post(url, json=cuerpo).json())
+    assert not any('no parece el de la carga' in h for h in limpio['result']['huecos'])
+    monkeypatch.setattr(informes, 'cliente_ajeno', lambda *_a: True)
+    fin = esperar_trabajo(client, client.post(url, json=cuerpo).json())
+    assert any('no parece el de la carga' in h for h in fin['result']['huecos']), fin['result']['huecos']

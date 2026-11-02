@@ -30,3 +30,19 @@ test('063:RF-19 avisa solo del alimentador de los PDF que no es el de la carga',
   assert.deepEqual(alimentadoresDistintos(leidos, null), []);
   assert.deepEqual(alimentadoresDistintos([], 'CD456'), []);
 });
+
+test('063:RF-49 el cliente de otra carga se detecta y el código no afirma nada', async () => {
+  const { clienteAjeno } = await cargar();
+  assert.equal(clienteAjeno("AMPC INKA'S BERRIES S.A.C.", 'Minera Santa María S.A.C.'), true);
+  assert.equal(clienteAjeno("AMPC INKA'S BERRIES S.A.C.", 'Incas Berries S.A.C.'), false);
+  assert.equal(clienteAjeno('SN1', 'Minera Santa María S.A.C.'), false);
+  assert.equal(clienteAjeno("AMPC INKA'S BERRIES S.A.C.", ''), false);
+});
+
+test('063:RF-48 elegir otra carga o ninguna no hereda; la primera elección conserva lo leído', async () => {
+  const { esOtraCarga } = await cargar();
+  assert.equal(esOtraCarga('SM218|A', 'SM218|B'), true);
+  assert.equal(esOtraCarga('SM218|A', ''), true);
+  assert.equal(esOtraCarga('', 'SM218|A'), false, '017:RF-136: la carta llega antes que la carga');
+  assert.equal(esOtraCarga('SM218|A', 'SM218|A'), false);
+});

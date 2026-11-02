@@ -103,6 +103,10 @@
       Hecho el 2026-11-02: `_cargas_de` usa `cargas_sed`. Las dos pruebas fallaban antes del arreglo.
 - [x] T26. Libro de pérdidas en dos hojas y PDF del informe desde la web. (RF-41, RF-42)
       Hecho cuando: `pytest -q tests/test_libro_perdidas_por_sistema.py` en verde.
+- [x] T30. El formulario es de una carga y el cliente corresponde a ella. (RF-48, RF-49)
+      Hecho cuando: `npm test` en `frontend/` y `pytest -q tests/test_informe_web.py -k cliente` en verde.
+- [x] T31. El PDF guardado vale aunque Word caiga al cerrarse. (RF-50)
+      Hecho cuando: `pytest -q tests/test_libro_perdidas_por_sistema.py -k cae_al_cerrarse` en verde.
 - [x] T29. Imágenes del estado proyectado sin obras. (RF-47)
       Hecho cuando: `pytest -q tests/test_informe_web.py -k imagenes_de_cargas_nuevas` en verde.
 - [x] T28. El transformador de la SET es opcional en el informe. (RF-46)

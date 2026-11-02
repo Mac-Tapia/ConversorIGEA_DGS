@@ -13,6 +13,8 @@ de la 011 no valen aquí, porque el informe concluye con ellos ante el regulador
 from __future__ import annotations
 
 import math
+import re
+import unicodedata
 from dataclasses import dataclass, field, replace
 from datetime import date
 from pathlib import Path
@@ -462,6 +464,25 @@ class Veredicto:
     factible: bool
     #: Cada límite superado: qué, dónde y en cuánto (RF-72).
     excesos: tuple[str, ...]
+
+
+#: Palabras que nombran un trámite o una forma de sociedad, no a un cliente (063:RF-49).
+_GENERICAS = frozenset({'AMPC', 'AMPLIACION', 'CARGA', 'NUEVA', 'SUMINISTRO', 'EMPRESA', 'SOCIEDAD', 'SERVICIO'})
+
+
+def _palabras_de_nombre(nombre: str) -> set[str]:
+    limpio = ''.join(c for c in unicodedata.normalize('NFD', nombre or '') if not unicodedata.combining(c)).upper()
+    return {p for p in re.split(r'[^A-Z0-9]+', limpio) if len(p) >= 4 and p not in _GENERICAS}
+
+
+def cliente_ajeno(carga: str, cliente: str) -> bool:
+    """El cliente no comparte ningún nombre con la carga (063:RF-49).
+
+    T7 en SM218: «AMPC INKA'S BERRIES S.A.C.» salió con el cliente, el NIS y la potencia de Minera Santa
+    María, del formulario guardado. Una carga con solo un código no dice de quién es: no se afirma nada.
+    """
+    de_la_carga, del_cliente = _palabras_de_nombre(carga), _palabras_de_nombre(cliente)
+    return bool(de_la_carga and del_cliente and not de_la_carga & del_cliente)
 
 
 def veredicto_factibilidad(proyectado: Caso, devanados: list[Devanado] | None,

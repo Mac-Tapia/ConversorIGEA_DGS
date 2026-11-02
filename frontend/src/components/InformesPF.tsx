@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { api, fmtNum } from '../api';
 import { useApp } from '../context';
-import { acumularLeidos, alimentadoresDistintos } from '../solicitudLeida';
+import { acumularLeidos, alimentadoresDistintos, clienteAjeno, esOtraCarga } from '../solicitudLeida';
 import { FileDrop } from './ui';
 import type {
   DocumentosResultado, InformeEstudioForm, InformeFactibilidadForm, InformeResultado, InformesContexto, Limites, MaximaCabecera,
@@ -527,6 +527,19 @@ function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, 
   // RF-91: al elegir la carga se rellenan su potencia y su punto de conexión; lo demás, editable.
   const elegir = (k: string) => {
     const c = solas.find((x) => `${x.alimentador}|${x.sed}` === k);
+    // 063:RF-48: la solicitud, el punto y lo leído son de la carga anterior; la cabecera de la empresa sigue.
+    if (esOtraCarga(clave, k)) {
+      const vacia: Sol = { cliente: '', ubicacion: '', tipo_solicitud: 'factibilidad de suministro', potencia_kw:
+        c?.kw != null ? String(c.kw) : '', fecha_solicitud: '', set_nombre: '', tension_kv: '', transformador: '',
+        expediente: '', potencia_actual_kw: '', nis: '', codigo_ficha: '' };
+      const otroAlimentador = clave.split('|')[0] !== k.split('|')[0];
+      fijar({ clave: k, codigo: c?.barra ?? '', sol: vacia, punto: { pcc_mva: '', utm_x: '', utm_y: '' }, leidos: [],
+        fechas: [], concesion: '', cab: { ...cab, asunto: '', numero: '' },
+        ...(otroAlimentador ? { fc: '', trafoCarga: '', trafo: { kv: '', sin_pct: '', con_pct: '', caso: '' },
+          perd: { sistema_electrico: '', codigo_sistema: '', reconocido_kw_pct: '', reconocido_kwh_pct: '',
+            precio_compra: '' } } : {}) });
+      return;
+    }
     // 063:RF-16: la estructura ya leída de la ficha no se pisa con la barra.
     const conservar = codigo.trim() && !solas.some((x) => x.barra === codigo);
     fijar(c ? { clave: k, codigo: conservar ? codigo : c.barra,
@@ -662,6 +675,9 @@ function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, 
             a {fmtNum(num(sol.potencia_kw) as number, 0)} kW: incremento de {fmtNum(incremento, 0)} kW (063:RF-14).</small>}
           {fechasLeidas.length > 1 && <small className="muted span-2">Fechas leídas: {fechasLeidas.map((x) =>
             `${x.valor} (${x.fichero})`).join(' · ')}. Se propone la de la solicitud del interesado.</small>}
+          {clienteAjeno(carga.sed, sol.cliente) && <small className="alert alert-warn span-2">El cliente «{sol.cliente}» no
+            parece el de la carga «{carga.sed}»: compruebe la solicitud antes de generar; si se genera así, el
+            informe lo señala.</small>}
           {otroAlimentador.length > 0 && <small className="alert alert-warn span-2">Los PDF dicen {otroAlimentador.map((x) =>
             `${x.valor} (${x.fichero})`).join(', ')}, y la carga elegida está en {carga.alimentador}: compruebe que es la
             carga correcta antes de generar.</small>}
