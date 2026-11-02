@@ -523,3 +523,117 @@ def test_cada_orden_recarga_lo_que_importa_de_tools(servidor, tmp_path):
         sys.path.remove(str(carpeta))
         sys.modules.pop('ayuda_prueba_019', None)
 
+
+
+def _orden_que_cambia_y_falla(app):
+    def main(argv):
+        app.casos['Con'].Activate()
+        app.casos['Con'].iStudyTime = 777
+        app.escs['Con'].Activate()
+        app.vars['Obra'].Activate()
+        return 1
+    return main
+
+
+@pytest.mark.parametrize('que', ['caso', 'escenario', 'variacion', 'caso_mudo'])
+def test_una_restitucion_que_no_surte_efecto_no_se_anuncia(cola, servidor, monkeypatch, que):
+    """064:RF-10 — la API señala el fallo con el retorno (``Activate`` ≠ 0) o no cambia nada:
+    no se anuncia «activo de nuevo», la hora no cae en otro caso y el registro dice qué falta
+    (auditoría del 2026-11-02, H1: «Con» quedaba con la hora de «Sin»)."""
+    app = _App()
+    if que == 'caso':
+        app.casos['Sin'].Activate = lambda: 1
+    elif que == 'caso_mudo':
+        app.casos['Sin'].Activate = lambda: 0              # dice que sí y no cambia nada
+    elif que == 'escenario':
+        app.escs['Sin'].Activate = lambda: 1
+    else:
+        app.vars['Obra'].Deactivate = lambda: 1
+    monkeypatch.setattr(servidor, '_cargar',
+                        lambda guion: SimpleNamespace(main=_orden_que_cambia_y_falla(app)))
+    assert servidor.atender({'id': 'n', 'guion': 'estudios_pf.py', 'argv': []}, cola, app=app) == 1
+    log = (cola / 'n.log').read_text(encoding='utf-8')
+    assert 'no se pudo restituir' in log and '064:RF-7' in log, log
+    assert 'se deja DIgSILENT como estaba' not in log, 'no se anuncia lo que no pasó'
+    if que in ('caso', 'caso_mudo'):
+        assert app.caso is app.casos['Con'] and app.casos['Con'].iStudyTime == 777
+        assert '«Sin» activo de nuevo' not in log and 'No se escribió ninguna hora' in log
+    elif que == 'escenario':
+        assert 'escenario' in log
+    else:
+        assert 'Obra' in log
+    assert json.loads((cola / 'n.fin.json').read_text())['codigo'] == 1
+
+
+def test_fotografiar_distingue_sin_proyecto_de_un_fallo_de_lectura():
+    """064:RF-9 — sin proyecto activo no hay foto; una lectura que falla es otra cosa."""
+    from convertersmartgrid import pf_estado
+
+    app = _App()
+    app.prj = None
+    assert pf_estado.fotografiar(app) is None
+    app = _App()
+
+    def roto():
+        raise RuntimeError('fallo al leer el escenario')
+
+    app.GetActiveScenario = roto
+    with pytest.raises(pf_estado.FotoFallida, match='fallo al leer el escenario'):
+        pf_estado.fotografiar(app)
+
+
+def test_un_fallo_al_fotografiar_cierra_la_orden_y_la_siguiente_se_atiende(cola, servidor, monkeypatch):
+    """064:RF-9 — la foto que falla no deja la orden sin ``.fin.json`` ni tumba el servidor: la
+    orden se atiende con su aviso y la siguiente de la cola también (auditoría del 2026-11-02, H2)."""
+    app = _App()
+    estado = {'roto': True}
+    leer = app.GetActiveScenario
+
+    def escenario():
+        if estado['roto']:
+            raise RuntimeError('fallo al fotografiar escenario')
+        return leer()
+
+    app.GetActiveScenario = escenario
+    hechas = []
+
+    def main(argv):
+        hechas.append(argv[0])
+        estado['roto'] = False
+        return 0
+
+    monkeypatch.setattr(servidor, '_cargar', lambda guion: SimpleNamespace(main=main))
+    pf_arnes.compartir_app(app)
+    _orden(cola, 'a', argv=['primera'])
+    _orden(cola, 'b', argv=['segunda'])
+    reloj = Reloj()
+    try:
+        assert servidor.servir(120.0, reloj=reloj, dormir=reloj.dormir) == 0
+    finally:
+        pf_arnes.compartir_app(None)
+    assert hechas == ['primera', 'segunda']
+    registro = (cola / 'a.log').read_text(encoding='utf-8')
+    assert 'fallo al fotografiar escenario' in registro and '064:RF-9' in registro
+    for ident in ('a', 'b'):
+        assert json.loads((cola / f'{ident}.fin.json').read_text())['codigo'] == 0
+
+
+def test_si_atender_revienta_la_orden_se_cierra_y_el_servidor_sigue(cola, servidor, monkeypatch):
+    """064:RF-9 — un fallo fuera de la orden (el registro no se puede abrir) no tumba la cola:
+    la orden queda cerrada y la siguiente se atiende."""
+    hechas = []
+    monkeypatch.setattr(servidor, '_cargar',
+                        lambda guion: SimpleNamespace(main=lambda argv: hechas.append(argv[0]) or 0))
+    real = servidor.atender
+
+    def atender(orden, cola_, app=None):
+        if orden['id'] == 'a':
+            raise OSError('disco lleno')
+        return real(orden, cola_, app=app)
+
+    monkeypatch.setattr(servidor, 'atender', atender)
+    _orden(cola, 'a', argv=['primera'])
+    _orden(cola, 'b', argv=['segunda'])
+    reloj = Reloj()
+    assert servidor.servir(120.0, reloj=reloj, dormir=reloj.dormir) == 0
+    assert hechas == ['segunda'] and (cola / 'b.fin.json').exists()

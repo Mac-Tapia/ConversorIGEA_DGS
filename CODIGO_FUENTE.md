@@ -264,6 +264,8 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `tools/pide_pf.py` | Guion de DIgSILENT: cada año del horizonte del PIDE con la demanda escalada por el `ComLdf`, diagnóstico de la norma con el alimentador y la tensión de cada problema; restituye el factor. | 024 (RF-51 a RF-53), 029 (RF-4), 030 (RF-1 a RF-9, RF-11, RF-12, RF-15) |
 | `tools/pf_cliente.py` | Envía un guion de DIgSILENT al proceso que se queda abierto y reescribe su salida. | 019 |
 | `tools/pf_servidor.py` | Proceso que mantiene DIgSILENT abierto y atiende las órdenes de los guiones; se cierra a los 2 minutos sin órdenes; repone el estado tras una orden fallida. | 019, 064 |
+| `tools/restitucion_pf.py` | Órdenes de aceptación de la restitución del servidor: copiar, alterar y fallar, leer y borrar una copia `PRUEBA064_*`. | 064 |
+| `tools/aceptar_restitucion_pf.py` | Aceptación nativa de la restitución por el camino de la web y el servidor, con evidencia en JSON. | 064 |
 | `tools/verify_interactive_architecture.mjs` | Comprobación en navegador de la página de la arquitectura C4 interactiva (Node.js). | 009 (diseño `docs/superpowers/specs/2026-10-25-arquitectura-c4-interactiva-design.md`) |
 | `tools/verify_architecture_links.py` | Comprueba los enlaces públicos y locales del espacio Structurizr de la arquitectura. | 009 |
 | `tools/verificar_pf.py` | Guion de DIgSILENT: convergencia del proyecto con lo activo. | 008 |

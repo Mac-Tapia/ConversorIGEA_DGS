@@ -41,6 +41,19 @@ Esta spec amplía la 019 sin cambiarla (está cumplida y no crece).
   de la orden y seguirá atendiendo la cola.
 - RF-8: EL SISTEMA atenderá `set_nueva_operacion_pf.py` en el servidor de DIgSILENT.
 
+Ampliación tras la auditoría del 2026-11-02 (`AUDIT/auditoria_otra_sesion_20261102/informe.md`),
+que reprodujo dos fallos con objetos en memoria: la restitución anunciaba un caso que no se había
+activado y escribía su hora en otro caso (H1), y un fallo al fotografiar dejaba la orden sin
+cerrar y podía tumbar el servidor (H2).
+
+- RF-9: SI la lectura del estado falla antes de una orden, ENTONCES EL SISTEMA lo escribirá en
+  el registro de esa orden, la atenderá igual, la cerrará con su código y seguirá con la
+  siguiente de la cola; distinguirá ese fallo de no tener proyecto activo.
+- RF-10: CUANDO EL SISTEMA restituya el estado, comprobará el retorno de cada activación,
+  releerá lo activo, escribirá la hora solo en el caso de la foto y comparará la foto final;
+  SI algo no quedó como al empezar, ENTONCES lo dirá como restitución fallida, sin anunciarlo
+  como hecho.
+
 ## Fuera de alcance
 
 - Restituir el estado tras una orden que termina bien: el proyecto y el caso que deja

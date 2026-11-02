@@ -15,9 +15,24 @@
 - [x] T7. [DIgSILENT] Desde la web abierta con el acceso directo: una orden que falla y la siguiente encuentran el caso y la hora de antes. (RF-5, RF-6)
       Hecho cuando: el registro de la orden fallida dice qué se restituyó y una lectura posterior lo confirma.
 
-Evidencia de T7 (2026-11-02): en una copia de `20261101-101524_CSG_0205` (Electro Oriente),
-borrada al terminar, la orden que falla a mitad dejó activo «Caso base» y la hora de «Sin
-proyecto» 10⁶ s atrás; `pf_estado.restituir` dijo «caso «Sin proyecto» activo de nuevo; hora
-de estudio repuesta a 1793546125» y la foto final fue igual a la inicial. Por la web,
-abierta con el acceso directo, el servidor atendió una lectura de proyectos (código 0) y una
-orden fallida (código 2) con la foto tomada en la API real.
+- [x] T8. La foto que falla no deja la orden sin cerrar ni tumba el servidor. (RF-9)
+      Hecho cuando: `pytest -q tests/test_pf_servidor.py -k "fotografiar or revienta"` en verde, y
+      esas pruebas fallan con el código de `ac1c316b` (comprobado el 2026-11-02).
+- [x] T9. La restitución comprueba retornos, identidades y la foto final. (RF-10)
+      Hecho cuando: `pytest -q tests/test_pf_servidor.py -k no_surte_efecto` en verde para caso,
+      caso que no cambia sin avisar, escenario y variación, y falla con el código de `ac1c316b`.
+
+Evidencia de T7. El primer cierre (sonda directa sobre `pf_estado.restituir` y, aparte, una
+orden fallida por la web sin estado que reponer) no probaba la cadena entera; la auditoría del
+2026-11-02 (H3) lo señaló y T7 se reabrió. Cerrada de nuevo el 2026-11-02 con
+`tools/aceptar_restitucion_pf.py`, que manda cuatro órdenes de `tools/restitucion_pf.py` por el
+camino de la web (`services._guion_pf` → `pf_cliente` → `pf_servidor.atender`) sobre una copia
+exclusiva `PRUEBA064_*`, borrada al terminar; el original no se modifica:
+
+- copia de SM218 (`AUDIT/auditoria_otra_sesion_20261102/aceptacion_T7_064_sm218.json`): la orden
+  cambió el caso («Caso base»), la hora de «Sin proyecto» (−10⁶ s), el escenario («Operation
+  Scenario») y las variaciones (sin `SED_NTP_…`) y terminó con código 1; el registro dice
+  «se deja DIgSILENT como estaba al empezar (064:RF-5): caso «Sin proyecto» activo de nuevo;
+  hora de estudio repuesta a 1792309657», y la orden de lectura siguiente devolvió la foto
+  inicial entera;
+- copia de `20261101-101524_CSG_0205` (`…/aceptacion_T7_064.json`): caso y hora, igual.

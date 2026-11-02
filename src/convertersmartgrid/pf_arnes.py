@@ -531,6 +531,8 @@ GUIONES_SERVIBLES = frozenset({
     # 064:RF-8: conectaba con ``conectar`` pero, fuera de la lista, cada orden de la SET
     # nueva cerraba el servidor y pagaba otra conexión (12 a 55 s).
     'set_nueva_operacion_pf.py',
+    # 064:T7: la aceptación de la restitución tiene que pasar por ``atender``.
+    'restitucion_pf.py',
     'transferencia_pf.py', 'transformador_set_pf.py', 'verificar_pf.py'})
 #: Guiones que conectan con :func:`conectar` (064:RF-1) pero corren en su propio proceso:
 #: los cuatro primeros importan DGS y crean proyectos, como la aceptación; los dos últimos

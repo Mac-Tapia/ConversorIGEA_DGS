@@ -84,20 +84,33 @@ def atender(orden: dict, cola: Path, app=None) -> int:
     """
     app = app if app is not None else pf_arnes._APP_COMPARTIDA
     log = cola / f"{orden['id']}.log"
-    with open(log, 'w', encoding='utf-8', buffering=1) as f, redirect_stdout(f), \
-            redirect_stderr(f):
-        foto = pf_estado.fotografiar(app) if app is not None else None
-        try:
-            codigo = _cargar(orden['guion']).main(list(orden.get('argv') or []))
-        except SystemExit as exc:
-            codigo = exc.code if isinstance(exc.code, int) else (0 if exc.code is None else 1)
-        except Exception:  # noqa: BLE001 - la orden falla, el servidor sigue
-            traceback.print_exc()
-            codigo = 1
-        if codigo and foto is not None:
-            _restituir_tras_fallo(app, foto)
-    (cola / f"{orden['id']}.fin.json").write_text(json.dumps({'codigo': codigo or 0}),
-                                                  encoding='utf-8')
+    codigo = 1                        # si algo revienta antes de la orden, la orden falló
+    try:
+        with open(log, 'w', encoding='utf-8', buffering=1) as f, redirect_stdout(f), \
+                redirect_stderr(f):
+            foto = None
+            if app is not None:
+                # 064:RF-9: la foto iba fuera del ``try``; si la API fallaba al leer el
+                # escenario, la excepción salía de aquí sin ``.fin.json`` y podía tumbar el
+                # servidor (auditoría del 2026-11-02, H2). Ahora se anota y la orden sigue.
+                try:
+                    foto = pf_estado.fotografiar(app)
+                except pf_estado.FotoFallida as exc:
+                    print(f'AVISO: {exc}. La orden se atiende, pero si falla no se podrá '
+                          'restituir el estado (064:RF-9).', flush=True)
+            try:
+                codigo = _cargar(orden['guion']).main(list(orden.get('argv') or []))
+            except SystemExit as exc:
+                codigo = exc.code if isinstance(exc.code, int) else (0 if exc.code is None else 1)
+            except Exception:  # noqa: BLE001 - la orden falla, el servidor sigue
+                traceback.print_exc()
+                codigo = 1
+            if codigo and foto is not None:
+                _restituir_tras_fallo(app, foto)
+    finally:
+        # 064:RF-9: la orden se cierra siempre; su cliente no espera para siempre.
+        (cola / f"{orden['id']}.fin.json").write_text(json.dumps({'codigo': codigo or 0}),
+                                                      encoding='utf-8')
     return codigo or 0
 
 
@@ -192,7 +205,11 @@ def servir(inactividad_s: float = pf_arnes.INACTIVIDAD_S, *,
             continue
         _decir(f"Orden {orden['id']}: {orden['guion']}")
         inicio = reloj()
-        codigo = atender(orden, cola)
+        try:
+            codigo = atender(orden, cola)
+        except Exception as exc:  # noqa: BLE001 - 064:RF-9: una orden no tumba la cola
+            _decir(f"Orden {orden['id']}: el servidor no pudo atenderla ({exc}); se sigue.")
+            codigo = 1
         en_curso.unlink(missing_ok=True)
         _decir(f"Orden {orden['id']} terminada con código {codigo} en {reloj() - inicio:.0f} s.")
         ultima = reloj()
