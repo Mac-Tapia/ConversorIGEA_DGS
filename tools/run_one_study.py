@@ -56,7 +56,15 @@ def _importar_y_medir(args) -> int:
             import_dgs_file, run_load_flow_until_converged,
         )
 
-        app = powerfactory.GetApplication()
+        # 064:RF-1: el turno del motor, el vigía y el reintento del 4002 del arnés; sin
+        # él, este guion conectaba por su cuenta y otro proceso recibía «error 4002».
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
+        from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
+        try:
+            app = conectar('run_one_study.py')
+        except PFNoDisponible as exc:
+            print(f'ERROR: {exc}', file=sys.stderr)
+            app = None
         if app is None:
             raise RuntimeError('PowerFactory no respondio; motor tomado por otro proceso')
 
@@ -202,7 +210,15 @@ def main(argv: list[str] | None = None) -> int:
         sys.path.insert(0, str(PF_DIR))
         import powerfactory  # type: ignore
 
-        app = powerfactory.GetApplication()
+        # 064:RF-1: el turno del motor, el vigía y el reintento del 4002 del arnés; sin
+        # él, este guion conectaba por su cuenta y otro proceso recibía «error 4002».
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
+        from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
+        try:
+            app = conectar('run_one_study.py')
+        except PFNoDisponible as exc:
+            print(f'ERROR: {exc}', file=sys.stderr)
+            app = None
         if app is None:
             salida.update(ok=False, motivo='PowerFactory no respondió')
             print(json.dumps(salida, ensure_ascii=False))

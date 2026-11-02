@@ -119,7 +119,15 @@ def importar(dgs: Path, red_nombre: str, hoja, grid_mm: float, en_dgs: dict,
         import_dgs_file, inventory_network,
     )
 
-    app = powerfactory.GetApplication()
+    # 064:RF-1: el turno del motor, el vigía y el reintento del 4002 del arnés; sin
+    # él, este guion conectaba por su cuenta y otro proceso recibía «error 4002».
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
+    from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
+    try:
+        app = conectar('prueba_representacion.py')
+    except PFNoDisponible as exc:
+        print(f'ERROR: {exc}', file=sys.stderr)
+        app = None
     if app is None:
         raise SystemExit('PowerFactory no respondió.')
     try:

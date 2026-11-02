@@ -1181,7 +1181,13 @@ def create_app(
         for path in sorted(root.rglob('*')):
             if not path.is_file() or any(p.startswith('.csg-stage-') for p in path.parts):
                 continue
-            st = path.stat()
+            try:
+                st = path.stat()
+            except FileNotFoundError:
+                # El ``-wal`` de SQLite de la observación (spec 061) desaparece al cerrarse la
+                # base: listado en el ``rglob``, ya no está en el ``stat`` (suite del
+                # 2026-11-02, test_sin_georreferenciacion). Un fichero que se fue no se lista.
+                continue
             rows.append({'path': path.relative_to(root).as_posix(), 'size': st.st_size,
                          'modified': st.st_mtime})
         return rows

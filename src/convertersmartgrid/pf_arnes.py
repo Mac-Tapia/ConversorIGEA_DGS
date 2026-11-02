@@ -528,7 +528,16 @@ GUIONES_SERVIBLES = frozenset({
     'ajuste_cabecera_pf.py', 'cargas_pf.py', 'casos_pf.py', 'confiabilidad_pf.py',
     'digital_twin_snapshot_pf.py', 'escanear_alimentador_pf.py',
     'escenarios_pf.py', 'estudios_pf.py', 'hojas_diagrama_pf.py', 'obras_pf.py', 'pf_proyectos.py', 'pide_pf.py',
+    # 064:RF-8: conectaba con ``conectar`` pero, fuera de la lista, cada orden de la SET
+    # nueva cerraba el servidor y pagaba otra conexión (12 a 55 s).
+    'set_nueva_operacion_pf.py',
     'transferencia_pf.py', 'transformador_set_pf.py', 'verificar_pf.py'})
+#: Guiones que conectan con :func:`conectar` (064:RF-1) pero corren en su propio proceso:
+#: los cuatro primeros importan DGS y crean proyectos, como la aceptación; los dos últimos
+#: son sondas que el operador lanza a mano.
+GUIONES_EN_SU_PROCESO = frozenset({
+    'build_system_grid.py', 'convertir_grupos_mdb.py', 'prueba_representacion.py',
+    'run_one_study.py', 'check_pf_license.py', 'show_pf_diagram.py'})
 
 _APP_COMPARTIDA: Any = None
 

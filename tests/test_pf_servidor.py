@@ -121,7 +121,146 @@ def test_todo_guion_que_conecta_va_por_el_servidor():
     con_conexion = {p.name for p in (RAIZ / 'tools').glob('*.py')
                     if "conectar('" in (texto := p.read_text(encoding='utf-8'))
                     and 'def main(' in texto}
-    assert con_conexion - pf_arnes.GUIONES_SERVIBLES == set()
+    assert con_conexion - pf_arnes.GUIONES_SERVIBLES - pf_arnes.GUIONES_EN_SU_PROCESO == set()
+    # 064:RF-1: los que corren en su propio proceso conectan igual por el arnés.
+    assert pf_arnes.GUIONES_EN_SU_PROCESO <= con_conexion
+
+
+class _Obj:
+    """Objeto de DIgSILENT del doble: nombre, ``Activate``/``Deactivate`` y ruta completa."""
+
+    def __init__(self, app, tipo, nombre, **atributos):
+        self.app, self.tipo, self.loc_name = app, tipo, nombre
+        self.__dict__.update(atributos)
+
+    def GetFullName(self):
+        return f'{self.tipo}/{self.loc_name}'
+
+    def Activate(self):
+        if self.tipo == 'caso':
+            self.app.caso = self
+        elif self.tipo == 'esc':
+            self.app.esc = self
+        else:
+            self.app.var.add(self.loc_name)
+        return 0
+
+    def Deactivate(self):
+        if self.tipo == 'esc':
+            self.app.esc = None
+        else:
+            self.app.var.discard(self.loc_name)
+        return 0
+
+
+class _App:
+    """Doble de la API con proyecto, caso (con hora), escenario y variaciones activos."""
+
+    def __init__(self):
+        self.prj = _Obj(self, 'prj', 'SM218')
+        self.casos = {n: _Obj(self, 'caso', n, iStudyTime=1000) for n in ('Sin', 'Con')}
+        self.escs = {n: _Obj(self, 'esc', n) for n in ('Sin', 'Con')}
+        self.vars = {n: _Obj(self, 'var', n) for n in ('Bancos', 'Obra')}
+        self.caso, self.esc, self.var = self.casos['Sin'], self.escs['Sin'], {'Bancos'}
+
+    def GetActiveProject(self):
+        return self.prj
+
+    def GetActiveStudyCase(self):
+        return self.caso
+
+    def GetActiveScenario(self):
+        return self.esc
+
+    def GetActiveNetworkVariations(self):
+        return [self.vars[n] for n in sorted(self.var)]
+
+
+def _desordenar(app):
+    app.casos['Con'].Activate()
+    app.casos['Con'].iStudyTime = 1000 - 10**6
+    app.escs['Con'].Activate()
+    app.vars['Obra'].Activate()
+    app.vars['Bancos'].Deactivate()
+
+
+def test_una_orden_que_falla_deja_el_estado_como_lo_encontro(cola, servidor, monkeypatch):
+    """064:RF-4, 064:RF-5, 064:RF-6 — caso, hora, escenario y variaciones vuelven a los de antes, y el
+    registro de la orden lo dice (011:RF-26: el optimizador dejaba la hora 1e6 s atrás)."""
+    app = _App()
+
+    def main(argv):
+        _desordenar(app)
+        raise RuntimeError('fallo a mitad')
+
+    monkeypatch.setattr(servidor, '_cargar', lambda guion: SimpleNamespace(main=main))
+    assert servidor.atender({'id': 'f', 'guion': 'estudios_pf.py', 'argv': []}, cola, app=app) == 1
+    assert app.caso is app.casos['Sin'] and app.esc is app.escs['Sin'] and app.var == {'Bancos'}
+    assert app.casos['Con'].iStudyTime == 1000 - 10**6          # la hora es la del caso de antes
+    assert app.casos['Sin'].iStudyTime == 1000
+    log = (cola / 'f.log').read_text(encoding='utf-8')
+    assert 'fallo a mitad' in log and '064:RF-5' in log
+    assert '«Sin» activo de nuevo' in log and 'Obra' in log and 'Bancos' in log
+
+
+def test_la_hora_movida_en_el_mismo_caso_se_repone(cola, servidor, monkeypatch):
+    """064:RF-5 — con un código distinto de 0 (sin excepción) también."""
+    app = _App()
+
+    def main(argv):
+        app.caso.iStudyTime = 5
+        return 2
+
+    monkeypatch.setattr(servidor, '_cargar', lambda guion: SimpleNamespace(main=main))
+    assert servidor.atender({'id': 'h', 'guion': 'estudios_pf.py', 'argv': []}, cola, app=app) == 2
+    assert app.casos['Sin'].iStudyTime == 1000
+    assert 'hora de estudio repuesta a 1000' in (cola / 'h.log').read_text(encoding='utf-8')
+
+
+def test_una_orden_que_termina_bien_deja_lo_que_hizo(cola, servidor, monkeypatch):
+    """064 fuera de alcance — el caso que deja activo una orden buena lo usa la siguiente."""
+    app = _App()
+
+    def main(argv):
+        _desordenar(app)
+        return 0
+
+    monkeypatch.setattr(servidor, '_cargar', lambda guion: SimpleNamespace(main=main))
+    assert servidor.atender({'id': 'b', 'guion': 'estudios_pf.py', 'argv': []}, cola, app=app) == 0
+    assert app.caso is app.casos['Con'] and app.var == {'Obra'}
+
+
+def test_otro_proyecto_activo_no_se_toca(cola, servidor, monkeypatch):
+    """064:RF-5 — si la orden fallida cambió de proyecto, su estado no es el de la foto."""
+    app = _App()
+    otro = _Obj(app, 'prj', 'NA205')
+
+    def main(argv):
+        app.prj = otro
+        app.casos['Con'].Activate()
+        return 1
+
+    monkeypatch.setattr(servidor, '_cargar', lambda guion: SimpleNamespace(main=main))
+    servidor.atender({'id': 'p', 'guion': 'estudios_pf.py', 'argv': []}, cola, app=app)
+    assert app.caso is app.casos['Con']
+
+
+def test_si_restituir_falla_se_anota_y_el_servidor_sigue(cola, servidor, monkeypatch):
+    """064:RF-7 — una restitución que revienta no tumba la orden ni el servidor."""
+    app = _App()
+
+    def main(argv):
+        app.casos['Con'].Activate()
+        return 1
+
+    def roto():
+        raise RuntimeError('la API no responde')
+
+    app.casos['Sin'].Activate = roto
+    monkeypatch.setattr(servidor, '_cargar', lambda guion: SimpleNamespace(main=main))
+    assert servidor.atender({'id': 'r', 'guion': 'estudios_pf.py', 'argv': []}, cola, app=app) == 1
+    log = (cola / 'r.log').read_text(encoding='utf-8')
+    assert 'no se pudo restituir' in log and 'la API no responde' in log
 
 
 def test_el_cliente_reescribe_la_salida_y_devuelve_el_codigo(cola, cliente, servidor, monkeypatch):

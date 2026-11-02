@@ -121,7 +121,15 @@ def main(argv: list[str] | None = None) -> int:
               file=sys.stderr)
         return 2
 
-    app = powerfactory.GetApplication()
+    # 064:RF-1: el turno del motor, el vigía y el reintento del 4002 del arnés; sin
+    # él, este guion conectaba por su cuenta y otro proceso recibía «error 4002».
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
+    from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
+    try:
+        app = conectar('check_pf_license.py')
+    except PFNoDisponible as exc:
+        print(f'ERROR: {exc}', file=sys.stderr)
+        app = None
     if app is None:
         print('PowerFactory no respondió. ¿Está abierto en otra sesión?', file=sys.stderr)
         return 3

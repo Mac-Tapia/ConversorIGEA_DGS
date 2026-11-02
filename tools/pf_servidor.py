@@ -31,7 +31,7 @@ for _p in (HERE, HERE.parent / 'src'):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
-from convertersmartgrid import pf_arnes  # noqa: E402
+from convertersmartgrid import pf_arnes, pf_estado  # noqa: E402
 
 
 def _olvidar_modulos_de_tools(carpeta: Path = HERE) -> list[str]:
@@ -63,11 +63,30 @@ def _cargar(guion: str):
     return modulo
 
 
-def atender(orden: dict, cola: Path) -> int:
-    """Ejecuta una orden; su salida va a ``<id>.log`` y su código a ``<id>.fin.json``."""
+def _restituir_tras_fallo(app, foto) -> None:
+    """064:RF-5 a RF-7: la orden falló; lo que dejó a medias no lo hereda la siguiente."""
+    try:
+        hecho = pf_estado.restituir(app, foto)
+    except Exception as exc:  # noqa: BLE001 - la API puede fallar; el servidor sigue
+        print(f'AVISO: la orden falló y no se pudo restituir el estado de DIgSILENT: {exc} '
+              '(064:RF-7).', flush=True)
+        return
+    if hecho:
+        print('La orden falló: se deja DIgSILENT como estaba al empezar (064:RF-5): '
+              + '; '.join(hecho) + '.', flush=True)
+
+
+def atender(orden: dict, cola: Path, app=None) -> int:
+    """Ejecuta una orden; su salida va a ``<id>.log`` y su código a ``<id>.fin.json``.
+
+    Con la conexión del servidor (``app``, por defecto la compartida), fotografía el estado
+    antes de la orden y lo repone si la orden falla (064:RF-4, RF-5).
+    """
+    app = app if app is not None else pf_arnes._APP_COMPARTIDA
     log = cola / f"{orden['id']}.log"
     with open(log, 'w', encoding='utf-8', buffering=1) as f, redirect_stdout(f), \
             redirect_stderr(f):
+        foto = pf_estado.fotografiar(app) if app is not None else None
         try:
             codigo = _cargar(orden['guion']).main(list(orden.get('argv') or []))
         except SystemExit as exc:
@@ -75,6 +94,8 @@ def atender(orden: dict, cola: Path) -> int:
         except Exception:  # noqa: BLE001 - la orden falla, el servidor sigue
             traceback.print_exc()
             codigo = 1
+        if codigo and foto is not None:
+            _restituir_tras_fallo(app, foto)
     (cola / f"{orden['id']}.fin.json").write_text(json.dumps({'codigo': codigo or 0}),
                                                   encoding='utf-8')
     return codigo or 0

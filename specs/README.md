@@ -70,3 +70,4 @@ retirada.
 | [061](061-observacion-y-operacion-del-agente/spec.md) | Observación y operación integrada del agente | cumplida | 10 | 10 | — |
 | [062](062-retencion-diaria-de-ejecuciones/spec.md) | Retención diaria de ejecuciones y temporales | cumplida | 8 | 8 | — |
 | [063](063-informe-de-factibilidad-en-un-paso/spec.md) | Evaluación de conexión y operación comercial en un paso, para cualquier alimentador | aprobada | 38 | 24 | T3, T5, T6, T12, T15, T16, T18, T7 (DIgSILENT), T22, T23, T24 (DIgSILENT) |
+| [064](064-arnes-sin-atajos/spec.md) | Arnés de DIgSILENT sin atajos: un turno para todos y estado restituido | implementada | 8 | 8 | T7 (DIgSILENT) |

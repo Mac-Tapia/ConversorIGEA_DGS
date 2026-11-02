@@ -4183,16 +4183,23 @@ def script_inputs(ws: Workspace) -> list[str]:
     return args
 
 
-def system_command(ws: Workspace, action: str) -> list[str]:
+#: Acciones del sistema que importan o estudian en DIgSILENT (064:RF-3).
+ACCIONES_PF = frozenset({'grid', 'base'})
+
+
+def system_command(ws: Workspace, action: str, interprete: Path | str | None = None) -> list[str]:
+    """La orden de una acción del sistema; ``interprete`` es el de DIgSILENT para las de
+    :data:`ACCIONES_PF` (064:RF-3)."""
     crs = crs_origen_exigido(ws)
     args = script_inputs(ws)
+    py = str(interprete or sys.executable)
     if action == 'grid':
         out = ws.out_dir / 'sistema' / 'SISTEMA.dgs'
-        return [sys.executable, str(_script('build_system_grid.py')), *args,
+        return [py, str(_script('build_system_grid.py')), *args,
                 '--nombre', 'SISTEMA', '--out', str(out), '--source-crs', crs,
                 '--importar', '--run-load-flow', '--pf-carpeta', carpeta_pf()]
     if action == 'base':
-        return [sys.executable, str(_script('base_scenario.py')), *args,
+        return [py, str(_script('base_scenario.py')), *args,
                 '--nombre', 'PIDE_ANIO_0', '--out-dir', str(ws.out_dir / 'anio0'),
                 '--source-crs', crs]
     if action == 'missing-data':
@@ -4204,7 +4211,15 @@ def system_command(ws: Workspace, action: str) -> list[str]:
 def run_system(ws: Workspace, ctx: JobContext, action: str) -> dict:
     title = SYSTEM_ACTIONS[action][0]
     ctx.log(f'--- {title} ---')
-    rc = ctx.run_process(system_command(ws, action), cwd=str(project_root()))
+    if action in ACCIONES_PF:
+        # 064:RF-3: con el intérprete y el entorno de DIgSILENT, ``run_process`` lo trata como
+        # guion de DIgSILENT: cierra huérfanos y pone el límite de arranque. Antes iba con el
+        # intérprete de la web y sin ``PF_PYTHON``, como un proceso cualquiera.
+        pf_dir, interprete = _require_pf()
+        rc = ctx.run_process(system_command(ws, action, interprete),
+                             env=pf_subprocess_env(pf_dir), cwd=str(project_root()))
+    else:
+        rc = ctx.run_process(system_command(ws, action), cwd=str(project_root()))
     if rc != 0:
         ctx.log(f'El proceso devolvió el código {rc}. Causas frecuentes: PowerFactory no '
                 'está abierto, u otro proceso tiene tomado su motor (solo admite uno).')
