@@ -169,6 +169,10 @@ Obras para conectar
   varios alimentadores. (SM218, 2026-11-02: `ElmFeeder` veía 242 de 306 cargas.)
 - RF-40: CUANDO una evaluación incluya cargas de una troncal fuera del `ElmFeeder`, EL SISTEMA lo dirá
   en su informe con cuántas son.
+- RF-41: DONDE el libro de pérdidas de la empresa vaya en dos hojas, EL SISTEMA leerá el sistema del
+  alimentador en una y sus pérdidas reconocidas en la otra, con lo que diga el perfil de empresa.
+- RF-42: CUANDO se genere el informe de la carga nueva, EL SISTEMA dejará el PDF junto al Word editable
+  y, si no puede, dirá el motivo sin perder el Word.
 
 ## Fuera de alcance
 

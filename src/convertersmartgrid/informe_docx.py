@@ -58,6 +58,30 @@ class DatosEstudio:
     fijas: Sequence[Mapping[str, Any]] = ()
 
 
+def exportar_pdf(docx: Path, *, ejecutar=None) -> tuple[Path | None, str]:
+    """El PDF del informe, junto al Word, con Microsoft Word (063:RF-42).
+
+    Devuelve la ruta o ``None`` con el motivo: sin Word el informe editable ya está hecho y el
+    fallo se dice, no se oculta. Es el mismo guardado de Word que dio el PDF de INKA a mano.
+    """
+    import subprocess
+
+    pdf = Path(docx).with_suffix('.pdf')
+    orden = ("$w = New-Object -ComObject Word.Application; $w.Visible = $false; "
+             f"try {{ $d = $w.Documents.Open('{Path(docx).resolve()}', $false, $true); "
+             f"$d.SaveAs([ref]'{pdf.resolve()}', [ref]17); $d.Close(0) }} finally {{ $w.Quit() }}")
+    correr = ejecutar or (lambda c: subprocess.run(
+        ['powershell', '-NoProfile', '-NonInteractive', '-Command', c], capture_output=True, text=True,
+        encoding='utf-8', errors='replace', timeout=300, check=False))
+    try:
+        hecho = correr(orden)
+    except (OSError, subprocess.SubprocessError) as exc:
+        return None, f'no se pudo abrir Word: {exc}'
+    if getattr(hecho, 'returncode', 1) != 0 or not pdf.is_file():
+        return None, (str(getattr(hecho, 'stderr', '') or 'Word no generó el PDF').strip()[:300])
+    return pdf, ''
+
+
 @dataclass(frozen=True)
 class DatosFactibilidad:
     """Lo que necesita el informe de factibilidad de una carga nueva (RF-47 a RF-72)."""

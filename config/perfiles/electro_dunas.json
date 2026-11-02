@@ -83,6 +83,11 @@
     "bandas_cargabilidad_pct": [80, 90, 95, 105, 150],
     "_comentario_cabecera": "Rótulos de las celdas de la cabecera del modelo de Casa Blanca donde van el n.º de informe y la referencia (asunto).",
     "cabecera": {"numero": "INFORME TECNICO", "referencia": "REFERENCIA"},
+    "libro_perdidas": {"por_sistema": {
+      "hoja_alimentadores": "Clientes por radial_V2", "columna_alimentador": "Codigo VNR Alimentador",
+      "columna_codigo": "Codigo Sist. Elect.", "columna_nombre": "Nombre Sist. Elect.",
+      "hoja_perdidas": "Perdidas_ELDU", "columna_clave": "Código", "letra_kw_pct": "X", "letra_kwh_pct": "W"
+    }},
     "_comentario_norma": "La norma de calidad y el regulador que citan sus informes.",
     "norma": "NTCSE",
     "regulador": "Osinergmin"

@@ -101,6 +101,8 @@
 - [x] T25. Los sorteos y el criterio de la escalera cubren todas las troncales. (RF-39, RF-40)
       Hecho cuando: `pytest -q tests/test_obras_pf_guion.py -k "troncales or queda_fuera"` en verde.
       Hecho el 2026-11-02: `_cargas_de` usa `cargas_sed`. Las dos pruebas fallaban antes del arreglo.
+- [x] T26. Libro de pérdidas en dos hojas y PDF del informe desde la web. (RF-41, RF-42)
+      Hecho cuando: `pytest -q tests/test_libro_perdidas_por_sistema.py` en verde.
 - [ ] T7. [DIgSILENT] INKA'S BERRIES en SM218 desde la web con un clic. (Todos)
       Hecho cuando: el informe sale del botón de 4.4 sin pasar por 4.2, con los tres casos, y dice lo
       mismo que el informe hecho a mano el 2026-11-01.

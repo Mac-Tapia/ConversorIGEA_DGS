@@ -198,6 +198,9 @@ function Resultado({ r, cancelado }: { r: InformeResultado | null; cancelado: bo
       <p>
         <strong>{r.informe}</strong>{' '}
         <a className="btn btn-sm" href={api.fileUrl(ws.id, r.informe, true)}>Descargar Word</a>{' '}
+        {/* 063:RF-42: el PDF, o por qué no se generó. */}
+        {r.pdf && <><a className="btn btn-sm" href={api.fileUrl(ws.id, r.pdf, true)}>Descargar PDF</a>{' '}</>}
+        {r.sin_pdf && <small className="alert alert-warn">Sin PDF: {r.sin_pdf}</small>}{' '}
         <a className="btn btn-sm btn-ghost" href={api.fileUrl(ws.id, r.json, true)}>JSON</a>{' '}
         {/* 017:RF-105: el plan repite el informe con tools/informe_web.py. */}
         {r.plan && <a className="btn btn-sm btn-ghost" href={api.fileUrl(ws.id, r.plan, true)}
@@ -524,7 +527,10 @@ function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, 
   // RF-91: al elegir la carga se rellenan su potencia y su punto de conexión; lo demás, editable.
   const elegir = (k: string) => {
     const c = solas.find((x) => `${x.alimentador}|${x.sed}` === k);
-    fijar(c ? { clave: k, codigo: c.barra, sol: { ...sol, potencia_kw: c.kw != null ? String(c.kw) : sol.potencia_kw } }
+    // 063:RF-16: la estructura ya leída de la ficha no se pisa con la barra.
+    const conservar = codigo.trim() && !solas.some((x) => x.barra === codigo);
+    fijar(c ? { clave: k, codigo: conservar ? codigo : c.barra,
+      sol: { ...sol, potencia_kw: c.kw != null ? String(c.kw) : sol.potencia_kw } }
       : { clave: k });
   };
   /**

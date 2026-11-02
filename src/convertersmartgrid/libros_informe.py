@@ -25,6 +25,10 @@ CLAVE_LIBRO = 'libro_perdidas'
 _COLUMNAS = ('alimentador', 'sistema_electrico', 'reconocido_kw_pct', 'reconocido_kwh_pct')
 #: Columnas que el libro puede no traer; el informe deja la celda en blanco.
 _OPCIONALES = ('codigo_sistema',)
+#: 063:RF-41: lo que hay que decir de un libro en dos hojas; las columnas de porcentajes van por
+#: letra porque su cabecera ocupa dos filas y se repite («Energía», «Potencia»).
+_CAMPOS_POR_SISTEMA = ('hoja_alimentadores', 'columna_alimentador', 'columna_codigo', 'columna_nombre',
+                       'hoja_perdidas', 'columna_clave', 'letra_kw_pct', 'letra_kwh_pct')
 #: Filas en las que se busca la cabecera: los libros de la empresa traen título encima.
 _FILAS_CABECERA = 30
 
@@ -57,6 +61,8 @@ class ColumnasPerdidas:
     precio_hoja: str | None = None
     precio_celda: str | None = None
     precio_columna: str | None = None
+    #: 063:RF-41: libro en dos hojas: el alimentador da su sistema y el sistema, sus pérdidas.
+    por_sistema: Mapping[str, Any] | None = None
 
     @classmethod
     def de_perfil(cls, datos: Mapping[str, Any]) -> 'ColumnasPerdidas':
@@ -64,6 +70,13 @@ class ColumnasPerdidas:
         seccion = (datos.get('informes') or {}).get(CLAVE_LIBRO)
         if not isinstance(seccion, Mapping):
             raise LibroError(f'Falta {prefijo} en el perfil de empresa: hoja y columnas del libro de pérdidas.')
+        if isinstance(seccion.get('por_sistema'), Mapping):
+            config = seccion['por_sistema']
+            faltan = [f'{prefijo}.por_sistema.{c}' for c in _CAMPOS_POR_SISTEMA
+                      if not isinstance(config.get(c), str) or not config[c].strip()]
+            if faltan:
+                raise LibroError(f'Falta en el perfil de empresa: {", ".join(faltan)}.')
+            return cls(hoja=config['hoja_alimentadores'], columnas={}, por_sistema=config)
         hoja = seccion.get('hoja')
         columnas = seccion.get('columnas') or {}
         faltan = ([f'{prefijo}.hoja'] if not isinstance(hoja, str) or not hoja.strip() else [])
@@ -113,6 +126,62 @@ def _porcentaje(celda) -> float | None:
     return valor
 
 
+def _cabecera(hoja, nombres: Mapping[str, str]) -> tuple[int, dict[str, int]]:
+    """La fila de la cabecera y el índice de cada columna pedida."""
+    for fila in hoja.iter_rows(min_row=1, max_row=_FILAS_CABECERA):
+        vistas = {_clave(c.value): c.column - 1 for c in fila if c.value not in (None, '')}
+        if all(_clave(v) in vistas for v in nombres.values()):
+            return fila[0].row, {k: vistas[_clave(v)] for k, v in nombres.items()}
+    raise LibroError(f'La hoja {hoja.title!r} del libro de pérdidas no tiene las columnas '
+                     + ', '.join(repr(v) for v in nombres.values()) + '.')
+
+
+def _leer_por_sistema(libro, alimentador: str, config: Mapping[str, Any]) -> DatosPerdidas:
+    """063:RF-41: el alimentador da su sistema en una hoja y el sistema, sus pérdidas en otra.
+
+    El libro de Electro Dunas va así: ``Clientes por radial_V2`` lleva SM218 a SE2044, y
+    ``Perdidas_ELDU`` da SE2044 con 1,69 % de energía y 2,75 % de potencia. El lector de una sola
+    hoja no podía leerlo, y el botón del informe fallaba con el libro cargado.
+    """
+    hojas = {_clave(n): n for n in libro.sheetnames}
+
+    def hoja(nombre: str):
+        if _clave(nombre) not in hojas:
+            raise LibroError(f'El libro de pérdidas no tiene la hoja {nombre!r}; '
+                             f'tiene {", ".join(repr(n) for n in libro.sheetnames)}.')
+        return libro[hojas[_clave(nombre)]]
+
+    nombre = alimentador.strip()
+    radial = hoja(config['hoja_alimentadores'])
+    fila_c, cols = _cabecera(radial, {'alim': config['columna_alimentador'], 'cod': config['columna_codigo'],
+                                      'nom': config['columna_nombre']})
+    buscado = _clave(nombre)
+    for fila in radial.iter_rows(min_row=fila_c + 1):
+        if _clave(fila[cols['alim']].value or '') == buscado:
+            codigo, sistema = fila[cols['cod']].value, fila[cols['nom']].value
+            break
+    else:
+        return DatosPerdidas(nombre, None, None, None, None,
+                             (f'el alimentador {nombre} no está en la hoja {radial.title!r}',))
+    codigo = str(codigo).strip() if codigo not in (None, '') else None
+    sistema = str(sistema).strip() if sistema not in (None, '') else None
+    tabla = hoja(config['hoja_perdidas'])
+    fila_t, i = _cabecera(tabla, {'clave': config['columna_clave']})
+    faltan: list[str] = ['precio de compra: el libro no lo trae']
+    if codigo is None:
+        faltan.insert(0, f'el código del sistema de {nombre}')
+        return DatosPerdidas(nombre, sistema, None, None, None, tuple(faltan))
+    # La primera fila del código: el libro repite cada sistema más abajo con sus factores.
+    for fila in tabla.iter_rows(min_row=fila_t + 1):
+        if _clave(fila[i['clave']].value or '') == _clave(codigo):
+            kw = _porcentaje(tabla[f"{config['letra_kw_pct']}{fila[0].row}"])
+            kwh = _porcentaje(tabla[f"{config['letra_kwh_pct']}{fila[0].row}"])
+            faltan += [f'{t} de {codigo}' for t, v in (('reconocidas en kW', kw), ('reconocidas en kWh', kwh)) if v is None]
+            return DatosPerdidas(nombre, sistema, kw, kwh, None, tuple(faltan), codigo)
+    faltan.insert(0, f'el sistema {codigo} no está en la hoja {tabla.title!r}')
+    return DatosPerdidas(nombre, sistema, None, None, None, tuple(faltan), codigo)
+
+
 def leer_libro_perdidas(ruta: Path, alimentador: str, columnas: ColumnasPerdidas) -> DatosPerdidas:
     """Sistema eléctrico, pérdidas reconocidas y precio de compra de ``alimentador`` (RF-62).
 
@@ -128,6 +197,8 @@ def leer_libro_perdidas(ruta: Path, alimentador: str, columnas: ColumnasPerdidas
     except Exception as exc:  # openpyxl lanza tipos distintos según lo que esté roto
         raise LibroError(f'No se pudo abrir el libro de pérdidas {Path(ruta).name}: {exc}') from exc
     try:
+        if columnas.por_sistema:
+            return _leer_por_sistema(libro, alimentador, columnas.por_sistema)
         hojas = {_clave(n): n for n in libro.sheetnames}
 
         def hoja(nombre: str):

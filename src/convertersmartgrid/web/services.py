@@ -7128,22 +7128,23 @@ def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict
     fc = formulario.get('factor_carga')
     reconocidas = formulario.get('perdidas_reconocidas') or {}
     libro = None
-    if any(v not in (None, '') for v in reconocidas.values()):
+    # RF-62: lo del libro de pérdidas subido en 4.4.2; 063:RF-41: lo escrito a mano manda campo a
+    # campo. El libro de Electro Dunas no trae precio: escribirlo no debe descartar lo demás.
+    escrito = {k: v for k, v in reconocidas.items() if v not in (None, '')}
+    leido = _perdidas_del_libro(ws, [alimentador])
+    if leido and leido['error'] and not escrito:
+        raise UserError(f'Libro de pérdidas: {leido["error"]}')
+    if escrito or leido:
+        base = (leido['lecturas'].get(alimentador) or {}) if leido and not leido['error'] else {}
+        valor = {k: escrito.get(k, base.get(k)) for k in ('sistema_electrico', 'codigo_sistema', 'reconocido_kw_pct',
+                                                          'reconocido_kwh_pct', 'precio_compra')}
         faltan = [n for k, n in (('reconocido_kw_pct', 'pérdidas reconocidas en potencia'),
                                  ('reconocido_kwh_pct', 'pérdidas reconocidas en energía'),
                                  ('precio_compra', 'precio de compra de la energía'))
-                  if reconocidas.get(k) is None]
-        libro = DatosPerdidas(alimentador, reconocidas.get('sistema_electrico') or None,
-                              reconocidas.get('reconocido_kw_pct'), reconocidas.get('reconocido_kwh_pct'),
-                              reconocidas.get('precio_compra'), tuple(faltan),
-                              reconocidas.get('codigo_sistema') or None)
-    else:
-        # RF-62: sin nada escrito a mano, lo del libro de pérdidas subido en 4.4.2.
-        leido = _perdidas_del_libro(ws, [alimentador])
-        if leido and leido['error']:
-            raise UserError(f'Libro de pérdidas: {leido["error"]}')
-        if leido:
-            libro = DatosPerdidas(**leido['lecturas'][alimentador])
+                  if valor[k] is None]
+        libro = DatosPerdidas(alimentador, valor['sistema_electrico'] or None, valor['reconocido_kw_pct'],
+                              valor['reconocido_kwh_pct'], valor['precio_compra'], tuple(faltan),
+                              valor['codigo_sistema'] or None)
 
     def perdidas(caso: Caso):
         if fc is None or not caso.converge or caso.fuente is None or caso.perdidas is None:
@@ -7191,9 +7192,15 @@ def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict
     if ctx is not None:
         ctx.log(f'Informe de factibilidad de {carga["sed"]} en {alimentador}: {destino.name} '
                 f'({len(huecos)} hueco(s)); {"factible" if resumen.get("factible") else "no factible"}.')
+    from ..informe_docx import exportar_pdf
+
+    pdf, sin_pdf = exportar_pdf(destino)                                             # 063:RF-42
+    if ctx is not None and pdf is None:
+        ctx.log(f'El PDF no se generó: {sin_pdf}. El Word editable sí está.')
     _paso_informe(ctx, 3, 'listo')
     return {'conclusion_conexion': _conclusion_conexion(ws, project, alimentador, actual, con, lim),
             'informe': destino.name, 'json': destino.with_suffix('.json').name, 'huecos': huecos,
+            'pdf': pdf.name if pdf else None, 'sin_pdf': sin_pdf,
             'estudios': [sin['_fichero'], con['_fichero']], 'factible': resumen.get('factible'),
             'excesos': resumen.get('excesos') or [], 'punto_diseno': punto, 'carga': carga,
             'imagenes': _imagenes_para_la_web(ws, imagenes),

@@ -1035,6 +1035,9 @@ export interface TrafoResultado {
 
 export interface InformeResultado {
   informe: string;
+  /** 063:RF-42: el PDF junto al Word o, si no se pudo, el motivo. */
+  pdf?: string | null;
+  sin_pdf?: string;
   json: string;
   huecos: string[];
   estudios: string[];
