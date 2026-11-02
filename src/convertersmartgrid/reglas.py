@@ -246,28 +246,6 @@ def _corregir_con_oraculo(model) -> dict[str, Any]:
     return {'demanda_corregida': res.as_dict()}
 
 
-def _corregir_con_oraculo(model) -> dict[str, Any]:
-    """057:RF-1 a RF-4: la corrección del oráculo, en el informe de reglas y en los avisos."""
-    from .oraculo import corregir_para_converger, disponible
-
-    if getattr(model, 'combined', None) is not None or not disponible():
-        # La red unida tiene su propio veredicto por isla (022:RF-33); sin pandapower no
-        # hay oráculo y la importación lo dice (034:RF-25).
-        return {}
-    res = corregir_para_converger(model)
-    if res.convergio is None or (res.convergio and not res.cambios):
-        return {}
-    if res.convergio:
-        model.warnings.append(
-            f'{len(res.cambios)} SED con demanda de relleno o mayor que su potencia: el oráculo '
-            f'la llevó a su potencia instalada × {res.factor:.4f} (FP 0,98) para que el flujo '
-            'converja (spec 057). ' + '; '.join(c.linea() for c in res.cambios[:20])
-            + ('…' if len(res.cambios) > 20 else ''))
-    else:
-        model.warnings.append(f'El oráculo no logra que el flujo converja: {res.motivo}')
-    return {'demanda_corregida': res.as_dict()}
-
-
 # ---------------------------------------------------------------------------
 # Completitud
 # ---------------------------------------------------------------------------

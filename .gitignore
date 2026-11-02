@@ -70,6 +70,9 @@ referencia/*.xlsx
 referencia/*.xls
 referencia/*.csv
 referencia/*.mdb
+# DGS exportados de una red real (NA205.dgs estuvo versionado hasta el 2026-11-01 y hubo
+# que reescribir el historial para sacarlo): se quedan en local como los TXT.
+referencia/*.dgs
 referencia/audit_ternas_*.json
 # Subcarpetas de mediciones, suministros y catálogos de la distribuidora (≈1,7 GB en
 # 2026-10): sin esta regla un ``git add -A`` las sube y GitHub rechaza el push (>100 MB).
