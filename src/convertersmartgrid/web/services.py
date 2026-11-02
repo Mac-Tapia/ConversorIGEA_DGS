@@ -6380,6 +6380,10 @@ def guion_ejecutar(ws: Workspace, ctx: JobContext, project: str, nombre: str, or
 
 
 # ------------------------------------------------------------------ informes (spec 017)
+#: Lo que puede separarse la cabecera del flujo desequilibrado de la del equilibrado (063:RF-45).
+TOLERANCIA_FLUJOS = 0.02
+
+
 def _ultimo_estudio(ws: Workspace, rol: str, project: str | None = None) -> dict | None:
     """El último informe de flujo que dejó el paso de estudios en ese caso.
 
@@ -6387,22 +6391,37 @@ def _ultimo_estudio(ws: Workspace, rol: str, project: str | None = None) -> dict
     «Con proyecto» desde la web, no con otra ejecución de DIgSILENT (el usuario,
     2026-10-15). Se prefiere el flujo desequilibrado: da la tensión de cada fase (RF-17).
     Con ``project``, solo los de ese proyecto: un espacio puede haber estudiado otro antes.
+
+    063:RF-45: el desequilibrado solo vale si su cabecera cuadra con la del equilibrado. En SM218
+    (2026-11-02) daba 11 873 kW frente a los 9 284 kW medidos, y el informe salía con cuellos del
+    185 % que no existen; entonces se usa el equilibrado y lo dice ``_aviso_flujo``.
     """
-    for patron in (f'estudio_{rol}_flujo_desequilibrado_*.json', f'estudio_{rol}_flujo_*.json'):
-        ficheros = sorted((p for p in ws.out_dir.glob(patron)
-                           if patron.endswith('desequilibrado_*.json') or 'desequilibrado' not in p.name),
-                          key=lambda p: p.stat().st_mtime, reverse=True)
-        for fichero in ficheros:
+    def ultimo(desequilibrado: bool) -> dict | None:
+        patron = f'estudio_{rol}_flujo_{"desequilibrado_" if desequilibrado else ""}*.json'
+        for fichero in sorted(ws.out_dir.glob(patron), key=lambda p: p.stat().st_mtime, reverse=True):
+            if not desequilibrado and 'desequilibrado' in fichero.name:
+                continue
             datos = json.loads(fichero.read_text(encoding='utf-8'))
             if project and str(datos.get('project') or '').strip() not in ('', project.strip()):
                 continue
             if datos.get('medidas'):
-                if 'desequilibrado' not in fichero.name:
-                    # En el flujo equilibrado DIgSILENT da las tres fases iguales: el informe
-                    # lleva una sola tensión, la trifásica (RF-18).
-                    datos['medidas'] = {f: {**m, 'vm_min_fases': None} for f, m in datos['medidas'].items()}
                 return {**datos, '_fichero': fichero.name}
-    return None
+        return None
+
+    des, equi = ultimo(True), ultimo(False)
+    if equi is not None:
+        # En el flujo equilibrado DIgSILENT da las tres fases iguales: el informe lleva una sola
+        # tensión, la trifásica (RF-18).
+        equi['medidas'] = {f: {**m, 'vm_min_fases': None} for f, m in equi['medidas'].items()}
+    if des is None or equi is None:
+        return des or equi
+    for f, m in des['medidas'].items():
+        a, b = m.get('cabecera_kw'), (equi['medidas'].get(f) or {}).get('cabecera_kw')
+        if a and b and abs(a - b) > TOLERANCIA_FLUJOS * abs(b):
+            return {**equi, '_aviso_flujo': (
+                f'El flujo desequilibrado de {f} da {a:,.0f} kW en cabecera y el equilibrado {b:,.0f} kW: no '
+                'cuadra con la calibración, y el informe usa el equilibrado (063:RF-45).')}
+    return des
 
 
 def _fijas_de_la_calibracion(ws: Workspace, estudio: dict, alimentador: str) -> list[dict]:
@@ -7090,6 +7109,10 @@ def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict
             raise UserError(f'Libro de pérdidas: {previo["error"]}')
         preparar_flujos_del_informe(ws, ctx, project, alimentador)                 # 063:RF-1
     sin, con = _ultimo_estudio(ws, 'sin', project), _ultimo_estudio(ws, 'con', project)
+    if ctx is not None:
+        for datos in (sin, con):
+            if datos and datos.get('_aviso_flujo'):
+                ctx.log(datos['_aviso_flujo'])
     for rol, datos in ((SIN_PROYECTO, sin), (CON_PROYECTO, con)):
         if datos is None or alimentador not in (datos.get('medidas') or {}):
             raise UserError(f'No hay un flujo de «{rol}» de {alimentador}: el proyecto no tiene ese '
@@ -7186,7 +7209,10 @@ def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict
         perdidas_proyectado=perdidas(proyectado), libro=libro, devanado=devanado,
         caso_transmision=str(t.get('caso') or ''), fuentes=fuentes,
         numero=formulario.get('numero') or None, imagenes=imagenes, cargas=sin_obras,
-        con_obras=con_obras, ficha_punto=ficha_punto)
+        con_obras=con_obras, ficha_punto=ficha_punto,
+        # 063:RF-46: el transformador de la SET entra solo si se calculó (usuario, 2026-11-01: «no se
+        # requiere»); su ausencia no es un hueco ni impide concluir.
+        incluir_transformador_set=devanado is not None)
     destino = ws.out_dir / (f'informe_factibilidad_{nombre_seguro(alimentador)}_'
                             f'{nombre_seguro(str(carga["sed"]))}_{uuid.uuid4().hex[:8]}.docx')
     try:

@@ -155,6 +155,12 @@ def _nodo_de_banco(barra) -> tuple[str | None, list[float] | None]:
     return None, list(gps) if gps else None
 
 
+#: Por debajo de esto una barra no tiene tensión: está en una isla sin fuente (063:RF-43).
+UMBRAL_SIN_TENSION = 0.1
+#: Desde aquí una barra es de media tensión, en kV (063:RF-44).
+KV_MINIMO_MT = 1.0
+
+
 def medida(elm, app=None) -> dict:
     """Lo que la web necesita de un alimentador tras un flujo (RF-31, RF-33).
 
@@ -199,16 +205,26 @@ def medida(elm, app=None) -> dict:
                               'q_flujo_kvar': (-_num(sh, 'm:Qsum:bus1') * 1000.0
                                                if _num(sh, 'm:Qsum:bus1') is not None else None)})
     out['bancos'].sort(key=lambda x: (str(x['barra']), x['nombre']))
-    if barras:
-        lo = min(barras, key=lambda b: b[1])
-        hi = max(barras, key=lambda b: b[1])
+    # 063:RF-43: una barra a 0 p.u. es una isla sin fuente, no una caída: 8674 y 8675 de SM218 daban
+    # «tensión mínima 0,000» y dejaban no factible cualquier conexión. 063:RF-44: el criterio es de
+    # media tensión; la baja de las SED sigue en ``barras``.
+    out['sin_tension'] = [n for n, u in barras if u <= UMBRAL_SIN_TENSION]
+    mt = {b.loc_name for b in objetos('ElmTerm') if (_num(b, 'uknom') or 0) >= KV_MINIMO_MT}
+    out['barras_mt'] = sorted(mt)
+    vivas = [b for b in barras if b[1] > UMBRAL_SIN_TENSION]
+    juzgadas = [b for b in vivas if b[0] in mt] or vivas
+    if juzgadas:
+        lo = min(juzgadas, key=lambda b: b[1])
+        hi = max(juzgadas, key=lambda b: b[1])
         out.update(vm_min=lo[1], vm_min_barra=lo[0], vm_max=hi[1], vm_max_barra=hi[0])
         # El informe da la mínima de cada fase en el flujo desequilibrado (017:RF-17); en el
         # equilibrado DIgSILENT no tiene tensiones por fase y queda en None.
+        nombres = {n for n, _u in juzgadas}
         fases = {}
         for fase in 'ABC':
             valores = [(u, b.loc_name) for b in objetos('ElmTerm')
-                       if (u := _num(b, f'm:u:{fase}')) is not None]
+                       if b.loc_name in nombres and (u := _num(b, f'm:u:{fase}')) is not None
+                       and u > UMBRAL_SIN_TENSION]
             if valores:
                 fases[fase] = min(valores)
         out['vm_min_fases'] = fases if len(fases) == 3 else None

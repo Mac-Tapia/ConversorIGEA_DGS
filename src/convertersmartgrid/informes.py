@@ -274,6 +274,11 @@ class Caso:
         else:
             tension_min = {}
         barras = medida.get('barras') or []
+        # 063:RF-43, RF-44: las islas sin tensión no son nodos fuera de banda, y se juzga la media
+        # tensión si la medida dice cuál es (una guardada antes no lo dice: todas).
+        sin_tension = set(medida.get('sin_tension') or ())
+        mt = set(medida.get('barras_mt') or ())
+        barras = [(n, u) for n, u in barras if n not in sin_tension and (not mt or n in mt)]
         lineas = [e for e in (medida.get('elementos') or []) if e[1] == 'ElmLne']
         trafos = [e for e in (medida.get('elementos') or []) if e[1] == 'ElmTr2']
         if lineas:

@@ -173,6 +173,14 @@ Obras para conectar
   alimentador en una y sus pérdidas reconocidas en la otra, con lo que diga el perfil de empresa.
 - RF-42: CUANDO se genere el informe de la carga nueva, EL SISTEMA dejará el PDF junto al Word editable
   y, si no puede, dirá el motivo sin perder el Word.
+- RF-43: SI una barra está sin tensión, ENTONCES EL SISTEMA la dirá como isla sin fuente y no la contará
+  como tensión mínima ni como nodo fuera de banda.
+- RF-44: EL SISTEMA juzgará la tensión mínima, la máxima y los nodos fuera de banda del informe en media
+  tensión, y conservará las barras de baja tensión en los datos del estudio.
+- RF-45: SI la cabecera del flujo desequilibrado se separa más de un 2 % de la del equilibrado, ENTONCES EL
+  SISTEMA usará el equilibrado en el informe y lo avisará.
+- RF-46: DONDE no se haya calculado el transformador de la SET, EL SISTEMA lo dejará fuera del informe,
+  sin contarlo como hueco ni impedir la conclusión.
 
 ## Fuera de alcance
 

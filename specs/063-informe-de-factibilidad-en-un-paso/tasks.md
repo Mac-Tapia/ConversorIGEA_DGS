@@ -103,6 +103,10 @@
       Hecho el 2026-11-02: `_cargas_de` usa `cargas_sed`. Las dos pruebas fallaban antes del arreglo.
 - [x] T26. Libro de pérdidas en dos hojas y PDF del informe desde la web. (RF-41, RF-42)
       Hecho cuando: `pytest -q tests/test_libro_perdidas_por_sistema.py` en verde.
+- [x] T28. El transformador de la SET es opcional en el informe. (RF-46)
+      Hecho cuando: `pytest -q tests/test_informe_web.py -k transformador_opcional` en verde.
+- [x] T27. Islas sin tensión, criterio de MT y flujo que no cuadra. (RF-43, RF-44, RF-45)
+      Hecho cuando: `pytest -q tests/test_estudios_pf_guion.py tests/test_informe_web.py` en verde.
 - [ ] T7. [DIgSILENT] INKA'S BERRIES en SM218 desde la web con un clic. (Todos)
       Hecho cuando: el informe sale del botón de 4.4 sin pasar por 4.2, con los tres casos, y dice lo
       mismo que el informe hecho a mano el 2026-11-01.

@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import time
 from pathlib import Path
+from types import SimpleNamespace
 
 import docx
 import pytest
@@ -544,3 +545,48 @@ def test_ampliacion_nis_y_ficha_llegan_del_formulario_al_word(client, tmp_path):
     assert 'Ampliación de 300 kW a 800 kW (+500 kW)' in texto
     assert 'NIS 123456789' in texto
     assert '48.5' in celdas and '410000.5' in celdas
+
+
+def test_islas_y_baja_tension_no_deciden_el_informe():
+    """063:RF-43, 063:RF-44 — SM218: los nodos 8674 y 8675 a 0 p.u. y la baja de una SED a 0,887 dejaban
+    no factible una red cuya media tensión cumple."""
+    from convertersmartgrid.estudios_pf import Limites
+    from convertersmartgrid.informes import Caso
+
+    medida = {**_medida(0.96), 'barras': [['CAB', 1.0], ['N1', 0.96], ['ISLA', 0.0], ['SED_BT', 0.887]],
+              'sin_tension': ['ISLA'], 'barras_mt': ['CAB', 'N1', 'ISLA']}
+    limites = Limites(tension_min_pu=0.95, tension_max_pu=1.05, cargabilidad_max_pct=100.0)
+    assert Caso.desde_medida('Con', medida, limites).nodos_fuera == 0
+    # Una medida guardada antes no lo dice: se juzgan todas, como hasta ahora.
+    viejo = {k: v for k, v in medida.items() if k not in ('sin_tension', 'barras_mt')}
+    assert Caso.desde_medida('Con', viejo, limites).nodos_fuera == 2
+
+
+def test_el_desequilibrado_que_no_cuadra_no_entra_en_el_informe(tmp_path):
+    """063:RF-45 — SM218: 11 873 kW frente a 9 284 kW, con cuellos del 185 % que no existen. Si cuadra,
+    se prefiere el desequilibrado (017:RF-17)."""
+    from convertersmartgrid.web import services
+
+    ws = SimpleNamespace(out_dir=tmp_path)
+    (tmp_path / 'estudio_sin_flujo_desequilibrado_a.json').write_text(
+        json.dumps({'medidas': {'AL01': _medida(0.90)}}), encoding='utf-8')
+    (tmp_path / 'estudio_sin_flujo_b.json').write_text(
+        json.dumps({'medidas': {'AL01': {**_medida(0.97), 'cabecera_kw': 6050.0}}}), encoding='utf-8')
+    cuadra = services._ultimo_estudio(ws, 'sin')
+    assert cuadra['_fichero'] == 'estudio_sin_flujo_desequilibrado_a.json' and not cuadra.get('_aviso_flujo')
+    (tmp_path / 'estudio_sin_flujo_desequilibrado_a.json').write_text(
+        json.dumps({'medidas': {'AL01': {**_medida(0.90), 'cabecera_kw': 7800.0}}}), encoding='utf-8')
+    no = services._ultimo_estudio(ws, 'sin')
+    assert no['_fichero'] == 'estudio_sin_flujo_b.json' and '063:RF-45' in no['_aviso_flujo']
+    assert no['medidas']['AL01']['vm_min_fases'] is None
+
+
+def test_transformador_opcional_no_impide_concluir(client, tmp_path):
+    """063:RF-46 — sin calcular el transformador de la SET: fuera del informe, sin hueco ni exceso."""
+    wid, salida = _espacio(client, tmp_path)
+    _carga_aplicada(client, wid, salida)
+    cuerpo = {k: v for k, v in FACTIBILIDAD.items() if k != 'transformador_set'}
+    fin = esperar_trabajo(client, client.post(f'/api/workspaces/{wid}/informes/factibilidad', json=cuerpo).json())
+    assert fin['status'] == 'done', fin.get('error')
+    res = fin['result']
+    assert not any('transformador de la SET' in x for x in [*res['huecos'], *res['excesos']]), res
