@@ -6,6 +6,8 @@ RF-31); nada se reescribe.
 """
 from __future__ import annotations
 
+from ..runtime_paths import staging_publicacion
+
 import json
 import os
 import threading
@@ -21,9 +23,9 @@ def raiz() -> Path:
     env = os.environ.get('CSG_ASISTENTE_DATA', '').strip()
     if env:
         return Path(env)
-    from ..web.workspace import data_root
+    from ..web.workspace import raiz_componente
 
-    return data_root() / '_asistente'
+    return raiz_componente('_asistente', 'CSG_ASISTENTE_DATA')
 
 
 def ahora() -> str:
@@ -59,9 +61,9 @@ def guardar_json(nombre: str, datos: Any) -> Path:
     """Escribe ``<nombre>.json`` de forma atómica."""
     ruta = raiz() / f'{nombre}.json'
     ruta.parent.mkdir(parents=True, exist_ok=True)
-    tmp = ruta.with_suffix('.json.tmp')
-    tmp.write_text(json.dumps(datos, ensure_ascii=False, indent=2, default=str), encoding='utf-8')
-    os.replace(tmp, ruta)
+    with staging_publicacion(ruta) as tmp:
+        tmp.write_text(json.dumps(datos, ensure_ascii=False, indent=2, default=str), encoding='utf-8')
+        os.replace(tmp, ruta)
     return ruta
 
 

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { api, fmtNum } from '../api';
 import { useApp } from '../context';
+import { DescargaZip } from './DescargaZip';
 import type { EstructuraResumen, FeederRow } from '../types';
 import { Pill, Stat, useConfirm } from './ui';
 import { ReconstructionPanel } from './ReconstructionPanel';
@@ -414,11 +415,9 @@ export function FeedersPanel() {
                 {estructura.deducidos.map((d) => `${d.alimentador} en ${d.set}`).join(', ')}
               </small>
             )}
-            <a className={`btn ${converted ? '' : 'btn-disabled'}`}
-              href={converted ? api.zipUrl(ws.id, selected.length ? selected : []) : undefined}
-              aria-disabled={!converted}>
+            <DescargaZip disabled={!converted} feeders={selected.length ? selected : []}>
               Descargar {selected.length ? 'selección' : 'todo'} (.zip)
-            </a>
+            </DescargaZip>
             <span className="spacer" />
             <button className="btn btn-pf" disabled={pfBusy || selected.length === 0 || !pfReady} onClick={() => run(pfFlow)}
               title="Import del DGS + escenario + flujo de potencia + estudios">

@@ -11,6 +11,8 @@ no puede demostrarse la fuente, el proyecto o el alimentador solicitado.
 
 from __future__ import annotations
 
+from .runtime_paths import staging_publicacion
+
 import hashlib
 import json
 import os
@@ -84,11 +86,11 @@ def _leer_registro(path: Path) -> dict[str, dict[str, Any]]:
 def _escribir_registro(path: Path, vinculos: dict[str, dict[str, Any]]) -> None:
     """Escritura atómica: un fallo a mitad deja el registro anterior, no uno a medias."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(path.name + '.tmp')
-    payload = {'schema': REGISTRO_SCHEMA, 'vinculos': vinculos}
-    tmp.write_text(json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=True),
-                   encoding='utf-8')
-    os.replace(tmp, path)
+    with staging_publicacion(path) as tmp:
+        payload = {'schema': REGISTRO_SCHEMA, 'vinculos': vinculos}
+        tmp.write_text(json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=True),
+                       encoding='utf-8')
+        os.replace(tmp, path)
 
 
 def sembrar_registro(path: Path, vinculos_por_espacio: Iterable[Any]) -> dict[str, int]:

@@ -57,13 +57,15 @@ def _esperar(client, job_id, limite=60):
 
 def _orden(client, wid, texto):
     r = client.post(f'/api/workspaces/{wid}/asistente/orden', json={'texto': texto})
-    assert r.status_code == 200, r.text
-    return r.json()
+    assert r.status_code == 202, r.text
+    job = _esperar(client, r.json()['id'])
+    assert job['status'] == 'done', job
+    return job['result']
 
 
 def test_consulta_respondida_al_momento(client):
-    """026:RF-1 / 026:RF-9 — la consola recibe la orden; una consulta se responde en la misma
-    petición, sin trabajo ni confirmación."""
+    """026:RF-1 / 026:RF-9 / 065:RF-18 — tras interpretar en cola, la consulta
+    recibe respuesta sin iniciar una operación ni pedir confirmación."""
     r = _orden(client, _wid(client), 'que hay cargado')
     assert r['plan']['tarea'] == 'estado' and not r['plan']['escribe'] and 'trabajo' not in r
     assert 'Sin fuente cargada' in r['respuesta']['texto']

@@ -1,6 +1,8 @@
 """Dataset local v2 con procedencia, grupos indivisibles y calidad explícita."""
 from __future__ import annotations
 
+from ..runtime_paths import staging_publicacion
+
 import hashlib
 import json
 import os
@@ -222,10 +224,10 @@ def registrar_evento_conversion(
         raiz.mkdir(parents=True, exist_ok=True)
         final = raiz / f'{event_id}.json'
         if not final.exists():
-            temporal = raiz / f'.{event_id}.{os.getpid()}.tmp'
-            temporal.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2),
-                                encoding='utf-8')
-            os.replace(temporal, final)
+            with staging_publicacion(final) as temporal:
+                temporal.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2),
+                                    encoding='utf-8')
+                os.replace(temporal, final)
         return {'ok': True, 'event_id': event_id, 'path': str(final)}
     except Exception as exc:  # frontera: la IA no bloquea la conversión
         return {'ok': False, 'warning': f'DATASET_IA_NO_ACTUALIZADO: {exc}'}
@@ -487,10 +489,10 @@ def escribir_particiones(
         filas = particiones.get(nombre, ())
         contenido = ''.join(json.dumps(r.as_dict(), ensure_ascii=False, sort_keys=True) + '\n'
                             for r in filas)
-        temporal = raiz / f'.{nombre}.{os.getpid()}.tmp'
-        temporal.write_bytes(contenido.encode('utf-8'))
-        final = raiz / f'{nombre}.jsonl'
-        os.replace(temporal, final)
+        with staging_publicacion(raiz / f'{nombre}.jsonl') as temporal:
+            temporal.write_bytes(contenido.encode('utf-8'))
+            final = raiz / f'{nombre}.jsonl'
+            os.replace(temporal, final)
         archivos[nombre] = {
             'count': len(filas), 'sha256': hashlib.sha256(contenido.encode()).hexdigest(),
             'qualities': dict(sorted(Counter(r.quality for r in filas).items())),
@@ -499,8 +501,8 @@ def escribir_particiones(
     base = {'schema': ESQUEMA_DATASET, 'partitions': archivos,
             'qualities': dict(sorted(qualities.items())), 'audit': auditoria}
     base['sha256'] = _hash(base)
-    temporal = raiz / f'.manifest.{os.getpid()}.tmp'
-    temporal.write_text(json.dumps(base, ensure_ascii=False, sort_keys=True, indent=2),
-                        encoding='utf-8')
-    os.replace(temporal, raiz / 'manifest.json')
+    with staging_publicacion(raiz / 'manifest.json') as temporal:
+        temporal.write_text(json.dumps(base, ensure_ascii=False, sort_keys=True, indent=2),
+                            encoding='utf-8')
+        os.replace(temporal, raiz / 'manifest.json')
     return base

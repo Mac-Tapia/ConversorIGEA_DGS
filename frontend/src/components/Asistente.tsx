@@ -1,15 +1,17 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../context';
 import type { AsistentePlan, AsistenteRespuesta, EstadoModelos } from '../types';
 import type { EstadoAceptacionAgente } from '../asistenteAceptacion';
 import { MonitorAgente } from './MonitorAgente';
+import { EquipoAsistente } from './EquipoAsistente';
 
 /** Spec 026: la consola del asistente. La orden se escribe en español; lo que escribe en
  * DIgSILENT o en disco espera la confirmación (RF-8) y se ejecuta como cualquier trabajo. */
 interface Intercambio {
   texto: string;
-  r: AsistenteRespuesta;
+  r?: AsistenteRespuesta;
+  interpretacion?: string;
   trabajo?: string;
 }
 
@@ -166,15 +168,36 @@ export function Asistente() {
   const [enviando, setEnviando] = useState(false);
   const [correccion, setCorreccion] = useState<Record<string, string>>({});
 
+  useEffect(() => {
+    setHistorial([]);
+    setCorreccion({});
+  }, [ws.id]);
+
+  useEffect(() => {
+    setHistorial((rows) => {
+      let changed = false;
+      const next = rows.map((row) => {
+        const job = row.interpretacion ? jobs[row.interpretacion] : undefined;
+        if (!row.r && job?.status === 'done' && job.result?.plan) {
+          changed = true;
+          const response = job.result as AsistenteRespuesta;
+          return { ...row, r: response, trabajo: response.trabajo?.id };
+        }
+        return row;
+      });
+      return changed ? next : rows;
+    });
+  }, [jobs]);
+
   const enviar = async () => {
     const orden = texto.trim();
     if (!orden || enviando) return;
     setEnviando(true);
-    const r = await run(() => api.asistenteOrden(ws.id, orden));
+    const job = await startJob(() => api.asistenteOrden(ws.id, orden));
     setEnviando(false);
-    if (!r) return;
+    if (!job) return;
     setTexto('');
-    setHistorial((h) => [...h, { texto: orden, r, trabajo: r.trabajo?.id }]);
+    setHistorial((h) => [...h, { texto: orden, interpretacion: job.id }]);
   };
 
   const confirmar = async (i: number, planId: string) => {
@@ -197,6 +220,7 @@ export function Asistente() {
   return (
     <div className="stack">
       <MonitorAgente />
+      <EquipoAsistente />
       <Modelos />
       <Aceptacion />
       <p className="muted small">
@@ -220,6 +244,15 @@ export function Asistente() {
       <ProyectoDesdeCero />
       {[...historial].reverse().map((x, rev) => {
         const i = historial.length - 1 - rev;
+        if (!x.r) {
+          const pending = x.interpretacion ? jobs[x.interpretacion] : undefined;
+          return <article key={x.interpretacion} className="card stack">
+            <p><b>›</b> {x.texto}</p>
+            <p className={pending?.status === 'failed' ? 'alert alert-error' : 'small'}>
+              {pending?.error ?? (pending?.status === 'cancelled' ? 'Orden cancelada.' : 'Interpretando la orden…')}
+            </p>
+          </article>;
+        }
         const plan = x.r.plan;
         const job = x.trabajo ? jobs[x.trabajo] : undefined;
         const entregables: string[] = [...(x.r.respuesta?.entregables ?? []), ...(job?.result?.entregables ?? [])];
@@ -227,6 +260,7 @@ export function Asistente() {
           <article key={plan.id} className="card stack">
             <p><b>›</b> {x.texto}</p>
             <Plan plan={plan} />
+            <EquipoAsistente planId={plan.id} />
             {x.r.respuesta && (
               <div className="stack">
                 <p>{x.r.respuesta.texto}</p>

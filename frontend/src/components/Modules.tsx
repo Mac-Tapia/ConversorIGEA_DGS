@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { api, fmtBytes, fmtNum } from '../api';
 import { useApp } from '../context';
+import { DescargaZip } from './DescargaZip';
 import { FileDrop, Pill, useConfirm, useToast } from './ui';
 
 // ------------------------------------------------------------------ utilidades
@@ -49,7 +50,7 @@ export function ResultsTab() {
         <input className="search" type="search" placeholder="Filtrar ficheros…" value={filter} onChange={(e) => setFilter(e.target.value)} />
         <span className="muted">{files.length} fichero(s){selected.length ? ' de la selección' : ''}</span>
         <span className="spacer" />
-        {files.length > 0 && <a className="btn btn-sm" href={api.zipUrl(ws.id, selected)}>Descargar .zip</a>}
+        {files.length > 0 && <DescargaZip feeders={selected}>Descargar .zip</DescargaZip>}
       </div>
       {previews.length > 0 && (
         <div className="chips">

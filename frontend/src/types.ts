@@ -1,25 +1,10 @@
-// Tipos de la API (src/convertersmartgrid/web). Se mantienen a mano: son pocos y cambian poco.
+// Los contratos migrados se generan desde OpenAPI (002:RF-16; 065:RF-17).
+// Los contratos de las otras operaciones siguen pendientes de la tarea 002 T10.
+import type { components } from './api/esquema';
 
 export type InputMode = 'txt' | 'mdb' | 'vnr';
 
-export interface Options {
-  /** null: sin fuente hasta que se carga un fichero; la dice el fichero (spec 059). */
-  input_mode: InputMode | null;
-  source_company: string | null;
-  source_period: string | null;
-  /** null: el del perfil de empresa; sin perfil, hay que elegirlo (spec 002, RF-32). */
-  source_crs: string | null;
-  target_crs: string;
-  include_geography: boolean;
-  strict: boolean;
-  write_preview: boolean;
-  export_xlsx: boolean;
-  export_tsv: boolean;
-  /** Procesos en paralelo: 0 automático, 1 en serie. */
-  workers: number;
-  /** Formato fijo opcional. null ajusta el lienzo a la red a escala real. */
-  hoja: 'A0' | 'A1' | 'A2' | 'A3' | 'A4' | null;
-}
+export type Options = components['schemas']['OpcionesRespuesta'];
 
 export interface SourceScope {
   companies: string[];
@@ -232,19 +217,7 @@ export interface PerfilEmpresa {
   error: string | null;
 }
 
-export interface Health {
-  version: string;
-  capabilities: { geography: boolean; xlsx: boolean; access: boolean; pandapower: boolean };
-  crs_presets: { code: string; label: string }[];
-  /** Perfil de empresa activo (config/perfil_empresa.json); `error` si no se pudo leer. */
-  perfil_empresa: PerfilEmpresa;
-  slots: Record<string, SlotSpec>;
-  default_options: Options;
-  server_paths: boolean;
-  /** Núcleos del servidor y cuántos procesos usa el modo automático. */
-  parallel: { cpus: number; auto: number };
-  source_modes: InputMode[];
-}
+export type Health = components['schemas']['HealthRespuesta'];
 
 export interface PowerFactoryStatus {
   api_dir: string | null;
@@ -255,24 +228,10 @@ export interface PowerFactoryStatus {
   available: boolean;
 }
 
-export type JobStatus = 'queued' | 'running' | 'done' | 'failed' | 'cancelled';
-
-export interface Job {
-  id: string;
-  kind: string;
-  title: string;
-  workspace_id: string;
-  lane: 'engine' | 'powerfactory' | 'asistente';
-  status: JobStatus;
-  progress: { index: number; total: number; label: string } | null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  result: any;
-  error: string | null;
-  created_at: number;
-  started_at: number | null;
-  finished_at: number | null;
-  cancel_requested: boolean;
-}
+// El sobre se genera; result depende de kind y conserva los informes nativos variables.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type Job<Resultado = any> = Omit<components['schemas']['JobRespuesta'], 'result'> & { result: Resultado };
+export type JobStatus = Job['status'];
 
 export interface Conversion {
   status: 'ok' | 'failed' | 'skipped' | null;

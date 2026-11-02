@@ -810,91 +810,237 @@ def pandapower_preflight(
     targets: list[str],
     ctx: JobContext,
 ) -> dict[str, Any]:
-    """Informa de conectividad con pandapower sin omitir DGS de la importación."""
-    from ..batch import load_aliases
-    from ..oraculo import disponible, validar
+    """Autoriza solamente el DGS cuyo modelo efectivo y miembros convergen.
 
-    if not disponible():
-        return {
-            'disponible': False,
-            'avisos': ['pandapower no está instalado; se continúa con el import DGS.'],
-            'feeders': [],
-        }
+    La fuente puede haberse reconstruido y el perfil/alias pueden cambiar después:
+    releerlos aquí validaría otra red (ARQ02). El productor conserva un snapshot
+    seguro post-reglas, post-unión y post-SET enlazado al hash del DGS (065:RF-6).
+    """
+    from ..oraculo import disponible, validar, validar_unida
+    from ..preflight_contract import load_contract
+    from .jobs import JobCancelled
 
-    members: list[str] = []
-    for target in targets:
-        group = ws.groups.get(target)
-        names = group.get('feeders', []) if group else [target]
-        for name in names:
-            if name not in members:
-                members.append(name)
-
-    from ..catalog import leer_catalogo
-    from ..model import build_feeder_model
-    from ..reglas import aplicar_reglas, catalogo_del_proyecto
-
-    corrections = ws.catalog_corrections()
-    catalog = catalogo_del_proyecto()
-    if not corrections and catalog:
-        corrections = leer_catalogo(catalog)
-    aliases = load_aliases(ws.input_path('aliases') or None)
+    disponible_actual = disponible()
     reports: list[dict[str, Any]] = []
+    target_reports: list[dict[str, Any]] = []
     warnings: list[str] = []
     no_convergen: dict[str, str] = {}
-    for index, feeder in enumerate(members, start=1):
+    for index, target in enumerate(targets, start=1):
         ctx.check_cancel()
-        ctx.progress(index - 1, len(members), f'pandapower: {feeder}')
+        ctx.progress(index - 1, len(targets), f'pandapower: {target}')
         try:
-            # El mismo modelo que se convirtió: sin georreferenciación, la prueba de
-            # conexión no exige coordenadas, y un VNR-GIS sin CRS no se descarta aquí.
-            model = build_feeder_model(
-                ws.dataset, feeder, aliases=aliases,
-                strict=bool(ws.options.get('strict', True)),
-                include_geography=bool(ws.options.get('include_geography', True)),
-            )
-            aplicar_reglas(model, reglas_de(ws), correcciones=corrections)
-            report = validar(model)
-        except Exception as exc:  # noqa: BLE001 - el oráculo nunca debe omitir un DGS
-            warnings.append(f'{feeder}: no se pudo completar preflight pandapower: {exc}')
-            ctx.log(f'  AVISO pandapower {feeder}: {warnings[-1]} Se continúa con el import.')
-            continue
-        data = report.as_dict()
-        data['feeder'] = feeder
-        reports.append(data)
-        ctx.log(f"  pandapower {feeder}: {report.resumen()}; "
-                f'barras sin alimentar={report.barras_sin_alimentar}')
-        if report.disponible and not report.convergio:
-            # 057:RF-5, RF-6: el modelo ya pasó por la corrección del oráculo en
-            # aplicar_reglas; si aun así no converge, no se importa: DIgSILENT no lo
-            # arreglaría (NJA202, 2026-11-01: nueve intentos hasta el 10 % de la demanda).
-            no_convergen[feeder] = '; '.join(h.linea() for h in report.errores) or report.resumen()
-        elif not report.disponible or report.barras_sin_alimentar:
-            warnings.append(
-                f'{feeder}: {report.barras_sin_alimentar} barra(s) sin alimentar; '
-                f'{report.resumen()}. Se continúa con el import DGS completo.')
-        errors = [h.linea() for h in report.errores]
-        warnings.extend(errors)
+            if not disponible_actual:
+                raise ValueError('pandapower no está disponible: control requerido no verificado.')
+            contrato = load_contract(ws.out_dir / f'{target}.dgs')
+            modelo = contrato['model']
+            group = ws.groups.get(target)
+            if group and set(group.get('feeders') or []) != {m.name for m in contrato['members']}:
+                raise ValueError('Los miembros del grupo cambiaron desde la conversión.')
+            fallos = []
+            for miembro in contrato['members']:
+                ctx.check_cancel()
+                report = validar(miembro)
+                data = {**report.as_dict(), 'feeder': miembro.name, 'target': target}
+                reports.append(data)
+                ctx.log(f'  pandapower {miembro.name}: {report.resumen()}')
+                if not report.disponible or not report.convergio:
+                    motivo = '; '.join(h.linea() for h in report.errores) or report.resumen()
+                    no_convergen[miembro.name] = motivo
+                    fallos.append(f'{miembro.name}: {motivo}')
+            # La unión introduce conexiones/SET que no existen en los miembros:
+            # también se calcula el snapshot unido exacto, sin componerlo de nuevo.
+            if modelo.combined is not None:
+                ctx.check_cancel()
+                unido = validar_unida(modelo)
+                general = unido.general
+                target_reports.append({'target': target, 'model_sha256': contrato['model_sha256'],
+                                       **unido.as_dict()})
+                if not general.disponible or not general.convergio:
+                    fallos.append('; '.join(h.linea() for h in general.errores) or general.resumen())
+            else:
+                target_reports.append({'target': target, 'model_sha256': contrato['model_sha256'],
+                                       'general': reports[-1]})
+            if fallos:
+                no_convergen[target] = '; '.join(fallos)
+        except JobCancelled:
+            raise
+        except Exception as exc:  # noqa: BLE001 - en el borde, fallar cerrado e informar
+            no_convergen[target] = f'Control previo no verificado: {exc}'
+            ctx.log(f'  BLOQUEADO pandapower {target}: {no_convergen[target]}')
     return {
-        'disponible': True,
+        'disponible': disponible_actual,
         'import_continued': not no_convergen,
         'feeders': reports,
+        'targets': target_reports,
         'avisos': warnings,
         'no_convergen': no_convergen,
     }
 
 
 def powerfactory_flow(ws: Workspace, ctx: JobContext, feeders: list[str]) -> dict:
-    script = _script('powerfactory_acceptance.py')
+    """Fija entradas por trabajo para que una reconversión no cambie el DGS validado."""
+    import copy
+    import shutil
+    from types import SimpleNamespace
+
+    from ..runtime_paths import temporal_administrado
+    from ..util import sha256_file
+
+    salida_dir = ws.out_dir
     jobs, missing = dgs_jobs(ws, feeders)
     source_evidence = check_powerfactory_source_run(ws, feeders) if ws.active_run_id else None
+    owner = getattr(getattr(ctx, 'job', None), 'id', None) or f'powerfactory:{uuid.uuid4().hex}'
+    with temporal_administrado(propietario=owner) as entrada_dir:
+        pinned_jobs, pin_errors, artifacts = [], {}, {}
+        groups = copy.deepcopy(ws.groups)
+        for target, dgs, geo in jobs:
+            ctx.check_cancel()
+            fijado = entrada_dir / dgs.name
+            pinned_jobs.append((target, fijado, entrada_dir / geo.name if geo else None))
+            paths = [dgs, dgs.with_name(f'{dgs.stem}_feeder_metadata.json')]
+            sidecar = dgs.with_name(f'{dgs.stem}_preflight.json')
+            if sidecar.is_file():
+                paths.append(sidecar)
+            if geo is not None:
+                paths.append(geo)
+            target_evidence = next((e for e in (source_evidence or {}).get('targets', [])
+                                    if e['target'] == target), None)
+            reconstruction = (target_evidence or {}).get('reconstruction')
+            if reconstruction:
+                nombre = str(reconstruction['report'])
+                if Path(nombre).name != nombre:
+                    pin_errors[target] = 'Ruta de informe de reconstrucción inválida.'
+                    continue
+                paths.append(salida_dir / nombre)
+            try:
+                hashes = {}
+                for original in paths:
+                    ctx.check_cancel()
+                    digest = sha256_file(original)
+                    destino = entrada_dir / original.name
+                    # Varios targets pueden usar el mismo informe de reconstrucción;
+                    # jamás sustituir una copia ya fijada por una versión posterior.
+                    if destino.exists():
+                        if sha256_file(destino) != digest:
+                            raise ValueError(f'{original.name} cambió mientras se fijaban las entradas.')
+                    else:
+                        shutil.copyfile(original, destino)
+                    if sha256_file(destino) != digest:
+                        raise ValueError(f'{original.name} cambió mientras se copiaba.')
+                    hashes[original.name] = digest
+                if target_evidence and hashes[dgs.name] != target_evidence['dgs_sha256']:
+                    raise ValueError('El DGS cambió después de verificar su ejecución fuente.')
+                artifacts[target] = hashes
+            except (OSError, ValueError) as exc:
+                pin_errors[target] = f'No se pudo fijar la entrada del trabajo: {exc}'
+        # Solo esta vista de entradas llega al oráculo. Los informes nativos siguen
+        # escribiéndose en la salida durable del espacio; finally limpia solo el pin.
+        control = SimpleNamespace(out_dir=entrada_dir, groups=groups, salida_dir=salida_dir)
+        return _importar_dgs_fijados(ws, ctx, pinned_jobs, missing, source_evidence,
+                                    control, pin_errors, artifacts)
+
+
+def _validar_informe_actual(datos, *, feeder, dgs, metadata_path, digest, source, carpeta, rc):
+    """La ruta privada identifica la petición; el contenido debe confirmar su procedencia."""
+    from ..powerfactory_binding import PowerFactoryProjectBinding
+    from ..util import sha256_file
+
+    if rc not in {0, 2}:
+        raise ValueError(f'El proceso terminó con código {rc}, sin aceptación nativa válida.')
+    if not isinstance(datos, dict) or datos.get('feeder') != feeder:
+        raise ValueError('El informe no identifica el alimentador de esta petición.')
+    if datos.get('powerfactory_runtime_pass') is not (rc == 0):
+        raise ValueError('El resultado del informe no corresponde al código del proceso.')
+    if any(k in datos and datos[k] is not None and not isinstance(datos[k], dict)
+           for k in ('feeder_metadata', 'capacitor_reread')):
+        raise ValueError('La relectura/metadatos del informe no tiene el formato requerido.')
+    importacion = datos.get('import')
+    if not isinstance(importacion, dict) or type(importacion.get('ok')) is not bool:
+        raise ValueError('El informe no contiene el resultado actual de importación.')
+    if Path(str(importacion.get('dgs') or '')).resolve() != dgs.resolve():
+        raise ValueError('El informe pertenece a otra ruta DGS/invocación.')
+    if sha256_file(dgs) != digest:
+        raise ValueError('La entrada fijada cambió durante la ejecución nativa.')
+    procedencia = datos.get('source_verification')
+    if not isinstance(procedencia, dict):
+        raise ValueError('El informe no contiene verificación de procedencia.')
+    metadata = json.loads(metadata_path.read_text(encoding='utf-8'))
+    feeders = sorted({str(a.get('feeder') or '').strip()
+                      for a in (metadata.get('assignments') or []) + (metadata.get('capacitor_banks') or [])
+                      if str(a.get('feeder') or '').strip()})
+    if source:
+        if (procedencia.get('status') != 'VERIFIED_BEFORE_MUTATION'
+                or any(procedencia.get(k) != source[k] for k in
+                       ('source_run_id', 'source_mode', 'source_fingerprint'))
+                or procedencia.get('dgs_sha256') != digest
+                or procedencia.get('metadata_file') != metadata_path.name
+                or sorted(procedencia.get('feeders') or []) != feeders):
+            raise ValueError('El informe no corresponde a la fuente/hash de esta petición.')
+    elif procedencia.get('status') != 'NOT_REQUESTED':
+        raise ValueError('El informe declara una fuente no solicitada en esta petición.')
+    proyecto = importacion.get('project_path') or importacion.get('project_name')
+    if importacion['ok'] and (not isinstance(proyecto, str) or not proyecto.strip()
+                             or importacion.get('project_folder') != carpeta):
+        raise ValueError('El proyecto/carpeta importado no está identificado en el informe actual.')
+    binding = datos.get('project_binding')
+    if binding is not None:
+        if not source or not importacion['ok'] or not isinstance(binding, dict) or not binding.get('binding_sha256'):
+            raise ValueError('El vínculo no tiene procedencia o integridad demostrada para esta petición.')
+        vinculo = PowerFactoryProjectBinding.from_dict(binding)
+        if (vinculo.project != proyecto or vinculo.folder != carpeta
+                or any(getattr(vinculo, k) != source[k] for k in
+                       ('source_run_id', 'source_mode', 'source_fingerprint'))
+                or set(vinculo.feeders) != set(feeders)
+                or vinculo.dgs_sha256 != {feeder: digest}):
+            raise ValueError('El vínculo pertenece a otro proyecto, fuente o DGS.')
+    return proyecto if importacion['ok'] else None
+
+
+def _publicar_informe_actual(ruta: Path, salida: Path) -> None:
+    """Mantiene el basename público sin perder bytes de la evidencia anterior."""
+    import shutil
+    from ..runtime_paths import staging_publicacion
+    from ..util import sha256_file
+
+    for actual in (ruta, ruta.with_suffix('.txt')):
+        if not actual.is_file():
+            continue
+        estable = salida / actual.name
+        if estable.is_file():
+            digest = sha256_file(estable)
+            historico = salida / 'aceptaciones' / 'historicos' / f'{estable.stem}_{digest}{estable.suffix}'
+            historico.parent.mkdir(parents=True, exist_ok=True)
+            if not historico.exists():
+                with staging_publicacion(historico) as stage:
+                    shutil.copyfile(estable, stage)
+                    stage.replace(historico)
+        with staging_publicacion(estable) as stage:
+            shutil.copyfile(actual, stage)
+            stage.replace(estable)
+
+
+def _importar_dgs_fijados(ws, ctx, jobs, missing, source_evidence, control, pin_errors, artifacts) -> dict:
+    """Calcula e importa las mismas copias privadas durante toda la vida del proceso."""
+    script = _script('powerfactory_acceptance.py')
     ctx.log('--- Inicio DigSILENT: import + escenario + flujo ---')
     ctx.log('--- Preflight pandapower: conectividad, islas y convergencia ---')
-    preflight = pandapower_preflight(ws, [name for name, _dgs, _geo in jobs], ctx)
+    preflight = pandapower_preflight(control, [name for name, _dgs, _geo in jobs], ctx)
+    preflight['artifacts'] = artifacts
+    preflight.setdefault('no_convergen', {}).update(pin_errors)
+    preflight['import_continued'] = not preflight['no_convergen']
     for aviso in preflight.get('avisos') or []:
         ctx.log(f'  AVISO pandapower: {aviso}')
     no_convergen = dict(preflight.get('no_convergen') or {})
+    # Mantener la puerta por artefacto aunque el productor de informes registre
+    # solamente los miembros (ARQ01): G={A,B} nunca puede importar si falla A.
+    for target, _dgs, _geo in jobs:
+        miembros = (control.groups.get(target) or {}).get('feeders') or [target]
+        fallos = [f'{miembro}: {no_convergen[miembro]}'
+                  for miembro in miembros if miembro in no_convergen]
+        if fallos:
+            no_convergen[target] = '; '.join(fallos)
     for feeder, motivo in no_convergen.items():
-        ctx.log(f'  NO SE IMPORTA {feeder}: ni con la corrección del oráculo converge (spec 057). '
+        ctx.log(f'  NO SE IMPORTA {feeder}: no superó el control requerido (specs 057/065). '
                 f'{motivo}')
     ctx.log('Preflight terminado; se importa cada DGS solicitado que converge en el oráculo.')
 
@@ -905,6 +1051,15 @@ def powerfactory_flow(ws: Workspace, ctx: JobContext, feeders: list[str]) -> dic
     for feeder in missing:
         ctx.log(f'  (sin DGS, se omite) {feeder}')
     env = pf_subprocess_env(pf_dir)
+    from ..util import sha256_file
+    invocation_id = uuid.uuid4().hex
+    reports_dir = control.salida_dir / 'aceptaciones' / invocation_id
+    reports_dir.mkdir(parents=True, exist_ok=False)
+    reports = []
+    request = {'schema_version': 'convertersmartgrid-import-request-v1',
+               'invocation_id': invocation_id, 'job_id': getattr(getattr(ctx, 'job', None), 'id', None),
+               'source': source_evidence, 'inputs': artifacts, 'reports': reports}
+    write_json_atomic(reports_dir / 'request.json', request)
     lines, ok_n, fail_n = [], 0, 0
     for index, (feeder, dgs, geo) in enumerate(jobs, start=1):
         ctx.check_cancel()
@@ -935,22 +1090,43 @@ def powerfactory_flow(ws: Workspace, ctx: JobContext, feeders: list[str]) -> dic
             if reconstruction:
                 cmd += [
                     '--reconstruction-report',
-                    str(ws.out_dir / reconstruction['report']),
+                    str(control.out_dir / reconstruction['report']),
                     '--reconstruction-report-sha256', reconstruction['report_sha256'],
                 ]
         if geo is not None:
             cmd += ['--manifest', str(geo)]
-        cmd += ['--output-json', str(ws.out_dir / f'{feeder}_powerfactory_acceptance.json'),
-                '--output-txt', str(ws.out_dir / f'{feeder}_powerfactory_acceptance.txt')]
+        acceptance_path = reports_dir / f'{feeder}_powerfactory_acceptance.json'
+        cmd += ['--output-json', str(acceptance_path),
+                '--output-txt', str(acceptance_path.with_suffix('.txt'))]
         rc = ctx.run_process(cmd, env=env, cwd=str(project_root()))
-        acceptance_path = ws.out_dir / f'{feeder}_powerfactory_acceptance.json'
+        report_evidence = {'target': feeder, 'native_rc': rc,
+                           'report': acceptance_path.relative_to(control.salida_dir).as_posix(),
+                           'valid': False}
+        reports.append(report_evidence)
         try:
             acceptance = json.loads(acceptance_path.read_text(encoding='utf-8'))
-        except (OSError, ValueError):
-            acceptance = {}
+            report_evidence['sha256'] = sha256_file(acceptance_path)
+            proyecto = _validar_informe_actual(
+                acceptance, feeder=feeder, dgs=dgs, metadata_path=metadata_path,
+                digest=artifacts[feeder][dgs.name], source=source_evidence, carpeta=carpeta, rc=rc,
+            )
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            report_evidence['reason'] = str(exc)
+            write_json_atomic(reports_dir / 'request.json', request)
+            fail_n += 1
+            lines.append(f'BLOQUEADO_INFORME {feeder}: sin informe válido de esta invocación; {exc}')
+            continue
+        report_evidence['valid'] = True
+        write_json_atomic(reports_dir / 'request.json', request)
+        _publicar_informe_actual(acceptance_path, control.salida_dir)
+        # Aunque termine el trabajo original, otra fuente puede estar ya activa:
+        # conservar el informe en su run sin adjuntar sus resultados al nuevo espacio.
+        misma_fuente = not source_evidence or ws.active_run_id == source_evidence['source_run_id']
+        if not misma_fuente:
+            ctx.log(f'  {feeder}: cambió la fuente activa; informe conservado sin modificar vínculos.')
         metadata = acceptance.get('feeder_metadata') or {}
         capacitor_reread = acceptance.get('capacitor_reread')
-        if capacitor_reread:
+        if capacitor_reread and misma_fuente and proyecto:
             with ws.lock:
                 for conversion in ws.conversions.values():
                     if conversion.get('feeder') == feeder:
@@ -964,8 +1140,7 @@ def powerfactory_flow(ws: Workspace, ctx: JobContext, feeders: list[str]) -> dic
                     f"{metadata.get('by_feeder', {})}")
         elif metadata.get('status') == 'failed':
             ctx.log(f"  ERROR columna Alimentador: {metadata.get('error')}")
-        proyecto = _proyecto_importado(acceptance_path)
-        if proyecto:
+        if proyecto and misma_fuente:
             # 015:RF-14: también si el «Caso base» no quedó verificado, para poder
             # volver a verificarlo tras corregirlo en DIgSILENT.
             _registrar_vinculo(ws, acceptance, proyecto)
@@ -998,7 +1173,7 @@ def powerfactory_flow(ws: Workspace, ctx: JobContext, feeders: list[str]) -> dic
     ctx.log('--- Fin DigSILENT ---')
     return {'ok': ok_n, 'failed': fail_n, 'requested': len(jobs),
             'missing_dgs': missing, 'lines': lines, 'preflight': preflight,
-            'source': source_evidence}
+            'source': source_evidence, 'invocation_id': invocation_id, 'reports': reports}
 
 
 # ---------------------------------------------------------------------------
@@ -1350,21 +1525,6 @@ def convert_group(
             'feeders': feeders, 'completitud': man.get('completitud'),
             'hoja': man.get('hoja'), 'manifest': f'{nombre}_manifest.json',
             'reconstruction': reconstruction}
-
-
-def _proyecto_importado(informe: Path) -> str | None:
-    """Ruta en la carpeta del proyecto que creó la importación, leída del informe.
-
-    Los informes anteriores a la spec 005 solo traen el nombre.
-    """
-    import json
-
-    try:
-        datos = json.loads(informe.read_text(encoding='utf-8'))
-    except (OSError, ValueError):
-        return None
-    importacion = datos.get('import') or {}
-    return importacion.get('project_path') or importacion.get('project_name') or None
 
 
 # ---------------------------------------------------------------------------
@@ -6052,7 +6212,10 @@ def set_nueva_operacion(ws: Workspace, ctx: JobContext, project: str, feeders: l
             'verificar_flujos': verificar_flujos,
             'salidas': list(salidas or []),
             'limites': asdict(limites_de_perfil().con(**(limites or {}))),
-            'nuevas': _cargas_nuevas_aplicadas(ws, project), 'reabrir': reabrir}
+            # El inventario estructural no consume demandas ni valida cargas previstas.
+            # El clon histórico puede no incluir los planes comerciales posteriores.
+            'nuevas': ([] if accion == 'diagnostico' and not verificar_flujos
+                       else _cargas_nuevas_aplicadas(ws, project)), 'reabrir': reabrir}
     ctx.log(f'{project}: {accion} de SET existente; no se crea ni se desplaza la SET.')
     rc, informe, report = _guion_pf(ws, ctx, 'set_nueva_operacion_pf.py', plan,
                                    nombre='set_nueva_operacion', cancelable=False, limite_s=limite_s)
@@ -7695,12 +7858,16 @@ def asistente_orden(ws: Workspace, texto: str, trabajos: list[dict] | None = Non
         if not extras.get('formulario') and plan.datos.get('proyecto'):
             plan.faltan.append('el formulario del informe: rellénelo una vez en el paso 4.4 de la web')
     from ..asistente.ejecutor import describir
+    from ..asistente.equipo import GobiernoEquipo
 
     publico = plan.publico()
     if plan.tarea and plan.modo == 'trabajo':
         publico['pasos'] = describir(plan.tarea, plan.datos, extras)
+    gobierno = GobiernoEquipo.desde_plan(ws, plan, extras=extras)
+    publico['equipo'] = gobierno.publico()
     with _ASISTENTE_CERROJO:
-        _ASISTENTE_PLANES.setdefault(ws.id, {})[plan.id] = {'plan': plan, 'interp': interp, 'extras': extras}
+        _ASISTENTE_PLANES.setdefault(ws.id, {})[plan.id] = {
+            'plan': plan, 'interp': interp, 'extras': extras, 'gobierno': gobierno}
     almacen.anotar('ordenes', {'espacio': ws.id, 'plan': plan.id, 'texto': texto, 'tarea': plan.tarea,
                                'modelo': plan.interpretado_por, 'confianza': plan.confianza, 'listo': plan.listo})
     out = {'plan': publico}
@@ -7788,6 +7955,10 @@ def asistente_ejecutar(ws: Workspace, ctx: JobContext, plan_id: str, base: str, 
     plan = guardado['plan']
     if not plan.listo:
         raise UserError('El plan no está completo: ' + '; '.join(plan.faltan))
+    # La ruta de confirmación (o la autolectura) autoriza este plan del servidor;
+    # su fuente y sus datos quedaron sellados cuando se mostró la propuesta.
+    gobierno = guardado['gobierno']
+    gobierno.confirmar(plan)
     almacen.anotar('ejemplos', {**_ejemplo_de(plan.texto, plan.tarea, plan.datos), 'origen': 'confirmado'})
     almacen.anotar('decisiones', {'plan': plan.id, 'tarea': plan.tarea, 'datos': plan.datos, 'decision': 'confirmada'})
     from ..asistente import senales
@@ -7795,12 +7966,13 @@ def asistente_ejecutar(ws: Workspace, ctx: JobContext, plan_id: str, base: str, 
     senales.anotar('confirmada', plan=plan.id, texto=plan.texto, tarea=plan.tarea, datos=plan.datos,
                    modelo=plan.interpretado_por)                                    # 027:RF-35
     if plan.modo == 'proceso':
-        return _asistente_proceso(ws, ctx, plan)
+        return gobierno.ejecutar_proceso(lambda: _asistente_proceso(ws, ctx, plan),
+                                         cancelado=ctx.cancel.is_set)
     if http is None:
         import requests
 
         http = requests.Session()
-    cliente = ClienteWeb(http, base.rstrip('/'), ws.id, cancelado=ctx.cancel.is_set)
+    cliente = ClienteWeb(http, base.rstrip('/'), ws.id, cancelado=ctx.cancel.is_set, gobierno=gobierno)
     try:
         resultado = ejecutar(pasos(plan.tarea, plan.datos, guardado['extras']), cliente, ctx.log)
     except PasoFallido as exc:
@@ -7846,6 +8018,66 @@ def asistente_rechazar(ws: Workspace, plan_id: str) -> dict:
     return {'plan': plan.id, 'rechazado': True}
 
 
+def asistente_equipo(ws: Workspace) -> dict:
+    """065:RF-22/23: permisos y decisiones efectivos, limitados al espacio pedido."""
+    from ..asistente import almacen
+    from ..asistente.equipo import inventario_equipo
+    with _ASISTENTE_CERROJO:
+        permisos = [g['gobierno'].publico() for g in (_ASISTENTE_PLANES.get(ws.id) or {}).values()]
+    return {**inventario_equipo(), 'espacio': ws.id, 'permisos': permisos,
+        'acciones': [r for r in almacen.leer('equipo_acciones') if
+                     (r.get('alcance') or {}).get('espacio') == ws.id][-50:],
+        'revisiones': [r for r in almacen.leer('equipo_revisiones') if r.get('espacio') == ws.id][-50:]}
+
+
+def asistente_revisar_plan(ws: Workspace, ctx: JobContext, plan_id: str, *, max_rondas: int = 2) -> dict:
+    """047:RF-5/6/7: revisores locales sobre informes custodiados del mismo contexto.
+
+    El cliente no suministra rutas, restricciones ni texto para autorizarse. Solo
+    selecciona un plan guardado; la revisión documental nunca concede ejecución.
+    """
+    from ..asistente import almacen
+    from ..asistente.observacion import leer_evidencias
+    from ..asistente.revision_roles import revisar_propuesta, revisor_ollama
+    from types import SimpleNamespace
+
+    guardado = asistente_plan(ws, plan_id)
+    gobierno, plan = guardado['gobierno'], guardado['plan']
+    gobierno._validar_contexto()
+    contexto = SimpleNamespace(project=plan.datos.get('proyecto'),
+                               source_fingerprint=ws.loaded_source_fingerprint)
+    evidencia = {}
+    for registro in leer_evidencias(ws.out_dir):
+        informe = registro['informe']
+        contexto_informe = informe.get('contexto') or {} if isinstance(informe, dict) else {}
+        if (contexto_informe.get('project') != contexto.project or
+                contexto_informe.get('source_fingerprint') != contexto.source_fingerprint or
+                not contexto.project or not contexto.source_fingerprint):
+            continue
+        ruta = ws.out_dir / 'observacion/evidencias' / f"{registro['id']}.json"
+        texto = ruta.read_text(encoding='utf-8')
+        evidencia[registro['id']] = {'archivo': str(ruta), 'sha256': registro['sha256'],
+            'proyecto': contexto.project, 'fuente': contexto.source_fingerprint,
+            'localizador': 'texto[0:6000]', 'fragmento': texto[:6000]}
+        if len(evidencia) >= 8:
+            break
+    propuesta = {'plan': plan.publico(), 'alcance': 'revision_documental_supervisada',
+                 'restricciones_deterministas': {'plan_completo': plan.listo,
+                                                'contexto_vigente': True}}
+    # Sin fuentes del contexto no se carga un modelo para fabricar consenso.
+    from ..asistente.ollama import cliente_configurado
+    revisor = revisor_ollama(cliente_configurado()) if evidencia else None
+    registrar = lambda dato: almacen.anotar('equipo_revisiones', {
+        'plan': plan.id, 'espacio': ws.id, 'tipo': 'intervencion', **dato})
+    ctx.log('Revisión local: fuentes, física, coste y riesgo; no autoriza ejecución.')
+    resultado = revisar_propuesta(propuesta, evidencia, contexto=contexto, revisor=revisor,
+        cancelado=ctx.cancel.is_set, max_rondas=max_rondas, registrar=registrar)
+    gobierno._validar_contexto()
+    almacen.anotar('equipo_revisiones', {'plan': plan.id, 'espacio': ws.id,
+        'tipo': 'resultado', **resultado})
+    return {'plan': plan.id, **resultado}
+
+
 def agente_proyecto(ws: Workspace, ctx: JobContext, datos: dict, base: str, http: Any = None,
                     reiniciar: bool = False) -> dict:
     """El proyecto entero desde el espacio, etapa por etapa y con su punto de control
@@ -7881,9 +8113,20 @@ def agente_proyecto(ws: Workspace, ctx: JobContext, datos: dict, base: str, http
         return {'codigo': rc}
 
     cliente = ClienteWeb(http, base.rstrip('/'), ws.id, cancelado=ctx.cancel.is_set)
+    def gobierno_etapa(tarea, datos_etapa, extras):
+        from ..asistente.equipo import GobiernoEquipo
+        from ..asistente.plan import Plan
+        from ..asistente.tareas import TAREAS
+        definicion = TAREAS[tarea]
+        plan = Plan(uuid.uuid4().hex[:12], 'Etapa autorizada del proyecto supervisado', tarea,
+                    definicion.escribe, definicion.modo, datos=dict(datos_etapa))
+        gobierno = GobiernoEquipo.desde_plan(ws, plan, extras=extras)
+        gobierno.confirmar(plan)
+        gobierno.validar_cliente(cliente)
+        return gobierno
     try:
         return ejecutar_proyecto(datos, cliente=cliente, control=control, proceso=proceso,
-                                 log=ctx.log,avance=ctx.progress)
+                                 log=ctx.log,avance=ctx.progress, gobierno_etapa=gobierno_etapa)
     except (PasoFallido, ValueError, RuntimeError) as exc:
         raise UserError(f'El agente paró; la próxima vez retoma desde aquí: {exc}') from exc
 
@@ -8035,9 +8278,14 @@ def asistente_corregir(ws: Workspace, plan_id: str, *, tarea: str | None = None,
         clasificador.registrar(previo.texto, tipo, subtipo or plan.datos.get('subtipo') or '', 'corregido')
     extras = dict(guardado['extras']) if tarea == previo.tarea else {}
     _asistente_requisitos(ws, plan, extras)
+    from ..asistente.equipo import GobiernoEquipo
+    gobierno = GobiernoEquipo.desde_plan(ws, plan, extras=extras)
     with _ASISTENTE_CERROJO:
-        _ASISTENTE_PLANES.setdefault(ws.id, {})[plan.id] = {'plan': plan, 'interp': interp, 'extras': extras}
-    return {'plan': plan.publico()}
+        _ASISTENTE_PLANES.setdefault(ws.id, {})[plan.id] = {
+            'plan': plan, 'interp': interp, 'extras': extras, 'gobierno': gobierno}
+        # La corrección revoca el permiso de la propuesta previa.
+        _ASISTENTE_PLANES.get(ws.id, {}).pop(previo.id, None)
+    return {'plan': {**plan.publico(), 'equipo': gobierno.publico()}}
 
 
 def asistente_pregunta(texto: str) -> dict:
@@ -8115,7 +8363,9 @@ def asistente_registro() -> dict:
             'preferencias': almacen.leer('preferencias', 50), 'reflexiones': almacen.leer('reflexiones', 50),
             'ordenes': almacen.leer('ordenes', 50), 'decisiones': almacen.leer('decisiones', 50),
             'mejoras': mejoras.historial(), 'internet': almacen.leer('internet', 50),
-            'suite': almacen.leer('suite', 10), 'avisos': almacen.leer('avisos', 50)}
+            'suite': almacen.leer('suite', 10), 'avisos': almacen.leer('avisos', 50),
+            'equipo_acciones': almacen.leer('equipo_acciones', 50),
+            'equipo_revisiones': almacen.leer('equipo_revisiones', 50)}
 
 
 def asistente_nuevos() -> tuple[int, int]:

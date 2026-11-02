@@ -26,6 +26,8 @@ alguien lo pide, nunca solo.
 
 from __future__ import annotations
 
+from .runtime_paths import staging_publicacion
+
 import math
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -1261,9 +1263,9 @@ def ampliar_catalogo(path: Path | str, codigos: Iterable[str], *, origen: str = 
             existentes.add(codigo.upper())
             nuevas.append(fila)
         if nuevas:
-            tmp = ruta.with_name(ruta.stem + '.tmp' + ruta.suffix)
-            wb.save(tmp)
-            _reemplazar(tmp, ruta)
+            with staging_publicacion(ruta) as tmp:
+                wb.save(tmp)
+                _reemplazar(tmp, ruta)
     return nuevas
 
 

@@ -13,6 +13,10 @@ validan y despachan.
 
 from __future__ import annotations
 
+from convertersmartgrid.web.api_contract import JobRespuesta
+
+from convertersmartgrid.runtime_paths import staging_publicacion
+
 import hashlib
 import os
 import shutil
@@ -112,7 +116,7 @@ def create_router(root: Path | str, jobs: Any, settings: Settings | None = None)
         catalog = PublicationCatalog.load(catalog_root)
         return {'companies': [c.as_dict() for c in catalog.companies()]}
 
-    @router.post('/download', status_code=202)
+    @router.post('/download', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def download_publication(body: PublicationIn) -> dict:
         publication = PublicationCatalog.load(catalog_root).get(body.publication_id)
         if publication is None or not publication.download_url:
@@ -157,18 +161,18 @@ def create_router(root: Path | str, jobs: Any, settings: Settings | None = None)
         source_id = uuid.uuid4().hex
         destination = uploads_root / f'{source_id}{suffix}'
         extraction_root = uploads_root / f'{source_id}_extracted'
-        temporary = destination.with_suffix(destination.suffix + '.part')
         size = 0
         digest = hashlib.sha256()
         try:
-            with temporary.open('wb') as stream:
-                while chunk := await file.read(1024 * 1024):
-                    size += len(chunk)
-                    if size > max_bytes:
-                        raise HTTPException(413, 'la carga supera el límite permitido.')
-                    digest.update(chunk)
-                    stream.write(chunk)
-            os.replace(temporary, destination)
+            with staging_publicacion(destination) as temporary:
+                with temporary.open('wb') as stream:
+                    while chunk := await file.read(1024 * 1024):
+                        size += len(chunk)
+                        if size > max_bytes:
+                            raise HTTPException(413, 'la carga supera el límite permitido.')
+                        digest.update(chunk)
+                        stream.write(chunk)
+                os.replace(temporary, destination)
             details: dict = {}
             if suffix == '.zip':
                 import zipfile
@@ -215,7 +219,6 @@ def create_router(root: Path | str, jobs: Any, settings: Settings | None = None)
                 **details,
             }
         except Exception:
-            temporary.unlink(missing_ok=True)
             destination.unlink(missing_ok=True)
             if extraction_root.is_dir():
                 shutil.rmtree(extraction_root, ignore_errors=True)
@@ -318,7 +321,7 @@ def create_router(root: Path | str, jobs: Any, settings: Settings | None = None)
         )
         return {'summary': result.summary(), 'classified': result.as_dict()}
 
-    @router.post('/export/{target}', status_code=202)
+    @router.post('/export/{target}', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def export(target: str, body: ValidateIn) -> dict:
         from ..models import CanonicalModel
         if target not in ('cymdist', 'dgs'):

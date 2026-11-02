@@ -7,6 +7,8 @@ la presencia de casillas de otra modalidad no puede alterar la conversión activ
 
 from __future__ import annotations
 
+from ..runtime_paths import staging_publicacion
+
 import hashlib
 import json
 import os
@@ -58,29 +60,29 @@ def _sha256_copy(source: Path, target: Path) -> tuple[int, str]:
     digest = hashlib.sha256()
     size = 0
     target.parent.mkdir(parents=True, exist_ok=True)
-    temporary = target.with_name(target.name + '.part')
-    try:
-        with source.open('rb') as src, temporary.open('xb') as dst:
-            while chunk := src.read(1024 * 1024):
-                dst.write(chunk)
-                digest.update(chunk)
-                size += len(chunk)
-            dst.flush()
-            os.fsync(dst.fileno())
-        temporary.replace(target)
-    except BaseException:
-        temporary.unlink(missing_ok=True)
-        raise
+    with staging_publicacion(target) as temporary:
+        try:
+            with source.open('rb') as src, temporary.open('xb') as dst:
+                while chunk := src.read(1024 * 1024):
+                    dst.write(chunk)
+                    digest.update(chunk)
+                    size += len(chunk)
+                dst.flush()
+                os.fsync(dst.fileno())
+            temporary.replace(target)
+        except BaseException:
+            temporary.unlink(missing_ok=True)
+            raise
     return size, digest.hexdigest()
 
 
 def _atomic_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(path.name + '.tmp')
-    temporary.write_text(
-        json.dumps(payload, indent=2, ensure_ascii=False), encoding='utf-8',
-    )
-    temporary.replace(path)
+    with staging_publicacion(path) as temporary:
+        temporary.write_text(
+            json.dumps(payload, indent=2, ensure_ascii=False), encoding='utf-8',
+        )
+        temporary.replace(path)
 
 
 def create_source_run(ws: Workspace) -> SourceSnapshot:

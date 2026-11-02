@@ -1,6 +1,8 @@
 """043:RF-9 a RF-11 — custodia compartida de repositorios de IA reutilizados."""
 from __future__ import annotations
 
+from .runtime_paths import staging_publicacion
+
 import hashlib
 import json
 import os
@@ -9,7 +11,6 @@ import re
 import shutil
 import stat
 import subprocess
-import tempfile
 from collections.abc import Mapping
 
 RAIZ = Path(__file__).resolve().parents[2]
@@ -70,36 +71,35 @@ def preparar_catalogo(catalogo: Mapping, destino: Path, *, verificar: bool = Fal
     resultados = []
     for entrada in entradas:
         carpeta = destino / entrada['id']
-        temporal = None
         try:
             if not carpeta.resolve().is_relative_to(destino):
                 raise ValueError('copia resuelve fuera del directorio de terceros')
             if not carpeta.exists() and not verificar:
                 destino.mkdir(parents=True, exist_ok=True)
-                temporal = Path(tempfile.mkdtemp(prefix=f".{entrada['id']}-", dir=destino))
-                _git(['init', str(temporal)])
-                _git(['remote', 'add', 'origin', entrada['url']], cwd=temporal)
-                _git(['fetch', '--depth', '1', '--filter=blob:none', 'origin', entrada['commit']], cwd=temporal)
-                _git(['checkout', '--detach', entrada['commit']], cwd=temporal)
-                _verificar(entrada, temporal)
-                # Un destino aparecido durante la descarga se conserva; no reemplazarlo.
-                if carpeta.exists():
-                    raise ValueError('otra copia apareció durante la preparación')
-                temporal.rename(carpeta)
-                temporal = None
+                with staging_publicacion(carpeta) as temporal:
+                    temporal.mkdir()
+                    try:
+                        _git(['init', str(temporal)])
+                        _git(['remote', 'add', 'origin', entrada['url']], cwd=temporal)
+                        _git(['fetch', '--depth', '1', '--filter=blob:none', 'origin', entrada['commit']], cwd=temporal)
+                        _git(['checkout', '--detach', entrada['commit']], cwd=temporal)
+                        _verificar(entrada, temporal)
+                        # Un destino aparecido durante la descarga se conserva; no reemplazarlo.
+                        if carpeta.exists():
+                            raise ValueError('otra copia apareció durante la preparación')
+                        temporal.rename(carpeta)
+                    finally:
+                        if temporal.exists():
+                            limite = temporal.resolve()
+                            def quitar_solo_lectura(funcion, ruta, exc):
+                                if not isinstance(exc, PermissionError) or not Path(ruta).resolve().is_relative_to(limite):
+                                    raise exc
+                                os.chmod(ruta, stat.S_IWRITE)
+                                funcion(ruta)
+                            shutil.rmtree(temporal, onexc=quitar_solo_lectura)
             resultados.append(_verificar(entrada, carpeta))
         except (OSError, ValueError, subprocess.TimeoutExpired) as exc:
             resultados.append({'id': entrada['id'], 'ok': False, 'error': str(exc)})
-        finally:
-            if temporal is not None:
-                if not temporal.resolve().is_relative_to(destino):
-                    raise RuntimeError('temporal fuera de destino; limpieza bloqueada')
-                def quitar_solo_lectura(funcion, ruta, exc):
-                    if not isinstance(exc, PermissionError) or not Path(ruta).resolve().is_relative_to(destino):
-                        raise exc
-                    os.chmod(ruta, stat.S_IWRITE)
-                    funcion(ruta)
-                shutil.rmtree(temporal, onexc=quitar_solo_lectura)
     return {'schema_version': 1, 'ok': all(r['ok'] for r in resultados), 'repositorios': resultados}
 
 

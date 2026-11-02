@@ -22,6 +22,8 @@ tiene otros.
 
 from __future__ import annotations
 
+from .runtime_paths import staging_publicacion
+
 import math
 from dataclasses import dataclass
 from datetime import datetime
@@ -238,9 +240,9 @@ def escribir_fichero(resultados: Iterable[Mapping[str, Any]], destino: Path,
         for f in filas:
             hoja.append([f.get(c) for c in columnas])
     destino.parent.mkdir(parents=True, exist_ok=True)
-    temporal_path = destino.with_name(destino.name + '.tmp')
-    libro.save(temporal_path)
-    temporal_path.replace(destino)
+    with staging_publicacion(destino) as temporal_path:
+        libro.save(temporal_path)
+        temporal_path.replace(destino)
     return destino
 
 

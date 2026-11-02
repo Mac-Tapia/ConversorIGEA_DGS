@@ -170,12 +170,25 @@ def test_la_importacion_deja_fuera_lo_que_no_converge(tmp_path, monkeypatch):
     })
     logs: list[str] = []
     commands: list[list[str]] = []
+    def importar(command, **_kwargs):
+        import json
+        from pathlib import Path
+        commands.append(command)
+        dgs = command[command.index('--import-dgs') + 1]
+        Path(command[command.index('--output-json') + 1]).write_text(json.dumps({
+            'feeder': Path(dgs).stem, 'powerfactory_runtime_pass': True,
+            'import': {'ok': True, 'dgs': dgs, 'project_path': 'UNITARIO', 'project_folder': 'Carpeta'},
+            'source_verification': {'status': 'NOT_REQUESTED'},
+        }), encoding='utf-8')
+        return 0
     ctx = SimpleNamespace(log=logs.append, progress=lambda *_a: None, check_cancel=lambda: None,
-                          run_process=lambda command, **_kw: commands.append(command) or 0)
+                          run_process=importar)
 
     result = services.powerfactory_flow(ws, ctx, ['BIEN', 'MAL'])
 
-    importados = [c[c.index('--import-dgs') + 1] for c in commands]
-    assert importados == [str(ws.out_dir / 'BIEN.dgs')]
+    from pathlib import Path
+    importados = [Path(c[c.index('--import-dgs') + 1]) for c in commands]
+    assert [p.name for p in importados] == ['BIEN.dgs']
+    assert all(p.parent != ws.out_dir for p in importados)  # 065:RF-6: entrada fijada por trabajo.
     assert result['ok'] == 1 and result['failed'] == 1
     assert any(l.startswith('NO_CONVERGE MAL') and 'TR_X' in l for l in result['lines'])

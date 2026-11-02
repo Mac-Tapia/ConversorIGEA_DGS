@@ -36,6 +36,7 @@ from .preview import write_preview_geojson, write_preview_html
 from .perfil_empresa import SIN_PERFIL, PerfilEmpresa
 from .reglas import REGLAS_PROYECTO, Reglas, aplicar_reglas, auditar_completitud, preparar_dataset
 from .util import nombre_seguro
+from .runtime_paths import staging_publicacion
 from .validate import parse_dgs, validate_dgs, write_validation_reports
 
 ProgressCallback = Callable[[str, int, int], None]
@@ -144,6 +145,7 @@ class _FeederOptions:
     catalog_corrections: Mapping[str, Any] | None
     reglas: Reglas = REGLAS_PROYECTO
     trafos: Mapping[float, Mapping[str, float]] | None = None
+    perfil_empresa: Mapping[str, Any] | None = None
 
 
 def _convert_feeder(
@@ -157,8 +159,8 @@ def _convert_feeder(
     changes: list[str] = []
     # Todo se escribe primero aquí; solo se publica cuando el alimentador está
     # completo y validado (ver _publish).
-    stage = out_dir / f'{STAGE_PREFIX}{feeder}'
-    _clear_stage(stage)
+    stage_manager = staging_publicacion(out_dir / f'{STAGE_PREFIX}{feeder}')
+    stage = stage_manager.__enter__()
     stage.mkdir(parents=True, exist_ok=True)
     dgs_path = stage / f'{feeder}.dgs'
     metadata_path = stage / f'{feeder}_feeder_metadata.json'
@@ -211,6 +213,13 @@ def _convert_feeder(
             capacitor_banks=manifiesto_dgs.capacitor_banks,
             capacitor_issues=manifiesto_dgs.capacitor_issues,
         )
+        from .preflight_contract import write_contract
+
+        write_contract(dgs_path, model, context={
+            'aliases': dict(opts.aliases), 'reglas': asdict(opts.reglas),
+            'schema_profile': opts.schema_profile,
+            'perfil_empresa': dict(opts.perfil_empresa or {}),
+        })
 
         if opts.export_xlsx:
             write_dgs_xlsx(dgs_path, xlsx_path)
@@ -311,6 +320,7 @@ def _convert_feeder(
         }
     finally:
         _clear_stage(stage)
+        stage_manager.__exit__(None, None, None)
     return item, changes
 
 
@@ -514,7 +524,7 @@ def convert_selection(
         export_xlsx=export_xlsx, export_tsv=export_tsv, write_preview=write_preview,
         preview_backend=preview_backend,
         catalog_corrections=dict(catalog_corrections) if catalog_corrections else None,
-        reglas=reglas, trafos=trafos,
+        reglas=reglas, trafos=trafos, perfil_empresa=(perfil or SIN_PERFIL).valores(),
     )
     n_workers = resolve_workers(workers, total)
     results: dict[str, tuple[dict, list[str]]] = {}
@@ -677,7 +687,8 @@ def convert_group(
             catalog_corrections = leer_catalogo(catalogo)
 
     nombre = nombre_seguro(name.strip())
-    stage = out_dir / f'{STAGE_PREFIX}{nombre}'
+    stage_manager = staging_publicacion(out_dir / f'{STAGE_PREFIX}{nombre}')
+    stage = stage_manager.__enter__()
     manifest: dict[str, Any] = {
         'name': nombre, 'feeders': list(selectors), 'network_ids': [],
         'reglas': reglas.__dict__, 'entrada': informe_entrada.texto(), 'status': 'failed',
@@ -694,7 +705,8 @@ def convert_group(
         networks = _selection(dataset, selectors, False)
         manifest['feeders'] = [feeder_short_name(n) for n in networks]
         manifest['network_ids'] = networks
-        modelos, informes = [], {}
+        modelos, informes, miembros_efectivos = [], {}, []
+        from .preflight_contract import snapshot_model, write_contract
         for index, net in enumerate(networks, start=1):
             if cancel is not None and cancel.is_set():
                 manifest['status'] = 'cancelled'
@@ -704,6 +716,9 @@ def convert_group(
             m = build_feeder_model(dataset, net, aliases=dict(aliases or {}), strict=strict,
                                    include_geography=include_geography)
             informes[m.name] = aplicar_reglas(m, reglas, correcciones=catalog_corrections)
+            # La unión y la estructura pueden cambiar conexiones y repartir cargas;
+            # conservar además cada miembro tal como pasó sus propias reglas (065:RF-5).
+            miembros_efectivos.append(snapshot_model(m))
             modelos.append(m)
         combinado, informe_union = combine_models(modelos, name=nombre)
         if estructura is not None:
@@ -724,6 +739,11 @@ def convert_group(
             capacitor_banks=man.capacitor_banks,
             capacitor_issues=man.capacitor_issues,
         )
+        write_contract(dgs_path, combinado, members=miembros_efectivos, context={
+            'aliases': dict(aliases or {}), 'reglas': asdict(reglas),
+            'perfil_empresa': (perfil or SIN_PERFIL).valores(),
+            'schema_profile': schema_profile,
+        })
         report = validate_dgs(combinado, dgs_path, schema_profile=schema_profile, geography=geography)
         write_validation_reports(report, stage / f'{nombre}_validation.json',
                                  stage / f'{nombre}_validation.txt')
@@ -780,6 +800,7 @@ def convert_group(
         manifest['islands'] = getattr(exc, 'islands', {})
     finally:
         _clear_stage(stage)
+        stage_manager.__exit__(None, None, None)
         (out_dir / f'{nombre}_manifest.json').write_text(
             json.dumps(manifest, indent=2, ensure_ascii=False, default=str) + '\n', encoding='utf-8')
     return manifest

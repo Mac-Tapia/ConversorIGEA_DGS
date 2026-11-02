@@ -147,11 +147,22 @@ def test_powerfactory_importa_dgs_aunque_pandapower_avise_isla(tmp_path, monkeyp
     })
     logs: list[str] = []
     commands: list[list[str]] = []
+    def importar(command, **_kwargs):
+        import json
+        commands.append(command)
+        dgs_fijado = command[command.index('--import-dgs') + 1]
+        Path(command[command.index('--output-json') + 1]).write_text(json.dumps({
+            'feeder': Path(dgs_fijado).stem, 'powerfactory_runtime_pass': True,
+            'import': {'ok': True, 'dgs': dgs_fijado, 'project_path': 'UNITARIO',
+                       'project_folder': command[command.index('--pf-carpeta') + 1]},
+            'source_verification': {'status': 'NOT_REQUESTED'},
+        }), encoding='utf-8')
+        return 0
     ctx = SimpleNamespace(
         log=logs.append,
         progress=lambda *_args: None,
         check_cancel=lambda: None,
-        run_process=lambda command, **_kwargs: commands.append(command) or 0,
+        run_process=importar,
     )
 
     result = services.powerfactory_flow(ws, ctx, ['RED'])
@@ -160,9 +171,12 @@ def test_powerfactory_importa_dgs_aunque_pandapower_avise_isla(tmp_path, monkeyp
     assert result['ok'] == 1
     assert result['preflight']['feeders'][0]['barras_sin_alimentar'] == 2
     assert len(commands) == 1
-    assert commands[0][commands[0].index('--import-dgs') + 1] == str(dgs)
-    assert commands[0][commands[0].index('--feeder-metadata') + 1] == str(
-        dgs.with_name('RED_feeder_metadata.json'))
+    fijado = Path(commands[0][commands[0].index('--import-dgs') + 1])
+    assert fijado.name == dgs.name and fijado.parent != dgs.parent
+    assert Path(commands[0][commands[0].index('--feeder-metadata') + 1]) == (
+        fijado.with_name('RED_feeder_metadata.json'))
+    assert not fijado.parent.exists()  # 065:RF-6: se limpia el pin, se conserva el DGS publicado.
+    assert dgs.is_file()
     assert 'Se continúa con el import DGS completo.' in '\n'.join(logs)
 
 
@@ -213,7 +227,11 @@ def test_flujo_completo_subir_cargar_convertir_descargar(client, export):
 
     dgs = client.get(f'/api/workspaces/{wid}/files/{name}.dgs', params={'download': 1})
     assert dgs.status_code == 200 and len(dgs.content) > 100
-    z = client.get(f'/api/workspaces/{wid}/outputs.zip', params={'feeder': [name]})
+    archive = client.post(f'/api/workspaces/{wid}/outputs/archive', json={'feeders': [name]})
+    assert archive.status_code == 202
+    prepared = esperar_trabajo(client, archive.json())
+    assert prepared['status'] == 'done', prepared
+    z = client.get(prepared['result']['download'])
     assert z.status_code == 200 and z.content[:2] == b'PK'
 
 

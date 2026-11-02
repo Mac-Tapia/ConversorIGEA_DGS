@@ -11,7 +11,9 @@ if exist ".venv\Scripts\python.exe" set "PY=.venv\Scripts\python.exe"
 if not defined PY set "PY=python"
 
 set PYTHONPATH=src
-"%PY%" -m convertersmartgrid.web.runtime 1>nul 2>nul
+set PYTHONDONTWRITEBYTECODE=1
+"%PY%" -m convertersmartgrid.web.runtime
+if errorlevel 2 goto :dependency_error
 if errorlevel 1 (
   echo Instalando dependencias de produccion para TXT, MDB y VNR-GIS...
   "%PY%" -m pip install -r "%~dp0requirements.txt" --disable-pip-version-check
@@ -27,19 +29,15 @@ rem la version anterior sin avisar. Node.js solo hace falta para compilar.
 if errorlevel 1 (
   where npm 1>nul 2>nul
   if errorlevel 1 (
-    if not exist "frontend\dist\index.html" (
-      echo.
-      echo Falta compilar la interfaz web y no se encuentra Node.js ^(npm^).
-      echo Instale Node.js 20 o superior y vuelva a ejecutar, o convierta por consola con convertersmartgrid convert.
-      pause
-      exit /b 1
-    )
-    echo AVISO: no se encuentra Node.js ^(npm^); se abre la interfaz compilada anterior.
+    echo.
+    echo Falta una compilacion completa y actual de la interfaz y no se encuentra Node.js ^(npm^).
+    echo Instale la version de Node.js declarada en frontend/package.json y vuelva a ejecutar.
+    goto :front_error
   ) else (
     echo Compilando la interfaz web...
     pushd frontend
     if errorlevel 1 goto :front_error
-    call npm install --no-audit --no-fund
+    call npm ci --no-audit --no-fund
     if errorlevel 1 (
       popd
       goto :front_error
@@ -50,6 +48,8 @@ if errorlevel 1 (
       goto :front_error
     )
     popd
+    "%PY%" -m convertersmartgrid.web.runtime --front-integrity
+    if errorlevel 1 goto :front_error
   )
 )
 
@@ -59,24 +59,24 @@ rem otra version o cambia de puerto (spec 001, RF-28 a RF-31): ya no hace falta 
 rem 3 = otra version con trabajos en curso, abierta en el navegador: se deja leer el
 rem aviso y la ventana se cierra sola.
 "%PY%" -m convertersmartgrid.web
-if errorlevel 3 (
-  timeout /t 20
+set "WEB_EXITCODE=%ERRORLEVEL%"
+if "%WEB_EXITCODE%"=="3" (
+  call timeout /t 20
   goto :fin
 )
-if errorlevel 2 (
+if "%WEB_EXITCODE%"=="2" (
   echo.
   echo El puerto 8765 y los siguientes estan en uso: arriba se indica que proceso lo tiene y como cerrarlo.
   pause
   goto :fin
 )
-if errorlevel 1 (
+if not "%WEB_EXITCODE%"=="0" (
   echo.
   echo Si faltan librerias:  "%PY%" -m pip install -r requirements.txt
   pause
 )
 :fin
-endlocal
-exit /b 0
+endlocal & exit /b %WEB_EXITCODE%
 
 :dependency_error
 echo.

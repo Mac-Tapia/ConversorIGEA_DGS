@@ -937,14 +937,24 @@ def ejecutar(app, plan):
         return bloqueado, 2
     out = {'project': plan.get('project'), 'accion': plan.get('accion', 'diagnostico'),
            'status': 'BLOQUEADO_DATOS', 'aceptada': False, 'variaciones_creadas': [],
-           'escenario_candidato': None, 'avisos': []}
+           'escenario_candidato': None, 'avisos': [],
+           'validacion_de_nuevas': ('no_solicitada_diagnostico_estructural'
+               if plan.get('accion', 'diagnostico') == 'diagnostico' and not plan.get('verificar_flujos')
+               else 'manifiesto_requerido')}
     previo_caso, previo_proyecto = app.GetActiveStudyCase(), app.GetActiveProject()
+    previo_flujo_valido = None
     proyecto, casos, con = None, {}, None
     fotos, nuevas, copia, copia_cargas = {}, [], None, None
     conservar = False
     candidato = None
     codigo = 2
     try:
+        consultar_flujo = getattr(app, 'IsLdfValid', None)
+        if previo_proyecto is not None and previo_caso is not None and callable(consultar_flujo):
+            previo_flujo_valido = bool(consultar_flujo())
+        out['estado_inicial'] = {'proyecto': _ruta(previo_proyecto), 'caso': _ruta(previo_caso),
+            'fecha': _leer(previo_caso, 'iStudyTime') if previo_caso is not None else None,
+            'flujo_valido': previo_flujo_valido}
         validar_plan(plan)
         proyecto = activar_proyecto(app, plan['project'], plan.get('folder'))
         if proyecto is None:
@@ -1199,6 +1209,28 @@ def ejecutar(app, plan):
                 _activar(app, previo_proyecto)
             if previo_caso is not None:
                 _activar(app, previo_caso)
+            recalculado = False
+            if previo_proyecto is None:
+                activo = app.GetActiveProject()
+                if activo is not None:
+                    if proyecto is None or _ruta(activo) != _ruta(proyecto):
+                        raise RuntimeError('el proyecto activo cambió por fuera de la operación; no se desactiva')
+                    rc_desactivar = activo.Deactivate()
+                    if rc_desactivar not in (0, None) or app.GetActiveProject() is not None:
+                        raise RuntimeError('no se pudo restituir la ausencia inicial de proyecto')
+            elif previo_flujo_valido is True:
+                # Los resultados son derivados del caso: recalcular el original no guarda
+                # escenarios ni usa flujo_de_carga, que podría imponer otro iopt_net.
+                ldf_original = app.GetFromStudyCase('ComLdf')
+                retorno = ldf_original.Execute()
+                valido = bool(app.IsLdfValid())
+                if retorno != 0 or not valido:
+                    raise RuntimeError(f'no se pudo restituir el flujo previo válido: Execute={retorno}, válido={valido}')
+                recalculado = True
+            out['estado_inicial_restituido'] = {'proyecto': _ruta(app.GetActiveProject()),
+                'caso': _ruta(app.GetActiveStudyCase()) if app.GetActiveProject() is not None else '',
+                'fecha': _leer(app.GetActiveStudyCase(), 'iStudyTime') if app.GetActiveProject() is not None else None,
+                'flujo_recalculado': recalculado}
         except Exception as exc:  # noqa: BLE001 - restauración del estado inicial; error expuesto, no descartado
             errores.append(f'estado inicial: {exc}')
         out['restauracion_errores'] = errores

@@ -8,7 +8,7 @@ retirada.
 | Spec | Nombre | Estado | RF | RF con prueba | Tareas abiertas |
 | --- | --- | --- | --- | --- | --- |
 | [001](001-reorganizacion/spec.md) | Reorganización: una responsabilidad, un sitio | cumplida | 35 | 35 | — |
-| [002](002-arquitectura-por-capas/spec.md) | Arquitectura por capas y módulos enchufables | aprobada | 37 | 8 | T2, T3, T4, T6, T7, T8, T9, T10, T11, T12 |
+| [002](002-arquitectura-por-capas/spec.md) | Arquitectura por capas y módulos enchufables | aprobada | 37 | 14 | T2, T3, T4, T6, T7, T8, T9, T10, T11, T12 |
 | [003](003-integracion-web-retiro-gui/spec.md) | Integración web y retiro de la GUI (rama `feat/integracion-web-retiro-gui`) | reservada | 0 | 0 | — |
 | [004](004-cargas-en-powerfactory/spec.md) | Cargas en un proyecto existente de DIgSILENT | cumplida | 67 | 67 | — |
 | [005](005-carpeta-de-proyectos-pf/spec.md) | Carpeta de proyectos importados en DIgSILENT | implementada | 21 | 21 | T12 (DIgSILENT) |
@@ -53,7 +53,7 @@ retirada.
 | [044](044-evaluacion-causal-y-verificacion-completa/spec.md) | Evaluación causal y verificación completa | aprobada | 9 | 5 | T1, T2, T3, T4 (DIgSILENT) |
 | [045](045-gemelo-fisico-y-contratos-pinn-gnn/spec.md) | Gemelo físico y contratos PINN/GNN | aprobada | 11 | 0 | T1, T2, T3, T4 (DIgSILENT) |
 | [046](046-pronostico-causal-multihorizonte/spec.md) | Pronóstico causal multihorizonte | aprobada | 8 | 3 | T1, T2, T3 |
-| [047](047-asistente-estructurado-y-revision-por-roles/spec.md) | Asistente estructurado y revisión por roles | aprobada | 20 | 15 | T1, T2, T3, T4, T7 |
+| [047](047-asistente-estructurado-y-revision-por-roles/spec.md) | Asistente estructurado y revisión por roles | aprobada | 20 | 18 | T1, T2, T3, T4, T7 |
 | [048](048-optimizacion-mixta-evolutiva-y-pnl/spec.md) | Optimización mixta evolutiva y PNL | aprobada | 9 | 0 | T1, T2, T3, T4 (DIgSILENT) |
 | [049](049-protecciones-nativas-y-coordinacion/spec.md) | Protecciones nativas y coordinación | aprobada | 10 | 0 | T1, T2, T3, T4 (DIgSILENT) |
 | [050](050-aprendizaje-continuo-integrado/spec.md) | Aprendizaje continuo integrado | aprobada | 10 | 0 | T1, T2, T3, T4, T5 |
@@ -71,5 +71,5 @@ retirada.
 | [062](062-retencion-diaria-de-ejecuciones/spec.md) | Retención diaria de ejecuciones y temporales | cumplida | 8 | 8 | — |
 | [063](063-informe-de-factibilidad-en-un-paso/spec.md) | Evaluación de conexión y operación comercial en un paso, para cualquier alimentador | cumplida | 53 | 53 | — |
 | [064](064-arnes-sin-atajos/spec.md) | Arnés de DIgSILENT sin atajos: un turno para todos y estado restituido | cumplida | 10 | 10 | — |
-| [065](065-cierre-de-auditoria-integral/spec.md) | Cierre de auditoría integral (rama `codex/mejoras-auditoria-integral`) | reservada | 0 | 0 | — |
+| [065](065-cierre-de-auditoria-integral/spec.md) | Cierre verificable de la auditoría integral | aprobada | 24 | 23 | T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12 (DIgSILENT), T13 |
 | [066](066-libro-de-cada-informe/spec.md) | Cada informe con su libro Excel, según el perfil de la empresa | cumplida | 12 | 12 | — |

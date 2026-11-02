@@ -10,6 +10,8 @@ dato que no se dio (el libro de cargas nuevas, el formulario del informe) se omi
 """
 from __future__ import annotations
 
+from ..runtime_paths import staging_publicacion
+
 import json
 import time
 from collections.abc import Callable, Mapping
@@ -77,9 +79,9 @@ class PuntoDeControl:
         if datos is not None:
             self.estado['datos'] = dict(datos)
         self.ruta.parent.mkdir(parents=True, exist_ok=True)
-        tmp = self.ruta.with_suffix('.tmp')
-        tmp.write_text(json.dumps(self.estado, ensure_ascii=False, indent=1, default=str), encoding='utf-8')
-        tmp.replace(self.ruta)
+        with staging_publicacion(self.ruta) as tmp:
+            tmp.write_text(json.dumps(self.estado, ensure_ascii=False, indent=1, default=str), encoding='utf-8')
+            tmp.replace(self.ruta)
 
 
 def _resumen(resultado: Any) -> Any:
@@ -107,6 +109,7 @@ def ejecutar_proyecto(datos: Mapping[str, Any], *, cliente: ClienteWeb, control:
                       proceso: Callable[[str, Mapping[str, Any]], Any],
                       log: Callable[[str], None] = lambda _m: None,
                       etapas: tuple[Etapa, ...] = ETAPAS,
+                      gobierno_etapa: Callable | None = None,
                       avance: Callable[[int,int,str],None] = lambda *_a:None) -> dict[str, Any]:
     """Las etapas que faltan, en orden, con su punto de control (RF-43, RF-44)."""
     datos = {**control.estado.get('datos', {}), **dict(datos)}
@@ -134,12 +137,16 @@ def ejecutar_proyecto(datos: Mapping[str, Any], *, cliente: ClienteWeb, control:
             continue
         log(f'Agente: etapa {i} de {len(etapas)}, {e.nombre}…')
         datos_tarea = {**datos, 'ruta': datos.get('ruta_cargas') if e.tarea == 'cargas_nuevas' else datos.get('ruta')}
+        extras = {'formulario': datos.get('formulario') or {}}
+        gobierno = gobierno_etapa(e.tarea, datos_tarea, extras) if gobierno_etapa is not None else None
+        cliente.gobierno = gobierno
         if e.proceso:
-            resultado = proceso(e.tarea, datos_tarea)
+            resultado = (gobierno.ejecutar_proceso(lambda: proceso(e.tarea, datos_tarea),
+                                                  cancelado=cliente.cancelado) if gobierno is not None
+                         else proceso(e.tarea, datos_tarea))
             if isinstance(resultado,dict) and resultado.get('codigo',0)!=0:
                 raise RuntimeError(f'la etapa {e.nombre} terminó con código {resultado["codigo"]}; no se marca hecha')
         else:
-            extras = {'formulario': datos.get('formulario') or {}}
             resultado = ejecutar(pasos(e.tarea, datos_tarea, extras), cliente, log)
         datos = _datos_tras(e, datos, cliente)
         control.marcar(e.nombre, 'hecha', _resumen(resultado if not isinstance(resultado, dict)

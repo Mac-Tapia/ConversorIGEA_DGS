@@ -12,8 +12,11 @@ Uso:
 from __future__ import annotations
 
 import argparse
+import ast
+import io
 import re
 import sys
+import tokenize
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[1]
@@ -30,45 +33,96 @@ def clave_rf(rf: str) -> tuple[int, str]:
     return (int(m.group(1)), m.group(2)) if m else (0, rf)
 
 
+_REFERENCIA = re.compile(r'(?:(\b\d{3}):)?RF-(\d+[a-z]?)'
+                        r'(?:\s+a\s+(?:RF-)?(\d+[a-z]?)(?![\d:])|((?:/\d+[a-z]?)+))?')
+
+
+def referencias_rf(texto: str, definidos: dict[str, set[str]] | None = None
+                   ) -> dict[str, set[str]]:
+    """Lector canónico de referencias; la clave vacía representa la spec local.
+
+    Los extremos explícitos siempre se conservan para detectar enlaces inexistentes.
+    Con definiciones se expanden rangos solo sobre RF reales; sin ellas se conserva la
+    expansión histórica de letras utilizada por las tareas. Una cita vacía no es RF.
+    """
+    salida: dict[str, set[str]] = {}
+    for m in _REFERENCIA.finditer(texto):
+        numero, inicio, fin, barras = m.groups()
+        numero = numero or ''
+        valores = {inicio}
+        if fin:
+            valores.add(fin)
+            if clave_rf(inicio) <= clave_rf(fin):
+                if definidos is not None and numero in definidos:
+                    valores.update(r for r in definidos[numero]
+                                   if clave_rf(inicio) <= clave_rf(r) <= clave_rf(fin))
+                else:
+                    a, la = clave_rf(inicio)
+                    b, lb = clave_rf(fin)
+                    for i in range(a, b + 1):
+                        for sufijo in ('', *'abcdefghijklmnopqrstuvwxyz'):
+                            rf = f'{i}{sufijo}'
+                            if clave_rf(inicio) <= clave_rf(rf) <= clave_rf(fin):
+                                valores.add(rf)
+        valores.update(x for x in (barras or '').split('/') if x)
+        salida.setdefault(numero, set()).update(valores)
+    return salida
+
+
+def citas_en_texto(texto: str, definidos: dict[str, set[str]] | None = None
+                    ) -> dict[str, set[str]]:
+    """Citas cualificadas NNN:RF-n, con un solo contrato para rangos y barras."""
+    return {n: r for n, r in referencias_rf(texto, definidos).items() if n}
+
+
+def textos_formales_python(texto: str) -> list[dict]:
+    """Docstrings y comentarios reales, excluyendo cadenas usadas como datos de pruebas.
+
+    Mantiene separados módulo, clase y función: una cita de ámbito superior no se
+    hereda a las funciones. La localización AST evita contar fixtures como evidencia.
+    """
+    arbol = ast.parse(texto)
+    salida = []
+
+    def visitar(nodo, padres=()):
+        nombre = getattr(nodo, 'name', '')
+        nombres = (*padres, nombre) if nombre else padres
+        tipo = ('module' if isinstance(nodo, ast.Module) else 'class'
+                if isinstance(nodo, ast.ClassDef) else 'function')
+        doc = ast.get_docstring(nodo)
+        if doc:
+            salida.append({'text': doc, 'scope': tipo, 'symbol': '::'.join(nombres),
+                           'line': nodo.body[0].lineno})
+        for hijo in ast.iter_child_nodes(nodo):
+            if isinstance(hijo, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+                visitar(hijo, nombres)
+    visitar(arbol)
+    for token in tokenize.generate_tokens(io.StringIO(texto).readline):
+        if token.type == tokenize.COMMENT:
+            salida.append({'text': token.string, 'scope': 'comment', 'symbol': '',
+                           'line': token.start[0]})
+    return salida
+
+
 def rf_de_texto(texto: str) -> set[str]:
     """RF nombrados en un texto: sueltos, en rango «RF-a a RF-b» y en «RF-2/6/7».
 
     Las citas a otra spec («014:RF-5») no cuentan: son de esa spec.
     """
-    texto = re.sub(r'\b\d{3}:RF-\d+[a-z]?(?:\s+a\s+(?:RF-)?\d+[a-z]?)?', ' ', texto)
-    salida: set[str] = set()
-    # «RF-35 a RF-40d» cubre también los de letra de en medio (RF-36b…) y los del final
-    # hasta su letra: así se escribieron los rangos de la 017 y la 024.
-    letras = 'abcdefghijklmnopqrstuvwxyz'
-    for a, la, b, lb in re.findall(r'RF-(\d+)([a-z]?)\s+a\s+(?:RF-)?(\d+)([a-z]?)', texto):
-        a, b = int(a), int(b)
-        if a > b or (a == b and not (la and lb and la < lb)):
-            continue
-        for i in range(a, b + 1):
-            hasta = letras.index(lb) + 1 if i == b and lb else (0 if i == b else len(letras))
-            desde = letras.index(la) if i == a and la else 0
-            if not (i == a and la):
-                salida.add(str(i))
-            salida |= {f'{i}{c}' for c in letras[desde:hasta]}
-    for rf, resto in re.findall(r'RF-(\d+[a-z]?)((?:/\d+[a-z]?)*)', texto):
-        salida.add(rf)
-        salida |= {x for x in resto.split('/') if x}
-    return salida
+    return referencias_rf(texto).get('', set())
 
 
 def citas_de_pruebas(raiz: Path = RAIZ) -> dict[str, set[str]]:
     """RF citados como ``NNN:RF-n`` en tests/ y frontend/src, con sus rangos y barras."""
     citas: dict[str, set[str]] = {}
+    definidos = {s.numero: s.rf for s in leer_specs(raiz)}
     fuentes = list((raiz / 'tests').rglob('*.py')) + list((raiz / 'frontend' / 'src').rglob('*.ts*'))
     for p in fuentes:
         texto = p.read_text(encoding='utf-8', errors='replace')
-        for n, rf in re.findall(r'\b(\d{3}):RF-(\d+[a-z]?)', texto):
-            citas.setdefault(n, set()).add(rf)
-        for n, a, b in re.findall(r'\b(\d{3}):RF-(\d+)\s+a\s+(?:RF-)?(\d+)(?![\d:])', texto):
-            if int(a) < int(b):
-                citas.setdefault(n, set()).update(str(i) for i in range(int(a), int(b) + 1))
-        for n, _, resto in re.findall(r'\b(\d{3}):RF-(\d+[a-z]?)((?:/\d+[a-z]?)+)', texto):
-            citas.setdefault(n, set()).update(x for x in resto.split('/') if x)
+        if p.suffix == '.py':
+            texto = '\n'.join(c['text'] for c in textos_formales_python(texto))
+        for n, rfs in citas_en_texto(texto, definidos).items():
+            citas.setdefault(n, set()).update(rfs)
     return citas
 
 
@@ -108,7 +162,12 @@ class Spec:
         return set().union(*(rf_de_texto(t.texto) for t in self.tareas)) if self.tareas else set()
 
 
-def _bloques_de_tareas(texto: str) -> list[Tarea]:
+def definiciones_rf(texto: str) -> list[str]:
+    """Identificadores definidos; conserva duplicados para detectar numeración inválida."""
+    return _DEF.findall(texto)
+
+
+def tareas_de_texto(texto: str) -> list[Tarea]:
     marcas = list(_TAREA.finditer(texto))
     tareas = []
     for i, m in enumerate(marcas):
@@ -137,9 +196,9 @@ def leer_spec(carpeta: Path) -> Spec:
         huecos |= set(range(int(a), int(b or a) + 1))
     tareas = []
     if (carpeta / 'tasks.md').is_file():
-        tareas = _bloques_de_tareas((carpeta / 'tasks.md').read_text(encoding='utf-8'))
+        tareas = tareas_de_texto((carpeta / 'tasks.md').read_text(encoding='utf-8'))
     return Spec(carpeta.name[:3], carpeta, est.group(1).strip('.,;·') if est else '',
-                titulo.group(1) if titulo else carpeta.name, _DEF.findall(texto), huecos, tareas)
+                titulo.group(1) if titulo else carpeta.name, definiciones_rf(texto), huecos, tareas)
 
 
 def leer_specs(raiz: Path = RAIZ) -> list[Spec]:

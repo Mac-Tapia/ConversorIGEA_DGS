@@ -16,7 +16,6 @@ import shutil
 import stat
 import threading
 import time
-import uuid
 from collections.abc import Callable
 from pathlib import Path
 
@@ -212,6 +211,11 @@ class RetencionDiaria:
         except (OSError, ValueError, TypeError, AttributeError) as exc:
             report['errores'].append(str(exc))
         report['terminada'] = self.ahora()
+        from ..runtime_paths import revisar_temporales_runtime
+
+        report['temporales_externos'] = revisar_temporales_runtime(ahora=self.ahora())
+        for result in report['temporales_externos']:
+            report['errores'].extend(str(item) for item in result['errores'])
         report['estado'] = 'incompleta' if report['errores'] else 'completada'
         for campo in ('eliminados', 'conservados', 'errores'):
             report[f'total_{campo}'] = len(report[campo])
@@ -221,9 +225,9 @@ class RetencionDiaria:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             if not self._sin_redireccion(self.path.parent):
                 raise ValueError('Carpeta de resumen con redirección')
-            tmp = self.path.with_name(f'retencion-{uuid.uuid4().hex}.tmp')
-            tmp.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding='utf-8')
-            tmp.replace(self.path)
+            from ..util import write_json_atomic
+
+            write_json_atomic(self.path, report)
         except (OSError, ValueError) as exc:
             report['errores'].append(str(exc))
             report['estado'] = 'incompleta'

@@ -21,10 +21,10 @@ que no son datos de la red, y el manifiesto de procedencia junto al DGS.
 
 from __future__ import annotations
 
+from convertersmartgrid.runtime_paths import staging_publicacion
+
 import json
 import os
-import shutil
-import tempfile
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
@@ -149,10 +149,8 @@ class DgsExporter:
 
         output_root = Path(output_dir)
         final_dir = output_root / 'dgs'
-        staging_root = output_root / '.staging'
-        staging_root.mkdir(parents=True, exist_ok=True)
-        stage_dir = Path(tempfile.mkdtemp(prefix='vnr-dgs-', dir=staging_root))
-        try:
+        with staging_publicacion(final_dir) as stage_dir:
+            stage_dir.mkdir()
             engine = convert_group(
                 result.dataset, feeders, stage_dir, name=name,
                 schema_profile=self.schema_profile,
@@ -216,8 +214,6 @@ class DgsExporter:
                 if path.is_file():
                     os.replace(path, final_dir / path.name)
             return [final_dir / stage_dgs.name, final_dir / stage_manifest.name]
-        finally:
-            shutil.rmtree(stage_dir, ignore_errors=True)
 
     def roundtrip_errors(self, path: Path) -> list[str]:
         """Valida cabeceras, aridad y unicidad de FID releyendo el DGS escrito."""

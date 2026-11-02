@@ -83,10 +83,10 @@ export const api = {
       workspace: WorkspaceState;
     }>(`${ws(id)}/inputs-auto`, { method: 'POST', body: fd });
   },
-  vnrPublications: (refresh = false) =>
-    request<import('./types').VnrPublications>(`/api/vnr/publications${refresh ? '?refresh=true' : ''}`),
+  vnrPublications: () => request<import('./types').VnrPublications>('/api/vnr/publications'),
+  vnrRefresh: (id: string) => request<Job>(`${ws(id)}/vnr/publications/refresh`, { method: 'POST' }),
   vnrDownload: (id: string, publicationId: string) =>
-    request<{ workspace: WorkspaceState; manifest: Record<string, unknown> }>(
+    request<Job>(
       `${ws(id)}/vnr/download`, json('POST', { publication_id: publicationId }),
     ),
 
@@ -113,8 +113,8 @@ export const api = {
   outputs: (id: string) => request<OutputFile[]>(`${ws(id)}/outputs`),
   fileUrl: (id: string, rel: string, download = false) =>
     `${ws(id)}/files/${rel.split('/').map(enc).join('/')}${download ? '?download=1' : ''}`,
-  zipUrl: (id: string, feeders: string[] = []) =>
-    `${ws(id)}/outputs.zip${feeders.length ? '?' + feeders.map((f) => `feeder=${enc(f)}`).join('&') : ''}`,
+  zipArchive: (id: string, feeders: string[] = []) =>
+    request<Job>(`${ws(id)}/outputs/archive`, json('POST', { feeders })),
 
   powerfactoryFlow: (id: string, feeders: string[]) =>
     request<Job>(`${ws(id)}/powerfactory/flow`, json('POST', { feeders })),
@@ -359,7 +359,7 @@ export const api = {
 
   // Spec 026: asistente de órdenes.
   asistenteOrden: (id: string, texto: string) =>
-    request<AsistenteRespuesta>(`${ws(id)}/asistente/orden`, json('POST', { texto })),
+    request<Job>(`${ws(id)}/asistente/orden`, json('POST', { texto })),
   asistenteConfirmar: (id: string, planId: string) =>
     request<Job>(`${ws(id)}/asistente/${enc(planId)}/confirmar`, { method: 'POST' }),
   asistenteCorregir: (id: string, planId: string, body: { tarea?: string; datos?: Record<string, unknown>;

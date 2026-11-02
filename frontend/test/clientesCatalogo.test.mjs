@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { build } from 'esbuild';
+import { fileURLToPath } from 'node:url';
 
-const entry = new URL('../src/clientesCatalogo.ts', import.meta.url).pathname.replace(/^\/(.:\/)/, '$1');
+const entry = fileURLToPath(new URL('../src/clientesCatalogo.ts', import.meta.url));
 
 async function cargar() {
   const salida = await build({

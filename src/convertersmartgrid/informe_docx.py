@@ -10,6 +10,8 @@ de DIgSILENT ni el orden de evaluación de las obras: el Word va al destinatario
 """
 from __future__ import annotations
 
+from .runtime_paths import staging_publicacion
+
 import io
 import json
 import os
@@ -451,20 +453,16 @@ def _sin_flujo(e: _Escritor, caso: Caso) -> bool:
 
 
 def _guardar(documento, destino: Path, resumen: Mapping[str, Any]) -> None:
-    """``.docx`` y JSON en ``.tmp`` y renombrados al final: nada a medias si algo falla (RF-25, RF-27)."""
+    """Prepara Word y JSON fuera del checkout antes de publicarlos (RF-25, RF-27)."""
     destino = Path(destino)
     destino.parent.mkdir(parents=True, exist_ok=True)
-    tmp_docx = destino.with_name(destino.name + '.tmp')
-    tmp_json = destino.with_suffix('.json.tmp')
-    try:
+    with (staging_publicacion(destino) as tmp_docx,
+          staging_publicacion(destino.with_suffix('.json')) as tmp_json):
         documento.save(tmp_docx)
         tmp_json.write_text(json.dumps(resumen, ensure_ascii=False, indent=2, default=str) + '\n',
                             encoding='utf-8')
         os.replace(tmp_json, destino.with_suffix('.json'))
         os.replace(tmp_docx, destino)
-    finally:
-        for tmp in (tmp_docx, tmp_json):
-            tmp.unlink(missing_ok=True)
 
 
 def _rutas(imagenes: Mapping[str, Mapping[str, Path | None]]) -> dict:

@@ -33,6 +33,8 @@
 # Sin ellas las pruebas de integración hacen skip y solo corren las sintéticas.
 
 # ── Paquete del proyecto (src/convertersmartgrid, src/vnr_etl + schemas/*.json) ──────────────
+# Cierre reproducido de CPython 3.12/Windows; los marcadores no imponen otro SO.
+-c constraints-python312-win.txt
 -e .
 
 # ── Motor de conversión ──────────────────────────────────────────────────────────────

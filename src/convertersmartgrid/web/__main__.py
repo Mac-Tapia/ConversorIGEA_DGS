@@ -304,6 +304,9 @@ def resolver_puerto(host: str, port: int, abrir: bool) -> tuple[str, int]:
 
 
 def main(argv: list[str] | None = None) -> int:
+    from ..runtime_paths import configurar_entorno
+
+    configurar_entorno()
     p = argparse.ArgumentParser(prog='convertersmartgrid-web', description=__doc__)
     p.add_argument('--host', default='127.0.0.1')
     p.add_argument('--port', type=int, default=8765)

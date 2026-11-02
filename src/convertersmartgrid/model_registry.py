@@ -1,13 +1,15 @@
 """Registro común inmutable y promoción atómica de cualquier modelo."""
 from __future__ import annotations
 
+from .runtime_paths import staging_publicacion
+
 import hashlib
 import json
 import os
 import re
 import shutil
 import subprocess
-import tempfile
+import time
 from enum import Enum
 from pathlib import Path
 from typing import Any, Sequence
@@ -58,9 +60,17 @@ class RegistroModelo:
 
     def _reemplazar_json(self, ruta: Path, payload: dict[str, Any]) -> None:
         ruta.parent.mkdir(parents=True, exist_ok=True)
-        tmp = ruta.with_name(f'.{ruta.name}.{os.getpid()}.tmp')
-        tmp.write_bytes(_canonico(payload))
-        os.replace(tmp, ruta)
+        with staging_publicacion(ruta) as tmp:
+            tmp.write_bytes(_canonico(payload))
+            # Windows puede abrir brevemente el mismo puntero desde otro hilo.
+            for intento in range(20):
+                try:
+                    os.replace(tmp, ruta)
+                    break
+                except PermissionError:
+                    if intento == 19:
+                        raise
+                    time.sleep(0.01)
 
     def registrar_candidato(self, modelo: str, *, model_manifest: dict, dataset_manifest: dict,
                             metrics: dict, decision: dict, smoke_reload: dict,
@@ -88,8 +98,8 @@ class RegistroModelo:
         final = modelo_raiz / 'candidates' / identidad
         if not final.exists():
             final.parent.mkdir(parents=True, exist_ok=True)
-            temporal = Path(tempfile.mkdtemp(prefix=f'.{identidad}.', dir=final.parent))
-            try:
+            with staging_publicacion(final) as temporal:
+                temporal.mkdir()
                 for nombre, payload in (
                     ('model_manifest.json', model_manifest), ('dataset_manifest.json', dataset_manifest),
                     ('metrics.json', metrics), ('decision.json', decision),
@@ -100,9 +110,6 @@ class RegistroModelo:
                 for artefacto in artifacts:
                     shutil.copy2(artefacto, carpeta / Path(artefacto).name)
                 os.replace(temporal, final)
-            except BaseException:
-                shutil.rmtree(temporal, ignore_errors=True)
-                raise
         self._reemplazar_json(modelo_raiz / 'latest.json', {'candidate_id': identidad, 'status': estado.value})
         return {'candidate_id': identidad, 'model': modelo, 'status': estado.value,
                 'path': str(final)}

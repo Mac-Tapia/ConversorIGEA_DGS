@@ -714,3 +714,89 @@ def test_verificar_flujos_rechaza_modificadores_y_exige_manifiesto():
                   {'conciliar_fases': True}, {'sincronizar_cargas': True}):
         with pytest.raises(ValueError):
             g.validar_plan(plan(verificar_flujos=True, **extra))
+
+
+def test_diagnostico_restituye_ausencia_de_proyecto(monkeypatch):
+    """065:RF-21 — conectar sin proyecto no deja el diagnosticado activo ni guarda."""
+    app, _casos, _ = red()
+    app.proyecto.Activate()
+    app.proyecto.Deactivate()
+    monkeypatch.setattr(fake_pf.Escenario, 'Save', lambda *_: pytest.fail('diagnóstico no guarda'))
+    out, rc = g.ejecutar(app, plan())
+    assert rc == 0, out
+    assert app.GetActiveProject() is None
+    assert out['estado_inicial_restituido']['proyecto'] is None
+    assert out['validacion_de_nuevas'] == 'no_solicitada_diagnostico_estructural'
+    assert not out['aceptada']
+
+
+def test_diagnostico_recalcula_unicamente_flujo_previo_valido(monkeypatch):
+    """065:RF-21 — restaura el flujo derivado del caso original, sin cambiar sus opciones."""
+    app, casos, _ = red()
+    app.proyecto.Activate()
+    casos['Sin proyecto'].Activate()
+    ldf = app.GetFromStudyCase('ComLdf')
+    ldf.iopt_net = 0
+    ejecutadas = []
+    ejecutar = ldf.Execute
+    def observar():
+        ejecutadas.append((app.GetActiveStudyCase().loc_name, ldf.iopt_net))
+        return ejecutar()
+    monkeypatch.setattr(ldf, 'Execute', observar)
+    out, rc = g.ejecutar(app, plan())
+    assert rc == 0, out
+    assert ejecutadas == [('Sin proyecto', 0)]
+    assert out['estado_inicial_restituido']['flujo_recalculado'] is True
+
+
+def test_diagnostico_no_inventa_flujo_previo_invalido(monkeypatch):
+    """065:RF-21 — un caso sin resultado válido no exige ni declara recomputación."""
+    app, casos, _ = red()
+    app.proyecto.Activate()
+    casos['Sin proyecto'].Activate()
+    app.ldf_valido = False
+    monkeypatch.setattr(app.GetFromStudyCase('ComLdf'), 'Execute',
+                        lambda: pytest.fail('no recalcular flujo originalmente inválido'))
+    out, rc = g.ejecutar(app, plan())
+    assert rc == 0, out
+    assert out['estado_inicial_restituido']['flujo_recalculado'] is False
+
+
+def test_fallo_recalculo_original_bloquea_y_conserva_error_operacion(monkeypatch):
+    """065:RF-21 — un fallo al restaurar no oculta el fallo inicial ni permite aceptar."""
+    app, casos, _ = red()
+    app.proyecto.Activate()
+    casos['Sin proyecto'].Activate()
+    monkeypatch.setattr(g, 'diagnosticar', lambda *_: (_ for _ in ()).throw(ValueError('fallo inicial')))
+    monkeypatch.setattr(app.GetFromStudyCase('ComLdf'), 'Execute', lambda: 1)
+    out, rc = g.ejecutar(app, plan())
+    assert rc == 2 and not out['aceptada']
+    assert out['error'] == 'fallo inicial'
+    assert any('flujo' in error for error in out['restauracion_errores'])
+
+
+def test_desactivacion_fallida_impide_aceptar(monkeypatch):
+    """065:RF-21 — retornar de diagnóstico con proyecto indebido se informa como fallo."""
+    app, _casos, _ = red()
+    proyecto = app.proyecto
+    proyecto.Activate()
+    proyecto.Deactivate()
+    monkeypatch.setattr(proyecto, 'Deactivate', lambda: 1)
+    out, rc = g.ejecutar(app, plan())
+    assert rc == 2 and not out['aceptada']
+    assert out['restauracion_errores']
+
+
+def test_restauracion_no_desactiva_proyecto_ajeno(monkeypatch):
+    """065:RF-21 — si el proyecto activo cambió por fuera, se bloquea sin cerrarlo."""
+    app, _casos, _ = red()
+    ajeno = fake_pf.Obj(app, 'IntPrj', 'Proyecto ajeno')
+    original = g.diagnosticar
+    def externo(*args):
+        resultado = original(*args)
+        ajeno.Activate()
+        return resultado
+    monkeypatch.setattr(g, 'diagnosticar', externo)
+    out, rc = g.ejecutar(app, plan())
+    assert rc == 2 and not out['aceptada']
+    assert app.GetActiveProject() is ajeno

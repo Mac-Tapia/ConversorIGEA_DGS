@@ -41,6 +41,7 @@ class ClienteWeb:
     espacio: str
     intervalo_s: float = 0.5
     cancelado: Callable[[], bool] = field(default=lambda: False)
+    gobierno: Any = None
 
     def _url(self, ruta: str) -> str:
         if ruta.startswith('/api/'):
@@ -48,6 +49,14 @@ class ClienteWeb:
         return f'{self.base}/api/workspaces/{self.espacio}{ruta}'
 
     def pedir(self, metodo: str, ruta: str, **kw) -> Any:
+        if self.gobierno is not None:
+            self.gobierno.validar_cliente(self)
+            self.gobierno.autorizar_peticion(metodo, ruta, kw)
+            # Una redirección HTTP no puede sacar la orden local de la máquina (P9).
+            import requests
+            if isinstance(self.http, requests.Session):
+                self.http.trust_env = False
+                kw['allow_redirects'] = False
         r = self.http.request(metodo, self._url(ruta), **kw)
         if r.status_code >= 300:
             try:
@@ -55,7 +64,10 @@ class ClienteWeb:
             except ValueError:
                 detalle = r.text[:500]
             raise PasoFallido(f'{metodo} {ruta}: {detalle}')
-        return r.json() if r.content else None
+        respuesta = r.json() if r.content else None
+        if self.gobierno is not None:
+            self.gobierno.registrar_respuesta_http(respuesta)
+        return respuesta
 
     def esperar(self, trabajo: dict) -> dict:
         cancelado = False
@@ -212,11 +224,25 @@ def revisar_tras_error(texto: str, tarea: str, datos: Mapping[str, Any], error: 
 
 def ejecutar(lista: list[Paso], cliente: ClienteWeb, log: Callable[[str], None] = lambda _m: None) -> dict:
     """Los pasos en orden; el resultado de cada uno queda para el siguiente."""
+    if cliente.gobierno is not None:
+        with cliente.gobierno.accion(cancelado=cliente.cancelado) as evidencia:
+            cliente.gobierno.validar_cliente(cliente)
+            cliente.gobierno.validar_pasos(lista)
+            resultado = _ejecutar(lista, cliente, log)
+            evidencia['salida'] = resultado
+            return resultado
+    return _ejecutar(lista, cliente, log)
+
+
+def _ejecutar(lista: list[Paso], cliente: ClienteWeb, log: Callable[[str], None]) -> dict:
+    """Bucle compartido; el gobierno, cuando está vinculado, valida cada paso real."""
     resultados: list[Any] = []
     trabajos: list[dict] = []
     for i, p in enumerate(lista, 1):
         if cliente.cancelado():
             return {'completo': False, 'cancelado': True, 'pasos': trabajos}
+        if cliente.gobierno is not None:
+            cliente.gobierno.validar_paso(i - 1, p, resultados)
         ruta = p.ruta(resultados) if callable(p.ruta) else p.ruta
         cuerpo = p.cuerpo(resultados) if callable(p.cuerpo) else p.cuerpo
         log(f'Asistente: paso {i} de {len(lista)}, {p.nombre}…')
@@ -234,5 +260,8 @@ def ejecutar(lista: list[Paso], cliente: ClienteWeb, log: Callable[[str], None] 
                 raise PasoFallido(f"el paso «{p.nombre}» terminó {fin['status']}: {fin.get('error') or ''}".strip())
             r = fin.get('result')
         resultados.append(r)
+        if cliente.gobierno is not None:
+            cliente.gobierno.registrar_salida_paso(i - 1, r)
+            cliente.gobierno.despues_paso(p)
     final = resultados[-1] if resultados else None
     return {'completo': True, 'pasos': trabajos, 'resultado': final, 'entregables': entregables(final)}

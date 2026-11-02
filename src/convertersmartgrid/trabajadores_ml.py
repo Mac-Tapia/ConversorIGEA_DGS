@@ -1,6 +1,8 @@
 """043:RF-13: informes y guardia compartidos de los trabajadores locales."""
 from __future__ import annotations
 
+from .runtime_paths import staging_publicacion
+
 from contextlib import contextmanager
 import hashlib
 import json
@@ -11,9 +13,9 @@ import tempfile
 
 def escribir_informe(ruta: Path, datos: dict) -> None:
     ruta.parent.mkdir(parents=True,exist_ok=True)
-    temporal=ruta.with_name(f'.{ruta.name}.{os.getpid()}.tmp')
-    temporal.write_text(json.dumps(datos,ensure_ascii=False,indent=2,allow_nan=False),encoding='utf-8')
-    temporal.replace(ruta)
+    with staging_publicacion(ruta) as temporal:
+        temporal.write_text(json.dumps(datos,ensure_ascii=False,indent=2,allow_nan=False),encoding='utf-8')
+        temporal.replace(ruta)
 
 
 def sha_archivo(ruta: Path) -> str:

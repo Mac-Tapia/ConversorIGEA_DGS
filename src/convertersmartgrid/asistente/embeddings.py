@@ -1,6 +1,8 @@
 """Dataset, evaluacion y persistencia auditable del recuperador hibrido."""
 from __future__ import annotations
 
+from ..runtime_paths import staging_publicacion
+
 import hashlib
 import json
 import math
@@ -231,9 +233,9 @@ def guardar_indice_versionado(fragmentos: Sequence[Any], vectores: Sequence[Sequ
     archivos = {'fragmentos.json': frags, 'vectores.json': list(vectores) if vectores is not None else None}
     manifest = manifiesto_indice(fragmentos, vectores, modelo=modelo, segmentacion=segmentacion)
     for nombre, contenido in [*archivos.items(), ('manifest.json', manifest)]:
-        temporal = raiz / f'.{nombre}.{os.getpid()}.tmp'
-        temporal.write_text(json.dumps(contenido, ensure_ascii=False, sort_keys=True), encoding='utf-8')
-        os.replace(temporal, raiz / nombre)
+        with staging_publicacion(raiz / nombre) as temporal:
+            temporal.write_text(json.dumps(contenido, ensure_ascii=False, sort_keys=True), encoding='utf-8')
+            os.replace(temporal, raiz / nombre)
     return manifest
 
 

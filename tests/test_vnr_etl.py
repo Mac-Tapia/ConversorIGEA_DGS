@@ -592,7 +592,7 @@ def test_dgs_export_writes_file_with_verified_profile(tmp_path):
     assert validation['errors_total'] == 0
     engine = json.loads((dgs_path.parent / f'{stem}_manifest.json').read_text(encoding='utf-8'))
     assert engine['status'] == 'ok'
-    assert not list((tmp_path / '.staging').iterdir())
+    assert not (tmp_path / '.staging').exists()
 
 
 def test_dgs_export_es_el_mismo_dgs_que_el_motor(tmp_path):

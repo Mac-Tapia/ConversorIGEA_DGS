@@ -13,13 +13,26 @@ const ACCEPT: Record<string, string> = {
 };
 
 function VnrDiscovery() {
-  const { ws, setWs, run, active } = useApp();
+  const { ws, run, startJob, jobs, active } = useApp();
   const [catalog, setCatalog] = useState<VnrPublications | null>(null);
+  const [refreshJob, setRefreshJob] = useState<string>();
 
   const discover = async (refresh: boolean) => {
-    const result = await run(() => api.vnrPublications(refresh));
+    if (refresh) {
+      const job = await startJob(() => api.vnrRefresh(ws.id));
+      if (job) setRefreshJob(job.id);
+      return;
+    }
+    const result = await run(() => api.vnrPublications());
     if (result) setCatalog(result);
   };
+  useEffect(() => {
+    const job = refreshJob ? jobs[refreshJob] : undefined;
+    if (job?.status === 'done' && job.result?.publications) {
+      setCatalog(job.result as VnrPublications);
+      setRefreshJob(undefined);
+    }
+  }, [jobs, refreshJob]);
   useEffect(() => { void discover(false); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const packages = catalog?.publications.filter((item) => item.convertible) ?? [];
@@ -38,8 +51,7 @@ function VnrDiscovery() {
         <div className="vnr-publication" key={item.publication_id}>
           <div><b>{item.title}</b><br /><span className="muted small">{item.company} · {item.period_label} · evidencia {item.evidence_sha256.slice(0, 12)}…</span></div>
           <button className="btn btn-sm" disabled={Boolean(active.engine)} onClick={async () => {
-            const response = await run(() => api.vnrDownload(ws.id, item.publication_id));
-            if (response) setWs(response.workspace);
+            await startJob(() => api.vnrDownload(ws.id, item.publication_id));
           }}>Descargar y custodiar</button>
         </div>
       ))}

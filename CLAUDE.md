@@ -6,7 +6,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
 ## Entorno
 
 - Python **3.12 exacto**, en `.venv` (`.venv/Scripts/python.exe`). La API de PowerFactory 2024 solo carga en 3.12.
-- Instalación: `pip install -r requirements.txt`; los drivers opcionales de VNR-GIS, aparte con `pip install -r requirements-drivers.txt`. La web necesita compilar el front una vez: `cd frontend && npm install && npm run build`.
+- Instalación: `pip install -r requirements.txt`; incluye el cierre de versiones verificado para CPython 3.12/Windows. Los drivers opcionales de VNR-GIS, aparte con `pip install -r requirements-drivers.txt`. Frontend: `cd frontend && npm ci && npm run build`.
 - Web: `run_gui.bat` o `convertersmartgrid-web`. CLI: `convertersmartgrid convert --red ... --loads ... --equipment ... --all --out-dir out --workers 0`.
 
 ## Skills del proyecto
@@ -92,7 +92,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 062 Retención diaria de ejecuciones y temporales | cumplida | T1–T4 verificadas; primera revisión real sin errores |
   | 063 Evaluación de conexión y operación comercial en un paso, para cualquier alimentador | cumplida |  |
   | 064 Arnés de DIgSILENT sin atajos: un turno para todos y estado restituido | cumplida |  |
-  | 065 Cierre de auditoría integral (rama `codex/mejoras-auditoria-integral`) | reservada |  |
+  | 065 Cierre verificable de la auditoría integral | aprobada | ver sus tareas |
   | 066 Cada informe con su libro Excel, según el perfil de la empresa | cumplida |  |
 
   Las convenciones de cada empresa (CRS de origen, patrón de SED de medición, escala,

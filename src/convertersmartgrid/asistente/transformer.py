@@ -11,6 +11,8 @@ más que el modelo en uso en un conjunto de prueba fijo (RF-20), como el orácul
 """
 from __future__ import annotations
 
+from ..runtime_paths import staging_publicacion
+
 import json
 import os
 import random
@@ -315,9 +317,9 @@ def promover(version: str, motivo: str, nombre: str = 'ordenes') -> None:
     puntero = raiz / 'promovido.json'
     anterior = json.loads(puntero.read_text(encoding='utf-8'))['version'] if puntero.is_file() else None
     fila = {'version': version, 'anterior': anterior, 'motivo': motivo, 'fecha': almacen.ahora()}
-    tmp = raiz / 'promovido.json.tmp'
-    tmp.write_text(json.dumps(fila, ensure_ascii=False), encoding='utf-8')
-    os.replace(tmp, puntero)
+    with staging_publicacion(puntero) as tmp:
+        tmp.write_text(json.dumps(fila, ensure_ascii=False), encoding='utf-8')
+        os.replace(tmp, puntero)
     with open(raiz / 'historial.jsonl', 'a', encoding='utf-8') as f:
         f.write(json.dumps(fila, ensure_ascii=False) + '\n')
 

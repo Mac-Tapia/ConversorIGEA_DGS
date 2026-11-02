@@ -11,6 +11,8 @@ y los parámetros del perfil; no supone ninguna tasa ni tolerancia que el perfil
 """
 from __future__ import annotations
 
+from .runtime_paths import staging_publicacion
+
 import math
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -323,7 +325,7 @@ def escribir_formatos(ruta: Path, filas: Mapping[str, Sequence[Sequence[Any]]]) 
         if not datos:
             hoja.append(['sin datos en esta ejecución'])
     ruta.parent.mkdir(parents=True, exist_ok=True)
-    tmp = ruta.with_suffix('.tmp.xlsx')
-    libro.save(tmp)
-    tmp.replace(ruta)
+    with staging_publicacion(ruta) as tmp:
+        libro.save(tmp)
+        tmp.replace(ruta)
     return ruta

@@ -5,6 +5,8 @@ documentos queda en ``context``; la aceptación nativa/humana vive fuera de este
 """
 from __future__ import annotations
 
+from .runtime_paths import staging_publicacion
+
 import hashlib
 import json
 import re
@@ -513,18 +515,18 @@ def _record_id(tipo: str, payload: dict[str, Any]) -> str:
 
 
 def _write_jsonl_atomic(path: Path, rows: list[dict[str, Any]]) -> None:
-    temporal = path.with_name(f'.{path.name}.{os.getpid()}.tmp')
-    texto = ''.join(json.dumps(row, ensure_ascii=False, sort_keys=True,
-                               separators=(',', ':')) + '\n' for row in rows)
-    temporal.write_text(texto, encoding='utf-8', newline='\n')
-    os.replace(temporal, path)
+    with staging_publicacion(path) as temporal:
+        texto = ''.join(json.dumps(row, ensure_ascii=False, sort_keys=True,
+                                   separators=(',', ':')) + '\n' for row in rows)
+        temporal.write_text(texto, encoding='utf-8', newline='\n')
+        os.replace(temporal, path)
 
 
 def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
-    temporal = path.with_name(f'.{path.name}.{os.getpid()}.tmp')
-    temporal.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + '\n',
-                        encoding='utf-8', newline='\n')
-    os.replace(temporal, path)
+    with staging_publicacion(path) as temporal:
+        temporal.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + '\n',
+                            encoding='utf-8', newline='\n')
+        os.replace(temporal, path)
 
 
 def _training_from_contract(contract: ContratoPide) -> list[dict[str, Any]]:

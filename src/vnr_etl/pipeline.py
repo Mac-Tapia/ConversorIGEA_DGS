@@ -7,6 +7,8 @@ coordina la secuencia fuente → modelo canónico → validación → export.
 
 from __future__ import annotations
 
+from convertersmartgrid.runtime_paths import staging_publicacion
+
 import math
 import json
 import re
@@ -37,12 +39,11 @@ def safe_extract_package(source: Path | str, destination: Path | str) -> Extract
     from vnr_etl.discovery.download import safe_extract_rar, safe_extract_zip
 
     source, destination = Path(source), Path(destination)
-    staging = destination.with_name(destination.name + '.part')
-    shutil.rmtree(staging, ignore_errors=True)
     if destination.exists():
         raise FileExistsError(f'La carpeta derivada ya existe: {destination}')
-    staging.mkdir(parents=True)
-    try:
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with staging_publicacion(destination) as staging:
+        staging.mkdir()
         suffix = source.suffix.lower()
         if suffix == '.zip':
             safe_extract_zip(source, staging, uncompressed_limit_bytes=8 * 1024**3)
@@ -59,7 +60,9 @@ def safe_extract_package(source: Path | str, destination: Path | str) -> Extract
         # Enumerar desde el mismo objeto ``staging`` evita que Windows compare el
         # alias 8.3 del directorio temporal con la ruta larga devuelta por zipfile.
         files = sorted(path for path in staging.rglob('*') if path.is_file())
-        staging.replace(destination)
+        if destination.exists():
+            raise FileExistsError(f'La carpeta derivada ya existe: {destination}')
+        staging.rename(destination)
         published = [destination / path.relative_to(staging) for path in files]
         return ExtractReport(
             source=source,
@@ -68,9 +71,6 @@ def safe_extract_package(source: Path | str, destination: Path | str) -> Extract
             files=published,
             total_bytes=sum(path.stat().st_size for path in published),
         )
-    except BaseException:
-        shutil.rmtree(staging, ignore_errors=True)
-        raise
 
 
 def _geojson_rows(path: Path) -> tuple[list[dict], str]:

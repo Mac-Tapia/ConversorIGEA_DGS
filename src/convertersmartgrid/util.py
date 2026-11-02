@@ -24,19 +24,19 @@ def sha256_file(path: Path | str) -> str:
 
 
 def write_json_atomic(path: Path, payload: Any) -> None:
-    """Escribe en ``<nombre>.tmp`` y lo publica con ``replace``: nunca queda a medias.
+    """Prepara fuera del checkout y publica en el mismo volumen con ``replace``.
 
     Se serializa antes de abrir el temporal, así que un error de serialización deja el
     fichero anterior intacto. ``default=str`` admite rutas y fechas en los manifiestos.
     """
+    from .runtime_paths import staging_publicacion
+
+    contenido = json.dumps(payload, indent=2, ensure_ascii=False, default=str) + '\n'
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(path.name + '.tmp')
-    temporary.write_text(
-        json.dumps(payload, indent=2, ensure_ascii=False, default=str) + '\n',
-        encoding='utf-8',
-    )
-    temporary.replace(path)
+    with staging_publicacion(path) as temporary:
+        temporary.write_text(contenido, encoding='utf-8')
+        temporary.replace(path)
 
 
 def finite_or_none(value: Any) -> float | None:

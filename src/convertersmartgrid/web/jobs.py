@@ -543,11 +543,10 @@ class JobManager:
         if ruta is None:
             return
         try:
-            ruta.parent.mkdir(parents=True, exist_ok=True)
-            tmp = ruta.with_suffix('.tmp')
-            tmp.write_text(json.dumps({'pid': os.getpid(), 'en_curso': self.en_curso(),
-                                       'hora': time.time()}), encoding='utf-8')
-            os.replace(tmp, ruta)
+            from ..util import write_json_atomic
+
+            write_json_atomic(ruta, {'pid': os.getpid(), 'en_curso': self.en_curso(),
+                                     'hora': time.time()})
         except OSError:
             pass
 

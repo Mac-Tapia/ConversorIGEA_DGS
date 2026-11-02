@@ -388,3 +388,28 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `frontend/src/components/MonitorAgente.tsx` | Monitor del asistente conectado al contexto WebSocket, etapas, operaciones, evidencia real y retención diaria. | 061 (RF-2, RF-3, RF-4, RF-5, RF-9), 062 (RF-8) |
 | `tools/asistente_observar.py` | Incorpora y verifica informes locales del aprendizaje sin activar modelos. | 061 (RF-8) |
 | `src/convertersmartgrid/web/retencion.py` | Revisión diaria de ejecuciones y temporales sin referencias, de más de siete días, con protección de datos y resumen persistido. | 062 (RF-1, RF-2, RF-3, RF-4, RF-5, RF-6, RF-7, RF-8) |
+
+## Cierre de auditoría integral — spec 065
+
+| Fichero | Qué hace | Spec |
+| --- | --- | --- |
+| `src/convertersmartgrid/asistente/custodia_corpus.py` | Resolución explícita y verificable de fuentes custodiadas tras su traslado, sin alterar ejemplos ni particiones. | 047, 065 |
+| `src/convertersmartgrid/asistente/reubicacion_corpus.py` | Nueva custodia externa del corpus LLM con cuotas, hashes, preflight y conservación del original. | 047, 065 |
+| `tools/reubicar_corpus_llm.py` | Valida o publica una nueva versión custodiada del corpus tras un traslado exacto de datos. | 047, 065 |
+| `tools/aceptar_dominio.py` | Preaceptación de fuente, vínculo, caso, evidencia y recursos sin conectar ni modificar el motor nativo. | 065 |
+| `tools/verificar_candidato.py` | Regresión de un candidato con hashes antes/después, JUnit y matriz de trazabilidad. | 065 |
+| `frontend/src/api/esquema.ts` | Tipos generados desde OpenAPI; no se editan a mano. | 065, 002 |
+| `frontend/src/components/DescargaZip.tsx` | Descarga ZIP preparada como trabajo con progreso y cancelación. | 065 |
+| `frontend/src/components/EquipoAsistente.tsx` | Roles, permisos y revisión de propuestas en la consola del asistente. | 065 |
+| `frontend/src/equipoAsistente.ts` | Cliente tipado de permisos, acciones y revisiones del equipo. | 065 |
+| `src/convertersmartgrid/asistente/equipo.py` | Gobierno de herramientas y permisos sellados por plan, rol y fuente. | 065 |
+| `src/convertersmartgrid/asistente/revision_roles.py` | Revisión local por roles sin autorización de escrituras nativas. | 065 |
+| `src/convertersmartgrid/preflight_contract.py` | Contrato JSON del modelo efectivo, fijado al DGS antes de su importación. | 065 |
+| `src/convertersmartgrid/runtime_paths.py` | Raíces externas, staging por volumen, custodia y reconciliación de temporales. | 065 |
+| `src/convertersmartgrid/web/api_contract.py` | Modelos públicos Pydantic y contratos OpenAPI del frontend. | 065, 002 |
+| `src/convertersmartgrid/web/equipo_api.py` | API del equipo LLM: permisos por plan y revisiones locales en cola. | 065 |
+| `src/convertersmartgrid/web/operaciones_lentas.py` | ZIP cancelable, cuotas y entrega de archivos por trabajo. | 065 |
+| `tools/arquitectura.py` | Guarda AST de capas, ciclos y accesos privados con deuda explícita. | 065, 002 |
+| `tools/fijar_entorno.py` | Cierre reproducible de dependencias para CPython 3.12/Windows. | 065 |
+| `tools/generar_contrato_api.py` | Generación y comprobación determinista del contrato OpenAPI a TypeScript. | 065, 002 |
+| `tools/trazabilidad_candidato.py` | Matriz de requisitos, código, pruebas y ejecuciones vinculadas al candidato. | 065 |

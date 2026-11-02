@@ -16,9 +16,7 @@ import json
 import os
 import shutil
 import sys
-import tempfile
 import threading
-import zipfile
 from contextlib import asynccontextmanager
 from datetime import date, datetime
 from pathlib import Path
@@ -36,8 +34,12 @@ from pydantic import BaseModel, Field
 from .. import __version__
 from ..identify import comprobar_ranura, identificar
 from ..powerfactory_env import project_root
+from ..runtime_paths import rutas_runtime, staging_publicacion, temporal_administrado
 from . import services
 from .jobs import JobManager
+from .api_contract import (JobRespuesta, HealthRespuesta, EspacioRespuesta,
+    ResumenEspacioRespuesta, EntradaAsignadaRespuesta, AutoEntradasRespuesta,
+    ArchivoRespuesta, AmbitoFuenteRespuesta, EstadoPowerFactoryRespuesta)
 from .services import UserError
 from .workspace import (
     BOOL_OPTIONS, DEFAULT_OPTIONS, MAX_WORKERS, SLOTS, Workspace, WorkspaceStore, safe_filename,
@@ -674,7 +676,7 @@ def create_app(
                 raise HTTPException(503,str(exc)) from exc
 
     # ------------------------------------------------------------ sistema
-    @app.get('/api/health')
+    @app.get('/api/health', response_model=HealthRespuesta, response_model_exclude_unset=True)
     def health() -> dict:
         return {
             'version': __version__,
@@ -709,7 +711,7 @@ def create_app(
         threading.Timer(0.2, _cierre[0]).start()
         return {'cerrando': True}
 
-    @app.get('/api/powerfactory')
+    @app.get('/api/powerfactory', response_model=EstadoPowerFactoryRespuesta, response_model_exclude_unset=True)
     def powerfactory(refresh: bool = False) -> dict:
         return services.powerfactory_status(refresh=refresh)
 
@@ -727,9 +729,8 @@ def create_app(
 
         report = None
         if refresh:
-            catalog, report = refresh_official_catalog(_vnr_catalog_dir())
-        else:
-            catalog = PublicationCatalog.load(_vnr_catalog_dir())
+            raise HTTPException(409, 'Inicie la búsqueda como trabajo desde el espacio de trabajo.')
+        catalog = PublicationCatalog.load(_vnr_catalog_dir())
         rows = []
         for publication in catalog.publications():
             convertible = (
@@ -755,16 +756,30 @@ def create_app(
             'refresh': report,
         }
 
+    @app.post('/api/workspaces/{wid}/vnr/publications/refresh', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
+    def vnr_publications_refresh(wid: str) -> dict:
+        from vnr_etl.discovery.official import refresh_official_catalog
+
+        def refresh(ctx):
+            ctx.check_cancel()
+            ctx.progress(0, 1, 'Consultar las publicaciones oficiales')
+            _catalog, report = refresh_official_catalog(_vnr_catalog_dir())
+            ctx.check_cancel()
+            ctx.progress(1, 1, 'Catálogo actualizado')
+            return {**vnr_publications(), 'refresh': report}
+
+        return submit(ws_or_404(wid), 'vnr_publications', 'Buscar publicación oficial VNR', refresh)
+
     # ------------------------------------------------------------ espacios
-    @app.get('/api/workspaces')
+    @app.get('/api/workspaces', response_model=list[ResumenEspacioRespuesta], response_model_exclude_unset=True)
     def list_workspaces() -> list[dict]:
         return store.list()
 
-    @app.post('/api/workspaces', status_code=201)
+    @app.post('/api/workspaces', status_code=201, response_model=EspacioRespuesta, response_model_exclude_unset=True)
     def create_workspace() -> dict:
         return store.create().public()
 
-    @app.get('/api/workspaces/{wid}')
+    @app.get('/api/workspaces/{wid}', response_model=EspacioRespuesta, response_model_exclude_unset=True)
     def get_workspace(wid: str) -> dict:
         ws = ws_or_404(wid)
         return {**ws.public(), 'jobs': [j.public() for j in jobs.list(wid)[-20:]]}
@@ -832,7 +847,7 @@ def create_app(
             raise HTTPException(409, 'Hay trabajos en curso en este espacio.')
         store.delete(wid)
 
-    @app.put('/api/workspaces/{wid}/options')
+    @app.put('/api/workspaces/{wid}/options', response_model=EspacioRespuesta, response_model_exclude_unset=True)
     def put_options(wid: str, body: OptionsIn) -> dict:
         ws = ws_or_404(wid)
         changes = {
@@ -863,7 +878,7 @@ def create_app(
             ws.save()
         return {**ws.public(), 'warning': warning}
 
-    @app.get('/api/workspaces/{wid}/source-scope')
+    @app.get('/api/workspaces/{wid}/source-scope', response_model=AmbitoFuenteRespuesta, response_model_exclude_unset=True)
     def get_source_scope(wid: str) -> dict:
         from .source_scope import inspect_package_scope
 
@@ -880,7 +895,7 @@ def create_app(
         except ValueError as exc:
             raise UserError(str(exc)) from exc
 
-    @app.put('/api/workspaces/{wid}/source-scope')
+    @app.put('/api/workspaces/{wid}/source-scope', response_model=AmbitoFuenteRespuesta, response_model_exclude_unset=True)
     def put_source_scope(wid: str, body: SourceScopeIn) -> dict:
         from .source_scope import inspect_package_scope
 
@@ -947,12 +962,21 @@ def create_app(
         return {'slot': slot, **meta, 'workspace': ws.public()}
 
     def _save_upload(target: Path, upload: UploadFile) -> None:
-        tmp = target.with_suffix(target.suffix + '.part')
-        with tmp.open('wb') as fh:
-            shutil.copyfileobj(upload.file, fh, length=1024 * 1024)
-        tmp.replace(target)
+        from .operaciones_lentas import presupuesto
 
-    @app.post('/api/workspaces/{wid}/inputs/{slot}')
+        limit = presupuesto('CSG_UPLOAD_MAX_BYTES', 16 * 1024 ** 3)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with staging_publicacion(target) as tmp:
+            size = 0
+            with tmp.open('xb') as fh:
+                while block := upload.file.read(1024 * 1024):
+                    size += len(block)
+                    if size > limit:
+                        raise HTTPException(413, 'El archivo supera la cuota de almacenamiento de subida.')
+                    fh.write(block)
+            tmp.replace(target)
+
+    @app.post('/api/workspaces/{wid}/inputs/{slot}', response_model=EntradaAsignadaRespuesta, response_model_exclude_unset=True)
     def upload_input(wid: str, slot: str, file: UploadFile = File(...)) -> dict:
         ws = ws_or_404(wid)
         _check_slot(slot)
@@ -964,7 +988,7 @@ def create_app(
             target.unlink(missing_ok=True)
             raise
 
-    @app.post('/api/workspaces/{wid}/inputs/{slot}/path')
+    @app.post('/api/workspaces/{wid}/inputs/{slot}/path', response_model=EntradaAsignadaRespuesta, response_model_exclude_unset=True)
     def server_path_input(wid: str, slot: str, body: ServerPathIn) -> dict:
         ws = ws_or_404(wid)
         _check_slot(slot)
@@ -975,17 +999,18 @@ def create_app(
             raise HTTPException(400, f'No existe el fichero: {path}')
         return _assign(ws, slot, path, 'server')
 
-    @app.delete('/api/workspaces/{wid}/inputs/{slot}')
+    @app.delete('/api/workspaces/{wid}/inputs/{slot}', response_model=EspacioRespuesta, response_model_exclude_unset=True)
     def delete_input(wid: str, slot: str) -> dict:
         ws = ws_or_404(wid)
         _check_slot(slot)
         ws.clear_input(slot)
         return ws.public()
 
-    @app.post('/api/workspaces/{wid}/vnr/download')
+    @app.post('/api/workspaces/{wid}/vnr/download', status_code=202,
+              response_model=JobRespuesta, response_model_exclude_unset=True)
     def download_vnr(wid: str, body: VnrDownloadIn) -> dict:
         from vnr_etl.discovery.catalog import PublicationCatalog
-        from vnr_etl.discovery.download import DownloadManager
+        from vnr_etl.discovery.download import DownloadCancelled, DownloadManager
         from vnr_etl.discovery.official import (
             DEFAULT_ALLOWED_HOSTS, is_allowed_official_url, is_vnr_data_package,
             validate_vnr_package_file,
@@ -1003,24 +1028,38 @@ def create_app(
         if not is_allowed_official_url(publication.download_url):
             raise UserError('La descarga no pertenece a un host oficial permitido.')
         target = ws.upload_target('vnr_package', publication.file_name or 'vnr_package.zip')
-        manager = DownloadManager(
-            ws.inputs_dir / '_vnr_downloads',
-            max_file_size_bytes=4096 * 1024 * 1024,
-            verify_archive=True,
-            allowed_hosts=DEFAULT_ALLOWED_HOSTS,
-        )
-        manifest = manager.download(
-            publication.download_url,
-            target,
-            publication_id=publication.publication_id,
-            company=publication.company,
-            period=publication.period_label,
-        )
-        validate_vnr_package_file(target)
-        assigned = _assign(ws, 'vnr_package', target, 'upload')
-        return {**assigned, 'manifest': manifest.as_dict()}
+        def download(ctx):
+            from .operaciones_lentas import presupuesto
 
-    @app.post('/api/workspaces/{wid}/inputs-auto')
+            ctx.check_cancel()
+            ctx.progress(0, 1, 'Descargar y verificar el paquete oficial')
+            manager = DownloadManager(
+                ws.inputs_dir / '_vnr_downloads',
+                max_file_size_bytes=presupuesto('CSG_UPLOAD_MAX_BYTES', 16 * 1024 ** 3),
+                verify_archive=True,
+                allowed_hosts=DEFAULT_ALLOWED_HOSTS,
+            )
+            try:
+                manifest = manager.download(
+                    publication.download_url, target,
+                    publication_id=publication.publication_id,
+                    company=publication.company, period=publication.period_label,
+                    cancelled=ctx.cancel.is_set,
+                    on_progress=lambda n, total: ctx.progress(n, total or n or 1, 'Descargar paquete oficial'),
+                )
+            except DownloadCancelled as exc:
+                from .jobs import JobCancelled
+
+                raise JobCancelled() from exc
+            ctx.check_cancel()
+            validate_vnr_package_file(target)
+            assigned = _assign(ws, 'vnr_package', target, 'upload')
+            ctx.progress(1, 1, 'Paquete custodiado')
+            return {**assigned, 'manifest': manifest.as_dict()}
+
+        return submit(ws, 'vnr_download', 'Descargar paquete oficial VNR', download)
+
+    @app.post('/api/workspaces/{wid}/inputs-auto', response_model=AutoEntradasRespuesta, response_model_exclude_unset=True)
     def auto_inputs(wid: str, files: list[UploadFile] = File(...)) -> dict:
         """Los TXT de la entrada TXT: cada uno a su casilla **por su contenido** (059:RF-3, RF-4).
 
@@ -1060,7 +1099,7 @@ def create_app(
         return {'assigned': assigned, 'unassigned': unassigned, 'workspace': ws.public()}
 
     # ------------------------------------------------------------ carga y tabla
-    @app.post('/api/workspaces/{wid}/load', status_code=202)
+    @app.post('/api/workspaces/{wid}/load', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def load(wid: str) -> dict:
         ws = ws_or_404(wid)
         services.check_ready(ws)
@@ -1081,7 +1120,7 @@ def create_app(
         names, _ = resolve_selection(ws, body.feeders, all_feeders=body.all)
         return names
 
-    @app.post('/api/workspaces/{wid}/diagnose', status_code=202)
+    @app.post('/api/workspaces/{wid}/diagnose', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def diagnose(wid: str, body: SelectionIn) -> dict:
         from .reconstruction_service import diagnose_selection
 
@@ -1091,7 +1130,7 @@ def create_app(
                       lambda ctx: diagnose_selection(
                           ws, body.feeders, all_feeders=body.all, ctx=ctx))
 
-    @app.post('/api/workspaces/{wid}/reconstruct', status_code=202)
+    @app.post('/api/workspaces/{wid}/reconstruct', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def reconstruct(wid: str, body: SelectionIn) -> dict:
         from .reconstruction_service import reconstruct_selection
 
@@ -1108,7 +1147,7 @@ def create_app(
         services.require_loaded(ws)
         return services.estructura_resumen(ws)
 
-    @app.post('/api/workspaces/{wid}/convert/sistema', status_code=202)
+    @app.post('/api/workspaces/{wid}/convert/sistema', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def convert_sistema(wid: str, body: SistemaIn) -> dict:
         ws = ws_or_404(wid)
         services.check_ready(ws)
@@ -1121,7 +1160,7 @@ def create_app(
                           reconstruir=({'pedidos': body.reconstruir, 'medidas_kw': body.medidas_kw}
                                        if body.reconstruir else None)))
 
-    @app.post('/api/workspaces/{wid}/convert', status_code=202)
+    @app.post('/api/workspaces/{wid}/convert', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def convert(wid: str, body: SelectionIn) -> dict:
         ws = ws_or_404(wid)
         services.check_ready(ws)
@@ -1142,14 +1181,14 @@ def create_app(
                       lambda ctx: services.convert(ws, ctx, body.feeders, body.all))
 
     # ------------------------------------------------------------ trabajos y registro
-    @app.get('/api/jobs/{job_id}')
+    @app.get('/api/jobs/{job_id}', response_model=JobRespuesta, response_model_exclude_unset=True)
     def get_job(job_id: str) -> dict:
         job = jobs.get(job_id)
         if job is None:
             raise HTTPException(404, 'Trabajo no encontrado.')
         return job.public()
 
-    @app.post('/api/jobs/{job_id}/cancel')
+    @app.post('/api/jobs/{job_id}/cancel', response_model=JobRespuesta, response_model_exclude_unset=True)
     def cancel_job(job_id: str) -> dict:
         job = jobs.cancel(job_id)
         if job is None:
@@ -1191,7 +1230,7 @@ def create_app(
             raise HTTPException(400, 'Ruta fuera de la carpeta de salida.')
         return target
 
-    @app.get('/api/workspaces/{wid}/outputs')
+    @app.get('/api/workspaces/{wid}/outputs', response_model=list[ArchivoRespuesta], response_model_exclude_unset=True)
     def outputs(wid: str) -> list[dict]:
         ws = ws_or_404(wid)
         root = ws.out_dir
@@ -1222,34 +1261,37 @@ def create_app(
         return FileResponse(path, media_type=media,
                             filename=path.name if download or media is None else None)
 
-    @app.get('/api/workspaces/{wid}/outputs.zip')
-    def outputs_zip(wid: str, background: BackgroundTasks,
-                    feeder: list[str] = Query(default=[])) -> FileResponse:
+    @app.post('/api/workspaces/{wid}/outputs/archive', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
+    def outputs_archive(wid: str, body: FeedersIn) -> dict:
+        from .operaciones_lentas import preparar_zip
+
         ws = ws_or_404(wid)
-        root = ws.out_dir
-        fd, tmp_name = tempfile.mkstemp(suffix='.zip')
-        os.close(fd)
-        wanted = tuple(feeder)
-        count = 0
-        with zipfile.ZipFile(tmp_name, 'w', zipfile.ZIP_DEFLATED) as zf:
-            for path in root.rglob('*') if root.is_dir() else ():
-                if not path.is_file() or any(p.startswith('.csg-stage-') for p in path.parts):
-                    continue
-                rel = path.relative_to(root).as_posix()
-                if wanted and not any(rel == f'{f}.dgs' or rel.startswith(f'{f}_')
-                                      or rel.startswith(f'{f}/') for f in wanted):
-                    continue
-                zf.write(path, rel)
-                count += 1
-        if not count:
-            os.unlink(tmp_name)
-            raise HTTPException(404, 'No hay ficheros de salida que descargar.')
-        background.add_task(os.unlink, tmp_name)
-        name = f'convertersmartgrid_{"_".join(wanted[:3]) if wanted else "salida"}.zip'
-        return FileResponse(tmp_name, filename=name, media_type='application/zip')
+        source = ws.out_dir.resolve()
+        wanted = tuple(body.feeders)
+        return submit(ws, 'archive', 'Preparar descarga ZIP',
+                      lambda ctx: preparar_zip(ws.id, source, wanted, ctx))
+
+    @app.get('/api/workspaces/{wid}/outputs.zip')
+    def outputs_zip(wid: str, background: BackgroundTasks, job: str = Query(...)) -> FileResponse:
+        from .operaciones_lentas import retirar_zip
+
+        ws_or_404(wid)
+        item = jobs.get(job)
+        if item is None or item.workspace_id != wid or item.kind != 'archive':
+            raise HTTPException(404, 'Descarga no encontrada en este espacio.')
+        path = getattr(item, '_archivo_zip', None)
+        if item.status != 'done' or path is None:
+            raise HTTPException(409, 'La descarga todavía no está preparada.')
+        expected = (rutas_runtime().runtime / 'descargas' / wid / ('csg-job-' + job) / 'salida.zip').resolve()
+        if path.resolve() != expected or path.is_symlink():
+            raise HTTPException(409, 'La descarga no coincide con su trabajo.')
+        if not path.is_file():
+            raise HTTPException(410, 'Esta descarga ya fue entregada o expiró. Prepare una nueva.')
+        background.add_task(retirar_zip, path, job, wid)
+        return FileResponse(path, filename=item.result['nombre'], media_type='application/zip')
 
     # ------------------------------------------------------------ PowerFactory
-    @app.post('/api/workspaces/{wid}/powerfactory/flow', status_code=202)
+    @app.post('/api/workspaces/{wid}/powerfactory/flow', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def pf_flow(wid: str, body: FeedersIn) -> dict:
         ws = ws_or_404(wid)
         targets = services.powerfactory_targets(ws, body.feeders)
@@ -1261,15 +1303,26 @@ def create_app(
     # ------------------------------------------------------------ cargas en DIgSILENT
     # Spec 004: un módulo aparte de la conversión. No pide entradas cargadas: la web
     # valida los libros y el guion decide en el proyecto de DIgSILENT (RF-1).
+    temporales_subida = {}
+
     def _upload_tmp(ws: Workspace, upload: UploadFile, default: str) -> Path:
-        folder = ws.root / 'subidas'
-        folder.mkdir(parents=True, exist_ok=True)
+        manager = temporal_administrado(propietario=f'subida:{ws.id}')
+        folder = manager.__enter__()
         name = Path(upload.filename or default).name
         suffix = Path(name).suffix.lower() or Path(default).suffix
-        fd, tmp = tempfile.mkstemp(suffix=suffix, dir=folder)
-        os.close(fd)
-        _save_upload(Path(tmp), upload)
-        return Path(tmp)
+        target = folder / ('entrada' + suffix)
+        try:
+            _save_upload(target, upload)
+        except BaseException:
+            manager.__exit__(*sys.exc_info())
+            raise
+        temporales_subida[target] = manager
+        return target
+
+    def _limpiar_upload(path: Path) -> None:
+        manager = temporales_subida.pop(path, None)
+        if manager is not None:
+            manager.__exit__(None, None, None)
 
     def _json_form(texto: str | None, campo: str) -> dict | None:
         try:
@@ -1286,14 +1339,14 @@ def create_app(
         path = services.cargas_plantilla(ws_or_404(wid), tipo, format)
         return FileResponse(path, filename=path.name)
 
-    @app.post('/api/workspaces/{wid}/powerfactory/projects', status_code=202)
+    @app.post('/api/workspaces/{wid}/powerfactory/projects', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def pf_projects(wid: str) -> dict:
         ws = ws_or_404(wid)
         return submit(ws, 'pf_projects', 'Leer proyectos de DIgSILENT',
                       lambda ctx: services.pf_projects(ws, ctx), lane='powerfactory')
 
     # Spec 028, RF-9: escanear alimentadores antes de recalibrar (solo lectura).
-    @app.post('/api/workspaces/{wid}/powerfactory/escanear', status_code=202)
+    @app.post('/api/workspaces/{wid}/powerfactory/escanear', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def pf_escanear(wid: str, body: EscaneoIn) -> dict:
         ws = ws_or_404(wid)
         quien = body.feeders[0] if len(body.feeders) == 1 else f'{len(body.feeders)} alim.'
@@ -1308,7 +1361,7 @@ def create_app(
     def recalibrar_datos(wid: str, project: str) -> dict:
         return services.recalibrar_datos(ws_or_404(wid), project)
 
-    @app.post('/api/workspaces/{wid}/demanda/recalibrar', status_code=202)
+    @app.post('/api/workspaces/{wid}/demanda/recalibrar', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def recalibrar(wid: str, body: RecalibrarIn) -> dict:
         ws = ws_or_404(wid)
         services.recalibrar_datos(ws, body.project)          # 028:RF-23, antes de encolar
@@ -1336,7 +1389,7 @@ def create_app(
 
     # Spec 018, RF-10: usar la ejecución fuente con la que se aceptó el proyecto. Carril del
     # motor: cambia la ejecución activa, y una conversión en marcha escribe en ella.
-    @app.post('/api/workspaces/{wid}/powerfactory/adoptar-fuente', status_code=202)
+    @app.post('/api/workspaces/{wid}/powerfactory/adoptar-fuente', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def pf_adoptar_fuente(wid: str, body: VerificarIn) -> dict:
         ws = ws_or_404(wid)
         if not body.project.strip():
@@ -1346,7 +1399,7 @@ def create_app(
                       lane='engine')
 
     # Spec 015, RF-1 a RF-14: verificar el «Caso base» del proyecto, repetible tras corregir.
-    @app.post('/api/workspaces/{wid}/powerfactory/caso-base', status_code=202)
+    @app.post('/api/workspaces/{wid}/powerfactory/caso-base', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def pf_verificar_base(wid: str, body: VerificarIn) -> dict:
         ws = ws_or_404(wid)
         if not body.project.strip():
@@ -1356,7 +1409,7 @@ def create_app(
                       lane='powerfactory')
 
     # Spec 008, RF-18: el flujo de carga con lo activo, antes de integrar cargas.
-    @app.post('/api/workspaces/{wid}/powerfactory/verificar', status_code=202)
+    @app.post('/api/workspaces/{wid}/powerfactory/verificar', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def pf_verificar(wid: str, body: VerificarIn) -> dict:
         ws = ws_or_404(wid)
         if not body.project.strip():
@@ -1395,7 +1448,7 @@ def create_app(
                                         minima_m=minima_m)
         finally:
             for p in tmps:
-                p.unlink(missing_ok=True)
+                _limpiar_upload(p)
 
     def _cargas_job(wid: str, token: str, simular: bool) -> dict:
         ws = ws_or_404(wid)
@@ -1408,11 +1461,11 @@ def create_app(
                       lambda ctx: services.cargas_ejecutar(ws, ctx, token, simular=simular),
                       lane='powerfactory')
 
-    @app.post('/api/workspaces/{wid}/lote/{token}/simular', status_code=202)
+    @app.post('/api/workspaces/{wid}/lote/{token}/simular', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def lote_simular(wid: str, token: str) -> dict:
         return _cargas_job(wid, token, True)
 
-    @app.post('/api/workspaces/{wid}/lote/{token}/apply', status_code=202)
+    @app.post('/api/workspaces/{wid}/lote/{token}/apply', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def lote_apply(wid: str, token: str) -> dict:
         return _cargas_job(wid, token, False)
 
@@ -1432,7 +1485,7 @@ def create_app(
     def demanda_alimentadores(wid: str) -> dict:
         return services.demanda_alimentadores(ws_or_404(wid))
 
-    @app.post('/api/workspaces/{wid}/demanda/cabecera/buscar', status_code=202)
+    @app.post('/api/workspaces/{wid}/demanda/cabecera/buscar', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def demanda_cabecera(wid: str, body: DemandaMedidoresIn) -> dict:
         ws = ws_or_404(wid)
         pares = [(m.alimentador.strip(), m.medidor.strip()) for m in body.medidores if m.medidor.strip()]
@@ -1500,7 +1553,7 @@ def create_app(
                                          criterio=body.criterio if body else None)
 
     # 039:RF-5: las fijas con los dos criterios, frente a la cabecera y a la red simulada.
-    @app.post('/api/workspaces/{wid}/demanda/clientes/comparar', status_code=202)
+    @app.post('/api/workspaces/{wid}/demanda/clientes/comparar', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def demanda_comparar_fijas(wid: str, body: CompararFijasIn) -> dict:
         ws = ws_or_404(wid)
         if not body.maximas:
@@ -1541,16 +1594,16 @@ def create_app(
                       lambda ctx: services.ajuste_ejecutar(ws, ctx, token, simular=simular),
                       lane='powerfactory')
 
-    @app.post('/api/workspaces/{wid}/demanda/ajuste/{token}/simular', status_code=202)
+    @app.post('/api/workspaces/{wid}/demanda/ajuste/{token}/simular', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def ajuste_simular(wid: str, token: str) -> dict:
         return _ajuste_job(wid, token, True)
 
-    @app.post('/api/workspaces/{wid}/demanda/ajuste/{token}/aplicar', status_code=202)
+    @app.post('/api/workspaces/{wid}/demanda/ajuste/{token}/aplicar', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def ajuste_aplicar(wid: str, token: str) -> dict:
         return _ajuste_job(wid, token, False)
 
     # Spec 020: transformadores nuevos de las SED fijas sobrecargadas y recalibración.
-    @app.post('/api/workspaces/{wid}/demanda/ajuste/{token}/transformadores', status_code=202)
+    @app.post('/api/workspaces/{wid}/demanda/ajuste/{token}/transformadores', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def ajuste_transformadores(wid: str, token: str, body: TransformadoresIn) -> dict:
         ws = ws_or_404(wid)
         plan = ws.cargas_planes.get(token)
@@ -1592,7 +1645,7 @@ def create_app(
         return job.result
 
     # ------------------------------------------------------------ obras y estudios (spec 011)
-    @app.post('/api/workspaces/{wid}/pide', status_code=202)
+    @app.post('/api/workspaces/{wid}/pide', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def pide_ejecutar(wid: str, body: dict[str, Any]) -> dict:
         """Metodología del PIDE sobre el proyecto, con obras propias (spec 024, T13 y T14)."""
         ws = ws_or_404(wid)
@@ -1606,7 +1659,7 @@ def create_app(
                                                          implementar=bool(body.get('implementar', True))),
                       lane='powerfactory')
 
-    @app.post('/api/workspaces/{wid}/digital-twin/aprender', status_code=202)
+    @app.post('/api/workspaces/{wid}/digital-twin/aprender', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def gemelo_aprender(wid: str, body: dict[str, Any]) -> dict:
         """Aprendizaje activo en una copia del proyecto (spec 024, T10)."""
         ws = ws_or_404(wid)
@@ -1620,7 +1673,7 @@ def create_app(
                           caso=str(body.get('caso') or 'sin_proyecto')),
                       lane='powerfactory')
 
-    @app.post('/api/workspaces/{wid}/digital-twin/temporal', status_code=202)
+    @app.post('/api/workspaces/{wid}/digital-twin/temporal', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def gemelo_temporal(wid: str, body: dict[str, Any]) -> dict:
         """Gemelo temporal del mes con las curvas de cabecera (spec 024, T12)."""
         ws = ws_or_404(wid)
@@ -1636,7 +1689,7 @@ def create_app(
                           umbral_pct=float(body.get('umbral_pct') or 10.0)),
                       lane='engine')
 
-    @app.post('/api/workspaces/{wid}/digital-twin/entrenar', status_code=202)
+    @app.post('/api/workspaces/{wid}/digital-twin/entrenar', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def gemelo_entrenar(wid: str, body: dict[str, Any] | None = None) -> dict:
         """024:RF-39: reentrenar la PINN en otro proceso, también desde el asistente."""
         ws = ws_or_404(wid)
@@ -1644,13 +1697,13 @@ def create_app(
         return submit(ws, 'gemelo_entrenar', 'Gemelo · reentrenar la PINN',
                       lambda ctx: services.gemelo_entrenar(ws, ctx, forzar=forzar))
 
-    @app.post('/api/workspaces/{wid}/digital-twin/evaluar', status_code=202)
+    @app.post('/api/workspaces/{wid}/digital-twin/evaluar', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def gemelo_evaluar(wid: str) -> dict:
         """024:RF-74: cuánto se apartan de DIgSILENT el modelo y la física."""
         ws = ws_or_404(wid)
         return submit(ws, 'gemelo_evaluar', 'Gemelo · evaluar', lambda ctx: services.gemelo_evaluar(ws, ctx))
 
-    @app.post('/api/workspaces/{wid}/digital-twin/deriva', status_code=202)
+    @app.post('/api/workspaces/{wid}/digital-twin/deriva', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def gemelo_deriva(wid: str) -> dict:
         """027:RF-22, RF-23: deriva por familia y si conviene reentrenar."""
         ws = ws_or_404(wid)
@@ -1662,7 +1715,7 @@ def create_app(
         return services.volver_al_modelo_anterior(modelo)
 
     # ------------------------------------------------------------ agente (spec 027, RF-43)
-    @app.post('/api/workspaces/{wid}/agente/proyecto', status_code=202)
+    @app.post('/api/workspaces/{wid}/agente/proyecto', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def agente_proyecto(wid: str, body: AgenteProyectoIn, request: Request) -> dict:
         ws = ws_or_404(wid)
         base = str(request.base_url).rstrip('/')
@@ -1688,18 +1741,34 @@ def create_app(
         return submit(ws, 'asistente', f'Asistente · {plan.tarea}',
                       lambda ctx: services.asistente_ejecutar(ws, ctx, plan_id, base, http), lane='asistente')
 
-    @app.post('/api/workspaces/{wid}/asistente/orden')
+    @app.post('/api/workspaces/{wid}/asistente/orden', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def asistente_orden(wid: str, body: AsistenteOrdenIn, request: Request) -> dict:
-        """026:RF-1 a RF-9: interpretar la orden; las consultas se responden y lo que solo lee
-        se lanza; lo que escribe espera la confirmación."""
+        """065:RF-18: interpretar puede cargar modelos o consultar el LLM; va en cola."""
         ws = ws_or_404(wid)
-        r = services.asistente_orden(ws, body.texto, [j.public() for j in jobs.list(ws.id)])
-        plan = r['plan']
-        if plan['listo'] and plan['modo'] != 'consulta' and not plan['escribe']:
-            r['trabajo'] = _asistente_job(ws, plan['id'], request)
-        return r
+        if not body.texto.strip() or len(body.texto) > 2000:
+            raise HTTPException(422, 'Escriba una orden de entre 1 y 2000 caracteres.')
+        base = str(request.base_url).rstrip('/')
+        http = getattr(app.state, 'asistente_http', None)
 
-    @app.post('/api/workspaces/{wid}/asistente/{plan_id}/confirmar', status_code=202)
+        def interpret(ctx):
+            ctx.check_cancel()
+            ctx.progress(0, 1, 'Interpretar la orden')
+            result = services.asistente_orden(ws, body.texto, [j.public() for j in jobs.list(ws.id)])
+            ctx.check_cancel()
+            plan = result['plan']
+            if plan['listo'] and plan['modo'] != 'consulta' and not plan['escribe']:
+                # El trabajo actual aún ocupa el carril. La cola admite el siguiente
+                # paso automático; no se espera a él ni se bloquea a sí misma.
+                result['trabajo'] = jobs.submit(
+                    ws.id, 'asistente', f"Asistente · {plan['tarea']}",
+                    lambda child: services.asistente_ejecutar(ws, child, plan['id'], base, http),
+                    lane='asistente').public()
+            ctx.progress(1, 1, 'Orden interpretada')
+            return result
+
+        return submit(ws, 'asistente_interpretar', 'Interpretar la orden', interpret, lane='asistente')
+
+    @app.post('/api/workspaces/{wid}/asistente/{plan_id}/confirmar', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def asistente_confirmar(wid: str, plan_id: str, request: Request) -> dict:
         """026:RF-8, RF-10: el plan confirmado, por las rutas y trabajos de la web."""
         ws = ws_or_404(wid)
@@ -1735,13 +1804,13 @@ def create_app(
         from ..asistente.aceptacion import estado_aceptacion
         return estado_aceptacion()
 
-    @app.post('/api/workspaces/{wid}/asistente/entrenar', status_code=202)
+    @app.post('/api/workspaces/{wid}/asistente/entrenar', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def asistente_entrenar(wid: str) -> dict:
         ws = ws_or_404(wid)
         return submit(ws, 'asistente_entrenar', 'Asistente · reentrenar',
                       lambda ctx: services.asistente_entrenar(ws, ctx))
 
-    @app.post('/api/workspaces/{wid}/asistente/mejoras/libreria', status_code=202)
+    @app.post('/api/workspaces/{wid}/asistente/mejoras/libreria', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def asistente_libreria(wid: str, body: AsistenteLibreriaIn) -> dict:
         """026:RF-32: la ficha de una librería en una rama aparte, que nunca se fusiona sola."""
         ws = ws_or_404(wid)
@@ -1789,7 +1858,7 @@ def create_app(
     def obra_quitar(wid: str, obra_id: str) -> None:
         services.obra_quitar(ws_or_404(wid), obra_id)
 
-    @app.post('/api/workspaces/{wid}/pf/obras/bibliotecas', status_code=202)
+    @app.post('/api/workspaces/{wid}/pf/obras/bibliotecas', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def obras_bibliotecas(wid: str, body: BibliotecasIn) -> dict:
         ws = ws_or_404(wid)
         return submit(ws, 'obras_bibliotecas', f'Leer tipos de DIgSILENT · {body.project.strip()}',
@@ -1812,15 +1881,15 @@ def create_app(
                                                           anio_casos=body.anio_casos),
                       lane='powerfactory')
 
-    @app.post('/api/workspaces/{wid}/pf/obras/simular', status_code=202)
+    @app.post('/api/workspaces/{wid}/pf/obras/simular', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def obras_simular(wid: str, body: ObrasIn) -> dict:
         return _obras_job(wid, body, True)
 
-    @app.post('/api/workspaces/{wid}/pf/obras/aplicar', status_code=202)
+    @app.post('/api/workspaces/{wid}/pf/obras/aplicar', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def obras_aplicar(wid: str, body: ObrasIn) -> dict:
         return _obras_job(wid, body, False)
 
-    @app.post('/api/workspaces/{wid}/pf/obras/escalera', status_code=202)
+    @app.post('/api/workspaces/{wid}/pf/obras/escalera', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def obras_escalera(wid: str, body: ObrasIn) -> dict:
         """025:RF-44: bancos, sección y terna hasta que «Con proyecto» converja."""
         ws = ws_or_404(wid)
@@ -1831,7 +1900,7 @@ def create_app(
                                                           capex=body.capex),
                       lane='powerfactory')
 
-    @app.post('/api/workspaces/{wid}/pf/obras/con-proyecto', status_code=202)
+    @app.post('/api/workspaces/{wid}/pf/obras/con-proyecto', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def obras_con_proyecto(wid: str, body: ObrasIn) -> dict:
         """042:RF-13: escalera carga a carga y SET nueva para las que no caben."""
         ws = ws_or_404(wid)
@@ -1844,7 +1913,7 @@ def create_app(
                           directo_set_nueva=body.directo_set_nueva, cargas=body.cargas or None),
                       lane='powerfactory')
 
-    @app.post('/api/workspaces/{wid}/pf/obras/set-nueva/operacion', status_code=202)
+    @app.post('/api/workspaces/{wid}/pf/obras/set-nueva/operacion', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def set_nueva_operacion(wid: str, body: SetNuevaOperacionIn) -> dict:
         """063:RF-36 a RF-38: un solo dueño del motor, sin duplicar la SET existente."""
         ws = ws_or_404(wid)
@@ -1874,7 +1943,7 @@ def create_app(
         try:
             return {'libro': services.datos_empresa_subir(ws, project, tmp, Path(file.filename or 'datos_empresa.xlsx').name)}
         finally:
-            tmp.unlink(missing_ok=True)
+            _limpiar_upload(tmp)
 
     @app.get('/api/workspaces/{wid}/pf/datos-empresa/plantilla')
     def datos_empresa_plantilla(wid: str) -> FileResponse:
@@ -1882,7 +1951,7 @@ def create_app(
         path = services.datos_empresa_plantilla(ws_or_404(wid))
         return FileResponse(path, filename=path.name)
 
-    @app.post('/api/workspaces/{wid}/pf/datos-empresa/aplicar', status_code=202)
+    @app.post('/api/workspaces/{wid}/pf/datos-empresa/aplicar', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def datos_empresa_aplicar(wid: str, body: DatosEmpresaAplicarIn) -> dict:
         """012:RF-21: el libro en la variación «Datos de confiabilidad», como trabajo."""
         ws = ws_or_404(wid)
@@ -1897,7 +1966,7 @@ def create_app(
                                       _ajuste_aplicado(wid, body.ajuste_job_id), body.limites,
                                       body.limite_s, body.opciones)
 
-    @app.post('/api/workspaces/{wid}/pf/estudios/{token}/ejecutar', status_code=202)
+    @app.post('/api/workspaces/{wid}/pf/estudios/{token}/ejecutar', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def estudios_ejecutar(wid: str, token: str) -> dict:
         ws = ws_or_404(wid)
         plan = ws.cargas_planes.get(token)
@@ -1906,13 +1975,13 @@ def create_app(
         return submit(ws, 'estudios', f"Estudios · {plan['project']} ({len(plan['feeders'])} alim.)",
                       lambda ctx: services.estudios_ejecutar(ws, ctx, token), lane='powerfactory')
 
-    @app.post('/api/workspaces/{wid}/pf/guiones', status_code=202)
+    @app.post('/api/workspaces/{wid}/pf/guiones', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def guiones_listar(wid: str, body: GuionesIn) -> dict:
         ws = ws_or_404(wid)
         return submit(ws, 'guiones_listar', f'Leer guiones · {body.project.strip()}',
                       lambda ctx: services.guiones_listar(ws, ctx, body.project), lane='powerfactory')
 
-    @app.post('/api/workspaces/{wid}/pf/guiones/ejecutar', status_code=202)
+    @app.post('/api/workspaces/{wid}/pf/guiones/ejecutar', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def guion_ejecutar(wid: str, body: GuionIn) -> dict:
         ws = ws_or_404(wid)
         return submit(ws, 'guion_ejecutar', f'Guion {body.nombre.strip()} · {body.project.strip()}',
@@ -1920,7 +1989,7 @@ def create_app(
                                                           body.parametros, body.casos, body.limite_s),
                       lane='powerfactory')
 
-    @app.post('/api/workspaces/{wid}/informes/estudio', status_code=202)
+    @app.post('/api/workspaces/{wid}/informes/estudio', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def informe_estudio(wid: str, body: InformeEstudioIn) -> dict:
         """Spec 017: el informe con lo que guardaron los estudios de «Sin proyecto» y «Con proyecto»."""
         ws = ws_or_404(wid)
@@ -1964,7 +2033,7 @@ def create_app(
     def informes_perdidas_quitar(wid: str) -> dict:
         return services.informes_perdidas_quitar(ws_or_404(wid))
 
-    @app.post('/api/workspaces/{wid}/informes/documentos', status_code=202)
+    @app.post('/api/workspaces/{wid}/informes/documentos', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def informes_documentos(wid: str, tipo: Literal['factibilidad', 'estudio'] = Form(...),
                             files: list[UploadFile] = File(...)) -> dict:
         """017:RF-136 y RF-137: los PDF del solicitante, leídos en un trabajo (con OCR si hace falta)."""
@@ -1984,7 +2053,7 @@ def create_app(
         return submit(ws, 'informe_documentos', f'Leer {len(rutas)} documento(s) del solicitante',
                       lambda ctx: services.informe_documentos(ws, ctx, tipo, rutas), lane='engine')
 
-    @app.post('/api/workspaces/{wid}/informes/transformador/cargas', status_code=202)
+    @app.post('/api/workspaces/{wid}/informes/transformador/cargas', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def informes_trafo_cargas(wid: str, body: TransformadorListarIn) -> dict:
         """Spec 017, T10: cargas de barra y casos del proyecto de transmisión."""
         ws = ws_or_404(wid)
@@ -1992,7 +2061,7 @@ def create_app(
                       lambda ctx: services.transformador_set_listar(ws, ctx, body.transmision),
                       lane='powerfactory')
 
-    @app.post('/api/workspaces/{wid}/informes/transformador', status_code=202)
+    @app.post('/api/workspaces/{wid}/informes/transformador', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def informes_trafo(wid: str, body: TransformadorCalcularIn) -> dict:
         """Spec 017, T10: cargabilidad del devanado de la SET sin y con proyecto."""
         ws = ws_or_404(wid)
@@ -2001,7 +2070,7 @@ def create_app(
                           ws, ctx, body.project, body.alimentador, body.carga, body.caso, body.transmision),
                       lane='powerfactory')
 
-    @app.post('/api/workspaces/{wid}/informes/factibilidad', status_code=202)
+    @app.post('/api/workspaces/{wid}/informes/factibilidad', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def informe_factibilidad(wid: str, body: InformeFactibilidadIn) -> dict:
         """Spec 017: factibilidad y punto de diseño de una carga nueva ingresada sola."""
         ws = ws_or_404(wid)
@@ -2021,7 +2090,7 @@ def create_app(
         return services.informe_vista_ubicacion(ws_or_404(wid), body.project, body.alimentador, body.sed,
                                                 body.cliente, body.potencia_kw, body.codigo_punto)
 
-    @app.post('/api/workspaces/{wid}/pf/transferencia', status_code=202)
+    @app.post('/api/workspaces/{wid}/pf/transferencia', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def transferencia(wid: str, body: TransferenciaIn) -> dict:
         ws = ws_or_404(wid)
         if len({f.strip() for f in body.feeders if f.strip()}) != 2:
@@ -2047,13 +2116,13 @@ def create_app(
             raise HTTPException(400, f'No existe: {path}')
         return services.demanda_asignar(ws, tipo, path, 'server')
 
-    @app.post('/api/workspaces/{wid}/demanda/clientes/indexar', status_code=202)
+    @app.post('/api/workspaces/{wid}/demanda/clientes/indexar', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def demanda_clientes_indexar(wid: str) -> dict:
         ws = ws_or_404(wid)
         return submit(ws, 'demanda_clientes_index', 'Actualizar libros de clientes',
                       lambda ctx: services.demanda_clientes_indexar(ws, ctx), lane='engine')
 
-    @app.post('/api/workspaces/{wid}/demanda/cabecera/indexar', status_code=202)
+    @app.post('/api/workspaces/{wid}/demanda/cabecera/indexar', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def demanda_cabecera_indexar(wid: str) -> dict:
         """025:RF-28, RF-32: el índice por año abre libros de cientos de MB; es un trabajo."""
         ws = ws_or_404(wid)
@@ -2083,7 +2152,7 @@ def create_app(
         return services.demanda_quitar(ws_or_404(wid), tipo)
 
     # ------------------------------------------------------------ catálogo
-    @app.post('/api/workspaces/{wid}/catalog/build', status_code=202)
+    @app.post('/api/workspaces/{wid}/catalog/build', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def catalog_build(wid: str, body: FeedersIn) -> dict:
         ws = ws_or_404(wid)
         services.require_loaded(ws)
@@ -2098,7 +2167,7 @@ def create_app(
         try:
             result = services.apply_catalog(ws, tmp, preview_feeder)
         finally:
-            tmp.unlink(missing_ok=True)
+            _limpiar_upload(tmp)
         ws.events.append('log', {'text': f"Catálogo corregido aplicado: {result['count']} código(s). "
                                          'Reconvierta para llevarlo al DGS.'})
         return {**result, 'workspace': ws.public()}
@@ -2110,7 +2179,7 @@ def create_app(
         return ws.public()
 
     # ------------------------------------------------------------ sistema completo
-    @app.post('/api/workspaces/{wid}/system/{action}', status_code=202)
+    @app.post('/api/workspaces/{wid}/system/{action}', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def system(wid: str, action: Literal['grid', 'base', 'missing-data']) -> dict:
         ws = ws_or_404(wid)
         services.system_command(ws, action)  # valida entradas y guion antes de encolar
@@ -2118,9 +2187,18 @@ def create_app(
         return submit(ws, 'system', title, lambda ctx: services.run_system(ws, ctx, action),
                       lane=lane)
 
+    from .equipo_api import registrar_rutas_equipo
+
+    registrar_rutas_equipo(app, ws_or_404=ws_or_404, submit=submit)
+
     # ------------------------------------------------------------ front compilado
     dist = frontend_dist()
     if (dist / 'index.html').is_file():
+        from .runtime import integridad_del_front
+
+        problem = integridad_del_front(dist)
+        if problem:
+            raise ValueError(f'La interfaz compilada está incompleta: {problem}')
         app.mount('/assets', StaticFiles(directory=dist / 'assets'), name='assets')
 
         @app.get('/{full_path:path}', include_in_schema=False)

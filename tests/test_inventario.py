@@ -17,7 +17,10 @@ from pathlib import Path
 
 import pytest
 
+from apoyo import cargar_herramienta
+
 RAIZ = Path(__file__).resolve().parents[1]
+ES = cargar_herramienta('estado_specs.py')
 INDICE = (RAIZ / 'CODIGO_FUENTE.md').read_text(encoding='utf-8')
 #: Lo que el índice lista: los ficheros versionados de estas carpetas.
 CARPETAS = ('src/', 'tools/', 'frontend/src/')
@@ -33,8 +36,7 @@ RETIRADAS = (
 )
 #: Tareas que no son de código: la prueba en DIgSILENT la hace el usuario.
 #: 033:RF-7: la marca ``[DIgSILENT]``; la frase de antes sigue valiendo.
-DEL_USUARIO = re.compile(r'\[DIgSILENT\]|a cargo del usuario|la hace el usuario', re.I)
-_DEF = re.compile(r'^- RF-(\d+[a-z]?):(?! no se usan?\b)', re.M)
+DEL_USUARIO = ES.DIGSILENT
 
 
 def _versionados() -> list[str]:
@@ -126,21 +128,20 @@ def _specs():
             yield d.name[:3], d
 
 
-def _citas() -> str:
-    fuentes = list((RAIZ / 'tests').rglob('*.py')) + list((RAIZ / 'frontend' / 'src').rglob('*.ts*'))
-    return '\n'.join(p.read_text(encoding='utf-8', errors='replace') for p in fuentes)
+def _citas() -> dict[str, set[str]]:
+    return ES.citas_de_pruebas(RAIZ)
 
 
-def _rf(spec: str) -> set[int]:
+def _rf(spec: str) -> set[str]:
     # El mismo lector que la 033: sin las aclaraciones ni los huecos declarados («no se usa»).
-    return {int(x[:-1] if x[-1].isalpha() else x) for x in _DEF.findall(spec)}
+    return set(ES.definiciones_rf(spec))
 
 
 def _tareas(d: Path) -> list[tuple[bool, str]]:
     if not (d / 'tasks.md').is_file():
         return []
-    return [(m.group(1) == 'x', m.group(2))
-            for m in re.finditer(r'^- \[( |x)\] (.*)$', (d / 'tasks.md').read_text(encoding='utf-8'), re.M)]
+    return [(t.hecha, t.texto.splitlines()[0])
+            for t in ES.tareas_de_texto((d / 'tasks.md').read_text(encoding='utf-8'))]
 
 
 def test_una_spec_cumplida_no_tiene_tareas_abiertas():
@@ -157,7 +158,7 @@ def test_las_pruebas_solo_citan_rf_que_existen():
     citas = _citas()
     for n, d in _specs():
         definidos = _rf((d / 'spec.md').read_text(encoding='utf-8'))
-        citados = {int(x) for x in re.findall(rf'\b{n}:RF-(\d+)', citas)}
+        citados = citas.get(n, set())
         assert citados <= definidos, f'spec {n}: se citan RF que no define: {sorted(citados - definidos)}'
 
 
@@ -170,7 +171,7 @@ def test_una_spec_implementada_tiene_cada_rf_probado():
         if not tareas or not all(de_codigo):
             continue
         definidos = _rf((d / 'spec.md').read_text(encoding='utf-8'))
-        citados = {int(x) for x in re.findall(rf'\b{n}:RF-(\d+)', citas)}
+        citados = citas.get(n, set())
         assert definidos <= citados, f'spec {n}: RF sin prueba: {sorted(definidos - citados)}'
 
 

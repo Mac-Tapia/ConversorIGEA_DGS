@@ -627,7 +627,7 @@ def banda_texto(limites: Limites) -> str:
     return f'entre {_pu(limites.tension_min_pu)} y {_pu(limites.tension_max_pu)}'
 
 
-def _fecha_larga(fecha: date) -> str:
+def fecha_larga(fecha: date) -> str:
     meses = ('enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto',
              'septiembre', 'octubre', 'noviembre', 'diciembre')
     return f'{fecha.day} de {meses[fecha.month - 1]} de {fecha.year}'
@@ -645,7 +645,7 @@ class Encabezado:
 
     @property
     def fecha_texto(self) -> str:
-        return f'{self.lugar}, {_fecha_larga(self.fecha)}' if self.lugar else _fecha_larga(self.fecha)
+        return f'{self.lugar}, {fecha_larga(self.fecha)}' if self.lugar else fecha_larga(self.fecha)
 
 
 def asunto_propuesto(tipo: str, alimentadores: list[str], cliente: str = '') -> str:
@@ -1043,7 +1043,7 @@ class Solicitud:
 def antecedentes_factibilidad(s: Solicitud) -> list[str]:
     """Los antecedentes con las frases del modelo de la empresa (RF-107)."""
     return [
-        f'Con fecha {_fecha_larga(s.fecha_solicitud)} se solicita evaluación de {s.tipo_solicitud} en '
+        f'Con fecha {fecha_larga(s.fecha_solicitud)} se solicita evaluación de {s.tipo_solicitud} en '
         f'media tensión, predio ubicado en {s.ubicacion}.',
         f'La solicitud está registrada con {s.expediente}.',
         f'El interesado solicita {s.tipo_solicitud} para {_g(s.potencia_kw)} kW.',

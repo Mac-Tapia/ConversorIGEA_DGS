@@ -17,7 +17,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
-from .informes import _fecha_larga
+from .informes import fecha_larga
 
 #: Tolerancia entre el importe del libro y el del informe, en soles (066:RF-10).
 TOLERANCIA_SOLES = 1.0
@@ -144,7 +144,7 @@ def valores_del_informe(r: Mapping[str, Any], conclusion: str = '') -> dict[str,
     return {'cliente': s.get('cliente'), 'ubicacion': s.get('ubicacion'), 'tipo_solicitud': s.get('tipo_solicitud'),
             'potencia_kw': potencia, 'incremento': f'{incremento:g} kW' if incremento is not None else None,
             # En letras: la hoja la encadena en un texto, y como fecha de Excel saldría «El 45965».
-            'fecha_solicitud': _fecha_larga(date.fromisoformat(str(s['fecha_solicitud']))) if s.get('fecha_solicitud') else None,
+            'fecha_solicitud': fecha_larga(date.fromisoformat(str(s['fecha_solicitud']))) if s.get('fecha_solicitud') else None,
             'alimentador': alimentador,
             'set_nombre': s.get('set_nombre'), 'tension_kv': s.get('tension_kv'),
             'transformador': s.get('transformador'), 'expediente': s.get('expediente'),

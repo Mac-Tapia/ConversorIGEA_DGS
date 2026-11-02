@@ -121,8 +121,15 @@ def test_download_oficial_custodia_hash_y_asigna_slot(client, monkeypatch):
         f'/api/workspaces/{wid}/vnr/download', json={'publication_id': 'PKG-ELDU'},
     )
 
-    assert response.status_code == 200, response.text
-    body = response.json()
+    assert response.status_code == 202, response.text
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        job = client.get('/api/jobs/' + response.json()['id']).json()
+        if job['status'] in ('done', 'failed', 'cancelled'):
+            break
+        time.sleep(.02)
+    assert job['status'] == 'done', job
+    body = job['result']
     assert body['manifest']['archive_test'] == 'PASS'
     assert len(body['manifest']['sha256']) == 64
     assert body['workspace']['inputs']['vnr_package']['name'] == 'ELDU_2025.zip'

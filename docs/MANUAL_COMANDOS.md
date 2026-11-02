@@ -7,10 +7,59 @@ Cada cosa que hace la interfaz gráfica se puede lanzar también desde la consol
 manual empareja las dos vías: **lo que pulsa en la interfaz web** y **el comando equivalente**,
 para poder automatizar, diagnosticar una incidencia o trabajar en una máquina sin pantalla.
 
-Todos los comandos se ejecutan desde la raíz del proyecto (`D:\converter\ConverterSmartGrid`)
+Todos los comandos se ejecutan desde la raíz del checkout del proyecto
 en **PowerShell** o **CMD** de Windows. El entorno virtual es `.venv`.
 
 > Convención de este manual: `>` es el símbolo del sistema; no lo escriba.
+
+## Verificación reproducible y custodia (spec 065)
+
+El lanzador conserva el código real del servidor y usa `npm ci`. `npm run build`
+prepara y valida la interfaz fuera del checkout antes de publicar; un fallo conserva
+la publicación anterior. En Windows la sustitución de directorios necesita dos renombres,
+con recuperación por diario; no se promete que los lectores vean una transición atómica.
+
+```powershell
+.venv/Scripts/python.exe -B tools/arquitectura.py --json
+.venv/Scripts/python.exe -B tools/generar_contrato_api.py --check
+.venv/Scripts/python.exe -B tools/fijar_entorno.py --requirements requirements.txt
+.venv/Scripts/python.exe -B tools/trazabilidad_candidato.py --output-dir <evidencia_externa> --comprobar
+.venv/Scripts/python.exe -B tools/verificar_candidato.py --output-dir <evidencia_externa>
+```
+
+`arquitectura.py` rechaza módulos sin clasificar, violaciones nuevas y excepciones
+obsoletas; las 97 excepciones iniciales son deuda pendiente, no conformidad integral.
+`generar_contrato_api.py` sin `--check` regenera el tipo con la dependencia npm local.
+`fijar_entorno.py` imprime las versiones del cierre principal; `--salida` publica una
+propuesta que debe revisarse. El lock comprobado es de versiones para CPython3.12/Windows;
+no es un lock de hashes de wheels ni una auditoría de vulnerabilidades Python.
+
+`verificar_candidato.py` prepara por defecto; `--ejecutar --suite-completa` exige las
+nueve variables reales documentadas en CLAUDE.md y rechaza fallos y omisiones. Cada
+ejecución tiene UUID propio, caché y temporales externos, hashes del candidato antes
+y después y JUnit enlazado. `--hash-datos` verifica criptográficamente las fuentes
+antes y después; sin él se conserva inventario de tamaño/fecha, que no es una huella.
+Una regresión no sustituye instalación limpia, arranque, evaluación científica ni
+aceptación eléctrica. Véase [verificación integrada](implementacion065/verificacion_integrada.md).
+
+```powershell
+.venv/Scripts/python.exe -B tools/aceptar_dominio.py --help
+.venv/Scripts/python.exe -B tools/reubicar_corpus_llm.py --help
+```
+
+`aceptar_dominio.py` verifica identidad y evidencia del caso sin abrir PowerFactory.
+`reubicar_corpus_llm.py` requiere origen, destino nuevo y ambas raíces explícitas;
+por defecto simula y con `--ejecutar` publica custodia externa nueva. No altera el
+corpus anterior, ejemplos ni particiones; valida los hashes y la ausencia de fuga.
+No entrena ni promueve un modelo. La revisión por roles del asistente se inicia
+desde su consola y conserva confirmaciones, permisos por plan y citas verificables.
+
+Los espacios nuevos usan una raíz externa. Los espacios, modelos y episodios
+heredados siguen accesibles en su ubicación hasta una migración explícita; no se
+eliminan por antigüedad. `CSG_RUNTIME_HOME`, `CSG_CACHE_HOME` y `CSG_TEMP_HOME` deben
+quedar fuera del checkout; `CSG_WEB_DATA`, `CSG_ASISTENTE_DATA` y `CSG_TWIN_DATA`
+permiten separar los datos durables. No basta cambiar TEMP para mover staging:
+la publicación requiere el volumen del destino y dueño verificable.
 
 ---
 

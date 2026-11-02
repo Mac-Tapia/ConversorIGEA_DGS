@@ -266,6 +266,9 @@ def load_dataset(args) -> CymdistDataset:
 
 
 def main(argv=None) -> int:
+    from .runtime_paths import configurar_entorno
+
+    configurar_entorno()
     args = _parser().parse_args(argv)
 
     if args.command == 'web':

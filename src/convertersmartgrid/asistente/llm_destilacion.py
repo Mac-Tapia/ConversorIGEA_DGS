@@ -1,6 +1,8 @@
 """047 T7: respuestas del maestro para el LLM, con fuentes reales verificables."""
 from __future__ import annotations
 
+from ..runtime_paths import staging_publicacion
+
 from collections import defaultdict, Counter
 import hashlib
 import json
@@ -9,6 +11,7 @@ import re
 import random
 
 from .contratos_salida import validar_orden
+from .custodia_corpus import CustodiaCorpus, leer_custodia, ruta_fuente
 from .tareas import TIPOS_DATO, TAREAS
 from ..evaluacion_modelos import huella, texto_canonico
 
@@ -64,11 +67,14 @@ def custodiar(ruta: Path | str, *, localizador: str) -> dict:
             'localizador': localizador}
 
 
-def verificar_fuente(evidencia: dict) -> bool:
+def verificar_fuente(evidencia: dict, *, custodia: CustodiaCorpus | None = None) -> bool:
     if not isinstance(evidencia, dict) or not evidencia.get('localizador'):
         raise ValueError('fuente sin localizador')
     try:
-        actual = custodiar(evidencia['ruta'], localizador=evidencia['localizador'])
+        actual = custodiar(ruta_fuente(evidencia, custodia), localizador=evidencia['localizador'])
+        if custodia is not None:
+            # La ruta histórica integra record_id; solo cambia el localizador físico.
+            actual['ruta'] = evidencia['ruta']
     except (KeyError, OSError, TypeError) as exc:
         raise ValueError('fuente ausente o invalida') from exc
     if actual != evidencia:
@@ -345,7 +351,7 @@ def construir_corpus_real(contextos: list[dict], fuentes_manifest: dict, *, max_
     return filas, meta
 
 
-def validar_corpus_real(filas: list[dict], meta: dict) -> None:
+def validar_corpus_real(filas: list[dict], meta: dict, *, custodia: CustodiaCorpus | None = None) -> None:
     if meta.get('schema_version') != 2 or huella(filas) != meta.get('dataset_hash'):
         raise ValueError('integridad de corpus real invalida')
     textos, grupos, contextos, fuentes = {}, {}, {}, {}
@@ -365,7 +371,7 @@ def validar_corpus_real(filas: list[dict], meta: dict) -> None:
         for f in r['fuentes']:
             fuentes.setdefault((f['ruta'], f['sha256']), f)
     for f in fuentes.values():
-        verificar_fuente(f)
+        verificar_fuente(f, custodia=custodia)
 
 
 def sistema_alumno() -> str:
@@ -408,16 +414,17 @@ def sellar_particiones(dataset: Path, destino: Path) -> dict:
     return meta
 
 
-def leer_particion_real(dataset: Path, parte: str) -> tuple[list[dict], dict]:
+def leer_particion_real(dataset: Path, parte: str, *, custodia: CustodiaCorpus | None = None) -> tuple[list[dict], dict]:
     meta = json.loads((dataset / 'dataset_manifest.json').read_text(encoding='utf-8'))
+    custodia = leer_custodia(dataset, meta) or custodia
     if parte not in PARTICIONES or parte not in (meta.get('archivos_particion') or {}):
         raise ValueError('particion ausente o invalida')
     archivo = meta['archivos_particion'][parte]
     prueba = {k: archivo[k] for k in ('ruta', 'sha256', 'bytes', 'localizador')}
-    verificar_fuente(prueba)
-    if Path(archivo['ruta']).resolve() != (dataset / (parte + '.jsonl')).resolve():
+    verificar_fuente(prueba, custodia=custodia)
+    if ruta_fuente(archivo, custodia).resolve() != (dataset / (parte + '.jsonl')).resolve():
         raise ValueError('archivo de otra particion')
-    registros = [json.loads(l) for l in Path(archivo['ruta']).read_text(encoding='utf-8').splitlines()]
+    registros = [json.loads(l) for l in ruta_fuente(archivo, custodia).read_text(encoding='utf-8').splitlines()]
     if len(registros) != archivo['registros'] or not registros:
         raise ValueError('particion incompleta')
     if huella(registros) != (meta.get('huellas_particion') or {}).get(parte):
@@ -434,12 +441,12 @@ def leer_particion_real(dataset: Path, parte: str) -> tuple[list[dict], dict]:
         for f in r['fuentes']:
             fuentes.setdefault((f['ruta'], f['sha256']), f)
     for f in fuentes.values():
-        verificar_fuente(f)
+        verificar_fuente(f, custodia=custodia)
     if meta.get('prompt_hash') != huella(sistema_alumno()):
         raise ValueError('prompt distinto del protocolo sellado')
     if meta.get('humanas_reservadas_archivo'):
-        evidencia=meta['humanas_reservadas_archivo'];verificar_fuente(evidencia)
-        humanas=json.loads(Path(evidencia['ruta']).read_text(encoding='utf-8'))
+        evidencia=meta['humanas_reservadas_archivo'];verificar_fuente(evidencia, custodia=custodia)
+        humanas=json.loads(ruta_fuente(evidencia, custodia).read_text(encoding='utf-8'))
         reservadas={texto_canonico(r['texto']) for r in humanas}
         if any(texto_canonico(r['texto']) in reservadas for r in registros):
             raise ValueError('orden humana reservada en particion redactada')
@@ -466,22 +473,23 @@ def elegir_version_llm(informes: list[dict]) -> dict:
             'metricas_seleccion':ganador['metricas']}
 
 
-def auditar_fuentes_corpus(dataset: Path) -> dict:
+def auditar_fuentes_corpus(dataset: Path, *, custodia: CustodiaCorpus | None = None) -> dict:
     """Comprueba entidades contra registros extraidos; no infiere ni ejecuta estudios."""
     meta=json.loads((dataset/'dataset_manifest.json').read_text(encoding='utf-8'))
+    custodia = leer_custodia(dataset, meta) or custodia
     filas=json.loads((dataset/'corpus_auditoria.json').read_text(encoding='utf-8'))
-    validar_corpus_real(filas,meta)
-    custodia=meta['contextos_fuente'];verificar_fuente(custodia)
-    contextos=json.loads(Path(custodia['ruta']).read_text(encoding='utf-8'))
-    custodia_h=meta['humanas_reservadas_archivo'];verificar_fuente(custodia_h)
-    humanas=json.loads(Path(custodia_h['ruta']).read_text(encoding='utf-8'))
+    validar_corpus_real(filas,meta,custodia=custodia)
+    evidencia=meta['contextos_fuente'];verificar_fuente(evidencia,custodia=custodia)
+    contextos=json.loads(ruta_fuente(evidencia,custodia).read_text(encoding='utf-8'))
+    custodia_h=meta['humanas_reservadas_archivo'];verificar_fuente(custodia_h,custodia=custodia)
+    humanas=json.loads(ruta_fuente(custodia_h,custodia).read_text(encoding='utf-8'))
     textos_h={texto_canonico(r['texto']) for r in humanas}
     if any(texto_canonico(r['texto']) in textos_h for r in filas):
         raise ValueError('orden humana reservada dentro del corpus redactado')
     por_id={huella([c['source_fingerprint'],c['network_id']]):c for c in contextos}
     revisadas=Counter(); parametros=Counter(); fuentes=set()
     for parte in PARTICIONES:
-        registros,_=leer_particion_real(dataset,parte)
+        registros,_=leer_particion_real(dataset,parte,custodia=custodia)
         if registros != [r for r in filas if r['particion']==parte]:
             raise ValueError('subconjunto consumido distinto del corpus auditado')
         for r in registros:
@@ -544,8 +552,9 @@ def evaluar_version_llm(dataset: Path, modelo: str, *, parte: str = 'seleccion',
             ganador.get('prompt_hash') != meta['prompt_hash']):
             raise ValueError('version distinta de la seleccion fijada')
     registros, meta = leer_particion_real(dataset, parte)
-    custodia = meta['contextos_fuente']; verificar_fuente(custodia)
-    contextos = json.loads(Path(custodia['ruta']).read_text(encoding='utf-8'))
+    custodia = leer_custodia(dataset, meta)
+    evidencia = meta['contextos_fuente']; verificar_fuente(evidencia, custodia=custodia)
+    contextos = json.loads(ruta_fuente(evidencia, custodia).read_text(encoding='utf-8'))
     vocabulario = {'alimentadores': sorted({c['alimentador'] for c in contextos}),
         'proyecto': sorted({p['valor'] for c in contextos for p in c['proyectos']}),
         'sistema': sorted({c['sistema']['valor'] for c in contextos if c.get('sistema')}),
@@ -752,9 +761,9 @@ def exportar_fusionado(destino: Path, adaptador: Path | None = None, *, log=prin
         if not lote:
             return
         nombre = f'model-{len(artefactos)+1:05d}.safetensors'
-        temporal = destino / (nombre + '.tmp')
-        save_file(lote, str(temporal), metadata={'format': 'pt'})
-        temporal.replace(destino / nombre)
+        with staging_publicacion(destino / nombre) as temporal:
+            save_file(lote, str(temporal), metadata={'format': 'pt'})
+            temporal.replace(destino / nombre)
         for clave in lote:
             index[clave] = nombre
         with (destino / nombre).open('rb') as f:

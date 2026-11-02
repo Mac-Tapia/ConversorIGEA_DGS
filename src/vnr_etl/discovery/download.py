@@ -1,13 +1,12 @@
 """Gestor de descargas y manejo seguro de archivos (secciones D9–D11, E3).
 
-Descarga con reintentos, fichero ``.part``, renombre atómico, SHA-256 y
+Descarga con reintentos, staging externo, renombre atómico, SHA-256 y
 ``manifest.json``. La extracción de archivos rechaza rutas absolutas y recorrido
 ``../``, y separa la detección de formato de la extracción.
 """
 
 from __future__ import annotations
 
-import json
 import os
 import re
 import shutil
@@ -15,15 +14,24 @@ import stat
 import time
 import zipfile
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from urllib.parse import urlparse
 
-from convertersmartgrid.util import importar_opcional, sha256_file
+from convertersmartgrid.util import importar_opcional, sha256_file, write_json_atomic
+from convertersmartgrid.runtime_paths import rutas_runtime, staging_publicacion, temporal_administrado
 
 
 class DownloadError(RuntimeError):
     pass
+
+
+class DownloadCancelled(DownloadError):
+    """La cancelación cooperativa no es un error transitorio de red."""
+
+
+class DownloadQuotaExceeded(DownloadError):
+    """Un recurso fuera de presupuesto no debe descargarse otra vez."""
 
 
 class ArchiveSecurityError(DownloadError):
@@ -76,7 +84,7 @@ class DownloadManager:
         allowed_hosts: list[str] | tuple[str, ...] | None = None,
     ) -> None:
         self.cache_dir = Path(cache_dir)
-        self.temp_dir = Path(temp_dir) if temp_dir else self.cache_dir / '_tmp'
+        self.temp_dir = Path(temp_dir).resolve() if temp_dir is not None else None
         self.retries = retries
         self.connect_timeout_s = connect_timeout_s
         self.read_timeout_s = read_timeout_s
@@ -96,40 +104,72 @@ class DownloadManager:
         period: str = '',
         force: bool = False,
         on_progress: Callable[[int, int | None], None] | None = None,
+        cancelled: Callable[[], bool] | None = None,
     ) -> DownloadManifest:
+        if cancelled is not None and cancelled():
+            raise DownloadCancelled('Descarga cancelada.')
         self._validate_url(url)
         requests = importar_opcional('requests', DownloadError(
             'La descarga necesita la dependencia «requests» (ver requirements.txt '
             'y `python -m vnr_etl doctor`).'))
         destination = Path(destination)
         destination.parent.mkdir(parents=True, exist_ok=True)
-        part = destination.with_suffix(destination.suffix + '.part')
 
         if destination.is_file() and not force:
             return self._manifest_for_existing(destination, url, publication_id, company, period)
 
-        last_error: Exception | None = None
-        for attempt in range(1, self.retries + 1):
-            try:
-                content_type = self._stream(requests, url, part, on_progress=on_progress)
-                if self.max_file_size_bytes and part.stat().st_size > self.max_file_size_bytes:
-                    part.unlink(missing_ok=True)
-                    raise DownloadError(
-                        f'El fichero supera el tamaño máximo de '
-                        f'{self.max_file_size_bytes / (1024 * 1024):.0f} MB.'
+        if self.temp_dir is None:
+            contexto = staging_publicacion(destination)
+        else:
+            # La ruta explícita conserva el contrato, con las mismas fronteras del runtime.
+            policy = rutas_runtime(environ={**os.environ, 'CSG_RUNTIME_HOME': str(self.temp_dir)})
+            target = destination.resolve()
+            origen_existente = next(p for p in (self.temp_dir, *self.temp_dir.parents) if p.exists())
+            destino_existente = next(p for p in (target, *target.parents) if p.exists())
+            if (os.path.normcase(self.temp_dir.anchor) != os.path.normcase(target.anchor)
+                    or origen_existente.stat().st_dev != destino_existente.stat().st_dev):
+                raise ValueError('El temporal de descarga debe estar en el volumen del destino.')
+            contexto = temporal_administrado(replace(policy, temporales=self.temp_dir),
+                                             propietario=f'descarga:{destination.name}')
+        with contexto as staging:
+            part = staging if self.temp_dir is None else staging / destination.name
+            last_error: Exception | None = None
+            def progress(written, total):
+                if cancelled is not None and cancelled():
+                    raise DownloadCancelled('Descarga cancelada.')
+                if on_progress is not None:
+                    on_progress(written, total)
+
+            for attempt in range(1, self.retries + 1):
+                try:
+                    progress(0, None)
+                    content_type = self._stream(requests, url, part, on_progress=progress)
+                    if cancelled is not None and cancelled():
+                        raise DownloadCancelled('Descarga cancelada.')
+                    if self.max_file_size_bytes and part.stat().st_size > self.max_file_size_bytes:
+                        part.unlink(missing_ok=True)
+                        raise DownloadQuotaExceeded(
+                            f'El fichero supera el tamaño máximo de '
+                            f'{self.max_file_size_bytes / (1024 * 1024):.0f} MB.'
+                        )
+                    manifest = self._finalize(
+                        part, destination, url, publication_id, company, period,
+                        content_type=content_type,
                     )
-                manifest = self._finalize(
-                    part, destination, url, publication_id, company, period,
-                    content_type=content_type,
-                )
-                self._write_manifest(destination, manifest)
-                return manifest
-            except Exception as exc:  # noqa: BLE001 - reintentos con backoff
-                last_error = exc
-                part.unlink(missing_ok=True)
-                if attempt < self.retries:
-                    time.sleep(2 ** attempt)
-        raise DownloadError(f'Descarga fallida de {url}: {last_error}')
+                    self._write_manifest(destination, manifest)
+                    return manifest
+                except (DownloadCancelled, DownloadQuotaExceeded):
+                    raise
+                except Exception as exc:  # noqa: BLE001 - reintentos con backoff
+                    last_error = exc
+                    part.unlink(missing_ok=True)
+                    if attempt < self.retries:
+                        until = time.monotonic() + 2 ** attempt
+                        while time.monotonic() < until:
+                            if cancelled is not None and cancelled():
+                                raise DownloadCancelled('Descarga cancelada.')
+                            time.sleep(min(.1, max(0, until - time.monotonic())))
+            raise DownloadError(f'Descarga fallida de {url}: {last_error}')
 
     def _stream(self, requests, url: str, part: Path, *,
                 on_progress: Callable[[int, int | None], None] | None) -> str:
@@ -151,11 +191,16 @@ class DownloadManager:
                 mode = 'ab' if response.status_code == 206 else 'wb'
                 total = response.headers.get('Content-Length')
                 total_int = int(total) if total and total.isdigit() else None
+                initial = resume_at if mode == 'ab' else 0
+                if self.max_file_size_bytes and total_int is not None and initial + total_int > self.max_file_size_bytes:
+                    raise DownloadQuotaExceeded('El fichero supera el tamaño máximo de descarga configurado.')
                 written = 0
                 with part.open(mode) as fh:
                     for chunk in response.iter_content(chunk_size=1024 * 1024):
                         if not chunk:
                             continue
+                        if self.max_file_size_bytes and initial + written + len(chunk) > self.max_file_size_bytes:
+                            raise DownloadQuotaExceeded('El fichero supera el tamaño máximo de descarga configurado.')
                         fh.write(chunk)
                         written += len(chunk)
                         if on_progress:
@@ -226,7 +271,7 @@ class DownloadManager:
 
     def _write_manifest(self, destination: Path, manifest: DownloadManifest) -> None:
         path = destination.with_suffix(destination.suffix + '.manifest.json')
-        path.write_text(json.dumps(manifest.as_dict(), ensure_ascii=False, indent=2), encoding='utf-8')
+        write_json_atomic(path, manifest.as_dict())
 
     def verify(self, path: Path | str, expected_sha256: str | None = None) -> bool:
         digest = sha256_file(Path(path))

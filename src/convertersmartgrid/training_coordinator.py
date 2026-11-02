@@ -1,6 +1,8 @@
 """Coordinador secuencial, reanudable y con exclusión mutua de GPU."""
 from __future__ import annotations
 
+from .runtime_paths import staging_publicacion
+
 import json
 import hashlib
 import os
@@ -194,9 +196,9 @@ class TrainingCoordinator:
 
     def _escribir(self, ruta: Path, payload: dict[str, Any]) -> None:
         ruta.parent.mkdir(parents=True, exist_ok=True)
-        tmp = ruta.with_name(f'.{ruta.name}.{os.getpid()}.tmp')
-        tmp.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2), encoding='utf-8')
-        os.replace(tmp, ruta)
+        with staging_publicacion(ruta) as tmp:
+            tmp.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2), encoding='utf-8')
+            os.replace(tmp, ruta)
 
     def run(self, *, resume: bool = True) -> dict[str, Any]:
         estado_ruta, reporte_ruta = self.run_dir / 'state.json', self.run_dir / 'report.json'

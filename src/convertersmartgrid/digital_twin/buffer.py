@@ -7,6 +7,8 @@ aprendió de un proyecto anterior tiene que seguir ahí para no olvidarlo (RF-10
 """
 from __future__ import annotations
 
+from ..runtime_paths import staging_publicacion
+
 import json
 import os
 import re
@@ -51,8 +53,8 @@ def raiz_buffer() -> Path:
     env = os.environ.get('CSG_TWIN_DATA', '').strip()
     if env:
         return Path(env)
-    from ..web.workspace import data_root
-    return data_root() / '_digital_twin'
+    from ..web.workspace import raiz_componente
+    return raiz_componente('_digital_twin', 'CSG_TWIN_DATA')
 
 
 def _texto(episodio: Episodio) -> str:
@@ -81,12 +83,12 @@ class BuferEpisodios:
                 raise ColisionEpisodio(f'{ruta}: otro contenido con la huella {episodio.episode_id}')
         else:
             ruta.parent.mkdir(parents=True, exist_ok=True)
-            tmp = ruta.with_suffix('.tmp')
-            with open(tmp, 'w', encoding='utf-8', newline='\n') as f:
-                f.write(texto)
-                f.flush()
-                os.fsync(f.fileno())
-            os.replace(tmp, ruta)
+            with staging_publicacion(ruta) as tmp:
+                with open(tmp, 'w', encoding='utf-8', newline='\n') as f:
+                    f.write(texto)
+                    f.flush()
+                    os.fsync(f.fileno())
+                os.replace(tmp, ruta)
         with closing(self._conectar()) as con, con:
             self._indexar(con, episodio, ruta)
         return ruta

@@ -83,9 +83,9 @@ def _lanzar_aislado(tmp_path, fallo):
 
 
 @pytest.mark.skipif(os.name != 'nt', reason='El acceso directo usa cmd.exe en Windows.')
-@pytest.mark.parametrize('fallo,esperadas', [('install', ['install']), ('run', ['install', 'run'])])
+@pytest.mark.parametrize('fallo,esperadas', [('ci', ['ci']), ('run', ['ci', 'run'])])
 def test_un_fallo_de_npm_no_abre_una_interfaz_anterior(tmp_path, fallo, esperadas):
-    """036:RF-3 — el batch real no inicia servidor si falla install o build."""
+    """036:RF-3; 065:RF-8 — el batch real no inicia servidor si falla ci o build."""
     resultado, llamadas = _lanzar_aislado(tmp_path, fallo)
     assert llamadas == esperadas, resultado.stdout + resultado.stderr
     assert resultado.returncode != 0, resultado.stdout + resultado.stderr
@@ -97,5 +97,5 @@ def test_el_lanzador_sigue_abriendo_tras_npm_correcto(tmp_path):
     """036:RF-3 — controlar el error no bloquea el camino que compila correctamente."""
     resultado, llamadas = _lanzar_aislado(tmp_path, 'ninguno')
     assert resultado.returncode == 0, resultado.stdout + resultado.stderr
-    assert llamadas == ['install', 'run']
+    assert llamadas == ['ci', 'run']
     assert (tmp_path / 'servidor_iniciado').is_file()

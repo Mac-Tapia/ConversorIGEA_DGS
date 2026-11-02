@@ -656,12 +656,25 @@ def test_web_importa_en_la_carpeta_y_guarda_la_ruta(web, monkeypatch):
     web.perfil.write_text(json.dumps({CLAVE_PERFIL: 'Empresa'}), encoding='utf-8')
     dgs = web.ws.out_dir / 'RED.dgs'
     dgs.write_text('DGS', encoding='ascii')
+    dgs.with_name('RED_feeder_metadata.json').write_text('{}', encoding='utf-8')
     monkeypatch.setattr(web.services, 'dgs_jobs', lambda _ws, _f: ([('RED', dgs, None)], []))
     monkeypatch.setattr(web.services, 'pandapower_preflight',
-                        lambda *_a: {'disponible': False, 'avisos': [], 'feeders': []})
+                        lambda *_a: {'disponible': True, 'avisos': [], 'feeders': [],
+                                     'no_convergen': {}})
     (web.ws.out_dir / 'RED_powerfactory_acceptance.json').write_text(json.dumps(
         {'import': {'project_name': 'RED_2', 'project_path': 'RED_2',
                     'project_folder': 'Empresa'}}), encoding='utf-8')
+    anotar = web.ctx.run_process
+    def importar(orden, **kwargs):
+        rc = anotar(orden, **kwargs)
+        Path(_valor(orden, '--output-json')).write_text(json.dumps({
+            'feeder': 'RED', 'powerfactory_runtime_pass': True,
+            'import': {'ok': True, 'dgs': _valor(orden, '--import-dgs'),
+                       'project_path': 'RED_2', 'project_folder': 'Empresa'},
+            'source_verification': {'status': 'NOT_REQUESTED'},
+        }), encoding='utf-8')
+        return rc
+    web.ctx.run_process = importar
     web.services.powerfactory_flow(web.ws, web.ctx, ['RED'])
     assert _valor(web.ordenes[0], '--pf-carpeta') == 'Empresa'
     assert web.ws.pf_projects['RED'] == 'RED_2'

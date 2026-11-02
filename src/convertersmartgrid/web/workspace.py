@@ -108,9 +108,24 @@ _SAFE_NAME = re.compile(r'[^A-Za-z0-9._() \-]+')
 
 
 def data_root() -> Path:
-    """Dónde viven los espacios. ``output/`` ya está fuera del control de versiones."""
+    """Los espacios nuevos viven fuera del código; la raíz explícita sigue vigente."""
+    from ..runtime_paths import rutas_runtime
+
     env = os.environ.get('CSG_WEB_DATA', '').strip()
-    return Path(env) if env else project_root() / 'output' / 'web'
+    return Path(env) if env else rutas_runtime(project_root()).runtime / 'data' / 'web'
+
+
+def raiz_componente(nombre: str, variable: str) -> Path:
+    """Mantiene los modelos/episodios heredados hasta una migración explícita."""
+    env = os.environ.get(variable, '').strip()
+    if env:
+        return Path(env)
+    if nombre not in ('_asistente', '_digital_twin'):
+        raise ValueError('Componente de datos no reconocido.')
+    legacy = project_root() / 'output' / 'web' / nombre
+    if not os.environ.get('CSG_WEB_DATA', '').strip() and legacy.is_dir():
+        return legacy
+    return data_root() / nombre
 
 
 def safe_filename(name: str) -> str:
@@ -241,11 +256,10 @@ class Workspace:
             'sin_licencia': self.sin_licencia,
         }
         self.root.mkdir(parents=True, exist_ok=True)
-        tmp = self.root / 'workspace.json.tmp'
-        tmp.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding='utf-8')
-        tmp.replace(self.root / 'workspace.json')
-        (self.root / 'conversiones.json').write_text(
-            json.dumps(self.conversions, indent=2, ensure_ascii=False), encoding='utf-8')
+        from ..util import write_json_atomic
+
+        write_json_atomic(self.root / 'workspace.json', payload)
+        write_json_atomic(self.root / 'conversiones.json', self.conversions)
 
     @classmethod
     def load(cls, root: Path) -> 'Workspace':
@@ -487,6 +501,13 @@ class Workspace:
 class WorkspaceStore:
     def __init__(self, root: Path | None = None) -> None:
         self.root = root or data_root()
+        # No mover fuentes mientras otra sesión puede leerlas. Los espacios heredados
+        # siguen usando su raíz y registro; solo los nuevos nacen en el almacén externo.
+        legacy = project_root() / 'output' / 'web'
+        self.roots = (self.root,)
+        if root is None and not os.environ.get('CSG_WEB_DATA', '').strip() and legacy.is_dir():
+            if legacy.resolve() != self.root.resolve():
+                self.roots += (legacy,)
         self._items: dict[str, Workspace] = {}
         self._lock = threading.Lock()
         self.siembra: dict[str, int] | None = None
@@ -535,22 +556,27 @@ class WorkspaceStore:
             ws = self._items.get(wid)
             if ws is not None:
                 return ws
-            folder = self.root / wid
-            if not (folder / 'workspace.json').is_file():
+            folders = [base / wid for base in self.roots if (base / wid / 'workspace.json').is_file()]
+            if len(folders) > 1:
+                raise ValueError(f'Identificador de espacio duplicado en dos raíces: {wid}')
+            if not folders:
+                return None
+            folder = folders[0]
+            if folder.is_symlink() or folder.is_junction() or folder.resolve().parent != folder.parent.resolve():
                 return None
             try:
                 ws = Workspace.load(folder)
             except (OSError, ValueError, KeyError):
                 return None
-            ws.vinculos_compartidos = self.root / REGISTRO_VINCULOS_FILE
+            ws.vinculos_compartidos = folder.parent / REGISTRO_VINCULOS_FILE
             self._items[wid] = ws
             return ws
 
     def list(self) -> list[dict]:
         out = []
-        if not self.root.is_dir():
-            return out
-        for folder in self.root.iterdir():
+        for folder in (p for base in self.roots if base.is_dir() for p in base.iterdir()):
+            if folder.is_symlink() or folder.is_junction():
+                continue
             meta = folder / 'workspace.json'
             if not meta.is_file():
                 continue

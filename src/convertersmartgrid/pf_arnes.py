@@ -14,6 +14,8 @@ primera línea en cuanto DIgSILENT responde (RF-6, 005:RF-21).
 
 from __future__ import annotations
 
+from .runtime_paths import staging_publicacion
+
 import atexit
 import importlib
 import json
@@ -233,19 +235,19 @@ def leer_turno(ruta: Path | None = None) -> dict | None:
 
 def _escribir_turno(ruta: Path, datos: dict) -> None:
     """Reescribe el turno de golpe: quien lo lee nunca ve un fichero a medias."""
-    tmp = ruta.with_name(f'{ruta.name}.{os.getpid()}.tmp')
-    tmp.write_text(json.dumps(datos), encoding='utf-8')
-    # En Windows ``os.replace`` falla con «acceso denegado» si otro proceso lee el turno
-    # en ese instante: se reintenta unas veces antes de rendirse.
-    for intento in range(20):
-        try:
-            os.replace(tmp, ruta)
-            return
-        except PermissionError:
-            if intento == 19:
-                tmp.unlink(missing_ok=True)
-                raise
-            time.sleep(0.05)
+    with staging_publicacion(ruta) as tmp:
+        tmp.write_text(json.dumps(datos), encoding='utf-8')
+        # En Windows ``os.replace`` falla con «acceso denegado» si otro proceso lee el turno
+        # en ese instante: se reintenta unas veces antes de rendirse.
+        for intento in range(20):
+            try:
+                os.replace(tmp, ruta)
+                return
+            except PermissionError:
+                if intento == 19:
+                    tmp.unlink(missing_ok=True)
+                    raise
+                time.sleep(0.05)
 
 
 def marcar_turno(ruta: Path | None = None, **campos: Any) -> None:
