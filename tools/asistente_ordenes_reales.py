@@ -103,7 +103,7 @@ def _textos_claude(carpeta: Path):
 
 def _sesion_de_codex_valida(meta: dict, raiz: str) -> bool:
     origen = meta.get('source')
-    # Una sesión hija de Codex tiene por «usuario» al agente que la lanzó (66 sesiones, 2026-11-02).
+    # Una sesión hija de Codex tiene por «usuario» al agente que la lanzó (visto el 2026-11-02).
     if meta.get('thread_source') == 'subagent' or (isinstance(origen, dict) and 'subagent' in origen):
         return False
     cwd = str(meta.get('cwd') or '').replace('\\', '/').rstrip('/').casefold()
