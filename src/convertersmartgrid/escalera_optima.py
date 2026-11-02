@@ -172,11 +172,36 @@ def _km(tramos) -> float:
     return sum(float(t.get('largo_m') or 0) for t in tramos) / 1000
 
 
+def _nodos(tramos) -> list[dict[str, Any]]:
+    """063:RF-31: cada tramo de una obra con su nodo de inicio y su nodo final, de la cabecera a
+    la cola; sin esos datos (una lectura anterior), solo el tramo."""
+    return [{'tramo': t['nombre'], 'desde': t.get('desde'), 'hasta': t.get('hasta')} for t in tramos]
+
+
+def ubicacion(obra: Mapping[str, Any]) -> str:
+    """Dónde va la obra en la red de media tensión, en una frase (063:RF-31).
+
+    SM218 (2026-11-01, usuario): «en el cambio de tramos de cable y la ubicación de bancos deben
+    indicarse los nodos de inicio y el nodo de MT donde se ubica el banco y los tramos».
+    """
+    if obra.get('clase') == 'condensador':
+        return f"banco de {float(obra.get('q_kvar') or 0):g} kvar en el nodo de MT {obra.get('barra')}"
+    nodos = list(obra.get('nodos') or [])
+    que = (f"sección {(obra.get('tipo') or {}).get('nombre', '')}" if obra.get('clase') == 'seccion'
+           else str(obra.get('clase') or 'obra'))
+    if nodos and nodos[0].get('desde') and nodos[-1].get('hasta'):
+        return (f"{que} desde el nodo {nodos[0]['desde']} hasta el nodo {nodos[-1]['hasta']} "
+                f"({len(nodos)} tramos: " + ', '.join(
+                    f"{n['tramo']} {n.get('desde') or '?'}→{n.get('hasta') or '?'}" for n in nodos) + ')')
+    return f"{que} en los tramos " + ', '.join(str(t) for t in obra.get('tramos') or [])
+
+
 def _escalon_bancos(alim, barras, banco_kvar) -> list[Variante]:
     if not barras or not banco_kvar:
         return []
     out = []
     for n in (1, 2):
+        # 063:RF-31: la barra del banco es el nodo de MT existente donde se instala.
         obras = [{'clase': 'condensador', 'alimentador': alim, 'casos': [CON_PROYECTO], 'barra': b,
                   'q_kvar': float(banco_kvar) * n, 'escalones': n} for b in barras]
         out.append(Variante(f'bancos {n}×{banco_kvar:g} kvar', ('bancos',), obras,
@@ -270,7 +295,8 @@ def _escalon_terna(alim, troncal, cargas) -> list[Variante]:
     for tramos in _caminos(troncal, cargas):                               # 063:RF-32
         out.append(Variante(f"terna hasta {tramos[-1]['nombre']} ({_km(tramos):.2f} km)", ('terna',),
                             [{'clase': 'terna', 'alimentador': alim, 'casos': [CON_PROYECTO],
-                              'tramos': [t['nombre'] for t in tramos]}], {'terna': _km(tramos)}))
+                              'tramos': [t['nombre'] for t in tramos], 'nodos': _nodos(tramos)}],
+                            {'terna': _km(tramos)}))
     return out
 
 
@@ -317,7 +343,8 @@ def _escalon_seccion(alim, kv, troncal, cargas, tipos, avisos) -> list[Variante]
                                 f"({_km(cambian):.2f} km)",
                                 ('seccion',),
                                 [{'clase': 'seccion', 'alimentador': alim, 'casos': [CON_PROYECTO],
-                                  'tramos': [t['nombre'] for t in cambian], 'tipo': ref}],
+                                  'tramos': [t['nombre'] for t in cambian], 'tipo': ref,
+                                  'nodos': _nodos(cambian)}],
                                 {'seccion': _km(cambian)}))
     return out
 

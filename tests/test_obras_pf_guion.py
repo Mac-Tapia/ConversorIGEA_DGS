@@ -1406,3 +1406,22 @@ def test_tipo_de_otro_proyecto_que_no_se_deja_pegar_se_copia_igual():
     copia, reutiliza, _aviso = guion.copiar_tipo(app, original, 'VR32_22_9kV_300A')
     assert not reutiliza and copia.GetParent() is local
     assert (copia.Un, copia.In, copia.ntapmax) == (13.2213, 300.0, 16)
+
+def test_cada_variante_dice_la_tension_que_deja(monkeypatch):
+    """063:RF-28 — la evaluación dice, de cada variante probada, la tensión que deja en cada barra
+    de carga nueva y la mínima de media, también si no basta (SM218, 2026-11-01: «primero debiste
+    probar con bancos, ver cuánto mejora»)."""
+    app, alims = _calibrada_con_escenario(random.Random(13))
+    monkeypatch.setitem(guion.CONSTRUCTORES, 'terna', _terna)
+    f = alims[0]
+    barra = next(b.loc_name for b in app.proyecto.GetContents('*.ElmTerm', 1)
+                 if b.loc_name.startswith(f) and float(getattr(b, 'uknom', 0) or 0) >= 1.0)
+    plan = _plan(alims, variantes=[{'nombre': 'terna', 'obras': [_obra_terna(f, [CON])], 'costo_base': 1.0}],
+                 sorteos=[], barras_cargas=[barra], parametros=PERFIL_ESCALERA)
+    _actual_no_cumple(monkeypatch)
+    informe, codigo = guion.evaluar(app, plan)
+    assert codigo == 0, informe
+    [fila] = informe['variantes']
+    assert set(fila['u_cargas']) == {barra}
+    assert fila['u_cargas'][barra] is not None and fila['u_min_mt'] is not None
+    assert fila['u_min_mt'] <= fila['u_cargas'][barra] + 1e-9

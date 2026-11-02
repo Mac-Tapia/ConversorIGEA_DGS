@@ -345,3 +345,37 @@ def test_umbral_de_carga_nueva_lleva_a_set_nueva(monkeypatch, encima):
         assert vistos.get('a_set') == n and 'escalera' not in vistos, SEMILLA
     else:
         assert 'escalera' in vistos, SEMILLA
+
+
+@pytest.mark.parametrize('k', range(4))
+def test_el_informe_prepara_solo_su_alimentador_sin_pasar_por_4_2(monkeypatch, tmp_path, k):
+    """063:RF-1, 063:RF-3, 063:RF-6, 063:RF-12 — con alimentadores sorteados (nombre y número de
+    alimentadores del proyecto variables), la preparación del informe es el paso 4.2 entero solo
+    para el alimentador del informe: el último ajuste aplicado como base, flujo equilibrado y
+    desequilibrado, y la ejecución del mismo plan; ningún alimentador fijo."""
+    from convertersmartgrid.web import services
+
+    rng = random.Random(SEMILLA + k)
+    alims = [f"{rng.choice('ABCDEFGHJKLMNPRSTUVWXYZ')}{rng.choice('ABCDEFGHJK')}{rng.randint(100, 999)}"
+             for _ in range(rng.randint(1, 12))]
+    elegido = rng.choice(alims)
+    vistos = []
+
+    def plan(ws, project, feeders, estudios, ajuste, *a, **kw):
+        vistos.append(('plan', project, list(feeders), list(estudios), ajuste))
+        return {'token': f't{k}'}
+
+    monkeypatch.setattr(services, 'estudios_plan', plan)
+    monkeypatch.setattr(services, 'estudios_ejecutar',
+                        lambda ws, ctx, token: vistos.append(('ejecutar', token)) or {'resultados': []})
+    monkeypatch.setattr(services, 'ajuste_aplicado_en_disco',
+                        lambda ws, project, *a: {'id': f'disco:{project}', 'feeders': alims})
+
+    class Ctx:
+        def log(self, _t):
+            pass
+
+    services.preparar_flujos_del_informe(object(), Ctx(), f'PRY{k}', elegido)
+    assert vistos == [('plan', f'PRY{k}', [elegido], list(services.ESTUDIOS_DEL_INFORME),
+                       {'id': f'disco:PRY{k}', 'feeders': alims}), ('ejecutar', f't{k}')]
+    assert set(services.ESTUDIOS_DEL_INFORME) == {'flujo', 'flujo_desequilibrado'}

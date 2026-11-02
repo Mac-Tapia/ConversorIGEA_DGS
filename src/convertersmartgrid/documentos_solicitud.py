@@ -269,9 +269,15 @@ def datos_de_texto(texto: str) -> dict[str, object]:
         alim = _buscar(r'alimentador\s+([A-Z]{1,3}\d{2,4})\b', plano)
         if alim:
             d['alimentador'] = alim
-    exp = _buscar(r'\b(EXP-\s*\d{4}-\d+)', plano) or _buscar(r'c[oó]digo del expediente\s*:\s*([\w-]+)', plano)
+    # 063:RF-15: el EXP es el expediente de la distribuidora; el «código del expediente» de la
+    # ficha es un código interno y va aparte. INKA (2026-11-01): la ficha traía su código
+    # interno, la carta el EXP, y el informe citaba el interno como expediente.
+    exp = _buscar(r'\b(EXP-\s*\d{4}-\d+)', plano)
     if exp:
         d['expediente'] = exp.replace(' ', '')
+    interno = _buscar(r'c[oó]digo del expediente\s*:\s*([\w-]+)', plano)
+    if interno and interno.replace(' ', '') != d.get('expediente'):
+        d['codigo_ficha'] = interno.replace(' ', '')
     refs = [re.sub(r'\s+', '', m.group(1)) for m in re.finditer(
         r'\b(G[TC]\s*-\s*SU\s*-\s*\d+\s*-\s*\d{4}\s*/\s*PO)', plano, re.IGNORECASE)]
     if refs:
@@ -312,9 +318,10 @@ def leer_documento(pdf: Path, *, forzar_ocr: bool = False,
 # ------------------------------------------------------------------ uso en los informes
 
 #: Datos de la solicitud de 4.4.2, en el orden en que se buscan en los documentos.
-CAMPOS_SOLICITUD = ('cliente', 'ubicacion', 'tipo_solicitud', 'potencia_kw', 'fecha',
-                    'expediente', 'set_nombre', 'tension_kv', 'lugar', 'asunto', 'alimentador',
-                    'nis', 'solicitud', 'estructura', 'utm_x', 'utm_y', 'pcc_mva')
+CAMPOS_SOLICITUD = ('cliente', 'ubicacion', 'tipo_solicitud', 'potencia_actual_kw', 'potencia_kw',
+                    'fecha', 'expediente', 'codigo_ficha', 'set_nombre', 'tension_kv', 'lugar',
+                    'asunto', 'alimentador', 'nis', 'solicitud', 'estructura', 'utm_x', 'utm_y',
+                    'pcc_mva')
 
 
 def propuesta_factibilidad(documentos: list[Documento]) -> dict[str, dict[str, object]]:
@@ -328,6 +335,16 @@ def propuesta_factibilidad(documentos: list[Documento]) -> dict[str, dict[str, o
             if valor not in (None, '') and clave not in propuesta:
                 propuesta[clave] = {'valor': valor, 'fichero': doc.fichero}
     return propuesta
+
+
+def de_cada_documento(documentos: list[Documento], clave: str) -> list[dict[str, object]]:
+    """Cada valor de ``clave`` con su documento y la clase de este (063:RF-19, RF-20).
+
+    Una ampliación trae varias fechas (la carta, la ficha y la respuesta) y a veces dos
+    alimentadores: el operador ve de dónde sale cada uno; la propuesta es la del interesado.
+    """
+    return [{'valor': d.datos[clave], 'fichero': d.fichero, 'clase': d.clase}
+            for d in documentos if d.datos.get(clave) not in (None, '')]
 
 
 def _fecha_larga(iso: str) -> str:

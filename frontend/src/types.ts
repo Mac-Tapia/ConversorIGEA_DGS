@@ -621,6 +621,11 @@ export interface CargasInforme {
 /** Spec 025, RF-49 a RF-58: cada variante probada, con su fracción de sorteos y su costo. */
 export interface EscaleraVariante {
   nombre: string;
+  /** 063:RF-28: la tensión que deja en cada barra de carga nueva y la mínima de media. */
+  u_cargas?: Record<string, number | null> | null;
+  u_min_mt?: number | null;
+  /** 063:RF-31: dónde va cada obra (nodo de MT del banco; nodos de inicio y fin de los tramos). */
+  ubicacion?: string[];
   maxima: boolean;
   fraccion: number | null;
   factible: boolean;
@@ -991,10 +996,16 @@ export interface InformeFactibilidadForm {
   limites: Partial<Limites>;
   factor_carga: number | null;
   codigo_punto: string;
+  /** 063:RF-1: el botón prepara los casos y corre sus flujos en el mismo trabajo. */
+  preparar_casos?: boolean;
+  /** 063:RF-17: Pcc y UTM del punto de diseño, de la ficha. */
+  punto_ficha?: { pcc_mva: number | null; utm_x: number | null; utm_y: number | null };
   solicitud: {
     cliente: string; ubicacion: string; tipo_solicitud: string; potencia_kw: number | null;
     fecha_solicitud: string; set_nombre: string; tension_kv: number | null; transformador: string;
     expediente: string; en_concesion: boolean | null;
+    /** 063:RF-14, RF-15, RF-18. */
+    potencia_actual_kw?: number | null; codigo_ficha?: string; nis?: string;
   };
   perdidas_reconocidas: {
     sistema_electrico: string; codigo_sistema: string; reconocido_kw_pct: number | null;
@@ -1055,6 +1066,10 @@ export interface DocumentosResultado {
   documentos: DocumentoLeido[];
   /** Cada dato con el fichero del que sale. */
   propuesta: Record<string, { valor: string | number; fichero: string }>;
+  /** 063:RF-20: cada fecha leída con su documento. */
+  fechas?: { valor: string | number; fichero: string; clase: string }[];
+  /** 063:RF-19: cada alimentador leído con su documento. */
+  alimentadores_leidos?: { valor: string | number; fichero: string; clase: string }[];
   antecedentes: string[];
 }
 

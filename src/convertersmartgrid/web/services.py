@@ -5183,10 +5183,18 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
         decision = eo.elegir(evaluadas, p)
         fila.update(elegida=decision['elegida'], mas_cercana=decision['mas_cercana'],
                     tabla=[{k: t.get(k) for k in ('nombre', 'maxima', 'fraccion', 'motivos', 'motivo',
-                                                  'factible', 'perdidas_kw', 'error', 'sin_sortear')}
+                                                  'factible', 'perdidas_kw', 'error', 'sin_sortear',
+                                                  'u_cargas', 'u_min_mt')}                  # 063:RF-28
                            | {'inversion': (t.get('costo') or {}).get('inversion'),
-                              'costo_anual': (t.get('costo') or {}).get('costo_anual')}
+                              'costo_anual': (t.get('costo') or {}).get('costo_anual'),
+                              # 063:RF-31: dónde va cada obra de la variante.
+                              'ubicacion': [eo.ubicacion(o) for o in getattr(
+                                  por_nombre.get(t.get('nombre')), 'obras', [])]}
                            for t in decision['tabla']])
+        if decision['elegida']:
+            fila['ubicacion'] = [eo.ubicacion(o) for o in por_nombre[decision['elegida']].obras]
+            for linea in fila['ubicacion']:
+                ctx.log(f"{f}: «{decision['elegida']}»: {linea} (063:RF-31).")
         if decision['elegida'] and not aplicar:                                  # 042:RF-2
             resueltos.append(f)
         elif decision['elegida']:                                                # RF-54
@@ -6849,7 +6857,8 @@ def informe_documentos(ws: Workspace, ctx: JobContext | None, tipo: str, rutas: 
     Es un trabajo: una página escaneada pasa por OCR y tarda segundos. El resultado no se
     escribe en el formulario: lo rellena la web, sin pisar lo que escribió el operador.
     """
-    from ..documentos_solicitud import antecedentes_de, leer_documento, propuesta_factibilidad
+    from ..documentos_solicitud import (antecedentes_de, de_cada_documento, leer_documento,
+                                        propuesta_factibilidad)
 
     documentos = []
     for i, ruta in enumerate(rutas):
@@ -6866,6 +6875,9 @@ def informe_documentos(ws: Workspace, ctx: JobContext | None, tipo: str, rutas: 
         ctx.progress(len(rutas), len(rutas), 'listo')
     return {'tipo': tipo, 'documentos': [d.a_dict() for d in documentos],
             'propuesta': propuesta_factibilidad(documentos),
+            # 063:RF-19, RF-20: cada fecha y cada alimentador con el documento del que sale.
+            'fechas': de_cada_documento(documentos, 'fecha'),
+            'alimentadores_leidos': de_cada_documento(documentos, 'alimentador'),
             'antecedentes': antecedentes_de(documentos)}
 
 
@@ -7092,7 +7104,16 @@ def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict
         fecha_solicitud=_date.fromisoformat(s['fecha_solicitud']), alimentador=alimentador,
         set_nombre=str(s.get('set_nombre') or '').strip(), tension_kv=float(s['tension_kv']),
         transformador=str(s.get('transformador') or '').strip(),
-        expediente=str(s.get('expediente') or '').strip(), en_concesion=s.get('en_concesion'))
+        expediente=str(s.get('expediente') or '').strip(), en_concesion=s.get('en_concesion'),
+        potencia_actual_kw=(float(s['potencia_actual_kw'])
+                            if s.get('potencia_actual_kw') not in (None, '') else None),
+        nis=str(s.get('nis') or '').strip())                                         # 063:RF-14, RF-18
+    # 063:RF-17: Pcc y UTM de la ficha, solo los que vinieron.
+    ficha_punto = {k: float(v) for k, v in (formulario.get('punto_ficha') or {}).items()
+                   if k in ('pcc_mva', 'utm_x', 'utm_y') and v not in (None, '')}
+    # 063:RF-7: «Con proyecto» es el estado con obras solo si el alimentador las tiene.
+    con_obras = any(a.get('project') == project and (a.get('obra') or {}).get('alimentador') == alimentador
+                    for a in ws.obras_aplicadas)
 
     # RF-52: tensión de la barra de conexión en «Con proyecto»; kW y kvar, los de la carga.
     u = next((u for nombre, u in medida_con.get('barras') or [] if nombre == carga['barra']), None)
@@ -7158,7 +7179,8 @@ def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict
         solicitudes_vigentes=en_bloque, perdidas_actual=perdidas(actual),
         perdidas_proyectado=perdidas(proyectado), libro=libro, devanado=devanado,
         caso_transmision=str(t.get('caso') or ''), fuentes=fuentes,
-        numero=formulario.get('numero') or None, imagenes=imagenes, cargas=sin_obras)
+        numero=formulario.get('numero') or None, imagenes=imagenes, cargas=sin_obras,
+        con_obras=con_obras, ficha_punto=ficha_punto)
     destino = ws.out_dir / (f'informe_factibilidad_{nombre_seguro(alimentador)}_'
                             f'{nombre_seguro(str(carga["sed"]))}_{uuid.uuid4().hex[:8]}.docx')
     try:

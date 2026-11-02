@@ -90,7 +90,8 @@ def test_ficha_desordenada_sin_confundir_la_duena_de_la_estructura():
     assert d['tension_kv'] == 10
     assert (d['utm_x'], d['utm_y']) == (410000.50, 8400000.25)
     assert d['alimentador'] == 'AB123' and d['set_nombre'] == 'Pueblo Viejo' and d['pcc_mva'] == 48
-    assert d['fecha'] == '2027-03-09' and d['expediente'] == '00042-27'
+    # 063:RF-15: el «código del expediente» de la ficha es interno: va aparte, no como expediente.
+    assert d['fecha'] == '2027-03-09' and d['codigo_ficha'] == '00042-27' and 'expediente' not in d
     assert (d['potencia_actual_kw'], d['potencia_kw']) == (250, 600)
     assert clase_de(FICHA) == 'ficha'
     # Un oficio que solo cita la ficha no es una ficha.
@@ -258,3 +259,19 @@ def test_la_web_ofrece_los_pdf_en_los_dos_informes():
     assert '<DocumentosSolicitante tipo="estudio" varios' in fuente
     assert "if (v && libre) nueva[k] = v;" in fuente
     assert '!hay.includes(p)' in fuente
+
+
+def test_documentos_exp_codigo_de_ficha_fechas_y_alimentadores():
+    """063:RF-15, 063:RF-19, 063:RF-20 — de la carta, la ficha y la respuesta (sintéticas): el
+    EXP es el expediente propuesto y el código de la ficha va aparte; cada fecha y cada
+    alimentador dicen de qué documento salen, y la fecha propuesta es la de la solicitud."""
+    docs = [_doc('respuesta.pdf', RESPUESTA), _doc('ficha.pdf', FICHA), _doc('carta.pdf', CARTA)]
+    propuesta = propuesta_factibilidad(docs)
+    assert propuesta['expediente'] == {'valor': 'EXP-2027-000042', 'fichero': 'carta.pdf'}
+    assert propuesta['codigo_ficha'] == {'valor': '00042-27', 'fichero': 'ficha.pdf'}
+    assert propuesta['fecha']['fichero'] == 'carta.pdf'
+    fechas = ds.de_cada_documento(docs, 'fecha')
+    assert {f['fichero'] for f in fechas} == {'carta.pdf', 'ficha.pdf', 'respuesta.pdf'}
+    assert all(f['clase'] in ('solicitud', 'ficha', 'respuesta') for f in fechas)
+    alims = ds.de_cada_documento(docs, 'alimentador')
+    assert alims and all(a['fichero'] and a['valor'] for a in alims)

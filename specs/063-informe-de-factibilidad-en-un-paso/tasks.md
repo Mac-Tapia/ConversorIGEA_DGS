@@ -11,18 +11,24 @@
       Hecho el 2026-11-01: `estudios_pf.ejecutar` llama a `etapas_al_dia` al activar el caso y lo
       avisa; `_optimizador` restituye la hora del caso (011:RF-26); «Con proyecto» sin obras se
       renueva desde la recalibración (037:RF-8). 201 pruebas de estudios, casos y ajuste en verde.
-- [ ] T3. «Generar informe de factibilidad» prepara, corre los flujos y escribe, en un trabajo. (RF-1, RF-2, RF-6, RF-12)
+- [x] T3. «Generar informe de factibilidad» prepara, corre los flujos y escribe, en un trabajo. (RF-1, RF-2, RF-6, RF-12)
       Hecho cuando: `pytest -q tests/test_informe_factibilidad_un_paso.py` en verde con alimentadores
       sorteados de distinto tamaño, sin pasar por 4.2, y el endpoint en el carril de DIgSILENT.
+      Hecho el 2026-11-02: `preparar_flujos_del_informe` (4.2 entero solo para el alimentador) y
+      carril `powerfactory`; `test_el_informe_prepara_solo_su_alimentador_sin_pasar_por_4_2` (sorteados) y
+      `test_el_boton_prepara_los_casos_y_corre_los_flujos_en_el_mismo_trabajo`.
 - [x] T4. Informe Word con estado actual, proyectado sin obras y con proyecto. (RF-7, RF-8, RF-9, RF-10, RF-14, RF-17)
       Hecho cuando: el .docx de la prueba lleva las tres secciones, «de A kW a B kW (+C kW)», y la
       Pcc y las coordenadas en el punto de diseño.
       Verificado el 2026-11-01: pruebas de los tres casos, potencia previa/incremento, NIS y ficha;
       101 pruebas focales de informes/estudios. Informe real de Santa María con tres casos,
       sin campos pendientes y con dictamen desfavorable sustentado en cobertura completa.
-- [ ] T5. Datos de los PDF: expediente EXP, fecha con su documento, alimentadores leídos. (RF-15, RF-19, RF-20)
+- [x] T5. Datos de los PDF: expediente EXP, fecha con su documento, alimentadores leídos. (RF-15, RF-19, RF-20)
       Hecho cuando: `pytest -q tests/test_informe_factibilidad_un_paso.py -k documentos` en verde con
       textos sintéticos.
+      Hecho el 2026-11-02: `codigo_ficha` aparte del EXP; `fechas` y `alimentadores_leidos` con su
+      documento; `test_documentos_exp_codigo_de_ficha_fechas_y_alimentadores` (en
+      `tests/test_documentos_solicitud.py`, junto a los textos sintéticos).
 - [ ] T6. Formulario: potencia actual, incremento, NIS, estructura, Pcc y UTM; aviso de alimentador. (RF-14, RF-16, RF-17, RF-18, RF-19)
       Hecho cuando: `npm --prefix frontend run build` sin errores y la web probada en el navegador real.
 - [x] T8. Escalera por escalones: bancos, sección, terna; el primero que cumple. (RF-21, RF-22)
@@ -44,9 +50,11 @@
       Hecho cuando: `pytest -q tests/test_escalera_optima.py` en verde, con todas las secciones aptas
       en orden creciente y la menor que cumple elegida.
       Hecho el 2026-11-01: todas las aptas en la escalera y en el espacio del oráculo.
-- [ ] T12. Mejora de cada escalón en la evaluación y en el informe. (RF-28)
+- [x] T12. Mejora de cada escalón en la evaluación y en el informe. (RF-28)
       Hecho cuando: el informe de la evaluación lista bancos, cada sección y terna con la tensión que
       deja cada una.
+      Hecho el 2026-11-02: cada variante evaluada lleva `u_cargas` y `u_min_mt`, el Registro y la
+      tabla «Obras en escalera» los muestran; `test_cada_variante_dice_la_tension_que_deja`.
 - [x] T13. La consigna de la fuente en los cuatro casos. (RF-29)
       Hecho cuando: `pytest -q tests/test_casos_pf.py tests/test_ajuste_cabecera_guion.py` en verde, con
       la consigna de «Sin proyecto» copiada a «Con proyecto» y fijada también en el «Caso base».
@@ -56,12 +64,17 @@
       Hecho cuando: `pytest -q tests/test_escalera_optima.py` en verde, con tramos de distinta sección
       donde solo cambian los de menor corriente nominal que el conductor nuevo.
       Hecho el 2026-11-01: la lectura de la troncal lleva `tipo` e `inom_a`; `_escalon_seccion` filtra.
-- [ ] T15. Nodos de cada obra en la evaluación y en el informe. (RF-31)
+- [x] T15. Nodos de cada obra en la evaluación y en el informe. (RF-31)
       Hecho cuando: la lectura de la troncal da `desde` y `hasta` de cada tramo y el informe lista el
       nodo de MT de cada banco y los nodos de inicio y fin de cada tramo cambiado.
-- [ ] T16. Obras sobre el camino eléctrico de cada carga. (RF-32)
+      Hecho el 2026-11-02: `nodos` (tramo, desde, hasta) en cada obra de sección y terna y
+      `escalera_optima.ubicacion`; el Registro y la tabla de la web la dicen;
+      `test_cada_obra_dice_su_nodo_de_mt_o_sus_nodos_de_inicio_y_fin`.
+- [x] T16. Obras sobre el camino eléctrico de cada carga. (RF-32)
       Hecho cuando: `pytest -q tests/test_escalera_optima.py` en verde, con caminos sorteados donde sección
       y terna van sobre el camino de la carga y el banco en su barra de aguas arriba.
+      Hecho el 2026-11-01/02: `test_obras_sobre_el_camino_electrico_de_la_carga` (caminos sorteados) y
+      `test_banco_en_la_barra_existente_de_la_troncal`.
 - [x] T17. Con solución en la máxima no se pasa a otras obras ni a la SET nueva. (RF-33)
       Hecho cuando: `pytest -q tests/test_escalera_optima.py` en verde, con variantes que cumplen la
       máxima y no los sorteos: se elige la primera por prioridad y se avisa.

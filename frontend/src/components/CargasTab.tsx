@@ -1085,12 +1085,19 @@ function Escalera({ r }: { r: EscaleraResultado }) {
           {a.tabla.length > 0 && (
             <div className="table-wrap table-short">
               <table className="table">
-                <thead><tr><th>Variante</th><th>Con la máxima</th><th className="num">Sorteos que cumplen</th>
+                <thead><tr><th>Variante</th><th>Con la máxima</th><th>Tensión que deja</th>
+                  <th className="num">Sorteos que cumplen</th>
                   <th className="num">Inversión</th><th className="num">Costo anual</th><th>Por qué no</th></tr></thead>
                 <tbody>{a.tabla.map((v) => (
                   <tr key={v.nombre} className={v.nombre === a.elegida ? 'strong' : ''}>
-                    <td>{v.nombre}</td>
+                    <td>{v.nombre}
+                      {/* 063:RF-31: nodo de MT de cada banco y nodos de inicio y fin de los tramos. */}
+                      {(v.ubicacion ?? []).map((u) => <div key={u} className="muted small">{u}</div>)}</td>
                     <td>{v.error ? <span className="badge err">error</span> : v.maxima ? 'cumple' : 'no cumple'}</td>
+                    {/* 063:RF-28: cuánto mejora cada escalón, también cuando no basta. */}
+                    <td className="small">{Object.entries(v.u_cargas ?? {}).filter(([, u]) => u != null)
+                      .map(([b, u]) => `${b}: ${fmtNum(u as number, 3)} p.u.`).join(' · ')}
+                      {v.u_min_mt != null && <div className="muted">mínima de media {fmtNum(v.u_min_mt, 3)} p.u.</div>}</td>
                     <td className="num">{v.fraccion == null ? '—' : `${fmtNum(100 * v.fraccion, 0)} %`}</td>
                     <td className="num">{dinero(v.inversion)}</td>
                     <td className="num">{dinero(v.costo_anual)}</td>

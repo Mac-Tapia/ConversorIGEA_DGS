@@ -341,3 +341,34 @@ def test_con_solucion_en_la_maxima_no_se_pasa_a_otras_obras():
     assert '063:RF-33' in next(t['motivo'] for t in r['tabla'] if t['nombre'] == 'banco+seccion')
     sin_maxima = eo.elegir([_evaluada('a', False, None, 10.0)], P)
     assert sin_maxima['elegida'] is None and 'sin_confirmar_sorteos' not in sin_maxima
+
+
+@pytest.mark.parametrize('semilla', SEMILLAS)
+def test_cada_obra_dice_su_nodo_de_mt_o_sus_nodos_de_inicio_y_fin(semilla):
+    """063:RF-31 — el banco dice el nodo de MT donde va; la sección y la terna, cada tramo con su
+    nodo de inicio y su nodo final, y la obra entera desde el primero hasta el último, en orden
+    de la cabecera a la carga (SM218, 2026-11-01: el informe no decía dónde iba cada obra)."""
+    rng = random.Random(semilla)
+    n = rng.randint(4, 30)
+    red = [{'nombre': f'L{i}', 'desde': f'B{i - 1}' if i else 'CAB', 'hasta': f'B{i}',
+            'largo_m': rng.uniform(10, 900), 'corriente_a': rng.uniform(5, 60),
+            'inom_a': rng.choice([106.0, 140.0])} for i in range(n)]
+    destino = f'B{n - 1}'
+    camino = eo.camino_electrico(red, 'CAB', destino)
+    carga = [{'barra': destino, 'existe': True, 'indice_troncal': None, 'camino': camino,
+              'banco_en': f'B{n - 2}' if n > 1 else 'CAB'}]
+    vs, _ = eo.variantes('F1', 22.9, [], carga, _tipos(22.9), P, banco_kvar=450)
+    vistas = set()
+    for v in vs:
+        for o in v.obras:
+            texto = eo.ubicacion(o)
+            vistas.add(o['clase'])
+            if o['clase'] == 'condensador':
+                assert f"nodo de MT {o['barra']}" in texto, semilla
+            elif o['clase'] in ('seccion', 'terna'):
+                nodos = o['nodos']
+                assert [x['tramo'] for x in nodos] == o['tramos'], semilla
+                assert all(x['desde'] and x['hasta'] for x in nodos), semilla
+                assert f"desde el nodo {nodos[0]['desde']} hasta el nodo {nodos[-1]['hasta']}" in texto
+                assert nodos[-1]['hasta'] == destino or o['clase'] == 'seccion', semilla
+    assert {'terna'} <= vistas, semilla

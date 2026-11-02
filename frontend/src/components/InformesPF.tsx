@@ -412,12 +412,22 @@ function InformeEstudio({ project, feeders, ctx, busy, limites, limitesOk, limit
 }
 
 type Sol = Record<'cliente' | 'ubicacion' | 'tipo_solicitud' | 'potencia_kw' | 'fecha_solicitud' | 'set_nombre'
-  | 'tension_kv' | 'transformador' | 'expediente', string>;
+  | 'tension_kv' | 'transformador' | 'expediente' | 'potencia_actual_kw' | 'nis' | 'codigo_ficha', string>;
 const SOLICITUD: [keyof Sol, string, string?][] = [
   ['cliente', 'Cliente *'], ['ubicacion', 'Ubicación del predio *'], ['tipo_solicitud', 'Tipo de solicitud *'],
+  // 063:RF-14: en una ampliación, la potencia actual y la solicitada; el incremento se muestra.
+  ['potencia_actual_kw', 'Potencia actual (kW)', 'decimal'],
   ['potencia_kw', 'Potencia solicitada (kW) *', 'decimal'], ['fecha_solicitud', 'Fecha de la solicitud *', 'date'],
-  ['expediente', 'Expediente'], ['set_nombre', 'SET *'], ['tension_kv', 'Tensión (kV) *', 'decimal'],
+  // 063:RF-15, RF-18: el EXP de la distribuidora, el código interno de la ficha aparte y el NIS.
+  ['expediente', 'Expediente'], ['codigo_ficha', 'Código de la ficha'], ['nis', 'NIS'],
+  ['set_nombre', 'SET *'], ['tension_kv', 'Tensión (kV) *', 'decimal'],
   ['transformador', 'Transformador de la SET'],
+];
+/** 063:RF-17: datos documentales del punto de diseño (ficha); no son resultados del flujo. */
+type PuntoFicha = Record<'pcc_mva' | 'utm_x' | 'utm_y', string>;
+const PUNTO_FICHA: [keyof PuntoFicha, string, string?][] = [
+  ['pcc_mva', 'Potencia de cortocircuito (MVA)', 'decimal'], ['utm_x', 'UTM X (m)', 'decimal'],
+  ['utm_y', 'UTM Y (m)', 'decimal'],
 ];
 type Perd = Record<'sistema_electrico' | 'codigo_sistema' | 'reconocido_kw_pct' | 'reconocido_kwh_pct' | 'precio_compra', string>;
 const PERDIDAS: [keyof Perd, string, string?][] = [
@@ -441,13 +451,24 @@ function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, 
   const [f, fijar] = useGuardado(project, 'factibilidad', ctx.formularios.factibilidad, {
     clave: '', cab: { fecha: hoy(), numero: '', lugar: '', asunto: '', destinatario: '' } as Cabecera,
     sol: { cliente: '', ubicacion: '', tipo_solicitud: 'factibilidad de suministro', potencia_kw: '',
-      fecha_solicitud: '', set_nombre: '', tension_kv: '', transformador: '', expediente: '' } as Sol,
+      fecha_solicitud: '', set_nombre: '', tension_kv: '', transformador: '', expediente: '',
+      potencia_actual_kw: '', nis: '', codigo_ficha: '' } as Sol,
+    punto: { pcc_mva: '', utm_x: '', utm_y: '' } as PuntoFicha,
+    /** 063:RF-19: cada alimentador leído en los PDF, con su documento. */
+    leidos: [] as { valor: string; fichero: string }[],
+    /** 063:RF-20: cada fecha leída en los PDF, con su documento. */
+    fechas: [] as { valor: string; fichero: string }[],
     concesion: '' as '' | 'si' | 'no', fc: '',
     perd: { sistema_electrico: '', codigo_sistema: '', reconocido_kw_pct: '', reconocido_kwh_pct: '',
       precio_compra: '' } as Perd,
     trafo: { kv: '', sin_pct: '', con_pct: '', caso: '' } as Trafo, codigo: '', trafoCarga: '',
   });
-  const { clave, cab, sol, concesion, fc, perd, trafo, codigo } = f;
+  const { clave, cab, concesion, fc, perd, trafo, codigo } = f;
+  // Un formulario guardado antes de la spec 063 no trae los campos nuevos: se completan vacíos.
+  const sol: Sol = { ...{ potencia_actual_kw: '', nis: '', codigo_ficha: '' }, ...f.sol } as Sol;
+  const punto: PuntoFicha = { ...{ pcc_mva: '', utm_x: '', utm_y: '' }, ...(f.punto ?? {}) } as PuntoFicha;
+  const leidos = f.leidos ?? [];
+  const fechasLeidas = f.fechas ?? [];
   const carga = solas.find((c) => `${c.alimentador}|${c.sed}` === clave) ?? null;
   const setCab = (cambio: (c: Cabecera) => Cabecera) => fijar({ cab: cambio(cab) });
   const setSol = (cambio: (s: Sol) => Sol) => fijar({ sol: cambio(sol) });
@@ -517,14 +538,30 @@ function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, 
     const de: Partial<Sol> = { cliente: valor('cliente'), ubicacion: valor('ubicacion'),
       tipo_solicitud: valor('tipo_solicitud'), potencia_kw: valor('potencia_kw'), fecha_solicitud: valor('fecha'),
       expediente: [valor('solicitud'), valor('expediente')].filter(Boolean).join(' y '),
-      set_nombre: valor('set_nombre'), tension_kv: valor('tension_kv') };
+      set_nombre: valor('set_nombre'), tension_kv: valor('tension_kv'),
+      potencia_actual_kw: valor('potencia_actual_kw'), nis: valor('nis'), codigo_ficha: valor('codigo_ficha') };
     const nueva = { ...sol };
     for (const [k, v] of Object.entries(de) as [keyof Sol, string][]) {
       const libre = !nueva[k].trim() || (k === 'tipo_solicitud' && nueva[k] === 'factibilidad de suministro');
       if (v && libre) nueva[k] = v;
     }
-    fijar({ sol: nueva, ...(valor('lugar') && !cab.lugar.trim() ? { cab: { ...cab, lugar: valor('lugar') } } : {}) });
+    const nuevoPunto = { ...punto };
+    for (const k of ['pcc_mva', 'utm_x', 'utm_y'] as const) if (valor(k) && !nuevoPunto[k].trim()) nuevoPunto[k] = valor(k);
+    // 063:RF-16: la estructura de la ficha es el código del punto de diseño; la barra del modelo
+    // sigue siendo la del cálculo. Solo si el operador no escribió otro.
+    const estructura = valor('estructura');
+    const codigoLibre = !codigo.trim() || (carga && codigo === carga.barra);
+    const lista = (xs?: { valor: string | number; fichero: string }[]) =>
+      (xs ?? []).map((x) => ({ valor: String(x.valor), fichero: x.fichero }));
+    fijar({ sol: nueva, punto: nuevoPunto, leidos: lista(r.alimentadores_leidos), fechas: lista(r.fechas),
+      ...(estructura && codigoLibre ? { codigo: estructura } : {}),
+      ...(valor('lugar') && !cab.lugar.trim() ? { cab: { ...cab, lugar: valor('lugar') } } : {}) });
   };
+  /** 063:RF-19: un alimentador de los PDF que no es el de la carga elegida. */
+  const otroAlimentador = carga ? leidos.filter((x) => x.valor !== carga.alimentador) : [];
+  /** 063:RF-14: el incremento de una ampliación. */
+  const incremento = num(sol.potencia_kw) != null && num(sol.potencia_actual_kw) != null
+    ? (num(sol.potencia_kw) as number) - (num(sol.potencia_actual_kw) as number) : null;
 
   // 017:RF-124: la vista previa se dibuja en el servidor con lo guardado; no es un trabajo.
   const [vista, setVista] = useState<{ fichero: string; rotulo: string; cuando: number } | null>(null);
@@ -542,20 +579,25 @@ function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, 
   const faltan = ctx.faltan.factibilidad;
   const requeridos = SOLICITUD.filter(([, label]) => label.endsWith('*')).map(([k]) => k);
   const vacios = requeridos.filter((k) => !sol[k].trim());
-  const alim = carga?.alimentador ?? '';
+  // 063:RF-1, RF-2: el botón prepara los casos y corre sus flujos en el mismo trabajo; ya no
+  // exige haber pasado por 4.2. Usa DIgSILENT: espera a que su carril quede libre.
   const motivo = faltan.length ? `Falta en el perfil de empresa: ${faltan.join(', ')}.`
     : !carga ? 'Elija la carga nueva del informe.'
-      : ctx.estudios.sin?.alimentadores[alim] === undefined || ctx.estudios.con?.alimentadores[alim] === undefined
-        ? `Ejecute antes el estudio de flujo de ${alim} en 4.2, en «Sin» y en «Con proyecto».`
-        : vacios.length ? `Complete la solicitud: ${vacios.map((k) => SOLICITUD.find(([x]) => x === k)![1].replace(' *', '')).join(', ')}.`
-          : !limitesOk ? 'Escriba la banda de tensión y el umbral de cargabilidad.' : '';
+      : vacios.length ? `Complete la solicitud: ${vacios.map((k) => SOLICITUD.find(([x]) => x === k)![1].replace(' *', '')).join(', ')}.`
+        : !limitesOk ? 'Escriba la banda de tensión y el umbral de cargabilidad.'
+          : pfBusy ? 'DIgSILENT está ocupado con otro trabajo: espere a que termine.' : '';
+  // 063:RF-18: el NIS va en el asunto propuesto.
+  const asuntoPropuesto = `FACTIBILIDAD DE SUMINISTRO DE ${sol.cliente.toUpperCase()}`
+    + (sol.nis.trim() ? ` (NIS ${sol.nis.trim()})` : '');
   const generar = () => {
     if (!carga) return;
     const body: InformeFactibilidadForm = {
       project, alimentador: carga.alimentador, sed: carga.sed, ...cab,
-      asunto: cab.asunto || `FACTIBILIDAD DE SUMINISTRO DE ${sol.cliente.toUpperCase()}`,
-      limites: limites(), factor_carga: num(fc), codigo_punto: codigo,
+      asunto: cab.asunto || asuntoPropuesto,
+      limites: limites(), factor_carga: num(fc), codigo_punto: codigo, preparar_casos: true,
+      punto_ficha: { pcc_mva: num(punto.pcc_mva), utm_x: num(punto.utm_x), utm_y: num(punto.utm_y) },
       solicitud: { ...sol, potencia_kw: num(sol.potencia_kw), tension_kv: num(sol.tension_kv),
+        potencia_actual_kw: num(sol.potencia_actual_kw),
         en_concesion: concesion === '' ? null : concesion === 'si' },
       perdidas_reconocidas: { sistema_electrico: perd.sistema_electrico, codigo_sistema: perd.codigo_sistema,
         reconocido_kw_pct: num(perd.reconocido_kw_pct), reconocido_kwh_pct: num(perd.reconocido_kwh_pct),
@@ -608,6 +650,13 @@ function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, 
           {/* 017:RF-136, RF-139: la carta u oficio del solicitante rellena lo que está en blanco. */}
           {documento}
           <Campos campos={SOLICITUD} valores={sol} fijar={(k, v) => setSol((s) => ({ ...s, [k]: v }))} />
+          {incremento != null && <small className="muted span-2">Ampliación de {fmtNum(num(sol.potencia_actual_kw) as number, 0)} kW
+            a {fmtNum(num(sol.potencia_kw) as number, 0)} kW: incremento de {fmtNum(incremento, 0)} kW (063:RF-14).</small>}
+          {fechasLeidas.length > 1 && <small className="muted span-2">Fechas leídas: {fechasLeidas.map((x) =>
+            `${x.valor} (${x.fichero})`).join(' · ')}. Se propone la de la solicitud del interesado.</small>}
+          {otroAlimentador.length > 0 && <small className="alert alert-warn span-2">Los PDF dicen {otroAlimentador.map((x) =>
+            `${x.valor} (${x.fichero})`).join(', ')}, y la carga elegida está en {carga.alimentador}: compruebe que es la
+            carga correcta antes de generar.</small>}
           <label className="field"><span>¿Predio en el área de concesión?</span>
             <select value={concesion} onChange={(e) => setConcesion(e.target.value as '' | 'si' | 'no')}>
               <option value="">Sin confirmar (queda señalado)</option><option value="si">Sí</option><option value="no">No</option>
@@ -615,8 +664,13 @@ function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, 
           </label>
           <label className="field"><span>Código del punto de diseño</span>
             <input value={codigo} onChange={(e) => setCodigo(e.target.value)} />
-            <small className="muted">Barra donde el paso 3 conectó la carga: {carga.barra}.</small>
+            <small className="muted">Barra donde el paso 3 conectó la carga: {carga.barra}. Con la ficha, la
+              estructura del punto de diseño; el cálculo sigue en la barra.</small>
           </label>
+        </div>
+        <p><strong>Punto de diseño (ficha)</strong></p>
+        <div className="form-grid">
+          <Campos campos={PUNTO_FICHA} valores={punto} fijar={(k, v) => fijar({ punto: { ...punto, [k]: v } })} />
         </div>
         {/* 017:RF-124: la imagen de ubicación antes de generar, con la geografía de 4.2. */}
         <div className="row">

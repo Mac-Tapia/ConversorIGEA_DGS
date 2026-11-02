@@ -2203,10 +2203,21 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
             fila = {'nombre': v['nombre'], 'maxima': False, 'motivos': [], 'fraccion': None,
                     'perdidas_kw': None, 'error': None, 'sin_sortear': None}
             con_max, fila['error'] = con_variante(v, lambda: medida_para_criterio(app, alims, feeders))
+            mejora = ''
             if con_max is not None:
                 fila['perdidas_kw'] = con_max['perdidas_kw']
                 fila['maxima'], fila['motivos'] = cumple(sin_max, con_max, barras, p)
-            print(f"  {v['nombre']}: máxima {'cumple' if fila['maxima'] else 'no cumple'}", flush=True)
+                # 063:RF-28: cuánto deja cada escalón, también cuando no basta: la tensión de cada
+                # barra de carga nueva y la mínima de media (SM218: «primero debiste probar con
+                # bancos, ver cuánto mejora»).
+                u = con_max.get('u') or {}
+                fila['u_cargas'] = {b: u.get(b) for b in barras}
+                fila['u_min_mt'] = min(u.values()) if u else None
+                partes = [f'{b} a {x:.3f} p.u.' for b, x in fila['u_cargas'].items() if x is not None]
+                if fila['u_min_mt'] is not None:
+                    partes.append(f"mínima de media {fila['u_min_mt']:.3f} p.u.")
+                mejora = f" ({'; '.join(partes)})" if partes else ''
+            print(f"  {v['nombre']}: máxima {'cumple' if fila['maxima'] else 'no cumple'}{mejora}", flush=True)
             filas.append((v, fila))
             # 042:RF-2: para saber si las cargas caben basta una variante con costo que cumpla;
             # la más barata solo hace falta al aplicar. Se sortea en cuanto cumple la máxima y,

@@ -520,6 +520,27 @@ def test_el_boton_prepara_los_casos_y_corre_los_flujos_en_el_mismo_trabajo(clien
                                               json={**FACTIBILIDAD, 'preparar_casos': True}).json())
     assert fin['status'] == 'done', fin.get('error')
     assert llamadas == [('plan', 'PRY', ['AL01'], ['flujo', 'flujo_desequilibrado']), ('ejecutar', 'tk')]
+    assert fin['lane'] == 'powerfactory', 'prepara en DIgSILENT: va a su carril (063:RF-1)'
     assert fin['result']['estudios'][1] == 'estudio_con_flujo_desequilibrado_tk.json'
     resumen = json.loads((salida / fin['result']['json']).read_text(encoding='utf-8'))
     assert json.dumps(resumen, ensure_ascii=False).count('Cargas nuevas') >= 1, 'el estado sin obras entra'
+
+
+def test_ampliacion_nis_y_ficha_llegan_del_formulario_al_word(client, tmp_path):
+    """063:RF-14, 063:RF-17, 063:RF-18 — la potencia previa, el NIS y la Pcc y UTM de la ficha
+    viajan de la web al Word; antes la API no los aceptaba y el informe no los decía."""
+    wid, salida = _espacio(client, tmp_path)
+    _carga_aplicada(client, wid, salida)
+    cuerpo = {**FACTIBILIDAD,
+              'solicitud': {**FACTIBILIDAD['solicitud'], 'potencia_kw': 800, 'potencia_actual_kw': 300,
+                            'nis': '123456789', 'codigo_ficha': 'F-77'},
+              'punto_ficha': {'pcc_mva': 48.5, 'utm_x': 410000.5, 'utm_y': 8400000.25}}
+    fin = esperar_trabajo(client, client.post(f'/api/workspaces/{wid}/informes/factibilidad', json=cuerpo).json())
+    assert fin['status'] == 'done', fin.get('error')
+    assert fin['lane'] == 'engine', 'solo escribir no ocupa el carril de DIgSILENT'
+    documento = docx.Document(salida / fin['result']['informe'])
+    texto = '\n'.join(p.text for p in documento.paragraphs)
+    celdas = ' '.join(c.text for t in documento.tables for fila in t.rows for c in fila.cells)
+    assert 'Ampliación de 300 kW a 800 kW (+500 kW)' in texto
+    assert 'NIS 123456789' in texto
+    assert '48.5' in celdas and '410000.5' in celdas

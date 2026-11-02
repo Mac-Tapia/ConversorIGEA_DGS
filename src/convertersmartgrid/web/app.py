@@ -361,6 +361,19 @@ class SolicitudIn(BaseModel):
     transformador: str = ''
     expediente: str = ''
     en_concesion: bool | None = None
+    #: 063:RF-14, RF-15, RF-18: potencia previa de una ampliación, código interno de la
+    #: ficha y NIS. El Word ya los escribía, pero la web no los recibía.
+    potencia_actual_kw: float | None = Field(None, ge=0)
+    codigo_ficha: str = ''
+    nis: str = ''
+
+
+class PuntoFichaIn(BaseModel):
+    """063:RF-17: datos del punto de diseño que da la ficha; no son resultados del flujo."""
+
+    pcc_mva: float | None = Field(None, gt=0)
+    utm_x: float | None = None
+    utm_y: float | None = None
 
 
 class PerdidasReconocidasIn(BaseModel):
@@ -424,6 +437,7 @@ class InformeFactibilidadIn(BaseModel):
     perdidas_reconocidas: PerdidasReconocidasIn = Field(default_factory=PerdidasReconocidasIn)
     transformador_set: TransformadorSetIn = Field(default_factory=TransformadorSetIn)
     codigo_punto: str = ''
+    punto_ficha: PuntoFichaIn = Field(default_factory=PuntoFichaIn)
     #: 063:RF-1: el botón prepara los casos y corre sus flujos en el mismo trabajo; ``False``
     #: escribe con los flujos ya guardados (las pruebas sin DIgSILENT, o rehacer el Word).
     preparar_casos: bool = True
