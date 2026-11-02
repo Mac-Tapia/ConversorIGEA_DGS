@@ -90,7 +90,9 @@ def test_ruta_de_la_web(tmp_path, monkeypatch):
     with TestClient(create_app(tmp_path / 'web')) as c:
         wid = c.post('/api/workspaces').json()['id']
         assert c.post(f'/api/workspaces/{wid}/agente/proyecto', json={'sistema': 'Pisco', 'periodo': 'julio'}).status_code == 422
-        job = c.post(f'/api/workspaces/{wid}/agente/proyecto',
-                     json={'sistema': 'Pisco', 'periodo': '2026-07', 'reiniciar': True}).json()
+        cuerpo = {'sistema': 'Pisco', 'periodo': '2026-07', 'reiniciar': True}
+        # 067:RF-38: la orden trae la huella de la lista que el operador vio.
+        lista = c.post(f'/api/workspaces/{wid}/agente/proyecto/lista', json=cuerpo).json()
+        job = c.post(f'/api/workspaces/{wid}/agente/proyecto', json={**cuerpo, 'confirmacion': lista['confirmacion']}).json()
         assert job['lane'] == 'asistente' and esperar_trabajo(c, job)['status'] == 'done'
     assert vistos == [({'sistema': 'Pisco', 'periodo': '2026-07'}, True)]

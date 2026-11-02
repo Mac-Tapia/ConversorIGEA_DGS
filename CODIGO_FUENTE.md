@@ -403,6 +403,9 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `frontend/src/components/EquipoAsistente.tsx` | Roles, permisos y revisión de propuestas en la consola del asistente. | 065 |
 | `frontend/src/equipoAsistente.ts` | Cliente tipado de permisos, acciones y revisiones del equipo. | 065 |
 | `src/convertersmartgrid/asistente/equipo.py` | Gobierno de herramientas y permisos sellados por plan, rol y fuente. | 065 |
+| `src/convertersmartgrid/asistente/evidencias_web.py` | Custodia como evidencia del espacio el resultado de los informes y estudios que terminan bien, con su proyecto y su fuente verdaderos, para la revisión por roles. | 067 (RF-1 a RF-7) |
+| `src/convertersmartgrid/asistente/planes_guardados.py` | Planes que escriben guardados por espacio con escritura atómica: sobreviven a un reinicio, sin confirmación y sin reanudarse. | 067 (RF-12 a RF-19) |
+| `src/convertersmartgrid/asistente/modelos_en_uso.py` | Pone en uso lo que el registro aprobó con un único puntero atómico, conserva el anterior y vuelve a él con el registro de acuerdo. | 067 (RF-20 a RF-24) |
 | `src/convertersmartgrid/asistente/revision_roles.py` | Revisión local por roles sin autorización de escrituras nativas. | 065 |
 | `src/convertersmartgrid/preflight_contract.py` | Contrato JSON del modelo efectivo, fijado al DGS antes de su importación. | 065 |
 | `src/convertersmartgrid/runtime_paths.py` | Raíces externas, staging por volumen, custodia y reconciliación de temporales. | 065 |

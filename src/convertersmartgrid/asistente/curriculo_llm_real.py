@@ -24,6 +24,8 @@ PRUEBA_NUEVA = {
  'cargas_nuevas': 'Integra en {proyecto} las cargas del libro {ruta} para {alimentadores}',
  'obras': 'Lleva a PowerFactory las intervenciones pendientes de {alimentadores} en {proyecto}',
  'estudios': 'Lanza los estudios electricos de {alimentadores} dentro del proyecto {proyecto}',
+ 'obras_escalera': 'Recorre la escalera de obras de {alimentadores} dentro de {proyecto}',
+ 'optimizar_con_proyecto': 'Busca la optimizacion de con proyecto para {alimentadores} en {proyecto}',
  'transferencia': 'Analiza una transferencia de demanda entre {alimentadores} en {proyecto}',
  'pide': 'Prepara el diagnostico y las inversiones PIDE de {alimentadores} para {proyecto}',
  'gemelo_aprender': 'Captura {numero} escenarios nuevos en una copia de {proyecto} para aprender con {alimentadores}',

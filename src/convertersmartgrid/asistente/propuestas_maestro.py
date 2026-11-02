@@ -46,6 +46,8 @@ PLANTILLAS = {
     'cargas_nuevas': ('Incorpora los nuevos clientes de «{ruta}» en {alimentadores} del proyecto «{proyecto}»', 'Agrega las cargas nuevas del archivo «{ruta}» para {alimentadores} de «{proyecto}»'),
     'obras': ('Aplica las obras guardadas de {alimentadores} en «{proyecto}»', 'Ejecuta las mejoras seleccionadas para {alimentadores} del proyecto «{proyecto}»'),
     'estudios': ('Ejecuta los estudios eléctricos seleccionados de {alimentadores} en «{proyecto}»', 'Lanza las simulaciones de estudios para {alimentadores} del proyecto «{proyecto}»'),
+    'obras_escalera': ('Sube la escalera de refuerzos de {alimentadores} en «{proyecto}»', 'Prueba obras por escalones en {alimentadores} del proyecto «{proyecto}»'),
+    'optimizar_con_proyecto': ('Optimiza el caso con proyecto de {alimentadores} en «{proyecto}»', 'Calcula la mejor salida de con proyecto para {alimentadores} de «{proyecto}»'),
     'transferencia': ('Estudia pasar carga entre {alimentadores} dentro de «{proyecto}»', 'Realiza una transferencia de demanda entre {alimentadores} en «{proyecto}»'),
     'pide': ('Desarrolla la planificación PIDE de {alimentadores} para «{proyecto}»', 'Ejecuta el plan de inversiones PIDE de «{proyecto}» en {alimentadores}'),
     'gemelo_aprender': ('Obtén {numero} escenarios nuevos para que aprenda el gemelo de {alimentadores} en «{proyecto}»', 'Recoge episodios de aprendizaje del gemelo con {numero} escenarios de {alimentadores} en «{proyecto}»'),

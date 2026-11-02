@@ -139,6 +139,11 @@ def _pasos(tarea: str, datos: Mapping[str, Any], extras: Mapping[str, Any]) -> l
                     'project': proyecto, 'feeders': feeders,
                     'estudios': [e['clave'] for e in r[-1].get('ofrecidos') or []]}, espera=False),
                 Paso('ejecutar los estudios', 'POST', lambda r: f"/pf/estudios/{r[-1]['token']}/ejecutar", None)]
+    if tarea == 'obras_escalera':
+        return [Paso('escalera de obras', 'POST', '/pf/obras/escalera', {'project': proyecto, 'feeders': feeders})]
+    if tarea == 'optimizar_con_proyecto':
+        return [Paso('optimizar «Con proyecto»', 'POST', '/pf/obras/con-proyecto',
+                     {'project': proyecto, 'feeders': feeders})]
     if tarea == 'transferencia':
         return [Paso('transferencia de carga', 'POST', '/pf/transferencia',
                      {'project': proyecto, 'feeders': feeders[:2]})]

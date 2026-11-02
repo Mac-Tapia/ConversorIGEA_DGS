@@ -11,6 +11,7 @@ corrección del operador (RF-15), y se promueve con las mismas puertas.
 """
 from __future__ import annotations
 
+import json
 import random
 import re
 from collections.abc import Callable, Sequence
@@ -245,6 +246,95 @@ def entrenar_y_promover(*, cfg: Configuracion | None = None, minimo_subtipo: flo
         promover(version, f"subtipo {m['acierto_subtipo']:.3f}", 'informes')
     log(f"Clasificador: candidato {version}: {'promovido' if not fallos else 'no promovido: ' + '; '.join(fallos)}")
     return {'version': version, 'promovido': not fallos, 'fallos': fallos, **m}
+
+
+def guardar_candidato(modelo: ClasificadorInformes, carpeta: Path) -> None:
+    """Pesos, metadatos y predicciones de reapertura de un candidato, fuera de los modelos en uso."""
+    carpeta.mkdir(parents=True, exist_ok=False)
+    _torch().save({k: v.detach().cpu() for k, v in modelo.red.state_dict().items()}, carpeta / 'pesos.pt')
+    (carpeta / 'modelo.json').write_text(json.dumps({
+        'version': carpeta.name, 'cfg': asdict(modelo.cfg), 'simbolos': modelo.simbolos,
+        'subtipos': modelo.subtipos, 'tipos': list(TIPOS_INFORME)}, ensure_ascii=False), encoding='utf-8')
+    textos = ['estudio de refuerzo de red', 'factibilidad de una carga nueva']
+    (carpeta / 'readback.json').write_text(json.dumps({
+        'textos': textos, 'predicciones': [modelo.clasificar(t) for t in textos]}, ensure_ascii=False), encoding='utf-8')
+
+
+def verificar_reapertura(carpeta: Path) -> dict[str, Any]:
+    """El candidato reabierto en un proceso nuevo da lo mismo que al guardarlo."""
+    carpeta = Path(carpeta)
+    meta = json.loads((carpeta / 'modelo.json').read_text(encoding='utf-8'))
+    prueba = json.loads((carpeta / 'readback.json').read_text(encoding='utf-8'))
+    cfg = Configuracion(**meta['cfg'])
+    red = construir_red(len(meta['simbolos']) + 3, {'tipo': len(TIPOS_INFORME), 'subtipo': len(meta['subtipos'])}, cfg)
+    red.load_state_dict(_torch().load(carpeta / 'pesos.pt', weights_only=True, map_location='cpu'))
+    red.to(_dispositivo()).eval()
+    modelo = ClasificadorInformes(red, meta['simbolos'], meta['subtipos'], cfg, meta.get('version', ''))
+    obtenidas = [modelo.clasificar(t) for t in prueba['textos']]
+    iguales = all(a['tipo'] == b['tipo'] and a['subtipo'] == b['subtipo']
+                  and abs(a['confianza_subtipo'] - b['confianza_subtipo']) < 1e-6
+                  for a, b in zip(obtenidas, prueba['predicciones'], strict=True))
+    return {'ok': iguales, 'ejemplos': len(obtenidas), 'proceso_nuevo': True}
+
+
+def entrenar_gobernado(registro, destino: Path, *, cfg: Configuracion | None = None, minimo_subtipo: float = 0.9,
+                       log: Callable[[str], None] = lambda _m: None, reabrir=None) -> dict[str, Any]:
+    """El clasificador por el registro y la misma puesta en uso que las órdenes (067:RF-26, RF-27).
+
+    Las mismas puertas que ``entrenar_y_promover``. La tarea decía que se reentrenaba y no se hacía; sin
+    informes reales en la prueba solo mediría sus propias plantillas, y eso no es evidencia de nada.
+    """
+    from .modelos_en_uso import aplicar_decision
+
+    ent, prueba_real = reales()
+    if not prueba_real:
+        motivo = (f'sin informes reales en la prueba ({len(ent)} para entrenar): el clasificador no se entrena '
+                  'y sigue el que está en uso')
+        log(f'Clasificador: {motivo}')
+        c = registro.registrar_candidato(
+            'clasificador', model_manifest={'algorithm': 'transformer_informes', 'training_completed': False},
+            dataset_manifest={'informes_reales': len(ent)}, metrics={},
+            decision={'status': 'BLOQUEADO_POR_DATOS', 'gates': {'approved': False}, 'fallos': [motivo]},
+            smoke_reload={'ok': False, 'motivo': 'no entrenado'})
+        return {'entrenado': False, 'status': 'BLOQUEADO_POR_DATOS', 'motivo': motivo, 'candidato': c,
+                **aplicar_decision('clasificador', c)}
+    cfg = cfg or Configuracion(epocas=12)
+    subtipos = subtipos_del_perfil()
+    subtipos += sorted({s for _t, _tp, s in ent + prueba_real} - set(subtipos))
+    candidato = entrenar(generar(subtipos, semilla=cfg.semilla) + ent * 5, subtipos, cfg, log)
+    prueba = generar(subtipos, por_subtipo=25, semilla=SEMILLA_PRUEBA) + prueba_real
+    m = evaluar(candidato, prueba)
+    actual = cargar()
+    del_actual = evaluar(actual, prueba) if actual is not None and actual.subtipos == subtipos else None
+    fallos = []
+    if m['acierto_subtipo'] < minimo_subtipo:
+        fallos.append(f"acierto de subtipo {m['acierto_subtipo']:.3f} bajo {minimo_subtipo}")
+    if del_actual and m['acierto_subtipo'] < del_actual['acierto_subtipo'] - 1e-9:
+        fallos.append('acierta menos que el clasificador en uso')
+    final = Path(destino) / 'clasificador'
+    guardar_candidato(candidato, final)
+    if reabrir is None:
+        import sys
+
+        from ..model_registry import reabrir_en_subproceso
+        herramienta = Path(__file__).resolve().parents[3] / 'tools/asistente_destilar.py'
+        reabrir = lambda c: reabrir_en_subproceso([sys.executable, str(herramienta), 'verificar', '--familia',  # noqa: E731
+                                                   'clasificador', '--modelo', str(c)])
+    smoke = reabrir(final)
+    if not smoke.get('ok'):
+        fallos.append('falló la reapertura en un proceso nuevo')
+    aprobado = not fallos
+    c = registro.registrar_candidato(
+        'clasificador', model_manifest={'algorithm': 'transformer_informes', 'cfg': asdict(cfg),
+                                        'subtipos': subtipos, 'training_completed': True},
+        dataset_manifest={'informes_reales': len(ent) + len(prueba_real), 'prueba_real': len(prueba_real)},
+        metrics={'candidato': m, 'en_uso': del_actual},
+        decision={'status': 'PROMOVIDO' if aprobado else 'RECHAZADO', 'gates': {'approved': aprobado}, 'fallos': fallos},
+        smoke_reload=smoke,
+        artifacts=[p for p in (final / n for n in ('pesos.pt', 'modelo.json', 'readback.json')) if p.is_file()])
+    uso = aplicar_decision('clasificador', c)
+    log(f"Clasificador: {'en uso ' + str(uso['version']) if uso['promovido'] else 'no pasa: ' + uso['motivo']}")
+    return {'entrenado': True, 'status': c['status'], 'candidato': c, 'fallos': fallos, **m, **uso}
 
 
 def texto_de_docx(ruta: Path) -> str:

@@ -7,11 +7,10 @@ import json
 def _perfectas():
     from convertersmartgrid.asistente.propuestas_maestro import generar_propuestas
     from convertersmartgrid.asistente.tareas import TAREAS
-    filas, _ = generar_propuestas()
-    return {'ejemplos': 200, 'unicos': 200, 'tareas': 27, 'acierto_tarea': 1., 'f1_datos': 1.,
+    filas, meta = generar_propuestas()
+    return {'ejemplos': 200, 'unicos': 200, 'tareas': len(TAREAS), 'acierto_tarea': 1., 'f1_datos': 1.,
         'confirmaciones_conservadas': True, 'sin_fuga': True,
-        'familias': {t: {'ejemplos': 8 if i < 11 else 7, 'acierto_tarea': 1., 'f1_datos': 1.}
-                     for i,t in enumerate(sorted(TAREAS))},
+        'familias': {t: {'ejemplos': meta['por_tarea'][t], 'acierto_tarea': 1., 'f1_datos': 1.} for t in TAREAS},
         'casos': [{'record_id': r['record_id'], 'esperado': r['tarea'], 'obtenido': r['tarea'],
                    'correcto': True, 'vp': len(r['datos']), 'fp': 0, 'fn': 0, 'confirmacion': True} for r in filas]}
 
@@ -95,7 +94,8 @@ def test_resumen_sin_casos_completos_consistentes_no_aprueba(cambio):
 def test_calidad_insuficiente_no_cumple_por_tener_200_filas():
     """047:RF-17 — cumplir el tamaño no rebaja las puertas de precisión."""
     from convertersmartgrid.asistente.aceptacion import decidir_aceptacion
-    m = {'ejemplos': 200, 'unicos': 200, 'tareas': 27, 'acierto_tarea': .8, 'f1_datos': 1.,
+    from convertersmartgrid.asistente.tareas import TAREAS
+    m = {'ejemplos': 200, 'unicos': 200, 'tareas': len(TAREAS), 'acierto_tarea': .8, 'f1_datos': 1.,
          'confirmaciones_conservadas': True, 'sin_fuga': True}
     assert not decidir_aceptacion(m, {})['asistida']['aprobada']
 
@@ -216,10 +216,11 @@ def test_metrica_invalida_nunca_aprueba(valor):
     """047:RF-17 — las puertas rechazan métricas no finitas, booleanas o fuera de rango."""
     from convertersmartgrid.asistente.aceptacion import decidir_aceptacion
     from convertersmartgrid.asistente.tareas import TAREAS
-    m = {'ejemplos': 200, 'unicos': 200, 'tareas': 27, 'acierto_tarea': 1., 'f1_datos': 1.,
+    from convertersmartgrid.asistente.propuestas_maestro import generar_propuestas
+    m = {'ejemplos': 200, 'unicos': 200, 'tareas': len(TAREAS), 'acierto_tarea': 1., 'f1_datos': 1.,
          'confirmaciones_conservadas': True, 'sin_fuga': True,
-         'familias': {t: {'ejemplos': 8 if i < 11 else 7, 'acierto_tarea': 1., 'f1_datos': 1.}
-                      for i, t in enumerate(sorted(TAREAS))}}
+         'familias': {t: {'ejemplos': n, 'acierto_tarea': 1., 'f1_datos': 1.}
+                      for t, n in generar_propuestas()[1]['por_tarea'].items()}}
     m['familias'][next(iter(TAREAS))]['f1_datos'] = valor
     assert not decidir_aceptacion(m, {})['asistida']['aprobada']
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../context';
-import type { AsistentePlan, AsistenteRespuesta, EstadoModelos } from '../types';
+import type { AsistentePlan, AsistenteRespuesta, EstadoModelos, ListaProyecto } from '../types';
 import type { EstadoAceptacionAgente } from '../asistenteAceptacion';
 import { MonitorAgente } from './MonitorAgente';
 import { EquipoAsistente } from './EquipoAsistente';
@@ -22,6 +22,16 @@ function Plan({ plan }: { plan: AsistentePlan }) {
       {plan.tarea
         ? <p><b>{plan.descripcion}</b> <span className="muted small">({plan.interpretado_por}, {Math.round(plan.confianza * 100)} %)</span></p>
         : <p className="alert alert-warn">No entendí la orden.</p>}
+      {(plan.avisos ?? []).map((a) => <p key={a} className="alert alert-warn">{a}</p>)}
+      {plan.guardado && (
+        <p className={plan.guardado.vigente ? 'small' : 'alert alert-warn'}>
+          {plan.guardado.estado === 'interrumpido'
+            ? 'Este plan estaba ejecutándose cuando se cortó la web: pudo quedar a medias y no se reanuda solo. '
+            : 'Plan guardado, a la espera de su confirmación. '}
+          {plan.guardado.ultimo_error && `Último intento: ${plan.guardado.ultimo_error}. `}
+          {!plan.guardado.vigente && `No se puede confirmar: ${plan.guardado.motivo}.`}
+        </p>
+      )}
       {datos.length > 0 && (
         <ul className="small">{datos.map(([k, v]) => <li key={k}><b>{k}</b>: {Array.isArray(v) ? v.join(', ') : String(v)}</li>)}</ul>
       )}
@@ -47,10 +57,10 @@ function Modelos() {
     }}>
       <summary className="small">Estado de los modelos y evidencia de evaluación</summary>
       {modelos && <table className="small">
-        <thead><tr><th>Familia</th><th>Algoritmo</th><th>Estado</th><th>Observaciones</th></tr></thead>
+        <thead><tr><th>Familia</th><th>Algoritmo</th><th>Estado</th><th>En uso</th><th>Observaciones</th></tr></thead>
         <tbody>{modelos.familias.map((f) => <tr key={f.familia}>
           <td>{f.familia}</td><td>{f.algorithm ?? '—'}</td>
-          <td>{f.estado ?? 'Pendiente de evidencia'}</td><td>{f.bloqueos.join('; ') || '—'}</td>
+          <td>{f.estado ?? 'Pendiente de evidencia'}</td><td>{f.en_uso ?? '—'}</td><td>{f.bloqueos.join('; ') || '—'}</td>
         </tr>)}</tbody>
       </table>}
     </details>
@@ -126,13 +136,20 @@ function Registro() {
 
 /** 027:RF-43, RF-44: el agente hace el proyecto entero; si se corta, retoma donde quedó. */
 function ProyectoDesdeCero() {
-  const { ws, startJob, active } = useApp();
+  const { ws, run, startJob, active } = useApp();
+  const [lista, setLista] = useState<ListaProyecto | null>(null);
   const [sistema, setSistema] = useState('');
   const [periodo, setPeriodo] = useState('');
   const [ruta, setRuta] = useState('');
   const [cargas, setCargas] = useState('');
   const [reiniciar, setReiniciar] = useState(false);
   const listo = sistema.trim() && /^\d{4}(-\d{2})?$/.test(periodo.trim());
+  const solicitud = { sistema: sistema.trim(), periodo: periodo.trim(), ruta: ruta.trim() || undefined,
+    ruta_cargas: cargas.trim() || undefined, reiniciar };
+  // Cualquier cambio deja de ser lo que el operador revisó: el botón de confirmar desaparece.
+  useEffect(() => { setLista(null); }, [ws.id, sistema, periodo, ruta, cargas, reiniciar]);
+  const escrituras = lista?.etapas_escritura ?? [];
+  const textoEtapa = { pendiente: 'se hará', hecha: 'ya hecha, no se repite', se_omitira: 'se omitirá', falta_dato: 'falta un dato' } as const;
   return (
     <details>
       <summary className="small">Proyecto desde cero (el agente hace todas las etapas)</summary>
@@ -151,11 +168,20 @@ function ProyectoDesdeCero() {
             <input value={cargas} onChange={(e) => setCargas(e.target.value)} /></label>
           <label className="row"><input type="checkbox" checked={reiniciar} onChange={(e) => setReiniciar(e.target.checked)} />
             Empezar de nuevo</label>
-          <button className="btn btn-primary" disabled={!listo || Boolean(active.asistente)}
-            onClick={() => startJob(() => api.agenteProyecto(ws.id, { sistema: sistema.trim(), periodo: periodo.trim(),
-              ruta: ruta.trim() || undefined, ruta_cargas: cargas.trim() || undefined, reiniciar }))}>
-            Hacer el proyecto</button>
+          <button className="btn" disabled={!listo} onClick={() => void run(() => api.agenteProyectoLista(ws.id, solicitud)).then((r) => r && setLista(r))}>
+            Ver las etapas</button>
         </div>
+        {lista && <div className="stack">
+          <p>Un solo clic confirma las {escrituras.length} etapas que escriben en DIgSILENT o en disco:</p>
+          <ol>{lista.etapas.map((e) => <li key={e.nombre}>
+            <b>{e.nombre}</b>: {e.descripcion} <span className="muted">({textoEtapa[e.estado]}{e.falta.length > 0 && `: ${e.falta.join(', ')}`})</span>
+          </li>)}</ol>
+          {lista.bloqueo && <p className="alert alert-warn">{lista.bloqueo}</p>}
+          <button className="btn btn-primary" disabled={Boolean(active.asistente) || Boolean(lista.bloqueo) || escrituras.length === 0
+              || lista.etapas.some((e) => e.estado === 'falta_dato')}
+            onClick={() => startJob(() => api.agenteProyecto(ws.id, { ...solicitud, confirmacion: lista.confirmacion }))}>
+            Confirmar estas {escrituras.length} etapas y hacer el proyecto</button>
+        </div>}
       </div>
     </details>
   );
@@ -169,9 +195,16 @@ export function Asistente() {
   const [correccion, setCorreccion] = useState<Record<string, string>>({});
 
   useEffect(() => {
+    let vigente = true;
     setHistorial([]);
     setCorreccion({});
-  }, [ws.id]);
+    // 067:RF-19: lo que quedó por confirmar antes de reiniciar la web o recargar la página.
+    void run(() => api.asistentePlanes(ws.id)).then((r) => {
+      if (vigente && r) setHistorial((h) => [...r.planes.filter((p) => !h.some((x) => x.r?.plan.id === p.id))
+        .map((plan) => ({ texto: plan.texto, r: { plan } })), ...h]);
+    });
+    return () => { vigente = false; };
+  }, [ws.id, run]);
 
   useEffect(() => {
     setHistorial((rows) => {
@@ -237,7 +270,7 @@ export function Asistente() {
           {enviando ? 'Interpretando…' : 'Enviar'}
         </button>
         <button className="btn btn-ghost" disabled={Boolean(active.engine)}
-          title="Reentrena el Transformer de órdenes y el clasificador de informes con lo confirmado y corregido"
+          title="Reentrena el Transformer de órdenes y, si hay informes reales, el clasificador. Solo pasa a uso lo que aprueben sus puertas; si no, sigue el modelo actual"
           onClick={() => startJob(() => api.asistenteEntrenar(ws.id))}>Reentrenar</button>
       </div>
       <Registro />
@@ -272,6 +305,7 @@ export function Asistente() {
             {job && (
               <p className={job.status === 'failed' ? 'alert alert-error' : 'small'}>
                 Trabajo «{job.title}»: {job.status}{job.error ? ` — ${job.error}` : ''}
+                {typeof job.result?.texto === 'string' && ` — ${job.result.texto}`}
               </p>
             )}
             {entregables.length > 0 && (
@@ -281,7 +315,7 @@ export function Asistente() {
             )}
             {plan.listo && plan.escribe && !x.trabajo && (
               <div className="row">
-                <button className="btn btn-primary" onClick={() => void confirmar(i, plan.id)}>Confirmar y ejecutar</button>
+                <button className="btn btn-primary" disabled={plan.guardado?.vigente === false} onClick={() => void confirmar(i, plan.id)}>Confirmar y ejecutar</button>
                 <button className="btn btn-ghost" title="El plan no es lo que pidió: cuenta como penalización para el modelo"
                   onClick={() => void rechazar(i, plan.id)}>Rechazar</button>
               </div>

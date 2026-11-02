@@ -35,6 +35,8 @@ class Plan:
     interpretado_por: str = ''
     confianza: float = 0.0
     alternativas: list[tuple[str, float]] = field(default_factory=list)
+    #: 067:RF-9, RF-10: lo que el operador debe saber de quién interpretó la orden.
+    avisos: list[str] = field(default_factory=list)
 
     @property
     def listo(self) -> bool:
@@ -43,6 +45,14 @@ class Plan:
     def publico(self) -> dict:
         return {**asdict(self), 'listo': self.listo,
                 'descripcion': TAREAS[self.tarea].descripcion if self.tarea else ''}
+
+
+def aviso_sin_transformer(motivo: str, modelo: str) -> str:
+    """El Transformer no cargó y el operador lo lee (067:RF-9, RF-10): sin GPU se seguía con Ollama
+    sin decirlo, y una orden mal entendida parecía un fallo del Transformer."""
+    respondio = (f'Esta orden la interpretó {modelo}.' if modelo not in ('', 'ninguno') else
+                 'Ollama tampoco la entendió o no está en marcha: no respondió ninguno, así que no se adivina.')
+    return f'El Transformer de órdenes no está disponible: {motivo} {respondio}'
 
 
 def _clave(s: str) -> str:
@@ -88,7 +98,8 @@ def resolver(interp: Interpretacion, vocab: Mapping[str, Sequence[str]]) -> Plan
         return plan
     tarea = TAREAS[interp.tarea]
     plan.escribe, plan.modo = tarea.escribe, tarea.modo
-    quien = 'el Transformer propio' if interp.modelo == 'transformer' else f'el modelo local {interp.modelo}'
+    quien = ('el Transformer propio' if interp.modelo == 'transformer' else
+             'la frase literal del catálogo' if interp.modelo == 'catalogo' else f'el modelo local {interp.modelo}')
     plan.razonamiento.append(f'Entendí «{tarea.descripcion}» con {quien} (confianza {interp.confianza:.0%})'
                              + (f': {interp.razon}' if interp.razon else '.'))
     for d in tarea.datos:

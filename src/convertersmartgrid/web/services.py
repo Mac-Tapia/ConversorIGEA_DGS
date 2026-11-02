@@ -5888,7 +5888,7 @@ def con_proyecto_optimizar(ws: Workspace, ctx: JobContext, project: str, feeders
     except UserError as exc:
         ctx.log(f'SET nueva: {exc}')
         set_nueva = {'avisos': [str(exc)]}
-    return {'escalera_por_cargas': escalera, 'set_nueva': set_nueva}
+    return {'project': project.strip(), 'escalera_por_cargas': escalera, 'set_nueva': set_nueva}
 
 
 VIGENCIA_EVALUACION_S = 24 * 3600
@@ -6741,8 +6741,8 @@ def informe_estudio(ws: Workspace, ctx: JobContext | None, formulario: dict) -> 
     libro = _libro_del_informe(ctx, destino, {'actual': imagenes.get('actual') or {},
                                               'proyectado': imagenes.get(clave) or {}})     # 066:RF-12
     _paso_informe(ctx, 3, 'listo')
-    return {'informe': destino.name, 'json': destino.with_suffix('.json').name, 'huecos': huecos, **libro,
-            'estudios': fuentes, 'etapa': clave, 'imagenes': _imagenes_para_la_web(ws, imagenes),
+    return {'project': proyecto or (sin or {}).get('project'), 'informe': destino.name, 'json': destino.with_suffix('.json').name,
+            'huecos': huecos, **libro, 'estudios': fuentes, 'etapa': clave, 'imagenes': _imagenes_para_la_web(ws, imagenes),
             'plan': _guardar_plan(destino, 'estudio', plan)}
 
 
@@ -7399,7 +7399,7 @@ def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict
         ctx.log(f'El PDF no se generó: {sin_pdf}. El Word editable sí está.')
     libro_xlsx = _libro_del_informe(ctx, destino, imagenes)                          # 066:RF-1
     _paso_informe(ctx, 3, 'listo')
-    return {'conclusion_conexion': _conclusion_conexion(ws, project, alimentador, actual, con, lim),
+    return {'project': project, 'conclusion_conexion': _conclusion_conexion(ws, project, alimentador, actual, con, lim),
             'informe': destino.name, 'json': destino.with_suffix('.json').name, 'huecos': huecos,
             'pdf': pdf.name if pdf else None, 'sin_pdf': sin_pdf, **libro_xlsx,
             'estudios': [sin['_fichero'], con['_fichero']], 'factible': resumen.get('factible'),
@@ -7542,7 +7542,8 @@ def _imagenes_factibilidad(ws: Workspace, ctx: JobContext | None, config, sin: d
 # Asistente de órdenes (spec 026)
 # ---------------------------------------------------------------------------
 
-#: Planes a la espera de confirmación, por espacio: viven en memoria como los de cargas.
+#: Planes a la espera de confirmación, por espacio. Los que escriben también están en disco
+#: (``planes_guardados``, 067:RF-12): esto es su copia viva, que un reinicio vacía.
 _ASISTENTE_PLANES: dict[str, dict[str, dict]] = {}
 _ASISTENTE_CERROJO = threading.Lock()
 
@@ -7590,12 +7591,16 @@ def volver_al_modelo_anterior(modelo: str) -> dict:
         from ..digital_twin.oraculo import volver_al_anterior
 
         version = volver_al_anterior(BuferEpisodios(raiz_buffer()))
-    elif modelo == 'asistente':
-        from ..asistente.transformer import volver_al_anterior
+    elif modelo in ('asistente', 'clasificador'):
+        from ..asistente.modelos_en_uso import volver_al_anterior
 
-        version = volver_al_anterior()
+        # 067:RF-23: por la misma vía que la puesta en uso, o el registro se queda en el otro modelo.
+        try:
+            version = volver_al_anterior('transformer' if modelo == 'asistente' else 'clasificador')
+        except (OSError, ValueError) as exc:
+            raise UserError(f'No se pudo anotar la vuelta en el registro de modelos: {exc}') from exc
     else:
-        raise UserError('El modelo es «gemelo» o «asistente».')
+        raise UserError('El modelo es «gemelo», «asistente» o «clasificador».')
     if version is None:
         raise UserError(f'El {modelo} no tiene un modelo anterior al que volver.')
     return {'modelo': modelo, 'version': version}
@@ -7690,16 +7695,21 @@ def asistente_estado_modelos() -> dict:
             except (OSError, ValueError, TypeError, KeyError) as exc:
                 estado = None
                 bloqueos.append(f'promoción sin evidencia verificable: {exc}')
-        heredado = None
+        heredado = en_uso = None
         if nombre in heredados:
             try:
                 heredado = estado_heredado(heredados[nombre])
+                en_uso = heredado['version'] if heredado else None
+                # 067:RF-29: lo que puso el registro en uso no es un modelo heredado sin validar.
+                if heredado and estado == EstadoModelo.PROMOVIDO.value and candidato and en_uso == f'reg-{candidato[:16]}':
+                    heredado = None
                 if heredado:
                     bloqueos.append(f'modelo heredado {heredado["version"]} presente; requiere validación actual '
                                     'y su puntero no acredita aceptación en el registro común')
             except (OSError, ValueError, TypeError, KeyError, AttributeError) as exc:
                 bloqueos.append(f'modelo heredado ilegible: {exc}')
         familias.append({'familia': nombre, 'estado': estado, 'candidate_id': candidato, 'heredado': heredado,
+                         'en_uso': en_uso,
                          'algorithm': algoritmo, 'report_path': str(ruta_fuente), 'gates': puertas,
                          'bloqueos': bloqueos + ([str(etapa['reason'])] if etapa.get('reason') else [])})
     return {'schema_version': 1, 'familias': familias,
@@ -7845,6 +7855,13 @@ def asistente_orden(ws: Workspace, texto: str, trabajos: list[dict] | None = Non
     interp = interpretar(texto, transformer=transformer, ollama=ollama, contexto=contexto_para(texto),
                          umbrales=almacen.leer_json('umbrales') or {})                       # 027:RF-38
     plan = resolver(interp, asistente_vocabulario(ws))
+    if transformer is None:
+        # 067:RF-8 a RF-10: seguir con Ollama está bien; callarlo, no.
+        from ..asistente.plan import aviso_sin_transformer
+        from ..asistente.transformer import motivo_no_disponible
+
+        if (motivo := motivo_no_disponible()) is not None:
+            plan.avisos.append(aviso_sin_transformer(motivo, plan.interpretado_por))
     extras = _asistente_extras(ws, plan, trabajos or [])
     _asistente_requisitos(ws, plan, extras)
     if plan.tarea in ('informe_estudio', 'informe_factibilidad'):
@@ -7865,9 +7882,7 @@ def asistente_orden(ws: Workspace, texto: str, trabajos: list[dict] | None = Non
         publico['pasos'] = describir(plan.tarea, plan.datos, extras)
     gobierno = GobiernoEquipo.desde_plan(ws, plan, extras=extras)
     publico['equipo'] = gobierno.publico()
-    with _ASISTENTE_CERROJO:
-        _ASISTENTE_PLANES.setdefault(ws.id, {})[plan.id] = {
-            'plan': plan, 'interp': interp, 'extras': extras, 'gobierno': gobierno}
+    _asistente_guardar_plan(ws, plan, extras, gobierno)
     almacen.anotar('ordenes', {'espacio': ws.id, 'plan': plan.id, 'texto': texto, 'tarea': plan.tarea,
                                'modelo': plan.interpretado_por, 'confianza': plan.confianza, 'listo': plan.listo})
     out = {'plan': publico}
@@ -7888,6 +7903,12 @@ def _asistente_requisitos(ws: Workspace, plan, extras: dict) -> None:
     en la ruta con «Faltan entradas: RED…» (2026-10-24): lo que falta se dice en el plan. Con
     las entradas puestas y la fuente sin cargar, convertir empieza por cargarla.
     """
+    if plan.tarea == 'informe_factibilidad' and all(plan.datos.get(k) for k in ('proyecto', 'alimentadores', 'sed')):
+        # 067:RF-34: lo mismo que la ruta comprueba antes de encolar, antes de ofrecer confirmar.
+        try:
+            carga_del_informe(ws, plan.datos['proyecto'], plan.datos['alimentadores'][0], plan.datos['sed'])
+        except UserError as exc:
+            plan.faltan.append(str(exc))
     if plan.tarea not in _NECESITAN_FUENTE or (plan.tarea != 'cargar_fuente' and ws.dataset is not None):
         return
     try:
@@ -7918,12 +7939,74 @@ def _asistente_extras(ws: Workspace, plan, trabajos: list[dict]) -> dict:
     return extras
 
 
+def _asistente_guardar_plan(ws: Workspace, plan, extras: dict, gobierno) -> None:
+    """El plan, vivo y, si escribe y está completo, en disco (067:RF-12)."""
+    from ..asistente.planes_guardados import PlanesGuardados
+
+    if plan.escribe and plan.listo:
+        PlanesGuardados(ws.root).guardar(plan, extras, gobierno)
+    with _ASISTENTE_CERROJO:
+        _ASISTENTE_PLANES.setdefault(ws.id, {})[plan.id] = {'plan': plan, 'extras': extras, 'gobierno': gobierno}
+
+
+def _asistente_restaurar_plan(ws: Workspace, plan_id: str) -> dict | None:
+    """El plan guardado tras un reinicio, con su sello y sin confirmación (067:RF-13 a RF-16)."""
+    from ..asistente.equipo import GobiernoEquipo, PermisoDenegado
+    from ..asistente.planes_guardados import PlanesGuardados, plan_de
+
+    doc = PlanesGuardados(ws.root).leer(plan_id)
+    if doc is None:
+        return None
+    plan = plan_de(doc)
+    try:
+        gobierno = GobiernoEquipo.restaurar(ws, plan, extras=doc['extras'], sello=doc['sello'])
+    except PermisoDenegado:
+        return None
+    with _ASISTENTE_CERROJO:
+        return _ASISTENTE_PLANES.setdefault(ws.id, {}).setdefault(
+            plan_id, {'plan': plan, 'extras': doc['extras'], 'gobierno': gobierno})
+
+
 def asistente_plan(ws: Workspace, plan_id: str) -> dict:
     with _ASISTENTE_CERROJO:
         guardado = (_ASISTENTE_PLANES.get(ws.id) or {}).get(plan_id)
     if guardado is None:
+        guardado = _asistente_restaurar_plan(ws, plan_id)
+    if guardado is None:
         raise UserError('El plan ya no existe: vuelva a escribir la orden.')
     return guardado
+
+
+def asistente_planes_guardados(ws: Workspace) -> dict:
+    """Los planes que esperan al operador, también tras un reinicio; solo se leen (067:RF-13, RF-19)."""
+    from ..asistente.equipo import PermisoDenegado
+    from ..asistente.ejecutor import describir
+    from ..asistente.planes_guardados import PlanesGuardados
+
+    filas = []
+    guardados = PlanesGuardados(ws.root)
+    documentos = guardados.listar()
+    for doc in documentos:
+        identificador = doc['plan']['id']
+        try:
+            guardado = asistente_plan(ws, identificador)
+        except UserError:
+            continue
+        if guardado.get('en_curso') or guardado.get('terminado'):
+            continue
+        plan, gobierno = guardado['plan'], guardado['gobierno']
+        try:
+            gobierno._validar_contexto()
+            vigente, motivo = True, ''
+        except PermisoDenegado as exc:
+            vigente, motivo = False, str(exc)
+        # 067:RF-16: quien estaba ejecutándolo ya no existe; pudo quedar a medias.
+        estado = 'interrumpido' if doc.get('estado') == 'ejecutando' else doc.get('estado')
+        filas.append({**plan.publico(), 'pasos': describir(plan.tarea, plan.datos, guardado['extras']),
+                      'equipo': gobierno.publico(),
+                      'guardado': {'estado': estado, 'vigente': vigente, 'motivo': motivo, 'fecha': doc.get('fecha'),
+                                   'ultimo_error': doc.get('ultimo_error') or ''}})
+    return {'planes': filas, 'ilegibles': len(guardados.identificadores()) - len(documentos)}
 
 
 def _ejemplo_de(texto: str, tarea: str, datos: dict) -> dict:
@@ -7946,12 +8029,40 @@ def _ejemplo_de(texto: str, tarea: str, datos: dict) -> dict:
 
 def asistente_ejecutar(ws: Workspace, ctx: JobContext, plan_id: str, base: str, http: Any = None,
                       revisor: Any = None) -> dict:
+    """El plan confirmado, con su estado en disco: un corte a mitad se dirá como interrumpido, nunca se
+    reanuda solo (067:RF-14, RF-16), y lo terminado no se repite (067:RF-17, RF-18)."""
+    from ..asistente.planes_guardados import PlanesGuardados
+
+    guardado = asistente_plan(ws, plan_id)
+    if guardado.get('terminado'):
+        raise UserError('Este plan ya se ejecutó: escriba la orden de nuevo si quiere repetirlo.')
+    disco = PlanesGuardados(ws.root)
+    guardado['en_curso'] = True
+    disco.marcar(plan_id, 'ejecutando')
+    try:
+        resultado = _asistente_ejecutar_plan(ws, ctx, guardado, base, http, revisor)
+    except Exception as exc:
+        guardado['en_curso'] = False
+        guardado['gobierno'].confirmado = False
+        disco.marcar(plan_id, 'pendiente', error=str(exc))
+        raise
+    guardado['en_curso'] = False
+    if resultado.get('completo') is False:                      # cancelado: sigue por confirmar
+        guardado['gobierno'].confirmado = False
+        disco.marcar(plan_id, 'pendiente', error='cancelado por el operador')
+    else:
+        guardado['terminado'] = True
+        disco.borrar(plan_id)
+    return resultado
+
+
+def _asistente_ejecutar_plan(ws: Workspace, ctx: JobContext, guardado: dict, base: str, http: Any,
+                             revisor: Any) -> dict:
     """El plan confirmado, por las rutas y trabajos de la web (026:RF-10, RF-12); la orden queda
     como ejemplo confirmado (026:RF-19)."""
     from ..asistente import almacen
     from ..asistente.ejecutor import ClienteWeb, PasoFallido, ejecutar, entregables, pasos, revisar_tras_error
 
-    guardado = asistente_plan(ws, plan_id)
     plan = guardado['plan']
     if not plan.listo:
         raise UserError('El plan no está completo: ' + '; '.join(plan.faltan))
@@ -8015,6 +8126,9 @@ def asistente_rechazar(ws: Workspace, plan_id: str) -> dict:
                    modelo=plan.interpretado_por)
     with _ASISTENTE_CERROJO:
         _ASISTENTE_PLANES.get(ws.id, {}).pop(plan.id, None)
+    from ..asistente.planes_guardados import PlanesGuardados
+
+    PlanesGuardados(ws.root).borrar(plan.id)                               # 067:RF-17
     return {'plan': plan.id, 'rechazado': True}
 
 
@@ -8022,9 +8136,15 @@ def asistente_equipo(ws: Workspace) -> dict:
     """065:RF-22/23: permisos y decisiones efectivos, limitados al espacio pedido."""
     from ..asistente import almacen
     from ..asistente.equipo import inventario_equipo
+    from ..asistente.evidencias_web import resumen_del_espacio
     with _ASISTENTE_CERROJO:
         permisos = [g['gobierno'].publico() for g in (_ASISTENTE_PLANES.get(ws.id) or {}).values()]
+    try:
+        evidencias, error_evidencias = resumen_del_espacio(ws.out_dir), ''         # 067:RF-7
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        evidencias, error_evidencias = [], f'evidencia con integridad no acreditada: {exc}'
     return {**inventario_equipo(), 'espacio': ws.id, 'permisos': permisos,
+        'evidencias': evidencias, 'error_evidencias': error_evidencias,
         'acciones': [r for r in almacen.leer('equipo_acciones') if
                      (r.get('alcance') or {}).get('espacio') == ws.id][-50:],
         'revisiones': [r for r in almacen.leer('equipo_revisiones') if r.get('espacio') == ws.id][-50:]}
@@ -8037,30 +8157,19 @@ def asistente_revisar_plan(ws: Workspace, ctx: JobContext, plan_id: str, *, max_
     selecciona un plan guardado; la revisión documental nunca concede ejecución.
     """
     from ..asistente import almacen
-    from ..asistente.observacion import leer_evidencias
+    from ..asistente.evidencias_web import evidencias_del_contexto, huella_fuente
     from ..asistente.revision_roles import revisar_propuesta, revisor_ollama
     from types import SimpleNamespace
 
     guardado = asistente_plan(ws, plan_id)
     gobierno, plan = guardado['gobierno'], guardado['plan']
     gobierno._validar_contexto()
-    contexto = SimpleNamespace(project=plan.datos.get('proyecto'),
-                               source_fingerprint=ws.loaded_source_fingerprint)
-    evidencia = {}
-    for registro in leer_evidencias(ws.out_dir):
-        informe = registro['informe']
-        contexto_informe = informe.get('contexto') or {} if isinstance(informe, dict) else {}
-        if (contexto_informe.get('project') != contexto.project or
-                contexto_informe.get('source_fingerprint') != contexto.source_fingerprint or
-                not contexto.project or not contexto.source_fingerprint):
-            continue
-        ruta = ws.out_dir / 'observacion/evidencias' / f"{registro['id']}.json"
-        texto = ruta.read_text(encoding='utf-8')
-        evidencia[registro['id']] = {'archivo': str(ruta), 'sha256': registro['sha256'],
-            'proyecto': contexto.project, 'fuente': contexto.source_fingerprint,
-            'localizador': 'texto[0:6000]', 'fragmento': texto[:6000]}
-        if len(evidencia) >= 8:
-            break
+    proyecto = plan.datos.get('proyecto')
+    contexto = SimpleNamespace(project=proyecto, source_fingerprint=huella_fuente(ws, proyecto))
+    try:
+        evidencia = evidencias_del_contexto(ws.out_dir, proyecto, contexto.source_fingerprint)
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        raise UserError(f'La evidencia del espacio no acredita su integridad: {exc}') from exc
     propuesta = {'plan': plan.publico(), 'alcance': 'revision_documental_supervisada',
                  'restricciones_deterministas': {'plan_completo': plan.listo,
                                                 'contexto_vigente': True}}
@@ -8073,9 +8182,51 @@ def asistente_revisar_plan(ws: Workspace, ctx: JobContext, plan_id: str, *, max_
     resultado = revisar_propuesta(propuesta, evidencia, contexto=contexto, revisor=revisor,
         cancelado=ctx.cancel.is_set, max_rondas=max_rondas, registrar=registrar)
     gobierno._validar_contexto()
+    if not evidencia:
+        # 067:RF-6: el motivo genérico no decía qué hacer para que la revisión pudiera opinar.
+        resultado['motivo'] = (f'Sin evidencia del proyecto {proyecto or "(el plan no nombra ninguno)"} y la fuente '
+                               f'{contexto.source_fingerprint or "(sin huella)"}: genere antes un informe o un estudio '
+                               'de ese proyecto; quedan custodiados solos.')
     almacen.anotar('equipo_revisiones', {'plan': plan.id, 'espacio': ws.id,
         'tipo': 'resultado', **resultado})
     return {'plan': plan.id, **resultado}
+
+
+def asistente_custodiar_trabajo(ws: Workspace, trabajo: dict) -> str | None:
+    """Lo que un trabajo terminado deja como evidencia (067:RF-1 a RF-4). Un fallo aquí no daña el trabajo,
+    que ya terminó bien: se devuelve para el Registro."""
+    from ..asistente.evidencias_web import custodiar_trabajo
+
+    try:
+        return custodiar_trabajo(ws, trabajo)
+    except (OSError, ValueError, TypeError, KeyError) as exc:
+        return f'«{trabajo.get("title")}» no se custodia como evidencia: {exc}'
+
+
+def agente_proyecto_lista(ws: Workspace, datos: dict, reiniciar: bool = False) -> dict:
+    """Las etapas del proyecto entero antes del clic; solo lee (067:RF-37)."""
+    from ..asistente.orquestador import lista_de_etapas
+
+    ruta = ws.out_dir / 'agente_proyecto.json'
+    try:
+        control = json.loads(ruta.read_text(encoding='utf-8')) if ruta.is_file() else {}
+    except (OSError, ValueError) as exc:
+        raise UserError(f'El punto de control del proyecto no se puede leer: {exc}') from exc
+    return lista_de_etapas(datos, control if isinstance(control, dict) else {}, _agente_identidad(ws), reiniciar=reiniciar)
+
+
+def agente_proyecto_anotar(ws: Workspace, datos: dict, lista: dict) -> None:
+    """Qué aceptó el operador con su único clic (067:RF-37)."""
+    from ..asistente import almacen
+
+    almacen.anotar('decisiones', {'espacio': ws.id, 'decision': 'lista_confirmada', 'tarea': 'proyecto_entero',
+                                  'datos': datos, 'etapas_escritura': lista['etapas_escritura'],
+                                  'confirmacion': lista['confirmacion']})
+
+
+def _agente_identidad(ws: Workspace) -> dict:
+    return {'workspace_id': ws.id, 'source_fingerprint': ws.loaded_source_fingerprint,
+            'source_mode': ws.loaded_source_mode}
 
 
 def agente_proyecto(ws: Workspace, ctx: JobContext, datos: dict, base: str, http: Any = None,
@@ -8090,8 +8241,7 @@ def agente_proyecto(ws: Workspace, ctx: JobContext, datos: dict, base: str, http
 
     ruta = ws.out_dir / 'agente_proyecto.json'
     def identidad():
-        return {'workspace_id':ws.id,'source_fingerprint':ws.loaded_source_fingerprint,
-                'source_mode':ws.loaded_source_mode,'solicitud':dict(datos)}
+        return {**_agente_identidad(ws),'solicitud':dict(datos)}
     try:
         control=preparar_control(ruta,identidad(),reiniciar=reiniciar)
     except (OSError,ValueError) as exc:
@@ -8121,6 +8271,7 @@ def agente_proyecto(ws: Workspace, ctx: JobContext, datos: dict, base: str, http
         plan = Plan(uuid.uuid4().hex[:12], 'Etapa autorizada del proyecto supervisado', tarea,
                     definicion.escribe, definicion.modo, datos=dict(datos_etapa))
         gobierno = GobiernoEquipo.desde_plan(ws, plan, extras=extras)
+        # El operador aceptó esta etapa en la lista única que vio antes del clic (067:RF-37, RF-40).
         gobierno.confirmar(plan)
         gobierno.validar_cliente(cliente)
         return gobierno
@@ -8279,12 +8430,13 @@ def asistente_corregir(ws: Workspace, plan_id: str, *, tarea: str | None = None,
     extras = dict(guardado['extras']) if tarea == previo.tarea else {}
     _asistente_requisitos(ws, plan, extras)
     from ..asistente.equipo import GobiernoEquipo
+    from ..asistente.planes_guardados import PlanesGuardados
     gobierno = GobiernoEquipo.desde_plan(ws, plan, extras=extras)
+    _asistente_guardar_plan(ws, plan, extras, gobierno)
     with _ASISTENTE_CERROJO:
-        _ASISTENTE_PLANES.setdefault(ws.id, {})[plan.id] = {
-            'plan': plan, 'interp': interp, 'extras': extras, 'gobierno': gobierno}
         # La corrección revoca el permiso de la propuesta previa.
         _ASISTENTE_PLANES.get(ws.id, {}).pop(previo.id, None)
+    PlanesGuardados(ws.root).borrar(previo.id)
     return {'plan': {**plan.publico(), 'equipo': gobierno.publico()}}
 
 
@@ -8418,6 +8570,16 @@ def asistente_entrenar(ws: Workspace, ctx: JobContext) -> dict:
     from ..asistente.senales import calibrar_y_guardar
 
     resultado['umbrales'] = calibrar_y_guardar() if (resultado.get('ordenes') or {}).get('promovido') is True else {}
+    # 067:RF-20, RF-24: «reentrenar» dice qué quedó en uso, y si cambió o no.
+    partes = []
+    for nombre, clave in (('Órdenes', 'ordenes'), ('Informes', 'informes')):
+        r = resultado.get(clave)
+        if isinstance(r, dict):
+            partes.append(f"{nombre}: {'nuevo modelo en uso ' + str(r.get('version')) if r.get('promovido') else 'sigue el modelo en uso ' + str(r.get('en_uso') or '(ninguno)')}"
+                          f"{'' if r.get('promovido') or not (r.get('motivo') or r.get('status')) else ' (' + str(r.get('motivo') or r.get('status')) + ')'}")
+    resultado['texto'] = '. '.join(partes)
+    if resultado['texto']:
+        ctx.log(f"Asistente: {resultado['texto']}")
     if resultado['umbrales']:
         ctx.log(f"Asistente: umbrales por tarea {resultado['umbrales']} (027:RF-38)")
     return resultado

@@ -172,6 +172,15 @@ class RegistroModelo:
         self._reemplazar_json(self.raiz / modelo / 'active.json', payload)
         return payload
 
+    def retirar_activo(self, modelo: str) -> None:
+        """Deja el registro sin activo cuando se vuelve a un modelo heredado, que no está en él (067:RF-23);
+        el retirado queda como anterior."""
+        activo = self.activo(modelo)
+        if activo is None:
+            return
+        self._reemplazar_json(self._modelo(modelo) / 'previous.json', activo)
+        (self._modelo(modelo) / 'active.json').unlink()
+
     def ultimo(self, modelo: str) -> dict[str, Any] | None:
         """Última decisión; no implica que el candidato esté activo."""
         ruta = self._modelo(modelo) / 'latest.json'

@@ -64,17 +64,22 @@ class RegistroOperaciones:
         return salida
 
 
-def registrar_evidencia(raiz: Path,informe: Path,*,familia: str,etiqueta: str) -> dict:
+#: 067:RF-1: lo que produce la propia web, que no es de ninguna familia de modelos.
+FAMILIA_OPERACION='operacion_web'
+
+
+def registrar_evidencia(raiz: Path,informe: Path,*,familia: str,etiqueta: str,
+                        alcance: str='global_sin_asignacion_a_proyecto',origen: str|None=None) -> dict:
     """Incorpora una copia local identificada; no cambia RegistroModelo ni pesos."""
     from ..training_coordinator import ORDEN_MODELOS
-    if familia not in ORDEN_MODELOS:raise ValueError('familia de modelo desconocida')
+    if familia not in ORDEN_MODELOS and familia!=FAMILIA_OPERACION:raise ValueError('familia de modelo desconocida')
     raw=Path(informe).read_bytes()
     if len(raw)>32*1024*1024:raise ValueError('informe mayor que 32MiB; use un resumen trazable')
     contenido=json.loads(raw)
     if not isinstance(contenido,dict):raise ValueError('el informe debe ser un objeto JSON')
     sha=hashlib.sha256(raw).hexdigest()
-    base={'sha256':sha,'familia':familia,'etiqueta':etiqueta,'origen':str(Path(informe).resolve()),
-          'alcance':'global_sin_asignacion_a_proyecto'}
+    base={'sha256':sha,'familia':familia,'etiqueta':etiqueta,'origen':origen or str(Path(informe).resolve()),
+          'alcance':alcance}
     identidad=hashlib.sha256(_json(base).encode()).hexdigest()
     carpeta=Path(raiz)/'observacion/evidencias';carpeta.mkdir(parents=True,exist_ok=True)
     meta={**base,'id':identidad,

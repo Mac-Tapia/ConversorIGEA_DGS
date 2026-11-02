@@ -371,8 +371,14 @@ export const api = {
   asistenteMonitor: (id: string) => request<import('./types').MonitorAgenteEstado>(`/api/workspaces/${id}/asistente/monitor`),
   asistenteAceptacion: () => request<import('./asistenteAceptacion').EstadoAceptacionAgente>('/api/asistente/aceptacion'),
   // 027:RF-43, RF-44: el proyecto entero desde el espacio, con puntos de control.
-  agenteProyecto: (id: string, body: { sistema: string; periodo: string; ruta?: string; ruta_cargas?: string; reiniciar?: boolean }) =>
+  agenteProyecto: (id: string, body: { sistema: string; periodo: string; ruta?: string; ruta_cargas?: string; reiniciar?: boolean; confirmacion: string }) =>
     request<Job>(`${ws(id)}/agente/proyecto`, json('POST', body)),
+  // 067:RF-37: las etapas que el operador ve antes de confirmarlas de una vez.
+  agenteProyectoLista: (id: string, body: { sistema: string; periodo: string; ruta?: string; ruta_cargas?: string; reiniciar?: boolean }) =>
+    request<import('./types').ListaProyecto>(`${ws(id)}/agente/proyecto/lista`, json('POST', body)),
+  // 067:RF-19: los planes que siguen por confirmar, también tras reiniciar la web.
+  asistentePlanes: (id: string) =>
+    request<{ planes: import('./types').AsistentePlan[]; ilegibles: number }>(`${ws(id)}/asistente/planes`),
   // 027:RF-35: rechazar un plan es una penalización para el modelo.
   asistenteRechazar: (id: string, planId: string) =>
     request<{ plan: string; rechazado: boolean }>(`${ws(id)}/asistente/${planId}/rechazar`, { method: 'POST' }),

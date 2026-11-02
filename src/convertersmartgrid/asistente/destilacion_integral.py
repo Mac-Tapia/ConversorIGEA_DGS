@@ -163,6 +163,22 @@ def decidir_promocion(sinteticas: dict, humanas: dict, familias: dict, referenci
             'muestra_humana_amplia': n >= 200}
 
 
+def _referencia_activa(registros: list[dict]) -> dict | None:
+    """El modelo en uso medido por familia sobre la misma prueba sellada (067:RF-25).
+
+    Se pasaba ``None`` y la puerta «falta comparación» fallaba siempre: ningún candidato podía
+    aprobarse jamás. Si el modelo en uso no se puede medir, se devuelve ``None`` y la puerta no aprueba.
+    """
+    from . import transformer as tr
+    try:
+        activo = tr.cargar()
+        if activo is None:
+            return None
+        return evaluar_alumno(activo, registros)['familias']
+    except (ImportError, RuntimeError, OSError, ValueError, KeyError):
+        return None
+
+
 def _ejemplos(registros):
     return [Ejemplo(r['texto'], r['tarea'], [tuple(d) for d in r['datos']]) for r in registros]
 
@@ -369,7 +385,8 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
         'calibracion': calibracion, 'dataset_hash': meta['dataset_hash'], 'policy_hash': politica.hash})
     sinteticas = evaluar_alumno(modelo, [r for r in por_parte['prueba'] if r['quality'] != 'gold_human'])
     humanas = evaluar_alumno(modelo, [r for r in por_parte['prueba'] if r['quality'] == 'gold_human'])
-    decision = decidir_promocion(sinteticas, humanas, sinteticas['familias'], None)
+    prueba_sintetica = [r for r in por_parte['prueba'] if r['quality'] != 'gold_human']
+    decision = decidir_promocion(sinteticas, humanas, sinteticas['familias'], _referencia_activa(prueba_sintetica))
     funcionamiento = ensayar_funcionamiento(modelo)
     if not funcionamiento['ok']:
         decision['gates']['approved'] = False
@@ -393,7 +410,8 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
         dataset_manifest=protocolo, metrics={'sinteticas': sinteticas, 'humanas': humanas,
         'seleccion': candidatos, 'calibracion': calibracion, 'funcionamiento': funcionamiento},
         decision=decision, smoke_reload=smoke, artifacts=[final / n for n in ('pesos.pt', 'modelo.json', 'readback.json')])
-    # La activación es una operación explícita del registro, no un efecto del ensayo.
+    # La activación es una operación explícita del registro, no un efecto del ensayo: la hace quien
+    # lanza el reentrenamiento con ``modelos_en_uso.aplicar_decision`` (067:RF-20).
     reporte = {'schema_version': 1, 'training_completed': True, 'entrenado': True,
         'status': decision['status'], 'promovido': False, 'decision': decision,
         'elegido': elegido, 'candidato': candidato, 'sinteticas': sinteticas, 'humanas': humanas,

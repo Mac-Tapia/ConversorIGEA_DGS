@@ -38,6 +38,7 @@ def main(argv=None) -> int:
     entrenar.add_argument('--epocas', type=int, default=24)
     verificar = sub.add_parser('verificar')
     verificar.add_argument('--modelo', type=Path, required=True)
+    verificar.add_argument('--familia', choices=('transformer', 'clasificador'), default='transformer')
     ensayar = sub.add_parser('ensayar')
     ensayar.add_argument('--modelo', type=Path, required=True)
     ensayar.add_argument('--ollama', help='Modelo local para probar también el fallback híbrido')
@@ -69,7 +70,11 @@ def main(argv=None) -> int:
                 resultado = entrenar_destilacion(args.dataset, args.destino,
                     cfg=Configuracion(epocas=args.epocas), semillas=semillas, registro=args.registro)
         elif args.accion == 'verificar':
-            resultado = verificar_reapertura(args.modelo)
+            if args.familia == 'clasificador':                       # 067:RF-26
+                from convertersmartgrid.asistente.clasificador import verificar_reapertura as reabrir_clasificador
+                resultado = reabrir_clasificador(args.modelo)
+            else:
+                resultado = verificar_reapertura(args.modelo)
         else:
             from convertersmartgrid.asistente.destilacion_integral import cargar_alumno, ensayar_funcionamiento, evaluar_agente, leer_corpus
             from convertersmartgrid.asistente.ollama import ClienteOllama

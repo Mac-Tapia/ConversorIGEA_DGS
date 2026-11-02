@@ -51,7 +51,7 @@ def main(argv=None) -> int:
     p.add_argument('--solo', choices=('ordenes', 'informes'), help='Entrenar solo uno de los dos modelos')
     p.add_argument('--destilar', action='store_true',
                    help='Destilar del modelo local de Ollama (maestro) al Transformer (spec 027, RF-56)')
-    p.add_argument('--integral', action='store_true', help='Protocolo independiente del maestro de sesión (047 T5); conserva el clasificador vigente')
+    p.add_argument('--integral', action='store_true', help='Protocolo independiente del maestro de sesión (047 T5), con puesta en uso por el registro (067:RF-20)')
     p.add_argument('--semillas', default='11,23,37', help='Semillas de --integral')
     p.add_argument('--epocas', type=int, default=24, help='Épocas por candidato de --integral')
     p.add_argument('--maestro', choices=('claude', 'codex', 'ollama'), default=None,
@@ -82,7 +82,7 @@ def main(argv=None) -> int:
                 raise ValueError('--integral usa el currículo local del maestro Codex; no combine con otros maestros/modos')
             if args.epocas < 1:
                 raise ValueError('épocas positivas obligatorias')
-            from convertersmartgrid.asistente import almacen, transformer
+            from convertersmartgrid.asistente import almacen, clasificador, transformer
             from convertersmartgrid.asistente.destilacion_integral import preparar_corpus, guardar_corpus, entrenar_destilacion
             from convertersmartgrid.training_coordinator import BloqueoGPU
             destino = salida.parent / (salida.stem + '_integral')
@@ -95,8 +95,15 @@ def main(argv=None) -> int:
                     cfg=transformer.Configuracion(epocas=args.epocas),
                     semillas=tuple(int(s) for s in args.semillas.split(',') if s.strip()),
                     registro=almacen.raiz() / 'model_registry')
-            informe = {'ordenes': resultado, 'training_completed': True,
-                       'informes': {'entrenado': False, 'motivo': 'se conserva el clasificador vigente'}}
+                # 067:RF-20, RF-24: lo que el registro aprobó pasa a uso; lo demás deja el modelo actual.
+                from convertersmartgrid.asistente.modelos_en_uso import aplicar_decision
+                from convertersmartgrid.model_registry import RegistroModelo
+                uso = aplicar_decision('transformer', resultado['candidato'])
+                resultado = {**resultado, **uso}
+                informe = {'ordenes': resultado, 'training_completed': True}
+                if args.solo != 'ordenes':                               # 067:RF-26
+                    informe['informes'] = clasificador.entrenar_gobernado(
+                        RegistroModelo(almacen.raiz() / 'model_registry'), destino, log=_log)
             codigo = 0
         except Exception as exc:
             informe, codigo = {'training_completed': False, 'status': 'ERROR_ENTORNO',

@@ -156,7 +156,7 @@ otro paso: Word (`informe_docx.py`), PDF y, donde el perfil lo declare, el libro
   datos del modelo, errores de fórmula e importes contra el Word. En el equipo de desarrollo, `Excel.Application` y
   `Word.Application` los puede responder WPS Office, aunque diga ser Microsoft.
 
-## Asistente y su equipo (026, 027, 047, 061, 065)
+## Asistente y su equipo (026, 027, 047, 061, 065, 067)
 
 Una orden del operador recorre esto. Solo el rol `operador` ejecuta, y toda escritura espera confirmación:
 
@@ -166,7 +166,7 @@ Una orden del operador recorre esto. Solo el rol `operador` ejecuta, y toda escr
       interprete.py: Transformer (conf. ≥ 0,85) ─► Ollama (≥ 0,6) ─► «ninguno»
                                        │           las reglas solo fijan ruta y periodo
                                        ▼
-      plan.py + tareas.py (27 tareas) ─► equipo.py: GobiernoEquipo.desde_plan
+      plan.py + tareas.py ─► equipo.py: GobiernoEquipo.desde_plan ─► planes_guardados.py
                                        │
       consulta: responde · lectura: se ejecuta · escritura: botón ─► gobierno.confirmar
                                        ▼
@@ -178,20 +178,24 @@ Una orden del operador recorre esto. Solo el rol `operador` ejecuta, y toda escr
 | Intérprete, plan, tareas, salida validada | `asistente/{interprete,plan,tareas,contratos_salida}.py` | conectado y probado |
 | Gobierno y permisos por rol | `asistente/equipo.py`, `web/equipo_api.py` | conectado y probado; sin uso real registrado |
 | Ejecutor | `asistente/ejecutor.py` | conectado y probado; 026 T12 abierta en DIgSILENT |
-| Orquestador del proyecto entero | `asistente/orquestador.py` | conectado; probado con dobles. Un clic confirma todas sus etapas |
+| Orquestador del proyecto entero | `asistente/orquestador.py` | conectado; probado con dobles. Un clic confirma la lista de etapas que el operador ve antes |
+| Planes guardados | `asistente/planes_guardados.py` | conectado y probado con reinicio simulado: siguen pidiendo confirmación y nunca se reanudan solos |
 | Monitor y vigilancia | `asistente/{observacion,vigilancia}.py` | conectados y probados |
 | RAG con citas | `asistente/indice.py` | conectado: BM25, y coseno si hay vectores. Sin reranker |
-| Revisión por roles | `asistente/revision_roles.py` | conectada, **no operativa aún** |
+| Revisión por roles y evidencia | `asistente/revision_roles.py`, `asistente/evidencias_web.py` | conectadas y probadas con el transporte de Ollama simulado; sin revisión real registrada |
 
 **Lo que el equipo es:** `fuentes`, `fisica`, `coste` y `riesgo` son el mismo modelo de Ollama con otro prompt de sistema, no
 agentes separados, y su revisión es documental (`autoriza_ejecucion=False`). Exige evidencias en
-`observacion/evidencias` del espacio, que hoy solo escribe `tools/asistente_observar.py`; desde la web todos salen
-bloqueados. Ninguna de las 27 tareas lanza la escalera ni una optimización.
+`observacion/evidencias` del espacio, que se custodian solas cuando un informe, un estudio, un PIDE o unas obras terminan
+bien, con el proyecto de su resultado y la huella de la fuente de su vínculo. Las tareas `obras_escalera` y
+`optimizar_con_proyecto` van por sus rutas; mientras el Transformer en uso no las aprenda, se reconocen por su frase
+literal. La optimización PNL de la spec 048 aún no tiene tarea.
 
 ## Modelos (024, 043, 045, 046, 060)
 
-Un modelo «en uso» es el que apunta `promovido.json`. El registro (`model_registry.py`) guarda candidatos y decisiones, pero
-**no gobierna la carga**. Medido en el equipo de desarrollo el 2026-11-02:
+Un modelo «en uso» es el que apunta `promovido.json`. El registro (`model_registry.py`) guarda candidatos y decisiones, y
+`asistente/modelos_en_uso.py` es lo único que lleva un candidato aprobado a ese puntero, salvo el camino antiguo por CLI sin
+`--integral`. Medido en el equipo de desarrollo el 2026-11-02:
 
 | Modelo | Fichero | Para qué | Estado |
 | --- | --- | --- | --- |
@@ -208,10 +212,11 @@ Un modelo «en uso» es el que apunta `promovido.json`. El registro (`model_regi
 | N-HiTS, TFT, PatchTST | `tools/reentrenar_modelos.py` | Pronóstico | **solo especificados**: devuelven `ERROR_ENTORNO` |
 
 **Aprendizaje:** `tools/construir_dataset_entrenamiento.py` arma el dataset y dice qué falta (043). El último tiene 2 056
-registros, sin fugas entre particiones, y está **incompleto**: 5 órdenes humanas de 200. «Reentrenar» desde la web solo
-registra un candidato (`promovido: False`), no cambia el modelo en uso y no reentrena el clasificador. El ciclo conjunto de
-`training_coordinator.py` no ha corrido nunca completo (050 abierta). Entrenar exige CUDA: sin GPU se dice el error,
-salvo el Transformer de órdenes en la web, que cede a Ollama sin avisar.
+registros, sin fugas entre particiones, y está **incompleto**: 5 órdenes humanas de 200. «Reentrenar» desde la web registra
+el candidato y lo pone en uso solo si el registro lo aprobó por sus puertas, incluida la comparación con el modelo en uso;
+si no, sigue el actual. El clasificador va por la misma vía, y sin informes reales en su prueba queda `BLOQUEADO_POR_DATOS`
+sin entrenarse. El ciclo conjunto de `training_coordinator.py` no ha corrido nunca completo (050 abierta). Entrenar exige
+CUDA: sin GPU se dice el error. El Transformer de órdenes en la web cede a Ollama y el plan dice el motivo y quién respondió.
 
 ## Optimización (025, 042, 044, 048, 052)
 
@@ -237,12 +242,9 @@ El oráculo solo ordena y filtra: **toda obra se confirma con los módulos nativ
 
 ## Deudas conocidas
 
-1. La revisión por roles no recibe evidencias desde la web.
-2. Reentrenar desde la web no promueve, y el registro no gobierna la carga.
-3. El flujo desequilibrado no cuadra hasta conciliar las fases con `plini`.
-4. PNL, optimización mixta y pronóstico multihorizonte están especificados y sin implementar.
-5. La partición de `web/services.py` y la migración de paquetes de la spec 002 siguen pendientes.
-6. Los planes del asistente viven en memoria y se pierden al reiniciar la web.
+1. El flujo desequilibrado no cuadra hasta conciliar las fases con `plini`.
+2. PNL, optimización mixta y pronóstico multihorizonte están especificados y sin implementar.
+3. La partición de `web/services.py` y la migración de paquetes de la spec 002 siguen pendientes.
 
 ## Retención diaria de ejecuciones (spec062)
 

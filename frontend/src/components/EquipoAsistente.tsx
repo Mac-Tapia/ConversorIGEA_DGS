@@ -33,6 +33,10 @@ export function EquipoAsistente({ planId }: { planId?: string }) {
         {iniciando ? 'Preparando revisión…' : 'Revisar esta propuesta por roles'}</button>}
       {estado && <>
         <p>{estado.roles.map(r => `${r.rol}: ${r.puede_ejecutar ? 'ejecuta con permiso del plan' : 'solo revisa'}`).join(' · ')}</p>
+        {estado.error_evidencias && <p className="alert alert-warn">{estado.error_evidencias}</p>}
+        <p>{estado.evidencias.length > 0
+          ? `Evidencia custodiada: ${estado.evidencias.slice(0, 5).map(e => `${e.titulo ?? e.etiqueta} (${e.proyecto ?? 'sin proyecto'})`).join(' · ')}.`
+          : 'Aún no hay evidencia en este espacio: los informes y estudios que terminan bien quedan custodiados solos.'}</p>
         {estado.permisos.length > 0 && <table className="small">
           <thead><tr><th>Herramienta</th><th>Responsable</th><th>Permiso</th><th>Proyecto</th></tr></thead>
           <tbody>{estado.permisos.filter(p => !planId || p.plan === planId).map(p => <tr key={p.plan}>

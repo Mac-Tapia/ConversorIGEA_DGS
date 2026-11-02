@@ -382,6 +382,15 @@ def cargar(version: str | None = None) -> ModeloOrdenes | None:
     return modelo
 
 
+def motivo_no_disponible() -> str | None:
+    """Por qué no hay Transformer de órdenes, en palabras del error real (067:RF-9); ``None`` si lo hay."""
+    try:
+        modelo = cargar()
+    except (ImportError, RuntimeError, OSError, ValueError, KeyError) as exc:
+        return str(exc) or type(exc).__name__
+    return None if modelo is not None else 'aún no hay ningún modelo promovido.'
+
+
 def ejemplos_reales() -> tuple[list[Ejemplo], list[Ejemplo]]:
     """Las órdenes confirmadas o corregidas por el operador (RF-19), repartidas siempre igual:
     una de cada cinco va a la prueba fija y el resto a entrenar."""

@@ -36,6 +36,9 @@ class Tarea:
     modo: str
     funcion: str
     plantillas: tuple[str, ...]
+    #: 067:RF-36: expresiones de lo que la orden nombra sin ambigüedad, para reconocer la tarea
+    #: mientras el Transformer en uso no la haya aprendido (no se tocan sus pesos).
+    frases_literales: tuple[str, ...] = ()
 
     def dato(self, nombre: str) -> Dato | None:
         return next((d for d in self.datos if d.nombre == nombre), None)
@@ -140,6 +143,20 @@ _TAREAS = (
           'estudios_ejecutar', (
               '[corre|ejecuta|haz] los estudios de {alimentadores} [de|en] {proyecto}',
               'estudios de {proyecto} {alimentadores}', 'estudio de la red de {alimentadores} en {proyecto}')),
+    Tarea('obras_escalera', 'Escalera de obras en «Con proyecto»: bancos, sección y terna hasta dejar la red en '
+          'norma (025:RF-44).', (P, A), True, 'trabajo', 'obras_escalera', (
+              '[haz|corre|ejecuta] la escalera de obras [de|en] {alimentadores} [de|en] {proyecto}',
+              'escalera de obras de {proyecto} {alimentadores}',
+              '[lanza|aplica] la escalera en {alimentadores} [de|del proyecto] {proyecto}',
+              'bancos sección y terna en escalera para {alimentadores} de {proyecto}'),
+          frases_literales=(r'\bescalera\b',)),
+    Tarea('optimizar_con_proyecto', 'Optimiza «Con proyecto»: escalera carga a carga y SET nueva para las que no '
+          'caben (042:RF-13, spec 052).', (P, A), True, 'trabajo', 'con_proyecto_optimizar', (
+              '[optimiza|optimizar] con proyecto [de|en] {alimentadores} [de|en] {proyecto}',
+              'optimización de con proyecto de {proyecto} {alimentadores}',
+              'optimiza el caso con proyecto de {alimentadores} en {proyecto}',
+              'set nueva para las cargas que no caben en {alimentadores} de {proyecto}'),
+          frases_literales=(r'optimiz\w*\W+(?:(?:de|del|el|caso)\W+)*con\W+proyecto',)),
     Tarea('transferencia', 'Transferencia de carga entre dos alimentadores (spec 011).', (P, A), True, 'trabajo',
           'transferencia_ejecutar', (
               'transfiere carga entre {alimentadores} [de|en] {proyecto}',
@@ -170,7 +187,8 @@ _TAREAS = (
               '[haz|genera|escribe] el informe de factibilidad de la sed {sed} [de|en] {alimentadores} {proyecto}',
               'factibilidad de la carga [de|en] {sed} {alimentadores} {proyecto}',
               'informe de factibilidad {proyecto} {alimentadores} {sed}')),
-    Tarea('entrenar_asistente', 'Reentrena el Transformer de órdenes y el clasificador de informes (RF-20).', (),
+    Tarea('entrenar_asistente', 'Reentrena el Transformer de órdenes y, solo si hay informes reales en su prueba, el '
+          'clasificador de informes; lo que no pase sus puertas deja el modelo en uso (026:RF-20, 067:RF-28).', (),
           True, 'proceso', 'asistente_entrenar', (
               'reentrena el asistente', 'entrena el transformer', 'aprende de las órdenes', 'aprende de las ordenes')),
 )

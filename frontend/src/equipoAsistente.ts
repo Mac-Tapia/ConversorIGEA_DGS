@@ -27,6 +27,9 @@ export interface EstadoEquipo {
   permisos: PermisoEquipo[];
   acciones: { plan: string; estado: string; herramienta: string; responsable: string }[];
   revisiones: RevisionEquipo[];
+  /** 067:RF-7: informes y estudios custodiados del espacio, sin su contenido. */
+  evidencias: { id: string; etiqueta: string; proyecto: string | null; titulo: string | null; registrado: string }[];
+  error_evidencias: string;
 }
 
 async function pedir<T>(ruta: string, init?: RequestInit): Promise<T> {

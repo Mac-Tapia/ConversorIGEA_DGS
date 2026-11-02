@@ -527,8 +527,8 @@ class SelectionIn(BaseModel):
     nombre: str = ''
 
 
-class AgenteProyectoIn(BaseModel):
-    """027:RF-43: el proyecto desde cero de un sistema eléctrico."""
+class AgenteProyectoListaIn(BaseModel):
+    """027:RF-43: el proyecto desde cero de un sistema eléctrico; 067:RF-37: la lista de sus etapas."""
 
     sistema: str = Field(min_length=1)
     periodo: str = Field(pattern=r'^\d{4}(-\d{2})?$')
@@ -536,6 +536,12 @@ class AgenteProyectoIn(BaseModel):
     ruta_cargas: str | None = None
     formulario: dict[str, Any] | None = None
     reiniciar: bool = False
+
+
+class AgenteProyectoIn(AgenteProyectoListaIn):
+    """067:RF-38: la orden trae la huella de la lista que el operador vio."""
+
+    confirmacion: str = Field(min_length=64, max_length=64)
 
 
 class RecalibrarIn(BaseModel):
@@ -604,6 +610,9 @@ def create_app(
                     errores_observacion[workspace_id]=str(exc)
                     ws.events.append('log',{'job':data.get('id'),'text':f'Observación incompleta: {exc}'})
                     if data.get('status')=='queued':raise OSError('No se pudo registrar la operación nueva') from exc
+                # 067:RF-1: todo trabajo pasa por aquí, también los que encola el asistente.
+                if data.get('status')=='done' and (aviso:=services.asistente_custodiar_trabajo(ws,data)):
+                    ws.events.append('log',{'job':data.get('id'),'text':aviso})
             ws.events.append(kind, data)
 
     jobs = JobManager(emit)
@@ -1719,11 +1728,25 @@ def create_app(
     def agente_proyecto(wid: str, body: AgenteProyectoIn, request: Request) -> dict:
         ws = ws_or_404(wid)
         base = str(request.base_url).rstrip('/')
-        datos = {k: v for k, v in body.model_dump().items() if k != 'reiniciar' and v not in (None, '', {})}
-        return submit(ws, 'agente_proyecto', f'Agente · proyecto desde cero · {body.sistema}',
-                      lambda ctx: services.agente_proyecto(ws, ctx, datos, base, getattr(app.state, 'asistente_http', None),
-                                                           reiniciar=body.reiniciar),
-                      lane='asistente')
+        datos = _datos_del_proyecto(body)
+        lista = services.agente_proyecto_lista(ws, datos, body.reiniciar)
+        if lista['confirmacion'] != body.confirmacion:                # 067:RF-39
+            raise HTTPException(409, 'La lista de etapas cambió desde que se mostró: revísela y confirme de nuevo.')
+        trabajo = submit(ws, 'agente_proyecto', f'Agente · proyecto desde cero · {body.sistema}',
+                         lambda ctx: services.agente_proyecto(ws, ctx, datos, base, getattr(app.state, 'asistente_http', None),
+                                                              reiniciar=body.reiniciar),
+                         lane='asistente')
+        services.agente_proyecto_anotar(ws, datos, lista)
+        return trabajo
+
+    def _datos_del_proyecto(body: AgenteProyectoListaIn) -> dict:
+        return {k: v for k, v in body.model_dump().items()
+                if k not in ('reiniciar', 'confirmacion') and v not in (None, '', {})}
+
+    @app.post('/api/workspaces/{wid}/agente/proyecto/lista')
+    def agente_proyecto_lista(wid: str, body: AgenteProyectoListaIn) -> dict:
+        """067:RF-37: lo que hará el proyecto entero, antes del único clic; solo lee."""
+        return services.agente_proyecto_lista(ws_or_404(wid), _datos_del_proyecto(body), body.reiniciar)
 
     # ------------------------------------------------------------ asistente (spec 026)
     @app.get('/api/workspaces/{wid}/asistente/monitor')
@@ -1767,6 +1790,11 @@ def create_app(
             return result
 
         return submit(ws, 'asistente_interpretar', 'Interpretar la orden', interpret, lane='asistente')
+
+    @app.get('/api/workspaces/{wid}/asistente/planes')
+    def asistente_planes(wid: str) -> dict:
+        """067:RF-13, RF-19: los planes que esperan confirmación, también tras un reinicio."""
+        return services.asistente_planes_guardados(ws_or_404(wid))
 
     @app.post('/api/workspaces/{wid}/asistente/{plan_id}/confirmar', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def asistente_confirmar(wid: str, plan_id: str, request: Request) -> dict:

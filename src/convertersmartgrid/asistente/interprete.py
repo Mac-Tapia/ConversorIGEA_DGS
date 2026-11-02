@@ -14,6 +14,7 @@ from typing import Any
 
 from .sinteticos import MESES, normalizar
 from .contratos_salida import validar_orden
+from .tareas import TAREAS
 
 UMBRAL_TRANSFORMER = 0.85
 UMBRAL_OLLAMA = 0.6
@@ -88,6 +89,23 @@ def _prediccion_valida(prediccion) -> bool:
         return False
 
 
+_PREGUNTA = re.compile(r'^\W*(como|que|por que|porque|cual|cuales|cuando|donde|explica|explicame)\b')
+
+
+def _por_frase_literal(texto: str, transformer: Any) -> str | None:
+    """La tarea que el modelo en uso no conoce y la orden nombra (067:RF-36). Sin esto, las tareas
+    nuevas no se alcanzarían hasta que un candidato pase las puertas: el modelo en uso entendía
+    «haz la escalera de …» como ``obras``, que aplica otra cosa. Una pregunta sobre ella no es una orden."""
+    t = normalizar(texto)
+    if '?' in texto or _PREGUNTA.search(t):
+        return None
+    conocidas = set(getattr(transformer, 'tareas', None) or ())
+    for tarea in TAREAS.values():
+        if tarea.nombre not in conocidas and any(re.search(f, t) for f in tarea.frases_literales):
+            return tarea.nombre
+    return None
+
+
 def interpretar(texto: str, *, transformer: Any = None, ollama: Any = None,
                 umbral: float = UMBRAL_TRANSFORMER, umbral_ollama: float = UMBRAL_OLLAMA,
                 contexto: Sequence[str] = (), umbrales: Mapping[str, float] | None = None) -> Interpretacion:
@@ -103,6 +121,11 @@ def interpretar(texto: str, *, transformer: Any = None, ollama: Any = None,
                            ('' if valida else ' (salida inválida)'))
         if not valida:
             previa = None
+    if (literal := _por_frase_literal(texto, transformer)) is not None:
+        # Los datos los sigue marcando el modelo si los ve; el plan los contrasta o los toma del texto.
+        return _con_reglas(Interpretacion(texto, literal, 1.0, 'catalogo', dict((previa or {}).get('datos') or {}), [],
+                                          [*consultados, f'frase literal de «{literal}»']))
+    if transformer is not None:
         # 027:RF-38: el umbral de su tarea, calibrado con las órdenes reales, si lo hay.
         if (previa is not None and not getattr(ollama, 'revisar_transformer', False)
                 and previa['confianza'] >= (umbrales or {}).get(previa['tarea'], umbral)):

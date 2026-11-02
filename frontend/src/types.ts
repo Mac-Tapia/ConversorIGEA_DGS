@@ -1744,6 +1744,19 @@ export interface AsistentePlan {
   alternativas: [string, number][];
   listo: boolean;
   pasos?: string[];
+  /** 067:RF-9, RF-10: quién interpretó la orden, si no fue el Transformer. */
+  avisos?: string[];
+  /** 067:RF-16, RF-19: un plan guardado que sigue por confirmar. */
+  guardado?: { estado: string; vigente: boolean; motivo: string; fecha?: string; ultimo_error: string };
+}
+
+/** 067:RF-37: lo que hará el proyecto entero antes del único clic. */
+export interface ListaProyecto {
+  etapas: { nombre: string; tarea: string; descripcion: string; escribe: boolean;
+    estado: 'pendiente' | 'hecha' | 'se_omitira' | 'falta_dato'; falta: string[] }[];
+  etapas_escritura: string[];
+  bloqueo: string;
+  confirmacion: string;
 }
 
 export interface AsistenteRespuesta {
@@ -1762,6 +1775,7 @@ export interface EstadoModelos {
     estado: 'PROMOVIDO' | 'RECHAZADO' | 'BLOQUEADO_POR_DATOS' | 'ERROR_ENTORNO' | null;
     candidate_id: string | null;
     algorithm: string | null;
+    en_uso?: string | null;
     report_path: string;
     gates: Record<string, unknown>;
     bloqueos: string[];

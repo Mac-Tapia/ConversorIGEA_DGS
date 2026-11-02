@@ -19,7 +19,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from ..evaluacion_modelos import huella
 from .ejecutor import ClienteWeb, ejecutar, pasos
+from .tareas import TAREAS
 
 
 @dataclass(frozen=True)
@@ -82,6 +84,38 @@ class PuntoDeControl:
         with staging_publicacion(self.ruta) as tmp:
             tmp.write_text(json.dumps(self.estado, ensure_ascii=False, indent=1, default=str), encoding='utf-8')
             tmp.replace(self.ruta)
+
+
+def lista_de_etapas(datos: Mapping[str, Any], control: Mapping[str, Any], contexto: Mapping[str, Any],
+                    *, reiniciar: bool = False) -> dict[str, Any]:
+    """Lo que hará el proyecto entero, antes del único clic (067:RF-37, RF-39).
+
+    Un clic confirmaba todas las etapas sin enseñarlas. La huella ata la confirmación a lo que se vio:
+    otra fuente, otros datos u otras etapas hechas ya no son lo que el operador aceptó.
+    """
+    hechas = {} if reiniciar else (control.get('etapas') or {})
+    conocidos = {**({} if reiniciar else (control.get('datos') or {})), **dict(datos)}
+    # El proyecto y sus alimentadores los deja la etapa del sistema: no faltan si aún va a correr.
+    if (hechas.get('sistema') or {}).get('estado') not in ('hecha', 'omitida'):
+        conocidos.setdefault('proyecto', '(lo deja la etapa del sistema)')
+    filas = []
+    for e in ETAPAS:
+        falta = [k for k in e.requiere if not conocidos.get(k)]
+        if (hechas.get(e.nombre) or {}).get('estado') in ('hecha', 'omitida'):
+            estado = 'hecha'
+        elif falta:
+            estado = 'se_omitira' if e.opcional else 'falta_dato'
+        else:
+            estado = 'pendiente'
+        filas.append({'nombre': e.nombre, 'tarea': e.tarea, 'descripcion': TAREAS[e.tarea].descripcion,
+                      'escribe': TAREAS[e.tarea].escribe, 'estado': estado, 'falta': falta})
+    escrituras = [f['nombre'] for f in filas if f['escribe'] and f['estado'] == 'pendiente']
+    identidad = None if reiniciar else control.get('identidad')
+    return {'etapas': filas, 'etapas_escritura': escrituras, 'bloqueo': (
+                'Hay un punto de control de otra fuente o solicitud: marque «Empezar de nuevo».'
+                if hechas and identidad != {**dict(contexto), 'solicitud': dict(datos)} else ''),
+            'confirmacion': huella({'contexto': dict(contexto), 'solicitud': dict(datos), 'reiniciar': reiniciar,
+                                     'etapas': [(f['nombre'], f['estado']) for f in filas]})}
 
 
 def _resumen(resultado: Any) -> Any:

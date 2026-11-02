@@ -21,7 +21,8 @@ from .tareas import TAREAS
 
 ROLES_REVISION = ('fuentes', 'fisica', 'coste', 'riesgo')
 _NATIVAS = frozenset({'leer_proyectos', 'flujo', 'verificar_caso_base', 'cargas_nuevas',
-    'obras', 'estudios', 'transferencia', 'pide', 'gemelo_aprender', 'sistema_completo'})
+    'obras', 'estudios', 'transferencia', 'pide', 'gemelo_aprender', 'sistema_completo',
+    'obras_escalera', 'optimizar_con_proyecto', 'informe_factibilidad'})
 _CERROJO = threading.Lock()
 _ACTIVOS: set[str] = set()
 
@@ -47,14 +48,26 @@ def _contexto(ws, proyecto: str) -> dict:
 
 
 def inventario_equipo() -> dict:
-    """Catálogo sin permisos implícitos: la disponibilidad no equivale a autorización."""
+    """Catálogo sin permisos implícitos: la disponibilidad no equivale a autorización.
+
+    067:RF-40: el proyecto entero se confirma con una lista única, y aquí se dice. El inventario
+    declaraba «confirmación obligatoria» por herramienta mientras un clic las confirmaba todas.
+    """
+    from .orquestador import ETAPAS
+
+    en_proyecto = {e.tarea for e in ETAPAS}
     return {'modelos_conceden_permisos': False, 'autonomia_habilitada': False,
         'roles': [{'rol': r, 'puede_ejecutar': r == 'operador',
                    'requiere_permiso_del_plan': True} for r in ('operador', *ROLES_REVISION)],
         'herramientas': [{'herramienta': t.nombre, 'funcion': t.funcion, 'modo': t.modo,
             'escribe': t.escribe, 'carril': 'powerfactory' if t.nombre in _NATIVAS else 'engine',
             'permiso_efectivo': False, 'rol_ejecutor': 'operador',
-            'confirmacion_obligatoria': t.escribe} for t in TAREAS.values()],
+            'confirmacion_obligatoria': t.escribe,
+            'confirmacion_en_proyecto': 'lista_unica_mostrada' if t.nombre in en_proyecto else None}
+            for t in TAREAS.values()],
+        'proyecto_entero': {'confirmacion': 'lista_unica_mostrada', 'confirmacion_por_etapa': False,
+            'etapas_escritura': [e.nombre for e in ETAPAS if TAREAS[e.tarea].escribe],
+            'ruta_lista': 'POST /api/workspaces/{id}/agente/proyecto/lista'},
         'concurrencia': {'por_espacio': 1, 'motor_nativo': 'carril powerfactory de JobManager',
                          'revision': 'secuencial; máximo dos rondas'}}
 
@@ -87,6 +100,23 @@ class GobiernoEquipo:
         instancia.listo = plan.listo
         instancia.lectura = plan.tarea in TAREAS and not TAREAS[plan.tarea].escribe
         instancia._activa = False
+        return instancia
+
+    def sello(self) -> dict:
+        """Lo que se selló al proponer el plan, para guardarlo con él (067:RF-12)."""
+        return {'firma': self.firma, 'alcance': deepcopy(self.alcance), 'rol': self.rol,
+                'archivos_entrada': dict(self.archivos_entrada)}
+
+    @classmethod
+    def restaurar(cls, ws, plan, *, extras: dict | None, sello: dict):
+        """El permiso de un plan guardado tras un reinicio: el contexto es el sellado al proponerlo,
+        no el de ahora, y nunca vuelve confirmado (067:RF-13 a RF-16). Lo que había confirmado el
+        operador se perdió con el proceso; ejecutarlo sin preguntar reanudaría una escritura sola."""
+        instancia = cls.desde_plan(ws, plan, rol=sello.get('rol', 'operador'), extras=extras)
+        if instancia.firma != sello.get('firma'):
+            raise PermisoDenegado('el plan guardado no coincide con su firma; proponga otro plan')
+        instancia.alcance = deepcopy(sello['alcance'])
+        instancia.archivos_entrada = dict(sello.get('archivos_entrada') or {})
         return instancia
 
     def confirmar(self, plan) -> None:
