@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from ..runtime_paths import staging_publicacion
+from .indice import Fragmento, Indice, fusion_rrf  # noqa: F401 (fusion_rrf: se sigue pidiendo desde aquí)
 
 import hashlib
 import json
@@ -31,22 +32,6 @@ class ParContraste:
     group_id: str
     positive_texts: tuple[str, ...] = ()
     hard_negative_texts: tuple[str, ...] = ()
-
-
-def fusion_rrf(rankings: Sequence[Sequence[Any]], *, k: int = 60) -> list[dict[str, Any]]:
-    """Reciprocal Rank Fusion: combina posiciones, no escalas de score incompatibles."""
-    puntos: dict[Any, float] = {}
-    mejor_posicion: dict[Any, int] = {}
-    for ranking in rankings:
-        vistos = set()
-        for posicion, identificador in enumerate(ranking, 1):
-            if identificador in vistos:
-                continue
-            vistos.add(identificador)
-            puntos[identificador] = puntos.get(identificador, 0.0) + 1.0 / (k + posicion)
-            mejor_posicion[identificador] = min(mejor_posicion.get(identificador, posicion), posicion)
-    orden = sorted(puntos, key=lambda x: (-puntos[x], mejor_posicion[x], str(x)))
-    return [{'id': identificador, 'score': puntos[identificador]} for identificador in orden]
 
 
 def _terminos(texto: str) -> set[str]:
@@ -241,8 +226,6 @@ def guardar_indice_versionado(fragmentos: Sequence[Any], vectores: Sequence[Sequ
 
 def reabrir_indice_versionado(origen: Path | str):
     """Reabre únicamente si corpus, modelo y segmentación conservan sus hashes."""
-    from .indice import Fragmento, Indice
-
     raiz = Path(origen)
     manifest = json.loads((raiz / 'manifest.json').read_text(encoding='utf-8'))
     filas = json.loads((raiz / 'fragmentos.json').read_text(encoding='utf-8'))

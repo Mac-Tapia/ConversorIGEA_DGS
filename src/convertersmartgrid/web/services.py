@@ -8507,16 +8507,41 @@ def asistente_corregir(ws: Workspace, plan_id: str, *, tarea: str | None = None,
 
 
 def asistente_pregunta(texto: str) -> dict:
-    """Cómo funciona el conversor, con cita de ficheros, funciones y RF (026:RF-17, RF-18)."""
-    from ..asistente import indice
+    """Cómo funciona el conversor, con cita de ficheros, funciones y RF (026:RF-17, RF-18), y los
+    métodos con que se halló en el propio texto, que es lo que ve el operador (047:RF-26)."""
+    from ..asistente import indice, reranker
     from ..asistente.ollama import cliente_configurado
+    from ..trabajadores_ml import turno_gpu
 
     ollama = cliente_configurado()
     if ollama.modelos() is None:
         ollama = None
-    i = indice.cargar_o_construir(project_root(), ollama)
-    r = indice.responder(i, texto, ollama)
-    return {'texto': r['respuesta'], 'citas': r['citas'], 'sabe': r['sabe']}
+    repo = project_root()
+    politica = reranker.politica()
+    reordenador = reranker.reordenador_de(politica, lambda: turno_gpu('reranker'))
+    r = indice.responder(indice.cargar_o_construir(repo), texto, ollama, repo=repo,
+                         reordenador=reordenador, usar_vectores=politica['hibrido'])
+    return {'texto': f"{r['respuesta']}\n\n{r['recuperacion']}", 'citas': r['citas'], 'sabe': r['sabe'],
+            'metodos': r['metodos']}
+
+
+def asistente_vectores_pendientes() -> bool:
+    """¿Hay vectores del índice por calcular y Ollama para hacerlo (047:RF-22)?"""
+    from ..asistente import indice
+    from ..asistente.ollama import cliente_configurado
+
+    return indice.vectores_pendientes(project_root(), cliente_configurado())
+
+
+def asistente_calcular_vectores(ctx: JobContext, ceder) -> dict:
+    """Los vectores del índice como trabajo: cancelable y cediendo el carril (047:RF-22, RF-24)."""
+    from ..asistente import indice
+    from ..asistente.ollama import cliente_configurado
+
+    r = indice.calcular_vectores(project_root(), cliente_configurado(), cancelar=ctx.check_cancel, ceder=ceder,
+                                 progreso=lambda n, total: ctx.progress(n, total, 'Vectores del índice'))
+    ctx.log(f"Vectores del índice: {r['con_vector']} de {r['total']} ({r['estado']}).")
+    return r
 
 
 def asistente_clasificar(texto: str) -> dict:
