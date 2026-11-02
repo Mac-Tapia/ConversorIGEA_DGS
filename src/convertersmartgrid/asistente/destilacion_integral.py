@@ -15,17 +15,29 @@ import platform
 from ..evaluacion_modelos import (PARTES, PoliticaEvaluacion, huella, particionar_registros,
                                   texto_canonico, verificar_familias)
 from .curriculo_maestro import ESTILO_REAL, FAMILIAS, MAESTRO, MAESTRO_ESTILO_REAL
-from .maestro_real import CALIDAD, CONFIANZA_MINIMA, clave_texto, con_erratas, firma_familia
+from .interprete import UMBRAL_TRANSFORMER
+from .maestro_real import CALIDAD, CONFIANZA_MINIMA, NINGUNA, clave_texto, con_erratas, firma_familia
 from .ordenes_fijas import generar as generar_fijas, repartir
 from .sinteticos import Ejemplo, expandir
 from .tareas import TAREAS
 
 #: Variantes con erratas de cada texto real etiquetado (068:RF-38).
 VARIANTES_POR_TEXTO_REAL = 8
+#: 069:RF-17 a RF-19: puerta nueva de rechazo sobre la conversación reservada, además de las de ``PoliticaEvaluacion``.
+RECHAZO_MINIMO, SE_CUELA_MAXIMO, RESERVADOS_MINIMOS = .90, .02, 100
+#: 069:RF-24: el umbral del modelo es el menor de estos con el que acierte el 98 % de lo que cubre en calibración.
+#: No baja de 0,85: con 0,70 acertaba igual en calibración, pero la charla de desarrollo pasaba el doble (2026-11-02).
+UMBRALES = (.85, .90, .95)
+#: Lo que se informa por umbral, más ancho que lo que se puede elegir (069:RF-27).
+REJILLA_INFORME = (.5, .7, .75, .8, .85, .9, .95)
+ACIERTO_DEL_UMBRAL = .98
+ARCHIVO_RESERVADOS = 'rechazo_reservado.json'
+_DESCRIPCION_NINGUNA = 'Mensaje que no es una orden del catálogo: conversación con el operador.'
 
 
 def _ampliar_entrenamiento(filas: list[dict], vocab: dict, etiquetas: Sequence[dict], por_familia: int,
-                           cuarentena: set[str], humanos: set[str]) -> dict:
+                           cuarentena: set[str], humanos: set[str], ninguna: Sequence[str] = (),
+                           reservados: Sequence[str] = ()) -> dict:
     """068:RF-25 a RF-27: añade lo nuevo solo al ajuste, después de sellar lo demás.
 
     Va en una pasada aparte porque en la primera un texto en conflicto manda la fila de prueba a
@@ -34,6 +46,7 @@ def _ampliar_entrenamiento(filas: list[dict], vocab: dict, etiquetas: Sequence[d
     apartadas = [r for r in filas if r['particion'] != 'entrenamiento']
     vedados = {clave_texto(t) for t in (*humanos, *cuarentena)} | {clave_texto(r['texto']) for r in apartadas}
     vedados |= {clave_texto(e.texto) for e in repartir(generar_fijas(vocab))[1]}   # 027:RF-66
+    vedados |= {clave_texto(t) for t in reservados}                                # 069:RF-11
     familias = {firma_familia(r['texto'], r['datos']) for r in apartadas}
     vistos = {texto_canonico(r['texto']) for r in filas}
     cuenta = Counter()
@@ -49,7 +62,8 @@ def _ampliar_entrenamiento(filas: list[dict], vocab: dict, etiquetas: Sequence[d
         vistos.add(clave)
         r = {'texto': e.texto, 'tarea': e.tarea, 'datos': [list(d) for d in sorted(e.datos)], 'group_id': grupo,
              'particion': 'entrenamiento', 'quality': calidad, 'del_maestro': True,
-             'justificacion_verificable': TAREAS[e.tarea].descripcion, 'origen_curriculo': tipo, **extra}
+             'justificacion_verificable': TAREAS[e.tarea].descripcion if e.tarea in TAREAS else _DESCRIPCION_NINGUNA,
+             'origen_curriculo': tipo, **extra}
         if aumentado:
             r['aumentado'] = 'erratas'
         r['record_id'] = huella(r)
@@ -92,7 +106,12 @@ def _ampliar_entrenamiento(filas: list[dict], vocab: dict, etiquetas: Sequence[d
         if resultado != 'fuga':
             # Son pocas frente a las sintéticas: sus variantes les dan peso sin duplicar el texto.
             erratas(e, grupo, CALIDAD, 'texto_real', semilla_de(e.texto), VARIANTES_POR_TEXTO_REAL, **extra)
-    return {'etiquetas_reales': {'leidas': leidas, 'usadas': sum(por_tarea.values()), 'filas': cuenta['texto_real_filas'],
+    for texto in sorted(ninguna, key=clave_texto):                                 # 069:RF-10, RF-12
+        agregar(Ejemplo(texto, NINGUNA, []), huella({'ninguna': clave_texto(texto)}), CALIDAD, 'ninguna', maestro='claude')
+    return {'ninguna': {'leidos': len(ninguna), 'filas': cuenta['ninguna_filas'], 'excluidos_por_fuga': cuenta['ninguna_fuga'],
+                        'repetidos': cuenta['ninguna_repetidas']},
+            'rechazo_reservado': {'ejemplos': len(reservados), 'hash': huella(sorted(reservados))},
+            'etiquetas_reales': {'leidas': leidas, 'usadas': sum(por_tarea.values()), 'filas': cuenta['texto_real_filas'],
                                  'excluidas_por_fuga': cuenta['texto_real_fuga'], 'repetidas': cuenta['texto_real_repetidas'],
                                  'apartadas': cuenta['texto_real_apartadas'], 'por_tarea': dict(sorted((t, n) for t, n in por_tarea.items() if n))},
             'estilo_real': {'frases': sum(len(v) for v in ESTILO_REAL.values()), 'filas': cuenta['estilo_real_filas'],
@@ -101,7 +120,8 @@ def _ampliar_entrenamiento(filas: list[dict], vocab: dict, etiquetas: Sequence[d
 
 
 def preparar_corpus(vocab: dict, reales: list[dict], *, por_familia: int = 40, etiquetas_reales: Sequence[dict] = (),
-                    ampliar: bool = True) -> tuple[list[dict], dict]:
+                    ampliar: bool = True, ninguna: Sequence[str] = (),
+                    ninguna_reservada: Sequence[str] = ()) -> tuple[list[dict], dict]:
     """Expande familias declaradas; todos los ejemplos humanos quedan fuera del ajuste.
 
     ``etiquetas_reales`` (068) son plata del maestro sobre textos del operador; nunca cuentan como humanas.
@@ -168,8 +188,8 @@ def preparar_corpus(vocab: dict, reales: list[dict], *, por_familia: int = 40, e
         agregar(e, huella({'humana': texto_canonico(e.texto)}), 'prueba', 'gold_human')
     filas = sorted((r for r in filas if texto_canonico(r['texto']) not in cuarentena),
                    key=lambda r: r['record_id'])
-    ampliacion = (_ampliar_entrenamiento(filas, vocab, etiquetas_reales, por_familia, cuarentena, humanos)
-                  if ampliar else {})
+    ampliacion = (_ampliar_entrenamiento(filas, vocab, etiquetas_reales, por_familia, cuarentena, humanos,
+                                         ninguna, ninguna_reservada) if ampliar else {})
     filas.sort(key=lambda r: r['record_id'])
     denominadores = defaultdict(Counter)
     for r in filas:
@@ -189,15 +209,28 @@ def preparar_corpus(vocab: dict, reales: list[dict], *, por_familia: int = 40, e
     return filas, meta
 
 
-def guardar_corpus(destino: Path, registros: list[dict], manifiesto: dict) -> None:
+def guardar_corpus(destino: Path, registros: list[dict], manifiesto: dict, reservados: Sequence[str] = ()) -> None:
     destino = Path(destino)
     destino.mkdir(parents=True, exist_ok=True)
-    for nombre, datos in (('corpus.json', registros), ('dataset_manifest.json', manifiesto)):
+    # Los reservados van aparte: el manifiesto acaba en el registro y este texto no (069:RF-21).
+    for nombre, datos in (('corpus.json', registros), ('dataset_manifest.json', manifiesto),
+                          (ARCHIVO_RESERVADOS, sorted(reservados))):
         ruta = destino / nombre
         contenido = json.dumps(datos, ensure_ascii=False, sort_keys=True, indent=2, allow_nan=False)
         if ruta.exists() and ruta.read_text(encoding='utf-8') != contenido:
             raise ValueError('se conserva el corpus existente; use otro destino para otra revisión')
         ruta.write_text(contenido, encoding='utf-8')
+
+
+def leer_reservados(destino: Path, manifiesto: dict) -> list[str] | None:
+    """Los mensajes reservados para medir el rechazo; ``None`` si este corpus no los trae (069:RF-19)."""
+    ruta = Path(destino) / ARCHIVO_RESERVADOS
+    if not ruta.is_file() or 'rechazo_reservado' not in manifiesto:
+        return None
+    textos = json.loads(ruta.read_text(encoding='utf-8'))
+    if huella(textos) != manifiesto['rechazo_reservado']['hash']:
+        raise ValueError('integridad de los mensajes reservados inválida')
+    return textos
 
 
 def leer_corpus(destino: Path) -> tuple[list[dict], dict]:
@@ -209,7 +242,9 @@ def leer_corpus(destino: Path) -> tuple[list[dict], dict]:
         identidad = r.get('record_id')
         if identidad != huella({k: v for k, v in r.items() if k != 'record_id'}):
             raise ValueError('integridad de registro inválida')
-        if r.get('tarea') not in TAREAS or r.get('quality') not in {
+        # 069:RF-10: «ninguna» solo es válida como plata de entrenamiento.
+        ninguna_valida = (r.get('tarea') == NINGUNA and r.get('quality') == CALIDAD and r.get('particion') == 'entrenamiento')
+        if (r.get('tarea') not in TAREAS and not ninguna_valida) or r.get('quality') not in {
                 'gold_human', 'silver_deterministic', 'silver_teacher_verified', CALIDAD}:
             raise ValueError('etiqueta o calidad no admitida')
         texto = r['texto']
@@ -232,9 +267,48 @@ def elegir_candidato(candidatos: list[dict]) -> dict:
                                           r['metodo'] == 'supervisado', -r['semilla']))
 
 
-def decidir_promocion(sinteticas: dict, humanas: dict, familias: dict, referencia: dict | None) -> dict:
+def _fallos_de_rechazo(rechazo: dict | None) -> list[str]:
+    """069:RF-17 a RF-19: la conversación reservada no debe recibir tareas; sin medirla no se aprueba."""
+    if rechazo is None or type(rechazo.get('ejemplos')) is not int or rechazo['ejemplos'] < RESERVADOS_MINIMOS:
+        return [f'rechazo sin medir o con menos de {RESERVADOS_MINIMOS} mensajes reservados']
+    fallos = []
+    if not rechazo['rechazada'] >= RECHAZO_MINIMO:
+        fallos.append(f"rechazo: la clase ninguna recoge {rechazo['rechazada']:.3f}, bajo {RECHAZO_MINIMO}")
+    if not rechazo['se_cuela'] <= SE_CUELA_MAXIMO:
+        fallos.append(f"rechazo: se cuela {rechazo['se_cuela']:.3f}, sobre {SE_CUELA_MAXIMO}")
+    return fallos
+
+
+def medir_rechazo(modelo, textos: Sequence[str]) -> dict:
+    """Qué hace el modelo con mensajes que no son órdenes; solo cifras, nunca el texto (069:RF-20, RF-21)."""
+    if not textos:
+        raise ValueError('rechazo sin mensajes reservados')
+    umbral = getattr(modelo, 'umbral', None)
+    umbral = umbral if type(umbral) is float else UMBRAL_TRANSFORMER
+    p = [modelo.predecir(t) for t in textos]
+    n = len(p)
+    con_tarea = [x['confianza'] for x in p if x['tarea'] != NINGUNA]
+    return {'ejemplos': n, 'umbral': umbral, 'rechazada': (n - len(con_tarea)) / n,
+            'se_cuela': sum(c >= umbral for c in con_tarea) / n,
+            'se_cuela_por_umbral': {str(u): sum(c >= u for c in con_tarea) / n for u in REJILLA_INFORME}}
+
+
+def cobertura_por_umbral(modelo, registros: Sequence[dict], umbrales: Sequence[float] = REJILLA_INFORME) -> dict:
+    """Por cada umbral, cuánto cubre y cuánto de eso acierta; «ninguna» no cubre (069:RF-27)."""
+    p = [modelo.predecir(r['texto']) for r in registros]
+    salida = {}
+    for u in umbrales:
+        cubre = [x['tarea'] == r['tarea'] for x, r in zip(p, registros, strict=True)
+                 if x['tarea'] != NINGUNA and x['confianza'] >= u]
+        salida[str(u)] = {'cobertura': len(cubre) / max(1, len(p)), 'acierto': sum(cubre) / max(1, len(cubre)), 'cubiertos': len(cubre)}
+    return salida
+
+
+def decidir_promocion(sinteticas: dict, humanas: dict, familias: dict, referencia: dict | None,
+                      rechazo: dict | None = None) -> dict:
     politica = PoliticaEvaluacion(modo='agente')
     fallos = verificar_familias(familias, referencia, politica, esperadas=tuple(TAREAS))
+    fallos += _fallos_de_rechazo(rechazo)
     for k, minimo in politica.puertas_por_familia:
         valor = sinteticas.get(k)
         if type(valor) not in (float, int) or not math.isfinite(valor) or valor < minimo:
@@ -255,6 +329,21 @@ def decidir_promocion(sinteticas: dict, humanas: dict, familias: dict, referenci
             'gates': {'approved': not fallos}, 'fallos': fallos, 'ordenes_humanas': n,
             'alcance': 'asistido', 'confirmacion_obligatoria': True,
             'muestra_humana_amplia': n >= 200}
+
+
+def _medir_en_uso(sinteticas: list[dict], humanas: list[dict], reservados: Sequence[str] | None) -> dict | None:
+    """El modelo en uso con las mismas medidas que el candidato, para la tabla de la decisión (069:RF-20, RF-27)."""
+    from . import transformer as tr
+    try:
+        activo = tr.cargar()
+        if activo is None:
+            return None
+        return {'version': activo.version, 'sinteticas': evaluar_alumno(activo, sinteticas),
+                'humanas': evaluar_alumno(activo, humanas) if humanas else None,
+                'rechazo': medir_rechazo(activo, reservados) if reservados else None,
+                'cobertura': cobertura_por_umbral(activo, sinteticas)}
+    except (ImportError, RuntimeError, OSError, ValueError, KeyError) as exc:
+        return {'error': str(exc)}
 
 
 def _referencia_activa(registros: list[dict]) -> dict | None:
@@ -294,13 +383,17 @@ def _guardar_alumno(modelo, carpeta: Path, meta: dict):
     tr._torch().save({k: v.detach().cpu() for k, v in modelo.red.state_dict().items()}, carpeta / 'pesos.pt')
     datos = {**meta, 'cfg': asdict(modelo.cfg), 'simbolos': modelo.simbolos,
              'tareas': modelo.tareas, 'etiquetas': list(tr.ETIQUETAS),
-             'temperatura': modelo.temperatura}
+             'temperatura': modelo.temperatura, **getattr(modelo, 'meta_extra', {})}
     (carpeta / 'modelo.json').write_text(json.dumps(datos, ensure_ascii=False, indent=2, allow_nan=False), encoding='utf-8')
 
 
 def cargar_alumno(carpeta: Path):
     from . import transformer as tr
     meta = json.loads((Path(carpeta) / 'modelo.json').read_text(encoding='utf-8'))
+    if 'codificador' in meta:                                                        # 069:RF-9
+        from .codificador_ordenes import modelo_desde
+        return modelo_desde(meta, tr._torch().load(Path(carpeta) / 'pesos.pt', weights_only=True, map_location='cpu'),
+                            meta.get('version', 'candidato'), tr._dispositivo())
     if meta.get('etiquetas') != list(tr.ETIQUETAS) or meta.get('tareas') != sorted(TAREAS):
         raise ValueError('contrato de tareas o entidades incompatible')
     cfg = tr.Configuracion(**meta['cfg'])
@@ -326,15 +419,29 @@ def calibrar_temperatura(modelo, registros: list[dict]) -> dict:
     with torch.no_grad():
         for inicio in range(0, len(registros), 64):
             filas = registros[inicio:inicio + 64]
-            x = tr.rellenar(tr.codificar([r['texto'] for r in filas], modelo.simbolos)).to(disp)
-            clases, _ = modelo.red(x)
-            zs.append(clases['tarea']); ys.extend(modelo.tareas.index(r['tarea']) for r in filas)
+            if hasattr(modelo, 'logits_tarea'):                                      # 069:RF-23
+                zs.append(modelo.logits_tarea([r['texto'] for r in filas]))
+            else:
+                x = tr.rellenar(tr.codificar([r['texto'] for r in filas], modelo.simbolos)).to(disp)
+                zs.append(modelo.red(x)[0]['tarea'])
+            ys.extend(modelo.tareas.index(r['tarea']) for r in filas)
         z, y = torch.cat(zs), torch.tensor(ys, device=disp)
         perdida = {t: float(torch.nn.functional.cross_entropy(z / t, y)) for t in (.5, .75, 1., 1.5, 2., 3., 5.)}
     modelo.temperatura = min(perdida, key=perdida.get)
     return {'temperatura': modelo.temperatura, 'nll_por_temperatura': perdida, 'ejemplos': len(ys),
             'record_ids_hash': huella(sorted(r['record_id'] for r in registros)),
             'garantia_de_cobertura': False}
+
+
+def calibrar_umbral(modelo, registros: list[dict]) -> dict:
+    """El menor umbral que acierta el 98 % de lo que cubre en calibración; si ninguno, el más alto (069:RF-24, RF-25)."""
+    if not registros or any(r['particion'] != 'calibracion' for r in registros):
+        raise ValueError('calibración independiente obligatoria')
+    por_umbral = cobertura_por_umbral(modelo, registros, UMBRALES)
+    elegido = next((u for u in UMBRALES if por_umbral[str(u)]['cubiertos'] and
+                    por_umbral[str(u)]['acierto'] >= ACIERTO_DEL_UMBRAL), UMBRALES[-1])
+    modelo.umbral = float(elegido)
+    return {'umbral': modelo.umbral, 'por_umbral': por_umbral, 'ejemplos': len(registros)}
 
 
 def ensayar_funcionamiento(modelo, *, ollama=None) -> dict:
@@ -424,16 +531,21 @@ def evaluar_agente(modelo, registros: list[dict], *, ollama=None, por_tarea: int
 
 def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11, 23, 37),
                          registro: Path | None = None, log=print) -> dict:
+    from . import codificador_ordenes as co
     from . import transformer as tr
     from ..model_registry import RegistroModelo, reabrir_en_subproceso
     filas, meta = leer_corpus(dataset)
+    reservados = leer_reservados(dataset, meta)
     politica = PoliticaEvaluacion(modo='agente', semillas=tuple(semillas))
     particiones = particionar_registros(filas, politica)
     destino = Path(destino)
     if destino.exists() and any(destino.iterdir()):
         raise ValueError('se conserva una ejecución existente; use otro destino')
     destino.mkdir(parents=True, exist_ok=True)
-    cfg = cfg or tr.Configuracion()
+    cfg = cfg or co.Configuracion()
+    disp = tr._dispositivo()                                                         # 069:RF-6
+    tr.liberar_gpu()
+    cache = co.CacheCodificada(co.obtener_codificador(co.NOMBRE_CODIFICADOR, co.REVISION_CODIFICADOR, disp))
     por_parte = {p: [r for r in filas if r['particion'] == p] for p in PARTES}
     base = [r for r in por_parte['entrenamiento'] if not r['del_maestro']]
     maestro = [r for r in por_parte['entrenamiento'] if r['del_maestro']]
@@ -442,14 +554,16 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
     protocolo = {'policy': asdict(politica), 'policy_hash': politica.hash,
                  'particiones': asdict(particiones), 'dataset': meta, 'cfg': asdict(cfg),
                  'semillas': list(semillas), 'metodos': ['supervisado', 'destilado'],
+                 'codificador': {'nombre': co.NOMBRE_CODIFICADOR, 'revision': co.REVISION_CODIFICADOR},
                  'codigo_hashes': {p.name: huella(p.read_text(encoding='utf-8')) for p in
-                     (Path(__file__), Path(tr.__file__), Path(__file__).with_name('curriculo_maestro.py'),
+                     (Path(__file__), Path(tr.__file__), Path(co.__file__), Path(__file__).with_name('curriculo_maestro.py'),
                       Path(__file__).with_name('maestro_real.py'))},
                  'entorno': {'python': platform.python_version(), 'torch': tr._torch().__version__,
-                             'cuda': tr._torch().version.cuda, 'gpu': tr._torch().cuda.get_device_name(0)}}
+                             'cuda': tr._torch().version.cuda,
+                             'gpu': tr._torch().cuda.get_device_name(0) if tr._torch().cuda.is_available() else None}}
     codigo = destino / 'codigo'
     codigo.mkdir()
-    for archivo in (Path(__file__), Path(tr.__file__), Path(__file__).with_name('curriculo_maestro.py'),
+    for archivo in (Path(__file__), Path(tr.__file__), Path(co.__file__), Path(__file__).with_name('curriculo_maestro.py'),
                     Path(__file__).with_name('maestro_real.py'),
                     Path(__file__).with_name('ordenes_fijas.py'), Path(__file__).parents[1] / 'evaluacion_modelos.py'):
         (codigo / archivo.name).write_text(archivo.read_text(encoding='utf-8'), encoding='utf-8')
@@ -460,8 +574,8 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
         for metodo in ('supervisado', 'destilado'):
             log(f'{metodo}, semilla {semilla}: ajuste CUDA; prueba sellada', flush=True)
             datos = base if metodo == 'supervisado' else [*base, *maestro]
-            modelo = tr.entrenar(_ejemplos(datos), replace(cfg, semilla=semilla),
-                                 log=lambda m: log(m, flush=True))
+            modelo = co.entrenar(_ejemplos(datos), replace(cfg, semilla=semilla), log=lambda m: log(m, flush=True),
+                                 cache=cache, dispositivo=disp)
             seleccion = evaluar_alumno(modelo, por_parte['seleccion'])
             carpeta = destino / f'{metodo}-{semilla}'
             _guardar_alumno(modelo, carpeta, {'version': carpeta.name, 'metodo': metodo,
@@ -476,13 +590,17 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
     (destino / 'ganador_seleccion.json').write_text(json.dumps(elegido, ensure_ascii=False, indent=2), encoding='utf-8')
     modelo = cargar_alumno(Path(elegido['path']))
     calibracion = calibrar_temperatura(modelo, por_parte['calibracion'])
+    calibracion = {**calibracion, **calibrar_umbral(modelo, por_parte['calibracion'])}
     final = destino / 'alumno'
     _guardar_alumno(modelo, final, {'version': final.name, 'seleccion': elegido,
         'calibracion': calibracion, 'dataset_hash': meta['dataset_hash'], 'policy_hash': politica.hash})
     sinteticas = evaluar_alumno(modelo, [r for r in por_parte['prueba'] if r['quality'] != 'gold_human'])
     humanas = evaluar_alumno(modelo, [r for r in por_parte['prueba'] if r['quality'] == 'gold_human'])
     prueba_sintetica = [r for r in por_parte['prueba'] if r['quality'] != 'gold_human']
-    decision = decidir_promocion(sinteticas, humanas, sinteticas['familias'], _referencia_activa(prueba_sintetica))
+    rechazo = medir_rechazo(modelo, reservados) if reservados else None
+    cobertura = cobertura_por_umbral(modelo, prueba_sintetica)
+    decision = decidir_promocion(sinteticas, humanas, sinteticas['familias'], _referencia_activa(prueba_sintetica), rechazo)
+    en_uso = _medir_en_uso(prueba_sintetica, [r for r in por_parte['prueba'] if r['quality'] == 'gold_human'], reservados)
     funcionamiento = ensayar_funcionamiento(modelo)
     if not funcionamiento['ok']:
         decision['gates']['approved'] = False
@@ -504,13 +622,15 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
         'cfg_elegida': json.loads((final / 'modelo.json').read_text(encoding='utf-8'))['cfg'],
         'policy_hash': politica.hash, 'training_completed': True, 'semillas': list(semillas)},
         dataset_manifest=protocolo, metrics={'sinteticas': sinteticas, 'humanas': humanas,
-        'seleccion': candidatos, 'calibracion': calibracion, 'funcionamiento': funcionamiento},
+        'seleccion': candidatos, 'calibracion': calibracion, 'funcionamiento': funcionamiento,
+        'rechazo': rechazo, 'cobertura': cobertura, 'en_uso': en_uso},
         decision=decision, smoke_reload=smoke, artifacts=[final / n for n in ('pesos.pt', 'modelo.json', 'readback.json')])
     # La activación es una operación explícita del registro, no un efecto del ensayo: la hace quien
     # lanza el reentrenamiento con ``modelos_en_uso.aplicar_decision`` (067:RF-20).
     reporte = {'schema_version': 1, 'training_completed': True, 'entrenado': True,
         'status': decision['status'], 'promovido': False, 'decision': decision,
         'denominadores': meta.get('denominadores'),                                       # 068:RF-29, 047:RF-13
+        'rechazo': rechazo, 'cobertura': cobertura, 'modelo_en_uso': en_uso,              # 069:RF-20, RF-27
         'elegido': elegido, 'candidato': candidato, 'sinteticas': sinteticas, 'humanas': humanas,
         'smoke_reload': smoke, 'funcionamiento': funcionamiento,
         'calibracion': calibracion, 'duracion_s': time.monotonic() - inicio}

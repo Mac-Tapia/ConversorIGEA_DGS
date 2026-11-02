@@ -36,6 +36,9 @@ integrador ya había visto los mensajes reservados; por eso se declara también 
 - RF-8: CUANDO el registro apruebe un modelo con codificador, EL SISTEMA lo pondrá en uso con el mismo puntero que a los
   demás.
 - RF-9: CUANDO se reabra un modelo con codificador en un proceso nuevo, EL SISTEMA obtendrá sus mismas predicciones.
+- RF-30: CUANDO la tarea sea `pregunta`, EL SISTEMA no marcará un trozo como `texto`, porque la pregunta es el mensaje entero.
+- RF-31: EL SISTEMA dará cada dato con todas sus palabras, sin recortar las de unión de sus bordes.
+- RF-32: CUANDO el dato de alimentadores sea «todos los alimentadores», EL SISTEMA lo entenderá como todos.
 
 ### Clase «ninguna»
 
@@ -66,8 +69,8 @@ integrador ya había visto los mensajes reservados; por eso se declara también 
 ### Calibración
 
 - RF-23: EL SISTEMA ajustará la temperatura del modelo solo con la partición de calibración.
-- RF-24: EL SISTEMA fijará como umbral del modelo el menor de 0,70, 0,75, 0,80, 0,85, 0,90 y 0,95 con el que acierte al
-  menos el 98 % de lo que cubre en la partición de calibración.
+- RF-24: EL SISTEMA fijará como umbral del modelo el menor de 0,85, 0,90 y 0,95 con el que acierte al menos el 98 % de lo
+  que cubre en la partición de calibración.
 - RF-25: SI ningún umbral llega al 98 %, ENTONCES EL SISTEMA fijará 0,95.
 - RF-26: CUANDO el modelo traiga su umbral, EL SISTEMA lo usará en el intérprete en vez del fijo de 0,85.
 - RF-27: EL SISTEMA dará la cobertura y el acierto por umbral del candidato y del modelo en uso en la prueba, sin
@@ -87,6 +90,6 @@ vía antigua `entrenar_y_promover`, que sigue entrenando el modelo letra a letra
 
 ## Limitaciones declaradas
 
-La conversación reservada ya la vio el experimento del integrador, en un modelo descartado: su medida orienta los umbrales
+El umbral de RF-24 empezaba en 0,70 y se subió a 0,85 tras medir en desarrollo, sin tocar RF-17 ni RF-18. La conversación reservada ya la vio el experimento del integrador, en un modelo descartado: su medida orienta los umbrales
 de RF-17 y RF-18, que por eso no son una estimación ciega. Mensajes casi iguales («sigue», «sigue hasta cerrar») pueden caer
 a los dos lados del hash, lo que favorece el rechazo. Cada tarea de la prueba es una sola paráfrasis expandida (068).

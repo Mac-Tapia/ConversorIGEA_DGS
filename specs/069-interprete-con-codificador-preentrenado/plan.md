@@ -12,6 +12,7 @@ manejan `pesos.pt` y `modelo.json`. Un modelo nuevo que respete eso no obliga a 
 | Parte | Ficheros | Cubre |
 | --- | --- | --- |
 | Codificador, cabezas, entrenamiento, predicción | `src/convertersmartgrid/asistente/codificador_ordenes.py` | RF-1 a RF-6, RF-9 |
+| Etiquetas y voto por palabra, comunes | `src/convertersmartgrid/asistente/datos_por_palabra.py` | RF-1, RF-31 |
 | Carga de heredados y nuevos | `asistente/transformer.py`, `asistente/destilacion_integral.py` | RF-7, RF-8 |
 | Mensajes `ninguna`: lectura y reparto por hash | `asistente/maestro_real.py` | RF-10, RF-11 |
 | Segunda pasada, corpus y reservados | `asistente/destilacion_integral.py` | RF-10 a RF-14 |
@@ -27,7 +28,7 @@ manejan `pesos.pt` y `modelo.json`. Un modelo nuevo que respete eso no obliga a 
   porque 25 000 frases no bastan para ajustar 118 M de parámetros sin perder lo que trae.
 - La cabeza de datos es una GRU bidireccional sobre los estados por token más seis rasgos de forma de cada pieza (dígitos,
   mayúsculas, separadores…). Los códigos de red no tienen significado para el codificador: su forma es lo que los delata.
-- Las probabilidades por token se pasan a caracteres y se decide con `transformer._spans`, para que el dato siga saliendo
+- Las probabilidades por token se pasan a caracteres y se decide con el voto por palabra de `datos_por_palabra`, para que el dato siga saliendo
   entero, con el mismo voto por palabra. Descartado: un decodificador nuevo.
 - Los mensajes reservados van en su propio fichero, `rechazo_reservado.json`, junto al corpus. Descartado: una partición más,
   porque `PARTES` entra en la política; y el manifiesto, porque acaba en el registro.

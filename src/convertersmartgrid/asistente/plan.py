@@ -118,7 +118,7 @@ def resolver(interp: Interpretacion, vocab: Mapping[str, Sequence[str]]) -> Plan
 
 def _alimentadores(valores: list[str], texto: str, opciones: list[str], plan: Plan) -> list[str]:
     crudos = [p for v in valores for p in _trozos_lista(v)]
-    if any(normalizar(p) in ('todos', 'todo') for p in crudos) or (not crudos and re.search(
+    if any(normalizar(p) in ('todos', 'todo', 'todos los alimentadores') for p in crudos) or (not crudos and re.search(
             r'\btodos los alimentadores\b', normalizar(texto))):
         if opciones:
             plan.razonamiento.append(f'alimentadores: «todos» → los {len(opciones)} de la fuente cargada.')

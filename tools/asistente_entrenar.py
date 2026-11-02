@@ -87,14 +87,17 @@ def main(argv=None) -> int:
             from convertersmartgrid.training_coordinator import BloqueoGPU
             destino = salida.parent / (salida.stem + '_integral')
             vocab = json.loads(args.vocabulario.read_text(encoding='utf-8')) if args.vocabulario else {}
-            from convertersmartgrid.asistente.maestro_real import leer_etiquetas
+            from convertersmartgrid.asistente import codificador_ordenes
+            from convertersmartgrid.asistente.maestro_real import leer_etiquetas, leer_ninguna
+            ninguna, reservados = leer_ninguna(almacen.raiz())                             # 069:RF-28
             filas, meta = preparar_corpus(vocab, almacen.leer('ejemplos'),                 # 068:RF-33
-                                          etiquetas_reales=leer_etiquetas(almacen.raiz())[0])
-            guardar_corpus(destino / 'corpus', filas, meta)
+                                          etiquetas_reales=leer_etiquetas(almacen.raiz())[0],
+                                          ninguna=ninguna, ninguna_reservada=reservados)
+            guardar_corpus(destino / 'corpus', filas, meta, reservados)
             lock = Path(os.environ.get('CSG_ML_GPU_LOCK') or str(Path(tempfile.gettempdir()) / 'convertersmartgrid-gpu.lock'))
             with BloqueoGPU(lock, 'asistente-integral-web'):
                 resultado = entrenar_destilacion(destino / 'corpus', destino / 'entrenamiento',
-                    cfg=transformer.Configuracion(epocas=args.epocas),
+                    cfg=codificador_ordenes.Configuracion(epocas=args.epocas),
                     semillas=tuple(int(s) for s in args.semillas.split(',') if s.strip()),
                     registro=almacen.raiz() / 'model_registry')
                 # 067:RF-20, RF-24: lo que el registro aprobó pasa a uso; lo demás deja el modelo actual.

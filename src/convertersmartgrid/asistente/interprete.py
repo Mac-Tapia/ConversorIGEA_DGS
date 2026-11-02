@@ -12,6 +12,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
+from .maestro_real import NINGUNA
 from .sinteticos import MESES, normalizar
 from .contratos_salida import validar_orden
 from .tareas import TAREAS
@@ -81,7 +82,9 @@ def _por_reglas(texto: str) -> dict[str, list[dict]]:
 def _prediccion_valida(prediccion) -> bool:
     """047:RF-1: valida también predicciones de modelos locales cargados de disco."""
     try:
-        validar_orden({'tarea': prediccion['tarea'], 'confianza': prediccion['confianza'],
+        # «ninguna» es una respuesta válida del modelo: para el contrato, una orden sin tarea (069:RF-15).
+        tarea = None if prediccion['tarea'] == NINGUNA else prediccion['tarea']
+        validar_orden({'tarea': tarea, 'confianza': prediccion['confianza'],
                        'datos': {t: [d['valor'] for d in valores]
                                  for t, valores in prediccion['datos'].items()}})
         return True
@@ -125,10 +128,17 @@ def interpretar(texto: str, *, transformer: Any = None, ollama: Any = None,
         # Los datos los sigue marcando el modelo si los ve; el plan los contrasta o los toma del texto.
         return _con_reglas(Interpretacion(texto, literal, 1.0, 'catalogo', dict((previa or {}).get('datos') or {}), [],
                                           [*consultados, f'frase literal de «{literal}»']))
+    if previa is not None and previa['tarea'] == NINGUNA:
+        # 069:RF-15: el modelo dice que esto no es una orden. La charla pasaba el umbral y proponía
+        # tareas (62,6 % de los mensajes reales, 2026-11-02): ni se adivina ni se le pregunta a otro.
+        return Interpretacion(texto, None, previa['confianza'], 'ninguno', {}, list(previa.get('alternativas') or []),
+                              consultados, 'no parece una orden del catálogo')
     if transformer is not None:
-        # 027:RF-38: el umbral de su tarea, calibrado con las órdenes reales, si lo hay.
+        # 069:RF-26: el umbral calibrado del modelo, si lo trae, en vez del fijo; 027:RF-38: el de su tarea, si lo hay.
+        calibrado = getattr(transformer, 'umbral', None)
+        minimo = calibrado if type(calibrado) is float and umbral == UMBRAL_TRANSFORMER else umbral
         if (previa is not None and not getattr(ollama, 'revisar_transformer', False)
-                and previa['confianza'] >= (umbrales or {}).get(previa['tarea'], umbral)):
+                and previa['confianza'] >= (umbrales or {}).get(previa['tarea'], minimo)):
             return _con_reglas(Interpretacion(texto, previa['tarea'], previa['confianza'], 'transformer',
                                               previa['datos'], previa.get('alternativas') or [], consultados))
     if ollama is not None:
