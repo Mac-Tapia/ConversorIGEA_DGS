@@ -424,6 +424,9 @@ class InformeFactibilidadIn(BaseModel):
     perdidas_reconocidas: PerdidasReconocidasIn = Field(default_factory=PerdidasReconocidasIn)
     transformador_set: TransformadorSetIn = Field(default_factory=TransformadorSetIn)
     codigo_punto: str = ''
+    #: 063:RF-1: el botón prepara los casos y corre sus flujos en el mismo trabajo; ``False``
+    #: escribe con los flujos ya guardados (las pruebas sin DIgSILENT, o rehacer el Word).
+    preparar_casos: bool = True
 
 
 class VistaUbicacionIn(BaseModel):
@@ -1991,8 +1994,11 @@ def create_app(
         formulario = body.model_dump(mode='json')
         # RF-96: la carga se comprueba antes de poner el trabajo en cola.
         services.carga_del_informe(ws, body.project, body.alimentador, body.sed)
+        # 063:RF-1: si prepara los casos usa DIgSILENT, así que va a su carril; solo escribir,
+        # al del motor.
         return submit(ws, 'informe_factibilidad', f'Informe de factibilidad · {body.sed}',
-                      lambda ctx: services.informe_factibilidad(ws, ctx, formulario), lane='engine')
+                      lambda ctx: services.informe_factibilidad(ws, ctx, formulario),
+                      lane='powerfactory' if body.preparar_casos else 'engine')
 
     @app.post('/api/workspaces/{wid}/informes/ubicacion')
     def informe_vista_ubicacion(wid: str, body: VistaUbicacionIn) -> dict:

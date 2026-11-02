@@ -111,7 +111,9 @@ def _carga_aplicada(client, wid: str, salida: Path, *, hoja: str = 'formulario')
         encoding='utf-8')
 
 
+#: Sin DIgSILENT: escribe con los flujos ya guardados (063:RF-1 lo hace en el botón).
 FACTIBILIDAD = {'project': 'PRY', 'alimentador': 'AL01', 'sed': 'SN1', 'fecha': '2026-10-15',
+                'preparar_casos': False,
                 'asunto': 'FACTIBILIDAD DE SUMINISTRO', 'factor_carga': 0.6,
                 'limites': FORMULARIO['limites'],
                 'solicitud': {'cliente': 'EMPRESA X', 'ubicacion': 'Fundo Y, Ica', 'tipo_solicitud': 'factibilidad',
@@ -486,3 +488,38 @@ def test_resumen_y_miniaturas_al_terminar(client, tmp_path):
     for im in res['imagenes']:
         r = client.get(f"/api/workspaces/{wid}/files/{im['fichero']}")
         assert r.status_code == 200 and r.content[:8] == b'\x89PNG\r\n\x1a\n', im
+
+
+def test_el_boton_prepara_los_casos_y_corre_los_flujos_en_el_mismo_trabajo(client, tmp_path, monkeypatch):
+    """063:RF-1, 063:RF-2, 063:RF-6, 063:RF-7 — sin pasar antes por 4.2: el mismo trabajo prepara
+    los casos y corre los flujos (equilibrado y desequilibrado) del alimentador, y el informe toma
+    «Cargas nuevas» como el estado proyectado sin obras."""
+    from convertersmartgrid.web import services
+
+    wid, salida = _espacio(client, tmp_path)
+    _carga_aplicada(client, wid, salida)
+    llamadas = []
+
+    def plan(ws, project, feeders, estudios, ajuste, *a, **k):
+        llamadas.append(('plan', project, list(feeders), list(estudios)))
+        return {'token': 'tk'}
+
+    def ejecutar(ws, ctx, token):
+        llamadas.append(('ejecutar', token))
+        # Lo que dejan los estudios: los tres casos, el de «Cargas nuevas» con la carga y sin obras.
+        for rol, vmin in (('cargas', 0.93), ('con', 0.96)):
+            (salida / f'estudio_{rol}_flujo_desequilibrado_tk.json').write_text(
+                json.dumps({'medidas': {'AL01': _medida(vmin)}}), encoding='utf-8')
+            time.sleep(0.01)
+        return {}
+
+    monkeypatch.setattr(services, 'estudios_plan', plan)
+    monkeypatch.setattr(services, 'estudios_ejecutar', ejecutar)
+    monkeypatch.setattr(services, 'ajuste_aplicado_en_disco', lambda ws, project, *a: {'id': 'disco:x'})
+    fin = esperar_trabajo(client, client.post(f'/api/workspaces/{wid}/informes/factibilidad',
+                                              json={**FACTIBILIDAD, 'preparar_casos': True}).json())
+    assert fin['status'] == 'done', fin.get('error')
+    assert llamadas == [('plan', 'PRY', ['AL01'], ['flujo', 'flujo_desequilibrado']), ('ejecutar', 'tk')]
+    assert fin['result']['estudios'][1] == 'estudio_con_flujo_desequilibrado_tk.json'
+    resumen = json.loads((salida / fin['result']['json']).read_text(encoding='utf-8'))
+    assert json.dumps(resumen, ensure_ascii=False).count('Cargas nuevas') >= 1, 'el estado sin obras entra'

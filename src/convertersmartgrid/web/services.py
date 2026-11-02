@@ -7070,14 +7070,20 @@ def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict
         raise UserError(str(exc)) from exc
     lim = config.limites
 
+    if formulario.get('preparar_casos') and ctx is not None:
+        preparar_flujos_del_informe(ws, ctx, project, alimentador)                 # 063:RF-1
     sin, con = _ultimo_estudio(ws, 'sin', project), _ultimo_estudio(ws, 'con', project)
     for rol, datos in ((SIN_PROYECTO, sin), (CON_PROYECTO, con)):
         if datos is None or alimentador not in (datos.get('medidas') or {}):
-            raise UserError(f'No hay un flujo de «{rol}» de {alimentador}: ejecute antes el estudio de '
-                            'flujo en 4.2 con los dos casos.')
+            raise UserError(f'No hay un flujo de «{rol}» de {alimentador}: el proyecto no tiene ese '
+                            'caso o su flujo no terminó; vea el Registro.')
     medida_sin, medida_con = sin['medidas'][alimentador], con['medidas'][alimentador]
     actual = Caso.desde_medida(SIN_PROYECTO, medida_sin, lim)
     proyectado = Caso.desde_medida(CON_PROYECTO, medida_con, lim)
+    # 063:RF-7: «Cargas nuevas» es el estado proyectado sin obras.
+    cargas_est = _ultimo_estudio(ws, 'cargas', project)
+    sin_obras = (Caso.desde_medida('Cargas nuevas', cargas_est['medidas'][alimentador], lim)
+                 if cargas_est and alimentador in (cargas_est.get('medidas') or {}) else None)
 
     s = formulario.get('solicitud') or {}
     solicitud = Solicitud(
@@ -7152,7 +7158,7 @@ def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict
         solicitudes_vigentes=en_bloque, perdidas_actual=perdidas(actual),
         perdidas_proyectado=perdidas(proyectado), libro=libro, devanado=devanado,
         caso_transmision=str(t.get('caso') or ''), fuentes=fuentes,
-        numero=formulario.get('numero') or None, imagenes=imagenes)
+        numero=formulario.get('numero') or None, imagenes=imagenes, cargas=sin_obras)
     destino = ws.out_dir / (f'informe_factibilidad_{nombre_seguro(alimentador)}_'
                             f'{nombre_seguro(str(carga["sed"]))}_{uuid.uuid4().hex[:8]}.docx')
     try:
@@ -7170,6 +7176,25 @@ def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict
             'excesos': resumen.get('excesos') or [], 'punto_diseno': punto, 'carga': carga,
             'imagenes': _imagenes_para_la_web(ws, imagenes),
             'plan': _guardar_plan(destino, 'factibilidad', plan)}
+
+
+#: Estudios que corre el informe de la carga nueva en cada caso (063:RF-6).
+ESTUDIOS_DEL_INFORME = ('flujo', 'flujo_desequilibrado')
+
+
+def preparar_flujos_del_informe(ws: Workspace, ctx: JobContext, project: str,
+                                alimentador: str) -> dict:
+    """063:RF-1, RF-3, RF-6: los casos y sus flujos, en el mismo trabajo del botón de 4.4.
+
+    Es el paso 4.2 entero (``estudios_plan`` y ``estudios_ejecutar``: casos desde la
+    recalibración, etapas al día y los flujos de «Sin proyecto», «Cargas nuevas» y «Con
+    proyecto») sobre la base del último ajuste aplicado, solo para este alimentador. No hay
+    un segundo camino hacia DIgSILENT. Antes el informe exigía haber corrido 4.2 a mano.
+    """
+    ctx.log(f'Informe de {alimentador}: se preparan los casos y se corren sus flujos (063:RF-1).')
+    plan = estudios_plan(ws, project, [alimentador], list(ESTUDIOS_DEL_INFORME),
+                         ajuste_aplicado_en_disco(ws, project))
+    return estudios_ejecutar(ws, ctx, plan['token'])
 
 
 #: Pasos del progreso de un informe (017:RF-97): casos, imágenes, documento.
