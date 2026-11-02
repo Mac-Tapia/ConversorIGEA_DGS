@@ -155,3 +155,9 @@
       independiente 0edd2ab893e0, set_nueva_operacion_87ace2d82986.json: ambos flujos conformes,
       0,964209–1,049746 p.u., máximo 98,5597 %, CT fuera de servicio, 35 cargas desde COPARA.
       Word/PDF: output/informes/Informe_Santa_Maria_NA205_COPARA_Verificado.*.
+- [x] T34. Conclusiones cuantitativas, demanda antes y después y cargas en espera. (RF-54, RF-55, RF-56)
+      Hecho cuando: `pytest -q tests/test_informe_factibilidad_un_paso.py -k "conclusiones or demanda or cola"` en
+      verde con medidas sorteadas, y el informe de Santa María sale con COPARA en área libre.
+      Hecho el 2026-11-02: output/informes/Informe_Santa_Maria_NA205_COPARA_Area_Libre.*, con seis flujos nativos
+      (AUDIT/anotacion_copara_20261102/operacion_area_libre.json) y la cola de 35 cargas sin obras, que no converge
+      (cola_sin_obras.json). «Cargas nuevas» lleva solo la carga analizada por orden del usuario.

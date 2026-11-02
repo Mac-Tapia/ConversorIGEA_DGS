@@ -1100,3 +1100,173 @@ def conclusiones_factibilidad(s: Solicitud, veredicto: Veredicto, punto_diseno: 
          f'd) No se recomienda asignar punto de diseño en el alimentador {s.alimentador} mientras no se '
          'resuelvan los límites indicados.')
     return [a, b, c, d]
+
+
+# --------------------------------------------------------------------------- 063:RF-56
+def _reparto_cola(cola: Mapping[str, Any]) -> str:
+    partes = [f'{numero(kw, 0)} kW en {nombre}' for nombre, kw in (cola.get('por_alimentador') or {}).items()]
+    return f' ({_lista(partes)})' if partes else ''
+
+
+def _resultado_cola(cola: Mapping[str, Any]) -> str:
+    """Lo que dio el flujo con toda la cola sin obras; solo lo medido."""
+    if not cola.get('converge'):
+        return ('Con todas ellas y sin obras, el flujo no converge: en el modelo, la red existente no puede '
+                'atender esa demanda y no es posible conectarlas')
+    if cola.get('cumple'):
+        return 'Con todas ellas y sin obras, el flujo converge y cumple los límites evaluados'
+    return 'Con todas ellas y sin obras, el flujo converge pero incumple los límites evaluados'
+
+
+def desarrollo_cola(cola: Mapping[str, Any]) -> list[str]:
+    """El desarrollo del caso sin obras: la cola de conexión y su flujo (063:RF-56)."""
+    textos = [f'Además de la carga analizada hay otros clientes con solicitud: en total, {cola["cantidad"]} cargas, '
+              f'incluida la analizada, esperan conexión y suman {numero(cola["kw"], 0)} kW{_reparto_cola(cola)}.']
+    if cola.get('demanda_actual_kw'):
+        textos.append(f'La demanda nominal actual de la red es de {numero(cola["demanda_actual_kw"], 0)} kW: con la cola '
+                      f'alcanzaría {numero(cola["demanda_actual_kw"] + cola["kw"], 0)} kW, '
+                      f'{numero((cola["demanda_actual_kw"] + cola["kw"]) / cola["demanda_actual_kw"], 2)} veces la actual.')
+    resultado = f'{_resultado_cola(cola)}.'
+    if cola.get('motivo'):
+        resultado += f' {cola["motivo"]}'
+    textos.append(resultado)
+    return textos
+
+
+def conclusion_cola(cola: Mapping[str, Any]) -> str:
+    """La conclusión sobre la cola de conexión; justifica la obra solo si el flujo lo muestra (063:RF-56)."""
+    texto = (f'La carga analizada no es la única: {cola["cantidad"]} cargas, incluida ella, esperan conexión y suman '
+             f'{numero(cola["kw"], 0)} kW{_reparto_cola(cola)}. {_resultado_cola(cola)}.')
+    if cola.get('obra') and not cola.get('cumple'):
+        texto += f' Esta cantidad de demanda es lo que justifica {cola["obra"]}.'
+    return texto
+
+
+# --------------------------------------------------------------------------- 063:RF-54, RF-55
+@dataclass(frozen=True)
+class FuenteMedida:
+    """Una fuente con su inyección medida en el flujo: red externa, generador o alimentador."""
+
+    nombre: str
+    kw: float
+    kvar: float = 0.0
+
+
+def fuentes_del_caso(caso: Caso, alimentador: str) -> tuple[FuenteMedida, ...]:
+    """Sin datos por fuente, la inyección del caso con el nombre del alimentador (063:RF-55)."""
+    if not caso.converge or caso.fuente is None:
+        return ()
+    return (FuenteMedida(alimentador, caso.fuente.kw, caso.fuente.kvar),)
+
+
+def _caso_cuantitativo(titulo: str, caso: Caso, limites: Limites, nominal: float | None) -> str:
+    """Las cifras de un caso, o solo su demanda nominal si no converge: sin valores inventados."""
+    if not caso.converge:
+        demanda = f' Su demanda nominal es de {numero(nominal, 0)} kW.' if nominal is not None else ''
+        return (f'{titulo}: el flujo no converge, de modo que no hay tensiones, cargabilidades ni pérdidas '
+                f'que informar.{demanda}')
+    partes = [f'{titulo}: el flujo converge con una inyección de {numero(caso.fuente.kw, 0)} kW y '
+              f'{numero(caso.fuente.kvar, 0)} kvar']
+    if caso.perdidas is not None:
+        pct = f' ({numero(100 * caso.perdidas.kw / caso.fuente.kw, 2)} %)' if caso.fuente.kw > 0 else ''
+        partes.append(f' y pérdidas de {numero(caso.perdidas.kw, 0)} kW{pct}')
+    if nominal is not None:
+        partes.append(f', para una demanda nominal de {numero(nominal, 0)} kW')
+    partes.append('.')
+    if caso.minima is not None:
+        partes.append(f' La tensión mínima es de {_pu(caso.minima.valor)} en {caso.minima.donde}')
+        if caso.tension_max is not None:
+            partes.append(f' y la máxima de {_pu(caso.tension_max.valor)} en {caso.tension_max.donde}')
+        partes.append(f'; {caso.nodos_fuera} nodos quedan fuera de {_g(limites.tension_min_pu)}–'
+                      f'{_g(limites.tension_max_pu)} p.u.')
+    if caso.cargabilidad_max is not None:
+        partes.append(f' La mayor cargabilidad de línea es de {numero(caso.cargabilidad_max.valor, 1)} % en '
+                      f'{caso.cargabilidad_max.donde} ({caso.tramos_sobre} tramos sobre '
+                      f'{_g(limites.cargabilidad_max_pct)} %).')
+    if caso.trafo_max is not None:
+        partes.append(f' El transformador más cargado llega a {numero(caso.trafo_max.valor, 1)} % en '
+                      f'{caso.trafo_max.donde}.')
+    partes.append(' Cumple los límites evaluados.' if caso.cumple(limites) else ' No cumple los límites evaluados.')
+    return ''.join(partes)
+
+
+def conclusiones_por_caso(actual: Caso, cargas: Caso, proyectado: Caso, limites: Limites, *,
+                          nominal_kw: Mapping[str, float] | None = None) -> list[str]:
+    """Un párrafo por caso con sus resultados y su comparación con el estado actual (063:RF-54)."""
+    nominal = nominal_kw or {}
+    textos = [_caso_cuantitativo('Estado actual (Sin proyecto)', actual, limites, nominal.get('actual')),
+              _caso_cuantitativo('Con la carga analizada, sin obras (Cargas nuevas)', cargas, limites, nominal.get('cargas')),
+              _caso_cuantitativo('Con las obras (Con proyecto)', proyectado, limites, nominal.get('proyectado'))]
+    if not (actual.converge and proyectado.converge and actual.minima and proyectado.minima):
+        textos.append('Frente al estado actual no se compara el estado proyectado: falta un flujo convergido.')
+        return textos
+    cambio = proyectado.minima.valor - actual.minima.valor
+    verbo = 'sube' if cambio >= 0 else 'baja'
+    texto = (f'Frente al estado actual, con las obras la tensión mínima {verbo} {numero(abs(cambio), 3)} p.u. '
+             f'(de {_pu(actual.minima.valor)} a {_pu(proyectado.minima.valor)}) y los nodos fuera de la banda '
+             f'pasan de {actual.nodos_fuera} a {proyectado.nodos_fuera}.')
+    if cargas.converge and cargas.minima:
+        solo = cargas.minima.valor - actual.minima.valor
+        texto += (f' Solo con la carga analizada y sin obras, la tensión mínima sería de {_pu(cargas.minima.valor)}, '
+                  f'{numero(abs(solo), 3)} p.u. {"más" if solo >= 0 else "menos"} que en el estado actual.')
+    textos.append(texto)
+    return textos
+
+
+def _variacion(antes: float, despues: float) -> str:
+    if abs(antes) < 0.5:
+        return ''
+    return f' ({numero(100 * (despues - antes) / antes, 1)} %)'
+
+
+def demanda_antes_despues(antes: Sequence[FuenteMedida], despues: Sequence[FuenteMedida]
+                          ) -> tuple[list[list[str]], list[str]]:
+    """Filas y conclusiones de la demanda por fuente antes y después del proyecto (063:RF-55).
+
+    Filas: fuente, kW y kvar antes, kW y kvar después, variación en kW y en %.
+    """
+    previa = {f.nombre: f for f in antes}
+    posterior = {f.nombre: f for f in despues}
+    nombres = list(previa) + [n for n in posterior if n not in previa]
+    filas, textos = [], []
+    for n in nombres:
+        a, d = previa.get(n), posterior.get(n)
+        kw_a, kw_d = a.kw if a else 0.0, d.kw if d else 0.0
+        var = 100 * (kw_d - kw_a) / kw_a if a and abs(kw_a) >= 0.5 else None
+        filas.append([n, numero(kw_a, 0) if a else '—', numero(a.kvar, 0) if a else '—',
+                      numero(kw_d, 0) if d else '—', numero(d.kvar, 0) if d else '—',
+                      numero(kw_d - kw_a, 0), numero(var, 1) if var is not None else '—'])
+        if a is None or abs(kw_a) < 0.5:
+            textos.append(f'{n} entra al servicio con {numero(kw_d, 0)} kW y {numero(d.kvar, 0)} kvar.')
+        elif d is None or abs(kw_d) < 0.5:
+            textos.append(f'{n} deja de inyectar los {numero(kw_a, 0)} kW que aportaba antes del proyecto.')
+        else:
+            verbo = 'baja' if kw_d < kw_a else 'sube'
+            textos.append(f'{n} {verbo} de {numero(kw_a, 0)} kW a {numero(kw_d, 0)} kW{_variacion(kw_a, kw_d)}.')
+    total_a, total_d = sum(f.kw for f in antes), sum(f.kw for f in despues)
+    q_a, q_d = sum(f.kvar for f in antes), sum(f.kvar for f in despues)
+    var = 100 * (total_d - total_a) / total_a if abs(total_a) >= 0.5 else None
+    filas.append(['Total', numero(total_a, 0), numero(q_a, 0), numero(total_d, 0), numero(q_d, 0),
+                  numero(total_d - total_a, 0), numero(var, 1) if var is not None else '—'])
+    textos.append(f'En conjunto, la inyección pasa de {numero(total_a, 0)} kW a {numero(total_d, 0)} kW'
+                  f'{_variacion(total_a, total_d)}.')
+    return filas, textos
+
+
+def demanda_por_alimentador(filas: Sequence[Mapping[str, Any]]) -> tuple[list[list[str]], list[str]]:
+    """Lo que atiende cada alimentador antes y después, por su cabecera y por la SET nueva (063:RF-55).
+
+    Tras trasladar ramas, la cabecera sola engaña: NA203 pasó de 10 061 kW a 341 kW por la suya,
+    pero su zona atiende más demanda que antes, por las salidas de COPARA (2026-11-02).
+    """
+    tabla, textos = [], []
+    for f in filas:
+        total = f['cabecera_kw'] + f['salidas_kw']
+        tabla.append([f['alimentador'], numero(f['antes_kw'], 0), numero(f['cabecera_kw'], 0), numero(f['salidas_kw'], 0),
+                      numero(total, 0), numero(total - f['antes_kw'], 0), numero(f.get('nuevas_kw', 0.0), 0)])
+        pct = numero(100 * f['salidas_kw'] / total, 1) if total > 0 else '0'
+        textos.append(f'{f["alimentador"]}: antes del proyecto se atendían {numero(f["antes_kw"], 0)} kW en su zona. '
+                      f'Después se atienden {numero(total, 0)} kW: {numero(f["cabecera_kw"], 0)} kW por su cabecera y '
+                      f'{numero(f["salidas_kw"], 0)} kW ({pct} %) por las salidas de la SET nueva'
+                      + (f', con {numero(f["nuevas_kw"], 0)} kW de cargas nuevas.' if f.get('nuevas_kw') else '.'))
+    return tabla, textos

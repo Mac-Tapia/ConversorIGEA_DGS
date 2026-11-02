@@ -23,9 +23,10 @@ from .estudios_pf import Limites
 from .informes import (
     ETAPAS, NOMBRE_ETAPA, SOLICITUDES_VIGENTES, TRIFASICA, Caso, ConfigInforme, Devanado,
     Encabezado, Etapa, InformeError, PerdidasAnuales, Solicitud, _pu, antecedentes_factibilidad,
-    conclusiones_estudio, conclusiones_factibilidad, descripcion_factibilidad, describir_obra,
-    etapa_recomendada, numero, obras_a_ejecutar, redactar_cargabilidad, redactar_tension,
-    resumen_alternativa, texto_transformador, veredicto_factibilidad)
+    FuenteMedida, conclusion_cola, conclusiones_estudio, conclusiones_factibilidad, conclusiones_por_caso,
+    demanda_antes_despues, demanda_por_alimentador, descripcion_factibilidad, describir_obra,
+    desarrollo_cola, etapa_recomendada, fuentes_del_caso, numero, obras_a_ejecutar, redactar_cargabilidad,
+    redactar_tension, resumen_alternativa, texto_transformador, veredicto_factibilidad)
 from .libros_informe import DatosPerdidas
 
 #: Imágenes de cada estado: vista de ubicación y los dos coloreados (RF-10, RF-46).
@@ -124,6 +125,19 @@ class DatosFactibilidad:
     observaciones: Sequence[str] = ()
     #: Solo el generador desde una operación nativa certificada habilita esta excepción RF-38.
     con_proyecto_verificado: bool = False
+    #: 063:RF-54: demanda nominal de cada caso (``actual``, ``cargas``, ``proyectado``), en kW.
+    nominal_kw: Mapping[str, float] = field(default_factory=dict)
+    #: 063:RF-55: fuentes medidas antes y después; sin ellas, la inyección del alimentador.
+    demanda_antes: Sequence[FuenteMedida] = ()
+    demanda_despues: Sequence[FuenteMedida] = ()
+    #: 063:RF-55: filas de ``demanda_por_alimentador`` cuando el proyecto traslada ramas a una SET nueva.
+    demanda_alimentadores: Sequence[Mapping[str, Any]] = ()
+    #: Las obras medidas, una frase por grupo, para la conclusión de «Con proyecto».
+    resumen_obras: Sequence[str] = ()
+    #: 063:RF-56: las cargas que esperan conexión y su flujo sin obras (ver ``informes.desarrollo_cola``).
+    cola_conexion: Mapping[str, Any] = field(default_factory=dict)
+    #: 063:RF-54: aclaraciones a las cifras de los casos, como el nivel de tensión que se juzga.
+    notas_casos: Sequence[str] = ()
 
 
 # --------------------------------------------------------------------------- modelo
@@ -872,6 +886,10 @@ def escribir_informe_factibilidad(config: ConfigInforme, destino: Path, datos: D
                               carga_img.get('tension'), 'estado proyectado sin obras', config)
             _analisis_carga(e, '2.2.2.2 ANÁLISIS DE CARGABILIDAD', datos.cargas,
                             carga_img.get('cargabilidad'), 'estado proyectado sin obras', config)
+    if datos.cola_conexion:
+        e.titulo('2.2.3 CARGAS EN ESPERA DE CONEXIÓN, SIN OBRAS')                     # 063:RF-56
+        for texto in desarrollo_cola(datos.cola_conexion):
+            e.parrafo(texto)
     e.titulo('2.3 ESTADO PROYECTADO CON OBRAS' if datos.cargas is not None
              else '2.3 ESTADO PROYECTADO')
     if datos.ficha_punto:
@@ -982,6 +1000,37 @@ def escribir_informe_factibilidad(config: ConfigInforme, destino: Path, datos: D
                       'transformador de transmisión que se detallan a continuación.')
         for texto in veredicto.excesos:
             e.parrafo(texto)
+        if datos.cola_conexion:
+            e.parrafo(conclusion_cola(datos.cola_conexion))                           # 063:RF-56
+        e.titulo('3.1 RESULTADOS DE CADA CASO')                                       # 063:RF-54
+        for texto in conclusiones_por_caso(datos.actual, datos.cargas, proyectado, config.limites,
+                                           nominal_kw=datos.nominal_kw):
+            e.parrafo(texto)
+        for texto in datos.notas_casos:
+            e.parrafo(texto)
+        if datos.resumen_obras:
+            e.parrafo('Obras del estado Con proyecto:')
+            for texto in datos.resumen_obras:
+                e.parrafo(texto)
+        e.titulo('3.2 DEMANDA DE LOS ALIMENTADORES ANTES Y DESPUÉS DEL PROYECTO')     # 063:RF-55
+        antes = datos.demanda_antes or fuentes_del_caso(datos.actual, alimentador)
+        despues = datos.demanda_despues or fuentes_del_caso(proyectado, alimentador)
+        if antes and despues:
+            filas, textos = demanda_antes_despues(antes, despues)
+            e.tabla(['Fuente', 'Antes (kW)', 'Antes (kvar)', 'Después (kW)', 'Después (kvar)',
+                     'Variación (kW)', 'Variación (%)'], filas)
+            for texto in textos:
+                e.parrafo(texto)
+        else:
+            e.parrafo('No se compara la demanda antes y después: falta un flujo convergido.')
+        if datos.demanda_alimentadores:
+            filas, textos = demanda_por_alimentador(datos.demanda_alimentadores)
+            e.parrafo('Demanda atendida en la zona de cada alimentador, por su cabecera y por las '
+                      'salidas de la SET nueva:')
+            e.tabla(['Alimentador', 'Antes (kW)', 'Después por cabecera (kW)', 'Después por SET nueva (kW)',
+                     'Después total (kW)', 'Variación (kW)', 'Cargas nuevas (kW)'], filas)
+            for texto in textos:
+                e.parrafo(texto)
     else:
         for texto in conclusiones_factibilidad(s, veredicto, datos.codigo_punto or '', d):
             e.parrafo(texto)

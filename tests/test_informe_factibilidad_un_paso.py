@@ -98,6 +98,111 @@ def _caso(rng, nombre, *, cumple: bool, converge: bool = True) -> Caso:
                 nodos_fuera=int(u < 0.95))
 
 
+def test_conclusiones_de_cada_caso_con_sus_cifras():
+    """063:RF-54 — cada caso dice sus cifras medidas; sorteadas, nada de valores fijos."""
+    from convertersmartgrid.informes import conclusiones_por_caso, numero
+
+    rng = random.Random(SEMILLA)
+    for _ in range(30):
+        actual, con = _caso(rng, 'Sin proyecto', cumple=False), _caso(rng, 'Con proyecto', cumple=True)
+        textos = conclusiones_por_caso(actual, Caso('Cargas nuevas', False), con, LIM,
+                                       nominal_kw={'cargas': rng.uniform(100, 9000)})
+        assert len(textos) == 4, SEMILLA      # un párrafo por caso y la comparación
+        for texto, caso in ((textos[0], actual), (textos[2], con)):
+            assert numero(caso.fuente.kw, 0) in texto, SEMILLA
+            assert numero(caso.minima.valor, 3) in texto and caso.minima.donde in texto, SEMILLA
+            assert numero(caso.cargabilidad_max.valor, 1) in texto and caso.cargabilidad_max.donde in texto, SEMILLA
+        assert numero(abs(con.minima.valor - actual.minima.valor), 3) in textos[3], SEMILLA
+
+
+def test_conclusiones_de_un_caso_sin_flujo_no_inventan_valores():
+    """063:RF-54 — sin convergencia solo la demanda nominal, nunca tensiones ni cargabilidades."""
+    from convertersmartgrid.informes import conclusiones_por_caso, numero
+
+    rng = random.Random(SEMILLA)
+    nominal = rng.uniform(1000, 90_000)
+    actual, con = _caso(rng, 'A', cumple=True), _caso(rng, 'C', cumple=True)
+    texto = conclusiones_por_caso(actual, Caso('Cargas', False), con, LIM, nominal_kw={'cargas': nominal})[1]
+    assert 'no converge' in texto and numero(nominal, 0) in texto, SEMILLA
+    assert 'p.u.' not in texto and '%' not in texto, SEMILLA
+    assert conclusiones_por_caso(actual, Caso('Cargas', False), con, LIM)[1].count('kW') == 0, SEMILLA
+
+
+def test_demanda_por_fuente_antes_y_despues():
+    """063:RF-55 — variación y total por fuente; la que entra o sale del servicio se nombra."""
+    from convertersmartgrid.informes import FuenteMedida, demanda_antes_despues, numero
+
+    rng = random.Random(SEMILLA)
+    comun, sale, entra = (f'F{rng.randrange(10_000)}_{n}' for n in 'abc')
+    a, b, c, d = (rng.uniform(100, 20_000) for _ in range(4))
+    filas, textos = demanda_antes_despues(
+        [FuenteMedida(comun, a, 10.0), FuenteMedida(sale, b, 20.0)],
+        [FuenteMedida(comun, c, 30.0), FuenteMedida(entra, d, 40.0)])
+    assert [f[0] for f in filas] == [comun, sale, entra, 'Total'], SEMILLA
+    assert filas[-1][1] == numero(a + b, 0) and filas[-1][3] == numero(c + d, 0), SEMILLA
+    assert filas[0][5] == numero(c - a, 0), SEMILLA
+    assert any(sale in t and 'deja de' in t for t in textos), SEMILLA
+    assert any(entra in t and 'entra' in t for t in textos), SEMILLA
+
+
+def test_demanda_por_alimentador_suma_cabecera_y_salidas():
+    """063:RF-55 — la zona trasladada no desaparece: cabecera más salidas de la SET nueva."""
+    from convertersmartgrid.informes import demanda_por_alimentador, numero
+
+    rng = random.Random(SEMILLA)
+    antes, cab, sal, nuevas = (rng.uniform(100, 30_000) for _ in range(4))
+    nombre = f'AL{rng.randrange(1000)}'
+    tabla, textos = demanda_por_alimentador([{'alimentador': nombre, 'antes_kw': antes, 'cabecera_kw': cab,
+                                              'salidas_kw': sal, 'nuevas_kw': nuevas}])
+    assert tabla[0][0] == nombre and tabla[0][4] == numero(cab + sal, 0), SEMILLA
+    assert tabla[0][5] == numero(cab + sal - antes, 0), SEMILLA
+    assert nombre in textos[0] and numero(sal, 0) in textos[0] and numero(nuevas, 0) in textos[0], SEMILLA
+
+
+def _cola(rng, *, converge: bool, cumple: bool = False) -> dict:
+    a, b = rng.uniform(100, 20_000), rng.uniform(100, 20_000)
+    return {'cantidad': rng.randrange(2, 200), 'kw': a + b, 'por_alimentador': {'AL1': a, 'AL2': b},
+            'demanda_actual_kw': rng.uniform(100, 30_000), 'converge': converge, 'cumple': cumple,
+            'obra': 'la SET nueva'}
+
+
+def test_cola_que_no_converge_justifica_la_obra():
+    """063:RF-56 — cuántas cargas, cuántos kW, que no converge y que por eso se justifica la obra."""
+    from convertersmartgrid.informes import conclusion_cola, desarrollo_cola, numero
+
+    rng = random.Random(SEMILLA)
+    cola = _cola(rng, converge=False)
+    for texto in conclusion_cola(cola), ' '.join(desarrollo_cola(cola)):
+        assert str(cola['cantidad']) in texto and numero(cola['kw'], 0) in texto, SEMILLA
+        assert 'no converge' in texto and 'no es posible' in texto, SEMILLA
+        assert numero(cola['por_alimentador']['AL1'], 0) in texto, SEMILLA
+    assert 'justifica' in conclusion_cola(cola) and 'la SET nueva' in conclusion_cola(cola), SEMILLA
+
+
+def test_cola_que_cumple_no_afirma_que_no_cabe():
+    """063:RF-56 — solo se afirma lo medido: si el flujo cumple, no se dice que no se pueda conectar."""
+    from convertersmartgrid.informes import conclusion_cola, desarrollo_cola
+
+    rng = random.Random(SEMILLA)
+    cola = _cola(rng, converge=True, cumple=True)
+    for texto in conclusion_cola(cola), ' '.join(desarrollo_cola(cola)):
+        assert 'no converge' not in texto and 'no es posible' not in texto and 'justifica' not in texto, SEMILLA
+    medio = _cola(rng, converge=True, cumple=False)
+    assert 'incumple' in conclusion_cola(medio) and 'no converge' not in conclusion_cola(medio), SEMILLA
+
+
+def test_demanda_sin_fuentes_usa_el_alimentador():
+    """063:RF-55 — sin datos por fuente, la inyección de cada caso con el nombre del alimentador."""
+    from convertersmartgrid.informes import fuentes_del_caso, numero
+
+    rng = random.Random(SEMILLA)
+    caso = _caso(rng, 'A', cumple=True)
+    nombre = f'AL{rng.randrange(1000)}'
+    f = fuentes_del_caso(caso, nombre)
+    assert [(x.nombre, numero(x.kw, 2)) for x in f] == [(nombre, numero(caso.fuente.kw, 2))], SEMILLA
+    assert fuentes_del_caso(Caso('B', False), nombre) == (), SEMILLA
+
+
 def test_conclusion_sin_problemas_no_propone_obras():
     """063:RF-8 — estado actual y con la carga dentro de límites: factible sin obras."""
     rng = random.Random(SEMILLA)

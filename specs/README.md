@@ -69,7 +69,7 @@ retirada.
 | [060](060-correcciones-del-aprendizaje/spec.md) | Correcciones verificables del aprendizaje | cumplida | 8 | 8 | — |
 | [061](061-observacion-y-operacion-del-agente/spec.md) | Observación y operación integrada del agente | cumplida | 10 | 10 | — |
 | [062](062-retencion-diaria-de-ejecuciones/spec.md) | Retención diaria de ejecuciones y temporales | cumplida | 8 | 8 | — |
-| [063](063-informe-de-factibilidad-en-un-paso/spec.md) | Evaluación de conexión y operación comercial en un paso, para cualquier alimentador | cumplida | 53 | 53 | — |
+| [063](063-informe-de-factibilidad-en-un-paso/spec.md) | Evaluación de conexión y operación comercial en un paso, para cualquier alimentador | cumplida | 56 | 56 | — |
 | [064](064-arnes-sin-atajos/spec.md) | Arnés de DIgSILENT sin atajos: un turno para todos y estado restituido | cumplida | 10 | 10 | — |
 | [065](065-cierre-de-auditoria-integral/spec.md) | Cierre de auditoría integral (rama `codex/mejoras-auditoria-integral`) | reservada | 0 | 0 | — |
 | [066](066-libro-de-cada-informe/spec.md) | Cada informe con su libro Excel, según el perfil de la empresa | cumplida | 12 | 12 | — |
