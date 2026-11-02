@@ -15,7 +15,8 @@ import threading
 from collections import Counter
 from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, wait
 from dataclasses import asdict, dataclass
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
+from contextlib import contextmanager
 from typing import Any
 from pathlib import Path
 
@@ -360,6 +361,31 @@ def resolve_workers(workers: int | None, total: int) -> int:
 
 
 
+#: Bibliotecas numéricas que reservan memoria por cada hilo al cargarse.
+_HILOS_DE_CALCULO = ('OPENBLAS_NUM_THREADS', 'OMP_NUM_THREADS', 'MKL_NUM_THREADS')
+
+
+@contextmanager
+def _un_hilo_de_calculo() -> Iterator[None]:
+    """Cada proceso con un hilo de cálculo, mientras vive el reparto (065:RF-25).
+
+    El paralelismo lo dan los procesos. OpenBLAS reserva memoria por hilo al cargarse: cuatro procesos con todos
+    los hilos del equipo agotaron la memoria virtual («Memory allocation still failed», 2026-11-02) y la conversión
+    caía con BrokenProcessPool. Lo que haya fijado el operador se respeta.
+    """
+    previos = {v: os.environ.get(v) for v in _HILOS_DE_CALCULO}
+    for v in _HILOS_DE_CALCULO:
+        os.environ.setdefault(v, '1')
+    try:
+        yield
+    finally:
+        for v, valor in previos.items():
+            if valor is None:
+                os.environ.pop(v, None)
+            else:
+                os.environ[v] = valor
+
+
 def _convert_parallel(
     dataset: CymdistDataset,
     networks: Sequence[str],
@@ -380,7 +406,7 @@ def _convert_parallel(
     """
     total = len(networks)
     done = 0
-    with ProcessPoolExecutor(
+    with _un_hilo_de_calculo(), ProcessPoolExecutor(
         max_workers=n_workers, initializer=_init_worker, initargs=(dataset, opts),
     ) as pool:
         pending = {

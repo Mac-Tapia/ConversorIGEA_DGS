@@ -35,6 +35,7 @@ correcciones y guardas; no amplía silenciosamente specs ya cumplidas.
 - RF-22: EL SISTEMA registrará las herramientas, roles y permisos efectivos del asistente LLM sin conceder capacidades por la mera presencia de un modelo.
 - RF-23: CUANDO coordine el equipo del asistente, EL SISTEMA vinculará cada acción con su responsable, entradas, salida, decisión de revisión y límites de concurrencia.
 - RF-24: EL SISTEMA verificará el candidato integrado mediante instalación reproducible, regresión, build y arranque aislado, conservando los fallos y las exclusiones.
+- RF-25: CUANDO reparta alimentadores entre procesos, EL SISTEMA limitará cada proceso a un hilo de cálculo numérico, salvo que el operador haya fijado otro valor.
 
 ## Relación con specs existentes
 

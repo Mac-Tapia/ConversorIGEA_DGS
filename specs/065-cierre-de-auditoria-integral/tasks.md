@@ -26,3 +26,5 @@
   Hecho cuando: ejecuciones reales, persistencia, reapertura y umbrales quedan documentados por sus specs; no se sustituyen por dobles.
 - [ ] T13 Regresión, instalación y arranque final del candidato. (RF-24)
   Hecho cuando: evidencia integrada conserva resultados y pendientes sin omisiones ocultas.
+- [x] T14 Un hilo de cálculo por proceso en el reparto. (RF-25)
+  Hecho cuando: `pytest -q tests/test_batch_hilos.py` y `pytest -q tests/test_linea_base_001.py -k cuatro_procesos` en verde.
