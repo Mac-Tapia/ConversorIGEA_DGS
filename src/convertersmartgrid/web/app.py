@@ -177,6 +177,12 @@ class DemandaMedidoresIn(BaseModel):
     # 022:RF-88: las centrales (CT…) conectadas en un tramo de su alimentador, no en la barra:
     # {medidor: alimentador}.
     centrales_tramo: dict[str, str] = Field(default_factory=dict)
+    # 028:RF-28: proyecto de alimentadores: su único instante de mayor demanda conjunta, con los
+    # medidores de sus centrales: {alimentador: {generacion, llegada, salida}}.
+    coincidente: bool = False
+    centrales: dict[str, dict[str, str]] = Field(default_factory=dict)
+    # 028:RF-31: análisis de sistema eléctrico: el instante común de sus barras de 60 kV (con por_barra).
+    sistema_60kv: bool = False
 
 
 class DemandaClientesIn(BaseModel):
@@ -1504,7 +1510,10 @@ def create_app(
                       lambda ctx: services.demanda_cabecera(ws, ctx, pares, periodo=body.periodo,
                                                             instante=body.instante,
                                                             por_barra=body.por_barra,
-                                                            centrales_tramo=body.centrales_tramo))
+                                                            centrales_tramo=body.centrales_tramo,
+                                                            coincidente=body.coincidente,
+                                                            centrales=body.centrales,
+                                                            sistema_60kv=body.sistema_60kv))
 
     @app.get('/api/workspaces/{wid}/demanda/centrales')
     def demanda_centrales(wid: str) -> dict:

@@ -707,6 +707,80 @@ def _libros_por_barra(client, wid, monkeypatch, kv_alta=220, pico_alta=None, esc
     _subir(client, wid, 'cabecera', filas)
 
 
+def test_maxima_coincidente_de_un_proyecto_de_alimentadores(client, monkeypatch):
+    """028:RF-28 — dos alimentadores en un único instante, el de su mayor suma, no el de cada uno."""
+    wid = _wid(client)
+    _libros_por_barra(client, wid, monkeypatch)
+    pares = [{'alimentador': a, 'medidor': m} for a, m in (('A1', 'M1'), ('A2', 'M3'))]
+    job = client.post(f'/api/workspaces/{wid}/demanda/cabecera/buscar', json={'medidores': pares, 'coincidente': True})
+    estado = esperar_trabajo(client, job.json())
+    assert estado['status'] == 'done', estado
+    res = estado['result']
+    fechas = {r['fecha'] for r in res['resultados']}
+    assert fechas == {res['instante']} == {res['coincidente']['fecha']}
+    assert res['coincidente']['total_kw'] == pytest.approx(sum(r['kw'] for r in res['resultados']))
+    propias = esperar_trabajo(client, client.post(f'/api/workspaces/{wid}/demanda/cabecera/buscar',
+                                                  json={'medidores': pares}).json())['result']
+    assert res['coincidente']['total_kw'] <= sum(r['kw'] for r in propias['resultados'])
+
+
+def test_desplegable_con_la_maxima_de_cada_cabecera_y_eleccion_a_mano(client, monkeypatch):
+    """028:RF-32 — por defecto el común; las máximas propias siguen disponibles y una manda si se elige."""
+    wid = _wid(client)
+    _libros_por_barra(client, wid, monkeypatch)
+    pares = [{'alimentador': a, 'medidor': m} for a, m in (('A1', 'M1'), ('A2', 'M3'))]
+    url = f'/api/workspaces/{wid}/demanda/cabecera/buscar'
+    auto = esperar_trabajo(client, client.post(url, json={'medidores': pares, 'coincidente': True}).json())['result']
+    propias = {x['alimentador']: x for x in auto['maximas_propias']}
+    fecha_a1 = (T0 + timedelta(minutes=15 * 7)).isoformat(sep=' ')
+    assert propias['A1']['fecha'] == fecha_a1 and propias['A1']['kw'] == pytest.approx(170.0)
+    assert propias['A2']['fecha'] == T0.isoformat(sep=' ') and propias['A2']['kw'] == pytest.approx(300.0)
+    assert auto['coincidente'] is not None and auto['instante'] not in {fecha_a1}
+    mano = esperar_trabajo(client, client.post(url, json={
+        'medidores': pares, 'instante': fecha_a1.replace(' ', 'T')}).json())['result']
+    assert mano['instante'] == fecha_a1 and mano['coincidente'] is None
+    assert {r['fecha'] for r in mano['resultados']} == {fecha_a1}
+    assert {x['alimentador']: x['fecha'] for x in mano['maximas_propias']}['A1'] == fecha_a1, 'siguen las opciones'
+    assert {x['alimentador'] for x in mano['maximas_propias']} == {'A1', 'A2'}
+
+
+def test_sesenta_kv_da_un_unico_instante_a_todo_el_sistema(client, monkeypatch):
+    """028:RF-31 — todos los alimentadores, también los de una SET sin 60 kV, en el instante común."""
+    wid = _wid(client)
+    _libros_por_barra(client, wid, monkeypatch, kv_alta=60, pico_alta=5)
+    job = client.post(f'/api/workspaces/{wid}/demanda/cabecera/buscar', json={
+        'medidores': [{'alimentador': a, 'medidor': m} for a, m in (('A1', 'M1'), ('A2', 'M3'), ('B1', 'M4'))],
+        'por_barra': True, 'sistema_60kv': True})
+    estado = esperar_trabajo(client, job.json())
+    assert estado['status'] == 'done', estado
+    res = estado['result']
+    assert {r['fecha'] for r in res['resultados'] if not r.get('error')} == {res['sistema_60kv']['fecha']}
+    assert any('B1' in a and 'sin medidor de 60 kV' in a for a in res['avisos'])
+
+
+def test_sesenta_kv_el_alimentador_sin_registro_en_el_instante_se_nombra(client, monkeypatch):
+    """028:RF-31 — no se le da otra fecha ni se calla: como CHN101 en la medición real de Chincha."""
+    wid = _wid(client)
+    _libros_por_barra(client, wid, monkeypatch, kv_alta=60, pico_alta=5, hueco_m3=5)
+    job = client.post(f'/api/workspaces/{wid}/demanda/cabecera/buscar', json={
+        'medidores': [{'alimentador': a, 'medidor': m} for a, m in (('A1', 'M1'), ('A2', 'M3'))],
+        'por_barra': True, 'sistema_60kv': True})
+    res = esperar_trabajo(client, job.json())['result']
+    assert any(r['alimentador'] == 'A2' and r.get('error') for r in res['resultados'])
+    assert any(a.startswith('A2:') and 'instante del sistema' in a for a in res['avisos'])
+
+
+def test_sesenta_kv_sin_ninguna_barra_de_60_lo_dice_y_no_busca(client, monkeypatch):
+    """028:RF-31 — con la barra de alta en 220 kV no hay instante común: se dice, no se inventa."""
+    wid = _wid(client)
+    _libros_por_barra(client, wid, monkeypatch, kv_alta=220)
+    job = client.post(f'/api/workspaces/{wid}/demanda/cabecera/buscar', json={
+        'medidores': [{'alimentador': 'A1', 'medidor': 'M1'}], 'por_barra': True, 'sistema_60kv': True})
+    estado = esperar_trabajo(client, job.json())
+    assert estado['status'] == 'failed'
+    assert 'barras de 60 kV' in estado['error']
+
+
 def test_maxima_por_barra_y_sus_alimentadores_en_esa_fecha(client, monkeypatch):
     """022:RF-37, 022:RF-39, 022:RF-40, 022:RF-41, 022:RF-41c, 022:RF-42, 022:RF-43, 022:RF-44 — la
     máxima de la barra de SET X es la de la suma de sus dos transformadores (registro 3); A1

@@ -482,8 +482,8 @@ export function CargasTab() {
       <div className="step-box">
         <h3>2 · Alimentadores y calibración{current ? ` de ${current.name}` : ''}</h3>
         {!current ? <p className="muted">Elija un proyecto en el paso 1.</p> : <>
-          <p className="muted">Se calibran y se integran los alimentadores marcados, en el orden en que se marcan. Con dos o más,
-            cada uno se ajusta a la máxima de su propia cabecera.</p>
+          <p className="muted">Se calibran y se integran los alimentadores marcados, en el orden en que se marcan. El instante de
+            la máxima lo decide el tipo de análisis que se elija abajo: alimentadores, SET o sistema eléctrico.</p>
           <div className="toolbar">
             <input className="search" type="search" placeholder="Filtrar alimentadores…" value={filter}
               onChange={(e) => setFilter(e.target.value)} />

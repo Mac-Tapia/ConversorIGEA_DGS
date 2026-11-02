@@ -180,7 +180,11 @@ def plan_del_libro(config: ConfigLibro, r: Mapping[str, Any], *, destino: Path, 
         for nombre, celda in config.bloque.items():
             colocar(f'{config.bloque_hoja}!{_bajar(celda, filas)}', bloque.get(nombre), f'{nombre} del estado {estado}')
 
+    datos_de_equipos = r.get('datos_sin_dato') or {}
     for nombre, destinos in config.sin_dato.items():
+        if datos_de_equipos.get(nombre):                                              # 066:RF-13
+            escribir += [{'celda': celda, 'valor': valor} for celda, valor in datos_de_equipos[nombre].items()]
+            continue
         vaciar.extend(destinos)
         huecos.append(nombre)
 

@@ -1211,6 +1211,57 @@ def _suma(*xs: float | None) -> float | None:
     return None if any(x is None for x in xs) else sum(xs)  # type: ignore[arg-type]
 
 
+def _zona_arriba_valida(cab: Mapping, lle: Mapping, signo_llegada: int,
+                        comunes: Sequence[datetime]) -> tuple[dict, list]:
+    """021:RF-31, RF-32: la zona aguas arriba de cada registro y los que están dentro de lo normal."""
+    arriba = {t: cab[t][0] + signo_llegada * lle[t][0] for t in comunes}
+    q1, q3 = _cuartiles(list(arriba.values()))
+    margen = RANGOS_IQR * (q3 - q1)
+    return arriba, [t for t in comunes if q1 - margen <= arriba[t] <= q3 + margen]
+
+
+def instante_coincidente(cabeceras: Mapping[str, Curva], centrales: Mapping[str, tuple[Curva, Curva, Curva]],
+                         periodo: str | None = None) -> dict[str, Any]:
+    """El único instante de un proyecto de varios alimentadores: su mayor demanda conjunta (028:RF-28).
+
+    Cada alimentador con su máxima propia mezcla momentos que nunca ocurrieron juntos: en NA203 +
+    NA205 (2026-11-02) eran el 29 y el 25 de septiembre, con NA203 un 23 % sobre lo que medía a la hora
+    de NA205. Con central cuentan sus dos zonas y no los registros de maniobra: el mayor total crudo de
+    ese mes (09-30 03:45, 23 220 kW) era un disparo de un solo registro. ``centrales``: por
+    alimentador, las curvas de generación, llegada y salida.
+    """
+    demanda: dict[str, dict] = {}
+    avisos: list[str] = []
+    descartados = 0
+    for alimentador, curva in cabeceras.items():
+        cab = _por_fecha(curva)
+        central = centrales.get(alimentador)
+        res = demanda_con_central(curva, *central) if central else None
+        if res is not None and res.signo_llegada is not None and not res.error:
+            lle, sal = _por_fecha(central[1]), _por_fecha(central[2])
+            comunes = sorted(set(cab) & set(_por_fecha(central[0])) & set(lle) & set(sal))
+            arriba, validos = _zona_arriba_valida(cab, lle, res.signo_llegada, comunes)
+            descartados += len(comunes) - len(validos)
+            demanda[alimentador] = {t: arriba[t] + res.signo_salida * sal[t][0] for t in validos}
+        else:
+            if res is not None:
+                avisos.append(f'{alimentador}: la central no se usa para el instante común ({res.error})')
+            demanda[alimentador] = {t: v[0] for t, v in cab.items()}
+    fechas = set.intersection(*(set(d) for d in demanda.values())) if demanda else set()
+    if periodo:
+        # en_periodo y no «== periodo»: con «Todo 2026» ninguna fecha valía y la búsqueda fallaba.
+        fechas = {t for t in fechas if en_periodo(t, periodo)}
+    base = {'descartados': descartados, 'registros': len(fechas), 'avisos': avisos}
+    if not fechas:
+        return {**base, 'fecha': None, 'total_kw': None, 'por_alimentador': {},
+                'avisos': [*avisos, 'ningún registro común a todos los alimentadores'
+                           + (f' en {periodo}' if periodo else '')]}
+    # A igual demanda, el primero: determinismo.
+    t = max(fechas, key=lambda x: (sum(d[x] for d in demanda.values()), -x.timestamp()))
+    por = {a: d[t] for a, d in demanda.items()}
+    return {**base, 'fecha': t, 'total_kw': sum(por.values()), 'por_alimentador': por}
+
+
 def demanda_con_central(cabecera: Curva, generacion: Curva, llegada: Curva,
                         salida: Curva, periodo: str | None = None,
                         instante: datetime | None = None) -> MaximaConCentral:
@@ -1230,7 +1281,7 @@ def demanda_con_central(cabecera: Curva, generacion: Curva, llegada: Curva,
     cab, gen, lle, sal = (_por_fecha(c) for c in (cabecera, generacion, llegada, salida))
     res.registros_cabecera = len(cab)
     # La de cabecera con la que se compara, del mismo mes de análisis (013:RF-11).
-    del_mes = {f: v for f, v in cab.items() if not periodo or periodo_de_fecha(f) == periodo}
+    del_mes = {f: v for f, v in cab.items() if en_periodo(f, periodo)}
     if del_mes:
         f, kw = max(((f, v[0]) for f, v in del_mes.items()), key=lambda p: (p[1], -p[0].timestamp()))
         res.maxima_cabecera = {'fecha': _iso(f), 'kw': kw}
@@ -1259,10 +1310,7 @@ def demanda_con_central(cabecera: Curva, generacion: Curva, llegada: Curva,
         return res
 
     # RF-31: aguas arriba, lo que entra por la cabecera y por la llegada; aguas abajo, la salida.
-    arriba = {t: cab[t][0] + sl * lle[t][0] for t in comunes}
-    q1, q3 = _cuartiles(list(arriba.values()))
-    margen = RANGOS_IQR * (q3 - q1)
-    validos = [t for t in comunes if q1 - margen <= arriba[t] <= q3 + margen]
+    arriba, validos = _zona_arriba_valida(cab, lle, sl, comunes)
     res.descartados = len(comunes) - len(validos)
     if res.descartados:
         res.avisos.append(f'{res.descartados} registro(s) con la zona aguas arriba a más de '
@@ -1279,7 +1327,7 @@ def demanda_con_central(cabecera: Curva, generacion: Curva, llegada: Curva,
         validos = [instante]
     elif periodo:
         # 013:RF-11: la máxima del mes elegido; el balance y el rango normal, de todo el registro.
-        validos = [t for t in validos if periodo_de_fecha(t) == periodo]
+        validos = [t for t in validos if en_periodo(t, periodo)]
     if not validos:
         res.error = ('ningún registro con la zona aguas arriba dentro de lo normal'
                      + (f' en {periodo}' if periodo else ''))
@@ -2050,8 +2098,32 @@ def valor_de_barra_en(curvas: Sequence[Sequence[tuple[datetime, float, float | N
             'kvar': sum((p[1] or 0.0) for p in puntos), 'registros': 1}
 
 
+def instante_de_barras_de_alta(curvas_por_barra: Mapping[str, Sequence[Curva]], periodo: str | None = None
+                               ) -> dict[str, Any] | None:
+    """El único instante de un sistema eléctrico: la mayor suma coincidente de sus barras de 60 kV (028:RF-31).
+
+    Cada barra suma sus transformadores y no se suma a medias (022:RF-84). Entre barras, cada
+    una cuenta donde tiene registro: exigirlo a todas dejaba el instante en manos del medidor
+    con más huecos (Chincha, julio de 2026: SET CHN, de 8 kW y 801 de 2 976 registros, cambiaba
+    los 48 925 kW del día 15 por 40 215 kW del 25). Un hueco solo puede bajar la suma, nunca
+    inflarla. A igual suma, la primera: determinismo. ``None`` si no hay ningún registro.
+    """
+    total: dict[datetime, float] = {}
+    for curvas in curvas_por_barra.values():
+        fechas = [{f: kw for f, kw, _q in c if f is not None and kw is not None} for c in curvas if c]
+        if not fechas:
+            continue
+        for f in set(fechas[0]).intersection(*fechas[1:]):
+            if not periodo or en_periodo(f, periodo):
+                total[f] = total.get(f, 0.0) + sum(d[f] for d in fechas)
+    if not total:
+        return None
+    t = max(total, key=lambda f: (total[f], -f.timestamp()))
+    return {'fecha': t, 'total_kw': total[t]}
+
+
 def maximas_por_barra(libros, alias, barras, pares, periodo, avisos, *, progreso=lambda *_a: None,
-                      log=lambda _t: None, cancelado=lambda: False):
+                      log=lambda _t: None, cancelado=lambda: False, comun_60kv: bool = False):
     """La máxima de cada barra de SET y sus alimentadores en ese instante (022:RF-37 a RF-46,
     RF-84 a RF-91), sin nada de la web: corre en el proceso de su trabajo (027:RF-25). Devuelve
     ``(resultados, barras_informe, avisos, maximas_de_barra, instantes)``."""
@@ -2087,6 +2159,19 @@ def maximas_por_barra(libros, alias, barras, pares, periodo, avisos, *, progreso
     instantes: dict[str, datetime] = {}
     info = []
     maxima_alta: dict[str, dict] = {}
+    comun = None
+    if comun_60kv:                                                      # 028:RF-31
+        altas = {b.clave: [curva_de.get((b.clave, m)) or [] for m in b.medidores] for b in barras if b.alta}
+        comun = instante_de_barras_de_alta(altas, periodo)
+        if comun is None:
+            raise DemandaError('El análisis de sistema eléctrico necesita barras de 60 kV con registros comunes'
+                               + (f' en {periodo}' if periodo else '') + ': ninguna los tiene.')
+        # Una SET sin ningún medidor de barra no aparece en ``barras``: se nombran sus alimentadores.
+        con_barra = {f for b in barras for f in b.alimentadores}
+        sin_alta = (sorted({b.set_codigo for b in barras if not b.alta and not b.de_alta})
+                    + sorted({duenio(a).upper() for a, _m in pares} - con_barra))
+        if sin_alta:
+            avisos.append(f'{", ".join(sin_alta)}: sin medidor de 60 kV; no fijan el instante, se calibran en él (028:RF-31).')
     # 022:RF-84: primero la máxima de cada barra de 60 kV; sus barras de 22,9 y 10 kV se
     # leen después, en esa misma fecha y hora, y no en la suya.
     for b in sorted(barras, key=lambda x: not x.alta):
@@ -2099,7 +2184,13 @@ def maximas_por_barra(libros, alias, barras, pares, periodo, avisos, *, progreso
                           + '; la barra se suma con los demás (022:RF-84).')
         curvas = [curva_de[(b.clave, m)] for m in b.medidores if curva_de.get((b.clave, m))]
         alta = maxima_alta.get(b.de_alta) if b.de_alta else None
-        if alta is not None:
+        if comun is not None:
+            mx = valor_de_barra_en(curvas, comun['fecha']) if curvas else None
+            if mx is None and b.medidores:
+                avisos.append(f'{b.clave}: sin el registro de {", ".join(b.medidores)} el {comun["fecha"]}, '
+                              'el instante del sistema: no suma en él (028:RF-31).')
+            mx = mx or {'fecha': comun['fecha'], 'kw': None, 'kvar': None, 'registros': 0}
+        elif alta is not None:
             mx = valor_de_barra_en(curvas, alta['fecha']) if curvas else None
             if mx is None and b.medidores:
                 avisos.append(f'{b.clave}: sin el registro de {", ".join(b.medidores)} el '
@@ -2165,7 +2256,10 @@ def maximas_por_barra(libros, alias, barras, pares, periodo, avisos, *, progreso
                           f"{', '.join(alta['medidores'])}. El instante se usa igual (022:RF-89).")
     grupos: dict[Any, list[tuple[str, str]]] = defaultdict(list)
     for a, m in pares:
-        grupos[instantes.get(duenio(a).upper())].append((a, m))
+        # 028:RF-31: en un sistema, también el alimentador sin barra con medidor va en el instante común.
+        if comun:
+            instantes.setdefault(duenio(a).upper(), comun['fecha'])
+        grupos[comun['fecha'] if comun else instantes.get(duenio(a).upper())].append((a, m))
     # Cada instante (uno por SET con barra de 60 kV) con los mismos libros ya abiertos: un
     # hilo por instante abría cada uno su copia de los .xls de ~400 MB y la web se quedó sin
     # memoria con Nasca (2026-10-27); abrir es lo que cuesta, no buscar un registro.

@@ -194,12 +194,28 @@ Obras para conectar
   EL SISTEMA lo avisará en el formulario.
 - RF-53: DONDE «Con proyecto» lleve obras activas, EL SISTEMA las describirá en el informe de la carga nueva, con
   el nodo de cada banco y el inicio y el final de cada cambio de sección.
+- RF-54: DONDE el informe evalúe los tres casos, EL SISTEMA concluirá por separado sobre cada uno con sus
+  resultados medidos: inyección, pérdidas, tensiones extremas y su nodo, nodos fuera de la banda y la mayor
+  cargabilidad de línea y de transformador; si un caso no converge lo dirá sin inventar valores y dará solo su
+  demanda nominal. (Usuario, 2026-11-02: «mejorar las conclusiones para cada caso con resultados cuantitativos».)
+- RF-55: EL SISTEMA concluirá sobre la demanda de cada alimentador y fuente antes y después del proyecto, con una
+  tabla de kW y kvar medidos, su variación y el total; una fuente que entra o sale del servicio se nombra como tal.
+  Sin datos por fuente, usará la inyección del caso con el nombre del alimentador. (Usuario, 2026-11-02: «las
+  conclusiones en cuanto a demanda de los alimentadores NA203 y NA205, un antes y después del proyecto SET».)
+- RF-56: DONDE haya otras cargas esperando conexión, EL SISTEMA dirá en el desarrollo del caso sin obras y en las
+  conclusiones cuántas son, cuántos kW suman y por alimentador, qué da el flujo con todas ellas sin obras y, SI ese
+  flujo no converge o incumple, ENTONCES que por eso no es posible conectarlas y se justifica la obra; solo afirmará
+  lo que midió. (Usuario, 2026-11-02: «no es posible conectarlo porque existen otros clientes además de la carga
+  analizada y no converge; eso se debe explicar en conclusiones y en el desarrollo, y justifica la nueva SET».)
+- RF-57: DONDE el informe por balances medidos tenga el factor de carga, EL SISTEMA añadirá las pérdidas anuales de cada
+  estado con ese factor y el precio del libro; sin él, no las anualizará.
 
 ## Fuera de alcance
 
 - El informe juzga las obras aplicadas en «Con proyecto». La evaluación/refuerzo de COPARA
-  solicitado en RF-36 a RF-38 se ejecuta en el arnés de obras existente; no se recrea ni
-  desplaza la SET ya dimensionada y situada en el centro de cargas.
+  solicitado en RF-36 a RF-38 se ejecuta en el arnés de obras existente; no se recrea la SET.
+  El usuario ordenó el 2026-11-02 reubicarla en área libre: se hizo en una variación propia,
+  fuera del informe y de este arnés (AUDIT/anotacion_copara_20261102/).
 - Cortocircuito, curvas PV, capacidad de alojamiento y demás estudios nativos: siguen en 4.2.
 - El informe de estudio (con las cargas en bloque) de la 017: queda como está.
 - La cargabilidad del transformador de la SET (017:RF-71): sigue con su paso propio.
