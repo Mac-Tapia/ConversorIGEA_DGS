@@ -638,3 +638,13 @@ def test_hibrido_no_adoptado_no_pide_vectores():
     r = indice.responder(Indice(FRAGS, [[1.0, 0.0]] * 4), 'calibrar la barra sin medidor repartiendo potencia', o,
                          usar_vectores=False)
     assert llamadas == [] and r['metodos'] == ['bm25'] and 'no los adoptó' in r['recuperacion']
+
+
+def test_el_sello_no_depende_del_final_de_linea(tmp_path):
+    """047:RF-4 — Git en Windows saca el conjunto con CRLF: sigue siendo el mismo conjunto sellado."""
+    lf, crlf = tmp_path / 'lf.json', tmp_path / 'crlf.json'
+    lf.write_bytes(b'{"a": 1}\n{"b": 2}\n')
+    crlf.write_bytes(b'{"a": 1}\r\n{"b": 2}\r\n')
+    assert evaluacion_rag.sha256_de(lf) == evaluacion_rag.sha256_de(crlf)
+    crlf.write_bytes(b'{"a": 9}\r\n{"b": 2}\r\n')
+    assert evaluacion_rag.sha256_de(lf) != evaluacion_rag.sha256_de(crlf)

@@ -27,7 +27,9 @@ LOTE = 4
 
 
 def sha256_de(ruta: Path) -> str:
-    return hashlib.sha256(Path(ruta).read_bytes()).hexdigest()
+    """El sello del conjunto, sin el final de línea: Git en Windows lo pasa a CRLF al sacarlo a otro
+    worktree, y el mismo conjunto no puede dejar de valer por eso."""
+    return hashlib.sha256(Path(ruta).read_bytes().replace(b'\r\n', b'\n')).hexdigest()
 
 
 def ficha_modelo(modelo: str) -> dict[str, Any]:
