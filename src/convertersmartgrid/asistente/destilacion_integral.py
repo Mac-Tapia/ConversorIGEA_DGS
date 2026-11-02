@@ -586,6 +586,8 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
             del modelo
             tr._torch().cuda.empty_cache()
     elegido = elegir_candidato(candidatos)
+    # La reapertura abre otro codificador en otro proceso: la caché ya no hace falta y al equipo le falta memoria.
+    cache.filas.clear()
     # El ganador queda registrado antes de leer calibración o prueba.
     (destino / 'ganador_seleccion.json').write_text(json.dumps(elegido, ensure_ascii=False, indent=2), encoding='utf-8')
     modelo = cargar_alumno(Path(elegido['path']))
@@ -613,7 +615,8 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
     del modelo
     tr._torch().cuda.empty_cache()
     herramienta = Path(__file__).resolve().parents[3] / 'tools/asistente_destilar.py'
-    smoke = reabrir_en_subproceso([sys.executable, str(herramienta), 'verificar', '--modelo', str(final.resolve())])
+    # Abrir el codificador tardó hasta 70 s con el equipo ocupado (2026-11-02): 120 s se quedaban justos.
+    smoke = reabrir_en_subproceso([sys.executable, str(herramienta), 'verificar', '--modelo', str(final.resolve())], timeout_s=300.)
     if not smoke['ok']:
         decision = {'status': 'ERROR_ENTORNO', 'gates': {'approved': False}, 'fallos': ['falló reapertura en proceso nuevo']}
     reg = RegistroModelo(registro or destino / 'model_registry')
