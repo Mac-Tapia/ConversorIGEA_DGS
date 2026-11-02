@@ -60,6 +60,26 @@ def _alim(app, f):
     return next(a for a in app.proyecto.GetContents('*.ElmFeeder', 1) if a.loc_name == f)
 
 
+def test_estudio_conserva_cobertura_de_toda_la_red_tras_una_set_nueva():
+    """063:RF-6, 063:RF-9: las ramas trasladadas no desaparecen de la evaluación del proyecto."""
+    app, feeders = _red()
+    alim = _alim(app, feeders[0])
+    trasladada = next(iter(alim.GetObjs('ElmTerm')))
+    alim._objs = [o for o in alim._objs if o is not trasladada]
+    informe, rc = guion.ejecutar(app, _plan(feeders))
+    assert rc == 0, informe
+    red = informe['red_proyecto']
+    esperadas = {o.loc_name for o in app.GetCalcRelevantObjects('*.ElmTerm')}
+    assert {nombre for nombre, _ in red['medida']['barras']} | set(red['barras_sin_resultado']) == esperadas
+    assert set(red['tensiones_por_nivel']) == {'mt', 'bt', 'at'}
+    assert red['alcance'] == 'proyecto_completo'
+    assert red['cantidad_barras'] == len(esperadas)
+    assert red['cobertura_completa'] == (not red['barras_sin_resultado'])
+    assert trasladada.loc_name in esperadas
+    assert trasladada.loc_name not in {n for n, _ in informe['medidas'][feeders[0]]['barras']}
+    assert 'barras' in informe['geo_proyecto']
+
+
 @pytest.mark.parametrize('anio', [None, 2025])
 def test_estudia_diagnostico_del_anio_por_nombre_y_marca(anio):
     """037:RF-4, 037:RF-7 — el estudio resuelve el diagnóstico propio del año solicitado."""
@@ -193,6 +213,49 @@ def test_el_balance_y_el_perfil_no_dejan_cambios():
     assert rc == 0 and vpo['propuesta']['tomas']
     assert {t['toma'] for t in vpo['propuesta']['tomas']} == {2}
     assert {v.loc_name for v in app.carpetas['scheme'].GetContents('*.IntScheme')} == variaciones
+
+
+def test_las_etapas_atrasadas_se_aplican_antes_del_flujo():
+    """063:RF-5 — SM218 (2026-11-01): la etapa de los bancos quedó después de la hora de «Sin
+    proyecto» y el flujo salía sin ellos. Antes del flujo se adelanta a una fecha libre antes
+    del estudio, la hora del caso no cambia, y el informe lo dice."""
+    import cargas_pf
+
+    app, feeders = _red()
+    sin = casos_pf.casos_del_proyecto(app)['sin']
+    sin.Activate()
+    hora = int(getattr(sin, 'iStudyTime', 0) or 0) or 5_000_000
+    sin.iStudyTime = hora
+    bancos = app.carpetas['scheme'].CreateObject('IntScheme', 'Fichas_P')
+    bancos.NewStage('Etapa_fichas', hora + 10, 1)
+    app.grabando = None
+    sin.iStudyTime = hora                      # NewStage la había llevado a la de la etapa
+    etapa = next(iter(bancos.GetContents('*.IntSstage')))
+    informe, rc = guion.ejecutar(app, _plan(feeders, 'flujo', 'sin'))
+    assert rc == 0, informe
+    assert etapa.tAcTime < hora and sin.iStudyTime == hora
+    assert informe['etapas_adelantadas'] == ['Fichas_P']
+    assert any('063:RF-5' in a and 'Fichas_P' in a for a in informe['avisos'])
+    assert cargas_pf.VENTANA_ETAPAS_S > 10
+
+
+def test_el_optimizador_restituye_la_hora_del_caso():
+    """011:RF-26 — SM218 (2026-11-01): el balance de fases dejó «Sin proyecto» un millón de
+    segundos antes, y la etapa de los bancos EBC/ECB y la de los transformadores NTP dejaron
+    de aplicarse. La hora del caso vuelve a la de antes aunque DIgSILENT la mueva."""
+    app, feeders = _red()
+    movidos = []
+
+    def mueve(app_, _orden):
+        caso = app_.caso
+        movidos.append((caso, getattr(caso, 'iStudyTime', 0)))
+        caso.iStudyTime = movidos[-1][1] - 1_000_000
+
+    app.ordenes['ComBalance'] = fake_pf.Orden(app, 'BAL', clase='ComBalance', efecto=mueve)
+    informe, rc = guion.ejecutar(app, _plan([feeders[0]], 'balance_fases'))
+    assert rc == 0, informe
+    (caso, antes), = movidos
+    assert caso.iStudyTime == antes
 
 
 def test_escenario_y_variaciones_del_caso():

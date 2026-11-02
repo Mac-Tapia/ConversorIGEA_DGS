@@ -17,6 +17,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from .util import NOMBRES_ANTERIORES_PF
+
 NOMBRE_POR_DEFECTO = 'ConverterSmartGrid'
 #: Clave del perfil de empresa. Cuando exista el perfil de la spec 002 (RF-31), la
 #: clave pasa a él con el mismo nombre.
@@ -222,6 +224,9 @@ def buscar_proyecto(app, ruta: str, carpeta: str):
     proyecto = proyecto_por_ruta(destino, ruta) if destino is not None else None
     if proyecto is None and SEPARADOR not in ruta:
         proyecto = next((p for p in _hijos(usuario, 'IntPrj') if p.loc_name == ruta), None)
+    if proyecto is None and ruta in NOMBRES_ANTERIORES_PF:
+        # El de antes del cambio de nombre, con sus tipos ya creados (058:RF-9).
+        return buscar_proyecto(app, NOMBRES_ANTERIORES_PF[ruta], carpeta)
     return proyecto
 
 

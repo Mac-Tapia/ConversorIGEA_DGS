@@ -200,6 +200,8 @@ class Obra:
     kv_alta: float | None = None
     """SET nueva: tensión de alta del módulo PIT (042:RF-5)."""
     unidades: int | None = None
+    #: Nombre de la SET nueva que da el operador (052:RF-19), p. ej. «SET COPARA».
+    nombre_set: str = ''
     """SET nueva: transformadores iguales en paralelo; sin dato, uno (042:RF-14)."""
 
     def a_dict(self) -> dict[str, Any]:
@@ -366,7 +368,8 @@ def _validar_set_nueva(comunes: dict[str, Any], datos: Mapping[str, Any]) -> Obr
                 kv_alta=_numero(datos, 'kv_alta', 'la tensión de alta de la SET nueva (kV)'),
                 unidades=_numero(datos, 'unidades', 'los transformadores en paralelo de la SET nueva',
                                  entero=True, requerido=False),
-                tipo=_tipo_ref(datos.get('tipo'), 'set_nueva', requerido=False))
+                tipo=_tipo_ref(datos.get('tipo'), 'set_nueva', requerido=False),
+                nombre_set=str(datos.get('nombre_set') or '').strip())
 
 
 VALIDADORES: dict[str, Callable[[dict[str, Any], Mapping[str, Any]], Obra]] = {

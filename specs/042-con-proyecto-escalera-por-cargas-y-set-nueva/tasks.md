@@ -32,6 +32,12 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       (antes 29 de 32 quedaban fuera con «no está activa»). La primera corrida en DIgSILENT
       (trabajo aaaccc63b7e1): caben 3 cargas con bancos 2×450 kvar y terna de 11,13 km en NA203;
       32 a la SET nueva, 45,5 MVA de diseño, sin módulo de 40 MVA que los cubra.
+- [x] T8. Ramas abiertas en barras de la red sin las cargas nuevas. (RF-15)
+      Hecho cuando: `pytest -q tests/test_set_nueva.py tests/test_set_nueva_web.py` en verde, con la
+      lectura de DIgSILENT dando las barras que existen con las cargas nuevas apartadas.
+- [x] T9. Toma y consigna de la SET nueva; el mejor punto probado. (RF-10, RF-16)
+      Hecho cuando: `pytest -q tests/test_obras_pf_guion_042.py` en verde, con el transformador
+      regulando a la consigna de la cabecera y el informe con la toma y el punto elegidos.
 - [ ] T6. [DIgSILENT] NA203 + NA205 optimizado desde la web. (Todos)
       Hecho cuando: cada carga nueva con su destino, la red existente con obras que cumplen y la SET
       Copara con su punto, su módulo PIT y «Con proyecto» dentro de 0,94–1,06 pu.

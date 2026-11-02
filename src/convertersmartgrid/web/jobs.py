@@ -475,6 +475,14 @@ class JobManager:
         self._threads: dict[str, threading.Thread] = {}
         self._lock = threading.Lock()
         self._closing = False
+        self._admision = threading.RLock()
+
+    def mantenimiento_si_libre(self, fn: Callable[[], Any]) -> Any:
+        """062:RF-3: comprobar inactividad y limpiar excluye nuevas admisiones."""
+        with self._admision:
+            if self.en_curso():
+                return None
+            return fn()
 
     # -------------------------------------------------------------- consultas
     def get(self, job_id: str) -> Job | None:
@@ -501,6 +509,13 @@ class JobManager:
         self, workspace_id: str, kind: str, title: str,
         fn: Callable[[JobContext], Any], *, lane: str = 'engine',
     ) -> Job:
+        with self._admision:
+            return self._admitir(workspace_id, kind, title, fn, lane=lane)
+
+    def _admitir(
+        self, workspace_id: str, kind: str, title: str,
+        fn: Callable[[JobContext], Any], *, lane: str,
+    ) -> Job:
         if lane not in LANES:
             raise ValueError(f'carril desconocido: {lane}')
         if self._closing:
@@ -510,7 +525,15 @@ class JobManager:
             self._jobs[job.id] = job
             self._ensure_worker(lane)
         self._anotar()
-        self._emit(workspace_id, 'job', job.public())
+        try:
+            self._emit(workspace_id, 'job', job.public())
+        except Exception:
+            # 061:RF-10: un fallo del registro inicial no deja reservado el carril
+            # ni permite ejecutar un trabajo cuya admisión no se pudo observar.
+            with self._lock:
+                self._jobs.pop(job.id,None)
+            self._anotar()
+            raise
         self._queues[lane].put(job)
         return job
 

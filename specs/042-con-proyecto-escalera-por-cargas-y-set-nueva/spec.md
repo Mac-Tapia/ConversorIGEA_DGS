@@ -107,6 +107,17 @@ Informe y web
   de su potencia) y creará la SET con esas n unidades; sin el dato del perfil, un solo
   transformador. (Usuario, 2026-10-31: NA203 + NA205 pedían 45,5 MVA y el mayor módulo de
   22,9 kV era de 40; «la a)», transformadores en paralelo.)
+- RF-15: EL SISTEMA abrirá cada rama que pasa a la SET nueva en una barra de la red sin las cargas
+  nuevas, la más cercana aguas arriba de las cargas que lleva, porque la obra se lee y se graba con
+  esas cargas apartadas. (NA203 + NA205, 2026-11-01: la barra de CIMAS la crea la variación de su
+  carga al partir un tramo, y la SET COPARA no se creaba con «no es del alimentador NA203».)
+- RF-16: EL SISTEMA dejará el transformador de la SET nueva con el cambiador en carga regulando la
+  barra de media a la consigna de la red externa de la cabecera actual, y en la toma fija que la
+  deja más cerca de esa consigna, para que el flujo del caso la cumpla aunque no ajuste tomas.
+  (NA203 + NA205, 2026-11-01: sin regular, 15 barras de media bajo 0,95 p.u. con la SET COPARA.)
+- Aclaración de RF-10 (2026-11-01): de los puntos probados queda el mejor (converge, menos barras
+  fuera, mayor tensión mínima); si un paso empeora, se vuelve al mejor y se acerca la mitad. Antes
+  quedaba el último, sin medir, y la SET COPARA acabó a 18 km de las cargas con 460 barras fuera.
 
 ## Relación con otras specs
 

@@ -304,8 +304,14 @@ BIBLIOTECA_TIPOS = 'CSG_Biblioteca_tipos'
 
 def _proyecto_biblioteca(app, nombre: str, avisos: list[str]):
     """El proyecto biblioteca y su carpeta de tipos; se crean si faltan."""
+    from convertersmartgrid.util import NOMBRES_ANTERIORES_PF
+
     usuario = app.GetCurrentUser()
-    proyecto = next((p for p in usuario.GetContents('*.IntPrj') or [] if p.loc_name == nombre), None)
+    proyectos = usuario.GetContents('*.IntPrj') or []
+    proyecto = next((p for p in proyectos if p.loc_name == nombre), None)
+    if proyecto is None and nombre in NOMBRES_ANTERIORES_PF:
+        # La biblioteca de antes del cambio de nombre, con los tipos que ya usan las obras.
+        proyecto = next((p for p in proyectos if p.loc_name == NOMBRES_ANTERIORES_PF[nombre]), None)
     if proyecto is not None and biblioteca_de_otro(proyecto) is None and not proyecto.GetContents('*'):
         # Uno vacío, de un intento con ``CreateObject('IntPrj')``: DIgSILENT no deja crearle
         # carpetas así (2026-10-24), y vacío no guarda nada.
@@ -1025,10 +1031,12 @@ def construir_set_nueva(ctx) -> None:
     cfg = (datos_perfil().get('planificacion') or {}).get('transformador_set') or {}
     red = cabecera.GetParent()
     kv_mt = float(cabecera.uknom)
-    at = red.CreateObject('ElmTerm', nombre_libre(red, 'ElmTerm', 'SET_NUEVA_AT'))
-    mt = red.CreateObject('ElmTerm', nombre_libre(red, 'ElmTerm', 'SET_NUEVA_MT'))
+    # 052:RF-19: con el nombre que da el operador («SET COPARA» → SET_COPARA_AT, TR_SET_COPARA…).
+    base = nombre_pf(getattr(o, 'nombre_set', '') or 'SET_NUEVA')
+    at = red.CreateObject('ElmTerm', nombre_libre(red, 'ElmTerm', f'{base}_AT'))
+    mt = red.CreateObject('ElmTerm', nombre_libre(red, 'ElmTerm', f'{base}_MT'))
     at.uknom, at.iUsage, mt.uknom, mt.iUsage = float(o.kv_alta), 0, kv_mt, 0
-    xnet = red.CreateObject('ElmXnet', nombre_libre(red, 'ElmXnet', 'Red_SET_NUEVA'))
+    xnet = red.CreateObject('ElmXnet', nombre_libre(red, 'ElmXnet', f'Red_{base}'))
     copiados = []
     for a in ATRIBUTOS_RED_EXTERNA:
         valor = getattr(fuentes[0], a, None)
@@ -1052,10 +1060,23 @@ def construir_set_nueva(ctx) -> None:
     tipo_tr.itapch, tipo_tr.tap_side = 1, 0
     tipo_tr.dutap = float(cfg.get('toma_paso_pct') or 0.0)
     tipo_tr.ntpmn, tipo_tr.ntpmx, tipo_tr.nntap0 = -int(cfg.get('tomas') or 0), int(cfg.get('tomas') or 0), 0
-    tr = red.CreateObject('ElmTr2', nombre_libre(red, 'ElmTr2', 'TR_SET_NUEVA'))
+    tr = red.CreateObject('ElmTr2', nombre_libre(red, 'ElmTr2', f'TR_{base}'))
     # 042:RF-14: n transformadores iguales en paralelo son un ElmTr2 con ntnum = n (cada uno con
     # la uk de su potencia); NA203 + NA205 pedían 45,5 MVA y el mayor módulo era de 40.
     tr.typ_id, tr.ntnum, tr.outserv, tr.nntap = tipo_tr, int(getattr(o, 'unidades', None) or 1), 0, 0
+    # 042:RF-16: la media de la SET nueva a la consigna de la cabecera actual, con el cambiador en
+    # carga regulando y, para el flujo del caso aunque no ajuste tomas, en la toma que la deja ahí.
+    # Sin regular, la red externa en 60 kV con la consigna copiada dejaba la media baja y 15 barras
+    # de NA203 + NA205 bajo 0,95 p.u. con la SET COPARA en su mejor punto (2026-11-01).
+    consigna = float(getattr(fuentes[0], 'usetp', 0) or 1.0)
+    regula = {}
+    for atributo, valor in (('ntrcn', 1), ('usetp', consigna)):
+        try:
+            setattr(tr, atributo, valor)
+            regula[atributo] = valor
+        except Exception:  # noqa: BLE001, S110 - un atributo que no tiene esta versión
+            pass
+    _aviso_del_flujo(ctx, 'iopt_at', 'las tomas')
     for barra, lado, nombre in ((at, 0, 'Cub1_TR_SET_NUEVA'), (mt, 1, 'Cub2_TR_SET_NUEVA')):
         c = barra.CreateObject('StaCubic', nombre_pf(nombre))
         c.obj_id, c.obj_bus = tr, lado
@@ -1103,9 +1124,9 @@ def construir_set_nueva(ctx) -> None:
             x['largo_m'] = ruta.largo_m
 
     limites = _limites(ctx.plan)
-    intentos = []
-    for _n in range(INTENTOS_SET):                                                    # RF-10
-        situar(punto)
+    tomas = int(cfg.get('tomas') or 0)
+
+    def medir() -> tuple[dict, list]:
         flujo = flujo_de_carga(app)
         fuera = []
         if flujo['converged']:
@@ -1113,21 +1134,61 @@ def construir_set_nueva(ctx) -> None:
                 u = _resultado(b, 'm:u') if float(getattr(b, 'uknom', 0) or 0) >= 1.0 else None
                 if u is not None and not limites.tension_min_pu <= u <= limites.tension_max_pu:
                     fuera.append((u, b))
-        intentos.append({'lat': punto[0], 'lon': punto[1], 'converge': flujo['converged'],
-                         'fuera': len(fuera), 'vmin': flujo.get('vm_min'), 'vmin_barra': flujo.get('vm_min_bus')})
+        return flujo, fuera
+
+    def u_media() -> float | None:
+        return _resultado(mt, 'm:u')
+
+    def ajustar_toma() -> None:
+        """RF-16: la toma fija que deja la media más cerca de la consigna, con la pendiente medida."""
+        tr.nntap = 0
+        if not tomas or not medir()[0]['converged'] or (u0 := u_media()) is None:
+            return
+        tr.nntap = 1
+        u1 = u_media() if medir()[0]['converged'] else None
+        tr.nntap = 0
+        if u1 is None or abs(u1 - u0) < 1e-6:
+            return
+        tr.nntap = max(-tomas, min(tomas, round((consigna - u0) / (u1 - u0))))
+
+    def clave(x: dict) -> tuple:
+        return (bool(x['converge']), -int(x['fuera']), float(x['vmin'] or 0.0))
+
+    intentos, mejor, paso = [], None, ACERCAR
+    for _n in range(INTENTOS_SET):                                                    # RF-10
+        situar(punto)
+        ajustar_toma()
+        flujo, fuera = medir()
+        intento = {'lat': punto[0], 'lon': punto[1], 'converge': flujo['converged'], 'fuera': len(fuera),
+                   'vmin': flujo.get('vm_min'), 'vmin_barra': flujo.get('vm_min_bus'),
+                   'toma': int(getattr(tr, 'nntap', 0) or 0), 'u_media': u_media()}
+        intentos.append(intento)
+        peor = min(fuera, key=lambda x: x[0])[1] if fuera else None
+        if mejor is None or clave(intento) > clave(mejor['intento']):
+            mejor = {'intento': intento, 'punto': punto, 'peor': peor}
+        else:
+            paso /= 2                  # empeoró: se vuelve al mejor y se acerca la mitad (2026-11-01)
         if flujo['converged'] and not fuera:
             break
-        peor = min(fuera, key=lambda x: x[0])[1] if fuera else None
-        destino = gps_de(peor) if peor is not None else None
+        destino = gps_de(mejor['peor']) if mejor['peor'] is not None else None
         if destino is None:
             break
-        punto = _hacia(punto, destino, ACERCAR)
-    cumple = bool(intentos and intentos[-1]['converge'] and not intentos[-1]['fuera'])
+        punto = _hacia(mejor['punto'], destino, paso)
+    # El punto que queda es el mejor probado: antes quedaba el último, sin medir, y en NA203 +
+    # NA205 la SET COPARA acabó a 18 km de las cargas con 460 barras fuera (2026-11-01).
+    punto, elegido = mejor['punto'], mejor['intento']
+    if elegido is not intentos[-1]:
+        situar(punto)
+        tr.nntap = elegido['toma']
+        flujo_de_carga(app)
+    cumple = bool(elegido['converge'] and not elegido['fuera'])
     if not cumple:
         fila['avisos'].append(f'Ningún punto de los {len(intentos)} probados deja todas las barras de media '
                               f'entre {limites.tension_min_pu:g} y {limites.tension_max_pu:g} p.u.; queda el '
-                              f'último, con {intentos[-1]["fuera"]} fuera (042:RF-10).')
+                              f'mejor, con {elegido["fuera"]} fuera (042:RF-10).')
     fila['set_nueva'] = {**fila.get('set_nueva', {}), 'lat': punto[0], 'lon': punto[1], 'cumple': cumple,
+                         'toma': elegido['toma'], 'u_media': elegido['u_media'], 'consigna_pu': consigna,
+                         'regula': regula,
                          'intentos': intentos, 'transformador': tr.loc_name, 'tipo_transformador': tipo_tr.loc_name,
                          'uk_pct': tipo_tr.uktr, 'red_externa': xnet.loc_name, 'copiado_de': fuentes[0].loc_name,
                          'atributos_copiados': copiados,
@@ -1610,6 +1671,23 @@ def datos_escalera(app, plan: dict) -> tuple[dict, int]:
                 [media.get(b, b) for b in existen.get(f, [])]
                 + [media[b] for b in (plan.get('barras') or {}).get(f, [])
                    if media.get(b, b) != b and media[b] in sin_cargas_de.get(f, set())]))
+        # 063:RF-32: el camino eléctrico de la cabecera a cada carga, con todas las cargas y el
+        # flujo que convergió; sobre él van sección y terna, y el banco en su barra de aguas arriba.
+        from convertersmartgrid.escalera_optima import camino_electrico
+        tramos_red = []
+        for ln in app.GetCalcRelevantObjects('*.ElmLne') or []:
+            a = getattr(getattr(ln, 'bus1', None), 'cterm', None)
+            b = getattr(getattr(ln, 'bus2', None), 'cterm', None)
+            if a is None or b is None or int(getattr(ln, 'outserv', 0) or 0):
+                continue
+            tipo = getattr(ln, 'typ_id', None)
+            i = _resultado(ln, 'm:I:bus1') if flujo['converged'] else None
+            tramos_red.append({'nombre': ln.loc_name, 'desde': a.loc_name, 'hasta': b.loc_name,
+                               'largo_m': float(getattr(ln, 'dline', 0) or 0) * 1000,
+                               'corriente_a': i * 1000 if i is not None else None,
+                               'tipo': tipo.loc_name if tipo is not None else None,
+                               'inom_a': (float(getattr(tipo, 'sline', 0) or 0) * 1000
+                                          if tipo is not None else None)})
         for f, troncal in troncales.items():
             elm = alims.elm[f]
             lineas = {ln.loc_name: ln for ln in elm.GetObjs('ElmLne')}
@@ -1620,6 +1698,15 @@ def datos_escalera(app, plan: dict) -> tuple[dict, int]:
                 c = _resultado(ln, 'm:I:bus1') if ln is not None and flujo['converged'] else None
                 corriente = c * 1000 if c is not None else corriente  # partido por una carga: el anterior
                 t['corriente_a'] = corriente
+                # 063:RF-30: el conductor de cada tramo, para que el cambio de sección solo suba de
+                # sección (SM218, 2026-11-01: «sección CU 50 mm²» bajaba casi toda la troncal).
+                tipo = getattr(ln, 'typ_id', None) if ln is not None else None
+                if tipo is not None:
+                    t['tipo'] = tipo.loc_name
+                    t['inom_a'] = float(getattr(tipo, 'sline', 0) or 0) * 1000
+                # 063:RF-31: los nodos de inicio y fin de cada tramo, para decir dónde va la obra.
+                if len(ext) == 2:
+                    t['desde'], t['hasta'] = ext
                 us = [u for u in (_resultado(barras[b], 'm:u') for b in ext if b in barras) if u]
                 if fuera is None and vmin and us and min(us) < vmin:
                     fuera = i
@@ -1634,7 +1721,27 @@ def datos_escalera(app, plan: dict) -> tuple[dict, int]:
                 else:
                     informe['avisos'].append(f'{f}: la barra {nombre} no tiene posición GPS; sin tramo de '
                                              'la troncal para su terna o su sección.')
+            # 063:RF-25: la barra de una carga que crea su propia variación (NODE_T_ al partir un
+            # tramo) no existe sin ella; su banco va en la barra existente de ese tramo de la
+            # troncal, la de aguas arriba. SM218 (2026-11-01): INKA quedaba sin escalón de bancos.
+            sin_ellas = sin_cargas_de.get(f, set())
+            banco_en = {}
+            for nombre, i in indices.items():
+                if nombre in sin_ellas or i >= len(extremos[f]):
+                    continue
+                existente = next((b for b in extremos[f][i] if b in sin_ellas), None)
+                if existente is not None:
+                    banco_en[nombre] = existente
+            cab = cabecera_de(elm)
+            caminos = {}
+            for nombre in dict.fromkeys(media.get(b, b) for b in (plan.get('barras') or {}).get(f, [])):
+                c = camino_electrico(tramos_red, cab.loc_name, nombre) if cab is not None else []
+                if c:
+                    caminos[nombre] = c
+                    if nombre not in sin_ellas and c[-1]['desde'] in sin_ellas:
+                        banco_en[nombre] = c[-1]['desde']        # aguas arriba, por el camino real
             informe['alimentadores'][f] = {'troncal': troncal, 'fuera_desde': fuera, 'indices': indices,
+                                           'banco_en': banco_en, 'caminos': caminos,
                                            'existen': existen.get(f, []),
                                            'media': {b: media.get(b, b) for b in (plan.get('barras') or {}).get(f, [])}}
     finally:
@@ -1642,6 +1749,98 @@ def datos_escalera(app, plan: dict) -> tuple[dict, int]:
             casos['con'].Activate()
             for v in ajenas:
                 v.Activate()
+        if inicial is not None and app.GetActiveStudyCase() is not inicial:
+            inicial.Activate()
+    return informe, 0
+
+
+def datos_oraculo(app, plan: dict) -> tuple[dict, int]:
+    """Lo de ``datos_escalera`` y, en la misma lectura, el grafo eléctrico de «Con proyecto» con
+    todas las cargas nuevas del plan activas y, por cada una, su nodo, su P y su Q (052:RF-1).
+
+    Una sola lectura por optimización: el oráculo calcula después cada variante sin volver a
+    DIgSILENT. La carga nueva se busca por el nombre con que la crea la 007 (``nombre_pf`` de
+    su SED); su variación se activa solo para leerla y se deja como estaba.
+    """
+    import sys
+
+    aqui = str(Path(__file__).resolve().parent)
+    if aqui not in sys.path:                  # cargado como módulo suelto (pruebas, servidor)
+        sys.path.insert(0, aqui)
+    import digital_twin_snapshot_pf as snap
+
+    informe, codigo = datos_escalera(app, plan)
+    informe['modo'] = 'datos_oraculo'
+    if codigo:
+        return informe, codigo
+    proyecto = app.GetActiveProject()
+    casos = casos_del_proyecto(app, anio_del_plan(plan))
+    inicial = app.GetActiveStudyCase()
+    pedidas = {str(c.get('variacion')) for c in plan.get('nuevas') or []}
+    activadas: list = []
+    try:
+        casos['con'].Activate()
+        activas = {v.loc_name for v in app.GetActiveNetworkVariations() or []}
+        carpeta = app.GetProjectFolder('scheme')
+        for v in (carpeta.GetContents('*.IntScheme', 1) if carpeta is not None else []):
+            if v.loc_name in pedidas and v.loc_name not in activas:
+                v.Activate()
+                activadas.append(v)
+        raiz = snap.clave_pf(proyecto)
+        grafo = snap.grafo(app, proyecto, raiz, list(plan.get('feeders') or []))
+        # El largo de cada tramo, para el cambio de sección (052:RF-2).
+        largos = {snap._id(ln, raiz): float(getattr(ln, 'dline', 0.0) or 0.0)
+                  for ln in app.GetCalcRelevantObjects('*.ElmLne')}
+        for r in grafo.get('ramas') or []:
+            if r.get('id') in largos:
+                r['largo_km'] = largos[r['id']]
+        # Lo que pone cada variación, por diferencia: la red con ella activa y sin ella. Una carga
+        # nueva aparece; una ampliación de un cliente existente (040) cambia su P y su Q. Por el
+        # nombre, en NA203 + NA205 (2026-11-01) solo se hallaban 3 de 35.
+        def foto() -> dict:
+            out = {}
+            for c in app.GetCalcRelevantObjects('*.ElmLod'):
+                if int(getattr(c, 'outserv', 0) or 0):
+                    continue
+                escala = float(getattr(c, 'scale0', 1.0) or 1.0)
+                out[c.GetFullName()] = (c, float(getattr(c, 'plini', 0.0) or 0.0) * escala,
+                                        float(getattr(c, 'qlini', 0.0) or 0.0) * escala)
+            return out
+
+        variaciones = {v.loc_name: v for v in (app.GetActiveNetworkVariations() or [])}
+        con_todas = foto()
+        nuevas = []
+        for c in plan.get('nuevas') or []:
+            v = variaciones.get(str(c.get('variacion')))
+            if v is None:
+                informe['avisos'].append(f"la variación {c.get('variacion')} de {c.get('sed')} no está activa "
+                                         'en «Con proyecto»')
+                continue
+            v.Deactivate()
+            try:
+                sin_ella = foto()
+            finally:
+                v.Activate()
+            cambios = []
+            for clave, (obj, pc, qc) in con_todas.items():
+                ps, qs = sin_ella.get(clave, (None, 0.0, 0.0))[1:]
+                if abs(pc - ps) > 1e-9 or abs(qc - qs) > 1e-9:
+                    cambios.append((obj, pc - ps, qc - qs))
+            if not cambios:
+                informe['avisos'].append(f"la variación {c.get('variacion')} de {c.get('sed')} no cambia ninguna "
+                                         'carga en «Con proyecto»')
+                continue
+            obj, dp, dq = max(cambios, key=lambda t: abs(t[1]))
+            # Su cubículo: el ``bus1`` o, si aún no lo da, el que la apunta (como la conecta la 007).
+            cub = getattr(obj, 'bus1', None) or next(
+                (k for k in app.GetCalcRelevantObjects('*.StaCubic') if getattr(k, 'obj_id', None) is obj), None)
+            nuevas.append({**c, 'nodo': snap._barra(cub, raiz), 'p_mw': sum(t[1] for t in cambios),
+                           'q_mvar': sum(t[2] for t in cambios), 'objeto': obj.loc_name})
+        informe['grafo'] = grafo
+        informe['nuevas'] = nuevas
+    finally:
+        for v in activadas:
+            v.Deactivate()
         if inicial is not None and app.GetActiveStudyCase() is not inicial:
             inicial.Activate()
     return informe, 0
@@ -1824,18 +2023,27 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
                             var.Deactivate()
                         var.Delete()
 
+        fallidos: list[dict] = []        # 063:RF-28: qué sorteos fallan y por qué, de la última variante
+
         def sortear():
             """Fracción de sorteos que cumplen; deja de sortear en cuanto ya no puede llegar a la
-            del perfil (RF-72)."""
+            del perfil (RF-72). Anota en ``fallidos`` el instante, el factor y el motivo de cada
+            sorteo que falla: en SM218 (2026-11-01) tres variantes se quedaban en el 94,5 % y no se
+            sabía si era por la máxima o por el valle."""
             admite = int((1 - p.cumplimiento) * len(sorteos) + 1e-9)
             fallos = 0
+            fallidos.clear()
             with _Sorteo(app, alims, feeders, existentes) as s:
                 for i, (sorteo, sin_i) in enumerate(zip(sorteos, sin_sorteos)):
                     if i % 10 == 0 and cancelado():          # una variante puede llevar minutos
                         informe['cancelado'] = True
                         return None
                     s.escalar(sorteo['factores'])
-                    fallos += not cumple(sin_i, medida_para_criterio(app, alims, feeders), barras, p)[0]
+                    bien, motivos = cumple(sin_i, medida_para_criterio(app, alims, feeders), barras, p)
+                    if not bien:
+                        fallos += 1
+                        fallidos.append({'instante': sorteo.get('instante'), 'factores': sorteo.get('factores'),
+                                         'motivos': list(motivos)[:3]})
                     if fallos > admite:
                         break
             return (len(sorteos) - fallos) / len(sorteos)
@@ -1876,6 +2084,7 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
                 if sorteos:
                     fila['fraccion'], error = con_variante(v, sortear)
                     fila['error'] = fila['error'] or error
+                    fila['sorteos_fallidos'] = list(fallidos)
                 else:
                     fila['fraccion'] = 1.0
                 print(f"  {v['nombre']}: sorteos {100 * (fila['fraccion'] or 0):.0f} %", flush=True)
@@ -1909,6 +2118,7 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
             else:
                 fila['fraccion'], error = con_variante(v, sortear)
                 fila['error'] = fila['error'] or error
+                fila['sorteos_fallidos'] = list(fallidos)                     # 063:RF-28
             print(f"  {v['nombre']}: sorteos {100 * (fila['fraccion'] or 0):.0f} %", flush=True)
             if (fila['fraccion'] or 0) >= p.cumplimiento:
                 ganadora = fila['nombre']
@@ -1964,6 +2174,19 @@ def datos_set_nueva(app, plan: dict) -> tuple[dict, int]:
     inicial = app.GetActiveStudyCase()
     try:
         casos['con'].Activate()
+        # 042:RF-15: las barras de la red sin las cargas nuevas, que es como la obra lee y graba;
+        # la rama que pasa a la SET nueva se abre en una de ellas.
+        existentes: dict[str, list[str]] = {}
+        apartadas = _apartar_cargas_nuevas(app)
+        try:
+            flujo_de_carga(app)
+            for f in feeders:
+                elm = alims.elm.get(f)
+                if elm is not None:
+                    existentes[f] = sorted({b.loc_name for b in elm.GetObjs('ElmTerm')})
+        finally:
+            for v in apartadas:
+                v.Activate()
         flujo_de_carga(app)              # el ElmFeeder da sus objetos según la última topología
         for f in feeders:
             elm = alims.elm.get(f)
@@ -1990,7 +2213,7 @@ def datos_set_nueva(app, plan: dict) -> tuple[dict, int]:
                 if m is not None:
                     media[nombre] = m.loc_name
             informe['alimentadores'][f] = {
-                'media': media,
+                'media': media, 'existentes': existentes.get(f),
                 'cabecera': cabecera.loc_name, 'kv': float(getattr(cabecera, 'uknom', 0) or 0),
                 'barras': [{'nombre': b.nombre, 'kv': b.kv, 'gps': list(b.gps) if b.gps else None}
                            for b in red.barras.values()],
@@ -2018,6 +2241,8 @@ def main(argv=None) -> int:
                    help='Medir las variantes de la escalera con la máxima y los sorteos, sin dejarlas (025:RF-50)')
     p.add_argument('--escalera-datos', action='store_true',
                    help='Troncal, corrientes y tramo de cada carga nueva para la escalera (025:RF-49)')
+    p.add_argument('--oraculo-datos', action='store_true',
+                   help='Grafo de «Con proyecto» y nodo de cada carga nueva para el oráculo (052:RF-1)')
     p.add_argument('--set-nueva-datos', action='store_true',
                    help='Red y cargas de cada alimentador en «Con proyecto» para la SET nueva (042:RF-6)')
     args = p.parse_args(argv)
@@ -2049,6 +2274,8 @@ def main(argv=None) -> int:
             informe, codigo = evaluar(app, plan, cancelado=cancelado)
         elif args.escalera_datos:
             informe, codigo = datos_escalera(app, plan)
+        elif args.oraculo_datos:
+            informe, codigo = datos_oraculo(app, plan)
         elif args.set_nueva_datos:
             informe, codigo = datos_set_nueva(app, plan)
         elif args.bibliotecas:

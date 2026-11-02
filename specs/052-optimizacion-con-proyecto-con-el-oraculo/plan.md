@@ -15,3 +15,25 @@
    042 en DIgSILENT.
 4. Pruebas con el doble de DIgSILENT y con redes sintéticas cuyo flujo se conoce; después, NA203
    + NA205 por la web.
+
+## Ampliación del 2026-11-01 (RF-11 a RF-16), con los módulos que ya tiene el proyecto
+
+5. Búsqueda bayesiana (RF-11, RF-12, RF-16) en `optimizacion_oraculo.buscar_combinacion`: Optuna
+   (TPE, ya en el extra `ml`) con una variable entera por barra candidata (módulos de banco, 0 a
+   `escalera.modulos_max`) y una categórica por tramo de la troncal (nada, terna o la sección que
+   da `escalera_optima._conductores`); objetivo, el costo anual de `escalera_optima.costo`, con
+   penalización por lo que no cumple (`cumple`). Presupuesto: `escalera.evaluaciones_bayes` del
+   perfil (sin él, 200). Alternativa descartada: rejilla completa (crece como 4^tramos).
+6. Frente de Pareto (RF-13): `digital_twin.evolutivo.nsga2` (el del gemelo, sin pymoo para no
+   tener dos implementaciones) sobre el mismo genoma, con tres objetivos: costo, pérdidas y
+   1 − tensión mínima.
+7. Sorteos de Markov (RF-14): `optimizacion_oraculo.sorteos_markov`, de la curva de cabecera del
+   año: niveles por cuantiles (`escalera.niveles_markov`, sin él 5), matriz de transición entre
+   instantes consecutivos contada y normalizada, distribución estacionaria por el autovector de
+   valor propio 1; cada sorteo es un instante de la cadena simulada desde el estacionario, con la
+   semilla de la escalera. Misma forma que `escalera_optima.sorteos`.
+8. Shapley (RF-15, RF-16): `optimizacion_oraculo.reparto_shapley`, permutaciones sorteadas
+   (`escalera.permutaciones_shapley`, sin él 50); el costo de un grupo, el de la variante más
+   barata de la lista que cumple con él, buscado desde la del grupo anterior (el costo no baja al
+   añadir cargas), con memoria por grupo. Alternativa descartada: Shapley exacto (2^k grupos).
+

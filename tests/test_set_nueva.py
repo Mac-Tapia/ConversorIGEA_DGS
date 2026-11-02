@@ -202,6 +202,38 @@ def test_ramas_sorteadas_cubren_cada_carga_una_vez():
         assert len(ramas) <= max(maximo, len(salidas)), SEMILLA
 
 
+def test_la_rama_empieza_en_una_barra_que_existe_sin_las_cargas_nuevas():
+    """042:RF-15 — la barra T la crea la variación de la carga al partir A–B: la rama sube hasta
+    A, la barra existente más cercana, y lleva dentro la carga; nunca la cabecera."""
+    red = _red([('H', 'A'), ('A', 'T'), ('T', 'B'), ('T', 'CARGA'), ('A', 'C')])
+    (r,) = sn.ramas_a_trasladar(red, 'H', {'T'}, {'B': 40.0, 'C': 7.0}, max_ramas=3,
+                                existentes={'H', 'A', 'B', 'C'})
+    assert r['nodo'] == 'A' and {'T', 'CARGA', 'B'} <= set(r['barras']) and r['destino'] == ['T']
+    with pytest.raises(sn.SetNuevaError, match='cabecera'):
+        sn.ramas_a_trasladar(_red([('H', 'T'), ('T', 'CARGA')]), 'H', {'T'}, {}, max_ramas=1,
+                             existentes={'H'})
+
+
+def test_ramas_sorteadas_con_barras_nuevas_empiezan_en_existentes():
+    """042:RF-15 — en árboles sorteados con barras que solo crean las cargas nuevas: toda rama
+    empieza en una existente, sin barras repetidas, y cada destino queda en una rama."""
+    rng = random.Random(SEMILLA)
+    for _ in range(30):
+        n = rng.randint(6, 120)
+        enlaces = [(f'B{rng.randrange(i)}', f'B{i}') for i in range(1, n)]
+        hijos_de_b0 = {f'B{i}' for i in range(1, n) if enlaces[i - 1][0] == 'B0'}
+        nuevas = set(rng.sample([f'B{i}' for i in range(1, n) if f'B{i}' not in hijos_de_b0],
+                                min(5, max(0, n - 1 - len(hijos_de_b0)))))
+        existentes = {f'B{i}' for i in range(n)} - nuevas
+        destino = set(rng.sample([f'B{i}' for i in range(1, n)], rng.randint(1, min(10, n - 1))))
+        ramas = sn.ramas_a_trasladar(_red(enlaces), 'B0', destino, {}, max_ramas=rng.randint(1, 6),
+                                     existentes=existentes)
+        vistas = [b for r in ramas for b in r['barras']]
+        assert len(vistas) == len(set(vistas)), SEMILLA
+        assert all(r['nodo'] in existentes for r in ramas), SEMILLA
+        assert sorted(d for r in ramas for d in r['destino']) == sorted(destino), SEMILLA
+
+
 def test_una_carga_en_la_cabecera_no_se_traslada():
     """042:RF-6 — la barra de cabecera no puede pasar a otra SET: se dice."""
     with pytest.raises(sn.SetNuevaError, match='cabecera'):

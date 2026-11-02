@@ -4944,10 +4944,28 @@ def _curva_del_anio(ws: Workspace, ctx: JobContext, anio: int, medidores: dict[s
     return out
 
 
+def _carga_para_escalera(barra: str, existen: set, datos: dict) -> dict:
+    """La carga como la ve la escalera: su barra, si existe sin las cargas nuevas, y su tramo.
+
+    063:RF-25: si la barra la crea su propia variación, el banco va en la barra existente del
+    tramo de la troncal que partió (``banco_en`` de la lectura), la de aguas arriba.
+    """
+    indice = (datos.get('indices') or {}).get(barra)
+    camino = (datos.get('caminos') or {}).get(barra) or []                # 063:RF-32
+    if barra in existen:
+        return {'barra': barra, 'existe': True, 'indice_troncal': indice, 'camino': camino}
+    otra = (datos.get('banco_en') or {}).get(barra)
+    if otra:
+        return {'barra': otra, 'existe': True, 'indice_troncal': indice, 'barra_carga': barra,
+                'camino': camino}
+    return {'barra': barra, 'existe': False, 'indice_troncal': indice, 'camino': camino}
+
+
 def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *,
                    anio_casos: int | None = None, tipo_cambio: float | None = None,
                    capex: str | None = None, cargas_activas: list[str] | None = None,
-                   aplicar: bool = True, basta_una: bool = False, memo: dict | None = None) -> dict:
+                   aplicar: bool = True, basta_una: bool = False, memo: dict | None = None,
+                   variantes_de: dict | None = None, solo_comun: bool = False) -> dict:
     """Escalera optimizada de obras sobre «Con proyecto <año>» (025:RF-44, RF-49 a RF-60, RF-67).
 
     042:RF-1 a RF-3: con ``cargas_activas`` (nombres de sus variaciones) solo esas cargas nuevas
@@ -5046,6 +5064,11 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
         lectura = obras_bibliotecas(ws, ctx, project, feeders)['informe']
         if memo is not None:
             memo[clave_memo] = (anio_curva, curvas, sorteos, perdidas, costos, list(avisos), kvar, lectura)
+    if solo_comun:
+        # 052: la misma preparación (perfil, curva, sorteos, CAPEX, bancos y tipos) para el oráculo.
+        return {'p': p, 'perfil': perfil, 'anio_casos': anio_casos, 'objetivos': objetivos, 'curvas': curvas,
+                'sorteos': sorteos, 'perdidas': perdidas, 'costos': costos, 'kvar': kvar, 'lectura': lectura,
+                'avisos': list(avisos)}
 
     resultado, resueltos = [], []
     for f in con_cargas:
@@ -5065,8 +5088,12 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
         d = (datos.get('alimentadores') or {}).get(f)
         fila: dict[str, Any] = {'alimentador': f, 'avisos': list(datos.get('avisos') or []),
                                 'elegida': None, 'mas_cercana': None, 'tabla': [], 'aplicada': None}
+        if datos.get('error'):
+            # 052: un error de lectura no es «ninguna variante cumple». El 2026-11-01, «falta Con
+            # proyecto» en NA203 + NA205 mandó las 35 cargas a la SET nueva sin probar nada.
+            raise UserError(f"{f}: {datos['error']}")
         if rc or not d:
-            fila['avisos'].append(datos.get('error') or f'{f}: no se pudo leer su troncal en DIgSILENT.')
+            fila['avisos'].append(f'{f}: no se pudo leer su troncal en DIgSILENT.')
             resultado.append(fila)
             continue
         # 042: la barra de media de cada carga; la de una ampliación es la de baja de su SED.
@@ -5079,18 +5106,19 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
         # DIgSILENT; el texto del criterio no basta (una carga reutilizada dice «ya existe» y
         # puede estar en el NODE_T_ que creó su variación).
         existen = set(d.get('existen') or ())
-        cargas_f = [{'barra': media.get(str(c['barra']), str(c['barra'])),
-                     'existe': media.get(str(c['barra']), str(c['barra'])) in existen,
-                     'indice_troncal': d['indices'].get(media.get(str(c['barra']), str(c['barra'])))}
+        cargas_f = [_carga_para_escalera(media.get(str(c['barra']), str(c['barra'])), existen, d)
                     for c in de_f if c.get('barra')]
         vs, av = eo.variantes(f, float(kv or 0), d['troncal'], cargas_f, lectura.get('tipos') or [], p,
                               banco_kvar=banco, fuera_desde=d.get('fuera_desde'))
         fila['avisos'] += av
+        if variantes_de is not None and f in variantes_de:
+            # 052:RF-5: DIgSILENT confirma las que eligió el oráculo, en su orden.
+            vs = list(variantes_de[f])
         if not vs:
             fila['avisos'].append(f'{f}: ninguna variante que probar.')
             resultado.append(fila)
             continue
-        ctx.log(f'{f}: {len(vs)} variantes en el orden bancos, regulador, terna y sección…')
+        ctx.log(f"{f}: {len(vs)} variantes en el orden {', '.join(eo.ORDEN)}…")   # 063:RF-21
         # 025:RF-71: el guion sortea de la más barata a la más cara; para ordenar, el costo anual
         # sin pérdidas de cada variante y lo que cuesta al año cada kW perdido en la máxima.
         def costo_base(v):
@@ -5129,7 +5157,7 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
         evaluadas = []
         for x in ev.get('variantes') or []:
             v = por_nombre.get(x['nombre'])
-            e = {**x, 'costo': None}
+            e = {**x, 'costo': None, 'escalones': v.escalones if v is not None else ()}   # 063:RF-22
             if v is not None:
                 try:
                     e['costo'] = eo.costo(v, costos, p, perdidas_kw=x.get('perdidas_kw'),
@@ -5177,7 +5205,7 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
 
 def optimizar_con_proyecto(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *,
                            anio_casos: int | None = None, tipo_cambio: float | None = None,
-                           capex: str | None = None) -> dict:
+                           capex: str | None = None, cargas: list[str] | None = None) -> dict:
     """Cuántas cargas nuevas caben en la red existente con la escalera, y cuáles no (042:RF-1 a RF-4).
 
     De mayor a menor potencia (usuario, 2026-10-31), se busca por bisección el mayor número k de
@@ -5190,13 +5218,25 @@ def optimizar_con_proyecto(ws: Workspace, ctx: JobContext, project: str, feeders
     from .. import set_nueva as sn
 
     marcados = {clave_codigo(f) for f in feeders}
+    pedidas = cargas
     cargas = [c for c in _cargas_nuevas_aplicadas(ws, project)
               if clave_codigo(c.get('alimentador')) in marcados and c.get('variacion')]
+    if pedidas:
+        # 063:RF-23, RF-24: la evaluación de la conexión de una carga cuenta solo esa; las demás se
+        # apartan. SM218 (2026-11-01): la de INKA contaba 4, con su copia del bloque mal ubicada.
+        claves = {clave_codigo(n) for n in pedidas}
+        cargas = [c for c in cargas if clave_codigo(c.get('sed')) in claves]
+        if not cargas:
+            raise UserError('No están aplicadas en los alimentadores marcados: ' + ', '.join(pedidas) + '.')
     if not cargas:
         raise UserError('Ningún alimentador marcado tiene cargas nuevas aplicadas: no hay nada que optimizar.')
     orden = sn.orden_de_cargas(cargas)
     opciones = {'anio_casos': anio_casos, 'tipo_cambio': tipo_cambio, 'capex': capex}
     memo: dict = {}
+    try:
+        return _optimizar_con_oraculo(ws, ctx, project, feeders, orden, opciones, memo)
+    except _SinOraculo as exc:
+        ctx.log(f'El oráculo no puede ({exc}): se busca en DIgSILENT como en la 042 (052:RF-8).')
     ctx.log(f'{len(orden)} cargas nuevas, de mayor a menor potencia: se busca cuántas caben en la red '
             'existente con la escalera de obras (042:RF-1).')
 
@@ -5225,6 +5265,213 @@ def optimizar_con_proyecto(ws: Workspace, ctx: JobContext, project: str, feeders
             'a_set_nueva': [{k_: c.get(k_) for k_ in campos} for c in resto]}
 
 
+class _SinOraculo(Exception):
+    """El oráculo no puede hacer la búsqueda: se hace en DIgSILENT (052:RF-8)."""
+
+
+def _optimizar_con_oraculo(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
+                           orden: list[dict], opciones: dict, memo: dict) -> dict:
+    """La búsqueda de la 042 con el oráculo y la confirmación en DIgSILENT (spec 052).
+
+    Una lectura de «Con proyecto» (RF-1); el oráculo busca k y elige por alimentador, con la
+    escalera, la bayesiana, el frente, Markov y Shapley (RF-2 a RF-4, RF-11 a RF-16); DIgSILENT
+    confirma la elegida con k y que con k + 1 no cabe, y si discrepa manda él (RF-5, RF-6). Lo
+    predicho y lo medido van al informe y a un fichero (RF-7) con los tiempos (RF-10).
+    """
+    from .. import escalera_optima as eo
+    from .. import optimizacion_oraculo as oo
+    from ..demanda_medida import clave_codigo
+
+    t0 = time.monotonic()
+    comun = obras_escalera(ws, ctx, project, feeders, memo=memo, solo_comun=True, **opciones)
+    if 'p' not in comun:
+        raise _SinOraculo('ningún alimentador marcado tiene cargas nuevas')
+    p, perfil, lectura = comun['p'], comun['perfil'], comun['lectura']
+    ajustes = dict(perfil.get('escalera') or {})
+    de = {clave_codigo(f): f for f in feeders}
+    barras: dict[str, list[str]] = {f: [] for f in feeders}
+    for c in orden:
+        f = de.get(clave_codigo(c.get('alimentador')))
+        if f and c.get('barra') and str(c['barra']) not in barras[f]:
+            barras[f].append(str(c['barra']))
+    plan = {'project': project.strip(), 'folder': carpeta_pf(), 'anio_casos': comun['anio_casos'],
+            'native_action_context': native_action_context(ws, project, feeders, 'obras'),
+            'feeders': list(feeders), 'barras': barras, 'tension_min_pu': p.tension_min_pu,
+            'nuevas': [{k: c.get(k) for k in ('sed', 'variacion', 'barra', 'alimentador', 'kw', 'kvar')}
+                       for c in orden]}
+    rc, datos, _rep = _guion_pf(ws, ctx, 'obras_pf.py', plan, nombre='oraculo_datos', args=('--oraculo-datos',))
+    if datos.get('error'):
+        raise UserError(datos['error'])
+    if rc or not datos.get('grafo'):
+        raise _SinOraculo('no se pudo leer el grafo de «Con proyecto»')
+    por_var = {str(n.get('variacion')): n for n in datos.get('nuevas') or []}
+    nuevas = []
+    for c in orden:
+        n = por_var.get(str(c.get('variacion')))
+        f = de.get(clave_codigo(c.get('alimentador')))
+        if n is None or not n.get('nodo') or f is None:
+            raise _SinOraculo(f"sin la carga nueva {c.get('sed')} en el grafo")
+        media = ((datos.get('alimentadores') or {}).get(f) or {}).get('media') or {}
+        nuevas.append({**n, 'alimentador': f, 'barra': media.get(str(c.get('barra')), str(c.get('barra')))})
+    tipos_lista = lectura.get('tipos') or []
+    # 052:RF-17: el PINN promovido como segundo oráculo; sin él, sin GPU o si falla, el físico.
+    pinn = None
+    try:
+        from ..digital_twin.buffer import BuferEpisodios
+        from ..digital_twin.oraculo import cargar
+
+        pinn = cargar(BuferEpisodios())
+        if pinn is not None:
+            pinn.predecir(datos['grafo'])
+    except Exception as exc:  # noqa: BLE001 - se dice y decide el flujo físico
+        ctx.log(f'PINN no disponible ({exc}): decide el flujo físico (052:RF-17).')
+        pinn = None
+    ctx.log('Oráculos: ' + ('PINN promovido dentro de su dominio y flujo físico' if pinn is not None
+                           else 'flujo físico') + ' (052:RF-17).')
+    ora = oo.Oraculo(datos['grafo'], nuevas,
+                     tipos={str(t.get('nombre')): t.get('datos') or {} for t in tipos_lista}, pinn=pinn)
+    if not ora.medir([], 0).converge:
+        raise _SinOraculo('el flujo del oráculo no converge sin obras')
+    # RF-14: los sorteos por la cadena de Markov de la curva de cabecera del año.
+    instantes: dict = {}
+    for f, curva in (comun.get('curvas') or {}).items():
+        for t, kw in curva:
+            instantes.setdefault(t, {})[f] = kw
+    maximas = {f: float((comun['objetivos'].get(f) or {}).get('kw') or 0) for f in feeders}
+    # El oráculo sortea como mucho ``escalera.sorteos_oraculo`` (50); DIgSILENT confirma con los suyos.
+    n_sorteos = min(p.sorteos, int(ajustes.get('sorteos_oraculo') or 50))
+    markov = oo.sorteos_markov(sorted(instantes.items(), key=lambda x: x[0]), maximas, n_sorteos, p.semilla,
+                               int(ajustes.get('niveles_markov') or oo.NIVELES_MARKOV))
+    factores = [sum(x['factores'].values()) / len(x['factores']) for x in markov['sorteos']]
+    alims = []
+    kvar = comun['kvar']
+    for f in feeders:
+        d = (datos.get('alimentadores') or {}).get(f)
+        if not d or not any(c['alimentador'] == f for c in nuevas):
+            continue
+        kv = float(((lectura.get('alimentadores') or {}).get(f) or {}).get('kv') or 0)
+        banco = (min(kvar.items(), key=lambda par: abs(float(par[0]) - kv))[1] if kvar and kv else None)
+        existen = set(d.get('existen') or ())
+        de_f = [c for c in nuevas if c['alimentador'] == f]
+        cargas_f = [_carga_para_escalera(c['barra'], existen, d) for c in de_f]
+        vs, _av = eo.variantes(f, kv, d['troncal'], cargas_f, tipos_lista, p, banco_kvar=banco,
+                               fuera_desde=d.get('fuera_desde'))
+
+        def costo(v, perdidas_kw, f=f):
+            try:
+                return eo.costo(v, comun['costos'], p, perdidas_kw=perdidas_kw,
+                                factor_perdidas=comun['perdidas'].get(f))['costo_anual']
+            except eo.EscaleraError:
+                return None
+        indices = [i for i in ((d.get('indices') or {}).get(c['barra']) for c in de_f) if i is not None]
+        tramos = list(d['troncal'][:max(indices) + 1]) if indices else []
+        # 063:RF-32: con el camino eléctrico de cada carga, el oráculo prueba sobre él.
+        por_camino = {t['nombre']: t for c in de_f for t in ((d.get('caminos') or {}).get(c['barra']) or [])}
+        if por_camino:
+            tramos = list(por_camino.values())
+        corrientes = [float(t['corriente_a']) for t in tramos if t.get('corriente_a') is not None]
+        aptos = eo._conductores(tipos_lista, kv, max(corrientes) if corrientes else None)   # 063:RF-27
+        # 063:RF-25: el banco de una carga en un NODE_T_ va en la barra existente de su tramo.
+        con_banco = sorted({x['barra'] for x in (_carga_para_escalera(c['barra'], existen, d) for c in de_f)
+                            if x['existe']})
+        espacio = oo.Espacio(f, con_banco, banco,
+                             int(ajustes.get('modulos_max') or 2), tramos,
+                             [{'nombre': t['nombre'], 'origen': t.get('origen') or 'proyecto',
+                               'proyecto': t.get('proyecto') or ''} for t in aptos]) if (tramos or banco) else None
+        alims.append(oo.Alimentador(f, vs, costo, espacio))
+    opciones_eleccion = {'evaluaciones_bayes': int(ajustes.get('evaluaciones_bayes') or oo.EVALUACIONES_BAYES),
+                         'permutaciones': int(ajustes.get('permutaciones_shapley') or oo.PERMUTACIONES_SHAPLEY),
+                         'semilla': p.semilla}
+    t_oraculo = time.monotonic()
+    k, pruebas = oo.buscar_k(ora, alims, p, factores)
+    ctx.log(f'Oráculo: caben {k} de {len(orden)} ({len(pruebas)} pruebas, {ora.evaluaciones} flujos) (052:RF-4).')
+    eleccion = oo.elegir_para_k(ora, alims, k, p, factores, **opciones_eleccion) if k else {}
+    s_oraculo = time.monotonic() - t_oraculo
+
+    def confirmar(kk: int, ele: dict) -> tuple[bool, dict]:
+        r = obras_escalera(ws, ctx, project, feeders, cargas_activas=[c['variacion'] for c in orden[:kk]],
+                           aplicar=False, basta_una=False, memo=memo,
+                           variantes_de={f: e['orden'][:3] for f, e in ele.items()}, **opciones)
+        return all(a.get('elegida') or a.get('ya_cumple') for a in r.get('alimentadores') or []), r
+
+    t_pf = time.monotonic()
+    discrepancias: list[dict] = []
+    confirmada: dict | None = None
+    for _ in range(len(orden) + 1):
+        if k == 0:
+            # RF-5 en cualquier caso: que ni la mayor cabe también lo dice DIgSILENT.
+            una = oo.elegir_para_k(ora, alims, 1, p, factores, evaluaciones_bayes=0, permutaciones=0,
+                                   semilla=p.semilla, pareto=False)
+            ok1, r1 = confirmar(1, una)
+            if not ok1:
+                break
+            discrepancias.append({'cargas': 1, 'oraculo': 'no cabe', 'digsilent': 'cabe'})
+            ctx.log('DIgSILENT cabe con 1 carga: se sube k (052:RF-6).')
+            k = 1
+            eleccion = oo.elegir_para_k(ora, alims, k, p, factores, **opciones_eleccion)
+            continue
+        ok, confirmada = confirmar(k, eleccion)
+        if not ok:                                                          # RF-6: baja k
+            discrepancias.append({'cargas': k, 'oraculo': 'cabe', 'digsilent': 'no cabe'})
+            ctx.log(f'DIgSILENT no confirma {k} cargas: se prueba con {k - 1} (052:RF-6).')
+            k -= 1
+            confirmada = None
+            eleccion = oo.elegir_para_k(ora, alims, k, p, factores, **opciones_eleccion) if k else {}
+            continue
+        if k < len(orden):                                                 # RF-5: el límite
+            siguiente = oo.elegir_para_k(ora, alims, k + 1, p, factores, evaluaciones_bayes=0,
+                                         permutaciones=0, semilla=p.semilla, pareto=False)
+            ok1, _r = confirmar(k + 1, siguiente)
+            if ok1:                                                         # RF-6: sube k
+                discrepancias.append({'cargas': k + 1, 'oraculo': 'no cabe', 'digsilent': 'cabe'})
+                ctx.log(f'DIgSILENT cabe con {k + 1} cargas: se sube k (052:RF-6).')
+                k += 1
+                eleccion = oo.elegir_para_k(ora, alims, k, p, factores, **opciones_eleccion)
+                continue
+        break
+    comparacion = []                                                        # RF-7
+    for a in (confirmada or {}).get('alimentadores') or []:
+        predicho = {t['nombre']: t for t in (eleccion.get(a['alimentador']) or {}).get('tabla') or []}
+        for t in a.get('tabla') or []:
+            o = predicho.get(t.get('nombre')) or {}
+            comparacion.append({'alimentador': a['alimentador'], 'variante': t.get('nombre'), 'cargas': k,
+                                'oraculo_cumple': o.get('cumple'), 'oraculo_v_min': o.get('v_min'),
+                                'oraculo_aproximada': o.get('aproximada'),
+                                'digsilent_maxima': t.get('maxima'), 'digsilent_fraccion': t.get('fraccion')})
+    escalera = None
+    if k and confirmada:
+        elegidas = {a['alimentador']: a.get('elegida') for a in confirmada.get('alimentadores') or []}
+        ctx.log(f'Caben {k} de {len(orden)}, confirmado en DIgSILENT: se aplica (052:RF-5).')
+        escalera = obras_escalera(ws, ctx, project, feeders, cargas_activas=[c['variacion'] for c in orden[:k]],
+                                  aplicar=True, memo=memo, **opciones,
+                                  variantes_de={f: [v for v in e['orden'] if v.nombre == elegidas.get(f)]
+                                                or e['orden'][:1] for f, e in eleccion.items()})
+    s_pf = time.monotonic() - t_pf
+    resto = orden[k:]
+    if resto:
+        ctx.log(f"{len(resto)} carga(s) no caben en la red existente y van a la SET nueva: "
+                f"{', '.join(str(c['sed']) for c in resto)} (042:RF-3).")
+    tiempos = {'oraculo_s': round(s_oraculo, 1), 'digsilent_s': round(s_pf, 1),
+               'total_s': round(time.monotonic() - t0, 1), 'flujos_oraculo': ora.evaluaciones}
+    resumen = {f: {x: e[x] for x in ('elegida', 'tabla', 'bayesiana', 'pareto', 'shapley')}
+               for f, e in eleccion.items()}
+    informe_oraculo = {'eleccion': resumen, 'discrepancias': discrepancias, 'comparacion': comparacion,
+                       'tiempos': tiempos,
+                       'markov': {x: markov[x] for x in ('estacionaria', 'transicion', 'niveles')}}
+    ws.out_dir.mkdir(parents=True, exist_ok=True)
+    write_json_atomic(ws.out_dir / f"oraculo_con_proyecto_{time.strftime('%Y%m%d_%H%M%S')}.json",
+                      {'project': project.strip(), **informe_oraculo})
+    ctx.log(f"Tiempos: oráculo {tiempos['oraculo_s']} s ({ora.evaluaciones} flujos), DIgSILENT "
+            f"{tiempos['digsilent_s']} s (052:RF-10).")
+    campos = ('sed', 'alimentador', 'kw', 'kvar', 'barra', 'variacion')
+    obras_elegidas = [o for f, e in eleccion.items() for v in e['orden'][:1] for o in v.obras]
+    return {'project': project.strip(), 'orden': [{k_: c.get(k_) for k_ in campos} for c in orden],
+            'caben': k, 'pruebas': pruebas, 'escalera': escalera,
+            'a_set_nueva': [{k_: c.get(k_) for k_ in campos} for c in resto], 'oraculo': informe_oraculo,
+            # 052:RF-18: para comprobar la SET nueva; no va al informe (no es JSON).
+            '_oraculo': {'ora': ora, 'obras': obras_elegidas, 'p': p}}
+
+
 def _punto_utm(lat: float, lon: float) -> dict | None:
     """El punto de la SET nueva en el CRS del perfil, con :func:`_utm` (042:RF-12)."""
     from ..perfil_empresa import datos_perfil
@@ -5235,7 +5482,7 @@ def _punto_utm(lat: float, lon: float) -> dict | None:
 
 def set_nueva_proponer(ws: Workspace, ctx: JobContext, project: str, feeders: list[str],
                        a_set_nueva: list[dict], *, capex: str | None, alimentadores_nuevos: int,
-                       anio_casos: int | None = None) -> dict:
+                       anio_casos: int | None = None, nombre: str = '', oraculo: dict | None = None) -> dict:
     """Diseña, sitúa y crea en «Con proyecto» la SET nueva de las cargas que no caben (042:RF-5 a RF-12).
 
     Lee la red en DIgSILENT (``obras_pf.py --set-nueva-datos``); por alimentador, las ramas que
@@ -5273,6 +5520,11 @@ def set_nueva_proponer(ws: Workspace, ctx: JobContext, project: str, feeders: li
     if rc or datos.get('error'):
         raise UserError(datos.get('error') or 'No se pudo leer la red en DIgSILENT para la SET nueva.')
     nuevas_todas = {nombre_pf(str(c.get('sed') or '')) for c in _cargas_nuevas_aplicadas(ws, project)}
+
+    def es_nueva(nombre: str) -> bool:
+        # DIgSILENT pone sufijos («SU_PACKING…(2)»): por el nombre exacto, en NA203 + NA205
+        # (2026-11-01) las cargas nuevas se contaban como demanda existente trasladada y crecían.
+        return any(str(nombre).startswith(n[:36]) for n in nuevas_todas if n)
     avisos = list(datos.get('avisos') or [])
     cupo = max(1, int(alimentadores_nuevos) // max(1, len(por_alim)))
     ramas, trasladado, existentes, nuevas_pts, kv_mt = [], {}, [], [], None
@@ -5292,8 +5544,11 @@ def set_nueva_proponer(ws: Workspace, ctx: JobContext, project: str, feeders: li
             # en «Con proyecto»); si no la trae, la de la carga activa con su nombre.
             barra = media.get(str(c.get('barra') or ''))
             if barra is None:
-                x = barra_de.get(nombre_pf(str(c.get('sed') or '')))
+                x = barra_de.get(nombre_pf(str(c.get('sed') or ''))) or next(
+                    (v for k, v in barra_de.items() if es_nueva(k) and k.startswith(nombre_pf(str(c.get('sed') or ''))[:36])), None)
                 barra = x['barra'] if x is not None else None
+            if barra is None and str(c.get('barra') or '') in {b['nombre'] for b in d['barras']}:
+                barra = str(c['barra'])               # la que registró su variación (007)
             if barra is None:
                 avisos.append(f"{c.get('sed')}: no se halló su barra en «Con proyecto» de {f}; "
                               'no entra en la SET nueva.')
@@ -5301,10 +5556,12 @@ def set_nueva_proponer(ws: Workspace, ctx: JobContext, project: str, feeders: li
             destino.add(barra)
         existentes_kw = {}
         for c in d['cargas']:
-            if c['nombre'] not in nuevas_todas:
+            if not es_nueva(c['nombre']):
                 existentes_kw[c['barra']] = existentes_kw.get(c['barra'], 0.0) + float(c['kw'] or 0)
         try:
-            ramas_f = sn.ramas_a_trasladar(red, d['cabecera'], destino, existentes_kw, max_ramas=cupo)
+            sin_nuevas = d.get('existentes')
+            ramas_f = sn.ramas_a_trasladar(red, d['cabecera'], destino, existentes_kw, max_ramas=cupo,
+                                           existentes=set(sin_nuevas) | {d['cabecera']} if sin_nuevas else None)
         except sn.SetNuevaError as exc:
             raise UserError(f'{f}: {exc}') from exc
         gps = {b['nombre']: b.get('gps') for b in d['barras']}
@@ -5312,7 +5569,7 @@ def set_nueva_proponer(ws: Workspace, ctx: JobContext, project: str, feeders: li
         for r in ramas_f:
             dentro = set(r['barras'])
             for c in d['cargas']:
-                if c['barra'] in dentro and c['nombre'] not in nuevas_todas:
+                if c['barra'] in dentro and not es_nueva(c['nombre']):
                     p_kw, q_kvar = p_kw + float(c['kw'] or 0), q_kvar + float(c['kvar'] or 0)
                     if gps.get(c['barra']):
                         existentes.append((gps[c['barra']][0], gps[c['barra']][1], float(c['kw'] or 0)))
@@ -5353,10 +5610,15 @@ def set_nueva_proponer(ws: Workspace, ctx: JobContext, project: str, feeders: li
     if eleccion['modulo'] is None:
         informe['avisos'].append(f"{eleccion['motivo']}: no se crea la SET nueva (042:RF-8).")
         return informe
+    if oraculo:
+        informe['oraculo'] = _set_nueva_en_el_oraculo(oraculo, ramas, gps, ubic, float(kv_mt or 0))
+        veredicto = ('cumple' if informe['oraculo']['cumple']
+                     else 'no cumple: ' + '; '.join(informe['oraculo']['motivos'][:2]))
+        ctx.log(f"Oráculo con la SET nueva {nombre}: {veredicto} (052:RF-18).")
     obra = {'clase': 'set_nueva', 'alimentador': sorted(trasladado)[0], 'casos': ['Con proyecto'],
             'destino': f"{ubic['lat']:.7f}, {ubic['lon']:.7f}",
             'ramas': [f"{r['alimentador']}/{r['nodo']}" for r in ramas],
-            'mva': eleccion['modulo']['mva'], 'kv_alta': eleccion['modulo']['kv_at'],
+            'mva': eleccion['modulo']['mva'], 'kv_alta': eleccion['modulo']['kv_at'], 'nombre_set': nombre,
             'unidades': int(eleccion['modulo'].get('unidades') or 1)}
     ident = obra_anadir(ws, obra)['id']
     hecho = obras_ejecutar(ws, ctx, project, feeders, [ident], BIBLIOTECA_TIPOS, simular=False,
@@ -5370,18 +5632,76 @@ def set_nueva_proponer(ws: Workspace, ctx: JobContext, project: str, feeders: li
     return informe
 
 
+def _set_nueva_en_el_oraculo(oraculo: dict, ramas: list[dict], gps: dict, ubic: dict, kv: float) -> dict:
+    """La SET nueva en el grafo del oráculo, con todas las cargas nuevas y la obra elegida (052:RF-18).
+
+    Cada rama trasladada se abre en su tramo de entrada y se alimenta desde el punto elegido, a su
+    distancia GPS, con la impedancia por km del tramo abierto; se juzga con el criterio de la escalera.
+    """
+    from .. import set_nueva as sn
+
+    ora, obras, p = oraculo['ora'], oraculo['obras'], oraculo['p']
+    filas = []
+    for r in ramas:
+        j = ora.rama_de.get(str(r.get('entrada')))
+        tramo = ora._ramas[j] if j is not None else {}
+        largo = float(tramo.get('largo_km') or 0.0)
+        punto = gps.get(r.get('nodo'))
+        filas.append({'entrada': r.get('entrada'), 'nodo': r.get('nodo'),
+                      'distancia_km': (sn.distancia_m((ubic['lat'], ubic['lon']), tuple(punto)) / 1000.0
+                                       if punto else 0.0),
+                      'r_ohm_km': float(tramo.get('r_ohm') or 0.0) / largo if largo else 0.0,
+                      'x_ohm_km': float(tramo.get('x_ohm') or 0.0) / largo if largo else 0.0,
+                      'inom_ka': float(tramo.get('inom_ka') or 0.0)})
+    sub = ora.con_set_nueva(filas, kv)
+    e = sub.evaluar(obras, len(sub.nuevas), p)
+    return {'cumple': bool(e['maxima']), 'motivos': list(e.get('motivos') or []), 'v_min': e.get('v_min'),
+            'ramas': filas}
+
+
 def con_proyecto_optimizar(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *,
                            anio_casos: int | None = None, tipo_cambio: float | None = None,
-                           capex: str | None = None, alimentadores_nuevos: int = 4) -> dict:
-    """«Con proyecto» optimizado: escalera carga a carga y SET nueva para las que no caben (spec 042)."""
-    escalera = optimizar_con_proyecto(ws, ctx, project, feeders, anio_casos=anio_casos,
-                                      tipo_cambio=tipo_cambio, capex=capex)
+                           capex: str | None = None, alimentadores_nuevos: int = 4,
+                           set_nueva_nombre: str = '', directo_set_nueva: bool = False,
+                           cargas: list[str] | None = None) -> dict:
+    """«Con proyecto» optimizado: escalera carga a carga y SET nueva para las que no caben (spec 042).
+
+    Con ``directo_set_nueva``, sin escalera: muchas cargas que bancos y ternas no resuelven van a
+    una solución de transmisión, la SET nueva con sus transformadores (usuario, 2026-11-01).
+    """
+    from ..demanda_medida import clave_codigo
+    from ..perfil_empresa import datos_perfil
+
+    marcados = {clave_codigo(f) for f in feeders}
+    pedidas = {clave_codigo(n) for n in (cargas or [])}
+    evaluadas = [c for c in _cargas_nuevas_aplicadas(ws, project)
+                 if clave_codigo(c.get('alimentador')) in marcados and c.get('variacion')
+                 and (not pedidas or clave_codigo(c.get('sed')) in pedidas)]
+    umbral = (datos_perfil().get('planificacion') or {}).get('set_nueva_desde_kw')
+    total_kw = sum(float(c.get('kw') or 0) for c in evaluadas)
+    if not directo_set_nueva and umbral is not None and total_kw > float(umbral):
+        # 063:RF-34: con tanta carga nueva, bancos, secciones y ternas no la resuelven; la alternativa
+        # es una SET nueva (NA203 + NA205, 2026-11-01: 35 cargas, unos 29 MW).
+        directo_set_nueva = True
+        ctx.log(f'Las cargas nuevas suman {total_kw / 1000:.1f} MW, más que el umbral del perfil '
+                f'({float(umbral) / 1000:g} MW): la solución es una SET nueva (063:RF-34).')
+    if directo_set_nueva:
+        from .. import set_nueva as sn
+
+        todas = sn.orden_de_cargas(evaluadas)
+        ctx.log(f'{len(todas)} cargas nuevas directo a la SET nueva {set_nueva_nombre}, sin escalera.')
+        campos = ('sed', 'alimentador', 'kw', 'kvar', 'barra', 'variacion')
+        escalera = {'caben': 0, 'a_set_nueva': [{k: c.get(k) for k in campos} for c in todas]}
+    else:
+        escalera = optimizar_con_proyecto(ws, ctx, project, feeders, anio_casos=anio_casos,
+                                          tipo_cambio=tipo_cambio, capex=capex, cargas=cargas)
     # La escalera ya se midió (y aplicó lo que cabe): si falta un dato de la SET nueva (042:RF-8),
     # se dice sin perder lo hecho. NA203 + NA205 (2026-10-31): una hora de escalera y el trabajo
     # salía «fallido» sin decir cuántas cargas cabían.
     try:
         set_nueva = set_nueva_proponer(ws, ctx, project, feeders, escalera['a_set_nueva'], capex=capex,
-                                       alimentadores_nuevos=alimentadores_nuevos, anio_casos=anio_casos)
+                                       alimentadores_nuevos=alimentadores_nuevos, anio_casos=anio_casos,
+                                       nombre=set_nueva_nombre, oraculo=escalera.pop('_oraculo', None))
     except UserError as exc:
         ctx.log(f'SET nueva: {exc}')
         set_nueva = {'avisos': [str(exc)]}
@@ -5677,6 +5997,40 @@ def estudios_plan(ws: Workspace, project: str, feeders: list[str], estudios: lis
             'casos': [f'{n} {plan["anio_casos"]}' if plan['anio_casos'] else n
                       for n in ('Sin proyecto', 'Cargas nuevas', 'Con proyecto')],
             'avisos': avisos, 'limites': plan['limites'], 'limite_s': plan['limite_s']}
+
+
+def set_nueva_operacion(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *,
+                        accion: str = 'diagnostico', cambios: list[dict] | None = None,
+                        desactivar_variaciones: list[str] | None = None,
+                        sincronizar_cargas: bool = False, ajustes_flujo: dict[str, int] | None = None,
+                        limites: dict[str, float] | None = None, limite_s: float = 1200,
+                        reabrir: bool = True) -> dict:
+    """Diagnóstico y refuerzos sobre una SET existente, por el arnés y con fuente vinculada.
+
+    063:RF-36 a RF-38. COPARA ya estaba situada y dimensionada: recrearla duplicaría
+    activos y borraría la evidencia de sus conexiones. Cada cambio se valida por ruta
+    nativa y se evalúa conservando las cargas y el escenario original.
+    """
+    from dataclasses import asdict
+
+    from ..estudios_pf import limites_de_perfil
+
+    if accion not in ('diagnostico', 'evaluar', 'aplicar'):
+        raise UserError('La acción de la SET debe ser diagnóstico, evaluación o aplicación.')
+    action_context = native_action_context(ws, project, feeders, 'obras')
+    plan = {'project': project.strip(), 'folder': carpeta_pf(), 'feeders': list(feeders),
+            'native_action_context': action_context, 'accion': accion,
+            'cambios': list(cambios or []), 'desactivar_variaciones': list(desactivar_variaciones or []),
+            'sincronizar_cargas': sincronizar_cargas, 'ajustes_flujo': dict(ajustes_flujo or {}),
+            'limites': asdict(limites_de_perfil().con(**(limites or {}))),
+            'nuevas': _cargas_nuevas_aplicadas(ws, project), 'reabrir': reabrir}
+    ctx.log(f'{project}: {accion} de SET existente; no se crea ni se desplaza la SET.')
+    rc, informe, report = _guion_pf(ws, ctx, 'set_nueva_operacion_pf.py', plan,
+                                   nombre='set_nueva_operacion', cancelable=False, limite_s=limite_s)
+    if informe.get('error'):
+        raise UserError(informe['error'])
+    return {'project': project, 'returncode': rc, 'report': report.name, 'informe': informe,
+            'aceptada': bool(informe.get('aceptada'))}
 
 
 def _alternativas_del_proyecto(ws: Workspace, project: str, feeders: list[str]) -> list[dict]:
@@ -6635,6 +6989,30 @@ def informe_vista_ubicacion(ws: Workspace, project: str, alimentador: str, sed: 
     return {'fichero': destino.relative_to(ws.out_dir).as_posix(), 'rotulo': texto}
 
 
+def _conclusion_conexion(ws: Workspace, project: str, alimentador: str, actual, con_estudio: dict | None,
+                         lim) -> dict | None:
+    """Si la carga se conecta ya, con obras o necesita refuerzo (063:RF-7 a RF-11).
+
+    Con el estado actual, el de «Cargas nuevas» (la carga sin obras) y «Con proyecto» solo si
+    tiene obras: sin ellas es la misma red que «Cargas nuevas». Sin el flujo de «Cargas
+    nuevas» guardado no se concluye nada aquí.
+    """
+    from dataclasses import asdict
+
+    from ..estudios_pf import CON_PROYECTO
+    from ..informes import Caso, conclusion_factibilidad
+
+    cargas = _ultimo_estudio(ws, 'cargas', project)
+    medida = ((cargas or {}).get('medidas') or {}).get(alimentador)
+    if medida is None:
+        return None
+    con = None
+    if con_estudio and con_estudio.get('obras_activas'):
+        con = Caso.desde_medida(CON_PROYECTO, con_estudio['medidas'][alimentador], lim)
+    c = conclusion_factibilidad(actual, Caso.desde_medida('Cargas nuevas', medida, lim), con, lim)
+    return {**asdict(c), 'estudio_cargas': cargas['_fichero']}
+
+
 def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict) -> dict:
     """Escribe el informe de factibilidad y punto de diseño de una carga nueva (spec 017,
     RF-47 a RF-72) con lo que ya guardó la web.
@@ -6765,7 +7143,8 @@ def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict
         ctx.log(f'Informe de factibilidad de {carga["sed"]} en {alimentador}: {destino.name} '
                 f'({len(huecos)} hueco(s)); {"factible" if resumen.get("factible") else "no factible"}.')
     _paso_informe(ctx, 3, 'listo')
-    return {'informe': destino.name, 'json': destino.with_suffix('.json').name, 'huecos': huecos,
+    return {'conclusion_conexion': _conclusion_conexion(ws, project, alimentador, actual, con, lim),
+            'informe': destino.name, 'json': destino.with_suffix('.json').name, 'huecos': huecos,
             'estudios': [sin['_fichero'], con['_fichero']], 'factible': resumen.get('factible'),
             'excesos': resumen.get('excesos') or [], 'punto_diseno': punto, 'carga': carga,
             'imagenes': _imagenes_para_la_web(ws, imagenes),
@@ -6935,7 +7314,7 @@ def asistente_vocabulario(ws: Workspace) -> dict[str, list[str]]:
 def asistente_estado_modelos() -> dict:
     """043:RF-8: leer evidencia no equivale a entrenar ni aprobar un modelo."""
     from ..asistente import almacen
-    from ..model_registry import EstadoModelo, RegistroModelo
+    from ..model_registry import EstadoModelo, RegistroModelo, estado_heredado
     from ..training_coordinator import ORDEN_MODELOS
 
     raiz = almacen.raiz()
@@ -6955,6 +7334,9 @@ def asistente_estado_modelos() -> dict:
         errores.append(f'informe ilegible: {exc}')
     familias = []
     registro = RegistroModelo(raiz / 'model_registry')
+    from ..digital_twin.buffer import raiz_buffer
+    heredados = {'transformer': raiz / 'modelos/ordenes', 'clasificador': raiz / 'modelos/informes',
+                 'pinn': raiz_buffer() / 'modelos', 'gru': raiz_buffer() / 'modelos_temporales'}
     for nombre in ORDEN_MODELOS:
         etapa = por_nombre.get(nombre, {})
         ruta_fuente = ruta
@@ -6997,11 +7379,74 @@ def asistente_estado_modelos() -> dict:
             except (OSError, ValueError, TypeError, KeyError) as exc:
                 estado = None
                 bloqueos.append(f'promoción sin evidencia verificable: {exc}')
-        familias.append({'familia': nombre, 'estado': estado, 'candidate_id': candidato,
+        heredado = None
+        if nombre in heredados:
+            try:
+                heredado = estado_heredado(heredados[nombre])
+                if heredado:
+                    bloqueos.append(f'modelo heredado {heredado["version"]} presente; requiere validación actual '
+                                    'y su puntero no acredita aceptación en el registro común')
+            except (OSError, ValueError, TypeError, KeyError, AttributeError) as exc:
+                bloqueos.append(f'modelo heredado ilegible: {exc}')
+        familias.append({'familia': nombre, 'estado': estado, 'candidate_id': candidato, 'heredado': heredado,
                          'algorithm': algoritmo, 'report_path': str(ruta_fuente), 'gates': puertas,
                          'bloqueos': bloqueos + ([str(etapa['reason'])] if etapa.get('reason') else [])})
     return {'schema_version': 1, 'familias': familias,
             'complete': bool(informe.get('complete')) and all(f['estado'] for f in familias)}
+
+
+def contexto_observacion(ws: Workspace) -> dict:
+    """061:RF-1/3: contexto registrado, sin deducir identidad a partir de nombres."""
+    return {'workspace_id':ws.id,'active_run_id':ws.active_run_id,
+            'source_mode':ws.loaded_source_mode,'source_fingerprint':ws.loaded_source_fingerprint,
+            'proyectos_registrados':dict(ws.pf_projects)}
+
+
+def asistente_monitor(ws: Workspace,trabajos: list[dict],*,limite: int=50,errores: list[str]=()) -> dict:
+    """061:RF-2/3/9: estado real de operaciones y evidencia; no ejecuta ni carga pesos."""
+    from ..asistente import almacen
+    from ..asistente.observacion import RegistroOperaciones,leer_evidencias,resumen_operacion
+    from ..asistente.orquestador import ETAPAS
+    import sqlite3
+    fallos=list(errores)
+    vivos={j['id'] for j in trabajos}
+    try:
+        operaciones=RegistroOperaciones(ws.out_dir/'observacion/operaciones.sqlite3',ws.id).leer(vivos=vivos,limite=limite)
+    except (OSError,ValueError,TypeError,KeyError,sqlite3.Error) as exc:
+        operaciones=[];fallos.append(f'diario no disponible: {exc}')
+    # El estado vivo se mantiene visible incluso si una escritura del diario falló.
+    por_id={j['id']:j for j in operaciones}
+    for j in trabajos:
+        anterior=por_id.get(j['id'],{})
+        # _finish cambia memoria antes de persistir. Si la consulta quedó entre
+        # ambos pasos, conserva el terminal más reciente sin perder su contexto.
+        terminales=('done','failed','cancelled')
+        usar_anterior=(anterior.get('status') in terminales and j.get('status') not in terminales)
+        actual=anterior if usar_anterior else resumen_operacion(j)
+        por_id[j['id']]={**anterior,**actual,'contexto':anterior.get('contexto',{}),'seguimiento':'en_sesion'}
+    operaciones=sorted(por_id.values(),key=lambda j:j.get('created_at',0),reverse=True)
+    control={}
+    ruta=ws.out_dir/'agente_proyecto.json'
+    try:
+        if ruta.is_file():control=json.loads(ruta.read_text(encoding='utf-8'))
+        etapas=control.get('etapas') or {}
+        if not isinstance(etapas,dict) or any(not isinstance(v,dict) for v in etapas.values()):
+            raise ValueError('etapas inválidas')
+    except (OSError,ValueError,AttributeError) as exc:
+        control={};etapas={};fallos.append(f'punto de control ilegible: {exc}')
+    try:evidencias=leer_evidencias(almacen.raiz())
+    except (OSError,ValueError,KeyError,TypeError) as exc:
+        evidencias=[];fallos.append(f'evidencia con integridad no acreditada: {exc}')
+    return {'schema_version':1,'workspace_id':ws.id,'contexto':contexto_observacion(ws),
+            'modo':'supervisado','autonomia_habilitada':False,
+            'bloqueos':['La autonomía integral requiere la aceptación conjunta de spec050.'],
+            'registro_integro':not fallos,'errores_observacion':fallos,
+            'trabajos':operaciones[:limite],
+            'proyecto':{'identidad':control.get('identidad'),'etapas':[
+                {'nombre':e.nombre,'opcional':e.opcional,**(etapas.get(e.nombre) or {'estado':'pendiente'})}
+                for e in ETAPAS]},
+            'modelos':asistente_estado_modelos(),'alcance_modelos':'global del equipo; no implica uso ni asignación a este proyecto',
+            'evidencias':evidencias,'aceptacion_nativa':None}
 
 
 def _asistente_modelos() -> tuple[Any, Any]:
@@ -7260,11 +7705,18 @@ def agente_proyecto(ws: Workspace, ctx: JobContext, datos: dict, base: str, http
     import sys
 
     from ..asistente.ejecutor import ClienteWeb, PasoFallido
-    from ..asistente.orquestador import PuntoDeControl, ejecutar_proyecto
+    from ..asistente.orquestador import ejecutar_proyecto
+    from ..asistente.observacion import preparar_control
 
     ruta = ws.out_dir / 'agente_proyecto.json'
-    if reiniciar:
-        ruta.unlink(missing_ok=True)
+    def identidad():
+        return {'workspace_id':ws.id,'source_fingerprint':ws.loaded_source_fingerprint,
+                'source_mode':ws.loaded_source_mode,'solicitud':dict(datos)}
+    try:
+        control=preparar_control(ruta,identidad(),reiniciar=reiniciar)
+    except (OSError,ValueError) as exc:
+        raise UserError(str(exc)) from exc
+    control.identidad_actual=identidad
     if http is None:
         import requests
 
@@ -7272,18 +7724,18 @@ def agente_proyecto(ws: Workspace, ctx: JobContext, datos: dict, base: str, http
 
     def proceso(tarea: str, d: dict) -> dict:
         cmd = [sys.executable, str(_script('sistema_web.py')), '--espacio', ws.id, '--zonal', d['sistema'],
-               '--periodo', d['periodo']]
+               '--periodo', d['periodo'], '--url', base.rstrip('/')]
         if d.get('ruta'):
             cmd += ['--demanda-dir', d['ruta']]
         rc = ctx.run_process(cmd, cwd=str(project_root()), env=_entorno_del_trabajo(ctx))
-        if rc not in (0, 1):
+        if rc != 0:
             raise UserError(f'El sistema {d["sistema"]} no se pudo llevar hasta el final (código {rc}).')
         return {'codigo': rc}
 
     cliente = ClienteWeb(http, base.rstrip('/'), ws.id, cancelado=ctx.cancel.is_set)
     try:
-        return ejecutar_proyecto(datos, cliente=cliente, control=PuntoDeControl.abrir(ruta), proceso=proceso,
-                                 log=ctx.log)
+        return ejecutar_proyecto(datos, cliente=cliente, control=control, proceso=proceso,
+                                 log=ctx.log,avance=ctx.progress)
     except (PasoFallido, ValueError, RuntimeError) as exc:
         raise UserError(f'El agente paró; la próxima vez retoma desde aquí: {exc}') from exc
 

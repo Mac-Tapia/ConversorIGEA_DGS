@@ -19,6 +19,7 @@ Esta spec amplía la ejecución de la 011 y reutiliza la 025 sin cambiar sus req
 - RF-5: EL SISTEMA mostrará las cargas excluidas del diagnóstico y el motivo informado por el motor, sin declarar que se estudiaron todas.
 - RF-6: EL SISTEMA conservará las medidas y violaciones de «Cargas nuevas» en los resultados y CSV, manteniendo la comparación existente con proyecto menos sin proyecto.
 - RF-7: SI el caso de diagnóstico no puede prepararse o no pertenece al sistema, ENTONCES EL SISTEMA informará el impedimento sin sustituirlo por «Con proyecto».
+- RF-8: CUANDO prepara los casos y «Con proyecto» no tiene obras y le faltan objetos de «Sin proyecto» (014:RF-34), EL SISTEMA lo renovará como copia de «Sin proyecto» con su escenario, y conservará el anterior renombrado, sin su marca y con su escenario. (Usuario, 2026-11-01, SM218: «debes seguir el flujo: en la recalibración son modificaciones manuales y en la recalibración se consideran todos los bancos».)
 
 ## Casos límite y aclaraciones
 

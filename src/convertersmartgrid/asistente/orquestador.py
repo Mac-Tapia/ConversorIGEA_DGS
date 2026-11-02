@@ -50,6 +50,11 @@ class PuntoDeControl:
 
     ruta: Path
     estado: dict[str, Any] = field(default_factory=dict)
+    identidad_actual: Callable[[],dict] | None = field(default=None,repr=False)
+
+    def validar_identidad(self) -> None:
+        if self.identidad_actual is not None and self.estado.get('identidad')!=self.identidad_actual():
+            raise ValueError('la identidad de la fuente cambió durante la ejecución; se detiene el agente')
 
     @classmethod
     def abrir(cls, ruta: Path | str) -> PuntoDeControl:
@@ -63,6 +68,10 @@ class PuntoDeControl:
         return (self.estado['etapas'].get(etapa) or {}).get('estado') in ('hecha', 'omitida')
 
     def marcar(self, etapa: str, estado: str, resultado: Any = None, datos: Mapping[str, Any] | None = None) -> None:
+        if self.identidad_actual is not None:
+            if etapa=='fuente' and estado=='hecha':
+                self.estado['identidad']=self.identidad_actual()
+            else:self.validar_identidad()
         self.estado['etapas'][etapa] = {'estado': estado, 'resultado': resultado,
                                         'fecha': time.strftime('%Y-%m-%dT%H:%M:%S')}
         if datos is not None:
@@ -97,12 +106,16 @@ def _datos_tras(etapa: Etapa, datos: dict[str, Any], cliente: ClienteWeb) -> dic
 def ejecutar_proyecto(datos: Mapping[str, Any], *, cliente: ClienteWeb, control: PuntoDeControl,
                       proceso: Callable[[str, Mapping[str, Any]], Any],
                       log: Callable[[str], None] = lambda _m: None,
-                      etapas: tuple[Etapa, ...] = ETAPAS) -> dict[str, Any]:
+                      etapas: tuple[Etapa, ...] = ETAPAS,
+                      avance: Callable[[int,int,str],None] = lambda *_a:None) -> dict[str, Any]:
     """Las etapas que faltan, en orden, con su punto de control (RF-43, RF-44)."""
     datos = {**control.estado.get('datos', {}), **dict(datos)}
     for i, e in enumerate(etapas, 1):
+        control.validar_identidad()
+        avance(i-1,len(etapas),e.nombre)
         if control.hecha(e.nombre):
             log(f'Agente: etapa {i} de {len(etapas)}, {e.nombre}: ya hecha, no se repite (027:RF-44)')
+            avance(i,len(etapas),e.nombre)
             continue
         if cliente.cancelado():
             return {'completo': False, 'cancelado': True, 'etapas': control.estado['etapas']}
@@ -110,21 +123,26 @@ def ejecutar_proyecto(datos: Mapping[str, Any], *, cliente: ClienteWeb, control:
         if not faltan and e.tarea == 'obras' and not (cliente.pedir('GET', '/obras') or []):
             log('Agente: etapa obras omitida: no hay obras pendientes en el espacio')
             control.marcar(e.nombre, 'omitida', {'falta': ['obras pendientes']}, datos)
+            avance(i,len(etapas),e.nombre)
             continue
         if faltan:
             if not e.opcional:
                 raise ValueError(f'la etapa {e.nombre} necesita {", ".join(faltan)}')
             log(f'Agente: etapa {e.nombre} omitida: falta {", ".join(faltan)}')
             control.marcar(e.nombre, 'omitida', {'falta': faltan}, datos)
+            avance(i,len(etapas),e.nombre)
             continue
         log(f'Agente: etapa {i} de {len(etapas)}, {e.nombre}…')
         datos_tarea = {**datos, 'ruta': datos.get('ruta_cargas') if e.tarea == 'cargas_nuevas' else datos.get('ruta')}
         if e.proceso:
             resultado = proceso(e.tarea, datos_tarea)
+            if isinstance(resultado,dict) and resultado.get('codigo',0)!=0:
+                raise RuntimeError(f'la etapa {e.nombre} terminó con código {resultado["codigo"]}; no se marca hecha')
         else:
             extras = {'formulario': datos.get('formulario') or {}}
             resultado = ejecutar(pasos(e.tarea, datos_tarea, extras), cliente, log)
         datos = _datos_tras(e, datos, cliente)
         control.marcar(e.nombre, 'hecha', _resumen(resultado if not isinstance(resultado, dict)
                                                      else resultado.get('resultado', resultado)), datos)
+        avance(i,len(etapas),e.nombre)
     return {'completo': True, 'etapas': control.estado['etapas'], 'datos': datos}

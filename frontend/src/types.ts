@@ -1786,6 +1786,35 @@ export interface EstadoModelos {
   }[];
 }
 
+/** 061: observación y evidencia, separadas de autorización y aceptación nativa. */
+export interface MonitorAgenteEstado {
+  retencion?: {
+    retencion_dias: number; intervalo_horas: number; proxima_revision: number | null;
+    error: string | null; alcance: string;
+    ultima_revision: { estado: string; terminada: number; eliminados: string[];
+      conservados: { ruta: string; motivo: string }[]; errores: string[];
+      bytes_logicos_retirados: number } | null;
+  };
+  schema_version: number;
+  workspace_id: string;
+  modo: 'supervisado';
+  autonomia_habilitada: boolean;
+  contexto: Record<string, unknown>;
+  bloqueos: string[];
+  registro_integro: boolean;
+  errores_observacion: string[];
+  trabajos: (Job & { seguimiento: 'en_sesion' | 'interrumpido' | 'historico';
+    contexto?: Record<string, unknown>; aceptacion_nativa: null })[];
+  proyecto: { identidad: Record<string, unknown> | null; etapas: {
+    nombre: string; estado: string; opcional: boolean; resultado?: unknown;
+  }[] };
+  modelos: EstadoModelos;
+  alcance_modelos: string;
+  evidencias: { id: string; familia: string; etiqueta: string; sha256: string;
+    registrado: string; activacion_acreditada: false; informe: Record<string, unknown> }[];
+  aceptacion_nativa: null;
+}
+
 export interface EpisodioResumen {
   episode_id: string;
   clase: string;

@@ -278,8 +278,29 @@ class ObrasIn(BaseModel):
     tipo_cambio: float | None = Field(None, gt=0, le=100_000)
     # Spec 025, RF-53: el libro CAPEX de la empresa, por su ruta en este equipo.
     capex: str = Field('', max_length=1000)
+    # Spec 052, RF-19: el nombre de la SET nueva (p. ej. «SET COPARA»).
+    set_nueva_nombre: str = Field('', max_length=40)
+    # Sin escalera: todas las cargas nuevas a la SET nueva (usuario, 2026-11-01).
+    directo_set_nueva: bool = False
+    # 063:RF-23: la evaluación de la conexión de estas cargas nuevas (por su nombre); sin ellas, todas.
+    cargas: list[str] = Field(default_factory=list, max_length=500)
     # Spec 042, RF-6: cuántos alimentadores nuevos puede tener la SET nueva.
     alimentadores_nuevos: int = Field(4, ge=1, le=20)
+
+
+class SetNuevaOperacionIn(BaseModel):
+    """063:RF-36 a RF-38: diagnosticar o reforzar una SET existente, sin recrearla."""
+
+    project: str = Field(min_length=1)
+    feeders: list[str] = Field(default_factory=list, max_length=2000)
+    accion: Literal['diagnostico', 'evaluar', 'aplicar'] = 'diagnostico'
+    cambios: list[dict[str, Any]] = Field(default_factory=list, max_length=1000)
+    desactivar_variaciones: list[str] = Field(default_factory=list, max_length=1000)
+    sincronizar_cargas: bool = False
+    ajustes_flujo: dict[str, int] = Field(default_factory=dict)
+    limites: dict[str, float] = Field(default_factory=dict)
+    limite_s: float = Field(1200, ge=30, le=86400)
+    reabrir: bool = True
 
 
 class EstudiosIn(BaseModel):
@@ -546,13 +567,26 @@ def create_app(
     if host is None:
         host = os.environ.get('CSG_WEB_HOST') or None
     store = WorkspaceStore(data_root)
+    errores_observacion: dict[str,str] = {}
 
     def emit(workspace_id: str, kind: str, data: dict) -> None:
         ws = store.get(workspace_id)
         if ws is not None:
+            if kind=='job':
+                from ..asistente.observacion import RegistroOperaciones
+                import sqlite3
+                try:
+                    RegistroOperaciones(ws.out_dir/'observacion/operaciones.sqlite3',ws.id).anotar(
+                        data,services.contexto_observacion(ws))
+                except (OSError,ValueError,TypeError,sqlite3.Error) as exc:
+                    errores_observacion[workspace_id]=str(exc)
+                    ws.events.append('log',{'job':data.get('id'),'text':f'Observación incompleta: {exc}'})
+                    if data.get('status')=='queued':raise OSError('No se pudo registrar la operación nueva') from exc
             ws.events.append(kind, data)
 
     jobs = JobManager(emit)
+    from .retencion import RetencionDiaria
+    retencion = RetencionDiaria(store, jobs)
     from .runtime import huella_del_codigo
 
     huella = huella_del_codigo(frontend_dist())
@@ -564,14 +598,21 @@ def create_app(
         # Solo el servidor real (``__main__`` pone la variable): las pruebas crean la app a
         # cientos y no deben vigilar ni correr la suite de noche.
         vigilante = arrancar_vigilancia(jobs) if os.environ.get('CSG_ASISTENTE_VIGILANCIA') == '1' else None
-        yield
-        if vigilante is not None:
-            vigilante.parar()
-        await asyncio.to_thread(jobs.shutdown)
+        detener_retencion = asyncio.Event()
+        tarea_retencion = asyncio.create_task(retencion.vigilar(detener_retencion))
+        try:
+            yield
+        finally:
+            detener_retencion.set()
+            await tarea_retencion
+            if vigilante is not None:
+                vigilante.parar()
+            await asyncio.to_thread(jobs.shutdown)
 
     app = FastAPI(title='ConverterSmartGrid', version=__version__, lifespan=lifespan)
     app.state.store = store
     app.state.jobs = jobs
+    app.state.retencion = retencion
 
     from vnr_etl.web.app import create_router
 
@@ -607,7 +648,10 @@ def create_app(
             if busy:
                 raise HTTPException(409, f'Ya hay un trabajo en curso en este espacio: «{busy[0].title}». '
                                          'Espere a que termine o cancélelo.')
-            return jobs.submit(ws.id, kind, title, fn, lane=lane).public()
+            try:
+                return jobs.submit(ws.id, kind, title, fn, lane=lane).public()
+            except OSError as exc:
+                raise HTTPException(503,str(exc)) from exc
 
     # ------------------------------------------------------------ sistema
     @app.get('/api/health')
@@ -1603,6 +1647,14 @@ def create_app(
                       lane='asistente')
 
     # ------------------------------------------------------------ asistente (spec 026)
+    @app.get('/api/workspaces/{wid}/asistente/monitor')
+    def asistente_monitor(wid: str,limite: int=Query(50,ge=1,le=200)) -> dict:
+        ws=ws_or_404(wid)
+        result = services.asistente_monitor(ws,[j.public() for j in jobs.list(wid)],limite=limite,
+            errores=[errores_observacion[wid]] if wid in errores_observacion else [])
+        result['retencion'] = retencion.estado()
+        return result
+
     def _asistente_job(ws: Workspace, plan_id: str, request: Request) -> dict:
         base = str(request.base_url).rstrip('/')
         http = getattr(app.state, 'asistente_http', None)
@@ -1761,8 +1813,19 @@ def create_app(
                       lambda ctx: services.con_proyecto_optimizar(
                           ws, ctx, body.project, body.feeders, anio_casos=body.anio_casos,
                           tipo_cambio=body.tipo_cambio, capex=body.capex,
-                          alimentadores_nuevos=body.alimentadores_nuevos),
+                          alimentadores_nuevos=body.alimentadores_nuevos,
+                          set_nueva_nombre=body.set_nueva_nombre,
+                          directo_set_nueva=body.directo_set_nueva, cargas=body.cargas or None),
                       lane='powerfactory')
+
+    @app.post('/api/workspaces/{wid}/pf/obras/set-nueva/operacion', status_code=202)
+    def set_nueva_operacion(wid: str, body: SetNuevaOperacionIn) -> dict:
+        """063:RF-36 a RF-38: un solo dueño del motor, sin duplicar la SET existente."""
+        ws = ws_or_404(wid)
+        opciones = body.model_dump(exclude={'project', 'feeders'})
+        return submit(ws, 'set_nueva_operacion', f'Operación de SET existente · {body.project}',
+                      lambda ctx: services.set_nueva_operacion(ws, ctx, body.project, body.feeders,
+                                                               **opciones), lane='powerfactory')
 
     @app.get('/api/pf/estudios')
     def estudios_catalogo() -> dict:

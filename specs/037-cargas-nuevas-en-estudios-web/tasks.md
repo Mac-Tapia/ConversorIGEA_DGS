@@ -6,6 +6,9 @@
   Hecho cuando: pasan las pruebas web con y sin cargas, y las de CSV.
 - [x] T3. Explicar los casos y mostrar las exclusiones del diagnóstico (RF-1, RF-5).
   Hecho cuando: pasan las pruebas de interfaz, trazabilidad, inventario y el build del frontend.
+- [x] T5. «Con proyecto» sin obras renovado desde la recalibración de «Sin proyecto» (RF-8).
+      Hecho cuando: `pytest -q tests/test_casos_pf.py` en verde, con el caso viejo renombrado y sin marca,
+      y uno con obras conservado.
 - [ ] T4. [DIgSILENT] Estudios de un proyecto real con cargas nuevas.
   Hecho cuando: el trabajo web y una relectura nativa acreditan los tres casos del año,
   sus escenarios, cargas activas y exclusiones, con los informes conservados.

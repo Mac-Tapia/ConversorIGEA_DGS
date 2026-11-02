@@ -20,6 +20,23 @@ class EstadoModelo(str, Enum):
     ERROR_ENTORNO = 'ERROR_ENTORNO'
 
 
+def estado_heredado(raiz: Path) -> dict[str, Any] | None:
+    """060:RF-7: inspección de metadatos heredados, sin cargar ni promover pesos."""
+    puntero = raiz / 'promovido.json'
+    if not puntero.is_file():
+        return None
+    dato = json.loads(puntero.read_text(encoding='utf-8'))
+    version = dato.get('version')
+    if not isinstance(version, str) or not version or (raiz / version).resolve().parent != raiz.resolve():
+        raise ValueError('versión heredada inválida')
+    carpeta = raiz / version
+    meta = json.loads((carpeta / 'modelo.json').read_text(encoding='utf-8'))
+    return {'version': version, 'aceptado_registro': False, 'puntero': str(puntero),
+            'cfg': meta.get('cfg'), 'metricas': meta.get('metricas'),
+            'mae_v': meta.get('mae_v'), 'particiones': meta.get('particiones'),
+            'requiere_validacion_actual': True}
+
+
 def _canonico(valor: Any) -> bytes:
     return json.dumps(valor, ensure_ascii=False, sort_keys=True,
                       separators=(',', ':'), default=str, allow_nan=False).encode('utf-8')

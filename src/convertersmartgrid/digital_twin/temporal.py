@@ -75,6 +75,11 @@ class GemeloGRU:
         hora = np.sin(2 * np.pi * (idx % PUNTOS_DIA) / PUNTOS_DIA)
         return np.stack([s[inicio:inicio + self.ventana], hora], axis=1)
 
+    def configuracion(self) -> dict:
+        """060:RF-6: parámetros completos necesarios para reabrir el mismo alumno."""
+        return {k: getattr(self, k) for k in ('ventana', 'ocultas', 'epocas', 'semilla',
+                                             'paciencia', 'recorte', 'fraccion_validacion')}
+
     def entrenar(self, serie: Sequence[float]) -> float:
         """Entrena con la primera parte de la serie y valida con la última (027:RF-11): una
         partición al azar dejaba ver a la red el día siguiente al que predecía. Para tras
@@ -102,6 +107,8 @@ class GemeloGRU:
         plan = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=max(self.epocas, 1), eta_min=1e-4)
         perdida = torch.tensor(0.0)
         mejor, mejor_estado, mejor_epoca, epoca = np.inf, None, -1, -1
+        self.historial = []
+        self.optimizer_updates = 0
         for epoca in range(self.epocas):
             for lote in torch.split(torch.randperm(n_ent, device=self.disp), 256):
                 perdida = ((self.red(x[lote]) - y[lote]) ** 2).mean()
@@ -109,11 +116,16 @@ class GemeloGRU:
                 perdida.backward()
                 torch.nn.utils.clip_grad_norm_(self.red.parameters(), self.recorte)
                 opt.step()
+                self.optimizer_updates += 1
             plan.step()
+            fila = {'epoca': epoca + 1, 'perdida_mse_normalizada': float(perdida.detach()),
+                    'lr_siguiente': opt.param_groups[0]['lr'], 'optimizer_updates': self.optimizer_updates}
+            self.historial.append(fila)
             if not n_val:
                 continue
             with torch.no_grad():
                 err = float((self.red(x[n_ent:]) - y[n_ent:]).abs().mean())
+            fila['mae_validacion_kw'] = err * self.escala
             if err < mejor - 1e-12:
                 mejor, mejor_epoca = err, epoca
                 mejor_estado = {k: v.detach().clone() for k, v in self.red.state_dict().items()}

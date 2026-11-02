@@ -3,6 +3,7 @@ import { api } from '../api';
 import { useApp } from '../context';
 import type { AsistentePlan, AsistenteRespuesta, EstadoModelos } from '../types';
 import type { EstadoAceptacionAgente } from '../asistenteAceptacion';
+import { MonitorAgente } from './MonitorAgente';
 
 /** Spec 026: la consola del asistente. La orden se escribe en español; lo que escribe en
  * DIgSILENT o en disco espera la confirmación (RF-8) y se ejecuta como cualquier trabajo. */
@@ -195,6 +196,7 @@ export function Asistente() {
 
   return (
     <div className="stack">
+      <MonitorAgente />
       <Modelos />
       <Aceptacion />
       <p className="muted small">

@@ -21,6 +21,9 @@ def main(argv=None):
     p.add_argument('--epocas',type=int,default=40)
     p.add_argument('--zona-horaria')
     p.add_argument('--codigos',help='Codigos explicitos de las columnas del libro ancho, separados por coma')
+    p.add_argument('--hoja',action='append',default=[],help='Hoja de medidor explícita; se puede repetir')
+    p.add_argument('--desde',help='Inicio ISO inclusivo del alcance, fijado antes del ajuste')
+    p.add_argument('--hasta',help='Fin ISO exclusivo del alcance, fijado antes del ajuste')
     args=p.parse_args(argv)
     from convertersmartgrid.trabajadores_ml import escribir_informe,fallo,semillas_de,turno_gpu,sha_archivo
     if args.output_json.exists():print('Informe existente conservado');return 2
@@ -28,7 +31,8 @@ def main(argv=None):
         from convertersmartgrid.digital_twin.temporal_entrenamiento import cargar_cabeceras,entrenar_temporal,reabrir_temporal
         if args.cabeceras:
             series,procedencia=cargar_cabeceras(args.cabeceras,zona_horaria=args.zona_horaria,
-                codigos=tuple(v.strip() for v in (args.codigos or '').split(',') if v.strip()))
+                codigos=tuple(v.strip() for v in (args.codigos or '').split(',') if v.strip()),
+                hojas=tuple(args.hoja),desde=args.desde,hasta=args.hasta)
             semillas=semillas_de(args.semillas)
             if args.epocas<1:raise ValueError('epocas positivas obligatorias')
         from convertersmartgrid.training_coordinator import exigir_memoria_ml

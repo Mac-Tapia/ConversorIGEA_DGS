@@ -45,7 +45,10 @@ def parametros(perfil: Mapping[str, Any]) -> Parametros:
                             + ': no se supone ningún valor para diseñar la SET nueva (042:RF-8).')
     # Sin el dato, un solo transformador: el paralelo es una decisión de la empresa (P13).
     unidades = int((plan.get('transformador_set') or {}).get('unidades_en_paralelo_max') or 1)
-    return Parametros(int(plan['vida_util_anios']), float(plan['factor_seguridad_set']),
+    # El horizonte de diseño de la SET, aparte de la vida útil del costeo: con 30 años y la tasa
+    # medida, la SET de NA203 + NA205 salía de 372 MVA (usuario, 2026-11-01: horizonte del PIDE).
+    horizonte = plan.get('horizonte_set_anios') or plan['vida_util_anios']
+    return Parametros(int(horizonte), float(plan['factor_seguridad_set']),
                       plan['modulos_pit'], max(1, unidades))
 
 
@@ -240,7 +243,7 @@ def cuantas_caben(n: int, cabe) -> tuple[int, list[dict[str, Any]]]:
 
 # =========================================================================== RF-6
 def ramas_a_trasladar(red, cabecera: str, destino: set[str], kw_por_barra: Mapping[str, float], *,
-                      max_ramas: int) -> list[dict[str, Any]]:
+                      max_ramas: int, existentes: set[str] | None = None) -> list[dict[str, Any]]:
     """Las ramas del alimentador que pasan a la SET nueva y el tramo donde se abren (042:RF-6).
 
     ``destino``: barras donde se conectan las cargas que ya no caben en la red existente. Se
@@ -248,6 +251,11 @@ def ramas_a_trasladar(red, cabecera: str, destino: set[str], kw_por_barra: Mappi
     de la cabecera. Con alimentadores nuevos de sobra (``max_ramas``), se parte la rama que más
     carga existente arrastra en sus subramas con cargas nuevas: el ancestro común de cargas
     repartidas por NA205 podía estar junto a la cabecera y llevarse el alimentador entero.
+
+    ``existentes``: las barras de la red sin las cargas nuevas. La obra se lee y se graba con
+    ellas apartadas, así que cada rama empieza en una de esas barras: la más cercana aguas
+    arriba. NODE_T_SU_Predio_Lote_B-6A__CIMAS_MINERA lo crea la variación de su carga al partir
+    SEC_1091_1046727, y la SET COPARA no se creaba (NA203 + NA205, 2026-11-01).
     """
     from .troncal import arbol
 
@@ -289,6 +297,7 @@ def ramas_a_trasladar(red, cabecera: str, destino: set[str], kw_por_barra: Mappi
         barras = subarbol(nodo)
         dentro = set(barras)
         return {'nodo': nodo, 'entrada': a.padre[nodo][1].nombre, 'barras': barras,
+                'existente': existentes is None or nodo in existentes,
                 'tramos': sorted(a.padre[b][1].nombre for b in barras if b != nodo),
                 'destino': sorted(destino & dentro),
                 'kw_existente': sum(float(kw_por_barra.get(b, 0.0)) for b in barras)}
@@ -301,13 +310,28 @@ def ramas_a_trasladar(red, cabecera: str, destino: set[str], kw_por_barra: Mappi
             grupos.setdefault(c[c.index(nodo) + 1], []).append(b)
         return [comun(g) for _h, g in sorted(grupos.items())]
 
-    ramas = [rama(r) for r in partes(cabecera, destino)]
+    def existente(nodo: str) -> str:
+        while existentes is not None and nodo not in existentes and a.padre[nodo] is not None:
+            nodo = a.padre[nodo][0]
+        if nodo == cabecera:
+            raise SetNuevaError(f'la rama de las cargas nuevas solo se puede abrir en la cabecera {cabecera} '
+                                '(042:RF-6).')
+        return nodo
+
+    def raices(nodos: Sequence[str]) -> list[str]:
+        # Al subir, una raíz puede quedar aguas arriba de otra: queda solo la de arriba.
+        subidas = list(dict.fromkeys(existente(n) for n in nodos))
+        return [n for n in subidas if not any(o != n and o in camino(n) for o in subidas)]
+
+    ramas = [rama(r) for r in raices(partes(cabecera, destino))]
     while len(ramas) < max_ramas:
         mejor = None
         for i, r in enumerate(ramas):
             if r['nodo'] in destino:
                 continue                                     # su propia carga no se puede dejar
-            nuevas = [rama(n) for n in partes(r['nodo'], set(r['destino']))]
+            nuevas = [rama(n) for n in raices(partes(r['nodo'], set(r['destino'])))]
+            if any(n['nodo'] == r['nodo'] for n in nuevas) and len(nuevas) > 1:
+                continue                                     # se partiría en sí misma y otra
             if len(nuevas) < 2 and nuevas and nuevas[0]['nodo'] == r['nodo']:
                 continue
             if len(ramas) - 1 + len(nuevas) > max_ramas:

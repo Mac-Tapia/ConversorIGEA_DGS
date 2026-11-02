@@ -60,6 +60,11 @@ Directorio `output/auditoria_ia_20261101_actual/`:
   fallo en la spec 053, que figura «implementada» mientras mantiene abierta su
   tarea de código T3. Esa spec tiene modificaciones concurrentes y no se cambia
   su estado ni se cierra su tarea para aparentar una validación global en verde.
+- Corrección posterior solicitada por el usuario: la spec 053 pasa a «aprobada»,
+  que es el estado coherente con T3 de código aún abierta; `CLAUDE.md` y la tabla
+  generada reflejan T2 y T3 pendientes. No se cierra ninguna tarea sin evidencia.
+  Verificación nueva: `trazabilidad_correccion_despues.xml`, **22 aprobadas**, cero
+  fallos/errores/omisiones. Se conserva el informe anterior que reproducía el fallo.
 - Benchmark real `evolutivos_operacion_real.json`: 30 semillas por algoritmo;
   medianas GA 0, NSGA-II 0,0000315694420234 de distancia al frente analítico y DE
   2,7478979327e-20. Duración 18,953 s. No hay resultados PowerFactory en ese informe.

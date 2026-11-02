@@ -136,7 +136,10 @@ def _tipo_de(obj) -> str:
 # =========================================================================== aplicar datos
 def _carpeta_modelos(app):
     equip = app.GetProjectFolder('equip')
-    carpeta = next((c for c in equip.GetContents('*.IntFolder') if c.loc_name == CARPETA_MODELOS), None)
+    from convertersmartgrid.util import NOMBRES_ANTERIORES_PF
+
+    carpetas = {c.loc_name: c for c in equip.GetContents('*.IntFolder')}
+    carpeta = carpetas.get(CARPETA_MODELOS) or carpetas.get(NOMBRES_ANTERIORES_PF[CARPETA_MODELOS])
     return carpeta or equip.CreateObject('IntFolder', CARPETA_MODELOS)
 
 

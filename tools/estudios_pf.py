@@ -59,7 +59,7 @@ from pathlib import Path
 
 from cargas_pf import (
     Alimentadores, _num, activar_proyecto, cabecera_de, crear_variacion, error_inesperado,
-    flujo_de_carga, gps_de, leer_cabecera, potencia, trazado_de, variaciones_activas,
+    etapas_al_dia, flujo_de_carga, gps_de, leer_cabecera, potencia, trazado_de, variaciones_activas,
 )
 from casos_pf import (NOMBRES, anio_del_plan, casos_del_proyecto, nombre_cargas_nuevas,
                       rol_de, sin_a_con_proyecto)
@@ -239,6 +239,49 @@ def medida(elm, app=None) -> dict:
     return out
 
 
+def resumen_proyecto(app) -> dict:
+    """063:RF-6/RF-9: cobertura completa, también de ramas alimentadas por una SET nueva.
+
+    NA203–NA205, 2026-11-01: el ElmFeeder original conservaba solo 44/176 barras después
+    del traslado a COPARA. No representa el proyecto completo ni permite juzgar sus pérdidas.
+    El balance usa inyecciones y consumos efectivos, con el signo nativo y sin estimaciones.
+    """
+    m = medida(None, app)
+    fuentes, consumos = [], []
+    for clase in ('ElmXnet', 'ElmSym', 'ElmGenstat', 'ElmLod', 'ElmShnt'):
+        for obj in app.GetCalcRelevantObjects(f'*.{clase}'):
+            if getattr(obj, 'outserv', 0):
+                continue
+            fila = {'nombre': obj.loc_name, 'clase': clase,
+                    'kw': _num(obj, 'm:Psum:bus1'), 'kvar': _num(obj, 'm:Qsum:bus1')}
+            for key in ('kw', 'kvar'):
+                if fila[key] is not None:
+                    fila[key] *= 1000.0
+            (consumos if clase in ('ElmLod', 'ElmShnt') else fuentes).append(fila)
+    completos = bool(fuentes) and all(x[k] is not None for x in fuentes + consumos
+                                     for k in ('kw', 'kvar'))
+    if completos:
+        m['cabecera_kw'] = sum(x['kw'] for x in fuentes)
+        m['cabecera_kvar'] = sum(x['kvar'] for x in fuentes)
+        m['perdidas_kw'] = m['cabecera_kw'] - sum(x['kw'] for x in consumos)
+        m['perdidas_kvar'] = m['cabecera_kvar'] - sum(x['kvar'] for x in consumos)
+    niveles = {'mt': [], 'bt': [], 'at': []}
+    barras = [o for o in app.GetCalcRelevantObjects('*.ElmTerm') if not getattr(o, 'outserv', 0)]
+    sin_resultado = []
+    for obj in barras:
+        kv, u = _num(obj, 'uknom'), _num(obj, 'm:u')
+        if kv is None or u is None:
+            sin_resultado.append(obj.loc_name)
+            continue
+        nivel = 'bt' if kv < 1 else 'mt' if kv < 40 else 'at'
+        niveles[nivel].append({'nombre': obj.loc_name, 'kv': kv, 'u_pu': u,
+                                'fases': {f: _num(obj, f'm:u:{f}') for f in 'ABC'}})
+    return {'alcance': 'proyecto_completo', 'medida': m,
+            'cantidad_barras': len(barras), 'barras_sin_resultado': sin_resultado,
+            'cobertura_completa': not sin_resultado, 'tensiones_por_nivel': niveles,
+            'fuentes': fuentes, 'consumos': consumos, 'balance_completo': completos}
+
+
 def geografia(elm, app=None) -> dict:
     """Barras y tramos con su GPS y su resultado del flujo, para las imágenes del informe.
 
@@ -399,6 +442,13 @@ def _optimizador(app, plan, alims, feeders, orden, informe) -> None:
     carpeta = app.GetProjectFolder('scheme')
     previas = {_clave_nativa(v) for v in carpeta.GetContents('*.IntScheme', 1)}
     foto = Foto(alims, feeders)
+    # La hora del caso y la etapa que graba vuelven al final: activar la etapa temporal lleva la
+    # hora del caso a su fecha, un millón de segundos antes (VENTANA_ETAPAS_S). En SM218
+    # (2026-11-01) el balance de fases dejó «Sin proyecto» así, y las etapas de los bancos
+    # EBC/ECB y de los transformadores NTP dejaron de aplicarse: TR_SE41225 salía al 826 %.
+    caso = app.GetActiveStudyCase()
+    hora = getattr(caso, 'iStudyTime', None) if caso is not None else None
+    grabando = app.GetRecordingStage()
     temporal, _etapa = crear_variacion(app, f"Estudio_{plan['estudio']}", plan.get('stamp') or '')
     try:
         _limpiar_salida(app)
@@ -415,6 +465,10 @@ def _optimizador(app, plan, alims, feeders, orden, informe) -> None:
             if _clave_nativa(v) not in previas or _clave_nativa(v) == clave_temporal:
                 v.Deactivate()
                 v.Delete()
+        if caso is not None and hora is not None and getattr(caso, 'iStudyTime', None) != hora:
+            caso.iStudyTime = hora
+        if grabando is not None and app.GetRecordingStage() is not grabando:
+            grabando.Activate(1)
         if movidas:
             informe['avisos'].append('El estudio cambió la demanda de estas cargas y no se pudo '
                                      'deshacer: ' + ', '.join(movidas))
@@ -643,6 +697,14 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
             informe['sin_a_con'] = sin_a_con_proyecto(app, casos)
             informe['avisos'] += informe['sin_a_con']['avisos']
         caso.Activate()
+        # 063:RF-5: una etapa activa fechada justo después de la hora del caso no se aplica, y
+        # DIgSILENT no avisa. SM218 (2026-11-01): la de los bancos EBC/ECB quedó así y el flujo
+        # de «Sin proyecto» salía sin ellos. Se adelanta antes del flujo y se dice.
+        adelantadas = etapas_al_dia(app)
+        if adelantadas:
+            informe['etapas_adelantadas'] = adelantadas
+            informe['avisos'].append('Etapas que quedaban después de la hora del caso y no se aplicaban; '
+                                     'se adelantan antes del flujo: ' + ', '.join(adelantadas) + ' (063:RF-5).')
         ldf = app.GetFromStudyCase('ComLdf')
         # Los dos existen siempre en DIgSILENT, con 0 por defecto (sin escalado, equilibrado).
         guardados = {'iopt_fls': getattr(ldf, 'iopt_fls', 0), 'iopt_net': getattr(ldf, 'iopt_net', 0)}
@@ -673,6 +735,8 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
             if not flujo['converged']:
                 informe['avisos'].append('El flujo desequilibrado no converge.')
         if estudio in ('flujo', 'flujo_desequilibrado') and flujo['converged']:
+            informe['red_proyecto'] = resumen_proyecto(app)
+            informe['geo_proyecto'] = geografia(None, app)
             # 017:RF-11b: la geografía con los resultados, para las imágenes del informe.
             todo = alims.app if len(alims.elm) == 1 else None
             informe['geo'] = {f: geografia(alims.elm[f], todo) for f in feeders

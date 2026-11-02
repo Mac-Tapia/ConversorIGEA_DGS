@@ -1,0 +1,97 @@
+# Tareas — Spec 063
+
+- [x] T1. Conclusión de factibilidad con los tres casos, función pura. (RF-7, RF-8, RF-9, RF-10, RF-11, RF-13)
+      Hecho cuando: `pytest -q tests/test_informe_factibilidad_un_paso.py -k conclusion` en verde,
+      con medidas sorteadas en las cuatro ramas.
+      Hecho el 2026-11-01: `informes.conclusion_factibilidad` y `Conclusion`; la web la devuelve como
+      `conclusion_conexion` en el resultado del informe. 7 pruebas sorteadas en verde (semillas 1 a 5).
+- [x] T2. Etapas al día antes del flujo de cada caso. (RF-3, RF-4, RF-5)
+      Hecho cuando: `pytest -q tests/test_estudios_pf_guion.py tests/test_casos_pf.py` en verde,
+      con una etapa posterior a la hora del caso aplicada y avisada.
+      Hecho el 2026-11-01: `estudios_pf.ejecutar` llama a `etapas_al_dia` al activar el caso y lo
+      avisa; `_optimizador` restituye la hora del caso (011:RF-26); «Con proyecto» sin obras se
+      renueva desde la recalibración (037:RF-8). 201 pruebas de estudios, casos y ajuste en verde.
+- [ ] T3. «Generar informe de factibilidad» prepara, corre los flujos y escribe, en un trabajo. (RF-1, RF-2, RF-6, RF-12)
+      Hecho cuando: `pytest -q tests/test_informe_factibilidad_un_paso.py` en verde con alimentadores
+      sorteados de distinto tamaño, sin pasar por 4.2, y el endpoint en el carril de DIgSILENT.
+- [x] T4. Informe Word con estado actual, proyectado sin obras y con proyecto. (RF-7, RF-8, RF-9, RF-10, RF-14, RF-17)
+      Hecho cuando: el .docx de la prueba lleva las tres secciones, «de A kW a B kW (+C kW)», y la
+      Pcc y las coordenadas en el punto de diseño.
+      Verificado el 2026-11-01: pruebas de los tres casos, potencia previa/incremento, NIS y ficha;
+      101 pruebas focales de informes/estudios. Informe real de Santa María con tres casos,
+      sin campos pendientes y con dictamen desfavorable sustentado en cobertura completa.
+- [ ] T5. Datos de los PDF: expediente EXP, fecha con su documento, alimentadores leídos. (RF-15, RF-19, RF-20)
+      Hecho cuando: `pytest -q tests/test_informe_factibilidad_un_paso.py -k documentos` en verde con
+      textos sintéticos.
+- [ ] T6. Formulario: potencia actual, incremento, NIS, estructura, Pcc y UTM; aviso de alimentador. (RF-14, RF-16, RF-17, RF-18, RF-19)
+      Hecho cuando: `npm --prefix frontend run build` sin errores y la web probada en el navegador real.
+- [x] T8. Escalera por escalones: bancos, sección, terna; el primero que cumple. (RF-21, RF-22)
+      Hecho cuando: `pytest -q tests/test_escalera_optima.py tests/test_optimizacion_oraculo.py
+      tests/test_informe_factibilidad_un_paso.py` en verde, con variantes sorteadas donde la sección es
+      más barata que los bancos y aun así se eligen los bancos si cumplen.
+      Hecho el 2026-11-01: `escalera_optima.ORDEN` y `rango`; `elegir`, `buscar_k` y `elegir_para_k`
+      ordenan por escalón y luego por costo. 135 pruebas de escalera, oráculo, SET nueva e inventario.
+- [x] T9. Optimizar «Con proyecto» solo con las cargas que se evalúan. (RF-23, RF-24)
+      Hecho cuando: `pytest -q tests/test_informe_factibilidad_un_paso.py -k optimiza` en verde, con
+      cargas sorteadas: solo las pedidas llegan a la escalera y un nombre que no está se rechaza.
+      Hecho el 2026-11-01: `cargas` en `ObrasIn`, `con_proyecto_optimizar` y `optimizar_con_proyecto`.
+- [x] T10. Bancos en la barra existente de la troncal; regulador solo si el perfil lo pide. (RF-25, RF-26)
+      Hecho cuando: `pytest -q tests/test_escalera_optima.py tests/test_obras_pf_guion.py` en verde, con
+      una carga en un NODE_T que recibe variantes de banco en la barra de aguas arriba y sin regulador.
+      Hecho el 2026-11-01: `banco_en` en la lectura, `_carga_para_escalera` en la web y el oráculo;
+      `escalera.con_regulador` en el perfil.
+- [x] T11. Sección escalonada de menor a mayor; bancos del oráculo en la troncal. (RF-25, RF-27)
+      Hecho cuando: `pytest -q tests/test_escalera_optima.py` en verde, con todas las secciones aptas
+      en orden creciente y la menor que cumple elegida.
+      Hecho el 2026-11-01: todas las aptas en la escalera y en el espacio del oráculo.
+- [ ] T12. Mejora de cada escalón en la evaluación y en el informe. (RF-28)
+      Hecho cuando: el informe de la evaluación lista bancos, cada sección y terna con la tensión que
+      deja cada una.
+- [x] T13. La consigna de la fuente en los cuatro casos. (RF-29)
+      Hecho cuando: `pytest -q tests/test_casos_pf.py tests/test_ajuste_cabecera_guion.py` en verde, con
+      la consigna de «Sin proyecto» copiada a «Con proyecto» y fijada también en el «Caso base».
+      Hecho el 2026-11-01: `casos_pf.OPERACION` copia `ElmXnet.usetp` (014:RF-32) y la calibración la
+      fija también en el «Caso base».
+- [x] T14. El cambio de sección solo sube de sección. (RF-30)
+      Hecho cuando: `pytest -q tests/test_escalera_optima.py` en verde, con tramos de distinta sección
+      donde solo cambian los de menor corriente nominal que el conductor nuevo.
+      Hecho el 2026-11-01: la lectura de la troncal lleva `tipo` e `inom_a`; `_escalon_seccion` filtra.
+- [ ] T15. Nodos de cada obra en la evaluación y en el informe. (RF-31)
+      Hecho cuando: la lectura de la troncal da `desde` y `hasta` de cada tramo y el informe lista el
+      nodo de MT de cada banco y los nodos de inicio y fin de cada tramo cambiado.
+- [ ] T16. Obras sobre el camino eléctrico de cada carga. (RF-32)
+      Hecho cuando: `pytest -q tests/test_escalera_optima.py` en verde, con caminos sorteados donde sección
+      y terna van sobre el camino de la carga y el banco en su barra de aguas arriba.
+- [x] T17. Con solución en la máxima no se pasa a otras obras ni a la SET nueva. (RF-33)
+      Hecho cuando: `pytest -q tests/test_escalera_optima.py` en verde, con variantes que cumplen la
+      máxima y no los sorteos: se elige la primera por prioridad y se avisa.
+      Hecho el 2026-11-01: `escalera_optima.elegir` con `sin_confirmar_sorteos`.
+- [ ] T18. Los sorteos miden la red con la obra y la demanda escalada. (RF-28)
+      Hecho cuando: una prueba con el doble de DIgSILENT muestra que cada sorteo ve la obra aplicada y
+      la demanda escalada (SM218: la tensión de INKA no cambiaba con la demanda).
+- [x] T19. Más del umbral de carga nueva: SET nueva directa. (RF-34)
+      Hecho cuando: `pytest -q tests/test_informe_factibilidad_un_paso.py -k umbral` en verde, con cargas
+      sorteadas por encima y por debajo del umbral.
+      Hecho el 2026-11-01: `con_proyecto_optimizar` y `planificacion.set_nueva_desde_kw` en el perfil.
+- [ ] T7. [DIgSILENT] INKA'S BERRIES en SM218 desde la web con un clic. (Todos)
+      Hecho cuando: el informe sale del botón de 4.4 sin pasar por 4.2, con los tres casos, y dice lo
+      mismo que el informe hecho a mano el 2026-11-01.
+
+- [x] T20. Cobertura del proyecto completo tras trasladar ramas a una SET nueva. (RF-6, RF-9, RF-12)
+      Hecho cuando: `pytest -q tests/test_estudios_pf_guion.py -k cobertura` en verde y los seis
+      flujos reales guardan barras completas, fuentes, consumos y balance sin omitir COPARA.
+      Verificado el 2026-11-01: trabajo web b724419e1494; 809/914/916 barras según el caso,
+      sin barras sin resultado. La captura distingue MT, BT y AT y no sustituye los medidores.
+- [x] T21. Reproducción del informe desde los seis flujos guardados. (RF-6, RF-7, RF-9, RF-12, RF-14)
+      Hecho cuando: `informe_casos_guardados.py --plan PLAN --salida INFORME.docx` conserva los
+      hashes, rechaza otro proyecto o cobertura incompleta y entrega Word, JSON y CSV sin huecos.
+      Verificado el 2026-11-01 con Santa María, NA205, y pruebas de rechazo; se reutiliza el escritor.
+- [ ] T22. Planos comparables con problemas y obras en colores/tramas y leyenda. (RF-35)
+      Hecho cuando: los tres estados del Word/PDF muestran la red, el punto del cliente,
+      problemas de tensión/cargabilidad y las obras diferenciadas; prueba de render y revisión visual.
+- [ ] T23. Variaciones separadas y demanda completa en la solución COPARA. (RF-36, RF-37)
+      Hecho cuando: la relectura nativa verifica cargas previstas, demandas efectivas, variaciones
+      de cada carga/obra y sus casos; ambos proyectados incluyen las mismas cargas del bloque.
+- [ ] T24. [DIgSILENT] COPARA con NA203–NA205 en límites y térmica fuera de servicio. (RF-38)
+      Hecho cuando: equilibrado y desequilibrado convergen, toda la red cumple, se releen
+      variaciones tras reabrir y el informe entrega los resultados sin confundir convergencia y aceptación.

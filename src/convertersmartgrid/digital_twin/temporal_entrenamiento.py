@@ -7,43 +7,83 @@ from datetime import timedelta
 import uuid
 
 
-def cargar_cabeceras(ruta: Path, *, zona_horaria: str, codigos: tuple[str,...] = ()) -> tuple[dict,dict]:
+def cargar_cabeceras(ruta: Path, *, zona_horaria: str, codigos: tuple[str,...] = (),
+                     hojas: tuple[str,...] = (), desde: str | None = None,
+                     hasta: str | None = None) -> tuple[dict,dict]:
     """Consume los lectores de cabecera existentes; nunca rellena huecos con cero."""
-    from ..demanda_medida import _abrir,_filas,_registros_hoja,_como_datetime,ALIAS
-    from .series_causales import preparar_serie
+    from ..demanda_medida import _abrir,_filas,_registros_hoja,ALIAS
+    from ..cabecera_ancha import instante
+    from .series_causales import preparar_serie, _instante
+    from zoneinfo import ZoneInfo
     from ..trabajadores_ml import sha_archivo
     if not ruta.is_file():raise ValueError('no existe el libro de cabeceras')
+    hash_antes=sha_archivo(ruta)
     if not zona_horaria:raise ValueError('indique --zona-horaria para las fechas del libro')
+    zona=ZoneInfo(zona_horaria)
+    if bool(desde)!=bool(hasta):raise ValueError('declare ambos límites desde/hasta')
+    inicio=_instante(desde,zona) if desde else None
+    fin=_instante(hasta,zona) if hasta else None
+    if inicio is not None and inicio>=fin:raise ValueError('intervalo temporal vacío o invertido')
+    if codigos and hojas:raise ValueError('seleccione códigos de libro ancho u hojas, no ambos')
     series={};fechas={};omitidas=[]
     if codigos:
         from ..cabecera_ancha import leer_ancho
         lectura=leer_ancho([ruta],codigos)
-        crudas={n:[(t,pq[0]) for t,pq in sorted(s.items())] for n,s in lectura.series.items()}
+        crudas={n:[(t,pq[0],None) for t,pq in sorted(s.items())] for n,s in lectura.series.items()}
         if set(crudas)!=set(codigos):raise ValueError('faltan codigos solicitados en el libro ancho')
     else:
         libro=_abrir(ruta);crudas={}
         try:
-            for nombre in libro.sheet_names:
+            if set(hojas)-set(libro.sheet_names):raise ValueError('faltan hojas solicitadas en el libro')
+            for nombre in hojas or libro.sheet_names:
                 registros,usadas=_registros_hoja(_filas(libro,nombre),ALIAS)
-                if 'kw' not in usadas:omitidas.append(nombre);continue
-                pares=[(_como_datetime(r.fecha),r.valores.get('kw')) for r in registros]
+                if 'kw' not in usadas:
+                    if hojas:raise ValueError(f'{nombre}: hoja solicitada sin columna kW')
+                    omitidas.append(nombre);continue
+                pares=[]
+                for registro in registros:
+                    try:
+                        t=instante(registro.fecha)
+                    except (ValueError,TypeError,OverflowError) as exc:
+                        raise ValueError(f'{nombre}: fila {registro.fila_origen}: fecha inválida') from exc
+                    pares.append((t,registro.valores.get('kw'),registro.fila_origen))
                 if pares:crudas[nombre]=pares
         finally:
             cerrar=getattr(libro,'close',None)
             if cerrar:cerrar()
     if not crudas:raise ValueError('sin series de fecha y kW; libro ancho requiere --codigos')
-    for nombre,pares in crudas.items():
-        if any(t is None or v is None for t,v in pares):raise ValueError(f'{nombre}: fecha o potencia ausente')
+    fuera={}
+    for nombre,lectura in crudas.items():
+        pares=[];fuera[nombre]=0;vistos=set()
+        for t,v,fila in lectura:
+            if t is None:raise ValueError(f'{nombre}: fila {fila}: fecha ausente/inválida')
+            try:
+                utc=_instante(t.isoformat(),zona)
+            except ValueError as exc:
+                raise ValueError(f'{nombre}: fila {fila}: fecha inválida: {exc}') from exc
+            if inicio is not None and not inicio<=utc<fin:
+                fuera[nombre]+=1;continue
+            if utc in vistos:raise ValueError(f'{nombre}: fila {fila}: instante duplicado {utc.isoformat()}')
+            vistos.add(utc)
+            if v is None:raise ValueError(f'{nombre}: fila {fila}: potencia ausente/inválida')
+            pares.append((t,v))
+        if not pares:raise ValueError(f'{nombre}: sin observaciones en el intervalo declarado')
         registros=[{'instante':t.isoformat(),'valor':v,'unidad':'kW'} for t,v in pares]
         # La escala devuelta por este validador no se usa: la GRU la ajusta solo en train.
-        preparada=preparar_serie(registros,corte=(max(t for t,_ in pares)+timedelta(minutes=15)).isoformat(),
-            cadencia_min=15,zona_horaria=zona_horaria,covariables={})
+        try:
+            preparada=preparar_serie(registros,corte=(max(t for t,_ in pares)+timedelta(minutes=15)).isoformat(),
+                cadencia_min=15,zona_horaria=zona_horaria,covariables={})
+        except ValueError as exc:
+            raise ValueError(f'{nombre}: {exc}') from exc
         if not all(preparada['mascara']):raise ValueError(f'{nombre}: huecos; no se imputan objetivos')
         series[nombre]=[r['valor'] for r in preparada['filas']]
         fechas[nombre]=[r['instante'] for r in preparada['filas']]
     if len({tuple(v) for v in fechas.values()})!=1:raise ValueError('las series no comparten cronologia')
-    return series,{'path':str(ruta.resolve()),'sha256':sha_archivo(ruta),'zona_horaria':zona_horaria,
+    if sha_archivo(ruta)!=hash_antes:raise ValueError('el libro cambió durante la lectura')
+    return series,{'path':str(ruta.resolve()),'sha256':hash_antes,'zona_horaria':zona_horaria,
         'cadencia_min':15,'unidad':'kW','targets_imputed':False,'hojas_omitidas':omitidas,
+        'alcance':{'hojas':list(hojas),'codigos':list(codigos),'desde':desde,'hasta_exclusivo':hasta,
+                   'filas_fuera_intervalo':fuera},
         'instantes':next(iter(fechas.values()))}
 
 
@@ -83,7 +123,10 @@ def entrenar_temporal(series: dict, destino: Path, *, semillas: tuple[int,...], 
         archivo=f'modelo_{i:04d}.pt'
         torch.save({k:v.detach().cpu() for k,v in modelo.red.state_dict().items()},carpeta/archivo)
         hashes[archivo]=sha_archivo(carpeta/archivo)
-        metas[nombre]={'archivo':archivo,'cfg':{'ventana':ventana,'epocas':epocas,'semilla':semilla},'escala':modelo.escala}
+        metas[nombre]={'archivo':archivo,'cfg':modelo.configuracion(),'escala':modelo.escala,
+                       'validacion':modelo.validacion,'historial':modelo.historial,
+                       'optimizer_updates':modelo.optimizer_updates,
+                       'optimizador':{'nombre':'Adam','lr':.01,'lote':256,'scheduler':'CosineAnnealingLR','lr_min':.0001}}
         sonda=s[:ventana+4];esperado=modelo.reproducir(sonda)[ventana:].tolist()
         sondas[nombre]={'serie':sonda,'prediccion':esperado}
     meta={'semilla':semilla,'modelos':metas,'sondas':sondas,'hashes':hashes,

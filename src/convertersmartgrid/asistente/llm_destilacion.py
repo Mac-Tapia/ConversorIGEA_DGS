@@ -76,6 +76,20 @@ def verificar_fuente(evidencia: dict) -> bool:
     return True
 
 
+def custodiar_politica(origen: Path, destino: Path) -> dict:
+    """060:RF-4: la versión de política del corpus no depende de futuras ediciones."""
+    import shutil
+    original = custodiar(origen, localizador='política original de la preparación')
+    copia = destino / 'fuentes' / 'politica.md'
+    copia.parent.mkdir(parents=True, exist_ok=True)
+    with origen.open('rb') as entrada, copia.open('xb') as salida:
+        shutil.copyfileobj(entrada, salida)
+    evidencia = custodiar(copia, localizador='P9/P11: custodia local y resultados comprobados')
+    if evidencia['sha256'] != original['sha256']:
+        raise ValueError('la política cambió durante la copia de custodia')
+    return {'origen': original, 'copia': evidencia}
+
+
 def respuesta_maestro(registro: dict) -> str:
     """Anota una solicitud; no convierte una orden redactada en operacion ejecutada."""
     if 'resultado_electrico' in registro or registro.get('ejecutado'):
@@ -200,7 +214,7 @@ def reservar_humanas(eventos: list[dict]) -> list[dict]:
 
 
 def construir_corpus_real(contextos: list[dict], fuentes_manifest: dict, *, max_train_por_tarea: int = 64,
-                         humanas: list[dict] | None = None) -> tuple[list[dict], dict]:
+                         humanas: list[dict] | None = None, politica: Path | None = None) -> tuple[list[dict], dict]:
     """Redacta solicitudes con valores observados; no genera resultados de ingenieria."""
     from .curriculo_maestro import FAMILIAS
     from .curriculo_llm_real import PRUEBA_NUEVA, PREFIJOS
@@ -304,7 +318,7 @@ def construir_corpus_real(contextos: list[dict], fuentes_manifest: dict, *, max_
         if tareas != set(TAREAS):
             raise ValueError(f'faltan tareas con fuentes reales en {parte}: {set(TAREAS) - tareas}')
     from .curriculo_llm_real import ABSTENCION_TRAIN
-    norma = custodiar(Path(__file__).resolve().parents[3] / 'docs/constitution.md',
+    norma = custodiar(politica or Path(__file__).resolve().parents[3] / 'docs/constitution.md',
                       localizador='P9/P11: custodia local y resultados comprobados')
     fuente_real = next(r['fuentes'] for r in filas if r['particion'] == 'entrenamiento')
     for orden in ABSTENCION_TRAIN:

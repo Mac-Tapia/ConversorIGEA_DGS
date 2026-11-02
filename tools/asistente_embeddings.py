@@ -1,5 +1,8 @@
 #!/usr/bin/env python
-"""Ajuste y evaluacion reales del encoder local con particiones trazables (043/047)."""
+"""Ajuste y evaluacion de embeddings locales con particiones trazables (043/047).
+
+Uso: python tools/asistente_embeddings.py --help
+"""
 from __future__ import annotations
 import argparse
 import json

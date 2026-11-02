@@ -17,7 +17,7 @@ from typing import Any
 
 import numpy as np
 
-from .oraculo import Entrenamiento, Muestra, OraculoPINN, entrenar_miembro, mae, particionar
+from .oraculo import Entrenamiento, Muestra, OraculoPINN, entrenar_miembro, mae, particionar, separar_calibracion
 
 
 def _sugerir(trial, base: Entrenamiento) -> Entrenamiento:
@@ -37,7 +37,7 @@ def buscar(muestras: Sequence[Muestra], *, base: Entrenamiento | None = None, en
     import optuna
 
     base = base or Entrenamiento()
-    grupos = particionar(muestras)
+    grupos = separar_calibracion(particionar(muestras))
     entrenamiento, validacion = grupos['entrenamiento'], grupos['validacion']
     if not entrenamiento or not validacion:
         raise ValueError('hacen falta episodios de entrenamiento y de validación para buscar (027:RF-7)')
@@ -74,6 +74,7 @@ def buscar(muestras: Sequence[Muestra], *, base: Entrenamiento | None = None, en
     informe = {'ensayos_pedidos': ensayos, 'limite_s': limite_s, 'segundos': time.monotonic() - inicio,
                'semilla': semilla, 'evaluado_en': 'validacion', 'validacion': len(validacion),
                'entrenamiento': len(entrenamiento),
+               'calibracion_reservada': len(grupos['calibracion']),
                'ensayos': [{'numero': t.number, 'params': t.params, 'mae_validacion': t.value,
                             'estado': t.state.name} for t in estudio.trials],
                'mejor': {'numero': mejor.number, 'params': mejor.params, 'mae_validacion': mejor.value},

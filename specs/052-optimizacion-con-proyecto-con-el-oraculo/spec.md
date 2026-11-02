@@ -1,6 +1,6 @@
 # Spec 052 — Optimización de «Con proyecto» con el oráculo y confirmación en DIgSILENT
 
-Estado: aprobada · Fecha: 2026-11-01 · Origen: petición del usuario, 2026-11-01, al ver que la
+Estado: implementada · Fecha: 2026-11-01 · Origen: petición del usuario, 2026-11-01, al ver que la
 optimización de NA203 + NA205 tardaba unas 3 horas («esto debes modificar, no debería demorar
 tanto»; «antes, siempre las convergencias deben pasar por el oráculo, después lanzarlo en
 DIgSILENT en cualquier caso»; «igual debes hacer la optimización junto con el oráculo; la
@@ -59,6 +59,43 @@ DIgSILENT.
 - RF-10: EL SISTEMA dirá cuánto tardó cada parte (oráculo y confirmación en DIgSILENT) y cuántas
   variantes se calcularon en cada uno.
 
+Añadido el 2026-11-01, a petición del usuario («la optimización debería demorar, es una búsqueda
+óptima»; «puedes usar los bayesianos, decisiones de Markov, cadenas de Markov, teoría de juegos,
+algoritmos avanzados de búsqueda y optimización; usa los módulos que ya se tienen»):
+
+- RF-11: EL SISTEMA buscará con el oráculo, además de las variantes de la escalera, combinaciones
+  de obras (módulos de banco por barra candidata y, por tramo de la troncal, nada, terna o cambio
+  de sección) con búsqueda bayesiana, dentro del número de evaluaciones que dé el perfil.
+- RF-12: CUANDO la búsqueda bayesiana encuentre una combinación que cumple y cuesta menos que la
+  mejor variante de la escalera, EL SISTEMA la pondrá primera en la lista que confirma DIgSILENT.
+- RF-13: EL SISTEMA dará el frente de Pareto (costo anual, pérdidas y tensión mínima) de las
+  combinaciones que cumplen, con el algoritmo evolutivo multiobjetivo del gemelo, y marcará en
+  él la elegida.
+- RF-14: EL SISTEMA sorteará la demanda existente con una cadena de Markov de la curva de cabecera
+  del año —estados por nivel de demanda, transición entre instantes consecutivos—, con la misma
+  cantidad de sorteos y la misma semilla de la escalera, y dirá la probabilidad estacionaria de
+  cada nivel.
+- RF-15: EL SISTEMA repartirá el costo anual de la obra elegida entre las k cargas nuevas que caben
+  por su valor de Shapley, siendo el costo de un grupo de cargas el de la variante más barata que
+  cumple con ellas, estimado por permutaciones sorteadas con la semilla de la escalera.
+- RF-16: SI la búsqueda bayesiana, el frente o el reparto agotan su presupuesto de evaluaciones,
+  ENTONCES EL SISTEMA dará lo mejor encontrado y lo dirá con cuántas evaluaciones usó.
+- RF-17: DONDE haya un PINN promovido (spec 024) y la red de la variante esté dentro de su
+  dominio, EL SISTEMA usará su tensión para el criterio, y si no, la del flujo físico; cada medida
+  dirá qué oráculo la dio (usuario, 2026-11-01: «recuerda que son dos oráculos, puedes usar
+  también el PINN»).
+- RF-18: ANTES de crear la SET nueva de la 042, EL SISTEMA la comprobará con el oráculo: las ramas
+  trasladadas abiertas en su tramo de entrada y alimentadas desde la SET (una fuente por rama, con
+  la línea desde el punto elegido a su distancia GPS y la impedancia por km del tramo abierto),
+  con todas las cargas nuevas y la obra elegida, con el criterio de la escalera; dirá si cumple y
+  DIgSILENT la confirma al crearla (usuario, 2026-11-01: «el oráculo ya debió determinar esa
+  solución»).
+- RF-19: EL SISTEMA nombrará la SET nueva y sus objetos en DIgSILENT con el nombre que dé el
+  operador (en NA203 + NA205, «SET COPARA»); sin nombre, «SET_NUEVA».
+- Aclaración de RF-7: lo predicho y lo medido de cada variante confirmada va al informe y a
+  `oraculo_con_proyecto_<fecha>.json` de la salida; el episodio del gemelo con relectura nativa
+  sigue en la spec 024, que es la que hace esa relectura.
+
 ## Relación con otras specs
 
 - Hace la búsqueda de la 042 (RF-1 a RF-4) con el oráculo de la 024 (RF-35, RF-64 a RF-66).
@@ -67,11 +104,15 @@ DIgSILENT.
 
 ## Fuera de alcance
 
+- Un proceso de decisión de Markov para el orden de conexión de las cargas: el orden lo fija la
+  042 (de mayor a menor potencia, usuario 2026-10-31); otro orden contradiría esa decisión.
+- La asignación de cargas por programación entera mixta con flujo linealizado: es de la spec 048.
+
 - Entrenar la PINN: aquí se usa su base física; el aprendizaje sigue en la 024.
-- La SET nueva (042:RF-5 en adelante), que no cambia.
+- El diseño de la SET nueva (042:RF-5 a RF-12): aquí solo se comprueba con el oráculo y se nombra.
 
 ## Criterios de finalización
 
-- `grep -rnoE "052:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-10.
+- `grep -rnoE "052:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-19.
 - NA203 + NA205 optimizado desde la web en menos de 20 min, con la elegida y el límite
   confirmados en DIgSILENT y la comparación oráculo–DIgSILENT en el informe.

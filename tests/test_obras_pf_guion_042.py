@@ -88,6 +88,22 @@ def test_la_set_nueva_se_crea_solo_en_con_proyecto(semilla, perfil):
     assert int(getattr(_linea(app, 'F1_L2'), 'outserv', 0) or 0) == 0
 
 
+def test_set_nueva_regula_la_media_y_queda_en_el_mejor_punto(perfil):
+    """042:RF-16, 042:RF-10 — el transformador regula con el cambiador a la consigna de la red
+    externa de cabecera (1,02) y el informe da la toma, la consigna y un punto que se probó."""
+    app, alims = _calibrada(random.Random(31), n_min=2, cargas_min=3)
+    _con_red_externa(app)
+    informe, codigo = guion.aplicar(app, _plan(alims, obras=[_obra()]))
+    assert codigo == 0, informe
+    s = informe['obras'][0]['set_nueva']
+    assert s['consigna_pu'] == pytest.approx(1.02) and s['regula'].get('ntrcn') == 1
+    assert (s['lat'], s['lon']) in {(x['lat'], x['lon']) for x in s['intentos']}
+    assert all('toma' in x for x in s['intentos'])
+    _activas(app, CON)
+    tr = next(o for o in app.proyecto.GetContents('*.ElmTr2', 1) if o.loc_name == 'TR_SET_NUEVA')
+    assert tr.ntrcn == 1 and tr.usetp == pytest.approx(1.02) and tr.nntap == s['toma']
+
+
 def test_set_nueva_con_transformadores_en_paralelo(perfil):
     """042:RF-14 — la obra con dos unidades crea un ElmTr2 con ntnum = 2, cada uno con la uk de su
     potencia; sin el dato, uno; cero no es un número de unidades."""

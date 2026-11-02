@@ -10,7 +10,7 @@ from pathlib import Path
 def test_entidades_del_corpus_contrastan_con_referencia_real():
     """047:RF-20: comprobar valores y huellas reales, humanas reservadas y ninguna operación ficticia."""
     from convertersmartgrid.asistente.llm_destilacion import auditar_fuentes_corpus
-    defecto=Path(__file__).resolve().parents[1]/'output/alumno_llm_referencias_20261101/corpus_sellado_v4'
+    defecto=Path(__file__).resolve().parents[1]/'output/alumno_llm_referencias_20261101/corpus_sellado_v5'
     corpus=Path(os.environ.get('CSG_LLM_CORPUS') or defecto)
     assert corpus.is_dir(),'Prepare y selle primero el corpus real con tools/llm_destilar.py'
     r=auditar_fuentes_corpus(corpus)

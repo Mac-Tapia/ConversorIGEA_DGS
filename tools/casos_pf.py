@@ -32,6 +32,7 @@ Códigos de salida: 0 hecho, 2 no se pudo preparar (el informe dice por qué), 3
 from __future__ import annotations
 
 import argparse
+from datetime import datetime
 import json
 import traceback
 from pathlib import Path
@@ -45,6 +46,10 @@ NOMBRES = {'base': 'Caso base', 'sin': 'Sin proyecto', 'con': 'Con proyecto'}
 
 #: Marca en la descripción de un caso creado o renombrado por el sistema.
 MARCA = 'convertersmartgrid:011:'
+#: La marca de los casos creados antes del cambio de nombre (058:RF-9): sin ella, ningún flujo
+#: reconocía los casos de NA203 + NA205 ni de SM218 (2026-11-01, «falta Con proyecto»).
+MARCA_ANTERIOR = 'igea-dgs:011:'  # legado-058
+MARCAS = (MARCA, MARCA_ANTERIOR)
 
 
 def nombre_caso(rol: str, anio: int | None = None) -> str:
@@ -81,13 +86,14 @@ def _desc(obj) -> list[str]:
 def rol_de(caso) -> str | None:
     """El rol que el sistema dio a este caso, o ``None`` si no es uno suyo."""
     for linea in _desc(caso):
-        if linea.startswith(MARCA):
-            return linea[len(MARCA):]
+        for marca in MARCAS:
+            if linea.startswith(marca):
+                return linea[len(marca):]
     return None
 
 
 def _marcar(caso, rol: str) -> None:
-    caso.desc = [x for x in _desc(caso) if not x.startswith(MARCA)] + [MARCA + rol]
+    caso.desc = [x for x in _desc(caso) if not x.startswith(MARCAS)] + [MARCA + rol]
 
 
 def casos_del_proyecto(app, anio: int | None = None) -> dict[str, object]:
@@ -302,6 +308,9 @@ OPERACION = {
     'StaSwitch': ('on_off',),
     'ElmTr2': ('outserv', 'nntap'),
     'ElmLne': ('outserv',),
+    # La consigna de la fuente también: SM218 (2026-11-01), la recalibración dejó «Sin proyecto» a
+    # 1,02 p.u. y «Con proyecto» seguía a 1,00; la escalera medía las obras dos puntos más abajo.
+    'ElmXnet': ('usetp',),
 }
 
 
@@ -728,6 +737,26 @@ def preparar_sin(app, plan: dict) -> tuple[dict, int]:
     return informe, 0
 
 
+def _renovar_con_proyecto(app, con, sin, anio: int | None):
+    """«Con proyecto» de nuevo como copia de «Sin proyecto»; el anterior se conserva renombrado
+    y sin la marca, con su escenario (037:RF-8).
+
+    SM218 (2026-11-01): «Con proyecto» se copió el 29-10 y la recalibración de después, con
+    los cambios del operador y los bancos EBC_1, EBC_2 y ECB_3, quedó solo en «Sin proyecto»;
+    su escenario mandaba con demandas viejas (SE41225 a 600 kW) y sus SED salían al 826 %.
+    """
+    sello = datetime.now().strftime('%Y%m%d-%H%M%S')
+    con.Activate()
+    anterior = app.GetActiveScenario()
+    if anterior is not None:
+        anterior.loc_name = f'{anterior.loc_name} anterior {sello}'
+    con.loc_name = f'{con.loc_name} anterior {sello}'
+    con.desc = [x for x in _desc(con) if not x.startswith(MARCAS)] + [
+        f'Reemplazado el {sello} por la recalibración de «Sin proyecto» (037:RF-8).']
+    sin.Activate()
+    return crear_con_proyecto(app, sin, anio)
+
+
 def preparar_con(app, plan: dict) -> tuple[dict, int]:
     """«Con proyecto» como copia de «Sin proyecto», antes de insertar cargas (015:RF-28).
 
@@ -752,6 +781,20 @@ def preparar_con(app, plan: dict) -> tuple[dict, int]:
         escenario_con = _escenario_propio(app, con, 'con', _escenario_de(app, sin), anio)
         _dejar_activas(app, con, grupos['cargas'], grupos['anteriores'])
         sincronia = sin_a_con_proyecto(app, {**casos, 'con': con})     # 014:RF-31 a RF-34
+        con.Activate()
+        con_obras = any(v.loc_name.startswith(PREFIJO_VARIACION)
+                        for v in (app.GetActiveNetworkVariations() or []))
+        if sincronia['faltan'] and not con_obras:
+            # 037:RF-8: sin obras no hay nada propio que perder; con obras, solo el aviso (RF-34).
+            viejo, faltaban = con.loc_name, list(sincronia['faltan'])
+            con = _renovar_con_proyecto(app, con, sin, anio)
+            escenario_con = _escenario_de(app, con).loc_name
+            _dejar_activas(app, con, grupos['cargas'], grupos['anteriores'])
+            sincronia = sin_a_con_proyecto(app, {**casos, 'con': con})
+            informe['avisos'].append(
+                f'«{viejo}» no tenía obras y le faltaba lo de la recalibración de «Sin proyecto» '
+                f'({", ".join(faltaban[:10])}): se renueva como copia de ella; el anterior queda '
+                'renombrado, con su escenario (037:RF-8).')
         del_operador = sincronia['variaciones']
         informe['avisos'] += [a for a in sincronia['avisos'] if not a.startswith('Activadas')]
         con.Activate()

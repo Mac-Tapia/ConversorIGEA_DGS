@@ -107,7 +107,10 @@ export default function App() {
   const [health, setHealth] = useState<Health | null>(null);
   const [pf, setPf] = useState<PowerFactoryStatus | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
-  const [tab, setTab] = useState<(typeof TABS)[number]['id']>('results');
+  const [tab, setTab] = useState<(typeof TABS)[number]['id']>(() => {
+    const solicitado = new URLSearchParams(window.location.search).get('panel');
+    return TABS.find((t) => t.id === solicitado)?.id ?? 'results';
+  });
   const [summary, setSummary] = useState<Job | null>(null);
   const [logHeight, setLogHeight] = useState(readLogHeight);
   const drag = useRef<{ y: number; h: number } | null>(null);

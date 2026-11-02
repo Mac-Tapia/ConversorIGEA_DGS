@@ -127,7 +127,11 @@ def main(argv=None):
         from convertersmartgrid.asistente import almacen
         from convertersmartgrid.asistente.llm_destilacion import reservar_humanas
         humanas=reservar_humanas(almacen.leer('ejemplos'))
-        filas,meta=construir_corpus_real(contextos,manifest,max_train_por_tarea=args.max_train_por_tarea,humanas=humanas)
+        from convertersmartgrid.asistente.llm_destilacion import custodiar_politica
+        politica=custodiar_politica(Path(__file__).resolve().parents[1]/'docs/constitution.md',args.destino)
+        filas,meta=construir_corpus_real(contextos,manifest,max_train_por_tarea=args.max_train_por_tarea,
+            humanas=humanas,politica=Path(politica['copia']['ruta']))
+        meta['politica_custodiada']=politica
         for nombre,datos in (('corpus.json',filas),('dataset_manifest.json',meta),('contextos.json',contextos),
                              ('humanas_reservadas.json',humanas)):
             (args.destino/nombre).write_text(json.dumps(datos,ensure_ascii=False,indent=2,allow_nan=False),encoding='utf-8')

@@ -1061,6 +1061,9 @@ se ejecutan con el intérprete de PowerFactory (Python 3.12 con `powerfactory.py
 | `pide_pf.py` | Cada año del horizonte del PIDE en DIgSILENT con la demanda escalada y el diagnóstico de la norma; no deja nada en el proyecto (spec 024, T13). La web lo lanza desde `POST /api/workspaces/{id}/pide`, que además propone, prioriza y aplica solas las obras que se construyen sin diseño. | PF |
 | `escanear_alimentador_pf.py` | Escanea en DIgSILENT, sin cambiar nada, los generadores (centrales), bancos, variaciones y cargas cambiadas a mano de cada alimentador antes de recalibrar; la web lo lanza con «Escanear en DIgSILENT» (`POST /api/workspaces/{id}/powerfactory/escanear`, spec 028). | PF |
 | `informe_web.py` | Repite por la web un informe de estudio o de factibilidad con el `.plan.json` que la página dejó junto al Word (`--espacio ID --plan RUTA [--salida CARPETA]`); descarga el Word y dice sus huecos (spec 017, RF-105; paso 4.4). | Web |
+| `set_nueva_operacion_pf.py` | `--plan plan.json --output-json informe.json`: diagnostica, evalúa o aplica refuerzos de operación de una SET nueva ya creada (acción `diagnostico`, `evaluar` o `aplicar`), sin recrearla, moverla ni reducir demandas; cada cambio estructural en su propia variación y la operación en una copia del escenario; aplica solo si los dos flujos cumplen (spec 063, RF-36 a RF-38). | PF |
+| `informe_casos_guardados.py` | `--plan PLAN.json --salida INFORME.docx`: reproduce una evaluación de tres casos desde seis flujos nativos ya guardados por la web. Exige el mismo proyecto y cobertura completa, reutiliza el escritor Word y entrega JSON y CSV de barras/equipos. No abre DIgSILENT (spec 063). | Informes |
+| `set_nueva_operacion_pf.py` | `--plan PLAN.json --output-json INFORME.json`: adaptador del trabajo web `/pf/obras/set-nueva/operacion`. El plan firmado elige diagnóstico, evaluación temporal o aplicación de refuerzos sobre una SET existente; conserva cargas y exige aceptación y relectura. Las obras se separan en variaciones y el original se conserva (spec 063, RF-36 a RF-38). | DIgSILENT |
 | `hojas_diagrama_pf.py` | Compara en DIgSILENT, sin cambiar nada, la hoja de cada diagrama de un proyecto con sus gráficos y conectores, y dice su formato, su orientación y si todo cae dentro (`--proyecto`, `--carpeta`, `--output-json`; spec 022, RF-93). | PF |
 | `pf_proyectos.py` | Proyectos de la carpeta de importación y sus alimentadores (paso 1 de 7.ter). | PF |
 | `powerfactory_acceptance.py` | Puerta de aceptación: importa un DGS y lo valida (sección 5). | PF |
@@ -1080,3 +1083,52 @@ se ejecutan con el intérprete de PowerFactory (Python 3.12 con `powerfactory.py
 
 Documentos relacionados: `docs/POWERFACTORY_ACCEPTANCE.md` (detalle de la puerta de
 aceptación), `README.md` (instalación y arquitectura) y `CODIGO_FUENTE.md` (índice).
+
+### Trabajadores de aprendizaje y candidatos (043, 046, 047, 048 y 060)
+
+Cada orden admite `--help` sin cargar modelos. Sus informes distinguen un candidato
+guardado, un bloqueo de datos y un error de recursos; terminar el cálculo no activa pesos.
+
+| Herramienta | Uso y resultado |
+| --- | --- |
+| `digital_twin_temporal_entrenar.py` | `--cabeceras LIBRO --zona-horaria ZONA --raiz DIRECTORIO --output-json INFORME` ajusta GRU con observaciones sin imputar. `--hoja NOMBRE` es repetible; `--desde ISO --hasta ISO` fija un intervalo inclusivo/exclusivo antes del ajuste. `--codigos A,B` selecciona columnas de un libro ancho y no se combina con `--hoja`. `--semillas 11,23,37,53,71 --epocas 40` fija el presupuesto. `--reabrir CANDIDATO --raiz DIRECTORIO --output-json OTRO_INFORME` comprueba pesos y predicción en otro proceso. |
+| `asistente_embeddings.py` | `entrenar --dataset DATASET --destino DIRECTORIO` ajusta E5 con pares de entrenamiento trazables; `evaluar --help` describe el ensayo independiente. No acepta consultas supervisadas repetidas como prueba ni promueve automáticamente el encoder. |
+| `asistente_qlora.py` | `preflight --dataset CORPUS_SELLADO --salida DIRECTORIO` audita fuentes y base fijada. `entrenar --dataset CORPUS_SELLADO --salida OTRO_DIRECTORIO --epocas 1 --semilla 11` ajusta realmente el LLM mediante QLoRA. Un error de memoria conserva el informe y no acredita pasos ni checkpoints. |
+| `evaluar_evolutivos.py` | `--seeds 30 --report INFORME` calcula benchmarks de GA, NSGA-II y DE. Son pruebas analíticas, sin mediciones ni escrituras eléctricas; no representan una red neuronal entrenada ni aceptación de una obra. |
+
+El coordinador `reentrenar_modelos.py run` conserva el mismo alcance temporal con
+`--hoja-temporal NOMBRE --temporal-desde ISO --temporal-hasta ISO`; esos valores
+forman parte de la huella de reanudación. No reanuda una ventana distinta como si fuera
+el mismo experimento. Los destinos de informes y candidatos anteriores se conservan.
+
+### Monitor del conversor (spec061)
+
+En **Asistente → Monitor del conversor** se ven etapas, operaciones y evidencias.
+La vista recibe avances de la sesión por WebSocket, conserva un historial por espacio
+y permite cancelar mediante la cola existente. Una ejecución terminada no sustituye
+la aceptación del informe nativo. Tras un reinicio, una operación antes activa sin
+proceso observado exige revisión; no se reejecuta automáticamente.
+
+`asistente_observar.py registrar --informe INFORME.json --familia gru --etiqueta TEXTO`
+incorpora una copia verificada de un informe local. `--raiz DIRECTORIO` cambia el almacén
+del asistente; sin él se usa el habitual. `asistente_observar.py listar` verifica y
+muestra sus copias. Las familias admitidas son las del coordinador existente y las
+evidencias globales no se asignan a un proyecto por inferencia. Incorporar un informe
+no activa pesos. Los datos de origen y modelos se conservan.
+
+## Limpieza diaria del conversor (spec062)
+
+La web revisa cada24 horas las ejecuciones y los temporales que gestiona. Retira
+solo los que tienen más de siete días y ya no están referenciados. Aplaza la revisión
+mientras haya trabajos en cola o en curso. Conserva ejecuciones activas/cargadas,
+referencias entre espacios, modelos, informes y originales externos. Solo recorre
+`runs/<run_id>`, `tmp` y `entradas/_auto` de espacios reconocidos; no limpia otros
+proyectos ni toda la carpeta `output`.
+
+En **Asistente → Monitor → Limpieza automática** aparecen la política, la última
+revisión, las rutas retiradas, las conservadas y los errores. Usa «Actualizar evidencia»
+para consultar el último resumen. El resumen único se guarda en
+`<raíz web>/_mantenimiento/retencion.json`, con hasta200 entradas por categoría
+y los totales; los bytes son lógicos, no una medida de espacio físico liberado
+cuando hay enlaces duros. Si la web está apagada, recupera la revisión vencida
+al siguiente arranque. No hay una tarea de Windows que opere con la web cerrada.

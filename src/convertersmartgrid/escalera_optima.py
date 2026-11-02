@@ -23,8 +23,15 @@ from .catalogo_reguladores import CatalogoError, unidad_para_corriente, unidades
 from .estudios_pf import CON_PROYECTO
 from .pide_economia import costo_anual
 
-#: Orden de la escalera (RF-44): primero lo más barato.
-ORDEN = ('bancos', 'regulador', 'terna', 'seccion')
+#: Orden de la escalera: bancos, cambio de sección, terna y, al final, regulador (063:RF-21; cambia
+#: 025:RF-44). Usuario, 2026-11-01: «primero debe comenzar con bancos y luego con cambio de sección
+#: y una terna después, pero si y solo si se requiere».
+ORDEN = ('bancos', 'seccion', 'terna', 'regulador')
+
+
+def rango(escalones) -> int:
+    """El escalón más alto que usa una variante; sin escalones (sin obras), antes de todos (063:RF-22)."""
+    return max((ORDEN.index(e) for e in escalones if e in ORDEN), default=-1)
 #: Alternativa del PIDE de cada escalón, para su costo en el libro CAPEX (RF-53).
 ALTERNATIVA = {'bancos': 'bancos', 'regulador': 'reguladores', 'terna': 'nueva_terna',
                'seccion': 'cambio_seccion'}
@@ -56,6 +63,9 @@ class Parametros:
     moneda: str = ''
     costos_unitarios: dict = field(default_factory=dict)       # alternativa → costo en ``moneda``
     escala_capex: float | None = None                          # ``moneda`` por unidad del libro CAPEX
+    #: 025:RF-44: el regulador entra en la escalera, al final del orden (aclaración de 063:RF-26);
+    #: un perfil puede quitarlo con ``escalera.con_regulador: false``.
+    con_regulador: bool = True
 
     @property
     def consigna_regulador_pu(self) -> float:
@@ -110,7 +120,7 @@ def parametros(perfil: Mapping[str, Any], tipo_cambio: float | None = None) -> P
         precio_perdidas_kw_mes=_opcional(esc.get('precio_perdidas_kw_mes')),
         coym_pct_anual=_opcional(esc.get('coym_pct_anual')), moneda=moneda,
         costos_unitarios={k: float(v) for k, v in (esc.get('costos_unitarios') or {}).items() if v is not None},
-        escala_capex=_opcional(esc.get('escala_capex')))
+        escala_capex=_opcional(esc.get('escala_capex')), con_regulador=bool(esc.get('con_regulador', True)))
 
 
 def _opcional(x) -> float | None:
@@ -209,14 +219,55 @@ def _escalon_regulador(alim, kv, troncal, fuera_desde, p: Parametros, avisos) ->
     return out
 
 
-def _hasta_cada_carga(troncal, cargas) -> list[int]:
-    return sorted({int(c['indice_troncal']) for c in cargas if c.get('indice_troncal') is not None})
+def camino_electrico(tramos: Sequence[Mapping[str, Any]], origen: str, destino: str) -> list[dict]:
+    """Los tramos de ``origen`` a ``destino`` por la red (``desde``, ``hasta``), en orden (063:RF-32).
+
+    El camino más corto en número de tramos, sin pasar dos veces por una barra; vacío si no hay.
+    SM218 (2026-11-01): INKA cuelga de un ramal a 17,08 km de la cabecera, no de la troncal más
+    larga a 10,32 km donde la ponía la cercanía GPS; las obras se probaban donde no hacía falta.
+    """
+    from collections import defaultdict, deque
+
+    ady: dict[str, list[tuple[str, Mapping[str, Any]]]] = defaultdict(list)
+    for t in tramos:
+        ady[str(t['desde'])].append((str(t['hasta']), t))
+        ady[str(t['hasta'])].append((str(t['desde']), t))
+    previo: dict[str, tuple[str, Mapping[str, Any]] | None] = {origen: None}
+    cola = deque([origen])
+    while cola and destino not in previo:
+        n = cola.popleft()
+        for m, t in sorted(ady[n], key=lambda x: str(x[1].get('nombre'))):
+            if m not in previo:
+                previo[m] = (n, t)
+                cola.append(m)
+    if destino not in previo:
+        return []
+    out, n = [], destino
+    while previo[n] is not None:
+        a, t = previo[n]
+        out.append({**t, 'desde': a, 'hasta': n})
+        n = a
+    return out[::-1]
+
+
+def _caminos(troncal, cargas) -> list[list[Mapping[str, Any]]]:
+    """Por carga, los tramos donde van sección y terna: su camino eléctrico si la lectura lo da
+    (063:RF-32); si no, la troncal hasta su índice (025:RF-44). Sin repetir caminos."""
+    vistos, out = set(), []
+    for c in cargas:
+        tramos = list(c.get('camino') or [])
+        if not tramos and c.get('indice_troncal') is not None:
+            tramos = _troncal_hasta(troncal, int(c['indice_troncal']))
+        clave = tuple(t['nombre'] for t in tramos)
+        if tramos and clave not in vistos:
+            vistos.add(clave)
+            out.append(tramos)
+    return out
 
 
 def _escalon_terna(alim, troncal, cargas) -> list[Variante]:
     out = []
-    for i in _hasta_cada_carga(troncal, cargas):
-        tramos = _troncal_hasta(troncal, i)
+    for tramos in _caminos(troncal, cargas):                               # 063:RF-32
         out.append(Variante(f"terna hasta {tramos[-1]['nombre']} ({_km(tramos):.2f} km)", ('terna',),
                             [{'clase': 'terna', 'alimentador': alim, 'casos': [CON_PROYECTO],
                               'tramos': [t['nombre'] for t in tramos]}], {'terna': _km(tramos)}))
@@ -240,22 +291,34 @@ def _conductores(tipos, kv, corriente_a) -> list[Mapping[str, Any]]:
 
 def _escalon_seccion(alim, kv, troncal, cargas, tipos, avisos) -> list[Variante]:
     out = []
-    for i in _hasta_cada_carga(troncal, cargas):
-        tramos = _troncal_hasta(troncal, i)
+    for tramos in _caminos(troncal, cargas):                               # 063:RF-32
+        # 063:RF-30: cada conductor cambia solo los tramos más delgados que él, y tiene que llevar
+        # su corriente; por eso aquí se piden todos los de la tensión, sin filtrar por la corriente
+        # del tramo más cargado del camino (que ya es de mayor sección).
+        delgados = [t for t in tramos if t.get('inom_a') is not None]
         corrientes = [float(t['corriente_a']) for t in tramos if t.get('corriente_a') is not None]
-        aptos = _conductores(tipos, kv, max(corrientes) if corrientes else None)
+        aptos = _conductores(tipos, kv, None if delgados else (max(corrientes) if corrientes else None))
         if not aptos:
             avisos.append(f"{alim}: ningún conductor aéreo de {kv:g} kV lleva la corriente hasta "
                           f"{tramos[-1]['nombre']}; no hay escalón de sección allí.")
             continue
-        for tipo in aptos[:2]:
+        # 063:RF-27: todas las aptas, de menor a mayor: se sube de sección en sección y se queda
+        # la menor que cumple (antes, las dos primeras; SM218 saltaba a AA 120 mm²).
+        for tipo in aptos:
             ref = {'nombre': tipo['nombre'], 'clase': 'TypLne', 'origen': tipo.get('origen') or 'proyecto',
                    'proyecto': tipo.get('proyecto') or ''}
-            out.append(Variante(f"sección {tipo['nombre']} hasta {tramos[-1]['nombre']} ({_km(tramos):.2f} km)",
+            # 063:RF-30: solo los tramos de menor corriente nominal que la del conductor nuevo; los
+            # de igual o mayor sección se quedan. Sin el dato del tramo (una lectura anterior), todos.
+            nueva_a = float(tipo['datos']['sline']) * 1000
+            cambian = [t for t in tramos if t.get('inom_a') is None or float(t['inom_a']) < nueva_a]
+            if not cambian or any(float(t.get('corriente_a') or 0) > nueva_a for t in cambian):
+                continue
+            out.append(Variante(f"sección {tipo['nombre']} en {len(cambian)} tramos hasta {tramos[-1]['nombre']} "
+                                f"({_km(cambian):.2f} km)",
                                 ('seccion',),
                                 [{'clase': 'seccion', 'alimentador': alim, 'casos': [CON_PROYECTO],
-                                  'tramos': [t['nombre'] for t in tramos], 'tipo': ref}],
-                                {'seccion': _km(tramos)}))
+                                  'tramos': [t['nombre'] for t in cambian], 'tipo': ref}],
+                                {'seccion': _km(cambian)}))
     return out
 
 
@@ -278,7 +341,9 @@ def variantes(alimentador: str, kv: float, troncal: Sequence[Mapping[str, Any]],
         avisos.append(f'{alimentador}: el perfil no da el tamaño de banco de {kv:g} kV; no hay escalón de bancos.')
     por_escalon = {
         'bancos': _escalon_bancos(alimentador, barras, banco_kvar),
-        'regulador': _escalon_regulador(alimentador, kv, troncal, fuera_desde, p, avisos),
+        # 025:RF-44: el regulador entra, al final del orden; el perfil puede quitarlo.
+        'regulador': (_escalon_regulador(alimentador, kv, troncal, fuera_desde, p, avisos)
+                      if p.con_regulador else []),
         'terna': _escalon_terna(alimentador, troncal, cargas),
         'seccion': _escalon_seccion(alimentador, kv, troncal, cargas, tipos, avisos),
     }
@@ -414,11 +479,32 @@ def elegir(evaluadas: Sequence[Mapping[str, Any]], p: Parametros) -> dict[str, A
         tabla.append({**e, 'factible': factible, 'motivo': motivo})
     factibles = [t for t in tabla if t['factible']]
     if factibles:
-        mejor = min(factibles, key=lambda t: (t['costo']['costo_anual'], t['nombre']))
+        # 063:RF-22: el primer escalón que cumple; dentro de él, la de menor costo anual. En SM218
+        # (2026-11-01) 128 m de conductor salían más baratos que los bancos, y el usuario pide los
+        # bancos si ya bastan.
+        mejor = min(factibles, key=lambda t: (rango(t.get('escalones') or ()), t['costo']['costo_anual'],
+                                              t['nombre']))
         for t in factibles:
-            if t is not mejor:
+            if t is mejor:
+                continue
+            if rango(t.get('escalones') or ()) > rango(mejor.get('escalones') or ()):
+                t['motivo'] = f"no hace falta: «{mejor['nombre']}» ya cumple en un escalón anterior"
+            else:
                 t['motivo'] = (f"cuesta más al año: {t['costo']['costo_anual']:,.0f} frente a "
                                f"{mejor['costo']['costo_anual']:,.0f}")
         return {'elegida': mejor['nombre'], 'mas_cercana': None, 'tabla': tabla}
+    # 063:RF-33: si alguna cumple con la máxima en DIgSILENT y tiene costo, se elige la primera por
+    # el orden de prioridad aunque los sorteos no la confirmen, y se avisa para revisarlos; no se
+    # pasa a otras obras ni a la SET nueva. SM218 (2026-11-01): banco 450 kvar + AA 120 mm² cumplía
+    # con la máxima y los sorteos daban 94,5 % por un defecto de la evaluación, y el flujo saltaba
+    # a la SET nueva.
+    con_maxima = [t for t in tabla if t.get('maxima') and (t.get('costo') or {}).get('costo_anual') is not None]
+    if con_maxima:
+        mejor = min(con_maxima, key=lambda t: (rango(t.get('escalones') or ()), t['costo']['costo_anual'],
+                                               t['nombre']))
+        mejor['motivo'] = (f"cumple con la máxima en DIgSILENT; los sorteos dieron "
+                           f"{100 * (mejor.get('fraccion') or 0):.1f} % (pide {100 * p.cumplimiento:.0f} %): "
+                           'se elige y hay que revisar los sorteos (063:RF-33)')
+        return {'elegida': mejor['nombre'], 'mas_cercana': None, 'tabla': tabla, 'sin_confirmar_sorteos': True}
     cercana = max(tabla, key=lambda t: (bool(t.get('maxima')), t.get('fraccion') or 0), default=None)
     return {'elegida': None, 'mas_cercana': cercana['nombre'] if cercana else None, 'tabla': tabla}

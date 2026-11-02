@@ -499,6 +499,62 @@ def veredicto_factibilidad(proyectado: Caso, devanados: list[Devanado] | None,
     return Veredicto(not excesos, tuple(excesos))
 
 
+@dataclass(frozen=True)
+class Conclusion:
+    """Lo que concluye el informe con los tres casos (063:RF-7 a RF-11).
+
+    ``clave``: ``sin_obras``, ``con_obras``, ``requiere_refuerzo``, ``obras_insuficientes`` o
+    ``no_converge``. ``violaciones`` dice qué motivó las obras, por caso; ``elementos``, qué
+    nodos y tramos las requieren.
+    """
+
+    factible: bool
+    clave: str
+    violaciones: tuple[str, ...] = ()
+    elementos: tuple[str, ...] = ()
+
+
+def _elementos_fuera(caso: Caso, limites: Limites) -> list[str]:
+    """Los nodos y tramos de ``caso`` que pasan un límite: los que requieren la obra (063:RF-10)."""
+    if not caso.converge:
+        return []
+    out = []
+    m = caso.minima
+    if m is not None and m.valor < limites.tension_min_pu:
+        out.append(m.donde)
+    if caso.tension_max is not None and caso.tension_max.valor > limites.tension_max_pu:
+        out.append(caso.tension_max.donde)
+    for e in (caso.cargabilidad_max, caso.trafo_max):
+        if e is not None and e.valor > limites.cargabilidad_max_pct:
+            out.append(e.donde)
+    return out
+
+
+def conclusion_factibilidad(actual: Caso, cargas: Caso, con: Caso | None, limites: Limites) -> Conclusion:
+    """Factible, con o sin obras, a partir del estado actual, el de la carga y «Con proyecto».
+
+    063:RF-8 a RF-11. Las obras solo se justifican si el estado actual o el de la carga violan
+    un límite (usuario, 2026-11-01): si los dos cumplen, factible sin obras. Con violaciones,
+    decide «Con proyecto» si tiene obras (``con`` no es ``None``); sin obras, no es factible
+    sin refuerzo. INKA'S BERRIES en SM218: el estado actual ya tenía un cuello de botella al
+    131 % y con la carga el punto de diseño bajaba a 0,934 p.u.
+    """
+    casos = [('estado actual', actual), ('con la carga', cargas)] + ([('con proyecto', con)] if con else [])
+    sin_flujo = [f'el flujo {nombre} no converge ({caso.nombre})' for nombre, caso in casos if not caso.converge]
+    if sin_flujo:
+        return Conclusion(False, 'no_converge', tuple(sin_flujo))
+    if actual.cumple(limites) and cargas.cumple(limites):
+        return Conclusion(True, 'sin_obras')
+    violaciones = tuple(f'{nombre}: {_incumplimientos(caso, limites)}'
+                        for nombre, caso in casos[:2] if not caso.cumple(limites))
+    elementos = tuple(dict.fromkeys(_elementos_fuera(cargas, limites) + _elementos_fuera(actual, limites)))
+    if con is None:
+        return Conclusion(False, 'requiere_refuerzo', violaciones, elementos)
+    if con.cumple(limites):
+        return Conclusion(True, 'con_obras', violaciones, elementos)
+    return Conclusion(False, 'obras_insuficientes', violaciones, tuple(_elementos_fuera(con, limites)) or elementos)
+
+
 
 # --------------------------------------------------------------------------- redacción
 # Las frases salen de los números y de la banda o el umbral; nada que los resultados no
@@ -938,6 +994,9 @@ class Solicitud:
     expediente: str
     #: Si el predio está en el área de concesión, según el operador (RF-125).
     en_concesion: bool | None = None
+    #: 063:RF-14 y RF-18: potencia previa y suministro de una ampliación.
+    potencia_actual_kw: float | None = None
+    nis: str = ''
 
 
 def antecedentes_factibilidad(s: Solicitud) -> list[str]:

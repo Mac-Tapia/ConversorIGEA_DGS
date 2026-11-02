@@ -105,6 +105,9 @@ def _etapas(args, run_dir: Path):
                '--output-json', str(reporte), '--semillas', semillas]
         if args.zona_horaria:cmd+=['--zona-horaria',args.zona_horaria]
         if args.codigos_temporales:cmd+=['--codigos',args.codigos_temporales]
+        for hoja in getattr(args,'hojas_temporales',[]):cmd+=['--hoja',hoja]
+        for campo,flag in (('temporal_desde','--desde'),('temporal_hasta','--hasta')):
+            if getattr(args,campo,None):cmd += [flag,getattr(args,campo)]
         return _subproceso(cmd, reporte, 'gru')
 
     def pinn():
@@ -214,6 +217,9 @@ def main(argv=None) -> int:
     run.add_argument('--cabeceras', type=Path)
     run.add_argument('--zona-horaria',help='Zona IANA explicita de las mediciones temporales')
     run.add_argument('--codigos-temporales',help='Codigos de columnas del libro ancho, separados por coma')
+    run.add_argument('--hoja-temporal',dest='hojas_temporales',action='append',default=[],help='Hoja de medidor para la etapa GRU; repetible')
+    run.add_argument('--temporal-desde',help='Inicio ISO inclusivo del alcance GRU')
+    run.add_argument('--temporal-hasta',help='Fin ISO exclusivo del alcance GRU')
     run.add_argument('--llm-dataset',type=Path,help='Corpus generativo sellado de 047 T7, distinto del dataset v2')
     run.add_argument('--semillas', default='11,23,37,53,71')
     run.add_argument('--embedding-model', default='intfloat/multilingual-e5-base')
@@ -281,6 +287,7 @@ def main(argv=None) -> int:
         'entradas': entradas, 'semillas': args.semillas, 'embedding_model': args.embedding_model,
         'qlora_model': args.qlora_model, 'qlora_revision': args.qlora_revision,
         'zona_horaria':args.zona_horaria,'codigos_temporales':args.codigos_temporales,
+        'alcance_temporal':{'hojas':args.hojas_temporales,'desde':args.temporal_desde,'hasta':args.temporal_hasta},
         'model_catalog_sha256':huella_entrada(REPO/'docs/MODELOS_IA_LOCK.json',tipo='catalogo')},
         sort_keys=True).encode()).hexdigest()
     informe = TrainingCoordinator(etapas, run_dir, config_hash=huella,

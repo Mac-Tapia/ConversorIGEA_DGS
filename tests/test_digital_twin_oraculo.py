@@ -19,7 +19,9 @@ from convertersmartgrid.digital_twin.buffer import BuferEpisodios
 from convertersmartgrid.digital_twin.episode import episodio_a_dict, leer_episodio
 from convertersmartgrid.digital_twin.escenarios import Escenario
 
-CFG = orc.Entrenamiento(epocas=120, lr=5e-3, ocultas=32, pasos=6)
+# La regresión verifica contrato, precisión y reapertura; el presupuesto de 20 épocas
+# no modifica los umbrales ni los hiperparámetros de los modelos operativos.
+CFG = orc.Entrenamiento(epocas=20, lr=5e-3, ocultas=32, pasos=6, paciencia=8, cada=2)
 
 
 def red_radial(rnd: random.Random, n: int, carga: float = 1.0) -> dict:
@@ -52,19 +54,19 @@ def _episodio(grafo, i, clase='counterfactual'):
 def entrenado(tmp_path_factory):
     rnd = random.Random(11)
     bufer = BuferEpisodios(tmp_path_factory.mktemp('twin'))
-    # 027:RF-2, RF-3: cuatro redes de tamaño distinto con 12 escenarios de carga cada una, para
-    # que una red entera quede de prueba con al menos 10 episodios.
+    # 060:RF-2: 24 escenarios por red aportan familias distintas para selección
+    # y calibración, además de la red entera reservada para prueba.
     import copy
 
     for r, n in enumerate((8, 11, 14, 17)):
         base = red_radial(rnd, n)
-        for k in range(12):
+        for k in range(24):
             g = copy.deepcopy(base)
             factor = rnd.uniform(0.7, 1.3)
             for nodo in g['nodos'].values():
                 nodo['p_mw'] = (nodo.get('p_mw') or 0.0) * factor
                 nodo['q_mvar'] = (nodo.get('q_mvar') or 0.0) * factor
-            bufer.guardar(_episodio(g, r * 12 + k))
+            bufer.guardar(_episodio(g, r * 24 + k))
     r = orc.entrenar(bufer, cfg=CFG, puertas=orc.Puertas(mae_v_max=0.02, residuo_max=0.5))
     return bufer, r
 
@@ -92,10 +94,17 @@ def test_entrena_registra_y_promueve(entrenado):
     por familias, registra episodios y métricas y promueve si pasa las puertas."""
     bufer, r = entrenado
     assert r['entrenado'] and r['promovido'], r
-    assert sum(r['particiones'].values()) == 48 and r['mae_v'] < 0.02
+    assert sum(r['particiones'].values()) == 96 and r['mae_v'] < 0.02
     assert r['particiones']['prueba'] >= orc.MIN_EPISODIOS_PRUEBA
     meta = (bufer.raiz / 'modelos' / r['version'] / 'modelo.json').read_text(encoding='utf-8')
     assert '"episodios"' in meta and '"consulta"' in meta
+    import json
+    detalle=json.loads(meta)
+    particiones=detalle['particiones_ids']
+    assert set(particiones)=={'entrenamiento','validacion','calibracion','prueba'}
+    assert sum(len(v) for v in particiones.values())==len(set(i for v in particiones.values() for i in v))
+    assert detalle['manifiesto']['particiones_ids']==particiones
+    assert detalle['ajuste_acumulado_familias']['entrenamiento']
     assert orc.cargar(bufer).version == r['version']
 
 
@@ -272,7 +281,7 @@ def test_manifiesto_y_reproduccion_en_la_gpu(entrenado):
     bufer, r = entrenado
     meta = json.loads((Path(r['carpeta']) / 'modelo.json').read_text(encoding='utf-8'))
     man = meta['manifiesto']
-    assert len(man['episodios']) == 48 and man['semillas'] == [CFG.semilla + k for k in range(orc.MIEMBROS)]
+    assert len(man['episodios']) == 96 and man['semillas'] == [CFG.semilla + k for k in range(orc.MIEMBROS)]
     assert man['dispositivo'] and man['torch'] and man['cfg']['ocultas'] == CFG.ocultas
     assert man['mae_por_familia'] and all(v is not None for v in man['mae_por_familia'].values())
     rep = orc.reproducir(bufer, r['version'])
@@ -289,7 +298,7 @@ def test_busqueda_de_hiperparametros_solo_en_validacion(entrenado, tmp_path, mon
 
     bufer, _r = entrenado
     muestras, _ids = orc._muestras(bufer, Consulta())
-    grupos = orc.particionar(muestras)
+    grupos = orc.separar_calibracion(orc.particionar(muestras))
     validacion = {id(m) for m in grupos['validacion']}
     vistas = []
     original = hp.mae
@@ -300,11 +309,11 @@ def test_busqueda_de_hiperparametros_solo_en_validacion(entrenado, tmp_path, mon
         return original(modelo, ms)
 
     monkeypatch.setattr(hp, 'mae', espia)
-    base = orc.Entrenamiento(epocas=15, ocultas=32, pasos=4)
+    base = orc.Entrenamiento(epocas=2, ocultas=32, pasos=4)
     r = hp.buscar(muestras, base=base, ensayos=3, limite_s=600, semilla=3, destino=tmp_path)
     assert vistas and all(v == validacion for v in vistas), 'solo la validación'
     assert r['evaluado_en'] == 'validacion' and len(r['ensayos']) == 3
-    assert r['cfg']['epocas'] == 15 and r['cfg']['lr'] == r['mejor']['params']['lr']
+    assert r['cfg']['epocas'] == 2 and r['cfg']['lr'] == r['mejor']['params']['lr']
     import json
     from pathlib import Path
 
@@ -449,9 +458,10 @@ def test_entrenar_con_un_sistema_entero(entrenado, tmp_path):
     import json
     from pathlib import Path
 
-    man = json.loads((Path(r['carpeta']) / 'modelo.json').read_text(encoding='utf-8'))['manifiesto']
-    assert man['sistema'] == red[:12] and sorted(man['episodios']) == sorted(del_sistema)
-    esperado = {k: len(v) for k, v in cv.reparto_del_sistema(del_sistema).items()}
-    assert man['particiones'] == esperado
+    # 060:RF-1: al limitarse a esta red pequeña no hay diez muestras de prueba;
+    # se conserva el activo y no se sustituye la prueba por validación.
+    assert not r['entrenado'] and not r['promovido'] and r['fallos']
+    assert sum(r['particiones'].values()) == len(del_sistema)
+    assert orc.cargar(copia).version == _r['version']
     assert cv.curva.__doc__ and {'convergido', 'inestable'} <= set(
         cv.curva(muestras[:6], muestras[6:8], orc.Entrenamiento(epocas=3, ocultas=8, pasos=2)))

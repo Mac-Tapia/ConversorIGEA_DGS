@@ -85,12 +85,18 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
                 url "file:///D:/converter/ConverterSmartGrid/src/convertersmartgrid/digital_twin/buffer.py"
                 tags "Store"
             }
+            operationStore = container "Diario de operaciones y evidencia" "Estados por espacio, contexto inicial e informes custodiados; no promueve modelos." "SQLite + JSON + SHA-256" {
+                url "file:///D:/converter/ConversorIGEA_DGS/src/convertersmartgrid/asistente/observacion.py"
+                tags "Store"
+            }
         }
 
         operador -> frontend "Usa" "HTTP local"
         fuentes -> api "Entrega archivos o rutas" "Upload/path"
         frontend -> api "Invoca y consulta" "REST + WebSocket"
         api -> jobs "Encola trabajos"
+        api -> operationStore "Registra estados y consulta el monitor por espacio"
+        assistant -> operationStore "Consulta avances e informes sin activar pesos"
         api -> custody "Registra la ejecucion fuente"
         custody -> engine "Entrega snapshot vinculado"
         jobs -> engine "Ejecuta en carril engine"
@@ -127,6 +133,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
                     containerInstance assistant
                     containerInstance workspaceStore
                     containerInstance episodeStore
+                    containerInstance operationStore
                 }
                 ui = deploymentNode "Frontend compilado" "frontend/dist" "Static files" {
                     containerInstance frontend

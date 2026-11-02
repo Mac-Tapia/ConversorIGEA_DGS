@@ -159,6 +159,33 @@ def test_consigna_de_la_fuente_en_los_dos_casos(guion):
     assert guion.fijar_consigna_de_la_fuente(app, 1.05, [sin, None]) == []
 
 
+def test_consigna_de_la_fuente_tambien_en_el_caso_base(guion):
+    """063:RF-29 — SM218 (2026-11-01): la fuente a 1,02 p.u. en «Caso base», «Sin proyecto» y «Con
+    proyecto» («Cargas nuevas» la hereda del escenario de «Sin»); las dos llamadas de la
+    calibración pasan el «Caso base»."""
+    import inspect
+    from types import SimpleNamespace
+
+    class Caso(SimpleNamespace):
+        def Activate(self):
+            app.activo = self
+
+    class Esc:
+        def Save(self):
+            pass
+
+    roles = ('sin', 'con', 'base')
+    xnet = {r: SimpleNamespace(loc_name='External Grid SM218', usetp=1.0) for r in roles}
+    app = SimpleNamespace(activo=None)
+    app.GetCalcRelevantObjects = lambda _f: [xnet[app.activo.rol]]
+    app.GetActiveScenario = lambda: Esc()
+    casos = [Caso(rol=r) for r in roles]
+    guion.fijar_consigna_de_la_fuente(app, 1.02, casos)
+    assert all(x.usetp == 1.02 for x in xnet.values()) and app.activo is casos[0]
+    fuente = inspect.getsource(guion)
+    assert fuente.count("caso_del_sistema(app, 'base', anio)]") == 2
+
+
 def test_pone_los_bancos_que_faltan_y_recalibra(guion, monkeypatch):
     """021:RF-64, 021:RF-65, 021:RF-66, 021:RF-67, 021:RF-68, 021:RF-69 — tras una primera pasada sin guardar, los bancos del tamaño del
     perfil en la troncal, en servicio en «Sin proyecto» y «Con proyecto» y fuera en el

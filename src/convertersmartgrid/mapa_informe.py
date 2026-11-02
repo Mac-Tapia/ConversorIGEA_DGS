@@ -14,6 +14,8 @@ dio el flujo del caso, con las bandas del perfil de empresa (RF-115, RF-116).
 from __future__ import annotations
 
 import math
+import json
+import textwrap
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
@@ -30,6 +32,9 @@ GRIS = (150, 150, 150)
 #: Obras resaltadas en el plano de una alternativa (017:RF-133).
 COLOR_CONDUCTOR = (200, 0, 160)
 COLOR_BANCO = (0, 150, 170)
+COLOR_PROBLEMA_TENSION = (235, 110, 0)
+COLOR_SOBRECARGA = (190, 20, 20)
+COLOR_SET = (95, 45, 170)
 #: Bandas por defecto si el perfil no las trae: las del modelo EMAPICA (017:RF-115).
 BANDAS_TENSION = (85.0, 90.0, 95.0, 105.0)
 BANDAS_CARGA = (80.0, 90.0, 95.0, 105.0, 150.0)
@@ -92,7 +97,9 @@ def dibujar(geo: Mapping[str, Any], modo: str, destino: Path, *, titulo: str,
             bandas_tension: Sequence[float] | None = None,
             bandas_carga: Sequence[float] | None = None,
             marcar: Sequence[str] = (), obras: Mapping[str, Any] | None = None,
-            cliente: tuple[str, str] | None = None) -> Path:
+            cliente: tuple[str, str] | None = None,
+            resaltar: Mapping[str, Any] | None = None,
+            encuadre: Mapping[str, Any] | None = None) -> Path:
     """La imagen ``modo`` (``ubicacion``, ``tension`` o ``cargabilidad``) en ``destino``.
 
     ``marcar``: barras que se señalan con su nombre (la cabecera y la de menor tensión).
@@ -111,6 +118,10 @@ def dibujar(geo: Mapping[str, Any], modo: str, destino: Path, *, titulo: str,
         raise MapaError('El estudio no guardó la geografía del alimentador: vuelva a ejecutar '
                         'el estudio de flujo.')
     obras = obras or {}
+    if encuadre and modo != 'detalle':
+        puntos = [(b[1], b[2]) for b in encuadre.get('barras', ())
+                  if b[1] is not None and b[2] is not None]
+        puntos += [tuple(p) for t in encuadre.get('tramos', ()) for p in t[1] or ()]
     if modo == 'detalle':
         zona = _zona_de_obras(barras, tramos, obras)
         if zona:
@@ -129,7 +140,7 @@ def dibujar(geo: Mapping[str, Any], modo: str, destino: Path, *, titulo: str,
         else:
             color, ancho = (GRIS, 3) if modo not in PLANOS else ((60, 60, 60), 3)
         d.line([a_px(*p) for p in pts], fill=color, width=ancho, joint='curve')
-    if modo in PLANOS:
+    if modo in PLANOS or resaltar is not None:
         cambiados = set(obras.get('tramos') or ())
         for t in tramos:
             if t[0] in cambiados:
@@ -150,7 +161,7 @@ def dibujar(geo: Mapping[str, Any], modo: str, destino: Path, *, titulo: str,
     # (barra, texto, color, símbolo): los símbolos primero y los rótulos después, cada uno
     # donde no pise a otro (RF-133).
     rotulos: list[tuple[str, str, tuple[int, int, int], str]] = []
-    if modo in PLANOS:
+    if modo in PLANOS or resaltar is not None:
         trechos = list(obras.get('trechos') or ())
         for i, (desde, hasta) in enumerate(trechos, 1):
             n = f' {i}' if len(trechos) > 1 else ''
@@ -159,10 +170,43 @@ def dibujar(geo: Mapping[str, Any], modo: str, destino: Path, *, titulo: str,
         for barra, kvar in _por_barra(obras.get('existentes') or ()):
             rotulos.append((barra, f'Banco existente {kvar:g} kvar', COLOR_BANCO, 'hueco'))
         for barra, kvar in _por_barra(obras.get('bancos') or ()):
-            rotulos.append((barra, f'Banco nuevo {kvar:g} kvar · {barra}', COLOR_BANCO, 'lleno'))
+            texto = f'Banco nuevo {kvar:g} kvar' + (f' · {barra}' if resaltar is None else '')
+            rotulos.append((barra, texto, COLOR_BANCO, 'lleno'))
     rotulos += [(n, '', (0, 0, 0), 'circulo') for n in marcar]
     posicion = {b[0]: b for b in barras}
     ocupados: list[tuple[float, float, float, float]] = []
+    if resaltar is not None:
+        # Dos canales: la alarma nunca se sustituye por el color de una obra aplicada.
+        sobre = {e[0]: e[2] for e in resaltar['carga']}
+        for t in tramos:
+            if t[0] in sobre:
+                _linea_discontinua(d, [a_px(*p) for p in t[1]], COLOR_SOBRECARGA, 13)
+                if t[0] in cambiados:
+                    d.line([a_px(*p) for p in t[1]], fill=COLOR_CONDUCTOR, width=4)
+        for n, _, _ in resaltar['carga']:
+            b = posicion.get(resaltar['vinculos'].get(n, n))
+            if b is not None:
+                x, y = a_px(b[1], b[2])
+                d.rectangle([x - 10, y - 10, x + 10, y + 10], outline=COLOR_SOBRECARGA, width=4)
+        for n, minimo, maximo in resaltar['tension']:
+            if n in posicion:
+                b = posicion[n]
+                x, y = a_px(b[1], b[2])
+                d.ellipse([x - 6, y - 6, x + 6, y + 6], outline=COLOR_PROBLEMA_TENSION, width=3)
+        for barra, nombre in obras.get('sets') or ():
+            if barra in posicion:
+                b = posicion[barra]
+                x, y = a_px(b[1], b[2])
+                d.rectangle([x - 13, y - 13, x + 13, y + 13], outline=COLOR_SET, width=5)
+                _rotular(d, x, y, nombre, COLOR_SET, f_texto, ocupados)
+        # Identificadores cortos en el plano; nombres y medidas en la leyenda.
+        for i, (tipo, n, valor) in enumerate(resaltar['rotulos'], 1):
+            b = posicion.get(resaltar['vinculos'].get(n, n))
+            pts = next((t[1] for t in tramos if t[0] == n), None) if b is None else None
+            punto = (b[1], b[2]) if b is not None else (pts[len(pts) // 2] if pts else None)
+            if punto:
+                _rotular(d, *a_px(*punto), f'P{i}', COLOR_SOBRECARGA if tipo == 'C' else COLOR_PROBLEMA_TENSION,
+                         f_texto, ocupados)
     for barra, texto, color, simbolo in rotulos:
         b = posicion.get(barra)
         if b is None:
@@ -183,6 +227,10 @@ def dibujar(geo: Mapping[str, Any], modo: str, destino: Path, *, titulo: str,
         _marcar_cliente(d, *a_px(b[1], b[2]), cliente[1], f_texto, ocupados)
 
     d.rectangle([0, 0, ANCHO_PX, MARGEN_PX + 10], fill='white')
+    while d.textlength(titulo, font=f_titulo) > ANCHO_PX - 2 * MARGEN_PX:
+        f_titulo = _fuente(max(12, f_titulo.size - 1))
+        if f_titulo.size == 12:
+            break
     d.text((MARGEN_PX, 18), titulo, fill=(0, 0, 0), font=f_titulo)
     x0 = ANCHO_PX - LEYENDA_PX + 10
     y = MARGEN_PX + 50
@@ -203,19 +251,54 @@ def dibujar(geo: Mapping[str, Any], modo: str, destino: Path, *, titulo: str,
         if obras.get('existentes'):
             filas.append(('hueco', 'banco existente'))
         cabeza = 'Alimentador' if modo == 'ubicacion' else 'Zona de las obras'
+    if resaltar is not None:
+        filas = [((60, 60, 60), 'red existente')] + filas if modo not in PLANOS else filas
+        if modo not in PLANOS:
+            if obras.get('tramos'):
+                filas.append((COLOR_CONDUCTOR, 'salida / terna / refuerzo'))
+            if obras.get('bancos'):
+                filas.append((COLOR_BANCO, 'banco nuevo (triángulo)'))
+            if obras.get('existentes'):
+                filas.append(('hueco', 'banco existente (vacío)'))
+        if obras.get('sets'):
+            filas.append((COLOR_SET, 'SET nueva (cuadro)'))
+        filas += [(COLOR_PROBLEMA_TENSION, 'tensión fuera (círculo)'),
+                  ('discontinua', 'sobrecarga (guion/cuadro)'),
+                  (COLOR_CLIENTE, 'punto cliente (rombo)')]
+        if modo in PLANOS:
+            filas = [(c, 'salida / terna / refuerzo' if r == 'conductor nuevo' else r) for c, r in filas]
+        f_texto = _fuente(17)
     d.text((x0, y), cabeza, fill=(0, 0, 0), font=f_texto)
     y += 34
     for color, rotulo in filas:
-        if color == 'hueco':
+        if color == 'discontinua':
+            _linea_discontinua(d, [(x0, y + 8), (x0 + 28, y + 8)], COLOR_SOBRECARGA, 5)
+        elif color == 'hueco':
             d.rectangle([x0, y, x0 + 28, y + 18], fill='white', outline=COLOR_BANCO, width=4)
         else:
             d.rectangle([x0, y, x0 + 28, y + 18], fill=color)
         d.text((x0 + 38, y - 2), rotulo, fill=(0, 0, 0), font=f_texto)
         y += 30
+    if resaltar is not None:
+        for texto in resaltar['resumen']:
+            for linea in textwrap.wrap(texto, width=31, break_long_words=True):
+                d.text((x0, y), linea, fill=(0, 0, 0), font=_fuente(16))
+                y += 20
+            y += 6
     d.text((x0, ALTO_PX - 40), 'Resultados del flujo de DIgSILENT', fill=(90, 90, 90),
            font=_fuente(16))
     destino.parent.mkdir(parents=True, exist_ok=True)
-    img.save(destino, 'PNG', dpi=(250, 250))
+    from PIL.PngImagePlugin import PngInfo
+    info = PngInfo()
+    if resaltar is not None:
+        evidencia = {'tension_fuera': [x[0] for x in resaltar['tension']],
+                     'sobrecargas': [x[0] for x in resaltar['carga']],
+                     'sin_localizar': resaltar['sin_localizar'], 'obras_tramos': list(obras.get('tramos') or ()),
+                     'cliente': cliente[0] if cliente else None, 'leyenda': [r for _, r in filas],
+                     'encuadre': [min(p[0] for p in puntos), min(p[1] for p in puntos),
+                                  max(p[0] for p in puntos), max(p[1] for p in puntos)]}
+        info.add_text('evidencia_plano', json.dumps(evidencia, ensure_ascii=False))
+    img.save(destino, 'PNG', dpi=(250, 250), pnginfo=info)
     return destino
 
 
@@ -223,6 +306,26 @@ def dibujar(geo: Mapping[str, Any], modo: str, destino: Path, *, titulo: str,
 PLANOS = ('ubicacion', 'detalle')
 #: Margen de la vista de detalle alrededor de las obras, en grados (unos 300 m).
 MARGEN_DETALLE_GRADOS = 0.003
+
+
+def _linea_discontinua(d, puntos, color, ancho):
+    """Trazo de alarma sobre el conductor: deja visible su color entre segmentos."""
+    recorrido = 0.0
+    for (x1, y1), (x2, y2) in zip(puntos, puntos[1:]):
+        largo = math.hypot(x2 - x1, y2 - y1)
+        if largo == 0:
+            continue
+        fin = recorrido + largo
+        indice = math.floor(recorrido / 12)
+        while indice * 12 < fin:
+            s = max(recorrido, indice * 12) - recorrido
+            hasta = min(fin, (indice + 1) * 12) - recorrido
+            if indice % 2 == 0:
+                d.line([(x1 + (x2 - x1) * s / largo, y1 + (y2 - y1) * s / largo),
+                        (x1 + (x2 - x1) * hasta / largo, y1 + (y2 - y1) * hasta / largo)],
+                       fill=color, width=ancho)
+            indice += 1
+        recorrido = fin
 
 
 def _por_barra(bancos) -> list[tuple[str, float]]:
@@ -418,12 +521,27 @@ def transformador_de_la_set(nombre: str, set_nombre: str, devanados: Sequence[tu
 def imagenes_del_estado(geo: Mapping[str, Any], carpeta: Path, prefijo: str, *, estado: str,
                         alimentador: str, bandas_tension=None, bandas_carga=None,
                         obras: Mapping[str, Any] | None = None,
-                        cliente: tuple[str, str] | None = None) -> dict[str, Path]:
+                        cliente: tuple[str, str] | None = None,
+                        red: Mapping[str, Any] | None = None,
+                        limites: tuple[float, float, float] | None = None,
+                        referencia: Mapping[str, Any] | None = None,
+                        obras_aplicadas: Sequence[Mapping[str, Any]] = (),
+                        obras_activas: Sequence[str] = (),
+                        vinculos_equipos: Mapping[str, Mapping[str, str]] | None = None,
+                        encuadre: Mapping[str, Any] | None = None) -> dict[str, Path]:
     """Las tres imágenes de un estado del informe: ubicación, tensión y cargabilidad.
 
     ``obras``: lo que se resalta en el plano de una alternativa (RF-133, ver :func:`dibujar`).
     ``cliente``: ``(barra, rótulo)`` de la carga nueva en el estado proyectado (RF-117).
+    ``limites`` activa el plano diagnóstico (063:RF-35): límites explícitos de tensión
+    mínima/máxima y cargabilidad. ``red`` conserva la precisión y las tres fases del flujo.
+    ``referencia`` es el caso con cargas sin obras, para distinguir sus elementos de los
+    refuerzos; los registros de obras se filtran por sus variaciones activas.
     """
+    resaltar = None
+    if limites is not None:
+        obras, resaltar = _capas_del_estado(geo, red or {}, limites, referencia,
+                                          obras_aplicadas, obras_activas, obras, vinculos_equipos or {})
     barras = [b for b in geo.get('barras') or [] if b[3] is not None]
     marcar = []
     if geo.get('cabecera'):
@@ -433,11 +551,82 @@ def imagenes_del_estado(geo: Mapping[str, Any], carpeta: Path, prefijo: str, *, 
     out = {}
     modos = [('ubicacion', 'Vista del alimentador'), ('tension', 'Coloreado por tensión'),
              ('cargabilidad', 'Coloreado por cargabilidad')]
-    if obras and (obras.get('tramos') or obras.get('bancos')):
+    if obras and (obras.get('tramos') or obras.get('bancos') or obras.get('sets')):
         modos.append(('detalle', 'Detalle de las obras'))                       # RF-133
     for modo, que in modos:
         out[modo] = dibujar(geo, modo, carpeta / f'{prefijo}_{modo}.png',
                             titulo=f'{que} · {alimentador} · {estado}',
                             bandas_tension=bandas_tension, bandas_carga=bandas_carga,
-                            marcar=marcar, obras=obras, cliente=cliente)
+                            marcar=marcar if resaltar is None else (), obras=obras, cliente=cliente,
+                            resaltar=resaltar, encuadre=encuadre)
     return out
+
+
+def _capas_del_estado(geo, red, limites, referencia, registros, activas, obras, vinculos):
+    """Capas derivadas de evidencia guardada; no cambia ni redondea el dictamen nativo."""
+    capas = {k: list(v) for k, v in (obras or {}).items()}
+    for clave in ('tramos', 'bancos', 'existentes', 'sets'):
+        capas.setdefault(clave, [])
+    anterior = (referencia or {}).get('geo_proyecto') or {}
+    tramos_antes = {t[0]: t for t in anterior.get('tramos', ())}
+    barras = {b[0]: b for b in geo.get('barras', ()) if b[1] is not None and b[2] is not None}
+    tramos = {t[0]: t for t in geo.get('tramos', ()) if len(t[1] or ()) >= 2}
+    vinculos = {n: dato['barra'] for n, dato in vinculos.items() if dato.get('barra') in barras}
+    if referencia is not None and activas:
+        for nombre, tramo in tramos.items():
+            previo = tramos_antes.get(nombre)
+            if previo is None or (len(tramo) > 5 and len(previo) > 5 and tramo[5] != previo[5]):
+                capas['tramos'].append(nombre)
+    for registro in registros:
+        if registro.get('variacion') not in activas:
+            continue
+        obra = registro.get('obra') or {}
+        if obra.get('clase') in ('terna', 'seccion', 'conductor'):
+            capas['tramos'].extend(n for n in obra.get('tramos', ()) if n in tramos)
+        if obra.get('clase') == 'set_nueva':
+            # El destino explícito vincula la SET a sus barras; no se adivina por prefijo.
+            destino = obra.get('destino', '')
+            try:
+                lat, lon = (float(x.strip()) for x in destino.split(','))
+            except (ValueError, AttributeError):
+                continue
+            candidatas = [b for b in barras.values() if abs(b[1] - lat) < 1e-6 and abs(b[2] - lon) < 1e-6]
+            if candidatas:
+                barra = min(candidatas, key=lambda b: b[4] or float('inf'))
+                capas['sets'].append((barra[0], obra.get('nombre_set') or 'SET nueva'))
+    bancos_antes = {b['nombre'] for b in ((referencia or {}).get('red_proyecto') or {}).get('medida', {}).get('bancos', ())}
+    for banco in red.get('medida', {}).get('bancos', ()):
+        if banco.get('en_servicio') is False:
+            continue
+        nuevo = referencia is not None and banco['nombre'] not in bancos_antes and bool(activas)
+        capas['bancos' if nuevo else 'existentes'].append(
+            (banco['barra'], banco['kvar'] * (banco.get('escalones') or 1)))
+    capas['tramos'] = list(dict.fromkeys(capas['tramos']))
+    umin, umax, carga_max = limites
+    tensiones = []
+    exactas = [b for filas in red.get('tensiones_por_nivel', {}).values() for b in filas]
+    if exactas:
+        for b in exactas:
+            valores = [u for u in b.get('fases', {}).values() if u is not None]
+            valores = valores or ([b['u_pu']] if b.get('u_pu') is not None else [])
+            if valores and (min(valores) < umin or max(valores) > umax):
+                tensiones.append((b['nombre'], min(valores), max(valores)))
+    else:
+        tensiones = [(b[0], b[3], b[3]) for b in geo.get('barras', ())
+                     if b[3] is not None and not umin <= b[3] <= umax]
+    elementos = red.get('medida', {}).get('elementos')
+    if elementos is None:
+        elementos = [(t[0], 'ElmLne', t[2]) for t in tramos.values()]
+    sobre = [(n, cl, c) for n, cl, c in elementos if c is not None and c > carga_max]
+    sin_localizar = [n for n, _, _ in tensiones if n not in barras]
+    sin_localizar += [n for n, _, _ in sobre if n not in barras and n not in tramos and n not in vinculos]
+    peores_u = sorted((t for t in tensiones if t[0] in barras), key=lambda t: min(t[1] - umin, umax - t[2]))[:2]
+    peores_c = sorted((t for t in sobre if t[0] in tramos or t[0] in barras or t[0] in vinculos), key=lambda t: -t[2])[:3]
+    rotulos = [('U', n, f'{lo:.4f}–{hi:.4f} p.u.') for n, lo, hi in peores_u]
+    rotulos += [('C', n, f'{c:.2f} %') for n, _, c in peores_c]
+    resumen = [f'Límites: {umin:g}–{umax:g} p.u.; carga ≤ {carga_max:g} %.',
+               f'Fuera: {len(tensiones)} barras; {len(sobre)} equipos.',
+               f'Sin GPS/vínculo: {len(sin_localizar)} (ver CSV).']
+    resumen += [f'P{i}: {n} / {valor}' for i, (_, n, valor) in enumerate(rotulos, 1)]
+    return capas, {'tension': tensiones, 'carga': sobre, 'sin_localizar': sin_localizar,
+                   'rotulos': rotulos, 'resumen': resumen, 'vinculos': vinculos}

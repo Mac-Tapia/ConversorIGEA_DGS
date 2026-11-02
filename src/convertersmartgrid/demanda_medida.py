@@ -659,13 +659,14 @@ class Registro:
     valores: dict[str, float | None] = field(default_factory=dict)
     # Columna de la que salió el FP de este registro: «lag» o «lead» según el registro.
     fuente_fp: str | None = None
+    fila_origen: int | None = None
 
 
 def _fecha_de(fila: Sequence[Any], cols_fecha: Sequence[int]) -> Any:
     """La primera columna de fecha que trae hora; si ninguna, la primera con algo."""
     valores = [_celda(fila, i) for i in cols_fecha]
     for v in valores:
-        if isinstance(v, datetime):
+        if isinstance(v, (datetime, date)):
             return v
     return next((v for v in valores if v not in (None, '')), None)
 
@@ -684,12 +685,18 @@ def _registros_hoja(filas: Sequence[Sequence[Any]], alias) -> tuple[list[Registr
     cabecera = filas[i]
     norm = [normalizar(c) for c in cabecera]
     cols_fecha = [norm.index(a) for a in alias['fecha'] if a in norm]
+    # 060:RF-5: una celda date en Local Time es medianoche si esa columna sí
+    # contiene horas. Elegir Timestamp solo en esa fila desplazaba 00:00 a 05:00.
+    # Cuando toda Local Time es fecha sin hora, conserva preferencia Timestamp.
+    con_hora = [c for c in cols_fecha if any(isinstance(_celda(f, c), datetime)
+                and _celda(f, c).time() != datetime.min.time() for f in filas[i + 1:])]
+    cols_fecha = con_hora + [c for c in cols_fecha if c not in con_hora]
     # Las dos de FP de los medidores: «lag» (inductivo) y «lead» (capacitivo); se toma
     # la que tenga valor en el registro.
     cols_fp = [norm.index(a) for a in alias['fp'] if a in norm]
     usadas = {k: str(cabecera[v]).strip() for k, v in cols.items()}
     registros = []
-    for fila in filas[i + 1:]:
+    for fila_excel, fila in enumerate(filas[i + 1:], start=i + 2):
         fecha = _fecha_de(fila, cols_fecha)
         valores = {k: numero(_celda(fila, v)) for k, v in cols.items() if k != 'fp'}
         fp, fuente = None, None
@@ -702,7 +709,7 @@ def _registros_hoja(filas: Sequence[Sequence[Any]], alias) -> tuple[list[Registr
             valores['fp'] = fp
         if fecha is None and not any(v is not None for v in valores.values()):
             continue
-        registros.append(Registro(fecha, valores, fuente))
+        registros.append(Registro(fecha, valores, fuente, fila_excel))
     # python-calamine devuelve una fecha sin hora (``date``) para el registro de las 00:00
     # y con hora para los demás: la máxima a medianoche salía sin su hora y, en un medidor
     # partido en hojas, no casaba por fecha con la misma hora de otra hoja. En una hoja con

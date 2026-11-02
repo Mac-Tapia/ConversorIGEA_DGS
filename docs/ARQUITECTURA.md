@@ -151,6 +151,39 @@ se excluye por su nombre (P13). Alias de tipos de línea en
 
 ## Arquitectura objetivo (spec 002)
 
+### Contratos de aprendizaje corregidos (spec 060, 2026-11-01)
+
+La corrección mantiene la separación existente: los lectores producen datos trazables;
+`digital_twin/temporal_entrenamiento.py` y `asistente/llm_destilacion.py` preparan candidatos;
+el coordinador conserva la exclusión y el registro decide la promoción. No se añade otro
+servicio ni otro registro. La consulta web lee también punteros heredados como evidencia
+histórica explícita, sin ejecutar Torch ni migrar/promover pesos desde una petición HTTP.
+
+El PINN exige entrenamiento, selección, calibración y prueba independientes antes del
+ajuste. Registra IDs y familias por partición y genealogía acumulada; sin independencia
+demostrada del antecesor vuelve a entrenar desde cero. El corpus generativo referencia
+una copia verificada de la política de su preparación. La GRU conserva configuración,
+pasos, historial y sondas de reapertura. Estos contratos se vinculan a las pruebas en
+[spec060](../specs/060-correcciones-del-aprendizaje/spec.md); no acreditan por sí solos un
+ciclo automático aceptado de spec050 ni generalización eléctrica.
+
+### Capas objetivo
+
+### Observación integrada del agente (spec061)
+
+`Asistente` incorpora `MonitorAgente`, que consume el contexto de trabajos ya
+actualizado por WebSocket y consulta su historial persistente por espacio. Los estados
+que publica la cola se guardan en SQLite con el contexto de fuente de admisión;
+el monitor conserva ese contexto aunque la fuente cambie después. Un trabajo activo
+sin proceso observado tras reiniciar se muestra interrumpido, sin reanudar escrituras.
+
+La misma API compone las etapas del orquestador existente, el estado global del
+registro de modelos y copias verificadas de informes de aprendizaje. Esas copias no
+son un segundo registro de promoción. La ejecución/cancelación sigue las rutas y
+carriles existentes; el checkpoint fija identidad y conserva una copia al reiniciar.
+El [contrato061](../specs/061-observacion-y-operacion-del-agente/spec.md) separa
+observación y operación supervisada de la autonomía conjunta todavía exigida por050.
+
 La spec 002 llevará el código a un único paquete `convertersmartgrid` con las capas `dominio`,
 `puertos`, `aplicacion`, `adaptadores` y `presentacion`, comprobadas por una prueba de
 importaciones (sin ciclos, sin nombres privados entre módulos, sin FastAPI ni
@@ -160,3 +193,18 @@ módulos externos por entry points y lista de permitidos (P9); y dará a la API 
 Pydantic con los tipos del front generados. Mientras no se haga, las reexportaciones
 temporales de `web/sources/` siguen en su sitio y la columna «Capas de hecho» de arriba
 es la referencia.
+
+## Retención diaria de ejecuciones (spec062)
+
+`web/retencion.py` comparte la raíz de WorkspaceStore y el control de admisión de
+JobManager. El lifespan inicia una tarea asíncrona con el trabajo de archivos en
+`asyncio.to_thread`; cada60 segundos comprueba si venció el plazo de24 horas,
+cuya fecha queda persistida. La tarea se detiene cooperativamente al apagar.
+El mantenimiento y la admisión de nuevos trabajos son excluyentes; cualquier
+trabajo pendiente aplaza la limpieza sin cancelarlo.
+
+Las referencias de todos los espacios y sus estados en memoria protegen las
+ejecuciones utilizadas. Los árboles se validan antes de retirar y se rechazan
+redirecciones, enlaces simbólicos y junctions. Los enlaces duros solo pierden
+la entrada de una ejecución obsoleta: la fuente externa conserva su nombre.
+La respuesta del monitor incluye política y resumen; no se añade sondeo en la web.

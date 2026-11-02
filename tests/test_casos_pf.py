@@ -586,3 +586,67 @@ def test_lo_hecho_a_mano_en_sin_proyecto_pasa_a_con_proyecto(monkeypatch):
     assert igual.escrito == {} and out['faltan'] == ['BC_2']
     assert app.escenario.guardado == 1 and app.activo is inicial
     assert any('014:RF-32' in a for a in out['avisos']) and any('014:RF-34' in a for a in out['avisos'])
+
+
+def test_la_consigna_de_la_fuente_pasa_a_con_proyecto(monkeypatch):
+    """014:RF-32 — SM218 (2026-11-01): la recalibración dejó la fuente de «Sin proyecto» a 1,02 p.u.
+    y «Con proyecto» seguía a 1,00; la escalera medía las obras dos puntos más abajo y ninguna
+    cumplía. La consigna de la red externa es un dato de operación y pasa como los demás."""
+    assert 'usetp' in casos_pf.OPERACION['ElmXnet']
+    app = _App()
+    fuente = _Obj('External Grid SM218')
+    R = 'P/Red/'
+    fotos = {'base': {R + 'XN': (fuente, {'usetp': 1.0})}, 'sin': {R + 'XN': (fuente, {'usetp': 1.02})},
+             'con': {R + 'XN': (fuente, {'usetp': 1.0})}}
+    monkeypatch.setattr(casos_pf, '_foto_operacion', lambda a: fotos[a.activo.rol])
+    monkeypatch.setattr(casos_pf, 'operador_a_con_proyecto', lambda a, c: [])
+    out = casos_pf.sin_a_con_proyecto(app, app.casos)
+    assert fuente.escrito == {'usetp': 1.02}
+    assert out['copiados'] == [{'objeto': 'External Grid SM218', 'dato': 'usetp', 'antes': 1.0, 'ahora': 1.02}]
+
+
+# --------------------------------------------------------------- 037:RF-8
+def _faltan_una_vez(monkeypatch, faltan):
+    """La sincronía de 014:RF-34 dice que faltan objetos la primera vez y nada después."""
+    real, llamadas = casos_pf.sin_a_con_proyecto, []
+
+    def doble(app, casos):
+        out = real(app, casos)
+        llamadas.append(1)
+        if len(llamadas) == 1:
+            out['faltan'] = list(faltan)
+        return out
+    monkeypatch.setattr(casos_pf, 'sin_a_con_proyecto', doble)
+
+
+def test_con_proyecto_sin_obras_se_renueva_desde_la_recalibracion(monkeypatch):
+    """037:RF-8 — SM218 (2026-11-01): «Con proyecto» sin obras al que le faltan los bancos de la
+    recalibración se renueva como copia de «Sin proyecto»; el anterior queda renombrado, sin
+    la marca, y la carga nueva sigue activa en el nuevo."""
+    app, plan, v = _escenario_red(random.Random(81), escenario=True)
+    assert casos_pf.preparar_con(app, plan)[1] == 0
+    viejo = _caso(app, 'Con proyecto')
+    _faltan_una_vez(monkeypatch, ['EBC_1', 'EBC_2', 'ECB_3'])
+    informe, codigo = casos_pf.preparar_con(app, plan)
+    assert codigo == 0, informe
+    nuevo = _caso(app, 'Con proyecto')
+    assert nuevo is not None and nuevo is not viejo
+    assert viejo.loc_name.startswith('Con proyecto anterior ') and casos_pf.rol_de(viejo) is None
+    assert casos_pf.rol_de(nuevo) == 'con'
+    assert any('037:RF-8' in a and 'EBC_1' in a for a in informe['avisos'])
+    activas, _esc = _activas_en(app, nuevo)
+    assert {c.loc_name for c in v['cargas']} <= set(activas)
+
+
+def test_con_proyecto_con_obras_no_se_renueva(monkeypatch):
+    """037:RF-8 — con una obra activa, «Con proyecto» se conserva aunque le falte algo de «Sin
+    proyecto»: solo el aviso de 014:RF-34."""
+    app, plan, _v = _escenario_red(random.Random(82), escenario=True)
+    assert casos_pf.preparar_con(app, plan)[1] == 0
+    con = _caso(app, 'Con proyecto')
+    con.Activate()
+    fake_pf.variacion_del_operador(app, 'Obra_condensador_AL', []).Activate()
+    _faltan_una_vez(monkeypatch, ['EBC_1'])
+    informe, codigo = casos_pf.preparar_con(app, plan)
+    assert codigo == 0 and _caso(app, 'Con proyecto') is con
+    assert not any('037:RF-8' in a for a in informe['avisos'])

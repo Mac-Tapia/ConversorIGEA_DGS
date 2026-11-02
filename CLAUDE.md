@@ -79,13 +79,18 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 049 Protecciones nativas y coordinación | aprobada | ver sus tareas |
   | 050 Aprendizaje continuo integrado | aprobada | ver sus tareas |
   | 051 Medición de cabecera en libro ancho: una columna por alimentador | implementada | falta T3 |
-  | 052 Optimización de «Con proyecto» con el oráculo y confirmación en DIgSILENT | aprobada | falta T1, T2, T3, T4 |
+  | 052 Optimización de «Con proyecto» con el oráculo y confirmación en DIgSILENT | implementada | falta T4 |
   | 053 El catálogo de fichas crece con cada código nuevo | cumplida |  |
   | 054 Fases reales en el DGS: tramos y SED monofásicos y bifásicos | cumplida |  |
   | 055 Estructura de sistemas y SET desde la propia fuente, para cualquier empresa | aprobada | falta T1, T3, T2 |
   | 056 Nombres y mensajes según la fuente: cada fuente con sus propias palabras | aprobada | falta T1, T2, T3 |
   | 057 El «Caso base» llega convergido: el oráculo corrige antes de importar | cumplida |  |
   | 058 ConverterSmartGrid: el proyecto sin el nombre de otra empresa | aprobada | falta T5, T6, T7 |
+  | 059 La fuente es la del fichero que se carga, sin valor por defecto | cumplida |  |
+  | 060 Correcciones verificables del aprendizaje | cumplida |  |
+  | 061 Observación y operación integrada del agente | cumplida | T1–T5 cerradas; evidencia en docs/INTEGRACION_MONITOR_AGENTE_2026-11-01.md |
+  | 062 Retención diaria de ejecuciones y temporales | cumplida | T1–T4 verificadas; primera revisión real sin errores |
+  | 063 Evaluación de conexión y operación comercial en un paso, para cualquier alimentador | aprobada | falta T3, T5, T6, T12, T15, T16, T18, T22, T23, T7, T24 |
 
   Las convenciones de cada empresa (CRS de origen, patrón de SED de medición, escala,
   carpeta de DIgSILENT) van en `config/perfil_empresa.json`, local y fuera de git, que

@@ -171,6 +171,53 @@ def test_factibilidad_con_las_secciones_del_modelo_en_orden(tmp_path):
     assert -1 not in posiciones and posiciones == sorted(posiciones), dict(zip(orden, posiciones))
 
 
+def test_factibilidad_tres_casos_con_obras_insuficientes_no_aprueba(tmp_path):
+    """063:RF-7, 063:RF-9, 063:RF-10: el Word y el JSON juzgan los mismos tres casos."""
+    from dataclasses import replace
+
+    destino = tmp_path / 'tres_casos.docx'
+    datos = _factibilidad(tmp_path, cargas=_caso('Cargas nuevas', 0.88),
+                          proyectado=_caso('Con proyecto', 0.92),
+                          solicitud=replace(SOLICITUD, potencia_actual_kw=480, potencia_kw=1000,
+                                            nis='481000140'),
+                          ficha_punto={'pcc_mva': 36.0, 'utm_x': 500123.0, 'utm_y': 8345000.0})
+    escribir_informe_factibilidad(_config(tmp_path), destino, datos)
+    texto = _texto(destino)
+    for esperado in ('ESTADO PROYECTADO SIN OBRAS', 'ESTADO PROYECTADO CON OBRAS',
+                     'de 480 kW a 1000 kW (+520 kW)', '481000140', '36', '500123', '8345000'):
+        assert esperado in texto, esperado
+    resumen = json.loads(destino.with_suffix('.json').read_text(encoding='utf-8'))
+    assert not resumen['factible']
+    assert resumen['conclusion_conexion']['clave'] == 'obras_insuficientes'
+    assert resumen['cargas']['nombre'] == 'Cargas nuevas'
+
+
+def test_factibilidad_sin_obras_no_exige_transformador_fuera_de_alcance(tmp_path):
+    """063:RF-8: una evaluación de conexión explicita su alcance sin inventar datos de transmisión."""
+    destino = tmp_path / 'conexion.docx'
+    datos = _factibilidad(tmp_path, cargas=_caso('Cargas nuevas', 0.98),
+                          actual=_caso('Sin proyecto', 0.99), con_obras=False,
+                          incluir_transformador_set=False, devanado=None)
+    escribir_informe_factibilidad(_config(tmp_path), destino, datos)
+    resumen = json.loads(destino.with_suffix('.json').read_text(encoding='utf-8'))
+    assert resumen['factible']
+    assert resumen['conclusion_conexion']['clave'] == 'sin_obras'
+    assert 'no se obtuvo la cargabilidad del transformador' not in _texto(destino)
+    assert not any('transformador de la SET' in h for h in resumen['huecos'])
+
+
+def test_factibilidad_perdidas_medidas_no_inventa_anualizacion(tmp_path):
+    """017:RF-54, 063:RF-7: se comparan los tres balances medidos sin imputar una curva anual."""
+    destino = tmp_path / 'perdidas_medidas.docx'
+    datos = _factibilidad(tmp_path, cargas=_caso('Cargas nuevas', 0.92),
+                          perdidas_instantaneas=True, observaciones=['Red completa NA203–NA205.'])
+    escribir_informe_factibilidad(_config(tmp_path), destino, datos)
+    texto = _texto(destino)
+    assert 'Pérdidas activas (kW)' in texto and 'Pérdidas reactivas (kvar)' in texto
+    assert 'No se anualizan' in texto and 'Red completa NA203–NA205.' in texto
+    assert 'MD kWh' not in texto
+
+
 @pytest.mark.parametrize('tipo', ['estudio', 'factibilidad'])
 def test_ningun_dato_del_modelo_pasa_al_informe(tmp_path, tipo):
     """017:RF-3, 017:RF-6 — esquema general: del modelo solo la forma; n.º, referencia y cuerpo son nuevos."""

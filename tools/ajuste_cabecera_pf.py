@@ -2409,8 +2409,10 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
         informe['avisos'].append('Cargas nuevas fuera del ajuste mientras se mide (vuelven al '
                                  'terminar): ' + ', '.join(apartadas))
     if plan.get('tension_fuente_pu') and not simular:                     # 021:RF-61
+        # 063:RF-29: también el «Caso base» (usuario, 2026-11-01: «en caso base, caso con cargas y
+        # caso con proyecto, fuente a 1,02 p.u.»); «Cargas nuevas» la hereda del escenario de «Sin».
         informe['consigna_fuente'] = fijar_consigna_de_la_fuente(
-            app, float(plan['tension_fuente_pu']), [sin, con])
+            app, float(plan['tension_fuente_pu']), [sin, con, caso_del_sistema(app, 'base', anio)])
         escenario = app.GetActiveScenario()
     if not simular:
         # 032:RF-14: los conductores con su ficha antes del primer flujo.
@@ -3160,7 +3162,8 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
                      'calibración se graba en él (015:RF-26).')
     apartadas = _apartar_cargas_nuevas(app, estado)
     pu = next((float(p['tension_fuente_pu']) for p in validos if p.get('tension_fuente_pu')), None)
-    consigna = fijar_consigna_de_la_fuente(app, pu, [sin, con]) if pu else []   # 021:RF-61
+    consigna = (fijar_consigna_de_la_fuente(app, pu, [sin, con, caso_del_sistema(app, 'base', anio)])
+                if pu else [])                                           # 021:RF-61, 063:RF-29
     escenario = app.GetActiveScenario()
     for f in feeders:
         if pu:

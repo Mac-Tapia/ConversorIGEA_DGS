@@ -1,5 +1,8 @@
 #!/usr/bin/env python
-"""Ajuste generativo real del alumno NF4 fijado; conserva candidato sin activarlo (043/047)."""
+"""Ajuste generativo de un alumno NF4 fijado; conserva candidato sin activarlo (043/047).
+
+Uso: python tools/asistente_qlora.py --help
+"""
 from __future__ import annotations
 import argparse
 import json

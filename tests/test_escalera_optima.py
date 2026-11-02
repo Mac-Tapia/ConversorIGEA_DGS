@@ -15,6 +15,9 @@ PERFIL = {
     'estudios': {'tension_min_pu': 0.95, 'tension_max_pu': 1.05, 'cargabilidad_max_pct': 100},
 }
 P = eo.parametros(PERFIL)
+#: 025:RF-44: el regulador entra por defecto; un perfil puede quitarlo (``escalera.con_regulador``).
+P_REG = P
+P_SIN_REG = eo.parametros({**PERFIL, 'escalera': {**PERFIL['escalera'], 'con_regulador': False}})
 
 
 def _troncal(rng, n=None, corriente=None):
@@ -38,7 +41,7 @@ def test_variantes_en_el_orden_de_la_escalera_y_combinadas(semilla):
     troncal = _troncal(rng)
     cargas = [{'barra': 'B_EXISTE', 'existe': True, 'indice_troncal': len(troncal) - 1},
               {'barra': 'NODE_T_X', 'existe': False, 'indice_troncal': len(troncal) // 2}]
-    vs, avisos = eo.variantes('F1', kv, troncal, cargas, _tipos(kv), P, banco_kvar=450)
+    vs, avisos = eo.variantes('F1', kv, troncal, cargas, _tipos(kv), P_REG, banco_kvar=450)
     solas = [v for v in vs if len(v.escalones) == 1]
     orden = [v.escalones[0] for v in solas]
     assert orden == sorted(orden, key=eo.ORDEN.index) and set(orden) == set(eo.ORDEN)
@@ -60,7 +63,7 @@ def test_regulador_antes_de_la_caida_y_con_la_corriente_del_tramo(semilla):
     troncal = _troncal(rng, n=10, corriente=rng.uniform(150, 450))
     fuera = rng.randint(3, 9)
     vs, _ = eo.variantes('F1', 22.9, troncal, [{'barra': 'B', 'existe': True, 'indice_troncal': 9}],
-                         [], P, banco_kvar=None, fuera_desde=fuera)
+                         [], P_REG, banco_kvar=None, fuera_desde=fuera)
     regs = [o for v in vs if v.escalones == ('regulador',) for o in v.obras]
     assert regs and len(regs) <= 3
     por_nombre = {t['nombre']: (i, t) for i, t in enumerate(troncal)}
@@ -75,7 +78,7 @@ def test_regulador_antes_de_la_caida_y_con_la_corriente_del_tramo(semilla):
 def test_regulador_sin_corriente_admisible_se_dice():
     """025:RF-60 — si ningún tramo lleva una corriente que admita un regulador, se dice."""
     troncal = [{'nombre': 'T0', 'largo_m': 100, 'corriente_a': 900}]
-    vs, avisos = eo.variantes('F1', 22.9, troncal, [], [], P, banco_kvar=None)
+    vs, avisos = eo.variantes('F1', 22.9, troncal, [], [], P_REG, banco_kvar=None)
     assert not any(v.escalones == ('regulador',) for v in vs)
     assert any('regulador' in a for a in avisos)
 
@@ -164,9 +167,35 @@ def test_elige_la_de_menor_costo_entre_las_que_cumplen():
     assert 'no cumple con la máxima' in motivos['mala'] and motivos['barata'] == ''
 
 
+@pytest.mark.parametrize('semilla', SEMILLAS)
+def test_primero_bancos_luego_seccion_luego_terna(semilla):
+    """063:RF-21, 063:RF-22 — INKA en SM218 (2026-11-01): 128 m de conductor salen más baratos que
+    los bancos, pero si los bancos ya dejan la red en norma, se quedan los bancos; solo se sube de
+    escalón si el anterior no cumple, y dentro del escalón gana la más barata."""
+    rng = random.Random(semilla)
+    assert eo.ORDEN[:3] == ('bancos', 'seccion', 'terna')
+    for _ in range(50):
+        precio = {e: rng.uniform(10, 1000) for e in ('b1', 'b2', 't', 'bs')}
+        bancos = [dict(_evaluada('b1', True, 1.0, precio['b1']), escalones=('bancos',)),
+                  dict(_evaluada('b2', True, 1.0, precio['b2']), escalones=('bancos',))]
+        seccion = dict(_evaluada('s', True, 1.0, min(precio.values()) / 2), escalones=('seccion',))
+        terna = dict(_evaluada('t', True, 1.0, precio['t']), escalones=('terna',))
+        mixta = dict(_evaluada('bs', True, 1.0, precio['bs']), escalones=('bancos', 'seccion'))
+        r = eo.elegir(bancos + [seccion, terna, mixta], P)
+        assert r['elegida'] == min(('b1', 'b2'), key=precio.get), semilla
+        motivos = {t['nombre']: t['motivo'] for t in r['tabla']}
+        assert 'no hace falta' in motivos['s'] and 'no hace falta' in motivos['t']
+        sin_bancos = [dict(b, maxima=False, motivos=['0,93 p.u.']) for b in bancos]
+        r = eo.elegir(sin_bancos + [seccion, terna, mixta], P)
+        assert r['elegida'] == 's', semilla              # la sección sola es la más barata del escalón
+    assert eo.rango(()) < eo.rango(('bancos',)) < eo.rango(('seccion',)) < eo.rango(('terna',))
+    assert eo.rango(('bancos', 'terna')) == eo.rango(('terna',))
+
+
 def test_ninguna_cumple_dice_la_mas_cercana():
-    """025:RF-56 — si ninguna cumple, no se elige ninguna y se dice la que más se acerca."""
-    r = eo.elegir([_evaluada('a', True, 0.5, 1), _evaluada('b', True, 0.9, 2),
+    """025:RF-56 — si ninguna cumple (ni con la máxima, 063:RF-33), no se elige ninguna y se dice
+    la que más se acerca."""
+    r = eo.elegir([_evaluada('a', False, 0.5, 1), _evaluada('b', False, 0.9, 2),
                    _evaluada('c', False, None, 0)], P)
     assert r['elegida'] is None and r['mas_cercana'] == 'b'
 
@@ -213,3 +242,102 @@ def test_el_libro_capex_pasa_a_la_moneda_de_trabajo_con_su_escala():
     with pytest.raises(eo.EscaleraError, match='escala_capex'):
         eo.costos_de_alternativas(libro, sin)
     assert eo.costos_de_alternativas({}, sin) == {}
+
+
+def test_sin_regulador_salvo_que_el_perfil_lo_pida():
+    """063:RF-26 (aclaración), 025:RF-44 — por defecto el regulador entra, al final del orden; un
+    perfil con ``escalera.con_regulador: false`` lo quita."""
+    rng = random.Random(SEMILLAS[0])
+    troncal = _troncal(rng, n=10, corriente=300.0)
+    carga = [{'barra': 'B', 'existe': True, 'indice_troncal': 9}]
+    sin, _ = eo.variantes('F1', 22.9, troncal, carga, _tipos(22.9), P_SIN_REG, banco_kvar=450, fuera_desde=4)
+    con, _ = eo.variantes('F1', 22.9, troncal, carga, _tipos(22.9), P, banco_kvar=450, fuera_desde=4)
+    assert not any('regulador' in v.escalones for v in sin)
+    assert any('regulador' in v.escalones for v in con)
+    assert any(v.escalones == ('bancos',) for v in sin)
+
+
+@pytest.mark.parametrize('semilla', SEMILLAS)
+def test_la_seccion_sube_de_una_en_una(semilla):
+    """063:RF-27 — SM218 (2026-11-01): el cambio de sección no salta a la mayor; las variantes de
+    sección van de la menor apta a la mayor, todas, y si cumplen varias se queda la menor."""
+    rng = random.Random(semilla)
+    kv = rng.choice([10.0, 22.9])
+    troncal = _troncal(rng)
+    carga = [{'barra': 'B', 'existe': True, 'indice_troncal': len(troncal) - 1}]
+    tipos = _tipos(kv)
+    vs, _ = eo.variantes('F1', kv, troncal, carga, tipos, P, banco_kvar=None)
+    secciones = [v for v in vs if v.escalones == ('seccion',)]
+    nombres = [v.obras[0]['tipo']['nombre'] for v in secciones]
+    aptos = [t['nombre'] for t in eo._conductores(tipos, kv, max(float(t['corriente_a']) for t in troncal))]
+    assert nombres == aptos and len(nombres) == len(set(nombres)), semilla
+    evaluadas = [{'nombre': v.nombre, 'maxima': True, 'fraccion': 1.0, 'escalones': v.escalones,
+                  'costo': {'costo_anual': 100.0 * (i + 1)}, 'motivos': []} for i, v in enumerate(secciones)]
+    if evaluadas:
+        assert eo.elegir(evaluadas, P)['elegida'] == secciones[0].nombre
+
+
+@pytest.mark.parametrize('semilla', SEMILLAS)
+def test_la_seccion_solo_cambia_los_tramos_mas_delgados(semilla):
+    """063:RF-30 — SM218 (2026-11-01): «sección CU 50 mm²» reemplazaba los 10,32 km y bajaba casi
+    toda la troncal; ahora cada conductor solo cambia los tramos de menor corriente nominal, y
+    no se propone si no mejora ninguno."""
+    rng = random.Random(semilla)
+    kv = 22.9
+    troncal = _troncal(rng)
+    tipos = _tipos(kv)
+    aptos = eo._conductores(tipos, kv, max(float(t['corriente_a']) for t in troncal))
+    if not aptos:
+        pytest.skip('sin conductor apto en el sorteo')
+    inoms = sorted({float(t['datos']['sline']) * 1000 for t in aptos})
+    for t in troncal:
+        t['inom_a'] = rng.choice([inoms[0] / 2, inoms[-1] * 2])         # delgado o más grueso que todos
+    carga = [{'barra': 'B', 'existe': True, 'indice_troncal': len(troncal) - 1}]
+    vs, _ = eo.variantes('F1', kv, troncal, carga, tipos, P, banco_kvar=None)
+    delgados = {t['nombre'] for t in troncal if t['inom_a'] < inoms[0]}
+    for v in (v for v in vs if v.escalones == ('seccion',)):
+        assert set(v.obras[0]['tramos']) == delgados, semilla
+    if not delgados:
+        assert not any(v.escalones == ('seccion',) for v in vs)
+
+
+@pytest.mark.parametrize('semilla', SEMILLAS)
+def test_obras_sobre_el_camino_electrico_de_la_carga(semilla):
+    """063:RF-32 — INKA en SM218 (2026-11-01) colgaba de un ramal a 17 km, no de la troncal más
+    larga: el camino se busca por la red, y sección y terna van sobre él; la sección solo cambia
+    sus tramos más delgados y que pueda llevar."""
+    rng = random.Random(semilla)
+    n = rng.randint(6, 40)
+    red = [{'nombre': f'L{i}', 'desde': f'B{rng.randrange(i)}' if i else 'CAB', 'hasta': f'B{i}',
+            'largo_m': rng.uniform(10, 900), 'corriente_a': rng.uniform(5, 80),
+            'inom_a': rng.choice([106.0, 140.0, 340.0])} for i in range(n)]
+    destino = f'B{n - 1}'
+    camino = eo.camino_electrico(red, 'CAB', destino)
+    assert camino and camino[0]['desde'] == 'CAB' and camino[-1]['hasta'] == destino, semilla
+    assert all(a['hasta'] == b['desde'] for a, b in zip(camino, camino[1:])), semilla
+    assert eo.camino_electrico(red, 'CAB', 'NO_EXISTE') == []
+    carga = [{'barra': destino, 'existe': True, 'indice_troncal': None, 'camino': camino}]
+    vs, _ = eo.variantes('F1', 22.9, [], carga, _tipos(22.9), P, banco_kvar=450)
+    nombres_camino = {t['nombre'] for t in camino}
+    for v in vs:
+        for o in v.obras:
+            if o['clase'] in ('terna', 'seccion'):
+                assert set(o['tramos']) <= nombres_camino, semilla
+            if o['clase'] == 'seccion':
+                nueva = next(float(t['datos']['sline']) * 1000 for t in _tipos(22.9)
+                             if t['nombre'] == o['tipo']['nombre'])
+                assert all(next(t for t in camino if t['nombre'] == n_)['inom_a'] < nueva for n_ in o['tramos'])
+    assert any(o['clase'] == 'terna' for v in vs for o in v.obras), semilla
+
+
+def test_con_solucion_en_la_maxima_no_se_pasa_a_otras_obras():
+    """063:RF-33 — SM218 (2026-11-01): banco + AA 120 mm² cumplía con la máxima y los sorteos daban
+    94,5 %; se elige la primera por prioridad, se avisa, y no se sigue a la terna ni a la SET nueva."""
+    tabla = [dict(_evaluada('banco+seccion', True, 0.945, 500.0), escalones=('bancos', 'seccion')),
+             dict(_evaluada('terna', True, 0.945, 300.0), escalones=('terna',)),
+             dict(_evaluada('banco', False, None, 50.0), escalones=('bancos',))]
+    r = eo.elegir(tabla, P)
+    assert r['elegida'] == 'banco+seccion' and r['sin_confirmar_sorteos'] is True
+    assert '063:RF-33' in next(t['motivo'] for t in r['tabla'] if t['nombre'] == 'banco+seccion')
+    sin_maxima = eo.elegir([_evaluada('a', False, None, 10.0)], P)
+    assert sin_maxima['elegida'] is None and 'sin_confirmar_sorteos' not in sin_maxima

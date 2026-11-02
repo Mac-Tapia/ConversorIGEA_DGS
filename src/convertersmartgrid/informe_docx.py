@@ -81,6 +81,16 @@ class DatosFactibilidad:
     imagenes: Mapping[str, Mapping[str, Path | None]] = field(default_factory=dict)
     fuentes: Sequence[str] = ()
     numero: str | None = None
+    #: 063:RF-7: demanda proyectada sin obras, medida en esta evaluación.
+    cargas: Caso | None = None
+    con_obras: bool = True
+    #: Datos de la ficha del solicitante; no son resultados del flujo.
+    ficha_punto: Mapping[str, float] = field(default_factory=dict)
+    #: El análisis del transformador de transmisión tiene su propio alcance (spec 017).
+    incluir_transformador_set: bool = True
+    #: Comparación de los balances medidos cuando no se evalúa una curva anual.
+    perdidas_instantaneas: bool = False
+    observaciones: Sequence[str] = ()
 
 
 # --------------------------------------------------------------------------- modelo
@@ -358,11 +368,12 @@ def _encabezado(e: _Escritor, enc: Encabezado) -> None:
         e.parrafo(f'\t\t{linea}')
 
 
-def _datos_fuente(e: _Escritor, caso: Caso, rotulo: str) -> None:
+def _datos_fuente(e: _Escritor, caso: Caso, rotulo: str, *, perdidas_red: bool = False) -> None:
     """La tabla «Carga Total» de la fuente y de las pérdidas (RF-15)."""
     e.parrafo(rotulo)
     filas = []
-    for nombre, p in (('Potencia desde la fuente', caso.fuente), ('Pérdidas en las líneas', caso.perdidas)):
+    for nombre, p in (('Potencia desde la fuente', caso.fuente),
+                      ('Pérdidas de la red' if perdidas_red else 'Pérdidas en las líneas', caso.perdidas)):
         if p is not None:
             filas.append([nombre, _f(p.kw, 2), _f(p.kvar, 2), _f(p.kva, 2), _f(p.fp_pct, 2)])
     e.tabla(['Carga total', 'kW', 'kVAR', 'kVA', 'FP (%)'], filas)
@@ -776,7 +787,15 @@ def escribir_informe_factibilidad(config: ConfigInforme, destino: Path, datos: D
         e.hueco('datos de la solicitud del formulario')
     else:
         for texto in antecedentes_factibilidad(s):
+            if not datos.incluir_transformador_set and texto.startswith('El transformador de la SET '):
+                continue
             e.parrafo(texto)
+        if s.potencia_actual_kw is not None:
+            incremento = s.potencia_kw - s.potencia_actual_kw
+            e.parrafo(f'Ampliación de {s.potencia_actual_kw:g} kW a {s.potencia_kw:g} kW '
+                      f'({incremento:+g} kW).')
+        if s.nis:
+            e.parrafo(f'Suministro NIS {s.nis}.')
 
     e.titulo('2. DESCRIPCIÓN')
     if s is None or not datos.fuentes:
@@ -784,6 +803,8 @@ def escribir_informe_factibilidad(config: ConfigInforme, destino: Path, datos: D
     else:
         for texto in descripcion_factibilidad(s, list(datos.fuentes)):
             e.parrafo(texto)
+    for texto in datos.observaciones:
+        e.parrafo(texto)
     actual_img = datos.imagenes.get('actual') or {}
     proy_img = datos.imagenes.get('proyectado') or {}
     e.titulo('2.1 VISTA TOPOLÓGICA Y UBICACIÓN')
@@ -793,16 +814,33 @@ def escribir_informe_factibilidad(config: ConfigInforme, destino: Path, datos: D
              .replace('  ', ' '))
     e.titulo(f'2.2.1 ESCENARIO ACTUAL DEL ALIMENTADOR {alimentador}'.rstrip())
     if not _sin_flujo(e, datos.actual):
-        _datos_fuente(e, datos.actual, 'Datos de la fuente en MD:')
+        _datos_fuente(e, datos.actual, 'Datos de la fuente en MD:',
+                      perdidas_red=datos.perdidas_instantaneas)
         _analisis_tension(e, '2.2.1.1 ANÁLISIS DE CAÍDA DE TENSIÓN', datos.actual, actual_img.get('tension'),
                           'estado actual', config)
         _analisis_carga(e, '2.2.1.2 ANÁLISIS DE CARGABILIDAD', datos.actual, actual_img.get('cargabilidad'),
                         'estado actual', config)
 
-    e.titulo('2.3 ESTADO PROYECTADO')
+    if datos.cargas is not None:
+        e.titulo('2.2.2 ESTADO PROYECTADO SIN OBRAS')
+        if not _sin_flujo(e, datos.cargas):
+            _datos_fuente(e, datos.cargas, 'Datos de la fuente en MD:',
+                          perdidas_red=datos.perdidas_instantaneas)
+            carga_img = datos.imagenes.get('cargas') or {}
+            _analisis_tension(e, '2.2.2.1 ANÁLISIS DE CAÍDA DE TENSIÓN', datos.cargas,
+                              carga_img.get('tension'), 'estado proyectado sin obras', config)
+            _analisis_carga(e, '2.2.2.2 ANÁLISIS DE CARGABILIDAD', datos.cargas,
+                            carga_img.get('cargabilidad'), 'estado proyectado sin obras', config)
+    e.titulo('2.3 ESTADO PROYECTADO CON OBRAS' if datos.cargas is not None
+             else '2.3 ESTADO PROYECTADO')
+    if datos.ficha_punto:
+        e.parrafo('Datos documentales del punto de diseño (ficha del solicitante):')
+        e.tabla(['Pcc (MVA)', 'UTM X (m)', 'UTM Y (m)'],
+                [[str(datos.ficha_punto.get(k, '')) for k in ('pcc_mva', 'utm_x', 'utm_y')]])
     proyectado = datos.proyectado
     if not _sin_flujo(e, proyectado):
-        _datos_fuente(e, proyectado, 'Datos de la fuente en MD:')
+        _datos_fuente(e, proyectado, 'Datos de la fuente en MD:',
+                      perdidas_red=datos.perdidas_instantaneas)
         e.titulo('2.3.1 ANÁLISIS DE CAÍDA DE TENSIÓN')
         e.parrafo('Datos en el punto de diseño:')
         p = datos.punto_diseno
@@ -825,7 +863,10 @@ def escribir_informe_factibilidad(config: ConfigInforme, destino: Path, datos: D
 
     e.titulo('2.5 ANÁLISIS DEL TRANSFORMADOR DE POTENCIA')
     d = datos.devanado
-    if s is None:
+    if not datos.incluir_transformador_set:
+        e.parrafo('Alcance: evaluación de la conexión en media tensión. La evaluación del '
+                  'transformador de transmisión no forma parte de este informe.')
+    elif s is None:
         e.hueco('datos de la SET del formulario')
     else:
         e.parrafo(texto_transformador(s, d, datos.caso_transmision, config.proyecto_transmision or ''))
@@ -838,9 +879,46 @@ def escribir_informe_factibilidad(config: ConfigInforme, destino: Path, datos: D
                  'cargabilidad del transformador de la SET', pie)
 
     e.titulo('3. CONCLUSIONES')
-    veredicto = veredicto_factibilidad(proyectado, [d] if d else None, config.limites)
+    conexion = None
+    if datos.cargas is not None:
+        from .informes import Veredicto, conclusion_factibilidad
+
+        conexion = conclusion_factibilidad(datos.actual, datos.cargas,
+                                           proyectado if datos.con_obras else None, config.limites)
+        excesos = [] if conexion.factible else list(conexion.violaciones)
+        if not conexion.factible:
+            excesos += [f'Requiere corregir el elemento {n}.' for n in conexion.elementos]
+        transmision = (veredicto_factibilidad(proyectado, [d] if d else None, config.limites)
+                       if datos.incluir_transformador_set else None)
+        if transmision is not None:
+            excesos += list(transmision.excesos)
+        veredicto = Veredicto(conexion.factible and (transmision is None or transmision.factible),
+                              tuple(dict.fromkeys(excesos)))
+    else:
+        veredicto = veredicto_factibilidad(proyectado, [d] if d else None, config.limites)
     if s is None:
         e.hueco('conclusiones: faltan los datos de la solicitud')
+    elif conexion is not None:
+        textos = {
+            'sin_obras': 'La conexión es factible sin obras: el estado actual y el proyectado '
+                         'sin obras cumplen los límites evaluados.',
+            'con_obras': 'La conexión es factible con las obras evaluadas, una vez ejecutadas y '
+                        'verificadas en campo.',
+            'requiere_refuerzo': 'La conexión no es factible sin refuerzo: se requiere corregir '
+                                'las violaciones de tensión o cargabilidad identificadas.',
+            'obras_insuficientes': 'Las obras evaluadas son insuficientes: la conexión no puede '
+                                  'aprobarse con la configuración estudiada.',
+            'no_converge': 'La evaluación no permite aprobar la conexión: al menos un caso no converge.',
+        }
+        e.parrafo(textos[conexion.clave])
+        if conexion.factible:
+            for texto in conexion.violaciones:
+                e.parrafo(f'Motivo de las obras: {texto}')
+        if conexion.factible and not veredicto.factible:
+            e.parrafo('La aceptación integral queda pendiente por los incumplimientos del '
+                      'transformador de transmisión que se detallan a continuación.')
+        for texto in veredicto.excesos:
+            e.parrafo(texto)
     else:
         for texto in conclusiones_factibilidad(s, veredicto, datos.codigo_punto or '', d):
             e.parrafo(texto)
@@ -850,6 +928,12 @@ def escribir_informe_factibilidad(config: ConfigInforme, destino: Path, datos: D
         'encabezado': {**asdict(enc), 'fecha': enc.fecha.isoformat()},
         'solicitud': ({**asdict(s), 'fecha_solicitud': s.fecha_solicitud.isoformat()} if s else None),
         'actual': asdict(datos.actual), 'proyectado': asdict(proyectado),
+        'cargas': asdict(datos.cargas) if datos.cargas is not None else None,
+        'conclusion_conexion': asdict(conexion) if conexion is not None else None,
+        'ficha_punto': dict(datos.ficha_punto),
+        'incluir_transformador_set': datos.incluir_transformador_set,
+        'perdidas_instantaneas': datos.perdidas_instantaneas,
+        'observaciones': list(datos.observaciones),
         'punto_diseno': dict(datos.punto_diseno or {}), 'codigo_punto': datos.codigo_punto,
         'perdidas': {'actual': asdict(datos.perdidas_actual) if datos.perdidas_actual else None,
                      'proyectado': asdict(datos.perdidas_proyectado) if datos.perdidas_proyectado else None},
@@ -876,6 +960,24 @@ def _perdidas(e: _Escritor, datos: DatosFactibilidad, config: ConfigInforme, ali
         e.huecos.append('libro de pérdidas de la empresa')
     else:
         e.huecos.extend(libro.faltan)
+    if datos.perdidas_instantaneas:
+        filas = []
+        for nombre, caso in (('Estado actual', datos.actual), ('Con cargas, sin obras', datos.cargas),
+                              ('Con proyecto', datos.proyectado)):
+            if caso is None:
+                continue
+            fuente, perdidas = caso.fuente, caso.perdidas
+            pct = (100 * perdidas.kw / fuente.kw
+                   if fuente is not None and perdidas is not None and fuente.kw > 0 else None)
+            filas.append([nombre, _f(fuente.kw if fuente else None, 2),
+                          _f(perdidas.kw if perdidas else None, 2),
+                          _f(perdidas.kvar if perdidas else None, 2), _f(pct, 2)])
+        e.tabla(['Escenario', 'Inyección neta total (kW)', 'Pérdidas activas (kW)',
+                 'Pérdidas reactivas (kvar)', 'Pérdidas activas (%)'], filas)
+        e.parrafo('Se muestran balances instantáneos calculados con inyecciones y consumos '
+                  'efectivos. No se anualizan las pérdidas ni se atribuyen costos sin una '
+                  'curva y un precio de energía verificados para este alcance.')
+        return
     e.parrafo('Pérdidas obtenidas en los escenarios del alimentador.')
     filas = []
     for nombre, p in (('ESTADO ACTUAL', datos.perdidas_actual), ('ESTADO PROYECTADO', datos.perdidas_proyectado)):

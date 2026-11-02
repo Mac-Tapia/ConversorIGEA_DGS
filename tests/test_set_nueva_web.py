@@ -52,6 +52,9 @@ def test_escalera_carga_a_carga_aplica_las_que_caben(monkeypatch):
 
     monkeypatch.setattr(services, '_cargas_nuevas_aplicadas', lambda ws, project: cargas)
     monkeypatch.setattr(services, 'obras_escalera', escalera)
+    # La búsqueda en DIgSILENT es la de respaldo cuando el oráculo no puede (052:RF-8).
+    monkeypatch.setattr(services, '_optimizar_con_oraculo',
+                        lambda *a, **k: (_ for _ in ()).throw(services._SinOraculo('prueba de la 042')))
     r = services.optimizar_con_proyecto(None, _Ctx(), 'P', ['NA203', 'NA205'])
 
     orden = sorted(cargas, key=lambda c: (-c['kw'], c['sed']))
@@ -183,6 +186,8 @@ def test_sin_dato_de_la_set_nueva_se_conserva_la_escalera(monkeypatch):
     """042:RF-8, 042:RF-12 — si a la SET nueva le falta un dato, se dice en su informe y el trabajo
     conserva lo que midió la escalera."""
     monkeypatch.setattr(services, 'optimizar_con_proyecto', lambda *a, **k: {'caben': 3, 'a_set_nueva': [{'sed': 'N'}]})
+    # 063:RF-34: la optimización suma las cargas aplicadas para el umbral de la SET nueva.
+    monkeypatch.setattr(services, '_cargas_nuevas_aplicadas', lambda ws, project: [])
 
     def falta(*_a, **_k):
         raise services.UserError('sin tasa de crecimiento de la spec 029 para NA203 (042:RF-8).')

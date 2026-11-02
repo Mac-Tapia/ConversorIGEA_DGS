@@ -108,3 +108,23 @@ def test_lo_guardado_con_el_nombre_anterior_se_sigue_leyendo(tmp_path):
     leido = PowerFactoryProjectBinding.from_dict(vinculo.as_dict())
     assert leido.binding_sha256 == vinculo.binding_sha256
     assert esquema_vigente(leido.schema_version) == BINDING_SCHEMA
+
+
+def test_casos_y_biblioteca_de_antes_del_cambio_de_nombre():
+    """058:RF-9: los casos marcados con el nombre anterior se reconocen (NA203 + NA205 y SM218,
+    2026-11-01: «falta Con proyecto») y al volver a marcarlos queda solo la marca nueva."""
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
+    import casos_pf
+    from convertersmartgrid.util import NOMBRES_ANTERIORES_PF
+
+    class Caso:
+        loc_name = 'Con proyecto'
+        desc = ['nota del operador', casos_pf.MARCA_ANTERIOR + 'con']
+
+    caso = Caso()
+    assert casos_pf.rol_de(caso) == 'con'
+    casos_pf._marcar(caso, 'con')
+    assert caso.desc == ['nota del operador', casos_pf.MARCA + 'con']
+    assert NOMBRES_ANTERIORES_PF['CSG_Biblioteca_tipos'].endswith('_Biblioteca_tipos')

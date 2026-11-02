@@ -550,14 +550,15 @@ def test_la_escalera_elige_la_mas_barata_que_cumple_y_aplica_solo_esa(tmp_path, 
     (_args, ev), = [x for x in planes if '--evaluar' in x[0]]
     assert len(ev['sorteos']) == 20 and ev['anio_casos'] == ANIO and ev['barras_cargas'] == ['F1_B4']
     motivos = {t['nombre']: t['motivo'] for t in f1['tabla']}
-    assert any(n.startswith('regulador') and 'sin costo' in m for n, m in motivos.items())
+    assert any(n.startswith('regulador') and 'sin costo' in m for n, m in motivos.items())   # 025:RF-44
     assert any(n.startswith('bancos') and 'no cumple con la máxima' in m for n, m in motivos.items())
-    assert any(n.startswith('terna') and 'cuesta más' in m for n, m in motivos.items())
+    assert any(n.startswith('terna') and 'no hace falta' in m for n, m in motivos.items())   # 063:RF-22
 
 
 def test_la_escalera_no_pone_bancos_en_el_nodo_que_crea_la_variacion_de_la_carga(tmp_path, monkeypatch):
     """025:RF-44 — si DIgSILENT dice que la barra de la carga nueva no existe sin ella (un
-    NODE_T_ de su variación), no hay variante con bancos; el regulador sigue en la escalera."""
+    NODE_T_ de su variación) y la lectura no da barra existente en su tramo, no hay variante con
+    bancos; el regulador sigue en la escalera (025:RF-44)."""
     def evaluar(nombre):
         return {'nombre': nombre, 'maxima': True, 'fraccion': 1.0, 'perdidas_kw': 10.0, 'motivos': []}
 
@@ -573,13 +574,14 @@ def test_la_escalera_no_pone_bancos_en_el_nodo_que_crea_la_variacion_de_la_carga
 
 
 def test_la_escalera_sin_ninguna_que_cumpla_no_aplica_nada(tmp_path, monkeypatch):
-    """025:RF-56 — si ninguna variante cumple, no se aplica ninguna y se dice la más cercana."""
+    """025:RF-56 — si ninguna variante cumple, no se aplica ninguna y se dice la más cercana. La que
+    cumple con la máxima no tiene costo, así que 063:RF-33 tampoco la elige."""
     def evaluar(nombre):
         return {'nombre': nombre, 'maxima': nombre.startswith('terna'), 'fraccion': 0.5,
                 'perdidas_kw': None, 'motivos': ['no converge']}
 
     services, ws, ctx, _planes, aplicadas, _apartadas = _escalera_falsa(
-        tmp_path, monkeypatch, evaluar, {'nueva_terna': 40000})
+        tmp_path, monkeypatch, evaluar, {'bancos': 9000})
     (f1,) = services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=ANIO)['alimentadores']
     assert f1['elegida'] is None and f1['mas_cercana'].startswith('terna') and aplicadas == []
     assert any('025:RF-56' in a for a in f1['avisos'])

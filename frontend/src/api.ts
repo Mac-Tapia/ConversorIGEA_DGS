@@ -364,6 +364,7 @@ export const api = {
   asistenteEntrenar: (id: string) => request<Job>(`${ws(id)}/asistente/entrenar`, { method: 'POST' }),
   asistenteRegistro: () => request<Record<string, unknown[]>>('/api/asistente/registro'),
   asistenteModelos: () => request<import('./types').EstadoModelos>('/api/asistente/modelos'),
+  asistenteMonitor: (id: string) => request<import('./types').MonitorAgenteEstado>(`/api/workspaces/${id}/asistente/monitor`),
   asistenteAceptacion: () => request<import('./asistenteAceptacion').EstadoAceptacionAgente>('/api/asistente/aceptacion'),
   // 027:RF-43, RF-44: el proyecto entero desde el espacio, con puntos de control.
   agenteProyecto: (id: string, body: { sistema: string; periodo: string; ruta?: string; ruta_cargas?: string; reiniciar?: boolean }) =>

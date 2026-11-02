@@ -796,6 +796,25 @@ def fallos_de_particion(grupos: Mapping[str, Sequence[Muestra]]) -> list[str]:
     return []
 
 
+def separar_calibracion(grupos: Mapping[str, Sequence[Muestra]]) -> dict[str, list[Muestra]]:
+    """060:RF-2: reserva familias completas de validación antes de cualquier ajuste."""
+    salida = {k: list(v) for k, v in grupos.items()}
+    familias = sorted({(red_de(m), m.familia or '') for m in grupos['validacion']})
+    reservadas = set(familias[::2])
+    salida['calibracion'] = [m for m in grupos['validacion'] if (red_de(m), m.familia or '') in reservadas]
+    salida['validacion'] = [m for m in grupos['validacion'] if (red_de(m), m.familia or '') not in reservadas]
+    return salida
+
+
+def herencia_independiente(previas: Mapping | None, actuales: Mapping) -> bool:
+    """060:RF-3: pesos sin genealogía demostrada no transfieren una prueba independiente."""
+    if not previas or not previas.get('entrenamiento') or not previas.get('validacion'):
+        return False
+    vistas = set(previas['entrenamiento']) | set(previas['validacion'])
+    reservadas = set(actuales['calibracion']) | set(actuales['prueba'])
+    return not bool(vistas & reservadas)
+
+
 def elegir_exponente(muestras: Sequence[Muestra], candidatos: Sequence[float] = (0.0, 1.0, 2.0),
                      fisica: str = 'mallado') -> float:
     """El modelo de carga que mejor reproduce a DIgSILENT con la física de la base.
@@ -833,7 +852,7 @@ def manifiesto(cfg: Entrenamiento, ids: Sequence[str], grupos: Mapping[str, Sequ
     de su contenido), commit, configuración, semillas, dispositivo, de qué modelo parte y el
     error por familia de la partición de evaluación."""
     torch = _torch()
-    evaluacion = grupos.get('prueba') or grupos.get('validacion') or grupos.get('entrenamiento') or []
+    evaluacion = grupos.get('prueba') or []
     por_familia: dict[str, list[Muestra]] = {}
     for m in evaluacion:
         por_familia.setdefault(m.familia or '—', []).append(m)
@@ -861,16 +880,20 @@ def reproducir(bufer: BuferEpisodios, version: str, log: Callable[[str], None] =
     pares = [(m, i) for i in man['episodios'] if (m := muestra_de_episodio(bufer.leer(i))) is not None]
     muestras = [m for m, _i in pares]
     cfg = Entrenamiento(**man['cfg'])
-    grupos = _grupos(muestras, [i for _m, i in pares], man.get('sistema'))
-    if not grupos['entrenamiento']:
-        grupos['entrenamiento'] = list(grupos['validacion'])
+    if meta.get('particiones_ids'):
+        por_id = {i: m for m, i in pares}
+        grupos = {k: [por_id[i] for i in v] for k, v in meta['particiones_ids'].items()}
+    else:
+        grupos = _grupos(muestras, [i for _m, i in pares], man.get('sistema'))
+    if not all(grupos.get(k) for k in ('entrenamiento', 'validacion', 'prueba')):
+        raise ValueError('no se reproduce ajustando con particiones de respaldo (060:RF-1)')
     inicial = cargar(bufer, man['parte_de']) if man.get('parte_de') else None
     estados = [entrenar_miembro(grupos['entrenamiento'], Entrenamiento(**{**cfg.__dict__, 'semilla': s}),
                                 inicial.estados[k] if inicial and k < len(inicial.estados) else None,
                                 log, validacion=grupos['validacion'])
                for k, s in enumerate(man['semillas'])]
     candidato = OraculoPINN(estados, cfg, meta['dominio'])
-    evaluacion = grupos['prueba'] or grupos['validacion'] or grupos['entrenamiento']
+    evaluacion = grupos['prueba']
     error = mae(candidato, evaluacion)
     diferencia = abs((error or 0.0) - (meta.get('mae_v') or 0.0))
     gpu = torch.cuda.get_device_name(0) if torch.cuda.is_available() else None
@@ -906,9 +929,30 @@ def entrenar(bufer: BuferEpisodios, *, consulta: Consulta | None = None, cfg: En
         return {'entrenado': False, 'auditoria': auditoria,
                 'motivo': 'dataset con valores no finitos: ' + ', '.join(
                     f"{x['episodio']} ({x['campo']})" for x in auditoria['no_finitos'][:10])}
-    grupos = _grupos(muestras, ids, sistema)                             # 027:RF-2, RF-68
-    if not grupos['entrenamiento']:
-        grupos['entrenamiento'] = list(grupos['validacion'])
+    grupos = separar_calibracion(_grupos(muestras, ids, sistema))
+    fallos = fallos_de_particion(grupos)
+    for parte in ('entrenamiento', 'validacion', 'calibracion'):
+        if not grupos[parte]:
+            fallos.append(f'sin partición independiente de {parte} (060:RF-1)')
+    asignadas = [id(m) for ms in grupos.values() for m in ms]
+    if len(asignadas) != len(set(asignadas)):
+        fallos.append('muestras compartidas entre particiones (060:RF-2)')
+    familias_asignadas: dict[tuple[str, str], str] = {}
+    for parte, ms in grupos.items():
+        for m in ms:
+            clave = (red_de(m), m.familia or '')
+            if clave in familias_asignadas and familias_asignadas[clave] != parte:
+                fallos.append('familia compartida entre particiones (060:RF-2)')
+                break
+            familias_asignadas[clave] = parte
+    if fallos:
+        return {'entrenado': False, 'promovido': False, 'status': 'BLOQUEADO_POR_DATOS',
+                'fallos': fallos, 'motivo': '; '.join(fallos),
+                'particiones': {k: len(v) for k, v in grupos.items()}}
+    identidades = {id(m): i for m, i in zip(muestras, ids, strict=True)}
+    particiones_ids = {k: [identidades[id(m)] for m in ms] for k, ms in grupos.items()}
+    particiones_familias = {k: sorted({red_de(m) + ':' + (m.familia or '') for m in ms})
+                           for k, ms in grupos.items()}
     actual = cargar(bufer)
     # Sin configuración, la del modelo en uso; sus pesos solo valen con la misma arquitectura.
     cfg = cfg or (actual.cfg if actual else Entrenamiento())
@@ -919,6 +963,17 @@ def entrenar(bufer: BuferEpisodios, *, consulta: Consulta | None = None, cfg: En
     log(f'Gemelo: física {cfg.fisica}, modelo de carga S0·|V|^{cfg.exponente_carga:g}')
     compatible = actual is not None and (actual.cfg.ocultas, actual.cfg.pasos, actual.cfg.fisica, actual.cfg.arquitectura) == \
         (cfg.ocultas, cfg.pasos, cfg.fisica, cfg.arquitectura)
+    previas = previas_familias = None
+    if actual is not None:
+        anterior = json.loads((_raiz_modelos(bufer) / actual.version / 'modelo.json').read_text(encoding='utf-8'))
+        # También conserva el linaje acumulado: no basta mirar la última época.
+        previas = anterior.get('ajuste_acumulado_ids')
+        previas_familias = anterior.get('ajuste_acumulado_familias')
+    independiente = (herencia_independiente(previas, particiones_ids)
+                     and herencia_independiente(previas_familias, particiones_familias))
+    compatible = compatible and independiente
+    if actual is not None and not compatible:
+        log('Gemelo: ajuste desde cero; arquitectura o genealogía no acreditan herencia independiente')
     x_all = np.concatenate([m.x for m in grupos['entrenamiento']])
     dominio = {'x_min': x_all.min(axis=0).tolist(), 'x_max': x_all.max(axis=0).tolist(),
                'nodos': [min(len(m.ids) for m in grupos['entrenamiento']),
@@ -933,18 +988,26 @@ def entrenar(bufer: BuferEpisodios, *, consulta: Consulta | None = None, cfg: En
                                         inicial, log, validacion=grupos['validacion'],
                                         historial=curvas[-1]))
     candidato = OraculoPINN(estados, cfg, dominio)
-    # 027:RF-12: el intervalo se calibra con la validación, que no se usó para los pesos.
-    calibracion = grupos['validacion'] or grupos['entrenamiento']
+    # 060:RF-2: calibración apartada también de la selección por parada temprana.
+    calibracion = grupos['calibracion']
     candidato.cuantil = calibrar_conforme(candidato, calibracion)
-    evaluacion = grupos['prueba'] or grupos['validacion'] or grupos['entrenamiento']
+    evaluacion = grupos['prueba']
     error = mae(candidato, evaluacion)
     man = manifiesto(cfg, ids, grupos, candidato, actual.version if compatible else None)   # 027:RF-8
     man['sistema'] = sistema
+    man['particiones_ids'] = particiones_ids
+    man['particiones_familias'] = particiones_familias
     residuos = [float(np.mean(candidato.predecir(_grafo_de_muestra(m))['residuo'])) for m in evaluacion]
     dorados_m = [m for m, i in zip(muestras, ids, strict=True) if i in set(dorados)]
     error_dorados = mae(candidato, dorados_m) if dorados_m else None
     error_dorados_actual = mae(actual, dorados_m) if actual and dorados_m else None
     meta = {'consulta': consulta.__dict__, 'episodios': ids, 'mae_v': error,
+            'particiones_ids': particiones_ids,
+            'ajuste_acumulado_ids': {k: sorted(set(particiones_ids[k]) | (set(previas[k]) if compatible else set()))
+                                    for k in ('entrenamiento', 'validacion')},
+            'ajuste_acumulado_familias': {k: sorted(set(particiones_familias[k]) |
+                (set(previas_familias[k]) if compatible else set())) for k in ('entrenamiento', 'validacion')},
+            'herencia': {'usada': compatible, 'independencia_acreditada': independiente},
             'residuo_medio': float(np.mean(residuos)), 'mae_dorados': error_dorados,
             'particiones': {k: len(v) for k, v in grupos.items()},
             # 027:RF-5: la mejor época de cada miembro y su curva de validación.
