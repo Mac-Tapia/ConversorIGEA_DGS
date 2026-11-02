@@ -41,6 +41,8 @@ Este cierre solo acredita los trabajadores/contratos de T7, no T3, 047 T7 ni 050
 
 - [x] T6. Instalar y verificar bibliotecas y pesos faltantes del catálogo local. (RF-12)
       Hecho cuando: el catálogo fijado, las pruebas de preparación, las descargas completas y las operaciones reales de bibliotecas/modelos tienen informes; `pip check` pasa sin cambiar las versiones previas del núcleo. Descargar no cierra entrenamiento, integración o aceptación eléctrica.
+- [x] T8. Orden que construye el dataset y dice si está completo. (RF-14, RF-15)
+      Hecho cuando: `pytest -q tests/test_construir_dataset_entrenamiento.py` en verde.
 
 T5: siete pruebas con Git y subprocesos reales pasaron; se verificaron las nueve
 copias públicas. Catálogo y reproducción en [reutilización GitHub](../../docs/REUSO_GITHUB_IA_2026-10-31.md).

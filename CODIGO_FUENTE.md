@@ -241,6 +241,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `tools/compare_schema.py` | Cabeceras de un DGS externo frente a un perfil de esquema. | 034 (RF-33) |
 | `tools/cabecera_ancha.py` | Herramienta de la spec 051: pasa la medición de cabecera a lo ancho o las máximas mensuales al formato de la calibración, con `NOMBRE_EN_DIGSILENT=CODIGO`. | 051 (RF-8) |
 | `tools/estado_specs.py` | Estado de las specs: lee numeración, tareas, estado y citas de las pruebas, y escribe `specs/README.md`. | 033 (RF-1 a RF-22) |
+| `tools/construir_dataset_entrenamiento.py` | Construye el dataset de entrenamiento en una carpeta nueva y dice si está completo con los umbrales de la spec 027. | 043 |
 | `tools/construir_dataset_pide.py` | Construye el corpus PIDE universal de una empresa con `pide_dataset`. | 024 |
 | `tools/convertir_grupos_mdb.py` | Varios alimentadores de una base en un DGS, importado y con flujo, a escala real por defecto. | 034, 021 |
 | `tools/fidelidad_seleccion.py` | Comprueba que una selección pasa entera del TXT al DGS. | 009 |

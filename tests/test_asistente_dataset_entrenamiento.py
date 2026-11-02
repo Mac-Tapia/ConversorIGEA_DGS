@@ -58,8 +58,13 @@ def test_episodio_vigente_se_valida_con_su_contrato():
     from test_digital_twin_episode import _payload
     from convertersmartgrid.asistente.dataset_entrenamiento import normalizar_episodio
     payload = _payload()
-    payload['topologia']['sets'] = ['SET1']
+    # Sin ``topologia.sets``: el sistema nunca lo escribe, y exigirlo mandaba a cuarentena los 66
+    # episodios aceptados del buffer real (2026-11-02). Esta prueba lo añadía a mano y lo ocultaba.
+    assert 'sets' not in payload['topologia']
     assert normalizar_episodio(payload).quality == 'gold_native'
+    # Sin alimentadores no se puede agrupar para evitar fugas entre particiones.
+    payload['nativo']['feeders'] = []
+    assert normalizar_episodio(payload).quality == 'quarantine'
 
 
 def test_partition_keeps_group_together_and_excludes_quarantine():
@@ -169,3 +174,28 @@ def test_identidad_explicita_prevalece_sobre_nombre_de_red(tmp_path):
     ]}), encoding='utf-8')
     assert set(descubrir_alimentadores_inventarios(tmp_path)) == {
         'Ramal rural/Sur', 'Identificador-no-convencional'}
+
+
+def test_episodios_de_un_alimentador_no_se_reparten_entre_particiones():
+    """043:RF-4 — SM218, NA203, AL105 y CA101 caían en varias particiones (2026-11-02): se evaluaba
+    con redes ya vistas al entrenar, y la auditoría no lo veía. Van juntos, y la auditoría lo vigila."""
+    from dataclasses import replace
+
+    from convertersmartgrid.asistente.calidad_datos import auditar_contaminacion
+    from convertersmartgrid.asistente.dataset_entrenamiento import normalizar_episodio, particionar_dataset
+
+    registros = []
+    for i in range(40):
+        fila = _episode()
+        fila['episode_id'] = f'{i:064d}'
+        fila['fuente']['source_run_id'] = f'run-{i}'
+        fila['nativo']['feeders'] = ['SM218'] if i % 2 else ['SM218', f'OTRO{i}']
+        fila['accion']['tipo'] = f'tarea{i}'
+        registros.append(normalizar_episodio(fila))
+    partes = particionar_dataset(registros)
+    assert sorted(len(v) for v in partes.values()) == [0, 0, 40], 'todos comparten SM218'
+    assert auditar_contaminacion(partes)['valid'] is True
+    # Un reparto que los separa no se publica.
+    a, b = registros[0], replace(registros[1], record_id='x')
+    informe = auditar_contaminacion({'train': (a,), 'test': (b,)})
+    assert informe['valid'] is False and 'SM218' in informe['feeder_leaks']

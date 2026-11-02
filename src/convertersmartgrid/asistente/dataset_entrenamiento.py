@@ -159,7 +159,9 @@ def normalizar_episodio(payload: dict[str, Any]) -> RegistroEntrenamiento:
         from ..digital_twin.episode import Clase, EpisodioInvalido, leer_episodio
         try:
             episodio = leer_episodio(payload)
-            accepted = (episodio.clase is Clase.ACCEPTED and bool(sets)
+            # Sin exigir ``sets``: ningún episodio real lo escribe, y los 66 aceptados del buffer
+            # (2026-11-02) iban a cuarentena. ``particionar_dataset`` agrupa por alimentador.
+            accepted = (episodio.clase is Clase.ACCEPTED and bool(alimentadores)
                         and nativo.get('reopen_verified') is True and not aceptacion.get('bloqueos'))
         except EpisodioInvalido:
             accepted = False
@@ -444,7 +446,15 @@ def particionar_dataset(
 
     por_grupo: dict[str, int] = {}
     por_texto: dict[str, int] = {}
+    # 043:RF-4: los episodios de un alimentador van juntos. Con ``group_id`` solo, SM218, NA203, AL105
+    # y CA101 caían en varias particiones (2026-11-02), y se evaluaba con redes ya vistas al entrenar.
+    por_alimentador: dict[str, int] = {}
     for i, registro in enumerate(elegibles):
+        if registro.tipo == 'episodio':
+            for alimentador in registro.alimentadores:
+                if alimentador in por_alimentador:
+                    unir(i, por_alimentador[alimentador])
+                por_alimentador.setdefault(alimentador, i)
         texto = texto_canonico(registro.texto)
         for clave, indice in ((registro.group_id, por_grupo.get(registro.group_id)),
                               (texto, por_texto.get(texto))):

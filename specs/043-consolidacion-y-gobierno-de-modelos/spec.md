@@ -28,6 +28,8 @@ Dependencias y relación: 024, 026 y 027; integración selectiva del worktree de
 ## Requisitos no funcionales
 
 - RF-13: CUANDO el coordinador invoque un trabajador de entrenamiento o evaluación, EL SISTEMA usará un entrypoint existente con argumentos compatibles, conservará informe atómico de éxito, bloqueo o error, y distinguirá operación ejecutada de promoción, sin descargar datos ni activar candidatos implícitamente.
+- RF-14: EL SISTEMA construirá el dataset de entrenamiento con una orden propia, en una carpeta nueva, sin pisar el anterior.
+- RF-15: CUANDO se construya el dataset, EL SISTEMA dirá si está completo, y qué falta, midiendo solo datos reales revisados frente a los umbrales de la spec 027.
 
 - RF-12: CUANDO se preparen dependencias y pesos locales, EL SISTEMA conservará versiones, revisiones, licencias, tamaños y hashes de los modelos seleccionados; verificará archivos completos y disponibilidad local sin activar candidatos ni declarar aceptación por descargarlos. Los fallos se guardarán con salida no exitosa y sin eliminar descargas parciales. La instalación de paquetes conservará las versiones existentes del núcleo y acreditará imports y operaciones reales.
 

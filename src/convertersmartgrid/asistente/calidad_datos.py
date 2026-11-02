@@ -42,6 +42,7 @@ def auditar_contaminacion(
     """Detecta fuga exacta y de grupo antes de publicar train/validation/test."""
     por_texto: dict[str, set[str]] = defaultdict(set)
     por_grupo: dict[str, set[str]] = defaultdict(set)
+    por_alimentador: dict[str, set[str]] = defaultdict(set)
     desconocidas: set[str] = set()
     filas = []
     for nombre, registros in particiones.items():
@@ -49,16 +50,21 @@ def auditar_contaminacion(
             filas.append(registro)
             por_texto[texto_canonico(getattr(registro, 'texto', ''))].add(nombre)
             por_grupo[str(getattr(registro, 'group_id', ''))].add(nombre)
+            if getattr(registro, 'tipo', '') == 'episodio':                # 043:RF-4
+                for alimentador in getattr(registro, 'alimentadores', ()) or ():
+                    por_alimentador[str(alimentador)].add(nombre)
             calidad = str(getattr(registro, 'quality', ''))
             if calidad not in CALIDADES:
                 desconocidas.add(calidad)
     exactas = _leaks(por_texto)
     grupos = _leaks(por_grupo)
+    alimentadores = _leaks(por_alimentador)
     unknown = sorted(desconocidas)
     return {
-        'valid': not exactas and not grupos and not unknown,
+        'valid': not exactas and not grupos and not alimentadores and not unknown,
         'exact_text_leaks': exactas,
         'group_leaks': grupos,
+        'feeder_leaks': alimentadores,
         'unknown_qualities': unknown,
         **resumir_calidad(filas),
     }
