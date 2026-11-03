@@ -29,6 +29,7 @@ from .digital_twin.evolutivo import _nombre_corto, nsga2
 from .digital_twin.oraculo import S_BASE, muestra, sistema_de
 from .escalera_optima import Parametros, Variante, cumple, rango as rango_escalon
 from .estudios_pf import CON_PROYECTO
+from .instalacion_ternas import capacidad_de_tramos
 from .valle import CASOS_CARGAS, anotar_punto, sin_comprobar
 
 #: Por debajo de esta tensión nominal una barra es de baja (la de cada SED): no la juzga la escalera.
@@ -104,6 +105,10 @@ class Oraculo:
                     r['r_ohm'] = float(r.get('r_ohm') or 0.0) / 2
                     r['x_ohm'] = float(r.get('x_ohm') or 0.0) / 2
                     r['inom_ka'] = float(r.get('inom_ka') or 0.0) * 2
+                    # 084:RF-16: con la capacidad del fabricante para esa configuración, no el doble del tipo.
+                    capacidad = (o.get('capacidad_terna_a') or {}).get(str(nombre))
+                    if capacidad:
+                        r['inom_ka'] = float(capacidad) * 2 / 1000
                     continue
                 tipo = self.tipos.get(str((o.get('tipo') or {}).get('nombre')))
                 largo = r.get('largo_km')
@@ -119,7 +124,8 @@ class Oraculo:
     def _sistema(self, obras: Sequence[Mapping[str, Any]], avisos: list[str]):
         """La red factorizada de las obras que cambian impedancia, una vez por combinación."""
         clave = tuple(sorted((o.get('clase'), tuple(o.get('tramos') or ()),
-                              str((o.get('tipo') or {}).get('nombre')))
+                              str((o.get('tipo') or {}).get('nombre')),
+                              tuple(sorted((o.get('capacidad_terna_a') or {}).items())))
                              for o in obras if o.get('clase') in ('terna', 'seccion')))
         if clave not in self._sistemas:
             ramas = self._ramas_con(obras, avisos)
@@ -411,6 +417,7 @@ class Espacio:
     modulos_max: int
     tramos: Sequence[Mapping[str, Any]]          # troncal: ``nombre`` y ``largo_m``
     secciones: Sequence[Mapping[str, Any]] = ()  # tipos aptos (``nombre``, ``origen``, ``proyecto``)
+    ternas: Mapping[str, Any] | None = None      # 084:RF-16: ``planificacion.ternas_subterraneas``
 
     def opciones_tramo(self) -> list[str]:
         return ['nada', 'terna', *[f"seccion:{s['nombre']}" for s in self.secciones]]
@@ -429,7 +436,7 @@ class Espacio:
         ternas = [t for t, o in zip(self.tramos, por_tramo, strict=True) if o == 'terna']
         if ternas:
             obras.append({'clase': 'terna', 'alimentador': self.alimentador, 'casos': [CON_PROYECTO],
-                          'tramos': [t['nombre'] for t in ternas]})
+                          'tramos': [t['nombre'] for t in ternas], **capacidad_de_tramos(ternas, self.ternas)})
             cantidades['terna'] = sum(float(t.get('largo_m') or 0.0) for t in ternas) / 1000
             nombre.append(f'terna en {len(ternas)} tramo(s)')
         por_tipo: dict[str, list] = {}

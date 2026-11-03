@@ -14,6 +14,7 @@
   "raices_llm": [],
   "_comentario_carpeta": "Carpeta de DIgSILENT de los proyectos importados (spec 005). Sin ella, «ConverterSmartGrid».",
   "carpeta_proyectos_pf": "ConverterSmartGrid",
+  "_comentario_084": "Spec 084, dentro de planificacion: sitio_set {retiro_min_m, calles_geojson (GeoJSON local)} y ternas_subterraneas {configuracion: ducto|triangular|rectangular, capacidad_a: {<tipo>: {<configuracion>: amperios del fabricante}}}. Sin ellos no se supone nada y se avisa.",
   "_comentario_estudios": "Límites con que los estudios juzgan tensiones y cargabilidad (spec 011, RF-35). Sin esta clave se usan 0,95 – 1,05 p.u. y 100 %; el operador los puede cambiar antes de ejecutar.",
   "estudios": {
     "tension_min_pu": 0.95,

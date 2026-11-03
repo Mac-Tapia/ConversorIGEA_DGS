@@ -34,6 +34,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Any, Callable, Iterable, Mapping, Sequence
 
 from .estudios_pf import CASO_BASE, CON_PROYECTO, SIN_PROYECTO
+from .instalacion_ternas import CONFIGURACIONES
 from .naming import feeder_short_name, nombre_con_tension, sufijo_tension
 from .troncal import Red, TroncalError, aguas_abajo
 
@@ -202,6 +203,8 @@ class Obra:
     unidades: int | None = None
     #: Nombre de la SET nueva que da el operador (052:RF-19), p. ej. «SET COPARA».
     nombre_set: str = ''
+    #: Terna subterránea: «ducto», «triangular» o «rectangular» (084:RF-12); sin ella, la del perfil.
+    configuracion: str = ''
     """SET nueva: transformadores iguales en paralelo; sin dato, uno (042:RF-14)."""
 
     def a_dict(self) -> dict[str, Any]:
@@ -418,7 +421,11 @@ def validar_obra(datos: Mapping[str, Any]) -> Obra:
                     tipo=_tipo_ref(datos.get('tipo'), clase, requerido=True),
                     tipo_cable=_tipo_ref(datos.get('tipo_cable'), clase, requerido=False))
     if clase == 'terna':
-        return Obra(**comunes, tramos=_lista(datos.get('tramos')))
+        configuracion = str(datos.get('configuracion') or '').strip().lower()
+        if configuracion and configuracion not in CONFIGURACIONES:
+            raise ObrasError(f'La configuración de las ternas es una de {", ".join(CONFIGURACIONES)}: '
+                             f'no {configuracion!r} (084:RF-13).')
+        return Obra(**comunes, tramos=_lista(datos.get('tramos')), configuracion=configuracion)
     if clase == 'enlace':
         cede = _texto(datos, 'cede', 'el alimentador que cede')
         if cede == comunes['alimentador']:

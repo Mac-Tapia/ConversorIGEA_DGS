@@ -58,6 +58,48 @@ class PFNoDisponible(RuntimeError):
     """No se puede hablar con DIgSILENT: sin API, ocupado más del límite o abierto a mano."""
 
 
+class BorradoFueraDeProyecto(RuntimeError):
+    """Se pidió borrar un objeto que no es del proyecto de la orden (084:RF-24)."""
+
+
+def exigir_fuera_de_pruebas(modulo: Any, entorno: Any = None) -> None:
+    """Una prueba no llega al DIgSILENT real (084:RF-21, RF-22).
+
+    Las pruebas corren con datos sintéticos y el doble ``tests/fake_pf.py``. Con la API real esos datos
+    dejarían proyectos en la base del operador, y no le prueban nada (usuario, 2026-10-01: «no hagas la
+    prueba con datos no reales»). ``PYTEST_CURRENT_TEST`` lo heredan también los guiones que lanza una
+    prueba; lo real se reconoce por ser la extensión compilada, que un doble nunca es.
+    """
+    entorno = os.environ if entorno is None else entorno
+    if entorno.get('PYTEST_CURRENT_TEST') and Path(getattr(modulo, '__file__', '') or '').suffix.lower() == '.pyd':
+        raise PFNoDisponible('Una prueba con datos sintéticos no se conecta al DIgSILENT real (084:RF-21); '
+                             'en DIgSILENT se prueba desde la web y con un proyecto importado.')
+
+
+def proyecto_de(obj: Any) -> Any:
+    """El ``IntPrj`` que contiene el objeto, o ``None`` si está fuera de todo proyecto."""
+    actual = obj
+    while actual is not None:
+        if actual.GetClassName() == 'IntPrj':
+            return actual
+        actual = actual.GetParent()
+    return None
+
+
+def borrar_en_su_proyecto(obj: Any, proyecto: Any) -> Any:
+    """``Delete`` solo si ``obj`` es del proyecto de la orden; si no, no se ejecuta (084:RF-24).
+
+    Borrar en DIgSILENT no se deshace: una orden de limpiar un proyecto, aplicada también a otro, se
+    llevó una SET nueva que era la obra planificada de ese otro (2026-11-01) y hubo que recrearla.
+    """
+    dueno = proyecto_de(obj)
+    if proyecto is None or dueno is None or dueno.GetFullName() != proyecto.GetFullName():
+        raise BorradoFueraDeProyecto(
+            f"{getattr(obj, 'loc_name', obj)!r} es de {getattr(dueno, 'loc_name', None)!r}, no del proyecto de la "
+            f"orden {getattr(proyecto, 'loc_name', None)!r}: no se borra (084:RF-24).")
+    return obj.Delete()
+
+
 def _terminar_proceso(pid: int, codigo: int) -> None:
     """Termina ``pid`` con ``codigo``: en Windows con ``TerminateProcess``, que lo deja como
     código de salida; en otro sistema, con ``SIGKILL``."""
@@ -415,6 +457,7 @@ def conectar(guion: str, *, espera_s: float = ESPERA_S, modulo: Any = None,
     salida_sin_bufer()                                                     # RF-15
     if modulo is None:
         modulo = importar_api()
+    exigir_fuera_de_pruebas(modulo)                                        # 084:RF-21
     ruta = tomar_turno(guion, espera_s=espera_s, aviso=aviso, reloj=reloj, dormir=dormir,
                        **turno)
     atexit.register(_soltar_al_salir, ruta)                               # RF-19

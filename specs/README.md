@@ -88,3 +88,6 @@ retirada.
 | [079](079-afinado-del-interprete-de-ordenes/spec.md) | Afinado real del intérprete de órdenes: las últimas capas del codificador junto con sus cabezas | implementada | 64 | 64 | T7 (DIgSILENT) |
 | [080](080-acceso-directo-a-paquetes-vnrgis/spec.md) | Acceso directo a los paquetes VNR-GIS de cada distribuidora | reservada | 0 | 0 | — |
 | [081](081-regresiones-permanentes/spec.md) | Los fallos reales no se repiten: comprobaciones permanentes, solución con los oráculos y mejora continua | implementada | 63 | 63 | T10 (DIgSILENT), T11 (DIgSILENT), T12 (DIgSILENT), T13 (DIgSILENT), T14 (DIgSILENT), T16 (DIgSILENT) |
+| [082](082-oraculo-completo-y-por-fases/spec.md) | El oráculo calcula todo lo del modelo, y por fases | reservada | 0 | 0 | — |
+| [083](083-oraculo-antes-de-calibrar/spec.md) | El oráculo antes de calibrar y recalibrar | reservada | 0 | 0 | — |
+| [084](084-seis-reglas-con-requisito/spec.md) | Seis reglas del operador pasan de notas a requisitos con prueba | implementada | 30 | 30 | T8 (DIgSILENT), T9 (DIgSILENT) |

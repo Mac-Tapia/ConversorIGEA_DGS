@@ -304,7 +304,7 @@ def connect_powerfactory(*, start_engine: bool = True, command_line: str | None 
     # 019:RF-16: la API se busca también en la instalación de DIgSILENT, como en los demás
     # guiones; la aceptación lanzada a mano (VNR-GIS, 2026-10-18) no la encontraba.
     from convertersmartgrid.pf_arnes import PFNoDisponible as _SinApi  # noqa: PLC0415
-    from convertersmartgrid.pf_arnes import importar_api, salida_sin_bufer  # noqa: PLC0415
+    from convertersmartgrid.pf_arnes import exigir_fuera_de_pruebas, importar_api, salida_sin_bufer  # noqa: PLC0415
 
     salida_sin_bufer()
     try:
@@ -315,6 +315,7 @@ def connect_powerfactory(*, start_engine: bool = True, command_line: str | None 
             r'C:\Program Files\DIgSILENT\PowerFactory 2024\Python\3.12 '
             '(o la versión instalada) y use un Python compatible (3.10–3.12).'
         ) from exc
+    exigir_fuera_de_pruebas(pf)                                            # 084:RF-22
 
     # 019:RF-1, RF-2, RF-4, RF-13: el turno del motor de la máquina. Engancharse a un
     # DIgSILENT abierto (sin arrancar el motor) es elección del operador: no se le avisa.

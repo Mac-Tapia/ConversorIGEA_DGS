@@ -113,7 +113,8 @@ def test_set_nueva_se_disena_situa_y_crea(monkeypatch, tmp_path):
     creadas = []
     monkeypatch.setattr(services, 'obra_anadir', lambda ws, obra: creadas.append(obra) or {'id': 'x'})
     monkeypatch.setattr(services, 'obras_ejecutar', lambda *a, **k: {'informe': {'obras': [
-        {'set_nueva': {'lat': -14.951, 'lon': -74.98, 'cumple': True, 'intentos': [{}]}}]}})
+        {'set_nueva': {'lat': -14.951, 'lon': -74.98, 'cumple': True, 'intentos': [{}],
+                       'flujos_en_punto': {'lat': -14.951, 'lon': -74.98}}}]}})
     a_set = [{'sed': 'N1', 'alimentador': 'F1', 'kw': 2000.0, 'kvar': 400.0},
              {'sed': 'N2', 'alimentador': 'F1', 'kw': 1500.0, 'kvar': 300.0}]
     r = services.set_nueva_proponer(None, _Ctx(), 'P', ['F1'], a_set, capex=str(_libro(tmp_path)),
@@ -157,7 +158,8 @@ def test_set_nueva_toma_la_barra_de_una_carga_apartada(monkeypatch, tmp_path):
     monkeypatch.setattr(services, 'carpeta_pf', lambda: 'C')
     monkeypatch.setattr(services, 'obra_anadir', lambda ws, obra: {'id': 'x'})
     monkeypatch.setattr(services, 'obras_ejecutar', lambda *a, **k: {'informe': {'obras': [
-        {'set_nueva': {'lat': -14.951, 'lon': -74.98, 'cumple': True, 'intentos': [{}]}}]}})
+        {'set_nueva': {'lat': -14.951, 'lon': -74.98, 'cumple': True, 'intentos': [{}],
+                       'flujos_en_punto': {'lat': -14.951, 'lon': -74.98}}}]}})
     a_set = [{'sed': 'N1', 'alimentador': 'F1', 'kw': 2000.0, 'kvar': 400.0, 'barra': 'N1_BT'},
              {'sed': 'N2', 'alimentador': 'F1', 'kw': 1500.0, 'kvar': 300.0, 'barra': 'N2_BT'}]
     r = services.set_nueva_proponer(None, _Ctx(), 'P', ['F1'], a_set, capex=str(_libro(tmp_path)),

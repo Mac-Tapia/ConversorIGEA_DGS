@@ -65,7 +65,7 @@ from ajuste_cabecera_pf import _clave_objeto_nativo, cargas_sed, diagnostico
 from cargas_pf import (
     Alimentadores, activar_proyecto, cabecera_de, clave_pf, crear_variacion, error_inesperado, es_cable,
     completar_diagrama, distancia_m, flujo_de_carga, gps_de, leer_cabecera, leer_red, medir_estado,
-    nombre_libre, nombre_pf, partir_tramo,
+    nombre_libre, nombre_pf, partir_tramo, trazado_de,
 )
 from casos_pf import (
     NOMBRES, anio_del_plan, casos_del_proyecto, crear_con_proyecto, es_de_carga_nueva,
@@ -74,7 +74,10 @@ from casos_pf import (
 from estudios_pf import medida
 
 from convertersmartgrid.carpeta_pf import buscar_proyecto, nombre_de_perfil
+from convertersmartgrid.instalacion_ternas import factor_de_capacidad, instalacion
 from convertersmartgrid.perfil_empresa import datos_perfil
+from convertersmartgrid.pf_arnes import proyecto_de as _proyecto_de
+from convertersmartgrid import sitio_set
 from convertersmartgrid.vias import ruta_por_vias
 from convertersmartgrid.native_action import native_action_block_report
 from convertersmartgrid.obras_pf import (
@@ -94,16 +97,6 @@ CLASES_TIPO = tuple(ATRIBUTOS_TIPO)
 
 
 # =========================================================================== tipos
-def _proyecto_de(obj):
-    """El ``IntPrj`` que contiene el objeto, o None si está fuera de todo proyecto."""
-    actual = obj
-    while actual is not None:
-        if actual.GetClassName() == 'IntPrj':
-            return actual
-        actual = actual.GetParent()
-    return None
-
-
 def datos_tipo(obj) -> dict:
     """Los datos de ``ATRIBUTOS_TIPO`` que tiene el tipo; los que no tiene no se inventan."""
     datos = {}
@@ -636,6 +629,57 @@ def construir_terna(ctx) -> None:
     for e in ctx.fila['elementos']:
         linea = ctx.objeto('ElmLne', e['elemento'])
         linea.nlnum = int(getattr(linea, 'nlnum', 1) or 1) + 1
+        _instalar_ternas(ctx.fila, linea, getattr(ctx.obra, 'configuracion', ''))
+
+
+def _instalar_ternas(fila: dict, linea, configuracion: str = '') -> None:
+    """Las ternas subterráneas de un tramo: su configuración y su capacidad (084:RF-12 a RF-15).
+
+    ``fline`` es el factor de reducción del ``ElmLne``: el tipo sigue siendo el del catálogo y es la
+    línea la que lleva la capacidad para esa instalación. Sin el dato del fabricante no se toca.
+    """
+    tipo = getattr(linea, 'typ_id', None)
+    inst = instalacion(tipo=getattr(tipo, 'loc_name', '') or '', ternas=int(getattr(linea, 'nlnum', 1) or 1),
+                       cable=bool(es_cable(linea)), perfil=datos_perfil(), configuracion=configuracion)
+    if inst is None:
+        return
+    factor = factor_de_capacidad(inst, float(getattr(tipo, 'sline', 0) or 0) * 1000)
+    if factor is not None:
+        linea.fline = factor
+    fila.setdefault('instalaciones', []).append({**inst, 'tramo': linea.loc_name, 'factor': factor})
+    fila['avisos'] += [a for a in inst['avisos'] if a not in fila['avisos']]
+
+
+def _trazados_de_la_red(app) -> list:
+    """El trazado de cada línea calculable: la red de la que la SET nueva se aparta (084:RF-9)."""
+    out = []
+    for ln in app.GetCalcRelevantObjects('*.ElmLne') or []:
+        puntos = trazado_de(ln) or tuple(p for p in (gps_de(getattr(getattr(ln, c, None), 'cterm', None))
+                                                     for c in ('bus1', 'bus2')) if p is not None)
+        if puntos:
+            out.append((ln.loc_name, puntos))
+    return out
+
+
+def _ambos_flujos(app) -> dict:
+    """El flujo equilibrado y el desequilibrado en el punto final; deja el modo y los resultados (084:RF-8).
+
+    Una SET reubicada a mano solo quedó aceptada con los dos (2026-11-02). Con líneas de menos de tres
+    fases ``flujo_de_carga`` obliga al desequilibrado (054:RF-7): se dice el modo que corrió de verdad.
+    """
+    ldf = app.GetFromStudyCase('ComLdf')
+    inicial = getattr(ldf, 'iopt_net', 0)
+    out = {}
+    try:
+        for nombre, modo in (('equilibrado', 0), ('desequilibrado', 1)):
+            ldf.iopt_net = modo
+            f = flujo_de_carga(app)
+            out[nombre] = {'converge': f['converged'], 'vmin': f.get('vm_min'), 'vmax': f.get('vm_max'),
+                           'modo': int(getattr(ldf, 'iopt_net', modo) or 0)}
+    finally:
+        ldf.iopt_net = inicial
+    flujo_de_carga(app)
+    return out
 
 
 #: Clase de elemento → clase de su tipo, para los cambios de tipo de la migración.
@@ -1137,6 +1181,9 @@ def construir_salida_set_existente(app, proyecto, origen, destino, tipo, nombre,
     linea.typ_id, linea.nlnum, linea.outserv = tipo, circuitos, 0
     linea.dline = largo_m / 1000.
     linea.SetAttribute('GPScoords', puntos)
+    # 084:RF-12: una salida de dos o más ternas es una instalación como las demás.
+    instalada: dict = {'avisos': []}
+    _instalar_ternas(instalada, linea)
     cubiculos = []
     for lado, (barra, n) in enumerate(zip((origen, destino), datos['nombres_cubiculos'])):
         cub = barra.CreateObject('StaCubic', n)
@@ -1160,6 +1207,7 @@ def construir_salida_set_existente(app, proyecto, origen, destino, tipo, nombre,
             'feeder_nombre': feeder.loc_name, 'cubiculos': [clave_pf(c) for c in cubiculos],
             'origen': clave_pf(origen), 'destino': clave_pf(destino), 'tipo': clave_pf(tipo),
             'tipo_nombre': tipo.loc_name, 'kv': datos['kv'], 'circuitos': circuitos,
+            'instalaciones': instalada.get('instalaciones', []), 'avisos_ternas': instalada['avisos'],
             'longitud_km': float(linea.dline), 'largo_m': largo_m, 'GPScoords': puntos,
             'GPS_origen': datos['GPS_origen'], 'GPS_destino': datos['GPS_destino'],
             'error_extremos_m': datos['error_extremos_m'], 'etapa': clave_pf(etapa),
@@ -1183,6 +1231,10 @@ def construir_set_nueva(ctx) -> None:
         raise RuntimeError(f'no hay red externa en la cabecera de {o.alimentador}: no se sabe con qué '
                            'datos alimentar la SET nueva')
     cfg = (datos_perfil().get('planificacion') or {}).get('transformador_set') or {}
+    # 084:RF-9: antes de crear nada, para que la SET no se aparte de sus propias salidas.
+    cfg_sitio = sitio_set.parametros(datos_perfil())
+    trazados = _trazados_de_la_red(app)
+    punto_inicial = punto
     red = cabecera.GetParent()
     kv_mt = float(cabecera.uknom)
     # 052:RF-19: con el nombre que da el operador («SET COPARA» → SET_COPARA_AT, TR_SET_COPARA…).
@@ -1310,6 +1362,9 @@ def construir_set_nueva(ctx) -> None:
 
     intentos, mejor, paso = [], None, ACERCAR
     for _n in range(INTENTOS_SET):                                                    # RF-10
+        # 084:RF-9: acercarse a la barra que cae es acercarse a la red: cada punto se aparta antes de medirlo.
+        if cfg_sitio.retiro_m is not None:
+            punto = sitio_set.apartar(punto, trazados, cfg_sitio.calles, cfg_sitio.retiro_m) or punto
         situar(punto)
         ajustar_toma()
         flujo, fuera = medir()
@@ -1335,14 +1390,24 @@ def construir_set_nueva(ctx) -> None:
         situar(punto)
         tr.nntap = elegido['toma']
         flujo_de_carga(app)
-    cumple = bool(elegido['converge'] and not elegido['fuera'])
+    flujos_finales = _ambos_flujos(app)                                               # 084:RF-8
+    sitio = sitio_set.revisar(punto, trazados, cfg_sitio)
+    sitio.update(movido=not sitio_set.mismo_punto(punto, punto_inicial),
+                 original={'lat': punto_inicial[0], 'lon': punto_inicial[1]})
+    sitio['frase'] = sitio_set.frase(sitio)
+    fila['avisos'] += [a for a in sitio['avisos'] if a not in fila['avisos']]
+    no_convergen = [k for k, v in flujos_finales.items() if not v['converge']]
+    if no_convergen:
+        fila['avisos'].append(f'En el punto final no converge el flujo {" ni el ".join(no_convergen)} (084:RF-8).')
+    cumple = bool(elegido['converge'] and not elegido['fuera'] and not no_convergen)
     if not cumple:
         fila['avisos'].append(f'Ningún punto de los {len(intentos)} probados deja todas las barras de media '
                               f'entre {limites.tension_min_pu:g} y {limites.tension_max_pu:g} p.u.; queda el '
                               f'mejor, con {elegido["fuera"]} fuera (042:RF-10).')
     fila['set_nueva'] = {**fila.get('set_nueva', {}), 'lat': punto[0], 'lon': punto[1], 'cumple': cumple,
                          'toma': elegido['toma'], 'u_media': elegido['u_media'], 'consigna_pu': consigna,
-                         'regula': regula,
+                         'regula': regula, 'sitio': sitio,
+                         'flujos_en_punto': {'lat': punto[0], 'lon': punto[1], **flujos_finales},
                          'intentos': intentos, 'transformador': tr.loc_name, 'tipo_transformador': tipo_tr.loc_name,
                          'uk_pct': tipo_tr.uktr, 'red_externa': xnet.loc_name, 'copiado_de': fuentes[0].loc_name,
                          'atributos_copiados': copiados,
@@ -1840,6 +1905,7 @@ def datos_escalera(app, plan: dict) -> tuple[dict, int]:
                                'largo_m': float(getattr(ln, 'dline', 0) or 0) * 1000,
                                'corriente_a': i * 1000 if i is not None else None,
                                'tipo': tipo.loc_name if tipo is not None else None,
+                               'cable': bool(es_cable(ln)),                # 084:RF-16
                                'inom_a': (float(getattr(tipo, 'sline', 0) or 0) * 1000
                                           if tipo is not None else None)})
         for f, troncal in troncales.items():
@@ -1858,6 +1924,7 @@ def datos_escalera(app, plan: dict) -> tuple[dict, int]:
                 if tipo is not None:
                     t['tipo'] = tipo.loc_name
                     t['inom_a'] = float(getattr(tipo, 'sline', 0) or 0) * 1000
+                    t['cable'] = bool(es_cable(ln))                        # 084:RF-16
                 # 063:RF-31: los nodos de inicio y fin de cada tramo, para decir dónde va la obra.
                 if len(ext) == 2:
                     t['desde'], t['hasta'] = ext
@@ -2463,7 +2530,10 @@ def datos_set_nueva(app, plan: dict) -> tuple[dict, int]:
                 'barras': [{'nombre': b.nombre, 'kv': b.kv, 'gps': list(b.gps) if b.gps else None}
                            for b in red.barras.values()],
                 'tramos': [{'nombre': t.nombre, 'desde': t.desde, 'hasta': t.hasta, 'largo_m': t.largo_m,
-                            'cerrado': t.cerrado} for t in red.tramos],
+                            'cerrado': t.cerrado,
+                            # 084:RF-1: el trazado real, no la recta entre barras.
+                            **({'puntos': [list(q) for q in t.trazado]} if t.trazado else {})}
+                           for t in red.tramos],
                 'cargas': cargas}
     finally:
         if inicial is not None:

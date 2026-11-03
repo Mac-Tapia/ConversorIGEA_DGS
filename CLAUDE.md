@@ -109,6 +109,9 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 079 Afinado real del intérprete de órdenes: las últimas capas del codificador junto con sus cabezas | implementada | falta T7 |
   | 080 Acceso directo a los paquetes VNR-GIS de cada distribuidora | reservada |  |
   | 081 Los fallos reales no se repiten: comprobaciones permanentes, solución con los oráculos y mejora continua | implementada | falta T10, T11, T12, T13, T14, T16 |
+  | 082 El oráculo calcula todo lo del modelo, y por fases | reservada |  |
+  | 083 El oráculo antes de calibrar y recalibrar | reservada |  |
+  | 084 Seis reglas del operador pasan de notas a requisitos con prueba | implementada | falta T8, T9 |
 
   Las convenciones de cada empresa (CRS de origen, patrón de SED de medición, escala,
   carpeta de DIgSILENT) van en `config/perfil_empresa.json`, local y fuera de git, que
