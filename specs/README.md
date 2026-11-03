@@ -79,3 +79,7 @@ retirada.
 | [070](070-asistente-de-punta-a-punta/spec.md) | El asistente opera el conversor de punta a punta | implementada | 77 | 77 | T9 (DIgSILENT), T10 (DIgSILENT), T11 (DIgSILENT) |
 | [071](071-puertas-de-los-modelos/spec.md) | Puertas de los modelos antes de entrenar: PINN en su red, un puntero, sin autoentrenamiento y una guardia de GPU | aprobada | 8 | 8 | T5 |
 | [072](072-pide-y-planeamiento-de-largo-plazo/spec.md) | PIDE y planeamiento de largo plazo: dos entregables desde un mismo estudio | aprobada | 21 | 18 | T3, T9, T11 |
+| [073](073-bancos-limitados-por-valle/spec.md) | Bancos limitados por valle | reservada | 0 | 0 | — |
+| [074](074-reservada-en-otra-rama/spec.md) | Número reservado en otra rama | reservada | 0 | 0 | — |
+| [075](075-reservada-en-otra-rama/spec.md) | Número reservado en otra rama | reservada | 0 | 0 | — |
+| [076](076-preguntas-de-metodologia-por-entregable/spec.md) | Preguntas de metodología y criterios por entregable, del flujo, de la arquitectura y de la web | aprobada | 27 | 26 | T6 |
