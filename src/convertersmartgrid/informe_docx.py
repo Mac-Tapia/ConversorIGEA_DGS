@@ -569,6 +569,12 @@ def escribir_informe_estudio(config: ConfigInforme, destino: Path, datos: DatosE
     return e.huecos
 
 
+#: Lo que reutilizan los informes de planeamiento (spec 072).
+Escritor = _Escritor
+guardar_informe = _guardar
+preparar_modelo = _preparar
+
+
 def _nodo_banco(b: Mapping[str, Any]) -> str:
     """El nodo de la red de un banco existente, no la barra auxiliar, y la SED más cercana
     si el nodo no es ella (RF-135)."""

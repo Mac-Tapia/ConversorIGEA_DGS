@@ -28,8 +28,10 @@
       Hecho con pruebas sintéticas, sin DIgSILENT. F04 sigue vacío porque el modelo no lleva la baja de cada SED, y F06 hasta pasarle
       los índices de 012. La evaluación con y sin proyecto espera las pérdidas de «Con proyecto» por año, que da T6; hasta entonces
       devuelve su hueco. Solo mide el ahorro de pérdidas: la energía no servida y la calidad no entran en el flujo.
-- [ ] T8 Generadores de los informes de largo plazo y PIDE. (RF-4, RF-13, RF-14, RF-17)
+- [x] T8 Generadores de los informes de largo plazo y PIDE. (RF-4, RF-13, RF-14, RF-17)
       Hecho cuando: los dos Word se generan para una empresa de prueba.
+      Hecho con una empresa de prueba sintética. Presentan lo medido y sus huecos; no redactan análisis, que es del asistente (T9).
+      La revisión del contenido con el usuario sobre una empresa real es T11.
 - [ ] T9 Herramientas y entrenamiento del asistente. (RF-18, RF-19)
       Hecho cuando: el asistente completa un estudio por las rutas de la web, y el corpus revisado queda registrado.
 - [x] T10 Etiqueta de casos de prueba. (RF-20)

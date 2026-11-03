@@ -4691,6 +4691,8 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
                                            precio_compra_kwh=plan_pide.get('precio_compra_kwh'))
     formatos = _formatos_del_pide(ws, propuesta, informe, plan_pide, estudio, feeders, avisos)
     libro = escribir_formatos(ws.out_dir / f'pide_{token}.xlsx', formatos['filas'], formatos['huecos'])
+    informes_planeamiento = _informes_del_estudio(ws, token, project, estudio, formatos, informe, propuesta, con_y_sin,
+                                                  perfil, avisos) if estudio else []
     # 027:RF-49: cada formato frente al entregado del mismo código, si hay corpus de ejemplos.
     from ..asistente.ejemplos_pide import comparar_formatos, ultimo_ejemplos
     from ..pide import FORMATOS
@@ -4711,7 +4713,32 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
                       for a in informe.get('anios') or []],
             'obras': propuesta['obras'], 'implementadas': implementadas, 'avisos': avisos,
             'huecos': formatos['huecos'], 'con_y_sin': con_y_sin,                # 072:RF-14, RF-16
+            'informes_planeamiento': informes_planeamiento,                      # 072:RF-13, RF-14
             'comparacion_formatos': comparacion}
+
+
+def _informes_del_estudio(ws: Workspace, token: str, project: str, estudio, formatos: dict, informe: dict, propuesta: dict,
+                          con_y_sin: dict, perfil: dict, avisos: list[str]) -> list[str]:
+    """Los dos Word de un mismo estudio (072:RF-4, RF-17). Un modelo que falte no pierde el cálculo."""
+    from ..informes import InformeError
+    from ..informes_planeamiento import DatosPlaneamiento, escribir_informe_largo_plazo, escribir_informe_pide
+
+    seccion = perfil.get('informes') or {}
+    modelos = {t: (Path(v) if Path(v).is_absolute() else project_root() / v)
+               for t in ('largo_plazo', 'pide') if (v := seccion.get(f'modelo_{t}'))}
+    datos = DatosPlaneamiento(estudio=estudio, formatos=formatos, anios=informe.get('anios') or [], obras=propuesta['obras'],
+                              con_y_sin=con_y_sin, empresa=perfil.get('empresa'), proyecto=project,
+                              metodo_proyeccion=formatos.get('metodo'), modelos=modelos,
+                              rotulos_cabecera=seccion.get('cabecera') or {})
+    hechos = []
+    for nombre, escribir in ((f'largo_plazo_{token}.docx', escribir_informe_largo_plazo),
+                             (f'pide_{token}.docx', escribir_informe_pide)):
+        try:
+            escribir(ws.out_dir / nombre, datos)
+            hechos.append(nombre)
+        except (InformeError, OSError) as exc:
+            avisos.append(f'{nombre}: {exc}')
+    return hechos
 
 
 def _formatos_del_pide(ws: Workspace, propuesta: dict, informe: dict, plan_pide: dict, estudio, feeders: list[str],
@@ -4750,9 +4777,10 @@ def _formatos_del_pide(ws: Workspace, propuesta: dict, informe: dict, plan_pide:
                 _dataset_for_feeder(ws, a), a, strict=False, include_geography=False).lines)))
         except Exception as exc:  # noqa: BLE001 - un alimentador sin red no tumba el estudio
             avisos.append(f'F02: {a} sin metrados ({exc}).')
-    return formatos_del_estudio(propuesta['obras'], informe.get('anios') or [], estudio=estudio, series=series,
-                                metodo=metodo, factor_carga=plan_pide.get('factor_carga'), metrados=medidas,
-                                sistema_de=sistema_de, centro_de=centro_de)
+    formatos = formatos_del_estudio(propuesta['obras'], informe.get('anios') or [], estudio=estudio, series=series,
+                                    metodo=metodo, factor_carga=plan_pide.get('factor_carga'), metrados=medidas,
+                                    sistema_de=sistema_de, centro_de=centro_de)
+    return {**formatos, 'metodo': metodo if series else None}
 
 
 def _ingreso_de_las_cargas(ws: Workspace, project: str) -> list[dict]:
@@ -8094,7 +8122,8 @@ def _asistente_respuesta(ws: Workspace, plan, trabajos: list[dict]) -> dict:
                                         'ci', 'sobredimensionada', 'descartada')} for o in r.get('obras') or []]
         return {'texto': f"PIDE de {r.get('project')}: {len(obras)} obra(s), "
                          f"{len(r.get('implementadas') or [])} aplicada(s) solas; formatos en {r.get('formatos')}.",
-                'obras': obras, 'entregables': [r.get('formatos')] if r.get('formatos') else [],
+                'obras': obras, 'entregables': ([r['formatos']] if r.get('formatos') else [])
+                + list(r.get('informes_planeamiento') or []),
                 'avisos': r.get('avisos') or []}
     if t == 'episodios':
         filas = gemelo_episodios(ws, {'proyecto': datos.get('proyecto')})
