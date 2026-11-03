@@ -396,3 +396,51 @@ PARAFRASIS_070 = {
     'informe_factibilidad': ('haz la factibilidad de {sed} en {alimentadores} de {proyecto}', 'genera la factibilidad de {sed} en {proyecto}', 'saca el informe de factibilidad de {sed} en {proyecto}', 'la factibilidad de {sed} para {alimentadores} de {proyecto}', 'el word de factibilidad de {sed} en {proyecto}'),
     'entrenar_asistente': ('reentrena el asistente con lo que hay', 'aprende de mis ordenes', 'que el asistente aprenda otra vez', 'entrena de nuevo el transformer', 'actualiza el modelo del asistente'),
 }
+
+
+#: 079:RF-32: de dónde sale el currículo de la 079.
+MAESTRO_079 = {'autor': 'Claude, maestro de la sesión', 'revision': '2026-11-03-v1', 'origen': 'sintetico_spec_079',
+               'metodo': 'response_distillation_single_annotation', 'votos_por_anotacion': 1,
+               'logits_del_maestro_disponibles': False}
+# 079:RF-31, RF-33: las tareas que salieron flojas en selección con el candidato del 2026-11-03: `calibrar` 0,03, `no_disponible` 0,23,
+# `escanear` 0,25, `descargar_resultados` 0,40, `verificar_caso_base` 0,49 y `simular_calibracion` 0,62. Con otros verbos: las que había
+# repetían «calibra» y «ajusta», y fallaban en cuanto la orden decía «graba». Sintéticas: no copian órdenes del operador, ni ninguna
+# prueba, ni nombran empresa (P9, P13, 079:RF-37).
+PARAFRASIS_079 = {
+    'calibrar': ('guarda en {proyecto} la calibracion a la maxima', 'asienta en {proyecto} lo que dio la calibracion', 'escribe la calibracion sobre {proyecto}',
+                 'consolida la calibracion de {proyecto} con la punta hallada', 'asienta el ajuste de demandas en {proyecto}',
+                 'la calibracion de {proyecto} va en firme', 'pon en firme el ajuste de {proyecto}', 'hazle la calibracion real a {proyecto}',
+                 'persiste en {proyecto} el ajuste con la maxima buscada', 'ajuste vigente de {proyecto} con la punta que encontraste',
+                 'corrige las demandas de {proyecto} segun la maxima', 'aplica ya el reparto de demandas en {proyecto}'),
+    'simular_calibracion': ('haz como si calibraras {proyecto}, sin escribir', 'hazme un simulacro con la calibracion, proyecto {proyecto}',
+                            'calibracion sin guardar cambios en {proyecto}', 'a modo de prueba calibra {proyecto}',
+                            'quiero ver el resultado de calibrar {proyecto} sin aplicarlo', 'preview de la calibracion de {proyecto}',
+                            'tanteo de calibracion en {proyecto}, nada definitivo', 'vista previa del ajuste de {proyecto}',
+                            'no grabes nada, solo simula calibrar {proyecto}', 'estima el efecto de calibrar {proyecto}',
+                            'corrida de ensayo del ajuste en {proyecto}', 'calcula que cambiaria el ajuste en {proyecto}'),
+    'no_disponible': ('analisis de cortocircuito en {proyecto}', 'nivel de falla en las barras de {proyecto}',
+                      'estudio de cortocircuito monofasico de {proyecto}', 'verifica la selectividad de las protecciones de {proyecto}',
+                      'curvas de operacion de las protecciones en {proyecto}', 'calcula la potencia de cortocircuito de {proyecto}',
+                      'contenido armonico de la red de {proyecto}', 'corrida de flujo optimo de {proyecto}',
+                      'optimizacion no lineal de bancos en {proyecto}', 'transitorios electromagneticos de {proyecto}',
+                      'arco electrico en los tableros de {proyecto}', 'estabilidad transitoria de {proyecto}',
+                      'ajuste de fusibles y reconectadores en {proyecto}'),
+    'escanear': ('busca cambios hechos a mano en {alimentadores} de {proyecto}', 'haz un listado de maquinas generadoras en {alimentadores} de {proyecto}',
+                 'relevamiento de bancos en {alimentadores} de {proyecto}', 'que modificaron manualmente en {alimentadores} de {proyecto}',
+                 'localiza lo alterado en {alimentadores} dentro de {proyecto}', 'pasame generadores y condensadores de {alimentadores} en {proyecto}',
+                 'chequeo previo a la recalibracion de {alimentadores} en {proyecto}', 'lectura sin escritura de {alimentadores} en {proyecto}',
+                 'cataloga los equipos puestos a mano en {alimentadores} de {proyecto}',
+                 'repasa {alimentadores} de {proyecto} por si hay ediciones manuales', 'revision de variaciones en {alimentadores} de {proyecto}',
+                 'scan de {alimentadores} en {proyecto}'),
+    'descargar_resultados': ('necesito los entregables en un comprimido', 'agrupa los archivos finales para descargarlos', 'haz un rar o zip de lo que hay',
+                             'genera el vinculo para bajar los resultados', 'empaquetame lo de {alimentadores}',
+                             'quiero descargar lo que produjo {alimentadores}', 'archivos de salida en un solo paquete',
+                             'manda a comprimir las salidas de {alimentadores}', 'link de bajada de los resultados',
+                             'lo generado en un fichero comprimido', 'descargar todo el output del espacio', 'recoge los dgs e informes para bajarlos'),
+    'verificar_caso_base': ('inspecciona el caso base de {proyecto}', 'examina si el caso base de {proyecto} coincide con la fuente',
+                            'control de calidad del caso base de {proyecto}', 'el caso base de {proyecto} cuadra con lo importado',
+                            'confirma que el caso base de {proyecto} salio bien', 'comparacion del caso base de {proyecto} con la fuente',
+                            'corre los chequeos del caso base de {proyecto} {alimentadores}', 'prueba el caso base de {proyecto}',
+                            'validacion del caso base en {proyecto}', 'somete a verificacion el caso base en {alimentadores} de {proyecto}',
+                            'analiza el modelo base de {proyecto} frente al original', 'modelo base de {proyecto}: revisalo'),
+}

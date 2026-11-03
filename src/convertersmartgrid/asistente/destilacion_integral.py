@@ -14,11 +14,13 @@ import platform
 
 from ..evaluacion_modelos import (PARTES, PoliticaEvaluacion, huella, particionar_registros,
                                   texto_canonico, verificar_familias)
-from .curriculo_maestro import ESTILO_REAL, FAMILIAS, MAESTRO, MAESTRO_070, MAESTRO_ESTILO_REAL, PARAFRASIS_070
+from .curriculo_maestro import (ESTILO_REAL, FAMILIAS, MAESTRO, MAESTRO_070, MAESTRO_079, MAESTRO_ESTILO_REAL, PARAFRASIS_070,
+                                PARAFRASIS_079)
 from .interprete import PUESTO_CHARLA, UMBRAL_TRANSFORMER, charla_cerca
 from .maestro_real import CALIDAD, CONFIANZA_MINIMA, NINGUNA, clave_texto, con_erratas, firma_familia
 from .ordenes_fijas import generar as generar_fijas, repartir
 from .prueba_sellada import CONJUNTO as CONJUNTO_SELLADO, huella_de as huella_de_sellada, selladas
+from .prueba_sellada_079 import CONJUNTO as CONJUNTO_079, huella_de as huella_de_079, selladas as selladas_079
 from .sinteticos import Ejemplo, expandir
 from .tareas import TAREAS, TAREAS_HASTA_069
 
@@ -35,6 +37,8 @@ ACIERTO_DEL_UMBRAL = .98
 ARCHIVO_RESERVADOS = 'rechazo_reservado.json'
 #: 075:RF-43, RF-44: declarados antes de medir la regla de Ollama. Dicen si cumple; no deciden la promoción.
 REGLA_RESERVADOS_MAXIMO, REGLA_ORDENES_MAXIMO = .02, .05
+#: 079:RF-50: la rejilla de la regla, declarada antes de medir. El primero de cada una es la regla de la 075.
+PUESTOS_CHARLA, PISOS_CHARLA = (2, 3, 4, 5), (0., .3, .5)
 _DESCRIPCION_NINGUNA = 'Mensaje que no es una orden del catálogo: conversación con el operador.'
 
 
@@ -103,6 +107,14 @@ def _ampliar_entrenamiento(filas: list[dict], vocab: dict, etiquetas: Sequence[d
                 e = expandir(plantilla, tarea, rnd, vocab, ruido=.08)
                 if agregar(e, grupo, 'silver_teacher_verified', 'parafrasis_070', maestro='claude') != 'fuga':
                     erratas(e, grupo, 'silver_teacher_verified', 'parafrasis_070', rnd, maestro='claude')
+    for tarea, frases in sorted(PARAFRASIS_079.items()):                           # 079:RF-31, RF-32, RF-34
+        for j, plantilla in enumerate(frases):
+            rnd = random.Random(6113 + j + int(huella(tarea)[:8], 16))
+            grupo = huella({'parafrasis_079': plantilla, 'tarea': tarea})
+            for _ in range(max(1, por_familia // 2)):
+                e = expandir(plantilla, tarea, rnd, vocab, ruido=.08)
+                if agregar(e, grupo, 'silver_teacher_verified', 'parafrasis_079', maestro='claude') != 'fuga':
+                    erratas(e, grupo, 'silver_teacher_verified', 'parafrasis_079', rnd, maestro='claude')
     por_tarea, leidas = Counter(), 0
     for f in sorted(etiquetas, key=lambda x: clave_texto(x['texto'])):
         leidas += 1
@@ -129,16 +141,19 @@ def _ampliar_entrenamiento(filas: list[dict], vocab: dict, etiquetas: Sequence[d
                             'excluidas_por_fuga': cuenta['estilo_real_fuga'], 'maestro': MAESTRO_ESTILO_REAL},
             'parafrasis_070': {'frases': sum(len(v) for v in PARAFRASIS_070.values()), 'filas': cuenta['parafrasis_070_filas'],
                                'excluidas_por_fuga': cuenta['parafrasis_070_fuga'], 'maestro': MAESTRO_070},
+            'parafrasis_079': {'frases': sum(len(v) for v in PARAFRASIS_079.values()), 'filas': cuenta['parafrasis_079_filas'],
+                               'excluidas_por_fuga': cuenta['parafrasis_079_fuga'], 'maestro': MAESTRO_079},
             'erratas_del_catalogo': {'filas': cuenta['catalogo_filas'], 'excluidas_por_fuga': cuenta['catalogo_fuga']}}
 
 
-def _con_la_prueba_sellada(filas: list[dict]) -> tuple[list[dict], dict]:
-    """070:RF-69, RF-71: la prueba nueva, separada por familia de todo lo que entrena, elige o calibra.
+def _con_la_prueba_sellada(filas: list[dict]) -> tuple[list[dict], dict, dict]:
+    """070:RF-69, RF-71, 079:RF-42 a RF-44: las dos pruebas, separadas por familia de todo lo que entrena, elige o calibra.
 
-    Lo que coincide con ella sale del entrenamiento. Si coincide con selección o calibración no se toca nada: se
+    Lo que coincide con ellas sale del entrenamiento. Si coincide con selección o calibración no se toca nada: se
     para, porque cambiarlas movería sus huellas (069:RF-13) y dejarlo sería una fuga.
     """
-    nueva = selladas()
+    anterior, decisora = selladas(), selladas_079()
+    nueva = [*anterior, *decisora]
     textos = {clave_texto(r['texto']) for r in nueva}
     familias = {firma_familia(r['texto'], r['datos']) for r in nueva}
 
@@ -150,8 +165,13 @@ def _con_la_prueba_sellada(filas: list[dict]) -> tuple[list[dict], dict]:
     if choques:
         raise ValueError(f'la prueba sellada coincide con {len(choques)} fila(s) de selección, calibración o prueba')
     conservadas = [r for r in filas if r['particion'] != 'entrenamiento' or not coincide(r)]
-    return [*conservadas, *nueva], {'huella': huella_de_sellada(nueva), 'filas': len(nueva), 'frases': len({r['group_id'] for r in nueva}),
-                                    'quitadas_de_entrenar': len(filas) - len(conservadas)}
+    quitadas = len(filas) - len(conservadas)
+    # 079:RF-46: la anterior orientó esta spec: se mide con su huella, y ya no decide.
+    return ([*conservadas, *nueva],
+            {'huella': huella_de_sellada(anterior), 'filas': len(anterior), 'frases': len({r['group_id'] for r in anterior}),
+             'conjunto': CONJUNTO_SELLADO, 'decide': False, 'quitadas_de_entrenar': quitadas},
+            {'huella': huella_de_079(decisora), 'filas': len(decisora), 'frases': len({r['group_id'] for r in decisora}),
+             'conjunto': CONJUNTO_079, 'decide': True, 'quitadas_de_entrenar': quitadas})
 
 
 def preparar_corpus(vocab: dict, reales: list[dict], *, por_familia: int = 40, etiquetas_reales: Sequence[dict] = (),
@@ -225,7 +245,7 @@ def preparar_corpus(vocab: dict, reales: list[dict], *, por_familia: int = 40, e
         agregar(e, huella({'humana': texto_canonico(e.texto)}), 'prueba', 'gold_human')
     filas = sorted((r for r in filas if texto_canonico(r['texto']) not in cuarentena),
                    key=lambda r: r['record_id'])
-    filas, sellada = _con_la_prueba_sellada(filas)
+    filas, sellada, sellada_079 = _con_la_prueba_sellada(filas)
     # 070:RF-76: la comparación de arriba es con mayúsculas y tildes: «Qué hay» confirmada dejaba «que hay» entrenando.
     confirmadas = {clave_texto(t) for t in humanos}
     filas = [r for r in filas if r['particion'] != 'entrenamiento' or clave_texto(r['texto']) not in confirmadas]
@@ -239,11 +259,12 @@ def preparar_corpus(vocab: dict, reales: list[dict], *, por_familia: int = 40, e
     sinteticas_historicas = sorted(r['record_id'] for r in filas if es_historica(r) and r['quality'] != 'gold_human')
     meta = {'schema_version': 1, 'maestro': MAESTRO, 'dataset_hash': huella(filas), **ampliacion,
             # 070:RF-72: mide lo mismo que la huella b800c6ca1a11d9ba si el vocabulario y las humanas son los de entonces.
-            'prueba_sellada': sellada, 'prueba_historica': {'huella': huella(historicas), 'filas': len(historicas),
+            'prueba_sellada': sellada, 'prueba_sellada_079': sellada_079,
+            'prueba_historica': {'huella': huella(historicas), 'filas': len(historicas),
                                                             'huella_sinteticas': huella(sinteticas_historicas)},
             'denominadores': {p: dict(sorted(c.items())) for p, c in sorted(denominadores.items())},
             'curriculo_hash': huella({'sesion': FAMILIAS, 'catalogo_revisado': FRASES, 'estilo_real': ESTILO_REAL,
-                                      'parafrasis_070': PARAFRASIS_070}),
+                                      'parafrasis_070': PARAFRASIS_070, 'parafrasis_079': PARAFRASIS_079}),
             'calidades': dict(Counter(r['quality'] for r in filas)),
             'particiones': dict(Counter(r['particion'] for r in filas)),
             'vocabulario_hash': huella(vocab), 'por_familia': por_familia,
@@ -356,6 +377,45 @@ def cobertura_por_umbral(modelo, registros: Sequence[dict], umbrales: Sequence[f
     return salida
 
 
+def elegir_regla_charla(modelo, seleccion: Sequence[dict], reservados: Sequence[str] | None) -> dict | None:
+    """079:RF-50 a RF-54: la regla de la rejilla que cumple y menos órdenes frena; sin Ollama, solo con desarrollo.
+
+    Con la fija, 9 de 206 mensajes reservados llegaban a Ollama, y solo 27 de 1 607 órdenes se frenaban: había margen, pero cuánto
+    depende de cada modelo. La regla solo actúa bajo el umbral, así que no toca la puerta de rechazo. Sin mensajes no se elige.
+    """
+    if not reservados:
+        return None
+    umbral = getattr(modelo, 'umbral', None)
+    umbral = umbral if type(umbral) is float else UMBRAL_TRANSFORMER
+
+    def dudosas(textos: Sequence[str]) -> list[tuple[float, int]]:
+        salida = []
+        for t in textos:
+            p = modelo.predecir(t)
+            if p['tarea'] != NINGUNA and p['confianza'] < umbral:
+                salida.append((p['confianza'], modelo.puesto_ninguna(t)))
+        return salida
+
+    charla, ordenes = dudosas(reservados), dudosas([r['texto'] for r in seleccion])
+    rejilla = []
+    for puesto in PUESTOS_CHARLA:
+        for piso in PISOS_CHARLA:
+            def frena(duda: tuple[float, int]) -> bool:
+                return duda[1] <= puesto or duda[0] < piso
+
+            a_ollama = sum(not frena(d) for d in charla) / len(reservados)
+            frenadas = sum(frena(d) for d in ordenes) / max(1, len(seleccion))
+            rejilla.append({'puesto': puesto, 'piso': piso, 'reservados_a_ollama': a_ollama, 'ordenes_frenadas': frenadas,
+                            'cumple': a_ollama <= REGLA_RESERVADOS_MAXIMO and frenadas <= REGLA_ORDENES_MAXIMO})
+    que_cumplen = [r for r in rejilla if r['cumple']]
+    admisibles = [r for r in rejilla if r['ordenes_frenadas'] <= REGLA_ORDENES_MAXIMO]
+    # Sin rejilla admisible queda la de la 075: bajar otra cosa frenaría más órdenes de las que se aceptan.
+    elegida = (min(que_cumplen, key=lambda r: (r['ordenes_frenadas'], r['puesto'], r['piso'])) if que_cumplen else
+               min(admisibles, key=lambda r: (r['reservados_a_ollama'], r['ordenes_frenadas'], r['puesto'], r['piso'])) if admisibles else rejilla[0])
+    modelo.puesto_charla, modelo.piso_charla = elegida['puesto'], elegida['piso']
+    return {'decide': False, 'ollama_consultado': False, 'elegida': elegida, 'cumple': elegida['cumple'], 'rejilla': rejilla}
+
+
 def medir_regla_ollama(modelo, seleccion: Sequence[dict], reservados: Sequence[str] | None) -> dict:
     """075:RF-42 a RF-45: qué haría la regla, solo en desarrollo y sin Ollama, suponiendo que imponga tarea siempre.
 
@@ -371,14 +431,16 @@ def medir_regla_ollama(modelo, seleccion: Sequence[dict], reservados: Sequence[s
             p = modelo.predecir(t)
             if p['tarea'] != NINGUNA and p['confianza'] < umbral:
                 dudosas += 1
-                frenadas += charla_cerca(modelo, t)
+                frenadas += charla_cerca(modelo, t, p['confianza'])
         return {'ejemplos': len(textos), 'dudosas': dudosas, 'frenadas': frenadas, 'a_ollama': dudosas - frenadas}
 
     ordenes = contar([r['texto'] for r in seleccion])
     charla = contar(list(reservados or ()))
     tasa_charla = charla['a_ollama'] / charla['ejemplos'] if charla['ejemplos'] else None
     tasa_ordenes = ordenes['frenadas'] / ordenes['ejemplos'] if ordenes['ejemplos'] else None
-    return {'regla': f'ninguna entre las {PUESTO_CHARLA} primeras opciones', 'decide': False, 'ollama_consultado': False,
+    puesto = getattr(modelo, 'puesto_charla', None)
+    return {'regla': f"ninguna entre las {puesto if type(puesto) is int else PUESTO_CHARLA} primeras opciones, piso {getattr(modelo, 'piso_charla', 0.)}",
+            'decide': False, 'ollama_consultado': False,
             'ordenes_seleccion': ordenes, 'mensajes_reservados': charla, 'reservados_a_ollama': tasa_charla, 'ordenes_frenadas': tasa_ordenes,
             'cumple': (tasa_charla is not None and tasa_ordenes is not None and tasa_charla <= REGLA_RESERVADOS_MAXIMO
                        and tasa_ordenes <= REGLA_ORDENES_MAXIMO)}
@@ -612,6 +674,7 @@ def evaluar_agente(modelo, registros: list[dict], *, ollama=None, por_tarea: int
 def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11, 23, 37),
                          registro: Path | None = None, log=print, validacion_cruzada: bool = False,
                          vedadas_extra: Sequence[str] = ()) -> dict:
+    from . import afinado_ordenes as af
     from . import codificador_ordenes as co
     from . import transformer as tr
     from . import validacion_cruzada as vc
@@ -625,10 +688,13 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
         raise ValueError('se conserva una ejecución existente; use otro destino')
     destino.mkdir(parents=True, exist_ok=True)
     cfg = cfg or co.Configuracion()
-    disp = tr._dispositivo()                                                         # 069:RF-6
+    disp = tr._dispositivo()                                                         # 069:RF-6, 079:RF-10
     tr.liberar_gpu()
-    cache = co.CacheCodificada(co.obtener_codificador(co.NOMBRE_CODIFICADOR, co.REVISION_CODIFICADOR, disp))
     por_parte = {p: [r for r in filas if r['particion'] == p] for p in PARTES}
+    codificador = co.obtener_codificador(co.NOMBRE_CODIFICADOR, co.REVISION_CODIFICADOR, disp)
+    # 079:RF-15: con afinado solo se guarda lo que dan las capas congeladas; las que cambian se recorren en cada paso.
+    cache = (af.CachePrefijo(codificador, cfg.afinar_capas, por_parte['seleccion'], evaluar_alumno) if cfg.afinar_capas
+             else co.CacheCodificada(codificador))
     base = [r for r in por_parte['entrenamiento'] if not r['del_maestro']]
     maestro = [r for r in por_parte['entrenamiento'] if r['del_maestro']]
     if not base or not maestro:
@@ -637,6 +703,8 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
                  'particiones': asdict(particiones), 'dataset': meta, 'cfg': asdict(cfg),
                  'semillas': list(semillas), 'metodos': ['supervisado', 'destilado'],
                  'codificador': {'nombre': co.NOMBRE_CODIFICADOR, 'revision': co.REVISION_CODIFICADOR},
+                 'afinado': af.protocolo(cfg) if cfg.afinar_capas else None,                     # 079:RF-63
+                 'regla_charla': {'puestos': list(PUESTOS_CHARLA), 'pisos': list(PISOS_CHARLA)},
                  # 075:RF-46: lo que decide la medida fuera de grupo queda escrito antes de la primera vuelta.
                  'validacion_cruzada': ({'vueltas': vc.VUELTAS, 'semilla': vc.SEMILLA, 'ediciones_frase': vc.EDICIONES_FRASE,
                                          'ediciones_palabra': vc.EDICIONES_PALABRA, 'repeticiones_confirmada': vc.REPETICIONES_CONFIRMADA,
@@ -644,14 +712,14 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
                  'codigo_hashes': {p.name: huella(p.read_text(encoding='utf-8')) for p in
                      (Path(__file__), Path(tr.__file__), Path(co.__file__), Path(__file__).with_name('curriculo_maestro.py'),
                       Path(__file__).with_name('maestro_real.py'), Path(__file__).with_name('prueba_sellada.py'),
-                      Path(vc.__file__))},
+                      Path(__file__).with_name('prueba_sellada_079.py'), Path(vc.__file__), Path(af.__file__))},
                  'entorno': {'python': platform.python_version(), 'torch': tr._torch().__version__,
                              'cuda': tr._torch().version.cuda,
                              'gpu': tr._torch().cuda.get_device_name(0) if tr._torch().cuda.is_available() else None}}
     codigo = destino / 'codigo'
     codigo.mkdir()
     for archivo in (Path(__file__), Path(tr.__file__), Path(co.__file__), Path(__file__).with_name('curriculo_maestro.py'),
-                    Path(__file__).with_name('maestro_real.py'), Path(vc.__file__),
+                    Path(__file__).with_name('maestro_real.py'), Path(vc.__file__), Path(af.__file__),
                     Path(__file__).with_name('ordenes_fijas.py'), Path(__file__).parents[1] / 'evaluacion_modelos.py'):
         (codigo / archivo.name).write_text(archivo.read_text(encoding='utf-8'), encoding='utf-8')
     (destino / 'protocolo.json').write_text(json.dumps(protocolo, ensure_ascii=False, indent=2), encoding='utf-8')
@@ -668,7 +736,7 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
             _guardar_alumno(modelo, carpeta, {'version': carpeta.name, 'metodo': metodo,
                 'policy_hash': politica.hash, 'dataset_hash': meta['dataset_hash']})
             candidatos.append({'semilla': semilla, 'metodo': metodo, 'path': str(carpeta.resolve()),
-                               'seleccion': seleccion})
+                               'seleccion': seleccion, 'afinado': modelo.afinado})     # 079:RF-17
             (destino / 'seleccion.json').write_text(json.dumps(candidatos, ensure_ascii=False, indent=2), encoding='utf-8')
             del modelo
             tr._torch().cuda.empty_cache()
@@ -696,12 +764,17 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
     modelo = cargar_alumno(Path(elegido['path']))
     calibracion = calibrar_temperatura(modelo, por_parte['calibracion'])
     calibracion = {**calibracion, **calibrar_umbral(modelo, por_parte['calibracion'])}
+    regla_elegida = elegir_regla_charla(modelo, por_parte['seleccion'], reservados)                         # 079:RF-50 a RF-54
+    # 079:RF-29: lo que se confunde, solo en desarrollo, para saber qué mirar en la siguiente ejecución.
+    confundidas = ({'seleccion': af.confusiones(modelo, por_parte['seleccion']), 'calibracion': af.confusiones(modelo, por_parte['calibracion'])}
+                   if cfg.afinar_capas else None)
     final = destino / 'alumno'
     _guardar_alumno(modelo, final, {'version': final.name, 'seleccion': elegido,
         'calibracion': calibracion, 'dataset_hash': meta['dataset_hash'], 'policy_hash': politica.hash})
-    # 070:RF-69, RF-72: decide la sellada nueva; la anterior se mide para compararla, sin decidir.
-    prueba_sintetica = [r for r in por_parte['prueba'] if r.get('conjunto') == CONJUNTO_SELLADO] or [
-        r for r in por_parte['prueba'] if r['quality'] != 'gold_human']
+    # 079:RF-45: decide la sellada nueva; un corpus anterior sin ella decide como entonces (070:RF-69, RF-72).
+    prueba_sintetica = ([r for r in por_parte['prueba'] if r.get('conjunto') == CONJUNTO_079]
+                        or [r for r in por_parte['prueba'] if r.get('conjunto') == CONJUNTO_SELLADO]
+                        or [r for r in por_parte['prueba'] if r['quality'] != 'gold_human'])
     sinteticas = evaluar_alumno(modelo, prueba_sintetica)
     humanas = evaluar_alumno(modelo, filas_humanas)
     bloque_cruzada = None
@@ -717,6 +790,11 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
     filas_historicas = [r for r in por_parte['prueba'] if es_historica(r) and r['quality'] != 'gold_human']
     historica = {'huella': (meta.get('prueba_historica') or {}).get('huella'), 'decide': False,
                  'medida': evaluar_alumno(modelo, filas_historicas) if filas_historicas else None}
+    filas_anterior = [r for r in por_parte['prueba'] if r.get('conjunto') == CONJUNTO_SELLADO]
+    decide_anterior = bool(filas_anterior) and prueba_sintetica[0].get('conjunto') == CONJUNTO_SELLADO
+    # 079:RF-46, RF-47: las dos selladas se informan, cada una con su huella; la anterior solo se compara.
+    sellada_anterior = {**(meta.get('prueba_sellada') or {}), 'decide': decide_anterior,
+                        'medida': evaluar_alumno(modelo, filas_anterior) if filas_anterior else None}
     rechazo = medir_rechazo(modelo, reservados) if reservados else None
     cobertura = cobertura_por_umbral(modelo, prueba_sintetica)
     decision = decidir_promocion(sinteticas, humanas, sinteticas['familias'], _referencia_activa(prueba_sintetica), rechazo)
@@ -751,7 +829,9 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
         dataset_manifest=protocolo, metrics={'sinteticas': sinteticas, 'humanas': humanas,
         'seleccion': candidatos, 'calibracion': calibracion, 'funcionamiento': funcionamiento,
         'rechazo': rechazo, 'cobertura': cobertura, 'en_uso': en_uso, 'prueba_historica': historica,
-        'validacion_cruzada': bloque_cruzada, 'regla_ollama': regla_ollama},
+        'prueba_sellada': sellada_anterior, 'prueba_sellada_079': meta.get('prueba_sellada_079'),
+        'validacion_cruzada': bloque_cruzada, 'regla_ollama': regla_ollama, 'regla_elegida': regla_elegida,
+        'confusiones': confundidas},
         decision=decision, smoke_reload=smoke, artifacts=[final / n for n in ('pesos.pt', 'modelo.json', 'readback.json')])
     # La activación es una operación explícita del registro, no un efecto del ensayo: la hace quien
     # lanza el reentrenamiento con ``modelos_en_uso.aplicar_decision`` (067:RF-20).
@@ -759,11 +839,12 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
         'status': decision['status'], 'promovido': False, 'decision': decision,
         'denominadores': meta.get('denominadores'),                                       # 068:RF-29, 047:RF-13
         'rechazo': rechazo, 'cobertura': cobertura, 'modelo_en_uso': en_uso,              # 069:RF-20, RF-27
-        'prueba_sellada': meta.get('prueba_sellada'), 'prueba_historica': historica,      # 070:RF-69, RF-72
+        'prueba_sellada': sellada_anterior, 'prueba_historica': historica,                # 070:RF-72, 079:RF-46
+        'prueba_sellada_079': meta.get('prueba_sellada_079'),                             # 079:RF-45, RF-47
         'elegido': elegido, 'candidato': candidato, 'sinteticas': sinteticas, 'humanas': humanas,
         'smoke_reload': smoke, 'funcionamiento': funcionamiento,
-        'validacion_cruzada': bloque_cruzada, 'regla_ollama': regla_ollama,
-        'calibracion': calibracion, 'duracion_s': time.monotonic() - inicio}
+        'validacion_cruzada': bloque_cruzada, 'regla_ollama': regla_ollama, 'regla_elegida': regla_elegida,
+        'confusiones': confundidas, 'calibracion': calibracion, 'duracion_s': time.monotonic() - inicio}
     (destino / 'decision.json').write_text(json.dumps(reporte, ensure_ascii=False, indent=2, allow_nan=False), encoding='utf-8')
     return reporte
 

@@ -112,11 +112,19 @@ def _por_frase_literal(texto: str, transformer: Any) -> str | None:
     return None
 
 
-def charla_cerca(modelo: Any, texto: str) -> bool:
-    """Si el modelo tiene «ninguna» entre sus primeras opciones; el que no tiene esa clase no opina (075:RF-41)."""
+def charla_cerca(modelo: Any, texto: str, confianza: float | None = None) -> bool:
+    """Si el modelo tiene «ninguna» entre sus primeras opciones; el que no tiene esa clase no opina (075:RF-41).
+
+    079:RF-55, RF-56: cuántas opciones son, y bajo qué confianza tampoco se consulta, lo trae el modelo; sin ello, la regla de la 075.
+    """
     puesto = getattr(modelo, 'puesto_ninguna', None)
     lugar = puesto(texto) if callable(puesto) else None
-    return type(lugar) is int and lugar <= PUESTO_CHARLA
+    if type(lugar) is not int:
+        return False
+    tope, piso = getattr(modelo, 'puesto_charla', None), getattr(modelo, 'piso_charla', None)
+    if lugar <= (tope if type(tope) is int else PUESTO_CHARLA):
+        return True
+    return type(piso) is float and type(confianza) is float and confianza < piso
 
 
 def interpretar(texto: str, *, transformer: Any = None, ollama: Any = None,
@@ -153,7 +161,7 @@ def interpretar(texto: str, *, transformer: Any = None, ollama: Any = None,
             return _con_reglas(Interpretacion(texto, previa['tarea'], previa['confianza'], 'transformer',
                                               previa['datos'], previa.get('alternativas') or [], consultados))
         if (ollama is not None and previa is not None and previa['confianza'] < exigida
-                and charla_cerca(transformer, texto)):
+                and charla_cerca(transformer, texto, previa['confianza'])):
             # 075:RF-37: «muchas gracias» a secas cayó bajo el umbral y Ollama impuso `estado` con confianza 1,0
             # (web, 2026-11-02). El modelo ya dudaba de que fuera una orden: se le pregunta al operador, no a otro modelo.
             return Interpretacion(texto, None, previa['confianza'], 'ninguno', {},

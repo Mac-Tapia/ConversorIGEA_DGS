@@ -351,7 +351,9 @@ def test_final_lo_que_mide_no_entrena(corrida):
     separadas = {x['texto'] for x in corrida['filas'] if x['particion'] in ('seleccion', 'calibracion')} | selladas
     for x in llamadas:
         assert not separadas & x['textos']
-    assert r['sinteticas']['ejemplos'] == len(selladas) and r['prueba_sellada']['huella'] == 'df5e1db88595d378'
+    # 079:RF-45: decide la sellada nueva; la anterior se informa con su huella.
+    decisoras = sum(x.get('conjunto') == 'sellada_079' for x in corrida['filas'])
+    assert r['sinteticas']['ejemplos'] == decisoras and r['prueba_sellada']['huella'] == 'df5e1db88595d378'
 
 
 def test_final_medida_humana_no_decide(corrida):
