@@ -195,7 +195,7 @@ def _sin_caidas(validos: dict, aj: Ajustes, apartados: dict) -> dict:
 
 
 def _instante(fecha: datetime, kw: float, kvar: float | None) -> dict[str, Any]:
-    return {'fecha': fecha, 'kw': kw, 'kvar': kvar, 'kva': _kva(kw, kvar)}
+    return {'fecha': fecha, 'kw': kw, 'kvar': kvar, 'kva': _kva(kw, kvar), 'por_medidor': {}}
 
 
 def _ventana(puntos: Mapping[datetime, tuple[float, float | None]], aj: Ajustes, paso: timedelta | None,
@@ -296,4 +296,67 @@ def valle_de_alcance(alcance: str, curvas: Mapping[str, Iterable[Sequence]], aj:
     v.registros = len(puntos)
     v.instante = _instante(t, *puntos[t])
     v.ventana = _ventana(puntos, aj, _paso(sorted(puntos)), v.avisos)
+    for inst in (v.instante, (v.ventana or {}).get('instante')):
+        if inst:
+            inst['por_medidor'] = {m: c[inst['fecha']] for m, c in limpias.items()}
     return v
+
+
+def _factor(valor: float | None, maxima: float | None) -> float | None:
+    return None if valor is None or not maxima else valor / maxima
+
+
+def _punto(etiqueta: str, inst: Mapping[str, Any], maximas: Mapping[str, Mapping[str, Any]], kw_max: float,
+           kvar_max: float | None, aj: Ajustes) -> dict[str, Any]:
+    """Un instante medido con sus factores sobre la máxima, en la forma del plan del guion (RF-22)."""
+    por_alim: dict[str, list[float]] = {}
+    for m, (kw, _q) in inst['por_medidor'].items():
+        fila = por_alim.setdefault(str(maximas[m].get('alimentador') or m), [0.0, 0.0])
+        fila[0] += kw
+        fila[1] += float(maximas[m]['kw'])
+    factor_p = inst['kw'] / kw_max
+    factor_q = _factor(inst['kvar'], kvar_max)
+    return {'etiqueta': etiqueta, 'fecha': inst['fecha'].isoformat(sep=' '), 'kw': inst['kw'], 'kvar': inst['kvar'],
+            'kva': inst['kva'], 'factor_p': factor_p, 'factor_q': factor_p if factor_q is None else factor_q,
+            'factor_nuevas': aj.factor_cargas_nuevas, 'origen': 'medicion',
+            'factores': {a: x / y for a, (x, y) in sorted(por_alim.items()) if y}}
+
+
+def puntos_de_valle(v: Valle, maximas: Mapping[str, Mapping[str, Any]], aj: Ajustes,
+                    pronostico: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    """Lo que mide la escalera: el instante mínimo y el mínimo de la ventana, si es otro (RF-22).
+
+    ``maximas``: medidor → ``alimentador``, ``kw`` y ``kvar`` de su calibración. ``pronostico``: el
+    valle de un año futuro de la spec 046, que viaja como dato: un pronóstico nunca sustituye a una
+    medición, así que sin medición sigue sin comprobarse (RF-33).
+    """
+    base = {'comprobado': False, 'motivo': v.motivo, 'avisos': list(v.avisos), 'puntos': [], 'pronostico': pronostico,
+            'apartados': {k: {**x, 'primera': str(x['primera']) if x['primera'] else None}
+                          for k, x in v.apartados.items()}}
+    if not v.comprobado or v.instante is None:
+        return base
+    usados = {m: maximas.get(m) or {} for m in v.instante['por_medidor']}
+    if any(not d.get('kw') for d in usados.values()):
+        return {**base, 'motivo': 'sin la máxima de todos los medidores del alcance para comparar el valle'}
+    kw_max = sum(float(d['kw']) for d in usados.values())
+    kvar_max = (sum(float(d['kvar']) for d in usados.values())
+                if all(d.get('kvar') is not None for d in usados.values()) else None)
+    if v.instante['kvar'] is None or not kvar_max:
+        base['avisos'].append('Sin el kVAR del valle o el de la máxima: la Q se escala como la P (073:RF-22).')
+    puntos = [_punto('instante mínimo', v.instante, usados, kw_max, kvar_max, aj)]
+    if v.ventana and v.ventana['instante']['fecha'] != v.instante['fecha']:
+        puntos.append(_punto(f"mínimo de la ventana del {v.ventana['desde']} al {v.ventana['hasta']}",
+                             v.ventana['instante'], usados, kw_max, kvar_max, aj))
+    return {**base, 'comprobado': True, 'puntos': puntos}
+
+
+def frase_valle(fila: Mapping[str, Any] | None) -> str:
+    """La tensión en valle de una alternativa, en una frase (RF-30, RF-31): sin medición, nunca «cumple»."""
+    fila = fila or {}
+    u = fila.get('valle_u_max')
+    if fila.get('valle') is None or u is None:
+        motivo = fila.get('valle_sin_comprobar')
+        return 'no comprobado en valle' + (f' ({motivo})' if motivo else '')
+    texto = f"tensión máxima en valle de {u:.3f}".replace('.', ',')
+    return (f"{texto} p.u. en {fila.get('valle_nodo')} el {fila.get('valle_fecha')}"
+            + ('' if fila.get('valle') else ': sobrepasa lo admisible'))

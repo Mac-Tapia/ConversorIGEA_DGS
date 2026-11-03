@@ -290,3 +290,265 @@ def test_ventana_universal_sin_cifras_de_una_empresa():
     assert a.ventana['dias'] == 2 and b.ventana['dias'] == 9
     with pytest.raises(vl.ValleError):
         vl.ajustes_de({'valle': {'dias_ventana': 0}})
+
+
+# =========================================================================== escalera y oráculo
+from convertersmartgrid import escalera_optima as eo  # noqa: E402
+from convertersmartgrid import optimizacion_oraculo as oo  # noqa: E402
+from test_optimizacion_oraculo import NUEVA, TIPOS, _exacto, _grafo, _id, _p  # noqa: E402
+
+
+def _banco(n: int, kvar: float = 450.0, barra: str = 'B') -> dict:
+    return {'clase': 'condensador', 'barra': barra, 'q_kvar': kvar * n, 'escalones': n}
+
+
+def _puntos(factor_p: float, factor_q: float | None = None, factor_nuevas: float = 0.0) -> dict:
+    """Un punto de valle como los da ``puntos_de_valle``."""
+    return {'comprobado': True, 'motivo': '', 'avisos': [], 'pronostico': None,
+            'puntos': [{'etiqueta': 'instante mínimo', 'fecha': '2026-03-08 03:15:00', 'kw': 100.0, 'kvar': 30.0,
+                        'kva': 104.4, 'factor_p': factor_p, 'factor_q': factor_p if factor_q is None else factor_q,
+                        'factor_nuevas': factor_nuevas, 'factores': {'F1': factor_p}, 'origen': 'medicion'}]}
+
+
+def _red_con_margen():
+    """Red donde la máxima aguanta dos bancos y el valle no: X alta y carga pequeña."""
+    nueva = {**NUEVA, 'p_mw': 0.1, 'q_mvar': 0.02}
+    return oo.Oraculo(_grafo(r=2.0, x=3.0, nueva_mw=0.1), [nueva], tipos=TIPOS)
+
+
+def _fila(nombre, e, costo=100.0, escalones=('bancos',)):
+    return {'nombre': nombre, 'escalones': escalones, 'costo': {'costo_anual': costo}, **e}
+
+
+def test_sobretension_en_valle_se_cuela_por_la_fraccion():
+    """073:RF-17, 073:RF-18 — el caso «la máxima cumple con bancos y el valle no». Sin el valle, la
+    fracción de sorteos deja pasar el único instante de demanda baja y la variante se elige; con él, no."""
+    ora, p = _red_con_margen(), _p(tension_max_pu=1.04)
+    obras = [_banco(2)]
+    factores = [1.0] * 19 + [0.05]                       # un instante de valle entre veinte sorteos
+    sin_valle = ora.evaluar(obras, 1, p, factores)
+    assert sin_valle['maxima'] and sin_valle['fraccion'] >= p.cumplimiento        # se cuela
+    assert eo.elegir([_fila('2 bancos', sin_valle)], p)['elegida'] == '2 bancos'
+    con_valle = ora.evaluar(obras, 1, p, factores, valle=_puntos(0.05))
+    assert con_valle['maxima'] and con_valle['fraccion'] >= p.cumplimiento        # la máxima sigue cumpliendo
+    assert con_valle['valle'] is False and con_valle['valle_u_max'] > p.tension_max_pu
+    assert con_valle['valle_nodo'] == 'B' and con_valle['valle_fecha'] == '2026-03-08 03:15:00'
+    r = eo.elegir([_fila('2 bancos', con_valle)], p)
+    assert r['elegida'] is None and 'sin_confirmar_sorteos' not in r
+    assert 'en valle' in r['tabla'][0]['motivo'] and '073:RF-17' in r['tabla'][0]['motivo']
+
+
+def test_escalera_elegir_no_compensa_con_la_regla_de_la_maxima():
+    """073:RF-18 — 063:RF-33 elige lo que cumple con la máxima aunque los sorteos no lo confirmen;
+    lo que no cumple en valle no entra ahí, y la escalera sube al escalón siguiente."""
+    p = _p()
+    malo = {'maxima': True, 'fraccion': 0.5, 'valle': False, 'valle_motivos': ['B sube']}
+    assert eo.elegir([_fila('banco', malo)], p)['elegida'] is None
+    terna = {'maxima': True, 'fraccion': 1.0, 'valle': True}
+    r = eo.elegir([_fila('banco', {**malo, 'fraccion': 1.0}), _fila('terna', terna, 900.0, ('terna',))], p)
+    assert r['elegida'] == 'terna'
+    assert r['aviso_valle'] and 'banco' in r['aviso_valle'] and 'por pasos' in r['aviso_valle']   # 073:RF-20, 073:RF-27
+
+
+def test_escalera_sin_valle_no_bloquea_y_queda_marcada():
+    """073:RF-24, 073:RF-31 — sin medición nada se bloquea, pero la variante dice «no comprobado en
+    valle», también la elegida."""
+    p = _p()
+    r = eo.elegir([_fila('banco', {'maxima': True, 'fraccion': 1.0})], p)
+    assert r['elegida'] == 'banco' and r['sin_comprobar_valle'] is True
+    assert 'no comprobado en valle' in r['tabla'][0]['motivo']
+    sin_bancos = eo.elegir([_fila('terna', {'maxima': True, 'fraccion': 1.0}, escalones=('terna',))], p)
+    assert 'sin_comprobar_valle' not in sin_bancos
+
+
+@pytest.mark.parametrize('semilla', range(5))
+def test_escalera_modulos_como_el_flujo_exacto(semilla):
+    """073:RF-19, 073:RF-34 — el número de módulos es el mayor que no pasa del límite superior en el
+    flujo exacto, con tamaño de banco, red y límite sorteados: ninguna cifra en el código."""
+    rng = random.Random(semilla)
+    kvar = rng.choice([150.0, 300.0, 450.0, 600.0])
+    x = rng.uniform(1.0, 4.0)
+    hi = rng.uniform(1.01, 1.06)
+    ora = oo.Oraculo(_grafo(r=1.0, x=x, nueva_mw=0.0), [], tipos=TIPOS)
+    p = _p(tension_max_pu=hi, tolerancia_pu=0.0)
+    r = oo.modulos_en_valle(ora, ['B'], kvar, _puntos(1.0), p)
+    g, b = _grafo(r=1.0, x=x, nueva_mw=0.0), _id('B', 'ElmTerm')
+    esperado = 0
+    while _exacto(g, b, extra_q_mvar=kvar * (esperado + 1) / 1000) <= hi:
+        esperado += 1
+    assert r['modulos'] == esperado and r['comprobado'] and not r['por_tope']
+    assert r['u_max'] is None or r['u_max'] <= hi + 1e-9
+
+
+def test_escalera_modulos_con_tope_del_perfil_y_sin_efecto_no_cuelgan():
+    """073:RF-19 — con ``escalera.modulos_max`` el tope es el suyo; sin efecto del banco, para y lo dice."""
+    ora = oo.Oraculo(_grafo(nueva_mw=0.0), [], tipos=TIPOS)
+    p = _p(tension_max_pu=5.0)
+    r = oo.modulos_en_valle(ora, ['B'], 150.0, _puntos(1.0), p, tope=3)
+    assert r['modulos'] == 3 and r['por_tope']
+    sin_efecto = oo.modulos_en_valle(ora, ['NO_ESTA'], 150.0, _puntos(1.0), p)
+    assert sin_efecto['modulos'] == 0 and sin_efecto['aviso']
+    nada = oo.modulos_en_valle(ora, ['B'], 150.0, {'comprobado': False, 'puntos': [], 'motivo': 'sin medición'}, p)
+    assert nada['modulos'] is None and not nada['comprobado'] and nada['motivo'] == 'sin medición'
+
+
+def _troncal():
+    return [{'nombre': f'T{i}', 'largo_m': 1000.0, 'corriente_a': 50.0} for i in range(3)]
+
+
+CARGA = [{'barra': 'B', 'existe': True, 'indice_troncal': 2}]
+
+
+@pytest.mark.parametrize('n', [0, 1, 3, 5])
+def test_escalera_variantes_de_1_al_tope_mas_una_de_evidencia(n):
+    """073:RF-19, 073:RF-20 — se prueban de 1 a N módulos, y N + 1 solo, sin combinar, para ver que el
+    valle lo rechaza; el módulo es el de la tensión; N es el del valle, no una cifra."""
+    p = _p(con_regulador=False)
+    vs, avisos = eo.variantes('F1', 22.9, _troncal(), CARGA, [], p, banco_kvar=450, modulos_valle=n)
+    bancos = [v for v in vs if v.escalones == ('bancos',)]
+    assert [o['escalones'] for v in bancos for o in v.obras] == list(range(1, n + 2))
+    assert all(o['q_kvar'] == 450 * o['escalones'] for v in bancos for o in v.obras)
+    assert [v.solo_evidencia for v in bancos] == [False] * n + [True]
+    combinadas = [v for v in vs if 'bancos' in v.escalones and len(v.escalones) > 1]
+    assert all(o['escalones'] <= n for v in combinadas for o in v.obras if o['clase'] == 'condensador')
+    assert bool(combinadas) == bool(n)
+    assert any(f'{n} módulos' in a or 'ningún módulo' in a for a in avisos)
+    # Sin consigna: el banco por pasos existe como obra, pero la escalera no lo genera (073:RF-27).
+    assert not any(o.get('consigna_pu') for v in vs for o in v.obras if o['clase'] == 'condensador')
+
+
+def test_escalera_con_tope_del_perfil_no_prueba_de_mas():
+    """073:RF-19 — si el número lo limita ``escalera.modulos_max``, no se prueba uno más."""
+    vs, _ = eo.variantes('F1', 22.9, _troncal(), CARGA, [], _p(con_regulador=False), banco_kvar=450, modulos_valle=2,
+                         evidencia=False)
+    assert [o['escalones'] for v in vs if v.escalones == ('bancos',) for o in v.obras] == [1, 2]
+
+
+def test_escalera_sin_valle_los_modulos_del_perfil_o_la_regla_anterior():
+    """073:RF-24 — sin valle, ``escalera.modulos_max`` o los de antes, sin bloquear."""
+    def modulos(p):
+        vs, _ = eo.variantes('F1', 10.0, _troncal(), CARGA, [], p, banco_kvar=300)
+        return [o['escalones'] for v in vs if v.escalones == ('bancos',) for o in v.obras]
+    assert modulos(_p(con_regulador=False)) == list(range(1, eo.MODULOS_SIN_VALLE + 1))
+    assert modulos(_p(con_regulador=False, modulos_max=4)) == [1, 2, 3, 4]
+    perfil = {'escalera': {'cumplimiento': 0.9, 'sorteos': 3, 'tolerancia_pu': 0.01, 'tolerancia_carga_pct': 1,
+                           'modulos_max': 6},
+              'planificacion': {'tasa_regulada': 0.1, 'vida_util_anios': 20},
+              'estudios': {'tension_min_pu': 0.9, 'tension_max_pu': 1.1, 'cargabilidad_max_pct': 100}}
+    assert eo.parametros(perfil).modulos_max == 6
+    del perfil['escalera']['modulos_max']
+    assert eo.parametros(perfil).modulos_max is None
+
+
+def test_escalera_el_kvar_de_valle_con_su_propio_factor():
+    """073:RF-22 — el kW y el kVAR del registro, cada uno con su factor: un valle capacitivo no es la
+    máxima a escala. El resultado es el del flujo del grafo con esas potencias."""
+    g = _grafo(nueva_mw=0.0)
+    ora = oo.Oraculo(g, [], tipos=TIPOS)
+    b = _id('B', 'ElmTerm')
+    m = ora.medir([], 0, 0.3, factor_q=-0.2)
+    hecho = {'nodos': {n: {**d, 'p_mw': d['p_mw'] * 0.3, 'q_mvar': d['q_mvar'] * -0.2} for n, d in g['nodos'].items()},
+             'ramas': g['ramas']}
+    assert m.u['B'] == pytest.approx(_exacto(hecho, b), abs=1e-9)
+    assert ora.medir([], 0, 0.3).u['B'] == pytest.approx(ora.medir([], 0, 0.3, factor_q=0.3).u['B'], abs=1e-12)
+
+
+def test_escalera_las_cargas_nuevas_en_valle_por_su_factor():
+    """073:RF-23 — por defecto apagadas: el banco sigue conectado y de ellas no hay medición. El perfil
+    puede dar otro factor, y con carga nueva encendida la tensión baja."""
+    ora = _red_con_margen()
+    apagada = ora.medir([], 1, 0.05, factor_nuevas=0.0).u['B']
+    igual = ora.medir([], 0, 0.05).u['B']
+    encendida = ora.medir([], 1, 0.05, factor_nuevas=1.0).u['B']
+    assert apagada == pytest.approx(igual, abs=1e-12) and encendida < apagada
+    assert vl.ajustes_de({}).factor_cargas_nuevas == 0.0
+    assert vl.ajustes_de({'valle': {'factor_cargas_nuevas': 0.4}}).factor_cargas_nuevas == 0.4
+
+
+def _espacio_valle():
+    return oo.Espacio('F1', barras=['B'], banco_kvar=450.0, modulos_max=6,
+                      tramos=[{'nombre': 'T1', 'largo_m': 2000.0}, {'nombre': 'T2', 'largo_m': 2000.0}], secciones=[])
+
+
+def test_escalera_busqueda_de_k_y_eleccion_con_el_valle():
+    """073:RF-17, 073:RF-21 — buscar_k y elegir_para_k juzgan también en valle: lo que solo cabe con
+    bancos que el valle rechaza no se da por bueno, y la tabla dice la tensión de cada una."""
+    pytest.importorskip('optuna')
+    # Con la máxima hacen falta dos bancos o una terna; el valle solo admite uno.
+    p = _p(tension_max_pu=1.01)
+    valle = _puntos(0.2)
+    nueva = [{**NUEVA, 'alimentador': 'F1'}]
+    ora = oo.Oraculo(_grafo(), nueva, tipos=TIPOS)
+    assert oo.modulos_en_valle(ora, ['B'], 450.0, valle, p)['modulos'] == 1
+    bancos = [eo.Variante(f'{n} bancos', ('bancos',), [{**_banco(n), 'alimentador': 'F1'}], {'bancos': float(n)})
+              for n in (1, 2)]
+    terna = eo.Variante('terna', ('terna',), [{'clase': 'terna', 'alimentador': 'F1', 'tramos': ['T1', 'T2']}],
+                        {'terna': 4.0})
+    alim = oo.Alimentador('F1', [*bancos, terna], lambda v, _k: sum({'bancos': 10.0, 'terna': 500.0}[e] for e in v.escalones),
+                          _espacio_valle())
+    assert ora.evaluar(bancos[1].obras, 1, p, alimentador='F1')['maxima']        # sin valle, valdría
+    assert oo.buscar_k(ora, [oo.Alimentador('F1', bancos, alim.costo)], p)[0] == 1
+    assert oo.buscar_k(ora, [oo.Alimentador('F1', bancos, alim.costo)], p, valle=valle)[0] == 0
+    r = oo.elegir_para_k(ora, [alim], 1, p, valle=valle, evaluaciones_bayes=30, permutaciones=4, semilla=1)['F1']
+    assert r['elegida'] == 'terna'
+    filas = {t['nombre']: t for t in r['tabla']}
+    assert filas['2 bancos']['valle'] is False and filas['2 bancos']['maxima']
+    assert filas['1 bancos']['valle'] is True and filas['1 bancos']['valle_u_max'] <= p.tension_max_pu
+
+    # Ni la bayesiana ni el frente de Pareto dan una combinación con más bancos de los que aguanta.
+    def _bancos_de(nombre):
+        return next((int(t.split('×')[0]) for t in nombre.split(' + ') if '×' in t), 0)
+    assert r['bayesiana']['variante'] is None or _bancos_de(r['bayesiana']['variante']) <= 1
+    assert all(_bancos_de(f['variante']) <= 1 for f in r['pareto']['frente'])
+    assert r['shapley'] is not None
+
+
+def test_escalera_puntos_con_el_factor_de_cada_uno():
+    """073:RF-22 — de la medición a los puntos: factor de P y de Q sobre la máxima, por alimentador y
+    del conjunto; el mínimo de la ventana entra solo si es otro instante."""
+    rng = random.Random(77)
+    a, b = _curva(rng, 25, kw=1000.0), _curva(rng, 25, kw=3000.0)
+    maximas = {'MA': {'alimentador': 'F1', 'kw': 1200.0, 'kvar': 300.0},
+               'MB': {'alimentador': 'F2', 'kw': 3500.0, 'kvar': 800.0}}
+    aj = vl.Ajustes(dias_ventana=3, factor_cargas_nuevas=0.25)
+    v = vl.valle_de_alcance('alimentador', {'MA': a, 'MB': b}, aj)
+    r = vl.puntos_de_valle(v, maximas, aj)
+    assert r['comprobado'] and r['puntos'][0]['etiqueta'] == 'instante mínimo'
+    pt = r['puntos'][0]
+    assert pt['factor_p'] == pytest.approx(v.instante['kw'] / 4700.0)
+    assert pt['factor_q'] == pytest.approx(v.instante['kvar'] / 1100.0)
+    por = v.instante['por_medidor']
+    assert pt['factores'] == {'F1': pytest.approx(por['MA'][0] / 1200.0), 'F2': pytest.approx(por['MB'][0] / 3500.0)}
+    assert pt['factor_nuevas'] == 0.25 and pt['origen'] == 'medicion'
+    assert isinstance(pt['fecha'], str)
+    fechas = [x['fecha'] for x in r['puntos']]
+    assert len(set(fechas)) == len(fechas)
+    if v.ventana['instante']['fecha'] != v.instante['fecha']:
+        assert len(r['puntos']) == 2 and r['puntos'][1]['etiqueta'].startswith('mínimo de la ventana')
+    else:
+        assert len(r['puntos']) == 1
+    import json
+    json.dumps(r)                                        # viaja en el plan del guion
+
+
+def test_informe_frase_con_nodo_y_fecha_o_no_comprobado():
+    """073:RF-30, 073:RF-31 — la tensión máxima en valle con su nodo y su fecha; sin medición, «no
+    comprobado en valle» con el motivo, y nunca la palabra «cumple»."""
+    bien = vl.frase_valle({'valle': True, 'valle_u_max': 1.0432, 'valle_nodo': 'B7', 'valle_fecha': '2026-03-08 03:15:00'})
+    assert bien == 'tensión máxima en valle de 1,043 p.u. en B7 el 2026-03-08 03:15:00'
+    mal = vl.frase_valle({'valle': False, 'valle_u_max': 1.07, 'valle_nodo': 'B7', 'valle_fecha': 'x'})
+    assert '1,070' in mal and 'sobrepasa' in mal
+    for fila in (None, {}, {'valle': None}, {'valle': None, 'valle_sin_comprobar': 'sin medición'}):
+        frase = vl.frase_valle(fila)
+        assert frase.startswith('no comprobado en valle') and 'cumple' not in frase
+    assert 'sin medición' in vl.frase_valle({'valle_sin_comprobar': 'sin medición'})
+
+
+def test_escalera_puntos_sin_medicion_o_sin_la_maxima():
+    """073:RF-24 — sin valle medido o sin la máxima para comparar, sin puntos y con el motivo."""
+    aj = vl.Ajustes()
+    nada = vl.puntos_de_valle(vl.Valle(alcance='set', motivo='sin medición'), {}, aj)
+    assert not nada['comprobado'] and nada['puntos'] == [] and nada['motivo'] == 'sin medición'
+    v = vl.valle_de_alcance('set', {'M': _curva(random.Random(3), 5)}, aj)
+    sin_max = vl.puntos_de_valle(v, {'M': {'alimentador': 'F', 'kw': None, 'kvar': None}}, aj)
+    assert not sin_max['comprobado'] and sin_max['puntos'] == [] and 'máxima' in sin_max['motivo']

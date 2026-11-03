@@ -4,7 +4,7 @@
       Hecho cuando: `pytest -q tests/test_valle.py -k ventana` en verde, con curvas sorteadas.
 - [ ] T2 Contrato de la calibración a valle en su propio caso. (RF-13, RF-14, RF-15, RF-16)
       Hecho cuando: `pytest -q tests/test_valle.py -k calibracion` en verde, con el doble de DIgSILENT.
-- [ ] T3 Escalera y oráculo: valle en la elección y número de módulos. (RF-17, RF-18, RF-19, RF-20, RF-21, RF-22, RF-23, RF-24, RF-27)
+- [x] T3 Escalera y oráculo: valle en la elección y número de módulos. (RF-17, RF-18, RF-19, RF-20, RF-21, RF-22, RF-23, RF-24, RF-27)
       Hecho cuando: `pytest -q tests/test_valle.py -k escalera` en verde, con el caso «la máxima cumple con bancos y el valle no».
 - [ ] T4 El guion de la evaluación mide en valle sin dejar nada. (RF-25, RF-26)
       Hecho cuando: `pytest -q tests/test_valle.py -k guion` en verde, con el doble de DIgSILENT.
