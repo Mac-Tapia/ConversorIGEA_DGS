@@ -58,7 +58,7 @@ def validar_orden(payload: Mapping, contexto=None, vocabulario: Mapping | None =
         if any(not isinstance(v, str) or not v.strip() for v in valores):
             raise ValueError('entidad vacía o no textual')
         tipo = definicion.tipo
-        if tipo in {'alimentadores', 'proyecto', 'sistema', 'sed', 'caso'} and tipo in vocab:
+        if tipo in {'alimentadores', 'proyecto', 'sistema', 'set', 'sed', 'caso'} and tipo in vocab:
             permitidos = {normalizar(str(v)).strip() for v in vocab[tipo]}
             if not permitidos or any(normalizar(v).strip() not in permitidos for v in valores):
                 raise ValueError(f'entidad fuera del contexto: {tipo}')

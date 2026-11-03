@@ -4,9 +4,10 @@ Estado inicial: todas pendientes; este documento no acredita ejecución.
 Leer [spec.md](spec.md), [plan.md](plan.md) y sus contratos dependientes antes de editar.
 Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
 
-- [ ] T1. Esquema de salida y entidades del contexto activo. (RF-1, RF-2, RF-10)
+- [x] T1. Esquema de salida y entidades del contexto activo. (RF-1, RF-2, RF-10)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_asistente_salida_estructurada.py tests/test_asistente_interprete.py tests/test_asistente_ollama.py tests/test_asistente_tareas.py` pasa
       y están guardadas las evidencias adicionales descritas en T1 del plan.
+      Evidencia: esas pruebas, sin omitidas, 2026-11-03 (ver «T1, T3 y T4, 2026-11-03» abajo). El esquema ya viajó a Ollama real en las 200 propuestas de T6.
 
 - [x] T2. Recuperación híbrida con reranker contrastado. (RF-3, RF-4, RF-21 a RF-37)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_asistente_reranker.py tests/test_asistente_indice.py` pasa
@@ -16,10 +17,12 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
 - [ ] T3. Revisión por roles acotada y trazable. (RF-5, RF-6, RF-7)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_asistente_revision_roles.py tests/test_asistente_tareas.py tests/test_asistente_web.py` pasa
       y están guardadas las evidencias adicionales descritas en T3 del plan.
+      Falta: la comparación rol único frente a equipo con un LLM real (`tools/asistente_comparar_revision.py --modelo <modelo> --salida <informe.json>`). Pide Ollama y su GPU.
 
 - [ ] T4. Evaluación real y ajuste condicionado. (RF-8, RF-9)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_asistente_ajuste_condicionado.py tests/test_asistente_qlora.py` pasa
       y están guardadas las evidencias adicionales descritas en T4 del plan.
+      Falta: carga cuantizada y un paso en CUDA con la revisión fijada, con su VRAM y la reapertura del adaptador real; exigir `decidir_ajuste` en `tools/asistente_qlora.py`, junto con T7; y la evaluación final con 200 órdenes reales.
 
 - [x] T5. Destilación reproducible del maestro de sesión y ensayo del alumno. (RF-11, RF-12, RF-13, RF-14, RF-15)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_destilacion_integral.py tests/test_evaluacion_modelos.py` pasa, se ejecuta entrenamiento CUDA real con comparación supervisado/destilado, reapertura en proceso nuevo y ensayo del intérprete/plan; se informa por separado cualquier bloqueo de promoción por datos humanos.
@@ -80,3 +83,13 @@ T2, 2026-11-02, Fase 2 (medición real en CUDA, revisión 05eee54d con la Fase 1
 T2, 2026-11-02, abstención calibrada (RF-31 a RF-37), con los conjuntos y la puerta confirmados antes de medir (`8828ca5f`) y los umbrales antes de abrir el sellado (`34fdfd09`). Solo mmarco. Calibración, `docs/CALIBRACION_ABSTENCION_047.json`: reranker −0,909; BM25 12,386 o coseno 0,766; BM25 solo 12,386. Medición única del sellado (40 con respuesta, 40 sin ella), `docs/EVALUACION_ABSTENCION_047.json`; abstención, Recall@10 y MRR@10 con la puerta (Recall@10 y MRR@10 sin ella entre paréntesis): reranker 0,950, 0,950 (0,950), 0,938 (0,938), **cumple**; híbrido 0,925, 0,800 (0,925), 0,673 (0,746), **no cumple**; BM25 0,950, 0,750 (0,900), 0,652 (0,730), **no cumple**. Ninguno baja de 0,90 en abstención; sin reranker se pierden respuestas: híbrido 5 de 40 y BM25 7 de 40 dicen «No lo sé» teniendo respuesta en el índice. Fallos del reranker: respondió 2 de 40 sin respuesta («¿cómo se leen los medidores a distancia por la línea eléctrica?» y «¿qué potencia tiene la SED XQ7741?»).
 
 **T2 sigue abierta:** el plan declaró que se cierra solo si los tres métodos cumplen, y no se recalibra con lo visto en el sellado. La decisión de aceptar esa pérdida sin reranker corresponde al responsable, no a esta medición. El conjunto es sintético: no acredita 027:RF-42.
+
+T1, T3 y T4, 2026-11-03, revisión base `ede5dc93`, sin GPU (`CUDA_VISIBLE_DEVICES=-1`), sin Ollama ni DIgSILENT, en `tests/`, por fichero y con `-rs`. Salida estructurada 109, intérprete 5, Ollama 10, tareas 4, revisión por roles 14, web 13, equipo 26, equipo web 5, aceptación 28, ajuste condicionado 19, QLoRA 5: todas aprobadas, ninguna omitida. El revisor de las pruebas de T3 es de prueba: no acredita la calidad de ningún LLM.
+
+**T1, cerrada.** Lo que faltaba de RF-2, hallado probando el resolutor tarea por tarea: un código vecino (102 por 101) daba un plan listo sobre otra entidad, sin una duda, y una SET sin contexto salía lista en lo que escribe. Falla antes del cambio y pasa después; entrada en `docs/regresiones/2026-11-03-codigo-vecino-en-el-plan.md`. RF-1 y RF-10 ya estaban hechos: se añadieron solo las pruebas que el plan nombra.
+
+**T3 sigue abierta, solo por la comparación real.** RF-5 a RF-7 tienen código y pruebas. Añadido a lo que ya había: encargo propio de cada rol, esquema en `schemas/revision_propuesta_v1.schema.json`, la segunda ronda ve los dictámenes de la primera, evidencia sin proyecto ni fuente no acredita, presupuesto en `ollama.json`, propuesta final en el resultado. Los casos de la comparación quedan declarados antes de medir: `docs/REVISION_ROLES_CASOS_047.json`, 12 sintéticos del maestro (6 con defecto), huella del contenido `102bdfbf1c049c893aa5906594a1cc20503a1b5344a20dc62c905bb84a21ca6d`. No se midió: la GPU estaba reservada y había cerca de 1 GB de memoria libre.
+
+**T4 sigue abierta.** `asistente/ajuste_condicionado.py` da `decidir_ajuste` y las puertas de 027:RF-18 sobre lo humano, y `decidir_aceptacion` las publica. `test_adaptador_reabre` reabre un adaptador PEFT en otro proceso con un modelo diminuto en CPU: prueba el contrato, no acredita la base NF4 ni el paso en CUDA. Decisión con la evidencia real publicada (último informe: 3 órdenes humanas medidas, 2 de 3 tareas; en el almacén ya hay 45 eventos y 43 órdenes únicas): **bloqueada**, porque son 3 de 200 órdenes reales y el informe no acredita huella ni independencia. El déficit de 188 de 200 es de propuestas: no habilita RF-8. T7 sigue por su autorización expresa de experimento (plan, T7), sin que esto la apruebe; por eso la exigencia no se conectó a su herramienta.
+
+Sin ejecutar o sin completar en esta revisión, por la GPU oculta: `tests/test_asistente_transformer.py` (exige CUDA; aquí solo cambió de dónde toma sus puertas, con el mismo valor) y `test_opcion_sin_pedirla_las_confirmadas_solo_examinan` de `tests/test_validacion_cruzada_ordenes.py` (violación de acceso en `codificador_ordenes.py:311`, igual en `integracion/065` sin este cambio; las otras 57 aprueban). No es la suite completa.

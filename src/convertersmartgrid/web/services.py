@@ -8858,7 +8858,7 @@ def asistente_revisar_plan(ws: Workspace, ctx: JobContext, plan_id: str, *, max_
     """
     from ..asistente import almacen
     from ..asistente.evidencias_web import evidencias_del_contexto, huella_fuente
-    from ..asistente.revision_roles import revisar_propuesta, revisor_ollama
+    from ..asistente.revision_roles import config_revision, revisar_propuesta, revisor_ollama
     from types import SimpleNamespace
 
     guardado = asistente_plan(ws, plan_id)
@@ -8875,12 +8875,14 @@ def asistente_revisar_plan(ws: Workspace, ctx: JobContext, plan_id: str, *, max_
                                                 'contexto_vigente': True}}
     # Sin fuentes del contexto no se carga un modelo para fabricar consenso.
     from ..asistente.ollama import cliente_configurado
-    revisor = revisor_ollama(cliente_configurado()) if evidencia else None
+    presupuesto = config_revision()
+    revisor = revisor_ollama(cliente_configurado(), num_predict=presupuesto['num_predict']) if evidencia else None
     registrar = lambda dato: almacen.anotar('equipo_revisiones', {
         'plan': plan.id, 'espacio': ws.id, 'tipo': 'intervencion', **dato})
     ctx.log('Revisión local: fuentes, física, coste y riesgo; no autoriza ejecución.')
     resultado = revisar_propuesta(propuesta, evidencia, contexto=contexto, revisor=revisor,
-        cancelado=ctx.cancel.is_set, max_rondas=max_rondas, registrar=registrar)
+        cancelado=ctx.cancel.is_set, max_rondas=max_rondas, registrar=registrar,
+        presupuesto_s=presupuesto['presupuesto_s'])
     gobierno._validar_contexto()
     if not evidencia:
         # 067:RF-6: el motivo genérico no decía qué hacer para que la revisión pudiera opinar.

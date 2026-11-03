@@ -70,14 +70,24 @@ def _clave(s: str) -> str:
     return re.sub(r'[\s_\-]+', '', normalizar(s))
 
 
+def _otro_numero(a: str, b: str) -> bool:
+    """¿Los dos nombres llevan números del mismo largo y distintos? Entonces son dos entidades (047:RF-2).
+
+    AB102 y AB101 se parecen un 80 %: «convierte AB102» daba un plan listo sobre AB101, sin una duda, cuando AB102
+    era de otra fuente. Un dígito omitido sí es una errata (``ab10`` → AB101) y se sigue reconociendo.
+    """
+    na, nb = re.findall(r'\d+', a), re.findall(r'\d+', b)
+    return len(na) == len(nb) and any(len(x) == len(y) and x != y for x, y in zip(na, nb))
+
+
 def parecido(valor: str, opciones: Sequence[str], corte: float = 0.8) -> str | None:
     """La opción que es el valor (sin mayúsculas, tildes ni separadores) o se le parece."""
     por_clave = {_clave(o): o for o in opciones}
     k = _clave(valor)
     if k in por_clave:
         return por_clave[k]
-    cerca = difflib.get_close_matches(k, list(por_clave), n=1, cutoff=corte)
-    return por_clave[cerca[0]] if cerca else None
+    cerca = difflib.get_close_matches(k, list(por_clave), n=len(por_clave), cutoff=corte) if por_clave else []
+    return next((por_clave[c] for c in cerca if not _otro_numero(k, c)), None)
 
 
 def _nombrados(texto: str, opciones: Sequence[str]) -> list[str]:
@@ -167,7 +177,8 @@ def resolver(interp: Interpretacion, vocab: Mapping[str, Sequence[str]], *, grup
         valor = _resolver_dato(d.tipo, valores, interp.texto, vocab, plan)
         if valor not in (None, [], ''):
             plan.datos[d.nombre] = valor
-            if plan.escribe and d.tipo in ('alimentadores', 'proyecto', 'sistema') and not vocab.get(d.tipo):
+            # 047:RF-2: la SET faltaba aquí, y sin fuente «convierte la SET X» salía listo con un nombre sin comprobar.
+            if plan.escribe and d.tipo in ('alimentadores', 'proyecto', 'sistema', 'set') and not vocab.get(d.tipo):
                 plan.faltan.append(f'contexto vinculado de {d.tipo}: cargar o leer su fuente antes de ejecutar')
         elif d.obligatorio:
             plan.faltan.append(f'{d.nombre}: {d.descripcion}')
