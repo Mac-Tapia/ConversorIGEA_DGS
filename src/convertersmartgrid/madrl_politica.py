@@ -100,9 +100,11 @@ def _episodio(plano: EntornoPlano, politica, *, muestrear: bool):
     return pasos
 
 
-def entrenar_ppo(plano: EntornoPlano, cfg: Entrenamiento = Entrenamiento(), politica=None) -> tuple[Any, list[float]]:
+def entrenar_ppo(plano: EntornoPlano, cfg: Entrenamiento | None = None, politica=None) -> tuple[Any, list[float]]:
     """PPO con recorte, retorno descontado y ventaja contra el crítico central. Devuelve (política, retorno medio)."""
     import torch
+
+    cfg = cfg or Entrenamiento()
 
     torch.manual_seed(cfg.semilla)
     politica = politica or crear_politica()
