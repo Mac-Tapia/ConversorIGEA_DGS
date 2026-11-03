@@ -6,6 +6,8 @@ el flujo del mismo grafo cambiado a mano: «mueve la tensión como su flujo exac
 """
 from __future__ import annotations
 
+import json
+
 import pytest
 
 pytest.importorskip('scipy')
@@ -288,6 +290,135 @@ def test_digsilent_confirma_y_si_discrepa_manda_el(monkeypatch, tmp_path):
     assert r['oraculo']['comparacion'] and set(r['oraculo']['tiempos']) >= {'oraculo_s', 'digsilent_s'}
     assert list(tmp_path.glob('oraculo_con_proyecto_*.json'))
     assert [c['sed'] for c in r['a_set_nueva']] == ['P']
+
+
+def _lectura(ora, obras, rol, *, perdidas_kw=None, variaciones=(), quitar=()):
+    """La lectura de ``digital_twin_snapshot_pf.py`` tras reabrir, con el flujo que da el oráculo para ``obras``."""
+    from convertersmartgrid.digital_twin.evolutivo import _nombre_corto
+
+    m = ora.medir(obras, len(ora.nuevas))
+    grafo = ora.grafo
+    flujo = {'tensiones': {'unidad': 'p.u.', 'valores': {n: m.u[_nombre_corto(n)] for n in grafo['nodos']
+                                                         if _nombre_corto(n) in m.u}},
+             'perdidas': {'unidad': 'kW', 'valores': {'total': m.perdidas_kw if perdidas_kw is None else perdidas_kw}},
+             'cargabilidad': {'unidad': '%', 'valores': {'lineas': dict(m.carga)}}}
+    for bloque in quitar:
+        flujo.pop(bloque)
+    return {'project': 'P', 'feeders': ['F1'], 'reopen_verified': True, 'flujo': flujo,
+            'caso_nativo': {'rol': rol, 'nombre': rol, 'id': f'IntCase:{rol}'},
+            'contexto': {'year': None, 'period': '2026-07', 'criterio_fijas': 'coincidente'},
+            'topologia': {'grafo': grafo, 'variaciones_activas': list(variaciones),
+                          'barras': {n: {'nombre': n, 'kv': d['kv']} for n, d in grafo['nodos'].items()}}}
+
+
+def _optimizar_con_aceptacion(monkeypatch, tmp_path, lecturas):
+    """La optimización de la 052 con un DIgSILENT doble que confirma una carga, aplica la terna y, al releer,
+    da ``lecturas[caso]`` (o lanza si es una excepción)."""
+    from types import SimpleNamespace
+
+    from convertersmartgrid import perfil_empresa
+    from convertersmartgrid.native_action import build_native_action_context
+    from convertersmartgrid.web import services
+
+    ora = _dos_cargas()
+    nuevas = [{**c, 'sed': c['variacion'][6:], 'kw': c['p_mw'] * 1000} for c in ora.nuevas]
+    perfil = {'informes': {'norma': 'Norma'},
+              'estudios': {'tension_min_pu': 0.5, 'tension_max_pu': 1.5, 'cargabilidad_max_pct': 1000.0}}
+
+    def obras_escalera(ws, ctx, project, feeders, *, cargas_activas=None, aplicar=True, solo_comun=False,
+                       variantes_de=None, **kw):
+        if solo_comun:
+            curva = [(t, 900.0 if t % 2 else 1000.0) for t in range(12)]
+            return {'p': _p(), 'perfil': perfil, 'anio_casos': None, 'objetivos': {'F1': {'kw': 1000.0}},
+                    'curvas': {'F1': curva}, 'sorteos': [], 'perdidas': {'F1': None}, 'costos': {},
+                    'kvar': {}, 'lectura': {'tipos': [], 'alimentadores': {'F1': {'kv': 10.0}}}}
+        cabe = len(cargas_activas) <= 1
+        elegida = variantes_de['F1'][0] if cabe else None
+        if aplicar and cabe:
+            aplicadas.extend(elegida.obras)
+        return {'alimentadores': [{'alimentador': 'F1', 'elegida': elegida.nombre if cabe else None,
+                                   'aplicada': ['Obra_F1'] if aplicar and cabe else None,
+                                   'tabla': [{'nombre': v.nombre, 'maxima': cabe, 'fraccion': 1.0 if cabe else None}
+                                             for v in variantes_de['F1'][:1]]}]}
+
+    datos = {'grafo': _grafo(r=2.5, x=1.875, nueva_mw=1.1), 'nuevas': nuevas,
+             'alimentadores': {'F1': {'troncal': [{'nombre': 'T1', 'largo_m': 2000.0, 'corriente_a': 60.0},
+                                                  {'nombre': 'T2', 'largo_m': 2000.0, 'corriente_a': 60.0}],
+                                      'indices': {'B': 1}, 'existen': ['B'], 'media': {}, 'fuera_desde': None}}}
+    planes, aplicadas = [], []
+
+    def guion_pf(ws, ctx, script, plan, *, nombre, **kw):
+        if script == 'digital_twin_snapshot_pf.py':
+            planes.append(plan)
+            lectura = lecturas[plan['case']]
+            if isinstance(lectura, Exception):
+                raise lectura
+            return 0, lectura(aplicadas), None
+        return 0, datos, None
+
+    accion = build_native_action_context({'source_run_id': 'r1', 'source_mode': 'txt', 'source_fingerprint': 'a' * 64},
+                                         'P', ['F1'], 'obras')
+    monkeypatch.setattr(services, 'obras_escalera', obras_escalera)
+    monkeypatch.setattr(services, '_guion_pf', guion_pf)
+    monkeypatch.setattr(services, '_cargas_nuevas_aplicadas', lambda ws, project: [
+        {'sed': c['sed'], 'variacion': c['variacion'], 'alimentador': 'F1', 'barra': 'B', 'kw': c['kw']}
+        for c in nuevas])
+    monkeypatch.setattr(services, 'native_action_context', lambda *a, **k: accion)
+    monkeypatch.setattr(services, 'ajuste_aplicado_en_disco', lambda *a, **k: {'informes': [{'criterio_fijas': 'coincidente'}]})
+    monkeypatch.setattr(services, 'carpeta_pf', lambda: 'X')
+    monkeypatch.setattr(perfil_empresa, 'estructura_empresa', lambda: None)
+    vistos = []
+    ws = SimpleNamespace(out_dir=tmp_path, criterio_cabecera={'j': {'periodo': '2026-07'}})
+    ctx = SimpleNamespace(log=vistos.append, check_cancel=lambda: None)
+    return services.optimizar_con_proyecto(ws, ctx, 'P', ['F1']), planes, vistos, ora
+
+
+def test_la_alternativa_aplicada_se_acepta_con_su_medicion_nativa_completa(monkeypatch, tmp_path):
+    """044:RF-6, 044:RF-7, 044:RF-9, 052:RF-5 — lo que confirma la 052 se acepta solo tras releer «Con proyecto» con la
+    obra y «Sin proyecto» de referencia, y comparar con el oráculo; la lectura de «Con proyecto» pide tras reabrir las
+    variaciones aplicadas. Con un DIgSILENT doble: la persistencia en el motor real es de la T4."""
+    ora = _dos_cargas()
+    lecturas = {'con_proyecto': lambda obras: _lectura(ora, obras, 'con_proyecto', variaciones=['Obra_F1']),
+                # La referencia sin obras ni cargas nuevas pierde más que con ellas (024:RF-31).
+                'sin_proyecto': lambda obras: _lectura(ora, obras, 'sin_proyecto', perdidas_kw=1e6)}
+    r, planes, vistos, _ora = _optimizar_con_aceptacion(monkeypatch, tmp_path, lecturas)
+    aceptacion = r['oraculo']['aceptacion_nativa']
+    assert aceptacion['aceptada'] is True and aceptacion['verificada'] is True, aceptacion['motivos']
+    assert aceptacion['evaluacion']['clase'] == 'accepted' and aceptacion['validacion']['valida']
+    assert [p['case'] for p in planes] == ['con_proyecto', 'sin_proyecto']
+    assert planes[0]['variaciones_esperadas'] == ['Obra_F1'] and planes[0]['native_action_context']
+    assert any('044:RF-7' in t and 'Aceptada' in t for t in vistos)
+    guardado = json.loads(next(tmp_path.glob('oraculo_con_proyecto_*.json')).read_text(encoding='utf-8'))
+    assert guardado['aceptacion_nativa']['aceptada'] is True
+
+
+@pytest.mark.parametrize('caso', ['sin_perdidas', 'otra_obra', 'sin_digsilent', 'difiere'])
+def test_la_alternativa_que_no_pasa_se_avisa_y_la_corrida_sigue(monkeypatch, tmp_path, caso):
+    """044:RF-6, 044:RF-7, 044:RF-9 — una medición incompleta, una obra que ya no está activa tras reabrir, DIgSILENT sin
+    responder o lo medido lejos de lo predicho: no se acepta, el aviso dice el motivo y la corrida termina con lo
+    de la SET nueva."""
+    from convertersmartgrid.web.services import UserError
+
+    ora = _dos_cargas()
+
+    def con(obras):
+        lectura = _lectura(ora, obras, 'con_proyecto', variaciones=[] if caso == 'otra_obra' else ['Obra_F1'],
+                           quitar=('perdidas',) if caso == 'sin_perdidas' else ())
+        if caso == 'difiere':
+            lectura['flujo']['perdidas']['valores']['total'] *= 3
+        return lectura
+
+    lecturas = {'con_proyecto': UserError('No se pudo conectar con DIgSILENT.') if caso == 'sin_digsilent' else con,
+                'sin_proyecto': lambda obras: _lectura(ora, obras, 'sin_proyecto', perdidas_kw=1e6)}
+    r, _planes, vistos, _ora = _optimizar_con_aceptacion(monkeypatch, tmp_path, lecturas)
+    aceptacion = r['oraculo']['aceptacion_nativa']
+    assert aceptacion['aceptada'] is False and aceptacion['motivos'], aceptacion
+    esperado = {'sin_perdidas': 'perdidas', 'otra_obra': 'siga aplicada', 'sin_digsilent': 'No se pudo conectar',
+                'difiere': 'del gemelo'}[caso]
+    assert any(esperado in m for m in aceptacion['motivos']), aceptacion['motivos']
+    assert not any('no converge' in m for m in aceptacion['motivos'])
+    assert any(t.startswith('AVISO: no se acepta') and esperado in t for t in vistos)
+    assert r['caben'] == 1 and [c['sed'] for c in r['a_set_nueva']] == ['P']
 
 
 def test_sin_grafo_se_busca_en_digsilent(monkeypatch):
