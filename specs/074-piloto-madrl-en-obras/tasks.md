@@ -21,7 +21,9 @@
       responde. MaskablePPO, en CPU, 8 192 pasos y 3 semillas, llega a los 5 bancos de NSGA-II en una red sintética. Es la misma red
       de entrenamiento y solo prueba el montaje. Antes aprendió a no hacer nada, porque rendirse salía más barato: de ahí RF-4.
 - [ ] T7 Entrenar, con su control. (RF-4, RF-9)
-      Falta escribir la política GATv2 con crítico central; `tools/madrl_entrenar.py` solo tiene el control.
+      Escrita la política GATv2 con crítico central (`madrl_politica.py`), probada en CPU el 2026-11-02 con redes sintéticas: aprende
+      (retorno de -9,3 a -4,9) pero, en 3 redes que no vio, paga un banco más que NSGA-II en dos y en la tercera nadie llega a
+      norma; la puerta la rechaza (67 %). Falta entrenarla en GPU sobre redes reales que pasen T5.
       Hecho cuando: GATv2 con crítico central y MaskablePPO entrenan con turno de GPU sobre redes que pasen T5. Antes de los modelos
       sanos de la auditoría no se entrena.
 - [ ] T8 Puerta y confirmación. (RF-6, RF-10)
