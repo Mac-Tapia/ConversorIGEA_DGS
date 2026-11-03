@@ -82,7 +82,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 052 Optimización de «Con proyecto» con el oráculo y confirmación en DIgSILENT | implementada | falta T4 |
   | 053 El catálogo de fichas crece con cada código nuevo | cumplida |  |
   | 054 Fases reales en el DGS: tramos y SED monofásicos y bifásicos | cumplida |  |
-  | 055 Estructura de sistemas y SET desde la propia fuente, para cualquier empresa | aprobada | falta T1, T3, T2 |
+  | 055 Estructura de sistemas y SET desde la propia fuente, para cualquier empresa | implementada | falta T2 |
   | 056 Nombres y mensajes según la fuente: cada fuente con sus propias palabras | aprobada | falta T1, T2, T3 |
   | 057 El «Caso base» llega convergido: el oráculo corrige antes de importar | cumplida |  |
   | 058 ConverterSmartGrid: el proyecto sin el nombre de otra empresa | aprobada | falta T5, T6, T7 |

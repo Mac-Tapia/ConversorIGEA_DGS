@@ -1,6 +1,6 @@
 # Spec 055 — Estructura de sistemas y SET desde la propia fuente, para cualquier empresa
 
-Estado: aprobada · Fecha: 2026-11-01 · Origen: petición del usuario, 2026-11-01, al cerrar la
+Estado: implementada · Fecha: 2026-11-01 · Origen: petición del usuario, 2026-11-01, al cerrar la
 prueba de Electro Oriente («después, para cerrar de Electro Oriente, debe ver si se cargaron
 todos los alimentadores y sistemas y SET en la web para hacer cualquier conversión»; «de
 cualquier empresa debería cargar todos los alimentadores, ya sea si se carga TXT, MDB y
