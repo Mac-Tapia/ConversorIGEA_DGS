@@ -167,8 +167,13 @@ class ExportSpec:
         return f'NET_2030_{150 + index}_{code}'
 
     def short_name(self, index: int) -> str:
-        """Nombre corto que el motor debe deducir del NetworkID."""
-        return self.network_id(index).replace('.', '_').split('_')[-1].split('-')[-1]
+        """Nombre corto que el motor debe deducir del NetworkID.
+
+        080:RF-28: si el último trozo es solo un número no identifica nada y queda el NetworkID entero
+        (de «ALIMENTADOR-01» quedaba «01»).
+        """
+        corto = self.network_id(index).replace('.', '_').split('_')[-1].split('-')[-1]
+        return self.network_id(index) if corto.isdigit() else corto
 
     @property
     def total_feeders(self) -> int:
