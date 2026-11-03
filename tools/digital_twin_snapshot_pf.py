@@ -206,7 +206,7 @@ def grafo(app, proyecto, raiz: str, feeders: list[str], factor: float = 1.0) -> 
                       'hasta': _barra(cubs[1], raiz), 'cerrada': _cerrado(ln, cubs),
                       'r_ohm': (_num(tipo, 'rline') or 0.0) * largo / n,
                       'x_ohm': (_num(tipo, 'xline') or 0.0) * largo / n,
-                      'inom_ka': (_num(tipo, 'sline') or 0.0) * n})
+                      'inom_ka': (_num(tipo, 'sline') or 0.0) * n, 'km': largo})
     # Los acopladores (interruptores y seccionadores de barra): desde la spec 022 la cabecera
     # de cada alimentador es un interruptor en su SET. Sin ellos, de 2470 nodos de IN111–TA225
     # solo 91 quedaban unidos a una fuente (2026-10-22).
@@ -223,11 +223,14 @@ def grafo(app, proyecto, raiz: str, feeders: list[str], factor: float = 1.0) -> 
             continue
         s, uh = _num(tipo, 'strn') or 0.0, _num(tipo, 'utrn_h') or 0.0
         z_base = uh * uh / s if s else 0.0
+        # Las unidades en paralelo, como las ternas de una línea (074:RF-8): sin ellas, SM218 veía al 131 %
+        # un transformador que DIgSILENT mide al 65 %.
+        u = max(int(_num(tr, 'ntnum') or 1), 1)
         ramas.append({'id': _id(tr, raiz), 'clase': 'ElmTr2', 'desde': _barra(hv, raiz),
                       'hasta': _barra(lv, raiz), 'cerrada': not int(getattr(tr, 'outserv', 0) or 0),
-                      'r_ohm': (_num(tipo, 'pcutr') or 0.0) / 1000 / s * z_base if s else 0.0,
-                      'x_ohm': (_num(tipo, 'uktr') or 0.0) / 100 * z_base,
-                      'inom_ka': s / (3 ** 0.5 * uh) if uh else 0.0,
+                      'r_ohm': (_num(tipo, 'pcutr') or 0.0) / 1000 / s * z_base / u if s else 0.0,
+                      'x_ohm': (_num(tipo, 'uktr') or 0.0) / 100 * z_base / u,
+                      'inom_ka': s / (3 ** 0.5 * uh) * u if uh else 0.0,
                       'relacion': uh / (_num(tipo, 'utrn_l') or uh)})
     return {'version': VERSION_GRAFO, 'nodos': nodos, 'ramas': ramas}
 

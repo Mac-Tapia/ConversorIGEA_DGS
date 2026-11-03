@@ -133,6 +133,25 @@ def test_el_grafo_trae_los_acopladores_y_la_version(guion):
     assert [r['clase'] for r in g['ramas']].count('ElmCoup') == 1
 
 
+def test_el_grafo_cuenta_las_unidades_en_paralelo_y_el_largo(guion):
+    """074:RF-8 — dos unidades reparten la impedancia y suman corriente; cada tramo lleva su largo."""
+    app = _app()
+
+    def transformadores():
+        g = guion.ejecutar(app, _plan(solo_tramos=True))[0]['grafo']
+        return g, {r['id']: r for r in g['ramas'] if r['clase'] == 'ElmTr2'}
+
+    g, antes = transformadores()
+    assert antes, 'el simulador tiene que traer transformadores'
+    assert all('km' in r for r in g['ramas'] if r['clase'] == 'ElmLne')
+    for tr in app.proyecto.GetContents('*.ElmTr2', 1):
+        object.__setattr__(tr, 'ntnum', 2)
+    _g, despues = transformadores()
+    for k, r in antes.items():
+        assert despues[k]['inom_ka'] == pytest.approx(r['inom_ka'] * 2)
+        assert despues[k]['r_ohm'] == pytest.approx(r['r_ohm'] / 2) and despues[k]['x_ohm'] == pytest.approx(r['x_ohm'] / 2)
+
+
 def test_hipercubo_latino_del_rango_medido():
     """027:RF-4 — los factores cubren el rango medido del total coincidente, del valle a la
     punta con su margen, uno por franja; misma semilla, mismos factores."""
