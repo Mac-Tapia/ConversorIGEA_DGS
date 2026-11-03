@@ -149,6 +149,17 @@ def letras_de_fase(fase) -> str:
     return decode_phase(fase) or 'ABC'
 
 
+def fases_de_union(a: str, b: str) -> str:
+    """Las fases de un elemento que une dos barras: las comunes, y si no hay, las de la barra con menos.
+
+    Un acoplador trifásico en una barra monofásica deja a DIgSILENT sin flujo («The no. of phases (3) of the element must
+    be less than or equal to the no. of phases (1)»): pasó en un sistema de 22 alimentadores, con un puente fundido entre
+    una barra trifásica y una monofásica, y por uno solo no se calcula ninguno.
+    """
+    comunes = ''.join(x for x in a if x in b)
+    return comunes or min(a, b, key=len)
+
+
 def it2p_de(elemento: str, barra: str) -> dict[str, int]:
     """Qué fase de la barra toma cada fase del elemento (``StaCubic.it2p1..3``, 054:RF-3).
 
@@ -1455,18 +1466,19 @@ def write_dgs(
             continue
         coup_fid = reg.new()
         tie_rows.append((enlace, coup_fid))
+        fases_enlace = fases_de_union(letras_nodo(enlace.node_a), letras_nodo(enlace.node_b))
         rows['ElmCoup'].append(_make_row(
             schema, 'ElmCoup', FID=coup_fid, OP='C',
             loc_name=_loc_name(enlace.name),
             fold_id=net_fids.get(red_del_par(enlace.node_a, enlace.node_b), network_fid), typ_id='',
-            on_off=0, aUsage='swt', nphase=3, nneutral=0,
+            on_off=0, aUsage='swt', nphase=len(fases_enlace), nneutral=0,
         ))
         for lado, nodo in ((0, enlace.node_a), (1, enlace.node_b)):
             rows['StaCubic'].append(_make_row(
                 schema, 'StaCubic', FID=reg.new(), OP='C',
                 loc_name=_loc_name(f'Cub{lado + 1}_{enlace.name}'),
                 fold_id=node_fids[nodo], obj_bus=lado, obj_id=coup_fid,
-                it2p1=0, it2p2=1, it2p3=2,
+                **it2p_de(fases_enlace, letras_nodo(nodo)),
             ))
 
     # Interruptores sin tramo: los seccionadores de los tramos puente fundidos (ver
@@ -1480,12 +1492,13 @@ def write_dgs(
             continue
         coup_fid = reg.new()
         coupler_rows.append((acoplador, coup_fid))
+        fases_acoplador = fases_de_union(letras_nodo(acoplador.node_a), letras_nodo(acoplador.node_b))
         rows['ElmCoup'].append(_make_row(
             schema, 'ElmCoup', FID=coup_fid, OP='C',
             loc_name=_loc_name(acoplador.name),
             fold_id=net_fids.get(red_del_par(acoplador.node_a, acoplador.node_b), network_fid),
             typ_id='', on_off=int(acoplador.on_off), aUsage=USO_POR_CLASE.get(acoplador.kind, 'swt'),
-            nphase=3, nneutral=0,
+            nphase=len(fases_acoplador), nneutral=0,
         ))
         for lado, nodo in ((0, acoplador.node_a), (1, acoplador.node_b)):
             coupler_cubic_fids[(acoplador.name, lado)] = cub_fid = reg.new()
@@ -1493,7 +1506,7 @@ def write_dgs(
                 schema, 'StaCubic', FID=cub_fid, OP='C',
                 loc_name=_loc_name(f'Cub{lado + 1}_{acoplador.name}'),
                 fold_id=node_fids[nodo], obj_bus=lado, obj_id=coup_fid,
-                it2p1=0, it2p2=1, it2p3=2,
+                **it2p_de(fases_acoplador, letras_nodo(nodo)),
             ))
 
     # Un ElmFeeder por alimentador: es lo que da a PowerFactory la herramienta de

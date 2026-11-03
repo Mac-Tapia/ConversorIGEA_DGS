@@ -46,6 +46,16 @@ def test_ayudas_de_fases():
     assert dgs.it2p_de('ABC', 'ABC') == {'it2p1': 0, 'it2p2': 1, 'it2p3': 2}
 
 
+def test_un_acoplador_lleva_las_fases_de_sus_dos_barras():
+    """054:RF-3 — trifásico entre trifásicas, como siempre; entre una trifásica y una monofásica, monofásico."""
+    assert dgs.fases_de_union('ABC', 'ABC') == 'ABC'
+    assert dgs.fases_de_union('ABC', 'B') == 'B' and dgs.fases_de_union('B', 'ABC') == 'B'
+    assert dgs.fases_de_union('AB', 'BC') == 'B'
+    # Datos que no casan: la barra con menos fases decide, y DIgSILENT calcula.
+    assert dgs.fases_de_union('A', 'BC') == 'A'
+    assert dgs.it2p_de('B', 'ABC')['it2p1'] == 1 and dgs.it2p_de('B', 'B')['it2p1'] == 0
+
+
 def test_fases_de_la_sed_por_su_norma():
     """054:RF-1 — sufijo de la norma del regulador: 01 una fase, 02 dos, 03/04/05 tres; las
     letras, las del tramo que llega a su nodo; sin sufijo, trifásica."""
