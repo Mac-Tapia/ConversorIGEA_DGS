@@ -4571,6 +4571,22 @@ def _gemelo(ws: Workspace, ctx: JobContext, plan: dict, informe: dict, *, caso: 
                            manual=manual)
 
 
+def _estudio_del_plan(ws: Workspace, plan_pide: dict[str, Any], avisos: list[str]):
+    """El estudio del año de presentación del perfil, con el aviso si el caso base es de otro año (072:RF-3)."""
+    from ..estudio_planeamiento import EstudioError, aviso_del_anio_medido, estudio_de
+
+    metodologia = json.loads((project_root() / 'config' / 'pide_universal_2017.json').read_text(encoding='utf-8'))
+    try:
+        estudio = estudio_de(plan_pide['anio_presentacion'], metodologia.get('horizonte') or {})
+    except EstudioError as exc:
+        raise UserError(f'Estudio de planeamiento: {exc}') from exc
+    periodo = str(next(iter((ws.criterio_cabecera or {}).values()), {}).get('periodo') or '')
+    aviso = aviso_del_anio_medido(estudio, int(periodo[:4]) if periodo[:4].isdigit() else None)
+    if aviso:
+        avisos.append(aviso)
+    return estudio
+
+
 def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *,
                   capex: str | None = None, implementar: bool = True) -> dict:
     """Metodología del PIDE sobre el proyecto, de punta a punta (spec 024, T13 y T14).
@@ -4599,6 +4615,12 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
     if limites is None:
         raise UserError('Faltan en el perfil los límites de la norma de estos alimentadores.')
     avisos: list[str] = []
+    # 072:RF-1 a RF-3: con el año de presentación del estudio, los años salen de él; se presenta cada
+    # 4 años, así que un perfil no puede dejar años de calendario fijos.
+    estudio = None
+    if plan_pide.get('anio_presentacion') is not None:
+        estudio = _estudio_del_plan(ws, plan_pide, avisos)
+        plan_pide.update(anios_horizonte=list(estudio.largo_plazo), anios_pide=list(estudio.detalle_pide))
     tasa = plan_pide.get('crecimiento_demanda_anual')
     crecimiento = None
     if tasa is None:
@@ -4662,6 +4684,7 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
     ctx.log(f"PIDE: {len(propuesta['obras'])} obra(s) propuesta(s), {len(implementadas)} aplicada(s) "
             f'solas en «Con proyecto»; formatos en {libro.name}.')
     return {'project': project, 'feeders': feeders, 'report': report.name, 'formatos': libro.name,
+            'estudio': estudio.resumen() if estudio else None,
             'crecimiento': crecimiento,                                         # 029:RF-5
             'anios': [{k: v for k, v in a.items() if k != 'problemas'} | {'problemas': len(a.get('problemas') or [])}
                       for a in informe.get('anios') or []],

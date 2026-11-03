@@ -1108,6 +1108,7 @@ se ejecutan con el intérprete de PowerFactory (Python 3.12 con `powerfactory.py
 | `convertir_grupos_mdb.py` | Varios alimentadores de una base en un DGS, importado y con flujo. | PF |
 | `fidelidad_seleccion.py` | Que una selección pase entera del TXT al modelo y al DGS. | |
 | `linea_base_dgs.py` | Línea base de DGS antes de una reorganización, y comparación después. | |
+| `costos_cruce.py` | Mide cuánto de una red convertida encuentra costo en el SICODI público y nombra lo que no (spec 072). |
 | `pide_pf.py` | Cada año del horizonte del PIDE en DIgSILENT con la demanda escalada y el diagnóstico de la norma; no deja nada en el proyecto (spec 024, T13). La web lo lanza desde `POST /api/workspaces/{id}/pide`, que además propone, prioriza y aplica solas las obras que se construyen sin diseño. | PF |
 | `escanear_alimentador_pf.py` | Escanea en DIgSILENT, sin cambiar nada, los generadores (centrales), bancos, variaciones y cargas cambiadas a mano de cada alimentador antes de recalibrar; la web lo lanza con «Escanear en DIgSILENT» (`POST /api/workspaces/{id}/powerfactory/escanear`, spec 028). | PF |
 | `informe_web.py` | Repite por la web un informe de estudio o de factibilidad con el `.plan.json` que la página dejó junto al Word (`--espacio ID --plan RUTA [--salida CARPETA]`); descarga el Word y dice sus huecos (spec 017, RF-105; paso 4.4). | Web |
