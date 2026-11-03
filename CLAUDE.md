@@ -100,6 +100,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 070 El asistente opera el conversor de punta a punta | implementada | falta T9, T10, T11 |
   | 071 Puertas de los modelos antes de entrenar: PINN en su red, un puntero, sin autoentrenamiento y una guardia de GPU | aprobada | falta T5 |
   | 072 PIDE y planeamiento de largo plazo: dos entregables desde un mismo estudio | aprobada | falta T3, T6, T8, T9, T11 |
+  | 073 El número de bancos lo define la tensión en las ventanas de valle | aprobada | falta T1, T2, T3, T4, T5, T6, T7, T8, T9 |
 
   Las convenciones de cada empresa (CRS de origen, patrón de SED de medición, escala,
   carpeta de DIgSILENT) van en `config/perfil_empresa.json`, local y fuera de git, que
