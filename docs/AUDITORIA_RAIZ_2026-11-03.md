@@ -9,7 +9,7 @@ no lo continúa, lo rehace.
 - Revisado el checkout principal del repositorio en solo lectura, en esta fecha y este equipo. Otras
   sesiones escriben a la vez, así que el estado de una carpeta no versionada es el de ese momento.
 - Tamaños: bytes lógicos de la auditoría externa de almacenamiento del 2026-11-02
-  (`D:/converter/auditorias/ConversorIGEA_DGS_20261102/almacenamiento.md`). No se han vuelto a medir,
+  (`almacenamiento.md` de la carpeta de auditorías del 2026-11-02, fuera del repositorio). No se han vuelto a medir,
   y después de esa fecha se retiró parte de `output/` (`output/ml_dependencies`) y la carpeta de datos
   salió del proyecto. Las carpetas comparten enlaces duros: no se pueden sumar.
 - «Quién la usa» sale de buscar la ruta en `src/`, `tools/`, `tests/` y `pyproject.toml`. Una
