@@ -102,9 +102,9 @@ desiguales. Ningún número está grabado en el motor ni en las pruebas.
 
 # Suite completa con los TXT reales. Van las tres variables, porque CSG_TXT_DIR no
 # resuelve los nombres con paréntesis:
-CSG_RED="referencia/RED_030826(1).txt" \
-CSG_LOADS="referencia/CARGA_030826(1).txt" \
-CSG_EQUIPMENT="referencia/BD_Equipo_V261124 (1)(1).txt" \
+CSG_RED="D:/BaseDatosElectroDunas/referencia_retirada_20261102/RED_030826(1).txt" \
+CSG_LOADS="D:/BaseDatosElectroDunas/referencia_retirada_20261102/CARGA_030826(1).txt" \
+CSG_EQUIPMENT="D:/BaseDatosElectroDunas/referencia_retirada_20261102/BD_Equipo_V261124 (1)(1).txt" \
 .venv/Scripts/python.exe -m pytest -q
 
 # Repetir un sorteo que falló (la semilla aparece en el mensaje de fallo):

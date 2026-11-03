@@ -152,22 +152,24 @@ comprobación mínima tras instalar o actualizar.
 ### 2.2 Suite completa, con sus TXT
 
 ```bat
-> set CSG_RED=referencia\RED_030826(1).txt
-> set CSG_LOADS=referencia\CARGA_030826(1).txt
-> set CSG_EQUIPMENT=referencia\BD_Equipo_V261124 (1)(1).txt
+> set CSG_RED=D:\datos\RED_030826(1).txt
+> set CSG_LOADS=D:\datos\CARGA_030826(1).txt
+> set CSG_EQUIPMENT=D:\datos\BD_Equipo_V261124 (1)(1).txt
 > .venv\Scripts\python.exe -m pytest -q
 ```
 
 En PowerShell:
 
 ```powershell
-> $env:CSG_RED='referencia\RED_030826(1).txt'
-> $env:CSG_LOADS='referencia\CARGA_030826(1).txt'
-> $env:CSG_EQUIPMENT='referencia\BD_Equipo_V261124 (1)(1).txt'
+> $env:CSG_RED='D:\datos\RED_030826(1).txt'
+> $env:CSG_LOADS='D:\datos\CARGA_030826(1).txt'
+> $env:CSG_EQUIPMENT='D:\datos\BD_Equipo_V261124 (1)(1).txt'
 > .venv\Scripts\python.exe -m pytest -q
 ```
 
 Nota: los nombres con paréntesis **deben ir entre comillas** si los escribe sueltos.
+`D:\datos` es un ejemplo, aquí y en el resto del manual: la carpeta donde tenga sus TXT. El
+proyecto no trae datos de ninguna distribuidora desde el 2026-11-02.
 La variable `CSG_TXT_DIR` que menciona el README no resuelve estos nombres; use las
 tres variables individuales.
 
@@ -205,9 +207,9 @@ rem Vínculo de la interfaz con el motor
 
 ```bat
 > .venv\Scripts\python.exe -m convertersmartgrid.cli list ^
-    --red "referencia\RED_030826(1).txt" ^
-    --loads "referencia\CARGA_030826(1).txt" ^
-    --equipment "referencia\BD_Equipo_V261124 (1)(1).txt" ^
+    --red "D:\datos\RED_030826(1).txt" ^
+    --loads "D:\datos\CARGA_030826(1).txt" ^
+    --equipment "D:\datos\BD_Equipo_V261124 (1)(1).txt" ^
     --inventory-json output\inventario.json
 ```
 
@@ -286,9 +288,9 @@ opcionales.
 
 ```bat
 > .venv\Scripts\python.exe -m convertersmartgrid.cli convert ^
-    --red "referencia\RED_030826(1).txt" ^
-    --loads "referencia\CARGA_030826(1).txt" ^
-    --equipment "referencia\BD_Equipo_V261124 (1)(1).txt" ^
+    --red "D:\datos\RED_030826(1).txt" ^
+    --loads "D:\datos\CARGA_030826(1).txt" ^
+    --equipment "D:\datos\BD_Equipo_V261124 (1)(1).txt" ^
     --feeder IN111 ^
     --source-crs EPSG:32718 ^
     --out-dir output\produccion
@@ -298,9 +300,9 @@ opcionales.
 
 ```bat
 > .venv\Scripts\python.exe -m convertersmartgrid.cli convert ^
-    --red "referencia\RED_030826(1).txt" ^
-    --loads "referencia\CARGA_030826(1).txt" ^
-    --equipment "referencia\BD_Equipo_V261124 (1)(1).txt" ^
+    --red "D:\datos\RED_030826(1).txt" ^
+    --loads "D:\datos\CARGA_030826(1).txt" ^
+    --equipment "D:\datos\BD_Equipo_V261124 (1)(1).txt" ^
     --all ^
     --source-crs EPSG:32718 ^
     --out-dir output\produccion
@@ -384,9 +386,9 @@ comprobación rápida tras instalar o actualizar.
 ```bat
 rem Alternativa 1 — TXT
 > .venv\Scripts\python.exe -m convertersmartgrid.cli convert ^
-    --red "referencia\RED_030826(1).txt" ^
-    --loads "referencia\CARGA_030826(1).txt" ^
-    --equipment "referencia\BD_Equipo_V261124 (1)(1).txt" ^
+    --red "D:\datos\RED_030826(1).txt" ^
+    --loads "D:\datos\CARGA_030826(1).txt" ^
+    --equipment "D:\datos\BD_Equipo_V261124 (1)(1).txt" ^
     --feeder PA217 --source-crs EPSG:32718 --out-dir output\pa217_txt
 
 rem Alternativa 2 — base Access
@@ -550,9 +552,9 @@ setlocal
 cd /d "%~dp0"
 
 set "PY=.venv\Scripts\python.exe"
-set "RED=referencia\RED_030826(1).txt"
-set "CARGA=referencia\CARGA_030826(1).txt"
-set "EQUIPO=referencia\BD_Equipo_V261124 (1)(1).txt"
+set "RED=D:\datos\RED_030826(1).txt"
+set "CARGA=D:\datos\CARGA_030826(1).txt"
+set "EQUIPO=D:\datos\BD_Equipo_V261124 (1)(1).txt"
 set "SALIDA=output\produccion"
 set "CRS=EPSG:32718"
 set "ALIM=IN111"
@@ -1137,6 +1139,7 @@ se ejecutan con el intérprete de PowerFactory (Python 3.12 con `powerfactory.py
 | `suggest_line_type_aliases.py` | Propone alias para tipos de línea sin ficha en el catálogo. | |
 | `validar_totalidad_vnr.py` | Cruza con consultas propias a la base restaurada lo que lista la web de una copia VNR-GIS (`--espacio`, `--web`): salidas, tramos y SED; error si algo no cuadra (Spec 080). | Web |
 | `verify_architecture_links.py` | Comprueba los enlaces del espacio Structurizr (`docs/architecture/workspace.dsl`); necesita internet. | |
+| `verify_interactive_architecture.mjs` | Comprueba en el navegador la página de la arquitectura C4 que genera `build_interactive_architecture.py` (Node.js). | |
 | `verificar_pf.py` | Convergencia del proyecto con lo activo (paso 3.0 de 7.ter). | PF |
 
 Documentos relacionados: `docs/POWERFACTORY_ACCEPTANCE.md` (detalle de la puerta de

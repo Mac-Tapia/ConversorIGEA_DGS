@@ -63,7 +63,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 033 Trazabilidad y estado de las specs | cumplida |  |
   | 034 Motor base de conversión y contrato universal de fuentes | cumplida |  |
   | 035 Fijas de la tabla en el instante de la máxima, Q de cabecera con bancos y unidades de DIgSILENT | cumplida |  |
-  | 036 Auditoría de raíz y correcciones del arranque | aprobada | ver sus tareas |
+  | 036 Auditoría de raíz y correcciones del arranque | cumplida |  |
   | 037 Caso «Cargas nuevas» en los estudios de la web | implementada | falta T4 |
   | 038 Pertenencia de las SED y notas en la web | cumplida | — |
   | 039 Fijas del máximo del mes o coincidentes con la cabecera | implementada | falta T4 |

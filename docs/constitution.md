@@ -33,8 +33,8 @@ comprueba; uno que no se pueda comprobar no es un principio.
    su propio paquete, y ninguna puede ser necesaria para instalar o arrancar el núcleo.
    *Cambio del 2026-10-08:* antes no había módulos externos; se permite para que un
    estudio o un formato nuevo se distribuya sin tocar este repositorio.
-9. **Datos de la distribuidora.** Los TXT de `referencia/` y las bases de
-   `D:\BaseDatosElectroDunas` nunca se publican, ni se suben, ni se envían a un servicio
+9. **Datos de la distribuidora.** Los TXT de prueba y las bases, en
+   `D:\BaseDatosElectroDunas` desde el 2026-11-02, nunca se publican, ni se suben, ni se envían a un servicio
    externo, tampoco a un modelo de IA de terceros. Un módulo externo solo se carga si
    figura en la lista de módulos permitidos, porque se ejecuta con acceso a esos datos.
    *Se comprueba:* prueba de que un módulo instalado y no permitido no se carga.
