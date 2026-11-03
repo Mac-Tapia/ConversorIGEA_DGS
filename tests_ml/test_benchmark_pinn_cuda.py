@@ -65,6 +65,6 @@ def test_ablacion_real_en_cuda(tmp_path):
     for nombre in ('red_sin_fisica', 'hibrido_vigente'):
         b = r['brazos'][nombre]
         assert b['estado'] == 'evaluado' and b['vram_mb'] > 0
-        assert b['reapertura']['ok'] is True and b['reapertura']['proceso_nuevo'] is True
+        assert b['reapertura']['ok'] is True and b['reapertura']['payload']['proceso_nuevo'] is True
         assert len(b['terminos_por_epoca']) == 2 and b['terminos_por_epoca'][0][0]['fisica'] >= 0
     assert r['brazos']['powerflownet']['estado'] in ('evaluado', 'no_disponible')
