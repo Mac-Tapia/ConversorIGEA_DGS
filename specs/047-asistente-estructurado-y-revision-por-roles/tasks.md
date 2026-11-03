@@ -8,9 +8,10 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_asistente_salida_estructurada.py tests/test_asistente_interprete.py tests/test_asistente_ollama.py tests/test_asistente_tareas.py` pasa
       y están guardadas las evidencias adicionales descritas en T1 del plan.
 
-- [ ] T2. Recuperación híbrida con reranker contrastado. (RF-3, RF-4, RF-21 a RF-37)
+- [x] T2. Recuperación híbrida con reranker contrastado. (RF-3, RF-4, RF-21 a RF-37)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_asistente_reranker.py tests/test_asistente_indice.py` pasa
       y están guardadas las evidencias adicionales descritas en T2 del plan.
+      Evidencia: `docs/EVALUACION_RAG_047.json` (mmarco adoptado, MRR@10 0,786) y `docs/EVALUACION_ABSTENCION_047.json` (sellado: reranker cumple; híbrido 0,925 y BM25 0,950 de abstención). Cierre por la regla aceptada por el usuario el 2026-11-02 (plan, T2).
 
 - [ ] T3. Revisión por roles acotada y trazable. (RF-5, RF-6, RF-7)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_asistente_revision_roles.py tests/test_asistente_tareas.py tests/test_asistente_web.py` pasa
