@@ -43,8 +43,8 @@ from pathlib import Path
 
 import requests
 
-from convertersmartgrid.demanda_medida import (TIPOS_DEMANDA, DemandaError, clasificar_carpeta_demanda,
-                                     descubrir_libro_suministros)
+from convertersmartgrid.demanda_medida import (MAX_ALIMENTADORES_ANALISIS, TIPOS_DEMANDA, DemandaError,
+                                     clasificar_carpeta_demanda, descubrir_libro_suministros)
 from convertersmartgrid.util import nombre_seguro
 
 TERMINADOS = ('done', 'failed', 'cancelled')
@@ -199,6 +199,10 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
     red = list(dict.fromkeys(a.strip().upper() for a in red or [] if a.strip()))
     if bool(red) == bool(zonal) or (grupo and not red) or (red and reconstruir):
         print('ERROR: elija --zonal o --red; --grupo requiere --red y --reconstruir requiere --zonal.')
+        return 2
+    if len(red) > MAX_ALIMENTADORES_ANALISIS:                                  # 070:RF-57
+        print(f'ERROR: el análisis por alimentadores es de 1 a {MAX_ALIMENTADORES_ANALISIS}; son {len(red)}: '
+              'use el análisis por SET o por sistema eléctrico (--zonal, --set).')
         return 2
     if set_electrica and (not zonal or reconstruir):
         print('ERROR: --set va con su --zonal y no admite --reconstruir.')

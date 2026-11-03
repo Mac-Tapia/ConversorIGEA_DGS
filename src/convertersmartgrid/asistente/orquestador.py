@@ -148,7 +148,12 @@ def lista_de_etapas(datos: Mapping[str, Any], control: Mapping[str, Any], contex
 def _resumen(resultado: Any) -> Any:
     """Lo que se guarda de una etapa: lo pequeño, no las curvas ni las tablas."""
     if isinstance(resultado, dict):
-        return {k: v for k, v in resultado.items() if isinstance(v, (str, int, float, bool, type(None)))}
+        pequeno = {k: v for k, v in resultado.items() if isinstance(v, (str, int, float, bool, type(None)))}
+        # 063:RF-8: lo que decide es la conclusión de los tres casos, no el resumen del Word.
+        conclusion = resultado.get('conclusion_conexion')
+        if isinstance(conclusion, dict) and 'factible' in conclusion:
+            pequeno.update(factible=conclusion['factible'], conclusion=conclusion.get('clave'))
+        return pequeno
     return resultado if isinstance(resultado, (str, int, float, bool, type(None))) else None
 
 

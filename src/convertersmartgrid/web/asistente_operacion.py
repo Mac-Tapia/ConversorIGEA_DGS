@@ -136,11 +136,23 @@ def _centrales_del_perfil(feeders: list[str]) -> dict[str, dict]:
     return {a: c for a, c in perfil.items() if a.upper() in pedidos}
 
 
+def _tope_de_alimentadores(svc, plan, feeders: list[str]) -> bool:
+    """070:RF-58: se dice en el plan, con la alternativa: no se pregunta ni se trocea."""
+    try:
+        svc.comprobar_analisis_por_alimentadores(feeders)
+    except svc.UserError as exc:
+        plan.faltan.append(str(exc))
+        return False
+    return True
+
+
 def _buscar_maxima(svc, ws, plan, extras: dict) -> None:
     alcance, feeders = _alimentadores_del_alcance(svc, ws, plan)
     if not feeders:
         if alcance == 'alimentadores':
             plan.faltan.append('alimentadores: dígalos, o nombre la SET o el sistema.')
+        return
+    if alcance == 'alimentadores' and not _tope_de_alimentadores(svc, plan, feeders):
         return
     medidores = svc.medidores_por_alimentador(ws, feeders)
     pares = [{'alimentador': a, 'medidor': m} for a in feeders for m in medidores.get(a) or []]
@@ -420,6 +432,10 @@ def requisitos(svc, ws, plan, extras: dict) -> None:
     tarea: Any = plan.tarea
     if tarea in ('calibrar', 'simular_calibracion'):
         _maxima_buscada(plan, extras)
+        try:
+            svc.comprobar_que_se_calibra(plan.datos.get('proyecto') or '')     # 070:RF-61
+        except svc.UserError as exc:
+            plan.faltan.append(str(exc))
     elif tarea == 'buscar_maxima':
         _buscar_maxima(svc, ws, plan, extras)
     elif tarea == 'cruzar_clientes':
@@ -438,6 +454,8 @@ def requisitos(svc, ws, plan, extras: dict) -> None:
         _evaluar_carga(svc, ws, plan, extras)
     elif tarea in ('alimentadores_completo', 'set_completo'):
         _libros_de_la_demanda(svc, ws, plan)
+        if tarea == 'alimentadores_completo':
+            _tope_de_alimentadores(svc, plan, list(plan.datos.get('alimentadores') or []))
     elif tarea == 'recalibrar':
         try:
             svc.recalibrar_datos(ws, plan.datos.get('proyecto') or '')

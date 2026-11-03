@@ -1512,6 +1512,8 @@ def create_app(
         pares = [(m.alimentador.strip(), m.medidor.strip()) for m in body.medidores if m.medidor.strip()]
         if not pares:
             raise HTTPException(422, 'Indique al menos un medidor.')
+        if body.coincidente:                                                   # 070:RF-57
+            services.comprobar_analisis_por_alimentadores(services.alimentadores_del_analisis(pares))
         return submit(ws, 'demanda_cabecera', f'Máxima de cabecera ({len(pares)} medidor(es))',
                       lambda ctx: services.demanda_cabecera(ws, ctx, pares, periodo=body.periodo,
                                                             instante=body.instante,

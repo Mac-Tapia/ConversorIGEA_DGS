@@ -3525,6 +3525,7 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
 
     if not project.strip():
         raise UserError('Elija el proyecto de DIgSILENT.')
+    comprobar_que_se_calibra(project)                                          # 070:RF-61
     criterio_fijas = _criterio_fijas(criterio_fijas)                           # 039:RF-1
     filas = _medidores_del_ajuste(maximas, medidor, medidores)
     # 025:RF-18: un año cada vez; antes que nada, para que el motivo sea este.
@@ -8505,6 +8506,57 @@ def _entorno_del_trabajo(ctx: JobContext) -> dict[str, str]:
     return {**os.environ, 'CSG_TRABAJO_PROPIO': ctx.job.id}
 
 
+def alimentadores_del_analisis(pares: list[tuple[str, str]]) -> list[str]:
+    """Los alimentadores de una búsqueda; los medidores de una central no son otro alimentador (022:RF-88)."""
+    return list(dict.fromkeys(a for a, _m in pares if a and not a.lower().startswith('central ')))
+
+
+def comprobar_analisis_por_alimentadores(alimentadores: list[str]) -> None:
+    """070:RF-57: el análisis por alimentadores es de 1 a 3; con más, no se calcula una «coincidente» engañosa."""
+    from ..demanda_medida import MAX_ALIMENTADORES_ANALISIS
+
+    if len(alimentadores) > MAX_ALIMENTADORES_ANALISIS:
+        raise UserError(f'El análisis por alimentadores es de 1 a {MAX_ALIMENTADORES_ANALISIS}; son {len(alimentadores)}: '
+                        'use el análisis por SET o por sistema eléctrico.')
+
+
+def es_proyecto_de_transmision(project: str) -> bool:
+    """070:RF-61: el del perfil; sin perfil no se supone ninguno (P13)."""
+    from ..informes import ConfigInforme, InformeError
+    from ..perfil_empresa import PerfilError, datos_perfil
+
+    try:
+        proyecto = ConfigInforme.de_perfil(datos_perfil(), project_root()).proyecto_transmision
+    except (InformeError, PerfilError):
+        return False
+    return bool(proyecto) and proyecto.strip() == (project or '').strip()
+
+
+def comprobar_que_se_calibra(project: str) -> None:
+    if es_proyecto_de_transmision(project):
+        raise UserError(f'{project} es el proyecto de transmisión: no se calibra; sirve para la cargabilidad '
+                        'del transformador de la SET (017:RF-68).')
+
+
+def _set_del_grupo(ws: Workspace, grupo: str) -> tuple[str, str] | None:
+    """La zonal y la SET de un grupo convertido como SET sola (022:RF-82), o ``None``.
+
+    Por la estructura y no por el nombre: un zonal puede llevar «_» y el nombre solo no dice dónde acaba.
+    """
+    from ..estructura import clave
+
+    try:
+        e = estructura_del_espacio(ws)
+    except UserError:
+        return None
+    if e is None:
+        return None
+    for codigo, fila in e.sets.items():
+        if nombre_seguro(f'SISTEMA_{fila.zonal}_{clave(codigo)}', maximo=60).upper() == grupo:
+            return fila.zonal, codigo
+    return None
+
+
 def carpeta_de_libros(ws: Workspace) -> str | None:
     """La carpeta común de los libros de demanda del espacio, o ``None`` si no tiene (028:RF-23, 070:RF-6)."""
     import os
@@ -8524,6 +8576,7 @@ def recalibrar_datos(ws: Workspace, project: str) -> dict:
     la carpeta de los libros del espacio (028:RF-22 a RF-24)."""
     import re
 
+    comprobar_que_se_calibra(project)                                          # 070:RF-61
     m = re.search(r'SISTEMA_([A-Za-z0-9]+)$', (project or '').strip())
     grupo = next((n for n, p in (ws.pf_projects or {}).items() if p == (project or '').strip()), None)
     if grupo is not None:
@@ -8536,6 +8589,11 @@ def recalibrar_datos(ws: Workspace, project: str) -> dict:
     carpeta = carpeta_de_libros(ws)
     if carpeta is None:
         raise UserError('El espacio no tiene libros de demanda: asígnelos en «2.1» (028:RF-23).')
+    # 070:RF-59: ``SISTEMA_<zonal>_<set>`` no casaba arriba y el proyecto de una SET se calibraba como alimentadores
+    # sueltos, sin su máxima de barra.
+    de_set = _set_del_grupo(ws, grupo) if grupo is not None and (ws.groups.get(grupo) or {}).get('tipo') == 'sistema' else None
+    if de_set is not None:
+        return {'zonal': de_set[0], 'set': de_set[1], 'demanda_dir': carpeta}
     if m:
         return {'zonal': m.group(1).capitalize(), 'demanda_dir': carpeta}
     alimentadores = list((ws.groups.get(grupo) or {}).get('feeders') or [grupo])
@@ -8558,6 +8616,8 @@ def recalibrar_sistema(ws: Workspace, ctx: JobContext, project: str, periodo: st
            '--periodo', periodo, '--demanda-dir', demanda_dir]
     if zonal:
         cmd += ['--zonal', zonal]
+        if base.get('set'):
+            cmd += ['--set', base['set']]                                      # 070:RF-59
     else:
         # 028:RF-24: el proyecto de uno o de varios alimentadores unidos, por su grupo.
         zonal = ' + '.join(base['alimentadores'])

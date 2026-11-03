@@ -10,7 +10,7 @@
   Hecho cuando: `pytest -q tests/test_asistente_maestro.py -k nodisponible` en verde.
 - [x] T5 Encadenar la evaluación de una carga nueva. (RF-50 a RF-56)
   Hecho cuando: `pytest -q tests/test_asistente_maestro.py -k cadena` en verde.
-- [ ] T6 Reglas de dominio. (RF-57 a RF-61)
+- [x] T6 Reglas de dominio. (RF-57 a RF-61)
   Hecho cuando: `pytest -q tests/test_asistente_maestro.py -k dominio` en verde.
 - [ ] T7 Vía antigua de entrenamiento. (RF-62 a RF-66)
   Hecho cuando: `pytest -q tests/test_asistente_maestro.py -k via` en verde.

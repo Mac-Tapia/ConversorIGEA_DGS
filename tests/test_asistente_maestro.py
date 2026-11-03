@@ -1051,3 +1051,137 @@ def test_cadena_el_libro_es_solo_del_perfil():
     assert 'libro_informe' not in fuente and 'libro_xlsx' not in fuente
     fuente = (RAIZ / 'src/convertersmartgrid/web/services.py').read_text(encoding='utf-8')
     assert '_libro_del_informe(ctx, destino, imagenes)' in fuente
+
+# ------------------------------------------------------------------ T6, reglas de dominio
+def test_dominio_la_ruta_rechaza_mas_de_tres_coincidentes(api):
+    """070:RF-57 — también en el backend, y propone SET o sistema; por barra no hay tope."""
+    cliente, app = api
+    wid, _ws = espacio(cliente, app)
+    medidores = [{'alimentador': f'F{i}', 'medidor': f'M{i}'} for i in range(1, 5)]
+    r = cliente.post(f'/api/workspaces/{wid}/demanda/cabecera/buscar', json={'medidores': medidores, 'coincidente': True})
+    assert r.status_code == 400 and 'SET' in r.json()['detail'] and 'sistema' in r.json()['detail']
+    r = cliente.post(f'/api/workspaces/{wid}/demanda/cabecera/buscar', json={'medidores': medidores, 'por_barra': True})
+    assert r.status_code == 202
+
+
+def test_dominio_las_centrales_no_cuentan_como_alimentadores(api, monkeypatch):
+    """070:RF-57 — los medidores de una central llevan su alimentador, y no son otro alimentador."""
+    monkeypatch.setattr(services, 'demanda_cabecera', lambda *_a, **_k: {'resultados': []})
+    cliente, app = api
+    wid, _ws = espacio(cliente, app)
+    medidores = [{'alimentador': f'F{i}', 'medidor': f'M{i}'} for i in range(1, 4)] + [
+        {'alimentador': 'Central F1', 'medidor': m} for m in ('G', 'L', 'S')]
+    assert cliente.post(f'/api/workspaces/{wid}/demanda/cabecera/buscar', json={'medidores': medidores, 'coincidente': True}).status_code == 202
+
+
+@pytest.mark.parametrize('tarea, datos', [
+    ('buscar_maxima', {'alimentadores': ['F1', 'F2', 'F3', 'F4']}),
+    ('alimentadores_completo', {'alimentadores': ['F1', 'F2', 'F3', 'F4'], 'periodo': '2026-07', 'ruta': 'D:/l'})])
+def test_dominio_tareas_con_mas_de_tres_proponen_set_o_sistema(entorno, monkeypatch, tarea, datos):
+    """070:RF-58 — se dice en el plan, con la alternativa: no se pregunta ni se trocea."""
+    from convertersmartgrid.web.workspace import WorkspaceStore
+
+    monkeypatch.setattr(services, 'medidores_por_alimentador', lambda _ws, a: {x: [f'M-{x}'] for x in a})
+    plan = _plan(tarea, datos)
+    operacion.requisitos(services, WorkspaceStore(entorno / 'w').create(), plan, {})
+    assert any('SET' in f and 'sistema' in f for f in plan.faltan)
+
+
+def test_dominio_sistema_web_rechaza_mas_de_tres(capsys):
+    """070:RF-57 — la herramienta también: antes del primer paso."""
+    import sys
+
+    sys.path.insert(0, str(RAIZ / 'tests'))
+    from apoyo import cargar_herramienta
+
+    h = cargar_herramienta('sistema_web.py', 'sistema_web_tope')
+
+    class SinWeb:
+        def __getattr__(self, _n):
+            pytest.fail('no debía llamar a la web')
+
+    codigo = h.correr(SinWeb(), None, demanda_dir=Path('l'), periodo='2026-07', reconvertir=False, transformadores=False,
+                      tension_pu=None, bancos=True, libros={'medidores': Path('m'), 'cabecera': Path('c')},
+                      red=['F1', 'F2', 'F3', 'F4'])
+    assert codigo == 2 and 'SET' in capsys.readouterr().out
+
+
+def _estructura_de_prueba():
+    from types import SimpleNamespace
+
+    return SimpleNamespace(zonales=['Valle'], sets={'SET 1': SimpleNamespace(zonal='Valle', codigo='SET 1')})
+
+
+def test_dominio_recalibrar_conserva_el_criterio_de_la_set(entorno, monkeypatch, tmp_path):
+    """070:RF-59 — un proyecto de SET se calibraba como alimentadores sueltos: ``SISTEMA_<zonal>_<set>`` no casaba."""
+    from types import SimpleNamespace
+
+    from convertersmartgrid.web.workspace import WorkspaceStore
+
+    ws = WorkspaceStore(entorno / 'w').create()
+    grupo = 'SISTEMA_VALLE_SET_1'
+    ws.pf_projects[grupo] = 'P_SET'
+    ws.groups[grupo] = {'tipo': 'sistema', 'feeders': ['F1', 'F2']}
+    ws.demanda['medidores'] = {'path': str(tmp_path / 'm.xlsx')}
+    monkeypatch.setattr(services, 'estructura_del_espacio', lambda _ws: _estructura_de_prueba())
+    datos = services.recalibrar_datos(ws, 'P_SET')
+    assert (datos['zonal'], datos['set']) == ('Valle', 'SET 1') and 'alimentadores' not in datos
+    comandos = []
+    ctx = SimpleNamespace(run_process=lambda cmd, **kw: comandos.append(cmd) or 0, job=SimpleNamespace(id='j'), log=lambda _m: None)
+    services.recalibrar_sistema(ws, ctx, 'P_SET', '2026-07')
+    cmd = comandos[0]
+    assert cmd[cmd.index('--zonal') + 1] == 'Valle' and cmd[cmd.index('--set') + 1] == 'SET 1' and '--red' not in cmd
+
+
+def test_dominio_recalibrar_un_sistema_sigue_igual(entorno, monkeypatch, tmp_path):
+    """070:RF-59 — los proyectos de sistema y de alimentadores no cambian (028:RF-24)."""
+    from convertersmartgrid.web.workspace import WorkspaceStore
+
+    ws = WorkspaceStore(entorno / 'w').create()
+    ws.pf_projects['SISTEMA_VALLE'] = 'P_SIS'
+    ws.groups['SISTEMA_VALLE'] = {'tipo': 'sistema', 'feeders': ['F1']}
+    ws.pf_projects['F9'] = 'P_UNO'
+    ws.demanda['medidores'] = {'path': str(tmp_path / 'm.xlsx')}
+    monkeypatch.setattr(services, 'estructura_del_espacio', lambda _ws: _estructura_de_prueba())
+    assert services.recalibrar_datos(ws, 'P_SIS')['zonal'] == 'Valle' and 'set' not in services.recalibrar_datos(ws, 'P_SIS')
+    assert services.recalibrar_datos(ws, 'P_UNO')['alimentadores'] == ['F9']
+
+
+def test_dominio_la_maxima_de_una_set_es_de_barra(api, monkeypatch):
+    """070:RF-60 — por barra y sin el instante común de 60 kV (RF-22 lo mide en el plan)."""
+    from convertersmartgrid.asistente.ejecutor import pasos
+
+    monkeypatch.setattr(services, 'estructura_resumen', lambda _ws: {'zonales': [
+        {'nombre': 'S1', 'alimentadores': ['F1'], 'sets_detalle': [{'codigo': 'SETA', 'alimentadores': ['F1']}]}]})
+    monkeypatch.setattr(services, 'medidores_por_alimentador', lambda _ws, a: {x: ['M'] for x in a})
+    cliente, app = api
+    wid, ws = espacio(cliente, app)
+    plan, extras = _plan('buscar_maxima', {'set': 'SETA'}), {}
+    operacion.requisitos(services, ws, plan, extras)
+    c = pasos('buscar_maxima', plan.datos, extras)[0].cuerpo
+    assert c['por_barra'] is True and c['sistema_60kv'] is False
+
+
+def test_dominio_transmision_no_se_calibra(api, monkeypatch):
+    """070:RF-61 — ni por la ruta ni desde el asistente: sirve para la cargabilidad de la SET (017:RF-68)."""
+    monkeypatch.setattr(services, 'es_proyecto_de_transmision', lambda p: p == 'P1')
+    cliente, app = api
+    wid, ws = espacio(cliente, app)
+    with pytest.raises(services.UserError, match='transmisión'):
+        services.ajuste_plan(ws, 'P1', [{'medidor': 'M1'}], '', .01)
+    for tarea, datos in (('calibrar', {'proyecto': 'P1'}), ('recalibrar', {'proyecto': 'P1', 'periodo': '2026-07'})):
+        plan = proponer(cliente, wid, monkeypatch, Modelo(tarea, **datos))['plan']
+        assert not plan['listo'] and any('transmisión' in f for f in plan['faltan']), tarea
+
+
+def test_dominio_transmision_sin_perfil_no_estorba(entorno):
+    """070:RF-61 — sin perfil no se supone ninguno (P13)."""
+    assert services.es_proyecto_de_transmision('P1') is False
+
+
+def test_dominio_la_conclusion_de_conexion_manda_al_decidir_obras():
+    """070:RF-54 — lo que decide es la conclusión de los tres casos (063:RF-8), no el resumen del Word."""
+    from convertersmartgrid.asistente.orquestador import _resumen
+
+    r = _resumen({'factible': True, 'informe': 'i.docx', 'conclusion_conexion': {'factible': False, 'clave': 'requiere_refuerzo'}})
+    assert r['factible'] is False and r['conclusion'] == 'requiere_refuerzo' and r['informe'] == 'i.docx'
