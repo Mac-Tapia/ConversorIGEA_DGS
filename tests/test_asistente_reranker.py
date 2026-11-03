@@ -138,6 +138,8 @@ def test_la_web_dice_los_metodos_en_el_texto(tmp_path, monkeypatch):
     monkeypatch.setattr(services, 'project_root', lambda: repo)
     monkeypatch.setattr('convertersmartgrid.asistente.ollama.cliente_configurado',
                         lambda: SimpleNamespace(modelos=lambda: None))
+    # El informe del repositorio adopta un reranker: esta prueba no debe cargarlo en la GPU.
+    monkeypatch.setattr(reranker, 'politica', lambda: {'hibrido': True, 'modelo': None, 'revision': None, 'motivo': ''})
     r = services.asistente_pregunta('¿cómo se reparte la medida de la barra?')
     assert r['sabe'] and r['citas'] and r['metodos'] == ['bm25'] and 'BM25' in r['texto']
     r = services.asistente_pregunta('receta de la tortilla de patatas')
