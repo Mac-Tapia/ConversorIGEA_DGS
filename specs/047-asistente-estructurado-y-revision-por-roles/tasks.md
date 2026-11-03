@@ -14,7 +14,7 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
       y están guardadas las evidencias adicionales descritas en T2 del plan.
       Evidencia: `docs/EVALUACION_RAG_047.json` (mmarco adoptado, MRR@10 0,786) y `docs/EVALUACION_ABSTENCION_047.json` (sellado: reranker cumple; híbrido 0,925 y BM25 0,950 de abstención). Cierre por la regla aceptada por el usuario el 2026-11-02 (plan, T2).
 
-- [ ] T3. Revisión por roles acotada y trazable. (RF-5, RF-6, RF-7)
+- [x] T3. Revisión por roles acotada y trazable. (RF-5, RF-6, RF-7)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_asistente_revision_roles.py tests/test_asistente_tareas.py tests/test_asistente_web.py` pasa
       y están guardadas las evidencias adicionales descritas en T3 del plan.
       Falta: la comparación rol único frente a equipo con un LLM real (`tools/asistente_comparar_revision.py --modelo <modelo> --salida <informe.json>`). Pide Ollama y su GPU.
@@ -29,6 +29,10 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
 
 - [x] T6. Auditar, materializar y evaluar 200 propuestas únicas, sin fuga y con puertas por alcance. (RF-13, RF-16, RF-17, RF-18)
       Hecho cuando: pruebas de `tests/test_aceptacion_agente.py` y regresiones de órdenes fijas/intérprete pasan; se ejecutan selección local de configuración y evaluación sellada de las 200 propuestas, con informe de métricas/errores/bloqueos y sin escrituras nativas.
+
+- [ ] T8. Que la revisión distinga una propuesta sana de una con defecto antes de autorizar nada. (RF-5, RF-6)
+      Hecho cuando: `tools/asistente_comparar_revision.py` sobre sus 12 casos da 0 falsas alarmas sin perder defectos, con el
+      informe en `docs/asistente/`, sin ajustar nada mirando esos casos (si hace falta, con un conjunto nuevo declarado antes de medir).
 
 ## Evidencia de ejecución
 
@@ -95,3 +99,5 @@ T1, T3 y T4, 2026-11-03, revisión base `ede5dc93`, sin GPU (`CUDA_VISIBLE_DEVIC
 Sin ejecutar o sin completar en esta revisión, por la GPU oculta: `tests/test_asistente_transformer.py` (exige CUDA; aquí solo cambió de dónde toma sus puertas, con el mismo valor) y `test_opcion_sin_pedirla_las_confirmadas_solo_examinan` de `tests/test_validacion_cruzada_ordenes.py` (violación de acceso en `codificador_ordenes.py:311`, igual en `integracion/065` sin este cambio; las otras 57 aprueban). No es la suite completa.
 
 T3, 2026-11-03, primera medición real, `qwen3:8b`: **no vale como evidencia**. Rol único 11 de 12 sin respuesta y equipo 12 de 12, con unos 505 de 512 tokens por intervención. Causa probable: el razonamiento del modelo agota el tope, sin confirmar con una respuesta capturada (`docs/regresiones/2026-11-03-revision-sin-respuesta-por-razonar.md`). La revisión pide ahora `think: false` y el informe guarda el motivo de cada respuesta no reconocida. T3 sigue abierta hasta repetir la medición.
+
+T3, 2026-11-03, segunda medición, `qwen3:8b` sin razonamiento (corrección 39844656): responden los 12 casos en los dos modos. Rol único: 6 de 6 defectos hallados, 0 perdidos y **6 falsas alarmas de 6 sanos**, 124 s. Equipo: lo mismo (6, 0, 6), 481 s y unas cuatro veces los tokens. Conclusión: la revisión no discrimina, marca defecto en todo, y el equipo no mejora al rol único. Informe en `docs/asistente/COMPARACION_REVISION_047.json`; `autoriza_ejecucion` es falso. La T3 queda medida; la discriminación es la T8.
