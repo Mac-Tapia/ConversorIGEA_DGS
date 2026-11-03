@@ -54,6 +54,7 @@ sin barra, y todos los bancos.
 - RF-12: EL SISTEMA aplicará estas reglas a cualquier fuente y distribuidora, sin ningún dato ni condición de una empresa.
 - RF-13: EL SISTEMA dejará una comprobación permanente que falle si una clase de elemento del modelo no entra en la red calculada.
 - RF-14: EL SISTEMA quedará contrastado con el flujo desequilibrado de DIgSILENT en un alimentador de cada fuente con fases, con un error medio de tensión de 0,5 puntos o menos.
+- RF-15: EL SISTEMA calculará cada regulador cerrado con la impedancia serie que le da DIgSILENT, en vez de como un interruptor.
 
 ## Fuera de alcance
 

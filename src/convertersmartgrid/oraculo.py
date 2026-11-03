@@ -65,6 +65,12 @@ PERDIDAS_SOSPECHOSAS_PCT = 15.0
 #: 082:RF-6: la red externa que pide ``runpp_3ph``. Una cabecera firme, como la ElmXnet del DGS.
 _RED_EXTERNA_3F = {'s_sc_max_mva': 1000.0, 'rx_max': 0.1, 'r0x0_max': 1.0, 'x0x_max': 1.0}
 
+#: 082:RF-15: ``uk`` que DIgSILENT da a un ``TypVoltreg`` que no lo dice, y que el DGS no escribe
+#: (leído en C+æ02, 2026-11-03). Con X = uk·Un/In, por fase, el oráculo da su misma P y Q.
+UK_REGULADOR_PCT = 0.3
+#: El tipo no tiene pérdidas (``pcu`` = 0); pandapower no admite R nula en una línea.
+_R_REGULADOR_OHM = 1e-6
+
 #: Longitud mínima para pandapower, que no admite líneas de 0 km. Solo afecta al
 #: cálculo del oráculo: el modelo y el DGS conservan la longitud de la fuente.
 _LONGITUD_MIN_KM = 1e-6
@@ -305,7 +311,21 @@ def red_pandapower(model: FeederModel, consigna_pu: float = 1.0, *, por_fases: b
             'aviso', 'maniobra_sin_tramo',
             f'{len(sin_tramo)} maniobra(s) de un tramo que no existe, sin efecto en el flujo: '
             + ', '.join(sin_tramo[:5])))
+    reguladores = 0
     for cp in model.couplers:
+        datos = cp.regulador
+        if datos is not None and float(datos.corriente_a or 0.0) > 0:
+            # 082:RF-15: un regulador no es un interruptor. En C+æ02 sus 3 consumían 0,23 Mvar en
+            # DIgSILENT, y sin ellos el oráculo erraba 0,92 puntos; con esta X, 0,00 (2026-11-03).
+            kv_reg = float(datos.nominal_kv or kv_de(cp.node_a))
+            x_reg = UK_REGULADOR_PCT / 100.0 * kv_reg * 1000.0 / math.sqrt(3.0) / float(datos.corriente_a)
+            pp.create_line_from_parameters(
+                net, barra[cp.node_a], barra[cp.node_b], 1.0, _R_REGULADOR_OHM, x_reg, 0.0,
+                float(datos.corriente_a) / 1000.0, name=cp.name, in_service=cp.on_off == 1,
+                **({'r0_ohm_per_km': _R_REGULADOR_OHM, 'x0_ohm_per_km': x_reg, 'c0_nf_per_km': 0.0}
+                   if por_fases else {}))
+            reguladores += 1
+            continue
         sw_bus.append(barra[cp.node_a]); sw_el.append(barra[cp.node_b])
         sw_et.append('b'); sw_closed.append(cp.on_off == 1); sw_name.append(cp.name)
     # Los tramos-conexión: abiertos si alguna maniobra de ese tramo lo está, como
@@ -389,13 +409,13 @@ def red_pandapower(model: FeederModel, consigna_pu: float = 1.0, *, por_fases: b
             + ', '.join(sorted(sin_potencia)[:5])))
 
     informe.barras = len(net.bus)
-    informe.lineas = len(net.line)
+    informe.lineas = len(net.line) - reguladores
     informe.transformadores = len(net.trafo)
     informe.cargas = len(net.load) + cargas_asimetricas
     informe.p_carga_mw = _p_carga(net)
     # 082:RF-3: se cuenta lo que entró, no lo que se quiso meter.
     informe.recuento = {
-        'tramos': {'modelo': len(model.lines), 'red': len(net.line) + len(conexiones)},
+        'tramos': {'modelo': len(model.lines), 'red': informe.lineas + len(conexiones)},
         'sed': {'modelo': len(model.seds), 'red': len(net.trafo)},
         'cargas': {'modelo': len(model.loads), 'red': informe.cargas},
         'bancos': {'modelo': len(model.capacitors), 'red': bancos_en_red},
