@@ -4851,6 +4851,50 @@ def gemelo_entrenar(ws: Workspace, ctx: JobContext, *, forzar: bool = False) -> 
     return {k: v for k, v in r.items() if k != 'traza'}
 
 
+def gemelo_pronostico(ws: Workspace, ctx: JobContext, pedido: dict[str, Any]) -> dict:
+    """Pronóstico de cabecera o de clientes fijos, en otro proceso que se puede cancelar (046:RF-23, RF-24).
+
+    Solo por petición expresa. El resultado es un artefacto con la marca ``pronostico``: no pasa
+    a la calibración, al «Caso base», a los informes ni a DIgSILENT (046:RF-20, RF-21). Entrenar en otro
+    proceso protege a la web de un fallo de memoria o de la GPU, como ``gemelo_entrenar``.
+    """
+    import sys
+
+    clase = str(pedido.get('clase') or '')
+    if clase not in ('cabecera', 'cliente'):
+        raise UserError('Indique la clase del pronóstico: cabecera o cliente.')
+    libros = [str(x) for x in pedido.get('libros') or []]
+    if not libros:
+        raise UserError('Indique el libro de la medición.')
+    zona, cadencia = str(pedido.get('zona_horaria') or ''), pedido.get('cadencia_min')
+    if not zona or not cadencia:
+        raise UserError('Indique la zona horaria y la cadencia de la medición: no se suponen.')
+    algoritmos = [str(a) for a in pedido.get('algoritmos') or
+                  ('ingenuo', 'estacional_semanal', 'gru', 'nhits', 'tft', 'patchtst')]
+    marca = uuid.uuid4().hex[:8]
+    report = ws.out_dir / f'pronostico_{clase}_{marca}.json'
+    report.parent.mkdir(parents=True, exist_ok=True)
+    cmd = [sys.executable, str(_script('digital_twin_temporal_entrenar.py')), '--comparar', ','.join(algoritmos),
+           '--clase', clase, '--zona-horaria', zona, '--cadencia-min', str(int(cadencia)),
+           '--raiz', str(ws.out_dir / f'pronostico_{clase}'), '--output-json', str(report)]
+    for libro in libros:
+        cmd += ['--libro', libro]
+    for alimentador, medidor in (pedido.get('pares') or {}).items():
+        cmd += ['--par', f'{alimentador}={medidor}']
+    for alimentador, c in (pedido.get('centrales') or {}).items():
+        cmd += ['--central', f"{alimentador}={c['generacion']},{c['llegada']},{c['salida']}"]
+    for cliente in pedido.get('clientes') or []:
+        cmd += ['--cliente', str(cliente)]
+    if pedido.get('horizontes'):
+        cmd += ['--horizontes', ','.join(str(int(h)) for h in pedido['horizontes'])]
+    rc = ctx.run_process(cmd, cwd=str(project_root()), env=_entorno_del_trabajo(ctx))
+    try:
+        return json.loads(report.read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return {'status': 'ERROR_ENTORNO', 'reason': f'el pronóstico terminó con el código {rc} sin informe',
+                'marca': 'pronostico', 'promovido': False}
+
+
 def gemelo_temporal(ws: Workspace, ctx: JobContext, job_id: str, alimentadores: dict[str, str], *,
                     barra: str | None = None, sin_medidor: dict[str, float] | None = None,
                     fijas_kw: dict[str, float] | None = None, perdidas_pct: float = 0.0,
@@ -4890,7 +4934,10 @@ def gemelo_temporal(ws: Workspace, ctx: JobContext, job_id: str, alimentadores: 
         reproducidas[a] = r
         resultado[a] = {'modelo': modelo.nombre, **metricas(s[corte:], r[corte:])}
         ctx.log(f"Gemelo temporal {a}: {resultado[a]['modelo']}, error {resultado[a]['mape_pct']:.1f} %")
-    out = {'alimentadores': resultado,
+    # 046:RF-25: la GRU ve la curva medida hasta el paso anterior; llamarlo pronóstico engañaría.
+    out = {'salida': 'reconstruccion_un_paso',
+           'aviso': 'Reconstrucción a un paso con lo medido: no es un pronóstico.',
+           'alimentadores': resultado,
            'desviaciones': desviaciones(medidas, reproducidas, instantes, umbral_pct)[:200],
            'instante_critico': instante_critico(medidas, instantes)}
     if barra and sin_medidor:

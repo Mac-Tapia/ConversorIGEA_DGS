@@ -156,6 +156,155 @@ class GemeloGRU:
         return out
 
 
+class GemeloGRUMultihorizonte:
+    """GRU global que da q05, q50 y q95 de cada paso del horizonte, solo en CUDA (046:RF-13, RF-15).
+
+    ``GemeloGRU`` reconstruye un paso adelante con la curva medida a la vista: no pronostica. Esta
+    emite toda la trayectoria desde lo conocido al emitir, y por eso compite con los demás. La
+    escala de cada objetivo sale solo de lo anterior al corte (046:RF-1).
+    """
+
+    algoritmo = 'gru'
+    requiere_gpu = True
+
+    def __init__(self, *, horizonte: int, cadencia_min: int, contexto_pasos: int | None = None, ocultas: int = 64,
+                 pasos: int = 1500, lote: int = 128, semilla: int = 0, paciencia: int = 8):
+        import torch
+
+        from .oraculo import dispositivo
+
+        self.torch, self.disp = torch, dispositivo()
+        self.horizonte, self.cadencia_min, self.ocultas = horizonte, cadencia_min, ocultas
+        self.contexto_pasos = contexto_pasos or 2 * 1440 // cadencia_min
+        self.pasos, self.lote, self.semilla, self.paciencia = pasos, lote, semilla, paciencia
+        self.escalas: dict[str, float] = {}
+        self.red = self._crear_red()
+
+    def _crear_red(self):
+        torch, horizonte, ocultas = self.torch, self.horizonte, self.ocultas
+        torch.manual_seed(self.semilla)
+
+        class Red(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.gru = torch.nn.GRU(5, ocultas, batch_first=True)
+                self.salida = torch.nn.Linear(ocultas, horizonte * 3)
+
+            def forward(self, x):
+                h, _ = self.gru(x)
+                return self.salida(h[:, -1, :]).view(-1, horizonte, 3)
+
+        return Red().to(self.disp)
+
+    def _perdida(self, salida, y):
+        q = self.torch.tensor((.05, .5, .95), device=self.disp)
+        error = y.unsqueeze(-1) - salida
+        return self.torch.maximum(q * error, (q - 1) * error).mean()
+
+    def _tensor(self, contextos: np.ndarray, calendario: np.ndarray):
+        x = np.concatenate((contextos[:, :, None], calendario), axis=2)
+        return self.torch.tensor(x, dtype=self.torch.float32, device=self.disp)
+
+    def ajustar(self, conjunto, fin_entrenamiento: int, horizonte: int, semilla: int) -> dict:
+        """Ventanas al azar de los tramos anteriores al corte; las últimas de cada tramo vigilan
+        la parada, para no gastar la partición de selección en ello."""
+        from .series_causales import tramos_observados
+
+        torch = self.torch
+        if horizonte != self.horizonte:
+            raise ValueError('el horizonte de ajuste no es el de la red')
+        self.semilla = semilla
+        self.red = self._crear_red()
+        rng = np.random.default_rng(semilla)
+        tam = self.contexto_pasos + horizonte
+        series, entrena, vigila = {}, [], []
+        for nombre in conjunto.nombres:
+            v = conjunto.valores[nombre][:fin_entrenamiento]
+            observado = v[np.isfinite(v)]
+            if not observado.size:
+                continue
+            self.escalas[nombre] = float(np.abs(observado).max()) or 1.0
+            series[nombre] = v / self.escalas[nombre]
+            for a, b in tramos_observados(v, fin_entrenamiento, minimo=tam):
+                inicios = [(nombre, i) for i in range(a, b - tam + 1)]
+                corte = max(len(inicios) - max(1, len(inicios) // 10), 1)
+                entrena += inicios[:corte]
+                vigila += inicios[corte:]
+        if not entrena:
+            raise ValueError('ningún tramo de entrenamiento llega al contexto más el horizonte')
+        calendario = conjunto.calendario
+
+        def tanda(muestras):
+            filas = [(series[n], i) for n, i in muestras]
+            ctx = np.stack([s[i:i + self.contexto_pasos] for s, i in filas])
+            cal = np.stack([calendario[i:i + self.contexto_pasos] for _s, i in filas])
+            y = np.stack([s[i + self.contexto_pasos:i + tam] for s, i in filas])
+            return self._tensor(ctx, cal), torch.tensor(y, dtype=torch.float32, device=self.disp)
+
+        if len(vigila) > 512:
+            vigila = [vigila[i] for i in rng.choice(len(vigila), 512, replace=False)]
+        xv, yv = tanda(vigila) if vigila else (None, None)
+        opt = torch.optim.Adam(self.red.parameters(), lr=1e-3)
+        mejor, mejor_estado, sin_mejora, hechos = float('inf'), None, 0, 0
+        for paso in range(self.pasos):
+            x, y = tanda([entrena[i] for i in rng.integers(0, len(entrena), self.lote)])
+            perdida = self._perdida(self.red(x), y)
+            opt.zero_grad()
+            perdida.backward()
+            torch.nn.utils.clip_grad_norm_(self.red.parameters(), 1.0)
+            opt.step()
+            hechos = paso + 1
+            if xv is None or (paso + 1) % 50:
+                continue
+            with torch.no_grad():
+                error = float(self._perdida(self.red(xv), yv))
+            if error < mejor - 1e-6:
+                mejor, sin_mejora = error, 0
+                mejor_estado = {k: t.detach().clone() for k, t in self.red.state_dict().items()}
+            else:
+                sin_mejora += 1
+                if sin_mejora >= self.paciencia:
+                    break
+        if mejor_estado is not None:
+            self.red.load_state_dict(mejor_estado)
+        self.red.eval()
+        return {'pasos': hechos, 'perdida_vigilancia': None if mejor == float('inf') else mejor}
+
+    def predecir(self, lote) -> np.ndarray:
+        torch = self.torch
+        contextos, calendario = lote.recorte(self.contexto_pasos)
+        escalas = np.array([self.escalas[o] for o in lote.objetivos]) if lote.n else np.zeros(0)
+        salida = np.zeros((lote.n, self.horizonte, 3))
+        for a in range(0, lote.n, 256):
+            b = min(a + 256, lote.n)
+            x = self._tensor(contextos[a:b] / escalas[a:b, None], calendario[a:b])
+            with torch.no_grad():
+                salida[a:b] = self.red(x).cpu().numpy() * escalas[a:b, None, None]
+        return np.sort(salida[:, :lote.horizonte], axis=-1)
+
+    def guardar(self, carpeta) -> None:
+        import json
+
+        carpeta.mkdir(parents=True, exist_ok=True)
+        self.torch.save({k: t.detach().cpu() for k, t in self.red.state_dict().items()}, carpeta / 'pesos.pt')
+        (carpeta / 'gru.json').write_text(json.dumps({
+            'cfg': {'horizonte': self.horizonte, 'cadencia_min': self.cadencia_min, 'contexto_pasos': self.contexto_pasos,
+                    'ocultas': self.ocultas, 'pasos': self.pasos, 'lote': self.lote, 'semilla': self.semilla,
+                    'paciencia': self.paciencia},
+            'escalas': self.escalas}), encoding='utf-8')
+
+    @classmethod
+    def reabrir(cls, carpeta) -> GemeloGRUMultihorizonte:
+        import json
+
+        datos = json.loads((carpeta / 'gru.json').read_text(encoding='utf-8'))
+        m = cls(**datos['cfg'])
+        m.escalas = datos['escalas']
+        m.red.load_state_dict(m.torch.load(carpeta / 'pesos.pt', weights_only=True, map_location=m.disp))
+        m.red.eval()
+        return m
+
+
 def metricas(medida: Sequence[float], reproducida: Sequence[float]) -> dict[str, float]:
     """Error del gemelo frente a lo medido, donde hay las dos (RF-20)."""
     m, r = np.asarray(medida, dtype=float), np.asarray(reproducida, dtype=float)

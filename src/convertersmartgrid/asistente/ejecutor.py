@@ -155,6 +155,10 @@ def _pasos(tarea: str, datos: Mapping[str, Any], extras: Mapping[str, Any]) -> l
     if tarea == 'gemelo_entrenar':
         return [Paso('reentrenar la PINN', 'POST', '/digital-twin/entrenar', {'forzar': True})]
     if tarea == 'gemelo_temporal':
+        # 046:RF-23: el pronóstico solo con su formulario; por defecto sigue la reconstrucción del mes.
+        if extras.get('pronostico'):
+            return [Paso('pronóstico de demanda', 'POST', '/digital-twin/temporal',
+                         {**extras['pronostico'], 'modo': 'pronostico'})]
         maxima = extras.get('ultima_maxima') or {}
         pares = {r['alimentador']: r['medidor'] for r in (maxima.get('result') or {}).get('resultados') or []
                  if r.get('alimentador') and not r.get('error') and (not feeders or r['alimentador'] in feeders)}

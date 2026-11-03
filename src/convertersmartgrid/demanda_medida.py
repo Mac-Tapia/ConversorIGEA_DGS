@@ -30,7 +30,7 @@ import math
 import re
 import unicodedata
 from dataclasses import asdict, dataclass, field, fields, replace
-from datetime import date, datetime
+from datetime import date, datetime, time
 from pathlib import Path
 from typing import Any, Callable, Iterable, Literal, Mapping, Sequence
 
@@ -1435,6 +1435,96 @@ class ClienteImportante:
         return asdict(self)
 
 
+def _hojas_de_maestro(libro: Any, path: Path | str) -> tuple[list[tuple[str, str]], list[str]]:
+    """``(suministro, hoja)`` de «maestro_lib», y el aviso si no se entiende (004:RF-66)."""
+    maestro = next((h for h in libro.sheet_names if normalizar(h) == 'maestro lib'), None)
+    if maestro is None:
+        return [], []
+    filas = _filas(libro, maestro)
+    cab = next((i for i, f in enumerate(filas[:FILAS_CABECERA])
+                if {'numero suministro', 'nombre hoja exportacion'} <= {normalizar(c) for c in f}), None)
+    if cab is None:
+        return [], [f'{Path(path).name} › {maestro}: sin «numero_suministro» ni «nombre_hoja_exportacion».']
+    norm = [normalizar(c) for c in filas[cab]]
+    i_sum, i_hoja = norm.index('numero suministro'), norm.index('nombre hoja exportacion')
+    return [(_texto(f, i_sum), _texto(f, i_hoja)) for f in filas[cab + 1:]
+            if _texto(f, i_sum) and _texto(f, i_hoja)], []
+
+
+def _instante_de_hoja(fecha: Any, hora: Any) -> datetime | None:
+    """FECHA y HORA de una hoja de cliente: en los libros reales vienen como texto
+    («01/06/2026», «00:15»), y otras exportaciones las dan como fecha y hora."""
+    dia = fecha.date() if isinstance(fecha, datetime) else fecha
+    if isinstance(dia, str):
+        try:
+            dia = datetime.strptime(dia.strip()[:10], '%d/%m/%Y').date()
+        except ValueError:
+            return None
+    if isinstance(hora, datetime):
+        hora = hora.time()
+    if isinstance(hora, str):
+        try:
+            hora = datetime.strptime(hora.strip()[:5], '%H:%M').time()
+        except ValueError:
+            return None
+    if not isinstance(dia, date) or not isinstance(hora, time):
+        return None
+    return datetime.combine(dia, hora)
+
+
+def curvas_de_clientes(path: Path | str, codigos: Iterable[str] | None = None,
+                       ) -> tuple[dict[str, list[tuple[datetime, float, float | None]]], list[str]]:
+    """La curva ``(fecha, kW = EA × 4, kVAR = ERI × 4)`` de cada cliente libre (046:RF-11).
+
+    Es la misma hoja de 15 minutos que da su POT en ``registros_de_maxima`` (004:RF-66). Un
+    registro sin EA o sin fecha no entra en la curva, y se cuenta en el aviso: dibujarlo como
+    cero parecería un corte de suministro. El libro de mayo de 2026 no trae «maestro_lib», pero
+    cada hoja dice su SUMINISTRO: entonces el código sale de ella, y si tampoco, se dice.
+    """
+    libro = _abrir(path)
+    pares, avisos = _hojas_de_maestro(libro, path)
+    con_maestro = bool(pares or avisos)
+    pedidos = None if codigos is None else {clave_codigo(c) for c in codigos}
+    out: dict[str, list[tuple[datetime, float, float | None]]] = {}
+    for codigo, hoja in pares or [('', h) for h in libro.sheet_names if not con_maestro]:
+        if codigo and pedidos is not None and clave_codigo(codigo) not in pedidos:
+            continue
+        if hoja not in libro.sheet_names:
+            avisos.append(f'{codigo}: la hoja «{hoja}» del maestro no está en {Path(path).name}.')
+            continue
+        datos = _filas(libro, hoja)
+        cab, cols = next(((i, {n: j for j, n in enumerate(normalizar(c) for c in f)})
+                          for i, f in enumerate(datos[:FILAS_CABECERA])
+                          if {'fecha', 'hora', 'ea'} <= {normalizar(c) for c in f}), (None, None))
+        if cols is None:
+            if codigo:
+                avisos.append(f'{codigo}: la hoja «{hoja}» no tiene FECHA, HORA y EA.')
+            continue
+        if not codigo:
+            propios = {_texto(f, cols['suministro']) for f in datos[cab + 1:]} - {''} if 'suministro' in cols else set()
+            if len(propios) != 1:
+                continue
+            codigo = propios.pop()
+            if pedidos is not None and clave_codigo(codigo) not in pedidos:
+                continue
+        curva, fuera = [], 0
+        for f in datos[cab + 1:]:
+            t = _instante_de_hoja(_celda(f, cols['fecha']), _celda(f, cols['hora']))
+            ea = numero(_celda(f, cols['ea']))
+            if t is None or ea is None:
+                fuera += 1
+                continue
+            eri = numero(_celda(f, cols['eri'])) if 'eri' in cols else None
+            curva.append((t, ea * 4.0, None if eri is None else eri * 4.0))
+        if fuera:
+            avisos.append(f'{codigo}: {fuera} registro(s) de la hoja «{hoja}» sin fecha o sin EA.')
+        curva.sort(key=lambda p: p[0])
+        out[codigo] = curva
+    if not con_maestro and not out and pedidos is None:
+        avisos.append(f'{Path(path).name}: sin «maestro_lib» ni hojas con SUMINISTRO, FECHA, HORA y EA.')
+    return out, avisos
+
+
 def registros_de_maxima(path: Path | str, pot_de: Mapping[str, float | None],
                         instante: datetime | None = None, *, solo_instante: bool = False,
                         ) -> tuple[dict[str, tuple[str, float, float | None] | None], list[str]]:
@@ -1457,19 +1547,8 @@ def registros_de_maxima(path: Path | str, pot_de: Mapping[str, float | None],
     decirlo. El que no tiene hoja no está, como siempre: con los dos criterios va con su EA/ERI.
     """
     libro = _abrir(path)
-    avisos: list[str] = []
-    maestro = next((h for h in libro.sheet_names if normalizar(h) == 'maestro lib'), None)
-    if maestro is None:
-        return {}, []
-    filas = _filas(libro, maestro)
-    cab = next((i for i, f in enumerate(filas[:FILAS_CABECERA])
-                if {'numero suministro', 'nombre hoja exportacion'} <= {normalizar(c) for c in f}), None)
-    if cab is None:
-        return {}, [f'{Path(path).name} › {maestro}: sin «numero_suministro» ni «nombre_hoja_exportacion».']
-    norm = [normalizar(c) for c in filas[cab]]
-    i_sum, i_hoja = norm.index('numero suministro'), norm.index('nombre hoja exportacion')
-    hoja_de = {clave_codigo(_texto(f, i_sum)): _texto(f, i_hoja) for f in filas[cab + 1:]
-               if _texto(f, i_sum) and _texto(f, i_hoja)}
+    pares, avisos = _hojas_de_maestro(libro, path)
+    hoja_de = {clave_codigo(codigo): hoja for codigo, hoja in pares}
     out: dict[str, tuple[str, float, float | None] | None] = {}
     for codigo, pot in pot_de.items():
         hoja = hoja_de.get(clave_codigo(codigo))

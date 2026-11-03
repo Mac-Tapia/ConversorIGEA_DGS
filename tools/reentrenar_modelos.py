@@ -80,6 +80,20 @@ def _subproceso(comando: list[str], reporte: Path, modelo: str, *, cwd: Path = R
     return resultado
 
 
+def orden_temporal(args, reporte: Path, algoritmo: str) -> list[str]:
+    """046:RF-13: el candidato compite con las referencias y la GRU; nunca se sustituye por GRU."""
+    cmd = [sys.executable, str(REPO / 'tools' / 'digital_twin_temporal_entrenar.py'),
+           '--comparar', f'ingenuo,estacional_semanal,gru,{algoritmo}', '--libro', str(args.cabeceras),
+           '--clase', args.clase_temporal, '--raiz', str(args.twin), '--output-json', str(reporte),
+           '--semillas', args.semillas, '--cadencia-min', str(args.cadencia_temporal),
+           '--zona-horaria', str(args.zona_horaria)]
+    for par in args.pares_temporales or ():
+        cmd += ['--par', par]
+    for cliente in args.clientes_temporales or ():
+        cmd += ['--cliente', cliente]
+    return cmd
+
+
 def _etapas(args, run_dir: Path):
     from convertersmartgrid.training_coordinator import TrainingStage
 
@@ -220,6 +234,10 @@ def main(argv=None) -> int:
     run.add_argument('--hoja-temporal',dest='hojas_temporales',action='append',default=[],help='Hoja de medidor para la etapa GRU; repetible')
     run.add_argument('--temporal-desde',help='Inicio ISO inclusivo del alcance GRU')
     run.add_argument('--temporal-hasta',help='Fin ISO exclusivo del alcance GRU')
+    run.add_argument('--clase-temporal',choices=('cabecera','cliente'),default='cabecera',help='Objetivos de N-HiTS, TFT o PatchTST')
+    run.add_argument('--cadencia-temporal',type=int,help='Cadencia declarada de la medición para N-HiTS, TFT o PatchTST')
+    run.add_argument('--par-temporal',dest='pares_temporales',action='append',default=[],help='alimentador=medidor; repetible')
+    run.add_argument('--cliente-temporal',dest='clientes_temporales',action='append',default=[],help='Código de suministro; repetible')
     run.add_argument('--llm-dataset',type=Path,help='Corpus generativo sellado de 047 T7, distinto del dataset v2')
     run.add_argument('--semillas', default='11,23,37,53,71')
     run.add_argument('--embedding-model', default='intfloat/multilingual-e5-base')
@@ -273,9 +291,11 @@ def main(argv=None) -> int:
         etapas = [etapa for etapa in etapas if etapa.name == familia]
     if experimento and experimento.algoritmo in {'nhits', 'tft', 'patchtst'}:
         from convertersmartgrid.training_coordinator import TrainingStage
-        etapas = [TrainingStage('gru', lambda: {'status': 'ERROR_ENTORNO',
-            'reason': f'adaptador {experimento.algoritmo} pendiente de spec 046; no se sustituye por GRU'},
-            uses_gpu=False)]
+        if not args.cabeceras or not args.zona_horaria or not args.cadencia_temporal:
+            p.error(f'{experimento.algoritmo} necesita --cabeceras, --zona-horaria y --cadencia-temporal')
+        reporte_temporal = run_dir / f'{experimento.algoritmo}.json'
+        orden = orden_temporal(args, reporte_temporal, experimento.algoritmo)
+        etapas = [TrainingStage('gru', lambda: _subproceso(orden, reporte_temporal, 'gru'))]
     entradas = {}
     for nombre in ('dataset', 'vocabulario', 'twin', 'cabeceras','llm_dataset'):
         ruta = getattr(args, nombre)
