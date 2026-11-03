@@ -48,7 +48,8 @@ Ingeniero de planificación de cualquier distribuidora, desde la web; el asisten
 
 ### Mercado y años
 
-- RF-10: EL SISTEMA proyectará la demanda con 031/046, y la tasa de 029 será la referencia que deben superar.
+- RF-10: EL SISTEMA proyectará la demanda anual con el método que gane contra lo ocurrido; la tasa de 029 será la referencia
+  que debe superar. La spec 046 es de corto plazo y no alcanza estos horizontes; las variables exógenas son de la 031.
 - RF-11: DONDE haya entregables históricos con datos, EL SISTEMA medirá el pronóstico contra lo ocurrido, sin mirar el futuro.
 - RF-12: EL SISTEMA trasladará cada caso de estudio a cada año (030) y acumulará en cada año las obras de los anteriores.
 

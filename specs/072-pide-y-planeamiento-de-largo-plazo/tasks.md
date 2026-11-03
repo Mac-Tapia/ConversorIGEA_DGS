@@ -11,8 +11,13 @@
       Hecho cuando: el fichero de la resolución está ubicado y una obra de transmisión se valora con él.
 - [x] T4 Metrados desde la red. (RF-15)
       Hecho cuando: los metrados de un alimentador real cuadran con sus longitudes.
-- [ ] T5 Proyección de mercado y prueba contra lo ocurrido. (RF-10, RF-11)
+- [x] T5 Proyección de mercado y prueba contra lo ocurrido. (RF-10, RF-11)
       Hecho cuando: medida contra la tasa de 029 en una prueba sin mirar el futuro.
+      Medido el 2026-11-02 con el Formato 01 de `PIDE 2026` de Electro Oriente (energía 2015-2025): 53 sistemas son 9 perfiles
+      distintos. Mediana de error a 1, 4 y 8 años: tasa media 3,55/5,92/6,28 %; tendencia 4,58/6,24/6,41 %; tasa de un año
+      (referencia) 4,93/7,98/9,40 %; sin crecimiento 4,70/9,30/12,21 %. Corte 2021 → 2025, sobre las 53 series: 12,5 % la tasa
+      media y 15,8 % la referencia. Pocos perfiles y una sola empresa: orienta, no generaliza. Faltan variables exógenas (031)
+      y la máxima por SET y alimentador.
 - [ ] T6 Obras acumuladas por año. (RF-12)
       Hecho cuando: en DIgSILENT, sobre un proyecto de prueba, cada año conserva las obras de los anteriores.
 - [ ] T7 Evaluación con y sin proyecto, y F01 a F15. (RF-13, RF-14, RF-16)
